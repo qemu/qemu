@@ -4,14 +4,20 @@
 
 //! Bindings to create devices and access device functionality from Rust.
 
-use std::{ffi::CStr, ptr::NonNull};
+use std::{
+    ffi::{CStr, CString},
+    os::raw::c_void,
+    ptr::NonNull,
+};
 
-pub use bindings::{DeviceClass, DeviceState, Property};
+pub use bindings::{Clock, ClockEvent, DeviceClass, DeviceState, Property};
 
 use crate::{
     bindings::{self, Error},
+    callbacks::FnCall,
+    cell::bql_locked,
     prelude::*,
-    qom::{ClassInitImpl, ObjectClass},
+    qom::{ClassInitImpl, ObjectClass, Owned},
     vmstate::VMStateDescription,
 };
 
@@ -143,3 +149,98 @@ unsafe impl ObjectType for DeviceState {
         unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_DEVICE) };
 }
 qom_isa!(DeviceState: Object);
+
+/// Trait for methods exposed by the [`DeviceState`] class.  The methods can be
+/// called on all objects that have the trait `IsA<DeviceState>`.
+///
+/// The trait should only be used through the blanket implementation,
+/// which guarantees safety via `IsA`.
+pub trait DeviceMethods: ObjectDeref
+where
+    Self::Target: IsA<DeviceState>,
+{
+    /// Add an input clock named `name`.  Invoke the callback with
+    /// `self` as the first parameter for the events that are requested.
+    ///
+    /// The resulting clock is added as a child of `self`, but it also
+    /// stays alive until after `Drop::drop` is called because C code
+    /// keeps an extra reference to it until `device_finalize()` calls
+    /// `qdev_finalize_clocklist()`.  Therefore (unlike most cases in
+    /// which Rust code has a reference to a child object) it would be
+    /// possible for this function to return a `&Clock` too.
+    #[inline]
+    fn init_clock_in<F: for<'a> FnCall<(&'a Self::Target, ClockEvent)>>(
+        &self,
+        name: &str,
+        _cb: &F,
+        events: ClockEvent,
+    ) -> Owned<Clock> {
+        fn do_init_clock_in(
+            dev: *mut DeviceState,
+            name: &str,
+            cb: Option<unsafe extern "C" fn(*mut c_void, ClockEvent)>,
+            events: ClockEvent,
+        ) -> Owned<Clock> {
+            assert!(bql_locked());
+
+            // SAFETY: the clock is heap allocated, but qdev_init_clock_in()
+            // does not gift the reference to its caller; so use Owned::from to
+            // add one.  The callback is disabled automatically when the clock
+            // is unparented, which happens before the device is finalized.
+            unsafe {
+                let cstr = CString::new(name).unwrap();
+                let clk = bindings::qdev_init_clock_in(
+                    dev,
+                    cstr.as_ptr(),
+                    cb,
+                    dev.cast::<c_void>(),
+                    events.0,
+                );
+
+                Owned::from(&*clk)
+            }
+        }
+
+        let cb: Option<unsafe extern "C" fn(*mut c_void, ClockEvent)> = if F::is_some() {
+            unsafe extern "C" fn rust_clock_cb<T, F: for<'a> FnCall<(&'a T, ClockEvent)>>(
+                opaque: *mut c_void,
+                event: ClockEvent,
+            ) {
+                // SAFETY: the opaque is "this", which is indeed a pointer to T
+                F::call((unsafe { &*(opaque.cast::<T>()) }, event))
+            }
+            Some(rust_clock_cb::<Self::Target, F>)
+        } else {
+            None
+        };
+
+        do_init_clock_in(self.as_mut_ptr(), name, cb, events)
+    }
+
+    /// Add an output clock named `name`.
+    ///
+    /// The resulting clock is added as a child of `self`, but it also
+    /// stays alive until after `Drop::drop` is called because C code
+    /// keeps an extra reference to it until `device_finalize()` calls
+    /// `qdev_finalize_clocklist()`.  Therefore (unlike most cases in
+    /// which Rust code has a reference to a child object) it would be
+    /// possible for this function to return a `&Clock` too.
+    #[inline]
+    fn init_clock_out(&self, name: &str) -> Owned<Clock> {
+        unsafe {
+            let cstr = CString::new(name).unwrap();
+            let clk = bindings::qdev_init_clock_out(self.as_mut_ptr(), cstr.as_ptr());
+
+            Owned::from(&*clk)
+        }
+    }
+}
+
+impl<R: ObjectDeref> DeviceMethods for R where R::Target: IsA<DeviceState> {}
+
+unsafe impl ObjectType for Clock {
+    type Class = ObjectClass;
+    const TYPE_NAME: &'static CStr =
+        unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_CLOCK) };
+}
+qom_isa!(Clock: Object);
