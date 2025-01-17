@@ -39,6 +39,8 @@ Before running tests, it is best to build QEMU programs first. Some tests
 expect the executables to exist and will fail with obscure messages if they
 cannot find them.
 
+.. _unit-tests:
+
 Unit tests
 ~~~~~~~~~~
 
@@ -126,6 +128,8 @@ successfully on various hosts. The following list shows some best practices:
   #ifdef in the codes. If the whole test suite cannot run on Windows, disable
   the build in the meson.build file.
 
+.. _qapi-tests:
+
 QAPI schema tests
 ~~~~~~~~~~~~~~~~~
 
@@ -159,6 +163,8 @@ check-block
 ``make check-block`` runs a subset of the block layer iotests (the tests that
 are in the "auto" group).
 See the "QEMU iotests" section below for more information.
+
+.. _qemu-iotests:
 
 QEMU iotests
 ------------
@@ -679,6 +685,8 @@ The above exitcode=0 has TSan continue without error if any warnings are found.
 This allows for running the test and then checking the warnings afterwards.
 If you want TSan to stop and exit with error on warnings, use exitcode=66.
 
+.. _tsan-suppressions:
+
 TSan Suppressions
 ~~~~~~~~~~~~~~~~~
 Keep in mind that for any data race warning, although there might be a data race
@@ -900,7 +908,6 @@ You can run the avocado tests simply by executing:
   make check-avocado
 
 See :ref:`checkavocado-ref` for more details.
-
 
 .. _checktcg-ref:
 
