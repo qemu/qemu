@@ -12,9 +12,10 @@ use std::{
 use qemu_api::{
     bindings::{
         error_fatal, hwaddr, memory_region_init_io, qdev_init_clock_in, qdev_new,
-        qdev_prop_set_chr, qemu_chr_fe_ioctl, qemu_chr_fe_set_handlers, qemu_chr_fe_write_all,
-        qemu_irq, sysbus_connect_irq, sysbus_mmio_map, sysbus_realize_and_unref, CharBackend,
-        Chardev, Clock, ClockEvent, MemoryRegion, QEMUChrEvent, CHR_IOCTL_SERIAL_SET_BREAK,
+        qdev_prop_set_chr, qemu_chr_fe_accept_input, qemu_chr_fe_ioctl, qemu_chr_fe_set_handlers,
+        qemu_chr_fe_write_all, qemu_irq, sysbus_connect_irq, sysbus_mmio_map,
+        sysbus_realize_and_unref, CharBackend, Chardev, Clock, ClockEvent, MemoryRegion,
+        QEMUChrEvent, CHR_IOCTL_SERIAL_SET_BREAK,
     },
     c_str, impl_vmstate_forward,
     irq::InterruptSource,
@@ -528,30 +529,32 @@ impl PL011State {
         }
     }
 
-    #[allow(clippy::needless_pass_by_ref_mut)]
-    pub fn read(&mut self, offset: hwaddr, _size: u32) -> ControlFlow<u64, u64> {
+    pub fn read(&mut self, offset: hwaddr, _size: u32) -> u64 {
         let mut update_irq = false;
         let result = match RegisterOffset::try_from(offset) {
             Err(v) if (0x3f8..0x400).contains(&(v >> 2)) => {
                 let device_id = self.get_class().device_id;
-                ControlFlow::Break(u64::from(device_id[(offset - 0xfe0) >> 2]))
+                u32::from(device_id[(offset - 0xfe0) >> 2])
             }
             Err(_) => {
                 // qemu_log_mask(LOG_GUEST_ERROR, "pl011_read: Bad offset 0x%x\n", (int)offset);
-                ControlFlow::Break(0)
+                0
             }
             Ok(field) => match self.regs.borrow_mut().read(field) {
-                ControlFlow::Break(value) => ControlFlow::Break(value.into()),
+                ControlFlow::Break(value) => value,
                 ControlFlow::Continue(value) => {
                     update_irq = true;
-                    ControlFlow::Continue(value.into())
+                    value
                 }
             },
         };
         if update_irq {
             self.update();
+            unsafe {
+                qemu_chr_fe_accept_input(&mut self.char_backend);
+            }
         }
-        result
+        result.into()
     }
 
     pub fn write(&mut self, offset: hwaddr, value: u64) {

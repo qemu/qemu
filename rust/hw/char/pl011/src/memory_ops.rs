@@ -24,25 +24,11 @@ pub static PL011_OPS: MemoryRegionOps = MemoryRegionOps {
 };
 
 unsafe extern "C" fn pl011_read(opaque: *mut c_void, addr: hwaddr, size: c_uint) -> u64 {
-    assert!(!opaque.is_null());
     let mut state = NonNull::new(opaque).unwrap().cast::<PL011State>();
-    let val = unsafe { state.as_mut().read(addr, size) };
-    match val {
-        std::ops::ControlFlow::Break(val) => val,
-        std::ops::ControlFlow::Continue(val) => {
-            // SAFETY: self.char_backend is a valid CharBackend instance after it's been
-            // initialized in realize().
-            let cb_ptr = unsafe { core::ptr::addr_of_mut!(state.as_mut().char_backend) };
-            unsafe {
-                qemu_chr_fe_accept_input(cb_ptr);
-            }
-
-            val
-        }
-    }
+    unsafe { state.as_mut() }.read(addr, size)
 }
 
 unsafe extern "C" fn pl011_write(opaque: *mut c_void, addr: hwaddr, data: u64, _size: c_uint) {
     let mut state = NonNull::new(opaque).unwrap().cast::<PL011State>();
-    unsafe { state.as_mut().write(addr, data) }
+    unsafe { state.as_mut() }.write(addr, data);
 }
