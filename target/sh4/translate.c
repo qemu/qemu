@@ -695,14 +695,8 @@ static void _decode_opc(DisasContext * ctx)
         tcg_gen_add_i32(REG(B11_8), REG(B11_8), REG(B7_4));
         return;
     case 0x300e: /* addc Rm,Rn */
-        {
-            TCGv t0, t1;
-            t0 = tcg_constant_tl(0);
-            t1 = tcg_temp_new();
-            tcg_gen_add2_i32(t1, cpu_sr_t, cpu_sr_t, t0, REG(B7_4), t0);
-            tcg_gen_add2_i32(REG(B11_8), cpu_sr_t,
-                             REG(B11_8), t0, t1, cpu_sr_t);
-        }
+        tcg_gen_addcio_i32(REG(B11_8), cpu_sr_t,
+                           REG(B11_8), REG(B7_4), cpu_sr_t);
         return;
     case 0x300f: /* addv Rm,Rn */
         {
