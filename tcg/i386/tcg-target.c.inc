@@ -2670,10 +2670,50 @@ static const TCGOutOpBinary outop_addcio = {
     .out_rri = tgen_addcio_imm,
 };
 
+static void tgen_addci_rrr(TCGContext *s, TCGType type,
+                           TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    /* Because "0O" is not a valid constraint, we must match ourselves. */
+    if (a0 == a2) {
+        tgen_addcio(s, type, a0, a0, a1);
+    } else {
+        tcg_out_mov(s, type, a0, a1);
+        tgen_addcio(s, type, a0, a0, a2);
+    }
+}
+
+static void tgen_addci_rri(TCGContext *s, TCGType type,
+                           TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tcg_out_mov(s, type, a0, a1);
+    tgen_addcio_imm(s, type, a0, a0, a2);
+}
+
+static void tgen_addci_rir(TCGContext *s, TCGType type,
+                           TCGReg a0, tcg_target_long a1, TCGReg a2)
+{
+    tgen_addci_rri(s, type, a0, a2, a1);
+}
+
+static void tgen_addci_rii(TCGContext *s, TCGType type, TCGReg a0,
+                           tcg_target_long a1, tcg_target_long a2)
+{
+    if (a2 == 0) {
+        /* Implement 0 + 0 + C with -(x - x - c). */
+        tgen_arithr(s, ARITH_SBB, a0, a0);
+        tcg_out_modrm(s, OPC_GRP3_Ev, EXT3_NEG, a0);
+    } else {
+        tcg_out_movi(s, type, a0, a2);
+        tgen_addcio_imm(s, type, a0, a0, a1);
+    }
+}
+
 static const TCGOutOpAddSubCarry outop_addci = {
-    .base.static_constraint = C_O1_I2(r, 0, re),
-    .out_rrr = tgen_addcio,
-    .out_rri = tgen_addcio_imm,
+    .base.static_constraint = C_O1_I2(r, rO, re),
+    .out_rrr = tgen_addci_rrr,
+    .out_rri = tgen_addci_rri,
+    .out_rir = tgen_addci_rir,
+    .out_rii = tgen_addci_rii,
 };
 
 static void tcg_out_set_carry(TCGContext *s)
