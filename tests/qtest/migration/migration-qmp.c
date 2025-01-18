@@ -464,7 +464,7 @@ void migrate_continue(QTestState *who, const char *state)
 void migrate_recover(QTestState *who, const char *uri)
 {
     qtest_qmp_assert_success(who,
-                             "{ 'execute': 'migrate-recover', "
+                             "{ 'exec-oob': 'migrate-recover', "
                              "  'id': 'recover-cmd', "
                              "  'arguments': { 'uri': %s } }",
                              uri);
