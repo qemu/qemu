@@ -43,6 +43,7 @@
 #define TCG_CT_CONST_INVRISBG   (1 << 14)
 #define TCG_CT_CONST_CMP        (1 << 15)
 #define TCG_CT_CONST_M1         (1 << 16)
+#define TCG_CT_CONST_N32        (1 << 17)
 
 #define ALL_GENERAL_REGS     MAKE_64BIT_MASK(0, 16)
 #define ALL_VECTOR_REGS      MAKE_64BIT_MASK(32, 32)
@@ -613,7 +614,10 @@ static bool tcg_target_const_match(int64_t val, int ct,
     if ((ct & TCG_CT_CONST_S32) && val == (int32_t)val) {
         return true;
     }
-    if ((ct & TCG_CT_CONST_U32) && val == (uint32_t)val) {
+    if ((ct & TCG_CT_CONST_U32) && uval <= UINT32_MAX) {
+        return true;
+    }
+    if ((ct & TCG_CT_CONST_N32) && -uval <= UINT32_MAX) {
         return true;
     }
     if ((ct & TCG_CT_CONST_S16) && val == (int16_t)val) {
@@ -3548,7 +3552,7 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 
     case INDEX_op_add2_i64:
     case INDEX_op_sub2_i64:
-        return C_N1_O1_I4(r, r, 0, 1, rJU, r);
+        return C_N1_O1_I4(r, r, 0, 1, rUV, r);
 
     case INDEX_op_st_vec:
         return C_O0_I2(v, r);
