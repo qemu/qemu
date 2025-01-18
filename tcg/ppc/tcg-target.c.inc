@@ -89,14 +89,15 @@
 /* Shorthand for size of a register.  */
 #define SZR  (TCG_TARGET_REG_BITS / 8)
 
-#define TCG_CT_CONST_S16  0x100
-#define TCG_CT_CONST_U16  0x200
-#define TCG_CT_CONST_S32  0x400
-#define TCG_CT_CONST_U32  0x800
-#define TCG_CT_CONST_ZERO 0x1000
-#define TCG_CT_CONST_MONE 0x2000
-#define TCG_CT_CONST_WSZ  0x4000
-#define TCG_CT_CONST_CMP  0x8000
+#define TCG_CT_CONST_S16     0x00100
+#define TCG_CT_CONST_U16     0x00200
+#define TCG_CT_CONST_N16     0x00400
+#define TCG_CT_CONST_S32     0x00800
+#define TCG_CT_CONST_U32     0x01000
+#define TCG_CT_CONST_ZERO    0x02000
+#define TCG_CT_CONST_MONE    0x04000
+#define TCG_CT_CONST_WSZ     0x08000
+#define TCG_CT_CONST_CMP     0x10000
 
 #define ALL_GENERAL_REGS  0xffffffffu
 #define ALL_VECTOR_REGS   0xffffffff00000000ull
@@ -340,6 +341,9 @@ static bool tcg_target_const_match(int64_t sval, int ct,
         return 1;
     }
     if ((ct & TCG_CT_CONST_U16) && uval == (uint16_t)uval) {
+        return 1;
+    }
+    if ((ct & TCG_CT_CONST_N16) && -sval == (int16_t)-sval) {
         return 1;
     }
     if ((ct & TCG_CT_CONST_S32) && sval == (int32_t)sval) {
@@ -2863,21 +2867,69 @@ static const TCGOutOpBinary outop_add = {
     .out_rri = tgen_addi,
 };
 
+static void tgen_addco_rrr(TCGContext *s, TCGType type,
+                           TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out32(s, ADDC | TAB(a0, a1, a2));
+}
+
+static void tgen_addco_rri(TCGContext *s, TCGType type,
+                           TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tcg_out32(s, ADDIC | TAI(a0, a1, a2));
+}
+
+static TCGConstraintSetIndex cset_addco(TCGType type, unsigned flags)
+{
+    /*
+     * Note that the CA bit is defined based on the word size of the
+     * environment.  So in 64-bit mode it's always carry-out of bit 63.
+     * The fallback code using deposit works just as well for TCG_TYPE_I32.
+     */
+    return type == TCG_TYPE_REG ? C_O1_I2(r, r, rI) : C_NotImplemented;
+}
+
 static const TCGOutOpBinary outop_addco = {
-    .base.static_constraint = C_NotImplemented,
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_addco,
+    .out_rrr = tgen_addco_rrr,
+    .out_rri = tgen_addco_rri,
+};
+
+static void tgen_addcio_rrr(TCGContext *s, TCGType type,
+                            TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out32(s, ADDE | TAB(a0, a1, a2));
+}
+
+static void tgen_addcio_rri(TCGContext *s, TCGType type,
+                            TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tcg_out32(s, (a2 ? ADDME : ADDZE) | RT(a0) | RA(a1));
+}
+
+static TCGConstraintSetIndex cset_addcio(TCGType type, unsigned flags)
+{
+    return type == TCG_TYPE_REG ? C_O1_I2(r, r, rZM) : C_NotImplemented;
+}
+
+static const TCGOutOpBinary outop_addcio = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_addcio,
+    .out_rrr = tgen_addcio_rrr,
+    .out_rri = tgen_addcio_rri,
 };
 
 static const TCGOutOpAddSubCarry outop_addci = {
-    .base.static_constraint = C_NotImplemented,
-};
-
-static const TCGOutOpBinary outop_addcio = {
-    .base.static_constraint = C_NotImplemented,
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_addcio,
+    .out_rrr = tgen_addcio_rrr,
+    .out_rri = tgen_addcio_rri,
 };
 
 static void tcg_out_set_carry(TCGContext *s)
 {
-    g_assert_not_reached();
+    tcg_out32(s, SUBFC | TAB(TCG_REG_R0, TCG_REG_R0, TCG_REG_R0));
 }
 
 static void tgen_and(TCGContext *s, TCGType type,
@@ -3284,21 +3336,94 @@ static const TCGOutOpSubtract outop_sub = {
     .out_rir = tgen_subfi,
 };
 
+static void tgen_subbo_rrr(TCGContext *s, TCGType type,
+                           TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out32(s, SUBFC | TAB(a0, a2, a1));
+}
+
+static void tgen_subbo_rri(TCGContext *s, TCGType type,
+                           TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    if (a2 == 0) {
+        tcg_out_movi(s, type, TCG_REG_R0, 0);
+        tgen_subbo_rrr(s, type, a0, a1, TCG_REG_R0);
+    } else {
+        tgen_addco_rri(s, type, a0, a1, -a2);
+    }
+}
+
+/* The underlying insn for subfi is subfic. */
+#define tgen_subbo_rir  tgen_subfi
+
+static void tgen_subbo_rii(TCGContext *s, TCGType type,
+                           TCGReg a0, tcg_target_long a1, tcg_target_long a2)
+{
+    tcg_out_movi(s, type, TCG_REG_R0, a2);
+    tgen_subbo_rir(s, type, a0, a1, TCG_REG_R0);
+}
+
+static TCGConstraintSetIndex cset_subbo(TCGType type, unsigned flags)
+{
+    /* Recall that the CA bit is defined based on the host word size. */
+    return type == TCG_TYPE_REG ? C_O1_I2(r, rI, rN) : C_NotImplemented;
+}
+
 static const TCGOutOpAddSubCarry outop_subbo = {
-    .base.static_constraint = C_NotImplemented,
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_subbo,
+    .out_rrr = tgen_subbo_rrr,
+    .out_rri = tgen_subbo_rri,
+    .out_rir = tgen_subbo_rir,
+    .out_rii = tgen_subbo_rii,
 };
 
-static const TCGOutOpAddSubCarry outop_subbi = {
-    .base.static_constraint = C_NotImplemented,
-};
+static void tgen_subbio_rrr(TCGContext *s, TCGType type,
+                            TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out32(s, SUBFE | TAB(a0, a2, a1));
+}
+
+static void tgen_subbio_rri(TCGContext *s, TCGType type,
+                            TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tgen_addcio_rri(s, type, a0, a1, ~a2);
+}
+
+static void tgen_subbio_rir(TCGContext *s, TCGType type,
+                            TCGReg a0, tcg_target_long a1, TCGReg a2)
+{
+    tcg_debug_assert(a1 == 0 || a1 == -1);
+    tcg_out32(s, (a1 ? SUBFME : SUBFZE) | RT(a0) | RA(a2));
+}
+
+static void tgen_subbio_rii(TCGContext *s, TCGType type,
+                            TCGReg a0, tcg_target_long a1, tcg_target_long a2)
+{
+    tcg_out_movi(s, type, TCG_REG_R0, a2);
+    tgen_subbio_rir(s, type, a0, a1, TCG_REG_R0);
+}
+
+static TCGConstraintSetIndex cset_subbio(TCGType type, unsigned flags)
+{
+    return type == TCG_TYPE_REG ? C_O1_I2(r, rZM, rZM) : C_NotImplemented;
+}
 
 static const TCGOutOpAddSubCarry outop_subbio = {
-    .base.static_constraint = C_NotImplemented,
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_subbio,
+    .out_rrr = tgen_subbio_rrr,
+    .out_rri = tgen_subbio_rri,
+    .out_rir = tgen_subbio_rir,
+    .out_rii = tgen_subbio_rii,
 };
+
+#define outop_subbi  outop_subbio
 
 static void tcg_out_set_borrow(TCGContext *s)
 {
-    g_assert_not_reached();
+    /* borrow = !carry */
+    tcg_out32(s, ADDIC | TAI(TCG_REG_R0, TCG_REG_R0, 0));
 }
 
 static void tgen_xor(TCGContext *s, TCGType type,
@@ -3538,8 +3663,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
 {
-    TCGArg a0, a1;
-
     switch (opc) {
     case INDEX_op_goto_ptr:
         tcg_out32(s, MTSPR | RS(args[0]) | CTR);
@@ -3633,57 +3756,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     case INDEX_op_qemu_st_i128:
         tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
         tcg_out_qemu_ldst_i128(s, args[0], args[1], args[2], args[3], false);
-        break;
-
-#if TCG_TARGET_REG_BITS == 64
-    case INDEX_op_add2_i64:
-#else
-    case INDEX_op_add2_i32:
-#endif
-        /* Note that the CA bit is defined based on the word size of the
-           environment.  So in 64-bit mode it's always carry-out of bit 63.
-           The fallback code using deposit works just as well for 32-bit.  */
-        a0 = args[0], a1 = args[1];
-        if (a0 == args[3] || (!const_args[5] && a0 == args[5])) {
-            a0 = TCG_REG_R0;
-        }
-        if (const_args[4]) {
-            tcg_out32(s, ADDIC | TAI(a0, args[2], args[4]));
-        } else {
-            tcg_out32(s, ADDC | TAB(a0, args[2], args[4]));
-        }
-        if (const_args[5]) {
-            tcg_out32(s, (args[5] ? ADDME : ADDZE) | RT(a1) | RA(args[3]));
-        } else {
-            tcg_out32(s, ADDE | TAB(a1, args[3], args[5]));
-        }
-        if (a0 != args[0]) {
-            tcg_out_mov(s, TCG_TYPE_REG, args[0], a0);
-        }
-        break;
-
-#if TCG_TARGET_REG_BITS == 64
-    case INDEX_op_sub2_i64:
-#else
-    case INDEX_op_sub2_i32:
-#endif
-        a0 = args[0], a1 = args[1];
-        if (a0 == args[5] || (!const_args[3] && a0 == args[3])) {
-            a0 = TCG_REG_R0;
-        }
-        if (const_args[2]) {
-            tcg_out32(s, SUBFIC | TAI(a0, args[4], args[2]));
-        } else {
-            tcg_out32(s, SUBFC | TAB(a0, args[4], args[2]));
-        }
-        if (const_args[3]) {
-            tcg_out32(s, (args[3] ? SUBFME : SUBFZE) | RT(a1) | RA(args[5]));
-        } else {
-            tcg_out32(s, SUBFE | TAB(a1, args[5], args[3]));
-        }
-        if (a0 != args[0]) {
-            tcg_out_mov(s, TCG_TYPE_REG, args[0], a0);
-        }
         break;
 
     case INDEX_op_mb:
@@ -4330,13 +4402,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st32_i64:
     case INDEX_op_st_i64:
         return C_O0_I2(r, r);
-
-    case INDEX_op_add2_i64:
-    case INDEX_op_add2_i32:
-        return C_O2_I4(r, r, r, r, rI, rZM);
-    case INDEX_op_sub2_i64:
-    case INDEX_op_sub2_i32:
-        return C_O2_I4(r, r, rI, rZM, r, r);
 
     case INDEX_op_qemu_ld_i32:
         return C_O1_I1(r, r);
