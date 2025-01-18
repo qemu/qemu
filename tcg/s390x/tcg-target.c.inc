@@ -951,25 +951,32 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
     if (pc_off == (int32_t)pc_off) {
         tcg_out_insn(s, RIL, LARL, ret, pc_off);
         if (sval & 1) {
-            tcg_out_insn(s, RI, AGHI, ret, 1);
+            tcg_out_insn(s, RX, LA, ret, ret, TCG_REG_NONE, 1);
         }
         return;
     }
 
-    /* Otherwise, load it by parts. */
-    i = is_const_p16((uint32_t)uval);
-    if (i >= 0) {
-        tcg_out_insn_RI(s, li_insns[i], ret, uval >> (i * 16));
-    } else {
-        tcg_out_insn(s, RIL, LLILF, ret, uval);
+    if (!s->carry_live) {
+        /* Load by parts, at most 2 instructions. */
+        i = is_const_p16((uint32_t)uval);
+        if (i >= 0) {
+            tcg_out_insn_RI(s, li_insns[i], ret, uval >> (i * 16));
+        } else {
+            tcg_out_insn(s, RIL, LLILF, ret, uval);
+        }
+        uval >>= 32;
+        i = is_const_p16(uval);
+        if (i >= 0) {
+            tcg_out_insn_RI(s, oi_insns[i + 2], ret, uval >> (i * 16));
+        } else {
+            tcg_out_insn(s, RIL, OIHF, ret, uval);
+        }
+        return;
     }
-    uval >>= 32;
-    i = is_const_p16(uval);
-    if (i >= 0) {
-        tcg_out_insn_RI(s, oi_insns[i + 2], ret, uval >> (i * 16));
-    } else {
-        tcg_out_insn(s, RIL, OIHF, ret, uval);
-    }
+
+    /* Otherwise, stuff it in the constant pool.  */
+    tcg_out_insn(s, RIL, LGRL, ret, 0);
+    new_pool_label(s, sval, R_390_PC32DBL, s->code_ptr - 2, 2);
 }
 
 /* Emit a load/store type instruction.  Inputs are:
