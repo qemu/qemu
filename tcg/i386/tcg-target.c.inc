@@ -1092,7 +1092,7 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type,
 {
     tcg_target_long diff;
 
-    if (arg == 0) {
+    if (arg == 0 && !s->carry_live) {
         tgen_arithr(s, ARITH_XOR, ret, ret);
         return;
     }
