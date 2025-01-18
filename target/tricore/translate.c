@@ -1346,15 +1346,11 @@ static inline void gen_addi_CC(TCGv ret, TCGv r1, int32_t con)
 
 static inline void gen_addc_CC(TCGv ret, TCGv r1, TCGv r2)
 {
-    TCGv carry = tcg_temp_new_i32();
-    TCGv t0    = tcg_temp_new_i32();
+    TCGv t0     = tcg_temp_new_i32();
     TCGv result = tcg_temp_new_i32();
 
-    tcg_gen_movi_tl(t0, 0);
-    tcg_gen_setcondi_tl(TCG_COND_NE, carry, cpu_PSW_C, 0);
     /* Addition, carry and set C/V/SV bits */
-    tcg_gen_add2_i32(result, cpu_PSW_C, r1, t0, carry, t0);
-    tcg_gen_add2_i32(result, cpu_PSW_C, result, cpu_PSW_C, r2, t0);
+    tcg_gen_addcio_i32(result, cpu_PSW_C, r1, r2, cpu_PSW_C);
     /* calc V bit */
     tcg_gen_xor_tl(cpu_PSW_V, result, r1);
     tcg_gen_xor_tl(t0, r1, r2);
