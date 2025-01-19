@@ -32,14 +32,7 @@
 #include "exec/tswap.h"
 #include "system/dma.h"
 #include "system/runstate.h"
-
-#define RISCV_DEBUG_HTIF 0
-#define HTIF_DEBUG(fmt, ...)                                                   \
-    do {                                                                       \
-        if (RISCV_DEBUG_HTIF) {                                                \
-            qemu_log_mask(LOG_TRACE, "%s: " fmt "\n", __func__, ##__VA_ARGS__);\
-        }                                                                      \
-    } while (0)
+#include "trace.h"
 
 #define HTIF_DEV_SHIFT          56
 #define HTIF_CMD_SHIFT          48
@@ -159,8 +152,7 @@ static void htif_handle_tohost_write(HTIFState *s, uint64_t val_written)
     uint64_t payload = val_written & 0xFFFFFFFFFFFFULL;
     int resp = 0;
 
-    HTIF_DEBUG("mtohost write: device: %d cmd: %d what: %02" PRIx64
-        " -payload: %016" PRIx64 "\n", device, cmd, payload & 0xFF, payload);
+    trace_htif_uart_write_to_host(device, cmd, payload);
 
     /*
      * Currently, there is a fixed mapping of devices:
@@ -251,8 +243,7 @@ static void htif_handle_tohost_write(HTIFState *s, uint64_t val_written)
         }
     } else {
         qemu_log("HTIF unknown device or command\n");
-        HTIF_DEBUG("device: %d cmd: %d what: %02" PRIx64
-            " payload: %016" PRIx64, device, cmd, payload & 0xFF, payload);
+        trace_htif_uart_unknown_device_command(device, cmd, payload);
     }
     /*
      * Latest bbl does not set fromhost to 0 if there is a value in tohost.

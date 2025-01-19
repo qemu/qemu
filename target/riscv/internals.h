@@ -145,4 +145,58 @@ static inline float16 check_nanbox_h(CPURISCVState *env, uint64_t f)
 /* Our implementation of CPUClass::has_work */
 bool riscv_cpu_has_work(CPUState *cs);
 
+/* Zjpm addr masking routine */
+static inline target_ulong adjust_addr_body(CPURISCVState *env,
+                                            target_ulong addr,
+                                            bool is_virt_addr)
+{
+    RISCVPmPmm pmm = PMM_FIELD_DISABLED;
+    uint32_t pmlen = 0;
+    bool signext = false;
+
+    /* do nothing for rv32 mode */
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
+        return addr;
+    }
+
+    /* get pmm field depending on whether addr is */
+    if (is_virt_addr) {
+        pmm = riscv_pm_get_virt_pmm(env);
+    } else {
+        pmm = riscv_pm_get_pmm(env);
+    }
+
+    /* if pointer masking is disabled, return original addr */
+    if (pmm == PMM_FIELD_DISABLED) {
+        return addr;
+    }
+
+    if (!is_virt_addr) {
+        signext = riscv_cpu_virt_mem_enabled(env);
+    }
+    addr = addr << pmlen;
+    pmlen = riscv_pm_get_pmlen(pmm);
+
+    /* sign/zero extend masked address by N-1 bit */
+    if (signext) {
+        addr = (target_long)addr >> pmlen;
+    } else {
+        addr = addr >> pmlen;
+    }
+
+    return addr;
+}
+
+static inline target_ulong adjust_addr(CPURISCVState *env,
+                                       target_ulong addr)
+{
+    return adjust_addr_body(env, addr, false);
+}
+
+static inline target_ulong adjust_addr_virt(CPURISCVState *env,
+                                            target_ulong addr)
+{
+    return adjust_addr_body(env, addr, true);
+}
+
 #endif

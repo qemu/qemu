@@ -758,11 +758,11 @@ static void kvm_riscv_put_regs_timer(CPUState *cs)
     env->kvm_timer_dirty = false;
 }
 
-uint64_t kvm_riscv_get_timebase_frequency(CPUState *cs)
+uint64_t kvm_riscv_get_timebase_frequency(RISCVCPU *cpu)
 {
     uint64_t reg;
 
-    KVM_RISCV_GET_TIMER(cs, frequency, reg);
+    KVM_RISCV_GET_TIMER(CPU(cpu), frequency, reg);
 
     return reg;
 }
