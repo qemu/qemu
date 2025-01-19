@@ -2622,6 +2622,12 @@ struct target_ucred {
     abi_uint gid;
 };
 
+struct target_in_pktinfo {
+    abi_int               ipi_ifindex;
+    struct target_in_addr ipi_spec_dst;
+    struct target_in_addr ipi_addr;
+};
+
 typedef abi_int target_timer_t;
 
 #define TARGET_SIGEV_MAX_SIZE 64
