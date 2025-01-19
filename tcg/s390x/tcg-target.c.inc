@@ -173,6 +173,8 @@ typedef enum S390Opcode {
     RRE_SLBGR   = 0xb989,
     RRE_XGR     = 0xb982,
 
+    RRFa_ALRK   = 0xb9fa,
+    RRFa_ALGRK  = 0xb9ea,
     RRFa_MGRK   = 0xb9ec,
     RRFa_MSRKC  = 0xb9fd,
     RRFa_MSGRKC = 0xb9ed,
@@ -2259,21 +2261,60 @@ static const TCGOutOpBinary outop_add = {
     .out_rri = tgen_addi,
 };
 
+static void tgen_addco_rrr(TCGContext *s, TCGType type,
+                           TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    if (type != TCG_TYPE_I32) {
+        tcg_out_insn(s, RRFa, ALGRK, a0, a1, a2);
+    } else if (a0 == a1) {
+        tcg_out_insn(s, RR, ALR, a0, a2);
+    } else {
+        tcg_out_insn(s, RRFa, ALRK, a0, a1, a2);
+    }
+}
+
+static void tgen_addco_rri(TCGContext *s, TCGType type,
+                           TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tcg_out_mov(s, type, a0, a1);
+    if (type == TCG_TYPE_I32) {
+        tcg_out_insn(s, RIL, ALFI, a0, a2);
+    } else if (a2 >= 0) {
+        tcg_out_insn(s, RIL, ALGFI, a0, a2);
+    } else {
+        tcg_out_insn(s, RIL, SLGFI, a0, -a2);
+    }
+}
+
 static const TCGOutOpBinary outop_addco = {
-    .base.static_constraint = C_NotImplemented,
+    .base.static_constraint = C_O1_I2(r, r, rUV),
+    .out_rrr = tgen_addco_rrr,
+    .out_rri = tgen_addco_rri,
+};
+
+static void tgen_addcio(TCGContext *s, TCGType type,
+                        TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    if (type == TCG_TYPE_I32) {
+        tcg_out_insn(s, RRE, ALCR, a0, a2);
+    } else {
+        tcg_out_insn(s, RRE, ALCGR, a0, a2);
+    }
+}
+
+static const TCGOutOpBinary outop_addcio = {
+    .base.static_constraint = C_O1_I2(r, 0, r),
+    .out_rrr = tgen_addcio,
 };
 
 static const TCGOutOpAddSubCarry outop_addci = {
-    .base.static_constraint = C_NotImplemented,
-};
-
-static const TCGOutOpBinary outop_addcio = {
-    .base.static_constraint = C_NotImplemented,
+    .base.static_constraint = C_O1_I2(r, 0, r),
+    .out_rrr = tgen_addcio,
 };
 
 static void tcg_out_set_carry(TCGContext *s)
 {
-    g_assert_not_reached();
+    tcg_out_insn(s, RR, SLR, TCG_REG_R0, TCG_REG_R0); /* cc = 2 */
 }
 
 static void tgen_and(TCGContext *s, TCGType type,
@@ -2794,21 +2835,57 @@ static const TCGOutOpSubtract outop_sub = {
     .out_rrr = tgen_sub,
 };
 
+static void tgen_subbo_rrr(TCGContext *s, TCGType type,
+                           TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    if (type != TCG_TYPE_I32) {
+        tcg_out_insn(s, RRFa, SLGRK, a0, a1, a2);
+    } else if (a0 == a1) {
+        tcg_out_insn(s, RR, SLR, a0, a2);
+    } else {
+        tcg_out_insn(s, RRFa, SLRK, a0, a1, a2);
+    }
+}
+
+static void tgen_subbo_rri(TCGContext *s, TCGType type,
+                           TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tcg_out_mov(s, type, a0, a1);
+    if (type == TCG_TYPE_I32) {
+        tcg_out_insn(s, RIL, SLFI, a0, a2);
+    } else if (a2 >= 0) {
+        tcg_out_insn(s, RIL, SLGFI, a0, a2);
+    } else {
+        tcg_out_insn(s, RIL, ALGFI, a0, -a2);
+    }
+}
+
 static const TCGOutOpAddSubCarry outop_subbo = {
-    .base.static_constraint = C_NotImplemented,
+    .base.static_constraint = C_O1_I2(r, r, rUV),
+    .out_rrr = tgen_subbo_rrr,
+    .out_rri = tgen_subbo_rri,
 };
 
-static const TCGOutOpAddSubCarry outop_subbi = {
-    .base.static_constraint = C_NotImplemented,
-};
+static void tgen_subbio(TCGContext *s, TCGType type,
+                        TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    if (type == TCG_TYPE_I32) {
+        tcg_out_insn(s, RRE, SLBR, a0, a2);
+    } else {
+        tcg_out_insn(s, RRE, SLBGR, a0, a2);
+    }
+}
 
 static const TCGOutOpAddSubCarry outop_subbio = {
-    .base.static_constraint = C_NotImplemented,
+    .base.static_constraint = C_O1_I2(r, 0, r),
+    .out_rrr = tgen_subbio,
 };
+
+#define outop_subbi  outop_subbio
 
 static void tcg_out_set_borrow(TCGContext *s)
 {
-    g_assert_not_reached();
+    tcg_out_insn(s, RR, CLR, TCG_REG_R0, TCG_REG_R0); /* cc = 0 */
 }
 
 static void tgen_xor(TCGContext *s, TCGType type,
@@ -2967,23 +3044,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out_st(s, TCG_TYPE_I32, args[0], args[1], args[2]);
         break;
 
-    case INDEX_op_add2_i32:
-        if (const_args[4]) {
-            tcg_out_insn(s, RIL, ALFI, args[0], args[4]);
-        } else {
-            tcg_out_insn(s, RR, ALR, args[0], args[4]);
-        }
-        tcg_out_insn(s, RRE, ALCR, args[1], args[5]);
-        break;
-    case INDEX_op_sub2_i32:
-        if (const_args[4]) {
-            tcg_out_insn(s, RIL, SLFI, args[0], args[4]);
-        } else {
-            tcg_out_insn(s, RR, SLR, args[0], args[4]);
-        }
-        tcg_out_insn(s, RRE, SLBR, args[1], args[5]);
-        break;
-
     case INDEX_op_br:
         tgen_branch(s, S390_CC_ALWAYS, arg_label(args[0]));
         break;
@@ -3025,31 +3085,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         break;
     case INDEX_op_st_i64:
         tcg_out_st(s, TCG_TYPE_I64, args[0], args[1], args[2]);
-        break;
-
-    case INDEX_op_add2_i64:
-        if (const_args[4]) {
-            if ((int64_t)args[4] >= 0) {
-                tcg_out_insn(s, RIL, ALGFI, args[0], args[4]);
-            } else {
-                tcg_out_insn(s, RIL, SLGFI, args[0], -args[4]);
-            }
-        } else {
-            tcg_out_insn(s, RRE, ALGR, args[0], args[4]);
-        }
-        tcg_out_insn(s, RRE, ALCGR, args[1], args[5]);
-        break;
-    case INDEX_op_sub2_i64:
-        if (const_args[4]) {
-            if ((int64_t)args[4] >= 0) {
-                tcg_out_insn(s, RIL, SLGFI, args[0], args[4]);
-            } else {
-                tcg_out_insn(s, RIL, ALGFI, args[0], -args[4]);
-            }
-        } else {
-            tcg_out_insn(s, RRE, SLGR, args[0], args[4]);
-        }
-        tcg_out_insn(s, RRE, SLBGR, args[1], args[5]);
         break;
 
     case INDEX_op_mb:
@@ -3545,14 +3580,6 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
         return C_O2_I1(o, m, r);
     case INDEX_op_qemu_st_i128:
         return C_O0_I3(o, m, r);
-
-    case INDEX_op_add2_i32:
-    case INDEX_op_sub2_i32:
-        return C_N1_O1_I4(r, r, 0, 1, ri, r);
-
-    case INDEX_op_add2_i64:
-    case INDEX_op_sub2_i64:
-        return C_N1_O1_I4(r, r, 0, 1, rUV, r);
 
     case INDEX_op_st_vec:
         return C_O0_I2(v, r);
