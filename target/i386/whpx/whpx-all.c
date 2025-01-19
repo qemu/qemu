@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "exec/ram_addr.h"
 #include "exec/address-spaces.h"
 #include "exec/ioport.h"
 #include "gdbstub/helpers.h"
@@ -2371,6 +2372,40 @@ static void whpx_process_section(MemoryRegionSection *section, int add)
     whpx_update_mapping(start_pa, size, (void *)(uintptr_t)host_va, add,
                         memory_region_is_rom(mr) || is_romd, mr->name);
 }
+
+void whpx_update_guest_pa_range(uint64_t start_pa, uint64_t size, void *host_va, int readonly, int add)
+{
+    MemoryRegion mr;
+    MemoryRegionSection section;
+    RAMBlock ram_block;
+
+    memset(&ram_block, 0, sizeof(RAMBlock));
+    ram_block.mr = &mr;
+    ram_block.used_length = REAL_HOST_PAGE_ALIGN(size);
+    ram_block.max_length = REAL_HOST_PAGE_ALIGN(size);
+    ram_block.fd = -1;
+    ram_block.page_size = getpagesize();
+    ram_block.host = host_va;
+    ram_block.flags |= RAM_PREALLOC;
+
+    memory_region_init(&mr, NULL, NULL, REAL_HOST_PAGE_ALIGN(size));
+    mr.ram = true;
+    mr.ram_block = &ram_block;
+    mr.readonly = readonly;
+    mr.nonvolatile = false;
+
+    section.mr = &mr;
+    section.fv = 0;
+    section.offset_within_region = 0;
+    section.size = mr.size;
+    section.offset_within_address_space = start_pa;
+    section.readonly = mr.readonly;
+    section.nonvolatile = mr.nonvolatile;
+
+    whpx_process_section(&section, add);
+    object_unref(OBJECT(&mr));
+}
+
 
 static void whpx_region_add(MemoryListener *listener,
                            MemoryRegionSection *section)

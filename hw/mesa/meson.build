@@ -1,0 +1,12 @@
+i386_system_ss.add(files(
+  'extensions_table.c',
+  'mesagl_blit.c',
+  'mesagl_impl.c',
+  'mesapt_mm.c',
+  'mglcntx_linux.c',
+  'mglcntx_mingw.c',
+  'mglmapbo.c',
+  'mglvarry.c',
+  'szgldata.c',
+  'tokglstr.c',
+))

@@ -204,6 +204,25 @@ void pc_i8259_create(ISABus *isa_bus, qemu_irq *i8259_irqs);
 
 #define TYPE_PORT92 "port92"
 
+#if (((QEMU_VERSION_MAJOR << 12) | (QEMU_VERSION_MINOR << 8) \
+     | QEMU_VERSION_MICRO) < 0x5100)
+#define qdev_new(x)         qdev_create(NULL,x)
+#define sysbus_realize(x,y) qdev_init_nofail((DeviceState *)x)
+#endif
+#if (((QEMU_VERSION_MAJOR << 12) | (QEMU_VERSION_MINOR << 8) \
+     | QEMU_VERSION_MICRO) < 0x9132)
+#define device_class_set_legacy_reset(x,y) x->reset = y
+#endif
+/* GLIDE pass-through */
+#define TYPE_GLIDEPT "glidept"
+#define GLIDEPT_MM_BASE 0xfbdff000
+void glidept_mm_init(void);
+
+/* MESA pass-through */
+#define TYPE_MESAPT "mesapt"
+#define MESAPT_MM_BASE 0xefffe000
+void mesapt_mm_init(void);
+
 /* pc_sysfw.c */
 void pc_system_flash_create(PCMachineState *pcms);
 void pc_system_flash_cleanup_unused(PCMachineState *pcms);

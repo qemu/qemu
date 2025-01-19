@@ -25,6 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
+#include "qemu/error-report.h"
 #include "qemu/cutils.h"
 #include "ui/console.h"
 #include "ui/input.h"
@@ -585,6 +586,29 @@ static void handle_mousewheel(SDL_Event *ev)
     qemu_input_event_sync();
 }
 
+static int fxui_grab_val(const int grab)
+{
+    static int fxui_grab;
+    fxui_grab = (grab & 0x80U)? (grab & 0x01U):fxui_grab;
+    return fxui_grab;
+}
+static int fxui_focus_lost(void)
+{
+    int ret = fxui_grab_val(0);
+    fxui_grab_val(0x80);
+    return ret;
+}
+static void fxui_focus_gained(struct sdl2_console *scon)
+{
+    if (fxui_grab_val(0)) {
+        if (gui_grab) {
+            sdl_grab_end(scon);
+            fxui_grab_val(0x80);
+        }
+        sdl_grab_start(scon);
+    }
+}
+
 static void handle_windowevent(SDL_Event *ev)
 {
     struct sdl2_console *scon = get_scon_from_window(ev->window.windowID);
@@ -609,6 +633,7 @@ static void handle_windowevent(SDL_Event *ev)
         sdl2_redraw(scon);
         break;
     case SDL_WINDOWEVENT_FOCUS_GAINED:
+        fxui_focus_gained(scon);
         win32_kbd_set_grab(gui_grab);
         if (qemu_console_is_graphic(scon->dcl.con)) {
             win32_kbd_set_window(sdl2_win32_get_hwnd(scon));
@@ -631,7 +656,7 @@ static void handle_windowevent(SDL_Event *ev)
         if (qemu_console_is_graphic(scon->dcl.con)) {
             win32_kbd_set_window(NULL);
         }
-        if (gui_grab && !gui_fullscreen) {
+        if (!fxui_focus_lost() && gui_grab && !gui_fullscreen) {
             sdl_grab_end(scon);
         }
         break;
@@ -798,6 +823,367 @@ static void sdl_cleanup(void)
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
 }
 
+static void sdl_display_valid(const char *feat)
+{
+    if (!sdl2_console) {
+        error_report("%s: invalid sdl display. Use -display sdl", feat);
+        exit(1);
+    }
+}
+
+static struct sdl_console_cb {
+    QEMUTimer *ts;
+    SDL_Surface *icon;
+    struct sdl2_console *scon;
+    int glide_on_mesa;
+    int gui_saved_res;
+    int render_pause;
+    int res, msaa, alpha, dtimer, GLon12;
+    void *opaque;
+    void *hnwnd;
+    void (*cwnd_fn)(void *, void *, void *);
+} scon_cb;
+static void sdl_gui_restart(struct sdl2_console *scon, SDL_Surface *icon)
+{
+    if (!gui_fullscreen)
+        SDL_GetWindowPosition(scon->real_window, &scon->x, &scon->y);
+    fxui_grab_val(0x80 | gui_grab);
+    sdl_grab_end(scon);
+    sdl2_window_destroy(scon);
+    sdl2_window_create(scon);
+    if (icon)
+        SDL_SetWindowIcon(scon->real_window, icon);
+    if (!gui_fullscreen)
+        SDL_SetWindowPosition(scon->real_window, scon->x, scon->y);
+}
+static void sched_wndproc(void *opaque)
+{
+    struct sdl_console_cb *s = opaque;
+
+    if (s->res == -1) {
+        if (s->render_pause) {
+            SDL_DestroyTexture(s->scon->texture);
+            s->scon->texture = 0;
+        }
+        else {
+            if (!s->scon->real_renderer)
+                s->scon->real_renderer = SDL_CreateRenderer(s->scon->real_window, -1 ,0);
+            if (!s->scon->opengl) {
+                sdl2_2d_switch(&s->scon->dcl, s->scon->surface);
+                if (!gui_fullscreen)
+                    SDL_SetWindowPosition(s->scon->real_window, s->scon->x, s->scon->y);
+            }
+        }
+    }
+    else if (s->gui_saved_res) {
+        SDL_GL_SetAttribute(SDL_GL_BUFFER_SIZE, 32);
+        SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,  24);
+        SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+#ifdef CONFIG_DARWIN
+        if (!s->dtimer)
+            SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+#endif
+        if (s->alpha)
+            SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+        if (s->msaa) {
+            SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, SDL_TRUE);
+            SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, s->msaa);
+        }
+        const char hint[] = "opengl";
+        if (!SDL_GetHint(SDL_HINT_RENDER_DRIVER) ||
+            memcmp(SDL_GetHint(SDL_HINT_RENDER_DRIVER), hint, sizeof(hint) - 1)) {
+            SDL_SetHint(SDL_HINT_RENDER_DRIVER, hint);
+            sdl_gui_restart(s->scon, s->icon);
+        }
+        SDL_SysWMinfo wmi;
+        SDL_VERSION(&wmi.version);
+        if (SDL_GetWindowWMInfo(s->scon->real_window, &wmi)) {
+            switch(wmi.subsystem) {
+#if defined(SDL_VIDEO_DRIVER_WINDOWS)
+                case SDL_SYSWM_WINDOWS:
+                    s->hnwnd = (void *)wmi.info.win.window;
+                    break;
+#endif
+#if defined(SDL_VIDEO_DRIVER_X11)
+                case SDL_SYSWM_X11:
+                    s->hnwnd = (void *)wmi.info.x11.window;
+                    break;
+#endif
+#if defined(SDL_VIDEO_DRIVER_COCOA)
+                case SDL_SYSWM_COCOA:
+                    s->hnwnd = (void *)wmi.info.cocoa.window;
+                    break;
+#endif
+                default:
+                    s->hnwnd = 0;
+                    break;
+            }
+        }
+        SDL_DestroyRenderer(s->scon->real_renderer);
+        s->scon->real_renderer = 0;
+        s->scon->winctx = SDL_GL_GetCurrentContext();
+        s->scon->winctx = (s->scon->winctx)? s->scon->winctx:SDL_GL_CreateContext(s->scon->real_window);
+        if (!s->scon->winctx) {
+            error_report("%s", SDL_GetError());
+            exit(1);
+        }
+        s->render_pause = 1;
+        if (!s->opaque)
+            s->cwnd_fn(s->scon->real_window, s->hnwnd, opaque);
+    }
+    else {
+        SDL_GL_MakeCurrent(s->scon->real_window, NULL);
+        SDL_GL_DeleteContext(s->scon->winctx);
+        s->scon->winctx = 0;
+        s->render_pause = 0;
+        SDL_GL_ResetAttributes();
+        if (!s->GLon12) {
+            if (s->scon->texture) {
+                SDL_DestroyTexture(s->scon->texture);
+                s->scon->texture = 0;
+            }
+            SDL_SetHint(SDL_HINT_RENDER_DRIVER, "");
+            sdl_gui_restart(s->scon, s->icon);
+        }
+        else {
+            if (!s->scon->real_renderer)
+                s->scon->real_renderer = SDL_CreateRenderer(s->scon->real_window, -1 ,0);
+        }
+        if (!s->scon->opengl)
+            sdl2_2d_switch(&s->scon->dcl, s->scon->surface);
+        timer_del(s->ts);
+        timer_free(s->ts);
+        s->ts = 0;
+    }
+    if (s->res > 0)
+        SDL_SetWindowSize(s->scon->real_window, (s->res & 0xFFFFU), (s->res >> 0x10));
+    if (s->opaque || !s->render_pause)
+        graphic_hw_passthrough(s->scon->dcl.con, s->render_pause);
+}
+
+static int sdl_gui_fullscreen(int *sizev, const char *feat)
+{
+    struct sdl_console_cb *s = &scon_cb;
+
+    sdl_display_valid(feat);
+    s->scon = &sdl2_console[0];
+    if (sizev) {
+        sizev[0] = surface_width(s->scon->surface);
+        sizev[1] = surface_height(s->scon->surface);
+        if (!memcmp(feat, "mesapt", sizeof("mesapt")))
+            SDL_GL_GetDrawableSize(s->scon->real_window, &sizev[2], &sizev[3]);
+    }
+    return gui_fullscreen;
+}
+
+static void sdl_renderer_stat(const int activate, const char *feat)
+{
+    struct sdl_console_cb *s = &scon_cb;
+
+    if (activate == s->render_pause)
+        return;
+
+    sdl_display_valid(feat);
+    s->scon = &sdl2_console[0];
+    s->res = -1;
+    s->render_pause = activate;
+
+    if (!s->ts)
+        s->ts = timer_new_ms(QEMU_CLOCK_REALTIME, &sched_wndproc, s);
+    timer_mod(s->ts, qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
+}
+
+void glide_prepare_window(uint32_t res, int msaa, void *opaque, void *cwnd_fn)
+{
+    int scr_w, scr_h;
+    struct sdl_console_cb *s = &scon_cb;
+
+    sdl_display_valid("glidept");
+    s->scon = &sdl2_console[0];
+    s->opaque = opaque;
+    s->cwnd_fn = (void (*)(void *, void *, void *))cwnd_fn;
+    if (s->render_pause) {
+        s->glide_on_mesa = 1;
+        s->gui_saved_res = 0;
+    }
+    else {
+        SDL_GetWindowSize(s->scon->real_window, &scr_w, &scr_h);
+        s->gui_saved_res = ((scr_h & 0x7FFFU) << 0x10) | scr_w;
+        s->res = res;
+        s->msaa = msaa;
+        s->alpha = 1;
+#ifdef CONFIG_DARWIN
+        s->dtimer = s->alpha;
+#endif
+        if (!s->ts)
+            s->ts = timer_new_ms(QEMU_CLOCK_REALTIME, &sched_wndproc, s);
+        timer_mod(s->ts, qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
+    }
+}
+
+void glide_release_window(void *opaque, void *cwnd_fn)
+{
+    struct sdl_console_cb *s = &scon_cb;
+
+    sdl_display_valid("glidept");
+    s->scon = &sdl2_console[0];
+    s->opaque = opaque;
+    s->cwnd_fn = (void (*)(void *, void *, void *))cwnd_fn;
+    if (s->gui_saved_res) {
+        s->res = s->gui_saved_res;
+        s->gui_saved_res = 0;
+        if (s->ts)
+            timer_mod(s->ts, qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
+    }
+}
+
+int glide_window_stat(const int activate)
+{
+    int stat;
+    struct sdl_console_cb *s = &scon_cb;
+
+    if (activate) {
+        if (s->scon->winctx) {
+            int scr_w, scr_h;
+            SDL_GetWindowSize(s->scon->real_window, &scr_w, &scr_h);
+#ifdef CONFIG_DARWIN
+            if (SDL_GL_MakeCurrent(s->scon->real_window, s->scon->winctx))
+                fprintf(stderr, "%s\n", SDL_GetError());
+#endif
+            stat = ((scr_h & 0x7FFFU) << 0x10) | scr_w;
+            s->cwnd_fn(s->scon->real_window, s->hnwnd, s->opaque);
+        }
+        else
+            stat = 1;
+    }
+    else {
+        s->cwnd_fn(s->scon->real_window, s->hnwnd, s->opaque);
+        stat = s->glide_on_mesa;
+        s->glide_on_mesa = 0;
+        stat ^= (s->scon->winctx)? 1:0;
+    }
+    return stat;
+}
+
+int glide_gui_fullscreen(int *width, int *height)
+{
+    int ret, v[2];
+    ret = sdl_gui_fullscreen(v, "glidept");
+    if (width)
+        *width = v[0];
+    if (height)
+        *height = v[1];
+    return ret;
+}
+
+void glide_renderer_stat(const int activate)
+{
+    sdl_renderer_stat(activate, "glidept");
+}
+
+void mesa_renderer_stat(const int activate)
+{
+    struct sdl_console_cb *s = &scon_cb;
+    sdl_renderer_stat(activate, "mesapt");
+    if (s->glide_on_mesa && !activate)
+        glide_renderer_stat(1);
+}
+
+void mesa_prepare_window(int msaa, int alpha, int scale_x, void *cwnd_fn)
+{
+    int scr_w, scr_h;
+    struct sdl_console_cb *s = &scon_cb;
+
+    sdl_display_valid("mesapt");
+    s->scon = &sdl2_console[0];
+    s->msaa = msaa;
+    s->alpha = alpha;
+#ifdef CONFIG_WIN32
+    s->GLon12 = s->alpha;
+    s->alpha = 1;
+#endif
+#ifdef CONFIG_DARWIN
+    s->dtimer = s->alpha;
+    s->alpha = 1;
+#endif
+    s->opaque = 0;
+    s->cwnd_fn = (void (*)(void *, void *, void *))cwnd_fn;
+
+    SDL_GetWindowSize(s->scon->real_window, &scr_w, &scr_h);
+    s->gui_saved_res = ((scr_h & 0x7FFFU) << 0x10) | scr_w;
+    s->res = (((int)(scale_x * ((1.f * scr_h) / scr_w)) & 0x7FFFU) << 0x10) | scale_x;
+
+    if (!s->ts)
+        s->ts = timer_new_ms(QEMU_CLOCK_REALTIME, &sched_wndproc, s);
+    timer_mod(s->ts, qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
+}
+
+void mesa_release_window(void)
+{
+    struct sdl_console_cb *s = &scon_cb;
+
+    sdl_display_valid("mesapt");
+    s->scon = &sdl2_console[0];
+    s->res = 0;
+    s->opaque = 0;
+    s->cwnd_fn = 0;
+    s->gui_saved_res = 0;
+
+    if (guest_sprite)
+        SDL_FreeCursor(guest_sprite);
+    guest_sprite = SDL_CreateSystemCursor(0);
+
+    if (s->ts)
+        timer_mod(s->ts, qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
+}
+
+void mesa_cursor_define(int hot_x, int hot_y, int width, int height, const void *data)
+{
+    struct sdl_console_cb *s = &scon_cb;
+
+    QemuConsole *con = s->scon ? s->scon->dcl.con : NULL;
+    if (con) {
+        QEMUCursor *c = cursor_alloc(width, (height & 1)? (height >> 1):height);
+        c->hot_x = hot_x;
+        c->hot_y = hot_y;
+        if (height & 1) {
+    uint8_t *and_mask = (uint8_t *)data;
+    uint8_t result = (*and_mask) * cursor_get_mono_bpl(c) * c->height;
+    uint8_t *xor_mask = malloc(sizeof(uint8_t));
+    if (xor_mask != NULL) {
+        *xor_mask = result;
+        cursor_set_mono(c, 0xffffff, 0x000000, xor_mask, 1, and_mask);
+        free(xor_mask); // Don't forget to free the allocated memory
+    }
+}
+
+        else
+            memcpy(c->data, data, (width * height * sizeof(uint32_t)));
+        dpy_cursor_define(con, c);
+        cursor_unref(c);
+    }
+}
+
+void mesa_mouse_warp(int x, int y, const int on)
+{
+    struct sdl_console_cb *s = &scon_cb;
+
+    QemuConsole *con = s->scon ? s->scon->dcl.con : NULL;
+    if (con /*&& !qemu_input_is_absolute(con)*/) {
+    static int64_t last_update;
+    int64_t curr_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    if (!on || (curr_time >= (last_update + GUI_REFRESH_INTERVAL_DEFAULT))) {
+        last_update = curr_time;
+        dpy_mouse_set(con, x, y, on);
+    }
+}
+}
+
+int mesa_gui_fullscreen(int *sizev)
+{
+    return sdl_gui_fullscreen(sizev, "mesapt");
+}
+
 static const DisplayChangeListenerOps dcl_2d_ops = {
     .dpy_name             = "sdl2-2d",
     .dpy_gfx_update       = sdl2_2d_update,
@@ -953,6 +1339,7 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
     g_free(dir);
     if (icon) {
         SDL_SetWindowIcon(sdl2_console[0].real_window, icon);
+        scon_cb.icon = icon;
     }
 
     mouse_mode_notifier.notify = sdl_mouse_mode_change;
