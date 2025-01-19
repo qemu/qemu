@@ -135,6 +135,9 @@ typedef enum S390Opcode {
     RIEc_CLGIJ   = 0xec7d,
     RIEc_CLIJ    = 0xec7f,
 
+    RIEd_ALHSIK  = 0xecda,
+    RIEd_ALGHSIK = 0xecdb,
+
     RIEf_RISBG   = 0xec55,
 
     RIEg_LOCGHI  = 0xec46,
@@ -682,8 +685,16 @@ static void tcg_out_insn_RI(TCGContext *s, S390Opcode op, TCGReg r1, int i2)
     tcg_out32(s, (op << 16) | (r1 << 20) | (i2 & 0xffff));
 }
 
+static void tcg_out_insn_RIEd(TCGContext *s, S390Opcode op,
+                              TCGReg r1, TCGReg r3, int i2)
+{
+    tcg_out16(s, (op & 0xff00) | (r1 << 4) | r3);
+    tcg_out16(s, i2);
+    tcg_out16(s, op & 0xff);
+}
+
 static void tcg_out_insn_RIEg(TCGContext *s, S390Opcode op, TCGReg r1,
-                             int i2, int m3)
+                              int i2, int m3)
 {
     tcg_out16(s, (op & 0xff00) | (r1 << 4) | m3);
     tcg_out32(s, (i2 << 16) | (op & 0xff));
@@ -2276,6 +2287,15 @@ static void tgen_addco_rrr(TCGContext *s, TCGType type,
 static void tgen_addco_rri(TCGContext *s, TCGType type,
                            TCGReg a0, TCGReg a1, tcg_target_long a2)
 {
+    if (a2 == (int16_t)a2) {
+        if (type == TCG_TYPE_I32) {
+            tcg_out_insn(s, RIEd, ALHSIK, a0, a1, a2);
+        } else {
+            tcg_out_insn(s, RIEd, ALGHSIK, a0, a1, a2);
+        }
+        return;
+    }
+
     tcg_out_mov(s, type, a0, a1);
     if (type == TCG_TYPE_I32) {
         tcg_out_insn(s, RIL, ALFI, a0, a2);
