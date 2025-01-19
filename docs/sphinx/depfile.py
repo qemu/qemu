@@ -31,6 +31,9 @@ def get_infiles(env):
         for path in Path(static_path).rglob('*'):
             yield str(path)
 
+    # also include kdoc script
+    yield str(env.config.kerneldoc_bin[1])
+
 
 def write_depfile(app, exception):
     if exception:

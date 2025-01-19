@@ -583,7 +583,7 @@ QEMU_PLUGIN_API
 bool qemu_plugin_mem_is_store(qemu_plugin_meminfo_t info);
 
 /**
- * qemu_plugin_mem_get_mem_value() - return last value loaded/stored
+ * qemu_plugin_mem_get_value() - return last value loaded/stored
  * @info: opaque memory transaction handle
  *
  * Returns: memory value

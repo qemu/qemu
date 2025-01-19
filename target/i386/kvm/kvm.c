@@ -95,9 +95,6 @@
 #define KVM_APIC_BUS_CYCLE_NS       1
 #define KVM_APIC_BUS_FREQUENCY      (1000000000ULL / KVM_APIC_BUS_CYCLE_NS)
 
-#define MSR_KVM_WALL_CLOCK  0x11
-#define MSR_KVM_SYSTEM_TIME 0x12
-
 /* A 4096-byte buffer can hold the 8-byte kvm_msrs header, plus
  * 255 kvm_msr_entry structs */
 #define MSR_BUF_SIZE 4096
@@ -111,8 +108,8 @@ typedef struct {
 } KVMMSRHandlers;
 
 static void kvm_init_msrs(X86CPU *cpu);
-static bool kvm_filter_msr(KVMState *s, uint32_t msr, QEMURDMSRHandler *rdmsr,
-                           QEMUWRMSRHandler *wrmsr);
+static int kvm_filter_msr(KVMState *s, uint32_t msr, QEMURDMSRHandler *rdmsr,
+                          QEMUWRMSRHandler *wrmsr);
 
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_INFO(SET_TSS_ADDR),
@@ -564,13 +561,13 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
          * be enabled without the in-kernel irqchip
          */
         if (!kvm_irqchip_in_kernel()) {
-            ret &= ~(1U << KVM_FEATURE_PV_UNHALT);
+            ret &= ~CPUID_KVM_PV_UNHALT;
         }
         if (kvm_irqchip_is_split()) {
-            ret |= 1U << KVM_FEATURE_MSI_EXT_DEST_ID;
+            ret |= CPUID_KVM_MSI_EXT_DEST_ID;
         }
     } else if (function == KVM_CPUID_FEATURES && reg == R_EDX) {
-        ret |= 1U << KVM_HINTS_REALTIME;
+        ret |= CPUID_KVM_HINTS_REALTIME;
     }
 
     if (current_machine->cgs) {
@@ -2617,10 +2614,7 @@ static bool kvm_rdmsr_core_thread_count(X86CPU *cpu,
                                         uint32_t msr,
                                         uint64_t *val)
 {
-    CPUState *cs = CPU(cpu);
-
-    *val = cs->nr_threads * cs->nr_cores; /* thread count, bits 15..0 */
-    *val |= ((uint32_t)cs->nr_cores << 16); /* core count, bits 31..16 */
+    *val = cpu_x86_get_msr_core_thread_count(cpu);
 
     return true;
 }
@@ -2939,7 +2933,6 @@ static int kvm_msr_energy_thread_init(KVMState *s, MachineState *ms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     struct KVMMsrEnergy *r = &s->msr_energy;
-    int ret = 0;
 
     /*
      * Sanity check
@@ -2949,13 +2942,11 @@ static int kvm_msr_energy_thread_init(KVMState *s, MachineState *ms)
     if (!is_host_cpu_intel()) {
         error_report("The RAPL feature can only be enabled on hosts "
                      "with Intel CPU models");
-        ret = 1;
-        goto out;
+        return -1;
     }
 
     if (!is_rapl_enabled()) {
-        ret = 1;
-        goto out;
+        return -1;
     }
 
     /* Retrieve the virtual topology */
@@ -2977,16 +2968,14 @@ static int kvm_msr_energy_thread_init(KVMState *s, MachineState *ms)
     r->host_topo.maxcpus = vmsr_get_maxcpus();
     if (r->host_topo.maxcpus == 0) {
         error_report("host max cpus = 0");
-        ret = 1;
-        goto out;
+        return -1;
     }
 
     /* Max number of packages on the host */
     r->host_topo.maxpkgs = vmsr_get_max_physical_package(r->host_topo.maxcpus);
     if (r->host_topo.maxpkgs == 0) {
         error_report("host max pkgs = 0");
-        ret = 1;
-        goto out;
+        return -1;
     }
 
     /* Allocate memory for each package on the host */
@@ -2998,8 +2987,7 @@ static int kvm_msr_energy_thread_init(KVMState *s, MachineState *ms)
     for (int i = 0; i < r->host_topo.maxpkgs; i++) {
         if (r->host_topo.pkg_cpu_count[i] == 0) {
             error_report("cpu per packages = 0 on package_%d", i);
-            ret = 1;
-            goto out;
+            return -1;
         }
     }
 
@@ -3016,8 +3004,7 @@ static int kvm_msr_energy_thread_init(KVMState *s, MachineState *ms)
 
     if (s->msr_energy.sioc == NULL) {
         error_report("vmsr socket opening failed");
-        ret = 1;
-        goto out;
+        return -1;
     }
 
     /* Those MSR values should not change */
@@ -3029,15 +3016,13 @@ static int kvm_msr_energy_thread_init(KVMState *s, MachineState *ms)
                                     s->msr_energy.sioc);
     if (r->msr_unit == 0 || r->msr_limit == 0 || r->msr_info == 0) {
         error_report("can't read any virtual msr");
-        ret = 1;
-        goto out;
+        return -1;
     }
 
     qemu_thread_create(&r->msr_thr, "kvm-msr",
                        kvm_msr_energy_thread,
                        s, QEMU_THREAD_JOINABLE);
-out:
-    return ret;
+    return 0;
 }
 
 int kvm_arch_get_default_type(MachineState *ms)
@@ -3103,10 +3088,7 @@ static int kvm_vm_set_tss_addr(KVMState *s, uint64_t tss_base)
 static int kvm_vm_enable_disable_exits(KVMState *s)
 {
     int disable_exits = kvm_check_extension(s, KVM_CAP_X86_DISABLE_EXITS);
-/* Work around for kernel header with a typo. TODO: fix header and drop. */
-#if defined(KVM_X86_DISABLE_EXITS_HTL) && !defined(KVM_X86_DISABLE_EXITS_HLT)
-#define KVM_X86_DISABLE_EXITS_HLT KVM_X86_DISABLE_EXITS_HTL
-#endif
+
     if (disable_exits) {
         disable_exits &= (KVM_X86_DISABLE_EXITS_MWAIT |
                           KVM_X86_DISABLE_EXITS_HLT |
@@ -3156,59 +3138,64 @@ static int kvm_vm_enable_notify_vmexit(KVMState *s)
 
 static int kvm_vm_enable_userspace_msr(KVMState *s)
 {
-    int ret = kvm_vm_enable_cap(s, KVM_CAP_X86_USER_SPACE_MSR, 0,
-                                KVM_MSR_EXIT_REASON_FILTER);
+    int ret;
+
+    ret = kvm_vm_enable_cap(s, KVM_CAP_X86_USER_SPACE_MSR, 0,
+                            KVM_MSR_EXIT_REASON_FILTER);
     if (ret < 0) {
         error_report("Could not enable user space MSRs: %s",
                      strerror(-ret));
         exit(1);
     }
 
-    if (!kvm_filter_msr(s, MSR_CORE_THREAD_COUNT,
-                        kvm_rdmsr_core_thread_count, NULL)) {
-        error_report("Could not install MSR_CORE_THREAD_COUNT handler!");
+    ret = kvm_filter_msr(s, MSR_CORE_THREAD_COUNT,
+                         kvm_rdmsr_core_thread_count, NULL);
+    if (ret < 0) {
+        error_report("Could not install MSR_CORE_THREAD_COUNT handler: %s",
+                     strerror(-ret));
         exit(1);
     }
 
     return 0;
 }
 
-static void kvm_vm_enable_energy_msrs(KVMState *s)
+static int kvm_vm_enable_energy_msrs(KVMState *s)
 {
-    bool r;
+    int ret;
+
     if (s->msr_energy.enable == true) {
-        r = kvm_filter_msr(s, MSR_RAPL_POWER_UNIT,
-                           kvm_rdmsr_rapl_power_unit, NULL);
-        if (!r) {
-            error_report("Could not install MSR_RAPL_POWER_UNIT \
-                                handler");
-            exit(1);
+        ret = kvm_filter_msr(s, MSR_RAPL_POWER_UNIT,
+                             kvm_rdmsr_rapl_power_unit, NULL);
+        if (ret < 0) {
+            error_report("Could not install MSR_RAPL_POWER_UNIT handler: %s",
+                         strerror(-ret));
+            return ret;
         }
 
-        r = kvm_filter_msr(s, MSR_PKG_POWER_LIMIT,
-                           kvm_rdmsr_pkg_power_limit, NULL);
-        if (!r) {
-            error_report("Could not install MSR_PKG_POWER_LIMIT \
-                                handler");
-            exit(1);
+        ret = kvm_filter_msr(s, MSR_PKG_POWER_LIMIT,
+                             kvm_rdmsr_pkg_power_limit, NULL);
+        if (ret < 0) {
+            error_report("Could not install MSR_PKG_POWER_LIMIT handler: %s",
+                         strerror(-ret));
+            return ret;
         }
 
-        r = kvm_filter_msr(s, MSR_PKG_POWER_INFO,
-                           kvm_rdmsr_pkg_power_info, NULL);
-        if (!r) {
-            error_report("Could not install MSR_PKG_POWER_INFO \
-                                handler");
-            exit(1);
+        ret = kvm_filter_msr(s, MSR_PKG_POWER_INFO,
+                             kvm_rdmsr_pkg_power_info, NULL);
+        if (ret < 0) {
+            error_report("Could not install MSR_PKG_POWER_INFO handler: %s",
+                         strerror(-ret));
+            return ret;
         }
-        r = kvm_filter_msr(s, MSR_PKG_ENERGY_STATUS,
-                           kvm_rdmsr_pkg_energy_status, NULL);
-        if (!r) {
-            error_report("Could not install MSR_PKG_ENERGY_STATUS \
-                                handler");
-            exit(1);
+        ret = kvm_filter_msr(s, MSR_PKG_ENERGY_STATUS,
+                             kvm_rdmsr_pkg_energy_status, NULL);
+        if (ret < 0) {
+            error_report("Could not install MSR_PKG_ENERGY_STATUS handler: %s",
+                         strerror(-ret));
+            return ret;
         }
     }
-    return;
+    return 0;
 }
 
 int kvm_arch_init(MachineState *ms, KVMState *s)
@@ -3275,7 +3262,10 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         return ret;
     }
 
-    kvm_get_supported_feature_msrs(s);
+    ret = kvm_get_supported_feature_msrs(s);
+    if (ret < 0) {
+        return ret;
+    }
 
     uname(&utsname);
     lm_capable_kernel = strcmp(utsname.machine, "x86_64") == 0;
@@ -3311,6 +3301,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         if (ret < 0) {
             error_report("kvm: guest stopping CPU not supported: %s",
                          strerror(-ret));
+            return ret;
         }
     }
 
@@ -3342,10 +3333,15 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         }
 
         if (s->msr_energy.enable == true) {
-            kvm_vm_enable_energy_msrs(s);
-            if (kvm_msr_energy_thread_init(s, ms)) {
+            ret = kvm_vm_enable_energy_msrs(s);
+            if (ret < 0) {
+                return ret;
+            }
+
+            ret = kvm_msr_energy_thread_init(s, ms);
+            if (ret < 0) {
                 error_report("kvm : error RAPL feature requirement not met");
-                exit(1);
+                return ret;
             }
         }
     }
@@ -3976,22 +3972,24 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
      */
     if (level >= KVM_PUT_RESET_STATE) {
         kvm_msr_entry_add(cpu, MSR_IA32_TSC, env->tsc);
-        kvm_msr_entry_add(cpu, MSR_KVM_SYSTEM_TIME, env->system_time_msr);
-        kvm_msr_entry_add(cpu, MSR_KVM_WALL_CLOCK, env->wall_clock_msr);
-        if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_ASYNC_PF_INT)) {
+        if (env->features[FEAT_KVM] & (CPUID_KVM_CLOCK | CPUID_KVM_CLOCK2)) {
+            kvm_msr_entry_add(cpu, MSR_KVM_SYSTEM_TIME, env->system_time_msr);
+            kvm_msr_entry_add(cpu, MSR_KVM_WALL_CLOCK, env->wall_clock_msr);
+        }
+        if (env->features[FEAT_KVM] & CPUID_KVM_ASYNCPF_INT) {
             kvm_msr_entry_add(cpu, MSR_KVM_ASYNC_PF_INT, env->async_pf_int_msr);
         }
-        if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_ASYNC_PF)) {
+        if (env->features[FEAT_KVM] & CPUID_KVM_ASYNCPF) {
             kvm_msr_entry_add(cpu, MSR_KVM_ASYNC_PF_EN, env->async_pf_en_msr);
         }
-        if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_PV_EOI)) {
+        if (env->features[FEAT_KVM] & CPUID_KVM_PV_EOI) {
             kvm_msr_entry_add(cpu, MSR_KVM_PV_EOI_EN, env->pv_eoi_en_msr);
         }
-        if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_STEAL_TIME)) {
+        if (env->features[FEAT_KVM] & CPUID_KVM_STEAL_TIME) {
             kvm_msr_entry_add(cpu, MSR_KVM_STEAL_TIME, env->steal_time_msr);
         }
 
-        if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_POLL_CONTROL)) {
+        if (env->features[FEAT_KVM] & CPUID_KVM_POLL_CONTROL) {
             kvm_msr_entry_add(cpu, MSR_KVM_POLL_CONTROL, env->poll_control_msr);
         }
 
@@ -4454,21 +4452,23 @@ static int kvm_get_msrs(X86CPU *cpu)
         }
     }
 #endif
-    kvm_msr_entry_add(cpu, MSR_KVM_SYSTEM_TIME, 0);
-    kvm_msr_entry_add(cpu, MSR_KVM_WALL_CLOCK, 0);
-    if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_ASYNC_PF_INT)) {
+    if (env->features[FEAT_KVM] & (CPUID_KVM_CLOCK | CPUID_KVM_CLOCK2)) {
+        kvm_msr_entry_add(cpu, MSR_KVM_SYSTEM_TIME, 0);
+        kvm_msr_entry_add(cpu, MSR_KVM_WALL_CLOCK, 0);
+    }
+    if (env->features[FEAT_KVM] & CPUID_KVM_ASYNCPF_INT) {
         kvm_msr_entry_add(cpu, MSR_KVM_ASYNC_PF_INT, 0);
     }
-    if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_ASYNC_PF)) {
+    if (env->features[FEAT_KVM] & CPUID_KVM_ASYNCPF) {
         kvm_msr_entry_add(cpu, MSR_KVM_ASYNC_PF_EN, 0);
     }
-    if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_PV_EOI)) {
+    if (env->features[FEAT_KVM] & CPUID_KVM_PV_EOI) {
         kvm_msr_entry_add(cpu, MSR_KVM_PV_EOI_EN, 0);
     }
-    if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_STEAL_TIME)) {
+    if (env->features[FEAT_KVM] & CPUID_KVM_STEAL_TIME) {
         kvm_msr_entry_add(cpu, MSR_KVM_STEAL_TIME, 0);
     }
-    if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_POLL_CONTROL)) {
+    if (env->features[FEAT_KVM] & CPUID_KVM_POLL_CONTROL) {
         kvm_msr_entry_add(cpu, MSR_KVM_POLL_CONTROL, 1);
     }
     if (has_architectural_pmu_version > 0) {
@@ -5843,15 +5843,16 @@ void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg)
     }
 }
 
-static bool kvm_install_msr_filters(KVMState *s)
+static int kvm_install_msr_filters(KVMState *s)
 {
     uint64_t zero = 0;
     struct kvm_msr_filter filter = {
         .flags = KVM_MSR_FILTER_DEFAULT_ALLOW,
     };
-    int r, i, j = 0;
+    int i, j = 0;
 
-    for (i = 0; i < KVM_MSR_FILTER_MAX_RANGES; i++) {
+    QEMU_BUILD_BUG_ON(ARRAY_SIZE(msr_handlers) != ARRAY_SIZE(filter.ranges));
+    for (i = 0; i < ARRAY_SIZE(msr_handlers); i++) {
         KVMMSRHandlers *handler = &msr_handlers[i];
         if (handler->msr) {
             struct kvm_msr_filter_range *range = &filter.ranges[j++];
@@ -5873,18 +5874,13 @@ static bool kvm_install_msr_filters(KVMState *s)
         }
     }
 
-    r = kvm_vm_ioctl(s, KVM_X86_SET_MSR_FILTER, &filter);
-    if (r) {
-        return false;
-    }
-
-    return true;
+    return kvm_vm_ioctl(s, KVM_X86_SET_MSR_FILTER, &filter);
 }
 
-static bool kvm_filter_msr(KVMState *s, uint32_t msr, QEMURDMSRHandler *rdmsr,
-                    QEMUWRMSRHandler *wrmsr)
+static int kvm_filter_msr(KVMState *s, uint32_t msr, QEMURDMSRHandler *rdmsr,
+                          QEMUWRMSRHandler *wrmsr)
 {
-    int i;
+    int i, ret;
 
     for (i = 0; i < ARRAY_SIZE(msr_handlers); i++) {
         if (!msr_handlers[i].msr) {
@@ -5894,16 +5890,17 @@ static bool kvm_filter_msr(KVMState *s, uint32_t msr, QEMURDMSRHandler *rdmsr,
                 .wrmsr = wrmsr,
             };
 
-            if (!kvm_install_msr_filters(s)) {
+            ret = kvm_install_msr_filters(s);
+            if (ret) {
                 msr_handlers[i] = (KVMMSRHandlers) { };
-                return false;
+                return ret;
             }
 
-            return true;
+            return 0;
         }
     }
 
-    return false;
+    return -EINVAL;
 }
 
 static int kvm_handle_rdmsr(X86CPU *cpu, struct kvm_run *run)
@@ -6195,7 +6192,7 @@ uint64_t kvm_swizzle_msi_ext_dest_id(uint64_t address)
         return address;
     }
     env = &X86_CPU(first_cpu)->env;
-    if (!(env->features[FEAT_KVM] & (1 << KVM_FEATURE_MSI_EXT_DEST_ID))) {
+    if (!(env->features[FEAT_KVM] & CPUID_KVM_MSI_EXT_DEST_ID)) {
         return address;
     }
 

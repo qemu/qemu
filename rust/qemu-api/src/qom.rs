@@ -55,6 +55,7 @@
 
 use std::{
     ffi::CStr,
+    fmt,
     ops::{Deref, DerefMut},
     os::raw::c_void,
 };
@@ -105,6 +106,52 @@ macro_rules! qom_isa {
     };
 }
 
+/// This is the same as [`ManuallyDrop<T>`](std::mem::ManuallyDrop), though
+/// it hides the standard methods of `ManuallyDrop`.
+///
+/// The first field of an `ObjectType` must be of type `ParentField<T>`.
+/// (Technically, this is only necessary if there is at least one Rust
+/// superclass in the hierarchy).  This is to ensure that the parent field is
+/// dropped after the subclass; this drop order is enforced by the C
+/// `object_deinit` function.
+///
+/// # Examples
+///
+/// ```ignore
+/// #[repr(C)]
+/// #[derive(qemu_api_macros::Object)]
+/// pub struct MyDevice {
+///     parent: ParentField<DeviceState>,
+///     ...
+/// }
+/// ```
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct ParentField<T: ObjectType>(std::mem::ManuallyDrop<T>);
+
+impl<T: ObjectType> Deref for ParentField<T> {
+    type Target = T;
+
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T: ObjectType> DerefMut for ParentField<T> {
+    #[inline(always)]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<T: fmt::Display + ObjectType> fmt::Display for ParentField<T> {
+    #[inline(always)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        self.0.fmt(f)
+    }
+}
+
 unsafe extern "C" fn rust_instance_init<T: ObjectImpl>(obj: *mut Object) {
     // SAFETY: obj is an instance of T, since rust_instance_init<T>
     // is called from QOM core as the instance_init function
@@ -116,11 +163,7 @@ unsafe extern "C" fn rust_instance_post_init<T: ObjectImpl>(obj: *mut Object) {
     // SAFETY: obj is an instance of T, since rust_instance_post_init<T>
     // is called from QOM core as the instance_post_init function
     // for class T
-    //
-    // FIXME: it's not really guaranteed that there are no backpointers to
-    // obj; it's quite possible that they have been created by instance_init().
-    // The receiver should be &self, not &mut self.
-    T::INSTANCE_POST_INIT.unwrap()(unsafe { &mut *obj.cast::<T>() })
+    T::INSTANCE_POST_INIT.unwrap()(unsafe { &*obj.cast::<T>() })
 }
 
 unsafe extern "C" fn rust_class_init<T: ObjectType + ClassInitImpl<T::Class>>(
@@ -131,6 +174,16 @@ unsafe extern "C" fn rust_class_init<T: ObjectType + ClassInitImpl<T::Class>>(
     // is called from QOM core as the class_init function
     // for class T
     T::class_init(unsafe { &mut *klass.cast::<T::Class>() })
+}
+
+unsafe extern "C" fn drop_object<T: ObjectImpl>(obj: *mut Object) {
+    // SAFETY: obj is an instance of T, since drop_object<T> is called
+    // from the QOM core function object_deinit() as the instance_finalize
+    // function for class T.  Note that while object_deinit() will drop the
+    // superclass field separately after this function returns, `T` must
+    // implement the unsafe trait ObjectType; the safety rules for the
+    // trait mandate that the parent field is manually dropped.
+    unsafe { std::ptr::drop_in_place(obj.cast::<T>()) }
 }
 
 /// Trait exposed by all structs corresponding to QOM objects.
@@ -151,11 +204,16 @@ unsafe extern "C" fn rust_class_init<T: ObjectType + ClassInitImpl<T::Class>>(
 ///
 /// - the struct must be `#[repr(C)]`;
 ///
-/// - the first field of the struct must be of the instance struct corresponding
-///   to the superclass, which is `ObjectImpl::ParentType`
+/// - the first field of the struct must be of type
+///   [`ParentField<T>`](ParentField), where `T` is the parent type
+///   [`ObjectImpl::ParentType`]
 ///
-/// - likewise, the first field of the `Class` must be of the class struct
-///   corresponding to the superclass, which is `ObjectImpl::ParentType::Class`.
+/// - the first field of the `Class` must be of the class struct corresponding
+///   to the superclass, which is `ObjectImpl::ParentType::Class`. `ParentField`
+///   is not needed here.
+///
+/// In both cases, having a separate class type is not necessary if the subclass
+/// does not add any field.
 pub unsafe trait ObjectType: Sized {
     /// The QOM class object corresponding to this struct.  This is used
     /// to automatically generate a `class_init` method.
@@ -384,13 +442,12 @@ impl<T: ObjectType> ObjectCastMut for &mut T {}
 
 /// Trait a type must implement to be registered with QEMU.
 pub trait ObjectImpl: ObjectType + ClassInitImpl<Self::Class> {
-    /// The parent of the type.  This should match the first field of
-    /// the struct that implements `ObjectImpl`:
+    /// The parent of the type.  This should match the first field of the
+    /// struct that implements `ObjectImpl`, minus the `ParentField<_>` wrapper.
     type ParentType: ObjectType;
 
     /// Whether the object can be instantiated
     const ABSTRACT: bool = false;
-    const INSTANCE_FINALIZE: Option<unsafe extern "C" fn(obj: *mut Object)> = None;
 
     /// Function that is called to initialize an object.  The parent class will
     /// have already been initialized so the type is only responsible for
@@ -402,7 +459,7 @@ pub trait ObjectImpl: ObjectType + ClassInitImpl<Self::Class> {
 
     /// Function that is called to finish initialization of an object, once
     /// `INSTANCE_INIT` functions have been called.
-    const INSTANCE_POST_INIT: Option<fn(&mut Self)> = None;
+    const INSTANCE_POST_INIT: Option<fn(&Self)> = None;
 
     /// Called on descendent classes after all parent class initialization
     /// has occurred, but before the class itself is initialized.  This
@@ -426,7 +483,7 @@ pub trait ObjectImpl: ObjectType + ClassInitImpl<Self::Class> {
             None => None,
             Some(_) => Some(rust_instance_post_init::<Self>),
         },
-        instance_finalize: Self::INSTANCE_FINALIZE,
+        instance_finalize: Some(drop_object::<Self>),
         abstract_: Self::ABSTRACT,
         class_size: core::mem::size_of::<Self::Class>(),
         class_init: Some(rust_class_init::<Self>),

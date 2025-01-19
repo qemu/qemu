@@ -72,11 +72,14 @@ R: Markus Armbruster <armbru@redhat.com>
 R: Philippe Mathieu-Daudé <philmd@linaro.org>
 W: https://www.qemu.org/docs/master/devel/index.html
 S: Odd Fixes
-F: docs/devel/style.rst
+F: docs/devel/build-environment.rst
 F: docs/devel/code-of-conduct.rst
+F: docs/devel/codebase.rst
 F: docs/devel/conflict-resolution.rst
+F: docs/devel/style.rst
 F: docs/devel/submitting-a-patch.rst
 F: docs/devel/submitting-a-pull-request.rst
+F: docs/glossary.rst
 
 Responsible Disclosure, Reporting Security Issues
 -------------------------------------------------
@@ -3711,6 +3714,7 @@ F: hw/i386/intel_iommu.c
 F: hw/i386/intel_iommu_internal.h
 F: include/hw/i386/intel_iommu.h
 F: tests/functional/test_intel_iommu.py
+F: tests/qtest/intel-iommu-test.c
 
 AMD-Vi Emulation
 S: Orphan

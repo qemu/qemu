@@ -16,3 +16,5 @@ pub use crate::qom::ObjectMethods;
 pub use crate::qom::ObjectType;
 
 pub use crate::qom_isa;
+
+pub use crate::sysbus::SysBusDeviceMethods;

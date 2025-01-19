@@ -7,6 +7,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/intc/loongson_ipi.h"
+#include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "target/mips/cpu.h"
 
@@ -17,6 +18,27 @@ static AddressSpace *get_iocsr_as(CPUState *cpu)
     }
 
     return NULL;
+}
+
+static int loongson_cpu_by_arch_id(LoongsonIPICommonState *lics,
+                                   int64_t arch_id, int *index, CPUState **pcs)
+{
+    CPUState *cs;
+
+    cs = cpu_by_arch_id(arch_id);
+    if (cs == NULL) {
+        return MEMTX_ERROR;
+    }
+
+    if (index) {
+        *index = cs->cpu_index;
+    }
+
+    if (pcs) {
+        *pcs = cs;
+    }
+
+    return MEMTX_OK;
 }
 
 static const MemoryRegionOps loongson_ipi_core_ops = {
@@ -36,6 +58,7 @@ static void loongson_ipi_realize(DeviceState *dev, Error **errp)
     LoongsonIPIClass *lic = LOONGSON_IPI_GET_CLASS(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     Error *local_err = NULL;
+    int i;
 
     lic->parent_realize(dev, &local_err);
     if (local_err) {
@@ -43,8 +66,19 @@ static void loongson_ipi_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (sc->num_cpu == 0) {
+        error_setg(errp, "num-cpu must be at least 1");
+        return;
+    }
+
+    sc->cpu = g_new0(IPICore, sc->num_cpu);
+    for (i = 0; i < sc->num_cpu; i++) {
+        sc->cpu[i].ipi = sc;
+        qdev_init_gpio_out(dev, &sc->cpu[i].irq, 1);
+    }
+
     s->ipi_mmio_mem = g_new0(MemoryRegion, sc->num_cpu);
-    for (unsigned i = 0; i < sc->num_cpu; i++) {
+    for (i = 0; i < sc->num_cpu; i++) {
         g_autofree char *name = g_strdup_printf("loongson_ipi_cpu%d_mmio", i);
 
         memory_region_init_io(&s->ipi_mmio_mem[i], OBJECT(dev),
@@ -63,6 +97,10 @@ static void loongson_ipi_unrealize(DeviceState *dev)
     k->parent_unrealize(dev);
 }
 
+static const Property loongson_ipi_properties[] = {
+    DEFINE_PROP_UINT32("num-cpu", LoongsonIPICommonState, num_cpu, 1),
+};
+
 static void loongson_ipi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -73,8 +111,9 @@ static void loongson_ipi_class_init(ObjectClass *klass, void *data)
                                     &lic->parent_realize);
     device_class_set_parent_unrealize(dc, loongson_ipi_unrealize,
                                       &lic->parent_unrealize);
+    device_class_set_props(dc, loongson_ipi_properties);
     licc->get_iocsr_as = get_iocsr_as;
-    licc->cpu_by_arch_id = cpu_by_arch_id;
+    licc->cpu_by_arch_id = loongson_cpu_by_arch_id;
 }
 
 static const TypeInfo loongson_ipi_types[] = {
