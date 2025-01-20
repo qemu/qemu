@@ -782,7 +782,6 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
 
     s390mc->hpage_1m_allowed = true;
     s390mc->max_threads = 1;
-    mc->init = ccw_init;
     mc->reset = s390_machine_reset;
     mc->block_default_type = IF_VIRTIO;
     mc->no_cdrom = 1;
@@ -852,6 +851,12 @@ static const TypeInfo ccw_machine_info = {
 };
 
 #define DEFINE_CCW_MACHINE_IMPL(latest, ...)                                  \
+    static void MACHINE_VER_SYM(mach_init, ccw, __VA_ARGS__)(MachineState *mach) \
+    {                                                                         \
+        current_mc = S390_CCW_MACHINE_CLASS(MACHINE_GET_CLASS(mach));         \
+        MACHINE_VER_SYM(instance_options, ccw, __VA_ARGS__)(mach);            \
+        ccw_init(mach);                                                       \
+    }                                                                         \
     static void MACHINE_VER_SYM(class_init, ccw, __VA_ARGS__)(                \
         ObjectClass *oc,                                                      \
         void *data)                                                           \
@@ -859,24 +864,18 @@ static const TypeInfo ccw_machine_info = {
         MachineClass *mc = MACHINE_CLASS(oc);                                 \
         MACHINE_VER_SYM(class_options, ccw, __VA_ARGS__)(mc);                 \
         mc->desc = "Virtual s390x machine (version " MACHINE_VER_STR(__VA_ARGS__) ")"; \
+        mc->init = MACHINE_VER_SYM(mach_init, ccw, __VA_ARGS__);              \
         MACHINE_VER_DEPRECATION(__VA_ARGS__);                                 \
         if (latest) {                                                         \
             mc->alias = "s390-ccw-virtio";                                    \
             mc->is_default = true;                                            \
         }                                                                     \
     }                                                                         \
-    static void MACHINE_VER_SYM(instance_init, ccw, __VA_ARGS__)(Object *obj) \
-    {                                                                         \
-        MachineState *machine = MACHINE(obj);                                 \
-        current_mc = S390_CCW_MACHINE_CLASS(MACHINE_GET_CLASS(machine));      \
-        MACHINE_VER_SYM(instance_options, ccw, __VA_ARGS__)(machine);         \
-    }                                                                         \
     static const TypeInfo MACHINE_VER_SYM(info, ccw, __VA_ARGS__) =           \
     {                                                                         \
         .name = MACHINE_VER_TYPE_NAME("s390-ccw-virtio", __VA_ARGS__),        \
         .parent = TYPE_S390_CCW_MACHINE,                                      \
         .class_init = MACHINE_VER_SYM(class_init, ccw, __VA_ARGS__),          \
-        .instance_init = MACHINE_VER_SYM(instance_init, ccw, __VA_ARGS__),    \
     };                                                                        \
     static void MACHINE_VER_SYM(register, ccw, __VA_ARGS__)(void)             \
     {                                                                         \
