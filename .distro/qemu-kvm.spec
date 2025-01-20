@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 9%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 10%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -342,6 +342,14 @@ Patch100: kvm-tests-avocado-hotplug_blk-Fix-addr-in-device_add-com.patch
 Patch101: kvm-qdev-monitor-avoid-QemuOpts-in-QMP-device_add.patch
 # For RHEL-39948 - qom-get iothread-vq-mapping is empty on new hotplug disk [rhel-9.5]
 Patch102: kvm-vl-use-qmp_device_add-in-qemu_create_cli_devices.patch
+# For RHEL-53073 - kvm-unti kvm-hyperv_synic test is stuck on AMD with COS9
+Patch103: kvm-target-i386-Make-sure-SynIC-state-is-really-updated-.patch
+# For RHEL-73688 - VM crashes when requesting domstats
+Patch104: kvm-hw-virtio-fix-crash-in-processing-balloon-stats.patch
+# For RHEL-52278 - fsfreeze hooks doesn't log error on system logs when running hook fails
+Patch105: kvm-qemu-ga-Optimize-freeze-hook-script-logic-of-logging.patch
+# For RHEL-56340 - qemu-ga logs only "guest-fsfreeze called" (but not "guest-fsthaw called")
+Patch106: kvm-qga-Add-log-to-guest-fsfreeze-thaw-command.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1408,6 +1416,20 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Mon Jan 20 2025 Miroslav Rezanina <mrezanin@redhat.com> - 9.1.0-10
+- kvm-target-i386-Make-sure-SynIC-state-is-really-updated-.patch [RHEL-53073]
+- kvm-hw-virtio-fix-crash-in-processing-balloon-stats.patch [RHEL-73688]
+- kvm-qemu-ga-Optimize-freeze-hook-script-logic-of-logging.patch [RHEL-52278]
+- kvm-qga-Add-log-to-guest-fsfreeze-thaw-command.patch [RHEL-56340]
+- Resolves: RHEL-53073
+  (kvm-unti kvm-hyperv_synic test is stuck on AMD with COS9)
+- Resolves: RHEL-73688
+  (VM crashes when requesting domstats)
+- Resolves: RHEL-52278
+  (fsfreeze hooks doesn't log error on system logs when running hook fails)
+- Resolves: RHEL-56340
+  (qemu-ga logs only "guest-fsfreeze called" (but not "guest-fsthaw called"))
+
 * Mon Jan 13 2025 Miroslav Rezanina <mrezanin@redhat.com> - 9.1.0-9
 - kvm-qdev-Fix-set_pci_devfn-to-visit-option-only-once.patch [RHEL-39948]
 - kvm-tests-avocado-hotplug_blk-Fix-addr-in-device_add-com.patch [RHEL-39948]
