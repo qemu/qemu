@@ -1345,7 +1345,7 @@ uint32_t sve_vqm1_for_el_sm(CPUARMState *env, int el, bool sm);
 /* Likewise, but using @sm = PSTATE.SM. */
 uint32_t sve_vqm1_for_el(CPUARMState *env, int el);
 
-static inline bool is_a64(CPUARMState *env)
+static inline bool is_a64(const CPUARMState *env)
 {
     return env->aarch64;
 }
