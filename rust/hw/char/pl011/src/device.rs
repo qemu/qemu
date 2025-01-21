@@ -2,7 +2,7 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use core::ptr::{addr_of_mut, NonNull};
+use core::ptr::{addr_of, addr_of_mut, NonNull};
 use std::{
     ffi::CStr,
     os::raw::{c_int, c_uint, c_void},
@@ -156,7 +156,7 @@ impl DeviceImpl for PL011State {
     fn vmsd() -> Option<&'static VMStateDescription> {
         Some(&device_class::VMSTATE_PL011)
     }
-    const REALIZE: Option<fn(&mut Self)> = Some(Self::realize);
+    const REALIZE: Option<fn(&Self)> = Some(Self::realize);
     const RESET: Option<fn(&mut Self)> = Some(Self::reset);
 }
 
@@ -439,17 +439,17 @@ impl PL011State {
         self.read_trigger = 1;
     }
 
-    pub fn realize(&mut self) {
+    pub fn realize(&self) {
         // SAFETY: self.char_backend has the correct size and alignment for a
         // CharBackend object, and its callbacks are of the correct types.
         unsafe {
             qemu_chr_fe_set_handlers(
-                addr_of_mut!(self.char_backend),
+                addr_of!(self.char_backend) as *mut CharBackend,
                 Some(pl011_can_receive),
                 Some(pl011_receive),
                 Some(pl011_event),
                 None,
-                addr_of_mut!(*self).cast::<c_void>(),
+                addr_of!(*self).cast::<c_void>() as *mut c_void,
                 core::ptr::null_mut(),
                 true,
             );
