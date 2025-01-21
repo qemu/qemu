@@ -2697,15 +2697,10 @@ static RISCVException rmw_xireg(CPURISCVState *env, int csrno,
     } else if (riscv_cpu_cfg(env)->ext_smcsrind ||
                riscv_cpu_cfg(env)->ext_sscsrind) {
         return rmw_xireg_csrind(env, csrno, isel, val, new_val, wr_mask);
-    } else {
-        return RISCV_EXCP_ILLEGAL_INST;
     }
 
 done:
-    if (ret) {
-        return RISCV_EXCP_ILLEGAL_INST;
-    }
-    return RISCV_EXCP_NONE;
+    return RISCV_EXCP_ILLEGAL_INST;
 }
 
 static RISCVException rmw_xtopei(CPURISCVState *env, int csrno,
