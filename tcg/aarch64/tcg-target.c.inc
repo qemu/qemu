@@ -1407,7 +1407,7 @@ static void tcg_out_call(TCGContext *s, const tcg_insn_unit *target,
     tcg_out_call_int(s, target);
 }
 
-static inline void tcg_out_goto_label(TCGContext *s, TCGLabel *l)
+static void tcg_out_br(TCGContext *s, TCGLabel *l)
 {
     if (!l->has_value) {
         tcg_out_reloc(s, s->code_ptr, R_AARCH64_JUMP26, l, 0);
@@ -2777,10 +2777,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType ext,
     switch (opc) {
     case INDEX_op_goto_ptr:
         tcg_out_insn(s, 3207, BR, a0);
-        break;
-
-    case INDEX_op_br:
-        tcg_out_goto_label(s, arg_label(a0));
         break;
 
     case INDEX_op_ld8u_i32:

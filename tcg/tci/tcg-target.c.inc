@@ -1136,6 +1136,11 @@ static void tcg_out_mb(TCGContext *s, unsigned a0)
     tcg_out_op_v(s, INDEX_op_mb);
 }
 
+static void tcg_out_br(TCGContext *s, TCGLabel *l)
+{
+    tcg_out_op_l(s, INDEX_op_br, l);
+}
+
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
@@ -1143,10 +1148,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     switch (opc) {
     case INDEX_op_goto_ptr:
         tcg_out_op_r(s, opc, args[0]);
-        break;
-
-    case INDEX_op_br:
-        tcg_out_op_l(s, opc, arg_label(args[0]));
         break;
 
     CASE_32_64(ld8u)

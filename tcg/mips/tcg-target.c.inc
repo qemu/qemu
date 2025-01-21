@@ -921,6 +921,11 @@ static const TCGOutOpBrcond outop_brcond = {
     .out_rr = tgen_brcond,
 };
 
+void tcg_out_br(TCGContext *s, TCGLabel *l)
+{
+    tgen_brcond(s, TCG_TYPE_I32, TCG_COND_EQ, TCG_REG_ZERO, TCG_REG_ZERO, l);
+}
+
 static int tcg_out_setcond2_int(TCGContext *s, TCGCond cond, TCGReg ret,
                                 TCGReg al, TCGReg ah, TCGReg bl, TCGReg bh)
 {
@@ -2281,11 +2286,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
             tcg_out_nop(s);
         }
         break;
-    case INDEX_op_br:
-        tgen_brcond(s, TCG_TYPE_I32, TCG_COND_EQ,
-                    TCG_REG_ZERO, TCG_REG_ZERO, arg_label(a0));
-        break;
-
     case INDEX_op_ld8u_i32:
     case INDEX_op_ld8u_i64:
         i1 = OPC_LBU;

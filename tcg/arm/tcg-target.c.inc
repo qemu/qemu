@@ -1203,6 +1203,11 @@ static void tcg_out_goto_label(TCGContext *s, ARMCond cond, TCGLabel *l)
     }
 }
 
+static void tcg_out_br(TCGContext *s, TCGLabel *l)
+{
+    tcg_out_goto_label(s, COND_AL, l);
+}
+
 static void tcg_out_mb(TCGContext *s, unsigned a0)
 {
     if (use_armv7_instructions) {
@@ -2521,9 +2526,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     switch (opc) {
     case INDEX_op_goto_ptr:
         tcg_out_b_reg(s, COND_AL, args[0]);
-        break;
-    case INDEX_op_br:
-        tcg_out_goto_label(s, COND_AL, arg_label(args[0]));
         break;
 
     case INDEX_op_ld8u_i32:

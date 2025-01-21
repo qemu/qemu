@@ -756,6 +756,12 @@ static const TCGOutOpMovcond outop_movcond = {
  * Branch helpers
  */
 
+static void tcg_out_br(TCGContext *s, TCGLabel *l)
+{
+    tcg_out_reloc(s, s->code_ptr, R_LOONGARCH_BR_SD10K16, l, 0);
+    tcg_out_opc_b(s, 0);
+}
+
 static const struct {
     LoongArchInsn op;
     bool swap;
@@ -1919,12 +1925,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     switch (opc) {
     case INDEX_op_goto_ptr:
         tcg_out_opc_jirl(s, TCG_REG_ZERO, a0, 0);
-        break;
-
-    case INDEX_op_br:
-        tcg_out_reloc(s, s->code_ptr, R_LOONGARCH_BR_SD10K16, arg_label(a0),
-                      0);
-        tcg_out_opc_b(s, 0);
         break;
 
     case INDEX_op_ld8s_i32:

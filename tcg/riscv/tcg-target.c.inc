@@ -1107,6 +1107,12 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
     tcg_out_dup_vec(s, type, vece, dst, TCG_REG_TMP0);
 }
 
+static void tcg_out_br(TCGContext *s, TCGLabel *l)
+{
+    tcg_out_reloc(s, s->code_ptr, R_RISCV_JAL, l, 0);
+    tcg_out_opc_jump(s, OPC_JAL, TCG_REG_ZERO, 0);
+}
+
 static const struct {
     RISCVInsn op;
     bool swap;
@@ -2531,11 +2537,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     switch (opc) {
     case INDEX_op_goto_ptr:
         tcg_out_opc_imm(s, OPC_JALR, TCG_REG_ZERO, a0, 0);
-        break;
-
-    case INDEX_op_br:
-        tcg_out_reloc(s, s->code_ptr, R_RISCV_JAL, arg_label(a0), 0);
-        tcg_out_opc_jump(s, OPC_JAL, TCG_REG_ZERO, 0);
         break;
 
     case INDEX_op_ld8u_i32:

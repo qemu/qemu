@@ -1990,6 +1990,18 @@ static const TCGOutOpSetcond outop_negsetcond = {
     .out_rri = tgen_negsetcondi,
 };
 
+void tcg_out_br(TCGContext *s, TCGLabel *l)
+{
+    uint32_t insn = B;
+
+    if (l->has_value) {
+        insn |= reloc_pc24_val(tcg_splitwx_to_rx(s->code_ptr), l->u.value_ptr);
+    } else {
+        tcg_out_reloc(s, s->code_ptr, R_PPC_REL24, l, 0);
+    }
+    tcg_out32(s, insn);
+}
+
 static void tcg_out_bc(TCGContext *s, TCGCond cond, int bd)
 {
     tcg_out32(s, tcg_to_bc[cond] | bd);
@@ -3668,20 +3680,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         tcg_out32(s, MTSPR | RS(args[0]) | CTR);
         tcg_out32(s, ADDI | TAI(TCG_REG_R3, 0, 0));
         tcg_out32(s, BCCTR | BO_ALWAYS);
-        break;
-    case INDEX_op_br:
-        {
-            TCGLabel *l = arg_label(args[0]);
-            uint32_t insn = B;
-
-            if (l->has_value) {
-                insn |= reloc_pc24_val(tcg_splitwx_to_rx(s->code_ptr),
-                                       l->u.value_ptr);
-            } else {
-                tcg_out_reloc(s, s->code_ptr, R_PPC_REL24, l, 0);
-            }
-            tcg_out32(s, insn);
-        }
         break;
     case INDEX_op_ld8u_i32:
     case INDEX_op_ld8u_i64:

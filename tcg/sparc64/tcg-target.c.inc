@@ -641,6 +641,12 @@ static void tcg_out_bpcc(TCGContext *s, int scond, int flags, TCGLabel *l)
     tcg_out_bpcc0(s, scond, flags, off19);
 }
 
+static void tcg_out_br(TCGContext *s, TCGLabel *l)
+{
+    tcg_out_bpcc(s, COND_A, BPCC_PT, l);
+    tcg_out_nop(s);
+}
+
 static void tcg_out_cmp(TCGContext *s, TCGCond cond,
                         TCGReg c1, int32_t c2, int c2const)
 {
@@ -1965,10 +1971,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     case INDEX_op_goto_ptr:
         tcg_out_arithi(s, TCG_REG_G0, a0, 0, JMPL);
         tcg_out_mov_delay(s, TCG_REG_TB, a0);
-        break;
-    case INDEX_op_br:
-        tcg_out_bpcc(s, COND_A, BPCC_PT, arg_label(a0));
-        tcg_out_nop(s);
         break;
 
 #define OP_32_64(x)                             \
