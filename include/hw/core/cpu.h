@@ -616,6 +616,8 @@ extern bool mttcg_enabled;
  */
 bool cpu_paging_enabled(const CPUState *cpu);
 
+#if !defined(CONFIG_USER_ONLY)
+
 /**
  * cpu_get_memory_mapping:
  * @cpu: The CPU whose memory mappings are to be obtained.
@@ -626,8 +628,6 @@ bool cpu_paging_enabled(const CPUState *cpu);
  */
 bool cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
                             Error **errp);
-
-#if !defined(CONFIG_USER_ONLY)
 
 /**
  * cpu_write_elf64_note:
