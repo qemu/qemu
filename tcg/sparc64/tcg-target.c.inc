@@ -652,11 +652,10 @@ static void tcg_out_brcond_i32(TCGContext *s, TCGCond cond, TCGReg arg1,
     tcg_out_nop(s);
 }
 
-static void tcg_out_movcc(TCGContext *s, TCGCond cond, int cc, TCGReg ret,
+static void tcg_out_movcc(TCGContext *s, int scond, int cc, TCGReg ret,
                           int32_t v1, int v1const)
 {
-    tcg_out32(s, ARITH_MOVCC | cc | INSN_RD(ret)
-              | INSN_RS1(tcg_cond_to_bcond[cond])
+    tcg_out32(s, ARITH_MOVCC | cc | INSN_RD(ret) | INSN_RS1(scond)
               | (v1const ? INSN_IMM11(v1) : INSN_RS2(v1)));
 }
 
@@ -665,7 +664,7 @@ static void tcg_out_movcond_i32(TCGContext *s, TCGCond cond, TCGReg ret,
                                 int32_t v1, int v1const)
 {
     tcg_out_cmp(s, cond, c1, c2, c2const);
-    tcg_out_movcc(s, cond, MOVCC_ICC, ret, v1, v1const);
+    tcg_out_movcc(s, tcg_cond_to_bcond[cond], MOVCC_ICC, ret, v1, v1const);
 }
 
 static void tcg_out_brcond_i64(TCGContext *s, TCGCond cond, TCGReg arg1,
@@ -709,7 +708,7 @@ static void tcg_out_movcond_i64(TCGContext *s, TCGCond cond, TCGReg ret,
         tcg_out_movr(s, rcond, ret, c1, v1, v1const);
     } else {
         tcg_out_cmp(s, cond, c1, c2, c2const);
-        tcg_out_movcc(s, cond, MOVCC_XCC, ret, v1, v1const);
+        tcg_out_movcc(s, tcg_cond_to_bcond[cond], MOVCC_XCC, ret, v1, v1const);
     }
 }
 
@@ -763,7 +762,8 @@ static void tcg_out_setcond_i32(TCGContext *s, TCGCond cond, TCGReg ret,
     default:
         tcg_out_cmp(s, cond, c1, c2, c2const);
         tcg_out_movi_s13(s, ret, 0);
-        tcg_out_movcc(s, cond, MOVCC_ICC, ret, neg ? -1 : 1, 1);
+        tcg_out_movcc(s, tcg_cond_to_bcond[cond],
+                      MOVCC_ICC, ret, neg ? -1 : 1, 1);
         return;
     }
 
@@ -818,7 +818,8 @@ static void tcg_out_setcond_i64(TCGContext *s, TCGCond cond, TCGReg ret,
     } else {
         tcg_out_cmp(s, cond, c1, c2, c2const);
         tcg_out_movi_s13(s, ret, 0);
-        tcg_out_movcc(s, cond, MOVCC_XCC, ret, neg ? -1 : 1, 1);
+        tcg_out_movcc(s, tcg_cond_to_bcond[cond],
+                      MOVCC_XCC, ret, neg ? -1 : 1, 1);
     }
 }
 
@@ -956,10 +957,10 @@ static void tcg_out_addsub2_i64(TCGContext *s, TCGReg rl, TCGReg rh,
 	if (rh == ah) {
             tcg_out_arithi(s, TCG_REG_T2, ah, 1,
 			   is_sub ? ARITH_SUB : ARITH_ADD);
-            tcg_out_movcc(s, TCG_COND_LTU, MOVCC_XCC, rh, TCG_REG_T2, 0);
+            tcg_out_movcc(s, COND_CS, MOVCC_XCC, rh, TCG_REG_T2, 0);
 	} else {
             tcg_out_arithi(s, rh, ah, 1, is_sub ? ARITH_SUB : ARITH_ADD);
-	    tcg_out_movcc(s, TCG_COND_GEU, MOVCC_XCC, rh, ah, 0);
+            tcg_out_movcc(s, COND_CC, MOVCC_XCC, rh, ah, 0);
 	}
     } else {
         /*
@@ -974,7 +975,7 @@ static void tcg_out_addsub2_i64(TCGContext *s, TCGReg rl, TCGReg rh,
                            is_sub ? ARITH_SUB : ARITH_ADD);
         }
         /* ... smoosh T2 back to original BH if carry is clear ... */
-        tcg_out_movcc(s, TCG_COND_GEU, MOVCC_XCC, TCG_REG_T2, bh, bhconst);
+        tcg_out_movcc(s, COND_CC, MOVCC_XCC, TCG_REG_T2, bh, bhconst);
 	/* ... and finally perform the arithmetic with the new operand.  */
         tcg_out_arith(s, rh, ah, TCG_REG_T2, is_sub ? ARITH_SUB : ARITH_ADD);
     }
