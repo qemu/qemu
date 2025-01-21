@@ -124,7 +124,9 @@ struct SysemuCPUOps;
  * @get_pc: Callback for getting the Program Counter register.
  *       As above, with the semantics of the target architecture.
  * @gdb_read_register: Callback for letting GDB read a register.
+ *                     No more than @gdb_num_core_regs registers can be read.
  * @gdb_write_register: Callback for letting GDB write a register.
+ *                     No more than @gdb_num_core_regs registers can be written.
  * @gdb_adjust_breakpoint: Callback for adjusting the address of a
  *       breakpoint.  Used by AVR to handle a gdb mis-feature with
  *       its Harvard architecture split code and data.
