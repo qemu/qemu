@@ -1399,82 +1399,6 @@ static bool fold_addco(OptContext *ctx, TCGOp *op)
     return finish_folding(ctx, op);
 }
 
-static bool fold_addsub2(OptContext *ctx, TCGOp *op, bool add)
-{
-    bool a_const = arg_is_const(op->args[2]) && arg_is_const(op->args[3]);
-    bool b_const = arg_is_const(op->args[4]) && arg_is_const(op->args[5]);
-
-    if (a_const && b_const) {
-        uint64_t al = arg_info(op->args[2])->val;
-        uint64_t ah = arg_info(op->args[3])->val;
-        uint64_t bl = arg_info(op->args[4])->val;
-        uint64_t bh = arg_info(op->args[5])->val;
-        TCGArg rl, rh;
-        TCGOp *op2;
-
-        if (ctx->type == TCG_TYPE_I32) {
-            uint64_t a = deposit64(al, 32, 32, ah);
-            uint64_t b = deposit64(bl, 32, 32, bh);
-
-            if (add) {
-                a += b;
-            } else {
-                a -= b;
-            }
-
-            al = sextract64(a, 0, 32);
-            ah = sextract64(a, 32, 32);
-        } else {
-            Int128 a = int128_make128(al, ah);
-            Int128 b = int128_make128(bl, bh);
-
-            if (add) {
-                a = int128_add(a, b);
-            } else {
-                a = int128_sub(a, b);
-            }
-
-            al = int128_getlo(a);
-            ah = int128_gethi(a);
-        }
-
-        rl = op->args[0];
-        rh = op->args[1];
-
-        /* The proper opcode is supplied by tcg_opt_gen_mov. */
-        op2 = opt_insert_before(ctx, op, 0, 2);
-
-        tcg_opt_gen_movi(ctx, op, rl, al);
-        tcg_opt_gen_movi(ctx, op2, rh, ah);
-        return true;
-    }
-
-    /* Fold sub2 r,x,i to add2 r,x,-i */
-    if (!add && b_const) {
-        uint64_t bl = arg_info(op->args[4])->val;
-        uint64_t bh = arg_info(op->args[5])->val;
-
-        /* Negate the two parts without assembling and disassembling. */
-        bl = -bl;
-        bh = ~bh + !bl;
-
-        op->opc = (ctx->type == TCG_TYPE_I32
-                   ? INDEX_op_add2_i32 : INDEX_op_add2_i64);
-        op->args[4] = arg_new_constant(ctx, bl);
-        op->args[5] = arg_new_constant(ctx, bh);
-    }
-    return finish_folding(ctx, op);
-}
-
-static bool fold_add2(OptContext *ctx, TCGOp *op)
-{
-    /* Note that the high and low parts may be independently swapped. */
-    swap_commutative(op->args[0], &op->args[2], &op->args[4]);
-    swap_commutative(op->args[1], &op->args[3], &op->args[5]);
-
-    return fold_addsub2(ctx, op, true);
-}
-
 static bool fold_and(OptContext *ctx, TCGOp *op)
 {
     uint64_t z1, z2, z_mask, s_mask;
@@ -2811,11 +2735,6 @@ static bool fold_sub(OptContext *ctx, TCGOp *op)
     return finish_folding(ctx, op);
 }
 
-static bool fold_sub2(OptContext *ctx, TCGOp *op)
-{
-    return fold_addsub2(ctx, op, false);
-}
-
 static void squash_prev_borrowout(OptContext *ctx, TCGOp *op)
 {
     TempOptInfo *t2;
@@ -3150,9 +3069,6 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_addco:
             done = fold_addco(&ctx, op);
             break;
-        CASE_OP_32_64(add2):
-            done = fold_add2(&ctx, op);
-            break;
         case INDEX_op_and:
         case INDEX_op_and_vec:
             done = fold_and(&ctx, op);
@@ -3341,9 +3257,6 @@ void tcg_optimize(TCGContext *s)
             break;
         case INDEX_op_sub_vec:
             done = fold_sub_vec(&ctx, op);
-            break;
-        CASE_OP_32_64(sub2):
-            done = fold_sub2(&ctx, op);
             break;
         case INDEX_op_xor:
         case INDEX_op_xor_vec:

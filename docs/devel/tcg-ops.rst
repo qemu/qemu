@@ -654,14 +654,6 @@ Multiword arithmetic support
          code generator will use ``tcg_out_set_borrow`` and then
          the output routine for *subbio*.
 
-   * - add2_i32/i64 *t0_low*, *t0_high*, *t1_low*, *t1_high*, *t2_low*, *t2_high*
-
-       sub2_i32/i64 *t0_low*, *t0_high*, *t1_low*, *t1_high*, *t2_low*, *t2_high*
-
-     - | Similar to add/sub, except that the double-word inputs *t1* and *t2* are
-         formed from two single-word arguments, and the double-word output *t0*
-         is returned in two single-word outputs.
-
    * - mulu2 *t0_low*, *t0_high*, *t1*, *t2*
 
      - | Similar to mul, except two unsigned inputs *t1* and *t2* yielding the full
@@ -952,9 +944,9 @@ Assumptions
 The target word size (``TCG_TARGET_REG_BITS``) is expected to be 32 bit or
 64 bit. It is expected that the pointer has the same size as the word.
 
-On a 32 bit target, all 64 bit operations are converted to 32 bits. A
-few specific operations must be implemented to allow it (see add2_i32,
-sub2_i32, brcond2_i32).
+On a 32 bit target, all 64 bit operations are converted to 32 bits.
+A few specific operations must be implemented to allow it
+(see brcond2_i32, setcond2_i32).
 
 On a 64 bit target, the values are transferred between 32 and 64-bit
 registers using the following ops:
