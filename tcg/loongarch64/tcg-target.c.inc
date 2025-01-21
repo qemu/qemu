@@ -29,8 +29,16 @@
  * THE SOFTWARE.
  */
 
-#include "../tcg-ldst.c.inc"
 #include <asm/hwcap.h>
+
+/* used for function call generation */
+#define TCG_REG_CALL_STACK              TCG_REG_SP
+#define TCG_TARGET_STACK_ALIGN          16
+#define TCG_TARGET_CALL_STACK_OFFSET    0
+#define TCG_TARGET_CALL_ARG_I32         TCG_CALL_ARG_NORMAL
+#define TCG_TARGET_CALL_ARG_I64         TCG_CALL_ARG_NORMAL
+#define TCG_TARGET_CALL_ARG_I128        TCG_CALL_ARG_NORMAL
+#define TCG_TARGET_CALL_RET_I128        TCG_CALL_RET_NORMAL
 
 #ifdef CONFIG_DEBUG_TCG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
@@ -1270,7 +1278,7 @@ void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
     flush_idcache_range(jmp_rx, jmp_rw, 4);
 }
 
-static void tcg_out_op(TCGContext *s, TCGOpcode opc,
+static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
 {
@@ -1367,10 +1375,38 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_extract_i32:
-        tcg_out_opc_bstrpick_w(s, a0, a1, a2, a2 + args[3] - 1);
+        if (a2 == 0 && args[3] <= 12) {
+            tcg_out_opc_andi(s, a0, a1, (1 << args[3]) - 1);
+        } else {
+            tcg_out_opc_bstrpick_w(s, a0, a1, a2, a2 + args[3] - 1);
+        }
         break;
     case INDEX_op_extract_i64:
-        tcg_out_opc_bstrpick_d(s, a0, a1, a2, a2 + args[3] - 1);
+        if (a2 == 0 && args[3] <= 12) {
+            tcg_out_opc_andi(s, a0, a1, (1 << args[3]) - 1);
+        } else {
+            tcg_out_opc_bstrpick_d(s, a0, a1, a2, a2 + args[3] - 1);
+        }
+        break;
+
+    case INDEX_op_sextract_i64:
+        if (a2 + args[3] == 32) {
+            if (a2 == 0) {
+                tcg_out_ext32s(s, a0, a1);
+            } else {
+                tcg_out_opc_srai_w(s, a0, a1, a2);
+            }
+            break;
+        }
+        /* FALLTHRU */
+    case INDEX_op_sextract_i32:
+        if (a2 == 0 && args[3] == 8) {
+            tcg_out_ext8s(s, TCG_TYPE_REG, a0, a1);
+        } else if (a2 == 0 && args[3] == 16) {
+            tcg_out_ext16s(s, TCG_TYPE_REG, a0, a1);
+        } else {
+            g_assert_not_reached();
+        }
         break;
 
     case INDEX_op_deposit_i32:
@@ -2183,7 +2219,8 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
     g_assert_not_reached();
 }
 
-static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
+static TCGConstraintSetIndex
+tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 {
     switch (op) {
     case INDEX_op_goto_ptr:
@@ -2234,6 +2271,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_not_i64:
     case INDEX_op_extract_i32:
     case INDEX_op_extract_i64:
+    case INDEX_op_sextract_i32:
+    case INDEX_op_sextract_i64:
     case INDEX_op_bswap16_i32:
     case INDEX_op_bswap16_i64:
     case INDEX_op_bswap32_i32:
@@ -2383,7 +2422,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O1_I3(w, w, w, w);
 
     default:
-        g_assert_not_reached();
+        return C_NotImplemented;
     }
 }
 
@@ -2454,6 +2493,14 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 static void tcg_out_tb_start(TCGContext *s)
 {
     /* nothing to do */
+}
+
+static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
+{
+    for (int i = 0; i < count; ++i) {
+        /* Canonical nop is andi r0,r0,0 */
+        p[i] = OPC_ANDI;
+    }
 }
 
 static void tcg_target_init(TCGContext *s)

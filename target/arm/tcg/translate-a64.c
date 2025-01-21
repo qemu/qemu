@@ -8219,6 +8219,7 @@ static bool trans_CCMP(DisasContext *s, arg_CCMP *a)
     TCGv_i64 tcg_rn, tcg_y;
     DisasCompare c;
     unsigned nzcv;
+    bool has_andc;
 
     /* Set T0 = !COND.  */
     arm_test_cc(&c, a->cond);
@@ -8249,17 +8250,18 @@ static bool trans_CCMP(DisasContext *s, arg_CCMP *a)
     tcg_gen_subi_i32(tcg_t2, tcg_t0, 1);
 
     nzcv = a->nzcv;
+    has_andc = tcg_op_supported(INDEX_op_andc_i32, TCG_TYPE_I32, 0);
     if (nzcv & 8) { /* N */
         tcg_gen_or_i32(cpu_NF, cpu_NF, tcg_t1);
     } else {
-        if (TCG_TARGET_HAS_andc_i32) {
+        if (has_andc) {
             tcg_gen_andc_i32(cpu_NF, cpu_NF, tcg_t1);
         } else {
             tcg_gen_and_i32(cpu_NF, cpu_NF, tcg_t2);
         }
     }
     if (nzcv & 4) { /* Z */
-        if (TCG_TARGET_HAS_andc_i32) {
+        if (has_andc) {
             tcg_gen_andc_i32(cpu_ZF, cpu_ZF, tcg_t1);
         } else {
             tcg_gen_and_i32(cpu_ZF, cpu_ZF, tcg_t2);
@@ -8270,7 +8272,7 @@ static bool trans_CCMP(DisasContext *s, arg_CCMP *a)
     if (nzcv & 2) { /* C */
         tcg_gen_or_i32(cpu_CF, cpu_CF, tcg_t0);
     } else {
-        if (TCG_TARGET_HAS_andc_i32) {
+        if (has_andc) {
             tcg_gen_andc_i32(cpu_CF, cpu_CF, tcg_t1);
         } else {
             tcg_gen_and_i32(cpu_CF, cpu_CF, tcg_t2);
@@ -8279,7 +8281,7 @@ static bool trans_CCMP(DisasContext *s, arg_CCMP *a)
     if (nzcv & 1) { /* V */
         tcg_gen_or_i32(cpu_VF, cpu_VF, tcg_t1);
     } else {
-        if (TCG_TARGET_HAS_andc_i32) {
+        if (has_andc) {
             tcg_gen_andc_i32(cpu_VF, cpu_VF, tcg_t1);
         } else {
             tcg_gen_and_i32(cpu_VF, cpu_VF, tcg_t2);

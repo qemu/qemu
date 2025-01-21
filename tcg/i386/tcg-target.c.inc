@@ -22,8 +22,25 @@
  * THE SOFTWARE.
  */
 
-#include "../tcg-ldst.c.inc"
-#include "../tcg-pool.c.inc"
+/* Used for function call generation. */
+#define TCG_TARGET_STACK_ALIGN 16
+#if defined(_WIN64)
+#define TCG_TARGET_CALL_STACK_OFFSET 32
+#else
+#define TCG_TARGET_CALL_STACK_OFFSET 0
+#endif
+#define TCG_TARGET_CALL_ARG_I32      TCG_CALL_ARG_NORMAL
+#define TCG_TARGET_CALL_ARG_I64      TCG_CALL_ARG_NORMAL
+#if defined(_WIN64)
+# define TCG_TARGET_CALL_ARG_I128    TCG_CALL_ARG_BY_REF
+# define TCG_TARGET_CALL_RET_I128    TCG_CALL_RET_BY_VEC
+#elif TCG_TARGET_REG_BITS == 64
+# define TCG_TARGET_CALL_ARG_I128    TCG_CALL_ARG_NORMAL
+# define TCG_TARGET_CALL_RET_I128    TCG_CALL_RET_NORMAL
+#else
+# define TCG_TARGET_CALL_ARG_I128    TCG_CALL_ARG_NORMAL
+# define TCG_TARGET_CALL_RET_I128    TCG_CALL_RET_BY_REF
+#endif
 
 #ifdef CONFIG_DEBUG_TCG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
@@ -1312,16 +1329,31 @@ static inline void tcg_out_rolw_8(TCGContext *s, int reg)
 
 static void tcg_out_ext8u(TCGContext *s, TCGReg dest, TCGReg src)
 {
-    /* movzbl */
-    tcg_debug_assert(src < 4 || TCG_TARGET_REG_BITS == 64);
+    if (TCG_TARGET_REG_BITS == 32 && src >= 4) {
+        tcg_out_mov(s, TCG_TYPE_I32, dest, src);
+        if (dest >= 4) {
+            tcg_out_modrm(s, OPC_ARITH_EvIz, ARITH_AND, dest);
+            tcg_out32(s, 0xff);
+            return;
+        }
+        src = dest;
+    }
     tcg_out_modrm(s, OPC_MOVZBL + P_REXB_RM, dest, src);
 }
 
 static void tcg_out_ext8s(TCGContext *s, TCGType type, TCGReg dest, TCGReg src)
 {
     int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
-    /* movsbl */
-    tcg_debug_assert(src < 4 || TCG_TARGET_REG_BITS == 64);
+
+    if (TCG_TARGET_REG_BITS == 32 && src >= 4) {
+        tcg_out_mov(s, TCG_TYPE_I32, dest, src);
+        if (dest >= 4) {
+            tcg_out_shifti(s, SHIFT_SHL, dest, 24);
+            tcg_out_shifti(s, SHIFT_SAR, dest, 24);
+            return;
+        }
+        src = dest;
+    }
     tcg_out_modrm(s, OPC_MOVSBL + P_REXB_RM + rexw, dest, src);
 }
 
@@ -2595,17 +2627,16 @@ void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
     /* no need to flush icache explicitly */
 }
 
-static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
-                              const TCGArg args[TCG_MAX_OP_ARGS],
-                              const int const_args[TCG_MAX_OP_ARGS])
+static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
+                       const TCGArg args[TCG_MAX_OP_ARGS],
+                       const int const_args[TCG_MAX_OP_ARGS])
 {
     TCGArg a0, a1, a2;
-    int c, const_a2, vexop, rexw = 0;
+    int c, const_a2, vexop, rexw;
 
 #if TCG_TARGET_REG_BITS == 64
 # define OP_32_64(x) \
         case glue(glue(INDEX_op_, x), _i64): \
-            rexw = P_REXW; /* FALLTHRU */    \
         case glue(glue(INDEX_op_, x), _i32)
 #else
 # define OP_32_64(x) \
@@ -2617,6 +2648,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     a1 = args[1];
     a2 = args[2];
     const_a2 = const_args[2];
+    rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
 
     switch (opc) {
     case INDEX_op_goto_ptr:
@@ -3003,6 +3035,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_extract_i64:
         if (a2 + args[3] == 32) {
+            if (a2 == 0) {
+                tcg_out_ext32u(s, a0, a1);
+                break;
+            }
             /* This is a 32-bit zero-extending right shift.  */
             tcg_out_mov(s, TCG_TYPE_I32, a0, a1);
             tcg_out_shifti(s, SHIFT_SHR, a0, a2);
@@ -3010,28 +3046,53 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         /* FALLTHRU */
     case INDEX_op_extract_i32:
-        /* On the off-chance that we can use the high-byte registers.
-           Otherwise we emit the same ext16 + shift pattern that we
-           would have gotten from the normal tcg-op.c expansion.  */
-        tcg_debug_assert(a2 == 8 && args[3] == 8);
-        if (a1 < 4 && a0 < 8) {
-            tcg_out_modrm(s, OPC_MOVZBL, a0, a1 + 4);
-        } else {
+        if (a2 == 0 && args[3] == 8) {
+            tcg_out_ext8u(s, a0, a1);
+        } else if (a2 == 0 && args[3] == 16) {
             tcg_out_ext16u(s, a0, a1);
-            tcg_out_shifti(s, SHIFT_SHR, a0, 8);
+        } else if (a2 == 8 && args[3] == 8) {
+            /*
+             * On the off-chance that we can use the high-byte registers.
+             * Otherwise we emit the same ext16 + shift pattern that we
+             * would have gotten from the normal tcg-op.c expansion.
+             */
+            if (a1 < 4 && a0 < 8) {
+                tcg_out_modrm(s, OPC_MOVZBL, a0, a1 + 4);
+            } else {
+                tcg_out_ext16u(s, a0, a1);
+                tcg_out_shifti(s, SHIFT_SHR, a0, 8);
+            }
+        } else {
+            g_assert_not_reached();
+        }
+        break;
+
+    case INDEX_op_sextract_i64:
+        if (a2 == 0 && args[3] == 8) {
+            tcg_out_ext8s(s, TCG_TYPE_I64, a0, a1);
+        } else if (a2 == 0 && args[3] == 16) {
+            tcg_out_ext16s(s, TCG_TYPE_I64, a0, a1);
+        } else if (a2 == 0 && args[3] == 32) {
+            tcg_out_ext32s(s, a0, a1);
+        } else {
+            g_assert_not_reached();
         }
         break;
 
     case INDEX_op_sextract_i32:
-        /* We don't implement sextract_i64, as we cannot sign-extend to
-           64-bits without using the REX prefix that explicitly excludes
-           access to the high-byte registers.  */
-        tcg_debug_assert(a2 == 8 && args[3] == 8);
-        if (a1 < 4 && a0 < 8) {
-            tcg_out_modrm(s, OPC_MOVSBL, a0, a1 + 4);
-        } else {
+        if (a2 == 0 && args[3] == 8) {
+            tcg_out_ext8s(s, TCG_TYPE_I32, a0, a1);
+        } else if (a2 == 0 && args[3] == 16) {
             tcg_out_ext16s(s, TCG_TYPE_I32, a0, a1);
-            tcg_out_shifti(s, SHIFT_SAR, a0, 8);
+        } else if (a2 == 8 && args[3] == 8) {
+            if (a1 < 4 && a0 < 8) {
+                tcg_out_modrm(s, OPC_MOVSBL, a0, a1 + 4);
+            } else {
+                tcg_out_ext16s(s, TCG_TYPE_I32, a0, a1);
+                tcg_out_shifti(s, SHIFT_SAR, a0, 8);
+            }
+        } else {
+            g_assert_not_reached();
         }
         break;
 
@@ -3610,7 +3671,8 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     }
 }
 
-static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
+static TCGConstraintSetIndex
+tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 {
     switch (op) {
     case INDEX_op_goto_ptr:
@@ -3713,6 +3775,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_extract_i32:
     case INDEX_op_extract_i64:
     case INDEX_op_sextract_i32:
+    case INDEX_op_sextract_i64:
     case INDEX_op_ctpop_i32:
     case INDEX_op_ctpop_i64:
         return C_O1_I1(r, r);
@@ -3868,7 +3931,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O1_I4(x, x, x, xO, x);
 
     default:
-        g_assert_not_reached();
+        return C_NotImplemented;
     }
 }
 

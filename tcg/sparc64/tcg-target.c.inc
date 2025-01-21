@@ -27,8 +27,15 @@
 #error "unsupported code generation mode"
 #endif
 
-#include "../tcg-ldst.c.inc"
-#include "../tcg-pool.c.inc"
+/* Used for function call generation. */
+#define TCG_REG_CALL_STACK              TCG_REG_O6
+#define TCG_TARGET_STACK_BIAS           2047
+#define TCG_TARGET_STACK_ALIGN          16
+#define TCG_TARGET_CALL_STACK_OFFSET    (128 + 6 * 8 + TCG_TARGET_STACK_BIAS)
+#define TCG_TARGET_CALL_ARG_I32         TCG_CALL_ARG_EXTEND
+#define TCG_TARGET_CALL_ARG_I64         TCG_CALL_ARG_NORMAL
+#define TCG_TARGET_CALL_ARG_I128        TCG_CALL_ARG_NORMAL
+#define TCG_TARGET_CALL_RET_I128        TCG_CALL_RET_NORMAL
 
 #ifdef CONFIG_DEBUG_TCG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
@@ -1281,7 +1288,7 @@ void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
 {
 }
 
-static void tcg_out_op(TCGContext *s, TCGOpcode opc,
+static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
 {
@@ -1503,6 +1510,15 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_mb(s, a0);
         break;
 
+    case INDEX_op_extract_i64:
+        tcg_debug_assert(a2 + args[3] == 32);
+        tcg_out_arithi(s, a0, a1, a2, SHIFT_SRL);
+        break;
+    case INDEX_op_sextract_i64:
+        tcg_debug_assert(a2 + args[3] == 32);
+        tcg_out_arithi(s, a0, a1, a2, SHIFT_SRA);
+        break;
+
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
@@ -1525,7 +1541,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     }
 }
 
-static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
+static TCGConstraintSetIndex
+tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 {
     switch (op) {
     case INDEX_op_goto_ptr:
@@ -1551,6 +1568,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_ext32u_i64:
     case INDEX_op_ext_i32_i64:
     case INDEX_op_extu_i32_i64:
+    case INDEX_op_extract_i64:
+    case INDEX_op_sextract_i64:
     case INDEX_op_qemu_ld_a32_i32:
     case INDEX_op_qemu_ld_a64_i32:
     case INDEX_op_qemu_ld_a32_i64:
@@ -1620,7 +1639,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O1_I2(r, r, r);
 
     default:
-        g_assert_not_reached();
+        return C_NotImplemented;
     }
 }
 

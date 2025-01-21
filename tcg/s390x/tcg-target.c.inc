@@ -24,9 +24,15 @@
  * THE SOFTWARE.
  */
 
-#include "../tcg-ldst.c.inc"
-#include "../tcg-pool.c.inc"
 #include "elf.h"
+
+/* Used for function call generation. */
+#define TCG_TARGET_STACK_ALIGN          8
+#define TCG_TARGET_CALL_STACK_OFFSET    160
+#define TCG_TARGET_CALL_ARG_I32         TCG_CALL_ARG_EXTEND
+#define TCG_TARGET_CALL_ARG_I64         TCG_CALL_ARG_NORMAL
+#define TCG_TARGET_CALL_ARG_I128        TCG_CALL_ARG_BY_REF
+#define TCG_TARGET_CALL_RET_I128        TCG_CALL_RET_BY_REF
 
 #define TCG_CT_CONST_S16        (1 << 8)
 #define TCG_CT_CONST_S32        (1 << 9)
@@ -1566,7 +1572,39 @@ static void tgen_deposit(TCGContext *s, TCGReg dest, TCGReg src,
 static void tgen_extract(TCGContext *s, TCGReg dest, TCGReg src,
                          int ofs, int len)
 {
+    if (ofs == 0) {
+        switch (len) {
+        case 8:
+            tcg_out_ext8u(s, dest, src);
+            return;
+        case 16:
+            tcg_out_ext16u(s, dest, src);
+            return;
+        case 32:
+            tcg_out_ext32u(s, dest, src);
+            return;
+        }
+    }
     tcg_out_risbg(s, dest, src, 64 - len, 63, 64 - ofs, 1);
+}
+
+static void tgen_sextract(TCGContext *s, TCGReg dest, TCGReg src,
+                          int ofs, int len)
+{
+    if (ofs == 0) {
+        switch (len) {
+        case 8:
+            tcg_out_ext8s(s, TCG_TYPE_REG, dest, src);
+            return;
+        case 16:
+            tcg_out_ext16s(s, TCG_TYPE_REG, dest, src);
+            return;
+        case 32:
+            tcg_out_ext32s(s, dest, src);
+            return;
+        }
+    }
+    g_assert_not_reached();
 }
 
 static void tgen_gotoi(TCGContext *s, int cc, const tcg_insn_unit *dest)
@@ -2111,9 +2149,9 @@ void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
         case glue(glue(INDEX_op_,x),_i32): \
         case glue(glue(INDEX_op_,x),_i64)
 
-static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
-                              const TCGArg args[TCG_MAX_OP_ARGS],
-                              const int const_args[TCG_MAX_OP_ARGS])
+static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
+                       const TCGArg args[TCG_MAX_OP_ARGS],
+                       const int const_args[TCG_MAX_OP_ARGS])
 {
     S390Opcode op, op2;
     TCGArg a0, a1, a2;
@@ -2707,7 +2745,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             /* Since we can't support "0Z" as a constraint, we allow a1 in
                any register.  Fix things up as if a matching constraint.  */
             if (a0 != a1) {
-                TCGType type = (opc == INDEX_op_deposit_i64);
                 if (a0 == a2) {
                     tcg_out_mov(s, type, TCG_TMP0, a2);
                     a2 = TCG_TMP0;
@@ -2720,6 +2757,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     OP_32_64(extract):
         tgen_extract(s, args[0], args[1], args[2], args[3]);
+        break;
+    OP_32_64(sextract):
+        tgen_sextract(s, args[0], args[1], args[2], args[3]);
         break;
 
     case INDEX_op_clz_i64:
@@ -3201,7 +3241,8 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
     va_end(va);
 }
 
-static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
+static TCGConstraintSetIndex
+tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 {
     switch (op) {
     case INDEX_op_goto_ptr:
@@ -3319,6 +3360,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_extu_i32_i64:
     case INDEX_op_extract_i32:
     case INDEX_op_extract_i64:
+    case INDEX_op_sextract_i32:
+    case INDEX_op_sextract_i64:
     case INDEX_op_ctpop_i32:
     case INDEX_op_ctpop_i64:
         return C_O1_I1(r, r);
@@ -3421,7 +3464,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
                 : C_O1_I4(v, v, v, vZ, v));
 
     default:
-        g_assert_not_reached();
+        return C_NotImplemented;
     }
 }
 

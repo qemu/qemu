@@ -28,6 +28,7 @@
 #include "qemu/interval-tree.h"
 #include "tcg/tcg-op-common.h"
 #include "tcg-internal.h"
+#include "tcg-has.h"
 
 #define CASE_OP_32_64(x)                        \
         glue(glue(case INDEX_op_, x), _i32):    \
@@ -370,7 +371,7 @@ static bool tcg_opt_gen_mov(OptContext *ctx, TCGOp *op, TCGArg dst, TCGArg src)
     case TCG_TYPE_V64:
     case TCG_TYPE_V128:
     case TCG_TYPE_V256:
-        /* TCGOP_VECL and TCGOP_VECE remain unchanged.  */
+        /* TCGOP_TYPE and TCGOP_VECE remain unchanged.  */
         new_op = INDEX_op_mov_vec;
         break;
     default:
@@ -2361,9 +2362,11 @@ static void fold_setcond_tst_pow2(OptContext *ctx, TCGOp *op, bool neg)
         xor_opc = INDEX_op_xor_i32;
         shr_opc = INDEX_op_shr_i32;
         neg_opc = INDEX_op_neg_i32;
-        if (TCG_TARGET_extract_i32_valid(sh, 1)) {
-            uext_opc = TCG_TARGET_HAS_extract_i32 ? INDEX_op_extract_i32 : 0;
-            sext_opc = TCG_TARGET_HAS_sextract_i32 ? INDEX_op_sextract_i32 : 0;
+        if (TCG_TARGET_extract_valid(TCG_TYPE_I32, sh, 1)) {
+            uext_opc = INDEX_op_extract_i32;
+        }
+        if (TCG_TARGET_sextract_valid(TCG_TYPE_I32, sh, 1)) {
+            sext_opc = INDEX_op_sextract_i32;
         }
         break;
     case TCG_TYPE_I64:
@@ -2372,9 +2375,11 @@ static void fold_setcond_tst_pow2(OptContext *ctx, TCGOp *op, bool neg)
         xor_opc = INDEX_op_xor_i64;
         shr_opc = INDEX_op_shr_i64;
         neg_opc = INDEX_op_neg_i64;
-        if (TCG_TARGET_extract_i64_valid(sh, 1)) {
-            uext_opc = TCG_TARGET_HAS_extract_i64 ? INDEX_op_extract_i64 : 0;
-            sext_opc = TCG_TARGET_HAS_sextract_i64 ? INDEX_op_sextract_i64 : 0;
+        if (TCG_TARGET_extract_valid(TCG_TYPE_I64, sh, 1)) {
+            uext_opc = INDEX_op_extract_i64;
+        }
+        if (TCG_TARGET_sextract_valid(TCG_TYPE_I64, sh, 1)) {
+            sext_opc = INDEX_op_sextract_i64;
         }
         break;
     default:
@@ -2866,13 +2871,7 @@ void tcg_optimize(TCGContext *s)
         copy_propagate(&ctx, op, def->nb_oargs, def->nb_iargs);
 
         /* Pre-compute the type of the operation. */
-        if (def->flags & TCG_OPF_VECTOR) {
-            ctx.type = TCG_TYPE_V64 + TCGOP_VECL(op);
-        } else if (def->flags & TCG_OPF_64BIT) {
-            ctx.type = TCG_TYPE_I64;
-        } else {
-            ctx.type = TCG_TYPE_I32;
-        }
+        ctx.type = TCGOP_TYPE(op);
 
         /*
          * Process each opcode.

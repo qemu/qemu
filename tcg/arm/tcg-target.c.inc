@@ -23,8 +23,6 @@
  */
 
 #include "elf.h"
-#include "../tcg-ldst.c.inc"
-#include "../tcg-pool.c.inc"
 
 int arm_arch = __ARM_ARCH;
 
@@ -34,6 +32,14 @@ bool use_idiv_instructions;
 #ifndef use_neon_instructions
 bool use_neon_instructions;
 #endif
+
+/* Used for function call generation. */
+#define TCG_TARGET_STACK_ALIGN          8
+#define TCG_TARGET_CALL_STACK_OFFSET    0
+#define TCG_TARGET_CALL_ARG_I32         TCG_CALL_ARG_NORMAL
+#define TCG_TARGET_CALL_ARG_I64         TCG_CALL_ARG_EVEN
+#define TCG_TARGET_CALL_ARG_I128        TCG_CALL_ARG_EVEN
+#define TCG_TARGET_CALL_RET_I128        TCG_CALL_RET_BY_REF
 
 #ifdef CONFIG_DEBUG_TCG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
@@ -1030,18 +1036,60 @@ static void tcg_out_deposit(TCGContext *s, ARMCond cond, TCGReg rd,
 static void tcg_out_extract(TCGContext *s, ARMCond cond, TCGReg rd,
                             TCGReg rn, int ofs, int len)
 {
-    /* ubfx */
-    tcg_out32(s, 0x07e00050 | (cond << 28) | (rd << 12) | rn
-              | (ofs << 7) | ((len - 1) << 16));
+    /* According to gcc, AND can be faster. */
+    if (ofs == 0 && len <= 8) {
+        tcg_out_dat_imm(s, cond, ARITH_AND, rd, rn,
+                        encode_imm_nofail((1 << len) - 1));
+        return;
+    }
+
+    if (use_armv7_instructions) {
+        /* ubfx */
+        tcg_out32(s, 0x07e00050 | (cond << 28) | (rd << 12) | rn
+                  | (ofs << 7) | ((len - 1) << 16));
+        return;
+    }
+
+    assert(ofs % 8 == 0);
+    switch (len) {
+    case 8:
+        /* uxtb */
+        tcg_out32(s, 0x06ef0070 | (cond << 28) | (rd << 12) | (ofs << 7) | rn);
+        break;
+    case 16:
+        /* uxth */
+        tcg_out32(s, 0x06ff0070 | (cond << 28) | (rd << 12) | (ofs << 7) | rn);
+        break;
+    default:
+        g_assert_not_reached();
+    }
 }
 
 static void tcg_out_sextract(TCGContext *s, ARMCond cond, TCGReg rd,
                              TCGReg rn, int ofs, int len)
 {
-    /* sbfx */
-    tcg_out32(s, 0x07a00050 | (cond << 28) | (rd << 12) | rn
-              | (ofs << 7) | ((len - 1) << 16));
+    if (use_armv7_instructions) {
+        /* sbfx */
+        tcg_out32(s, 0x07a00050 | (cond << 28) | (rd << 12) | rn
+                  | (ofs << 7) | ((len - 1) << 16));
+        return;
+    }
+
+    assert(ofs % 8 == 0);
+    switch (len) {
+    case 8:
+        /* sxtb */
+        tcg_out32(s, 0x06af0070 | (cond << 28) | (rd << 12) | (ofs << 7) | rn);
+        break;
+    case 16:
+        /* sxth */
+        tcg_out32(s, 0x06bf0070 | (cond << 28) | (rd << 12) | (ofs << 7) | rn);
+        break;
+    default:
+        g_assert_not_reached();
+    }
 }
+
 
 static void tcg_out_ld32u(TCGContext *s, ARMCond cond,
                           TCGReg rd, TCGReg rn, int32_t offset)
@@ -1799,7 +1847,7 @@ void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
     flush_idcache_range(jmp_rx, jmp_rw, 4);
 }
 
-static void tcg_out_op(TCGContext *s, TCGOpcode opc,
+static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
 {
@@ -2118,7 +2166,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     }
 }
 
-static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
+static TCGConstraintSetIndex
+tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 {
     switch (op) {
     case INDEX_op_goto_ptr:
@@ -2254,7 +2303,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_bitsel_vec:
         return C_O1_I3(w, w, w, w);
     default:
-        g_assert_not_reached();
+        return C_NotImplemented;
     }
 }
 

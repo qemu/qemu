@@ -249,7 +249,20 @@ static TranslationBlock *tb_htable_lookup(CPUState *cpu, vaddr pc,
     return qht_lookup_custom(&tb_ctx.htable, &desc, h, tb_lookup_cmp);
 }
 
-/* Might cause an exception, so have a longjmp destination ready */
+/**
+ * tb_lookup:
+ * @cpu: CPU that will execute the returned translation block
+ * @pc: guest PC
+ * @cs_base: arch-specific value associated with translation block
+ * @flags: arch-specific translation block flags
+ * @cflags: CF_* flags
+ *
+ * Look up a translation block inside the QHT using @pc, @cs_base, @flags and
+ * @cflags. Uses @cpu's tb_jmp_cache. Might cause an exception, so have a
+ * longjmp destination ready.
+ *
+ * Returns: an existing translation block or NULL.
+ */
 static inline TranslationBlock *tb_lookup(CPUState *cpu, vaddr pc,
                                           uint64_t cs_base, uint32_t flags,
                                           uint32_t cflags)
