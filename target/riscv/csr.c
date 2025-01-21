@@ -376,10 +376,6 @@ static RISCVException aia_smode32(CPURISCVState *env, int csrno)
         return ret;
     }
 
-    if (ret != RISCV_EXCP_NONE) {
-        return ret;
-    }
-
     return smode32(env, csrno);
 }
 
