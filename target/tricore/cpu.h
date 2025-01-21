@@ -26,6 +26,10 @@
 #include "qemu/cpu-float.h"
 #include "tricore-defs.h"
 
+#ifdef CONFIG_USER_ONLY
+#error "TriCore does not support user mode emulation"
+#endif
+
 typedef struct CPUArchState {
     /* GPR Register */
     uint32_t gpr_a[16];
