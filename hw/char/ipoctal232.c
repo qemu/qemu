@@ -184,9 +184,9 @@ static void update_irq(IPOctalState *dev, unsigned block)
     unsigned intno = block / 2;
 
     if ((blk0->isr & blk0->imr) || (blk1->isr & blk1->imr)) {
-        qemu_irq_raise(idev->irq[intno]);
+        qemu_irq_raise(&idev->irq[intno]);
     } else {
-        qemu_irq_lower(idev->irq[intno]);
+        qemu_irq_lower(&idev->irq[intno]);
     }
 }
 
