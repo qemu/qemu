@@ -2208,7 +2208,7 @@ static const TCGOutOpBrcond2 outop_brcond2 = {
     .out = tgen_brcond2,
 };
 
-static void tcg_out_mb(TCGContext *s, TCGArg a0)
+static void tcg_out_mb(TCGContext *s, unsigned a0)
 {
     uint32_t insn;
 
@@ -3756,10 +3756,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     case INDEX_op_qemu_st_i128:
         tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
         tcg_out_qemu_ldst_i128(s, args[0], args[1], args[2], args[3], false);
-        break;
-
-    case INDEX_op_mb:
-        tcg_out_mb(s, args[0]);
         break;
 
     case INDEX_op_call:      /* Always emitted via tcg_out_call.  */

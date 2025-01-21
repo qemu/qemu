@@ -949,7 +949,7 @@ static void tcg_out_call(TCGContext *s, const tcg_insn_unit *dest,
     tcg_out_nop(s);
 }
 
-static void tcg_out_mb(TCGContext *s, TCGArg a0)
+static void tcg_out_mb(TCGContext *s, unsigned a0)
 {
     /* Note that the TCG memory order constants mirror the Sparc MEMBAR.  */
     tcg_out32(s, MEMBAR | (a0 & TCG_MO_ALL));
@@ -2023,10 +2023,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         break;
     case INDEX_op_st_i64:
         tcg_out_ldst(s, a0, a1, a2, STX);
-        break;
-
-    case INDEX_op_mb:
-        tcg_out_mb(s, a0);
         break;
 
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */

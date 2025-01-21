@@ -1575,7 +1575,7 @@ static void tcg_out_extrl_i64_i32(TCGContext *s, TCGReg rd, TCGReg rn)
     tcg_out_mov(s, TCG_TYPE_I32, rd, rn);
 }
 
-static inline void tcg_out_mb(TCGContext *s, TCGArg a0)
+static void tcg_out_mb(TCGContext *s, unsigned a0)
 {
     static const uint32_t sync[] = {
         [0 ... TCG_MO_ALL]            = DMB_ISH | DMB_LD | DMB_ST,
@@ -2843,10 +2843,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType ext,
         break;
     case INDEX_op_qemu_st_i128:
         tcg_out_qemu_ldst_i128(s, a0, a1, a2, args[3], false);
-        break;
-
-    case INDEX_op_mb:
-        tcg_out_mb(s, a0);
         break;
 
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */

@@ -1582,7 +1582,7 @@ static void tcg_out_call(TCGContext *s, const tcg_insn_unit *arg,
     tcg_out_call_int(s, arg, false);
 }
 
-static void tcg_out_mb(TCGContext *s, TCGArg a0)
+static void tcg_out_mb(TCGContext *s, unsigned a0)
 {
     tcg_insn_unit insn = OPC_FENCE;
 
@@ -2592,10 +2592,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         break;
     case INDEX_op_qemu_st_i64:
         tcg_out_qemu_st(s, a0, a1, a2, TCG_TYPE_I64);
-        break;
-
-    case INDEX_op_mb:
-        tcg_out_mb(s, a0);
         break;
 
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */

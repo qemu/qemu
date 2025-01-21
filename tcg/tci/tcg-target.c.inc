@@ -1131,6 +1131,11 @@ static const TCGOutOpSetcond2 outop_setcond2 = {
     .out = tgen_setcond2,
 };
 
+static void tcg_out_mb(TCGContext *s, unsigned a0)
+{
+    tcg_out_op_v(s, INDEX_op_mb);
+}
+
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
@@ -1176,10 +1181,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         } else {
             tcg_out_op_rrm(s, opc, args[0], args[1], args[2]);
         }
-        break;
-
-    case INDEX_op_mb:
-        tcg_out_op_v(s, opc);
         break;
 
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */

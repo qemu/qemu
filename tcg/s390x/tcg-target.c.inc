@@ -3008,6 +3008,17 @@ static const TCGOutOpUnary outop_not = {
     .out_rr = tgen_not,
 };
 
+static void tcg_out_mb(TCGContext *s, unsigned a0)
+{
+    /*
+     * The host memory model is quite strong, we simply need to
+     * serialize the instruction stream.
+     */
+    if (a0 & TCG_MO_ST_LD) {
+        /* fast-bcr-serialization facility (45) is present */
+        tcg_out_insn(s, RR, BCR, 14, 0);
+    }
+}
 
 # define OP_32_64(x) \
         case glue(glue(INDEX_op_,x),_i32): \
@@ -3105,15 +3116,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         break;
     case INDEX_op_st_i64:
         tcg_out_st(s, TCG_TYPE_I64, args[0], args[1], args[2]);
-        break;
-
-    case INDEX_op_mb:
-        /* The host memory model is quite strong, we simply need to
-           serialize the instruction stream.  */
-        if (args[0] & TCG_MO_ST_LD) {
-            /* fast-bcr-serialization facility (45) is present */
-            tcg_out_insn(s, RR, BCR, 14, 0);
-        }
         break;
 
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */

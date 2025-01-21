@@ -301,7 +301,7 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
  * TCG intrinsics
  */
 
-static void tcg_out_mb(TCGContext *s, TCGArg a0)
+static void tcg_out_mb(TCGContext *s, unsigned a0)
 {
     /* Baseline LoongArch only has the full barrier, unfortunately.  */
     tcg_out_opc_dbar(s, 0);
@@ -1917,10 +1917,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     TCGArg a3 = args[3];
 
     switch (opc) {
-    case INDEX_op_mb:
-        tcg_out_mb(s, a0);
-        break;
-
     case INDEX_op_goto_ptr:
         tcg_out_opc_jirl(s, TCG_REG_ZERO, a0, 0);
         break;
