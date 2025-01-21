@@ -133,6 +133,7 @@ static void tcg_out_addi_ptr(TCGContext *s, TCGReg, TCGReg, tcg_target_long);
 static bool tcg_out_xchg(TCGContext *s, TCGType type, TCGReg r1, TCGReg r2);
 static void tcg_out_exit_tb(TCGContext *s, uintptr_t arg);
 static void tcg_out_goto_tb(TCGContext *s, int which);
+static void tcg_out_goto_ptr(TCGContext *s, TCGReg dest);
 static void tcg_out_mb(TCGContext *s, unsigned bar);
 static void tcg_out_br(TCGContext *s, TCGLabel *l);
 static void tcg_out_set_carry(TCGContext *s);
@@ -1137,6 +1138,10 @@ static const TCGOutOpUnary outop_extrl_i64_i32 = {
 };
 #endif
 
+static const TCGOutOp outop_goto_ptr = {
+    .static_constraint = C_O0_I1(r),
+};
+
 /*
  * Register V as the TCGOutOp for O.
  * This verifies that V is of type T, otherwise give a nice compiler error.
@@ -1197,6 +1202,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     /* subb1o is implemented with set_borrow + subbio */
     OUTOP(INDEX_op_subb1o, TCGOutOpAddSubCarry, outop_subbio),
     OUTOP(INDEX_op_xor, TCGOutOpBinary, outop_xor),
+
+    [INDEX_op_goto_ptr] = &outop_goto_ptr,
 
 #if TCG_TARGET_REG_BITS == 32
     OUTOP(INDEX_op_brcond2_i32, TCGOutOpBrcond2, outop_brcond2),
@@ -5822,6 +5829,11 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     case INDEX_op_setcond2_i32:
         g_assert_not_reached();
 #endif
+
+    case INDEX_op_goto_ptr:
+        tcg_debug_assert(!const_args[0]);
+        tcg_out_goto_ptr(s, new_args[0]);
+        break;
 
     default:
         if (def->flags & TCG_OPF_VECTOR) {

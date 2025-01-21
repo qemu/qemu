@@ -2843,6 +2843,13 @@ static void tcg_out_goto_tb(TCGContext *s, int which)
     set_jmp_reset_offset(s, which);
 }
 
+static void tcg_out_goto_ptr(TCGContext *s, TCGReg a0)
+{
+    tcg_out32(s, MTSPR | RS(a0) | CTR);
+    tcg_out32(s, ADDI | TAI(TCG_REG_R3, 0, 0));
+    tcg_out32(s, BCCTR | BO_ALWAYS);
+}
+
 void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
                               uintptr_t jmp_rx, uintptr_t jmp_rw)
 {
@@ -3676,11 +3683,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const int const_args[TCG_MAX_OP_ARGS])
 {
     switch (opc) {
-    case INDEX_op_goto_ptr:
-        tcg_out32(s, MTSPR | RS(args[0]) | CTR);
-        tcg_out32(s, ADDI | TAI(TCG_REG_R3, 0, 0));
-        tcg_out32(s, BCCTR | BO_ALWAYS);
-        break;
     case INDEX_op_ld8u_i32:
     case INDEX_op_ld8u_i64:
         tcg_out_mem_long(s, LBZ, LBZX, args[0], args[1], args[2]);
@@ -4371,9 +4373,6 @@ static TCGConstraintSetIndex
 tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 {
     switch (op) {
-    case INDEX_op_goto_ptr:
-        return C_O0_I1(r);
-
     case INDEX_op_ld8u_i32:
     case INDEX_op_ld8s_i32:
     case INDEX_op_ld16u_i32:
