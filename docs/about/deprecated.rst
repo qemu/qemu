@@ -292,6 +292,19 @@ Big-Endian variants of MicroBlaze ``petalogix-ml605`` and ``xlnx-zynqmp-pmu`` ma
 Both ``petalogix-ml605`` and ``xlnx-zynqmp-pmu`` were added for little endian
 CPUs. Big endian support is not tested.
 
+Mips ``mipssim`` machine (since 10.0)
+'''''''''''''''''''''''''''''''''''''
+
+Linux dropped support for this virtual machine type in kernel v3.7, and
+there does not seem to be anybody around who is still using this board
+in QEMU: Most former MIPS-related people are working on other architectures
+in their everyday job nowadays, and we are also not aware of anybody still
+using old binaries with this board (i.e. there is also no binary available
+online to check that this board did not completely bitrot yet). It is
+recommended to use another MIPS machine for future MIPS code development
+instead.
+
+
 Backend options
 ---------------
 
