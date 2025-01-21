@@ -9,12 +9,19 @@ use std::{
 };
 
 use qemu_api::{
-    bindings::{self, *},
+    bindings::{
+        error_fatal, hwaddr, memory_region_init_io, qdev_init_clock_in, qdev_new,
+        qdev_prop_set_chr, qemu_chr_fe_ioctl, qemu_chr_fe_set_handlers, qemu_chr_fe_write_all,
+        qemu_irq, sysbus_connect_irq, sysbus_mmio_map, sysbus_realize_and_unref, CharBackend,
+        Chardev, Clock, ClockEvent, MemoryRegion, QEMUChrEvent, CHR_IOCTL_SERIAL_SET_BREAK,
+    },
     c_str,
     irq::InterruptSource,
     prelude::*,
-    qdev::DeviceImpl,
+    qdev::{DeviceImpl, DeviceState, Property},
     qom::{ClassInitImpl, ObjectImpl, ParentField},
+    sysbus::{SysBusDevice, SysBusDeviceClass},
+    vmstate::VMStateDescription,
 };
 
 use crate::{
@@ -494,7 +501,7 @@ impl PL011State {
     }
 
     pub fn event(&mut self, event: QEMUChrEvent) {
-        if event == bindings::QEMUChrEvent::CHR_EVENT_BREAK && !self.loopback_enabled() {
+        if event == QEMUChrEvent::CHR_EVENT_BREAK && !self.loopback_enabled() {
             self.put_fifo(registers::Data::BREAK.into());
         }
     }
