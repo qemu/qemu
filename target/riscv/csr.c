@@ -2621,7 +2621,6 @@ static int rmw_xireg_csrind(CPURISCVState *env, int csrno,
 static int rmw_xiregi(CPURISCVState *env, int csrno, target_ulong *val,
                       target_ulong new_val, target_ulong wr_mask)
 {
-    bool virt = false;
     int ret = -EINVAL;
     target_ulong isel;
 
@@ -2642,16 +2641,11 @@ static int rmw_xiregi(CPURISCVState *env, int csrno, target_ulong *val,
     } else if (CSR_VSIREG <= csrno && csrno <= CSR_VSIREG6 &&
                csrno != CSR_VSIREG4 - 1) {
         isel = env->vsiselect;
-        virt = true;
     } else {
-        goto done;
+        return RISCV_EXCP_ILLEGAL_INST;
     }
 
     return rmw_xireg_csrind(env, csrno, isel, val, new_val, wr_mask);
-
-done:
-    return (env->virt_enabled && virt) ?
-            RISCV_EXCP_VIRT_INSTRUCTION_FAULT : RISCV_EXCP_ILLEGAL_INST;
 }
 
 static RISCVException rmw_xireg(CPURISCVState *env, int csrno,
