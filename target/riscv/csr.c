@@ -2658,7 +2658,6 @@ static RISCVException rmw_xireg(CPURISCVState *env, int csrno,
                                 target_ulong *val, target_ulong new_val,
                                 target_ulong wr_mask)
 {
-    bool virt = false;
     int ret = -EINVAL;
     target_ulong isel;
 
@@ -2680,10 +2679,9 @@ static RISCVException rmw_xireg(CPURISCVState *env, int csrno,
         break;
     case CSR_VSIREG:
         isel = env->vsiselect;
-        virt = true;
         break;
     default:
-         goto done;
+        goto done;
     };
 
     /*
@@ -2705,8 +2703,7 @@ static RISCVException rmw_xireg(CPURISCVState *env, int csrno,
 
 done:
     if (ret) {
-        return (env->virt_enabled && virt) ?
-               RISCV_EXCP_VIRT_INSTRUCTION_FAULT : RISCV_EXCP_ILLEGAL_INST;
+        return RISCV_EXCP_ILLEGAL_INST;
     }
     return RISCV_EXCP_NONE;
 }
