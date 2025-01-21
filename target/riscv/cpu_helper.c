@@ -2084,7 +2084,9 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     mode = env->priv <= PRV_S && cause < 64 &&
         (((deleg >> cause) & 1) || s_injected || vs_injected) ? PRV_S : PRV_M;
 
-    vsmode_exc = env->virt_enabled && (((hdeleg >> cause) & 1) || vs_injected);
+    vsmode_exc = env->virt_enabled && cause < 64 &&
+        (((hdeleg >> cause) & 1) || vs_injected);
+
     /*
      * Check double trap condition only if already in S-mode and targeting
      * S-mode
