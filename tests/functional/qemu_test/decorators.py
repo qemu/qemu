@@ -17,15 +17,14 @@ Example:
   @skipIfMissingCommands("mkisofs", "losetup")
 '''
 def skipIfMissingCommands(*args):
-    def has_cmds(cmdlist):
-        for cmd in cmdlist:
-            if not which(cmd):
-                return False
-        return True
+    has_cmds = True
+    for cmd in args:
+         if not which(cmd):
+             has_cmds = False
+             break
 
-    return skipUnless(lambda: has_cmds(args),
-                      'required command(s) "%s" not installed' %
-                      ", ".join(args))
+    return skipUnless(has_cmds, 'required command(s) "%s" not installed' %
+                                ", ".join(args))
 
 '''
 Decorator to skip execution of a test if the current
@@ -36,9 +35,9 @@ Example
   @skipIfNotMachine("x86_64", "aarch64")
 '''
 def skipIfNotMachine(*args):
-    return skipUnless(lambda: platform.machine() in args,
-                        'not running on one of the required machine(s) "%s"' %
-                        ", ".join(args))
+    return skipUnless(platform.machine() in args,
+                      'not running on one of the required machine(s) "%s"' %
+                      ", ".join(args))
 
 '''
 Decorator to skip execution of flaky tests, unless
@@ -95,14 +94,13 @@ Example:
   @skipIfMissingImports("numpy", "cv2")
 '''
 def skipIfMissingImports(*args):
-    def has_imports(importlist):
-        for impname in importlist:
-            try:
-                importlib.import_module(impname)
-            except ImportError:
-                return False
-        return True
+    has_imports = True
+    for impname in args:
+        try:
+            importlib.import_module(impname)
+        except ImportError:
+            has_imports = False
+            break
 
-    return skipUnless(lambda: has_imports(args),
-                      'required import(s) "%s" not installed' %
-                      ", ".join(args))
+    return skipUnless(has_imports, 'required import(s) "%s" not installed' %
+                                   ", ".join(args))
