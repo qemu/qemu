@@ -2,6 +2,7 @@
 #
 # Decorators useful in functional tests
 
+import importlib
 import os
 import platform
 from unittest import skipUnless
@@ -97,7 +98,7 @@ def skipIfMissingImports(*args):
     def has_imports(importlist):
         for impname in importlist:
             try:
-                import impname
+                importlib.import_module(impname)
             except ImportError:
                 return False
         return True
