@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 10%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 11%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -350,6 +350,8 @@ Patch104: kvm-hw-virtio-fix-crash-in-processing-balloon-stats.patch
 Patch105: kvm-qemu-ga-Optimize-freeze-hook-script-logic-of-logging.patch
 # For RHEL-56340 - qemu-ga logs only "guest-fsfreeze called" (but not "guest-fsthaw called")
 Patch106: kvm-qga-Add-log-to-guest-fsfreeze-thaw-command.patch
+# For RHEL-65616 - Failed to hot add PCIe device behind xio3130 downstream port
+Patch107: kvm-pci-ensure-valid-link-status-bits-for-downstream-por.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1416,6 +1418,11 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Tue Jan 21 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-11
+- kvm-pci-ensure-valid-link-status-bits-for-downstream-por.patch [RHEL-65616]
+- Resolves: RHEL-65616
+  (Failed to hot add PCIe device behind xio3130 downstream port)
+
 * Mon Jan 20 2025 Miroslav Rezanina <mrezanin@redhat.com> - 9.1.0-10
 - kvm-target-i386-Make-sure-SynIC-state-is-really-updated-.patch [RHEL-53073]
 - kvm-hw-virtio-fix-crash-in-processing-balloon-stats.patch [RHEL-73688]
