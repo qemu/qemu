@@ -44,12 +44,13 @@ GEN_FALSE_TRANS(idle)
 
 typedef void (*GenCSRRead)(TCGv dest, TCGv_ptr env);
 typedef void (*GenCSRWrite)(TCGv dest, TCGv_ptr env, TCGv src);
+typedef void (*GenCSRFunc)(void);
 
 typedef struct {
     int offset;
     int flags;
-    GenCSRRead readfn;
-    GenCSRWrite writefn;
+    GenCSRFunc readfn;
+    GenCSRFunc writefn;
 } CSRInfo;
 
 enum {
@@ -184,8 +185,8 @@ static bool set_csr_trans_func(unsigned int csr_num, GenCSRRead readfn,
         return false;
     }
 
-    csr->readfn = readfn;
-    csr->writefn = writefn;
+    csr->readfn = (GenCSRFunc)readfn;
+    csr->writefn = (GenCSRFunc)writefn;
     return true;
 }
 
@@ -222,6 +223,7 @@ static bool trans_csrrd(DisasContext *ctx, arg_csrrd *a)
 {
     TCGv dest;
     const CSRInfo *csr;
+    GenCSRRead readfn;
 
     if (check_plv(ctx)) {
         return false;
@@ -233,8 +235,9 @@ static bool trans_csrrd(DisasContext *ctx, arg_csrrd *a)
     } else {
         check_csr_flags(ctx, csr, false);
         dest = gpr_dst(ctx, a->rd, EXT_NONE);
-        if (csr->readfn) {
-            csr->readfn(dest, tcg_env);
+        readfn = (GenCSRRead)csr->readfn;
+        if (readfn) {
+            readfn(dest, tcg_env);
         } else {
             tcg_gen_ld_tl(dest, tcg_env, csr->offset);
         }
@@ -247,6 +250,7 @@ static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
 {
     TCGv dest, src1;
     const CSRInfo *csr;
+    GenCSRWrite writefn;
 
     if (check_plv(ctx)) {
         return false;
@@ -262,9 +266,10 @@ static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
         return false;
     }
     src1 = gpr_src(ctx, a->rd, EXT_NONE);
-    if (csr->writefn) {
+    writefn = (GenCSRWrite)csr->writefn;
+    if (writefn) {
         dest = gpr_dst(ctx, a->rd, EXT_NONE);
-        csr->writefn(dest, tcg_env, src1);
+        writefn(dest, tcg_env, src1);
     } else {
         dest = tcg_temp_new();
         tcg_gen_ld_tl(dest, tcg_env, csr->offset);
@@ -278,6 +283,7 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
 {
     TCGv src1, mask, oldv, newv, temp;
     const CSRInfo *csr;
+    GenCSRWrite writefn;
 
     if (check_plv(ctx)) {
         return false;
@@ -308,8 +314,9 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
     tcg_gen_andc_tl(temp, oldv, mask);
     tcg_gen_or_tl(newv, newv, temp);
 
-    if (csr->writefn) {
-        csr->writefn(oldv, tcg_env, newv);
+    writefn = (GenCSRWrite)csr->writefn;
+    if (writefn) {
+        writefn(oldv, tcg_env, newv);
     } else {
         tcg_gen_st_tl(newv, tcg_env, csr->offset);
     }
