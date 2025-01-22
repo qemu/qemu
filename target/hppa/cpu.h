@@ -268,6 +268,10 @@ typedef struct CPUArchState {
     struct {} end_reset_fields;
 
     bool is_pa20;
+
+    target_ulong kernel_entry; /* Linux kernel was loaded here */
+    target_ulong cmdline_or_bootorder;
+    target_ulong initrd_base, initrd_end;
 } CPUHPPAState;
 
 /**

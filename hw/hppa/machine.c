@@ -356,7 +356,6 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
     uint64_t kernel_entry = 0, kernel_low, kernel_high;
     MemoryRegion *addr_space = get_system_memory();
     MemoryRegion *rom_region;
-    unsigned int smp_cpus = machine->smp.cpus;
     SysBusDevice *s;
 
     /* SCSI disk setup. */
@@ -482,8 +481,8 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
                       kernel_low, kernel_high, kernel_entry, size / KiB);
 
         if (kernel_cmdline) {
-            cpu[0]->env.gr[24] = 0x4000;
-            pstrcpy_targphys("cmdline", cpu[0]->env.gr[24],
+            cpu[0]->env.cmdline_or_bootorder = 0x4000;
+            pstrcpy_targphys("cmdline", cpu[0]->env.cmdline_or_bootorder,
                              TARGET_PAGE_SIZE, kernel_cmdline);
         }
 
@@ -513,32 +512,22 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
             }
 
             load_image_targphys(initrd_filename, initrd_base, initrd_size);
-            cpu[0]->env.gr[23] = initrd_base;
-            cpu[0]->env.gr[22] = initrd_base + initrd_size;
+            cpu[0]->env.initrd_base = initrd_base;
+            cpu[0]->env.initrd_end  = initrd_base + initrd_size;
         }
     }
 
     if (!kernel_entry) {
         /* When booting via firmware, tell firmware if we want interactive
-         * mode (kernel_entry=1), and to boot from CD (gr[24]='d')
-         * or hard disc * (gr[24]='c').
+         * mode (kernel_entry=1), and to boot from CD (cmdline_or_bootorder='d')
+         * or hard disc (cmdline_or_bootorder='c').
          */
         kernel_entry = machine->boot_config.has_menu ? machine->boot_config.menu : 0;
-        cpu[0]->env.gr[24] = machine->boot_config.order[0];
+        cpu[0]->env.cmdline_or_bootorder = machine->boot_config.order[0];
     }
 
-    /* We jump to the firmware entry routine and pass the
-     * various parameters in registers. After firmware initialization,
-     * firmware will start the Linux kernel with ramdisk and cmdline.
-     */
-    cpu[0]->env.gr[26] = machine->ram_size;
-    cpu[0]->env.gr[25] = kernel_entry;
-
-    /* tell firmware how many SMP CPUs to present in inventory table */
-    cpu[0]->env.gr[21] = smp_cpus;
-
-    /* tell firmware fw_cfg port */
-    cpu[0]->env.gr[19] = FW_CFG_IO_BASE;
+    /* Keep initial kernel_entry for first boot */
+    cpu[0]->env.kernel_entry = kernel_entry;
 }
 
 /*
@@ -675,18 +664,19 @@ static void hppa_machine_reset(MachineState *ms, ResetType type)
         cpu[i]->env.gr[5] = CPU_HPA + i * 0x1000;
     }
 
-    /* already initialized by machine_hppa_init()? */
-    if (cpu[0]->env.gr[26] == ms->ram_size) {
-        return;
-    }
-
     cpu[0]->env.gr[26] = ms->ram_size;
-    cpu[0]->env.gr[25] = 0; /* no firmware boot menu */
-    cpu[0]->env.gr[24] = 'c';
-    /* gr22/gr23 unused, no initrd while reboot. */
+    cpu[0]->env.gr[25] = cpu[0]->env.kernel_entry;
+    cpu[0]->env.gr[24] = cpu[0]->env.cmdline_or_bootorder;
+    cpu[0]->env.gr[23] = cpu[0]->env.initrd_base;
+    cpu[0]->env.gr[22] = cpu[0]->env.initrd_end;
     cpu[0]->env.gr[21] = smp_cpus;
-    /* tell firmware fw_cfg port */
     cpu[0]->env.gr[19] = FW_CFG_IO_BASE;
+
+    /* reset static fields to avoid starting Linux kernel & initrd on reboot */
+    cpu[0]->env.kernel_entry = 0;
+    cpu[0]->env.initrd_base = 0;
+    cpu[0]->env.initrd_end = 0;
+    cpu[0]->env.cmdline_or_bootorder = 'c';
 }
 
 static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
