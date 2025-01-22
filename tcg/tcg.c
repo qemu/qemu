@@ -3449,21 +3449,21 @@ TCGOp *tcg_emit_op(TCGOpcode opc, unsigned nargs)
 }
 
 TCGOp *tcg_op_insert_before(TCGContext *s, TCGOp *old_op,
-                            TCGOpcode opc, unsigned nargs)
+                            TCGOpcode opc, TCGType type, unsigned nargs)
 {
     TCGOp *new_op = tcg_op_alloc(opc, nargs);
 
-    TCGOP_TYPE(new_op) = TCGOP_TYPE(old_op);
+    TCGOP_TYPE(new_op) = type;
     QTAILQ_INSERT_BEFORE(old_op, new_op, link);
     return new_op;
 }
 
 TCGOp *tcg_op_insert_after(TCGContext *s, TCGOp *old_op,
-                           TCGOpcode opc, unsigned nargs)
+                           TCGOpcode opc, TCGType type, unsigned nargs)
 {
     TCGOp *new_op = tcg_op_alloc(opc, nargs);
 
-    TCGOP_TYPE(new_op) = TCGOP_TYPE(old_op);
+    TCGOP_TYPE(new_op) = type;
     QTAILQ_INSERT_AFTER(&s->ops, old_op, new_op, link);
     return new_op;
 }
@@ -4214,7 +4214,8 @@ liveness_pass_2(TCGContext *s)
                 TCGOpcode lopc = (arg_ts->type == TCG_TYPE_I32
                                   ? INDEX_op_ld_i32
                                   : INDEX_op_ld_i64);
-                TCGOp *lop = tcg_op_insert_before(s, op, lopc, 3);
+                TCGOp *lop = tcg_op_insert_before(s, op, lopc,
+                                                  arg_ts->type, 3);
 
                 lop->args[0] = temp_arg(dir_ts);
                 lop->args[1] = temp_arg(arg_ts->mem_base);
@@ -4277,7 +4278,8 @@ liveness_pass_2(TCGContext *s)
                     TCGOpcode sopc = (arg_ts->type == TCG_TYPE_I32
                                       ? INDEX_op_st_i32
                                       : INDEX_op_st_i64);
-                    TCGOp *sop = tcg_op_insert_after(s, op, sopc, 3);
+                    TCGOp *sop = tcg_op_insert_after(s, op, sopc,
+                                                     arg_ts->type, 3);
                     TCGTemp *out_ts = dir_ts;
 
                     if (IS_DEAD_ARG(0)) {
@@ -4313,7 +4315,8 @@ liveness_pass_2(TCGContext *s)
                     TCGOpcode sopc = (arg_ts->type == TCG_TYPE_I32
                                       ? INDEX_op_st_i32
                                       : INDEX_op_st_i64);
-                    TCGOp *sop = tcg_op_insert_after(s, op, sopc, 3);
+                    TCGOp *sop = tcg_op_insert_after(s, op, sopc,
+                                                     arg_ts->type, 3);
 
                     sop->args[0] = temp_arg(dir_ts);
                     sop->args[1] = temp_arg(arg_ts->mem_base);

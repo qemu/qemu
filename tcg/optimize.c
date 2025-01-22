@@ -347,13 +347,13 @@ static TCGArg arg_new_temp(OptContext *ctx)
 static TCGOp *opt_insert_after(OptContext *ctx, TCGOp *op,
                                TCGOpcode opc, unsigned narg)
 {
-    return tcg_op_insert_after(ctx->tcg, op, opc, narg);
+    return tcg_op_insert_after(ctx->tcg, op, opc, ctx->type, narg);
 }
 
 static TCGOp *opt_insert_before(OptContext *ctx, TCGOp *op,
                                 TCGOpcode opc, unsigned narg)
 {
-    return tcg_op_insert_before(ctx->tcg, op, opc, narg);
+    return tcg_op_insert_before(ctx->tcg, op, opc, ctx->type, narg);
 }
 
 static bool tcg_opt_gen_mov(OptContext *ctx, TCGOp *op, TCGArg dst, TCGArg src)
