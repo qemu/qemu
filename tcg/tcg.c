@@ -1219,12 +1219,9 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_sextract, TCGOutOpExtract, outop_sextract),
     OUTOP(INDEX_op_shl, TCGOutOpBinary, outop_shl),
     OUTOP(INDEX_op_shr, TCGOutOpBinary, outop_shr),
-    OUTOP(INDEX_op_st_i32, TCGOutOpStore, outop_st),
-    OUTOP(INDEX_op_st_i64, TCGOutOpStore, outop_st),
-    OUTOP(INDEX_op_st8_i32, TCGOutOpStore, outop_st8),
-    OUTOP(INDEX_op_st8_i64, TCGOutOpStore, outop_st8),
-    OUTOP(INDEX_op_st16_i32, TCGOutOpStore, outop_st16),
-    OUTOP(INDEX_op_st16_i64, TCGOutOpStore, outop_st16),
+    OUTOP(INDEX_op_st, TCGOutOpStore, outop_st),
+    OUTOP(INDEX_op_st8, TCGOutOpStore, outop_st8),
+    OUTOP(INDEX_op_st16, TCGOutOpStore, outop_st16),
     OUTOP(INDEX_op_sub, TCGOutOpSubtract, outop_sub),
     OUTOP(INDEX_op_subbi, TCGOutOpAddSubCarry, outop_subbi),
     OUTOP(INDEX_op_subbio, TCGOutOpAddSubCarry, outop_subbio),
@@ -1246,7 +1243,7 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_extrh_i64_i32, TCGOutOpUnary, outop_extrh_i64_i32),
     OUTOP(INDEX_op_ld32u, TCGOutOpLoad, outop_ld32u),
     OUTOP(INDEX_op_ld32s, TCGOutOpLoad, outop_ld32s),
-    OUTOP(INDEX_op_st32_i64, TCGOutOpStore, outop_st),
+    OUTOP(INDEX_op_st32, TCGOutOpStore, outop_st),
 #endif
 };
 
@@ -2464,13 +2461,11 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_or:
     case INDEX_op_setcond:
     case INDEX_op_sextract:
+    case INDEX_op_st8:
+    case INDEX_op_st16:
+    case INDEX_op_st:
     case INDEX_op_xor:
         return has_type;
-
-    case INDEX_op_st8_i32:
-    case INDEX_op_st16_i32:
-    case INDEX_op_st_i32:
-        return true;
 
     case INDEX_op_brcond2_i32:
     case INDEX_op_setcond2_i32:
@@ -2478,10 +2473,7 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
 
     case INDEX_op_ld32u:
     case INDEX_op_ld32s:
-    case INDEX_op_st8_i64:
-    case INDEX_op_st16_i64:
-    case INDEX_op_st32_i64:
-    case INDEX_op_st_i64:
+    case INDEX_op_st32:
     case INDEX_op_ext_i32_i64:
     case INDEX_op_extu_i32_i64:
     case INDEX_op_extrl_i64_i32:
@@ -4494,10 +4486,7 @@ liveness_pass_2(TCGContext *s)
                 arg_ts->state = 0;
 
                 if (NEED_SYNC_ARG(0)) {
-                    TCGOpcode sopc = (arg_ts->type == TCG_TYPE_I32
-                                      ? INDEX_op_st_i32
-                                      : INDEX_op_st_i64);
-                    TCGOp *sop = tcg_op_insert_after(s, op, sopc,
+                    TCGOp *sop = tcg_op_insert_after(s, op, INDEX_op_st,
                                                      arg_ts->type, 3);
                     TCGTemp *out_ts = dir_ts;
 
@@ -4531,10 +4520,7 @@ liveness_pass_2(TCGContext *s)
 
                 /* Sync outputs upon their last write.  */
                 if (NEED_SYNC_ARG(i)) {
-                    TCGOpcode sopc = (arg_ts->type == TCG_TYPE_I32
-                                      ? INDEX_op_st_i32
-                                      : INDEX_op_st_i64);
-                    TCGOp *sop = tcg_op_insert_after(s, op, sopc,
+                    TCGOp *sop = tcg_op_insert_after(s, op, INDEX_op_st,
                                                      arg_ts->type, 3);
 
                     sop->args[0] = temp_arg(dir_ts);
@@ -5794,16 +5780,13 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         }
         break;
 
-    case INDEX_op_st32_i64:
+    case INDEX_op_st32:
         /* Use tcg_op_st w/ I32. */
         type = TCG_TYPE_I32;
         /* fall through */
-    case INDEX_op_st_i32:
-    case INDEX_op_st_i64:
-    case INDEX_op_st8_i32:
-    case INDEX_op_st8_i64:
-    case INDEX_op_st16_i32:
-    case INDEX_op_st16_i64:
+    case INDEX_op_st:
+    case INDEX_op_st8:
+    case INDEX_op_st16:
         {
             const TCGOutOpStore *out =
                 container_of(all_outop[op->opc], TCGOutOpStore, base);

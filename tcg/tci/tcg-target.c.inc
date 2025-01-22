@@ -1173,7 +1173,7 @@ static const TCGOutOpLoad outop_ld32s = {
 static void tgen_st8(TCGContext *s, TCGType type, TCGReg data,
                      TCGReg base, ptrdiff_t offset)
 {
-    tcg_out_ldst(s, INDEX_op_st8_i32, data, base, offset);
+    tcg_out_ldst(s, INDEX_op_st8, data, base, offset);
 }
 
 static const TCGOutOpStore outop_st8 = {
@@ -1184,7 +1184,7 @@ static const TCGOutOpStore outop_st8 = {
 static void tgen_st16(TCGContext *s, TCGType type, TCGReg data,
                       TCGReg base, ptrdiff_t offset)
 {
-    tcg_out_ldst(s, INDEX_op_st16_i32, data, base, offset);
+    tcg_out_ldst(s, INDEX_op_st16, data, base, offset);
 }
 
 static const TCGOutOpStore outop_st16 = {
@@ -1232,18 +1232,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
 static void tcg_out_st(TCGContext *s, TCGType type, TCGReg val, TCGReg base,
                        intptr_t offset)
 {
-    switch (type) {
-    case TCG_TYPE_I32:
-        tcg_out_ldst(s, INDEX_op_st_i32, val, base, offset);
-        break;
-#if TCG_TARGET_REG_BITS == 64
-    case TCG_TYPE_I64:
-        tcg_out_ldst(s, INDEX_op_st_i64, val, base, offset);
-        break;
-#endif
-    default:
-        g_assert_not_reached();
+    TCGOpcode op = INDEX_op_st;
+
+    if (TCG_TARGET_REG_BITS == 64 && type == TCG_TYPE_I32) {
+        op = INDEX_op_st32;
     }
+    tcg_out_ldst(s, op, val, base, offset);
 }
 
 static inline bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,

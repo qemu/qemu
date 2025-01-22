@@ -30,14 +30,6 @@
 #include "tcg-internal.h"
 #include "tcg-has.h"
 
-#define CASE_OP_32_64(x)                        \
-        glue(glue(case INDEX_op_, x), _i32):    \
-        glue(glue(case INDEX_op_, x), _i64)
-
-#define CASE_OP_32_64_VEC(x)                    \
-        glue(glue(case INDEX_op_, x), _i32):    \
-        glue(glue(case INDEX_op_, x), _i64):    \
-        glue(glue(case INDEX_op_, x), _vec)
 
 typedef struct MemCopyInfo {
     IntervalTreeNode itree;
@@ -2938,19 +2930,16 @@ static bool fold_tcg_st(OptContext *ctx, TCGOp *op)
     }
 
     switch (op->opc) {
-    CASE_OP_32_64(st8):
+    case INDEX_op_st8:
         lm1 = 0;
         break;
-    CASE_OP_32_64(st16):
+    case INDEX_op_st16:
         lm1 = 1;
         break;
-    case INDEX_op_st32_i64:
-    case INDEX_op_st_i32:
+    case INDEX_op_st32:
         lm1 = 3;
         break;
-    case INDEX_op_st_i64:
-        lm1 = 7;
-        break;
+    case INDEX_op_st:
     case INDEX_op_st_vec:
         lm1 = tcg_type_size(ctx->type) - 1;
         break;
@@ -3138,13 +3127,12 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_ld_vec:
             done = fold_tcg_ld_memcopy(&ctx, op);
             break;
-        CASE_OP_32_64(st8):
-        CASE_OP_32_64(st16):
-        case INDEX_op_st32_i64:
+        case INDEX_op_st8:
+        case INDEX_op_st16:
+        case INDEX_op_st32:
             done = fold_tcg_st(&ctx, op);
             break;
-        case INDEX_op_st_i32:
-        case INDEX_op_st_i64:
+        case INDEX_op_st:
         case INDEX_op_st_vec:
             done = fold_tcg_st_memcopy(&ctx, op);
             break;
