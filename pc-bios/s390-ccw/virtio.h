@@ -274,8 +274,10 @@ void vring_send_buf(VRing *vr, void *p, int len, int flags);
 int vr_poll(VRing *vr);
 int vring_wait_reply(void);
 int virtio_run(VDev *vdev, int vqid, VirtioCmd *cmd);
+int virtio_reset(VDev *vdev);
 int virtio_setup_ccw(VDev *vdev);
 
 int virtio_net_init(void *mac_addr);
+void virtio_net_deinit(void);
 
 #endif /* VIRTIO_H */
