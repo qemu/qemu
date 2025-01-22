@@ -91,6 +91,16 @@ static GlobalProperty arm_virt_compat[] = {
 static const size_t arm_virt_compat_len = G_N_ELEMENTS(arm_virt_compat);
 
 /*
+ * RHEL9 kernels have pauth disabled while RHEL10 has it enabled,
+ * since qemu will setup the VM with pauth when KVM supports it we
+ * have to disable it for virt-rhel9* to support upgrades / migration.
+ */
+GlobalProperty arm_rhel9_compat[] = {
+    {TYPE_ARM_CPU, "pauth", "off", .optional = true},
+};
+const size_t arm_rhel9_compat_len = G_N_ELEMENTS(arm_rhel9_compat);
+
+/*
  * This variable is for changes to properties that are RHEL specific,
  * different to the current upstream and to be applied to the latest
  * machine type. They may be overriden by older machine compats.
@@ -3589,6 +3599,7 @@ DEFINE_VIRT_MACHINE(2, 6)
 
 static void virt_rhel_machine_9_6_0_options(MachineClass *mc)
 {
+    compat_props_add(mc->compat_props, arm_rhel9_compat, arm_rhel9_compat_len);
 }
 DEFINE_VIRT_MACHINE_AS_LATEST(9, 6, 0)
 
