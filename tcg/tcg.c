@@ -1052,6 +1052,12 @@ typedef struct TCGOutOpExtract2 {
                     TCGReg a2, unsigned shr);
 } TCGOutOpExtract2;
 
+typedef struct TCGOutOpLoad {
+    TCGOutOp base;
+    void (*out)(TCGContext *s, TCGType type, TCGReg dest,
+                TCGReg base, intptr_t offset);
+} TCGOutOpLoad;
+
 typedef struct TCGOutOpMovcond {
     TCGOutOp base;
     void (*out)(TCGContext *s, TCGType type, TCGCond cond,
@@ -1142,6 +1148,11 @@ static const TCGOutOp outop_goto_ptr = {
     .static_constraint = C_O0_I1(r),
 };
 
+static const TCGOutOpLoad outop_ld = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out = tcg_out_ld,
+};
+
 /*
  * Register V as the TCGOutOp for O.
  * This verifies that V is of type T, otherwise give a nice compiler error.
@@ -1173,6 +1184,16 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_eqv, TCGOutOpBinary, outop_eqv),
     OUTOP(INDEX_op_extract, TCGOutOpExtract, outop_extract),
     OUTOP(INDEX_op_extract2, TCGOutOpExtract2, outop_extract2),
+    OUTOP(INDEX_op_ld8u_i32, TCGOutOpLoad, outop_ld8u),
+    OUTOP(INDEX_op_ld8u_i64, TCGOutOpLoad, outop_ld8u),
+    OUTOP(INDEX_op_ld8s_i32, TCGOutOpLoad, outop_ld8s),
+    OUTOP(INDEX_op_ld8s_i64, TCGOutOpLoad, outop_ld8s),
+    OUTOP(INDEX_op_ld16u_i32, TCGOutOpLoad, outop_ld16u),
+    OUTOP(INDEX_op_ld16u_i64, TCGOutOpLoad, outop_ld16u),
+    OUTOP(INDEX_op_ld16s_i32, TCGOutOpLoad, outop_ld16s),
+    OUTOP(INDEX_op_ld16s_i64, TCGOutOpLoad, outop_ld16s),
+    OUTOP(INDEX_op_ld_i32, TCGOutOpLoad, outop_ld),
+    OUTOP(INDEX_op_ld_i64, TCGOutOpLoad, outop_ld),
     OUTOP(INDEX_op_movcond, TCGOutOpMovcond, outop_movcond),
     OUTOP(INDEX_op_mul, TCGOutOpBinary, outop_mul),
     OUTOP(INDEX_op_muls2, TCGOutOpMul2, outop_muls2),
@@ -1214,6 +1235,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_extu_i32_i64, TCGOutOpUnary, outop_extu_i32_i64),
     OUTOP(INDEX_op_extrl_i64_i32, TCGOutOpUnary, outop_extrl_i64_i32),
     OUTOP(INDEX_op_extrh_i64_i32, TCGOutOpUnary, outop_extrh_i64_i32),
+    OUTOP(INDEX_op_ld32u_i64, TCGOutOpLoad, outop_ld32u),
+    OUTOP(INDEX_op_ld32s_i64, TCGOutOpLoad, outop_ld32s),
 #endif
 };
 
@@ -5737,6 +5760,29 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
             tcg_debug_assert(!const_args[2]);
             out->out_rrr(s, type, new_args[0], new_args[1],
                          new_args[2], new_args[3]);
+        }
+        break;
+
+    case INDEX_op_ld32u_i64:
+    case INDEX_op_ld32s_i64:
+        tcg_debug_assert(type == TCG_TYPE_I64);
+        /* fall through */
+    case INDEX_op_ld8u_i32:
+    case INDEX_op_ld8u_i64:
+    case INDEX_op_ld8s_i32:
+    case INDEX_op_ld8s_i64:
+    case INDEX_op_ld16u_i32:
+    case INDEX_op_ld16u_i64:
+    case INDEX_op_ld16s_i32:
+    case INDEX_op_ld16s_i64:
+    case INDEX_op_ld_i32:
+    case INDEX_op_ld_i64:
+        {
+            const TCGOutOpLoad *out =
+                container_of(all_outop[op->opc], TCGOutOpLoad, base);
+
+            tcg_debug_assert(!const_args[1]);
+            out->out(s, type, new_args[0], new_args[1], new_args[2]);
         }
         break;
 
