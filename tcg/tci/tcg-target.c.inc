@@ -339,18 +339,12 @@ static void tcg_out_ldst(TCGContext *s, TCGOpcode op, TCGReg val,
 static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg val, TCGReg base,
                        intptr_t offset)
 {
-    switch (type) {
-    case TCG_TYPE_I32:
-        tcg_out_ldst(s, INDEX_op_ld_i32, val, base, offset);
-        break;
-#if TCG_TARGET_REG_BITS == 64
-    case TCG_TYPE_I64:
-        tcg_out_ldst(s, INDEX_op_ld_i64, val, base, offset);
-        break;
-#endif
-    default:
-        g_assert_not_reached();
+    TCGOpcode op = INDEX_op_ld;
+
+    if (TCG_TARGET_REG_BITS == 64 && type == TCG_TYPE_I32) {
+        op = INDEX_op_ld32u;
     }
+    tcg_out_ldst(s, op, val, base, offset);
 }
 
 static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
@@ -1132,7 +1126,7 @@ static void tcg_out_br(TCGContext *s, TCGLabel *l)
 static void tgen_ld8u(TCGContext *s, TCGType type, TCGReg dest,
                       TCGReg base, ptrdiff_t offset)
 {
-    tcg_out_ldst(s, INDEX_op_ld8u_i32, dest, base, offset);
+    tcg_out_ldst(s, INDEX_op_ld8u, dest, base, offset);
 }
 
 static const TCGOutOpLoad outop_ld8u = {
@@ -1143,7 +1137,7 @@ static const TCGOutOpLoad outop_ld8u = {
 static void tgen_ld8s(TCGContext *s, TCGType type, TCGReg dest,
                       TCGReg base, ptrdiff_t offset)
 {
-    tcg_out_ldst(s, INDEX_op_ld8s_i32, dest, base, offset);
+    tcg_out_ldst(s, INDEX_op_ld8s, dest, base, offset);
 }
 
 static const TCGOutOpLoad outop_ld8s = {
@@ -1154,7 +1148,7 @@ static const TCGOutOpLoad outop_ld8s = {
 static void tgen_ld16u(TCGContext *s, TCGType type, TCGReg dest,
                        TCGReg base, ptrdiff_t offset)
 {
-    tcg_out_ldst(s, INDEX_op_ld16u_i32, dest, base, offset);
+    tcg_out_ldst(s, INDEX_op_ld16u, dest, base, offset);
 }
 
 static const TCGOutOpLoad outop_ld16u = {
@@ -1165,7 +1159,7 @@ static const TCGOutOpLoad outop_ld16u = {
 static void tgen_ld16s(TCGContext *s, TCGType type, TCGReg dest,
                        TCGReg base, ptrdiff_t offset)
 {
-    tcg_out_ldst(s, INDEX_op_ld16s_i32, dest, base, offset);
+    tcg_out_ldst(s, INDEX_op_ld16s, dest, base, offset);
 }
 
 static const TCGOutOpLoad outop_ld16s = {
@@ -1177,7 +1171,7 @@ static const TCGOutOpLoad outop_ld16s = {
 static void tgen_ld32u(TCGContext *s, TCGType type, TCGReg dest,
                        TCGReg base, ptrdiff_t offset)
 {
-    tcg_out_ldst(s, INDEX_op_ld32u_i64, dest, base, offset);
+    tcg_out_ldst(s, INDEX_op_ld32u, dest, base, offset);
 }
 
 static const TCGOutOpLoad outop_ld32u = {
@@ -1188,7 +1182,7 @@ static const TCGOutOpLoad outop_ld32u = {
 static void tgen_ld32s(TCGContext *s, TCGType type, TCGReg dest,
                        TCGReg base, ptrdiff_t offset)
 {
-    tcg_out_ldst(s, INDEX_op_ld32s_i64, dest, base, offset);
+    tcg_out_ldst(s, INDEX_op_ld32s, dest, base, offset);
 }
 
 static const TCGOutOpLoad outop_ld32s = {

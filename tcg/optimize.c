@@ -2880,22 +2880,22 @@ static bool fold_tcg_ld(OptContext *ctx, TCGOp *op)
 
     /* We can't do any folding with a load, but we can record bits. */
     switch (op->opc) {
-    CASE_OP_32_64(ld8s):
+    case INDEX_op_ld8s:
         s_mask = INT8_MIN;
         break;
-    CASE_OP_32_64(ld8u):
+    case INDEX_op_ld8u:
         z_mask = MAKE_64BIT_MASK(0, 8);
         break;
-    CASE_OP_32_64(ld16s):
+    case INDEX_op_ld16s:
         s_mask = INT16_MIN;
         break;
-    CASE_OP_32_64(ld16u):
+    case INDEX_op_ld16u:
         z_mask = MAKE_64BIT_MASK(0, 16);
         break;
-    case INDEX_op_ld32s_i64:
+    case INDEX_op_ld32s:
         s_mask = INT32_MIN;
         break;
-    case INDEX_op_ld32u_i64:
+    case INDEX_op_ld32u:
         z_mask = MAKE_64BIT_MASK(0, 32);
         break;
     default:
@@ -3126,16 +3126,15 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_extrh_i64_i32:
             done = fold_extu(&ctx, op);
             break;
-        CASE_OP_32_64(ld8s):
-        CASE_OP_32_64(ld8u):
-        CASE_OP_32_64(ld16s):
-        CASE_OP_32_64(ld16u):
-        case INDEX_op_ld32s_i64:
-        case INDEX_op_ld32u_i64:
+        case INDEX_op_ld8s:
+        case INDEX_op_ld8u:
+        case INDEX_op_ld16s:
+        case INDEX_op_ld16u:
+        case INDEX_op_ld32s:
+        case INDEX_op_ld32u:
             done = fold_tcg_ld(&ctx, op);
             break;
-        case INDEX_op_ld_i32:
-        case INDEX_op_ld_i64:
+        case INDEX_op_ld:
         case INDEX_op_ld_vec:
             done = fold_tcg_ld_memcopy(&ctx, op);
             break;
