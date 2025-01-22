@@ -283,16 +283,13 @@ static TranslateFn *machine_HP_common_init_cpus(MachineState *machine)
         cpu[i] = HPPA_CPU(cpu_create(machine->cpu_type));
     }
 
-    /*
-     * For now, treat address layout as if PSW_W is clear.
-     * TODO: create a proper hppa64 board model and load elf64 firmware.
-     */
+    /* Initialize memory */
     if (hppa_is_pa20(&cpu[0]->env)) {
         translate = translate_pa20;
-        ram_max = 0xf0000000;      /* 3.75 GB (limited by 32-bit firmware) */
+        ram_max = 256 * GiB;       /* like HP rp8440 */
     } else {
         translate = translate_pa10;
-        ram_max = 0xf0000000;      /* 3.75 GB (32-bit CPU) */
+        ram_max = FIRMWARE_START;  /* 3.75 GB (32-bit CPU) */
     }
 
     soft_power_reg = translate(NULL, HPA_POWER_BUTTON);
@@ -320,7 +317,22 @@ static TranslateFn *machine_HP_common_init_cpus(MachineState *machine)
         info_report("Max RAM size limited to %" PRIu64 " MB", ram_max / MiB);
         machine->ram_size = ram_max;
     }
-    memory_region_add_subregion_overlap(addr_space, 0, machine->ram, -1);
+    if (machine->ram_size <= FIRMWARE_START) {
+        /* contiguous memory up to 3.75 GB RAM */
+        memory_region_add_subregion_overlap(addr_space, 0, machine->ram, -1);
+    } else {
+        /* non-contiguous: Memory above 3.75 GB is mapped at RAM_MAP_HIGH */
+        MemoryRegion *mem_region;
+        mem_region = g_new(MemoryRegion, 2);
+        memory_region_init_alias(&mem_region[0], &addr_space->parent_obj,
+                              "LowMem", machine->ram, 0, FIRMWARE_START);
+        memory_region_init_alias(&mem_region[1], &addr_space->parent_obj,
+                              "HighMem", machine->ram, FIRMWARE_START,
+                              machine->ram_size - FIRMWARE_START);
+        memory_region_add_subregion_overlap(addr_space, 0, &mem_region[0], -1);
+        memory_region_add_subregion_overlap(addr_space, RAM_MAP_HIGH,
+                                            &mem_region[1], -1);
+    }
 
     return translate;
 }
