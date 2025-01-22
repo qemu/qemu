@@ -1090,6 +1090,14 @@ typedef struct TCGOutOpSetcond2 {
                 TCGArg bl, bool const_bl, TCGArg bh, bool const_bh);
 } TCGOutOpSetcond2;
 
+typedef struct TCGOutOpStore {
+    TCGOutOp base;
+    void (*out_r)(TCGContext *s, TCGType type, TCGReg data,
+                  TCGReg base, intptr_t offset);
+    void (*out_i)(TCGContext *s, TCGType type, tcg_target_long data,
+                  TCGReg base, intptr_t offset);
+} TCGOutOpStore;
+
 typedef struct TCGOutOpSubtract {
     TCGOutOp base;
     void (*out_rrr)(TCGContext *s, TCGType type,
@@ -1211,6 +1219,12 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_sextract, TCGOutOpExtract, outop_sextract),
     OUTOP(INDEX_op_shl, TCGOutOpBinary, outop_shl),
     OUTOP(INDEX_op_shr, TCGOutOpBinary, outop_shr),
+    OUTOP(INDEX_op_st_i32, TCGOutOpStore, outop_st),
+    OUTOP(INDEX_op_st_i64, TCGOutOpStore, outop_st),
+    OUTOP(INDEX_op_st8_i32, TCGOutOpStore, outop_st8),
+    OUTOP(INDEX_op_st8_i64, TCGOutOpStore, outop_st8),
+    OUTOP(INDEX_op_st16_i32, TCGOutOpStore, outop_st16),
+    OUTOP(INDEX_op_st16_i64, TCGOutOpStore, outop_st16),
     OUTOP(INDEX_op_sub, TCGOutOpSubtract, outop_sub),
     OUTOP(INDEX_op_subbi, TCGOutOpAddSubCarry, outop_subbi),
     OUTOP(INDEX_op_subbio, TCGOutOpAddSubCarry, outop_subbio),
@@ -1232,6 +1246,7 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_extrh_i64_i32, TCGOutOpUnary, outop_extrh_i64_i32),
     OUTOP(INDEX_op_ld32u, TCGOutOpLoad, outop_ld32u),
     OUTOP(INDEX_op_ld32s, TCGOutOpLoad, outop_ld32s),
+    OUTOP(INDEX_op_st32_i64, TCGOutOpStore, outop_st),
 #endif
 };
 
@@ -5776,6 +5791,28 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
             tcg_debug_assert(!const_args[3]);
             out->out_rrrr(s, type, new_args[0], new_args[1],
                           new_args[2], new_args[3]);
+        }
+        break;
+
+    case INDEX_op_st32_i64:
+        /* Use tcg_op_st w/ I32. */
+        type = TCG_TYPE_I32;
+        /* fall through */
+    case INDEX_op_st_i32:
+    case INDEX_op_st_i64:
+    case INDEX_op_st8_i32:
+    case INDEX_op_st8_i64:
+    case INDEX_op_st16_i32:
+    case INDEX_op_st16_i64:
+        {
+            const TCGOutOpStore *out =
+                container_of(all_outop[op->opc], TCGOutOpStore, base);
+
+            if (const_args[0]) {
+                out->out_i(s, type, new_args[0], new_args[1], new_args[2]);
+            } else {
+                out->out_r(s, type, new_args[0], new_args[1], new_args[2]);
+            }
         }
         break;
 
