@@ -200,7 +200,7 @@ static const struct SysemuCPUOps rx_sysemu_ops = {
 };
 #endif
 
-#include "hw/core/tcg-cpu-ops.h"
+#include "accel/tcg/cpu-ops.h"
 
 static const TCGCPUOps rx_tcg_ops = {
     .initialize = rx_translate_init,

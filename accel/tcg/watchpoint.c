@@ -26,7 +26,7 @@
 #include "tb-internal.h"
 #include "system/tcg.h"
 #include "system/replay.h"
-#include "hw/core/tcg-cpu-ops.h"
+#include "accel/tcg/cpu-ops.h"
 #include "hw/core/cpu.h"
 #include "internal-common.h"
 
