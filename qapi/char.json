@@ -333,6 +333,19 @@
   'base': 'ChardevCommon' }
 
 ##
+# @ChardevHub:
+#
+# Configuration info for hub chardevs.
+#
+# @chardevs: List of chardev IDs, which should be added to this hub
+#
+# Since: 10.0
+##
+{ 'struct': 'ChardevHub',
+  'data': { 'chardevs': ['str'] },
+  'base': 'ChardevCommon' }
+
+##
 # @ChardevStdio:
 #
 # Configuration info for stdio chardevs.
@@ -479,6 +492,8 @@
 #
 # @mux: (since 1.5)
 #
+# @hub: (since 10.0)
+#
 # @msmouse: emulated Microsoft serial mouse (since 1.5)
 #
 # @wctablet: emulated Wacom Penpartner serial tablet (since 2.9)
@@ -521,6 +536,7 @@
             'pty',
             'null',
             'mux',
+            'hub',
             'msmouse',
             'wctablet',
             { 'name': 'braille', 'if': 'CONFIG_BRLAPI' },
@@ -594,6 +610,16 @@
 ##
 { 'struct': 'ChardevMuxWrapper',
   'data': { 'data': 'ChardevMux' } }
+
+##
+# @ChardevHubWrapper:
+#
+# @data: Configuration info for hub chardevs
+#
+# Since: 10.0
+##
+{ 'struct': 'ChardevHubWrapper',
+  'data': { 'data': 'ChardevHub' } }
 
 ##
 # @ChardevStdioWrapper:
@@ -703,6 +729,7 @@
             'pty': 'ChardevPtyWrapper',
             'null': 'ChardevCommonWrapper',
             'mux': 'ChardevMuxWrapper',
+            'hub': 'ChardevHubWrapper',
             'msmouse': 'ChardevCommonWrapper',
             'wctablet': 'ChardevCommonWrapper',
             'braille': { 'type': 'ChardevCommonWrapper',
