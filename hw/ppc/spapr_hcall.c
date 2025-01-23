@@ -299,8 +299,10 @@ static target_ulong h_page_init(PowerPCCPU *cpu, SpaprMachineState *spapr,
     if (flags & (H_ICACHE_SYNCHRONIZE | H_ICACHE_INVALIDATE)) {
         if (kvm_enabled()) {
             kvmppc_icbi_range(cpu, pdst, len);
-        } else {
+        } else if (tcg_enabled()) {
             tb_flush(CPU(cpu));
+        } else {
+            g_assert_not_reached();
         }
     }
 
