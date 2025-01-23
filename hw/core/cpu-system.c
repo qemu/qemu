@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "exec/address-spaces.h"
 #include "exec/memory.h"
 #include "exec/tswap.h"
 #include "hw/qdev-core.h"
@@ -186,4 +187,10 @@ void cpu_class_init_props(DeviceClass *dc)
                                    cpu_set_start_powered_off);
 
     device_class_set_props(dc, cpu_system_props);
+}
+
+void cpu_exec_initfn(CPUState *cpu)
+{
+    cpu->memory = get_system_memory();
+    object_ref(OBJECT(cpu->memory));
 }
