@@ -593,11 +593,8 @@ pub const IRQMASK: [u32; 6] = [
 /// the same size as [`PL011State`]. We also expect the device is
 /// readable/writeable from one thread at any time.
 pub unsafe extern "C" fn pl011_can_receive(opaque: *mut c_void) -> c_int {
-    unsafe {
-        debug_assert!(!opaque.is_null());
-        let state = NonNull::new_unchecked(opaque.cast::<PL011State>());
-        state.as_ref().can_receive().into()
-    }
+    let state = NonNull::new(opaque).unwrap().cast::<PL011State>();
+    unsafe { state.as_ref().can_receive().into() }
 }
 
 /// # Safety
@@ -608,9 +605,8 @@ pub unsafe extern "C" fn pl011_can_receive(opaque: *mut c_void) -> c_int {
 ///
 /// The buffer and size arguments must also be valid.
 pub unsafe extern "C" fn pl011_receive(opaque: *mut c_void, buf: *const u8, size: c_int) {
+    let mut state = NonNull::new(opaque).unwrap().cast::<PL011State>();
     unsafe {
-        debug_assert!(!opaque.is_null());
-        let mut state = NonNull::new_unchecked(opaque.cast::<PL011State>());
         if state.as_ref().loopback_enabled() {
             return;
         }
@@ -627,11 +623,8 @@ pub unsafe extern "C" fn pl011_receive(opaque: *mut c_void, buf: *const u8, size
 /// the same size as [`PL011State`]. We also expect the device is
 /// readable/writeable from one thread at any time.
 pub unsafe extern "C" fn pl011_event(opaque: *mut c_void, event: QEMUChrEvent) {
-    unsafe {
-        debug_assert!(!opaque.is_null());
-        let mut state = NonNull::new_unchecked(opaque.cast::<PL011State>());
-        state.as_mut().event(event)
-    }
+    let mut state = NonNull::new(opaque).unwrap().cast::<PL011State>();
+    unsafe { state.as_mut().event(event) }
 }
 
 /// # Safety

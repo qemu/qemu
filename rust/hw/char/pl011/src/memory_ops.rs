@@ -25,7 +25,7 @@ pub static PL011_OPS: MemoryRegionOps = MemoryRegionOps {
 
 unsafe extern "C" fn pl011_read(opaque: *mut c_void, addr: hwaddr, size: c_uint) -> u64 {
     assert!(!opaque.is_null());
-    let mut state = unsafe { NonNull::new_unchecked(opaque.cast::<PL011State>()) };
+    let mut state = NonNull::new(opaque).unwrap().cast::<PL011State>();
     let val = unsafe { state.as_mut().read(addr, size) };
     match val {
         std::ops::ControlFlow::Break(val) => val,
@@ -43,9 +43,6 @@ unsafe extern "C" fn pl011_read(opaque: *mut c_void, addr: hwaddr, size: c_uint)
 }
 
 unsafe extern "C" fn pl011_write(opaque: *mut c_void, addr: hwaddr, data: u64, _size: c_uint) {
-    unsafe {
-        assert!(!opaque.is_null());
-        let mut state = NonNull::new_unchecked(opaque.cast::<PL011State>());
-        state.as_mut().write(addr, data)
-    }
+    let mut state = NonNull::new(opaque).unwrap().cast::<PL011State>();
+    unsafe { state.as_mut().write(addr, data) }
 }

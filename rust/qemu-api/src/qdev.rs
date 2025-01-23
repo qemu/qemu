@@ -4,7 +4,7 @@
 
 //! Bindings to create devices and access device functionality from Rust.
 
-use std::ffi::CStr;
+use std::{ffi::CStr, ptr::NonNull};
 
 pub use bindings::{DeviceClass, DeviceState, Property};
 
@@ -55,9 +55,8 @@ pub trait DeviceImpl {
 /// can be downcasted to type `T`. We also expect the device is
 /// readable/writeable from one thread at any time.
 unsafe extern "C" fn rust_realize_fn<T: DeviceImpl>(dev: *mut DeviceState, _errp: *mut *mut Error) {
-    assert!(!dev.is_null());
-    let state = dev.cast::<T>();
-    T::REALIZE.unwrap()(unsafe { &mut *state });
+    let state = NonNull::new(dev).unwrap().cast::<T>();
+    T::REALIZE.unwrap()(unsafe { state.as_ref() });
 }
 
 /// # Safety
@@ -66,9 +65,8 @@ unsafe extern "C" fn rust_realize_fn<T: DeviceImpl>(dev: *mut DeviceState, _errp
 /// can be downcasted to type `T`. We also expect the device is
 /// readable/writeable from one thread at any time.
 unsafe extern "C" fn rust_reset_fn<T: DeviceImpl>(dev: *mut DeviceState) {
-    assert!(!dev.is_null());
-    let state = dev.cast::<T>();
-    T::RESET.unwrap()(unsafe { &mut *state });
+    let mut state = NonNull::new(dev).unwrap().cast::<T>();
+    T::RESET.unwrap()(unsafe { state.as_mut() });
 }
 
 impl<T> ClassInitImpl<DeviceClass> for T

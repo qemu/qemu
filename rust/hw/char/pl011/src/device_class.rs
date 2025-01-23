@@ -12,12 +12,10 @@ use qemu_api::{
 
 use crate::device::PL011State;
 
+#[allow(clippy::missing_const_for_fn)]
 extern "C" fn pl011_clock_needed(opaque: *mut c_void) -> bool {
-    unsafe {
-        debug_assert!(!opaque.is_null());
-        let state = NonNull::new_unchecked(opaque.cast::<PL011State>());
-        state.as_ref().migrate_clock
-    }
+    let state = NonNull::new(opaque).unwrap().cast::<PL011State>();
+    unsafe { state.as_ref().migrate_clock }
 }
 
 /// Migration subsection for [`PL011State`] clock.
@@ -33,15 +31,12 @@ pub static VMSTATE_PL011_CLOCK: VMStateDescription = VMStateDescription {
 };
 
 extern "C" fn pl011_post_load(opaque: *mut c_void, version_id: c_int) -> c_int {
-    unsafe {
-        debug_assert!(!opaque.is_null());
-        let mut state = NonNull::new_unchecked(opaque.cast::<PL011State>());
-        let result = state.as_mut().post_load(version_id as u32);
-        if result.is_err() {
-            -1
-        } else {
-            0
-        }
+    let mut state = NonNull::new(opaque).unwrap().cast::<PL011State>();
+    let result = unsafe { state.as_mut().post_load(version_id as u32) };
+    if result.is_err() {
+        -1
+    } else {
+        0
     }
 }
 
