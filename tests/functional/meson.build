@@ -72,6 +72,7 @@ tests_aarch64_system_thorough = [
   'aarch64_sbsaref',
   'aarch64_sbsaref_alpine',
   'aarch64_sbsaref_freebsd',
+  'aarch64_tcg_plugins',
   'aarch64_tuxrun',
   'aarch64_virt',
   'aarch64_xlnx_versal',
