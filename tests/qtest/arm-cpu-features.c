@@ -416,6 +416,7 @@ static void sve_tests_sve_off_kvm(const void *data)
 
 static void pauth_tests_default(QTestState *qts, const char *cpu_type)
 {
+#if 0 /* Disabled for Red Hat Enterprise Linux */
     assert_has_feature_enabled(qts, cpu_type, "pauth");
     assert_has_feature_disabled(qts, cpu_type, "pauth-impdef");
     assert_has_feature_disabled(qts, cpu_type, "pauth-qarma3");
@@ -425,6 +426,7 @@ static void pauth_tests_default(QTestState *qts, const char *cpu_type)
     assert_set_feature(qts, cpu_type, "pauth-impdef", false);
     assert_set_feature(qts, cpu_type, "pauth-qarma3", true);
     assert_set_feature(qts, cpu_type, "pauth-qarma3", false);
+#endif /* disabled for RHEL */
     assert_error(qts, cpu_type,
                  "cannot enable pauth-impdef or pauth-qarma3 without pauth",
                  "{ 'pauth': false, 'pauth-impdef': true }");
