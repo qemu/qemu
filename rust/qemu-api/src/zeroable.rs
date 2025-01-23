@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::ptr;
-
 /// Encapsulates the requirement that
 /// `MaybeUninit::<Self>::zeroed().assume_init()` does not cause undefined
 /// behavior.  This trait in principle could be implemented as just:
 ///
 /// ```
-/// pub unsafe trait Zeroable: Default {
+/// pub unsafe trait Zeroable {
 ///     const ZERO: Self = unsafe { ::core::mem::MaybeUninit::<Self>::zeroed().assume_init() };
 /// }
 /// ```
@@ -29,23 +27,61 @@ pub unsafe trait Zeroable: Default {
     const ZERO: Self;
 }
 
-unsafe impl Zeroable for crate::bindings::Property__bindgen_ty_1 {
-    const ZERO: Self = Self { i: 0 };
+/// A macro that acts similarly to [`core::mem::zeroed()`], only is const
+///
+/// ## Safety
+///
+/// Similar to `core::mem::zeroed()`, except this zeroes padding bits. Zeroed
+/// padding usually isn't relevant to safety, but might be if a C union is used.
+///
+/// Just like for `core::mem::zeroed()`, an all zero byte pattern might not
+/// be a valid value for a type, as is the case for references `&T` and `&mut
+/// T`. Reference types trigger a (denied by default) lint and cause immediate
+/// undefined behavior if the lint is ignored
+///
+/// ```rust compile_fail
+/// use const_zero::const_zero;
+/// // error: any use of this value will cause an error
+/// // note: `#[deny(const_err)]` on by default
+/// const STR: &str = unsafe{const_zero!(&'static str)};
+/// ```
+///
+/// `const_zero` does not work on unsized types:
+///
+/// ```rust compile_fail
+/// use const_zero::const_zero;
+/// // error[E0277]: the size for values of type `[u8]` cannot be known at compilation time
+/// const BYTES: [u8] = unsafe{const_zero!([u8])};
+/// ```
+/// ## Differences with `core::mem::zeroed`
+///
+/// `const_zero` zeroes padding bits, while `core::mem::zeroed` doesn't
+macro_rules! const_zero {
+    // This macro to produce a type-generic zero constant is taken from the
+    // const_zero crate (v0.1.1):
+    //
+    //     https://docs.rs/const-zero/latest/src/const_zero/lib.rs.html
+    //
+    // and used under MIT license
+    ($type_:ty) => {{
+        const TYPE_SIZE: ::core::primitive::usize = ::core::mem::size_of::<$type_>();
+        union TypeAsBytes {
+            bytes: [::core::primitive::u8; TYPE_SIZE],
+            inner: ::core::mem::ManuallyDrop<$type_>,
+        }
+        const ZERO_BYTES: TypeAsBytes = TypeAsBytes {
+            bytes: [0; TYPE_SIZE],
+        };
+        ::core::mem::ManuallyDrop::<$type_>::into_inner(ZERO_BYTES.inner)
+    }};
 }
 
-unsafe impl Zeroable for crate::bindings::Property {
-    const ZERO: Self = Self {
-        name: ptr::null(),
-        info: ptr::null(),
-        offset: 0,
-        bitnr: 0,
-        bitmask: 0,
-        set_default: false,
-        defval: Zeroable::ZERO,
-        arrayoffset: 0,
-        arrayinfo: ptr::null(),
-        arrayfieldsize: 0,
-        link_type: ptr::null(),
+/// A wrapper to implement the `Zeroable` trait through the `const_zero` macro.
+macro_rules! impl_zeroable {
+    ($type:ty) => {
+        unsafe impl Zeroable for $type {
+            const ZERO: Self = unsafe { const_zero!($type) };
+        }
     };
 }
 
@@ -57,61 +93,10 @@ impl Default for crate::bindings::VMStateFlags {
     }
 }
 
-unsafe impl Zeroable for crate::bindings::VMStateFlags {
-    const ZERO: Self = Self(0);
-}
-
-unsafe impl Zeroable for crate::bindings::VMStateField {
-    const ZERO: Self = Self {
-        name: ptr::null(),
-        err_hint: ptr::null(),
-        offset: 0,
-        size: 0,
-        start: 0,
-        num: 0,
-        num_offset: 0,
-        size_offset: 0,
-        info: ptr::null(),
-        flags: Zeroable::ZERO,
-        vmsd: ptr::null(),
-        version_id: 0,
-        struct_version_id: 0,
-        field_exists: None,
-    };
-}
-
-unsafe impl Zeroable for crate::bindings::VMStateDescription {
-    const ZERO: Self = Self {
-        name: ptr::null(),
-        unmigratable: false,
-        early_setup: false,
-        version_id: 0,
-        minimum_version_id: 0,
-        priority: crate::bindings::MigrationPriority::MIG_PRI_DEFAULT,
-        pre_load: None,
-        post_load: None,
-        pre_save: None,
-        post_save: None,
-        needed: None,
-        dev_unplug_pending: None,
-        fields: ptr::null(),
-        subsections: ptr::null(),
-    };
-}
-
-unsafe impl Zeroable for crate::bindings::MemoryRegionOps__bindgen_ty_1 {
-    const ZERO: Self = Self {
-        min_access_size: 0,
-        max_access_size: 0,
-        unaligned: false,
-        accepts: None,
-    };
-}
-
-unsafe impl Zeroable for crate::bindings::MemoryRegionOps__bindgen_ty_2 {
-    const ZERO: Self = Self {
-        min_access_size: 0,
-        max_access_size: 0,
-        unaligned: false,
-    };
-}
+impl_zeroable!(crate::bindings::Property__bindgen_ty_1);
+impl_zeroable!(crate::bindings::Property);
+impl_zeroable!(crate::bindings::VMStateFlags);
+impl_zeroable!(crate::bindings::VMStateField);
+impl_zeroable!(crate::bindings::VMStateDescription);
+impl_zeroable!(crate::bindings::MemoryRegionOps__bindgen_ty_1);
+impl_zeroable!(crate::bindings::MemoryRegionOps__bindgen_ty_2);
