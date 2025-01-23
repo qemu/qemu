@@ -91,11 +91,15 @@ static MemOp tcg_canonicalize_memop(MemOp op, bool is64, bool st)
 static void gen_ldst(TCGOpcode opc, TCGType type, TCGTemp *vl, TCGTemp *vh,
                      TCGTemp *addr, MemOpIdx oi)
 {
+    TCGOp *op;
+
     if (vh) {
-        tcg_gen_op4(opc, type, temp_arg(vl), temp_arg(vh), temp_arg(addr), oi);
+        op = tcg_gen_op4(opc, type, temp_arg(vl), temp_arg(vh),
+                         temp_arg(addr), oi);
     } else {
-        tcg_gen_op3(opc, type, temp_arg(vl), temp_arg(addr), oi);
+        op = tcg_gen_op3(opc, type, temp_arg(vl), temp_arg(addr), oi);
     }
+    TCGOP_FLAGS(op) = get_memop(oi) & MO_SIZE;
 }
 
 static void gen_ldst_i64(TCGOpcode opc, TCGv_i64 v, TCGTemp *addr, MemOpIdx oi)
