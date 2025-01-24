@@ -34,9 +34,9 @@
 #ifdef CONFIG_TCG
 
 /* Convert host exception flags to vfp form.  */
-static inline int vfp_exceptbits_from_host(int host_bits)
+static inline uint32_t vfp_exceptbits_from_host(int host_bits)
 {
-    int target_bits = 0;
+    uint32_t target_bits = 0;
 
     if (host_bits & float_flag_invalid) {
         target_bits |= FPSR_IOC;
