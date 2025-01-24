@@ -672,7 +672,6 @@ static inline CPUARMTBFlags arm_tbflags_from_tb(const TranslationBlock *tb)
 typedef enum ARMFPStatusFlavour {
     FPST_A32,
     FPST_A64,
-    FPST_FPCR_F16,
     FPST_A32_F16,
     FPST_A64_F16,
     FPST_STD,
@@ -691,8 +690,6 @@ typedef enum ARMFPStatusFlavour {
  *   for AArch32 non-FP16 operations controlled by the FPCR
  * FPST_A64
  *   for AArch64 non-FP16 operations controlled by the FPCR
- * FPST_FPCR_F16
- *   for operations controlled by the FPCR where FPCR.FZ16 is to be used
  * FPST_A32_F16
  *   for AArch32 operations controlled by the FPCR where FPCR.FZ16 is to be used
  * FPST_A64_F16
@@ -713,9 +710,6 @@ static inline TCGv_ptr fpstatus_ptr(ARMFPStatusFlavour flavour)
         break;
     case FPST_A64:
         offset = offsetof(CPUARMState, vfp.fp_status_a64);
-        break;
-    case FPST_FPCR_F16:
-        offset = offsetof(CPUARMState, vfp.fp_status_f16);
         break;
     case FPST_A32_F16:
         offset = offsetof(CPUARMState, vfp.fp_status_f16_a32);
