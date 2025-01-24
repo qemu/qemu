@@ -5577,7 +5577,7 @@ static inline int64_t msa_mulr_q_df(uint32_t df, int64_t arg1, int64_t arg2)
 {
     int64_t q_min = DF_MIN_INT(df);
     int64_t q_max = DF_MAX_INT(df);
-    int64_t r_bit = 1 << (DF_BITS(df) - 2);
+    int64_t r_bit = 1LL << (DF_BITS(df) - 2);
 
     if (arg1 == q_min && arg2 == q_min) {
         return q_max;
@@ -5685,7 +5685,7 @@ static inline int64_t msa_maddr_q_df(uint32_t df, int64_t dest, int64_t arg1,
 
     int64_t q_max = DF_MAX_INT(df);
     int64_t q_min = DF_MIN_INT(df);
-    int64_t r_bit = 1 << (DF_BITS(df) - 2);
+    int64_t r_bit = 1LL << (DF_BITS(df) - 2);
 
     q_prod = arg1 * arg2;
     q_ret = ((dest << (DF_BITS(df) - 1)) + q_prod + r_bit) >> (DF_BITS(df) - 1);
@@ -5700,7 +5700,7 @@ static inline int64_t msa_msubr_q_df(uint32_t df, int64_t dest, int64_t arg1,
 
     int64_t q_max = DF_MAX_INT(df);
     int64_t q_min = DF_MIN_INT(df);
-    int64_t r_bit = 1 << (DF_BITS(df) - 2);
+    int64_t r_bit = 1LL << (DF_BITS(df) - 2);
 
     q_prod = arg1 * arg2;
     q_ret = ((dest << (DF_BITS(df) - 1)) - q_prod + r_bit) >> (DF_BITS(df) - 1);
