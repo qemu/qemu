@@ -39,22 +39,22 @@ static inline int vfp_exceptbits_from_host(int host_bits)
     int target_bits = 0;
 
     if (host_bits & float_flag_invalid) {
-        target_bits |= 1;
+        target_bits |= FPSR_IOC;
     }
     if (host_bits & float_flag_divbyzero) {
-        target_bits |= 2;
+        target_bits |= FPSR_DZC;
     }
     if (host_bits & float_flag_overflow) {
-        target_bits |= 4;
+        target_bits |= FPSR_OFC;
     }
     if (host_bits & (float_flag_underflow | float_flag_output_denormal)) {
-        target_bits |= 8;
+        target_bits |= FPSR_UFC;
     }
     if (host_bits & float_flag_inexact) {
-        target_bits |= 0x10;
+        target_bits |= FPSR_IXC;
     }
     if (host_bits & float_flag_input_denormal) {
-        target_bits |= 0x80;
+        target_bits |= FPSR_IDC;
     }
     return target_bits;
 }
