@@ -53,7 +53,7 @@ static inline uint32_t vfp_exceptbits_from_host(int host_bits)
     if (host_bits & float_flag_inexact) {
         target_bits |= FPSR_IXC;
     }
-    if (host_bits & float_flag_input_denormal) {
+    if (host_bits & float_flag_input_denormal_flushed) {
         target_bits |= FPSR_IDC;
     }
     return target_bits;
@@ -68,11 +68,11 @@ static uint32_t vfp_get_fpsr_from_host(CPUARMState *env)
     i |= get_float_exception_flags(&env->vfp.standard_fp_status);
     /* FZ16 does not generate an input denormal exception.  */
     i |= (get_float_exception_flags(&env->vfp.fp_status_f16_a32)
-          & ~float_flag_input_denormal);
+          & ~float_flag_input_denormal_flushed);
     i |= (get_float_exception_flags(&env->vfp.fp_status_f16_a64)
-          & ~float_flag_input_denormal);
+          & ~float_flag_input_denormal_flushed);
     i |= (get_float_exception_flags(&env->vfp.standard_fp_status_f16)
-          & ~float_flag_input_denormal);
+          & ~float_flag_input_denormal_flushed);
     return vfp_exceptbits_from_host(i);
 }
 
@@ -1133,7 +1133,7 @@ uint64_t HELPER(fjcvtzs)(float64 value, float_status *status)
 
     /* Normal inexact, denormal with flush-to-zero, or overflow or NaN */
     inexact = e_new & (float_flag_inexact |
-                       float_flag_input_denormal |
+                       float_flag_input_denormal_flushed |
                        float_flag_invalid);
 
     /* While not inexact for IEEE FP, -0.0 is inexact for JavaScript. */
