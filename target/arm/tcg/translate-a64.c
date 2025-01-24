@@ -5101,28 +5101,28 @@ static const FPScalar f_scalar_fmul = {
 TRANS(FMUL_s, do_fp3_scalar, a, &f_scalar_fmul)
 
 static const FPScalar f_scalar_fmax = {
-    gen_helper_advsimd_maxh,
+    gen_helper_vfp_maxh,
     gen_helper_vfp_maxs,
     gen_helper_vfp_maxd,
 };
 TRANS(FMAX_s, do_fp3_scalar, a, &f_scalar_fmax)
 
 static const FPScalar f_scalar_fmin = {
-    gen_helper_advsimd_minh,
+    gen_helper_vfp_minh,
     gen_helper_vfp_mins,
     gen_helper_vfp_mind,
 };
 TRANS(FMIN_s, do_fp3_scalar, a, &f_scalar_fmin)
 
 static const FPScalar f_scalar_fmaxnm = {
-    gen_helper_advsimd_maxnumh,
+    gen_helper_vfp_maxnumh,
     gen_helper_vfp_maxnums,
     gen_helper_vfp_maxnumd,
 };
 TRANS(FMAXNM_s, do_fp3_scalar, a, &f_scalar_fmaxnm)
 
 static const FPScalar f_scalar_fminnm = {
-    gen_helper_advsimd_minnumh,
+    gen_helper_vfp_minnumh,
     gen_helper_vfp_minnums,
     gen_helper_vfp_minnumd,
 };
@@ -6902,10 +6902,10 @@ static bool do_fp_reduction(DisasContext *s, arg_qrr_e *a,
     return true;
 }
 
-TRANS_FEAT(FMAXNMV_h, aa64_fp16, do_fp_reduction, a, gen_helper_advsimd_maxnumh)
-TRANS_FEAT(FMINNMV_h, aa64_fp16, do_fp_reduction, a, gen_helper_advsimd_minnumh)
-TRANS_FEAT(FMAXV_h, aa64_fp16, do_fp_reduction, a, gen_helper_advsimd_maxh)
-TRANS_FEAT(FMINV_h, aa64_fp16, do_fp_reduction, a, gen_helper_advsimd_minh)
+TRANS_FEAT(FMAXNMV_h, aa64_fp16, do_fp_reduction, a, gen_helper_vfp_maxnumh)
+TRANS_FEAT(FMINNMV_h, aa64_fp16, do_fp_reduction, a, gen_helper_vfp_minnumh)
+TRANS_FEAT(FMAXV_h, aa64_fp16, do_fp_reduction, a, gen_helper_vfp_maxh)
+TRANS_FEAT(FMINV_h, aa64_fp16, do_fp_reduction, a, gen_helper_vfp_minh)
 
 TRANS(FMAXNMV_s, do_fp_reduction, a, gen_helper_vfp_maxnums)
 TRANS(FMINNMV_s, do_fp_reduction, a, gen_helper_vfp_minnums)
