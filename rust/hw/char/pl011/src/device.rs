@@ -109,14 +109,14 @@ pub struct PL011Registers {
 }
 
 #[repr(C)]
-#[derive(Debug, qemu_api_macros::Object, qemu_api_macros::offsets)]
+#[derive(qemu_api_macros::Object, qemu_api_macros::offsets)]
 /// PL011 Device Model in QEMU
 pub struct PL011State {
     pub parent_obj: ParentField<SysBusDevice>,
     pub iomem: MemoryRegion,
     #[doc(alias = "chr")]
     pub char_backend: CharBackend,
-    pub regs: PL011Registers,
+    pub regs: BqlRefCell<PL011Registers>,
     /// QEMU interrupts
     ///
     /// ```text
@@ -528,6 +528,7 @@ impl PL011State {
         }
     }
 
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn read(&mut self, offset: hwaddr, _size: u32) -> ControlFlow<u64, u64> {
         let mut update_irq = false;
         let result = match RegisterOffset::try_from(offset) {
@@ -539,7 +540,7 @@ impl PL011State {
                 // qemu_log_mask(LOG_GUEST_ERROR, "pl011_read: Bad offset 0x%x\n", (int)offset);
                 ControlFlow::Break(0)
             }
-            Ok(field) => match self.regs.read(field) {
+            Ok(field) => match self.regs.borrow_mut().read(field) {
                 ControlFlow::Break(value) => ControlFlow::Break(value.into()),
                 ControlFlow::Continue(value) => {
                     update_irq = true;
@@ -570,7 +571,10 @@ impl PL011State {
                 }
             }
 
-            update_irq = self.regs.write(field, value as u32, &mut self.char_backend);
+            update_irq = self
+                .regs
+                .borrow_mut()
+                .write(field, value as u32, &mut self.char_backend);
         } else {
             eprintln!("write bad offset {offset} value {value}");
         }
@@ -581,24 +585,30 @@ impl PL011State {
 
     pub fn can_receive(&self) -> bool {
         // trace_pl011_can_receive(s->lcr, s->read_count, r);
-        let regs = &self.regs;
+        let regs = self.regs.borrow();
         regs.read_count < regs.fifo_depth()
     }
 
-    pub fn receive(&mut self, ch: u32) {
-        let regs = &mut self.regs;
+    pub fn receive(&self, ch: u32) {
+        let mut regs = self.regs.borrow_mut();
         let update_irq = !regs.loopback_enabled() && regs.put_fifo(ch);
+        // Release the BqlRefCell before calling self.update()
+        drop(regs);
+
         if update_irq {
             self.update();
         }
     }
 
-    pub fn event(&mut self, event: QEMUChrEvent) {
+    pub fn event(&self, event: QEMUChrEvent) {
         let mut update_irq = false;
-        let regs = &mut self.regs;
+        let mut regs = self.regs.borrow_mut();
         if event == QEMUChrEvent::CHR_EVENT_BREAK && !regs.loopback_enabled() {
             update_irq = regs.put_fifo(registers::Data::BREAK.into());
         }
+        // Release the BqlRefCell before calling self.update()
+        drop(regs);
+
         if update_irq {
             self.update()
         }
@@ -622,19 +632,19 @@ impl PL011State {
     }
 
     pub fn reset(&mut self) {
-        self.regs.reset();
+        self.regs.borrow_mut().reset();
     }
 
     pub fn update(&self) {
-        let regs = &self.regs;
+        let regs = self.regs.borrow();
         let flags = regs.int_level & regs.int_enabled;
         for (irq, i) in self.interrupts.iter().zip(IRQMASK) {
             irq.set(flags & i != 0);
         }
     }
 
-    pub fn post_load(&mut self, _version_id: u32) -> Result<(), ()> {
-        self.regs.post_load()
+    pub fn post_load(&self, _version_id: u32) -> Result<(), ()> {
+        self.regs.borrow_mut().post_load()
     }
 }
 
@@ -671,11 +681,11 @@ pub unsafe extern "C" fn pl011_can_receive(opaque: *mut c_void) -> c_int {
 ///
 /// The buffer and size arguments must also be valid.
 pub unsafe extern "C" fn pl011_receive(opaque: *mut c_void, buf: *const u8, size: c_int) {
-    let mut state = NonNull::new(opaque).unwrap().cast::<PL011State>();
+    let state = NonNull::new(opaque).unwrap().cast::<PL011State>();
     unsafe {
         if size > 0 {
             debug_assert!(!buf.is_null());
-            state.as_mut().receive(u32::from(buf.read_volatile()));
+            state.as_ref().receive(u32::from(buf.read_volatile()));
         }
     }
 }
@@ -686,8 +696,8 @@ pub unsafe extern "C" fn pl011_receive(opaque: *mut c_void, buf: *const u8, size
 /// the same size as [`PL011State`]. We also expect the device is
 /// readable/writeable from one thread at any time.
 pub unsafe extern "C" fn pl011_event(opaque: *mut c_void, event: QEMUChrEvent) {
-    let mut state = NonNull::new(opaque).unwrap().cast::<PL011State>();
-    unsafe { state.as_mut().event(event) }
+    let state = NonNull::new(opaque).unwrap().cast::<PL011State>();
+    unsafe { state.as_ref().event(event) }
 }
 
 /// # Safety
@@ -712,7 +722,7 @@ pub unsafe extern "C" fn pl011_create(
 }
 
 #[repr(C)]
-#[derive(Debug, qemu_api_macros::Object)]
+#[derive(qemu_api_macros::Object)]
 /// PL011 Luminary device model.
 pub struct PL011Luminary {
     parent_obj: ParentField<PL011State>,

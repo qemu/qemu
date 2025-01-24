@@ -6,7 +6,7 @@ use core::ptr::NonNull;
 use std::os::raw::{c_int, c_void};
 
 use qemu_api::{
-    bindings::*, c_str, vmstate_clock, vmstate_fields, vmstate_of, vmstate_struct,
+    bindings::*, c_str, prelude::*, vmstate_clock, vmstate_fields, vmstate_of, vmstate_struct,
     vmstate_subsections, vmstate_unused, zeroable::Zeroable,
 };
 
@@ -31,8 +31,8 @@ static VMSTATE_PL011_CLOCK: VMStateDescription = VMStateDescription {
 };
 
 extern "C" fn pl011_post_load(opaque: *mut c_void, version_id: c_int) -> c_int {
-    let mut state = NonNull::new(opaque).unwrap().cast::<PL011State>();
-    let result = unsafe { state.as_mut().post_load(version_id as u32) };
+    let state = NonNull::new(opaque).unwrap().cast::<PL011State>();
+    let result = unsafe { state.as_ref().post_load(version_id as u32) };
     if result.is_err() {
         -1
     } else {
@@ -71,7 +71,7 @@ pub static VMSTATE_PL011: VMStateDescription = VMStateDescription {
     post_load: Some(pl011_post_load),
     fields: vmstate_fields! {
         vmstate_unused!(core::mem::size_of::<u32>()),
-        vmstate_struct!(PL011State, regs, &VMSTATE_PL011_REGS, PL011Registers),
+        vmstate_struct!(PL011State, regs, &VMSTATE_PL011_REGS, BqlRefCell<PL011Registers>),
     },
     subsections: vmstate_subsections! {
         VMSTATE_PL011_CLOCK
