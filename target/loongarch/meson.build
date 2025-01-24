@@ -10,6 +10,7 @@ loongarch_system_ss = ss.source_set()
 loongarch_system_ss.add(files(
   'arch_dump.c',
   'cpu_helper.c',
+  'csr.c',
   'loongarch-qmp-cmds.c',
   'machine.c',
 ))
