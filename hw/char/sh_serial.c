@@ -434,14 +434,18 @@ static void sh_serial_realize(DeviceState *d, Error **errp)
     s->etu = NANOSECONDS_PER_SECOND / 9600;
 }
 
-static void sh_serial_finalize(Object *obj)
+static void sh_serial_unrealize(DeviceState *dev)
 {
-    SHSerialState *s = SH_SERIAL(obj);
+    SHSerialState *s = SH_SERIAL(dev);
 
     timer_del(&s->fifo_timeout_timer);
 }
 
 static void sh_serial_init(Object *obj)
+{
+}
+
+static void sh_serial_finalize(Object *obj)
 {
 }
 
@@ -456,6 +460,7 @@ static void sh_serial_class_init(ObjectClass *oc, const void *data)
 
     device_class_set_props(dc, sh_serial_properties);
     dc->realize = sh_serial_realize;
+    dc->unrealize = sh_serial_unrealize;
     device_class_set_legacy_reset(dc, sh_serial_reset);
     /* Reason: part of SuperH CPU/SoC, needs to be wired up */
     dc->user_creatable = false;
