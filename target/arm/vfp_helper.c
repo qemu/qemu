@@ -1144,7 +1144,7 @@ uint64_t HELPER(fjcvtzs)(float64 value, float_status *status)
 
 uint32_t HELPER(vjcvt)(float64 value, CPUARMState *env)
 {
-    uint64_t pair = HELPER(fjcvtzs)(value, &env->vfp.fp_status);
+    uint64_t pair = HELPER(fjcvtzs)(value, &env->vfp.fp_status_a32);
     uint32_t result = pair;
     uint32_t z = (pair >> 32) == 0;
 
