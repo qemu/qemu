@@ -48,6 +48,7 @@
 #include "kvm/kvm_s390x.h"
 #include "hw/virtio/virtio-md-pci.h"
 #include "hw/s390x/virtio-ccw-md.h"
+#include "system/replay.h"
 #include CONFIG_DEVICES
 
 static Error *pv_mig_blocker;
@@ -454,6 +455,18 @@ static void s390_machine_reset(MachineState *machine, ResetType type)
     CPUState *cs, *t;
     S390CPU *cpu;
 
+    /*
+     * Temporarily drop the record/replay mutex to let rr_cpu_thread_fn()
+     * process the run_on_cpu() requests below. This is safe, because at this
+     * point one of the following is true:
+     * - All CPU threads are not running, either because the machine is being
+     *   initialized, or because the guest requested a reset using diag 308.
+     *   There is no risk to desync the record/replay state.
+     * - A snapshot is about to be loaded. The record/replay state consistency
+     *   is not important.
+     */
+    replay_mutex_unlock();
+
     /* get the reset parameters, reset them once done */
     s390_ipl_get_reset_request(&cs, &reset_type);
 
@@ -533,7 +546,7 @@ static void s390_machine_reset(MachineState *machine, ResetType type)
              * went wrong.
              */
             s390_cpu_set_state(S390_CPU_STATE_OPERATING, cpu);
-            return;
+            goto out_lock;
         }
 
         run_on_cpu(cs, s390_do_cpu_load_normal, RUN_ON_CPU_NULL);
@@ -546,6 +559,15 @@ static void s390_machine_reset(MachineState *machine, ResetType type)
         run_on_cpu(t, s390_do_cpu_set_diag318, RUN_ON_CPU_HOST_ULONG(0));
     }
     s390_ipl_clear_reset_request();
+
+out_lock:
+    /*
+     * Re-take the record/replay mutex, temporarily dropping the BQL in order
+     * to satisfy the ordering requirements.
+     */
+    bql_unlock();
+    replay_mutex_lock();
+    bql_lock();
 }
 
 static void s390_machine_device_pre_plug(HotplugHandler *hotplug_dev,
