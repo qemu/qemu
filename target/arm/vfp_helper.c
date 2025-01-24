@@ -373,8 +373,8 @@ void VFP_HELPER(cmpe, P)(ARGTYPE a, ARGTYPE b, CPUARMState *env) \
         FLOATTYPE ## _compare(a, b, &env->vfp.FPST)); \
 }
 DO_VFP_cmp(h, float16, dh_ctype_f16, fp_status_f16)
-DO_VFP_cmp(s, float32, float32, fp_status)
-DO_VFP_cmp(d, float64, float64, fp_status)
+DO_VFP_cmp(s, float32, float32, fp_status_a32)
+DO_VFP_cmp(d, float64, float64, fp_status_a32)
 #undef DO_VFP_cmp
 
 /* Integer to float and float to integer conversions */
