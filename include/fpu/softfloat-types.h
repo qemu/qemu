@@ -156,7 +156,8 @@ enum {
     float_flag_inexact         = 0x0010,
     /* We flushed an input denormal to 0 (because of flush_inputs_to_zero) */
     float_flag_input_denormal_flushed = 0x0020,
-    float_flag_output_denormal = 0x0040,
+    /* We flushed an output denormal to 0 (because of flush_to_zero) */
+    float_flag_output_denormal_flushed = 0x0040,
     float_flag_invalid_isi     = 0x0080,  /* inf - inf */
     float_flag_invalid_imz     = 0x0100,  /* inf * 0 */
     float_flag_invalid_idi     = 0x0200,  /* inf / inf */

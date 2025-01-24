@@ -43,7 +43,7 @@ static inline uint8_t f_get_excp_flags(CPUTriCoreState *env)
            & (float_flag_invalid
               | float_flag_overflow
               | float_flag_underflow
-              | float_flag_output_denormal
+              | float_flag_output_denormal_flushed
               | float_flag_divbyzero
               | float_flag_inexact);
 }
@@ -99,7 +99,7 @@ static void f_update_psw_flags(CPUTriCoreState *env, uint8_t flags)
         some_excp = 1;
     }
 
-    if (flags & float_flag_underflow || flags & float_flag_output_denormal) {
+    if (flags & float_flag_underflow || flags & float_flag_output_denormal_flushed) {
         env->FPU_FU = 1 << 31;
         some_excp = 1;
     }
@@ -109,7 +109,7 @@ static void f_update_psw_flags(CPUTriCoreState *env, uint8_t flags)
         some_excp = 1;
     }
 
-    if (flags & float_flag_inexact || flags & float_flag_output_denormal) {
+    if (flags & float_flag_inexact || flags & float_flag_output_denormal_flushed) {
         env->PSW |= 1 << 26;
         some_excp = 1;
     }

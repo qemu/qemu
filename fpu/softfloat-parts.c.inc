@@ -334,7 +334,7 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
         }
         frac_shr(p, frac_shift);
     } else if (s->flush_to_zero) {
-        flags |= float_flag_output_denormal;
+        flags |= float_flag_output_denormal_flushed;
         p->cls = float_class_zero;
         exp = 0;
         frac_clear(p);

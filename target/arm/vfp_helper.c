@@ -47,7 +47,7 @@ static inline uint32_t vfp_exceptbits_from_host(int host_bits)
     if (host_bits & float_flag_overflow) {
         target_bits |= FPSR_OFC;
     }
-    if (host_bits & (float_flag_underflow | float_flag_output_denormal)) {
+    if (host_bits & (float_flag_underflow | float_flag_output_denormal_flushed)) {
         target_bits |= FPSR_UFC;
     }
     if (host_bits & float_flag_inexact) {

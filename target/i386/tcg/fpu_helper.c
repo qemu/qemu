@@ -3268,7 +3268,7 @@ void update_mxcsr_from_sse_status(CPUX86State *env)
                    (flags & float_flag_overflow ? FPUS_OE : 0) |
                    (flags & float_flag_underflow ? FPUS_UE : 0) |
                    (flags & float_flag_inexact ? FPUS_PE : 0) |
-                   (flags & float_flag_output_denormal ? FPUS_UE | FPUS_PE :
+                   (flags & float_flag_output_denormal_flushed ? FPUS_UE | FPUS_PE :
                     0));
 }
 
