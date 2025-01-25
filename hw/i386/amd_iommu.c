@@ -1687,8 +1687,6 @@ static void amdvi_sysbus_class_init(ObjectClass *klass, void *data)
     dc->hotpluggable = false;
     dc_class->realize = amdvi_sysbus_realize;
     dc_class->int_remap = amdvi_int_remap;
-    /* Supported by the pc-q35-* machine types */
-    dc->user_creatable = true;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->desc = "AMD IOMMU (AMD-Vi) DMA Remapping device";
     device_class_set_props(dc, amdvi_properties);
