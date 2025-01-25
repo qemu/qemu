@@ -2,7 +2,7 @@
 // Author(s): Paolo Bonzini <pbonzini@redhat.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-//! Bindings for `MemoryRegion` and `MemoryRegionOps`
+//! Bindings for `MemoryRegion`, `MemoryRegionOps` and `MemTxAttrs`
 
 use std::{
     ffi::{CStr, CString},
@@ -11,7 +11,7 @@ use std::{
     ptr::addr_of,
 };
 
-pub use bindings::hwaddr;
+pub use bindings::{hwaddr, MemTxAttrs};
 
 use crate::{
     bindings::{self, device_endian, memory_region_init_io},
@@ -189,3 +189,15 @@ unsafe impl ObjectType for MemoryRegion {
         unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_MEMORY_REGION) };
 }
 qom_isa!(MemoryRegion: Object);
+
+/// A special `MemTxAttrs` constant, used to indicate that no memory
+/// attributes are specified.
+///
+/// Bus masters which don't specify any attributes will get this,
+/// which has all attribute bits clear except the topmost one
+/// (so that we can distinguish "all attributes deliberately clear"
+/// from "didn't specify" if necessary).
+pub const MEMTXATTRS_UNSPECIFIED: MemTxAttrs = MemTxAttrs {
+    unspecified: true,
+    ..Zeroable::ZERO
+};

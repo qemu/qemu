@@ -62,3 +62,4 @@ typedef enum memory_order {
 #include "qapi/error.h"
 #include "migration/vmstate.h"
 #include "chardev/char-serial.h"
+#include "exec/memattrs.h"
