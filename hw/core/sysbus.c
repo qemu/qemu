@@ -320,6 +320,14 @@ BusState *sysbus_get_default(void)
     return main_system_bus;
 }
 
+static void dynamic_sysbus_device_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+
+    k->user_creatable = true;
+    k->hotpluggable = false;
+}
+
 static const TypeInfo sysbus_types[] = {
     {
         .name           = TYPE_SYSTEM_BUS,
@@ -335,6 +343,12 @@ static const TypeInfo sysbus_types[] = {
         .class_size     = sizeof(SysBusDeviceClass),
         .class_init     = sysbus_device_class_init,
     },
+    {
+        .name           = TYPE_DYNAMIC_SYS_BUS_DEVICE,
+        .parent         = TYPE_SYS_BUS_DEVICE,
+        .class_init     = dynamic_sysbus_device_class_init,
+        .abstract       = true,
+    }
 };
 
 DEFINE_TYPES(sysbus_types)
