@@ -323,8 +323,8 @@ static void main_system_bus_create(void)
      * assign main_system_bus before qbus_init()
      * in order to make "if (bus != sysbus_get_default())" work
      */
-    main_system_bus = g_malloc0(system_bus_info.instance_size);
-    qbus_init(main_system_bus, system_bus_info.instance_size,
+    main_system_bus = g_new0(BusState, 1);
+    qbus_init(main_system_bus, sizeof(BusState),
               TYPE_SYSTEM_BUS, NULL, "main-system-bus");
     OBJECT(main_system_bus)->free = g_free;
 }
