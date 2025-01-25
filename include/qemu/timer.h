@@ -507,6 +507,8 @@ static inline void timer_init_ms(QEMUTimer *ts, QEMUClockType type,
  * with an AioContext---each of them runs its timer callbacks in its own
  * AioContext thread.
  *
+ * The timer returned must be freed using timer_free().
+ *
  * Returns: a pointer to the timer
  */
 static inline QEMUTimer *timer_new_full(QEMUTimerListGroup *timer_list_group,
@@ -530,6 +532,8 @@ static inline QEMUTimer *timer_new_full(QEMUTimerListGroup *timer_list_group,
  * and associate it with the default timer list for the clock type @type.
  * See timer_new_full for details.
  *
+ * The timer returned must be freed using timer_free().
+ *
  * Returns: a pointer to the timer
  */
 static inline QEMUTimer *timer_new(QEMUClockType type, int scale,
@@ -547,6 +551,8 @@ static inline QEMUTimer *timer_new(QEMUClockType type, int scale,
  * Create a new timer with nanosecond scale on the default timer list
  * associated with the clock.
  * See timer_new_full for details.
+ *
+ * The timer returned must be freed using timer_free().
  *
  * Returns: a pointer to the newly created timer
  */
@@ -566,6 +572,8 @@ static inline QEMUTimer *timer_new_ns(QEMUClockType type, QEMUTimerCB *cb,
  * associated with the clock.
  * See timer_new_full for details.
  *
+ * The timer returned must be freed using timer_free().
+ *
  * Returns: a pointer to the newly created timer
  */
 static inline QEMUTimer *timer_new_us(QEMUClockType type, QEMUTimerCB *cb,
@@ -583,6 +591,8 @@ static inline QEMUTimer *timer_new_us(QEMUClockType type, QEMUTimerCB *cb,
  * Create a new timer with millisecond scale on the default timer list
  * associated with the clock.
  * See timer_new_full for details.
+ *
+ * The timer returned must be freed using timer_free().
  *
  * Returns: a pointer to the newly created timer
  */
