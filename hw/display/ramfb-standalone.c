@@ -72,13 +72,12 @@ static void ramfb_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &ramfb_dev_vmstate;
     dc->realize = ramfb_realizefn;
     dc->desc = "ram framebuffer standalone device";
-    dc->user_creatable = true;
     device_class_set_props(dc, ramfb_properties);
 }
 
 static const TypeInfo ramfb_info = {
     .name          = TYPE_RAMFB_DEVICE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_DYNAMIC_SYS_BUS_DEVICE,
     .instance_size = sizeof(RAMFBStandaloneState),
     .class_init    = ramfb_class_initfn,
 };
