@@ -428,13 +428,13 @@ static void mips_cpu_reset_hold(Object *obj, ResetType type)
 static void mips_cpu_disas_set_info(CPUState *s, disassemble_info *info)
 {
     if (!(cpu_env(s)->insn_flags & ISA_NANOMIPS32)) {
-#if TARGET_BIG_ENDIAN
-        info->print_insn = print_insn_big_mips;
-#else
-        info->print_insn = print_insn_little_mips;
-#endif
+        info->endian = TARGET_BIG_ENDIAN ? BFD_ENDIAN_BIG
+                                         : BFD_ENDIAN_LITTLE;
+        info->print_insn = TARGET_BIG_ENDIAN ? print_insn_big_mips
+                                             : print_insn_little_mips;
     } else {
         info->print_insn = print_insn_nanomips;
+        info->endian = BFD_ENDIAN_LITTLE;
     }
 }
 
