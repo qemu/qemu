@@ -160,8 +160,8 @@ static void pegasos2_init(MachineState *machine)
     }
     memory_region_init_rom(rom, NULL, "pegasos2.rom", PROM_SIZE, &error_fatal);
     memory_region_add_subregion(get_system_memory(), PROM_ADDR, rom);
-    sz = load_elf(filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1,
-                  PPC_ELF_MACHINE, 0, 0);
+    sz = load_elf(filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                  ELFDATA2MSB, PPC_ELF_MACHINE, 0, 0);
     if (sz <= 0) {
         sz = load_image_targphys(filename, pm->vof ? 0 : PROM_ADDR, PROM_SIZE);
     }
@@ -239,8 +239,8 @@ static void pegasos2_init(MachineState *machine)
 
     if (machine->kernel_filename) {
         sz = load_elf(machine->kernel_filename, NULL, NULL, NULL,
-                      &pm->kernel_entry, &pm->kernel_addr, NULL, NULL, 1,
-                      PPC_ELF_MACHINE, 0, 0);
+                      &pm->kernel_entry, &pm->kernel_addr, NULL, NULL,
+                      ELFDATA2MSB, PPC_ELF_MACHINE, 0, 0);
         if (sz <= 0) {
             error_report("Could not load kernel '%s'",
                          machine->kernel_filename);

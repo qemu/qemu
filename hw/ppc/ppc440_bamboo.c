@@ -228,7 +228,8 @@ static void bamboo_init(MachineState *machine)
         if (success < 0) {
             uint64_t elf_entry;
             success = load_elf(kernel_filename, NULL, NULL, NULL, &elf_entry,
-                               NULL, NULL, NULL, 1, PPC_ELF_MACHINE, 0, 0);
+                               NULL, NULL, NULL,
+                               ELFDATA2MSB, PPC_ELF_MACHINE, 0, 0);
             entry = elf_entry;
         }
         /* XXX try again as binary */

@@ -42,7 +42,7 @@ static void tricore_load_kernel(CPUTriCoreState *env)
 
     kernel_size = load_elf(tricoretb_binfo.kernel_filename, NULL,
                            NULL, NULL, &entry, NULL,
-                           NULL, NULL, 0,
+                           NULL, NULL, ELFDATA2LSB,
                            EM_TRICORE, 1, 0);
     if (kernel_size <= 0) {
         error_report("no kernel file '%s'",

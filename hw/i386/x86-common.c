@@ -608,8 +608,8 @@ static bool load_elfboot(const char *kernel_filename,
     uint64_t elf_note_type = XEN_ELFNOTE_PHYS32_ENTRY;
     kernel_size = load_elf(kernel_filename, read_pvh_start_addr,
                            NULL, &elf_note_type, &elf_entry,
-                           &elf_low, &elf_high, NULL, 0, I386_ELF_MACHINE,
-                           0, 0);
+                           &elf_low, &elf_high, NULL,
+                           ELFDATA2LSB, I386_ELF_MACHINE, 0, 0);
 
     if (kernel_size < 0) {
         error_report("Error while loading elf kernel");

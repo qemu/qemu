@@ -479,7 +479,7 @@ static void sam460ex_init(MachineState *machine)
 
             success = load_elf(machine->kernel_filename, NULL, NULL, NULL,
                                &elf_entry, NULL, NULL, NULL,
-                               1, PPC_ELF_MACHINE, 0, 0);
+                               ELFDATA2MSB, PPC_ELF_MACHINE, 0, 0);
             entry = elf_entry;
         }
         /* XXX try again as binary */

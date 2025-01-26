@@ -358,7 +358,7 @@ static uint64_t load_kernel(CPUMIPSState *env)
                            cpu_mips_kseg0_to_phys, NULL,
                            &kernel_entry,
                            &kernel_low, &kernel_high,
-                           NULL, 0, EM_MIPS, 1, 0);
+                           NULL, ELFDATA2LSB, EM_MIPS, 1, 0);
     if (kernel_size < 0) {
         error_report("could not load kernel '%s': %s",
                      loaderparams.kernel_filename,

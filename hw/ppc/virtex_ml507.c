@@ -242,8 +242,8 @@ static void virtex_init(MachineState *machine)
 
         /* Boots a kernel elf binary.  */
         kernel_size = load_elf(kernel_filename, NULL, NULL, NULL,
-                               &entry, NULL, &high, NULL, 1, PPC_ELF_MACHINE,
-                               0, 0);
+                               &entry, NULL, &high, NULL,
+                               ELFDATA2MSB, PPC_ELF_MACHINE, 0, 0);
         boot_info.bootstrap_pc = entry & 0x00ffffff;
 
         if (kernel_size < 0) {

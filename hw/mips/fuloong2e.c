@@ -106,7 +106,7 @@ static uint64_t load_kernel(MIPSCPU *cpu)
                            cpu_mips_kseg0_to_phys, NULL,
                            &kernel_entry, NULL,
                            &kernel_high, NULL,
-                           0, EM_MIPS, 1, 0);
+                           ELFDATA2LSB, EM_MIPS, 1, 0);
     if (kernel_size < 0) {
         error_report("could not load kernel '%s': %s",
                      loaderparams.kernel_filename,
