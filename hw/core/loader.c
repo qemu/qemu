@@ -443,7 +443,8 @@ ssize_t load_elf_ram_sym(const char *filename,
                          int clear_lsb, int data_swab,
                          AddressSpace *as, bool load_rom, symbol_fn_t sym_cb)
 {
-    int fd, data_order, target_data_order, must_swab;
+    const int host_data_order = HOST_BIG_ENDIAN ? ELFDATA2MSB : ELFDATA2LSB;
+    int fd, target_data_order, must_swab;
     ssize_t ret = ELF_LOAD_FAILED;
     uint8_t e_ident[EI_NIDENT];
 
@@ -461,12 +462,7 @@ ssize_t load_elf_ram_sym(const char *filename,
         ret = ELF_LOAD_NOT_ELF;
         goto fail;
     }
-#if HOST_BIG_ENDIAN
-    data_order = ELFDATA2MSB;
-#else
-    data_order = ELFDATA2LSB;
-#endif
-    must_swab = data_order != e_ident[EI_DATA];
+    must_swab = host_data_order != e_ident[EI_DATA];
     if (big_endian) {
         target_data_order = ELFDATA2MSB;
     } else {
