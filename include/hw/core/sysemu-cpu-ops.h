@@ -19,7 +19,7 @@ typedef struct SysemuCPUOps {
     /**
      * @has_work: Callback for checking if there is work to do.
      */
-    bool (*has_work)(CPUState *cpu);
+    bool (*has_work)(CPUState *cpu); /* MANDATORY NON-NULL */
     /**
      * @get_memory_mapping: Callback for obtaining the memory mappings.
      */

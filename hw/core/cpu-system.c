@@ -33,12 +33,7 @@
 
 bool cpu_has_work(CPUState *cpu)
 {
-    if (cpu->cc->sysemu_ops->has_work) {
-        return cpu->cc->sysemu_ops->has_work(cpu);
-    }
-
-    g_assert(cpu->cc->has_work);
-    return cpu->cc->has_work(cpu);
+    return cpu->cc->sysemu_ops->has_work(cpu);
 }
 
 bool cpu_paging_enabled(const CPUState *cpu)
@@ -186,6 +181,12 @@ void cpu_class_init_props(DeviceClass *dc)
                                    cpu_set_start_powered_off);
 
     device_class_set_props(dc, cpu_system_props);
+}
+
+void cpu_exec_class_post_init(CPUClass *cc)
+{
+    /* Check mandatory SysemuCPUOps handlers */
+    g_assert(cc->sysemu_ops->has_work);
 }
 
 void cpu_exec_initfn(CPUState *cpu)
