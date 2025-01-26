@@ -73,7 +73,7 @@ bool avr_load_firmware(AVRCPU *cpu, MachineState *ms,
 
     bytes_loaded = load_elf_as(filename, NULL, NULL, NULL,
                                &entry, NULL, NULL,
-                               &e_flags, 0, EM_AVR, 0, 0, NULL);
+                               &e_flags, ELFDATA2LSB, EM_AVR, 0, 0, NULL);
     if (bytes_loaded >= 0) {
         /* If ELF file is provided, determine CPU type reading ELF e_flags. */
         const char *elf_cpu = avr_elf_e_flags_to_cpu_type(e_flags);
