@@ -428,7 +428,8 @@ ssize_t load_elf_as(const char *filename,
 {
     return load_elf_ram_sym(filename, elf_note_fn,
                             translate_fn, translate_opaque,
-                            pentry, lowaddr, highaddr, pflags, big_endian,
+                            pentry, lowaddr, highaddr, pflags,
+                            big_endian ? ELFDATA2MSB : ELFDATA2LSB,
                             elf_machine, clear_lsb, data_swab, as,
                             true, NULL);
 }
@@ -439,12 +440,12 @@ ssize_t load_elf_ram_sym(const char *filename,
                          uint64_t (*translate_fn)(void *, uint64_t),
                          void *translate_opaque, uint64_t *pentry,
                          uint64_t *lowaddr, uint64_t *highaddr,
-                         uint32_t *pflags, int big_endian, int elf_machine,
+                         uint32_t *pflags, int elf_data_order, int elf_machine,
                          int clear_lsb, int data_swab,
                          AddressSpace *as, bool load_rom, symbol_fn_t sym_cb)
 {
     const int host_data_order = HOST_BIG_ENDIAN ? ELFDATA2MSB : ELFDATA2LSB;
-    int fd, target_data_order, must_swab;
+    int fd, must_swab;
     ssize_t ret = ELF_LOAD_FAILED;
     uint8_t e_ident[EI_NIDENT];
 
@@ -462,17 +463,13 @@ ssize_t load_elf_ram_sym(const char *filename,
         ret = ELF_LOAD_NOT_ELF;
         goto fail;
     }
-    must_swab = host_data_order != e_ident[EI_DATA];
-    if (big_endian) {
-        target_data_order = ELFDATA2MSB;
-    } else {
-        target_data_order = ELFDATA2LSB;
-    }
 
-    if (target_data_order != e_ident[EI_DATA]) {
+    if (elf_data_order != ELFDATANONE && elf_data_order != e_ident[EI_DATA]) {
         ret = ELF_LOAD_WRONG_ENDIAN;
         goto fail;
     }
+
+    must_swab = host_data_order != e_ident[EI_DATA];
 
     lseek(fd, 0, SEEK_SET);
     if (e_ident[EI_CLASS] == ELFCLASS64) {

@@ -246,7 +246,8 @@ void riscv_load_kernel(MachineState *machine,
      */
     kernel_size = load_elf_ram_sym(kernel_filename, NULL, NULL, NULL, NULL,
                                    &info->image_low_addr, &info->image_high_addr,
-                                   NULL, 0, EM_RISCV, 1, 0, NULL, true, sym_cb);
+                                   NULL, ELFDATA2LSB, EM_RISCV,
+                                   1, 0, NULL, true, sym_cb);
     if (kernel_size > 0) {
         info->kernel_size = kernel_size;
         goto out;
