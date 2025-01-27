@@ -318,20 +318,23 @@ qemu_set_binfmts() {
         mask=$(eval echo \$${cpu}_mask)
         family=$(eval echo \$${cpu}_family)
 
+        target="$cpu"
+        if [ "$cpu" = "i486" ] ; then
+            target="i386"
+        fi
+
+        qemu="$QEMU_PATH/qemu-$target$QEMU_SUFFIX"
+
         if [ "$magic" = "" ] || [ "$mask" = "" ] || [ "$family" = "" ] ; then
             echo "INTERNAL ERROR: unknown cpu $cpu" 1>&2
             continue
         fi
 
-        qemu="$QEMU_PATH/qemu-$cpu"
-        if [ "$cpu" = "i486" ] ; then
-            qemu="$QEMU_PATH/qemu-i386"
+        if [ "$host_family" = "$family" ] ; then
+            continue
         fi
 
-        qemu="$qemu$QEMU_SUFFIX"
-        if [ "$host_family" != "$family" ] ; then
-            $BINFMT_SET
-        fi
+        $BINFMT_SET
     done
 }
 
