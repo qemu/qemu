@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Functional tests for the little-endian 32-bit MIPS Malta board
+# Functional tests for the big-endian 32-bit MIPS Malta board
 #
 # Copyright (c) Philippe Mathieu-Daudé <f4bug@amsat.org>
 #
