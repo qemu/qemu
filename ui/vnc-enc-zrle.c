@@ -255,7 +255,7 @@ static void zrle_write_u8(VncState *vs, uint8_t value)
 static int zrle_send_framebuffer_update(VncState *vs, int x, int y,
                                         int w, int h)
 {
-    bool be = vs->client_be;
+    bool be = vs->client_endian == G_BIG_ENDIAN;
     size_t bytes;
     int zywrle_level;
 
