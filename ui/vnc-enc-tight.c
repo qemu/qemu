@@ -150,7 +150,7 @@ tight_detect_smooth_image24(VncState *vs, int w, int h)
      * If client is big-endian, color samples begin from the second
      * byte (offset 1) of a 32-bit pixel value.
      */
-    off = vs->client_be;
+    off = vs->client_endian == G_BIG_ENDIAN ? 1 : 0;
 
     memset(stats, 0, sizeof (stats));
 
