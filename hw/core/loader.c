@@ -426,25 +426,11 @@ ssize_t load_elf_as(const char *filename,
                     int elf_machine, int clear_lsb, int data_swab,
                     AddressSpace *as)
 {
-    return load_elf_ram(filename, elf_note_fn, translate_fn, translate_opaque,
-                        pentry, lowaddr, highaddr, pflags, big_endian,
-                        elf_machine, clear_lsb, data_swab, as, true);
-}
-
-/* return < 0 if error, otherwise the number of bytes loaded in memory */
-ssize_t load_elf_ram(const char *filename,
-                     uint64_t (*elf_note_fn)(void *, void *, bool),
-                     uint64_t (*translate_fn)(void *, uint64_t),
-                     void *translate_opaque, uint64_t *pentry,
-                     uint64_t *lowaddr, uint64_t *highaddr, uint32_t *pflags,
-                     int big_endian, int elf_machine, int clear_lsb,
-                     int data_swab, AddressSpace *as, bool load_rom)
-{
     return load_elf_ram_sym(filename, elf_note_fn,
                             translate_fn, translate_opaque,
                             pentry, lowaddr, highaddr, pflags, big_endian,
                             elf_machine, clear_lsb, data_swab, as,
-                            load_rom, NULL);
+                            true, NULL);
 }
 
 /* return < 0 if error, otherwise the number of bytes loaded in memory */
