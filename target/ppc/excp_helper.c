@@ -2558,8 +2558,9 @@ static void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr)
     msr &= ~(1ULL << MSR_POW);
 
     /* MSR:TGPR cannot be set by any form of rfi */
-    if (env->flags & POWERPC_FLAG_TGPR)
+    if (env->flags & POWERPC_FLAG_TGPR) {
         msr &= ~(1ULL << MSR_TGPR);
+    }
 
 #ifdef TARGET_PPC64
     /* Switching to 32-bit ? Crop the nip */
