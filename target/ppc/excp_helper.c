@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "qemu/log.h"
+#include "system/tcg.h"
 #include "system/system.h"
 #include "system/runstate.h"
 #include "cpu.h"
@@ -30,7 +31,6 @@
 #include "trace.h"
 
 #ifdef CONFIG_TCG
-#include "system/tcg.h"
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
 #endif
@@ -443,13 +443,11 @@ void helper_attn(CPUPPCState *env)
 static void powerpc_mcheck_checkstop(CPUPPCState *env)
 {
     /* KVM guests always have MSR[ME] enabled */
-#ifdef CONFIG_TCG
     if (FIELD_EX64(env->msr, MSR, ME)) {
         return;
     }
-
+    assert(tcg_enabled());
     powerpc_checkstop(env, "machine check with MSR[ME]=0");
-#endif
 }
 
 static void powerpc_excp_40x(PowerPCCPU *cpu, int excp)
