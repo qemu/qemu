@@ -400,32 +400,6 @@ static void powerpc_set_excp_state(PowerPCCPU *cpu, target_ulong vector,
 }
 
 #ifdef CONFIG_TCG
-/*
- * This stops the machine and logs CPU state without killing QEMU (like
- * cpu_abort()) because it is often a guest error as opposed to a QEMU error,
- * so the machine can still be debugged.
- */
-static G_NORETURN void powerpc_checkstop(CPUPPCState *env, const char *reason)
-{
-    CPUState *cs = env_cpu(env);
-    FILE *f;
-
-    f = qemu_log_trylock();
-    if (f) {
-        fprintf(f, "Entering checkstop state: %s\n", reason);
-        cpu_dump_state(cs, f, CPU_DUMP_FPU | CPU_DUMP_CCOP);
-        qemu_log_unlock(f);
-    }
-
-    /*
-     * This stops the machine and logs CPU state without killing QEMU
-     * (like cpu_abort()) so the machine can still be debugged (because
-     * it is often a guest error).
-     */
-    qemu_system_guest_panicked(NULL);
-    cpu_loop_exit_noexc(cs);
-}
-
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
 void helper_attn(CPUPPCState *env)
 {

@@ -289,7 +289,9 @@ void ppc_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
 void ppc_cpu_debug_excp_handler(CPUState *cs);
 bool ppc_cpu_debug_check_breakpoint(CPUState *cs);
 bool ppc_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp);
-#endif
+
+G_NORETURN void powerpc_checkstop(CPUPPCState *env, const char *reason);
+#endif /* !CONFIG_USER_ONLY */
 
 FIELD(GER_MSK, XMSK, 0, 4)
 FIELD(GER_MSK, YMSK, 4, 4)
