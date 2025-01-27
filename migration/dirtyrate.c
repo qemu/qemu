@@ -174,7 +174,6 @@ retry:
         if (gen_id != cpu_list_generation_id_get()) {
             g_free(records);
             g_free(stat->rates);
-            cpu_list_unlock();
             goto retry;
         }
         vcpu_dirty_stat_collect(records, false);
