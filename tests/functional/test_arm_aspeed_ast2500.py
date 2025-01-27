@@ -11,15 +11,15 @@ from qemu_test import exec_command_and_wait_for_pattern
 
 class AST2500Machine(AspeedTest):
 
-    ASSET_BR2_202311_AST2500_FLASH = Asset(
+    ASSET_BR2_202411_AST2500_FLASH = Asset(
         ('https://github.com/legoater/qemu-aspeed-boot/raw/master/'
-         'images/ast2500-evb/buildroot-2023.11/flash.img'),
-        'c23db6160cf77d0258397eb2051162c8473a56c441417c52a91ba217186e715f')
+         'images/ast2500-evb/buildroot-2024.11/flash.img'),
+        '641e6906c18c0f19a2aeb48099d66d4771929c361001d554d0d45c667413e13a')
 
     def test_arm_ast2500_evb_buildroot(self):
         self.set_machine('ast2500-evb')
 
-        image_path = self.ASSET_BR2_202311_AST2500_FLASH.fetch()
+        image_path = self.ASSET_BR2_202411_AST2500_FLASH.fetch()
 
         self.vm.add_args('-device',
                          'tmp105,bus=aspeed.i2c.bus.3,address=0x4d,id=tmp-test');
