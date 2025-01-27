@@ -2756,8 +2756,6 @@ static inline void cpu_get_tb_cpu_state(CPUPPCState *env, vaddr *pc,
 #endif
 
 G_NORETURN void raise_exception(CPUPPCState *env, uint32_t exception);
-G_NORETURN void raise_exception_ra(CPUPPCState *env, uint32_t exception,
-                                   uintptr_t raddr);
 G_NORETURN void raise_exception_err(CPUPPCState *env, uint32_t exception,
                                     uint32_t error_code);
 G_NORETURN void raise_exception_err_ra(CPUPPCState *env, uint32_t exception,

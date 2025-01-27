@@ -2528,12 +2528,6 @@ void raise_exception(CPUPPCState *env, uint32_t exception)
     raise_exception_err_ra(env, exception, 0, 0);
 }
 
-void raise_exception_ra(CPUPPCState *env, uint32_t exception,
-                        uintptr_t raddr)
-{
-    raise_exception_err_ra(env, exception, 0, raddr);
-}
-
 #ifdef CONFIG_TCG
 void helper_raise_exception_err(CPUPPCState *env, uint32_t exception,
                                 uint32_t error_code)
