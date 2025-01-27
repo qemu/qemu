@@ -12,7 +12,6 @@ use qemu_api::{
 
 use crate::device::{PL011Registers, PL011State};
 
-#[allow(clippy::missing_const_for_fn)]
 extern "C" fn pl011_clock_needed(opaque: *mut c_void) -> bool {
     let state = NonNull::new(opaque).unwrap().cast::<PL011State>();
     unsafe { state.as_ref().migrate_clock }
