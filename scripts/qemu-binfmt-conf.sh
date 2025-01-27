@@ -205,6 +205,9 @@ Usage: qemu-binfmt-conf.sh [--qemu-path PATH][--debian][--systemd CPU]
        --persistent:    if yes, the interpreter is loaded when binfmt is
                         configured and remains in memory. All future uses
                         are cloned from the open file.
+       --ignore-family: if yes, it is assumed that the host CPU (e.g. riscv64)
+                        can't natively run programs targeting a CPU that is
+                        part of the same family (e.g. riscv32).
        --preserve-argv0 preserve argv[0]
 
     To import templates with update-binfmts, use :
@@ -337,7 +340,12 @@ qemu_set_binfmts() {
         fi
 
         if [ "$host_family" = "$family" ] ; then
-            continue
+            # When --ignore-family is used, we have to generate rules even
+            # for targets that are in the same family as the host CPU. The
+            # only exception is of course when the CPU types exactly match
+            if [ "$target" = "$host_cpu" ] || [ "$IGNORE_FAMILY" = "no" ] ; then
+                continue
+            fi
         fi
 
         $BINFMT_SET
@@ -355,10 +363,11 @@ CREDENTIAL=no
 PERSISTENT=no
 PRESERVE_ARG0=no
 QEMU_SUFFIX=""
+IGNORE_FAMILY=no
 
 _longopts="debian,systemd:,qemu-path:,qemu-suffix:,exportdir:,help,credential:,\
-persistent:,preserve-argv0:"
-options=$(getopt -o ds:Q:S:e:hc:p:g:F: -l ${_longopts} -- "$@")
+persistent:,preserve-argv0:,ignore-family:"
+options=$(getopt -o ds:Q:S:e:hc:p:g:F:i: -l ${_longopts} -- "$@")
 eval set -- "$options"
 
 while true ; do
@@ -417,6 +426,10 @@ while true ; do
     -g|--preserve-argv0)
         shift
         PRESERVE_ARG0="$1"
+        ;;
+    -i|--ignore-family)
+        shift
+        IGNORE_FAMILY="$1"
         ;;
     *)
         break
