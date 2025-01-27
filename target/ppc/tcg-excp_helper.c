@@ -19,14 +19,52 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "exec/cpu_ldst.h"
+#include "exec/exec-all.h"
+#include "exec/helper-proto.h"
 #include "system/runstate.h"
 
+#include "helper_regs.h"
 #include "hw/ppc/ppc.h"
 #include "internal.h"
 #include "cpu.h"
 #include "trace.h"
 
+/*****************************************************************************/
+/* Exceptions processing helpers */
+
+void raise_exception_err_ra(CPUPPCState *env, uint32_t exception,
+                            uint32_t error_code, uintptr_t raddr)
+{
+    CPUState *cs = env_cpu(env);
+
+    cs->exception_index = exception;
+    env->error_code = error_code;
+    cpu_loop_exit_restore(cs, raddr);
+}
+
+void helper_raise_exception_err(CPUPPCState *env, uint32_t exception,
+                                uint32_t error_code)
+{
+    raise_exception_err_ra(env, exception, error_code, 0);
+}
+
+void helper_raise_exception(CPUPPCState *env, uint32_t exception)
+{
+    raise_exception_err_ra(env, exception, 0, 0);
+}
+
 #ifndef CONFIG_USER_ONLY
+
+void raise_exception_err(CPUPPCState *env, uint32_t exception,
+                                           uint32_t error_code)
+{
+    raise_exception_err_ra(env, exception, error_code, 0);
+}
+
+void raise_exception(CPUPPCState *env, uint32_t exception)
+{
+    raise_exception_err_ra(env, exception, 0, 0);
+}
 
 void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
                                  MMUAccessType access_type,
