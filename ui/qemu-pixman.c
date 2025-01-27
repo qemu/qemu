@@ -126,33 +126,34 @@ uint32_t qemu_pixman_to_drm_format(pixman_format_code_t pixman_format)
     return 0;
 }
 
-int qemu_pixman_get_type(int rshift, int gshift, int bshift)
+int qemu_pixman_get_type(int rshift, int gshift, int bshift, int endian)
 {
     int type = PIXMAN_TYPE_OTHER;
+    bool native_endian = (endian == G_BYTE_ORDER);
 
     if (rshift > gshift && gshift > bshift) {
         if (bshift == 0) {
-            type = PIXMAN_TYPE_ARGB;
+            type = native_endian ? PIXMAN_TYPE_ARGB : PIXMAN_TYPE_BGRA;
         } else {
-            type = PIXMAN_TYPE_RGBA;
+            type = native_endian ? PIXMAN_TYPE_RGBA : PIXMAN_TYPE_ABGR;
         }
     } else if (rshift < gshift && gshift < bshift) {
         if (rshift == 0) {
-            type = PIXMAN_TYPE_ABGR;
+            type = native_endian ? PIXMAN_TYPE_ABGR : PIXMAN_TYPE_RGBA;
         } else {
-            type = PIXMAN_TYPE_BGRA;
+            type = native_endian ? PIXMAN_TYPE_BGRA : PIXMAN_TYPE_ARGB;
         }
     }
     return type;
 }
 
 #ifdef CONFIG_PIXMAN
-pixman_format_code_t qemu_pixman_get_format(PixelFormat *pf)
+pixman_format_code_t qemu_pixman_get_format(PixelFormat *pf, int endian)
 {
     pixman_format_code_t format;
     int type;
 
-    type = qemu_pixman_get_type(pf->rshift, pf->gshift, pf->bshift);
+    type = qemu_pixman_get_type(pf->rshift, pf->gshift, pf->bshift, endian);
     format = PIXMAN_FORMAT(pf->bits_per_pixel, type,
                            pf->abits, pf->rbits, pf->gbits, pf->bbits);
     if (!pixman_format_supported_source(format)) {
