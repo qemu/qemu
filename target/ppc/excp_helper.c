@@ -1571,7 +1571,7 @@ static inline void powerpc_excp_books(PowerPCCPU *cpu, int excp)
 }
 #endif /* TARGET_PPC64 */
 
-static void powerpc_excp(PowerPCCPU *cpu, int excp)
+void powerpc_excp(PowerPCCPU *cpu, int excp)
 {
     CPUPPCState *env = &cpu->env;
 
