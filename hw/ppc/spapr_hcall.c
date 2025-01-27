@@ -580,6 +580,8 @@ static target_ulong h_confer(PowerPCCPU *cpu, SpaprMachineState *spapr,
     CPUState *cs = CPU(cpu);
     SpaprCpuState *spapr_cpu;
 
+    assert(tcg_enabled()); /* KVM will have handled this */
+
     /*
      * -1 means confer to all other CPUs without dispatch counter check,
      *  otherwise it's a targeted confer.
