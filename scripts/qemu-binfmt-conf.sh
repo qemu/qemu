@@ -144,35 +144,35 @@ loongarch64_magic='\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x
 loongarch64_mask='\xff\xff\xff\xff\xff\xff\xff\xfc\x00\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff'
 loongarch64_family=loongarch
 
-qemu_get_family() {
-    cpu=${HOST_ARCH:-$(uname -m)}
+# Converts the name of a host CPU architecture to the corresponding QEMU
+# target.
+#
+# FIXME: This can probably be simplified a lot by dropping most entries.
+#        Remember that the script is only used on Linux, so we only need to
+#        handle the strings Linux uses to report the host CPU architecture.
+qemu_normalize() {
+    cpu="$1"
     case "$cpu" in
-    amd64|i386|i486|i586|i686|i86pc|BePC|x86_64)
+    i[3-6]86)
         echo "i386"
         ;;
-    mips*)
-        echo "mips"
+    amd64)
+        echo "x86_64"
         ;;
-    "Power Macintosh"|ppc64|powerpc|ppc)
+    powerpc)
         echo "ppc"
         ;;
-    ppc64el|ppc64le)
-        echo "ppcle"
+    ppc64el)
+        echo "ppc64le"
         ;;
-    arm|armel|armhf|arm64|armv[4-9]*l|aarch64)
+    armel|armhf|armv[4-9]*l)
         echo "arm"
         ;;
-    armeb|armv[4-9]*b|aarch64_be)
+    armv[4-9]*b)
         echo "armeb"
         ;;
-    sparc*)
-        echo "sparc"
-        ;;
-    riscv*)
-        echo "riscv"
-        ;;
-    loongarch*)
-        echo "loongarch"
+    arm64)
+        echo "aarch64"
         ;;
     *)
         echo "$cpu"
@@ -309,7 +309,13 @@ EOF
 
 qemu_set_binfmts() {
     # probe cpu type
-    host_family=$(qemu_get_family)
+    host_cpu=$(qemu_normalize ${HOST_ARCH:-$(uname -m)})
+    host_family=$(eval echo \$${host_cpu}_family)
+
+    if [ "$host_family" = "" ] ; then
+        echo "INTERNAL ERROR: unknown host cpu $host_cpu" 1>&2
+        exit 1
+    fi
 
     # register the interpreter for each cpu except for the native one
 
