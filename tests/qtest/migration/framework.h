@@ -39,6 +39,7 @@ typedef enum {
 
 typedef struct MigrationTestEnv {
     bool has_kvm;
+    bool has_hvf;
     bool has_tcg;
     bool has_uffd;
     bool uffd_feature_thread_id;
