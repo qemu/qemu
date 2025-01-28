@@ -158,6 +158,7 @@ tests_microblazeel_system_thorough = [
 
 tests_mips_system_thorough = [
   'mips_malta',
+  'mips_replay',
   'mips_tuxrun',
 ]
 
