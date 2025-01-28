@@ -28,6 +28,7 @@
 #include "exec/translation-block.h"
 #include "fpu/softfloat.h"
 #include "tcg/tcg.h"
+#include "hw/hppa/hppa_hardware.h"
 
 static void hppa_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -217,6 +218,10 @@ static void hppa_cpu_reset_hold(Object *obj, ResetType type)
     memset(env, 0, offsetof(CPUHPPAState, end_reset_fields));
 
     cpu_hppa_loaded_fr0(env);
+
+    /* 64-bit machines start with space-register hashing enabled in %dr2 */
+    env->dr[2] = hppa_is_pa20(env) ? HPPA64_DIAG_SPHASH_ENABLE : 0;
+
     cpu_hppa_put_psw(env, PSW_M);
 }
 
