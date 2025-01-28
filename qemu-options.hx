@@ -5128,7 +5128,7 @@ DEF("semihosting-config", HAS_ARG, QEMU_OPTION_semihosting_config,
 QEMU_ARCH_ARM | QEMU_ARCH_M68K | QEMU_ARCH_XTENSA |
 QEMU_ARCH_MIPS | QEMU_ARCH_RISCV)
 SRST
-``-semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,userspace=on|off][,arg=str[,...]]``
+``-semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,userspace=on|off][,usefs=<path>][,arg=str[,...]]``
     Enable and configure :ref:`Semihosting` (ARM, M68K, Xtensa, MIPS, RISC-V
     only).
 
@@ -5151,6 +5151,11 @@ SRST
         make semihosting calls. Note that setting ``userspace=on`` should
         only be used if all guest code is trusted (for example, in
         bare-metal test case code).
+
+    ``usefs=<path>``
+        Sets a fallback directory to be used by the open semihosting call. If
+        the requested file is not found QEMU will search again at the given
+        path.
 
     ``arg=str1,arg=str2,...``
         Allows the user to pass input arguments, and can be used

@@ -261,7 +261,8 @@ static void host_open(CPUState *cs, gdb_syscall_complete_cb complete,
 {
     CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     char *p;
-    int ret, host_flags = O_BINARY;
+    int ret, err, host_flags = O_BINARY;
+    const char *usefs = semihosting_get_usefs();
 
     ret = validate_lock_user_string(&p, cs, fname, fname_len);
     if (ret < 0) {
@@ -287,9 +288,17 @@ static void host_open(CPUState *cs, gdb_syscall_complete_cb complete,
     }
 
     ret = open(p, host_flags, mode);
+    err = errno;
+    if (ret < 0 && err == ENOENT && usefs) {
+        g_autoptr(GString) usefs_fname = g_string_new(NULL);
+        g_string_append_printf(usefs_fname, "%s/%s", usefs, p);
+        ret = open(usefs_fname->str, host_flags, mode);
+        err = errno;
+    }
+
     if (ret < 0) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: failed to open %s\n", __func__, p);
-        complete(cs, -1, errno);
+        complete(cs, -1, err);
     } else {
         int guestfd = alloc_guestfd();
         associate_guestfd(guestfd, ret);

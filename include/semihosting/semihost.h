@@ -51,6 +51,11 @@ static inline const char *semihosting_get_cmdline(void)
 {
     return NULL;
 }
+
+static inline const char *semihosting_get_usefs(void)
+{
+    return NULL;
+}
 #else /* !CONFIG_USER_ONLY */
 /**
  * semihosting_enabled:
@@ -63,6 +68,7 @@ SemihostingTarget semihosting_get_target(void);
 const char *semihosting_get_arg(int i);
 int semihosting_get_argc(void);
 const char *semihosting_get_cmdline(void);
+const char *semihosting_get_usefs(void);
 void semihosting_arg_fallback(const char *file, const char *cmd);
 /* for vl.c hooks */
 void qemu_semihosting_enable(void);

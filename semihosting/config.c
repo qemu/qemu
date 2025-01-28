@@ -46,6 +46,9 @@ QemuOptsList qemu_semihosting_config_opts = {
         }, {
             .name = "arg",
             .type = QEMU_OPT_STRING,
+        }, {
+            .name = "usefs",
+            .type = QEMU_OPT_STRING,
         },
         { /* end of list */ }
     },
@@ -58,6 +61,7 @@ typedef struct SemihostingConfig {
     char **argv;
     int argc;
     const char *cmdline; /* concatenated argv */
+    const char *usefs;
 } SemihostingConfig;
 
 static SemihostingConfig semihosting;
@@ -92,6 +96,11 @@ const char *semihosting_get_cmdline(void)
         semihosting.cmdline = g_strjoinv(" ", (gchar **)semihosting.argv);
     }
     return semihosting.cmdline;
+}
+
+const char *semihosting_get_usefs(void)
+{
+    return semihosting.usefs;
 }
 
 static int add_semihosting_arg(void *opaque,
@@ -144,6 +153,8 @@ int qemu_semihosting_config_options(const char *optstr)
                                                 true);
         semihosting.userspace_enabled = qemu_opt_get_bool(opts, "userspace",
                                                           false);
+        semihosting.usefs = qemu_opt_get(opts, "usefs");
+
         const char *target = qemu_opt_get(opts, "target");
         /* setup of chardev is deferred until they are initialised */
         semihost_chardev = qemu_opt_get(opts, "chardev");
