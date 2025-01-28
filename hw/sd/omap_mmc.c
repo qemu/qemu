@@ -35,7 +35,6 @@ typedef struct OMAPMMCState {
     qemu_irq irq;
     qemu_irq dma_tx_gpio;
     qemu_irq dma_rx_gpio;
-    qemu_irq coverswitch;
     MemoryRegion iomem;
     omap_clk clk;
     uint16_t last_cmd;
@@ -70,7 +69,6 @@ typedef struct OMAPMMCState {
 
     int cdet_wakeup;
     int cdet_enable;
-    int cdet_state;
     qemu_irq cdet;
 } OMAPMMCState;
 
@@ -325,7 +323,6 @@ static void omap_mmc_reset(OMAPMMCState *host)
     host->transfer = 0;
     host->cdet_wakeup = 0;
     host->cdet_enable = 0;
-    qemu_set_irq(host->coverswitch, host->cdet_state);
     host->clkdiv = 0;
 
     omap_mmc_pseudo_reset(host);
