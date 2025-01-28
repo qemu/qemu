@@ -24,6 +24,7 @@
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "qemu/qemu-print.h"
+#include "hw/hppa/hppa_hardware.h"
 
 target_ulong cpu_hppa_get_psw(CPUHPPAState *env)
 {
@@ -57,6 +58,22 @@ target_ulong cpu_hppa_get_psw(CPUHPPAState *env)
     psw |= env->psw | env->psw_xb;
 
     return psw;
+}
+
+void update_gva_offset_mask(CPUHPPAState *env)
+{
+    uint64_t gom;
+
+    if (env->psw & PSW_W) {
+        gom = (env->dr[2] & HPPA64_DIAG_SPHASH_ENABLE)
+            ? MAKE_64BIT_MASK(0, 62) &
+                ~((uint64_t)HPPA64_PDC_CACHE_RET_SPID_VAL << 48)
+            : MAKE_64BIT_MASK(0, 62);
+    } else {
+        gom = MAKE_64BIT_MASK(0, 32);
+    }
+
+    env->gva_offset_mask = gom;
 }
 
 void cpu_hppa_put_psw(CPUHPPAState *env, target_ulong psw)
@@ -98,6 +115,8 @@ void cpu_hppa_put_psw(CPUHPPAState *env, target_ulong psw)
     cb |= ((psw >>  9) & 1) <<  8;
     cb |= ((psw >>  8) & 1) <<  4;
     env->psw_cb = cb;
+
+    update_gva_offset_mask(env);
 }
 
 void hppa_cpu_dump_state(CPUState *cs, FILE *f, int flags)
@@ -133,9 +152,11 @@ void hppa_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     qemu_fprintf(f, "IA_F %08" PRIx64 ":%0*" PRIx64 " (" TARGET_FMT_lx ")\n"
                     "IA_B %08" PRIx64 ":%0*" PRIx64 " (" TARGET_FMT_lx ")\n",
                  env->iasq_f >> 32, w, m & env->iaoq_f,
-                 hppa_form_gva_psw(psw, env->iasq_f, env->iaoq_f),
+                 hppa_form_gva_mask(env->gva_offset_mask, env->iasq_f,
+				    env->iaoq_f),
                  env->iasq_b >> 32, w, m & env->iaoq_b,
-                 hppa_form_gva_psw(psw, env->iasq_b, env->iaoq_b));
+                 hppa_form_gva_mask(env->gva_offset_mask, env->iasq_b,
+				    env->iaoq_b));
 
     psw_c[0]  = (psw & PSW_W ? 'W' : '-');
     psw_c[1]  = (psw & PSW_E ? 'E' : '-');
