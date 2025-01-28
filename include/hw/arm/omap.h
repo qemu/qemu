@@ -535,6 +535,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(OMAPMMCState, OMAP_MMC)
 DeviceState *omap_mmc_init(hwaddr base,
                            MemoryRegion *sysmem,
                            qemu_irq irq, qemu_irq dma[], omap_clk clk);
+/* TODO: clock framework (see above) */
+void omap_mmc_set_clk(DeviceState *dev, omap_clk clk);
+
 
 /* omap_i2c.c */
 I2CBus *omap_i2c_bus(DeviceState *omap_i2c);

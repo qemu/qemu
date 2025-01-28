@@ -583,6 +583,13 @@ static const MemoryRegionOps omap_mmc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+void omap_mmc_set_clk(DeviceState *dev, omap_clk clk)
+{
+    OMAPMMCState *s = OMAP_MMC(dev);
+
+    s->clk = clk;
+}
+
 DeviceState *omap_mmc_init(hwaddr base,
                            MemoryRegion *sysmem,
                            qemu_irq irq, qemu_irq dma[], omap_clk clk)
@@ -594,7 +601,7 @@ DeviceState *omap_mmc_init(hwaddr base,
     s = OMAP_MMC(dev);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(s), &error_fatal);
 
-    s->clk = clk;
+    omap_mmc_set_clk(dev, clk);
 
     memory_region_add_subregion(sysmem, base,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(s), 0));
