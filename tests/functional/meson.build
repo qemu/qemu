@@ -35,6 +35,7 @@ test_timeouts = {
   'arm_sx1' : 360,
   'intel_iommu': 300,
   'mips_malta' : 120,
+  'mipsel_replay' : 480,
   'netdev_ethtool' : 180,
   'ppc_40p' : 240,
   'ppc64_hv' : 1000,
@@ -162,6 +163,7 @@ tests_mips_system_thorough = [
 
 tests_mipsel_system_thorough = [
   'mipsel_malta',
+  'mipsel_replay',
   'mipsel_tuxrun',
 ]
 
