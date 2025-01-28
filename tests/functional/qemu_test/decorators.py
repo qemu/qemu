@@ -87,6 +87,20 @@ def skipBigDataTest():
                       'Test requires large host storage space')
 
 '''
+Decorator to skip execution of tests which have a really long
+runtime (and might e.g. time out if QEMU has been compiled with
+debugging enabled) unless the $QEMU_TEST_ALLOW_SLOW
+environment variable is set
+
+Example:
+
+  @skipSlowTest()
+'''
+def skipSlowTest():
+    return skipUnless(os.getenv('QEMU_TEST_ALLOW_SLOW'),
+                      'Test has a very long runtime and might time out')
+
+'''
 Decorator to skip execution of a test if the list
 of python imports is not available.
 Example:

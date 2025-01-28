@@ -10,9 +10,8 @@
 
 import os
 
-from qemu_test import QemuSystemTest, Asset
+from qemu_test import QemuSystemTest, Asset, skipSlowTest
 from qemu_test import wait_for_console_pattern
-from unittest import skipUnless
 from test_aarch64_sbsaref import fetch_firmware
 
 
@@ -50,13 +49,11 @@ class Aarch64SbsarefFreeBSD(QemuSystemTest):
     def test_sbsaref_freebsd14_max_pauth_off(self):
         self.boot_freebsd14("max,pauth=off")
 
-    @skipUnless(os.getenv('QEMU_TEST_TIMEOUT_EXPECTED'),
-                'Test might timeout due to PAuth emulation')
+    @skipSlowTest()  # Test might timeout due to PAuth emulation
     def test_sbsaref_freebsd14_max_pauth_impdef(self):
         self.boot_freebsd14("max,pauth-impdef=on")
 
-    @skipUnless(os.getenv('QEMU_TEST_TIMEOUT_EXPECTED'),
-                'Test might timeout due to PAuth emulation')
+    @skipSlowTest()  # Test might timeout due to PAuth emulation
     def test_sbsaref_freebsd14_max(self):
         self.boot_freebsd14("max")
 

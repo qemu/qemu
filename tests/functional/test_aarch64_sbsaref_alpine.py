@@ -10,7 +10,7 @@
 
 import os
 
-from qemu_test import QemuSystemTest, Asset
+from qemu_test import QemuSystemTest, Asset, skipSlowTest
 from qemu_test import wait_for_console_pattern
 from unittest import skipUnless
 from test_aarch64_sbsaref import fetch_firmware
@@ -53,8 +53,7 @@ class Aarch64SbsarefAlpine(QemuSystemTest):
     def test_sbsaref_alpine_linux_max_pauth_impdef(self):
         self.boot_alpine_linux("max,pauth-impdef=on")
 
-    @skipUnless(os.getenv('QEMU_TEST_TIMEOUT_EXPECTED'),
-                'Test might timeout due to PAuth emulation')
+    @skipSlowTest()  # Test might timeout due to PAuth emulation
     def test_sbsaref_alpine_linux_max(self):
         self.boot_alpine_linux("max")
 
