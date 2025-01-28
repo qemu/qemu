@@ -530,7 +530,7 @@ struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
 
 /* omap_mmc.c */
 #define TYPE_OMAP_MMC "omap-mmc"
-OBJECT_DECLARE_SIMPLE_TYPE(omap_mmc_s, OMAP_MMC)
+OBJECT_DECLARE_SIMPLE_TYPE(OMAPMMCState, OMAP_MMC)
 
 DeviceState *omap_mmc_init(hwaddr base,
                            MemoryRegion *sysmem,

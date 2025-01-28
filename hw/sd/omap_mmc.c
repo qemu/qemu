@@ -27,7 +27,7 @@
 #include "hw/arm/omap.h"
 #include "hw/sd/sdcard_legacy.h"
 
-typedef struct omap_mmc_s {
+typedef struct OMAPMMCState {
     SysBusDevice parent_obj;
 
     qemu_irq irq;
@@ -72,12 +72,12 @@ typedef struct omap_mmc_s {
     qemu_irq cdet;
 } OMAPMMCState;
 
-static void omap_mmc_interrupts_update(struct omap_mmc_s *s)
+static void omap_mmc_interrupts_update(OMAPMMCState *s)
 {
     qemu_set_irq(s->irq, !!(s->status & s->mask));
 }
 
-static void omap_mmc_fifolevel_update(struct omap_mmc_s *host)
+static void omap_mmc_fifolevel_update(OMAPMMCState *host)
 {
     if (!host->transfer && !host->fifo_len) {
         host->status &= 0xf3ff;
@@ -125,7 +125,7 @@ typedef enum {
     SD_TYPE_ADTC = 3,   /* addressed with data transfer */
 } MMCCmdType;
 
-static void omap_mmc_command(struct omap_mmc_s *host, int cmd, int dir,
+static void omap_mmc_command(OMAPMMCState *host, int cmd, int dir,
                              MMCCmdType type, int busy,
                              sd_rsp_type_t resptype, int init)
 {
@@ -234,7 +234,7 @@ static void omap_mmc_command(struct omap_mmc_s *host, int cmd, int dir,
         host->status |= 0x0001;
 }
 
-static void omap_mmc_transfer(struct omap_mmc_s *host)
+static void omap_mmc_transfer(OMAPMMCState *host)
 {
     uint8_t value;
 
@@ -289,19 +289,19 @@ static void omap_mmc_transfer(struct omap_mmc_s *host)
 
 static void omap_mmc_update(void *opaque)
 {
-    struct omap_mmc_s *s = opaque;
+    OMAPMMCState *s = opaque;
     omap_mmc_transfer(s);
     omap_mmc_fifolevel_update(s);
     omap_mmc_interrupts_update(s);
 }
 
-static void omap_mmc_pseudo_reset(struct omap_mmc_s *host)
+static void omap_mmc_pseudo_reset(OMAPMMCState *host)
 {
     host->status = 0;
     host->fifo_len = 0;
 }
 
-static void omap_mmc_reset(struct omap_mmc_s *host)
+static void omap_mmc_reset(OMAPMMCState *host)
 {
     host->last_cmd = 0;
     memset(host->rsp, 0, sizeof(host->rsp));
@@ -340,7 +340,7 @@ static void omap_mmc_reset(struct omap_mmc_s *host)
 static uint64_t omap_mmc_read(void *opaque, hwaddr offset, unsigned size)
 {
     uint16_t i;
-    struct omap_mmc_s *s = opaque;
+    OMAPMMCState *s = opaque;
 
     if (size != 2) {
         return omap_badwidth_read16(opaque, offset);
@@ -433,7 +433,7 @@ static void omap_mmc_write(void *opaque, hwaddr offset,
                            uint64_t value, unsigned size)
 {
     int i;
-    struct omap_mmc_s *s = opaque;
+    OMAPMMCState *s = opaque;
 
     if (size != 2) {
         omap_badwidth_write16(opaque, offset, value);
