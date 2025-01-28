@@ -31,7 +31,8 @@ typedef struct OMAPMMCState {
     SysBusDevice parent_obj;
 
     qemu_irq irq;
-    qemu_irq *dma;
+    qemu_irq dma_tx_gpio;
+    qemu_irq dma_rx_gpio;
     qemu_irq coverswitch;
     MemoryRegion iomem;
     omap_clk clk;
@@ -87,22 +88,22 @@ static void omap_mmc_fifolevel_update(OMAPMMCState *host)
     if (host->fifo_len > host->af_level && host->ddir) {
         if (host->rx_dma) {
             host->status &= 0xfbff;
-            qemu_irq_raise(host->dma[1]);
+            qemu_irq_raise(host->dma_rx_gpio);
         } else
             host->status |= 0x0400;
     } else {
         host->status &= 0xfbff;
-        qemu_irq_lower(host->dma[1]);
+        qemu_irq_lower(host->dma_rx_gpio);
     }
 
     if (host->fifo_len < host->ae_level && !host->ddir) {
         if (host->tx_dma) {
             host->status &= 0xf7ff;
-            qemu_irq_raise(host->dma[0]);
+            qemu_irq_raise(host->dma_tx_gpio);
         } else
             host->status |= 0x0800;
     } else {
-        qemu_irq_lower(host->dma[0]);
+        qemu_irq_lower(host->dma_tx_gpio);
         host->status &= 0xf7ff;
     }
 }
@@ -601,12 +602,13 @@ DeviceState *omap_mmc_init(hwaddr base,
     s = OMAP_MMC(dev);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(s), &error_fatal);
 
-    s->irq = irq;
-    s->dma = dma;
     s->clk = clk;
 
     memory_region_add_subregion(sysmem, base,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(s), 0));
+    qdev_connect_gpio_out_named(dev, "dma-tx", 0, dma[0]);
+    qdev_connect_gpio_out_named(dev, "dma-rx", 0, dma[1]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
 
     /* Instantiate the storage */
     s->card = sd_init(blk, false);
@@ -633,6 +635,10 @@ static void omap_mmc_initfn(Object *obj)
 
     memory_region_init_io(&s->iomem, obj, &omap_mmc_ops, s, "omap.mmc", 0x800);
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
+
+    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->dma_tx_gpio, "dma-tx", 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->dma_rx_gpio, "dma-rx", 1);
 }
 
 static void omap_mmc_class_init(ObjectClass *oc, void *data)
