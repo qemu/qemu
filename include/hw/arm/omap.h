@@ -529,12 +529,13 @@ struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
                                         omap_clk clk);
 
 /* omap_mmc.c */
-struct omap_mmc_s;
-struct omap_mmc_s *omap_mmc_init(hwaddr base,
-                MemoryRegion *sysmem,
-                BlockBackend *blk,
-                qemu_irq irq, qemu_irq dma[], omap_clk clk);
-void omap_mmc_reset(struct omap_mmc_s *s);
+#define TYPE_OMAP_MMC "omap-mmc"
+OBJECT_DECLARE_SIMPLE_TYPE(omap_mmc_s, OMAP_MMC)
+
+DeviceState *omap_mmc_init(hwaddr base,
+                           MemoryRegion *sysmem,
+                           BlockBackend *blk,
+                           qemu_irq irq, qemu_irq dma[], omap_clk clk);
 
 /* omap_i2c.c */
 I2CBus *omap_i2c_bus(DeviceState *omap_i2c);
@@ -601,7 +602,7 @@ struct omap_mpu_state_s {
     /* MPU public TIPB peripherals */
     struct omap_32khz_timer_s *os_timer;
 
-    struct omap_mmc_s *mmc;
+    DeviceState *mmc;
 
     struct omap_mpuio_s *mpuio;
 

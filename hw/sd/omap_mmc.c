@@ -21,11 +21,15 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qapi/error.h"
 #include "hw/irq.h"
+#include "hw/sysbus.h"
 #include "hw/arm/omap.h"
 #include "hw/sd/sdcard_legacy.h"
 
-struct omap_mmc_s {
+typedef struct omap_mmc_s {
+    SysBusDevice parent_obj;
+
     qemu_irq irq;
     qemu_irq *dma;
     qemu_irq coverswitch;
@@ -66,7 +70,7 @@ struct omap_mmc_s {
     int cdet_enable;
     int cdet_state;
     qemu_irq cdet;
-};
+} OMAPMMCState;
 
 static void omap_mmc_interrupts_update(struct omap_mmc_s *s)
 {
@@ -297,7 +301,7 @@ static void omap_mmc_pseudo_reset(struct omap_mmc_s *host)
     host->fifo_len = 0;
 }
 
-void omap_mmc_reset(struct omap_mmc_s *host)
+static void omap_mmc_reset(struct omap_mmc_s *host)
 {
     host->last_cmd = 0;
     memset(host->rsp, 0, sizeof(host->rsp));
@@ -328,7 +332,9 @@ void omap_mmc_reset(struct omap_mmc_s *host)
      * into any bus, and we must reset it manually. When omap_mmc is
      * QOMified this must move into the QOM reset function.
      */
-    device_cold_reset(DEVICE(host->card));
+    if (host->card) {
+        device_cold_reset(DEVICE(host->card));
+    }
 }
 
 static uint64_t omap_mmc_read(void *opaque, hwaddr offset, unsigned size)
@@ -583,29 +589,70 @@ static const MemoryRegionOps omap_mmc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-struct omap_mmc_s *omap_mmc_init(hwaddr base,
-                MemoryRegion *sysmem,
-                BlockBackend *blk,
-                qemu_irq irq, qemu_irq dma[], omap_clk clk)
+DeviceState *omap_mmc_init(hwaddr base,
+                           MemoryRegion *sysmem,
+                           BlockBackend *blk,
+                           qemu_irq irq, qemu_irq dma[], omap_clk clk)
 {
-    struct omap_mmc_s *s = g_new0(struct omap_mmc_s, 1);
+    DeviceState *dev;
+    OMAPMMCState *s;
+
+    dev = qdev_new(TYPE_OMAP_MMC);
+    s = OMAP_MMC(dev);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(s), &error_fatal);
 
     s->irq = irq;
     s->dma = dma;
     s->clk = clk;
-    s->lines = 1;	/* TODO: needs to be settable per-board */
-    s->rev = 1;
 
-    memory_region_init_io(&s->iomem, NULL, &omap_mmc_ops, s, "omap.mmc", 0x800);
-    memory_region_add_subregion(sysmem, base, &s->iomem);
+    memory_region_add_subregion(sysmem, base,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(s), 0));
 
     /* Instantiate the storage */
     s->card = sd_init(blk, false);
     if (s->card == NULL) {
         exit(1);
     }
+    return dev;
+}
+
+static void omap_mmc_reset_hold(Object *obj, ResetType type)
+{
+    OMAPMMCState *s = OMAP_MMC(obj);
 
     omap_mmc_reset(s);
-
-    return s;
 }
+
+static void omap_mmc_initfn(Object *obj)
+{
+    OMAPMMCState *s = OMAP_MMC(obj);
+
+    /* In theory these could be settable per-board */
+    s->lines = 1;
+    s->rev = 1;
+
+    memory_region_init_io(&s->iomem, obj, &omap_mmc_ops, s, "omap.mmc", 0x800);
+    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
+}
+
+static void omap_mmc_class_init(ObjectClass *oc, void *data)
+{
+    ResettableClass *rc = RESETTABLE_CLASS(oc);
+
+    rc->phases.hold = omap_mmc_reset_hold;
+}
+
+static const TypeInfo omap_mmc_info = {
+    .name = TYPE_OMAP_MMC,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(OMAPMMCState),
+    .instance_init = omap_mmc_initfn,
+    .class_init = omap_mmc_class_init,
+};
+
+static void omap_mmc_register_types(void)
+{
+    type_register_static(&omap_mmc_info);
+}
+
+type_init(omap_mmc_register_types)

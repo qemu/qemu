@@ -3716,7 +3716,6 @@ static void omap1_mpu_reset(void *opaque)
     omap_uart_reset(mpu->uart[0]);
     omap_uart_reset(mpu->uart[1]);
     omap_uart_reset(mpu->uart[2]);
-    omap_mmc_reset(mpu->mmc);
     omap_mpuio_reset(mpu->mpuio);
     omap_uwire_reset(mpu->microwire);
     omap_pwl_reset(mpu->pwl);
