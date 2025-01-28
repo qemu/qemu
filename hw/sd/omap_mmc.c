@@ -590,28 +590,6 @@ void omap_mmc_set_clk(DeviceState *dev, omap_clk clk)
     s->clk = clk;
 }
 
-DeviceState *omap_mmc_init(hwaddr base,
-                           MemoryRegion *sysmem,
-                           qemu_irq irq, qemu_irq dma[], omap_clk clk)
-{
-    DeviceState *dev;
-    OMAPMMCState *s;
-
-    dev = qdev_new(TYPE_OMAP_MMC);
-    s = OMAP_MMC(dev);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(s), &error_fatal);
-
-    omap_mmc_set_clk(dev, clk);
-
-    memory_region_add_subregion(sysmem, base,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(s), 0));
-    qdev_connect_gpio_out_named(dev, "dma-tx", 0, dma[0]);
-    qdev_connect_gpio_out_named(dev, "dma-rx", 0, dma[1]);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
-
-    return dev;
-}
-
 static void omap_mmc_reset_hold(Object *obj, ResetType type)
 {
     OMAPMMCState *s = OMAP_MMC(obj);

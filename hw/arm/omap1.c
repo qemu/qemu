@@ -3981,10 +3981,17 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *dram,
     if (!dinfo && !qtest_enabled()) {
         warn_report("missing SecureDigital device");
     }
-    s->mmc = omap_mmc_init(0xfffb7800, system_memory,
-                           qdev_get_gpio_in(s->ih[1], OMAP_INT_OQN),
-                           &s->drq[OMAP_DMA_MMC_TX],
-                    omap_findclk(s, "mmc_ck"));
+
+    s->mmc = qdev_new(TYPE_OMAP_MMC);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(s->mmc), &error_fatal);
+    omap_mmc_set_clk(s->mmc, omap_findclk(s, "mmc_ck"));
+
+    memory_region_add_subregion(system_memory, 0xfffb7800,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(s->mmc), 0));
+    qdev_connect_gpio_out_named(s->mmc, "dma-tx", 0, s->drq[OMAP_DMA_MMC_TX]);
+    qdev_connect_gpio_out_named(s->mmc, "dma-rx", 0, s->drq[OMAP_DMA_MMC_RX]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(s->mmc), 0,
+                       qdev_get_gpio_in(s->ih[1], OMAP_INT_OQN));
 
     if (dinfo) {
         DeviceState *card = qdev_new(TYPE_SD_CARD);
