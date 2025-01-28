@@ -39,7 +39,6 @@
 #include "hw/registerfields.h"
 #include "system/block-backend.h"
 #include "hw/sd/sd.h"
-#include "hw/sd/sdcard_legacy.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/bitmap.h"
@@ -120,10 +119,6 @@ typedef struct SDProto {
 struct SDState {
     DeviceState parent_obj;
 
-    /* If true, created by sd_init() for a non-qdevified caller */
-    /* TODO purge them with fire */
-    bool me_no_qdev_me_kill_mammoth_with_rocks;
-
     /* SD Memory Card Registers */
     uint32_t ocr;
     uint8_t scr[8];
@@ -177,8 +172,6 @@ struct SDState {
     uint32_t data_offset;
     size_t data_size;
     uint8_t data[512];
-    qemu_irq readonly_cb;
-    qemu_irq inserted_cb;
     QEMUTimer *ocr_power_timer;
     bool enable;
     uint8_t dat_lines;
@@ -892,17 +885,10 @@ static void sd_cardchange(void *opaque, bool load, Error **errp)
         trace_sdcard_ejected();
     }
 
-    if (sd->me_no_qdev_me_kill_mammoth_with_rocks) {
-        qemu_set_irq(sd->inserted_cb, inserted);
-        if (inserted) {
-            qemu_set_irq(sd->readonly_cb, readonly);
-        }
-    } else {
-        sdbus = SD_BUS(qdev_get_parent_bus(dev));
-        sdbus_set_inserted(sdbus, inserted);
-        if (inserted) {
-            sdbus_set_readonly(sdbus, readonly);
-        }
+    sdbus = SD_BUS(qdev_get_parent_bus(dev));
+    sdbus_set_inserted(sdbus, inserted);
+    if (inserted) {
+        sdbus_set_readonly(sdbus, readonly);
     }
 }
 
@@ -999,48 +985,6 @@ static const VMStateDescription sd_vmstate = {
         NULL
     },
 };
-
-/* Legacy initialization function for use by non-qdevified callers */
-SDState *sd_init(BlockBackend *blk, bool is_spi)
-{
-    Object *obj;
-    DeviceState *dev;
-    SDState *sd;
-    Error *err = NULL;
-
-    obj = object_new(is_spi ? TYPE_SD_CARD_SPI : TYPE_SD_CARD);
-    dev = DEVICE(obj);
-    if (!qdev_prop_set_drive_err(dev, "drive", blk, &err)) {
-        error_reportf_err(err, "sd_init failed: ");
-        return NULL;
-    }
-
-    /*
-     * Realizing the device properly would put it into the QOM
-     * composition tree even though it is not plugged into an
-     * appropriate bus.  That's a no-no.  Hide the device from
-     * QOM/qdev, and call its qdev realize callback directly.
-     */
-    object_ref(obj);
-    object_unparent(obj);
-    sd_realize(dev, &err);
-    if (err) {
-        error_reportf_err(err, "sd_init failed: ");
-        return NULL;
-    }
-
-    sd = SD_CARD(dev);
-    sd->me_no_qdev_me_kill_mammoth_with_rocks = true;
-    return sd;
-}
-
-void sd_set_cb(SDState *sd, qemu_irq readonly, qemu_irq insert)
-{
-    sd->readonly_cb = readonly;
-    sd->inserted_cb = insert;
-    qemu_set_irq(readonly, sd->blk ? !blk_is_writable(sd->blk) : 0);
-    qemu_set_irq(insert, sd->blk ? blk_is_inserted(sd->blk) : 0);
-}
 
 static void sd_blk_read(SDState *sd, uint64_t addr, uint32_t len)
 {
@@ -2196,8 +2140,8 @@ static bool cmd_valid_while_locked(SDState *sd, unsigned cmd)
     return cmd_class == 0 || cmd_class == 7;
 }
 
-int sd_do_command(SDState *sd, SDRequest *req,
-                  uint8_t *response) {
+static int sd_do_command(SDState *sd, SDRequest *req,
+                         uint8_t *response) {
     int last_state;
     sd_rsp_type_t rtype;
     int rsplen;
@@ -2349,7 +2293,7 @@ static bool sd_generic_read_byte(SDState *sd, uint8_t *value)
     return false;
 }
 
-void sd_write_byte(SDState *sd, uint8_t value)
+static void sd_write_byte(SDState *sd, uint8_t value)
 {
     int i;
 
@@ -2478,7 +2422,7 @@ void sd_write_byte(SDState *sd, uint8_t value)
     }
 }
 
-uint8_t sd_read_byte(SDState *sd)
+static uint8_t sd_read_byte(SDState *sd)
 {
     /* TODO: Append CRCs */
     const uint8_t dummy_byte = 0x00;
@@ -2559,11 +2503,6 @@ static bool sd_receive_ready(SDState *sd)
 static bool sd_data_ready(SDState *sd)
 {
     return sd->state == sd_sendingdata_state;
-}
-
-void sd_enable(SDState *sd, bool enable)
-{
-    sd->enable = enable;
 }
 
 static const SDProto sd_proto_spi = {
