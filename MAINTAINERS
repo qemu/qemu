@@ -3633,6 +3633,7 @@ F: stubs/replay.c
 F: tests/avocado/replay_kernel.py
 F: tests/avocado/replay_linux.py
 F: tests/avocado/reverse_debugging.py
+F: tests/functional/*replay*.py
 F: qapi/replay.json
 
 IOVA Tree
