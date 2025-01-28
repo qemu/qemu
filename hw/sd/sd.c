@@ -2831,7 +2831,6 @@ static void sdmmc_common_class_init(ObjectClass *klass, void *data)
     sc->read_byte = sd_read_byte;
     sc->receive_ready = sd_receive_ready;
     sc->data_ready = sd_data_ready;
-    sc->enable = sd_enable;
     sc->get_inserted = sd_get_inserted;
     sc->get_readonly = sd_get_readonly;
 }
