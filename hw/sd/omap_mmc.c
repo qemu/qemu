@@ -25,10 +25,12 @@
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "hw/arm/omap.h"
-#include "hw/sd/sdcard_legacy.h"
+#include "hw/sd/sd.h"
 
 typedef struct OMAPMMCState {
     SysBusDevice parent_obj;
+
+    SDBus sdbus;
 
     qemu_irq irq;
     qemu_irq dma_tx_gpio;
@@ -36,7 +38,6 @@ typedef struct OMAPMMCState {
     qemu_irq coverswitch;
     MemoryRegion iomem;
     omap_clk clk;
-    SDState *card;
     uint16_t last_cmd;
     uint16_t sdio;
     uint16_t rsp[8];
@@ -158,7 +159,7 @@ static void omap_mmc_command(OMAPMMCState *host, int cmd, int dir,
     request.arg = host->arg;
     request.crc = 0; /* FIXME */
 
-    rsplen = sd_do_command(host->card, &request, response);
+    rsplen = sdbus_do_command(&host->sdbus, &request, response);
 
     /* TODO: validate CRCs */
     switch (resptype) {
@@ -247,10 +248,10 @@ static void omap_mmc_transfer(OMAPMMCState *host)
             if (host->fifo_len > host->af_level)
                 break;
 
-            value = sd_read_byte(host->card);
+            value = sdbus_read_byte(&host->sdbus);
             host->fifo[(host->fifo_start + host->fifo_len) & 31] = value;
             if (-- host->blen_counter) {
-                value = sd_read_byte(host->card);
+                value = sdbus_read_byte(&host->sdbus);
                 host->fifo[(host->fifo_start + host->fifo_len) & 31] |=
                         value << 8;
                 host->blen_counter --;
@@ -262,10 +263,10 @@ static void omap_mmc_transfer(OMAPMMCState *host)
                 break;
 
             value = host->fifo[host->fifo_start] & 0xff;
-            sd_write_byte(host->card, value);
+            sdbus_write_byte(&host->sdbus, value);
             if (-- host->blen_counter) {
                 value = host->fifo[host->fifo_start] >> 8;
-                sd_write_byte(host->card, value);
+                sdbus_write_byte(&host->sdbus, value);
                 host->blen_counter --;
             }
 
@@ -328,14 +329,6 @@ static void omap_mmc_reset(OMAPMMCState *host)
     host->clkdiv = 0;
 
     omap_mmc_pseudo_reset(host);
-
-    /* Since we're still using the legacy SD API the card is not plugged
-     * into any bus, and we must reset it manually. When omap_mmc is
-     * QOMified this must move into the QOM reset function.
-     */
-    if (host->card) {
-        device_cold_reset(DEVICE(host->card));
-    }
 }
 
 static uint64_t omap_mmc_read(void *opaque, hwaddr offset, unsigned size)
@@ -592,7 +585,6 @@ static const MemoryRegionOps omap_mmc_ops = {
 
 DeviceState *omap_mmc_init(hwaddr base,
                            MemoryRegion *sysmem,
-                           BlockBackend *blk,
                            qemu_irq irq, qemu_irq dma[], omap_clk clk)
 {
     DeviceState *dev;
@@ -610,11 +602,6 @@ DeviceState *omap_mmc_init(hwaddr base,
     qdev_connect_gpio_out_named(dev, "dma-rx", 0, dma[1]);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
 
-    /* Instantiate the storage */
-    s->card = sd_init(blk, false);
-    if (s->card == NULL) {
-        exit(1);
-    }
     return dev;
 }
 
@@ -639,6 +626,8 @@ static void omap_mmc_initfn(Object *obj)
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
     qdev_init_gpio_out_named(DEVICE(obj), &s->dma_tx_gpio, "dma-tx", 1);
     qdev_init_gpio_out_named(DEVICE(obj), &s->dma_rx_gpio, "dma-rx", 1);
+
+    qbus_init(&s->sdbus, sizeof(s->sdbus), TYPE_SD_BUS, DEVICE(obj), "sd-bus");
 }
 
 static void omap_mmc_class_init(ObjectClass *oc, void *data)

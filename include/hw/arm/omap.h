@@ -534,7 +534,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(OMAPMMCState, OMAP_MMC)
 
 DeviceState *omap_mmc_init(hwaddr base,
                            MemoryRegion *sysmem,
-                           BlockBackend *blk,
                            qemu_irq irq, qemu_irq dma[], omap_clk clk);
 
 /* omap_i2c.c */
