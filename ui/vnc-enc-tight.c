@@ -1001,15 +1001,23 @@ static int send_mono_rect(VncState *vs, int x, int y,
         break;
     }
     case 2:
-        vnc_write(vs, &bg, 2);
-        vnc_write(vs, &fg, 2);
+    {
+        uint16_t bg16 = bg;
+        uint16_t fg16 = fg;
+        vnc_write(vs, &bg16, 2);
+        vnc_write(vs, &fg16, 2);
         tight_encode_mono_rect16(vs->tight->tight.buffer, w, h, bg, fg);
         break;
+    }
     default:
-        vnc_write_u8(vs, bg);
-        vnc_write_u8(vs, fg);
+    {
+        uint8_t bg8 = bg;
+        uint8_t fg8 = fg;
+        vnc_write_u8(vs, bg8);
+        vnc_write_u8(vs, fg8);
         tight_encode_mono_rect8(vs->tight->tight.buffer, w, h, bg, fg);
         break;
+    }
     }
     vs->tight->tight.offset = bytes;
 
