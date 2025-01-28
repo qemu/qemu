@@ -1108,7 +1108,7 @@ MigrationTestEnv *migration_get_env(void)
         return env;
     }
 
-    env->has_dirty_ring = kvm_dirty_ring_supported();
+    env->has_dirty_ring = env->has_kvm && kvm_dirty_ring_supported();
     env->has_uffd = ufd_version_check(&env->uffd_feature_thread_id);
     env->arch = qtest_get_arch();
     env->is_x86 = !strcmp(env->arch, "i386") || !strcmp(env->arch, "x86_64");
