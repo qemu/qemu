@@ -1193,6 +1193,7 @@ M: Richard Henderson <richard.henderson@linaro.org>
 M: Helge Deller <deller@gmx.de>
 S: Maintained
 F: configs/devices/hppa-softmmu/default.mak
+F: hw/char/diva-gsp.c
 F: hw/display/artist.c
 F: hw/hppa/
 F: hw/input/lasips2.c
