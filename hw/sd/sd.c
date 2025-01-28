@@ -173,7 +173,6 @@ struct SDState {
     size_t data_size;
     uint8_t data[512];
     QEMUTimer *ocr_power_timer;
-    bool enable;
     uint8_t dat_lines;
     bool cmd_line;
 };
@@ -292,12 +291,12 @@ static const char *sd_acmd_name(SDState *sd, uint8_t cmd)
 
 static uint8_t sd_get_dat_lines(SDState *sd)
 {
-    return sd->enable ? sd->dat_lines : 0;
+    return sd->dat_lines;
 }
 
 static bool sd_get_cmd_line(SDState *sd)
 {
-    return sd->enable ? sd->cmd_line : false;
+    return sd->cmd_line;
 }
 
 static void sd_set_voltage(SDState *sd, uint16_t millivolts)
@@ -976,7 +975,7 @@ static const VMStateDescription sd_vmstate = {
         VMSTATE_UINT32(data_offset, SDState),
         VMSTATE_UINT8_ARRAY(data, SDState, 512),
         VMSTATE_UNUSED_V(1, 512),
-        VMSTATE_BOOL(enable, SDState),
+        VMSTATE_UNUSED(1),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription * const []) {
@@ -2146,7 +2145,7 @@ static int sd_do_command(SDState *sd, SDRequest *req,
     sd_rsp_type_t rtype;
     int rsplen;
 
-    if (!sd->blk || !blk_is_inserted(sd->blk) || !sd->enable) {
+    if (!sd->blk || !blk_is_inserted(sd->blk)) {
         return 0;
     }
 
@@ -2297,8 +2296,9 @@ static void sd_write_byte(SDState *sd, uint8_t value)
 {
     int i;
 
-    if (!sd->blk || !blk_is_inserted(sd->blk) || !sd->enable)
+    if (!sd->blk || !blk_is_inserted(sd->blk)) {
         return;
+    }
 
     if (sd->state != sd_receivingdata_state) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -2429,8 +2429,9 @@ static uint8_t sd_read_byte(SDState *sd)
     uint8_t ret;
     uint32_t io_len;
 
-    if (!sd->blk || !blk_is_inserted(sd->blk) || !sd->enable)
+    if (!sd->blk || !blk_is_inserted(sd->blk)) {
         return dummy_byte;
+    }
 
     if (sd->state != sd_sendingdata_state) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -2664,7 +2665,6 @@ static void sd_instance_init(Object *obj)
 
     sd->proto = sc->proto;
     sd->last_cmd_name = "UNSET";
-    sd->enable = true;
     sd->ocr_power_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sd_ocr_powerup, sd);
 }
 
