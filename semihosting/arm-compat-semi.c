@@ -85,7 +85,15 @@
 #define O_BINARY 0
 #endif
 
-static int gdb_open_modeflags[12] = {
+#include "common-semi-target.h"
+
+#ifdef SEMIHOSTING_EXT_OPEN_MODES
+#define GDB_OPEN_MODES_NR 14
+#else
+#define GDB_OPEN_MODES_NR 12
+#endif
+
+static int gdb_open_modeflags[GDB_OPEN_MODES_NR] = {
     GDB_O_RDONLY,
     GDB_O_RDONLY,
     GDB_O_RDWR,
@@ -98,6 +106,10 @@ static int gdb_open_modeflags[12] = {
     GDB_O_WRONLY | GDB_O_CREAT | GDB_O_APPEND,
     GDB_O_RDWR | GDB_O_CREAT | GDB_O_APPEND,
     GDB_O_RDWR | GDB_O_CREAT | GDB_O_APPEND,
+#ifdef SEMIHOSTING_EXT_OPEN_MODES
+    GDB_O_RDWR | GDB_O_CREAT,
+    GDB_O_RDWR | GDB_O_CREAT | GDB_O_EXCL,
+#endif
 };
 
 #ifndef CONFIG_USER_ONLY
@@ -386,7 +398,7 @@ void do_common_semihosting(CPUState *cs)
         if (!s) {
             goto do_fault;
         }
-        if (arg1 >= 12) {
+        if (arg1 >= GDB_OPEN_MODES_NR) {
             unlock_user(s, arg0, 0);
             common_semi_cb(cs, -1, EINVAL);
             break;
