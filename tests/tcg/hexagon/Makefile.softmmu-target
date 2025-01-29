@@ -1,0 +1,71 @@
+##
+##  Copyright(c) 2019-2025 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##
+##  SPDX-License-Identifier: GPL-2.0-or-later
+##
+
+# -*- Mode: makefile -*-
+#
+# Hexagon SoftMMU tests - included from tests/tcg/Makefile
+#
+
+HEXAGON_SYSTEM_SRC=$(SRC_PATH)/tests/tcg/hexagon/system
+
+# Set search path for all sources
+VPATH 		+= $(HEXAGON_SYSTEM_SRC)
+
+########### Compiling options
+# We force -O0 to avoid optimizations that would break the
+# libc simplifications we made at min_libc.c
+#
+CFLAGS=-mv73 -U__linux__ -G0 -nodefaultlibs -nostdlib -static -fno-PIC -O0 -g -Werror
+LDFLAGS=-lclang_rt.builtins-hexagon
+
+########### QEMU options
+QEMU_BASE_MACHINE=-M V66G_1024 -semihosting-config usefs=$(SRC_PATH)/tests/tcg/hexagon/system
+QEMU_OPTS+=-display none
+
+QEMU_OPTS+=$(QEMU_BASE_MACHINE) -kernel
+
+crt0.o: crt0/crt0.S crt0/crt0.inc
+crt0_standalone.o: crt0/crt0_standalone.S crt0/crt0.inc
+pte.o: crt0/pte.S
+min_libc.o: crt0/min_libc.c
+tlb.o: crt0/tlb.c
+
+CRT0_OBJS=crt0.o crt0_standalone.o pte.o min_libc.o tlb.o
+
+TESTS += \
+	semihost \
+	$()
+
+$(TESTS): $(CRT0_OBJS)
+
+# Build and link the tests
+echo-and-run = echo $(1) && $(1)
+define build_fn
+    @if test "$(3)" = LINK; then extra="$(LDFLAGS)"; else extra=-c; fi && \
+    $(call echo-and-run, $(CC) $(CFLAGS) $(1) -o $(2) $$extra)
+endef
+
+$(CRT0_OBJS):
+	$(call build_fn,$<,$@)
+$(TESTS):
+	$(call build_fn,$^,$@,LINK)
+
+%.o: %.S
+	$(call build_fn,$<,$@)
+%.o: %.c
+	$(call build_fn,$<,$@)
+
+semihost.o: semihost.c strutils.h
+semihost: semihost.o
+
+############# Custom test rules
+
+run-semihost: semihost
+	mkdir -p _semihost_dir
+	touch _semihost_dir/fileA _semihost_dir/fileB
+	$(call run-test, $<, $(QEMU) --append "arg1 arg2" $(QEMU_OPTS) $< \
+		             > $<.stdout)
+	$(call quiet-command, grep -q "PASS" $<.stdout, "GREP", "PASS")
