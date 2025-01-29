@@ -112,6 +112,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     for (int i = 0; i < machine->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
+        CPUHexagonState *env = &cpu->env;
         qemu_register_reset(do_cpu_reset, cpu);
 
         /*
@@ -147,6 +148,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
             sysbus_mmio_map(SYS_BUS_DEVICE(l2vic_dev), 1,
                 m_cfg->cfgtable.fastl2vic_base << 16);
         } else if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
+            env->dir_list = NULL;
             return;
         }
 

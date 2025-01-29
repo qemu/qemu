@@ -143,6 +143,7 @@ typedef struct CPUArchState {
     target_ulong tlb_lock_count;
     target_ulong k0_lock_count;
     CPUHexagonTLBContext *hex_tlb;
+    GList *dir_list;
 #endif
     target_ulong next_PC;
     target_ulong new_value_usr;
