@@ -32,6 +32,7 @@ int hexagon_hvx_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n);
 void hexagon_debug_vreg(CPUHexagonState *env, int regnum);
 void hexagon_debug_qreg(CPUHexagonState *env, int regnum);
 void hexagon_debug(CPUHexagonState *env);
+void hexagon_dump(CPUHexagonState *env, FILE *f, int flags);
 
 extern const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS];
 extern const char * const hexagon_sregnames[];

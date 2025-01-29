@@ -41,6 +41,7 @@
     DEF_SWI_FLAG(PROF_STATSRESET,  0x48) \
     DEF_SWI_FLAG(DUMP_PMU_STATS,   0x4a) \
     DEF_SWI_FLAG(READ_PCYCLES,     0x52) \
+    DEF_SWI_FLAG(COREDUMP,         0xCD) \
     DEF_SWI_FLAG(FTELL,            0x100) \
     DEF_SWI_FLAG(FSTAT,            0x101) \
     DEF_SWI_FLAG(STAT,             0x103) \
@@ -75,6 +76,132 @@ static void common_semi_ftell_cb(CPUState *cs, uint64_t ret, int err)
         ret = -1;
     }
     common_semi_cb(cs, ret, err);
+}
+
+static void coredump(CPUHexagonState *env)
+{
+    uint32_t ssr = arch_get_system_reg(env, HEX_SREG_SSR);
+    printf("CRASH!\n");
+    printf("I think the exception was: ");
+    switch (GET_SSR_FIELD(SSR_CAUSE, ssr)) {
+    case 0x43:
+        printf("0x43, NMI");
+        break;
+    case 0x42:
+        printf("0x42, Data abort");
+        break;
+    case 0x44:
+        printf("0x44, Multi TLB match");
+        break;
+    case HEX_CAUSE_BIU_PRECISE:
+        printf("0x%x, Bus Error (Precise BIU error)",
+               HEX_CAUSE_BIU_PRECISE);
+        break;
+    case HEX_CAUSE_DOUBLE_EXCEPT:
+        printf("0x%x, Exception observed when EX = 1 (double exception)",
+               HEX_CAUSE_DOUBLE_EXCEPT);
+        break;
+    case HEX_CAUSE_FETCH_NO_XPAGE:
+        printf("0x%x, Privilege violation: User/Guest mode execute"
+               " to page with no execute permissions",
+               HEX_CAUSE_FETCH_NO_XPAGE);
+        break;
+    case HEX_CAUSE_FETCH_NO_UPAGE:
+        printf("0x%x, Privilege violation: "
+               "User mode exececute to page with no user permissions",
+               HEX_CAUSE_FETCH_NO_UPAGE);
+        break;
+    case HEX_CAUSE_INVALID_PACKET:
+        printf("0x%x, Invalid packet",
+               HEX_CAUSE_INVALID_PACKET);
+        break;
+    case HEX_CAUSE_PRIV_USER_NO_GINSN:
+        printf("0x%x, Privilege violation: guest mode insn in user mode",
+               HEX_CAUSE_PRIV_USER_NO_GINSN);
+        break;
+    case HEX_CAUSE_PRIV_USER_NO_SINSN:
+        printf("0x%x, Privilege violation: "
+               "monitor mode insn ins user/guest mode",
+               HEX_CAUSE_PRIV_USER_NO_SINSN);
+        break;
+    case HEX_CAUSE_REG_WRITE_CONFLICT:
+        printf("0x%x, Multiple writes to same register",
+               HEX_CAUSE_REG_WRITE_CONFLICT);
+        break;
+    case HEX_CAUSE_PC_NOT_ALIGNED:
+        printf("0x%x, PC not aligned",
+               HEX_CAUSE_PC_NOT_ALIGNED);
+        break;
+    case HEX_CAUSE_MISALIGNED_LOAD:
+        printf("0x%x, Misaligned Load @ 0x%x",
+               HEX_CAUSE_MISALIGNED_LOAD,
+               arch_get_system_reg(env, HEX_SREG_BADVA));
+        break;
+    case HEX_CAUSE_MISALIGNED_STORE:
+        printf("0x%x, Misaligned Store @ 0x%x",
+               HEX_CAUSE_MISALIGNED_STORE,
+               arch_get_system_reg(env, HEX_SREG_BADVA));
+        break;
+    case HEX_CAUSE_PRIV_NO_READ:
+        printf("0x%x, Privilege violation: "
+            "user/guest read permission @ 0x%x",
+            HEX_CAUSE_PRIV_NO_READ,
+            arch_get_system_reg(env, HEX_SREG_BADVA));
+        break;
+    case HEX_CAUSE_PRIV_NO_WRITE:
+        printf("0x%x, Privilege violation: "
+            "user/guest write permission @ 0x%x",
+            HEX_CAUSE_PRIV_NO_WRITE,
+            arch_get_system_reg(env, HEX_SREG_BADVA));
+        break;
+    case HEX_CAUSE_PRIV_NO_UREAD:
+        printf("0x%x, Privilege violation: user read permission @ 0x%x",
+               HEX_CAUSE_PRIV_NO_UREAD,
+               arch_get_system_reg(env, HEX_SREG_BADVA));
+        break;
+    case HEX_CAUSE_PRIV_NO_UWRITE:
+        printf("0x%x, Privilege violation: user write permission @ 0x%x",
+               HEX_CAUSE_PRIV_NO_UWRITE,
+               arch_get_system_reg(env, HEX_SREG_BADVA));
+        break;
+    case HEX_CAUSE_COPROC_LDST:
+        printf("0x%x, Coprocessor VMEM address error. @ 0x%x",
+               HEX_CAUSE_COPROC_LDST,
+               arch_get_system_reg(env, HEX_SREG_BADVA));
+        break;
+    case HEX_CAUSE_STACK_LIMIT:
+        printf("0x%x, Stack limit check error", HEX_CAUSE_STACK_LIMIT);
+        break;
+    case HEX_CAUSE_FPTRAP_CAUSE_BADFLOAT:
+        printf("0x%X, Floating-Point: Execution of Floating-Point "
+               "instruction resulted in exception",
+               HEX_CAUSE_FPTRAP_CAUSE_BADFLOAT);
+        break;
+    case HEX_CAUSE_NO_COPROC_ENABLE:
+        printf("0x%x, Illegal Execution of Coprocessor Instruction",
+               HEX_CAUSE_NO_COPROC_ENABLE);
+        break;
+    case HEX_CAUSE_NO_COPROC2_ENABLE:
+        printf("0x%x, "
+               "Illegal Execution of Secondary Coprocessor Instruction",
+               HEX_CAUSE_NO_COPROC2_ENABLE);
+        break;
+    case HEX_CAUSE_UNSUPORTED_HVX_64B:
+        printf("0x%x, "
+               "Unsuported Execution of Coprocessor Instruction with 64bits Mode On",
+               HEX_CAUSE_UNSUPORTED_HVX_64B);
+        break;
+    case HEX_CAUSE_VWCTRL_WINDOW_MISS:
+        printf("0x%x, "
+               "Thread accessing a region outside VWCTRL window",
+               HEX_CAUSE_VWCTRL_WINDOW_MISS);
+        break;
+    default:
+        printf("Don't know");
+        break;
+    }
+    printf("\nRegister Dump:\n");
+    hexagon_dump(env, stdout, 0);
 }
 
 static void sim_handle_trap0(CPUHexagonState *env)
@@ -247,6 +374,10 @@ static void sim_handle_trap0(CPUHexagonState *env)
         common_semi_cb(cs, -1, ENOSYS);
     }
     break;
+
+    case HEX_SYS_COREDUMP:
+        coredump(env);
+        break;
 
     case HEX_SYS_FTELL:
     {
