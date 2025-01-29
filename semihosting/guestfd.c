@@ -23,6 +23,18 @@ GuestFD console_in_gf;
 GuestFD console_out_gf;
 #endif
 
+static void semihosting_use_stdio(void)
+{
+    console_in_gf.type = GuestFDHost;
+    console_in_gf.hostfd = 0;
+    console_out_gf.type = GuestFDHost;
+    console_out_gf.hostfd = 1;
+    guestfd_array = g_array_set_size(guestfd_array, 3);
+    associate_guestfd(0, 0);
+    associate_guestfd(1, 1);
+    associate_guestfd(2, 2);
+}
+
 void qemu_semihosting_guestfd_init(void)
 {
     /* New entries zero-initialized, i.e. type GuestFDUnused */
@@ -36,8 +48,12 @@ void qemu_semihosting_guestfd_init(void)
         console_out_gf.type = GuestFDGDB;
         console_out_gf.hostfd = 2;
     } else {
+#ifdef CONFIG_SEMIHOSTING_USE_STDIO
+        semihosting_use_stdio();
+#else
         console_in_gf.type = GuestFDConsole;
         console_out_gf.type = GuestFDConsole;
+#endif
     }
 #else
     /* Otherwise, the stdio file descriptors apply. */
