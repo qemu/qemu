@@ -4593,19 +4593,9 @@ static bool trans_diag_getshadowregs_pa1(DisasContext *ctx, arg_empty *a)
     return !ctx->is_pa20 && do_getshadowregs(ctx);
 }
 
-static bool trans_diag_getshadowregs_pa2(DisasContext *ctx, arg_empty *a)
-{
-    return ctx->is_pa20 && do_getshadowregs(ctx);
-}
-
 static bool trans_diag_putshadowregs_pa1(DisasContext *ctx, arg_empty *a)
 {
     return !ctx->is_pa20 && do_putshadowregs(ctx);
-}
-
-static bool trans_diag_putshadowregs_pa2(DisasContext *ctx, arg_empty *a)
-{
-    return ctx->is_pa20 && do_putshadowregs(ctx);
 }
 
 static bool trans_diag_unimp(DisasContext *ctx, arg_diag_unimp *a)
