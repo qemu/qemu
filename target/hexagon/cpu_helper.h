@@ -7,6 +7,12 @@
 #ifndef HEXAGON_CPU_HELPER_H
 #define HEXAGON_CPU_HELPER_H
 
+void hexagon_read_memory(CPUHexagonState *env, target_ulong vaddr, int size,
+                         void *retptr, uintptr_t retaddr);
+void hexagon_write_memory(CPUHexagonState *env, target_ulong vaddr,
+                          int size, uint64_t data, uintptr_t retaddr);
+void hexagon_touch_memory(CPUHexagonState *env, uint32_t start_addr,
+                          uint32_t length, uintptr_t retaddr);
 uint32_t hexagon_get_pmu_counter(CPUHexagonState *cur_env, int index);
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env);
 uint32_t hexagon_get_sys_pcycle_count_low(CPUHexagonState *env);

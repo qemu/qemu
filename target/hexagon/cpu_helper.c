@@ -30,6 +30,135 @@
 
 #ifndef CONFIG_USER_ONLY
 
+static bool hexagon_read_memory_small(CPUHexagonState *env, target_ulong addr,
+                                      int byte_count, unsigned char *dstbuf,
+                                      int mmu_idx, uintptr_t retaddr)
+ {
+    /* handle small sizes */
+    switch (byte_count) {
+    case 1:
+        *dstbuf = cpu_ldub_mmuidx_ra(env, addr, mmu_idx, retaddr);
+        return true;
+
+    case 2:
+        if (QEMU_IS_ALIGNED(addr, 2)) {
+            *(unsigned short *)dstbuf =
+                cpu_lduw_mmuidx_ra(env, addr, mmu_idx, retaddr);
+            return true;
+        }
+        break;
+
+    case 4:
+        if (QEMU_IS_ALIGNED(addr, 4)) {
+            *(uint32_t *)dstbuf =
+                cpu_ldl_mmuidx_ra(env, addr, mmu_idx, retaddr);
+            return true;
+        }
+        break;
+
+    case 8:
+        if (QEMU_IS_ALIGNED(addr, 8)) {
+            *(uint64_t *)dstbuf =
+                cpu_ldq_mmuidx_ra(env, addr, mmu_idx, retaddr);
+            return true;
+        }
+        break;
+
+    default:
+        /* larger request, handle elsewhere */
+        return false;
+    }
+
+    /* not aligned, copy bytes */
+    for (int i = 0; i < byte_count; ++i) {
+        *dstbuf++ = cpu_ldub_mmuidx_ra(env, addr++, mmu_idx, retaddr);
+    }
+    return true;
+}
+
+void hexagon_read_memory(CPUHexagonState *env, target_ulong vaddr, int size,
+                         void *retptr, uintptr_t retaddr)
+{
+    BQL_LOCK_GUARD();
+    CPUState *cs = env_cpu(env);
+    unsigned mmu_idx = cpu_mmu_index(cs, false);
+    if (!hexagon_read_memory_small(env, vaddr, size, retptr, mmu_idx, retaddr)) {
+        cpu_abort(cs, "%s: ERROR: bad size = %d!\n", __func__, size);
+    }
+}
+
+static bool hexagon_write_memory_small(CPUHexagonState *env, target_ulong addr,
+                                       int byte_count, unsigned char *srcbuf,
+                                       int mmu_idx, uintptr_t retaddr)
+{
+    /* handle small sizes */
+    switch (byte_count) {
+    case 1:
+        cpu_stb_mmuidx_ra(env, addr, *srcbuf, mmu_idx, retaddr);
+        return true;
+
+    case 2:
+        if (QEMU_IS_ALIGNED(addr, 2)) {
+            cpu_stw_mmuidx_ra(env, addr, *(uint16_t *)srcbuf, mmu_idx, retaddr);
+            return true;
+        }
+        break;
+
+    case 4:
+        if (QEMU_IS_ALIGNED(addr, 4)) {
+            cpu_stl_mmuidx_ra(env, addr, *(uint32_t *)srcbuf, mmu_idx, retaddr);
+            return true;
+        }
+        break;
+
+    case 8:
+        if (QEMU_IS_ALIGNED(addr, 8)) {
+            cpu_stq_mmuidx_ra(env, addr, *(uint64_t *)srcbuf, mmu_idx, retaddr);
+            return true;
+        }
+        break;
+
+    default:
+        /* larger request, handle elsewhere */
+        return false;
+    }
+
+    /* not aligned, copy bytes */
+    for (int i = 0; i < byte_count; ++i) {
+        cpu_stb_mmuidx_ra(env, addr++, *srcbuf++, mmu_idx, retaddr);
+    }
+
+    return true;
+}
+
+void hexagon_write_memory(CPUHexagonState *env, target_ulong vaddr,
+                          int size, uint64_t data, uintptr_t retaddr)
+{
+    CPUState *cs = env_cpu(env);
+    unsigned mmu_idx = cpu_mmu_index(cs, false);
+    if (!hexagon_write_memory_small(env, vaddr, size, (unsigned char *)&data,
+                                   mmu_idx, retaddr)) {
+        cpu_abort(cs, "%s: ERROR: bad size = %d!\n", __func__, size);
+    }
+}
+
+static inline uint32_t page_start(uint32_t addr)
+{
+    uint32_t page_align = ~(TARGET_PAGE_SIZE - 1);
+    return addr & page_align;
+}
+
+void hexagon_touch_memory(CPUHexagonState *env, uint32_t start_addr,
+                          uint32_t length, uintptr_t retaddr)
+{
+    unsigned int warm;
+    uint32_t first = page_start(start_addr);
+    uint32_t last = page_start(start_addr + length - 1);
+    for (uint32_t page = first; page <= last; page += TARGET_PAGE_SIZE) {
+        hexagon_read_memory(env, page, 1, &warm, retaddr);
+    }
+}
+
 uint32_t hexagon_get_pmu_counter(CPUHexagonState *cur_env, int index)
 {
     g_assert_not_reached();
