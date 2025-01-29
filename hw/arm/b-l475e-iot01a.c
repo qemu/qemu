@@ -82,7 +82,7 @@ static void bl475e_init(MachineState *machine)
     sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_fatal);
 
     sc = STM32L4X5_SOC_GET_CLASS(&s->soc);
-    armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename, 0,
+    armv7m_load_kernel(s->soc.armv7m.cpu, machine->kernel_filename, 0,
                        sc->flash_size);
 
     if (object_class_by_name(TYPE_DM163)) {

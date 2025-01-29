@@ -154,8 +154,10 @@ enum {
     float_flag_overflow        = 0x0004,
     float_flag_underflow       = 0x0008,
     float_flag_inexact         = 0x0010,
-    float_flag_input_denormal  = 0x0020,
-    float_flag_output_denormal = 0x0040,
+    /* We flushed an input denormal to 0 (because of flush_inputs_to_zero) */
+    float_flag_input_denormal_flushed = 0x0020,
+    /* We flushed an output denormal to 0 (because of flush_to_zero) */
+    float_flag_output_denormal_flushed = 0x0040,
     float_flag_invalid_isi     = 0x0080,  /* inf - inf */
     float_flag_invalid_imz     = 0x0100,  /* inf * 0 */
     float_flag_invalid_idi     = 0x0200,  /* inf / inf */
@@ -300,9 +302,9 @@ typedef struct float_status {
     Float3NaNPropRule float_3nan_prop_rule;
     FloatInfZeroNaNRule float_infzeronan_rule;
     bool tininess_before_rounding;
-    /* should denormalised results go to zero and set the inexact flag? */
+    /* should denormalised results go to zero and set output_denormal_flushed? */
     bool flush_to_zero;
-    /* should denormalised inputs go to zero and set the input_denormal flag? */
+    /* should denormalised inputs go to zero and set input_denormal_flushed? */
     bool flush_inputs_to_zero;
     bool default_nan_mode;
     /*

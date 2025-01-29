@@ -91,6 +91,7 @@ tests_arm_system_thorough = [
   'arm_cubieboard',
   'arm_emcraft_sf2',
   'arm_integratorcp',
+  'arm_microbit',
   'arm_orangepi',
   'arm_quanta_gsj',
   'arm_raspi2',

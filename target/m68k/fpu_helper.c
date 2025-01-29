@@ -175,7 +175,7 @@ static int cpu_m68k_exceptbits_from_host(int host_bits)
     if (host_bits & float_flag_overflow) {
         target_bits |= 0x40;
     }
-    if (host_bits & (float_flag_underflow | float_flag_output_denormal)) {
+    if (host_bits & (float_flag_underflow | float_flag_output_denormal_flushed)) {
         target_bits |= 0x20;
     }
     if (host_bits & float_flag_divbyzero) {

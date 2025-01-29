@@ -2060,14 +2060,14 @@ void HELPER(gvec_fmlal_a32)(void *vd, void *vn, void *vm,
                             CPUARMState *env, uint32_t desc)
 {
     do_fmlal(vd, vn, vm, &env->vfp.standard_fp_status, desc,
-             get_flush_inputs_to_zero(&env->vfp.fp_status_f16));
+             get_flush_inputs_to_zero(&env->vfp.fp_status_f16_a32));
 }
 
 void HELPER(gvec_fmlal_a64)(void *vd, void *vn, void *vm,
                             CPUARMState *env, uint32_t desc)
 {
-    do_fmlal(vd, vn, vm, &env->vfp.fp_status, desc,
-             get_flush_inputs_to_zero(&env->vfp.fp_status_f16));
+    do_fmlal(vd, vn, vm, &env->vfp.fp_status_a64, desc,
+             get_flush_inputs_to_zero(&env->vfp.fp_status_f16_a64));
 }
 
 void HELPER(sve2_fmlal_zzzw_s)(void *vd, void *vn, void *vm, void *va,
@@ -2076,8 +2076,8 @@ void HELPER(sve2_fmlal_zzzw_s)(void *vd, void *vn, void *vm, void *va,
     intptr_t i, oprsz = simd_oprsz(desc);
     uint16_t negn = extract32(desc, SIMD_DATA_SHIFT, 1) << 15;
     intptr_t sel = extract32(desc, SIMD_DATA_SHIFT + 1, 1) * sizeof(float16);
-    float_status *status = &env->vfp.fp_status;
-    bool fz16 = get_flush_inputs_to_zero(&env->vfp.fp_status_f16);
+    float_status *status = &env->vfp.fp_status_a64;
+    bool fz16 = get_flush_inputs_to_zero(&env->vfp.fp_status_f16_a64);
 
     for (i = 0; i < oprsz; i += sizeof(float32)) {
         float16 nn_16 = *(float16 *)(vn + H1_2(i + sel)) ^ negn;
@@ -2122,14 +2122,14 @@ void HELPER(gvec_fmlal_idx_a32)(void *vd, void *vn, void *vm,
                                 CPUARMState *env, uint32_t desc)
 {
     do_fmlal_idx(vd, vn, vm, &env->vfp.standard_fp_status, desc,
-                 get_flush_inputs_to_zero(&env->vfp.fp_status_f16));
+                 get_flush_inputs_to_zero(&env->vfp.fp_status_f16_a32));
 }
 
 void HELPER(gvec_fmlal_idx_a64)(void *vd, void *vn, void *vm,
                                 CPUARMState *env, uint32_t desc)
 {
-    do_fmlal_idx(vd, vn, vm, &env->vfp.fp_status, desc,
-                 get_flush_inputs_to_zero(&env->vfp.fp_status_f16));
+    do_fmlal_idx(vd, vn, vm, &env->vfp.fp_status_a64, desc,
+                 get_flush_inputs_to_zero(&env->vfp.fp_status_f16_a64));
 }
 
 void HELPER(sve2_fmlal_zzxw_s)(void *vd, void *vn, void *vm, void *va,
@@ -2139,8 +2139,8 @@ void HELPER(sve2_fmlal_zzxw_s)(void *vd, void *vn, void *vm, void *va,
     uint16_t negn = extract32(desc, SIMD_DATA_SHIFT, 1) << 15;
     intptr_t sel = extract32(desc, SIMD_DATA_SHIFT + 1, 1) * sizeof(float16);
     intptr_t idx = extract32(desc, SIMD_DATA_SHIFT + 2, 3) * sizeof(float16);
-    float_status *status = &env->vfp.fp_status;
-    bool fz16 = get_flush_inputs_to_zero(&env->vfp.fp_status_f16);
+    float_status *status = &env->vfp.fp_status_a64;
+    bool fz16 = get_flush_inputs_to_zero(&env->vfp.fp_status_f16_a64);
 
     for (i = 0; i < oprsz; i += 16) {
         float16 mm_16 = *(float16 *)(vm + i + idx);
@@ -2808,7 +2808,7 @@ bool is_ebf(CPUARMState *env, float_status *statusp, float_status *oddstatusp)
      */
     bool ebf = is_a64(env) && env->vfp.fpcr & FPCR_EBF;
 
-    *statusp = env->vfp.fp_status;
+    *statusp = is_a64(env) ? env->vfp.fp_status_a64 : env->vfp.fp_status_a32;
     set_default_nan_mode(true, statusp);
 
     if (ebf) {

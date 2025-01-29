@@ -633,8 +633,10 @@ typedef struct CPUArchState {
 
         /* There are a number of distinct float control structures:
          *
-         *  fp_status: is the "normal" fp status.
-         *  fp_status_fp16: used for half-precision calculations
+         *  fp_status_a32: is the "normal" fp status for AArch32 insns
+         *  fp_status_a64: is the "normal" fp status for AArch64 insns
+         *  fp_status_fp16_a32: used for AArch32 half-precision calculations
+         *  fp_status_fp16_a64: used for AArch64 half-precision calculations
          *  standard_fp_status : the ARM "Standard FPSCR Value"
          *  standard_fp_status_fp16 : used for half-precision
          *       calculations with the ARM "Standard FPSCR Value"
@@ -658,8 +660,10 @@ typedef struct CPUArchState {
          * only thing which needs to read the exception flags being
          * an explicit FPSCR read.
          */
-        float_status fp_status;
-        float_status fp_status_f16;
+        float_status fp_status_a32;
+        float_status fp_status_a64;
+        float_status fp_status_f16_a32;
+        float_status fp_status_f16_a64;
         float_status standard_fp_status;
         float_status standard_fp_status_f16;
 

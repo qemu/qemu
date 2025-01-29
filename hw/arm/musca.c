@@ -590,7 +590,7 @@ static void musca_init(MachineState *machine)
                                                      "cfg_sec_resp", 0));
     }
 
-    armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename,
+    armv7m_load_kernel(mms->sse.armv7m[0].cpu, machine->kernel_filename,
                        0, 0x2000000);
 }
 

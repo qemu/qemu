@@ -132,7 +132,7 @@ this code that are retained.
         if (unlikely(soft_t ## _is_denormal(*a))) {                     \
             *a = soft_t ## _set_sign(soft_t ## _zero,                   \
                                      soft_t ## _is_neg(*a));            \
-            float_raise(float_flag_input_denormal, s);                  \
+            float_raise(float_flag_input_denormal_flushed, s);          \
         }                                                               \
     }
 
@@ -4848,7 +4848,7 @@ float128 float128_silence_nan(float128 a, float_status *status)
 static bool parts_squash_denormal(FloatParts64 p, float_status *status)
 {
     if (p.exp == 0 && p.frac != 0) {
-        float_raise(float_flag_input_denormal, status);
+        float_raise(float_flag_input_denormal_flushed, status);
         return true;
     }
 
@@ -5017,7 +5017,7 @@ floatx80 roundAndPackFloatx80(FloatX80RoundPrec roundingPrecision, bool zSign,
         }
         if ( zExp <= 0 ) {
             if (status->flush_to_zero) {
-                float_raise(float_flag_output_denormal, status);
+                float_raise(float_flag_output_denormal_flushed, status);
                 return packFloatx80(zSign, 0, 0);
             }
             isTiny = status->tininess_before_rounding

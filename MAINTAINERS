@@ -1157,6 +1157,7 @@ F: hw/*/microbit*.c
 F: include/hw/*/nrf51*.h
 F: include/hw/*/microbit*.h
 F: tests/qtest/microbit-test.c
+F: tests/functional/test_arm_microbit.py
 F: docs/system/arm/nrf.rst
 
 ARM PL011 Rust device

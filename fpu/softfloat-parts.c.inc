@@ -198,7 +198,7 @@ static void partsN(canonicalize)(FloatPartsN *p, float_status *status,
         if (likely(frac_eqz(p))) {
             p->cls = float_class_zero;
         } else if (status->flush_inputs_to_zero) {
-            float_raise(float_flag_input_denormal, status);
+            float_raise(float_flag_input_denormal_flushed, status);
             p->cls = float_class_zero;
             frac_clear(p);
         } else {
@@ -334,7 +334,7 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
         }
         frac_shr(p, frac_shift);
     } else if (s->flush_to_zero) {
-        flags |= float_flag_output_denormal;
+        flags |= float_flag_output_denormal_flushed;
         p->cls = float_class_zero;
         exp = 0;
         frac_clear(p);
