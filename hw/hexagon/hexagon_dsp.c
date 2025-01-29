@@ -24,6 +24,7 @@
 #include "include/system/system.h"
 #include "target/hexagon/internal.h"
 #include "system/reset.h"
+#include "include/semihosting/semihost.h"
 
 #include "machine_cfg_v66g_1024.h.inc"
 
@@ -166,6 +167,7 @@ static void init_mc(MachineClass *mc)
     mc->no_serial = 1;
     mc->is_default = false;
     mc->max_cpus = 8;
+    qemu_semihosting_enable();
 }
 
 /* ----------------------------------------------------------------- */

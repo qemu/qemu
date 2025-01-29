@@ -4,6 +4,7 @@ config HEX_DSP
     depends on HEXAGON && TCG
     imply PTIMER
     select L2VIC  # Vector PIC
+    select ARM_COMPATIBLE_SEMIHOSTING
 
 config HEX_VIRT
     bool
