@@ -85,6 +85,21 @@
 #define O_BINARY 0
 #endif
 
+struct semihosting_opt_callbacks {
+    void (*set_err)(CPUState *cs, target_ulong err);
+    void (*prepare_for_read)(CPUState *cs, target_ulong fd, target_ulong buf,
+                              target_ulong len);
+} opt_callbacks;
+
+#define SEMIHOSTING_REGISTER_OPT_CALLBACKS(callbacks) \
+    struct semihosting_opt_callbacks opt_callbacks = callbacks;
+
+#define CALL_OPT_CALLBACK(FN, ARGS...) do { \
+    if (opt_callbacks.FN) { \
+        opt_callbacks.FN(ARGS); \
+    } \
+} while (0)
+
 #include "common-semi-target.h"
 
 #ifdef SEMIHOSTING_EXT_OPEN_MODES
@@ -236,6 +251,7 @@ static void common_semi_cb(CPUState *cs, uint64_t ret, int err)
         ts->swi_errno = err;
 #else
         syscall_err = err;
+        CALL_OPT_CALLBACK(set_err, cs, err);
 #endif
     }
     common_semi_set_ret(cs, ret);
@@ -471,6 +487,7 @@ void do_common_semihosting(CPUState *cs)
         GET_ARG(0);
         GET_ARG(1);
         GET_ARG(2);
+        CALL_OPT_CALLBACK(prepare_for_read, cs, arg0, arg1, arg2);
         semihost_sys_read(cs, common_semi_rw_cb, arg0, arg1, arg2);
         break;
 
