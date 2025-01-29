@@ -11,6 +11,17 @@
 #ifndef TARGET_RISCV_COMMON_SEMI_TARGET_H
 #define TARGET_RISCV_COMMON_SEMI_TARGET_H
 
+static inline bool common_semi_read_arg_word(CPUArchState *env,
+                                             target_ulong *save_to,
+                                             target_ulong args_addr,
+                                             int arg_num)
+{
+    if (is_64bit_semihosting(env)) {
+        return get_user_u64(*save_to, args_addr + (arg_num) * 8));
+    }
+    return get_user_u32(*save_to, args_addr + (arg_num) * 4));
+}
+
 static inline target_ulong common_semi_arg(CPUState *cs, int argno)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);

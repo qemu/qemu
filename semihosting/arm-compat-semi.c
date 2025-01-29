@@ -192,17 +192,10 @@ static LayoutInfo common_semi_find_bases(CPUState *cs)
  * error indication (0 on success, non-0 for error) which the caller
  * should check.
  */
-
-#define GET_ARG(n) do {                                 \
-    if (is_64bit_semihosting(env)) {                    \
-        if (get_user_u64(arg ## n, args + (n) * 8)) {   \
-            goto do_fault;                              \
-        }                                               \
-    } else {                                            \
-        if (get_user_u32(arg ## n, args + (n) * 4)) {   \
-            goto do_fault;                              \
-        }                                               \
-    }                                                   \
+#define GET_ARG(n) do { \
+    if (common_semi_read_arg_word(env, &arg ## n, args, n)) { \
+        goto do_fault; \
+    } \
 } while (0)
 
 #define SET_ARG(n, val)                                 \
