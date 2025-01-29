@@ -4,7 +4,7 @@
 
 //! Bindings to create devices and access device functionality from Rust.
 
-use std::ffi::CStr;
+use std::{ffi::CStr, ptr::NonNull};
 
 pub use bindings::{DeviceClass, DeviceState, Property};
 
@@ -23,14 +23,14 @@ pub trait DeviceImpl {
     ///
     /// If not `None`, the parent class's `realize` method is overridden
     /// with the function pointed to by `REALIZE`.
-    const REALIZE: Option<fn(&mut Self)> = None;
+    const REALIZE: Option<fn(&Self)> = None;
 
     /// If not `None`, the parent class's `reset` method is overridden
     /// with the function pointed to by `RESET`.
     ///
     /// Rust does not yet support the three-phase reset protocol; this is
     /// usually okay for leaf classes.
-    const RESET: Option<fn(&mut Self)> = None;
+    const RESET: Option<fn(&Self)> = None;
 
     /// An array providing the properties that the user can set on the
     /// device.  Not a `const` because referencing statics in constants
@@ -55,9 +55,8 @@ pub trait DeviceImpl {
 /// can be downcasted to type `T`. We also expect the device is
 /// readable/writeable from one thread at any time.
 unsafe extern "C" fn rust_realize_fn<T: DeviceImpl>(dev: *mut DeviceState, _errp: *mut *mut Error) {
-    assert!(!dev.is_null());
-    let state = dev.cast::<T>();
-    T::REALIZE.unwrap()(unsafe { &mut *state });
+    let state = NonNull::new(dev).unwrap().cast::<T>();
+    T::REALIZE.unwrap()(unsafe { state.as_ref() });
 }
 
 /// # Safety
@@ -66,9 +65,8 @@ unsafe extern "C" fn rust_realize_fn<T: DeviceImpl>(dev: *mut DeviceState, _errp
 /// can be downcasted to type `T`. We also expect the device is
 /// readable/writeable from one thread at any time.
 unsafe extern "C" fn rust_reset_fn<T: DeviceImpl>(dev: *mut DeviceState) {
-    assert!(!dev.is_null());
-    let state = dev.cast::<T>();
-    T::RESET.unwrap()(unsafe { &mut *state });
+    let mut state = NonNull::new(dev).unwrap().cast::<T>();
+    T::RESET.unwrap()(unsafe { state.as_mut() });
 }
 
 impl<T> ClassInitImpl<DeviceClass> for T

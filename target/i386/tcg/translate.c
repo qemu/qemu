@@ -113,7 +113,6 @@ typedef struct DisasContext {
 #endif
     bool vex_w; /* used by AVX even on 32-bit processors */
     bool jmp_opt; /* use direct block chaining for direct jumps */
-    bool repz_opt; /* optimize jumps within repz instructions */
     bool cc_op_dirty;
 
     CCOp cc_op;  /* current CC operation */
@@ -506,17 +505,24 @@ static inline void gen_op_jmp_v(DisasContext *s, TCGv dest)
     s->pc_save = -1;
 }
 
+static inline void gen_op_add_reg(DisasContext *s, MemOp size, int reg, TCGv val)
+{
+    /* Using cpu_regs[reg] does not work for xH registers.  */
+    assert(size >= MO_16);
+    if (size == MO_16) {
+        TCGv temp = tcg_temp_new();
+        tcg_gen_add_tl(temp, cpu_regs[reg], val);
+        gen_op_mov_reg_v(s, size, reg, temp);
+    } else {
+        tcg_gen_add_tl(cpu_regs[reg], cpu_regs[reg], val);
+        tcg_gen_ext_tl(cpu_regs[reg], cpu_regs[reg], size);
+    }
+}
+
 static inline
 void gen_op_add_reg_im(DisasContext *s, MemOp size, int reg, int32_t val)
 {
-    tcg_gen_addi_tl(s->tmp0, cpu_regs[reg], val);
-    gen_op_mov_reg_v(s, size, reg, s->tmp0);
-}
-
-static inline void gen_op_add_reg(DisasContext *s, MemOp size, int reg, TCGv val)
-{
-    tcg_gen_add_tl(s->tmp0, cpu_regs[reg], val);
-    gen_op_mov_reg_v(s, size, reg, s->tmp0);
+    gen_op_add_reg(s, size, reg, tcg_constant_tl(val));
 }
 
 static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
@@ -689,14 +695,6 @@ static inline void gen_string_movl_A0_EDI(DisasContext *s)
     gen_lea_v_seg(s, cpu_regs[R_EDI], R_ES, -1);
 }
 
-static inline TCGv gen_compute_Dshift(DisasContext *s, MemOp ot)
-{
-    TCGv dshift = tcg_temp_new();
-    tcg_gen_ld32s_tl(dshift, tcg_env, offsetof(CPUX86State, df));
-    tcg_gen_shli_tl(dshift, dshift, ot);
-    return dshift;
-};
-
 static TCGv gen_ext_tl(TCGv dst, TCGv src, MemOp size, bool sign)
 {
     if (size == MO_TL) {
@@ -724,6 +722,46 @@ static inline void gen_op_jz_ecx(DisasContext *s, TCGLabel *label1)
 static inline void gen_op_jnz_ecx(DisasContext *s, TCGLabel *label1)
 {
     gen_op_j_ecx(s, TCG_COND_NE, label1);
+}
+
+static void gen_set_hflag(DisasContext *s, uint32_t mask)
+{
+    if ((s->flags & mask) == 0) {
+        TCGv_i32 t = tcg_temp_new_i32();
+        tcg_gen_ld_i32(t, tcg_env, offsetof(CPUX86State, hflags));
+        tcg_gen_ori_i32(t, t, mask);
+        tcg_gen_st_i32(t, tcg_env, offsetof(CPUX86State, hflags));
+        s->flags |= mask;
+    }
+}
+
+static void gen_reset_hflag(DisasContext *s, uint32_t mask)
+{
+    if (s->flags & mask) {
+        TCGv_i32 t = tcg_temp_new_i32();
+        tcg_gen_ld_i32(t, tcg_env, offsetof(CPUX86State, hflags));
+        tcg_gen_andi_i32(t, t, ~mask);
+        tcg_gen_st_i32(t, tcg_env, offsetof(CPUX86State, hflags));
+        s->flags &= ~mask;
+    }
+}
+
+static void gen_set_eflags(DisasContext *s, target_ulong mask)
+{
+    TCGv t = tcg_temp_new();
+
+    tcg_gen_ld_tl(t, tcg_env, offsetof(CPUX86State, eflags));
+    tcg_gen_ori_tl(t, t, mask);
+    tcg_gen_st_tl(t, tcg_env, offsetof(CPUX86State, eflags));
+}
+
+static void gen_reset_eflags(DisasContext *s, target_ulong mask)
+{
+    TCGv t = tcg_temp_new();
+
+    tcg_gen_ld_tl(t, tcg_env, offsetof(CPUX86State, eflags));
+    tcg_gen_andi_tl(t, t, ~mask);
+    tcg_gen_st_tl(t, tcg_env, offsetof(CPUX86State, eflags));
 }
 
 static void gen_helper_in_func(MemOp ot, TCGv v, TCGv_i32 n)
@@ -793,16 +831,13 @@ static bool gen_check_io(DisasContext *s, MemOp ot, TCGv_i32 port,
 #endif
 }
 
-static void gen_movs(DisasContext *s, MemOp ot)
+static void gen_movs(DisasContext *s, MemOp ot, TCGv dshift)
 {
-    TCGv dshift;
-
     gen_string_movl_A0_ESI(s);
     gen_op_ld_v(s, ot, s->T0, s->A0);
     gen_string_movl_A0_EDI(s);
     gen_op_st_v(s, ot, s->T0, s->A0);
 
-    dshift = gen_compute_Dshift(s, ot);
     gen_op_add_reg(s, s->aflag, R_ESI, dshift);
     gen_op_add_reg(s, s->aflag, R_EDI, dshift);
 }
@@ -1148,7 +1183,7 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
     return cc;
 }
 
-static void gen_setcc1(DisasContext *s, int b, TCGv reg)
+static void gen_setcc(DisasContext *s, int b, TCGv reg)
 {
     CCPrepare cc = gen_prepare_cc(s, b, reg);
 
@@ -1170,12 +1205,12 @@ static void gen_setcc1(DisasContext *s, int b, TCGv reg)
 
 static inline void gen_compute_eflags_c(DisasContext *s, TCGv reg)
 {
-    gen_setcc1(s, JCC_B << 1, reg);
+    gen_setcc(s, JCC_B << 1, reg);
 }
 
 /* generate a conditional jump to label 'l1' according to jump opcode
    value 'b'. In the fast case, T0 is guaranteed not to be used. */
-static inline void gen_jcc1_noeob(DisasContext *s, int b, TCGLabel *l1)
+static inline void gen_jcc_noeob(DisasContext *s, int b, TCGLabel *l1)
 {
     CCPrepare cc = gen_prepare_cc(s, b, NULL);
 
@@ -1190,13 +1225,14 @@ static inline void gen_jcc1_noeob(DisasContext *s, int b, TCGLabel *l1)
    value 'b'. In the fast case, T0 is guaranteed not to be used.
    One or both of the branches will call gen_jmp_rel, so ensure
    cc_op is clean.  */
-static inline void gen_jcc1(DisasContext *s, int b, TCGLabel *l1)
+static inline void gen_jcc(DisasContext *s, int b, TCGLabel *l1)
 {
     CCPrepare cc = gen_prepare_cc(s, b, NULL);
 
     /*
-     * Note that this must be _after_ gen_prepare_cc, because it
-     * can change the cc_op from CC_OP_DYNAMIC to CC_OP_EFLAGS!
+     * Note that this must be _after_ gen_prepare_cc, because it can change
+     * the cc_op to CC_OP_EFLAGS (because it's CC_OP_DYNAMIC or because
+     * it's cheaper to just compute the flags)!
      */
     gen_update_cc_op(s);
     if (cc.use_reg2) {
@@ -1206,39 +1242,22 @@ static inline void gen_jcc1(DisasContext *s, int b, TCGLabel *l1)
     }
 }
 
-/* XXX: does not work with gdbstub "ice" single step - not a
-   serious problem.  The caller can jump to the returned label
-   to stop the REP but, if the flags have changed, it has to call
-   gen_update_cc_op before doing so.  */
-static TCGLabel *gen_jz_ecx_string(DisasContext *s)
-{
-    TCGLabel *l1 = gen_new_label();
-    TCGLabel *l2 = gen_new_label();
-
-    gen_update_cc_op(s);
-    gen_op_jnz_ecx(s, l1);
-    gen_set_label(l2);
-    gen_jmp_rel_csize(s, 0, 1);
-    gen_set_label(l1);
-    return l2;
-}
-
-static void gen_stos(DisasContext *s, MemOp ot)
+static void gen_stos(DisasContext *s, MemOp ot, TCGv dshift)
 {
     gen_string_movl_A0_EDI(s);
     gen_op_st_v(s, ot, s->T0, s->A0);
-    gen_op_add_reg(s, s->aflag, R_EDI, gen_compute_Dshift(s, ot));
+    gen_op_add_reg(s, s->aflag, R_EDI, dshift);
 }
 
-static void gen_lods(DisasContext *s, MemOp ot)
+static void gen_lods(DisasContext *s, MemOp ot, TCGv dshift)
 {
     gen_string_movl_A0_ESI(s);
     gen_op_ld_v(s, ot, s->T0, s->A0);
     gen_op_mov_reg_v(s, ot, R_EAX, s->T0);
-    gen_op_add_reg(s, s->aflag, R_ESI, gen_compute_Dshift(s, ot));
+    gen_op_add_reg(s, s->aflag, R_ESI, dshift);
 }
 
-static void gen_scas(DisasContext *s, MemOp ot)
+static void gen_scas(DisasContext *s, MemOp ot, TCGv dshift)
 {
     gen_string_movl_A0_EDI(s);
     gen_op_ld_v(s, ot, s->T1, s->A0);
@@ -1247,13 +1266,11 @@ static void gen_scas(DisasContext *s, MemOp ot)
     tcg_gen_sub_tl(cpu_cc_dst, s->T0, s->T1);
     set_cc_op(s, CC_OP_SUBB + ot);
 
-    gen_op_add_reg(s, s->aflag, R_EDI, gen_compute_Dshift(s, ot));
+    gen_op_add_reg(s, s->aflag, R_EDI, dshift);
 }
 
-static void gen_cmps(DisasContext *s, MemOp ot)
+static void gen_cmps(DisasContext *s, MemOp ot, TCGv dshift)
 {
-    TCGv dshift;
-
     gen_string_movl_A0_EDI(s);
     gen_op_ld_v(s, ot, s->T1, s->A0);
     gen_string_movl_A0_ESI(s);
@@ -1263,7 +1280,6 @@ static void gen_cmps(DisasContext *s, MemOp ot)
     tcg_gen_sub_tl(cpu_cc_dst, s->T0, s->T1);
     set_cc_op(s, CC_OP_SUBB + ot);
 
-    dshift = gen_compute_Dshift(s, ot);
     gen_op_add_reg(s, s->aflag, R_ESI, dshift);
     gen_op_add_reg(s, s->aflag, R_EDI, dshift);
 }
@@ -1282,7 +1298,7 @@ static void gen_bpt_io(DisasContext *s, TCGv_i32 t_port, int ot)
     }
 }
 
-static void gen_ins(DisasContext *s, MemOp ot)
+static void gen_ins(DisasContext *s, MemOp ot, TCGv dshift)
 {
     gen_string_movl_A0_EDI(s);
     /* Note: we must do this dummy write first to be restartable in
@@ -1293,11 +1309,11 @@ static void gen_ins(DisasContext *s, MemOp ot)
     tcg_gen_andi_i32(s->tmp2_i32, s->tmp2_i32, 0xffff);
     gen_helper_in_func(ot, s->T0, s->tmp2_i32);
     gen_op_st_v(s, ot, s->T0, s->A0);
-    gen_op_add_reg(s, s->aflag, R_EDI, gen_compute_Dshift(s, ot));
+    gen_op_add_reg(s, s->aflag, R_EDI, dshift);
     gen_bpt_io(s, s->tmp2_i32, ot);
 }
 
-static void gen_outs(DisasContext *s, MemOp ot)
+static void gen_outs(DisasContext *s, MemOp ot, TCGv dshift)
 {
     gen_string_movl_A0_ESI(s);
     gen_op_ld_v(s, ot, s->T0, s->A0);
@@ -1306,47 +1322,154 @@ static void gen_outs(DisasContext *s, MemOp ot)
     tcg_gen_andi_i32(s->tmp2_i32, s->tmp2_i32, 0xffff);
     tcg_gen_trunc_tl_i32(s->tmp3_i32, s->T0);
     gen_helper_out_func(ot, s->tmp2_i32, s->tmp3_i32);
-    gen_op_add_reg(s, s->aflag, R_ESI, gen_compute_Dshift(s, ot));
+    gen_op_add_reg(s, s->aflag, R_ESI, dshift);
     gen_bpt_io(s, s->tmp2_i32, ot);
 }
 
-/* Generate jumps to current or next instruction */
-static void gen_repz(DisasContext *s, MemOp ot,
-                     void (*fn)(DisasContext *s, MemOp ot))
+#define REP_MAX 65535
+
+static void do_gen_rep(DisasContext *s, MemOp ot, TCGv dshift,
+                       void (*fn)(DisasContext *s, MemOp ot, TCGv dshift),
+                       bool is_repz_nz)
 {
-    TCGLabel *l2;
-    l2 = gen_jz_ecx_string(s);
-    fn(s, ot);
-    gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
+    TCGLabel *last = gen_new_label();
+    TCGLabel *loop = gen_new_label();
+    TCGLabel *done = gen_new_label();
+
+    target_ulong cx_mask = MAKE_64BIT_MASK(0, 8 << s->aflag);
+    TCGv cx_next = tcg_temp_new();
+
     /*
-     * A loop would cause two single step exceptions if ECX = 1
-     * before rep string_insn
+     * Check if we must translate a single iteration only.  Normally, HF_RF_MASK
+     * would also limit translation blocks to one instruction, so that gen_eob
+     * can reset the flag; here however RF is set throughout the repetition, so
+     * we can plow through until CX/ECX/RCX is zero.
      */
-    if (s->repz_opt) {
-        gen_op_jz_ecx(s, l2);
+    bool can_loop =
+        (!(tb_cflags(s->base.tb) & (CF_USE_ICOUNT | CF_SINGLE_STEP))
+	 && !(s->flags & (HF_TF_MASK | HF_INHIBIT_IRQ_MASK)));
+    bool had_rf = s->flags & HF_RF_MASK;
+
+    /*
+     * Even if EFLAGS.RF was set on entry (such as if we're on the second or
+     * later iteration and an exception or interrupt happened), force gen_eob()
+     * not to clear the flag.  We do that ourselves after the last iteration.
+     */
+    s->flags &= ~HF_RF_MASK;
+
+    /*
+     * For CMPS/SCAS, the CC_OP after a memory fault could come from either
+     * the previous instruction or the string instruction; but because we
+     * arrange to keep CC_OP up to date all the time, just mark the whole
+     * insn as CC_OP_DYNAMIC.
+     *
+     * It's not a problem to do this even for instructions that do not
+     * modify the flags, so do it unconditionally.
+     */
+    gen_update_cc_op(s);
+    tcg_set_insn_start_param(s->base.insn_start, 1, CC_OP_DYNAMIC);
+
+    /* Any iteration at all?  */
+    tcg_gen_brcondi_tl(TCG_COND_TSTEQ, cpu_regs[R_ECX], cx_mask, done);
+
+    /*
+     * From now on we operate on the value of CX/ECX/RCX that will be written
+     * back, which is stored in cx_next.  There can be no carry, so we can zero
+     * extend here if needed and not do any expensive deposit operations later.
+     */
+    tcg_gen_subi_tl(cx_next, cpu_regs[R_ECX], 1);
+#ifdef TARGET_X86_64
+    if (s->aflag == MO_32) {
+        tcg_gen_ext32u_tl(cx_next, cx_next);
+        cx_mask = ~0;
     }
+#endif
+
+    /*
+     * The last iteration is handled outside the loop, so that cx_next
+     * can never underflow.
+     */
+    if (can_loop) {
+        tcg_gen_brcondi_tl(TCG_COND_TSTEQ, cx_next, cx_mask, last);
+    }
+
+    gen_set_label(loop);
+    fn(s, ot, dshift);
+    tcg_gen_mov_tl(cpu_regs[R_ECX], cx_next);
+    gen_update_cc_op(s);
+
+    /* Leave if REP condition fails.  */
+    if (is_repz_nz) {
+        int nz = (s->prefix & PREFIX_REPNZ) ? 1 : 0;
+        gen_jcc_noeob(s, (JCC_Z << 1) | (nz ^ 1), done);
+        /* gen_prepare_eflags_z never changes cc_op.  */
+	assert(!s->cc_op_dirty);
+    }
+
+    if (can_loop) {
+        tcg_gen_subi_tl(cx_next, cx_next, 1);
+        tcg_gen_brcondi_tl(TCG_COND_TSTNE, cx_next, REP_MAX, loop);
+        tcg_gen_brcondi_tl(TCG_COND_TSTEQ, cx_next, cx_mask, last);
+    }
+
+    /*
+     * Traps or interrupts set RF_MASK if they happen after any iteration
+     * but the last.  Set it here before giving the main loop a chance to
+     * execute.  (For faults, seg_helper.c sets the flag as usual).
+     */
+    if (!had_rf) {
+        gen_set_eflags(s, RF_MASK);
+    }
+
+    /* Go to the main loop but reenter the same instruction.  */
     gen_jmp_rel_csize(s, -cur_insn_len(s), 0);
+
+    if (can_loop) {
+        /*
+         * The last iteration needs no conditional jump, even if is_repz_nz,
+         * because the repeats are ending anyway.
+         */
+        gen_set_label(last);
+        set_cc_op(s, CC_OP_DYNAMIC);
+        fn(s, ot, dshift);
+        tcg_gen_mov_tl(cpu_regs[R_ECX], cx_next);
+        gen_update_cc_op(s);
+    }
+
+    /* CX/ECX/RCX is zero, or REPZ/REPNZ broke the repetition.  */
+    gen_set_label(done);
+    set_cc_op(s, CC_OP_DYNAMIC);
+    if (had_rf) {
+        gen_reset_eflags(s, RF_MASK);
+    }
+    gen_jmp_rel_csize(s, 0, 1);
+}
+
+static void do_gen_string(DisasContext *s, MemOp ot,
+                          void (*fn)(DisasContext *s, MemOp ot, TCGv dshift),
+                          bool is_repz_nz)
+{
+    TCGv dshift = tcg_temp_new();
+    tcg_gen_ld32s_tl(dshift, tcg_env, offsetof(CPUX86State, df));
+    tcg_gen_shli_tl(dshift, dshift, ot);
+
+    if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
+        do_gen_rep(s, ot, dshift, fn, is_repz_nz);
+    } else {
+        fn(s, ot, dshift);
+    }
+}
+
+static void gen_repz(DisasContext *s, MemOp ot,
+                     void (*fn)(DisasContext *s, MemOp ot, TCGv dshift))
+{
+    do_gen_string(s, ot, fn, false);
 }
 
 static void gen_repz_nz(DisasContext *s, MemOp ot,
-                        void (*fn)(DisasContext *s, MemOp ot))
+                        void (*fn)(DisasContext *s, MemOp ot, TCGv dshift))
 {
-    TCGLabel *l2;
-    int nz = (s->prefix & PREFIX_REPNZ) ? 1 : 0;
-
-    l2 = gen_jz_ecx_string(s);
-    fn(s, ot);
-    gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
-    gen_jcc1(s, (JCC_Z << 1) | (nz ^ 1), l2);
-    if (s->repz_opt) {
-        gen_op_jz_ecx(s, l2);
-    }
-    /*
-     * Only one iteration is done at a time, so the translation
-     * block ends unconditionally after this instruction and there
-     * is no control flow junction - no need to set CC_OP_DYNAMIC.
-     */
-    gen_jmp_rel_csize(s, -cur_insn_len(s), 0);
+    do_gen_string(s, ot, fn, true);
 }
 
 static void gen_helper_fp_arith_ST0_FT0(int op)
@@ -1847,15 +1970,7 @@ static void gen_conditional_jump_labels(DisasContext *s, target_long diff,
     gen_jmp_rel(s, s->dflag, diff, 0);
 }
 
-static void gen_jcc(DisasContext *s, int b, int diff)
-{
-    TCGLabel *l1 = gen_new_label();
-
-    gen_jcc1(s, b, l1);
-    gen_conditional_jump_labels(s, diff, NULL, l1);
-}
-
-static void gen_cmovcc1(DisasContext *s, int b, TCGv dest, TCGv src)
+static void gen_cmovcc(DisasContext *s, int b, TCGv dest, TCGv src)
 {
     CCPrepare cc = gen_prepare_cc(s, b, NULL);
 
@@ -2103,46 +2218,6 @@ static void gen_interrupt(DisasContext *s, uint8_t intno)
     s->base.is_jmp = DISAS_NORETURN;
 }
 
-static void gen_set_hflag(DisasContext *s, uint32_t mask)
-{
-    if ((s->flags & mask) == 0) {
-        TCGv_i32 t = tcg_temp_new_i32();
-        tcg_gen_ld_i32(t, tcg_env, offsetof(CPUX86State, hflags));
-        tcg_gen_ori_i32(t, t, mask);
-        tcg_gen_st_i32(t, tcg_env, offsetof(CPUX86State, hflags));
-        s->flags |= mask;
-    }
-}
-
-static void gen_reset_hflag(DisasContext *s, uint32_t mask)
-{
-    if (s->flags & mask) {
-        TCGv_i32 t = tcg_temp_new_i32();
-        tcg_gen_ld_i32(t, tcg_env, offsetof(CPUX86State, hflags));
-        tcg_gen_andi_i32(t, t, ~mask);
-        tcg_gen_st_i32(t, tcg_env, offsetof(CPUX86State, hflags));
-        s->flags &= ~mask;
-    }
-}
-
-static void gen_set_eflags(DisasContext *s, target_ulong mask)
-{
-    TCGv t = tcg_temp_new();
-
-    tcg_gen_ld_tl(t, tcg_env, offsetof(CPUX86State, eflags));
-    tcg_gen_ori_tl(t, t, mask);
-    tcg_gen_st_tl(t, tcg_env, offsetof(CPUX86State, eflags));
-}
-
-static void gen_reset_eflags(DisasContext *s, target_ulong mask)
-{
-    TCGv t = tcg_temp_new();
-
-    tcg_gen_ld_tl(t, tcg_env, offsetof(CPUX86State, eflags));
-    tcg_gen_andi_tl(t, t, ~mask);
-    tcg_gen_st_tl(t, tcg_env, offsetof(CPUX86State, eflags));
-}
-
 /* Clear BND registers during legacy branches.  */
 static void gen_bnd_jmp(DisasContext *s)
 {
@@ -2177,7 +2252,7 @@ gen_eob(DisasContext *s, int mode)
         gen_set_hflag(s, HF_INHIBIT_IRQ_MASK);
     }
 
-    if (s->base.tb->flags & HF_RF_MASK) {
+    if (s->flags & HF_RF_MASK) {
         gen_reset_eflags(s, RF_MASK);
     }
     if (mode == DISAS_EOB_RECHECK_TF) {
@@ -2864,7 +2939,7 @@ static void gen_x87(DisasContext *s, X86DecodedInsn *decode)
                 }
                 op1 = fcmov_cc[op & 3] | (((op >> 3) & 1) ^ 1);
                 l1 = gen_new_label();
-                gen_jcc1_noeob(s, op1, l1);
+                gen_jcc_noeob(s, op1, l1);
                 gen_helper_fmov_ST0_STN(tcg_env,
                                         tcg_constant_i32(opreg));
                 gen_set_label(l1);
@@ -3664,20 +3739,6 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
     dc->cpuid_xsave_features = env->features[FEAT_XSAVE];
     dc->jmp_opt = !((cflags & CF_NO_GOTO_TB) ||
                     (flags & (HF_RF_MASK | HF_TF_MASK | HF_INHIBIT_IRQ_MASK)));
-    /*
-     * If jmp_opt, we want to handle each string instruction individually.
-     * For icount also disable repz optimization so that each iteration
-     * is accounted separately.
-     *
-     * FIXME: this is messy; it makes REP string instructions a lot less
-     * efficient than they should be and it gets in the way of correct
-     * handling of RF (interrupts or traps arriving after any iteration
-     * of a repeated string instruction but the last should set RF to 1).
-     * Perhaps it would be more efficient if REP string instructions were
-     * always at the beginning of the TB, or even their own TB?  That
-     * would even allow accounting up to 64k iterations at once for icount.
-     */
-    dc->repz_opt = !dc->jmp_opt && !(cflags & CF_USE_ICOUNT);
 
     dc->T0 = tcg_temp_new();
     dc->T1 = tcg_temp_new();

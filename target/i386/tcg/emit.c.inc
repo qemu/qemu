@@ -1630,7 +1630,7 @@ static void gen_CMC(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_CMOVcc(DisasContext *s, X86DecodedInsn *decode)
 {
-    gen_cmovcc1(s, decode->b & 0xf, s->T0, s->T1);
+    gen_cmovcc(s, decode->b & 0xf, s->T0, s->T1);
 }
 
 static void gen_CMPccXADD(DisasContext *s, X86DecodedInsn *decode)
@@ -1739,11 +1739,7 @@ static void gen_CMPccXADD(DisasContext *s, X86DecodedInsn *decode)
 static void gen_CMPS(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[2].ot;
-    if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
-        gen_repz_nz(s, ot, gen_cmps);
-    } else {
-        gen_cmps(s, ot);
-    }
+    gen_repz_nz(s, ot, gen_cmps);
 }
 
 static void gen_CMPXCHG(DisasContext *s, X86DecodedInsn *decode)
@@ -2234,11 +2230,7 @@ static void gen_INS(DisasContext *s, X86DecodedInsn *decode)
     }
 
     translator_io_start(&s->base);
-    if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
-        gen_repz(s, ot, gen_ins);
-    } else {
-        gen_ins(s, ot);
-    }
+    gen_repz(s, ot, gen_ins);
 }
 
 static void gen_INSERTQ_i(DisasContext *s, X86DecodedInsn *decode)
@@ -2293,8 +2285,11 @@ static void gen_IRET(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_Jcc(DisasContext *s, X86DecodedInsn *decode)
 {
+    TCGLabel *taken = gen_new_label();
+
     gen_bnd_jmp(s);
-    gen_jcc(s, decode->b & 0xf, decode->immediate);
+    gen_jcc(s, decode->b & 0xf, taken);
+    gen_conditional_jump_labels(s, decode->immediate, NULL, taken);
 }
 
 static void gen_JCXZ(DisasContext *s, X86DecodedInsn *decode)
@@ -2419,11 +2414,7 @@ static void gen_LGS(DisasContext *s, X86DecodedInsn *decode)
 static void gen_LODS(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[1].ot;
-    if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
-        gen_repz(s, ot, gen_lods);
-    } else {
-        gen_lods(s, ot);
-    }
+    gen_repz(s, ot, gen_lods);
 }
 
 static void gen_LOOP(DisasContext *s, X86DecodedInsn *decode)
@@ -2444,7 +2435,7 @@ static void gen_LOOPE(DisasContext *s, X86DecodedInsn *decode)
     gen_update_cc_op(s);
     gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
     gen_op_jz_ecx(s, not_taken);
-    gen_jcc1(s, (JCC_Z << 1), taken); /* jz taken */
+    gen_jcc(s, (JCC_Z << 1), taken); /* jz taken */
     gen_conditional_jump_labels(s, decode->immediate, not_taken, taken);
 }
 
@@ -2456,7 +2447,7 @@ static void gen_LOOPNE(DisasContext *s, X86DecodedInsn *decode)
     gen_update_cc_op(s);
     gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
     gen_op_jz_ecx(s, not_taken);
-    gen_jcc1(s, (JCC_Z << 1) | 1, taken); /* jnz taken */
+    gen_jcc(s, (JCC_Z << 1) | 1, taken); /* jnz taken */
     gen_conditional_jump_labels(s, decode->immediate, not_taken, taken);
 }
 
@@ -2621,11 +2612,7 @@ static void gen_MOVq_dq(DisasContext *s, X86DecodedInsn *decode)
 static void gen_MOVS(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[2].ot;
-    if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
-        gen_repz(s, ot, gen_movs);
-    } else {
-        gen_movs(s, ot);
-    }
+    gen_repz(s, ot, gen_movs);
 }
 
 static void gen_MUL(DisasContext *s, X86DecodedInsn *decode)
@@ -2787,11 +2774,7 @@ static void gen_OUTS(DisasContext *s, X86DecodedInsn *decode)
     }
 
     translator_io_start(&s->base);
-    if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
-        gen_repz(s, ot, gen_outs);
-    } else {
-        gen_outs(s, ot);
-    }
+    gen_repz(s, ot, gen_outs);
 }
 
 static void gen_PALIGNR(DisasContext *s, X86DecodedInsn *decode)
@@ -3872,16 +3855,12 @@ static void gen_SBB(DisasContext *s, X86DecodedInsn *decode)
 static void gen_SCAS(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[2].ot;
-    if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
-        gen_repz_nz(s, ot, gen_scas);
-    } else {
-        gen_scas(s, ot);
-    }
+    gen_repz_nz(s, ot, gen_scas);
 }
 
 static void gen_SETcc(DisasContext *s, X86DecodedInsn *decode)
 {
-    gen_setcc1(s, decode->b & 0xf, s->T0);
+    gen_setcc(s, decode->b & 0xf, s->T0);
 }
 
 static void gen_SFENCE(DisasContext *s, X86DecodedInsn *decode)
@@ -4082,11 +4061,7 @@ static void gen_STMXCSR(DisasContext *s, X86DecodedInsn *decode)
 static void gen_STOS(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[1].ot;
-    if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
-        gen_repz(s, ot, gen_stos);
-    } else {
-        gen_stos(s, ot);
-    }
+    gen_repz(s, ot, gen_stos);
 }
 
 static void gen_SUB(DisasContext *s, X86DecodedInsn *decode)

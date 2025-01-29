@@ -2,19 +2,27 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use core::ptr::{addr_of_mut, NonNull};
+use core::ptr::{addr_of, addr_of_mut, NonNull};
 use std::{
     ffi::CStr,
-    os::raw::{c_int, c_uint, c_void},
+    os::raw::{c_int, c_void},
 };
 
 use qemu_api::{
-    bindings::{self, *},
-    c_str,
+    bindings::{
+        error_fatal, hwaddr, memory_region_init_io, qdev_init_clock_in, qdev_new,
+        qdev_prop_set_chr, qemu_chr_fe_accept_input, qemu_chr_fe_ioctl, qemu_chr_fe_set_handlers,
+        qemu_chr_fe_write_all, qemu_irq, sysbus_connect_irq, sysbus_mmio_map,
+        sysbus_realize_and_unref, CharBackend, Chardev, Clock, ClockEvent, MemoryRegion,
+        QEMUChrEvent, CHR_IOCTL_SERIAL_SET_BREAK,
+    },
+    c_str, impl_vmstate_forward,
     irq::InterruptSource,
     prelude::*,
-    qdev::DeviceImpl,
+    qdev::{DeviceImpl, DeviceState, Property},
     qom::{ClassInitImpl, ObjectImpl, ParentField},
+    sysbus::{SysBusDevice, SysBusDeviceClass},
+    vmstate::VMStateDescription,
 };
 
 use crate::{
@@ -54,6 +62,7 @@ impl DeviceId {
 #[repr(transparent)]
 #[derive(Debug, Default)]
 pub struct Fifo([registers::Data; PL011_FIFO_DEPTH as usize]);
+impl_vmstate_forward!(Fifo);
 
 impl Fifo {
     const fn len(&self) -> u32 {
@@ -76,11 +85,8 @@ impl std::ops::Index<u32> for Fifo {
 }
 
 #[repr(C)]
-#[derive(Debug, qemu_api_macros::Object, qemu_api_macros::offsets)]
-/// PL011 Device Model in QEMU
-pub struct PL011State {
-    pub parent_obj: ParentField<SysBusDevice>,
-    pub iomem: MemoryRegion,
+#[derive(Debug, Default, qemu_api_macros::offsets)]
+pub struct PL011Registers {
     #[doc(alias = "fr")]
     pub flags: registers::Flags,
     #[doc(alias = "lcr")]
@@ -100,8 +106,17 @@ pub struct PL011State {
     pub read_pos: u32,
     pub read_count: u32,
     pub read_trigger: u32,
+}
+
+#[repr(C)]
+#[derive(qemu_api_macros::Object, qemu_api_macros::offsets)]
+/// PL011 Device Model in QEMU
+pub struct PL011State {
+    pub parent_obj: ParentField<SysBusDevice>,
+    pub iomem: MemoryRegion,
     #[doc(alias = "chr")]
     pub char_backend: CharBackend,
+    pub regs: BqlRefCell<PL011Registers>,
     /// QEMU interrupts
     ///
     /// ```text
@@ -123,6 +138,7 @@ pub struct PL011State {
 
 qom_isa!(PL011State : SysBusDevice, DeviceState, Object);
 
+#[repr(C)]
 pub struct PL011Class {
     parent_class: <SysBusDevice as ObjectType>::Class,
     /// The byte string that identifies the device.
@@ -155,77 +171,17 @@ impl DeviceImpl for PL011State {
     fn vmsd() -> Option<&'static VMStateDescription> {
         Some(&device_class::VMSTATE_PL011)
     }
-    const REALIZE: Option<fn(&mut Self)> = Some(Self::realize);
-    const RESET: Option<fn(&mut Self)> = Some(Self::reset);
+    const REALIZE: Option<fn(&Self)> = Some(Self::realize);
+    const RESET: Option<fn(&Self)> = Some(Self::reset);
 }
 
-impl PL011State {
-    /// Initializes a pre-allocated, unitialized instance of `PL011State`.
-    ///
-    /// # Safety
-    ///
-    /// `self` must point to a correctly sized and aligned location for the
-    /// `PL011State` type. It must not be called more than once on the same
-    /// location/instance. All its fields are expected to hold unitialized
-    /// values with the sole exception of `parent_obj`.
-    unsafe fn init(&mut self) {
-        const CLK_NAME: &CStr = c_str!("clk");
-
-        // SAFETY:
-        //
-        // self and self.iomem are guaranteed to be valid at this point since callers
-        // must make sure the `self` reference is valid.
-        unsafe {
-            memory_region_init_io(
-                addr_of_mut!(self.iomem),
-                addr_of_mut!(*self).cast::<Object>(),
-                &PL011_OPS,
-                addr_of_mut!(*self).cast::<c_void>(),
-                Self::TYPE_NAME.as_ptr(),
-                0x1000,
-            );
-        }
-
-        // SAFETY:
-        //
-        // self.clock is not initialized at this point; but since `NonNull<_>` is Copy,
-        // we can overwrite the undefined value without side effects. This is
-        // safe since all PL011State instances are created by QOM code which
-        // calls this function to initialize the fields; therefore no code is
-        // able to access an invalid self.clock value.
-        unsafe {
-            let dev: &mut DeviceState = self.upcast_mut();
-            self.clock = NonNull::new(qdev_init_clock_in(
-                dev,
-                CLK_NAME.as_ptr(),
-                None, /* pl011_clock_update */
-                addr_of_mut!(*self).cast::<c_void>(),
-                ClockEvent::ClockUpdate.0,
-            ))
-            .unwrap();
-        }
-    }
-
-    fn post_init(&self) {
-        self.init_mmio(&self.iomem);
-        for irq in self.interrupts.iter() {
-            self.init_irq(irq);
-        }
-    }
-
-    pub fn read(&mut self, offset: hwaddr, _size: c_uint) -> std::ops::ControlFlow<u64, u64> {
+impl PL011Registers {
+    pub(self) fn read(&mut self, offset: RegisterOffset) -> (bool, u32) {
         use RegisterOffset::*;
 
-        let value = match RegisterOffset::try_from(offset) {
-            Err(v) if (0x3f8..0x400).contains(&(v >> 2)) => {
-                let device_id = self.get_class().device_id;
-                u32::from(device_id[(offset - 0xfe0) >> 2])
-            }
-            Err(_) => {
-                // qemu_log_mask(LOG_GUEST_ERROR, "pl011_read: Bad offset 0x%x\n", (int)offset);
-                0
-            }
-            Ok(DR) => {
+        let mut update = false;
+        let result = match offset {
+            DR => {
                 self.flags.set_receive_fifo_full(false);
                 let c = self.read_fifo[self.read_pos];
                 if self.read_count > 0 {
@@ -236,117 +192,109 @@ impl PL011State {
                     self.flags.set_receive_fifo_empty(true);
                 }
                 if self.read_count + 1 == self.read_trigger {
-                    self.int_level &= !registers::INT_RX;
+                    self.int_level &= !Interrupt::RX.0;
                 }
                 // Update error bits.
                 self.receive_status_error_clear.set_from_data(c);
-                self.update();
-                // Must call qemu_chr_fe_accept_input, so return Continue:
-                let c = u32::from(c);
-                return std::ops::ControlFlow::Continue(u64::from(c));
+                // Must call qemu_chr_fe_accept_input
+                update = true;
+                u32::from(c)
             }
-            Ok(RSR) => u32::from(self.receive_status_error_clear),
-            Ok(FR) => u32::from(self.flags),
-            Ok(FBRD) => self.fbrd,
-            Ok(ILPR) => self.ilpr,
-            Ok(IBRD) => self.ibrd,
-            Ok(LCR_H) => u32::from(self.line_control),
-            Ok(CR) => u32::from(self.control),
-            Ok(FLS) => self.ifl,
-            Ok(IMSC) => self.int_enabled,
-            Ok(RIS) => self.int_level,
-            Ok(MIS) => self.int_level & self.int_enabled,
-            Ok(ICR) => {
+            RSR => u32::from(self.receive_status_error_clear),
+            FR => u32::from(self.flags),
+            FBRD => self.fbrd,
+            ILPR => self.ilpr,
+            IBRD => self.ibrd,
+            LCR_H => u32::from(self.line_control),
+            CR => u32::from(self.control),
+            FLS => self.ifl,
+            IMSC => self.int_enabled,
+            RIS => self.int_level,
+            MIS => self.int_level & self.int_enabled,
+            ICR => {
                 // "The UARTICR Register is the interrupt clear register and is write-only"
                 // Source: ARM DDI 0183G 3.3.13 Interrupt Clear Register, UARTICR
                 0
             }
-            Ok(DMACR) => self.dmacr,
+            DMACR => self.dmacr,
         };
-        std::ops::ControlFlow::Break(value.into())
+        (update, result)
     }
 
-    pub fn write(&mut self, offset: hwaddr, value: u64) {
+    pub(self) fn write(
+        &mut self,
+        offset: RegisterOffset,
+        value: u32,
+        char_backend: *mut CharBackend,
+    ) -> bool {
         // eprintln!("write offset {offset} value {value}");
         use RegisterOffset::*;
-        let value: u32 = value as u32;
-        match RegisterOffset::try_from(offset) {
-            Err(_bad_offset) => {
-                eprintln!("write bad offset {offset} value {value}");
+        match offset {
+            DR => {
+                // interrupts always checked
+                let _ = self.loopback_tx(value);
+                self.int_level |= Interrupt::TX.0;
+                return true;
             }
-            Ok(DR) => {
-                // ??? Check if transmitter is enabled.
-                let ch: u8 = value as u8;
-                // XXX this blocks entire thread. Rewrite to use
-                // qemu_chr_fe_write and background I/O callbacks
-
-                // SAFETY: self.char_backend is a valid CharBackend instance after it's been
-                // initialized in realize().
-                unsafe {
-                    qemu_chr_fe_write_all(addr_of_mut!(self.char_backend), &ch, 1);
-                }
-                self.loopback_tx(value);
-                self.int_level |= registers::INT_TX;
-                self.update();
+            RSR => {
+                self.receive_status_error_clear = 0.into();
             }
-            Ok(RSR) => {
-                self.receive_status_error_clear.reset();
-            }
-            Ok(FR) => {
+            FR => {
                 // flag writes are ignored
             }
-            Ok(ILPR) => {
+            ILPR => {
                 self.ilpr = value;
             }
-            Ok(IBRD) => {
+            IBRD => {
                 self.ibrd = value;
             }
-            Ok(FBRD) => {
+            FBRD => {
                 self.fbrd = value;
             }
-            Ok(LCR_H) => {
+            LCR_H => {
                 let new_val: registers::LineControl = value.into();
                 // Reset the FIFO state on FIFO enable or disable
                 if self.line_control.fifos_enabled() != new_val.fifos_enabled() {
                     self.reset_rx_fifo();
                     self.reset_tx_fifo();
                 }
-                if self.line_control.send_break() ^ new_val.send_break() {
+                let update = (self.line_control.send_break() != new_val.send_break()) && {
                     let mut break_enable: c_int = new_val.send_break().into();
                     // SAFETY: self.char_backend is a valid CharBackend instance after it's been
                     // initialized in realize().
                     unsafe {
                         qemu_chr_fe_ioctl(
-                            addr_of_mut!(self.char_backend),
+                            char_backend,
                             CHR_IOCTL_SERIAL_SET_BREAK as i32,
                             addr_of_mut!(break_enable).cast::<c_void>(),
                         );
                     }
-                    self.loopback_break(break_enable > 0);
-                }
+                    self.loopback_break(break_enable > 0)
+                };
                 self.line_control = new_val;
                 self.set_read_trigger();
+                return update;
             }
-            Ok(CR) => {
+            CR => {
                 // ??? Need to implement the enable bit.
                 self.control = value.into();
-                self.loopback_mdmctrl();
+                return self.loopback_mdmctrl();
             }
-            Ok(FLS) => {
+            FLS => {
                 self.ifl = value;
                 self.set_read_trigger();
             }
-            Ok(IMSC) => {
+            IMSC => {
                 self.int_enabled = value;
-                self.update();
+                return true;
             }
-            Ok(RIS) => {}
-            Ok(MIS) => {}
-            Ok(ICR) => {
+            RIS => {}
+            MIS => {}
+            ICR => {
                 self.int_level &= !value;
-                self.update();
+                return true;
             }
-            Ok(DMACR) => {
+            DMACR => {
                 self.dmacr = value;
                 if value & 3 > 0 {
                     // qemu_log_mask(LOG_UNIMP, "pl011: DMA not implemented\n");
@@ -354,14 +302,12 @@ impl PL011State {
                 }
             }
         }
+        false
     }
 
     #[inline]
-    fn loopback_tx(&mut self, value: u32) {
-        if !self.loopback_enabled() {
-            return;
-        }
-
+    #[must_use]
+    fn loopback_tx(&mut self, value: u32) -> bool {
         // Caveat:
         //
         // In real hardware, TX loopback happens at the serial-bit level
@@ -379,12 +325,13 @@ impl PL011State {
         // hardware flow-control is enabled.
         //
         // For simplicity, the above described is not emulated.
-        self.put_fifo(value);
+        self.loopback_enabled() && self.put_fifo(value)
     }
 
-    fn loopback_mdmctrl(&mut self) {
+    #[must_use]
+    fn loopback_mdmctrl(&mut self) -> bool {
         if !self.loopback_enabled() {
-            return;
+            return false;
         }
 
         /*
@@ -410,49 +357,30 @@ impl PL011State {
         // Change interrupts based on updated FR
         let mut il = self.int_level;
 
-        il &= !Interrupt::MS;
+        il &= !Interrupt::MS.0;
 
         if self.flags.data_set_ready() {
-            il |= Interrupt::DSR as u32;
+            il |= Interrupt::DSR.0;
         }
         if self.flags.data_carrier_detect() {
-            il |= Interrupt::DCD as u32;
+            il |= Interrupt::DCD.0;
         }
         if self.flags.clear_to_send() {
-            il |= Interrupt::CTS as u32;
+            il |= Interrupt::CTS.0;
         }
         if self.flags.ring_indicator() {
-            il |= Interrupt::RI as u32;
+            il |= Interrupt::RI.0;
         }
         self.int_level = il;
-        self.update();
+        true
     }
 
-    fn loopback_break(&mut self, enable: bool) {
-        if enable {
-            self.loopback_tx(registers::Data::BREAK.into());
-        }
+    fn loopback_break(&mut self, enable: bool) -> bool {
+        enable && self.loopback_tx(registers::Data::BREAK.into())
     }
 
     fn set_read_trigger(&mut self) {
         self.read_trigger = 1;
-    }
-
-    pub fn realize(&mut self) {
-        // SAFETY: self.char_backend has the correct size and alignment for a
-        // CharBackend object, and its callbacks are of the correct types.
-        unsafe {
-            qemu_chr_fe_set_handlers(
-                addr_of_mut!(self.char_backend),
-                Some(pl011_can_receive),
-                Some(pl011_receive),
-                Some(pl011_event),
-                None,
-                addr_of_mut!(*self).cast::<c_void>(),
-                core::ptr::null_mut(),
-                true,
-            );
-        }
     }
 
     pub fn reset(&mut self) {
@@ -487,17 +415,6 @@ impl PL011State {
         self.flags.set_transmit_fifo_empty(true);
     }
 
-    pub fn can_receive(&self) -> bool {
-        // trace_pl011_can_receive(s->lcr, s->read_count, r);
-        self.read_count < self.fifo_depth()
-    }
-
-    pub fn event(&mut self, event: QEMUChrEvent) {
-        if event == bindings::QEMUChrEvent::CHR_EVENT_BREAK && !self.loopback_enabled() {
-            self.put_fifo(registers::Data::BREAK.into());
-        }
-    }
-
     #[inline]
     pub fn fifo_enabled(&self) -> bool {
         self.line_control.fifos_enabled() == registers::Mode::FIFO
@@ -517,7 +434,8 @@ impl PL011State {
         1
     }
 
-    pub fn put_fifo(&mut self, value: c_uint) {
+    #[must_use]
+    pub fn put_fifo(&mut self, value: u32) -> bool {
         let depth = self.fifo_depth();
         assert!(depth > 0);
         let slot = (self.read_pos + self.read_count) & (depth - 1);
@@ -529,19 +447,13 @@ impl PL011State {
         }
 
         if self.read_count == self.read_trigger {
-            self.int_level |= registers::INT_RX;
-            self.update();
+            self.int_level |= Interrupt::RX.0;
+            return true;
         }
+        false
     }
 
-    pub fn update(&self) {
-        let flags = self.int_level & self.int_enabled;
-        for (irq, i) in self.interrupts.iter().zip(IRQMASK) {
-            irq.set(flags & i != 0);
-        }
-    }
-
-    pub fn post_load(&mut self, _version_id: u32) -> Result<(), ()> {
+    pub fn post_load(&mut self) -> Result<(), ()> {
         /* Sanity-check input state */
         if self.read_pos >= self.read_fifo.len() || self.read_count > self.read_fifo.len() {
             return Err(());
@@ -563,19 +475,188 @@ impl PL011State {
     }
 }
 
+impl PL011State {
+    /// Initializes a pre-allocated, unitialized instance of `PL011State`.
+    ///
+    /// # Safety
+    ///
+    /// `self` must point to a correctly sized and aligned location for the
+    /// `PL011State` type. It must not be called more than once on the same
+    /// location/instance. All its fields are expected to hold unitialized
+    /// values with the sole exception of `parent_obj`.
+    unsafe fn init(&mut self) {
+        const CLK_NAME: &CStr = c_str!("clk");
+
+        // SAFETY:
+        //
+        // self and self.iomem are guaranteed to be valid at this point since callers
+        // must make sure the `self` reference is valid.
+        unsafe {
+            memory_region_init_io(
+                addr_of_mut!(self.iomem),
+                addr_of_mut!(*self).cast::<Object>(),
+                &PL011_OPS,
+                addr_of_mut!(*self).cast::<c_void>(),
+                Self::TYPE_NAME.as_ptr(),
+                0x1000,
+            );
+        }
+
+        self.regs = Default::default();
+
+        // SAFETY:
+        //
+        // self.clock is not initialized at this point; but since `NonNull<_>` is Copy,
+        // we can overwrite the undefined value without side effects. This is
+        // safe since all PL011State instances are created by QOM code which
+        // calls this function to initialize the fields; therefore no code is
+        // able to access an invalid self.clock value.
+        unsafe {
+            let dev: &mut DeviceState = self.upcast_mut();
+            self.clock = NonNull::new(qdev_init_clock_in(
+                dev,
+                CLK_NAME.as_ptr(),
+                None, /* pl011_clock_update */
+                addr_of_mut!(*self).cast::<c_void>(),
+                ClockEvent::ClockUpdate.0,
+            ))
+            .unwrap();
+        }
+    }
+
+    fn post_init(&self) {
+        self.init_mmio(&self.iomem);
+        for irq in self.interrupts.iter() {
+            self.init_irq(irq);
+        }
+    }
+
+    pub fn read(&mut self, offset: hwaddr, _size: u32) -> u64 {
+        match RegisterOffset::try_from(offset) {
+            Err(v) if (0x3f8..0x400).contains(&(v >> 2)) => {
+                let device_id = self.get_class().device_id;
+                u64::from(device_id[(offset - 0xfe0) >> 2])
+            }
+            Err(_) => {
+                // qemu_log_mask(LOG_GUEST_ERROR, "pl011_read: Bad offset 0x%x\n", (int)offset);
+                0
+            }
+            Ok(field) => {
+                let (update_irq, result) = self.regs.borrow_mut().read(field);
+                if update_irq {
+                    self.update();
+                    unsafe {
+                        qemu_chr_fe_accept_input(&mut self.char_backend);
+                    }
+                }
+                result.into()
+            }
+        }
+    }
+
+    pub fn write(&mut self, offset: hwaddr, value: u64) {
+        let mut update_irq = false;
+        if let Ok(field) = RegisterOffset::try_from(offset) {
+            // qemu_chr_fe_write_all() calls into the can_receive
+            // callback, so handle writes before entering PL011Registers.
+            if field == RegisterOffset::DR {
+                // ??? Check if transmitter is enabled.
+                let ch: u8 = value as u8;
+                // SAFETY: char_backend is a valid CharBackend instance after it's been
+                // initialized in realize().
+                // XXX this blocks entire thread. Rewrite to use
+                // qemu_chr_fe_write and background I/O callbacks
+                unsafe {
+                    qemu_chr_fe_write_all(&mut self.char_backend, &ch, 1);
+                }
+            }
+
+            update_irq = self
+                .regs
+                .borrow_mut()
+                .write(field, value as u32, &mut self.char_backend);
+        } else {
+            eprintln!("write bad offset {offset} value {value}");
+        }
+        if update_irq {
+            self.update();
+        }
+    }
+
+    pub fn can_receive(&self) -> bool {
+        // trace_pl011_can_receive(s->lcr, s->read_count, r);
+        let regs = self.regs.borrow();
+        regs.read_count < regs.fifo_depth()
+    }
+
+    pub fn receive(&self, ch: u32) {
+        let mut regs = self.regs.borrow_mut();
+        let update_irq = !regs.loopback_enabled() && regs.put_fifo(ch);
+        // Release the BqlRefCell before calling self.update()
+        drop(regs);
+
+        if update_irq {
+            self.update();
+        }
+    }
+
+    pub fn event(&self, event: QEMUChrEvent) {
+        let mut update_irq = false;
+        let mut regs = self.regs.borrow_mut();
+        if event == QEMUChrEvent::CHR_EVENT_BREAK && !regs.loopback_enabled() {
+            update_irq = regs.put_fifo(registers::Data::BREAK.into());
+        }
+        // Release the BqlRefCell before calling self.update()
+        drop(regs);
+
+        if update_irq {
+            self.update()
+        }
+    }
+
+    pub fn realize(&self) {
+        // SAFETY: self.char_backend has the correct size and alignment for a
+        // CharBackend object, and its callbacks are of the correct types.
+        unsafe {
+            qemu_chr_fe_set_handlers(
+                addr_of!(self.char_backend) as *mut CharBackend,
+                Some(pl011_can_receive),
+                Some(pl011_receive),
+                Some(pl011_event),
+                None,
+                addr_of!(*self).cast::<c_void>() as *mut c_void,
+                core::ptr::null_mut(),
+                true,
+            );
+        }
+    }
+
+    pub fn reset(&self) {
+        self.regs.borrow_mut().reset();
+    }
+
+    pub fn update(&self) {
+        let regs = self.regs.borrow();
+        let flags = regs.int_level & regs.int_enabled;
+        for (irq, i) in self.interrupts.iter().zip(IRQMASK) {
+            irq.set(flags & i != 0);
+        }
+    }
+
+    pub fn post_load(&self, _version_id: u32) -> Result<(), ()> {
+        self.regs.borrow_mut().post_load()
+    }
+}
+
 /// Which bits in the interrupt status matter for each outbound IRQ line ?
-pub const IRQMASK: [u32; 6] = [
+const IRQMASK: [u32; 6] = [
     /* combined IRQ */
-    Interrupt::E
-        | Interrupt::MS
-        | Interrupt::RT as u32
-        | Interrupt::TX as u32
-        | Interrupt::RX as u32,
-    Interrupt::RX as u32,
-    Interrupt::TX as u32,
-    Interrupt::RT as u32,
-    Interrupt::MS,
-    Interrupt::E,
+    Interrupt::E.0 | Interrupt::MS.0 | Interrupt::RT.0 | Interrupt::TX.0 | Interrupt::RX.0,
+    Interrupt::RX.0,
+    Interrupt::TX.0,
+    Interrupt::RT.0,
+    Interrupt::MS.0,
+    Interrupt::E.0,
 ];
 
 /// # Safety
@@ -584,11 +665,8 @@ pub const IRQMASK: [u32; 6] = [
 /// the same size as [`PL011State`]. We also expect the device is
 /// readable/writeable from one thread at any time.
 pub unsafe extern "C" fn pl011_can_receive(opaque: *mut c_void) -> c_int {
-    unsafe {
-        debug_assert!(!opaque.is_null());
-        let state = NonNull::new_unchecked(opaque.cast::<PL011State>());
-        state.as_ref().can_receive().into()
-    }
+    let state = NonNull::new(opaque).unwrap().cast::<PL011State>();
+    unsafe { state.as_ref().can_receive().into() }
 }
 
 /// # Safety
@@ -599,15 +677,11 @@ pub unsafe extern "C" fn pl011_can_receive(opaque: *mut c_void) -> c_int {
 ///
 /// The buffer and size arguments must also be valid.
 pub unsafe extern "C" fn pl011_receive(opaque: *mut c_void, buf: *const u8, size: c_int) {
+    let state = NonNull::new(opaque).unwrap().cast::<PL011State>();
     unsafe {
-        debug_assert!(!opaque.is_null());
-        let mut state = NonNull::new_unchecked(opaque.cast::<PL011State>());
-        if state.as_ref().loopback_enabled() {
-            return;
-        }
         if size > 0 {
             debug_assert!(!buf.is_null());
-            state.as_mut().put_fifo(c_uint::from(buf.read_volatile()))
+            state.as_ref().receive(u32::from(buf.read_volatile()));
         }
     }
 }
@@ -618,11 +692,8 @@ pub unsafe extern "C" fn pl011_receive(opaque: *mut c_void, buf: *const u8, size
 /// the same size as [`PL011State`]. We also expect the device is
 /// readable/writeable from one thread at any time.
 pub unsafe extern "C" fn pl011_event(opaque: *mut c_void, event: QEMUChrEvent) {
-    unsafe {
-        debug_assert!(!opaque.is_null());
-        let mut state = NonNull::new_unchecked(opaque.cast::<PL011State>());
-        state.as_mut().event(event)
-    }
+    let state = NonNull::new(opaque).unwrap().cast::<PL011State>();
+    unsafe { state.as_ref().event(event) }
 }
 
 /// # Safety
@@ -647,7 +718,7 @@ pub unsafe extern "C" fn pl011_create(
 }
 
 #[repr(C)]
-#[derive(Debug, qemu_api_macros::Object)]
+#[derive(qemu_api_macros::Object)]
 /// PL011 Luminary device model.
 pub struct PL011Luminary {
     parent_obj: ParentField<PL011State>,

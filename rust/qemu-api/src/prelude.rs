@@ -18,3 +18,5 @@ pub use crate::qom::ObjectType;
 pub use crate::qom_isa;
 
 pub use crate::sysbus::SysBusDeviceMethods;
+
+pub use crate::vmstate::VMState;

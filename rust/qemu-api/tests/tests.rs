@@ -14,8 +14,8 @@ use qemu_api::{
     cell::{self, BqlCell},
     declare_properties, define_property,
     prelude::*,
-    qdev::{DeviceImpl, DeviceState, Property},
-    qom::{ObjectImpl, ParentField},
+    qdev::{DeviceClass, DeviceImpl, DeviceState, Property},
+    qom::{ClassInitImpl, ObjectImpl, ParentField},
     vmstate::VMStateDescription,
     zeroable::Zeroable,
 };
@@ -37,6 +37,10 @@ pub struct DummyState {
 
 qom_isa!(DummyState: Object, DeviceState);
 
+pub struct DummyClass {
+    parent_class: <DeviceState as ObjectType>::Class,
+}
+
 declare_properties! {
     DUMMY_PROPERTIES,
         define_property!(
@@ -49,7 +53,7 @@ declare_properties! {
 }
 
 unsafe impl ObjectType for DummyState {
-    type Class = <DeviceState as ObjectType>::Class;
+    type Class = DummyClass;
     const TYPE_NAME: &'static CStr = c_str!("dummy");
 }
 
@@ -64,6 +68,51 @@ impl DeviceImpl for DummyState {
     }
     fn vmsd() -> Option<&'static VMStateDescription> {
         Some(&VMSTATE)
+    }
+}
+
+// `impl<T> ClassInitImpl<DummyClass> for T` doesn't work since it violates
+// orphan rule.
+impl ClassInitImpl<DummyClass> for DummyState {
+    fn class_init(klass: &mut DummyClass) {
+        <Self as ClassInitImpl<DeviceClass>>::class_init(&mut klass.parent_class);
+    }
+}
+
+#[derive(qemu_api_macros::offsets)]
+#[repr(C)]
+#[derive(qemu_api_macros::Object)]
+pub struct DummyChildState {
+    parent: ParentField<DummyState>,
+}
+
+qom_isa!(DummyChildState: Object, DeviceState, DummyState);
+
+pub struct DummyChildClass {
+    parent_class: <DummyState as ObjectType>::Class,
+}
+
+unsafe impl ObjectType for DummyChildState {
+    type Class = DummyChildClass;
+    const TYPE_NAME: &'static CStr = c_str!("dummy_child");
+}
+
+impl ObjectImpl for DummyChildState {
+    type ParentType = DummyState;
+    const ABSTRACT: bool = false;
+}
+
+impl DeviceImpl for DummyChildState {}
+
+impl ClassInitImpl<DummyClass> for DummyChildState {
+    fn class_init(klass: &mut DummyClass) {
+        <Self as ClassInitImpl<DeviceClass>>::class_init(&mut klass.parent_class);
+    }
+}
+
+impl ClassInitImpl<DummyChildClass> for DummyChildState {
+    fn class_init(klass: &mut DummyChildClass) {
+        <Self as ClassInitImpl<DummyClass>>::class_init(&mut klass.parent_class);
     }
 }
 
@@ -85,6 +134,7 @@ fn test_object_new() {
     init_qom();
     unsafe {
         object_unref(object_new(DummyState::TYPE_NAME.as_ptr()).cast());
+        object_unref(object_new(DummyChildState::TYPE_NAME.as_ptr()).cast());
     }
 }
 

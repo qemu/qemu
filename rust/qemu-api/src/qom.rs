@@ -58,6 +58,7 @@ use std::{
     fmt,
     ops::{Deref, DerefMut},
     os::raw::c_void,
+    ptr::NonNull,
 };
 
 pub use bindings::{Object, ObjectClass};
@@ -153,27 +154,34 @@ impl<T: fmt::Display + ObjectType> fmt::Display for ParentField<T> {
 }
 
 unsafe extern "C" fn rust_instance_init<T: ObjectImpl>(obj: *mut Object) {
+    let mut state = NonNull::new(obj).unwrap().cast::<T>();
     // SAFETY: obj is an instance of T, since rust_instance_init<T>
     // is called from QOM core as the instance_init function
     // for class T
-    unsafe { T::INSTANCE_INIT.unwrap()(&mut *obj.cast::<T>()) }
+    unsafe {
+        T::INSTANCE_INIT.unwrap()(state.as_mut());
+    }
 }
 
 unsafe extern "C" fn rust_instance_post_init<T: ObjectImpl>(obj: *mut Object) {
+    let state = NonNull::new(obj).unwrap().cast::<T>();
     // SAFETY: obj is an instance of T, since rust_instance_post_init<T>
     // is called from QOM core as the instance_post_init function
     // for class T
-    T::INSTANCE_POST_INIT.unwrap()(unsafe { &*obj.cast::<T>() })
+    T::INSTANCE_POST_INIT.unwrap()(unsafe { state.as_ref() });
 }
 
 unsafe extern "C" fn rust_class_init<T: ObjectType + ClassInitImpl<T::Class>>(
     klass: *mut ObjectClass,
     _data: *mut c_void,
 ) {
+    let mut klass = NonNull::new(klass)
+        .unwrap()
+        .cast::<<T as ObjectType>::Class>();
     // SAFETY: klass is a T::Class, since rust_class_init<T>
     // is called from QOM core as the class_init function
     // for class T
-    T::class_init(unsafe { &mut *klass.cast::<T::Class>() })
+    T::class_init(unsafe { klass.as_mut() })
 }
 
 unsafe extern "C" fn drop_object<T: ObjectImpl>(obj: *mut Object) {
@@ -581,11 +589,8 @@ pub trait ClassInitImpl<T> {
 /// can be downcasted to type `T`. We also expect the device is
 /// readable/writeable from one thread at any time.
 unsafe extern "C" fn rust_unparent_fn<T: ObjectImpl>(dev: *mut Object) {
-    unsafe {
-        assert!(!dev.is_null());
-        let state = core::ptr::NonNull::new_unchecked(dev.cast::<T>());
-        T::UNPARENT.unwrap()(state.as_ref());
-    }
+    let state = NonNull::new(dev).unwrap().cast::<T>();
+    T::UNPARENT.unwrap()(unsafe { state.as_ref() });
 }
 
 impl<T> ClassInitImpl<ObjectClass> for T

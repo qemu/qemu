@@ -951,6 +951,12 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 /* Speculative Store Bypass Disable */
 #define CPUID_7_0_EDX_SPEC_CTRL_SSBD    (1U << 31)
 
+/* SHA512 Instruction */
+#define CPUID_7_1_EAX_SHA512            (1U << 0)
+/* SM3 Instruction */
+#define CPUID_7_1_EAX_SM3               (1U << 1)
+/* SM4 Instruction */
+#define CPUID_7_1_EAX_SM4               (1U << 2)
 /* AVX VNNI Instruction */
 #define CPUID_7_1_EAX_AVX_VNNI          (1U << 4)
 /* AVX512 BFloat16 Instruction */
@@ -963,6 +969,12 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 #define CPUID_7_1_EAX_FSRS              (1U << 11)
 /* Fast Short REP CMPS/SCAS */
 #define CPUID_7_1_EAX_FSRC              (1U << 12)
+/* Flexible return and event delivery (FRED) */
+#define CPUID_7_1_EAX_FRED              (1U << 17)
+/* Load into IA32_KERNEL_GS_BASE (LKGS) */
+#define CPUID_7_1_EAX_LKGS              (1U << 18)
+/* Non-Serializing Write to Model Specific Register (WRMSRNS) */
+#define CPUID_7_1_EAX_WRMSRNS           (1U << 19)
 /* Support Tile Computational Operations on FP16 Numbers */
 #define CPUID_7_1_EAX_AMX_FP16          (1U << 21)
 /* Support for VPMADD52[H,L]UQ */
@@ -976,17 +988,23 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 #define CPUID_7_1_EDX_AVX_NE_CONVERT    (1U << 5)
 /* AMX COMPLEX Instructions */
 #define CPUID_7_1_EDX_AMX_COMPLEX       (1U << 8)
+/* AVX-VNNI-INT16 Instructions */
+#define CPUID_7_1_EDX_AVX_VNNI_INT16    (1U << 10)
 /* PREFETCHIT0/1 Instructions */
 #define CPUID_7_1_EDX_PREFETCHITI       (1U << 14)
 /* Support for Advanced Vector Extensions 10 */
 #define CPUID_7_1_EDX_AVX10             (1U << 19)
-/* Flexible return and event delivery (FRED) */
-#define CPUID_7_1_EAX_FRED              (1U << 17)
-/* Load into IA32_KERNEL_GS_BASE (LKGS) */
-#define CPUID_7_1_EAX_LKGS              (1U << 18)
-/* Non-Serializing Write to Model Specific Register (WRMSRNS) */
-#define CPUID_7_1_EAX_WRMSRNS           (1U << 19)
 
+/* Indicate bit 7 of the IA32_SPEC_CTRL MSR is supported */
+#define CPUID_7_2_EDX_PSFD              (1U << 0)
+/* Indicate bits 3 and 4 of the IA32_SPEC_CTRL MSR are supported */
+#define CPUID_7_2_EDX_IPRED_CTRL        (1U << 1)
+/* Indicate bits 5 and 6 of the IA32_SPEC_CTRL MSR are supported */
+#define CPUID_7_2_EDX_RRSBA_CTRL        (1U << 2)
+/* Indicate bit 8 of the IA32_SPEC_CTRL MSR is supported */
+#define CPUID_7_2_EDX_DDPD_U            (1U << 3)
+/* Indicate bit 10 of the IA32_SPEC_CTRL MSR is supported */
+#define CPUID_7_2_EDX_BHI_CTRL          (1U << 4)
 /* Do not exhibit MXCSR Configuration Dependent Timing (MCDT) behavior */
 #define CPUID_7_2_EDX_MCDT_NO           (1U << 5)
 
@@ -1144,7 +1162,10 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 #define MSR_ARCH_CAP_FBSDP_NO           (1U << 14)
 #define MSR_ARCH_CAP_PSDP_NO            (1U << 15)
 #define MSR_ARCH_CAP_FB_CLEAR           (1U << 17)
+#define MSR_ARCH_CAP_BHI_NO             (1U << 20)
 #define MSR_ARCH_CAP_PBRSB_NO           (1U << 24)
+#define MSR_ARCH_CAP_GDS_NO             (1U << 26)
+#define MSR_ARCH_CAP_RFDS_NO            (1U << 27)
 
 #define MSR_CORE_CAP_SPLIT_LOCK_DETECT  (1U << 5)
 
