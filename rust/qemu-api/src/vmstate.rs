@@ -191,10 +191,9 @@ pub const fn vmstate_varray_flag<T: VMState>(_: PhantomData<T>) -> VMStateFlags 
 /// * scalar types (integer and `bool`)
 /// * the C struct `QEMUTimer`
 /// * a transparent wrapper for any of the above (`Cell`, `UnsafeCell`,
-///   [`BqlCell`](crate::cell::BqlCell), [`BqlRefCell`](crate::cell::BqlRefCell)
+///   [`BqlCell`], [`BqlRefCell`]
 /// * a raw pointer to any of the above
-/// * a `NonNull` pointer, a `Box` or an [`Owned`](crate::qom::Owned) for any of
-///   the above
+/// * a `NonNull` pointer, a `Box` or an [`Owned`] for any of the above
 /// * an array of any of the above
 ///
 /// In order to support other types, the trait `VMState` must be implemented
