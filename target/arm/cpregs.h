@@ -331,6 +331,7 @@ typedef enum CPAccessResult {
      * 0xc or 0x18).
      */
     CP_ACCESS_TRAP = (1 << 2),
+    CP_ACCESS_TRAP_EL1 = CP_ACCESS_TRAP | 1,
     CP_ACCESS_TRAP_EL2 = CP_ACCESS_TRAP | 2,
     CP_ACCESS_TRAP_EL3 = CP_ACCESS_TRAP | 3,
 
