@@ -2275,6 +2275,7 @@ F: hw/block/virtio-blk.c
 F: hw/block/dataplane/*
 F: include/hw/virtio/virtio-blk-common.h
 F: tests/qtest/virtio-blk-test.c
+F: tests/functional/test_x86_64_hotplug_blk.py
 T: git https://github.com/stefanha/qemu.git block
 
 virtio-ccw
