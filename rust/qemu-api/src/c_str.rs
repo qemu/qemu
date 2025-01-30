@@ -2,6 +2,14 @@
 // Author(s): Paolo Bonzini <pbonzini@redhat.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#![doc(hidden)]
+//! This module provides a macro to define a constant of type
+//! [`CStr`](std::ffi::CStr), for compatibility with versions of
+//! Rust that lack `c""` literals.
+//!
+//! Documentation is hidden because it only exposes macros, which
+//! are exported directly from `qemu_api`.
+
 #[macro_export]
 /// Given a string constant _without_ embedded or trailing NULs, return
 /// a `CStr`.

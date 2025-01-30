@@ -2,9 +2,13 @@
 // Author(s): Paolo Bonzini <pbonzini@redhat.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#![doc(hidden)]
 //! This module provides macros to check the equality of types and
 //! the type of `struct` fields.  This can be useful to ensure that
 //! types match the expectations of C code.
+//!
+//! Documentation is hidden because it only exposes macros, which
+//! are exported directly from `qemu_api`.
 
 // Based on https://stackoverflow.com/questions/64251852/x/70978292#70978292
 // (stackoverflow answers are released under MIT license).

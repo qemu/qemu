@@ -2,6 +2,8 @@
 // Author(s): Paolo Bonzini <pbonzini@redhat.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+//! Commonly used traits and types for QEMU.
+
 pub use crate::bitops::IntegerExt;
 
 pub use crate::cell::BqlCell;

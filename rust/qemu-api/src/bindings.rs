@@ -15,6 +15,8 @@
     clippy::missing_safety_doc
 )]
 
+//! `bindgen`-generated declarations.
+
 #[cfg(MESON)]
 include!("bindings.inc.rs");
 

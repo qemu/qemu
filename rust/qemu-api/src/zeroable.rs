@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+//! Defines a trait for structs that can be safely initialized with zero bytes.
+
 /// Encapsulates the requirement that
 /// `MaybeUninit::<Self>::zeroed().assume_init()` does not cause undefined
 /// behavior.  This trait in principle could be implemented as just:
