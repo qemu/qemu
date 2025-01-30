@@ -853,21 +853,24 @@ const void *HELPER(access_check_cp_reg)(CPUARMState *env, uint32_t key,
 
  fail:
     excp = EXCP_UDEF;
-    switch (res & ~CP_ACCESS_EL_MASK) {
-    case CP_ACCESS_TRAP:
+    switch (res) {
+        /* CP_ACCESS_TRAP* traps are always direct to a specified EL */
+    case CP_ACCESS_TRAP_EL3:
         /*
          * If EL3 is AArch32 then there's no syndrome register; the cases
          * where we would raise a SystemAccessTrap to AArch64 EL3 all become
          * raising a Monitor trap exception. (Because there's no visible
          * syndrome it doesn't matter what we pass to raise_exception().)
          */
-        if ((res & CP_ACCESS_EL_MASK) == 3 && !arm_el_is_aa64(env, 3)) {
+        if (!arm_el_is_aa64(env, 3)) {
             excp = EXCP_MON_TRAP;
         }
         break;
+    case CP_ACCESS_TRAP_EL2:
+    case CP_ACCESS_TRAP_EL1:
+        break;
     case CP_ACCESS_TRAP_UNCATEGORIZED:
-        /* Only CP_ACCESS_TRAP traps are direct to a specified EL */
-        assert((res & CP_ACCESS_EL_MASK) == 0);
+        /* CP_ACCESS_TRAP_UNCATEGORIZED is never direct to a specified EL */
         if (cpu_isar_feature(aa64_ids, cpu) && isread &&
             arm_cpreg_in_idspace(ri)) {
             /*
