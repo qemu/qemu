@@ -111,6 +111,14 @@ typedef struct {
     bool suspend_me;
     /* enable OOB QMP capability */
     bool oob;
+    /*
+     * Format string for the main memory backend, containing one %s where the
+     * size is plugged in.  If omitted, "-m %s" is used.
+     */
+    const char *memory_backend;
+
+    /* Do not connect to target monitor and qtest sockets in qtest_init */
+    bool defer_target_connect;
 } MigrateStart;
 
 typedef enum PostcopyRecoveryFailStage {
@@ -145,6 +153,9 @@ typedef struct {
      * automatically converted to the correct destination port.
      */
     const char *connect_channels;
+
+    /* Optional: the cpr migration channel, in JSON or dotted keys format */
+    const char *cpr_channel;
 
     /* Optional: callback to run at start to set migration parameters */
     TestMigrateStartHook start_hook;

@@ -1,5 +1,7 @@
 #include "qemu/osdep.h"
 #include "migration/vmstate.h"
+#include "qapi/qapi-types-migration.h"
+#include "migration/client-options.h"
 
 int vmstate_register_with_alias_id(VMStateIf *obj,
                                    uint32_t instance_id,
@@ -20,4 +22,9 @@ void vmstate_unregister(VMStateIf *obj,
 bool vmstate_check_only_migratable(const VMStateDescription *vmsd)
 {
     return true;
+}
+
+MigMode migrate_mode(void)
+{
+    return MIG_MODE_NORMAL;
 }

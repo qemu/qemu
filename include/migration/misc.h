@@ -108,4 +108,11 @@ bool migration_in_bg_snapshot(void);
 bool migration_block_activate(Error **errp);
 bool migration_block_inactivate(void);
 
+/* True if @uri starts with a syntactically valid URI prefix */
+bool migrate_is_uri(const char *uri);
+
+/* Parse @uri and return @channel, returning true on success */
+bool migrate_uri_parse(const char *uri, MigrationChannel **channel,
+                       Error **errp);
+
 #endif

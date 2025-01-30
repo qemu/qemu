@@ -11,6 +11,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
+#include "qapi/qmp/qjson.h"
 #include "libqtest.h"
 #include "migration/framework.h"
 #include "migration/migration-qmp.h"
@@ -205,6 +207,7 @@ static void test_validate_uuid_dst_not_set(void)
 static void do_test_validate_uri_channel(MigrateCommon *args)
 {
     QTestState *from, *to;
+    QObject *channels;
 
     if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
         return;
@@ -217,7 +220,11 @@ static void do_test_validate_uri_channel(MigrateCommon *args)
      * 'uri' and 'channels' validation is checked even before the migration
      * starts.
      */
-    migrate_qmp_fail(from, args->connect_uri, args->connect_channels, "{}");
+    channels = args->connect_channels ?
+               qobject_from_json(args->connect_channels, &error_abort) :
+               NULL;
+    migrate_qmp_fail(from, args->connect_uri, channels, "{}");
+
     migrate_end(from, to, false);
 }
 
