@@ -10399,6 +10399,7 @@ void arm_log_exception(CPUState *cs)
             [EXCP_DIVBYZERO] = "v7M DIVBYZERO UsageFault",
             [EXCP_VSERR] = "Virtual SERR",
             [EXCP_GPC] = "Granule Protection Check",
+            [EXCP_MON_TRAP] = "Monitor Trap",
         };
 
         if (idx >= 0 && idx < ARRAY_SIZE(excnames)) {
@@ -10964,6 +10965,16 @@ static void arm_cpu_do_interrupt_aarch32(CPUState *cs)
         addr = 0x08;
         mask = CPSR_A | CPSR_I | CPSR_F;
         offset = 0;
+        break;
+    case EXCP_MON_TRAP:
+        new_mode = ARM_CPU_MODE_MON;
+        addr = 0x04;
+        mask = CPSR_A | CPSR_I | CPSR_F;
+        if (env->thumb) {
+            offset = 2;
+        } else {
+            offset = 4;
+        }
         break;
     default:
         cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
