@@ -313,14 +313,18 @@ void HELPER(check_bxj_trap)(CPUARMState *env, uint32_t rm)
 }
 
 #ifndef CONFIG_USER_ONLY
-/* Function checks whether WFx (WFI/WFE) instructions are set up to be trapped.
+/*
+ * Function checks whether WFx (WFI/WFE) instructions are set up to be trapped.
  * The function returns the target EL (1-3) if the instruction is to be trapped;
  * otherwise it returns 0 indicating it is not trapped.
+ * For a trap, *excp is updated with the EXCP_* trap type to use.
  */
-static inline int check_wfx_trap(CPUARMState *env, bool is_wfe)
+static inline int check_wfx_trap(CPUARMState *env, bool is_wfe, uint32_t *excp)
 {
     int cur_el = arm_current_el(env);
     uint64_t mask;
+
+    *excp = EXCP_UDEF;
 
     if (arm_feature(env, ARM_FEATURE_M)) {
         /* M profile cores can never trap WFI/WFE. */
@@ -331,18 +335,9 @@ static inline int check_wfx_trap(CPUARMState *env, bool is_wfe)
      * WFx instructions being trapped to EL1. These trap bits don't exist in v7.
      */
     if (cur_el < 1 && arm_feature(env, ARM_FEATURE_V8)) {
-        int target_el;
-
         mask = is_wfe ? SCTLR_nTWE : SCTLR_nTWI;
-        if (arm_is_secure_below_el3(env) && !arm_el_is_aa64(env, 3)) {
-            /* Secure EL0 and Secure PL1 is at EL3 */
-            target_el = 3;
-        } else {
-            target_el = 1;
-        }
-
-        if (!(env->cp15.sctlr_el[target_el] & mask)) {
-            return target_el;
+        if (!(arm_sctlr(env, cur_el) & mask)) {
+            return exception_target_el(env);
         }
     }
 
@@ -358,9 +353,12 @@ static inline int check_wfx_trap(CPUARMState *env, bool is_wfe)
     }
 
     /* We are not trapping to EL1 or EL2; trap to EL3 if SCR_EL3 requires it */
-    if (cur_el < 3) {
+    if (arm_feature(env, ARM_FEATURE_V8) && !arm_is_el3_or_mon(env)) {
         mask = (is_wfe) ? SCR_TWE : SCR_TWI;
         if (env->cp15.scr_el3 & mask) {
+            if (!arm_el_is_aa64(env, 3)) {
+                *excp = EXCP_MON_TRAP;
+            }
             return 3;
         }
     }
@@ -383,7 +381,8 @@ void HELPER(wfi)(CPUARMState *env, uint32_t insn_len)
     return;
 #else
     CPUState *cs = env_cpu(env);
-    int target_el = check_wfx_trap(env, false);
+    uint32_t excp;
+    int target_el = check_wfx_trap(env, false, &excp);
 
     if (cpu_has_work(cs)) {
         /* Don't bother to go into our "low power state" if
@@ -399,7 +398,7 @@ void HELPER(wfi)(CPUARMState *env, uint32_t insn_len)
             env->regs[15] -= insn_len;
         }
 
-        raise_exception(env, EXCP_UDEF, syn_wfx(1, 0xe, 0, insn_len == 2),
+        raise_exception(env, excp, syn_wfx(1, 0xe, 0, insn_len == 2),
                         target_el);
     }
 
@@ -424,7 +423,8 @@ void HELPER(wfit)(CPUARMState *env, uint64_t timeout)
 #else
     ARMCPU *cpu = env_archcpu(env);
     CPUState *cs = env_cpu(env);
-    int target_el = check_wfx_trap(env, false);
+    uint32_t excp;
+    int target_el = check_wfx_trap(env, false, &excp);
     /* The WFIT should time out when CNTVCT_EL0 >= the specified value. */
     uint64_t cntval = gt_get_countervalue(env);
     uint64_t offset = gt_virt_cnt_offset(env);
@@ -441,8 +441,7 @@ void HELPER(wfit)(CPUARMState *env, uint64_t timeout)
 
     if (target_el) {
         env->pc -= 4;
-        raise_exception(env, EXCP_UDEF, syn_wfx(1, 0xe, 0, false),
-                        target_el);
+        raise_exception(env, excp, syn_wfx(1, 0xe, 0, false), target_el);
     }
 
     if (uadd64_overflow(timeout, offset, &nexttick)) {
