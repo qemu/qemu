@@ -9,6 +9,7 @@
 
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern, skipUntrustedTest
+from qemu_test import exec_command_and_wait_for_pattern
 
 
 class IbmPrep40pMachine(QemuSystemTest):
@@ -71,6 +72,23 @@ class IbmPrep40pMachine(QemuSystemTest):
 
         self.vm.launch()
         wait_for_console_pattern(self, 'NetBSD/prep BOOT, Revision 1.9')
+
+    ASSET_40P_SANDALFOOT = Asset(
+        'http://www.juneau-lug.org/zImage.initrd.sandalfoot',
+        '749ab02f576c6dc8f33b9fb022ecb44bf6a35a0472f2ea6a5e9956bc15933901')
+
+    def test_openbios_and_linux(self):
+        self.set_machine('40p')
+        self.require_accelerator("tcg")
+        drive_path = self.ASSET_40P_SANDALFOOT.fetch()
+        self.vm.set_console()
+        self.vm.add_args('-cdrom', drive_path,
+                         '-boot', 'd')
+
+        self.vm.launch()
+        wait_for_console_pattern(self, 'Please press Enter to activate this console.')
+        exec_command_and_wait_for_pattern(self, '\012', '#')
+        exec_command_and_wait_for_pattern(self, 'uname -a', 'Linux ppc 2.4.18')
 
 if __name__ == '__main__':
     QemuSystemTest.main()

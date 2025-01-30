@@ -351,5 +351,13 @@ the code snippet below:
 Tests should not live in this state forever and should either be fixed
 or eventually removed.
 
+QEMU_TEST_ALLOW_SLOW
+^^^^^^^^^^^^^^^^^^^^
+Tests that have a very long runtime and might run into timeout issues
+e.g. if the QEMU binary has been compiled with debugging options enabled.
+To avoid these timeout issues by default and to save some precious CPU
+cycles during normal testing, such tests are disabled by default unless
+the QEMU_TEST_ALLOW_SLOW environment variable has been set.
+
 
 .. _unittest: https://docs.python.org/3/library/unittest.html

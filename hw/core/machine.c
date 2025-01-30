@@ -38,6 +38,10 @@
 
 GlobalProperty hw_compat_9_2[] = {
     {"arm-cpu", "backcompat-pauth-default-use-qarma5", "true"},
+    { "virtio-balloon-pci", "vectors", "0" },
+    { "virtio-balloon-pci-transitional", "vectors", "0" },
+    { "virtio-balloon-pci-non-transitional", "vectors", "0" },
+    { "virtio-mem-pci", "vectors", "0" },
 };
 const size_t hw_compat_9_2_len = G_N_ELEMENTS(hw_compat_9_2);
 

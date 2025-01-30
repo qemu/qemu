@@ -1453,6 +1453,7 @@ F: include/hw/pci-host/uninorth.h
 F: include/hw/input/adb*
 F: pc-bios/qemu_vga.ndrv
 F: tests/functional/test_ppc_mac.py
+F: tests/functional/test_ppc64_mac99.py
 
 Old World (g3beige)
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
@@ -3461,6 +3462,7 @@ F: include/migration/
 F: include/qemu/userfaultfd.h
 F: migration/
 F: scripts/vmstate-static-checker.py
+F: tests/functional/test_migration.py
 F: tests/vmstate-static-checker-data/
 F: tests/qtest/migration/
 F: tests/qtest/migration-*
@@ -3631,6 +3633,7 @@ F: stubs/replay.c
 F: tests/avocado/replay_kernel.py
 F: tests/avocado/replay_linux.py
 F: tests/avocado/reverse_debugging.py
+F: tests/functional/*replay*.py
 F: qapi/replay.json
 
 IOVA Tree
