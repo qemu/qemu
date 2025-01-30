@@ -1,8 +1,11 @@
 /*
  *  m68k/ColdFire semihosting stub
  *
- * SPDX-FileContributor: Philippe Mathieu-Daudé <philmd@linaro.org>
- * SPDX-FileCopyrightText: 2024 Linaro Ltd.
+ * Copyright (c) 2024 Linaro Ltd.
+ *
+ * Authors:
+ *   Philippe Mathieu-Daudé
+ *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
