@@ -1944,8 +1944,7 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
     vcd->console = vc;
 
     snprintf(buffer, sizeof(buffer), "vc%d", idx);
-    vc->label = g_strdup_printf("%s", vc->vte.chr->label
-                                ? vc->vte.chr->label : buffer);
+    vc->label = g_strdup(vc->vte.chr->label ? : buffer);
     group = gd_vc_menu_init(s, vc, idx, group, view_menu);
 
     vc->vte.terminal = vte_terminal_new();

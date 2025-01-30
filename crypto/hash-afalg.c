@@ -59,7 +59,7 @@ qcrypto_afalg_hash_format_name(QCryptoHashAlgo alg,
     if (is_hmac) {
         name = g_strdup_printf("hmac(%s)", alg_name);
     } else {
-        name = g_strdup_printf("%s", alg_name);
+        name = g_strdup(alg_name);
     }
 
     return name;

@@ -1034,7 +1034,7 @@ void spapr_caps_add_properties(SpaprMachineClass *smc)
     for (i = 0; i < ARRAY_SIZE(capability_table); i++) {
         SpaprCapabilityInfo *cap = &capability_table[i];
         g_autofree char *name = g_strdup_printf("cap-%s", cap->name);
-        g_autofree char *desc = g_strdup_printf("%s", cap->description);
+        g_autofree char *desc = g_strdup(cap->description);
 
         object_class_property_add(klass, name, cap->type,
                                   cap->get, cap->set,

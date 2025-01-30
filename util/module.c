@@ -234,7 +234,7 @@ int module_load(const char *prefix, const char *name, Error **errp)
 
     search_dir = getenv("QEMU_MODULE_DIR");
     if (search_dir != NULL) {
-        dirs[n_dirs++] = g_strdup_printf("%s", search_dir);
+        dirs[n_dirs++] = g_strdup(search_dir);
     }
     dirs[n_dirs++] = get_relocated_path(CONFIG_QEMU_MODDIR);
 
