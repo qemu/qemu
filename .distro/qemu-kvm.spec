@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 12%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 13%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -383,6 +383,14 @@ Patch116: kvm-target-i386-add-sha512-sm3-sm4-feature-bits.patch
 Patch117: kvm-arm-disable-pauth-for-virt-rhel9.patch
 # For RHEL-75782 - [Nvidia "Grace"] Lack of "PAuth" CPU feature results in live migration failure from RHEL 9.6 to 10
 Patch118: kvm-tests-qtest-disable-most-pauth-tests.patch
+# For RHEL-72716 - Boot fall back to cdrom from network not always working
+Patch119: kvm-pc-bios-s390-ccw-Abort-IPL-on-invalid-loadparm.patch
+# For RHEL-72716 - Boot fall back to cdrom from network not always working
+Patch120: kvm-pc-bios-s390-ccw-virtio-Add-a-function-to-reset-a-vi.patch
+# For RHEL-72716 - Boot fall back to cdrom from network not always working
+Patch121: kvm-pc-bios-s390-ccw-Fix-boot-problem-with-virtio-net-de.patch
+# For RHEL-72716 - Boot fall back to cdrom from network not always working
+Patch122: kvm-pc-bios-s390-ccw-netmain-Fix-error-messages-with-reg.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1449,6 +1457,14 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Thu Jan 30 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-13
+- kvm-pc-bios-s390-ccw-Abort-IPL-on-invalid-loadparm.patch [RHEL-72716]
+- kvm-pc-bios-s390-ccw-virtio-Add-a-function-to-reset-a-vi.patch [RHEL-72716]
+- kvm-pc-bios-s390-ccw-Fix-boot-problem-with-virtio-net-de.patch [RHEL-72716]
+- kvm-pc-bios-s390-ccw-netmain-Fix-error-messages-with-reg.patch [RHEL-72716]
+- Resolves: RHEL-72716
+  (Boot fall back to cdrom from network not always working)
+
 * Mon Jan 27 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-12
 - kvm-target-i386-cpu-set-correct-supported-XCR0-features-.patch [RHEL-30316 RHEL-45111]
 - kvm-target-i386-do-not-rely-on-ExtSaveArea-for-accelerat.patch [RHEL-30316 RHEL-45111]
