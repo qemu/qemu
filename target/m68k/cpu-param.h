@@ -8,7 +8,6 @@
 #ifndef M68K_CPU_PARAM_H
 #define M68K_CPU_PARAM_H
 
-#define TARGET_LONG_BITS 32
 /*
  * Coldfire Linux uses 8k pages
  * and m68k linux uses 4k pages

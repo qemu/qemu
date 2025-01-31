@@ -21,7 +21,6 @@
 #ifndef AVR_CPU_PARAM_H
 #define AVR_CPU_PARAM_H
 
-#define TARGET_LONG_BITS 32
 /*
  * TARGET_PAGE_BITS cannot be more than 8 bits because
  * 1.  all IO registers occupy [0x0000 .. 0x00ff] address range, and they
