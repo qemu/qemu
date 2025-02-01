@@ -2555,6 +2555,7 @@ void HELPER(sve_fexpa_d)(void *vd, void *vn, uint32_t desc)
 void HELPER(sve_ftssel_h)(void *vd, void *vn, void *vm, uint32_t desc)
 {
     intptr_t i, opr_sz = simd_oprsz(desc) / 2;
+    bool fpcr_ah = extract32(desc, SIMD_DATA_SHIFT, 1);
     uint16_t *d = vd, *n = vn, *m = vm;
     for (i = 0; i < opr_sz; i += 1) {
         uint16_t nn = n[i];
@@ -2562,13 +2563,17 @@ void HELPER(sve_ftssel_h)(void *vd, void *vn, void *vm, uint32_t desc)
         if (mm & 1) {
             nn = float16_one;
         }
-        d[i] = nn ^ (mm & 2) << 14;
+        if (mm & 2) {
+            nn = float16_maybe_ah_chs(nn, fpcr_ah);
+        }
+        d[i] = nn;
     }
 }
 
 void HELPER(sve_ftssel_s)(void *vd, void *vn, void *vm, uint32_t desc)
 {
     intptr_t i, opr_sz = simd_oprsz(desc) / 4;
+    bool fpcr_ah = extract32(desc, SIMD_DATA_SHIFT, 1);
     uint32_t *d = vd, *n = vn, *m = vm;
     for (i = 0; i < opr_sz; i += 1) {
         uint32_t nn = n[i];
@@ -2576,13 +2581,17 @@ void HELPER(sve_ftssel_s)(void *vd, void *vn, void *vm, uint32_t desc)
         if (mm & 1) {
             nn = float32_one;
         }
-        d[i] = nn ^ (mm & 2) << 30;
+        if (mm & 2) {
+            nn = float32_maybe_ah_chs(nn, fpcr_ah);
+        }
+        d[i] = nn;
     }
 }
 
 void HELPER(sve_ftssel_d)(void *vd, void *vn, void *vm, uint32_t desc)
 {
     intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    bool fpcr_ah = extract32(desc, SIMD_DATA_SHIFT, 1);
     uint64_t *d = vd, *n = vn, *m = vm;
     for (i = 0; i < opr_sz; i += 1) {
         uint64_t nn = n[i];
@@ -2590,7 +2599,10 @@ void HELPER(sve_ftssel_d)(void *vd, void *vn, void *vm, uint32_t desc)
         if (mm & 1) {
             nn = float64_one;
         }
-        d[i] = nn ^ (mm & 2) << 62;
+        if (mm & 2) {
+            nn = float64_maybe_ah_chs(nn, fpcr_ah);
+        }
+        d[i] = nn;
     }
 }
 
