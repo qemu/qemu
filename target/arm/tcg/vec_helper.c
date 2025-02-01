@@ -2250,23 +2250,32 @@ void HELPER(sve2_fmlal_zzxw_s)(void *vd, void *vn, void *vm, void *va,
                                CPUARMState *env, uint32_t desc)
 {
     intptr_t i, j, oprsz = simd_oprsz(desc);
-    uint16_t negn = extract32(desc, SIMD_DATA_SHIFT, 1) << 15;
+    bool is_s = extract32(desc, SIMD_DATA_SHIFT, 1);
     intptr_t sel = extract32(desc, SIMD_DATA_SHIFT + 1, 1) * sizeof(float16);
     intptr_t idx = extract32(desc, SIMD_DATA_SHIFT + 2, 3) * sizeof(float16);
     float_status *status = &env->vfp.fp_status_a64;
     bool fz16 = get_flush_inputs_to_zero(&env->vfp.fp_status_f16_a64);
+    int negx = 0, negf = 0;
+
+    if (is_s) {
+        if (env->vfp.fpcr & FPCR_AH) {
+            negf = float_muladd_negate_product;
+        } else {
+            negx = 0x8000;
+        }
+    }
 
     for (i = 0; i < oprsz; i += 16) {
         float16 mm_16 = *(float16 *)(vm + i + idx);
         float32 mm = float16_to_float32_by_bits(mm_16, fz16);
 
         for (j = 0; j < 16; j += sizeof(float32)) {
-            float16 nn_16 = *(float16 *)(vn + H1_2(i + j + sel)) ^ negn;
+            float16 nn_16 = *(float16 *)(vn + H1_2(i + j + sel)) ^ negx;
             float32 nn = float16_to_float32_by_bits(nn_16, fz16);
             float32 aa = *(float32 *)(va + H1_4(i + j));
 
             *(float32 *)(vd + H1_4(i + j)) =
-                float32_muladd(nn, mm, aa, 0, status);
+                float32_muladd(nn, mm, aa, negf, status);
         }
     }
 }
