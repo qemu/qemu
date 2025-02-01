@@ -7018,27 +7018,35 @@ static TCGv_i32 do_reduction_op(DisasContext *s, int rn, MemOp esz,
 }
 
 static bool do_fp_reduction(DisasContext *s, arg_qrr_e *a,
-                              NeonGenTwoSingleOpFn *fn)
+                            NeonGenTwoSingleOpFn *fnormal,
+                            NeonGenTwoSingleOpFn *fah)
 {
     if (fp_access_check(s)) {
         MemOp esz = a->esz;
         int elts = (a->q ? 16 : 8) >> esz;
         TCGv_ptr fpst = fpstatus_ptr(esz == MO_16 ? FPST_A64_F16 : FPST_A64);
-        TCGv_i32 res = do_reduction_op(s, a->rn, esz, 0, elts, fpst, fn);
+        TCGv_i32 res = do_reduction_op(s, a->rn, esz, 0, elts, fpst,
+                                       s->fpcr_ah ? fah : fnormal);
         write_fp_sreg(s, a->rd, res);
     }
     return true;
 }
 
-TRANS_FEAT(FMAXNMV_h, aa64_fp16, do_fp_reduction, a, gen_helper_vfp_maxnumh)
-TRANS_FEAT(FMINNMV_h, aa64_fp16, do_fp_reduction, a, gen_helper_vfp_minnumh)
-TRANS_FEAT(FMAXV_h, aa64_fp16, do_fp_reduction, a, gen_helper_vfp_maxh)
-TRANS_FEAT(FMINV_h, aa64_fp16, do_fp_reduction, a, gen_helper_vfp_minh)
+TRANS_FEAT(FMAXNMV_h, aa64_fp16, do_fp_reduction, a,
+           gen_helper_vfp_maxnumh, gen_helper_vfp_maxnumh)
+TRANS_FEAT(FMINNMV_h, aa64_fp16, do_fp_reduction, a,
+           gen_helper_vfp_minnumh, gen_helper_vfp_minnumh)
+TRANS_FEAT(FMAXV_h, aa64_fp16, do_fp_reduction, a,
+           gen_helper_vfp_maxh, gen_helper_vfp_ah_maxh)
+TRANS_FEAT(FMINV_h, aa64_fp16, do_fp_reduction, a,
+           gen_helper_vfp_minh, gen_helper_vfp_ah_minh)
 
-TRANS(FMAXNMV_s, do_fp_reduction, a, gen_helper_vfp_maxnums)
-TRANS(FMINNMV_s, do_fp_reduction, a, gen_helper_vfp_minnums)
-TRANS(FMAXV_s, do_fp_reduction, a, gen_helper_vfp_maxs)
-TRANS(FMINV_s, do_fp_reduction, a, gen_helper_vfp_mins)
+TRANS(FMAXNMV_s, do_fp_reduction, a,
+      gen_helper_vfp_maxnums, gen_helper_vfp_maxnums)
+TRANS(FMINNMV_s, do_fp_reduction, a,
+      gen_helper_vfp_minnums, gen_helper_vfp_minnums)
+TRANS(FMAXV_s, do_fp_reduction, a, gen_helper_vfp_maxs, gen_helper_vfp_ah_maxs)
+TRANS(FMINV_s, do_fp_reduction, a, gen_helper_vfp_mins, gen_helper_vfp_ah_mins)
 
 /*
  * Floating-point Immediate
