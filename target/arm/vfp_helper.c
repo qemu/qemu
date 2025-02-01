@@ -734,6 +734,33 @@ static int recip_estimate(int input)
 }
 
 /*
+ * Increased precision version:
+ * input is a 13 bit fixed point number
+ * input range 2048 .. 4095 for a number from 0.5 <= x < 1.0.
+ * result range 4096 .. 8191 for a number from 1.0 to 2.0
+ */
+static int recip_estimate_incprec(int input)
+{
+    int a, b, r;
+    assert(2048 <= input && input < 4096);
+    a = (input * 2) + 1;
+    /*
+     * The pseudocode expresses this as an operation on infinite
+     * precision reals where it calculates 2^25 / a and then looks
+     * at the error between that and the rounded-down-to-integer
+     * value to see if it should instead round up. We instead
+     * follow the same approach as the pseudocode for the 8-bit
+     * precision version, and calculate (2 * (2^25 / a)) as an
+     * integer so we can do the "add one and halve" to round it.
+     * So the 1 << 26 here is correct.
+     */
+    b = (1 << 26) / a;
+    r = (b + 1) >> 1;
+    assert(4096 <= r && r < 8192);
+    return r;
+}
+
+/*
  * Common wrapper to call recip_estimate
  *
  * The parameters are exponent and 64 bit fraction (without implicit
@@ -742,7 +769,8 @@ static int recip_estimate(int input)
  * callee.
  */
 
-static uint64_t call_recip_estimate(int *exp, int exp_off, uint64_t frac)
+static uint64_t call_recip_estimate(int *exp, int exp_off, uint64_t frac,
+                                    bool increasedprecision)
 {
     uint32_t scaled, estimate;
     uint64_t result_frac;
@@ -758,12 +786,22 @@ static uint64_t call_recip_estimate(int *exp, int exp_off, uint64_t frac)
         }
     }
 
-    /* scaled = UInt('1':fraction<51:44>) */
-    scaled = deposit32(1 << 8, 0, 8, extract64(frac, 44, 8));
-    estimate = recip_estimate(scaled);
+    if (increasedprecision) {
+        /* scaled = UInt('1':fraction<51:41>) */
+        scaled = deposit32(1 << 11, 0, 11, extract64(frac, 41, 11));
+        estimate = recip_estimate_incprec(scaled);
+    } else {
+        /* scaled = UInt('1':fraction<51:44>) */
+        scaled = deposit32(1 << 8, 0, 8, extract64(frac, 44, 8));
+        estimate = recip_estimate(scaled);
+    }
 
     result_exp = exp_off - *exp;
-    result_frac = deposit64(0, 44, 8, estimate);
+    if (increasedprecision) {
+        result_frac = deposit64(0, 40, 12, estimate);
+    } else {
+        result_frac = deposit64(0, 44, 8, estimate);
+    }
     if (result_exp == 0) {
         result_frac = deposit64(result_frac >> 1, 51, 1, 1);
     } else if (result_exp == -1) {
@@ -832,7 +870,7 @@ uint32_t HELPER(recpe_f16)(uint32_t input, float_status *fpst)
     }
 
     f64_frac = call_recip_estimate(&f16_exp, 29,
-                                   ((uint64_t) f16_frac) << (52 - 10));
+                                   ((uint64_t) f16_frac) << (52 - 10), false);
 
     /* result = sign : result_exp<4:0> : fraction<51:42> */
     f16_val = deposit32(0, 15, 1, f16_sign);
@@ -885,7 +923,7 @@ static float32 do_recpe_f32(float32 input, float_status *fpst, bool rpres)
     }
 
     f64_frac = call_recip_estimate(&f32_exp, 253,
-                                   ((uint64_t) f32_frac) << (52 - 23));
+                                   ((uint64_t) f32_frac) << (52 - 23), rpres);
 
     /* result = sign : result_exp<7:0> : fraction<51:29> */
     f32_val = deposit32(0, 31, 1, f32_sign);
@@ -943,7 +981,7 @@ float64 HELPER(recpe_f64)(float64 input, float_status *fpst)
         return float64_set_sign(float64_zero, float64_is_neg(f64));
     }
 
-    f64_frac = call_recip_estimate(&f64_exp, 2045, f64_frac);
+    f64_frac = call_recip_estimate(&f64_exp, 2045, f64_frac, false);
 
     /* result = sign : result_exp<10:0> : fraction<51:0>; */
     f64_val = deposit64(0, 63, 1, f64_sign);
