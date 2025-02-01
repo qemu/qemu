@@ -5134,16 +5134,24 @@ void HELPER(sve_ftmad_h)(void *vd, void *vn, void *vm,
         0x3c00, 0xb800, 0x293a, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
     };
     intptr_t i, opr_sz = simd_oprsz(desc) / sizeof(float16);
-    intptr_t x = simd_data(desc);
+    intptr_t x = extract32(desc, SIMD_DATA_SHIFT, 3);
+    bool fpcr_ah = extract32(desc, SIMD_DATA_SHIFT + 3, 1);
     float16 *d = vd, *n = vn, *m = vm;
+
     for (i = 0; i < opr_sz; i++) {
         float16 mm = m[i];
         intptr_t xx = x;
+        int flags = 0;
+
         if (float16_is_neg(mm)) {
-            mm = float16_abs(mm);
+            if (fpcr_ah) {
+                flags = float_muladd_negate_product;
+            } else {
+                mm = float16_abs(mm);
+            }
             xx += 8;
         }
-        d[i] = float16_muladd(n[i], mm, coeff[xx], 0, s);
+        d[i] = float16_muladd(n[i], mm, coeff[xx], flags, s);
     }
 }
 
@@ -5157,16 +5165,24 @@ void HELPER(sve_ftmad_s)(void *vd, void *vn, void *vm,
         0x37cd37cc, 0x00000000, 0x00000000, 0x00000000,
     };
     intptr_t i, opr_sz = simd_oprsz(desc) / sizeof(float32);
-    intptr_t x = simd_data(desc);
+    intptr_t x = extract32(desc, SIMD_DATA_SHIFT, 3);
+    bool fpcr_ah = extract32(desc, SIMD_DATA_SHIFT + 3, 1);
     float32 *d = vd, *n = vn, *m = vm;
+
     for (i = 0; i < opr_sz; i++) {
         float32 mm = m[i];
         intptr_t xx = x;
+        int flags = 0;
+
         if (float32_is_neg(mm)) {
-            mm = float32_abs(mm);
+            if (fpcr_ah) {
+                flags = float_muladd_negate_product;
+            } else {
+                mm = float32_abs(mm);
+            }
             xx += 8;
         }
-        d[i] = float32_muladd(n[i], mm, coeff[xx], 0, s);
+        d[i] = float32_muladd(n[i], mm, coeff[xx], flags, s);
     }
 }
 
@@ -5184,16 +5200,24 @@ void HELPER(sve_ftmad_d)(void *vd, void *vn, void *vm,
         0x3e21ee96d2641b13ull, 0xbda8f76380fbb401ull,
     };
     intptr_t i, opr_sz = simd_oprsz(desc) / sizeof(float64);
-    intptr_t x = simd_data(desc);
+    intptr_t x = extract32(desc, SIMD_DATA_SHIFT, 3);
+    bool fpcr_ah = extract32(desc, SIMD_DATA_SHIFT + 3, 1);
     float64 *d = vd, *n = vn, *m = vm;
+
     for (i = 0; i < opr_sz; i++) {
         float64 mm = m[i];
         intptr_t xx = x;
+        int flags = 0;
+
         if (float64_is_neg(mm)) {
-            mm = float64_abs(mm);
+            if (fpcr_ah) {
+                flags = float_muladd_negate_product;
+            } else {
+                mm = float64_abs(mm);
+            }
             xx += 8;
         }
-        d[i] = float64_muladd(n[i], mm, coeff[xx], 0, s);
+        d[i] = float64_muladd(n[i], mm, coeff[xx], flags, s);
     }
 }
 
