@@ -8509,17 +8509,17 @@ static bool do_fp1_scalar_with_fpsttype(DisasContext *s, arg_rr_e *a,
     case MO_64:
         t64 = read_fp_dreg(s, a->rn);
         f->gen_d(t64, t64, fpst);
-        write_fp_dreg(s, a->rd, t64);
+        write_fp_dreg_merging(s, a->rd, a->rd, t64);
         break;
     case MO_32:
         t32 = read_fp_sreg(s, a->rn);
         f->gen_s(t32, t32, fpst);
-        write_fp_sreg(s, a->rd, t32);
+        write_fp_sreg_merging(s, a->rd, a->rd, t32);
         break;
     case MO_16:
         t32 = read_fp_hreg(s, a->rn);
         f->gen_h(t32, t32, fpst);
-        write_fp_sreg(s, a->rd, t32);
+        write_fp_hreg_merging(s, a->rd, a->rd, t32);
         break;
     default:
         g_assert_not_reached();
@@ -8640,7 +8640,7 @@ static bool trans_FCVT_s_ds(DisasContext *s, arg_rr *a)
         TCGv_ptr fpst = fpstatus_ptr(FPST_A64);
 
         gen_helper_vfp_fcvtds(tcg_rd, tcg_rn, fpst);
-        write_fp_dreg(s, a->rd, tcg_rd);
+        write_fp_dreg_merging(s, a->rd, a->rd, tcg_rd);
     }
     return true;
 }
@@ -8653,8 +8653,8 @@ static bool trans_FCVT_s_hs(DisasContext *s, arg_rr *a)
         TCGv_ptr fpst = fpstatus_ptr(FPST_A64);
 
         gen_helper_vfp_fcvt_f32_to_f16(tmp, tmp, fpst, ahp);
-        /* write_fp_sreg is OK here because top half of result is zero */
-        write_fp_sreg(s, a->rd, tmp);
+        /* write_fp_hreg_merging is OK here because top half of result is zero */
+        write_fp_hreg_merging(s, a->rd, a->rd, tmp);
     }
     return true;
 }
@@ -8667,7 +8667,7 @@ static bool trans_FCVT_s_sd(DisasContext *s, arg_rr *a)
         TCGv_ptr fpst = fpstatus_ptr(FPST_A64);
 
         gen_helper_vfp_fcvtsd(tcg_rd, tcg_rn, fpst);
-        write_fp_sreg(s, a->rd, tcg_rd);
+        write_fp_sreg_merging(s, a->rd, a->rd, tcg_rd);
     }
     return true;
 }
@@ -8681,8 +8681,8 @@ static bool trans_FCVT_s_hd(DisasContext *s, arg_rr *a)
         TCGv_ptr fpst = fpstatus_ptr(FPST_A64);
 
         gen_helper_vfp_fcvt_f64_to_f16(tcg_rd, tcg_rn, fpst, ahp);
-        /* write_fp_sreg is OK here because top half of tcg_rd is zero */
-        write_fp_sreg(s, a->rd, tcg_rd);
+        /* write_fp_hreg_merging is OK here because top half of tcg_rd is zero */
+        write_fp_hreg_merging(s, a->rd, a->rd, tcg_rd);
     }
     return true;
 }
@@ -8696,7 +8696,7 @@ static bool trans_FCVT_s_sh(DisasContext *s, arg_rr *a)
         TCGv_i32 tcg_ahp = get_ahp_flag();
 
         gen_helper_vfp_fcvt_f16_to_f32(tcg_rd, tcg_rn, tcg_fpst, tcg_ahp);
-        write_fp_sreg(s, a->rd, tcg_rd);
+        write_fp_sreg_merging(s, a->rd, a->rd, tcg_rd);
     }
     return true;
 }
@@ -8710,7 +8710,7 @@ static bool trans_FCVT_s_dh(DisasContext *s, arg_rr *a)
         TCGv_i32 tcg_ahp = get_ahp_flag();
 
         gen_helper_vfp_fcvt_f16_to_f64(tcg_rd, tcg_rn, tcg_fpst, tcg_ahp);
-        write_fp_dreg(s, a->rd, tcg_rd);
+        write_fp_dreg_merging(s, a->rd, a->rd, tcg_rd);
     }
     return true;
 }
@@ -8958,7 +8958,9 @@ static bool do_fcvt_f(DisasContext *s, arg_fcvt *a,
     do_fcvt_scalar(s, a->esz | (is_signed ? MO_SIGN : 0),
                    a->esz, tcg_int, a->shift, a->rn, rmode);
 
-    clear_vec(s, a->rd);
+    if (!s->fpcr_nep) {
+        clear_vec(s, a->rd);
+    }
     write_vec_element(s, tcg_int, a->rd, 0, a->esz);
     return true;
 }
