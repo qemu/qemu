@@ -687,12 +687,7 @@ typedef struct CPUArchState {
         uint32_t scratch[8];
 
         /* There are a number of distinct float control structures. */
-        union {
-            float_status fp_status[FPST_COUNT];
-            struct {
-                float_status fp_status_a32;
-            };
-        };
+        float_status fp_status[FPST_COUNT];
 
         uint64_t zcr_el[4];   /* ZCR_EL[1-3] */
         uint64_t smcr_el[4];  /* SMCR_EL[1-3] */
