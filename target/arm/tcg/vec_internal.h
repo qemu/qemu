@@ -267,6 +267,24 @@ float32 bfdotadd_ebf(float32 sum, uint32_t e1, uint32_t e2,
  */
 bool is_ebf(CPUARMState *env, float_status *statusp, float_status *oddstatusp);
 
+/*
+ * Negate as for FPCR.AH=1 -- do not negate NaNs.
+ */
+static inline float16 float16_ah_chs(float16 a)
+{
+    return float16_is_any_nan(a) ? a : float16_chs(a);
+}
+
+static inline float32 float32_ah_chs(float32 a)
+{
+    return float32_is_any_nan(a) ? a : float32_chs(a);
+}
+
+static inline float64 float64_ah_chs(float64 a)
+{
+    return float64_is_any_nan(a) ? a : float64_chs(a);
+}
+
 static inline float16 float16_maybe_ah_chs(float16 a, bool fpcr_ah)
 {
     return fpcr_ah && float16_is_any_nan(a) ? a : float16_chs(a);

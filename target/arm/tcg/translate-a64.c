@@ -5239,11 +5239,12 @@ static bool do_fp3_scalar(DisasContext *s, arg_rrr_e *a, const FPScalar *f,
                                        FPST_A64_F16 : FPST_A64);
 }
 
-static bool do_fp3_scalar_ah(DisasContext *s, arg_rrr_e *a, const FPScalar *f,
-                             int mergereg)
+static bool do_fp3_scalar_ah_2fn(DisasContext *s, arg_rrr_e *a,
+                                 const FPScalar *fnormal, const FPScalar *fah,
+                                 int mergereg)
 {
-    return do_fp3_scalar_with_fpsttype(s, a, f, mergereg,
-                                       select_ah_fpst(s, a->esz));
+    return do_fp3_scalar_with_fpsttype(s, a, s->fpcr_ah ? fah : fnormal,
+                                       mergereg, select_ah_fpst(s, a->esz));
 }
 
 /* Some insns need to call different helpers when FPCR.AH == 1 */
@@ -5464,14 +5465,26 @@ static const FPScalar f_scalar_frecps = {
     gen_helper_recpsf_f32,
     gen_helper_recpsf_f64,
 };
-TRANS(FRECPS_s, do_fp3_scalar_ah, a, &f_scalar_frecps, a->rn)
+static const FPScalar f_scalar_ah_frecps = {
+    gen_helper_recpsf_ah_f16,
+    gen_helper_recpsf_ah_f32,
+    gen_helper_recpsf_ah_f64,
+};
+TRANS(FRECPS_s, do_fp3_scalar_ah_2fn, a,
+      &f_scalar_frecps, &f_scalar_ah_frecps, a->rn)
 
 static const FPScalar f_scalar_frsqrts = {
     gen_helper_rsqrtsf_f16,
     gen_helper_rsqrtsf_f32,
     gen_helper_rsqrtsf_f64,
 };
-TRANS(FRSQRTS_s, do_fp3_scalar_ah, a, &f_scalar_frsqrts, a->rn)
+static const FPScalar f_scalar_ah_frsqrts = {
+    gen_helper_rsqrtsf_ah_f16,
+    gen_helper_rsqrtsf_ah_f32,
+    gen_helper_rsqrtsf_ah_f64,
+};
+TRANS(FRSQRTS_s, do_fp3_scalar_ah_2fn, a,
+      &f_scalar_frsqrts, &f_scalar_ah_frsqrts, a->rn)
 
 static bool do_fcmp0_s(DisasContext *s, arg_rr_e *a,
                        const FPScalar *f, bool swap)
