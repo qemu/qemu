@@ -185,6 +185,19 @@ static inline TCGv_ptr pred_full_reg_ptr(DisasContext *s, int regno)
     return ret;
 }
 
+/*
+ * Return the ARMFPStatusFlavour to use based on element size and
+ * whether FPCR.AH is set.
+ */
+static inline ARMFPStatusFlavour select_ah_fpst(DisasContext *s, MemOp esz)
+{
+    if (s->fpcr_ah) {
+        return esz == MO_16 ? FPST_AH_F16 : FPST_AH;
+    } else {
+        return esz == MO_16 ? FPST_A64_F16 : FPST_A64;
+    }
+}
+
 bool disas_sve(DisasContext *, uint32_t);
 bool disas_sme(DisasContext *, uint32_t);
 
