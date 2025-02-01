@@ -2125,9 +2125,13 @@ static uint64_t load4_f16(uint64_t *ptr, int is_q, int is_2)
  * as there is not yet SVE versions that might use blocking.
  */
 
-static void do_fmlal(float32 *d, void *vn, void *vm, float_status *fpst,
-                     uint64_t negx, int negf, uint32_t desc, bool fz16)
+static void do_fmlal(float32 *d, void *vn, void *vm,
+                     CPUARMState *env, uint32_t desc,
+                     ARMFPStatusFlavour fpst_idx,
+                     uint64_t negx, int negf)
 {
+    float_status *fpst = &env->vfp.fp_status[fpst_idx];
+    bool fz16 = env->vfp.fpcr & FPCR_FZ16;
     intptr_t i, oprsz = simd_oprsz(desc);
     int is_2 = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
     int is_q = oprsz == 16;
@@ -2154,8 +2158,7 @@ void HELPER(gvec_fmlal_a32)(void *vd, void *vn, void *vm,
     bool is_s = extract32(desc, SIMD_DATA_SHIFT, 1);
     uint64_t negx = is_s ? 0x8000800080008000ull : 0;
 
-    do_fmlal(vd, vn, vm, &env->vfp.fp_status[FPST_STD], negx, 0, desc,
-             env->vfp.fpcr & FPCR_FZ16);
+    do_fmlal(vd, vn, vm, env, desc, FPST_STD, negx, 0);
 }
 
 void HELPER(gvec_fmlal_a64)(void *vd, void *vn, void *vm,
@@ -2172,8 +2175,7 @@ void HELPER(gvec_fmlal_a64)(void *vd, void *vn, void *vm,
             negx = 0x8000800080008000ull;
         }
     }
-    do_fmlal(vd, vn, vm, &env->vfp.fp_status[FPST_A64], negx, negf, desc,
-             env->vfp.fpcr & FPCR_FZ16);
+    do_fmlal(vd, vn, vm, env, desc, FPST_A64, negx, negf);
 }
 
 void HELPER(sve2_fmlal_zzzw_s)(void *vd, void *vn, void *vm, void *va,
@@ -2205,9 +2207,13 @@ void HELPER(sve2_fmlal_zzzw_s)(void *vd, void *vn, void *vm, void *va,
     }
 }
 
-static void do_fmlal_idx(float32 *d, void *vn, void *vm, float_status *fpst,
-                         uint64_t negx, int negf, uint32_t desc, bool fz16)
+static void do_fmlal_idx(float32 *d, void *vn, void *vm,
+                         CPUARMState *env, uint32_t desc,
+                         ARMFPStatusFlavour fpst_idx,
+                         uint64_t negx, int negf)
 {
+    float_status *fpst = &env->vfp.fp_status[fpst_idx];
+    bool fz16 = env->vfp.fpcr & FPCR_FZ16;
     intptr_t i, oprsz = simd_oprsz(desc);
     int is_2 = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
     int index = extract32(desc, SIMD_DATA_SHIFT + 2, 3);
@@ -2235,8 +2241,7 @@ void HELPER(gvec_fmlal_idx_a32)(void *vd, void *vn, void *vm,
     bool is_s = extract32(desc, SIMD_DATA_SHIFT, 1);
     uint64_t negx = is_s ? 0x8000800080008000ull : 0;
 
-    do_fmlal_idx(vd, vn, vm, &env->vfp.fp_status[FPST_STD], negx, 0, desc,
-                 env->vfp.fpcr & FPCR_FZ16);
+    do_fmlal_idx(vd, vn, vm, env, desc, FPST_STD, negx, 0);
 }
 
 void HELPER(gvec_fmlal_idx_a64)(void *vd, void *vn, void *vm,
@@ -2253,8 +2258,7 @@ void HELPER(gvec_fmlal_idx_a64)(void *vd, void *vn, void *vm,
             negx = 0x8000800080008000ull;
         }
     }
-    do_fmlal_idx(vd, vn, vm, &env->vfp.fp_status[FPST_A64], negx, negf, desc,
-                 env->vfp.fpcr & FPCR_FZ16);
+    do_fmlal_idx(vd, vn, vm, env, desc, FPST_A64, negx, negf);
 }
 
 void HELPER(sve2_fmlal_zzxw_s)(void *vd, void *vn, void *vm, void *va,
