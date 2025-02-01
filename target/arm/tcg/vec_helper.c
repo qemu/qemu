@@ -965,22 +965,26 @@ void HELPER(gvec_fcmlah)(void *vd, void *vn, void *vm, void *va,
     uintptr_t opr_sz = simd_oprsz(desc);
     float16 *d = vd, *n = vn, *m = vm, *a = va;
     intptr_t flip = extract32(desc, SIMD_DATA_SHIFT, 1);
-    uint32_t neg_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
-    uint32_t neg_real = flip ^ neg_imag;
+    uint32_t fpcr_ah = extract32(desc, SIMD_DATA_SHIFT + 2, 1);
+    uint32_t negf_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
+    uint32_t negf_real = flip ^ negf_imag;
+    float16 negx_imag, negx_real;
     uintptr_t i;
 
-    /* Shift boolean to the sign bit so we can xor to negate.  */
-    neg_real <<= 15;
-    neg_imag <<= 15;
+    /* With AH=0, use negx; with AH=1 use negf. */
+    negx_real = (negf_real & ~fpcr_ah) << 15;
+    negx_imag = (negf_imag & ~fpcr_ah) << 15;
+    negf_real = (negf_real & fpcr_ah ? float_muladd_negate_product : 0);
+    negf_imag = (negf_imag & fpcr_ah ? float_muladd_negate_product : 0);
 
     for (i = 0; i < opr_sz / 2; i += 2) {
         float16 e2 = n[H2(i + flip)];
-        float16 e1 = m[H2(i + flip)] ^ neg_real;
+        float16 e1 = m[H2(i + flip)] ^ negx_real;
         float16 e4 = e2;
-        float16 e3 = m[H2(i + 1 - flip)] ^ neg_imag;
+        float16 e3 = m[H2(i + 1 - flip)] ^ negx_imag;
 
-        d[H2(i)] = float16_muladd(e2, e1, a[H2(i)], 0, fpst);
-        d[H2(i + 1)] = float16_muladd(e4, e3, a[H2(i + 1)], 0, fpst);
+        d[H2(i)] = float16_muladd(e2, e1, a[H2(i)], negf_real, fpst);
+        d[H2(i + 1)] = float16_muladd(e4, e3, a[H2(i + 1)], negf_imag, fpst);
     }
     clear_tail(d, opr_sz, simd_maxsz(desc));
 }
@@ -1025,22 +1029,26 @@ void HELPER(gvec_fcmlas)(void *vd, void *vn, void *vm, void *va,
     uintptr_t opr_sz = simd_oprsz(desc);
     float32 *d = vd, *n = vn, *m = vm, *a = va;
     intptr_t flip = extract32(desc, SIMD_DATA_SHIFT, 1);
-    uint32_t neg_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
-    uint32_t neg_real = flip ^ neg_imag;
+    uint32_t fpcr_ah = extract32(desc, SIMD_DATA_SHIFT + 2, 1);
+    uint32_t negf_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
+    uint32_t negf_real = flip ^ negf_imag;
+    float32 negx_imag, negx_real;
     uintptr_t i;
 
-    /* Shift boolean to the sign bit so we can xor to negate.  */
-    neg_real <<= 31;
-    neg_imag <<= 31;
+    /* With AH=0, use negx; with AH=1 use negf. */
+    negx_real = (negf_real & ~fpcr_ah) << 31;
+    negx_imag = (negf_imag & ~fpcr_ah) << 31;
+    negf_real = (negf_real & fpcr_ah ? float_muladd_negate_product : 0);
+    negf_imag = (negf_imag & fpcr_ah ? float_muladd_negate_product : 0);
 
     for (i = 0; i < opr_sz / 4; i += 2) {
         float32 e2 = n[H4(i + flip)];
-        float32 e1 = m[H4(i + flip)] ^ neg_real;
+        float32 e1 = m[H4(i + flip)] ^ negx_real;
         float32 e4 = e2;
-        float32 e3 = m[H4(i + 1 - flip)] ^ neg_imag;
+        float32 e3 = m[H4(i + 1 - flip)] ^ negx_imag;
 
-        d[H4(i)] = float32_muladd(e2, e1, a[H4(i)], 0, fpst);
-        d[H4(i + 1)] = float32_muladd(e4, e3, a[H4(i + 1)], 0, fpst);
+        d[H4(i)] = float32_muladd(e2, e1, a[H4(i)], negf_real, fpst);
+        d[H4(i + 1)] = float32_muladd(e4, e3, a[H4(i + 1)], negf_imag, fpst);
     }
     clear_tail(d, opr_sz, simd_maxsz(desc));
 }
@@ -1085,22 +1093,26 @@ void HELPER(gvec_fcmlad)(void *vd, void *vn, void *vm, void *va,
     uintptr_t opr_sz = simd_oprsz(desc);
     float64 *d = vd, *n = vn, *m = vm, *a = va;
     intptr_t flip = extract32(desc, SIMD_DATA_SHIFT, 1);
-    uint64_t neg_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
-    uint64_t neg_real = flip ^ neg_imag;
+    uint32_t fpcr_ah = extract32(desc, SIMD_DATA_SHIFT + 2, 1);
+    uint32_t negf_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
+    uint32_t negf_real = flip ^ negf_imag;
+    float64 negx_real, negx_imag;
     uintptr_t i;
 
-    /* Shift boolean to the sign bit so we can xor to negate.  */
-    neg_real <<= 63;
-    neg_imag <<= 63;
+    /* With AH=0, use negx; with AH=1 use negf. */
+    negx_real = (uint64_t)(negf_real & ~fpcr_ah) << 63;
+    negx_imag = (uint64_t)(negf_imag & ~fpcr_ah) << 63;
+    negf_real = (negf_real & fpcr_ah ? float_muladd_negate_product : 0);
+    negf_imag = (negf_imag & fpcr_ah ? float_muladd_negate_product : 0);
 
     for (i = 0; i < opr_sz / 8; i += 2) {
         float64 e2 = n[i + flip];
-        float64 e1 = m[i + flip] ^ neg_real;
+        float64 e1 = m[i + flip] ^ negx_real;
         float64 e4 = e2;
-        float64 e3 = m[i + 1 - flip] ^ neg_imag;
+        float64 e3 = m[i + 1 - flip] ^ negx_imag;
 
-        d[i] = float64_muladd(e2, e1, a[i], 0, fpst);
-        d[i + 1] = float64_muladd(e4, e3, a[i + 1], 0, fpst);
+        d[i] = float64_muladd(e2, e1, a[i], negf_real, fpst);
+        d[i + 1] = float64_muladd(e4, e3, a[i + 1], negf_imag, fpst);
     }
     clear_tail(d, opr_sz, simd_maxsz(desc));
 }

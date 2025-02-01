@@ -6164,7 +6164,7 @@ static bool trans_FCMLA_v(DisasContext *s, arg_FCMLA_v *a)
 
     gen_gvec_op4_fpst(s, a->q, a->rd, a->rn, a->rm, a->rd,
                       a->esz == MO_16 ? FPST_A64_F16 : FPST_A64,
-                      a->rot, fn[a->esz]);
+                      a->rot | (s->fpcr_ah << 2), fn[a->esz]);
     return true;
 }
 
