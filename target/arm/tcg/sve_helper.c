@@ -879,6 +879,14 @@ DO_ZPZ(sve_fabs_h, uint16_t, H1_2, DO_FABS)
 DO_ZPZ(sve_fabs_s, uint32_t, H1_4, DO_FABS)
 DO_ZPZ_D(sve_fabs_d, uint64_t, DO_FABS)
 
+#define DO_AH_FABS_H(N) (float16_is_any_nan(N) ? (N) : DO_FABS(N))
+#define DO_AH_FABS_S(N) (float32_is_any_nan(N) ? (N) : DO_FABS(N))
+#define DO_AH_FABS_D(N) (float64_is_any_nan(N) ? (N) : DO_FABS(N))
+
+DO_ZPZ(sve_ah_fabs_h, uint16_t, H1_2, DO_AH_FABS_H)
+DO_ZPZ(sve_ah_fabs_s, uint32_t, H1_4, DO_AH_FABS_S)
+DO_ZPZ_D(sve_ah_fabs_d, uint64_t, DO_AH_FABS_D)
+
 #define DO_FNEG(N)    (N ^ ~((__typeof(N))-1 >> 1))
 
 DO_ZPZ(sve_fneg_h, uint16_t, H1_2, DO_FNEG)
