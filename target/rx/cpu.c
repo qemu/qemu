@@ -103,6 +103,14 @@ static void rx_cpu_reset_hold(Object *obj, ResetType type)
     set_float_2nan_prop_rule(float_2nan_prop_x87, &env->fp_status);
     /* Default NaN value: sign bit clear, set frac msb */
     set_float_default_nan_pattern(0b01000000, &env->fp_status);
+    /*
+     * TODO: "RX Family RXv1 Instruction Set Architecture" is not 100% clear
+     * on whether flush-to-zero should happen before or after rounding, but
+     * section 1.3.2 says that it happens when underflow is detected, and
+     * implies that underflow is detected after rounding. So this may not
+     * be the correct setting.
+     */
+    set_float_ftz_detection(float_ftz_before_rounding, &env->fp_status);
 }
 
 static ObjectClass *rx_cpu_class_by_name(const char *cpu_model)

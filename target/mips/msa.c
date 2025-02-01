@@ -48,6 +48,15 @@ void msa_reset(CPUMIPSState *env)
     /* tininess detected after rounding.*/
     set_float_detect_tininess(float_tininess_after_rounding,
                               &env->active_tc.msa_fp_status);
+    /*
+     * MSACSR.FS detects tiny results to flush to zero before rounding
+     * (per "MIPS Architecture for Programmers Volume IV-j: The MIPS64 SIMD
+     * Architecture Module, Revision 1.1" section 3.5.4), even though it
+     * detects tininess after rounding for underflow purposes (section 3.4.2
+     * table 3.3).
+     */
+    set_float_ftz_detection(float_ftz_before_rounding,
+                            &env->active_tc.msa_fp_status);
 
     /*
      * According to MIPS specifications, if one of the two operands is

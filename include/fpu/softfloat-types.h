@@ -305,6 +305,22 @@ typedef enum __attribute__((__packed__)) {
 } FloatInfZeroNaNRule;
 
 /*
+ * When flush_to_zero is set, should we detect denormal results to
+ * be flushed before or after rounding? For most architectures this
+ * should be set to match the tininess_before_rounding setting,
+ * but a few architectures, e.g. MIPS MSA, detect FTZ before
+ * rounding but tininess after rounding.
+ *
+ * This enum is arranged so that the default if the target doesn't
+ * configure it matches the default for tininess_before_rounding
+ * (i.e. "after rounding").
+ */
+typedef enum __attribute__((__packed__)) {
+    float_ftz_after_rounding = 0,
+    float_ftz_before_rounding = 1,
+} FloatFTZDetection;
+
+/*
  * Floating Point Status. Individual architectures may maintain
  * several versions of float_status for different functions. The
  * correct status for the operation is then passed by reference to
@@ -321,6 +337,8 @@ typedef struct float_status {
     bool tininess_before_rounding;
     /* should denormalised results go to zero and set output_denormal_flushed? */
     bool flush_to_zero;
+    /* do we detect and flush denormal results before or after rounding? */
+    FloatFTZDetection ftz_detection;
     /* should denormalised inputs go to zero and set input_denormal_flushed? */
     bool flush_inputs_to_zero;
     bool default_nan_mode;

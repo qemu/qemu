@@ -84,6 +84,12 @@ static inline void fp_reset(CPUMIPSState *env)
      */
     set_float_2nan_prop_rule(float_2nan_prop_s_ab,
                              &env->active_fpu.fp_status);
+    /*
+     * TODO: the spec does't say clearly whether FTZ happens before
+     * or after rounding for normal FPU operations.
+     */
+    set_float_ftz_detection(float_ftz_before_rounding,
+                            &env->active_fpu.fp_status);
 }
 
 /* MSA */
