@@ -2718,8 +2718,10 @@ static void parts_float_to_ahp(FloatParts64 *a, float_status *s)
                                   float16_params_ahp.frac_size + 1);
         break;
 
-    case float_class_normal:
     case float_class_denormal:
+        float_raise(float_flag_input_denormal_used, s);
+        break;
+    case float_class_normal:
     case float_class_zero:
         break;
 
@@ -2733,12 +2735,18 @@ static void parts64_float_to_float(FloatParts64 *a, float_status *s)
     if (is_nan(a->cls)) {
         parts_return_nan(a, s);
     }
+    if (a->cls == float_class_denormal) {
+        float_raise(float_flag_input_denormal_used, s);
+    }
 }
 
 static void parts128_float_to_float(FloatParts128 *a, float_status *s)
 {
     if (is_nan(a->cls)) {
         parts_return_nan(a, s);
+    }
+    if (a->cls == float_class_denormal) {
+        float_raise(float_flag_input_denormal_used, s);
     }
 }
 
@@ -2752,12 +2760,21 @@ static void parts_float_to_float_narrow(FloatParts64 *a, FloatParts128 *b,
     a->sign = b->sign;
     a->exp = b->exp;
 
-    if (is_anynorm(a->cls)) {
+    switch (a->cls) {
+    case float_class_denormal:
+        float_raise(float_flag_input_denormal_used, s);
+        /* fall through */
+    case float_class_normal:
         frac_truncjam(a, b);
-    } else if (is_nan(a->cls)) {
+        break;
+    case float_class_snan:
+    case float_class_qnan:
         /* Discard the low bits of the NaN. */
         a->frac = b->frac_hi;
         parts_return_nan(a, s);
+        break;
+    default:
+        break;
     }
 }
 
@@ -2771,6 +2788,9 @@ static void parts_float_to_float_widen(FloatParts128 *a, FloatParts64 *b,
 
     if (is_nan(a->cls)) {
         parts_return_nan(a, s);
+    }
+    if (a->cls == float_class_denormal) {
+        float_raise(float_flag_input_denormal_used, s);
     }
 }
 
@@ -4411,7 +4431,11 @@ float32_hs_compare(float32 xa, float32 xb, float_status *s, bool is_quiet)
         goto soft;
     }
 
-    float32_input_flush2(&ua.s, &ub.s, s);
+    if (unlikely(float32_is_denormal(ua.s) || float32_is_denormal(ub.s))) {
+        /* We may need to set the input_denormal_used flag */
+        goto soft;
+    }
+
     if (isgreaterequal(ua.h, ub.h)) {
         if (isgreater(ua.h, ub.h)) {
             return float_relation_greater;
@@ -4461,7 +4485,11 @@ float64_hs_compare(float64 xa, float64 xb, float_status *s, bool is_quiet)
         goto soft;
     }
 
-    float64_input_flush2(&ua.s, &ub.s, s);
+    if (unlikely(float64_is_denormal(ua.s) || float64_is_denormal(ub.s))) {
+        /* We may need to set the input_denormal_used flag */
+        goto soft;
+    }
+
     if (isgreaterequal(ua.h, ub.h)) {
         if (isgreater(ua.h, ub.h)) {
             return float_relation_greater;

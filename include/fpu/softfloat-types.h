@@ -165,6 +165,13 @@ enum {
     float_flag_invalid_sqrt    = 0x0800,  /* sqrt(-x) */
     float_flag_invalid_cvti    = 0x1000,  /* non-nan to integer */
     float_flag_invalid_snan    = 0x2000,  /* any operand was snan */
+    /*
+     * An input was denormal and we used it (without flushing it to zero).
+     * Not set if we do not actually use the denormal input (e.g.
+     * because some other input was a NaN, or because the operation
+     * wasn't actually carried out (divide-by-zero; invalid))
+     */
+    float_flag_input_denormal_used = 0x4000,
 };
 
 /*
