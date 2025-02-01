@@ -4190,7 +4190,7 @@ static TYPE NAME##_reduce(TYPE *data, float_status *status, uintptr_t n) \
         uintptr_t half = n / 2;                                       \
         TYPE lo = NAME##_reduce(data, status, half);                  \
         TYPE hi = NAME##_reduce(data + half, status, half);           \
-        return TYPE##_##FUNC(lo, hi, status);                         \
+        return FUNC(lo, hi, status);                                  \
     }                                                                 \
 }                                                                     \
 uint64_t HELPER(NAME)(void *vn, void *vg, float_status *s, uint32_t desc) \
@@ -4211,26 +4211,37 @@ uint64_t HELPER(NAME)(void *vn, void *vg, float_status *s, uint32_t desc) \
     return NAME##_reduce(data, s, maxsz / sizeof(TYPE));              \
 }
 
-DO_REDUCE(sve_faddv_h, float16, H1_2, add, float16_zero)
-DO_REDUCE(sve_faddv_s, float32, H1_4, add, float32_zero)
-DO_REDUCE(sve_faddv_d, float64, H1_8, add, float64_zero)
+DO_REDUCE(sve_faddv_h, float16, H1_2, float16_add, float16_zero)
+DO_REDUCE(sve_faddv_s, float32, H1_4, float32_add, float32_zero)
+DO_REDUCE(sve_faddv_d, float64, H1_8, float64_add, float64_zero)
 
 /* Identity is floatN_default_nan, without the function call.  */
-DO_REDUCE(sve_fminnmv_h, float16, H1_2, minnum, 0x7E00)
-DO_REDUCE(sve_fminnmv_s, float32, H1_4, minnum, 0x7FC00000)
-DO_REDUCE(sve_fminnmv_d, float64, H1_8, minnum, 0x7FF8000000000000ULL)
+DO_REDUCE(sve_fminnmv_h, float16, H1_2, float16_minnum, 0x7E00)
+DO_REDUCE(sve_fminnmv_s, float32, H1_4, float32_minnum, 0x7FC00000)
+DO_REDUCE(sve_fminnmv_d, float64, H1_8, float64_minnum, 0x7FF8000000000000ULL)
 
-DO_REDUCE(sve_fmaxnmv_h, float16, H1_2, maxnum, 0x7E00)
-DO_REDUCE(sve_fmaxnmv_s, float32, H1_4, maxnum, 0x7FC00000)
-DO_REDUCE(sve_fmaxnmv_d, float64, H1_8, maxnum, 0x7FF8000000000000ULL)
+DO_REDUCE(sve_fmaxnmv_h, float16, H1_2, float16_maxnum, 0x7E00)
+DO_REDUCE(sve_fmaxnmv_s, float32, H1_4, float32_maxnum, 0x7FC00000)
+DO_REDUCE(sve_fmaxnmv_d, float64, H1_8, float64_maxnum, 0x7FF8000000000000ULL)
 
-DO_REDUCE(sve_fminv_h, float16, H1_2, min, float16_infinity)
-DO_REDUCE(sve_fminv_s, float32, H1_4, min, float32_infinity)
-DO_REDUCE(sve_fminv_d, float64, H1_8, min, float64_infinity)
+DO_REDUCE(sve_fminv_h, float16, H1_2, float16_min, float16_infinity)
+DO_REDUCE(sve_fminv_s, float32, H1_4, float32_min, float32_infinity)
+DO_REDUCE(sve_fminv_d, float64, H1_8, float64_min, float64_infinity)
 
-DO_REDUCE(sve_fmaxv_h, float16, H1_2, max, float16_chs(float16_infinity))
-DO_REDUCE(sve_fmaxv_s, float32, H1_4, max, float32_chs(float32_infinity))
-DO_REDUCE(sve_fmaxv_d, float64, H1_8, max, float64_chs(float64_infinity))
+DO_REDUCE(sve_fmaxv_h, float16, H1_2, float16_max, float16_chs(float16_infinity))
+DO_REDUCE(sve_fmaxv_s, float32, H1_4, float32_max, float32_chs(float32_infinity))
+DO_REDUCE(sve_fmaxv_d, float64, H1_8, float64_max, float64_chs(float64_infinity))
+
+DO_REDUCE(sve_ah_fminv_h, float16, H1_2, helper_vfp_ah_minh, float16_infinity)
+DO_REDUCE(sve_ah_fminv_s, float32, H1_4, helper_vfp_ah_mins, float32_infinity)
+DO_REDUCE(sve_ah_fminv_d, float64, H1_8, helper_vfp_ah_mind, float64_infinity)
+
+DO_REDUCE(sve_ah_fmaxv_h, float16, H1_2, helper_vfp_ah_maxh,
+          float16_chs(float16_infinity))
+DO_REDUCE(sve_ah_fmaxv_s, float32, H1_4, helper_vfp_ah_maxs,
+          float32_chs(float32_infinity))
+DO_REDUCE(sve_ah_fmaxv_d, float64, H1_8, helper_vfp_ah_maxd,
+          float64_chs(float64_infinity))
 
 #undef DO_REDUCE
 
