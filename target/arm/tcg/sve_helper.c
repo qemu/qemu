@@ -5347,13 +5347,18 @@ void HELPER(sve_fcmla_zpzzz_h)(void *vd, void *vn, void *vm, void *va,
                                void *vg, float_status *status, uint32_t desc)
 {
     intptr_t j, i = simd_oprsz(desc);
-    unsigned rot = simd_data(desc);
-    bool flip = rot & 1;
-    float16 neg_imag, neg_real;
+    bool flip = extract32(desc, SIMD_DATA_SHIFT, 1);
+    uint32_t fpcr_ah = extract32(desc, SIMD_DATA_SHIFT + 2, 1);
+    uint32_t negf_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
+    uint32_t negf_real = flip ^ negf_imag;
+    float16 negx_imag, negx_real;
     uint64_t *g = vg;
 
-    neg_imag = float16_set_sign(0, (rot & 2) != 0);
-    neg_real = float16_set_sign(0, rot == 1 || rot == 2);
+    /* With AH=0, use negx; with AH=1 use negf. */
+    negx_real = (negf_real & ~fpcr_ah) << 15;
+    negx_imag = (negf_imag & ~fpcr_ah) << 15;
+    negf_real = (negf_real & fpcr_ah ? float_muladd_negate_product : 0);
+    negf_imag = (negf_imag & fpcr_ah ? float_muladd_negate_product : 0);
 
     do {
         uint64_t pg = g[(i - 1) >> 6];
@@ -5370,18 +5375,18 @@ void HELPER(sve_fcmla_zpzzz_h)(void *vd, void *vn, void *vm, void *va,
             mi = *(float16 *)(vm + H1_2(j));
 
             e2 = (flip ? ni : nr);
-            e1 = (flip ? mi : mr) ^ neg_real;
+            e1 = (flip ? mi : mr) ^ negx_real;
             e4 = e2;
-            e3 = (flip ? mr : mi) ^ neg_imag;
+            e3 = (flip ? mr : mi) ^ negx_imag;
 
             if (likely((pg >> (i & 63)) & 1)) {
                 d = *(float16 *)(va + H1_2(i));
-                d = float16_muladd(e2, e1, d, 0, status);
+                d = float16_muladd(e2, e1, d, negf_real, status);
                 *(float16 *)(vd + H1_2(i)) = d;
             }
             if (likely((pg >> (j & 63)) & 1)) {
                 d = *(float16 *)(va + H1_2(j));
-                d = float16_muladd(e4, e3, d, 0, status);
+                d = float16_muladd(e4, e3, d, negf_imag, status);
                 *(float16 *)(vd + H1_2(j)) = d;
             }
         } while (i & 63);
@@ -5392,13 +5397,18 @@ void HELPER(sve_fcmla_zpzzz_s)(void *vd, void *vn, void *vm, void *va,
                                void *vg, float_status *status, uint32_t desc)
 {
     intptr_t j, i = simd_oprsz(desc);
-    unsigned rot = simd_data(desc);
-    bool flip = rot & 1;
-    float32 neg_imag, neg_real;
+    bool flip = extract32(desc, SIMD_DATA_SHIFT, 1);
+    uint32_t fpcr_ah = extract32(desc, SIMD_DATA_SHIFT + 2, 1);
+    uint32_t negf_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
+    uint32_t negf_real = flip ^ negf_imag;
+    float32 negx_imag, negx_real;
     uint64_t *g = vg;
 
-    neg_imag = float32_set_sign(0, (rot & 2) != 0);
-    neg_real = float32_set_sign(0, rot == 1 || rot == 2);
+    /* With AH=0, use negx; with AH=1 use negf. */
+    negx_real = (negf_real & ~fpcr_ah) << 31;
+    negx_imag = (negf_imag & ~fpcr_ah) << 31;
+    negf_real = (negf_real & fpcr_ah ? float_muladd_negate_product : 0);
+    negf_imag = (negf_imag & fpcr_ah ? float_muladd_negate_product : 0);
 
     do {
         uint64_t pg = g[(i - 1) >> 6];
@@ -5415,18 +5425,18 @@ void HELPER(sve_fcmla_zpzzz_s)(void *vd, void *vn, void *vm, void *va,
             mi = *(float32 *)(vm + H1_2(j));
 
             e2 = (flip ? ni : nr);
-            e1 = (flip ? mi : mr) ^ neg_real;
+            e1 = (flip ? mi : mr) ^ negx_real;
             e4 = e2;
-            e3 = (flip ? mr : mi) ^ neg_imag;
+            e3 = (flip ? mr : mi) ^ negx_imag;
 
             if (likely((pg >> (i & 63)) & 1)) {
                 d = *(float32 *)(va + H1_2(i));
-                d = float32_muladd(e2, e1, d, 0, status);
+                d = float32_muladd(e2, e1, d, negf_real, status);
                 *(float32 *)(vd + H1_2(i)) = d;
             }
             if (likely((pg >> (j & 63)) & 1)) {
                 d = *(float32 *)(va + H1_2(j));
-                d = float32_muladd(e4, e3, d, 0, status);
+                d = float32_muladd(e4, e3, d, negf_imag, status);
                 *(float32 *)(vd + H1_2(j)) = d;
             }
         } while (i & 63);
@@ -5437,13 +5447,18 @@ void HELPER(sve_fcmla_zpzzz_d)(void *vd, void *vn, void *vm, void *va,
                                void *vg, float_status *status, uint32_t desc)
 {
     intptr_t j, i = simd_oprsz(desc);
-    unsigned rot = simd_data(desc);
-    bool flip = rot & 1;
-    float64 neg_imag, neg_real;
+    bool flip = extract32(desc, SIMD_DATA_SHIFT, 1);
+    uint32_t fpcr_ah = extract32(desc, SIMD_DATA_SHIFT + 2, 1);
+    uint32_t negf_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
+    uint32_t negf_real = flip ^ negf_imag;
+    float64 negx_imag, negx_real;
     uint64_t *g = vg;
 
-    neg_imag = float64_set_sign(0, (rot & 2) != 0);
-    neg_real = float64_set_sign(0, rot == 1 || rot == 2);
+    /* With AH=0, use negx; with AH=1 use negf. */
+    negx_real = (uint64_t)(negf_real & ~fpcr_ah) << 63;
+    negx_imag = (uint64_t)(negf_imag & ~fpcr_ah) << 63;
+    negf_real = (negf_real & fpcr_ah ? float_muladd_negate_product : 0);
+    negf_imag = (negf_imag & fpcr_ah ? float_muladd_negate_product : 0);
 
     do {
         uint64_t pg = g[(i - 1) >> 6];
@@ -5460,18 +5475,18 @@ void HELPER(sve_fcmla_zpzzz_d)(void *vd, void *vn, void *vm, void *va,
             mi = *(float64 *)(vm + H1_2(j));
 
             e2 = (flip ? ni : nr);
-            e1 = (flip ? mi : mr) ^ neg_real;
+            e1 = (flip ? mi : mr) ^ negx_real;
             e4 = e2;
-            e3 = (flip ? mr : mi) ^ neg_imag;
+            e3 = (flip ? mr : mi) ^ negx_imag;
 
             if (likely((pg >> (i & 63)) & 1)) {
                 d = *(float64 *)(va + H1_2(i));
-                d = float64_muladd(e2, e1, d, 0, status);
+                d = float64_muladd(e2, e1, d, negf_real, status);
                 *(float64 *)(vd + H1_2(i)) = d;
             }
             if (likely((pg >> (j & 63)) & 1)) {
                 d = *(float64 *)(va + H1_2(j));
-                d = float64_muladd(e4, e3, d, 0, status);
+                d = float64_muladd(e4, e3, d, negf_imag, status);
                 *(float64 *)(vd + H1_2(j)) = d;
             }
         } while (i & 63);
