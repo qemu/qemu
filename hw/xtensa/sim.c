@@ -100,7 +100,8 @@ void xtensa_sim_load_kernel(XtensaCPU *cpu, MachineState *machine)
     if (kernel_filename) {
         uint64_t elf_entry;
         int success = load_elf(kernel_filename, NULL, translate_phys_addr, cpu,
-                               &elf_entry, NULL, NULL, NULL, TARGET_BIG_ENDIAN,
+                               &elf_entry, NULL, NULL, NULL,
+                               TARGET_BIG_ENDIAN ? ELFDATA2MSB : ELFDATA2LSB,
                                EM_XTENSA, 0, 0);
 
         if (success > 0) {

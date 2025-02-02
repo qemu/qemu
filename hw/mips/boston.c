@@ -792,7 +792,7 @@ static void boston_mach_init(MachineState *machine)
         kernel_size = load_elf(machine->kernel_filename, NULL,
                            cpu_mips_kseg0_to_phys, NULL,
                            &kernel_entry, NULL, &kernel_high,
-                           NULL, 0, EM_MIPS, 1, 0);
+                           NULL, ELFDATA2LSB, EM_MIPS, 1, 0);
 
         if (kernel_size > 0) {
             int dt_size;

@@ -21,17 +21,22 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qapi/error.h"
 #include "hw/irq.h"
+#include "hw/sysbus.h"
 #include "hw/arm/omap.h"
-#include "hw/sd/sdcard_legacy.h"
+#include "hw/sd/sd.h"
 
-struct omap_mmc_s {
+typedef struct OMAPMMCState {
+    SysBusDevice parent_obj;
+
+    SDBus sdbus;
+
     qemu_irq irq;
-    qemu_irq *dma;
-    qemu_irq coverswitch;
+    qemu_irq dma_tx_gpio;
+    qemu_irq dma_rx_gpio;
     MemoryRegion iomem;
     omap_clk clk;
-    SDState *card;
     uint16_t last_cmd;
     uint16_t sdio;
     uint16_t rsp[8];
@@ -64,16 +69,15 @@ struct omap_mmc_s {
 
     int cdet_wakeup;
     int cdet_enable;
-    int cdet_state;
     qemu_irq cdet;
-};
+} OMAPMMCState;
 
-static void omap_mmc_interrupts_update(struct omap_mmc_s *s)
+static void omap_mmc_interrupts_update(OMAPMMCState *s)
 {
     qemu_set_irq(s->irq, !!(s->status & s->mask));
 }
 
-static void omap_mmc_fifolevel_update(struct omap_mmc_s *host)
+static void omap_mmc_fifolevel_update(OMAPMMCState *host)
 {
     if (!host->transfer && !host->fifo_len) {
         host->status &= 0xf3ff;
@@ -83,33 +87,33 @@ static void omap_mmc_fifolevel_update(struct omap_mmc_s *host)
     if (host->fifo_len > host->af_level && host->ddir) {
         if (host->rx_dma) {
             host->status &= 0xfbff;
-            qemu_irq_raise(host->dma[1]);
+            qemu_irq_raise(host->dma_rx_gpio);
         } else
             host->status |= 0x0400;
     } else {
         host->status &= 0xfbff;
-        qemu_irq_lower(host->dma[1]);
+        qemu_irq_lower(host->dma_rx_gpio);
     }
 
     if (host->fifo_len < host->ae_level && !host->ddir) {
         if (host->tx_dma) {
             host->status &= 0xf7ff;
-            qemu_irq_raise(host->dma[0]);
+            qemu_irq_raise(host->dma_tx_gpio);
         } else
             host->status |= 0x0800;
     } else {
-        qemu_irq_lower(host->dma[0]);
+        qemu_irq_lower(host->dma_tx_gpio);
         host->status &= 0xf7ff;
     }
 }
 
 /* These must match the encoding of the MMC_CMD Response field */
 typedef enum {
-    sd_nore = 0,	/* no response */
-    sd_r1,		/* normal response command */
-    sd_r2,		/* CID, CSD registers */
-    sd_r3,		/* OCR register */
-    sd_r6 = 6,		/* Published RCA response */
+    sd_nore = 0,        /* no response */
+    sd_r1,              /* normal response command */
+    sd_r2,              /* CID, CSD registers */
+    sd_r3,              /* OCR register */
+    sd_r6 = 6,          /* Published RCA response */
     sd_r1b = -1,
 } sd_rsp_type_t;
 
@@ -121,7 +125,7 @@ typedef enum {
     SD_TYPE_ADTC = 3,   /* addressed with data transfer */
 } MMCCmdType;
 
-static void omap_mmc_command(struct omap_mmc_s *host, int cmd, int dir,
+static void omap_mmc_command(OMAPMMCState *host, int cmd, int dir,
                              MMCCmdType type, int busy,
                              sd_rsp_type_t resptype, int init)
 {
@@ -153,7 +157,7 @@ static void omap_mmc_command(struct omap_mmc_s *host, int cmd, int dir,
     request.arg = host->arg;
     request.crc = 0; /* FIXME */
 
-    rsplen = sd_do_command(host->card, &request, response);
+    rsplen = sdbus_do_command(&host->sdbus, &request, response);
 
     /* TODO: validate CRCs */
     switch (resptype) {
@@ -225,12 +229,12 @@ static void omap_mmc_command(struct omap_mmc_s *host, int cmd, int dir,
     if (timeout)
         host->status |= 0x0080;
     else if (cmd == 12)
-        host->status |= 0x0005;	/* Makes it more real */
+        host->status |= 0x0005;         /* Makes it more real */
     else
         host->status |= 0x0001;
 }
 
-static void omap_mmc_transfer(struct omap_mmc_s *host)
+static void omap_mmc_transfer(OMAPMMCState *host)
 {
     uint8_t value;
 
@@ -242,10 +246,10 @@ static void omap_mmc_transfer(struct omap_mmc_s *host)
             if (host->fifo_len > host->af_level)
                 break;
 
-            value = sd_read_byte(host->card);
+            value = sdbus_read_byte(&host->sdbus);
             host->fifo[(host->fifo_start + host->fifo_len) & 31] = value;
             if (-- host->blen_counter) {
-                value = sd_read_byte(host->card);
+                value = sdbus_read_byte(&host->sdbus);
                 host->fifo[(host->fifo_start + host->fifo_len) & 31] |=
                         value << 8;
                 host->blen_counter --;
@@ -257,10 +261,10 @@ static void omap_mmc_transfer(struct omap_mmc_s *host)
                 break;
 
             value = host->fifo[host->fifo_start] & 0xff;
-            sd_write_byte(host->card, value);
+            sdbus_write_byte(&host->sdbus, value);
             if (-- host->blen_counter) {
                 value = host->fifo[host->fifo_start] >> 8;
-                sd_write_byte(host->card, value);
+                sdbus_write_byte(&host->sdbus, value);
                 host->blen_counter --;
             }
 
@@ -285,19 +289,19 @@ static void omap_mmc_transfer(struct omap_mmc_s *host)
 
 static void omap_mmc_update(void *opaque)
 {
-    struct omap_mmc_s *s = opaque;
+    OMAPMMCState *s = opaque;
     omap_mmc_transfer(s);
     omap_mmc_fifolevel_update(s);
     omap_mmc_interrupts_update(s);
 }
 
-static void omap_mmc_pseudo_reset(struct omap_mmc_s *host)
+static void omap_mmc_pseudo_reset(OMAPMMCState *host)
 {
     host->status = 0;
     host->fifo_len = 0;
 }
 
-void omap_mmc_reset(struct omap_mmc_s *host)
+static void omap_mmc_reset(OMAPMMCState *host)
 {
     host->last_cmd = 0;
     memset(host->rsp, 0, sizeof(host->rsp));
@@ -319,54 +323,47 @@ void omap_mmc_reset(struct omap_mmc_s *host)
     host->transfer = 0;
     host->cdet_wakeup = 0;
     host->cdet_enable = 0;
-    qemu_set_irq(host->coverswitch, host->cdet_state);
     host->clkdiv = 0;
 
     omap_mmc_pseudo_reset(host);
-
-    /* Since we're still using the legacy SD API the card is not plugged
-     * into any bus, and we must reset it manually. When omap_mmc is
-     * QOMified this must move into the QOM reset function.
-     */
-    device_cold_reset(DEVICE(host->card));
 }
 
 static uint64_t omap_mmc_read(void *opaque, hwaddr offset, unsigned size)
 {
     uint16_t i;
-    struct omap_mmc_s *s = opaque;
+    OMAPMMCState *s = opaque;
 
     if (size != 2) {
         return omap_badwidth_read16(opaque, offset);
     }
 
     switch (offset) {
-    case 0x00:	/* MMC_CMD */
+    case 0x00:  /* MMC_CMD */
         return s->last_cmd;
 
-    case 0x04:	/* MMC_ARGL */
+    case 0x04:  /* MMC_ARGL */
         return s->arg & 0x0000ffff;
 
-    case 0x08:	/* MMC_ARGH */
+    case 0x08:  /* MMC_ARGH */
         return s->arg >> 16;
 
-    case 0x0c:	/* MMC_CON */
+    case 0x0c:  /* MMC_CON */
         return (s->dw << 15) | (s->mode << 12) | (s->enable << 11) | 
                 (s->be << 10) | s->clkdiv;
 
-    case 0x10:	/* MMC_STAT */
+    case 0x10:  /* MMC_STAT */
         return s->status;
 
-    case 0x14:	/* MMC_IE */
+    case 0x14:  /* MMC_IE */
         return s->mask;
 
-    case 0x18:	/* MMC_CTO */
+    case 0x18:  /* MMC_CTO */
         return s->cto;
 
-    case 0x1c:	/* MMC_DTO */
+    case 0x1c:  /* MMC_DTO */
         return s->dto;
 
-    case 0x20:	/* MMC_DATA */
+    case 0x20:  /* MMC_DATA */
         /* TODO: support 8-bit access */
         i = s->fifo[s->fifo_start];
         if (s->fifo_len == 0) {
@@ -381,42 +378,42 @@ static uint64_t omap_mmc_read(void *opaque, hwaddr offset, unsigned size)
         omap_mmc_interrupts_update(s);
         return i;
 
-    case 0x24:	/* MMC_BLEN */
+    case 0x24:  /* MMC_BLEN */
         return s->blen_counter;
 
-    case 0x28:	/* MMC_NBLK */
+    case 0x28:  /* MMC_NBLK */
         return s->nblk_counter;
 
-    case 0x2c:	/* MMC_BUF */
+    case 0x2c:  /* MMC_BUF */
         return (s->rx_dma << 15) | (s->af_level << 8) |
             (s->tx_dma << 7) | s->ae_level;
 
-    case 0x30:	/* MMC_SPI */
+    case 0x30:  /* MMC_SPI */
         return 0x0000;
-    case 0x34:	/* MMC_SDIO */
+    case 0x34:  /* MMC_SDIO */
         return (s->cdet_wakeup << 2) | (s->cdet_enable) | s->sdio;
-    case 0x38:	/* MMC_SYST */
+    case 0x38:  /* MMC_SYST */
         return 0x0000;
 
-    case 0x3c:	/* MMC_REV */
+    case 0x3c:  /* MMC_REV */
         return s->rev;
 
-    case 0x40:	/* MMC_RSP0 */
-    case 0x44:	/* MMC_RSP1 */
-    case 0x48:	/* MMC_RSP2 */
-    case 0x4c:	/* MMC_RSP3 */
-    case 0x50:	/* MMC_RSP4 */
-    case 0x54:	/* MMC_RSP5 */
-    case 0x58:	/* MMC_RSP6 */
-    case 0x5c:	/* MMC_RSP7 */
+    case 0x40:  /* MMC_RSP0 */
+    case 0x44:  /* MMC_RSP1 */
+    case 0x48:  /* MMC_RSP2 */
+    case 0x4c:  /* MMC_RSP3 */
+    case 0x50:  /* MMC_RSP4 */
+    case 0x54:  /* MMC_RSP5 */
+    case 0x58:  /* MMC_RSP6 */
+    case 0x5c:  /* MMC_RSP7 */
         return s->rsp[(offset - 0x40) >> 2];
 
     /* OMAP2-specific */
-    case 0x60:	/* MMC_IOSR */
-    case 0x64:	/* MMC_SYSC */
+    case 0x60:  /* MMC_IOSR */
+    case 0x64:  /* MMC_SYSC */
         return 0;
-    case 0x68:	/* MMC_SYSS */
-        return 1;						/* RSTD */
+    case 0x68:  /* MMC_SYSS */
+        return 1;                                               /* RSTD */
     }
 
     OMAP_BAD_REG(offset);
@@ -427,7 +424,7 @@ static void omap_mmc_write(void *opaque, hwaddr offset,
                            uint64_t value, unsigned size)
 {
     int i;
-    struct omap_mmc_s *s = opaque;
+    OMAPMMCState *s = opaque;
 
     if (size != 2) {
         omap_badwidth_write16(opaque, offset, value);
@@ -435,7 +432,7 @@ static void omap_mmc_write(void *opaque, hwaddr offset,
     }
 
     switch (offset) {
-    case 0x00:	/* MMC_CMD */
+    case 0x00:  /* MMC_CMD */
         if (!s->enable)
             break;
 
@@ -450,17 +447,17 @@ static void omap_mmc_write(void *opaque, hwaddr offset,
         omap_mmc_update(s);
         break;
 
-    case 0x04:	/* MMC_ARGL */
+    case 0x04:  /* MMC_ARGL */
         s->arg &= 0xffff0000;
         s->arg |= 0x0000ffff & value;
         break;
 
-    case 0x08:	/* MMC_ARGH */
+    case 0x08:  /* MMC_ARGH */
         s->arg &= 0x0000ffff;
         s->arg |= value << 16;
         break;
 
-    case 0x0c:	/* MMC_CON */
+    case 0x0c:  /* MMC_CON */
         s->dw = (value >> 15) & 1;
         s->mode = (value >> 12) & 3;
         s->enable = (value >> 11) & 1;
@@ -480,27 +477,27 @@ static void omap_mmc_write(void *opaque, hwaddr offset,
             omap_mmc_pseudo_reset(s);
         break;
 
-    case 0x10:	/* MMC_STAT */
+    case 0x10:  /* MMC_STAT */
         s->status &= ~value;
         omap_mmc_interrupts_update(s);
         break;
 
-    case 0x14:	/* MMC_IE */
+    case 0x14:  /* MMC_IE */
         s->mask = value & 0x7fff;
         omap_mmc_interrupts_update(s);
         break;
 
-    case 0x18:	/* MMC_CTO */
+    case 0x18:  /* MMC_CTO */
         s->cto = value & 0xff;
         if (s->cto > 0xfd && s->rev <= 1)
             printf("MMC: CTO of 0xff and 0xfe cannot be used!\n");
         break;
 
-    case 0x1c:	/* MMC_DTO */
+    case 0x1c:  /* MMC_DTO */
         s->dto = value & 0xffff;
         break;
 
-    case 0x20:	/* MMC_DATA */
+    case 0x20:  /* MMC_DATA */
         /* TODO: support 8-bit access */
         if (s->fifo_len == 32)
             break;
@@ -511,18 +508,18 @@ static void omap_mmc_write(void *opaque, hwaddr offset,
         omap_mmc_interrupts_update(s);
         break;
 
-    case 0x24:	/* MMC_BLEN */
+    case 0x24:  /* MMC_BLEN */
         s->blen = (value & 0x07ff) + 1;
         s->blen_counter = s->blen;
         break;
 
-    case 0x28:	/* MMC_NBLK */
+    case 0x28:  /* MMC_NBLK */
         s->nblk = (value & 0x07ff) + 1;
         s->nblk_counter = s->nblk;
         s->blen_counter = s->blen;
         break;
 
-    case 0x2c:	/* MMC_BUF */
+    case 0x2c:  /* MMC_BUF */
         s->rx_dma = (value >> 15) & 1;
         s->af_level = (value >> 8) & 0x1f;
         s->tx_dma = (value >> 7) & 1;
@@ -537,38 +534,38 @@ static void omap_mmc_write(void *opaque, hwaddr offset,
         break;
 
     /* SPI, SDIO and TEST modes unimplemented */
-    case 0x30:	/* MMC_SPI (OMAP1 only) */
+    case 0x30:  /* MMC_SPI (OMAP1 only) */
         break;
-    case 0x34:	/* MMC_SDIO */
+    case 0x34:  /* MMC_SDIO */
         s->sdio = value & (s->rev >= 2 ? 0xfbf3 : 0x2020);
         s->cdet_wakeup = (value >> 9) & 1;
         s->cdet_enable = (value >> 2) & 1;
         break;
-    case 0x38:	/* MMC_SYST */
+    case 0x38:  /* MMC_SYST */
         break;
 
-    case 0x3c:	/* MMC_REV */
-    case 0x40:	/* MMC_RSP0 */
-    case 0x44:	/* MMC_RSP1 */
-    case 0x48:	/* MMC_RSP2 */
-    case 0x4c:	/* MMC_RSP3 */
-    case 0x50:	/* MMC_RSP4 */
-    case 0x54:	/* MMC_RSP5 */
-    case 0x58:	/* MMC_RSP6 */
-    case 0x5c:	/* MMC_RSP7 */
+    case 0x3c:  /* MMC_REV */
+    case 0x40:  /* MMC_RSP0 */
+    case 0x44:  /* MMC_RSP1 */
+    case 0x48:  /* MMC_RSP2 */
+    case 0x4c:  /* MMC_RSP3 */
+    case 0x50:  /* MMC_RSP4 */
+    case 0x54:  /* MMC_RSP5 */
+    case 0x58:  /* MMC_RSP6 */
+    case 0x5c:  /* MMC_RSP7 */
         OMAP_RO_REG(offset);
         break;
 
     /* OMAP2-specific */
-    case 0x60:	/* MMC_IOSR */
+    case 0x60:  /* MMC_IOSR */
         if (value & 0xf)
             printf("MMC: SDIO bits used!\n");
         break;
-    case 0x64:	/* MMC_SYSC */
-        if (value & (1 << 2))					/* SRTS */
+    case 0x64:  /* MMC_SYSC */
+        if (value & (1 << 2))                                   /* SRTS */
             omap_mmc_reset(s);
         break;
-    case 0x68:	/* MMC_SYSS */
+    case 0x68:  /* MMC_SYSS */
         OMAP_RO_REG(offset);
         break;
 
@@ -583,29 +580,56 @@ static const MemoryRegionOps omap_mmc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-struct omap_mmc_s *omap_mmc_init(hwaddr base,
-                MemoryRegion *sysmem,
-                BlockBackend *blk,
-                qemu_irq irq, qemu_irq dma[], omap_clk clk)
+void omap_mmc_set_clk(DeviceState *dev, omap_clk clk)
 {
-    struct omap_mmc_s *s = g_new0(struct omap_mmc_s, 1);
+    OMAPMMCState *s = OMAP_MMC(dev);
 
-    s->irq = irq;
-    s->dma = dma;
     s->clk = clk;
-    s->lines = 1;	/* TODO: needs to be settable per-board */
-    s->rev = 1;
+}
 
-    memory_region_init_io(&s->iomem, NULL, &omap_mmc_ops, s, "omap.mmc", 0x800);
-    memory_region_add_subregion(sysmem, base, &s->iomem);
-
-    /* Instantiate the storage */
-    s->card = sd_init(blk, false);
-    if (s->card == NULL) {
-        exit(1);
-    }
+static void omap_mmc_reset_hold(Object *obj, ResetType type)
+{
+    OMAPMMCState *s = OMAP_MMC(obj);
 
     omap_mmc_reset(s);
-
-    return s;
 }
+
+static void omap_mmc_initfn(Object *obj)
+{
+    OMAPMMCState *s = OMAP_MMC(obj);
+
+    /* In theory these could be settable per-board */
+    s->lines = 1;
+    s->rev = 1;
+
+    memory_region_init_io(&s->iomem, obj, &omap_mmc_ops, s, "omap.mmc", 0x800);
+    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
+
+    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->dma_tx_gpio, "dma-tx", 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->dma_rx_gpio, "dma-rx", 1);
+
+    qbus_init(&s->sdbus, sizeof(s->sdbus), TYPE_SD_BUS, DEVICE(obj), "sd-bus");
+}
+
+static void omap_mmc_class_init(ObjectClass *oc, void *data)
+{
+    ResettableClass *rc = RESETTABLE_CLASS(oc);
+
+    rc->phases.hold = omap_mmc_reset_hold;
+}
+
+static const TypeInfo omap_mmc_info = {
+    .name = TYPE_OMAP_MMC,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(OMAPMMCState),
+    .instance_init = omap_mmc_initfn,
+    .class_init = omap_mmc_class_init,
+};
+
+static void omap_mmc_register_types(void)
+{
+    type_register_static(&omap_mmc_info);
+}
+
+type_init(omap_mmc_register_types)

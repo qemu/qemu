@@ -440,7 +440,7 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
 
         size = load_elf(firmware_filename, NULL, translate, NULL,
                         &firmware_entry, &firmware_low, &firmware_high, NULL,
-                        true, EM_PARISC, 0, 0);
+                        ELFDATA2MSB, EM_PARISC, 0, 0);
 
         if (size < 0) {
             error_report("could not load firmware '%s'", firmware_filename);
@@ -467,7 +467,7 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
     if (kernel_filename) {
         size = load_elf(kernel_filename, NULL, linux_kernel_virt_to_phys,
                         NULL, &kernel_entry, &kernel_low, &kernel_high, NULL,
-                        true, EM_PARISC, 0, 0);
+                        ELFDATA2MSB, EM_PARISC, 0, 0);
 
         kernel_entry = linux_kernel_virt_to_phys(NULL, kernel_entry);
 

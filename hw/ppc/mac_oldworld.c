@@ -136,7 +136,7 @@ static void ppc_heathrow_init(MachineState *machine)
     if (filename) {
         /* Load OpenBIOS (ELF) */
         bios_size = load_elf(filename, NULL, NULL, NULL, NULL, &bios_addr,
-                             NULL, NULL, 1, PPC_ELF_MACHINE, 0, 0);
+                             NULL, NULL, ELFDATA2MSB, PPC_ELF_MACHINE, 0, 0);
         /* Unfortunately, load_elf sign-extends reading elf32 */
         bios_addr = (uint32_t)bios_addr;
 
@@ -161,7 +161,7 @@ static void ppc_heathrow_init(MachineState *machine)
         kernel_base = KERNEL_LOAD_ADDR;
         kernel_size = load_elf(machine->kernel_filename, NULL,
                                translate_kernel_address, NULL, NULL, NULL,
-                               NULL, NULL, 1, PPC_ELF_MACHINE, 0, 0);
+                               NULL, NULL, ELFDATA2MSB, PPC_ELF_MACHINE, 0, 0);
         if (kernel_size < 0) {
             kernel_size = load_aout(machine->kernel_filename, kernel_base,
                                     machine->ram_size - kernel_base,

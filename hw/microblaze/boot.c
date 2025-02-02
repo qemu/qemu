@@ -144,13 +144,15 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, bool is_little_endian,
         /* Boots a kernel elf binary.  */
         kernel_size = load_elf(kernel_filename, NULL, NULL, NULL,
                                &entry, NULL, &high, NULL,
-                               !is_little_endian, EM_MICROBLAZE, 0, 0);
+                               is_little_endian ? ELFDATA2LSB : ELFDATA2MSB,
+                               EM_MICROBLAZE, 0, 0);
         base32 = entry;
         if (base32 == 0xc0000000) {
             kernel_size = load_elf(kernel_filename, NULL,
                                    translate_kernel_address, NULL,
                                    &entry, NULL, NULL, NULL,
-                                   !is_little_endian, EM_MICROBLAZE, 0, 0);
+                                   is_little_endian ? ELFDATA2LSB : ELFDATA2MSB,
+                                   EM_MICROBLAZE, 0, 0);
         }
         /* Always boot into physical ram.  */
         boot_info.bootstrap_pc = (uint32_t)entry;

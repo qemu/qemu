@@ -1,4 +1,8 @@
 config IPACK
     bool
+
+config TPCI200
+    bool
+    select IPACK
     default y if PCI_DEVICES
 	    depends on PCI

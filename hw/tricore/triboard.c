@@ -39,7 +39,7 @@ static void tricore_load_kernel(TriCoreCPU *cpu, const char *kernel_filename)
 
     kernel_size = load_elf(kernel_filename, NULL,
                            NULL, NULL, &entry, NULL,
-                           NULL, NULL, 0,
+                           NULL, NULL, ELFDATA2LSB,
                            EM_TRICORE, 1, 0);
     if (kernel_size <= 0) {
         error_report("no kernel file '%s'", kernel_filename);
