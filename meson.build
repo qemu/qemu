@@ -322,12 +322,6 @@ if cpu in ['x86', 'x86_64']
   }
 endif
 
-modular_tcg = []
-# Darwin does not support references to thread-local variables in modules
-if host_os != 'darwin'
-  modular_tcg = ['i386-softmmu', 'x86_64-softmmu']
-endif
-
 ##################
 # Compiler flags #
 ##################
@@ -3279,11 +3273,6 @@ foreach target : target_dirs
     if sym == 'CONFIG_TCG' or target in accelerator_targets.get(sym, [])
       config_target += { sym: 'y' }
       config_all_accel += { sym: 'y' }
-      if target in modular_tcg
-        config_target += { 'CONFIG_TCG_MODULAR': 'y' }
-      else
-        config_target += { 'CONFIG_TCG_BUILTIN': 'y' }
-      endif
       target_kconfig += [ sym + '=y' ]
     endif
   endforeach
@@ -3642,7 +3631,6 @@ util_ss = ss.source_set()
 
 # accel modules
 qtest_module_ss = ss.source_set()
-tcg_module_ss = ss.source_set()
 
 modules = {}
 target_modules = {}
@@ -3803,11 +3791,7 @@ subdir('tests/qtest/libqos')
 subdir('tests/qtest/fuzz')
 
 # accel modules
-tcg_real_module_ss = ss.source_set()
-tcg_real_module_ss.add_all(when: 'CONFIG_TCG_MODULAR', if_true: tcg_module_ss)
-specific_ss.add_all(when: 'CONFIG_TCG_BUILTIN', if_true: tcg_module_ss)
-target_modules += { 'accel' : { 'qtest': qtest_module_ss,
-                                'tcg': tcg_real_module_ss }}
+target_modules += { 'accel' : { 'qtest': qtest_module_ss }}
 
 ##############################################
 # Internal static_libraries and dependencies #
