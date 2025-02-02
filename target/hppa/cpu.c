@@ -28,6 +28,7 @@
 #include "exec/translation-block.h"
 #include "fpu/softfloat.h"
 #include "tcg/tcg.h"
+#include "hw/hppa/hppa_hardware.h"
 
 static void hppa_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -44,8 +45,9 @@ static vaddr hppa_cpu_get_pc(CPUState *cs)
 {
     CPUHPPAState *env = cpu_env(cs);
 
-    return hppa_form_gva_psw(env->psw, (env->psw & PSW_C ? env->iasq_f : 0),
-                             env->iaoq_f & -4);
+    return hppa_form_gva_mask(env->gva_offset_mask,
+                         (env->psw & PSW_C ? env->iasq_f : 0),
+                         env->iaoq_f & -4);
 }
 
 void cpu_get_tb_cpu_state(CPUHPPAState *env, vaddr *pc,
@@ -89,6 +91,10 @@ void cpu_get_tb_cpu_state(CPUHPPAState *env, vaddr *pc,
         & (env->sr[4] == env->sr[6])
         & (env->sr[4] == env->sr[7])) {
         flags |= TB_FLAG_SR_SAME;
+    }
+    if ((env->psw & PSW_W) &&
+        (env->dr[2] & HPPA64_DIAG_SPHASH_ENABLE)) {
+        flags |= TB_FLAG_SPHASH;
     }
 #endif
 
@@ -217,6 +223,10 @@ static void hppa_cpu_reset_hold(Object *obj, ResetType type)
     memset(env, 0, offsetof(CPUHPPAState, end_reset_fields));
 
     cpu_hppa_loaded_fr0(env);
+
+    /* 64-bit machines start with space-register hashing enabled in %dr2 */
+    env->dr[2] = hppa_is_pa20(env) ? HPPA64_DIAG_SPHASH_ENABLE : 0;
+
     cpu_hppa_put_psw(env, PSW_M);
 }
 
