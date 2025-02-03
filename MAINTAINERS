@@ -1562,6 +1562,7 @@ F: pc-bios/canyonlands.dt[sb]
 F: pc-bios/u-boot-sam460ex-20100605.bin
 F: roms/u-boot-sam460ex
 F: docs/system/ppc/amigang.rst
+F: tests/functional/test_ppc_sam460ex.py
 
 pegasos2
 M: BALATON Zoltan <balaton@eik.bme.hu>
