@@ -1043,7 +1043,8 @@ static void test_multiqueue(void *obj, void *arg, QGuestAllocator *alloc)
 
 static uint64_t vu_net_get_features(TestServer *s)
 {
-    uint64_t features = 0x1ULL << VHOST_F_LOG_ALL |
+    uint64_t features = 0x1ULL << VIRTIO_F_VERSION_1 |
+        0x1ULL << VHOST_F_LOG_ALL |
         0x1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
 
     if (s->queues > 1) {
