@@ -5,11 +5,12 @@
 //! Bindings for interrupt sources
 
 use core::ptr;
-use std::{marker::PhantomData, os::raw::c_int};
+use std::{ffi::CStr, marker::PhantomData, os::raw::c_int};
 
 use crate::{
-    bindings::{qemu_set_irq, IRQState},
+    bindings::{self, qemu_set_irq},
     prelude::*,
+    qom::ObjectClass,
 };
 
 /// Interrupt sources are used by devices to pass changes to a value (typically
@@ -21,7 +22,8 @@ use crate::{
 /// method sends a `true` value to the sink.  If the guest has to see a
 /// different polarity, that change is performed by the board between the
 /// device and the interrupt controller.
-///
+pub type IRQState = bindings::IRQState;
+
 /// Interrupts are implemented as a pointer to the interrupt "sink", which has
 /// type [`IRQState`].  A device exposes its source as a QOM link property using
 /// a function such as [`SysBusDeviceMethods::init_irq`], and
@@ -91,3 +93,10 @@ impl Default for InterruptSource {
         }
     }
 }
+
+unsafe impl ObjectType for IRQState {
+    type Class = ObjectClass;
+    const TYPE_NAME: &'static CStr =
+        unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_IRQ) };
+}
+qom_isa!(IRQState: Object);
