@@ -37,7 +37,6 @@ if:
 
 * forced by --accel tcg,thread=single
 * enabling --icount mode
-* 64 bit guests on 32 bit hosts (TCG_OVERSIZED_GUEST)
 
 In the general case of running translated code there should be no
 inter-vCPU dependencies and all vCPUs should be able to run at full

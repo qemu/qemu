@@ -28,7 +28,6 @@
 #include "exec/replay-core.h"
 #include "system/cpu-timers.h"
 #include "tcg/startup.h"
-#include "tcg/oversized-guest.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/accel.h"
@@ -41,6 +40,8 @@
 #include "hw/boards.h"
 #endif
 #include "internal-common.h"
+#include "cpu-param.h"
+
 
 struct TCGState {
     AccelState parent_obj;
@@ -72,7 +73,7 @@ DECLARE_INSTANCE_CHECKER(TCGState, TCG_STATE,
 
 static bool default_mttcg_enabled(void)
 {
-    if (icount_enabled() || TCG_OVERSIZED_GUEST) {
+    if (icount_enabled()) {
         return false;
     }
 #ifdef TARGET_SUPPORTS_MTTCG
@@ -145,9 +146,7 @@ static void tcg_set_thread(Object *obj, const char *value, Error **errp)
     TCGState *s = TCG_STATE(obj);
 
     if (strcmp(value, "multi") == 0) {
-        if (TCG_OVERSIZED_GUEST) {
-            error_setg(errp, "No MTTCG when guest word size > hosts");
-        } else if (icount_enabled()) {
+        if (icount_enabled()) {
             error_setg(errp, "No MTTCG when icount is enabled");
         } else {
 #ifndef TARGET_SUPPORTS_MTTCG

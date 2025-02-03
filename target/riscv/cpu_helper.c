@@ -32,7 +32,6 @@
 #include "system/cpu-timers.h"
 #include "cpu_bits.h"
 #include "debug.h"
-#include "tcg/oversized-guest.h"
 #include "pmp.h"
 
 int riscv_env_mmu_index(CPURISCVState *env, bool ifetch)
@@ -1167,9 +1166,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     hwaddr pte_addr;
     int i;
 
-#if !TCG_OVERSIZED_GUEST
-restart:
-#endif
+ restart:
     for (i = 0; i < levels; i++, ptshift -= ptidxbits) {
         target_ulong idx;
         if (i == 0) {
@@ -1388,13 +1385,6 @@ restart:
                                      false, MEMTXATTRS_UNSPECIFIED);
         if (memory_region_is_ram(mr)) {
             target_ulong *pte_pa = qemu_map_ram_ptr(mr->ram_block, addr1);
-#if TCG_OVERSIZED_GUEST
-            /*
-             * MTTCG is not enabled on oversized TCG guests so
-             * page table updates do not need to be atomic
-             */
-            *pte_pa = pte = updated_pte;
-#else
             target_ulong old_pte;
             if (riscv_cpu_sxl(env) == MXL_RV32) {
                 old_pte = qatomic_cmpxchg((uint32_t *)pte_pa, pte, updated_pte);
@@ -1405,7 +1395,6 @@ restart:
                 goto restart;
             }
             pte = updated_pte;
-#endif
         } else {
             /*
              * Misconfigured PTE in ROM (AD bits are not preset) or

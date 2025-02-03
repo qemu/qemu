@@ -16,9 +16,6 @@
 #include "internals.h"
 #include "cpu-features.h"
 #include "idau.h"
-#ifdef CONFIG_TCG
-# include "tcg/oversized-guest.h"
-#endif
 
 typedef struct S1Translate {
     /*
@@ -840,7 +837,6 @@ static uint64_t arm_casq_ptw(CPUARMState *env, uint64_t old_val,
         ptw->out_rw = true;
     }
 
-#ifdef CONFIG_ATOMIC64
     if (ptw->out_be) {
         old_val = cpu_to_be64(old_val);
         new_val = cpu_to_be64(new_val);
@@ -852,36 +848,6 @@ static uint64_t arm_casq_ptw(CPUARMState *env, uint64_t old_val,
         cur_val = qatomic_cmpxchg__nocheck((uint64_t *)host, old_val, new_val);
         cur_val = le64_to_cpu(cur_val);
     }
-#else
-    /*
-     * We can't support the full 64-bit atomic cmpxchg on the host.
-     * Because this is only used for FEAT_HAFDBS, which is only for AA64,
-     * we know that TCG_OVERSIZED_GUEST is set, which means that we are
-     * running in round-robin mode and could only race with dma i/o.
-     */
-#if !TCG_OVERSIZED_GUEST
-# error "Unexpected configuration"
-#endif
-    bool locked = bql_locked();
-    if (!locked) {
-        bql_lock();
-    }
-    if (ptw->out_be) {
-        cur_val = ldq_be_p(host);
-        if (cur_val == old_val) {
-            stq_be_p(host, new_val);
-        }
-    } else {
-        cur_val = ldq_le_p(host);
-        if (cur_val == old_val) {
-            stq_le_p(host, new_val);
-        }
-    }
-    if (!locked) {
-        bql_unlock();
-    }
-#endif
-
     return cur_val;
 #else
     /* AArch32 does not have FEAT_HADFS; non-TCG guests only use debug-mode. */
