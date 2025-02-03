@@ -527,14 +527,14 @@
   <interface name="org.qemu.Display1.Listener.Win32.Map">
     <!--
         ScanoutMap:
-        @handle: the shared map handle value.
+        @handle: the shared file mapping handle value (not a file handle)
         @offset: mapping offset.
         @width: display width, in pixels.
         @height: display height, in pixels.
         @stride: stride, in bytes.
         @pixman_format: image format (ex: ``PIXMAN_X8R8G8B8``).
 
-        Resize and update the display content with a shared map.
+        Resize and update the display content with a shared file mapping object.
     -->
     <method name="ScanoutMap">
       <arg type="t" name="handle" direction="in"/>
@@ -772,6 +772,18 @@
       <arg type="h" name="listener" direction="in"/>
       <?endif?>
     </method>
+
+    <!--
+        NSamples:
+
+        The number of samples per read/write frames. (for example the default is
+        480, or 10ms at 48kHz)
+
+        (earlier version of the display interface do not provide this property)
+    -->
+    <property name="NSamples" type="u" access="read">
+      <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="const"/>
+    </property>
 
     <!--
         Interfaces:

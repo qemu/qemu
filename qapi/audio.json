@@ -66,6 +66,26 @@
     '*out': 'AudiodevPerDirectionOptions' } }
 
 ##
+# @AudiodevDBusOptions:
+#
+# Options of the D-Bus audio backend.
+#
+# @in: options of the capture stream
+#
+# @out: options of the playback stream
+#
+# @nsamples: set the number of samples per read/write calls (default to 480,
+# 10ms at 48kHz).
+#
+# Since: 10.0
+##
+{ 'struct': 'AudiodevDBusOptions',
+  'data': {
+    '*in':  'AudiodevPerDirectionOptions',
+    '*out': 'AudiodevPerDirectionOptions',
+    '*nsamples': 'uint32'} }
+
+##
 # @AudiodevAlsaPerDirectionOptions:
 #
 # Options of the ALSA backend that are used for both playback and
@@ -490,7 +510,7 @@
                    'if': 'CONFIG_AUDIO_ALSA' },
     'coreaudio': { 'type': 'AudiodevCoreaudioOptions',
                    'if': 'CONFIG_AUDIO_COREAUDIO' },
-    'dbus':      { 'type': 'AudiodevGenericOptions',
+    'dbus':      { 'type': 'AudiodevDBusOptions',
                    'if': 'CONFIG_DBUS_DISPLAY' },
     'dsound':    { 'type': 'AudiodevDsoundOptions',
                    'if': 'CONFIG_AUDIO_DSOUND' },
