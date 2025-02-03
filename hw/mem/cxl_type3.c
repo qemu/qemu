@@ -893,7 +893,7 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
     /* MSI(-X) Initialization */
     rc = msix_init_exclusive_bar(pci_dev, CXL_T3_MSIX_VECTOR_NR, 4, NULL);
     if (rc) {
-        goto err_address_space_free;
+        goto err_free_special_ops;
     }
     for (i = 0; i < CXL_T3_MSIX_VECTOR_NR; i++) {
         msix_vector_use(pci_dev, i);
@@ -907,7 +907,7 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
     cxl_cstate->cdat.free_cdat_table = ct3_free_cdat_table;
     cxl_cstate->cdat.private = ct3d;
     if (!cxl_doe_cdat_init(cxl_cstate, errp)) {
-        goto err_free_special_ops;
+        goto err_msix_uninit;
     }
 
     pcie_cap_deverr_init(pci_dev);
@@ -943,10 +943,10 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
 
 err_release_cdat:
     cxl_doe_cdat_release(cxl_cstate);
-err_free_special_ops:
+err_msix_uninit:
     msix_uninit_exclusive_bar(pci_dev);
+err_free_special_ops:
     g_free(regs->special_ops);
-err_address_space_free:
     if (ct3d->dc.host_dc) {
         cxl_destroy_dc_regions(ct3d);
         address_space_destroy(&ct3d->dc.host_dc_as);
