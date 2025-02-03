@@ -1065,9 +1065,6 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     int ret;
 
     if (s->ctx && !s->dataplane_fenced) {
-        if (blk_op_is_blocked(sd->conf.blk, BLOCK_OP_TYPE_DATAPLANE, errp)) {
-            return;
-        }
         ret = blk_set_aio_context(sd->conf.blk, s->ctx, errp);
         if (ret < 0) {
             return;
