@@ -12,9 +12,10 @@ use qemu_api::{
     bindings::{
         error_fatal, qdev_prop_set_chr, qemu_chr_fe_accept_input, qemu_chr_fe_ioctl,
         qemu_chr_fe_set_handlers, qemu_chr_fe_write_all, qemu_irq, sysbus_connect_irq,
-        sysbus_mmio_map, sysbus_realize, CharBackend, Chardev, QEMUChrEvent,
+        sysbus_mmio_map, sysbus_realize, CharBackend, QEMUChrEvent,
         CHR_IOCTL_SERIAL_SET_BREAK,
     },
+    chardev::Chardev,
     c_str, impl_vmstate_forward,
     irq::InterruptSource,
     memory::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder},

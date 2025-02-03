@@ -16,6 +16,7 @@ use crate::{
     bindings::{self, Error, ResettableClass},
     callbacks::FnCall,
     cell::bql_locked,
+    chardev::Chardev,
     prelude::*,
     qom::{ClassInitImpl, ObjectClass, ObjectImpl, Owned},
     vmstate::VMStateDescription,
@@ -295,6 +296,14 @@ where
             let clk = bindings::qdev_init_clock_out(self.as_mut_ptr(), cstr.as_ptr());
 
             Owned::from(&*clk)
+        }
+    }
+
+    fn prop_set_chr(&self, propname: &str, chr: &Owned<Chardev>) {
+        assert!(bql_locked());
+        let c_propname = CString::new(propname).unwrap();
+        unsafe {
+            bindings::qdev_prop_set_chr(self.as_mut_ptr(), c_propname.as_ptr(), chr.as_mut_ptr());
         }
     }
 }
