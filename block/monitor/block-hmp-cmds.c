@@ -402,8 +402,8 @@ void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
         goto exit;
     }
 
-    nbd_server_start(addr, NULL, NULL, NBD_DEFAULT_MAX_CONNECTIONS,
-                     &local_err);
+    nbd_server_start(addr, NBD_DEFAULT_HANDSHAKE_MAX_SECS, NULL, NULL,
+                     NBD_DEFAULT_MAX_CONNECTIONS, &local_err);
     qapi_free_SocketAddress(addr);
     if (local_err != NULL) {
         goto exit;

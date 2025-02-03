@@ -17,6 +17,10 @@
 #
 # @addr: Address on which to listen.
 #
+# @handshake-max-seconds: Time limit, in seconds, at which a client
+#     that has not completed the negotiation handshake will be
+#     disconnected, 0 for no limit (since 10.0; default: 10).
+#
 # @tls-creds: ID of the TLS credentials object (since 2.6).
 #
 # @tls-authz: ID of the QAuthZ authorization object used to validate
@@ -34,6 +38,7 @@
 ##
 { 'struct': 'NbdServerOptions',
   'data': { 'addr': 'SocketAddress',
+            '*handshake-max-seconds': 'uint32',
             '*tls-creds': 'str',
             '*tls-authz': 'str',
             '*max-connections': 'uint32' } }
@@ -51,6 +56,10 @@
 # SocketAddress.
 #
 # @addr: Address on which to listen.
+#
+# @handshake-max-seconds: Time limit, in seconds, at which a client
+#     that has not completed the negotiation handshake will be
+#     disconnected, or 0 for no limit (since 10.0; default: 10).
 #
 # @tls-creds: ID of the TLS credentials object (since 2.6).
 #
@@ -72,6 +81,7 @@
 ##
 { 'command': 'nbd-server-start',
   'data': { 'addr': 'SocketAddressLegacy',
+            '*handshake-max-seconds': 'uint32',
             '*tls-creds': 'str',
             '*tls-authz': 'str',
             '*max-connections': 'uint32' },
