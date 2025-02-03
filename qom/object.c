@@ -431,12 +431,12 @@ static void object_init_with_type(Object *obj, TypeImpl *ti)
 
 static void object_post_init_with_type(Object *obj, TypeImpl *ti)
 {
-    if (ti->instance_post_init) {
-        ti->instance_post_init(obj);
-    }
-
     if (type_has_parent(ti)) {
         object_post_init_with_type(obj, type_get_parent(ti));
+    }
+
+    if (ti->instance_post_init) {
+        ti->instance_post_init(obj);
     }
 }
 
