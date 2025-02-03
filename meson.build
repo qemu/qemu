@@ -277,21 +277,27 @@ else
   host_arch = cpu
 endif
 
-if cpu in ['x86', 'x86_64']
+if cpu == 'x86'
+  kvm_targets = ['i386-softmmu']
+elif cpu == 'x86_64'
   kvm_targets = ['i386-softmmu', 'x86_64-softmmu']
 elif cpu == 'aarch64'
   kvm_targets = ['aarch64-softmmu']
 elif cpu == 's390x'
   kvm_targets = ['s390x-softmmu']
-elif cpu in ['ppc', 'ppc64']
+elif cpu == 'ppc'
+  kvm_targets = ['ppc-softmmu']
+elif cpu == 'ppc64'
   kvm_targets = ['ppc-softmmu', 'ppc64-softmmu']
-elif cpu in ['mips', 'mips64']
+elif cpu == 'mips'
+  kvm_targets = ['mips-softmmu', 'mipsel-softmmu']
+elif cpu == 'mips64'
   kvm_targets = ['mips-softmmu', 'mipsel-softmmu', 'mips64-softmmu', 'mips64el-softmmu']
-elif cpu in ['riscv32']
+elif cpu == 'riscv32'
   kvm_targets = ['riscv32-softmmu']
-elif cpu in ['riscv64']
+elif cpu == 'riscv64'
   kvm_targets = ['riscv64-softmmu']
-elif cpu in ['loongarch64']
+elif cpu == 'loongarch64'
   kvm_targets = ['loongarch64-softmmu']
 else
   kvm_targets = []
