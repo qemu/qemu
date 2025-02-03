@@ -156,6 +156,11 @@ driver options if :option:`--image-opts` is specified.
   Set the NBD volume export description, as a human-readable
   string.
 
+.. option:: --handshake-limit=N
+
+  Set the timeout for a client to successfully complete its handshake
+  to N seconds (default 10), or 0 for no limit.
+
 .. option:: -L, --list
 
   Connect as a client and list all details about the exports exposed by
