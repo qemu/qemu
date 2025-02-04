@@ -3471,6 +3471,38 @@ void qmp_blockdev_del(const char *node_name, Error **errp)
     bdrv_unref(bs);
 }
 
+void qmp_blockdev_set_active(const char *node_name, bool active, Error **errp)
+{
+    int ret;
+
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    if (!node_name) {
+        if (active) {
+            bdrv_activate_all(errp);
+        } else {
+            ret = bdrv_inactivate_all();
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "Failed to inactivate all nodes");
+            }
+        }
+    } else {
+        BlockDriverState *bs = bdrv_find_node(node_name);
+        if (!bs) {
+            error_setg(errp, "Failed to find node with node-name='%s'",
+                       node_name);
+            return;
+        }
+
+        if (active) {
+            bdrv_activate(bs, errp);
+        } else {
+            bdrv_inactivate(bs, errp);
+        }
+    }
+}
+
 static BdrvChild * GRAPH_RDLOCK
 bdrv_find_child(BlockDriverState *parent_bs, const char *child_name)
 {
