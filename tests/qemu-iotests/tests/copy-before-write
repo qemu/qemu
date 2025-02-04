@@ -95,8 +95,7 @@ class TestCbwError(iotests.QMPTestCase):
 
         self.vm.shutdown()
         log = self.vm.get_log()
-        log = re.sub(r'^\[I \d+\.\d+\] OPENED\n', '', log)
-        log = re.sub(r'\[I \+\d+\.\d+\] CLOSED\n?$', '', log)
+        log = iotests.filter_qtest(log)
         log = iotests.filter_qemu_io(log)
         return log
 

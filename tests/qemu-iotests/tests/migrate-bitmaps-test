@@ -122,11 +122,10 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
 
         # catch 'Could not reopen qcow2 layer: Bitmap already exists'
         # possible error
-        log = self.vm_a.get_log()
-        log = re.sub(r'^\[I \d+\.\d+\] OPENED\n', '', log)
-        log = re.sub(r'^(wrote .* bytes at offset .*\n.*KiB.*ops.*sec.*\n){3}',
+        log = iotests.filter_qtest(self.vm_a.get_log())
+        log = re.sub(r'^(wrote .* bytes at offset .*\n'
+                     r'.*KiB.*ops.*sec.*\n?){3}',
                      '', log)
-        log = re.sub(r'\[I \+\d+\.\d+\] CLOSED\n?$', '', log)
         self.assertEqual(log, '')
 
         # test that bitmap is still persistent
