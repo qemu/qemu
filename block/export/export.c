@@ -145,7 +145,11 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
      * ctx was acquired in the caller.
      */
     bdrv_graph_rdlock_main_loop();
-    bdrv_activate(bs, NULL);
+    ret = bdrv_activate(bs, errp);
+    if (ret < 0) {
+        bdrv_graph_rdunlock_main_loop();
+        goto fail;
+    }
     bdrv_graph_rdunlock_main_loop();
 
     perm = BLK_PERM_CONSISTENT_READ;
