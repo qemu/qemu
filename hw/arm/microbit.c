@@ -67,7 +67,6 @@ static void microbit_machine_class_init(ObjectClass *oc, void *data)
     mc->desc = "BBC micro:bit (Cortex-M0)";
     mc->init = microbit_init;
     mc->max_cpus = 1;
-    mc->auto_create_sdcard = true;
 }
 
 static const TypeInfo microbit_info = {

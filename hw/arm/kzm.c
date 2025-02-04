@@ -137,7 +137,6 @@ static void kzm_machine_init(MachineClass *mc)
     mc->init = kzm_init;
     mc->ignore_memory_transaction_failures = true;
     mc->default_ram_id = "kzm.ram";
-    mc->auto_create_sdcard = true;
 }
 
 DEFINE_MACHINE("kzm", kzm_machine_init)

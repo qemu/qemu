@@ -63,7 +63,6 @@ static void netduino2_machine_init(MachineClass *mc)
     mc->init = netduino2_init;
     mc->valid_cpu_types = valid_cpu_types;
     mc->ignore_memory_transaction_failures = true;
-    mc->auto_create_sdcard = true;
 }
 
 DEFINE_MACHINE("netduino2", netduino2_machine_init)
