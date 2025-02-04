@@ -1573,6 +1573,10 @@ static void update_flags_from_options(int *flags, QemuOpts *opts)
     if (qemu_opt_get_bool_del(opts, BDRV_OPT_AUTO_READ_ONLY, false)) {
         *flags |= BDRV_O_AUTO_RDONLY;
     }
+
+    if (!qemu_opt_get_bool_del(opts, BDRV_OPT_ACTIVE, true)) {
+        *flags |= BDRV_O_INACTIVE;
+    }
 }
 
 static void update_options_from_flags(QDict *options, int flags)
@@ -1798,6 +1802,11 @@ QemuOptsList bdrv_runtime_opts = {
             .name = BDRV_OPT_CACHE_NO_FLUSH,
             .type = QEMU_OPT_BOOL,
             .help = "Ignore flush requests",
+        },
+        {
+            .name = BDRV_OPT_ACTIVE,
+            .type = QEMU_OPT_BOOL,
+            .help = "Node is activated",
         },
         {
             .name = BDRV_OPT_READ_ONLY,

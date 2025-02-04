@@ -4683,6 +4683,11 @@
 #
 # @cache: cache-related options
 #
+# @active: whether the block node should be activated (default: true).
+#     Having inactive block nodes is useful primarily for migration because it
+#     allows opening an image on the destination while the source is still
+#     holding locks for it. (Since 10.0)
+#
 # @read-only: whether the block device should be read-only (default:
 #     false).  Note that some block drivers support only read-only
 #     access, either generally or in certain configurations.  In this
@@ -4709,6 +4714,7 @@
             '*node-name': 'str',
             '*discard': 'BlockdevDiscardOptions',
             '*cache': 'BlockdevCacheOptions',
+            '*active': 'bool',
             '*read-only': 'bool',
             '*auto-read-only': 'bool',
             '*force-share': 'bool',
