@@ -913,6 +913,10 @@ class VM(qtest.QEMUQtestMachine):
         self._args.append(addr)
         return self
 
+    def add_paused(self):
+        self._args.append('-S')
+        return self
+
     def hmp(self, command_line: str, use_log: bool = False) -> QMPMessage:
         cmd = 'human-monitor-command'
         kwargs: Dict[str, Any] = {'command-line': command_line}
