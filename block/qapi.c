@@ -63,6 +63,7 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
     info->file                   = g_strdup(bs->filename);
     info->ro                     = bdrv_is_read_only(bs);
     info->drv                    = g_strdup(bs->drv->format_name);
+    info->active                 = !bdrv_is_inactive(bs);
     info->encrypted              = bs->encrypted;
 
     info->cache = g_new(BlockdevCacheInfo, 1);

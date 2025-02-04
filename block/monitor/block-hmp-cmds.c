@@ -630,11 +630,12 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
     }
 
     if (inserted) {
-        monitor_printf(mon, ": %s (%s%s%s)\n",
+        monitor_printf(mon, ": %s (%s%s%s%s)\n",
                        inserted->file,
                        inserted->drv,
                        inserted->ro ? ", read-only" : "",
-                       inserted->encrypted ? ", encrypted" : "");
+                       inserted->encrypted ? ", encrypted" : "",
+                       inserted->active ? "" : ", inactive");
     } else {
         monitor_printf(mon, ": [not inserted]\n");
     }
