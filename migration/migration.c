@@ -1875,12 +1875,6 @@ void qmp_migrate_incoming(const char *uri, bool has_channels,
         return;
     }
 
-    /*
-     * Newly setup incoming QEMU.  Mark the block active state to reflect
-     * that the src currently owns the disks.
-     */
-    migration_block_active_setup(false);
-
     once = false;
 }
 
@@ -3825,8 +3819,6 @@ static void migration_instance_init(Object *obj)
     ms->state = MIGRATION_STATUS_NONE;
     ms->mbps = -1;
     ms->pages_per_second = -1;
-    /* Freshly started QEMU owns all the block devices */
-    migration_block_active_setup(true);
     qemu_sem_init(&ms->pause_sem, 0);
     qemu_mutex_init(&ms->error_mutex);
 
