@@ -7032,7 +7032,9 @@ bdrv_inactivate_recurse(BlockDriverState *bs, bool top_level)
         return -EPERM;
     }
 
+    bdrv_drained_begin(bs);
     bs->open_flags |= BDRV_O_INACTIVE;
+    bdrv_drained_end(bs);
 
     /*
      * Update permissions, they may differ for inactive nodes.
