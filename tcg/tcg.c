@@ -1690,9 +1690,7 @@ void tcg_func_start(TCGContext *s)
     s->emit_before_op = NULL;
     QSIMPLEQ_INIT(&s->labels);
 
-    tcg_debug_assert(s->addr_type == TCG_TYPE_I32 ||
-                     s->addr_type == TCG_TYPE_I64);
-
+    tcg_debug_assert(s->addr_type <= TCG_TYPE_REG);
     tcg_debug_assert(s->insn_start_words > 0);
 }
 

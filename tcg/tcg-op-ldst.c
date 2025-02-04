@@ -91,25 +91,10 @@ static MemOp tcg_canonicalize_memop(MemOp op, bool is64, bool st)
 static void gen_ldst(TCGOpcode opc, TCGType type, TCGTemp *vl, TCGTemp *vh,
                      TCGTemp *addr, MemOpIdx oi)
 {
-    if (TCG_TARGET_REG_BITS == 64 || tcg_ctx->addr_type == TCG_TYPE_I32) {
-        if (vh) {
-            tcg_gen_op4(opc, type, temp_arg(vl), temp_arg(vh),
-                        temp_arg(addr), oi);
-        } else {
-            tcg_gen_op3(opc, type, temp_arg(vl), temp_arg(addr), oi);
-        }
+    if (vh) {
+        tcg_gen_op4(opc, type, temp_arg(vl), temp_arg(vh), temp_arg(addr), oi);
     } else {
-        /* See TCGV_LOW/HIGH. */
-        TCGTemp *al = addr + HOST_BIG_ENDIAN;
-        TCGTemp *ah = addr + !HOST_BIG_ENDIAN;
-
-        if (vh) {
-            tcg_gen_op5(opc, type, temp_arg(vl), temp_arg(vh),
-                        temp_arg(al), temp_arg(ah), oi);
-        } else {
-            tcg_gen_op4(opc, type, temp_arg(vl),
-                        temp_arg(al), temp_arg(ah), oi);
-        }
+        tcg_gen_op3(opc, type, temp_arg(vl), temp_arg(addr), oi);
     }
 }
 
