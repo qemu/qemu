@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+# group: rw quick
+#
+# Copyright (C) Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Kevin Wolf <kwolf@redhat.com>
+
+import iotests
+
+from iotests import filter_qemu_io, filter_qtest
+
+iotests.script_initialize(supported_fmts=['generic'],
+                          supported_protocols=['file'],
+                          supported_platforms=['linux'])
+
+with iotests.FilePath('disk.img') as path, \
+     iotests.FilePath('nbd-src.sock', base_dir=iotests.sock_dir) as nbd_src, \
+     iotests.FilePath('nbd-dst.sock', base_dir=iotests.sock_dir) as nbd_dst, \
+     iotests.FilePath('migrate.sock', base_dir=iotests.sock_dir) as mig_sock, \
+     iotests.VM(path_suffix="-src") as vm_src, \
+     iotests.VM(path_suffix="-dst") as vm_dst:
+
+    img_size = '10M'
+
+    iotests.log('Preparing disk...')
+    iotests.qemu_img_create('-f', iotests.imgfmt, path, img_size)
+
+    iotests.log('Launching source QSD...')
+    qsd_src = iotests.QemuStorageDaemon(
+        '--blockdev', f'file,node-name=disk-file,filename={path}',
+        '--blockdev', f'{iotests.imgfmt},file=disk-file,node-name=disk-fmt',
+        '--nbd-server', f'addr.type=unix,addr.path={nbd_src}',
+        '--export', 'nbd,id=exp0,node-name=disk-fmt,writable=true,'
+                    'allow-inactive=true',
+        qmp=True,
+    )
+
+    iotests.log('Launching source VM...')
+    vm_src.add_args('-blockdev', f'nbd,node-name=disk,server.type=unix,'
+                                 f'server.path={nbd_src},export=disk-fmt')
+    vm_src.add_args('-device', 'virtio-blk,drive=disk,id=virtio0')
+    vm_src.launch()
+
+    iotests.log('Launching destination QSD...')
+    qsd_dst = iotests.QemuStorageDaemon(
+        '--blockdev', f'file,node-name=disk-file,filename={path},active=off',
+        '--blockdev', f'{iotests.imgfmt},file=disk-file,node-name=disk-fmt,'
+                      f'active=off',
+        '--nbd-server', f'addr.type=unix,addr.path={nbd_dst}',
+        '--export', 'nbd,id=exp0,node-name=disk-fmt,writable=true,'
+                    'allow-inactive=true',
+        qmp=True,
+        instance_id='b',
+    )
+
+    iotests.log('Launching destination VM...')
+    vm_dst.add_args('-blockdev', f'nbd,node-name=disk,server.type=unix,'
+                                 f'server.path={nbd_dst},export=disk-fmt')
+    vm_dst.add_args('-device', 'virtio-blk,drive=disk,id=virtio0')
+    vm_dst.add_args('-incoming', f'unix:{mig_sock}')
+    vm_dst.launch()
+
+    iotests.log('\nTest I/O on the source')
+    vm_src.hmp_qemu_io('virtio0/virtio-backend', 'write -P 0x11 0 4k',
+                       use_log=True, qdev=True)
+    vm_src.hmp_qemu_io('virtio0/virtio-backend', 'read -P 0x11 0 4k',
+                       use_log=True, qdev=True)
+
+    iotests.log('\nStarting migration...')
+
+    mig_caps = [
+        {'capability': 'events', 'state': True},
+        {'capability': 'pause-before-switchover', 'state': True},
+    ]
+    vm_src.qmp_log('migrate-set-capabilities', capabilities=mig_caps)
+    vm_dst.qmp_log('migrate-set-capabilities', capabilities=mig_caps)
+    vm_src.qmp_log('migrate', uri=f'unix:{mig_sock}',
+                   filters=[iotests.filter_qmp_testfiles])
+
+    vm_src.event_wait('MIGRATION',
+                      match={'data': {'status': 'pre-switchover'}})
+
+    iotests.log('\nPre-switchover: Reconfigure QSD instances')
+
+    iotests.log(qsd_src.qmp('blockdev-set-active', {'active': False}))
+
+    # Reading is okay from both sides while the image is inactive. Note that
+    # the destination may have stale data until it activates the image, though.
+    vm_src.hmp_qemu_io('virtio0/virtio-backend', 'read -P 0x11 0 4k',
+                       use_log=True, qdev=True)
+    vm_dst.hmp_qemu_io('virtio0/virtio-backend', 'read 0 4k',
+                       use_log=True, qdev=True)
+
+    iotests.log(qsd_dst.qmp('blockdev-set-active', {'active': True}))
+
+    iotests.log('\nCompleting migration...')
+
+    vm_src.qmp_log('migrate-continue', state='pre-switchover')
+    vm_dst.event_wait('MIGRATION', match={'data': {'status': 'completed'}})
+
+    iotests.log('\nTest I/O on the destination')
+
+    # Now the destination must see what the source wrote
+    vm_dst.hmp_qemu_io('virtio0/virtio-backend', 'read -P 0x11 0 4k',
+                       use_log=True, qdev=True)
+
+    # And be able to overwrite it
+    vm_dst.hmp_qemu_io('virtio0/virtio-backend', 'write -P 0x22 0 4k',
+                       use_log=True, qdev=True)
+    vm_dst.hmp_qemu_io('virtio0/virtio-backend', 'read -P 0x22 0 4k',
+                       use_log=True, qdev=True)
+
+    iotests.log('\nDone')
+
+    vm_src.shutdown()
+    iotests.log('\n--- vm_src log ---')
+    log = vm_src.get_log()
+    if log:
+        iotests.log(log, [filter_qtest, filter_qemu_io])
+    qsd_src.stop()
+
+    vm_dst.shutdown()
+    iotests.log('\n--- vm_dst log ---')
+    log = vm_dst.get_log()
+    if log:
+        iotests.log(log, [filter_qtest, filter_qemu_io])
+    qsd_dst.stop()
