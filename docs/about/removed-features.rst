@@ -1064,6 +1064,13 @@ for all machine types using the PXA2xx and OMAP2 SoCs. We are also
 dropping the ``cheetah`` OMAP1 board, because we don't have any
 test images for it and don't know of anybody who does.
 
+ppc ``ref405ep`` machine (removed in 10.0)
+''''''''''''''''''''''''''''''''''''''''''
+
+This machine was removed because PPC 405 CPU have no known users,
+firmware images are not available, OpenWRT dropped support in 2019,
+U-Boot in 2017, and Linux in 2024.
+
 linux-user mode CPUs
 --------------------
 
