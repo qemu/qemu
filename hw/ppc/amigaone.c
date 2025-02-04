@@ -173,7 +173,6 @@ static void amigaone_machine_init(MachineClass *mc)
     mc->default_display = "std";
     mc->default_ram_id = "ram";
     mc->default_ram_size = 512 * MiB;
-    mc->auto_create_sdcard = true;
 }
 
 DEFINE_MACHINE("amigaone", amigaone_machine_init)

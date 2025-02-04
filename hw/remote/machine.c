@@ -128,7 +128,6 @@ static void remote_machine_class_init(ObjectClass *oc, void *data)
 
     mc->init = remote_machine_init;
     mc->desc = "Experimental remote machine";
-    mc->auto_create_sdcard = true;
 
     hc->unplug = remote_machine_dev_unplug_cb;
 

@@ -122,7 +122,6 @@ static void xtensa_virt_machine_init(MachineClass *mc)
     mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
     mc->default_nic = "virtio-net-pci";
-    mc->auto_create_sdcard = true;
 }
 
 DEFINE_MACHINE("virt", xtensa_virt_machine_init)

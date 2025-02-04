@@ -318,7 +318,6 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 1;
     mc->no_floppy = 1;
     mc->no_parallel = 1;
-    mc->auto_create_sdcard = true;
     mc->default_ram_id = "m68k_virt.ram";
 }
 

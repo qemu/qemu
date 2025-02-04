@@ -213,7 +213,6 @@ static void clipper_machine_init(MachineClass *mc)
     mc->default_cpu_type = ALPHA_CPU_TYPE_NAME("ev67");
     mc->default_ram_id = "ram";
     mc->default_nic = "e1000";
-    mc->auto_create_sdcard = true;
 }
 
 DEFINE_MACHINE("clipper", clipper_machine_init)

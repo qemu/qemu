@@ -594,7 +594,6 @@ static void xtfpga_lx60_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
     mc->default_ram_size = 64 * MiB;
-    mc->auto_create_sdcard = true;
 }
 
 static const TypeInfo xtfpga_lx60_type = {
@@ -612,7 +611,6 @@ static void xtfpga_lx60_nommu_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_NOMMU_TYPE;
     mc->default_ram_size = 64 * MiB;
-    mc->auto_create_sdcard = true;
 }
 
 static const TypeInfo xtfpga_lx60_nommu_type = {
@@ -630,7 +628,6 @@ static void xtfpga_lx200_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
     mc->default_ram_size = 96 * MiB;
-    mc->auto_create_sdcard = true;
 }
 
 static const TypeInfo xtfpga_lx200_type = {
@@ -648,7 +645,6 @@ static void xtfpga_lx200_nommu_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_NOMMU_TYPE;
     mc->default_ram_size = 96 * MiB;
-    mc->auto_create_sdcard = true;
 }
 
 static const TypeInfo xtfpga_lx200_nommu_type = {
@@ -666,7 +662,6 @@ static void xtfpga_ml605_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
     mc->default_ram_size = 512 * MiB - XTFPGA_MMU_RESERVED_MEMORY_SIZE;
-    mc->auto_create_sdcard = true;
 }
 
 static const TypeInfo xtfpga_ml605_type = {
@@ -684,7 +679,6 @@ static void xtfpga_ml605_nommu_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_NOMMU_TYPE;
     mc->default_ram_size = 256 * MiB;
-    mc->auto_create_sdcard = true;
 }
 
 static const TypeInfo xtfpga_ml605_nommu_type = {
@@ -702,7 +696,6 @@ static void xtfpga_kc705_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
     mc->default_ram_size = 1 * GiB - XTFPGA_MMU_RESERVED_MEMORY_SIZE;
-    mc->auto_create_sdcard = true;
 }
 
 static const TypeInfo xtfpga_kc705_type = {
@@ -720,7 +713,6 @@ static void xtfpga_kc705_nommu_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_NOMMU_TYPE;
     mc->default_ram_size = 256 * MiB;
-    mc->auto_create_sdcard = true;
 }
 
 static const TypeInfo xtfpga_kc705_nommu_type = {

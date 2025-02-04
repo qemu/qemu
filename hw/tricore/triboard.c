@@ -73,7 +73,6 @@ static void triboard_machine_tc277d_class_init(ObjectClass *oc,
     mc->init        = triboard_machine_init;
     mc->desc        = "Infineon AURIX TriBoard TC277 (D-Step)";
     mc->max_cpus    = 1;
-    mc->auto_create_sdcard = true;
     amc->soc_name   = "tc277d-soc";
 };
 

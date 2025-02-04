@@ -1306,7 +1306,6 @@ static void mips_malta_machine_init(MachineClass *mc)
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("24Kf");
 #endif
     mc->default_ram_id = "mips_malta.ram";
-    mc->auto_create_sdcard = true;
     compat_props_add(mc->compat_props, malta_compat, malta_compat_len);
 }
 

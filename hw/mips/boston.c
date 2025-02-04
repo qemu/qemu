@@ -842,7 +842,6 @@ static void boston_mach_class_init(MachineClass *mc)
     mc->default_ram_id = "boston.ddr";
     mc->max_cpus = 16;
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("I6400");
-    mc->auto_create_sdcard = true;
 }
 
 DEFINE_MACHINE("boston", boston_mach_class_init)

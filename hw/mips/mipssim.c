@@ -247,7 +247,6 @@ static void mips_mipssim_machine_init(MachineClass *mc)
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("24Kf");
 #endif
     mc->default_ram_id = "mips_mipssim.ram";
-    mc->auto_create_sdcard = true;
 }
 
 DEFINE_MACHINE("mipssim", mips_mipssim_machine_init)

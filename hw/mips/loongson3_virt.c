@@ -679,7 +679,6 @@ static void loongson3v_machine_class_init(ObjectClass *oc, void *data)
     mc->default_ram_size = 1600 * MiB;
     mc->minimum_page_bits = 14;
     mc->default_nic = "virtio-net-pci";
-    mc->auto_create_sdcard = true;
 }
 
 static const TypeInfo loongson3_machine_types[] = {

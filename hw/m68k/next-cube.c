@@ -1359,7 +1359,6 @@ static void next_machine_class_init(ObjectClass *oc, void *data)
     mc->default_ram_id = "next.ram";
     mc->default_cpu_type = M68K_CPU_TYPE_NAME("m68040");
     mc->no_cdrom = true;
-    mc->auto_create_sdcard = true;
 }
 
 static const TypeInfo next_typeinfo = {

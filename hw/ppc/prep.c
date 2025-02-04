@@ -428,7 +428,6 @@ static void ibm_40p_machine_init(MachineClass *mc)
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("604");
     mc->default_display = "std";
     mc->default_nic = "pcnet";
-    mc->auto_create_sdcard = true;
 
     machine_add_audiodev_property(mc);
 }

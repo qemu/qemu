@@ -67,7 +67,6 @@ static void xenpv_machine_init(MachineClass *mc)
     mc->init = xen_init_pv;
     mc->max_cpus = 1;
     mc->default_machine_opts = "accel=xen";
-    mc->auto_create_sdcard = true;
 }
 
 DEFINE_MACHINE("xenpv", xenpv_machine_init)
