@@ -4931,6 +4931,38 @@
   'allow-preconfig': true }
 
 ##
+# @blockdev-set-active:
+#
+# Activate or inactivate a block device. Use this to manage the handover of
+# block devices on migration with qemu-storage-daemon.
+#
+# Activating a node automatically activates all of its child nodes first.
+# Inactivating a node automatically inactivates any of its child nodes that are
+# not in use by a still active node.
+#
+# @node-name: Name of the graph node to activate or inactivate. By default, all
+#     nodes are affected by the operation.
+#
+# @active: true if the nodes should be active when the command returns success,
+#     false if they should be inactive.
+#
+# Since: 10.0
+#
+# .. qmp-example::
+#
+#     -> { "execute": "blockdev-set-active",
+#          "arguments": {
+#               "node-name": "node0",
+#               "active": false
+#          }
+#        }
+#     <- { "return": {} }
+##
+{ 'command': 'blockdev-set-active',
+  'data': { '*node-name': 'str', 'active': 'bool' },
+  'allow-preconfig': true }
+
+##
 # @BlockdevCreateOptionsFile:
 #
 # Driver specific image creation options for file.
