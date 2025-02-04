@@ -6959,7 +6959,8 @@ bdrv_has_bds_parent(BlockDriverState *bs, bool only_active)
     return false;
 }
 
-static int GRAPH_RDLOCK bdrv_inactivate_recurse(BlockDriverState *bs)
+static int GRAPH_RDLOCK
+bdrv_inactivate_recurse(BlockDriverState *bs, bool top_level)
 {
     BdrvChild *child, *parent;
     int ret;
@@ -6977,7 +6978,14 @@ static int GRAPH_RDLOCK bdrv_inactivate_recurse(BlockDriverState *bs)
         return 0;
     }
 
-    assert(!(bs->open_flags & BDRV_O_INACTIVE));
+    /*
+     * Inactivating an already inactive node on user request is harmless, but if
+     * a child is already inactive before its parent, that's bad.
+     */
+    if (bs->open_flags & BDRV_O_INACTIVE) {
+        assert(top_level);
+        return 0;
+    }
 
     /* Inactivate this node */
     if (bs->drv->bdrv_inactivate) {
@@ -7014,7 +7022,7 @@ static int GRAPH_RDLOCK bdrv_inactivate_recurse(BlockDriverState *bs)
 
     /* Recursively inactivate children */
     QLIST_FOREACH(child, &bs->children, next) {
-        ret = bdrv_inactivate_recurse(child->bs);
+        ret = bdrv_inactivate_recurse(child->bs, false);
         if (ret < 0) {
             return ret;
         }
@@ -7039,7 +7047,7 @@ int bdrv_inactivate_all(void)
         if (bdrv_has_bds_parent(bs, false)) {
             continue;
         }
-        ret = bdrv_inactivate_recurse(bs);
+        ret = bdrv_inactivate_recurse(bs, true);
         if (ret < 0) {
             bdrv_next_cleanup(&it);
             break;
