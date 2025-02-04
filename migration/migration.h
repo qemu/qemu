@@ -554,7 +554,4 @@ void migration_bitmap_sync_precopy(bool last_stage);
 void dirty_bitmap_mig_init(void);
 bool should_send_vmdesc(void);
 
-/* migration/block-active.c */
-void migration_block_active_setup(bool active);
-
 #endif
