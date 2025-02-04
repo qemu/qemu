@@ -44,6 +44,7 @@ test_timeouts = {
   'riscv64_tuxrun' : 120,
   's390x_ccw_virtio' : 420,
   'sh4_tuxrun' : 240,
+  'virtio_balloon': 120,
 }
 
 tests_generic_system = [
@@ -242,6 +243,7 @@ tests_x86_64_system_thorough = [
   'linux_initrd',
   'multiprocess',
   'netdev_ethtool',
+  'virtio_balloon',
   'virtio_gpu',
   'x86_64_hotplug_cpu',
   'x86_64_tuxrun',

@@ -2246,6 +2246,7 @@ F: include/hw/virtio/virtio-balloon.h
 F: system/balloon.c
 F: include/system/balloon.h
 F: tests/qtest/virtio-balloon-test.c
+F: tests/functional/test_virtio_balloon.py
 
 virtio-9p
 M: Greg Kurz <groug@kaod.org>
