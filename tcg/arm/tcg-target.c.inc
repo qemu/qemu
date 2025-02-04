@@ -2071,36 +2071,20 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                         ARITH_MOV, args[0], 0, 0);
         break;
 
-    case INDEX_op_qemu_ld_a32_i32:
+    case INDEX_op_qemu_ld_i32:
         tcg_out_qemu_ld(s, args[0], -1, args[1], -1, args[2], TCG_TYPE_I32);
         break;
-    case INDEX_op_qemu_ld_a64_i32:
-        tcg_out_qemu_ld(s, args[0], -1, args[1], args[2],
-                        args[3], TCG_TYPE_I32);
-        break;
-    case INDEX_op_qemu_ld_a32_i64:
+    case INDEX_op_qemu_ld_i64:
         tcg_out_qemu_ld(s, args[0], args[1], args[2], -1,
                         args[3], TCG_TYPE_I64);
         break;
-    case INDEX_op_qemu_ld_a64_i64:
-        tcg_out_qemu_ld(s, args[0], args[1], args[2], args[3],
-                        args[4], TCG_TYPE_I64);
-        break;
 
-    case INDEX_op_qemu_st_a32_i32:
+    case INDEX_op_qemu_st_i32:
         tcg_out_qemu_st(s, args[0], -1, args[1], -1, args[2], TCG_TYPE_I32);
         break;
-    case INDEX_op_qemu_st_a64_i32:
-        tcg_out_qemu_st(s, args[0], -1, args[1], args[2],
-                        args[3], TCG_TYPE_I32);
-        break;
-    case INDEX_op_qemu_st_a32_i64:
+    case INDEX_op_qemu_st_i64:
         tcg_out_qemu_st(s, args[0], args[1], args[2], -1,
                         args[3], TCG_TYPE_I64);
-        break;
-    case INDEX_op_qemu_st_a64_i64:
-        tcg_out_qemu_st(s, args[0], args[1], args[2], args[3],
-                        args[4], TCG_TYPE_I64);
         break;
 
     case INDEX_op_bswap16_i32:
@@ -2243,22 +2227,14 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_setcond2_i32:
         return C_O1_I4(r, r, r, rI, rI);
 
-    case INDEX_op_qemu_ld_a32_i32:
+    case INDEX_op_qemu_ld_i32:
         return C_O1_I1(r, q);
-    case INDEX_op_qemu_ld_a64_i32:
-        return C_O1_I2(r, q, q);
-    case INDEX_op_qemu_ld_a32_i64:
+    case INDEX_op_qemu_ld_i64:
         return C_O2_I1(e, p, q);
-    case INDEX_op_qemu_ld_a64_i64:
-        return C_O2_I2(e, p, q, q);
-    case INDEX_op_qemu_st_a32_i32:
+    case INDEX_op_qemu_st_i32:
         return C_O0_I2(q, q);
-    case INDEX_op_qemu_st_a64_i32:
-        return C_O0_I3(q, q, q);
-    case INDEX_op_qemu_st_a32_i64:
+    case INDEX_op_qemu_st_i64:
         return C_O0_I3(Q, p, q);
-    case INDEX_op_qemu_st_a64_i64:
-        return C_O0_I4(Q, p, q, q);
 
     case INDEX_op_st_vec:
         return C_O0_I2(w, r);
