@@ -253,7 +253,7 @@ static bool blk_can_inactivate(BlockBackend *blk)
      * guest.  For block job BBs that satisfy this, we can just allow
      * it.  This is the case for mirror job source, which is required
      * by libvirt non-shared block migration. */
-    if (!(blk->perm & (BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED))) {
+    if (!(blk->perm & ~BLK_PERM_CONSISTENT_READ)) {
         return true;
     }
 

@@ -3077,6 +3077,13 @@ bdrv_attach_child_common(BlockDriverState *child_bs,
     assert(child_class->get_parent_desc);
     GLOBAL_STATE_CODE();
 
+    if (bdrv_is_inactive(child_bs) && (perm & ~BLK_PERM_CONSISTENT_READ)) {
+        g_autofree char *perm_names = bdrv_perm_names(perm);
+        error_setg(errp, "Permission '%s' unavailable on inactive node",
+                   perm_names);
+        return NULL;
+    }
+
     new_child = g_new(BdrvChild, 1);
     *new_child = (BdrvChild) {
         .bs             = NULL,
