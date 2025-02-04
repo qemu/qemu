@@ -3183,6 +3183,11 @@ bdrv_attach_child_noperm(BlockDriverState *parent_bs,
                    child_bs->node_name, child_name, parent_bs->node_name);
         return NULL;
     }
+    if (bdrv_is_inactive(child_bs) && !bdrv_is_inactive(parent_bs)) {
+        error_setg(errp, "Inactive '%s' can't be a %s child of active '%s'",
+                   child_bs->node_name, child_name, parent_bs->node_name);
+        return NULL;
+    }
 
     bdrv_get_cumulative_perm(parent_bs, &perm, &shared_perm);
     bdrv_child_perm(parent_bs, child_bs, NULL, child_role, NULL,
