@@ -45,6 +45,8 @@ TESTS_BUILT_WITH_DEFAULT_RULES = \
 	vid_reg \
 	hvx-multi \
 	standalone_vec \
+	fastl2vic \
+	int_range \
 	$()
 
 TESTS += \
@@ -88,6 +90,10 @@ standalone_vec.o: standalone_vec.c cfgtable.h
 standalone_vec: standalone_vec.o
 badva.o: badva.c ../hex_test.h crt0/hexagon_standalone.h
 badva: badva.o
+fastl2vic.o: fastl2vic.c cfgtable.h
+fastl2vic: fastl2vic.o
+int_range.o: int_range.c cfgtable.h
+int_range: int_range.o
 
 ############# Custom build options
 
