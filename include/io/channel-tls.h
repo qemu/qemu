@@ -49,7 +49,19 @@ struct QIOChannelTLS {
     QCryptoTLSSession *session;
     QIOChannelShutdown shutdown;
     guint hs_ioc_tag;
+    guint bye_ioc_tag;
 };
+
+/**
+ * qio_channel_tls_bye:
+ * @ioc: the TLS channel object
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Perform the TLS session termination. This method will return
+ * immediately and the termination will continue in the background,
+ * provided the main loop is running.
+ */
+void qio_channel_tls_bye(QIOChannelTLS *ioc, Error **errp);
 
 /**
  * qio_channel_tls_new_server:
