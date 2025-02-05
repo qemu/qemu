@@ -16,11 +16,7 @@ This work is licensed under the terms of the GNU GPL, version 2.
 from typing import List, Optional
 
 from .common import c_enum_const, c_name, mcgen
-from .gen import (
-    QAPISchemaModularCVisitor,
-    gen_special_features,
-    ifcontext,
-)
+from .gen import QAPISchemaModularCVisitor, gen_features, ifcontext
 from .schema import (
     QAPISchema,
     QAPISchemaAlternatives,
@@ -61,12 +57,12 @@ const QEnumLookup %(c_name)s_lookup = {
                      index=index, name=memb.name)
         ret += memb.ifcond.gen_endif()
 
-        special_features = gen_special_features(memb.features)
-        if special_features != '0':
+        features = gen_features(memb.features)
+        if features != '0':
             feats += mcgen('''
-        [%(index)s] = %(special_features)s,
+        [%(index)s] = %(features)s,
 ''',
-                           index=index, special_features=special_features)
+                           index=index, features=features)
 
     if feats:
         ret += mcgen('''
