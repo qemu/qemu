@@ -39,6 +39,8 @@ TESTS_BUILT_WITH_DEFAULT_RULES = \
 	semihost \
 	mmu_overlap \
 	mmu_asids \
+	standalone_hw \
+	ciad-siad \
 	$()
 
 TESTS += \
@@ -73,6 +75,8 @@ mmu_overlap.o: mmu_overlap.c mmu.h
 mmu_overlap: mmu_overlap.o
 mmu_asids.o: mmu_asids.c mmu.h
 mmu_asids: mmu_asids.o
+ciad-siad: ciad-siad.o
+standalone_hw: standalone_hw.o monitor_insts.o
 
 ############# Custom build options
 
