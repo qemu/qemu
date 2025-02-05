@@ -188,6 +188,7 @@ struct ArchCPU {
 
     CPUHexagonState env;
 
+    uint32_t rev_reg;
     bool lldb_compat;
     target_ulong lldb_stack_adjust;
     bool short_circuit;

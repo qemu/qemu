@@ -30,6 +30,7 @@
 #include "cpu_helper.h"
 #include "max.h"
 #include "hex_mmu.h"
+#include "hw/hexagon/hexagon.h"
 
 #ifndef CONFIG_USER_ONLY
 #include "macros.h"
@@ -39,12 +40,19 @@
 #include "hexswi.h"
 #endif
 
-static void hexagon_v66_cpu_init(Object *obj) { }
-static void hexagon_v67_cpu_init(Object *obj) { }
-static void hexagon_v68_cpu_init(Object *obj) { }
-static void hexagon_v69_cpu_init(Object *obj) { }
-static void hexagon_v71_cpu_init(Object *obj) { }
-static void hexagon_v73_cpu_init(Object *obj) { }
+#define DEFINE_STD_CPU_INIT_FUNC(REV) \
+    static void hexagon_##REV##_cpu_init(Object *obj) \
+    { \
+        HexagonCPU *cpu = HEXAGON_CPU(obj); \
+        cpu->rev_reg = REV##_rev; \
+    }
+
+DEFINE_STD_CPU_INIT_FUNC(v66)
+DEFINE_STD_CPU_INIT_FUNC(v67)
+DEFINE_STD_CPU_INIT_FUNC(v68)
+DEFINE_STD_CPU_INIT_FUNC(v69)
+DEFINE_STD_CPU_INIT_FUNC(v71)
+DEFINE_STD_CPU_INIT_FUNC(v73)
 
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
 {
@@ -73,6 +81,7 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_UINT64("config-table-addr", HexagonCPU, config_table_addr,
                        0xffffffffULL),
 #endif
+    DEFINE_PROP_UINT32("dsp-rev", HexagonCPU, rev_reg, 0),
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust, 0,
                          qdev_prop_uint32, target_ulong),
@@ -388,6 +397,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     memset(env->greg, 0, sizeof(target_ulong) * NUM_GREGS);
 
     if (cs->cpu_index == 0) {
+        arch_set_system_reg(env, HEX_SREG_REV, cpu->rev_reg);
         arch_set_system_reg(env, HEX_SREG_MODECTL, 0x1);
         *(env->g_pcycle_base) = 0;
     }
