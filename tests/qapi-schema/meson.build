@@ -105,6 +105,7 @@ schemas = [
   'event-case.json',
   'event-member-invalid-dict.json',
   'event-nest-struct.json',
+  'features-too-many.json',
   'features-bad-type.json',
   'features-deprecated-type.json',
   'features-duplicate-name.json',

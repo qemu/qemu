@@ -29,6 +29,7 @@ from typing import (
     List,
     Optional,
     Union,
+    ValuesView,
     cast,
 )
 
@@ -933,8 +934,11 @@ class QAPISchemaEnumMember(QAPISchemaMember):
 class QAPISchemaFeature(QAPISchemaMember):
     role = 'feature'
 
+    # Features which are standardized across all schemas
+    SPECIAL_NAMES = ['deprecated', 'unstable']
+
     def is_special(self) -> bool:
-        return self.name in ('deprecated', 'unstable')
+        return self.name in QAPISchemaFeature.SPECIAL_NAMES
 
 
 class QAPISchemaObjectTypeMember(QAPISchemaMember):
@@ -1138,6 +1142,16 @@ class QAPISchema:
         self._entity_list: List[QAPISchemaEntity] = []
         self._entity_dict: Dict[str, QAPISchemaDefinition] = {}
         self._module_dict: Dict[str, QAPISchemaModule] = OrderedDict()
+        # NB, values in the dict will identify the first encountered
+        # usage of a named feature only
+        self._feature_dict: Dict[str, QAPISchemaFeature] = OrderedDict()
+
+        # All schemas get the names defined in the QapiSpecialFeature enum.
+        # Rely on dict iteration order matching insertion order so that
+        # the special names are emitted first when generating code.
+        for f in QAPISchemaFeature.SPECIAL_NAMES:
+            self._feature_dict[f] = QAPISchemaFeature(f, None)
+
         self._schema_dir = os.path.dirname(fname)
         self._make_module(QAPISchemaModule.BUILTIN_MODULE_NAME)
         self._make_module(fname)
@@ -1146,6 +1160,9 @@ class QAPISchema:
         self._predefining = False
         self._def_exprs(exprs)
         self.check()
+
+    def features(self) -> ValuesView[QAPISchemaFeature]:
+        return self._feature_dict.values()
 
     def _def_entity(self, ent: QAPISchemaEntity) -> None:
         self._entity_list.append(ent)
@@ -1258,6 +1275,12 @@ class QAPISchema:
     ) -> List[QAPISchemaFeature]:
         if features is None:
             return []
+
+        for f in features:
+            feat = QAPISchemaFeature(f['name'], info)
+            if feat.name not in self._feature_dict:
+                self._feature_dict[feat.name] = feat
+
         return [QAPISchemaFeature(f['name'], info,
                                   QAPISchemaIfCond(f.get('if')))
                 for f in features]
@@ -1484,6 +1507,12 @@ class QAPISchema:
             ent.set_module(self)
         for doc in self.docs:
             doc.check()
+
+        features = list(self._feature_dict.values())
+        if len(features) > 64:
+            raise QAPISemError(
+                features[64].info,
+                "Maximum of 64 schema features is permitted")
 
     def visit(self, visitor: QAPISchemaVisitor) -> None:
         visitor.visit_begin(self)

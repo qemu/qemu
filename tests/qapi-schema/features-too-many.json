@@ -1,0 +1,13 @@
+# Max 64 features, with 2 specials, so 63rd custom is invalid
+{ 'command': 'go-fish',
+  'features': [
+      'f00', 'f01', 'f02', 'f03', 'f04', 'f05', 'f06', 'f07',
+      'f08', 'f09', 'f0a', 'f0b', 'f0c', 'f0d', 'f0e', 'f0f',
+      'f10', 'f11', 'f12', 'f13', 'f14', 'f15', 'f16', 'f17',
+      'f18', 'f19', 'f1a', 'f1b', 'f1c', 'f1d', 'f1e', 'f1f',
+      'f20', 'f21', 'f22', 'f23', 'f24', 'f25', 'f26', 'f27',
+      'f28', 'f29', 'f2a', 'f2b', 'f2c', 'f2d', 'f2e', 'f2f',
+      'f30', 'f31', 'f32', 'f33', 'f34', 'f35', 'f36', 'f37',
+      'f38', 'f39', 'f3a', 'f3b', 'f3c', 'f3d', 'f3e'
+  ]
+}

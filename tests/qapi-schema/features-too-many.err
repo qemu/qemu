@@ -1,0 +1,2 @@
+features-too-many.json: In command 'go-fish':
+features-too-many.json:2: Maximum of 64 schema features is permitted

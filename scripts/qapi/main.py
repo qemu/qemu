@@ -15,6 +15,7 @@ from .commands import gen_commands
 from .common import must_match
 from .error import QAPIError
 from .events import gen_events
+from .features import gen_features
 from .introspect import gen_introspect
 from .schema import QAPISchema
 from .types import gen_types
@@ -49,6 +50,7 @@ def generate(schema_file: str,
 
     schema = QAPISchema(schema_file)
     gen_types(schema, output_dir, prefix, builtins)
+    gen_features(schema, output_dir, prefix)
     gen_visit(schema, output_dir, prefix, builtins)
     gen_commands(schema, output_dir, prefix, gen_tracing)
     gen_events(schema, output_dir, prefix)

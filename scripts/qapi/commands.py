@@ -355,6 +355,7 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
 #include "qemu/osdep.h"
 #include "%(prefix)sqapi-commands.h"
 #include "%(prefix)sqapi-init-commands.h"
+#include "%(prefix)sqapi-features.h"
 
 void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
 {
