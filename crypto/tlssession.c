@@ -585,6 +585,40 @@ qcrypto_tls_session_get_handshake_status(QCryptoTLSSession *session)
     }
 }
 
+int
+qcrypto_tls_session_bye(QCryptoTLSSession *session, Error **errp)
+{
+    int ret;
+
+    if (!session->handshakeComplete) {
+        return 0;
+    }
+
+    ret = gnutls_bye(session->handle, GNUTLS_SHUT_WR);
+
+    if (!ret) {
+        return QCRYPTO_TLS_BYE_COMPLETE;
+    }
+
+    if (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN) {
+        int direction = gnutls_record_get_direction(session->handle);
+        return direction ? QCRYPTO_TLS_BYE_SENDING : QCRYPTO_TLS_BYE_RECVING;
+    }
+
+    if (session->rerr || session->werr) {
+        error_setg(errp, "TLS termination failed: %s: %s", gnutls_strerror(ret),
+                   error_get_pretty(session->rerr ?
+                                    session->rerr : session->werr));
+    } else {
+        error_setg(errp, "TLS termination failed: %s", gnutls_strerror(ret));
+    }
+
+    error_free(session->rerr);
+    error_free(session->werr);
+    session->rerr = session->werr = NULL;
+
+    return -1;
+}
 
 int
 qcrypto_tls_session_get_key_size(QCryptoTLSSession *session,
@@ -696,6 +730,13 @@ QCryptoTLSSessionHandshakeStatus
 qcrypto_tls_session_get_handshake_status(QCryptoTLSSession *sess)
 {
     return QCRYPTO_TLS_HANDSHAKE_COMPLETE;
+}
+
+
+int
+qcrypto_tls_session_bye(QCryptoTLSSession *session, Error **errp)
+{
+    return QCRYPTO_TLS_BYE_COMPLETE;
 }
 
 

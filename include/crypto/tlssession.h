@@ -323,6 +323,28 @@ typedef enum {
 QCryptoTLSSessionHandshakeStatus
 qcrypto_tls_session_get_handshake_status(QCryptoTLSSession *sess);
 
+typedef enum {
+    QCRYPTO_TLS_BYE_COMPLETE,
+    QCRYPTO_TLS_BYE_SENDING,
+    QCRYPTO_TLS_BYE_RECVING,
+} QCryptoTLSSessionByeStatus;
+
+/**
+ * qcrypto_tls_session_bye:
+ * @session: the TLS session object
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Start, or continue, a TLS termination sequence. If the underlying
+ * data channel is non-blocking, then this method may return control
+ * before the termination is complete. The return value will indicate
+ * whether the termination has completed, or is waiting to send or
+ * receive data. In the latter cases, the caller should setup an event
+ * loop watch and call this method again once the underlying data
+ * channel is ready to read or write again.
+ */
+int
+qcrypto_tls_session_bye(QCryptoTLSSession *session, Error **errp);
+
 /**
  * qcrypto_tls_session_get_key_size:
  * @sess: the TLS session object
