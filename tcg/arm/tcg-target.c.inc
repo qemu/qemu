@@ -676,14 +676,8 @@ static void tcg_out_ldrd_r(TCGContext *s, ARMCond cond, TCGReg rt,
     tcg_out_memop_r(s, cond, INSN_LDRD_REG, rt, rn, rm, 1, 1, 0);
 }
 
-static void __attribute__((unused))
-tcg_out_ldrd_rwb(TCGContext *s, ARMCond cond, TCGReg rt, TCGReg rn, TCGReg rm)
-{
-    tcg_out_memop_r(s, cond, INSN_LDRD_REG, rt, rn, rm, 1, 1, 1);
-}
-
-static void __attribute__((unused))
-tcg_out_strd_8(TCGContext *s, ARMCond cond, TCGReg rt, TCGReg rn, int imm8)
+static void tcg_out_strd_8(TCGContext *s, ARMCond cond, TCGReg rt,
+                           TCGReg rn, int imm8)
 {
     tcg_out_memop_8(s, cond, INSN_STRD_IMM, rt, rn, imm8, 1, 0);
 }
@@ -1455,8 +1449,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 #define MIN_TLB_MASK_TABLE_OFS  -256
 
 static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
-                                           TCGReg addrlo, TCGReg addrhi,
-                                           MemOpIdx oi, bool is_ld)
+                                           TCGReg addr, MemOpIdx oi, bool is_ld)
 {
     TCGLabelQemuLdst *ldst = NULL;
     MemOp opc = get_memop(oi);
@@ -1465,14 +1458,14 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
     if (tcg_use_softmmu) {
         *h = (HostAddress){
             .cond = COND_AL,
-            .base = addrlo,
+            .base = addr,
             .index = TCG_REG_R1,
             .index_scratch = true,
         };
     } else {
         *h = (HostAddress){
             .cond = COND_AL,
-            .base = addrlo,
+            .base = addr,
             .index = guest_base ? TCG_REG_GUEST_BASE : -1,
             .index_scratch = false,
         };
@@ -1492,8 +1485,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
         ldst = new_ldst_label(s);
         ldst->is_ld = is_ld;
         ldst->oi = oi;
-        ldst->addrlo_reg = addrlo;
-        ldst->addrhi_reg = addrhi;
+        ldst->addrlo_reg = addr;
 
         /* Load cpu->neg.tlb.f[mmu_idx].{mask,table} into {r0,r1}.  */
         QEMU_BUILD_BUG_ON(offsetof(CPUTLBDescFast, mask) != 0);
@@ -1501,30 +1493,20 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
         tcg_out_ldrd_8(s, COND_AL, TCG_REG_R0, TCG_AREG0, fast_off);
 
         /* Extract the tlb index from the address into R0.  */
-        tcg_out_dat_reg(s, COND_AL, ARITH_AND, TCG_REG_R0, TCG_REG_R0, addrlo,
+        tcg_out_dat_reg(s, COND_AL, ARITH_AND, TCG_REG_R0, TCG_REG_R0, addr,
                         SHIFT_IMM_LSR(s->page_bits - CPU_TLB_ENTRY_BITS));
 
         /*
          * Add the tlb_table pointer, creating the CPUTLBEntry address in R1.
-         * Load the tlb comparator into R2/R3 and the fast path addend into R1.
+         * Load the tlb comparator into R2 and the fast path addend into R1.
          */
         QEMU_BUILD_BUG_ON(HOST_BIG_ENDIAN);
         if (cmp_off == 0) {
-            if (s->addr_type == TCG_TYPE_I32) {
-                tcg_out_ld32_rwb(s, COND_AL, TCG_REG_R2,
-                                 TCG_REG_R1, TCG_REG_R0);
-            } else {
-                tcg_out_ldrd_rwb(s, COND_AL, TCG_REG_R2,
-                                 TCG_REG_R1, TCG_REG_R0);
-            }
+            tcg_out_ld32_rwb(s, COND_AL, TCG_REG_R2, TCG_REG_R1, TCG_REG_R0);
         } else {
             tcg_out_dat_reg(s, COND_AL, ARITH_ADD,
                             TCG_REG_R1, TCG_REG_R1, TCG_REG_R0, 0);
-            if (s->addr_type == TCG_TYPE_I32) {
-                tcg_out_ld32_12(s, COND_AL, TCG_REG_R2, TCG_REG_R1, cmp_off);
-            } else {
-                tcg_out_ldrd_8(s, COND_AL, TCG_REG_R2, TCG_REG_R1, cmp_off);
-            }
+            tcg_out_ld32_12(s, COND_AL, TCG_REG_R2, TCG_REG_R1, cmp_off);
         }
 
         /* Load the tlb addend.  */
@@ -1543,11 +1525,11 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
          * This leaves the least significant alignment bits unchanged, and of
          * course must be zero.
          */
-        t_addr = addrlo;
+        t_addr = addr;
         if (a_mask < s_mask) {
             t_addr = TCG_REG_R0;
             tcg_out_dat_imm(s, COND_AL, ARITH_ADD, t_addr,
-                            addrlo, s_mask - a_mask);
+                            addr, s_mask - a_mask);
         }
         if (use_armv7_instructions && s->page_bits <= 16) {
             tcg_out_movi32(s, COND_AL, TCG_REG_TMP, ~(s->page_mask | a_mask));
@@ -1558,7 +1540,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
         } else {
             if (a_mask) {
                 tcg_debug_assert(a_mask <= 0xff);
-                tcg_out_dat_imm(s, COND_AL, ARITH_TST, 0, addrlo, a_mask);
+                tcg_out_dat_imm(s, COND_AL, ARITH_TST, 0, addr, a_mask);
             }
             tcg_out_dat_reg(s, COND_AL, ARITH_MOV, TCG_REG_TMP, 0, t_addr,
                             SHIFT_IMM_LSR(s->page_bits));
@@ -1566,21 +1548,16 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
                             0, TCG_REG_R2, TCG_REG_TMP,
                             SHIFT_IMM_LSL(s->page_bits));
         }
-
-        if (s->addr_type != TCG_TYPE_I32) {
-            tcg_out_dat_reg(s, COND_EQ, ARITH_CMP, 0, TCG_REG_R3, addrhi, 0);
-        }
     } else if (a_mask) {
         ldst = new_ldst_label(s);
         ldst->is_ld = is_ld;
         ldst->oi = oi;
-        ldst->addrlo_reg = addrlo;
-        ldst->addrhi_reg = addrhi;
+        ldst->addrlo_reg = addr;
 
         /* We are expecting alignment to max out at 7 */
         tcg_debug_assert(a_mask <= 0xff);
         /* tst addr, #mask */
-        tcg_out_dat_imm(s, COND_AL, ARITH_TST, 0, addrlo, a_mask);
+        tcg_out_dat_imm(s, COND_AL, ARITH_TST, 0, addr, a_mask);
     }
 
     return ldst;
@@ -1678,14 +1655,13 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp opc, TCGReg datalo,
 }
 
 static void tcg_out_qemu_ld(TCGContext *s, TCGReg datalo, TCGReg datahi,
-                            TCGReg addrlo, TCGReg addrhi,
-                            MemOpIdx oi, TCGType data_type)
+                            TCGReg addr, MemOpIdx oi, TCGType data_type)
 {
     MemOp opc = get_memop(oi);
     TCGLabelQemuLdst *ldst;
     HostAddress h;
 
-    ldst = prepare_host_addr(s, &h, addrlo, addrhi, oi, true);
+    ldst = prepare_host_addr(s, &h, addr, oi, true);
     if (ldst) {
         ldst->type = data_type;
         ldst->datalo_reg = datalo;
@@ -1764,14 +1740,13 @@ static void tcg_out_qemu_st_direct(TCGContext *s, MemOp opc, TCGReg datalo,
 }
 
 static void tcg_out_qemu_st(TCGContext *s, TCGReg datalo, TCGReg datahi,
-                            TCGReg addrlo, TCGReg addrhi,
-                            MemOpIdx oi, TCGType data_type)
+                            TCGReg addr, MemOpIdx oi, TCGType data_type)
 {
     MemOp opc = get_memop(oi);
     TCGLabelQemuLdst *ldst;
     HostAddress h;
 
-    ldst = prepare_host_addr(s, &h, addrlo, addrhi, oi, false);
+    ldst = prepare_host_addr(s, &h, addr, oi, false);
     if (ldst) {
         ldst->type = data_type;
         ldst->datalo_reg = datalo;
@@ -2072,19 +2047,17 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
         break;
 
     case INDEX_op_qemu_ld_i32:
-        tcg_out_qemu_ld(s, args[0], -1, args[1], -1, args[2], TCG_TYPE_I32);
+        tcg_out_qemu_ld(s, args[0], -1, args[1], args[2], TCG_TYPE_I32);
         break;
     case INDEX_op_qemu_ld_i64:
-        tcg_out_qemu_ld(s, args[0], args[1], args[2], -1,
-                        args[3], TCG_TYPE_I64);
+        tcg_out_qemu_ld(s, args[0], args[1], args[2], args[3], TCG_TYPE_I64);
         break;
 
     case INDEX_op_qemu_st_i32:
-        tcg_out_qemu_st(s, args[0], -1, args[1], -1, args[2], TCG_TYPE_I32);
+        tcg_out_qemu_st(s, args[0], -1, args[1], args[2], TCG_TYPE_I32);
         break;
     case INDEX_op_qemu_st_i64:
-        tcg_out_qemu_st(s, args[0], args[1], args[2], -1,
-                        args[3], TCG_TYPE_I64);
+        tcg_out_qemu_st(s, args[0], args[1], args[2], args[3], TCG_TYPE_I64);
         break;
 
     case INDEX_op_bswap16_i32:
