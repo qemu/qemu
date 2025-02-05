@@ -35,11 +35,18 @@ tlb.o: crt0/tlb.c
 
 CRT0_OBJS=crt0.o crt0_standalone.o pte.o min_libc.o tlb.o
 
-TESTS += \
+TESTS_BUILT_WITH_DEFAULT_RULES = \
 	semihost \
+	mmu_overlap \
+	mmu_asids \
 	$()
 
-$(TESTS): $(CRT0_OBJS)
+TESTS += \
+	$(TESTS_BUILT_WITH_DEFAULT_RULES) \
+	tlb-miss-tlblock \
+	$()
+
+$(TESTS_BUILT_WITH_DEFAULT_RULES): $(CRT0_OBJS)
 
 # Build and link the tests
 echo-and-run = echo $(1) && $(1)
@@ -50,7 +57,7 @@ endef
 
 $(CRT0_OBJS):
 	$(call build_fn,$<,$@)
-$(TESTS):
+$(TESTS_BUILT_WITH_DEFAULT_RULES):
 	$(call build_fn,$^,$@,LINK)
 
 %.o: %.S
@@ -58,8 +65,20 @@ $(TESTS):
 %.o: %.c
 	$(call build_fn,$<,$@)
 
+mmu.h: ../hex_test.h
+
 semihost.o: semihost.c strutils.h
 semihost: semihost.o
+mmu_overlap.o: mmu_overlap.c mmu.h
+mmu_overlap: mmu_overlap.o
+mmu_asids.o: mmu_asids.c mmu.h
+mmu_asids: mmu_asids.o
+
+############# Custom build options
+
+# We don't want to link this one with crt0 files
+tlb-miss-tlblock: tlb-miss-tlblock.o
+	$(CC) $(CFLAGS) $< -o $@ -nostartfiles -Wl,-Ttext,0x9b800000 -Wl,-entry,0x9b800000
 
 ############# Custom test rules
 
