@@ -2490,27 +2490,16 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
         tcg_out32(s, AND | SAB(TCG_REG_TMP1, TCG_REG_TMP1, TCG_REG_R0));
 
         /*
-         * Load the (low part) TLB comparator into TMP2.
+         * Load the TLB comparator into TMP2.
          * For 64-bit host, always load the entire 64-bit slot for simplicity.
          * We will ignore the high bits with tcg_out_cmp(..., addr_type).
          */
-        if (TCG_TARGET_REG_BITS == 64) {
-            if (cmp_off == 0) {
-                tcg_out32(s, LDUX | TAB(TCG_REG_TMP2,
-                                        TCG_REG_TMP1, TCG_REG_TMP2));
-            } else {
-                tcg_out32(s, ADD | TAB(TCG_REG_TMP1,
-                                       TCG_REG_TMP1, TCG_REG_TMP2));
-                tcg_out_ld(s, TCG_TYPE_I64, TCG_REG_TMP2,
-                           TCG_REG_TMP1, cmp_off);
-            }
-        } else if (cmp_off == 0 && !HOST_BIG_ENDIAN) {
-            tcg_out32(s, LWZUX | TAB(TCG_REG_TMP2,
-                                     TCG_REG_TMP1, TCG_REG_TMP2));
+        if (cmp_off == 0) {
+            tcg_out32(s, (TCG_TARGET_REG_BITS == 64 ? LDUX : LWZUX)
+                      | TAB(TCG_REG_TMP2, TCG_REG_TMP1, TCG_REG_TMP2));
         } else {
             tcg_out32(s, ADD | TAB(TCG_REG_TMP1, TCG_REG_TMP1, TCG_REG_TMP2));
-            tcg_out_ld(s, TCG_TYPE_I32, TCG_REG_TMP2, TCG_REG_TMP1,
-                       cmp_off + 4 * HOST_BIG_ENDIAN);
+            tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP2, TCG_REG_TMP1, cmp_off);
         }
 
         /*
