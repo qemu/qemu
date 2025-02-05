@@ -43,6 +43,8 @@ TESTS_BUILT_WITH_DEFAULT_RULES = \
 	ciad-siad \
 	badva \
 	vid_reg \
+	hvx-multi \
+	standalone_vec \
 	$()
 
 TESTS += \
@@ -80,10 +82,17 @@ mmu_asids: mmu_asids.o
 ciad-siad: ciad-siad.o
 standalone_hw: standalone_hw.o monitor_insts.o
 vid_reg: vid_reg.o
+hvx-multi.o: hvx-multi.c ../hvx_misc.h
+hvx-multi: hvx-multi.o
+standalone_vec.o: standalone_vec.c cfgtable.h
+standalone_vec: standalone_vec.o
 badva.o: badva.c ../hex_test.h crt0/hexagon_standalone.h
 badva: badva.o
 
 ############# Custom build options
+
+standalone_vec.o: CFLAGS+= -mv69 -O2 -mhvx  -fvectorize
+hvx-multi.o: CFLAGS+= -O2 -mhvx
 
 # We don't want to link this one with crt0 files
 tlb-miss-tlblock: tlb-miss-tlblock.o
