@@ -41,6 +41,8 @@ TESTS_BUILT_WITH_DEFAULT_RULES = \
 	mmu_asids \
 	standalone_hw \
 	ciad-siad \
+	badva \
+	vid_reg \
 	$()
 
 TESTS += \
@@ -77,6 +79,9 @@ mmu_asids.o: mmu_asids.c mmu.h
 mmu_asids: mmu_asids.o
 ciad-siad: ciad-siad.o
 standalone_hw: standalone_hw.o monitor_insts.o
+vid_reg: vid_reg.o
+badva.o: badva.c ../hex_test.h crt0/hexagon_standalone.h
+badva: badva.o
 
 ############# Custom build options
 
