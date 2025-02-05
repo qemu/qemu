@@ -388,7 +388,6 @@ static void virt_irq_init(LoongArchVirtMachineState *lvms)
         cpudev = DEVICE(cpu_state);
         lacpu = LOONGARCH_CPU(cpu_state);
         env = &(lacpu->env);
-        env->address_space_iocsr = &lvms->as_iocsr;
 
         /* connect ipi irq to cpu irq */
         qdev_connect_gpio_out(ipi, cpu, qdev_get_gpio_in(cpudev, IRQ_IPI));
@@ -689,6 +688,7 @@ static void virt_init(MachineState *machine)
         machine->possible_cpus->cpus[i].cpu = cpu;
         lacpu = LOONGARCH_CPU(cpu);
         lacpu->phy_id = machine->possible_cpus->cpus[i].arch_id;
+        lacpu->env.address_space_iocsr = &lvms->as_iocsr;
     }
     fw_cfg_add_memory(machine);
 
