@@ -141,21 +141,21 @@ bool visit_optional(Visitor *v, const char *name, bool *present)
 }
 
 bool visit_policy_reject(Visitor *v, const char *name,
-                         unsigned special_features, Error **errp)
+                         uint64_t features, Error **errp)
 {
     trace_visit_policy_reject(v, name);
     if (v->policy_reject) {
-        return v->policy_reject(v, name, special_features, errp);
+        return v->policy_reject(v, name, features, errp);
     }
     return false;
 }
 
 bool visit_policy_skip(Visitor *v, const char *name,
-                       unsigned special_features)
+                       uint64_t features)
 {
     trace_visit_policy_skip(v, name);
     if (v->policy_skip) {
-        return v->policy_skip(v, name, special_features);
+        return v->policy_skip(v, name, features);
     }
     return false;
 }
@@ -409,8 +409,8 @@ static bool input_type_enum(Visitor *v, const char *name, int *obj,
         return false;
     }
 
-    if (lookup->special_features
-        && !compat_policy_input_ok(lookup->special_features[value],
+    if (lookup->features
+        && !compat_policy_input_ok(lookup->features[value],
                                    &v->compat_policy,
                                    ERROR_CLASS_GENERIC_ERROR,
                                    "value", enum_str, errp)) {

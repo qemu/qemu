@@ -18,7 +18,7 @@
 
 extern CompatPolicy compat_policy;
 
-bool compat_policy_input_ok(unsigned special_features,
+bool compat_policy_input_ok(uint64_t features,
                             const CompatPolicy *policy,
                             ErrorClass error_class,
                             const char *kind, const char *name,

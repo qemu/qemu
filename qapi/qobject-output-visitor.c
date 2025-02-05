@@ -210,13 +210,13 @@ static bool qobject_output_type_null(Visitor *v, const char *name,
 }
 
 static bool qobject_output_policy_skip(Visitor *v, const char *name,
-                                       unsigned special_features)
+                                       uint64_t features)
 {
     CompatPolicy *pol = &v->compat_policy;
 
-    return ((special_features & 1u << QAPI_DEPRECATED)
+    return ((features & 1u << QAPI_DEPRECATED)
             && pol->deprecated_output == COMPAT_POLICY_OUTPUT_HIDE)
-        || ((special_features & 1u << QAPI_UNSTABLE)
+        || ((features & 1u << QAPI_UNSTABLE)
             && pol->unstable_output == COMPAT_POLICY_OUTPUT_HIDE);
 }
 

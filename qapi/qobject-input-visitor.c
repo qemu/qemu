@@ -664,10 +664,10 @@ static void qobject_input_optional(Visitor *v, const char *name, bool *present)
 }
 
 static bool qobject_input_policy_reject(Visitor *v, const char *name,
-                                        unsigned special_features,
+                                        uint64_t features,
                                         Error **errp)
 {
-    return !compat_policy_input_ok(special_features, &v->compat_policy,
+    return !compat_policy_input_ok(features, &v->compat_policy,
                                    ERROR_CLASS_GENERIC_ERROR,
                                    "parameter", name, errp);
 }

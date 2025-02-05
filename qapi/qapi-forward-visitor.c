@@ -246,7 +246,7 @@ static void forward_field_optional(Visitor *v, const char *name, bool *present)
 }
 
 static bool forward_field_policy_reject(Visitor *v, const char *name,
-                                        unsigned special_features,
+                                        uint64_t features,
                                         Error **errp)
 {
     ForwardFieldVisitor *ffv = to_ffv(v);
@@ -254,18 +254,18 @@ static bool forward_field_policy_reject(Visitor *v, const char *name,
     if (!forward_field_translate_name(ffv, &name, errp)) {
         return true;
     }
-    return visit_policy_reject(ffv->target, name, special_features, errp);
+    return visit_policy_reject(ffv->target, name, features, errp);
 }
 
 static bool forward_field_policy_skip(Visitor *v, const char *name,
-                                      unsigned special_features)
+                                      uint64_t features)
 {
     ForwardFieldVisitor *ffv = to_ffv(v);
 
     if (!forward_field_translate_name(ffv, &name, NULL)) {
         return true;
     }
-    return visit_policy_skip(ffv->target, name, special_features);
+    return visit_policy_skip(ffv->target, name, features);
 }
 
 static void forward_field_complete(Visitor *v, void *opaque)

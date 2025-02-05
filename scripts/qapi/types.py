@@ -71,7 +71,7 @@ const QEnumLookup %(c_name)s_lookup = {
     if feats:
         ret += mcgen('''
     },
-    .special_features = (const unsigned char[%(max_index)s]) {
+    .features = (const uint64_t[%(max_index)s]) {
 ''',
                      max_index=max_index)
         ret += feats
