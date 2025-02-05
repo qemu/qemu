@@ -94,9 +94,10 @@ const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS] = {
   "r16", "r17", "r18", "r19", "r20",  "r21", "r22", "r23",
   "r24", "r25", "r26", "r27", "r28",  "r29", "r30", "r31",
   "sa0", "lc0", "sa1", "lc1", "p3_0", "c5",  "m0",  "m1",
-  "usr", "pc",  "ugp", "gp",  "cs0",  "cs1", "c14", "c15",
-  "c16", "c17", "c18", "c19", "pkt_cnt",  "insn_cnt", "hvx_cnt", "c23",
-  "c24", "c25", "c26", "c27", "c28",  "c29", "c30", "c31",
+  "usr", "pc",  "ugp", "gp",  "cs0",  "cs1", "upcyclelo", "upcyclehi",
+  "framelimit", "framekey", "pktcountlo", "pktcounthi", "upmucnt0",
+  "upmucnt1", "upmucnt2", "upmucnt3", "upmucnt4", "upmucnt5", "upmucnt6",
+  "upmucnt7",  "c28", "c29", "utimerlo", "utimerhi",
 };
 
 #ifndef CONFIG_USER_ONLY
