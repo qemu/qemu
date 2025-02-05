@@ -1775,7 +1775,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
         ldst = new_ldst_label(s);
         ldst->is_ld = is_ld;
         ldst->oi = oi;
-        ldst->addrlo_reg = addr_reg;
+        ldst->addr_reg = addr_reg;
 
         mask_type = (s->page_bits + s->tlb_dyn_max_bits > 32
                      ? TCG_TYPE_I64 : TCG_TYPE_I32);
@@ -1837,7 +1837,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
 
             ldst->is_ld = is_ld;
             ldst->oi = oi;
-            ldst->addrlo_reg = addr_reg;
+            ldst->addr_reg = addr_reg;
 
             /* tst addr, #mask */
             tcg_out_logicali(s, I3404_ANDSI, 0, TCG_REG_XZR, addr_reg, a_mask);

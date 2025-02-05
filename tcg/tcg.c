@@ -100,8 +100,7 @@ struct TCGLabelQemuLdst {
     bool is_ld;             /* qemu_ld: true, qemu_st: false */
     MemOpIdx oi;
     TCGType type;           /* result type of a load */
-    TCGReg addrlo_reg;      /* reg index for low word of guest virtual addr */
-    TCGReg addrhi_reg;      /* reg index for high word of guest virtual addr */
+    TCGReg addr_reg;        /* reg index for guest virtual addr */
     TCGReg datalo_reg;      /* reg index for low word to be loaded or stored */
     TCGReg datahi_reg;      /* reg index for high word to be loaded or stored */
     const tcg_insn_unit *raddr;   /* addr of the next IR of qemu_ld/st IR */
@@ -6061,7 +6060,7 @@ static void tcg_out_ld_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
          */
         tcg_out_helper_add_mov(mov, loc + HOST_BIG_ENDIAN,
                                TCG_TYPE_I32, TCG_TYPE_I32,
-                               ldst->addrlo_reg, -1);
+                               ldst->addr_reg, -1);
         tcg_out_helper_load_slots(s, 1, mov, parm);
 
         tcg_out_helper_load_imm(s, loc[!HOST_BIG_ENDIAN].arg_slot,
@@ -6069,7 +6068,7 @@ static void tcg_out_ld_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
         next_arg += 2;
     } else {
         nmov = tcg_out_helper_add_mov(mov, loc, TCG_TYPE_I64, s->addr_type,
-                                      ldst->addrlo_reg, ldst->addrhi_reg);
+                                      ldst->addr_reg, -1);
         tcg_out_helper_load_slots(s, nmov, mov, parm);
         next_arg += nmov;
     }
@@ -6226,21 +6225,22 @@ static void tcg_out_st_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
 
     /* Handle addr argument. */
     loc = &info->in[next_arg];
-    if (TCG_TARGET_REG_BITS == 32 && s->addr_type == TCG_TYPE_I32) {
+    tcg_debug_assert(s->addr_type <= TCG_TYPE_REG);
+    if (TCG_TARGET_REG_BITS == 32) {
         /*
-         * 32-bit host with 32-bit guest: zero-extend the guest address
+         * 32-bit host (and thus 32-bit guest): zero-extend the guest address
          * to 64-bits for the helper by storing the low part.  Later,
          * after we have processed the register inputs, we will load a
          * zero for the high part.
          */
         tcg_out_helper_add_mov(mov, loc + HOST_BIG_ENDIAN,
                                TCG_TYPE_I32, TCG_TYPE_I32,
-                               ldst->addrlo_reg, -1);
+                               ldst->addr_reg, -1);
         next_arg += 2;
         nmov += 1;
     } else {
         n = tcg_out_helper_add_mov(mov, loc, TCG_TYPE_I64, s->addr_type,
-                                   ldst->addrlo_reg, ldst->addrhi_reg);
+                                   ldst->addr_reg, -1);
         next_arg += n;
         nmov += n;
     }
@@ -6288,7 +6288,7 @@ static void tcg_out_st_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
         g_assert_not_reached();
     }
 
-    if (TCG_TARGET_REG_BITS == 32 && s->addr_type == TCG_TYPE_I32) {
+    if (TCG_TARGET_REG_BITS == 32) {
         /* Zero extend the address by loading a zero for the high part. */
         loc = &info->in[1 + !HOST_BIG_ENDIAN];
         tcg_out_helper_load_imm(s, loc->arg_slot, TCG_TYPE_I32, 0, parm);
