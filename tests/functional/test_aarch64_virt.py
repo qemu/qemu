@@ -189,6 +189,8 @@ class Aarch64VirtMachine(QemuSystemTest):
                 self.skipTest("No venus support for virtio-gpu")
             elif "egl: no drm render node available" in excp.output:
                 self.skipTest("Can't access host DRM render node")
+            elif "'type' does not accept value 'egl-headless'" in excp.output:
+                self.skipTest("egl-headless support is not available")
             else:
                 self.log.info(f"unhandled launch failure: {excp.output}")
                 raise excp
