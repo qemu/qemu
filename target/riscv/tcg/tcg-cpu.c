@@ -1014,11 +1014,20 @@ static bool riscv_cpu_is_generic(Object *cpu_obj)
 static bool riscv_tcg_cpu_realize(CPUState *cs, Error **errp)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
+    RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cpu);
 
     if (!riscv_cpu_tcg_compatible(cpu)) {
         g_autofree char *name = riscv_cpu_get_name(cpu);
         error_setg(errp, "'%s' CPU is not compatible with TCG acceleration",
                    name);
+        return false;
+    }
+
+    if (mcc->misa_mxl_max >= MXL_RV128 && qemu_tcg_mttcg_enabled()) {
+        /* Missing 128-bit aligned atomics */
+        error_setg(errp,
+                   "128-bit RISC-V currently does not work with Multi "
+                   "Threaded TCG. Please use: -accel tcg,thread=single");
         return false;
     }
 
