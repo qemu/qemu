@@ -1897,11 +1897,17 @@ void tcg_gen_gvec_dup_mem(unsigned vece, uint32_t dofs, uint32_t aofs,
     }
 }
 
+void tcg_gen_gvec_dup_imm_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
+                              uint32_t oprsz, uint32_t maxsz, uint64_t x)
+{
+    check_size_align(oprsz, maxsz, dofs);
+    do_dup(vece, dbase, dofs, oprsz, maxsz, NULL, NULL, x);
+}
+
 void tcg_gen_gvec_dup_imm(unsigned vece, uint32_t dofs, uint32_t oprsz,
                           uint32_t maxsz, uint64_t x)
 {
-    check_size_align(oprsz, maxsz, dofs);
-    do_dup(vece, tcg_env, dofs, oprsz, maxsz, NULL, NULL, x);
+    tcg_gen_gvec_dup_imm_var(vece, tcg_env, dofs, oprsz, maxsz, x);
 }
 
 void tcg_gen_gvec_not(unsigned vece, uint32_t dofs, uint32_t aofs,
