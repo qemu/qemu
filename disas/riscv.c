@@ -2438,9 +2438,11 @@ static const char *csr_name(int csrno)
     case 0x07a1: return "tdata1";
     case 0x07a2: return "tdata2";
     case 0x07a3: return "tdata3";
+    case 0x07a4: return "tinfo";
     case 0x07b0: return "dcsr";
     case 0x07b1: return "dpc";
-    case 0x07b2: return "dscratch";
+    case 0x07b2: return "dscratch0";
+    case 0x07b3: return "dscratch1";
     case 0x0b00: return "mcycle";
     case 0x0b01: return "mtime";
     case 0x0b02: return "minstret";
