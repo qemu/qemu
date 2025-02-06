@@ -167,8 +167,6 @@ int iommufd_backend_map_dma(IOMMUFDBackend *be, uint32_t ioas_id, hwaddr iova,
         /* TODO: Not support mapping hardware PCI BAR region for now. */
         if (errno == EFAULT) {
             warn_report("IOMMU_IOAS_MAP failed: %m, PCI BAR?");
-        } else {
-            error_report("IOMMU_IOAS_MAP failed: %m");
         }
     }
     return ret;
@@ -203,7 +201,6 @@ int iommufd_backend_unmap_dma(IOMMUFDBackend *be, uint32_t ioas_id,
 
     if (ret) {
         ret = -errno;
-        error_report("IOMMU_IOAS_UNMAP failed: %m");
     }
     return ret;
 }
