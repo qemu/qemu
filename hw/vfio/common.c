@@ -594,8 +594,9 @@ static void vfio_listener_region_add(MemoryListener *listener,
         return;
     }
 
+    /* PPC64/pseries machine only */
     if (!vfio_container_add_section_window(bcontainer, section, &err)) {
-        goto fail;
+        goto mmio_dma_error;
     }
 
     memory_region_ref(section->mr);
@@ -680,6 +681,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
                    "0x%"HWADDR_PRIx", %p) = %d (%s)",
                    bcontainer, iova, int128_get64(llsize), vaddr, ret,
                    strerror(-ret));
+    mmio_dma_error:
         if (memory_region_is_ram_device(section->mr)) {
             /* Allow unexpected mappings not to be fatal for RAM devices */
             VFIODevice *vbasedev =
@@ -694,11 +696,6 @@ static void vfio_listener_region_add(MemoryListener *listener,
     return;
 
 fail:
-    if (memory_region_is_ram_device(section->mr)) {
-        error_reportf_err(err, "PCI p2p may not work: ");
-        return;
-    }
-
     if (!bcontainer->initialized) {
         /*
          * At machine init time or when the device is attached to the
@@ -806,6 +803,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
 
     memory_region_unref(section->mr);
 
+    /* PPC64/pseries machine only */
     vfio_container_del_section_window(bcontainer, section);
 }
 
