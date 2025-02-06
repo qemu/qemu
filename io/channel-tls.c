@@ -162,16 +162,17 @@ static void qio_channel_tls_handshake_task(QIOChannelTLS *ioc,
                                            GMainContext *context)
 {
     Error *err = NULL;
-    QCryptoTLSSessionHandshakeStatus status;
+    int status;
 
-    if (qcrypto_tls_session_handshake(ioc->session, &err) < 0) {
+    status = qcrypto_tls_session_handshake(ioc->session, &err);
+
+    if (status < 0) {
         trace_qio_channel_tls_handshake_fail(ioc);
         qio_task_set_error(task, err);
         qio_task_complete(task);
         return;
     }
 
-    status = qcrypto_tls_session_get_handshake_status(ioc->session);
     if (status == QCRYPTO_TLS_HANDSHAKE_COMPLETE) {
         trace_qio_channel_tls_handshake_complete(ioc);
         if (qcrypto_tls_session_check_credentials(ioc->session,
