@@ -358,8 +358,8 @@ static void gen_firmware(void *p, hwaddr kernel_entry, hwaddr fdt_addr)
                        kernel_entry);
 }
 
-static const void *boston_fdt_filter(void *opaque, const void *fdt_orig,
-                                     const void *match_data, hwaddr *load_addr)
+static void *boston_fdt_filter(void *opaque, const void *fdt_orig,
+                               const void *match_data, hwaddr *load_addr)
 {
     BostonState *s = BOSTON(opaque);
     MachineState *machine = s->mach;
@@ -797,7 +797,7 @@ static void boston_mach_init(MachineState *machine)
         if (kernel_size > 0) {
             int dt_size;
             g_autofree const void *dtb_file_data = NULL;
-            g_autofree const void *dtb_load_data = NULL;
+            void *dtb_load_data = NULL;
             hwaddr dtb_paddr = QEMU_ALIGN_UP(kernel_high, 64 * KiB);
             hwaddr dtb_vaddr = cpu_mips_phys_to_kseg0(NULL, dtb_paddr);
 
@@ -815,6 +815,8 @@ static void boston_mach_init(MachineState *machine)
                 exit(1);
             }
 
+            machine->fdt = dtb_load_data;
+
             /* Calculate real fdt size after filter */
             dt_size = fdt_totalsize(dtb_load_data);
             rom_add_blob_fixed("dtb", dtb_load_data, dt_size, dtb_paddr);
@@ -822,7 +824,8 @@ static void boston_mach_init(MachineState *machine)
                                 rom_ptr(dtb_paddr, dt_size));
         } else {
             /* Try to load file as FIT */
-            fit_err = load_fit(&boston_fit_loader, machine->kernel_filename, s);
+            fit_err = load_fit(&boston_fit_loader, machine->kernel_filename,
+                               &machine->fdt, s);
             if (fit_err) {
                 error_report("unable to load kernel image");
                 exit(1);

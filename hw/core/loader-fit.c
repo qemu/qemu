@@ -32,8 +32,8 @@
 
 #define FIT_LOADER_MAX_PATH (128)
 
-static const void *fit_load_image_alloc(const void *itb, const char *name,
-                                        int *poff, size_t *psz, Error **errp)
+static void *fit_load_image_alloc(const void *itb, const char *name,
+                                  int *poff, size_t *psz, Error **errp)
 {
     const void *data;
     const char *comp;
@@ -80,11 +80,11 @@ static const void *fit_load_image_alloc(const void *itb, const char *name,
             return NULL;
         }
 
-        data = g_realloc(uncomp_data, uncomp_len);
+        uncomp_data = g_realloc(uncomp_data, uncomp_len);
         if (psz) {
             *psz = uncomp_len;
         }
-        return data;
+        return uncomp_data;
     }
 
     error_setg(errp, "unknown compression '%s'", comp);
@@ -177,13 +177,12 @@ out:
 
 static int fit_load_fdt(const struct fit_loader *ldr, const void *itb,
                         int cfg, void *opaque, const void *match_data,
-                        hwaddr kernel_end, Error **errp)
+                        hwaddr kernel_end, void **pfdt, Error **errp)
 {
     ERRP_GUARD();
     Error *err = NULL;
     const char *name;
-    const void *data;
-    const void *load_data;
+    void *data;
     hwaddr load_addr;
     int img_off;
     size_t sz;
@@ -194,7 +193,7 @@ static int fit_load_fdt(const struct fit_loader *ldr, const void *itb,
         return 0;
     }
 
-    load_data = data = fit_load_image_alloc(itb, name, &img_off, &sz, errp);
+    data = fit_load_image_alloc(itb, name, &img_off, &sz, errp);
     if (!data) {
         error_prepend(errp, "unable to load FDT image from FIT: ");
         return -EINVAL;
@@ -211,19 +210,23 @@ static int fit_load_fdt(const struct fit_loader *ldr, const void *itb,
     }
 
     if (ldr->fdt_filter) {
-        load_data = ldr->fdt_filter(opaque, data, match_data, &load_addr);
+        void *filtered_data;
+
+        filtered_data = ldr->fdt_filter(opaque, data, match_data, &load_addr);
+        if (filtered_data != data) {
+            g_free(data);
+            data = filtered_data;
+        }
     }
 
     load_addr = ldr->addr_to_phys(opaque, load_addr);
-    sz = fdt_totalsize(load_data);
-    rom_add_blob_fixed(name, load_data, sz, load_addr);
+    sz = fdt_totalsize(data);
+    rom_add_blob_fixed(name, data, sz, load_addr);
 
-    ret = 0;
+    *pfdt = data;
+    return 0;
 out:
     g_free((void *) data);
-    if (data != load_data) {
-        g_free((void *) load_data);
-    }
     return ret;
 }
 
@@ -259,7 +262,8 @@ out:
     return ret;
 }
 
-int load_fit(const struct fit_loader *ldr, const char *filename, void *opaque)
+int load_fit(const struct fit_loader *ldr, const char *filename,
+             void **pfdt, void *opaque)
 {
     Error *err = NULL;
     const struct fit_loader_match *match;
@@ -323,7 +327,7 @@ int load_fit(const struct fit_loader *ldr, const char *filename, void *opaque)
         goto out;
     }
 
-    ret = fit_load_fdt(ldr, itb, cfg_off, opaque, match_data, kernel_end,
+    ret = fit_load_fdt(ldr, itb, cfg_off, opaque, match_data, kernel_end, pfdt,
                        &err);
     if (ret) {
         error_report_err(err);
