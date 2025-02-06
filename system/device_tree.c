@@ -635,11 +635,16 @@ out:
 
 void qmp_dumpdtb(const char *filename, Error **errp)
 {
+    ERRP_GUARD();
+
     g_autoptr(GError) err = NULL;
     uint32_t size;
 
     if (!current_machine->fdt) {
-        error_setg(errp, "This machine doesn't have a FDT");
+        error_setg(errp, "This machine doesn't have an FDT");
+        error_append_hint(errp,
+                          "(Perhaps it doesn't support FDT at all, or perhaps "
+                          "you need to provide an FDT with the -fdt option?)\n");
         return;
     }
 

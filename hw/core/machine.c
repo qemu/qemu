@@ -1702,15 +1702,13 @@ static void handle_machine_dumpdtb(MachineState *ms)
     if (!ms->dumpdtb) {
         return;
     }
-    if (!ms->fdt) {
-        /* Silently ignore dumpdtb option if there is nothing to dump */
-        return;
-    }
 #ifdef CONFIG_FDT
     qmp_dumpdtb(ms->dumpdtb, &error_fatal);
     exit(0);
 #else
     error_report("This machine doesn't have an FDT");
+    error_printf("(this machine type definitely doesn't use FDT, and "
+                 "this QEMU doesn't have FDT support compiled in)\n");
     exit(1);
 #endif
 }
