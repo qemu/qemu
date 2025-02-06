@@ -247,6 +247,17 @@ void warn_report_err(Error *err)
     error_free(err);
 }
 
+bool warn_report_err_once_cond(bool *printed, Error *err)
+{
+    if (*printed) {
+        error_free(err);
+        return false;
+    }
+    *printed = true;
+    warn_report_err(err);
+    return true;
+}
+
 void error_reportf_err(Error *err, const char *fmt, ...)
 {
     va_list ap;
