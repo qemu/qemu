@@ -1,0 +1,2 @@
+doc-valid-idents = ["PrimeCell", ".."]
+msrv = "1.63.0"
