@@ -4050,6 +4050,9 @@ if have_rust
       bindgen_args += ['--formatter', 'none']
     endif
   endif
+  if bindgen.version().version_compare('>=0.66.0')
+    bindgen_args += ['--rust-target', '1.59']
+  endif
   if bindgen.version().version_compare('<0.61.0')
     # default in 0.61+
     bindgen_args += ['--size_t-is-usize']
