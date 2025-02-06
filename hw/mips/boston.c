@@ -810,6 +810,10 @@ static void boston_mach_init(MachineState *machine)
 
             dtb_load_data = boston_fdt_filter(s, dtb_file_data,
                                               NULL, &dtb_vaddr);
+            if (!dtb_load_data) {
+                /* boston_fdt_filter() already printed the error for us */
+                exit(1);
+            }
 
             /* Calculate real fdt size after filter */
             dt_size = fdt_totalsize(dtb_load_data);
