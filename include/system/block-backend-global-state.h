@@ -86,7 +86,6 @@ bool blk_supports_write_perm(BlockBackend *blk);
 bool blk_is_sg(BlockBackend *blk);
 void blk_set_enable_write_cache(BlockBackend *blk, bool wce);
 int blk_get_flags(BlockBackend *blk);
-bool blk_op_is_blocked(BlockBackend *blk, BlockOpType op, Error **errp);
 int blk_set_aio_context(BlockBackend *blk, AioContext *new_context,
                         Error **errp);
 void blk_add_aio_context_notifier(BlockBackend *blk,
