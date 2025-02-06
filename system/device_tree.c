@@ -594,21 +594,6 @@ int qemu_fdt_add_path(void *fdt, const char *path)
     return retval;
 }
 
-void qemu_fdt_dumpdtb(void *fdt, int size)
-{
-    const char *dumpdtb = current_machine->dumpdtb;
-
-    if (dumpdtb) {
-        /* Dump the dtb to a file and quit */
-        if (g_file_set_contents(dumpdtb, fdt, size, NULL)) {
-            info_report("dtb dumped to %s. Exiting.", dumpdtb);
-            exit(0);
-        }
-        error_report("%s: Failed dumping dtb to %s", __func__, dumpdtb);
-        exit(1);
-    }
-}
-
 int qemu_fdt_setprop_sized_cells_from_array(void *fdt,
                                             const char *node_path,
                                             const char *property,

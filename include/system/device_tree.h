@@ -133,8 +133,6 @@ int qemu_fdt_add_path(void *fdt, const char *path);
                          sizeof(qdt_tmp));                                    \
     } while (0)
 
-void qemu_fdt_dumpdtb(void *fdt, int size);
-
 /**
  * qemu_fdt_setprop_sized_cells_from_array:
  * @fdt: device tree blob

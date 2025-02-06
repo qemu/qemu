@@ -1760,7 +1760,6 @@ static void spapr_machine_reset(MachineState *machine, ResetType type)
                                   0, fdt_addr, 0);
         cpu_physical_memory_write(fdt_addr, fdt, fdt_totalsize(fdt));
     }
-    qemu_fdt_dumpdtb(fdt, fdt_totalsize(fdt));
 
     g_free(spapr->fdt_blob);
     spapr->fdt_size = fdt_totalsize(fdt);

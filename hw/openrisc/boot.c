@@ -109,7 +109,6 @@ uint32_t openrisc_load_fdt(MachineState *ms, void *fdt,
     /* Should only fail if we've built a corrupted tree */
     g_assert(ret == 0);
     /* copy in the device tree */
-    qemu_fdt_dumpdtb(fdt, fdtsize);
 
     /* Save FDT for dumpdtb monitor command */
     ms->fdt = fdt;

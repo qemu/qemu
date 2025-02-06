@@ -527,7 +527,6 @@ void virt_fdt_setup(LoongArchVirtMachineState *lvms)
      * Put the FDT into the memory map as a ROM image: this will ensure
      * the FDT is copied again upon reset, even if addr points into RAM.
      */
-    qemu_fdt_dumpdtb(machine->fdt, lvms->fdt_size);
     rom_add_blob_fixed_as("fdt", machine->fdt, lvms->fdt_size, FDT_BASE,
                           &address_space_memory);
     qemu_register_reset_nosnapshotload(qemu_fdt_randomize_seeds,

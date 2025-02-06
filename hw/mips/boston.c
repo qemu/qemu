@@ -395,7 +395,6 @@ static void *boston_fdt_filter(void *opaque, const void *fdt_orig,
                         1, ram_high_sz);
 
     fdt = g_realloc(fdt, fdt_totalsize(fdt));
-    qemu_fdt_dumpdtb(fdt, fdt_sz);
 
     s->fdt_base = *load_addr;
 
