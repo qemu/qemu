@@ -23,6 +23,7 @@
 #include <sys/ioctl.h>
 
 #include "hw/vfio/vfio-common.h"
+#include "hw/vfio/pci.h"
 #include "hw/hw.h"
 #include "trace.h"
 #include "qapi/error.h"
@@ -727,4 +728,13 @@ bool vfio_device_hiod_realize(VFIODevice *vbasedev, Error **errp)
     }
 
     return HOST_IOMMU_DEVICE_GET_CLASS(hiod)->realize(hiod, vbasedev, errp);
+}
+
+VFIODevice *vfio_get_vfio_device(Object *obj)
+{
+    if (object_dynamic_cast(obj, TYPE_VFIO_PCI)) {
+        return &VFIO_PCI(obj)->vbasedev;
+    } else {
+        return NULL;
+    }
 }
