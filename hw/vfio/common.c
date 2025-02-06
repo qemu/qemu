@@ -683,12 +683,13 @@ fail:
         error_reportf_err(err, "PCI p2p may not work: ");
         return;
     }
-    /*
-     * On the initfn path, store the first error in the container so we
-     * can gracefully fail.  Runtime, there's not much we can do other
-     * than throw a hardware error.
-     */
+
     if (!bcontainer->initialized) {
+        /*
+         * At machine init time or when the device is attached to the
+         * VM, store the first error in the container so we can
+         * gracefully fail the device realize routine.
+         */
         if (!bcontainer->error) {
             error_propagate_prepend(&bcontainer->error, err,
                                     "Region %s: ",
@@ -697,6 +698,10 @@ fail:
             error_free(err);
         }
     } else {
+        /*
+         * At runtime, there's not much we can do other than throw a
+         * hardware error.
+         */
         error_report_err(err);
         hw_error("vfio: DMA mapping failed, unable to continue");
     }
