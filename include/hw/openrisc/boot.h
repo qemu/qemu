@@ -20,6 +20,7 @@
 #define OPENRISC_BOOT_H
 
 #include "exec/cpu-defs.h"
+#include "hw/boards.h"
 
 hwaddr openrisc_load_kernel(ram_addr_t ram_size,
                             const char *kernel_filename,
@@ -28,7 +29,7 @@ hwaddr openrisc_load_kernel(ram_addr_t ram_size,
 hwaddr openrisc_load_initrd(void *fdt, const char *filename,
                             hwaddr load_start, uint64_t mem_size);
 
-uint32_t openrisc_load_fdt(void *fdt, hwaddr load_start,
+uint32_t openrisc_load_fdt(MachineState *ms, void *fdt, hwaddr load_start,
                            uint64_t mem_size);
 
 #endif /* OPENRISC_BOOT_H */
