@@ -77,6 +77,7 @@ tests_aarch64_system_thorough = [
   'aarch64_tcg_plugins',
   'aarch64_tuxrun',
   'aarch64_virt',
+  'aarch64_xen',
   'aarch64_xlnx_versal',
   'multiprocess',
 ]
