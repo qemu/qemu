@@ -12,16 +12,7 @@
 //! See [`PL011State`](crate::device::PL011State) for the device model type and
 //! the [`registers`] module for register types.
 
-#![deny(
-    clippy::correctness,
-    clippy::suspicious,
-    clippy::complexity,
-    clippy::perf,
-    clippy::nursery,
-    clippy::style
-)]
 #![allow(clippy::upper_case_acronyms)]
-#![allow(clippy::result_unit_err)]
 
 use qemu_api::c_str;
 
