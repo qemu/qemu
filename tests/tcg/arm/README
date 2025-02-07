@@ -4,8 +4,3 @@ hello-arm
 ---------
 
 A very simple inline assembly, write syscall based hello world
-
-test-arm-iwmmxt
----------------
-
-A simple test case for older iwmmxt extended ARMs
