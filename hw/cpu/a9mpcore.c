@@ -177,17 +177,14 @@ static void a9mp_priv_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, a9mp_priv_properties);
 }
 
-static const TypeInfo a9mp_priv_info = {
-    .name          = TYPE_A9MPCORE_PRIV,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(A9MPPrivState),
-    .instance_init = a9mp_priv_initfn,
-    .class_init    = a9mp_priv_class_init,
+static const TypeInfo a9mp_types[] = {
+    {
+        .name           = TYPE_A9MPCORE_PRIV,
+        .parent         = TYPE_SYS_BUS_DEVICE,
+        .instance_size  =  sizeof(A9MPPrivState),
+        .instance_init  = a9mp_priv_initfn,
+        .class_init     = a9mp_priv_class_init,
+    },
 };
 
-static void a9mp_register_types(void)
-{
-    type_register_static(&a9mp_priv_info);
-}
-
-type_init(a9mp_register_types)
+DEFINE_TYPES(a9mp_types)

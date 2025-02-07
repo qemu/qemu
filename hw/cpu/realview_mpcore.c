@@ -114,17 +114,14 @@ static void mpcore_rirq_class_init(ObjectClass *klass, void *data)
     dc->realize = realview_mpcore_realize;
 }
 
-static const TypeInfo mpcore_rirq_info = {
-    .name          = TYPE_REALVIEW_MPCORE_RIRQ,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(mpcore_rirq_state),
-    .instance_init = mpcore_rirq_init,
-    .class_init    = mpcore_rirq_class_init,
+static const TypeInfo realview_mpcore_types[] = {
+    {
+        .name           = TYPE_REALVIEW_MPCORE_RIRQ,
+        .parent         = TYPE_SYS_BUS_DEVICE,
+        .instance_size  = sizeof(mpcore_rirq_state),
+        .instance_init  = mpcore_rirq_init,
+        .class_init     = mpcore_rirq_class_init,
+    },
 };
 
-static void realview_mpcore_register_types(void)
-{
-    type_register_static(&mpcore_rirq_info);
-}
-
-type_init(realview_mpcore_register_types)
+DEFINE_TYPES(realview_mpcore_types)
