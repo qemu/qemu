@@ -204,6 +204,27 @@ is going to be so much slower it wouldn't make sense for any serious
 instrumentation. Due to implementation differences there will also be
 anomalies in things like memory instrumentation.
 
+linux-user mode CPUs
+--------------------
+
+iwMMXt emulation and the ``pxa`` CPUs (since 10.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``pxa`` CPU family (``pxa250``, ``pxa255``, ``pxa260``,
+``pxa261``, ``pxa262``, ``pxa270-a0``, ``pxa270-a1``, ``pxa270``,
+``pxa270-b0``, ``pxa270-b1``, ``pxa270-c0``, ``pxa270-c5``) are no
+longer used in system emulation, because all the machine types which
+used these CPUs were removed in the QEMU 9.2 release. These CPUs can
+now only be used in linux-user mode, and to do that you would have to
+explicitly select one of these CPUs with the ``-cpu`` command line
+option or the ``QEMU_CPU`` environment variable.
+
+We don't believe that anybody is using the iwMMXt emulation, and we do
+not have any tests to validate it or any real hardware or similar
+known-good implementation to test against. GCC is in the process of
+dropping their support for iwMMXt codegen. These CPU types are
+therefore deprecated in QEMU, and will be removed in a future release.
+
 System emulator CPUs
 --------------------
 
