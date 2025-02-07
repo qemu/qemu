@@ -3469,6 +3469,7 @@ void qemu_init(int argc, char **argv)
                 nb_prom_envs++;
                 break;
             case QEMU_OPTION_old_param:
+                warn_report("-old-param is deprecated");
                 old_param = 1;
                 break;
             case QEMU_OPTION_rtc:
