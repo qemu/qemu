@@ -565,7 +565,6 @@ static bool spapr_qtest_callback(CharBackend *chr, gchar **words)
         g_assert(rc == 0);
         res = qtest_rtas_call(words[1], nargs, args, nret, ret);
 
-        qtest_send_prefix(chr);
         qtest_sendf(chr, "OK %"PRIu64"\n", res);
 
         return true;

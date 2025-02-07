@@ -94,7 +94,6 @@ static bool csr_qtest_callback(CharBackend *chr, gchar **words)
         g_assert(rc == 0);
         csr_call(words[1], cpu, csr, &val);
 
-        qtest_send_prefix(chr);
         qtest_sendf(chr, "OK 0 "TARGET_FMT_lx"\n", (target_ulong)val);
 
         return true;
