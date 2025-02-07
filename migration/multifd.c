@@ -1151,6 +1151,7 @@ void multifd_recv_sync_main(void)
 
 static void *multifd_recv_thread(void *opaque)
 {
+    MigrationState *s = migrate_get_current();
     MultiFDRecvParams *p = opaque;
     Error *local_err = NULL;
     bool use_packets = multifd_use_packets();
@@ -1159,18 +1160,27 @@ static void *multifd_recv_thread(void *opaque)
     trace_multifd_recv_thread_start(p->id);
     rcu_register_thread();
 
+    if (!s->multifd_clean_tls_termination) {
+        p->read_flags = QIO_CHANNEL_READ_FLAG_RELAXED_EOF;
+    }
+
     while (true) {
         uint32_t flags = 0;
         bool has_data = false;
         p->normal_num = 0;
 
         if (use_packets) {
+            struct iovec iov = {
+                .iov_base = (void *)p->packet,
+                .iov_len = p->packet_len
+            };
+
             if (multifd_recv_should_exit()) {
                 break;
             }
 
-            ret = qio_channel_read_all_eof(p->c, (void *)p->packet,
-                                           p->packet_len, &local_err);
+            ret = qio_channel_readv_full_all_eof(p->c, &iov, 1, NULL, NULL,
+                                                 p->read_flags, &local_err);
             if (!ret) {
                 /* EOF */
                 assert(!local_err);

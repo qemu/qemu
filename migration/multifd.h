@@ -244,6 +244,8 @@ typedef struct {
     uint32_t zero_num;
     /* used for de-compression methods */
     void *compress_data;
+    /* Flags for the QIOChannel */
+    int read_flags;
 } MultiFDRecvParams;
 
 typedef struct {

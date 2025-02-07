@@ -443,6 +443,39 @@ struct MigrationState {
      * Default value is false. (since 8.1)
      */
     bool multifd_flush_after_each_section;
+
+    /*
+     * This variable only makes sense when set on the machine that is
+     * the destination of a multifd migration with TLS enabled. It
+     * affects the behavior of the last send->recv iteration with
+     * regards to termination of the TLS session.
+     *
+     * When set:
+     *
+     * - the destination QEMU instance can expect to never get a
+     *   GNUTLS_E_PREMATURE_TERMINATION error. Manifested as the error
+     *   message: "The TLS connection was non-properly terminated".
+     *
+     * When clear:
+     *
+     * - the destination QEMU instance can expect to see a
+     *   GNUTLS_E_PREMATURE_TERMINATION error in any multifd channel
+     *   whenever the last recv() call of that channel happens after
+     *   the source QEMU instance has already issued shutdown() on the
+     *   channel.
+     *
+     *   Commit 637280aeb2 (since 9.1) introduced a side effect that
+     *   causes the destination instance to not be affected by the
+     *   premature termination, while commit 1d457daf86 (since 10.0)
+     *   causes the premature termination condition to be once again
+     *   reachable.
+     *
+     * NOTE: Regardless of the state of this option, a premature
+     * termination of the TLS connection might happen due to error at
+     * any moment prior to the last send->recv iteration.
+     */
+    bool multifd_clean_tls_termination;
+
     /*
      * This decides the size of guest memory chunk that will be used
      * to track dirty bitmap clearing.  The size of memory chunk will
