@@ -909,8 +909,8 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
 
         /* Compare A, B, C */
         for (j = 0; j < 3; j++) {
-            uint32_t cr0, cr1, mask, compare;
-            uint16_t rx_cmp;
+            uint32_t cr0, cr1, mask, compare, disable_mask;
+            uint32_t rx_cmp;
             int offset;
             int cr_idx = extract32(reg, R_SCREENING_TYPE2_REG0_COMPARE_A_SHIFT + j * 6,
                                    R_SCREENING_TYPE2_REG0_COMPARE_A_LENGTH);
@@ -946,9 +946,25 @@ static int get_queue_from_screen(CadenceGEMState *s, uint8_t *rxbuf_ptr,
                 break;
             }
 
-            rx_cmp = rxbuf_ptr[offset] << 8 | rxbuf_ptr[offset];
-            mask = FIELD_EX32(cr0, TYPE2_COMPARE_0_WORD_0, MASK_VALUE);
-            compare = FIELD_EX32(cr0, TYPE2_COMPARE_0_WORD_0, COMPARE_VALUE);
+            disable_mask =
+                FIELD_EX32(cr1, TYPE2_COMPARE_0_WORD_1, DISABLE_MASK);
+            if (disable_mask) {
+                /*
+                 * If disable_mask is set, mask_value is used as an
+                 * additional 2 byte Compare Value; that is equivalent
+                 * to using the whole cr0 register as the comparison value.
+                 * Load 32 bits of data from rx_buf, and set mask to
+                 * all-ones so we compare all 32 bits.
+                 */
+                rx_cmp = ldl_le_p(rxbuf_ptr + offset);
+                mask = 0xFFFFFFFF;
+                compare = cr0;
+            } else {
+                rx_cmp = lduw_le_p(rxbuf_ptr + offset);
+                mask = FIELD_EX32(cr0, TYPE2_COMPARE_0_WORD_0, MASK_VALUE);
+                compare =
+                    FIELD_EX32(cr0, TYPE2_COMPARE_0_WORD_0, COMPARE_VALUE);
+            }
 
             if ((rx_cmp & mask) == (compare & mask)) {
                 matched = true;
