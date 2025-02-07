@@ -4,9 +4,11 @@
 #include "qapi/error.h"
 #include "qapi/qapi-visit-qom.h"
 #include "qobject/qobject.h"
+#include "qobject/qbool.h"
 #include "qobject/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qobject/qjson.h"
+#include "qobject/qstring.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qom/object_interfaces.h"
@@ -177,9 +179,25 @@ char *object_property_help(const char *name, const char *type,
         g_string_append(str, description);
     }
     if (defval) {
-        g_autofree char *def_json = g_string_free(qobject_to_json(defval),
-                                                  false);
-        g_string_append_printf(str, " (default: %s)", def_json);
+        g_autofree char *def_json = NULL;
+        const char *def;
+
+        switch (qobject_type(defval)) {
+        case QTYPE_QSTRING:
+            def = qstring_get_str(qobject_to(QString, defval));
+            break;
+
+        case QTYPE_QBOOL:
+            def = qbool_get_bool(qobject_to(QBool, defval)) ? "on" : "off";
+            break;
+
+        default:
+            def_json = g_string_free(qobject_to_json(defval), false);
+            def = def_json;
+            break;
+        }
+
+        g_string_append_printf(str, " (default: %s)", def);
     }
 
     return g_string_free(str, false);
