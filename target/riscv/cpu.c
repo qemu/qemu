@@ -2844,9 +2844,9 @@ static const Property riscv_cpu_properties[] = {
     {.name = "cbop_blocksize", .info = &prop_cbop_blksize},
     {.name = "cboz_blocksize", .info = &prop_cboz_blksize},
 
-     {.name = "mvendorid", .info = &prop_mvendorid},
-     {.name = "mimpid", .info = &prop_mimpid},
-     {.name = "marchid", .info = &prop_marchid},
+    {.name = "mvendorid", .info = &prop_mvendorid},
+    {.name = "mimpid", .info = &prop_mimpid},
+    {.name = "marchid", .info = &prop_marchid},
 
 #ifndef CONFIG_USER_ONLY
     DEFINE_PROP_UINT64("resetvec", RISCVCPU, env.resetvec, DEFAULT_RSTVEC),
