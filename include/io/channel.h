@@ -35,6 +35,7 @@ OBJECT_DECLARE_TYPE(QIOChannel, QIOChannelClass,
 #define QIO_CHANNEL_WRITE_FLAG_ZERO_COPY 0x1
 
 #define QIO_CHANNEL_READ_FLAG_MSG_PEEK 0x1
+#define QIO_CHANNEL_READ_FLAG_RELAXED_EOF 0x2
 
 typedef enum QIOChannelFeature QIOChannelFeature;
 
