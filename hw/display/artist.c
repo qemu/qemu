@@ -48,6 +48,7 @@ struct ARTISTState {
 
     struct vram_buffer vram_buffer[16];
 
+    bool disable;
     uint16_t width;
     uint16_t height;
     uint16_t depth;
@@ -1211,8 +1212,8 @@ static uint64_t artist_reg_read(void *opaque, hwaddr addr, unsigned size)
         break;
 
     case 0x380004:
-        /* 0x02000000 Buserror */
-        val = 0x6dc20006;
+        /* magic number detected by SeaBIOS-hppa */
+        val = s->disable ? 0 : 0x6dc20006;
         break;
 
     default:
@@ -1432,7 +1433,7 @@ static int vmstate_artist_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_artist = {
     .name = "artist",
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 2,
     .post_load = vmstate_artist_post_load,
     .fields = (const VMStateField[]) {
@@ -1470,6 +1471,7 @@ static const VMStateDescription vmstate_artist = {
         VMSTATE_UINT32(font_write1, ARTISTState),
         VMSTATE_UINT32(font_write2, ARTISTState),
         VMSTATE_UINT32(font_write_pos_y, ARTISTState),
+        VMSTATE_BOOL(disable, ARTISTState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -1478,6 +1480,7 @@ static const Property artist_properties[] = {
     DEFINE_PROP_UINT16("width",        ARTISTState, width, 1280),
     DEFINE_PROP_UINT16("height",       ARTISTState, height, 1024),
     DEFINE_PROP_UINT16("depth",        ARTISTState, depth, 8),
+    DEFINE_PROP_BOOL("disable",        ARTISTState, disable, false),
 };
 
 static void artist_reset(DeviceState *qdev)

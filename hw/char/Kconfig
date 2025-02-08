@@ -66,6 +66,9 @@ config RENESAS_SCI
 config AVR_USART
     bool
 
+config DIVA_GSP
+    bool
+
 config MCHP_PFSOC_MMUART
     bool
     select SERIAL
