@@ -686,7 +686,7 @@ static void virt_done(Notifier *notifier, void *data)
     LoongArchVirtMachineState *lvms = container_of(notifier,
                                       LoongArchVirtMachineState, machine_done);
     virt_build_smbios(lvms);
-    loongarch_acpi_setup(lvms);
+    virt_acpi_setup(lvms);
     virt_fdt_setup(lvms);
 }
 

@@ -64,5 +64,5 @@ struct LoongArchVirtMachineState {
 
 #define TYPE_LOONGARCH_VIRT_MACHINE  MACHINE_TYPE_NAME("virt")
 OBJECT_DECLARE_SIMPLE_TYPE(LoongArchVirtMachineState, LOONGARCH_VIRT_MACHINE)
-void loongarch_acpi_setup(LoongArchVirtMachineState *lvms);
+void virt_acpi_setup(LoongArchVirtMachineState *lvms);
 #endif
