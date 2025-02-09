@@ -658,7 +658,7 @@ static const Property vhost_user_gpu_properties[] = {
 };
 
 static void
-vhost_user_gpu_class_init(ObjectClass *klass, void *data)
+vhost_user_gpu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

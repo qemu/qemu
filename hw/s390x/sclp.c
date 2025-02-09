@@ -424,7 +424,7 @@ static void sclp_init(Object *obj)
     sclp_memory_init(sclp);
 }
 
-static void sclp_class_init(ObjectClass *oc, void *data)
+static void sclp_class_init(ObjectClass *oc, const void *data)
 {
     SCLPDeviceClass *sc = SCLP_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);

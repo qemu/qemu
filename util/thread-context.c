@@ -273,7 +273,7 @@ static void thread_context_instance_complete(UserCreatable *uc, Error **errp)
     }
 }
 
-static void thread_context_class_init(ObjectClass *oc, void *data)
+static void thread_context_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 

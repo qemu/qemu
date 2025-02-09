@@ -422,7 +422,7 @@ static const Property npcm_gcr_properties[] = {
     DEFINE_PROP_UINT32("power-on-straps", NPCMGCRState, reset_pwron, 0),
 };
 
-static void npcm_gcr_class_init(ObjectClass *klass, void *data)
+static void npcm_gcr_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -432,7 +432,7 @@ static void npcm_gcr_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, npcm_gcr_properties);
 }
 
-static void npcm7xx_gcr_class_init(ObjectClass *klass, void *data)
+static void npcm7xx_gcr_class_init(ObjectClass *klass, const void *data)
 {
     NPCMGCRClass *c = NPCM_GCR_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -446,7 +446,7 @@ static void npcm7xx_gcr_class_init(ObjectClass *klass, void *data)
     rc->phases.enter = npcm7xx_gcr_enter_reset;
 }
 
-static void npcm8xx_gcr_class_init(ObjectClass *klass, void *data)
+static void npcm8xx_gcr_class_init(ObjectClass *klass, const void *data)
 {
     NPCMGCRClass *c = NPCM_GCR_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

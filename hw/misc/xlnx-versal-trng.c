@@ -682,7 +682,7 @@ static const VMStateDescription vmstate_trng = {
     }
 };
 
-static void trng_class_init(ObjectClass *klass, void *data)
+static void trng_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

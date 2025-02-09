@@ -155,7 +155,7 @@ static const VMStateDescription vmstate_or1k_ompic = {
     }
 };
 
-static void or1k_ompic_class_init(ObjectClass *klass, void *data)
+static void or1k_ompic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

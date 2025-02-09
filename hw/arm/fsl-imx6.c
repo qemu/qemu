@@ -484,7 +484,7 @@ static const Property fsl_imx6_properties[] = {
     DEFINE_PROP_UINT32("fec-phy-num", FslIMX6State, phy_num, 0),
 };
 
-static void fsl_imx6_class_init(ObjectClass *oc, void *data)
+static void fsl_imx6_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

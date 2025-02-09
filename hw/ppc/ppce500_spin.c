@@ -175,7 +175,7 @@ static void ppce500_spin_initfn(Object *obj)
     sysbus_init_mmio(dev, &s->iomem);
 }
 
-static void ppce500_spin_class_init(ObjectClass *klass, void *data)
+static void ppce500_spin_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

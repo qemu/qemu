@@ -4138,7 +4138,7 @@ void virtio_device_release_ioeventfd(VirtIODevice *vdev)
     virtio_bus_release_ioeventfd(vbus);
 }
 
-static void virtio_device_class_init(ObjectClass *klass, void *data)
+static void virtio_device_class_init(ObjectClass *klass, const void *data)
 {
     /* Set the default value here. */
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

@@ -432,7 +432,7 @@ static const Property pca955x_properties[] = {
     DEFINE_PROP_STRING("description", PCA955xState, description),
 };
 
-static void pca955x_class_init(ObjectClass *klass, void *data)
+static void pca955x_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
@@ -454,7 +454,7 @@ static const TypeInfo pca955x_info = {
     .abstract      = true,
 };
 
-static void pca9552_class_init(ObjectClass *oc, void *data)
+static void pca9552_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCA955xClass *pc = PCA955X_CLASS(oc);

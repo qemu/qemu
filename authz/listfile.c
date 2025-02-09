@@ -220,7 +220,7 @@ qauthz_list_file_finalize(Object *obj)
 
 
 static void
-qauthz_list_file_class_init(ObjectClass *oc, void *data)
+qauthz_list_file_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
     QAuthZClass *authz = QAUTHZ_CLASS(oc);

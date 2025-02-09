@@ -161,7 +161,7 @@ void host_cpu_max_instance_init(X86CPU *cpu)
                             &error_abort);
 }
 
-static void host_cpu_class_init(ObjectClass *oc, void *data)
+static void host_cpu_class_init(ObjectClass *oc, const void *data)
 {
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
 

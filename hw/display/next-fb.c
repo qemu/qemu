@@ -119,7 +119,7 @@ static void nextfb_realize(DeviceState *dev, Error **errp)
     qemu_console_resize(s->con, s->cols, s->rows);
 }
 
-static void nextfb_class_init(ObjectClass *oc, void *data)
+static void nextfb_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

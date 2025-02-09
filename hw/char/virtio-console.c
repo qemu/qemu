@@ -261,7 +261,7 @@ static void virtconsole_unrealize(DeviceState *dev)
     }
 }
 
-static void virtconsole_class_init(ObjectClass *klass, void *data)
+static void virtconsole_class_init(ObjectClass *klass, const void *data)
 {
     VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_CLASS(klass);
 
@@ -278,7 +278,7 @@ static const Property virtserialport_properties[] = {
     DEFINE_PROP_CHR("chardev", VirtConsole, chr),
 };
 
-static void virtserialport_class_init(ObjectClass *klass, void *data)
+static void virtserialport_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_CLASS(klass);

@@ -94,7 +94,7 @@ static int m41t80_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-static void m41t80_class_init(ObjectClass *klass, void *data)
+static void m41t80_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);

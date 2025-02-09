@@ -502,7 +502,7 @@ static void aspeed_ast2400_soc_realize(DeviceState *dev, Error **errp)
                        aspeed_soc_get_irq(s, ASPEED_DEV_HACE));
 }
 
-static void aspeed_soc_ast2400_class_init(ObjectClass *oc, void *data)
+static void aspeed_soc_ast2400_class_init(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("arm926"),
@@ -530,7 +530,7 @@ static void aspeed_soc_ast2400_class_init(ObjectClass *oc, void *data)
     sc->get_irq      = aspeed_soc_ast2400_get_irq;
 }
 
-static void aspeed_soc_ast2500_class_init(ObjectClass *oc, void *data)
+static void aspeed_soc_ast2500_class_init(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("arm1176"),

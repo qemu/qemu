@@ -210,7 +210,7 @@ static void rs5c372_init(Object *obj)
     qdev_prop_set_uint8(DEVICE(obj), "address", 0x32);
 }
 
-static void rs5c372_class_init(ObjectClass *klass, void *data)
+static void rs5c372_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);

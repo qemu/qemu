@@ -632,7 +632,7 @@ static const Property pl041_device_properties[] = {
                        DEFAULT_FIFO_DEPTH),
 };
 
-static void pl041_device_class_init(ObjectClass *klass, void *data)
+static void pl041_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

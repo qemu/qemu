@@ -331,7 +331,7 @@ static const MemoryRegionOps pnv_sbe_power9_xscom_mbox_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void pnv_sbe_power9_class_init(ObjectClass *klass, void *data)
+static void pnv_sbe_power9_class_init(ObjectClass *klass, const void *data)
 {
     PnvSBEClass *psc = PNV_SBE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -350,7 +350,7 @@ static const TypeInfo pnv_sbe_power9_type_info = {
     .class_init    = pnv_sbe_power9_class_init,
 };
 
-static void pnv_sbe_power10_class_init(ObjectClass *klass, void *data)
+static void pnv_sbe_power10_class_init(ObjectClass *klass, const void *data)
 {
     PnvSBEClass *psc = PNV_SBE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -386,7 +386,7 @@ static void pnv_sbe_realize(DeviceState *dev, Error **errp)
     sbe->timer = timer_new_us(QEMU_CLOCK_VIRTUAL, sbe_timer, sbe);
 }
 
-static void pnv_sbe_class_init(ObjectClass *klass, void *data)
+static void pnv_sbe_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

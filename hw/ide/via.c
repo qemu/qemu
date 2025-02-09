@@ -245,7 +245,7 @@ static void via_ide_exitfn(PCIDevice *dev)
     }
 }
 
-static void via_ide_class_init(ObjectClass *klass, void *data)
+static void via_ide_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

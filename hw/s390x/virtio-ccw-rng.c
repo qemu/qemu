@@ -50,7 +50,7 @@ static const Property virtio_ccw_rng_properties[] = {
                        VIRTIO_CCW_MAX_REV),
 };
 
-static void virtio_ccw_rng_class_init(ObjectClass *klass, void *data)
+static void virtio_ccw_rng_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);

@@ -385,7 +385,7 @@ static const Property xilinx_ethlite_properties[] = {
     DEFINE_NIC_PROPERTIES(XlnxXpsEthLite, conf),
 };
 
-static void xilinx_ethlite_class_init(ObjectClass *klass, void *data)
+static void xilinx_ethlite_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

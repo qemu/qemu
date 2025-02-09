@@ -821,7 +821,7 @@ static const Property npcm7xx_properties[] = {
                      MemoryRegion *),
 };
 
-static void npcm7xx_class_init(ObjectClass *oc, void *data)
+static void npcm7xx_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
@@ -830,7 +830,7 @@ static void npcm7xx_class_init(ObjectClass *oc, void *data)
     device_class_set_props(dc, npcm7xx_properties);
 }
 
-static void npcm730_class_init(ObjectClass *oc, void *data)
+static void npcm730_class_init(ObjectClass *oc, const void *data)
 {
     NPCM7xxClass *nc = NPCM7XX_CLASS(oc);
 
@@ -839,7 +839,7 @@ static void npcm730_class_init(ObjectClass *oc, void *data)
     nc->num_cpus = 2;
 }
 
-static void npcm750_class_init(ObjectClass *oc, void *data)
+static void npcm750_class_init(ObjectClass *oc, const void *data)
 {
     NPCM7xxClass *nc = NPCM7XX_CLASS(oc);
 

@@ -924,7 +924,7 @@ static void unsupported_params_init(const MachineClass *mc, SMPTestData *data)
     }
 }
 
-static void machine_base_class_init(ObjectClass *oc, void *data)
+static void machine_base_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -934,7 +934,8 @@ static void machine_base_class_init(ObjectClass *oc, void *data)
     mc->name = g_strdup(SMP_MACHINE_NAME);
 }
 
-static void machine_generic_invalid_class_init(ObjectClass *oc, void *data)
+static void machine_generic_invalid_class_init(ObjectClass *oc,
+                                               const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -943,21 +944,22 @@ static void machine_generic_invalid_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = MAX_CPUS - 1;
 }
 
-static void machine_with_modules_class_init(ObjectClass *oc, void *data)
+static void machine_with_modules_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->smp_props.modules_supported = true;
 }
 
-static void machine_with_dies_class_init(ObjectClass *oc, void *data)
+static void machine_with_dies_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->smp_props.dies_supported = true;
 }
 
-static void machine_with_modules_dies_class_init(ObjectClass *oc, void *data)
+static void machine_with_modules_dies_class_init(ObjectClass *oc,
+                                                 const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -965,28 +967,29 @@ static void machine_with_modules_dies_class_init(ObjectClass *oc, void *data)
     mc->smp_props.dies_supported = true;
 }
 
-static void machine_with_clusters_class_init(ObjectClass *oc, void *data)
+static void machine_with_clusters_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->smp_props.clusters_supported = true;
 }
 
-static void machine_with_books_class_init(ObjectClass *oc, void *data)
+static void machine_with_books_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->smp_props.books_supported = true;
 }
 
-static void machine_with_drawers_class_init(ObjectClass *oc, void *data)
+static void machine_with_drawers_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->smp_props.drawers_supported = true;
 }
 
-static void machine_with_drawers_books_class_init(ObjectClass *oc, void *data)
+static void machine_with_drawers_books_class_init(ObjectClass *oc,
+                                                  const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -994,7 +997,7 @@ static void machine_with_drawers_books_class_init(ObjectClass *oc, void *data)
     mc->smp_props.books_supported = true;
 }
 
-static void machine_full_topo_class_init(ObjectClass *oc, void *data)
+static void machine_full_topo_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 

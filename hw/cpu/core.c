@@ -77,7 +77,7 @@ static void cpu_core_instance_init(Object *obj)
     }
 }
 
-static void cpu_core_class_init(ObjectClass *oc, void *data)
+static void cpu_core_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

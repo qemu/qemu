@@ -64,7 +64,7 @@ static void uefi_vars_sysbus_realize(DeviceState *dev, Error **errp)
     uefi_vars_realize(&uv->state, errp);
 }
 
-static void uefi_vars_sysbus_class_init(ObjectClass *klass, void *data)
+static void uefi_vars_sysbus_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -100,7 +100,7 @@ static void uefi_vars_x64_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(sysbus, 0, hwinfo.mmio_address);
 }
 
-static void uefi_vars_x64_class_init(ObjectClass *klass, void *data)
+static void uefi_vars_x64_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

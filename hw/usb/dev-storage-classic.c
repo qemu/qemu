@@ -74,7 +74,7 @@ static const Property msd_properties[] = {
     DEFINE_PROP_BOOL("commandlog", MSDState, commandlog, false),
 };
 
-static void usb_msd_class_storage_initfn(ObjectClass *klass, void *data)
+static void usb_msd_class_storage_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);

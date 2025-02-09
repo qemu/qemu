@@ -50,7 +50,7 @@ static char *spapr_vio_get_dev_name(DeviceState *qdev)
     return g_strdup_printf("%s@%x", pc->dt_name, dev->reg);
 }
 
-static void spapr_vio_bus_class_init(ObjectClass *klass, void *data)
+static void spapr_vio_bus_class_init(ObjectClass *klass, const void *data)
 {
     BusClass *k = BUS_CLASS(klass);
 
@@ -599,7 +599,7 @@ SpaprVioBus *spapr_vio_bus_init(void)
     return bus;
 }
 
-static void spapr_vio_bridge_class_init(ObjectClass *klass, void *data)
+static void spapr_vio_bridge_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -631,7 +631,7 @@ const VMStateDescription vmstate_spapr_vio = {
     },
 };
 
-static void vio_spapr_device_class_init(ObjectClass *klass, void *data)
+static void vio_spapr_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->realize = spapr_vio_busdev_realize;

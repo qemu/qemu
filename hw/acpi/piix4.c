@@ -619,7 +619,7 @@ static const Property piix4_pm_properties[] = {
                       not_migrate_acpi_index, false),
 };
 
-static void piix4_pm_class_init(ObjectClass *klass, void *data)
+static void piix4_pm_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

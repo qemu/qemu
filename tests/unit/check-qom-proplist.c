@@ -135,7 +135,7 @@ static void dummy_init(Object *obj)
 }
 
 
-static void dummy_class_init(ObjectClass *cls, void *data)
+static void dummy_class_init(ObjectClass *cls, const void *data)
 {
     object_class_property_add_str(cls, "sv",
                                   dummy_get_sv,
@@ -264,7 +264,7 @@ static void dummy_dev_unparent(Object *obj)
     object_unparent(OBJECT(dev->bus));
 }
 
-static void dummy_dev_class_init(ObjectClass *klass, void *opaque)
+static void dummy_dev_class_init(ObjectClass *klass, const void *opaque)
 {
     klass->unparent = dummy_dev_unparent;
 }
@@ -288,7 +288,7 @@ static void dummy_bus_unparent(Object *obj)
     object_unparent(OBJECT(bus->backend));
 }
 
-static void dummy_bus_class_init(ObjectClass *klass, void *opaque)
+static void dummy_bus_class_init(ObjectClass *klass, const void *opaque)
 {
     klass->unparent = dummy_bus_unparent;
 }

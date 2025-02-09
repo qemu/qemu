@@ -183,7 +183,7 @@ static const Property diva_serial_properties[] = {
                                     PCI_DEVICE_ID_HP_DIVA_TOSCA1),
 };
 
-static void diva_serial_class_initfn(ObjectClass *klass, void *data)
+static void diva_serial_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
@@ -242,7 +242,7 @@ static void diva_aux_exit(PCIDevice *dev)
     qemu_free_irq(pci->irq);
 }
 
-static void diva_aux_class_initfn(ObjectClass *klass, void *data)
+static void diva_aux_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);

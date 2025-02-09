@@ -496,7 +496,7 @@ static const VMStateDescription vmstate_cfu_sfr = {
     }
 };
 
-static void cfu_apb_class_init(ObjectClass *klass, void *data)
+static void cfu_apb_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -505,7 +505,7 @@ static void cfu_apb_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, cfu_props);
 }
 
-static void cfu_fdro_class_init(ObjectClass *klass, void *data)
+static void cfu_fdro_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -516,7 +516,7 @@ static void cfu_fdro_class_init(ObjectClass *klass, void *data)
     rc->phases.enter = cfu_fdro_reset_enter;
 }
 
-static void cfu_sfr_class_init(ObjectClass *klass, void *data)
+static void cfu_sfr_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

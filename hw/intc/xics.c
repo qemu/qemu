@@ -350,7 +350,7 @@ static const Property icp_properties[] = {
     DEFINE_PROP_LINK(ICP_PROP_CPU, ICPState, cs, TYPE_CPU, CPUState *),
 };
 
-static void icp_class_init(ObjectClass *klass, void *data)
+static void icp_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -681,7 +681,7 @@ static const Property ics_properties[] = {
                      XICSFabric *),
 };
 
-static void ics_class_init(ObjectClass *klass, void *data)
+static void ics_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

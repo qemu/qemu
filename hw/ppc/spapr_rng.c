@@ -136,7 +136,7 @@ static const Property spapr_rng_properties[] = {
                      RngBackend *),
 };
 
-static void spapr_rng_class_init(ObjectClass *oc, void *data)
+static void spapr_rng_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

@@ -1395,7 +1395,7 @@ static const VMStateDescription vmstate_virtio_scsi = {
     },
 };
 
-static void virtio_scsi_common_class_init(ObjectClass *klass, void *data)
+static void virtio_scsi_common_class_init(ObjectClass *klass, const void *data)
 {
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1404,7 +1404,7 @@ static void virtio_scsi_common_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static void virtio_scsi_class_init(ObjectClass *klass, void *data)
+static void virtio_scsi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

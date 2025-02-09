@@ -137,7 +137,7 @@ qcrypto_tls_creds_anon_finalize(Object *obj)
 
 
 static void
-qcrypto_tls_creds_anon_class_init(ObjectClass *oc, void *data)
+qcrypto_tls_creds_anon_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 

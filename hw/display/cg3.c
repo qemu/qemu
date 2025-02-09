@@ -368,7 +368,7 @@ static const Property cg3_properties[] = {
     DEFINE_PROP_UINT16("depth",        CG3State, depth,     -1),
 };
 
-static void cg3_class_init(ObjectClass *klass, void *data)
+static void cg3_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

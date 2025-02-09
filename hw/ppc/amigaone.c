@@ -173,7 +173,7 @@ static const Property nvram_properties[] = {
     DEFINE_PROP_DRIVE("drive", A1NVRAMState, blk),
 };
 
-static void nvram_class_init(ObjectClass *oc, void *data)
+static void nvram_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

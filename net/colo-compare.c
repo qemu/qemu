@@ -1352,7 +1352,7 @@ static void colo_flush_packets(void *opaque, void *user_data)
     }
 }
 
-static void colo_compare_class_init(ObjectClass *oc, void *data)
+static void colo_compare_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 

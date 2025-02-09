@@ -123,7 +123,7 @@ static void bcm2835_rng_reset(DeviceState *dev)
     s->rng_status = 0;
 }
 
-static void bcm2835_rng_class_init(ObjectClass *klass, void *data)
+static void bcm2835_rng_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

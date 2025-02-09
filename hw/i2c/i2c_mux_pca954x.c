@@ -172,13 +172,13 @@ I2CBus *pca954x_i2c_get_bus(I2CSlave *mux, uint8_t channel)
     return pca954x->bus[channel];
 }
 
-static void pca9546_class_init(ObjectClass *klass, void *data)
+static void pca9546_class_init(ObjectClass *klass, const void *data)
 {
     Pca954xClass *s = PCA954X_CLASS(klass);
     s->nchans = PCA9546_CHANNEL_COUNT;
 }
 
-static void pca9548_class_init(ObjectClass *klass, void *data)
+static void pca9548_class_init(ObjectClass *klass, const void *data)
 {
     Pca954xClass *s = PCA954X_CLASS(klass);
     s->nchans = PCA9548_CHANNEL_COUNT;
@@ -215,7 +215,7 @@ static const Property pca954x_props[] = {
     DEFINE_PROP_STRING("name", Pca954xState, name),
 };
 
-static void pca954x_class_init(ObjectClass *klass, void *data)
+static void pca954x_class_init(ObjectClass *klass, const void *data)
 {
     I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

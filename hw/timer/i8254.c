@@ -350,7 +350,7 @@ static void pit_realizefn(DeviceState *dev, Error **errp)
     pc->parent_realize(dev, errp);
 }
 
-static void pit_class_initfn(ObjectClass *klass, void *data)
+static void pit_class_initfn(ObjectClass *klass, const void *data)
 {
     PITClass *pc = PIT_CLASS(klass);
     PITCommonClass *k = PIT_COMMON_CLASS(klass);

@@ -156,7 +156,7 @@ static void aspeed_rtc_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static void aspeed_rtc_class_init(ObjectClass *klass, void *data)
+static void aspeed_rtc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

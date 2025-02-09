@@ -116,7 +116,7 @@ qauthz_list_finalize(Object *obj)
 
 
 static void
-qauthz_list_class_init(ObjectClass *oc, void *data)
+qauthz_list_class_init(ObjectClass *oc, const void *data)
 {
     QAuthZClass *authz = QAUTHZ_CLASS(oc);
 

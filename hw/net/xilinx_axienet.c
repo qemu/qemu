@@ -1007,7 +1007,7 @@ static const Property xilinx_enet_properties[] = {
                      tx_control_dev, TYPE_STREAM_SINK, StreamSink *),
 };
 
-static void xilinx_enet_class_init(ObjectClass *klass, void *data)
+static void xilinx_enet_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1017,14 +1017,15 @@ static void xilinx_enet_class_init(ObjectClass *klass, void *data)
 }
 
 static void xilinx_enet_control_stream_class_init(ObjectClass *klass,
-                                                  void *data)
+                                                  const void *data)
 {
     StreamSinkClass *ssc = STREAM_SINK_CLASS(klass);
 
     ssc->push = xilinx_axienet_control_stream_push;
 }
 
-static void xilinx_enet_data_stream_class_init(ObjectClass *klass, void *data)
+static void xilinx_enet_data_stream_class_init(ObjectClass *klass,
+                                               const void *data)
 {
     StreamSinkClass *ssc = STREAM_SINK_CLASS(klass);
 

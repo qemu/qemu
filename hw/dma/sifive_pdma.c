@@ -464,7 +464,7 @@ static void sifive_pdma_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void sifive_pdma_class_init(ObjectClass *klass, void *data)
+static void sifive_pdma_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

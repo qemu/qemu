@@ -816,7 +816,7 @@ static const Property zdma_props[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void zdma_class_init(ObjectClass *klass, void *data)
+static void zdma_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

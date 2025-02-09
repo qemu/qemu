@@ -382,7 +382,7 @@ static const Property cmsdk_apb_uart_properties[] = {
     DEFINE_PROP_UINT32("pclk-frq", CMSDKAPBUART, pclk_frq, 0),
 };
 
-static void cmsdk_apb_uart_class_init(ObjectClass *klass, void *data)
+static void cmsdk_apb_uart_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

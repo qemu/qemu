@@ -215,7 +215,7 @@ static const VMStateDescription vmstate_strongarm_pic_regs = {
     },
 };
 
-static void strongarm_pic_class_init(ObjectClass *klass, void *data)
+static void strongarm_pic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -448,7 +448,8 @@ static const VMStateDescription vmstate_strongarm_rtc_regs = {
     },
 };
 
-static void strongarm_rtc_sysbus_class_init(ObjectClass *klass, void *data)
+static void strongarm_rtc_sysbus_class_init(ObjectClass *klass,
+                                            const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -693,7 +694,7 @@ static const VMStateDescription vmstate_strongarm_gpio_regs = {
     },
 };
 
-static void strongarm_gpio_class_init(ObjectClass *klass, void *data)
+static void strongarm_gpio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -865,7 +866,7 @@ static const VMStateDescription vmstate_strongarm_ppc_regs = {
     },
 };
 
-static void strongarm_ppc_class_init(ObjectClass *klass, void *data)
+static void strongarm_ppc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1336,7 +1337,7 @@ static const Property strongarm_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", StrongARMUARTState, chr),
 };
 
-static void strongarm_uart_class_init(ObjectClass *klass, void *data)
+static void strongarm_uart_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1589,7 +1590,7 @@ static const VMStateDescription vmstate_strongarm_ssp_regs = {
     },
 };
 
-static void strongarm_ssp_class_init(ObjectClass *klass, void *data)
+static void strongarm_ssp_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

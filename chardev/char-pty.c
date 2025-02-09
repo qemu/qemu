@@ -390,7 +390,7 @@ static void char_pty_parse(QemuOpts *opts, ChardevBackend *backend,
     pty->path = g_strdup(path);
 }
 
-static void char_pty_class_init(ObjectClass *oc, void *data)
+static void char_pty_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

@@ -404,7 +404,7 @@ static void loongarch_pic_realize(DeviceState *dev, Error **errp)
 
 }
 
-static void loongarch_pic_class_init(ObjectClass *klass, void *data)
+static void loongarch_pic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     LoongarchPICClass *lpc = LOONGARCH_PIC_CLASS(klass);

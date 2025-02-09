@@ -196,7 +196,7 @@ static void bcm2838_peripherals_realize(DeviceState *dev, Error **errp)
     create_unimp(s_base, &s->asb, "bcm2838-asb", BRDG_OFFSET, 0x24);
 }
 
-static void bcm2838_peripherals_class_init(ObjectClass *oc, void *data)
+static void bcm2838_peripherals_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     BCM2838PeripheralClass *bc = BCM2838_PERIPHERALS_CLASS(oc);

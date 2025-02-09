@@ -256,7 +256,7 @@ static const Property pcnet_properties[] = {
     DEFINE_NIC_PROPERTIES(PCIPCNetState, state.conf),
 };
 
-static void pcnet_class_init(ObjectClass *klass, void *data)
+static void pcnet_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

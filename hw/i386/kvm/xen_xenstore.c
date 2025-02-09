@@ -259,7 +259,7 @@ static const VMStateDescription xen_xenstore_vmstate = {
     }
 };
 
-static void xen_xenstore_class_init(ObjectClass *klass, void *data)
+static void xen_xenstore_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

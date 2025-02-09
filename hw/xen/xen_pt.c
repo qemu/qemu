@@ -1047,7 +1047,7 @@ static void xen_igd_clear_slot(DeviceState *qdev, Error **errp)
     xpdc->pci_qdev_realize(qdev, errp);
 }
 
-static void xen_pci_passthrough_class_init(ObjectClass *klass, void *data)
+static void xen_pci_passthrough_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

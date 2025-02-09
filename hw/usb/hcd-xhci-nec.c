@@ -50,7 +50,7 @@ static void nec_xhci_instance_init(Object *obj)
     pci->xhci.numslots = nec->slots;
 }
 
-static void nec_xhci_class_init(ObjectClass *klass, void *data)
+static void nec_xhci_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

@@ -295,7 +295,7 @@ static void avr_usart_realize(DeviceState *dev, Error **errp)
     avr_usart_reset(dev);
 }
 
-static void avr_usart_class_init(ObjectClass *klass, void *data)
+static void avr_usart_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -210,7 +210,7 @@ static const Property vhost_vsock_properties[] = {
     DEFINE_PROP_STRING("vhostfd", VHostVSock, conf.vhostfd),
 };
 
-static void vhost_vsock_class_init(ObjectClass *klass, void *data)
+static void vhost_vsock_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

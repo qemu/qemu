@@ -558,7 +558,7 @@ static const Property cuda_properties[] = {
     DEFINE_PROP_UINT64("timebase-frequency", CUDAState, tb_frequency, 0),
 };
 
-static void cuda_class_init(ObjectClass *oc, void *data)
+static void cuda_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
@@ -598,7 +598,7 @@ static void mos6522_cuda_reset_hold(Object *obj, ResetType type)
     ms->timers[1].frequency = (SCALE_US * 6000) / 4700;
 }
 
-static void mos6522_cuda_class_init(ObjectClass *oc, void *data)
+static void mos6522_cuda_class_init(ObjectClass *oc, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(oc);
     MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);

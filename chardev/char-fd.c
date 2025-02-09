@@ -238,7 +238,7 @@ void qemu_chr_open_fd(Chardev *chr,
     }
 }
 
-static void char_fd_class_init(ObjectClass *oc, void *data)
+static void char_fd_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

@@ -202,7 +202,7 @@ static void stm32f2xx_spi_init(Object *obj)
     s->ssi = ssi_create_bus(dev, "ssi");
 }
 
-static void stm32f2xx_spi_class_init(ObjectClass *klass, void *data)
+static void stm32f2xx_spi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -1294,7 +1294,7 @@ static const Property aspeed_smc_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void aspeed_smc_class_init(ObjectClass *klass, void *data)
+static void aspeed_smc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1341,7 +1341,7 @@ static const Property aspeed_smc_flash_properties[] = {
                      AspeedSMCState *),
 };
 
-static void aspeed_smc_flash_class_init(ObjectClass *klass, void *data)
+static void aspeed_smc_flash_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1383,7 +1383,7 @@ static const AspeedSegments aspeed_2400_smc_segments[] = {
     { 0x10000000, 32 * MiB },
 };
 
-static void aspeed_2400_smc_class_init(ObjectClass *klass, void *data)
+static void aspeed_2400_smc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
@@ -1429,7 +1429,7 @@ static const AspeedSegments aspeed_2400_fmc_segments[] = {
     { 0x2A000000, 32 * MiB }
 };
 
-static void aspeed_2400_fmc_class_init(ObjectClass *klass, void *data)
+static void aspeed_2400_fmc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
@@ -1473,7 +1473,7 @@ static int aspeed_2400_spi1_addr_width(const AspeedSMCState *s)
     return s->regs[R_SPI_CTRL0] & CTRL_AST2400_SPI_4BYTE ? 4 : 3;
 }
 
-static void aspeed_2400_spi1_class_init(ObjectClass *klass, void *data)
+static void aspeed_2400_spi1_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
@@ -1515,7 +1515,7 @@ static const AspeedSegments aspeed_2500_fmc_segments[] = {
     { 0x2A000000,  32 * MiB },
 };
 
-static void aspeed_2500_fmc_class_init(ObjectClass *klass, void *data)
+static void aspeed_2500_fmc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
@@ -1555,7 +1555,7 @@ static const AspeedSegments aspeed_2500_spi1_segments[] = {
     { 0x32000000, 96 * MiB }, /* end address is readonly */
 };
 
-static void aspeed_2500_spi1_class_init(ObjectClass *klass, void *data)
+static void aspeed_2500_spi1_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
@@ -1591,7 +1591,7 @@ static const AspeedSegments aspeed_2500_spi2_segments[] = {
     { 0x3A000000, 96 * MiB }, /* end address is readonly */
 };
 
-static void aspeed_2500_spi2_class_init(ObjectClass *klass, void *data)
+static void aspeed_2500_spi2_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
@@ -1674,7 +1674,7 @@ static const AspeedSegments aspeed_2600_fmc_segments[] = {
     { 0x0, 0 }, /* disabled */
 };
 
-static void aspeed_2600_fmc_class_init(ObjectClass *klass, void *data)
+static void aspeed_2600_fmc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
@@ -1715,7 +1715,7 @@ static const AspeedSegments aspeed_2600_spi1_segments[] = {
     { 0x0, 0 }, /* disabled */
 };
 
-static void aspeed_2600_spi1_class_init(ObjectClass *klass, void *data)
+static void aspeed_2600_spi1_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
@@ -1756,7 +1756,7 @@ static const AspeedSegments aspeed_2600_spi2_segments[] = {
     { 0x0, 0 }, /* disabled */
 };
 
-static void aspeed_2600_spi2_class_init(ObjectClass *klass, void *data)
+static void aspeed_2600_spi2_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
@@ -1839,7 +1839,7 @@ static const AspeedSegments aspeed_1030_fmc_segments[] = {
     { 0x0, 0 }, /* disabled */
 };
 
-static void aspeed_1030_fmc_class_init(ObjectClass *klass, void *data)
+static void aspeed_1030_fmc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
@@ -1879,7 +1879,7 @@ static const AspeedSegments aspeed_1030_spi1_segments[] = {
     { 0x0, 0 }, /* disabled */
 };
 
-static void aspeed_1030_spi1_class_init(ObjectClass *klass, void *data)
+static void aspeed_1030_spi1_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
@@ -1917,7 +1917,7 @@ static const AspeedSegments aspeed_1030_spi2_segments[] = {
     { 0x0, 0 }, /* disabled */
 };
 
-static void aspeed_1030_spi2_class_init(ObjectClass *klass, void *data)
+static void aspeed_1030_spi2_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
@@ -2022,7 +2022,7 @@ static const AspeedSegments aspeed_2700_fmc_segments[] = {
     { 0x0, 0 }, /* disabled */
 };
 
-static void aspeed_2700_fmc_class_init(ObjectClass *klass, void *data)
+static void aspeed_2700_fmc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
@@ -2064,7 +2064,7 @@ static const AspeedSegments aspeed_2700_spi0_segments[] = {
     { 0x0, 0 }, /* disabled */
 };
 
-static void aspeed_2700_spi0_class_init(ObjectClass *klass, void *data)
+static void aspeed_2700_spi0_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
@@ -2104,7 +2104,7 @@ static const AspeedSegments aspeed_2700_spi1_segments[] = {
     { 0x0, 0 }, /* disabled */
 };
 
-static void aspeed_2700_spi1_class_init(ObjectClass *klass, void *data)
+static void aspeed_2700_spi1_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);
@@ -2144,7 +2144,7 @@ static const AspeedSegments aspeed_2700_spi2_segments[] = {
     { 0x0, 0 }, /* disabled */
 };
 
-static void aspeed_2700_spi2_class_init(ObjectClass *klass, void *data)
+static void aspeed_2700_spi2_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSMCClass *asc = ASPEED_SMC_CLASS(klass);

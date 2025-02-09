@@ -653,7 +653,7 @@ static bool aspeed_soc_ast2600_boot_from_emmc(AspeedSoCState *s)
     return !!(hw_strap1 & SCU_AST2600_HW_STRAP_BOOT_SRC_EMMC);
 }
 
-static void aspeed_soc_ast2600_class_init(ObjectClass *oc, void *data)
+static void aspeed_soc_ast2600_class_init(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("cortex-a7"),

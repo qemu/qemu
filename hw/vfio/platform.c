@@ -658,7 +658,7 @@ static void vfio_platform_set_fd(Object *obj, const char *str, Error **errp)
 }
 #endif
 
-static void vfio_platform_class_init(ObjectClass *klass, void *data)
+static void vfio_platform_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);

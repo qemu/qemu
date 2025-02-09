@@ -401,7 +401,7 @@ qemu_console_finalize(Object *obj)
 }
 
 static void
-qemu_console_class_init(ObjectClass *oc, void *data)
+qemu_console_class_init(ObjectClass *oc, const void *data)
 {
 }
 
@@ -437,7 +437,7 @@ qemu_graphic_console_prop_get_head(Object *obj, Visitor *v, const char *name,
 }
 
 static void
-qemu_graphic_console_class_init(ObjectClass *oc, void *data)
+qemu_graphic_console_class_init(ObjectClass *oc, const void *data)
 {
     object_class_property_add_link(oc, "device", TYPE_DEVICE,
                                    offsetof(QemuGraphicConsole, device),

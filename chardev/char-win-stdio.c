@@ -256,7 +256,7 @@ static int win_stdio_write(Chardev *chr, const uint8_t *buf, int len)
     return len - len1;
 }
 
-static void char_win_stdio_class_init(ObjectClass *oc, void *data)
+static void char_win_stdio_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

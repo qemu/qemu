@@ -581,7 +581,7 @@ static void platform_reset(DeviceState *dev)
     platform_fixed_ioport_reset(s);
 }
 
-static void xen_platform_class_init(ObjectClass *klass, void *data)
+static void xen_platform_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

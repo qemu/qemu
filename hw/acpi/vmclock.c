@@ -154,7 +154,7 @@ static void vmclock_realize(DeviceState *dev, Error **errp)
     vmclock_update_guest(vms);
 }
 
-static void vmclock_device_class_init(ObjectClass *klass, void *data)
+static void vmclock_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -194,7 +194,7 @@ static void macio_gpio_nmi(NMIState *n, int cpu_index, Error **errp)
     macio_set_gpio(MACIO_GPIO(n), 9, false);
 }
 
-static void macio_gpio_class_init(ObjectClass *oc, void *data)
+static void macio_gpio_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);

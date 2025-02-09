@@ -460,7 +460,7 @@ static void reset_event_facility(DeviceState *dev)
     sdev->receive_mask = 0;
 }
 
-static void init_event_facility_class(ObjectClass *klass, void *data)
+static void init_event_facility_class(ObjectClass *klass, const void *data)
 {
     SysBusDeviceClass *sbdc = SYS_BUS_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(sbdc);
@@ -497,7 +497,7 @@ static void event_realize(DeviceState *qdev, Error **errp)
     }
 }
 
-static void event_class_init(ObjectClass *klass, void *data)
+static void event_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

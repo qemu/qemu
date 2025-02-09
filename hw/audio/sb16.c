@@ -1449,7 +1449,7 @@ static const Property sb16_properties[] = {
     DEFINE_PROP_UINT32 ("dma16",   SB16State, hdma, 5),
 };
 
-static void sb16_class_initfn (ObjectClass *klass, void *data)
+static void sb16_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
 

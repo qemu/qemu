@@ -623,7 +623,7 @@ static const Property arm_gicv3_common_properties[] = {
                      MemoryRegion *),
 };
 
-static void arm_gicv3_common_class_init(ObjectClass *klass, void *data)
+static void arm_gicv3_common_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

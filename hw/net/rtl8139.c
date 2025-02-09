@@ -3414,7 +3414,7 @@ static const Property rtl8139_properties[] = {
     DEFINE_NIC_PROPERTIES(RTL8139State, conf),
 };
 
-static void rtl8139_class_init(ObjectClass *klass, void *data)
+static void rtl8139_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

@@ -219,7 +219,7 @@ static const Property cxl_dsp_props[] = {
                                 width, PCIE_LINK_WIDTH_16),
 };
 
-static void cxl_dsp_class_init(ObjectClass *oc, void *data)
+static void cxl_dsp_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(oc);

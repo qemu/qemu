@@ -81,7 +81,7 @@ static void nubus_virtio_mmio_init(Object *obj)
                             "pic-input-irq", 1);
 }
 
-static void nubus_virtio_mmio_class_init(ObjectClass *oc, void *data)
+static void nubus_virtio_mmio_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     NubusVirtioMMIODeviceClass *nvmdc = NUBUS_VIRTIO_MMIO_CLASS(oc);

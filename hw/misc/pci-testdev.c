@@ -323,7 +323,7 @@ static const Property pci_testdev_properties[] = {
     DEFINE_PROP_SIZE("membar", PCITestDevState, membar_size, 0),
 };
 
-static void pci_testdev_class_init(ObjectClass *klass, void *data)
+static void pci_testdev_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

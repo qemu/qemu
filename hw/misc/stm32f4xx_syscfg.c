@@ -147,7 +147,7 @@ static const VMStateDescription vmstate_stm32f4xx_syscfg = {
     }
 };
 
-static void stm32f4xx_syscfg_class_init(ObjectClass *klass, void *data)
+static void stm32f4xx_syscfg_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

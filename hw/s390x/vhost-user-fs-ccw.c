@@ -48,7 +48,7 @@ static void vhost_user_fs_ccw_instance_init(Object *obj)
                                 TYPE_VHOST_USER_FS);
 }
 
-static void vhost_user_fs_ccw_class_init(ObjectClass *klass, void *data)
+static void vhost_user_fs_ccw_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);

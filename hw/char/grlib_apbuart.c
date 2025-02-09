@@ -281,7 +281,7 @@ static const Property grlib_apbuart_properties[] = {
     DEFINE_PROP_CHR("chrdev", UART, chr),
 };
 
-static void grlib_apbuart_class_init(ObjectClass *klass, void *data)
+static void grlib_apbuart_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

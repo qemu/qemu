@@ -119,7 +119,7 @@ static const Property serial_isa_properties[] = {
     DEFINE_PROP_UINT32("irq",    ISASerialState, isairq,  -1),
 };
 
-static void serial_isa_class_initfn(ObjectClass *klass, void *data)
+static void serial_isa_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);

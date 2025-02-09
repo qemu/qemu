@@ -558,7 +558,7 @@ static void aes_init(Object *obj)
     s->as = &address_space_memory;
 }
 
-static void aes_class_init(ObjectClass *klass, void *data)
+static void aes_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 

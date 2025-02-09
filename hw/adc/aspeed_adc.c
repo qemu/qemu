@@ -291,7 +291,7 @@ static const Property aspeed_adc_engine_properties[] = {
     DEFINE_PROP_UINT32("nr-channels", AspeedADCEngineState, nr_channels, 0),
 };
 
-static void aspeed_adc_engine_class_init(ObjectClass *klass, void *data)
+static void aspeed_adc_engine_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -369,7 +369,7 @@ static void aspeed_adc_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void aspeed_adc_class_init(ObjectClass *klass, void *data)
+static void aspeed_adc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedADCClass *aac = ASPEED_ADC_CLASS(klass);
@@ -379,7 +379,7 @@ static void aspeed_adc_class_init(ObjectClass *klass, void *data)
     aac->nr_engines = 1;
 }
 
-static void aspeed_2600_adc_class_init(ObjectClass *klass, void *data)
+static void aspeed_2600_adc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedADCClass *aac = ASPEED_ADC_CLASS(klass);
@@ -388,7 +388,7 @@ static void aspeed_2600_adc_class_init(ObjectClass *klass, void *data)
     aac->nr_engines = 2;
 }
 
-static void aspeed_1030_adc_class_init(ObjectClass *klass, void *data)
+static void aspeed_1030_adc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedADCClass *aac = ASPEED_ADC_CLASS(klass);
@@ -397,7 +397,7 @@ static void aspeed_1030_adc_class_init(ObjectClass *klass, void *data)
     aac->nr_engines = 2;
 }
 
-static void aspeed_2700_adc_class_init(ObjectClass *klass, void *data)
+static void aspeed_2700_adc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedADCClass *aac = ASPEED_ADC_CLASS(klass);

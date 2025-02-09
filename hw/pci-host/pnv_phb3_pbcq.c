@@ -337,7 +337,7 @@ static void phb3_pbcq_instance_init(Object *obj)
                              OBJ_PROP_LINK_STRONG);
 }
 
-static void pnv_pbcq_class_init(ObjectClass *klass, void *data)
+static void pnv_pbcq_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvXScomInterfaceClass *xdc = PNV_XSCOM_INTERFACE_CLASS(klass);

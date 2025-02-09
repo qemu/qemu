@@ -145,7 +145,7 @@ static const Property ipmi_isa_properties[] = {
     DEFINE_PROP_INT32("irq",   ISAIPMIKCSDevice, isairq,  5),
 };
 
-static void isa_ipmi_kcs_class_init(ObjectClass *oc, void *data)
+static void isa_ipmi_kcs_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_CLASS(oc);

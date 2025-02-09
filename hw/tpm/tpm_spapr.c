@@ -387,7 +387,7 @@ static void tpm_spapr_realizefn(SpaprVioDevice *dev, Error **errp)
     s->buffer = g_malloc(TPM_SPAPR_BUFFER_MAX);
 }
 
-static void tpm_spapr_class_init(ObjectClass *klass, void *data)
+static void tpm_spapr_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SpaprVioDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);

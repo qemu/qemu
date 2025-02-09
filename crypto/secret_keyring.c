@@ -103,7 +103,7 @@ qcrypto_secret_prop_get_key(Object *obj, Visitor *v,
 
 
 static void
-qcrypto_secret_keyring_class_init(ObjectClass *oc, void *data)
+qcrypto_secret_keyring_class_init(ObjectClass *oc, const void *data)
 {
     QCryptoSecretCommonClass *sic = QCRYPTO_SECRET_COMMON_CLASS(oc);
     sic->load_data = qcrypto_secret_keyring_load_data;

@@ -262,7 +262,7 @@ static uint32_t imx7_ccm_get_clock_frequency(IMXCCMState *dev, IMXClk clock)
     return freq;
 }
 
-static void imx7_ccm_class_init(ObjectClass *klass, void *data)
+static void imx7_ccm_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     IMXCCMClass *ccm = IMX_CCM_CLASS(klass);
@@ -293,7 +293,7 @@ static const VMStateDescription vmstate_imx7_analog = {
     },
 };
 
-static void imx7_analog_class_init(ObjectClass *klass, void *data)
+static void imx7_analog_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

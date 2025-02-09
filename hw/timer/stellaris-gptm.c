@@ -308,7 +308,7 @@ static void stellaris_gptm_realize(DeviceState *dev, Error **errp)
     s->timer[1] = timer_new_ns(QEMU_CLOCK_VIRTUAL, gptm_tick, &s->opaque[1]);
 }
 
-static void stellaris_gptm_class_init(ObjectClass *klass, void *data)
+static void stellaris_gptm_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -1766,7 +1766,7 @@ static bool pc_hotplug_allowed(MachineState *ms, DeviceState *dev, Error **errp)
     return true;
 }
 
-static void pc_machine_class_init(ObjectClass *oc, void *data)
+static void pc_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     X86MachineClass *x86mc = X86_MACHINE_CLASS(oc);

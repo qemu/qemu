@@ -143,7 +143,7 @@ static const Property i82374_properties[] = {
     DEFINE_PROP_UINT32("iobase", I82374State, iobase, 0x400),
 };
 
-static void i82374_class_init(ObjectClass *klass, void *data)
+static void i82374_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     

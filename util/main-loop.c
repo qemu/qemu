@@ -220,7 +220,7 @@ static bool main_loop_can_be_deleted(EventLoopBase *base)
     return false;
 }
 
-static void main_loop_class_init(ObjectClass *oc, void *class_data)
+static void main_loop_class_init(ObjectClass *oc, const void *class_data)
 {
     EventLoopBaseClass *bc = EVENT_LOOP_BASE_CLASS(oc);
 

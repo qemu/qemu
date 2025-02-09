@@ -188,7 +188,7 @@ static int kvm_s390_stattrib_get_active(S390StAttribState *sa)
     return kvm_s390_cmma_active();
 }
 
-static void kvm_s390_stattrib_class_init(ObjectClass *oc, void *data)
+static void kvm_s390_stattrib_class_init(ObjectClass *oc, const void *data)
 {
     S390StAttribClass *sac = S390_STATTRIB_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);

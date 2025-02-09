@@ -555,7 +555,7 @@ static const Property pxa25x_timer_dev_properties[] = {
                     PXA2XX_TIMER_HAVE_TM4, false),
 };
 
-static void pxa25x_timer_dev_class_init(ObjectClass *klass, void *data)
+static void pxa25x_timer_dev_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -570,7 +570,7 @@ static const TypeInfo pxa25x_timer_dev_info = {
     .class_init    = pxa25x_timer_dev_class_init,
 };
 
-static void pxa2xx_timer_class_init(ObjectClass *oc, void *data)
+static void pxa2xx_timer_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

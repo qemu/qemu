@@ -69,7 +69,7 @@ static void versal_usb2_init(Object *obj)
     object_property_add_alias(obj, "dma", OBJECT(&s->dwc3.sysbus_xhci), "dma");
 }
 
-static void versal_usb2_class_init(ObjectClass *klass, void *data)
+static void versal_usb2_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

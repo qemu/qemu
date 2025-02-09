@@ -431,7 +431,7 @@ static const Property ivshmem_flat_props[] = {
     DEFINE_PROP_UINT32("shmem-size", IvshmemFTState, shmem_size, 4 * MiB),
 };
 
-static void ivshmem_flat_class_init(ObjectClass *klass, void *data)
+static void ivshmem_flat_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

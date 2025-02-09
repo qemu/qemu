@@ -163,7 +163,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void bcm283x_base_class_init(ObjectClass *oc, void *data)
+static void bcm283x_base_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
@@ -171,7 +171,7 @@ static void bcm283x_base_class_init(ObjectClass *oc, void *data)
     dc->user_creatable = false;
 }
 
-static void bcm2835_class_init(ObjectClass *oc, void *data)
+static void bcm2835_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     BCM283XBaseClass *bc = BCM283X_BASE_CLASS(oc);
@@ -182,7 +182,7 @@ static void bcm2835_class_init(ObjectClass *oc, void *data)
     dc->realize = bcm2835_realize;
 };
 
-static void bcm2836_class_init(ObjectClass *oc, void *data)
+static void bcm2836_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     BCM283XBaseClass *bc = BCM283X_BASE_CLASS(oc);
@@ -196,7 +196,7 @@ static void bcm2836_class_init(ObjectClass *oc, void *data)
 };
 
 #ifdef TARGET_AARCH64
-static void bcm2837_class_init(ObjectClass *oc, void *data)
+static void bcm2837_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     BCM283XBaseClass *bc = BCM283X_BASE_CLASS(oc);

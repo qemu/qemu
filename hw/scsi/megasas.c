@@ -2527,7 +2527,7 @@ static struct MegasasInfo megasas_devices[] = {
     }
 };
 
-static void megasas_class_init(ObjectClass *oc, void *data)
+static void megasas_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);

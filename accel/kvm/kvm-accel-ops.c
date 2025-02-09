@@ -90,7 +90,7 @@ static int kvm_update_guest_debug_ops(CPUState *cpu)
 }
 #endif
 
-static void kvm_accel_ops_class_init(ObjectClass *oc, void *data)
+static void kvm_accel_ops_class_init(ObjectClass *oc, const void *data)
 {
     AccelOpsClass *ops = ACCEL_OPS_CLASS(oc);
 

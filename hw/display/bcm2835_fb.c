@@ -442,7 +442,7 @@ static const Property bcm2835_fb_props[] = {
                        initial_config.alpha, 2), /* alpha ignored */
 };
 
-static void bcm2835_fb_class_init(ObjectClass *klass, void *data)
+static void bcm2835_fb_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -427,7 +427,7 @@ static void esp_pci_init(Object *obj)
     object_initialize_child(obj, "esp", &pci->esp, TYPE_ESP);
 }
 
-static void esp_pci_class_init(ObjectClass *klass, void *data)
+static void esp_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -557,7 +557,7 @@ static void dc390_scsi_realize(PCIDevice *dev, Error **errp)
     contents[EE_CHKSUM2] = chksum >> 8;
 }
 
-static void dc390_class_init(ObjectClass *klass, void *data)
+static void dc390_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

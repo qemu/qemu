@@ -369,7 +369,7 @@ do {                                                                      \
 #endif
 }
 
-static void xen_pvh_class_init(ObjectClass *oc, void *data)
+static void xen_pvh_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 

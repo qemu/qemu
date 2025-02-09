@@ -1317,7 +1317,7 @@ static void pvscsi_realize(DeviceState *qdev, Error **errp)
     pvs_c->parent_dc_realize(qdev, errp);
 }
 
-static void pvscsi_class_init(ObjectClass *klass, void *data)
+static void pvscsi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

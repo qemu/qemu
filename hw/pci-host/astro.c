@@ -482,7 +482,7 @@ static const VMStateDescription vmstate_elroy = {
     }
 };
 
-static void elroy_pcihost_class_init(ObjectClass *klass, void *data)
+static void elroy_pcihost_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -909,7 +909,7 @@ static void astro_realize(DeviceState *obj, Error **errp)
     }
 }
 
-static void astro_class_init(ObjectClass *klass, void *data)
+static void astro_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -932,7 +932,7 @@ static const TypeInfo astro_chip_info = {
 };
 
 static void astro_iommu_memory_region_class_init(ObjectClass *klass,
-                                                   void *data)
+                                                 const void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 

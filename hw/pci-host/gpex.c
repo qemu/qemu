@@ -192,7 +192,7 @@ static const Property gpex_host_properties[] = {
     DEFINE_PROP_UINT8("num-irqs", GPEXHost, num_irqs, PCI_NUM_PINS),
 };
 
-static void gpex_host_class_init(ObjectClass *klass, void *data)
+static void gpex_host_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
@@ -237,7 +237,7 @@ static const VMStateDescription vmstate_gpex_root = {
     }
 };
 
-static void gpex_root_class_init(ObjectClass *klass, void *data)
+static void gpex_root_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

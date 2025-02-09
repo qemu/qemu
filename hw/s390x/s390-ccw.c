@@ -175,7 +175,7 @@ static void s390_ccw_instance_init(Object *obj)
                                   "/disk@0,0", DEVICE(obj));
 }
 
-static void s390_ccw_class_init(ObjectClass *klass, void *data)
+static void s390_ccw_class_init(ObjectClass *klass, const void *data)
 {
     S390CCWDeviceClass *cdc = S390_CCW_DEVICE_CLASS(klass);
 

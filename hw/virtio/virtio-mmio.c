@@ -784,7 +784,7 @@ static void virtio_mmio_realizefn(DeviceState *d, Error **errp)
     sysbus_init_mmio(sbd, &proxy->iomem);
 }
 
-static void virtio_mmio_class_init(ObjectClass *klass, void *data)
+static void virtio_mmio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -855,7 +855,7 @@ static void virtio_mmio_vmstate_change(DeviceState *d, bool running)
     }
 }
 
-static void virtio_mmio_bus_class_init(ObjectClass *klass, void *data)
+static void virtio_mmio_bus_class_init(ObjectClass *klass, const void *data)
 {
     BusClass *bus_class = BUS_CLASS(klass);
     VirtioBusClass *k = VIRTIO_BUS_CLASS(klass);

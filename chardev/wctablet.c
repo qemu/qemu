@@ -342,7 +342,7 @@ static void wctablet_chr_open(Chardev *chr,
                                              &wctablet_handler);
 }
 
-static void wctablet_chr_class_init(ObjectClass *oc, void *data)
+static void wctablet_chr_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

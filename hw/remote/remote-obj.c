@@ -163,7 +163,7 @@ static void remote_object_finalize(Object *obj)
     g_free(o->devid);
 }
 
-static void remote_object_class_init(ObjectClass *klass, void *data)
+static void remote_object_class_init(ObjectClass *klass, const void *data)
 {
     RemoteObjectClass *k = REMOTE_OBJECT_CLASS(klass);
 

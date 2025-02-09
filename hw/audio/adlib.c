@@ -303,7 +303,7 @@ static const Property adlib_properties[] = {
     DEFINE_PROP_UINT32 ("freq",    AdlibState, freq,  44100),
 };
 
-static void adlib_class_initfn (ObjectClass *klass, void *data)
+static void adlib_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
 

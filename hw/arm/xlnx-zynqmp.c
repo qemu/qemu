@@ -853,7 +853,7 @@ static const Property xlnx_zynqmp_props[] = {
                      CanBusState *),
 };
 
-static void xlnx_zynqmp_class_init(ObjectClass *oc, void *data)
+static void xlnx_zynqmp_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

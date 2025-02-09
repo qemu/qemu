@@ -492,7 +492,7 @@ static const Property xen_console_properties[] = {
     DEFINE_PROP_INT32("idx", XenConsole, dev, -1),
 };
 
-static void xen_console_class_init(ObjectClass *class, void *data)
+static void xen_console_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dev_class = DEVICE_CLASS(class);
     XenDeviceClass *xendev_class = XEN_DEVICE_CLASS(class);

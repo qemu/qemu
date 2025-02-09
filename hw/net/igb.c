@@ -599,7 +599,7 @@ static const Property igb_properties[] = {
     DEFINE_PROP_BOOL("x-pcie-flr-init", IGBState, has_flr, true),
 };
 
-static void igb_class_init(ObjectClass *class, void *data)
+static void igb_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);

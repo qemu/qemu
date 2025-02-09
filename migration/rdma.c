@@ -3985,7 +3985,7 @@ static void qio_channel_rdma_finalize(Object *obj)
 }
 
 static void qio_channel_rdma_class_init(ObjectClass *klass,
-                                        void *class_data G_GNUC_UNUSED)
+                                        const void *class_data G_GNUC_UNUSED)
 {
     QIOChannelClass *ioc_klass = QIO_CHANNEL_CLASS(klass);
 

@@ -161,7 +161,7 @@ static void digic_timer_finalize(Object *obj)
     ptimer_free(s->ptimer);
 }
 
-static void digic_timer_class_init(ObjectClass *klass, void *class_data)
+static void digic_timer_class_init(ObjectClass *klass, const void *class_data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

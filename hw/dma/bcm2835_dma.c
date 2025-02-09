@@ -385,7 +385,7 @@ static void bcm2835_dma_realize(DeviceState *dev, Error **errp)
     bcm2835_dma_reset(dev);
 }
 
-static void bcm2835_dma_class_init(ObjectClass *klass, void *data)
+static void bcm2835_dma_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

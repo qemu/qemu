@@ -202,7 +202,7 @@ static const VMStateDescription vmstate_usb2_ctrl_regs = {
     }
 };
 
-static void usb2_ctrl_regs_class_init(ObjectClass *klass, void *data)
+static void usb2_ctrl_regs_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

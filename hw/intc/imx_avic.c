@@ -341,7 +341,7 @@ static void imx_avic_init(Object *obj)
 }
 
 
-static void imx_avic_class_init(ObjectClass *klass, void *data)
+static void imx_avic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -666,7 +666,7 @@ static const Property usb_dwc3_properties[] = {
                        0x12345678),
 };
 
-static void usb_dwc3_class_init(ObjectClass *klass, void *data)
+static void usb_dwc3_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

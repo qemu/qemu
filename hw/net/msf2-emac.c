@@ -565,7 +565,7 @@ static const VMStateDescription vmstate_msf2_emac = {
     }
 };
 
-static void msf2_emac_class_init(ObjectClass *klass, void *data)
+static void msf2_emac_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

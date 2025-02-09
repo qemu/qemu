@@ -110,7 +110,7 @@ static void bl475e_init(MachineState *machine)
     }
 }
 
-static void bl475e_machine_init(ObjectClass *oc, void *data)
+static void bl475e_machine_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     static const char *machine_valid_cpu_types[] = {

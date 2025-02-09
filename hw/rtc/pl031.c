@@ -332,7 +332,7 @@ static const Property pl031_properties[] = {
                      PL031State, migrate_tick_offset, true),
 };
 
-static void pl031_class_init(ObjectClass *klass, void *data)
+static void pl031_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -322,7 +322,7 @@ static const Property mcf_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", mcf_uart_state, chr),
 };
 
-static void mcf_uart_class_init(ObjectClass *oc, void *data)
+static void mcf_uart_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

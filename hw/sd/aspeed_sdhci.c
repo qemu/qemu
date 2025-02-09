@@ -208,7 +208,7 @@ static const Property aspeed_sdhci_properties[] = {
     DEFINE_PROP_UINT8("num-slots", AspeedSDHCIState, num_slots, 0),
 };
 
-static void aspeed_sdhci_class_init(ObjectClass *classp, void *data)
+static void aspeed_sdhci_class_init(ObjectClass *classp, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(classp);
 
@@ -218,7 +218,7 @@ static void aspeed_sdhci_class_init(ObjectClass *classp, void *data)
     device_class_set_props(dc, aspeed_sdhci_properties);
 }
 
-static void aspeed_2400_sdhci_class_init(ObjectClass *klass, void *data)
+static void aspeed_2400_sdhci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSDHCIClass *asc = ASPEED_SDHCI_CLASS(klass);
@@ -227,7 +227,7 @@ static void aspeed_2400_sdhci_class_init(ObjectClass *klass, void *data)
     asc->capareg = 0x0000000001e80080;
 }
 
-static void aspeed_2500_sdhci_class_init(ObjectClass *klass, void *data)
+static void aspeed_2500_sdhci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSDHCIClass *asc = ASPEED_SDHCI_CLASS(klass);
@@ -236,7 +236,7 @@ static void aspeed_2500_sdhci_class_init(ObjectClass *klass, void *data)
     asc->capareg = 0x0000000001e80080;
 }
 
-static void aspeed_2600_sdhci_class_init(ObjectClass *klass, void *data)
+static void aspeed_2600_sdhci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSDHCIClass *asc = ASPEED_SDHCI_CLASS(klass);
@@ -245,7 +245,7 @@ static void aspeed_2600_sdhci_class_init(ObjectClass *klass, void *data)
     asc->capareg = 0x0000000701f80080;
 }
 
-static void aspeed_2700_sdhci_class_init(ObjectClass *klass, void *data)
+static void aspeed_2700_sdhci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSDHCIClass *asc = ASPEED_SDHCI_CLASS(klass);

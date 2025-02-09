@@ -1100,7 +1100,7 @@ out:
     return r;
 }
 
-static void machine_class_init(ObjectClass *oc, void *data)
+static void machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 

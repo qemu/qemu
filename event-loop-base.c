@@ -97,7 +97,8 @@ static bool event_loop_base_can_be_deleted(UserCreatable *uc)
     return true;
 }
 
-static void event_loop_base_class_init(ObjectClass *klass, void *class_data)
+static void event_loop_base_class_init(ObjectClass *klass,
+                                       const void *class_data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(klass);
     ucc->complete = event_loop_base_complete;

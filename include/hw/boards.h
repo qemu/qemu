@@ -745,7 +745,7 @@ struct MachineState {
     } while (0)
 
 #define DEFINE_MACHINE(namestr, machine_initfn) \
-    static void machine_initfn##_class_init(ObjectClass *oc, void *data) \
+    static void machine_initfn##_class_init(ObjectClass *oc, const void *data) \
     { \
         MachineClass *mc = MACHINE_CLASS(oc); \
         machine_initfn(mc); \

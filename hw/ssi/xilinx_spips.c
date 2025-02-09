@@ -1430,7 +1430,7 @@ static const Property xilinx_spips_properties[] = {
     DEFINE_PROP_UINT8("num-txrx-bytes", XilinxSPIPS, num_txrx_bytes, 1),
 };
 
-static void xilinx_qspips_class_init(ObjectClass *klass, void * data)
+static void xilinx_qspips_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     XilinxSPIPSClass *xsc = XILINX_SPIPS_CLASS(klass);
@@ -1442,7 +1442,7 @@ static void xilinx_qspips_class_init(ObjectClass *klass, void * data)
     xsc->tx_fifo_size = TXFF_A_Q;
 }
 
-static void xilinx_spips_class_init(ObjectClass *klass, void *data)
+static void xilinx_spips_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     XilinxSPIPSClass *xsc = XILINX_SPIPS_CLASS(klass);
@@ -1458,7 +1458,7 @@ static void xilinx_spips_class_init(ObjectClass *klass, void *data)
     xsc->tx_fifo_size = TXFF_A;
 }
 
-static void xlnx_zynqmp_qspips_class_init(ObjectClass *klass, void * data)
+static void xlnx_zynqmp_qspips_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     XilinxSPIPSClass *xsc = XILINX_SPIPS_CLASS(klass);

@@ -844,7 +844,7 @@ static const Property iotkit_sysctl_props[] = {
                        0x10000000),
 };
 
-static void iotkit_sysctl_class_init(ObjectClass *klass, void *data)
+static void iotkit_sysctl_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

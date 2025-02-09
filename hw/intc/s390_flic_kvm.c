@@ -670,7 +670,7 @@ static void kvm_s390_flic_reset(DeviceState *dev)
     flic_enable_pfault(flic);
 }
 
-static void kvm_s390_flic_class_init(ObjectClass *oc, void *data)
+static void kvm_s390_flic_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     S390FLICStateClass *fsc = S390_FLIC_COMMON_CLASS(oc);

@@ -1018,7 +1018,7 @@ static const Property erst_properties[] = {
                      default_record_size, ERST_RECORD_SIZE),
 };
 
-static void erst_class_init(ObjectClass *klass, void *data)
+static void erst_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

@@ -1528,7 +1528,7 @@ static void riscv_tcg_cpu_instance_init(CPUState *cs)
     }
 }
 
-static void riscv_tcg_cpu_accel_class_init(ObjectClass *oc, void *data)
+static void riscv_tcg_cpu_accel_class_init(ObjectClass *oc, const void *data)
 {
     AccelCPUClass *acc = ACCEL_CPU_CLASS(oc);
 

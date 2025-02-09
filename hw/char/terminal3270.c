@@ -292,7 +292,7 @@ static const VMStateDescription terminal3270_vmstate = {
     .unmigratable = 1,
 };
 
-static void terminal_class_init(ObjectClass *klass, void *data)
+static void terminal_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     EmulatedCcw3270Class *ck = EMULATED_CCW_3270_CLASS(klass);

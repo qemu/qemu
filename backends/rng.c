@@ -99,7 +99,7 @@ static void rng_backend_finalize(Object *obj)
     rng_backend_free_requests(s);
 }
 
-static void rng_backend_class_init(ObjectClass *oc, void *data)
+static void rng_backend_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 

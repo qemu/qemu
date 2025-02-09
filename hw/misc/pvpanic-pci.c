@@ -58,7 +58,7 @@ static const Property pvpanic_pci_properties[] = {
                       PVPANIC_EVENTS),
 };
 
-static void pvpanic_pci_class_init(ObjectClass *klass, void *data)
+static void pvpanic_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);

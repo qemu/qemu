@@ -64,7 +64,7 @@ static const Property ohci_sysbus_properties[] = {
     DEFINE_PROP_DMAADDR("dma-offset", OHCISysBusState, dma_offset, 0),
 };
 
-static void ohci_sysbus_class_init(ObjectClass *klass, void *data)
+static void ohci_sysbus_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

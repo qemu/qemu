@@ -2491,7 +2491,7 @@ static void vmxnet3_realize(DeviceState *qdev, Error **errp)
     vc->parent_dc_realize(qdev, errp);
 }
 
-static void vmxnet3_class_init(ObjectClass *class, void *data)
+static void vmxnet3_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     PCIDeviceClass *c = PCI_DEVICE_CLASS(class);

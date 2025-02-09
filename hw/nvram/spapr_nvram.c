@@ -257,7 +257,7 @@ static const Property spapr_nvram_properties[] = {
     DEFINE_PROP_DRIVE("drive", SpaprNvram, blk),
 };
 
-static void spapr_nvram_class_init(ObjectClass *klass, void *data)
+static void spapr_nvram_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SpaprVioDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);

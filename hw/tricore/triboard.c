@@ -65,7 +65,7 @@ static void triboard_machine_init(MachineState *machine)
 }
 
 static void triboard_machine_tc277d_class_init(ObjectClass *oc,
-        void *data)
+                                               const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     TriBoardMachineClass *amc = TRIBOARD_MACHINE_CLASS(oc);

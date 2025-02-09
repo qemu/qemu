@@ -306,7 +306,7 @@ static void lasips2_init(Object *obj)
                             "lasips2-port-input-irq", 2);
 }
 
-static void lasips2_class_init(ObjectClass *klass, void *data)
+static void lasips2_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -347,7 +347,7 @@ static void lasips2_port_init(Object *obj)
                             "ps2-input-irq", 1);
 }
 
-static void lasips2_port_class_init(ObjectClass *klass, void *data)
+static void lasips2_port_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -397,7 +397,7 @@ static void lasips2_kbd_port_init(Object *obj)
     lp->lasips2 = container_of(s, LASIPS2State, kbd_port);
 }
 
-static void lasips2_kbd_port_class_init(ObjectClass *klass, void *data)
+static void lasips2_kbd_port_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     LASIPS2PortDeviceClass *lpdc = LASIPS2_PORT_CLASS(klass);
@@ -447,7 +447,7 @@ static void lasips2_mouse_port_init(Object *obj)
     lp->lasips2 = container_of(s, LASIPS2State, mouse_port);
 }
 
-static void lasips2_mouse_port_class_init(ObjectClass *klass, void *data)
+static void lasips2_mouse_port_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     LASIPS2PortDeviceClass *lpdc = LASIPS2_PORT_CLASS(klass);

@@ -103,7 +103,7 @@ qauthz_pam_finalize(Object *obj)
 
 
 static void
-qauthz_pam_class_init(ObjectClass *oc, void *data)
+qauthz_pam_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
     QAuthZClass *authz = QAUTHZ_CLASS(oc);

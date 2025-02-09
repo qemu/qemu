@@ -339,7 +339,7 @@ static const VMStateDescription vmstate_aspeed_vic = {
     }
 };
 
-static void aspeed_vic_class_init(ObjectClass *klass, void *data)
+static void aspeed_vic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = aspeed_vic_realize;

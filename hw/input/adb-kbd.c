@@ -375,7 +375,7 @@ static void adb_kbd_initfn(Object *obj)
     d->devaddr = ADB_DEVID_KEYBOARD;
 }
 
-static void adb_kbd_class_init(ObjectClass *oc, void *data)
+static void adb_kbd_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     ADBDeviceClass *adc = ADB_DEVICE_CLASS(oc);

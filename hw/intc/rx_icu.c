@@ -368,7 +368,7 @@ static const Property rxicu_properties[] = {
                       qdev_prop_uint8, uint8_t),
 };
 
-static void rxicu_class_init(ObjectClass *klass, void *data)
+static void rxicu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

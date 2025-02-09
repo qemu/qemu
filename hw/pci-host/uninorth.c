@@ -311,7 +311,7 @@ static void unin_internal_pci_host_realize(PCIDevice *d, Error **errp)
     d->config[PCI_CAPABILITY_LIST] = 0x00;
 }
 
-static void unin_main_pci_host_class_init(ObjectClass *klass, void *data)
+static void unin_main_pci_host_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -339,7 +339,7 @@ static const TypeInfo unin_main_pci_host_info = {
     },
 };
 
-static void u3_agp_pci_host_class_init(ObjectClass *klass, void *data)
+static void u3_agp_pci_host_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -367,7 +367,7 @@ static const TypeInfo u3_agp_pci_host_info = {
     },
 };
 
-static void unin_agp_pci_host_class_init(ObjectClass *klass, void *data)
+static void unin_agp_pci_host_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -395,7 +395,8 @@ static const TypeInfo unin_agp_pci_host_info = {
     },
 };
 
-static void unin_internal_pci_host_class_init(ObjectClass *klass, void *data)
+static void unin_internal_pci_host_class_init(ObjectClass *klass,
+                                              const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -427,7 +428,7 @@ static const Property pci_unin_main_pci_host_props[] = {
     DEFINE_PROP_UINT32("ofw-addr", UNINHostState, ofw_addr, -1),
 };
 
-static void pci_unin_main_class_init(ObjectClass *klass, void *data)
+static void pci_unin_main_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
@@ -447,7 +448,7 @@ static const TypeInfo pci_unin_main_info = {
     .class_init    = pci_unin_main_class_init,
 };
 
-static void pci_u3_agp_class_init(ObjectClass *klass, void *data)
+static void pci_u3_agp_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -463,7 +464,7 @@ static const TypeInfo pci_u3_agp_info = {
     .class_init    = pci_u3_agp_class_init,
 };
 
-static void pci_unin_agp_class_init(ObjectClass *klass, void *data)
+static void pci_unin_agp_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -479,7 +480,7 @@ static const TypeInfo pci_unin_agp_info = {
     .class_init    = pci_unin_agp_class_init,
 };
 
-static void pci_unin_internal_class_init(ObjectClass *klass, void *data)
+static void pci_unin_internal_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -535,7 +536,7 @@ static void unin_init(Object *obj)
     sysbus_init_mmio(sbd, &s->mem);
 }
 
-static void unin_class_init(ObjectClass *klass, void *data)
+static void unin_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

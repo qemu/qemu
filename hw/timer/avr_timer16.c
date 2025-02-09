@@ -595,7 +595,7 @@ static void avr_timer16_realize(DeviceState *dev, Error **errp)
     s->enabled = true;
 }
 
-static void avr_timer16_class_init(ObjectClass *klass, void *data)
+static void avr_timer16_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

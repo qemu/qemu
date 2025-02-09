@@ -456,7 +456,7 @@ static void sabre_pci_realize(PCIDevice *d, Error **errp)
                  PCI_STATUS_DEVSEL_MEDIUM);
 }
 
-static void sabre_pci_class_init(ObjectClass *klass, void *data)
+static void sabre_pci_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -497,7 +497,7 @@ static const Property sabre_properties[] = {
     DEFINE_PROP_UINT64("mem-base", SabreState, mem_base, 0),
 };
 
-static void sabre_class_init(ObjectClass *klass, void *data)
+static void sabre_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);

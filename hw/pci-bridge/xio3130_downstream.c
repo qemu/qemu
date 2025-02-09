@@ -153,7 +153,7 @@ static const VMStateDescription vmstate_xio3130_downstream = {
     }
 };
 
-static void xio3130_downstream_class_init(ObjectClass *klass, void *data)
+static void xio3130_downstream_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

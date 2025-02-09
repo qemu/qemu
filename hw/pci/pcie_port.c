@@ -118,7 +118,7 @@ static const Property pcie_port_props[] = {
                        PCIE_AER_LOG_MAX_DEFAULT),
 };
 
-static void pcie_port_class_init(ObjectClass *oc, void *data)
+static void pcie_port_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
@@ -211,7 +211,7 @@ static const Property pcie_slot_props[] = {
                      hide_native_hotplug_cap, false),
 };
 
-static void pcie_slot_class_init(ObjectClass *oc, void *data)
+static void pcie_slot_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);

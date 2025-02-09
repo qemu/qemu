@@ -229,7 +229,7 @@ static const Property omap_gpio_properties[] = {
     DEFINE_PROP_INT32("mpu_model", Omap1GpioState, mpu_model, 0),
 };
 
-static void omap_gpio_class_init(ObjectClass *klass, void *data)
+static void omap_gpio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

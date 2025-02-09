@@ -1413,7 +1413,7 @@ static void lm3s6965evb_init(MachineState *machine)
  * Stellaris LM3S811 Evaluation Board Schematics:
  * https://www.ti.com/lit/ug/symlink/spmu030.pdf
  */
-static void lm3s811evb_class_init(ObjectClass *oc, void *data)
+static void lm3s811evb_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -1433,7 +1433,7 @@ static const TypeInfo lm3s811evb_type = {
  * Stellaris: LM3S6965 Evaluation Board Schematics:
  * https://www.ti.com/lit/ug/symlink/spmu029.pdf
  */
-static void lm3s6965evb_class_init(ObjectClass *oc, void *data)
+static void lm3s6965evb_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -1458,7 +1458,7 @@ static void stellaris_machine_init(void)
 
 type_init(stellaris_machine_init)
 
-static void stellaris_i2c_class_init(ObjectClass *klass, void *data)
+static void stellaris_i2c_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -1477,7 +1477,7 @@ static const TypeInfo stellaris_i2c_info = {
     .class_init    = stellaris_i2c_class_init,
 };
 
-static void stellaris_adc_class_init(ObjectClass *klass, void *data)
+static void stellaris_adc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -1494,7 +1494,7 @@ static const TypeInfo stellaris_adc_info = {
     .class_init    = stellaris_adc_class_init,
 };
 
-static void stellaris_sys_class_init(ObjectClass *klass, void *data)
+static void stellaris_sys_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

@@ -1708,7 +1708,7 @@ static const Property virtio_nsm_properties[] = {
     DEFINE_PROP_STRING("module-id", VirtIONSM, module_id),
 };
 
-static void virtio_nsm_class_init(ObjectClass *klass, void *data)
+static void virtio_nsm_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

@@ -298,7 +298,7 @@ static const Property isa_fdc_properties[] = {
                         FloppyDriveType),
 };
 
-static void isabus_fdc_class_init(ObjectClass *klass, void *data)
+static void isabus_fdc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);

@@ -143,7 +143,7 @@ static const VMStateDescription allwinner_sid_vmstate = {
     }
 };
 
-static void allwinner_sid_class_init(ObjectClass *klass, void *data)
+static void allwinner_sid_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

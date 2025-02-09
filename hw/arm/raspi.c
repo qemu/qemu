@@ -337,7 +337,7 @@ static void raspi_machine_class_init(MachineClass *mc,
     mc->init = raspi_machine_init;
 };
 
-static void raspi0_machine_class_init(ObjectClass *oc, void *data)
+static void raspi0_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     RaspiBaseMachineClass *rmc = RASPI_BASE_MACHINE_CLASS(oc);
@@ -347,7 +347,7 @@ static void raspi0_machine_class_init(ObjectClass *oc, void *data)
     raspi_machine_class_init(mc, rmc->board_rev);
 };
 
-static void raspi1ap_machine_class_init(ObjectClass *oc, void *data)
+static void raspi1ap_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     RaspiBaseMachineClass *rmc = RASPI_BASE_MACHINE_CLASS(oc);
@@ -357,7 +357,7 @@ static void raspi1ap_machine_class_init(ObjectClass *oc, void *data)
     raspi_machine_class_init(mc, rmc->board_rev);
 };
 
-static void raspi2b_machine_class_init(ObjectClass *oc, void *data)
+static void raspi2b_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     RaspiBaseMachineClass *rmc = RASPI_BASE_MACHINE_CLASS(oc);
@@ -368,7 +368,7 @@ static void raspi2b_machine_class_init(ObjectClass *oc, void *data)
 };
 
 #ifdef TARGET_AARCH64
-static void raspi3ap_machine_class_init(ObjectClass *oc, void *data)
+static void raspi3ap_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     RaspiBaseMachineClass *rmc = RASPI_BASE_MACHINE_CLASS(oc);
@@ -378,7 +378,7 @@ static void raspi3ap_machine_class_init(ObjectClass *oc, void *data)
     raspi_machine_class_init(mc, rmc->board_rev);
 };
 
-static void raspi3b_machine_class_init(ObjectClass *oc, void *data)
+static void raspi3b_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     RaspiBaseMachineClass *rmc = RASPI_BASE_MACHINE_CLASS(oc);

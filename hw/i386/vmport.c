@@ -286,7 +286,7 @@ static const Property vmport_properties[] = {
     DEFINE_PROP_UINT8("vmware-vmx-type", VMPortState, vmware_vmx_type, 2),
 };
 
-static void vmport_class_initfn(ObjectClass *klass, void *data)
+static void vmport_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

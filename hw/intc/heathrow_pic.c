@@ -184,7 +184,7 @@ static void heathrow_init(Object *obj)
     sysbus_init_mmio(sbd, &s->mem);
 }
 
-static void heathrow_class_init(ObjectClass *oc, void *data)
+static void heathrow_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

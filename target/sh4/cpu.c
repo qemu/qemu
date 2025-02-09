@@ -177,7 +177,7 @@ static void sh7750r_cpu_initfn(Object *obj)
     env->features = SH_FEATURE_BCR3_AND_BCR4;
 }
 
-static void sh7750r_class_init(ObjectClass *oc, void *data)
+static void sh7750r_class_init(ObjectClass *oc, const void *data)
 {
     SuperHCPUClass *scc = SUPERH_CPU_CLASS(oc);
 
@@ -194,7 +194,7 @@ static void sh7751r_cpu_initfn(Object *obj)
     env->features = SH_FEATURE_BCR3_AND_BCR4;
 }
 
-static void sh7751r_class_init(ObjectClass *oc, void *data)
+static void sh7751r_class_init(ObjectClass *oc, const void *data)
 {
     SuperHCPUClass *scc = SUPERH_CPU_CLASS(oc);
 
@@ -211,7 +211,7 @@ static void sh7785_cpu_initfn(Object *obj)
     env->features = SH_FEATURE_SH4A;
 }
 
-static void sh7785_class_init(ObjectClass *oc, void *data)
+static void sh7785_class_init(ObjectClass *oc, const void *data)
 {
     SuperHCPUClass *scc = SUPERH_CPU_CLASS(oc);
 
@@ -282,7 +282,7 @@ static const TCGCPUOps superh_tcg_ops = {
 #endif /* !CONFIG_USER_ONLY */
 };
 
-static void superh_cpu_class_init(ObjectClass *oc, void *data)
+static void superh_cpu_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);

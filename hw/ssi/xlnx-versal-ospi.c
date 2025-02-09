@@ -1831,7 +1831,7 @@ static const Property xlnx_versal_ospi_properties[] = {
                      ind_write_disabled, false),
 };
 
-static void xlnx_versal_ospi_class_init(ObjectClass *klass, void *data)
+static void xlnx_versal_ospi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

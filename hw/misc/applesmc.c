@@ -375,7 +375,7 @@ static void build_applesmc_aml(AcpiDevAmlIf *adev, Aml *scope)
     aml_append(scope, dev);
 }
 
-static void qdev_applesmc_class_init(ObjectClass *klass, void *data)
+static void qdev_applesmc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);

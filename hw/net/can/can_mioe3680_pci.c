@@ -223,7 +223,7 @@ static void mioe3680_pci_instance_init(Object *obj)
                              0);
 }
 
-static void mioe3680_pci_class_init(ObjectClass *klass, void *data)
+static void mioe3680_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

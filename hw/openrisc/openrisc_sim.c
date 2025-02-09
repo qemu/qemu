@@ -357,7 +357,7 @@ static void openrisc_sim_init(MachineState *machine)
     }
 }
 
-static void openrisc_sim_machine_init(ObjectClass *oc, void *data)
+static void openrisc_sim_machine_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 

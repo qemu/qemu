@@ -309,7 +309,7 @@ static const Property kvmclock_properties[] = {
                       mach_use_reliable_get_clock, true),
 };
 
-static void kvmclock_class_init(ObjectClass *klass, void *data)
+static void kvmclock_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

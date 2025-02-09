@@ -241,7 +241,7 @@ static void xilinx_uartlite_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 }
 
-static void xilinx_uartlite_class_init(ObjectClass *klass, void *data)
+static void xilinx_uartlite_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -419,7 +419,7 @@ static void ufs_lu_unrealize(DeviceState *dev)
     }
 }
 
-static void ufs_lu_class_init(ObjectClass *oc, void *data)
+static void ufs_lu_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

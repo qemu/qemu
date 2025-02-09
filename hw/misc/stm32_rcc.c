@@ -138,7 +138,7 @@ static const VMStateDescription vmstate_stm32_rcc = {
     }
 };
 
-static void stm32_rcc_class_init(ObjectClass *klass, void *data)
+static void stm32_rcc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

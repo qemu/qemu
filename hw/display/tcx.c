@@ -885,7 +885,7 @@ static const Property tcx_properties[] = {
     DEFINE_PROP_UINT16("depth",    TCXState, depth,     -1),
 };
 
-static void tcx_class_init(ObjectClass *klass, void *data)
+static void tcx_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

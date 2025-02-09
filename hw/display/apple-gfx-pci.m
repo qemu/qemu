@@ -121,7 +121,7 @@ static const Property apple_gfx_pci_properties[] = {
                       qdev_prop_apple_gfx_display_mode, AppleGFXDisplayMode),
 };
 
-static void apple_gfx_pci_class_init(ObjectClass *klass, void *data)
+static void apple_gfx_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pci = PCI_DEVICE_CLASS(klass);

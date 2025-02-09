@@ -262,7 +262,7 @@ virtio_gpu_base_device_unrealize(DeviceState *qdev)
 }
 
 static void
-virtio_gpu_base_class_init(ObjectClass *klass, void *data)
+virtio_gpu_base_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

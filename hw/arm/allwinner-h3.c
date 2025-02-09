@@ -466,7 +466,7 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void allwinner_h3_class_init(ObjectClass *oc, void *data)
+static void allwinner_h3_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

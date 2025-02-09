@@ -72,7 +72,7 @@ static void armv7m_ras_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static void armv7m_ras_class_init(ObjectClass *klass, void *data)
+static void armv7m_ras_class_init(ObjectClass *klass, const void *data)
 {
     /* This device has no state: no need for vmstate or reset */
 }

@@ -1200,7 +1200,7 @@ nvmm_enabled(void)
 }
 
 static void
-nvmm_accel_class_init(ObjectClass *oc, void *data)
+nvmm_accel_class_init(ObjectClass *oc, const void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
     ac->name = "NVMM";

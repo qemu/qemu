@@ -392,7 +392,7 @@ static const Property sp804_properties[] = {
     DEFINE_PROP_UINT32("freq1", SP804State, freq1, 1000000),
 };
 
-static void sp804_class_init(ObjectClass *klass, void *data)
+static void sp804_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
 

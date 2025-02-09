@@ -699,7 +699,7 @@ static const Property core_properties[] = {
     DEFINE_PROP_UINT32("memsz", IntegratorCMState, memsz, 0),
 };
 
-static void core_class_init(ObjectClass *klass, void *data)
+static void core_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -708,14 +708,14 @@ static void core_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_integratorcm;
 }
 
-static void icp_pic_class_init(ObjectClass *klass, void *data)
+static void icp_pic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_icp_pic;
 }
 
-static void icp_control_class_init(ObjectClass *klass, void *data)
+static void icp_control_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -303,7 +303,7 @@ static void hv_test_dev_realizefn(DeviceState *d, Error **errp)
     memory_region_add_subregion(io, 0x3000, &dev->sint_control);
 }
 
-static void hv_test_dev_class_init(ObjectClass *klass, void *data)
+static void hv_test_dev_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -220,7 +220,7 @@ typedef struct via_pm_init_info {
     uint16_t device_id;
 } ViaPMInitInfo;
 
-static void via_pm_class_init(ObjectClass *klass, void *data)
+static void via_pm_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -337,7 +337,7 @@ static void via_superio_devices_enable(ViaSuperIOState *s, uint8_t data)
     isa_fdc_set_enabled(s->superio.floppy, data & BIT(4));
 }
 
-static void via_superio_class_init(ObjectClass *klass, void *data)
+static void via_superio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
@@ -456,7 +456,7 @@ static void vt82c686b_superio_init(Object *obj)
     VIA_SUPERIO(obj)->io_ops = &vt82c686b_superio_cfg_ops;
 }
 
-static void vt82c686b_superio_class_init(ObjectClass *klass, void *data)
+static void vt82c686b_superio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
@@ -565,7 +565,7 @@ static void vt8231_superio_init(Object *obj)
     VIA_SUPERIO(obj)->io_ops = &vt8231_superio_cfg_ops;
 }
 
-static void vt8231_superio_class_init(ObjectClass *klass, void *data)
+static void vt8231_superio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
@@ -833,7 +833,7 @@ static void vt82c686b_init(Object *obj)
     object_initialize_child(obj, "pm", &s->pm, TYPE_VT82C686B_PM);
 }
 
-static void vt82c686b_class_init(ObjectClass *klass, void *data)
+static void vt82c686b_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -898,7 +898,7 @@ static void vt8231_init(Object *obj)
     object_initialize_child(obj, "pm", &s->pm, TYPE_VT8231_PM);
 }
 
-static void vt8231_class_init(ObjectClass *klass, void *data)
+static void vt8231_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

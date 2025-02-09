@@ -60,7 +60,7 @@ static void microbit_init(MachineState *machine)
                        0, s->nrf51.flash_size);
 }
 
-static void microbit_machine_class_init(ObjectClass *oc, void *data)
+static void microbit_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 

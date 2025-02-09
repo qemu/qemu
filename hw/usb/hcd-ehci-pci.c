@@ -150,7 +150,7 @@ static const VMStateDescription vmstate_ehci_pci = {
     }
 };
 
-static void ehci_class_init(ObjectClass *klass, void *data)
+static void ehci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -178,7 +178,7 @@ static const TypeInfo ehci_pci_type_info = {
     },
 };
 
-static void ehci_data_class_init(ObjectClass *klass, void *data)
+static void ehci_data_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

@@ -40,7 +40,7 @@ static void mac_nubus_bridge_init(Object *obj)
     sysbus_init_mmio(sbd, &s->slot_alias);
 }
 
-static void mac_nubus_bridge_class_init(ObjectClass *klass, void *data)
+static void mac_nubus_bridge_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

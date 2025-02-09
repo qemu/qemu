@@ -17,7 +17,7 @@ OBJECT_DEFINE_ABSTRACT_TYPE(HostIOMMUDevice,
                             HOST_IOMMU_DEVICE,
                             OBJECT)
 
-static void host_iommu_device_class_init(ObjectClass *oc, void *data)
+static void host_iommu_device_class_init(ObjectClass *oc, const void *data)
 {
 }
 

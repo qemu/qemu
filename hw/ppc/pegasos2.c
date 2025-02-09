@@ -588,7 +588,7 @@ static bool pegasos2_setprop(MachineState *ms, const char *path,
     return true;
 }
 
-static void pegasos2_machine_class_init(ObjectClass *oc, void *data)
+static void pegasos2_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     PPCVirtualHypervisorClass *vhc = PPC_VIRTUAL_HYPERVISOR_CLASS(oc);

@@ -221,7 +221,7 @@ static const Property pcspk_properties[] = {
     DEFINE_PROP_BOOL("migrate", PCSpkState, migrate,  true),
 };
 
-static void pcspk_class_initfn(ObjectClass *klass, void *data)
+static void pcspk_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

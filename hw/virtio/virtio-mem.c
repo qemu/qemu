@@ -1865,7 +1865,7 @@ static void virtio_mem_unplug_request_check(VirtIOMEM *vmem, Error **errp)
     }
 }
 
-static void virtio_mem_class_init(ObjectClass *klass, void *data)
+static void virtio_mem_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
@@ -1957,7 +1957,8 @@ static void virtio_mem_system_reset_hold(Object *obj, ResetType type)
     virtio_mem_unplug_all(vmem);
 }
 
-static void virtio_mem_system_reset_class_init(ObjectClass *klass, void *data)
+static void virtio_mem_system_reset_class_init(ObjectClass *klass,
+                                               const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 

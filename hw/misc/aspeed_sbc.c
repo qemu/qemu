@@ -141,7 +141,7 @@ static const Property aspeed_sbc_properties[] = {
     DEFINE_PROP_UINT32("signing-settings", AspeedSBCState, signing_settings, 0),
 };
 
-static void aspeed_sbc_class_init(ObjectClass *klass, void *data)
+static void aspeed_sbc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -159,7 +159,7 @@ static const TypeInfo aspeed_sbc_info = {
     .class_size = sizeof(AspeedSBCClass)
 };
 
-static void aspeed_ast2600_sbc_class_init(ObjectClass *klass, void *data)
+static void aspeed_ast2600_sbc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -128,7 +128,7 @@ OBJECT_DEFINE_TYPE_WITH_INTERFACES(PefGuest,
                                    { TYPE_USER_CREATABLE },
                                    { NULL })
 
-static void pef_guest_class_init(ObjectClass *oc, void *data)
+static void pef_guest_class_init(ObjectClass *oc, const void *data)
 {
     ConfidentialGuestSupportClass *klass = CONFIDENTIAL_GUEST_SUPPORT_CLASS(oc);
 

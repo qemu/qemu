@@ -1618,7 +1618,7 @@ static uint32_t pnv_chip_power8_xscom_pcba(PnvChip *chip, uint64_t addr)
     return ((addr >> 4) & ~0xfull) | ((addr >> 3) & 0xf);
 }
 
-static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
+static void pnv_chip_power8e_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
@@ -1642,7 +1642,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
                                     &k->parent_realize);
 }
 
-static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
+static void pnv_chip_power8_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
@@ -1666,7 +1666,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
                                     &k->parent_realize);
 }
 
-static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
+static void pnv_chip_power8nvl_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
@@ -1954,7 +1954,7 @@ static uint32_t pnv_chip_power9_xscom_pcba(PnvChip *chip, uint64_t addr)
     return addr >> 3;
 }
 
-static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
+static void pnv_chip_power9_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
@@ -2302,7 +2302,7 @@ static uint32_t pnv_chip_power10_xscom_pcba(PnvChip *chip, uint64_t addr)
     return addr >> 3;
 }
 
-static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)
+static void pnv_chip_power10_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
@@ -2461,7 +2461,7 @@ static const Property pnv_chip_properties[] = {
     DEFINE_PROP_BOOL("lpar-per-core", PnvChip, lpar_per_core, false),
 };
 
-static void pnv_chip_class_init(ObjectClass *klass, void *data)
+static void pnv_chip_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -2724,7 +2724,7 @@ static void pnv_machine_set_hb(Object *obj, bool value, Error **errp)
     }
 }
 
-static void pnv_machine_power8_class_init(ObjectClass *oc, void *data)
+static void pnv_machine_power8_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     XICSFabricClass *xic = XICS_FABRIC_CLASS(oc);
@@ -2753,7 +2753,7 @@ static void pnv_machine_power8_class_init(ObjectClass *oc, void *data)
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_PNV_PHB);
 }
 
-static void pnv_machine_power9_class_init(ObjectClass *oc, void *data)
+static void pnv_machine_power9_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     XiveFabricClass *xfc = XIVE_FABRIC_CLASS(oc);
@@ -2792,7 +2792,7 @@ static void pnv_machine_power9_class_init(ObjectClass *oc, void *data)
                               "Use 1 LPAR per core mode");
 }
 
-static void pnv_machine_p10_common_class_init(ObjectClass *oc, void *data)
+static void pnv_machine_p10_common_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     PnvMachineClass *pmc = PNV_MACHINE_CLASS(oc);
@@ -2822,7 +2822,7 @@ static void pnv_machine_p10_common_class_init(ObjectClass *oc, void *data)
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_PNV_PHB);
 }
 
-static void pnv_machine_power10_class_init(ObjectClass *oc, void *data)
+static void pnv_machine_power10_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -2847,7 +2847,8 @@ static void pnv_machine_power10_class_init(ObjectClass *oc, void *data)
                               "Use 1 LPAR per core mode");
 }
 
-static void pnv_machine_p10_rainier_class_init(ObjectClass *oc, void *data)
+static void pnv_machine_p10_rainier_class_init(ObjectClass *oc,
+                                               const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     PnvMachineClass *pmc = PNV_MACHINE_CLASS(oc);
@@ -2912,7 +2913,7 @@ static void pnv_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
-static void pnv_machine_class_init(ObjectClass *oc, void *data)
+static void pnv_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     InterruptStatsProviderClass *ispc = INTERRUPT_STATS_PROVIDER_CLASS(oc);

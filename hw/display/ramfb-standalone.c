@@ -64,7 +64,7 @@ static const Property ramfb_properties[] = {
     DEFINE_PROP_BOOL("x-migrate", RAMFBStandaloneState, migrate,  true),
 };
 
-static void ramfb_class_initfn(ObjectClass *klass, void *data)
+static void ramfb_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

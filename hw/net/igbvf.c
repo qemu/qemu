@@ -299,7 +299,7 @@ static void igbvf_pci_uninit(PCIDevice *dev)
     msix_uninit(dev, &s->msix, &s->msix);
 }
 
-static void igbvf_class_init(ObjectClass *class, void *data)
+static void igbvf_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     PCIDeviceClass *c = PCI_DEVICE_CLASS(class);

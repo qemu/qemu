@@ -167,7 +167,7 @@ static void rp_instance_post_init(Object *obj)
     }
 }
 
-static void rp_class_init(ObjectClass *klass, void *data)
+static void rp_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

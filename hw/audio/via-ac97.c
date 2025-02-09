@@ -463,7 +463,7 @@ static const Property via_ac97_properties[] = {
     DEFINE_AUDIO_PROPERTIES(ViaAC97State, card),
 };
 
-static void via_ac97_class_init(ObjectClass *klass, void *data)
+static void via_ac97_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -501,7 +501,7 @@ static void via_mc97_realize(PCIDevice *pci_dev, Error **errp)
     pci_set_long(pci_dev->config + PCI_INTERRUPT_PIN, 0x03);
 }
 
-static void via_mc97_class_init(ObjectClass *klass, void *data)
+static void via_mc97_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

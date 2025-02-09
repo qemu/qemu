@@ -38,7 +38,7 @@ static const TypeInfo test_if_info = {
 
 #define PATTERN 0xFAFBFCFD
 
-static void test_class_init(ObjectClass *oc, void *data)
+static void test_class_init(ObjectClass *oc, const void *data)
 {
     TestIfClass *tc = TEST_IF_CLASS(oc);
 

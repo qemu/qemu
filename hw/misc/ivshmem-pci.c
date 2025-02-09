@@ -979,7 +979,7 @@ static int ivshmem_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static void ivshmem_common_class_init(ObjectClass *klass, void *data)
+static void ivshmem_common_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -1044,7 +1044,7 @@ static void ivshmem_plain_realize(PCIDevice *dev, Error **errp)
     ivshmem_common_realize(dev, errp);
 }
 
-static void ivshmem_plain_class_init(ObjectClass *klass, void *data)
+static void ivshmem_plain_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -1103,7 +1103,7 @@ static void ivshmem_doorbell_realize(PCIDevice *dev, Error **errp)
     ivshmem_common_realize(dev, errp);
 }
 
-static void ivshmem_doorbell_class_init(ObjectClass *klass, void *data)
+static void ivshmem_doorbell_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

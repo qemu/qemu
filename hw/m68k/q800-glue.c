@@ -228,7 +228,7 @@ static void glue_init(Object *obj)
     s->nmi_release = timer_new_ms(QEMU_CLOCK_VIRTUAL, glue_nmi_release, s);
 }
 
-static void glue_class_init(ObjectClass *klass, void *data)
+static void glue_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

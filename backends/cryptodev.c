@@ -608,7 +608,7 @@ static void cryptodev_backend_schemas_cb(StatsSchemaList **result,
 }
 
 static void
-cryptodev_backend_class_init(ObjectClass *oc, void *data)
+cryptodev_backend_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 

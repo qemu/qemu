@@ -1886,7 +1886,7 @@ static const Property virtio_blk_properties[] = {
                      conf.x_enable_wce_if_config_wce, true),
 };
 
-static void virtio_blk_class_init(ObjectClass *klass, void *data)
+static void virtio_blk_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

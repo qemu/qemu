@@ -4859,7 +4859,7 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     qemu_add_machine_init_done_notifier(&vtd_machine_done_notify);
 }
 
-static void vtd_class_init(ObjectClass *klass, void *data)
+static void vtd_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     X86IOMMUClass *x86_class = X86_IOMMU_DEVICE_CLASS(klass);
@@ -4887,7 +4887,7 @@ static const TypeInfo vtd_info = {
 };
 
 static void vtd_iommu_memory_region_class_init(ObjectClass *klass,
-                                                     void *data)
+                                               const void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 

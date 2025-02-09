@@ -997,7 +997,7 @@ static const VMStateDescription vmstate_riscv_aplic = {
         }
 };
 
-static void riscv_aplic_class_init(ObjectClass *klass, void *data)
+static void riscv_aplic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

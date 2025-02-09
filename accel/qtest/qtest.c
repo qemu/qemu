@@ -42,7 +42,7 @@ static int qtest_init_accel(MachineState *ms)
     return 0;
 }
 
-static void qtest_accel_class_init(ObjectClass *oc, void *data)
+static void qtest_accel_class_init(ObjectClass *oc, const void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
     ac->name = "QTest";
@@ -59,7 +59,7 @@ static const TypeInfo qtest_accel_type = {
 };
 module_obj(TYPE_QTEST_ACCEL);
 
-static void qtest_accel_ops_class_init(ObjectClass *oc, void *data)
+static void qtest_accel_ops_class_init(ObjectClass *oc, const void *data)
 {
     AccelOpsClass *ops = ACCEL_OPS_CLASS(oc);
 

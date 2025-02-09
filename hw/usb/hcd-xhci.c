@@ -3638,7 +3638,7 @@ static const Property xhci_properties[] = {
                      DeviceState *),
 };
 
-static void xhci_class_init(ObjectClass *klass, void *data)
+static void xhci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

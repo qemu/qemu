@@ -479,7 +479,7 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
                                 qspi_xip_mem);
 }
 
-static void microchip_pfsoc_soc_class_init(ObjectClass *oc, void *data)
+static void microchip_pfsoc_soc_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
@@ -639,7 +639,8 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
     }
 }
 
-static void microchip_icicle_kit_machine_class_init(ObjectClass *oc, void *data)
+static void microchip_icicle_kit_machine_class_init(ObjectClass *oc,
+                                                    const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 

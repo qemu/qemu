@@ -404,7 +404,7 @@ set_gl_mode(Object *o, int val, Error **errp)
 }
 
 static void
-dbus_display_class_init(ObjectClass *oc, void *data)
+dbus_display_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
@@ -453,7 +453,7 @@ dbus_vc_parse(QemuOpts *opts, ChardevBackend *backend,
 }
 
 static void
-dbus_vc_class_init(ObjectClass *oc, void *data)
+dbus_vc_class_init(ObjectClass *oc, const void *data)
 {
     DBusVCClass *klass = DBUS_VC_CLASS(oc);
     ChardevClass *cc = CHARDEV_CLASS(oc);

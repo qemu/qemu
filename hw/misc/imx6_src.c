@@ -273,7 +273,7 @@ static void imx6_src_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
 }
 
-static void imx6_src_class_init(ObjectClass *klass, void *data)
+static void imx6_src_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -102,7 +102,7 @@ static void imx7_gpr_init(Object *obj)
     sysbus_init_mmio(sd, &s->mmio);
 }
 
-static void imx7_gpr_class_init(ObjectClass *klass, void *data)
+static void imx7_gpr_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

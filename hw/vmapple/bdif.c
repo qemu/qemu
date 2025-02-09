@@ -250,7 +250,7 @@ static const Property bdif_properties[] = {
     DEFINE_PROP_DRIVE("root", VMAppleBdifState, root),
 };
 
-static void bdif_class_init(ObjectClass *klass, void *data)
+static void bdif_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

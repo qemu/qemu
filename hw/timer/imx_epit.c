@@ -427,7 +427,7 @@ static void imx_epit_dev_reset(DeviceState *dev)
     imx_epit_reset(s, true);
 }
 
-static void imx_epit_class_init(ObjectClass *klass, void *data)
+static void imx_epit_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc  = DEVICE_CLASS(klass);
 

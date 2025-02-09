@@ -3409,7 +3409,7 @@ static void vfio_pci_set_fd(Object *obj, const char *str, Error **errp)
 }
 #endif
 
-static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
+static void vfio_pci_dev_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pdc = PCI_DEVICE_CLASS(klass);
@@ -3567,7 +3567,8 @@ static const Property vfio_pci_dev_nohotplug_properties[] = {
                             ON_OFF_AUTO_AUTO),
 };
 
-static void vfio_pci_nohotplug_dev_class_init(ObjectClass *klass, void *data)
+static void vfio_pci_nohotplug_dev_class_init(ObjectClass *klass,
+                                              const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

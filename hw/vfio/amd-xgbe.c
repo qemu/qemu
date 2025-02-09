@@ -34,7 +34,7 @@ static const VMStateDescription vfio_platform_amd_xgbe_vmstate = {
     .unmigratable = 1,
 };
 
-static void vfio_amd_xgbe_class_init(ObjectClass *klass, void *data)
+static void vfio_amd_xgbe_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VFIOAmdXgbeDeviceClass *vcxc =

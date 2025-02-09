@@ -125,7 +125,7 @@ static void virt_ctrl_instance_init(Object *obj)
     sysbus_init_irq(dev, &s->irq);
 }
 
-static void virt_ctrl_class_init(ObjectClass *oc, void *data)
+static void virt_ctrl_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

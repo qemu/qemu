@@ -1684,7 +1684,7 @@ static const Property virtio_gpu_properties[] = {
     DEFINE_PROP_UINT8("x-scanout-vmstate-version", VirtIOGPU, scanout_vmstate_version, 2),
 };
 
-static void virtio_gpu_class_init(ObjectClass *klass, void *data)
+static void virtio_gpu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

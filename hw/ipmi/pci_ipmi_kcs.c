@@ -118,7 +118,7 @@ static void *pci_ipmi_kcs_get_backend_data(IPMIInterface *ii)
     return &pik->kcs;
 }
 
-static void pci_ipmi_kcs_class_init(ObjectClass *oc, void *data)
+static void pci_ipmi_kcs_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pdc = PCI_DEVICE_CLASS(oc);

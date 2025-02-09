@@ -150,7 +150,7 @@ static uint32_t imx8mp_ccm_get_clock_frequency(IMXCCMState *dev, IMXClk clock)
     return freq;
 }
 
-static void imx8mp_ccm_class_init(ObjectClass *klass, void *data)
+static void imx8mp_ccm_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     IMXCCMClass *ccm = IMX_CCM_CLASS(klass);

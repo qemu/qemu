@@ -350,7 +350,7 @@ static const Property secondary_pci_properties[] = {
     DEFINE_EDID_PROPERTIES(PCIVGAState, edid_info),
 };
 
-static void vga_pci_class_init(ObjectClass *klass, void *data)
+static void vga_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -376,7 +376,7 @@ static const TypeInfo vga_pci_type_info = {
     },
 };
 
-static void vga_class_init(ObjectClass *klass, void *data)
+static void vga_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -392,7 +392,7 @@ static void vga_class_init(ObjectClass *klass, void *data)
                                    vga_get_big_endian_fb, vga_set_big_endian_fb);
 }
 
-static void secondary_class_init(ObjectClass *klass, void *data)
+static void secondary_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

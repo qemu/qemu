@@ -167,7 +167,7 @@ static void sii9022_realize(DeviceState *dev, Error **errp)
     i2c_slave_create_simple(bus, TYPE_I2CDDC, 0x50);
 }
 
-static void sii9022_class_init(ObjectClass *klass, void *data)
+static void sii9022_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);

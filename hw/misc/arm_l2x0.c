@@ -177,7 +177,7 @@ static const Property l2x0_properties[] = {
     DEFINE_PROP_UINT32("cache-type", L2x0State, cache_type, 0x1c100100),
 };
 
-static void l2x0_class_init(ObjectClass *klass, void *data)
+static void l2x0_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

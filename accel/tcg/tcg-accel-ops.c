@@ -224,7 +224,7 @@ static void tcg_accel_ops_init(AccelOpsClass *ops)
     ops->remove_all_breakpoints = tcg_remove_all_breakpoints;
 }
 
-static void tcg_accel_ops_class_init(ObjectClass *oc, void *data)
+static void tcg_accel_ops_class_init(ObjectClass *oc, const void *data)
 {
     AccelOpsClass *ops = ACCEL_OPS_CLASS(oc);
 

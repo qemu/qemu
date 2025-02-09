@@ -315,7 +315,7 @@ static const Property allwinner_rtc_properties[] = {
     DEFINE_PROP_INT32("base-year", AwRtcState, base_year, 0),
 };
 
-static void allwinner_rtc_class_init(ObjectClass *klass, void *data)
+static void allwinner_rtc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -330,7 +330,7 @@ static void allwinner_rtc_sun4i_init(Object *obj)
     s->base_year = 2010;
 }
 
-static void allwinner_rtc_sun4i_class_init(ObjectClass *klass, void *data)
+static void allwinner_rtc_sun4i_class_init(ObjectClass *klass, const void *data)
 {
     AwRtcClass *arc = AW_RTC_CLASS(klass);
 
@@ -346,7 +346,7 @@ static void allwinner_rtc_sun6i_init(Object *obj)
     s->base_year = 1970;
 }
 
-static void allwinner_rtc_sun6i_class_init(ObjectClass *klass, void *data)
+static void allwinner_rtc_sun6i_class_init(ObjectClass *klass, const void *data)
 {
     AwRtcClass *arc = AW_RTC_CLASS(klass);
 
@@ -362,7 +362,7 @@ static void allwinner_rtc_sun7i_init(Object *obj)
     s->base_year = 1970;
 }
 
-static void allwinner_rtc_sun7i_class_init(ObjectClass *klass, void *data)
+static void allwinner_rtc_sun7i_class_init(ObjectClass *klass, const void *data)
 {
     AwRtcClass *arc = AW_RTC_CLASS(klass);
     allwinner_rtc_sun4i_class_init(klass, arc);

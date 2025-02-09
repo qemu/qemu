@@ -286,7 +286,7 @@ static void ibex_timer_realize(DeviceState *dev, Error **errp)
 }
 
 
-static void ibex_timer_class_init(ObjectClass *klass, void *data)
+static void ibex_timer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -195,7 +195,7 @@ static void articia_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_out(dev, s->irq, ARRAY_SIZE(s->irq));
 }
 
-static void articia_class_init(ObjectClass *klass, void *data)
+static void articia_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -228,7 +228,7 @@ static void articia_pci_host_cfg_write(PCIDevice *d, uint32_t addr,
     }
 }
 
-static void articia_pci_host_class_init(ObjectClass *klass, void *data)
+static void articia_pci_host_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -246,7 +246,7 @@ static void articia_pci_host_class_init(ObjectClass *klass, void *data)
 
 /* TYPE_ARTICIA_PCI_BRIDGE */
 
-static void articia_pci_bridge_class_init(ObjectClass *klass, void *data)
+static void articia_pci_bridge_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

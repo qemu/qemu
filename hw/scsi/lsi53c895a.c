@@ -2375,7 +2375,7 @@ static void lsi_scsi_exit(PCIDevice *dev)
     timer_free(s->scripts_timer);
 }
 
-static void lsi_class_init(ObjectClass *klass, void *data)
+static void lsi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -2402,7 +2402,7 @@ static const TypeInfo lsi_info = {
     },
 };
 
-static void lsi53c810_class_init(ObjectClass *klass, void *data)
+static void lsi53c810_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 

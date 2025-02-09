@@ -1228,7 +1228,7 @@ static void virtio_ccw_busdev_unplug(HotplugHandler *hotplug_dev,
     virtio_ccw_stop_ioeventfd(_dev);
 }
 
-static void virtio_ccw_device_class_init(ObjectClass *klass, void *data)
+static void virtio_ccw_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     CCWDeviceClass *k = CCW_DEVICE_CLASS(dc);
@@ -1262,7 +1262,7 @@ static void virtio_ccw_bus_new(VirtioBusState *bus, size_t bus_size,
     qbus_init(bus, bus_size, TYPE_VIRTIO_CCW_BUS, qdev, virtio_bus_name);
 }
 
-static void virtio_ccw_bus_class_init(ObjectClass *klass, void *data)
+static void virtio_ccw_bus_class_init(ObjectClass *klass, const void *data)
 {
     VirtioBusClass *k = VIRTIO_BUS_CLASS(klass);
     BusClass *bus_class = BUS_CLASS(klass);

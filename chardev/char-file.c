@@ -123,7 +123,7 @@ static void qemu_chr_parse_file_out(QemuOpts *opts, ChardevBackend *backend,
     file->append = qemu_opt_get_bool(opts, "append", false);
 }
 
-static void char_file_class_init(ObjectClass *oc, void *data)
+static void char_file_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

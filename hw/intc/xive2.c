@@ -1590,7 +1590,7 @@ static const Property xive2_router_properties[] = {
                      TYPE_XIVE_FABRIC, XiveFabric *),
 };
 
-static void xive2_router_class_init(ObjectClass *klass, void *data)
+static void xive2_router_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     XiveNotifierClass *xnc = XIVE_NOTIFIER_CLASS(klass);
@@ -1805,7 +1805,7 @@ static const Property xive2_end_source_properties[] = {
                      Xive2Router *),
 };
 
-static void xive2_end_source_class_init(ObjectClass *klass, void *data)
+static void xive2_end_source_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -1176,7 +1176,7 @@ static const Property xlnx_zynqmp_can_properties[] = {
                      CanBusState *),
 };
 
-static void xlnx_zynqmp_can_class_init(ObjectClass *klass, void *data)
+static void xlnx_zynqmp_can_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

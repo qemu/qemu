@@ -85,7 +85,7 @@ static const Property ne2000_isa_properties[] = {
     DEFINE_NIC_PROPERTIES(ISANE2000State, ne2000.c),
 };
 
-static void isa_ne2000_class_initfn(ObjectClass *klass, void *data)
+static void isa_ne2000_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

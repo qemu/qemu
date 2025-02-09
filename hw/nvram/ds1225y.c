@@ -147,7 +147,7 @@ static const Property nvram_sysbus_properties[] = {
     DEFINE_PROP_STRING("filename", SysBusNvRamState, nvram.filename),
 };
 
-static void nvram_sysbus_class_init(ObjectClass *klass, void *data)
+static void nvram_sysbus_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

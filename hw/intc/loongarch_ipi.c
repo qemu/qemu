@@ -140,7 +140,7 @@ static void loongarch_ipi_cpu_unplug(HotplugHandler *hotplug_dev,
     core->cpu = NULL;
 }
 
-static void loongarch_ipi_class_init(ObjectClass *klass, void *data)
+static void loongarch_ipi_class_init(ObjectClass *klass, const void *data)
 {
     LoongsonIPICommonClass *licc = LOONGSON_IPI_COMMON_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);

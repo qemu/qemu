@@ -78,7 +78,7 @@ qauthz_simple_complete(UserCreatable *uc, Error **errp)
 
 
 static void
-qauthz_simple_class_init(ObjectClass *oc, void *data)
+qauthz_simple_class_init(ObjectClass *oc, const void *data)
 {
     QAuthZClass *authz = QAUTHZ_CLASS(oc);
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);

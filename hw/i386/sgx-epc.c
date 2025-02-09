@@ -147,7 +147,7 @@ static void sgx_epc_md_fill_device_info(const MemoryDeviceState *md,
     info->type = MEMORY_DEVICE_INFO_KIND_SGX_EPC;
 }
 
-static void sgx_epc_class_init(ObjectClass *oc, void *data)
+static void sgx_epc_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     MemoryDeviceClass *mdc = MEMORY_DEVICE_CLASS(oc);

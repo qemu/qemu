@@ -319,7 +319,7 @@ static void imx31_ccm_init(Object *obj)
     sysbus_init_mmio(sd, &s->iomem);
 }
 
-static void imx31_ccm_class_init(ObjectClass *klass, void *data)
+static void imx31_ccm_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc  = DEVICE_CLASS(klass);
     IMXCCMClass *ccm = IMX_CCM_CLASS(klass);

@@ -273,7 +273,7 @@ static const Property goldfish_rtc_properties[] = {
                       false),
 };
 
-static void goldfish_rtc_class_init(ObjectClass *klass, void *data)
+static void goldfish_rtc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

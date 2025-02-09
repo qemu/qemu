@@ -292,7 +292,7 @@ static const Property kvm_pit_properties[] = {
                                lost_tick_policy, LOST_TICK_POLICY_DELAY),
 };
 
-static void kvm_pit_class_init(ObjectClass *klass, void *data)
+static void kvm_pit_class_init(ObjectClass *klass, const void *data)
 {
     KVMPITClass *kpc = KVM_PIT_CLASS(klass);
     PITCommonClass *k = PIT_COMMON_CLASS(klass);

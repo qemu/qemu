@@ -2278,7 +2278,7 @@ static const Property ipmi_sim_properties[] = {
     DEFINE_PROP_UUID_NODEFAULT("guid", IPMIBmcSim, uuid),
 };
 
-static void ipmi_sim_class_init(ObjectClass *oc, void *data)
+static void ipmi_sim_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     IPMIBmcClass *bk = IPMI_BMC_CLASS(oc);

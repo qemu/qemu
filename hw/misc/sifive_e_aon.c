@@ -294,7 +294,7 @@ static const Property sifive_e_aon_properties[] = {
                        SIFIVE_E_LFCLK_DEFAULT_FREQ),
 };
 
-static void sifive_e_aon_class_init(ObjectClass *oc, void *data)
+static void sifive_e_aon_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

@@ -63,7 +63,7 @@ static void realview_gic_init(Object *obj)
     qdev_prop_set_uint32(DEVICE(&s->gic), "num-cpu", 1);
 }
 
-static void realview_gic_class_init(ObjectClass *oc, void *data)
+static void realview_gic_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

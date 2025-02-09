@@ -146,7 +146,7 @@ static const Property aspeed_soc_properties[] = {
                      MemoryRegion *),
 };
 
-static void aspeed_soc_class_init(ObjectClass *oc, void *data)
+static void aspeed_soc_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     AspeedSoCClass *sc = ASPEED_SOC_CLASS(oc);

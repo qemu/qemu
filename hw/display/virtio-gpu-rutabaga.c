@@ -1110,7 +1110,7 @@ static const Property virtio_gpu_rutabaga_properties[] = {
     DEFINE_PROP_STRING("wsi", VirtIOGPURutabaga, wsi),
 };
 
-static void virtio_gpu_rutabaga_class_init(ObjectClass *klass, void *data)
+static void virtio_gpu_rutabaga_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

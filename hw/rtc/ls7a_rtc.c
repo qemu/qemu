@@ -464,7 +464,7 @@ static const VMStateDescription vmstate_ls7a_rtc = {
     }
 };
 
-static void ls7a_rtc_class_init(ObjectClass *klass, void *data)
+static void ls7a_rtc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->vmsd = &vmstate_ls7a_rtc;

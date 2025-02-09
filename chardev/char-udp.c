@@ -219,7 +219,7 @@ static void qmp_chardev_open_udp(Chardev *chr,
     *be_opened = false;
 }
 
-static void char_udp_class_init(ObjectClass *oc, void *data)
+static void char_udp_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

@@ -149,7 +149,7 @@ static const Property spapr_tpm_proxy_properties[] = {
     DEFINE_PROP_STRING("host-path", SpaprTpmProxy, host_path),
 };
 
-static void spapr_tpm_proxy_class_init(ObjectClass *k, void *data)
+static void spapr_tpm_proxy_class_init(ObjectClass *k, const void *data)
 {
     DeviceClass *dk = DEVICE_CLASS(k);
 

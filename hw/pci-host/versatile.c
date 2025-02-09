@@ -471,7 +471,7 @@ static void versatile_pci_host_realize(PCIDevice *d, Error **errp)
     pci_set_byte(d->config + PCI_LATENCY_TIMER, 0x10);
 }
 
-static void versatile_pci_host_class_init(ObjectClass *klass, void *data)
+static void versatile_pci_host_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -503,7 +503,7 @@ static const Property pci_vpb_properties[] = {
                       PCI_VPB_IRQMAP_ASSUME_OK),
 };
 
-static void pci_vpb_class_init(ObjectClass *klass, void *data)
+static void pci_vpb_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

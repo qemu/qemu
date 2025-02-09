@@ -270,7 +270,7 @@ static void sifive_u_otp_realize(DeviceState *dev, Error **errp)
     memset(s->fuse_wo, 0x00, sizeof(s->fuse_wo));
 }
 
-static void sifive_u_otp_class_init(ObjectClass *klass, void *data)
+static void sifive_u_otp_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

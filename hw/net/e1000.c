@@ -1694,7 +1694,7 @@ typedef struct E1000Info {
     uint16_t   phy_id2;
 } E1000Info;
 
-static void e1000_class_init(ObjectClass *klass, void *data)
+static void e1000_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

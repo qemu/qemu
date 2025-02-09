@@ -214,7 +214,7 @@ static void imx_usbphy_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
 }
 
-static void imx_usbphy_class_init(ObjectClass *klass, void *data)
+static void imx_usbphy_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -415,7 +415,7 @@ void mips_pica61_init(MachineState *machine)
     mips_jazz_init(machine, JAZZ_PICA61);
 }
 
-static void mips_magnum_class_init(ObjectClass *oc, void *data)
+static void mips_magnum_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -432,7 +432,7 @@ static const TypeInfo mips_magnum_type = {
     .class_init = mips_magnum_class_init,
 };
 
-static void mips_pica61_class_init(ObjectClass *oc, void *data)
+static void mips_pica61_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 

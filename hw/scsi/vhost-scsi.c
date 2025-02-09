@@ -363,7 +363,7 @@ static const Property vhost_scsi_properties[] = {
                      conf.worker_per_virtqueue, false),
 };
 
-static void vhost_scsi_class_init(ObjectClass *klass, void *data)
+static void vhost_scsi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

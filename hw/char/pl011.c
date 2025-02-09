@@ -669,7 +669,7 @@ static void pl011_reset(DeviceState *dev)
     pl011_reset_tx_fifo(s);
 }
 
-static void pl011_class_init(ObjectClass *oc, void *data)
+static void pl011_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

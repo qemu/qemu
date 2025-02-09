@@ -435,7 +435,7 @@ static void stm32l4x5_soc_realize(DeviceState *dev_soc, Error **errp)
     create_unimplemented_device("QUADSPI",   0xA0001000, 0x400);
 }
 
-static void stm32l4x5_soc_class_init(ObjectClass *klass, void *data)
+static void stm32l4x5_soc_class_init(ObjectClass *klass, const void *data)
 {
 
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -446,21 +446,21 @@ static void stm32l4x5_soc_class_init(ObjectClass *klass, void *data)
     /* No vmstate or reset required: device has no internal state */
 }
 
-static void stm32l4x5xc_soc_class_init(ObjectClass *oc, void *data)
+static void stm32l4x5xc_soc_class_init(ObjectClass *oc, const void *data)
 {
     Stm32l4x5SocClass *ssc = STM32L4X5_SOC_CLASS(oc);
 
     ssc->flash_size = 256 * KiB;
 }
 
-static void stm32l4x5xe_soc_class_init(ObjectClass *oc, void *data)
+static void stm32l4x5xe_soc_class_init(ObjectClass *oc, const void *data)
 {
     Stm32l4x5SocClass *ssc = STM32L4X5_SOC_CLASS(oc);
 
     ssc->flash_size = 512 * KiB;
 }
 
-static void stm32l4x5xg_soc_class_init(ObjectClass *oc, void *data)
+static void stm32l4x5xg_soc_class_init(ObjectClass *oc, const void *data)
 {
     Stm32l4x5SocClass *ssc = STM32L4X5_SOC_CLASS(oc);
 

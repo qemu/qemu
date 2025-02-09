@@ -246,7 +246,7 @@ static const Property pci_host_properties_common[] = {
     DEFINE_PROP_BOOL(PCI_HOST_BYPASS_IOMMU, PCIHostState, bypass_iommu, false),
 };
 
-static void pci_host_class_init(ObjectClass *klass, void *data)
+static void pci_host_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     device_class_set_props(dc, pci_host_properties_common);

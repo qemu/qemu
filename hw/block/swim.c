@@ -253,7 +253,7 @@ static void swim_drive_realize(DeviceState *qdev, Error **errp)
     blk_set_dev_ops(drive->blk, &swim_block_ops, drive);
 }
 
-static void swim_drive_class_init(ObjectClass *klass, void *data)
+static void swim_drive_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->realize = swim_drive_realize;
@@ -550,7 +550,7 @@ static const VMStateDescription vmstate_sysbus_swim = {
     }
 };
 
-static void sysbus_swim_class_init(ObjectClass *oc, void *data)
+static void sysbus_swim_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

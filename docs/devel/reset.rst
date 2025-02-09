@@ -216,7 +216,7 @@ in reset.
         ResettablePhases parent_phases;
     } MyDevClass;
 
-    static void mydev_class_init(ObjectClass *class, void *data)
+    static void mydev_class_init(ObjectClass *class, const void *data)
     {
         MyDevClass *myclass = MYDEV_CLASS(class);
         ResettableClass *rc = RESETTABLE_CLASS(class);

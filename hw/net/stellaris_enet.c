@@ -501,7 +501,7 @@ static const Property stellaris_enet_properties[] = {
     DEFINE_NIC_PROPERTIES(stellaris_enet_state, conf),
 };
 
-static void stellaris_enet_class_init(ObjectClass *klass, void *data)
+static void stellaris_enet_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

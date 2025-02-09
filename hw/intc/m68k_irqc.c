@@ -90,7 +90,7 @@ static const Property m68k_irqc_properties[] = {
                      TYPE_M68K_CPU, ArchCPU *),
 };
 
-static void m68k_irqc_class_init(ObjectClass *oc, void *data)
+static void m68k_irqc_class_init(ObjectClass *oc, const void *data)
  {
     DeviceClass *dc = DEVICE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);

@@ -195,7 +195,7 @@ static const Property proxy_properties[] = {
     DEFINE_PROP_STRING("fd", PCIProxyDev, fd),
 };
 
-static void pci_proxy_dev_class_init(ObjectClass *klass, void *data)
+static void pci_proxy_dev_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

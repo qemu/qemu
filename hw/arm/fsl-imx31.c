@@ -218,7 +218,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
                                 &s->iram_alias);
 }
 
-static void fsl_imx31_class_init(ObjectClass *oc, void *data)
+static void fsl_imx31_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

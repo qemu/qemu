@@ -751,7 +751,7 @@ static const Property efuse_ctrl_props[] = {
                       extra_pg0_lock_spec, qdev_prop_uint16, uint16_t),
 };
 
-static void efuse_ctrl_class_init(ObjectClass *klass, void *data)
+static void efuse_ctrl_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

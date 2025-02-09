@@ -553,7 +553,7 @@ static void floppy_drive_realize(DeviceState *qdev, Error **errp)
     fd_revalidate(drive);
 }
 
-static void floppy_drive_class_init(ObjectClass *klass, void *data)
+static void floppy_drive_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->realize = floppy_drive_realize;

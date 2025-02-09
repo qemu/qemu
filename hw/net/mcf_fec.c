@@ -664,7 +664,7 @@ static const Property mcf_fec_properties[] = {
     DEFINE_NIC_PROPERTIES(mcf_fec_state, conf),
 };
 
-static void mcf_fec_class_init(ObjectClass *oc, void *data)
+static void mcf_fec_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

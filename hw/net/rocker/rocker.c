@@ -1475,7 +1475,7 @@ static const VMStateDescription rocker_vmsd = {
     .unmigratable = 1,
 };
 
-static void rocker_class_init(ObjectClass *klass, void *data)
+static void rocker_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

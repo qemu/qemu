@@ -391,7 +391,7 @@ static const VMStateDescription vmstate_npcm7xx_otp = {
     },
 };
 
-static void npcm7xx_otp_class_init(ObjectClass *klass, void *data)
+static void npcm7xx_otp_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -403,14 +403,14 @@ static void npcm7xx_otp_class_init(ObjectClass *klass, void *data)
     rc->phases.enter = npcm7xx_otp_enter_reset;
 }
 
-static void npcm7xx_key_storage_class_init(ObjectClass *klass, void *data)
+static void npcm7xx_key_storage_class_init(ObjectClass *klass, const void *data)
 {
     NPCM7xxOTPClass *oc = NPCM7XX_OTP_CLASS(klass);
 
     oc->mmio_ops = &npcm7xx_key_storage_ops;
 }
 
-static void npcm7xx_fuse_array_class_init(ObjectClass *klass, void *data)
+static void npcm7xx_fuse_array_class_init(ObjectClass *klass, const void *data)
 {
     NPCM7xxOTPClass *oc = NPCM7XX_OTP_CLASS(klass);
 

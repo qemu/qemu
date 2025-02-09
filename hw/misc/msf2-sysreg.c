@@ -136,7 +136,7 @@ static void msf2_sysreg_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void msf2_sysreg_class_init(ObjectClass *klass, void *data)
+static void msf2_sysreg_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

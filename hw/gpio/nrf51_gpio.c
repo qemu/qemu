@@ -304,7 +304,7 @@ static void nrf51_gpio_init(Object *obj)
     qdev_init_gpio_out_named(DEVICE(s), &s->detect, "detect", 1);
 }
 
-static void nrf51_gpio_class_init(ObjectClass *klass, void *data)
+static void nrf51_gpio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

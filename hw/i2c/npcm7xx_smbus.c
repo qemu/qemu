@@ -1075,7 +1075,7 @@ static const VMStateDescription vmstate_npcm7xx_smbus = {
     },
 };
 
-static void npcm7xx_smbus_class_init(ObjectClass *klass, void *data)
+static void npcm7xx_smbus_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

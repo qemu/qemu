@@ -2077,7 +2077,7 @@ static const VMStateDescription vmstate_sm501_sysbus = {
      }
 };
 
-static void sm501_sysbus_class_init(ObjectClass *klass, void *data)
+static void sm501_sysbus_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -2167,7 +2167,7 @@ static const VMStateDescription vmstate_sm501_pci = {
      }
 };
 
-static void sm501_pci_class_init(ObjectClass *klass, void *data)
+static void sm501_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

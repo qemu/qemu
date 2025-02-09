@@ -20,7 +20,7 @@ OBJECT_DEFINE_ABSTRACT_TYPE(X86ConfidentialGuest,
                             X86_CONFIDENTIAL_GUEST,
                             CONFIDENTIAL_GUEST_SUPPORT)
 
-static void x86_confidential_guest_class_init(ObjectClass *oc, void *data)
+static void x86_confidential_guest_class_init(ObjectClass *oc, const void *data)
 {
 }
 

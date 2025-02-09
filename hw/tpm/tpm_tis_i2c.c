@@ -526,7 +526,7 @@ static void tpm_tis_i2c_reset(DeviceState *dev)
     return tpm_tis_reset(s);
 }
 
-static void tpm_tis_i2c_class_init(ObjectClass *klass, void *data)
+static void tpm_tis_i2c_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);

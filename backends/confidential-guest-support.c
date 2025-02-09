@@ -20,7 +20,8 @@ OBJECT_DEFINE_ABSTRACT_TYPE(ConfidentialGuestSupport,
                             CONFIDENTIAL_GUEST_SUPPORT,
                             OBJECT)
 
-static void confidential_guest_support_class_init(ObjectClass *oc, void *data)
+static void confidential_guest_support_class_init(ObjectClass *oc,
+                                                  const void *data)
 {
 }
 

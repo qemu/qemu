@@ -2399,7 +2399,7 @@ static int virtio_pci_sync_config(DeviceState *dev, Error **errp)
     return qdev_sync_config(DEVICE(vdev), errp);
 }
 
-static void virtio_pci_class_init(ObjectClass *klass, void *data)
+static void virtio_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -2433,7 +2433,7 @@ static const Property virtio_pci_generic_properties[] = {
     DEFINE_PROP_BOOL("disable-modern", VirtIOPCIProxy, disable_modern, false),
 };
 
-static void virtio_pci_base_class_init(ObjectClass *klass, void *data)
+static void virtio_pci_base_class_init(ObjectClass *klass, const void *data)
 {
     const VirtioPCIDeviceTypeInfo *t = data;
     if (t->class_init) {
@@ -2441,7 +2441,7 @@ static void virtio_pci_base_class_init(ObjectClass *klass, void *data)
     }
 }
 
-static void virtio_pci_generic_class_init(ObjectClass *klass, void *data)
+static void virtio_pci_generic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -2586,7 +2586,7 @@ static void virtio_pci_bus_new(VirtioBusState *bus, size_t bus_size,
     qbus_init(bus, bus_size, TYPE_VIRTIO_PCI_BUS, qdev, virtio_bus_name);
 }
 
-static void virtio_pci_bus_class_init(ObjectClass *klass, void *data)
+static void virtio_pci_bus_class_init(ObjectClass *klass, const void *data)
 {
     BusClass *bus_class = BUS_CLASS(klass);
     VirtioBusClass *k = VIRTIO_BUS_CLASS(klass);

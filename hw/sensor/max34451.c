@@ -746,7 +746,7 @@ static void max34451_init(Object *obj)
 
 }
 
-static void max34451_class_init(ObjectClass *klass, void *data)
+static void max34451_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

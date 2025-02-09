@@ -542,7 +542,7 @@ static void ibex_uart_realize(DeviceState *dev, Error **errp)
                              s, NULL, true);
 }
 
-static void ibex_uart_class_init(ObjectClass *klass, void *data)
+static void ibex_uart_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

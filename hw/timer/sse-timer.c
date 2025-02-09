@@ -444,7 +444,7 @@ static const Property sse_timer_properties[] = {
     DEFINE_PROP_LINK("counter", SSETimer, counter, TYPE_SSE_COUNTER, SSECounter *),
 };
 
-static void sse_timer_class_init(ObjectClass *klass, void *data)
+static void sse_timer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

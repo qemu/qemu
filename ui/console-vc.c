@@ -1036,7 +1036,7 @@ qemu_text_console_finalize(Object *obj)
 }
 
 static void
-qemu_text_console_class_init(ObjectClass *oc, void *data)
+qemu_text_console_class_init(ObjectClass *oc, const void *data)
 {
     if (!cursor_timer) {
         cursor_timer = timer_new_ms(QEMU_CLOCK_REALTIME, cursor_timer_cb, NULL);
@@ -1065,7 +1065,7 @@ qemu_fixed_text_console_finalize(Object *obj)
 }
 
 static void
-qemu_fixed_text_console_class_init(ObjectClass *oc, void *data)
+qemu_fixed_text_console_class_init(ObjectClass *oc, const void *data)
 {
 }
 
@@ -1181,7 +1181,7 @@ static void vc_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
     }
 }
 
-static void char_vc_class_init(ObjectClass *oc, void *data)
+static void char_vc_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

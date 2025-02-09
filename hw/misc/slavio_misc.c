@@ -483,7 +483,7 @@ static void slavio_misc_init(Object *obj)
     qdev_init_gpio_in(dev, slavio_set_power_fail, 1);
 }
 
-static void slavio_misc_class_init(ObjectClass *klass, void *data)
+static void slavio_misc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

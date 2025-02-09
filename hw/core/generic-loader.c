@@ -182,7 +182,7 @@ static const Property generic_loader_props[] = {
     DEFINE_PROP_STRING("file", GenericLoaderState, file),
 };
 
-static void generic_loader_class_init(ObjectClass *klass, void *data)
+static void generic_loader_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

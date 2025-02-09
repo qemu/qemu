@@ -208,7 +208,7 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->wdt), 0, AW_A10_WDT_BASE, 1);
 }
 
-static void aw_a10_class_init(ObjectClass *oc, void *data)
+static void aw_a10_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

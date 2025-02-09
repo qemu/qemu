@@ -1361,7 +1361,7 @@ static void virtio_snd_reset(VirtIODevice *vdev)
     }
 }
 
-static void virtio_snd_class_init(ObjectClass *klass, void *data)
+static void virtio_snd_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

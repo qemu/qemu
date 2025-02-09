@@ -261,7 +261,7 @@ static GByteArray *pci_bus_fw_cfg_gen_data(Object *obj, Error **errp)
     return byte_array;
 }
 
-static void pci_bus_class_init(ObjectClass *klass, void *data)
+static void pci_bus_class_init(ObjectClass *klass, const void *data)
 {
     BusClass *k = BUS_CLASS(klass);
     PCIBusClass *pbc = PCI_BUS_CLASS(klass);
@@ -309,7 +309,7 @@ static const TypeInfo conventional_pci_interface_info = {
     .parent        = TYPE_INTERFACE,
 };
 
-static void pcie_bus_class_init(ObjectClass *klass, void *data)
+static void pcie_bus_class_init(ObjectClass *klass, const void *data)
 {
     BusClass *k = BUS_CLASS(klass);
 
@@ -2795,7 +2795,7 @@ MemoryRegion *pci_address_space_io(PCIDevice *dev)
     return pci_get_bus(dev)->address_space_io;
 }
 
-static void pci_device_class_init(ObjectClass *klass, void *data)
+static void pci_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
 

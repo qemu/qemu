@@ -355,7 +355,7 @@ static const VMStateDescription vmstate_zynqmp_pmu_ipi = {
     }
 };
 
-static void xlnx_zynqmp_ipi_class_init(ObjectClass *klass, void *data)
+static void xlnx_zynqmp_ipi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

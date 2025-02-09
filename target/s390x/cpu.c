@@ -371,7 +371,7 @@ static const TCGCPUOps s390_tcg_ops = {
 };
 #endif /* CONFIG_TCG */
 
-static void s390_cpu_class_init(ObjectClass *oc, void *data)
+static void s390_cpu_class_init(ObjectClass *oc, const void *data)
 {
     S390CPUClass *scc = S390_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(scc);

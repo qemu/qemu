@@ -301,7 +301,8 @@ static void vfio_pci_igd_lpc_bridge_realize(PCIDevice *pdev, Error **errp)
     }
 }
 
-static void vfio_pci_igd_lpc_bridge_class_init(ObjectClass *klass, void *data)
+static void vfio_pci_igd_lpc_bridge_class_init(ObjectClass *klass,
+                                               const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

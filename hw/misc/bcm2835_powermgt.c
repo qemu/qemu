@@ -136,7 +136,7 @@ static void bcm2835_powermgt_reset(DeviceState *dev)
     s->wdog = 0x00000000;
 }
 
-static void bcm2835_powermgt_class_init(ObjectClass *klass, void *data)
+static void bcm2835_powermgt_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

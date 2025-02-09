@@ -254,7 +254,7 @@ static const VMStateDescription vmstate_imx_rngc = {
     }
 };
 
-static void imx_rngc_class_init(ObjectClass *klass, void *data)
+static void imx_rngc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

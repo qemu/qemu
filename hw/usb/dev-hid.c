@@ -774,7 +774,7 @@ static const VMStateDescription vmstate_usb_kbd = {
     }
 };
 
-static void usb_hid_class_initfn(ObjectClass *klass, void *data)
+static void usb_hid_class_initfn(ObjectClass *klass, const void *data)
 {
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
@@ -799,7 +799,7 @@ static const Property usb_tablet_properties[] = {
         DEFINE_PROP_UINT32("head", USBHIDState, head, 0),
 };
 
-static void usb_tablet_class_initfn(ObjectClass *klass, void *data)
+static void usb_tablet_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
@@ -821,7 +821,7 @@ static const Property usb_mouse_properties[] = {
         DEFINE_PROP_UINT32("usb_version", USBHIDState, usb_version, 2),
 };
 
-static void usb_mouse_class_initfn(ObjectClass *klass, void *data)
+static void usb_mouse_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
@@ -844,7 +844,7 @@ static const Property usb_keyboard_properties[] = {
         DEFINE_PROP_STRING("display", USBHIDState, display),
 };
 
-static void usb_keyboard_class_initfn(ObjectClass *klass, void *data)
+static void usb_keyboard_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);

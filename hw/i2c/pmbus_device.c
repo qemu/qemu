@@ -1902,7 +1902,7 @@ static void pmbus_device_finalize(Object *obj)
     g_free(pmdev->pages);
 }
 
-static void pmbus_device_class_init(ObjectClass *klass, void *data)
+static void pmbus_device_class_init(ObjectClass *klass, const void *data)
 {
     SMBusDeviceClass *k = SMBUS_DEVICE_CLASS(klass);
 

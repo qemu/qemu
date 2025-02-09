@@ -119,7 +119,7 @@ static const Property pnv_pnor_properties[] = {
     DEFINE_PROP_DRIVE("drive", PnvPnor, blk),
 };
 
-static void pnv_pnor_class_init(ObjectClass *klass, void *data)
+static void pnv_pnor_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

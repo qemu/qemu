@@ -253,7 +253,7 @@ static const TCGCPUOps xtensa_tcg_ops = {
 #endif /* !CONFIG_USER_ONLY */
 };
 
-static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
+static void xtensa_cpu_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);

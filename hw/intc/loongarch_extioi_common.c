@@ -174,7 +174,8 @@ static const Property extioi_properties[] = {
                     features, EXTIOI_HAS_VIRT_EXTENSION, 0),
 };
 
-static void loongarch_extioi_common_class_init(ObjectClass *klass, void *data)
+static void loongarch_extioi_common_class_init(ObjectClass *klass,
+                                               const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     LoongArchExtIOICommonClass *lecc = LOONGARCH_EXTIOI_COMMON_CLASS(klass);

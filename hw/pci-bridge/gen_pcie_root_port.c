@@ -147,7 +147,7 @@ static const Property gen_rp_props[] = {
                                 width, PCIE_LINK_WIDTH_32),
 };
 
-static void gen_rp_dev_class_init(ObjectClass *klass, void *data)
+static void gen_rp_dev_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

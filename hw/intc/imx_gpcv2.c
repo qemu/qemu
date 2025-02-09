@@ -102,7 +102,7 @@ static const VMStateDescription vmstate_imx_gpcv2 = {
     },
 };
 
-static void imx_gpcv2_class_init(ObjectClass *klass, void *data)
+static void imx_gpcv2_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

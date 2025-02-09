@@ -3964,7 +3964,7 @@ static int kvm_gdbstub_sstep_flags(void)
     return kvm_sstep_flags;
 }
 
-static void kvm_accel_class_init(ObjectClass *oc, void *data)
+static void kvm_accel_class_init(ObjectClass *oc, const void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
     ac->name = "KVM";

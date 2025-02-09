@@ -1176,7 +1176,7 @@ static void apic_unrealize(DeviceState *dev)
     local_apics[s->initial_apic_id] = NULL;
 }
 
-static void apic_class_init(ObjectClass *klass, void *data)
+static void apic_class_init(ObjectClass *klass, const void *data)
 {
     APICCommonClass *k = APIC_COMMON_CLASS(klass);
 

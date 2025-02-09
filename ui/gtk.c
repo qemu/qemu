@@ -1879,7 +1879,7 @@ static void gd_vc_open(Chardev *chr,
     *be_opened = false;
 }
 
-static void char_gd_vc_class_init(ObjectClass *oc, void *data)
+static void char_gd_vc_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

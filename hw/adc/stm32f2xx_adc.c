@@ -284,7 +284,7 @@ static void stm32f2xx_adc_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 }
 
-static void stm32f2xx_adc_class_init(ObjectClass *klass, void *data)
+static void stm32f2xx_adc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

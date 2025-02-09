@@ -101,7 +101,7 @@ static void vc_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
     /* fqdn is dealt with in vc_chr_open() */
 }
 
-static void char_vc_class_init(ObjectClass *oc, void *data)
+static void char_vc_class_init(ObjectClass *oc, const void *data)
 {
     VCChardevClass *vc = CHARDEV_VC_CLASS(oc);
     ChardevClass *cc = CHARDEV_CLASS(oc);

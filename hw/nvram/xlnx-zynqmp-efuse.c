@@ -839,7 +839,7 @@ static const Property zynqmp_efuse_props[] = {
                      TYPE_XLNX_EFUSE, XlnxEFuse *),
 };
 
-static void zynqmp_efuse_class_init(ObjectClass *klass, void *data)
+static void zynqmp_efuse_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

@@ -526,7 +526,7 @@ static const VMStateDescription vmstate_g364fb_sysbus = {
     }
 };
 
-static void g364fb_sysbus_class_init(ObjectClass *klass, void *data)
+static void g364fb_sysbus_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

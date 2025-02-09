@@ -565,7 +565,7 @@ static const VMStateDescription vmstate_armv7m = {
     }
 };
 
-static void armv7m_class_init(ObjectClass *klass, void *data)
+static void armv7m_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -636,7 +636,7 @@ static const Property bitband_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void bitband_class_init(ObjectClass *klass, void *data)
+static void bitband_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

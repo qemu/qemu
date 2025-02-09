@@ -1691,7 +1691,7 @@ static void armsse_reset(DeviceState *dev)
     s->nsccfg = 0;
 }
 
-static void armsse_class_init(ObjectClass *klass, void *data)
+static void armsse_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     IDAUInterfaceClass *iic = IDAU_INTERFACE_CLASS(klass);

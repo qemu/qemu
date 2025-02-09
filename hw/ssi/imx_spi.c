@@ -475,7 +475,7 @@ static void imx_spi_realize(DeviceState *dev, Error **errp)
     fifo32_create(&s->rx_fifo, ECSPI_FIFO_SIZE);
 }
 
-static void imx_spi_class_init(ObjectClass *klass, void *data)
+static void imx_spi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -900,7 +900,7 @@ static void hda_audio_init_micro(HDACodecDevice *hda, Error **errp)
     hda_audio_init(hda, desc, errp);
 }
 
-static void hda_audio_base_class_init(ObjectClass *klass, void *data)
+static void hda_audio_base_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
@@ -922,7 +922,7 @@ static const TypeInfo hda_audio_info = {
     .abstract      = true,
 };
 
-static void hda_audio_output_class_init(ObjectClass *klass, void *data)
+static void hda_audio_output_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
@@ -937,7 +937,7 @@ static const TypeInfo hda_audio_output_info = {
     .class_init    = hda_audio_output_class_init,
 };
 
-static void hda_audio_duplex_class_init(ObjectClass *klass, void *data)
+static void hda_audio_duplex_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
@@ -952,7 +952,7 @@ static const TypeInfo hda_audio_duplex_info = {
     .class_init    = hda_audio_duplex_class_init,
 };
 
-static void hda_audio_micro_class_init(ObjectClass *klass, void *data)
+static void hda_audio_micro_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);

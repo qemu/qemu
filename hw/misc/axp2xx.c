@@ -225,7 +225,7 @@ static const VMStateDescription vmstate_axp2xx = {
     }
 };
 
-static void axp2xx_class_init(ObjectClass *oc, void *data)
+static void axp2xx_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     I2CSlaveClass *isc = I2C_SLAVE_CLASS(oc);
@@ -247,7 +247,7 @@ static const TypeInfo axp2xx_info = {
     .abstract = true,
 };
 
-static void axp209_class_init(ObjectClass *oc, void *data)
+static void axp209_class_init(ObjectClass *oc, const void *data)
 {
     AXP2xxClass *sc = AXP2XX_CLASS(oc);
 
@@ -260,7 +260,7 @@ static const TypeInfo axp209_info = {
     .class_init = axp209_class_init
 };
 
-static void axp221_class_init(ObjectClass *oc, void *data)
+static void axp221_class_init(ObjectClass *oc, const void *data)
 {
     AXP2xxClass *sc = AXP2XX_CLASS(oc);
 

@@ -441,7 +441,7 @@ static void sifive_pwm_realize(DeviceState *dev, Error **errp)
                   sifive_pwm_interrupt_3, s);
 }
 
-static void sifive_pwm_class_init(ObjectClass *klass, void *data)
+static void sifive_pwm_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

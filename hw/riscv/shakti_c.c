@@ -71,7 +71,7 @@ static void shakti_c_machine_instance_init(Object *obj)
 {
 }
 
-static void shakti_c_machine_class_init(ObjectClass *klass, void *data)
+static void shakti_c_machine_class_init(ObjectClass *klass, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(klass);
     static const char * const valid_cpu_types[] = {
@@ -142,7 +142,7 @@ static void shakti_c_soc_state_realize(DeviceState *dev, Error **errp)
         shakti_c_memmap[SHAKTI_C_ROM].base, &sss->rom);
 }
 
-static void shakti_c_soc_class_init(ObjectClass *klass, void *data)
+static void shakti_c_soc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = shakti_c_soc_state_realize;

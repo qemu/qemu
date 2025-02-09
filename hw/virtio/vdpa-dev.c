@@ -353,7 +353,7 @@ static const VMStateDescription vmstate_vhost_vdpa_device = {
     },
 };
 
-static void vhost_vdpa_device_class_init(ObjectClass *klass, void *data)
+static void vhost_vdpa_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

@@ -377,7 +377,7 @@ static const Property mv88w8618_eth_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void mv88w8618_eth_class_init(ObjectClass *klass, void *data)
+static void mv88w8618_eth_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

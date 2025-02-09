@@ -149,7 +149,7 @@ static const VMStateDescription vmstate_npcm7xx_sdhci = {
     },
 };
 
-static void npcm7xx_sdhci_class_init(ObjectClass *classp, void *data)
+static void npcm7xx_sdhci_class_init(ObjectClass *classp, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(classp);
 

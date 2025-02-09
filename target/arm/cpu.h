@@ -1123,7 +1123,7 @@ typedef struct ARMCPUInfo {
     const char *name;
     const char *deprecation_note;
     void (*initfn)(Object *obj);
-    void (*class_init)(ObjectClass *oc, void *data);
+    void (*class_init)(ObjectClass *oc, const void *data);
 } ARMCPUInfo;
 
 /**

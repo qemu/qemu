@@ -451,7 +451,7 @@ static const Property nand_properties[] = {
     DEFINE_PROP_DRIVE("drive", NANDFlashState, blk),
 };
 
-static void nand_class_init(ObjectClass *klass, void *data)
+static void nand_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

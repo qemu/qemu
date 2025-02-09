@@ -593,7 +593,7 @@ static void xlnx_dpdma_reset(DeviceState *dev)
     }
 }
 
-static void xlnx_dpdma_class_init(ObjectClass *oc, void *data)
+static void xlnx_dpdma_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

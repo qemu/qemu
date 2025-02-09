@@ -222,7 +222,7 @@ static void gpio_i2c_init(Object *obj)
     qdev_init_gpio_out(dev, &s->out, 1);
 }
 
-static void gpio_i2c_class_init(ObjectClass *klass, void *data)
+static void gpio_i2c_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -4134,7 +4134,7 @@ static const Property virtio_net_properties[] = {
                       VIRTIO_NET_F_HOST_USO, true),
 };
 
-static void virtio_net_class_init(ObjectClass *klass, void *data)
+static void virtio_net_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

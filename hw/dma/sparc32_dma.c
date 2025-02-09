@@ -274,7 +274,7 @@ static void sparc32_dma_device_init(Object *obj)
     qdev_init_gpio_out(dev, s->gpio, 2);
 }
 
-static void sparc32_dma_device_class_init(ObjectClass *klass, void *data)
+static void sparc32_dma_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -316,7 +316,8 @@ static void sparc32_espdma_device_realize(DeviceState *dev, Error **errp)
     sysbus_realize(SYS_BUS_DEVICE(sysbus), &error_fatal);
 }
 
-static void sparc32_espdma_device_class_init(ObjectClass *klass, void *data)
+static void sparc32_espdma_device_class_init(ObjectClass *klass,
+                                             const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -351,7 +352,8 @@ static void sparc32_ledma_device_realize(DeviceState *dev, Error **errp)
     sysbus_realize(SYS_BUS_DEVICE(lance), &error_fatal);
 }
 
-static void sparc32_ledma_device_class_init(ObjectClass *klass, void *data)
+static void sparc32_ledma_device_class_init(ObjectClass *klass,
+                                            const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -426,7 +428,7 @@ static void sparc32_dma_init(Object *obj)
                             TYPE_SPARC32_LEDMA_DEVICE);
 }
 
-static void sparc32_dma_class_init(ObjectClass *klass, void *data)
+static void sparc32_dma_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

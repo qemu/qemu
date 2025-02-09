@@ -351,7 +351,7 @@ static void smbus_ipmi_get_fwinfo(struct IPMIInterface *ii, IPMIFwInfo *info)
     info->uuid = sid->uuid;
 }
 
-static void smbus_ipmi_class_init(ObjectClass *oc, void *data)
+static void smbus_ipmi_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_CLASS(oc);

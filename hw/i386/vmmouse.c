@@ -321,7 +321,7 @@ static const Property vmmouse_properties[] = {
     DEFINE_PROP_LINK("i8042", VMMouseState, i8042, TYPE_I8042, ISAKBDState *),
 };
 
-static void vmmouse_class_initfn(ObjectClass *klass, void *data)
+static void vmmouse_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

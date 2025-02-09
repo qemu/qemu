@@ -673,7 +673,7 @@ static const Property e1000e_properties[] = {
     DEFINE_PROP_BOOL("migrate-timadj", E1000EState, timadj, true),
 };
 
-static void e1000e_class_init(ObjectClass *class, void *data)
+static void e1000e_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);

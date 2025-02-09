@@ -619,7 +619,7 @@ static int cryptodev_lkcf_close_session(CryptoDevBackend *backend,
     return 0;
 }
 
-static void cryptodev_lkcf_class_init(ObjectClass *oc, void *data)
+static void cryptodev_lkcf_class_init(ObjectClass *oc, const void *data)
 {
     CryptoDevBackendClass *bc = CRYPTODEV_BACKEND_CLASS(oc);
 

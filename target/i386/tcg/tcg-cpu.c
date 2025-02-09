@@ -193,7 +193,7 @@ static void x86_tcg_cpu_instance_init(CPUState *cs)
     x86_tcg_cpu_xsave_init();
 }
 
-static void x86_tcg_cpu_accel_class_init(ObjectClass *oc, void *data)
+static void x86_tcg_cpu_accel_class_init(ObjectClass *oc, const void *data)
 {
     AccelCPUClass *acc = ACCEL_CPU_CLASS(oc);
 

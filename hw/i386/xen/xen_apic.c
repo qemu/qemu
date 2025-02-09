@@ -76,7 +76,7 @@ static void xen_send_msi(MSIMessage *msi)
     xen_hvm_inject_msi(msi->address, msi->data);
 }
 
-static void xen_apic_class_init(ObjectClass *klass, void *data)
+static void xen_apic_class_init(ObjectClass *klass, const void *data)
 {
     APICCommonClass *k = APIC_COMMON_CLASS(klass);
 

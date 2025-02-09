@@ -162,7 +162,7 @@ static const Property lasi_82596_properties[] = {
     DEFINE_NIC_PROPERTIES(SysBusI82596State, state.conf),
 };
 
-static void lasi_82596_class_init(ObjectClass *klass, void *data)
+static void lasi_82596_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

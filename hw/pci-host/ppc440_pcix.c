@@ -519,7 +519,7 @@ static void ppc440_pcix_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static void ppc440_pcix_class_init(ObjectClass *klass, void *data)
+static void ppc440_pcix_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

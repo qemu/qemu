@@ -802,7 +802,7 @@ qcrypto_tls_creds_x509_finalize(Object *obj)
 
 
 static void
-qcrypto_tls_creds_x509_class_init(ObjectClass *oc, void *data)
+qcrypto_tls_creds_x509_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
     QCryptoTLSCredsClass *ctcc = QCRYPTO_TLS_CREDS_CLASS(oc);

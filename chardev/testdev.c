@@ -110,7 +110,7 @@ static int testdev_chr_write(Chardev *chr, const uint8_t *buf, int len)
     return orig_len;
 }
 
-static void char_testdev_class_init(ObjectClass *oc, void *data)
+static void char_testdev_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

@@ -102,7 +102,8 @@ static GByteArray *qcrypto_tls_cipher_suites_fw_cfg_gen_data(Object *obj,
                                               errp);
 }
 
-static void qcrypto_tls_cipher_suites_class_init(ObjectClass *oc, void *data)
+static void qcrypto_tls_cipher_suites_class_init(ObjectClass *oc,
+                                                 const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
     FWCfgDataGeneratorClass *fwgc = FW_CFG_DATA_GENERATOR_CLASS(oc);

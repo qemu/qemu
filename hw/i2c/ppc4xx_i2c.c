@@ -354,7 +354,7 @@ static void ppc4xx_i2c_init(Object *o)
     bitbang_i2c_init(&s->bitbang, s->bus);
 }
 
-static void ppc4xx_i2c_class_init(ObjectClass *klass, void *data)
+static void ppc4xx_i2c_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

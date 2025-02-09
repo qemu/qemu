@@ -2068,7 +2068,7 @@ static const Property pnv_xive_properties[] = {
     DEFINE_PROP_LINK("chip", PnvXive, chip, TYPE_PNV_CHIP, PnvChip *),
 };
 
-static void pnv_xive_class_init(ObjectClass *klass, void *data)
+static void pnv_xive_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvXScomInterfaceClass *xdc = PNV_XSCOM_INTERFACE_CLASS(klass);

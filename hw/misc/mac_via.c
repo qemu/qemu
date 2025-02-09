@@ -1326,7 +1326,7 @@ static const Property mos6522_q800_via1_properties[] = {
     DEFINE_PROP_DRIVE("drive", MOS6522Q800VIA1State, blk),
 };
 
-static void mos6522_q800_via1_class_init(ObjectClass *oc, void *data)
+static void mos6522_q800_via1_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     ResettableClass *rc = RESETTABLE_CLASS(oc);
@@ -1415,7 +1415,7 @@ static const VMStateDescription vmstate_q800_via2 = {
     }
 };
 
-static void mos6522_q800_via2_class_init(ObjectClass *oc, void *data)
+static void mos6522_q800_via2_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     ResettableClass *rc = RESETTABLE_CLASS(oc);

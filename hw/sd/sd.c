@@ -2751,7 +2751,7 @@ static const Property emmc_properties[] = {
     DEFINE_PROP_UINT8("boot-config", SDState, boot_config, 0x0),
 };
 
-static void sdmmc_common_class_init(ObjectClass *klass, void *data)
+static void sdmmc_common_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SDCardClass *sc = SDMMC_COMMON_CLASS(klass);
@@ -2774,7 +2774,7 @@ static void sdmmc_common_class_init(ObjectClass *klass, void *data)
     sc->get_readonly = sd_get_readonly;
 }
 
-static void sd_class_init(ObjectClass *klass, void *data)
+static void sd_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SDCardClass *sc = SDMMC_COMMON_CLASS(klass);
@@ -2793,7 +2793,7 @@ static void sd_class_init(ObjectClass *klass, void *data)
  * board to ensure that ssi transfers only occur when the chip select
  * is asserted.
  */
-static void sd_spi_class_init(ObjectClass *klass, void *data)
+static void sd_spi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SDCardClass *sc = SDMMC_COMMON_CLASS(klass);
@@ -2802,7 +2802,7 @@ static void sd_spi_class_init(ObjectClass *klass, void *data)
     sc->proto = &sd_proto_spi;
 }
 
-static void emmc_class_init(ObjectClass *klass, void *data)
+static void emmc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SDCardClass *sc = SDMMC_COMMON_CLASS(klass);

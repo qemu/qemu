@@ -540,7 +540,7 @@ static const Property mips_itu_properties[] = {
                       ITC_SEMAPH_NUM_MAX),
 };
 
-static void mips_itu_class_init(ObjectClass *klass, void *data)
+static void mips_itu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

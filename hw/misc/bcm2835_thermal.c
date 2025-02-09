@@ -113,7 +113,7 @@ static const VMStateDescription bcm2835_thermal_vmstate = {
     }
 };
 
-static void bcm2835_thermal_class_init(ObjectClass *klass, void *data)
+static void bcm2835_thermal_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

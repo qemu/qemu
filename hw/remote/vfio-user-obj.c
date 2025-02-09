@@ -917,7 +917,7 @@ static void vfu_object_finalize(Object *obj)
     }
 }
 
-static void vfu_object_class_init(ObjectClass *klass, void *data)
+static void vfu_object_class_init(ObjectClass *klass, const void *data)
 {
     VfuObjectClass *k = VFU_OBJECT_CLASS(klass);
 

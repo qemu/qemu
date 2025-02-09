@@ -168,7 +168,7 @@ static const Property vmapple_cfg_properties[] = {
     DEFINE_PROP_STRING("soc_name", VMAppleCfgState, soc_name),
 };
 
-static void vmapple_cfg_class_init(ObjectClass *klass, void *data)
+static void vmapple_cfg_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

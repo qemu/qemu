@@ -285,7 +285,7 @@ static const Property mss_timer_properties[] = {
                       100 * 1000000),
 };
 
-static void mss_timer_class_init(ObjectClass *klass, void *data)
+static void mss_timer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

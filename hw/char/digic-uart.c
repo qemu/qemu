@@ -176,7 +176,7 @@ static const Property digic_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", DigicUartState, chr),
 };
 
-static void digic_uart_class_init(ObjectClass *klass, void *data)
+static void digic_uart_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

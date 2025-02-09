@@ -935,7 +935,7 @@ static const TypeInfo typhoon_pcihost_info = {
 };
 
 static void typhoon_iommu_memory_region_class_init(ObjectClass *klass,
-                                                   void *data)
+                                                   const void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 

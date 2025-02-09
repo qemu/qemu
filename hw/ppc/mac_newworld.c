@@ -563,7 +563,7 @@ static int core99_kvm_type(MachineState *machine, const char *arg)
     return 2;
 }
 
-static void core99_machine_class_init(ObjectClass *oc, void *data)
+static void core99_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);

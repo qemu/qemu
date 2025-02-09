@@ -271,7 +271,7 @@ static const Property wdt_sbsa_gwdt_props[] = {
                        62500000),
 };
 
-static void wdt_sbsa_gwdt_class_init(ObjectClass *klass, void *data)
+static void wdt_sbsa_gwdt_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

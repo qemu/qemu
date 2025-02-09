@@ -163,7 +163,7 @@ static const VMStateDescription vmstate_spapr_rtc = {
     },
 };
 
-static void spapr_rtc_class_init(ObjectClass *oc, void *data)
+static void spapr_rtc_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

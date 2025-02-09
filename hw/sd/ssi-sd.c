@@ -389,7 +389,7 @@ static void ssi_sd_reset(DeviceState *dev)
     s->stopping = 0;
 }
 
-static void ssi_sd_class_init(ObjectClass *klass, void *data)
+static void ssi_sd_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);

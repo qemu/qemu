@@ -292,7 +292,7 @@ static void pl022_realize(DeviceState *dev, Error **errp)
     s->ssi = ssi_create_bus(dev, "ssi");
 }
 
-static void pl022_class_init(ObjectClass *klass, void *data)
+static void pl022_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

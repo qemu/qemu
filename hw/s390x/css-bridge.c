@@ -70,7 +70,7 @@ static char *virtual_css_bus_get_dev_path(DeviceState *dev)
     return g_strdup_printf("/%02x.%1x.%04x", sch->cssid, sch->ssid, sch->devno);
 }
 
-static void virtual_css_bus_class_init(ObjectClass *klass, void *data)
+static void virtual_css_bus_class_init(ObjectClass *klass, const void *data)
 {
     BusClass *k = BUS_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -117,7 +117,7 @@ static bool prop_get_true(Object *obj, Error **errp)
     return true;
 }
 
-static void virtual_css_bridge_class_init(ObjectClass *klass, void *data)
+static void virtual_css_bridge_class_init(ObjectClass *klass, const void *data)
 {
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

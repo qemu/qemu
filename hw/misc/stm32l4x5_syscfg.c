@@ -259,7 +259,7 @@ static const VMStateDescription vmstate_stm32l4x5_syscfg = {
     }
 };
 
-static void stm32l4x5_syscfg_class_init(ObjectClass *klass, void *data)
+static void stm32l4x5_syscfg_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

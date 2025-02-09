@@ -933,7 +933,8 @@ static bool throttle_group_can_be_deleted(UserCreatable *uc)
     return OBJECT(uc)->ref == 1;
 }
 
-static void throttle_group_obj_class_init(ObjectClass *klass, void *class_data)
+static void throttle_group_obj_class_init(ObjectClass *klass,
+                                          const void *class_data)
 {
     size_t i = 0;
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(klass);

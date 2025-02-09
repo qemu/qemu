@@ -304,7 +304,7 @@ static int qemu_s390_skeys_get(S390SKeysState *ss, uint64_t start_gfn,
     return 0;
 }
 
-static void qemu_s390_skeys_class_init(ObjectClass *oc, void *data)
+static void qemu_s390_skeys_class_init(ObjectClass *oc, const void *data)
 {
     S390SKeysClass *skeyclass = S390_SKEYS_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -466,7 +466,7 @@ static void s390_skeys_realize(DeviceState *dev, Error **errp)
     register_savevm_live(TYPE_S390_SKEYS, 0, 1, &savevm_s390_storage_keys, ss);
 }
 
-static void s390_skeys_class_init(ObjectClass *oc, void *data)
+static void s390_skeys_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

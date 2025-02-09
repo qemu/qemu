@@ -450,7 +450,7 @@ static const Property qemu_s390_flic_properties[] = {
                      migrate_all_state, true),
 };
 
-static void qemu_s390_flic_class_init(ObjectClass *oc, void *data)
+static void qemu_s390_flic_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     S390FLICStateClass *fsc = S390_FLIC_COMMON_CLASS(oc);
@@ -477,7 +477,7 @@ static void s390_flic_common_realize(DeviceState *dev, Error **errp)
     fs->ais_supported = s390_has_feat(S390_FEAT_ADAPTER_INT_SUPPRESSION);
 }
 
-static void s390_flic_class_init(ObjectClass *oc, void *data)
+static void s390_flic_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

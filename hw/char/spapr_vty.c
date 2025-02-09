@@ -182,7 +182,7 @@ static const VMStateDescription vmstate_spapr_vty = {
     },
 };
 
-static void spapr_vty_class_init(ObjectClass *klass, void *data)
+static void spapr_vty_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SpaprVioDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);

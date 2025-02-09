@@ -126,7 +126,7 @@ static const VMStateDescription vmstate_ohci = {
     }
 };
 
-static void ohci_pci_class_init(ObjectClass *klass, void *data)
+static void ohci_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

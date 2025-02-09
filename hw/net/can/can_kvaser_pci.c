@@ -282,7 +282,7 @@ static void kvaser_pci_instance_init(Object *obj)
                              0);
 }
 
-static void kvaser_pci_class_init(ObjectClass *klass, void *data)
+static void kvaser_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

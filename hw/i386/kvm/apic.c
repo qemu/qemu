@@ -240,7 +240,7 @@ static void kvm_apic_unrealize(DeviceState *dev)
 {
 }
 
-static void kvm_apic_class_init(ObjectClass *klass, void *data)
+static void kvm_apic_class_init(ObjectClass *klass, const void *data)
 {
     APICCommonClass *k = APIC_COMMON_CLASS(klass);
 

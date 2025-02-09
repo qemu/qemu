@@ -243,7 +243,7 @@ static const VMStateDescription vmstate_scoop_regs = {
     },
 };
 
-static void scoop_sysbus_class_init(ObjectClass *klass, void *data)
+static void scoop_sysbus_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

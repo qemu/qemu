@@ -185,7 +185,7 @@ static const VMStateDescription allwinner_r40_ccu_vmstate = {
     }
 };
 
-static void allwinner_r40_ccu_class_init(ObjectClass *klass, void *data)
+static void allwinner_r40_ccu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

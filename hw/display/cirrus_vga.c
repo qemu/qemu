@@ -2991,7 +2991,7 @@ static const Property pci_vga_cirrus_properties[] = {
                      cirrus_vga.vga.global_vmstate, false),
 };
 
-static void cirrus_vga_class_init(ObjectClass *klass, void *data)
+static void cirrus_vga_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

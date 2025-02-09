@@ -236,7 +236,7 @@ qcrypto_tls_creds_psk_prop_get_username(Object *obj,
 }
 
 static void
-qcrypto_tls_creds_psk_class_init(ObjectClass *oc, void *data)
+qcrypto_tls_creds_psk_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 

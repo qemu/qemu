@@ -712,7 +712,7 @@ static const Property xlnx_csu_dma_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void xlnx_csu_dma_class_init(ObjectClass *klass, void *data)
+static void xlnx_csu_dma_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     StreamSinkClass *ssc = STREAM_SINK_CLASS(klass);

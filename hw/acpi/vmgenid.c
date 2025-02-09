@@ -218,7 +218,7 @@ static const Property vmgenid_device_properties[] = {
     DEFINE_PROP_UUID(VMGENID_GUID, VmGenIdState, guid),
 };
 
-static void vmgenid_device_class_init(ObjectClass *klass, void *data)
+static void vmgenid_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

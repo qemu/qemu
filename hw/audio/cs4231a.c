@@ -696,7 +696,7 @@ static const Property cs4231a_properties[] = {
     DEFINE_PROP_UINT32 ("dma",     CSState, dma,  3),
 };
 
-static void cs4231a_class_initfn (ObjectClass *klass, void *data)
+static void cs4231a_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
 

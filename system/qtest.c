@@ -994,7 +994,7 @@ static char *qtest_get_chardev(Object *obj, Error **errp)
     return g_strdup(q->chr_name);
 }
 
-static void qtest_class_init(ObjectClass *oc, void *data)
+static void qtest_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 

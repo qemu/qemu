@@ -610,7 +610,7 @@ static const Property parallel_isa_properties[] = {
     DEFINE_PROP_CHR("chardev",  ISAParallelState, state.chr),
 };
 
-static void parallel_isa_class_initfn(ObjectClass *klass, void *data)
+static void parallel_isa_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);

@@ -485,7 +485,7 @@ dbus_vmstate_get_id(VMStateIf *vmif)
 }
 
 static void
-dbus_vmstate_class_init(ObjectClass *oc, void *data)
+dbus_vmstate_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
     VMStateIfClass *vc = VMSTATE_IF_CLASS(oc);

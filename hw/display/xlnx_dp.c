@@ -1391,7 +1391,7 @@ static const Property xlnx_dp_device_properties[] = {
     DEFINE_AUDIO_PROPERTIES(XlnxDPState, aud_card),
 };
 
-static void xlnx_dp_class_init(ObjectClass *oc, void *data)
+static void xlnx_dp_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

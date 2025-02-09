@@ -26,7 +26,7 @@ static const Property usb_props[] = {
     DEFINE_PROP_STRING("pcap", USBDevice, pcap_filename),
 };
 
-static void usb_bus_class_init(ObjectClass *klass, void *data)
+static void usb_bus_class_init(ObjectClass *klass, const void *data)
 {
     BusClass *k = BUS_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
@@ -713,7 +713,7 @@ static void usb_device_instance_init(Object *obj)
     }
 }
 
-static void usb_device_class_init(ObjectClass *klass, void *data)
+static void usb_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->bus_type = TYPE_USB_BUS;

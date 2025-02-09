@@ -141,7 +141,7 @@ static const VMStateDescription vmstate_dpcd = {
     }
 };
 
-static void dpcd_class_init(ObjectClass *oc, void *data)
+static void dpcd_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

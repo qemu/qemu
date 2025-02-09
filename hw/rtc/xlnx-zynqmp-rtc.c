@@ -251,7 +251,7 @@ static const VMStateDescription vmstate_rtc = {
     }
 };
 
-static void rtc_class_init(ObjectClass *klass, void *data)
+static void rtc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

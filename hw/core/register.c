@@ -319,7 +319,7 @@ void register_finalize_block(RegisterInfoArray *r_array)
     g_free(r_array);
 }
 
-static void register_class_init(ObjectClass *oc, void *data)
+static void register_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

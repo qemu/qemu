@@ -818,7 +818,7 @@ static const Property iotkit_secctl_props[] = {
     DEFINE_PROP_UINT32("sse-version", IoTKitSecCtl, sse_version, 0),
 };
 
-static void iotkit_secctl_class_init(ObjectClass *klass, void *data)
+static void iotkit_secctl_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -442,7 +442,7 @@ static const Property mips_gic_properties[] = {
     DEFINE_PROP_UINT32("num-irq", MIPSGICState, num_irq, 256),
 };
 
-static void mips_gic_class_init(ObjectClass *klass, void *data)
+static void mips_gic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

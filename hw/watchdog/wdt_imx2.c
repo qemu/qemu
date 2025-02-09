@@ -286,7 +286,7 @@ static const Property imx2_wdt_properties[] = {
                      false),
 };
 
-static void imx2_wdt_class_init(ObjectClass *klass, void *data)
+static void imx2_wdt_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

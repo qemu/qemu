@@ -162,7 +162,7 @@ static bool nubus_check_address(BusState *bus, DeviceState *dev, Error **errp)
     return true;
 }
 
-static void nubus_class_init(ObjectClass *oc, void *data)
+static void nubus_class_init(ObjectClass *oc, const void *data)
 {
     BusClass *bc = BUS_CLASS(oc);
 

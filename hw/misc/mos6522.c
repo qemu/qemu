@@ -700,7 +700,7 @@ static const Property mos6522_properties[] = {
     DEFINE_PROP_UINT64("frequency", MOS6522State, frequency, 0),
 };
 
-static void mos6522_class_init(ObjectClass *oc, void *data)
+static void mos6522_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     ResettableClass *rc = RESETTABLE_CLASS(oc);

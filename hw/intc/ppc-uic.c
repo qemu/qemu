@@ -281,7 +281,7 @@ static const VMStateDescription ppc_uic_vmstate = {
     },
 };
 
-static void ppc_uic_class_init(ObjectClass *klass, void *data)
+static void ppc_uic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

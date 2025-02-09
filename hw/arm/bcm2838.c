@@ -233,7 +233,7 @@ static void bcm2838_realize(DeviceState *dev, Error **errp)
     qdev_pass_gpios(DEVICE(&s->gic), DEVICE(&s->peripherals), NULL);
 }
 
-static void bcm2838_class_init(ObjectClass *oc, void *data)
+static void bcm2838_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     BCM283XBaseClass *bc_base = BCM283X_BASE_CLASS(oc);

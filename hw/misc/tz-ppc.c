@@ -325,7 +325,7 @@ static const Property tz_ppc_properties[] = {
     DEFINE_PORT(15),
 };
 
-static void tz_ppc_class_init(ObjectClass *klass, void *data)
+static void tz_ppc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

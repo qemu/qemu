@@ -172,7 +172,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void isa_superio_class_init(ObjectClass *oc, void *data)
+static void isa_superio_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

@@ -54,7 +54,7 @@ static void vu_snd_base_realize(DeviceState *dev, Error **errp)
     vubs->parent_realize(dev, errp);
 }
 
-static void vu_snd_class_init(ObjectClass *klass, void *data)
+static void vu_snd_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VHostUserBaseClass *vubc = VHOST_USER_BASE_CLASS(klass);

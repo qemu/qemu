@@ -206,7 +206,7 @@ static void clock_finalizefn(Object *obj)
     g_free(clk->canonical_path);
 }
 
-static void clock_class_init(ObjectClass *klass, void *data)
+static void clock_class_init(ObjectClass *klass, const void *data)
 {
     klass->unparent = clock_unparent;
 }

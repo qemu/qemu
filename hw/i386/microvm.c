@@ -635,7 +635,7 @@ GlobalProperty microvm_properties[] = {
     { "pcie-root-port", "io-reserve", "0" },
 };
 
-static void microvm_class_init(ObjectClass *oc, void *data)
+static void microvm_class_init(ObjectClass *oc, const void *data)
 {
     X86MachineClass *x86mc = X86_MACHINE_CLASS(oc);
     MicrovmMachineClass *mmc = MICROVM_MACHINE_CLASS(oc);

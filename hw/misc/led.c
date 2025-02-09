@@ -107,7 +107,7 @@ static const Property led_properties[] = {
     DEFINE_PROP_BOOL("gpio-active-high", LEDState, gpio_active_high, true),
 };
 
-static void led_class_init(ObjectClass *klass, void *data)
+static void led_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

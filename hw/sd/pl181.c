@@ -509,7 +509,7 @@ static void pl181_init(Object *obj)
     qbus_init(&s->sdbus, sizeof(s->sdbus), TYPE_PL181_BUS, dev, "sd-bus");
 }
 
-static void pl181_class_init(ObjectClass *klass, void *data)
+static void pl181_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
 
@@ -519,7 +519,7 @@ static void pl181_class_init(ObjectClass *klass, void *data)
     k->user_creatable = false;
 }
 
-static void pl181_bus_class_init(ObjectClass *klass, void *data)
+static void pl181_bus_class_init(ObjectClass *klass, const void *data)
 {
     SDBusClass *sbc = SD_BUS_CLASS(klass);
 

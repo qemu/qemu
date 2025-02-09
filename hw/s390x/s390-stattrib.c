@@ -307,7 +307,7 @@ static int qemu_s390_get_active(S390StAttribState *sa)
     return true;
 }
 
-static void qemu_s390_stattrib_class_init(ObjectClass *oc, void *data)
+static void qemu_s390_stattrib_class_init(ObjectClass *oc, const void *data)
 {
     S390StAttribClass *sa_cl = S390_STATTRIB_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -360,7 +360,7 @@ static void s390_stattrib_realize(DeviceState *dev, Error **errp)
                          &savevm_s390_stattrib_handlers, dev);
 }
 
-static void s390_stattrib_class_init(ObjectClass *oc, void *data)
+static void s390_stattrib_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

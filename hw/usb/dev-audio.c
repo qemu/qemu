@@ -997,7 +997,7 @@ static const Property usb_audio_properties[] = {
     DEFINE_PROP_BOOL("multi", USBAudioState, multi, false),
 };
 
-static void usb_audio_class_init(ObjectClass *klass, void *data)
+static void usb_audio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *k = USB_DEVICE_CLASS(klass);

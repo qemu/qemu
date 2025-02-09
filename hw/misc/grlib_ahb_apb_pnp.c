@@ -168,7 +168,7 @@ static void grlib_ahb_pnp_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &ahb_pnp->iomem);
 }
 
-static void grlib_ahb_pnp_class_init(ObjectClass *klass, void *data)
+static void grlib_ahb_pnp_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -280,7 +280,7 @@ static void grlib_apb_pnp_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &apb_pnp->iomem);
 }
 
-static void grlib_apb_pnp_class_init(ObjectClass *klass, void *data)
+static void grlib_apb_pnp_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

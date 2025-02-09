@@ -354,7 +354,7 @@ static uint32_t pnv_pec_xscom_nest_base(PnvPhb4PecState *pec)
  */
 static const uint32_t pnv_pec_num_phbs[] = { 1, 2, 3 };
 
-static void pnv_pec_class_init(ObjectClass *klass, void *data)
+static void pnv_pec_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvXScomInterfaceClass *xdc = PNV_XSCOM_INTERFACE_CLASS(klass);
@@ -419,7 +419,7 @@ static uint32_t pnv_phb5_pec_xscom_nest_base(PnvPhb4PecState *pec)
  */
 static const uint32_t pnv_phb5_pec_num_stacks[] = { 3, 3 };
 
-static void pnv_phb5_pec_class_init(ObjectClass *klass, void *data)
+static void pnv_phb5_pec_class_init(ObjectClass *klass, const void *data)
 {
     PnvPhb4PecClass *pecc = PNV_PHB4_PEC_CLASS(klass);
     static const char compat[] = "ibm,power10-pbcq";

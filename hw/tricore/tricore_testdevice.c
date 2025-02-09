@@ -58,7 +58,7 @@ static void tricore_testdevice_init(Object *obj)
                           "tricore_testdevice", 0x4);
 }
 
-static void tricore_testdevice_class_init(ObjectClass *klass, void *data)
+static void tricore_testdevice_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

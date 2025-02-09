@@ -332,7 +332,7 @@ static const Property sifive_spi_properties[] = {
     DEFINE_PROP_UINT32("num-cs", SiFiveSPIState, num_cs, 1),
 };
 
-static void sifive_spi_class_init(ObjectClass *klass, void *data)
+static void sifive_spi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

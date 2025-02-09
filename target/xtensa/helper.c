@@ -170,7 +170,7 @@ static void xtensa_finalize_config(XtensaConfig *config)
     }
 }
 
-static void xtensa_core_class_init(ObjectClass *oc, void *data)
+static void xtensa_core_class_init(ObjectClass *oc, const void *data)
 {
     CPUClass *cc = CPU_CLASS(oc);
     XtensaCPUClass *xcc = XTENSA_CPU_CLASS(oc);

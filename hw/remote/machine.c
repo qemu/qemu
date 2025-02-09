@@ -121,7 +121,7 @@ static void remote_machine_dev_unplug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void remote_machine_class_init(ObjectClass *oc, void *data)
+static void remote_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);

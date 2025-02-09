@@ -696,7 +696,7 @@ static void input_barrier_instance_init(Object *obj)
     ib->height = 1080;
 }
 
-static void input_barrier_class_init(ObjectClass *oc, void *data)
+static void input_barrier_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 

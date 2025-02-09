@@ -34,7 +34,7 @@ static void null_chr_open(Chardev *chr,
     *be_opened = false;
 }
 
-static void char_null_class_init(ObjectClass *oc, void *data)
+static void char_null_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

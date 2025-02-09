@@ -494,7 +494,7 @@ static void input_linux_instance_init(Object *obj)
 {
 }
 
-static void input_linux_class_init(ObjectClass *oc, void *data)
+static void input_linux_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 

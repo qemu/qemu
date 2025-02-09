@@ -1018,7 +1018,7 @@ static void rtc_build_aml(AcpiDevAmlIf *adev, Aml *scope)
     aml_append(scope, dev);
 }
 
-static void rtc_class_initfn(ObjectClass *klass, void *data)
+static void rtc_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

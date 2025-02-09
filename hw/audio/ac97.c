@@ -1328,7 +1328,7 @@ static const Property ac97_properties[] = {
     DEFINE_AUDIO_PROPERTIES(AC97LinkState, card),
 };
 
-static void ac97_class_init(ObjectClass *klass, void *data)
+static void ac97_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

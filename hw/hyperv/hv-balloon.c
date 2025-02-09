@@ -1743,7 +1743,7 @@ static const Property hv_balloon_properties[] = {
     DEFINE_PROP_UINT64(HV_BALLOON_ADDR_PROP, HvBalloon, addr, 0),
 };
 
-static void hv_balloon_class_init(ObjectClass *klass, void *data)
+static void hv_balloon_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VMBusDeviceClass *vdc = VMBUS_DEVICE_CLASS(klass);

@@ -36,7 +36,7 @@ static const Property pvpanic_mmio_properties[] = {
                       PVPANIC_PANICKED | PVPANIC_CRASH_LOADED),
 };
 
-static void pvpanic_mmio_class_init(ObjectClass *klass, void *data)
+static void pvpanic_mmio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

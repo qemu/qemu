@@ -89,7 +89,7 @@ static hwaddr pnv_homer_power8_get_base(PnvChip *chip)
     return PNV_HOMER_BASE(chip);
 }
 
-static void pnv_homer_power8_class_init(ObjectClass *klass, void *data)
+static void pnv_homer_power8_class_init(ObjectClass *klass, const void *data)
 {
     PnvHomerClass *homer = PNV_HOMER_CLASS(klass);
 
@@ -156,7 +156,7 @@ static hwaddr pnv_homer_power9_get_base(PnvChip *chip)
     return PNV9_HOMER_BASE(chip);
 }
 
-static void pnv_homer_power9_class_init(ObjectClass *klass, void *data)
+static void pnv_homer_power9_class_init(ObjectClass *klass, const void *data)
 {
     PnvHomerClass *homer = PNV_HOMER_CLASS(klass);
 
@@ -223,7 +223,7 @@ static hwaddr pnv_homer_power10_get_base(PnvChip *chip)
     return PNV10_HOMER_BASE(chip);
 }
 
-static void pnv_homer_power10_class_init(ObjectClass *klass, void *data)
+static void pnv_homer_power10_class_init(ObjectClass *klass, const void *data)
 {
     PnvHomerClass *homer = PNV_HOMER_CLASS(klass);
 
@@ -266,7 +266,7 @@ static const Property pnv_homer_properties[] = {
     DEFINE_PROP_LINK("chip", PnvHomer, chip, TYPE_PNV_CHIP, PnvChip *),
 };
 
-static void pnv_homer_class_init(ObjectClass *klass, void *data)
+static void pnv_homer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

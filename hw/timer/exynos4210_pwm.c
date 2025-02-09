@@ -420,7 +420,7 @@ static void exynos4210_pwm_finalize(Object *obj)
     }
 }
 
-static void exynos4210_pwm_class_init(ObjectClass *klass, void *data)
+static void exynos4210_pwm_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

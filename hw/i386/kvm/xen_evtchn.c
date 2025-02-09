@@ -271,7 +271,7 @@ static const VMStateDescription xen_evtchn_vmstate = {
     }
 };
 
-static void xen_evtchn_class_init(ObjectClass *klass, void *data)
+static void xen_evtchn_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

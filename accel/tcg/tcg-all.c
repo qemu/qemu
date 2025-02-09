@@ -237,7 +237,7 @@ static int tcg_gdbstub_supported_sstep_flags(void)
     }
 }
 
-static void tcg_accel_class_init(ObjectClass *oc, void *data)
+static void tcg_accel_class_init(ObjectClass *oc, const void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
     ac->name = "tcg";

@@ -225,7 +225,7 @@ static GSource *qio_channel_buffer_create_watch(QIOChannel *ioc,
 
 
 static void qio_channel_buffer_class_init(ObjectClass *klass,
-                                          void *class_data G_GNUC_UNUSED)
+                                          const void *class_data G_GNUC_UNUSED)
 {
     QIOChannelClass *ioc_klass = QIO_CHANNEL_CLASS(klass);
 

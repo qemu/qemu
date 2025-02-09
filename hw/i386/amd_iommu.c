@@ -1677,7 +1677,7 @@ static void amdvi_sysbus_instance_init(Object *klass)
     object_initialize(&s->pci, sizeof(s->pci), TYPE_AMD_IOMMU_PCI);
 }
 
-static void amdvi_sysbus_class_init(ObjectClass *klass, void *data)
+static void amdvi_sysbus_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     X86IOMMUClass *dc_class = X86_IOMMU_DEVICE_CLASS(klass);
@@ -1700,7 +1700,7 @@ static const TypeInfo amdvi_sysbus = {
     .class_init = amdvi_sysbus_class_init
 };
 
-static void amdvi_pci_class_init(ObjectClass *klass, void *data)
+static void amdvi_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -1725,7 +1725,8 @@ static const TypeInfo amdvi_pci = {
     },
 };
 
-static void amdvi_iommu_memory_region_class_init(ObjectClass *klass, void *data)
+static void amdvi_iommu_memory_region_class_init(ObjectClass *klass,
+                                                 const void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 
