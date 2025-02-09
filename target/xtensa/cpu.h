@@ -490,7 +490,7 @@ typedef struct XtensaConfig {
 } XtensaConfig;
 
 typedef struct XtensaConfigList {
-    const XtensaConfig *config;
+    XtensaConfig *config;
     struct XtensaConfigList *next;
 } XtensaConfigList;
 
