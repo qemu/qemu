@@ -2381,26 +2381,20 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     a2 = args[2];
 
     switch (opc) {
-    case INDEX_op_qemu_ld_i32:
-        tcg_out_qemu_ld(s, a0, 0, a1, a2, TCG_TYPE_I32);
+    case INDEX_op_qemu_ld:
+        tcg_out_qemu_ld(s, a0, 0, a1, a2, type);
         break;
-    case INDEX_op_qemu_ld_i64:
-        if (TCG_TARGET_REG_BITS == 64) {
-            tcg_out_qemu_ld(s, a0, 0, a1, a2, TCG_TYPE_I64);
-        } else {
-            tcg_out_qemu_ld(s, a0, a1, a2, args[3], TCG_TYPE_I64);
-        }
+    case INDEX_op_qemu_ld2:
+        tcg_debug_assert(TCG_TARGET_REG_BITS == 32);
+        tcg_out_qemu_ld(s, a0, a1, a2, args[3], type);
         break;
 
-    case INDEX_op_qemu_st_i32:
-        tcg_out_qemu_st(s, a0, 0, a1, a2, TCG_TYPE_I32);
+    case INDEX_op_qemu_st:
+        tcg_out_qemu_st(s, a0, 0, a1, a2, type);
         break;
-    case INDEX_op_qemu_st_i64:
-        if (TCG_TARGET_REG_BITS == 64) {
-            tcg_out_qemu_st(s, a0, 0, a1, a2, TCG_TYPE_I64);
-        } else {
-            tcg_out_qemu_st(s, a0, a1, a2, args[3], TCG_TYPE_I64);
-        }
+    case INDEX_op_qemu_st2:
+        tcg_debug_assert(TCG_TARGET_REG_BITS == 32);
+        tcg_out_qemu_st(s, a0, a1, a2, args[3], type);
         break;
 
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
@@ -2415,14 +2409,14 @@ static TCGConstraintSetIndex
 tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 {
     switch (op) {
-    case INDEX_op_qemu_ld_i32:
+    case INDEX_op_qemu_ld:
         return C_O1_I1(r, r);
-    case INDEX_op_qemu_st_i32:
+    case INDEX_op_qemu_st:
         return C_O0_I2(rz, r);
-    case INDEX_op_qemu_ld_i64:
-        return TCG_TARGET_REG_BITS == 64 ? C_O1_I1(r, r) : C_O2_I1(r, r, r);
-    case INDEX_op_qemu_st_i64:
-        return TCG_TARGET_REG_BITS == 64 ? C_O0_I2(rz, r) : C_O0_I3(rz, rz, r);
+    case INDEX_op_qemu_ld2:
+        return TCG_TARGET_REG_BITS == 64 ? C_NotImplemented : C_O2_I1(r, r, r);
+    case INDEX_op_qemu_st2:
+        return TCG_TARGET_REG_BITS == 64 ? C_NotImplemented : C_O0_I3(rz, rz, r);
 
     default:
         return C_NotImplemented;

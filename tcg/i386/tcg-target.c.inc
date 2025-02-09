@@ -2457,7 +2457,7 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
 
     switch (memop & MO_SIZE) {
     case MO_8:
-        /* This is handled with constraints on INDEX_op_qemu_st_i32. */
+        /* This is handled with constraints on INDEX_op_qemu_st. */
         tcg_debug_assert(TCG_TARGET_REG_BITS == 64 || datalo < 4);
         tcg_out_modrm_sib_offset(s, OPC_MOVB_EvGv + P_REXB_R + h.seg,
                                  datalo, h.base, h.index, 0, h.ofs);
@@ -3552,34 +3552,18 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     a2 = args[2];
 
     switch (opc) {
-    case INDEX_op_qemu_ld_i32:
-        tcg_out_qemu_ld(s, a0, -1, a1, a2, TCG_TYPE_I32);
+    case INDEX_op_qemu_ld:
+        tcg_out_qemu_ld(s, a0, -1, a1, a2, type);
         break;
-    case INDEX_op_qemu_ld_i64:
-        if (TCG_TARGET_REG_BITS == 64) {
-            tcg_out_qemu_ld(s, a0, -1, a1, a2, TCG_TYPE_I64);
-        } else {
-            tcg_out_qemu_ld(s, a0, a1, a2, args[3], TCG_TYPE_I64);
-        }
-        break;
-    case INDEX_op_qemu_ld_i128:
-        tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
-        tcg_out_qemu_ld(s, a0, a1, a2, args[3], TCG_TYPE_I128);
+    case INDEX_op_qemu_ld2:
+        tcg_out_qemu_ld(s, a0, a1, a2, args[3], type);
         break;
 
-    case INDEX_op_qemu_st_i32:
-        tcg_out_qemu_st(s, a0, -1, a1, a2, TCG_TYPE_I32);
+    case INDEX_op_qemu_st:
+        tcg_out_qemu_st(s, a0, -1, a1, a2, type);
         break;
-    case INDEX_op_qemu_st_i64:
-        if (TCG_TARGET_REG_BITS == 64) {
-            tcg_out_qemu_st(s, a0, -1, a1, a2, TCG_TYPE_I64);
-        } else {
-            tcg_out_qemu_st(s, a0, a1, a2, args[3], TCG_TYPE_I64);
-        }
-        break;
-    case INDEX_op_qemu_st_i128:
-        tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
-        tcg_out_qemu_st(s, a0, a1, a2, args[3], TCG_TYPE_I128);
+    case INDEX_op_qemu_st2:
+        tcg_out_qemu_st(s, a0, a1, a2, args[3], type);
         break;
 
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
@@ -4135,25 +4119,17 @@ static TCGConstraintSetIndex
 tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 {
     switch (op) {
-    case INDEX_op_qemu_ld_i32:
+    case INDEX_op_qemu_ld:
         return C_O1_I1(r, L);
 
-    case INDEX_op_qemu_st_i32:
+    case INDEX_op_qemu_st:
         return (TCG_TARGET_REG_BITS == 32 && flags == MO_8
                 ? C_O0_I2(s, L)
                 : C_O0_I2(L, L));
 
-    case INDEX_op_qemu_ld_i64:
-        return TCG_TARGET_REG_BITS == 64 ? C_O1_I1(r, L) : C_O2_I1(r, r, L);
-
-    case INDEX_op_qemu_st_i64:
-        return TCG_TARGET_REG_BITS == 64 ? C_O0_I2(L, L) : C_O0_I3(L, L, L);
-
-    case INDEX_op_qemu_ld_i128:
-        tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
+    case INDEX_op_qemu_ld2:
         return C_O2_I1(r, r, L);
-    case INDEX_op_qemu_st_i128:
-        tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
+    case INDEX_op_qemu_st2:
         return C_O0_I3(L, L, L);
 
     case INDEX_op_ld_vec:

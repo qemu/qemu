@@ -2432,14 +2432,20 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_exit_tb:
     case INDEX_op_goto_tb:
     case INDEX_op_goto_ptr:
-    case INDEX_op_qemu_ld_i32:
-    case INDEX_op_qemu_st_i32:
-    case INDEX_op_qemu_ld_i64:
-    case INDEX_op_qemu_st_i64:
         return true;
 
-    case INDEX_op_qemu_ld_i128:
-    case INDEX_op_qemu_st_i128:
+    case INDEX_op_qemu_ld:
+    case INDEX_op_qemu_st:
+        tcg_debug_assert(type <= TCG_TYPE_REG);
+        return true;
+
+    case INDEX_op_qemu_ld2:
+    case INDEX_op_qemu_st2:
+        if (TCG_TARGET_REG_BITS == 32) {
+            tcg_debug_assert(type == TCG_TYPE_I64);
+            return true;
+        }
+        tcg_debug_assert(type == TCG_TYPE_I128);
         return TCG_TARGET_HAS_qemu_ldst_i128;
 
     case INDEX_op_add:
@@ -3007,12 +3013,10 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
                 }
                 i = 1;
                 break;
-            case INDEX_op_qemu_ld_i32:
-            case INDEX_op_qemu_st_i32:
-            case INDEX_op_qemu_ld_i64:
-            case INDEX_op_qemu_st_i64:
-            case INDEX_op_qemu_ld_i128:
-            case INDEX_op_qemu_st_i128:
+            case INDEX_op_qemu_ld:
+            case INDEX_op_qemu_st:
+            case INDEX_op_qemu_ld2:
+            case INDEX_op_qemu_st2:
                 {
                     const char *s_al, *s_op, *s_at;
                     MemOpIdx oi = op->args[k++];

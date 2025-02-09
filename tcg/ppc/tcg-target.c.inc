@@ -3779,35 +3779,27 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const int const_args[TCG_MAX_OP_ARGS])
 {
     switch (opc) {
-    case INDEX_op_qemu_ld_i32:
-        tcg_out_qemu_ld(s, args[0], -1, args[1], args[2], TCG_TYPE_I32);
+    case INDEX_op_qemu_ld:
+        tcg_out_qemu_ld(s, args[0], -1, args[1], args[2], type);
         break;
-    case INDEX_op_qemu_ld_i64:
-        if (TCG_TARGET_REG_BITS == 64) {
-            tcg_out_qemu_ld(s, args[0], -1, args[1], args[2], TCG_TYPE_I64);
-        } else {
+    case INDEX_op_qemu_ld2:
+        if (TCG_TARGET_REG_BITS == 32) {
             tcg_out_qemu_ld(s, args[0], args[1], args[2],
                             args[3], TCG_TYPE_I64);
+            break;
         }
-        break;
-    case INDEX_op_qemu_ld_i128:
-        tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
         tcg_out_qemu_ldst_i128(s, args[0], args[1], args[2], args[3], true);
         break;
 
-    case INDEX_op_qemu_st_i32:
-        tcg_out_qemu_st(s, args[0], -1, args[1], args[2], TCG_TYPE_I32);
+    case INDEX_op_qemu_st:
+        tcg_out_qemu_st(s, args[0], -1, args[1], args[2], type);
         break;
-    case INDEX_op_qemu_st_i64:
-        if (TCG_TARGET_REG_BITS == 64) {
-            tcg_out_qemu_st(s, args[0], -1, args[1], args[2], TCG_TYPE_I64);
-        } else {
+    case INDEX_op_qemu_st2:
+        if (TCG_TARGET_REG_BITS == 32) {
             tcg_out_qemu_st(s, args[0], args[1], args[2],
                             args[3], TCG_TYPE_I64);
+            break;
         }
-        break;
-    case INDEX_op_qemu_st_i128:
-        tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
         tcg_out_qemu_ldst_i128(s, args[0], args[1], args[2], args[3], false);
         break;
 
@@ -4426,20 +4418,17 @@ static TCGConstraintSetIndex
 tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 {
     switch (op) {
-    case INDEX_op_qemu_ld_i32:
+    case INDEX_op_qemu_ld:
         return C_O1_I1(r, r);
-    case INDEX_op_qemu_ld_i64:
-        return TCG_TARGET_REG_BITS == 64 ? C_O1_I1(r, r) : C_O2_I1(r, r, r);
+    case INDEX_op_qemu_ld2:
+        return TCG_TARGET_REG_BITS == 64
+               ? C_N1O1_I1(o, m, r) : C_O2_I1(r, r, r);
 
-    case INDEX_op_qemu_st_i32:
+    case INDEX_op_qemu_st:
         return C_O0_I2(r, r);
-    case INDEX_op_qemu_st_i64:
-        return TCG_TARGET_REG_BITS == 64 ? C_O0_I2(r, r) : C_O0_I3(r, r, r);
-
-    case INDEX_op_qemu_ld_i128:
-        return C_N1O1_I1(o, m, r);
-    case INDEX_op_qemu_st_i128:
-        return C_O0_I3(o, m, r);
+    case INDEX_op_qemu_st2:
+        return TCG_TARGET_REG_BITS == 64
+               ? C_O0_I3(o, m, r) : C_O0_I3(r, r, r);
 
     case INDEX_op_add_vec:
     case INDEX_op_sub_vec:

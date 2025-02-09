@@ -3180,21 +3180,14 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_orc_vec:
             done = fold_orc(&ctx, op);
             break;
-        case INDEX_op_qemu_ld_i32:
+        case INDEX_op_qemu_ld:
             done = fold_qemu_ld_1reg(&ctx, op);
             break;
-        case INDEX_op_qemu_ld_i64:
-            if (TCG_TARGET_REG_BITS == 64) {
-                done = fold_qemu_ld_1reg(&ctx, op);
-                break;
-            }
-            QEMU_FALLTHROUGH;
-        case INDEX_op_qemu_ld_i128:
+        case INDEX_op_qemu_ld2:
             done = fold_qemu_ld_2reg(&ctx, op);
             break;
-        case INDEX_op_qemu_st_i32:
-        case INDEX_op_qemu_st_i64:
-        case INDEX_op_qemu_st_i128:
+        case INDEX_op_qemu_st:
+        case INDEX_op_qemu_st2:
             done = fold_qemu_st(&ctx, op);
             break;
         case INDEX_op_rems:

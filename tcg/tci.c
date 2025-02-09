@@ -789,46 +789,33 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             tb_ptr = ptr;
             break;
 
-        case INDEX_op_qemu_ld_i32:
+        case INDEX_op_qemu_ld:
             tci_args_rrm(insn, &r0, &r1, &oi);
             taddr = regs[r1];
             regs[r0] = tci_qemu_ld(env, taddr, oi, tb_ptr);
             break;
 
-        case INDEX_op_qemu_ld_i64:
-            if (TCG_TARGET_REG_BITS == 64) {
-                tci_args_rrm(insn, &r0, &r1, &oi);
-                taddr = regs[r1];
-            } else {
-                tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
-                taddr = regs[r2];
-                oi = regs[r3];
-            }
-            tmp64 = tci_qemu_ld(env, taddr, oi, tb_ptr);
-            if (TCG_TARGET_REG_BITS == 32) {
-                tci_write_reg64(regs, r1, r0, tmp64);
-            } else {
-                regs[r0] = tmp64;
-            }
-            break;
-
-        case INDEX_op_qemu_st_i32:
+        case INDEX_op_qemu_st:
             tci_args_rrm(insn, &r0, &r1, &oi);
             taddr = regs[r1];
             tci_qemu_st(env, taddr, regs[r0], oi, tb_ptr);
             break;
 
-        case INDEX_op_qemu_st_i64:
-            if (TCG_TARGET_REG_BITS == 64) {
-                tci_args_rrm(insn, &r0, &r1, &oi);
-                tmp64 = regs[r0];
-                taddr = regs[r1];
-            } else {
-                tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
-                tmp64 = tci_uint64(regs[r1], regs[r0]);
-                taddr = regs[r2];
-                oi = regs[r3];
-            }
+        case INDEX_op_qemu_ld2:
+            tcg_debug_assert(TCG_TARGET_REG_BITS == 32);
+            tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
+            taddr = regs[r2];
+            oi = regs[r3];
+            tmp64 = tci_qemu_ld(env, taddr, oi, tb_ptr);
+            tci_write_reg64(regs, r1, r0, tmp64);
+            break;
+
+        case INDEX_op_qemu_st2:
+            tcg_debug_assert(TCG_TARGET_REG_BITS == 32);
+            tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
+            tmp64 = tci_uint64(regs[r1], regs[r0]);
+            taddr = regs[r2];
+            oi = regs[r3];
             tci_qemu_st(env, taddr, tmp64, oi, tb_ptr);
             break;
 
@@ -1056,21 +1043,19 @@ int print_insn_tci(bfd_vma addr, disassemble_info *info)
                            str_r(r2), str_r(r3));
         break;
 
-    case INDEX_op_qemu_ld_i64:
-    case INDEX_op_qemu_st_i64:
-        if (TCG_TARGET_REG_BITS == 32) {
-            tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
-            info->fprintf_func(info->stream, "%-12s  %s, %s, %s, %s",
-                               op_name, str_r(r0), str_r(r1),
-                               str_r(r2), str_r(r3));
-            break;
-        }
-        /* fall through */
-    case INDEX_op_qemu_ld_i32:
-    case INDEX_op_qemu_st_i32:
+    case INDEX_op_qemu_ld:
+    case INDEX_op_qemu_st:
         tci_args_rrm(insn, &r0, &r1, &oi);
         info->fprintf_func(info->stream, "%-12s  %s, %s, %x",
                            op_name, str_r(r0), str_r(r1), oi);
+        break;
+
+    case INDEX_op_qemu_ld2:
+    case INDEX_op_qemu_st2:
+        tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
+        info->fprintf_func(info->stream, "%-12s  %s, %s, %s, %s",
+                           op_name, str_r(r0), str_r(r1),
+                           str_r(r2), str_r(r3));
         break;
 
     case 0:

@@ -40,14 +40,14 @@ static TCGConstraintSetIndex
 tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 {
     switch (op) {
-    case INDEX_op_qemu_ld_i32:
+    case INDEX_op_qemu_ld:
         return C_O1_I1(r, r);
-    case INDEX_op_qemu_ld_i64:
-        return TCG_TARGET_REG_BITS == 64 ? C_O1_I1(r, r) : C_O2_I1(r, r, r);
-    case INDEX_op_qemu_st_i32:
+    case INDEX_op_qemu_st:
         return C_O0_I2(r, r);
-    case INDEX_op_qemu_st_i64:
-        return TCG_TARGET_REG_BITS == 64 ? C_O0_I2(r, r) : C_O0_I3(r, r, r);
+    case INDEX_op_qemu_ld2:
+        return TCG_TARGET_REG_BITS == 64 ? C_NotImplemented : C_O2_I1(r, r, r);
+    case INDEX_op_qemu_st2:
+        return TCG_TARGET_REG_BITS == 64 ? C_NotImplemented : C_O0_I3(r, r, r);
 
     default:
         return C_NotImplemented;
@@ -1203,22 +1203,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const int const_args[TCG_MAX_OP_ARGS])
 {
     switch (opc) {
-    case INDEX_op_qemu_ld_i64:
-    case INDEX_op_qemu_st_i64:
-        if (TCG_TARGET_REG_BITS == 32) {
-            tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_TMP, args[3]);
-            tcg_out_op_rrrr(s, opc, args[0], args[1], args[2], TCG_REG_TMP);
-            break;
-        }
-        /* fall through */
-    case INDEX_op_qemu_ld_i32:
-    case INDEX_op_qemu_st_i32:
-        if (TCG_TARGET_REG_BITS == 64 && s->addr_type == TCG_TYPE_I32) {
-            tcg_out_ext32u(s, TCG_REG_TMP, args[1]);
-            tcg_out_op_rrm(s, opc, args[0], TCG_REG_TMP, args[2]);
-        } else {
-            tcg_out_op_rrm(s, opc, args[0], args[1], args[2]);
-        }
+    case INDEX_op_qemu_ld:
+    case INDEX_op_qemu_st:
+        tcg_out_op_rrm(s, opc, args[0], args[1], args[2]);
+        break;
+    case INDEX_op_qemu_ld2:
+    case INDEX_op_qemu_st2:
+        tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_TMP, args[3]);
+        tcg_out_op_rrrr(s, opc, args[0], args[1], args[2], TCG_REG_TMP);
         break;
 
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
