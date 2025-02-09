@@ -143,3 +143,7 @@ config USB_DWC3
 config XLNX_USB_SUBSYS
     bool
     select USB_DWC3
+
+config USB_CHIPIDEA
+    bool
+    select USB_EHCI_SYSBUS
