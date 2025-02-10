@@ -3137,8 +3137,7 @@ static inline MemTxResult address_space_write_rom_internal(AddressSpace *as,
         l = len;
         mr = address_space_translate(as, addr, &addr1, &l, true, attrs);
 
-        if (!(memory_region_is_ram(mr) ||
-              memory_region_is_romd(mr))) {
+        if (!memory_region_supports_direct_access(mr)) {
             l = memory_access_size(mr, l, addr1);
         } else {
             /* ROM/RAM case */
