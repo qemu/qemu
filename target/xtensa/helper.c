@@ -192,7 +192,7 @@ void xtensa_register_core(XtensaConfigList *node)
     TypeInfo type = {
         .parent = TYPE_XTENSA_CPU,
         .class_init = xtensa_core_class_init,
-        .class_data = (void *)node->config,
+        .class_data = node->config,
     };
 
     xtensa_finalize_config(node->config);

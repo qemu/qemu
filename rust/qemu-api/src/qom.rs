@@ -513,7 +513,7 @@ pub trait ObjectImpl: ObjectType + IsA<Object> {
         class_size: core::mem::size_of::<Self::Class>(),
         class_init: Some(rust_class_init::<Self>),
         class_base_init: Self::CLASS_BASE_INIT,
-        class_data: core::ptr::null_mut(),
+        class_data: core::ptr::null(),
         interfaces: core::ptr::null_mut(),
     };
 
