@@ -18,7 +18,7 @@
 #include "monitor/monitor.h"
 #include "net/eth.h"
 #include "qapi/qapi-commands-rocker.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 
 void hmp_rocker(Monitor *mon, const QDict *qdict)
 {

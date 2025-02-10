@@ -115,11 +115,11 @@ struct Visitor
 
     /* Optional */
     bool (*policy_reject)(Visitor *v, const char *name,
-                          unsigned special_features, Error **errp);
+                          uint64_t features, Error **errp);
 
     /* Optional */
     bool (*policy_skip)(Visitor *v, const char *name,
-                        unsigned special_features);
+                        uint64_t features);
 
     /* Must be set */
     VisitorType type;

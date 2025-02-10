@@ -29,7 +29,7 @@
 #include "hw/sysbus.h"
 #include "hw/qdev-properties.h"
 #include "system/system.h"
-#include "qapi/qmp/qlist.h"
+#include "qobject/qlist.h"
 #include "qom/object.h"
 
 /*

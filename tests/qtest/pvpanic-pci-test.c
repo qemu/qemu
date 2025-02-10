@@ -13,7 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "libqos/pci.h"
 #include "libqos/pci-pc.h"
 #include "hw/misc/pvpanic.h"

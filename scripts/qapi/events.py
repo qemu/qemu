@@ -194,7 +194,7 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
 #include "%(visit)s.h"
 #include "qapi/compat-policy.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "qapi/qmp-event.h"
 ''',
                              events=events, visit=visit,

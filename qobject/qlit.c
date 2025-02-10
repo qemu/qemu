@@ -15,13 +15,13 @@
 
 #include "qemu/osdep.h"
 
-#include "qapi/qmp/qlit.h"
-#include "qapi/qmp/qbool.h"
-#include "qapi/qmp/qlist.h"
-#include "qapi/qmp/qnum.h"
-#include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qstring.h"
-#include "qapi/qmp/qnull.h"
+#include "qobject/qlit.h"
+#include "qobject/qbool.h"
+#include "qobject/qlist.h"
+#include "qobject/qnum.h"
+#include "qobject/qdict.h"
+#include "qobject/qstring.h"
+#include "qobject/qnull.h"
 
 static bool qlit_equal_qdict(const QLitObject *lhs, const QDict *qdict)
 {

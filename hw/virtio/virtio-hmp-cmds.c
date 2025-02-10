@@ -9,7 +9,7 @@
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
 #include "qapi/qapi-commands-virtio.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 
 
 static void hmp_virtio_dump_protocols(Monitor *mon,

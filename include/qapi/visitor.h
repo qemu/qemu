@@ -463,29 +463,29 @@ bool visit_optional(Visitor *v, const char *name, bool *present);
 /*
  * Should we reject member @name due to policy?
  *
- * @special_features is the member's special features encoded as a
- * bitset of QapiSpecialFeature.
+ * @features is the member's special features encoded as a
+ * bitset of QapiFeature.
  *
  * @name must not be NULL.  This function is only useful between
  * visit_start_struct() and visit_end_struct(), since only objects
  * have deprecated members.
  */
 bool visit_policy_reject(Visitor *v, const char *name,
-                         unsigned special_features, Error **errp);
+                         uint64_t features, Error **errp);
 
 /*
  *
  * Should we skip member @name due to policy?
  *
- * @special_features is the member's special features encoded as a
- * bitset of QapiSpecialFeature.
+ * @features is the member's special features encoded as a
+ * bitset of QapiFeature.
  *
  * @name must not be NULL.  This function is only useful between
  * visit_start_struct() and visit_end_struct(), since only objects
  * have deprecated members.
  */
 bool visit_policy_skip(Visitor *v, const char *name,
-                       unsigned special_features);
+                       uint64_t features);
 
 /*
  * Set policy for handling deprecated management interfaces.

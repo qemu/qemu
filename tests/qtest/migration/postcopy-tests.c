@@ -14,7 +14,7 @@
 #include "libqtest.h"
 #include "migration/framework.h"
 #include "migration/migration-util.h"
-#include "qapi/qmp/qlist.h"
+#include "qobject/qlist.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/range.h"

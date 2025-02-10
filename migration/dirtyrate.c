@@ -24,7 +24,7 @@
 #include "dirtyrate.h"
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "system/kvm.h"
 #include "system/runstate.h"
 #include "exec/memory.h"

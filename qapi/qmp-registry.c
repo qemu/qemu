@@ -13,11 +13,11 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/qmp/dispatch.h"
+#include "qapi/qmp-registry.h"
 
 void qmp_register_command(QmpCommandList *cmds, const char *name,
                           QmpCommandFunc *fn, QmpCommandOptions options,
-                          unsigned special_features)
+                          uint64_t features)
 {
     QmpCommand *cmd = g_malloc0(sizeof(*cmd));
 
@@ -28,7 +28,7 @@ void qmp_register_command(QmpCommandList *cmds, const char *name,
     cmd->fn = fn;
     cmd->enabled = true;
     cmd->options = options;
-    cmd->special_features = special_features;
+    cmd->features = features;
     QTAILQ_INSERT_TAIL(cmds, cmd, node);
 }
 

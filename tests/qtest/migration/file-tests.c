@@ -15,7 +15,7 @@
 #include "migration/framework.h"
 #include "migration/migration-qmp.h"
 #include "migration/migration-util.h"
-#include "qapi/qmp/qlist.h"
+#include "qobject/qlist.h"
 
 
 static char *tmpfs;

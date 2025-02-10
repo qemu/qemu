@@ -14,14 +14,14 @@
 #include "qapi/forward-visitor.h"
 #include "qapi/visitor-impl.h"
 #include "qemu/queue.h"
-#include "qapi/qmp/qjson.h"
-#include "qapi/qmp/qbool.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qjson.h"
+#include "qobject/qbool.h"
+#include "qobject/qdict.h"
 #include "qapi/qmp/qerror.h"
-#include "qapi/qmp/qlist.h"
-#include "qapi/qmp/qnull.h"
-#include "qapi/qmp/qnum.h"
-#include "qapi/qmp/qstring.h"
+#include "qobject/qlist.h"
+#include "qobject/qnull.h"
+#include "qobject/qnum.h"
+#include "qobject/qstring.h"
 #include "qemu/cutils.h"
 
 struct ForwardFieldVisitor {
@@ -246,7 +246,7 @@ static void forward_field_optional(Visitor *v, const char *name, bool *present)
 }
 
 static bool forward_field_policy_reject(Visitor *v, const char *name,
-                                        unsigned special_features,
+                                        uint64_t features,
                                         Error **errp)
 {
     ForwardFieldVisitor *ffv = to_ffv(v);
@@ -254,18 +254,18 @@ static bool forward_field_policy_reject(Visitor *v, const char *name,
     if (!forward_field_translate_name(ffv, &name, errp)) {
         return true;
     }
-    return visit_policy_reject(ffv->target, name, special_features, errp);
+    return visit_policy_reject(ffv->target, name, features, errp);
 }
 
 static bool forward_field_policy_skip(Visitor *v, const char *name,
-                                      unsigned special_features)
+                                      uint64_t features)
 {
     ForwardFieldVisitor *ffv = to_ffv(v);
 
     if (!forward_field_translate_name(ffv, &name, NULL)) {
         return true;
     }
-    return visit_policy_skip(ffv->target, name, special_features);
+    return visit_policy_skip(ffv->target, name, features);
 }
 
 static void forward_field_complete(Visitor *v, void *opaque)

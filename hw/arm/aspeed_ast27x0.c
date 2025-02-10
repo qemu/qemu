@@ -20,7 +20,7 @@
 #include "net/net.h"
 #include "system/system.h"
 #include "hw/intc/arm_gicv3.h"
-#include "qapi/qmp/qlist.h"
+#include "qobject/qlist.h"
 #include "qemu/log.h"
 
 static const hwaddr aspeed_soc_ast2700_memmap[] = {

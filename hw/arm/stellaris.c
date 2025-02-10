@@ -32,7 +32,7 @@
 #include "hw/timer/stellaris-gptm.h"
 #include "hw/qdev-clock.h"
 #include "qom/object.h"
-#include "qapi/qmp/qlist.h"
+#include "qobject/qlist.h"
 #include "ui/input.h"
 
 #define GPIO_A 0

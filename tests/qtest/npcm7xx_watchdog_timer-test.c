@@ -18,7 +18,7 @@
 #include "qemu/timer.h"
 
 #include "libqtest.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 
 #define WTCR_OFFSET     0x1c
 #define REF_HZ          (25000000)

@@ -13,7 +13,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/qmp/qnum.h"
+#include "qobject/qnum.h"
 #include "qobject-internal.h"
 
 /**

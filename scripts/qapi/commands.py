@@ -25,7 +25,7 @@ from .gen import (
     QAPIGenC,
     QAPISchemaModularCVisitor,
     build_params,
-    gen_special_features,
+    gen_features,
     ifcontext,
 )
 from .schema import (
@@ -298,7 +298,7 @@ def gen_register_command(name: str,
 ''',
                 name=name, c_name=c_name(name),
                 opts=' | '.join(options) or 0,
-                feats=gen_special_features(features))
+                feats=gen_features(features))
     return ret
 
 
@@ -320,7 +320,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
 #include "qemu/osdep.h"
 #include "qapi/compat-policy.h"
 #include "qapi/visitor.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "qapi/dealloc-visitor.h"
 #include "qapi/error.h"
 #include "%(visit)s.h"
@@ -330,7 +330,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
 
         if self._gen_tracing and commands != 'qapi-commands':
             self._genc.add(mcgen('''
-#include "qapi/qmp/qjson.h"
+#include "qobject/qjson.h"
 #include "trace/trace-%(nm)s_trace_events.h"
 ''',
                                  nm=c_name(commands, protect=False)))
@@ -346,7 +346,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
     def visit_begin(self, schema: QAPISchema) -> None:
         self._add_module('./init', ' * QAPI Commands initialization')
         self._genh.add(mcgen('''
-#include "qapi/qmp/dispatch.h"
+#include "qapi/qmp-registry.h"
 
 void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
 ''',
@@ -355,6 +355,7 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
 #include "qemu/osdep.h"
 #include "%(prefix)sqapi-commands.h"
 #include "%(prefix)sqapi-init-commands.h"
+#include "%(prefix)sqapi-features.h"
 
 void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
 {

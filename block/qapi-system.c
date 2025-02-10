@@ -35,7 +35,7 @@
 #include "block/block_int.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-block.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "system/block-backend.h"
 #include "system/blockdev.h"
 

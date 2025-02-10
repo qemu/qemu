@@ -27,7 +27,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qlist.h"
+#include "qobject/qlist.h"
 #include "exec/address-spaces.h"
 #include "cpu.h"
 #include "system/system.h"

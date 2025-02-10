@@ -13,7 +13,7 @@
 #ifndef QNULL_H
 #define QNULL_H
 
-#include "qapi/qmp/qobject.h"
+#include "qobject/qobject.h"
 
 struct QNull {
     struct QObjectBase_ base;

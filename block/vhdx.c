@@ -29,7 +29,7 @@
 #include "vhdx.h"
 #include "migration/blocker.h"
 #include "qemu/uuid.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-visit-block-core.h"
 

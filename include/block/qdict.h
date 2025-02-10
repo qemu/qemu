@@ -10,7 +10,7 @@
 #ifndef BLOCK_QDICT_H
 #define BLOCK_QDICT_H
 
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 
 QObject *qdict_crumple(const QDict *src, Error **errp);
 void qdict_flatten(QDict *qdict);

@@ -460,7 +460,7 @@
 #
 # @unstable: For now this command is subject to change.
 #
-# Since : 9.1
+# Since: 9.1
 ##
 { 'command': 'cxl-add-dynamic-capacity',
   'data': { 'path': 'str',
@@ -539,7 +539,7 @@
 #
 # @unstable: For now this command is subject to change.
 #
-# Since : 9.1
+# Since: 9.1
 ##
 { 'command': 'cxl-release-dynamic-capacity',
   'data': { 'path': 'str',

@@ -17,7 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/bswap.h"
-#include "qapi/qmp/qlist.h"
+#include "qobject/qlist.h"
 #include "libqtest.h"
 #include "libqos/fw_cfg.h"
 #include "libqos/libqos.h"

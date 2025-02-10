@@ -24,7 +24,7 @@
 #include "qemu/cutils.h"
 #include "qemu/log.h"
 #include "qemu/qemu-print.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "qapi/error.h"
 
 #include <sys/socket.h>
