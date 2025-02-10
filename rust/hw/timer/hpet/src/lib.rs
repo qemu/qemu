@@ -8,3 +8,4 @@
 //! Precision Event Timers) device in QEMU.
 
 pub mod fw_cfg;
+pub mod hpet;
