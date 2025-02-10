@@ -9,7 +9,6 @@
 #define PPC_CPU_PARAM_H
 
 #ifdef TARGET_PPC64
-# define TARGET_LONG_BITS 64
 /*
  * Note that the official physical address space bits is 62-M where M
  * is implementation dependent.  I've not looked up M for the set of
@@ -27,7 +26,6 @@
 #  define TARGET_VIRT_ADDR_SPACE_BITS 64
 # endif
 #else
-# define TARGET_LONG_BITS 32
 # define TARGET_PHYS_ADDR_SPACE_BITS 36
 # define TARGET_VIRT_ADDR_SPACE_BITS 32
 #endif
