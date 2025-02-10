@@ -3223,6 +3223,11 @@ static void process_constraint_sets(void)
                 case 'i':
                     args_ct[i].ct |= TCG_CT_CONST;
                     break;
+#ifdef TCG_REG_ZERO
+                case 'z':
+                    args_ct[i].ct |= TCG_CT_REG_ZERO;
+                    break;
+#endif
 
                 /* Include all of the target-specific constraints. */
 
@@ -5074,13 +5079,23 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         arg_ct = &args_ct[i];
         ts = arg_temp(arg);
 
-        if (ts->val_type == TEMP_VAL_CONST
-            && tcg_target_const_match(ts->val, arg_ct->ct, ts->type,
-                                      op_cond, TCGOP_VECE(op))) {
-            /* constant is OK for instruction */
-            const_args[i] = 1;
-            new_args[i] = ts->val;
-            continue;
+        if (ts->val_type == TEMP_VAL_CONST) {
+#ifdef TCG_REG_ZERO
+            if (ts->val == 0 && (arg_ct->ct & TCG_CT_REG_ZERO)) {
+                /* Hardware zero register: indicate register via non-const. */
+                const_args[i] = 0;
+                new_args[i] = TCG_REG_ZERO;
+                continue;
+            }
+#endif
+
+            if (tcg_target_const_match(ts->val, arg_ct->ct, ts->type,
+                                       op_cond, TCGOP_VECE(op))) {
+                /* constant is OK for instruction */
+                const_args[i] = 1;
+                new_args[i] = ts->val;
+                continue;
+            }
         }
 
         reg = ts->reg;
