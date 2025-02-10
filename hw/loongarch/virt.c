@@ -312,7 +312,7 @@ static void virt_devices_init(DeviceState *pch_pic,
 
 static void virt_cpu_irq_init(LoongArchVirtMachineState *lvms)
 {
-    int num, pin;
+    int num;
     MachineState *ms = MACHINE(lvms);
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     const CPUArchIdList *possible_cpus;
@@ -328,15 +328,7 @@ static void virt_cpu_irq_init(LoongArchVirtMachineState *lvms)
         }
 
         hotplug_handler_plug(HOTPLUG_HANDLER(lvms->ipi), DEVICE(cs), &err);
-
-        /*
-         * connect ext irq to the cpu irq
-         * cpu_pin[9:2] <= intc_pin[7:0]
-         */
-        for (pin = 0; pin < LS3A_INTC_IP; pin++) {
-            qdev_connect_gpio_out(lvms->extioi, (num * LS3A_INTC_IP + pin),
-                                  qdev_get_gpio_in(DEVICE(cs), pin + 2));
-        }
+        hotplug_handler_plug(HOTPLUG_HANDLER(lvms->extioi), DEVICE(cs), &err);
     }
 }
 
