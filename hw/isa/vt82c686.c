@@ -224,7 +224,7 @@ static void via_pm_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    ViaPMInitInfo *info = data;
+    const ViaPMInitInfo *info = data;
 
     k->realize = via_pm_realize;
     k->config_write = pm_write_config;
