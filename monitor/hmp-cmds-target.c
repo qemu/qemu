@@ -301,7 +301,6 @@ void hmp_gpa2hva(Monitor *mon, const QDict *qdict)
 void hmp_gva2gpa(Monitor *mon, const QDict *qdict)
 {
     target_ulong addr = qdict_get_int(qdict, "addr");
-    MemTxAttrs attrs;
     CPUState *cs = mon_get_cpu(mon);
     hwaddr gpa;
 
@@ -310,7 +309,7 @@ void hmp_gva2gpa(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    gpa  = cpu_get_phys_page_attrs_debug(cs, addr & TARGET_PAGE_MASK, &attrs);
+    gpa  = cpu_get_phys_page_debug(cs, addr & TARGET_PAGE_MASK);
     if (gpa == -1) {
         monitor_printf(mon, "Unmapped\n");
     } else {
