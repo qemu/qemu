@@ -3,6 +3,8 @@
 
 #include "../generic/signal.h"
 
+#define TARGET_SA_RESTORER      0x04000000
+
 /* For x86_64, use of SA_RESTORER is mandatory. */
 #define TARGET_ARCH_HAS_SIGTRAMP_PAGE 0
 
