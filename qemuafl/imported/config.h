@@ -26,7 +26,7 @@
 /* Version string: */
 
 // c = release, a = volatile github dev, e = experimental branch
-#define VERSION "++4.20a"
+#define VERSION "++4.32a"
 
 /******************************************************
  *                                                    *
@@ -39,7 +39,7 @@
    However if a target has problematic constructors and init arrays then
    this can fail. Hence afl-fuzz deploys a larger default map. The largest
    map seen so far is the xlsx fuzzer for libreoffice which is 5MB.
-   At runtime this value can be overriden via AFL_MAP_SIZE.
+   At runtime this value can be overridden via AFL_MAP_SIZE.
    Default: 8MB (defined in bytes) */
 #define DEFAULT_SHMEM_SIZE (8 * 1024 * 1024)
 
@@ -51,6 +51,18 @@
 
 /* Default file permission umode when creating files (default: 0600) */
 #define DEFAULT_PERMISSION 0600
+
+#ifdef __APPLE__
+  #include <TargetConditionals.h>
+  #if TARGET_OS_IOS
+    #undef DEFAULT_PERMISSION
+    #define DEFAULT_PERMISSION 0666
+  #endif
+#endif
+#ifdef __ANDROID__
+  #undef DEFAULT_PERMISSION
+  #define DEFAULT_PERMISSION 0666
+#endif
 
 /* SkipDet's global configuration */
 
@@ -85,11 +97,17 @@
 /* Maximum allowed fails per CMP value. Default: 96 */
 #define CMPLOG_FAIL_MAX 96
 
+/*
+ * Effective fuzzing with selective feeding inputs
+ */
+
+#define MAX_EXTRA_SAN_BINARY 4
+
 /* -------------------------------------*/
 /* Now non-cmplog configuration options */
 /* -------------------------------------*/
 
-/* If a persistent target keeps state and found crashes are not reproducable
+/* If a persistent target keeps state and found crashes are not reproducible
    then enable this option and set the AFL_PERSISTENT_RECORD env variable
    to a number. These number of testcases prior and including the crash case
    will be kept and written to the crash/ directory as RECORD:... files.
@@ -324,9 +342,9 @@
 #define SYNC_INTERVAL 8
 
 /* Sync time (minimum time between syncing in ms, time is halfed for -M main
-   nodes) - default is 30 minutes: */
+   nodes) - default is 20 minutes: */
 
-#define SYNC_TIME (30 * 60 * 1000)
+#define SYNC_TIME (20 * 60 * 1000)
 
 /* Output directory reuse grace period (minutes): */
 
@@ -464,7 +482,7 @@
 /* Do not change this unless you really know what you are doing. */
 
 #define MAP_SIZE (1U << MAP_SIZE_POW2)
-#if MAP_SIZE <= 65536
+#if MAP_SIZE <= 2097152
   #define MAP_INITIAL_SIZE (2 << 20)  // = 2097152
 #else
   #define MAP_INITIAL_SIZE MAP_SIZE
@@ -491,6 +509,9 @@
 /* AFL RedQueen */
 
 #define CMPLOG_SHM_ENV_VAR "__AFL_CMPLOG_SHM_ID"
+
+/* ASAN SHM ID */
+#define AFL_ASAN_FUZZ_SHM_ENV_VAR "__AFL_ASAN_SHM_ID"
 
 /* CPU Affinity lockfile env var */
 
@@ -523,7 +544,7 @@
 
 #define AFL_TXT_MAX_LEN 65535
 
-/* What is the minimum percentage of ascii characters present to be classifed
+/* What is the minimum percentage of ascii characters present to be classified
    as "is_ascii"? */
 
 #define AFL_TXT_MIN_PERCENT 99

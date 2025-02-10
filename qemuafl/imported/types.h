@@ -5,7 +5,7 @@
    Originally written by Michal Zalewski
 
    Now maintained by Marc Heuse <mh@mh-sec.de>,
-                     Heiko Eißfeldt <heiko.eissfeldt@hexco.de>,
+                     Heiko Eissfeldt <heiko.eissfeldt@hexco.de>,
                      Andrea Fioraldi <andreafioraldi@gmail.com>,
                      Dominik Maier <mail@dmnk.co>
 
@@ -155,7 +155,7 @@ typedef int128_t s128;
   ({                                           \
                                                \
     char *d = (char *)(_x), *s = (char *)(_y); \
-    u32   i, l = (_l)-1;                       \
+    u32   i, l = (_l) - 1;                     \
     for (i = 0; i <= l; i++)                   \
       d[l - i] = s[i];                         \
                                                \
