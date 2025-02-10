@@ -300,12 +300,24 @@ static void test_multifd_file_mapped_ram_fdset_dio(void)
 }
 #endif /* !_WIN32 */
 
+static void migration_test_add_file_smoke(MigrationTestEnv *env)
+{
+    migration_test_add("/migration/precopy/file",
+                       test_precopy_file);
+
+    migration_test_add("/migration/multifd/file/mapped-ram/dio",
+                       test_multifd_file_mapped_ram_dio);
+}
+
 void migration_test_add_file(MigrationTestEnv *env)
 {
     tmpfs = env->tmpfs;
 
-    migration_test_add("/migration/precopy/file",
-                       test_precopy_file);
+    migration_test_add_file_smoke(env);
+
+    if (!env->full_set) {
+        return;
+    }
 
     migration_test_add("/migration/precopy/file/offset",
                        test_precopy_file_offset);
@@ -325,9 +337,6 @@ void migration_test_add_file(MigrationTestEnv *env)
                        test_multifd_file_mapped_ram);
     migration_test_add("/migration/multifd/file/mapped-ram/live",
                        test_multifd_file_mapped_ram_live);
-
-    migration_test_add("/migration/multifd/file/mapped-ram/dio",
-                       test_multifd_file_mapped_ram_dio);
 
 #ifndef _WIN32
     migration_test_add("/migration/multifd/file/mapped-ram/fdset",

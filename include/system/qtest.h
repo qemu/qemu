@@ -24,7 +24,6 @@ static inline bool qtest_enabled(void)
 }
 
 #ifndef CONFIG_USER_ONLY
-void qtest_send_prefix(CharBackend *chr);
 void G_GNUC_PRINTF(2, 3) qtest_sendf(CharBackend *chr, const char *fmt, ...);
 void qtest_set_command_cb(bool (*pc_cb)(CharBackend *chr, gchar **words));
 bool qtest_driver(void);
