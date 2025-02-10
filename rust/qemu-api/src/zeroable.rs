@@ -56,6 +56,7 @@ pub unsafe trait Zeroable: Default {
 /// ## Differences with `core::mem::zeroed`
 ///
 /// `const_zero` zeroes padding bits, while `core::mem::zeroed` doesn't
+#[macro_export]
 macro_rules! const_zero {
     // This macro to produce a type-generic zero constant is taken from the
     // const_zero crate (v0.1.1):
@@ -77,10 +78,11 @@ macro_rules! const_zero {
 }
 
 /// A wrapper to implement the `Zeroable` trait through the `const_zero` macro.
+#[macro_export]
 macro_rules! impl_zeroable {
     ($type:ty) => {
-        unsafe impl Zeroable for $type {
-            const ZERO: Self = unsafe { const_zero!($type) };
+        unsafe impl $crate::zeroable::Zeroable for $type {
+            const ZERO: Self = unsafe { $crate::const_zero!($type) };
         }
     };
 }
