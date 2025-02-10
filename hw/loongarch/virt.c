@@ -317,6 +317,7 @@ static void virt_cpu_irq_init(LoongArchVirtMachineState *lvms)
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     const CPUArchIdList *possible_cpus;
     CPUState *cs;
+    Error *err = NULL;
 
     /* cpu nodes */
     possible_cpus = mc->possible_cpu_arch_ids(ms);
@@ -326,9 +327,7 @@ static void virt_cpu_irq_init(LoongArchVirtMachineState *lvms)
             continue;
         }
 
-        /* connect ipi irq to cpu irq */
-        qdev_connect_gpio_out(lvms->ipi, num,
-                              qdev_get_gpio_in(DEVICE(cs), IRQ_IPI));
+        hotplug_handler_plug(HOTPLUG_HANDLER(lvms->ipi), DEVICE(cs), &err);
 
         /*
          * connect ext irq to the cpu irq
