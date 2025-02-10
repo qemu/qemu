@@ -84,7 +84,6 @@ where
         self.cell.as_ptr()
     }
 
-    #[allow(dead_code)]
     pub(crate) const fn slice_as_ptr(slice: &[Self]) -> *mut *mut IRQState {
         assert!(!slice.is_empty());
         slice[0].as_ptr()

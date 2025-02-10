@@ -6,17 +6,18 @@
 
 use std::{
     ffi::{CStr, CString},
-    os::raw::c_void,
+    os::raw::{c_int, c_void},
     ptr::NonNull,
 };
 
 pub use bindings::{Clock, ClockEvent, DeviceClass, DeviceState, Property, ResetType};
 
 use crate::{
-    bindings::{self, Error, ResettableClass},
+    bindings::{self, qdev_init_gpio_in, qdev_init_gpio_out, Error, ResettableClass},
     callbacks::FnCall,
     cell::bql_locked,
     chardev::Chardev,
+    irq::InterruptSource,
     prelude::*,
     qom::{ClassInitImpl, ObjectClass, ObjectImpl, Owned},
     vmstate::VMStateDescription,
@@ -28,8 +29,8 @@ pub trait ResettablePhasesImpl {
     /// If not None, this is called when the object enters reset. It
     /// can reset local state of the object, but it must not do anything that
     /// has a side-effect on other objects, such as raising or lowering an
-    /// [`InterruptSource`](crate::irq::InterruptSource), or reading or
-    /// writing guest memory. It takes the reset's type as argument.
+    /// [`InterruptSource`], or reading or writing guest memory. It takes the
+    /// reset's type as argument.
     const ENTER: Option<fn(&Self, ResetType)> = None;
 
     /// If not None, this is called when the object for entry into reset, once
@@ -316,6 +317,44 @@ where
         let c_propname = CString::new(propname).unwrap();
         unsafe {
             bindings::qdev_prop_set_chr(self.as_mut_ptr(), c_propname.as_ptr(), chr.as_mut_ptr());
+        }
+    }
+
+    fn init_gpio_in<F: for<'a> FnCall<(&'a Self::Target, u32, u32)>>(
+        &self,
+        num_lines: u32,
+        _cb: F,
+    ) {
+        let _: () = F::ASSERT_IS_SOME;
+
+        unsafe extern "C" fn rust_irq_handler<T, F: for<'a> FnCall<(&'a T, u32, u32)>>(
+            opaque: *mut c_void,
+            line: c_int,
+            level: c_int,
+        ) {
+            // SAFETY: the opaque was passed as a reference to `T`
+            F::call((unsafe { &*(opaque.cast::<T>()) }, line as u32, level as u32))
+        }
+
+        let gpio_in_cb: unsafe extern "C" fn(*mut c_void, c_int, c_int) =
+            rust_irq_handler::<Self::Target, F>;
+
+        unsafe {
+            qdev_init_gpio_in(
+                self.as_mut_ptr::<DeviceState>(),
+                Some(gpio_in_cb),
+                num_lines as c_int,
+            );
+        }
+    }
+
+    fn init_gpio_out(&self, pins: &[InterruptSource]) {
+        unsafe {
+            qdev_init_gpio_out(
+                self.as_mut_ptr::<DeviceState>(),
+                InterruptSource::slice_as_ptr(pins),
+                pins.len() as c_int,
+            );
         }
     }
 }
