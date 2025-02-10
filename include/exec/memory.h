@@ -2995,10 +2995,13 @@ MemTxResult address_space_write_cached_slow(MemoryRegionCache *cache,
 int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr);
 bool prepare_mmio_access(MemoryRegion *mr);
 
-static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
+static inline bool memory_region_supports_direct_access(MemoryRegion *mr)
 {
     /* ROM DEVICE regions only allow direct access if in ROMD mode. */
-    if (!memory_region_is_ram(mr) && !memory_region_is_romd(mr)) {
+    if (memory_region_is_romd(mr)) {
+        return true;
+    }
+    if (!memory_region_is_ram(mr)) {
         return false;
     }
     /*
@@ -3006,7 +3009,12 @@ static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
      * be MMIO and access using mempy can be wrong (e.g., using instructions not
      * intended for MMIO access). So we treat this as IO.
      */
-    if (memory_region_is_ram_device(mr)) {
+    return !memory_region_is_ram_device(mr);
+}
+
+static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
+{
+    if (!memory_region_supports_direct_access(mr)) {
         return false;
     }
     if (is_write) {
