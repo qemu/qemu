@@ -2997,12 +2997,19 @@ bool prepare_mmio_access(MemoryRegion *mr);
 
 static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
 {
+    /*
+     * RAM DEVICE regions can be accessed directly using memcpy, but it might
+     * be MMIO and access using mempy can be wrong (e.g., using instructions not
+     * intended for MMIO access). So we treat this as IO.
+     */
+    if (memory_region_is_ram_device(mr)) {
+        return false;
+    }
     if (is_write) {
         return memory_region_is_ram(mr) && !mr->readonly &&
-               !mr->rom_device && !memory_region_is_ram_device(mr);
+               !mr->rom_device;
     } else {
-        return (memory_region_is_ram(mr) && !memory_region_is_ram_device(mr)) ||
-               memory_region_is_romd(mr);
+        return memory_region_is_ram(mr) || memory_region_is_romd(mr);
     }
 }
 
