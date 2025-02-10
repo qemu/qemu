@@ -75,17 +75,6 @@ static int scale_by_log2_tag_granule(DisasContext *s, int x)
 #include "decode-sme-fa64.c.inc"
 #include "decode-a64.c.inc"
 
-/* Table based decoder typedefs - used when the relevant bits for decode
- * are too awkwardly scattered across the instruction (eg SIMD).
- */
-typedef void AArch64DecodeFn(DisasContext *s, uint32_t insn);
-
-typedef struct AArch64DecodeTable {
-    uint32_t pattern;
-    uint32_t mask;
-    AArch64DecodeFn *disas_fn;
-} AArch64DecodeTable;
-
 /* initialize TCG globals.  */
 void a64_translate_init(void)
 {

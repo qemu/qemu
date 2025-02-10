@@ -20,13 +20,6 @@ ARM_TESTS = hello-arm
 hello-arm: CFLAGS+=-marm -ffreestanding -fno-stack-protector
 hello-arm: LDFLAGS+=-nostdlib
 
-# IWMXT floating point extensions
-ARM_TESTS += test-arm-iwmmxt
-# Clang assembler does not support IWMXT, so use the external assembler.
-test-arm-iwmmxt: CFLAGS += -marm -march=iwmmxt -mabi=aapcs -mfpu=fpv4-sp-d16 $(CROSS_CC_HAS_FNIA)
-test-arm-iwmmxt: test-arm-iwmmxt.S
-	$(CC) $(CFLAGS) -Wa,--noexecstack $< -o $@ $(LDFLAGS)
-
 # Float-convert Tests
 ARM_TESTS += fcvt
 fcvt: LDFLAGS += -lm
