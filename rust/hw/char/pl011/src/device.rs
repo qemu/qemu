@@ -10,14 +10,12 @@ use std::{
 
 use qemu_api::{
     bindings::{
-        error_fatal, qdev_prop_set_chr, qemu_chr_fe_accept_input, qemu_chr_fe_ioctl,
-        qemu_chr_fe_set_handlers, qemu_chr_fe_write_all, qemu_irq, sysbus_connect_irq,
-        sysbus_mmio_map, sysbus_realize, CharBackend, QEMUChrEvent,
-        CHR_IOCTL_SERIAL_SET_BREAK,
+        qemu_chr_fe_accept_input, qemu_chr_fe_ioctl, qemu_chr_fe_set_handlers,
+        qemu_chr_fe_write_all, CharBackend, QEMUChrEvent, CHR_IOCTL_SERIAL_SET_BREAK,
     },
     chardev::Chardev,
-    c_str, impl_vmstate_forward,
-    irq::InterruptSource,
+    impl_vmstate_forward,
+    irq::{IRQState, InterruptSource},
     memory::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder},
     prelude::*,
     qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
@@ -698,26 +696,27 @@ pub unsafe extern "C" fn pl011_event(opaque: *mut c_void, event: QEMUChrEvent) {
 
 /// # Safety
 ///
-/// We expect the FFI user of this function to pass a valid pointer for `chr`.
+/// We expect the FFI user of this function to pass a valid pointer for `chr`
+/// and `irq`.
 #[no_mangle]
 pub unsafe extern "C" fn pl011_create(
     addr: u64,
-    irq: qemu_irq,
+    irq: *mut IRQState,
     chr: *mut Chardev,
 ) -> *mut DeviceState {
-    let pl011 = PL011State::new();
-    unsafe {
-        let dev = pl011.as_mut_ptr::<DeviceState>();
-        qdev_prop_set_chr(dev, c_str!("chardev").as_ptr(), chr);
+    // SAFETY: The callers promise that they have owned references.
+    // They do not gift them to pl011_create, so use `Owned::from`.
+    let irq = unsafe { Owned::<IRQState>::from(&*irq) };
+    let chr = unsafe { Owned::<Chardev>::from(&*chr) };
 
-        let sysbus = pl011.as_mut_ptr::<SysBusDevice>();
-        sysbus_realize(sysbus, addr_of_mut!(error_fatal));
-        sysbus_mmio_map(sysbus, 0, addr);
-        sysbus_connect_irq(sysbus, 0, irq);
+    let dev = PL011State::new();
+    dev.prop_set_chr("chardev", &chr);
+    dev.sysbus_realize();
+    dev.mmio_map(0, addr);
+    dev.connect_irq(0, &irq);
 
-        // return the pointer, which is kept alive by the QOM tree; drop owned ref
-        pl011.as_mut_ptr()
-    }
+    // The pointer is kept alive by the QOM tree; drop the owned ref
+    dev.as_mut_ptr()
 }
 
 #[repr(C)]

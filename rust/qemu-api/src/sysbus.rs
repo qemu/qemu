@@ -2,18 +2,18 @@
 // Author(s): Paolo Bonzini <pbonzini@redhat.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::ffi::CStr;
+use std::{ffi::CStr, ptr::addr_of_mut};
 
 pub use bindings::{SysBusDevice, SysBusDeviceClass};
 
 use crate::{
     bindings,
     cell::bql_locked,
-    irq::InterruptSource,
+    irq::{IRQState, InterruptSource},
     memory::MemoryRegion,
     prelude::*,
     qdev::{DeviceClass, DeviceState},
-    qom::ClassInitImpl,
+    qom::{ClassInitImpl, Owned},
 };
 
 unsafe impl ObjectType for SysBusDevice {
@@ -58,6 +58,34 @@ where
         assert!(bql_locked());
         unsafe {
             bindings::sysbus_init_irq(self.as_mut_ptr(), irq.as_ptr());
+        }
+    }
+
+    // TODO: do we want a type like GuestAddress here?
+    fn mmio_map(&self, id: u32, addr: u64) {
+        assert!(bql_locked());
+        let id: i32 = id.try_into().unwrap();
+        unsafe {
+            bindings::sysbus_mmio_map(self.as_mut_ptr(), id, addr);
+        }
+    }
+
+    // Owned<> is used here because sysbus_connect_irq (via
+    // object_property_set_link) adds a reference to the IRQState,
+    // which can prolong its life
+    fn connect_irq(&self, id: u32, irq: &Owned<IRQState>) {
+        assert!(bql_locked());
+        let id: i32 = id.try_into().unwrap();
+        unsafe {
+            bindings::sysbus_connect_irq(self.as_mut_ptr(), id, irq.as_mut_ptr());
+        }
+    }
+
+    fn sysbus_realize(&self) {
+        // TODO: return an Error
+        assert!(bql_locked());
+        unsafe {
+            bindings::sysbus_realize(self.as_mut_ptr(), addr_of_mut!(bindings::error_fatal));
         }
     }
 }
