@@ -2,8 +2,6 @@
 // Author(s): Zhao Liu <zhai1.liu@intel.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#![allow(dead_code)]
-
 use std::ptr::addr_of_mut;
 
 use qemu_api::{cell::bql_locked, impl_zeroable, zeroable::Zeroable};

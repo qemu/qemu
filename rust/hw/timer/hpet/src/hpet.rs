@@ -2,20 +2,32 @@
 // Author(s): Zhao Liu <zhai1.liu@intel.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#![allow(dead_code)]
-
-use std::ptr::{addr_of_mut, null_mut, NonNull};
+use std::{
+    ffi::CStr,
+    ptr::{addr_of_mut, null_mut, NonNull},
+    slice::from_ref,
+};
 
 use qemu_api::{
-    bindings::{address_space_memory, address_space_stl_le},
+    bindings::{
+        address_space_memory, address_space_stl_le, qdev_prop_bit, qdev_prop_bool,
+        qdev_prop_uint32, qdev_prop_uint8,
+    },
+    c_str,
     cell::{BqlCell, BqlRefCell},
     irq::InterruptSource,
-    memory::{MemoryRegion, MEMTXATTRS_UNSPECIFIED},
+    memory::{
+        hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder, MEMTXATTRS_UNSPECIFIED,
+    },
     prelude::*,
-    qom::ParentField,
+    qdev::{DeviceImpl, DeviceMethods, DeviceState, Property, ResetType, ResettablePhasesImpl},
+    qom::{ObjectImpl, ObjectType, ParentField},
+    qom_isa,
     sysbus::SysBusDevice,
     timer::{Timer, CLOCK_VIRTUAL},
 };
+
+use crate::fw_cfg::HPETFwConfig;
 
 /// Register space for each timer block (`HPET_BASE` is defined in hpet.h).
 const HPET_REG_SPACE_LEN: u64 = 0x400; // 1024 bytes
@@ -139,8 +151,7 @@ fn timer_handler(timer_cell: &BqlRefCell<HPETTimer>) {
 
 /// HPET Timer Abstraction
 #[repr(C)]
-#[derive(Debug, Default)]
-#[cfg_attr(has_offset_of, derive(qemu_api_macros::offsets))]
+#[derive(Debug, Default, qemu_api_macros::offsets)]
 pub struct HPETTimer {
     /// timer N index within the timer block (`HPETState`)
     #[doc(alias = "tn")]
@@ -451,11 +462,41 @@ impl HPETTimer {
         }
         self.update_irq(true);
     }
+
+    const fn read(&self, addr: hwaddr, _size: u32) -> u64 {
+        let shift: u64 = (addr & 4) * 8;
+
+        match addr & !4 {
+            HPET_TN_CFG_REG => self.config >> shift, // including interrupt capabilities
+            HPET_TN_CMP_REG => self.cmp >> shift,    // comparator register
+            HPET_TN_FSB_ROUTE_REG => self.fsb >> shift,
+            _ => {
+                // TODO: Add trace point - trace_hpet_ram_read_invalid()
+                // Reserved.
+                0
+            }
+        }
+    }
+
+    fn write(&mut self, addr: hwaddr, value: u64, size: u32) {
+        let shift = ((addr & 4) * 8) as u32;
+        let len = std::cmp::min(size * 8, 64 - shift);
+
+        match addr & !4 {
+            HPET_TN_CFG_REG => self.set_tn_cfg_reg(shift, len, value),
+            HPET_TN_CMP_REG => self.set_tn_cmp_reg(shift, len, value),
+            HPET_TN_FSB_ROUTE_REG => self.set_tn_fsb_route_reg(shift, len, value),
+            _ => {
+                // TODO: Add trace point - trace_hpet_ram_write_invalid()
+                // Reserved.
+            }
+        }
+    }
 }
 
 /// HPET Event Timer Block Abstraction
 #[repr(C)]
-#[derive(qemu_api_macros::offsets)]
+#[derive(qemu_api_macros::Object, qemu_api_macros::offsets)]
 pub struct HPETState {
     parent_obj: ParentField<SysBusDevice>,
     iomem: MemoryRegion,
@@ -626,4 +667,223 @@ impl HPETState {
         self.counter
             .set(self.counter.get().deposit(shift, len, val));
     }
+
+    unsafe fn init(&mut self) {
+        static HPET_RAM_OPS: MemoryRegionOps<HPETState> =
+            MemoryRegionOpsBuilder::<HPETState>::new()
+                .read(&HPETState::read)
+                .write(&HPETState::write)
+                .native_endian()
+                .valid_sizes(4, 8)
+                .impl_sizes(4, 8)
+                .build();
+
+        // SAFETY:
+        // self and self.iomem are guaranteed to be valid at this point since callers
+        // must make sure the `self` reference is valid.
+        MemoryRegion::init_io(
+            unsafe { &mut *addr_of_mut!(self.iomem) },
+            addr_of_mut!(*self),
+            &HPET_RAM_OPS,
+            "hpet",
+            HPET_REG_SPACE_LEN,
+        );
+    }
+
+    fn post_init(&self) {
+        self.init_mmio(&self.iomem);
+        for irq in self.irqs.iter() {
+            self.init_irq(irq);
+        }
+    }
+
+    fn realize(&self) {
+        if self.int_route_cap == 0 {
+            // TODO: Add error binding: warn_report()
+            println!("Hpet's hpet-intcap property not initialized");
+        }
+
+        self.hpet_id.set(HPETFwConfig::assign_hpet_id());
+
+        if self.num_timers.get() < HPET_MIN_TIMERS {
+            self.num_timers.set(HPET_MIN_TIMERS);
+        } else if self.num_timers.get() > HPET_MAX_TIMERS {
+            self.num_timers.set(HPET_MAX_TIMERS);
+        }
+
+        self.init_timer();
+        // 64-bit General Capabilities and ID Register; LegacyReplacementRoute.
+        self.capability.set(
+            HPET_CAP_REV_ID_VALUE << HPET_CAP_REV_ID_SHIFT |
+            1 << HPET_CAP_COUNT_SIZE_CAP_SHIFT |
+            1 << HPET_CAP_LEG_RT_CAP_SHIFT |
+            HPET_CAP_VENDER_ID_VALUE << HPET_CAP_VENDER_ID_SHIFT |
+            ((self.num_timers.get() - 1) as u64) << HPET_CAP_NUM_TIM_SHIFT | // indicate the last timer
+            (HPET_CLK_PERIOD * FS_PER_NS) << HPET_CAP_CNT_CLK_PERIOD_SHIFT, // 10 ns
+        );
+
+        self.init_gpio_in(2, HPETState::handle_legacy_irq);
+        self.init_gpio_out(from_ref(&self.pit_enabled));
+    }
+
+    fn reset_hold(&self, _type: ResetType) {
+        let sbd = self.upcast::<SysBusDevice>();
+
+        for timer in self.timers.iter().take(self.num_timers.get()) {
+            timer.borrow_mut().reset();
+        }
+
+        self.counter.set(0);
+        self.config.set(0);
+        self.pit_enabled.set(true);
+        self.hpet_offset.set(0);
+
+        HPETFwConfig::update_hpet_cfg(
+            self.hpet_id.get(),
+            self.capability.get() as u32,
+            sbd.mmio[0].addr,
+        );
+
+        // to document that the RTC lowers its output on reset as well
+        self.rtc_irq_level.set(0);
+    }
+
+    fn timer_and_addr(&self, addr: hwaddr) -> Option<(&BqlRefCell<HPETTimer>, hwaddr)> {
+        let timer_id: usize = ((addr - 0x100) / 0x20) as usize;
+
+        // TODO: Add trace point - trace_hpet_ram_[read|write]_timer_id(timer_id)
+        if timer_id > self.num_timers.get() {
+            // TODO: Add trace point -  trace_hpet_timer_id_out_of_range(timer_id)
+            None
+        } else {
+            // Keep the complete address so that HPETTimer's read and write could
+            // detect the invalid access.
+            Some((&self.timers[timer_id], addr & 0x1F))
+        }
+    }
+
+    fn read(&self, addr: hwaddr, size: u32) -> u64 {
+        let shift: u64 = (addr & 4) * 8;
+
+        // address range of all TN regs
+        // TODO: Add trace point - trace_hpet_ram_read(addr)
+        if (0x100..=0x3ff).contains(&addr) {
+            match self.timer_and_addr(addr) {
+                None => 0, // Reserved,
+                Some((timer, tn_addr)) => timer.borrow_mut().read(tn_addr, size),
+            }
+        } else {
+            match addr & !4 {
+                HPET_CAP_REG => self.capability.get() >> shift, /* including HPET_PERIOD 0x004 */
+                // (CNT_CLK_PERIOD field)
+                HPET_CFG_REG => self.config.get() >> shift,
+                HPET_COUNTER_REG => {
+                    let cur_tick: u64 = if self.is_hpet_enabled() {
+                        self.get_ticks()
+                    } else {
+                        self.counter.get()
+                    };
+
+                    // TODO: Add trace point - trace_hpet_ram_read_reading_counter(addr & 4,
+                    // cur_tick)
+                    cur_tick >> shift
+                }
+                HPET_INT_STATUS_REG => self.int_status.get() >> shift,
+                _ => {
+                    // TODO: Add trace point- trace_hpet_ram_read_invalid()
+                    // Reserved.
+                    0
+                }
+            }
+        }
+    }
+
+    fn write(&self, addr: hwaddr, value: u64, size: u32) {
+        let shift = ((addr & 4) * 8) as u32;
+        let len = std::cmp::min(size * 8, 64 - shift);
+
+        // TODO: Add trace point - trace_hpet_ram_write(addr, value)
+        if (0x100..=0x3ff).contains(&addr) {
+            match self.timer_and_addr(addr) {
+                None => (), // Reserved.
+                Some((timer, tn_addr)) => timer.borrow_mut().write(tn_addr, value, size),
+            }
+        } else {
+            match addr & !0x4 {
+                HPET_CAP_REG => {} // General Capabilities and ID Register: Read Only
+                HPET_CFG_REG => self.set_cfg_reg(shift, len, value),
+                HPET_INT_STATUS_REG => self.set_int_status_reg(shift, len, value),
+                HPET_COUNTER_REG => self.set_counter_reg(shift, len, value),
+                _ => {
+                    // TODO: Add trace point - trace_hpet_ram_write_invalid()
+                    // Reserved.
+                }
+            }
+        }
+    }
+}
+
+qom_isa!(HPETState: SysBusDevice, DeviceState, Object);
+
+unsafe impl ObjectType for HPETState {
+    // No need for HPETClass. Just like OBJECT_DECLARE_SIMPLE_TYPE in C.
+    type Class = <SysBusDevice as ObjectType>::Class;
+    const TYPE_NAME: &'static CStr = crate::TYPE_HPET;
+}
+
+impl ObjectImpl for HPETState {
+    type ParentType = SysBusDevice;
+
+    const INSTANCE_INIT: Option<unsafe fn(&mut Self)> = Some(Self::init);
+    const INSTANCE_POST_INIT: Option<fn(&Self)> = Some(Self::post_init);
+}
+
+// TODO: Make these properties user-configurable!
+qemu_api::declare_properties! {
+    HPET_PROPERTIES,
+    qemu_api::define_property!(
+        c_str!("timers"),
+        HPETState,
+        num_timers,
+        unsafe { &qdev_prop_uint8 },
+        u8,
+        default = HPET_MIN_TIMERS
+    ),
+    qemu_api::define_property!(
+        c_str!("msi"),
+        HPETState,
+        flags,
+        unsafe { &qdev_prop_bit },
+        u32,
+        bit = HPET_FLAG_MSI_SUPPORT_SHIFT as u8,
+        default = false,
+    ),
+    qemu_api::define_property!(
+        c_str!("hpet-intcap"),
+        HPETState,
+        int_route_cap,
+        unsafe { &qdev_prop_uint32 },
+        u32,
+        default = 0
+    ),
+    qemu_api::define_property!(
+        c_str!("hpet-offset-saved"),
+        HPETState,
+        hpet_offset_saved,
+        unsafe { &qdev_prop_bool },
+        bool,
+        default = true
+    ),
+}
+
+impl DeviceImpl for HPETState {
+    fn properties() -> &'static [Property] {
+        &HPET_PROPERTIES
+    }
+
+    const REALIZE: Option<fn(&Self)> = Some(Self::realize);
+}
+
+impl ResettablePhasesImpl for HPETState {
+    const HOLD: Option<fn(&Self, ResetType)> = Some(Self::reset_hold);
 }
