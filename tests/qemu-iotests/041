@@ -1100,10 +1100,8 @@ class TestRepairQuorum(iotests.QMPTestCase):
 
         # Check the full error message now
         self.vm.shutdown()
-        log = self.vm.get_log()
-        log = re.sub(r'^\[I \d+\.\d+\] OPENED\n', '', log)
+        log = iotests.filter_qtest(self.vm.get_log())
         log = re.sub(r'^Formatting.*\n', '', log)
-        log = re.sub(r'\n\[I \+\d+\.\d+\] CLOSED\n?$', '', log)
         log = re.sub(r'^%s: ' % os.path.basename(iotests.qemu_prog), '', log)
 
         self.assertEqual(log,

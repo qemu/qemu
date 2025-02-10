@@ -576,7 +576,6 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
             return;
         }
         bdrv_op_block_all(top_bs, s->blocker);
-        bdrv_op_unblock(top_bs, BLOCK_OP_TYPE_DATAPLANE, s->blocker);
 
         bdrv_graph_wrunlock();
 

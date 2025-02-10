@@ -114,6 +114,7 @@ wrote 65536/65536 bytes at offset 1048576
         {
             "iops_rd": 0,
             "detect_zeroes": "off",
+            "active": true,
             "image": {
                 "backing-image": {
                     "virtual-size": 67108864,
@@ -155,6 +156,7 @@ wrote 65536/65536 bytes at offset 1048576
         {
             "iops_rd": 0,
             "detect_zeroes": "off",
+            "active": true,
             "image": {
                 "virtual-size": 197120,
                 "filename": "TEST_DIR/t.IMGFMT.ovl2",
@@ -183,6 +185,7 @@ wrote 65536/65536 bytes at offset 1048576
         {
             "iops_rd": 0,
             "detect_zeroes": "off",
+            "active": true,
             "image": {
                 "backing-image": {
                     "virtual-size": 67108864,
@@ -224,6 +227,7 @@ wrote 65536/65536 bytes at offset 1048576
         {
             "iops_rd": 0,
             "detect_zeroes": "off",
+            "active": true,
             "image": {
                 "virtual-size": 197120,
                 "filename": "TEST_DIR/t.IMGFMT",
@@ -252,6 +256,7 @@ wrote 65536/65536 bytes at offset 1048576
         {
             "iops_rd": 0,
             "detect_zeroes": "off",
+            "active": true,
             "image": {
                 "backing-image": {
                     "virtual-size": 67108864,
@@ -293,6 +298,7 @@ wrote 65536/65536 bytes at offset 1048576
         {
             "iops_rd": 0,
             "detect_zeroes": "off",
+            "active": true,
             "image": {
                 "virtual-size": 393216,
                 "filename": "TEST_DIR/t.IMGFMT.mid",
@@ -321,6 +327,7 @@ wrote 65536/65536 bytes at offset 1048576
         {
             "iops_rd": 0,
             "detect_zeroes": "off",
+            "active": true,
             "image": {
                 "virtual-size": 67108864,
                 "filename": "TEST_DIR/t.IMGFMT.base",
@@ -350,6 +357,7 @@ wrote 65536/65536 bytes at offset 1048576
         {
             "iops_rd": 0,
             "detect_zeroes": "off",
+            "active": true,
             "image": {
                 "virtual-size": 393216,
                 "filename": "TEST_DIR/t.IMGFMT.base",
@@ -521,6 +529,7 @@ wrote 65536/65536 bytes at offset 1048576
         {
             "iops_rd": 0,
             "detect_zeroes": "off",
+            "active": true,
             "image": {
                 "backing-image": {
                     "virtual-size": 67108864,
@@ -562,6 +571,7 @@ wrote 65536/65536 bytes at offset 1048576
         {
             "iops_rd": 0,
             "detect_zeroes": "off",
+            "active": true,
             "image": {
                 "virtual-size": 197120,
                 "filename": "TEST_DIR/t.IMGFMT.ovl2",
@@ -590,6 +600,7 @@ wrote 65536/65536 bytes at offset 1048576
         {
             "iops_rd": 0,
             "detect_zeroes": "off",
+            "active": true,
             "image": {
                 "backing-image": {
                     "backing-image": {
@@ -642,6 +653,7 @@ wrote 65536/65536 bytes at offset 1048576
         {
             "iops_rd": 0,
             "detect_zeroes": "off",
+            "active": true,
             "image": {
                 "virtual-size": 197120,
                 "filename": "TEST_DIR/t.IMGFMT.ovl3",
@@ -670,6 +682,7 @@ wrote 65536/65536 bytes at offset 1048576
         {
             "iops_rd": 0,
             "detect_zeroes": "off",
+            "active": true,
             "image": {
                 "virtual-size": 67108864,
                 "filename": "TEST_DIR/t.IMGFMT.base",
@@ -699,6 +712,7 @@ wrote 65536/65536 bytes at offset 1048576
         {
             "iops_rd": 0,
             "detect_zeroes": "off",
+            "active": true,
             "image": {
                 "virtual-size": 393216,
                 "filename": "TEST_DIR/t.IMGFMT.base",
@@ -727,6 +741,7 @@ wrote 65536/65536 bytes at offset 1048576
         {
             "iops_rd": 0,
             "detect_zeroes": "off",
+            "active": true,
             "image": {
                 "backing-image": {
                     "virtual-size": 67108864,
@@ -768,6 +783,7 @@ wrote 65536/65536 bytes at offset 1048576
         {
             "iops_rd": 0,
             "detect_zeroes": "off",
+            "active": true,
             "image": {
                 "virtual-size": 197120,
                 "filename": "TEST_DIR/t.IMGFMT",

@@ -1,0 +1,239 @@
+Preparing disk...
+Launching VM...
+{"execute": "nbd-server-start", "arguments": {"addr": {"data": {"path": "SOCK_DIR/PID-nbd.sock"}, "type": "unix"}}}
+{"return": {}}
+
+=== Creating export of inactive node ===
+
+Exports activate nodes without allow-inactive
+disk-fmt active: False
+{"execute": "block-export-add", "arguments": {"id": "exp0", "node-name": "disk-fmt", "type": "nbd", "writable": true}}
+{"return": {}}
+disk-fmt active: True
+{"execute": "query-block-exports", "arguments": {}}
+{"return": [{"id": "exp0", "node-name": "disk-fmt", "shutting-down": false, "type": "nbd"}]}
+{"execute": "block-export-del", "arguments": {"id": "exp0"}}
+{"return": {}}
+{"execute": "query-block-exports", "arguments": {}}
+{"return": []}
+
+Exports activate nodes with allow-inactive=false
+{"execute": "blockdev-set-active", "arguments": {"active": false, "node-name": "disk-fmt"}}
+{"return": {}}
+disk-fmt active: False
+{"execute": "block-export-add", "arguments": {"allow-inactive": false, "id": "exp0", "node-name": "disk-fmt", "type": "nbd", "writable": true}}
+{"return": {}}
+disk-fmt active: True
+{"execute": "query-block-exports", "arguments": {}}
+{"return": [{"id": "exp0", "node-name": "disk-fmt", "shutting-down": false, "type": "nbd"}]}
+{"execute": "block-export-del", "arguments": {"id": "exp0"}}
+{"return": {}}
+{"execute": "query-block-exports", "arguments": {}}
+{"return": []}
+
+Export leaves nodes inactive with allow-inactive=true
+{"execute": "blockdev-set-active", "arguments": {"active": false, "node-name": "disk-fmt"}}
+{"return": {}}
+disk-fmt active: False
+{"execute": "block-export-add", "arguments": {"allow-inactive": true, "id": "exp0", "node-name": "disk-fmt", "type": "nbd", "writable": true}}
+{"return": {}}
+disk-fmt active: False
+{"execute": "query-block-exports", "arguments": {}}
+{"return": [{"id": "exp0", "node-name": "disk-fmt", "shutting-down": false, "type": "nbd"}]}
+{"execute": "block-export-del", "arguments": {"id": "exp0"}}
+{"return": {}}
+{"execute": "query-block-exports", "arguments": {}}
+{"return": []}
+
+=== Inactivating node with existing export ===
+
+Inactivating nodes with an export fails without allow-inactive
+{"execute": "blockdev-set-active", "arguments": {"active": true, "node-name": "disk-fmt"}}
+{"return": {}}
+{"execute": "block-export-add", "arguments": {"id": "exp0", "node-name": "disk-fmt", "type": "nbd", "writable": true}}
+{"return": {}}
+{"execute": "blockdev-set-active", "arguments": {"active": false, "node-name": "disk-fmt"}}
+{"error": {"class": "GenericError", "desc": "Failed to inactivate node: Operation not permitted"}}
+disk-fmt active: True
+{"execute": "query-block-exports", "arguments": {}}
+{"return": [{"id": "exp0", "node-name": "disk-fmt", "shutting-down": false, "type": "nbd"}]}
+{"execute": "block-export-del", "arguments": {"id": "exp0"}}
+{"return": {}}
+{"execute": "query-block-exports", "arguments": {}}
+{"return": []}
+
+Inactivating nodes with an export fails with allow-inactive=false
+{"execute": "blockdev-set-active", "arguments": {"active": true, "node-name": "disk-fmt"}}
+{"return": {}}
+{"execute": "block-export-add", "arguments": {"allow-inactive": false, "id": "exp0", "node-name": "disk-fmt", "type": "nbd", "writable": true}}
+{"return": {}}
+{"execute": "blockdev-set-active", "arguments": {"active": false, "node-name": "disk-fmt"}}
+{"error": {"class": "GenericError", "desc": "Failed to inactivate node: Operation not permitted"}}
+disk-fmt active: True
+{"execute": "query-block-exports", "arguments": {}}
+{"return": [{"id": "exp0", "node-name": "disk-fmt", "shutting-down": false, "type": "nbd"}]}
+{"execute": "block-export-del", "arguments": {"id": "exp0"}}
+{"return": {}}
+{"execute": "query-block-exports", "arguments": {}}
+{"return": []}
+
+Inactivating nodes with an export works with allow-inactive=true
+{"execute": "blockdev-set-active", "arguments": {"active": true, "node-name": "disk-fmt"}}
+{"return": {}}
+{"execute": "block-export-add", "arguments": {"allow-inactive": true, "id": "exp0", "node-name": "disk-fmt", "type": "nbd", "writable": true}}
+{"return": {}}
+{"execute": "blockdev-set-active", "arguments": {"active": false, "node-name": "disk-fmt"}}
+{"return": {}}
+disk-fmt active: False
+{"execute": "query-block-exports", "arguments": {}}
+{"return": [{"id": "exp0", "node-name": "disk-fmt", "shutting-down": false, "type": "nbd"}]}
+{"execute": "block-export-del", "arguments": {"id": "exp0"}}
+{"return": {}}
+{"execute": "query-block-exports", "arguments": {}}
+{"return": []}
+
+=== Inactive nodes with parent ===
+
+Inactivating nodes with an active parent fails
+{"execute": "blockdev-set-active", "arguments": {"active": true, "node-name": "disk-fmt"}}
+{"return": {}}
+{"execute": "blockdev-set-active", "arguments": {"active": false, "node-name": "disk-file"}}
+{"error": {"class": "GenericError", "desc": "Node has active parent node"}}
+disk-file active: True
+disk-fmt active: True
+
+Inactivating nodes with an inactive parent works
+{"execute": "blockdev-set-active", "arguments": {"active": false, "node-name": "disk-fmt"}}
+{"return": {}}
+{"execute": "blockdev-set-active", "arguments": {"active": false, "node-name": "disk-file"}}
+{"return": {}}
+disk-file active: False
+disk-fmt active: False
+
+Creating active parent node with an inactive child fails
+{"execute": "blockdev-add", "arguments": {"driver": "raw", "file": "disk-fmt", "node-name": "disk-filter"}}
+{"error": {"class": "GenericError", "desc": "Inactive 'disk-fmt' can't be a file child of active 'disk-filter'"}}
+{"execute": "blockdev-add", "arguments": {"active": true, "driver": "raw", "file": "disk-fmt", "node-name": "disk-filter"}}
+{"error": {"class": "GenericError", "desc": "Inactive 'disk-fmt' can't be a file child of active 'disk-filter'"}}
+
+Creating inactive parent node with an inactive child works
+{"execute": "blockdev-add", "arguments": {"active": false, "driver": "raw", "file": "disk-fmt", "node-name": "disk-filter"}}
+{"return": {}}
+{"execute": "blockdev-del", "arguments": {"node-name": "disk-filter"}}
+{"return": {}}
+
+=== Resizing an inactive node ===
+{"execute": "block_resize", "arguments": {"node-name": "disk-fmt", "size": 16777216}}
+{"error": {"class": "GenericError", "desc": "Permission 'resize' unavailable on inactive node"}}
+
+=== Taking a snapshot of an inactive node ===
+
+Active overlay over inactive backing file automatically makes both inactive for compatibility
+{"execute": "blockdev-add", "arguments": {"backing": null, "driver": "qcow2", "file": "snap-file", "node-name": "snap-fmt"}}
+{"return": {}}
+disk-fmt active: False
+snap-fmt active: True
+{"execute": "blockdev-snapshot", "arguments": {"node": "disk-fmt", "overlay": "snap-fmt"}}
+{"return": {}}
+disk-fmt active: False
+snap-fmt active: False
+{"execute": "blockdev-del", "arguments": {"node-name": "snap-fmt"}}
+{"return": {}}
+
+Inactive overlay over inactive backing file just works
+{"execute": "blockdev-add", "arguments": {"active": false, "backing": null, "driver": "qcow2", "file": "snap-file", "node-name": "snap-fmt"}}
+{"return": {}}
+{"execute": "blockdev-snapshot", "arguments": {"node": "disk-fmt", "overlay": "snap-fmt"}}
+{"return": {}}
+
+=== Block jobs with inactive nodes ===
+
+Streaming into an inactive node
+{"execute": "block-stream", "arguments": {"device": "snap-fmt"}}
+{"error": {"class": "GenericError", "desc": "Could not create node: Inactive 'snap-fmt' can't be a file child of active 'NODE_NAME'"}}
+
+Committing an inactive root node (active commit)
+{"execute": "block-commit", "arguments": {"device": "snap-fmt", "job-id": "job0"}}
+{"error": {"class": "GenericError", "desc": "Inactive 'snap-fmt' can't be a backing child of active 'NODE_NAME'"}}
+
+Committing an inactive intermediate node to inactive base
+{"execute": "blockdev-add", "arguments": {"active": false, "backing": "snap-fmt", "driver": "qcow2", "file": "snap2-file", "node-name": "snap2-fmt"}}
+{"return": {}}
+disk-fmt active: False
+snap-fmt active: False
+snap2-fmt active: False
+{"execute": "block-commit", "arguments": {"device": "snap2-fmt", "job-id": "job0", "top-node": "snap-fmt"}}
+{"error": {"class": "GenericError", "desc": "Inactive 'snap-fmt' can't be a backing child of active 'NODE_NAME'"}}
+
+Committing an inactive intermediate node to active base
+{"execute": "blockdev-set-active", "arguments": {"active": true, "node-name": "disk-fmt"}}
+{"return": {}}
+{"execute": "block-commit", "arguments": {"device": "snap2-fmt", "job-id": "job0", "top-node": "snap-fmt"}}
+{"error": {"class": "GenericError", "desc": "Inactive 'snap-fmt' can't be a backing child of active 'NODE_NAME'"}}
+
+Mirror from inactive source to active target
+{"execute": "blockdev-mirror", "arguments": {"device": "snap2-fmt", "job-id": "job0", "sync": "full", "target": "target-fmt"}}
+{"error": {"class": "GenericError", "desc": "Inactive 'snap2-fmt' can't be a backing child of active 'NODE_NAME'"}}
+
+Mirror from active source to inactive target
+disk-fmt active: True
+snap-fmt active: False
+snap2-fmt active: False
+target-fmt active: True
+{"execute": "blockdev-set-active", "arguments": {"active": true, "node-name": "snap2-fmt"}}
+{"return": {}}
+{"execute": "blockdev-set-active", "arguments": {"active": false, "node-name": "target-fmt"}}
+{"return": {}}
+disk-fmt active: True
+snap-fmt active: True
+snap2-fmt active: True
+target-fmt active: False
+{"execute": "blockdev-mirror", "arguments": {"device": "snap2-fmt", "job-id": "job0", "sync": "full", "target": "target-fmt"}}
+{"error": {"class": "GenericError", "desc": "Permission 'write' unavailable on inactive node"}}
+
+Backup from active source to inactive target
+{"execute": "blockdev-backup", "arguments": {"device": "snap2-fmt", "job-id": "job0", "sync": "full", "target": "target-fmt"}}
+{"error": {"class": "GenericError", "desc": "Could not create node: Inactive 'target-fmt' can't be a target child of active 'NODE_NAME'"}}
+
+Backup from inactive source to active target
+{"execute": "blockdev-set-active", "arguments": {"active": false, "node-name": "snap2-fmt"}}
+{"return": {}}
+{"execute": "blockdev-set-active", "arguments": {"active": true, "node-name": "target-fmt"}}
+{"return": {}}
+disk-fmt active: False
+snap-fmt active: False
+snap2-fmt active: False
+target-fmt active: True
+{"execute": "blockdev-backup", "arguments": {"device": "snap2-fmt", "job-id": "job0", "sync": "full", "target": "target-fmt"}}
+{"error": {"class": "GenericError", "desc": "Could not create node: Inactive 'snap2-fmt' can't be a file child of active 'NODE_NAME'"}}
+
+=== Accessing export on inactive node ===
+{"execute": "blockdev-set-active", "arguments": {"active": false, "node-name": "target-fmt"}}
+{"return": {}}
+{"execute": "block-export-add", "arguments": {"allow-inactive": true, "id": "exp0", "node-name": "target-fmt", "type": "nbd", "writable": true}}
+{"return": {}}
+read 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+write failed: Operation not permitted
+
+write failed: Operation not permitted
+
+write failed: Operation not permitted
+
+discard failed: Operation not permitted
+
+
+qemu-io: Failed to get allocation status: Operation not permitted
+
+
+=== Resuming VM activates all images ===
+{"execute": "cont", "arguments": {}}
+{"return": {}}
+disk-fmt active: True
+snap-fmt active: True
+snap2-fmt active: True
+target-fmt active: True
+
+Shutting down...
+

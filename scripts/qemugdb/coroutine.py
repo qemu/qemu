@@ -13,28 +13,9 @@ import gdb
 
 VOID_PTR = gdb.lookup_type('void').pointer()
 
-def get_fs_base():
-    '''Fetch %fs base value using arch_prctl(ARCH_GET_FS).  This is
-       pthread_self().'''
-    # %rsp - 120 is scratch space according to the SystemV ABI
-    old = gdb.parse_and_eval('*(uint64_t*)($rsp - 120)')
-    gdb.execute('call (int)arch_prctl(0x1003, $rsp - 120)', False, True)
-    fs_base = gdb.parse_and_eval('*(uint64_t*)($rsp - 120)')
-    gdb.execute('set *(uint64_t*)($rsp - 120) = %s' % old, False, True)
-    return fs_base
-
 def pthread_self():
-    '''Fetch pthread_self() from the glibc start_thread function.'''
-    f = gdb.newest_frame()
-    while f.name() != 'start_thread':
-        f = f.older()
-        if f is None:
-            return get_fs_base()
-
-    try:
-        return f.read_var("arg")
-    except ValueError:
-        return get_fs_base()
+    '''Fetch the base address of TLS.'''
+    return gdb.parse_and_eval("$fs_base")
 
 def get_glibc_pointer_guard():
     '''Fetch glibc pointer guard value'''
@@ -65,9 +46,60 @@ def get_jmpbuf_regs(jmpbuf):
         'r15': jmpbuf[JB_R15],
         'rip': glibc_ptr_demangle(jmpbuf[JB_PC], pointer_guard) }
 
-def bt_jmpbuf(jmpbuf):
-    '''Backtrace a jmpbuf'''
-    regs = get_jmpbuf_regs(jmpbuf)
+def symbol_lookup(addr):
+    # Example: "__clone3 + 44 in section .text of /lib64/libc.so.6"
+    result = gdb.execute(f"info symbol {hex(addr)}", to_string=True).strip()
+    try:
+        if "+" in result:
+            (func, result) = result.split(" + ")
+            (offset, result) = result.split(" in ")
+        else:
+            offset = "0"
+            (func, result) = result.split(" in ")
+        func_str = f"{func}<+{offset}> ()"
+    except:
+        return f"??? ({result})"
+
+    # Example: Line 321 of "../util/coroutine-ucontext.c" starts at address
+    # 0x55cf3894d993 <qemu_coroutine_switch+99> and ends at 0x55cf3894d9ab
+    # <qemu_coroutine_switch+123>.
+    result = gdb.execute(f"info line *{hex(addr)}", to_string=True).strip()
+    if not result.startswith("Line "):
+        return func_str
+    result = result[5:]
+
+    try:
+        result = result.split(" starts ")[0]
+        (line, path) = result.split(" of ")
+        path = path.replace("\"", "")
+    except:
+        return func_str
+
+    return f"{func_str} at {path}:{line}"
+
+def dump_backtrace(regs):
+    '''
+    Backtrace dump with raw registers, mimic GDB command 'bt'.
+    '''
+    # Here only rbp and rip that matter..
+    rbp = regs['rbp']
+    rip = regs['rip']
+    i = 0
+
+    while rbp:
+        # For all return addresses on stack, we want to look up symbol/line
+        # on the CALL command, because the return address is the next
+        # instruction instead of the CALL.  Here -1 would work for any
+        # sized CALL instruction.
+        print(f"#{i}  {hex(rip)} in {symbol_lookup(rip if i == 0 else rip-1)}")
+        rip = gdb.parse_and_eval(f"*(uint64_t *)(uint64_t)({hex(rbp)} + 8)")
+        rbp = gdb.parse_and_eval(f"*(uint64_t *)(uint64_t)({hex(rbp)})")
+        i += 1
+
+def dump_backtrace_live(regs):
+    '''
+    Backtrace dump with gdb's 'bt' command, only usable in a live session.
+    '''
     old = dict()
 
     # remember current stack frame and select the topmost
@@ -87,6 +119,17 @@ def bt_jmpbuf(jmpbuf):
         gdb.execute('set $%s = %s' % (i, old[i]))
 
     selected_frame.select()
+
+def bt_jmpbuf(jmpbuf):
+    '''Backtrace a jmpbuf'''
+    regs = get_jmpbuf_regs(jmpbuf)
+    try:
+        # This reuses gdb's "bt" command, which can be slightly prettier
+        # but only works with live sessions.
+        dump_backtrace_live(regs)
+    except:
+        # If above doesn't work, fallback to poor man's unwind
+        dump_backtrace(regs)
 
 def co_cast(co):
     return co.cast(gdb.lookup_type('CoroutineUContext').pointer())
@@ -120,10 +163,15 @@ class CoroutineBt(gdb.Command):
 
         gdb.execute("bt")
 
-        if gdb.parse_and_eval("qemu_in_coroutine()") == False:
-            return
+        try:
+            # This only works with a live session
+            co_ptr = gdb.parse_and_eval("qemu_coroutine_self()")
+        except:
+            # Fallback to use hard-coded ucontext vars if it's coredump
+            co_ptr = gdb.parse_and_eval("co_tls_current")
 
-        co_ptr = gdb.parse_and_eval("qemu_coroutine_self()")
+        if co_ptr == False:
+            return
 
         while True:
             co = co_cast(co_ptr)

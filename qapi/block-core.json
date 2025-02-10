@@ -486,6 +486,10 @@
 # @backing_file_depth: number of files in the backing file chain
 #     (since: 1.2)
 #
+# @active: true if the backend is active; typical cases for inactive backends
+#     are on the migration source instance after migration completes and on the
+#     destination before it completes. (since: 10.0)
+#
 # @encrypted: true if the backing device is encrypted
 #
 # @detect_zeroes: detect and optimize zero writes (Since 2.1)
@@ -556,7 +560,7 @@
 { 'struct': 'BlockDeviceInfo',
   'data': { 'file': 'str', '*node-name': 'str', 'ro': 'bool', 'drv': 'str',
             '*backing_file': 'str', 'backing_file_depth': 'int',
-            'encrypted': 'bool',
+            'active': 'bool', 'encrypted': 'bool',
             'detect_zeroes': 'BlockdevDetectZeroesOptions',
             'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
             'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
@@ -4679,6 +4683,11 @@
 #
 # @cache: cache-related options
 #
+# @active: whether the block node should be activated (default: true).
+#     Having inactive block nodes is useful primarily for migration because it
+#     allows opening an image on the destination while the source is still
+#     holding locks for it. (Since 10.0)
+#
 # @read-only: whether the block device should be read-only (default:
 #     false).  Note that some block drivers support only read-only
 #     access, either generally or in certain configurations.  In this
@@ -4705,6 +4714,7 @@
             '*node-name': 'str',
             '*discard': 'BlockdevDiscardOptions',
             '*cache': 'BlockdevCacheOptions',
+            '*active': 'bool',
             '*read-only': 'bool',
             '*auto-read-only': 'bool',
             '*force-share': 'bool',
@@ -4933,6 +4943,38 @@
 #     <- { "return": {} }
 ##
 { 'command': 'blockdev-del', 'data': { 'node-name': 'str' },
+  'allow-preconfig': true }
+
+##
+# @blockdev-set-active:
+#
+# Activate or inactivate a block device. Use this to manage the handover of
+# block devices on migration with qemu-storage-daemon.
+#
+# Activating a node automatically activates all of its child nodes first.
+# Inactivating a node automatically inactivates any of its child nodes that are
+# not in use by a still active node.
+#
+# @node-name: Name of the graph node to activate or inactivate. By default, all
+#     nodes are affected by the operation.
+#
+# @active: true if the nodes should be active when the command returns success,
+#     false if they should be inactive.
+#
+# Since: 10.0
+#
+# .. qmp-example::
+#
+#     -> { "execute": "blockdev-set-active",
+#          "arguments": {
+#               "node-name": "node0",
+#               "active": false
+#          }
+#        }
+#     <- { "return": {} }
+##
+{ 'command': 'blockdev-set-active',
+  'data': { '*node-name': 'str', 'active': 'bool' },
   'allow-preconfig': true }
 
 ##
