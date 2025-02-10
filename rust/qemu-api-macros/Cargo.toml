@@ -4,14 +4,12 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Manos Pitsidianakis <manos.pitsidianakis@linaro.org>"]
 license = "GPL-2.0-or-later"
-readme = "README.md"
-homepage = "https://www.qemu.org"
 description = "Rust bindings for QEMU - Utility macros"
-repository = "https://gitlab.com/qemu-project/qemu/"
 resolver = "2"
 publish = false
 keywords = []
 categories = []
+rust-version = "1.63.0"
 
 [lib]
 proc-macro = true

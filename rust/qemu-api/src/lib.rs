@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #![cfg_attr(not(MESON), doc = include_str!("../README.md"))]
+#![deny(clippy::missing_const_for_fn)]
 
 #[rustfmt::skip]
 pub mod bindings;
