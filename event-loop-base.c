@@ -15,7 +15,7 @@
 #include "qom/object_interfaces.h"
 #include "qapi/error.h"
 #include "block/thread-pool.h"
-#include "sysemu/event-loop-base.h"
+#include "system/event-loop-base.h"
 
 typedef struct {
     const char *name;

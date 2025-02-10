@@ -24,12 +24,11 @@ static void ide_cf_realize(IDEDevice *dev, Error **errp)
     ide_dev_initfn(dev, IDE_CFATA, errp);
 }
 
-static Property ide_cf_properties[] = {
+static const Property ide_cf_properties[] = {
     DEFINE_IDE_DEV_PROPERTIES(),
     DEFINE_BLOCK_CHS_PROPERTIES(IDEDrive, dev.conf),
     DEFINE_PROP_BIOS_CHS_TRANS("bios-chs-trans",
                 IDEDrive, dev.chs_trans, BIOS_ATA_TRANSLATION_AUTO),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ide_cf_class_init(ObjectClass *klass, void *data)

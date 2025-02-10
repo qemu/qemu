@@ -6231,7 +6231,7 @@ static inline int update_msacsr(CPUMIPSState *env, int action, int denormal)
     enable = GET_FP_ENABLE(env->active_tc.msacsr) | FP_UNIMPLEMENTED;
 
     /* Set Inexact (I) when flushing inputs to zero */
-    if ((ieee_exception_flags & float_flag_input_denormal) &&
+    if ((ieee_exception_flags & float_flag_input_denormal_flushed) &&
             (env->active_tc.msacsr & MSACSR_FS_MASK) != 0) {
         if (action & CLEAR_IS_INEXACT) {
             mips_exception_flags &= ~FP_INEXACT;
@@ -6241,7 +6241,7 @@ static inline int update_msacsr(CPUMIPSState *env, int action, int denormal)
     }
 
     /* Set Inexact (I) and Underflow (U) when flushing outputs to zero */
-    if ((ieee_exception_flags & float_flag_output_denormal) &&
+    if ((ieee_exception_flags & float_flag_output_denormal_flushed) &&
             (env->active_tc.msacsr & MSACSR_FS_MASK) != 0) {
         mips_exception_flags |= FP_INEXACT;
         if (action & CLEAR_FS_UNDERFLOW) {
@@ -8210,14 +8210,6 @@ void helper_msa_ffint_u_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 
 /* Element-by-element access macros */
 #define DF_ELEMENTS(df) (MSA_WRLEN / DF_BITS(df))
-
-#if !defined(CONFIG_USER_ONLY)
-#define MEMOP_IDX(DF)                                                   \
-    MemOpIdx oi = make_memop_idx(MO_TE | DF | MO_UNALN,                 \
-                                 mips_env_mmu_index(env));
-#else
-#define MEMOP_IDX(DF)
-#endif
 
 #if TARGET_BIG_ENDIAN
 static inline uint64_t bswap16x4(uint64_t x)

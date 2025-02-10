@@ -21,7 +21,7 @@
 #include "qapi/error.h"
 #include "exec/hwaddr.h"
 #include "exec/memory.h"
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 #include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"
 #include "hw/ppc/pnv.h"
@@ -412,9 +412,8 @@ static void pnv_homer_realize(DeviceState *dev, Error **errp)
                           hmrc->homer_size);
 }
 
-static Property pnv_homer_properties[] = {
+static const Property pnv_homer_properties[] = {
     DEFINE_PROP_LINK("chip", PnvHomer, chip, TYPE_PNV_CHIP, PnvChip *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_homer_class_init(ObjectClass *klass, void *data)

@@ -585,12 +585,11 @@ static void i8257_realize(DeviceState *dev, Error **errp)
     d->dma_bh = qemu_bh_new(i8257_dma_run, d);
 }
 
-static Property i8257_properties[] = {
+static const Property i8257_properties[] = {
     DEFINE_PROP_INT32("base", I8257State, base, 0x00),
     DEFINE_PROP_INT32("page-base", I8257State, page_base, 0x80),
     DEFINE_PROP_INT32("pageh-base", I8257State, pageh_base, 0x480),
     DEFINE_PROP_INT32("dshift", I8257State, dshift, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void i8257_class_init(ObjectClass *klass, void *data)

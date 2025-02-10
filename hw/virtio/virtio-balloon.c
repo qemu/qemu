@@ -22,7 +22,7 @@
 #include "hw/mem/pc-dimm.h"
 #include "hw/qdev-properties.h"
 #include "hw/boards.h"
-#include "sysemu/balloon.h"
+#include "system/balloon.h"
 #include "hw/virtio/virtio-balloon.h"
 #include "exec/address-spaces.h"
 #include "qapi/error.h"
@@ -167,19 +167,33 @@ static void balloon_deflate_page(VirtIOBalloon *balloon,
     }
 }
 
+/*
+ * All stats upto VIRTIO_BALLOON_S_NR /must/ have a
+ * non-NULL name declared here, since these are used
+ * as keys for populating the QDict with stats
+ */
 static const char *balloon_stat_names[] = {
    [VIRTIO_BALLOON_S_SWAP_IN] = "stat-swap-in",
    [VIRTIO_BALLOON_S_SWAP_OUT] = "stat-swap-out",
    [VIRTIO_BALLOON_S_MAJFLT] = "stat-major-faults",
    [VIRTIO_BALLOON_S_MINFLT] = "stat-minor-faults",
    [VIRTIO_BALLOON_S_MEMFREE] = "stat-free-memory",
+
    [VIRTIO_BALLOON_S_MEMTOT] = "stat-total-memory",
    [VIRTIO_BALLOON_S_AVAIL] = "stat-available-memory",
    [VIRTIO_BALLOON_S_CACHES] = "stat-disk-caches",
    [VIRTIO_BALLOON_S_HTLB_PGALLOC] = "stat-htlb-pgalloc",
    [VIRTIO_BALLOON_S_HTLB_PGFAIL] = "stat-htlb-pgfail",
-   [VIRTIO_BALLOON_S_NR] = NULL
+
+   [VIRTIO_BALLOON_S_OOM_KILL] = "stat-oom-kills",
+   [VIRTIO_BALLOON_S_ALLOC_STALL] = "stat-alloc-stalls",
+   [VIRTIO_BALLOON_S_ASYNC_SCAN] = "stat-async-scans",
+   [VIRTIO_BALLOON_S_DIRECT_SCAN] = "stat-direct-scans",
+   [VIRTIO_BALLOON_S_ASYNC_RECLAIM] = "stat-async-reclaims",
+
+   [VIRTIO_BALLOON_S_DIRECT_RECLAIM] = "stat-direct-reclaims",
 };
+G_STATIC_ASSERT(G_N_ELEMENTS(balloon_stat_names) == VIRTIO_BALLOON_S_NR);
 
 /*
  * reset_stats - Mark all items in the stats array as unset
@@ -1001,7 +1015,7 @@ static const VMStateDescription vmstate_virtio_balloon = {
     },
 };
 
-static Property virtio_balloon_properties[] = {
+static const Property virtio_balloon_properties[] = {
     DEFINE_PROP_BIT("deflate-on-oom", VirtIOBalloon, host_features,
                     VIRTIO_BALLOON_F_DEFLATE_ON_OOM, false),
     DEFINE_PROP_BIT("free-page-hint", VirtIOBalloon, host_features,
@@ -1018,7 +1032,6 @@ static Property virtio_balloon_properties[] = {
                      qemu_4_0_config_size, false),
     DEFINE_PROP_LINK("iothread", VirtIOBalloon, iothread, TYPE_IOTHREAD,
                      IOThread *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_balloon_class_init(ObjectClass *klass, void *data)

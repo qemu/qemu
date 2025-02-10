@@ -11,7 +11,7 @@
 #include "hw/xen/xen-bus.h"
 #include "hw/block/block.h"
 #include "hw/block/dataplane/xen-block.h"
-#include "sysemu/iothread.h"
+#include "system/iothread.h"
 #include "qom/object.h"
 
 typedef enum XenBlockVdevType {

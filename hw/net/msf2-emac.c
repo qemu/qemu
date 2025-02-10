@@ -546,11 +546,10 @@ static void msf2_emac_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 }
 
-static Property msf2_emac_properties[] = {
+static const Property msf2_emac_properties[] = {
     DEFINE_PROP_LINK("ahb-bus", MSF2EmacState, dma_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_NIC_PROPERTIES(MSF2EmacState, conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_msf2_emac = {

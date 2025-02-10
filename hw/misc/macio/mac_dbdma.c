@@ -44,7 +44,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 
 /* debug DBDMA */
 #define DEBUG_DBDMA 0

@@ -75,9 +75,8 @@ static void arm11_scu_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static Property arm11_scu_properties[] = {
+static const Property arm11_scu_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", ARM11SCUState, num_cpu, 1),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void arm11_scu_class_init(ObjectClass *oc, void *data)

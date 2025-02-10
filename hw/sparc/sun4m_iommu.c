@@ -238,7 +238,7 @@ static void iommu_mem_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps iommu_mem_ops = {
     .read = iommu_mem_read,
     .write = iommu_mem_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -368,9 +368,8 @@ static void iommu_init(Object *obj)
     sysbus_init_mmio(dev, &s->iomem);
 }
 
-static Property iommu_properties[] = {
+static const Property iommu_properties[] = {
     DEFINE_PROP_UINT32("version", IOMMUState, version, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void iommu_class_init(ObjectClass *klass, void *data)

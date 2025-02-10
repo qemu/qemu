@@ -84,6 +84,25 @@ none``, as in
 
 Firmware images used for pflash must be exactly 32 MiB in size.
 
+riscv-iommu support
+-------------------
+
+The board has support for the riscv-iommu-pci device by using the following
+command line:
+
+.. code-block:: bash
+
+  $ qemu-system-riscv64 -M virt -device riscv-iommu-pci (...)
+
+It also has support for the riscv-iommu-sys platform device:
+
+.. code-block:: bash
+
+  $ qemu-system-riscv64 -M virt,iommu-sys=on (...)
+
+Refer to :ref:`riscv-iommu` for more information on how the RISC-V IOMMU support
+works.
+
 Machine-specific options
 ------------------------
 
@@ -110,11 +129,22 @@ The following machine-specific options are supported:
   MSIs. When not specified, this option is assumed to be "none" which selects
   SiFive PLIC to handle wired interrupts.
 
+  This option also interacts with '-accel kvm'.  When using "aia=aplic-imsic"
+  with KVM, it is possible to set the use of the kernel irqchip in split mode
+  by using "-accel kvm,kernel-irqchip=split".  In this case the ``virt`` machine
+  will emulate the APLIC controller instead of using the APLIC controller from
+  the irqchip.  See :ref:`riscv-aia` for more details on all available AIA
+  modes.
+
 - aia-guests=nnn
 
   The number of per-HART VS-level AIA IMSIC pages to be emulated for a guest
   having AIA IMSIC (i.e. "aia=aplic-imsic" selected). When not specified,
   the default number of per-HART VS-level AIA IMSIC pages is 0.
+
+- iommu-sys=[on|off]
+
+  Enables the riscv-iommu-sys platform device. Defaults to 'off'.
 
 Running Linux kernel
 --------------------

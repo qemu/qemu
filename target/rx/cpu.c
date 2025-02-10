@@ -23,6 +23,7 @@
 #include "migration/vmstate.h"
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
+#include "exec/translation-block.h"
 #include "hw/loader.h"
 #include "fpu/softfloat.h"
 #include "tcg/debug-assert.h"
@@ -93,6 +94,15 @@ static void rx_cpu_reset_hold(Object *obj, ResetType type)
     env->fpsw = 0;
     set_flush_to_zero(1, &env->fp_status);
     set_flush_inputs_to_zero(1, &env->fp_status);
+    /*
+     * TODO: this is not the correct NaN propagation rule for this
+     * architecture. The "RX Family User's Manual: Software" table 1.6
+     * defines the propagation rules as "prefer SNaN over QNaN;
+     * then prefer dest over source", which is float_2nan_prop_s_ab.
+     */
+    set_float_2nan_prop_rule(float_2nan_prop_x87, &env->fp_status);
+    /* Default NaN value: sign bit clear, set frac msb */
+    set_float_default_nan_pattern(0b01000000, &env->fp_status);
 }
 
 static ObjectClass *rx_cpu_class_by_name(const char *cpu_model)
@@ -186,6 +196,7 @@ static const struct SysemuCPUOps rx_sysemu_ops = {
 
 static const TCGCPUOps rx_tcg_ops = {
     .initialize = rx_translate_init,
+    .translate_code = rx_translate_code,
     .synchronize_from_tb = rx_cpu_synchronize_from_tb,
     .restore_state_to_opc = rx_restore_state_to_opc,
     .tlb_fill = rx_cpu_tlb_fill,

@@ -20,7 +20,7 @@
 #ifndef IDE_DEV_H
 #define IDE_DEV_H
 
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "hw/qdev-properties.h"
 #include "hw/block/block.h"
 

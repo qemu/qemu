@@ -931,13 +931,12 @@ static const VMStateDescription vmstate_dp8393x = {
     }
 };
 
-static Property dp8393x_properties[] = {
+static const Property dp8393x_properties[] = {
     DEFINE_NIC_PROPERTIES(dp8393xState, conf),
     DEFINE_PROP_LINK("dma_mr", dp8393xState, dma_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_UINT8("it_shift", dp8393xState, it_shift, 0),
     DEFINE_PROP_BOOL("big_endian", dp8393xState, big_endian, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void dp8393x_class_init(ObjectClass *klass, void *data)

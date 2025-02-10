@@ -535,10 +535,9 @@ static const GraphicHwOps pl110_gfx_ops = {
     .gfx_update  = pl110_update_display,
 };
 
-static Property pl110_properties[] = {
+static const Property pl110_properties[] = {
     DEFINE_PROP_LINK("framebuffer-memory", PL110State, fbmem,
                      TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pl110_realize(DeviceState *dev, Error **errp)

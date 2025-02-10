@@ -26,7 +26,7 @@
 #include "hw/intc/kvm_irqcount.h"
 #include "hw/pci/msi.h"
 #include "qemu/host-utils.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "trace.h"
 #include "hw/i386/apic-msidef.h"
 #include "qapi/error.h"

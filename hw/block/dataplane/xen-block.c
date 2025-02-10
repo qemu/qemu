@@ -27,8 +27,8 @@
 #include "hw/xen/xen.h"
 #include "hw/block/xen_blkif.h"
 #include "hw/xen/interface/io/ring.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/iothread.h"
+#include "system/block-backend.h"
+#include "system/iothread.h"
 #include "xen-block.h"
 
 typedef struct XenBlockRequest {

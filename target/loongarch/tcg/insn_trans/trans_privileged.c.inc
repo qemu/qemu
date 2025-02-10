@@ -5,7 +5,7 @@
  * LoongArch translation routines for the privileged instructions.
  */
 
-#include "cpu-csr.h"
+#include "csr.h"
 
 #ifdef CONFIG_USER_ONLY
 
@@ -45,112 +45,6 @@ GEN_FALSE_TRANS(idle)
 typedef void (*GenCSRRead)(TCGv dest, TCGv_ptr env);
 typedef void (*GenCSRWrite)(TCGv dest, TCGv_ptr env, TCGv src);
 
-typedef struct {
-    int offset;
-    int flags;
-    GenCSRRead readfn;
-    GenCSRWrite writefn;
-} CSRInfo;
-
-enum {
-    CSRFL_READONLY = (1 << 0),
-    CSRFL_EXITTB   = (1 << 1),
-    CSRFL_IO       = (1 << 2),
-};
-
-#define CSR_OFF_FUNCS(NAME, FL, RD, WR)                    \
-    [LOONGARCH_CSR_##NAME] = {                             \
-        .offset = offsetof(CPULoongArchState, CSR_##NAME), \
-        .flags = FL, .readfn = RD, .writefn = WR           \
-    }
-
-#define CSR_OFF_ARRAY(NAME, N)                                \
-    [LOONGARCH_CSR_##NAME(N)] = {                             \
-        .offset = offsetof(CPULoongArchState, CSR_##NAME[N]), \
-        .flags = 0, .readfn = NULL, .writefn = NULL           \
-    }
-
-#define CSR_OFF_FLAGS(NAME, FL) \
-    CSR_OFF_FUNCS(NAME, FL, NULL, NULL)
-
-#define CSR_OFF(NAME) \
-    CSR_OFF_FLAGS(NAME, 0)
-
-static const CSRInfo csr_info[] = {
-    CSR_OFF_FLAGS(CRMD, CSRFL_EXITTB),
-    CSR_OFF(PRMD),
-    CSR_OFF_FLAGS(EUEN, CSRFL_EXITTB),
-    CSR_OFF_FLAGS(MISC, CSRFL_READONLY),
-    CSR_OFF(ECFG),
-    CSR_OFF_FUNCS(ESTAT, CSRFL_EXITTB, NULL, gen_helper_csrwr_estat),
-    CSR_OFF(ERA),
-    CSR_OFF(BADV),
-    CSR_OFF_FLAGS(BADI, CSRFL_READONLY),
-    CSR_OFF(EENTRY),
-    CSR_OFF(TLBIDX),
-    CSR_OFF(TLBEHI),
-    CSR_OFF(TLBELO0),
-    CSR_OFF(TLBELO1),
-    CSR_OFF_FUNCS(ASID, CSRFL_EXITTB, NULL, gen_helper_csrwr_asid),
-    CSR_OFF(PGDL),
-    CSR_OFF(PGDH),
-    CSR_OFF_FUNCS(PGD, CSRFL_READONLY, gen_helper_csrrd_pgd, NULL),
-    CSR_OFF(PWCL),
-    CSR_OFF(PWCH),
-    CSR_OFF(STLBPS),
-    CSR_OFF(RVACFG),
-    CSR_OFF_FUNCS(CPUID, CSRFL_READONLY, gen_helper_csrrd_cpuid, NULL),
-    CSR_OFF_FLAGS(PRCFG1, CSRFL_READONLY),
-    CSR_OFF_FLAGS(PRCFG2, CSRFL_READONLY),
-    CSR_OFF_FLAGS(PRCFG3, CSRFL_READONLY),
-    CSR_OFF_ARRAY(SAVE, 0),
-    CSR_OFF_ARRAY(SAVE, 1),
-    CSR_OFF_ARRAY(SAVE, 2),
-    CSR_OFF_ARRAY(SAVE, 3),
-    CSR_OFF_ARRAY(SAVE, 4),
-    CSR_OFF_ARRAY(SAVE, 5),
-    CSR_OFF_ARRAY(SAVE, 6),
-    CSR_OFF_ARRAY(SAVE, 7),
-    CSR_OFF_ARRAY(SAVE, 8),
-    CSR_OFF_ARRAY(SAVE, 9),
-    CSR_OFF_ARRAY(SAVE, 10),
-    CSR_OFF_ARRAY(SAVE, 11),
-    CSR_OFF_ARRAY(SAVE, 12),
-    CSR_OFF_ARRAY(SAVE, 13),
-    CSR_OFF_ARRAY(SAVE, 14),
-    CSR_OFF_ARRAY(SAVE, 15),
-    CSR_OFF(TID),
-    CSR_OFF_FUNCS(TCFG, CSRFL_IO, NULL, gen_helper_csrwr_tcfg),
-    CSR_OFF_FUNCS(TVAL, CSRFL_READONLY | CSRFL_IO, gen_helper_csrrd_tval, NULL),
-    CSR_OFF(CNTC),
-    CSR_OFF_FUNCS(TICLR, CSRFL_IO, NULL, gen_helper_csrwr_ticlr),
-    CSR_OFF(LLBCTL),
-    CSR_OFF(IMPCTL1),
-    CSR_OFF(IMPCTL2),
-    CSR_OFF(TLBRENTRY),
-    CSR_OFF(TLBRBADV),
-    CSR_OFF(TLBRERA),
-    CSR_OFF(TLBRSAVE),
-    CSR_OFF(TLBRELO0),
-    CSR_OFF(TLBRELO1),
-    CSR_OFF(TLBREHI),
-    CSR_OFF(TLBRPRMD),
-    CSR_OFF(MERRCTL),
-    CSR_OFF(MERRINFO1),
-    CSR_OFF(MERRINFO2),
-    CSR_OFF(MERRENTRY),
-    CSR_OFF(MERRERA),
-    CSR_OFF(MERRSAVE),
-    CSR_OFF(CTAG),
-    CSR_OFF_ARRAY(DMW, 0),
-    CSR_OFF_ARRAY(DMW, 1),
-    CSR_OFF_ARRAY(DMW, 2),
-    CSR_OFF_ARRAY(DMW, 3),
-    CSR_OFF(DBG),
-    CSR_OFF(DERA),
-    CSR_OFF(DSAVE),
-};
-
 static bool check_plv(DisasContext *ctx)
 {
     if (ctx->plv == MMU_PLV_USER) {
@@ -160,19 +54,36 @@ static bool check_plv(DisasContext *ctx)
     return false;
 }
 
-static const CSRInfo *get_csr(unsigned csr_num)
+static bool set_csr_trans_func(unsigned int csr_num, GenCSRRead readfn,
+                               GenCSRWrite writefn)
 {
-    const CSRInfo *csr;
+    CSRInfo *csr;
 
-    if (csr_num >= ARRAY_SIZE(csr_info)) {
-        return NULL;
+    csr = get_csr(csr_num);
+    if (!csr) {
+        return false;
     }
-    csr = &csr_info[csr_num];
-    if (csr->offset == 0) {
-        return NULL;
-    }
-    return csr;
+
+    csr->readfn = (GenCSRFunc)readfn;
+    csr->writefn = (GenCSRFunc)writefn;
+    return true;
 }
+
+#define SET_CSR_FUNC(NAME, read, write)                 \
+        set_csr_trans_func(LOONGARCH_CSR_##NAME, read, write)
+
+void loongarch_csr_translate_init(void)
+{
+    SET_CSR_FUNC(ESTAT, NULL, gen_helper_csrwr_estat);
+    SET_CSR_FUNC(ASID,  NULL, gen_helper_csrwr_asid);
+    SET_CSR_FUNC(PGD,   gen_helper_csrrd_pgd, NULL);
+    SET_CSR_FUNC(PWCL,  NULL, gen_helper_csrwr_pwcl);
+    SET_CSR_FUNC(CPUID, gen_helper_csrrd_cpuid, NULL);
+    SET_CSR_FUNC(TCFG,  NULL, gen_helper_csrwr_tcfg);
+    SET_CSR_FUNC(TVAL,  gen_helper_csrrd_tval, NULL);
+    SET_CSR_FUNC(TICLR, NULL, gen_helper_csrwr_ticlr);
+}
+#undef SET_CSR_FUNC
 
 static bool check_csr_flags(DisasContext *ctx, const CSRInfo *csr, bool write)
 {
@@ -191,6 +102,7 @@ static bool trans_csrrd(DisasContext *ctx, arg_csrrd *a)
 {
     TCGv dest;
     const CSRInfo *csr;
+    GenCSRRead readfn;
 
     if (check_plv(ctx)) {
         return false;
@@ -202,8 +114,9 @@ static bool trans_csrrd(DisasContext *ctx, arg_csrrd *a)
     } else {
         check_csr_flags(ctx, csr, false);
         dest = gpr_dst(ctx, a->rd, EXT_NONE);
-        if (csr->readfn) {
-            csr->readfn(dest, tcg_env);
+        readfn = (GenCSRRead)csr->readfn;
+        if (readfn) {
+            readfn(dest, tcg_env);
         } else {
             tcg_gen_ld_tl(dest, tcg_env, csr->offset);
         }
@@ -216,6 +129,7 @@ static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
 {
     TCGv dest, src1;
     const CSRInfo *csr;
+    GenCSRWrite writefn;
 
     if (check_plv(ctx)) {
         return false;
@@ -231,9 +145,10 @@ static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
         return false;
     }
     src1 = gpr_src(ctx, a->rd, EXT_NONE);
-    if (csr->writefn) {
+    writefn = (GenCSRWrite)csr->writefn;
+    if (writefn) {
         dest = gpr_dst(ctx, a->rd, EXT_NONE);
-        csr->writefn(dest, tcg_env, src1);
+        writefn(dest, tcg_env, src1);
     } else {
         dest = tcg_temp_new();
         tcg_gen_ld_tl(dest, tcg_env, csr->offset);
@@ -247,6 +162,7 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
 {
     TCGv src1, mask, oldv, newv, temp;
     const CSRInfo *csr;
+    GenCSRWrite writefn;
 
     if (check_plv(ctx)) {
         return false;
@@ -277,8 +193,9 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
     tcg_gen_andc_tl(temp, oldv, mask);
     tcg_gen_or_tl(newv, newv, temp);
 
-    if (csr->writefn) {
-        csr->writefn(oldv, tcg_env, newv);
+    writefn = (GenCSRWrite)csr->writefn;
+    if (writefn) {
+        writefn(oldv, tcg_env, newv);
     } else {
         tcg_gen_st_tl(newv, tcg_env, csr->offset);
     }

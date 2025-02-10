@@ -11,18 +11,42 @@ endif
 
 # Timeouts for individual tests that can be slow e.g. with debugging enabled
 test_timeouts = {
-  'aarch64_raspi4' : 120,
-  'aarch64_sbsaref' : 600,
-  'aarch64_virt' : 360,
-  'acpi_bits' : 240,
+  'aarch64_aspeed' : 600,
+  'aarch64_raspi4' : 480,
+  'aarch64_rme_virt' : 1200,
+  'aarch64_rme_sbsaref' : 1200,
+  'aarch64_sbsaref_alpine' : 720,
+  'aarch64_sbsaref_freebsd' : 720,
+  'aarch64_tuxrun' : 240,
+  'aarch64_virt' : 720,
+  'acpi_bits' : 420,
+  'arm_aspeed_palmetto' : 120,
+  'arm_aspeed_romulus' : 120,
+  'arm_aspeed_ast2500' : 480,
+  'arm_aspeed_ast2600' : 720,
+  'arm_aspeed_rainier' : 240,
+  'arm_bpim2u' : 500,
+  'arm_collie' : 180,
+  'arm_cubieboard' : 360,
+  'arm_orangepi' : 540,
+  'arm_quanta_gsj' : 240,
   'arm_raspi2' : 120,
+  'arm_tuxrun' : 240,
+  'arm_sx1' : 360,
+  'intel_iommu': 300,
   'mips_malta' : 120,
+  'mipsel_replay' : 480,
   'netdev_ethtool' : 180,
   'ppc_40p' : 240,
   'ppc64_hv' : 1000,
-  'ppc64_powernv' : 240,
-  'ppc64_pseries' : 240,
-  's390x_ccw_virtio' : 240,
+  'ppc64_powernv' : 480,
+  'ppc64_pseries' : 480,
+  'ppc64_tuxrun' : 420,
+  'ppc64_mac99' : 120,
+  'riscv64_tuxrun' : 120,
+  's390x_ccw_virtio' : 420,
+  'sh4_tuxrun' : 240,
+  'x86_64_kvm_xen' : 180,
 }
 
 tests_generic_system = [
@@ -37,23 +61,60 @@ tests_generic_linuxuser = [
 tests_generic_bsduser = [
 ]
 
+tests_aarch64_system_quick = [
+  'migration',
+]
+
 tests_aarch64_system_thorough = [
+  'aarch64_aspeed',
   'aarch64_raspi3',
   'aarch64_raspi4',
+  'aarch64_rme_virt',
+  'aarch64_rme_sbsaref',
   'aarch64_sbsaref',
+  'aarch64_sbsaref_alpine',
+  'aarch64_sbsaref_freebsd',
+  'aarch64_tcg_plugins',
+  'aarch64_tuxrun',
   'aarch64_virt',
+  'aarch64_xlnx_versal',
   'multiprocess',
+]
+
+tests_alpha_system_quick = [
+  'migration',
 ]
 
 tests_alpha_system_thorough = [
   'alpha_clipper',
 ]
 
+tests_arm_system_quick = [
+  'migration',
+]
+
 tests_arm_system_thorough = [
+  'arm_aspeed_ast1030',
+  'arm_aspeed_palmetto',
+  'arm_aspeed_romulus',
+  'arm_aspeed_ast2500',
+  'arm_aspeed_ast2600',
+  'arm_aspeed_rainier',
+  'arm_bpim2u',
   'arm_canona1100',
+  'arm_collie',
+  'arm_cubieboard',
+  'arm_emcraft_sf2',
   'arm_integratorcp',
+  'arm_microbit',
+  'arm_orangepi',
+  'arm_quanta_gsj',
   'arm_raspi2',
+  'arm_smdkc210',
+  'arm_sx1',
   'arm_vexpress',
+  'arm_virt',
+  'arm_tuxrun',
 ]
 
 tests_arm_linuxuser_thorough = [
@@ -64,6 +125,18 @@ tests_avr_system_thorough = [
   'avr_mega2560',
 ]
 
+tests_hppa_system_quick = [
+  'hppa_seabios',
+]
+
+tests_i386_system_quick = [
+  'migration',
+]
+
+tests_i386_system_thorough = [
+  'i386_tuxrun',
+]
+
 tests_loongarch64_system_thorough = [
   'loongarch64_virt',
 ]
@@ -72,6 +145,7 @@ tests_m68k_system_thorough = [
   'm68k_mcf5208evb',
   'm68k_nextcube',
   'm68k_q800',
+  'm68k_tuxrun',
 ]
 
 tests_microblaze_system_thorough = [
@@ -84,16 +158,26 @@ tests_microblazeel_system_thorough = [
 
 tests_mips_system_thorough = [
   'mips_malta',
+  'mips_replay',
+  'mips_tuxrun',
 ]
 
 tests_mipsel_system_thorough = [
   'mipsel_malta',
+  'mipsel_replay',
+  'mipsel_tuxrun',
+]
+
+tests_mips64_system_thorough = [
+  'mips64_tuxrun',
 ]
 
 tests_mips64el_system_thorough = [
   'mips64el_fuloong2e',
   'mips64el_loongson3v',
   'mips64el_malta',
+  'mips64el_replay',
+  'mips64el_tuxrun',
 ]
 
 tests_or1k_system_thorough = [
@@ -101,6 +185,7 @@ tests_or1k_system_thorough = [
 ]
 
 tests_ppc_system_quick = [
+  'migration',
   'ppc_74xx',
 ]
 
@@ -111,7 +196,12 @@ tests_ppc_system_thorough = [
   'ppc_bamboo',
   'ppc_mac',
   'ppc_mpc8544ds',
+  'ppc_tuxrun',
   'ppc_virtex_ml507',
+]
+
+tests_ppc64_system_quick = [
+  'migration',
 ]
 
 tests_ppc64_system_thorough = [
@@ -119,6 +209,26 @@ tests_ppc64_system_thorough = [
   'ppc64_hv',
   'ppc64_powernv',
   'ppc64_pseries',
+  'ppc64_tuxrun',
+  'ppc64_mac99',
+]
+
+tests_riscv32_system_quick = [
+  'migration',
+  'riscv_opensbi',
+]
+
+tests_riscv32_system_thorough = [
+  'riscv32_tuxrun',
+]
+
+tests_riscv64_system_quick = [
+  'migration',
+  'riscv_opensbi',
+]
+
+tests_riscv64_system_thorough = [
+  'riscv64_tuxrun',
 ]
 
 tests_rx_system_thorough = [
@@ -128,34 +238,55 @@ tests_rx_system_thorough = [
 tests_s390x_system_thorough = [
   's390x_ccw_virtio',
   's390x_topology',
+  's390x_tuxrun',
 ]
 
 tests_sh4_system_thorough = [
   'sh4_r2d',
+  'sh4_tuxrun',
+]
+
+tests_sh4eb_system_thorough = [
+  'sh4eb_r2d',
+]
+
+tests_sparc_system_quick = [
+  'migration',
 ]
 
 tests_sparc_system_thorough = [
   'sparc_sun4m',
 ]
 
+tests_sparc64_system_quick = [
+  'migration',
+]
+
 tests_sparc64_system_thorough = [
   'sparc64_sun4u',
+  'sparc64_tuxrun',
 ]
 
 tests_x86_64_system_quick = [
   'cpu_queries',
   'mem_addr_space',
+  'migration',
   'pc_cpu_hotplug_props',
   'virtio_version',
   'x86_cpu_model_versions',
+  'vnc',
 ]
 
 tests_x86_64_system_thorough = [
   'acpi_bits',
+  'intel_iommu',
   'linux_initrd',
   'multiprocess',
   'netdev_ethtool',
   'virtio_gpu',
+  'x86_64_hotplug_cpu',
+  'x86_64_kvm_xen',
+  'x86_64_tuxrun',
 ]
 
 tests_xtensa_system_thorough = [
@@ -232,8 +363,8 @@ foreach speed : ['quick', 'thorough']
            env: test_env,
            args: [testpath],
            protocol: 'tap',
-           timeout: test_timeouts.get(test, 60),
-           priority: test_timeouts.get(test, 60),
+           timeout: test_timeouts.get(test, 90),
+           priority: test_timeouts.get(test, 90),
            suite: suites)
     endforeach
   endforeach

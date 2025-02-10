@@ -21,15 +21,15 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "sysemu/whpx.h"
-#include "sysemu/cpu-timers.h"
+#include "system/whpx.h"
+#include "system/cpu-timers.h"
 #include "trace.h"
 
 #include "hw/i386/x86.h"
 #include "target/i386/cpu.h"
 #include "hw/intc/i8259.h"
 #include "hw/irq.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 
 /* TSC handling */
 uint64_t cpu_get_tsc(CPUX86State *env)

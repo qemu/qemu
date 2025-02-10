@@ -817,6 +817,7 @@ const void *HELPER(access_check_cp_reg)(CPUARMState *env, uint32_t key,
         unsigned int idx = FIELD_EX32(ri->fgt, FGT, IDX);
         unsigned int bitpos = FIELD_EX32(ri->fgt, FGT, BITPOS);
         bool rev = FIELD_EX32(ri->fgt, FGT, REV);
+        bool nxs = FIELD_EX32(ri->fgt, FGT, NXS);
         bool trapbit;
 
         if (ri->fgt & FGT_EXEC) {
@@ -830,7 +831,15 @@ const void *HELPER(access_check_cp_reg)(CPUARMState *env, uint32_t key,
             trapword = env->cp15.fgt_write[idx];
         }
 
-        trapbit = extract64(trapword, bitpos, 1);
+        if (nxs && (arm_hcrx_el2_eff(env) & HCRX_FGTNXS)) {
+            /*
+             * If HCRX_EL2.FGTnXS is 1 then the fine-grained trap for
+             * TLBI maintenance insns does *not* apply to the nXS variant.
+             */
+            trapbit = 0;
+        } else {
+            trapbit = extract64(trapword, bitpos, 1);
+        }
         if (trapbit != rev) {
             res = CP_ACCESS_TRAP_EL2;
             goto fail;
@@ -912,7 +921,19 @@ void HELPER(tidcp_el0)(CPUARMState *env, uint32_t syndrome)
 {
     /* See arm_sctlr(), but we also need the sctlr el. */
     ARMMMUIdx mmu_idx = arm_mmu_idx_el(env, 0);
-    int target_el = mmu_idx == ARMMMUIdx_E20_0 ? 2 : 1;
+    int target_el;
+
+    switch (mmu_idx) {
+    case ARMMMUIdx_E20_0:
+        target_el = 2;
+        break;
+    case ARMMMUIdx_E30_0:
+        target_el = 3;
+        break;
+    default:
+        target_el = 1;
+        break;
+    }
 
     /*
      * The bit is not valid unless the target el is aa64, but since the

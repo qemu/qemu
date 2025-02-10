@@ -39,6 +39,7 @@
 #include "qemu/module.h"
 #include "qemu/plugin.h"
 #include "user/guest-base.h"
+#include "user/page-protection.h"
 #include "exec/exec-all.h"
 #include "exec/gdbstub.h"
 #include "gdbstub/user.h"
@@ -49,7 +50,7 @@
 #include "elf.h"
 #include "trace/control.h"
 #include "target_elf.h"
-#include "cpu_loop-common.h"
+#include "user/cpu_loop.h"
 #include "crypto/init.h"
 #include "fd-trans.h"
 #include "signal-common.h"
@@ -412,6 +413,13 @@ static void handle_arg_reserved_va(const char *arg)
     reserved_va = val ? val - 1 : 0;
 }
 
+static const char *rtsig_map = CONFIG_QEMU_RTSIG_MAP;
+
+static void handle_arg_rtsig_map(const char *arg)
+{
+    rtsig_map = arg;
+}
+
 static void handle_arg_one_insn_per_tb(const char *arg)
 {
     opt_one_insn_per_tb = true;
@@ -494,6 +502,9 @@ static const struct qemu_argument arg_table[] = {
      "address",    "set guest_base address to 'address'"},
     {"R",          "QEMU_RESERVED_VA", true,  handle_arg_reserved_va,
      "size",       "reserve 'size' bytes for guest virtual address space"},
+    {"t",          "QEMU_RTSIG_MAP",   true,  handle_arg_rtsig_map,
+     "tsig hsig n[,...]",
+                   "map target rt signals [tsig,tsig+n) to [hsig,hsig+n]"},
     {"d",          "QEMU_LOG",         true,  handle_arg_log,
      "item[,...]", "enable logging of specified items "
      "(use '-d help' for a list of items)"},
@@ -1002,7 +1013,7 @@ int main(int argc, char **argv, char **envp)
 
     target_set_brk(info->brk);
     syscall_init();
-    signal_init();
+    signal_init(rtsig_map);
 
     /* Now that we've loaded the binary, GUEST_BASE is fixed.  Delay
        generating the prologue until now so that the prologue can take
@@ -1012,11 +1023,7 @@ int main(int argc, char **argv, char **envp)
     target_cpu_copy_regs(env, regs);
 
     if (gdbstub) {
-        if (gdbserver_start(gdbstub) < 0) {
-            fprintf(stderr, "qemu: could not open gdbserver on %s\n",
-                    gdbstub);
-            exit(EXIT_FAILURE);
-        }
+        gdbserver_start(gdbstub, &error_fatal);
         gdb_handlesig(cpu, 0, NULL, NULL, 0);
     }
 

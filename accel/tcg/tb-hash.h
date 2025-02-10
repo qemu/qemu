@@ -22,6 +22,7 @@
 
 #include "exec/cpu-defs.h"
 #include "exec/exec-all.h"
+#include "exec/translation-block.h"
 #include "qemu/xxhash.h"
 #include "tb-jmp-cache.h"
 

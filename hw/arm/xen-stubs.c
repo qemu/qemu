@@ -8,7 +8,7 @@
 #include "qemu/error-report.h"
 #include "qapi/qapi-commands-migration.h"
 #include "hw/boards.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/xen/xen-hvm-common.h"
 #include "hw/xen/arch_hvm.h"
 

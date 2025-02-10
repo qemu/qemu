@@ -274,9 +274,8 @@ static const TypeInfo virtconsole_info = {
     .class_init    = virtconsole_class_init,
 };
 
-static Property virtserialport_properties[] = {
+static const Property virtserialport_properties[] = {
     DEFINE_PROP_CHR("chardev", VirtConsole, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtserialport_class_init(ObjectClass *klass, void *data)

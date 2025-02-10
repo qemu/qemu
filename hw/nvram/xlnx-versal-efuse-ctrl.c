@@ -743,15 +743,13 @@ static const VMStateDescription vmstate_efuse_ctrl = {
     }
 };
 
-static Property efuse_ctrl_props[] = {
+static const Property efuse_ctrl_props[] = {
     DEFINE_PROP_LINK("efuse",
                      XlnxVersalEFuseCtrl, efuse,
                      TYPE_XLNX_EFUSE, XlnxEFuse *),
     DEFINE_PROP_ARRAY("pg0-lock",
                       XlnxVersalEFuseCtrl, extra_pg0_lock_n16,
                       extra_pg0_lock_spec, qdev_prop_uint16, uint16_t),
-
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void efuse_ctrl_class_init(ObjectClass *klass, void *data)

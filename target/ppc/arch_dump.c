@@ -15,8 +15,8 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "elf.h"
-#include "sysemu/dump.h"
-#include "sysemu/kvm.h"
+#include "system/dump.h"
+#include "system/kvm.h"
 
 #ifdef TARGET_PPC64
 #define ELFCLASS ELFCLASS64

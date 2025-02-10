@@ -277,9 +277,8 @@ static void grlib_apbuart_reset(DeviceState *d)
     uart->current = 0;
 }
 
-static Property grlib_apbuart_properties[] = {
+static const Property grlib_apbuart_properties[] = {
     DEFINE_PROP_CHR("chrdev", UART, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void grlib_apbuart_class_init(ObjectClass *klass, void *data)

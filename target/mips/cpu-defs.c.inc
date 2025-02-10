@@ -314,7 +314,7 @@ const mips_def_t mips_defs[] =
                     (0x3fe << CP0SRSC4_SRS14) | (0x3fe << CP0SRSC4_SRS13),
         .SEGBITS = 32,
         .PABITS = 32,
-        .insn_flags = CPU_MIPS32R2 | ASE_MIPS16 | ASE_DSP | ASE_MT,
+        .insn_flags = CPU_MIPS32R2 | ASE_MIPS16 | ASE_DSP,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -478,14 +478,15 @@ const mips_def_t mips_defs[] =
                        (2 << CP0C1_DS) | (4 << CP0C1_DL) | (3 << CP0C1_DA) |
                        (0 << CP0C1_PC) | (1 << CP0C1_WR) | (1 << CP0C1_EP),
         .CP0_Config2 = MIPS_CONFIG2,
-        .CP0_Config3 = MIPS_CONFIG3 | (1 << CP0C3_BP) | (1 << CP0C3_BI) |
+        .CP0_Config3 = MIPS_CONFIG3 | (1 << CP0C3_MSAP) |
+                       (1 << CP0C3_BP) | (1 << CP0C3_BI) |
                        (2 << CP0C3_ISA) | (1 << CP0C3_ULRI) |
                        (1 << CP0C3_RXI) | (1U << CP0C3_M),
         .CP0_Config4 = MIPS_CONFIG4 | (0xfc << CP0C4_KScrExist) |
                        (3 << CP0C4_IE) | (1U << CP0C4_M),
         .CP0_Config5 = MIPS_CONFIG5 | (1 << CP0C5_XNP) | (1 << CP0C5_LLB),
-        .CP0_Config5_rw_bitmask = (1 << CP0C5_SBRI) | (1 << CP0C5_FRE) |
-                                  (1 << CP0C5_UFE),
+        .CP0_Config5_rw_bitmask = (1 << CP0C5_MSAEn) | (1 << CP0C5_UFE) |
+                                  (1 << CP0C5_FRE) | (1 << CP0C5_SBRI),
         .CP0_LLAddr_rw_bitmask = 0,
         .CP0_LLAddr_shift = 0,
         .SYNCI_Step = 32,
@@ -499,6 +500,7 @@ const mips_def_t mips_defs[] =
                     (1 << FCR0_S) | (0x00 << FCR0_PRID) | (0x0 << FCR0_REV),
         .CP1_fcr31 = (1 << FCR31_ABS2008) | (1 << FCR31_NAN2008),
         .CP1_fcr31_rw_bitmask = 0x0103FFFF,
+        .MSAIR = 0x03 << MSAIR_ProcID,
         .SEGBITS = 32,
         .PABITS = 32,
         .insn_flags = CPU_MIPS32R6 | ASE_MICROMIPS,
@@ -541,7 +543,7 @@ const mips_def_t mips_defs[] =
         .SEGBITS = 32,
         .PABITS = 32,
         .insn_flags = CPU_MIPS32R6 | ISA_NANOMIPS32 |
-                      ASE_DSP | ASE_DSP_R2 | ASE_DSP_R3 | ASE_MT,
+                      ASE_DSP | ASE_DSP_R2 | ASE_DSP_R3,
         .mmu_type = MMU_TYPE_R4000,
     },
 #if defined(TARGET_MIPS64)
@@ -661,7 +663,7 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .SEGBITS = 40,
         .PABITS = 36,
-        .insn_flags = CPU_MIPS64R1 | ASE_MIPS3D,
+        .insn_flags = CPU_MIPS64R1,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -690,7 +692,7 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .SEGBITS = 42,
         .PABITS = 36,
-        .insn_flags = CPU_MIPS64R2 | ASE_MIPS3D,
+        .insn_flags = CPU_MIPS64R2,
         .mmu_type = MMU_TYPE_R4000,
     },
     {

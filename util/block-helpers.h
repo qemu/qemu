@@ -13,7 +13,6 @@
 #define MAX_BLOCK_SIZE          (2 * MiB)
 #define MAX_BLOCK_SIZE_STR      "2 MiB"
 
-void check_block_size(const char *id, const char *name, int64_t value,
-                      Error **errp);
+bool check_block_size(const char *name, int64_t value, Error **errp);
 
 #endif /* BLOCK_HELPERS_H */

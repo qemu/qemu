@@ -259,9 +259,8 @@ static const MemoryRegionOps avr_usart_ops = {
     .impl = {.min_access_size = 1, .max_access_size = 1}
 };
 
-static Property avr_usart_properties[] = {
+static const Property avr_usart_properties[] = {
     DEFINE_PROP_CHR("chardev", AVRUsartState, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void avr_usart_pr(void *opaque, int irq, int level)

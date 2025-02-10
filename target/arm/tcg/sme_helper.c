@@ -904,7 +904,7 @@ void HELPER(sme_addva_d)(void *vzda, void *vzn, void *vpn,
 }
 
 void HELPER(sme_fmopa_s)(void *vza, void *vzn, void *vzm, void *vpn,
-                         void *vpm, void *vst, uint32_t desc)
+                         void *vpm, float_status *fpst_in, uint32_t desc)
 {
     intptr_t row, col, oprsz = simd_maxsz(desc);
     uint32_t neg = simd_data(desc) << 31;
@@ -916,7 +916,7 @@ void HELPER(sme_fmopa_s)(void *vza, void *vzn, void *vzm, void *vpn,
      * update the cumulative fp exception status.  It also produces
      * default nans.
      */
-    fpst = *(float_status *)vst;
+    fpst = *fpst_in;
     set_default_nan_mode(true, &fpst);
 
     for (row = 0; row < oprsz; ) {
@@ -946,13 +946,13 @@ void HELPER(sme_fmopa_s)(void *vza, void *vzn, void *vzm, void *vpn,
 }
 
 void HELPER(sme_fmopa_d)(void *vza, void *vzn, void *vzm, void *vpn,
-                         void *vpm, void *vst, uint32_t desc)
+                         void *vpm, float_status *fpst_in, uint32_t desc)
 {
     intptr_t row, col, oprsz = simd_oprsz(desc) / 8;
     uint64_t neg = (uint64_t)simd_data(desc) << 63;
     uint64_t *za = vza, *zn = vzn, *zm = vzm;
     uint8_t *pn = vpn, *pm = vpm;
-    float_status fpst = *(float_status *)vst;
+    float_status fpst = *fpst_in;
 
     set_default_nan_mode(true, &fpst);
 
@@ -1038,13 +1038,13 @@ void HELPER(sme_fmopa_h)(void *vza, void *vzn, void *vzm, void *vpn,
     float_status fpst_odd, fpst_std, fpst_f16;
 
     /*
-     * Make copies of fp_status and fp_status_f16, because this operation
+     * Make copies of the fp status fields we use, because this operation
      * does not update the cumulative fp exception status.  It also
      * produces default NaNs. We also need a second copy of fp_status with
      * round-to-odd -- see above.
      */
-    fpst_f16 = env->vfp.fp_status_f16;
-    fpst_std = env->vfp.fp_status;
+    fpst_f16 = env->vfp.fp_status_f16_a64;
+    fpst_std = env->vfp.fp_status_a64;
     set_default_nan_mode(true, &fpst_std);
     set_default_nan_mode(true, &fpst_f16);
     fpst_odd = fpst_std;

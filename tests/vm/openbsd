@@ -22,8 +22,8 @@ class OpenBSDVM(basevm.BaseVM):
     name = "openbsd"
     arch = "x86_64"
 
-    link = "https://cdn.openbsd.org/pub/OpenBSD/7.5/amd64/install75.iso"
-    csum = "034435c6e27405d5a7fafb058162943c194eb793dafdc412c08d49bb56b3892a"
+    link = "https://cdn.openbsd.org/pub/OpenBSD/7.6/amd64/install76.iso"
+    csum = "60cba8cb391b50bba8fa10fc768bd0529636f5345d82133c93e22c798d8e5269"
     size = "20G"
     pkgs = [
         # tools
@@ -32,7 +32,6 @@ class OpenBSDVM(basevm.BaseVM):
         "pkgconf",
         "bzip2", "xz",
         "ninja",
-        "py3-tomli",
 
         # gnu tools
         "bash",

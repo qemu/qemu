@@ -33,23 +33,23 @@ vCPU hotplug
       {
           "return": [
               {
-                  "type": "IvyBridge-IBRS-x86_64-cpu",
-                  "vcpus-count": 1,
                   "props": {
-                      "socket-id": 1,
-                      "core-id": 0,
+                      "core-id": 1,
+                      "socket-id": 0,
                       "thread-id": 0
-                  }
+                  },
+                  "type": "IvyBridge-IBRS-x86_64-cpu",
+                  "vcpus-count": 1
               },
               {
+                  "props": {
+                      "core-id": 0,
+                      "socket-id": 0,
+                      "thread-id": 0
+                  },
                   "qom-path": "/machine/unattached/device[0]",
                   "type": "IvyBridge-IBRS-x86_64-cpu",
-                  "vcpus-count": 1,
-                  "props": {
-                      "socket-id": 0,
-                      "core-id": 0,
-                      "thread-id": 0
-                  }
+                  "vcpus-count": 1
               }
           ]
       }
@@ -58,18 +58,18 @@ vCPU hotplug
 (4) The ``query-hotpluggable-cpus`` command returns an object for CPUs
     that are present (containing a "qom-path" member) or which may be
     hot-plugged (no "qom-path" member).  From its output in step (3), we
-    can see that ``IvyBridge-IBRS-x86_64-cpu`` is present in socket 0,
-    while hot-plugging a CPU into socket 1 requires passing the listed
+    can see that ``IvyBridge-IBRS-x86_64-cpu`` is present in socket 0 core 0,
+    while hot-plugging a CPU into socket 0 core 1 requires passing the listed
     properties to QMP ``device_add``::
 
-      (QEMU) device_add id=cpu-2 driver=IvyBridge-IBRS-x86_64-cpu socket-id=1 core-id=0 thread-id=0
+      (QEMU) device_add id=cpu-2 driver=IvyBridge-IBRS-x86_64-cpu socket-id=0 core-id=1 thread-id=0
       {
           "execute": "device_add",
           "arguments": {
-              "socket-id": 1,
+              "core-id": 1,
               "driver": "IvyBridge-IBRS-x86_64-cpu",
               "id": "cpu-2",
-              "core-id": 0,
+              "socket-id": 0,
               "thread-id": 0
           }
       }
@@ -83,34 +83,32 @@ vCPU hotplug
 
       (QEMU) query-cpus-fast
       {
-          "execute": "query-cpus-fast",
           "arguments": {}
+          "execute": "query-cpus-fast",
       }
       {
           "return": [
               {
-                  "qom-path": "/machine/unattached/device[0]",
-                  "target": "x86_64",
-                  "thread-id": 11534,
                   "cpu-index": 0,
                   "props": {
-                      "socket-id": 0,
                       "core-id": 0,
+                      "socket-id": 0,
                       "thread-id": 0
                   },
-                  "arch": "x86"
+                  "qom-path": "/machine/unattached/device[0]",
+                  "target": "x86_64",
+                  "thread-id": 28957
               },
               {
-                  "qom-path": "/machine/peripheral/cpu-2",
-                  "target": "x86_64",
-                  "thread-id": 12106,
                   "cpu-index": 1,
                   "props": {
-                      "socket-id": 1,
-                      "core-id": 0,
+                      "core-id": 1,
+                      "socket-id": 0,
                       "thread-id": 0
                   },
-                  "arch": "x86"
+                  "qom-path": "/machine/peripheral/cpu-2",
+                  "target": "x86_64",
+                  "thread-id": 29095
               }
           ]
       }
@@ -123,10 +121,10 @@ From the 'qmp-shell', invoke the QMP ``device_del`` command::
 
       (QEMU) device_del id=cpu-2
       {
-          "execute": "device_del",
           "arguments": {
               "id": "cpu-2"
           }
+          "execute": "device_del",
       }
       {
           "return": {}

@@ -5,6 +5,7 @@
 #include "exec/cpu_ldst.h"
 
 #include "user/abitypes.h"
+#include "user/page-protection.h"
 
 #include "syscall_defs.h"
 #include "target_syscall.h"
@@ -44,7 +45,6 @@ struct image_info {
         abi_ulong       file_string;
         uint32_t        elf_flags;
         int             personality;
-        abi_ulong       alignment;
         bool            exec_stack;
 
         /* Generic semihosting knows about these pointers. */

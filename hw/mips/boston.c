@@ -37,11 +37,11 @@
 #include "qemu/guest-random.h"
 #include "qemu/log.h"
 #include "chardev/char.h"
-#include "sysemu/device_tree.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/qtest.h"
-#include "sysemu/runstate.h"
-#include "sysemu/reset.h"
+#include "system/device_tree.h"
+#include "system/system.h"
+#include "system/qtest.h"
+#include "system/runstate.h"
+#include "system/reset.h"
 
 #include <libfdt.h>
 #include "qom/object.h"
@@ -792,7 +792,7 @@ static void boston_mach_init(MachineState *machine)
         kernel_size = load_elf(machine->kernel_filename, NULL,
                            cpu_mips_kseg0_to_phys, NULL,
                            &kernel_entry, NULL, &kernel_high,
-                           NULL, 0, EM_MIPS, 1, 0);
+                           NULL, ELFDATA2LSB, EM_MIPS, 1, 0);
 
         if (kernel_size > 0) {
             int dt_size;

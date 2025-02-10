@@ -118,11 +118,10 @@ static const VMStateDescription vmstate_msf2_sysreg = {
     }
 };
 
-static Property msf2_sysreg_properties[] = {
+static const Property msf2_sysreg_properties[] = {
     /* default divisors in Libero GUI */
     DEFINE_PROP_UINT8("apb0divisor", MSF2SysregState, apb0div, 2),
     DEFINE_PROP_UINT8("apb1divisor", MSF2SysregState, apb1div, 2),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void msf2_sysreg_realize(DeviceState *dev, Error **errp)

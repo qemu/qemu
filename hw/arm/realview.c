@@ -19,7 +19,7 @@
 #include "hw/pci/pci.h"
 #include "hw/qdev-core.h"
 #include "net/net.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/boards.h"
 #include "hw/i2c/i2c.h"
 #include "qemu/error-report.h"

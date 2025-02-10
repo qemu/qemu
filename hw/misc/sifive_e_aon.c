@@ -24,7 +24,7 @@
 #include "hw/misc/sifive_e_aon.h"
 #include "qapi/visitor.h"
 #include "qapi/error.h"
-#include "sysemu/watchdog.h"
+#include "system/watchdog.h"
 #include "hw/qdev-properties.h"
 
 REG32(AON_WDT_WDOGCFG, 0x0)
@@ -289,10 +289,9 @@ static void sifive_e_aon_init(Object *obj)
     sysbus_init_irq(sbd, &r->wdog_irq);
 }
 
-static Property sifive_e_aon_properties[] = {
+static const Property sifive_e_aon_properties[] = {
     DEFINE_PROP_UINT64("wdogclk-frequency", SiFiveEAONState, wdogclk_freq,
                        SIFIVE_E_LFCLK_DEFAULT_FREQ),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void sifive_e_aon_class_init(ObjectClass *oc, void *data)

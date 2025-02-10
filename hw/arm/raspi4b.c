@@ -15,7 +15,7 @@
 #include "hw/display/bcm2835_fb.h"
 #include "hw/registerfields.h"
 #include "qemu/error-report.h"
-#include "sysemu/device_tree.h"
+#include "system/device_tree.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/arm/boot.h"

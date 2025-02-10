@@ -10,13 +10,9 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-import os
-
-from unittest import skipUnless
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
-from qemu_test import wait_for_console_pattern
-from qemu_test.utils import gzip_uncompress
+from qemu_test import wait_for_console_pattern, skipFlakyTest
 
 
 class RxGdbSimMachine(QemuSystemTest):
@@ -25,13 +21,16 @@ class RxGdbSimMachine(QemuSystemTest):
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
     ASSET_UBOOT = Asset(
-        'https://acc.dl.osdn.jp/users/23/23888/u-boot.bin.gz',
-        '7146567d669e91dbac166384b29aeba1715beb844c8551e904b86831bfd9d046')
+        ('https://github.com/philmd/qemu-testing-blob/raw/rx-gdbsim/rx/gdbsim/'
+         'u-boot.bin'),
+        'dd7dd4220cccf7aeb32227b26233bf39600db05c3f8e26005bcc2bf6c927207d')
     ASSET_DTB = Asset(
-        'https://acc.dl.osdn.jp/users/23/23887/rx-virt.dtb',
+        ('https://github.com/philmd/qemu-testing-blob/raw/rx-gdbsim/rx/gdbsim/'
+         'rx-gdbsim.dtb'),
         'aa278d9c1907a4501741d7ee57e7f65c02dd1b3e0323b33c6d4247f1b32cf29a')
     ASSET_KERNEL = Asset(
-        'http://acc.dl.osdn.jp/users/23/23845/zImage',
+        ('https://github.com/philmd/qemu-testing-blob/raw/rx-gdbsim/rx/gdbsim/'
+         'zImage'),
         'baa43205e74a7220ed8482188c5e9ce497226712abb7f4e7e4f825ce19ff9656')
 
     def test_uboot(self):
@@ -40,9 +39,7 @@ class RxGdbSimMachine(QemuSystemTest):
         """
         self.set_machine('gdbsim-r5f562n8')
 
-        uboot_path_gz = self.ASSET_UBOOT.fetch()
-        uboot_path = os.path.join(self.workdir, 'u-boot.bin')
-        gzip_uncompress(uboot_path_gz, uboot_path)
+        uboot_path = self.ASSET_UBOOT.fetch()
 
         self.vm.set_console()
         self.vm.add_args('-bios', uboot_path,
@@ -52,9 +49,10 @@ class RxGdbSimMachine(QemuSystemTest):
         wait_for_console_pattern(self, uboot_version)
         gcc_version = 'rx-unknown-linux-gcc (GCC) 9.0.0 20181105 (experimental)'
         # FIXME limit baudrate on chardev, else we type too fast
+        #  https://gitlab.com/qemu-project/qemu/-/issues/2691
         #exec_command_and_wait_for_pattern(self, 'version', gcc_version)
 
-    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
+    @skipFlakyTest(bug_url="https://gitlab.com/qemu-project/qemu/-/issues/2691")
     def test_linux_sash(self):
         """
         Boots a Linux kernel and checks that the console is operational.

@@ -22,29 +22,10 @@
 
 #include "cpu.h"
 #if defined(CONFIG_USER_ONLY)
-#include "exec/abi_ptr.h"
 #include "exec/cpu_ldst.h"
 #endif
 #include "exec/mmu-access-type.h"
 #include "exec/translation-block.h"
-#include "qemu/clang-tsa.h"
-
-/**
- * cpu_loop_exit_requested:
- * @cpu: The CPU state to be tested
- *
- * Indicate if somebody asked for a return of the CPU to the main loop
- * (e.g., via cpu_exit() or cpu_interrupt()).
- *
- * This is helpful for architectures that support interruptible
- * instructions. After writing back all state to registers/memory, this
- * call can be used to check if it makes sense to return to the main loop
- * or to continue executing the interruptible instruction.
- */
-static inline bool cpu_loop_exit_requested(CPUState *cpu)
-{
-    return (int32_t)qatomic_read(&cpu->neg.icount_decr.u32) < 0;
-}
 
 #if !defined(CONFIG_USER_ONLY) && defined(CONFIG_TCG)
 /* cputlb.c */
@@ -368,6 +349,13 @@ int probe_access_flags(CPUArchState *env, vaddr addr, int size,
  * The CPUTLBEntryFull structure returned via @pfull is transient
  * and must be consumed or copied immediately, before any further
  * access or changes to TLB @mmu_idx.
+ *
+ * This function will not fault if @nonfault is set, but will
+ * return TLB_INVALID_MASK if the page is not mapped, or is not
+ * accessible with @access_type.
+ *
+ * This function will return TLB_MMIO in order to force the access
+ * to be handled out-of-line if plugins wish to instrument the access.
  */
 int probe_access_full(CPUArchState *env, vaddr addr, int size,
                       MMUAccessType access_type, int mmu_idx,
@@ -375,22 +363,14 @@ int probe_access_full(CPUArchState *env, vaddr addr, int size,
                       CPUTLBEntryFull **pfull, uintptr_t retaddr);
 
 /**
- * probe_access_mmu() - Like probe_access_full except cannot fault and
- * doesn't trigger instrumentation.
+ * probe_access_full_mmu:
+ * Like probe_access_full, except:
  *
- * @env: CPUArchState
- * @vaddr: virtual address to probe
- * @size: size of the probe
- * @access_type: read, write or execute permission
- * @mmu_idx: softmmu index
- * @phost: ptr to return value host address or NULL
- * @pfull: ptr to return value CPUTLBEntryFull structure or NULL
- *
- * The CPUTLBEntryFull structure returned via @pfull is transient
- * and must be consumed or copied immediately, before any further
- * access or changes to TLB @mmu_idx.
- *
- * Returns: TLB flags as per probe_access_flags()
+ * This function is intended to be used for page table accesses by
+ * the target mmu itself.  Since such page walking happens while
+ * handling another potential mmu fault, this function never raises
+ * exceptions (akin to @nonfault true for probe_access_full).
+ * Likewise this function does not trigger plugin instrumentation.
  */
 int probe_access_full_mmu(CPUArchState *env, vaddr addr, int size,
                           MMUAccessType access_type, int mmu_idx,
@@ -520,75 +500,7 @@ static inline tb_page_addr_t get_page_addr_code(CPUArchState *env,
     return get_page_addr_code_hostp(env, addr, NULL);
 }
 
-#if defined(CONFIG_USER_ONLY)
-void TSA_NO_TSA mmap_lock(void);
-void TSA_NO_TSA mmap_unlock(void);
-bool have_mmap_lock(void);
-
-static inline void mmap_unlock_guard(void *unused)
-{
-    mmap_unlock();
-}
-
-#define WITH_MMAP_LOCK_GUARD()                                            \
-    for (int _mmap_lock_iter __attribute__((cleanup(mmap_unlock_guard)))  \
-         = (mmap_lock(), 0); _mmap_lock_iter == 0; _mmap_lock_iter = 1)
-
-/**
- * adjust_signal_pc:
- * @pc: raw pc from the host signal ucontext_t.
- * @is_write: host memory operation was write, or read-modify-write.
- *
- * Alter @pc as required for unwinding.  Return the type of the
- * guest memory access -- host reads may be for guest execution.
- */
-MMUAccessType adjust_signal_pc(uintptr_t *pc, bool is_write);
-
-/**
- * handle_sigsegv_accerr_write:
- * @cpu: the cpu context
- * @old_set: the sigset_t from the signal ucontext_t
- * @host_pc: the host pc, adjusted for the signal
- * @host_addr: the host address of the fault
- *
- * Return true if the write fault has been handled, and should be re-tried.
- */
-bool handle_sigsegv_accerr_write(CPUState *cpu, sigset_t *old_set,
-                                 uintptr_t host_pc, abi_ptr guest_addr);
-
-/**
- * cpu_loop_exit_sigsegv:
- * @cpu: the cpu context
- * @addr: the guest address of the fault
- * @access_type: access was read/write/execute
- * @maperr: true for invalid page, false for permission fault
- * @ra: host pc for unwinding
- *
- * Use the TCGCPUOps hook to record cpu state, do guest operating system
- * specific things to raise SIGSEGV, and jump to the main cpu loop.
- */
-G_NORETURN void cpu_loop_exit_sigsegv(CPUState *cpu, target_ulong addr,
-                                      MMUAccessType access_type,
-                                      bool maperr, uintptr_t ra);
-
-/**
- * cpu_loop_exit_sigbus:
- * @cpu: the cpu context
- * @addr: the guest address of the alignment fault
- * @access_type: access was read/write/execute
- * @ra: host pc for unwinding
- *
- * Use the TCGCPUOps hook to record cpu state, do guest operating system
- * specific things to raise SIGBUS, and jump to the main cpu loop.
- */
-G_NORETURN void cpu_loop_exit_sigbus(CPUState *cpu, target_ulong addr,
-                                     MMUAccessType access_type,
-                                     uintptr_t ra);
-
-#else
-static inline void mmap_lock(void) {}
-static inline void mmap_unlock(void) {}
-#define WITH_MMAP_LOCK_GUARD()
+#if !defined(CONFIG_USER_ONLY)
 
 void tlb_reset_dirty(CPUState *cpu, ram_addr_t start1, ram_addr_t length);
 void tlb_reset_dirty_range_all(ram_addr_t start, ram_addr_t length);

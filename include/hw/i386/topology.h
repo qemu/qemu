@@ -39,7 +39,7 @@
  *  CPUID Fn8000_0008_ECX[ApicIdCoreIdSize[3:0]] is set to apicid_core_width().
  */
 
-
+#include "qapi/qapi-types-machine-common.h"
 #include "qemu/bitops.h"
 
 /*
@@ -62,21 +62,7 @@ typedef struct X86CPUTopoInfo {
     unsigned threads_per_core;
 } X86CPUTopoInfo;
 
-/*
- * CPUTopoLevel is the general i386 topology hierarchical representation,
- * ordered by increasing hierarchical relationship.
- * Its enumeration value is not bound to the type value of Intel (CPUID[0x1F])
- * or AMD (CPUID[0x80000026]).
- */
-enum CPUTopoLevel {
-    CPU_TOPO_LEVEL_INVALID,
-    CPU_TOPO_LEVEL_SMT,
-    CPU_TOPO_LEVEL_CORE,
-    CPU_TOPO_LEVEL_MODULE,
-    CPU_TOPO_LEVEL_DIE,
-    CPU_TOPO_LEVEL_PACKAGE,
-    CPU_TOPO_LEVEL_MAX,
-};
+#define CPU_TOPOLOGY_LEVEL_INVALID CPU_TOPOLOGY_LEVEL__MAX
 
 /* Return the bit width needed for 'count' IDs */
 static unsigned apicid_bitwidth_for_count(unsigned count)
@@ -135,9 +121,10 @@ static inline unsigned apicid_pkg_offset(X86CPUTopoInfo *topo_info)
 }
 
 /*
- * Make APIC ID for the CPU based on Pkg_ID, Core_ID, SMT_ID
+ * Make APIC ID for the CPU based on topology and IDs of each topology level.
  *
- * The caller must make sure core_id < nr_cores and smt_id < nr_threads.
+ * The caller must make sure the ID of each level doesn't exceed the width of
+ * the level.
  */
 static inline apic_id_t x86_apicid_from_topo_ids(X86CPUTopoInfo *topo_info,
                                                  const X86CPUTopoIDs *topo_ids)
@@ -212,8 +199,33 @@ static inline apic_id_t x86_apicid_from_cpu_idx(X86CPUTopoInfo *topo_info,
  */
 static inline bool x86_has_extended_topo(unsigned long *topo_bitmap)
 {
-    return test_bit(CPU_TOPO_LEVEL_MODULE, topo_bitmap) ||
-           test_bit(CPU_TOPO_LEVEL_DIE, topo_bitmap);
+    return test_bit(CPU_TOPOLOGY_LEVEL_MODULE, topo_bitmap) ||
+           test_bit(CPU_TOPOLOGY_LEVEL_DIE, topo_bitmap);
+}
+
+static inline unsigned x86_module_per_pkg(X86CPUTopoInfo *topo_info)
+{
+    return topo_info->modules_per_die * topo_info->dies_per_pkg;
+}
+
+static inline unsigned x86_cores_per_pkg(X86CPUTopoInfo *topo_info)
+{
+    return topo_info->cores_per_module * x86_module_per_pkg(topo_info);
+}
+
+static inline unsigned x86_threads_per_pkg(X86CPUTopoInfo *topo_info)
+{
+    return topo_info->threads_per_core * x86_cores_per_pkg(topo_info);
+}
+
+static inline unsigned x86_threads_per_module(X86CPUTopoInfo *topo_info)
+{
+    return topo_info->threads_per_core * topo_info->cores_per_module;
+}
+
+static inline unsigned x86_threads_per_die(X86CPUTopoInfo *topo_info)
+{
+    return x86_threads_per_module(topo_info) * topo_info->modules_per_die;
 }
 
 #endif /* HW_I386_TOPOLOGY_H */

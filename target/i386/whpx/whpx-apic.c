@@ -16,8 +16,8 @@
 #include "hw/i386/apic_internal.h"
 #include "hw/i386/apic-msidef.h"
 #include "hw/pci/msi.h"
-#include "sysemu/hw_accel.h"
-#include "sysemu/whpx.h"
+#include "system/hw_accel.h"
+#include "system/whpx.h"
 #include "whpx-internal.h"
 
 struct whpx_lapic_state {

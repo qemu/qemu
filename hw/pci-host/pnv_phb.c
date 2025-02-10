@@ -17,7 +17,7 @@
 #include "hw/ppc/pnv.h"
 #include "hw/qdev-properties.h"
 #include "qom/object.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 
 /*
@@ -183,7 +183,7 @@ static const char *pnv_phb_root_bus_path(PCIHostState *host_bridge,
     return phb->bus_path;
 }
 
-static Property pnv_phb_properties[] = {
+static const Property pnv_phb_properties[] = {
     DEFINE_PROP_UINT32("index", PnvPHB, phb_id, 0),
     DEFINE_PROP_UINT32("chip-id", PnvPHB, chip_id, 0),
     DEFINE_PROP_UINT32("version", PnvPHB, version, 0),
@@ -192,8 +192,6 @@ static Property pnv_phb_properties[] = {
 
     DEFINE_PROP_LINK("pec", PnvPHB, pec, TYPE_PNV_PHB4_PEC,
                      PnvPhb4PecState *),
-
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_phb_class_init(ObjectClass *klass, void *data)
@@ -302,10 +300,8 @@ static void pnv_phb_root_port_realize(DeviceState *dev, Error **errp)
     pci_config_set_interrupt_pin(pci->config, 0);
 }
 
-static Property pnv_phb_root_port_properties[] = {
+static const Property pnv_phb_root_port_properties[] = {
     DEFINE_PROP_UINT32("version", PnvPHBRootPort, version, 0),
-
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_phb_root_port_class_init(ObjectClass *klass, void *data)

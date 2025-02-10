@@ -27,8 +27,8 @@
 
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/rtc.h"
+#include "system/system.h"
+#include "system/rtc.h"
 #include "hw/ppc/spapr.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"

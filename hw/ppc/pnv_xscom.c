@@ -20,7 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "sysemu/hw_accel.h"
+#include "system/hw_accel.h"
 #include "target/ppc/cpu.h"
 #include "hw/sysbus.h"
 

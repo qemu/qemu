@@ -24,7 +24,7 @@
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/bios-linker-loader.h"
 #include "exec/address-spaces.h"
-#include "sysemu/hostmem.h"
+#include "system/hostmem.h"
 #include "hw/acpi/erst.h"
 #include "trace.h"
 
@@ -1011,12 +1011,11 @@ static void erst_reset(DeviceState *dev)
     trace_acpi_erst_reset_out(le32_to_cpu(s->header->record_count));
 }
 
-static Property erst_properties[] = {
+static const Property erst_properties[] = {
     DEFINE_PROP_LINK(ACPI_ERST_MEMDEV_PROP, ERSTDeviceState, hostmem,
                      TYPE_MEMORY_BACKEND, HostMemoryBackend *),
     DEFINE_PROP_UINT32(ACPI_ERST_RECORD_SIZE_PROP, ERSTDeviceState,
                      default_record_size, ERST_RECORD_SIZE),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void erst_class_init(ObjectClass *klass, void *data)

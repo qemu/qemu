@@ -28,7 +28,7 @@
 #include "hw/sysbus.h"
 #include "hw/registerfields.h"
 #include "hw/watchdog/allwinner-wdt.h"
-#include "sysemu/watchdog.h"
+#include "system/watchdog.h"
 #include "migration/vmstate.h"
 
 /* WDT registers */

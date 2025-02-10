@@ -95,6 +95,7 @@ typedef void (*DeviceUnrealize)(DeviceState *dev);
 typedef void (*DeviceReset)(DeviceState *dev);
 typedef void (*BusRealize)(BusState *bus, Error **errp);
 typedef void (*BusUnrealize)(BusState *bus);
+typedef int (*DeviceSyncConfig)(DeviceState *dev, Error **errp);
 
 /**
  * struct DeviceClass - The base class for all devices.
@@ -103,6 +104,9 @@ typedef void (*BusUnrealize)(BusState *bus);
  * property is changed to %true.
  * @unrealize: Callback function invoked when the #DeviceState:realized
  * property is changed to %false.
+ * @sync_config: Callback function invoked when QMP command device-sync-config
+ * is called. Should synchronize device configuration from host to guest part
+ * and notify the guest about the change.
  * @hotpluggable: indicates if #DeviceClass is hotpluggable, available
  * as readonly "hotpluggable" property of #DeviceState instance
  *
@@ -132,7 +136,13 @@ struct DeviceClass {
      * ensures a compile-time error if someone attempts to assign
      * dc->props directly.
      */
-    Property *props_;
+    const Property *props_;
+
+    /**
+     * @props_count_: number of elements in @props_; should only be
+     * assigned by using device_class_set_props().
+     */
+    uint16_t props_count_;
 
     /**
      * @user_creatable: Can user instantiate with -device / device_add?
@@ -162,6 +172,7 @@ struct DeviceClass {
     DeviceReset legacy_reset;
     DeviceRealize realize;
     DeviceUnrealize unrealize;
+    DeviceSyncConfig sync_config;
 
     /**
      * @vmsd: device state serialisation description for
@@ -237,10 +248,6 @@ struct DeviceState {
      * @pending_deleted_expires_ms: optional timeout for deletion events
      */
     int64_t pending_deleted_expires_ms;
-    /**
-     * @opts: QDict of options for the device
-     */
-    QDict *opts;
     /**
      * @hotplugged: was device added after PHASE_MACHINE_READY?
      */
@@ -533,7 +540,8 @@ void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
                                  int required_for_version);
 HotplugHandler *qdev_get_bus_hotplug_handler(DeviceState *dev);
 HotplugHandler *qdev_get_machine_hotplug_handler(DeviceState *dev);
-bool qdev_hotplug_allowed(DeviceState *dev, Error **errp);
+bool qdev_hotplug_allowed(DeviceState *dev, BusState *bus, Error **errp);
+bool qdev_hotunplug_allowed(DeviceState *dev, Error **errp);
 
 /**
  * qdev_get_hotplug_handler() - Get handler responsible for device wiring
@@ -547,6 +555,7 @@ bool qdev_hotplug_allowed(DeviceState *dev, Error **errp);
  */
 HotplugHandler *qdev_get_hotplug_handler(DeviceState *dev);
 void qdev_unplug(DeviceState *dev, Error **errp);
+int qdev_sync_config(DeviceState *dev, Error **errp);
 void qdev_simple_device_unplug_cb(HotplugHandler *hotplug_dev,
                                   DeviceState *dev, Error **errp);
 void qdev_machine_creation_done(void);
@@ -929,13 +938,38 @@ char *qdev_get_own_fw_dev_path_from_handler(BusState *bus, DeviceState *dev);
 /**
  * device_class_set_props(): add a set of properties to an device
  * @dc: the parent DeviceClass all devices inherit
- * @props: an array of properties, terminate by DEFINE_PROP_END_OF_LIST()
+ * @props: an array of properties
+ *
+ * This will add a set of properties to the object. It will fault if
+ * you attempt to add an existing property defined by a parent class.
+ * To modify an inherited property you need to use????
+ *
+ * Validate that @props has at least one Property.
+ * Validate that @props is an array, not a pointer, via ARRAY_SIZE.
+ * Validate that the array does not have a legacy terminator at compile-time;
+ * requires -O2 and the array to be const.
+ */
+#define device_class_set_props(dc, props) \
+    do {                                                                \
+        QEMU_BUILD_BUG_ON(sizeof(props) == 0);                          \
+        size_t props_count_ = ARRAY_SIZE(props);                        \
+        if ((props)[props_count_ - 1].name == NULL) {                   \
+            qemu_build_not_reached();                                   \
+        }                                                               \
+        device_class_set_props_n((dc), (props), props_count_);          \
+    } while (0)
+
+/**
+ * device_class_set_props_n(): add a set of properties to an device
+ * @dc: the parent DeviceClass all devices inherit
+ * @props: an array of properties
+ * @n: ARRAY_SIZE(@props)
  *
  * This will add a set of properties to the object. It will fault if
  * you attempt to add an existing property defined by a parent class.
  * To modify an inherited property you need to use????
  */
-void device_class_set_props(DeviceClass *dc, Property *props);
+void device_class_set_props_n(DeviceClass *dc, const Property *props, size_t n);
 
 /**
  * device_class_set_parent_realize() - set up for chaining realize fns
@@ -989,6 +1023,26 @@ const char *qdev_fw_name(DeviceState *dev);
 
 void qdev_assert_realized_properly(void);
 Object *qdev_get_machine(void);
+
+/**
+ * qdev_create_fake_machine(): Create a fake machine container.
+ *
+ * .. note::
+ *    This function is a kludge for user emulation (USER_ONLY)
+ *    because when thread (TYPE_CPU) are realized, qdev_realize()
+ *    access a machine container.
+ */
+void qdev_create_fake_machine(void);
+
+/**
+ * machine_get_container:
+ * @name: The name of container to lookup
+ *
+ * Get a container of the machine (QOM path "/machine/NAME").
+ *
+ * Returns: the machine container object.
+ */
+Object *machine_get_container(const char *name);
 
 /**
  * qdev_get_human_name() - Return a human-readable name for a device

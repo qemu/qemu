@@ -55,11 +55,12 @@
 # @sha512: SHA-512.  (since 2.7)
 #
 # @ripemd160: RIPEMD-160.  (since 2.7)
+# @sm3: SM3. (since 9.2.0)
 #
 # Since: 2.6
 ##
 { 'enum': 'QCryptoHashAlgo',
-  'data': ['md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512', 'ripemd160']}
+  'data': ['md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512', 'ripemd160', 'sm3']}
 
 ##
 # @QCryptoCipherAlgo:
@@ -419,11 +420,6 @@
 #
 # Properties for objects of classes derived from secret-common.
 #
-# @loaded: if true, the secret is loaded immediately when applying
-#     this option and will probably fail when processing the next
-#     option.  Don't use; only provided for compatibility.
-#     (default: false)
-#
 # @format: the data format that the secret is provided in
 #     (default: raw)
 #
@@ -436,16 +432,10 @@
 #     16-byte IV.  Mandatory if @keyid is given.  Ignored if @keyid is
 #     absent.
 #
-# Features:
-#
-# @deprecated: Member @loaded is deprecated.  Setting true doesn't
-#     make sense, and false is already the default.
-#
 # Since: 2.6
 ##
 { 'struct': 'SecretCommonProperties',
-  'data': { '*loaded': { 'type': 'bool', 'features': ['deprecated'] },
-            '*format': 'QCryptoSecretFormat',
+  'data': { '*format': 'QCryptoSecretFormat',
             '*keyid': 'str',
             '*iv': 'str' } }
 
@@ -512,57 +502,31 @@
 #
 # Properties for tls-creds-anon objects.
 #
-# @loaded: if true, the credentials are loaded immediately when
-#     applying this option and will ignore options that are processed
-#     later.  Don't use; only provided for compatibility.
-#     (default: false)
-#
-# Features:
-#
-# @deprecated: Member @loaded is deprecated.  Setting true doesn't
-#     make sense, and false is already the default.
-#
 # Since: 2.5
 ##
 { 'struct': 'TlsCredsAnonProperties',
   'base': 'TlsCredsProperties',
-  'data': { '*loaded': { 'type': 'bool', 'features': ['deprecated'] } } }
+  'data': { } }
 
 ##
 # @TlsCredsPskProperties:
 #
 # Properties for tls-creds-psk objects.
 #
-# @loaded: if true, the credentials are loaded immediately when
-#     applying this option and will ignore options that are processed
-#     later.  Don't use; only provided for compatibility.
-#     (default: false)
-#
 # @username: the username which will be sent to the server.  For
 #     clients only.  If absent, "qemu" is sent and the property will
 #     read back as an empty string.
-#
-# Features:
-#
-# @deprecated: Member @loaded is deprecated.  Setting true doesn't
-#     make sense, and false is already the default.
 #
 # Since: 3.0
 ##
 { 'struct': 'TlsCredsPskProperties',
   'base': 'TlsCredsProperties',
-  'data': { '*loaded': { 'type': 'bool', 'features': ['deprecated'] },
-            '*username': 'str' } }
+  'data': { '*username': 'str' } }
 
 ##
 # @TlsCredsX509Properties:
 #
 # Properties for tls-creds-x509 objects.
-#
-# @loaded: if true, the credentials are loaded immediately when
-#     applying this option and will ignore options that are processed
-#     later.  Don't use; only provided for compatibility.
-#     (default: false)
 #
 # @sanity-check: if true, perform some sanity checks before using the
 #     credentials (default: true)
@@ -573,17 +537,11 @@
 #     provides the ID of a previously created secret object containing
 #     the password for decryption.
 #
-# Features:
-#
-# @deprecated: Member @loaded is deprecated.  Setting true doesn't
-#     make sense, and false is already the default.
-#
 # Since: 2.5
 ##
 { 'struct': 'TlsCredsX509Properties',
   'base': 'TlsCredsProperties',
-  'data': { '*loaded': { 'type': 'bool', 'features': ['deprecated'] },
-            '*sanity-check': 'bool',
+  'data': { '*sanity-check': 'bool',
             '*passwordid': 'str' } }
 ##
 # @QCryptoAkCipherAlgo:

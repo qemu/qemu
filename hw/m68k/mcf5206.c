@@ -16,7 +16,7 @@
 #include "hw/m68k/mcf.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/sysbus.h"
 
 /* General purpose timer module.  */
@@ -582,7 +582,7 @@ static const MemoryRegionOps m5206_mbar_ops = {
     .write = m5206_mbar_writefn,
     .valid.min_access_size = 1,
     .valid.max_access_size = 4,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void mcf5206_mbar_realize(DeviceState *dev, Error **errp)
@@ -600,10 +600,9 @@ static void mcf5206_mbar_realize(DeviceState *dev, Error **errp)
     s->uart[1] = mcf_uart_create(s->pic[13], serial_hd(1));
 }
 
-static Property mcf5206_mbar_properties[] = {
+static const Property mcf5206_mbar_properties[] = {
     DEFINE_PROP_LINK("m68k-cpu", m5206_mbar_state, cpu,
                      TYPE_M68K_CPU, M68kCPU *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void mcf5206_mbar_class_init(ObjectClass *oc, void *data)

@@ -617,6 +617,8 @@ G_NORETURN void xtensa_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
 
 void xtensa_collect_sr_names(const XtensaConfig *config);
 void xtensa_translate_init(void);
+void xtensa_translate_code(CPUState *cs, TranslationBlock *tb,
+                           int *max_insns, vaddr pc, void *host_pc);
 void **xtensa_get_regfile_by_name(const char *name, int entries, int bits);
 void xtensa_breakpoint_handler(CPUState *cs);
 void xtensa_register_core(XtensaConfigList *node);
@@ -802,4 +804,10 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, vaddr *pc,
 XtensaCPU *xtensa_cpu_create_with_clock(const char *cpu_type,
                                         Clock *cpu_refclk);
 
+/*
+ * Set the NaN propagation rule for future FPU operations:
+ * use_first is true to pick the first NaN as the result if both
+ * inputs are NaNs, false to pick the second.
+ */
+void xtensa_use_first_nan(CPUXtensaState *env, bool use_first);
 #endif

@@ -33,9 +33,9 @@
 #include "hw/i386/vmport.h"
 #include "hw/qdev-properties.h"
 #include "hw/boards.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/hw_accel.h"
-#include "sysemu/qtest.h"
+#include "system/system.h"
+#include "system/hw_accel.h"
+#include "system/qtest.h"
 #include "qemu/log.h"
 #include "trace.h"
 #include "qom/object.h"
@@ -252,7 +252,7 @@ static void vmport_realizefn(DeviceState *dev, Error **errp)
     }
 }
 
-static Property vmport_properties[] = {
+static const Property vmport_properties[] = {
     /* Used to enforce compatibility for migration */
     DEFINE_PROP_BIT("x-read-set-eax", VMPortState, compat_flags,
                     VMPORT_COMPAT_READ_SET_EAX_BIT, true),
@@ -284,8 +284,6 @@ static Property vmport_properties[] = {
      * 5 - ACE 1.x (Deprecated)
      */
     DEFINE_PROP_UINT8("vmware-vmx-type", VMPortState, vmware_vmx_type, 2),
-
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vmport_class_initfn(ObjectClass *klass, void *data)

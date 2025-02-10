@@ -14,7 +14,7 @@
 #include "hw/loader.h"
 #include "elf.h"
 #include "qemu/error-report.h"
-#include "sysemu/qtest.h"
+#include "system/qtest.h"
 
 #define KERNEL_LOAD_ADDR 0x10000
 #define AN5206_MBAR_ADDR 0x10000000
@@ -74,7 +74,7 @@ static void an5206_init(MachineState *machine)
     }
 
     kernel_size = load_elf(kernel_filename, NULL, NULL, NULL, &elf_entry,
-                           NULL, NULL, NULL, 1, EM_68K, 0, 0);
+                           NULL, NULL, NULL, ELFDATA2MSB, EM_68K, 0, 0);
     entry = elf_entry;
     if (kernel_size < 0) {
         kernel_size = load_uimage(kernel_filename, &entry, NULL, NULL,

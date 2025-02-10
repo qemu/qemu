@@ -18,16 +18,16 @@ class LoongArchMachine(QemuSystemTest):
 
     ASSET_KERNEL = Asset(
         ('https://github.com/yangxiaojuan-loongson/qemu-binary/'
-         'releases/download/2024-05-30/vmlinuz.efi'),
+         'releases/download/2024-11-26/vmlinuz.efi'),
         '08b88a45f48a5fd92260bae895be4e5175be2397481a6f7821b9f39b2965b79e')
     ASSET_INITRD = Asset(
         ('https://github.com/yangxiaojuan-loongson/qemu-binary/'
-         'releases/download/2024-05-30/ramdisk'),
+         'releases/download/2024-11-26/ramdisk'),
         '03d6fb6f8ee64ecac961120a0bdacf741f17b3bee2141f17fa01908c8baf176a')
     ASSET_BIOS = Asset(
         ('https://github.com/yangxiaojuan-loongson/qemu-binary/'
-         'releases/download/2024-05-30/QEMU_EFI.fd'),
-        '937c1e7815e2340150c194a9f8f0474259038a3d7b8845ed62cc08163c46bea1')
+         'releases/download/2024-11-26/QEMU_EFI.fd'),
+        'f55fbf5d92e885844631ae9bfa8887f659bbb4f6ef2beea9e9ff8bc0603b6697')
 
     def wait_for_console_pattern(self, success_message, vm=None):
         wait_for_console_pattern(self, success_message,

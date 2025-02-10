@@ -24,8 +24,10 @@
 #define  ASPEED_SDHCI_DEBOUNCE_RESET 0x00000005
 #define ASPEED_SDHCI_BUS             0x08
 #define ASPEED_SDHCI_SDIO_140        0x10
+#define ASPEED_SDHCI_SDIO_144        0x14
 #define ASPEED_SDHCI_SDIO_148        0x18
 #define ASPEED_SDHCI_SDIO_240        0x20
+#define ASPEED_SDHCI_SDIO_244        0x24
 #define ASPEED_SDHCI_SDIO_248        0x28
 #define ASPEED_SDHCI_WP_POL          0xec
 #define ASPEED_SDHCI_CARD_DET        0xf0
@@ -35,21 +37,27 @@
 
 static uint64_t aspeed_sdhci_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    uint32_t val = 0;
+    uint64_t val = 0;
     AspeedSDHCIState *sdhci = opaque;
 
     switch (addr) {
     case ASPEED_SDHCI_SDIO_140:
-        val = (uint32_t)sdhci->slots[0].capareg;
+        val = extract64(sdhci->slots[0].capareg, 0, 32);
+        break;
+    case ASPEED_SDHCI_SDIO_144:
+        val = extract64(sdhci->slots[0].capareg, 32, 32);
         break;
     case ASPEED_SDHCI_SDIO_148:
-        val = (uint32_t)sdhci->slots[0].maxcurr;
+        val = extract64(sdhci->slots[0].maxcurr, 0, 32);
         break;
     case ASPEED_SDHCI_SDIO_240:
-        val = (uint32_t)sdhci->slots[1].capareg;
+        val = extract64(sdhci->slots[1].capareg, 0, 32);
+        break;
+    case ASPEED_SDHCI_SDIO_244:
+        val = extract64(sdhci->slots[1].capareg, 32, 32);
         break;
     case ASPEED_SDHCI_SDIO_248:
-        val = (uint32_t)sdhci->slots[1].maxcurr;
+        val = extract64(sdhci->slots[1].maxcurr, 0, 32);
         break;
     default:
         if (addr < ASPEED_SDHCI_REG_SIZE) {
@@ -61,9 +69,9 @@ static uint64_t aspeed_sdhci_read(void *opaque, hwaddr addr, unsigned int size)
         }
     }
 
-    trace_aspeed_sdhci_read(addr, size, (uint64_t) val);
+    trace_aspeed_sdhci_read(addr, size, val);
 
-    return (uint64_t)val;
+    return val;
 }
 
 static void aspeed_sdhci_write(void *opaque, hwaddr addr, uint64_t val,
@@ -79,16 +87,28 @@ static void aspeed_sdhci_write(void *opaque, hwaddr addr, uint64_t val,
         sdhci->regs[TO_REG(addr)] = (uint32_t)val & ~ASPEED_SDHCI_INFO_RESET;
         break;
     case ASPEED_SDHCI_SDIO_140:
-        sdhci->slots[0].capareg = (uint64_t)(uint32_t)val;
+        sdhci->slots[0].capareg = deposit64(sdhci->slots[0].capareg,
+                                            0, 32, val);
+        break;
+    case ASPEED_SDHCI_SDIO_144:
+        sdhci->slots[0].capareg = deposit64(sdhci->slots[0].capareg,
+                                            32, 32, val);
         break;
     case ASPEED_SDHCI_SDIO_148:
-        sdhci->slots[0].maxcurr = (uint64_t)(uint32_t)val;
+        sdhci->slots[0].maxcurr = deposit64(sdhci->slots[0].maxcurr,
+                                            0, 32, val);
         break;
     case ASPEED_SDHCI_SDIO_240:
-        sdhci->slots[1].capareg = (uint64_t)(uint32_t)val;
+        sdhci->slots[1].capareg = deposit64(sdhci->slots[1].capareg,
+                                            0, 32, val);
+        break;
+    case ASPEED_SDHCI_SDIO_244:
+        sdhci->slots[1].capareg = deposit64(sdhci->slots[1].capareg,
+                                            32, 32, val);
         break;
     case ASPEED_SDHCI_SDIO_248:
-        sdhci->slots[1].maxcurr = (uint64_t)(uint32_t)val;
+        sdhci->slots[1].maxcurr = deposit64(sdhci->slots[0].maxcurr,
+                                            0, 32, val);
         break;
     default:
         if (addr < ASPEED_SDHCI_REG_SIZE) {
@@ -128,6 +148,7 @@ static void aspeed_sdhci_realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     AspeedSDHCIState *sdhci = ASPEED_SDHCI(dev);
+    AspeedSDHCIClass *asc = ASPEED_SDHCI_GET_CLASS(sdhci);
 
     /* Create input irqs for the slots */
     qdev_init_gpio_in_named_with_opaque(DEVICE(sbd), aspeed_sdhci_set_irq,
@@ -147,7 +168,7 @@ static void aspeed_sdhci_realize(DeviceState *dev, Error **errp)
         }
 
         if (!object_property_set_uint(sdhci_slot, "capareg",
-                                      ASPEED_SDHCI_CAPABILITIES, errp)) {
+                                      asc->capareg, errp)) {
             return;
         }
 
@@ -183,9 +204,8 @@ static const VMStateDescription vmstate_aspeed_sdhci = {
     },
 };
 
-static Property aspeed_sdhci_properties[] = {
+static const Property aspeed_sdhci_properties[] = {
     DEFINE_PROP_UINT8("num-slots", AspeedSDHCIState, num_slots, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void aspeed_sdhci_class_init(ObjectClass *classp, void *data)
@@ -198,12 +218,70 @@ static void aspeed_sdhci_class_init(ObjectClass *classp, void *data)
     device_class_set_props(dc, aspeed_sdhci_properties);
 }
 
+static void aspeed_2400_sdhci_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedSDHCIClass *asc = ASPEED_SDHCI_CLASS(klass);
+
+    dc->desc = "ASPEED 2400 SDHCI Controller";
+    asc->capareg = 0x0000000001e80080;
+}
+
+static void aspeed_2500_sdhci_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedSDHCIClass *asc = ASPEED_SDHCI_CLASS(klass);
+
+    dc->desc = "ASPEED 2500 SDHCI Controller";
+    asc->capareg = 0x0000000001e80080;
+}
+
+static void aspeed_2600_sdhci_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedSDHCIClass *asc = ASPEED_SDHCI_CLASS(klass);
+
+    dc->desc = "ASPEED 2600 SDHCI Controller";
+    asc->capareg = 0x0000000701f80080;
+}
+
+static void aspeed_2700_sdhci_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedSDHCIClass *asc = ASPEED_SDHCI_CLASS(klass);
+
+    dc->desc = "ASPEED 2700 SDHCI Controller";
+    asc->capareg = 0x0000000719f80080;
+}
+
 static const TypeInfo aspeed_sdhci_types[] = {
     {
         .name           = TYPE_ASPEED_SDHCI,
         .parent         = TYPE_SYS_BUS_DEVICE,
         .instance_size  = sizeof(AspeedSDHCIState),
         .class_init     = aspeed_sdhci_class_init,
+        .class_size = sizeof(AspeedSDHCIClass),
+        .abstract = true,
+    },
+    {
+        .name = TYPE_ASPEED_2400_SDHCI,
+        .parent = TYPE_ASPEED_SDHCI,
+        .class_init = aspeed_2400_sdhci_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_2500_SDHCI,
+        .parent = TYPE_ASPEED_SDHCI,
+        .class_init = aspeed_2500_sdhci_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_2600_SDHCI,
+        .parent = TYPE_ASPEED_SDHCI,
+        .class_init = aspeed_2600_sdhci_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_2700_SDHCI,
+        .parent = TYPE_ASPEED_SDHCI,
+        .class_init = aspeed_2700_sdhci_class_init,
     },
 };
 

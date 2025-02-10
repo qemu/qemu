@@ -319,7 +319,6 @@ static int vu_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
 {
     VuBlkExport *vexp = container_of(exp, VuBlkExport, export);
     BlockExportOptionsVhostUserBlk *vu_opts = &opts->u.vhost_user_blk;
-    Error *local_err = NULL;
     uint64_t logical_block_size;
     uint16_t num_queues = VHOST_USER_BLK_NUM_QUEUES_DEFAULT;
 
@@ -330,10 +329,7 @@ static int vu_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
     } else {
         logical_block_size = VIRTIO_BLK_SECTOR_SIZE;
     }
-    check_block_size(exp->id, "logical-block-size", logical_block_size,
-                     &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!check_block_size("logical-block-size", logical_block_size, errp)) {
         return -EINVAL;
     }
 

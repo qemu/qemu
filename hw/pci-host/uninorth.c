@@ -423,9 +423,8 @@ static const TypeInfo unin_internal_pci_host_info = {
     },
 };
 
-static Property pci_unin_main_pci_host_props[] = {
+static const Property pci_unin_main_pci_host_props[] = {
     DEFINE_PROP_UINT32("ofw-addr", UNINHostState, ofw_addr, -1),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void pci_unin_main_class_init(ObjectClass *klass, void *data)

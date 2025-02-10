@@ -29,11 +29,11 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "hw/timer/i8254.h"
 #include "hw/timer/i8254_internal.h"
 #include "hw/qdev-properties-system.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "target/i386/kvm/kvm_i386.h"
 #include "qom/object.h"
 
@@ -287,10 +287,9 @@ static void kvm_pit_realizefn(DeviceState *dev, Error **errp)
     kpc->parent_realize(dev, errp);
 }
 
-static Property kvm_pit_properties[] = {
+static const Property kvm_pit_properties[] = {
     DEFINE_PROP_LOSTTICKPOLICY("lost_tick_policy", KVMPITState,
                                lost_tick_policy, LOST_TICK_POLICY_DELAY),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void kvm_pit_class_init(ObjectClass *klass, void *data)

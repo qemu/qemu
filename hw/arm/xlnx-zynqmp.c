@@ -22,8 +22,8 @@
 #include "hw/intc/arm_gic_common.h"
 #include "hw/misc/unimp.h"
 #include "hw/boards.h"
-#include "sysemu/kvm.h"
-#include "sysemu/sysemu.h"
+#include "system/kvm.h"
+#include "system/system.h"
 #include "kvm_arm.h"
 #include "target/arm/cpu-qom.h"
 #include "target/arm/gtimer.h"
@@ -857,7 +857,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property xlnx_zynqmp_props[] = {
+static const Property xlnx_zynqmp_props[] = {
     DEFINE_PROP_STRING("boot-cpu", XlnxZynqMPState, boot_cpu),
     DEFINE_PROP_BOOL("secure", XlnxZynqMPState, secure, false),
     DEFINE_PROP_BOOL("virtualization", XlnxZynqMPState, virt, false),
@@ -867,7 +867,6 @@ static Property xlnx_zynqmp_props[] = {
                      CanBusState *),
     DEFINE_PROP_LINK("canbus1", XlnxZynqMPState, canbus[1], TYPE_CAN_BUS,
                      CanBusState *),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void xlnx_zynqmp_class_init(ObjectClass *oc, void *data)

@@ -22,7 +22,7 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
-#include "sysemu/watchdog.h"
+#include "system/watchdog.h"
 #include "hw/isa/isa.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"

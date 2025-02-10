@@ -21,7 +21,7 @@
 #include "qemu/osdep.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
-#include "sysemu/seccomp.h"
+#include "system/seccomp.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
 

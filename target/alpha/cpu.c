@@ -24,6 +24,8 @@
 #include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
+#include "exec/translation-block.h"
+#include "fpu/softfloat.h"
 
 
 static void alpha_cpu_set_pc(CPUState *cs, vaddr value)
@@ -187,7 +189,19 @@ static void alpha_cpu_initfn(Object *obj)
 {
     CPUAlphaState *env = cpu_env(CPU(obj));
 
+    /* TODO all this should be done in reset, not init */
+
     env->lock_addr = -1;
+
+    /*
+     * TODO: this is incorrect. The Alpha Architecture Handbook version 4
+     * describes NaN propagation in section 4.7.10.4. We should prefer
+     * the operand in Fb (whether it is a QNaN or an SNaN), then the
+     * operand in Fa. That is float_2nan_prop_ba.
+     */
+    set_float_2nan_prop_rule(float_2nan_prop_x87, &env->fp_status);
+    /* Default NaN: sign bit clear, msb frac bit set */
+    set_float_default_nan_pattern(0b01000000, &env->fp_status);
 #if defined(CONFIG_USER_ONLY)
     env->flags = ENV_FLAG_PS_USER | ENV_FLAG_FEN;
     cpu_alpha_store_fpcr(env, (uint64_t)(FPCR_INVD | FPCR_DZED | FPCR_OVFD
@@ -210,6 +224,7 @@ static const struct SysemuCPUOps alpha_sysemu_ops = {
 
 static const TCGCPUOps alpha_tcg_ops = {
     .initialize = alpha_translate_init,
+    .translate_code = alpha_translate_code,
     .synchronize_from_tb = alpha_cpu_synchronize_from_tb,
     .restore_state_to_opc = alpha_restore_state_to_opc,
 

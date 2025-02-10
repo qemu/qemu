@@ -23,26 +23,26 @@
 #include "mmvec/system_ext_mmvec.h"
 
 #ifndef QEMU_GENERATE
-#define VdV      (*(MMVector *)(VdV_void))
-#define VsV      (*(MMVector *)(VsV_void))
-#define VuV      (*(MMVector *)(VuV_void))
-#define VvV      (*(MMVector *)(VvV_void))
-#define VwV      (*(MMVector *)(VwV_void))
-#define VxV      (*(MMVector *)(VxV_void))
-#define VyV      (*(MMVector *)(VyV_void))
+#define VdV      (*(MMVector *restrict)(VdV_void))
+#define VsV      (*(MMVector *restrict)(VsV_void))
+#define VuV      (*(MMVector *restrict)(VuV_void))
+#define VvV      (*(MMVector *restrict)(VvV_void))
+#define VwV      (*(MMVector *restrict)(VwV_void))
+#define VxV      (*(MMVector *restrict)(VxV_void))
+#define VyV      (*(MMVector *restrict)(VyV_void))
 
-#define VddV     (*(MMVectorPair *)(VddV_void))
-#define VuuV     (*(MMVectorPair *)(VuuV_void))
-#define VvvV     (*(MMVectorPair *)(VvvV_void))
-#define VxxV     (*(MMVectorPair *)(VxxV_void))
+#define VddV     (*(MMVectorPair *restrict)(VddV_void))
+#define VuuV     (*(MMVectorPair *restrict)(VuuV_void))
+#define VvvV     (*(MMVectorPair *restrict)(VvvV_void))
+#define VxxV     (*(MMVectorPair *restrict)(VxxV_void))
 
-#define QeV      (*(MMQReg *)(QeV_void))
-#define QdV      (*(MMQReg *)(QdV_void))
-#define QsV      (*(MMQReg *)(QsV_void))
-#define QtV      (*(MMQReg *)(QtV_void))
-#define QuV      (*(MMQReg *)(QuV_void))
-#define QvV      (*(MMQReg *)(QvV_void))
-#define QxV      (*(MMQReg *)(QxV_void))
+#define QeV      (*(MMQReg *restrict)(QeV_void))
+#define QdV      (*(MMQReg *restrict)(QdV_void))
+#define QsV      (*(MMQReg *restrict)(QsV_void))
+#define QtV      (*(MMQReg *restrict)(QtV_void))
+#define QuV      (*(MMQReg *restrict)(QuV_void))
+#define QvV      (*(MMQReg *restrict)(QvV_void))
+#define QxV      (*(MMQReg *restrict)(QxV_void))
 #endif
 
 #define LOG_VTCM_BYTE(VA, MASK, VAL, IDX) \

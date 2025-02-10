@@ -14,7 +14,7 @@
 #include "qapi/error.h"
 #include "qemu/main-loop.h"
 #include "block/blockjob_int.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qapi/qmp/qdict.h"
 #include "iothread.h"
 

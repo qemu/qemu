@@ -22,14 +22,14 @@
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
-#include "sysemu/qtest.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/numa.h"
-#include "sysemu/reset.h"
-#include "sysemu/runstate.h"
-#include "sysemu/cpus.h"
-#include "sysemu/device_tree.h"
-#include "sysemu/hw_accel.h"
+#include "system/qtest.h"
+#include "system/system.h"
+#include "system/numa.h"
+#include "system/reset.h"
+#include "system/runstate.h"
+#include "system/cpus.h"
+#include "system/device_tree.h"
+#include "system/hw_accel.h"
 #include "target/ppc/cpu.h"
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/ppc.h"
@@ -736,21 +736,27 @@ static void pnv_reset(MachineState *machine, ResetType type)
         }
     }
 
-    fdt = pnv_dt_create(machine);
-
-    /* Pack resulting tree */
-    _FDT((fdt_pack(fdt)));
+    if (machine->fdt) {
+        fdt = machine->fdt;
+    } else {
+        fdt = pnv_dt_create(machine);
+        /* Pack resulting tree */
+        _FDT((fdt_pack(fdt)));
+    }
 
     qemu_fdt_dumpdtb(fdt, fdt_totalsize(fdt));
     cpu_physical_memory_write(PNV_FDT_ADDR, fdt, fdt_totalsize(fdt));
 
-    /*
-     * Set machine->fdt for 'dumpdtb' QMP/HMP command. Free
-     * the existing machine->fdt to avoid leaking it during
-     * a reset.
-     */
-    g_free(machine->fdt);
-    machine->fdt = fdt;
+    /* Update machine->fdt with latest fdt */
+    if (machine->fdt != fdt) {
+        /*
+         * Set machine->fdt for 'dumpdtb' QMP/HMP command. Free
+         * the existing machine->fdt to avoid leaking it during
+         * a reset.
+         */
+        g_free(machine->fdt);
+        machine->fdt = fdt;
+    }
 }
 
 static ISABus *pnv_chip_power8_isa_create(PnvChip *chip, Error **errp)
@@ -952,6 +958,14 @@ static void pnv_init(MachineState *machine)
         g_free(sz);
         exit(EXIT_FAILURE);
     }
+
+    /* checks for invalid option combinations */
+    if (machine->dtb && (strlen(machine->kernel_cmdline) != 0)) {
+        error_report("-append and -dtb cannot be used together, as passed"
+                " command line is ignored in case of custom dtb");
+        exit(EXIT_FAILURE);
+    }
+
     memory_region_add_subregion(get_system_memory(), 0, machine->ram);
 
     /*
@@ -999,6 +1013,21 @@ static void pnv_init(MachineState *machine)
         if (pnv->initrd_size < 0) {
             error_report("Could not load initial ram disk '%s'",
                          machine->initrd_filename);
+            exit(1);
+        }
+    }
+
+    /* load dtb if passed */
+    if (machine->dtb) {
+        int fdt_size;
+
+        warn_report("with manually passed dtb, some options like '-append'"
+                " will get ignored and the dtb passed will be used as-is");
+
+        /* read the file 'machine->dtb', and load it into 'fdt' buffer */
+        machine->fdt = load_device_tree(machine->dtb, &fdt_size);
+        if (!machine->fdt) {
+            error_report("Could not load dtb '%s'", machine->dtb);
             exit(1);
         }
     }
@@ -2393,7 +2422,7 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property pnv_chip_properties[] = {
+static const Property pnv_chip_properties[] = {
     DEFINE_PROP_UINT32("chip-id", PnvChip, chip_id, 0),
     DEFINE_PROP_UINT64("ram-start", PnvChip, ram_start, 0),
     DEFINE_PROP_UINT64("ram-size", PnvChip, ram_size, 0),
@@ -2402,7 +2431,6 @@ static Property pnv_chip_properties[] = {
     DEFINE_PROP_UINT32("nr-threads", PnvChip, nr_threads, 1),
     DEFINE_PROP_BOOL("big-core", PnvChip, big_core, false),
     DEFINE_PROP_BOOL("lpar-per-core", PnvChip, lpar_per_core, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_chip_class_init(ObjectClass *klass, void *data)

@@ -11,7 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-migration.h"
 #include "migration.h"
@@ -30,8 +30,8 @@
 #include "net/colo.h"
 #include "block/block.h"
 #include "qapi/qapi-events-migration.h"
-#include "sysemu/cpus.h"
-#include "sysemu/runstate.h"
+#include "system/cpus.h"
+#include "system/runstate.h"
 #include "net/filter.h"
 #include "options.h"
 
@@ -836,7 +836,7 @@ static void *colo_process_incoming_thread(void *opaque)
 
     /* Make sure all file formats throw away their mutable metadata */
     bql_lock();
-    bdrv_activate_all(&local_err);
+    migration_block_activate(&local_err);
     bql_unlock();
     if (local_err) {
         error_report_err(local_err);
@@ -935,7 +935,8 @@ void coroutine_fn colo_incoming_co(void)
     assert(bql_locked());
     assert(migration_incoming_colo_enabled());
 
-    qemu_thread_create(&th, "mig/dst/colo", colo_process_incoming_thread,
+    qemu_thread_create(&th, MIGRATION_THREAD_DST_COLO,
+                       colo_process_incoming_thread,
                        mis, QEMU_THREAD_JOINABLE);
 
     mis->colo_incoming_co = qemu_coroutine_self();

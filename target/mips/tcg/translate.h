@@ -176,6 +176,7 @@ void gen_addiupc(DisasContext *ctx, int rx, int imm,
  * Address Computation and Large Constant Instructions
  */
 void gen_op_addr_add(DisasContext *ctx, TCGv ret, TCGv arg0, TCGv arg1);
+void gen_op_addr_addi(DisasContext *ctx, TCGv ret, TCGv base, target_long ofs);
 bool gen_lsa(DisasContext *ctx, int rd, int rt, int rs, int sa);
 bool gen_dlsa(DisasContext *ctx, int rd, int rt, int rs, int sa);
 
@@ -216,16 +217,24 @@ void msa_translate_init(void);
 void mxu_translate_init(void);
 bool decode_ase_mxu(DisasContext *ctx, uint32_t insn);
 
+bool decode_64bit_enabled(DisasContext *ctx);
+
 /* decodetree generated */
 bool decode_isa_rel6(DisasContext *ctx, uint32_t insn);
 bool decode_ase_msa(DisasContext *ctx, uint32_t insn);
 bool decode_ext_txx9(DisasContext *ctx, uint32_t insn);
+bool decode_ext_loongson(DisasContext *ctx, uint32_t insn);
 #if defined(TARGET_MIPS64)
 bool decode_ase_lcsr(DisasContext *ctx, uint32_t insn);
 bool decode_ext_tx79(DisasContext *ctx, uint32_t insn);
 bool decode_ext_octeon(DisasContext *ctx, uint32_t insn);
 #endif
 bool decode_ext_vr54xx(DisasContext *ctx, uint32_t insn);
+
+static inline bool disas_mt_available(DisasContext *ctx)
+{
+    return ctx->CP0_Config3 & (1 << CP0C3_MT);
+}
 
 /*
  * Helpers for implementing sets of trans_* functions.
@@ -235,9 +244,19 @@ bool decode_ext_vr54xx(DisasContext *ctx, uint32_t insn);
     static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a) \
     { return FUNC(ctx, a, __VA_ARGS__); }
 
-static inline bool cpu_is_bigendian(DisasContext *ctx)
+static inline bool disas_is_bigendian(DisasContext *ctx)
 {
     return extract32(ctx->CP0_Config0, CP0C0_BE, 1);
+}
+
+static inline MemOp mo_endian(DisasContext *dc)
+{
+    return disas_is_bigendian(dc) ? MO_BE : MO_LE;
+}
+
+static inline MemOp mo_endian_rev(DisasContext *dc, bool reversed)
+{
+    return disas_is_bigendian(dc) ^ reversed ? MO_BE : MO_LE;
 }
 
 #endif

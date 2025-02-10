@@ -19,10 +19,9 @@ cwd = os.getcwd()
 reponame = os.path.basename(cwd)
 repourl = "https://gitlab.com/%s/%s.git" % (namespace, reponame)
 
+print(f"adding upstream git repo @ {repourl}")
 subprocess.check_call(["git", "remote", "add", "check-dco", repourl])
-subprocess.check_call(["git", "fetch", "check-dco", "master"],
-                      stdout=subprocess.DEVNULL,
-                      stderr=subprocess.DEVNULL)
+subprocess.check_call(["git", "fetch", "check-dco", "master"])
 
 ancestor = subprocess.check_output(["git", "merge-base",
                                     "check-dco/master", "HEAD"],
@@ -79,7 +78,10 @@ of Origin 1.1 (DCO):
 
 To indicate acceptance of the DCO every commit must have a tag
 
-  Signed-off-by: REAL NAME <EMAIL>
+  Signed-off-by: YOUR NAME <EMAIL>
+
+where "YOUR NAME" is your commonly known identity in the context
+of the community.
 
 This can be achieved by passing the "-s" flag to the "git commit" command.
 

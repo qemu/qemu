@@ -357,19 +357,6 @@ int main(int argc, char **argv)
                        "486", "xstore=on", "pc-i440fx-2.7",
                        "xlevel2", 0);
     }
-    /*
-     * QEMU 2.3.0 had auto-level enabled for CPUID[7], already,
-     * and the compat code that sets default level shouldn't
-     * disable the auto-level=7 code:
-     */
-    if (qtest_has_machine("pc-i440fx-2.3")) {
-        add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.3/off",
-                       "Penryn", NULL, "pc-i440fx-2.3",
-                       "level", 4);
-        add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.3/on",
-                       "Penryn", "erms=on", "pc-i440fx-2.3",
-                       "level", 7);
-    }
     if (qtest_has_machine("pc-i440fx-2.9")) {
         add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.9/off",
                        "Conroe", NULL, "pc-i440fx-2.9",
@@ -384,11 +371,6 @@ int main(int argc, char **argv)
      * code on old machine-types.  Just check that the compat code
      * is working correctly:
      */
-    if (qtest_has_machine("pc-i440fx-2.3")) {
-        add_cpuid_test("x86/cpuid/xlevel-compat/pc-i440fx-2.3",
-                       "SandyBridge", NULL, "pc-i440fx-2.3",
-                       "xlevel", 0x8000000a);
-    }
     if (qtest_has_machine("pc-i440fx-2.4")) {
         add_cpuid_test("x86/cpuid/xlevel-compat/pc-i440fx-2.4/npt-off",
                        "SandyBridge", NULL, "pc-i440fx-2.4",

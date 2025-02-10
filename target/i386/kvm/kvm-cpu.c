@@ -11,7 +11,7 @@
 #include "cpu.h"
 #include "host-cpu.h"
 #include "qapi/error.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/boards.h"
 
 #include "kvm_i386.h"
@@ -141,10 +141,6 @@ static void kvm_cpu_xsave_init(void)
         ExtSaveArea *esa = &x86_ext_save_areas[i];
 
         if (!esa->size) {
-            continue;
-        }
-        if ((x86_cpu_get_supported_feature_word(NULL, esa->feature) & esa->bits)
-            != esa->bits) {
             continue;
         }
         host_cpuid(0xd, i, &eax, &ebx, &ecx, &edx);

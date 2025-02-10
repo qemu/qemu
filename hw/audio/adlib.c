@@ -297,11 +297,10 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
     portio_list_add (&s->port_list, isa_address_space_io(&s->parent_obj), 0);
 }
 
-static Property adlib_properties[] = {
+static const Property adlib_properties[] = {
     DEFINE_AUDIO_PROPERTIES(AdlibState, card),
     DEFINE_PROP_UINT32 ("iobase",  AdlibState, port, 0x220),
     DEFINE_PROP_UINT32 ("freq",    AdlibState, freq,  44100),
-    DEFINE_PROP_END_OF_LIST (),
 };
 
 static void adlib_class_initfn (ObjectClass *klass, void *data)

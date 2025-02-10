@@ -23,6 +23,7 @@
 #include "libqos-malloc.h"
 #include "qgraph.h"
 #include "i2c.h"
+#include "hw/i2c/imx_i2c.h"
 
 #define ARM_PAGE_SIZE            4096
 #define IMX25_PDK_RAM_START      0x80000000
@@ -50,7 +51,7 @@ static void *imx25_pdk_get_driver(void *object, const char *interface)
 static QOSGraphObject *imx25_pdk_get_device(void *obj, const char *device)
 {
     QIMX25PDKMachine *machine = obj;
-    if (!g_strcmp0(device, "imx.i2c")) {
+    if (!g_strcmp0(device, TYPE_IMX_I2C)) {
         return &machine->i2c_1.obj;
     }
 
@@ -86,7 +87,7 @@ static void imx25_pdk_register_nodes(void)
         .extra_device_opts = "bus=i2c-bus.0"
     };
     qos_node_create_machine("arm/imx25-pdk", qos_create_machine_arm_imx25_pdk);
-    qos_node_contains("arm/imx25-pdk", "imx.i2c", &edge, NULL);
+    qos_node_contains("arm/imx25-pdk", TYPE_IMX_I2C, &edge, NULL);
 }
 
 libqos_init(imx25_pdk_register_nodes);

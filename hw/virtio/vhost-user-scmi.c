@@ -277,9 +277,8 @@ static const VMStateDescription vu_scmi_vmstate = {
     .unmigratable = 1,
 };
 
-static Property vu_scmi_properties[] = {
+static const Property vu_scmi_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserSCMI, chardev),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vu_scmi_class_init(ObjectClass *klass, void *data)

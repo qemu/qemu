@@ -22,8 +22,8 @@
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/dma.h"
+#include "system/blockdev.h"
+#include "system/dma.h"
 #include "hw/qdev-properties.h"
 #include "hw/irq.h"
 #include "hw/sd/allwinner-sdhost.h"
@@ -808,10 +808,9 @@ static const VMStateDescription vmstate_allwinner_sdhost = {
     }
 };
 
-static Property allwinner_sdhost_properties[] = {
+static const Property allwinner_sdhost_properties[] = {
     DEFINE_PROP_LINK("dma-memory", AwSdHostState, dma_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void allwinner_sdhost_init(Object *obj)

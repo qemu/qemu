@@ -51,8 +51,8 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
-#include "sysemu/runstate.h"
-#include "sysemu/sysemu.h"
+#include "system/runstate.h"
+#include "system/system.h"
 #include "trace.h"
 
 #include "hw/qdev-properties.h"
@@ -1758,7 +1758,7 @@ static const VMStateDescription vmstate_usb_host = {
     }
 };
 
-static Property usb_host_dev_properties[] = {
+static const Property usb_host_dev_properties[] = {
     DEFINE_PROP_UINT32("hostbus",  USBHostDevice, match.bus_num,    0),
     DEFINE_PROP_UINT32("hostaddr", USBHostDevice, match.addr,       0),
     DEFINE_PROP_STRING("hostport", USBHostDevice, match.port),
@@ -1779,7 +1779,6 @@ static Property usb_host_dev_properties[] = {
                     USB_HOST_OPT_PIPELINE, true),
     DEFINE_PROP_BOOL("suppress-remote-wake", USBHostDevice,
                      suppress_remote_wake, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void usb_host_class_initfn(ObjectClass *klass, void *data)

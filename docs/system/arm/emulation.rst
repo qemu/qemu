@@ -3,8 +3,8 @@
 A-profile CPU architecture support
 ==================================
 
-QEMU's TCG emulation includes support for the Armv5, Armv6, Armv7 and
-Armv8 versions of the A-profile architecture. It also has support for
+QEMU's TCG emulation includes support for the Armv5, Armv6, Armv7,
+Armv8 and Armv9 versions of the A-profile architecture. It also has support for
 the following architecture extensions:
 
 - FEAT_AA32BF16 (AArch32 BFloat16 instructions)
@@ -26,6 +26,7 @@ the following architecture extensions:
 - FEAT_BF16 (AArch64 BFloat16 instructions)
 - FEAT_BTI (Branch Target Identification)
 - FEAT_CCIDX (Extended cache index)
+- FEAT_CMOW (Control for cache maintenance permission)
 - FEAT_CRC32 (CRC32 instructions)
 - FEAT_Crypto (Cryptographic Extension)
 - FEAT_CSV2 (Cache speculation variant 2)
@@ -36,6 +37,7 @@ the following architecture extensions:
 - FEAT_CSV3 (Cache speculation variant 3)
 - FEAT_DGH (Data gathering hint)
 - FEAT_DIT (Data Independent Timing instructions)
+- FEAT_DoubleLock (Double Lock)
 - FEAT_DPB (DC CVAP instruction)
 - FEAT_DPB2 (DC CVADP instruction)
 - FEAT_Debugv8p1 (Debug with VHE)
@@ -87,12 +89,13 @@ the following architecture extensions:
 - FEAT_LSE2 (Large System Extensions v2)
 - FEAT_LVA (Large Virtual Address space)
 - FEAT_MixedEnd (Mixed-endian support)
-- FEAT_MixdEndEL0 (Mixed-endian support at EL0)
+- FEAT_MixedEndEL0 (Mixed-endian support at EL0)
 - FEAT_MOPS (Standardization of memory operations)
 - FEAT_MTE (Memory Tagging Extension)
 - FEAT_MTE2 (Memory Tagging Extension)
 - FEAT_MTE3 (MTE Asymmetric Fault Handling)
 - FEAT_MTE_ASYM_FAULT (Memory tagging asymmetric faults)
+- FEAT_MTE_ASYNC (Asynchronous reporting of Tag Check Fault)
 - FEAT_NMI (Non-maskable Interrupt)
 - FEAT_NV (Nested Virtualization)
 - FEAT_NV2 (Enhanced nested virtualization support)
@@ -136,6 +139,7 @@ the following architecture extensions:
 - FEAT_SVE2 (Scalable Vector Extension version 2)
 - FEAT_SPECRES (Speculation restriction instructions)
 - FEAT_SSBS (Speculative Store Bypass Safe)
+- FEAT_SSBS2 (MRS and MSR instructions for SSBS version 2)
 - FEAT_TGran16K (Support for 16KB memory translation granule size at stage 1)
 - FEAT_TGran4K (Support for 4KB memory translation granule size at stage 1)
 - FEAT_TGran64K (Support for 64KB memory translation granule size at stage 1)
@@ -150,9 +154,10 @@ the following architecture extensions:
 - FEAT_VMID16 (16-bit VMID)
 - FEAT_WFxT (WFE and WFI instructions with timeout)
 - FEAT_XNX (Translation table stage 2 Unprivileged Execute-never)
+- FEAT_XS (XS attribute)
 
 For information on the specifics of these extensions, please refer
-to the `Armv8-A Arm Architecture Reference Manual
+to the `Arm Architecture Reference Manual for A-profile architecture
 <https://developer.arm.com/documentation/ddi0487/latest>`_.
 
 When a specific named CPU is being emulated, only those features which

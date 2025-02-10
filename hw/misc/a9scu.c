@@ -123,9 +123,8 @@ static const VMStateDescription vmstate_a9_scu = {
     }
 };
 
-static Property a9_scu_properties[] = {
+static const Property a9_scu_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", A9SCUState, num_cpu, 1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void a9_scu_class_init(ObjectClass *klass, void *data)

@@ -18,8 +18,8 @@
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/rtc.h"
+#include "system/system.h"
+#include "system/rtc.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -319,7 +319,7 @@ static const VMStateDescription vmstate_pl031 = {
     }
 };
 
-static Property pl031_properties[] = {
+static const Property pl031_properties[] = {
     /*
      * True to correctly migrate the tick offset of the RTC. False to
      * obtain backward migration compatibility with older QEMU versions,
@@ -330,7 +330,6 @@ static Property pl031_properties[] = {
      */
     DEFINE_PROP_BOOL("migrate-tick-offset",
                      PL031State, migrate_tick_offset, true),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void pl031_class_init(ObjectClass *klass, void *data)

@@ -606,7 +606,7 @@ struct pa_opcode
 
    In the args field, the following characters are unused:
 
-	'  "         -  /   34 6789:;    '
+	'  "         -  /   34 678 :;    '
 	'@  C         M             [\]  '
 	'`    e g                     }  '
 
@@ -650,6 +650,7 @@ Also these:
    |	6 bit field length at 19,27:31 (fixed extract/deposit)
    A    13 bit immediate at 18 (to support the BREAK instruction)
    ^	like b, but describes a control register
+   9	like b, but describes a diagnose register
    !    sar (cr11) register
    D    26 bit immediate at 31 (to support the DIAG instruction)
    $    9 bit immediate at 28 (to support POPBTS)
@@ -1322,19 +1323,28 @@ static const struct pa_opcode pa_opcodes[] =
 { "fdce",	0x040012c0, 0xfc00ffdf, "cZx(b)", pa10, 0},
 { "fdce",	0x040012c0, 0xfc003fdf, "cZx(s,b)", pa10, 0},
 { "fice",	0x040002c0, 0xfc001fdf, "cZx(S,b)", pa10, 0},
-{ "diag",	0x14000000, 0xfc000000, "D", pa10, 0},
 { "idtlbt",	0x04001800, 0xfc00ffff, "x,b", pa20, FLAG_STRICT},
 { "iitlbt",	0x04000800, 0xfc00ffff, "x,b", pa20, FLAG_STRICT},
+
+/* completely undocumented, but used by ODE, HP-UX and Linux: */
+{ "mfcpu_pcxu",	0x140008a0, 0xfc9fffe0, "9,t", pa20, 0}, /* PCXU: mfdiag */
+{ "mtcpu_pcxu",	0x14001840, 0xfc00ffff, "x,9", pa20, 0},
 
 /* These may be specific to certain versions of the PA.  Joel claimed
    they were 72000 (7200?) specific.  However, I'm almost certain the
    mtcpu/mfcpu were undocumented, but available in the older 700 machines.  */
+{ "mfcpu_c",    0x14000600, 0xfc00ffff, "9,x", pa10, 0}, /* PCXL: for dr0 and dr8 only */
+{ "mfcpu_t",    0x14001400, 0xfc9fffe0, "9,t", pa10, 0}, /* PCXL: all dr except dr0 and dr8 */
+{ "mtcpu_pcxl",	0x14000240, 0xfc00ffff, "x,9", pa11, 0}, /* PCXL: mtcpu for dr0 and dr8 */
 { "mtcpu",	0x14001600, 0xfc00ffff, "x,^", pa10, 0},
 { "mfcpu",	0x14001A00, 0xfc00ffff, "^,x", pa10, 0},
 { "tocen",	0x14403600, 0xffffffff, "", pa10, 0},
 { "tocdis",	0x14401620, 0xffffffff, "", pa10, 0},
 { "shdwgr",	0x14402600, 0xffffffff, "", pa10, 0},
 { "grshdw",	0x14400620, 0xffffffff, "", pa10, 0},
+
+/* instead of showing D only, show all other registers too */
+{ "diag",	0x14000000, 0xfc000000, "D  x,9,t", pa10, 0},
 
 /* gfw and gfr are not in the HP PA 1.1 manual, but they are in either
    the Timex FPU or the Mustang ERS (not sure which) manual.  */
@@ -1801,6 +1811,12 @@ fput_creg (unsigned reg, disassemble_info *info)
   (*info->fprintf_func) (info->stream, "%s", control_reg[reg]);
 }
 
+static void
+fput_dreg (unsigned reg, disassemble_info *info)
+{
+  (*info->fprintf_func) (info->stream, "dr%d", reg);
+}
+
 /* Print constants with sign.  */
 
 static void
@@ -2006,6 +2022,9 @@ print_insn_hppa (bfd_vma memaddr, disassemble_info *info)
 		  break;
 		case '^':
 		  fput_creg (GET_FIELD (insn, 6, 10), info);
+		  break;
+		case '9':
+		  fput_dreg (GET_FIELD (insn, 6, 10), info);
 		  break;
 		case 't':
 		  fput_reg (GET_FIELD (insn, 27, 31), info);

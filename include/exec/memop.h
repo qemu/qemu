@@ -164,12 +164,6 @@ static inline MemOp size_memop(unsigned size)
     return (MemOp)ctz32(size);
 }
 
-/* Big endianness from MemOp.  */
-static inline bool memop_big_endian(MemOp op)
-{
-    return (op & MO_BSWAP) == MO_BE;
-}
-
 /**
  * memop_alignment_bits:
  * @memop: MemOp value

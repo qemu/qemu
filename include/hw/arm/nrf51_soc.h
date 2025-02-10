@@ -30,7 +30,7 @@ struct NRF51State {
     SysBusDevice parent_obj;
 
     /*< public >*/
-    ARMv7MState cpu;
+    ARMv7MState armv7m;
 
     NRF51UARTState uart;
     NRF51RNGState rng;

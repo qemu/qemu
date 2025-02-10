@@ -325,9 +325,8 @@ static void exynos4210_combiner_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static Property exynos4210_combiner_properties[] = {
+static const Property exynos4210_combiner_properties[] = {
     DEFINE_PROP_UINT32("external", Exynos4210CombinerState, external, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void exynos4210_combiner_class_init(ObjectClass *klass, void *data)

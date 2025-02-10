@@ -38,6 +38,7 @@ struct MIPSCPSState {
     uint32_t num_vp;
     uint32_t num_irq;
     char *cpu_type;
+    bool cpu_is_bigendian;
 
     MemoryRegion container;
     MIPSGCRState gcr;

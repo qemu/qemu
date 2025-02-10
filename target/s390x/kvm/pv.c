@@ -16,10 +16,10 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "sysemu/kvm.h"
-#include "sysemu/cpus.h"
+#include "system/kvm.h"
+#include "system/cpus.h"
 #include "qom/object_interfaces.h"
-#include "exec/confidential-guest-support.h"
+#include "system/confidential-guest-support.h"
 #include "hw/s390x/ipl.h"
 #include "hw/s390x/sclp.h"
 #include "target/s390x/kvm/kvm_s390x.h"
@@ -133,7 +133,7 @@ bool s390_pv_vm_try_disable_async(S390CcwMachineState *ms)
      * If the feature is not present or if the VM is not larger than 2 GiB,
      * KVM_PV_ASYNC_CLEANUP_PREPARE fill fail; no point in attempting it.
      */
-    if ((MACHINE(ms)->maxram_size <= 2 * GiB) ||
+    if (s390_get_memory_limit(ms) <= 2 * GiB ||
         !kvm_check_extension(kvm_state, KVM_CAP_S390_PROTECTED_ASYNC_DISABLE)) {
         return false;
     }

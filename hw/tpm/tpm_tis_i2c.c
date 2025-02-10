@@ -491,9 +491,8 @@ static int tpm_tis_i2c_send(I2CSlave *i2c, uint8_t data)
     return 1;
 }
 
-static Property tpm_tis_i2c_properties[] = {
+static const Property tpm_tis_i2c_properties[] = {
     DEFINE_PROP_TPMBE("tpmdev", TPMStateI2C, state.be_driver),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void tpm_tis_i2c_realizefn(DeviceState *dev, Error **errp)

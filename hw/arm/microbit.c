@@ -12,7 +12,7 @@
 #include "qapi/error.h"
 #include "hw/boards.h"
 #include "hw/arm/boot.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "exec/address-spaces.h"
 
 #include "hw/arm/nrf51_soc.h"
@@ -56,7 +56,7 @@ static void microbit_init(MachineState *machine)
     memory_region_add_subregion_overlap(&s->nrf51.container, NRF51_TWI_BASE,
                                         mr, -1);
 
-    armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename,
+    armv7m_load_kernel(s->nrf51.armv7m.cpu, machine->kernel_filename,
                        0, s->nrf51.flash_size);
 }
 

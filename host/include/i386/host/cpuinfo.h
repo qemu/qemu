@@ -9,6 +9,7 @@
 /* Digested version of <cpuid.h> */
 
 #define CPUINFO_ALWAYS          (1u << 0)  /* so cpuinfo is nonzero */
+#define CPUINFO_OSXSAVE         (1u << 1)
 #define CPUINFO_MOVBE           (1u << 2)
 #define CPUINFO_LZCNT           (1u << 3)
 #define CPUINFO_POPCNT          (1u << 4)

@@ -251,9 +251,8 @@ static void console_reset(DeviceState *dev)
    scon->notify = false;
 }
 
-static Property console_properties[] = {
+static const Property console_properties[] = {
     DEFINE_PROP_CHR("chardev", SCLPConsole, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void console_class_init(ObjectClass *klass, void *data)

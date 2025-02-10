@@ -215,6 +215,9 @@ void pc_system_parse_ovmf_flash(uint8_t *flash_ptr, size_t flash_size);
 /* sgx.c */
 void pc_machine_init_sgx_epc(PCMachineState *pcms);
 
+extern GlobalProperty pc_compat_9_2[];
+extern const size_t pc_compat_9_2_len;
+
 extern GlobalProperty pc_compat_9_1[];
 extern const size_t pc_compat_9_1_len;
 
@@ -299,9 +302,6 @@ extern const size_t pc_compat_2_5_len;
 extern GlobalProperty pc_compat_2_4[];
 extern const size_t pc_compat_2_4_len;
 
-extern GlobalProperty pc_compat_2_3[];
-extern const size_t pc_compat_2_3_len;
-
 #define DEFINE_PC_MACHINE(suffix, namestr, initfn, optsfn) \
     static void pc_machine_##suffix##_class_init(ObjectClass *oc, void *data) \
     { \
@@ -316,11 +316,11 @@ extern const size_t pc_compat_2_3_len;
     }; \
     static void pc_machine_init_##suffix(void) \
     { \
-        type_register(&pc_machine_type_##suffix); \
+        type_register_static(&pc_machine_type_##suffix); \
     } \
     type_init(pc_machine_init_##suffix)
 
-#define DEFINE_PC_VER_MACHINE(namesym, namestr, initfn, ...) \
+#define DEFINE_PC_VER_MACHINE(namesym, namestr, initfn, isdefault, malias, ...) \
     static void MACHINE_VER_SYM(init, namesym, __VA_ARGS__)( \
         MachineState *machine) \
     { \
@@ -334,6 +334,8 @@ extern const size_t pc_compat_2_3_len;
         MACHINE_VER_SYM(options, namesym, __VA_ARGS__)(mc); \
         mc->init = MACHINE_VER_SYM(init, namesym, __VA_ARGS__); \
         MACHINE_VER_DEPRECATION(__VA_ARGS__); \
+        mc->is_default = isdefault; \
+        mc->alias = malias; \
     } \
     static const TypeInfo MACHINE_VER_SYM(info, namesym, __VA_ARGS__) = \
     { \
@@ -344,7 +346,7 @@ extern const size_t pc_compat_2_3_len;
     static void MACHINE_VER_SYM(register, namesym, __VA_ARGS__)(void) \
     { \
         MACHINE_VER_DELETION(__VA_ARGS__); \
-        type_register(&MACHINE_VER_SYM(info, namesym, __VA_ARGS__)); \
+        type_register_static(&MACHINE_VER_SYM(info, namesym, __VA_ARGS__)); \
     } \
     type_init(MACHINE_VER_SYM(register, namesym, __VA_ARGS__));
 

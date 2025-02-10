@@ -2246,7 +2246,7 @@ sub process {
 			}
 		}
 # Check operator spacing.
-		if (!($line=~/\#\s*include/)) {
+		if (!($line=~/\#\s*(include|import)/)) {
 			my $ops = qr{
 				<<=|>>=|<=|>=|==|!=|
 				\+=|-=|\*=|\/=|%=|\^=|\|=|&=|

@@ -2622,6 +2622,12 @@ struct target_ucred {
     abi_uint gid;
 };
 
+struct target_in_pktinfo {
+    abi_int               ipi_ifindex;
+    struct target_in_addr ipi_spec_dst;
+    struct target_in_addr ipi_addr;
+};
+
 typedef abi_int target_timer_t;
 
 #define TARGET_SIGEV_MAX_SIZE 64
@@ -2750,9 +2756,9 @@ struct target_sched_param {
 
 /* from kernel's include/uapi/linux/openat2.h */
 struct open_how_ver0 {
-    __u64 flags;
-    __u64 mode;
-    __u64 resolve;
+    uint64_t flags;
+    uint64_t mode;
+    uint64_t resolve;
 };
 struct target_open_how_ver0 {
     abi_ullong flags;
@@ -2764,6 +2770,13 @@ struct target_open_how_ver0 {
 #endif
 #ifndef RESOLVE_NO_SYMLINKS
 #define RESOLVE_NO_SYMLINKS     0x04
+#endif
+
+#if (defined(TARGET_I386) && defined(TARGET_ABI32)) || \
+    (defined(TARGET_ARM) && defined(TARGET_ABI32)) || \
+    defined(TARGET_M68K) || defined(TARGET_MICROBLAZE) || \
+    defined(TARGET_S390X)
+#define TARGET_ARCH_WANT_SYS_OLD_MMAP
 #endif
 
 #endif

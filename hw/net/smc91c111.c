@@ -788,9 +788,8 @@ static void smc91c111_realize(DeviceState *dev, Error **errp)
     /* ??? Save/restore.  */
 }
 
-static Property smc91c111_properties[] = {
+static const Property smc91c111_properties[] = {
     DEFINE_NIC_PROPERTIES(smc91c111_state, conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void smc91c111_class_init(ObjectClass *klass, void *data)

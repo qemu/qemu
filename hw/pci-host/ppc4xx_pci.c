@@ -27,7 +27,7 @@
 #include "hw/pci-host/ppc4xx.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pci_host.h"
 #include "trace.h"

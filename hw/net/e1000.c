@@ -33,8 +33,8 @@
 #include "net/eth.h"
 #include "net/net.h"
 #include "net/checksum.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/dma.h"
+#include "system/system.h"
+#include "system/dma.h"
 #include "qemu/iov.h"
 #include "qemu/module.h"
 #include "qemu/range.h"
@@ -1677,7 +1677,7 @@ static void pci_e1000_realize(PCIDevice *pci_dev, Error **errp)
                                         e1000_flush_queue_timer, d);
 }
 
-static Property e1000_properties[] = {
+static const Property e1000_properties[] = {
     DEFINE_NIC_PROPERTIES(E1000State, conf),
     DEFINE_PROP_BIT("extra_mac_registers", E1000State,
                     compat_flags, E1000_FLAG_MAC_BIT, true),
@@ -1685,7 +1685,6 @@ static Property e1000_properties[] = {
                     compat_flags, E1000_FLAG_TSO_BIT, true),
     DEFINE_PROP_BIT("init-vet", E1000State,
                     compat_flags, E1000_FLAG_VET_BIT, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 typedef struct E1000Info {
@@ -1774,7 +1773,7 @@ static void e1000_register_types(void)
         type_info.class_data = (void *)info;
         type_info.class_init = e1000_class_init;
 
-        type_register(&type_info);
+        type_register_static(&type_info);
     }
 }
 

@@ -15,7 +15,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/intc/ioapic_internal.h"
 #include "hw/intc/kvm_irqcount.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "kvm/kvm_i386.h"
 
 /* PC Utility function */
@@ -133,9 +133,8 @@ static void kvm_ioapic_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_in(dev, kvm_ioapic_set_irq, IOAPIC_NUM_PINS);
 }
 
-static Property kvm_ioapic_properties[] = {
+static const Property kvm_ioapic_properties[] = {
     DEFINE_PROP_UINT32("gsi_base", KVMIOAPICState, kvm_gsi_base, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void kvm_ioapic_class_init(ObjectClass *klass, void *data)

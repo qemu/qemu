@@ -33,7 +33,7 @@
 #include "hw/ssi/xilinx_spips.h"
 #include "qapi/error.h"
 #include "hw/register.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "migration/blocker.h"
 #include "migration/vmstate.h"
 
@@ -1420,16 +1420,14 @@ static const VMStateDescription vmstate_xlnx_zynqmp_qspips = {
     }
 };
 
-static Property xilinx_zynqmp_qspips_properties[] = {
+static const Property xilinx_zynqmp_qspips_properties[] = {
     DEFINE_PROP_UINT32("dma-burst-size", XlnxZynqMPQSPIPS, dma_burst_size, 64),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static Property xilinx_spips_properties[] = {
+static const Property xilinx_spips_properties[] = {
     DEFINE_PROP_UINT8("num-busses", XilinxSPIPS, num_busses, 1),
     DEFINE_PROP_UINT8("num-ss-bits", XilinxSPIPS, num_cs, 4),
     DEFINE_PROP_UINT8("num-txrx-bytes", XilinxSPIPS, num_txrx_bytes, 1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xilinx_qspips_class_init(ObjectClass *klass, void * data)

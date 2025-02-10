@@ -29,7 +29,7 @@
 #include "block/blockjob_int.h"
 #include "block/block_int.h"
 #include "block/trace.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-block-core.h"
 #include "qapi/qmp/qerror.h"

@@ -27,7 +27,7 @@
 #include "hw/virtio/vhost-user-scsi.h"
 #include "hw/virtio/virtio.h"
 #include "chardev/char-fe.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 /* Features supported by the host application */
 static const int user_feature_bits[] = {
@@ -341,7 +341,7 @@ static void vhost_user_scsi_unrealize(DeviceState *dev)
     virtio_scsi_common_unrealize(dev);
 }
 
-static Property vhost_user_scsi_properties[] = {
+static const Property vhost_user_scsi_properties[] = {
     DEFINE_PROP_CHR("chardev", VirtIOSCSICommon, conf.chardev),
     DEFINE_PROP_UINT32("boot_tpgt", VirtIOSCSICommon, conf.boot_tpgt, 0),
     DEFINE_PROP_UINT32("num_queues", VirtIOSCSICommon, conf.num_queues,
@@ -360,7 +360,6 @@ static Property vhost_user_scsi_properties[] = {
     DEFINE_PROP_BIT64("t10_pi", VHostSCSICommon, host_features,
                                                  VIRTIO_SCSI_F_T10_PI,
                                                  false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vhost_user_scsi_reset(VirtIODevice *vdev)

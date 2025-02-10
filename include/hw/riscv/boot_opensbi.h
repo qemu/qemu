@@ -58,4 +58,33 @@ struct fw_dynamic_info {
     target_long boot_hart;
 };
 
+/** Representation dynamic info passed by previous booting stage */
+struct fw_dynamic_info32 {
+    /** Info magic */
+    int32_t magic;
+    /** Info version */
+    int32_t version;
+    /** Next booting stage address */
+    int32_t next_addr;
+    /** Next booting stage mode */
+    int32_t next_mode;
+    /** Options for OpenSBI library */
+    int32_t options;
+    /**
+     * Preferred boot HART id
+     *
+     * It is possible that the previous booting stage uses same link
+     * address as the FW_DYNAMIC firmware. In this case, the relocation
+     * lottery mechanism can potentially overwrite the previous booting
+     * stage while other HARTs are still running in the previous booting
+     * stage leading to boot-time crash. To avoid this boot-time crash,
+     * the previous booting stage can specify last HART that will jump
+     * to the FW_DYNAMIC firmware as the preferred boot HART.
+     *
+     * To avoid specifying a preferred boot HART, the previous booting
+     * stage can set it to -1UL which will force the FW_DYNAMIC firmware
+     * to use the relocation lottery mechanism.
+     */
+    int32_t boot_hart;
+};
 #endif

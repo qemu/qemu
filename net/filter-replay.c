@@ -17,7 +17,7 @@
 #include "qemu/timer.h"
 #include "qapi/visitor.h"
 #include "net/filter.h"
-#include "sysemu/replay.h"
+#include "system/replay.h"
 #include "qom/object.h"
 
 #define TYPE_FILTER_REPLAY "filter-replay"

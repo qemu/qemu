@@ -17,13 +17,17 @@
 #include "hw/resettable.h"
 #include "hw/virtio/virtio.h"
 #include "qapi/qapi-types-misc.h"
-#include "sysemu/hostmem.h"
+#include "system/hostmem.h"
 #include "qom/object.h"
 
 #define TYPE_VIRTIO_MEM "virtio-mem"
 
 OBJECT_DECLARE_TYPE(VirtIOMEM, VirtIOMEMClass,
                     VIRTIO_MEM)
+
+#define TYPE_VIRTIO_MEM_SYSTEM_RESET "virtio-mem-system-reset"
+
+OBJECT_DECLARE_SIMPLE_TYPE(VirtioMemSystemReset, VIRTIO_MEM_SYSTEM_RESET)
 
 #define VIRTIO_MEM_MEMDEV_PROP "memdev"
 #define VIRTIO_MEM_NODE_PROP "node"
@@ -117,8 +121,15 @@ struct VirtIOMEM {
     /* listeners to notify on plug/unplug activity. */
     QLIST_HEAD(, RamDiscardListener) rdl_list;
 
-    /* State of the resettable container */
+    /* Catch system resets -> qemu_devices_reset() only. */
+    VirtioMemSystemReset *system_reset;
+};
+
+struct VirtioMemSystemReset {
+    Object parent;
+
     ResettableState reset_state;
+    VirtIOMEM *vmem;
 };
 
 struct VirtIOMEMClass {

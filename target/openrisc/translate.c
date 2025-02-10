@@ -26,6 +26,7 @@
 #include "qemu/bitops.h"
 #include "qemu/qemu-print.h"
 #include "exec/translator.h"
+#include "exec/translation-block.h"
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
@@ -1645,8 +1646,8 @@ static const TranslatorOps openrisc_tr_ops = {
     .tb_stop            = openrisc_tr_tb_stop,
 };
 
-void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
-                           vaddr pc, void *host_pc)
+void openrisc_translate_code(CPUState *cs, TranslationBlock *tb,
+                             int *max_insns, vaddr pc, void *host_pc)
 {
     DisasContext ctx;
 

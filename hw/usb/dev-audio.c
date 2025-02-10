@@ -990,12 +990,11 @@ static const VMStateDescription vmstate_usb_audio = {
     .unmigratable = 1,
 };
 
-static Property usb_audio_properties[] = {
+static const Property usb_audio_properties[] = {
     DEFINE_AUDIO_PROPERTIES(USBAudioState, card),
     DEFINE_PROP_UINT32("debug", USBAudioState, debug, 0),
     DEFINE_PROP_UINT32("buffer", USBAudioState, buffer_user, 0),
     DEFINE_PROP_BOOL("multi", USBAudioState, multi, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void usb_audio_class_init(ObjectClass *klass, void *data)

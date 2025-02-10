@@ -33,7 +33,7 @@
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "trace.h"
 
 #include <libfdt.h>
@@ -786,12 +786,11 @@ static target_ulong h_change_logical_lan_mac(PowerPCCPU *cpu,
     return H_SUCCESS;
 }
 
-static Property spapr_vlan_properties[] = {
+static const Property spapr_vlan_properties[] = {
     DEFINE_SPAPR_PROPERTIES(SpaprVioVlan, sdev),
     DEFINE_NIC_PROPERTIES(SpaprVioVlan, nicconf),
     DEFINE_PROP_BIT("use-rx-buffer-pools", SpaprVioVlan,
                     compat_flags, SPAPRVLAN_FLAG_RX_BUF_POOLS_BIT, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static bool spapr_vlan_rx_buffer_pools_needed(void *opaque)

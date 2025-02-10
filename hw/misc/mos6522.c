@@ -696,9 +696,8 @@ static void mos6522_finalize(Object *obj)
     timer_free(s->timers[1].timer);
 }
 
-static Property mos6522_properties[] = {
+static const Property mos6522_properties[] = {
     DEFINE_PROP_UINT64("frequency", MOS6522State, frequency, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void mos6522_class_init(ObjectClass *oc, void *data)

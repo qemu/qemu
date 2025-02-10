@@ -752,9 +752,10 @@ static int xen_map_ioreq_server(XenIOState *state)
         return -1;
     }
 
-    trace_xen_map_ioreq_server_buffered_io_evtchn(bufioreq_evtchn);
-
-    state->bufioreq_remote_port = bufioreq_evtchn;
+    if (state->has_bufioreq) {
+        trace_xen_map_ioreq_server_buffered_io_evtchn(bufioreq_evtchn);
+        state->bufioreq_remote_port = bufioreq_evtchn;
+    }
 
     return 0;
 }

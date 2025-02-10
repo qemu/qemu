@@ -28,7 +28,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "ne2000.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 typedef struct PCINE2000State {
     PCIDevice dev;
@@ -96,9 +96,8 @@ static void ne2000_instance_init(Object *obj)
                                   &pci_dev->qdev);
 }
 
-static Property ne2000_properties[] = {
+static const Property ne2000_properties[] = {
     DEFINE_NIC_PROPERTIES(PCINE2000State, ne2000.c),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ne2000_class_init(ObjectClass *klass, void *data)

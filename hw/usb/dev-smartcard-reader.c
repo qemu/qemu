@@ -1171,9 +1171,8 @@ static Answer *ccid_peek_next_answer(USBCCIDState *s)
         : &s->pending_answers[s->pending_answers_start % PENDING_ANSWERS_NUM];
 }
 
-static Property ccid_props[] = {
+static const Property ccid_props[] = {
     DEFINE_PROP_UINT32("slot", struct CCIDCardState, slot, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const TypeInfo ccid_bus_info = {
@@ -1431,9 +1430,8 @@ static const VMStateDescription ccid_vmstate = {
     }
 };
 
-static Property ccid_properties[] = {
+static const Property ccid_properties[] = {
     DEFINE_PROP_UINT8("debug", USBCCIDState, debug, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ccid_class_initfn(ObjectClass *klass, void *data)

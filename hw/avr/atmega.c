@@ -14,7 +14,7 @@
 #include "qapi/error.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
@@ -355,10 +355,9 @@ static void atmega_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("avr-eeprom",       OFFSET_DATA + 0x03f, 3);
 }
 
-static Property atmega_props[] = {
+static const Property atmega_props[] = {
     DEFINE_PROP_UINT64("xtal-frequency-hz", AtmegaMcuState,
                        xtal_freq_hz, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void atmega_class_init(ObjectClass *oc, void *data)

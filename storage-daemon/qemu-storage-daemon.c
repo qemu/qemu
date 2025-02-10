@@ -58,7 +58,7 @@
 #include "storage-daemon/qapi/qapi-commands.h"
 #include "storage-daemon/qapi/qapi-init-commands.h"
 
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "trace/control.h"
 
 static const char *pid_file;

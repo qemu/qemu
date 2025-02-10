@@ -20,6 +20,7 @@
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "trace.h"
+#include "qemu-file.h"
 
 static MultiFDSendData *multifd_ram_send;
 
@@ -343,8 +344,53 @@ retry:
     return true;
 }
 
-int multifd_ram_flush_and_sync(void)
+/*
+ * We have two modes for multifd flushes:
+ *
+ * - Per-section mode: this is the legacy way to flush, it requires one
+ *   MULTIFD_FLAG_SYNC message for each RAM_SAVE_FLAG_EOS.
+ *
+ * - Per-round mode: this is the modern way to flush, it requires one
+ *   MULTIFD_FLAG_SYNC message only for each round of RAM scan.  Normally
+ *   it's paired with a new RAM_SAVE_FLAG_MULTIFD_FLUSH message in network
+ *   based migrations.
+ *
+ * One thing to mention is mapped-ram always use the modern way to sync.
+ */
+
+/* Do we need a per-section multifd flush (legacy way)? */
+bool multifd_ram_sync_per_section(void)
 {
+    if (!migrate_multifd()) {
+        return false;
+    }
+
+    if (migrate_mapped_ram()) {
+        return false;
+    }
+
+    return migrate_multifd_flush_after_each_section();
+}
+
+/* Do we need a per-round multifd flush (modern way)? */
+bool multifd_ram_sync_per_round(void)
+{
+    if (!migrate_multifd()) {
+        return false;
+    }
+
+    if (migrate_mapped_ram()) {
+        return true;
+    }
+
+    return !migrate_multifd_flush_after_each_section();
+}
+
+int multifd_ram_flush_and_sync(QEMUFile *f)
+{
+    MultiFDSyncReq req;
+    int ret;
+
     if (!migrate_multifd()) {
         return 0;
     }
@@ -356,20 +402,43 @@ int multifd_ram_flush_and_sync(void)
         }
     }
 
-    return multifd_send_sync_main();
+    /* File migrations only need to sync with threads */
+    req = migrate_mapped_ram() ? MULTIFD_SYNC_LOCAL : MULTIFD_SYNC_ALL;
+
+    ret = multifd_send_sync_main(req);
+    if (ret) {
+        return ret;
+    }
+
+    /* If we don't need to sync with remote at all, nothing else to do */
+    if (req == MULTIFD_SYNC_LOCAL) {
+        return 0;
+    }
+
+    /*
+     * Old QEMUs don't understand RAM_SAVE_FLAG_MULTIFD_FLUSH, it relies
+     * on RAM_SAVE_FLAG_EOS instead.
+     */
+    if (migrate_multifd_flush_after_each_section()) {
+        return 0;
+    }
+
+    qemu_put_be64(f, RAM_SAVE_FLAG_MULTIFD_FLUSH);
+    qemu_fflush(f);
+
+    return 0;
 }
 
 bool multifd_send_prepare_common(MultiFDSendParams *p)
 {
     MultiFDPages_t *pages = &p->data->u.ram;
+    multifd_send_prepare_header(p);
     multifd_send_zero_page_detect(p);
 
     if (!pages->normal_num) {
         p->next_packet_size = 0;
         return false;
     }
-
-    multifd_send_prepare_header(p);
 
     return true;
 }

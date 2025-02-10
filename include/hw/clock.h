@@ -142,14 +142,6 @@ void clock_set_callback(Clock *clk, ClockCallback *cb,
                         void *opaque, unsigned int events);
 
 /**
- * clock_clear_callback:
- * @clk: the clock to delete the callback from
- *
- * Unregister the callback registered with clock_set_callback.
- */
-void clock_clear_callback(Clock *clk);
-
-/**
  * clock_set_source:
  * @clk: the clock.
  * @src: the source clock

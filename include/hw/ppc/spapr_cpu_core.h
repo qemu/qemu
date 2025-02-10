@@ -28,7 +28,6 @@ struct SpaprCpuCore {
     /*< public >*/
     PowerPCCPU **threads;
     int node_id;
-    bool pre_3_0_migration; /* older machine don't know about SpaprCpuState */
 };
 
 struct SpaprCpuCoreClass {

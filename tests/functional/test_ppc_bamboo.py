@@ -7,10 +7,10 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-from qemu_test.utils import archive_extract
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
 from qemu_test import exec_command_and_wait_for_pattern
+
 
 class BambooMachine(QemuSystemTest):
 
@@ -25,13 +25,14 @@ class BambooMachine(QemuSystemTest):
         self.set_machine('bamboo')
         self.require_accelerator("tcg")
         self.require_netdev('user')
-        file_path = self.ASSET_IMAGE.fetch()
-        archive_extract(file_path, self.workdir)
+        self.archive_extract(self.ASSET_IMAGE)
         self.vm.set_console()
-        self.vm.add_args('-kernel', self.workdir +
-                                   '/system-image-powerpc-440fp/linux',
-                         '-initrd', self.workdir +
-                                   '/system-image-powerpc-440fp/rootfs.cpio.gz',
+        self.vm.add_args('-kernel',
+                         self.scratch_file('system-image-powerpc-440fp',
+                                           'linux'),
+                         '-initrd',
+                         self.scratch_file('system-image-powerpc-440fp',
+                                           'rootfs.cpio.gz'),
                          '-nic', 'user,model=rtl8139,restrict=on')
         self.vm.launch()
         wait_for_console_pattern(self, 'Type exit when done')

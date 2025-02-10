@@ -344,17 +344,17 @@ Int128 helper_fsqrtq(CPUSPARCState *env, Int128 src)
 }
 
 float32 helper_fmadds(CPUSPARCState *env, float32 s1,
-                      float32 s2, float32 s3, uint32_t op)
+                      float32 s2, float32 s3, int32_t sc, uint32_t op)
 {
-    float32 ret = float32_muladd(s1, s2, s3, op, &env->fp_status);
+    float32 ret = float32_muladd_scalbn(s1, s2, s3, sc, op, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
 float64 helper_fmaddd(CPUSPARCState *env, float64 s1,
-                      float64 s2, float64 s3, uint32_t op)
+                      float64 s2, float64 s3, int32_t sc, uint32_t op)
 {
-    float64 ret = float64_muladd(s1, s2, s3, op, &env->fp_status);
+    float64 ret = float64_muladd_scalbn(s1, s2, s3, sc, op, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
@@ -490,14 +490,17 @@ uint32_t helper_fcmpeq(CPUSPARCState *env, Int128 src1, Int128 src2)
     return finish_fcmp(env, r, GETPC());
 }
 
-uint32_t helper_flcmps(float32 src1, float32 src2)
+uint32_t helper_flcmps(CPUSPARCState *env, float32 src1, float32 src2)
 {
     /*
      * FLCMP never raises an exception nor modifies any FSR fields.
      * Perform the comparison with a dummy fp environment.
      */
-    float_status discard = { };
-    FloatRelation r = float32_compare_quiet(src1, src2, &discard);
+    float_status discard = env->fp_status;
+    FloatRelation r;
+
+    set_float_2nan_prop_rule(float_2nan_prop_s_ba, &discard);
+    r = float32_compare_quiet(src1, src2, &discard);
 
     switch (r) {
     case float_relation_equal:
@@ -515,10 +518,13 @@ uint32_t helper_flcmps(float32 src1, float32 src2)
     g_assert_not_reached();
 }
 
-uint32_t helper_flcmpd(float64 src1, float64 src2)
+uint32_t helper_flcmpd(CPUSPARCState *env, float64 src1, float64 src2)
 {
-    float_status discard = { };
-    FloatRelation r = float64_compare_quiet(src1, src2, &discard);
+    float_status discard = env->fp_status;
+    FloatRelation r;
+
+    set_float_2nan_prop_rule(float_2nan_prop_s_ba, &discard);
+    r = float64_compare_quiet(src1, src2, &discard);
 
     switch (r) {
     case float_relation_equal:

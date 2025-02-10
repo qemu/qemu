@@ -11,7 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qemu/main-loop.h"
 #include "qemu/sockets.h"
 #include "qapi/error.h"

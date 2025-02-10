@@ -582,14 +582,13 @@ static void emulated_unrealize(CCIDCardState *base)
     qemu_mutex_destroy(&card->event_list_mutex);
 }
 
-static Property emulated_card_properties[] = {
+static const Property emulated_card_properties[] = {
     DEFINE_PROP_STRING("backend", EmulatedState, backend_str),
     DEFINE_PROP_STRING("cert1", EmulatedState, cert1),
     DEFINE_PROP_STRING("cert2", EmulatedState, cert2),
     DEFINE_PROP_STRING("cert3", EmulatedState, cert3),
     DEFINE_PROP_STRING("db", EmulatedState, db),
     DEFINE_PROP_UINT8("debug", EmulatedState, debug, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void emulated_class_initfn(ObjectClass *klass, void *data)

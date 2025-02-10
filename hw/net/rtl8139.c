@@ -54,12 +54,12 @@
 #include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "net/net.h"
 #include "net/eth.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qom/object.h"
 
 /* debug RTL8139 card */
@@ -3410,9 +3410,8 @@ static void rtl8139_instance_init(Object *obj)
                                   DEVICE(obj));
 }
 
-static Property rtl8139_properties[] = {
+static const Property rtl8139_properties[] = {
     DEFINE_NIC_PROPERTIES(RTL8139State, conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void rtl8139_class_init(ObjectClass *klass, void *data)

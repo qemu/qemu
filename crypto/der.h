@@ -243,28 +243,6 @@ void qcrypto_der_encode_octet_str(QCryptoEncodeContext *ctx,
                                   const uint8_t *src, size_t src_len);
 
 /**
- * qcrypto_der_encode_octet_str_begin:
- * @ctx: the encode context.
- *
- * Start encoding a octet string, All fields between
- * qcrypto_der_encode_octet_str_begin and qcrypto_der_encode_octet_str_end
- * are encoded as an octet string. This is useful when we need to encode a
- * encoded SEQUENCE as OCTET STRING.
- */
-void qcrypto_der_encode_octet_str_begin(QCryptoEncodeContext *ctx);
-
-/**
- * qcrypto_der_encode_octet_str_end:
- * @ctx: the encode context.
- *
- * Finish encoding a octet string, All fields between
- * qcrypto_der_encode_octet_str_begin and qcrypto_der_encode_octet_str_end
- * are encoded as an octet string. This is useful when we need to encode a
- * encoded SEQUENCE as OCTET STRING.
- */
-void qcrypto_der_encode_octet_str_end(QCryptoEncodeContext *ctx);
-
-/**
  * qcrypto_der_encode_ctx_buffer_len:
  * @ctx: the encode context.
  *

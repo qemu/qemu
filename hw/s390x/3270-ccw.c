@@ -150,15 +150,10 @@ out_err:
     g_free(sch);
 }
 
-static Property emulated_ccw_3270_properties[] = {
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void emulated_ccw_3270_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    device_class_set_props(dc, emulated_ccw_3270_properties);
     dc->realize = emulated_ccw_3270_realize;
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);

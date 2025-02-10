@@ -9,7 +9,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/dump.h"
+#include "system/dump.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "exec/cpu-defs.h"

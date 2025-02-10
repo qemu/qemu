@@ -30,7 +30,7 @@
 #include "hw/mem/nvdimm.h"
 #include "hw/qdev-properties.h"
 #include "hw/mem/memory-device.h"
-#include "sysemu/hostmem.h"
+#include "system/hostmem.h"
 
 static void nvdimm_get_label_size(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
@@ -246,9 +246,8 @@ static void nvdimm_write_label_data(NVDIMMDevice *nvdimm, const void *buf,
     memory_region_set_dirty(mr, backend_offset, size);
 }
 
-static Property nvdimm_properties[] = {
+static const Property nvdimm_properties[] = {
     DEFINE_PROP_BOOL(NVDIMM_UNARMED_PROP, NVDIMMDevice, unarmed, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void nvdimm_class_init(ObjectClass *oc, void *data)

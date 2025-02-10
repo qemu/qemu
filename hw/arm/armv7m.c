@@ -16,7 +16,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-clock.h"
 #include "elf.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
@@ -538,7 +538,7 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property armv7m_properties[] = {
+static const Property armv7m_properties[] = {
     DEFINE_PROP_STRING("cpu-type", ARMv7MState, cpu_type),
     DEFINE_PROP_LINK("memory", ARMv7MState, board_memory, TYPE_MEMORY_REGION,
                      MemoryRegion *),
@@ -552,7 +552,6 @@ static Property armv7m_properties[] = {
     DEFINE_PROP_BOOL("dsp", ARMv7MState, dsp, true),
     DEFINE_PROP_UINT32("mpu-ns-regions", ARMv7MState, mpu_ns_regions, UINT_MAX),
     DEFINE_PROP_UINT32("mpu-s-regions", ARMv7MState, mpu_s_regions, UINT_MAX),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_armv7m = {
@@ -609,7 +608,7 @@ void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename,
     if (kernel_filename) {
         image_size = load_elf_as(kernel_filename, NULL, NULL, NULL,
                                  &entry, NULL, NULL,
-                                 NULL, 0, EM_ARM, 1, 0, as);
+                                 NULL, ELFDATA2LSB, EM_ARM, 1, 0, as);
         if (image_size < 0) {
             image_size = load_image_targphys_as(kernel_filename, mem_base,
                                                 mem_size, as);
@@ -631,11 +630,10 @@ void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename,
     qemu_register_reset(armv7m_reset, cpu);
 }
 
-static Property bitband_properties[] = {
+static const Property bitband_properties[] = {
     DEFINE_PROP_UINT32("base", BitBandState, base, 0),
     DEFINE_PROP_LINK("source-memory", BitBandState, source_memory,
                      TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void bitband_class_init(ObjectClass *klass, void *data)

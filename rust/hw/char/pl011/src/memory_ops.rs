@@ -2,9 +2,10 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use core::{mem::MaybeUninit, ptr::NonNull};
+use core::ptr::NonNull;
+use std::os::raw::{c_uint, c_void};
 
-use qemu_api::bindings::*;
+use qemu_api::{bindings::*, zeroable::Zeroable};
 
 use crate::device::PL011State;
 
@@ -14,46 +15,20 @@ pub static PL011_OPS: MemoryRegionOps = MemoryRegionOps {
     read_with_attrs: None,
     write_with_attrs: None,
     endianness: device_endian::DEVICE_NATIVE_ENDIAN,
-    valid: unsafe { MaybeUninit::<MemoryRegionOps__bindgen_ty_1>::zeroed().assume_init() },
+    valid: Zeroable::ZERO,
     impl_: MemoryRegionOps__bindgen_ty_2 {
         min_access_size: 4,
         max_access_size: 4,
-        ..unsafe { MaybeUninit::<MemoryRegionOps__bindgen_ty_2>::zeroed().assume_init() }
+        ..Zeroable::ZERO
     },
 };
 
-#[no_mangle]
-unsafe extern "C" fn pl011_read(
-    opaque: *mut core::ffi::c_void,
-    addr: hwaddr,
-    size: core::ffi::c_uint,
-) -> u64 {
-    assert!(!opaque.is_null());
-    let mut state = unsafe { NonNull::new_unchecked(opaque.cast::<PL011State>()) };
-    let val = unsafe { state.as_mut().read(addr, size) };
-    match val {
-        std::ops::ControlFlow::Break(val) => val,
-        std::ops::ControlFlow::Continue(val) => {
-            // SAFETY: self.char_backend is a valid CharBackend instance after it's been
-            // initialized in realize().
-            let cb_ptr = unsafe { core::ptr::addr_of_mut!(state.as_mut().char_backend) };
-            unsafe { qemu_chr_fe_accept_input(cb_ptr) };
-
-            val
-        }
-    }
+unsafe extern "C" fn pl011_read(opaque: *mut c_void, addr: hwaddr, size: c_uint) -> u64 {
+    let mut state = NonNull::new(opaque).unwrap().cast::<PL011State>();
+    unsafe { state.as_mut() }.read(addr, size)
 }
 
-#[no_mangle]
-unsafe extern "C" fn pl011_write(
-    opaque: *mut core::ffi::c_void,
-    addr: hwaddr,
-    data: u64,
-    _size: core::ffi::c_uint,
-) {
-    unsafe {
-        assert!(!opaque.is_null());
-        let mut state = NonNull::new_unchecked(opaque.cast::<PL011State>());
-        state.as_mut().write(addr, data)
-    }
+unsafe extern "C" fn pl011_write(opaque: *mut c_void, addr: hwaddr, data: u64, _size: c_uint) {
+    let mut state = NonNull::new(opaque).unwrap().cast::<PL011State>();
+    unsafe { state.as_mut() }.write(addr, data);
 }

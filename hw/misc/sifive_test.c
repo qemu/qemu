@@ -23,9 +23,9 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "hw/misc/sifive_test.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 static uint64_t sifive_test_read(void *opaque, hwaddr addr, unsigned int size)
 {

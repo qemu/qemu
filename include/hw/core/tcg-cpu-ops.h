@@ -25,6 +25,19 @@ struct TCGCPUOps {
      */
     void (*initialize)(void);
     /**
+     * @translate_code: Translate guest instructions to TCGOps
+     * @cpu: cpu context
+     * @tb: translation block
+     * @max_insns: max number of instructions to translate
+     * @pc: guest virtual program counter address
+     * @host_pc: host physical program counter address
+     *
+     * This function must be provided by the target, which should create
+     * the target-specific DisasContext, and then invoke translator_loop.
+     */
+    void (*translate_code)(CPUState *cpu, TranslationBlock *tb,
+                           int *max_insns, vaddr pc, void *host_pc);
+    /**
      * @synchronize_from_tb: Synchronize state from a TCG #TranslationBlock
      *
      * This is called when we abandon execution of a TB before starting it,

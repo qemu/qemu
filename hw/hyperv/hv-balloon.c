@@ -32,9 +32,9 @@
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "qemu/timer.h"
-#include "sysemu/balloon.h"
-#include "sysemu/hostmem.h"
-#include "sysemu/reset.h"
+#include "system/balloon.h"
+#include "system/hostmem.h"
+#include "system/reset.h"
 #include "hv-balloon-our_range_memslots.h"
 #include "hv-balloon-page_range_tree.h"
 #include "trace.h"
@@ -1733,7 +1733,7 @@ static void hv_balloon_finalize(Object *obj)
     hv_balloon_unrealize_finalize_common(balloon);
 }
 
-static Property hv_balloon_properties[] = {
+static const Property hv_balloon_properties[] = {
     DEFINE_PROP_BOOL("status-report", HvBalloon,
                      status_report.enabled, false),
 
@@ -1741,8 +1741,6 @@ static Property hv_balloon_properties[] = {
     DEFINE_PROP_LINK(HV_BALLOON_MEMDEV_PROP, HvBalloon, hostmem,
                      TYPE_MEMORY_BACKEND, HostMemoryBackend *),
     DEFINE_PROP_UINT64(HV_BALLOON_ADDR_PROP, HvBalloon, addr, 0),
-
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void hv_balloon_class_init(ObjectClass *klass, void *data)

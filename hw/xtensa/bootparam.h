@@ -2,6 +2,7 @@
 #define HW_XTENSA_BOOTPARAM_H
 
 #include "exec/cpu-common.h"
+#include "exec/tswap.h"
 
 #define BP_TAG_COMMAND_LINE     0x1001  /* command line (0-terminated string)*/
 #define BP_TAG_INITRD           0x1002  /* ramdisk addr and size (bp_meminfo) */

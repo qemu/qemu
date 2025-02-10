@@ -168,7 +168,7 @@ static void qdev_pci_bridge_dev_reset(DeviceState *qdev)
     }
 }
 
-static Property pci_bridge_dev_properties[] = {
+static const Property pci_bridge_dev_properties[] = {
                     /* Note: 0 is not a legal chassis number. */
     DEFINE_PROP_UINT8(PCI_BRIDGE_DEV_PROP_CHASSIS_NR, PCIBridgeDev, chassis_nr,
                       0),
@@ -186,7 +186,6 @@ static Property pci_bridge_dev_properties[] = {
                      res_reserve.mem_pref_32, -1),
     DEFINE_PROP_SIZE("pref64-reserve", PCIBridgeDev,
                      res_reserve.mem_pref_64, -1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static bool pci_device_shpc_present(void *opaque, int version_id)

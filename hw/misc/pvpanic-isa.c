@@ -14,7 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 
 #include "hw/nvram/fw_cfg.h"
 #include "hw/qdev-properties.h"
@@ -98,11 +98,10 @@ static void build_pvpanic_isa_aml(AcpiDevAmlIf *adev, Aml *scope)
     aml_append(scope, dev);
 }
 
-static Property pvpanic_isa_properties[] = {
+static const Property pvpanic_isa_properties[] = {
     DEFINE_PROP_UINT16(PVPANIC_IOPORT_PROP, PVPanicISAState, ioport, 0x505),
     DEFINE_PROP_UINT8("events", PVPanicISAState, pvpanic.events,
                       PVPANIC_EVENTS),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pvpanic_isa_class_init(ObjectClass *klass, void *data)

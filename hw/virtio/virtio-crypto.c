@@ -22,7 +22,7 @@
 #include "hw/virtio/virtio-crypto.h"
 #include "hw/qdev-properties.h"
 #include "standard-headers/linux/virtio_ids.h"
-#include "sysemu/cryptodev-vhost.h"
+#include "system/cryptodev-vhost.h"
 
 #define VIRTIO_CRYPTO_VM_VERSION 1
 
@@ -1128,10 +1128,9 @@ static const VMStateDescription vmstate_virtio_crypto = {
     },
 };
 
-static Property virtio_crypto_properties[] = {
+static const Property virtio_crypto_properties[] = {
     DEFINE_PROP_LINK("cryptodev", VirtIOCrypto, conf.cryptodev,
                      TYPE_CRYPTODEV_BACKEND, CryptoDevBackend *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_crypto_get_config(VirtIODevice *vdev, uint8_t *config)

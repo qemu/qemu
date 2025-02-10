@@ -22,8 +22,8 @@
 #include "cpu.h"
 #include "target/arm/cpregs.h"
 #include "target/arm/cpu-features.h"
-#include "sysemu/tcg.h"
-#include "sysemu/qtest.h"
+#include "system/tcg.h"
+#include "system/qtest.h"
 
 /*
  * Special case return value from hppvi_index(); must be larger than

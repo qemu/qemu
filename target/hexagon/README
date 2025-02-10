@@ -282,10 +282,6 @@ For Hexagon Vector eXtensions (HVX), the following fields are used
 
 *** Debugging ***
 
-You can turn on a lot of debugging by changing the HEX_DEBUG macro to 1 in
-internal.h.  This will stream a lot of information as it generates TCG and
-executes the code.
-
 To track down nasty issues with Hexagon->TCG generation, we compare the
 execution results with actual hardware running on a Hexagon Linux target.
 Run qemu with the "-d cpu" option.  Then, we can diff the results and figure
@@ -305,8 +301,3 @@ Here are some handy places to set breakpoints
     The helper function for each instruction is named helper_<TAG>, so here's
         an example that will set a breakpoint at the start
         br helper_A2_add
-    If you have the HEX_DEBUG macro set, the following will be useful
-        At the start of execution of a packet for a given PC
-            br helper_debug_start_packet if env->gpr[41] == 0xdeadbeef
-        At the end of execution of a packet for a given PC
-            br helper_debug_commit_end if this_PC == 0xdeadbeef

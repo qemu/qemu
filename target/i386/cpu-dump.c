@@ -27,7 +27,7 @@
 /***********************************************************/
 /* x86 debug */
 
-static const char *cc_op_str[CC_OP_NB] = {
+static const char * const cc_op_str[] = {
     [CC_OP_DYNAMIC] = "DYNAMIC",
 
     [CC_OP_EFLAGS] = "EFLAGS",
@@ -91,7 +91,6 @@ static const char *cc_op_str[CC_OP_NB] = {
     [CC_OP_BMILGQ] = "BMILGQ",
 
     [CC_OP_POPCNT] = "POPCNT",
-    [CC_OP_CLR] = "CLR",
 };
 
 static void
@@ -347,7 +346,6 @@ void x86_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
     int eflags, i, nb;
-    char cc_op_name[32];
     static const char *seg_name[6] = { "ES", "CS", "SS", "DS", "FS", "GS" };
 
     eflags = cpu_compute_eflags(env);
@@ -456,10 +454,16 @@ void x86_cpu_dump_state(CPUState *cs, FILE *f, int flags)
                      env->dr[6], env->dr[7]);
     }
     if (flags & CPU_DUMP_CCOP) {
-        if ((unsigned)env->cc_op < CC_OP_NB)
-            snprintf(cc_op_name, sizeof(cc_op_name), "%s", cc_op_str[env->cc_op]);
-        else
-            snprintf(cc_op_name, sizeof(cc_op_name), "[%d]", env->cc_op);
+        const char *cc_op_name = NULL;
+        char cc_op_buf[32];
+
+        if ((unsigned)env->cc_op < ARRAY_SIZE(cc_op_str)) {
+            cc_op_name = cc_op_str[env->cc_op];
+        }
+        if (cc_op_name == NULL) {
+            snprintf(cc_op_buf, sizeof(cc_op_buf), "[%d]", env->cc_op);
+            cc_op_name = cc_op_buf;
+        }
 #ifdef TARGET_X86_64
         if (env->hflags & HF_CS64_MASK) {
             qemu_fprintf(f, "CCS=%016" PRIx64 " CCD=%016" PRIx64 " CCO=%s\n",

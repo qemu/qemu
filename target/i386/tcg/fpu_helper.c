@@ -135,6 +135,58 @@ static void fpu_set_exception(CPUX86State *env, int mask)
     }
 }
 
+void cpu_init_fp_statuses(CPUX86State *env)
+{
+    /*
+     * Initialise the non-runtime-varying fields of the various
+     * float_status words to x86 behaviour. This must be called at
+     * CPU reset because the float_status words are in the
+     * "zeroed on reset" portion of the CPU state struct.
+     * Fields in float_status that vary under guest control are set
+     * via the codepath for setting that register, eg cpu_set_fpuc().
+     */
+    /*
+     * Use x87 NaN propagation rules:
+     * SNaN + QNaN => return the QNaN
+     * two SNaNs => return the one with the larger significand, silenced
+     * two QNaNs => return the one with the larger significand
+     * SNaN and a non-NaN => return the SNaN, silenced
+     * QNaN and a non-NaN => return the QNaN
+     *
+     * If we get down to comparing significands and they are the same,
+     * return the NaN with the positive sign bit (if any).
+     */
+    set_float_2nan_prop_rule(float_2nan_prop_x87, &env->fp_status);
+    /*
+     * TODO: These are incorrect: the x86 Software Developer's Manual vol 1
+     * section 4.8.3.5 "Operating on SNaNs and QNaNs" says that the
+     * "larger significand" behaviour is only used for x87 FPU operations.
+     * For SSE the required behaviour is to always return the first NaN,
+     * which is float_2nan_prop_ab.
+     *
+     * mmx_status is used only for the AMD 3DNow! instructions, which
+     * are documented in the "3DNow! Technology Manual" as not supporting
+     * NaNs or infinities as inputs. The result of passing two NaNs is
+     * documented as "undefined", so we can do what we choose.
+     * (Strictly there is some behaviour we don't implement correctly
+     * for these "unsupported" NaN and Inf values, like "NaN * 0 == 0".)
+     */
+    set_float_2nan_prop_rule(float_2nan_prop_x87, &env->mmx_status);
+    set_float_2nan_prop_rule(float_2nan_prop_x87, &env->sse_status);
+    /*
+     * Only SSE has multiply-add instructions. In the SDM Section 14.5.2
+     * "Fused-Multiply-ADD (FMA) Numeric Behavior" the NaN handling is
+     * specified -- for 0 * inf + NaN the input NaN is selected, and if
+     * there are multiple input NaNs they are selected in the order a, b, c.
+     */
+    set_float_infzeronan_rule(float_infzeronan_dnan_never, &env->sse_status);
+    set_float_3nan_prop_rule(float_3nan_prop_abc, &env->sse_status);
+    /* Default NaN: sign bit set, most significant frac bit set */
+    set_float_default_nan_pattern(0b11000000, &env->fp_status);
+    set_float_default_nan_pattern(0b11000000, &env->mmx_status);
+    set_float_default_nan_pattern(0b11000000, &env->sse_status);
+}
+
 static inline uint8_t save_exception_flags(CPUX86State *env)
 {
     uint8_t old_flags = get_float_exception_flags(&env->fp_status);
@@ -152,7 +204,7 @@ static void merge_exception_flags(CPUX86State *env, uint8_t old_flags)
                        (new_flags & float_flag_overflow ? FPUS_OE : 0) |
                        (new_flags & float_flag_underflow ? FPUS_UE : 0) |
                        (new_flags & float_flag_inexact ? FPUS_PE : 0) |
-                       (new_flags & float_flag_input_denormal ? FPUS_DE : 0)));
+                       (new_flags & float_flag_input_denormal_flushed ? FPUS_DE : 0)));
 }
 
 static inline floatx80 helper_fdiv(CPUX86State *env, floatx80 a, floatx80 b)
@@ -1777,7 +1829,7 @@ void helper_fxtract(CPUX86State *env)
             int shift = clz64(temp.l.lower);
             temp.l.lower <<= shift;
             expdif = 1 - EXPBIAS - shift;
-            float_raise(float_flag_input_denormal, &env->fp_status);
+            float_raise(float_flag_input_denormal_flushed, &env->fp_status);
         } else {
             expdif = EXPD(temp) - EXPBIAS;
         }
@@ -3206,7 +3258,7 @@ void update_mxcsr_from_sse_status(CPUX86State *env)
     uint8_t flags = get_float_exception_flags(&env->sse_status);
     /*
      * The MXCSR denormal flag has opposite semantics to
-     * float_flag_input_denormal (the softfloat code sets that flag
+     * float_flag_input_denormal_flushed (the softfloat code sets that flag
      * only when flushing input denormals to zero, but SSE sets it
      * only when not flushing them to zero), so is not converted
      * here.
@@ -3216,7 +3268,7 @@ void update_mxcsr_from_sse_status(CPUX86State *env)
                    (flags & float_flag_overflow ? FPUS_OE : 0) |
                    (flags & float_flag_underflow ? FPUS_UE : 0) |
                    (flags & float_flag_inexact ? FPUS_PE : 0) |
-                   (flags & float_flag_output_denormal ? FPUS_UE | FPUS_PE :
+                   (flags & float_flag_output_denormal_flushed ? FPUS_UE | FPUS_PE :
                     0));
 }
 

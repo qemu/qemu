@@ -33,7 +33,7 @@
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "qemu/config-file.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qemu/iov.h"
 #include "qemu/module.h"
 #include "qemu/cutils.h"
@@ -1407,9 +1407,8 @@ static const VMStateDescription vmstate_usb_net = {
     .unmigratable = 1,
 };
 
-static Property net_properties[] = {
+static const Property net_properties[] = {
     DEFINE_NIC_PROPERTIES(USBNetState, conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void usb_net_class_initfn(ObjectClass *klass, void *data)

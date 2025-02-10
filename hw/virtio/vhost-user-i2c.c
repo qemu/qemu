@@ -14,9 +14,8 @@
 #include "qemu/error-report.h"
 #include "standard-headers/linux/virtio_ids.h"
 
-static Property vi2c_properties[] = {
+static const Property vi2c_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserBase, chardev),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vi2c_realize(DeviceState *dev, Error **errp)

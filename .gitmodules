@@ -28,9 +28,6 @@
 [submodule "roms/u-boot-sam460ex"]
 	path = roms/u-boot-sam460ex
 	url = https://gitlab.com/qemu-project/u-boot-sam460ex.git
-[submodule "roms/edk2"]
-	path = roms/edk2
-	url = https://gitlab.com/qemu-project/edk2.git
 [submodule "roms/opensbi"]
 	path = roms/opensbi
 	url = 	https://gitlab.com/qemu-project/opensbi.git
@@ -40,9 +37,6 @@
 [submodule "roms/vbootrom"]
 	path = roms/vbootrom
 	url = https://gitlab.com/qemu-project/vbootrom.git
-[submodule "tests/lcitool/libvirt-ci"]
-	path = tests/lcitool/libvirt-ci
-	url = https://gitlab.com/libvirt/libvirt-ci.git
 [submodule "subprojects/libspdm"]
 	path = subprojects/libspdm
 	url = https://github.com/DMTF/libspdm.git

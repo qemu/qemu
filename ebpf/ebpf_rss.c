@@ -47,34 +47,37 @@ bool ebpf_rss_is_loaded(struct EBPFRSSContext *ctx)
     return ctx != NULL && (ctx->obj != NULL || ctx->program_fd != -1);
 }
 
-static bool ebpf_rss_mmap(struct EBPFRSSContext *ctx)
+static bool ebpf_rss_mmap(struct EBPFRSSContext *ctx, Error **errp)
 {
-    if (!ebpf_rss_is_loaded(ctx)) {
-        return false;
-    }
-
     ctx->mmap_configuration = mmap(NULL, qemu_real_host_page_size(),
                                    PROT_READ | PROT_WRITE, MAP_SHARED,
                                    ctx->map_configuration, 0);
     if (ctx->mmap_configuration == MAP_FAILED) {
-        trace_ebpf_error("eBPF RSS", "can not mmap eBPF configuration array");
+        trace_ebpf_rss_mmap_error(ctx, "configuration");
+        error_setg(errp, "Unable to map eBPF configuration array");
         return false;
     }
     ctx->mmap_toeplitz_key = mmap(NULL, qemu_real_host_page_size(),
                                    PROT_READ | PROT_WRITE, MAP_SHARED,
                                    ctx->map_toeplitz_key, 0);
     if (ctx->mmap_toeplitz_key == MAP_FAILED) {
-        trace_ebpf_error("eBPF RSS", "can not mmap eBPF toeplitz key");
+        trace_ebpf_rss_mmap_error(ctx, "toeplitz key");
+        error_setg(errp, "Unable to map eBPF toeplitz array");
         goto toeplitz_fail;
     }
     ctx->mmap_indirections_table = mmap(NULL, qemu_real_host_page_size(),
                                    PROT_READ | PROT_WRITE, MAP_SHARED,
                                    ctx->map_indirections_table, 0);
     if (ctx->mmap_indirections_table == MAP_FAILED) {
-        trace_ebpf_error("eBPF RSS", "can not mmap eBPF indirection table");
+        trace_ebpf_rss_mmap_error(ctx, "indirections table");
+        error_setg(errp, "Unable to map eBPF indirection array");
         goto indirection_fail;
     }
 
+    trace_ebpf_rss_mmap(ctx,
+                        ctx->mmap_configuration,
+                        ctx->mmap_toeplitz_key,
+                        ctx->mmap_indirections_table);
     return true;
 
 indirection_fail:
@@ -90,10 +93,6 @@ toeplitz_fail:
 
 static void ebpf_rss_munmap(struct EBPFRSSContext *ctx)
 {
-    if (!ebpf_rss_is_loaded(ctx)) {
-        return;
-    }
-
     munmap(ctx->mmap_indirections_table, qemu_real_host_page_size());
     munmap(ctx->mmap_toeplitz_key, qemu_real_host_page_size());
     munmap(ctx->mmap_configuration, qemu_real_host_page_size());
@@ -103,7 +102,7 @@ static void ebpf_rss_munmap(struct EBPFRSSContext *ctx)
     ctx->mmap_indirections_table = NULL;
 }
 
-bool ebpf_rss_load(struct EBPFRSSContext *ctx)
+bool ebpf_rss_load(struct EBPFRSSContext *ctx, Error **errp)
 {
     struct rss_bpf *rss_bpf_ctx;
 
@@ -113,14 +112,16 @@ bool ebpf_rss_load(struct EBPFRSSContext *ctx)
 
     rss_bpf_ctx = rss_bpf__open();
     if (rss_bpf_ctx == NULL) {
-        trace_ebpf_error("eBPF RSS", "can not open eBPF RSS object");
+        trace_ebpf_rss_open_error(ctx);
+        error_setg(errp, "Unable to open eBPF RSS object");
         goto error;
     }
 
     bpf_program__set_type(rss_bpf_ctx->progs.tun_rss_steering_prog, BPF_PROG_TYPE_SOCKET_FILTER);
 
     if (rss_bpf__load(rss_bpf_ctx)) {
-        trace_ebpf_error("eBPF RSS", "can not load RSS program");
+        trace_ebpf_rss_load_error(ctx);
+        error_setg(errp, "Unable to load eBPF program");
         goto error;
     }
 
@@ -134,7 +135,12 @@ bool ebpf_rss_load(struct EBPFRSSContext *ctx)
     ctx->map_toeplitz_key = bpf_map__fd(
             rss_bpf_ctx->maps.tap_rss_map_toeplitz_key);
 
-    if (!ebpf_rss_mmap(ctx)) {
+    trace_ebpf_rss_load(ctx,
+                        ctx->program_fd,
+                        ctx->map_configuration,
+                        ctx->map_indirections_table,
+                        ctx->map_toeplitz_key);
+    if (!ebpf_rss_mmap(ctx, errp)) {
         goto error;
     }
 
@@ -151,13 +157,28 @@ error:
 }
 
 bool ebpf_rss_load_fds(struct EBPFRSSContext *ctx, int program_fd,
-                       int config_fd, int toeplitz_fd, int table_fd)
+                       int config_fd, int toeplitz_fd, int table_fd,
+                       Error **errp)
 {
     if (ebpf_rss_is_loaded(ctx)) {
+        error_setg(errp, "eBPF program is already loaded");
         return false;
     }
 
-    if (program_fd < 0 || config_fd < 0 || toeplitz_fd < 0 || table_fd < 0) {
+    if (program_fd < 0) {
+        error_setg(errp, "eBPF program FD is not open");
+        return false;
+    }
+    if (config_fd < 0) {
+        error_setg(errp, "eBPF config FD is not open");
+        return false;
+    }
+    if (toeplitz_fd < 0) {
+        error_setg(errp, "eBPF toeplitz FD is not open");
+        return false;
+    }
+    if (table_fd < 0) {
+        error_setg(errp, "eBPF indirection FD is not open");
         return false;
     }
 
@@ -166,7 +187,13 @@ bool ebpf_rss_load_fds(struct EBPFRSSContext *ctx, int program_fd,
     ctx->map_toeplitz_key = toeplitz_fd;
     ctx->map_indirections_table = table_fd;
 
-    if (!ebpf_rss_mmap(ctx)) {
+    trace_ebpf_rss_load(ctx,
+                        ctx->program_fd,
+                        ctx->map_configuration,
+                        ctx->map_indirections_table,
+                        ctx->map_toeplitz_key);
+
+    if (!ebpf_rss_mmap(ctx, errp)) {
         ctx->program_fd = -1;
         ctx->map_configuration = -1;
         ctx->map_toeplitz_key = -1;
@@ -177,25 +204,22 @@ bool ebpf_rss_load_fds(struct EBPFRSSContext *ctx, int program_fd,
     return true;
 }
 
-static bool ebpf_rss_set_config(struct EBPFRSSContext *ctx,
+static void ebpf_rss_set_config(struct EBPFRSSContext *ctx,
                                 struct EBPFRSSConfig *config)
 {
-    if (!ebpf_rss_is_loaded(ctx)) {
-        return false;
-    }
-
     memcpy(ctx->mmap_configuration, config, sizeof(*config));
-    return true;
 }
 
 static bool ebpf_rss_set_indirections_table(struct EBPFRSSContext *ctx,
                                             uint16_t *indirections_table,
-                                            size_t len)
+                                            size_t len,
+                                            Error **errp)
 {
     char *cursor = ctx->mmap_indirections_table;
 
-    if (!ebpf_rss_is_loaded(ctx) || indirections_table == NULL ||
-       len > VIRTIO_NET_RSS_MAX_TABLE_LEN) {
+    if (len > VIRTIO_NET_RSS_MAX_TABLE_LEN) {
+        error_setg(errp, "Indirections table length %zu exceeds limit %d",
+                   len, VIRTIO_NET_RSS_MAX_TABLE_LEN);
         return false;
     }
 
@@ -207,42 +231,50 @@ static bool ebpf_rss_set_indirections_table(struct EBPFRSSContext *ctx,
     return true;
 }
 
-static bool ebpf_rss_set_toepliz_key(struct EBPFRSSContext *ctx,
+static void ebpf_rss_set_toepliz_key(struct EBPFRSSContext *ctx,
                                      uint8_t *toeplitz_key)
 {
     /* prepare toeplitz key */
     uint8_t toe[VIRTIO_NET_RSS_MAX_KEY_SIZE] = {};
 
-    if (!ebpf_rss_is_loaded(ctx) || toeplitz_key == NULL) {
-        return false;
-    }
     memcpy(toe, toeplitz_key, VIRTIO_NET_RSS_MAX_KEY_SIZE);
     *(uint32_t *)toe = ntohl(*(uint32_t *)toe);
 
     memcpy(ctx->mmap_toeplitz_key, toe, VIRTIO_NET_RSS_MAX_KEY_SIZE);
-    return true;
 }
 
 bool ebpf_rss_set_all(struct EBPFRSSContext *ctx, struct EBPFRSSConfig *config,
-                      uint16_t *indirections_table, uint8_t *toeplitz_key)
+                      uint16_t *indirections_table, uint8_t *toeplitz_key,
+                      Error **errp)
 {
-    if (!ebpf_rss_is_loaded(ctx) || config == NULL ||
-        indirections_table == NULL || toeplitz_key == NULL) {
+    if (!ebpf_rss_is_loaded(ctx)) {
+        error_setg(errp, "eBPF program is not loaded");
+        return false;
+    }
+    if (config == NULL) {
+        error_setg(errp, "eBPF config table is NULL");
+        return false;
+    }
+    if (indirections_table == NULL) {
+        error_setg(errp, "eBPF indirections table is NULL");
+        return false;
+    }
+    if (toeplitz_key == NULL) {
+        error_setg(errp, "eBPF toeplitz key is NULL");
         return false;
     }
 
-    if (!ebpf_rss_set_config(ctx, config)) {
-        return false;
-    }
+    ebpf_rss_set_config(ctx, config);
 
     if (!ebpf_rss_set_indirections_table(ctx, indirections_table,
-                                      config->indirections_len)) {
+                                         config->indirections_len,
+                                         errp)) {
         return false;
     }
 
-    if (!ebpf_rss_set_toepliz_key(ctx, toeplitz_key)) {
-        return false;
-    }
+    ebpf_rss_set_toepliz_key(ctx, toeplitz_key);
+
+    trace_ebpf_rss_set_data(ctx, config, indirections_table, toeplitz_key);
 
     return true;
 }
@@ -252,6 +284,8 @@ void ebpf_rss_unload(struct EBPFRSSContext *ctx)
     if (!ebpf_rss_is_loaded(ctx)) {
         return;
     }
+
+    trace_ebpf_rss_unload(ctx);
 
     ebpf_rss_munmap(ctx);
 

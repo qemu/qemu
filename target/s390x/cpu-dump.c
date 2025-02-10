@@ -23,7 +23,7 @@
 #include "cpu.h"
 #include "s390x-internal.h"
 #include "qemu/qemu-print.h"
-#include "sysemu/tcg.h"
+#include "system/tcg.h"
 
 void s390_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {

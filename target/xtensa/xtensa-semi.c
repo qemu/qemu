@@ -30,6 +30,7 @@
 #include "chardev/char-fe.h"
 #include "exec/helper-proto.h"
 #include "semihosting/semihost.h"
+#include "semihosting/uaccess.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
 
@@ -323,15 +324,12 @@ void HELPER(simcall)(CPUXtensaState *env)
             uint32_t fd = regs[3];
             uint32_t rq = regs[4];
             uint32_t target_tv = regs[5];
-            uint32_t target_tvv[2];
 
             struct timeval tv = {0};
 
             if (target_tv) {
-                cpu_memory_rw_debug(cs, target_tv,
-                        (uint8_t *)target_tvv, sizeof(target_tvv), 0);
-                tv.tv_sec = (int32_t)tswap32(target_tvv[0]);
-                tv.tv_usec = (int32_t)tswap32(target_tvv[1]);
+                get_user_u32(tv.tv_sec, target_tv);
+                get_user_u32(tv.tv_sec, target_tv + 4);
             }
             if (fd < 3 && sim_console) {
                 if ((fd == 1 || fd == 2) && rq == SELECT_ONE_WRITE) {
@@ -387,11 +385,8 @@ void HELPER(simcall)(CPUXtensaState *env)
                 const char *str = semihosting_get_arg(i);
                 int str_size = strlen(str) + 1;
 
-                argptr = tswap32(regs[3] + str_offset);
-
-                cpu_memory_rw_debug(cs,
-                                    regs[3] + i * sizeof(uint32_t),
-                                    (uint8_t *)&argptr, sizeof(argptr), 1);
+                put_user_u32(regs[3] + str_offset,
+                             regs[3] + i * sizeof(uint32_t));
                 cpu_memory_rw_debug(cs,
                                     regs[3] + str_offset,
                                     (uint8_t *)str, str_size, 1);

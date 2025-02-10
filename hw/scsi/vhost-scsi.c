@@ -29,7 +29,7 @@
 #include "hw/fw-path-provider.h"
 #include "hw/qdev-properties.h"
 #include "qemu/cutils.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 /* Features supported by host kernel. */
 static const int kernel_feature_bits[] = {
@@ -343,7 +343,7 @@ static struct vhost_dev *vhost_scsi_get_vhost(VirtIODevice *vdev)
     return &vsc->dev;
 }
 
-static Property vhost_scsi_properties[] = {
+static const Property vhost_scsi_properties[] = {
     DEFINE_PROP_STRING("vhostfd", VirtIOSCSICommon, conf.vhostfd),
     DEFINE_PROP_STRING("wwpn", VirtIOSCSICommon, conf.wwpn),
     DEFINE_PROP_UINT32("boot_tpgt", VirtIOSCSICommon, conf.boot_tpgt, 0),
@@ -362,7 +362,6 @@ static Property vhost_scsi_properties[] = {
     DEFINE_PROP_BOOL("migratable", VHostSCSICommon, migratable, false),
     DEFINE_PROP_BOOL("worker_per_virtqueue", VirtIOSCSICommon,
                      conf.worker_per_virtqueue, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vhost_scsi_class_init(ObjectClass *klass, void *data)

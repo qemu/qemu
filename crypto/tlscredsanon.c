@@ -127,37 +127,6 @@ qcrypto_tls_creds_anon_complete(UserCreatable *uc, Error **errp)
 }
 
 
-#ifdef CONFIG_GNUTLS
-
-
-static bool
-qcrypto_tls_creds_anon_prop_get_loaded(Object *obj,
-                                       Error **errp G_GNUC_UNUSED)
-{
-    QCryptoTLSCredsAnon *creds = QCRYPTO_TLS_CREDS_ANON(obj);
-
-    if (creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
-        return creds->data.server != NULL;
-    } else {
-        return creds->data.client != NULL;
-    }
-}
-
-
-#else /* ! CONFIG_GNUTLS */
-
-
-static bool
-qcrypto_tls_creds_anon_prop_get_loaded(Object *obj G_GNUC_UNUSED,
-                                       Error **errp G_GNUC_UNUSED)
-{
-    return false;
-}
-
-
-#endif /* ! CONFIG_GNUTLS */
-
-
 static void
 qcrypto_tls_creds_anon_finalize(Object *obj)
 {
@@ -173,10 +142,6 @@ qcrypto_tls_creds_anon_class_init(ObjectClass *oc, void *data)
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
     ucc->complete = qcrypto_tls_creds_anon_complete;
-
-    object_class_property_add_bool(oc, "loaded",
-                                   qcrypto_tls_creds_anon_prop_get_loaded,
-                                   NULL);
 }
 
 

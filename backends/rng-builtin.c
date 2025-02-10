@@ -6,11 +6,11 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/rng.h"
+#include "system/rng.h"
 #include "qemu/main-loop.h"
 #include "qemu/guest-random.h"
 #include "qom/object.h"
-#include "sysemu/replay.h"
+#include "system/replay.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(RngBuiltin, RNG_BUILTIN)
 

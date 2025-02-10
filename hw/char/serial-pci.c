@@ -81,9 +81,8 @@ static const VMStateDescription vmstate_pci_serial = {
     }
 };
 
-static Property serial_pci_properties[] = {
+static const Property serial_pci_properties[] = {
     DEFINE_PROP_UINT8("prog_if",  PCISerialState, prog_if, 0x02),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void serial_pci_class_initfn(ObjectClass *klass, void *data)

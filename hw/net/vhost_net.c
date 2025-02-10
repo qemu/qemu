@@ -229,8 +229,23 @@ static int vhost_net_enable_notifiers(VirtIODevice *dev,
     int nvhosts = data_queue_pairs + cvq;
     struct vhost_net *net;
     struct vhost_dev *hdev;
-    int r, i, j;
+    int r, i, j, k;
     NetClientState *peer;
+
+    /*
+     * We will pass the notifiers to the kernel, make sure that QEMU
+     * doesn't interfere.
+     */
+    for (i = 0; i < nvhosts; i++) {
+        r = virtio_device_grab_ioeventfd(dev);
+        if (r < 0) {
+            error_report("vhost %d binding does not support host notifiers", i);
+            for (k = 0; k < i; k++) {
+                virtio_device_release_ioeventfd(dev);
+            }
+            return r;
+        }
+    }
 
     /*
      * Batch all the host notifiers in a single transaction to avoid
@@ -247,16 +262,6 @@ static int vhost_net_enable_notifiers(VirtIODevice *dev,
 
         net = get_vhost_net(peer);
         hdev = &net->dev;
-        /*
-         * We will pass the notifiers to the kernel, make sure that QEMU
-         * doesn't interfere.
-         */
-        r = virtio_device_grab_ioeventfd(dev);
-        if (r < 0) {
-            error_report("binding does not support host notifiers");
-            memory_region_transaction_commit();
-            goto fail_nvhosts;
-        }
 
         for (j = 0; j < hdev->nvqs; j++) {
             r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus),
@@ -277,6 +282,14 @@ static int vhost_net_enable_notifiers(VirtIODevice *dev,
     return 0;
 fail_nvhosts:
     vhost_net_disable_notifiers_nvhosts(dev, ncs, data_queue_pairs, i);
+    /*
+     * This for loop starts from i+1, not i, because the i-th ioeventfd
+     * has already been released in vhost_dev_disable_notifiers_nvqs().
+     */
+    for (k = i + 1; k < nvhosts; k++) {
+        virtio_device_release_ioeventfd(dev);
+    }
+
     return r;
 }
 

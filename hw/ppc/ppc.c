@@ -27,13 +27,13 @@
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/ppc_e500.h"
 #include "qemu/timer.h"
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "qemu/error-report.h"
-#include "sysemu/kvm.h"
-#include "sysemu/replay.h"
-#include "sysemu/runstate.h"
+#include "system/kvm.h"
+#include "system/replay.h"
+#include "system/runstate.h"
 #include "kvm_ppc.h"
 #include "migration/vmstate.h"
 #include "trace.h"
@@ -728,7 +728,9 @@ static inline int64_t __cpu_ppc_load_decr(CPUPPCState *env, int64_t now,
     int64_t decr;
 
     n = ns_to_tb(tb_env->decr_freq, now);
-    if (next > n && tb_env->flags & PPC_TIMER_BOOKE) {
+
+    /* BookE timers stop when reaching 0.  */
+    if (next < n && tb_env->flags & PPC_TIMER_BOOKE) {
         decr = 0;
     } else {
         decr = next - n;

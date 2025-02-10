@@ -176,9 +176,8 @@ static const MemoryRegionOps uart_ops = {
     }
 };
 
-static Property xilinx_uartlite_properties[] = {
+static const Property xilinx_uartlite_properties[] = {
     DEFINE_PROP_CHR("chardev", XilinxUARTLite, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void uart_rx(void *opaque, const uint8_t *buf, int size)

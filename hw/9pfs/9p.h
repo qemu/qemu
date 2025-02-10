@@ -280,7 +280,6 @@ struct V9fsFidState {
     uid_t uid;
     int ref;
     bool clunked;
-    QSIMPLEQ_ENTRY(V9fsFidState) next;
     QSLIST_ENTRY(V9fsFidState) reclaim_next;
 };
 

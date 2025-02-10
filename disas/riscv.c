@@ -976,6 +976,14 @@ typedef enum {
     rv_op_amocas_h  = 945,
     rv_op_wrs_sto = 946,
     rv_op_wrs_nto = 947,
+    rv_op_lpad = 948,
+    rv_op_sspush = 949,
+    rv_op_sspopchk = 950,
+    rv_op_ssrdp = 951,
+    rv_op_ssamoswap_w = 952,
+    rv_op_ssamoswap_d = 953,
+    rv_op_c_sspush = 954,
+    rv_op_c_sspopchk = 955,
 } rv_op;
 
 /* register names */
@@ -2236,6 +2244,16 @@ const rv_opcode_data rvi_opcode_data[] = {
     { "amocas.h", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
     { "wrs.sto", rv_codec_none, rv_fmt_none, NULL, 0, 0, 0 },
     { "wrs.nto", rv_codec_none, rv_fmt_none, NULL, 0, 0, 0 },
+    { "lpad", rv_codec_lp, rv_fmt_imm, NULL, 0, 0, 0 },
+    { "sspush", rv_codec_r, rv_fmt_rs2, NULL, 0, 0, 0 },
+    { "sspopchk", rv_codec_r, rv_fmt_rs1, NULL, 0, 0, 0 },
+    { "ssrdp", rv_codec_r, rv_fmt_rd, NULL, 0, 0, 0 },
+    { "ssamoswap.w", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "ssamoswap.d", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    { "c.sspush", rv_codec_cmop_ss, rv_fmt_rs2, NULL, rv_op_sspush,
+      rv_op_sspush, 0 },
+    { "c.sspopchk", rv_codec_cmop_ss, rv_fmt_rs1, NULL, rv_op_sspopchk,
+      rv_op_sspopchk, 0 },
 };
 
 /* CSR names */
@@ -2253,6 +2271,7 @@ static const char *csr_name(int csrno)
     case 0x0009: return "vxsat";
     case 0x000a: return "vxrm";
     case 0x000f: return "vcsr";
+    case 0x0011: return "ssp";
     case 0x0015: return "seed";
     case 0x0017: return "jvt";
     case 0x0040: return "uscratch";
@@ -2592,10 +2611,16 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
             break;
         case 2: op = rv_op_c_li; break;
         case 3:
-            if (dec->cfg->ext_zcmop) {
+            if (dec->cfg && dec->cfg->ext_zcmop) {
                 if ((((inst >> 2) & 0b111111) == 0b100000) &&
                     (((inst >> 11) & 0b11) == 0b0)) {
-                    op = rv_c_mop_1 + ((inst >> 8) & 0b111);
+                    unsigned int cmop_code = 0;
+                    cmop_code = ((inst >> 8) & 0b111);
+                    op = rv_c_mop_1 + cmop_code;
+                    if (dec->cfg->ext_zicfiss) {
+                        op = (cmop_code == 0) ? rv_op_c_sspush : op;
+                        op = (cmop_code == 2) ? rv_op_c_sspopchk : op;
+                    }
                     break;
                 }
             }
@@ -2687,7 +2712,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
                 op = rv_op_c_sqsp;
             } else {
                 op = rv_op_c_fsdsp;
-                if (dec->cfg->ext_zcmp && ((inst >> 12) & 0b01)) {
+                if (dec->cfg && dec->cfg->ext_zcmp && ((inst >> 12) & 0b01)) {
                     switch ((inst >> 8) & 0b01111) {
                     case 8:
                         if (((inst >> 4) & 0b01111) >= 4) {
@@ -2713,7 +2738,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
                 } else {
                     switch ((inst >> 10) & 0b011) {
                     case 0:
-                        if (!dec->cfg->ext_zcmt) {
+                        if (dec->cfg && !dec->cfg->ext_zcmt) {
                             break;
                         }
                         if (((inst >> 2) & 0xFF) >= 32) {
@@ -2723,7 +2748,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
                         }
                         break;
                     case 3:
-                        if (!dec->cfg->ext_zcmp) {
+                        if (dec->cfg && !dec->cfg->ext_zcmp) {
                             break;
                         }
                         switch ((inst >> 5) & 0b011) {
@@ -2929,7 +2954,13 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
             case 7: op = rv_op_andi; break;
             }
             break;
-        case 5: op = rv_op_auipc; break;
+        case 5:
+            op = rv_op_auipc;
+            if (dec->cfg && dec->cfg->ext_zicfilp &&
+                (((inst >> 7) & 0b11111) == 0b00000)) {
+                op = rv_op_lpad;
+            }
+            break;
         case 6:
             switch ((inst >> 12) & 0b111) {
             case 0: op = rv_op_addiw; break;
@@ -3073,6 +3104,8 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
             case 66: op = rv_op_amoor_w; break;
             case 67: op = rv_op_amoor_d; break;
             case 68: op = rv_op_amoor_q; break;
+            case 74: op = rv_op_ssamoswap_w; break;
+            case 75: op = rv_op_ssamoswap_d; break;
             case 96: op = rv_op_amoand_b; break;
             case 97: op = rv_op_amoand_h; break;
             case 98: op = rv_op_amoand_w; break;
@@ -4025,8 +4058,8 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
             case 2: op = rv_op_csrrs; break;
             case 3: op = rv_op_csrrc; break;
             case 4:
-                if (dec->cfg->ext_zimop) {
-                    int imm_mop5, imm_mop3;
+                if (dec->cfg && dec->cfg->ext_zimop) {
+                    int imm_mop5, imm_mop3, reg_num;
                     if ((extract32(inst, 22, 10) & 0b1011001111)
                         == 0b1000000111) {
                         imm_mop5 = deposit32(deposit32(extract32(inst, 20, 2),
@@ -4034,11 +4067,36 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
                                                        extract32(inst, 26, 2)),
                                              4, 1, extract32(inst, 30, 1));
                         op = rv_mop_r_0 + imm_mop5;
+                        /* if zicfiss enabled and mop5 is shadow stack */
+                        if (dec->cfg->ext_zicfiss &&
+                            ((imm_mop5 & 0b11100) == 0b11100)) {
+                                /* rs1=0 means ssrdp */
+                                if ((inst & (0b011111 << 15)) == 0) {
+                                    op = rv_op_ssrdp;
+                                }
+                                /* rd=0 means sspopchk */
+                                reg_num = (inst >> 15) & 0b011111;
+                                if (((inst & (0b011111 << 7)) == 0) &&
+                                    ((reg_num == 1) || (reg_num == 5))) {
+                                    op = rv_op_sspopchk;
+                                }
+                        }
                     } else if ((extract32(inst, 25, 7) & 0b1011001)
                                == 0b1000001) {
                         imm_mop3 = deposit32(extract32(inst, 26, 2),
                                              2, 1, extract32(inst, 30, 1));
                         op = rv_mop_rr_0 + imm_mop3;
+                        /* if zicfiss enabled and mop3 is shadow stack */
+                        if (dec->cfg->ext_zicfiss &&
+                            ((imm_mop3 & 0b111) == 0b111)) {
+                                /* rs1=0 and rd=0 means sspush */
+                                reg_num = (inst >> 20) & 0b011111;
+                                if (((inst & (0b011111 << 15)) == 0) &&
+                                    ((inst & (0b011111 << 7)) == 0) &&
+                                    ((reg_num == 1) || (reg_num == 5))) {
+                                    op = rv_op_sspush;
+                                }
+                        }
                     }
                 }
                 break;
@@ -4488,6 +4546,11 @@ static uint32_t operand_tbl_index(rv_inst inst)
     return ((inst << 54) >> 56);
 }
 
+static uint32_t operand_lpl(rv_inst inst)
+{
+    return inst >> 12;
+}
+
 /* decode operands */
 
 static void decode_inst_operands(rv_decode *dec, rv_isa isa)
@@ -4808,7 +4871,7 @@ static void decode_inst_operands(rv_decode *dec, rv_isa isa)
         break;
     case rv_codec_vsetivli:
         dec->rd = operand_rd(inst);
-        dec->imm = operand_vimm(inst);
+        dec->imm = extract32(inst, 15, 5);
         dec->vzimm = operand_vzimm10(inst);
         break;
     case rv_codec_zcb_lb:
@@ -4874,6 +4937,14 @@ static void decode_inst_operands(rv_decode *dec, rv_isa isa)
         dec->rs1 = operand_rs1(inst);
         dec->imm = sextract32(operand_rs2(inst), 0, 5);
         dec->imm1 = operand_imm2(inst);
+        break;
+    case rv_codec_lp:
+        dec->imm = operand_lpl(inst);
+        break;
+    case rv_codec_cmop_ss:
+        dec->rd = rv_ireg_zero;
+        dec->rs1 = dec->rs2 = operand_crs1(inst);
+        dec->imm = 0;
         break;
     };
 }
@@ -5041,28 +5112,28 @@ static GString *format_inst(size_t tab, rv_decode *dec)
             g_string_append(buf, rv_ireg_name_sym[dec->rs2]);
             break;
         case '3':
-            if (dec->cfg->ext_zfinx) {
+            if (dec->cfg && dec->cfg->ext_zfinx) {
                 g_string_append(buf, rv_ireg_name_sym[dec->rd]);
             } else {
                 g_string_append(buf, rv_freg_name_sym[dec->rd]);
             }
             break;
         case '4':
-            if (dec->cfg->ext_zfinx) {
+            if (dec->cfg && dec->cfg->ext_zfinx) {
                 g_string_append(buf, rv_ireg_name_sym[dec->rs1]);
             } else {
                 g_string_append(buf, rv_freg_name_sym[dec->rs1]);
             }
             break;
         case '5':
-            if (dec->cfg->ext_zfinx) {
+            if (dec->cfg && dec->cfg->ext_zfinx) {
                 g_string_append(buf, rv_ireg_name_sym[dec->rs2]);
             } else {
                 g_string_append(buf, rv_freg_name_sym[dec->rs2]);
             }
             break;
         case '6':
-            if (dec->cfg->ext_zfinx) {
+            if (dec->cfg && dec->cfg->ext_zfinx) {
                 g_string_append(buf, rv_ireg_name_sym[dec->rs3]);
             } else {
                 g_string_append(buf, rv_freg_name_sym[dec->rs3]);
@@ -5368,7 +5439,8 @@ static GString *disasm_inst(rv_isa isa, uint64_t pc, rv_inst inst,
         const rv_opcode_data *opcode_data = decoders[i].opcode_data;
         void (*decode_func)(rv_decode *, rv_isa) = decoders[i].decode_func;
 
-        if (guard_func(cfg)) {
+        /* always_true_p don't dereference cfg */
+        if (((i == 0) || cfg) && guard_func(cfg)) {
             dec.opcode_data = opcode_data;
             decode_func(&dec, isa);
             if (dec.op != rv_op_illegal)

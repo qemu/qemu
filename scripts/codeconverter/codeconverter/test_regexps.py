@@ -269,7 +269,7 @@ def test_initial_includes():
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 
 /* Missing stuff:
    SCTRL_P[12](END|ST)INC
@@ -278,5 +278,5 @@ def test_initial_includes():
     m = InitialIncludes.domatch(c)
     assert m
     print(repr(m.group(0)))
-    assert m.group(0).endswith('#include "sysemu/dma.h"\n')
+    assert m.group(0).endswith('#include "system/dma.h"\n')
 

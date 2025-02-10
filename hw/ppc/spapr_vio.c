@@ -27,8 +27,8 @@
 #include "hw/loader.h"
 #include "elf.h"
 #include "hw/sysbus.h"
-#include "sysemu/kvm.h"
-#include "sysemu/device_tree.h"
+#include "system/kvm.h"
+#include "system/device_tree.h"
 #include "kvm_ppc.h"
 #include "migration/vmstate.h"
 

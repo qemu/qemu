@@ -427,21 +427,27 @@ static void pnv_lpc_eval_serirq_routes(PnvLpcController *lpc)
     int irq;
 
     if (!lpc->psi_has_serirq) {
-        if ((lpc->opb_irq_route0 & PPC_BITMASK(8, 13)) ||
-            (lpc->opb_irq_route1 & PPC_BITMASK(4, 31))) {
+        if ((lpc->opb_irq_route0 & PPC_BITMASK32(8, 13)) ||
+            (lpc->opb_irq_route1 & PPC_BITMASK32(4, 31))) {
             qemu_log_mask(LOG_GUEST_ERROR,
                 "OPB: setting serirq routing on POWER8 system, ignoring.\n");
         }
         return;
     }
 
+    /*
+     * Each of the ISA irqs is routed to one of the 4 SERIRQ irqs with 2
+     * bits, split across 2 OPB registers.
+     */
     for (irq = 0; irq <= 13; irq++) {
-        int serirq = (lpc->opb_irq_route1 >> (31 - 5 - (irq * 2))) & 0x3;
+        int serirq = extract32(lpc->opb_irq_route1,
+                                    PPC_BIT32_NR(5 + irq * 2), 2);
         lpc->irq_to_serirq_route[irq] = serirq;
     }
 
     for (irq = 14; irq < ISA_NUM_IRQS; irq++) {
-        int serirq = (lpc->opb_irq_route0 >> (31 - 9 - (irq * 2))) & 0x3;
+        int serirq = extract32(lpc->opb_irq_route0,
+                               PPC_BIT32_NR(9 + (irq - 14) * 2), 2);
         lpc->irq_to_serirq_route[irq] = serirq;
     }
 }
@@ -822,9 +828,8 @@ static void pnv_lpc_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_out_named(dev, &lpc->psi_irq_lpchc, "LPCHC", 1);
 }
 
-static Property pnv_lpc_properties[] = {
+static const Property pnv_lpc_properties[] = {
     DEFINE_PROP_BOOL("psi-serirq", PnvLpcController, psi_has_serirq, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_lpc_class_init(ObjectClass *klass, void *data)

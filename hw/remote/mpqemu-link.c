@@ -17,7 +17,7 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "io/channel.h"
-#include "sysemu/iothread.h"
+#include "system/iothread.h"
 #include "trace.h"
 
 /*

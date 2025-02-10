@@ -26,7 +26,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/acpi/acpi_aml_interface.h"
 #include "hw/char/serial.h"
 #include "hw/char/serial-isa.h"
@@ -113,11 +113,10 @@ static const VMStateDescription vmstate_isa_serial = {
     }
 };
 
-static Property serial_isa_properties[] = {
+static const Property serial_isa_properties[] = {
     DEFINE_PROP_UINT32("index",  ISASerialState, index,   -1),
     DEFINE_PROP_UINT32("iobase",  ISASerialState, iobase,  -1),
     DEFINE_PROP_UINT32("irq",    ISASerialState, isairq,  -1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void serial_isa_class_initfn(ObjectClass *klass, void *data)

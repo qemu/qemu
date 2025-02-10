@@ -16,10 +16,9 @@
 #include "standard-headers/linux/qemu_fw_cfg.h"
 #include "qom/object.h"
 
-#define VMCOREINFO_DEVICE "vmcoreinfo"
+#define TYPE_VMCOREINFO "vmcoreinfo"
 typedef struct VMCoreInfoState VMCoreInfoState;
-DECLARE_INSTANCE_CHECKER(VMCoreInfoState, VMCOREINFO,
-                         VMCOREINFO_DEVICE)
+DECLARE_INSTANCE_CHECKER(VMCoreInfoState, VMCOREINFO, TYPE_VMCOREINFO)
 
 typedef struct fw_cfg_vmcoreinfo FWCfgVMCoreInfo;
 
@@ -33,7 +32,7 @@ struct VMCoreInfoState {
 /* returns NULL unless there is exactly one device */
 static inline VMCoreInfoState *vmcoreinfo_find(void)
 {
-    Object *o = object_resolve_path_type("", VMCOREINFO_DEVICE, NULL);
+    Object *o = object_resolve_path_type("", TYPE_VMCOREINFO, NULL);
 
     return o ? VMCOREINFO(o) : NULL;
 }

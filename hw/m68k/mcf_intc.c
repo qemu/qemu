@@ -166,7 +166,7 @@ static void mcf_intc_reset(DeviceState *dev)
 static const MemoryRegionOps mcf_intc_ops = {
     .read = mcf_intc_read,
     .write = mcf_intc_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void mcf_intc_instance_init(Object *obj)
@@ -177,10 +177,9 @@ static void mcf_intc_instance_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
 }
 
-static Property mcf_intc_properties[] = {
+static const Property mcf_intc_properties[] = {
     DEFINE_PROP_LINK("m68k-cpu", mcf_intc_state, cpu,
                      TYPE_M68K_CPU, M68kCPU *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void mcf_intc_class_init(ObjectClass *oc, void *data)

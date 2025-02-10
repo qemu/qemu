@@ -21,7 +21,7 @@
 #include "qemu/main-loop.h"
 #include "exec/cpu-common.h"
 #include "hw/core/cpu.h"
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 #include "qemu/lockable.h"
 #include "trace/trace-root.h"
 
@@ -193,6 +193,9 @@ void start_exclusive(void)
 {
     CPUState *other_cpu;
     int running_cpus;
+
+    /* Ensure we are not running, or start_exclusive will be blocked. */
+    g_assert(!current_cpu->running);
 
     if (current_cpu->exclusive_context_count) {
         current_cpu->exclusive_context_count++;

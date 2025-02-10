@@ -38,7 +38,7 @@
 
 #include "hw/arm/exynos4210.h"
 #include "qom/object.h"
-#include "sysemu/rtc.h"
+#include "system/rtc.h"
 
 #define DEBUG_RTC 0
 

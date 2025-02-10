@@ -145,7 +145,7 @@ static void ufs_send_query(QUfs *ufs, uint8_t slot, uint8_t query_function,
     req_upiu.qr.idn = idn;
     req_upiu.qr.index = index;
     req_upiu.qr.selector = selector;
-    req_upiu.qr.value = attr_value;
+    req_upiu.qr.value = cpu_to_be32(attr_value);
     req_upiu.qr.length = UFS_QUERY_DESC_MAX_SIZE;
     qtest_memwrite(ufs->dev.bus->qts, req_upiu_addr, &req_upiu,
                    sizeof(req_upiu));

@@ -22,7 +22,7 @@
 #include "ui/egl-helpers.h"
 #include "ui/shader.h"
 
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 static void gtk_egl_set_scanout_mode(VirtualConsole *vc, bool scanout)
 {

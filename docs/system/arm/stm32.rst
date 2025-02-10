@@ -1,5 +1,5 @@
-STMicroelectronics STM32 boards (``netduino2``, ``netduinoplus2``, ``stm32vldiscovery``)
-========================================================================================
+STMicroelectronics STM32 boards (``netduino2``, ``netduinoplus2``, ``olimex-stm32-h405``, ``stm32vldiscovery``)
+===============================================================================================================
 
 The `STM32`_ chips are a family of 32-bit ARM-based microcontroller by
 STMicroelectronics.

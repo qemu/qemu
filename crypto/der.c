@@ -408,19 +408,6 @@ void qcrypto_der_encode_octet_str(QCryptoEncodeContext *ctx,
     qcrypto_der_encode_prim(ctx, tag, src, src_len);
 }
 
-void qcrypto_der_encode_octet_str_begin(QCryptoEncodeContext *ctx)
-{
-    uint8_t tag = QCRYPTO_DER_TAG(QCRYPTO_DER_TAG_CLASS_UNIV,
-                                  QCRYPTO_DER_TAG_ENC_PRIM,
-                                  QCRYPTO_DER_TYPE_TAG_OCT_STR);
-    qcrypto_der_encode_cons_begin(ctx, tag);
-}
-
-void qcrypto_der_encode_octet_str_end(QCryptoEncodeContext *ctx)
-{
-    qcrypto_der_encode_cons_end(ctx);
-}
-
 size_t qcrypto_der_encode_ctx_buffer_len(QCryptoEncodeContext *ctx)
 {
     return ctx->root.dlen;

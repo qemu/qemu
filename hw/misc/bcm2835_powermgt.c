@@ -13,7 +13,7 @@
 #include "qemu/module.h"
 #include "hw/misc/bcm2835_powermgt.h"
 #include "migration/vmstate.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 
 #define PASSWORD 0x5a000000
 #define PASSWORD_MASK 0xff000000

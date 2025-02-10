@@ -9,34 +9,14 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-from unittest import skipIf, skipUnless
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern, exec_command
+from qemu_test import skipIfMissingCommands, skipBigDataTest
+from qemu_test import exec_command_and_wait_for_pattern
 import os
 import time
 import subprocess
 from datetime import datetime
-
-deps = ["xorriso"] # dependent tools needed in the test setup/box.
-
-def which(tool):
-    """ looks up the full path for @tool, returns None if not found
-        or if @tool does not have executable permissions.
-    """
-    paths=os.getenv('PATH')
-    for p in paths.split(os.path.pathsep):
-        p = os.path.join(p, tool)
-        if os.path.exists(p) and os.access(p, os.X_OK):
-            return p
-    return None
-
-def missing_deps():
-    """ returns True if any of the test dependent tools are absent.
-    """
-    for dep in deps:
-        if which(dep) is None:
-            return True
-    return False
 
 # Alpine is a light weight distro that supports QEMU. These tests boot
 # that on the machine then run a QEMU guest inside it in KVM mode,
@@ -45,8 +25,8 @@ def missing_deps():
 # large download, but it may be more polite to create qcow2 image with
 # QEMU already installed and use that.
 # XXX: The order of these tests seems to matter, see git blame.
-@skipIf(missing_deps(), 'dependencies (%s) not installed' % ','.join(deps))
-@skipUnless(os.getenv('QEMU_TEST_ALLOW_LARGE_STORAGE'), 'storage limited')
+@skipIfMissingCommands("xorriso")
+@skipBigDataTest()
 class HypervisorTest(QemuSystemTest):
 
     timeout = 1000
@@ -55,9 +35,9 @@ class HypervisorTest(QemuSystemTest):
     good_message = 'VFS: Cannot open root device'
 
     ASSET_ISO = Asset(
-        ('https://dl-cdn.alpinelinux.org/alpine/v3.18/'
-         'releases/ppc64le/alpine-standard-3.18.4-ppc64le.iso'),
-        'c26b8d3e17c2f3f0fed02b4b1296589c2390e6d5548610099af75300edd7b3ff')
+        ('https://dl-cdn.alpinelinux.org/alpine/v3.21/'
+         'releases/ppc64le/alpine-standard-3.21.0-ppc64le.iso'),
+        '7651ab4e3027604535c0b36e86c901b4695bf8fe97b908f5b48590f6baae8f30')
 
     def extract_from_iso(self, iso, path):
         """
@@ -67,24 +47,15 @@ class HypervisorTest(QemuSystemTest):
         :param path: path within the iso file of the file to be extracted
         :returns: path of the extracted file
         """
-        filename = os.path.basename(path)
+        filename = self.scratch_file(os.path.basename(path))
 
-        cwd = os.getcwd()
-        os.chdir(self.workdir)
-
-        with open(filename, "w") as outfile:
-            cmd = "xorriso -osirrox on -indev %s -cpx %s %s" % (iso, path, filename)
-            subprocess.run(cmd.split(),
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        cmd = "xorriso -osirrox on -indev %s -cpx %s %s" % (iso, path, filename)
+        subprocess.run(cmd.split(),
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         os.chmod(filename, 0o600)
-        os.chdir(cwd)
 
-        # Return complete path to extracted file.  Because callers to
-        # extract_from_iso() specify 'path' with a leading slash, it is
-        # necessary to use os.path.relpath() as otherwise os.path.join()
-        # interprets it as an absolute path and drops the self.workdir part.
-        return os.path.normpath(os.path.join(self.workdir, filename))
+        return filename
 
     def setUp(self):
         super().setUp()
@@ -99,34 +70,33 @@ class HypervisorTest(QemuSystemTest):
         self.vm.add_args("-kernel", self.vmlinuz)
         self.vm.add_args("-initrd", self.initramfs)
         self.vm.add_args("-smp", "4", "-m", "2g")
-        self.vm.add_args("-drive", f"file={self.iso_path},format=raw,if=none,id=drive0")
+        self.vm.add_args("-drive", f"file={self.iso_path},format=raw,if=none,"
+                                    "id=drive0,read-only=true")
 
         self.vm.launch()
-        wait_for_console_pattern(self, 'Welcome to Alpine Linux 3.18')
-        exec_command(self, 'root')
+        ps1='localhost:~#'
         wait_for_console_pattern(self, 'localhost login:')
-        wait_for_console_pattern(self, 'You may change this message by editing /etc/motd.')
+        exec_command_and_wait_for_pattern(self, 'root', ps1)
         # If the time is wrong, SSL certificates can fail.
-        exec_command(self, 'date -s "' + datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S' + '"'))
-        exec_command(self, 'setup-alpine -qe')
-        wait_for_console_pattern(self, 'Updating repository indexes... done.')
+        exec_command_and_wait_for_pattern(self, 'date -s "' + datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S' + '"'), ps1)
+        ps1='alpine:~#'
+        exec_command_and_wait_for_pattern(self, 'setup-alpine -qe', ps1)
+        exec_command_and_wait_for_pattern(self, 'setup-apkrepos -c1', ps1)
+        exec_command_and_wait_for_pattern(self, 'apk update', ps1)
+        # Could upgrade here but it usually should not be necessary
+        # exec_command_and_wait_for_pattern(self, 'apk upgrade --available', ps1)
 
     def do_stop_alpine(self):
-        exec_command(self, 'poweroff')
+        exec_command(self, 'echo "TEST ME"')
         wait_for_console_pattern(self, 'alpine:~#')
+        exec_command(self, 'poweroff')
+        wait_for_console_pattern(self, 'reboot: Power down')
         self.vm.wait()
 
     def do_setup_kvm(self):
-        exec_command(self, 'echo http://dl-cdn.alpinelinux.org/alpine/v3.18/main > /etc/apk/repositories')
-        wait_for_console_pattern(self, 'alpine:~#')
-        exec_command(self, 'echo http://dl-cdn.alpinelinux.org/alpine/v3.18/community >> /etc/apk/repositories')
-        wait_for_console_pattern(self, 'alpine:~#')
-        exec_command(self, 'apk update')
-        wait_for_console_pattern(self, 'alpine:~#')
-        exec_command(self, 'apk add qemu-system-ppc64')
-        wait_for_console_pattern(self, 'alpine:~#')
-        exec_command(self, 'modprobe kvm-hv')
-        wait_for_console_pattern(self, 'alpine:~#')
+        ps1='alpine:~#'
+        exec_command_and_wait_for_pattern(self, 'apk add qemu-system-ppc64', ps1)
+        exec_command_and_wait_for_pattern(self, 'modprobe kvm-hv', ps1)
 
     # This uses the host's block device as the source file for guest block
     # device for install media. This is a bit hacky but allows reuse of the
@@ -144,16 +114,13 @@ class HypervisorTest(QemuSystemTest):
                            '-initrd /media/nvme0n1/boot/initramfs-lts '
                            '-kernel /media/nvme0n1/boot/vmlinuz-lts '
                            '-append \'usbcore.nousb ' + append + '\'')
-        # Alpine 3.18 kernel seems to crash in XHCI USB driver.
-        wait_for_console_pattern(self, 'Welcome to Alpine Linux 3.18')
-        exec_command(self, 'root')
+        # Alpine 3.21 kernel seems to crash in XHCI USB driver.
+        ps1='localhost:~#'
         wait_for_console_pattern(self, 'localhost login:')
-        wait_for_console_pattern(self, 'You may change this message by editing /etc/motd.')
-        exec_command(self, 'poweroff >& /dev/null')
-        wait_for_console_pattern(self, 'localhost:~#')
+        exec_command_and_wait_for_pattern(self, 'root', ps1)
+        exec_command(self, 'poweroff')
         wait_for_console_pattern(self, 'reboot: Power down')
-        time.sleep(1)
-        exec_command(self, '')
+        # Now wait for the host's prompt to come back
         wait_for_console_pattern(self, 'alpine:~#')
 
     def test_hv_pseries(self):

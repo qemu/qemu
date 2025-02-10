@@ -28,7 +28,7 @@
 #include "hw/intc/kvm_irqcount.h"
 #include "trace.h"
 #include "hw/boards.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
@@ -408,13 +408,12 @@ static const VMStateDescription vmstate_apic_common = {
     }
 };
 
-static Property apic_properties_common[] = {
+static const Property apic_properties_common[] = {
     DEFINE_PROP_UINT8("version", APICCommonState, version, 0x14),
     DEFINE_PROP_BIT("vapic", APICCommonState, vapic_control, VAPIC_ENABLE_BIT,
                     true),
     DEFINE_PROP_BOOL("legacy-instance-id", APICCommonState, legacy_instance_id,
                      false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void apic_common_get_id(Object *obj, Visitor *v, const char *name,

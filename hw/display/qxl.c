@@ -29,7 +29,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "migration/vmstate.h"
 #include "trace.h"
 
@@ -50,7 +50,7 @@
 #undef ALIGN
 #define ALIGN(a, b) (((a) + ((b) - 1)) & ~((b) - 1))
 
-#define PIXEL_SIZE 0.2936875 //1280x1024 is 14.8" x 11.9" 
+#define PIXEL_SIZE 0.2936875 /* 1280x1024 is 14.8" x 11.9" */
 
 #define QXL_MODE(_x, _y, _b, _o)                  \
     {   .x_res = _x,                              \
@@ -2458,7 +2458,7 @@ static const VMStateDescription qxl_vmstate = {
     }
 };
 
-static Property qxl_properties[] = {
+static const Property qxl_properties[] = {
         DEFINE_PROP_UINT32("ram_size", PCIQXLDevice, vga.vram_size, 64 * MiB),
         DEFINE_PROP_UINT64("vram_size", PCIQXLDevice, vram32_size, 64 * MiB),
         DEFINE_PROP_UINT32("revision", PCIQXLDevice, revision,
@@ -2475,7 +2475,6 @@ static Property qxl_properties[] = {
         DEFINE_PROP_UINT32("xres", PCIQXLDevice, xres, 0),
         DEFINE_PROP_UINT32("yres", PCIQXLDevice, yres, 0),
         DEFINE_PROP_BOOL("global-vmstate", PCIQXLDevice, vga.global_vmstate, false),
-        DEFINE_PROP_END_OF_LIST(),
 };
 
 static void qxl_pci_class_init(ObjectClass *klass, void *data)

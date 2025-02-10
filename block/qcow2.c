@@ -25,7 +25,7 @@
 #include "qemu/osdep.h"
 
 #include "block/qdict.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qcow2.h"

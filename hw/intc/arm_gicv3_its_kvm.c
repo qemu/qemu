@@ -24,8 +24,8 @@
 #include "qemu/error-report.h"
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/runstate.h"
-#include "sysemu/kvm.h"
+#include "system/runstate.h"
+#include "system/kvm.h"
 #include "kvm_arm.h"
 #include "migration/blocker.h"
 #include "qom/object.h"
@@ -234,10 +234,9 @@ static void kvm_arm_its_reset_hold(Object *obj, ResetType type)
     }
 }
 
-static Property kvm_arm_its_props[] = {
+static const Property kvm_arm_its_props[] = {
     DEFINE_PROP_LINK("parent-gicv3", GICv3ITSState, gicv3, "kvm-arm-gicv3",
                      GICv3State *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void kvm_arm_its_class_init(ObjectClass *klass, void *data)

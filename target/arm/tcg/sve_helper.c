@@ -29,6 +29,9 @@
 #include "vec_internal.h"
 #include "sve_ldst_internal.h"
 #include "hw/core/tcg-cpu-ops.h"
+#ifdef CONFIG_USER_ONLY
+#include "user/page-protection.h"
+#endif
 
 
 /* Return a value for NZCV as per the ARM PredTest pseudofunction.
@@ -730,7 +733,7 @@ DO_ZPZZ_PAIR_D(sve2_sminp_zpzz_d, int64_t, DO_MIN)
 
 #define DO_ZPZZ_PAIR_FP(NAME, TYPE, H, OP)                              \
 void HELPER(NAME)(void *vd, void *vn, void *vm, void *vg,               \
-                  void *status, uint32_t desc)                          \
+                  float_status *status, uint32_t desc)                  \
 {                                                                       \
     intptr_t i, opr_sz = simd_oprsz(desc);                              \
     for (i = 0; i < opr_sz; ) {                                         \
@@ -4190,7 +4193,7 @@ static TYPE NAME##_reduce(TYPE *data, float_status *status, uintptr_t n) \
         return TYPE##_##FUNC(lo, hi, status);                         \
     }                                                                 \
 }                                                                     \
-uint64_t HELPER(NAME)(void *vn, void *vg, void *vs, uint32_t desc)    \
+uint64_t HELPER(NAME)(void *vn, void *vg, float_status *s, uint32_t desc) \
 {                                                                     \
     uintptr_t i, oprsz = simd_oprsz(desc), maxsz = simd_data(desc);   \
     TYPE data[sizeof(ARMVectorReg) / sizeof(TYPE)];                   \
@@ -4205,7 +4208,7 @@ uint64_t HELPER(NAME)(void *vn, void *vg, void *vs, uint32_t desc)    \
     for (; i < maxsz; i += sizeof(TYPE)) {                            \
         *(TYPE *)((void *)data + i) = IDENT;                          \
     }                                                                 \
-    return NAME##_reduce(data, vs, maxsz / sizeof(TYPE));             \
+    return NAME##_reduce(data, s, maxsz / sizeof(TYPE));              \
 }
 
 DO_REDUCE(sve_faddv_h, float16, H1_2, add, float16_zero)
@@ -4232,7 +4235,7 @@ DO_REDUCE(sve_fmaxv_d, float64, H1_8, max, float64_chs(float64_infinity))
 #undef DO_REDUCE
 
 uint64_t HELPER(sve_fadda_h)(uint64_t nn, void *vm, void *vg,
-                             void *status, uint32_t desc)
+                             float_status *status, uint32_t desc)
 {
     intptr_t i = 0, opr_sz = simd_oprsz(desc);
     float16 result = nn;
@@ -4252,7 +4255,7 @@ uint64_t HELPER(sve_fadda_h)(uint64_t nn, void *vm, void *vg,
 }
 
 uint64_t HELPER(sve_fadda_s)(uint64_t nn, void *vm, void *vg,
-                             void *status, uint32_t desc)
+                             float_status *status, uint32_t desc)
 {
     intptr_t i = 0, opr_sz = simd_oprsz(desc);
     float32 result = nn;
@@ -4272,7 +4275,7 @@ uint64_t HELPER(sve_fadda_s)(uint64_t nn, void *vm, void *vg,
 }
 
 uint64_t HELPER(sve_fadda_d)(uint64_t nn, void *vm, void *vg,
-                             void *status, uint32_t desc)
+                             float_status *status, uint32_t desc)
 {
     intptr_t i = 0, opr_sz = simd_oprsz(desc) / 8;
     uint64_t *m = vm;
@@ -4292,7 +4295,7 @@ uint64_t HELPER(sve_fadda_d)(uint64_t nn, void *vm, void *vg,
  */
 #define DO_ZPZZ_FP(NAME, TYPE, H, OP)                           \
 void HELPER(NAME)(void *vd, void *vn, void *vm, void *vg,       \
-                  void *status, uint32_t desc)                  \
+                  float_status *status, uint32_t desc)          \
 {                                                               \
     intptr_t i = simd_oprsz(desc);                              \
     uint64_t *g = vg;                                           \
@@ -4381,7 +4384,7 @@ DO_ZPZZ_FP(sve_fmulx_d, uint64_t, H1_8, helper_vfp_mulxd)
  */
 #define DO_ZPZS_FP(NAME, TYPE, H, OP) \
 void HELPER(NAME)(void *vd, void *vn, void *vg, uint64_t scalar,  \
-                  void *status, uint32_t desc)                    \
+                  float_status *status, uint32_t desc)            \
 {                                                                 \
     intptr_t i = simd_oprsz(desc);                                \
     uint64_t *g = vg;                                             \
@@ -4449,7 +4452,8 @@ DO_ZPZS_FP(sve_fmins_d, float64, H1_8, float64_min)
  * With the extra float_status parameter.
  */
 #define DO_ZPZ_FP(NAME, TYPE, H, OP)                                  \
-void HELPER(NAME)(void *vd, void *vn, void *vg, void *status, uint32_t desc) \
+void HELPER(NAME)(void *vd, void *vn, void *vg,                       \
+                  float_status *status, uint32_t desc)                \
 {                                                                     \
     intptr_t i = simd_oprsz(desc);                                    \
     uint64_t *g = vg;                                                 \
@@ -4654,7 +4658,7 @@ static int16_t do_float16_logb_as_int(float16 a, float_status *s)
                 return -15 - clz32(frac);
             }
             /* flush to zero */
-            float_raise(float_flag_input_denormal, s);
+            float_raise(float_flag_input_denormal_flushed, s);
         }
     } else if (unlikely(exp == 0x1f)) {
         if (frac == 0) {
@@ -4682,7 +4686,7 @@ static int32_t do_float32_logb_as_int(float32 a, float_status *s)
                 return -127 - clz32(frac);
             }
             /* flush to zero */
-            float_raise(float_flag_input_denormal, s);
+            float_raise(float_flag_input_denormal_flushed, s);
         }
     } else if (unlikely(exp == 0xff)) {
         if (frac == 0) {
@@ -4710,7 +4714,7 @@ static int64_t do_float64_logb_as_int(float64 a, float_status *s)
                 return -1023 - clz64(frac);
             }
             /* flush to zero */
-            float_raise(float_flag_input_denormal, s);
+            float_raise(float_flag_input_denormal_flushed, s);
         }
     } else if (unlikely(exp == 0x7ff)) {
         if (frac == 0) {
@@ -4756,25 +4760,25 @@ static void do_fmla_zpzzz_h(void *vd, void *vn, void *vm, void *va, void *vg,
 }
 
 void HELPER(sve_fmla_zpzzz_h)(void *vd, void *vn, void *vm, void *va,
-                              void *vg, void *status, uint32_t desc)
+                              void *vg, float_status *status, uint32_t desc)
 {
     do_fmla_zpzzz_h(vd, vn, vm, va, vg, status, desc, 0, 0);
 }
 
 void HELPER(sve_fmls_zpzzz_h)(void *vd, void *vn, void *vm, void *va,
-                              void *vg, void *status, uint32_t desc)
+                              void *vg, float_status *status, uint32_t desc)
 {
     do_fmla_zpzzz_h(vd, vn, vm, va, vg, status, desc, 0x8000, 0);
 }
 
 void HELPER(sve_fnmla_zpzzz_h)(void *vd, void *vn, void *vm, void *va,
-                               void *vg, void *status, uint32_t desc)
+                               void *vg, float_status *status, uint32_t desc)
 {
     do_fmla_zpzzz_h(vd, vn, vm, va, vg, status, desc, 0x8000, 0x8000);
 }
 
 void HELPER(sve_fnmls_zpzzz_h)(void *vd, void *vn, void *vm, void *va,
-                               void *vg, void *status, uint32_t desc)
+                               void *vg, float_status *status, uint32_t desc)
 {
     do_fmla_zpzzz_h(vd, vn, vm, va, vg, status, desc, 0, 0x8000);
 }
@@ -4804,25 +4808,25 @@ static void do_fmla_zpzzz_s(void *vd, void *vn, void *vm, void *va, void *vg,
 }
 
 void HELPER(sve_fmla_zpzzz_s)(void *vd, void *vn, void *vm, void *va,
-                              void *vg, void *status, uint32_t desc)
+                              void *vg, float_status *status, uint32_t desc)
 {
     do_fmla_zpzzz_s(vd, vn, vm, va, vg, status, desc, 0, 0);
 }
 
 void HELPER(sve_fmls_zpzzz_s)(void *vd, void *vn, void *vm, void *va,
-                              void *vg, void *status, uint32_t desc)
+                              void *vg, float_status *status, uint32_t desc)
 {
     do_fmla_zpzzz_s(vd, vn, vm, va, vg, status, desc, 0x80000000, 0);
 }
 
 void HELPER(sve_fnmla_zpzzz_s)(void *vd, void *vn, void *vm, void *va,
-                               void *vg, void *status, uint32_t desc)
+                               void *vg, float_status *status, uint32_t desc)
 {
     do_fmla_zpzzz_s(vd, vn, vm, va, vg, status, desc, 0x80000000, 0x80000000);
 }
 
 void HELPER(sve_fnmls_zpzzz_s)(void *vd, void *vn, void *vm, void *va,
-                               void *vg, void *status, uint32_t desc)
+                               void *vg, float_status *status, uint32_t desc)
 {
     do_fmla_zpzzz_s(vd, vn, vm, va, vg, status, desc, 0, 0x80000000);
 }
@@ -4852,25 +4856,25 @@ static void do_fmla_zpzzz_d(void *vd, void *vn, void *vm, void *va, void *vg,
 }
 
 void HELPER(sve_fmla_zpzzz_d)(void *vd, void *vn, void *vm, void *va,
-                              void *vg, void *status, uint32_t desc)
+                              void *vg, float_status *status, uint32_t desc)
 {
     do_fmla_zpzzz_d(vd, vn, vm, va, vg, status, desc, 0, 0);
 }
 
 void HELPER(sve_fmls_zpzzz_d)(void *vd, void *vn, void *vm, void *va,
-                              void *vg, void *status, uint32_t desc)
+                              void *vg, float_status *status, uint32_t desc)
 {
     do_fmla_zpzzz_d(vd, vn, vm, va, vg, status, desc, INT64_MIN, 0);
 }
 
 void HELPER(sve_fnmla_zpzzz_d)(void *vd, void *vn, void *vm, void *va,
-                               void *vg, void *status, uint32_t desc)
+                               void *vg, float_status *status, uint32_t desc)
 {
     do_fmla_zpzzz_d(vd, vn, vm, va, vg, status, desc, INT64_MIN, INT64_MIN);
 }
 
 void HELPER(sve_fnmls_zpzzz_d)(void *vd, void *vn, void *vm, void *va,
-                               void *vg, void *status, uint32_t desc)
+                               void *vg, float_status *status, uint32_t desc)
 {
     do_fmla_zpzzz_d(vd, vn, vm, va, vg, status, desc, 0, INT64_MIN);
 }
@@ -4882,7 +4886,7 @@ void HELPER(sve_fnmls_zpzzz_d)(void *vd, void *vn, void *vm, void *va,
  */
 #define DO_FPCMP_PPZZ(NAME, TYPE, H, OP)                                \
 void HELPER(NAME)(void *vd, void *vn, void *vm, void *vg,               \
-                  void *status, uint32_t desc)                          \
+                  float_status *status, uint32_t desc)                  \
 {                                                                       \
     intptr_t i = simd_oprsz(desc), j = (i - 1) >> 6;                    \
     uint64_t *d = vd, *g = vg;                                          \
@@ -4944,7 +4948,7 @@ DO_FPCMP_PPZZ_ALL(sve_facgt, DO_FACGT)
  */
 #define DO_FPCMP_PPZ0(NAME, TYPE, H, OP)                   \
 void HELPER(NAME)(void *vd, void *vn, void *vg,            \
-                  void *status, uint32_t desc)             \
+                  float_status *status, uint32_t desc)     \
 {                                                          \
     intptr_t i = simd_oprsz(desc), j = (i - 1) >> 6;       \
     uint64_t *d = vd, *g = vg;                             \
@@ -4982,7 +4986,8 @@ DO_FPCMP_PPZ0_ALL(sve_fcmne0, DO_FCMNE)
 
 /* FP Trig Multiply-Add. */
 
-void HELPER(sve_ftmad_h)(void *vd, void *vn, void *vm, void *vs, uint32_t desc)
+void HELPER(sve_ftmad_h)(void *vd, void *vn, void *vm,
+                         float_status *s, uint32_t desc)
 {
     static const float16 coeff[16] = {
         0x3c00, 0xb155, 0x2030, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
@@ -4998,11 +5003,12 @@ void HELPER(sve_ftmad_h)(void *vd, void *vn, void *vm, void *vs, uint32_t desc)
             mm = float16_abs(mm);
             xx += 8;
         }
-        d[i] = float16_muladd(n[i], mm, coeff[xx], 0, vs);
+        d[i] = float16_muladd(n[i], mm, coeff[xx], 0, s);
     }
 }
 
-void HELPER(sve_ftmad_s)(void *vd, void *vn, void *vm, void *vs, uint32_t desc)
+void HELPER(sve_ftmad_s)(void *vd, void *vn, void *vm,
+                         float_status *s, uint32_t desc)
 {
     static const float32 coeff[16] = {
         0x3f800000, 0xbe2aaaab, 0x3c088886, 0xb95008b9,
@@ -5020,11 +5026,12 @@ void HELPER(sve_ftmad_s)(void *vd, void *vn, void *vm, void *vs, uint32_t desc)
             mm = float32_abs(mm);
             xx += 8;
         }
-        d[i] = float32_muladd(n[i], mm, coeff[xx], 0, vs);
+        d[i] = float32_muladd(n[i], mm, coeff[xx], 0, s);
     }
 }
 
-void HELPER(sve_ftmad_d)(void *vd, void *vn, void *vm, void *vs, uint32_t desc)
+void HELPER(sve_ftmad_d)(void *vd, void *vn, void *vm,
+                         float_status *s, uint32_t desc)
 {
     static const float64 coeff[16] = {
         0x3ff0000000000000ull, 0xbfc5555555555543ull,
@@ -5046,7 +5053,7 @@ void HELPER(sve_ftmad_d)(void *vd, void *vn, void *vm, void *vs, uint32_t desc)
             mm = float64_abs(mm);
             xx += 8;
         }
-        d[i] = float64_muladd(n[i], mm, coeff[xx], 0, vs);
+        d[i] = float64_muladd(n[i], mm, coeff[xx], 0, s);
     }
 }
 
@@ -5055,7 +5062,7 @@ void HELPER(sve_ftmad_d)(void *vd, void *vn, void *vm, void *vs, uint32_t desc)
  */
 
 void HELPER(sve_fcadd_h)(void *vd, void *vn, void *vm, void *vg,
-                         void *vs, uint32_t desc)
+                         float_status *s, uint32_t desc)
 {
     intptr_t j, i = simd_oprsz(desc);
     uint64_t *g = vg;
@@ -5077,17 +5084,17 @@ void HELPER(sve_fcadd_h)(void *vd, void *vn, void *vm, void *vg,
             e3 = *(float16 *)(vm + H1_2(i)) ^ neg_imag;
 
             if (likely((pg >> (i & 63)) & 1)) {
-                *(float16 *)(vd + H1_2(i)) = float16_add(e0, e1, vs);
+                *(float16 *)(vd + H1_2(i)) = float16_add(e0, e1, s);
             }
             if (likely((pg >> (j & 63)) & 1)) {
-                *(float16 *)(vd + H1_2(j)) = float16_add(e2, e3, vs);
+                *(float16 *)(vd + H1_2(j)) = float16_add(e2, e3, s);
             }
         } while (i & 63);
     } while (i != 0);
 }
 
 void HELPER(sve_fcadd_s)(void *vd, void *vn, void *vm, void *vg,
-                         void *vs, uint32_t desc)
+                         float_status *s, uint32_t desc)
 {
     intptr_t j, i = simd_oprsz(desc);
     uint64_t *g = vg;
@@ -5109,17 +5116,17 @@ void HELPER(sve_fcadd_s)(void *vd, void *vn, void *vm, void *vg,
             e3 = *(float32 *)(vm + H1_2(i)) ^ neg_imag;
 
             if (likely((pg >> (i & 63)) & 1)) {
-                *(float32 *)(vd + H1_2(i)) = float32_add(e0, e1, vs);
+                *(float32 *)(vd + H1_2(i)) = float32_add(e0, e1, s);
             }
             if (likely((pg >> (j & 63)) & 1)) {
-                *(float32 *)(vd + H1_2(j)) = float32_add(e2, e3, vs);
+                *(float32 *)(vd + H1_2(j)) = float32_add(e2, e3, s);
             }
         } while (i & 63);
     } while (i != 0);
 }
 
 void HELPER(sve_fcadd_d)(void *vd, void *vn, void *vm, void *vg,
-                         void *vs, uint32_t desc)
+                         float_status *s, uint32_t desc)
 {
     intptr_t j, i = simd_oprsz(desc);
     uint64_t *g = vg;
@@ -5141,10 +5148,10 @@ void HELPER(sve_fcadd_d)(void *vd, void *vn, void *vm, void *vg,
             e3 = *(float64 *)(vm + H1_2(i)) ^ neg_imag;
 
             if (likely((pg >> (i & 63)) & 1)) {
-                *(float64 *)(vd + H1_2(i)) = float64_add(e0, e1, vs);
+                *(float64 *)(vd + H1_2(i)) = float64_add(e0, e1, s);
             }
             if (likely((pg >> (j & 63)) & 1)) {
-                *(float64 *)(vd + H1_2(j)) = float64_add(e2, e3, vs);
+                *(float64 *)(vd + H1_2(j)) = float64_add(e2, e3, s);
             }
         } while (i & 63);
     } while (i != 0);
@@ -5155,7 +5162,7 @@ void HELPER(sve_fcadd_d)(void *vd, void *vn, void *vm, void *vg,
  */
 
 void HELPER(sve_fcmla_zpzzz_h)(void *vd, void *vn, void *vm, void *va,
-                               void *vg, void *status, uint32_t desc)
+                               void *vg, float_status *status, uint32_t desc)
 {
     intptr_t j, i = simd_oprsz(desc);
     unsigned rot = simd_data(desc);
@@ -5200,7 +5207,7 @@ void HELPER(sve_fcmla_zpzzz_h)(void *vd, void *vn, void *vm, void *va,
 }
 
 void HELPER(sve_fcmla_zpzzz_s)(void *vd, void *vn, void *vm, void *va,
-                               void *vg, void *status, uint32_t desc)
+                               void *vg, float_status *status, uint32_t desc)
 {
     intptr_t j, i = simd_oprsz(desc);
     unsigned rot = simd_data(desc);
@@ -5245,7 +5252,7 @@ void HELPER(sve_fcmla_zpzzz_s)(void *vd, void *vn, void *vm, void *va,
 }
 
 void HELPER(sve_fcmla_zpzzz_d)(void *vd, void *vn, void *vm, void *va,
-                               void *vg, void *status, uint32_t desc)
+                               void *vg, float_status *status, uint32_t desc)
 {
     intptr_t j, i = simd_oprsz(desc);
     unsigned rot = simd_data(desc);
@@ -6317,9 +6324,6 @@ void sve_stN_r(CPUARMState *env, uint64_t *vg, target_ulong addr,
 
     flags = info.page[0].flags | info.page[1].flags;
     if (unlikely(flags != 0)) {
-#ifdef CONFIG_USER_ONLY
-        g_assert_not_reached();
-#else
         /*
          * At least one page includes MMIO.
          * Any bus operation can fail with cpu_transaction_failed,
@@ -6350,7 +6354,6 @@ void sve_stN_r(CPUARMState *env, uint64_t *vg, target_ulong addr,
             } while (reg_off & 63);
         } while (reg_off <= reg_last);
         return;
-#endif
     }
 
     mem_off = info.mem_off_first[0];
@@ -7393,7 +7396,7 @@ void HELPER(sve2_xar_s)(void *vd, void *vn, void *vm, uint32_t desc)
 }
 
 void HELPER(fmmla_s)(void *vd, void *vn, void *vm, void *va,
-                     void *status, uint32_t desc)
+                     float_status *status, uint32_t desc)
 {
     intptr_t s, opr_sz = simd_oprsz(desc) / (sizeof(float32) * 4);
 
@@ -7431,7 +7434,7 @@ void HELPER(fmmla_s)(void *vd, void *vn, void *vm, void *va,
 }
 
 void HELPER(fmmla_d)(void *vd, void *vn, void *vm, void *va,
-                     void *status, uint32_t desc)
+                     float_status *status, uint32_t desc)
 {
     intptr_t s, opr_sz = simd_oprsz(desc) / (sizeof(float64) * 4);
 
@@ -7467,7 +7470,8 @@ void HELPER(fmmla_d)(void *vd, void *vn, void *vm, void *va,
 }
 
 #define DO_FCVTNT(NAME, TYPEW, TYPEN, HW, HN, OP)                             \
-void HELPER(NAME)(void *vd, void *vn, void *vg, void *status, uint32_t desc)  \
+void HELPER(NAME)(void *vd, void *vn, void *vg,                               \
+                  float_status *status, uint32_t desc)                        \
 {                                                                             \
     intptr_t i = simd_oprsz(desc);                                            \
     uint64_t *g = vg;                                                         \
@@ -7488,7 +7492,8 @@ DO_FCVTNT(sve2_fcvtnt_sh, uint32_t, uint16_t, H1_4, H1_2, sve_f32_to_f16)
 DO_FCVTNT(sve2_fcvtnt_ds, uint64_t, uint32_t, H1_8, H1_4, float64_to_float32)
 
 #define DO_FCVTLT(NAME, TYPEW, TYPEN, HW, HN, OP)                             \
-void HELPER(NAME)(void *vd, void *vn, void *vg, void *status, uint32_t desc)  \
+void HELPER(NAME)(void *vd, void *vn, void *vg,                               \
+                  float_status *status, uint32_t desc)                        \
 {                                                                             \
     intptr_t i = simd_oprsz(desc);                                            \
     uint64_t *g = vg;                                                         \

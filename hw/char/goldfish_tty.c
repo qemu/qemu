@@ -16,7 +16,7 @@
 #include "qemu/log.h"
 #include "trace.h"
 #include "exec/address-spaces.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "hw/char/goldfish_tty.h"
 
 #define GOLDFISH_TTY_VERSION 1
@@ -241,9 +241,8 @@ static const VMStateDescription vmstate_goldfish_tty = {
     }
 };
 
-static Property goldfish_tty_properties[] = {
+static const Property goldfish_tty_properties[] = {
     DEFINE_PROP_CHR("chardev", GoldfishTTYState, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void goldfish_tty_instance_init(Object *obj)

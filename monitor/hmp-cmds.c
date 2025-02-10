@@ -28,7 +28,7 @@
 #include "qapi/qmp/qdict.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 bool hmp_handle_error(Monitor *mon, Error *err)
 {
@@ -285,7 +285,7 @@ void hmp_gdbserver(Monitor *mon, const QDict *qdict)
         device = "tcp::" DEFAULT_GDBSTUB_PORT;
     }
 
-    if (gdbserver_start(device) < 0) {
+    if (!gdbserver_start(device, &error_warn)) {
         monitor_printf(mon, "Could not open gdbserver on device '%s'\n",
                        device);
     } else if (strcmp(device, "none") == 0) {

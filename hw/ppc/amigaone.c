@@ -21,8 +21,8 @@
 #include "hw/ide/pci.h"
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/ppc/ppc.h"
-#include "sysemu/qtest.h"
-#include "sysemu/reset.h"
+#include "system/qtest.h"
+#include "system/reset.h"
 #include "kvm_ppc.h"
 
 #define BUS_FREQ_HZ 100000000

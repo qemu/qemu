@@ -26,7 +26,7 @@
 #include "qemu/timer.h"
 #include "qemu/units.h"
 #include "trace.h"
-#include "sysemu/watchdog.h"
+#include "system/watchdog.h"
 
 /*
  * The reference clock hz, and the SECCNT and CNTR25M registers in this module,

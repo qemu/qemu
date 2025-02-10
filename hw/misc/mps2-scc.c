@@ -456,7 +456,7 @@ static const VMStateDescription mps2_scc_vmstate = {
     }
 };
 
-static Property mps2_scc_properties[] = {
+static const Property mps2_scc_properties[] = {
     /* Values for various read-only ID registers (which are specific
      * to the board model or FPGA image)
      */
@@ -472,7 +472,6 @@ static Property mps2_scc_properties[] = {
      */
     DEFINE_PROP_ARRAY("oscclk", MPS2SCC, num_oscclk, oscclk_reset,
                       qdev_prop_uint32, uint32_t),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void mps2_scc_class_init(ObjectClass *klass, void *data)

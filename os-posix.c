@@ -32,7 +32,7 @@
 
 #include "qemu/error-report.h"
 #include "qemu/log.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "qemu/cutils.h"
 
 #ifdef CONFIG_LINUX

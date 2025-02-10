@@ -156,8 +156,8 @@ static uint32_t pcie_pci_bridge_read_config(PCIDevice *d,
 #endif
 
 static Property pcie_pci_bridge_dev_properties[] = {
+static const Property pcie_pci_bridge_dev_properties[] = {
         DEFINE_PROP_ON_OFF_AUTO("msi", PCIEPCIBridge, msi, ON_OFF_AUTO_AUTO),
-        DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription pcie_pci_bridge_dev_vmstate = {

@@ -12,7 +12,7 @@
 #include "hw/qdev-properties.h"
 #include "qemu/module.h"
 #include "qom/object.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 
 #define TYPE_ISA_DEBUG_EXIT_DEVICE "isa-debug-exit"
 OBJECT_DECLARE_SIMPLE_TYPE(ISADebugExitState, ISA_DEBUG_EXIT_DEVICE)
@@ -56,10 +56,9 @@ static void debug_exit_realizefn(DeviceState *d, Error **errp)
                                 isa->iobase, &isa->io);
 }
 
-static Property debug_exit_properties[] = {
+static const Property debug_exit_properties[] = {
     DEFINE_PROP_UINT32("iobase", ISADebugExitState, iobase, 0x501),
     DEFINE_PROP_UINT32("iosize", ISADebugExitState, iosize, 0x02),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void debug_exit_class_initfn(ObjectClass *klass, void *data)

@@ -3480,7 +3480,7 @@ static uint64_t vldi_get_value(DisasContext *ctx, uint32_t imm)
         break;
     case 1:
         /* data: {2{16'0, imm[7:0], 8'0}} */
-        data = (t << 24) | (t << 8);
+        data = (t << 40) | (t << 8);
         break;
     case 2:
         /* data: {2{8'0, imm[7:0], 16'0}} */
@@ -5126,7 +5126,7 @@ static bool do_vbsrl_v(DisasContext *ctx, arg_vv_i *a, uint32_t oprsz)
 {
     int i, ofs;
 
-    if (!check_vec(ctx, 32)) {
+    if (!check_vec(ctx, oprsz)) {
         return true;
     }
 

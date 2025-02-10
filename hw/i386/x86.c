@@ -27,8 +27,8 @@
 #include "qapi/qapi-visit-common.h"
 #include "qapi/qapi-visit-machine.h"
 #include "qapi/visitor.h"
-#include "sysemu/qtest.h"
-#include "sysemu/numa.h"
+#include "system/qtest.h"
+#include "system/numa.h"
 #include "trace.h"
 
 #include "hw/acpi/aml-build.h"

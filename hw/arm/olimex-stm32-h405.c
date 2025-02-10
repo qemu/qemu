@@ -51,7 +51,7 @@ static void olimex_stm32_h405_init(MachineState *machine)
     qdev_connect_clock_in(dev, "sysclk", sysclk);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
-    armv7m_load_kernel(ARM_CPU(first_cpu),
+    armv7m_load_kernel(STM32F405_SOC(dev)->armv7m.cpu,
                        machine->kernel_filename,
                        0, FLASH_SIZE);
 }

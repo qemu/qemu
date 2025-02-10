@@ -209,8 +209,8 @@ void imx_i2c_init(IMXI2C *s, QTestState *qts, uint64_t addr)
 
 static void imx_i2c_register_nodes(void)
 {
-    qos_node_create_driver("imx.i2c", NULL);
-    qos_node_produces("imx.i2c", "i2c-bus");
+    qos_node_create_driver(TYPE_IMX_I2C, NULL);
+    qos_node_produces(TYPE_IMX_I2C, "i2c-bus");
 }
 
 libqos_init(imx_i2c_register_nodes);

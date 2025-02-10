@@ -15,7 +15,7 @@
 #include "exec/memop.h"
 #include "exec/memory.h"
 #include "qemu/error-report.h"
-#include "sysemu/hw_accel.h"
+#include "system/hw_accel.h"
 #include "hw/pci/pci_device.h"
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/s390x/s390-pci-bus.h"

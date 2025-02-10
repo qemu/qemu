@@ -14,7 +14,7 @@ while getopts "o:" arg; do
   esac
 done
 
-for machine in tests/data/acpi/*
+for machine in tests/data/acpi/*/*
 do
     if [[ ! -d "$machine" ]];
     then

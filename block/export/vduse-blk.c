@@ -273,7 +273,6 @@ static int vduse_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
     uint64_t logical_block_size = VIRTIO_BLK_SECTOR_SIZE;
     uint16_t num_queues = VDUSE_DEFAULT_NUM_QUEUE;
     uint16_t queue_size = VDUSE_DEFAULT_QUEUE_SIZE;
-    Error *local_err = NULL;
     struct virtio_blk_config config = { 0 };
     uint64_t features;
     int i, ret;
@@ -297,10 +296,8 @@ static int vduse_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
 
     if (vblk_opts->has_logical_block_size) {
         logical_block_size = vblk_opts->logical_block_size;
-        check_block_size(exp->id, "logical-block-size", logical_block_size,
-                         &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (!check_block_size("logical-block-size", logical_block_size,
+                              errp)) {
             return -EINVAL;
         }
     }

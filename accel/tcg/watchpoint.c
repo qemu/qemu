@@ -21,11 +21,14 @@
 #include "qemu/main-loop.h"
 #include "qemu/error-report.h"
 #include "exec/exec-all.h"
-#include "exec/translate-all.h"
-#include "sysemu/tcg.h"
-#include "sysemu/replay.h"
+#include "exec/page-protection.h"
+#include "exec/translation-block.h"
+#include "tb-internal.h"
+#include "system/tcg.h"
+#include "system/replay.h"
 #include "hw/core/tcg-cpu-ops.h"
 #include "hw/core/cpu.h"
+#include "internal-common.h"
 
 /*
  * Return true if this watchpoint address matches the specified

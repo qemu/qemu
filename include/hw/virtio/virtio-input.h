@@ -4,7 +4,7 @@
 #include "hw/virtio/vhost-user.h"
 #include "hw/virtio/vhost-user-base.h"
 #include "ui/input.h"
-#include "sysemu/vhost-user-backend.h"
+#include "system/vhost-user-backend.h"
 
 /* ----------------------------------------------------------------- */
 /* virtio input protocol                                             */

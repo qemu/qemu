@@ -64,111 +64,6 @@ typedef uint64_t TCGRegSet;
 #error unsupported
 #endif
 
-#if TCG_TARGET_REG_BITS == 32
-/* Turn some undef macros into false macros.  */
-#define TCG_TARGET_HAS_extr_i64_i32     0
-#define TCG_TARGET_HAS_div_i64          0
-#define TCG_TARGET_HAS_rem_i64          0
-#define TCG_TARGET_HAS_div2_i64         0
-#define TCG_TARGET_HAS_rot_i64          0
-#define TCG_TARGET_HAS_ext8s_i64        0
-#define TCG_TARGET_HAS_ext16s_i64       0
-#define TCG_TARGET_HAS_ext32s_i64       0
-#define TCG_TARGET_HAS_ext8u_i64        0
-#define TCG_TARGET_HAS_ext16u_i64       0
-#define TCG_TARGET_HAS_ext32u_i64       0
-#define TCG_TARGET_HAS_bswap16_i64      0
-#define TCG_TARGET_HAS_bswap32_i64      0
-#define TCG_TARGET_HAS_bswap64_i64      0
-#define TCG_TARGET_HAS_not_i64          0
-#define TCG_TARGET_HAS_andc_i64         0
-#define TCG_TARGET_HAS_orc_i64          0
-#define TCG_TARGET_HAS_eqv_i64          0
-#define TCG_TARGET_HAS_nand_i64         0
-#define TCG_TARGET_HAS_nor_i64          0
-#define TCG_TARGET_HAS_clz_i64          0
-#define TCG_TARGET_HAS_ctz_i64          0
-#define TCG_TARGET_HAS_ctpop_i64        0
-#define TCG_TARGET_HAS_deposit_i64      0
-#define TCG_TARGET_HAS_extract_i64      0
-#define TCG_TARGET_HAS_sextract_i64     0
-#define TCG_TARGET_HAS_extract2_i64     0
-#define TCG_TARGET_HAS_negsetcond_i64   0
-#define TCG_TARGET_HAS_add2_i64         0
-#define TCG_TARGET_HAS_sub2_i64         0
-#define TCG_TARGET_HAS_mulu2_i64        0
-#define TCG_TARGET_HAS_muls2_i64        0
-#define TCG_TARGET_HAS_muluh_i64        0
-#define TCG_TARGET_HAS_mulsh_i64        0
-/* Turn some undef macros into true macros.  */
-#define TCG_TARGET_HAS_add2_i32         1
-#define TCG_TARGET_HAS_sub2_i32         1
-#endif
-
-#ifndef TCG_TARGET_deposit_i32_valid
-#define TCG_TARGET_deposit_i32_valid(ofs, len) 1
-#endif
-#ifndef TCG_TARGET_deposit_i64_valid
-#define TCG_TARGET_deposit_i64_valid(ofs, len) 1
-#endif
-#ifndef TCG_TARGET_extract_i32_valid
-#define TCG_TARGET_extract_i32_valid(ofs, len) 1
-#endif
-#ifndef TCG_TARGET_extract_i64_valid
-#define TCG_TARGET_extract_i64_valid(ofs, len) 1
-#endif
-
-/* Only one of DIV or DIV2 should be defined.  */
-#if defined(TCG_TARGET_HAS_div_i32)
-#define TCG_TARGET_HAS_div2_i32         0
-#elif defined(TCG_TARGET_HAS_div2_i32)
-#define TCG_TARGET_HAS_div_i32          0
-#define TCG_TARGET_HAS_rem_i32          0
-#endif
-#if defined(TCG_TARGET_HAS_div_i64)
-#define TCG_TARGET_HAS_div2_i64         0
-#elif defined(TCG_TARGET_HAS_div2_i64)
-#define TCG_TARGET_HAS_div_i64          0
-#define TCG_TARGET_HAS_rem_i64          0
-#endif
-
-#if !defined(TCG_TARGET_HAS_v64) \
-    && !defined(TCG_TARGET_HAS_v128) \
-    && !defined(TCG_TARGET_HAS_v256)
-#define TCG_TARGET_MAYBE_vec            0
-#define TCG_TARGET_HAS_abs_vec          0
-#define TCG_TARGET_HAS_neg_vec          0
-#define TCG_TARGET_HAS_not_vec          0
-#define TCG_TARGET_HAS_andc_vec         0
-#define TCG_TARGET_HAS_orc_vec          0
-#define TCG_TARGET_HAS_nand_vec         0
-#define TCG_TARGET_HAS_nor_vec          0
-#define TCG_TARGET_HAS_eqv_vec          0
-#define TCG_TARGET_HAS_roti_vec         0
-#define TCG_TARGET_HAS_rots_vec         0
-#define TCG_TARGET_HAS_rotv_vec         0
-#define TCG_TARGET_HAS_shi_vec          0
-#define TCG_TARGET_HAS_shs_vec          0
-#define TCG_TARGET_HAS_shv_vec          0
-#define TCG_TARGET_HAS_mul_vec          0
-#define TCG_TARGET_HAS_sat_vec          0
-#define TCG_TARGET_HAS_minmax_vec       0
-#define TCG_TARGET_HAS_bitsel_vec       0
-#define TCG_TARGET_HAS_cmpsel_vec       0
-#define TCG_TARGET_HAS_tst_vec          0
-#else
-#define TCG_TARGET_MAYBE_vec            1
-#endif
-#ifndef TCG_TARGET_HAS_v64
-#define TCG_TARGET_HAS_v64              0
-#endif
-#ifndef TCG_TARGET_HAS_v128
-#define TCG_TARGET_HAS_v128             0
-#endif
-#ifndef TCG_TARGET_HAS_v256
-#define TCG_TARGET_HAS_v256             0
-#endif
-
 typedef enum TCGOpcode {
 #define DEF(name, oargs, iargs, cargs, flags) INDEX_op_ ## name,
 #include "tcg/tcg-opc.h"
@@ -439,7 +334,8 @@ struct TCGOp {
 #define TCGOP_CALLI(X)    (X)->param1
 #define TCGOP_CALLO(X)    (X)->param2
 
-#define TCGOP_VECL(X)     (X)->param1
+#define TCGOP_TYPE(X)     (X)->param1
+#define TCGOP_FLAGS(X)    (X)->param2
 #define TCGOP_VECE(X)     (X)->param2
 
 /* Make sure operands fit in the bitfields above.  */
@@ -497,12 +393,8 @@ struct TCGContext {
     CPUState *cpu;                      /* *_trans */
 
     /* These structures are private to tcg-target.c.inc.  */
-#ifdef TCG_TARGET_NEED_LDST_LABELS
     QSIMPLEQ_HEAD(, TCGLabelQemuLdst) ldst_labels;
-#endif
-#ifdef TCG_TARGET_NEED_POOL_LABELS
     struct TCGLabelPoolData *pool_labels;
-#endif
 
     TCGLabel *exitreq_label;
 
@@ -519,6 +411,12 @@ struct TCGContext {
 
     /* descriptor of the instruction being translated */
     struct qemu_plugin_insn *plugin_insn;
+#endif
+
+    /* For host-specific values. */
+#ifdef __riscv
+    MemOp riscv_cur_vsew;
+    TCGType riscv_cur_type;
 #endif
 
     GHashTable *const_table[TCG_TYPE_COUNT];
@@ -740,10 +638,51 @@ void tcg_region_reset_all(void);
 size_t tcg_code_size(void);
 size_t tcg_code_capacity(void);
 
+/**
+ * tcg_tb_insert:
+ * @tb: translation block to insert
+ *
+ * Insert @tb into the region trees.
+ */
 void tcg_tb_insert(TranslationBlock *tb);
+
+/**
+ * tcg_tb_remove:
+ * @tb: translation block to remove
+ *
+ * Remove @tb from the region trees.
+ */
 void tcg_tb_remove(TranslationBlock *tb);
+
+/**
+ * tcg_tb_lookup:
+ * @tc_ptr: host PC to look up
+ *
+ * Look up a translation block inside the region trees by @tc_ptr. This is
+ * useful for exception handling, but must not be used for the purposes of
+ * executing the returned translation block. See struct tb_tc for more
+ * information.
+ *
+ * Returns: a translation block previously inserted into the region trees,
+ * such that @tc_ptr points anywhere inside the code generated for it, or
+ * NULL.
+ */
 TranslationBlock *tcg_tb_lookup(uintptr_t tc_ptr);
+
+/**
+ * tcg_tb_foreach:
+ * @func: callback
+ * @user_data: opaque value to pass to @callback
+ *
+ * Call @func for each translation block inserted into the region trees.
+ */
 void tcg_tb_foreach(GTraverseFunc func, gpointer user_data);
+
+/**
+ * tcg_nb_tbs:
+ *
+ * Returns: the number of translation blocks inserted into the region trees.
+ */
 size_t tcg_nb_tbs(void);
 
 /* user-mode: Called with mmap_lock held.  */
@@ -801,8 +740,6 @@ enum {
     /* Instruction has side effects: it cannot be removed if its outputs
        are not used, and might trigger exceptions.  */
     TCG_OPF_SIDE_EFFECTS = 0x08,
-    /* Instruction operands are 64-bits (otherwise 32-bits).  */
-    TCG_OPF_64BIT        = 0x10,
     /* Instruction is optional and not implemented by the host, or insn
        is generic and should not be implemented by the host.  */
     TCG_OPF_NOT_PRESENT  = 0x20,
@@ -816,18 +753,23 @@ typedef struct TCGOpDef {
     const char *name;
     uint8_t nb_oargs, nb_iargs, nb_cargs, nb_args;
     uint8_t flags;
-    TCGArgConstraint *args_ct;
 } TCGOpDef;
 
-extern TCGOpDef tcg_op_defs[];
+extern const TCGOpDef tcg_op_defs[];
 extern const size_t tcg_op_defs_max;
 
-typedef struct TCGTargetOpDef {
-    TCGOpcode op;
-    const char *args_ct_str[TCG_MAX_OP_ARGS];
-} TCGTargetOpDef;
-
-bool tcg_op_supported(TCGOpcode op);
+/*
+ * tcg_op_supported:
+ * Query if @op, for @type and @flags, is supported by the host
+ * on which we are currently executing.
+ */
+bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags);
+/*
+ * tcg_op_deposit_valid:
+ * Query if a deposit into (ofs, len) is supported for @type by
+ * the host on which we are currently executing.
+ */
+bool tcg_op_deposit_valid(TCGType type, unsigned ofs, unsigned len);
 
 void tcg_gen_call0(void *func, TCGHelperInfo *, TCGTemp *ret);
 void tcg_gen_call1(void *func, TCGHelperInfo *, TCGTemp *ret, TCGTemp *);
@@ -848,10 +790,6 @@ void tcg_gen_call7(void *func, TCGHelperInfo *, TCGTemp *ret,
 
 TCGOp *tcg_emit_op(TCGOpcode opc, unsigned nargs);
 void tcg_op_remove(TCGContext *s, TCGOp *op);
-TCGOp *tcg_op_insert_before(TCGContext *s, TCGOp *op,
-                            TCGOpcode opc, unsigned nargs);
-TCGOp *tcg_op_insert_after(TCGContext *s, TCGOp *op,
-                           TCGOpcode opc, unsigned nargs);
 
 /**
  * tcg_remove_ops_after:
@@ -1010,17 +948,10 @@ extern tcg_prologue_fn *tcg_qemu_tb_exec;
 
 void tcg_register_jit(const void *buf, size_t buf_size);
 
-#if TCG_TARGET_MAYBE_vec
 /* Return zero if the tuple (opc, type, vece) is unsupportable;
    return > 0 if it is directly supportable;
    return < 0 if we must call tcg_expand_vec_op.  */
 int tcg_can_emit_vec_op(TCGOpcode, TCGType, unsigned);
-#else
-static inline int tcg_can_emit_vec_op(TCGOpcode o, TCGType t, unsigned ve)
-{
-    return 0;
-}
-#endif
 
 /* Expand the tuple (opc, type, vece) on the given arguments.  */
 void tcg_expand_vec_op(TCGOpcode, TCGType, unsigned, TCGArg, ...);

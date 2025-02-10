@@ -901,26 +901,6 @@ class TypeRegisterCall(FileMatch):
     regexp = S(r'^[ \t]*', NAMED('func_name', 'type_register'),
                r'\s*\(&\s*', NAMED('name', RE_IDENTIFIER), r'\s*\);[ \t]*\n')
 
-class MakeTypeRegisterStatic(TypeRegisterCall):
-    """Make type_register() call static if variable is static const"""
-    def gen_patches(self):
-        var = self.file.find_match(TypeInfoVar, self.name)
-        if var is None:
-            self.warn("can't find TypeInfo var declaration for %s", self.name)
-            return
-        if var.is_static() and var.is_const():
-            yield self.group_match('func_name').make_patch('type_register_static')
-
-class MakeTypeRegisterNotStatic(TypeRegisterStaticCall):
-    """Make type_register() call static if variable is static const"""
-    def gen_patches(self):
-        var = self.file.find_match(TypeInfoVar, self.name)
-        if var is None:
-            self.warn("can't find TypeInfo var declaration for %s", self.name)
-            return
-        if not var.is_static() or not var.is_const():
-            yield self.group_match('func_name').make_patch('type_register')
-
 class TypeInfoMacro(FileMatch):
     """TYPE_INFO macro usage"""
     regexp = S(r'^[ \t]*TYPE_INFO\s*\(\s*', NAMED('name', RE_IDENTIFIER), r'\s*\)[ \t]*;?[ \t]*\n')

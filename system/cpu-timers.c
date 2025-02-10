@@ -27,16 +27,15 @@
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 #include "qemu/main-loop.h"
 #include "qemu/option.h"
 #include "qemu/seqlock.h"
-#include "sysemu/replay.h"
-#include "sysemu/runstate.h"
+#include "system/replay.h"
+#include "system/runstate.h"
 #include "hw/core/cpu.h"
-#include "sysemu/cpu-timers.h"
-#include "sysemu/cpu-throttle.h"
-#include "sysemu/cpu-timers-internal.h"
+#include "system/cpu-timers.h"
+#include "system/cpu-timers-internal.h"
 
 /* clock and ticks */
 
@@ -272,6 +271,4 @@ void cpu_timers_init(void)
     seqlock_init(&timers_state.vm_clock_seqlock);
     qemu_spin_init(&timers_state.vm_clock_lock);
     vmstate_register(NULL, 0, &vmstate_timers, &timers_state);
-
-    cpu_throttle_init();
 }

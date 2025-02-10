@@ -33,7 +33,7 @@
 #include "qapi/error.h"
 #include "block/block_int.h"
 #include "block/qdict.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qapi/qmp/qdict.h"
@@ -184,11 +184,11 @@ static int mark_used(BlockDriverState *bs, unsigned long *bitmap,
     BDRVParallelsState *s = bs->opaque;
     uint32_t cluster_index = host_cluster_index(s, off);
     unsigned long next_used;
-    if (cluster_index + count > bitmap_size) {
+    if ((uint64_t)cluster_index + count > bitmap_size) {
         return -E2BIG;
     }
     next_used = find_next_bit(bitmap, bitmap_size, cluster_index);
-    if (next_used < cluster_index + count) {
+    if (next_used < (uint64_t)cluster_index + count) {
         return -EBUSY;
     }
     bitmap_set(bitmap, cluster_index, count);
@@ -1296,6 +1296,10 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     s->bat_size = le32_to_cpu(ph.bat_entries);
     if (s->bat_size > INT_MAX / sizeof(uint32_t)) {
         error_setg(errp, "Catalog too large");
+        return -EFBIG;
+    }
+    if (le64_to_cpu(ph.ext_off) >= (INT64_MAX >> BDRV_SECTOR_BITS)) {
+        error_setg(errp, "Invalid image: Too big offset");
         return -EFBIG;
     }
 

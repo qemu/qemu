@@ -13,22 +13,22 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 #include "hw/nvram/fw_cfg.h"
 #include "migration/vmstate.h"
 #include "hw/misc/vmcoreinfo.h"
 
-static void fw_cfg_vmci_write(void *dev, off_t offset, size_t len)
+static void fw_cfg_vmci_write(void *opaque, off_t offset, size_t len)
 {
-    VMCoreInfoState *s = VMCOREINFO(dev);
+    VMCoreInfoState *s = opaque;
 
     s->has_vmcoreinfo = offset == 0 && len == sizeof(s->vmcoreinfo)
         && s->vmcoreinfo.guest_format != FW_CFG_VMCOREINFO_FORMAT_NONE;
 }
 
-static void vmcoreinfo_reset(void *dev)
+static void vmcoreinfo_reset_hold(Object *obj, ResetType type)
 {
-    VMCoreInfoState *s = VMCOREINFO(dev);
+    VMCoreInfoState *s = VMCOREINFO(obj);
 
     s->has_vmcoreinfo = false;
     memset(&s->vmcoreinfo, 0, sizeof(s->vmcoreinfo));
@@ -47,13 +47,13 @@ static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
      */
     if (!vmcoreinfo_find()) {
         error_setg(errp, "at most one %s device is permitted",
-                   VMCOREINFO_DEVICE);
+                   TYPE_VMCOREINFO);
         return;
     }
 
     if (!fw_cfg || !fw_cfg->dma_enabled) {
         error_setg(errp, "%s device requires fw_cfg with DMA",
-                   VMCOREINFO_DEVICE);
+                   TYPE_VMCOREINFO);
         return;
     }
 
@@ -65,7 +65,7 @@ static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
      * This device requires to register a global reset because it is
      * not plugged to a bus (which, as its QOM parent, would reset it).
      */
-    qemu_register_reset(vmcoreinfo_reset, dev);
+    qemu_register_resettable(OBJECT(s));
     vmcoreinfo_state = s;
 }
 
@@ -86,23 +86,22 @@ static const VMStateDescription vmstate_vmcoreinfo = {
 static void vmcoreinfo_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->vmsd = &vmstate_vmcoreinfo;
     dc->realize = vmcoreinfo_realize;
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    rc->phases.hold = vmcoreinfo_reset_hold;
 }
 
-static const TypeInfo vmcoreinfo_device_info = {
-    .name          = VMCOREINFO_DEVICE,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(VMCoreInfoState),
-    .class_init    = vmcoreinfo_device_class_init,
+static const TypeInfo vmcoreinfo_types[] = {
+    {
+        .name           = TYPE_VMCOREINFO,
+        .parent         = TYPE_DEVICE,
+        .instance_size  = sizeof(VMCoreInfoState),
+        .class_init     = vmcoreinfo_device_class_init,
+    }
 };
 
-static void vmcoreinfo_register_types(void)
-{
-    type_register_static(&vmcoreinfo_device_info);
-}
-
-type_init(vmcoreinfo_register_types)
+DEFINE_TYPES(vmcoreinfo_types)

@@ -11,7 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/spdm-socket.h"
+#include "system/spdm-socket.h"
 #include "qapi/error.h"
 
 static bool read_bytes(const int socket, uint8_t *buffer,

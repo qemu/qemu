@@ -25,9 +25,9 @@
 #include "exec/target_page.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio.h"
-#include "sysemu/kvm.h"
-#include "sysemu/reset.h"
-#include "sysemu/sysemu.h"
+#include "system/kvm.h"
+#include "system/reset.h"
+#include "system/system.h"
 #include "qemu/reserved-region.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
@@ -1655,14 +1655,13 @@ static const VMStateDescription vmstate_virtio_iommu = {
     },
 };
 
-static Property virtio_iommu_properties[] = {
+static const Property virtio_iommu_properties[] = {
     DEFINE_PROP_LINK("primary-bus", VirtIOIOMMU, primary_bus,
                      TYPE_PCI_BUS, PCIBus *),
     DEFINE_PROP_BOOL("boot-bypass", VirtIOIOMMU, boot_bypass, true),
     DEFINE_PROP_GRANULE_MODE("granule", VirtIOIOMMU, granule_mode,
                              GRANULE_MODE_HOST),
     DEFINE_PROP_UINT8("aw-bits", VirtIOIOMMU, aw_bits, 64),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_iommu_class_init(ObjectClass *klass, void *data)

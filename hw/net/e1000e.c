@@ -42,6 +42,7 @@
 #include "qemu/range.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/spdm.h"
+#include "system/system.h"
 #include "hw/hw.h"
 #include "hw/net/mii.h"
 #include "hw/pci/msi.h"
@@ -697,7 +698,7 @@ static PropertyInfo e1000e_prop_disable_vnet,
                     e1000e_prop_subsys_ven,
                     e1000e_prop_subsys;
 
-static Property e1000e_properties[] = {
+static const Property e1000e_properties[] = {
     DEFINE_NIC_PROPERTIES(E1000EState, conf),
     DEFINE_PROP_SIGNED("disable_vnet_hdr", E1000EState, disable_vnet, false,
                         e1000e_prop_disable_vnet, bool),
@@ -708,7 +709,6 @@ static Property e1000e_properties[] = {
                         e1000e_prop_subsys, uint16_t),
     DEFINE_PROP_BOOL("init-vet", E1000EState, init_vet, true),
     DEFINE_PROP_BOOL("migrate-timadj", E1000EState, timadj, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void e1000e_class_init(ObjectClass *class, void *data)

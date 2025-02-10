@@ -71,6 +71,7 @@
 #define MII_BMSR_JABBER     (1 << 1)  /* Jabber detected */
 #define MII_BMSR_EXTCAP     (1 << 0)  /* Ext-reg capability */
 
+#define MII_ANAR_RFAULT     (1 << 13) /* Say we can detect faults */
 #define MII_ANAR_PAUSE_ASYM (1 << 11) /* Try for asymmetric pause */
 #define MII_ANAR_PAUSE      (1 << 10) /* Try for pause */
 #define MII_ANAR_TXFD       (1 << 8)
@@ -78,6 +79,7 @@
 #define MII_ANAR_10FD       (1 << 6)
 #define MII_ANAR_10         (1 << 5)
 #define MII_ANAR_CSMACD     (1 << 0)
+#define MII_ANAR_SELECT     (0x001f)  /* Selector bits */
 
 #define MII_ANLPAR_ACK      (1 << 14)
 #define MII_ANLPAR_PAUSEASY (1 << 11) /* can pause asymmetrically */
@@ -111,6 +113,10 @@
 /* RealTek 8201 */
 #define RTL8201CP_PHYID1    0x0000
 #define RTL8201CP_PHYID2    0x8201
+
+/* SMSC LAN9118 */
+#define SMSCLAN9118_PHYID1  0x0007
+#define SMSCLAN9118_PHYID2  0xc0d1
 
 /* RealTek 8211E */
 #define RTL8211E_PHYID1     0x001c

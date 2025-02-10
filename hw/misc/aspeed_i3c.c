@@ -323,9 +323,8 @@ static void aspeed_i3c_realize(DeviceState *dev, Error **errp)
 
 }
 
-static Property aspeed_i3c_device_properties[] = {
+static const Property aspeed_i3c_device_properties[] = {
     DEFINE_PROP_UINT8("device-id", AspeedI3CDevice, id, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void aspeed_i3c_device_class_init(ObjectClass *klass, void *data)

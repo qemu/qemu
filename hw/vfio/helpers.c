@@ -27,6 +27,7 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/units.h"
 #include "monitor/monitor.h"
 
 /*
@@ -395,7 +396,7 @@ static void vfio_subregion_unmap(VFIORegion *region, int index)
 
 int vfio_region_mmap(VFIORegion *region)
 {
-    int i, prot = 0;
+    int i, ret, prot = 0;
     char *name;
 
     if (!region->mem) {
@@ -406,27 +407,40 @@ int vfio_region_mmap(VFIORegion *region)
     prot |= region->flags & VFIO_REGION_INFO_FLAG_WRITE ? PROT_WRITE : 0;
 
     for (i = 0; i < region->nr_mmaps; i++) {
-        region->mmaps[i].mmap = mmap(NULL, region->mmaps[i].size, prot,
-                                     MAP_SHARED, region->vbasedev->fd,
+        size_t align = MIN(1ULL << ctz64(region->mmaps[i].size), 1 * GiB);
+        void *map_base, *map_align;
+
+        /*
+         * Align the mmap for more efficient mapping in the kernel.  Ideally
+         * we'd know the PMD and PUD mapping sizes to use as discrete alignment
+         * intervals, but we don't.  As of Linux v6.12, the largest PUD size
+         * supporting huge pfnmap is 1GiB (ARCH_SUPPORTS_PUD_PFNMAP is only set
+         * on x86_64).  Align by power-of-two size, capped at 1GiB.
+         *
+         * NB. qemu_memalign() and friends actually allocate memory, whereas
+         * the region size here can exceed host memory, therefore we manually
+         * create an oversized anonymous mapping and clean it up for alignment.
+         */
+        map_base = mmap(0, region->mmaps[i].size + align, PROT_NONE,
+                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (map_base == MAP_FAILED) {
+            ret = -errno;
+            goto no_mmap;
+        }
+
+        map_align = (void *)ROUND_UP((uintptr_t)map_base, (uintptr_t)align);
+        munmap(map_base, map_align - map_base);
+        munmap(map_align + region->mmaps[i].size,
+               align - (map_align - map_base));
+
+        region->mmaps[i].mmap = mmap(map_align, region->mmaps[i].size, prot,
+                                     MAP_SHARED | MAP_FIXED,
+                                     region->vbasedev->fd,
                                      region->fd_offset +
                                      region->mmaps[i].offset);
         if (region->mmaps[i].mmap == MAP_FAILED) {
-            int ret = -errno;
-
-            trace_vfio_region_mmap_fault(memory_region_name(region->mem), i,
-                                         region->fd_offset +
-                                         region->mmaps[i].offset,
-                                         region->fd_offset +
-                                         region->mmaps[i].offset +
-                                         region->mmaps[i].size - 1, ret);
-
-            region->mmaps[i].mmap = NULL;
-
-            for (i--; i >= 0; i--) {
-                vfio_subregion_unmap(region, i);
-            }
-
-            return ret;
+            ret = -errno;
+            goto no_mmap;
         }
 
         name = g_strdup_printf("%s mmaps[%d]",
@@ -446,6 +460,20 @@ int vfio_region_mmap(VFIORegion *region)
     }
 
     return 0;
+
+no_mmap:
+    trace_vfio_region_mmap_fault(memory_region_name(region->mem), i,
+                                 region->fd_offset + region->mmaps[i].offset,
+                                 region->fd_offset + region->mmaps[i].offset +
+                                 region->mmaps[i].size - 1, ret);
+
+    region->mmaps[i].mmap = NULL;
+
+    for (i--; i >= 0; i--) {
+        vfio_subregion_unmap(region, i);
+    }
+
+    return ret;
 }
 
 void vfio_region_unmap(VFIORegion *region)

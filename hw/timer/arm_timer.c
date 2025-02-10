@@ -387,10 +387,9 @@ static const TypeInfo icp_pit_info = {
     .instance_init = icp_pit_init,
 };
 
-static Property sp804_properties[] = {
+static const Property sp804_properties[] = {
     DEFINE_PROP_UINT32("freq0", SP804State, freq0, 1000000),
     DEFINE_PROP_UINT32("freq1", SP804State, freq1, 1000000),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void sp804_class_init(ObjectClass *klass, void *data)

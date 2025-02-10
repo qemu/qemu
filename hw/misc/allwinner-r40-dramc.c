@@ -464,10 +464,9 @@ static void allwinner_r40_dramc_init(Object *obj)
     sysbus_init_mmio(sbd, &s->dramphy_iomem);
 }
 
-static Property allwinner_r40_dramc_properties[] = {
+static const Property allwinner_r40_dramc_properties[] = {
     DEFINE_PROP_UINT64("ram-addr", AwR40DramCtlState, ram_addr, 0x0),
     DEFINE_PROP_UINT32("ram-size", AwR40DramCtlState, ram_size, 256), /* MiB */
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static const VMStateDescription allwinner_r40_dramc_vmstate = {

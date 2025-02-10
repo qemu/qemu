@@ -398,6 +398,8 @@ static inline void mb_cpu_write_msr(CPUMBState *env, uint32_t val)
 }
 
 void mb_tcg_init(void);
+void mb_translate_code(CPUState *cs, TranslationBlock *tb,
+                       int *max_insns, vaddr pc, void *host_pc);
 
 #define CPU_RESOLVING_TYPE TYPE_MICROBLAZE_CPU
 

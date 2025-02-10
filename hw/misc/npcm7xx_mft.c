@@ -172,8 +172,9 @@ static NPCM7xxMFTCaptureState npcm7xx_mft_compute_cnt(
          * RPM = revolution/min. The time for one revlution (in ns) is
          * MINUTE_TO_NANOSECOND / RPM.
          */
-        count = clock_ns_to_ticks(clock, (60 * NANOSECONDS_PER_SECOND) /
-            (rpm * NPCM7XX_MFT_PULSE_PER_REVOLUTION));
+        count = clock_ns_to_ticks(clock,
+            (uint64_t)(60 * NANOSECONDS_PER_SECOND) /
+            ((uint64_t)rpm * NPCM7XX_MFT_PULSE_PER_REVOLUTION));
     }
 
     if (count > NPCM7XX_MFT_MAX_CNT) {

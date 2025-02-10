@@ -353,7 +353,7 @@ static const char *i440fx_pcihost_root_bus_path(PCIHostState *host_bridge,
     return "0000:00";
 }
 
-static Property i440fx_props[] = {
+static const Property i440fx_props[] = {
     DEFINE_PROP_SIZE(PCI_HOST_PROP_PCI_HOLE64_SIZE, I440FXState,
                      pci_hole64_size, I440FX_PCI_HOST_HOLE64_SIZE_DEFAULT),
     DEFINE_PROP_SIZE(PCI_HOST_BELOW_4G_MEM_SIZE, I440FXState,
@@ -362,7 +362,6 @@ static Property i440fx_props[] = {
                      above_4g_mem_size, 0),
     DEFINE_PROP_BOOL("x-pci-hole64-fix", I440FXState, pci_hole64_fix, true),
     DEFINE_PROP_STRING(I440FX_HOST_PROP_PCI_TYPE, I440FXState, pci_type),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void i440fx_pcihost_class_init(ObjectClass *klass, void *data)

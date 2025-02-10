@@ -29,19 +29,20 @@
 #include "migration/vmstate.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
+#include "user/page-protection.h"
 #else
 #include "hw/core/sysemu-cpu-ops.h"
 #include "exec/address-spaces.h"
 #include "exec/memory.h"
 #endif
-#include "sysemu/cpus.h"
-#include "sysemu/tcg.h"
+#include "system/cpus.h"
+#include "system/tcg.h"
 #include "exec/tswap.h"
 #include "exec/replay-core.h"
 #include "exec/cpu-common.h"
 #include "exec/exec-all.h"
 #include "exec/tb-flush.h"
-#include "exec/translate-all.h"
+#include "exec/translation-block.h"
 #include "exec/log.h"
 #include "hw/core/accel-cpu.h"
 #include "trace/trace-root.h"
@@ -183,7 +184,7 @@ void cpu_exec_unrealizefn(CPUState *cpu)
  * This can't go in hw/core/cpu.c because that file is compiled only
  * once for both user-mode and system builds.
  */
-static Property cpu_common_props[] = {
+static const Property cpu_common_props[] = {
 #ifdef CONFIG_USER_ONLY
     /*
      * Create a property for the user-only object, so users can
@@ -201,7 +202,6 @@ static Property cpu_common_props[] = {
     DEFINE_PROP_LINK("memory", CPUState, memory, TYPE_MEMORY_REGION,
                      MemoryRegion *),
 #endif
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 #ifndef CONFIG_USER_ONLY

@@ -31,6 +31,15 @@ void restore_fp_status(CPULoongArchState *env)
     set_float_rounding_mode(ieee_rm[(env->fcsr0 >> FCSR0_RM) & 0x3],
                             &env->fp_status);
     set_flush_to_zero(0, &env->fp_status);
+    set_float_2nan_prop_rule(float_2nan_prop_s_ab, &env->fp_status);
+    /*
+     * For LoongArch systems that conform to IEEE754-2008, the (inf,zero,nan)
+     * case sets InvalidOp and returns the input value 'c'
+     */
+    set_float_infzeronan_rule(float_infzeronan_dnan_never, &env->fp_status);
+    set_float_3nan_prop_rule(float_3nan_prop_s_cab, &env->fp_status);
+    /* Default NaN: sign bit clear, msb frac bit set */
+    set_float_default_nan_pattern(0b01000000, &env->fp_status);
 }
 
 int ieee_ex_to_loongarch(int xcpt)
@@ -352,8 +361,7 @@ uint64_t helper_fclass_s(CPULoongArchState *env, uint64_t fj)
     } else if (float32_is_zero_or_denormal(f)) {
         return sign ? 1 << 4 : 1 << 8;
     } else if (float32_is_any_nan(f)) {
-        float_status s = { }; /* for snan_bit_is_one */
-        return float32_is_quiet_nan(f, &s) ? 1 << 1 : 1 << 0;
+        return float32_is_quiet_nan(f, &env->fp_status) ? 1 << 1 : 1 << 0;
     } else {
         return sign ? 1 << 3 : 1 << 7;
     }
@@ -371,8 +379,7 @@ uint64_t helper_fclass_d(CPULoongArchState *env, uint64_t fj)
     } else if (float64_is_zero_or_denormal(f)) {
         return sign ? 1 << 4 : 1 << 8;
     } else if (float64_is_any_nan(f)) {
-        float_status s = { }; /* for snan_bit_is_one */
-        return float64_is_quiet_nan(f, &s) ? 1 << 1 : 1 << 0;
+        return float64_is_quiet_nan(f, &env->fp_status) ? 1 << 1 : 1 << 0;
     } else {
         return sign ? 1 << 3 : 1 << 7;
     }

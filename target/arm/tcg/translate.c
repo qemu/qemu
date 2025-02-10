@@ -228,6 +228,9 @@ static inline int get_a32_user_mem_index(DisasContext *s)
      */
     switch (s->mmu_idx) {
     case ARMMMUIdx_E3:
+    case ARMMMUIdx_E30_0:
+    case ARMMMUIdx_E30_3_PAN:
+        return arm_to_core_mmu_idx(ARMMMUIdx_E30_0);
     case ARMMMUIdx_E2:        /* this one is UNPREDICTABLE */
     case ARMMMUIdx_E10_0:
     case ARMMMUIdx_E10_1:
@@ -490,7 +493,7 @@ static void gen_add_CC(TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 static void gen_adc_CC(TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
     TCGv_i32 tmp = tcg_temp_new_i32();
-    if (TCG_TARGET_HAS_add2_i32) {
+    if (tcg_op_supported(INDEX_op_add2_i32, TCG_TYPE_I32, 0)) {
         tcg_gen_movi_i32(tmp, 0);
         tcg_gen_add2_i32(cpu_NF, cpu_CF, t0, tmp, cpu_CF, tmp);
         tcg_gen_add2_i32(cpu_NF, cpu_CF, cpu_NF, cpu_CF, t1, tmp);
@@ -7546,6 +7549,10 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 
     core_mmu_idx = EX_TBFLAG_ANY(tb_flags, MMUIDX);
     dc->mmu_idx = core_to_arm_mmu_idx(env, core_mmu_idx);
+    dc->current_el = arm_mmu_idx_to_el(dc->mmu_idx);
+#if !defined(CONFIG_USER_ONLY)
+    dc->user = (dc->current_el == 0);
+#endif
     dc->fp_excp_el = EX_TBFLAG_ANY(tb_flags, FPEXC_EL);
     dc->align_mem = EX_TBFLAG_ANY(tb_flags, ALIGN_MEM);
     dc->pstate_il = EX_TBFLAG_ANY(tb_flags, PSTATE__IL);
@@ -7576,12 +7583,7 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
         }
         dc->sme_trap_nonstreaming =
             EX_TBFLAG_A32(tb_flags, SME_TRAP_NONSTREAMING);
-        dc->s_pl1_0 = EX_TBFLAG_A32(tb_flags, S_PL1_0);
     }
-    dc->current_el = arm_mmu_idx_to_el(dc->mmu_idx, dc->s_pl1_0);
-#if !defined(CONFIG_USER_ONLY)
-    dc->user = (dc->current_el == 0);
-#endif
     dc->lse2 = false; /* applies only to aarch64 */
     dc->cp_regs = cpu->cp_regs;
     dc->features = env->features;
@@ -8091,9 +8093,8 @@ static const TranslatorOps thumb_translator_ops = {
     .tb_stop            = arm_tr_tb_stop,
 };
 
-/* generate intermediate code for basic block 'tb'.  */
-void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb, int *max_insns,
-                           vaddr pc, void *host_pc)
+void arm_translate_code(CPUState *cpu, TranslationBlock *tb,
+                        int *max_insns, vaddr pc, void *host_pc)
 {
     DisasContext dc = { };
     const TranslatorOps *ops = &arm_translator_ops;

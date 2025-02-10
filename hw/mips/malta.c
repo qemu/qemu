@@ -28,6 +28,7 @@
 #include "qemu/datadir.h"
 #include "qemu/cutils.h"
 #include "qemu/guest-random.h"
+#include "exec/tswap.h"
 #include "hw/clock.h"
 #include "hw/southbridge/piix.h"
 #include "hw/isa/superio.h"
@@ -48,12 +49,12 @@
 #include "qom/object.h"
 #include "hw/sysbus.h"             /* SysBusDevice */
 #include "qemu/host-utils.h"
-#include "sysemu/qtest.h"
-#include "sysemu/reset.h"
-#include "sysemu/runstate.h"
+#include "system/qtest.h"
+#include "system/reset.h"
+#include "system/runstate.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "semihosting/semihost.h"
 #include "hw/mips/cps.h"
 #include "hw/qdev-clock.h"
@@ -879,8 +880,9 @@ static uint64_t load_kernel(void)
     kernel_size = load_elf(loaderparams.kernel_filename, NULL,
                            cpu_mips_kseg0_to_phys, NULL,
                            &kernel_entry, NULL,
-                           &kernel_high, NULL, TARGET_BIG_ENDIAN, EM_MIPS,
-                           1, 0);
+                           &kernel_high, NULL,
+                           TARGET_BIG_ENDIAN ? ELFDATA2MSB : ELFDATA2LSB,
+                           EM_MIPS, 1, 0);
     if (kernel_size < 0) {
         error_report("could not load kernel '%s': %s",
                      loaderparams.kernel_filename,
@@ -1034,7 +1036,8 @@ static void create_cpu_without_cps(MachineState *ms, MaltaState *s,
     int i;
 
     for (i = 0; i < ms->smp.cpus; i++) {
-        cpu = mips_cpu_create_with_clock(ms->cpu_type, s->cpuclk);
+        cpu = mips_cpu_create_with_clock(ms->cpu_type, s->cpuclk,
+                                         TARGET_BIG_ENDIAN);
 
         /* Init internal devices */
         cpu_mips_irq_init_cpu(cpu);
@@ -1054,6 +1057,8 @@ static void create_cps(MachineState *ms, MaltaState *s,
     object_initialize_child(OBJECT(s), "cps", &s->cps, TYPE_MIPS_CPS);
     object_property_set_str(OBJECT(&s->cps), "cpu-type", ms->cpu_type,
                             &error_fatal);
+    object_property_set_bool(OBJECT(&s->cps), "cpu-big-endian",
+                             TARGET_BIG_ENDIAN, &error_abort);
     object_property_set_uint(OBJECT(&s->cps), "num-vp", ms->smp.cpus,
                             &error_fatal);
     qdev_connect_clock_in(DEVICE(&s->cps), "clk-in", s->cpuclk);

@@ -27,7 +27,7 @@
 #include "cpu.h"
 #include "s390x-internal.h"
 #include "kvm_s390x.h"
-#include "sysemu/kvm_int.h"
+#include "system/kvm_int.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -36,10 +36,10 @@
 #include "qemu/main-loop.h"
 #include "qemu/mmap-alloc.h"
 #include "qemu/log.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/hw_accel.h"
-#include "sysemu/runstate.h"
-#include "sysemu/device_tree.h"
+#include "system/system.h"
+#include "system/hw_accel.h"
+#include "system/runstate.h"
+#include "system/device_tree.h"
 #include "gdbstub/enums.h"
 #include "exec/ram_addr.h"
 #include "trace.h"
@@ -49,8 +49,9 @@
 #include "hw/s390x/ebcdic.h"
 #include "exec/memattrs.h"
 #include "hw/s390x/s390-virtio-ccw.h"
-#include "hw/s390x/s390-virtio-hcall.h"
+#include "hw/s390x/s390-hypercall.h"
 #include "target/s390x/kvm/pv.h"
+#include CONFIG_DEVICES
 
 #define kvm_vm_check_mem_attr(s, attr) \
     kvm_vm_check_attr(s, KVM_S390_VM_MEM_CTRL, attr)
@@ -373,13 +374,9 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     kvm_vm_enable_cap(s, KVM_CAP_S390_VECTOR_REGISTERS, 0);
     kvm_vm_enable_cap(s, KVM_CAP_S390_USER_STSI, 0);
     kvm_vm_enable_cap(s, KVM_CAP_S390_CPU_TOPOLOGY, 0);
-    if (ri_allowed()) {
-        if (kvm_vm_enable_cap(s, KVM_CAP_S390_RI, 0) == 0) {
-            cap_ri = 1;
-        }
-    }
-    if (cpu_model_allowed()) {
-        kvm_vm_enable_cap(s, KVM_CAP_S390_GS, 0);
+    kvm_vm_enable_cap(s, KVM_CAP_S390_GS, 0);
+    if (kvm_vm_enable_cap(s, KVM_CAP_S390_RI, 0) == 0) {
+        cap_ri = 1;
     }
 
     /*
@@ -388,7 +385,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
      * support is considered necessary, we only try to enable this for
      * newer machine types if KVM_CAP_S390_AIS_MIGRATION is available.
      */
-    if (cpu_model_allowed() && kvm_kernel_irqchip_allowed() &&
+    if (kvm_kernel_irqchip_allowed() &&
         kvm_check_extension(s, KVM_CAP_S390_AIS_MIGRATION)) {
         kvm_vm_enable_cap(s, KVM_CAP_S390_AIS, 0);
     }
@@ -1491,20 +1488,6 @@ static int handle_e3(S390CPU *cpu, struct kvm_run *run, uint8_t ipbl)
     return r;
 }
 
-static int handle_hypercall(S390CPU *cpu, struct kvm_run *run)
-{
-    CPUS390XState *env = &cpu->env;
-    int ret;
-
-    ret = s390_virtio_hypercall(env);
-    if (ret == -EINVAL) {
-        kvm_s390_program_interrupt(cpu, PGM_SPECIFICATION);
-        return 0;
-    }
-
-    return ret;
-}
-
 static void kvm_handle_diag_288(S390CPU *cpu, struct kvm_run *run)
 {
     uint64_t r1, r3;
@@ -1600,9 +1583,11 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
     case DIAG_SET_CONTROL_PROGRAM_CODES:
         handle_diag_318(cpu, run);
         break;
+#ifdef CONFIG_S390_CCW_VIRTIO
     case DIAG_KVM_HYPERCALL:
-        r = handle_hypercall(cpu, run);
+        handle_diag_500(cpu, RA_IGNORED);
         break;
+#endif /* CONFIG_S390_CCW_VIRTIO */
     case DIAG_KVM_BREAKPOINT:
         r = handle_sw_breakpoint(cpu, run);
         break;
@@ -2195,6 +2180,9 @@ static int query_cpu_subfunc(S390FeatBitmap features)
     if (test_bit(S390_FEAT_DEFLATE_BASE, features)) {
         s390_add_from_feat_block(features, S390_FEAT_TYPE_DFLTCC, prop.dfltcc);
     }
+    if (test_bit(S390_FEAT_CCF_BASE, features)) {
+        s390_add_from_feat_block(features, S390_FEAT_TYPE_PFCR, prop.pfcr);
+    }
     return 0;
 }
 
@@ -2247,6 +2235,9 @@ static int configure_cpu_subfunc(const S390FeatBitmap features)
     }
     if (test_bit(S390_FEAT_DEFLATE_BASE, features)) {
         s390_fill_feat_block(features, S390_FEAT_TYPE_DFLTCC, prop.dfltcc);
+    }
+    if (test_bit(S390_FEAT_CCF_BASE, features)) {
+        s390_fill_feat_block(features, S390_FEAT_TYPE_PFCR, prop.pfcr);
     }
     return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
 }
@@ -2359,10 +2350,6 @@ static int configure_cpu_feat(const S390FeatBitmap features)
 
 bool kvm_s390_cpu_models_supported(void)
 {
-    if (!cpu_model_allowed()) {
-        /* compatibility machines interfere with the cpu model */
-        return false;
-    }
     return kvm_vm_check_attr(kvm_state, KVM_S390_VM_CPU_MODEL,
                              KVM_S390_VM_CPU_MACHINE) &&
            kvm_vm_check_attr(kvm_state, KVM_S390_VM_CPU_MODEL,

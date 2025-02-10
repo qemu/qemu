@@ -11,7 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/s390x/storage-keys.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 

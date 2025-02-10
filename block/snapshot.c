@@ -30,7 +30,7 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/option.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 
 QemuOptsList internal_snapshot_opts = {
     .name = "snapshot",

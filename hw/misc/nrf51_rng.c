@@ -107,25 +107,25 @@ static void rng_write(void *opaque, hwaddr offset,
         break;
     case NRF51_RNG_REG_SHORTS:
         s->shortcut_stop_on_valrdy =
-                (value & BIT_MASK(NRF51_RNG_REG_SHORTS_VALRDY_STOP)) ? 1 : 0;
+                (value & BIT(NRF51_RNG_REG_SHORTS_VALRDY_STOP)) ? 1 : 0;
         break;
     case NRF51_RNG_REG_INTEN:
         s->interrupt_enabled =
-                (value & BIT_MASK(NRF51_RNG_REG_INTEN_VALRDY)) ? 1 : 0;
+                (value & BIT(NRF51_RNG_REG_INTEN_VALRDY)) ? 1 : 0;
         break;
     case NRF51_RNG_REG_INTENSET:
-        if (value & BIT_MASK(NRF51_RNG_REG_INTEN_VALRDY)) {
+        if (value & BIT(NRF51_RNG_REG_INTEN_VALRDY)) {
             s->interrupt_enabled = 1;
         }
         break;
     case NRF51_RNG_REG_INTENCLR:
-        if (value & BIT_MASK(NRF51_RNG_REG_INTEN_VALRDY)) {
+        if (value & BIT(NRF51_RNG_REG_INTEN_VALRDY)) {
             s->interrupt_enabled = 0;
         }
         break;
     case NRF51_RNG_REG_CONFIG:
         s->filter_enabled =
-                      (value & BIT_MASK(NRF51_RNG_REG_CONFIG_DECEN)) ? 1 : 0;
+                      (value & BIT(NRF51_RNG_REG_CONFIG_DECEN)) ? 1 : 0;
         break;
 
     default:
@@ -219,12 +219,11 @@ static void nrf51_rng_reset(DeviceState *dev)
 }
 
 
-static Property nrf51_rng_properties[] = {
+static const Property nrf51_rng_properties[] = {
     DEFINE_PROP_UINT16("period_unfiltered_us", NRF51RNGState,
             period_unfiltered_us, 167),
     DEFINE_PROP_UINT16("period_filtered_us", NRF51RNGState,
             period_filtered_us, 660),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_rng = {

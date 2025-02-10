@@ -17,7 +17,7 @@
 #include "hw/remote/machine.h"
 #include "io/channel-util.h"
 #include "qapi/error.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/pci/pci.h"
 #include "qemu/sockets.h"
 #include "monitor/monitor.h"

@@ -21,16 +21,23 @@ import sys
 import re
 import string
 import hex_common
+import argparse
 
 
 def main():
-    hex_common.read_semantics_file(sys.argv[1])
+    parser = argparse.ArgumentParser(
+        "Emit opaque macro calls containing instruction attributes"
+    )
+    parser.add_argument("semantics", help="semantics file")
+    parser.add_argument("out", help="output file")
+    args = parser.parse_args()
+    hex_common.read_semantics_file(args.semantics)
     hex_common.calculate_attribs()
 
     ##
     ##     Generate all the attributes associated with each instruction
     ##
-    with open(sys.argv[-1], "w") as f:
+    with open(args.out, "w") as f:
         for tag in hex_common.tags:
             f.write(
                 f"OP_ATTRIB({tag},ATTRIBS("

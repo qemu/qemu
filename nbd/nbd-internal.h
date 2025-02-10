@@ -10,7 +10,7 @@
 #ifndef NBD_INTERNAL_H
 #define NBD_INTERNAL_H
 #include "block/nbd.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "io/channel-tls.h"
 
 #include "qemu/iov.h"

@@ -22,7 +22,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/cryptodev.h"
+#include "system/cryptodev.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "standard-headers/linux/virtio_crypto.h"

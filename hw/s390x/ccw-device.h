@@ -26,6 +26,8 @@ struct CcwDevice {
     CssDevId dev_id;
     /* The actual busid of the virtual subchannel. */
     CssDevId subch_id;
+    /* If set, use this loadparm value when device is boot target */
+    uint8_t loadparm[8];
 };
 typedef struct CcwDevice CcwDevice;
 
@@ -48,5 +50,10 @@ static inline CcwDevice *to_ccw_dev_fast(DeviceState *d)
 #define TYPE_CCW_DEVICE "ccw-device"
 
 OBJECT_DECLARE_TYPE(CcwDevice, CCWDeviceClass, CCW_DEVICE)
+
+extern const PropertyInfo ccw_loadparm;
+
+#define DEFINE_PROP_CCW_LOADPARM(_n, _s, _f) \
+    DEFINE_PROP(_n, _s, _f, ccw_loadparm, typeof(uint8_t[8]))
 
 #endif

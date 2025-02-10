@@ -508,9 +508,8 @@ static const VMStateDescription vmstate_ibex_uart = {
     }
 };
 
-static Property ibex_uart_properties[] = {
+static const Property ibex_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", IbexUartState, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ibex_uart_init(Object *obj)

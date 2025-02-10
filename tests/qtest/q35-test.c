@@ -83,7 +83,6 @@ static void test_smram_lock(void)
 {
     QPCIBus *pcibus;
     QPCIDevice *pcidev;
-    QDict *response;
     QTestState *qts;
 
     qts = qtest_init("-M q35");
@@ -107,10 +106,7 @@ static void test_smram_lock(void)
     g_assert(smram_test_bit(pcidev, MCH_HOST_BRIDGE_SMRAM_D_OPEN) == false);
 
     /* reset */
-    response = qtest_qmp(qts, "{'execute': 'system_reset', 'arguments': {} }");
-    g_assert(response);
-    g_assert(!qdict_haskey(response, "error"));
-    qobject_unref(response);
+    qtest_system_reset(qts);
 
     /* check open is settable again */
     smram_set_bit(pcidev, MCH_HOST_BRIDGE_SMRAM_D_OPEN, false);
@@ -194,7 +190,6 @@ static void test_smram_smbase_lock(void)
 {
     QPCIBus *pcibus;
     QPCIDevice *pcidev;
-    QDict *response;
     QTestState *qts;
     int i;
 
@@ -237,10 +232,7 @@ static void test_smram_smbase_lock(void)
     }
 
     /* reset */
-    response = qtest_qmp(qts, "{'execute': 'system_reset', 'arguments': {} }");
-    g_assert(response);
-    g_assert(!qdict_haskey(response, "error"));
-    qobject_unref(response);
+    qtest_system_reset(qts);
 
     /* check RAM at SMBASE is available after reset */
     g_assert_cmpint(qtest_readb(qts, SMBASE), ==, SMRAM_TEST_PATTERN);

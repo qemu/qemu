@@ -1,4 +1,5 @@
 project('proc-macro-error-1-rs', 'rust',
+  meson_version: '>=1.5.0',
   version: '1.0.4',
   license: 'MIT OR Apache-2.0',
   default_options: [])
@@ -19,6 +20,7 @@ _proc_macro_error_rs = static_library(
   override_options: ['rust_std=2018', 'build.rust_std=2018'],
   rust_abi: 'rust',
   rust_args: [
+    '--cap-lints', 'allow',
     '--cfg', 'use_fallback',
     '--cfg', 'feature="syn-error"',
     '--cfg', 'feature="proc-macro"',

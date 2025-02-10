@@ -39,9 +39,9 @@
 #include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
 #include "hw/block/block.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/sysemu.h"
+#include "system/block-backend.h"
+#include "system/blockdev.h"
+#include "system/system.h"
 #include "exec/ioport.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
@@ -283,7 +283,7 @@ static const VMStateDescription vmstate_isa_fdc = {
     }
 };
 
-static Property isa_fdc_properties[] = {
+static const Property isa_fdc_properties[] = {
     DEFINE_PROP_UINT32("iobase", FDCtrlISABus, iobase, 0x3f0),
     DEFINE_PROP_UINT32("irq", FDCtrlISABus, irq, 6),
     DEFINE_PROP_UINT32("dma", FDCtrlISABus, dma, 2),
@@ -296,7 +296,6 @@ static Property isa_fdc_properties[] = {
     DEFINE_PROP_SIGNED("fallback", FDCtrlISABus, state.fallback,
                         FLOPPY_DRIVE_TYPE_288, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void isabus_fdc_class_init(ObjectClass *klass, void *data)

@@ -30,7 +30,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
-#include "sysemu/blockdev.h"
+#include "system/blockdev.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 
@@ -265,14 +265,13 @@ static const PropertyInfo efuse_prop_drive = {
     .release = efuse_prop_release_drive,
 };
 
-static Property efuse_properties[] = {
+static const Property efuse_properties[] = {
     DEFINE_PROP("drive", XlnxEFuse, blk, efuse_prop_drive, BlockBackend *),
     DEFINE_PROP_UINT8("efuse-nr", XlnxEFuse, efuse_nr, 3),
     DEFINE_PROP_UINT32("efuse-size", XlnxEFuse, efuse_size, 64 * 32),
     DEFINE_PROP_BOOL("init-factory-tbits", XlnxEFuse, init_tbits, true),
     DEFINE_PROP_ARRAY("read-only", XlnxEFuse, ro_bits_cnt, ro_bits,
                       qdev_prop_uint32, uint32_t),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void efuse_class_init(ObjectClass *klass, void *data)

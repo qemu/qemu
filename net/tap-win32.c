@@ -214,7 +214,7 @@ static int is_tap_win32_dev(const char *guid)
 
     for (;;) {
         char enum_name[256];
-        char unit_string[256];
+        g_autofree char *unit_string = NULL;
         HKEY unit_key;
         char component_id_string[] = "ComponentId";
         char component_id[256];
@@ -239,8 +239,7 @@ static int is_tap_win32_dev(const char *guid)
             return FALSE;
         }
 
-        snprintf (unit_string, sizeof(unit_string), "%s\\%s",
-                  ADAPTER_KEY, enum_name);
+        unit_string = g_strdup_printf("%s\\%s", ADAPTER_KEY, enum_name);
 
         status = RegOpenKeyEx(
             HKEY_LOCAL_MACHINE,
@@ -315,7 +314,7 @@ static int get_device_guid(
     while (!stop)
     {
         char enum_name[256];
-        char connection_string[256];
+        g_autofree char *connection_string = NULL;
         HKEY connection_key;
         char name_data[256];
         DWORD name_type;
@@ -338,9 +337,7 @@ static int get_device_guid(
             return -1;
         }
 
-        snprintf(connection_string,
-             sizeof(connection_string),
-             "%s\\%s\\Connection",
+        connection_string = g_strdup_printf("%s\\%s\\Connection",
              NETWORK_CONNECTIONS_KEY, enum_name);
 
         status = RegOpenKeyEx(
@@ -595,7 +592,7 @@ static void tap_win32_free_buffer(tap_win32_overlapped_t *overlapped,
 static int tap_win32_open(tap_win32_overlapped_t **phandle,
                           const char *preferred_name)
 {
-    char device_path[256];
+    g_autofree char *device_path = NULL;
     char device_guid[0x100];
     int rc;
     HANDLE handle;
@@ -617,7 +614,7 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
     if (rc)
         return -1;
 
-    snprintf (device_path, sizeof(device_path), "%s%s%s",
+    device_path = g_strdup_printf("%s%s%s",
               USERMODEDEVICEDIR,
               device_guid,
               TAPSUFFIX);

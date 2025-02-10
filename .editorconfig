@@ -47,3 +47,16 @@ emacs_mode = glsl
 [*.json]
 indent_style = space
 emacs_mode = python
+
+# by default follow QEMU's style
+[*.pl]
+indent_style = space
+indent_size = 4
+emacs_mode = perl
+
+# but user kernel "style" for imported scripts
+[scripts/{kernel-doc,get_maintainer.pl,checkpatch.pl}]
+indent_style = tab
+indent_size = 8
+emacs_mode = perl
+

@@ -32,7 +32,7 @@
 #include "migration/vmstate.h"
 #include "qemu/cutils.h"
 #include "qemu/module.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "qom/object.h"
 #include "trace.h"
 
@@ -868,9 +868,8 @@ static void es1370_exit(PCIDevice *dev)
     AUD_remove_card(&s->card);
 }
 
-static Property es1370_properties[] = {
+static const Property es1370_properties[] = {
     DEFINE_AUDIO_PROPERTIES(ES1370State, card),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void es1370_class_init (ObjectClass *klass, void *data)

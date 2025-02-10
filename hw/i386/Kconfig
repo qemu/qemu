@@ -43,6 +43,7 @@ config PC
     select SERIAL_ISA
     select ACPI_PCI
     select ACPI_VMGENID
+    select ACPI_VMCLOCK
     select VIRTIO_PMEM_SUPPORTED
     select VIRTIO_MEM_SUPPORTED
     select HV_BALLOON_SUPPORTED
@@ -128,6 +129,16 @@ config MICROVM
     select PCI_EXPRESS_GENERIC_BRIDGE
     select USB_XHCI_SYSBUS
     select I8254
+
+config NITRO_ENCLAVE
+    default y
+    depends on I386 && FDT # for MICROVM
+    depends on LIBCBOR && GNUTLS # for EIF and VIRTIO_NSM
+    depends on VHOST_USER # for VHOST_USER_VSOCK
+    select EIF
+    select MICROVM
+    select VHOST_USER_VSOCK
+    select VIRTIO_NSM
 
 config X86_IOMMU
     bool

@@ -1,3 +1,5 @@
+.. _user-mode:
+
 QEMU User space emulator
 ========================
 
@@ -41,6 +43,8 @@ QEMU user space emulation has the following notable features:
 QEMU was conceived so that ultimately it can emulate itself. Although it
 is not very useful, it is an important test to show the power of the
 emulator.
+
+.. _linux-user-mode:
 
 Linux User space emulator
 -------------------------
@@ -174,6 +178,8 @@ Other binaries
 
    * ``qemu-sparc64`` can execute some Sparc64 (Sparc64 CPU, 64 bit ABI) and
      SPARC32PLUS binaries (Sparc64 CPU, 32 bit ABI).
+
+.. _bsd-user-mode:
 
 BSD User space emulator
 -----------------------

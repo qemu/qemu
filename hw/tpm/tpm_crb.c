@@ -23,10 +23,10 @@
 #include "hw/pci/pci_ids.h"
 #include "hw/acpi/tpm.h"
 #include "migration/vmstate.h"
-#include "sysemu/tpm_backend.h"
-#include "sysemu/tpm_util.h"
-#include "sysemu/reset.h"
-#include "sysemu/xen.h"
+#include "system/tpm_backend.h"
+#include "system/tpm_util.h"
+#include "system/reset.h"
+#include "system/xen.h"
 #include "tpm_prop.h"
 #include "tpm_ppi.h"
 #include "trace.h"
@@ -226,10 +226,9 @@ static const VMStateDescription vmstate_tpm_crb = {
     }
 };
 
-static Property tpm_crb_properties[] = {
+static const Property tpm_crb_properties[] = {
     DEFINE_PROP_TPMBE("tpmdev", CRBState, tpmbe),
     DEFINE_PROP_BOOL("ppi", CRBState, ppi_enabled, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void tpm_crb_reset(void *dev)

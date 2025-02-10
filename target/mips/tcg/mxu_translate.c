@@ -1533,7 +1533,7 @@ static void gen_mxu_s32ldxx(DisasContext *ctx, bool reversed, bool postinc)
     tcg_gen_add_tl(t0, t0, t1);
 
     tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx,
-                       (MO_TESL ^ (reversed ? MO_BSWAP : 0)) |
+                       MO_SL | mo_endian_rev(ctx, reversed) |
                         ctx->default_tcg_memop_mask);
     gen_store_mxu_gpr(t1, XRa);
 
@@ -1569,7 +1569,7 @@ static void gen_mxu_s32stxx(DisasContext *ctx, bool reversed, bool postinc)
 
     gen_load_mxu_gpr(t1, XRa);
     tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx,
-                       (MO_TESL ^ (reversed ? MO_BSWAP : 0)) |
+                       MO_SL | mo_endian_rev(ctx, reversed) |
                         ctx->default_tcg_memop_mask);
 
     if (postinc) {
@@ -1605,7 +1605,7 @@ static void gen_mxu_s32ldxvx(DisasContext *ctx, bool reversed,
     tcg_gen_add_tl(t0, t0, t1);
 
     tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx,
-                       (MO_TESL ^ (reversed ? MO_BSWAP : 0)) |
+                       MO_SL | mo_endian_rev(ctx, reversed) |
                         ctx->default_tcg_memop_mask);
     gen_store_mxu_gpr(t1, XRa);
 
@@ -1675,7 +1675,7 @@ static void gen_mxu_s32stxvx(DisasContext *ctx, bool reversed,
 
     gen_load_mxu_gpr(t1, XRa);
     tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx,
-                       (MO_TESL ^ (reversed ? MO_BSWAP : 0)) |
+                       MO_SL | mo_endian_rev(ctx, reversed) |
                         ctx->default_tcg_memop_mask);
 
     if (postinc) {
@@ -4803,19 +4803,19 @@ static void decode_opc_mxu__pool17(DisasContext *ctx)
 
     switch (opcode) {
     case OPC_MXU_LXW:
-          gen_mxu_lxx(ctx, strd2, MO_TE | MO_UL);
+          gen_mxu_lxx(ctx, strd2, mo_endian(ctx) | MO_UL);
           break;
     case OPC_MXU_LXB:
-          gen_mxu_lxx(ctx, strd2, MO_TE | MO_SB);
+          gen_mxu_lxx(ctx, strd2, mo_endian(ctx) | MO_SB);
           break;
     case OPC_MXU_LXH:
-          gen_mxu_lxx(ctx, strd2, MO_TE | MO_SW);
+          gen_mxu_lxx(ctx, strd2, mo_endian(ctx) | MO_SW);
           break;
     case OPC_MXU_LXBU:
-          gen_mxu_lxx(ctx, strd2, MO_TE | MO_UB);
+          gen_mxu_lxx(ctx, strd2, mo_endian(ctx) | MO_UB);
           break;
     case OPC_MXU_LXHU:
-          gen_mxu_lxx(ctx, strd2, MO_TE | MO_UW);
+          gen_mxu_lxx(ctx, strd2, mo_endian(ctx) | MO_UW);
           break;
     default:
         MIPS_INVAL("decode_opc_mxu");

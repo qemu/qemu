@@ -11,7 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "hw/pci/msi.h"
 
 KVMState *kvm_state;

@@ -82,6 +82,7 @@ struct AspeedSMCState {
 
     uint8_t snoop_index;
     uint8_t snoop_dummies;
+    bool unselect;
 };
 
 typedef struct AspeedSegments {

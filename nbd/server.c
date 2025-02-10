@@ -1150,8 +1150,8 @@ nbd_negotiate_meta_queries(NBDClient *client, Error **errp)
  * Return:
  * -errno  on error, errp is set
  * 0       on successful negotiation, errp is not set
- * 1       if client sent NBD_OPT_ABORT, i.e. on valid disconnect,
- *         errp is not set
+ * 1       if client sent NBD_OPT_ABORT (i.e. on valid disconnect) or never
+ *         wrote anything (i.e. port probe); errp is not set
  */
 static coroutine_fn int
 nbd_negotiate_options(NBDClient *client, Error **errp)
@@ -1175,8 +1175,13 @@ nbd_negotiate_options(NBDClient *client, Error **errp)
         ...           Rest of request
     */
 
-    if (nbd_read32(client->ioc, &flags, "flags", errp) < 0) {
-        return -EIO;
+    /*
+     * Intentionally ignore errors on this first read - we do not want
+     * to be noisy about a mere port probe, but only for clients that
+     * start talking the protocol and then quit abruptly.
+     */
+    if (nbd_read32(client->ioc, &flags, "flags", NULL) < 0) {
+        return 1;
     }
     client->mode = NBD_MODE_EXPORT_NAME;
     trace_nbd_negotiate_options_flags(flags);
@@ -1383,8 +1388,8 @@ nbd_negotiate_options(NBDClient *client, Error **errp)
  * Return:
  * -errno  on error, errp is set
  * 0       on successful negotiation, errp is not set
- * 1       if client sent NBD_OPT_ABORT, i.e. on valid disconnect,
- *         errp is not set
+ * 1       if client sent NBD_OPT_ABORT (i.e. on valid disconnect) or never
+ *         wrote anything (i.e. port probe); errp is not set
  */
 static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
 {
@@ -1415,9 +1420,12 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
     stq_be_p(buf + 8, NBD_OPTS_MAGIC);
     stw_be_p(buf + 16, NBD_FLAG_FIXED_NEWSTYLE | NBD_FLAG_NO_ZEROES);
 
-    if (nbd_write(client->ioc, buf, 18, errp) < 0) {
-        error_prepend(errp, "write failed: ");
-        return -EINVAL;
+    /*
+     * Be silent about failure to write our greeting: there is nothing
+     * wrong with a client testing if our port is alive.
+     */
+    if (nbd_write(client->ioc, buf, 18, NULL) < 0) {
+        return 1;
     }
     ret = nbd_negotiate_options(client, errp);
     if (ret != 0) {

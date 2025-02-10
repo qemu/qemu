@@ -22,8 +22,8 @@
 #include "qemu/timer.h"
 #include "cpu.h"
 #include "pmu.h"
-#include "sysemu/cpu-timers.h"
-#include "sysemu/device_tree.h"
+#include "system/cpu-timers.h"
+#include "system/device_tree.h"
 
 #define RISCV_TIMEBASE_FREQ 1000000000 /* 1Ghz */
 

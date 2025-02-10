@@ -1,5 +1,5 @@
 #include "qemu/osdep.h"
-#include "sysemu/replay.h"
+#include "system/replay.h"
 #include "block/aio.h"
 
 bool replay_events_enabled(void)

@@ -22,7 +22,7 @@
 #include "hw/misc/unimp.h"
 #include "hw/usb/imx-usb-phy.h"
 #include "hw/boards.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "target/arm/cpu-qom.h"
@@ -718,14 +718,13 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
                                 FSL_IMX6UL_OCRAM_ALIAS_ADDR, &s->ocram_alias);
 }
 
-static Property fsl_imx6ul_properties[] = {
+static const Property fsl_imx6ul_properties[] = {
     DEFINE_PROP_UINT32("fec1-phy-num", FslIMX6ULState, phy_num[0], 0),
     DEFINE_PROP_UINT32("fec2-phy-num", FslIMX6ULState, phy_num[1], 1),
     DEFINE_PROP_BOOL("fec1-phy-connected", FslIMX6ULState, phy_connected[0],
                      true),
     DEFINE_PROP_BOOL("fec2-phy-connected", FslIMX6ULState, phy_connected[1],
                      true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void fsl_imx6ul_class_init(ObjectClass *oc, void *data)

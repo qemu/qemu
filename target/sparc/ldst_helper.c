@@ -26,6 +26,9 @@
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
 #include "exec/cpu_ldst.h"
+#ifdef CONFIG_USER_ONLY
+#include "user/page-protection.h"
+#endif
 #include "asi.h"
 
 //#define DEBUG_MMU

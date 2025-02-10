@@ -1,0 +1,14 @@
+#
+# Common b4 settings that can be used to send patches to QEMU upstream.
+# https://b4.docs.kernel.org/
+#
+
+[b4]
+    send-series-to = qemu-devel@nongnu.org
+    send-auto-to-cmd = echo
+    send-auto-cc-cmd = scripts/get_maintainer.pl --noroles --norolestats --nogit --nogit-fallback
+    am-perpatch-check-cmd = scripts/checkpatch.pl -q --terse --no-summary --mailback -
+    prep-perpatch-check-cmd = scripts/checkpatch.pl -q --terse --no-summary --mailback -
+    searchmask = https://lore.kernel.org/qemu-devel/?x=m&t=1&q=%s
+    linkmask = https://lore.kernel.org/qemu-devel/%s
+    linktrailermask = Message-ID: <%s>

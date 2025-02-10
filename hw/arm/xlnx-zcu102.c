@@ -22,7 +22,7 @@
 #include "hw/boards.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
-#include "sysemu/device_tree.h"
+#include "system/device_tree.h"
 #include "qom/object.h"
 #include "net/can_emu.h"
 #include "audio/audio.h"

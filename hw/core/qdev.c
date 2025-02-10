@@ -146,31 +146,16 @@ bool qdev_set_parent_bus(DeviceState *dev, BusState *bus, Error **errp)
 
 DeviceState *qdev_new(const char *name)
 {
-    ObjectClass *oc = object_class_by_name(name);
-#ifdef CONFIG_MODULES
-    if (!oc) {
-        int rv = module_load_qom(name, &error_fatal);
-        if (rv > 0) {
-            oc = object_class_by_name(name);
-        } else {
-            error_report("could not find a module for type '%s'", name);
-            exit(1);
-        }
-    }
-#endif
-    if (!oc) {
-        error_report("unknown type '%s'", name);
-        abort();
-    }
     return DEVICE(object_new(name));
 }
 
 DeviceState *qdev_try_new(const char *name)
 {
-    if (!module_object_class_by_name(name)) {
+    ObjectClass *oc = module_object_class_by_name(name);
+    if (!oc) {
         return NULL;
     }
-    return DEVICE(object_new(name));
+    return DEVICE(object_new_with_class(oc));
 }
 
 static QTAILQ_HEAD(, DeviceListener) device_listeners
@@ -491,8 +476,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         if (!obj->parent) {
             gchar *name = g_strdup_printf("device[%d]", unattached_count++);
 
-            object_property_add_child(container_get(qdev_get_machine(),
-                                                    "/unattached"),
+            object_property_add_child(machine_get_container("unattached"),
                                       name, obj);
             unattached_parent = true;
             g_free(name);
@@ -706,7 +690,6 @@ static void device_finalize(Object *obj)
         dev->canonical_path = NULL;
     }
 
-    qobject_unref(dev->opts);
     g_free(dev->id);
 }
 
@@ -718,6 +701,7 @@ static void device_class_base_init(ObjectClass *class, void *data)
      * so do not propagate them to the subclasses.
      */
     klass->props_ = NULL;
+    klass->props_count_ = 0;
 }
 
 static void device_unparent(Object *obj)
@@ -832,10 +816,26 @@ Object *qdev_get_machine(void)
     static Object *dev;
 
     if (dev == NULL) {
-        dev = container_get(object_get_root(), "/machine");
+        dev = object_resolve_path_component(object_get_root(), "machine");
+        /*
+         * Any call to this function before machine is created is treated
+         * as a programming error as of now.
+         */
+        assert(dev);
     }
 
     return dev;
+}
+
+Object *machine_get_container(const char *name)
+{
+    Object *container, *machine;
+
+    machine = qdev_get_machine();
+    container = object_resolve_path_component(machine, name);
+    assert(object_dynamic_cast(container, TYPE_CONTAINER));
+
+    return container;
 }
 
 char *qdev_get_human_name(DeviceState *dev)

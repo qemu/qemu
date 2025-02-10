@@ -11,8 +11,8 @@
 #include "migration/vmstate.h"
 #include "qemu/host-utils.h"
 #include "exec/replay-core.h"
-#include "sysemu/cpu-timers.h"
-#include "sysemu/qtest.h"
+#include "system/cpu-timers.h"
+#include "system/qtest.h"
 #include "block/aio.h"
 #include "hw/clock.h"
 

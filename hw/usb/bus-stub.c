@@ -10,7 +10,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "monitor/monitor.h"
 #include "hw/usb.h"
 

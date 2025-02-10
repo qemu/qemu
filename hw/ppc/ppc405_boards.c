@@ -33,9 +33,9 @@
 #include "ppc405.h"
 #include "hw/rtc/m48t59.h"
 #include "hw/block/flash.h"
-#include "sysemu/qtest.h"
-#include "sysemu/reset.h"
-#include "sysemu/block-backend.h"
+#include "system/qtest.h"
+#include "system/reset.h"
+#include "system/block-backend.h"
 #include "hw/boards.h"
 #include "qemu/error-report.h"
 #include "hw/loader.h"
@@ -232,7 +232,7 @@ static void boot_from_kernel(MachineState *machine, PowerPCCPU *cpu)
 
     kernel_size = load_elf(machine->kernel_filename, NULL, NULL, NULL,
                            &boot_entry, &kernel_base, NULL, NULL,
-                           1, PPC_ELF_MACHINE, 0, 0);
+                           ELFDATA2MSB, PPC_ELF_MACHINE, 0, 0);
     if (kernel_size < 0) {
         error_report("Could not load kernel '%s' : %s",
                      machine->kernel_filename, load_elf_strerror(kernel_size));

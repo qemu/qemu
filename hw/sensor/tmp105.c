@@ -27,6 +27,7 @@
 #include "qapi/visitor.h"
 #include "qemu/module.h"
 #include "hw/registerfields.h"
+#include "trace.h"
 
 FIELD(CONFIG, SHUTDOWN_MODE,        0, 1)
 FIELD(CONFIG, THERMOSTAT_MODE,      1, 1)
@@ -150,17 +151,21 @@ static void tmp105_read(TMP105State *s)
         s->buf[s->len++] = ((uint16_t) s->limit[1]) >> 0;
         break;
     }
+
+    trace_tmp105_read(s->i2c.address, s->pointer);
 }
 
 static void tmp105_write(TMP105State *s)
 {
+    trace_tmp105_write(s->i2c.address, s->pointer);
+
     switch (s->pointer & 3) {
     case TMP105_REG_TEMPERATURE:
         break;
 
     case TMP105_REG_CONFIG:
         if (FIELD_EX8(s->buf[0] & ~s->config, CONFIG, SHUTDOWN_MODE)) {
-            printf("%s: TMP105 shutdown\n", __func__);
+            trace_tmp105_write_shutdown(s->i2c.address);
         }
         s->config = FIELD_DP8(s->buf[0], CONFIG, ONE_SHOT, 0);
         s->faults = tmp105_faultq[FIELD_EX8(s->config, CONFIG, FAULT_QUEUE)];

@@ -11,7 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "sysemu/replay.h"
+#include "system/replay.h"
 #include "replay-internal.h"
 
 void replay_save_random(int ret, void *buf, size_t len)

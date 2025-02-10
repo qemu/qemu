@@ -357,8 +357,8 @@ static void raven_realize(PCIDevice *d, Error **errp)
         if (filename) {
             if (s->elf_machine != EM_NONE) {
                 bios_size = load_elf(filename, NULL, NULL, NULL, NULL,
-                                     NULL, NULL, NULL, 1, s->elf_machine,
-                                     0, 0);
+                                     NULL, NULL, NULL,
+                                     ELFDATA2MSB, s->elf_machine, 0, 0);
             }
             if (bios_size < 0) {
                 bios_size = get_image_size(filename);
@@ -422,14 +422,13 @@ static const TypeInfo raven_info = {
     },
 };
 
-static Property raven_pcihost_properties[] = {
+static const Property raven_pcihost_properties[] = {
     DEFINE_PROP_UINT32("elf-machine", PREPPCIState, pci_dev.elf_machine,
                        EM_NONE),
     DEFINE_PROP_STRING("bios-name", PREPPCIState, pci_dev.bios_name),
     /* Temporary workaround until legacy prep machine is removed */
     DEFINE_PROP_BOOL("is-legacy-prep", PREPPCIState, is_legacy_prep,
                      false),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void raven_pcihost_class_init(ObjectClass *klass, void *data)

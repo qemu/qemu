@@ -10,7 +10,7 @@
 #ifndef TARGET_I386_NVMM_ACCEL_OPS_H
 #define TARGET_I386_NVMM_ACCEL_OPS_H
 
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 
 int nvmm_init_vcpu(CPUState *cpu);
 int nvmm_vcpu_exec(CPUState *cpu);

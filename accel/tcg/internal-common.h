@@ -56,4 +56,7 @@ void cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
 bool tcg_exec_realizefn(CPUState *cpu, Error **errp);
 void tcg_exec_unrealizefn(CPUState *cpu);
 
+/* current cflags for hashing/comparison */
+uint32_t curr_cflags(CPUState *cpu);
+
 #endif

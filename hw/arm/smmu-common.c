@@ -934,11 +934,10 @@ static void smmu_base_reset_hold(Object *obj, ResetType type)
     g_hash_table_remove_all(s->iotlb);
 }
 
-static Property smmu_dev_properties[] = {
+static const Property smmu_dev_properties[] = {
     DEFINE_PROP_UINT8("bus_num", SMMUState, bus_num, 0),
     DEFINE_PROP_LINK("primary-bus", SMMUState, primary_bus,
                      TYPE_PCI_BUS, PCIBus *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void smmu_base_class_init(ObjectClass *klass, void *data)

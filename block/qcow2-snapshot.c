@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qapi/error.h"
 #include "qcow2.h"
 #include "qemu/bswap.h"

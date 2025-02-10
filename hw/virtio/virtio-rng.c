@@ -17,8 +17,8 @@
 #include "hw/virtio/virtio.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-rng.h"
-#include "sysemu/rng.h"
-#include "sysemu/runstate.h"
+#include "system/rng.h"
+#include "system/runstate.h"
 #include "qom/object_interfaces.h"
 #include "trace.h"
 
@@ -249,7 +249,7 @@ static const VMStateDescription vmstate_virtio_rng = {
     },
 };
 
-static Property virtio_rng_properties[] = {
+static const Property virtio_rng_properties[] = {
     /* Set a default rate limit of 2^47 bytes per minute or roughly 2TB/s.  If
      * you have an entropy source capable of generating more entropy than this
      * and you can pass it through via virtio-rng, then hats off to you.  Until
@@ -258,7 +258,6 @@ static Property virtio_rng_properties[] = {
     DEFINE_PROP_UINT64("max-bytes", VirtIORNG, conf.max_bytes, INT64_MAX),
     DEFINE_PROP_UINT32("period", VirtIORNG, conf.period_ms, 1 << 16),
     DEFINE_PROP_LINK("rng", VirtIORNG, conf.rng, TYPE_RNG_BACKEND, RngBackend *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_rng_class_init(ObjectClass *klass, void *data)

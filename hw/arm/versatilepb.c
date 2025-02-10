@@ -14,7 +14,7 @@
 #include "hw/arm/boot.h"
 #include "hw/net/smc91c111.h"
 #include "net/net.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/pci/pci.h"
 #include "hw/i2c/i2c.h"
 #include "hw/i2c/arm_sbcon_i2c.h"

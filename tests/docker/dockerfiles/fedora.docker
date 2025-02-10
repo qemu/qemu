@@ -23,6 +23,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                alsa-lib-devel \
                bash \
                bc \
+               bindgen-cli \
                bison \
                brlapi-devel \
                bzip2 \
@@ -61,6 +62,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                libbpf-devel \
                libcacard-devel \
                libcap-ng-devel \
+               libcbor-devel \
                libcmocka-devel \
                libcurl-devel \
                libdrm-devel \
@@ -113,6 +115,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                python3-sphinx_rtd_theme \
                python3-zombie-imp \
                rdma-core-devel \
+               rust \
                sed \
                snappy-devel \
                socat \

@@ -12,9 +12,9 @@
 #include "elf.h"
 #include "hw/loader.h"
 #include "hw/openrisc/boot.h"
-#include "sysemu/device_tree.h"
-#include "sysemu/qtest.h"
-#include "sysemu/reset.h"
+#include "system/device_tree.h"
+#include "system/qtest.h"
+#include "system/reset.h"
 #include "qemu/error-report.h"
 
 #include <libfdt.h>
@@ -32,7 +32,7 @@ hwaddr openrisc_load_kernel(ram_addr_t ram_size,
 
     if (kernel_filename && !qtest_enabled()) {
         kernel_size = load_elf(kernel_filename, NULL, NULL, NULL,
-                               &elf_entry, NULL, &high_addr, NULL, 1,
+                               &elf_entry, NULL, &high_addr, NULL, ELFDATA2MSB,
                                EM_OPENRISC, 1, 0);
         entry = elf_entry;
         if (kernel_size < 0) {

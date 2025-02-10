@@ -16,8 +16,8 @@
 #include "qemu/module.h"
 #include "hw/sysbus.h"
 #include "net/net.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/kvm.h"
+#include "system/system.h"
+#include "system/kvm.h"
 #include "hw/arm/boot.h"
 #include "kvm_arm.h"
 #include "hw/misc/unimp.h"
@@ -968,14 +968,13 @@ static void versal_init(Object *obj)
                              "mr-rpu-ps-alias", &s->mr_ps, 0, UINT64_MAX);
 }
 
-static Property versal_properties[] = {
+static const Property versal_properties[] = {
     DEFINE_PROP_LINK("ddr", Versal, cfg.mr_ddr, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_LINK("canbus0", Versal, lpd.iou.canbus[0],
                       TYPE_CAN_BUS, CanBusState *),
     DEFINE_PROP_LINK("canbus1", Versal, lpd.iou.canbus[1],
                       TYPE_CAN_BUS, CanBusState *),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void versal_class_init(ObjectClass *klass, void *data)

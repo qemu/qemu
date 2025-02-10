@@ -20,7 +20,7 @@
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "trace.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
@@ -835,14 +835,13 @@ static const VMStateDescription iotkit_sysctl_vmstate = {
     }
 };
 
-static Property iotkit_sysctl_props[] = {
+static const Property iotkit_sysctl_props[] = {
     DEFINE_PROP_UINT32("sse-version", IoTKitSysCtl, sse_version, 0),
     DEFINE_PROP_UINT32("CPUWAIT_RST", IoTKitSysCtl, cpuwait_rst, 0),
     DEFINE_PROP_UINT32("INITSVTOR0_RST", IoTKitSysCtl, initsvtor0_rst,
                        0x10000000),
     DEFINE_PROP_UINT32("INITSVTOR1_RST", IoTKitSysCtl, initsvtor1_rst,
                        0x10000000),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void iotkit_sysctl_class_init(ObjectClass *klass, void *data)

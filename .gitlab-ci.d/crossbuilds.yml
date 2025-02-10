@@ -176,7 +176,7 @@ cross-win64-system:
     EXTRA_CONFIGURE_OPTS: --enable-fdt=internal --disable-plugins
     CROSS_SKIP_TARGETS: alpha-softmmu avr-softmmu hppa-softmmu
                         m68k-softmmu microblazeel-softmmu
-                        or1k-softmmu rx-softmmu sh4-softmmu sparc64-softmmu
+                        or1k-softmmu rx-softmmu sh4eb-softmmu sparc64-softmmu
                         tricore-softmmu xtensaeb-softmmu
   artifacts:
     when: on_success

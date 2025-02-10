@@ -23,7 +23,7 @@
 #include "block/dirty-bitmap.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qemu/bitmap.h"
 #include "qemu/error-report.h"
 

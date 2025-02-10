@@ -736,7 +736,7 @@ static void hpet_realize(DeviceState *dev, Error **errp)
         timer->state = s;
     }
 
-    /* 64-bit main counter; LegacyReplacementRoute. */
+    /* 64-bit General Capabilities and ID Register; LegacyReplacementRoute. */
     s->capability = 0x8086a001ULL;
     s->capability |= (s->num_timers - 1) << HPET_ID_NUM_TIM_SHIFT;
     s->capability |= ((uint64_t)(HPET_CLK_PERIOD * FS_PER_NS) << 32);
@@ -745,12 +745,11 @@ static void hpet_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_out(dev, &s->pit_enabled, 1);
 }
 
-static Property hpet_device_properties[] = {
+static const Property hpet_device_properties[] = {
     DEFINE_PROP_UINT8("timers", HPETState, num_timers, HPET_MIN_TIMERS),
     DEFINE_PROP_BIT("msi", HPETState, flags, HPET_MSI_SUPPORT, false),
     DEFINE_PROP_UINT32(HPET_INTCAP, HPETState, intcap, 0),
     DEFINE_PROP_BOOL("hpet-offset-saved", HPETState, hpet_offset_saved, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void hpet_device_class_init(ObjectClass *klass, void *data)

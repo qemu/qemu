@@ -21,9 +21,9 @@
 #include "qemu/osdep.h"
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/dma.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/rtc.h"
+#include "system/dma.h"
+#include "system/block-backend.h"
+#include "system/rtc.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "qemu/iov.h"
@@ -1781,7 +1781,7 @@ static int megasas_handle_io(MegasasState *s, MegasasCmd *cmd, int frame_cmd)
     uint8_t cdb[16];
     int len;
     struct SCSIDevice *sdev = NULL;
-    int target_id, lun_id, cdb_len;
+    int target_id, lun_id;
 
     lba_count = le32_to_cpu(cmd->frame->io.header.data_len);
     lba_start_lo = le32_to_cpu(cmd->frame->io.lba_lo);
@@ -1790,7 +1790,6 @@ static int megasas_handle_io(MegasasState *s, MegasasCmd *cmd, int frame_cmd)
 
     target_id = cmd->frame->header.target_id;
     lun_id = cmd->frame->header.lun_id;
-    cdb_len = cmd->frame->header.cdb_len;
 
     if (target_id < MFI_MAX_LD && lun_id == 0) {
         sdev = scsi_device_find(&s->bus, 0, target_id, lun_id);
@@ -1805,15 +1804,6 @@ static int megasas_handle_io(MegasasState *s, MegasasCmd *cmd, int frame_cmd)
         return MFI_STAT_DEVICE_NOT_FOUND;
     }
 
-    if (cdb_len > 16) {
-        trace_megasas_scsi_invalid_cdb_len(
-            mfi_frame_desc(frame_cmd), 1, target_id, lun_id, cdb_len);
-        megasas_write_sense(cmd, SENSE_CODE(INVALID_OPCODE));
-        cmd->frame->header.scsi_status = CHECK_CONDITION;
-        s->event_count++;
-        return MFI_STAT_SCSI_DONE_WITH_ERROR;
-    }
-
     cmd->iov_size = lba_count * sdev->blocksize;
     if (megasas_map_sgl(s, cmd, &cmd->frame->io.sgl)) {
         megasas_write_sense(cmd, SENSE_CODE(TARGET_FAILURE));
@@ -1824,7 +1814,7 @@ static int megasas_handle_io(MegasasState *s, MegasasCmd *cmd, int frame_cmd)
 
     megasas_encode_lba(cdb, lba_start, lba_count, is_write);
     cmd->req = scsi_req_new(sdev, cmd->index,
-                            lun_id, cdb, cdb_len, cmd);
+                            lun_id, cdb, sizeof(cdb), cmd);
     if (!cmd->req) {
         trace_megasas_scsi_req_alloc_failed(
             mfi_frame_desc(frame_cmd), target_id, lun_id);
@@ -2458,7 +2448,7 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
     scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev), &megasas_scsi_info);
 }
 
-static Property megasas_properties_gen1[] = {
+static const Property megasas_properties_gen1[] = {
     DEFINE_PROP_UINT32("max_sge", MegasasState, fw_sge,
                        MEGASAS_DEFAULT_SGE),
     DEFINE_PROP_UINT32("max_cmds", MegasasState, fw_cmds,
@@ -2469,10 +2459,9 @@ static Property megasas_properties_gen1[] = {
     DEFINE_PROP_ON_OFF_AUTO("msix", MegasasState, msix, ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BIT("use_jbod", MegasasState, flags,
                     MEGASAS_FLAG_USE_JBOD, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
-static Property megasas_properties_gen2[] = {
+static const Property megasas_properties_gen2[] = {
     DEFINE_PROP_UINT32("max_sge", MegasasState, fw_sge,
                        MEGASAS_DEFAULT_SGE),
     DEFINE_PROP_UINT32("max_cmds", MegasasState, fw_cmds,
@@ -2483,7 +2472,6 @@ static Property megasas_properties_gen2[] = {
     DEFINE_PROP_ON_OFF_AUTO("msix", MegasasState, msix, ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BIT("use_jbod", MegasasState, flags,
                     MEGASAS_FLAG_USE_JBOD, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 typedef struct MegasasInfo {
@@ -2497,7 +2485,8 @@ typedef struct MegasasInfo {
     int mmio_bar;
     int osts;
     const VMStateDescription *vmsd;
-    Property *props;
+    const Property *props;
+    size_t props_count;
     InterfaceInfo *interfaces;
 } MegasasInfo;
 
@@ -2514,6 +2503,7 @@ static struct MegasasInfo megasas_devices[] = {
         .osts = MFI_1078_RM | 1,
         .vmsd = &vmstate_megasas_gen1,
         .props = megasas_properties_gen1,
+        .props_count = ARRAY_SIZE(megasas_properties_gen1),
         .interfaces = (InterfaceInfo[]) {
             { INTERFACE_CONVENTIONAL_PCI_DEVICE },
             { },
@@ -2530,6 +2520,7 @@ static struct MegasasInfo megasas_devices[] = {
         .osts = MFI_GEN2_RM,
         .vmsd = &vmstate_megasas_gen2,
         .props = megasas_properties_gen2,
+        .props_count = ARRAY_SIZE(megasas_properties_gen2),
         .interfaces = (InterfaceInfo[]) {
             { INTERFACE_PCIE_DEVICE },
             { }
@@ -2556,7 +2547,7 @@ static void megasas_class_init(ObjectClass *oc, void *data)
     e->osts = info->osts;
     e->product_name = info->product_name;
     e->product_version = info->product_version;
-    device_class_set_props(dc, info->props);
+    device_class_set_props_n(dc, info->props, info->props_count);
     device_class_set_legacy_reset(dc, megasas_scsi_reset);
     dc->vmsd = info->vmsd;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
@@ -2586,7 +2577,7 @@ static void megasas_register_types(void)
         type_info.class_init = megasas_class_init;
         type_info.interfaces = info->interfaces;
 
-        type_register(&type_info);
+        type_register_static(&type_info);
     }
 }
 

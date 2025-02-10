@@ -29,9 +29,18 @@ struct S390CcwMachineState {
     bool dea_key_wrap;
     bool pv;
     uint8_t loadparm[8];
+    uint64_t memory_limit;
+    uint64_t max_pagesize;
 
     SCLPDevice *sclp;
 };
+
+static inline uint64_t s390_get_memory_limit(S390CcwMachineState *s390ms)
+{
+    /* We expect to be called only after the limit was set. */
+    assert(s390ms->memory_limit);
+    return s390ms->memory_limit;
+}
 
 #define S390_PTF_REASON_NONE (0x00 << 8)
 #define S390_PTF_REASON_DONE (0x01 << 8)
@@ -44,16 +53,10 @@ struct S390CcwMachineClass {
     MachineClass parent_class;
 
     /*< public >*/
-    bool ri_allowed;
-    bool cpu_model_allowed;
     bool hpage_1m_allowed;
     int max_threads;
 };
 
-/* runtime-instrumentation allowed by the machine */
-bool ri_allowed(void);
-/* cpu model allowed by the machine */
-bool cpu_model_allowed(void);
 /* 1M huge page mappings allowed by the machine */
 bool hpage_1m_allowed(void);
 

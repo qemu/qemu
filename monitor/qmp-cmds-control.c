@@ -1,5 +1,5 @@
 /*
- * QMP commands related to the monitor (common to sysemu and tools)
+ * QMP commands related to the monitor (common to system and tools)
  *
  * Copyright (c) 2003-2004 Fabrice Bellard
  *

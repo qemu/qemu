@@ -1258,10 +1258,9 @@ static void aspeed_i2c_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property aspeed_i2c_properties[] = {
+static const Property aspeed_i2c_properties[] = {
     DEFINE_PROP_LINK("dram", AspeedI2CState, dram_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void aspeed_i2c_class_init(ObjectClass *klass, void *data)
@@ -1446,11 +1445,10 @@ static void aspeed_i2c_bus_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mr_pool);
 }
 
-static Property aspeed_i2c_bus_properties[] = {
+static const Property aspeed_i2c_bus_properties[] = {
     DEFINE_PROP_UINT8("bus-id", AspeedI2CBus, id, 0),
     DEFINE_PROP_LINK("controller", AspeedI2CBus, controller, TYPE_ASPEED_I2C,
                      AspeedI2CState *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void aspeed_i2c_bus_class_init(ObjectClass *klass, void *data)

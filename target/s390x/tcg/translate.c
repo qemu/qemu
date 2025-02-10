@@ -40,6 +40,7 @@
 #include "exec/helper-gen.h"
 
 #include "exec/translator.h"
+#include "exec/translation-block.h"
 #include "exec/log.h"
 #include "qemu/atomic128.h"
 
@@ -6422,8 +6423,8 @@ static void s390x_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     dc->base.is_jmp = translate_one(env, dc);
     if (dc->base.is_jmp == DISAS_NEXT) {
         if (dc->ex_value ||
-            !is_same_page(dcbase, dc->base.pc_next) ||
-            !is_same_page(dcbase, get_next_pc(env, dc, dc->base.pc_next))) {
+            !translator_is_same_page(dcbase, dc->base.pc_next) ||
+            !translator_is_same_page(dcbase, get_next_pc(env, dc, dc->base.pc_next))) {
             dc->base.is_jmp = DISAS_TOO_MANY;
         }
     }
@@ -6480,8 +6481,8 @@ static const TranslatorOps s390x_tr_ops = {
     .disas_log          = s390x_tr_disas_log,
 };
 
-void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
-                           vaddr pc, void *host_pc)
+void s390x_translate_code(CPUState *cs, TranslationBlock *tb,
+                          int *max_insns, vaddr pc, void *host_pc)
 {
     DisasContext dc;
 

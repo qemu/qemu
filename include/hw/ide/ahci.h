@@ -37,8 +37,6 @@ typedef struct AHCIControlRegs {
 } AHCIControlRegs;
 
 typedef struct AHCIState {
-    DeviceState *container;
-
     AHCIDevice *dev;
     AHCIControlRegs control_regs;
     MemoryRegion mem;

@@ -27,8 +27,8 @@
 #include "xen_gnttab.h"
 #include "xen_primary_console.h"
 
-#include "sysemu/kvm.h"
-#include "sysemu/kvm_xen.h"
+#include "system/kvm.h"
+#include "system/kvm_xen.h"
 
 #include "hw/xen/interface/memory.h"
 #include "hw/xen/interface/grant_table.h"

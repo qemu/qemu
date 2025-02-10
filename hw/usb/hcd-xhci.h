@@ -25,7 +25,7 @@
 
 #include "hw/usb.h"
 #include "hw/usb/xhci.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(XHCIState, XHCI)
 

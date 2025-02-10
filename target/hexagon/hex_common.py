@@ -21,6 +21,7 @@ import sys
 import re
 import string
 import textwrap
+import argparse
 
 behdict = {}  # tag ->behavior
 semdict = {}  # tag -> semantics
@@ -1181,22 +1182,20 @@ def helper_args(tag, regs, imms):
     return args
 
 
-def read_common_files():
-    read_semantics_file(sys.argv[1])
-    read_overrides_file(sys.argv[2])
-    read_overrides_file(sys.argv[3])
-    ## Whether or not idef-parser is enabled is
-    ## determined by the number of arguments to
-    ## this script:
-    ##
-    ##   4 args. -> not enabled,
-    ##   5 args. -> idef-parser enabled.
-    ##
-    ## The 5:th arg. then holds a list of the successfully
-    ## parsed instructions.
-    is_idef_parser_enabled = len(sys.argv) > 5
-    if is_idef_parser_enabled:
-        read_idef_parser_enabled_file(sys.argv[4])
+def parse_common_args(desc):
+    parser = argparse.ArgumentParser(desc)
+    parser.add_argument("semantics", help="semantics file")
+    parser.add_argument("overrides", help="overrides file")
+    parser.add_argument("overrides_vec", help="vector overrides file")
+    parser.add_argument("out", help="output file")
+    parser.add_argument("--idef-parser",
+                        help="file of instructions translated by idef-parser")
+    args = parser.parse_args()
+    read_semantics_file(args.semantics)
+    read_overrides_file(args.overrides)
+    read_overrides_file(args.overrides_vec)
+    if args.idef_parser:
+        read_idef_parser_enabled_file(args.idef_parser)
     calculate_attribs()
     init_registers()
-    return is_idef_parser_enabled
+    return args

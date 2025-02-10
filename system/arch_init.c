@@ -23,7 +23,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/module.h"
-#include "sysemu/arch_init.h"
+#include "system/arch_init.h"
 
 #ifdef TARGET_SPARC
 int graphic_width = 1024;

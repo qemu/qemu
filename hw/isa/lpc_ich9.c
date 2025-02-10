@@ -46,8 +46,8 @@
 #include "hw/acpi/ich9_timer.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/runstate.h"
-#include "sysemu/sysemu.h"
+#include "system/runstate.h"
+#include "system/system.h"
 #include "hw/core/cpu.h"
 #include "hw/nvram/fw_cfg.h"
 #include "qemu/cutils.h"
@@ -826,7 +826,7 @@ static const VMStateDescription vmstate_ich9_lpc = {
     }
 };
 
-static Property ich9_lpc_properties[] = {
+static const Property ich9_lpc_properties[] = {
     DEFINE_PROP_BOOL("noreboot", ICH9LPCState, pin_strap.spkr_hi, false),
     DEFINE_PROP_BOOL("smm-compat", ICH9LPCState, pm.smm_compat, false),
     DEFINE_PROP_BOOL("smm-enabled", ICH9LPCState, pm.smm_enabled, false),
@@ -840,7 +840,6 @@ static Property ich9_lpc_properties[] = {
                      pm.swsmi_timer_enabled, true),
     DEFINE_PROP_BOOL("x-smi-periodic-timer", ICH9LPCState,
                      pm.periodic_timer_enabled, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ich9_send_gpe(AcpiDeviceIf *adev, AcpiEventStatusBits ev)

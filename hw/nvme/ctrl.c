@@ -201,13 +201,14 @@
 #include "qemu/range.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/hostmem.h"
+#include "system/system.h"
+#include "system/block-backend.h"
+#include "system/hostmem.h"
 #include "hw/pci/msix.h"
 #include "hw/pci/pcie_sriov.h"
 #include "sysemu/spdm-socket.h"
 #include "sysemu/spdm.h"
+#include "system/spdm-socket.h"
 #include "migration/vmstate.h"
 
 #include "nvme.h"
@@ -657,6 +658,12 @@ static void nvme_irq_check(NvmeCtrl *n)
     if (msix_enabled(pci)) {
         return;
     }
+
+    /* vfs does not implement intx */
+    if (pci_is_vf(pci)) {
+        return;
+    }
+
     if (~intms & n->irq_status) {
         pci_irq_assert(pci);
     } else {
@@ -1521,9 +1528,16 @@ static void nvme_post_cqes(void *opaque)
             stl_le_p(&n->bar.csts, NVME_CSTS_FAILED);
             break;
         }
+
         QTAILQ_REMOVE(&cq->req_list, req, entry);
+
         nvme_inc_cq_tail(cq);
         nvme_sg_unmap(&req->sg);
+
+        if (QTAILQ_EMPTY(&sq->req_list) && !nvme_sq_empty(sq)) {
+            qemu_bh_schedule(sq->bh);
+        }
+
         QTAILQ_INSERT_TAIL(&sq->req_list, req, entry);
     }
     if (cq->tail != cq->head) {
@@ -5417,7 +5431,7 @@ static void nvme_free_cq(NvmeCQueue *cq, NvmeCtrl *n)
         event_notifier_set_handler(&cq->notifier, NULL);
         event_notifier_cleanup(&cq->notifier);
     }
-    if (msix_enabled(pci)) {
+    if (msix_enabled(pci) && cq->irq_enabled) {
         msix_vector_unuse(pci, cq->vector);
     }
     if (cq->cqid) {
@@ -5458,9 +5472,10 @@ static void nvme_init_cq(NvmeCQueue *cq, NvmeCtrl *n, uint64_t dma_addr,
 {
     PCIDevice *pci = PCI_DEVICE(n);
 
-    if (msix_enabled(pci)) {
+    if (msix_enabled(pci) && irq_enabled) {
         msix_vector_use(pci, vector);
     }
+
     cq->ctrl = n;
     cq->cqid = cqid;
     cq->size = size;
@@ -5691,6 +5706,33 @@ static uint16_t nvme_identify_sec_ctrl_list(NvmeCtrl *n, NvmeRequest *req)
     trace_pci_nvme_identify_sec_ctrl_list(pri_ctrl_id, list.numcntl);
 
     return nvme_c2h(n, (uint8_t *)&list, sizeof(list), req);
+}
+
+static uint16_t nvme_identify_ns_ind(NvmeCtrl *n, NvmeRequest *req, bool alloc)
+{
+    NvmeNamespace *ns;
+    NvmeIdentify *c = (NvmeIdentify *)&req->cmd;
+    uint32_t nsid = le32_to_cpu(c->nsid);
+
+    trace_pci_nvme_identify_ns_ind(nsid);
+
+    if (!nvme_nsid_valid(n, nsid) || nsid == NVME_NSID_BROADCAST) {
+        return NVME_INVALID_NSID | NVME_DNR;
+    }
+
+    ns = nvme_ns(n, nsid);
+    if (unlikely(!ns)) {
+        if (alloc) {
+            ns = nvme_subsys_ns(n->subsys, nsid);
+            if (!ns) {
+                return nvme_rpt_empty_id_struct(n, req);
+            }
+        } else {
+            return nvme_rpt_empty_id_struct(n, req);
+        }
+    }
+
+    return nvme_c2h(n, (uint8_t *)&ns->id_ns_ind, sizeof(NvmeIdNsInd), req);
 }
 
 static uint16_t nvme_identify_ns_csi(NvmeCtrl *n, NvmeRequest *req,
@@ -5947,6 +5989,10 @@ static uint16_t nvme_identify(NvmeCtrl *n, NvmeRequest *req)
         return nvme_identify_sec_ctrl_list(n, req);
     case NVME_ID_CNS_CS_NS:
         return nvme_identify_ns_csi(n, req, true);
+    case NVME_ID_CNS_CS_IND_NS:
+        return nvme_identify_ns_ind(n, req, false);
+    case NVME_ID_CNS_CS_IND_NS_ALLOCATED:
+        return nvme_identify_ns_ind(n, req, true);
     case NVME_ID_CNS_CS_NS_PRESENT:
         return nvme_identify_ns_csi(n, req, false);
     case NVME_ID_CNS_CTRL:
@@ -7951,7 +7997,6 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
         /* Completion queue doorbell write */
 
         uint16_t new_head = val & 0xffff;
-        int start_sqs;
         NvmeCQueue *cq;
 
         qid = (addr - (0x1000 + (1 << 2))) >> 3;
@@ -8002,17 +8047,14 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
 
         trace_pci_nvme_mmio_doorbell_cq(cq->cqid, new_head);
 
-        start_sqs = nvme_cq_full(cq) ? 1 : 0;
+        /* scheduled deferred cqe posting if queue was previously full */
+        if (nvme_cq_full(cq)) {
+            qemu_bh_schedule(cq->bh);
+        }
+
         cq->head = new_head;
         if (!qid && n->dbbuf_enabled) {
             stl_le_pci_dma(pci, cq->db_addr, cq->head, MEMTXATTRS_UNSPECIFIED);
-        }
-        if (start_sqs) {
-            NvmeSQueue *sq;
-            QTAILQ_FOREACH(sq, &cq->sq_list, entry) {
-                qemu_bh_schedule(sq->bh);
-            }
-            qemu_bh_schedule(cq->bh);
         }
 
         if (cq->tail == cq->head) {
@@ -8522,7 +8564,7 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
     SpdmDev *nvme_spdm_dev = g_malloc0(sizeof(SpdmDev));
 #endif
 
-    pci_conf[PCI_INTERRUPT_PIN] = 1;
+    pci_conf[PCI_INTERRUPT_PIN] = pci_is_vf(pci_dev) ? 0 : 1;
     pci_config_set_prog_interface(pci_conf, 0x2);
 
     if (n->params.use_intel_id) {
@@ -8825,6 +8867,13 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
          */
         n->params.serial = g_strdup(pn->params.serial);
         n->subsys = pn->subsys;
+
+        /*
+         * Assigning this link (strong link) causes an `object_unref` later in
+         * `object_release_link_property`. Increment the refcount to balance
+         * this out.
+         */
+        object_ref(OBJECT(pn->subsys));
     }
 
     if (!nvme_check_params(n, errp)) {
@@ -8895,11 +8944,16 @@ static void nvme_exit(PCIDevice *pci_dev)
         pcie_sriov_pf_exit(pci_dev);
     }
 
-    msix_uninit(pci_dev, &n->bar0, &n->bar0);
+    if (n->params.msix_exclusive_bar && !pci_is_vf(pci_dev)) {
+        msix_uninit_exclusive_bar(pci_dev);
+    } else {
+        msix_uninit(pci_dev, &n->bar0, &n->bar0);
+    }
+
     memory_region_del_subregion(&n->bar0, &n->iomem);
 }
 
-static Property nvme_props[] = {
+static const Property nvme_props[] = {
     DEFINE_BLOCK_PROPERTIES(NvmeCtrl, namespace.blkconf),
     DEFINE_PROP_LINK("pmrdev", NvmeCtrl, pmr.dev, TYPE_MEMORY_BACKEND,
                      HostMemoryBackend *),
@@ -8937,7 +8991,6 @@ static Property nvme_props[] = {
     DEFINE_PROP_BOOL("atomic.dn", NvmeCtrl, params.atomic_dn, 0),
     DEFINE_PROP_UINT16("atomic.awun", NvmeCtrl, params.atomic_awun, 0),
     DEFINE_PROP_UINT16("atomic.awupf", NvmeCtrl, params.atomic_awupf, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void nvme_get_smart_warning(Object *obj, Visitor *v, const char *name,

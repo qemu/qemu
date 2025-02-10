@@ -33,7 +33,7 @@
 #include "qemu/cutils.h"
 #include "qemu/log.h"
 #include "qemu/units.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "trace.h"
 
 REG32(NPCM_DMA_BUS_MODE, 0x1000)
@@ -546,9 +546,8 @@ static void gmac_try_send_next_packet(NPCMGMACState *gmac)
 
         /* 1 = DMA Owned, 0 = Software Owned */
         if (!(tx_desc.tdes0 & TX_DESC_TDES0_OWN)) {
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "TX Descriptor @ 0x%x is owned by software\n",
-                          desc_addr);
+            trace_npcm_gmac_tx_desc_owner(DEVICE(gmac)->canonical_path,
+                                          desc_addr);
             gmac->regs[R_NPCM_DMA_STATUS] |= NPCM_DMA_STATUS_TU;
             gmac_dma_set_state(gmac, NPCM_DMA_STATUS_TX_PROCESS_STATE_SHIFT,
                 NPCM_DMA_STATUS_TX_SUSPENDED_STATE);
@@ -913,9 +912,8 @@ static const VMStateDescription vmstate_npcm_gmac = {
     },
 };
 
-static Property npcm_gmac_properties[] = {
+static const Property npcm_gmac_properties[] = {
     DEFINE_NIC_PROPERTIES(NPCMGMACState, conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void npcm_gmac_class_init(ObjectClass *klass, void *data)

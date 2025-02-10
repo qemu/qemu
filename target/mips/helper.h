@@ -594,7 +594,7 @@ DEF_HELPER_FLAGS_3(wrdsp, 0, void, tl, tl, env)
 DEF_HELPER_FLAGS_2(rddsp, 0, tl, tl, env)
 
 #ifndef CONFIG_USER_ONLY
-#include "tcg/sysemu_helper.h.inc"
+#include "tcg/system_helper.h.inc"
 #endif /* !CONFIG_USER_ONLY */
 
 #include "tcg/msa_helper.h.inc"

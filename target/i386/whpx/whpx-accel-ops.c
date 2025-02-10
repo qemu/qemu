@@ -9,12 +9,12 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/kvm_int.h"
+#include "system/kvm_int.h"
 #include "qemu/main-loop.h"
-#include "sysemu/cpus.h"
+#include "system/cpus.h"
 #include "qemu/guest-random.h"
 
-#include "sysemu/whpx.h"
+#include "system/whpx.h"
 #include "whpx-internal.h"
 #include "whpx-accel-ops.h"
 

@@ -22,7 +22,7 @@
 
 #include "block/block_int.h"
 #include "block/qdict.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "crypto/block.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/qapi-visit-crypto.h"

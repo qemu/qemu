@@ -216,14 +216,13 @@ static void nvme_subsys_realize(DeviceState *dev, Error **errp)
     nvme_subsys_setup(subsys, errp);
 }
 
-static Property nvme_subsystem_props[] = {
+static const Property nvme_subsystem_props[] = {
     DEFINE_PROP_STRING("nqn", NvmeSubsystem, params.nqn),
     DEFINE_PROP_BOOL("fdp", NvmeSubsystem, params.fdp.enabled, false),
     DEFINE_PROP_SIZE("fdp.runs", NvmeSubsystem, params.fdp.runs,
                      NVME_DEFAULT_RU_SIZE),
     DEFINE_PROP_UINT32("fdp.nrg", NvmeSubsystem, params.fdp.nrg, 1),
     DEFINE_PROP_UINT16("fdp.nruh", NvmeSubsystem, params.fdp.nruh, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void nvme_subsys_class_init(ObjectClass *oc, void *data)

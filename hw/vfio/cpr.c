@@ -9,7 +9,7 @@
 #include "hw/vfio/vfio-common.h"
 #include "migration/misc.h"
 #include "qapi/error.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 
 static int vfio_cpr_reboot_notifier(NotifierWithReturn *notifier,
                                     MigrationEvent *e, Error **errp)

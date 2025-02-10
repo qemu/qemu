@@ -22,9 +22,8 @@
 #include "hw/sd/sdhci.h"
 #include "sdhci-internal.h"
 
-static Property sdhci_pci_properties[] = {
+static const Property sdhci_pci_properties[] = {
     DEFINE_SDHCI_COMMON_PROPERTIES(SDHCIState),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void sdhci_pci_realize(PCIDevice *dev, Error **errp)

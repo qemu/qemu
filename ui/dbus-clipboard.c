@@ -26,7 +26,7 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qom/object_interfaces.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qapi/error.h"
 #include "trace.h"
 

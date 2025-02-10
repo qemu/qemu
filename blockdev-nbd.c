@@ -10,8 +10,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/block-backend.h"
+#include "system/blockdev.h"
+#include "system/block-backend.h"
 #include "hw/block/block.h"
 #include "qapi/error.h"
 #include "qapi/clone-visitor.h"

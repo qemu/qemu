@@ -10,8 +10,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/replay.h"
-#include "sysemu/runstate.h"
+#include "system/replay.h"
+#include "system/runstate.h"
 #include "replay-internal.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"

@@ -33,6 +33,9 @@ bool qcrypto_pbkdf2_supports(QCryptoHashAlgo hash)
     case QCRYPTO_HASH_ALGO_SHA384:
     case QCRYPTO_HASH_ALGO_SHA512:
     case QCRYPTO_HASH_ALGO_RIPEMD160:
+#ifdef CONFIG_CRYPTO_SM3
+    case QCRYPTO_HASH_ALGO_SM3:
+#endif
         return qcrypto_hash_supports(hash);
     default:
         return false;
@@ -54,6 +57,9 @@ int qcrypto_pbkdf2(QCryptoHashAlgo hash,
         [QCRYPTO_HASH_ALGO_SHA384] = GCRY_MD_SHA384,
         [QCRYPTO_HASH_ALGO_SHA512] = GCRY_MD_SHA512,
         [QCRYPTO_HASH_ALGO_RIPEMD160] = GCRY_MD_RMD160,
+#ifdef CONFIG_CRYPTO_SM3
+        [QCRYPTO_HASH_ALGO_SM3] = GCRY_MD_SM3,
+#endif
     };
     int ret;
 

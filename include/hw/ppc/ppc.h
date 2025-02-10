@@ -116,6 +116,13 @@ enum {
 
 #define PPC_SERIAL_MM_BAUDBASE 399193
 
+#ifndef CONFIG_USER_ONLY
+void booke206_set_tlb(ppcmas_tlb_t *tlb, target_ulong va, hwaddr pa,
+                      hwaddr len);
+void booke_set_tlb(ppcemb_tlb_t *tlb, target_ulong va, hwaddr pa,
+                   target_ulong size);
+#endif
+
 /* ppc_booke.c */
 void ppc_booke_timers_init(PowerPCCPU *cpu, uint32_t freq, uint32_t flags);
 #endif

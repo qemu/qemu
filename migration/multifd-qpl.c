@@ -679,6 +679,7 @@ static int multifd_qpl_recv(MultiFDRecvParams *p, Error **errp)
         qpl->zlen[i] = be32_to_cpu(qpl->zlen[i]);
         assert(qpl->zlen[i] <= multifd_ram_page_size());
         zbuf_len += qpl->zlen[i];
+        ramblock_recv_bitmap_set_offset(p->block, p->normal[i]);
     }
 
     /* read compressed pages */

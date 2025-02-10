@@ -39,7 +39,7 @@
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/qemu-print.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 
 BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
                                         BlockDriverState *bs,

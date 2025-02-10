@@ -24,8 +24,8 @@
 #include "qemu/help-texts.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/runstate.h" /* for qemu_system_killed() prototype */
+#include "system/block-backend.h"
+#include "system/runstate.h" /* for qemu_system_killed() prototype */
 #include "block/block_int.h"
 #include "block/nbd.h"
 #include "qemu/main-loop.h"

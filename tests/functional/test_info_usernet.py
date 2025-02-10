@@ -11,8 +11,7 @@
 # later.  See the COPYING file in the top-level directory.
 
 from qemu_test import QemuSystemTest
-
-from qemu.utils import get_info_usernet_hostfwd_port
+from qemu_test.utils import get_usernet_hostfwd_port
 
 
 class InfoUsernet(QemuSystemTest):
@@ -22,9 +21,8 @@ class InfoUsernet(QemuSystemTest):
         self.set_machine('none')
         self.vm.add_args('-netdev', 'user,id=vnet,hostfwd=:127.0.0.1:0-:22')
         self.vm.launch()
-        res = self.vm.cmd('human-monitor-command',
-                          command_line='info usernet')
-        port = get_info_usernet_hostfwd_port(res)
+
+        port = get_usernet_hostfwd_port(self.vm)
         self.assertIsNotNone(port,
                              ('"info usernet" output content does not seem to '
                               'contain the redirected port'))

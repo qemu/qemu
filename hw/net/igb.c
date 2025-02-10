@@ -44,7 +44,7 @@
 #include "net/tap.h"
 #include "qemu/module.h"
 #include "qemu/range.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/hw.h"
 #include "hw/net/mii.h"
 #include "hw/pci/pci.h"
@@ -591,10 +591,9 @@ static const VMStateDescription igb_vmstate = {
     }
 };
 
-static Property igb_properties[] = {
+static const Property igb_properties[] = {
     DEFINE_NIC_PROPERTIES(IGBState, conf),
     DEFINE_PROP_BOOL("x-pcie-flr-init", IGBState, has_flr, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void igb_class_init(ObjectClass *class, void *data)

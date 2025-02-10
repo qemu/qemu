@@ -30,9 +30,9 @@
 #include "cpu.h"
 #include "hw/sysbus.h"
 #include "hw/sh4/sh.h"
-#include "sysemu/reset.h"
-#include "sysemu/runstate.h"
-#include "sysemu/sysemu.h"
+#include "system/reset.h"
+#include "system/runstate.h"
+#include "system/system.h"
 #include "hw/boards.h"
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
@@ -43,6 +43,7 @@
 #include "hw/loader.h"
 #include "hw/usb.h"
 #include "hw/block/flash.h"
+#include "exec/tswap.h"
 
 #define FLASH_BASE 0x00000000
 #define FLASH_SIZE (16 * MiB)
@@ -61,6 +62,12 @@
 #define PA_POWOFF 0x30
 #define PA_VERREG 0x32
 #define PA_OUTPORT 0x36
+
+enum r2d_fpga_irq {
+    PCI_INTD, CF_IDE, CF_CD, PCI_INTC, SM501, KEY, RTC_A, RTC_T,
+    SDCARD, PCI_INTA, PCI_INTB, EXT, TP,
+    NR_IRQS
+};
 
 typedef struct {
     uint16_t bcr;
@@ -87,14 +94,9 @@ typedef struct {
 
 /* output pin */
     qemu_irq irl;
+    IRQState irq[NR_IRQS];
     MemoryRegion iomem;
 } r2d_fpga_t;
-
-enum r2d_fpga_irq {
-    PCI_INTD, CF_IDE, CF_CD, PCI_INTC, SM501, KEY, RTC_A, RTC_T,
-    SDCARD, PCI_INTA, PCI_INTB, EXT, TP,
-    NR_IRQS
-};
 
 static const struct { short irl; uint16_t msk; } irqtab[NR_IRQS] = {
     [CF_IDE] =   {  1, 1 << 9 },
@@ -185,8 +187,8 @@ static const MemoryRegionOps r2d_fpga_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static qemu_irq *r2d_fpga_init(MemoryRegion *sysmem,
-                               hwaddr base, qemu_irq irl)
+static r2d_fpga_t *r2d_fpga_init(MemoryRegion *sysmem,
+                                 hwaddr base, qemu_irq irl)
 {
     r2d_fpga_t *s;
 
@@ -196,7 +198,10 @@ static qemu_irq *r2d_fpga_init(MemoryRegion *sysmem,
 
     memory_region_init_io(&s->iomem, NULL, &r2d_fpga_ops, s, "r2d-fpga", 0x40);
     memory_region_add_subregion(sysmem, base, &s->iomem);
-    return qemu_allocate_irqs(r2d_fpga_irq_set, s, NR_IRQS);
+
+    qemu_init_irqs(s->irq, NR_IRQS, r2d_fpga_irq_set, s);
+
+    return s;
 }
 
 typedef struct ResetData {
@@ -238,13 +243,13 @@ static void r2d_init(MachineState *machine)
     ResetData *reset_info;
     struct SH7750State *s;
     MemoryRegion *sdram = g_new(MemoryRegion, 1);
-    qemu_irq *irq;
     DriveInfo *dinfo;
     DeviceState *dev;
     SysBusDevice *busdev;
     MemoryRegion *address_space_mem = get_system_memory();
     PCIBus *pci_bus;
     USBBus *usb_bus;
+    r2d_fpga_t *fpga;
 
     cpu = SUPERH_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
@@ -259,7 +264,7 @@ static void r2d_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, SDRAM_BASE, sdram);
     /* Register peripherals */
     s = sh7750_init(cpu, address_space_mem);
-    irq = r2d_fpga_init(address_space_mem, 0x04000000, sh7750_irl(s));
+    fpga = r2d_fpga_init(address_space_mem, 0x04000000, sh7750_irl(s));
 
     dev = qdev_new("sh_pci");
     busdev = SYS_BUS_DEVICE(dev);
@@ -267,10 +272,10 @@ static void r2d_init(MachineState *machine)
     pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci"));
     sysbus_mmio_map(busdev, 0, P4ADDR(0x1e200000));
     sysbus_mmio_map(busdev, 1, A7ADDR(0x1e200000));
-    sysbus_connect_irq(busdev, 0, irq[PCI_INTA]);
-    sysbus_connect_irq(busdev, 1, irq[PCI_INTB]);
-    sysbus_connect_irq(busdev, 2, irq[PCI_INTC]);
-    sysbus_connect_irq(busdev, 3, irq[PCI_INTD]);
+    sysbus_connect_irq(busdev, 0, &fpga->irq[PCI_INTA]);
+    sysbus_connect_irq(busdev, 1, &fpga->irq[PCI_INTB]);
+    sysbus_connect_irq(busdev, 2, &fpga->irq[PCI_INTC]);
+    sysbus_connect_irq(busdev, 3, &fpga->irq[PCI_INTD]);
 
     dev = qdev_new("sysbus-sm501");
     busdev = SYS_BUS_DEVICE(dev);
@@ -280,15 +285,15 @@ static void r2d_init(MachineState *machine)
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0x10000000);
     sysbus_mmio_map(busdev, 1, 0x13e00000);
-    sysbus_connect_irq(busdev, 0, irq[SM501]);
+    sysbus_connect_irq(busdev, 0, &fpga->irq[SM501]);
 
     /* onboard CF (True IDE mode, Master only). */
     dinfo = drive_get(IF_IDE, 0, 0);
     dev = qdev_new("mmio-ide");
     busdev = SYS_BUS_DEVICE(dev);
+    sysbus_connect_irq(busdev, 0, &fpga->irq[CF_IDE]);
     qdev_prop_set_uint32(dev, "shift", 1);
     sysbus_realize_and_unref(busdev, &error_fatal);
-    sysbus_connect_irq(busdev, 0, irq[CF_IDE]);
     sysbus_mmio_map(busdev, 0, 0x14001000);
     sysbus_mmio_map(busdev, 1, 0x1400080c);
     mmio_ide_init_drives(dev, dinfo, NULL);

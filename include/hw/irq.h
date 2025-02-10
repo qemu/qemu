@@ -41,6 +41,17 @@ static inline void qemu_irq_pulse(qemu_irq irq)
 void qemu_init_irq(IRQState *irq, qemu_irq_handler handler, void *opaque,
                    int n);
 
+/**
+ * qemu_init_irqs: Initialize an array of IRQs.
+ *
+ * @irq: Array of IRQs to initialize
+ * @count: number of IRQs to initialize
+ * @handler: handler to assign to each IRQ
+ * @opaque: opaque data to pass to @handler
+ */
+void qemu_init_irqs(IRQState irq[], size_t count,
+                    qemu_irq_handler handler, void *opaque);
+
 /* Returns an array of N IRQs. Each IRQ is assigned the argument handler and
  * opaque data.
  */

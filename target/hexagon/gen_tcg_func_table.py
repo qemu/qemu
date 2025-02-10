@@ -21,15 +21,22 @@ import sys
 import re
 import string
 import hex_common
+import argparse
 
 
 def main():
-    hex_common.read_semantics_file(sys.argv[1])
+    parser = argparse.ArgumentParser(
+        "Emit opaque macro calls with instruction semantics"
+    )
+    parser.add_argument("semantics", help="semantics file")
+    parser.add_argument("out", help="output file")
+    args = parser.parse_args()
+    hex_common.read_semantics_file(args.semantics)
     hex_common.calculate_attribs()
     tagregs = hex_common.get_tagregs()
     tagimms = hex_common.get_tagimms()
 
-    with open(sys.argv[-1], "w") as f:
+    with open(args.out, "w") as f:
         f.write("#ifndef HEXAGON_FUNC_TABLE_H\n")
         f.write("#define HEXAGON_FUNC_TABLE_H\n\n")
 

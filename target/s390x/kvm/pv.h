@@ -13,7 +13,7 @@
 #define HW_S390_PV_H
 
 #include "qapi/error.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 
 #ifdef CONFIG_KVM

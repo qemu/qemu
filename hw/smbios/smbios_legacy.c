@@ -18,7 +18,7 @@
 #include "qemu/osdep.h"
 #include "qemu/bswap.h"
 #include "hw/firmware/smbios.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qapi/error.h"
 
 struct smbios_header {

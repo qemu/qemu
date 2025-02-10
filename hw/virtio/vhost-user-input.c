@@ -7,9 +7,8 @@
 #include "qemu/osdep.h"
 #include "hw/virtio/virtio-input.h"
 
-static Property vinput_properties[] = {
+static const Property vinput_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserBase, chardev),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vinput_realize(DeviceState *dev, Error **errp)

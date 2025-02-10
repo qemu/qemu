@@ -1,0 +1,28 @@
+# Loongson 64-bit Extension instructions
+#
+# Copyright (C) 2021  Philippe Mathieu-Daudé
+#
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# Reference:
+#       STLS2F01 User Manual
+#       Appendix A: new integer instructions
+#       (Document Number: UM0447)
+#
+
+&muldiv         rs rt rd !extern
+
+@rs_rt_rd       ...... rs:5  rt:5  rd:5  ..... ......   &muldiv
+
+MULTu_G         011100 ..... ..... ..... 00000 0100-0   @rs_rt_rd
+DMULTu_G        011100 ..... ..... ..... 00000 0100-1   @rs_rt_rd
+
+DIV_G           011100 ..... ..... ..... 00000 010100   @rs_rt_rd
+DDIV_G          011100 ..... ..... ..... 00000 010101   @rs_rt_rd
+DIVU_G          011100 ..... ..... ..... 00000 010110   @rs_rt_rd
+DDIVU_G         011100 ..... ..... ..... 00000 010111   @rs_rt_rd
+
+MOD_G           011100 ..... ..... ..... 00000 011100   @rs_rt_rd
+DMOD_G          011100 ..... ..... ..... 00000 011101   @rs_rt_rd
+MODU_G          011100 ..... ..... ..... 00000 011110   @rs_rt_rd
+DMODU_G         011100 ..... ..... ..... 00000 011111   @rs_rt_rd

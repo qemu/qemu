@@ -80,6 +80,8 @@ this code that are retained.
 #ifndef SOFTFLOAT_TYPES_H
 #define SOFTFLOAT_TYPES_H
 
+#include "hw/registerfields.h"
+
 /*
  * Software IEC/IEEE floating-point types.
  */
@@ -138,6 +140,8 @@ typedef enum __attribute__((__packed__)) {
     float_round_to_odd       = 5,
     /* Not an IEEE rounding mode: round to closest odd, overflow to inf */
     float_round_to_odd_inf   = 6,
+    /* Not an IEEE rounding mode: round to nearest even, overflow to max */
+    float_round_nearest_even_max = 7,
 } FloatRoundMode;
 
 /*
@@ -150,8 +154,10 @@ enum {
     float_flag_overflow        = 0x0004,
     float_flag_underflow       = 0x0008,
     float_flag_inexact         = 0x0010,
-    float_flag_input_denormal  = 0x0020,
-    float_flag_output_denormal = 0x0040,
+    /* We flushed an input denormal to 0 (because of flush_inputs_to_zero) */
+    float_flag_input_denormal_flushed = 0x0020,
+    /* We flushed an output denormal to 0 (because of flush_to_zero) */
+    float_flag_output_denormal_flushed = 0x0040,
     float_flag_invalid_isi     = 0x0080,  /* inf - inf */
     float_flag_invalid_imz     = 0x0100,  /* inf * 0 */
     float_flag_invalid_idi     = 0x0200,  /* inf / inf */
@@ -171,6 +177,117 @@ typedef enum __attribute__((__packed__)) {
 } FloatX80RoundPrec;
 
 /*
+ * 2-input NaN propagation rule. Individual architectures have
+ * different rules for which input NaN is propagated to the output
+ * when there is more than one NaN on the input.
+ *
+ * If default_nan_mode is enabled then it is valid not to set a
+ * NaN propagation rule, because the softfloat code guarantees
+ * not to try to pick a NaN to propagate in default NaN mode.
+ * When not in default-NaN mode, it is an error for the target
+ * not to set the rule in float_status, and we will assert if
+ * we need to handle an input NaN and no rule was selected.
+ */
+typedef enum __attribute__((__packed__)) {
+    /* No propagation rule specified */
+    float_2nan_prop_none = 0,
+    /* Prefer SNaN over QNaN, then operand A over B */
+    float_2nan_prop_s_ab,
+    /* Prefer SNaN over QNaN, then operand B over A */
+    float_2nan_prop_s_ba,
+    /* Prefer A over B regardless of SNaN vs QNaN */
+    float_2nan_prop_ab,
+    /* Prefer B over A regardless of SNaN vs QNaN */
+    float_2nan_prop_ba,
+    /*
+     * This implements x87 NaN propagation rules:
+     * SNaN + QNaN => return the QNaN
+     * two SNaNs => return the one with the larger significand, silenced
+     * two QNaNs => return the one with the larger significand
+     * SNaN and a non-NaN => return the SNaN, silenced
+     * QNaN and a non-NaN => return the QNaN
+     *
+     * If we get down to comparing significands and they are the same,
+     * return the NaN with the positive sign bit (if any).
+     */
+    float_2nan_prop_x87,
+} Float2NaNPropRule;
+
+/*
+ * 3-input NaN propagation rule, for fused multiply-add. Individual
+ * architectures have different rules for which input NaN is
+ * propagated to the output when there is more than one NaN on the
+ * input.
+ *
+ * If default_nan_mode is enabled then it is valid not to set a NaN
+ * propagation rule, because the softfloat code guarantees not to try
+ * to pick a NaN to propagate in default NaN mode.  When not in
+ * default-NaN mode, it is an error for the target not to set the rule
+ * in float_status if it uses a muladd, and we will assert if we need
+ * to handle an input NaN and no rule was selected.
+ *
+ * The naming scheme for Float3NaNPropRule values is:
+ *  float_3nan_prop_s_abc:
+ *    = "Prefer SNaN over QNaN, then operand A over B over C"
+ *  float_3nan_prop_abc:
+ *    = "Prefer A over B over C regardless of SNaN vs QNAN"
+ *
+ * For QEMU, the multiply-add operation is A * B + C.
+ */
+
+/*
+ * We set the Float3NaNPropRule enum values up so we can select the
+ * right value in pickNaNMulAdd in a data driven way.
+ */
+FIELD(3NAN, 1ST, 0, 2)   /* which operand is most preferred ? */
+FIELD(3NAN, 2ND, 2, 2)   /* which operand is next most preferred ? */
+FIELD(3NAN, 3RD, 4, 2)   /* which operand is least preferred ? */
+FIELD(3NAN, SNAN, 6, 1)  /* do we prefer SNaN over QNaN ? */
+
+#define PROPRULE(X, Y, Z) \
+    ((X << R_3NAN_1ST_SHIFT) | (Y << R_3NAN_2ND_SHIFT) | (Z << R_3NAN_3RD_SHIFT))
+
+typedef enum __attribute__((__packed__)) {
+    float_3nan_prop_none = 0,     /* No propagation rule specified */
+    float_3nan_prop_abc = PROPRULE(0, 1, 2),
+    float_3nan_prop_acb = PROPRULE(0, 2, 1),
+    float_3nan_prop_bac = PROPRULE(1, 0, 2),
+    float_3nan_prop_bca = PROPRULE(1, 2, 0),
+    float_3nan_prop_cab = PROPRULE(2, 0, 1),
+    float_3nan_prop_cba = PROPRULE(2, 1, 0),
+    float_3nan_prop_s_abc = float_3nan_prop_abc | R_3NAN_SNAN_MASK,
+    float_3nan_prop_s_acb = float_3nan_prop_acb | R_3NAN_SNAN_MASK,
+    float_3nan_prop_s_bac = float_3nan_prop_bac | R_3NAN_SNAN_MASK,
+    float_3nan_prop_s_bca = float_3nan_prop_bca | R_3NAN_SNAN_MASK,
+    float_3nan_prop_s_cab = float_3nan_prop_cab | R_3NAN_SNAN_MASK,
+    float_3nan_prop_s_cba = float_3nan_prop_cba | R_3NAN_SNAN_MASK,
+} Float3NaNPropRule;
+
+#undef PROPRULE
+
+/*
+ * Rule for result of fused multiply-add 0 * Inf + NaN.
+ * This must be a NaN, but implementations differ on whether this
+ * is the input NaN or the default NaN.
+ *
+ * You don't need to set this if default_nan_mode is enabled.
+ * When not in default-NaN mode, it is an error for the target
+ * not to set the rule in float_status if it uses muladd, and we
+ * will assert if we need to handle an input NaN and no rule was
+ * selected.
+ */
+typedef enum __attribute__((__packed__)) {
+    /* No propagation rule specified */
+    float_infzeronan_none = 0,
+    /* Result is never the default NaN (so always the input NaN) */
+    float_infzeronan_dnan_never,
+    /* Result is always the default NaN */
+    float_infzeronan_dnan_always,
+    /* Result is the default NaN if the input NaN is quiet */
+    float_infzeronan_dnan_if_qnan,
+} FloatInfZeroNaNRule;
+
+/*
  * Floating Point Status. Individual architectures may maintain
  * several versions of float_status for different functions. The
  * correct status for the operation is then passed by reference to
@@ -181,19 +298,31 @@ typedef struct float_status {
     uint16_t float_exception_flags;
     FloatRoundMode float_rounding_mode;
     FloatX80RoundPrec floatx80_rounding_precision;
+    Float2NaNPropRule float_2nan_prop_rule;
+    Float3NaNPropRule float_3nan_prop_rule;
+    FloatInfZeroNaNRule float_infzeronan_rule;
     bool tininess_before_rounding;
-    /* should denormalised results go to zero and set the inexact flag? */
+    /* should denormalised results go to zero and set output_denormal_flushed? */
     bool flush_to_zero;
-    /* should denormalised inputs go to zero and set the input_denormal flag? */
+    /* should denormalised inputs go to zero and set input_denormal_flushed? */
     bool flush_inputs_to_zero;
     bool default_nan_mode;
+    /*
+     * The pattern to use for the default NaN. Here the high bit specifies
+     * the default NaN's sign bit, and bits 6..0 specify the high bits of the
+     * fractional part. The low bits of the fractional part are copies of bit 0.
+     * The exponent of the default NaN is (as for any NaN) always all 1s.
+     * Note that a value of 0 here is not a valid NaN. The target must set
+     * this to the correct non-zero value, or we will assert when trying to
+     * create a default NaN.
+     */
+    uint8_t default_nan_pattern;
     /*
      * The flags below are not used on all specializations and may
      * constant fold away (see snan_bit_is_one()/no_signalling_nans() in
      * softfloat-specialize.inc.c)
      */
     bool snan_bit_is_one;
-    bool use_first_nan;
     bool no_signaling_nans;
     /* should overflowed results subtract re_bias to its exponent? */
     bool rebias_overflow;

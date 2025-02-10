@@ -28,8 +28,8 @@
 #include "xen_primary_console.h"
 #include "xen_xenstore.h"
 
-#include "sysemu/kvm.h"
-#include "sysemu/kvm_xen.h"
+#include "system/kvm.h"
+#include "system/kvm_xen.h"
 
 #include "trace.h"
 
@@ -529,6 +529,10 @@ static void xs_read(XenXenstoreState *s, unsigned int req_id,
     len = data->len;
     if (len > XENSTORE_PAYLOAD_MAX) {
         xs_error(s, req_id, tx_id, E2BIG);
+        return;
+    }
+
+    if (!len) {
         return;
     }
 

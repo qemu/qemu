@@ -14,13 +14,10 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "exec/ram_addr.h"
-#include "exec/confidential-guest-support.h"
+#include "system/confidential-guest-support.h"
 #include "hw/boards.h"
-#include "hw/s390x/s390-virtio-hcall.h"
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/s390_flic.h"
-#include "hw/s390x/ioinst.h"
-#include "hw/s390x/css.h"
 #include "virtio-ccw.h"
 #include "qemu/config-file.h"
 #include "qemu/ctype.h"
@@ -29,7 +26,7 @@
 #include "qemu/qemu-print.h"
 #include "qemu/units.h"
 #include "hw/s390x/s390-pci-bus.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 #include "hw/s390x/storage-keys.h"
 #include "hw/s390x/storage-attributes.h"
 #include "hw/s390x/event-facility.h"
@@ -42,12 +39,16 @@
 #include "hw/nmi.h"
 #include "hw/qdev-properties.h"
 #include "hw/s390x/tod.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/cpus.h"
+#include "system/system.h"
+#include "system/cpus.h"
 #include "target/s390x/kvm/pv.h"
 #include "migration/blocker.h"
 #include "qapi/visitor.h"
 #include "hw/s390x/cpu-topology.h"
+#include "kvm/kvm_s390x.h"
+#include "hw/virtio/virtio-md-pci.h"
+#include "hw/s390x/virtio-ccw-md.h"
+#include "system/replay.h"
 #include CONFIG_DEVICES
 
 static Error *pv_mig_blocker;
@@ -124,70 +125,86 @@ static void subsystem_reset(void)
     }
 }
 
-static int virtio_ccw_hcall_notify(const uint64_t *args)
+static void s390_set_memory_limit(S390CcwMachineState *s390ms,
+                                  uint64_t new_limit)
 {
-    uint64_t subch_id = args[0];
-    uint64_t data = args[1];
-    SubchDev *sch;
-    VirtIODevice *vdev;
-    int cssid, ssid, schid, m;
-    uint16_t vq_idx = data;
+    uint64_t hw_limit = 0;
+    int ret = 0;
 
-    if (ioinst_disassemble_sch_ident(subch_id, &m, &cssid, &ssid, &schid)) {
-        return -EINVAL;
+    assert(!s390ms->memory_limit && new_limit);
+    if (kvm_enabled()) {
+        ret = kvm_s390_set_mem_limit(new_limit, &hw_limit);
     }
-    sch = css_find_subch(m, cssid, ssid, schid);
-    if (!sch || !css_subch_visible(sch)) {
-        return -EINVAL;
+    if (ret == -E2BIG) {
+        error_report("host supports a maximum of %" PRIu64 " GB",
+                     hw_limit / GiB);
+        exit(EXIT_FAILURE);
+    } else if (ret) {
+        error_report("setting the guest size failed");
+        exit(EXIT_FAILURE);
     }
-
-    vdev = virtio_ccw_get_vdev(sch);
-    if (vq_idx >= VIRTIO_QUEUE_MAX || !virtio_queue_get_num(vdev, vq_idx)) {
-        return -EINVAL;
-    }
-
-    if (virtio_vdev_has_feature(vdev, VIRTIO_F_NOTIFICATION_DATA)) {
-        virtio_queue_set_shadow_avail_idx(virtio_get_queue(vdev, vq_idx),
-                                          (data >> 16) & 0xFFFF);
-    }
-
-    virtio_queue_notify(vdev, vq_idx);
-    return 0;
+    s390ms->memory_limit = new_limit;
 }
 
-static int virtio_ccw_hcall_early_printk(const uint64_t *args)
+static void s390_set_max_pagesize(S390CcwMachineState *s390ms,
+                                  uint64_t pagesize)
 {
-    uint64_t mem = args[0];
-    MachineState *ms = MACHINE(qdev_get_machine());
-
-    if (mem < ms->ram_size) {
-        /* Early printk */
-        return 0;
+    assert(!s390ms->max_pagesize && pagesize);
+    if (kvm_enabled()) {
+        kvm_s390_set_max_pagesize(pagesize, &error_fatal);
     }
-    return -EINVAL;
+    s390ms->max_pagesize = pagesize;
 }
 
-static void virtio_ccw_register_hcalls(void)
+static void s390_memory_init(MachineState *machine)
 {
-    s390_register_virtio_hypercall(KVM_S390_VIRTIO_CCW_NOTIFY,
-                                   virtio_ccw_hcall_notify);
-    /* Tolerate early printk. */
-    s390_register_virtio_hypercall(KVM_S390_VIRTIO_NOTIFY,
-                                   virtio_ccw_hcall_early_printk);
-}
-
-static void s390_memory_init(MemoryRegion *ram)
-{
+    S390CcwMachineState *s390ms = S390_CCW_MACHINE(machine);
     MemoryRegion *sysmem = get_system_memory();
+    MemoryRegion *ram = machine->ram;
+    uint64_t ram_size = memory_region_size(ram);
+    uint64_t devmem_base, devmem_size;
 
-    /* allocate RAM for core */
+    if (!QEMU_IS_ALIGNED(ram_size, 1 * MiB)) {
+        /*
+         * SCLP cannot possibly expose smaller granularity right now and KVM
+         * cannot handle smaller granularity. As we don't support NUMA, the
+         * region size directly corresponds to machine->ram_size, and the region
+         * is a single RAM memory region.
+         */
+        error_report("ram size must be multiples of 1 MiB");
+        exit(EXIT_FAILURE);
+    }
+
+    devmem_size = 0;
+    devmem_base = ram_size;
+#ifdef CONFIG_MEM_DEVICE
+    if (machine->ram_size < machine->maxram_size) {
+
+        /*
+         * Make sure memory devices have a sane default alignment, even
+         * when weird initial memory sizes are specified.
+         */
+        devmem_base = QEMU_ALIGN_UP(devmem_base, 1 * GiB);
+        devmem_size = machine->maxram_size - machine->ram_size;
+    }
+#endif
+    s390_set_memory_limit(s390ms, devmem_base + devmem_size);
+
+    /* Map the initial memory. Must happen after setting the memory limit. */
     memory_region_add_subregion(sysmem, 0, ram);
+
+    /* Initialize address space for memory devices. */
+#ifdef CONFIG_MEM_DEVICE
+    if (devmem_size) {
+        machine_memory_devices_init(machine, devmem_base, devmem_size);
+    }
+#endif /* CONFIG_MEM_DEVICE */
 
     /*
      * Configure the maximum page size. As no memory devices were created
      * yet, this is the page size of initial memory only.
      */
-    s390_set_max_pagesize(qemu_maxrampagesize(), &error_fatal);
+    s390_set_max_pagesize(s390ms, qemu_maxrampagesize());
     /* Initialize storage key device */
     s390_skeys_init();
     /* Initialize storage attributes device */
@@ -197,11 +214,10 @@ static void s390_memory_init(MemoryRegion *ram)
 static void s390_init_ipl_dev(const char *kernel_filename,
                               const char *kernel_cmdline,
                               const char *initrd_filename, const char *firmware,
-                              const char *netboot_fw, bool enforce_bios)
+                              bool enforce_bios)
 {
     Object *new = object_new(TYPE_S390_IPL);
     DeviceState *dev = DEVICE(new);
-    char *netboot_fw_prop;
 
     if (kernel_filename) {
         qdev_prop_set_string(dev, "kernel", kernel_filename);
@@ -212,11 +228,6 @@ static void s390_init_ipl_dev(const char *kernel_filename,
     qdev_prop_set_string(dev, "cmdline", kernel_cmdline);
     qdev_prop_set_string(dev, "firmware", firmware);
     qdev_prop_set_bit(dev, "enforce_bios", enforce_bios);
-    netboot_fw_prop = object_property_get_str(new, "netboot_fw", &error_abort);
-    if (!strlen(netboot_fw_prop)) {
-        qdev_prop_set_string(dev, "netboot_fw", netboot_fw);
-    }
-    g_free(netboot_fw_prop);
     object_property_add_child(qdev_get_machine(), TYPE_S390_IPL,
                               new);
     object_unref(new);
@@ -261,7 +272,7 @@ static void ccw_init(MachineState *machine)
     qdev_realize_and_unref(DEVICE(ms->sclp), NULL, &error_fatal);
 
     /* init memory + setup max page size. Required for the CPU model */
-    s390_memory_init(machine->ram);
+    s390_memory_init(machine);
 
     /* init CPUs (incl. CPU model) early so s390_has_feature() works */
     s390_init_cpus(machine);
@@ -284,15 +295,12 @@ static void ccw_init(MachineState *machine)
     s390_init_ipl_dev(machine->kernel_filename, machine->kernel_cmdline,
                       machine->initrd_filename,
                       machine->firmware ?: "s390-ccw.img",
-                      "s390-netboot.img", true);
+                      true);
 
     dev = qdev_new(TYPE_S390_PCI_HOST_BRIDGE);
     object_property_add_child(qdev_get_machine(), TYPE_S390_PCI_HOST_BRIDGE,
                               OBJECT(dev));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    /* register hypercalls */
-    virtio_ccw_register_hcalls();
 
     s390_enable_css_support(s390_cpu_addr2state(0));
 
@@ -447,6 +455,18 @@ static void s390_machine_reset(MachineState *machine, ResetType type)
     CPUState *cs, *t;
     S390CPU *cpu;
 
+    /*
+     * Temporarily drop the record/replay mutex to let rr_cpu_thread_fn()
+     * process the run_on_cpu() requests below. This is safe, because at this
+     * point one of the following is true:
+     * - All CPU threads are not running, either because the machine is being
+     *   initialized, or because the guest requested a reset using diag 308.
+     *   There is no risk to desync the record/replay state.
+     * - A snapshot is about to be loaded. The record/replay state consistency
+     *   is not important.
+     */
+    replay_mutex_unlock();
+
     /* get the reset parameters, reset them once done */
     s390_ipl_get_reset_request(&cs, &reset_type);
 
@@ -526,7 +546,7 @@ static void s390_machine_reset(MachineState *machine, ResetType type)
              * went wrong.
              */
             s390_cpu_set_state(S390_CPU_STATE_OPERATING, cpu);
-            return;
+            goto out_lock;
         }
 
         run_on_cpu(cs, s390_do_cpu_load_normal, RUN_ON_CPU_NULL);
@@ -539,13 +559,54 @@ static void s390_machine_reset(MachineState *machine, ResetType type)
         run_on_cpu(t, s390_do_cpu_set_diag318, RUN_ON_CPU_HOST_ULONG(0));
     }
     s390_ipl_clear_reset_request();
+
+out_lock:
+    /*
+     * Re-take the record/replay mutex, temporarily dropping the BQL in order
+     * to satisfy the ordering requirements.
+     */
+    bql_unlock();
+    replay_mutex_lock();
+    bql_lock();
+}
+
+static void s390_machine_device_pre_plug(HotplugHandler *hotplug_dev,
+                                         DeviceState *dev, Error **errp)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_CCW)) {
+        virtio_ccw_md_pre_plug(VIRTIO_MD_CCW(dev), MACHINE(hotplug_dev), errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_PCI)) {
+        virtio_md_pci_pre_plug(VIRTIO_MD_PCI(dev), MACHINE(hotplug_dev), errp);
+    }
 }
 
 static void s390_machine_device_plug(HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
+    S390CcwMachineState *s390ms = S390_CCW_MACHINE(hotplug_dev);
+
     if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
         s390_cpu_plug(hotplug_dev, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_CCW) ||
+               object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_PCI)) {
+        /*
+         * At this point, the device is realized and set all memdevs mapped, so
+         * qemu_maxrampagesize() will pick up the page sizes of these memdevs
+         * as well. Before we plug the device and expose any RAM memory regions
+         * to the system, make sure we don't exceed the previously set max page
+         * size. While only relevant for KVM, there is not really any use case
+         * for this with TCG, so we'll unconditionally reject it.
+         */
+        if (qemu_maxrampagesize() != s390ms->max_pagesize) {
+            error_setg(errp, "Memory device uses a bigger page size than"
+                       " initial memory");
+            return;
+        }
+        if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_CCW)) {
+            virtio_ccw_md_plug(VIRTIO_MD_CCW(dev), MACHINE(hotplug_dev), errp);
+        } else {
+            virtio_md_pci_plug(VIRTIO_MD_PCI(dev), MACHINE(hotplug_dev), errp);
+        }
     }
 }
 
@@ -554,9 +615,24 @@ static void s390_machine_device_unplug_request(HotplugHandler *hotplug_dev,
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
         error_setg(errp, "CPU hot unplug not supported on this machine");
-        return;
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_CCW)) {
+        virtio_ccw_md_unplug_request(VIRTIO_MD_CCW(dev), MACHINE(hotplug_dev),
+                                     errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_PCI)) {
+        virtio_md_pci_unplug_request(VIRTIO_MD_PCI(dev), MACHINE(hotplug_dev),
+                                     errp);
     }
 }
+
+static void s390_machine_device_unplug(HotplugHandler *hotplug_dev,
+                                       DeviceState *dev, Error **errp)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_CCW)) {
+        virtio_ccw_md_unplug(VIRTIO_MD_CCW(dev), MACHINE(hotplug_dev), errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_PCI)) {
+        virtio_md_pci_unplug(VIRTIO_MD_PCI(dev), MACHINE(hotplug_dev), errp);
+    }
+ }
 
 static CpuInstanceProperties s390_cpu_index_to_props(MachineState *ms,
                                                      unsigned cpu_index)
@@ -604,7 +680,9 @@ static const CPUArchIdList *s390_possible_cpu_arch_ids(MachineState *ms)
 static HotplugHandler *s390_get_hotplug_handler(MachineState *machine,
                                                 DeviceState *dev)
 {
-    if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+    if (object_dynamic_cast(OBJECT(dev), TYPE_CPU) ||
+        object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_CCW) ||
+        object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MD_PCI)) {
         return HOTPLUG_HANDLER(machine);
     }
     return NULL;
@@ -677,10 +755,9 @@ static S390CcwMachineClass *current_mc;
  * various "*_allowed" variables are enabled, so that the *_allowed() wrappers
  * below return the correct default value for the "none" machine.
  *
- * Attention! Do *not* add additional new wrappers for CPU features (e.g. like
- * the ri_allowed() wrapper) via this mechanism anymore. CPU features should
- * be handled via the CPU models, i.e. checking with cpu_model_allowed() during
- * CPU initialization and s390_has_feat() later should be sufficient.
+ * Attention! Do *not* add additional new wrappers for CPU features via this
+ * mechanism anymore. CPU features should be handled via the CPU models,
+ * i.e. checking with s390_has_feat() should be sufficient.
  */
 static S390CcwMachineClass *get_machine_class(void)
 {
@@ -694,16 +771,6 @@ static S390CcwMachineClass *get_machine_class(void)
                      object_class_by_name(TYPE_S390_CCW_MACHINE));
     }
     return current_mc;
-}
-
-bool ri_allowed(void)
-{
-    return get_machine_class()->ri_allowed;
-}
-
-bool cpu_model_allowed(void)
-{
-    return get_machine_class()->cpu_model_allowed;
 }
 
 bool hpage_1m_allowed(void)
@@ -728,28 +795,12 @@ static void machine_set_loadparm(Object *obj, Visitor *v,
 {
     S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
     char *val;
-    int i;
 
     if (!visit_type_str(v, name, &val, errp)) {
         return;
     }
 
-    for (i = 0; i < sizeof(ms->loadparm) && val[i]; i++) {
-        uint8_t c = qemu_toupper(val[i]); /* mimic HMC */
-
-        if (('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') || (c == '.') ||
-            (c == ' ')) {
-            ms->loadparm[i] = c;
-        } else {
-            error_setg(errp, "LOADPARM: invalid character '%c' (ASCII 0x%02x)",
-                       c, c);
-            return;
-        }
-    }
-
-    for (; i < sizeof(ms->loadparm); i++) {
-        ms->loadparm[i] = ' '; /* pad right with spaces */
-    }
+    s390_ipl_fmt_loadparm(ms->loadparm, val, errp);
 }
 
 static void ccw_machine_class_init(ObjectClass *oc, void *data)
@@ -759,11 +810,8 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
     S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
 
-    s390mc->ri_allowed = true;
-    s390mc->cpu_model_allowed = true;
     s390mc->hpage_1m_allowed = true;
     s390mc->max_threads = 1;
-    mc->init = ccw_init;
     mc->reset = s390_machine_reset;
     mc->block_default_type = IF_VIRTIO;
     mc->no_cdrom = 1;
@@ -780,8 +828,10 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     mc->possible_cpu_arch_ids = s390_possible_cpu_arch_ids;
     /* it is overridden with 'host' cpu *in kvm_arch_init* */
     mc->default_cpu_type = S390_CPU_TYPE_NAME("qemu");
+    hc->pre_plug = s390_machine_device_pre_plug;
     hc->plug = s390_machine_device_plug;
     hc->unplug_request = s390_machine_device_unplug_request;
+    hc->unplug = s390_machine_device_unplug;
     nc->nmi_monitor_handler = s390_nmi;
     mc->default_ram_id = "s390.ram";
     mc->default_nic = "virtio-net-ccw";
@@ -831,6 +881,12 @@ static const TypeInfo ccw_machine_info = {
 };
 
 #define DEFINE_CCW_MACHINE_IMPL(latest, ...)                                  \
+    static void MACHINE_VER_SYM(mach_init, ccw, __VA_ARGS__)(MachineState *mach) \
+    {                                                                         \
+        current_mc = S390_CCW_MACHINE_CLASS(MACHINE_GET_CLASS(mach));         \
+        MACHINE_VER_SYM(instance_options, ccw, __VA_ARGS__)(mach);            \
+        ccw_init(mach);                                                       \
+    }                                                                         \
     static void MACHINE_VER_SYM(class_init, ccw, __VA_ARGS__)(                \
         ObjectClass *oc,                                                      \
         void *data)                                                           \
@@ -838,24 +894,18 @@ static const TypeInfo ccw_machine_info = {
         MachineClass *mc = MACHINE_CLASS(oc);                                 \
         MACHINE_VER_SYM(class_options, ccw, __VA_ARGS__)(mc);                 \
         mc->desc = "Virtual s390x machine (version " MACHINE_VER_STR(__VA_ARGS__) ")"; \
+        mc->init = MACHINE_VER_SYM(mach_init, ccw, __VA_ARGS__);              \
         MACHINE_VER_DEPRECATION(__VA_ARGS__);                                 \
         if (latest) {                                                         \
             mc->alias = "s390-ccw-virtio";                                    \
             mc->is_default = true;                                            \
         }                                                                     \
     }                                                                         \
-    static void MACHINE_VER_SYM(instance_init, ccw, __VA_ARGS__)(Object *obj) \
-    {                                                                         \
-        MachineState *machine = MACHINE(obj);                                 \
-        current_mc = S390_CCW_MACHINE_CLASS(MACHINE_GET_CLASS(machine));      \
-        MACHINE_VER_SYM(instance_options, ccw, __VA_ARGS__)(machine);         \
-    }                                                                         \
     static const TypeInfo MACHINE_VER_SYM(info, ccw, __VA_ARGS__) =           \
     {                                                                         \
         .name = MACHINE_VER_TYPE_NAME("s390-ccw-virtio", __VA_ARGS__),        \
         .parent = TYPE_S390_CCW_MACHINE,                                      \
         .class_init = MACHINE_VER_SYM(class_init, ccw, __VA_ARGS__),          \
-        .instance_init = MACHINE_VER_SYM(instance_init, ccw, __VA_ARGS__),    \
     };                                                                        \
     static void MACHINE_VER_SYM(register, ccw, __VA_ARGS__)(void)             \
     {                                                                         \
@@ -871,14 +921,26 @@ static const TypeInfo ccw_machine_info = {
     DEFINE_CCW_MACHINE_IMPL(false, major, minor)
 
 
+static void ccw_machine_10_0_instance_options(MachineState *machine)
+{
+}
+
+static void ccw_machine_10_0_class_options(MachineClass *mc)
+{
+}
+DEFINE_CCW_MACHINE_AS_LATEST(10, 0);
+
 static void ccw_machine_9_2_instance_options(MachineState *machine)
 {
+    ccw_machine_10_0_instance_options(machine);
 }
 
 static void ccw_machine_9_2_class_options(MachineClass *mc)
 {
+    ccw_machine_10_0_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_9_2, hw_compat_9_2_len);
 }
-DEFINE_CCW_MACHINE_AS_LATEST(9, 2);
+DEFINE_CCW_MACHINE(9, 2);
 
 static void ccw_machine_9_1_instance_options(MachineState *machine)
 {
@@ -1211,6 +1273,7 @@ static void ccw_machine_2_9_instance_options(MachineState *machine)
     s390_cpudef_featoff_greater(12, 1, S390_FEAT_ZPCI);
     s390_cpudef_featoff_greater(12, 1, S390_FEAT_ADAPTER_INT_SUPPRESSION);
     s390_cpudef_featoff_greater(12, 1, S390_FEAT_ADAPTER_EVENT_NOTIFICATION);
+    css_migration_enabled = false;
 }
 
 static void ccw_machine_2_9_class_options(MachineClass *mc)
@@ -1223,98 +1286,8 @@ static void ccw_machine_2_9_class_options(MachineClass *mc)
     ccw_machine_2_10_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_2_9, hw_compat_2_9_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
-    css_migration_enabled = false;
 }
 DEFINE_CCW_MACHINE(2, 9);
-
-static void ccw_machine_2_8_instance_options(MachineState *machine)
-{
-    ccw_machine_2_9_instance_options(machine);
-}
-
-static void ccw_machine_2_8_class_options(MachineClass *mc)
-{
-    static GlobalProperty compat[] = {
-        { TYPE_S390_FLIC_COMMON, "adapter_routes_max_batch", "64", },
-    };
-
-    ccw_machine_2_9_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_8, hw_compat_2_8_len);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
-}
-DEFINE_CCW_MACHINE(2, 8);
-
-static void ccw_machine_2_7_instance_options(MachineState *machine)
-{
-    ccw_machine_2_8_instance_options(machine);
-}
-
-static void ccw_machine_2_7_class_options(MachineClass *mc)
-{
-    S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
-
-    s390mc->cpu_model_allowed = false;
-    ccw_machine_2_8_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_7, hw_compat_2_7_len);
-}
-DEFINE_CCW_MACHINE(2, 7);
-
-static void ccw_machine_2_6_instance_options(MachineState *machine)
-{
-    ccw_machine_2_7_instance_options(machine);
-}
-
-static void ccw_machine_2_6_class_options(MachineClass *mc)
-{
-    S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
-    static GlobalProperty compat[] = {
-        { TYPE_S390_IPL, "iplbext_migration", "off", },
-         { TYPE_VIRTUAL_CSS_BRIDGE, "css_dev_path", "off", },
-    };
-
-    s390mc->ri_allowed = false;
-    ccw_machine_2_7_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_6, hw_compat_2_6_len);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
-}
-DEFINE_CCW_MACHINE(2, 6);
-
-static void ccw_machine_2_5_instance_options(MachineState *machine)
-{
-    ccw_machine_2_6_instance_options(machine);
-}
-
-static void ccw_machine_2_5_class_options(MachineClass *mc)
-{
-    ccw_machine_2_6_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_5, hw_compat_2_5_len);
-}
-DEFINE_CCW_MACHINE(2, 5);
-
-static void ccw_machine_2_4_instance_options(MachineState *machine)
-{
-    ccw_machine_2_5_instance_options(machine);
-}
-
-static void ccw_machine_2_4_class_options(MachineClass *mc)
-{
-    static GlobalProperty compat[] = {
-        { TYPE_S390_SKEYS, "migration-enabled", "off", },
-        { "virtio-blk-ccw", "max_revision", "0", },
-        { "virtio-balloon-ccw", "max_revision", "0", },
-        { "virtio-serial-ccw", "max_revision", "0", },
-        { "virtio-9p-ccw", "max_revision", "0", },
-        { "virtio-rng-ccw", "max_revision", "0", },
-        { "virtio-net-ccw", "max_revision", "0", },
-        { "virtio-scsi-ccw", "max_revision", "0", },
-        { "vhost-scsi-ccw", "max_revision", "0", },
-    };
-
-    ccw_machine_2_5_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_4, hw_compat_2_4_len);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
-}
-DEFINE_CCW_MACHINE(2, 4);
 
 #endif
 

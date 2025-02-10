@@ -26,6 +26,7 @@ typedef struct InterfaceClass InterfaceClass;
 typedef struct InterfaceInfo InterfaceInfo;
 
 #define TYPE_OBJECT "object"
+#define TYPE_CONTAINER "container"
 
 typedef struct ObjectProperty ObjectProperty;
 
@@ -572,12 +573,15 @@ struct InterfaceInfo {
  *
  * The class for all interfaces.  Subclasses of this class should only add
  * virtual methods.
+ *
+ * Note that most of the fields of ObjectClass are unused (all except
+ * "type", in fact).  They are only present in InterfaceClass to allow
+ * @object_class_dynamic_cast to work with both regular classes and interfaces.
  */
 struct InterfaceClass
 {
     ObjectClass parent_class;
     /* private: */
-    ObjectClass *concrete_class;
     Type interface_type;
 };
 
@@ -880,23 +884,9 @@ const char *object_get_typename(const Object *obj);
  * type_register_static:
  * @info: The #TypeInfo of the new type.
  *
- * @info and all of the strings it points to should exist for the life time
- * that the type is registered.
- *
  * Returns: the new #Type.
  */
 Type type_register_static(const TypeInfo *info);
-
-/**
- * type_register:
- * @info: The #TypeInfo of the new type
- *
- * Unlike type_register_static(), this call does not require @info or its
- * string members to continue to exist after the call returns.
- *
- * Returns: the new #Type.
- */
-Type type_register(const TypeInfo *info);
 
 /**
  * type_register_static_array:
@@ -1523,6 +1513,16 @@ const char *object_property_get_type(Object *obj, const char *name,
  */
 Object *object_get_root(void);
 
+/**
+ * object_get_container:
+ * @name: the name of container to lookup
+ *
+ * Lookup a root level container.
+ *
+ * Returns: the container with @name.
+ */
+Object *object_get_container(const char *name);
+
 
 /**
  * object_get_objects_root:
@@ -2020,25 +2020,18 @@ int object_child_foreach(Object *obj, int (*fn)(Object *child, void *opaque),
 int object_child_foreach_recursive(Object *obj,
                                    int (*fn)(Object *child, void *opaque),
                                    void *opaque);
-/**
- * container_get:
- * @root: root of the #path, e.g., object_get_root()
- * @path: path to the container
- *
- * Return a container object whose path is @path.  Create more containers
- * along the path if necessary.
- *
- * Returns: the container object.
- */
-Object *container_get(Object *root, const char *path);
 
 /**
- * object_type_get_instance_size:
- * @typename: Name of the Type whose instance_size is required
+ * object_property_add_new_container:
+ * @obj: the parent object
+ * @name: the name of the parent object's property to add
  *
- * Returns the instance_size of the given @typename.
+ * Add a newly created container object to a parent object.
+ *
+ * Returns: the newly created container object.  Its reference count is 1,
+ * and the reference is owned by the parent object.
  */
-size_t object_type_get_instance_size(const char *typename);
+Object *object_property_add_new_container(Object *obj, const char *name);
 
 /**
  * object_property_help:

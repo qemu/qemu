@@ -1914,7 +1914,7 @@ void qmp_guest_set_user_password(const char *username,
     GError *gerr = NULL;
 
     if (crypted) {
-        error_setg(errp, QERR_UNSUPPORTED);
+        error_setg(errp, "'crypted' must be off on this host");
         return;
     }
 
@@ -2088,7 +2088,7 @@ static const ga_win_10_0_t WIN_10_0_SERVER_VERSION_MATRIX[] = {
     {14393, "Microsoft Windows Server 2016",    "2016"},
     {17763, "Microsoft Windows Server 2019",    "2019"},
     {20344, "Microsoft Windows Server 2022",    "2022"},
-    {26040, "MIcrosoft Windows Server 2025",    "2025"},
+    {26040, "Microsoft Windows Server 2025",    "2025"},
     { }
 };
 

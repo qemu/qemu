@@ -10,7 +10,7 @@
 #include "panic.h"
 #include "qemu/error-report.h"
 
-#include "sysemu/hvf.h"
+#include "system/hvf.h"
 #include "hvf-i386.h"
 #include "vmcs.h"
 #include "vmx.h"
@@ -122,7 +122,6 @@ void vmx_handle_task_switch(CPUState *cpu, x68_segment_selector tss_sel, int rea
     load_regs(cpu);
 
     struct x86_segment_descriptor curr_tss_desc, next_tss_desc;
-    int ret;
     x68_segment_selector old_tss_sel = vmx_read_segment_selector(cpu, R_TR);
     uint64_t old_tss_base = vmx_read_segment_base(cpu, R_TR);
     uint32_t desc_limit;
@@ -138,7 +137,7 @@ void vmx_handle_task_switch(CPUState *cpu, x68_segment_selector tss_sel, int rea
     if (reason == TSR_IDT_GATE && gate_valid) {
         int dpl;
 
-        ret = x86_read_call_gate(cpu, &task_gate_desc, gate);
+        x86_read_call_gate(cpu, &task_gate_desc, gate);
 
         dpl = task_gate_desc.dpl;
         x68_segment_selector cs = vmx_read_segment_selector(cpu, R_CS);
@@ -167,11 +166,12 @@ void vmx_handle_task_switch(CPUState *cpu, x68_segment_selector tss_sel, int rea
         x86_write_segment_descriptor(cpu, &next_tss_desc, tss_sel);
     }
 
-    if (next_tss_desc.type & 8)
-        ret = task_switch_32(cpu, tss_sel, old_tss_sel, old_tss_base, &next_tss_desc);
-    else
+    if (next_tss_desc.type & 8) {
+        task_switch_32(cpu, tss_sel, old_tss_sel, old_tss_base, &next_tss_desc);
+    } else {
         //ret = task_switch_16(cpu, tss_sel, old_tss_sel, old_tss_base, &next_tss_desc);
         VM_PANIC("task_switch_16");
+    }
 
     macvm_set_cr0(cpu->accel->fd, rvmcs(cpu->accel->fd, VMCS_GUEST_CR0) |
                                 CR0_TS_MASK);

@@ -305,7 +305,7 @@ static const VMStateDescription tz_ppc_vmstate = {
     DEFINE_PROP_LINK("port[" #N "]", TZPPC, port[N].downstream, \
                      TYPE_MEMORY_REGION, MemoryRegion *)
 
-static Property tz_ppc_properties[] = {
+static const Property tz_ppc_properties[] = {
     DEFINE_PROP_UINT32("NONSEC_MASK", TZPPC, nonsec_mask, 0),
     DEFINE_PORT(0),
     DEFINE_PORT(1),
@@ -323,7 +323,6 @@ static Property tz_ppc_properties[] = {
     DEFINE_PORT(13),
     DEFINE_PORT(14),
     DEFINE_PORT(15),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void tz_ppc_class_init(ObjectClass *klass, void *data)

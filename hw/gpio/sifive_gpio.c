@@ -349,9 +349,8 @@ static const VMStateDescription vmstate_sifive_gpio = {
     }
 };
 
-static Property sifive_gpio_properties[] = {
+static const Property sifive_gpio_properties[] = {
     DEFINE_PROP_UINT32("ngpio", SIFIVEGPIOState, ngpio, SIFIVE_GPIO_PINS),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void sifive_gpio_realize(DeviceState *dev, Error **errp)

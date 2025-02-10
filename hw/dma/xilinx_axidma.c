@@ -33,7 +33,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "hw/stream.h"
 #include "qom/object.h"
 #include "trace.h"
@@ -611,7 +611,7 @@ static void xilinx_axidma_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static Property axidma_properties[] = {
+static const Property axidma_properties[] = {
     DEFINE_PROP_UINT32("freqhz", XilinxAXIDMA, freqhz, 50000000),
     DEFINE_PROP_LINK("axistream-connected", XilinxAXIDMA,
                      tx_data_dev, TYPE_STREAM_SINK, StreamSink *),
@@ -619,7 +619,6 @@ static Property axidma_properties[] = {
                      tx_control_dev, TYPE_STREAM_SINK, StreamSink *),
     DEFINE_PROP_LINK("dma", XilinxAXIDMA, dma_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void axidma_class_init(ObjectClass *klass, void *data)

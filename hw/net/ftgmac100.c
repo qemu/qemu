@@ -14,7 +14,7 @@
 #include "qemu/osdep.h"
 #include "hw/irq.h"
 #include "hw/net/ftgmac100.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -1254,11 +1254,10 @@ static const VMStateDescription vmstate_ftgmac100 = {
     }
 };
 
-static Property ftgmac100_properties[] = {
+static const Property ftgmac100_properties[] = {
     DEFINE_PROP_BOOL("aspeed", FTGMAC100State, aspeed, false),
     DEFINE_NIC_PROPERTIES(FTGMAC100State, conf),
     DEFINE_PROP_BOOL("dma64", FTGMAC100State, dma64, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ftgmac100_class_init(ObjectClass *klass, void *data)
@@ -1415,10 +1414,9 @@ static const VMStateDescription vmstate_aspeed_mii = {
     }
 };
 
-static Property aspeed_mii_properties[] = {
+static const Property aspeed_mii_properties[] = {
     DEFINE_PROP_LINK("nic", AspeedMiiState, nic, TYPE_FTGMAC100,
                      FTGMAC100State *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void aspeed_mii_class_init(ObjectClass *klass, void *data)

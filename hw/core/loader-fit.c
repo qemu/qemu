@@ -25,7 +25,7 @@
 #include "hw/loader-fit.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
-#include "sysemu/device_tree.h"
+#include "system/device_tree.h"
 
 #include <libfdt.h>
 #include <zlib.h>

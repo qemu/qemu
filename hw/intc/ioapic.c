@@ -30,8 +30,8 @@
 #include "hw/intc/ioapic_internal.h"
 #include "hw/pci/msi.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/kvm.h"
-#include "sysemu/sysemu.h"
+#include "system/kvm.h"
+#include "system/system.h"
 #include "hw/i386/apic-msidef.h"
 #include "hw/i386/x86-iommu.h"
 #include "trace.h"
@@ -476,9 +476,8 @@ static void ioapic_unrealize(DeviceState *dev)
     timer_free(s->delayed_ioapic_service_timer);
 }
 
-static Property ioapic_properties[] = {
+static const Property ioapic_properties[] = {
     DEFINE_PROP_UINT8("version", IOAPICCommonState, version, IOAPIC_VER_DEF),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ioapic_class_init(ObjectClass *klass, void *data)

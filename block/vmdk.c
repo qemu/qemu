@@ -26,7 +26,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "block/block_int.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"

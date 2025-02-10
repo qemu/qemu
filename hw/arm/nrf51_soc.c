@@ -76,16 +76,16 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
     }
     /* This clock doesn't need migration because it is fixed-frequency */
     clock_set_hz(s->sysclk, HCLK_FRQ);
-    qdev_connect_clock_in(DEVICE(&s->cpu), "cpuclk", s->sysclk);
+    qdev_connect_clock_in(DEVICE(&s->armv7m), "cpuclk", s->sysclk);
     /*
      * This SoC has no systick device, so don't connect refclk.
      * TODO: model the lack of systick (currently the armv7m object
      * will always provide one).
      */
 
-    object_property_set_link(OBJECT(&s->cpu), "memory", OBJECT(&s->container),
+    object_property_set_link(OBJECT(&s->armv7m), "memory", OBJECT(&s->container),
                              &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->cpu), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), errp)) {
         return;
     }
 
@@ -104,7 +104,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->uart), 0);
     memory_region_add_subregion_overlap(&s->container, NRF51_UART_BASE, mr, 0);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->uart), 0,
-                       qdev_get_gpio_in(DEVICE(&s->cpu),
+                       qdev_get_gpio_in(DEVICE(&s->armv7m),
                        BASE_TO_IRQ(NRF51_UART_BASE)));
 
     /* RNG */
@@ -115,7 +115,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->rng), 0);
     memory_region_add_subregion_overlap(&s->container, NRF51_RNG_BASE, mr, 0);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->rng), 0,
-                       qdev_get_gpio_in(DEVICE(&s->cpu),
+                       qdev_get_gpio_in(DEVICE(&s->armv7m),
                        BASE_TO_IRQ(NRF51_RNG_BASE)));
 
     /* UICR, FICR, NVMC, FLASH */
@@ -161,7 +161,7 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->timer[i]), 0, base_addr);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer[i]), 0,
-                           qdev_get_gpio_in(DEVICE(&s->cpu),
+                           qdev_get_gpio_in(DEVICE(&s->armv7m),
                                             BASE_TO_IRQ(base_addr)));
     }
 
@@ -185,10 +185,10 @@ static void nrf51_soc_init(Object *obj)
 
     memory_region_init(&s->container, obj, "nrf51-container", UINT64_MAX);
 
-    object_initialize_child(OBJECT(s), "armv6m", &s->cpu, TYPE_ARMV7M);
-    qdev_prop_set_string(DEVICE(&s->cpu), "cpu-type",
+    object_initialize_child(OBJECT(s), "armv6m", &s->armv7m, TYPE_ARMV7M);
+    qdev_prop_set_string(DEVICE(&s->armv7m), "cpu-type",
                          ARM_CPU_TYPE_NAME("cortex-m0"));
-    qdev_prop_set_uint32(DEVICE(&s->cpu), "num-irq", 32);
+    qdev_prop_set_uint32(DEVICE(&s->armv7m), "num-irq", 32);
 
     object_initialize_child(obj, "uart", &s->uart, TYPE_NRF51_UART);
     object_property_add_alias(obj, "serial0", OBJECT(&s->uart), "chardev");
@@ -208,13 +208,12 @@ static void nrf51_soc_init(Object *obj)
     s->sysclk = qdev_init_clock_in(DEVICE(s), "sysclk", NULL, NULL, 0);
 }
 
-static Property nrf51_soc_properties[] = {
+static const Property nrf51_soc_properties[] = {
     DEFINE_PROP_LINK("memory", NRF51State, board_memory, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_UINT32("sram-size", NRF51State, sram_size, NRF51822_SRAM_SIZE),
     DEFINE_PROP_UINT32("flash-size", NRF51State, flash_size,
                        NRF51822_FLASH_SIZE),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void nrf51_soc_class_init(ObjectClass *klass, void *data)

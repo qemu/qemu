@@ -27,7 +27,7 @@
 
 #include "block/aio.h"
 #include "qom/object.h"
-#include "sysemu/event-loop-base.h"
+#include "system/event-loop-base.h"
 
 #define SIG_IPI SIGUSR1
 
@@ -248,6 +248,14 @@ GSource *iohandler_get_g_source(void);
 AioContext *iohandler_get_aio_context(void);
 
 /**
+ * rust_bql_mock_lock:
+ *
+ * Called from Rust doctests to make bql_lock() return true.
+ * Do not touch.
+ */
+void rust_bql_mock_lock(void);
+
+/**
  * bql_locked: Return lock status of the Big QEMU Lock (BQL)
  *
  * The Big QEMU Lock (BQL) is the coarsest lock in QEMU, and as such it
@@ -261,6 +269,21 @@ AioContext *iohandler_get_aio_context(void);
  * Please instead refer to qemu_in_main_thread().
  */
 bool bql_locked(void);
+
+/**
+ * bql_block: Allow/deny releasing the BQL
+ *
+ * The Big QEMU Lock (BQL) is used to provide interior mutability to
+ * Rust code, but this only works if other threads cannot run while
+ * the Rust code has an active borrow.  This is because C code in
+ * other threads could come in and mutate data under the Rust code's
+ * feet.
+ *
+ * @increase: Whether to increase or decrease the blocking counter.
+ *            Releasing the BQL while the counter is nonzero triggers
+ *            an assertion failure.
+ */
+void bql_block_unlock(bool increase);
 
 /**
  * qemu_in_main_thread: return whether it's possible to safely access

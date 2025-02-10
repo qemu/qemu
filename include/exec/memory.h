@@ -246,6 +246,16 @@ typedef struct IOMMUTLBEvent {
 /* RAM can be private that has kvm guest memfd backend */
 #define RAM_GUEST_MEMFD   (1 << 12)
 
+/*
+ * In RAMBlock creation functions, if MAP_SHARED is 0 in the flags parameter,
+ * the implementation may still create a shared mapping if other conditions
+ * require it.  Callers who specifically want a private mapping, eg objects
+ * specified by the user, must pass RAM_PRIVATE.
+ * After RAMBlock creation, MAP_SHARED in the block's flags indicates whether
+ * the block is shared or private, and MAP_PRIVATE is omitted.
+ */
+#define RAM_PRIVATE (1 << 13)
+
 static inline void iommu_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
                                        IOMMUNotifierFlag flags,
                                        hwaddr start, hwaddr end,
@@ -784,7 +794,6 @@ struct MemoryRegion {
     bool terminates;
     bool ram_device;
     bool enabled;
-    bool warning_printed; /* For reservations */
     uint8_t vga_logging_count;
     MemoryRegion *alias;
     hwaddr alias_offset;
@@ -1104,7 +1113,14 @@ struct AddressSpace {
     QTAILQ_HEAD(, MemoryListener) listeners;
     QTAILQ_ENTRY(AddressSpace) address_spaces_link;
 
-    /* Maximum DMA bounce buffer size used for indirect memory map requests */
+    /*
+     * Maximum DMA bounce buffer size used for indirect memory map requests.
+     * This limits the total size of bounce buffer allocations made for
+     * DMA requests to indirect memory regions within this AddressSpace. DMA
+     * requests that exceed the limit (e.g. due to overly large requested size
+     * or concurrent DMA requests having claimed too much buffer space) will be
+     * rejected and left to the caller to handle.
+     */
     size_t max_bounce_buffer_size;
     /* Total size of bounce buffers currently allocated, atomically accessed */
     size_t bounce_buffer_size;
@@ -1187,7 +1203,7 @@ static inline bool MemoryRegionSection_eq(MemoryRegionSection *a,
 MemoryRegionSection *memory_region_section_new_copy(MemoryRegionSection *s);
 
 /**
- * memory_region_section_new_copy: Free a copied memory region section
+ * memory_region_section_free_copy: Free a copied memory region section
  *
  * Free a copy of a memory section created via memory_region_section_new_copy().
  * properly dropping references on all relevant members.
@@ -2503,7 +2519,7 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
 void memory_global_dirty_log_sync(bool last_stage);
 
 /**
- * memory_global_dirty_log_sync: synchronize the dirty log for all memory
+ * memory_global_after_dirty_log_sync: synchronize the dirty log for all memory
  *
  * Synchronizes the vCPUs with a thread that is reading the dirty bitmap.
  * This function must be called after the dirty log bitmap is cleared, and

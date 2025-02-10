@@ -27,8 +27,8 @@ s390x_system_ss.add(files(
   'machine.c',
   'mmu_helper.c',
   'sigp.c',
-  'cpu-sysemu.c',
-  'cpu_models_sysemu.c',
+  'cpu-system.c',
+  'cpu_models_system.c',
 ))
 
 s390x_user_ss = ss.source_set()

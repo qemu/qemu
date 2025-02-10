@@ -31,7 +31,7 @@
 #include "migration/vmstate.h"
 #include "gicv3_internal.h"
 #include "hw/arm/linux-boot-if.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 
 
 static void gicv3_gicd_no_migration_shift_bug_post_load(GICv3State *cs)
@@ -605,7 +605,7 @@ static void arm_gic_common_linux_init(ARMLinuxBootIf *obj,
     }
 }
 
-static Property arm_gicv3_common_properties[] = {
+static const Property arm_gicv3_common_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", GICv3State, num_cpu, 1),
     DEFINE_PROP_UINT32("num-irq", GICv3State, num_irq, 32),
     DEFINE_PROP_UINT32("revision", GICv3State, revision, 3),
@@ -621,7 +621,6 @@ static Property arm_gicv3_common_properties[] = {
                       redist_region_count, qdev_prop_uint32, uint32_t),
     DEFINE_PROP_LINK("sysmem", GICv3State, dma, TYPE_MEMORY_REGION,
                      MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void arm_gicv3_common_class_init(ObjectClass *klass, void *data)

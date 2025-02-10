@@ -10,7 +10,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "trace.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "hw/misc/virt_ctrl.h"
 
 enum {

@@ -23,10 +23,9 @@ typedef struct VHostUserRNGPCI VHostUserRNGPCI;
 DECLARE_INSTANCE_CHECKER(VHostUserRNGPCI, VHOST_USER_RNG_PCI,
                          TYPE_VHOST_USER_RNG_PCI)
 
-static Property vhost_user_rng_pci_properties[] = {
+static const Property vhost_user_rng_pci_properties[] = {
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors,
                        DEV_NVECTORS_UNSPECIFIED),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vhost_user_rng_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)

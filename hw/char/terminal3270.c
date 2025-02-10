@@ -283,9 +283,8 @@ static int write_payload_3270(EmulatedCcw3270Device *dev, uint8_t cmd)
     return (retval <= 0) ? 0 : get_cds(t)->count;
 }
 
-static Property terminal_properties[] = {
+static const Property terminal_properties[] = {
     DEFINE_PROP_CHR("chardev", Terminal3270, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription terminal3270_vmstate = {

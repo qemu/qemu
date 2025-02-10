@@ -22,9 +22,22 @@
  * THE SOFTWARE.
  */
 
-#include "../tcg-pool.c.inc"
+/* Used for function call generation. */
+#define TCG_TARGET_CALL_STACK_OFFSET    0
+#define TCG_TARGET_STACK_ALIGN          8
+#if TCG_TARGET_REG_BITS == 32
+# define TCG_TARGET_CALL_ARG_I32        TCG_CALL_ARG_EVEN
+# define TCG_TARGET_CALL_ARG_I64        TCG_CALL_ARG_EVEN
+# define TCG_TARGET_CALL_ARG_I128       TCG_CALL_ARG_EVEN
+#else
+# define TCG_TARGET_CALL_ARG_I32        TCG_CALL_ARG_NORMAL
+# define TCG_TARGET_CALL_ARG_I64        TCG_CALL_ARG_NORMAL
+# define TCG_TARGET_CALL_ARG_I128       TCG_CALL_ARG_NORMAL
+#endif
+#define TCG_TARGET_CALL_RET_I128        TCG_CALL_RET_NORMAL
 
-static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
+static TCGConstraintSetIndex
+tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 {
     switch (op) {
     case INDEX_op_goto_ptr:
@@ -174,7 +187,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return TCG_TARGET_REG_BITS == 64 ? C_O0_I2(r, r) : C_O0_I4(r, r, r, r);
 
     default:
-        g_assert_not_reached();
+        return C_NotImplemented;
     }
 }
 
@@ -695,7 +708,7 @@ void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
     /* Always indirect, nothing to do */
 }
 
-static void tcg_out_op(TCGContext *s, TCGOpcode opc,
+static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
 {
@@ -761,29 +774,13 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_op_rrr(s, opc, args[0], args[1], args[2]);
         break;
 
-    CASE_32_64(deposit)  /* Optional (TCG_TARGET_HAS_deposit_*). */
-        {
-            TCGArg pos = args[3], len = args[4];
-            TCGArg max = opc == INDEX_op_deposit_i32 ? 32 : 64;
-
-            tcg_debug_assert(pos < max);
-            tcg_debug_assert(pos + len <= max);
-
-            tcg_out_op_rrrbb(s, opc, args[0], args[1], args[2], pos, len);
-        }
+    CASE_32_64(deposit)
+        tcg_out_op_rrrbb(s, opc, args[0], args[1], args[2], args[3], args[4]);
         break;
 
     CASE_32_64(extract)  /* Optional (TCG_TARGET_HAS_extract_*). */
     CASE_32_64(sextract) /* Optional (TCG_TARGET_HAS_sextract_*). */
-        {
-            TCGArg pos = args[2], len = args[3];
-            TCGArg max = tcg_op_defs[opc].flags & TCG_OPF_64BIT ? 64 : 32;
-
-            tcg_debug_assert(pos < max);
-            tcg_debug_assert(pos + len <= max);
-
-            tcg_out_op_rrbb(s, opc, args[0], args[1], pos, len);
-        }
+        tcg_out_op_rrbb(s, opc, args[0], args[1], args[2], args[3]);
         break;
 
     CASE_32_64(brcond)
@@ -964,4 +961,14 @@ static void tcg_out_tb_start(TCGContext *s)
 bool tcg_target_has_memory_bswap(MemOp memop)
 {
     return true;
+}
+
+static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
+{
+    g_assert_not_reached();
+}
+
+static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
+{
+    g_assert_not_reached();
 }

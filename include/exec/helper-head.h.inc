@@ -23,6 +23,7 @@
 #define dh_alias_ptr ptr
 #define dh_alias_cptr ptr
 #define dh_alias_env ptr
+#define dh_alias_fpst ptr
 #define dh_alias_void void
 #define dh_alias_noreturn noreturn
 #define dh_alias(t) glue(dh_alias_, t)
@@ -39,6 +40,7 @@
 #define dh_ctype_ptr void *
 #define dh_ctype_cptr const void *
 #define dh_ctype_env CPUArchState *
+#define dh_ctype_fpst float_status *
 #define dh_ctype_void void
 #define dh_ctype_noreturn G_NORETURN void
 #define dh_ctype(t) dh_ctype_##t
@@ -96,6 +98,7 @@
 #define dh_typecode_f64 dh_typecode_i64
 #define dh_typecode_cptr dh_typecode_ptr
 #define dh_typecode_env dh_typecode_ptr
+#define dh_typecode_fpst dh_typecode_ptr
 #define dh_typecode(t) dh_typecode_##t
 
 #define dh_callflag_i32  0

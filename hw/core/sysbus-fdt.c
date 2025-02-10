@@ -29,8 +29,8 @@
 #endif
 #include "hw/core/sysbus-fdt.h"
 #include "qemu/error-report.h"
-#include "sysemu/device_tree.h"
-#include "sysemu/tpm.h"
+#include "system/device_tree.h"
+#include "system/tpm.h"
 #include "hw/platform-bus.h"
 #include "hw/vfio/vfio-platform.h"
 #include "hw/vfio/vfio-calxeda-xgmac.h"

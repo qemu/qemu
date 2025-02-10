@@ -130,8 +130,8 @@ for f in "$@"; do
     *include/qemu/compiler.h | \
     *include/qemu/qemu-plugin.h | \
     *include/glib-compat.h | \
-    *include/sysemu/os-posix.h | \
-    *include/sysemu/os-win32.h | \
+    *include/system/os-posix.h | \
+    *include/system/os-win32.h | \
     *include/standard-headers/ )
       # Removing include lines from osdep.h itself would be counterproductive.
       echo "SKIPPING $f (special case header)"
@@ -174,7 +174,7 @@ for f in "$@"; do
            <limits.h> <unistd.h> <time.h> <ctype.h> <errno.h> <fcntl.h>
            <sys/stat.h> <sys/time.h> <assert.h> <signal.h> <glib.h>
            <sys/stat.h> <sys/time.h> <assert.h> <signal.h> <glib.h> <sys/mman.h>
-           "sysemu/os-posix.h, sysemu/os-win32.h "glib-compat.h"
+           "system/os-posix.h, system/os-win32.h "glib-compat.h"
            "qemu/typedefs.h"
             ))' "$f"
 

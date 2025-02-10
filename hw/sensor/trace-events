@@ -1,0 +1,6 @@
+# See docs/devel/tracing.rst for syntax documentation.
+
+# tmp105.c
+tmp105_read(uint8_t dev, uint8_t addr) "device: 0x%02x, addr: 0x%02x"
+tmp105_write(uint8_t dev, uint8_t addr) "device: 0x%02x, addr 0x%02x"
+tmp105_write_shutdown(uint8_t dev) "device: 0x%02x"

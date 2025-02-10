@@ -11,7 +11,7 @@
 #ifndef WIN_DUMP_H
 #define WIN_DUMP_H
 
-#include "sysemu/dump.h"
+#include "system/dump.h"
 
 /* Check Windows dump availability for the current target */
 bool win_dump_available(Error **errp);

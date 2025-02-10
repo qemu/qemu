@@ -30,8 +30,8 @@
 #include "migration/vmstate.h"
 #include "ui/console.h"
 #include "ui/input.h"
-#include "sysemu/reset.h"
-#include "sysemu/runstate.h"
+#include "system/reset.h"
+#include "system/runstate.h"
 #include "qapi/error.h"
 
 #include "trace.h"

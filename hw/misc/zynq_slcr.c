@@ -16,7 +16,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
@@ -623,9 +623,8 @@ static const VMStateDescription vmstate_zynq_slcr = {
     }
 };
 
-static Property zynq_slcr_props[] = {
+static const Property zynq_slcr_props[] = {
     DEFINE_PROP_UINT8("boot-mode", ZynqSLCRState, boot_mode, 1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void zynq_slcr_class_init(ObjectClass *klass, void *data)

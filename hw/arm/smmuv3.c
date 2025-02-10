@@ -1976,7 +1976,7 @@ static const VMStateDescription vmstate_smmuv3 = {
     }
 };
 
-static Property smmuv3_properties[] = {
+static const Property smmuv3_properties[] = {
     /*
      * Stages of translation advertised.
      * "1": Stage 1
@@ -1985,7 +1985,6 @@ static Property smmuv3_properties[] = {
      * Defaults to stage 1
      */
     DEFINE_PROP_STRING("stage", SMMUv3State, stage),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void smmuv3_instance_init(Object *obj)
@@ -2065,8 +2064,8 @@ static const TypeInfo smmuv3_iommu_memory_region_info = {
 
 static void smmuv3_register_types(void)
 {
-    type_register(&smmuv3_type_info);
-    type_register(&smmuv3_iommu_memory_region_info);
+    type_register_static(&smmuv3_type_info);
+    type_register_static(&smmuv3_iommu_memory_region_info);
 }
 
 type_init(smmuv3_register_types)

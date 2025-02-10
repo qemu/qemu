@@ -32,13 +32,14 @@
 #include "migration/vmstate.h"
 #include "hw/scsi/emulation.h"
 #include "scsi/constants.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
+#include "system/arch_init.h"
+#include "system/block-backend.h"
+#include "system/blockdev.h"
 #include "hw/block/block.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
-#include "sysemu/dma.h"
-#include "sysemu/sysemu.h"
+#include "system/dma.h"
+#include "system/system.h"
 #include "qemu/cutils.h"
 #include "trace.h"
 #include "qom/object.h"
@@ -111,6 +112,7 @@ struct SCSIDiskState {
     char *vendor;
     char *product;
     char *device_id;
+    char *loadparm;     /* only for s390x */
     bool tray_open;
     bool tray_locked;
     /*
@@ -3135,6 +3137,43 @@ BlockAIOCB *scsi_dma_writev(int64_t offset, QEMUIOVector *iov,
     return blk_aio_pwritev(s->qdev.conf.blk, offset, iov, 0, cb, cb_opaque);
 }
 
+static char *scsi_property_get_loadparm(Object *obj, Error **errp)
+{
+    return g_strdup(SCSI_DISK_BASE(obj)->loadparm);
+}
+
+static void scsi_property_set_loadparm(Object *obj, const char *value,
+                                       Error **errp)
+{
+    void *lp_str;
+
+    if (object_property_get_int(obj, "bootindex", NULL) < 0) {
+        error_setg(errp, "'loadparm' is only valid for boot devices");
+        return;
+    }
+
+    lp_str = g_malloc0(strlen(value) + 1);
+    if (!qdev_prop_sanitize_s390x_loadparm(lp_str, value, errp)) {
+        g_free(lp_str);
+        return;
+    }
+    SCSI_DISK_BASE(obj)->loadparm = lp_str;
+}
+
+static void scsi_property_add_specifics(DeviceClass *dc)
+{
+    ObjectClass *oc = OBJECT_CLASS(dc);
+
+    /* The loadparm property is only supported on s390x */
+    if (arch_type & QEMU_ARCH_S390X) {
+        object_class_property_add_str(oc, "loadparm",
+                                      scsi_property_get_loadparm,
+                                      scsi_property_set_loadparm);
+        object_class_property_set_description(oc, "loadparm",
+                                              "load parameter (s390x only)");
+    }
+}
+
 static void scsi_disk_base_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -3168,7 +3207,7 @@ static const TypeInfo scsi_disk_base_info = {
     DEFINE_PROP_BOOL("migrate-emulated-scsi-request", SCSIDiskState, migrate_emulated_scsi_request, true)
 
 
-static Property scsi_hd_properties[] = {
+static const Property scsi_hd_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
     DEFINE_PROP_BIT("removable", SCSIDiskState, features,
                     SCSI_DISK_F_REMOVABLE, false),
@@ -3188,7 +3227,6 @@ static Property scsi_hd_properties[] = {
                     quirks, SCSI_DISK_QUIRK_MODE_PAGE_VENDOR_SPECIFIC_APPLE,
                     0),
     DEFINE_BLOCK_CHS_PROPERTIES(SCSIDiskState, qdev.conf),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_scsi_disk_state = {
@@ -3218,6 +3256,8 @@ static void scsi_hd_class_initfn(ObjectClass *klass, void *data)
     dc->desc = "virtual SCSI disk";
     device_class_set_props(dc, scsi_hd_properties);
     dc->vmsd  = &vmstate_scsi_disk_state;
+
+    scsi_property_add_specifics(dc);
 }
 
 static const TypeInfo scsi_hd_info = {
@@ -3226,7 +3266,7 @@ static const TypeInfo scsi_hd_info = {
     .class_init    = scsi_hd_class_initfn,
 };
 
-static Property scsi_cd_properties[] = {
+static const Property scsi_cd_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
     DEFINE_PROP_UINT64("wwn", SCSIDiskState, qdev.wwn, 0),
     DEFINE_PROP_UINT64("port_wwn", SCSIDiskState, qdev.port_wwn, 0),
@@ -3244,7 +3284,6 @@ static Property scsi_cd_properties[] = {
                     0),
     DEFINE_PROP_BIT("quirk_mode_page_truncated", SCSIDiskState, quirks,
                     SCSI_DISK_QUIRK_MODE_PAGE_TRUNCATED, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void scsi_cd_class_initfn(ObjectClass *klass, void *data)
@@ -3258,6 +3297,8 @@ static void scsi_cd_class_initfn(ObjectClass *klass, void *data)
     dc->desc = "virtual SCSI CD-ROM";
     device_class_set_props(dc, scsi_cd_properties);
     dc->vmsd  = &vmstate_scsi_disk_state;
+
+    scsi_property_add_specifics(dc);
 }
 
 static const TypeInfo scsi_cd_info = {
@@ -3267,7 +3308,7 @@ static const TypeInfo scsi_cd_info = {
 };
 
 #ifdef __linux__
-static Property scsi_block_properties[] = {
+static const Property scsi_block_properties[] = {
     DEFINE_BLOCK_ERROR_PROPERTIES(SCSIDiskState, qdev.conf),
     DEFINE_PROP_DRIVE("drive", SCSIDiskState, qdev.conf.blk),
     DEFINE_PROP_BOOL("share-rw", SCSIDiskState, qdev.conf.share_rw, false),
@@ -3280,7 +3321,6 @@ static Property scsi_block_properties[] = {
                       -1),
     DEFINE_PROP_UINT32("io_timeout", SCSIDiskState, qdev.io_timeout,
                        DEFAULT_IO_TIMEOUT),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void scsi_block_class_initfn(ObjectClass *klass, void *data)

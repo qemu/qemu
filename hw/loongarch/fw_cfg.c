@@ -9,7 +9,7 @@
 #include "hw/loongarch/fw_cfg.h"
 #include "hw/loongarch/virt.h"
 #include "hw/nvram/fw_cfg.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
                             Error **errp)

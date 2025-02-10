@@ -49,7 +49,7 @@
 #include "hw/i2c/allwinner-i2c.h"
 #include "hw/watchdog/allwinner-wdt.h"
 #include "target/arm/cpu.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 
 /**
  * Allwinner H3 device list

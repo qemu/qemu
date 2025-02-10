@@ -10,7 +10,7 @@
 #include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/vof.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "qom/qom-qobject.h"
 #include "trace.h"
 

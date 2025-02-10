@@ -6,7 +6,7 @@
 #include "qapi/type-helpers.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
 #include "trace.h"
@@ -18,13 +18,12 @@ static char *usb_get_dev_path(DeviceState *dev);
 static char *usb_get_fw_dev_path(DeviceState *qdev);
 static void usb_qdev_unrealize(DeviceState *qdev);
 
-static Property usb_props[] = {
+static const Property usb_props[] = {
     DEFINE_PROP_STRING("port", USBDevice, port_path),
     DEFINE_PROP_STRING("serial", USBDevice, serial),
     DEFINE_PROP_BIT("msos-desc", USBDevice, flags,
                     USB_DEV_FLAG_MSOS_DESC_ENABLE, true),
     DEFINE_PROP_STRING("pcap", USBDevice, pcap_filename),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void usb_bus_class_init(ObjectClass *klass, void *data)
@@ -412,7 +411,7 @@ void usb_claim_port(USBDevice *dev, Error **errp)
     } else {
         if (bus->nfree == 1 && strcmp(object_get_typename(OBJECT(dev)), "usb-hub") != 0) {
             /* Create a new hub and chain it on */
-            hub = usb_try_new("usb-hub");
+            hub = USB_DEVICE(qdev_try_new("usb-hub"));
             if (hub) {
                 usb_realize_and_unref(hub, bus, NULL);
             }
@@ -663,7 +662,8 @@ USBDevice *usbdevice_create(const char *driver)
         return NULL;
     }
 
-    dev = f->usbdevice_init ? f->usbdevice_init() : usb_new(f->name);
+    dev = f->usbdevice_init ? f->usbdevice_init()
+                            : USB_DEVICE(qdev_new(f->name));
     if (!dev) {
         error_report("Failed to create USB device '%s'", f->name);
         return NULL;

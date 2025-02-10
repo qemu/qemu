@@ -103,8 +103,7 @@ static void restart_qemu_or_continue(char *path)
         old_path = g_strdup(path);
         qtest_start(path);
     } else { /* if cmd line is the same, reset the guest */
-        qobject_unref(qmp("{ 'execute': 'system_reset' }"));
-        qmp_eventwait("RESET");
+        qtest_system_reset(global_qtest);
     }
 }
 

@@ -86,6 +86,7 @@ struct DesignwarePCIEHost {
         MemoryRegion io;
 
         qemu_irq     irqs[4];
+        qemu_irq     msi;
     } pci;
 
     MemoryRegion mmio;

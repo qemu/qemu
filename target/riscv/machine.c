@@ -19,9 +19,9 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "qemu/error-report.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "migration/cpu.h"
-#include "sysemu/cpu-timers.h"
+#include "system/cpu-timers.h"
 #include "debug.h"
 
 static bool pmp_needed(void *opaque)
@@ -152,25 +152,15 @@ static const VMStateDescription vmstate_vector = {
 
 static bool pointermasking_needed(void *opaque)
 {
-    RISCVCPU *cpu = opaque;
-    CPURISCVState *env = &cpu->env;
-
-    return riscv_has_ext(env, RVJ);
+    return false;
 }
 
 static const VMStateDescription vmstate_pointermasking = {
     .name = "cpu/pointer_masking",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .needed = pointermasking_needed,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINTTL(env.mmte, RISCVCPU),
-        VMSTATE_UINTTL(env.mpmmask, RISCVCPU),
-        VMSTATE_UINTTL(env.mpmbase, RISCVCPU),
-        VMSTATE_UINTTL(env.spmmask, RISCVCPU),
-        VMSTATE_UINTTL(env.spmbase, RISCVCPU),
-        VMSTATE_UINTTL(env.upmmask, RISCVCPU),
-        VMSTATE_UINTTL(env.upmbase, RISCVCPU),
 
         VMSTATE_END_OF_LIST()
     }
@@ -266,7 +256,6 @@ static int riscv_cpu_post_load(void *opaque, int version_id)
     CPURISCVState *env = &cpu->env;
 
     env->xl = cpu_recompute_xl(env);
-    riscv_cpu_update_mask(env);
     return 0;
 }
 
@@ -350,6 +339,42 @@ static const VMStateDescription vmstate_jvt = {
     }
 };
 
+static bool elp_needed(void *opaque)
+{
+    RISCVCPU *cpu = opaque;
+
+    return cpu->cfg.ext_zicfilp;
+}
+
+static const VMStateDescription vmstate_elp = {
+    .name = "cpu/elp",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = elp_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_BOOL(env.elp, RISCVCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool ssp_needed(void *opaque)
+{
+    RISCVCPU *cpu = opaque;
+
+    return cpu->cfg.ext_zicfiss;
+}
+
+static const VMStateDescription vmstate_ssp = {
+    .name = "cpu/ssp",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = ssp_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINTTL(env.ssp, RISCVCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_riscv_cpu = {
     .name = "cpu",
     .version_id = 10,
@@ -398,6 +423,7 @@ const VMStateDescription vmstate_riscv_cpu = {
         VMSTATE_UINTTL(env.siselect, RISCVCPU),
         VMSTATE_UINT32(env.scounteren, RISCVCPU),
         VMSTATE_UINT32(env.mcounteren, RISCVCPU),
+        VMSTATE_UINT32(env.scountinhibit, RISCVCPU),
         VMSTATE_UINT32(env.mcountinhibit, RISCVCPU),
         VMSTATE_STRUCT_ARRAY(env.pmu_ctrs, RISCVCPU, RV_MAX_MHPMCOUNTERS, 0,
                              vmstate_pmu_ctr_state, PMUCTRState),
@@ -422,6 +448,8 @@ const VMStateDescription vmstate_riscv_cpu = {
         &vmstate_debug,
         &vmstate_smstateen,
         &vmstate_jvt,
+        &vmstate_elp,
+        &vmstate_ssp,
         NULL
     }
 };

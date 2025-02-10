@@ -26,8 +26,8 @@
 #include "hw/m68k/mcf_fec.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/qtest.h"
+#include "system/system.h"
+#include "system/qtest.h"
 #include "net/net.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
@@ -155,7 +155,7 @@ static uint64_t m5208_timer_read(void *opaque, hwaddr addr,
 static const MemoryRegionOps m5208_timer_ops = {
     .read = m5208_timer_read,
     .write = m5208_timer_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static uint64_t m5208_sys_read(void *opaque, hwaddr addr,
@@ -192,7 +192,7 @@ static void m5208_sys_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps m5208_sys_ops = {
     .read = m5208_sys_read,
     .write = m5208_sys_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static uint64_t m5208_rcm_read(void *opaque, hwaddr addr,
@@ -224,7 +224,7 @@ static void m5208_rcm_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps m5208_rcm_ops = {
     .read = m5208_rcm_read,
     .write = m5208_rcm_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void mcf5208_sys_init(MemoryRegion *address_space, qemu_irq *pic,
@@ -372,7 +372,7 @@ static void mcf5208evb_init(MachineState *machine)
     }
 
     kernel_size = load_elf(kernel_filename, NULL, NULL, NULL, &elf_entry,
-                           NULL, NULL, NULL, 1, EM_68K, 0, 0);
+                           NULL, NULL, NULL, ELFDATA2MSB, EM_68K, 0, 0);
     entry = elf_entry;
     if (kernel_size < 0) {
         kernel_size = load_uimage(kernel_filename, &entry, NULL, NULL,

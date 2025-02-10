@@ -366,11 +366,10 @@ static const VMStateDescription vmstate_hv_syndbg = {
     .unmigratable = 1,
 };
 
-static Property hv_syndbg_properties[] = {
+static const Property hv_syndbg_properties[] = {
     DEFINE_PROP_STRING("host_ip", HvSynDbg, host_ip),
     DEFINE_PROP_UINT16("host_port", HvSynDbg, host_port, 50000),
     DEFINE_PROP_BOOL("use_hcalls", HvSynDbg, use_hcalls, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void hv_syndbg_class_init(ObjectClass *klass, void *data)

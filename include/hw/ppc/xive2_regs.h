@@ -19,16 +19,18 @@
  * mode (P10), the CAM line is slightly different as the VP space was
  * increased.
  */
-#define   TM2_QW0W2_VU           PPC_BIT32(0)
+#define   TM2_W2_VALID           PPC_BIT32(0)
+#define   TM2_W2_HW              PPC_BIT32(1)
+#define   TM2_QW0W2_VU           TM2_W2_VALID
 #define   TM2_QW0W2_LOGIC_SERV   PPC_BITMASK32(4, 31)
-#define   TM2_QW1W2_VO           PPC_BIT32(0)
-#define   TM2_QW1W2_HO           PPC_BIT32(1)
+#define   TM2_QW1W2_VO           TM2_W2_VALID
+#define   TM2_QW1W2_HO           TM2_W2_HW
 #define   TM2_QW1W2_OS_CAM       PPC_BITMASK32(4, 31)
-#define   TM2_QW2W2_VP           PPC_BIT32(0)
-#define   TM2_QW2W2_HP           PPC_BIT32(1)
+#define   TM2_QW2W2_VP           TM2_W2_VALID
+#define   TM2_QW2W2_HP           TM2_W2_HW
 #define   TM2_QW2W2_POOL_CAM     PPC_BITMASK32(4, 31)
-#define   TM2_QW3W2_VT           PPC_BIT32(0)
-#define   TM2_QW3W2_HT           PPC_BIT32(1)
+#define   TM2_QW3W2_VT           TM2_W2_VALID
+#define   TM2_QW3W2_HT           TM2_W2_HW
 #define   TM2_QW3W2_LP           PPC_BIT32(6)
 #define   TM2_QW3W2_LE           PPC_BIT32(7)
 
@@ -151,6 +153,7 @@ typedef struct Xive2Nvp {
 #define NVP2_W0_VALID              PPC_BIT32(0)
 #define NVP2_W0_HW                 PPC_BIT32(7)
 #define NVP2_W0_ESC_END            PPC_BIT32(25) /* 'N' bit 0:ESB  1:END */
+#define NVP2_W0_PGOFIRST           PPC_BITMASK32(26, 31)
         uint32_t       w1;
 #define NVP2_W1_CO                 PPC_BIT32(13)
 #define NVP2_W1_CO_PRIV            PPC_BITMASK32(14, 15)
@@ -171,7 +174,9 @@ typedef struct Xive2Nvp {
 #define NVP2_W5_VP_END_BLOCK       PPC_BITMASK32(4, 7)
 #define NVP2_W5_VP_END_INDEX       PPC_BITMASK32(8, 31)
         uint32_t       w6;
+#define NVP2_W6_REPORTING_LINE     PPC_BITMASK32(4, 31)
         uint32_t       w7;
+#define NVP2_W7_REPORTING_LINE     PPC_BITMASK32(0, 23)
 } Xive2Nvp;
 
 #define xive2_nvp_is_valid(nvp)    (be32_to_cpu((nvp)->w0) & NVP2_W0_VALID)
@@ -209,6 +214,7 @@ void xive2_nvp_pic_print_info(Xive2Nvp *nvp, uint32_t nvp_idx, GString *buf);
 typedef struct Xive2Nvgc {
         uint32_t        w0;
 #define NVGC2_W0_VALID             PPC_BIT32(0)
+#define NVGC2_W0_PGONEXT           PPC_BITMASK32(26, 31)
         uint32_t        w1;
         uint32_t        w2;
         uint32_t        w3;
@@ -217,5 +223,10 @@ typedef struct Xive2Nvgc {
         uint32_t        w6;
         uint32_t        w7;
 } Xive2Nvgc;
+
+#define xive2_nvgc_is_valid(nvgc)    (be32_to_cpu((nvgc)->w0) & NVGC2_W0_VALID)
+
+void xive2_nvgc_pic_print_info(Xive2Nvgc *nvgc, uint32_t nvgc_idx,
+                               GString *buf);
 
 #endif /* PPC_XIVE2_REGS_H */

@@ -34,9 +34,9 @@
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/qtest.h"
-#include "sysemu/reset.h"
+#include "system/system.h"
+#include "system/qtest.h"
+#include "system/reset.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "elf.h"
@@ -380,7 +380,7 @@ static void leon3_generic_hw_init(MachineState *machine)
 
         kernel_size = load_elf(kernel_filename, NULL, NULL, NULL,
                                &entry, NULL, NULL, NULL,
-                               1 /* big endian */, EM_SPARC, 0, 0);
+                               ELFDATA2MSB, EM_SPARC, 0, 0);
         if (kernel_size < 0) {
             kernel_size = load_uimage(kernel_filename, NULL, &entry,
                                       NULL, NULL, NULL);

@@ -22,7 +22,7 @@
 #include "qapi/error.h"
 #include "qemu/main-loop.h"
 #include "block/block_int.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 
 static BlockDriver bdrv_pass_through = {
     .format_name = "pass-through",

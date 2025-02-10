@@ -154,8 +154,8 @@ block_gen_c = custom_target('block-gen.c',
                                       '../include/block/dirty-bitmap.h',
                                       '../include/block/block_int-io.h',
                                       '../include/block/block-global-state.h',
-                                      '../include/sysemu/block-backend-global-state.h',
-                                      '../include/sysemu/block-backend-io.h',
+                                      '../include/system/block-backend-global-state.h',
+                                      '../include/system/block-backend-io.h',
                                       'coroutines.h'
                                       ),
                             command: [wrapper_py, '@OUTPUT@', '@INPUT@'])
@@ -163,7 +163,7 @@ block_ss.add(block_gen_c)
 
 block_ss.add(files('stream.c'))
 
-system_ss.add(files('qapi-sysemu.c'))
+system_ss.add(files('qapi-system.c'))
 
 subdir('export')
 subdir('monitor')

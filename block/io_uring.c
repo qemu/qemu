@@ -17,7 +17,7 @@
 #include "qemu/coroutine.h"
 #include "qemu/defer-call.h"
 #include "qapi/error.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "trace.h"
 
 /* Only used for assertions.  */

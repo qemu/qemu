@@ -34,3 +34,7 @@ config REGISTER
 
 config SPLIT_IRQ
     bool
+
+config EIF
+    bool
+    depends on LIBCBOR && GNUTLS

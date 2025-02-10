@@ -26,7 +26,7 @@
 #include "hw/arm/linux-boot-if.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 
 static int gic_pre_save(void *opaque)
 {
@@ -348,7 +348,7 @@ static void arm_gic_common_linux_init(ARMLinuxBootIf *obj,
     }
 }
 
-static Property arm_gic_common_properties[] = {
+static const Property arm_gic_common_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", GICState, num_cpu, 1),
     DEFINE_PROP_UINT32("num-irq", GICState, num_irq, 32),
     /* Revision can be 1 or 2 for GIC architecture specification
@@ -360,7 +360,6 @@ static Property arm_gic_common_properties[] = {
     /* True if the GIC should implement the virtualization extensions */
     DEFINE_PROP_BOOL("has-virtualization-extensions", GICState, virt_extn, 0),
     DEFINE_PROP_UINT32("num-priority-bits", GICState, n_prio_bits, 8),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void arm_gic_common_class_init(ObjectClass *klass, void *data)

@@ -11,13 +11,13 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "qemu/timer.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qom/object.h"
-#include "sysemu/watchdog.h"
+#include "system/watchdog.h"
 
 #define OSMR0	0x00
 #define OSMR1	0x04
@@ -549,11 +549,10 @@ static const VMStateDescription vmstate_pxa2xx_timer_regs = {
     }
 };
 
-static Property pxa25x_timer_dev_properties[] = {
+static const Property pxa25x_timer_dev_properties[] = {
     DEFINE_PROP_UINT32("freq", PXA2xxTimerInfo, freq, PXA25X_FREQ),
     DEFINE_PROP_BIT("tm4", PXA2xxTimerInfo, flags,
                     PXA2XX_TIMER_HAVE_TM4, false),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pxa25x_timer_dev_class_init(ObjectClass *klass, void *data)

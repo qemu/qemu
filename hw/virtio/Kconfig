@@ -6,6 +6,10 @@ config VIRTIO_RNG
     default y
     depends on VIRTIO
 
+config VIRTIO_NSM
+   bool
+   depends on LIBCBOR && VIRTIO
+
 config VIRTIO_IOMMU
     bool
     default y
@@ -25,6 +29,7 @@ config VIRTIO_MMIO
 config VIRTIO_CCW
     bool
     select VIRTIO
+    select VIRTIO_MD_SUPPORTED
 
 config VIRTIO_BALLOON
     bool

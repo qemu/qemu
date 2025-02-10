@@ -46,3 +46,27 @@ check-python-tox:
     QEMU_JOB_OPTIONAL: 1
   needs:
     job: python-container
+
+check-rust-tools-nightly:
+  extends: .base_job_template
+  stage: test
+  image: $CI_REGISTRY_IMAGE/qemu/fedora-rust-nightly:$QEMU_CI_CONTAINER_TAG
+  script:
+    - source scripts/ci/gitlab-ci-section
+    - section_start test "Running Rust code checks"
+    - cd build
+    - pyvenv/bin/meson devenv -w ../rust ${CARGO-cargo} fmt --check
+    - make clippy
+    - make rustdoc
+    - section_end test
+  variables:
+    GIT_DEPTH: 1
+  allow_failure: true
+  needs:
+    - job: build-system-fedora-rust-nightly
+      artifacts: true
+  artifacts:
+    when: on_success
+    expire_in: 2 days
+    paths:
+      - rust/target/doc

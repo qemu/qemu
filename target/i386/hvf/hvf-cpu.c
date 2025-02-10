@@ -11,9 +11,9 @@
 #include "cpu.h"
 #include "host-cpu.h"
 #include "qapi/error.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/boards.h"
-#include "sysemu/hvf.h"
+#include "system/hvf.h"
 #include "hw/core/accel-cpu.h"
 #include "hvf-i386.h"
 

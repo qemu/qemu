@@ -325,6 +325,22 @@ static QCryptoPbkdfTestData test_data[] = {
                "\xce\xbf\x91\x14\x8b\x5c\x48\x41",
         .nout = 32
     },
+#ifdef CONFIG_CRYPTO_SM3
+    {
+        .path = "/crypto/pbkdf/nonrfc/sm3/iter2",
+        .hash = QCRYPTO_HASH_ALGO_SM3,
+        .iterations = 2,
+        .key = "password",
+        .nkey = 8,
+        .salt = "ATHENA.MIT.EDUraeburn",
+        .nsalt = 21,
+        .out = "\x48\x71\x1b\x58\xa3\xcb\xce\x06"
+ "\xba\xad\x77\xa8\xb5\xb9\xd8\x07"
+ "\x6a\xe2\xb3\x5b\x95\xce\xc8\xce"
+ "\xe7\xb1\xcb\xee\x61\xdf\x04\xea",
+        .nout = 32
+    },
+#endif
 #if 0
     {
         .path = "/crypto/pbkdf/nonrfc/whirlpool/iter1200",

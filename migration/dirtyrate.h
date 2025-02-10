@@ -13,7 +13,7 @@
 #ifndef QEMU_MIGRATION_DIRTYRATE_H
 #define QEMU_MIGRATION_DIRTYRATE_H
 
-#include "sysemu/dirtyrate.h"
+#include "system/dirtyrate.h"
 
 /*
  * Sample 512 pages per GB as default.

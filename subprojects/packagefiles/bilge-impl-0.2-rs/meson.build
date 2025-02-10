@@ -1,4 +1,5 @@
 project('bilge-impl-0.2-rs', 'rust',
+  meson_version: '>=1.5.0',
   version: '0.2.0',
   license: 'MIT OR Apache-2.0',
   default_options: [])
@@ -24,6 +25,7 @@ _bilge_impl_rs = rust.proc_macro(
   files('src/lib.rs'),
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_args: [
+    '--cap-lints', 'allow',
     '--cfg', 'use_fallback',
     '--cfg', 'feature="syn-error"',
     '--cfg', 'feature="proc-macro"',

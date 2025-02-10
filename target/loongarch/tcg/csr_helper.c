@@ -6,6 +6,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "cpu.h"
 #include "internals.h"
@@ -93,5 +94,25 @@ target_ulong helper_csrwr_ticlr(CPULoongArchState *env, target_ulong val)
         loongarch_cpu_set_irq(cpu, IRQ_TIMER, 0);
         bql_unlock();
     }
+    return old_v;
+}
+
+target_ulong helper_csrwr_pwcl(CPULoongArchState *env, target_ulong val)
+{
+    int shift;
+    int64_t old_v = env->CSR_PWCL;
+
+    /*
+     * The real hardware only supports 64bit PTE width now, 128bit or others
+     * treated as illegal.
+     */
+    shift = FIELD_EX64(val, CSR_PWCL, PTEWIDTH);
+    if (shift) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "Attempted set pte width with %d bit\n", 64 << shift);
+        val = FIELD_DP64(val, CSR_PWCL, PTEWIDTH, 0);
+    }
+
+    env->CSR_PWCL = val;
     return old_v;
 }

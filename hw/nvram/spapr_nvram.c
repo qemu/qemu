@@ -28,10 +28,10 @@
 #include "qapi/error.h"
 #include <libfdt.h>
 
-#include "sysemu/block-backend.h"
-#include "sysemu/device_tree.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/runstate.h"
+#include "system/block-backend.h"
+#include "system/device_tree.h"
+#include "system/system.h"
+#include "system/runstate.h"
 #include "migration/vmstate.h"
 #include "hw/nvram/chrp_nvram.h"
 #include "hw/ppc/spapr.h"
@@ -252,10 +252,9 @@ static const VMStateDescription vmstate_spapr_nvram = {
     },
 };
 
-static Property spapr_nvram_properties[] = {
+static const Property spapr_nvram_properties[] = {
     DEFINE_SPAPR_PROPERTIES(SpaprNvram, sdev),
     DEFINE_PROP_DRIVE("drive", SpaprNvram, blk),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void spapr_nvram_class_init(ObjectClass *klass, void *data)

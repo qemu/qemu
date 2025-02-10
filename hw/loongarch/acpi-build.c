@@ -18,7 +18,7 @@
 #include "hw/acpi/bios-linker-loader.h"
 #include "migration/vmstate.h"
 #include "hw/mem/memory-device.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 
 /* Supported chipsets: */
 #include "hw/pci-host/ls7a.h"
@@ -31,8 +31,8 @@
 
 #include "hw/acpi/generic_event_device.h"
 #include "hw/pci-host/gpex.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/tpm.h"
+#include "system/system.h"
+#include "system/tpm.h"
 #include "hw/platform-bus.h"
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/hmat.h"
@@ -276,8 +276,12 @@ spcr_setup(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     };
 
     lvms = LOONGARCH_VIRT_MACHINE(machine);
+    /*
+     * Passing NULL as the SPCR Table for Revision 2 doesn't support
+     * NameSpaceString.
+     */
     build_spcr(table_data, linker, &serial, 2, lvms->oem_id,
-               lvms->oem_table_id);
+               lvms->oem_table_id, NULL);
 }
 
 typedef
@@ -452,8 +456,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, MachineState *machine)
 
     acpi_table_begin(&table, table_data);
     dsdt = init_aml_allocator();
-    for (i = 0; i < VIRT_UART_COUNT; i++)
+    for (i = 0; i < VIRT_UART_COUNT; i++) {
         build_uart_device_aml(dsdt, i);
+    }
     build_pci_device_aml(dsdt, lvms);
     build_la_ged_aml(dsdt, machine);
     build_flash_aml(dsdt, lvms);

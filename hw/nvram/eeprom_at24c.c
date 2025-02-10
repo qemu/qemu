@@ -15,7 +15,7 @@
 #include "hw/nvram/eeprom_at24c.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "qom/object.h"
 
 /* #define DEBUG_AT24C */
@@ -234,12 +234,11 @@ void at24c_eeprom_reset(DeviceState *state)
     ee->haveaddr = 0;
 }
 
-static Property at24c_eeprom_props[] = {
+static const Property at24c_eeprom_props[] = {
     DEFINE_PROP_UINT32("rom-size", EEPROMState, rsize, 0),
     DEFINE_PROP_UINT8("address-size", EEPROMState, asize, 0),
     DEFINE_PROP_BOOL("writable", EEPROMState, writable, true),
     DEFINE_PROP_DRIVE("drive", EEPROMState, blk),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static

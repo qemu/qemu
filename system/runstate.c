@@ -51,14 +51,14 @@
 #include "qemu/thread.h"
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
-#include "sysemu/cpus.h"
-#include "sysemu/qtest.h"
-#include "sysemu/replay.h"
-#include "sysemu/reset.h"
-#include "sysemu/runstate.h"
-#include "sysemu/runstate-action.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/tpm.h"
+#include "system/cpus.h"
+#include "system/qtest.h"
+#include "system/replay.h"
+#include "system/reset.h"
+#include "system/runstate.h"
+#include "system/runstate-action.h"
+#include "system/system.h"
+#include "system/tpm.h"
 #include "trace.h"
 
 static NotifierList exit_notifiers =
@@ -850,6 +850,7 @@ void qemu_remove_exit_notifier(Notifier *notify)
 
 static void qemu_run_exit_notifiers(void)
 {
+    BQL_LOCK_GUARD();
     notifier_list_notify(&exit_notifiers, NULL);
 }
 

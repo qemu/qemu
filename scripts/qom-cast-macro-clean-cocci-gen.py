@@ -13,8 +13,11 @@
 #           --in-place \
 #           --dir .
 #
-# SPDX-FileContributor: Philippe Mathieu-Daudé <philmd@linaro.org>
-# SPDX-FileCopyrightText: 2023 Linaro Ltd.
+# Copyright (c) 2023 Linaro Ltd.
+#
+# Authors:
+#   Philippe Mathieu-Daudé
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import re

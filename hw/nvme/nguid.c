@@ -149,7 +149,7 @@ static void nvme_nguid_stringify(const NvmeNGUID *nguid, char *out)
 static void get_nguid(Object *obj, Visitor *v, const char *name, void *opaque,
                       Error **errp)
 {
-    Property *prop = opaque;
+    const Property *prop = opaque;
     NvmeNGUID *nguid = object_field_prop_ptr(obj, prop);
     char buffer[NGUID_STR_LEN];
     char *p = buffer;
@@ -162,7 +162,7 @@ static void get_nguid(Object *obj, Visitor *v, const char *name, void *opaque,
 static void set_nguid(Object *obj, Visitor *v, const char *name, void *opaque,
                       Error **errp)
 {
-    Property *prop = opaque;
+    const Property *prop = opaque;
     NvmeNGUID *nguid = object_field_prop_ptr(obj, prop);
     char *str;
 

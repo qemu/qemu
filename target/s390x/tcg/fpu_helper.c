@@ -780,7 +780,7 @@ uint32_t HELPER(kxb)(CPUS390XState *env, Int128 a, Int128 b)
 uint64_t HELPER(maeb)(CPUS390XState *env, uint64_t f1,
                       uint64_t f2, uint64_t f3)
 {
-    float32 ret = float32_muladd(f2, f3, f1, 0, &env->fpu_status);
+    float32 ret = float32_muladd(f3, f2, f1, 0, &env->fpu_status);
     handle_exceptions(env, false, GETPC());
     return ret;
 }
@@ -789,7 +789,7 @@ uint64_t HELPER(maeb)(CPUS390XState *env, uint64_t f1,
 uint64_t HELPER(madb)(CPUS390XState *env, uint64_t f1,
                       uint64_t f2, uint64_t f3)
 {
-    float64 ret = float64_muladd(f2, f3, f1, 0, &env->fpu_status);
+    float64 ret = float64_muladd(f3, f2, f1, 0, &env->fpu_status);
     handle_exceptions(env, false, GETPC());
     return ret;
 }
@@ -798,7 +798,7 @@ uint64_t HELPER(madb)(CPUS390XState *env, uint64_t f1,
 uint64_t HELPER(mseb)(CPUS390XState *env, uint64_t f1,
                       uint64_t f2, uint64_t f3)
 {
-    float32 ret = float32_muladd(f2, f3, f1, float_muladd_negate_c,
+    float32 ret = float32_muladd(f3, f2, f1, float_muladd_negate_c,
                                  &env->fpu_status);
     handle_exceptions(env, false, GETPC());
     return ret;
@@ -808,7 +808,7 @@ uint64_t HELPER(mseb)(CPUS390XState *env, uint64_t f1,
 uint64_t HELPER(msdb)(CPUS390XState *env, uint64_t f1,
                       uint64_t f2, uint64_t f3)
 {
-    float64 ret = float64_muladd(f2, f3, f1, float_muladd_negate_c,
+    float64 ret = float64_muladd(f3, f2, f1, float_muladd_negate_c,
                                  &env->fpu_status);
     handle_exceptions(env, false, GETPC());
     return ret;

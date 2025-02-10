@@ -375,8 +375,7 @@ static int vhost_vdpa_net_data_start(NetClientState *nc)
 
     assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_VDPA);
 
-    if (s->always_svq ||
-        migration_is_setup_or_active()) {
+    if (s->always_svq || migration_is_running()) {
         v->shadow_vqs_enabled = true;
     } else {
         v->shadow_vqs_enabled = false;

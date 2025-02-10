@@ -1,4 +1,5 @@
 project('proc-macro2-1-rs', 'rust',
+  meson_version: '>=1.5.0',
   version: '1.0.84',
   license: 'MIT OR Apache-2.0',
   default_options: [])
@@ -14,8 +15,11 @@ _proc_macro2_rs = static_library(
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   rust_args: [
+    '--cap-lints', 'allow',
     '--cfg', 'feature="proc-macro"',
-    '--cfg', 'span_locations',
+    '--cfg', 'no_literal_byte_character',
+    '--cfg', 'no_literal_c_string',
+    '--cfg', 'no_source_text',
     '--cfg', 'wrap_proc_macro',
   ],
   dependencies: [

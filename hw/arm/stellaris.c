@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bitops.h"
 #include "qapi/error.h"
 #include "hw/core/split-irq.h"
 #include "hw/sysbus.h"
@@ -20,7 +21,7 @@
 #include "hw/boards.h"
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/arm/armv7m.h"
 #include "hw/char/pl011.h"
 #include "hw/input/stellaris_gamepad.h"
@@ -48,6 +49,31 @@
 
 #define NUM_IRQ_LINES 64
 #define NUM_PRIO_BITS 3
+
+#define NUM_GPIO    7
+#define NUM_UART    4
+#define NUM_GPTM    4
+#define NUM_I2C     2
+
+/*
+ * See Stellaris Data Sheet chapter 5.2.5 "System Control",
+ * Register 13 .. 17: Device Capabilities 0 .. 4 (DC0 .. DC4).
+ */
+#define DC1_WDT          3
+#define DC1_HIB          6
+#define DC1_MPU          7
+#define DC1_ADC          16
+#define DC1_PWM          20
+#define DC2_UART(n)     (n)
+#define DC2_SSI          4
+#define DC2_QEI(n)      (8 + n)
+#define DC2_I2C(n)      (12 + 2 * n)
+#define DC2_GPTM(n)     (16 + n)
+#define DC2_COMP(n)     (24 + n)
+#define DC4_GPIO(n)     (n)
+#define DC4_EMAC         28
+
+#define DEV_CAP(_dc, _cap) extract32(board->dc##_dc, DC##_dc##_##_cap, 1)
 
 typedef const struct {
     const char *name;
@@ -101,7 +127,7 @@ static void ssys_update(ssys_state *s)
   qemu_set_irq(s->irq, (s->int_status & s->int_mask) != 0);
 }
 
-static uint32_t pllcfg_sandstorm[16] = {
+static const uint32_t pllcfg_sandstorm[16] = {
     0x31c0, /* 1 Mhz */
     0x1ae0, /* 1.8432 Mhz */
     0x18c0, /* 2 Mhz */
@@ -120,7 +146,7 @@ static uint32_t pllcfg_sandstorm[16] = {
     0x585b /* 8.192 Mhz */
 };
 
-static uint32_t pllcfg_fury[16] = {
+static const uint32_t pllcfg_fury[16] = {
     0x3200, /* 1 Mhz */
     0x1b20, /* 1.8432 Mhz */
     0x1900, /* 2 Mhz */
@@ -438,7 +464,7 @@ static const VMStateDescription vmstate_stellaris_sys = {
     }
 };
 
-static Property stellaris_sys_properties[] = {
+static const Property stellaris_sys_properties[] = {
     DEFINE_PROP_UINT32("user0", ssys_state, user0, 0),
     DEFINE_PROP_UINT32("user1", ssys_state, user1, 0),
     DEFINE_PROP_UINT32("did0", ssys_state, did0, 0),
@@ -448,7 +474,6 @@ static Property stellaris_sys_properties[] = {
     DEFINE_PROP_UINT32("dc2", ssys_state, dc2, 0),
     DEFINE_PROP_UINT32("dc3", ssys_state, dc3, 0),
     DEFINE_PROP_UINT32("dc4", ssys_state, dc4, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void stellaris_sys_instance_init(Object *obj)
@@ -965,7 +990,7 @@ static void stellaris_adc_init(Object *obj)
 }
 
 /* Board init.  */
-static stellaris_board_info stellaris_boards[] = {
+static const stellaris_board_info stellaris_boards[] = {
   { "LM3S811EVB",
     0,
     0x0032000e,
@@ -990,19 +1015,20 @@ static stellaris_board_info stellaris_boards[] = {
 
 static void stellaris_init(MachineState *ms, stellaris_board_info *board)
 {
-    static const int uart_irq[] = {5, 6, 33, 34};
-    static const int timer_irq[] = {19, 21, 23, 35};
-    static const uint32_t gpio_addr[7] =
+    static const int uart_irq[NUM_UART] = {5, 6, 33, 34};
+    static const int timer_irq[NUM_GPTM] = {19, 21, 23, 35};
+    static const uint32_t gpio_addr[NUM_GPIO] =
       { 0x40004000, 0x40005000, 0x40006000, 0x40007000,
         0x40024000, 0x40025000, 0x40026000};
-    static const int gpio_irq[7] = {0, 1, 2, 3, 4, 30, 31};
+    static const int gpio_irq[NUM_GPIO] = {0, 1, 2, 3, 4, 30, 31};
+    static const uint32_t i2c_addr[NUM_I2C] = {0x40020000, 0x40021000};
+    static const int i2c_irq[NUM_I2C] = {8, 37};
 
     /* Memory map of SoC devices, from
      * Stellaris LM3S6965 Microcontroller Data Sheet (rev I)
      * http://www.ti.com/lit/ds/symlink/lm3s6965.pdf
      *
      * 40000000 wdtimer
-     * 40002000 i2c (unimplemented)
      * 40004000 GPIO
      * 40005000 GPIO
      * 40006000 GPIO
@@ -1032,13 +1058,13 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
      */
 
     Object *soc_container;
-    DeviceState *gpio_dev[7], *nvic;
-    qemu_irq gpio_in[7][8];
-    qemu_irq gpio_out[7][8];
+    DeviceState *gpio_dev[NUM_GPIO], *armv7m, *nvic;
+    qemu_irq gpio_in[NUM_GPIO][8];
+    qemu_irq gpio_out[NUM_GPIO][8];
     qemu_irq adc;
     int sram_size;
     int flash_size;
-    I2CBus *i2c;
+    DeviceState *i2c_dev[NUM_I2C] = { };
     DeviceState *dev;
     DeviceState *ssys_dev;
     int i;
@@ -1053,7 +1079,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     flash_size = (((board->dc0 & 0xffff) + 1) << 1) * 1024;
     sram_size = ((board->dc0 >> 18) + 1) * 1024;
 
-    soc_container = object_new("container");
+    soc_container = object_new(TYPE_CONTAINER);
     object_property_add_child(OBJECT(ms), "soc", soc_container);
 
     /* Flash programming is done via the SCU, so pretend it is ROM.  */
@@ -1096,25 +1122,26 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     qdev_prop_set_uint32(ssys_dev, "dc4", board->dc4);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(ssys_dev), &error_fatal);
 
-    nvic = qdev_new(TYPE_ARMV7M);
-    object_property_add_child(soc_container, "v7m", OBJECT(nvic));
-    qdev_prop_set_uint32(nvic, "num-irq", NUM_IRQ_LINES);
-    qdev_prop_set_uint8(nvic, "num-prio-bits", NUM_PRIO_BITS);
-    qdev_prop_set_string(nvic, "cpu-type", ms->cpu_type);
-    qdev_prop_set_bit(nvic, "enable-bitband", true);
-    qdev_connect_clock_in(nvic, "cpuclk",
+    armv7m = qdev_new(TYPE_ARMV7M);
+    object_property_add_child(soc_container, "v7m", OBJECT(armv7m));
+    qdev_prop_set_uint32(armv7m, "num-irq", NUM_IRQ_LINES);
+    qdev_prop_set_uint8(armv7m, "num-prio-bits", NUM_PRIO_BITS);
+    qdev_prop_set_string(armv7m, "cpu-type", ms->cpu_type);
+    qdev_prop_set_bit(armv7m, "enable-bitband", true);
+    qdev_connect_clock_in(armv7m, "cpuclk",
                           qdev_get_clock_out(ssys_dev, "SYSCLK"));
     /* This SoC does not connect the systick reference clock */
-    object_property_set_link(OBJECT(nvic), "memory",
+    object_property_set_link(OBJECT(armv7m), "memory",
                              OBJECT(get_system_memory()), &error_abort);
     /* This will exit with an error if the user passed us a bad cpu_type */
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(nvic), &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(armv7m), &error_fatal);
+    nvic = armv7m;
 
     /* Now we can wire up the IRQ and MMIO of the system registers */
     sysbus_mmio_map(SYS_BUS_DEVICE(ssys_dev), 0, 0x400fe000);
     sysbus_connect_irq(SYS_BUS_DEVICE(ssys_dev), 0, qdev_get_gpio_in(nvic, 28));
 
-    if (board->dc1 & (1 << 16)) {
+    if (DEV_CAP(1, ADC)) {
         dev = sysbus_create_varargs(TYPE_STELLARIS_ADC, 0x40038000,
                                     qdev_get_gpio_in(nvic, 14),
                                     qdev_get_gpio_in(nvic, 15),
@@ -1125,8 +1152,8 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     } else {
         adc = NULL;
     }
-    for (i = 0; i < 4; i++) {
-        if (board->dc2 & (0x10000 << i)) {
+    for (i = 0; i < NUM_GPTM; i++) {
+        if (DEV_CAP(2, GPTM(i))) {
             SysBusDevice *sbd;
 
             dev = qdev_new(TYPE_STELLARIS_GPTM);
@@ -1143,7 +1170,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         }
     }
 
-    if (board->dc1 & (1 << 3)) { /* watchdog present */
+    if (DEV_CAP(1, WDT)) {
         dev = qdev_new(TYPE_LUMINARY_WATCHDOG);
         object_property_add_child(soc_container, "wdg", OBJECT(dev));
         qdev_connect_clock_in(dev, "WDOGCLK",
@@ -1159,8 +1186,8 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     }
 
 
-    for (i = 0; i < 7; i++) {
-        if (board->dc4 & (1 << i)) {
+    for (i = 0; i < NUM_GPIO; i++) {
+        if (DEV_CAP(4, GPIO(i))) {
             gpio_dev[i] = sysbus_create_simple("pl061_luminary", gpio_addr[i],
                                                qdev_get_gpio_in(nvic,
                                                                 gpio_irq[i]));
@@ -1171,17 +1198,21 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         }
     }
 
-    if (board->dc2 & (1 << 12)) {
-        dev = sysbus_create_simple(TYPE_STELLARIS_I2C, 0x40020000,
-                                   qdev_get_gpio_in(nvic, 8));
-        i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
-        if (board->peripherals & BP_OLED_I2C) {
-            i2c_slave_create_simple(i2c, "ssd0303", 0x3d);
+    for (i = 0; i < NUM_I2C; i++) {
+        if (DEV_CAP(2, I2C(i))) {
+            i2c_dev[i] = sysbus_create_simple(TYPE_STELLARIS_I2C, i2c_addr[i],
+                                              qdev_get_gpio_in(nvic,
+                                                               i2c_irq[i]));
         }
     }
+    if (board->peripherals & BP_OLED_I2C) {
+        I2CBus *bus = (I2CBus *)qdev_get_child_bus(i2c_dev[0], "i2c");
 
-    for (i = 0; i < 4; i++) {
-        if (board->dc2 & (1 << i)) {
+        i2c_slave_create_simple(bus, "ssd0303", 0x3d);
+    }
+
+    for (i = 0; i < NUM_UART; i++) {
+        if (DEV_CAP(2, UART(i))) {
             SysBusDevice *sbd;
 
             dev = qdev_new("pl011_luminary");
@@ -1193,7 +1224,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
             sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(nvic, uart_irq[i]));
         }
     }
-    if (board->dc2 & (1 << 4)) {
+    if (DEV_CAP(2, SSI)) {
         dev = sysbus_create_simple("pl022", 0x40008000,
                                    qdev_get_gpio_in(nvic, 7));
         if (board->peripherals & BP_OLED_SSI) {
@@ -1302,7 +1333,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
             qemu_irq_raise(gpio_out[GPIO_D][0]);
         }
     }
-    if (board->dc4 & (1 << 28)) {
+    if (DEV_CAP(4, EMAC)) {
         DeviceState *enet;
 
         enet = qdev_new("stellaris_enet");
@@ -1357,8 +1388,6 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     /* Add dummy regions for the devices we don't implement yet,
      * so guest accesses don't cause unlogged crashes.
      */
-    create_unimplemented_device("i2c-0", 0x40002000, 0x1000);
-    create_unimplemented_device("i2c-2", 0x40021000, 0x1000);
     create_unimplemented_device("PWM", 0x40028000, 0x1000);
     create_unimplemented_device("QEI-0", 0x4002c000, 0x1000);
     create_unimplemented_device("QEI-1", 0x4002d000, 0x1000);
@@ -1366,7 +1395,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     create_unimplemented_device("hibernation", 0x400fc000, 0x1000);
     create_unimplemented_device("flash-control", 0x400fd000, 0x1000);
 
-    armv7m_load_kernel(ARM_CPU(first_cpu), ms->kernel_filename, 0, flash_size);
+    armv7m_load_kernel(ARMV7M(armv7m)->cpu, ms->kernel_filename, 0, flash_size);
 }
 
 /* FIXME: Figure out how to generate these from stellaris_boards.  */
@@ -1380,6 +1409,10 @@ static void lm3s6965evb_init(MachineState *machine)
     stellaris_init(machine, &stellaris_boards[1]);
 }
 
+/*
+ * Stellaris LM3S811 Evaluation Board Schematics:
+ * https://www.ti.com/lit/ug/symlink/spmu030.pdf
+ */
 static void lm3s811evb_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1396,6 +1429,10 @@ static const TypeInfo lm3s811evb_type = {
     .class_init = lm3s811evb_class_init,
 };
 
+/*
+ * Stellaris: LM3S6965 Evaluation Board Schematics:
+ * https://www.ti.com/lit/ug/symlink/spmu029.pdf
+ */
 static void lm3s6965evb_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);

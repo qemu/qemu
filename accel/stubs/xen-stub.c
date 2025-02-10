@@ -6,7 +6,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/xen.h"
+#include "system/xen.h"
 #include "qapi/qapi-commands-migration.h"
 
 bool xen_allowed;

@@ -54,6 +54,7 @@ typedef struct VhostUserHostNotifier {
     void *addr;
     void *unmap_addr;
     int idx;
+    bool destroy;
 } VhostUserHostNotifier;
 
 /**

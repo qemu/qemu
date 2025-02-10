@@ -20,7 +20,7 @@
 #include "qemu/module.h"
 #include <sys/prctl.h>
 #include <seccomp.h>
-#include "sysemu/seccomp.h"
+#include "system/seccomp.h"
 #include <linux/seccomp.h>
 
 /* For some architectures (notably ARM) cacheflush is not supported until

@@ -23,11 +23,11 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/units.h"
-#include "sysemu/device_tree.h"
-#include "sysemu/kvm.h"
-#include "sysemu/numa.h"
-#include "sysemu/runstate.h"
-#include "sysemu/sysemu.h"
+#include "system/device_tree.h"
+#include "system/kvm.h"
+#include "system/numa.h"
+#include "system/runstate.h"
+#include "system/system.h"
 #include "exec/hwaddr.h"
 #include "kvm_arm.h"
 #include "hw/arm/boot.h"
@@ -673,7 +673,7 @@ static void create_pcie(SBSAMachineState *sms)
     /* Map IO port space */
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, base_pio);
 
-    for (i = 0; i < GPEX_NUM_IRQS; i++) {
+    for (i = 0; i < PCI_NUM_PINS; i++) {
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
                            qdev_get_gpio_in(sms->gic, irq + i));
         gpex_set_irq_num(GPEX_HOST(dev), i, irq + i);

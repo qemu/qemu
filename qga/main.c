@@ -1519,7 +1519,7 @@ static int run_agent_once(GAState *s)
         return EXIT_FAILURE;
     }
 
-    g_main_loop_run(ga_state->main_loop);
+    g_main_loop_run(s->main_loop);
 
     if (s->channel) {
         ga_channel_free(s->channel);

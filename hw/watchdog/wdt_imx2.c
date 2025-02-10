@@ -12,7 +12,7 @@
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
 #include "qemu/module.h"
-#include "sysemu/watchdog.h"
+#include "system/watchdog.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 
@@ -39,7 +39,6 @@ static void imx2_wdt_expired(void *opaque)
 
     /* Perform watchdog action if watchdog is enabled */
     if (s->wcr & IMX2_WDT_WCR_WDE) {
-        s->wrsr = IMX2_WDT_WRSR_TOUT;
         watchdog_perform_action();
     }
 }
@@ -282,10 +281,9 @@ static void imx2_wdt_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property imx2_wdt_properties[] = {
+static const Property imx2_wdt_properties[] = {
     DEFINE_PROP_BOOL("pretimeout-support", IMX2WdtState, pretimeout_support,
                      false),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void imx2_wdt_class_init(ObjectClass *klass, void *data)

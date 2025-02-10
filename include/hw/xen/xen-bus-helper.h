@@ -38,6 +38,15 @@ int xs_node_scanf(struct qemu_xs_handle *h,  xs_transaction_t tid,
                   const char *fmt, ...)
     G_GNUC_SCANF(6, 7);
 
+/*
+ * Unlike other functions here, the printf-formatted path_fmt is for
+ * the XenStore path, not the contents of the node.
+ */
+char *xs_node_read(struct qemu_xs_handle *h, xs_transaction_t tid,
+                   unsigned int *len, Error **errp,
+                   const char *path_fmt, ...)
+    G_GNUC_PRINTF(5, 6);
+
 /* Watch node/key unless node is empty, in which case watch key */
 struct qemu_xs_watch *xs_node_watch(struct qemu_xs_handle *h, const char *node,
                                     const char *key, xs_watch_fn fn,

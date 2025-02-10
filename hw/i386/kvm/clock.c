@@ -16,9 +16,9 @@
 #include "qemu/osdep.h"
 #include "qemu/host-utils.h"
 #include "qemu/module.h"
-#include "sysemu/kvm.h"
-#include "sysemu/runstate.h"
-#include "sysemu/hw_accel.h"
+#include "system/kvm.h"
+#include "system/runstate.h"
+#include "system/hw_accel.h"
 #include "kvm/kvm_i386.h"
 #include "migration/vmstate.h"
 #include "hw/sysbus.h"
@@ -27,7 +27,6 @@
 #include "qapi/error.h"
 
 #include <linux/kvm.h>
-#include "standard-headers/asm-x86/kvm_para.h"
 #include "qom/object.h"
 
 #define TYPE_KVM_CLOCK "kvmclock"
@@ -305,10 +304,9 @@ static const VMStateDescription kvmclock_vmsd = {
     }
 };
 
-static Property kvmclock_properties[] = {
+static const Property kvmclock_properties[] = {
     DEFINE_PROP_BOOL("x-mach-use-reliable-get-clock", KVMClockState,
                       mach_use_reliable_get_clock, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void kvmclock_class_init(ObjectClass *klass, void *data)
@@ -334,8 +332,8 @@ void kvmclock_create(bool create_always)
 
     assert(kvm_enabled());
     if (create_always ||
-        cpu->env.features[FEAT_KVM] & ((1ULL << KVM_FEATURE_CLOCKSOURCE) |
-                                       (1ULL << KVM_FEATURE_CLOCKSOURCE2))) {
+        cpu->env.features[FEAT_KVM] & (CPUID_KVM_CLOCK |
+                                       CPUID_KVM_CLOCK2)) {
         sysbus_create_simple(TYPE_KVM_CLOCK, -1, NULL);
     }
 }

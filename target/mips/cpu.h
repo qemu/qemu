@@ -530,7 +530,6 @@ typedef struct CPUArchState {
     CPUMIPSFPUContext active_fpu;
 
     uint32_t current_tc;
-    uint32_t current_fpu;
 
     uint32_t SEGBITS;
     uint32_t PABITS;
@@ -1209,6 +1208,9 @@ struct ArchCPU {
 
     Clock *clock;
     Clock *count_div; /* Divider for CP0_Count clock */
+
+    /* Properties */
+    bool is_big_endian;
 };
 
 /**
@@ -1316,6 +1318,12 @@ bool cpu_type_supports_cps_smp(const char *cpu_type);
 bool cpu_supports_isa(const CPUMIPSState *env, uint64_t isa_mask);
 bool cpu_type_supports_isa(const char *cpu_type, uint64_t isa);
 
+/* Check presence of MIPS-3D ASE */
+static inline bool ase_3d_available(const CPUMIPSState *env)
+{
+    return env->active_fpu.fcr0 & (1 << FCR0_3D);
+}
+
 /* Check presence of MSA implementation */
 static inline bool ase_msa_available(CPUMIPSState *env)
 {
@@ -1373,12 +1381,14 @@ static inline void cpu_get_tb_cpu_state(CPUMIPSState *env, vaddr *pc,
  * mips_cpu_create_with_clock:
  * @typename: a MIPS CPU type.
  * @cpu_refclk: this cpu input clock (an output clock of another device)
+ * @is_big_endian: whether this CPU is configured in big endianness
  *
  * Instantiates a MIPS CPU, set the input clock of the CPU to @cpu_refclk,
  * then realizes the CPU.
  *
  * Returns: A #CPUState or %NULL if an error occurred.
  */
-MIPSCPU *mips_cpu_create_with_clock(const char *cpu_type, Clock *cpu_refclk);
+MIPSCPU *mips_cpu_create_with_clock(const char *cpu_type, Clock *cpu_refclk,
+                                    bool is_big_endian);
 
 #endif /* MIPS_CPU_H */

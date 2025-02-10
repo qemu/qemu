@@ -76,7 +76,7 @@ static void m68k_cpu_reset_hold(Object *obj, ResetType type)
     CPUState *cs = CPU(obj);
     M68kCPUClass *mcc = M68K_CPU_GET_CLASS(obj);
     CPUM68KState *env = cpu_env(cs);
-    floatx80 nan = floatx80_default_nan(NULL);
+    floatx80 nan;
     int i;
 
     if (mcc->parent_phases.hold) {
@@ -89,6 +89,26 @@ static void m68k_cpu_reset_hold(Object *obj, ResetType type)
 #else
     cpu_m68k_set_sr(env, SR_S | SR_I);
 #endif
+    /*
+     * M68000 FAMILY PROGRAMMER'S REFERENCE MANUAL
+     * 3.4 FLOATING-POINT INSTRUCTION DETAILS
+     * If either operand, but not both operands, of an operation is a
+     * nonsignaling NaN, then that NaN is returned as the result. If both
+     * operands are nonsignaling NaNs, then the destination operand
+     * nonsignaling NaN is returned as the result.
+     * If either operand to an operation is a signaling NaN (SNaN), then the
+     * SNaN bit is set in the FPSR EXC byte. If the SNaN exception enable bit
+     * is set in the FPCR ENABLE byte, then the exception is taken and the
+     * destination is not modified. If the SNaN exception enable bit is not
+     * set, setting the SNaN bit in the operand to a one converts the SNaN to
+     * a nonsignaling NaN. The operation then continues as described in the
+     * preceding paragraph for nonsignaling NaNs.
+     */
+    set_float_2nan_prop_rule(float_2nan_prop_ab, &env->fp_status);
+    /* Default NaN: sign bit clear, all frac bits set */
+    set_float_default_nan_pattern(0b01111111, &env->fp_status);
+
+    nan = floatx80_default_nan(&env->fp_status);
     for (i = 0; i < 8; i++) {
         env->fregs[i].d = nan;
     }
@@ -531,6 +551,7 @@ static const struct SysemuCPUOps m68k_sysemu_ops = {
 
 static const TCGCPUOps m68k_tcg_ops = {
     .initialize = m68k_tcg_init,
+    .translate_code = m68k_translate_code,
     .restore_state_to_opc = m68k_restore_state_to_opc,
 
 #ifndef CONFIG_USER_ONLY

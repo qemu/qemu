@@ -24,13 +24,13 @@
 
 #include "qemu/osdep.h"
 #include "hw/virtio/virtio-bus.h"
-#include "sysemu/cryptodev-vhost.h"
+#include "system/cryptodev-vhost.h"
 
 #ifdef CONFIG_VHOST_CRYPTO
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/virtio/virtio-crypto.h"
-#include "sysemu/cryptodev-vhost-user.h"
+#include "system/cryptodev-vhost-user.h"
 
 uint64_t
 cryptodev_vhost_get_max_queues(

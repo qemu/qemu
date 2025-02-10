@@ -27,9 +27,9 @@
 #include "qapi/error.h"
 #include "qemu/datadir.h"
 #include "qemu/units.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/block-backend.h"
+#include "system/blockdev.h"
+#include "system/system.h"
+#include "system/block-backend.h"
 #include "qemu/error-report.h"
 
 

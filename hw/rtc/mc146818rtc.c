@@ -32,11 +32,11 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "qemu/timer.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/replay.h"
-#include "sysemu/reset.h"
-#include "sysemu/runstate.h"
-#include "sysemu/rtc.h"
+#include "system/system.h"
+#include "system/replay.h"
+#include "system/reset.h"
+#include "system/runstate.h"
+#include "system/rtc.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/rtc/mc146818rtc_regs.h"
 #include "migration/vmstate.h"
@@ -960,13 +960,12 @@ MC146818RtcState *mc146818_rtc_init(ISABus *bus, int base_year,
     return s;
 }
 
-static Property mc146818rtc_properties[] = {
+static const Property mc146818rtc_properties[] = {
     DEFINE_PROP_INT32("base_year", MC146818RtcState, base_year, 1980),
     DEFINE_PROP_UINT16("iobase", MC146818RtcState, io_base, RTC_ISA_BASE),
     DEFINE_PROP_UINT8("irq", MC146818RtcState, isairq, RTC_ISA_IRQ),
     DEFINE_PROP_LOSTTICKPOLICY("lost_tick_policy", MC146818RtcState,
                                lost_tick_policy, LOST_TICK_POLICY_DISCARD),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void rtc_reset_enter(Object *obj, ResetType type)

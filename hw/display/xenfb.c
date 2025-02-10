@@ -29,7 +29,7 @@
 
 #include "ui/input.h"
 #include "ui/console.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/xen/xen-legacy-backend.h"
 
 #include "hw/xen/interface/io/fbif.h"

@@ -369,13 +369,12 @@ static void u2f_emulated_unrealize(U2FKeyState *base)
     }
 }
 
-static Property u2f_emulated_properties[] = {
+static const Property u2f_emulated_properties[] = {
     DEFINE_PROP_STRING("dir", U2FEmulatedState, dir),
     DEFINE_PROP_STRING("cert", U2FEmulatedState, cert),
     DEFINE_PROP_STRING("privkey", U2FEmulatedState, privkey),
     DEFINE_PROP_STRING("entropy", U2FEmulatedState, entropy),
     DEFINE_PROP_STRING("counter", U2FEmulatedState, counter),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void u2f_emulated_class_init(ObjectClass *klass, void *data)

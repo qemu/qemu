@@ -1,5 +1,10 @@
 # See docs/devel/tracing.rst for syntax documentation.
 
+# imx_gpio.c
+imx_gpio_read(const char *id, const char *reg, uint32_t value) "%s:[%s] -> 0x%" PRIx32
+imx_gpio_write(const char *id, const char *reg, uint32_t value) "%s:[%s] <- 0x%" PRIx32
+imx_gpio_set(const char *id, int line, int level) "%s:[%d] <- %d"
+
 # npcm7xx_gpio.c
 npcm7xx_gpio_read(const char *id, uint64_t offset, uint64_t value) " %s offset: 0x%04" PRIx64 " value 0x%08" PRIx64
 npcm7xx_gpio_write(const char *id, uint64_t offset, uint64_t value) "%s offset: 0x%04" PRIx64 " value 0x%08" PRIx64

@@ -1,7 +1,7 @@
 /*
  * virtio-scmi nodes for testing
  *
- * SPDX-FileCopyrightText: Linaro Ltd
+ * Copyright (c) Linaro Ltd.
  * SPDX-FileCopyrightText: Red Hat, Inc.
  * SPDX-License-Identifier: GPL-2.0-or-later
  *

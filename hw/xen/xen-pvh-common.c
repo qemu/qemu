@@ -13,9 +13,9 @@
 #include "hw/boards.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/tpm.h"
-#include "sysemu/tpm_backend.h"
+#include "system/system.h"
+#include "system/tpm.h"
+#include "system/tpm_backend.h"
 #include "hw/xen/xen-pvh-common.h"
 #include "trace.h"
 
@@ -169,7 +169,7 @@ static inline void xenpvh_gpex_init(XenPVHMachineState *s,
      */
     assert(xpc->set_pci_intx_irq);
 
-    for (i = 0; i < GPEX_NUM_IRQS; i++) {
+    for (i = 0; i < PCI_NUM_PINS; i++) {
         qemu_irq irq = qemu_allocate_irq(xpc->set_pci_intx_irq, s, i);
 
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, irq);

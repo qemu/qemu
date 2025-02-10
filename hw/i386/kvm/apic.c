@@ -14,8 +14,8 @@
 #include "qemu/module.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/pci/msi.h"
-#include "sysemu/hw_accel.h"
-#include "sysemu/kvm.h"
+#include "system/hw_accel.h"
+#include "system/kvm.h"
 #include "kvm/kvm_i386.h"
 
 static inline void kvm_apic_set_reg(struct kvm_lapic_state *kapic,
@@ -214,7 +214,7 @@ static void kvm_apic_mem_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps kvm_apic_io_ops = {
     .read = kvm_apic_mem_read,
     .write = kvm_apic_mem_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void kvm_apic_reset(APICCommonState *s)

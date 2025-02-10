@@ -223,6 +223,7 @@ typedef struct CPUArchState {
     target_ulong psw_cb;     /* in least significant bit of next nibble */
     target_ulong psw_cb_msb; /* boolean */
 
+    uint64_t gva_offset_mask; /* cached address mask based on PSW and %dr2 */
     uint64_t iasq_f;
     uint64_t iasq_b;
 
@@ -232,6 +233,7 @@ typedef struct CPUArchState {
     target_ulong cr[32];     /* control registers */
     target_ulong cr_back[2]; /* back of cr17/cr18 */
     target_ulong shadow[7];  /* shadow registers */
+    target_ulong dr[32];     /* diagnose registers */
 
     /*
      * During unwind of a memory insn, the base register of the address.
@@ -263,6 +265,15 @@ typedef struct CPUArchState {
     IntervalTreeRoot tlb_root;
 
     HPPATLBEntry tlb[HPPA_TLB_ENTRIES];
+
+    /* Fields up to this point are cleared by a CPU reset */
+    struct {} end_reset_fields;
+
+    bool is_pa20;
+
+    target_ulong kernel_entry; /* Linux kernel was loaded here */
+    target_ulong cmdline_or_bootorder;
+    target_ulong initrd_base, initrd_end;
 } CPUHPPAState;
 
 /**
@@ -281,6 +292,7 @@ struct ArchCPU {
 /**
  * HPPACPUClass:
  * @parent_realize: The parent class' realize handler.
+ * @parent_phases: The parent class' reset phase handlers.
  *
  * An HPPA CPU model.
  */
@@ -288,13 +300,14 @@ struct HPPACPUClass {
     CPUClass parent_class;
 
     DeviceRealize parent_realize;
+    ResettablePhases parent_phases;
 };
 
 #include "exec/cpu-all.h"
 
-static inline bool hppa_is_pa20(CPUHPPAState *env)
+static inline bool hppa_is_pa20(const CPUHPPAState *env)
 {
-    return object_dynamic_cast(OBJECT(env_cpu(env)), TYPE_HPPA64_CPU) != NULL;
+    return env->is_pa20;
 }
 
 static inline int HPPA_BTLB_ENTRIES(CPUHPPAState *env)
@@ -303,30 +316,25 @@ static inline int HPPA_BTLB_ENTRIES(CPUHPPAState *env)
 }
 
 void hppa_translate_init(void);
+void hppa_translate_code(CPUState *cs, TranslationBlock *tb,
+                         int *max_insns, vaddr pc, void *host_pc);
 
 #define CPU_RESOLVING_TYPE TYPE_HPPA_CPU
 
-static inline uint64_t gva_offset_mask(target_ulong psw)
-{
-    return (psw & PSW_W
-            ? MAKE_64BIT_MASK(0, 62)
-            : MAKE_64BIT_MASK(0, 32));
-}
-
-static inline target_ulong hppa_form_gva_psw(target_ulong psw, uint64_t spc,
-                                             target_ulong off)
+static inline target_ulong hppa_form_gva_mask(uint64_t gva_offset_mask,
+                                        uint64_t spc, target_ulong off)
 {
 #ifdef CONFIG_USER_ONLY
-    return off & gva_offset_mask(psw);
+    return off & gva_offset_mask;
 #else
-    return spc | (off & gva_offset_mask(psw));
+    return spc | (off & gva_offset_mask);
 #endif
 }
 
 static inline target_ulong hppa_form_gva(CPUHPPAState *env, uint64_t spc,
                                          target_ulong off)
 {
-    return hppa_form_gva_psw(env->psw, spc, off);
+    return hppa_form_gva_mask(env->gva_offset_mask, spc, off);
 }
 
 hwaddr hppa_abs_to_phys_pa2_w0(vaddr addr);
@@ -340,6 +348,7 @@ hwaddr hppa_abs_to_phys_pa2_w1(vaddr addr);
 #define TB_FLAG_SR_SAME     PSW_I
 #define TB_FLAG_PRIV_SHIFT  8
 #define TB_FLAG_UNALIGN     0x400
+#define TB_FLAG_SPHASH      0x800
 #define CS_BASE_DIFFPAGE    (1 << 12)
 #define CS_BASE_DIFFSPACE   (1 << 13)
 
@@ -348,6 +357,7 @@ void cpu_get_tb_cpu_state(CPUHPPAState *env, vaddr *pc,
 
 target_ulong cpu_hppa_get_psw(CPUHPPAState *env);
 void cpu_hppa_put_psw(CPUHPPAState *env, target_ulong);
+void update_gva_offset_mask(CPUHPPAState *env);
 void cpu_hppa_loaded_fr0(CPUHPPAState *env);
 
 #ifdef CONFIG_USER_ONLY

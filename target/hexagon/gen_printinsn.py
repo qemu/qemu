@@ -21,6 +21,7 @@ import sys
 import re
 import string
 import hex_common
+import argparse
 
 
 ##
@@ -96,11 +97,17 @@ def spacify(s):
 
 
 def main():
-    hex_common.read_semantics_file(sys.argv[1])
+    parser = argparse.ArgumentParser(
+        "Emit opaque macro calls with information for printing string representations of instrucions"
+    )
+    parser.add_argument("semantics", help="semantics file")
+    parser.add_argument("out", help="output file")
+    args = parser.parse_args()
+    hex_common.read_semantics_file(args.semantics)
 
     immext_casere = re.compile(r"IMMEXT\(([A-Za-z])")
 
-    with open(sys.argv[-1], "w") as f:
+    with open(args.out, "w") as f:
         for tag in hex_common.tags:
             if not hex_common.behdict[tag]:
                 continue

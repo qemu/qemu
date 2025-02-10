@@ -22,7 +22,7 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/string-output-visitor.h"
 #include "qemu/error-report.h"
-#include "sysemu/numa.h"
+#include "system/numa.h"
 #include "hw/boards.h"
 
 void hmp_info_cpus(Monitor *mon, const QDict *qdict)

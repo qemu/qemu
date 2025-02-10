@@ -26,7 +26,7 @@
 #include "hw/usb/imx-usb-phy.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "chardev/char.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
@@ -106,6 +106,8 @@ static void fsl_imx6_init(Object *obj)
     object_initialize_child(obj, "eth", &s->eth, TYPE_IMX_ENET);
 
     object_initialize_child(obj, "pcie", &s->pcie, TYPE_DESIGNWARE_PCIE_HOST);
+    object_initialize_child(obj, "pcie4-msi-irq", &s->pcie4_msi_irq,
+                            TYPE_OR_IRQ);
 }
 
 static void fsl_imx6_realize(DeviceState *dev, Error **errp)
@@ -435,14 +437,23 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
     sysbus_realize(SYS_BUS_DEVICE(&s->pcie), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->pcie), 0, FSL_IMX6_PCIe_REG_ADDR);
 
+    object_property_set_int(OBJECT(&s->pcie4_msi_irq), "num-lines", 2,
+                            &error_abort);
+    qdev_realize(DEVICE(&s->pcie4_msi_irq), NULL, &error_abort);
+
+    irq = qdev_get_gpio_in(DEVICE(&s->a9mpcore), FSL_IMX6_PCIE4_MSI_IRQ);
+    qdev_connect_gpio_out(DEVICE(&s->pcie4_msi_irq), 0, irq);
+
     irq = qdev_get_gpio_in(DEVICE(&s->a9mpcore), FSL_IMX6_PCIE1_IRQ);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->pcie), 0, irq);
     irq = qdev_get_gpio_in(DEVICE(&s->a9mpcore), FSL_IMX6_PCIE2_IRQ);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->pcie), 1, irq);
     irq = qdev_get_gpio_in(DEVICE(&s->a9mpcore), FSL_IMX6_PCIE3_IRQ);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->pcie), 2, irq);
-    irq = qdev_get_gpio_in(DEVICE(&s->a9mpcore), FSL_IMX6_PCIE4_IRQ);
+    irq = qdev_get_gpio_in(DEVICE(&s->pcie4_msi_irq), 0);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->pcie), 3, irq);
+    irq = qdev_get_gpio_in(DEVICE(&s->pcie4_msi_irq), 1);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->pcie), 4, irq);
 
     /*
      * PCIe PHY
@@ -481,9 +492,8 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
                                 &s->ocram_alias);
 }
 
-static Property fsl_imx6_properties[] = {
+static const Property fsl_imx6_properties[] = {
     DEFINE_PROP_UINT32("fec-phy-num", FslIMX6State, phy_num, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void fsl_imx6_class_init(ObjectClass *oc, void *data)

@@ -23,8 +23,8 @@
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "qemu/timer.h"
-#include "sysemu/runstate.h"
-#include "sysemu/sysemu.h"
+#include "system/runstate.h"
+#include "system/system.h"
 #include "chardev/char-fe.h"
 
 void HELPER(write_interval_timer)(CPUHPPAState *env, target_ulong val)
@@ -73,7 +73,7 @@ target_ulong HELPER(swap_system_mask)(CPUHPPAState *env, target_ulong nsm)
      * machines set the Q bit from 0 to 1 without an exception,
      * so let this go without comment.
      */
-    env->psw = (psw & ~PSW_SM) | (nsm & PSW_SM);
+    cpu_hppa_put_psw(env, (psw & ~PSW_SM) | (nsm & PSW_SM));
     return psw & PSW_SM;
 }
 
@@ -88,7 +88,7 @@ void HELPER(rfi)(CPUHPPAState *env)
      * To recreate the space identifier, remove the offset bits.
      * For pa1.x, the mask reduces to no change to space.
      */
-    mask = gva_offset_mask(env->psw);
+    mask = env->gva_offset_mask;
 
     env->iaoq_f = env->cr[CR_IIAOQ];
     env->iaoq_b = env->cr_back[1];

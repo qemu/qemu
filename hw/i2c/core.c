@@ -18,9 +18,8 @@
 
 #define I2C_BROADCAST 0x00
 
-static Property i2c_props[] = {
+static const Property i2c_props[] = {
     DEFINE_PROP_UINT8("address", struct I2CSlave, address, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const TypeInfo i2c_bus_info = {

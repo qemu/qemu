@@ -66,6 +66,9 @@ config RENESAS_SCI
 config AVR_USART
     bool
 
+config DIVA_GSP
+    bool
+
 config MCHP_PFSOC_MMUART
     bool
     select SERIAL
@@ -78,3 +81,8 @@ config GOLDFISH_TTY
 
 config SHAKTI_UART
     bool
+
+config IP_OCTAL_232
+    bool
+    default y
+    depends on IPACK

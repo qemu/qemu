@@ -10,7 +10,7 @@
 #include "qemu/bitmap.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include "sysemu/qtest.h"
+#include "system/qtest.h"
 #include "hw/boards.h"
 
 #include "qapi/qapi-visit-machine.h"

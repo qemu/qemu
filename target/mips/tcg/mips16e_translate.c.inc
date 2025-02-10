@@ -122,9 +122,19 @@ enum {
 
 static int xlat(int r)
 {
-  static int map[] = { 16, 17, 2, 3, 4, 5, 6, 7 };
+  static const int map[] = { 16, 17, 2, 3, 4, 5, 6, 7 };
 
   return map[r];
+}
+
+static void decr_and_store(DisasContext *ctx, unsigned regidx, TCGv t0)
+{
+    TCGv t1 = tcg_temp_new();
+
+    gen_op_addr_addi(ctx, t0, t0, -4);
+    gen_load_gpr(t1, regidx);
+    tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, mo_endian(ctx) | MO_UL |
+                       ctx->default_tcg_memop_mask);
 }
 
 static void gen_mips16_save(DisasContext *ctx,
@@ -134,7 +144,6 @@ static void gen_mips16_save(DisasContext *ctx,
 {
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
-    TCGv t2 = tcg_temp_new();
     int args, astatic;
 
     switch (aregs) {
@@ -172,70 +181,62 @@ static void gen_mips16_save(DisasContext *ctx,
     case 4:
         gen_base_offset_addr(ctx, t0, 29, 12);
         gen_load_gpr(t1, 7);
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL |
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, mo_endian(ctx) | MO_UL |
                            ctx->default_tcg_memop_mask);
         /* Fall through */
     case 3:
         gen_base_offset_addr(ctx, t0, 29, 8);
         gen_load_gpr(t1, 6);
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL |
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, mo_endian(ctx) | MO_UL |
                            ctx->default_tcg_memop_mask);
         /* Fall through */
     case 2:
         gen_base_offset_addr(ctx, t0, 29, 4);
         gen_load_gpr(t1, 5);
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL |
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, mo_endian(ctx) | MO_UL |
                            ctx->default_tcg_memop_mask);
         /* Fall through */
     case 1:
         gen_base_offset_addr(ctx, t0, 29, 0);
         gen_load_gpr(t1, 4);
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL |
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, mo_endian(ctx) | MO_UL |
                            ctx->default_tcg_memop_mask);
     }
 
     gen_load_gpr(t0, 29);
 
-#define DECR_AND_STORE(reg) do {                                 \
-        tcg_gen_movi_tl(t2, -4);                                 \
-        gen_op_addr_add(ctx, t0, t0, t2);                        \
-        gen_load_gpr(t1, reg);                                   \
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL |       \
-                           ctx->default_tcg_memop_mask);         \
-    } while (0)
-
     if (do_ra) {
-        DECR_AND_STORE(31);
+        decr_and_store(ctx, 31, t0);
     }
 
     switch (xsregs) {
     case 7:
-        DECR_AND_STORE(30);
+        decr_and_store(ctx, 30, t0);
         /* Fall through */
     case 6:
-        DECR_AND_STORE(23);
+        decr_and_store(ctx, 23, t0);
         /* Fall through */
     case 5:
-        DECR_AND_STORE(22);
+        decr_and_store(ctx, 22, t0);
         /* Fall through */
     case 4:
-        DECR_AND_STORE(21);
+        decr_and_store(ctx, 21, t0);
         /* Fall through */
     case 3:
-        DECR_AND_STORE(20);
+        decr_and_store(ctx, 20, t0);
         /* Fall through */
     case 2:
-        DECR_AND_STORE(19);
+        decr_and_store(ctx, 19, t0);
         /* Fall through */
     case 1:
-        DECR_AND_STORE(18);
+        decr_and_store(ctx, 18, t0);
     }
 
     if (do_s1) {
-        DECR_AND_STORE(17);
+        decr_and_store(ctx, 17, t0);
     }
     if (do_s0) {
-        DECR_AND_STORE(16);
+        decr_and_store(ctx, 16, t0);
     }
 
     switch (aregs) {
@@ -270,21 +271,31 @@ static void gen_mips16_save(DisasContext *ctx,
     }
 
     if (astatic > 0) {
-        DECR_AND_STORE(7);
+        decr_and_store(ctx, 7, t0);
         if (astatic > 1) {
-            DECR_AND_STORE(6);
+            decr_and_store(ctx, 6, t0);
             if (astatic > 2) {
-                DECR_AND_STORE(5);
+                decr_and_store(ctx, 5, t0);
                 if (astatic > 3) {
-                    DECR_AND_STORE(4);
+                    decr_and_store(ctx, 4, t0);
                 }
             }
         }
     }
-#undef DECR_AND_STORE
 
-    tcg_gen_movi_tl(t2, -framesize);
-    gen_op_addr_add(ctx, cpu_gpr[29], cpu_gpr[29], t2);
+    gen_op_addr_addi(ctx, cpu_gpr[29], cpu_gpr[29], -framesize);
+}
+
+static void decr_and_load(DisasContext *ctx, unsigned regidx, TCGv t0)
+{
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+
+    tcg_gen_movi_tl(t2, -4);
+    gen_op_addr_add(ctx, t0, t0, t2);
+    tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_TE | MO_SL |
+                       ctx->default_tcg_memop_mask);
+    gen_store_gpr(t1, regidx);
 }
 
 static void gen_mips16_restore(DisasContext *ctx,
@@ -294,52 +305,41 @@ static void gen_mips16_restore(DisasContext *ctx,
 {
     int astatic;
     TCGv t0 = tcg_temp_new();
-    TCGv t1 = tcg_temp_new();
-    TCGv t2 = tcg_temp_new();
 
-    tcg_gen_movi_tl(t2, framesize);
-    gen_op_addr_add(ctx, t0, cpu_gpr[29], t2);
-
-#define DECR_AND_LOAD(reg) do {                            \
-        tcg_gen_movi_tl(t2, -4);                           \
-        gen_op_addr_add(ctx, t0, t0, t2);                  \
-        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_TESL | \
-                           ctx->default_tcg_memop_mask);   \
-        gen_store_gpr(t1, reg);                            \
-    } while (0)
+    gen_op_addr_addi(ctx, t0, cpu_gpr[29], -framesize);
 
     if (do_ra) {
-        DECR_AND_LOAD(31);
+        decr_and_load(ctx, 31, t0);
     }
 
     switch (xsregs) {
     case 7:
-        DECR_AND_LOAD(30);
+        decr_and_load(ctx, 30, t0);
         /* Fall through */
     case 6:
-        DECR_AND_LOAD(23);
+        decr_and_load(ctx, 23, t0);
         /* Fall through */
     case 5:
-        DECR_AND_LOAD(22);
+        decr_and_load(ctx, 22, t0);
         /* Fall through */
     case 4:
-        DECR_AND_LOAD(21);
+        decr_and_load(ctx, 21, t0);
         /* Fall through */
     case 3:
-        DECR_AND_LOAD(20);
+        decr_and_load(ctx, 20, t0);
         /* Fall through */
     case 2:
-        DECR_AND_LOAD(19);
+        decr_and_load(ctx, 19, t0);
         /* Fall through */
     case 1:
-        DECR_AND_LOAD(18);
+        decr_and_load(ctx, 18, t0);
     }
 
     if (do_s1) {
-        DECR_AND_LOAD(17);
+        decr_and_load(ctx, 17, t0);
     }
     if (do_s0) {
-        DECR_AND_LOAD(16);
+        decr_and_load(ctx, 16, t0);
     }
 
     switch (aregs) {
@@ -374,21 +374,19 @@ static void gen_mips16_restore(DisasContext *ctx,
     }
 
     if (astatic > 0) {
-        DECR_AND_LOAD(7);
+        decr_and_load(ctx, 7, t0);
         if (astatic > 1) {
-            DECR_AND_LOAD(6);
+            decr_and_load(ctx, 6, t0);
             if (astatic > 2) {
-                DECR_AND_LOAD(5);
+                decr_and_load(ctx, 5, t0);
                 if (astatic > 3) {
-                    DECR_AND_LOAD(4);
+                    decr_and_load(ctx, 4, t0);
                 }
             }
         }
     }
-#undef DECR_AND_LOAD
 
-    tcg_gen_movi_tl(t2, framesize);
-    gen_op_addr_add(ctx, cpu_gpr[29], cpu_gpr[29], t2);
+    gen_op_addr_addi(ctx, cpu_gpr[29], cpu_gpr[29], -framesize);
 }
 
 #if defined(TARGET_MIPS64)

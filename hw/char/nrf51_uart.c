@@ -304,9 +304,8 @@ static const VMStateDescription nrf51_uart_vmstate = {
     }
 };
 
-static Property nrf51_uart_properties[] = {
+static const Property nrf51_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", NRF51UARTState, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void nrf51_uart_class_init(ObjectClass *klass, void *data)

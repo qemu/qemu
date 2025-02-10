@@ -2042,7 +2042,7 @@ static const VMStateDescription vmstate_canfd = {
     }
 };
 
-static Property canfd_core_properties[] = {
+static const Property canfd_core_properties[] = {
     DEFINE_PROP_UINT8("rx-fifo0", XlnxVersalCANFDState, cfg.rx0_fifo, 0x40),
     DEFINE_PROP_UINT8("rx-fifo1", XlnxVersalCANFDState, cfg.rx1_fifo, 0x40),
     DEFINE_PROP_UINT8("tx-fifo", XlnxVersalCANFDState, cfg.tx_fifo, 0x20),
@@ -2052,7 +2052,6 @@ static Property canfd_core_properties[] = {
                        CANFD_DEFAULT_CLOCK),
     DEFINE_PROP_LINK("canfdbus", XlnxVersalCANFDState, canfdbus, TYPE_CAN_BUS,
                      CanBusState *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void canfd_class_init(ObjectClass *klass, void *data)

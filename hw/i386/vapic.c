@@ -11,11 +11,11 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/cpus.h"
-#include "sysemu/hw_accel.h"
-#include "sysemu/kvm.h"
-#include "sysemu/runstate.h"
+#include "system/system.h"
+#include "system/cpus.h"
+#include "system/hw_accel.h"
+#include "system/kvm.h"
+#include "system/runstate.h"
 #include "exec/address-spaces.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/sysbus.h"
@@ -718,7 +718,7 @@ static uint64_t vapic_read(void *opaque, hwaddr addr, unsigned size)
 static const MemoryRegionOps vapic_ops = {
     .write = vapic_write,
     .read = vapic_read,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void vapic_realize(DeviceState *dev, Error **errp)

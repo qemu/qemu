@@ -169,14 +169,6 @@ static uint32_t reset(uint32_t gpio, unsigned int offset)
     return 0x0;
 }
 
-static void system_reset(void)
-{
-    QDict *r;
-    r = qtest_qmp(global_qtest, "{'execute': 'system_reset'}");
-    g_assert_false(qdict_haskey(r, "error"));
-    qobject_unref(r);
-}
-
 static void test_idr_reset_value(void)
 {
     /*
@@ -214,7 +206,7 @@ static void test_idr_reset_value(void)
     gpio_writel(GPIO_H, OTYPER, 0xDEADBEEF);
     gpio_writel(GPIO_H, PUPDR, 0xDEADBEEF);
 
-    system_reset();
+    qtest_system_reset(global_qtest);
 
     uint32_t moder = gpio_readl(GPIO_A, MODER);
     uint32_t odr = gpio_readl(GPIO_A, ODR);

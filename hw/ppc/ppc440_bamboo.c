@@ -19,15 +19,15 @@
 #include "net/net.h"
 #include "hw/pci/pci.h"
 #include "hw/boards.h"
-#include "sysemu/kvm.h"
-#include "sysemu/device_tree.h"
+#include "system/kvm.h"
+#include "system/device_tree.h"
 #include "hw/loader.h"
 #include "elf.h"
 #include "hw/char/serial-mm.h"
 #include "hw/ppc/ppc.h"
 #include "hw/pci-host/ppc4xx.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/reset.h"
+#include "system/system.h"
+#include "system/reset.h"
 #include "hw/sysbus.h"
 #include "hw/intc/ppc-uic.h"
 #include "hw/qdev-properties.h"
@@ -110,29 +110,6 @@ static int bamboo_load_device_tree(MachineState *machine,
     return 0;
 }
 
-/* Create reset TLB entries for BookE, spanning the 32bit addr space.  */
-static void mmubooke_create_initial_mapping(CPUPPCState *env,
-                                     target_ulong va,
-                                     hwaddr pa)
-{
-    ppcemb_tlb_t *tlb = &env->tlb.tlbe[0];
-
-    tlb->attr = 0;
-    tlb->prot = PAGE_VALID | ((PAGE_READ | PAGE_WRITE | PAGE_EXEC) << 4);
-    tlb->size = 1U << 31; /* up to 0x80000000  */
-    tlb->EPN = va & TARGET_PAGE_MASK;
-    tlb->RPN = pa & TARGET_PAGE_MASK;
-    tlb->PID = 0;
-
-    tlb = &env->tlb.tlbe[1];
-    tlb->attr = 0;
-    tlb->prot = PAGE_VALID | ((PAGE_READ | PAGE_WRITE | PAGE_EXEC) << 4);
-    tlb->size = 1U << 31; /* up to 0xffffffff  */
-    tlb->EPN = 0x80000000 & TARGET_PAGE_MASK;
-    tlb->RPN = 0x80000000 & TARGET_PAGE_MASK;
-    tlb->PID = 0;
-}
-
 static void main_cpu_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
@@ -143,8 +120,9 @@ static void main_cpu_reset(void *opaque)
     env->gpr[3] = FDT_ADDR;
     env->nip = entry;
 
-    /* Create a mapping for the kernel.  */
-    mmubooke_create_initial_mapping(env, 0, 0);
+    /* Create a mapping spanning the 32bit addr space. */
+    booke_set_tlb(&env->tlb.tlbe[0], 0, 0, 1U << 31);
+    booke_set_tlb(&env->tlb.tlbe[1], 0x80000000, 0x80000000, 1U << 31);
 }
 
 static void bamboo_init(MachineState *machine)
@@ -250,7 +228,8 @@ static void bamboo_init(MachineState *machine)
         if (success < 0) {
             uint64_t elf_entry;
             success = load_elf(kernel_filename, NULL, NULL, NULL, &elf_entry,
-                               NULL, NULL, NULL, 1, PPC_ELF_MACHINE, 0, 0);
+                               NULL, NULL, NULL,
+                               ELFDATA2MSB, PPC_ELF_MACHINE, 0, 0);
             entry = elf_entry;
         }
         /* XXX try again as binary */

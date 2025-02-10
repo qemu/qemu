@@ -2346,9 +2346,8 @@ static void vmbus_dev_unrealize(DeviceState *dev)
     free_channels(vdev);
 }
 
-static Property vmbus_dev_props[] = {
+static const Property vmbus_dev_props[] = {
     DEFINE_PROP_UUID("instanceid", VMBusDevice, instanceid),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 
@@ -2653,9 +2652,8 @@ static const VMStateDescription vmstate_vmbus_bridge = {
     },
 };
 
-static Property vmbus_bridge_props[] = {
+static const Property vmbus_bridge_props[] = {
     DEFINE_PROP_UINT8("irq", VMBusBridge, irq, 7),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void vmbus_bridge_class_init(ObjectClass *klass, void *data)

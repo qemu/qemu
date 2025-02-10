@@ -87,7 +87,7 @@ default_role = 'any'
 
 # General information about the project.
 project = u'QEMU'
-copyright = u'2024, The QEMU Project Developers'
+copyright = u'2025, The QEMU Project Developers'
 author = u'The QEMU Project Developers'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -186,7 +186,7 @@ html_js_files = [
 ]
 
 html_context = {
-    "display_gitlab": True,
+    "source_url_prefix": "https://gitlab.com/qemu-project/qemu/-/blob/master/docs/",
     "gitlab_user": "qemu-project",
     "gitlab_repo": "qemu",
     "gitlab_version": "master",

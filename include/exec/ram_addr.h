@@ -21,12 +21,15 @@
 
 #ifndef CONFIG_USER_ONLY
 #include "cpu.h"
-#include "sysemu/xen.h"
-#include "sysemu/tcg.h"
+#include "system/xen.h"
+#include "system/tcg.h"
 #include "exec/ramlist.h"
 #include "exec/ramblock.h"
 #include "exec/exec-all.h"
 #include "qemu/rcu.h"
+
+#include "exec/hwaddr.h"
+#include "exec/cpu-common.h"
 
 extern uint64_t total_dirty_pages;
 
@@ -108,23 +111,30 @@ long qemu_maxrampagesize(void);
  *
  * Parameters:
  *  @size: the size in bytes of the ram block
+ *  @max_size: the maximum size of the block after resizing
  *  @mr: the memory region where the ram block is
+ *  @resized: callback after calls to qemu_ram_resize
  *  @ram_flags: RamBlock flags. Supported flags: RAM_SHARED, RAM_PMEM,
  *              RAM_NORESERVE, RAM_PROTECTED, RAM_NAMED_FILE, RAM_READONLY,
  *              RAM_READONLY_FD, RAM_GUEST_MEMFD
  *  @mem_path or @fd: specify the backing file or device
  *  @offset: Offset into target file
+ *  @grow: extend file if necessary (but an empty file is always extended).
  *  @errp: pointer to Error*, to store an error if it happens
  *
  * Return:
  *  On success, return a pointer to the ram block.
  *  On failure, return NULL.
  */
+typedef void (*qemu_ram_resize_cb)(const char *, uint64_t length, void *host);
+
 RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
                                    uint32_t ram_flags, const char *mem_path,
                                    off_t offset, Error **errp);
-RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
+RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, ram_addr_t max_size,
+                                 qemu_ram_resize_cb resized, MemoryRegion *mr,
                                  uint32_t ram_flags, int fd, off_t offset,
+                                 bool grow,
                                  Error **errp);
 
 RAMBlock *qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
@@ -132,9 +142,7 @@ RAMBlock *qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
 RAMBlock *qemu_ram_alloc(ram_addr_t size, uint32_t ram_flags, MemoryRegion *mr,
                          Error **errp);
 RAMBlock *qemu_ram_alloc_resizeable(ram_addr_t size, ram_addr_t max_size,
-                                    void (*resized)(const char*,
-                                                    uint64_t length,
-                                                    void *host),
+                                    qemu_ram_resize_cb resized,
                                     MemoryRegion *mr, Error **errp);
 void qemu_ram_free(RAMBlock *block);
 

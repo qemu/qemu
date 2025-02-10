@@ -31,6 +31,7 @@
 #define QCRYPTO_HASH_DIGEST_LEN_SHA384    48
 #define QCRYPTO_HASH_DIGEST_LEN_SHA512    64
 #define QCRYPTO_HASH_DIGEST_LEN_RIPEMD160 20
+#define QCRYPTO_HASH_DIGEST_LEN_SM3       32
 
 /* See also "QCryptoHashAlgo" defined in qapi/crypto.json */
 
@@ -73,11 +74,18 @@ size_t qcrypto_hash_digest_len(QCryptoHashAlgo alg);
  * @errp: pointer to a NULL-initialized error object
  *
  * Computes the hash across all the memory regions
- * present in @iov. The @result pointer will be
- * filled with raw bytes representing the computed
- * hash, which will have length @resultlen. The
- * memory pointer in @result must be released
- * with a call to g_free() when no longer required.
+ * present in @iov.
+ *
+ * If @result_len is set to a non-zero value by the caller, then
+ * @result must hold a pointer that is @result_len in size, and
+ * @result_len match the size of the hash output. The digest will
+ * be written into @result.
+ *
+ * If @result_len is set to zero, then this function will allocate
+ * a buffer to hold the hash output digest, storing a pointer to
+ * the buffer in @result, and setting @result_len to its size.
+ * The memory referenced in @result must be released with a call
+ * to g_free() when no longer required by the caller.
  *
  * Returns: 0 on success, -1 on error
  */
@@ -98,11 +106,18 @@ int qcrypto_hash_bytesv(QCryptoHashAlgo alg,
  * @errp: pointer to a NULL-initialized error object
  *
  * Computes the hash across all the memory region
- * @buf of length @len. The @result pointer will be
- * filled with raw bytes representing the computed
- * hash, which will have length @resultlen. The
- * memory pointer in @result must be released
- * with a call to g_free() when no longer required.
+ * @buf of length @len.
+ *
+ * If @result_len is set to a non-zero value by the caller, then
+ * @result must hold a pointer that is @result_len in size, and
+ * @result_len match the size of the hash output. The digest will
+ * be written into @result.
+ *
+ * If @result_len is set to zero, then this function will allocate
+ * a buffer to hold the hash output digest, storing a pointer to
+ * the buffer in @result, and setting @result_len to its size.
+ * The memory referenced in @result must be released with a call
+ * to g_free() when no longer required by the caller.
  *
  * Returns: 0 on success, -1 on error
  */
@@ -215,8 +230,17 @@ int qcrypto_hash_finalize_base64(QCryptoHash *hash,
  *
  * Computes the hash from the given hash object. Hash object
  * is expected to have it's data updated from the qcrypto_hash_update function.
- * The memory pointer in @result must be released with a call to g_free()
- * when no longer required.
+ *
+ * If @result_len is set to a non-zero value by the caller, then
+ * @result must hold a pointer that is @result_len in size, and
+ * @result_len match the size of the hash output. The digest will
+ * be written into @result.
+ *
+ * If @result_len is set to zero, then this function will allocate
+ * a buffer to hold the hash output digest, storing a pointer to
+ * the buffer in @result, and setting @result_len to its size.
+ * The memory referenced in @result must be released with a call
+ * to g_free() when no longer required by the caller.
  *
  * Returns: 0 on success, -1 on error
  */

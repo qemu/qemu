@@ -36,14 +36,14 @@
 #include "qemu/module.h"
 #include "qemu/range.h"
 #include "qemu/units.h"
-#include "sysemu/kvm.h"
-#include "sysemu/runstate.h"
+#include "system/kvm.h"
+#include "system/runstate.h"
 #include "pci.h"
 #include "trace.h"
 #include "qapi/error.h"
 #include "migration/blocker.h"
 #include "migration/qemu-file.h"
-#include "sysemu/iommufd.h"
+#include "system/iommufd.h"
 
 #define TYPE_VFIO_PCI_NOHOTPLUG "vfio-pci-nohotplug"
 
@@ -1012,7 +1012,6 @@ static void vfio_pci_size_rom(VFIOPCIDevice *vdev)
 {
     uint32_t orig, size = cpu_to_le32((uint32_t)PCI_ROM_ADDRESS_MASK);
     off_t offset = vdev->config_offset + PCI_ROM_ADDRESS;
-    DeviceState *dev = DEVICE(vdev);
     char *name;
     int fd = vdev->vbasedev.fd;
 
@@ -1046,12 +1045,12 @@ static void vfio_pci_size_rom(VFIOPCIDevice *vdev)
     }
 
     if (vfio_opt_rom_in_denylist(vdev)) {
-        if (dev->opts && qdict_haskey(dev->opts, "rombar")) {
+        if (vdev->pdev.rom_bar > 0) {
             warn_report("Device at %s is known to cause system instability"
                         " issues during option rom execution",
                         vdev->vbasedev.name);
             error_printf("Proceeding anyway since user specified"
-                         " non zero value for rombar\n");
+                         " positive value for rombar\n");
         } else {
             warn_report("Rom loading for device at %s has been disabled"
                         " due to system instability issues",
@@ -3354,7 +3353,7 @@ static void vfio_instance_init(Object *obj)
     pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
 }
 
-static Property vfio_pci_dev_properties[] = {
+static const Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_PCI_HOST_DEVADDR("host", VFIOPCIDevice, host),
     DEFINE_PROP_UUID_NODEFAULT("vf-token", VFIOPCIDevice, vf_token),
     DEFINE_PROP_STRING("sysfsdev", VFIOPCIDevice, vbasedev.sysfsdev),
@@ -3409,7 +3408,6 @@ static Property vfio_pci_dev_properties[] = {
                      TYPE_IOMMUFD_BACKEND, IOMMUFDBackend *),
 #endif
     DEFINE_PROP_BOOL("skip-vsc-check", VFIOPCIDevice, skip_vsc_check, true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 #ifdef CONFIG_IOMMUFD
@@ -3451,11 +3449,10 @@ static const TypeInfo vfio_pci_dev_info = {
     },
 };
 
-static Property vfio_pci_dev_nohotplug_properties[] = {
+static const Property vfio_pci_dev_nohotplug_properties[] = {
     DEFINE_PROP_BOOL("ramfb", VFIOPCIDevice, enable_ramfb, false),
     DEFINE_PROP_ON_OFF_AUTO("x-ramfb-migrate", VFIOPCIDevice, ramfb_migrate,
                             ON_OFF_AUTO_AUTO),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vfio_pci_nohotplug_dev_class_init(ObjectClass *klass, void *data)

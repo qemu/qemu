@@ -24,8 +24,8 @@
 #include "hw/pci/msi.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
-#include "sysemu/reset.h"
-#include "sysemu/runstate.h"
+#include "system/reset.h"
+#include "system/runstate.h"
 
 #include "trace.h"
 
@@ -1453,7 +1453,7 @@ static void s390_pci_device_reset(DeviceState *dev)
 static void s390_pci_get_fid(Object *obj, Visitor *v, const char *name,
                          void *opaque, Error **errp)
 {
-    Property *prop = opaque;
+    const Property *prop = opaque;
     uint32_t *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_uint32(v, name, ptr, errp);
@@ -1463,7 +1463,7 @@ static void s390_pci_set_fid(Object *obj, Visitor *v, const char *name,
                          void *opaque, Error **errp)
 {
     S390PCIBusDevice *zpci = S390_PCI_DEVICE(obj);
-    Property *prop = opaque;
+    const Property *prop = opaque;
     uint32_t *ptr = object_field_prop_ptr(obj, prop);
 
     if (!visit_type_uint32(v, name, ptr, errp)) {
@@ -1481,14 +1481,13 @@ static const PropertyInfo s390_pci_fid_propinfo = {
 #define DEFINE_PROP_S390_PCI_FID(_n, _s, _f) \
     DEFINE_PROP(_n, _s, _f, s390_pci_fid_propinfo, uint32_t)
 
-static Property s390_pci_device_properties[] = {
+static const Property s390_pci_device_properties[] = {
     DEFINE_PROP_UINT16("uid", S390PCIBusDevice, uid, UID_UNDEFINED),
     DEFINE_PROP_S390_PCI_FID("fid", S390PCIBusDevice, fid),
     DEFINE_PROP_STRING("target", S390PCIBusDevice, target),
     DEFINE_PROP_BOOL("interpret", S390PCIBusDevice, interp, true),
     DEFINE_PROP_BOOL("forwarding-assist", S390PCIBusDevice, forwarding_assist,
                      true),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription s390_pci_device_vmstate = {

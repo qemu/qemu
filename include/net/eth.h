@@ -56,7 +56,7 @@ struct ip_header {
     uint8_t  ip_p;           /* protocol */
     uint16_t ip_sum;         /* checksum */
     uint32_t ip_src, ip_dst; /* source and destination address */
-};
+} QEMU_PACKED;
 
 typedef struct tcp_header {
     uint16_t th_sport;          /* source port */

@@ -879,12 +879,11 @@ static void tcx_realizefn(DeviceState *dev, Error **errp)
     qemu_console_resize(s->con, s->width, s->height);
 }
 
-static Property tcx_properties[] = {
+static const Property tcx_properties[] = {
     DEFINE_PROP_UINT32("vram_size", TCXState, vram_size, -1),
     DEFINE_PROP_UINT16("width",    TCXState, width,     -1),
     DEFINE_PROP_UINT16("height",   TCXState, height,    -1),
     DEFINE_PROP_UINT16("depth",    TCXState, depth,     -1),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void tcx_class_init(ObjectClass *klass, void *data)

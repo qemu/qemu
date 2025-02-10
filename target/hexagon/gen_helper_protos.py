@@ -52,12 +52,13 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
 
 
 def main():
-    hex_common.read_common_files()
+    args = hex_common.parse_common_args(
+        "Emit helper function prototypes for each instruction"
+    )
     tagregs = hex_common.get_tagregs()
     tagimms = hex_common.get_tagimms()
 
-    output_file = sys.argv[-1]
-    with open(output_file, "w") as f:
+    with open(args.out, "w") as f:
         for tag in hex_common.tags:
             ## Skip the priv instructions
             if "A_PRIV" in hex_common.attribdict[tag]:

@@ -279,11 +279,10 @@ static const VMStateDescription vmstate_mss_timer = {
     }
 };
 
-static Property mss_timer_properties[] = {
+static const Property mss_timer_properties[] = {
     /* Libero GUI shows 100Mhz as default for clocks */
     DEFINE_PROP_UINT32("clock-frequency", MSSTimerState, freq_hz,
                       100 * 1000000),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void mss_timer_class_init(ObjectClass *klass, void *data)

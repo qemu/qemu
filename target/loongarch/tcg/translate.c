@@ -16,6 +16,7 @@
 #include "exec/log.h"
 #include "qemu/qemu-print.h"
 #include "fpu/softfloat.h"
+#include "tcg_loongarch.h"
 #include "translate.h"
 #include "internals.h"
 #include "vec.h"
@@ -333,8 +334,8 @@ static const TranslatorOps loongarch_tr_ops = {
     .tb_stop            = loongarch_tr_tb_stop,
 };
 
-void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
-                           vaddr pc, void *host_pc)
+void loongarch_translate_code(CPUState *cs, TranslationBlock *tb,
+                              int *max_insns, vaddr pc, void *host_pc)
 {
     DisasContext ctx;
 
@@ -358,4 +359,8 @@ void loongarch_translate_init(void)
                     offsetof(CPULoongArchState, lladdr), "lladdr");
     cpu_llval = tcg_global_mem_new(tcg_env,
                     offsetof(CPULoongArchState, llval), "llval");
+
+#ifndef CONFIG_USER_ONLY
+    loongarch_csr_translate_init();
+#endif
 }

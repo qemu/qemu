@@ -27,9 +27,11 @@
 #include "tcg/tcg-op-gvec.h"
 #include "exec/helper-gen.h"
 #include "exec/translator.h"
+#include "exec/translation-block.h"
 #include "exec/log.h"
 #include "fpu/softfloat.h"
 #include "asi.h"
+#include "target/sparc/translate.h"
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"
@@ -100,13 +102,6 @@
 # define gen_helper_xmulxhi              ({ qemu_build_not_reached(); NULL; })
 # define MAXTL_MASK                             0
 #endif
-
-/* Dynamic PC, must exit to main loop. */
-#define DYNAMIC_PC         1
-/* Dynamic PC, one of two values according to jump_pc[T2]. */
-#define JUMP_PC            2
-/* Dynamic PC, may lookup next TB. */
-#define DYNAMIC_PC_LOOKUP  3
 
 #define DISAS_EXIT  DISAS_TARGET_0
 
@@ -1364,93 +1359,109 @@ static void gen_op_fabsq(TCGv_i128 dst, TCGv_i128 src)
 
 static void gen_op_fmadds(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2, TCGv_i32 s3)
 {
-    gen_helper_fmadds(d, tcg_env, s1, s2, s3, tcg_constant_i32(0));
+    TCGv_i32 z = tcg_constant_i32(0);
+    gen_helper_fmadds(d, tcg_env, s1, s2, s3, z, z);
 }
 
 static void gen_op_fmaddd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2, TCGv_i64 s3)
 {
-    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, tcg_constant_i32(0));
+    TCGv_i32 z = tcg_constant_i32(0);
+    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, z, z);
 }
 
 static void gen_op_fmsubs(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2, TCGv_i32 s3)
 {
-    int op = float_muladd_negate_c;
-    gen_helper_fmadds(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+    TCGv_i32 z = tcg_constant_i32(0);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_c);
+    gen_helper_fmadds(d, tcg_env, s1, s2, s3, z, op);
 }
 
 static void gen_op_fmsubd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2, TCGv_i64 s3)
 {
-    int op = float_muladd_negate_c;
-    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+    TCGv_i32 z = tcg_constant_i32(0);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_c);
+    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, z, op);
 }
 
 static void gen_op_fnmsubs(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2, TCGv_i32 s3)
 {
-    int op = float_muladd_negate_c | float_muladd_negate_result;
-    gen_helper_fmadds(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+    TCGv_i32 z = tcg_constant_i32(0);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_c |
+                                   float_muladd_negate_result);
+    gen_helper_fmadds(d, tcg_env, s1, s2, s3, z, op);
 }
 
 static void gen_op_fnmsubd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2, TCGv_i64 s3)
 {
-    int op = float_muladd_negate_c | float_muladd_negate_result;
-    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+    TCGv_i32 z = tcg_constant_i32(0);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_c |
+                                   float_muladd_negate_result);
+    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, z, op);
 }
 
 static void gen_op_fnmadds(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2, TCGv_i32 s3)
 {
-    int op = float_muladd_negate_result;
-    gen_helper_fmadds(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+    TCGv_i32 z = tcg_constant_i32(0);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_result);
+    gen_helper_fmadds(d, tcg_env, s1, s2, s3, z, op);
 }
 
 static void gen_op_fnmaddd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2, TCGv_i64 s3)
 {
-    int op = float_muladd_negate_result;
-    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, tcg_constant_i32(op));
+    TCGv_i32 z = tcg_constant_i32(0);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_result);
+    gen_helper_fmaddd(d, tcg_env, s1, s2, s3, z, op);
 }
 
 /* Use muladd to compute (1 * src1) + src2 / 2 with one rounding. */
 static void gen_op_fhadds(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2)
 {
-    TCGv_i32 one = tcg_constant_i32(float32_one);
-    int op = float_muladd_halve_result;
-    gen_helper_fmadds(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+    TCGv_i32 fone = tcg_constant_i32(float32_one);
+    TCGv_i32 mone = tcg_constant_i32(-1);
+    TCGv_i32 op = tcg_constant_i32(0);
+    gen_helper_fmadds(d, tcg_env, fone, s1, s2, mone, op);
 }
 
 static void gen_op_fhaddd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2)
 {
-    TCGv_i64 one = tcg_constant_i64(float64_one);
-    int op = float_muladd_halve_result;
-    gen_helper_fmaddd(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+    TCGv_i64 fone = tcg_constant_i64(float64_one);
+    TCGv_i32 mone = tcg_constant_i32(-1);
+    TCGv_i32 op = tcg_constant_i32(0);
+    gen_helper_fmaddd(d, tcg_env, fone, s1, s2, mone, op);
 }
 
 /* Use muladd to compute (1 * src1) - src2 / 2 with one rounding. */
 static void gen_op_fhsubs(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2)
 {
-    TCGv_i32 one = tcg_constant_i32(float32_one);
-    int op = float_muladd_negate_c | float_muladd_halve_result;
-    gen_helper_fmadds(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+    TCGv_i32 fone = tcg_constant_i32(float32_one);
+    TCGv_i32 mone = tcg_constant_i32(-1);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_c);
+    gen_helper_fmadds(d, tcg_env, fone, s1, s2, mone, op);
 }
 
 static void gen_op_fhsubd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2)
 {
-    TCGv_i64 one = tcg_constant_i64(float64_one);
-    int op = float_muladd_negate_c | float_muladd_halve_result;
-    gen_helper_fmaddd(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+    TCGv_i64 fone = tcg_constant_i64(float64_one);
+    TCGv_i32 mone = tcg_constant_i32(-1);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_c);
+    gen_helper_fmaddd(d, tcg_env, fone, s1, s2, mone, op);
 }
 
 /* Use muladd to compute -((1 * src1) + src2 / 2) with one rounding. */
 static void gen_op_fnhadds(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2)
 {
-    TCGv_i32 one = tcg_constant_i32(float32_one);
-    int op = float_muladd_negate_result | float_muladd_halve_result;
-    gen_helper_fmadds(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+    TCGv_i32 fone = tcg_constant_i32(float32_one);
+    TCGv_i32 mone = tcg_constant_i32(-1);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_result);
+    gen_helper_fmadds(d, tcg_env, fone, s1, s2, mone, op);
 }
 
 static void gen_op_fnhaddd(TCGv_i64 d, TCGv_i64 s1, TCGv_i64 s2)
 {
-    TCGv_i64 one = tcg_constant_i64(float64_one);
-    int op = float_muladd_negate_result | float_muladd_halve_result;
-    gen_helper_fmaddd(d, tcg_env, one, s1, s2, tcg_constant_i32(op));
+    TCGv_i64 fone = tcg_constant_i64(float64_one);
+    TCGv_i32 mone = tcg_constant_i32(-1);
+    TCGv_i32 op = tcg_constant_i32(float_muladd_negate_result);
+    gen_helper_fmaddd(d, tcg_env, fone, s1, s2, mone, op);
 }
 
 static void gen_op_fpexception_im(DisasContext *dc, int ftt)
@@ -5584,7 +5595,7 @@ static bool trans_FLCMPs(DisasContext *dc, arg_FLCMPs *a)
 
     src1 = gen_load_fpr_F(dc, a->rs1);
     src2 = gen_load_fpr_F(dc, a->rs2);
-    gen_helper_flcmps(cpu_fcc[a->cc], src1, src2);
+    gen_helper_flcmps(cpu_fcc[a->cc], tcg_env, src1, src2);
     return advance_pc(dc);
 }
 
@@ -5601,7 +5612,7 @@ static bool trans_FLCMPd(DisasContext *dc, arg_FLCMPd *a)
 
     src1 = gen_load_fpr_D(dc, a->rs1);
     src2 = gen_load_fpr_D(dc, a->rs2);
-    gen_helper_flcmpd(cpu_fcc[a->cc], src1, src2);
+    gen_helper_flcmpd(cpu_fcc[a->cc], tcg_env, src1, src2);
     return advance_pc(dc);
 }
 
@@ -5808,8 +5819,8 @@ static const TranslatorOps sparc_tr_ops = {
     .tb_stop            = sparc_tr_tb_stop,
 };
 
-void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
-                           vaddr pc, void *host_pc)
+void sparc_translate_code(CPUState *cs, TranslationBlock *tb,
+                          int *max_insns, vaddr pc, void *host_pc)
 {
     DisasContext dc = {};
 
@@ -5879,28 +5890,5 @@ void sparc_tcg_init(void)
         cpu_regs[i] = tcg_global_mem_new(cpu_regwptr,
                                          (i - 8) * sizeof(target_ulong),
                                          gregnames[i]);
-    }
-}
-
-void sparc_restore_state_to_opc(CPUState *cs,
-                                const TranslationBlock *tb,
-                                const uint64_t *data)
-{
-    CPUSPARCState *env = cpu_env(cs);
-    target_ulong pc = data[0];
-    target_ulong npc = data[1];
-
-    env->pc = pc;
-    if (npc == DYNAMIC_PC) {
-        /* dynamic NPC: already stored */
-    } else if (npc & JUMP_PC) {
-        /* jump PC: use 'cond' and the jump targets of the translation */
-        if (env->cond) {
-            env->npc = npc & ~3;
-        } else {
-            env->npc = pc + 4;
-        }
-    } else {
-        env->npc = npc;
     }
 }

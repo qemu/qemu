@@ -198,7 +198,7 @@ void xtensa_register_core(XtensaConfigList *node)
     node->next = xtensa_cores;
     xtensa_cores = node;
     type.name = g_strdup_printf(XTENSA_CPU_TYPE_NAME("%s"), node->config->name);
-    type_register(&type);
+    type_register_static(&type);
     g_free((gpointer)type.name);
 }
 

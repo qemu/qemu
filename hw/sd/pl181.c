@@ -8,7 +8,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/blockdev.h"
+#include "system/blockdev.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/irq.h"

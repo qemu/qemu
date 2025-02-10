@@ -32,7 +32,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/core/cpu.h"
-#include "sysemu/qtest.h"
+#include "system/qtest.h"
 
 #ifndef A9_GTIMER_ERR_DEBUG
 #define A9_GTIMER_ERR_DEBUG 0
@@ -373,9 +373,8 @@ static const VMStateDescription vmstate_a9_gtimer = {
     }
 };
 
-static Property a9_gtimer_properties[] = {
+static const Property a9_gtimer_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", A9GTimerState, num_cpu, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void a9_gtimer_class_init(ObjectClass *klass, void *data)

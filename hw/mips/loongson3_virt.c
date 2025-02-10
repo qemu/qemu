@@ -45,10 +45,10 @@
 #include "hw/pci-host/gpex.h"
 #include "hw/usb.h"
 #include "net/net.h"
-#include "sysemu/kvm.h"
-#include "sysemu/qtest.h"
-#include "sysemu/reset.h"
-#include "sysemu/runstate.h"
+#include "system/kvm.h"
+#include "system/qtest.h"
+#include "system/reset.h"
+#include "system/runstate.h"
 #include "qemu/error-report.h"
 
 #define PM_CNTL_MODE          0x10
@@ -153,7 +153,7 @@ static const MemoryRegionOps loongson3_pm_ops = {
 
 #define DEF_LOONGSON3_FREQ (800 * 1000 * 1000)
 
-static uint64_t get_cpu_freq_hz(void)
+static uint64_t get_cpu_freq_hz(const MIPSCPU *cpu)
 {
 #ifdef CONFIG_KVM
     int ret;
@@ -164,7 +164,7 @@ static uint64_t get_cpu_freq_hz(void)
     };
 
     if (kvm_enabled()) {
-        ret = kvm_vcpu_ioctl(first_cpu, KVM_GET_ONE_REG, &freq_reg);
+        ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_ONE_REG, &freq_reg);
         if (ret >= 0) {
             return freq * 2;
         }
@@ -173,7 +173,7 @@ static uint64_t get_cpu_freq_hz(void)
     return DEF_LOONGSON3_FREQ;
 }
 
-static void init_boot_param(void)
+static void init_boot_param(unsigned cpu_count, uint32_t processor_id)
 {
     static void *p;
     struct boot_params *bp;
@@ -184,7 +184,7 @@ static void init_boot_param(void)
     bp->efi.smbios.vers = cpu_to_le16(1);
     init_reset_system(&(bp->reset_system));
     p += ROUND_UP(sizeof(struct boot_params), 64);
-    init_loongson_params(&(bp->efi.smbios.lp), p,
+    init_loongson_params(&(bp->efi.smbios.lp), p, cpu_count, processor_id,
                          loaderparams.cpu_freq, loaderparams.ram_size);
 
     rom_add_blob_fixed("params_rom", bp,
@@ -280,7 +280,7 @@ static void fw_cfg_boot_set(void *opaque, const char *boot_device,
     fw_cfg_modify_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
 }
 
-static void fw_conf_init(unsigned long ram_size)
+static void fw_conf_init(void)
 {
     static const uint8_t suspend[6] = {128, 0, 0, 129, 128, 128};
     FWCfgState *fw_cfg;
@@ -289,9 +289,9 @@ static void fw_conf_init(unsigned long ram_size)
     fw_cfg = fw_cfg_init_mem_wide(cfg_addr, cfg_addr + 8, 8, 0, NULL);
     fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, (uint16_t)current_machine->smp.cpus);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, (uint16_t)current_machine->smp.max_cpus);
-    fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
+    fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, loaderparams.ram_size);
     fw_cfg_add_i32(fw_cfg, FW_CFG_MACHINE_VERSION, 1);
-    fw_cfg_add_i64(fw_cfg, FW_CFG_CPU_FREQ, get_cpu_freq_hz());
+    fw_cfg_add_i64(fw_cfg, FW_CFG_CPU_FREQ, loaderparams.cpu_freq);
 
     fw_cfg_add_file(fw_cfg, "etc/system-states",
                     g_memdup2(suspend, sizeof(suspend)), sizeof(suspend));
@@ -358,7 +358,7 @@ static uint64_t load_kernel(CPUMIPSState *env)
                            cpu_mips_kseg0_to_phys, NULL,
                            &kernel_entry,
                            &kernel_low, &kernel_high,
-                           NULL, 0, EM_MIPS, 1, 0);
+                           NULL, ELFDATA2LSB, EM_MIPS, 1, 0);
     if (kernel_size < 0) {
         error_report("could not load kernel '%s': %s",
                      loaderparams.kernel_filename,
@@ -399,22 +399,30 @@ static uint64_t load_kernel(CPUMIPSState *env)
     return kernel_entry;
 }
 
-static void main_cpu_reset(void *opaque)
+static void generic_cpu_reset(void *opaque)
 {
     MIPSCPU *cpu = opaque;
     CPUMIPSState *env = &cpu->env;
 
     cpu_reset(CPU(cpu));
 
-    /* Loongson-3 reset stuff */
     if (loaderparams.kernel_filename) {
-        if (cpu == MIPS_CPU(first_cpu)) {
-            env->active_tc.gpr[4] = loaderparams.a0;
-            env->active_tc.gpr[5] = loaderparams.a1;
-            env->active_tc.gpr[6] = loaderparams.a2;
-            env->active_tc.PC = loaderparams.kernel_entry;
-        }
         env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
+    }
+}
+
+static void main_cpu_reset(void *opaque)
+{
+    generic_cpu_reset(opaque);
+
+    if (loaderparams.kernel_filename) {
+        MIPSCPU *cpu = opaque;
+        CPUMIPSState *env = &cpu->env;
+
+        env->active_tc.gpr[4] = loaderparams.a0;
+        env->active_tc.gpr[5] = loaderparams.a1;
+        env->active_tc.gpr[6] = loaderparams.a2;
+        env->active_tc.PC = loaderparams.kernel_entry;
     }
 }
 
@@ -458,7 +466,7 @@ static inline void loongson3_virt_devices_init(MachineState *machine,
                                 virt_memmap[VIRT_PCIE_PIO].base, s->pio_alias);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, virt_memmap[VIRT_PCIE_PIO].base);
 
-    for (i = 0; i < GPEX_NUM_IRQS; i++) {
+    for (i = 0; i < PCI_NUM_PINS; i++) {
         irq = qdev_get_gpio_in(pic, PCIE_IRQ_BASE + i);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, irq);
         gpex_set_irq_num(GPEX_HOST(dev), i, PCIE_IRQ_BASE + i);
@@ -484,9 +492,8 @@ static void mips_loongson3_virt_init(MachineState *machine)
 {
     int i;
     long bios_size;
-    MIPSCPU *cpu;
+    MIPSCPU *cpu = NULL;
     Clock *cpuclk;
-    CPUMIPSState *env;
     DeviceState *liointc;
     DeviceState *ipi = NULL;
     char *filename;
@@ -561,18 +568,18 @@ static void mips_loongson3_virt_init(MachineState *machine)
     cpuclk = clock_new(OBJECT(machine), "cpu-refclk");
     clock_set_hz(cpuclk, DEF_LOONGSON3_FREQ);
 
-    for (i = 0; i < machine->smp.cpus; i++) {
+    for (i = machine->smp.cpus - 1; i >= 0; --i) {
         int node = i / LOONGSON3_CORE_PER_NODE;
         int core = i % LOONGSON3_CORE_PER_NODE;
         int ip;
 
         /* init CPUs */
-        cpu = mips_cpu_create_with_clock(machine->cpu_type, cpuclk);
+        cpu = mips_cpu_create_with_clock(machine->cpu_type, cpuclk, false);
 
         /* Init internal devices */
         cpu_mips_irq_init_cpu(cpu);
         cpu_mips_clock_init(cpu);
-        qemu_register_reset(main_cpu_reset, cpu);
+        qemu_register_reset(i ? generic_cpu_reset : main_cpu_reset, cpu);
 
         if (!kvm_enabled()) {
             hwaddr base = ((hwaddr)node << 44) + virt_memmap[VIRT_IPI].base;
@@ -601,7 +608,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
                                pin, cpu->env.irq[ip + 2]);
         }
     }
-    env = &MIPS_CPU(first_cpu)->env;
+    assert(cpu); /* This variable points to the first created cpu. */
 
     /* Allocate RAM/BIOS, 0x00000000~0x10000000 is alias of 0x80000000~0x90000000 */
     memory_region_init_rom(bios, NULL, "loongson3.bios",
@@ -626,16 +633,16 @@ static void mips_loongson3_virt_init(MachineState *machine)
      * Please use -L to set the BIOS path and -bios to set bios name.
      */
 
+    loaderparams.cpu_freq = get_cpu_freq_hz(cpu);
+    loaderparams.ram_size = ram_size;
     if (kernel_filename) {
-        loaderparams.cpu_freq = get_cpu_freq_hz();
-        loaderparams.ram_size = ram_size;
         loaderparams.kernel_filename = kernel_filename;
         loaderparams.kernel_cmdline = kernel_cmdline;
         loaderparams.initrd_filename = initrd_filename;
-        loaderparams.kernel_entry = load_kernel(env);
+        loaderparams.kernel_entry = load_kernel(&cpu->env);
 
         init_boot_rom();
-        init_boot_param();
+        init_boot_param(machine->smp.cpus, cpu->env.CP0_PRid);
     } else {
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,
                                   machine->firmware ?: LOONGSON3_BIOSNAME);
@@ -654,7 +661,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
             exit(1);
         }
 
-        fw_conf_init(ram_size);
+        fw_conf_init();
     }
 
     loongson3_virt_devices_init(machine, liointc);

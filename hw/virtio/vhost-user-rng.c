@@ -20,9 +20,8 @@ static const VMStateDescription vu_rng_vmstate = {
     .unmigratable = 1,
 };
 
-static Property vrng_properties[] = {
+static const Property vrng_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserBase, chardev),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vu_rng_base_realize(DeviceState *dev, Error **errp)

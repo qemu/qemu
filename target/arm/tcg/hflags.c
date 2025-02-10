@@ -198,10 +198,6 @@ static CPUARMTBFlags rebuild_hflags_a32(CPUARMState *env, int fp_el,
         DP_TBFLAG_A32(flags, SME_TRAP_NONSTREAMING, 1);
     }
 
-    if (arm_aa32_secure_pl1_0(env)) {
-        DP_TBFLAG_A32(flags, S_PL1_0, 1);
-    }
-
     return rebuild_hflags_common_32(env, fp_el, mmu_idx, flags);
 }
 

@@ -235,10 +235,11 @@ static const char *rmessage_name(uint8_t id)
         id == P9_RMKDIR ? "RMKDIR" :
         id == P9_RLCREATE ? "RLCREATE" :
         id == P9_RSYMLINK ? "RSYMLINK" :
+        id == P9_RGETATTR ? "RGETATTR" :
         id == P9_RLINK ? "RLINK" :
         id == P9_RUNLINKAT ? "RUNLINKAT" :
         id == P9_RFLUSH ? "RFLUSH" :
-        id == P9_RREADDIR ? "READDIR" :
+        id == P9_RREADDIR ? "RREADDIR" :
         "<unknown>";
 }
 

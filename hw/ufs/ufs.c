@@ -1164,7 +1164,7 @@ static QueryRespCode ufs_exec_query_attr(UfsRequest *req, int op)
         value = ufs_read_attr_value(u, idn);
         ret = UFS_QUERY_RESULT_SUCCESS;
     } else {
-        value = req->req_upiu.qr.value;
+        value = be32_to_cpu(req->req_upiu.qr.value);
         ret = ufs_write_attr_value(u, idn, value);
     }
     req->rsp_upiu.qr.value = cpu_to_be32(value);
@@ -1752,13 +1752,12 @@ static void ufs_exit(PCIDevice *pci_dev)
     }
 }
 
-static Property ufs_props[] = {
+static const Property ufs_props[] = {
     DEFINE_PROP_STRING("serial", UfsHc, params.serial),
     DEFINE_PROP_UINT8("nutrs", UfsHc, params.nutrs, 32),
     DEFINE_PROP_UINT8("nutmrs", UfsHc, params.nutmrs, 8),
     DEFINE_PROP_BOOL("mcq", UfsHc, params.mcq, false),
     DEFINE_PROP_UINT8("mcq-maxq", UfsHc, params.mcq_maxq, 2),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription ufs_vmstate = {

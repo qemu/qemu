@@ -10,7 +10,6 @@
 #include "qemu/osdep.h"
 #include "qemu/lockable.h"
 #include "cpu.h"
-#include "trace/trace-root.h"
 #include "trace/control.h"
 
 

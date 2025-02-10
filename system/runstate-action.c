@@ -7,8 +7,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/runstate-action.h"
-#include "sysemu/watchdog.h"
+#include "system/runstate-action.h"
+#include "system/watchdog.h"
 #include "qemu/config-file.h"
 #include "qapi/error.h"
 #include "qemu/option_int.h"

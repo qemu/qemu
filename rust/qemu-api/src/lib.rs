@@ -4,36 +4,32 @@
 
 #![cfg_attr(not(MESON), doc = include_str!("../README.md"))]
 
-#[allow(
-    dead_code,
-    improper_ctypes_definitions,
-    improper_ctypes,
-    non_camel_case_types,
-    non_snake_case,
-    non_upper_case_globals,
-    unsafe_op_in_unsafe_fn,
-    clippy::missing_const_for_fn,
-    clippy::too_many_arguments,
-    clippy::approx_constant,
-    clippy::use_self,
-    clippy::useless_transmute,
-    clippy::missing_safety_doc,
-)]
 #[rustfmt::skip]
 pub mod bindings;
 
-unsafe impl Send for bindings::Property {}
-unsafe impl Sync for bindings::Property {}
-unsafe impl Sync for bindings::TypeInfo {}
-unsafe impl Sync for bindings::VMStateDescription {}
+// preserve one-item-per-"use" syntax, it is clearer
+// for prelude-like modules
+#[rustfmt::skip]
+pub mod prelude;
 
-pub mod definitions;
-pub mod device_class;
+pub mod assertions;
+pub mod bitops;
+pub mod c_str;
+pub mod callbacks;
+pub mod cell;
+pub mod irq;
+pub mod module;
+pub mod offset_of;
+pub mod qdev;
+pub mod qom;
+pub mod sysbus;
+pub mod vmstate;
+pub mod zeroable;
 
-#[cfg(test)]
-mod tests;
-
-use std::alloc::{GlobalAlloc, Layout};
+use std::{
+    alloc::{GlobalAlloc, Layout},
+    os::raw::c_void,
+};
 
 #[cfg(HAVE_GLIB_WITH_ALIGNED_ALLOC)]
 extern "C" {
@@ -47,8 +43,8 @@ extern "C" {
 
 #[cfg(not(HAVE_GLIB_WITH_ALIGNED_ALLOC))]
 extern "C" {
-    fn qemu_memalign(alignment: usize, size: usize) -> *mut ::core::ffi::c_void;
-    fn qemu_vfree(ptr: *mut ::core::ffi::c_void);
+    fn qemu_memalign(alignment: usize, size: usize) -> *mut c_void;
+    fn qemu_vfree(ptr: *mut c_void);
 }
 
 extern "C" {
@@ -113,7 +109,7 @@ impl Default for QemuAllocator {
 }
 
 // Sanity check.
-const _: [(); 8] = [(); ::core::mem::size_of::<*mut ::core::ffi::c_void>()];
+const _: [(); 8] = [(); ::core::mem::size_of::<*mut c_void>()];
 
 unsafe impl GlobalAlloc for QemuAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
@@ -164,3 +160,6 @@ unsafe impl GlobalAlloc for QemuAllocator {
         }
     }
 }
+
+#[cfg(has_offset_of)]
+pub use core::mem::offset_of;

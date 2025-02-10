@@ -29,13 +29,12 @@ static const VMStateDescription vud_vmstate = {
     .unmigratable = 1,
 };
 
-static Property vud_properties[] = {
+static const Property vud_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserBase, chardev),
     DEFINE_PROP_UINT16("virtio-id", VHostUserBase, virtio_id, 0),
     DEFINE_PROP_UINT32("vq_size", VHostUserBase, vq_size, 64),
     DEFINE_PROP_UINT32("num_vqs", VHostUserBase, num_vqs, 1),
     DEFINE_PROP_UINT32("config_size", VHostUserBase, config_size, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void vud_class_init(ObjectClass *klass, void *data)

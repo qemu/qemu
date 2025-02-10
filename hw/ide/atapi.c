@@ -26,7 +26,7 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "hw/scsi/scsi.h"
-#include "sysemu/block-backend.h"
+#include "system/block-backend.h"
 #include "scsi/constants.h"
 #include "ide-internal.h"
 #include "trace.h"

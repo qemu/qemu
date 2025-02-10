@@ -12,9 +12,9 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "target/ppc/cpu.h"
-#include "sysemu/cpus.h"
-#include "sysemu/kvm.h"
-#include "sysemu/runstate.h"
+#include "system/cpus.h"
+#include "system/kvm.h"
+#include "system/runstate.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/spapr_xive.h"
@@ -720,7 +720,7 @@ int kvmppc_xive_connect(SpaprInterruptController *intc, uint32_t nr_servers,
 {
     SpaprXive *xive = SPAPR_XIVE(intc);
     XiveSource *xsrc = &xive->source;
-    size_t esb_len = xive_source_esb_len(xsrc);
+    uint64_t esb_len = xive_source_esb_len(xsrc);
     size_t tima_len = 4ull << TM_SHIFT;
     CPUState *cs;
     int fd;
@@ -824,7 +824,7 @@ void kvmppc_xive_disconnect(SpaprInterruptController *intc)
 {
     SpaprXive *xive = SPAPR_XIVE(intc);
     XiveSource *xsrc;
-    size_t esb_len;
+    uint64_t esb_len;
 
     assert(xive->fd != -1);
 

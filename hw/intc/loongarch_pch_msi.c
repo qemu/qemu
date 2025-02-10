@@ -83,10 +83,9 @@ static void loongarch_pch_msi_init(Object *obj)
 
 }
 
-static Property loongarch_msi_properties[] = {
+static const Property loongarch_msi_properties[] = {
     DEFINE_PROP_UINT32("msi_irq_base", LoongArchPCHMSI, irq_base, 0),
     DEFINE_PROP_UINT32("msi_irq_num",  LoongArchPCHMSI, irq_num, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void loongarch_pch_msi_class_init(ObjectClass *klass, void *data)

@@ -31,8 +31,8 @@
 #include "hw/irq.h"
 #include "target/riscv/cpu.h"
 #include "target/riscv/cpu_bits.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/kvm.h"
+#include "system/system.h"
+#include "system/kvm.h"
 #include "migration/vmstate.h"
 
 #define IMSIC_MMIO_PAGE_LE             0x00
@@ -388,12 +388,11 @@ static void riscv_imsic_realize(DeviceState *dev, Error **errp)
     msi_nonbroken = true;
 }
 
-static Property riscv_imsic_properties[] = {
+static const Property riscv_imsic_properties[] = {
     DEFINE_PROP_BOOL("mmode", RISCVIMSICState, mmode, 0),
     DEFINE_PROP_UINT32("hartid", RISCVIMSICState, hartid, 0),
     DEFINE_PROP_UINT32("num-pages", RISCVIMSICState, num_pages, 0),
     DEFINE_PROP_UINT32("num-irqs", RISCVIMSICState, num_irqs, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_riscv_imsic = {

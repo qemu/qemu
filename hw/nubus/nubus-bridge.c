@@ -23,10 +23,9 @@ static void nubus_bridge_init(Object *obj)
     qdev_init_gpio_out(DEVICE(s), bus->irqs, NUBUS_IRQS);
 }
 
-static Property nubus_bridge_properties[] = {
+static const Property nubus_bridge_properties[] = {
     DEFINE_PROP_UINT16("slot-available-mask", NubusBridge,
                        bus.slot_available_mask, 0xffff),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void nubus_bridge_class_init(ObjectClass *klass, void *data)

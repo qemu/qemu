@@ -18,6 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "exec/page-protection.h"
+#include "user/page-protection.h"
 
 #include "qemu.h"
 

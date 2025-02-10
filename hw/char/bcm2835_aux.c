@@ -290,9 +290,8 @@ static void bcm2835_aux_realize(DeviceState *dev, Error **errp)
                              bcm2835_aux_receive, NULL, NULL, s, NULL, true);
 }
 
-static Property bcm2835_aux_props[] = {
+static const Property bcm2835_aux_props[] = {
     DEFINE_PROP_CHR("chardev", BCM2835AuxState, chr),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void bcm2835_aux_class_init(ObjectClass *oc, void *data)

@@ -57,7 +57,7 @@
   extends: .base_job_template
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:$QEMU_CI_CONTAINER_TAG
-  timeout: 30m
+  timeout: 60m
   cache:
     paths:
       - ccache/

@@ -14,7 +14,7 @@
 #ifdef CONFIG_KVM
 #include <linux/kvm.h>
 #endif
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "exec/address-spaces.h"
 
 #include "hw/vfio/vfio-common.h"

@@ -31,8 +31,8 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/visitor.h"
 #include "qom/qom-qobject.h"
-#include "sysemu/kvm.h"
-#include "sysemu/tcg.h"
+#include "system/kvm.h"
+#include "system/tcg.h"
 #include "cpu-qom.h"
 #include "cpu.h"
 

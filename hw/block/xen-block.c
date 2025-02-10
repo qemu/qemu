@@ -23,9 +23,9 @@
 #include "hw/qdev-properties.h"
 #include "hw/xen/xen-block.h"
 #include "hw/xen/xen-backend.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/iothread.h"
+#include "system/blockdev.h"
+#include "system/block-backend.h"
+#include "system/iothread.h"
 #include "dataplane/xen-block.h"
 #include "hw/xen/interface/io/xs_wire.h"
 #include "trace.h"
@@ -239,7 +239,8 @@ static void xen_block_connect(XenDevice *xendev, Error **errp)
         return;
     }
 
-    if (xen_device_frontend_scanf(xendev, "protocol", "%ms", &str) != 1) {
+    str = xen_device_frontend_read(xendev, "protocol");
+    if (!str) {
         /* x86 defaults to the 32-bit protocol even for 64-bit guests. */
         if (object_dynamic_cast(OBJECT(qdev_get_machine()), "x86-machine")) {
             protocol = BLKIF_PROTOCOL_X86_32;
@@ -485,7 +486,7 @@ static char *disk_to_vbd_name(unsigned int disk)
 static void xen_block_get_vdev(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
-    Property *prop = opaque;
+    const Property *prop = opaque;
     XenBlockVdev *vdev = object_field_prop_ptr(obj, prop);
     char *str;
 
@@ -545,7 +546,7 @@ static int vbd_name_to_disk(const char *name, const char **endp,
 static void xen_block_set_vdev(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
-    Property *prop = opaque;
+    const Property *prop = opaque;
     XenBlockVdev *vdev = object_field_prop_ptr(obj, prop);
     char *str, *p;
     const char *end;
@@ -659,14 +660,14 @@ invalid:
  *
  * https://xenbits.xen.org/docs/unstable/man/xen-vbd-interface.7.html
  */
-const PropertyInfo xen_block_prop_vdev = {
+static const PropertyInfo xen_block_prop_vdev = {
     .name  = "str",
     .description = "Virtual Disk specifier: d*p*/xvd*/hd*/sd*",
     .get = xen_block_get_vdev,
     .set = xen_block_set_vdev,
 };
 
-static Property xen_block_props[] = {
+static const Property xen_block_props[] = {
     DEFINE_PROP("vdev", XenBlockDevice, props.vdev,
                 xen_block_prop_vdev, XenBlockVdev),
     DEFINE_BLOCK_PROPERTIES(XenBlockDevice, props.conf),
@@ -674,7 +675,6 @@ static Property xen_block_props[] = {
                        props.max_ring_page_order, 4),
     DEFINE_PROP_LINK("iothread", XenBlockDevice, props.iothread,
                      TYPE_IOTHREAD, IOThread *),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void xen_block_class_init(ObjectClass *class, void *data)

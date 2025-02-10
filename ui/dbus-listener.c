@@ -24,7 +24,7 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "dbus.h"
 #include "glib.h"
 #ifdef G_OS_UNIX

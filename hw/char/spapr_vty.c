@@ -163,10 +163,9 @@ void spapr_vty_create(SpaprVioBus *bus, Chardev *chardev)
     qdev_realize_and_unref(dev, &bus->bus, &error_fatal);
 }
 
-static Property spapr_vty_properties[] = {
+static const Property spapr_vty_properties[] = {
     DEFINE_SPAPR_PROPERTIES(SpaprVioVty, sdev),
     DEFINE_PROP_CHR("chardev", SpaprVioVty, chardev),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_spapr_vty = {

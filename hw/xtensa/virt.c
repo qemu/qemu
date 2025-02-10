@@ -27,7 +27,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/pci-host/gpex.h"
@@ -93,7 +93,7 @@ static void create_pcie(MachineState *ms, CPUXtensaState *env, int irq_base,
     /* Connect IRQ lines. */
     extints = xtensa_get_extints(env);
 
-    for (i = 0; i < GPEX_NUM_IRQS; i++) {
+    for (i = 0; i < PCI_NUM_PINS; i++) {
         void *q = extints[irq_base + i];
 
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, q);

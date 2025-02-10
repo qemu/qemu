@@ -17,9 +17,9 @@
 
 #include "qemu/cutils.h"
 #include "qemu/datadir.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/qtest.h"
-#include "sysemu/runstate.h"
+#include "system/system.h"
+#include "system/qtest.h"
+#include "system/runstate.h"
 #include "qemu/main-loop.h"
 #include "qemu/rcu.h"
 #include "tests/qtest/libqtest.h"
@@ -41,6 +41,7 @@ static FuzzTargetList *fuzz_target_list;
 static FuzzTarget *fuzz_target;
 static QTestState *fuzz_qts;
 
+int (*qemu_main)(void);
 
 
 void flush_events(QTestState *s)

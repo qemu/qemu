@@ -3,7 +3,7 @@ VPATH+=$(S390X_SRC)
 # EXTFLAGS can be passed by the user, e.g. to override the --accel
 QEMU_OPTS+=-action panic=exit-failure -nographic -serial chardev:output $(EXTFLAGS) -kernel
 LINK_SCRIPT=$(S390X_SRC)/softmmu.ld
-CFLAGS+=-ggdb -O0
+CFLAGS+=-ggdb -O0 -I$(SRC_PATH)/include/hw/s390x/ipl/
 LDFLAGS=-nostdlib -static
 
 %.o: %.S
@@ -42,10 +42,12 @@ $(ASM_TESTS): LDFLAGS += -Wl,-T$(LINK_SCRIPT) -Wl,--build-id=none
 $(ASM_TESTS): $(LINK_SCRIPT)
 TESTS += $(ASM_TESTS)
 
+MULTIARCH_TESTS += mvc-smc
 S390X_MULTIARCH_RUNTIME_OBJS = head64.o console.o $(MINILIB_OBJS)
 $(MULTIARCH_TESTS): $(S390X_MULTIARCH_RUNTIME_OBJS)
 $(MULTIARCH_TESTS): LDFLAGS += $(S390X_MULTIARCH_RUNTIME_OBJS)
-$(MULTIARCH_TESTS): CFLAGS += $(MINILIB_INC)
+$(MULTIARCH_TESTS): CFLAGS += $(MINILIB_INC) \
+			      -I$(SRC_PATH)/roms/SLOF/lib/libc/include/
 memory: CFLAGS += -DCHECK_UNALIGNED=0
 
 # s390x clears the BSS section so we need to account for that

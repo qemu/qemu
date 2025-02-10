@@ -95,11 +95,11 @@ static void mv64361_pcihost_realize(DeviceState *dev, Error **errp)
                                    &s->mem, &s->io, 0, 4, TYPE_PCI_BUS);
     g_free(name);
     pci_create_simple(h->bus, 0, TYPE_MV64361_PCI_BRIDGE);
+    qdev_init_gpio_out(dev, s->irq, ARRAY_SIZE(s->irq));
 }
 
-static Property mv64361_pcihost_props[] = {
+static const Property mv64361_pcihost_props[] = {
     DEFINE_PROP_UINT8("index", MV64361PCIState, index, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void mv64361_pcihost_class_init(ObjectClass *klass, void *data)

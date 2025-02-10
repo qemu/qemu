@@ -210,6 +210,8 @@ struct VirtioDeviceClass {
     void (*guest_notifier_mask)(VirtIODevice *vdev, int n, bool mask);
     int (*start_ioeventfd)(VirtIODevice *vdev);
     void (*stop_ioeventfd)(VirtIODevice *vdev);
+    /* Called before loading queues. Useful to add queues before loading. */
+    int (*pre_load_queues)(VirtIODevice *vdev);
     /* Saving and loading of a device; trying to deprecate save/load
      * use vmsd for new devices.
      */

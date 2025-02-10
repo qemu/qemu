@@ -254,8 +254,8 @@ out:
     qga_debug_end;
 }
 
-DWORD get_reg_dword_value(HKEY baseKey, LPCSTR subKey, LPCSTR valueName,
-                          DWORD defaultData)
+static DWORD get_reg_dword_value(HKEY baseKey, LPCSTR subKey, LPCSTR valueName,
+                                 DWORD defaultData)
 {
     qga_debug_begin;
 
@@ -272,12 +272,12 @@ DWORD get_reg_dword_value(HKEY baseKey, LPCSTR subKey, LPCSTR valueName,
     return dwordData;
 }
 
-bool is_valid_vss_backup_type(VSS_BACKUP_TYPE vssBT)
+static bool is_valid_vss_backup_type(VSS_BACKUP_TYPE vssBT)
 {
     return (vssBT > VSS_BT_UNDEFINED && vssBT < VSS_BT_OTHER);
 }
 
-VSS_BACKUP_TYPE get_vss_backup_type(
+static VSS_BACKUP_TYPE get_vss_backup_type(
     VSS_BACKUP_TYPE defaultVssBT = DEFAULT_VSS_BACKUP_TYPE)
 {
     qga_debug_begin;

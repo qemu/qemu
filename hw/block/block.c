@@ -9,8 +9,8 @@
 
 #include "qemu/osdep.h"
 #include "block/block_int-common.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/block-backend.h"
+#include "system/blockdev.h"
+#include "system/block-backend.h"
 #include "hw/block/block.h"
 #include "qapi/error.h"
 #include "qapi/qapi-types-block.h"

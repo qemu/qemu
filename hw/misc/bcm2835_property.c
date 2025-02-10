@@ -13,7 +13,7 @@
 #include "hw/irq.h"
 #include "hw/misc/bcm2835_mbox_defs.h"
 #include "hw/arm/raspberrypi-fw-defs.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "trace.h"
@@ -551,10 +551,9 @@ static void bcm2835_property_realize(DeviceState *dev, Error **errp)
     bcm2835_property_reset(dev);
 }
 
-static Property bcm2835_property_props[] = {
+static const Property bcm2835_property_props[] = {
     DEFINE_PROP_UINT32("board-rev", BCM2835PropertyState, board_rev, 0),
     DEFINE_PROP_STRING("command-line", BCM2835PropertyState, command_line),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void bcm2835_property_class_init(ObjectClass *klass, void *data)

@@ -32,7 +32,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-clock.h"
 #include "hw/misc/unimp.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 /* stm32f100_soc implementation is derived from stm32f205_soc */
 

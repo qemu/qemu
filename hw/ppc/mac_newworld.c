@@ -59,7 +59,7 @@
 #include "hw/ppc/mac_dbdma.h"
 #include "hw/pci/pci.h"
 #include "net/net.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/char/escc.h"
 #include "hw/misc/macio/macio.h"
@@ -68,8 +68,8 @@
 #include "hw/fw-path-provider.h"
 #include "elf.h"
 #include "qemu/error-report.h"
-#include "sysemu/kvm.h"
-#include "sysemu/reset.h"
+#include "system/kvm.h"
+#include "system/reset.h"
 #include "kvm_ppc.h"
 #include "hw/usb.h"
 #include "hw/sysbus.h"
@@ -182,7 +182,8 @@ static void ppc_core99_init(MachineState *machine)
     if (filename) {
         /* Load OpenBIOS (ELF) */
         bios_size = load_elf(filename, NULL, NULL, NULL, NULL,
-                             NULL, NULL, NULL, 1, PPC_ELF_MACHINE, 0, 0);
+                             NULL, NULL, NULL,
+                             ELFDATA2MSB, PPC_ELF_MACHINE, 0, 0);
 
         if (bios_size <= 0) {
             /* or load binary ROM image */
@@ -204,7 +205,7 @@ static void ppc_core99_init(MachineState *machine)
         kernel_base = KERNEL_LOAD_ADDR;
         kernel_size = load_elf(machine->kernel_filename, NULL,
                                translate_kernel_address, NULL, NULL, NULL,
-                               NULL, NULL, 1, PPC_ELF_MACHINE, 0, 0);
+                               NULL, NULL, ELFDATA2MSB, PPC_ELF_MACHINE, 0, 0);
         if (kernel_size < 0) {
             kernel_size = load_aout(machine->kernel_filename, kernel_base,
                                     machine->ram_size - kernel_base,

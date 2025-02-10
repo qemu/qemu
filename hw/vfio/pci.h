@@ -19,7 +19,7 @@
 #include "qemu/queue.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 
 #define PCI_ANY_ID (~0)
 

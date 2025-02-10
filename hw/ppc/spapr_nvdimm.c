@@ -884,22 +884,22 @@ static void spapr_nvdimm_unrealize(NVDIMMDevice *dimm)
     vmstate_unregister(NULL, &vmstate_spapr_nvdimm_states, dimm);
 }
 
-static Property spapr_nvdimm_properties[] = {
 #ifdef CONFIG_LIBPMEM
+static const Property spapr_nvdimm_properties[] = {
     DEFINE_PROP_BOOL("pmem-override", SpaprNVDIMMDevice, pmem_override, false),
-#endif
-    DEFINE_PROP_END_OF_LIST(),
 };
+#endif
 
 static void spapr_nvdimm_class_init(ObjectClass *oc, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
     NVDIMMClass *nvc = NVDIMM_CLASS(oc);
 
     nvc->realize = spapr_nvdimm_realize;
     nvc->unrealize = spapr_nvdimm_unrealize;
 
-    device_class_set_props(dc, spapr_nvdimm_properties);
+#ifdef CONFIG_LIBPMEM
+    device_class_set_props(DEVICE_CLASS(oc), spapr_nvdimm_properties);
+#endif
 }
 
 static void spapr_nvdimm_init(Object *obj)

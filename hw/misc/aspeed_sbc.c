@@ -136,10 +136,9 @@ static const VMStateDescription vmstate_aspeed_sbc = {
     }
 };
 
-static Property aspeed_sbc_properties[] = {
+static const Property aspeed_sbc_properties[] = {
     DEFINE_PROP_BOOL("emmc-abr", AspeedSBCState, emmc_abr, 0),
     DEFINE_PROP_UINT32("signing-settings", AspeedSBCState, signing_settings, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void aspeed_sbc_class_init(ObjectClass *klass, void *data)

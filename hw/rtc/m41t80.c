@@ -14,7 +14,7 @@
 #include "qemu/bcd.h"
 #include "hw/i2c/i2c.h"
 #include "qom/object.h"
-#include "sysemu/rtc.h"
+#include "system/rtc.h"
 
 #define TYPE_M41T80 "m41t80"
 OBJECT_DECLARE_SIMPLE_TYPE(M41t80State, M41T80)

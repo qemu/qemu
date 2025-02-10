@@ -26,6 +26,7 @@
     "features": [
         "acpi-s3",
         "amd-sev",
+        "amd-sev-es",
         "verbose-dynamic"
     ],
     "tags": [

@@ -21,6 +21,7 @@
 #define I386_HELPER_TCG_H
 
 #include "exec/exec-all.h"
+#include "qemu/host-utils.h"
 
 /* Maximum instruction code size */
 #define TARGET_MAX_INSN_SIZE 16
@@ -58,6 +59,8 @@ static inline target_long lshift(target_long x, int n)
 
 /* translate.c */
 void tcg_x86_init(void);
+void x86_translate_code(CPUState *cs, TranslationBlock *tb,
+                        int *max_insns, vaddr pc, void *host_pc);
 
 /* excp_helper.c */
 G_NORETURN void raise_exception(CPUX86State *env, int exception_index);
@@ -87,7 +90,10 @@ G_NORETURN void x86_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
 #endif
 
 /* cc_helper.c */
-extern const uint8_t parity_table[256];
+static inline unsigned int compute_pf(uint8_t x)
+{
+    return !parity8(x) * CC_P;
+}
 
 /* misc_helper.c */
 void cpu_load_eflags(CPUX86State *env, int eflags, int update_mask);

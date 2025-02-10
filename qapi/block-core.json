@@ -5584,6 +5584,8 @@
 #
 # Emitted when a disk I/O error occurs
 #
+# @qom-path: path to the device object in the QOM tree (since 9.2)
+#
 # @device: device name.  This is always present for compatibility
 #     reasons, but it can be empty ("") if the image does not have a
 #     device name associated.
@@ -5609,12 +5611,15 @@
 # .. note:: If action is "stop", a STOP event will eventually follow
 #    the BLOCK_IO_ERROR event.
 #
+# .. note:: This event is rate-limited.
+#
 # Since: 0.13
 #
 # .. qmp-example::
 #
 #     <- { "event": "BLOCK_IO_ERROR",
-#          "data": { "device": "ide0-hd1",
+#          "data": { "qom-path": "/machine/unattached/device[0]",
+#                    "device": "ide0-hd1",
 #                    "node-name": "#block212",
 #                    "operation": "write",
 #                    "action": "stop",
@@ -5622,7 +5627,7 @@
 #          "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 ##
 { 'event': 'BLOCK_IO_ERROR',
-  'data': { 'device': 'str', '*node-name': 'str',
+  'data': { 'qom-path': 'str', 'device': 'str', '*node-name': 'str',
             'operation': 'IoOperationType',
             'action': 'BlockErrorAction', '*nospace': 'bool',
             'reason': 'str' } }

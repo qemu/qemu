@@ -8,7 +8,7 @@
  * directory.
  */
 
-#include "libc.h"
+#include <string.h>
 #include "s390-ccw.h"
 #include "sclp.h"
 
@@ -99,11 +99,6 @@ long write(int fd, const void *str, size_t len)
     sclp_service_call(SCLP_CMD_WRITE_EVENT_DATA, sccb);
 
     return len;
-}
-
-void sclp_print(const char *str)
-{
-    write(1, str, strlen(str));
 }
 
 void sclp_get_loadparm_ascii(char *loadparm)

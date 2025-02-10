@@ -21,7 +21,7 @@
 #include "hw/remote/proxy-memory-listener.h"
 #include "qom/object.h"
 #include "qemu/event_notifier.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 
 static void probe_pci_info(PCIDevice *dev, Error **errp);
 static void proxy_device_reset(DeviceState *dev);
@@ -191,9 +191,8 @@ static void pci_proxy_write_config(PCIDevice *d, uint32_t addr, uint32_t val,
     config_op_send(PCI_PROXY_DEV(d), addr, &val, len, MPQEMU_CMD_PCI_CFGWRITE);
 }
 
-static Property proxy_properties[] = {
+static const Property proxy_properties[] = {
     DEFINE_PROP_STRING("fd", PCIProxyDev, fd),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pci_proxy_dev_class_init(ObjectClass *klass, void *data)

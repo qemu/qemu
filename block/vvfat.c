@@ -403,7 +403,6 @@ static direntry_t *create_long_filename(BDRVVVFATState *s, const char *filename)
 {
     int number_of_entries, i;
     glong length;
-    direntry_t *entry;
 
     gunichar2 *longname = g_utf8_to_utf16(filename, -1, NULL, &length, NULL);
     if (!longname) {
@@ -414,24 +413,24 @@ static direntry_t *create_long_filename(BDRVVVFATState *s, const char *filename)
     number_of_entries = DIV_ROUND_UP(length * 2, 26);
 
     for(i=0;i<number_of_entries;i++) {
-        entry=array_get_next(&(s->directory));
+        direntry_t *entry=array_get_next(&(s->directory));
         entry->attributes=0xf;
         entry->reserved[0]=0;
         entry->begin=0;
         entry->name[0]=(number_of_entries-i)|(i==0?0x40:0);
     }
     for(i=0;i<26*number_of_entries;i++) {
+        unsigned char *entry=array_get(&(s->directory),s->directory.next-1-(i/26));
         int offset=(i%26);
         if(offset<10) offset=1+offset;
         else if(offset<22) offset=14+offset-10;
         else offset=28+offset-22;
-        entry=array_get(&(s->directory),s->directory.next-1-(i/26));
         if (i >= 2 * length + 2) {
-            entry->name[offset] = 0xff;
+            entry[offset] = 0xff;
         } else if (i % 2 == 0) {
-            entry->name[offset] = longname[i / 2] & 0xff;
+            entry[offset] = longname[i / 2] & 0xff;
         } else {
-            entry->name[offset] = longname[i / 2] >> 8;
+            entry[offset] = longname[i / 2] >> 8;
         }
     }
     g_free(longname);

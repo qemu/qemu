@@ -15,8 +15,8 @@
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "exec/memory.h"
-#include "sysemu/kvm.h"
-#include "sysemu/reset.h"
+#include "system/kvm.h"
+#include "system/reset.h"
 #include "kvm_mips.h"
 #include "hw/intc/mips_gic.h"
 #include "hw/irq.h"
@@ -438,10 +438,9 @@ static void mips_gic_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static Property mips_gic_properties[] = {
+static const Property mips_gic_properties[] = {
     DEFINE_PROP_UINT32("num-vp", MIPSGICState, num_vps, 1),
     DEFINE_PROP_UINT32("num-irq", MIPSGICState, num_irq, 256),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void mips_gic_class_init(ObjectClass *klass, void *data)

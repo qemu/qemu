@@ -245,6 +245,7 @@ class TestEnv(ContextManager['TestEnv']):
             ('riscv64', 'virt'),
             ('rx', 'gdbsim-r5f562n8'),
             ('sh4', 'r2d'),
+            ('sh4eb', 'r2d'),
             ('tricore', 'tricore_testboard')
         )
         for suffix, machine in machine_map:

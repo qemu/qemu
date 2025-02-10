@@ -11,7 +11,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/timer.h"
-#include "sysemu/rtc.h"
+#include "system/rtc.h"
 
 #include "trace.h"
 

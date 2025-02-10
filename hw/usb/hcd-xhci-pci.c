@@ -74,6 +74,7 @@ static bool xhci_pci_intr_raise(XHCIState *xhci, int n, bool level)
     }
 
     if (msi_enabled(pci_dev) && level) {
+        n %= msi_nr_vectors_allocated(pci_dev);
         msi_notify(pci_dev, n);
         return true;
     }
@@ -94,7 +95,7 @@ static int xhci_pci_vmstate_post_load(void *opaque, int version_id)
     PCIDevice *pci_dev = PCI_DEVICE(s);
     int intr;
 
-   for (intr = 0; intr < s->xhci.numintrs; intr++) {
+    for (intr = 0; intr < s->xhci.numintrs; intr++) {
         if (s->xhci.intr[intr].msix_used) {
             msix_vector_use(pci_dev, intr);
         } else {
@@ -197,6 +198,11 @@ static void xhci_instance_init(Object *obj)
     qdev_alias_all_properties(DEVICE(&s->xhci), obj);
 }
 
+static const Property xhci_pci_properties[] = {
+    DEFINE_PROP_ON_OFF_AUTO("msi", XHCIPciState, msi, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO("msix", XHCIPciState, msix, ON_OFF_AUTO_AUTO),
+};
+
 static void xhci_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -208,6 +214,7 @@ static void xhci_class_init(ObjectClass *klass, void *data)
     k->realize      = usb_xhci_pci_realize;
     k->exit         = usb_xhci_pci_exit;
     k->class_id     = PCI_CLASS_SERIAL_USB;
+    device_class_set_props(dc, xhci_pci_properties);
 }
 
 static const TypeInfo xhci_pci_info = {

@@ -18,8 +18,8 @@
 #include "hw/intc/armv7m_nvic.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/tcg.h"
-#include "sysemu/runstate.h"
+#include "system/tcg.h"
+#include "system/runstate.h"
 #include "target/arm/cpu.h"
 #include "target/arm/cpu-features.h"
 #include "exec/exec-all.h"
@@ -2569,7 +2569,7 @@ static const VMStateDescription vmstate_nvic = {
     }
 };
 
-static Property props_nvic[] = {
+static const Property props_nvic[] = {
     /* Number of external IRQ lines (so excluding the 16 internal exceptions) */
     DEFINE_PROP_UINT32("num-irq", NVICState, num_irq, 64),
     /*
@@ -2577,7 +2577,6 @@ static Property props_nvic[] = {
      * to use a reasonable default.
      */
     DEFINE_PROP_UINT8("num-prio-bits", NVICState, num_prio_bits, 0),
-    DEFINE_PROP_END_OF_LIST()
 };
 
 static void armv7m_nvic_reset(DeviceState *dev)

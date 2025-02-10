@@ -90,7 +90,7 @@ Object *user_creatable_add_type(const char *type, const char *id,
         return NULL;
     }
 
-    klass = object_class_by_name(type);
+    klass = module_object_class_by_name(type);
     if (!klass) {
         error_setg(errp, "invalid object type: %s", type);
         return NULL;
@@ -108,7 +108,7 @@ Object *user_creatable_add_type(const char *type, const char *id,
     }
 
     assert(qdict);
-    obj = object_new(type);
+    obj = object_new_with_class(klass);
     object_set_properties_from_qdict(obj, qdict, v, &local_err);
     if (local_err) {
         goto out;

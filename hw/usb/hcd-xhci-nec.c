@@ -30,20 +30,15 @@
 OBJECT_DECLARE_SIMPLE_TYPE(XHCINecState, NEC_XHCI)
 
 struct XHCINecState {
-    /*< private >*/
     XHCIPciState parent_obj;
-    /*< public >*/
-    uint32_t flags;
+
     uint32_t intrs;
     uint32_t slots;
 };
 
-static Property nec_xhci_properties[] = {
-    DEFINE_PROP_ON_OFF_AUTO("msi", XHCIPciState, msi, ON_OFF_AUTO_AUTO),
-    DEFINE_PROP_ON_OFF_AUTO("msix", XHCIPciState, msix, ON_OFF_AUTO_AUTO),
+static const Property nec_xhci_properties[] = {
     DEFINE_PROP_UINT32("intrs", XHCINecState, intrs, XHCI_MAXINTRS),
     DEFINE_PROP_UINT32("slots", XHCINecState, slots, XHCI_MAXSLOTS),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void nec_xhci_instance_init(Object *obj)
@@ -51,7 +46,6 @@ static void nec_xhci_instance_init(Object *obj)
     XHCIPciState *pci = XHCI_PCI(obj);
     XHCINecState *nec = NEC_XHCI(obj);
 
-    pci->xhci.flags    = nec->flags;
     pci->xhci.numintrs = nec->intrs;
     pci->xhci.numslots = nec->slots;
 }

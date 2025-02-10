@@ -168,7 +168,6 @@ struct VncDisplay
 
     const char *id;
     QTAILQ_ENTRY(VncDisplay) next;
-    bool is_unix;
     char *password;
     time_t expires;
     int auth;

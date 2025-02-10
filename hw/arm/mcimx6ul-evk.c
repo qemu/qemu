@@ -17,7 +17,7 @@
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
 #include "qemu/error-report.h"
-#include "sysemu/qtest.h"
+#include "system/qtest.h"
 
 static void mcimx6ul_evk_init(MachineState *machine)
 {

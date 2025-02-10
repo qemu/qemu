@@ -43,9 +43,10 @@
 
 #define DBUS_DISPLAY1_AUDIO_PATH DBUS_DISPLAY1_ROOT "/Audio"
 
-#define DBUS_AUDIO_NSAMPLES 1024 /* could be configured? */
+#define DBUS_DEFAULT_AUDIO_NSAMPLES 480
 
 typedef struct DBusAudio {
+    Audiodev *dev;
     GDBusObjectManagerServer *server;
     bool p2p;
     GDBusObjectSkeleton *audio;
@@ -151,6 +152,18 @@ dbus_init_out_listener(QemuDBusDisplay1AudioOutListener *listener,
         G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
 }
 
+static guint
+dbus_audio_get_nsamples(DBusAudio *da)
+{
+    AudiodevDBusOptions *opts = &da->dev->u.dbus;
+
+    if (opts->has_nsamples && opts->nsamples) {
+        return opts->nsamples;
+    } else {
+        return DBUS_DEFAULT_AUDIO_NSAMPLES;
+    }
+}
+
 static int
 dbus_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
 {
@@ -160,7 +173,7 @@ dbus_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
     QemuDBusDisplay1AudioOutListener *listener = NULL;
 
     audio_pcm_init_info(&hw->info, as);
-    hw->samples = DBUS_AUDIO_NSAMPLES;
+    hw->samples = dbus_audio_get_nsamples(da);
     audio_rate_start(&vo->rate);
 
     g_hash_table_iter_init(&iter, da->out_listeners);
@@ -274,7 +287,7 @@ dbus_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     QemuDBusDisplay1AudioInListener *listener = NULL;
 
     audio_pcm_init_info(&hw->info, as);
-    hw->samples = DBUS_AUDIO_NSAMPLES;
+    hw->samples = dbus_audio_get_nsamples(da);
     audio_rate_start(&vo->rate);
 
     g_hash_table_iter_init(&iter, da->in_listeners);
@@ -399,6 +412,7 @@ dbus_audio_init(Audiodev *dev, Error **errp)
 {
     DBusAudio *da = g_new0(DBusAudio, 1);
 
+    da->dev = dev;
     da->out_listeners = g_hash_table_new_full(g_str_hash, g_str_equal,
                                                 g_free, g_object_unref);
     da->in_listeners = g_hash_table_new_full(g_str_hash, g_str_equal,
@@ -524,11 +538,17 @@ dbus_audio_register_listener(AudioState *s,
             );
     }
 
+    GDBusConnectionFlags flags =
+        G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_SERVER;
+#ifdef WIN32
+    flags |= G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_ALLOW_ANONYMOUS;
+#endif
+
     listener_conn =
         g_dbus_connection_new_sync(
             G_IO_STREAM(socket_conn),
             guid,
-            G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_SERVER,
+            flags,
             NULL, NULL, &err);
     if (err) {
         error_report("Failed to setup peer connection: %s", err->message);
@@ -646,6 +666,7 @@ dbus_audio_set_server(AudioState *s, GDBusObjectManagerServer *server, bool p2p)
                      "swapped-signal::handle-register-out-listener",
                      dbus_audio_register_out_listener, s,
                      NULL);
+    qemu_dbus_display1_audio_set_nsamples(da->iface, dbus_audio_get_nsamples(da));
 
     g_dbus_object_skeleton_add_interface(G_DBUS_OBJECT_SKELETON(da->audio),
                                          G_DBUS_INTERFACE_SKELETON(da->iface));

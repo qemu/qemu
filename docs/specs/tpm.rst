@@ -205,8 +205,8 @@ to be used with the passthrough backend or the swtpm backend.
 
 QEMU files related to TPM backends:
  - ``backends/tpm.c``
- - ``include/sysemu/tpm.h``
- - ``include/sysemu/tpm_backend.h``
+ - ``include/system/tpm.h``
+ - ``include/system/tpm_backend.h``
 
 The QEMU TPM passthrough device
 -------------------------------
@@ -240,7 +240,7 @@ PCRs.
 QEMU files related to the TPM passthrough device:
  - ``backends/tpm/tpm_passthrough.c``
  - ``backends/tpm/tpm_util.c``
- - ``include/sysemu/tpm_util.h``
+ - ``include/system/tpm_util.h``
 
 
 Command line to start QEMU with the TPM passthrough device using the host's
@@ -301,7 +301,7 @@ command.
 QEMU files related to the TPM emulator device:
  - ``backends/tpm/tpm_emulator.c``
  - ``backends/tpm/tpm_util.c``
- - ``include/sysemu/tpm_util.h``
+ - ``include/system/tpm_util.h``
 
 The following commands start the swtpm with a UnixIO control channel over
 a socket interface. They do not need to be run as root.

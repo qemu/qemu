@@ -252,6 +252,8 @@ FIELD(TB_FLAGS, PRIV, 0, 2)
 
 void cpu_state_reset(CPUTriCoreState *s);
 void tricore_tcg_init(void);
+void tricore_translate_code(CPUState *cs, TranslationBlock *tb,
+                            int *max_insns, vaddr pc, void *host_pc);
 
 static inline void cpu_get_tb_cpu_state(CPUTriCoreState *env, vaddr *pc,
                                         uint64_t *cs_base, uint32_t *flags)

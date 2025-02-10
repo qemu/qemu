@@ -21,8 +21,8 @@
 #include "qemu/error-report.h"
 #include "qapi/qapi-commands-misc-target.h"
 #include "exec/address-spaces.h"
-#include "sysemu/hw_accel.h"
-#include "sysemu/reset.h"
+#include "system/hw_accel.h"
+#include "system/reset.h"
 #include <sys/ioctl.h>
 #include "hw/acpi/aml-build.h"
 

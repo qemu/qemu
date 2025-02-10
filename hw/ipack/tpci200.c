@@ -275,11 +275,11 @@ static void tpci200_write_las0(void *opaque, hwaddr addr, uint64_t val,
                 if (ip != NULL) {
                     if (val & STATUS_INT(i, 0)) {
                         DPRINTF("Clear IP %c INT0# status\n", 'A' + i);
-                        qemu_irq_lower(ip->irq[0]);
+                        qemu_irq_lower(&ip->irq[0]);
                     }
                     if (val & STATUS_INT(i, 1)) {
                         DPRINTF("Clear IP %c INT1# status\n", 'A' + i);
-                        qemu_irq_lower(ip->irq[1]);
+                        qemu_irq_lower(&ip->irq[1]);
                     }
                 }
 
@@ -344,7 +344,7 @@ static uint64_t tpci200_read_las1(void *opaque, hwaddr addr, unsigned size)
                 bool int_set = s->status & STATUS_INT(ip_n, intno);
                 bool int_edge_sensitive = s->ctrl[ip_n] & CTRL_INT_EDGE(intno);
                 if (int_set && !int_edge_sensitive) {
-                    qemu_irq_lower(ip->irq[intno]);
+                    qemu_irq_lower(&ip->irq[intno]);
                 }
             }
 

@@ -18,7 +18,7 @@
 #include "target/arm/cpu-qom.h"
 #include "target/arm/gtimer.h"
 
-static Property bcm2836_enabled_cores_property =
+static const Property bcm2836_enabled_cores_property =
     DEFINE_PROP_UINT32("enabled-cpus", BCM283XBaseState, enabled_cpus, 0);
 
 static void bcm283x_base_init(Object *obj)

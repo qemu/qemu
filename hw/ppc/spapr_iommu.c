@@ -21,10 +21,10 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "sysemu/kvm.h"
+#include "system/kvm.h"
 #include "kvm_ppc.h"
 #include "migration/vmstate.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "trace.h"
 
 #include "hw/ppc/spapr.h"

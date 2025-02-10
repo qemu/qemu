@@ -36,10 +36,11 @@
 #include "hw/qdev-properties.h"
 #include "elf.h"
 #include "hw/isa/vt82c686.h"
-#include "sysemu/qtest.h"
-#include "sysemu/reset.h"
-#include "sysemu/sysemu.h"
+#include "system/qtest.h"
+#include "system/reset.h"
+#include "system/system.h"
 #include "qemu/error-report.h"
+#include "exec/tswap.h"
 
 #define ENVP_PADDR              0x2000
 #define ENVP_VADDR              cpu_mips_phys_to_kseg0(NULL, ENVP_PADDR)
@@ -105,7 +106,7 @@ static uint64_t load_kernel(MIPSCPU *cpu)
                            cpu_mips_kseg0_to_phys, NULL,
                            &kernel_entry, NULL,
                            &kernel_high, NULL,
-                           0, EM_MIPS, 1, 0);
+                           ELFDATA2LSB, EM_MIPS, 1, 0);
     if (kernel_size < 0) {
         error_report("could not load kernel '%s': %s",
                      loaderparams.kernel_filename,
@@ -229,7 +230,7 @@ static void mips_fuloong2e_init(MachineState *machine)
     clock_set_hz(cpuclk, 533080000); /* ~533 MHz */
 
     /* init CPUs */
-    cpu = mips_cpu_create_with_clock(machine->cpu_type, cpuclk);
+    cpu = mips_cpu_create_with_clock(machine->cpu_type, cpuclk, false);
     env = &cpu->env;
 
     qemu_register_reset(main_cpu_reset, cpu);

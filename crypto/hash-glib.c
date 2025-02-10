@@ -99,8 +99,15 @@ int qcrypto_glib_hash_finalize(QCryptoHash *hash,
         return -1;
     }
 
-    *result_len = ret;
-    *result = g_new(uint8_t, *result_len);
+    if (*result_len == 0) {
+        *result_len = ret;
+        *result = g_new(uint8_t, *result_len);
+    } else if (*result_len != ret) {
+        error_setg(errp,
+                   "Result buffer size %zu is smaller than hash %d",
+                   *result_len, ret);
+        return -1;
+    }
 
     g_checksum_get_digest(ctx, *result, result_len);
     return 0;

@@ -25,7 +25,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "sysemu/dma.h"
+#include "system/dma.h"
 #include "hw/ptimer.h"
 #include "hw/stream.h"
 #include "hw/register.h"
@@ -691,7 +691,7 @@ static const VMStateDescription vmstate_xlnx_csu_dma = {
     }
 };
 
-static Property xlnx_csu_dma_properties[] = {
+static const Property xlnx_csu_dma_properties[] = {
     /*
      * Ref PG021, Stream Data Width:
      * Data width in bits of the AXI S2MM AXI4-Stream Data bus.
@@ -710,7 +710,6 @@ static Property xlnx_csu_dma_properties[] = {
                      TYPE_STREAM_SINK, StreamSink *),
     DEFINE_PROP_LINK("dma", XlnxCSUDMA, dma_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void xlnx_csu_dma_class_init(ObjectClass *klass, void *data)

@@ -37,9 +37,8 @@ struct VirtIOInputHIDPCI {
     VirtIOInputHID vdev;
 };
 
-static Property virtio_input_pci_properties[] = {
+static const Property virtio_input_pci_properties[] = {
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_input_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)

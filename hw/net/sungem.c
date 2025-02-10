@@ -17,7 +17,7 @@
 #include "net/eth.h"
 #include "net/checksum.h"
 #include "hw/net/mii.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "trace.h"
 #include "qom/object.h"
 
@@ -1420,14 +1420,13 @@ static void sungem_instance_init(Object *obj)
                                   DEVICE(obj));
 }
 
-static Property sungem_properties[] = {
+static const Property sungem_properties[] = {
     DEFINE_NIC_PROPERTIES(SunGEMState, conf),
     /* Phy address should be 0 for most Apple machines except
      * for K2 in which case it's 1. Will be set by a machine
      * override.
      */
     DEFINE_PROP_UINT32("phy_addr", SunGEMState, phy_addr, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_sungem = {

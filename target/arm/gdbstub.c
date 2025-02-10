@@ -22,7 +22,7 @@
 #include "exec/gdbstub.h"
 #include "gdbstub/helpers.h"
 #include "gdbstub/commands.h"
-#include "sysemu/tcg.h"
+#include "system/tcg.h"
 #include "internals.h"
 #include "cpu-features.h"
 #include "cpregs.h"

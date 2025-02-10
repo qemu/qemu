@@ -142,10 +142,9 @@ static void nvram_sysbus_realize(DeviceState *dev, Error **errp)
     nvram_post_load(s, 0);
 }
 
-static Property nvram_sysbus_properties[] = {
+static const Property nvram_sysbus_properties[] = {
     DEFINE_PROP_UINT32("size", SysBusNvRamState, nvram.chip_size, 0x2000),
     DEFINE_PROP_STRING("filename", SysBusNvRamState, nvram.filename),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void nvram_sysbus_class_init(ObjectClass *klass, void *data)

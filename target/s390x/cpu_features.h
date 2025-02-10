@@ -44,6 +44,7 @@ typedef enum {
     S390_FEAT_TYPE_SORTL,
     S390_FEAT_TYPE_DFLTCC,
     S390_FEAT_TYPE_UV_FEAT_GUEST,
+    S390_FEAT_TYPE_PFCR,
 } S390FeatType;
 
 /* Definition of a CPU feature */

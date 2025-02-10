@@ -13,7 +13,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/nvram/eeprom93xx.h"
 #include "migration/vmstate.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 #include "tulip.h"
 #include "trace.h"
 #include "net/eth.h"
@@ -1007,9 +1007,8 @@ static void tulip_instance_init(Object *obj)
                                   &pci_dev->qdev);
 }
 
-static Property tulip_properties[] = {
+static const Property tulip_properties[] = {
     DEFINE_NIC_PROPERTIES(TULIPState, c),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void tulip_class_init(ObjectClass *klass, void *data)

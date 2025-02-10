@@ -26,14 +26,14 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
-#include "sysemu/hw_accel.h"
+#include "system/hw_accel.h"
 #include "exec/ram_addr.h"
 #include "target/ppc/cpu.h"
 #include "target/ppc/mmu-hash64.h"
 #include "cpu-models.h"
 #include "kvm_ppc.h"
 #include "migration/vmstate.h"
-#include "sysemu/tcg.h"
+#include "system/tcg.h"
 
 #include "hw/ppc/spapr.h"
 

@@ -20,7 +20,7 @@
 #include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "qemu/lockable.h"
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 #include "trace.h"
 #include "qapi/error.h"
 #include "hw/audio/virtio-snd.h"
@@ -77,7 +77,7 @@ static const VMStateDescription vmstate_virtio_snd = {
     },
 };
 
-static Property virtio_snd_properties[] = {
+static const Property virtio_snd_properties[] = {
     DEFINE_AUDIO_PROPERTIES(VirtIOSound, card),
     DEFINE_PROP_UINT32("jacks", VirtIOSound, snd_conf.jacks,
                        VIRTIO_SOUND_JACK_DEFAULT),
@@ -85,7 +85,6 @@ static Property virtio_snd_properties[] = {
                        VIRTIO_SOUND_STREAM_DEFAULT),
     DEFINE_PROP_UINT32("chmaps", VirtIOSound, snd_conf.chmaps,
                        VIRTIO_SOUND_CHMAP_DEFAULT),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void

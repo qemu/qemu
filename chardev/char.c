@@ -33,7 +33,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-char.h"
 #include "qapi/qmp/qerror.h"
-#include "sysemu/replay.h"
+#include "system/replay.h"
 #include "qemu/help_option.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
@@ -48,7 +48,7 @@
 
 Object *get_chardevs_root(void)
 {
-    return container_get(object_get_root(), "/chardevs");
+    return object_get_container("chardevs");
 }
 
 static void chr_be_event(Chardev *s, QEMUChrEvent event)
@@ -633,8 +633,8 @@ static void qemu_chardev_set_replay(Chardev *chr, Error **errp)
     }
 }
 
-static Chardev *__qemu_chr_new_from_opts(QemuOpts *opts, GMainContext *context,
-                                         bool replay, Error **errp)
+static Chardev *do_qemu_chr_new_from_opts(QemuOpts *opts, GMainContext *context,
+                                          bool replay, Error **errp)
 {
     const ChardevClass *cc;
     Chardev *base = NULL, *chr = NULL;
@@ -712,12 +712,12 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts, GMainContext *context,
                                 Error **errp)
 {
     /* XXX: should this really not record/replay? */
-    return __qemu_chr_new_from_opts(opts, context, false, errp);
+    return do_qemu_chr_new_from_opts(opts, context, false, errp);
 }
 
-static Chardev *__qemu_chr_new(const char *label, const char *filename,
-                               bool permit_mux_mon, GMainContext *context,
-                               bool replay)
+static Chardev *qemu_chr_new_from_name(const char *label, const char *filename,
+                                       bool permit_mux_mon,
+                                       GMainContext *context, bool replay)
 {
     const char *p;
     Chardev *chr;
@@ -726,7 +726,7 @@ static Chardev *__qemu_chr_new(const char *label, const char *filename,
 
     if (strstart(filename, "chardev:", &p)) {
         chr = qemu_chr_find(p);
-        if (replay) {
+        if (replay && chr) {
             qemu_chardev_set_replay(chr, &err);
             if (err) {
                 error_report_err(err);
@@ -740,7 +740,7 @@ static Chardev *__qemu_chr_new(const char *label, const char *filename,
     if (!opts)
         return NULL;
 
-    chr = __qemu_chr_new_from_opts(opts, context, replay, &err);
+    chr = do_qemu_chr_new_from_opts(opts, context, replay, &err);
     if (!chr) {
         error_report_err(err);
         goto out;
@@ -765,7 +765,8 @@ out:
 Chardev *qemu_chr_new_noreplay(const char *label, const char *filename,
                                bool permit_mux_mon, GMainContext *context)
 {
-    return __qemu_chr_new(label, filename, permit_mux_mon, context, false);
+    return qemu_chr_new_from_name(label, filename, permit_mux_mon, context,
+                                  false);
 }
 
 static Chardev *qemu_chr_new_permit_mux_mon(const char *label,
@@ -773,7 +774,8 @@ static Chardev *qemu_chr_new_permit_mux_mon(const char *label,
                                           bool permit_mux_mon,
                                           GMainContext *context)
 {
-    return __qemu_chr_new(label, filename, permit_mux_mon, context, true);
+    return qemu_chr_new_from_name(label, filename, permit_mux_mon, context,
+                                  true);
 }
 
 Chardev *qemu_chr_new(const char *label, const char *filename,
@@ -941,7 +943,26 @@ QemuOptsList qemu_chardev_opts = {
         },{
             .name = "chardev",
             .type = QEMU_OPT_STRING,
+        },
+        /*
+         * Multiplexer options. Follows QAPI array syntax.
+         * See MAX_HUB macro to obtain array capacity.
+         */
+        {
+            .name = "chardevs.0",
+            .type = QEMU_OPT_STRING,
         },{
+            .name = "chardevs.1",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "chardevs.2",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "chardevs.3",
+            .type = QEMU_OPT_STRING,
+        },
+
+        {
             .name = "append",
             .type = QEMU_OPT_BOOL,
         },{
@@ -1104,8 +1125,8 @@ ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
         return NULL;
     }
 
-    if (CHARDEV_IS_MUX(chr)) {
-        error_setg(errp, "Mux device hotswap not supported yet");
+    if (CHARDEV_IS_MUX(chr) || CHARDEV_IS_HUB(chr)) {
+        error_setg(errp, "For mux or hub device hotswap is not supported yet");
         return NULL;
     }
 
