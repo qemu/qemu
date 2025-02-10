@@ -358,7 +358,7 @@ static int vfu_object_mr_rw(MemoryRegion *mr, uint8_t *buf, hwaddr offset,
     int access_size;
     uint64_t val;
 
-    if (memory_access_is_direct(mr, is_write)) {
+    if (memory_access_is_direct(mr, is_write, MEMTXATTRS_UNSPECIFIED)) {
         /**
          * Some devices expose a PCI expansion ROM, which could be buffer
          * based as compared to other regions which are primarily based on
