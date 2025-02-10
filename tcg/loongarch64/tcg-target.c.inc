@@ -173,14 +173,13 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 
 #define TCG_GUEST_BASE_REG TCG_REG_S1
 
-#define TCG_CT_CONST_ZERO  0x100
-#define TCG_CT_CONST_S12   0x200
-#define TCG_CT_CONST_S32   0x400
-#define TCG_CT_CONST_U12   0x800
-#define TCG_CT_CONST_C12   0x1000
-#define TCG_CT_CONST_WSZ   0x2000
-#define TCG_CT_CONST_VCMP  0x4000
-#define TCG_CT_CONST_VADD  0x8000
+#define TCG_CT_CONST_S12   0x100
+#define TCG_CT_CONST_S32   0x200
+#define TCG_CT_CONST_U12   0x400
+#define TCG_CT_CONST_C12   0x800
+#define TCG_CT_CONST_WSZ   0x1000
+#define TCG_CT_CONST_VCMP  0x2000
+#define TCG_CT_CONST_VADD  0x4000
 
 #define ALL_GENERAL_REGS   MAKE_64BIT_MASK(0, 32)
 #define ALL_VECTOR_REGS    MAKE_64BIT_MASK(32, 32)
@@ -195,9 +194,6 @@ static bool tcg_target_const_match(int64_t val, int ct,
                                    TCGType type, TCGCond cond, int vece)
 {
     if (ct & TCG_CT_CONST) {
-        return true;
-    }
-    if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
         return true;
     }
     if ((ct & TCG_CT_CONST_S12) && val == sextreg(val, 0, 12)) {
@@ -2229,7 +2225,7 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st_i64:
     case INDEX_op_qemu_st_i32:
     case INDEX_op_qemu_st_i64:
-        return C_O0_I2(rZ, r);
+        return C_O0_I2(rz, r);
 
     case INDEX_op_qemu_ld_i128:
         return C_N2_I1(r, r, r);
@@ -2239,7 +2235,7 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 
     case INDEX_op_brcond_i32:
     case INDEX_op_brcond_i64:
-        return C_O0_I2(rZ, rZ);
+        return C_O0_I2(rz, rz);
 
     case INDEX_op_ext8s_i32:
     case INDEX_op_ext8s_i64:
@@ -2332,14 +2328,14 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:
         /* Must deposit into the same register as input */
-        return C_O1_I2(r, 0, rZ);
+        return C_O1_I2(r, 0, rz);
 
     case INDEX_op_sub_i32:
     case INDEX_op_setcond_i32:
-        return C_O1_I2(r, rZ, ri);
+        return C_O1_I2(r, rz, ri);
     case INDEX_op_sub_i64:
     case INDEX_op_setcond_i64:
-        return C_O1_I2(r, rZ, rJ);
+        return C_O1_I2(r, rz, rJ);
 
     case INDEX_op_mul_i32:
     case INDEX_op_mul_i64:
@@ -2355,11 +2351,11 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_rem_i64:
     case INDEX_op_remu_i32:
     case INDEX_op_remu_i64:
-        return C_O1_I2(r, rZ, rZ);
+        return C_O1_I2(r, rz, rz);
 
     case INDEX_op_movcond_i32:
     case INDEX_op_movcond_i64:
-        return C_O1_I4(r, rZ, rJ, rZ, rZ);
+        return C_O1_I4(r, rz, rJ, rz, rz);
 
     case INDEX_op_ld_vec:
     case INDEX_op_dupm_vec:
