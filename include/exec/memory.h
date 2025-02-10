@@ -3018,7 +3018,8 @@ static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write,
     if (!memory_region_supports_direct_access(mr)) {
         return false;
     }
-    if (is_write) {
+    /* Debug access can write to ROM. */
+    if (is_write && !attrs.debug) {
         return !mr->readonly && !mr->rom_device;
     }
     return true;
