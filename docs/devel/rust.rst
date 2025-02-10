@@ -186,6 +186,7 @@ module           status
 ``qdev``         stable
 ``qom``          stable
 ``sysbus``       stable
+``timer``        stable
 ``vmstate``      proof of concept
 ``zeroable``     stable
 ================ ======================

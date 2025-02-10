@@ -26,6 +26,7 @@ pub mod offset_of;
 pub mod qdev;
 pub mod qom;
 pub mod sysbus;
+pub mod timer;
 pub mod vmstate;
 pub mod zeroable;
 
