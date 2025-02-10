@@ -184,12 +184,11 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
     g_assert_not_reached();
 }
 
-#define TCG_CT_CONST_ZERO 0x100
-#define TCG_CT_CONST_U16  0x200    /* Unsigned 16-bit: 0 - 0xffff.  */
-#define TCG_CT_CONST_S16  0x400    /* Signed 16-bit: -32768 - 32767 */
-#define TCG_CT_CONST_P2M1 0x800    /* Power of 2 minus 1.  */
-#define TCG_CT_CONST_N16  0x1000   /* "Negatable" 16-bit: -32767 - 32767 */
-#define TCG_CT_CONST_WSZ  0x2000   /* word size */
+#define TCG_CT_CONST_U16  0x100    /* Unsigned 16-bit: 0 - 0xffff.  */
+#define TCG_CT_CONST_S16  0x200    /* Signed 16-bit: -32768 - 32767 */
+#define TCG_CT_CONST_P2M1 0x400    /* Power of 2 minus 1.  */
+#define TCG_CT_CONST_N16  0x800    /* "Negatable" 16-bit: -32767 - 32767 */
+#define TCG_CT_CONST_WSZ  0x1000   /* word size */
 
 #define ALL_GENERAL_REGS  0xffffffffu
 
@@ -203,8 +202,6 @@ static bool tcg_target_const_match(int64_t val, int ct,
                                    TCGType type, TCGCond cond, int vece)
 {
     if (ct & TCG_CT_CONST) {
-        return 1;
-    } else if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
         return 1;
     } else if ((ct & TCG_CT_CONST_U16) && val == (uint16_t)val) {
         return 1;
@@ -1666,11 +1663,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     TCGArg a0, a1, a2;
     int c2;
 
-    /*
-     * Note that many operands use the constraint set "rZ".
-     * We make use of the fact that 0 is the ZERO register,
-     * and hence such cases need not check for const_args.
-     */
     a0 = args[0];
     a1 = args[1];
     a2 = args[2];
@@ -2181,14 +2173,14 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st16_i64:
     case INDEX_op_st32_i64:
     case INDEX_op_st_i64:
-        return C_O0_I2(rZ, r);
+        return C_O0_I2(rz, r);
 
     case INDEX_op_add_i32:
     case INDEX_op_add_i64:
         return C_O1_I2(r, r, rJ);
     case INDEX_op_sub_i32:
     case INDEX_op_sub_i64:
-        return C_O1_I2(r, rZ, rN);
+        return C_O1_I2(r, rz, rN);
     case INDEX_op_mul_i32:
     case INDEX_op_mulsh_i32:
     case INDEX_op_muluh_i32:
@@ -2207,7 +2199,7 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_remu_i64:
     case INDEX_op_nor_i64:
     case INDEX_op_setcond_i64:
-        return C_O1_I2(r, rZ, rZ);
+        return C_O1_I2(r, rz, rz);
     case INDEX_op_muls2_i32:
     case INDEX_op_mulu2_i32:
     case INDEX_op_muls2_i64:
@@ -2234,35 +2226,35 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
         return C_O1_I2(r, r, ri);
     case INDEX_op_clz_i32:
     case INDEX_op_clz_i64:
-        return C_O1_I2(r, r, rWZ);
+        return C_O1_I2(r, r, rzW);
 
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:
-        return C_O1_I2(r, 0, rZ);
+        return C_O1_I2(r, 0, rz);
     case INDEX_op_brcond_i32:
     case INDEX_op_brcond_i64:
-        return C_O0_I2(rZ, rZ);
+        return C_O0_I2(rz, rz);
     case INDEX_op_movcond_i32:
     case INDEX_op_movcond_i64:
         return (use_mips32r6_instructions
-                ? C_O1_I4(r, rZ, rZ, rZ, rZ)
-                : C_O1_I4(r, rZ, rZ, rZ, 0));
+                ? C_O1_I4(r, rz, rz, rz, rz)
+                : C_O1_I4(r, rz, rz, rz, 0));
     case INDEX_op_add2_i32:
     case INDEX_op_sub2_i32:
-        return C_O2_I4(r, r, rZ, rZ, rN, rN);
+        return C_O2_I4(r, r, rz, rz, rN, rN);
     case INDEX_op_setcond2_i32:
-        return C_O1_I4(r, rZ, rZ, rZ, rZ);
+        return C_O1_I4(r, rz, rz, rz, rz);
     case INDEX_op_brcond2_i32:
-        return C_O0_I4(rZ, rZ, rZ, rZ);
+        return C_O0_I4(rz, rz, rz, rz);
 
     case INDEX_op_qemu_ld_i32:
         return C_O1_I1(r, r);
     case INDEX_op_qemu_st_i32:
-        return C_O0_I2(rZ, r);
+        return C_O0_I2(rz, r);
     case INDEX_op_qemu_ld_i64:
         return TCG_TARGET_REG_BITS == 64 ? C_O1_I1(r, r) : C_O2_I1(r, r, r);
     case INDEX_op_qemu_st_i64:
-        return TCG_TARGET_REG_BITS == 64 ? C_O0_I2(rZ, r) : C_O0_I3(rZ, rZ, r);
+        return TCG_TARGET_REG_BITS == 64 ? C_O0_I2(rz, r) : C_O0_I3(rz, rz, r);
 
     default:
         return C_NotImplemented;
