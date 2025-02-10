@@ -2125,10 +2125,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType ext,
     TCGArg a2 = args[2];
     int c2 = const_args[2];
 
-    /* Some operands are defined with "rZ" constraint, a register or
-       the zero register.  These need not actually test args[I] == 0.  */
-#define REG0(I)  (const_args[I] ? TCG_REG_XZR : (TCGReg)args[I])
-
     switch (opc) {
     case INDEX_op_goto_ptr:
         tcg_out_insn(s, 3207, BR, a0);
@@ -2171,18 +2167,18 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType ext,
 
     case INDEX_op_st8_i32:
     case INDEX_op_st8_i64:
-        tcg_out_ldst(s, I3312_STRB, REG0(0), a1, a2, 0);
+        tcg_out_ldst(s, I3312_STRB, a0, a1, a2, 0);
         break;
     case INDEX_op_st16_i32:
     case INDEX_op_st16_i64:
-        tcg_out_ldst(s, I3312_STRH, REG0(0), a1, a2, 1);
+        tcg_out_ldst(s, I3312_STRH, a0, a1, a2, 1);
         break;
     case INDEX_op_st_i32:
     case INDEX_op_st32_i64:
-        tcg_out_ldst(s, I3312_STRW, REG0(0), a1, a2, 2);
+        tcg_out_ldst(s, I3312_STRW, a0, a1, a2, 2);
         break;
     case INDEX_op_st_i64:
-        tcg_out_ldst(s, I3312_STRX, REG0(0), a1, a2, 3);
+        tcg_out_ldst(s, I3312_STRX, a0, a1, a2, 3);
         break;
 
     case INDEX_op_add_i32:
@@ -2395,7 +2391,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType ext,
         /* FALLTHRU */
     case INDEX_op_movcond_i64:
         tcg_out_cmp(s, ext, args[5], a1, a2, c2);
-        tcg_out_insn(s, 3506, CSEL, ext, a0, REG0(3), REG0(4), args[5]);
+        tcg_out_insn(s, 3506, CSEL, ext, a0, args[3], args[4], args[5]);
         break;
 
     case INDEX_op_qemu_ld_i32:
@@ -2404,13 +2400,13 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType ext,
         break;
     case INDEX_op_qemu_st_i32:
     case INDEX_op_qemu_st_i64:
-        tcg_out_qemu_st(s, REG0(0), a1, a2, ext);
+        tcg_out_qemu_st(s, a0, a1, a2, ext);
         break;
     case INDEX_op_qemu_ld_i128:
         tcg_out_qemu_ldst_i128(s, a0, a1, a2, args[3], true);
         break;
     case INDEX_op_qemu_st_i128:
-        tcg_out_qemu_ldst_i128(s, REG0(0), REG0(1), a2, args[3], false);
+        tcg_out_qemu_ldst_i128(s, a0, a1, a2, args[3], false);
         break;
 
     case INDEX_op_bswap64_i64:
@@ -2439,7 +2435,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType ext,
 
     case INDEX_op_deposit_i64:
     case INDEX_op_deposit_i32:
-        tcg_out_dep(s, ext, a0, REG0(2), args[3], args[4]);
+        tcg_out_dep(s, ext, a0, a2, args[3], args[4]);
         break;
 
     case INDEX_op_extract_i64:
@@ -2459,25 +2455,25 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType ext,
 
     case INDEX_op_extract2_i64:
     case INDEX_op_extract2_i32:
-        tcg_out_extr(s, ext, a0, REG0(2), REG0(1), args[3]);
+        tcg_out_extr(s, ext, a0, a2, a1, args[3]);
         break;
 
     case INDEX_op_add2_i32:
-        tcg_out_addsub2(s, TCG_TYPE_I32, a0, a1, REG0(2), REG0(3),
+        tcg_out_addsub2(s, TCG_TYPE_I32, a0, a1, a2, args[3],
                         (int32_t)args[4], args[5], const_args[4],
                         const_args[5], false);
         break;
     case INDEX_op_add2_i64:
-        tcg_out_addsub2(s, TCG_TYPE_I64, a0, a1, REG0(2), REG0(3), args[4],
+        tcg_out_addsub2(s, TCG_TYPE_I64, a0, a1, a2, args[3], args[4],
                         args[5], const_args[4], const_args[5], false);
         break;
     case INDEX_op_sub2_i32:
-        tcg_out_addsub2(s, TCG_TYPE_I32, a0, a1, REG0(2), REG0(3),
+        tcg_out_addsub2(s, TCG_TYPE_I32, a0, a1, a2, args[3],
                         (int32_t)args[4], args[5], const_args[4],
                         const_args[5], true);
         break;
     case INDEX_op_sub2_i64:
-        tcg_out_addsub2(s, TCG_TYPE_I64, a0, a1, REG0(2), REG0(3), args[4],
+        tcg_out_addsub2(s, TCG_TYPE_I64, a0, a1, a2, args[3], args[4],
                         args[5], const_args[4], const_args[5], true);
         break;
 
@@ -2513,8 +2509,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType ext,
     default:
         g_assert_not_reached();
     }
-
-#undef REG0
 }
 
 static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
@@ -3010,7 +3004,7 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_st16_i64:
     case INDEX_op_st32_i64:
     case INDEX_op_st_i64:
-        return C_O0_I2(rZ, r);
+        return C_O0_I2(rz, r);
 
     case INDEX_op_add_i32:
     case INDEX_op_add_i64:
@@ -3076,7 +3070,7 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 
     case INDEX_op_movcond_i32:
     case INDEX_op_movcond_i64:
-        return C_O1_I4(r, r, rC, rZ, rZ);
+        return C_O1_I4(r, r, rC, rz, rz);
 
     case INDEX_op_qemu_ld_i32:
     case INDEX_op_qemu_ld_i64:
@@ -3085,23 +3079,23 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
         return C_O2_I1(r, r, r);
     case INDEX_op_qemu_st_i32:
     case INDEX_op_qemu_st_i64:
-        return C_O0_I2(rZ, r);
+        return C_O0_I2(rz, r);
     case INDEX_op_qemu_st_i128:
-        return C_O0_I3(rZ, rZ, r);
+        return C_O0_I3(rz, rz, r);
 
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:
-        return C_O1_I2(r, 0, rZ);
+        return C_O1_I2(r, 0, rz);
 
     case INDEX_op_extract2_i32:
     case INDEX_op_extract2_i64:
-        return C_O1_I2(r, rZ, rZ);
+        return C_O1_I2(r, rz, rz);
 
     case INDEX_op_add2_i32:
     case INDEX_op_add2_i64:
     case INDEX_op_sub2_i32:
     case INDEX_op_sub2_i64:
-        return C_O2_I4(r, r, rZ, rZ, rA, rMZ);
+        return C_O2_I4(r, r, rz, rz, rA, rMZ);
 
     case INDEX_op_add_vec:
     case INDEX_op_sub_vec:
