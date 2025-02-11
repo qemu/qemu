@@ -455,29 +455,28 @@ static uint64_t do_cvttq(CPUAlphaState *env, uint64_t a, int roundmode)
 {
     float64 fa;
     int64_t ret;
-    uint32_t exc;
+    uint32_t exc = 0;
+    int flags;
 
     fa = t_to_float64(a);
     ret = float64_to_int64_modulo(fa, roundmode, &FP_STATUS);
 
-    exc = get_float_exception_flags(&FP_STATUS);
-    if (unlikely(exc)) {
+    flags = get_float_exception_flags(&FP_STATUS);
+    if (unlikely(flags)) {
         set_float_exception_flags(0, &FP_STATUS);
 
         /* We need to massage the resulting exceptions. */
-        if (exc & float_flag_invalid_cvti) {
+        if (flags & float_flag_invalid_cvti) {
             /* Overflow, either normal or infinity. */
             if (float64_is_infinity(fa)) {
                 exc = FPCR_INV;
             } else {
                 exc = FPCR_IOV | FPCR_INE;
             }
-        } else if (exc & float_flag_invalid) {
+        } else if (flags & float_flag_invalid) {
             exc = FPCR_INV;
-        } else if (exc & float_flag_inexact) {
+        } else if (flags & float_flag_inexact) {
             exc = FPCR_INE;
-        } else {
-            exc = 0;
         }
     }
     env->error_code = exc;
