@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 13%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 14%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -391,6 +391,12 @@ Patch120: kvm-pc-bios-s390-ccw-virtio-Add-a-function-to-reset-a-vi.patch
 Patch121: kvm-pc-bios-s390-ccw-Fix-boot-problem-with-virtio-net-de.patch
 # For RHEL-72716 - Boot fall back to cdrom from network not always working
 Patch122: kvm-pc-bios-s390-ccw-netmain-Fix-error-messages-with-reg.patch
+# For RHEL-67863 - Ensure qemu as NBD server does not flood logs [rhel 9.6]
+Patch123: kvm-nbd-server-Silence-server-warnings-on-port-probes.patch
+# For RHEL-78372 - Add vhost-user internal migration for passt [rhel-9]
+Patch124: kvm-vhost-Add-stubs-for-the-migration-state-transfer-int.patch
+# For RHEL-78372 - Add vhost-user internal migration for passt [rhel-9]
+Patch125: kvm-virtio-net-vhost-user-Implement-internal-migration.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1457,6 +1463,15 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Mon Feb 10 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-14
+- kvm-nbd-server-Silence-server-warnings-on-port-probes.patch [RHEL-67863]
+- kvm-vhost-Add-stubs-for-the-migration-state-transfer-int.patch [RHEL-78372]
+- kvm-virtio-net-vhost-user-Implement-internal-migration.patch [RHEL-78372]
+- Resolves: RHEL-67863
+  (Ensure qemu as NBD server does not flood logs [rhel 9.6])
+- Resolves: RHEL-78372
+  (Add vhost-user internal migration for passt [rhel-9])
+
 * Thu Jan 30 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-13
 - kvm-pc-bios-s390-ccw-Abort-IPL-on-invalid-loadparm.patch [RHEL-72716]
 - kvm-pc-bios-s390-ccw-virtio-Add-a-function-to-reset-a-vi.patch [RHEL-72716]
