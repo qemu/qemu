@@ -2212,12 +2212,16 @@ M: Michael S. Tsirkin <mst@redhat.com>
 R: Stefano Garzarella <sgarzare@redhat.com>
 S: Supported
 F: hw/*/*vhost*
-F: docs/interop/vhost-user.json
-F: docs/interop/vhost-user.rst
+F: docs/interop/vhost-user*
+F: docs/system/devices/vhost-user*
 F: contrib/vhost-user-*/
-F: backends/vhost-user.c
+F: backends/*vhost*
 F: include/system/vhost-user-backend.h
+F: include/hw/virtio/vhost*
+F: include/*/vhost*
 F: subprojects/libvhost-user/
+F: block/export/vhost-user*
+F: util/vhost-user-server.c
 
 vhost-shadow-virtqueue
 R: Eugenio Pérez <eperezma@redhat.com>
