@@ -1186,8 +1186,8 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
     return ldst;
 }
 
-static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
-                            MemOpIdx oi, TCGType data_type)
+static void tgen_qemu_ld(TCGContext *s, TCGType type, TCGReg data,
+                         TCGReg addr, MemOpIdx oi)
 {
     static const int ld_opc[(MO_SSIZE | MO_BSWAP) + 1] = {
         [MO_UB]   = LDUB,
@@ -1219,11 +1219,20 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
                     ld_opc[get_memop(oi) & (MO_BSWAP | MO_SSIZE)]);
 
     if (ldst) {
-        ldst->type = data_type;
+        ldst->type = type;
         ldst->datalo_reg = data;
         ldst->raddr = tcg_splitwx_to_rx(s->code_ptr);
     }
 }
+
+static const TCGOutOpQemuLdSt outop_qemu_ld = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out = tgen_qemu_ld,
+};
+
+static const TCGOutOpQemuLdSt2 outop_qemu_ld2 = {
+    .base.static_constraint = C_NotImplemented,
+};
 
 static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
                             MemOpIdx oi, TCGType data_type)
@@ -2068,9 +2077,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
     a2 = args[2];
 
     switch (opc) {
-    case INDEX_op_qemu_ld:
-        tcg_out_qemu_ld(s, a0, a1, a2, type);
-        break;
     case INDEX_op_qemu_st:
         tcg_out_qemu_st(s, a0, a1, a2, type);
         break;
@@ -2087,9 +2093,6 @@ static TCGConstraintSetIndex
 tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 {
     switch (op) {
-    case INDEX_op_qemu_ld:
-        return C_O1_I1(r, r);
-
     case INDEX_op_qemu_st:
         return C_O0_I2(rz, r);
 

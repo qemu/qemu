@@ -1071,6 +1071,18 @@ typedef struct TCGOutOpMul2 {
                      TCGReg a0, TCGReg a1, TCGReg a2, TCGReg a3);
 } TCGOutOpMul2;
 
+typedef struct TCGOutOpQemuLdSt {
+    TCGOutOp base;
+    void (*out)(TCGContext *s, TCGType type, TCGReg dest,
+                TCGReg addr, MemOpIdx oi);
+} TCGOutOpQemuLdSt;
+
+typedef struct TCGOutOpQemuLdSt2 {
+    TCGOutOp base;
+    void (*out)(TCGContext *s, TCGType type, TCGReg dlo, TCGReg dhi,
+                TCGReg addr, MemOpIdx oi);
+} TCGOutOpQemuLdSt2;
+
 typedef struct TCGOutOpUnary {
     TCGOutOp base;
     void (*out_rr)(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1);
@@ -1210,6 +1222,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_not, TCGOutOpUnary, outop_not),
     OUTOP(INDEX_op_or, TCGOutOpBinary, outop_or),
     OUTOP(INDEX_op_orc, TCGOutOpBinary, outop_orc),
+    OUTOP(INDEX_op_qemu_ld, TCGOutOpQemuLdSt, outop_qemu_ld),
+    OUTOP(INDEX_op_qemu_ld2, TCGOutOpQemuLdSt2, outop_qemu_ld2),
     OUTOP(INDEX_op_rems, TCGOutOpBinary, outop_rems),
     OUTOP(INDEX_op_remu, TCGOutOpBinary, outop_remu),
     OUTOP(INDEX_op_rotl, TCGOutOpBinary, outop_rotl),
@@ -2446,7 +2460,7 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
             return true;
         }
         tcg_debug_assert(type == TCG_TYPE_I128);
-        return TCG_TARGET_HAS_qemu_ldst_i128;
+        goto do_lookup;
 
     case INDEX_op_add:
     case INDEX_op_and:
@@ -2558,6 +2572,7 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
                 return false;
             }
 
+    do_lookup:
             outop = all_outop[op];
             tcg_debug_assert(outop != NULL);
 
@@ -5796,6 +5811,21 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
             } else {
                 out->out_r(s, type, new_args[0], new_args[1], new_args[2]);
             }
+        }
+        break;
+
+    case INDEX_op_qemu_ld:
+        {
+            const TCGOutOpQemuLdSt *out = &outop_qemu_ld;
+            out->out(s, type, new_args[0], new_args[1], new_args[2]);
+        }
+        break;
+
+    case INDEX_op_qemu_ld2:
+        {
+            const TCGOutOpQemuLdSt2 *out = &outop_qemu_ld2;
+            out->out(s, type, new_args[0], new_args[1],
+                     new_args[2], new_args[3]);
         }
         break;
 
