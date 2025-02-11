@@ -53,7 +53,7 @@ cryptodev_vhost_init(
     CryptoDevBackendVhost *crypto;
     Error *local_err = NULL;
 
-    crypto = g_new(CryptoDevBackendVhost, 1);
+    crypto = g_new0(CryptoDevBackendVhost, 1);
     crypto->dev.max_queues = 1;
     crypto->dev.nvqs = 1;
     crypto->dev.vqs = crypto->vqs;
