@@ -537,7 +537,7 @@ impl PL011State {
         }
     }
 
-    pub fn read(&self, offset: hwaddr, _size: u32) -> u64 {
+    fn read(&self, offset: hwaddr, _size: u32) -> u64 {
         match RegisterOffset::try_from(offset) {
             Err(v) if (0x3f8..0x400).contains(&(v >> 2)) => {
                 let device_id = self.get_class().device_id;
@@ -560,7 +560,7 @@ impl PL011State {
         }
     }
 
-    pub fn write(&self, offset: hwaddr, value: u64, _size: u32) {
+    fn write(&self, offset: hwaddr, value: u64, _size: u32) {
         let mut update_irq = false;
         if let Ok(field) = RegisterOffset::try_from(offset) {
             // qemu_chr_fe_write_all() calls into the can_receive
@@ -621,7 +621,7 @@ impl PL011State {
         }
     }
 
-    pub fn realize(&self) {
+    fn realize(&self) {
         // SAFETY: self.char_backend has the correct size and alignment for a
         // CharBackend object, and its callbacks are of the correct types.
         unsafe {
@@ -638,11 +638,11 @@ impl PL011State {
         }
     }
 
-    pub fn reset_hold(&self, _type: ResetType) {
+    fn reset_hold(&self, _type: ResetType) {
         self.regs.borrow_mut().reset();
     }
 
-    pub fn update(&self) {
+    fn update(&self) {
         let regs = self.regs.borrow();
         let flags = regs.int_level & regs.int_enabled;
         for (irq, i) in self.interrupts.iter().zip(IRQMASK) {
