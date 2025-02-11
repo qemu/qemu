@@ -294,7 +294,7 @@ impl VMStateField {
 /// # Examples
 ///
 /// ```
-/// # use qemu_api::vmstate::impl_vmstate_forward;
+/// # use qemu_api::impl_vmstate_forward;
 /// pub struct Fifo([u8; 16]);
 /// impl_vmstate_forward!(Fifo);
 /// ```

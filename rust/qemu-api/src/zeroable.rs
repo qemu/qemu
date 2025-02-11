@@ -7,7 +7,7 @@
 /// behavior.  This trait in principle could be implemented as just:
 ///
 /// ```
-/// pub unsafe trait Zeroable {
+/// pub unsafe trait Zeroable: Default {
 ///     const ZERO: Self = unsafe { ::core::mem::MaybeUninit::<Self>::zeroed().assume_init() };
 /// }
 /// ```
