@@ -476,6 +476,8 @@ static uint64_t do_cvttq(CPUAlphaState *env, uint64_t a, int roundmode)
             exc = FPCR_INV;
         } else if (exc & float_flag_inexact) {
             exc = FPCR_INE;
+        } else {
+            exc = 0;
         }
     }
     env->error_code = exc;
