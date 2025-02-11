@@ -2,18 +2,10 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::{
-    ffi::CStr,
-    os::raw::{c_int, c_void},
-    ptr::{addr_of, addr_of_mut, NonNull},
-};
+use std::{ffi::CStr, ptr::addr_of_mut};
 
 use qemu_api::{
-    bindings::{
-        qemu_chr_fe_accept_input, qemu_chr_fe_ioctl, qemu_chr_fe_set_handlers,
-        qemu_chr_fe_write_all, CharBackend, QEMUChrEvent, CHR_IOCTL_SERIAL_SET_BREAK,
-    },
-    chardev::Chardev,
+    chardev::{CharBackend, Chardev, Event},
     impl_vmstate_forward,
     irq::{IRQState, InterruptSource},
     memory::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder},
@@ -235,7 +227,7 @@ impl PL011Registers {
         &mut self,
         offset: RegisterOffset,
         value: u32,
-        char_backend: *mut CharBackend,
+        char_backend: &CharBackend,
     ) -> bool {
         // eprintln!("write offset {offset} value {value}");
         use RegisterOffset::*;
@@ -269,17 +261,9 @@ impl PL011Registers {
                     self.reset_tx_fifo();
                 }
                 let update = (self.line_control.send_break() != new_val.send_break()) && {
-                    let mut break_enable: c_int = new_val.send_break().into();
-                    // SAFETY: self.char_backend is a valid CharBackend instance after it's been
-                    // initialized in realize().
-                    unsafe {
-                        qemu_chr_fe_ioctl(
-                            char_backend,
-                            CHR_IOCTL_SERIAL_SET_BREAK as i32,
-                            addr_of_mut!(break_enable).cast::<c_void>(),
-                        );
-                    }
-                    self.loopback_break(break_enable > 0)
+                    let break_enable = new_val.send_break();
+                    let _ = char_backend.send_break(break_enable);
+                    self.loopback_break(break_enable)
                 };
                 self.line_control = new_val;
                 self.set_read_trigger();
@@ -551,9 +535,7 @@ impl PL011State {
                 let (update_irq, result) = self.regs.borrow_mut().read(field);
                 if update_irq {
                     self.update();
-                    unsafe {
-                        qemu_chr_fe_accept_input(addr_of!(self.char_backend) as *mut _);
-                    }
+                    self.char_backend.accept_input();
                 }
                 result.into()
             }
@@ -567,21 +549,16 @@ impl PL011State {
             // callback, so handle writes before entering PL011Registers.
             if field == RegisterOffset::DR {
                 // ??? Check if transmitter is enabled.
-                let ch: u8 = value as u8;
-                // SAFETY: char_backend is a valid CharBackend instance after it's been
-                // initialized in realize().
+                let ch: [u8; 1] = [value as u8];
                 // XXX this blocks entire thread. Rewrite to use
                 // qemu_chr_fe_write and background I/O callbacks
-                unsafe {
-                    qemu_chr_fe_write_all(addr_of!(self.char_backend) as *mut _, &ch, 1);
-                }
+                let _ = self.char_backend.write_all(&ch);
             }
 
-            update_irq = self.regs.borrow_mut().write(
-                field,
-                value as u32,
-                addr_of!(self.char_backend) as *mut _,
-            );
+            update_irq = self
+                .regs
+                .borrow_mut()
+                .write(field, value as u32, &self.char_backend);
         } else {
             eprintln!("write bad offset {offset} value {value}");
         }
@@ -590,15 +567,18 @@ impl PL011State {
         }
     }
 
-    pub fn can_receive(&self) -> bool {
-        // trace_pl011_can_receive(s->lcr, s->read_count, r);
+    fn can_receive(&self) -> u32 {
         let regs = self.regs.borrow();
-        regs.read_count < regs.fifo_depth()
+        // trace_pl011_can_receive(s->lcr, s->read_count, r);
+        u32::from(regs.read_count < regs.fifo_depth())
     }
 
-    pub fn receive(&self, ch: u32) {
+    fn receive(&self, buf: &[u8]) {
+        if buf.is_empty() {
+            return;
+        }
         let mut regs = self.regs.borrow_mut();
-        let update_irq = !regs.loopback_enabled() && regs.put_fifo(ch);
+        let update_irq = !regs.loopback_enabled() && regs.put_fifo(buf[0].into());
         // Release the BqlRefCell before calling self.update()
         drop(regs);
 
@@ -607,10 +587,10 @@ impl PL011State {
         }
     }
 
-    pub fn event(&self, event: QEMUChrEvent) {
+    fn event(&self, event: Event) {
         let mut update_irq = false;
         let mut regs = self.regs.borrow_mut();
-        if event == QEMUChrEvent::CHR_EVENT_BREAK && !regs.loopback_enabled() {
+        if event == Event::CHR_EVENT_BREAK && !regs.loopback_enabled() {
             update_irq = regs.put_fifo(registers::Data::BREAK.into());
         }
         // Release the BqlRefCell before calling self.update()
@@ -622,20 +602,8 @@ impl PL011State {
     }
 
     fn realize(&self) {
-        // SAFETY: self.char_backend has the correct size and alignment for a
-        // CharBackend object, and its callbacks are of the correct types.
-        unsafe {
-            qemu_chr_fe_set_handlers(
-                addr_of!(self.char_backend) as *mut CharBackend,
-                Some(pl011_can_receive),
-                Some(pl011_receive),
-                Some(pl011_event),
-                None,
-                addr_of!(*self).cast::<c_void>() as *mut c_void,
-                core::ptr::null_mut(),
-                true,
-            );
-        }
+        self.char_backend
+            .enable_handlers(self, Self::can_receive, Self::receive, Self::event);
     }
 
     fn reset_hold(&self, _type: ResetType) {
@@ -665,43 +633,6 @@ const IRQMASK: [u32; 6] = [
     Interrupt::MS.0,
     Interrupt::E.0,
 ];
-
-/// # Safety
-///
-/// We expect the FFI user of this function to pass a valid pointer, that has
-/// the same size as [`PL011State`]. We also expect the device is
-/// readable/writeable from one thread at any time.
-pub unsafe extern "C" fn pl011_can_receive(opaque: *mut c_void) -> c_int {
-    let state = NonNull::new(opaque).unwrap().cast::<PL011State>();
-    unsafe { state.as_ref().can_receive().into() }
-}
-
-/// # Safety
-///
-/// We expect the FFI user of this function to pass a valid pointer, that has
-/// the same size as [`PL011State`]. We also expect the device is
-/// readable/writeable from one thread at any time.
-///
-/// The buffer and size arguments must also be valid.
-pub unsafe extern "C" fn pl011_receive(opaque: *mut c_void, buf: *const u8, size: c_int) {
-    let state = NonNull::new(opaque).unwrap().cast::<PL011State>();
-    unsafe {
-        if size > 0 {
-            debug_assert!(!buf.is_null());
-            state.as_ref().receive(u32::from(buf.read_volatile()));
-        }
-    }
-}
-
-/// # Safety
-///
-/// We expect the FFI user of this function to pass a valid pointer, that has
-/// the same size as [`PL011State`]. We also expect the device is
-/// readable/writeable from one thread at any time.
-pub unsafe extern "C" fn pl011_event(opaque: *mut c_void, event: QEMUChrEvent) {
-    let state = NonNull::new(opaque).unwrap().cast::<PL011State>();
-    unsafe { state.as_ref().event(event) }
-}
 
 /// # Safety
 ///
