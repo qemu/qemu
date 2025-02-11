@@ -77,6 +77,7 @@ tests_aarch64_system_thorough = [
   'aarch64_tcg_plugins',
   'aarch64_tuxrun',
   'aarch64_virt',
+  'aarch64_xen',
   'aarch64_xlnx_versal',
   'multiprocess',
 ]
@@ -196,6 +197,7 @@ tests_ppc_system_thorough = [
   'ppc_bamboo',
   'ppc_mac',
   'ppc_mpc8544ds',
+  'ppc_sam460ex',
   'ppc_tuxrun',
   'ppc_virtex_ml507',
 ]
@@ -284,6 +286,7 @@ tests_x86_64_system_thorough = [
   'multiprocess',
   'netdev_ethtool',
   'virtio_gpu',
+  'x86_64_hotplug_blk',
   'x86_64_hotplug_cpu',
   'x86_64_kvm_xen',
   'x86_64_tuxrun',
