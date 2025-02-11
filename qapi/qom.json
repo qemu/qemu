@@ -1233,6 +1233,7 @@
       'if': 'CONFIG_SECRET_KEYRING' },
     'sev-guest',
     'sev-snp-guest',
+    'nocc',
     'thread-context',
     's390-pv-guest',
     'tdx-guest',

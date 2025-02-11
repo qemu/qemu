@@ -8732,6 +8732,15 @@ static void x86_cpu_reset_hold(Object *obj, ResetType type)
 
     if (kvm_enabled()) {
         kvm_arch_reset_vcpu(cpu);
+    } else if (cs->cpu_index == 0) {
+        /* hack alert (tcg) */
+        ConfidentialGuestSupport *cgs = MACHINE(qdev_get_machine())->cgs;
+        ConfidentialGuestSupportClass *cgsc = CONFIDENTIAL_GUEST_SUPPORT_GET_CLASS(cgs);
+        Error *errp = NULL;
+
+        if (cgsc->kvm_reset) {
+            cgsc->kvm_reset(cgs, &errp);
+        }
     }
 
     x86_cpu_set_sgxlepubkeyhash(env);

@@ -2422,6 +2422,17 @@ void kvm_arch_reset_vcpu(X86CPU *cpu)
     kvm_init_nested_state(env);
 
     sev_es_set_reset_vector(CPU(cpu));
+
+    {
+        /* hack alert (kvm) */
+        ConfidentialGuestSupport *cgs = MACHINE(qdev_get_machine())->cgs;
+        ConfidentialGuestSupportClass *cgsc = CONFIDENTIAL_GUEST_SUPPORT_GET_CLASS(cgs);
+        Error *errp = NULL;
+
+        if (cgsc->kvm_reset) {
+            cgsc->kvm_reset(cgs, &errp);
+        }
+    }
 }
 
 void kvm_arch_after_reset_vcpu(X86CPU *cpu)
