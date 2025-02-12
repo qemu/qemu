@@ -8,7 +8,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
-#include "qemu/units.h"
 #include "libqtest.h"
 #include "libqos/qgraph.h"
 #include "libqos/pci.h"
@@ -35,7 +34,6 @@ struct QUfs {
     QPCIBar bar;
 
     uint64_t utrlba;
-    uint64_t utmrlba;
     uint64_t cmd_desc_addr;
     uint64_t data_buffer_addr;
 
@@ -257,7 +255,7 @@ static void ufs_send_scsi_command(QUfs *ufs, uint8_t slot, uint8_t lun,
 static void ufs_init(QUfs *ufs, QGuestAllocator *alloc)
 {
     uint64_t end_time;
-    uint32_t nutrs, nutmrs;
+    uint32_t nutrs;
     uint32_t hcs, is, ucmdarg2, cap;
     uint32_t hce = 0, ie = 0;
     UtpTransferReqDesc utrd;
@@ -305,7 +303,6 @@ static void ufs_init(QUfs *ufs, QGuestAllocator *alloc)
     hcs = ufs_rreg(ufs, A_HCS);
     g_assert_true(FIELD_EX32(hcs, HCS, DP));
     g_assert_true(FIELD_EX32(hcs, HCS, UTRLRDY));
-    g_assert_true(FIELD_EX32(hcs, HCS, UTMRLRDY));
     g_assert_true(FIELD_EX32(hcs, HCS, UCRDY));
 
     /* Enable all interrupt functions */
@@ -326,20 +323,15 @@ static void ufs_init(QUfs *ufs, QGuestAllocator *alloc)
     /* Enable transfer request and task management request */
     cap = ufs_rreg(ufs, A_CAP);
     nutrs = FIELD_EX32(cap, CAP, NUTRS) + 1;
-    nutmrs = FIELD_EX32(cap, CAP, NUTMRS) + 1;
     ufs->cmd_desc_addr =
         guest_alloc(alloc, nutrs * UTP_COMMAND_DESCRIPTOR_SIZE);
     ufs->data_buffer_addr =
         guest_alloc(alloc, MAX_PRD_ENTRY_COUNT * PRD_ENTRY_DATA_SIZE);
     ufs->utrlba = guest_alloc(alloc, nutrs * sizeof(UtpTransferReqDesc));
-    ufs->utmrlba = guest_alloc(alloc, nutmrs * sizeof(UtpTaskReqDesc));
 
     ufs_wreg(ufs, A_UTRLBA, ufs->utrlba & 0xffffffff);
     ufs_wreg(ufs, A_UTRLBAU, ufs->utrlba >> 32);
-    ufs_wreg(ufs, A_UTMRLBA, ufs->utmrlba & 0xffffffff);
-    ufs_wreg(ufs, A_UTMRLBAU, ufs->utmrlba >> 32);
     ufs_wreg(ufs, A_UTRLRSR, 1);
-    ufs_wreg(ufs, A_UTMRLRSR, 1);
 
     /* Send nop out to test transfer request */
     ufs_send_nop_out(ufs, 0, &utrd, &rsp_upiu);
@@ -370,7 +362,6 @@ static void ufs_exit(QUfs *ufs, QGuestAllocator *alloc)
 {
     if (ufs->enabled) {
         guest_free(alloc, ufs->utrlba);
-        guest_free(alloc, ufs->utmrlba);
         guest_free(alloc, ufs->cmd_desc_addr);
         guest_free(alloc, ufs->data_buffer_addr);
     }
