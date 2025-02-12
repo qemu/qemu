@@ -104,7 +104,7 @@ static void allwinner_sramc_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps allwinner_sramc_ops = {
     .read = allwinner_sramc_read,
     .write = allwinner_sramc_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,

@@ -502,7 +502,7 @@ static const MemoryRegionOps allwinner_a10_spi_ops = {
     .write = allwinner_a10_spi_write,
     .valid.min_access_size = 1,
     .valid.max_access_size = 4,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const VMStateDescription allwinner_a10_spi_vmstate = {

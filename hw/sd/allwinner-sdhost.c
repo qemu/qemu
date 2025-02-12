@@ -761,7 +761,7 @@ static void allwinner_sdhost_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps allwinner_sdhost_ops = {
     .read = allwinner_sdhost_read,
     .write = allwinner_sdhost_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,

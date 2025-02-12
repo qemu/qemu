@@ -259,7 +259,7 @@ static void allwinner_rtc_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps allwinner_rtc_ops = {
     .read = allwinner_rtc_read,
     .write = allwinner_rtc_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,

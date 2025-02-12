@@ -99,7 +99,7 @@ static void allwinner_sid_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps allwinner_sid_ops = {
     .read = allwinner_sid_read,
     .write = allwinner_sid_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,

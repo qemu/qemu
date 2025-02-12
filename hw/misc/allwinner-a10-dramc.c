@@ -114,7 +114,7 @@ static void allwinner_a10_dramc_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps allwinner_a10_dramc_ops = {
     .read = allwinner_a10_dramc_read,
     .write = allwinner_a10_dramc_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,

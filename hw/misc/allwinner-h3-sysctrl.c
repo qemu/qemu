@@ -78,7 +78,7 @@ static void allwinner_h3_sysctrl_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps allwinner_h3_sysctrl_ops = {
     .read = allwinner_h3_sysctrl_read,
     .write = allwinner_h3_sysctrl_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
