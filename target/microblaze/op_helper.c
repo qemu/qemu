@@ -393,38 +393,52 @@ void helper_mmu_write(CPUMBState *env, uint32_t ext, uint32_t rn, uint32_t v)
     mmu_write(env, ext, rn, v);
 }
 
+static void mb_transaction_failed_internal(CPUState *cs, hwaddr physaddr,
+                                           uint64_t addr, unsigned size,
+                                           MMUAccessType access_type,
+                                           uintptr_t retaddr)
+{
+    CPUMBState *env = cpu_env(cs);
+    MicroBlazeCPU *cpu = env_archcpu(env);
+    const char *access_name = "INVALID";
+    bool take = env->msr & MSR_EE;
+    uint32_t esr = ESR_EC_DATA_BUS;
+
+    switch (access_type) {
+    case MMU_INST_FETCH:
+        access_name = "INST_FETCH";
+        esr = ESR_EC_INSN_BUS;
+        take &= cpu->cfg.iopb_bus_exception;
+        break;
+    case MMU_DATA_LOAD:
+        access_name = "DATA_LOAD";
+        take &= cpu->cfg.dopb_bus_exception;
+        break;
+    case MMU_DATA_STORE:
+        access_name = "DATA_STORE";
+        take &= cpu->cfg.dopb_bus_exception;
+        break;
+    }
+
+    qemu_log_mask(CPU_LOG_INT, "Transaction failed: addr 0x%" PRIx64
+                  "physaddr 0x" HWADDR_FMT_plx " size %d access-type %s (%s)\n",
+                  addr, physaddr, size, access_name,
+                  take ? "TAKEN" : "DROPPED");
+
+    if (take) {
+        env->esr = esr;
+        env->ear = addr;
+        cs->exception_index = EXCP_HW_EXCP;
+        cpu_loop_exit_restore(cs, retaddr);
+    }
+}
+
 void mb_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
                                unsigned size, MMUAccessType access_type,
                                int mmu_idx, MemTxAttrs attrs,
                                MemTxResult response, uintptr_t retaddr)
 {
-    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
-    CPUMBState *env = &cpu->env;
-
-    qemu_log_mask(CPU_LOG_INT, "Transaction failed: vaddr 0x%" VADDR_PRIx
-                  " physaddr 0x" HWADDR_FMT_plx " size %d access type %s\n",
-                  addr, physaddr, size,
-                  access_type == MMU_INST_FETCH ? "INST_FETCH" :
-                  (access_type == MMU_DATA_LOAD ? "DATA_LOAD" : "DATA_STORE"));
-
-    if (!(env->msr & MSR_EE)) {
-        return;
-    }
-
-    if (access_type == MMU_INST_FETCH) {
-        if (!cpu->cfg.iopb_bus_exception) {
-            return;
-        }
-        env->esr = ESR_EC_INSN_BUS;
-    } else {
-        if (!cpu->cfg.dopb_bus_exception) {
-            return;
-        }
-        env->esr = ESR_EC_DATA_BUS;
-    }
-
-    env->ear = addr;
-    cs->exception_index = EXCP_HW_EXCP;
-    cpu_loop_exit_restore(cs, retaddr);
+    mb_transaction_failed_internal(cs, physaddr, addr, size,
+                                   access_type, retaddr);
 }
 #endif
