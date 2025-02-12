@@ -180,7 +180,7 @@ unsafe extern "C" fn rust_instance_post_init<T: ObjectImpl>(obj: *mut Object) {
     T::INSTANCE_POST_INIT.unwrap()(unsafe { state.as_ref() });
 }
 
-unsafe extern "C" fn rust_class_init<T: ObjectType + ClassInitImpl<T::Class>>(
+unsafe extern "C" fn rust_class_init<T: ObjectType + ObjectImpl>(
     klass: *mut ObjectClass,
     _data: *mut c_void,
 ) {
@@ -190,7 +190,7 @@ unsafe extern "C" fn rust_class_init<T: ObjectType + ClassInitImpl<T::Class>>(
     // SAFETY: klass is a T::Class, since rust_class_init<T>
     // is called from QOM core as the class_init function
     // for class T
-    T::class_init(unsafe { klass.as_mut() })
+    <T as ObjectImpl>::CLASS_INIT(unsafe { klass.as_mut() })
 }
 
 unsafe extern "C" fn drop_object<T: ObjectImpl>(obj: *mut Object) {
@@ -499,7 +499,7 @@ impl<T: ObjectType> ObjectDeref for &mut T {}
 impl<T: ObjectType> ObjectCastMut for &mut T {}
 
 /// Trait a type must implement to be registered with QEMU.
-pub trait ObjectImpl: ObjectType + ClassInitImpl<Self::Class> + IsA<Object> {
+pub trait ObjectImpl: ObjectType + IsA<Object> {
     /// The parent of the type.  This should match the first field of the
     /// struct that implements `ObjectImpl`, minus the `ParentField<_>` wrapper.
     type ParentType: ObjectType;
@@ -552,6 +552,14 @@ pub trait ObjectImpl: ObjectType + ClassInitImpl<Self::Class> + IsA<Object> {
 
     // methods on ObjectClass
     const UNPARENT: Option<fn(&Self)> = None;
+
+    /// Store into the argument the virtual method implementations
+    /// for `Self`.  On entry, the virtual method pointers are set to
+    /// the default values coming from the parent classes; the function
+    /// can change them to override virtual methods of a parent class.
+    ///
+    /// Usually defined as `<Self as ClassInitImpl<Self::Class>::class_init`.
+    const CLASS_INIT: fn(&mut Self::Class);
 }
 
 /// Internal trait used to automatically fill in a class struct.

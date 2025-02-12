@@ -60,6 +60,7 @@ unsafe impl ObjectType for DummyState {
 impl ObjectImpl for DummyState {
     type ParentType = DeviceState;
     const ABSTRACT: bool = false;
+    const CLASS_INIT: fn(&mut DummyClass) = <Self as ClassInitImpl<DummyClass>>::class_init;
 }
 
 impl ResettablePhasesImpl for DummyState {}
@@ -102,6 +103,8 @@ unsafe impl ObjectType for DummyChildState {
 impl ObjectImpl for DummyChildState {
     type ParentType = DummyState;
     const ABSTRACT: bool = false;
+    const CLASS_INIT: fn(&mut DummyChildClass) =
+        <Self as ClassInitImpl<DummyChildClass>>::class_init;
 }
 
 impl ResettablePhasesImpl for DummyChildState {}
