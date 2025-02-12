@@ -23,7 +23,7 @@ use qemu_api::{
     qdev::{DeviceImpl, DeviceMethods, DeviceState, Property, ResetType, ResettablePhasesImpl},
     qom::{ObjectImpl, ObjectType, ParentField},
     qom_isa,
-    sysbus::SysBusDevice,
+    sysbus::{SysBusDevice, SysBusDeviceImpl},
     timer::{Timer, CLOCK_VIRTUAL},
 };
 
@@ -887,3 +887,5 @@ impl DeviceImpl for HPETState {
 impl ResettablePhasesImpl for HPETState {
     const HOLD: Option<fn(&Self, ResetType)> = Some(Self::reset_hold);
 }
+
+impl SysBusDeviceImpl for HPETState {}

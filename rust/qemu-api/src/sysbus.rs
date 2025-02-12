@@ -14,7 +14,7 @@ use crate::{
     irq::{IRQState, InterruptSource},
     memory::MemoryRegion,
     prelude::*,
-    qdev::{DeviceClass, DeviceState},
+    qdev::{DeviceClass, DeviceImpl, DeviceState},
     qom::{ClassInitImpl, Owned},
 };
 
@@ -25,10 +25,12 @@ unsafe impl ObjectType for SysBusDevice {
 }
 qom_isa!(SysBusDevice: DeviceState, Object);
 
-// TODO: add SysBusDeviceImpl
+// TODO: add virtual methods
+pub trait SysBusDeviceImpl: DeviceImpl + IsA<SysBusDevice> {}
+
 impl<T> ClassInitImpl<SysBusDeviceClass> for T
 where
-    T: ClassInitImpl<DeviceClass>,
+    T: SysBusDeviceImpl + ClassInitImpl<DeviceClass>,
 {
     fn class_init(sdc: &mut SysBusDeviceClass) {
         <T as ClassInitImpl<DeviceClass>>::class_init(&mut sdc.parent_class);

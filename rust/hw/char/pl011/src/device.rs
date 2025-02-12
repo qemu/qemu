@@ -20,7 +20,7 @@ use qemu_api::{
     prelude::*,
     qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
     qom::{ClassInitImpl, ObjectImpl, Owned, ParentField},
-    sysbus::{SysBusDevice, SysBusDeviceClass},
+    sysbus::{SysBusDevice, SysBusDeviceClass, SysBusDeviceImpl},
     vmstate::VMStateDescription,
 };
 
@@ -175,6 +175,8 @@ impl DeviceImpl for PL011State {
 impl ResettablePhasesImpl for PL011State {
     const HOLD: Option<fn(&Self, ResetType)> = Some(Self::reset_hold);
 }
+
+impl SysBusDeviceImpl for PL011State {}
 
 impl PL011Registers {
     pub(self) fn read(&mut self, offset: RegisterOffset) -> (bool, u32) {
@@ -746,3 +748,4 @@ impl ObjectImpl for PL011Luminary {
 
 impl DeviceImpl for PL011Luminary {}
 impl ResettablePhasesImpl for PL011Luminary {}
+impl SysBusDeviceImpl for PL011Luminary {}
