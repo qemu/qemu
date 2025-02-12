@@ -130,6 +130,14 @@ static void superh_cpu_reset_hold(Object *obj, ResetType type)
     set_default_nan_mode(1, &env->fp_status);
     /* sign bit clear, set all frac bits other than msb */
     set_float_default_nan_pattern(0b00111111, &env->fp_status);
+    /*
+     * TODO: "SH-4 CPU Core Architecture ADCS 7182230F" doesn't say whether
+     * it detects tininess before or after rounding. Section 6.4 is clear
+     * that flush-to-zero happens when the result underflows, though, so
+     * either this should be "detect ftz after rounding" or else we should
+     * be setting "detect tininess before rounding".
+     */
+    set_float_ftz_detection(float_ftz_before_rounding, &env->fp_status);
 }
 
 static void superh_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)

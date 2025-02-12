@@ -67,6 +67,17 @@ void HELPER(loaded_fr0)(CPUHPPAState *env)
     set_float_infzeronan_rule(float_infzeronan_dnan_never, &env->fp_status);
     /* Default NaN: sign bit clear, msb-1 frac bit set */
     set_float_default_nan_pattern(0b00100000, &env->fp_status);
+    /*
+     * "PA-RISC 2.0 Architecture" says it is IMPDEF whether the flushing
+     * enabled by FPSR.D happens before or after rounding. We pick "before"
+     * for consistency with tininess detection.
+     */
+    set_float_ftz_detection(float_ftz_before_rounding, &env->fp_status);
+    /*
+     * TODO: "PA-RISC 2.0 Architecture" chapter 10 says that we should
+     * detect tininess before rounding, but we don't set that here so we
+     * get the default tininess after rounding.
+     */
 }
 
 void cpu_hppa_loaded_fr0(CPUHPPAState *env)

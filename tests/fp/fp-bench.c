@@ -496,6 +496,7 @@ static void run_bench(void)
     set_float_3nan_prop_rule(float_3nan_prop_s_cab, &soft_status);
     set_float_infzeronan_rule(float_infzeronan_dnan_if_qnan, &soft_status);
     set_float_default_nan_pattern(0b01000000, &soft_status);
+    set_float_ftz_detection(float_ftz_before_rounding, &soft_status);
 
     f = bench_funcs[operation][precision];
     g_assert(f);
