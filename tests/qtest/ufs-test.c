@@ -15,6 +15,7 @@
 #include "block/ufs.h"
 #include "qemu/bitmap.h"
 
+#define DWORD_BYTE 4
 /* Test images sizes in Bytes */
 #define TEST_IMAGE_SIZE (64 * 1024 * 1024)
 /* Timeout for various operations, in seconds. */
@@ -28,6 +29,10 @@
 #define UTP_PRDT_UPIU_OFFSET 2048
 #define UTRD_TEST_SLOT 0
 #define UFS_MAX_CMD_DESC 32
+/* Constants for MCQ */
+#define TEST_QID 0
+#define QUEUE_SIZE 32
+#define UFS_MCQ_MAX_QNUM 32
 
 typedef struct QUfs QUfs;
 
@@ -36,12 +41,22 @@ struct QUfs {
     QPCIDevice dev;
     QPCIBar bar;
 
-    uint64_t utrlba;
     DECLARE_BITMAP(cmd_desc_bitmap, UFS_MAX_CMD_DESC);
     uint64_t cmd_desc_addr;
     uint64_t data_buffer_addr;
 
     bool enabled;
+    bool support_mcq;
+
+    /* for legacy doorbell mode */
+    uint64_t utrlba;
+
+    /* for mcq mode */
+    uint32_t maxq;
+    uint64_t sqlba[UFS_MCQ_MAX_QNUM];
+    uint64_t cqlba[UFS_MCQ_MAX_QNUM];
+    uint64_t sqdao[UFS_MCQ_MAX_QNUM];
+    uint64_t cqdao[UFS_MCQ_MAX_QNUM];
 };
 
 static inline uint32_t ufs_rreg(QUfs *ufs, size_t offset)
@@ -106,29 +121,65 @@ static UtpTransferReqDesc ufs_build_req_utrd(uint64_t command_desc_base_addr,
 }
 
 static enum UtpOcsCodes
-ufs_send_transfer_request_sync(QUfs *ufs, uint8_t lun,
-                               const UtpTransferReqDesc *utrd)
+__ufs_send_transfer_request_doorbell(QUfs *ufs, uint8_t lun,
+                                     const UtpTransferReqDesc *utrd)
 {
-    UtpTransferReqDesc utrd_result;
-    /*
-     * Currently, the transfer request is sent synchronously, so UTRD_TEST_SLOT
-     * is fixed to 0. If asynchronous testing is added in the future, this value
-     * should be adjusted dynamically.
-     */
     uint64_t utrd_addr =
         ufs->utrlba + UTRD_TEST_SLOT * sizeof(UtpTransferReqDesc);
+    UtpTransferReqDesc utrd_result;
+
     qtest_memwrite(ufs->dev.bus->qts, utrd_addr, utrd, sizeof(*utrd));
 
-    /* Ring Doorbell */
+    /* Ring the doorbell */
     ufs_wreg(ufs, A_UTRLDBR, 1);
     ufs_wait_for_irq(ufs);
     g_assert_true(FIELD_EX32(ufs_rreg(ufs, A_IS), IS, UTRCS));
     ufs_wreg(ufs, A_IS, FIELD_DP32(0, IS, UTRCS, 1));
 
+    /* Handle completed command */
     qtest_memread(ufs->dev.bus->qts, utrd_addr, &utrd_result,
                   sizeof(utrd_result));
-
     return le32_to_cpu(utrd_result.header.dword_2) & 0xf;
+}
+
+static enum UtpOcsCodes
+__ufs_send_transfer_request_mcq(QUfs *ufs, uint8_t lun,
+                                const UtpTransferReqDesc *utrd)
+{
+    uint32_t sqtp = ufs_rreg(ufs, ufs->sqdao[TEST_QID] + 0x4);
+    uint64_t utrd_addr = ufs->sqlba[TEST_QID] + sqtp;
+    uint32_t cqhp;
+    uint64_t cqentry_addr;
+    UfsCqEntry cqentry;
+
+    qtest_memwrite(ufs->dev.bus->qts, utrd_addr, utrd, sizeof(*utrd));
+
+    /* Insert a new entry into the submission queue */
+    sqtp = ufs_rreg(ufs, ufs->sqdao[TEST_QID] + 0x4);
+    sqtp = (sqtp + sizeof(UfsSqEntry)) % (QUEUE_SIZE * sizeof(UfsSqEntry));
+    ufs_wreg(ufs, ufs->sqdao[TEST_QID] + 0x4, sqtp);
+    ufs_wait_for_irq(ufs);
+    g_assert_true(FIELD_EX32(ufs_rreg(ufs, A_IS), IS, CQES));
+    ufs_wreg(ufs, A_IS, FIELD_DP32(0, IS, CQES, 1));
+
+    /* Handle the completed command from the completion queue */
+    cqhp = ufs_rreg(ufs, ufs->cqdao[TEST_QID]);
+    cqentry_addr = ufs->cqlba[TEST_QID] + cqhp;
+    qtest_memread(ufs->dev.bus->qts, cqentry_addr, &cqentry, sizeof(cqentry));
+    ufs_wreg(ufs, ufs->cqdao[TEST_QID], cqhp);
+
+    return cqentry.status;
+}
+
+static enum UtpOcsCodes
+ufs_send_transfer_request_sync(QUfs *ufs, uint8_t lun,
+                               const UtpTransferReqDesc *utrd)
+{
+    if (ufs->support_mcq) {
+        return __ufs_send_transfer_request_mcq(ufs, lun, utrd);
+    }
+
+    return __ufs_send_transfer_request_doorbell(ufs, lun, utrd);
 }
 
 static enum UtpOcsCodes ufs_send_nop_out(QUfs *ufs, UtpUpiuRsp *rsp_out)
@@ -342,6 +393,10 @@ static void ufs_init(QUfs *ufs, QGuestAllocator *alloc)
     g_assert_true(FIELD_EX32(hcs, HCS, UTRLRDY));
     g_assert_true(FIELD_EX32(hcs, HCS, UCRDY));
 
+    /* Check MCQ support */
+    cap = ufs_rreg(ufs, A_CAP);
+    ufs->support_mcq = FIELD_EX32(cap, CAP, MCQS);
+
     /* Enable all interrupt functions */
     ie = FIELD_DP32(ie, IE, UTRCE, 1);
     ie = FIELD_DP32(ie, IE, UEE, 1);
@@ -354,21 +409,66 @@ static void ufs_init(QUfs *ufs, QGuestAllocator *alloc)
     ie = FIELD_DP32(ie, IE, HCFEE, 1);
     ie = FIELD_DP32(ie, IE, SBFEE, 1);
     ie = FIELD_DP32(ie, IE, CEFEE, 1);
+    if (ufs->support_mcq) {
+        ie = FIELD_DP32(ie, IE, CQEE, 1);
+    }
     ufs_wreg(ufs, A_IE, ie);
     ufs_wreg(ufs, A_UTRIACR, 0);
 
     /* Enable transfer request */
-    cap = ufs_rreg(ufs, A_CAP);
-    nutrs = FIELD_EX32(cap, CAP, NUTRS) + 1;
     ufs->cmd_desc_addr =
         guest_alloc(alloc, UFS_MAX_CMD_DESC * UTP_COMMAND_DESCRIPTOR_SIZE);
     ufs->data_buffer_addr =
         guest_alloc(alloc, MAX_PRD_ENTRY_COUNT * PRD_ENTRY_DATA_SIZE);
-    ufs->utrlba = guest_alloc(alloc, nutrs * sizeof(UtpTransferReqDesc));
 
-    ufs_wreg(ufs, A_UTRLBA, ufs->utrlba & 0xffffffff);
-    ufs_wreg(ufs, A_UTRLBAU, ufs->utrlba >> 32);
-    ufs_wreg(ufs, A_UTRLRSR, 1);
+    if (ufs->support_mcq) {
+        uint32_t mcqcap, qid, qcfgptr, mcq_reg_offset;
+        uint32_t cqattr = 0, sqattr = 0;
+
+        mcqcap = ufs_rreg(ufs, A_MCQCAP);
+        qcfgptr = FIELD_EX32(mcqcap, MCQCAP, QCFGPTR);
+        ufs->maxq = FIELD_EX32(mcqcap, MCQCAP, MAXQ) + 1;
+        for (qid = 0; qid < ufs->maxq; ++qid) {
+            ufs->sqlba[qid] =
+                guest_alloc(alloc, QUEUE_SIZE * sizeof(UtpTransferReqDesc));
+            ufs->cqlba[qid] =
+                guest_alloc(alloc, QUEUE_SIZE * sizeof(UtpTransferReqDesc));
+            mcq_reg_offset = qcfgptr * 0x200 + qid * 0x40;
+
+            ufs_wreg(ufs, mcq_reg_offset + A_SQLBA,
+                     ufs->sqlba[qid] & 0xffffffff);
+            ufs_wreg(ufs, mcq_reg_offset + A_SQUBA, ufs->sqlba[qid] >> 32);
+            ufs_wreg(ufs, mcq_reg_offset + A_CQLBA,
+                     ufs->cqlba[qid] & 0xffffffff);
+            ufs_wreg(ufs, mcq_reg_offset + A_CQUBA, ufs->cqlba[qid] >> 32);
+
+            /* Enable Completion Queue */
+            cqattr = FIELD_DP32(cqattr, CQATTR, CQEN, 1);
+            cqattr = FIELD_DP32(cqattr, CQATTR, SIZE,
+                                QUEUE_SIZE * sizeof(UtpTransferReqDesc) /
+                                    DWORD_BYTE);
+            ufs_wreg(ufs, mcq_reg_offset + A_CQATTR, cqattr);
+
+            /* Enable Submission Queue */
+            sqattr = FIELD_DP32(sqattr, SQATTR, SQEN, 1);
+            sqattr = FIELD_DP32(sqattr, SQATTR, SIZE,
+                                QUEUE_SIZE * sizeof(UtpTransferReqDesc) /
+                                    DWORD_BYTE);
+            sqattr = FIELD_DP32(sqattr, SQATTR, CQID, qid);
+            ufs_wreg(ufs, mcq_reg_offset + A_SQATTR, sqattr);
+
+            /* Cache head & tail pointer */
+            ufs->sqdao[qid] = ufs_rreg(ufs, mcq_reg_offset + A_SQDAO);
+            ufs->cqdao[qid] = ufs_rreg(ufs, mcq_reg_offset + A_CQDAO);
+        }
+    } else {
+        nutrs = FIELD_EX32(cap, CAP, NUTRS) + 1;
+        ufs->utrlba = guest_alloc(alloc, nutrs * sizeof(UtpTransferReqDesc));
+
+        ufs_wreg(ufs, A_UTRLBA, ufs->utrlba & 0xffffffff);
+        ufs_wreg(ufs, A_UTRLBAU, ufs->utrlba >> 32);
+        ufs_wreg(ufs, A_UTRLRSR, 1);
+    }
 
     /* Send nop out to test transfer request */
     ocs = ufs_send_nop_out(ufs, &rsp_upiu);
@@ -402,7 +502,15 @@ static void ufs_init(QUfs *ufs, QGuestAllocator *alloc)
 static void ufs_exit(QUfs *ufs, QGuestAllocator *alloc)
 {
     if (ufs->enabled) {
-        guest_free(alloc, ufs->utrlba);
+        if (ufs->support_mcq) {
+            for (uint32_t qid = 0; qid < ufs->maxq; ++qid) {
+                guest_free(alloc, ufs->sqlba[qid]);
+                guest_free(alloc, ufs->cqlba[qid]);
+            }
+        } else {
+            guest_free(alloc, ufs->utrlba);
+        }
+
         guest_free(alloc, ufs->cmd_desc_addr);
         guest_free(alloc, ufs->data_buffer_addr);
     }
@@ -966,12 +1074,16 @@ static void ufs_register_nodes(void)
     QOSGraphEdgeOptions edge_opts = {
         .before_cmd_line = "-blockdev null-co,node-name=drv0,read-zeroes=on",
         .after_cmd_line = "-device ufs-lu,bus=ufs0,drive=drv0,lun=0",
-        .extra_device_opts = "addr=04.0,id=ufs0,nutrs=32,nutmrs=8"
+        .extra_device_opts = "addr=04.0,id=ufs0"
     };
 
-    QOSGraphTestOptions io_test_opts = {
-        .before = ufs_blk_test_setup,
-    };
+    QOSGraphTestOptions io_test_opts = { .before = ufs_blk_test_setup,
+                                         .edge.extra_device_opts =
+                                             "mcq=false,nutrs=32,nutmrs=8" };
+
+    QOSGraphTestOptions mcq_test_opts = { .before = ufs_blk_test_setup,
+                                          .edge.extra_device_opts =
+                                              "mcq=true,mcq-maxq=1" };
 
     add_qpci_address(&edge_opts, &(QPCIAddress){ .devfn = QPCI_DEVFN(4, 0) });
 
@@ -991,13 +1103,14 @@ static void ufs_register_nodes(void)
         return;
     }
     qos_add_test("init", "ufs", ufstest_init, NULL);
-    qos_add_test("read-write", "ufs", ufstest_read_write, &io_test_opts);
-    qos_add_test("flag read-write", "ufs",
-                 ufstest_query_flag_request, &io_test_opts);
-    qos_add_test("attr read-write", "ufs",
-                 ufstest_query_attr_request, &io_test_opts);
-    qos_add_test("desc read-write", "ufs",
-                 ufstest_query_desc_request, &io_test_opts);
+    qos_add_test("legacy-read-write", "ufs", ufstest_read_write, &io_test_opts);
+    qos_add_test("mcq-read-write", "ufs", ufstest_read_write, &mcq_test_opts);
+    qos_add_test("query-flag", "ufs", ufstest_query_flag_request,
+                 &io_test_opts);
+    qos_add_test("query-attribute", "ufs", ufstest_query_attr_request,
+                 &io_test_opts);
+    qos_add_test("query-desciptor", "ufs", ufstest_query_desc_request,
+                 &io_test_opts);
 }
 
 libqos_init(ufs_register_nodes);
