@@ -60,9 +60,12 @@ struct LoongArchVirtMachineState {
     MemoryRegion iocsr_mem;
     AddressSpace as_iocsr;
     struct loongarch_boot_info bootinfo;
+    DeviceState *ipi;
+    DeviceState *extioi;
 };
 
 #define TYPE_LOONGARCH_VIRT_MACHINE  MACHINE_TYPE_NAME("virt")
 OBJECT_DECLARE_SIMPLE_TYPE(LoongArchVirtMachineState, LOONGARCH_VIRT_MACHINE)
-void loongarch_acpi_setup(LoongArchVirtMachineState *lvms);
+void virt_acpi_setup(LoongArchVirtMachineState *lvms);
+void virt_fdt_setup(LoongArchVirtMachineState *lvms);
 #endif
