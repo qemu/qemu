@@ -28,6 +28,7 @@ typedef struct NBDConn {
 
 typedef struct NBDServerData {
     QIONetListener *listener;
+    uint32_t handshake_max_secs;
     QCryptoTLSCreds *tlscreds;
     char *tlsauthz;
     uint32_t max_connections;
@@ -84,8 +85,7 @@ static void nbd_accept(QIONetListener *listener, QIOChannelSocket *cioc,
     nbd_update_server_watch(nbd_server);
 
     qio_channel_set_name(QIO_CHANNEL(cioc), "nbd-server");
-    /* TODO - expose handshake timeout as QMP option */
-    nbd_client_new(cioc, NBD_DEFAULT_HANDSHAKE_MAX_SECS,
+    nbd_client_new(cioc, nbd_server->handshake_max_secs,
                    nbd_server->tlscreds, nbd_server->tlsauthz,
                    nbd_blockdev_client_closed, conn);
 }
@@ -162,9 +162,9 @@ static QCryptoTLSCreds *nbd_get_tls_creds(const char *id, Error **errp)
 }
 
 
-void nbd_server_start(SocketAddress *addr, const char *tls_creds,
-                      const char *tls_authz, uint32_t max_connections,
-                      Error **errp)
+void nbd_server_start(SocketAddress *addr, uint32_t handshake_max_secs,
+                      const char *tls_creds, const char *tls_authz,
+                      uint32_t max_connections, Error **errp)
 {
     if (nbd_server) {
         error_setg(errp, "NBD server already running");
@@ -173,6 +173,7 @@ void nbd_server_start(SocketAddress *addr, const char *tls_creds,
 
     nbd_server = g_new0(NBDServerData, 1);
     nbd_server->max_connections = max_connections;
+    nbd_server->handshake_max_secs = handshake_max_secs;
     nbd_server->listener = qio_net_listener_new();
 
     qio_net_listener_set_name(nbd_server->listener,
@@ -210,12 +211,17 @@ void nbd_server_start_options(NbdServerOptions *arg, Error **errp)
     if (!arg->has_max_connections) {
         arg->max_connections = NBD_DEFAULT_MAX_CONNECTIONS;
     }
+    if (!arg->has_handshake_max_seconds) {
+        arg->handshake_max_seconds = NBD_DEFAULT_HANDSHAKE_MAX_SECS;
+    }
 
-    nbd_server_start(arg->addr, arg->tls_creds, arg->tls_authz,
-                     arg->max_connections, errp);
+    nbd_server_start(arg->addr, arg->handshake_max_seconds, arg->tls_creds,
+                     arg->tls_authz, arg->max_connections, errp);
 }
 
 void qmp_nbd_server_start(SocketAddressLegacy *addr,
+                          bool has_handshake_max_secs,
+                          uint32_t handshake_max_secs,
                           const char *tls_creds,
                           const char *tls_authz,
                           bool has_max_connections, uint32_t max_connections,
@@ -226,8 +232,12 @@ void qmp_nbd_server_start(SocketAddressLegacy *addr,
     if (!has_max_connections) {
         max_connections = NBD_DEFAULT_MAX_CONNECTIONS;
     }
+    if (!has_handshake_max_secs) {
+        handshake_max_secs = NBD_DEFAULT_HANDSHAKE_MAX_SECS;
+    }
 
-    nbd_server_start(addr_flat, tls_creds, tls_authz, max_connections, errp);
+    nbd_server_start(addr_flat, handshake_max_secs, tls_creds, tls_authz,
+                     max_connections, errp);
     qapi_free_SocketAddress(addr_flat);
 }
 

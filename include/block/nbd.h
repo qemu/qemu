@@ -428,9 +428,9 @@ void nbd_client_put(NBDClient *client);
 void nbd_server_is_qemu_nbd(int max_connections);
 bool nbd_server_is_running(void);
 int nbd_server_max_connections(void);
-void nbd_server_start(SocketAddress *addr, const char *tls_creds,
-                      const char *tls_authz, uint32_t max_connections,
-                      Error **errp);
+void nbd_server_start(SocketAddress *addr, uint32_t handshake_max_secs,
+                      const char *tls_creds, const char *tls_authz,
+                      uint32_t max_connections, Error **errp);
 void nbd_server_start_options(NbdServerOptions *arg, Error **errp);
 
 /* nbd_read
