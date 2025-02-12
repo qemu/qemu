@@ -37,6 +37,8 @@
 //! * a trait for virtual method implementations, for example `DeviceImpl`.
 //!   Child classes implement this trait to provide their own behavior for
 //!   virtual methods. The trait's methods take `&self` to access instance data.
+//!   The traits have the appropriate specialization of `IsA<>` as a supertrait,
+//!   for example `IsA<DeviceState>` for `DeviceImpl`.
 //!
 //! * an implementation of [`ClassInitImpl`], for example
 //!   `ClassInitImpl<DeviceClass>`. This fills the vtable in the class struct;
@@ -497,7 +499,7 @@ impl<T: ObjectType> ObjectDeref for &mut T {}
 impl<T: ObjectType> ObjectCastMut for &mut T {}
 
 /// Trait a type must implement to be registered with QEMU.
-pub trait ObjectImpl: ObjectType + ClassInitImpl<Self::Class> {
+pub trait ObjectImpl: ObjectType + ClassInitImpl<Self::Class> + IsA<Object> {
     /// The parent of the type.  This should match the first field of the
     /// struct that implements `ObjectImpl`, minus the `ParentField<_>` wrapper.
     type ParentType: ObjectType;
