@@ -467,6 +467,18 @@ void error_reportf_err(Error *err, const char *fmt, ...)
     G_GNUC_PRINTF(2, 3);
 
 /*
+ * Similar to warn_report_err(), except it prints the message just once.
+ * Return true when it prints, false otherwise.
+ */
+bool warn_report_err_once_cond(bool *printed, Error *err);
+
+#define warn_report_err_once(err)                           \
+    ({                                                      \
+        static bool print_once_;                            \
+        warn_report_err_once_cond(&print_once_, err);       \
+    })
+
+/*
  * Just like error_setg(), except you get to specify the error class.
  * Note: use of error classes other than ERROR_CLASS_GENERIC_ERROR is
  * strongly discouraged.

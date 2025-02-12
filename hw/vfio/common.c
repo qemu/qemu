@@ -555,6 +555,18 @@ static bool vfio_get_section_iova_range(VFIOContainerBase *bcontainer,
     return true;
 }
 
+static void vfio_device_error_append(VFIODevice *vbasedev, Error **errp)
+{
+    /*
+     * MMIO region mapping failures are not fatal but in this case PCI
+     * peer-to-peer transactions are broken.
+     */
+    if (vbasedev && vbasedev->type == VFIO_DEVICE_TYPE_PCI) {
+        error_append_hint(errp, "%s: PCI peer-to-peer transactions "
+                          "on BARs are not supported.\n", vbasedev->name);
+    }
+}
+
 static void vfio_listener_region_add(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
@@ -582,8 +594,9 @@ static void vfio_listener_region_add(MemoryListener *listener,
         return;
     }
 
+    /* PPC64/pseries machine only */
     if (!vfio_container_add_section_window(bcontainer, section, &err)) {
-        goto fail;
+        goto mmio_dma_error;
     }
 
     memory_region_ref(section->mr);
@@ -668,9 +681,13 @@ static void vfio_listener_region_add(MemoryListener *listener,
                    "0x%"HWADDR_PRIx", %p) = %d (%s)",
                    bcontainer, iova, int128_get64(llsize), vaddr, ret,
                    strerror(-ret));
+    mmio_dma_error:
         if (memory_region_is_ram_device(section->mr)) {
             /* Allow unexpected mappings not to be fatal for RAM devices */
-            error_report_err(err);
+            VFIODevice *vbasedev =
+                vfio_get_vfio_device(memory_region_owner(section->mr));
+            vfio_device_error_append(vbasedev, &err);
+            warn_report_err_once(err);
             return;
         }
         goto fail;
@@ -679,16 +696,12 @@ static void vfio_listener_region_add(MemoryListener *listener,
     return;
 
 fail:
-    if (memory_region_is_ram_device(section->mr)) {
-        error_reportf_err(err, "PCI p2p may not work: ");
-        return;
-    }
-    /*
-     * On the initfn path, store the first error in the container so we
-     * can gracefully fail.  Runtime, there's not much we can do other
-     * than throw a hardware error.
-     */
     if (!bcontainer->initialized) {
+        /*
+         * At machine init time or when the device is attached to the
+         * VM, store the first error in the container so we can
+         * gracefully fail the device realize routine.
+         */
         if (!bcontainer->error) {
             error_propagate_prepend(&bcontainer->error, err,
                                     "Region %s: ",
@@ -697,6 +710,10 @@ fail:
             error_free(err);
         }
     } else {
+        /*
+         * At runtime, there's not much we can do other than throw a
+         * hardware error.
+         */
         error_report_err(err);
         hw_error("vfio: DMA mapping failed, unable to continue");
     }
@@ -786,6 +803,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
 
     memory_region_unref(section->mr);
 
+    /* PPC64/pseries machine only */
     vfio_container_del_section_window(bcontainer, section);
 }
 

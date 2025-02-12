@@ -515,8 +515,8 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
         } else {
             ret = iommufd_cdev_ram_block_discard_disable(true);
             if (ret) {
-                error_setg(errp,
-                              "Cannot set discarding of RAM broken (%d)", ret);
+                error_setg_errno(errp, -ret,
+                                 "Cannot set discarding of RAM broken");
                 goto err_discard_disable;
             }
             goto found_container;
@@ -544,6 +544,7 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
 
     ret = iommufd_cdev_ram_block_discard_disable(true);
     if (ret) {
+        error_setg_errno(errp, -ret, "Cannot set discarding of RAM broken");
         goto err_discard_disable;
     }
 
