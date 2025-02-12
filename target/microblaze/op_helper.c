@@ -382,6 +382,8 @@ void helper_stackprot(CPUMBState *env, target_ulong addr)
 }
 
 #if !defined(CONFIG_USER_ONLY)
+#include "system/memory.h"
+
 /* Writes/reads to the MMU's special regs end up here.  */
 uint32_t helper_mmu_read(CPUMBState *env, uint32_t ext, uint32_t rn)
 {
@@ -441,4 +443,42 @@ void mb_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
     mb_transaction_failed_internal(cs, physaddr, addr, size,
                                    access_type, retaddr);
 }
+
+#define LD_EA(NAME, TYPE, FUNC) \
+uint32_t HELPER(NAME)(CPUMBState *env, uint64_t ea)                     \
+{                                                                       \
+    CPUState *cs = env_cpu(env);                                        \
+    MemTxResult txres;                                                  \
+    TYPE ret = FUNC(cs->as, ea, MEMTXATTRS_UNSPECIFIED, &txres);        \
+    if (unlikely(txres != MEMTX_OK)) {                                  \
+        mb_transaction_failed_internal(cs, ea, ea, sizeof(TYPE),        \
+                                       MMU_DATA_LOAD, GETPC());         \
+    }                                                                   \
+    return ret;                                                         \
+}
+
+LD_EA(lbuea, uint8_t, address_space_ldub)
+LD_EA(lhuea_be, uint16_t, address_space_lduw_be)
+LD_EA(lhuea_le, uint16_t, address_space_lduw_le)
+LD_EA(lwea_be, uint32_t, address_space_ldl_be)
+LD_EA(lwea_le, uint32_t, address_space_ldl_le)
+
+#define ST_EA(NAME, TYPE, FUNC) \
+void HELPER(NAME)(CPUMBState *env, uint32_t data, uint64_t ea)          \
+{                                                                       \
+    CPUState *cs = env_cpu(env);                                        \
+    MemTxResult txres;                                                  \
+    FUNC(cs->as, ea, data, MEMTXATTRS_UNSPECIFIED, &txres);             \
+    if (unlikely(txres != MEMTX_OK)) {                                  \
+        mb_transaction_failed_internal(cs, ea, ea, sizeof(TYPE),        \
+                                       MMU_DATA_STORE, GETPC());        \
+    }                                                                   \
+}
+
+ST_EA(sbea, uint8_t, address_space_stb)
+ST_EA(shea_be, uint16_t, address_space_stw_be)
+ST_EA(shea_le, uint16_t, address_space_stw_le)
+ST_EA(swea_be, uint32_t, address_space_stl_be)
+ST_EA(swea_le, uint32_t, address_space_stl_le)
+
 #endif
