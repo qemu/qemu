@@ -796,7 +796,7 @@ static QemuOptsList qemu_run_with_opts = {
 
 static void realtime_init(void)
 {
-    if (enable_mlock) {
+    if (should_mlock(mlock_state)) {
         if (os_mlock(false) < 0) {
             error_report("locking memory failed");
             exit(1);
@@ -1878,13 +1878,18 @@ static void object_option_parse(const char *str)
 static void overcommit_parse(const char *str)
 {
     QemuOpts *opts;
+    bool enable_mlock;
 
     opts = qemu_opts_parse_noisily(qemu_find_opts("overcommit"),
                                    str, false);
     if (!opts) {
         exit(1);
     }
-    enable_mlock = qemu_opt_get_bool(opts, "mem-lock", enable_mlock);
+
+    enable_mlock = qemu_opt_get_bool(opts, "mem-lock",
+                                     should_mlock(mlock_state));
+    mlock_state = enable_mlock ? MLOCK_ON : MLOCK_OFF;
+
     enable_cpu_pm = qemu_opt_get_bool(opts, "cpu-pm", enable_cpu_pm);
 }
 
