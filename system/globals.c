@@ -33,7 +33,12 @@
 
 bool should_mlock(MlockState state)
 {
-    return state == MLOCK_ON;
+    return state == MLOCK_ON || state == MLOCK_ON_FAULT;
+}
+
+bool is_mlock_on_fault(MlockState state)
+{
+    return state == MLOCK_ON_FAULT;
 }
 
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;

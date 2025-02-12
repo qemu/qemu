@@ -50,9 +50,11 @@ extern QEMUClockType rtc_clock;
 typedef enum {
     MLOCK_OFF = 0,
     MLOCK_ON,
+    MLOCK_ON_FAULT,
 } MlockState;
 
 bool should_mlock(MlockState);
+bool is_mlock_on_fault(MlockState);
 
 extern MlockState mlock_state;
 

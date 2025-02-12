@@ -351,7 +351,7 @@ static QemuOptsList qemu_overcommit_opts = {
     .desc = {
         {
             .name = "mem-lock",
-            .type = QEMU_OPT_BOOL,
+            .type = QEMU_OPT_STRING,
         },
         {
             .name = "cpu-pm",
@@ -797,7 +797,7 @@ static QemuOptsList qemu_run_with_opts = {
 static void realtime_init(void)
 {
     if (should_mlock(mlock_state)) {
-        if (os_mlock(false) < 0) {
+        if (os_mlock(is_mlock_on_fault(mlock_state)) < 0) {
             error_report("locking memory failed");
             exit(1);
         }
@@ -1878,7 +1878,7 @@ static void object_option_parse(const char *str)
 static void overcommit_parse(const char *str)
 {
     QemuOpts *opts;
-    bool enable_mlock;
+    const char *mem_lock_opt;
 
     opts = qemu_opts_parse_noisily(qemu_find_opts("overcommit"),
                                    str, false);
@@ -1886,11 +1886,31 @@ static void overcommit_parse(const char *str)
         exit(1);
     }
 
-    enable_mlock = qemu_opt_get_bool(opts, "mem-lock",
-                                     should_mlock(mlock_state));
-    mlock_state = enable_mlock ? MLOCK_ON : MLOCK_OFF;
-
     enable_cpu_pm = qemu_opt_get_bool(opts, "cpu-pm", enable_cpu_pm);
+
+    mem_lock_opt = qemu_opt_get(opts, "mem-lock");
+    if (!mem_lock_opt) {
+        return;
+    }
+
+    if (strcmp(mem_lock_opt, "on") == 0) {
+        mlock_state = MLOCK_ON;
+        return;
+    }
+
+    if (strcmp(mem_lock_opt, "off") == 0) {
+        mlock_state = MLOCK_OFF;
+        return;
+    }
+
+    if (strcmp(mem_lock_opt, "on-fault") == 0) {
+        mlock_state = MLOCK_ON_FAULT;
+        return;
+    }
+
+    error_report("parameter 'mem-lock' expects one of "
+                 "'on', 'off', 'on-fault'");
+    exit(1);
 }
 
 /*
