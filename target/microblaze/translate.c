@@ -606,19 +606,18 @@ DO_TYPEBI(xori, false, tcg_gen_xori_i32)
 
 static TCGv compute_ldst_addr_typea(DisasContext *dc, int ra, int rb)
 {
-    TCGv ret = tcg_temp_new();
+    TCGv ret;
 
     /* If any of the regs is r0, set t to the value of the other reg.  */
     if (ra && rb) {
-        TCGv_i32 tmp = tcg_temp_new_i32();
-        tcg_gen_add_i32(tmp, cpu_R[ra], cpu_R[rb]);
-        tcg_gen_extu_i32_tl(ret, tmp);
+        ret = tcg_temp_new_i32();
+        tcg_gen_add_i32(ret, cpu_R[ra], cpu_R[rb]);
     } else if (ra) {
-        tcg_gen_extu_i32_tl(ret, cpu_R[ra]);
+        ret = cpu_R[ra];
     } else if (rb) {
-        tcg_gen_extu_i32_tl(ret, cpu_R[rb]);
+        ret = cpu_R[rb];
     } else {
-        tcg_gen_movi_tl(ret, 0);
+        ret = tcg_constant_i32(0);
     }
 
     if ((ra == 1 || rb == 1) && dc->cfg->stackprot) {
@@ -629,15 +628,16 @@ static TCGv compute_ldst_addr_typea(DisasContext *dc, int ra, int rb)
 
 static TCGv compute_ldst_addr_typeb(DisasContext *dc, int ra, int imm)
 {
-    TCGv ret = tcg_temp_new();
+    TCGv ret;
 
     /* If any of the regs is r0, set t to the value of the other reg.  */
-    if (ra) {
-        TCGv_i32 tmp = tcg_temp_new_i32();
-        tcg_gen_addi_i32(tmp, cpu_R[ra], imm);
-        tcg_gen_extu_i32_tl(ret, tmp);
+    if (ra && imm) {
+        ret = tcg_temp_new_i32();
+        tcg_gen_addi_i32(ret, cpu_R[ra], imm);
+    } else if (ra) {
+        ret = cpu_R[ra];
     } else {
-        tcg_gen_movi_tl(ret, (uint32_t)imm);
+        ret = tcg_constant_i32(imm);
     }
 
     if (ra == 1 && dc->cfg->stackprot) {
