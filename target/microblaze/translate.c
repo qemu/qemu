@@ -660,23 +660,23 @@ static TCGv compute_ldst_addr_typeb(DisasContext *dc, int ra, int imm)
 }
 
 #ifndef CONFIG_USER_ONLY
-static TCGv compute_ldst_addr_ea(DisasContext *dc, int ra, int rb)
+static TCGv_i64 compute_ldst_addr_ea(DisasContext *dc, int ra, int rb)
 {
     int addr_size = dc->cfg->addr_size;
-    TCGv ret = tcg_temp_new();
+    TCGv_i64 ret = tcg_temp_new_i64();
 
     if (addr_size == 32 || ra == 0) {
         if (rb) {
-            tcg_gen_extu_i32_tl(ret, cpu_R[rb]);
+            tcg_gen_extu_i32_i64(ret, cpu_R[rb]);
         } else {
-            tcg_gen_movi_tl(ret, 0);
+            return tcg_constant_i64(0);
         }
     } else {
         if (rb) {
             tcg_gen_concat_i32_i64(ret, cpu_R[rb], cpu_R[ra]);
         } else {
-            tcg_gen_extu_i32_tl(ret, cpu_R[ra]);
-            tcg_gen_shli_tl(ret, ret, 32);
+            tcg_gen_extu_i32_i64(ret, cpu_R[ra]);
+            tcg_gen_shli_i64(ret, ret, 32);
         }
         if (addr_size < 64) {
             /* Mask off out of range bits.  */
@@ -781,7 +781,7 @@ static bool trans_lbuea(DisasContext *dc, arg_typea *arg)
 #ifdef CONFIG_USER_ONLY
     g_assert_not_reached();
 #else
-    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    TCGv_i64 addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
     gen_helper_lbuea(reg_for_write(dc, arg->rd), tcg_env, addr);
     return true;
 #endif
@@ -813,7 +813,7 @@ static bool trans_lhuea(DisasContext *dc, arg_typea *arg)
 #ifdef CONFIG_USER_ONLY
     g_assert_not_reached();
 #else
-    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    TCGv_i64 addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
     gen_alignment_check_ea(dc, addr, arg->rb, arg->rd, MO_16, false);
     (mo_endian(dc) == MO_BE ? gen_helper_lhuea_be : gen_helper_lhuea_le)
         (reg_for_write(dc, arg->rd), tcg_env, addr);
@@ -847,7 +847,7 @@ static bool trans_lwea(DisasContext *dc, arg_typea *arg)
 #ifdef CONFIG_USER_ONLY
     g_assert_not_reached();
 #else
-    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    TCGv_i64 addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
     gen_alignment_check_ea(dc, addr, arg->rb, arg->rd, MO_32, false);
     (mo_endian(dc) == MO_BE ? gen_helper_lwea_be : gen_helper_lwea_le)
         (reg_for_write(dc, arg->rd), tcg_env, addr);
@@ -941,7 +941,7 @@ static bool trans_sbea(DisasContext *dc, arg_typea *arg)
 #ifdef CONFIG_USER_ONLY
     g_assert_not_reached();
 #else
-    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    TCGv_i64 addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
     gen_helper_sbea(tcg_env, reg_for_read(dc, arg->rd), addr);
     return true;
 #endif
@@ -973,7 +973,7 @@ static bool trans_shea(DisasContext *dc, arg_typea *arg)
 #ifdef CONFIG_USER_ONLY
     g_assert_not_reached();
 #else
-    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    TCGv_i64 addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
     gen_alignment_check_ea(dc, addr, arg->rb, arg->rd, MO_16, true);
     (mo_endian(dc) == MO_BE ? gen_helper_shea_be : gen_helper_shea_le)
         (tcg_env, reg_for_read(dc, arg->rd), addr);
@@ -1007,7 +1007,7 @@ static bool trans_swea(DisasContext *dc, arg_typea *arg)
 #ifdef CONFIG_USER_ONLY
     g_assert_not_reached();
 #else
-    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    TCGv_i64 addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
     gen_alignment_check_ea(dc, addr, arg->rb, arg->rd, MO_32, true);
     (mo_endian(dc) == MO_BE ? gen_helper_swea_be : gen_helper_swea_le)
         (tcg_env, reg_for_read(dc, arg->rd), addr);
