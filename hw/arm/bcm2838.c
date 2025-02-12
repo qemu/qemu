@@ -192,6 +192,16 @@ static void bcm2838_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&ps_base->sdhost), 0,
                        qdev_get_gpio_in(gicdev, GIC_SPI_INTERRUPT_SDHOST));
 
+    /* Connect System Timer to the interrupt controller */
+    sysbus_connect_irq(SYS_BUS_DEVICE(&ps_base->systmr), 0,
+                       qdev_get_gpio_in(gicdev, GIC_SPI_INTERRUPT_SYSTMR_0));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&ps_base->systmr), 1,
+                       qdev_get_gpio_in(gicdev, GIC_SPI_INTERRUPT_SYSTMR_1));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&ps_base->systmr), 2,
+                       qdev_get_gpio_in(gicdev, GIC_SPI_INTERRUPT_SYSTMR_2));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&ps_base->systmr), 3,
+                       qdev_get_gpio_in(gicdev, GIC_SPI_INTERRUPT_SYSTMR_3));
+
     /* According to DTS, EMMC and EMMC2 share one irq */
     DeviceState *mmc_irq_orgate = DEVICE(&ps->mmc_irq_orgate);
 
