@@ -1633,17 +1633,16 @@ static TCGv gen_shiftd_rm_T1(DisasContext *s, MemOp ot,
         } else {
             tcg_gen_shl_tl(cc_src, s->T0, tmp);
 
-            if (ot == MO_16) {
-                /* Only needed if count > 16, for Intel behaviour.  */
-                tcg_gen_subfi_tl(tmp, 33, count);
-                tcg_gen_shr_tl(tmp, s->T1, tmp);
-                tcg_gen_or_tl(cc_src, cc_src, tmp);
-            }
-
             /* mask + 1 - count = mask - tmp = mask ^ tmp */
             tcg_gen_xori_tl(hishift, tmp, mask);
             tcg_gen_shl_tl(s->T0, s->T0, count);
             tcg_gen_shr_tl(s->T1, s->T1, hishift);
+
+            if (ot == MO_16) {
+                /* Only needed if count > 16, for Intel behaviour.  */
+                tcg_gen_shri_tl(tmp, s->T1, 1);
+                tcg_gen_or_tl(cc_src, cc_src, tmp);
+            }
         }
         tcg_gen_movcond_tl(TCG_COND_EQ, s->T1,
                            count, tcg_constant_tl(0),
