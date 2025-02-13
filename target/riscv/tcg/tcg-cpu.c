@@ -1458,22 +1458,20 @@ static void riscv_init_max_cpu_extensions(Object *obj)
     }
 
     /*
-     * ext_smrnmi requires OpenSBI changes that our current
+     * TODO: ext_smrnmi requires OpenSBI changes that our current
      * image does not have. Disable it for now.
      */
     if (cpu->cfg.ext_smrnmi) {
         isa_ext_update_enabled(cpu, CPU_CFG_OFFSET(ext_smrnmi), false);
-        qemu_log("Smrnmi is disabled in the 'max' type CPU\n");
     }
 
     /*
-     * ext_smdbltrp requires the firmware to clear MSTATUS.MDT on startup to
-     * avoid generating a double trap. OpenSBI does not currently support it,
+     * TODO: ext_smdbltrp requires the firmware to clear MSTATUS.MDT on startup
+     * to avoid generating a double trap. OpenSBI does not currently support it,
      * disable it for now.
      */
     if (cpu->cfg.ext_smdbltrp) {
         isa_ext_update_enabled(cpu, CPU_CFG_OFFSET(ext_smdbltrp), false);
-        qemu_log("Smdbltrp is disabled in the 'max' type CPU\n");
     }
 }
 
