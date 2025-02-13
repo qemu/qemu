@@ -13,7 +13,7 @@ use qemu_api::{
     cell::{self, BqlCell},
     declare_properties, define_property,
     prelude::*,
-    qdev::{DeviceClass, DeviceImpl, DeviceState, Property, ResettablePhasesImpl},
+    qdev::{DeviceImpl, DeviceState, Property, ResettablePhasesImpl},
     qom::{ClassInitImpl, ObjectImpl, ParentField},
     sysbus::SysBusDevice,
     vmstate::VMStateDescription,
@@ -41,6 +41,12 @@ pub struct DummyClass {
     parent_class: <DeviceState as ObjectType>::Class,
 }
 
+impl DummyClass {
+    pub fn class_init<T: DeviceImpl>(self: &mut DummyClass) {
+        <T as ClassInitImpl<DeviceClass>>::class_init(&mut self.parent_class);
+    }
+}
+
 declare_properties! {
     DUMMY_PROPERTIES,
         define_property!(
@@ -60,7 +66,7 @@ unsafe impl ObjectType for DummyState {
 impl ObjectImpl for DummyState {
     type ParentType = DeviceState;
     const ABSTRACT: bool = false;
-    const CLASS_INIT: fn(&mut DummyClass) = <Self as ClassInitImpl<DummyClass>>::class_init;
+    const CLASS_INIT: fn(&mut DummyClass) = DummyClass::class_init::<Self>;
 }
 
 impl ResettablePhasesImpl for DummyState {}
@@ -71,14 +77,6 @@ impl DeviceImpl for DummyState {
     }
     fn vmsd() -> Option<&'static VMStateDescription> {
         Some(&VMSTATE)
-    }
-}
-
-// `impl<T> ClassInitImpl<DummyClass> for T` doesn't work since it violates
-// orphan rule.
-impl ClassInitImpl<DummyClass> for DummyState {
-    fn class_init(klass: &mut DummyClass) {
-        <Self as ClassInitImpl<DeviceClass>>::class_init(&mut klass.parent_class);
     }
 }
 
@@ -103,22 +101,15 @@ unsafe impl ObjectType for DummyChildState {
 impl ObjectImpl for DummyChildState {
     type ParentType = DummyState;
     const ABSTRACT: bool = false;
-    const CLASS_INIT: fn(&mut DummyChildClass) =
-        <Self as ClassInitImpl<DummyChildClass>>::class_init;
+    const CLASS_INIT: fn(&mut DummyChildClass) = DummyChildClass::class_init::<Self>;
 }
 
 impl ResettablePhasesImpl for DummyChildState {}
 impl DeviceImpl for DummyChildState {}
 
-impl ClassInitImpl<DummyClass> for DummyChildState {
-    fn class_init(klass: &mut DummyClass) {
-        <Self as ClassInitImpl<DeviceClass>>::class_init(&mut klass.parent_class);
-    }
-}
-
-impl ClassInitImpl<DummyChildClass> for DummyChildState {
-    fn class_init(klass: &mut DummyChildClass) {
-        <Self as ClassInitImpl<DummyClass>>::class_init(&mut klass.parent_class);
+impl DummyChildClass {
+    pub fn class_init<T: DeviceImpl>(self: &mut DummyChildClass) {
+        self.parent_class.class_init::<T>();
     }
 }
 

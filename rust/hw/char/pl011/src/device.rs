@@ -50,11 +50,6 @@ impl std::ops::Index<hwaddr> for DeviceId {
     }
 }
 
-impl DeviceId {
-    const ARM: Self = Self(&[0x11, 0x10, 0x14, 0x00, 0x0d, 0xf0, 0x05, 0xb1]);
-    const LUMINARY: Self = Self(&[0x11, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1]);
-}
-
 // FIFOs use 32-bit indices instead of usize, for compatibility with
 // the migration stream produced by the C version of this device.
 #[repr(transparent)]
@@ -143,16 +138,24 @@ pub struct PL011Class {
     device_id: DeviceId,
 }
 
+trait PL011Impl: SysBusDeviceImpl + IsA<PL011State> {
+    const DEVICE_ID: DeviceId;
+}
+
+impl PL011Class {
+    fn class_init<T: PL011Impl>(&mut self) {
+        self.device_id = T::DEVICE_ID;
+        <T as ClassInitImpl<SysBusDeviceClass>>::class_init(&mut self.parent_class);
+    }
+}
+
 unsafe impl ObjectType for PL011State {
     type Class = PL011Class;
     const TYPE_NAME: &'static CStr = crate::TYPE_PL011;
 }
 
-impl ClassInitImpl<PL011Class> for PL011State {
-    fn class_init(klass: &mut PL011Class) {
-        klass.device_id = DeviceId::ARM;
-        <Self as ClassInitImpl<SysBusDeviceClass>>::class_init(&mut klass.parent_class);
-    }
+impl PL011Impl for PL011State {
+    const DEVICE_ID: DeviceId = DeviceId(&[0x11, 0x10, 0x14, 0x00, 0x0d, 0xf0, 0x05, 0xb1]);
 }
 
 impl ObjectImpl for PL011State {
@@ -160,7 +163,7 @@ impl ObjectImpl for PL011State {
 
     const INSTANCE_INIT: Option<unsafe fn(&mut Self)> = Some(Self::init);
     const INSTANCE_POST_INIT: Option<fn(&Self)> = Some(Self::post_init);
-    const CLASS_INIT: fn(&mut Self::Class) = <Self as ClassInitImpl<Self::Class>>::class_init;
+    const CLASS_INIT: fn(&mut Self::Class) = Self::Class::class_init::<Self>;
 }
 
 impl DeviceImpl for PL011State {
@@ -729,13 +732,6 @@ pub struct PL011Luminary {
     parent_obj: ParentField<PL011State>,
 }
 
-impl ClassInitImpl<PL011Class> for PL011Luminary {
-    fn class_init(klass: &mut PL011Class) {
-        klass.device_id = DeviceId::LUMINARY;
-        <Self as ClassInitImpl<SysBusDeviceClass>>::class_init(&mut klass.parent_class);
-    }
-}
-
 qom_isa!(PL011Luminary : PL011State, SysBusDevice, DeviceState, Object);
 
 unsafe impl ObjectType for PL011Luminary {
@@ -746,7 +742,11 @@ unsafe impl ObjectType for PL011Luminary {
 impl ObjectImpl for PL011Luminary {
     type ParentType = PL011State;
 
-    const CLASS_INIT: fn(&mut Self::Class) = <Self as ClassInitImpl<Self::Class>>::class_init;
+    const CLASS_INIT: fn(&mut Self::Class) = Self::Class::class_init::<Self>;
+}
+
+impl PL011Impl for PL011Luminary {
+    const DEVICE_ID: DeviceId = DeviceId(&[0x11, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1]);
 }
 
 impl DeviceImpl for PL011Luminary {}
