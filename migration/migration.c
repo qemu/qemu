@@ -1423,12 +1423,12 @@ static void migration_cleanup_json_writer(MigrationState *s)
     g_clear_pointer(&s->vmdesc, json_writer_free);
 }
 
-static void migrate_fd_cleanup(MigrationState *s)
+static void migration_cleanup(MigrationState *s)
 {
     MigrationEventType type;
     QEMUFile *tmp = NULL;
 
-    trace_migrate_fd_cleanup();
+    trace_migration_cleanup();
 
     migration_cleanup_json_writer(s);
 
@@ -1485,9 +1485,9 @@ static void migrate_fd_cleanup(MigrationState *s)
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
 }
 
-static void migrate_fd_cleanup_bh(void *opaque)
+static void migration_cleanup_bh(void *opaque)
 {
-    migrate_fd_cleanup(opaque);
+    migration_cleanup(opaque);
 }
 
 void migrate_set_error(MigrationState *s, const Error *error)
@@ -1517,7 +1517,7 @@ static void migrate_error_free(MigrationState *s)
     }
 }
 
-static void migrate_fd_error(MigrationState *s, const Error *error)
+static void migration_connect_set_error(MigrationState *s, const Error *error)
 {
     MigrationStatus current = s->state;
     MigrationStatus next;
@@ -2198,7 +2198,7 @@ void qmp_migrate(const char *uri, bool has_channels,
 
 out:
     if (local_err) {
-        migrate_fd_error(s, local_err);
+        migration_connect_set_error(s, local_err);
         error_propagate(errp, local_err);
     }
 }
@@ -2243,7 +2243,7 @@ static void qmp_migrate_finish(MigrationAddress *addr, bool resume_requested,
         if (!resume_requested) {
             yank_unregister_instance(MIGRATION_YANK_INSTANCE);
         }
-        migrate_fd_error(s, local_err);
+        migration_connect_set_error(s, local_err);
         error_propagate(errp, local_err);
         return;
     }
@@ -3427,7 +3427,7 @@ static void migration_iteration_finish(MigrationState *s)
         break;
     }
 
-    migration_bh_schedule(migrate_fd_cleanup_bh, s);
+    migration_bh_schedule(migration_cleanup_bh, s);
     bql_unlock();
 }
 
@@ -3455,7 +3455,7 @@ static void bg_migration_iteration_finish(MigrationState *s)
         break;
     }
 
-    migration_bh_schedule(migrate_fd_cleanup_bh, s);
+    migration_bh_schedule(migration_cleanup_bh, s);
     bql_unlock();
 }
 
@@ -3837,7 +3837,7 @@ fail_setup:
     return NULL;
 }
 
-void migrate_fd_connect(MigrationState *s, Error *error_in)
+void migration_connect(MigrationState *s, Error *error_in)
 {
     Error *local_err = NULL;
     uint64_t rate_limit;
@@ -3847,24 +3847,24 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
     /*
      * If there's a previous error, free it and prepare for another one.
      * Meanwhile if migration completes successfully, there won't have an error
-     * dumped when calling migrate_fd_cleanup().
+     * dumped when calling migration_cleanup().
      */
     migrate_error_free(s);
 
     s->expected_downtime = migrate_downtime_limit();
     if (error_in) {
-        migrate_fd_error(s, error_in);
+        migration_connect_set_error(s, error_in);
         if (resume) {
             /*
              * Don't do cleanup for resume if channel is invalid, but only dump
              * the error.  We wait for another channel connect from the user.
              * The error_report still gives HMP user a hint on what failed.
-             * It's normally done in migrate_fd_cleanup(), but call it here
+             * It's normally done in migration_cleanup(), but call it here
              * explicitly.
              */
             error_report_err(error_copy(s->error));
         } else {
-            migrate_fd_cleanup(s);
+            migration_cleanup(s);
         }
         return;
     }
@@ -3944,7 +3944,7 @@ fail:
     migrate_set_error(s, local_err);
     migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
     error_report_err(local_err);
-    migrate_fd_cleanup(s);
+    migration_cleanup(s);
 }
 
 static void migration_class_init(ObjectClass *klass, void *data)

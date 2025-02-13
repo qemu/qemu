@@ -74,7 +74,7 @@ void migration_channel_connect(MigrationState *s,
             if (!error) {
                 /* tls_channel_connect will call back to this
                  * function after the TLS handshake,
-                 * so we mustn't call migrate_fd_connect until then
+                 * so we mustn't call migration_connect until then
                  */
 
                 return;
@@ -89,7 +89,7 @@ void migration_channel_connect(MigrationState *s,
             qemu_mutex_unlock(&s->qemu_file_lock);
         }
     }
-    migrate_fd_connect(s, error);
+    migration_connect(s, error);
     error_free(error);
 }
 
