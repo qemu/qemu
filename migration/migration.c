@@ -106,7 +106,6 @@ static GSList *migration_blockers[MIG_MODE__MAX];
 
 static bool migration_object_check(MigrationState *ms, Error **errp);
 static bool migration_switchover_start(MigrationState *s, Error **errp);
-static void migrate_fd_cancel(MigrationState *s);
 static bool close_return_path_on_source(MigrationState *s);
 static void migration_completion_end(MigrationState *s);
 static void migrate_hup_delete(MigrationState *s);
@@ -340,14 +339,6 @@ void migration_bh_schedule(QEMUBHFunc *cb, void *opaque)
      */
     object_ref(OBJECT(s));
     qemu_bh_schedule(bh);
-}
-
-void migration_cancel()
-{
-    if (migrate_dirty_limit()) {
-        qmp_cancel_vcpu_dirty_limit(false, -1, NULL);
-    }
-    migrate_fd_cancel(current_migration);
 }
 
 void migration_shutdown(void)
@@ -1555,12 +1546,17 @@ static void migrate_fd_error(MigrationState *s, const Error *error)
     migrate_set_error(s, error);
 }
 
-static void migrate_fd_cancel(MigrationState *s)
+void migration_cancel(void)
 {
+    MigrationState *s = migrate_get_current();
     int old_state ;
     bool setup = (s->state == MIGRATION_STATUS_SETUP);
 
-    trace_migrate_fd_cancel();
+    trace_migration_cancel();
+
+    if (migrate_dirty_limit()) {
+        qmp_cancel_vcpu_dirty_limit(false, -1, NULL);
+    }
 
     WITH_QEMU_LOCK_GUARD(&s->qemu_file_lock) {
         if (s->rp_state.from_dst_file) {
