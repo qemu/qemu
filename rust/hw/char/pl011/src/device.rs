@@ -19,8 +19,8 @@ use qemu_api::{
     memory::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder},
     prelude::*,
     qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
-    qom::{ClassInitImpl, ObjectImpl, Owned, ParentField},
-    sysbus::{SysBusDevice, SysBusDeviceClass, SysBusDeviceImpl},
+    qom::{ObjectImpl, Owned, ParentField},
+    sysbus::{SysBusDevice, SysBusDeviceImpl},
     vmstate::VMStateDescription,
 };
 
@@ -145,7 +145,7 @@ trait PL011Impl: SysBusDeviceImpl + IsA<PL011State> {
 impl PL011Class {
     fn class_init<T: PL011Impl>(&mut self) {
         self.device_id = T::DEVICE_ID;
-        <T as ClassInitImpl<SysBusDeviceClass>>::class_init(&mut self.parent_class);
+        self.parent_class.class_init::<T>();
     }
 }
 

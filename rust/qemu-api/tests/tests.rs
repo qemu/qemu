@@ -14,7 +14,7 @@ use qemu_api::{
     declare_properties, define_property,
     prelude::*,
     qdev::{DeviceImpl, DeviceState, Property, ResettablePhasesImpl},
-    qom::{ClassInitImpl, ObjectImpl, ParentField},
+    qom::{ObjectImpl, ParentField},
     sysbus::SysBusDevice,
     vmstate::VMStateDescription,
     zeroable::Zeroable,
@@ -43,7 +43,7 @@ pub struct DummyClass {
 
 impl DummyClass {
     pub fn class_init<T: DeviceImpl>(self: &mut DummyClass) {
-        <T as ClassInitImpl<DeviceClass>>::class_init(&mut self.parent_class);
+        self.parent_class.class_init::<T>();
     }
 }
 

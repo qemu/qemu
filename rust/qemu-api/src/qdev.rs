@@ -19,7 +19,7 @@ use crate::{
     chardev::Chardev,
     irq::InterruptSource,
     prelude::*,
-    qom::{ClassInitImpl, ObjectClass, ObjectImpl, Owned},
+    qom::{ObjectClass, ObjectImpl, Owned},
     vmstate::VMStateDescription,
 };
 
@@ -113,7 +113,7 @@ pub trait DeviceImpl: ObjectImpl + ResettablePhasesImpl + IsA<DeviceState> {
 /// # Safety
 ///
 /// This function is only called through the QOM machinery and
-/// used by the `ClassInitImpl<DeviceClass>` trait.
+/// used by `DeviceClass::class_init`.
 /// We expect the FFI user of this function to pass a valid pointer that
 /// can be downcasted to type `T`. We also expect the device is
 /// readable/writeable from one thread at any time.
@@ -127,43 +127,41 @@ unsafe impl InterfaceType for ResettableClass {
         unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_RESETTABLE_INTERFACE) };
 }
 
-impl<T> ClassInitImpl<ResettableClass> for T
-where
-    T: ResettablePhasesImpl,
-{
-    fn class_init(rc: &mut ResettableClass) {
+impl ResettableClass {
+    /// Fill in the virtual methods of `ResettableClass` based on the
+    /// definitions in the `ResettablePhasesImpl` trait.
+    pub fn class_init<T: ResettablePhasesImpl>(&mut self) {
         if <T as ResettablePhasesImpl>::ENTER.is_some() {
-            rc.phases.enter = Some(rust_resettable_enter_fn::<T>);
+            self.phases.enter = Some(rust_resettable_enter_fn::<T>);
         }
         if <T as ResettablePhasesImpl>::HOLD.is_some() {
-            rc.phases.hold = Some(rust_resettable_hold_fn::<T>);
+            self.phases.hold = Some(rust_resettable_hold_fn::<T>);
         }
         if <T as ResettablePhasesImpl>::EXIT.is_some() {
-            rc.phases.exit = Some(rust_resettable_exit_fn::<T>);
+            self.phases.exit = Some(rust_resettable_exit_fn::<T>);
         }
     }
 }
 
-impl<T> ClassInitImpl<DeviceClass> for T
-where
-    T: ClassInitImpl<ObjectClass> + ClassInitImpl<ResettableClass> + DeviceImpl,
-{
-    fn class_init(dc: &mut DeviceClass) {
+impl DeviceClass {
+    /// Fill in the virtual methods of `DeviceClass` based on the definitions in
+    /// the `DeviceImpl` trait.
+    pub fn class_init<T: DeviceImpl>(&mut self) {
         if <T as DeviceImpl>::REALIZE.is_some() {
-            dc.realize = Some(rust_realize_fn::<T>);
+            self.realize = Some(rust_realize_fn::<T>);
         }
         if let Some(vmsd) = <T as DeviceImpl>::vmsd() {
-            dc.vmsd = vmsd;
+            self.vmsd = vmsd;
         }
         let prop = <T as DeviceImpl>::properties();
         if !prop.is_empty() {
             unsafe {
-                bindings::device_class_set_props_n(dc, prop.as_ptr(), prop.len());
+                bindings::device_class_set_props_n(self, prop.as_ptr(), prop.len());
             }
         }
 
-        ResettableClass::interface_init::<T, DeviceState>(dc);
-        <T as ClassInitImpl<ObjectClass>>::class_init(&mut dc.parent_class);
+        ResettableClass::cast::<DeviceState>(self).class_init::<T>();
+        self.parent_class.class_init::<T>();
     }
 }
 
