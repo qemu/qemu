@@ -2648,7 +2648,10 @@ static int postcopy_start(MigrationState *ms, Error **errp)
     if (migrate_postcopy_preempt()) {
         migration_wait_main_channel(ms);
         if (postcopy_preempt_establish_channel(ms)) {
-            migrate_set_state(&ms->state, ms->state, MIGRATION_STATUS_FAILED);
+            if (ms->state != MIGRATION_STATUS_CANCELLING) {
+                migrate_set_state(&ms->state, ms->state,
+                                  MIGRATION_STATUS_FAILED);
+            }
             error_setg(errp, "%s: Failed to establish preempt channel",
                        __func__);
             return -1;
@@ -2986,7 +2989,9 @@ fail:
         error_free(local_err);
     }
 
-    migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+    if (s->state != MIGRATION_STATUS_CANCELLING) {
+        migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+    }
 }
 
 /**
@@ -3009,7 +3014,7 @@ static void bg_migration_completion(MigrationState *s)
         qemu_put_buffer(s->to_dst_file, s->bioc->data, s->bioc->usage);
         qemu_fflush(s->to_dst_file);
     } else if (s->state == MIGRATION_STATUS_CANCELLING) {
-        goto fail;
+        return;
     }
 
     if (qemu_file_get_error(s->to_dst_file)) {
@@ -3953,7 +3958,9 @@ void migration_connect(MigrationState *s, Error *error_in)
 
 fail:
     migrate_set_error(s, local_err);
-    migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+    if (s->state != MIGRATION_STATUS_CANCELLING) {
+        migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+    }
     error_report_err(local_err);
     migration_cleanup(s);
 }
