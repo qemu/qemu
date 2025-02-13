@@ -33,6 +33,7 @@
 void migration_channel_process_incoming(QIOChannel *ioc)
 {
     MigrationState *s = migrate_get_current();
+    MigrationIncomingState *mis = migration_incoming_get_current();
     Error *local_err = NULL;
 
     trace_migration_set_incoming_channel(
@@ -47,6 +48,10 @@ void migration_channel_process_incoming(QIOChannel *ioc)
 
     if (local_err) {
         error_report_err(local_err);
+        migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+        if (mis->exit_on_error) {
+            exit(EXIT_FAILURE);
+        }
     }
 }
 
