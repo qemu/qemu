@@ -11,8 +11,9 @@
 # See the COPYING file in the top-level directory.
 
 function subproject_dir() {
-    if test ! -f "subprojects/$1.wrap"; then
-      error "scripts/archive-source.sh should only process wrap subprojects"
+    if test ! -f "$src/subprojects/$1.wrap"; then
+      echo "scripts/archive-source.sh should only process wrap subprojects"
+      exit 1
     fi
 
     # Print the directory key of the wrap file, defaulting to the
@@ -26,7 +27,7 @@ function subproject_dir() {
       -e    's///p' \
       -e    'q' \
       -e '}' \
-      "subprojects/$1.wrap")
+      "$src/subprojects/$1.wrap")
 
     echo "${dir:-$1}"
 }
@@ -76,7 +77,7 @@ popd
 exclude=(--exclude=.git)
 # include the tarballs in subprojects/packagecache but not their expansion
 for sp in $SUBPROJECTS; do
-    if grep -xqF "[wrap-file]" subprojects/$sp.wrap; then
+    if grep -xqF "[wrap-file]" $src/subprojects/$sp.wrap; then
       exclude+=(--exclude=subprojects/"$(subproject_dir $sp)")
     fi
 done
