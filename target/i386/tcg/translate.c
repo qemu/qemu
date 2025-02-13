@@ -134,7 +134,6 @@ typedef struct DisasContext {
     TCGv T1;
 
     /* TCG local register indexes (only used inside old micro ops) */
-    TCGv tmp0;
     TCGv_i32 tmp2_i32;
     TCGv_i32 tmp3_i32;
     TCGv_i64 tmp1_i64;
@@ -2175,14 +2174,17 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
     level &= 31;
     if (level != 0) {
         int i;
+        if (level > 1) {
+            TCGv fp = tcg_temp_new();
 
-        /* Copy level-1 pointers from the previous frame.  */
-        for (i = 1; i < level; ++i) {
-            gen_lea_ss_ofs(s, s->A0, cpu_regs[R_EBP], -size * i);
-            gen_op_ld_v(s, d_ot, s->tmp0, s->A0);
+            /* Copy level-1 pointers from the previous frame.  */
+            for (i = 1; i < level; ++i) {
+                gen_lea_ss_ofs(s, s->A0, cpu_regs[R_EBP], -size * i);
+                gen_op_ld_v(s, d_ot, fp, s->A0);
 
-            gen_lea_ss_ofs(s, s->A0, s->T1, -size * i);
-            gen_op_st_v(s, d_ot, s->tmp0, s->A0);
+                gen_lea_ss_ofs(s, s->A0, s->T1, -size * i);
+                gen_op_st_v(s, d_ot, fp, s->A0);
+            }
         }
 
         /* Push the current FrameTemp as the last level.  */
@@ -2405,10 +2407,11 @@ static void gen_ldy_env_A0(DisasContext *s, int offset, bool align)
     int mem_index = s->mem_index;
     TCGv_i128 t0 = tcg_temp_new_i128();
     TCGv_i128 t1 = tcg_temp_new_i128();
+    TCGv a0_hi = tcg_temp_new();
 
     tcg_gen_qemu_ld_i128(t0, s->A0, mem_index, mop | (align ? MO_ALIGN_32 : 0));
-    tcg_gen_addi_tl(s->tmp0, s->A0, 16);
-    tcg_gen_qemu_ld_i128(t1, s->tmp0, mem_index, mop);
+    tcg_gen_addi_tl(a0_hi, s->A0, 16);
+    tcg_gen_qemu_ld_i128(t1, a0_hi, mem_index, mop);
 
     tcg_gen_st_i128(t0, tcg_env, offset + offsetof(YMMReg, YMM_X(0)));
     tcg_gen_st_i128(t1, tcg_env, offset + offsetof(YMMReg, YMM_X(1)));
@@ -2419,12 +2422,13 @@ static void gen_sty_env_A0(DisasContext *s, int offset, bool align)
     MemOp mop = MO_128 | MO_LE | MO_ATOM_IFALIGN_PAIR;
     int mem_index = s->mem_index;
     TCGv_i128 t = tcg_temp_new_i128();
+    TCGv a0_hi = tcg_temp_new();
 
     tcg_gen_ld_i128(t, tcg_env, offset + offsetof(YMMReg, YMM_X(0)));
     tcg_gen_qemu_st_i128(t, s->A0, mem_index, mop | (align ? MO_ALIGN_32 : 0));
-    tcg_gen_addi_tl(s->tmp0, s->A0, 16);
+    tcg_gen_addi_tl(a0_hi, s->A0, 16);
     tcg_gen_ld_i128(t, tcg_env, offset + offsetof(YMMReg, YMM_X(1)));
-    tcg_gen_qemu_st_i128(t, s->tmp0, mem_index, mop);
+    tcg_gen_qemu_st_i128(t, a0_hi, mem_index, mop);
 }
 
 #include "emit.c.inc"
@@ -3771,7 +3775,6 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
     dc->T1 = tcg_temp_new();
     dc->A0 = tcg_temp_new();
 
-    dc->tmp0 = tcg_temp_new();
     dc->tmp1_i64 = tcg_temp_new_i64();
     dc->tmp2_i32 = tcg_temp_new_i32();
     dc->tmp3_i32 = tcg_temp_new_i32();
