@@ -135,7 +135,6 @@ typedef struct DisasContext {
 
     /* TCG local register indexes (only used inside old micro ops) */
     TCGv_i32 tmp2_i32;
-    TCGv_i32 tmp3_i32;
     TCGv_i64 tmp1_i64;
 
     sigjmp_buf jmpbuf;
@@ -1318,30 +1317,35 @@ static void gen_bpt_io(DisasContext *s, TCGv_i32 t_port, int ot)
 
 static void gen_ins(DisasContext *s, MemOp ot, TCGv dshift)
 {
+    TCGv_i32 port = tcg_temp_new_i32();
+
     gen_string_movl_A0_EDI(s);
     /* Note: we must do this dummy write first to be restartable in
        case of page fault. */
     tcg_gen_movi_tl(s->T0, 0);
     gen_op_st_v(s, ot, s->T0, s->A0);
-    tcg_gen_trunc_tl_i32(s->tmp2_i32, cpu_regs[R_EDX]);
-    tcg_gen_andi_i32(s->tmp2_i32, s->tmp2_i32, 0xffff);
-    gen_helper_in_func(ot, s->T0, s->tmp2_i32);
+    tcg_gen_trunc_tl_i32(port, cpu_regs[R_EDX]);
+    tcg_gen_andi_i32(port, port, 0xffff);
+    gen_helper_in_func(ot, s->T0, port);
     gen_op_st_v(s, ot, s->T0, s->A0);
     gen_op_add_reg(s, s->aflag, R_EDI, dshift);
-    gen_bpt_io(s, s->tmp2_i32, ot);
+    gen_bpt_io(s, port, ot);
 }
 
 static void gen_outs(DisasContext *s, MemOp ot, TCGv dshift)
 {
+    TCGv_i32 port = tcg_temp_new_i32();
+    TCGv_i32 value = tcg_temp_new_i32();
+
     gen_string_movl_A0_ESI(s);
     gen_op_ld_v(s, ot, s->T0, s->A0);
 
-    tcg_gen_trunc_tl_i32(s->tmp2_i32, cpu_regs[R_EDX]);
-    tcg_gen_andi_i32(s->tmp2_i32, s->tmp2_i32, 0xffff);
-    tcg_gen_trunc_tl_i32(s->tmp3_i32, s->T0);
-    gen_helper_out_func(ot, s->tmp2_i32, s->tmp3_i32);
+    tcg_gen_trunc_tl_i32(port, cpu_regs[R_EDX]);
+    tcg_gen_andi_i32(port, port, 0xffff);
+    tcg_gen_trunc_tl_i32(value, s->T0);
+    gen_helper_out_func(ot, port, value);
     gen_op_add_reg(s, s->aflag, R_ESI, dshift);
-    gen_bpt_io(s, s->tmp2_i32, ot);
+    gen_bpt_io(s, port, ot);
 }
 
 #define REP_MAX 65535
@@ -1869,14 +1873,16 @@ static void gen_bndck(DisasContext *s, X86DecodedInsn *decode,
                       TCGCond cond, TCGv_i64 bndv)
 {
     TCGv ea = gen_lea_modrm_1(s, decode->mem, false);
+    TCGv_i32 t32 = tcg_temp_new_i32();
+    TCGv_i64 t64 = tcg_temp_new_i64();
 
-    tcg_gen_extu_tl_i64(s->tmp1_i64, ea);
+    tcg_gen_extu_tl_i64(t64, ea);
     if (!CODE64(s)) {
-        tcg_gen_ext32u_i64(s->tmp1_i64, s->tmp1_i64);
+        tcg_gen_ext32u_i64(t64, t64);
     }
-    tcg_gen_setcond_i64(cond, s->tmp1_i64, s->tmp1_i64, bndv);
-    tcg_gen_extrl_i64_i32(s->tmp2_i32, s->tmp1_i64);
-    gen_helper_bndck(tcg_env, s->tmp2_i32);
+    tcg_gen_setcond_i64(cond, t64, t64, bndv);
+    tcg_gen_extrl_i64_i32(t32, t64);
+    gen_helper_bndck(tcg_env, t32);
 }
 
 /* generate modrm load of memory or register. */
@@ -2021,8 +2027,10 @@ static void gen_op_movl_seg_real(DisasContext *s, X86Seg seg_reg, TCGv seg)
 static void gen_movl_seg(DisasContext *s, X86Seg seg_reg, TCGv src)
 {
     if (PE(s) && !VM86(s)) {
-        tcg_gen_trunc_tl_i32(s->tmp2_i32, src);
-        gen_helper_load_seg(tcg_env, tcg_constant_i32(seg_reg), s->tmp2_i32);
+        TCGv_i32 sel = tcg_temp_new_i32();
+
+        tcg_gen_trunc_tl_i32(sel, src);
+        gen_helper_load_seg(tcg_env, tcg_constant_i32(seg_reg), sel);
         /* abort translation because the addseg value may change or
            because ss32 may change. For R_SS, translation must always
            stop as a special handling must be done to disable hardware
@@ -3777,7 +3785,6 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
 
     dc->tmp1_i64 = tcg_temp_new_i64();
     dc->tmp2_i32 = tcg_temp_new_i32();
-    dc->tmp3_i32 = tcg_temp_new_i32();
     dc->cc_srcT = tcg_temp_new();
 }
 
