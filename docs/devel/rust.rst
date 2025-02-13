@@ -294,7 +294,7 @@ to a Rust mutable reference, and use a shared reference instead.  Rust code
 will then have to use QEMU's ``BqlRefCell`` and ``BqlCell`` type, which
 enforce that locking rules for the "Big QEMU Lock" are respected.  These cell
 types are also known to the ``vmstate`` crate, which is able to "look inside"
-them when building an in-memory representation of a ``struct``s layout.
+them when building an in-memory representation of a ``struct``'s layout.
 Note that the same is not true of a ``RefCell`` or ``Mutex``.
 
 In the future, similar cell types might also be provided for ``AioContext``-based
@@ -350,7 +350,7 @@ Writing procedural macros
 '''''''''''''''''''''''''
 
 By conventions, procedural macros are split in two functions, one
-returning ``Result<proc_macro2::TokenStream, MacroError>` with the body of
+returning ``Result<proc_macro2::TokenStream, MacroError>`` with the body of
 the procedural macro, and the second returning ``proc_macro::TokenStream``
 which is the actual procedural macro.  The former's name is the same as
 the latter with the ``_or_error`` suffix.  The code for the latter is more
