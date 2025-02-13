@@ -4015,8 +4015,7 @@ static void gen_SHLD(DisasContext *s, X86DecodedInsn *decode)
     }
 
     decode->cc_dst = s->T0;
-    decode->cc_src = s->tmp0;
-    gen_shiftd_rm_T1(s, ot, false, count);
+    decode->cc_src = gen_shiftd_rm_T1(s, ot, false, count);
     if (can_be_zero) {
         gen_shift_dynamic_flags(s, decode, count, CC_OP_SHLB + ot);
     } else {
@@ -4068,8 +4067,7 @@ static void gen_SHRD(DisasContext *s, X86DecodedInsn *decode)
     }
 
     decode->cc_dst = s->T0;
-    decode->cc_src = s->tmp0;
-    gen_shiftd_rm_T1(s, ot, true, count);
+    decode->cc_src = gen_shiftd_rm_T1(s, ot, true, count);
     if (can_be_zero) {
         gen_shift_dynamic_flags(s, decode, count, CC_OP_SARB + ot);
     } else {

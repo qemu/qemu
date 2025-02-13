@@ -135,7 +135,6 @@ typedef struct DisasContext {
 
     /* TCG local register indexes (only used inside old micro ops) */
     TCGv tmp0;
-    TCGv tmp4;
     TCGv_i32 tmp2_i32;
     TCGv_i32 tmp3_i32;
     TCGv_i64 tmp1_i64;
@@ -1580,10 +1579,13 @@ static bool check_cpl0(DisasContext *s)
 }
 
 /* XXX: add faster immediate case */
-static void gen_shiftd_rm_T1(DisasContext *s, MemOp ot,
+static TCGv gen_shiftd_rm_T1(DisasContext *s, MemOp ot,
                              bool is_right, TCGv count)
 {
     target_ulong mask = (ot == MO_64 ? 63 : 31);
+    TCGv cc_src = tcg_temp_new();
+    TCGv tmp = tcg_temp_new();
+    TCGv hishift;
 
     switch (ot) {
     case MO_16:
@@ -1591,9 +1593,9 @@ static void gen_shiftd_rm_T1(DisasContext *s, MemOp ot,
            This means "shrdw C, B, A" shifts A:B:A >> C.  Build the B:A
            portion by constructing it as a 32-bit value.  */
         if (is_right) {
-            tcg_gen_deposit_tl(s->tmp0, s->T0, s->T1, 16, 16);
+            tcg_gen_deposit_tl(tmp, s->T0, s->T1, 16, 16);
             tcg_gen_mov_tl(s->T1, s->T0);
-            tcg_gen_mov_tl(s->T0, s->tmp0);
+            tcg_gen_mov_tl(s->T0, tmp);
         } else {
             tcg_gen_deposit_tl(s->T1, s->T0, s->T1, 16, 16);
         }
@@ -1604,47 +1606,53 @@ static void gen_shiftd_rm_T1(DisasContext *s, MemOp ot,
     case MO_32:
 #ifdef TARGET_X86_64
         /* Concatenate the two 32-bit values and use a 64-bit shift.  */
-        tcg_gen_subi_tl(s->tmp0, count, 1);
+        tcg_gen_subi_tl(tmp, count, 1);
         if (is_right) {
             tcg_gen_concat_tl_i64(s->T0, s->T0, s->T1);
-            tcg_gen_shr_i64(s->tmp0, s->T0, s->tmp0);
+            tcg_gen_shr_i64(cc_src, s->T0, tmp);
             tcg_gen_shr_i64(s->T0, s->T0, count);
         } else {
             tcg_gen_concat_tl_i64(s->T0, s->T1, s->T0);
-            tcg_gen_shl_i64(s->tmp0, s->T0, s->tmp0);
+            tcg_gen_shl_i64(cc_src, s->T0, tmp);
             tcg_gen_shl_i64(s->T0, s->T0, count);
-            tcg_gen_shri_i64(s->tmp0, s->tmp0, 32);
+            tcg_gen_shri_i64(cc_src, cc_src, 32);
             tcg_gen_shri_i64(s->T0, s->T0, 32);
         }
         break;
 #endif
     default:
-        tcg_gen_subi_tl(s->tmp0, count, 1);
+        hishift = tcg_temp_new();
+        tcg_gen_subi_tl(tmp, count, 1);
         if (is_right) {
-            tcg_gen_shr_tl(s->tmp0, s->T0, s->tmp0);
+            tcg_gen_shr_tl(cc_src, s->T0, tmp);
 
-            tcg_gen_subfi_tl(s->tmp4, mask + 1, count);
+            /* mask + 1 - count = mask - tmp = mask ^ tmp */
+            tcg_gen_xori_tl(hishift, tmp, mask);
             tcg_gen_shr_tl(s->T0, s->T0, count);
-            tcg_gen_shl_tl(s->T1, s->T1, s->tmp4);
+            tcg_gen_shl_tl(s->T1, s->T1, hishift);
         } else {
-            tcg_gen_shl_tl(s->tmp0, s->T0, s->tmp0);
+            tcg_gen_shl_tl(cc_src, s->T0, tmp);
+
             if (ot == MO_16) {
                 /* Only needed if count > 16, for Intel behaviour.  */
-                tcg_gen_subfi_tl(s->tmp4, 33, count);
-                tcg_gen_shr_tl(s->tmp4, s->T1, s->tmp4);
-                tcg_gen_or_tl(s->tmp0, s->tmp0, s->tmp4);
+                tcg_gen_subfi_tl(tmp, 33, count);
+                tcg_gen_shr_tl(tmp, s->T1, tmp);
+                tcg_gen_or_tl(cc_src, cc_src, tmp);
             }
 
-            tcg_gen_subfi_tl(s->tmp4, mask + 1, count);
+            /* mask + 1 - count = mask - tmp = mask ^ tmp */
+            tcg_gen_xori_tl(hishift, tmp, mask);
             tcg_gen_shl_tl(s->T0, s->T0, count);
-            tcg_gen_shr_tl(s->T1, s->T1, s->tmp4);
+            tcg_gen_shr_tl(s->T1, s->T1, hishift);
         }
-        tcg_gen_movi_tl(s->tmp4, 0);
-        tcg_gen_movcond_tl(TCG_COND_EQ, s->T1, count, s->tmp4,
-                           s->tmp4, s->T1);
+        tcg_gen_movcond_tl(TCG_COND_EQ, s->T1,
+                           count, tcg_constant_tl(0),
+                           tcg_constant_tl(0), s->T1);
         tcg_gen_or_tl(s->T0, s->T0, s->T1);
         break;
     }
+
+    return cc_src;
 }
 
 #define X86_MAX_INSN_LENGTH 15
@@ -3768,7 +3776,6 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
     dc->tmp1_i64 = tcg_temp_new_i64();
     dc->tmp2_i32 = tcg_temp_new_i32();
     dc->tmp3_i32 = tcg_temp_new_i32();
-    dc->tmp4 = tcg_temp_new();
     dc->cc_srcT = tcg_temp_new();
 }
 
