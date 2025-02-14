@@ -25,14 +25,10 @@ include!(concat!(env!("OUT_DIR"), "/bindings.inc.rs"));
 
 // SAFETY: these are implemented in C; the bindings need to assert that the
 // BQL is taken, either directly or via `BqlCell` and `BqlRefCell`.
-unsafe impl Send for BusState {}
-unsafe impl Sync for BusState {}
-
+// When bindings for character devices are introduced, this can be
+// moved to the Opaque<> wrapper in src/chardev.rs.
 unsafe impl Send for CharBackend {}
 unsafe impl Sync for CharBackend {}
-
-unsafe impl Send for ObjectClass {}
-unsafe impl Sync for ObjectClass {}
 
 // SAFETY: this is a pure data struct
 unsafe impl Send for CoalescedMemoryRange {}
