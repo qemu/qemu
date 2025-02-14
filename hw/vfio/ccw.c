@@ -51,16 +51,7 @@ struct VFIOCCWDevice {
     EventNotifier crw_notifier;
     EventNotifier req_notifier;
     bool force_orb_pfch;
-    bool warned_orb_pfch;
 };
-
-static inline void warn_once_pfch(VFIOCCWDevice *vcdev, SubchDev *sch,
-                                  const char *msg)
-{
-    warn_report_once_cond(&vcdev->warned_orb_pfch,
-                          "vfio-ccw (devno %x.%x.%04x): %s",
-                          sch->cssid, sch->ssid, sch->devno, msg);
-}
 
 static void vfio_ccw_compute_needs_reset(VFIODevice *vdev)
 {
@@ -83,7 +74,8 @@ static IOInstEnding vfio_ccw_handle_request(SubchDev *sch)
 
     if (!(sch->orb.ctrl0 & ORB_CTRL0_MASK_PFCH) && vcdev->force_orb_pfch) {
         sch->orb.ctrl0 |= ORB_CTRL0_MASK_PFCH;
-        warn_once_pfch(vcdev, sch, "PFCH flag forced");
+        warn_report_once("vfio-ccw (devno %x.%x.%04x): PFCH flag forced",
+                         sch->cssid, sch->ssid, sch->devno);
     }
 
     QEMU_BUILD_BUG_ON(sizeof(region->orb_area) != sizeof(ORB));
