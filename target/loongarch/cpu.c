@@ -765,7 +765,7 @@ void loongarch_cpu_post_init(Object *obj)
                                  loongarch_set_pmu);
         object_property_set_description(obj, "pmu",
                                    "Set off to performance monitor unit.");
-
+        kvm_loongarch_cpu_post_init(cpu);
     } else {
         cpu->lbt = ON_OFF_AUTO_OFF;
         cpu->pmu = ON_OFF_AUTO_OFF;
