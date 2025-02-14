@@ -34,12 +34,6 @@ unsafe impl Sync for CharBackend {}
 unsafe impl Send for Chardev {}
 unsafe impl Sync for Chardev {}
 
-unsafe impl Send for Clock {}
-unsafe impl Sync for Clock {}
-
-unsafe impl Send for DeviceState {}
-unsafe impl Sync for DeviceState {}
-
 unsafe impl Send for MemoryRegion {}
 unsafe impl Sync for MemoryRegion {}
 
