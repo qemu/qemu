@@ -1030,3 +1030,48 @@ impl<T: Default> Opaque<T> {
         }
     }
 }
+
+/// Annotates [`Self`] as a transparent wrapper for another type.
+///
+/// Usually defined via the [`qemu_api_macros::Wrapper`] derive macro.
+///
+/// # Examples
+///
+/// ```
+/// # use std::mem::ManuallyDrop;
+/// # use qemu_api::cell::Wrapper;
+/// #[repr(transparent)]
+/// pub struct Example {
+///     inner: ManuallyDrop<String>,
+/// }
+///
+/// unsafe impl Wrapper for Example {
+///     type Wrapped = String;
+/// }
+/// ```
+///
+/// # Safety
+///
+/// `Self` must be a `#[repr(transparent)]` wrapper for the `Wrapped` type,
+/// whether directly or indirectly.
+///
+/// # Methods
+///
+/// By convention, types that implement Wrapper also implement the following
+/// methods:
+///
+/// ```ignore
+/// pub const unsafe fn from_raw<'a>(value: *mut Self::Wrapped) -> &'a Self;
+/// pub const unsafe fn as_mut_ptr(&self) -> *mut Self::Wrapped;
+/// pub const unsafe fn as_ptr(&self) -> *const Self::Wrapped;
+/// pub const unsafe fn raw_get(slot: *mut Self) -> *const Self::Wrapped;
+/// ```
+///
+/// They are not defined here to allow them to be `const`.
+pub unsafe trait Wrapper {
+    type Wrapped;
+}
+
+unsafe impl<T> Wrapper for Opaque<T> {
+    type Wrapped = T;
+}
