@@ -1386,9 +1386,7 @@ char *qemu_console_get_label(QemuConsole *con)
                                        object_get_typename(c->device),
                                        c->head);
             } else {
-                return g_strdup_printf("%s", dev->id ?
-                                       dev->id :
-                                       object_get_typename(c->device));
+                return g_strdup(dev->id ? : object_get_typename(c->device));
             }
         }
         return g_strdup("VGA");

@@ -128,7 +128,7 @@ static int plugin_add(void *opaque, const char *name, const char *value,
                 /* Will treat arg="argname" as "argname=on" */
                 fullarg = g_strdup_printf("%s=%s", value, "on");
             } else {
-                fullarg = g_strdup_printf("%s", value);
+                fullarg = g_strdup(value);
             }
             warn_report("using 'arg=%s' is deprecated", value);
             error_printf("Please use '%s' directly\n", fullarg);

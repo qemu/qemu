@@ -366,7 +366,7 @@ void st_set_trace_file(const char *file)
         /* Type cast needed for Windows where getpid() returns an int. */
         trace_file_name = g_strdup_printf(CONFIG_TRACE_FILE "-" FMT_pid, (pid_t)getpid());
     } else {
-        trace_file_name = g_strdup_printf("%s", file);
+        trace_file_name = g_strdup(file);
     }
 
     st_set_trace_file_enabled(saved_enable);
