@@ -24,7 +24,7 @@ import sys
 import time
 
 from guestperf.progress import Progress, ProgressStats
-from guestperf.report import Report
+from guestperf.report import Report, ReportResult
 from guestperf.timings import TimingRecord, Timings
 
 sys.path.append(os.path.join(os.path.dirname(__file__),
@@ -276,7 +276,11 @@ class Engine(object):
                         src_vcpu_time.extend(self._vcpu_timing(src_pid, src_threads))
                         sleep_secs -= 1
 
-                return [progress_history, src_qemu_time, src_vcpu_time]
+                result = ReportResult()
+                if progress._status == "completed" and not paused:
+                    result = ReportResult(True)
+
+                return [progress_history, src_qemu_time, src_vcpu_time, result]
 
             if self._verbose and (loop % 20) == 0:
                 print("Iter %d: remain %5dMB of %5dMB (total %5dMB @ %5dMb/sec)" % (
@@ -490,6 +494,7 @@ class Engine(object):
             progress_history = ret[0]
             qemu_timings = ret[1]
             vcpu_timings = ret[2]
+            result = ret[3]
             if uri[0:5] == "unix:" and os.path.exists(uri[5:]):
                 os.remove(uri[5:])
 
@@ -509,6 +514,7 @@ class Engine(object):
                           Timings(self._get_timings(src) + self._get_timings(dst)),
                           Timings(qemu_timings),
                           Timings(vcpu_timings),
+                          result,
                           self._binary, self._dst_host, self._kernel,
                           self._initrd, self._transport, self._sleep)
         except Exception as e:

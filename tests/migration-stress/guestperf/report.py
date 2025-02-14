@@ -24,6 +24,22 @@ from guestperf.scenario import Scenario
 from guestperf.progress import Progress
 from guestperf.timings import Timings
 
+class ReportResult(object):
+
+    def __init__(self, success=False):
+        self._success = success
+
+    def serialize(self):
+        return {
+            "success": self._success,
+        }
+
+    @classmethod
+    def deserialize(cls, data):
+        return cls(
+            data["success"])
+
+
 class Report(object):
 
     def __init__(self,
@@ -33,6 +49,7 @@ class Report(object):
                  guest_timings,
                  qemu_timings,
                  vcpu_timings,
+                 result,
                  binary,
                  dst_host,
                  kernel,
@@ -46,6 +63,7 @@ class Report(object):
         self._guest_timings = guest_timings
         self._qemu_timings = qemu_timings
         self._vcpu_timings = vcpu_timings
+        self._result = result
         self._binary = binary
         self._dst_host = dst_host
         self._kernel = kernel
@@ -61,6 +79,7 @@ class Report(object):
             "guest_timings": self._guest_timings.serialize(),
             "qemu_timings": self._qemu_timings.serialize(),
             "vcpu_timings": self._vcpu_timings.serialize(),
+            "result": self._result.serialize(),
             "binary": self._binary,
             "dst_host": self._dst_host,
             "kernel": self._kernel,
@@ -78,6 +97,7 @@ class Report(object):
             Timings.deserialize(data["guest_timings"]),
             Timings.deserialize(data["qemu_timings"]),
             Timings.deserialize(data["vcpu_timings"]),
+            ReportResult.deserialize(data["result"]),
             data["binary"],
             data["dst_host"],
             data["kernel"],
