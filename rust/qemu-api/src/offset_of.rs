@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: MIT
 
+#![doc(hidden)]
+//! This module provides macros that emulate the functionality of
+//! `core::mem::offset_of` on older versions of Rust.
+//!
+//! Documentation is hidden because it only exposes macros, which
+//! are exported directly from `qemu_api`.
+
 /// This macro provides the same functionality as `core::mem::offset_of`,
 /// except that only one level of field access is supported.  The declaration
 /// of the struct must be wrapped with `with_offsets! { }`.

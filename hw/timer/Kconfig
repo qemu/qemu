@@ -11,7 +11,7 @@ config A9_GTIMER
 
 config HPET
     bool
-    default y if PC
+    default y if PC && !HAVE_RUST
 
 config I8254
     bool

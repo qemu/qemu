@@ -29,6 +29,8 @@ use core::{marker::PhantomData, mem, ptr::NonNull};
 pub use crate::bindings::{VMStateDescription, VMStateField};
 use crate::{
     bindings::{self, VMStateFlags},
+    prelude::*,
+    qom::Owned,
     zeroable::Zeroable,
 };
 
@@ -189,9 +191,9 @@ pub const fn vmstate_varray_flag<T: VMState>(_: PhantomData<T>) -> VMStateFlags 
 /// * scalar types (integer and `bool`)
 /// * the C struct `QEMUTimer`
 /// * a transparent wrapper for any of the above (`Cell`, `UnsafeCell`,
-///   [`BqlCell`](crate::cell::BqlCell), [`BqlRefCell`](crate::cell::BqlRefCell)
+///   [`BqlCell`], [`BqlRefCell`]
 /// * a raw pointer to any of the above
-/// * a `NonNull` pointer or a `Box` for any of the above
+/// * a `NonNull` pointer, a `Box` or an [`Owned`] for any of the above
 /// * an array of any of the above
 ///
 /// In order to support other types, the trait `VMState` must be implemented
@@ -292,7 +294,7 @@ impl VMStateField {
 /// # Examples
 ///
 /// ```
-/// # use qemu_api::vmstate::impl_vmstate_forward;
+/// # use qemu_api::impl_vmstate_forward;
 /// pub struct Fifo([u8; 16]);
 /// impl_vmstate_forward!(Fifo);
 /// ```
@@ -398,6 +400,7 @@ impl_vmstate_pointer!(NonNull<T> where T: VMState);
 // Unlike C pointers, Box is always non-null therefore there is no need
 // to specify VMS_ALLOC.
 impl_vmstate_pointer!(Box<T> where T: VMState);
+impl_vmstate_pointer!(Owned<T> where T: VMState + ObjectType);
 
 // Arrays using the underlying type's VMState plus
 // VMS_ARRAY/VMS_ARRAY_OF_POINTER
@@ -466,11 +469,11 @@ macro_rules! vmstate_clock {
                 $crate::assert_field_type!(
                     $struct_name,
                     $field_name,
-                    core::ptr::NonNull<$crate::bindings::Clock>
+                    $crate::qom::Owned<$crate::bindings::Clock>
                 );
                 $crate::offset_of!($struct_name, $field_name)
             },
-            size: ::core::mem::size_of::<*const $crate::bindings::Clock>(),
+            size: ::core::mem::size_of::<*const $crate::qdev::Clock>(),
             flags: VMStateFlags(VMStateFlags::VMS_STRUCT.0 | VMStateFlags::VMS_POINTER.0),
             vmsd: unsafe { ::core::ptr::addr_of!($crate::bindings::vmstate_clock) },
             ..$crate::zeroable::Zeroable::ZERO

@@ -73,7 +73,7 @@ struct hpet_fw_config
     struct hpet_fw_entry hpet[8];
 } QEMU_PACKED;
 
-extern struct hpet_fw_config hpet_cfg;
+extern struct hpet_fw_config hpet_fw_cfg;
 
 #define TYPE_HPET "hpet"
 

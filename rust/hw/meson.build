@@ -1,1 +1,2 @@
 subdir('char')
+subdir('timer')

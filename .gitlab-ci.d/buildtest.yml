@@ -131,6 +131,12 @@ build-system-fedora-rust-nightly:
     CONFIGURE_ARGS: --disable-docs --enable-rust --enable-strict-rust-lints
     TARGETS: aarch64-softmmu
     MAKE_CHECK_ARGS: check-build
+  after_script:
+    - source scripts/ci/gitlab-ci-section
+    - section_start test "Running Rust doctests"
+    - cd build
+    - pyvenv/bin/meson devenv -w ../rust ${CARGO-cargo} test --doc -p qemu_api
+
   allow_failure: true
 
 check-system-fedora:

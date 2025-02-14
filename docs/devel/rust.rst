@@ -180,11 +180,13 @@ module           status
 ``cell``         stable
 ``c_str``        complete
 ``irq``          complete
+``memory``       stable
 ``module``       complete
 ``offset_of``    stable
 ``qdev``         stable
 ``qom``          stable
 ``sysbus``       stable
+``timer``        stable
 ``vmstate``      proof of concept
 ``zeroable``     stable
 ================ ======================
@@ -193,6 +195,50 @@ module           status
   API stability is not a promise, if anything because the C APIs are not a stable
   interface either.  Also, ``unsafe`` interfaces may be replaced by safe interfaces
   later.
+
+Naming convention
+'''''''''''''''''
+
+C function names usually are prefixed according to the data type that they
+apply to, for example ``timer_mod`` or ``sysbus_connect_irq``.  Furthermore,
+both function and structs sometimes have a ``qemu_`` or ``QEMU`` prefix.
+Generally speaking, these are all removed in the corresponding Rust functions:
+``QEMUTimer`` becomes ``timer::Timer``, ``timer_mod`` becomes ``Timer::modify``,
+``sysbus_connect_irq`` becomes ``SysBusDeviceMethods::connect_irq``.
+
+Sometimes however a name appears multiple times in the QOM class hierarchy,
+and the only difference is in the prefix.  An example is ``qdev_realize`` and
+``sysbus_realize``.  In such cases, whenever a name is not unique in
+the hierarchy, always add the prefix to the classes that are lower in
+the hierarchy; for the top class, decide on a case by case basis.
+
+For example:
+
+========================== =========================================
+``device_cold_reset()``    ``DeviceMethods::cold_reset()``
+``pci_device_reset()``     ``PciDeviceMethods::pci_device_reset()``
+``pci_bridge_reset()``     ``PciBridgeMethods::pci_bridge_reset()``
+========================== =========================================
+
+Here, the name is not exactly the same, but nevertheless ``PciDeviceMethods``
+adds the prefix to avoid confusion, because the functionality of
+``device_cold_reset()`` and ``pci_device_reset()`` is subtly different.
+
+In this case, however, no prefix is needed:
+
+========================== =========================================
+``device_realize()``       ``DeviceMethods::realize()``
+``sysbus_realize()``       ``SysbusDeviceMethods::sysbus_realize()``
+``pci_realize()``          ``PciDeviceMethods::pci_realize()``
+========================== =========================================
+
+Here, the lower classes do not add any functionality, and mostly
+provide extra compile-time checking; the basic *realize* functionality
+is the same for all devices.  Therefore, ``DeviceMethods`` does not
+add the prefix.
+
+Whenever a name is unique in the hierarchy, instead, you should
+always remove the class name prefix.
 
 Common pitfalls
 '''''''''''''''

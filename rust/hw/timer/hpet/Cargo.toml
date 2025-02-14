@@ -1,0 +1,18 @@
+[package]
+name = "hpet"
+version = "0.1.0"
+edition = "2021"
+authors = ["Zhao Liu <zhao1.liu@intel.com>"]
+license = "GPL-2.0-or-later"
+description = "IA-PC High Precision Event Timer emulation in Rust"
+rust-version = "1.63.0"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+qemu_api = { path = "../../../qemu-api" }
+qemu_api_macros = { path = "../../../qemu-api-macros" }
+
+[lints]
+workspace = true

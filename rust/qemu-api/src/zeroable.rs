@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+//! Defines a trait for structs that can be safely initialized with zero bytes.
+
 /// Encapsulates the requirement that
 /// `MaybeUninit::<Self>::zeroed().assume_init()` does not cause undefined
 /// behavior.  This trait in principle could be implemented as just:
 ///
 /// ```
-/// pub unsafe trait Zeroable {
+/// pub unsafe trait Zeroable: Default {
 ///     const ZERO: Self = unsafe { ::core::mem::MaybeUninit::<Self>::zeroed().assume_init() };
 /// }
 /// ```
@@ -56,6 +58,7 @@ pub unsafe trait Zeroable: Default {
 /// ## Differences with `core::mem::zeroed`
 ///
 /// `const_zero` zeroes padding bits, while `core::mem::zeroed` doesn't
+#[macro_export]
 macro_rules! const_zero {
     // This macro to produce a type-generic zero constant is taken from the
     // const_zero crate (v0.1.1):
@@ -77,10 +80,11 @@ macro_rules! const_zero {
 }
 
 /// A wrapper to implement the `Zeroable` trait through the `const_zero` macro.
+#[macro_export]
 macro_rules! impl_zeroable {
     ($type:ty) => {
-        unsafe impl Zeroable for $type {
-            const ZERO: Self = unsafe { const_zero!($type) };
+        unsafe impl $crate::zeroable::Zeroable for $type {
+            const ZERO: Self = unsafe { $crate::const_zero!($type) };
         }
     };
 }
@@ -100,3 +104,5 @@ impl_zeroable!(crate::bindings::VMStateField);
 impl_zeroable!(crate::bindings::VMStateDescription);
 impl_zeroable!(crate::bindings::MemoryRegionOps__bindgen_ty_1);
 impl_zeroable!(crate::bindings::MemoryRegionOps__bindgen_ty_2);
+impl_zeroable!(crate::bindings::MemoryRegionOps);
+impl_zeroable!(crate::bindings::MemTxAttrs);
