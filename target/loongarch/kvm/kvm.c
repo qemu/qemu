@@ -1016,8 +1016,43 @@ int kvm_arch_init_vcpu(CPUState *cs)
     return ret;
 }
 
+static bool loongarch_get_lbt(Object *obj, Error **errp)
+{
+    return LOONGARCH_CPU(obj)->lbt != ON_OFF_AUTO_OFF;
+}
+
+static void loongarch_set_lbt(Object *obj, bool value, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    cpu->lbt = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+}
+
+static bool loongarch_get_pmu(Object *obj, Error **errp)
+{
+    return LOONGARCH_CPU(obj)->pmu != ON_OFF_AUTO_OFF;
+}
+
+static void loongarch_set_pmu(Object *obj, bool value, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    cpu->pmu = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+}
+
 void kvm_loongarch_cpu_post_init(LoongArchCPU *cpu)
 {
+    cpu->lbt = ON_OFF_AUTO_AUTO;
+    object_property_add_bool(OBJECT(cpu), "lbt", loongarch_get_lbt,
+                             loongarch_set_lbt);
+    object_property_set_description(OBJECT(cpu), "lbt",
+                                   "Set off to disable Binary Tranlation.");
+
+    cpu->pmu = ON_OFF_AUTO_AUTO;
+    object_property_add_bool(OBJECT(cpu), "pmu", loongarch_get_pmu,
+                             loongarch_set_pmu);
+    object_property_set_description(OBJECT(cpu), "pmu",
+                               "Set off to disable performance monitor unit.");
 }
 
 int kvm_arch_destroy_vcpu(CPUState *cs)
