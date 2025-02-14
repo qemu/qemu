@@ -4,6 +4,7 @@
 
 use std::{
     ffi::CStr,
+    pin::Pin,
     ptr::{addr_of_mut, null_mut, NonNull},
     slice::from_ref,
 };
@@ -184,7 +185,9 @@ impl HPETTimer {
     fn init(&mut self, index: usize, state: &HPETState) {
         *self = HPETTimer {
             index,
-            qemu_timer: Timer::new(),
+            // SAFETY: the HPETTimer will only be used after the timer
+            // is initialized below.
+            qemu_timer: unsafe { Timer::new() },
             state: NonNull::new(state as *const _ as *mut _).unwrap(),
             config: 0,
             cmp: 0,
@@ -195,7 +198,10 @@ impl HPETTimer {
             last: 0,
         };
 
-        self.qemu_timer.init_full(
+        // SAFETY: HPETTimer is only used as part of HPETState, which is
+        // always pinned.
+        let qemu_timer = unsafe { Pin::new_unchecked(&mut self.qemu_timer) };
+        qemu_timer.init_full(
             None,
             CLOCK_VIRTUAL,
             Timer::NS,
