@@ -73,6 +73,34 @@
 //! QEMU device implementations is usually incorrect and can lead to
 //! thread-safety issues.
 //!
+//! ### Example
+//!
+//! ```
+//! # use qemu_api::prelude::*;
+//! # use qemu_api::{c_str, cell::BqlRefCell, irq::InterruptSource, irq::IRQState};
+//! # use qemu_api::{sysbus::SysBusDevice, qom::Owned, qom::ParentField};
+//! # const N_GPIOS: usize = 8;
+//! # struct PL061Registers { /* ... */ }
+//! # unsafe impl ObjectType for PL061State {
+//! #     type Class = <SysBusDevice as ObjectType>::Class;
+//! #     const TYPE_NAME: &'static std::ffi::CStr = c_str!("pl061");
+//! # }
+//! struct PL061State {
+//!     parent_obj: ParentField<SysBusDevice>,
+//!
+//!     // Configuration is read-only after initialization
+//!     pullups: u32,
+//!     pulldowns: u32,
+//!
+//!     // Single values shared with C code use BqlCell, in this case via InterruptSource
+//!     out: [InterruptSource; N_GPIOS],
+//!     interrupt: InterruptSource,
+//!
+//!     // Larger state accessed by device methods uses BqlRefCell or Mutex
+//!     registers: BqlRefCell<PL061Registers>,
+//! }
+//! ```
+//!
 //! ### `BqlCell<T>`
 //!
 //! [`BqlCell<T>`] implements interior mutability by moving values in and out of
