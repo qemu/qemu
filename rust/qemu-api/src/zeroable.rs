@@ -106,3 +106,4 @@ impl_zeroable!(crate::bindings::MemoryRegionOps__bindgen_ty_1);
 impl_zeroable!(crate::bindings::MemoryRegionOps__bindgen_ty_2);
 impl_zeroable!(crate::bindings::MemoryRegionOps);
 impl_zeroable!(crate::bindings::MemTxAttrs);
+impl_zeroable!(crate::bindings::CharBackend);
