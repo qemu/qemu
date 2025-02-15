@@ -409,6 +409,7 @@ struct ArchCPU {
     OnOffAuto lsx;
     OnOffAuto lasx;
     OnOffAuto kvm_pv_ipi;
+    OnOffAuto kvm_steal_time;
 
     /* 'compatible' string for this CPU for Linux device trees */
     const char *dtb_compatible;

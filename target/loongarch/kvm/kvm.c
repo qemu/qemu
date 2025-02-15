@@ -1122,6 +1122,18 @@ static void kvm_pv_ipi_set(Object *obj, bool value, Error **errp)
     cpu->kvm_pv_ipi = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
 }
 
+static bool kvm_steal_time_get(Object *obj, Error **errp)
+{
+    return LOONGARCH_CPU(obj)->kvm_steal_time != ON_OFF_AUTO_OFF;
+}
+
+static void kvm_steal_time_set(Object *obj, bool value, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    cpu->kvm_steal_time = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+}
+
 void kvm_loongarch_cpu_post_init(LoongArchCPU *cpu)
 {
     cpu->lbt = ON_OFF_AUTO_AUTO;
@@ -1141,6 +1153,12 @@ void kvm_loongarch_cpu_post_init(LoongArchCPU *cpu)
                              kvm_pv_ipi_set);
     object_property_set_description(OBJECT(cpu), "kvm-pv-ipi",
                                     "Set off to disable KVM paravirt IPI.");
+
+    cpu->kvm_steal_time = ON_OFF_AUTO_AUTO;
+    object_property_add_bool(OBJECT(cpu), "kvm-steal-time", kvm_steal_time_get,
+                             kvm_steal_time_set);
+    object_property_set_description(OBJECT(cpu), "kvm-steal-time",
+                                    "Set off to disable KVM steal time.");
 }
 
 int kvm_arch_destroy_vcpu(CPUState *cs)
