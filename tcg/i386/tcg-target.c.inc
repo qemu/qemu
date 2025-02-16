@@ -3602,13 +3602,6 @@ static const TCGOutOpStore outop_st = {
     .out_i = tgen_st_i,
 };
 
-static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
-                       const TCGArg args[TCG_MAX_OP_ARGS],
-                       const int const_args[TCG_MAX_OP_ARGS])
-{
-    g_assert_not_reached();
-}
-
 static int const umin_insn[4] = {
     OPC_PMINUB, OPC_PMINUW, OPC_PMINUD, OPC_VPMINUQ
 };

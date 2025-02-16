@@ -138,9 +138,6 @@ static void tcg_out_mb(TCGContext *s, unsigned bar);
 static void tcg_out_br(TCGContext *s, TCGLabel *l);
 static void tcg_out_set_carry(TCGContext *s);
 static void tcg_out_set_borrow(TCGContext *s);
-static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
-                       const TCGArg args[TCG_MAX_OP_ARGS],
-                       const int const_args[TCG_MAX_OP_ARGS]);
 #if TCG_TARGET_MAYBE_vec
 static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
                             TCGReg dst, TCGReg src);
@@ -5920,12 +5917,9 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         break;
 
     default:
-        if (def->flags & TCG_OPF_VECTOR) {
-            tcg_out_vec_op(s, op->opc, type - TCG_TYPE_V64,
-                           TCGOP_VECE(op), new_args, const_args);
-        } else {
-            tcg_out_op(s, op->opc, type, new_args, const_args);
-        }
+        tcg_debug_assert(def->flags & TCG_OPF_VECTOR);
+        tcg_out_vec_op(s, op->opc, type - TCG_TYPE_V64,
+                       TCGOP_VECE(op), new_args, const_args);
         break;
     }
 

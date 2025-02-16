@@ -3828,13 +3828,6 @@ static const TCGOutOpStore outop_st = {
 };
 
 
-static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
-                       const TCGArg args[TCG_MAX_OP_ARGS],
-                       const int const_args[TCG_MAX_OP_ARGS])
-{
-    g_assert_not_reached();
-}
-
 int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
 {
     switch (opc) {

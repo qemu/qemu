@@ -1235,13 +1235,6 @@ static const TCGOutOpQemuLdSt2 outop_qemu_st2 = {
         TCG_TARGET_REG_BITS == 64 ? NULL : tgen_qemu_st2,
 };
 
-static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
-                       const TCGArg args[TCG_MAX_OP_ARGS],
-                       const int const_args[TCG_MAX_OP_ARGS])
-{
-    g_assert_not_reached();
-}
-
 static void tcg_out_st(TCGContext *s, TCGType type, TCGReg val, TCGReg base,
                        intptr_t offset)
 {
