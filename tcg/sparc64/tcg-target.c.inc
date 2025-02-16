@@ -1234,8 +1234,8 @@ static const TCGOutOpQemuLdSt2 outop_qemu_ld2 = {
     .base.static_constraint = C_NotImplemented,
 };
 
-static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
-                            MemOpIdx oi, TCGType data_type)
+static void tgen_qemu_st(TCGContext *s, TCGType type, TCGReg data,
+                         TCGReg addr, MemOpIdx oi)
 {
     static const int st_opc[(MO_SIZE | MO_BSWAP) + 1] = {
         [MO_UB]   = STB,
@@ -1258,11 +1258,20 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
                     st_opc[get_memop(oi) & (MO_BSWAP | MO_SIZE)]);
 
     if (ldst) {
-        ldst->type = data_type;
+        ldst->type = type;
         ldst->datalo_reg = data;
         ldst->raddr = tcg_splitwx_to_rx(s->code_ptr);
     }
 }
+
+static const TCGOutOpQemuLdSt outop_qemu_st = {
+    .base.static_constraint = C_O0_I2(rz, r),
+    .out = tgen_qemu_st,
+};
+
+static const TCGOutOpQemuLdSt2 outop_qemu_st2 = {
+    .base.static_constraint = C_NotImplemented,
+};
 
 static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
 {
@@ -2069,36 +2078,13 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
 {
-    TCGArg a0, a1, a2;
-
-    /* Hoist the loads of the most common arguments.  */
-    a0 = args[0];
-    a1 = args[1];
-    a2 = args[2];
-
-    switch (opc) {
-    case INDEX_op_qemu_st:
-        tcg_out_qemu_st(s, a0, a1, a2, type);
-        break;
-
-    case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
-    case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
-    case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
-    default:
-        g_assert_not_reached();
-    }
+    g_assert_not_reached();
 }
 
 static TCGConstraintSetIndex
 tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 {
-    switch (op) {
-    case INDEX_op_qemu_st:
-        return C_O0_I2(rz, r);
-
-    default:
-        return C_NotImplemented;
-    }
+    return C_NotImplemented;
 }
 
 static void tcg_target_init(TCGContext *s)

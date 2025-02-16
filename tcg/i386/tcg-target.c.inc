@@ -2484,7 +2484,7 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
 
     switch (memop & MO_SIZE) {
     case MO_8:
-        /* This is handled with constraints on INDEX_op_qemu_st. */
+        /* This is handled with constraints in cset_qemu_st(). */
         tcg_debug_assert(TCG_TARGET_REG_BITS == 64 || datalo < 4);
         tcg_out_modrm_sib_offset(s, OPC_MOVB_EvGv + P_REXB_R + h.seg,
                                  datalo, h.base, h.index, 0, h.ofs);
@@ -2576,8 +2576,38 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
     }
 }
 
-static void tcg_out_qemu_st(TCGContext *s, TCGReg datalo, TCGReg datahi,
-                            TCGReg addr, MemOpIdx oi, TCGType data_type)
+static void tgen_qemu_st(TCGContext *s, TCGType type, TCGReg data,
+                         TCGReg addr, MemOpIdx oi)
+{
+    TCGLabelQemuLdst *ldst;
+    HostAddress h;
+
+    ldst = prepare_host_addr(s, &h, addr, oi, false);
+    tcg_out_qemu_st_direct(s, data, -1, h, get_memop(oi));
+
+    if (ldst) {
+        ldst->type = type;
+        ldst->datalo_reg = data;
+        ldst->datahi_reg = -1;
+        ldst->raddr = tcg_splitwx_to_rx(s->code_ptr);
+    }
+}
+
+static TCGConstraintSetIndex cset_qemu_st(TCGType type, unsigned flags)
+{
+    return flags == MO_8 ? C_O0_I2(s, L) : C_O0_I2(L, L);
+}
+
+static const TCGOutOpQemuLdSt outop_qemu_st = {
+    .base.static_constraint =
+        TCG_TARGET_REG_BITS == 32 ? C_Dynamic : C_O0_I2(L, L),
+    .base.dynamic_constraint =
+        TCG_TARGET_REG_BITS == 32 ? cset_qemu_st : NULL,
+    .out = tgen_qemu_st,
+};
+
+static void tgen_qemu_st2(TCGContext *s, TCGType type, TCGReg datalo,
+                          TCGReg datahi, TCGReg addr, MemOpIdx oi)
 {
     TCGLabelQemuLdst *ldst;
     HostAddress h;
@@ -2586,12 +2616,17 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg datalo, TCGReg datahi,
     tcg_out_qemu_st_direct(s, datalo, datahi, h, get_memop(oi));
 
     if (ldst) {
-        ldst->type = data_type;
+        ldst->type = type;
         ldst->datalo_reg = datalo;
         ldst->datahi_reg = datahi;
         ldst->raddr = tcg_splitwx_to_rx(s->code_ptr);
     }
 }
+
+static const TCGOutOpQemuLdSt2 outop_qemu_st2 = {
+    .base.static_constraint = C_O0_I3(L, L, L),
+    .out = tgen_qemu_st2,
+};
 
 static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
 {
@@ -3571,27 +3606,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
 {
-    TCGArg a0, a1, a2;
-
-    /* Hoist the loads of the most common arguments.  */
-    a0 = args[0];
-    a1 = args[1];
-    a2 = args[2];
-
-    switch (opc) {
-    case INDEX_op_qemu_st:
-        tcg_out_qemu_st(s, a0, -1, a1, a2, type);
-        break;
-    case INDEX_op_qemu_st2:
-        tcg_out_qemu_st(s, a0, a1, a2, args[3], type);
-        break;
-
-    case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
-    case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
-    case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
-    default:
-        g_assert_not_reached();
-    }
+    g_assert_not_reached();
 }
 
 static int const umin_insn[4] = {
@@ -4139,14 +4154,6 @@ static TCGConstraintSetIndex
 tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 {
     switch (op) {
-    case INDEX_op_qemu_st:
-        return (TCG_TARGET_REG_BITS == 32 && flags == MO_8
-                ? C_O0_I2(s, L)
-                : C_O0_I2(L, L));
-
-    case INDEX_op_qemu_st2:
-        return C_O0_I3(L, L, L);
-
     case INDEX_op_ld_vec:
     case INDEX_op_dupm_vec:
         return C_O1_I1(x, r);

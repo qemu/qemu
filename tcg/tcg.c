@@ -1224,6 +1224,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_orc, TCGOutOpBinary, outop_orc),
     OUTOP(INDEX_op_qemu_ld, TCGOutOpQemuLdSt, outop_qemu_ld),
     OUTOP(INDEX_op_qemu_ld2, TCGOutOpQemuLdSt2, outop_qemu_ld2),
+    OUTOP(INDEX_op_qemu_st, TCGOutOpQemuLdSt, outop_qemu_st),
+    OUTOP(INDEX_op_qemu_st2, TCGOutOpQemuLdSt2, outop_qemu_st2),
     OUTOP(INDEX_op_rems, TCGOutOpBinary, outop_rems),
     OUTOP(INDEX_op_remu, TCGOutOpBinary, outop_remu),
     OUTOP(INDEX_op_rotl, TCGOutOpBinary, outop_rotl),
@@ -5815,15 +5817,21 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         break;
 
     case INDEX_op_qemu_ld:
+    case INDEX_op_qemu_st:
         {
-            const TCGOutOpQemuLdSt *out = &outop_qemu_ld;
+            const TCGOutOpQemuLdSt *out =
+                container_of(all_outop[op->opc], TCGOutOpQemuLdSt, base);
+
             out->out(s, type, new_args[0], new_args[1], new_args[2]);
         }
         break;
 
     case INDEX_op_qemu_ld2:
+    case INDEX_op_qemu_st2:
         {
-            const TCGOutOpQemuLdSt2 *out = &outop_qemu_ld2;
+            const TCGOutOpQemuLdSt2 *out =
+                container_of(all_outop[op->opc], TCGOutOpQemuLdSt2, base);
+
             out->out(s, type, new_args[0], new_args[1],
                      new_args[2], new_args[3]);
         }
