@@ -86,6 +86,7 @@ uint64_t board_ram_size(uint32_t board_rev);
 #define RNG_OFFSET              0x104000
 #define GPIO_OFFSET             0x200000
 #define UART0_OFFSET            0x201000 /* PL011 */
+#define UART3_OFFSET            0x201600 /* PL011 */
 #define MMCI0_OFFSET            0x202000 /* Legacy MMC */
 #define I2S_OFFSET              0x203000 /* PCM */
 #define SPI0_OFFSET             0x204000 /* SPI master */
@@ -189,6 +190,7 @@ uint64_t board_ram_size(uint32_t board_rev);
 #define INTERRUPT_I2SPCM               55
 #define INTERRUPT_SDIO                 56
 #define INTERRUPT_UART0                57
+#define INTERRUPT_UART3                57
 #define INTERRUPT_SLIMBUS              58
 #define INTERRUPT_VEC                  59
 #define INTERRUPT_CPG                  60
