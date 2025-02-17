@@ -56,7 +56,7 @@ static bool gen_am(DisasContext *ctx, arg_rrr *a,
     if (a->rd != 0 && (a->rj == a->rd || a->rk == a->rd)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "Warning: source register overlaps destination register"
-                      "in atomic insn at pc=0x" TARGET_FMT_lx "\n",
+                      "in atomic insn at pc=0x%" VADDR_PRIx "\n",
                       ctx->base.pc_next - 4);
         return false;
     }
