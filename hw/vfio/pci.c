@@ -3433,6 +3433,122 @@ static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
     pdc->exit = vfio_exitfn;
     pdc->config_read = vfio_pci_read_config;
     pdc->config_write = vfio_pci_write_config;
+
+    object_class_property_set_description(klass, /* 1.3 */
+                                          "host",
+                                          "Host PCI address [domain:]<bus:slot.function> of assigned device");
+    object_class_property_set_description(klass, /* 1.3 */
+                                          "x-intx-mmap-timeout-ms",
+                                          "When EOI is not provided by KVM/QEMU, wait time "
+                                          "(milliseconds) to re-enable device direct access "
+                                          "after INTx (DEBUG)");
+    object_class_property_set_description(klass, /* 1.5 */
+                                          "x-vga",
+                                          "Expose VGA address spaces for device");
+    object_class_property_set_description(klass, /* 2.3 */
+                                          "x-req",
+                                          "Disable device request notification support (DEBUG)");
+    object_class_property_set_description(klass, /* 2.4 and 2.5 */
+                                          "x-no-mmap",
+                                          "Disable MMAP for device. Allows to trace MMIO "
+                                          "accesses (DEBUG)");
+    object_class_property_set_description(klass, /* 2.5 */
+                                          "x-no-kvm-intx",
+                                          "Disable direct VFIO->KVM INTx injection. Allows to "
+                                          "trace INTx interrupts (DEBUG)");
+    object_class_property_set_description(klass, /* 2.5 */
+                                          "x-no-kvm-msi",
+                                          "Disable direct VFIO->KVM MSI injection. Allows to "
+                                          "trace MSI interrupts (DEBUG)");
+    object_class_property_set_description(klass, /* 2.5 */
+                                          "x-no-kvm-msix",
+                                          "Disable direct VFIO->KVM MSIx injection. Allows to "
+                                          "trace MSIx interrupts (DEBUG)");
+    object_class_property_set_description(klass, /* 2.5 */
+                                          "x-pci-vendor-id",
+                                          "Override PCI Vendor ID with provided value (DEBUG)");
+    object_class_property_set_description(klass, /* 2.5 */
+                                          "x-pci-device-id",
+                                          "Override PCI device ID with provided value (DEBUG)");
+    object_class_property_set_description(klass, /* 2.5 */
+                                          "x-pci-sub-vendor-id",
+                                          "Override PCI Subsystem Vendor ID with provided value "
+                                          "(DEBUG)");
+    object_class_property_set_description(klass, /* 2.5 */
+                                          "x-pci-sub-device-id",
+                                          "Override PCI Subsystem Device ID with provided value "
+                                          "(DEBUG)");
+    object_class_property_set_description(klass, /* 2.6 */
+                                          "sysfsdev",
+                                          "Host sysfs path of assigned device");
+    object_class_property_set_description(klass, /* 2.7 */
+                                          "x-igd-opregion",
+                                          "Expose host IGD OpRegion to guest");
+    object_class_property_set_description(klass, /* 2.7 (See c4c45e943e51) */
+                                          "x-igd-gms",
+                                          "Override IGD data stolen memory size (32MiB units)");
+    object_class_property_set_description(klass, /* 2.11 */
+                                          "x-nv-gpudirect-clique",
+                                          "Add NVIDIA GPUDirect capability indicating P2P DMA "
+                                          "clique for device [0-15]");
+    object_class_property_set_description(klass, /* 2.12 */
+                                          "x-no-geforce-quirks",
+                                          "Disable GeForce quirks (for NVIDIA Quadro/GRID/Tesla). "
+                                          "Improves performance");
+    object_class_property_set_description(klass, /* 2.12 */
+                                          "display",
+                                          "Enable display support for device, ex. vGPU");
+    object_class_property_set_description(klass, /* 2.12 */
+                                          "x-msix-relocation",
+                                          "Specify MSI-X MMIO relocation to the end of specified "
+                                          "existing BAR or new BAR to avoid virtualization overhead "
+                                          "due to adjacent device registers");
+    object_class_property_set_description(klass, /* 3.0 */
+                                          "x-no-kvm-ioeventfd",
+                                          "Disable registration of ioeventfds with KVM (DEBUG)");
+    object_class_property_set_description(klass, /* 3.0 */
+                                          "x-no-vfio-ioeventfd",
+                                          "Disable linking of KVM ioeventfds to VFIO ioeventfds "
+                                          "(DEBUG)");
+    object_class_property_set_description(klass, /* 3.1 */
+                                          "x-balloon-allowed",
+                                          "Override allowing ballooning with device (DEBUG, DANGER)");
+    object_class_property_set_description(klass, /* 3.2 */
+                                          "xres",
+                                          "Set X display resolution the vGPU should use");
+    object_class_property_set_description(klass, /* 3.2 */
+                                          "yres",
+                                          "Set Y display resolution the vGPU should use");
+    object_class_property_set_description(klass, /* 5.2 */
+                                          "x-pre-copy-dirty-page-tracking",
+                                          "Disable dirty pages tracking during iterative phase "
+                                          "(DEBUG)");
+    object_class_property_set_description(klass, /* 5.2, 8.0 non-experimetal */
+                                          "enable-migration",
+                                          "Enale device migration. Also requires a host VFIO PCI "
+                                          "variant or mdev driver with migration support enabled");
+    object_class_property_set_description(klass, /* 8.1 */
+                                          "vf-token",
+                                          "Specify UUID VF token. Required for VF when PF is owned "
+                                          "by another VFIO driver");
+#ifdef CONFIG_IOMMUFD
+    object_class_property_set_description(klass, /* 9.0 */
+                                          "iommufd",
+                                          "Set host IOMMUFD backend device");
+#endif
+    object_class_property_set_description(klass, /* 9.1 */
+                                          "x-device-dirty-page-tracking",
+                                          "Disable device dirty page tracking and use "
+                                          "container-based dirty page tracking (DEBUG)");
+    object_class_property_set_description(klass, /* 9.1 */
+                                          "migration-events",
+                                          "Emit VFIO migration QAPI event when a VFIO device "
+                                          "changes its migration state. For management applications");
+    object_class_property_set_description(klass, /* 9.1 */
+                                          "skip-vsc-check",
+                                          "Skip config space check for Vendor Specific Capability. "
+                                          "Setting to false will enforce strict checking of VSC content "
+                                          "(DEBUG)");
 }
 
 static const TypeInfo vfio_pci_dev_info = {
@@ -3461,6 +3577,15 @@ static void vfio_pci_nohotplug_dev_class_init(ObjectClass *klass, void *data)
 
     device_class_set_props(dc, vfio_pci_dev_nohotplug_properties);
     dc->hotpluggable = false;
+
+    object_class_property_set_description(klass, /* 3.1 */
+                                          "ramfb",
+                                          "Enable ramfb to provide pre-boot graphics for devices "
+                                          "enabling display option");
+    object_class_property_set_description(klass, /* 8.2 */
+                                          "x-ramfb-migrate",
+                                          "Override default migration support for ramfb support "
+                                          "(DEBUG)");
 }
 
 static const TypeInfo vfio_pci_nohotplug_dev_info = {
