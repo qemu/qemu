@@ -924,6 +924,12 @@ static bool kvm_feature_supported(CPUState *cs, enum loongarch_features feature)
         ret = kvm_vm_ioctl(kvm_state, KVM_HAS_DEVICE_ATTR, &attr);
         return (ret == 0);
 
+    case LOONGARCH_FEATURE_STEALTIME:
+        attr.group = KVM_LOONGARCH_VM_FEAT_CTRL;
+        attr.attr = KVM_LOONGARCH_VM_FEAT_PV_STEALTIME;
+        ret = kvm_vm_ioctl(kvm_state, KVM_HAS_DEVICE_ATTR, &attr);
+        return (ret == 0);
+
     default:
         return false;
     }
@@ -1040,6 +1046,20 @@ static int kvm_cpu_check_pv_features(CPUState *cs, Error **errp)
 
     if (kvm_supported) {
         env->pv_features |= BIT(KVM_FEATURE_IPI);
+    }
+
+    kvm_supported = kvm_feature_supported(cs, LOONGARCH_FEATURE_STEALTIME);
+    if (cpu->kvm_steal_time == ON_OFF_AUTO_ON) {
+        if (!kvm_supported) {
+            error_setg(errp, "'kvm stealtime' feature not supported by KVM host");
+            return -ENOTSUP;
+        }
+    } else if (cpu->kvm_steal_time != ON_OFF_AUTO_AUTO) {
+        kvm_supported = false;
+    }
+
+    if (kvm_supported) {
+        env->pv_features |= BIT(KVM_FEATURE_STEAL_TIME);
     }
 
     return 0;
