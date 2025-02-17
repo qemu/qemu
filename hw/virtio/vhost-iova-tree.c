@@ -37,9 +37,9 @@ struct VhostIOVATree {
 };
 
 /**
- * Create a new IOVA tree
+ * Create a new VhostIOVATree
  *
- * Returns the new IOVA tree
+ * Returns the new VhostIOVATree.
  */
 VhostIOVATree *vhost_iova_tree_new(hwaddr iova_first, hwaddr iova_last)
 {
@@ -56,7 +56,7 @@ VhostIOVATree *vhost_iova_tree_new(hwaddr iova_first, hwaddr iova_last)
 }
 
 /**
- * Delete an iova tree
+ * Delete a VhostIOVATree
  */
 void vhost_iova_tree_delete(VhostIOVATree *iova_tree)
 {
@@ -69,10 +69,10 @@ void vhost_iova_tree_delete(VhostIOVATree *iova_tree)
 /**
  * Find the IOVA address stored from a memory address
  *
- * @tree: The iova tree
+ * @tree: The VhostIOVATree
  * @map: The map with the memory address
  *
- * Return the stored mapping, or NULL if not found.
+ * Returns the stored IOVA->HVA mapping, or NULL if not found.
  */
 const DMAMap *vhost_iova_tree_find_iova(const VhostIOVATree *tree,
                                         const DMAMap *map)
@@ -81,10 +81,10 @@ const DMAMap *vhost_iova_tree_find_iova(const VhostIOVATree *tree,
 }
 
 /**
- * Allocate a new mapping
+ * Allocate a new IOVA range and add the mapping to the IOVA->HVA tree
  *
- * @tree: The iova tree
- * @map: The iova map
+ * @tree: The VhostIOVATree
+ * @map: The IOVA mapping
  * @taddr: The translated address (HVA)
  *
  * Returns:
@@ -92,7 +92,7 @@ const DMAMap *vhost_iova_tree_find_iova(const VhostIOVATree *tree,
  * - IOVA_ERR_INVALID if the map does not make sense (like size overflow)
  * - IOVA_ERR_NOMEM if tree cannot allocate more space.
  *
- * It returns assignated iova in map->iova if return value is VHOST_DMA_MAP_OK.
+ * It returns an assigned IOVA in map->iova if the return value is IOVA_OK.
  */
 int vhost_iova_tree_map_alloc(VhostIOVATree *tree, DMAMap *map, hwaddr taddr)
 {
@@ -117,9 +117,9 @@ int vhost_iova_tree_map_alloc(VhostIOVATree *tree, DMAMap *map, hwaddr taddr)
 }
 
 /**
- * Remove existing mappings from iova tree
+ * Remove existing mappings from the IOVA-only and IOVA->HVA trees
  *
- * @iova_tree: The vhost iova tree
+ * @iova_tree: The VhostIOVATree
  * @map: The map to remove
  */
 void vhost_iova_tree_remove(VhostIOVATree *iova_tree, DMAMap map)
