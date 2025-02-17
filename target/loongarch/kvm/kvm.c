@@ -83,6 +83,33 @@ static int kvm_set_stealtime(CPUState *cs)
     return 0;
 }
 
+static int kvm_set_pv_features(CPUState *cs)
+{
+    CPULoongArchState *env = cpu_env(cs);
+    int err;
+    uint64_t val;
+    struct kvm_device_attr attr = {
+        .group = KVM_LOONGARCH_VCPU_CPUCFG,
+        .attr = CPUCFG_KVM_FEATURE,
+        .addr = (uint64_t)&val,
+    };
+
+    err = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, attr);
+    if (err) {
+        return 0;
+    }
+
+    val = env->pv_features;
+    err = kvm_vcpu_ioctl(cs, KVM_SET_DEVICE_ATTR, attr);
+    if (err) {
+        error_report("Fail to set pv feature "TARGET_FMT_lx " with error %s",
+                      val, strerror(errno));
+        return err;
+    }
+
+    return 0;
+}
+
 static int kvm_loongarch_get_regs_core(CPUState *cs)
 {
     int ret = 0;
@@ -738,6 +765,7 @@ int kvm_arch_get_registers(CPUState *cs, Error **errp)
 int kvm_arch_put_registers(CPUState *cs, int level, Error **errp)
 {
     int ret;
+    static int once;
 
     ret = kvm_loongarch_put_regs_core(cs);
     if (ret) {
@@ -762,6 +790,14 @@ int kvm_arch_put_registers(CPUState *cs, int level, Error **errp)
     ret = kvm_loongarch_put_lbt(cs);
     if (ret) {
         return ret;
+    }
+
+    if (!once) {
+        ret = kvm_set_pv_features(cs);
+        if (ret) {
+            return ret;
+        }
+        once = 1;
     }
 
     if (level >= KVM_PUT_FULL_STATE) {
