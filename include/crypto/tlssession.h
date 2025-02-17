@@ -75,12 +75,14 @@
  *                                      GINT_TO_POINTER(fd));
  *
  *    while (1) {
- *       if (qcrypto_tls_session_handshake(sess, errp) < 0) {
+ *       int ret = qcrypto_tls_session_handshake(sess, errp);
+ *
+ *       if (ret < 0) {
  *           qcrypto_tls_session_free(sess);
  *           return -1;
  *       }
  *
- *       switch(qcrypto_tls_session_get_handshake_status(sess)) {
+ *       switch(ret) {
  *       case QCRYPTO_TLS_HANDSHAKE_COMPLETE:
  *           if (qcrypto_tls_session_check_credentials(sess, errp) < )) {
  *               qcrypto_tls_session_free(sess);
@@ -170,7 +172,7 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(QCryptoTLSSession, qcrypto_tls_session_free)
  *
  * Validate the peer's credentials after a successful
  * TLS handshake. It is an error to call this before
- * qcrypto_tls_session_get_handshake_status() returns
+ * qcrypto_tls_session_handshake() returns
  * QCRYPTO_TLS_HANDSHAKE_COMPLETE
  *
  * Returns 0 if the credentials validated, -1 on error
@@ -226,7 +228,7 @@ void qcrypto_tls_session_set_callbacks(QCryptoTLSSession *sess,
  * registered with qcrypto_tls_session_set_callbacks()
  *
  * It is an error to call this before
- * qcrypto_tls_session_get_handshake_status() returns
+ * qcrypto_tls_session_handshake() returns
  * QCRYPTO_TLS_HANDSHAKE_COMPLETE
  *
  * Returns: the number of bytes sent,
@@ -256,7 +258,7 @@ ssize_t qcrypto_tls_session_write(QCryptoTLSSession *sess,
  * opposed to an error.
  *
  * It is an error to call this before
- * qcrypto_tls_session_get_handshake_status() returns
+ * qcrypto_tls_session_handshake() returns
  * QCRYPTO_TLS_HANDSHAKE_COMPLETE
  *
  * Returns: the number of bytes received,
@@ -289,8 +291,7 @@ size_t qcrypto_tls_session_check_pending(QCryptoTLSSession *sess);
  * the underlying data channel is non-blocking, then
  * this method may return control before the handshake
  * is complete. On non-blocking channels the
- * qcrypto_tls_session_get_handshake_status() method
- * should be used to determine whether the handshake
+ * return value determines whether the handshake
  * has completed, or is waiting to send or receive
  * data. In the latter cases, the caller should setup
  * an event loop watch and call this method again
@@ -306,22 +307,27 @@ typedef enum {
     QCRYPTO_TLS_HANDSHAKE_RECVING,
 } QCryptoTLSSessionHandshakeStatus;
 
+typedef enum {
+    QCRYPTO_TLS_BYE_COMPLETE,
+    QCRYPTO_TLS_BYE_SENDING,
+    QCRYPTO_TLS_BYE_RECVING,
+} QCryptoTLSSessionByeStatus;
+
 /**
- * qcrypto_tls_session_get_handshake_status:
- * @sess: the TLS session object
+ * qcrypto_tls_session_bye:
+ * @session: the TLS session object
+ * @errp: pointer to a NULL-initialized error object
  *
- * Check the status of the TLS handshake. This
- * is used with non-blocking data channels to
- * determine whether the handshake is waiting
- * to send or receive further data to/from the
- * remote peer.
- *
- * Once this returns QCRYPTO_TLS_HANDSHAKE_COMPLETE
- * it is permitted to send/receive payload data on
- * the channel
+ * Start, or continue, a TLS termination sequence. If the underlying
+ * data channel is non-blocking, then this method may return control
+ * before the termination is complete. The return value will indicate
+ * whether the termination has completed, or is waiting to send or
+ * receive data. In the latter cases, the caller should setup an event
+ * loop watch and call this method again once the underlying data
+ * channel is ready to read or write again.
  */
-QCryptoTLSSessionHandshakeStatus
-qcrypto_tls_session_get_handshake_status(QCryptoTLSSession *sess);
+int
+qcrypto_tls_session_bye(QCryptoTLSSession *session, Error **errp);
 
 /**
  * qcrypto_tls_session_get_key_size:

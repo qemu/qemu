@@ -444,7 +444,7 @@ static bool multifd_send_cleanup_channel(MultiFDSendParams *p, Error **errp)
          * channels have no I/O handler callback registered when reaching
          * here, because migration thread will wait for all multifd channel
          * establishments to complete during setup.  Since
-         * migrate_fd_cleanup() will be scheduled in main thread too, all
+         * migration_cleanup() will be scheduled in main thread too, all
          * previous callbacks should guarantee to be completed when
          * reaching here.  See multifd_send_state.channels_created and its
          * usage.  In the future, we could replace this with an assert
@@ -488,6 +488,36 @@ void multifd_send_shutdown(void)
 
     if (!migrate_multifd()) {
         return;
+    }
+
+    for (i = 0; i < migrate_multifd_channels(); i++) {
+        MultiFDSendParams *p = &multifd_send_state->params[i];
+
+        /* thread_created implies the TLS handshake has succeeded */
+        if (p->tls_thread_created && p->thread_created) {
+            Error *local_err = NULL;
+            /*
+             * The destination expects the TLS session to always be
+             * properly terminated. This helps to detect a premature
+             * termination in the middle of the stream.  Note that
+             * older QEMUs always break the connection on the source
+             * and the destination always sees
+             * GNUTLS_E_PREMATURE_TERMINATION.
+             */
+            migration_tls_channel_end(p->c, &local_err);
+
+            /*
+             * The above can return an error in case the migration has
+             * already failed. If the migration succeeded, errors are
+             * not expected but there's no need to kill the source.
+             */
+            if (local_err && !migration_has_failed(migrate_get_current())) {
+                warn_report(
+                    "multifd_send_%d: Failed to terminate TLS connection: %s",
+                    p->id, error_get_pretty(local_err));
+                break;
+            }
+        }
     }
 
     multifd_send_terminate_threads();
@@ -1121,6 +1151,7 @@ void multifd_recv_sync_main(void)
 
 static void *multifd_recv_thread(void *opaque)
 {
+    MigrationState *s = migrate_get_current();
     MultiFDRecvParams *p = opaque;
     Error *local_err = NULL;
     bool use_packets = multifd_use_packets();
@@ -1129,19 +1160,34 @@ static void *multifd_recv_thread(void *opaque)
     trace_multifd_recv_thread_start(p->id);
     rcu_register_thread();
 
+    if (!s->multifd_clean_tls_termination) {
+        p->read_flags = QIO_CHANNEL_READ_FLAG_RELAXED_EOF;
+    }
+
     while (true) {
         uint32_t flags = 0;
         bool has_data = false;
         p->normal_num = 0;
 
         if (use_packets) {
+            struct iovec iov = {
+                .iov_base = (void *)p->packet,
+                .iov_len = p->packet_len
+            };
+
             if (multifd_recv_should_exit()) {
                 break;
             }
 
-            ret = qio_channel_read_all_eof(p->c, (void *)p->packet,
-                                           p->packet_len, &local_err);
-            if (ret == 0 || ret == -1) {   /* 0: EOF  -1: Error */
+            ret = qio_channel_readv_full_all_eof(p->c, &iov, 1, NULL, NULL,
+                                                 p->read_flags, &local_err);
+            if (!ret) {
+                /* EOF */
+                assert(!local_err);
+                break;
+            }
+
+            if (ret == -1) {
                 break;
             }
 

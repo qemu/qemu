@@ -1524,7 +1524,9 @@
 ##
 # @migrate_cancel:
 #
-# Cancel the current executing migration process.
+# Cancel the currently executing migration process.  Allows a new
+# migration to be started right after.  When postcopy-ram is in use,
+# cancelling is not allowed after the postcopy phase has started.
 #
 # .. note:: This command succeeds even if there is no migration
 #    process running.

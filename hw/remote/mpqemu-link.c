@@ -110,7 +110,7 @@ static ssize_t mpqemu_read(QIOChannel *ioc, void *buf, size_t len, int **fds,
         bql_unlock();
     }
 
-    ret = qio_channel_readv_full_all_eof(ioc, &iov, 1, fds, nfds, errp);
+    ret = qio_channel_readv_full_all_eof(ioc, &iov, 1, fds, nfds, 0, errp);
 
     if (drop_bql && !iothread && !qemu_in_coroutine()) {
         bql_lock();

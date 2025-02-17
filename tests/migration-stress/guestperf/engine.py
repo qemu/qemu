@@ -24,13 +24,15 @@ import sys
 import time
 
 from guestperf.progress import Progress, ProgressStats
-from guestperf.report import Report
+from guestperf.report import Report, ReportResult
 from guestperf.timings import TimingRecord, Timings
 
 sys.path.append(os.path.join(os.path.dirname(__file__),
                              '..', '..', '..', 'python'))
 from qemu.machine import QEMUMachine
 
+# multifd supported compression algorithms
+MULTIFD_CMP_ALGS = ("zlib", "zstd", "qpl", "uadk")
 
 class Engine(object):
 
@@ -106,7 +108,8 @@ class Engine(object):
             info.get("dirty-limit-ring-full-time", 0),
         )
 
-    def _migrate(self, hardware, scenario, src, dst, connect_uri):
+    def _migrate(self, hardware, scenario, src,
+                 dst, connect_uri, defer_migrate):
         src_qemu_time = []
         src_vcpu_time = []
         src_pid = src.get_pid()
@@ -190,6 +193,12 @@ class Engine(object):
                                scenario._compression_xbzrle_cache))
 
         if scenario._multifd:
+            if (scenario._multifd_compression and
+                (scenario._multifd_compression not in MULTIFD_CMP_ALGS)):
+                    raise Exception("unsupported multifd compression "
+                                    "algorithm: %s" %
+                                    scenario._multifd_compression)
+
             resp = src.cmd("migrate-set-capabilities",
                            capabilities = [
                                { "capability": "multifd",
@@ -204,6 +213,12 @@ class Engine(object):
                            ])
             resp = dst.cmd("migrate-set-parameters",
                            multifd_channels=scenario._multifd_channels)
+
+            if scenario._multifd_compression:
+                resp = src.cmd("migrate-set-parameters",
+                    multifd_compression=scenario._multifd_compression)
+                resp = dst.cmd("migrate-set-parameters",
+                    multifd_compression=scenario._multifd_compression)
 
         if scenario._dirty_limit:
             if not hardware._dirty_ring_size:
@@ -220,6 +235,8 @@ class Engine(object):
             resp = src.cmd("migrate-set-parameters",
                            vcpu_dirty_limit=scenario._vcpu_dirty_limit)
 
+        if defer_migrate:
+            resp = dst.cmd("migrate-incoming", uri=connect_uri)
         resp = src.cmd("migrate", uri=connect_uri)
 
         post_copy = False
@@ -259,7 +276,11 @@ class Engine(object):
                         src_vcpu_time.extend(self._vcpu_timing(src_pid, src_threads))
                         sleep_secs -= 1
 
-                return [progress_history, src_qemu_time, src_vcpu_time]
+                result = ReportResult()
+                if progress._status == "completed" and not paused:
+                    result = ReportResult(True)
+
+                return [progress_history, src_qemu_time, src_vcpu_time, result]
 
             if self._verbose and (loop % 20) == 0:
                 print("Iter %d: remain %5dMB of %5dMB (total %5dMB @ %5dMb/sec)" % (
@@ -373,11 +394,14 @@ class Engine(object):
     def _get_src_args(self, hardware):
         return self._get_common_args(hardware)
 
-    def _get_dst_args(self, hardware, uri):
+    def _get_dst_args(self, hardware, uri, defer_migrate):
         tunnelled = False
         if self._dst_host != "localhost":
             tunnelled = True
         argv = self._get_common_args(hardware, tunnelled)
+
+        if defer_migrate:
+            return argv + ["-incoming", "defer"]
         return argv + ["-incoming", uri]
 
     @staticmethod
@@ -424,6 +448,7 @@ class Engine(object):
 
     def run(self, hardware, scenario, result_dir=os.getcwd()):
         abs_result_dir = os.path.join(result_dir, scenario._name)
+        defer_migrate = False
 
         if self._transport == "tcp":
             uri = "tcp:%s:9000" % self._dst_host
@@ -439,6 +464,9 @@ class Engine(object):
             except:
                 pass
 
+        if scenario._multifd:
+            defer_migrate = True
+
         if self._dst_host != "localhost":
             dstmonaddr = ("localhost", 9001)
         else:
@@ -452,7 +480,7 @@ class Engine(object):
                           monitor_address=srcmonaddr)
 
         dst = QEMUMachine(self._binary,
-                          args=self._get_dst_args(hardware, uri),
+                          args=self._get_dst_args(hardware, uri, defer_migrate),
                           wrapper=self._get_dst_wrapper(hardware),
                           name="qemu-dst-%d" % os.getpid(),
                           monitor_address=dstmonaddr)
@@ -461,10 +489,12 @@ class Engine(object):
             src.launch()
             dst.launch()
 
-            ret = self._migrate(hardware, scenario, src, dst, uri)
+            ret = self._migrate(hardware, scenario, src,
+                                dst, uri, defer_migrate)
             progress_history = ret[0]
             qemu_timings = ret[1]
             vcpu_timings = ret[2]
+            result = ret[3]
             if uri[0:5] == "unix:" and os.path.exists(uri[5:]):
                 os.remove(uri[5:])
 
@@ -484,6 +514,7 @@ class Engine(object):
                           Timings(self._get_timings(src) + self._get_timings(dst)),
                           Timings(qemu_timings),
                           Timings(vcpu_timings),
+                          result,
                           self._binary, self._dst_host, self._kernel,
                           self._initrd, self._transport, self._sleep)
         except Exception as e:
