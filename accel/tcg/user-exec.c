@@ -30,6 +30,8 @@
 #include "exec/page-protection.h"
 #include "exec/helper-proto.h"
 #include "qemu/atomic128.h"
+#include "qemu/bswap.h"
+#include "qemu/int128.h"
 #include "trace.h"
 #include "tcg/tcg-ldst.h"
 #include "internal-common.h"
