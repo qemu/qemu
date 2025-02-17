@@ -21,6 +21,7 @@
 #include "exec/address-spaces.h"
 #include "hw/boards.h"
 #include "hw/irq.h"
+#include "hw/loongarch/virt.h"
 #include "qemu/log.h"
 #include "hw/loader.h"
 #include "system/runstate.h"
@@ -1030,6 +1031,7 @@ static int kvm_cpu_check_pmu(CPUState *cs, Error **errp)
 
 static int kvm_cpu_check_pv_features(CPUState *cs, Error **errp)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     LoongArchCPU *cpu = LOONGARCH_CPU(cs);
     CPULoongArchState *env = cpu_env(cs);
     bool kvm_supported;
@@ -1060,6 +1062,14 @@ static int kvm_cpu_check_pv_features(CPUState *cs, Error **errp)
 
     if (kvm_supported) {
         env->pv_features |= BIT(KVM_FEATURE_STEAL_TIME);
+    }
+
+    if (object_dynamic_cast(OBJECT(ms), TYPE_LOONGARCH_VIRT_MACHINE)) {
+        LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(ms);
+
+        if (virt_is_veiointc_enabled(lvms)) {
+            env->pv_features |= BIT(KVM_FEATURE_VIRT_EXTIOI);
+        }
     }
 
     return 0;
