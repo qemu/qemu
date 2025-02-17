@@ -39,11 +39,11 @@ typedef struct MemCopyInfo {
 } MemCopyInfo;
 
 typedef struct TempOptInfo {
-    bool is_const;
+    bool is_const_;
     TCGTemp *prev_copy;
     TCGTemp *next_copy;
     QSIMPLEQ_HEAD(, MemCopyInfo) mem_copy;
-    uint64_t val;
+    uint64_t val_;
     uint64_t z_mask;  /* mask bit is 0 if and only if value bit is 0 */
     uint64_t s_mask;  /* mask bit is 1 if value bit matches msb */
 } TempOptInfo;
@@ -73,12 +73,12 @@ static inline TempOptInfo *arg_info(TCGArg arg)
 
 static inline bool ti_is_const(TempOptInfo *ti)
 {
-    return ti->is_const;
+    return ti->is_const_;
 }
 
 static inline uint64_t ti_const_val(TempOptInfo *ti)
 {
-    return ti->val;
+    return ti->val_;
 }
 
 static inline bool ti_is_const_val(TempOptInfo *ti, uint64_t val)
@@ -99,6 +99,11 @@ static inline bool ts_is_const_val(TCGTemp *ts, uint64_t val)
 static inline bool arg_is_const(TCGArg arg)
 {
     return ts_is_const(arg_temp(arg));
+}
+
+static inline uint64_t arg_const_val(TCGArg arg)
+{
+    return ti_const_val(arg_info(arg));
 }
 
 static inline bool arg_is_const_val(TCGArg arg, uint64_t val)
@@ -137,12 +142,12 @@ static void init_ts_info(OptContext *ctx, TCGTemp *ts)
     ti->prev_copy = ts;
     QSIMPLEQ_INIT(&ti->mem_copy);
     if (ts->kind == TEMP_CONST) {
-        ti->is_const = true;
-        ti->val = ts->val;
+        ti->is_const_ = true;
+        ti->val_ = ts->val;
         ti->z_mask = ts->val;
         ti->s_mask = INT64_MIN >> clrsb64(ts->val);
     } else {
-        ti->is_const = false;
+        ti->is_const_ = false;
         ti->z_mask = -1;
         ti->s_mask = 0;
     }
@@ -229,7 +234,7 @@ static void reset_ts(OptContext *ctx, TCGTemp *ts)
     pi->next_copy = ti->next_copy;
     ti->next_copy = ts;
     ti->prev_copy = ts;
-    ti->is_const = false;
+    ti->is_const_ = false;
     ti->z_mask = -1;
     ti->s_mask = 0;
 
@@ -394,8 +399,8 @@ static bool tcg_opt_gen_mov(OptContext *ctx, TCGOp *op, TCGArg dst, TCGArg src)
         di->prev_copy = src_ts;
         ni->prev_copy = dst_ts;
         si->next_copy = dst_ts;
-        di->is_const = si->is_const;
-        di->val = si->val;
+        di->is_const_ = si->is_const_;
+        di->val_ = si->val_;
 
         if (!QSIMPLEQ_EMPTY(&si->mem_copy)
             && cmp_better_copy(src_ts, dst_ts) == dst_ts) {
@@ -687,8 +692,8 @@ static int do_constant_folding_cond(TCGType type, TCGArg x,
                                     TCGArg y, TCGCond c)
 {
     if (arg_is_const(x) && arg_is_const(y)) {
-        uint64_t xv = arg_info(x)->val;
-        uint64_t yv = arg_info(y)->val;
+        uint64_t xv = arg_const_val(x);
+        uint64_t yv = arg_const_val(y);
 
         switch (type) {
         case TCG_TYPE_I32:
@@ -801,14 +806,14 @@ static int do_constant_folding_cond1(OptContext *ctx, TCGOp *op, TCGArg dest,
      * TSTNE x,i -> NE x,0 if i includes all nonzero bits of x
      */
     if (args_are_copies(*p1, *p2) ||
-        (arg_is_const(*p2) && (i1->z_mask & ~arg_info(*p2)->val) == 0)) {
+        (arg_is_const(*p2) && (i1->z_mask & ~arg_const_val(*p2)) == 0)) {
         *p2 = arg_new_constant(ctx, 0);
         *pcond = tcg_tst_eqne_cond(cond);
         return -1;
     }
 
     /* TSTNE x,i -> LT x,0 if i only includes sign bit copies */
-    if (arg_is_const(*p2) && (arg_info(*p2)->val & ~i1->s_mask) == 0) {
+    if (arg_is_const(*p2) && (arg_const_val(*p2) & ~i1->s_mask) == 0) {
         *p2 = arg_new_constant(ctx, 0);
         *pcond = tcg_tst_ltge_cond(cond);
         return -1;
@@ -849,13 +854,13 @@ static int do_constant_folding_cond2(OptContext *ctx, TCGOp *op, TCGArg *args)
     bh = args[3];
 
     if (arg_is_const(bl) && arg_is_const(bh)) {
-        tcg_target_ulong blv = arg_info(bl)->val;
-        tcg_target_ulong bhv = arg_info(bh)->val;
+        tcg_target_ulong blv = arg_const_val(bl);
+        tcg_target_ulong bhv = arg_const_val(bh);
         uint64_t b = deposit64(blv, 32, 32, bhv);
 
         if (arg_is_const(al) && arg_is_const(ah)) {
-            tcg_target_ulong alv = arg_info(al)->val;
-            tcg_target_ulong ahv = arg_info(ah)->val;
+            tcg_target_ulong alv = arg_const_val(al);
+            tcg_target_ulong ahv = arg_const_val(ah);
             uint64_t a = deposit64(alv, 32, 32, ahv);
 
             r = do_constant_folding_cond_64(a, b, c);
@@ -989,9 +994,8 @@ static bool finish_folding(OptContext *ctx, TCGOp *op)
 static bool fold_const1(OptContext *ctx, TCGOp *op)
 {
     if (arg_is_const(op->args[1])) {
-        uint64_t t;
+        uint64_t t = arg_const_val(op->args[1]);
 
-        t = arg_info(op->args[1])->val;
         t = do_constant_folding(op->opc, ctx->type, t, 0);
         return tcg_opt_gen_movi(ctx, op, op->args[0], t);
     }
@@ -1001,8 +1005,8 @@ static bool fold_const1(OptContext *ctx, TCGOp *op)
 static bool fold_const2(OptContext *ctx, TCGOp *op)
 {
     if (arg_is_const(op->args[1]) && arg_is_const(op->args[2])) {
-        uint64_t t1 = arg_info(op->args[1])->val;
-        uint64_t t2 = arg_info(op->args[2])->val;
+        uint64_t t1 = arg_const_val(op->args[1]);
+        uint64_t t2 = arg_const_val(op->args[2]);
 
         t1 = do_constant_folding(op->opc, ctx->type, t1, t2);
         return tcg_opt_gen_movi(ctx, op, op->args[0], t1);
@@ -1486,8 +1490,8 @@ static bool fold_bitsel_vec(OptContext *ctx, TCGOp *op)
     }
 
     if (arg_is_const(op->args[2]) && arg_is_const(op->args[3])) {
-        uint64_t tv = arg_info(op->args[2])->val;
-        uint64_t fv = arg_info(op->args[3])->val;
+        uint64_t tv = arg_const_val(op->args[2]);
+        uint64_t fv = arg_const_val(op->args[3]);
 
         if (tv == -1 && fv == 0) {
             return tcg_opt_gen_mov(ctx, op, op->args[0], op->args[1]);
@@ -1504,7 +1508,7 @@ static bool fold_bitsel_vec(OptContext *ctx, TCGOp *op)
         }
     }
     if (arg_is_const(op->args[2])) {
-        uint64_t tv = arg_info(op->args[2])->val;
+        uint64_t tv = arg_const_val(op->args[2]);
         if (tv == -1) {
             op->opc = INDEX_op_or_vec;
             op->args[2] = op->args[3];
@@ -1518,7 +1522,7 @@ static bool fold_bitsel_vec(OptContext *ctx, TCGOp *op)
         }
     }
     if (arg_is_const(op->args[3])) {
-        uint64_t fv = arg_info(op->args[3])->val;
+        uint64_t fv = arg_const_val(op->args[3]);
         if (fv == 0) {
             op->opc = INDEX_op_and_vec;
             return fold_and(ctx, op);
@@ -1876,7 +1880,7 @@ static bool fold_divide(OptContext *ctx, TCGOp *op)
 static bool fold_dup(OptContext *ctx, TCGOp *op)
 {
     if (arg_is_const(op->args[1])) {
-        uint64_t t = arg_info(op->args[1])->val;
+        uint64_t t = arg_const_val(op->args[1]);
         t = dup_const(TCGOP_VECE(op), t);
         return tcg_opt_gen_movi(ctx, op, op->args[0], t);
     }
@@ -1886,8 +1890,8 @@ static bool fold_dup(OptContext *ctx, TCGOp *op)
 static bool fold_dup2(OptContext *ctx, TCGOp *op)
 {
     if (arg_is_const(op->args[1]) && arg_is_const(op->args[2])) {
-        uint64_t t = deposit64(arg_info(op->args[1])->val, 32, 32,
-                               arg_info(op->args[2])->val);
+        uint64_t t = deposit64(arg_const_val(op->args[1]), 32, 32,
+                               arg_const_val(op->args[2]));
         return tcg_opt_gen_movi(ctx, op, op->args[0], t);
     }
 
@@ -1958,8 +1962,8 @@ static bool fold_extract(OptContext *ctx, TCGOp *op)
 static bool fold_extract2(OptContext *ctx, TCGOp *op)
 {
     if (arg_is_const(op->args[1]) && arg_is_const(op->args[2])) {
-        uint64_t v1 = arg_info(op->args[1])->val;
-        uint64_t v2 = arg_info(op->args[2])->val;
+        uint64_t v1 = arg_const_val(op->args[1]);
+        uint64_t v2 = arg_const_val(op->args[2]);
         int shr = op->args[3];
 
         if (ctx->type == TCG_TYPE_I32) {
@@ -2127,8 +2131,8 @@ static bool fold_multiply2(OptContext *ctx, TCGOp *op)
     swap_commutative(op->args[0], &op->args[2], &op->args[3]);
 
     if (arg_is_const(op->args[2]) && arg_is_const(op->args[3])) {
-        uint64_t a = arg_info(op->args[2])->val;
-        uint64_t b = arg_info(op->args[3])->val;
+        uint64_t a = arg_const_val(op->args[2]);
+        uint64_t b = arg_const_val(op->args[3]);
         uint64_t h, l;
         TCGArg rl, rh;
         TCGOp *op2;
@@ -2330,7 +2334,7 @@ static int fold_setcond_zmask(OptContext *ctx, TCGOp *op, bool neg)
     }
 
     a_zmask = arg_info(op->args[1])->z_mask;
-    b_val = arg_info(op->args[2])->val;
+    b_val = arg_const_val(op->args[2]);
     cond = op->args[3];
 
     if (ctx->type == TCG_TYPE_I32) {
@@ -2418,7 +2422,7 @@ static void fold_setcond_tst_pow2(OptContext *ctx, TCGOp *op, bool neg)
     }
 
     src2 = op->args[2];
-    val = arg_info(src2)->val;
+    val = arg_const_val(src2);
     if (!is_power_of_2(val)) {
         return;
     }
@@ -2669,7 +2673,7 @@ static bool fold_sub_to_neg(OptContext *ctx, TCGOp *op)
     TCGOpcode neg_op;
     bool have_neg;
 
-    if (!arg_is_const(op->args[1]) || arg_info(op->args[1])->val != 0) {
+    if (!arg_is_const_val(op->args[1], 0)) {
         return false;
     }
 
@@ -2719,7 +2723,7 @@ static bool fold_sub(OptContext *ctx, TCGOp *op)
 
     /* Fold sub r,x,i to add r,x,-i */
     if (arg_is_const(op->args[2])) {
-        uint64_t val = arg_info(op->args[2])->val;
+        uint64_t val = arg_const_val(op->args[2]);
 
         op->opc = INDEX_op_add;
         op->args[2] = arg_new_constant(ctx, -val);
