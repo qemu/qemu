@@ -68,7 +68,7 @@ struct TMP421State {
 
 struct TMP421Class {
     I2CSlaveClass parent_class;
-    DeviceInfo *dev;
+    const DeviceInfo *dev;
 };
 
 #define TYPE_TMP421 "tmp421-generic"

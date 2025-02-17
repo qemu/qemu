@@ -19,7 +19,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu/module.h"
 #include "hw/sysbus.h"
 #include "monitor/monitor.h"
 #include "exec/address-spaces.h"
@@ -79,13 +78,6 @@ static void system_bus_class_init(ObjectClass *klass, void *data)
     k->print_dev = sysbus_dev_print;
     k->get_fw_dev_path = sysbus_get_fw_dev_path;
 }
-
-static const TypeInfo system_bus_info = {
-    .name = TYPE_SYSTEM_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(BusState),
-    .class_init = system_bus_class_init,
-};
 
 /* Check whether an IRQ source exists */
 bool sysbus_has_irq(SysBusDevice *dev, int n)
@@ -306,15 +298,6 @@ static void sysbus_device_class_init(ObjectClass *klass, void *data)
     k->user_creatable = false;
 }
 
-static const TypeInfo sysbus_device_type_info = {
-    .name = TYPE_SYS_BUS_DEVICE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(SysBusDevice),
-    .abstract = true,
-    .class_size = sizeof(SysBusDeviceClass),
-    .class_init = sysbus_device_class_init,
-};
-
 static BusState *main_system_bus;
 
 static void main_system_bus_create(void)
@@ -323,8 +306,8 @@ static void main_system_bus_create(void)
      * assign main_system_bus before qbus_init()
      * in order to make "if (bus != sysbus_get_default())" work
      */
-    main_system_bus = g_malloc0(system_bus_info.instance_size);
-    qbus_init(main_system_bus, system_bus_info.instance_size,
+    main_system_bus = g_new0(BusState, 1);
+    qbus_init(main_system_bus, sizeof(BusState),
               TYPE_SYSTEM_BUS, NULL, "main-system-bus");
     OBJECT(main_system_bus)->free = g_free;
 }
@@ -337,10 +320,35 @@ BusState *sysbus_get_default(void)
     return main_system_bus;
 }
 
-static void sysbus_register_types(void)
+static void dynamic_sysbus_device_class_init(ObjectClass *klass, void *data)
 {
-    type_register_static(&system_bus_info);
-    type_register_static(&sysbus_device_type_info);
+    DeviceClass *k = DEVICE_CLASS(klass);
+
+    k->user_creatable = true;
+    k->hotpluggable = false;
 }
 
-type_init(sysbus_register_types)
+static const TypeInfo sysbus_types[] = {
+    {
+        .name           = TYPE_SYSTEM_BUS,
+        .parent         = TYPE_BUS,
+        .instance_size  = sizeof(BusState),
+        .class_init     = system_bus_class_init,
+    },
+    {
+        .name           = TYPE_SYS_BUS_DEVICE,
+        .parent         = TYPE_DEVICE,
+        .instance_size  = sizeof(SysBusDevice),
+        .abstract       = true,
+        .class_size     = sizeof(SysBusDeviceClass),
+        .class_init     = sysbus_device_class_init,
+    },
+    {
+        .name           = TYPE_DYNAMIC_SYS_BUS_DEVICE,
+        .parent         = TYPE_SYS_BUS_DEVICE,
+        .class_init     = dynamic_sysbus_device_class_init,
+        .abstract       = true,
+    }
+};
+
+DEFINE_TYPES(sysbus_types)

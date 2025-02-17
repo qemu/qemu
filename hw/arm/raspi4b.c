@@ -118,6 +118,7 @@ static void raspi4b_machine_class_init(ObjectClass *oc, void *data)
     rmc->board_rev = 0xb03115; /* Revision 1.5, 2 Gb RAM */
 #endif
     raspi_machine_class_common_init(mc, rmc->board_rev);
+    mc->auto_create_sdcard = true;
     mc->init = raspi4b_machine_init;
 }
 

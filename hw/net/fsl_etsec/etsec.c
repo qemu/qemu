@@ -425,14 +425,12 @@ static void etsec_class_init(ObjectClass *klass, void *data)
     dc->realize = etsec_realize;
     device_class_set_legacy_reset(dc, etsec_reset);
     device_class_set_props(dc, etsec_properties);
-    /* Supported by ppce500 machine */
-    dc->user_creatable = true;
 }
 
 static const TypeInfo etsec_types[] = {
     {
         .name          = TYPE_ETSEC_COMMON,
-        .parent        = TYPE_SYS_BUS_DEVICE,
+        .parent        = TYPE_DYNAMIC_SYS_BUS_DEVICE,
         .instance_size = sizeof(eTSEC),
         .class_init    = etsec_class_init,
         .instance_init = etsec_instance_init,

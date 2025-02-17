@@ -163,7 +163,7 @@ static struct XenLegacyDevice *xen_be_get_xendev(const char *type, int dom,
 
     /* init new xendev */
     xendev = g_malloc0(ops->size);
-    object_initialize(&xendev->qdev, ops->size, TYPE_XENBACKEND);
+    object_initialize(xendev, ops->size, TYPE_XENBACKEND);
     OBJECT(xendev)->free = g_free;
     qdev_set_id(DEVICE(xendev), g_strdup_printf("xen-%s-%d", type, dev),
                 &error_fatal);
@@ -640,16 +640,14 @@ static void xendev_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    /* xen-backend devices can be plugged/unplugged dynamically */
-    dc->user_creatable = true;
     dc->bus_type = TYPE_XENSYSBUS;
 }
 
 static const TypeInfo xendev_type_info = {
     .name          = TYPE_XENBACKEND,
-    .parent        = TYPE_DEVICE,
+    .parent        = TYPE_DYNAMIC_SYS_BUS_DEVICE,
     .class_init    = xendev_class_init,
-    .instance_size = sizeof(struct XenLegacyDevice),
+    .instance_size = sizeof(XenLegacyDevice),
 };
 
 static void xen_sysbus_class_init(ObjectClass *klass, void *data)
@@ -672,7 +670,6 @@ static const TypeInfo xensysbus_info = {
 static const TypeInfo xensysdev_info = {
     .name          = TYPE_XENSYSDEV,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SysBusDevice),
 };
 
 static void xenbe_register_types(void)

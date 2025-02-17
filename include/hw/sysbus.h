@@ -19,6 +19,8 @@ DECLARE_INSTANCE_CHECKER(BusState, SYSTEM_BUS,
 OBJECT_DECLARE_TYPE(SysBusDevice, SysBusDeviceClass,
                     SYS_BUS_DEVICE)
 
+#define TYPE_DYNAMIC_SYS_BUS_DEVICE "dynamic-sysbus-device"
+
 /**
  * SysBusDeviceClass:
  *

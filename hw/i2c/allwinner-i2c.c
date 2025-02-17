@@ -407,7 +407,7 @@ static const MemoryRegionOps allwinner_i2c_ops = {
     .write = allwinner_i2c_write,
     .valid.min_access_size = 1,
     .valid.max_access_size = 4,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const VMStateDescription allwinner_i2c_vmstate = {

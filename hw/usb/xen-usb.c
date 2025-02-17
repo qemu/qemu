@@ -755,10 +755,10 @@ static void usbback_portid_add(struct usbback_info *usbif, unsigned port,
 
     qdict = qdict_new();
     qdict_put_str(qdict, "driver", "usb-host");
-    tmp = g_strdup_printf("%s.0", usbif->xendev.qdev.id);
+    tmp = g_strdup_printf("%s.0", DEVICE(&usbif->xendev)->id);
     qdict_put_str(qdict, "bus", tmp);
     g_free(tmp);
-    tmp = g_strdup_printf("%s-%u", usbif->xendev.qdev.id, port);
+    tmp = g_strdup_printf("%s-%u", DEVICE(&usbif->xendev)->id, port);
     qdict_put_str(qdict, "id", tmp);
     g_free(tmp);
     qdict_put_int(qdict, "port", port);
@@ -1022,7 +1022,7 @@ static void usbback_alloc(struct XenLegacyDevice *xendev)
     usbif = container_of(xendev, struct usbback_info, xendev);
 
     usb_bus_new(&usbif->bus, sizeof(usbif->bus), &xen_usb_bus_ops,
-                DEVICE(&xendev->qdev));
+                DEVICE(xendev));
     for (i = 0; i < USBBACK_MAXPORTS; i++) {
         p = &(usbif->ports[i].port);
         usb_register_port(&usbif->bus, p, usbif, i, &xen_usb_port_ops,

@@ -803,6 +803,7 @@ static void vexpress_a9_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "ARM Versatile Express for Cortex-A9";
     mc->valid_cpu_types = valid_cpu_types;
+    mc->auto_create_sdcard = true;
 
     vmc->daughterboard = &a9_daughterboard;
 }
@@ -818,6 +819,7 @@ static void vexpress_a15_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "ARM Versatile Express for Cortex-A15";
     mc->valid_cpu_types = valid_cpu_types;
+    mc->auto_create_sdcard = true;
 
     vmc->daughterboard = &a15_daughterboard;
 

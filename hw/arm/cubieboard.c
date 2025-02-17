@@ -122,6 +122,7 @@ static void cubieboard_machine_init(MachineClass *mc)
     mc->units_per_default_bus = 1;
     mc->ignore_memory_transaction_failures = true;
     mc->default_ram_id = "cubieboard.ram";
+    mc->auto_create_sdcard = true;
 }
 
 DEFINE_MACHINE("cubieboard", cubieboard_machine_init)

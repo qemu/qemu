@@ -481,6 +481,7 @@ static void npcm750_evb_machine_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Nuvoton NPCM750 Evaluation Board (Cortex-A9)";
     mc->init = npcm750_evb_init;
+    mc->auto_create_sdcard = true;
     mc->default_ram_size = 512 * MiB;
 };
 
@@ -493,6 +494,7 @@ static void gsj_machine_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Quanta GSJ (Cortex-A9)";
     mc->init = quanta_gsj_init;
+    mc->auto_create_sdcard = true;
     mc->default_ram_size = 512 * MiB;
 };
 
@@ -505,6 +507,7 @@ static void gbs_bmc_machine_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Quanta GBS (Cortex-A9)";
     mc->init = quanta_gbs_init;
+    mc->auto_create_sdcard = true;
     mc->default_ram_size = 1 * GiB;
 }
 
@@ -517,6 +520,7 @@ static void kudo_bmc_machine_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Kudo BMC (Cortex-A9)";
     mc->init = kudo_bmc_init;
+    mc->auto_create_sdcard = true;
     mc->default_ram_size = 1 * GiB;
 };
 
@@ -529,6 +533,7 @@ static void mori_bmc_machine_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Mori BMC (Cortex-A9)";
     mc->init = mori_bmc_init;
+    mc->auto_create_sdcard = true;
     mc->default_ram_size = 1 * GiB;
 }
 

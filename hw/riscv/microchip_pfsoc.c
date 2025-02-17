@@ -650,6 +650,7 @@ static void microchip_icicle_kit_machine_class_init(ObjectClass *oc, void *data)
     mc->min_cpus = MICROCHIP_PFSOC_MANAGEMENT_CPU_COUNT + 1;
     mc->default_cpus = mc->min_cpus;
     mc->default_ram_id = "microchip.icicle.kit.ram";
+    mc->auto_create_sdcard = true;
 
     /*
      * Map 513 MiB high memory, the minimum required high memory size, because

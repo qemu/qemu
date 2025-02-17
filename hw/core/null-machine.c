@@ -53,7 +53,6 @@ static void machine_none_machine_init(MachineClass *mc)
     mc->no_parallel = 1;
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
-    mc->no_sdcard = 1;
 }
 
 DEFINE_MACHINE("none", machine_none_machine_init)

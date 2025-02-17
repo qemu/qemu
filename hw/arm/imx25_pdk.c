@@ -147,6 +147,7 @@ static void imx25_pdk_machine_init(MachineClass *mc)
     mc->init = imx25_pdk_init;
     mc->ignore_memory_transaction_failures = true;
     mc->default_ram_id = "imx25.ram";
+    mc->auto_create_sdcard = true;
 }
 
 DEFINE_MACHINE("imx25-pdk", imx25_pdk_machine_init)

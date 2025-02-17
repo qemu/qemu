@@ -68,9 +68,6 @@ floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
     Removable device: not locked, tray closed
-
-sd0: [not inserted]
-    Removable device: not locked, tray closed
 (qemu) quit
 
 
@@ -124,9 +121,6 @@ ide1-cd0: [not inserted]
 
 floppy0: [not inserted]
     Attached to:      /machine/unattached/device[N]
-    Removable device: not locked, tray closed
-
-sd0: [not inserted]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -182,9 +176,6 @@ floppy1 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
 
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
-    Removable device: not locked, tray closed
-
-sd0: [not inserted]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -265,9 +256,6 @@ floppy0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
     Removable device: not locked, tray closed
-
-sd0: [not inserted]
-    Removable device: not locked, tray closed
 (qemu) quit
 
 
@@ -321,9 +309,6 @@ ide1-cd0: [not inserted]
 
 floppy0: [not inserted]
     Attached to:      /machine/unattached/device[N]
-    Removable device: not locked, tray closed
-
-sd0: [not inserted]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -380,9 +365,6 @@ floppy1 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
     Removable device: not locked, tray closed
-
-sd0: [not inserted]
-    Removable device: not locked, tray closed
 (qemu) quit
 
 
@@ -422,9 +404,6 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
     Removable device: not locked, tray closed
-
-sd0: [not inserted]
-    Removable device: not locked, tray closed
 (qemu) quit
 
 
@@ -460,9 +439,6 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
 
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
-    Removable device: not locked, tray closed
-
-sd0: [not inserted]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -518,9 +494,6 @@ none1 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
 
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
-    Removable device: not locked, tray closed
-
-sd0: [not inserted]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -586,9 +559,6 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
     Removable device: not locked, tray closed
-
-sd0: [not inserted]
-    Removable device: not locked, tray closed
 (qemu) quit
 
 
@@ -643,9 +613,6 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
 
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
-    Removable device: not locked, tray closed
-
-sd0: [not inserted]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -702,9 +669,6 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
     Removable device: not locked, tray closed
-
-sd0: [not inserted]
-    Removable device: not locked, tray closed
 (qemu) quit
 
 
@@ -759,9 +723,6 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
 
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
-    Removable device: not locked, tray closed
-
-sd0: [not inserted]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -827,9 +788,6 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
     Removable device: not locked, tray closed
-
-sd0: [not inserted]
-    Removable device: not locked, tray closed
 (qemu) quit
 
 
@@ -885,9 +843,6 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2.2 (qcow2)
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
     Removable device: not locked, tray closed
-
-sd0: [not inserted]
-    Removable device: not locked, tray closed
 (qemu) quit
 
 
@@ -929,9 +884,6 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
 
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
-    Removable device: not locked, tray closed
-
-sd0: [not inserted]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -1106,9 +1058,6 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
     Removable device: not locked, tray closed
-
-sd0: [not inserted]
-    Removable device: not locked, tray closed
 (qemu) quit
 
 
@@ -1144,9 +1093,6 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
 
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
-    Removable device: not locked, tray closed
-
-sd0: [not inserted]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -1187,9 +1133,6 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
     Removable device: not locked, tray closed
-
-sd0: [not inserted]
-    Removable device: not locked, tray closed
 (qemu) quit
 
 
@@ -1225,9 +1168,6 @@ none0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
 
 ide1-cd0: [not inserted]
     Attached to:      /machine/unattached/device[N]
-    Removable device: not locked, tray closed
-
-sd0: [not inserted]
     Removable device: not locked, tray closed
 (qemu) quit
 
