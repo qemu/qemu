@@ -510,14 +510,20 @@ static int vhost_vdpa_cvq_map_buf(struct vhost_vdpa *v, void *buf, size_t size,
                                   bool write)
 {
     DMAMap map = {};
+    hwaddr taddr = (hwaddr)(uintptr_t)buf;
     int r;
 
-    map.translated_addr = (hwaddr)(uintptr_t)buf;
     map.size = size - 1;
     map.perm = write ? IOMMU_RW : IOMMU_RO,
-    r = vhost_iova_tree_map_alloc(v->shared->iova_tree, &map);
+    r = vhost_iova_tree_map_alloc(v->shared->iova_tree, &map, taddr);
     if (unlikely(r != IOVA_OK)) {
         error_report("Cannot map injected element");
+
+        if (map.translated_addr == taddr) {
+            error_report("Insertion to IOVA->HVA tree failed");
+            /* Remove the mapping from the IOVA-only tree */
+            goto dma_map_err;
+        }
         return r;
     }
 

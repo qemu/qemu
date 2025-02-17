@@ -28,6 +28,9 @@ struct VhostIOVATree {
 
     /* IOVA address to qemu memory maps. */
     IOVATree *iova_taddr_map;
+
+    /* Allocated IOVA addresses */
+    IOVATree *iova_map;
 };
 
 /**
@@ -44,6 +47,7 @@ VhostIOVATree *vhost_iova_tree_new(hwaddr iova_first, hwaddr iova_last)
     tree->iova_last = iova_last;
 
     tree->iova_taddr_map = iova_tree_new();
+    tree->iova_map = iova_tree_new();
     return tree;
 }
 
@@ -53,6 +57,7 @@ VhostIOVATree *vhost_iova_tree_new(hwaddr iova_first, hwaddr iova_last)
 void vhost_iova_tree_delete(VhostIOVATree *iova_tree)
 {
     iova_tree_destroy(iova_tree->iova_taddr_map);
+    iova_tree_destroy(iova_tree->iova_map);
     g_free(iova_tree);
 }
 
@@ -75,6 +80,7 @@ const DMAMap *vhost_iova_tree_find_iova(const VhostIOVATree *tree,
  *
  * @tree: The iova tree
  * @map: The iova map
+ * @taddr: The translated address (HVA)
  *
  * Returns:
  * - IOVA_OK if the map fits in the container
@@ -83,19 +89,26 @@ const DMAMap *vhost_iova_tree_find_iova(const VhostIOVATree *tree,
  *
  * It returns assignated iova in map->iova if return value is VHOST_DMA_MAP_OK.
  */
-int vhost_iova_tree_map_alloc(VhostIOVATree *tree, DMAMap *map)
+int vhost_iova_tree_map_alloc(VhostIOVATree *tree, DMAMap *map, hwaddr taddr)
 {
+    int ret;
+
     /* Some vhost devices do not like addr 0. Skip first page */
     hwaddr iova_first = tree->iova_first ?: qemu_real_host_page_size();
 
-    if (map->translated_addr + map->size < map->translated_addr ||
-        map->perm == IOMMU_NONE) {
+    if (taddr + map->size < taddr || map->perm == IOMMU_NONE) {
         return IOVA_ERR_INVALID;
     }
 
-    /* Allocate a node in IOVA address */
-    return iova_tree_alloc_map(tree->iova_taddr_map, map, iova_first,
-                               tree->iova_last);
+    /* Allocate a node in the IOVA-only tree */
+    ret = iova_tree_alloc_map(tree->iova_map, map, iova_first, tree->iova_last);
+    if (unlikely(ret != IOVA_OK)) {
+        return ret;
+    }
+
+    /* Insert a node in the IOVA->HVA tree */
+    map->translated_addr = taddr;
+    return iova_tree_insert(tree->iova_taddr_map, map);
 }
 
 /**
@@ -107,4 +120,5 @@ int vhost_iova_tree_map_alloc(VhostIOVATree *tree, DMAMap *map)
 void vhost_iova_tree_remove(VhostIOVATree *iova_tree, DMAMap map)
 {
     iova_tree_remove(iova_tree->iova_taddr_map, map);
+    iova_tree_remove(iova_tree->iova_map, map);
 }
