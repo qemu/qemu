@@ -380,6 +380,8 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
     int ret = -1;
     int fd = -1;
 
+    mmap_lock();
+
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
         l = (page + TARGET_PAGE_SIZE) - addr;
@@ -414,11 +416,9 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
                  * be under mmap_lock() in order to prevent the creation of
                  * another TranslationBlock in between.
                  */
-                mmap_lock();
                 tb_invalidate_phys_range(addr, addr + l - 1);
                 written = pwrite(fd, buf, l,
                                  (off_t)(uintptr_t)g2h_untagged(addr));
-                mmap_unlock();
                 if (written != l) {
                     goto out_close;
                 }
@@ -454,6 +454,8 @@ out_close:
         close(fd);
     }
 out:
+    mmap_unlock();
+
     return ret;
 }
 #endif
