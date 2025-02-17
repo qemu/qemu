@@ -1183,6 +1183,26 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
     return cc;
 }
 
+static void gen_neg_setcc(DisasContext *s, int b, TCGv reg)
+{
+    CCPrepare cc = gen_prepare_cc(s, b, reg);
+
+    if (cc.no_setcond) {
+        if (cc.cond == TCG_COND_EQ) {
+            tcg_gen_addi_tl(reg, cc.reg, -1);
+        } else {
+            tcg_gen_neg_tl(reg, cc.reg);
+        }
+        return;
+    }
+
+    if (cc.use_reg2) {
+        tcg_gen_negsetcond_tl(cc.cond, reg, cc.reg, cc.reg2);
+    } else {
+        tcg_gen_negsetcondi_tl(cc.cond, reg, cc.reg, cc.imm);
+    }
+}
+
 static void gen_setcc(DisasContext *s, int b, TCGv reg)
 {
     CCPrepare cc = gen_prepare_cc(s, b, reg);
