@@ -316,7 +316,7 @@ static void aspeed_soc_ast2700_init(Object *obj)
     char socname[8];
     char typename[64];
 
-    if (sscanf(sc->name, "%7s", socname) != 1) {
+    if (sscanf(object_get_typename(obj), "%7s", socname) != 1) {
         g_assert_not_reached();
     }
 
@@ -757,7 +757,6 @@ static void aspeed_soc_ast2700_class_init(ObjectClass *oc, void *data)
     dc->user_creatable = false;
     dc->realize      = aspeed_soc_ast2700_realize;
 
-    sc->name         = "ast2700-a0";
     sc->valid_cpu_types = valid_cpu_types;
     sc->silicon_rev  = AST2700_A0_SILICON_REV;
     sc->sram_size    = 0x20000;
