@@ -399,14 +399,3 @@ class ReplayKernelNormal(ReplayKernelBase):
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         self.do_test_advcal_2018(file_path, 'zImage.elf')
 
-    def test_xtensa_lx60(self):
-        """
-        :avocado: tags=arch:xtensa
-        :avocado: tags=machine:lx60
-        :avocado: tags=cpu:dc233c
-        """
-        tar_hash = '49e88d9933742f0164b60839886c9739cb7a0d34'
-        tar_url = ('https://qemu-advcal.gitlab.io'
-                   '/qac-best-of-multiarch/download/day02.tar.xz')
-        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
-        self.do_test_advcal_2018(file_path, 'santas-sleigh-ride.elf')

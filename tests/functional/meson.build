@@ -296,6 +296,7 @@ tests_x86_64_system_thorough = [
 
 tests_xtensa_system_thorough = [
   'xtensa_lx60',
+  'xtensa_replay',
 ]
 
 precache_all = []
