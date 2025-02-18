@@ -387,15 +387,3 @@ class ReplayKernelNormal(ReplayKernelBase):
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         self.do_test_advcal_2018(file_path, 'invaders.elf',
                                  args=('-M', 'graphics=off'))
-
-    def test_sparc_ss20(self):
-        """
-        :avocado: tags=arch:sparc
-        :avocado: tags=machine:SS-20
-        """
-        tar_hash = 'b18550d5d61c7615d989a06edace051017726a9f'
-        tar_url = ('https://qemu-advcal.gitlab.io'
-                   '/qac-best-of-multiarch/download/day11.tar.xz')
-        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
-        self.do_test_advcal_2018(file_path, 'zImage.elf')
-

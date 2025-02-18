@@ -258,6 +258,7 @@ tests_sparc_system_quick = [
 ]
 
 tests_sparc_system_thorough = [
+  'sparc_replay',
   'sparc_sun4m',
 ]
 
