@@ -152,6 +152,7 @@ tests_m68k_system_thorough = [
 ]
 
 tests_microblaze_system_thorough = [
+  'microblaze_replay',
   'microblaze_s3adsp1800'
 ]
 
