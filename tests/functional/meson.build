@@ -183,6 +183,7 @@ tests_mips64el_system_thorough = [
 ]
 
 tests_or1k_system_thorough = [
+  'or1k_replay',
   'or1k_sim',
 ]
 
