@@ -162,54 +162,6 @@ class ReplayKernelNormal(ReplayKernelBase):
 
         self.run_rr(kernel_path, kernel_command_line, console_pattern)
 
-    def test_arm_virt(self):
-        """
-        :avocado: tags=arch:arm
-        :avocado: tags=machine:virt
-        """
-        kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
-                      '/linux/releases/29/Everything/armhfp/os/images/pxeboot'
-                      '/vmlinuz')
-        kernel_hash = 'e9826d741b4fb04cadba8d4824d1ed3b7fb8b4d4'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
-
-        kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
-                               'console=ttyAMA0')
-        console_pattern = 'VFS: Cannot open root device'
-
-        self.run_rr(kernel_path, kernel_command_line, console_pattern, shift=1)
-
-    def test_arm_cubieboard_initrd(self):
-        """
-        :avocado: tags=arch:arm
-        :avocado: tags=machine:cubieboard
-        """
-        deb_url = ('https://apt.armbian.com/pool/main/l/'
-                   'linux-6.6.16/linux-image-current-sunxi_24.2.1_armhf__6.6.16-Seb3e-D6b4a-P2359-Ce96bHfe66-HK01ba-V014b-B067e-R448a.deb')
-        deb_hash = 'f7c3c8c5432f765445dc6e7eab02f3bbe668256b'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinuz-6.6.16-current-sunxi')
-        dtb_path = '/usr/lib/linux-image-6.6.16-current-sunxi/sun4i-a10-cubieboard.dtb'
-        dtb_path = self.extract_from_deb(deb_path, dtb_path)
-        initrd_url = ('https://github.com/groeck/linux-build-test/raw/'
-                      '2eb0a73b5d5a28df3170c546ddaaa9757e1e0848/rootfs/'
-                      'arm/rootfs-armv5.cpio.gz')
-        initrd_hash = '2b50f1873e113523967806f4da2afe385462ff9b'
-        initrd_path_gz = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
-        initrd_path = os.path.join(self.workdir, 'rootfs.cpio')
-        archive.gzip_uncompress(initrd_path_gz, initrd_path)
-
-        kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
-                               'console=ttyS0,115200 '
-                               'usbcore.nousb '
-                               'panic=-1 noreboot')
-        console_pattern = 'Boot successful.'
-        self.run_rr(kernel_path, kernel_command_line, console_pattern, shift=1,
-                    args=('-dtb', dtb_path,
-                          '-initrd', initrd_path,
-                          '-no-reboot'))
-
     def test_s390x_s390_ccw_virtio(self):
         """
         :avocado: tags=arch:s390x
@@ -241,29 +193,3 @@ class ReplayKernelNormal(ReplayKernelBase):
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.run_rr(uncompressed_kernel, kernel_command_line, console_pattern, shift=9,
             args=('-nodefaults', ))
-
-    def do_test_advcal_2018(self, file_path, kernel_name, args=None):
-        archive.extract(file_path, self.workdir)
-
-        for entry in os.scandir(self.workdir):
-            if entry.name.startswith('day') and entry.is_dir():
-                kernel_path = os.path.join(entry.path, kernel_name)
-                break
-
-        kernel_command_line = ''
-        console_pattern = 'QEMU advent calendar'
-        self.run_rr(kernel_path, kernel_command_line, console_pattern,
-                    args=args)
-
-    def test_arm_vexpressa9(self):
-        """
-        :avocado: tags=arch:arm
-        :avocado: tags=machine:vexpress-a9
-        """
-        tar_hash = '32b7677ce8b6f1471fb0059865f451169934245b'
-        tar_url = ('https://qemu-advcal.gitlab.io'
-                   '/qac-best-of-multiarch/download/day16.tar.xz')
-        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
-        dtb_path = self.workdir + '/day16/vexpress-v2p-ca9.dtb'
-        self.do_test_advcal_2018(file_path, 'winter.zImage',
-                                 args=('-dtb', dtb_path))
