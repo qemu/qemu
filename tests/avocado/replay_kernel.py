@@ -242,24 +242,6 @@ class ReplayKernelNormal(ReplayKernelBase):
         self.run_rr(uncompressed_kernel, kernel_command_line, console_pattern, shift=9,
             args=('-nodefaults', ))
 
-    def test_m68k_q800(self):
-        """
-        :avocado: tags=arch:m68k
-        :avocado: tags=machine:q800
-        """
-        deb_url = ('https://snapshot.debian.org/archive/debian-ports'
-                   '/20191021T083923Z/pool-m68k/main'
-                   '/l/linux/kernel-image-5.3.0-1-m68k-di_5.3.7-1_m68k.udeb')
-        deb_hash = '044954bb9be4160a3ce81f8bc1b5e856b75cccd1'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinux-5.3.0-1-m68k')
-
-        kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
-                               'console=ttyS0 vga=off')
-        console_pattern = 'No filesystem could mount root'
-        self.run_rr(kernel_path, kernel_command_line, console_pattern)
-
     def do_test_advcal_2018(self, file_path, kernel_name, args=None):
         archive.extract(file_path, self.workdir)
 
@@ -285,14 +267,3 @@ class ReplayKernelNormal(ReplayKernelBase):
         dtb_path = self.workdir + '/day16/vexpress-v2p-ca9.dtb'
         self.do_test_advcal_2018(file_path, 'winter.zImage',
                                  args=('-dtb', dtb_path))
-
-    def test_m68k_mcf5208evb(self):
-        """
-        :avocado: tags=arch:m68k
-        :avocado: tags=machine:mcf5208evb
-        """
-        tar_hash = 'ac688fd00561a2b6ce1359f9ff6aa2b98c9a570c'
-        tar_url = ('https://qemu-advcal.gitlab.io'
-                   '/qac-best-of-multiarch/download/day07.tar.xz')
-        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
-        self.do_test_advcal_2018(file_path, 'sanity-clause.elf')

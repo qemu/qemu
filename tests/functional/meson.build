@@ -147,6 +147,7 @@ tests_loongarch64_system_thorough = [
 tests_m68k_system_thorough = [
   'm68k_mcf5208evb',
   'm68k_nextcube',
+  'm68k_replay',
   'm68k_q800',
   'm68k_tuxrun',
 ]
