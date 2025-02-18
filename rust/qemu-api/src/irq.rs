@@ -4,8 +4,7 @@
 
 //! Bindings for interrupt sources
 
-use core::ptr;
-use std::{ffi::CStr, marker::PhantomData, os::raw::c_int};
+use std::{ffi::CStr, marker::PhantomData, os::raw::c_int, ptr};
 
 use crate::{
     bindings::{self, qemu_set_irq},
