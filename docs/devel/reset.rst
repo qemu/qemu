@@ -143,6 +143,11 @@ The *exit* phase is executed only when the last reset operation ends. Therefore
 the object does not need to care how many of reset controllers it has and how
 many of them have started a reset.
 
+DMA capable devices are expected to cancel all outstanding DMA operations
+during either 'enter' or 'hold' phases. IOMMUs are expected to reset during
+the 'exit' phase and this sequencing makes sure no outstanding DMA request
+will fault.
+
 
 Handling reset in a resettable object
 -------------------------------------
