@@ -18,8 +18,8 @@ static bool trans_BBIT(DisasContext *ctx, arg_BBIT *a)
     TCGv p;
 
     if (ctx->hflags & MIPS_HFLAG_BMASK) {
-        LOG_DISAS("Branch in delay / forbidden slot at PC 0x"
-                  TARGET_FMT_lx "\n", ctx->base.pc_next);
+        LOG_DISAS("Branch in delay / forbidden slot at PC 0x%" VADDR_PRIx "\n",
+                  ctx->base.pc_next);
         generate_exception_end(ctx, EXCP_RI);
         return true;
     }
