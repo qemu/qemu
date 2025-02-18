@@ -90,6 +90,7 @@ tests_alpha_system_quick = [
 
 tests_alpha_system_thorough = [
   'alpha_clipper',
+  'alpha_replay',
 ]
 
 tests_arm_system_quick = [
