@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 14%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 15%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -397,6 +397,74 @@ Patch123: kvm-nbd-server-Silence-server-warnings-on-port-probes.patch
 Patch124: kvm-vhost-Add-stubs-for-the-migration-state-transfer-int.patch
 # For RHEL-78372 - Add vhost-user internal migration for passt [rhel-9]
 Patch125: kvm-virtio-net-vhost-user-Implement-internal-migration.patch
+# For RHEL-73891 - No RARP packets on the destination after migration [rhel-9.6]
+Patch126: kvm-net-Fix-announce_self.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch127: kvm-migration-Add-helper-to-get-target-runstate.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch128: kvm-qmp-cont-Only-activate-disks-if-migration-completed.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch129: kvm-migration-block-Make-late-block-active-the-default.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch130: kvm-migration-block-Apply-late-block-active-behavior-to-.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch131: kvm-migration-block-Fix-possible-race-with-block_inactiv.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch132: kvm-migration-block-Rewrite-disk-activation.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch133: kvm-block-Add-active-field-to-BlockDeviceInfo.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch134: kvm-block-Allow-inactivating-already-inactive-nodes.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch135: kvm-block-Inactivate-external-snapshot-overlays-when-nec.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch136: kvm-migration-block-active-Remove-global-active-flag.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch137: kvm-block-Don-t-attach-inactive-child-to-active-node.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch138: kvm-block-Fix-crash-on-block_resize-on-inactive-node.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch139: kvm-block-Add-option-to-create-inactive-nodes.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch140: kvm-block-Add-blockdev-set-active-QMP-command.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch141: kvm-block-Support-inactive-nodes-in-blk_insert_bs.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch142: kvm-block-export-Don-t-ignore-image-activation-error-in-.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch143: kvm-block-Drain-nodes-before-inactivating-them.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch144: kvm-block-export-Add-option-to-allow-export-of-inactive-.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch145: kvm-nbd-server-Support-inactive-nodes.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch146: kvm-iotests-Add-filter_qtest.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch147: kvm-iotests-Add-qsd-migrate-case.patch
+# For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
+# For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
+Patch148: kvm-iotests-Add-NBD-based-tests-for-inactive-nodes.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1463,6 +1531,37 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Mon Feb 17 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-15
+- kvm-net-Fix-announce_self.patch [RHEL-73891]
+- kvm-migration-Add-helper-to-get-target-runstate.patch [RHEL-54296 RHEL-78397]
+- kvm-qmp-cont-Only-activate-disks-if-migration-completed.patch [RHEL-54296 RHEL-78397]
+- kvm-migration-block-Make-late-block-active-the-default.patch [RHEL-54296 RHEL-78397]
+- kvm-migration-block-Apply-late-block-active-behavior-to-.patch [RHEL-54296 RHEL-78397]
+- kvm-migration-block-Fix-possible-race-with-block_inactiv.patch [RHEL-54296 RHEL-78397]
+- kvm-migration-block-Rewrite-disk-activation.patch [RHEL-54296 RHEL-78397]
+- kvm-block-Add-active-field-to-BlockDeviceInfo.patch [RHEL-54296 RHEL-78397]
+- kvm-block-Allow-inactivating-already-inactive-nodes.patch [RHEL-54296 RHEL-78397]
+- kvm-block-Inactivate-external-snapshot-overlays-when-nec.patch [RHEL-54296 RHEL-78397]
+- kvm-migration-block-active-Remove-global-active-flag.patch [RHEL-54296 RHEL-78397]
+- kvm-block-Don-t-attach-inactive-child-to-active-node.patch [RHEL-54296 RHEL-78397]
+- kvm-block-Fix-crash-on-block_resize-on-inactive-node.patch [RHEL-54296 RHEL-78397]
+- kvm-block-Add-option-to-create-inactive-nodes.patch [RHEL-54296 RHEL-78397]
+- kvm-block-Add-blockdev-set-active-QMP-command.patch [RHEL-54296 RHEL-78397]
+- kvm-block-Support-inactive-nodes-in-blk_insert_bs.patch [RHEL-54296 RHEL-78397]
+- kvm-block-export-Don-t-ignore-image-activation-error-in-.patch [RHEL-54296 RHEL-78397]
+- kvm-block-Drain-nodes-before-inactivating-them.patch [RHEL-54296 RHEL-78397]
+- kvm-block-export-Add-option-to-allow-export-of-inactive-.patch [RHEL-54296 RHEL-78397]
+- kvm-nbd-server-Support-inactive-nodes.patch [RHEL-54296 RHEL-78397]
+- kvm-iotests-Add-filter_qtest.patch [RHEL-54296 RHEL-78397]
+- kvm-iotests-Add-qsd-migrate-case.patch [RHEL-54296 RHEL-78397]
+- kvm-iotests-Add-NBD-based-tests-for-inactive-nodes.patch [RHEL-54296 RHEL-78397]
+- Resolves: RHEL-73891
+  (No RARP packets on the destination after migration [rhel-9.6])
+- Resolves: RHEL-54296
+  (Provide QMP command for block device reactivation after migration [rhel-9.5])
+- Resolves: RHEL-78397
+  (backport fix for double migration of a paused VM (disk activation rewrite))
+
 * Mon Feb 10 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-14
 - kvm-nbd-server-Silence-server-warnings-on-port-probes.patch [RHEL-67863]
 - kvm-vhost-Add-stubs-for-the-migration-state-transfer-int.patch [RHEL-78372]
