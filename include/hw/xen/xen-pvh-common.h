@@ -9,11 +9,11 @@
 #ifndef XEN_PVH_COMMON_H__
 #define XEN_PVH_COMMON_H__
 
-#include <assert.h>
-#include "hw/sysbus.h"
-#include "hw/hw.h"
-#include "hw/xen/xen-hvm-common.h"
+#include "exec/memory.h"
+#include "qom/object.h"
+#include "hw/boards.h"
 #include "hw/pci-host/gpex.h"
+#include "hw/xen/xen-hvm-common.h"
 
 #define TYPE_XEN_PVH_MACHINE MACHINE_TYPE_NAME("xen-pvh-base")
 OBJECT_DECLARE_TYPE(XenPVHMachineState, XenPVHMachineClass,
