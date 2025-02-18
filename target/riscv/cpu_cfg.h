@@ -196,6 +196,7 @@ struct RISCVCPUConfig {
 
     bool short_isa_string;
 
+    int8_t max_satp_mode;
     RISCVSATPMap satp_mode;
 };
 
