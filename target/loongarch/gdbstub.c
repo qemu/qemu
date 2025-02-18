@@ -63,23 +63,24 @@ int loongarch_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     CPULoongArchState *env = cpu_env(cs);
     target_ulong tmp;
-    int read_length;
     int length = 0;
+
+    if (n < 0 || n > 34) {
+        return 0;
+    }
 
     if (is_la64(env)) {
         tmp = ldq_le_p(mem_buf);
-        read_length = 8;
+        length = 8;
     } else {
         tmp = ldl_le_p(mem_buf);
-        read_length = 4;
+        length = 4;
     }
 
     if (0 <= n && n < 32) {
         env->gpr[n] = tmp;
-        length = read_length;
     } else if (n == 33) {
         set_pc(env, tmp);
-        length = read_length;
     }
     return length;
 }
