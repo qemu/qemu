@@ -288,6 +288,7 @@ static void build_rhct(GArray *table_data,
     RISCVCPU *cpu = &s->soc[0].harts[0];
     uint32_t mmu_offset = 0;
     uint8_t satp_mode_max;
+    bool rv32 = riscv_cpu_is_32bit(cpu);
     g_autofree char *isa = NULL;
 
     AcpiTable table = { .sig = "RHCT", .rev = 1, .oem_id = s->oem_id,
@@ -307,7 +308,8 @@ static void build_rhct(GArray *table_data,
         num_rhct_nodes++;
     }
 
-    if (cpu->cfg.satp_mode.supported != 0) {
+    if (!rv32 && cpu->cfg.satp_mode.supported != 0 &&
+        (cpu->cfg.satp_mode.map & ~(1 << VM_1_10_MBARE))) {
         num_rhct_nodes++;
     }
 
@@ -367,7 +369,8 @@ static void build_rhct(GArray *table_data,
     }
 
     /* MMU node structure */
-    if (cpu->cfg.satp_mode.supported != 0) {
+    if (!rv32 && cpu->cfg.satp_mode.supported != 0 &&
+        (cpu->cfg.satp_mode.map & ~(1 << VM_1_10_MBARE))) {
         satp_mode_max = satp_mode_max_from_map(cpu->cfg.satp_mode.map);
         mmu_offset = table_data->len - table.table_offset;
         build_append_int_noprefix(table_data, 2, 2);    /* Type */
@@ -382,7 +385,7 @@ static void build_rhct(GArray *table_data,
         } else if (satp_mode_max == VM_1_10_SV39) {
             build_append_int_noprefix(table_data, 0, 1);    /* Sv39 */
         } else {
-            assert(1);
+            g_assert_not_reached();
         }
     }
 
