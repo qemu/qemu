@@ -3,7 +3,6 @@
 
 #include "hw/xen/xen_backend_ops.h"
 #include "hw/xen/xen_pvdev.h"
-#include "net/net.h"
 #include "qom/object.h"
 
 #define TYPE_XENSYSDEV "xen-sysdev"
