@@ -49,6 +49,7 @@ test_timeouts = {
   'sh4_tuxrun' : 240,
   'virtio_balloon': 120,
   'x86_64_kvm_xen' : 180,
+  'x86_64_replay' : 480,
 }
 
 tests_generic_system = [
@@ -302,6 +303,7 @@ tests_x86_64_system_thorough = [
   'x86_64_hotplug_blk',
   'x86_64_hotplug_cpu',
   'x86_64_kvm_xen',
+  'x86_64_replay',
   'x86_64_tuxrun',
 ]
 
