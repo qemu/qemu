@@ -924,7 +924,12 @@ static void smmu_base_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void smmu_base_reset_hold(Object *obj, ResetType type)
+/*
+ * Make sure the IOMMU is reset in 'exit' phase after
+ * all outstanding DMA requests have been quiesced during
+ * the 'enter' or 'hold' reset phases
+ */
+static void smmu_base_reset_exit(Object *obj, ResetType type)
 {
     SMMUState *s = ARM_SMMU(obj);
 
@@ -950,7 +955,7 @@ static void smmu_base_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, smmu_dev_properties);
     device_class_set_parent_realize(dc, smmu_base_realize,
                                     &sbc->parent_realize);
-    rc->phases.hold = smmu_base_reset_hold;
+    rc->phases.exit = smmu_base_reset_exit;
 }
 
 static const TypeInfo smmu_base_info = {
