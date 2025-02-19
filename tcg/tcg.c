@@ -100,8 +100,7 @@ struct TCGLabelQemuLdst {
     bool is_ld;             /* qemu_ld: true, qemu_st: false */
     MemOpIdx oi;
     TCGType type;           /* result type of a load */
-    TCGReg addrlo_reg;      /* reg index for low word of guest virtual addr */
-    TCGReg addrhi_reg;      /* reg index for high word of guest virtual addr */
+    TCGReg addr_reg;        /* reg index for guest virtual addr */
     TCGReg datalo_reg;      /* reg index for low word to be loaded or stored */
     TCGReg datahi_reg;      /* reg index for high word to be loaded or stored */
     const tcg_insn_unit *raddr;   /* addr of the next IR of qemu_ld/st IR */
@@ -1598,21 +1597,17 @@ void tcg_prologue_init(void)
     tcg_qemu_tb_exec = (tcg_prologue_fn *)tcg_splitwx_to_rx(s->code_ptr);
 #endif
 
-#ifdef TCG_TARGET_NEED_POOL_LABELS
     s->pool_labels = NULL;
-#endif
 
     qemu_thread_jit_write();
     /* Generate the prologue.  */
     tcg_target_qemu_prologue(s);
 
-#ifdef TCG_TARGET_NEED_POOL_LABELS
     /* Allow the prologue to put e.g. guest_base into a pool entry.  */
     {
         int result = tcg_out_pool_finalize(s);
         tcg_debug_assert(result == 0);
     }
-#endif
 
     prologue_size = tcg_current_code_size(s);
     perf_report_prologue(s->code_gen_ptr, prologue_size);
@@ -1694,9 +1689,7 @@ void tcg_func_start(TCGContext *s)
     s->emit_before_op = NULL;
     QSIMPLEQ_INIT(&s->labels);
 
-    tcg_debug_assert(s->addr_type == TCG_TYPE_I32 ||
-                     s->addr_type == TCG_TYPE_I64);
-
+    tcg_debug_assert(s->addr_type <= TCG_TYPE_REG);
     tcg_debug_assert(s->insn_start_words > 0);
 }
 
@@ -2153,24 +2146,17 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_exit_tb:
     case INDEX_op_goto_tb:
     case INDEX_op_goto_ptr:
-    case INDEX_op_qemu_ld_a32_i32:
-    case INDEX_op_qemu_ld_a64_i32:
-    case INDEX_op_qemu_st_a32_i32:
-    case INDEX_op_qemu_st_a64_i32:
-    case INDEX_op_qemu_ld_a32_i64:
-    case INDEX_op_qemu_ld_a64_i64:
-    case INDEX_op_qemu_st_a32_i64:
-    case INDEX_op_qemu_st_a64_i64:
+    case INDEX_op_qemu_ld_i32:
+    case INDEX_op_qemu_st_i32:
+    case INDEX_op_qemu_ld_i64:
+    case INDEX_op_qemu_st_i64:
         return true;
 
-    case INDEX_op_qemu_st8_a32_i32:
-    case INDEX_op_qemu_st8_a64_i32:
+    case INDEX_op_qemu_st8_i32:
         return TCG_TARGET_HAS_qemu_st8_i32;
 
-    case INDEX_op_qemu_ld_a32_i128:
-    case INDEX_op_qemu_ld_a64_i128:
-    case INDEX_op_qemu_st_a32_i128:
-    case INDEX_op_qemu_st_a64_i128:
+    case INDEX_op_qemu_ld_i128:
+    case INDEX_op_qemu_st_i128:
         return TCG_TARGET_HAS_qemu_ldst_i128;
 
     case INDEX_op_mov_i32:
@@ -2868,20 +2854,13 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
                 }
                 i = 1;
                 break;
-            case INDEX_op_qemu_ld_a32_i32:
-            case INDEX_op_qemu_ld_a64_i32:
-            case INDEX_op_qemu_st_a32_i32:
-            case INDEX_op_qemu_st_a64_i32:
-            case INDEX_op_qemu_st8_a32_i32:
-            case INDEX_op_qemu_st8_a64_i32:
-            case INDEX_op_qemu_ld_a32_i64:
-            case INDEX_op_qemu_ld_a64_i64:
-            case INDEX_op_qemu_st_a32_i64:
-            case INDEX_op_qemu_st_a64_i64:
-            case INDEX_op_qemu_ld_a32_i128:
-            case INDEX_op_qemu_ld_a64_i128:
-            case INDEX_op_qemu_st_a32_i128:
-            case INDEX_op_qemu_st_a64_i128:
+            case INDEX_op_qemu_ld_i32:
+            case INDEX_op_qemu_st_i32:
+            case INDEX_op_qemu_st8_i32:
+            case INDEX_op_qemu_ld_i64:
+            case INDEX_op_qemu_st_i64:
+            case INDEX_op_qemu_ld_i128:
+            case INDEX_op_qemu_st_i128:
                 {
                     const char *s_al, *s_op, *s_at;
                     MemOpIdx oi = op->args[k++];
@@ -3244,6 +3223,11 @@ static void process_constraint_sets(void)
                 case 'i':
                     args_ct[i].ct |= TCG_CT_CONST;
                     break;
+#ifdef TCG_REG_ZERO
+                case 'z':
+                    args_ct[i].ct |= TCG_CT_REG_ZERO;
+                    break;
+#endif
 
                 /* Include all of the target-specific constraints. */
 
@@ -5095,13 +5079,23 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         arg_ct = &args_ct[i];
         ts = arg_temp(arg);
 
-        if (ts->val_type == TEMP_VAL_CONST
-            && tcg_target_const_match(ts->val, arg_ct->ct, ts->type,
-                                      op_cond, TCGOP_VECE(op))) {
-            /* constant is OK for instruction */
-            const_args[i] = 1;
-            new_args[i] = ts->val;
-            continue;
+        if (ts->val_type == TEMP_VAL_CONST) {
+#ifdef TCG_REG_ZERO
+            if (ts->val == 0 && (arg_ct->ct & TCG_CT_REG_ZERO)) {
+                /* Hardware zero register: indicate register via non-const. */
+                const_args[i] = 0;
+                new_args[i] = TCG_REG_ZERO;
+                continue;
+            }
+#endif
+
+            if (tcg_target_const_match(ts->val, arg_ct->ct, ts->type,
+                                       op_cond, TCGOP_VECE(op))) {
+                /* constant is OK for instruction */
+                const_args[i] = 1;
+                new_args[i] = ts->val;
+                continue;
+            }
         }
 
         reg = ts->reg;
@@ -6081,7 +6075,7 @@ static void tcg_out_ld_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
          */
         tcg_out_helper_add_mov(mov, loc + HOST_BIG_ENDIAN,
                                TCG_TYPE_I32, TCG_TYPE_I32,
-                               ldst->addrlo_reg, -1);
+                               ldst->addr_reg, -1);
         tcg_out_helper_load_slots(s, 1, mov, parm);
 
         tcg_out_helper_load_imm(s, loc[!HOST_BIG_ENDIAN].arg_slot,
@@ -6089,7 +6083,7 @@ static void tcg_out_ld_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
         next_arg += 2;
     } else {
         nmov = tcg_out_helper_add_mov(mov, loc, TCG_TYPE_I64, s->addr_type,
-                                      ldst->addrlo_reg, ldst->addrhi_reg);
+                                      ldst->addr_reg, -1);
         tcg_out_helper_load_slots(s, nmov, mov, parm);
         next_arg += nmov;
     }
@@ -6246,21 +6240,22 @@ static void tcg_out_st_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
 
     /* Handle addr argument. */
     loc = &info->in[next_arg];
-    if (TCG_TARGET_REG_BITS == 32 && s->addr_type == TCG_TYPE_I32) {
+    tcg_debug_assert(s->addr_type <= TCG_TYPE_REG);
+    if (TCG_TARGET_REG_BITS == 32) {
         /*
-         * 32-bit host with 32-bit guest: zero-extend the guest address
+         * 32-bit host (and thus 32-bit guest): zero-extend the guest address
          * to 64-bits for the helper by storing the low part.  Later,
          * after we have processed the register inputs, we will load a
          * zero for the high part.
          */
         tcg_out_helper_add_mov(mov, loc + HOST_BIG_ENDIAN,
                                TCG_TYPE_I32, TCG_TYPE_I32,
-                               ldst->addrlo_reg, -1);
+                               ldst->addr_reg, -1);
         next_arg += 2;
         nmov += 1;
     } else {
         n = tcg_out_helper_add_mov(mov, loc, TCG_TYPE_I64, s->addr_type,
-                                   ldst->addrlo_reg, ldst->addrhi_reg);
+                                   ldst->addr_reg, -1);
         next_arg += n;
         nmov += n;
     }
@@ -6308,7 +6303,7 @@ static void tcg_out_st_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
         g_assert_not_reached();
     }
 
-    if (TCG_TARGET_REG_BITS == 32 && s->addr_type == TCG_TYPE_I32) {
+    if (TCG_TARGET_REG_BITS == 32) {
         /* Zero extend the address by loading a zero for the high part. */
         loc = &info->in[1 + !HOST_BIG_ENDIAN];
         tcg_out_helper_load_imm(s, loc->arg_slot, TCG_TYPE_I32, 0, parm);

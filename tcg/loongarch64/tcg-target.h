@@ -85,4 +85,6 @@ typedef enum {
     TCG_VEC_TMP0 = TCG_REG_V23,
 } TCGReg;
 
+#define TCG_REG_ZERO  TCG_REG_ZERO
+
 #endif /* LOONGARCH_TCG_TARGET_H */

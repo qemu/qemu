@@ -45,6 +45,8 @@ typedef enum {
     TCG_AREG0  = TCG_REG_X19,
 } TCGReg;
 
+#define TCG_REG_ZERO TCG_REG_XZR
+
 #define TCG_TARGET_NB_REGS 64
 
 #endif /* AARCH64_TCG_TARGET_H */

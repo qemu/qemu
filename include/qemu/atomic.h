@@ -56,25 +56,13 @@
  */
 #define signal_barrier()    __atomic_signal_fence(__ATOMIC_SEQ_CST)
 
-/* Sanity check that the size of an atomic operation isn't "overly large".
+/*
+ * Sanity check that the size of an atomic operation isn't "overly large".
  * Despite the fact that e.g. i686 has 64-bit atomic operations, we do not
  * want to use them because we ought not need them, and this lets us do a
  * bit of sanity checking that other 32-bit hosts might build.
- *
- * That said, we have a problem on 64-bit ILP32 hosts in that in order to
- * sync with TCG_OVERSIZED_GUEST, this must match TCG_TARGET_REG_BITS.
- * We'd prefer not want to pull in everything else TCG related, so handle
- * those few cases by hand.
- *
- * Note that x32 is fully detected with __x86_64__ + _ILP32, and that for
- * Sparc we always force the use of sparcv9 in configure. MIPS n32 (ILP32) &
- * n64 (LP64) ABIs are both detected using __mips64.
  */
-#if defined(__x86_64__) || defined(__sparc__) || defined(__mips64)
-# define ATOMIC_REG_SIZE  8
-#else
-# define ATOMIC_REG_SIZE  sizeof(void *)
-#endif
+#define ATOMIC_REG_SIZE  sizeof(void *)
 
 /* Weak atomic operations prevent the compiler moving other
  * loads/stores past the atomic operation load/store. However there is

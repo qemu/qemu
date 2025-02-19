@@ -713,7 +713,8 @@ void tb_target_set_jmp_target(const TranslationBlock *, int,
 
 void tcg_set_frame(TCGContext *s, TCGReg reg, intptr_t start, intptr_t size);
 
-#define TCG_CT_CONST  1 /* any constant of register size */
+#define TCG_CT_CONST      1  /* any constant of register size */
+#define TCG_CT_REG_ZERO   2  /* zero, in TCG_REG_ZERO */
 
 typedef struct TCGArgConstraint {
     unsigned ct : 16;

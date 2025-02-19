@@ -3,6 +3,8 @@
 
 #include "../generic/signal.h"
 
+#define TARGET_SA_RESTORER      0x04000000
+
 #define TARGET_ARCH_HAS_SIGTRAMP_PAGE 1
 
 #endif /* MICROBLAZE_TARGET_SIGNAL_H */

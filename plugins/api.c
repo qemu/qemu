@@ -561,7 +561,7 @@ GArray *qemu_plugin_get_registers(void)
     return create_register_handles(regs);
 }
 
-bool qemu_plugin_read_memory_vaddr(vaddr addr, GByteArray *data, size_t len)
+bool qemu_plugin_read_memory_vaddr(uint64_t addr, GByteArray *data, size_t len)
 {
     g_assert(current_cpu);
 

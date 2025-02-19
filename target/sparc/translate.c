@@ -2882,6 +2882,14 @@ static TCGv do_rd_leon3_config(DisasContext *dc, TCGv dst)
 
 TRANS(RDASR17, ASR17, do_rd_special, true, a->rd, do_rd_leon3_config)
 
+static TCGv do_rdpic(DisasContext *dc, TCGv dst)
+{
+    return tcg_constant_tl(0);
+}
+
+TRANS(RDPIC, HYPV, do_rd_special, supervisor(dc), a->rd, do_rdpic)
+
+
 static TCGv do_rdccr(DisasContext *dc, TCGv dst)
 {
     gen_helper_rdccr(dst, tcg_env);
@@ -3314,6 +3322,17 @@ static void do_wrfprs(DisasContext *dc, TCGv src)
 }
 
 TRANS(WRFPRS, 64, do_wr_special, a, true, do_wrfprs)
+
+static bool do_priv_nop(DisasContext *dc, bool priv)
+{
+    if (!priv) {
+        return raise_priv(dc);
+    }
+    return advance_pc(dc);
+}
+
+TRANS(WRPCR, HYPV, do_priv_nop, supervisor(dc))
+TRANS(WRPIC, HYPV, do_priv_nop, supervisor(dc))
 
 static void do_wrgsr(DisasContext *dc, TCGv src)
 {

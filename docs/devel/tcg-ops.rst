@@ -927,7 +927,9 @@ operation uses a constant input constraint which does not allow all
 constants, it must also accept registers in order to have a fallback.
 The constraint '``i``' is defined generically to accept any constant.
 The constraint '``r``' is not defined generically, but is consistently
-used by each backend to indicate all registers.
+used by each backend to indicate all registers.  If ``TCG_REG_ZERO``
+is defined by the backend, the constraint '``z``' is defined generically
+to map constant 0 to the hardware zero register.
 
 The movi_i32 and movi_i64 operations must accept any constants.
 

@@ -64,6 +64,7 @@ typedef enum {
     TCG_REG_I7,
 } TCGReg;
 
-#define TCG_AREG0 TCG_REG_I0
+#define TCG_AREG0     TCG_REG_I0
+#define TCG_REG_ZERO  TCG_REG_G0
 
 #endif
