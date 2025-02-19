@@ -481,6 +481,19 @@ config NPCM7XX
     select PCA954X
     select USB_OHCI_SYSBUS
 
+config NPCM8XX
+    bool
+    default y
+    depends on TCG && AARCH64
+    select ARM_GIC
+    select SMBUS
+    select PL310  # cache controller
+    select NPCM7XX
+    select SERIAL
+    select SSI
+    select UNIMP
+
+
 config FSL_IMX25
     bool
     default y
