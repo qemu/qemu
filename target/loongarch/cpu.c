@@ -406,7 +406,7 @@ static void loongarch_la464_initfn(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
     CPULoongArchState *env = &cpu->env;
-    uint32_t data = 0;
+    uint32_t data = 0, field;
     int i;
 
     for (i = 0; i < 21; i++) {
@@ -419,7 +419,13 @@ static void loongarch_la464_initfn(Object *obj)
     data = FIELD_DP32(data, CPUCFG1, ARCH, 2);
     data = FIELD_DP32(data, CPUCFG1, PGMMU, 1);
     data = FIELD_DP32(data, CPUCFG1, IOCSR, 1);
-    data = FIELD_DP32(data, CPUCFG1, PALEN, 0x2f);
+    if (kvm_enabled()) {
+        /* GPA address width of VM is 47, field value is 47 - 1 */
+        field = 0x2e;
+    } else {
+        field = 0x2f; /* 48 bit - 1 */
+    }
+    data = FIELD_DP32(data, CPUCFG1, PALEN, field);
     data = FIELD_DP32(data, CPUCFG1, VALEN, 0x2f);
     data = FIELD_DP32(data, CPUCFG1, UAL, 1);
     data = FIELD_DP32(data, CPUCFG1, RI, 1);
