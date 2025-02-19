@@ -44,6 +44,8 @@ typedef struct MemTxAttrs {
      * (see MEMTX_ACCESS_ERROR).
      */
     unsigned int memory:1;
+    /* Debug access that can even write to ROM. */
+    unsigned int debug:1;
     /* Requester ID (for MSI for example) */
     unsigned int requester_id:16;
 
@@ -56,7 +58,8 @@ typedef struct MemTxAttrs {
      * Bus masters which don't specify any attributes will get this
      * (via the MEMTXATTRS_UNSPECIFIED constant), so that we can
      * distinguish "all attributes deliberately clear" from
-     * "didn't specify" if necessary.
+     * "didn't specify" if necessary. "debug" can be set alongside
+     * "unspecified".
      */
     bool unspecified;
 

@@ -51,13 +51,18 @@ hwaddr cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
                                      MemTxAttrs *attrs)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
+    hwaddr paddr;
 
     if (cc->sysemu_ops->get_phys_page_attrs_debug) {
-        return cc->sysemu_ops->get_phys_page_attrs_debug(cpu, addr, attrs);
+        paddr = cc->sysemu_ops->get_phys_page_attrs_debug(cpu, addr, attrs);
+    } else {
+        /* Fallback for CPUs which don't implement the _attrs_ hook */
+        *attrs = MEMTXATTRS_UNSPECIFIED;
+        paddr = cc->sysemu_ops->get_phys_page_debug(cpu, addr);
     }
-    /* Fallback for CPUs which don't implement the _attrs_ hook */
-    *attrs = MEMTXATTRS_UNSPECIFIED;
-    return cc->sysemu_ops->get_phys_page_debug(cpu, addr);
+    /* Indicate that this is a debug access. */
+    attrs->debug = 1;
+    return paddr;
 }
 
 hwaddr cpu_get_phys_page_debug(CPUState *cpu, vaddr addr)

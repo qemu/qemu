@@ -2995,15 +2995,34 @@ MemTxResult address_space_write_cached_slow(MemoryRegionCache *cache,
 int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr);
 bool prepare_mmio_access(MemoryRegion *mr);
 
-static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
+static inline bool memory_region_supports_direct_access(MemoryRegion *mr)
 {
-    if (is_write) {
-        return memory_region_is_ram(mr) && !mr->readonly &&
-               !mr->rom_device && !memory_region_is_ram_device(mr);
-    } else {
-        return (memory_region_is_ram(mr) && !memory_region_is_ram_device(mr)) ||
-               memory_region_is_romd(mr);
+    /* ROM DEVICE regions only allow direct access if in ROMD mode. */
+    if (memory_region_is_romd(mr)) {
+        return true;
     }
+    if (!memory_region_is_ram(mr)) {
+        return false;
+    }
+    /*
+     * RAM DEVICE regions can be accessed directly using memcpy, but it might
+     * be MMIO and access using mempy can be wrong (e.g., using instructions not
+     * intended for MMIO access). So we treat this as IO.
+     */
+    return !memory_region_is_ram_device(mr);
+}
+
+static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write,
+                                           MemTxAttrs attrs)
+{
+    if (!memory_region_supports_direct_access(mr)) {
+        return false;
+    }
+    /* Debug access can write to ROM. */
+    if (is_write && !attrs.debug) {
+        return !mr->readonly && !mr->rom_device;
+    }
+    return true;
 }
 
 /**
@@ -3036,7 +3055,7 @@ MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
             fv = address_space_to_flatview(as);
             l = len;
             mr = flatview_translate(fv, addr, &addr1, &l, false, attrs);
-            if (len == l && memory_access_is_direct(mr, false)) {
+            if (len == l && memory_access_is_direct(mr, false, attrs)) {
                 ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
                 memcpy(buf, ptr, len);
             } else {

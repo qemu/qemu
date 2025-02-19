@@ -144,7 +144,7 @@ ssize_t load_image_mr(const char *filename, MemoryRegion *mr)
 {
     ssize_t size;
 
-    if (!memory_access_is_direct(mr, false)) {
+    if (!memory_access_is_direct(mr, false, MEMTXATTRS_UNSPECIFIED)) {
         /* Can only load an image into RAM or ROM */
         return -1;
     }

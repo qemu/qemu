@@ -137,7 +137,8 @@ void *apple_gfx_host_ptr_for_gpa_range(uint64_t guest_physical,
                                          MEMTXATTRS_UNSPECIFIED);
 
     if (!ram_region || ram_region_length < length ||
-        !memory_access_is_direct(ram_region, !read_only)) {
+        !memory_access_is_direct(ram_region, !read_only,
+				 MEMTXATTRS_UNSPECIFIED)) {
         return NULL;
     }
 
