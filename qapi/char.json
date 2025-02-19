@@ -337,7 +337,7 @@
 #
 # Configuration info for hub chardevs.
 #
-# @chardevs: List of chardev IDs, which should be added to this hub
+# @chardevs: IDs to be added to this hub (maximum 4 devices).
 #
 # Since: 10.0
 ##
