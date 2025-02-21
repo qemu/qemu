@@ -16,6 +16,18 @@
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_snd.h"
 
+static const VirtIOFeature feature_sizes[] = {
+    {.flags = 1ULL << VIRTIO_SND_F_CTLS,
+    .end = endof(struct virtio_snd_config, controls)},
+    {}
+};
+
+static const VirtIOConfigSizeParams cfg_size_params = {
+    .min_size = endof(struct virtio_snd_config, chmaps),
+    .max_size = sizeof(struct virtio_snd_config),
+    .feature_sizes = feature_sizes
+};
+
 static const VMStateDescription vu_snd_vmstate = {
     .name = "vhost-user-snd",
     .unmigratable = 1,
@@ -23,16 +35,20 @@ static const VMStateDescription vu_snd_vmstate = {
 
 static const Property vsnd_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserBase, chardev),
+    DEFINE_PROP_BIT64("controls", VHostUserBase,
+                      parent_obj.host_features, VIRTIO_SND_F_CTLS, false),
 };
 
 static void vu_snd_base_realize(DeviceState *dev, Error **errp)
 {
     VHostUserBase *vub = VHOST_USER_BASE(dev);
     VHostUserBaseClass *vubs = VHOST_USER_BASE_GET_CLASS(dev);
+    VirtIODevice *vdev = &vub->parent_obj;
 
     vub->virtio_id = VIRTIO_ID_SOUND;
     vub->num_vqs = 4;
-    vub->config_size = sizeof(struct virtio_snd_config);
+    vub->config_size = virtio_get_config_size(&cfg_size_params,
+                                              vdev->host_features);
     vub->vq_size = 64;
 
     vubs->parent_realize(dev, errp);

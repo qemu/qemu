@@ -1404,6 +1404,7 @@ void vfio_reset_handler(void *opaque)
 {
     VFIODevice *vbasedev;
 
+    trace_vfio_reset_handler();
     QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
         if (vbasedev->dev->realized) {
             vbasedev->ops->vfio_compute_needs_reset(vbasedev);

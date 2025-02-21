@@ -78,24 +78,39 @@ uint16_t vhost_svq_available_slots(const VhostShadowVirtqueue *svq)
  * @vaddr: Translated IOVA addresses
  * @iovec: Source qemu's VA addresses
  * @num: Length of iovec and minimum length of vaddr
+ * @gpas: Descriptors' GPAs, if backed by guest memory
  */
 static bool vhost_svq_translate_addr(const VhostShadowVirtqueue *svq,
                                      hwaddr *addrs, const struct iovec *iovec,
-                                     size_t num)
+                                     size_t num, const hwaddr *gpas)
 {
     if (num == 0) {
         return true;
     }
 
     for (size_t i = 0; i < num; ++i) {
-        DMAMap needle = {
-            .translated_addr = (hwaddr)(uintptr_t)iovec[i].iov_base,
-            .size = iovec[i].iov_len,
-        };
         Int128 needle_last, map_last;
         size_t off;
+        const DMAMap *map;
+        DMAMap needle;
 
-        const DMAMap *map = vhost_iova_tree_find_iova(svq->iova_tree, &needle);
+        /* Check if the descriptor is backed by guest memory  */
+        if (gpas) {
+            /* Search the GPA->IOVA tree */
+            needle = (DMAMap) {
+                .translated_addr = gpas[i],
+                .size = iovec[i].iov_len,
+            };
+            map = vhost_iova_tree_find_gpa(svq->iova_tree, &needle);
+        } else {
+            /* Search the IOVA->HVA tree */
+            needle = (DMAMap) {
+                .translated_addr = (hwaddr)(uintptr_t)iovec[i].iov_base,
+                .size = iovec[i].iov_len,
+            };
+            map = vhost_iova_tree_find_iova(svq->iova_tree, &needle);
+        }
+
         /*
          * Map cannot be NULL since iova map contains all guest space and
          * qemu already has a physical address mapped
@@ -130,6 +145,7 @@ static bool vhost_svq_translate_addr(const VhostShadowVirtqueue *svq,
  * @sg: Cache for hwaddr
  * @iovec: The iovec from the guest
  * @num: iovec length
+ * @addr: Descriptors' GPAs, if backed by guest memory
  * @more_descs: True if more descriptors come in the chain
  * @write: True if they are writeable descriptors
  *
@@ -137,7 +153,8 @@ static bool vhost_svq_translate_addr(const VhostShadowVirtqueue *svq,
  */
 static bool vhost_svq_vring_write_descs(VhostShadowVirtqueue *svq, hwaddr *sg,
                                         const struct iovec *iovec, size_t num,
-                                        bool more_descs, bool write)
+                                        const hwaddr *addr, bool more_descs,
+                                        bool write)
 {
     uint16_t i = svq->free_head, last = svq->free_head;
     unsigned n;
@@ -149,7 +166,7 @@ static bool vhost_svq_vring_write_descs(VhostShadowVirtqueue *svq, hwaddr *sg,
         return true;
     }
 
-    ok = vhost_svq_translate_addr(svq, sg, iovec, num);
+    ok = vhost_svq_translate_addr(svq, sg, iovec, num, addr);
     if (unlikely(!ok)) {
         return false;
     }
@@ -165,17 +182,18 @@ static bool vhost_svq_vring_write_descs(VhostShadowVirtqueue *svq, hwaddr *sg,
         descs[i].len = cpu_to_le32(iovec[n].iov_len);
 
         last = i;
-        i = cpu_to_le16(svq->desc_next[i]);
+        i = svq->desc_next[i];
     }
 
-    svq->free_head = le16_to_cpu(svq->desc_next[last]);
+    svq->free_head = svq->desc_next[last];
     return true;
 }
 
 static bool vhost_svq_add_split(VhostShadowVirtqueue *svq,
                                 const struct iovec *out_sg, size_t out_num,
+                                const hwaddr *out_addr,
                                 const struct iovec *in_sg, size_t in_num,
-                                unsigned *head)
+                                const hwaddr *in_addr, unsigned *head)
 {
     unsigned avail_idx;
     vring_avail_t *avail = svq->vring.avail;
@@ -191,13 +209,14 @@ static bool vhost_svq_add_split(VhostShadowVirtqueue *svq,
         return false;
     }
 
-    ok = vhost_svq_vring_write_descs(svq, sgs, out_sg, out_num, in_num > 0,
-                                     false);
+    ok = vhost_svq_vring_write_descs(svq, sgs, out_sg, out_num, out_addr,
+                                     in_num > 0, false);
     if (unlikely(!ok)) {
         return false;
     }
 
-    ok = vhost_svq_vring_write_descs(svq, sgs, in_sg, in_num, false, true);
+    ok = vhost_svq_vring_write_descs(svq, sgs, in_sg, in_num, in_addr, false,
+                                     true);
     if (unlikely(!ok)) {
         return false;
     }
@@ -228,10 +247,12 @@ static void vhost_svq_kick(VhostShadowVirtqueue *svq)
     smp_mb();
 
     if (virtio_vdev_has_feature(svq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
-        uint16_t avail_event = *(uint16_t *)(&svq->vring.used->ring[svq->vring.num]);
+        uint16_t avail_event = le16_to_cpu(
+                *(uint16_t *)(&svq->vring.used->ring[svq->vring.num]));
         needs_kick = vring_need_event(avail_event, svq->shadow_avail_idx, svq->shadow_avail_idx - 1);
     } else {
-        needs_kick = !(svq->vring.used->flags & VRING_USED_F_NO_NOTIFY);
+        needs_kick =
+                !(svq->vring.used->flags & cpu_to_le16(VRING_USED_F_NO_NOTIFY));
     }
 
     if (!needs_kick) {
@@ -247,8 +268,9 @@ static void vhost_svq_kick(VhostShadowVirtqueue *svq)
  * Return -EINVAL if element is invalid, -ENOSPC if dev queue is full
  */
 int vhost_svq_add(VhostShadowVirtqueue *svq, const struct iovec *out_sg,
-                  size_t out_num, const struct iovec *in_sg, size_t in_num,
-                  VirtQueueElement *elem)
+                  size_t out_num, const hwaddr *out_addr,
+                  const struct iovec *in_sg, size_t in_num,
+                  const hwaddr *in_addr, VirtQueueElement *elem)
 {
     unsigned qemu_head;
     unsigned ndescs = in_num + out_num;
@@ -258,7 +280,8 @@ int vhost_svq_add(VhostShadowVirtqueue *svq, const struct iovec *out_sg,
         return -ENOSPC;
     }
 
-    ok = vhost_svq_add_split(svq, out_sg, out_num, in_sg, in_num, &qemu_head);
+    ok = vhost_svq_add_split(svq, out_sg, out_num, out_addr, in_sg, in_num,
+                             in_addr, &qemu_head);
     if (unlikely(!ok)) {
         return -EINVAL;
     }
@@ -274,8 +297,8 @@ int vhost_svq_add(VhostShadowVirtqueue *svq, const struct iovec *out_sg,
 static int vhost_svq_add_element(VhostShadowVirtqueue *svq,
                                  VirtQueueElement *elem)
 {
-    return vhost_svq_add(svq, elem->out_sg, elem->out_num, elem->in_sg,
-                         elem->in_num, elem);
+    return vhost_svq_add(svq, elem->out_sg, elem->out_num, elem->out_addr,
+                         elem->in_sg, elem->in_num, elem->in_addr, elem);
 }
 
 /**
@@ -365,7 +388,7 @@ static bool vhost_svq_more_used(VhostShadowVirtqueue *svq)
         return true;
     }
 
-    svq->shadow_used_idx = cpu_to_le16(*(volatile uint16_t *)used_idx);
+    svq->shadow_used_idx = le16_to_cpu(*(volatile uint16_t *)used_idx);
 
     return svq->last_used_idx != svq->shadow_used_idx;
 }
@@ -383,7 +406,7 @@ static bool vhost_svq_enable_notification(VhostShadowVirtqueue *svq)
 {
     if (virtio_vdev_has_feature(svq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
         uint16_t *used_event = (uint16_t *)&svq->vring.avail->ring[svq->vring.num];
-        *used_event = svq->shadow_used_idx;
+        *used_event = cpu_to_le16(svq->shadow_used_idx);
     } else {
         svq->vring.avail->flags &= ~cpu_to_le16(VRING_AVAIL_F_NO_INTERRUPT);
     }
@@ -408,7 +431,7 @@ static uint16_t vhost_svq_last_desc_of_chain(const VhostShadowVirtqueue *svq,
                                              uint16_t num, uint16_t i)
 {
     for (uint16_t j = 0; j < (num - 1); ++j) {
-        i = le16_to_cpu(svq->desc_next[i]);
+        i = svq->desc_next[i];
     }
 
     return i;
@@ -683,7 +706,7 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
     svq->desc_state = g_new0(SVQDescState, svq->vring.num);
     svq->desc_next = g_new0(uint16_t, svq->vring.num);
     for (unsigned i = 0; i < svq->vring.num - 1; i++) {
-        svq->desc_next[i] = cpu_to_le16(i + 1);
+        svq->desc_next[i] = i + 1;
     }
 }
 

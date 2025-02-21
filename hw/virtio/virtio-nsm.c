@@ -1596,7 +1596,7 @@ static void handle_input(VirtIODevice *vdev, VirtQueue *vq)
     g_free(req.iov_base);
     g_free(res.iov_base);
     virtqueue_push(vq, out_elem, 0);
-    virtqueue_push(vq, in_elem, in_elem->in_sg->iov_len);
+    virtqueue_push(vq, in_elem, sz);
     virtio_notify(vdev, vq);
     return;
 

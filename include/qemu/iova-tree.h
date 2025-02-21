@@ -41,6 +41,28 @@ typedef struct DMAMap {
 typedef gboolean (*iova_tree_iterator)(DMAMap *map);
 
 /**
+ * gpa_tree_new:
+ *
+ * Create a new GPA->IOVA tree.
+ *
+ * Returns: the tree point on success, or NULL otherwise.
+ */
+IOVATree *gpa_tree_new(void);
+
+/**
+ * gpa_tree_insert:
+ *
+ * @tree: The GPA->IOVA tree we're inserting the mapping to
+ * @map: The GPA->IOVA mapping to insert
+ *
+ * Inserts a GPA range to the GPA->IOVA tree. If there are overlapped
+ * ranges, IOVA_ERR_OVERLAP will be returned.
+ *
+ * Return: 0 if successful, < 0 otherwise.
+ */
+int gpa_tree_insert(IOVATree *tree, const DMAMap *map);
+
+/**
  * iova_tree_new:
  *
  * Create a new iova tree.
