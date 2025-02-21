@@ -44,9 +44,7 @@
 #include "x86_flags.h"
 #include "vmcs.h"
 #include "vmx.h"
-
-void hvf_handle_io(CPUState *cs, uint16_t port, void *data,
-                   int direction, int size, uint32_t count);
+#include "hvf-i386.h"
 
 #define EXEC_2OP_FLAGS_CMD(env, decode, cmd, FLAGS_FUNC, save_res) \
 {                                                       \

@@ -18,7 +18,7 @@
 
 uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx, int reg);
 
-void hvf_handle_io(CPUArchState *, uint16_t, void *, int, int, int);
+void hvf_handle_io(CPUState *, uint16_t, void *, int, int, int);
 
 /* Host specific functions */
 int hvf_inject_interrupt(CPUArchState *env, int vector);

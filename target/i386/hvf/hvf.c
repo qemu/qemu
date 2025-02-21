@@ -103,7 +103,7 @@ static void update_apic_tpr(CPUState *cpu)
 
 #define VECTORING_INFO_VECTOR_MASK     0xff
 
-void hvf_handle_io(CPUArchState *env, uint16_t port, void *buffer,
+void hvf_handle_io(CPUState *env, uint16_t port, void *buffer,
                   int direction, int size, int count)
 {
     int i;
@@ -536,7 +536,7 @@ int hvf_vcpu_exec(CPUState *cpu)
             if (!string && in) {
                 uint64_t val = 0;
                 load_regs(cpu);
-                hvf_handle_io(env, port, &val, 0, size, 1);
+                hvf_handle_io(env_cpu(env), port, &val, 0, size, 1);
                 if (size == 1) {
                     AL(env) = val;
                 } else if (size == 2) {
@@ -551,7 +551,7 @@ int hvf_vcpu_exec(CPUState *cpu)
                 break;
             } else if (!string && !in) {
                 RAX(env) = rreg(cpu->accel->fd, HV_X86_RAX);
-                hvf_handle_io(env, port, &RAX(env), 1, size, 1);
+                hvf_handle_io(env_cpu(env), port, &RAX(env), 1, size, 1);
                 macvm_set_rip(cpu, rip + ins_len);
                 break;
             }
