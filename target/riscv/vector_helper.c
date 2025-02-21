@@ -633,47 +633,69 @@ vext_ldff(void *vd, void *v0, target_ulong base, CPURISCVState *env,
     uint32_t esz = 1 << log2_esz;
     uint32_t msize = nf * esz;
     uint32_t vma = vext_vma(desc);
-    target_ulong addr, offset, remain, page_split, elems;
+    target_ulong addr, addr_probe, addr_i, offset, remain, page_split, elems;
     int mmu_index = riscv_env_mmu_index(env, false);
+    int flags;
+    void *host;
 
     VSTART_CHECK_EARLY_EXIT(env);
 
-    /* probe every access */
-    for (i = env->vstart; i < env->vl; i++) {
-        if (!vm && !vext_elem_mask(v0, i)) {
-            continue;
-        }
-        addr = adjust_addr(env, base + i * (nf << log2_esz));
-        if (i == 0) {
-            /* Allow fault on first element. */
-            probe_pages(env, addr, nf << log2_esz, ra, MMU_DATA_LOAD);
-        } else {
-            remain = nf << log2_esz;
-            while (remain > 0) {
-                void *host;
-                int flags;
+    addr = base + ((env->vstart * nf) << log2_esz);
+    page_split = -(addr | TARGET_PAGE_MASK);
+    /* Get number of elements */
+    elems = page_split / msize;
+    if (unlikely(env->vstart + elems >= env->vl)) {
+        elems = env->vl - env->vstart;
+    }
 
-                offset = -(addr | TARGET_PAGE_MASK);
+    /* Check page permission/pmp/watchpoint/etc. */
+    flags = probe_access_flags(env, adjust_addr(env, addr), elems * msize,
+                               MMU_DATA_LOAD, mmu_index, true, &host, ra);
 
-                /* Probe nonfault on subsequent elements. */
-                flags = probe_access_flags(env, addr, offset, MMU_DATA_LOAD,
-                                           mmu_index, true, &host, 0);
+    /* If we are crossing a page check also the second page. */
+    if (env->vl > elems) {
+        addr_probe = addr + (elems << log2_esz);
+        flags |= probe_access_flags(env, adjust_addr(env, addr_probe),
+                                    elems * msize, MMU_DATA_LOAD, mmu_index,
+                                    true, &host, ra);
+    }
 
-                /*
-                 * Stop if invalid (unmapped) or mmio (transaction may fail).
-                 * Do not stop if watchpoint, as the spec says that
-                 * first-fault should continue to access the same
-                 * elements regardless of any watchpoint.
-                 */
-                if (flags & ~TLB_WATCHPOINT) {
-                    vl = i;
-                    goto ProbeSuccess;
+    if (flags & ~TLB_WATCHPOINT) {
+        /* probe every access */
+        for (i = env->vstart; i < env->vl; i++) {
+            if (!vm && !vext_elem_mask(v0, i)) {
+                continue;
+            }
+            addr_i = adjust_addr(env, base + i * (nf << log2_esz));
+            if (i == 0) {
+                /* Allow fault on first element. */
+                probe_pages(env, addr_i, nf << log2_esz, ra, MMU_DATA_LOAD);
+            } else {
+                remain = nf << log2_esz;
+                while (remain > 0) {
+                    offset = -(addr_i | TARGET_PAGE_MASK);
+
+                    /* Probe nonfault on subsequent elements. */
+                    flags = probe_access_flags(env, addr_i, offset,
+                                               MMU_DATA_LOAD, mmu_index, true,
+                                               &host, 0);
+
+                    /*
+                     * Stop if invalid (unmapped) or mmio (transaction may
+                     * fail). Do not stop if watchpoint, as the spec says that
+                     * first-fault should continue to access the same
+                     * elements regardless of any watchpoint.
+                     */
+                    if (flags & ~TLB_WATCHPOINT) {
+                        vl = i;
+                        goto ProbeSuccess;
+                    }
+                    if (remain <= offset) {
+                        break;
+                    }
+                    remain -= offset;
+                    addr_i = adjust_addr(env, addr_i + offset);
                 }
-                if (remain <= offset) {
-                    break;
-                }
-                remain -= offset;
-                addr = adjust_addr(env, addr + offset);
             }
         }
     }
@@ -685,15 +707,6 @@ ProbeSuccess:
 
     if (env->vstart < env->vl) {
         if (vm) {
-            /* Calculate the page range of first page */
-            addr = base + ((env->vstart * nf) << log2_esz);
-            page_split = -(addr | TARGET_PAGE_MASK);
-            /* Get number of elements */
-            elems = page_split / msize;
-            if (unlikely(env->vstart + elems >= env->vl)) {
-                elems = env->vl - env->vstart;
-            }
-
             /* Load/store elements in the first page */
             if (likely(elems)) {
                 vext_page_ldst_us(env, vd, addr, elems, nf, max_elems,
