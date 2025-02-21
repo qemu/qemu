@@ -26,9 +26,6 @@
 void init_emu(void);
 bool exec_instruction(CPUX86State *env, struct x86_decode *ins);
 
-void load_regs(CPUState *cpu);
-void store_regs(CPUState *cpu);
-
 void simulate_rdmsr(CPUX86State *env);
 void simulate_wrmsr(CPUX86State *env);
 

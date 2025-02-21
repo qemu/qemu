@@ -1452,52 +1452,6 @@ static void init_cmd_handler(void)
     }
 }
 
-void load_regs(CPUState *cs)
-{
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
-
-    int i = 0;
-    RRX(env, R_EAX) = rreg(cs->accel->fd, HV_X86_RAX);
-    RRX(env, R_EBX) = rreg(cs->accel->fd, HV_X86_RBX);
-    RRX(env, R_ECX) = rreg(cs->accel->fd, HV_X86_RCX);
-    RRX(env, R_EDX) = rreg(cs->accel->fd, HV_X86_RDX);
-    RRX(env, R_ESI) = rreg(cs->accel->fd, HV_X86_RSI);
-    RRX(env, R_EDI) = rreg(cs->accel->fd, HV_X86_RDI);
-    RRX(env, R_ESP) = rreg(cs->accel->fd, HV_X86_RSP);
-    RRX(env, R_EBP) = rreg(cs->accel->fd, HV_X86_RBP);
-    for (i = 8; i < 16; i++) {
-        RRX(env, i) = rreg(cs->accel->fd, HV_X86_RAX + i);
-    }
-
-    env->eflags = rreg(cs->accel->fd, HV_X86_RFLAGS);
-    rflags_to_lflags(env);
-    env->eip = rreg(cs->accel->fd, HV_X86_RIP);
-}
-
-void store_regs(CPUState *cs)
-{
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
-
-    int i = 0;
-    wreg(cs->accel->fd, HV_X86_RAX, RAX(env));
-    wreg(cs->accel->fd, HV_X86_RBX, RBX(env));
-    wreg(cs->accel->fd, HV_X86_RCX, RCX(env));
-    wreg(cs->accel->fd, HV_X86_RDX, RDX(env));
-    wreg(cs->accel->fd, HV_X86_RSI, RSI(env));
-    wreg(cs->accel->fd, HV_X86_RDI, RDI(env));
-    wreg(cs->accel->fd, HV_X86_RBP, RBP(env));
-    wreg(cs->accel->fd, HV_X86_RSP, RSP(env));
-    for (i = 8; i < 16; i++) {
-        wreg(cs->accel->fd, HV_X86_RAX + i, RRX(env, i));
-    }
-
-    lflags_to_rflags(env);
-    wreg(cs->accel->fd, HV_X86_RFLAGS, env->eflags);
-    macvm_set_rip(cs, env->eip);
-}
-
 bool exec_instruction(CPUX86State *env, struct x86_decode *ins)
 {
     /*if (hvf_vcpu_id(cs))
