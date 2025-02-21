@@ -65,10 +65,9 @@ static
 SpaprMachineStateNestedGuest *spapr_get_nested_guest(SpaprMachineState *spapr,
                                                      target_ulong guestid)
 {
-    SpaprMachineStateNestedGuest *guest;
-
-    guest = g_hash_table_lookup(spapr->nested.guests, GINT_TO_POINTER(guestid));
-    return guest;
+    return spapr->nested.guests ?
+        g_hash_table_lookup(spapr->nested.guests,
+                            GINT_TO_POINTER(guestid)) : NULL;
 }
 
 bool spapr_get_pate_nested_papr(SpaprMachineState *spapr, PowerPCCPU *cpu,
@@ -594,24 +593,35 @@ static bool spapr_nested_vcpu_check(SpaprMachineStateNestedGuest *guest,
     return false;
 }
 
-static void *get_vcpu_state_ptr(SpaprMachineStateNestedGuest *guest,
-                              target_ulong vcpuid)
+static void *get_vcpu_state_ptr(SpaprMachineState *spapr,
+                                SpaprMachineStateNestedGuest *guest,
+                                target_ulong vcpuid)
 {
     assert(spapr_nested_vcpu_check(guest, vcpuid, false));
     return &guest->vcpus[vcpuid].state;
 }
 
-static void *get_vcpu_ptr(SpaprMachineStateNestedGuest *guest,
-                                   target_ulong vcpuid)
+static void *get_vcpu_ptr(SpaprMachineState *spapr,
+                          SpaprMachineStateNestedGuest *guest,
+                          target_ulong vcpuid)
 {
     assert(spapr_nested_vcpu_check(guest, vcpuid, false));
     return &guest->vcpus[vcpuid];
 }
 
-static void *get_guest_ptr(SpaprMachineStateNestedGuest *guest,
+static void *get_guest_ptr(SpaprMachineState *spapr,
+                           SpaprMachineStateNestedGuest *guest,
                            target_ulong vcpuid)
 {
     return guest; /* for GSBE_NESTED */
+}
+
+static void *get_machine_ptr(SpaprMachineState *spapr,
+                             SpaprMachineStateNestedGuest *guest,
+                             target_ulong vcpuid)
+{
+    /* ignore guest and vcpuid for this */
+    return &spapr->nested;
 }
 
 /*
@@ -1013,7 +1023,15 @@ struct guest_state_element_type guest_state_element_types[] = {
     GSBE_NESTED_VCPU(GSB_VCPU_OUT_BUFFER, 0x10, runbufout,   copy_state_runbuf),
     GSBE_NESTED_VCPU(GSB_VCPU_OUT_BUF_MIN_SZ, 0x8, runbufout, out_buf_min_size),
     GSBE_NESTED_VCPU(GSB_VCPU_HDEC_EXPIRY_TB, 0x8, hdecr_expiry_tb,
-                     copy_state_hdecr)
+                     copy_state_hdecr),
+    GSBE_NESTED_MACHINE_DW(GSB_L0_GUEST_HEAP_INUSE, l0_guest_heap_inuse),
+    GSBE_NESTED_MACHINE_DW(GSB_L0_GUEST_HEAP_MAX, l0_guest_heap_max),
+    GSBE_NESTED_MACHINE_DW(GSB_L0_GUEST_PGTABLE_SIZE_INUSE,
+                           l0_guest_pgtable_size_inuse),
+    GSBE_NESTED_MACHINE_DW(GSB_L0_GUEST_PGTABLE_SIZE_MAX,
+                           l0_guest_pgtable_size_max),
+    GSBE_NESTED_MACHINE_DW(GSB_L0_GUEST_PGTABLE_RECLAIMED,
+                           l0_guest_pgtable_reclaimed),
 };
 
 void spapr_nested_gsb_init(void)
@@ -1031,8 +1049,13 @@ void spapr_nested_gsb_init(void)
         else if (type->id >= GSB_VCPU_IN_BUFFER)
             /* 0x0c00 - 0xf000 Thread + RW */
             type->flags = 0;
+        else if (type->id >= GSB_L0_GUEST_HEAP_INUSE)
+
+            /*0x0800 - 0x0804 Hostwide Counters + RO */
+            type->flags = GUEST_STATE_ELEMENT_TYPE_FLAG_HOST_WIDE |
+                          GUEST_STATE_ELEMENT_TYPE_FLAG_READ_ONLY;
         else if (type->id >= GSB_VCPU_LPVR)
-            /* 0x0003 - 0x0bff Guest + RW */
+            /* 0x0003 - 0x07ff Guest + RW */
             type->flags = GUEST_STATE_ELEMENT_TYPE_FLAG_GUEST_WIDE;
         else if (type->id >= GSB_HV_VCPU_STATE_SIZE)
             /* 0x0001 - 0x0002 Guest + RO */
@@ -1139,18 +1162,26 @@ static bool guest_state_request_check(struct guest_state_request *gsr)
             return false;
         }
 
-        if (type->flags & GUEST_STATE_ELEMENT_TYPE_FLAG_GUEST_WIDE) {
+        if (type->flags & GUEST_STATE_ELEMENT_TYPE_FLAG_HOST_WIDE) {
+            /* Hostwide elements cant be clubbed with other types */
+            if (!(gsr->flags & GUEST_STATE_REQUEST_HOST_WIDE)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "trying to get/set a host wide "
+                              "Element ID:%04x.\n", id);
+                return false;
+            }
+        } else  if (type->flags & GUEST_STATE_ELEMENT_TYPE_FLAG_GUEST_WIDE) {
             /* guest wide element type */
             if (!(gsr->flags & GUEST_STATE_REQUEST_GUEST_WIDE)) {
-                qemu_log_mask(LOG_GUEST_ERROR, "trying to set a guest wide "
+                qemu_log_mask(LOG_GUEST_ERROR, "trying to get/set a guest wide "
                               "Element ID:%04x.\n", id);
                 return false;
             }
         } else {
             /* thread wide element type */
-            if (gsr->flags & GUEST_STATE_REQUEST_GUEST_WIDE) {
-                qemu_log_mask(LOG_GUEST_ERROR, "trying to set a thread wide "
-                              "Element ID:%04x.\n", id);
+            if (gsr->flags & (GUEST_STATE_REQUEST_GUEST_WIDE |
+                              GUEST_STATE_REQUEST_HOST_WIDE)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "trying to get/set a thread wide"
+                            " Element ID:%04x.\n", id);
                 return false;
             }
         }
@@ -1419,7 +1450,8 @@ static target_ulong h_guest_create_vcpu(PowerPCCPU *cpu,
     return H_SUCCESS;
 }
 
-static target_ulong getset_state(SpaprMachineStateNestedGuest *guest,
+static target_ulong getset_state(SpaprMachineState *spapr,
+                                 SpaprMachineStateNestedGuest *guest,
                                  uint64_t vcpuid,
                                  struct guest_state_request *gsr)
 {
@@ -1452,7 +1484,7 @@ static target_ulong getset_state(SpaprMachineStateNestedGuest *guest,
 
         /* Get pointer to guest data to get/set */
         if (type->location && type->copy) {
-            ptr = type->location(guest, vcpuid);
+            ptr = type->location(spapr, guest, vcpuid);
             assert(ptr);
             if (!~(type->mask) && is_gsr_invalid(gsr, element, type)) {
                 return H_INVALID_ELEMENT_VALUE;
@@ -1469,6 +1501,7 @@ next_element:
 }
 
 static target_ulong map_and_getset_state(PowerPCCPU *cpu,
+                                         SpaprMachineState *spapr,
                                          SpaprMachineStateNestedGuest *guest,
                                          uint64_t vcpuid,
                                          struct guest_state_request *gsr)
@@ -1492,7 +1525,7 @@ static target_ulong map_and_getset_state(PowerPCCPU *cpu,
         goto out1;
     }
 
-    rc = getset_state(guest, vcpuid, gsr);
+    rc = getset_state(spapr, guest, vcpuid, gsr);
 
 out1:
     address_space_unmap(CPU(cpu)->as, gsr->gsb, len, is_write, len);
@@ -1510,27 +1543,46 @@ static target_ulong h_guest_getset_state(PowerPCCPU *cpu,
     target_ulong buf = args[3];
     target_ulong buflen = args[4];
     struct guest_state_request gsr;
-    SpaprMachineStateNestedGuest *guest;
+    SpaprMachineStateNestedGuest *guest = NULL;
 
-    guest = spapr_get_nested_guest(spapr, lpid);
-    if (!guest) {
-        return H_P2;
-    }
     gsr.buf = buf;
     assert(buflen <= GSB_MAX_BUF_SIZE);
     gsr.len = buflen;
     gsr.flags = 0;
-    if (flags & H_GUEST_GETSET_STATE_FLAG_GUEST_WIDE) {
+
+    /* Works for both get/set state */
+    if ((flags & H_GUEST_GET_STATE_FLAGS_GUEST_WIDE) ||
+        (flags & H_GUEST_SET_STATE_FLAGS_GUEST_WIDE)) {
         gsr.flags |= GUEST_STATE_REQUEST_GUEST_WIDE;
-    }
-    if (flags & ~H_GUEST_GETSET_STATE_FLAG_GUEST_WIDE) {
-        return H_PARAMETER; /* flag not supported yet */
     }
 
     if (set) {
+        if (flags & ~H_GUEST_SET_STATE_FLAGS_MASK) {
+            return H_PARAMETER;
+        }
         gsr.flags |= GUEST_STATE_REQUEST_SET;
+    } else {
+        /*
+         * No reserved fields to be set in flags nor both
+         * GUEST/HOST wide bits
+         */
+        if ((flags & ~H_GUEST_GET_STATE_FLAGS_MASK) ||
+            (flags == H_GUEST_GET_STATE_FLAGS_MASK)) {
+            return H_PARAMETER;
+        }
+
+        if (flags & H_GUEST_GET_STATE_FLAGS_HOST_WIDE) {
+            gsr.flags |= GUEST_STATE_REQUEST_HOST_WIDE;
+        }
     }
-    return map_and_getset_state(cpu, guest, vcpuid, &gsr);
+
+    if (!(gsr.flags & GUEST_STATE_REQUEST_HOST_WIDE)) {
+        guest = spapr_get_nested_guest(spapr, lpid);
+        if (!guest) {
+            return H_P2;
+        }
+    }
+    return map_and_getset_state(cpu, spapr, guest, vcpuid, &gsr);
 }
 
 static target_ulong h_guest_set_state(PowerPCCPU *cpu,
@@ -1641,7 +1693,8 @@ static int get_exit_ids(uint64_t srr0, uint16_t ids[16])
     return nr;
 }
 
-static void exit_process_output_buffer(PowerPCCPU *cpu,
+static void exit_process_output_buffer(SpaprMachineState *spapr,
+                                       PowerPCCPU *cpu,
                                        SpaprMachineStateNestedGuest *guest,
                                        target_ulong vcpuid,
                                        target_ulong *r3)
@@ -1679,7 +1732,7 @@ static void exit_process_output_buffer(PowerPCCPU *cpu,
     gsr.gsb = gsb;
     gsr.len = VCPU_OUT_BUF_MIN_SZ;
     gsr.flags = 0; /* get + never guest wide */
-    getset_state(guest, vcpuid, &gsr);
+    getset_state(spapr, guest, vcpuid, &gsr);
 
     address_space_unmap(CPU(cpu)->as, gsb, len, true, len);
     return;
@@ -1705,7 +1758,7 @@ void spapr_exit_nested_papr(SpaprMachineState *spapr, PowerPCCPU *cpu, int excp)
 
     exit_nested_store_l2(cpu, excp, vcpu);
     /* do the output buffer for run_vcpu*/
-    exit_process_output_buffer(cpu, guest, vcpuid, &r3_return);
+    exit_process_output_buffer(spapr, cpu, guest, vcpuid, &r3_return);
 
     assert(env->spr[SPR_LPIDR] != 0);
     nested_load_state(cpu, spapr_cpu->nested_host_state);
@@ -1820,7 +1873,7 @@ static target_ulong h_guest_run_vcpu(PowerPCCPU *cpu,
     gsr.buf = vcpu->runbufin.addr;
     gsr.len = vcpu->runbufin.size;
     gsr.flags = GUEST_STATE_REQUEST_SET; /* Thread wide + writing */
-    rc = map_and_getset_state(cpu, guest, vcpuid, &gsr);
+    rc = map_and_getset_state(cpu, spapr,  guest, vcpuid, &gsr);
     if (rc == H_SUCCESS) {
         nested_papr_run_vcpu(cpu, lpid, vcpu);
     } else {
