@@ -4,7 +4,7 @@ arm_ss.add(files(
   'debug_helper.c',
   'gdbstub.c',
   'helper.c',
-  'vfp_helper.c',
+  'vfp_fpscr.c',
 ))
 arm_ss.add(zlib)
 

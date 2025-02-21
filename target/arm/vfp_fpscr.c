@@ -1,5 +1,5 @@
 /*
- * ARM VFP floating-point operations
+ * ARM VFP floating-point: handling of FPSCR/FPCR/FPSR
  *
  *  Copyright (c) 2003 Fabrice Bellard
  *
