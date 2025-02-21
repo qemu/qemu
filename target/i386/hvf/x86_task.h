@@ -15,6 +15,6 @@
 #ifndef HVF_X86_TASK_H
 #define HVF_X86_TASK_H
 
-void vmx_handle_task_switch(CPUState *cpu, x68_segment_selector tss_sel,
+void vmx_handle_task_switch(CPUState *cpu, x86_segment_selector tss_sel,
         int reason, bool gate_valid, uint8_t gate, uint64_t gate_type);
 #endif

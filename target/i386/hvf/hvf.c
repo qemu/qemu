@@ -674,7 +674,7 @@ int hvf_vcpu_exec(CPUState *cpu)
         }
         case EXIT_REASON_TASK_SWITCH: {
             uint64_t vinfo = rvmcs(cpu->accel->fd, VMCS_IDT_VECTORING_INFO);
-            x68_segment_selector sel = {.sel = exit_qual & 0xffff};
+            x86_segment_selector sel = {.sel = exit_qual & 0xffff};
             vmx_handle_task_switch(cpu, sel, (exit_qual >> 30) & 0x3,
              vinfo & VMCS_INTR_VALID, vinfo & VECTORING_INFO_VECTOR_MASK, vinfo
              & VMCS_INTR_T_MASK);

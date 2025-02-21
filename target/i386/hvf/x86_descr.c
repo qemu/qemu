@@ -60,14 +60,14 @@ uint64_t vmx_read_segment_base(CPUState *cpu, X86Seg seg)
     return rvmcs(cpu->accel->fd, vmx_segment_fields[seg].base);
 }
 
-x68_segment_selector vmx_read_segment_selector(CPUState *cpu, X86Seg seg)
+x86_segment_selector vmx_read_segment_selector(CPUState *cpu, X86Seg seg)
 {
-    x68_segment_selector sel;
+    x86_segment_selector sel;
     sel.sel = rvmcs(cpu->accel->fd, vmx_segment_fields[seg].selector);
     return sel;
 }
 
-void vmx_write_segment_selector(CPUState *cpu, x68_segment_selector selector, X86Seg seg)
+void vmx_write_segment_selector(CPUState *cpu, x86_segment_selector selector, X86Seg seg)
 {
     wvmcs(cpu->accel->fd, vmx_segment_fields[seg].selector, selector.sel);
 }
@@ -90,7 +90,7 @@ void vmx_write_segment_descriptor(CPUState *cpu, struct vmx_segment *desc, X86Se
     wvmcs(cpu->accel->fd, sf->ar_bytes, desc->ar);
 }
 
-void x86_segment_descriptor_to_vmx(CPUState *cpu, x68_segment_selector selector,
+void x86_segment_descriptor_to_vmx(CPUState *cpu, x86_segment_selector selector,
                                    struct x86_segment_descriptor *desc,
                                    struct vmx_segment *vmx_desc)
 {

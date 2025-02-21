@@ -183,7 +183,7 @@ static inline uint32_t x86_call_gate_offset(x86_call_gate *gate)
 #define GDT_SEL     0
 #define LDT_SEL     1
 
-typedef struct x68_segment_selector {
+typedef struct x86_segment_selector {
     union {
         uint16_t sel;
         struct {
@@ -192,7 +192,7 @@ typedef struct x68_segment_selector {
             uint16_t index:13;
         };
     };
-} __attribute__ ((__packed__)) x68_segment_selector;
+} __attribute__ ((__packed__)) x86_segment_selector;
 
 /* useful register access  macros */
 #define x86_reg(cpu, reg) ((x86_register *) &cpu->regs[reg])
@@ -250,10 +250,10 @@ typedef struct x68_segment_selector {
 /* deal with GDT/LDT descriptors in memory */
 bool x86_read_segment_descriptor(CPUState *cpu,
                                  struct x86_segment_descriptor *desc,
-                                 x68_segment_selector sel);
+                                 x86_segment_selector sel);
 bool x86_write_segment_descriptor(CPUState *cpu,
                                   struct x86_segment_descriptor *desc,
-                                  x68_segment_selector sel);
+                                  x86_segment_selector sel);
 
 bool x86_read_call_gate(CPUState *cpu, struct x86_call_gate *idt_desc,
                         int gate);
