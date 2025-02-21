@@ -360,6 +360,8 @@ static void riscv_cpu_update_named_features(RISCVCPU *cpu)
 
     cpu->cfg.ext_sha = riscv_has_ext(&cpu->env, RVH) &&
                        cpu->cfg.ext_ssstateen;
+
+    cpu->cfg.ext_ziccrse = cpu->cfg.has_priv_1_11;
 }
 
 static void riscv_cpu_validate_g(RISCVCPU *cpu)
