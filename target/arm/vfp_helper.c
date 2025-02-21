@@ -19,7 +19,6 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "exec/helper-proto.h"
 #include "internals.h"
 #include "cpu-features.h"
 #include "fpu/softfloat.h"
@@ -298,15 +297,10 @@ uint32_t vfp_get_fpsr(CPUARMState *env)
     return fpsr;
 }
 
-uint32_t HELPER(vfp_get_fpscr)(CPUARMState *env)
+uint32_t vfp_get_fpscr(CPUARMState *env)
 {
     return (vfp_get_fpcr(env) & FPSCR_FPCR_MASK) |
         (vfp_get_fpsr(env) & FPSCR_FPSR_MASK);
-}
-
-uint32_t vfp_get_fpscr(CPUARMState *env)
-{
-    return HELPER(vfp_get_fpscr)(env);
 }
 
 void vfp_set_fpsr(CPUARMState *env, uint32_t val)
@@ -402,13 +396,8 @@ void vfp_set_fpcr(CPUARMState *env, uint32_t val)
     vfp_set_fpcr_masked(env, val, MAKE_64BIT_MASK(0, 32));
 }
 
-void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
+void vfp_set_fpscr(CPUARMState *env, uint32_t val)
 {
     vfp_set_fpcr_masked(env, val, FPSCR_FPCR_MASK);
     vfp_set_fpsr(env, val & FPSCR_FPSR_MASK);
-}
-
-void vfp_set_fpscr(CPUARMState *env, uint32_t val)
-{
-    HELPER(vfp_set_fpscr)(env, val);
 }

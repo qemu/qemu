@@ -1128,3 +1128,13 @@ void HELPER(check_hcr_el2_trap)(CPUARMState *env, uint32_t rt, uint32_t reg)
 
     raise_exception(env, EXCP_HYP_TRAP, syndrome, 2);
 }
+
+uint32_t HELPER(vfp_get_fpscr)(CPUARMState *env)
+{
+    return vfp_get_fpscr(env);
+}
+
+void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
+{
+    vfp_set_fpscr(env, val);
+}
