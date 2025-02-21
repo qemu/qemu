@@ -1241,10 +1241,6 @@ static void init_cmd_handler(void)
 
 bool exec_instruction(CPUX86State *env, struct x86_decode *ins)
 {
-    /*if (hvf_vcpu_id(cs))
-    printf("%d, %llx: exec_instruction %s\n", hvf_vcpu_id(cs),  env->eip,
-          decode_cmd_to_string(ins->cmd));*/
-
     if (!_cmd_handler[ins->cmd].handler) {
         printf("Unimplemented handler (%llx) for %d (%x %x) \n", env->eip,
                 ins->cmd, ins->opcode[0],
