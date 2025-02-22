@@ -135,7 +135,7 @@ static uint64_t macio_gpio_read(void *opaque, hwaddr addr, unsigned size)
         }
     }
 
-    trace_macio_gpio_write(addr, val);
+    trace_macio_gpio_read(addr, val);
     return val;
 }
 
