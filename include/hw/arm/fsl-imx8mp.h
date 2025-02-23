@@ -15,6 +15,7 @@
 #include "hw/misc/imx7_snvs.h"
 #include "hw/misc/imx8mp_analog.h"
 #include "hw/misc/imx8mp_ccm.h"
+#include "hw/sd/sdhci.h"
 #include "qom/object.h"
 #include "qemu/units.h"
 
@@ -28,6 +29,7 @@ enum FslImx8mpConfiguration {
     FSL_IMX8MP_NUM_CPUS         = 4,
     FSL_IMX8MP_NUM_IRQS         = 160,
     FSL_IMX8MP_NUM_UARTS        = 4,
+    FSL_IMX8MP_NUM_USDHCS       = 3,
 };
 
 struct FslImx8mpState {
@@ -39,6 +41,7 @@ struct FslImx8mpState {
     IMX8MPAnalogState  analog;
     IMX7SNVSState      snvs;
     IMXSerialState     uart[FSL_IMX8MP_NUM_UARTS];
+    SDHCIState         usdhc[FSL_IMX8MP_NUM_USDHCS];
 };
 
 enum FslImx8mpMemoryRegions {
@@ -184,6 +187,10 @@ enum FslImx8mpMemoryRegions {
 };
 
 enum FslImx8mpIrqs {
+    FSL_IMX8MP_USDHC1_IRQ   = 22,
+    FSL_IMX8MP_USDHC2_IRQ   = 23,
+    FSL_IMX8MP_USDHC3_IRQ   = 24,
+
     FSL_IMX8MP_UART1_IRQ    = 26,
     FSL_IMX8MP_UART2_IRQ    = 27,
     FSL_IMX8MP_UART3_IRQ    = 28,

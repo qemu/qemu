@@ -599,6 +599,7 @@ config FSL_IMX8MP
     select FSL_IMX8MP_ANALOG
     select FSL_IMX8MP_CCM
     select IMX
+    select SDHCI
     select UNIMP
 
 config FSL_IMX8MP_EVK
