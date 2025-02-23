@@ -21,6 +21,7 @@
 #include "hw/pci-host/fsl_imx8m_phy.h"
 #include "hw/sd/sdhci.h"
 #include "hw/ssi/imx_spi.h"
+#include "hw/watchdog/wdt_imx2.h"
 #include "qom/object.h"
 #include "qemu/units.h"
 
@@ -38,6 +39,7 @@ enum FslImx8mpConfiguration {
     FSL_IMX8MP_NUM_IRQS         = 160,
     FSL_IMX8MP_NUM_UARTS        = 4,
     FSL_IMX8MP_NUM_USDHCS       = 3,
+    FSL_IMX8MP_NUM_WDTS         = 3,
 };
 
 struct FslImx8mpState {
@@ -53,6 +55,7 @@ struct FslImx8mpState {
     IMXI2CState        i2c[FSL_IMX8MP_NUM_I2CS];
     IMXSerialState     uart[FSL_IMX8MP_NUM_UARTS];
     SDHCIState         usdhc[FSL_IMX8MP_NUM_USDHCS];
+    IMX2WdtState       wdt[FSL_IMX8MP_NUM_WDTS];
     DesignwarePCIEHost pcie;
     FslImx8mPciePhyState   pcie_phy;
 };
@@ -234,6 +237,10 @@ enum FslImx8mpIrqs {
 
     FSL_IMX8MP_I2C5_IRQ     = 76,
     FSL_IMX8MP_I2C6_IRQ     = 77,
+
+    FSL_IMX8MP_WDOG1_IRQ    = 78,
+    FSL_IMX8MP_WDOG2_IRQ    = 79,
+    FSL_IMX8MP_WDOG3_IRQ    = 10,
 
     FSL_IMX8MP_PCI_INTA_IRQ = 126,
     FSL_IMX8MP_PCI_INTB_IRQ = 125,

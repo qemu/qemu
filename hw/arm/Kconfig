@@ -606,6 +606,7 @@ config FSL_IMX8MP
     select PCI_EXPRESS_FSL_IMX8M_PHY
     select SDHCI
     select UNIMP
+    select WDT_IMX2
 
 config FSL_IMX8MP_EVK
     bool
