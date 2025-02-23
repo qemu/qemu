@@ -595,11 +595,13 @@ config FSL_IMX7
 
 config FSL_IMX8MP
     bool
+    imply I2C_DEVICES
     imply PCI_DEVICES
     select ARM_GIC
     select FSL_IMX8MP_ANALOG
     select FSL_IMX8MP_CCM
     select IMX
+    select IMX_I2C
     select PCI_EXPRESS_DESIGNWARE
     select PCI_EXPRESS_FSL_IMX8M_PHY
     select SDHCI
