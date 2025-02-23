@@ -126,6 +126,17 @@ static const IMXClk imx7_gpt_clocks[] = {
     CLK_NONE,      /* 111 not defined */
 };
 
+static const IMXClk imx8mp_gpt_clocks[] = {
+    CLK_NONE,      /* 000 No clock source */
+    CLK_IPG,       /* 001 ipg_clk, 532MHz */
+    CLK_IPG_HIGH,  /* 010 ipg_clk_highfreq */
+    CLK_EXT,       /* 011 External clock */
+    CLK_32k,       /* 100 ipg_clk_32k */
+    CLK_HIGH,      /* 101 ipg_clk_16M */
+    CLK_NONE,      /* 110 not defined */
+    CLK_NONE,      /* 111 not defined */
+};
+
 /* Must be called from within ptimer_transaction_begin/commit block */
 static void imx_gpt_set_freq(IMXGPTState *s)
 {
@@ -552,6 +563,13 @@ static void imx7_gpt_init(Object *obj)
     s->clocks = imx7_gpt_clocks;
 }
 
+static void imx8mp_gpt_init(Object *obj)
+{
+    IMXGPTState *s = IMX_GPT(obj);
+
+    s->clocks = imx8mp_gpt_clocks;
+}
+
 static const TypeInfo imx25_gpt_info = {
     .name = TYPE_IMX25_GPT,
     .parent = TYPE_SYS_BUS_DEVICE,
@@ -584,6 +602,12 @@ static const TypeInfo imx7_gpt_info = {
     .instance_init = imx7_gpt_init,
 };
 
+static const TypeInfo imx8mp_gpt_info = {
+    .name = TYPE_IMX8MP_GPT,
+    .parent = TYPE_IMX25_GPT,
+    .instance_init = imx8mp_gpt_init,
+};
+
 static void imx_gpt_register_types(void)
 {
     type_register_static(&imx25_gpt_info);
@@ -591,6 +615,7 @@ static void imx_gpt_register_types(void)
     type_register_static(&imx6_gpt_info);
     type_register_static(&imx6ul_gpt_info);
     type_register_static(&imx7_gpt_info);
+    type_register_static(&imx8mp_gpt_info);
 }
 
 type_init(imx_gpt_register_types)
