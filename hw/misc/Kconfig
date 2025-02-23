@@ -78,6 +78,12 @@ config IMX
     select SSI
     select USB_EHCI_SYSBUS
 
+config FSL_IMX8MP_ANALOG
+    bool
+
+config FSL_IMX8MP_CCM
+    bool
+
 config STM32_RCC
     bool
 
