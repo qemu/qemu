@@ -820,6 +820,15 @@ F: hw/pci-host/designware.c
 F: include/hw/pci-host/designware.h
 F: docs/system/arm/mcimx7d-sabre.rst
 
+MCIMX8MP-EVK / i.MX8MP
+M: Bernhard Beschow <shentey@gmail.com>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/imx8mp-evk.c
+F: hw/arm/fsl-imx8mp.c
+F: include/hw/arm/fsl-imx8mp.h
+F: docs/system/arm/imx8mp-evk.rst
+
 MPS2 / MPS3
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org

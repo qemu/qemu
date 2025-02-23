@@ -593,6 +593,18 @@ config FSL_IMX7
     select UNIMP
     select USB_CHIPIDEA
 
+config FSL_IMX8MP
+    bool
+    select ARM_GIC
+    select IMX
+    select UNIMP
+
+config FSL_IMX8MP_EVK
+    bool
+    default y
+    depends on TCG && AARCH64
+    select FSL_IMX8MP
+
 config ARM_SMMUV3
     bool
 
