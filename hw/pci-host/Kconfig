@@ -99,6 +99,9 @@ config ASTRO
     bool
     select PCI
 
+config PCI_EXPRESS_FSL_IMX8M_PHY
+    bool
+
 config GT64120
     bool
     select PCI

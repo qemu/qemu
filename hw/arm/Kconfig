@@ -595,10 +595,13 @@ config FSL_IMX7
 
 config FSL_IMX8MP
     bool
+    imply PCI_DEVICES
     select ARM_GIC
     select FSL_IMX8MP_ANALOG
     select FSL_IMX8MP_CCM
     select IMX
+    select PCI_EXPRESS_DESIGNWARE
+    select PCI_EXPRESS_FSL_IMX8M_PHY
     select SDHCI
     select UNIMP
 

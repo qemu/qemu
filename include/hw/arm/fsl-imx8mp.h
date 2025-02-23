@@ -15,6 +15,8 @@
 #include "hw/misc/imx7_snvs.h"
 #include "hw/misc/imx8mp_analog.h"
 #include "hw/misc/imx8mp_ccm.h"
+#include "hw/pci-host/designware.h"
+#include "hw/pci-host/fsl_imx8m_phy.h"
 #include "hw/sd/sdhci.h"
 #include "qom/object.h"
 #include "qemu/units.h"
@@ -42,6 +44,8 @@ struct FslImx8mpState {
     IMX7SNVSState      snvs;
     IMXSerialState     uart[FSL_IMX8MP_NUM_UARTS];
     SDHCIState         usdhc[FSL_IMX8MP_NUM_USDHCS];
+    DesignwarePCIEHost pcie;
+    FslImx8mPciePhyState   pcie_phy;
 };
 
 enum FslImx8mpMemoryRegions {
@@ -197,6 +201,12 @@ enum FslImx8mpIrqs {
     FSL_IMX8MP_UART4_IRQ    = 29,
     FSL_IMX8MP_UART5_IRQ    = 30,
     FSL_IMX8MP_UART6_IRQ    = 16,
+
+    FSL_IMX8MP_PCI_INTA_IRQ = 126,
+    FSL_IMX8MP_PCI_INTB_IRQ = 125,
+    FSL_IMX8MP_PCI_INTC_IRQ = 124,
+    FSL_IMX8MP_PCI_INTD_IRQ = 123,
+    FSL_IMX8MP_PCI_MSI_IRQ  = 140,
 };
 
 #endif /* FSL_IMX8MP_H */
