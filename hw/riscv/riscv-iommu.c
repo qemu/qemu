@@ -29,6 +29,7 @@
 #include "cpu_bits.h"
 #include "riscv-iommu.h"
 #include "riscv-iommu-bits.h"
+#include "riscv-iommu-hpm.h"
 #include "trace.h"
 
 #define LIMIT_CACHE_CTX               (1U << 7)
@@ -2153,7 +2154,28 @@ static MemTxResult riscv_iommu_mmio_read(void *opaque, hwaddr addr,
         return MEMTX_ACCESS_ERROR;
     }
 
-    ptr = &s->regs_rw[addr];
+    /* Compute cycle register value. */
+    if ((addr & ~7) == RISCV_IOMMU_REG_IOHPMCYCLES) {
+        val = riscv_iommu_hpmcycle_read(s);
+        ptr = (uint8_t *)&val + (addr & 7);
+    } else if ((addr & ~3) == RISCV_IOMMU_REG_IOCOUNTOVF) {
+        /*
+         * Software can read RISCV_IOMMU_REG_IOCOUNTOVF before timer
+         * callback completes. In which case CY_OF bit in
+         * RISCV_IOMMU_IOHPMCYCLES_OVF would be 0. Here we take the
+         * CY_OF bit state from RISCV_IOMMU_REG_IOHPMCYCLES register as
+         * it's not dependent over the timer callback and is computed
+         * from cycle overflow.
+         */
+        val = ldq_le_p(&s->regs_rw[addr]);
+        val |= (riscv_iommu_hpmcycle_read(s) & RISCV_IOMMU_IOHPMCYCLES_OVF)
+                   ? RISCV_IOMMU_IOCOUNTOVF_CY
+                   : 0;
+        ptr = (uint8_t *)&val + (addr & 3);
+    } else {
+        ptr = &s->regs_rw[addr];
+    }
+
     val = ldn_le_p(ptr, size);
 
     *data = val;
