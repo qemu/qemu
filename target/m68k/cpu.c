@@ -139,7 +139,8 @@ static void m68k_cpu_reset_hold(Object *obj, ResetType type)
     set_floatx80_behaviour(floatx80_default_inf_int_bit_is_zero |
                            floatx80_pseudo_inf_valid |
                            floatx80_pseudo_nan_valid |
-                           floatx80_unnormal_valid,
+                           floatx80_unnormal_valid |
+                           floatx80_pseudo_denormal_valid,
                            &env->fp_status);
 
     nan = floatx80_default_nan(&env->fp_status);
