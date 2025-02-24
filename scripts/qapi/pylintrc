@@ -17,6 +17,7 @@ disable=consider-using-f-string,
         too-many-arguments,
         too-many-branches,
         too-many-instance-attributes,
+        too-many-positional-arguments,
         too-many-statements,
         useless-option-value,
 
