@@ -421,6 +421,8 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
             node = self._start_new_heading(heading, len(leader))
             if text == '':
                 return
+        else:
+            node = nodes.container()
 
         self._parse_text_into_node(text, node)
         self._cur_doc = None
