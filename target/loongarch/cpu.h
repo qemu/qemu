@@ -406,6 +406,7 @@ struct ArchCPU {
     OnOffAuto pmu;
     OnOffAuto lsx;
     OnOffAuto lasx;
+    OnOffAuto kvm_pv_ipi;
 
     /* 'compatible' string for this CPU for Linux device trees */
     const char *dtb_compatible;
