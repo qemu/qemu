@@ -111,9 +111,35 @@ static void m68k_cpu_reset_hold(Object *obj, ResetType type)
      * m68k-specific floatx80 behaviour:
      *  * default Infinity values have a zero Integer bit
      *  * input Infinities may have the Integer bit either 0 or 1
+     *  * pseudo-denormals supported for input and output
+     *  * don't raise Invalid for pseudo-NaN/pseudo-Inf/Unnormal
+     *
+     * With m68k, the explicit integer bit can be zero in the case of:
+     * - zeros                (exp == 0, mantissa == 0)
+     * - denormalized numbers (exp == 0, mantissa != 0)
+     * - unnormalized numbers (exp != 0, exp < 0x7FFF)
+     * - infinities           (exp == 0x7FFF, mantissa == 0)
+     * - not-a-numbers        (exp == 0x7FFF, mantissa != 0)
+     *
+     * For infinities and NaNs, the explicit integer bit can be either one or
+     * zero.
+     *
+     * The IEEE 754 standard does not define a zero integer bit. Such a number
+     * is an unnormalized number. Hardware does not directly support
+     * denormalized and unnormalized numbers, but implicitly supports them by
+     * trapping them as unimplemented data types, allowing efficient conversion
+     * in software.
+     *
+     * See "M68000 FAMILY PROGRAMMER’S REFERENCE MANUAL",
+     *     "1.6 FLOATING-POINT DATA TYPES"
+     *
+     * Note though that QEMU's fp emulation does directly handle both
+     * denormal and unnormal values, and does not trap to guest software.
      */
     set_floatx80_behaviour(floatx80_default_inf_int_bit_is_zero |
-                           floatx80_pseudo_inf_valid,
+                           floatx80_pseudo_inf_valid |
+                           floatx80_pseudo_nan_valid |
+                           floatx80_unnormal_valid,
                            &env->fp_status);
 
     nan = floatx80_default_nan(&env->fp_status);
