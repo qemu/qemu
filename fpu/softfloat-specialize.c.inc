@@ -227,6 +227,16 @@ floatx80 floatx80_default_nan(float_status *status)
 | The pattern for a default generated extended double-precision inf.
 *----------------------------------------------------------------------------*/
 
+floatx80 floatx80_default_inf(bool zSign, float_status *status)
+{
+    /*
+     * Whether the Integer bit is set in the default Infinity is
+     * target dependent.
+     */
+    bool z = status->floatx80_behaviour & floatx80_default_inf_int_bit_is_zero;
+    return packFloatx80(zSign, 0x7fff, z ? 0 : (1ULL << 63));
+}
+
 #define floatx80_infinity_high 0x7FFF
 #if defined(TARGET_M68K)
 #define floatx80_infinity_low  UINT64_C(0x0000000000000000)

@@ -321,6 +321,18 @@ typedef enum __attribute__((__packed__)) {
 } FloatFTZDetection;
 
 /*
+ * floatx80 is primarily used by x86 and m68k, and there are
+ * differences in the handling, largely related to the explicit
+ * Integer bit which floatx80 has and the other float formats do not.
+ * These flag values allow specification of the target's requirements
+ * and can be ORed together to set floatx80_behaviour.
+ */
+typedef enum __attribute__((__packed__)) {
+    /* In the default Infinity value, is the Integer bit 0 ? */
+    floatx80_default_inf_int_bit_is_zero = 1,
+} FloatX80Behaviour;
+
+/*
  * Floating Point Status. Individual architectures may maintain
  * several versions of float_status for different functions. The
  * correct status for the operation is then passed by reference to
@@ -331,6 +343,7 @@ typedef struct float_status {
     uint16_t float_exception_flags;
     FloatRoundMode float_rounding_mode;
     FloatX80RoundPrec floatx80_rounding_precision;
+    FloatX80Behaviour floatx80_behaviour;
     Float2NaNPropRule float_2nan_prop_rule;
     Float3NaNPropRule float_3nan_prop_rule;
     FloatInfZeroNaNRule float_infzeronan_rule;

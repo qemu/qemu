@@ -107,6 +107,12 @@ static void m68k_cpu_reset_hold(Object *obj, ResetType type)
     set_float_2nan_prop_rule(float_2nan_prop_ab, &env->fp_status);
     /* Default NaN: sign bit clear, all frac bits set */
     set_float_default_nan_pattern(0b01111111, &env->fp_status);
+    /*
+     * m68k-specific floatx80 behaviour:
+     *  * default Infinity values have a zero Integer bit
+     */
+    set_floatx80_behaviour(floatx80_default_inf_int_bit_is_zero,
+                           &env->fp_status);
 
     nan = floatx80_default_nan(&env->fp_status);
     for (i = 0; i < 8; i++) {

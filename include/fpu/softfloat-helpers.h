@@ -75,6 +75,12 @@ static inline void set_floatx80_rounding_precision(FloatX80RoundPrec val,
     status->floatx80_rounding_precision = val;
 }
 
+static inline void set_floatx80_behaviour(FloatX80Behaviour b,
+                                          float_status *status)
+{
+    status->floatx80_behaviour = b;
+}
+
 static inline void set_float_2nan_prop_rule(Float2NaNPropRule rule,
                                             float_status *status)
 {
@@ -149,6 +155,12 @@ static inline FloatX80RoundPrec
 get_floatx80_rounding_precision(const float_status *status)
 {
     return status->floatx80_rounding_precision;
+}
+
+static inline FloatX80Behaviour
+get_floatx80_behaviour(const float_status *status)
+{
+    return status->floatx80_behaviour;
 }
 
 static inline Float2NaNPropRule

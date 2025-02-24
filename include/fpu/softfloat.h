@@ -961,6 +961,7 @@ float128 floatx80_to_float128(floatx80, float_status *status);
 | The pattern for an extended double-precision inf.
 *----------------------------------------------------------------------------*/
 extern const floatx80 floatx80_infinity;
+floatx80 floatx80_default_inf(bool zSign, float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision operations.
