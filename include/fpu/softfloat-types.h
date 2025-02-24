@@ -330,6 +330,11 @@ typedef enum __attribute__((__packed__)) {
 typedef enum __attribute__((__packed__)) {
     /* In the default Infinity value, is the Integer bit 0 ? */
     floatx80_default_inf_int_bit_is_zero = 1,
+    /*
+     * Are Pseudo-infinities (Inf with the Integer bit zero) valid?
+     * If so, floatx80_is_infinity() will return true for them.
+     */
+    floatx80_pseudo_inf_valid = 2,
 } FloatX80Behaviour;
 
 /*

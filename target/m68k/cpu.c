@@ -110,8 +110,10 @@ static void m68k_cpu_reset_hold(Object *obj, ResetType type)
     /*
      * m68k-specific floatx80 behaviour:
      *  * default Infinity values have a zero Integer bit
+     *  * input Infinities may have the Integer bit either 0 or 1
      */
-    set_floatx80_behaviour(floatx80_default_inf_int_bit_is_zero,
+    set_floatx80_behaviour(floatx80_default_inf_int_bit_is_zero |
+                           floatx80_pseudo_inf_valid,
                            &env->fp_status);
 
     nan = floatx80_default_nan(&env->fp_status);
