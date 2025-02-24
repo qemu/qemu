@@ -83,8 +83,10 @@ struct RISCVIOMMUState {
     QLIST_HEAD(, RISCVIOMMUSpace) spaces;
 
     /* HPM cycle counter */
+    QEMUTimer *hpm_timer;
     uint64_t hpmcycle_val;      /* Current value of cycle register */
     uint64_t hpmcycle_prev;     /* Saved value of QEMU_CLOCK_VIRTUAL clock */
+    uint64_t irq_overflow_left; /* Value beyond INT64_MAX after overflow */
 
     /* HPM event counters */
     GHashTable *hpm_event_ctr_map; /* Mapping of events to counters */

@@ -2382,6 +2382,8 @@ static void riscv_iommu_realize(DeviceState *dev, Error **errp)
     address_space_init(&s->trap_as, &s->trap_mr, "riscv-iommu-trap-as");
 
     if (s->cap & RISCV_IOMMU_CAP_HPM) {
+        s->hpm_timer =
+            timer_new_ns(QEMU_CLOCK_VIRTUAL, riscv_iommu_hpm_timer_cb, s);
         s->hpm_event_ctr_map = g_hash_table_new(g_direct_hash, g_direct_equal);
     }
 }
@@ -2395,6 +2397,7 @@ static void riscv_iommu_unrealize(DeviceState *dev)
 
     if (s->cap & RISCV_IOMMU_CAP_HPM) {
         g_hash_table_unref(s->hpm_event_ctr_map);
+        timer_free(s->hpm_timer);
     }
 }
 
