@@ -1810,7 +1810,7 @@ static bool floatx80_unpack_canonical(FloatParts128 *p, floatx80 f,
         g_assert_not_reached();
     }
 
-    if (unlikely(floatx80_invalid_encoding(f))) {
+    if (unlikely(floatx80_invalid_encoding(f, s))) {
         float_raise(float_flag_invalid, s);
         return false;
     }

@@ -1081,7 +1081,7 @@ static inline bool floatx80_unordered_quiet(floatx80 a, floatx80 b,
 | pseudo-denormals, which must still be correctly handled as inputs even
 | if they are never generated as outputs.
 *----------------------------------------------------------------------------*/
-static inline bool floatx80_invalid_encoding(floatx80 a)
+static inline bool floatx80_invalid_encoding(floatx80 a, float_status *s)
 {
 #if defined(TARGET_M68K)
     /*-------------------------------------------------------------------------

@@ -1141,7 +1141,7 @@ void helper_f2xm1(CPUX86State *env)
     int32_t exp = extractFloatx80Exp(ST0);
     bool sign = extractFloatx80Sign(ST0);
 
-    if (floatx80_invalid_encoding(ST0)) {
+    if (floatx80_invalid_encoding(ST0, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST0 = floatx80_default_nan(&env->fp_status);
     } else if (floatx80_is_any_nan(ST0)) {
@@ -1383,8 +1383,8 @@ void helper_fpatan(CPUX86State *env)
     } else if (floatx80_is_signaling_nan(ST1, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST1 = floatx80_silence_nan(ST1, &env->fp_status);
-    } else if (floatx80_invalid_encoding(ST0) ||
-               floatx80_invalid_encoding(ST1)) {
+    } else if (floatx80_invalid_encoding(ST0, &env->fp_status) ||
+               floatx80_invalid_encoding(ST1, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST1 = floatx80_default_nan(&env->fp_status);
     } else if (floatx80_is_any_nan(ST0)) {
@@ -1819,7 +1819,7 @@ void helper_fxtract(CPUX86State *env)
                            &env->fp_status);
         fpush(env);
         ST0 = temp.d;
-    } else if (floatx80_invalid_encoding(ST0)) {
+    } else if (floatx80_invalid_encoding(ST0, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST0 = floatx80_default_nan(&env->fp_status);
         fpush(env);
@@ -1870,7 +1870,8 @@ static void helper_fprem_common(CPUX86State *env, bool mod)
     env->fpus &= ~0x4700; /* (C3,C2,C1,C0) <-- 0000 */
     if (floatx80_is_zero(ST0) || floatx80_is_zero(ST1) ||
         exp0 == 0x7fff || exp1 == 0x7fff ||
-        floatx80_invalid_encoding(ST0) || floatx80_invalid_encoding(ST1)) {
+        floatx80_invalid_encoding(ST0, &env->fp_status) ||
+        floatx80_invalid_encoding(ST1, &env->fp_status)) {
         ST0 = floatx80_modrem(ST0, ST1, mod, &quotient, &env->fp_status);
     } else {
         if (exp0 == 0) {
@@ -2066,8 +2067,8 @@ void helper_fyl2xp1(CPUX86State *env)
     } else if (floatx80_is_signaling_nan(ST1, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST1 = floatx80_silence_nan(ST1, &env->fp_status);
-    } else if (floatx80_invalid_encoding(ST0) ||
-               floatx80_invalid_encoding(ST1)) {
+    } else if (floatx80_invalid_encoding(ST0, &env->fp_status) ||
+               floatx80_invalid_encoding(ST1, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST1 = floatx80_default_nan(&env->fp_status);
     } else if (floatx80_is_any_nan(ST0)) {
@@ -2164,8 +2165,8 @@ void helper_fyl2x(CPUX86State *env)
     } else if (floatx80_is_signaling_nan(ST1, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST1 = floatx80_silence_nan(ST1, &env->fp_status);
-    } else if (floatx80_invalid_encoding(ST0) ||
-               floatx80_invalid_encoding(ST1)) {
+    } else if (floatx80_invalid_encoding(ST0, &env->fp_status) ||
+               floatx80_invalid_encoding(ST1, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST1 = floatx80_default_nan(&env->fp_status);
     } else if (floatx80_is_any_nan(ST0)) {
@@ -2331,7 +2332,8 @@ void helper_frndint(CPUX86State *env)
 void helper_fscale(CPUX86State *env)
 {
     uint8_t old_flags = save_exception_flags(env);
-    if (floatx80_invalid_encoding(ST1) || floatx80_invalid_encoding(ST0)) {
+    if (floatx80_invalid_encoding(ST1, &env->fp_status) ||
+        floatx80_invalid_encoding(ST0, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST0 = floatx80_default_nan(&env->fp_status);
     } else if (floatx80_is_any_nan(ST1)) {
@@ -2344,7 +2346,7 @@ void helper_fscale(CPUX86State *env)
             ST0 = floatx80_silence_nan(ST0, &env->fp_status);
         }
     } else if (floatx80_is_infinity(ST1, &env->fp_status) &&
-               !floatx80_invalid_encoding(ST0) &&
+               !floatx80_invalid_encoding(ST0, &env->fp_status) &&
                !floatx80_is_any_nan(ST0)) {
         if (floatx80_is_neg(ST1)) {
             if (floatx80_is_infinity(ST0, &env->fp_status)) {
