@@ -254,10 +254,6 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
         section += dlnode
         return [section]
 
-    def _nodes_for_example(self, exampletext):
-        """Return list of doctree nodes for a code example snippet"""
-        return [nodes.literal_block(exampletext, exampletext)]
-
     def _nodes_for_sections(self, doc):
         """Return list of doctree nodes for additional sections"""
         nodelist = []
@@ -275,10 +271,7 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
                 continue
 
             snode = self._make_section(section.tag)
-            if section.tag.startswith('Example'):
-                snode += self._nodes_for_example(dedent(section.text))
-            else:
-                self._parse_text_into_node(dedent(section.text), snode)
+            self._parse_text_into_node(dedent(section.text), snode)
             nodelist.append(snode)
         return nodelist
 
