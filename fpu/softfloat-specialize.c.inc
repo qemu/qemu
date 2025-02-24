@@ -93,17 +93,10 @@ static inline bool no_signaling_nans(float_status *status)
  * In IEEE 754-1985 this was implementation defined, but in IEEE 754-2008
  * the msb must be zero.  MIPS is (so far) unique in supporting both the
  * 2008 revision and backward compatibility with their original choice.
- * Thus for MIPS we must make the choice at runtime.
  */
 static inline bool snan_bit_is_one(float_status *status)
 {
-#if defined(TARGET_MIPS)
     return status->snan_bit_is_one;
-#elif defined(TARGET_HPPA) || defined(TARGET_SH4)
-    return 1;
-#else
-    return 0;
-#endif
 }
 
 /*----------------------------------------------------------------------------
