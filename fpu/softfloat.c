@@ -79,9 +79,6 @@ this code that are retained.
  * version 2 or later. See the COPYING file in the top-level directory.
  */
 
-/* softfloat (and in particular the code in softfloat-specialize.h) is
- * target-dependent and needs the TARGET_* macros.
- */
 #include "qemu/osdep.h"
 #include <math.h>
 #include "qemu/bitops.h"
