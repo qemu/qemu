@@ -85,11 +85,7 @@ this code that are retained.
  */
 static inline bool no_signaling_nans(float_status *status)
 {
-#if defined(TARGET_XTENSA)
     return status->no_signaling_nans;
-#else
-    return false;
-#endif
 }
 
 /* Define how the architecture discriminates signaling NaNs.
