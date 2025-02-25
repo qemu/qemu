@@ -1,0 +1,64 @@
+# -*- Mode: Python -*-
+# vim: filetype=python
+#
+
+##
+# = UEFI Variable Store
+#
+# The qemu efi variable store implementation (hw/uefi/) uses this to
+# store non-volatile variables in json format on disk.
+#
+# This is an existing format already supported by (at least) two other
+# projects, specifically https://gitlab.com/kraxel/virt-firmware and
+# https://github.com/awslabs/python-uefivars.
+##
+
+##
+# @UefiVariable:
+#
+# UEFI Variable.  Check the UEFI specifification for more detailed
+# information on the fields.
+#
+# @guid: variable namespace GUID
+#
+# @name: variable name, in UTF-8 encoding.
+#
+# @attr: variable attributes.
+#
+# @data: variable value, encoded as hex string.
+#
+# @time: variable modification time.  EFI_TIME struct, encoded as hex
+#     string.  Used only for authenticated variables, where the
+#     EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACCESS attribute bit
+#     is set.
+#
+# @digest: variable certificate digest.  Used to verify the signature
+#     of updates for authenticated variables.  UEFI has two kinds of
+#     authenticated variables.  The secure boot variables ('PK',
+#     'KEK', 'db' and 'dbx') have hard coded signature checking rules.
+#     For other authenticated variables the firmware stores a digest
+#     of the signing certificate at variable creation time, and any
+#     updates must be signed with the same certificate.
+#
+# Since: 10.0
+##
+{ 'struct' : 'UefiVariable',
+  'data' : { 'guid'  : 'str',
+             'name'  : 'str',
+             'attr'  : 'int',
+             'data'  : 'str',
+             '*time' : 'str',
+             '*digest' : 'str'}}
+
+##
+# @UefiVarStore:
+#
+# @version: currently always 2
+#
+# @variables: list of UEFI variables
+#
+# Since: 10.0
+##
+{ 'struct' : 'UefiVarStore',
+  'data' : { 'version'   : 'int',
+             'variables' : [ 'UefiVariable' ] }}
