@@ -372,8 +372,7 @@ static int
 e1000e_add_pm_capability(PCIDevice *pdev, uint8_t offset, uint16_t pmc)
 {
     Error *local_err = NULL;
-    int ret = pci_add_capability(pdev, PCI_CAP_ID_PM, offset,
-                                 PCI_PM_SIZEOF, &local_err);
+    int ret = pci_pm_init(pdev, offset, &local_err);
 
     if (local_err) {
         error_report_err(local_err);
