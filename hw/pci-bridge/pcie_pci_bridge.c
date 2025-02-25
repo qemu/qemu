@@ -56,7 +56,6 @@ static void pcie_pci_bridge_realize(PCIDevice *d, Error **errp)
     if (pos < 0) {
         goto pm_error;
     }
-    d->exp.pm_cap = pos;
     pci_set_word(d->config + pos + PCI_PM_PMC, 0x3);
 
     pcie_cap_arifwd_init(d);
