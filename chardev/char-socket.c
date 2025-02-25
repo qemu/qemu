@@ -571,9 +571,13 @@ static char *qemu_chr_compute_filename(SocketChardev *s)
 
     switch (ss->ss_family) {
     case AF_UNIX:
-        return g_strdup_printf("unix:%s%s",
-                               ((struct sockaddr_un *)(ss))->sun_path,
-                               s->is_listen ? ",server=on" : "");
+        if (s->is_listen) {
+            return g_strdup_printf("unix:%s,server=on",
+                                   ((struct sockaddr_un *)(ss))->sun_path);
+        } else {
+            return g_strdup_printf("unix:%s",
+                                   ((struct sockaddr_un *)(ps))->sun_path);
+        }
     case AF_INET6:
         left  = "[";
         right = "]";
