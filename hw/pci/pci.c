@@ -365,6 +365,84 @@ static void pci_msi_trigger(PCIDevice *dev, MSIMessage msg)
                          attrs, NULL);
 }
 
+/*
+ * Register and track a PM capability.  If wmask is also enabled for the power
+ * state field of the pmcsr register, guest writes may change the device PM
+ * state.  BAR access is only enabled while the device is in the D0 state.
+ * Return the capability offset or negative error code.
+ */
+int pci_pm_init(PCIDevice *d, uint8_t offset, Error **errp)
+{
+    int cap = pci_add_capability(d, PCI_CAP_ID_PM, offset, PCI_PM_SIZEOF, errp);
+
+    if (cap < 0) {
+        return cap;
+    }
+
+    d->pm_cap = cap;
+    d->cap_present |= QEMU_PCI_CAP_PM;
+
+    return cap;
+}
+
+static uint8_t pci_pm_state(PCIDevice *d)
+{
+    uint16_t pmcsr;
+
+    if (!(d->cap_present & QEMU_PCI_CAP_PM)) {
+        return 0;
+    }
+
+    pmcsr = pci_get_word(d->config + d->pm_cap + PCI_PM_CTRL);
+
+    return pmcsr & PCI_PM_CTRL_STATE_MASK;
+}
+
+/*
+ * Update the PM capability state based on the new value stored in config
+ * space respective to the old, pre-write state provided.  If the new value
+ * is rejected (unsupported or invalid transition) restore the old value.
+ * Return the resulting PM state.
+ */
+static uint8_t pci_pm_update(PCIDevice *d, uint32_t addr, int l, uint8_t old)
+{
+    uint16_t pmc;
+    uint8_t new;
+
+    if (!(d->cap_present & QEMU_PCI_CAP_PM) ||
+        !range_covers_byte(addr, l, d->pm_cap + PCI_PM_CTRL)) {
+        return old;
+    }
+
+    new = pci_pm_state(d);
+    if (new == old) {
+        return old;
+    }
+
+    pmc = pci_get_word(d->config + d->pm_cap + PCI_PM_PMC);
+
+    /*
+     * Transitions to D1 & D2 are only allowed if supported.  Devices may
+     * only transition to higher D-states or to D0.
+     */
+    if ((!(pmc & PCI_PM_CAP_D1) && new == 1) ||
+        (!(pmc & PCI_PM_CAP_D2) && new == 2) ||
+        (old && new && new < old)) {
+        pci_word_test_and_clear_mask(d->config + d->pm_cap + PCI_PM_CTRL,
+                                     PCI_PM_CTRL_STATE_MASK);
+        pci_word_test_and_set_mask(d->config + d->pm_cap + PCI_PM_CTRL,
+                                   old);
+        trace_pci_pm_bad_transition(d->name, pci_dev_bus_num(d),
+                                    PCI_SLOT(d->devfn), PCI_FUNC(d->devfn),
+                                    old, new);
+        return old;
+    }
+
+    trace_pci_pm_transition(d->name, pci_dev_bus_num(d), PCI_SLOT(d->devfn),
+                            PCI_FUNC(d->devfn), old, new);
+    return new;
+}
+
 static void pci_reset_regions(PCIDevice *dev)
 {
     int r;
@@ -404,6 +482,11 @@ static void pci_do_device_reset(PCIDevice *dev)
                               pci_get_word(dev->wmask + PCI_INTERRUPT_LINE) |
                               pci_get_word(dev->w1cmask + PCI_INTERRUPT_LINE));
     dev->config[PCI_CACHE_LINE_SIZE] = 0x0;
+    /* Default PM state is D0 */
+    if (dev->cap_present & QEMU_PCI_CAP_PM) {
+        pci_word_test_and_clear_mask(dev->config + dev->pm_cap + PCI_PM_CTRL,
+                                     PCI_PM_CTRL_STATE_MASK);
+    }
     pci_reset_regions(dev);
     pci_update_mappings(dev);
 
@@ -1525,7 +1608,7 @@ static void pci_update_mappings(PCIDevice *d)
             continue;
 
         new_addr = pci_bar_address(d, i, r->type, r->size);
-        if (!d->enabled) {
+        if (!d->enabled || pci_pm_state(d)) {
             new_addr = PCI_BAR_UNMAPPED;
         }
 
@@ -1591,6 +1674,7 @@ uint32_t pci_default_read_config(PCIDevice *d,
 
 void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val_in, int l)
 {
+    uint8_t new_pm_state, old_pm_state = pci_pm_state(d);
     int i, was_irq_disabled = pci_irq_disabled(d);
     uint32_t val = val_in;
 
@@ -1603,11 +1687,16 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val_in, int 
         d->config[addr + i] = (d->config[addr + i] & ~wmask) | (val & wmask);
         d->config[addr + i] &= ~(val & w1cmask); /* W1C: Write 1 to Clear */
     }
+
+    new_pm_state = pci_pm_update(d, addr, l, old_pm_state);
+
     if (ranges_overlap(addr, l, PCI_BASE_ADDRESS_0, 24) ||
         ranges_overlap(addr, l, PCI_ROM_ADDRESS, 4) ||
         ranges_overlap(addr, l, PCI_ROM_ADDRESS1, 4) ||
-        range_covers_byte(addr, l, PCI_COMMAND))
+        range_covers_byte(addr, l, PCI_COMMAND) ||
+        !!new_pm_state != !!old_pm_state) {
         pci_update_mappings(d);
+    }
 
     if (ranges_overlap(addr, l, PCI_COMMAND, 2)) {
         pci_update_irq_disabled(d, was_irq_disabled);

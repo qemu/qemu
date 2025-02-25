@@ -105,6 +105,9 @@ struct PCIDevice {
     /* Capability bits */
     uint32_t cap_present;
 
+    /* Offset of PM capability in config space */
+    uint8_t pm_cap;
+
     /* Offset of MSI-X capability in config space */
     uint8_t msix_cap;
 
