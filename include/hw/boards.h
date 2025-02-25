@@ -636,7 +636,11 @@ struct MachineState {
 /*
  * How many years/major releases for each phase
  * of the life cycle. Assumes use of versioning
- * scheme where major is bumped each year
+ * scheme where major is bumped each year.
+ *
+ * These values must match the ver_machine_deprecation_version
+ * and ver_machine_deletion_version logic in docs/conf.py and
+ * the text in docs/about/deprecated.rst
  */
 #define MACHINE_VER_DELETION_MAJOR 6
 #define MACHINE_VER_DEPRECATION_MAJOR 3
