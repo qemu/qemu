@@ -730,8 +730,6 @@ impl HPETState {
     }
 
     fn reset_hold(&self, _type: ResetType) {
-        let sbd = self.upcast::<SysBusDevice>();
-
         for timer in self.timers.iter().take(self.num_timers.get()) {
             timer.borrow_mut().reset();
         }
@@ -744,7 +742,7 @@ impl HPETState {
         HPETFwConfig::update_hpet_cfg(
             self.hpet_id.get(),
             self.capability.get() as u32,
-            sbd.mmio[0].addr,
+            self.mmio_addr(0).unwrap(),
         );
 
         // to document that the RTC lowers its output on reset as well

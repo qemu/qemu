@@ -65,6 +65,18 @@ where
     }
 
     // TODO: do we want a type like GuestAddress here?
+    fn mmio_addr(&self, id: u32) -> Option<u64> {
+        assert!(bql_locked());
+        let sbd = self.upcast();
+        let id: usize = id.try_into().unwrap();
+        if sbd.mmio[id].memory.is_null() {
+            None
+        } else {
+            Some(sbd.mmio[id].addr)
+        }
+    }
+
+    // TODO: do we want a type like GuestAddress here?
     fn mmio_map(&self, id: u32, addr: u64) {
         assert!(bql_locked());
         let id: i32 = id.try_into().unwrap();
