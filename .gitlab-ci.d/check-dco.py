@@ -21,7 +21,7 @@ repourl = "https://gitlab.com/%s/%s.git" % (namespace, reponame)
 
 print(f"adding upstream git repo @ {repourl}")
 subprocess.check_call(["git", "remote", "add", "check-dco", repourl])
-subprocess.check_call(["git", "fetch", "check-dco", "master"])
+subprocess.check_call(["git", "fetch", "--refetch", "check-dco", "master"])
 
 ancestor = subprocess.check_output(["git", "merge-base",
                                     "check-dco/master", "HEAD"],
