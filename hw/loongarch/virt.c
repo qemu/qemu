@@ -45,14 +45,6 @@
 #include "hw/virtio/virtio-iommu.h"
 #include "qemu/error-report.h"
 
-static bool virt_is_veiointc_enabled(LoongArchVirtMachineState *lvms)
-{
-    if (lvms->veiointc == ON_OFF_AUTO_OFF) {
-        return false;
-    }
-    return true;
-}
-
 static void virt_get_veiointc(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
