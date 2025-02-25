@@ -34,6 +34,11 @@
 #define UFS_MAX_NUTMRS 8
 #define UFS_MCQ_QCFGPTR 2
 
+/* Each value represents the temperature in celsius as (value - 80) */
+#define UFS_TEMPERATURE 120
+#define UFS_TOO_HIGH_TEMP_BOUNDARY 160
+#define UFS_TOO_LOW_TEMP_BOUNDARY 60
+
 static void ufs_exec_req(UfsRequest *req);
 static void ufs_clear_req(UfsRequest *req);
 
@@ -838,6 +843,42 @@ static const MemoryRegionOps ufs_mmio_ops = {
     },
 };
 
+static void ufs_update_ee_status(UfsHc *u)
+{
+    uint16_t ee_status = be16_to_cpu(u->attributes.exception_event_status);
+    uint8_t high_temp_thresh = u->attributes.device_too_high_temp_boundary;
+    uint8_t low_temp_thresh = u->attributes.device_too_low_temp_boundary;
+
+    if (u->temperature >= high_temp_thresh) {
+        ee_status |= MASK_EE_TOO_HIGH_TEMP;
+    } else {
+        ee_status &= ~MASK_EE_TOO_HIGH_TEMP;
+    }
+
+    if (u->temperature <= low_temp_thresh) {
+        ee_status |= MASK_EE_TOO_LOW_TEMP;
+    } else {
+        ee_status &= ~MASK_EE_TOO_LOW_TEMP;
+    }
+
+    u->attributes.exception_event_status = cpu_to_be16(ee_status);
+}
+
+static bool ufs_check_exception_event_alert(UfsHc *u, uint8_t trans_type)
+{
+    uint16_t ee_control = be16_to_cpu(u->attributes.exception_event_control);
+    uint16_t ee_status;
+
+    if (trans_type != UFS_UPIU_TRANSACTION_RESPONSE) {
+        return false;
+    }
+
+    ufs_update_ee_status(u);
+
+    ee_status = be16_to_cpu(u->attributes.exception_event_status);
+
+    return ee_control & ee_status;
+}
 
 void ufs_build_upiu_header(UfsRequest *req, uint8_t trans_type, uint8_t flags,
                            uint8_t response, uint8_t scsi_status,
@@ -848,6 +889,8 @@ void ufs_build_upiu_header(UfsRequest *req, uint8_t trans_type, uint8_t flags,
     req->rsp_upiu.header.flags = flags;
     req->rsp_upiu.header.response = response;
     req->rsp_upiu.header.scsi_status = scsi_status;
+    req->rsp_upiu.header.device_inf =
+        ufs_check_exception_event_alert(req->hc, trans_type);
     req->rsp_upiu.header.data_segment_length = cpu_to_be16(data_segment_length);
 }
 
@@ -1042,6 +1085,25 @@ static QueryRespCode ufs_exec_query_flag(UfsRequest *req, int op)
     return UFS_QUERY_RESULT_SUCCESS;
 }
 
+static inline uint8_t ufs_read_device_temp(UfsHc *u)
+{
+    uint8_t feat_sup = u->device_desc.ufs_features_support;
+    bool high_temp_sup, low_temp_sup, high_temp_en, low_temp_en;
+    uint16_t ee_control = be16_to_cpu(u->attributes.exception_event_control);
+
+    high_temp_sup = feat_sup & UFS_DEV_HIGH_TEMP_NOTIF;
+    low_temp_sup = feat_sup & UFS_DEV_LOW_TEMP_NOTIF;
+    high_temp_en = ee_control & MASK_EE_TOO_HIGH_TEMP;
+    low_temp_en = ee_control & MASK_EE_TOO_LOW_TEMP;
+
+    if ((high_temp_sup && high_temp_en) ||
+        (low_temp_sup && low_temp_en)) {
+        return u->temperature;
+    }
+
+    return 0;
+}
+
 static uint32_t ufs_read_attr_value(UfsHc *u, uint8_t idn)
 {
     switch (idn) {
@@ -1072,6 +1134,7 @@ static uint32_t ufs_read_attr_value(UfsHc *u, uint8_t idn)
     case UFS_QUERY_ATTR_IDN_EE_CONTROL:
         return be16_to_cpu(u->attributes.exception_event_control);
     case UFS_QUERY_ATTR_IDN_EE_STATUS:
+        ufs_update_ee_status(u);
         return be16_to_cpu(u->attributes.exception_event_status);
     case UFS_QUERY_ATTR_IDN_SECONDS_PASSED:
         return be32_to_cpu(u->attributes.seconds_passed);
@@ -1086,7 +1149,8 @@ static uint32_t ufs_read_attr_value(UfsHc *u, uint8_t idn)
     case UFS_QUERY_ATTR_IDN_REF_CLK_GATING_WAIT_TIME:
         return u->attributes.ref_clk_gating_wait_time;
     case UFS_QUERY_ATTR_IDN_CASE_ROUGH_TEMP:
-        return u->attributes.device_case_rough_temperaure;
+        u->attributes.device_case_rough_temperature = ufs_read_device_temp(u);
+        return u->attributes.device_case_rough_temperature;
     case UFS_QUERY_ATTR_IDN_HIGH_TEMP_BOUND:
         return u->attributes.device_too_high_temp_boundary;
     case UFS_QUERY_ATTR_IDN_LOW_TEMP_BOUND:
@@ -1677,8 +1741,12 @@ static void ufs_init_hc(UfsHc *u)
     u->device_desc.ud_0_base_offset = 0x16;
     u->device_desc.ud_config_p_length = 0x1A;
     u->device_desc.device_rtt_cap = 0x02;
+    u->device_desc.ufs_features_support = UFS_DEV_HIGH_TEMP_NOTIF |
+        UFS_DEV_LOW_TEMP_NOTIF;
     u->device_desc.queue_depth = u->params.nutrs;
     u->device_desc.product_revision_level = 0x04;
+    u->device_desc.extended_ufs_features_support =
+        cpu_to_be32(UFS_DEV_HIGH_TEMP_NOTIF | UFS_DEV_LOW_TEMP_NOTIF);
 
     memset(&u->geometry_desc, 0, sizeof(GeometryDescriptor));
     u->geometry_desc.length = sizeof(GeometryDescriptor);
@@ -1702,9 +1770,17 @@ static void ufs_init_hc(UfsHc *u)
     /* configure descriptor is not supported */
     u->attributes.config_descr_lock = 0x01;
     u->attributes.max_num_of_rtt = 0x02;
+    u->attributes.device_too_high_temp_boundary = UFS_TOO_HIGH_TEMP_BOUNDARY;
+    u->attributes.device_too_low_temp_boundary = UFS_TOO_LOW_TEMP_BOUNDARY;
 
     memset(&u->flags, 0, sizeof(u->flags));
     u->flags.permanently_disable_fw_update = 1;
+
+    /*
+     * The temperature value is fixed to UFS_TEMPERATURE and does not change
+     * dynamically
+     */
+    u->temperature = UFS_TEMPERATURE;
 }
 
 static void ufs_realize(PCIDevice *pci_dev, Error **errp)

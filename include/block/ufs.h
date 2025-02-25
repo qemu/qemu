@@ -461,7 +461,7 @@ typedef struct Attributes {
     uint8_t psa_state;
     uint32_t psa_data_size;
     uint8_t ref_clk_gating_wait_time;
-    uint8_t device_case_rough_temperaure;
+    uint8_t device_case_rough_temperature;
     uint8_t device_too_high_temp_boundary;
     uint8_t device_too_low_temp_boundary;
     uint8_t throttling_status;
@@ -1073,6 +1073,11 @@ enum health_desc_param {
     UFS_HEALTH_DESC_PARAM_LIFE_TIME_EST_B = 0x4,
 };
 
+enum {
+    UFS_DEV_HIGH_TEMP_NOTIF = BIT(4),
+    UFS_DEV_LOW_TEMP_NOTIF = BIT(5),
+};
+
 /* WriteBooster buffer mode */
 enum {
     UFS_WB_BUF_MODE_LU_DEDICATED = 0x0,
@@ -1089,6 +1094,12 @@ enum ufs_lu_wp_type {
     UFS_LU_NO_WP = 0x00,
     UFS_LU_POWER_ON_WP = 0x01,
     UFS_LU_PERM_WP = 0x02,
+};
+
+/* Exception event mask values */
+enum {
+    MASK_EE_TOO_HIGH_TEMP = BIT(3),
+    MASK_EE_TOO_LOW_TEMP = BIT(4),
 };
 
 /* UTP QUERY Transaction Specific Fields OpCode */
