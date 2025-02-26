@@ -617,10 +617,9 @@ static void vc_put_one(VCChardev *vc, int ch)
 
 static void vc_respond_str(VCChardev *vc, const char *buf)
 {
-    while (*buf) {
-        vc_put_one(vc, *buf);
-        buf++;
-    }
+    QemuTextConsole *s = vc->console;
+
+    qemu_chr_be_write(s->chr, (const uint8_t *)buf, strlen(buf));
 }
 
 /* set cursor, checking bounds */
