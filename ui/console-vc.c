@@ -646,6 +646,88 @@ static void vc_set_cursor(VCChardev *vc, int x, int y)
 }
 
 /**
+ * vc_csi_P() - (DCH) deletes one or more characters from the cursor
+ * position to the right. As characters are deleted, the remaining
+ * characters between the cursor and right margin move to the
+ * left. Character attributes move with the characters.
+ */
+static void vc_csi_P(struct VCChardev *vc, unsigned int nr)
+{
+    QemuTextConsole *s = vc->console;
+    TextCell *c1, *c2;
+    unsigned int x1, x2, y;
+    unsigned int end, len;
+
+    if (!nr) {
+        nr = 1;
+    }
+    if (nr > s->width - s->x) {
+        nr = s->width - s->x;
+        if (!nr) {
+            return;
+        }
+    }
+
+    x1 = s->x;
+    x2 = s->x + nr;
+    len = s->width - x2;
+    if (len) {
+        y = (s->y_base + s->y) % s->total_height;
+        c1 = &s->cells[y * s->width + x1];
+        c2 = &s->cells[y * s->width + x2];
+        memmove(c1, c2, len * sizeof(*c1));
+        for (end = x1 + len; x1 < end; x1++) {
+            vc_update_xy(vc, x1, s->y);
+        }
+    }
+    /* Clear the rest */
+    for (; x1 < s->width; x1++) {
+        vc_clear_xy(vc, x1, s->y);
+    }
+}
+
+/**
+ * vc_csi_at() - (ICH) inserts `nr` blank characters with the default
+ * character attribute. The cursor remains at the beginning of the
+ * blank characters. Text between the cursor and right margin moves to
+ * the right. Characters scrolled past the right margin are lost.
+ */
+static void vc_csi_at(struct VCChardev *vc, unsigned int nr)
+{
+    QemuTextConsole *s = vc->console;
+    TextCell *c1, *c2;
+    unsigned int x1, x2, y;
+    unsigned int end, len;
+
+    if (!nr) {
+        nr = 1;
+    }
+    if (nr > s->width - s->x) {
+        nr = s->width - s->x;
+        if (!nr) {
+            return;
+        }
+    }
+
+    x1 = s->x + nr;
+    x2 = s->x;
+    len = s->width - x1;
+    if (len) {
+        y = (s->y_base + s->y) % s->total_height;
+        c1 = &s->cells[y * s->width + x1];
+        c2 = &s->cells[y * s->width + x2];
+        memmove(c1, c2, len * sizeof(*c1));
+        for (end = x1 + len; x1 < end; x1++) {
+            vc_update_xy(vc, x1, s->y);
+        }
+    }
+    /* Insert blanks */
+    for (x1 = s->x; x1 < s->x + nr; x1++) {
+        vc_clear_xy(vc, x1, s->y);
+    }
+}
+
+/**
  * vc_save_cursor() - saves cursor position and character attributes.
  */
 static void vc_save_cursor(VCChardev *vc)
@@ -847,6 +929,9 @@ static void vc_putchar(VCChardev *vc, int ch)
                     break;
                 }
                 break;
+            case 'P':
+                vc_csi_P(vc, vc->esc_params[0]);
+                break;
             case 'm':
                 vc_handle_escape(vc);
                 break;
@@ -869,6 +954,9 @@ static void vc_putchar(VCChardev *vc, int ch)
                 break;
             case 'u':
                 vc_restore_cursor(vc);
+                break;
+            case '@':
+                vc_csi_at(vc, vc->esc_params[0]);
                 break;
             default:
                 trace_console_putchar_unhandled(ch);
