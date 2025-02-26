@@ -827,8 +827,7 @@ static void vc_putchar(VCChardev *vc, int ch)
                 case 6:
                     /* report cursor position */
                     response = g_strdup_printf("\033[%d;%dR",
-                           (s->y_base + s->y) % s->total_height + 1,
-                            s->x + 1);
+                                               s->y + 1, s->x + 1);
                     vc_respond_str(vc, response);
                     break;
                 }
