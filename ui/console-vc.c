@@ -90,6 +90,7 @@ struct VCChardev {
     int esc_params[MAX_ESC_PARAMS];
     int nb_esc_params;
     TextAttributes t_attrib; /* currently active text attributes */
+    TextAttributes t_attrib_saved;
     int x_saved, y_saved;
 };
 typedef struct VCChardev VCChardev;
@@ -644,6 +645,31 @@ static void vc_set_cursor(VCChardev *vc, int x, int y)
     s->y = y;
 }
 
+/**
+ * vc_save_cursor() - saves cursor position and character attributes.
+ */
+static void vc_save_cursor(VCChardev *vc)
+{
+    QemuTextConsole *s = vc->console;
+
+    vc->x_saved = s->x;
+    vc->y_saved = s->y;
+    vc->t_attrib_saved = vc->t_attrib;
+}
+
+/**
+ * vc_restore_cursor() - restores cursor position and character
+ * attributes from saved state.
+ */
+static void vc_restore_cursor(VCChardev *vc)
+{
+    QemuTextConsole *s = vc->console;
+
+    s->x = vc->x_saved;
+    s->y = vc->y_saved;
+    vc->t_attrib = vc->t_attrib_saved;
+}
+
 static void vc_putchar(VCChardev *vc, int ch)
 {
     QemuTextConsole *s = vc->console;
@@ -699,6 +725,12 @@ static void vc_putchar(VCChardev *vc, int ch)
             vc->state = TTY_STATE_G0;
         } else if (ch == ')') {
             vc->state = TTY_STATE_G1;
+        } else if (ch == '7') {
+            vc_save_cursor(vc);
+            vc->state = TTY_STATE_NORM;
+        } else if (ch == '8') {
+            vc_restore_cursor(vc);
+            vc->state = TTY_STATE_NORM;
         } else {
             vc->state = TTY_STATE_NORM;
         }
@@ -833,14 +865,10 @@ static void vc_putchar(VCChardev *vc, int ch)
                 }
                 break;
             case 's':
-                /* save cursor position */
-                vc->x_saved = s->x;
-                vc->y_saved = s->y;
+                vc_save_cursor(vc);
                 break;
             case 'u':
-                /* restore cursor position */
-                s->x = vc->x_saved;
-                s->y = vc->y_saved;
+                vc_restore_cursor(vc);
                 break;
             default:
                 trace_console_putchar_unhandled(ch);
