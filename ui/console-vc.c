@@ -42,6 +42,8 @@ enum TTYState {
     TTY_STATE_NORM,
     TTY_STATE_ESC,
     TTY_STATE_CSI,
+    TTY_STATE_G0,
+    TTY_STATE_G1,
 };
 
 typedef struct QemuTextConsole {
@@ -694,6 +696,10 @@ static void vc_putchar(VCChardev *vc, int ch)
                 vc->esc_params[i] = 0;
             vc->nb_esc_params = 0;
             vc->state = TTY_STATE_CSI;
+        } else if (ch == '(') {
+            vc->state = TTY_STATE_G0;
+        } else if (ch == ')') {
+            vc->state = TTY_STATE_G1;
         } else {
             vc->state = TTY_STATE_NORM;
         }
@@ -844,6 +850,16 @@ static void vc_putchar(VCChardev *vc, int ch)
             }
             break;
         }
+        break;
+    case TTY_STATE_G0: /* set character sets */
+    case TTY_STATE_G1: /* set character sets */
+        switch (ch) {
+        case 'B':
+            /* Latin-1 map */
+            break;
+        }
+        vc->state = TTY_STATE_NORM;
+        break;
     }
 }
 
