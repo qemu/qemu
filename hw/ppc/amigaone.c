@@ -21,9 +21,12 @@
 #include "hw/ide/pci.h"
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/ppc/ppc.h"
+#include "system/block-backend.h"
 #include "system/qtest.h"
 #include "system/reset.h"
 #include "kvm_ppc.h"
+
+#include <zlib.h> /* for crc32 */
 
 #define BUS_FREQ_HZ 100000000
 
@@ -45,6 +48,100 @@ static const char dummy_fw[] = {
     0x7c, 0x63, 0x18, 0xf8, /* not     r3,r3 */
     0x4e, 0x80, 0x00, 0x20, /* blr */
 };
+
+#define NVRAM_ADDR 0xfd0e0000
+#define NVRAM_SIZE (4 * KiB)
+
+#define TYPE_A1_NVRAM "a1-nvram"
+OBJECT_DECLARE_SIMPLE_TYPE(A1NVRAMState, A1_NVRAM)
+
+struct A1NVRAMState {
+    SysBusDevice parent_obj;
+
+    MemoryRegion mr;
+    BlockBackend *blk;
+};
+
+static uint64_t nvram_read(void *opaque, hwaddr addr, unsigned int size)
+{
+    /* read callback not used because of romd mode */
+    g_assert_not_reached();
+}
+
+static void nvram_write(void *opaque, hwaddr addr, uint64_t val,
+                        unsigned int size)
+{
+    A1NVRAMState *s = opaque;
+    uint8_t *p = memory_region_get_ram_ptr(&s->mr);
+
+    p[addr] = val;
+    if (s->blk) {
+        blk_pwrite(s->blk, addr, 1, &val, 0);
+    }
+}
+
+static const MemoryRegionOps nvram_ops = {
+    .read = nvram_read,
+    .write = nvram_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
+
+static void nvram_realize(DeviceState *dev, Error **errp)
+{
+    A1NVRAMState *s = A1_NVRAM(dev);
+    void *p;
+    uint32_t *c;
+
+    memory_region_init_rom_device(&s->mr, NULL, &nvram_ops, s, "nvram",
+                                  NVRAM_SIZE, &error_fatal);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mr);
+    c = p = memory_region_get_ram_ptr(&s->mr);
+    if (s->blk) {
+        if (blk_getlength(s->blk) != NVRAM_SIZE) {
+            error_setg(errp, "NVRAM backing file size must be %" PRId64 "bytes",
+                       NVRAM_SIZE);
+            return;
+        }
+        blk_set_perm(s->blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
+                     BLK_PERM_ALL, &error_fatal);
+        if (blk_pread(s->blk, 0, NVRAM_SIZE, p, 0) < 0) {
+            error_setg(errp, "Cannot read NVRAM contents from backing file");
+            return;
+        }
+    }
+    if (*c == 0) {
+        *c = cpu_to_be32(crc32(0, p + 4, NVRAM_SIZE - 4));
+        if (s->blk) {
+            blk_pwrite(s->blk, 0, 4, p, 0);
+        }
+    }
+}
+
+static const Property nvram_properties[] = {
+    DEFINE_PROP_DRIVE("drive", A1NVRAMState, blk),
+};
+
+static void nvram_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = nvram_realize;
+    device_class_set_props(dc, nvram_properties);
+}
+
+static const TypeInfo nvram_types[] = {
+    {
+        .name = TYPE_A1_NVRAM,
+        .parent = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(A1NVRAMState),
+        .class_init = nvram_class_init,
+    },
+};
+DEFINE_TYPES(nvram_types)
 
 static void amigaone_cpu_reset(void *opaque)
 {
@@ -72,7 +169,7 @@ static void amigaone_init(MachineState *machine)
     DeviceState *dev;
     I2CBus *i2c_bus;
     uint8_t *spd_data;
-    int i;
+    DriveInfo *di;
 
     /* init CPU */
     cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
@@ -96,6 +193,16 @@ static void amigaone_init(MachineState *machine)
         memory_region_init_ram(mr, NULL, "init-cache", 32 * KiB, &error_fatal);
         memory_region_add_subregion(get_system_memory(), 0x40000000, mr);
     }
+
+    /* nvram */
+    dev = qdev_new(TYPE_A1_NVRAM);
+    di = drive_get(IF_MTD, 0, 0);
+    if (di) {
+        qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(di));
+    }
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    memory_region_add_subregion(get_system_memory(), NVRAM_ADDR,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
 
     /* allocate and load firmware */
     rom = g_new(MemoryRegion, 1);
@@ -136,7 +243,7 @@ static void amigaone_init(MachineState *machine)
     pci_mem = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1);
     mr = g_new(MemoryRegion, 1);
     memory_region_init_alias(mr, OBJECT(dev), "pci-mem-low", pci_mem,
-                             0, 0x1000000);
+                             0, 0xe0000);
     memory_region_add_subregion(get_system_memory(), 0xfd000000, mr);
     mr = g_new(MemoryRegion, 1);
     memory_region_init_alias(mr, OBJECT(dev), "pci-mem-high", pci_mem,
@@ -153,7 +260,7 @@ static void amigaone_init(MachineState *machine)
     qdev_connect_gpio_out_named(DEVICE(via), "intr", 0,
                                 qdev_get_gpio_in(DEVICE(cpu),
                                 PPC6xx_INPUT_INT));
-    for (i = 0; i < PCI_NUM_PINS; i++) {
+    for (int i = 0; i < PCI_NUM_PINS; i++) {
         qdev_connect_gpio_out(dev, i, qdev_get_gpio_in_named(DEVICE(via),
                                                              "pirq", i));
     }
