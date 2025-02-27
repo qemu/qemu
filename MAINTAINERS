@@ -2186,9 +2186,16 @@ M: Cédric Le Goater <clg@redhat.com>
 S: Supported
 F: hw/vfio/*
 F: include/hw/vfio/
-F: docs/igd-assign.txt
 F: docs/devel/migration/vfio.rst
 F: qapi/vfio.json
+
+vfio-igd
+M: Alex Williamson <alex.williamson@redhat.com>
+M: Cédric Le Goater <clg@redhat.com>
+M: Tomita Moeko <tomitamoeko@gmail.com>
+S: Supported
+F: hw/vfio/igd.c
+F: docs/igd-assign.txt
 
 vfio-ccw
 M: Eric Farman <farman@linux.ibm.com>
