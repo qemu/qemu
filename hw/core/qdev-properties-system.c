@@ -603,6 +603,7 @@ QEMU_BUILD_BUG_ON(sizeof(LostTickPolicy) != sizeof(int));
 
 const PropertyInfo qdev_prop_losttickpolicy = {
     .type  = "LostTickPolicy",
+    .description = "Policy for handling lost ticks (discard/delay/slew)",
     .enum_table  = &LostTickPolicy_lookup,
     .get   = qdev_propinfo_get_enum,
     .set   = qdev_propinfo_set_losttickpolicy,
@@ -642,8 +643,7 @@ QEMU_BUILD_BUG_ON(sizeof(BlockdevOnError) != sizeof(int));
 
 const PropertyInfo qdev_prop_blockdev_on_error = {
     .type = "BlockdevOnError",
-    .description = "Error handling policy, "
-                   "report/ignore/enospc/stop/auto",
+    .description = "Error handling policy (report/ignore/enospc/stop/auto)",
     .enum_table = &BlockdevOnError_lookup,
     .get = qdev_propinfo_get_enum,
     .set = qdev_propinfo_set_enum,
@@ -656,8 +656,8 @@ QEMU_BUILD_BUG_ON(sizeof(BiosAtaTranslation) != sizeof(int));
 
 const PropertyInfo qdev_prop_bios_chs_trans = {
     .type = "BiosAtaTranslation",
-    .description = "Logical CHS translation algorithm, "
-                   "auto/none/lba/large/rechs",
+    .description = "Logical CHS translation algorithm "
+                   " (auto/none/lba/large/rechs)",
     .enum_table = &BiosAtaTranslation_lookup,
     .get = qdev_propinfo_get_enum,
     .set = qdev_propinfo_set_enum,
@@ -668,8 +668,7 @@ const PropertyInfo qdev_prop_bios_chs_trans = {
 
 const PropertyInfo qdev_prop_fdc_drive_type = {
     .type = "FloppyDriveType",
-    .description = "FDC drive type, "
-                   "144/288/120/none/auto",
+    .description = "Floppy drive type (144/288/120/none/auto)",
     .enum_table = &FloppyDriveType_lookup,
     .get = qdev_propinfo_get_enum,
     .set = qdev_propinfo_set_enum,
@@ -680,8 +679,8 @@ const PropertyInfo qdev_prop_fdc_drive_type = {
 
 const PropertyInfo qdev_prop_multifd_compression = {
     .type = "MultiFDCompression",
-    .description = "multifd_compression values, "
-                   "none/zlib/zstd/qpl/uadk/qatzip",
+    .description = "multifd_compression values"
+                   " (none/zlib/zstd/qpl/uadk/qatzip)",
     .enum_table = &MultiFDCompression_lookup,
     .get = qdev_propinfo_get_enum,
     .set = qdev_propinfo_set_enum,
@@ -694,8 +693,7 @@ QEMU_BUILD_BUG_ON(sizeof(MigMode) != sizeof(int));
 
 const PropertyInfo qdev_prop_mig_mode = {
     .type = "MigMode",
-    .description = "mig_mode values, "
-                   "normal,cpr-reboot",
+    .description = "Migration mode (normal/cpr-reboot)",
     .enum_table = &MigMode_lookup,
     .get = qdev_propinfo_get_enum,
     .set = qdev_propinfo_set_enum,
@@ -708,8 +706,7 @@ QEMU_BUILD_BUG_ON(sizeof(GranuleMode) != sizeof(int));
 
 const PropertyInfo qdev_prop_granule_mode = {
     .type = "GranuleMode",
-    .description = "granule_mode values, "
-                   "4k, 8k, 16k, 64k, host",
+    .description = "Granule page size (4k/8k/16k/64k/host)",
     .enum_table = &GranuleMode_lookup,
     .get = qdev_propinfo_get_enum,
     .set = qdev_propinfo_set_enum,
@@ -718,8 +715,7 @@ const PropertyInfo qdev_prop_granule_mode = {
 
 const PropertyInfo qdev_prop_zero_page_detection = {
     .type = "ZeroPageDetection",
-    .description = "zero_page_detection values, "
-                   "none,legacy,multifd",
+    .description = "Zero page detection (none/legacy/multifd)",
     .enum_table = &ZeroPageDetection_lookup,
     .get = qdev_propinfo_get_enum,
     .set = qdev_propinfo_set_enum,
@@ -1232,7 +1228,7 @@ QEMU_BUILD_BUG_ON(sizeof(S390CpuEntitlement) != sizeof(int));
 
 const PropertyInfo qdev_prop_cpus390entitlement = {
     .type  = "S390CpuEntitlement",
-    .description = "low/medium (default)/high",
+    .description = "auto/low/medium/high (default medium)",
     .enum_table  = &S390CpuEntitlement_lookup,
     .get   = qdev_propinfo_get_enum,
     .set   = qdev_propinfo_set_enum,
