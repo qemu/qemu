@@ -38,6 +38,11 @@ typedef union {
     int16_t   h[MAX_VEC_SIZE_BYTES / 2];
     uint8_t  ub[MAX_VEC_SIZE_BYTES / 1];
     int8_t    b[MAX_VEC_SIZE_BYTES / 1];
+    int32_t qf32[MAX_VEC_SIZE_BYTES / 4];
+    int16_t qf16[MAX_VEC_SIZE_BYTES / 2];
+    int32_t   sf[MAX_VEC_SIZE_BYTES / 4];
+    int16_t   hf[MAX_VEC_SIZE_BYTES / 2];
+    int16_t   bf[MAX_VEC_SIZE_BYTES / 2];
 } MMVector;
 
 typedef union {

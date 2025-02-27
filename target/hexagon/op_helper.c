@@ -32,6 +32,7 @@
 #include "fma_emu.h"
 #include "mmvec/mmvec.h"
 #include "mmvec/macros.h"
+#include "mmvec/mmvec_qfloat.h"
 #include "op_helper.h"
 #include "cpu_helper.h"
 #include "translate.h"
@@ -2012,4 +2013,5 @@ uint64_t HELPER(creg_read_pair)(CPUHexagonState *env, uint32_t reg)
 #define BOGUS_HELPER(tag) \
     printf("ERROR: bogus helper: " #tag "\n")
 
+#include "mmvec/kvx_ieee.h"
 #include "helper_funcs_generated.c.inc"
