@@ -30,7 +30,7 @@ struct Property {
 };
 
 struct PropertyInfo {
-    const char *name;
+    const char *type;
     const char *description;
     const QEnumLookup *enum_table;
     bool realized_set_allowed; /* allow setting property on realized device */

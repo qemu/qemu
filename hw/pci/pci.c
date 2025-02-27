@@ -77,7 +77,7 @@ static void prop_pci_busnr_get(Object *obj, Visitor *v, const char *name,
 }
 
 static const PropertyInfo prop_pci_busnr = {
-    .name = "busnr",
+    .type = "busnr",
     .get = prop_pci_busnr_get,
 };
 

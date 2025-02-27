@@ -235,7 +235,7 @@ static void release_drive(Object *obj, const char *name, void *opaque)
 }
 
 const PropertyInfo qdev_prop_drive = {
-    .name  = "str",
+    .type  = "str",
     .description = "Node name or ID of a block device to use as a backend",
     .realized_set_allowed = true,
     .get   = get_drive,
@@ -244,7 +244,7 @@ const PropertyInfo qdev_prop_drive = {
 };
 
 const PropertyInfo qdev_prop_drive_iothread = {
-    .name  = "str",
+    .type  = "str",
     .description = "Node name or ID of a block device to use as a backend",
     .realized_set_allowed = true,
     .get   = get_drive,
@@ -312,7 +312,7 @@ static void release_chr(Object *obj, const char *name, void *opaque)
 }
 
 const PropertyInfo qdev_prop_chr = {
-    .name  = "str",
+    .type  = "str",
     .description = "ID of a chardev to use as a backend",
     .get   = get_chr,
     .set   = set_chr,
@@ -386,7 +386,7 @@ inval:
 }
 
 const PropertyInfo qdev_prop_macaddr = {
-    .name  = "str",
+    .type  = "str",
     .description = "Ethernet 6-byte MAC Address, example: 52:54:00:12:34:56",
     .get   = get_mac,
     .set   = set_mac,
@@ -474,7 +474,7 @@ out:
 }
 
 const PropertyInfo qdev_prop_netdev = {
-    .name  = "str",
+    .type  = "str",
     .description = "ID of a netdev to use as a backend",
     .get   = get_netdev,
     .set   = set_netdev,
@@ -512,7 +512,7 @@ static void set_audiodev(Object *obj, Visitor *v, const char* name,
 }
 
 const PropertyInfo qdev_prop_audiodev = {
-    .name = "str",
+    .type = "str",
     .description = "ID of an audiodev to use as a backend",
     /* release done on shutdown */
     .get = get_audiodev,
@@ -602,7 +602,7 @@ static void qdev_propinfo_set_losttickpolicy(Object *obj, Visitor *v,
 QEMU_BUILD_BUG_ON(sizeof(LostTickPolicy) != sizeof(int));
 
 const PropertyInfo qdev_prop_losttickpolicy = {
-    .name  = "LostTickPolicy",
+    .type  = "LostTickPolicy",
     .enum_table  = &LostTickPolicy_lookup,
     .get   = qdev_propinfo_get_enum,
     .set   = qdev_propinfo_set_losttickpolicy,
@@ -628,7 +628,7 @@ static void set_blocksize(Object *obj, Visitor *v, const char *name,
 }
 
 const PropertyInfo qdev_prop_blocksize = {
-    .name  = "size",
+    .type  = "size",
     .description = "A power of two between " MIN_BLOCK_SIZE_STR
                    " and " MAX_BLOCK_SIZE_STR,
     .get   = qdev_propinfo_get_size32,
@@ -641,7 +641,7 @@ const PropertyInfo qdev_prop_blocksize = {
 QEMU_BUILD_BUG_ON(sizeof(BlockdevOnError) != sizeof(int));
 
 const PropertyInfo qdev_prop_blockdev_on_error = {
-    .name = "BlockdevOnError",
+    .type = "BlockdevOnError",
     .description = "Error handling policy, "
                    "report/ignore/enospc/stop/auto",
     .enum_table = &BlockdevOnError_lookup,
@@ -655,7 +655,7 @@ const PropertyInfo qdev_prop_blockdev_on_error = {
 QEMU_BUILD_BUG_ON(sizeof(BiosAtaTranslation) != sizeof(int));
 
 const PropertyInfo qdev_prop_bios_chs_trans = {
-    .name = "BiosAtaTranslation",
+    .type = "BiosAtaTranslation",
     .description = "Logical CHS translation algorithm, "
                    "auto/none/lba/large/rechs",
     .enum_table = &BiosAtaTranslation_lookup,
@@ -667,7 +667,7 @@ const PropertyInfo qdev_prop_bios_chs_trans = {
 /* --- FDC default drive types */
 
 const PropertyInfo qdev_prop_fdc_drive_type = {
-    .name = "FdcDriveType",
+    .type = "FdcDriveType",
     .description = "FDC drive type, "
                    "144/288/120/none/auto",
     .enum_table = &FloppyDriveType_lookup,
@@ -679,7 +679,7 @@ const PropertyInfo qdev_prop_fdc_drive_type = {
 /* --- MultiFDCompression --- */
 
 const PropertyInfo qdev_prop_multifd_compression = {
-    .name = "MultiFDCompression",
+    .type = "MultiFDCompression",
     .description = "multifd_compression values, "
                    "none/zlib/zstd/qpl/uadk/qatzip",
     .enum_table = &MultiFDCompression_lookup,
@@ -693,7 +693,7 @@ const PropertyInfo qdev_prop_multifd_compression = {
 QEMU_BUILD_BUG_ON(sizeof(MigMode) != sizeof(int));
 
 const PropertyInfo qdev_prop_mig_mode = {
-    .name = "MigMode",
+    .type = "MigMode",
     .description = "mig_mode values, "
                    "normal,cpr-reboot",
     .enum_table = &MigMode_lookup,
@@ -707,7 +707,7 @@ const PropertyInfo qdev_prop_mig_mode = {
 QEMU_BUILD_BUG_ON(sizeof(GranuleMode) != sizeof(int));
 
 const PropertyInfo qdev_prop_granule_mode = {
-    .name = "GranuleMode",
+    .type = "GranuleMode",
     .description = "granule_mode values, "
                    "4k, 8k, 16k, 64k, host",
     .enum_table = &GranuleMode_lookup,
@@ -717,7 +717,7 @@ const PropertyInfo qdev_prop_granule_mode = {
 };
 
 const PropertyInfo qdev_prop_zero_page_detection = {
-    .name = "ZeroPageDetection",
+    .type = "ZeroPageDetection",
     .description = "zero_page_detection values, "
                    "none,legacy,multifd",
     .enum_table = &ZeroPageDetection_lookup,
@@ -801,7 +801,7 @@ out:
 }
 
 const PropertyInfo qdev_prop_reserved_region = {
-    .name  = "reserved_region",
+    .type  = "reserved_region",
     .description = "Reserved Region, example: 0xFEE00000:0xFEEFFFFF:0",
     .get   = get_reserved_region,
     .set   = set_reserved_region,
@@ -882,7 +882,7 @@ static int print_pci_devfn(Object *obj, const Property *prop, char *dest,
 }
 
 const PropertyInfo qdev_prop_pci_devfn = {
-    .name  = "str",
+    .type  = "str",
     .description = "Slot and optional function number, example: 06.0 or 06",
     .print = print_pci_devfn,
     .get   = qdev_propinfo_get_int32,
@@ -988,7 +988,7 @@ inval:
 }
 
 const PropertyInfo qdev_prop_pci_host_devaddr = {
-    .name = "str",
+    .type = "str",
     .description = "Address (bus/device/function) of "
                    "the host device, example: 04:10.0",
     .get = get_pci_host_devaddr,
@@ -998,7 +998,7 @@ const PropertyInfo qdev_prop_pci_host_devaddr = {
 /* --- OffAutoPCIBAR off/auto/bar0/bar1/bar2/bar3/bar4/bar5 --- */
 
 const PropertyInfo qdev_prop_off_auto_pcibar = {
-    .name = "OffAutoPCIBAR",
+    .type = "OffAutoPCIBAR",
     .description = "off/auto/bar0/bar1/bar2/bar3/bar4/bar5",
     .enum_table = &OffAutoPCIBAR_lookup,
     .get = qdev_propinfo_get_enum,
@@ -1080,7 +1080,7 @@ static void set_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
 }
 
 const PropertyInfo qdev_prop_pcie_link_speed = {
-    .name = "PCIELinkSpeed",
+    .type = "PCIELinkSpeed",
     .description = "2_5/5/8/16/32/64",
     .enum_table = &PCIELinkSpeed_lookup,
     .get = get_prop_pcielinkspeed,
@@ -1168,7 +1168,7 @@ static void set_prop_pcielinkwidth(Object *obj, Visitor *v, const char *name,
 }
 
 const PropertyInfo qdev_prop_pcie_link_width = {
-    .name = "PCIELinkWidth",
+    .type = "PCIELinkWidth",
     .description = "1/2/4/8/12/16/32",
     .enum_table = &PCIELinkWidth_lookup,
     .get = get_prop_pcielinkwidth,
@@ -1218,7 +1218,7 @@ static void set_default_uuid_auto(ObjectProperty *op, const Property *prop)
 }
 
 const PropertyInfo qdev_prop_uuid = {
-    .name  = "str",
+    .type  = "str",
     .description = "UUID (aka GUID) or \"" UUID_VALUE_AUTO
         "\" for random value (default)",
     .get   = get_uuid,
@@ -1231,7 +1231,7 @@ const PropertyInfo qdev_prop_uuid = {
 QEMU_BUILD_BUG_ON(sizeof(S390CpuEntitlement) != sizeof(int));
 
 const PropertyInfo qdev_prop_cpus390entitlement = {
-    .name  = "S390CpuEntitlement",
+    .type  = "S390CpuEntitlement",
     .description = "low/medium (default)/high",
     .enum_table  = &S390CpuEntitlement_lookup,
     .get   = qdev_propinfo_get_enum,
@@ -1276,7 +1276,7 @@ static void release_iothread_vq_mapping_list(Object *obj,
 }
 
 const PropertyInfo qdev_prop_iothread_vq_mapping_list = {
-    .name = "IOThreadVirtQueueMappingList",
+    .type = "IOThreadVirtQueueMappingList",
     .description = "IOThread virtqueue mapping list [{\"iothread\":\"<id>\", "
                    "\"vqs\":[1,2,3,...]},...]",
     .get = get_iothread_vq_mapping_list,
@@ -1287,7 +1287,7 @@ const PropertyInfo qdev_prop_iothread_vq_mapping_list = {
 /* --- Endian modes */
 
 const PropertyInfo qdev_prop_endian_mode = {
-    .name = "EndianMode",
+    .type = "EndianMode",
     .description = "Endian mode, big/little/unspecified",
     .enum_table = &EndianMode_lookup,
     .get = qdev_propinfo_get_enum,
@@ -1296,7 +1296,7 @@ const PropertyInfo qdev_prop_endian_mode = {
 };
 
 const PropertyInfo qdev_prop_vmapple_virtio_blk_variant = {
-    .name  = "VMAppleVirtioBlkVariant",
+    .type  = "VMAppleVirtioBlkVariant",
     .description = "unspecified/root/aux",
     .enum_table  = &VMAppleVirtioBlkVariant_lookup,
     .get   = qdev_propinfo_get_enum,
