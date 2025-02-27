@@ -52,6 +52,28 @@ static const char dummy_fw[] = {
 #define NVRAM_ADDR 0xfd0e0000
 #define NVRAM_SIZE (4 * KiB)
 
+static char default_env[] =
+    "baudrate=115200\0"
+    "stdout=vga\0"
+    "stdin=ps2kbd\0"
+    "bootcmd=boota; menu; run menuboot_cmd\0"
+    "boot1=ide\0"
+    "boot2=cdrom\0"
+    "boota_timeout=3\0"
+    "ide_doreset=on\0"
+    "pci_irqa=9\0"
+    "pci_irqa_select=level\0"
+    "pci_irqb=10\0"
+    "pci_irqb_select=level\0"
+    "pci_irqc=11\0"
+    "pci_irqc_select=level\0"
+    "pci_irqd=7\0"
+    "pci_irqd_select=level\0"
+    "a1ide_irq=1111\0"
+    "a1ide_xfer=FFFF\0";
+#define CRC32_DEFAULT_ENV 0xb5548481
+#define CRC32_ALL_ZEROS   0x603b0489
+
 #define TYPE_A1_NVRAM "a1-nvram"
 OBJECT_DECLARE_SIMPLE_TYPE(A1NVRAMState, A1_NVRAM)
 
@@ -94,7 +116,7 @@ static void nvram_realize(DeviceState *dev, Error **errp)
 {
     A1NVRAMState *s = A1_NVRAM(dev);
     void *p;
-    uint32_t *c;
+    uint32_t crc, *c;
 
     memory_region_init_rom_device(&s->mr, NULL, &nvram_ops, s, "nvram",
                                   NVRAM_SIZE, &error_fatal);
@@ -113,11 +135,24 @@ static void nvram_realize(DeviceState *dev, Error **errp)
             return;
         }
     }
+    crc = crc32(0, p + 4, NVRAM_SIZE - 4);
+    if (crc == CRC32_ALL_ZEROS) { /* If env is uninitialized set default */
+        *c = cpu_to_be32(CRC32_DEFAULT_ENV);
+        /* Also copies terminating \0 as env is terminated by \0\0 */
+        memcpy(p + 4, default_env, sizeof(default_env));
+        if (s->blk) {
+            blk_pwrite(s->blk, 0, sizeof(crc) + sizeof(default_env), p, 0);
+        }
+        return;
+    }
     if (*c == 0) {
         *c = cpu_to_be32(crc32(0, p + 4, NVRAM_SIZE - 4));
         if (s->blk) {
             blk_pwrite(s->blk, 0, 4, p, 0);
         }
+    }
+    if (be32_to_cpu(*c) != crc) {
+        warn_report("NVRAM checksum mismatch");
     }
 }
 
