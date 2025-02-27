@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
 /*
  * Process the macros for HVX
  */
-#define DEF_MACRO(MNAME, BEH, ATTRS) \
+#define DEF_MACRO(MNAME, PARAMS, SDESC, LDESC, BEH, ATTRS) \
     fprintf(outfile, "MACROATTRIB( \\\n" \
                      "    \"%s\", \\\n" \
                      "    \"\"\"%s\"\"\", \\\n" \

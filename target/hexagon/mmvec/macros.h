@@ -354,3 +354,16 @@
     } while (0);
 
 #endif
+
+#define fPARSEHF(A) parse_hf(A)
+#define fPARSESF(A) parse_sf(A)
+#define fPARSEQF16(A) parse_qf16(A)
+#define fPARSEQF32(A) parse_qf32(A)
+
+#define fRNDSATHF(A,B) rnd_sat_hf(A,B)
+#define fRNDSATSF(A,B) rnd_sat_sf(A,B)
+#define fRNDSATQF16(A,B,C) rnd_sat_qf16(A,B,C)
+#define fRNDSATQF32(A,B,C) rnd_sat_qf32(A,B,C)
+
+#define fNEGQF16(A) negate16(A)
+#define fNEGQF32(A) negate32(A)

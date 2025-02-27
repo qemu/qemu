@@ -15,46 +15,76 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-DEF_MACRO(fDUMPQ,
+DEF_MACRO(fDUMPQ,(STR,REG),
+	"dump REG",
+	"dump REG",
 	do {
 		printf(STR ":" #REG ": 0x%016llx\n",REG.ud[0]);
 	} while (0),
 	()
 )
 
-DEF_MACRO(fUSE_LOOKUP_ADDRESS_BY_REV,
-	PROC->arch_proc_options->mmvec_use_full_va_for_lookup,
+DEF_MACRO(fUSE_LOOKUP_ADDRESS_BY_REV,(PROC),
+	"",
+	"Use full VA address for lookup and exception based on REV ",
+	PROC->arch_proc_options->HVX_USE_FULL_VA,
 	()
 )
 
-DEF_MACRO(fUSE_LOOKUP_ADDRESS,
+DEF_MACRO(fUSE_LOOKUP_ADDRESS,(),
+	"",
+	"Use full VA address for lookup and exception",
 	1,
 	()
 )
 
-DEF_MACRO(fNOTQ,
+DEF_MACRO(fRT8NOTE, (),
+	"",
+	"",
+	,
+	(A_NOTE_RT8)
+)
+
+DEF_MACRO(fCVI_VX_NO_TMP_LD, (),
+    "",
+    "",
+    ,
+    (A_CVI_VX_NO_TMP_LD)
+)
+DEF_MACRO(fNOTQ,(VAL),
+	"~VAL",
+	"~VAL",
+	/* Will break Visual Studio? */
 	({mmqreg_t _ret = {0}; int _i_; for (_i_ = 0; _i_ < fVECSIZE()/64; _i_++) _ret.ud[_i_] = ~VAL.ud[_i_]; _ret;}),
 	()
 )
 
-DEF_MACRO(fGETQBITS,
+DEF_MACRO(fGETQBITS,(REG,WIDTH,MASK,BITNO),
+	"REG[BITNO+WIDTH-1:BITNO]",
+	"Get MASK bits at BITNO from REG",
 	((MASK) & (REG.w[(BITNO)>>5] >> ((BITNO) & 0x1f))),
 	()
 )
 
-DEF_MACRO(fGETQBIT,
+DEF_MACRO(fGETQBIT,(REG,BITNO),
+	"REG[BITNO]",
+	"Get bit BITNO from REG",
 	fGETQBITS(REG,1,1,BITNO),
 	()
 )
 
-DEF_MACRO(fGENMASKW,
+DEF_MACRO(fGENMASKW,(QREG,IDX),
+	"maskw(QREG,IDX)",
+	"Generate mask from QREG for word IDX",
 	(((fGETQBIT(QREG,(IDX*4+0)) ? 0xFF : 0x0) << 0)
 	|((fGETQBIT(QREG,(IDX*4+1)) ? 0xFF : 0x0) << 8)
 	|((fGETQBIT(QREG,(IDX*4+2)) ? 0xFF : 0x0) << 16)
 	|((fGETQBIT(QREG,(IDX*4+3)) ? 0xFF : 0x0) << 24)),
 	()
 )
-DEF_MACRO(fGET10BIT,
+DEF_MACRO(fGET10BIT,(COE,VAL,POS),
+	"COE=(((((fGETUBYTE(3,VAL) >> (2 * POS)) & 3) << 8) | fGETUBYTE(POS,VAL)) << 6) >> 6;",
+	"Get 10-bit coefficient from current word value and byte position",
 	{
 		COE = (((((fGETUBYTE(3,VAL) >> (2 * POS)) & 3) << 8) | fGETUBYTE(POS,VAL)) << 6);
 		COE >>= 6;
@@ -62,62 +92,160 @@ DEF_MACRO(fGET10BIT,
 	()
 )
 
-DEF_MACRO(fVMAX,
+DEF_MACRO(fVMAX,(X,Y),
+	"max(X,Y)",
+	"",
 	(X>Y) ? X : Y,
 	()
 )
 
 
-DEF_MACRO(fGETNIBBLE,
+DEF_MACRO(fREAD_VEC,
+    (DST,IDX),
+    "DST=VREG[IDX]",   /* short desc */
+    "Read Vector IDX", /* long desc */
+	(DST = READ_VREG(fMODCIRCU((IDX),5))),
+    ()
+)
+DEF_MACRO(fREAD_ZVEC,
+    (DST,IDX),
+    "DST=ZREG[IDX]",   /* short desc */
+    "Read Vector IDX", /* long desc */
+	(DST = READ_ZREG(fMODCIRCU((IDX),5))),
+    ()
+)
+
+DEF_MACRO(fREAD_ZVEC_WORD,
+    (DST,IDX),
+    "DST=ZReg.uw[IDX]",   /* short desc */
+    "Read Z Vector IDX", /* long desc */
+	{
+		mmvector_t ZReg = READ_ZREG(0);
+		DST = ZReg.uw[IDX];
+
+	},
+    ()
+)
+DEF_MACRO(fREAD_ZVEC_ALL,
+    (DST,N,NZ),
+    "",   /* short desc */
+    "Read Z Vector IDX", /* long desc */
+	{
+		int __idx = 0;
+		for (__idx = 0; __idx < NZ/N; __idx++) {
+			memcpy(&DST[N*__idx], &THREAD2STRUCT->ZRegs[__idx], N);
+		}
+	},
+    ()
+)
+DEF_MACRO(fZREGB,
+    (Z,IDX),
+    "ZREG.b[IDX]",   /* short desc */
+    "Read Z IDX", /* long desc */
+	((size1s_t)Z[IDX]),
+    ()
+)
+DEF_MACRO(fZREGUB,
+    (Z,IDX),
+    "ZREG.ub[IDX]",   /* short desc */
+    "Read Z IDX", /* long desc */
+	((size1u_t)Z[IDX]),
+    ()
+)
+DEF_MACRO(fZREGH,
+    (Z,IDX),
+    "ZREG.h[IDX]",   /* short desc */
+    "Read Z IDX", /* long desc */
+	((size2s_t)Z[IDX]),
+    ()
+)
+DEF_MACRO(fZREGUB,
+    (Z,IDX),
+    "ZREG.ub[IDX]",   /* short desc */
+    "Read Z IDX", /* long desc */
+	((size1u_t)Z[IDX]),
+    ()
+)
+
+DEF_MACRO(fGETNIBBLE,(IDX,SRC),
+    "SRC.s4[IDX]",
+    "Get nibble",
     ( fSXTN(4,8,(SRC >> (4*IDX)) & 0xF) ),
     ()
 )
 
-DEF_MACRO(fGETCRUMB,
+DEF_MACRO(fGETCRUMB,(IDX,SRC),
+    "SRC.s2[IDX]",
+    "Get 2bits",
     ( fSXTN(2,8,(SRC >> (2*IDX)) & 0x3) ),
     ()
 )
 
-DEF_MACRO(fGETCRUMB_SYMMETRIC,
+DEF_MACRO(fGETCRUMB_SYMMETRIC,(IDX,SRC),
+    "SRC.s2[IDX] >= 0 ? (2-SRC.s2[IDX]) : SRC.s2[IDX]",
+    "Get 2bits",
     ( (fGETCRUMB(IDX,SRC)>=0 ? (2-fGETCRUMB(IDX,SRC)) : fGETCRUMB(IDX,SRC) ) ),
     ()
 )
 
+//#define ZERO_OFFSET_2B +(fGETCRUMB(z,VuV.uw[i])>=0)
 #define ZERO_OFFSET_2B +
 
-DEF_MACRO(fGENMASKH,
+DEF_MACRO(fWRITE_VEC,
+    (IDX,VAR),
+    "VREG[IDX]=VAR",   /* short desc */
+    "Write Vector IDX", /* long desc */
+	(WRITE_VREG(fMODCIRCU((IDX),5),VAR)),
+    ()
+)
+
+DEF_MACRO(fGENMASKH,(QREG,IDX),
+	"maskh(QREG,IDX)",
+	"generate mask from QREG for halfword IDX",
 	(((fGETQBIT(QREG,(IDX*2+0)) ? 0xFF : 0x0) << 0)
 	|((fGETQBIT(QREG,(IDX*2+1)) ? 0xFF : 0x0) << 8)),
 	()
 )
 
-DEF_MACRO(fGETMASKW,
+DEF_MACRO(fGETMASKW,(VREG,QREG,IDX),
+	"VREG.w[IDX] & fGENMASKW(QREG,IDX)",
+	"Mask word IDX from VREG using QREG",
 	(VREG.w[IDX] & fGENMASKW((QREG),IDX)),
 	()
 )
 
-DEF_MACRO(fGETMASKH,
+DEF_MACRO(fGETMASKH,(VREG,QREG,IDX),
+	"VREG.h[IDX] & fGENMASKH(QREG,IDX)",
+	"Mask word IDX from VREG using QREG",
 	(VREG.h[IDX] & fGENMASKH((QREG),IDX)),
 	()
 )
 
-DEF_MACRO(fCONDMASK8,
+DEF_MACRO(fCONDMASK8,(QREG,IDX,YESVAL,NOVAL),
+	"QREG.IDX ? YESVAL : NOVAL",
+	"QREG.IDX ? YESVAL : NOVAL",
 	(fGETQBIT(QREG,IDX) ? (YESVAL) : (NOVAL)),
 	()
 )
 
-DEF_MACRO(fCONDMASK16,
+DEF_MACRO(fCONDMASK16,(QREG,IDX,YESVAL,NOVAL),
+	"select_bytes(QREG,IDX,YESVAL,NOVAL)",
+	"select_bytes(QREG,IDX,YESVAL,NOVAL)",
 	((fGENMASKH(QREG,IDX) & (YESVAL)) | (fGENMASKH(fNOTQ(QREG),IDX) & (NOVAL))),
 	()
 )
 
-DEF_MACRO(fCONDMASK32,
+DEF_MACRO(fCONDMASK32,(QREG,IDX,YESVAL,NOVAL),
+	"select_bytes(QREG,IDX,YESVAL,NOVAL)",
+	"select_bytes(QREG,IDX,YESVAL,NOVAL)",
 	((fGENMASKW(QREG,IDX) & (YESVAL)) | (fGENMASKW(fNOTQ(QREG),IDX) & (NOVAL))),
 	()
 )
 
 
-DEF_MACRO(fSETQBITS,
+DEF_MACRO(fSETQBITS,(REG,WIDTH,MASK,BITNO,VAL),
+	"REG[BITNO+WIDTH-1:BITNO] = VAL",
+	"Put bits into REG",
 	do {
 		size4u_t __TMP = (VAL);
 		REG.w[(BITNO)>>5] &= ~((MASK) << ((BITNO) & 0x1f));
@@ -126,58 +254,101 @@ DEF_MACRO(fSETQBITS,
 	()
 )
 
-DEF_MACRO(fSETQBIT,
+DEF_MACRO(fSETQBIT,(REG,BITNO,VAL),
+	"REG[BITNO]=VAL",
+	"Put bit into REG",
 	fSETQBITS(REG,1,1,BITNO,VAL),
 	()
 )
 
-DEF_MACRO(fVBYTES,
+DEF_MACRO(fVBYTES,(),
+	"VWIDTH",
+	"Number of bytes in a vector",
 	(fVECSIZE()),
 	()
 )
 
-DEF_MACRO(fVHALVES,
+DEF_MACRO(fVHALVES,(),
+	"VWIDTH/2",
+	"Number of halves in a vector",
 	(fVECSIZE()/2),
 	()
 )
 
-DEF_MACRO(fVWORDS,
+DEF_MACRO(fVWORDS,(),
+	"VWIDTH/2",
+	"Number of words in a vector",
 	(fVECSIZE()/4),
 	()
 )
 
-DEF_MACRO(fVDWORDS,
+DEF_MACRO(fVDWORDS,(),
+	"VWIDTH/8",
+	"Number of double words in a vector",
 	(fVECSIZE()/8),
 	()
 )
 
-DEF_MACRO(fVALIGN,
+DEF_MACRO(fVALIGN, (ADDR, LOG2_ALIGNMENT),
+    "ADDR = ADDR & ~(LOG2_ALIGNMENT-1)",
+    "Align to Element Size",
     ( ADDR = ADDR & ~(LOG2_ALIGNMENT-1)),
     ()
 )
 
-DEF_MACRO(fVLASTBYTE,
+DEF_MACRO(fVLASTBYTE, (ADDR, LOG2_ALIGNMENT),
+    "ADDR = ADDR | (LOG2_ALIGNMENT-1)",
+    "Set LSB of length to last byte",
     ( ADDR = ADDR | (LOG2_ALIGNMENT-1)),
     ()
 )
 
 
-DEF_MACRO(fVELEM,
+DEF_MACRO(fVELEM, (WIDTH),
+    "VBITS/WIDTH",
+    "Number of WIDTH-bit elements in a vector",
     ((fVECSIZE()*8)/WIDTH),
     ()
 )
 
-DEF_MACRO(fVECLOGSIZE,
+DEF_MACRO(fVECLOGSIZE,(),
+    "log2(VECTOR_SIZE)",
+    "Log base 2 of the number of bytes in a vector",
     (mmvec_current_veclogsize(thread)),
     ()
 )
 
-DEF_MACRO(fVECSIZE,
+DEF_MACRO(fVBUF_IDX,(EA),
+	"(EA >> log2(VECTOR_SIZE)) & 0xFF",
+	"(EA >> log2(VECTOR_SIZE)) & 0xFF",
+	(((EA) >> fVECLOGSIZE()) & 0xFF),
+	(A_FAKEINSN)
+)
+
+DEF_MACRO(fREAD_VBUF,(IDX,WIDX),
+	"vbuf[IDX].w[WIDX]",
+	"vbuf[IDX].w[WIDX]",
+	READ_VBUF(IDX,WIDX),
+	(A_FAKEINSN)
+)
+
+DEF_MACRO(fLOG_VBUF,(IDX,VAL,WIDX),
+	"vbuf[IDX].w[WIDX] = VAL",
+	"vbuf[IDX].w[WIDX] = VAL",
+	LOG_VBUF(IDX,VAL,WIDX),
+	(A_FAKEINSN)
+)
+
+DEF_MACRO(fVECSIZE,(),
+    "VBYTES",
+    "Number of bytes in a vector currently",
     (1<<fVECLOGSIZE()),
     ()
 )
 
-DEF_MACRO(fSWAPB,
+DEF_MACRO(fSWAPB,(A, B),
+    "SWAP(A,B)",
+    "Swap bytes",
     {
 		size1u_t tmp = A;
 		A = B;
@@ -187,41 +358,54 @@ DEF_MACRO(fSWAPB,
 )
 
 DEF_MACRO(
-	fVZERO,
+	fVZERO,(),
+	"0",
+	"0",
 	mmvec_zero_vector(),
 	()
 )
 
 DEF_MACRO(
-    fNEWVREG,
+    fNEWVREG,(VNUM),
+    "VNUM.new",
+    "Register value produced in this packet",
     ((THREAD2STRUCT->VRegs_updated & (((VRegMask)1)<<VNUM)) ? THREAD2STRUCT->future_VRegs[VNUM] : mmvec_zero_vector()),
     (A_DOTNEWVALUE,A_RESTRICT_SLOT0ONLY)
 )
 
 DEF_MACRO(
 	fV_AL_CHECK,
+	(EA,MASK),
+	"",
+	"",
 	if ((EA) & (MASK)) {
 		warn("aligning misaligned vector. PC=%08x EA=%08x",thread->Regs[REG_PC],(EA));
 	},
 	()
 )
-DEF_MACRO(fSCATTER_INIT,
+DEF_MACRO(fSCATTER_INIT, ( REGION_START, LENGTH, ELEMENT_SIZE),
+    "",
+    "",
     {
     mem_vector_scatter_init(thread, insn,   REGION_START, LENGTH, ELEMENT_SIZE);
 	if (EXCEPTION_DETECTED) return;
     },
-    (A_STORE,A_MEMLIKE,A_RESTRICT_SLOT0ONLY)
+    (A_STORE,A_MEMLIKE,A_RESTRICT_SINGLE_MEM_FIRST,A_RESTRICT_SLOT0ONLY)
 )
 
-DEF_MACRO(fGATHER_INIT,
+DEF_MACRO(fGATHER_INIT, ( REGION_START, LENGTH, ELEMENT_SIZE),
+    "",
+    "",
     {
     mem_vector_gather_init(thread, insn,   REGION_START, LENGTH, ELEMENT_SIZE);
 	if (EXCEPTION_DETECTED) return;
     },
-    (A_LOAD,A_MEMLIKE,A_RESTRICT_SLOT1ONLY)
+    (A_LOAD,A_MEMLIKE,A_RESTRICT_SINGLE_MEM_FIRST)
 )
 
-DEF_MACRO(fSCATTER_FINISH,
+DEF_MACRO(fSCATTER_FINISH, (OP),
+    "",
+    "",
     {
 	if (EXCEPTION_DETECTED) return;
     mem_vector_scatter_finish(thread, insn, OP);
@@ -229,7 +413,9 @@ DEF_MACRO(fSCATTER_FINISH,
     ()
 )
 
-DEF_MACRO(fGATHER_FINISH,
+DEF_MACRO(fGATHER_FINISH, (),
+    "",
+    "",
     {
 	if (EXCEPTION_DETECTED) return;
     mem_vector_gather_finish(thread, insn);
@@ -238,7 +424,9 @@ DEF_MACRO(fGATHER_FINISH,
 )
 
 
-DEF_MACRO(CHECK_VTCM_PAGE,
+DEF_MACRO(CHECK_VTCM_PAGE, (FLAG, BASE, LENGTH, OFFSET, ALIGNMENT),
+    "FLAG=((BASE+OFFSET) < (BASE+LENGTH))",
+    "FLAG=((BASE+OFFSET) < (BASE+LENGTH))",
      {
         int slot = insn->slot;
         paddr_t pa = thread->mem_access[slot].paddr+OFFSET;
@@ -247,7 +435,9 @@ DEF_MACRO(CHECK_VTCM_PAGE,
      },
     ()
 )
-DEF_MACRO(COUNT_OUT_OF_BOUNDS,
+DEF_MACRO(COUNT_OUT_OF_BOUNDS, (FLAG, SIZE),
+    " ",
+    "",
      {
         if (!FLAG)
         {
@@ -258,7 +448,9 @@ DEF_MACRO(COUNT_OUT_OF_BOUNDS,
     ()
 )
 
-DEF_MACRO(fLOG_SCATTER_OP,
+DEF_MACRO(fLOG_SCATTER_OP, (SIZE),
+    "  ",
+    "  ",
     {
         // Log the size and indicate that the extension ext.c file needs to increment right before memory write
         THREAD2STRUCT->vtcm_log.op = 1;
@@ -269,7 +461,9 @@ DEF_MACRO(fLOG_SCATTER_OP,
 
 
 
-DEF_MACRO(fVLOG_VTCM_WORD_INCREMENT,
+DEF_MACRO(fVLOG_VTCM_WORD_INCREMENT, (EA,OFFSET,INC,IDX,ALIGNMENT,LEN),
+    "if (RtV <= EA <= RtV + LEN) *EA += INC.uw[IDX] ",
+    "if (RtV <= EA <= RtV + LEN) *EA += INC.uw[IDX] ",
     {
         int slot = insn->slot;
         int log_bank = 0;
@@ -287,7 +481,9 @@ DEF_MACRO(fVLOG_VTCM_WORD_INCREMENT,
     ()
 )
 
-DEF_MACRO(fVLOG_VTCM_HALFWORD_INCREMENT,
+DEF_MACRO(fVLOG_VTCM_HALFWORD_INCREMENT, (EA,OFFSET,INC,IDX,ALIGNMENT,LEN),
+    "if (RtV <= EA <= RtV + LEN) *EA += INC.uh[IDX] ",
+    "if (RtV <= EA <= RtV + LEN) *EA += INC.uh[IDX] ",
     {
         int slot = insn->slot;
         int log_bank = 0;
@@ -304,7 +500,9 @@ DEF_MACRO(fVLOG_VTCM_HALFWORD_INCREMENT,
     ()
 )
 
-DEF_MACRO(fVLOG_VTCM_HALFWORD_INCREMENT_DV,
+DEF_MACRO(fVLOG_VTCM_HALFWORD_INCREMENT_DV, (EA,OFFSET,INC,IDX,IDX2,IDX_H,ALIGNMENT,LEN),
+    "if (RtV <= EA <= RtV + LEN) *EA += INC.w[IDX2].uh[IDX_H] ",
+    "if (RtV <= EA <= RtV + LEN) *EA += INC.w[IDX2].uh[IDX_H] ",
     {
         int slot = insn->slot;
         int log_bank = 0;
@@ -323,7 +521,9 @@ DEF_MACRO(fVLOG_VTCM_HALFWORD_INCREMENT_DV,
 
 
 
-DEF_MACRO(GATHER_FUNCTION,
+DEF_MACRO(GATHER_FUNCTION, (EA,OFFSET,IDX, LEN, ELEMENT_SIZE, BANK_IDX, QVAL),
+"",
+"",
 {
         int slot = insn->slot;
         int i0;
@@ -336,6 +536,9 @@ DEF_MACRO(GATHER_FUNCTION,
             log_byte =  ((OFFSET>=0)&&((pa+i0)<=pa_high)) && QVAL;
             log_bank |= (log_byte<<i0);
             size1u_t B  = sim_mem_read1(thread->system_ptr, thread->threadId, thread->mem_access[slot].paddr+OFFSET+i0);
+#ifdef VERIFICATION
+			warn("Gather[%d] sim_mem_read1 pa:%llx val: %x", ELEMENT_SIZE*IDX+i0, thread->mem_access[slot].paddr+OFFSET+i0, B);
+#endif
             THREAD2STRUCT->tmp_VRegs[0].ub[ELEMENT_SIZE*IDX+i0] = B;
             LOG_VTCM_BYTE(pa+i0,log_byte,B,ELEMENT_SIZE*IDX+i0);
         }
@@ -346,38 +549,50 @@ DEF_MACRO(GATHER_FUNCTION,
 
 
 
-DEF_MACRO(fVLOG_VTCM_GATHER_WORD,
+DEF_MACRO(fVLOG_VTCM_GATHER_WORD, (EA,OFFSET,IDX, LEN),
+    "if (RtV <= EA <= RtV + LEN) TEMP.uw[IDX] = *EA ",
+    "if (RtV <= EA <= RtV + LEN) TEMP.uw[IDX] = *EA ",
     {
 		GATHER_FUNCTION(EA,OFFSET,IDX, LEN, 4, IDX, 1);
     },
     ()
 )
-DEF_MACRO(fVLOG_VTCM_GATHER_HALFWORD,
+DEF_MACRO(fVLOG_VTCM_GATHER_HALFWORD, (EA,OFFSET,IDX, LEN),
+    " if (RtV <= EA <= RtV + LEN) TEMP.uh[IDX] = *EA ",
+    " if (RtV <= EA <= RtV + LEN) TEMP.uh[IDX] = *EA ",
     {
 		GATHER_FUNCTION(EA,OFFSET,IDX, LEN, 2, IDX, 1);
     },
     ()
 )
-DEF_MACRO(fVLOG_VTCM_GATHER_HALFWORD_DV,
+DEF_MACRO(fVLOG_VTCM_GATHER_HALFWORD_DV, (EA,OFFSET,IDX,IDX2,IDX_H, LEN),
+    "if (RtV <= EA <= RtV + LEN) TEMP.uw[IDX2].uh[IDX_H] = *EA ",
+    "if (RtV <= EA <= RtV + LEN) TEMP.uw[IDX2].uh[IDX_H] = *EA ",
     {
 		GATHER_FUNCTION(EA,OFFSET,IDX, LEN, 2, (2*IDX2+IDX_H), 1);
     },
     ()
 )
-DEF_MACRO(fVLOG_VTCM_GATHER_WORDQ,
+DEF_MACRO(fVLOG_VTCM_GATHER_WORDQ, (EA,OFFSET,IDX, Q, LEN),
+    " if ( (RtV <= EA <= RtV + LEN) & Q) TEMP.uw[IDX] = *EA ",
+    " if ( (RtV <= EA <= RtV + LEN) & Q) TEMP.uw[IDX] = *EA ",
     {
 		GATHER_FUNCTION(EA,OFFSET,IDX, LEN, 4, IDX, fGETQBIT(QsV,4*IDX+i0));
     },
     ()
 )
-DEF_MACRO(fVLOG_VTCM_GATHER_HALFWORDQ,
+DEF_MACRO(fVLOG_VTCM_GATHER_HALFWORDQ, (EA,OFFSET,IDX, Q, LEN),
+    " if ( (RtV <= EA <= RtV + LEN) & Q) TEMP.uh[IDX] = *EA ",
+    " if ( (RtV <= EA <= RtV + LEN) & Q) TEMP.uh[IDX] = *EA ",
     {
 		GATHER_FUNCTION(EA,OFFSET,IDX, LEN, 2, IDX, fGETQBIT(QsV,2*IDX+i0));
     },
     ()
 )
 
-DEF_MACRO(fVLOG_VTCM_GATHER_HALFWORDQ_DV,
+DEF_MACRO(fVLOG_VTCM_GATHER_HALFWORDQ_DV, (EA,OFFSET,IDX,IDX2,IDX_H, Q, LEN),
+    " if ( (RtV <= EA <= RtV + LEN) & Q) TEMP.uw[IDX2].uh[IDX_H] = *EA ",
+    " if ( (RtV <= EA <= RtV + LEN) & Q) TEMP.uw[IDX2].uh[IDX_H] = *EA ",
     {
 		GATHER_FUNCTION(EA,OFFSET,IDX, LEN, 2, (2*IDX2+IDX_H), fGETQBIT(QsV,2*IDX+i0));
     },
@@ -385,7 +600,9 @@ DEF_MACRO(fVLOG_VTCM_GATHER_HALFWORDQ_DV,
 )
 
 
-DEF_MACRO(DEBUG_LOG_ADDR,
+DEF_MACRO(DEBUG_LOG_ADDR, (OFFSET),
+    "  ",
+    "  ",
     {
 
         if (thread->processor_ptr->arch_proc_options->mmvec_network_addr_log2)
@@ -393,6 +610,7 @@ DEF_MACRO(DEBUG_LOG_ADDR,
 
             int slot = insn->slot;
             paddr_t pa = thread->mem_access[slot].paddr+OFFSET;
+           // pa = pa & ~(ALIGNMENT-1);
         }
     },
     ()
@@ -404,7 +622,9 @@ DEF_MACRO(DEBUG_LOG_ADDR,
 
 
 
-DEF_MACRO(SCATTER_OP_WRITE_TO_MEM,
+DEF_MACRO(SCATTER_OP_WRITE_TO_MEM, (TYPE),
+    " Read, accumulate, and write to VTCM",
+    "  ",
     {
         for (int i = 0; i < mmvecx->vtcm_log.size; i+=sizeof(TYPE))
         {
@@ -430,7 +650,9 @@ DEF_MACRO(SCATTER_OP_WRITE_TO_MEM,
     ()
 )
 
-DEF_MACRO(SCATTER_FUNCTION,
+DEF_MACRO(SCATTER_FUNCTION, (EA,OFFSET,IDX, LEN, ELEMENT_SIZE, BANK_IDX, QVAL, IN),
+"",
+"",
 {
         int slot = insn->slot;
         int i0;
@@ -449,26 +671,34 @@ DEF_MACRO(SCATTER_FUNCTION,
 ()
 )
 
-DEF_MACRO(fVLOG_VTCM_HALFWORD,
+DEF_MACRO(fVLOG_VTCM_HALFWORD, (EA,OFFSET,IN,IDX, LEN),
+    "if (RtV <= EA <= RtV + LEN) *EA = IN.uh[IDX] ",
+    "if (RtV <= EA <= RtV + LEN) *EA = IN.uh[IDX] ",
     {
 		SCATTER_FUNCTION (EA,OFFSET,IDX, LEN, 2, IDX, 1, IN);
     },
     ()
 )
-DEF_MACRO(fVLOG_VTCM_WORD,
+DEF_MACRO(fVLOG_VTCM_WORD, (EA,OFFSET,IN,IDX,LEN),
+    "if (RtV <= EA <= RtV + LEN) *EA = IN.uw[IDX] ",
+    "if (RtV <= EA <= RtV + LEN) *EA = IN.uw[IDX] ",
     {
 		SCATTER_FUNCTION (EA,OFFSET,IDX, LEN, 4, IDX, 1, IN);
     },
     ()
 )
 
-DEF_MACRO(fVLOG_VTCM_HALFWORDQ,
+DEF_MACRO(fVLOG_VTCM_HALFWORDQ, (EA,OFFSET,IN,IDX,Q,LEN),
+    " if ( (RtV <= EA <= RtV + LEN) & Q) *EA = IN.uh[IDX] ",
+    " if ( (RtV <= EA <= RtV + LEN) & Q) *EA = IN.uh[IDX] ",
     {
 		SCATTER_FUNCTION (EA,OFFSET,IDX, LEN, 2, IDX, fGETQBIT(QsV,2*IDX+i0), IN);
     },
     ()
 )
-DEF_MACRO(fVLOG_VTCM_WORDQ,
+DEF_MACRO(fVLOG_VTCM_WORDQ, (EA,OFFSET,IN,IDX,Q,LEN),
+    " if ( (RtV <= EA <= RtV + LEN) & Q) *EA = IN.uw[IDX] ",
+    " if ( (RtV <= EA <= RtV + LEN) & Q) *EA = IN.uw[IDX] ",
     {
 		SCATTER_FUNCTION (EA,OFFSET,IDX, LEN, 4, IDX, fGETQBIT(QsV,4*IDX+i0), IN);
     },
@@ -479,14 +709,18 @@ DEF_MACRO(fVLOG_VTCM_WORDQ,
 
 
 
-DEF_MACRO(fVLOG_VTCM_HALFWORD_DV,
+DEF_MACRO(fVLOG_VTCM_HALFWORD_DV, (EA,OFFSET,IN,IDX,IDX2,IDX_H, LEN),
+    "if (RtV <= EA <= RtV + LEN) *EA = IN.w[IDX2].uh[IDX_H] ",
+    "if (RtV <= EA <= RtV + LEN) *EA = IN.w[IDX2].uh[IDX_H] ",
     {
 		SCATTER_FUNCTION (EA,OFFSET,IDX, LEN, 2, (2*IDX2+IDX_H), 1, IN);
     },
     ()
 )
 
-DEF_MACRO(fVLOG_VTCM_HALFWORDQ_DV,
+DEF_MACRO(fVLOG_VTCM_HALFWORDQ_DV, (EA,OFFSET,IN,IDX,Q,IDX2,IDX_H, LEN),
+    " if ( (RtV <= EA <= RtV + LEN) & Q) *EA = IN.w[IDX2].uh[IDX_H] ",
+    " if ( (RtV <= EA <= RtV + LEN) & Q) *EA = IN.w[IDX2].uh[IDX_H] ",
     {
 		SCATTER_FUNCTION (EA,OFFSET,IDX, LEN, 2, (2*IDX2+IDX_H), fGETQBIT(QsV,2*IDX+i0), IN);
     },
@@ -498,39 +732,161 @@ DEF_MACRO(fVLOG_VTCM_HALFWORDQ_DV,
 
 
 
-DEF_MACRO(fSTORERELEASE,
+DEF_MACRO(fSTORERELEASE, (EA,TYPE),
+	"char* addr = EA&~(ALIGNMENT-1); Zero Byte Store Release (Non-blocking Sync)",
+	"Zero Byte Store Release (Sync)",
     {
         fV_AL_CHECK(EA,fVECSIZE()-1);
 
         mem_store_release(thread, insn, fVECSIZE(), EA&~(fVECSIZE()-1), EA, TYPE, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
     },
-	(A_STORE,A_MEMLIKE)
+	(A_STORE,A_MEMLIKE,A_RESTRICT_SINGLE_MEM_FIRST)
 )
 
-DEF_MACRO(fVFETCH_AL,
+DEF_MACRO(fVFETCH_AL, (EA),
+    "Prefetch vector into L2 cache at EA",
+    "Prefetch vector into L2 cache at EA",
     {
     fV_AL_CHECK(EA,fVECSIZE()-1);
     mem_fetch_vector(thread, insn, EA&~(fVECSIZE()-1), insn->slot, fVECSIZE());
     },
-    (A_LOAD,A_MEMLIKE)
+    (A_LOAD,A_MEMLIKE,A_RESTRICT_SINGLE_MEM_FIRST,A_RESTRICT_NOSLOT1_STORE)
 )
 
 
-DEF_MACRO(fLOADMMV_AL,
+DEF_MACRO(fLOADMMV_AL, (EA, ALIGNMENT, LEN, DST),
+    "char* addr = EA&~(ALIGNMENT-1); for (i=0; i<LEN; ++i) DST[i] = addr[i]",
+    "Load LEN bytes from memory at EA (forced alignment) to DST.",
     {
     fV_AL_CHECK(EA,ALIGNMENT-1);
 	thread->last_pkt->double_access_vec = 0;
     mem_load_vector_oddva(thread, insn, EA&~(ALIGNMENT-1), EA, insn->slot, LEN, &DST.ub[0], LEN, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
     },
-    (A_LOAD,A_MEMLIKE)
+    (A_LOAD,A_MEMLIKE,A_RESTRICT_SINGLE_MEM_FIRST,A_RESTRICT_NOSLOT1_STORE)
 )
 
-DEF_MACRO(fLOADMMV,
+DEF_MACRO(fLOADMMV, (EA, DST),
+	"DST = *(EA&~(ALIGNMENT-1))",
+	"Load vector from memory at EA (forced alignment) to DST.",
 	fLOADMMV_AL(EA,fVECSIZE(),fVECSIZE(),DST),
 	()
 )
 
-DEF_MACRO(fLOADMMVQ,
+DEF_MACRO(fLOADMMZ, (EA,DST),
+	"DST[EA[7]] = *(EA)",
+	"Load splatter register from memory at EA (forced alignment) to DST.",
+	{
+		mmvector_t load_vec;
+		fV_AL_CHECK(EA,fVECSIZE()-1);
+		mem_load_vector_oddva(thread, insn, EA&~(fVECSIZE()-1), EA, insn->slot, fVECSIZE(), &load_vec.ub[0], fVECSIZE(), fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
+		int idx = (EA & 0x80)>0;
+		DST.v[idx] = load_vec;
+
+	},
+	()
+)
+DEF_MACRO(fLOADZ_LOAD, (EA,EAU,WIDTH,DST),
+	"",
+	"",
+	{
+		thread->last_pkt->ext_slot_cancelled = 0;
+		thread->last_pkt->double_access_vec = 0;
+		int etm_size = ((EA % width) ==0) ? fVECSIZE() : 0;
+		if (thread->processor_ptr->options->testgen_mode)
+			etm_size = ((EA % width) ==0) ? WIDTH : 0;
+
+		mem_load_vector_oddva(thread, insn, EA, EAU, insn->slot, WIDTH, &DST.ub[0], etm_size, fUSE_LOOKUP_ADDRESS());
+	},
+	(A_LOAD,A_MEMLIKE,A_RESTRICT_SINGLE_MEM_FIRST,A_RESTRICT_NOSLOT1_STORE)
+)
+
+DEF_MACRO(fELSE_CANCELZ, (),
+	"",
+	"",
+	else {
+		if (thread->last_pkt) {
+			thread->mem_access[insn->slot].dropped_z = 1;
+			thread->last_pkt->ext_slot_cancelled |= (1<<insn->slot);
+		}
+	},
+	(A_LOAD,A_MEMLIKE,A_RESTRICT_SINGLE_MEM_FIRST,A_RESTRICT_NOSLOT1_STORE)
+)
+
+
+
+
+DEF_MACRO(fPOST_INC4, (R),
+	"R+=4",
+	"",
+	R+=4;
+	,
+	(A_CVI_Z_INC_4)
+)
+DEF_MACRO(fPOST_INC8, (R),
+	"R+=8",
+	"",
+	R+=8;
+	,
+	(A_CVI_Z_INC_8)
+)
+DEF_MACRO(fPOST_INC16, (R),
+	"R+=16",
+	"",
+	R+=16;
+	,
+	(A_CVI_Z_INC_16)
+)
+
+DEF_MACRO(fEXTRACTZ,
+    (DST,IDX),
+    "DST=ZREG[IDX]",   /* short desc */
+    "Read Vector IDX", /* long desc */
+	(DST = READ_ZREG(fMODCIRCU((IDX),5))),
+    ()
+)
+
+DEF_MACRO(fLOADZ_UPDATE, (EA,WIDTH,ZN,N,SRC),
+	"for(i = 0; i < width; i++) ZREG.b[(EA+i)%ZN] = *(EA+i)",
+	"Load splatter register from memory at EA (forced alignment) to DST.",
+	{
+		mmvector_t Z[2];
+		Z[0] = READ_ZREG(0);
+		Z[1] = READ_ZREG(1);
+		for(int k = 0; k < WIDTH; k++) {
+			int element_idx = (EA+k)%N;
+			int z_idx = ((EA+k)%ZN)/N;
+			Z[z_idx].ub[element_idx] = SRC.ub[k];
+		}
+
+		WRITE_EXT_ZREG(0,Z[0],0);
+		WRITE_EXT_ZREG(1,Z[1],0);
+	},
+	(A_LOAD,A_MEMLIKE,A_RESTRICT_SINGLE_MEM_FIRST,A_RESTRICT_NOSLOT1_STORE)
+)
+DEF_MACRO(fSTOREZ, (EA,WIDTH,ZN,N),
+	"for(i = 0; i < width; i++) *(EA+i) = ZREG.b[(EA+i)%ZN]",
+	"Store splatter register from memory at EA (forced alignment) to DST.",
+	{
+		mmvector_t store_vec;
+		mmvector_t maskvec = {0};
+		mmvector_t Z[2];
+		Z[0] = READ_ZREG(0);
+		Z[1] = READ_ZREG(1);
+
+		for(int k = 0; k < WIDTH; k++) {
+			int element_idx = (EA+k)%N;
+			int z_idx = ((EA+k)%ZN)/N;
+			store_vec.ub[k] = Z[z_idx].ub[element_idx];
+			maskvec.ub[k] = 1;
+		}
+		mem_store_vector_oddva(thread, insn, EA, EA, insn->slot, WIDTH, &store_vec.ub[0], &maskvec.ub[0], 0, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
+	},
+	(A_STORE,A_MEMLIKE,A_RESTRICT_SINGLE_MEM_FIRST)
+)
+
+DEF_MACRO(fLOADMMVQ, (EA,DST,QVAL),
+	"DST = vmux(QVAL,*(EA&~(ALIGNMENT-1)),0)",
+	"Load vector from memory at EA (forced alignment) to DST.",
 	do {
 		int __i;
 		fLOADMMV_AL(EA,fVECSIZE(),fVECSIZE(),DST);
@@ -539,7 +895,9 @@ DEF_MACRO(fLOADMMVQ,
 	()
 )
 
-DEF_MACRO(fLOADMMVNQ,
+DEF_MACRO(fLOADMMVNQ, (EA,DST,QVAL),
+	"DST = vmux(QVAL,0,*(EA&~(ALIGNMENT-1)))",
+	"Load vector from memory at EA (forced alignment) to DST.",
 	do {
 		int __i;
 		fLOADMMV_AL(EA,fVECSIZE(),fVECSIZE(),DST);
@@ -548,7 +906,9 @@ DEF_MACRO(fLOADMMVNQ,
 	()
 )
 
-DEF_MACRO(fLOADMMVU_AL,
+DEF_MACRO(fLOADMMVU_AL, (EA, ALIGNMENT, LEN, DST),
+    "char* addr = EA; for (i=0; i<LEN; ++i) DST[i] = addr[i]",
+    "Load LEN bytes from memory at EA (unaligned) to DST.",
     {
     size4u_t size2 = (EA)&(ALIGNMENT-1);
     size4u_t size1 = LEN-size2;
@@ -556,10 +916,12 @@ DEF_MACRO(fLOADMMVU_AL,
     mem_load_vector_oddva(thread, insn, EA+size1, EA+fVECSIZE(), /* slot */ 1, size2, &DST.ub[size1], size2, fUSE_LOOKUP_ADDRESS());
     mem_load_vector_oddva(thread, insn, EA, EA,/* slot */ 0, size1, &DST.ub[0], size1, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
     },
-    (A_LOAD,A_MEMLIKE)
+    (A_LOAD,A_MEMLIKE,A_RESTRICT_SINGLE_MEM_FIRST,A_RESTRICT_NOSLOT1_STORE)
 )
 
-DEF_MACRO(fLOADMMVU,
+DEF_MACRO(fLOADMMVU, (EA, DST),
+	"DST = *EA",
+	"Load vector from memory at EA (unaligned) to DST.",
 	{
 		/* if address happens to be aligned, only do aligned load */
         thread->last_pkt->pkt_has_vtcm_access = 0;
@@ -579,63 +941,79 @@ DEF_MACRO(fLOADMMVU,
 	()
 )
 
-DEF_MACRO(fSTOREMMV_AL,
+DEF_MACRO(fSTOREMMV_AL, (EA, ALIGNMENT, LEN, SRC),
+    "char* addr = EA&~(ALIGNMENT-1); for (i=0; i<LEN; ++i) addr[i] = SRC[i]",
+    "Store LEN bytes from SRC into memory at EA (forced alignment).",
     {
     fV_AL_CHECK(EA,ALIGNMENT-1);
-    mem_store_vector_oddva(thread, insn, EA&~(ALIGNMENT-1), EA, insn->slot, LEN, &SRC.ub[0], 0, 0, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
+    mem_store_vector_oddva(thread, insn, EA&~(ALIGNMENT-1), EA, insn->slot, LEN, SRC.ub, 0, 0, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
     },
-    (A_STORE,A_MEMLIKE)
+    (A_STORE,A_MEMLIKE,A_RESTRICT_SINGLE_MEM_FIRST)
 )
 
-DEF_MACRO(fSTOREMMV,
+DEF_MACRO(fSTOREMMV, (EA, SRC),
+	"*(EA&~(ALIGNMENT-1)) = SRC",
+	"Store vector SRC to memory at EA (unaligned).",
 	fSTOREMMV_AL(EA,fVECSIZE(),fVECSIZE(),SRC),
 	()
 )
 
-DEF_MACRO(fSTOREMMVQ_AL,
+DEF_MACRO(fSTOREMMVQ_AL, (EA, ALIGNMENT, LEN, SRC, MASK),
+    "char* addr = EA&~(ALIGNMENT-1); for (i=0; i<LEN; ++i) if (MASK[i]) addr[i] = SRC[i]",
+    "Store LEN bytes from SRC into memory at EA (forced alignment).",
     do {
 	mmvector_t maskvec;
 	int i;
 	for (i = 0; i < fVECSIZE(); i++) maskvec.ub[i] = fGETQBIT(MASK,i);
-	mem_store_vector_oddva(thread, insn, EA&~(ALIGNMENT-1), EA, insn->slot, LEN, &SRC.ub[0], &maskvec.ub[0], 0, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
+	mem_store_vector_oddva(thread, insn, EA&~(ALIGNMENT-1), EA, insn->slot, LEN, SRC.ub, &maskvec.ub[0], 0, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
     } while (0),
-    (A_STORE,A_MEMLIKE)
+    (A_STORE,A_MEMLIKE,A_RESTRICT_SINGLE_MEM_FIRST)
 )
 
-DEF_MACRO(fSTOREMMVQ,
+DEF_MACRO(fSTOREMMVQ, (EA, SRC, MASK),
+	"*(EA&~(ALIGNMENT-1)) = SRC",
+	"Masked store vector SRC to memory at EA (forced alignment).",
 	fSTOREMMVQ_AL(EA,fVECSIZE(),fVECSIZE(),SRC,MASK),
 	()
 )
 
-DEF_MACRO(fSTOREMMVNQ_AL,
+DEF_MACRO(fSTOREMMVNQ_AL, (EA, ALIGNMENT, LEN, SRC, MASK),
+    "char* addr = EA&~(ALIGNMENT-1); for (i=0; i<LEN; ++i) if (!MASK[i]) addr[i] = SRC[i]",
+    "Store LEN bytes from SRC into memory at EA (forced alignment).",
     {
 	mmvector_t maskvec;
 	int i;
 	for (i = 0; i < fVECSIZE(); i++) maskvec.ub[i] = fGETQBIT(MASK,i);
         fV_AL_CHECK(EA,ALIGNMENT-1);
-	mem_store_vector_oddva(thread, insn, EA&~(ALIGNMENT-1), EA, insn->slot, LEN, &SRC.ub[0], &maskvec.ub[0], 1, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
+	mem_store_vector_oddva(thread, insn, EA&~(ALIGNMENT-1), EA, insn->slot, LEN, SRC.ub, &maskvec.ub[0], 1, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
     },
-    (A_STORE,A_MEMLIKE)
+    (A_STORE,A_MEMLIKE,A_RESTRICT_SINGLE_MEM_FIRST)
 )
 
-DEF_MACRO(fSTOREMMVNQ,
+DEF_MACRO(fSTOREMMVNQ, (EA, SRC, MASK),
+	"*(EA&~(ALIGNMENT-1)) = SRC",
+	"Masked negated store vector SRC to memory at EA (forced alignment).",
 	fSTOREMMVNQ_AL(EA,fVECSIZE(),fVECSIZE(),SRC,MASK),
 	()
 )
 
-DEF_MACRO(fSTOREMMVU_AL,
+DEF_MACRO(fSTOREMMVU_AL, (EA, ALIGNMENT, LEN, SRC),
+    "char* addr = EA; for (i=0; i<LEN; ++i) addr[i] = SRC[i]",
+    "Store LEN bytes from SRC into memory at EA (unaligned).",
     {
     size4u_t size1 = ALIGNMENT-((EA)&(ALIGNMENT-1));
     size4u_t size2;
     if (size1>LEN) size1 = LEN;
     size2 = LEN-size1;
     mem_store_vector_oddva(thread, insn, EA+size1, EA+fVECSIZE(), /* slot */ 1, size2, &SRC.ub[size1], 0, 0, fUSE_LOOKUP_ADDRESS());
-    mem_store_vector_oddva(thread, insn, EA, EA, /* slot */ 0, size1, &SRC.ub[0], 0, 0, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
+    mem_store_vector_oddva(thread, insn, EA, EA, /* slot */ 0, size1, SRC.ub, 0, 0, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
     },
-    (A_STORE,A_MEMLIKE)
+    (A_STORE,A_MEMLIKE,A_RESTRICT_SINGLE_MEM_FIRST)
 )
 
-DEF_MACRO(fSTOREMMVU,
+DEF_MACRO(fSTOREMMVU, (EA, SRC),
+	"*EA = SRC",
+	"Store vector SRC to memory at EA (unaligned).",
 	{
         thread->last_pkt->pkt_has_vtcm_access = 0;
         thread->last_pkt->pkt_access_count = 0;
@@ -651,7 +1029,9 @@ DEF_MACRO(fSTOREMMVU,
 	()
 )
 
-DEF_MACRO(fSTOREMMVQU_AL,
+DEF_MACRO(fSTOREMMVQU_AL, (EA, ALIGNMENT, LEN, SRC, MASK),
+    "char* addr = EA; for (i=0; i<LEN; ++i) if (MASK[i]) addr[i] = SRC[i]",
+    "Store LEN bytes from SRC into memory at EA (unaligned).",
     {
 	size4u_t size1 = ALIGNMENT-((EA)&(ALIGNMENT-1));
 	size4u_t size2;
@@ -661,12 +1041,14 @@ DEF_MACRO(fSTOREMMVQU_AL,
 	if (size1>LEN) size1 = LEN;
 	size2 = LEN-size1;
 	mem_store_vector_oddva(thread, insn, EA+size1, EA+fVECSIZE(),/* slot */ 1, size2, &SRC.ub[size1], &maskvec.ub[size1], 0, fUSE_LOOKUP_ADDRESS());
-	mem_store_vector_oddva(thread, insn, EA, /* slot */ 0, size1, &SRC.ub[0], &maskvec.ub[0], 0, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
+	mem_store_vector_oddva(thread, insn, EA, /* slot */ 0, size1, SRC.ub, &maskvec.ub[0], 0, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
     },
-    (A_STORE,A_MEMLIKE)
+    (A_STORE,A_MEMLIKE,A_RESTRICT_SINGLE_MEM_FIRST)
 )
 
-DEF_MACRO(fSTOREMMVQU,
+DEF_MACRO(fSTOREMMVQU, (EA, SRC, MASK),
+	"*EA = SRC",
+	"Store vector SRC to memory at EA (unaligned).",
 	{
         thread->last_pkt->pkt_has_vtcm_access = 0;
         thread->last_pkt->pkt_access_count = 0;
@@ -682,7 +1064,9 @@ DEF_MACRO(fSTOREMMVQU,
 	()
 )
 
-DEF_MACRO(fSTOREMMVNQU_AL,
+DEF_MACRO(fSTOREMMVNQU_AL, (EA, ALIGNMENT, LEN, SRC, MASK),
+    "char* addr = EA; for (i=0; i<LEN; ++i) if (!MASK[i]) addr[i] = SRC[i]",
+    "Store LEN bytes from SRC into memory at EA (unaligned).",
     {
 	size4u_t size1 = ALIGNMENT-((EA)&(ALIGNMENT-1));
 	size4u_t size2;
@@ -692,12 +1076,14 @@ DEF_MACRO(fSTOREMMVNQU_AL,
 	if (size1>LEN) size1 = LEN;
 	size2 = LEN-size1;
 	mem_store_vector_oddva(thread, insn, EA+size1, EA+fVECSIZE(), /* slot */ 1, size2, &SRC.ub[size1], &maskvec.ub[size1], 1, fUSE_LOOKUP_ADDRESS());
-	mem_store_vector_oddva(thread, insn, EA, EA, /* slot */ 0, size1, &SRC.ub[0], &maskvec.ub[0], 1, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
+	mem_store_vector_oddva(thread, insn, EA, EA, /* slot */ 0, size1, SRC.ub, &maskvec.ub[0], 1, fUSE_LOOKUP_ADDRESS_BY_REV(thread->processor_ptr));
     },
-    (A_STORE,A_MEMLIKE)
+    (A_STORE,A_MEMLIKE,A_RESTRICT_SINGLE_MEM_FIRST)
 )
 
-DEF_MACRO(fSTOREMMVNQU,
+DEF_MACRO(fSTOREMMVNQU, (EA, SRC, MASK),
+	"*EA = SRC",
+	"Store vector SRC to memory at EA (unaligned).",
 	{
         thread->last_pkt->pkt_has_vtcm_access = 0;
         thread->last_pkt->pkt_access_count = 0;
@@ -716,127 +1102,446 @@ DEF_MACRO(fSTOREMMVNQU,
 
 
 
-DEF_MACRO(fVFOREACH,
+DEF_MACRO(fVFOREACH,(WIDTH, VAR),
+    "for (VAR = 0; VAR < VELEM(WIDTH); VAR++)",
+    "For VAR in each WIDTH-bit vector index",
     for (VAR = 0; VAR < fVELEM(WIDTH); VAR++),
     /* NOTHING */
 )
 
-DEF_MACRO(fVARRAY_ELEMENT_ACCESS,
+DEF_MACRO(fVARRAY_ELEMENT_ACCESS, (ARRAY, TYPE, INDEX),
+    "ARRAY.TYPE[INDEX]",
+    "Access element of type TYPE at position INDEX of flattened ARRAY",
     ARRAY.v[(INDEX) / (fVECSIZE()/(sizeof(ARRAY.TYPE[0])))].TYPE[(INDEX) % (fVECSIZE()/(sizeof(ARRAY.TYPE[0])))],
     ()
 )
 
-DEF_MACRO(fVNEWCANCEL,
+DEF_MACRO(fVNEWCANCEL,(REGNUM),
+	"Ignore current value for register REGNUM",
+	"Ignore current value for register REGNUM",
 	do { THREAD2STRUCT->VRegs_select &= ~(1<<(REGNUM)); } while (0),
 	()
 )
 
-DEF_MACRO(fTMPVDATA,
+DEF_MACRO(fTMPVDATA,(),
+	"Data from .tmp load",
+	"Data from .tmp load and clear tmp status",
 	mmvec_vtmp_data(thread),
-	(A_CVI)
+	(A_CVI,A_CVI_REQUIRES_TMPLOAD)
 )
 
-DEF_MACRO(fVSATDW,
+DEF_MACRO(fVSATDW, (U,V),
+    "usat_32(U:V)",
+    "Use 32-bits of U as MSW and 32-bits of V as LSW and saturate the resultant 64-bits to 32 bits",
     fVSATW( ( ( ((long long)U)<<32 ) | fZXTN(32,64,V) ) ),
     /* attribs */
 )
 
-DEF_MACRO(fVASL_SATHI,
+DEF_MACRO(fVASL_SATHI, (U,V),
+    "uasl_sathi(U:V)",
+    "Use 32-bits of U as MSW and 32-bits of V as LSW, left shift by 1 and saturate the result and take high word",
     fVSATW(((U)<<1) | ((V)>>31)),
     /* attribs */
 )
 
-DEF_MACRO(fVUADDSAT,
+DEF_MACRO(fVUADDSAT,(WIDTH,U,V),
+	"usat_##WIDTH(U+V)",
+	"Add WIDTH-bit values U and V with saturation",
 	fVSATUN( WIDTH, fZXTN(WIDTH, 2*WIDTH, U)  + fZXTN(WIDTH, 2*WIDTH, V)),
 	/* attribs */
 )
 
-DEF_MACRO(fVSADDSAT,
-	fVSATN(  WIDTH, fSXTN(WIDTH, 2*WIDTH, U)  + fSXTN(WIDTH, 2*WIDTH, V)),
+DEF_MACRO(fVSADDSAT,(WIDTH,U,V),
+	"sat_##WIDTH(U+V)",
+	"Add WIDTH-bit values U and V with saturation",
+	({size8s_t tmp5 = fSXTN(WIDTH, 2*WIDTH, U);
+	  size8s_t tmp6 = fSXTN(WIDTH, 2*WIDTH, V);
+      size8s_t tmp7 = tmp5 + tmp6;
+	  fVSATN(  WIDTH, tmp7);
+	 }),
 	/* attribs */
 )
 
-DEF_MACRO(fVUSUBSAT,
+DEF_MACRO(fVUSUBSAT,(WIDTH,U,V),
+	"usat_##WIDTH(U-V)",
+	"sub WIDTH-bit values U and V with saturation",
 	fVSATUN( WIDTH, fZXTN(WIDTH, 2*WIDTH, U)  - fZXTN(WIDTH, 2*WIDTH, V)),
 	/* attribs */
 )
 
-DEF_MACRO(fVSSUBSAT,
+DEF_MACRO(fVSSUBSAT,(WIDTH,U,V),
+	"sat_##WIDTH(U-V)",
+	"sub WIDTH-bit values U and V with saturation",
 	fVSATN(  WIDTH, fSXTN(WIDTH, 2*WIDTH, U)  - fSXTN(WIDTH, 2*WIDTH, V)),
 	/* attribs */
 )
 
-DEF_MACRO(fVAVGU,
+DEF_MACRO(fVAVGU,(WIDTH,U,V),
+	"(U+V)/2",
+	"average WIDTH-bit values U and V with saturation",
 	((fZXTN(WIDTH, 2*WIDTH, U) + fZXTN(WIDTH, 2*WIDTH, V))>>1),
 	/* attribs */
 )
 
-DEF_MACRO(fVAVGURND,
+DEF_MACRO(fVAVGURND,(WIDTH,U,V),
+	"(U+V+1)/2",
+	"average WIDTH-bit values U and V with saturation",
 	((fZXTN(WIDTH, 2*WIDTH, U) + fZXTN(WIDTH, 2*WIDTH, V)+1)>>1),
 	/* attribs */
 )
 
-DEF_MACRO(fVNAVGU,
+DEF_MACRO(fVNAVGU,(WIDTH,U,V),
+	"(U-V)/2",
+	"average WIDTH-bit values U and V with saturation",
 	((fZXTN(WIDTH, 2*WIDTH, U) - fZXTN(WIDTH, 2*WIDTH, V))>>1),
 	/* attribs */
 )
 
-DEF_MACRO(fVNAVGURNDSAT,
+DEF_MACRO(fVNAVGURNDSAT,(WIDTH,U,V),
+	"(U-V+1)/2",
+	"average WIDTH-bit values U and V with saturation",
 	fVSATUN(WIDTH,((fZXTN(WIDTH, 2*WIDTH, U) - fZXTN(WIDTH, 2*WIDTH, V)+1)>>1)),
 	/* attribs */
 )
 
-DEF_MACRO(fVAVGS,
+DEF_MACRO(fVAVGS,(WIDTH,U,V),
+	"(U+V)/2",
+	"average WIDTH-bit values U and V with saturation",
 	((fSXTN(WIDTH, 2*WIDTH, U) + fSXTN(WIDTH, 2*WIDTH, V))>>1),
 	/* attribs */
 )
 
-DEF_MACRO(fVAVGSRND,
+DEF_MACRO(fVAVGSRND,(WIDTH,U,V),
+	"(U+V+1)/2",
+	"average WIDTH-bit values U and V with saturation",
 	((fSXTN(WIDTH, 2*WIDTH, U) + fSXTN(WIDTH, 2*WIDTH, V)+1)>>1),
 	/* attribs */
 )
 
-DEF_MACRO(fVNAVGS,
+DEF_MACRO(fVNAVGS,(WIDTH,U,V),
+	"(U-V)/2",
+	"average WIDTH-bit values U and V with saturation",
 	((fSXTN(WIDTH, 2*WIDTH, U) - fSXTN(WIDTH, 2*WIDTH, V))>>1),
 	/* attribs */
 )
 
-DEF_MACRO(fVNAVGSRND,
+DEF_MACRO(fVNAVGSRND,(WIDTH,U,V),
+	"(U-V+1)/2",
+	"average WIDTH-bit values U and negative V followed by rounding",
 	((fSXTN(WIDTH, 2*WIDTH, U) - fSXTN(WIDTH, 2*WIDTH, V)+1)>>1),
 	/* attribs */
 )
 
-DEF_MACRO(fVNAVGSRNDSAT,
+DEF_MACRO(fVNAVGSRNDSAT,(WIDTH,U,V),
+	"(U-V+1)/2",
+	"average WIDTH-bit values U and V with saturation",
 	fVSATN(WIDTH,((fSXTN(WIDTH, 2*WIDTH, U) - fSXTN(WIDTH, 2*WIDTH, V)+1)>>1)),
 	/* attribs */
 )
 
 
-DEF_MACRO(fVNOROUND,
+DEF_MACRO(fVNOROUND,(VAL,SHAMT),
+	"VAL",
+	"VAL",
 	VAL,
 	/* NOTHING */
 )
-DEF_MACRO(fVNOSAT,
+DEF_MACRO(fVNOSAT,(VAL),
+	"VAL",
+	"VAL",
 	VAL,
 	/* NOTHING */
 )
 
-DEF_MACRO(fVROUND,
+DEF_MACRO(fVROUND,(VAL,SHAMT),
+	"VAL + (1<<(SHAMT-1))",
+	"VAL + RNDBIT",
 	((VAL) + (((SHAMT)>0)?(1LL<<((SHAMT)-1)):0)),
 	/* NOTHING */
 )
 
-DEF_MACRO(fCARRY_FROM_ADD32,
+DEF_MACRO(fCARRY_FROM_ADD32,(A,B,C),
+	"carry_from(A,B,C)",
+	"carry_from(A,B,C)",
 	(((fZXTN(32,64,A)+fZXTN(32,64,B)+C) >> 32) & 1),
 	/* NOTHING */
 )
 
-DEF_MACRO(fUARCH_NOTE_PUMP_4X,
+DEF_MACRO(fUARCH_NOTE_PUMP_4X,(),
+	"",
+	"",
 	,
-	()
+	(A_CVI_PUMP_4X)
 )
 
-DEF_MACRO(fUARCH_NOTE_PUMP_2X,
+DEF_MACRO(fUARCH_NOTE_PUMP_2X,(),
+	"",
+	"",
 	,
+	(A_CVI_PUMP_2X)
+)
+
+DEF_MACRO(fVDOCHKPAGECROSS,(BASE,SUM),
+	"",
+	"",
+	if (UNLIKELY(thread->timing_on)) {
+		thread->mem_access[slot].check_page_crosses = 1;
+		thread->mem_access[slot].page_cross_base = BASE;
+		thread->mem_access[slot].page_cross_sum = SUM;
+	},
+	(A_EA_PAGECROSS)
+)
+
+/* FP instructions */
+/*Qfloat Macros for muls*/
+DEF_MACRO(fPARSEQF32,(A),
+  "A",
+  "Parsing QF32 to extract exp/sig",
+  parse_qf32(A),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fRNDSATQF32,(A,B,C),
+  "rnd_sat(A,B,C)",
+  "Rnd/Sat/Norm of Vector Multiply of two QF32 inputs",
+  rnd_sat_qf32(A,B,C),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fPARSEQF16,(A),
+  "A",
+  "Parsing QF16 to extract exp/sig",
+  parse_qf16(A),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fRNDSATQF16,(A,B,C),
+  "rnd_sat(A,B,C)",
+  "Rnd/Sat/Norm of Vector Multiply of two QF16 inputs",
+  rnd_sat_qf16(A,B,C),
 	()
 )
+/*Qfloat Macros for others*/
+DEF_MACRO(fPARSESF,(A),
+  "A",
+  "Parsing IEEE SF to extract sign/exp/sig",
+  parse_sf(A),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fRNDSATSF,(A,B),
+  "rnd_sat(A,B)",
+  "Rnd/Sat/Norm of Vector Multiply of two IEEE SF inputs",
+  rnd_sat_sf(A,B),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fPARSEHF,(A),
+  "A",
+  "Parsing IEEE HF to extract sign/exp/sig",
+  parse_hf(A),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fRNDSATHF,(A,B),
+  "rnd_sat(A,B)",
+  "Rnd/Sat/Norm of Vector Multiply of two IEEE HF inputs",
+  rnd_sat_hf(A,B),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fRNDSATW,(A,B),
+  "rnd_sat(A,B)",
+  "Rnd/Sat/Norm of Vector convert of W inputs",
+  rnd_sat_w(A,B),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fRNDSATUW,(A,B),
+  "rnd_sat(A,B)",
+  "Rnd/Sat/Norm of Vector convert of UW inputs",
+  rnd_sat_uw(A,B),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fRNDSATH,(A,B),
+  "rnd_sat(A,B)",
+  "Rnd/Sat/Norm of Vector convert of H inputs",
+  rnd_sat_h(A,B),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fRNDSATUH,(A,B),
+  "rnd_sat(A,B)",
+  "Rnd/Sat/Norm of Vector convert of UW inputs",
+  rnd_sat_uh(A,B),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fRNDSATB,(A,B),
+  "rnd_sat(A,B)",
+  "Rnd/Sat/Norm of Vector convert of B inputs",
+  rnd_sat_b(A,B),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fRNDSATUB,(A,B),
+  "rnd_sat(A,B)",
+  "Rnd/Sat/Norm of Vector convert of UB inputs",
+  rnd_sat_ub(A,B),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fNEGQF32,(A),
+  "-(A)",
+  "Take Ones complement",
+  negate32(A),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fNEGQF16,(A),
+  "-(A)",
+  "Take Ones complement",
+  negate16(A),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fNEGSF,(A),
+  "-(A)",
+  "Change sign",
+  negate_sf(A),
+  (A_HVX_FLT)
+)
+DEF_MACRO(fNEGHF,(A),
+  "-(A)",
+  "Change sign",
+  negate_hf(A),
+  (A_HVX_FLT)
+)
+
+//FP vector compare
+DEF_MACRO(fCMPGT_QF32,(A,B),
+  "(A > B)",
+  "Vector compare of QF32 format",
+  cmpgt_qf32(A,B),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fCMPGT_QF16,(A,B),
+  "(A > B)",
+  "Vector compare of QF16 format",
+  cmpgt_qf16(A,B),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fCMPGT_SF,(A,B),
+  "(A > B)",
+  "Vector compare of SF format",
+  cmpgt_sf(A,B),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fCMPGT_HF,(A,B),
+  "(A > B)",
+  "Vector compare of HF format",
+  cmpgt_hf(A,B),
+	(A_HVX_FLT)
+)
+
+DEF_MACRO(fCMPGT_BF,(A,B),
+	"(A > B)",
+	"Vector compare of BF format",
+	cmpgt_sf(((int)A) << 16,((int)B) << 16),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fCMPGT_QF32_SF,(A,B),
+  "(A > B)",
+  "Vector compare of QF32/SF format",
+  cmpgt_qf32_sf(A,B),
+  (A_HVX_FLT)
+)
+
+DEF_MACRO(fCMPGT_QF16_HF,(A,B),
+  "(A > B)",
+  "Vector compare of QF16/HF format",
+  cmpgt_qf16_hf(A,B),
+  (A_HVX_FLT)
+)
+
+//VMAX/VMIN_QF32/QF16
+DEF_MACRO(fMAX_QF32,(X,Y),
+  "max(X,Y)",
+  "",
+  max_qf32(X,Y),
+  (A_HVX_FLT)
+)
+DEF_MACRO(fMIN_QF32,(X,Y),
+  "min(X,Y)",
+  "",
+  min_qf32(X,Y),
+  (A_HVX_FLT)
+)
+DEF_MACRO(fMAX_QF32_SF,(X,Y),
+  "max(X,Y)",
+  "",
+  max_qf32_sf(X,Y),
+  (A_HVX_FLT)
+)
+DEF_MACRO(fMIN_QF32_SF,(X,Y),
+  "min(X,Y)",
+  "",
+  min_qf32_sf(X,Y),
+  (A_HVX_FLT)
+)
+DEF_MACRO(fMAX_QF16,(X,Y),
+  "max(X,Y)",
+  "",
+  max_qf16(X,Y),
+  (A_HVX_FLT)
+)
+DEF_MACRO(fMIN_QF16,(X,Y),
+  "min(X,Y)",
+  "",
+  min_qf16(X,Y),
+  (A_HVX_FLT)
+)
+DEF_MACRO(fMAX_QF16_HF,(X,Y),
+  "max(X,Y)",
+  "",
+  max_qf16_hf(X,Y),
+  (A_HVX_FLT)
+)
+DEF_MACRO(fMIN_QF16_HF,(X,Y),
+  "min(X,Y)",
+  "",
+  min_qf16_hf(X,Y),
+  (A_HVX_FLT)
+)
+
+//MAX/MIN_SF/HF
+DEF_MACRO(fMAX_SF,(X,Y),
+  "max(X,Y)",
+  "",
+  max_sf(X,Y),
+  (A_HVX_FLT)
+)
+DEF_MACRO(fMIN_SF,(X,Y),
+  "min(X,Y)",
+  "",
+  min_sf(X,Y),
+  (A_HVX_FLT)
+)
+DEF_MACRO(fMAX_HF,(X,Y),
+  "max(X,Y)",
+  "",
+  max_hf(X,Y),
+  (A_HVX_FLT)
+)
+DEF_MACRO(fMIN_HF,(X,Y),
+  "min(X,Y)",
+  "",
+  min_hf(X,Y),
+  (A_HVX_FLT)
+)
+
