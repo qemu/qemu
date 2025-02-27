@@ -26,9 +26,12 @@ use qemu_api::{
 
 use crate::{
     device_class,
-    registers::{self, Interrupt},
-    RegisterOffset,
+    registers::{self, Interrupt, RegisterOffset},
 };
+
+// TODO: You must disable the UART before any of the control registers are
+// reprogrammed. When the UART is disabled in the middle of transmission or
+// reception, it completes the current character before stopping
 
 /// Integer Baud Rate Divider, `UARTIBRD`
 const IBRD_MASK: u32 = 0xffff;
