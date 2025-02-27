@@ -76,10 +76,6 @@ static uint64_t static_read(void *opaque, hwaddr offset,
 static void static_write(void *opaque, hwaddr offset,
                          uint64_t value, unsigned size)
 {
-#ifdef SPY
-    printf("%s: value %" PRIx64 " %u bytes written at 0x%x\n",
-                    __func__, value, size, (int)offset);
-#endif
 }
 
 static const MemoryRegionOps static_ops = {
