@@ -1400,6 +1400,376 @@ ITERATOR_INSN2_MPY_SLOT_DOUBLE_VEC(32,vmpyhus_acc, "Vxx32+=vmpyhus(Vu32,Vv32)","
     VxxV.v[1].w[i] += fMPY16SU(fGETHALF(1, VuV.w[i]), fGETUHALF(1, VvV.uw[i])))
 
 
+/* VMPY_QF32 */
+/* multiply qf32 input, produce qf32 output*/
+ITERATOR_INSN_MPY_SLOT_DOUBLE_VEC(32,vmpy_qf32,"Vd32.qf32=vmpy(Vu32.qf32,Vv32.qf32)","Vector multiply: qf32 output from qf32 input",
+    fHIDE(unfloat )u = fPARSEQF32(VuV.qf32[i]);
+    fHIDE(unfloat )v = fPARSEQF32(VvV.qf32[i]);
+    VdV.qf32[i] = fRNDSATQF32(u.exp+v.exp, u.sig*v.sig, 0))
+
+/* VMPY_QF32_SF */
+/* multiply ieee sf input, produce qf32 output*/
+ITERATOR_INSN_MPY_SLOT_DOUBLE_VEC(32,vmpy_qf32_sf,"Vd32.qf32=vmpy(Vu32.sf,Vv32.sf)","Vector multiply: qf32 output from IEEE sf input",
+    fHIDE(unfloat )u = fPARSESF(VuV.sf[i]);
+    fHIDE(unfloat )v = fPARSESF(VvV.sf[i]);
+    VdV.qf32[i] = fRNDSATQF32(u.exp+v.exp, u.sig*v.sig, 0);
+    if(u.sign^v.sign) VdV.qf32[i] = fNEGQF32(VdV.qf32[i]))
+
+
+/* VMPY_QF16 */
+ITERATOR_INSN_MPY_SLOT_DOUBLE_VEC(16,vmpy_qf16,"Vd32.qf16=vmpy(Vu32.qf16,Vv32.qf16)","Vector multiply: qf16 output from qf16 inupt",
+    fHIDE(unfloat )u = fPARSEQF16(VuV.qf16[i]);
+    fHIDE(unfloat )v = fPARSEQF16(VvV.qf16[i]);
+    VdV.qf16[i] = fRNDSATQF16(u.exp+v.exp, u.sig*v.sig, 0))
+
+/* VMPY_QF16_HF */
+ITERATOR_INSN_MPY_SLOT_DOUBLE_VEC(16,vmpy_qf16_hf,"Vd32.qf16=vmpy(Vu32.hf,Vv32.hf)","Vector multiply: qf16 output from ieee hf input",
+    fHIDE(unfloat )u = fPARSEHF(VuV.hf[i]);
+    fHIDE(unfloat )v = fPARSEHF(VvV.hf[i]);
+    VdV.qf16[i] = fRNDSATQF16(u.exp+v.exp, u.sig*v.sig, 0);
+    if(u.sign^v.sign) VdV.qf16[i] = fNEGQF16(VdV.qf16[i]))
+
+/* VMPY_QF16_with_QF16_HF */
+/* get the magnitude of qf16 before multiply */
+ITERATOR_INSN_MPY_SLOT_DOUBLE_VEC(16,vmpy_qf16_mix_hf,"Vd32.qf16=vmpy(Vu32.qf16,Vv32.hf)","Vector multiply: qf16 output from mixed input of qf16 and ieee hf",
+    fHIDE(unfloat )u = fPARSEQF16(VuV.qf16[i]);
+    fHIDE(unfloat )v = fPARSEHF(VvV.hf[i]);
+    VdV.qf16[i] = fRNDSATQF16(u.exp+v.exp, u.sig*v.sig, 0);
+    if(v.sign) VdV.qf16[i] = fNEGQF16(VdV.qf16[i]))
+
+/* VMPY_QF32_QF16 */
+ITERATOR_INSN_MPY_SLOT_DOUBLE_VEC(32,vmpy_qf32_qf16,"Vdd32.qf32=vmpy(Vu32.qf16,Vv32.qf16)","Vector multiply: double qf32 output from qf16 input",
+    fHIDE(unfloat )u0 = fPARSEQF16(VuV.w[i] & 0xFFFF);
+    fHIDE(unfloat )u1 = fPARSEQF16((VuV.w[i]>>16) & 0xFFFF);
+    fHIDE(unfloat )v0 = fPARSEQF16(VvV.w[i] & 0xFFFF);
+    fHIDE(unfloat )v1 = fPARSEQF16((VvV.w[i]>>16) & 0xFFFF);
+    VddV.v[0].qf32[i] = fRNDSATQF32(u0.exp+v0.exp, u0.sig*v0.sig, 0);
+    VddV.v[1].qf32[i] = fRNDSATQF32(u1.exp+v1.exp, u1.sig*v1.sig, 0))
+
+/* VMPY_QF32_HF */
+ITERATOR_INSN_MPY_SLOT_DOUBLE_VEC(32,vmpy_qf32_hf,"Vdd32.qf32=vmpy(Vu32.hf,Vv32.hf)","Vector multiply: double qf32 output from ieee hf input",
+    fHIDE(unfloat )u0 = fPARSEHF(VuV.w[i] & 0xFFFF);
+    fHIDE(unfloat )u1 = fPARSEHF((VuV.w[i]>>16) & 0xFFFF);
+    fHIDE(unfloat )v0 = fPARSEHF(VvV.w[i] & 0xFFFF);
+    fHIDE(unfloat )v1 = fPARSEHF((VvV.w[i]>>16) & 0xFFFF);
+    VddV.v[0].qf32[i] = fRNDSATQF32(u0.exp+v0.exp, u0.sig*v0.sig, 0);
+    VddV.v[1].qf32[i] = fRNDSATQF32(u1.exp+v1.exp, u1.sig*v1.sig, 0);
+    if(u0.sign^v0.sign) VddV.v[0].qf32[i] = fNEGQF32(VddV.v[0].qf32[i]);
+    if(u1.sign^v1.sign) VddV.v[1].qf32[i] = fNEGQF32(VddV.v[1].qf32[i]))
+
+/* VMPY_QF32_with_QF16_HF */
+ITERATOR_INSN_MPY_SLOT_DOUBLE_VEC(32,vmpy_qf32_mix_hf,"Vdd32.qf32=vmpy(Vu32.qf16,Vv32.hf)","Vector multiply: double qf32 output from mixed input of qf16 and ieee hf",
+    fHIDE(unfloat )u0 = fPARSEQF16(VuV.w[i] & 0xFFFF);
+    fHIDE(unfloat )u1 = fPARSEQF16((VuV.w[i]>>16) & 0xFFFF);
+    fHIDE(unfloat )v0 = fPARSEHF(VvV.w[i] & 0xFFFF);
+    fHIDE(unfloat )v1 = fPARSEHF((VvV.w[i]>>16) & 0xFFFF);
+    VddV.v[0].qf32[i] = fRNDSATQF32(u0.exp+v0.exp, u0.sig*v0.sig, 0);
+    VddV.v[1].qf32[i] = fRNDSATQF32(u1.exp+v1.exp, u1.sig*v1.sig, 0);
+    if(v0.sign) VddV.v[0].qf32[i] = fNEGQF32(VddV.v[0].qf32[i]);
+    if(v1.sign) VddV.v[1].qf32[i] = fNEGQF32(VddV.v[1].qf32[i]))
+
+/* VADD_QF32 */
+ITERATOR_INSN_SHIFT_SLOT(32,vadd_qf32,"Vd32.qf32=vadd(Vu32.qf32,Vv32.qf32)","Vector addition of qf32 input",
+    fHIDE(unfloat )u = fPARSEQF32(VuV.qf32[i]);
+    fHIDE(unfloat )v = fPARSEQF32(VvV.qf32[i]);
+    fHIDE(size2s_t exp=0;)
+    if (u.exp>v.exp) {
+        exp = u.exp+((u.sig==0.0)? (-(FRAC_SF+1)):ilogb(u.sig));
+        if (exp<v.exp) exp = v.exp;
+    } else {
+        exp = v.exp+((v.sig==0.0)? (-(FRAC_SF+1)):ilogb(v.sig));
+        if (exp<u.exp) exp = u.exp;
+    }
+    fHIDE(double ) sig_u = ldexp(u.sig, u.exp-exp);
+    fHIDE(double ) sig_v = ldexp(v.sig, v.exp-exp);
+    fHIDE(double ) sig = sig_u + sig_v;
+    fHIDE(double ) sig_low = (u.exp>v.exp) ? (sig_u-sig)+sig_v : (sig_v-sig)+sig_u;
+    VdV.qf32[i] = fRNDSATQF32(exp, sig, sig_low))
+
+/* VADD_SF */
+ITERATOR_INSN_SHIFT_SLOT(32,vadd_sf,"Vd32.qf32=vadd(Vu32.sf,Vv32.sf)","Vector addition of sf input",
+    fHIDE(unfloat )u = fPARSESF(VuV.sf[i]);
+    fHIDE(unfloat )v = fPARSESF(VvV.sf[i]);
+    fHIDE(size2s_t exp=0;)
+    if (u.exp>v.exp) {
+        exp = u.exp+((u.sig==0.0)? (-(FRAC_SF+1)):ilogb(u.sig));
+        if (exp<v.exp) exp = v.exp;
+    } else {
+        exp = v.exp+((v.sig==0.0)? (-(FRAC_SF+1)):ilogb(v.sig));
+        if (exp<u.exp) exp = u.exp;
+    }
+    //printf("ARCHSIM: u.sign:%d, v.sign:%d, u.sig:%10.30f, v.sig:%10.30f\\n", u.sign, v.sign, u.sig, v.sig);
+
+    fHIDE(double ) sig_u = ldexp(u.sig, u.exp-exp);
+    fHIDE(double ) sig_v = ldexp(v.sig, v.exp-exp);
+
+    //printf("ARCHSIM: u.exp:%d, v.exp:%d, exp:%d, sig_u:%10.30f, sig_v:%10.30f\\n", u.exp, v.exp, exp, sig_u, sig_v);
+
+    fHIDE(double sig;)
+    fHIDE(double sig_low;)
+
+    if((u.sign^v.sign)==0){
+        sig = sig_u + sig_v;
+        sig_low = (u.exp>v.exp) ? (sig_u-sig)+sig_v : (sig_v-sig)+sig_u;
+    }
+    else if((u.sign==0) && (v.sign==1))
+    {
+        sig = sig_u - sig_v;
+        sig_low = (u.exp>v.exp) ? (sig_u-sig)-sig_v : sig_u-(sig_v+sig);
+    }
+    else{
+        sig = sig_v - sig_u;
+        sig_low = (v.exp>u.exp) ? (sig_v-sig)-sig_u : sig_v-(sig_u+sig);
+    }
+    VdV.qf32[i] = fRNDSATQF32(exp, sig, sig_low);
+    //printf("ARCHSIM: output:%x\\n", VdV.qf32[i]);
+    if(u.sign && v.sign)   VdV.qf32[i] = fNEGQF32(VdV.qf32[i]))
+
+/* VADD_QF32_MIX */
+ITERATOR_INSN_SHIFT_SLOT(32,vadd_qf32_mix,"Vd32.qf32=vadd(Vu32.qf32,Vv32.sf)","Vector addition of mixed qf32 and sf",
+    fHIDE(unfloat )u = fPARSEQF32(VuV.qf32[i]);
+    fHIDE(unfloat )v = fPARSESF(VvV.sf[i]);
+    if(v.sign) v.sig = (-1.0)*v.sig;
+    fHIDE(size2s_t exp=0;)
+    if (u.exp>v.exp) {
+        exp = u.exp+((u.sig==0.0)? (-(FRAC_SF+1)):ilogb(u.sig));
+        if (exp<v.exp) exp = v.exp;
+    } else {
+        exp = v.exp+((v.sig==0.0)? (-(FRAC_SF+1)):ilogb(v.sig));
+        if (exp<u.exp) exp = u.exp;
+    }
+    fHIDE(double ) sig_u = ldexp(u.sig, u.exp-exp);
+    fHIDE(double ) sig_v = ldexp(v.sig, v.exp-exp);
+    fHIDE(double) sig = sig_u + sig_v;
+    fHIDE(double) sig_low = (u.exp>v.exp) ? (sig_u-sig)+sig_v : (sig_v-sig)+sig_u;
+    VdV.qf32[i] = fRNDSATQF32(exp, sig, sig_low))
+
+/* VSUB_QF32 */
+ITERATOR_INSN_SHIFT_SLOT(32,vsub_qf32,"Vd32.qf32=vsub(Vu32.qf32,Vv32.qf32)","Vector subtraction of qf32 input",
+    fHIDE(unfloat )u = fPARSEQF32(VuV.qf32[i]);
+    fHIDE(unfloat )v = fPARSEQF32(VvV.qf32[i]);
+    fHIDE(size2s_t exp=0;)
+    if (u.exp>v.exp) {
+        exp = u.exp+((u.sig==0.0)? (-(FRAC_SF+1)):ilogb(u.sig));
+        if (exp<v.exp) exp = v.exp;
+    } else {
+        exp = v.exp+((v.sig==0.0)? (-(FRAC_SF+1)):ilogb(v.sig));
+        if (exp<u.exp) exp = u.exp;
+    }
+    fHIDE(double ) sig_u = ldexp(u.sig, u.exp-exp);
+    fHIDE(double ) sig_v = ldexp(v.sig, v.exp-exp);
+    fHIDE(double) sig = sig_u - sig_v;
+    fHIDE(double) sig_low = (u.exp>v.exp) ? (sig_u-sig)-sig_v : (sig_u-(sig_v+sig));
+    VdV.qf32[i] = fRNDSATQF32(exp, sig, sig_low))
+
+/* VSUB_SF */
+ITERATOR_INSN_SHIFT_SLOT(32,vsub_sf,"Vd32.qf32=vsub(Vu32.sf,Vv32.sf)","Vector subtraction of ieee sf input",
+    fHIDE(unfloat )u = fPARSESF(VuV.sf[i]);
+    fHIDE(unfloat )v = fPARSESF(VvV.sf[i]);
+    fHIDE(size2s_t exp=0;)
+    if (u.exp>v.exp) {
+        exp = u.exp+((u.sig==0.0)? (-(FRAC_SF+1)):ilogb(u.sig));
+        if (exp<v.exp) exp = v.exp;
+    } else {
+        exp = v.exp+((v.sig==0.0)? (-(FRAC_SF+1)):ilogb(v.sig));
+        if (exp<u.exp) exp = u.exp;
+    }
+    fHIDE(double ) sig_u = ldexp(u.sig, u.exp-exp);
+    fHIDE(double ) sig_v = ldexp(v.sig, v.exp-exp);
+    fHIDE(double sig;)
+    fHIDE(double sig_low;)
+    if((u.sign==0) && (v.sign==0)) {
+        sig = sig_u - sig_v;
+        sig_low = (u.exp>v.exp) ? (sig_u-sig)-sig_v : (sig_u-(sig_v+sig));
+    }
+    else if(u.sign ^ v.sign){
+        sig = sig_u + sig_v;
+        sig_low = (u.exp>v.exp) ? (sig_u-sig)+sig_v : (sig_v-sig)+sig_u;
+    }
+    else{
+        sig = sig_v - sig_u;
+        sig_low = (v.exp>u.exp) ? (sig_v-sig)-sig_u : sig_v-(sig_u+sig);
+    }
+    VdV.qf32[i] = fRNDSATQF32(exp, sig, sig_low);
+    if((u.sign==1) && (v.sign==0))   VdV.qf32[i] = fNEGQF32(VdV.qf32[i]))
+
+/* VSUB_QF32_MIX */
+ITERATOR_INSN_SHIFT_SLOT(32,vsub_qf32_mix,"Vd32.qf32=vsub(Vu32.qf32,Vv32.sf)","Vector subtraction of mixed qf32 input and sf",
+    fHIDE(unfloat )u = fPARSEQF32(VuV.qf32[i]);
+    fHIDE(unfloat )v = fPARSESF(VvV.sf[i]);
+    if(v.sign) v.sig = (-1.0)*v.sig;
+    fHIDE(size2s_t exp=0;)
+    if (u.exp>v.exp) {
+        exp = u.exp+((u.sig==0.0)? (-(FRAC_SF+1)):ilogb(u.sig));
+        if (exp<v.exp) exp = v.exp;
+    } else {
+        exp = v.exp+((v.sig==0.0)? (-(FRAC_SF+1)):ilogb(v.sig));
+        if (exp<u.exp) exp = u.exp;
+    }
+    fHIDE(double ) sig_u = ldexp(u.sig, u.exp-exp);
+    fHIDE(double ) sig_v = ldexp(v.sig, v.exp-exp);
+    fHIDE(double ) sig = sig_u - sig_v;
+    fHIDE(double) sig_low = (u.exp>v.exp) ? (sig_u-sig)-sig_v : (sig_u-(sig_v+sig));
+    VdV.qf32[i] = fRNDSATQF32(exp, sig, sig_low))
+
+/* VADD_QF16 */
+ITERATOR_INSN_SHIFT_SLOT(16,vadd_qf16,"Vd32.qf16=vadd(Vu32.qf16,Vv32.qf16)","Vector addition of qf16 input",
+    fHIDE(unfloat )u = fPARSEQF16(VuV.qf16[i]);
+    fHIDE(unfloat )v = fPARSEQF16(VvV.qf16[i]);
+    fHIDE(size2s_t exp=0;)
+    if (u.exp>v.exp) {
+        exp = u.exp+((u.sig==0.0)? (-(FRAC_HF+1)):ilogb(u.sig));
+        if (exp<v.exp) exp = v.exp;
+    } else {
+        exp = v.exp+((v.sig==0.0)? (-(FRAC_HF+1)):ilogb(v.sig));
+        if (exp<u.exp) exp = u.exp;
+    }
+    fHIDE(double ) sig_u = ldexp(u.sig, u.exp-exp);
+    fHIDE(double ) sig_v = ldexp(v.sig, v.exp-exp);
+    fHIDE(double) sig = sig_u + sig_v;
+    fHIDE(double) sig_low = (u.exp>v.exp) ? (sig_u-sig)+sig_v : (sig_v-sig)+sig_u;
+    VdV.qf16[i] = fRNDSATQF16(exp, sig, sig_low))
+
+/* VADD_HF */
+ITERATOR_INSN_SHIFT_SLOT(16,vadd_hf,"Vd32.qf16=vadd(Vu32.hf,Vv32.hf)","Vector addition of hf input",
+    fHIDE(unfloat )u = fPARSEHF(VuV.hf[i]);
+    fHIDE(unfloat )v = fPARSEHF(VvV.hf[i]);
+    fHIDE(size2s_t exp=0;)
+    if (u.exp>v.exp) {
+        exp = u.exp+((u.sig==0.0)? (-(FRAC_HF+1)):ilogb(u.sig));
+        if (exp<v.exp) exp = v.exp;
+    } else {
+        exp = v.exp+((v.sig==0.0)? (-(FRAC_HF+1)):ilogb(v.sig));
+        if (exp<u.exp) exp = u.exp;
+    }
+    fHIDE(double ) sig_u = ldexp(u.sig, u.exp-exp);
+    fHIDE(double ) sig_v = ldexp(v.sig, v.exp-exp);
+
+    fHIDE(double sig;)
+    fHIDE(double sig_low;)
+
+    if((u.sign^v.sign)==0){
+        sig = sig_u + sig_v;
+        sig_low = (u.exp>v.exp) ? (sig_u-sig)+sig_v : (sig_v-sig)+sig_u;
+    }
+    else if((u.sign==0) && (v.sign==1))
+    {
+        sig = sig_u - sig_v;
+        sig_low = (u.exp>v.exp) ? (sig_u-sig)-sig_v : sig_u-(sig_v+sig);
+    }
+    else{
+        sig = sig_v - sig_u;
+        sig_low = (v.exp>u.exp) ? (sig_v-sig)-sig_u : sig_v-(sig_u+sig);
+    }
+    VdV.qf16[i] = fRNDSATQF16(exp, sig, sig_low);
+    if(u.sign && v.sign)
+        VdV.qf16[i] = fNEGQF16(VdV.qf16[i]))
+
+/* VADD_QF16_MIX */
+ITERATOR_INSN_SHIFT_SLOT(16,vadd_qf16_mix,"Vd32.qf16=vadd(Vu32.qf16,Vv32.hf)","Vector addition of mixed qf16 and hf",
+    fHIDE(unfloat )u = fPARSEQF16(VuV.qf16[i]);
+    fHIDE(unfloat )v = fPARSEHF(VvV.hf[i]);
+    if(v.sign)  v.sig = (-1.0)*v.sig;
+    fHIDE(size2s_t exp=0;)
+    if (u.exp>v.exp) {
+        exp = u.exp+((u.sig==0.0)? (-(FRAC_HF+1)):ilogb(u.sig));
+        if (exp<v.exp) exp = v.exp;
+    } else {
+        exp = v.exp+((v.sig==0.0)? (-(FRAC_HF+1)):ilogb(v.sig));
+        if (exp<u.exp) exp = u.exp;
+    }
+    fHIDE(double ) sig_u = ldexp(u.sig, u.exp-exp);
+    fHIDE(double ) sig_v = ldexp(v.sig, v.exp-exp);
+    fHIDE(double) sig = sig_u + sig_v;
+    fHIDE(double) sig_low = (u.exp>v.exp) ? (sig_u-sig)+sig_v : (sig_v-sig)+sig_u;
+    VdV.qf16[i] = fRNDSATQF16(exp, sig, sig_low))
+
+/* VSUB_QF16 */
+ITERATOR_INSN_SHIFT_SLOT(16,vsub_qf16,"Vd32.qf16=vsub(Vu32.qf16,Vv32.qf16)","Vector subtraction of qf16 input",
+    fHIDE(unfloat )u = fPARSEQF16(VuV.qf16[i]);
+    fHIDE(unfloat )v = fPARSEQF16(VvV.qf16[i]);
+    fHIDE(size2s_t exp=0;)
+    if (u.exp>v.exp) {
+        exp = u.exp+((u.sig==0.0)? (-(FRAC_HF+1)):ilogb(u.sig));
+        if (exp<v.exp) exp = v.exp;
+    } else {
+        exp = v.exp+((v.sig==0.0)? (-(FRAC_HF+1)):ilogb(v.sig));
+        if (exp<u.exp) exp = u.exp;
+    }
+    fHIDE(double ) sig_u = ldexp(u.sig, u.exp-exp);
+    fHIDE(double ) sig_v = ldexp(v.sig, v.exp-exp);
+    fHIDE(double) sig = sig_u - sig_v;
+    fHIDE(double) sig_low = (u.exp>v.exp) ? (sig_u-sig)-sig_v : (sig_u-(sig_v+sig));
+    VdV.qf16[i] = fRNDSATQF16(exp, sig, sig_low))
+
+/* VSUB_HF */
+ITERATOR_INSN_SHIFT_SLOT(16,vsub_hf,"Vd32.qf16=vsub(Vu32.hf,Vv32.hf)","Vector subtraction of hf input",
+    fHIDE(unfloat )u = fPARSEHF(VuV.hf[i]);
+    fHIDE(unfloat )v = fPARSEHF(VvV.hf[i]);
+    fHIDE(size2s_t exp=0;)
+    if (u.exp>v.exp) {
+        exp = u.exp+((u.sig==0.0)? (-(FRAC_HF+1)):ilogb(u.sig));
+        if (exp<v.exp) exp = v.exp;
+    } else {
+        exp = v.exp+((v.sig==0.0)? (-(FRAC_HF+1)):ilogb(v.sig));
+        if (exp<u.exp) exp = u.exp;
+    }
+    fHIDE(double ) sig_u = ldexp(u.sig, u.exp-exp);
+    fHIDE(double ) sig_v = ldexp(v.sig, v.exp-exp);
+    fHIDE(double sig;)
+    fHIDE(double sig_low;)
+    if((u.sign==0) && (v.sign==0)) {
+        sig = sig_u - sig_v;
+        sig_low = (u.exp>v.exp) ? (sig_u-sig)-sig_v : (sig_u-(sig_v+sig));
+    }
+    else if(u.sign ^ v.sign){
+        sig = sig_u + sig_v;
+        sig_low = (u.exp>v.exp) ? (sig_u-sig)+sig_v : (sig_v-sig)+sig_u;
+    }
+    else{
+        sig = sig_v - sig_u;
+        sig_low = (v.exp>u.exp) ? (sig_v-sig)-sig_u : sig_v-(sig_u+sig);
+    }
+    VdV.qf16[i] = fRNDSATQF16(exp, sig, sig_low);
+    if((u.sign==1) && (v.sign==0))
+        VdV.qf16[i] = fNEGQF16(VdV.qf16[i]))
+
+
+/* VSUB_QF16_MIXED */
+ITERATOR_INSN_SHIFT_SLOT(16,vsub_qf16_mix,"Vd32.qf16=vsub(Vu32.qf16,Vv32.hf)","Vector subtraction of mixed qf16 and hf",
+    fHIDE(unfloat )u = fPARSEQF16(VuV.qf16[i]);
+    fHIDE(unfloat )v = fPARSEHF(VvV.hf[i]);
+    if(v.sign)  v.sig = (-1.0)*v.sig;
+    fHIDE(size2s_t exp=0;)
+    if (u.exp>v.exp) {
+        exp = u.exp+((u.sig==0.0)? (-(FRAC_HF+1)):ilogb(u.sig));
+        if (exp<v.exp) exp = v.exp;
+    } else {
+        exp = v.exp+((v.sig==0.0)? (-(FRAC_HF+1)):ilogb(v.sig));
+        if (exp<u.exp) exp = u.exp;
+    }
+    fHIDE(double ) sig_u = ldexp(u.sig, u.exp-exp);
+    fHIDE(double ) sig_v = ldexp(v.sig, v.exp-exp);
+    fHIDE(double) sig = sig_u - sig_v;
+    fHIDE(double) sig_low = (u.exp>v.exp) ? (sig_u-sig)-sig_v : (sig_u-(sig_v+sig));
+    VdV.qf16[i] = fRNDSATQF16(exp, sig, sig_low))
+
+// FP Convert QF32/W/UW to ieee SF
+ITERATOR_INSN_SHIFT_SLOT(32,vconv_sf_qf32,"Vd32.sf=Vu32.qf32","Vector conversion of qf32 format to ieee SF",
+    fHIDE(unfloat )u = fPARSEQF32(VuV.qf32[i]);
+    VdV.sf[i] = fRNDSATSF(u.exp, u.sig))
+
+// FP Convert QF16/H/UH to ieee HF
+ITERATOR_INSN_SHIFT_SLOT(16,vconv_hf_qf16,"Vd32.hf=Vu32.qf16","Vector conversion of qf16 format to ieee HF",
+    fHIDE(unfloat )u = fPARSEQF16(VuV.qf16[i]);
+    VdV.hf[i] = fRNDSATHF(u.exp, u.sig))
+
+// FP Convert double QF32 to two packed ieee HF in one vector
+ITERATOR_INSN_SHIFT_SLOT(32,vconv_hf_qf32,"Vd32.hf=Vuu32.qf32","Vector conversion of double qf32 to ieee HF",
+    fHIDE(unfloat )u0 = fPARSEQF32(VuuV.v[0].qf32[i]);
+    fHIDE(unfloat )u1 = fPARSEQF32(VuuV.v[1].qf32[i]);
+    VdV.hf[2*i] = fRNDSATHF(u0.exp, u0.sig);
+    VdV.hf[2*i+1] = fRNDSATHF(u1.exp, u1.sig))
 
 
 ITERATOR_INSN2_MPY_SLOT_DOUBLE_VEC(16,vmpyih,"Vd32=vmpyih(Vu32,Vv32)","Vd32.h=vmpyi(Vu32.h,Vv32.h)",
