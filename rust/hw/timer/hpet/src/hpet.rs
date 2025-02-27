@@ -48,8 +48,6 @@ const RTC_ISA_IRQ: usize = 8;
 const HPET_CLK_PERIOD: u64 = 10; // 10 ns
 const FS_PER_NS: u64 = 1000000; // 1000000 femtoseconds == 1 ns
 
-/// General Capabilities and ID Register
-const HPET_CAP_REG: u64 = 0x000;
 /// Revision ID (bits 0:7). Revision 1 is implemented (refer to v1.0a spec).
 const HPET_CAP_REV_ID_VALUE: u64 = 0x1;
 const HPET_CAP_REV_ID_SHIFT: usize = 0;
@@ -65,8 +63,6 @@ const HPET_CAP_VENDER_ID_SHIFT: usize = 16;
 /// Main Counter Tick Period (bits 32:63)
 const HPET_CAP_CNT_CLK_PERIOD_SHIFT: usize = 32;
 
-/// General Configuration Register
-const HPET_CFG_REG: u64 = 0x010;
 /// Overall Enable (bit 0)
 const HPET_CFG_ENABLE_SHIFT: usize = 0;
 /// Legacy Replacement Route (bit 1)
@@ -74,14 +70,6 @@ const HPET_CFG_LEG_RT_SHIFT: usize = 1;
 /// Other bits are reserved.
 const HPET_CFG_WRITE_MASK: u64 = 0x003;
 
-/// General Interrupt Status Register
-const HPET_INT_STATUS_REG: u64 = 0x020;
-
-/// Main Counter Value Register
-const HPET_COUNTER_REG: u64 = 0x0f0;
-
-/// Timer N Configuration and Capability Register (masked by 0x18)
-const HPET_TN_CFG_REG: u64 = 0x000;
 /// bit 0, 7, and bits 16:31 are reserved.
 /// bit 4, 5, 15, and bits 32:64 are read-only.
 const HPET_TN_CFG_WRITE_MASK: u64 = 0x7f4e;
@@ -109,11 +97,51 @@ const HPET_TN_CFG_FSB_CAP_SHIFT: usize = 15;
 /// Timer N Interrupt Routing Capability (bits 32:63)
 const HPET_TN_CFG_INT_ROUTE_CAP_SHIFT: usize = 32;
 
-/// Timer N Comparator Value Register (masked by 0x18)
-const HPET_TN_CMP_REG: u64 = 0x008;
+#[derive(qemu_api_macros::TryInto)]
+#[repr(u64)]
+#[allow(non_camel_case_types)]
+/// Timer registers, masked by 0x18
+enum TimerRegister {
+    /// Timer N Configuration and Capability Register
+    CFG = 0,
+    /// Timer N Comparator Value Register
+    CMP = 8,
+    /// Timer N FSB Interrupt Route Register
+    ROUTE = 16,
+}
 
-/// Timer N FSB Interrupt Route Register (masked by 0x18)
-const HPET_TN_FSB_ROUTE_REG: u64 = 0x010;
+#[derive(qemu_api_macros::TryInto)]
+#[repr(u64)]
+#[allow(non_camel_case_types)]
+/// Global registers
+enum GlobalRegister {
+    /// General Capabilities and ID Register
+    CAP = 0,
+    /// General Configuration Register
+    CFG = 0x10,
+    /// General Interrupt Status Register
+    INT_STATUS = 0x20,
+    /// Main Counter Value Register
+    COUNTER = 0xF0,
+}
+
+enum HPETRegister<'a> {
+    /// Global register in the range from `0` to `0xff`
+    Global(GlobalRegister),
+
+    /// Register in the timer block `0x100`...`0x3ff`
+    Timer(&'a BqlRefCell<HPETTimer>, TimerRegister),
+
+    /// Invalid address
+    #[allow(dead_code)]
+    Unknown(hwaddr),
+}
+
+struct HPETAddrDecode<'a> {
+    shift: u32,
+    len: u32,
+    reg: HPETRegister<'a>,
+}
 
 const fn hpet_next_wrap(cur_tick: u64) -> u64 {
     (cur_tick | 0xffffffff) + 1
@@ -471,33 +499,21 @@ impl HPETTimer {
         self.update_irq(true);
     }
 
-    const fn read(&self, addr: hwaddr, _size: u32) -> u64 {
-        let shift: u64 = (addr & 4) * 8;
-
-        match addr & !4 {
-            HPET_TN_CFG_REG => self.config >> shift, // including interrupt capabilities
-            HPET_TN_CMP_REG => self.cmp >> shift,    // comparator register
-            HPET_TN_FSB_ROUTE_REG => self.fsb >> shift,
-            _ => {
-                // TODO: Add trace point - trace_hpet_ram_read_invalid()
-                // Reserved.
-                0
-            }
+    const fn read(&self, reg: TimerRegister) -> u64 {
+        use TimerRegister::*;
+        match reg {
+            CFG => self.config, // including interrupt capabilities
+            CMP => self.cmp,    // comparator register
+            ROUTE => self.fsb,
         }
     }
 
-    fn write(&mut self, addr: hwaddr, value: u64, size: u32) {
-        let shift = ((addr & 4) * 8) as u32;
-        let len = std::cmp::min(size * 8, 64 - shift);
-
-        match addr & !4 {
-            HPET_TN_CFG_REG => self.set_tn_cfg_reg(shift, len, value),
-            HPET_TN_CMP_REG => self.set_tn_cmp_reg(shift, len, value),
-            HPET_TN_FSB_ROUTE_REG => self.set_tn_fsb_route_reg(shift, len, value),
-            _ => {
-                // TODO: Add trace point - trace_hpet_ram_write_invalid()
-                // Reserved.
-            }
+    fn write(&mut self, reg: TimerRegister, value: u64, shift: u32, len: u32) {
+        use TimerRegister::*;
+        match reg {
+            CFG => self.set_tn_cfg_reg(shift, len, value),
+            CMP => self.set_tn_cmp_reg(shift, len, value),
+            ROUTE => self.set_tn_fsb_route_reg(shift, len, value),
         }
     }
 }
@@ -749,76 +765,72 @@ impl HPETState {
         self.rtc_irq_level.set(0);
     }
 
-    fn timer_and_addr(&self, addr: hwaddr) -> Option<(&BqlRefCell<HPETTimer>, hwaddr)> {
-        let timer_id: usize = ((addr - 0x100) / 0x20) as usize;
-
-        // TODO: Add trace point - trace_hpet_ram_[read|write]_timer_id(timer_id)
-        if timer_id > self.num_timers.get() {
-            // TODO: Add trace point -  trace_hpet_timer_id_out_of_range(timer_id)
-            None
-        } else {
-            // Keep the complete address so that HPETTimer's read and write could
-            // detect the invalid access.
-            Some((&self.timers[timer_id], addr & 0x1F))
-        }
-    }
-
-    fn read(&self, addr: hwaddr, size: u32) -> u64 {
-        let shift: u64 = (addr & 4) * 8;
-
-        // address range of all TN regs
-        // TODO: Add trace point - trace_hpet_ram_read(addr)
-        if (0x100..=0x3ff).contains(&addr) {
-            match self.timer_and_addr(addr) {
-                None => 0, // Reserved,
-                Some((timer, tn_addr)) => timer.borrow_mut().read(tn_addr, size),
-            }
-        } else {
-            match addr & !4 {
-                HPET_CAP_REG => self.capability.get() >> shift, /* including HPET_PERIOD 0x004 */
-                // (CNT_CLK_PERIOD field)
-                HPET_CFG_REG => self.config.get() >> shift,
-                HPET_COUNTER_REG => {
-                    let cur_tick: u64 = if self.is_hpet_enabled() {
-                        self.get_ticks()
-                    } else {
-                        self.counter.get()
-                    };
-
-                    // TODO: Add trace point - trace_hpet_ram_read_reading_counter(addr & 4,
-                    // cur_tick)
-                    cur_tick >> shift
-                }
-                HPET_INT_STATUS_REG => self.int_status.get() >> shift,
-                _ => {
-                    // TODO: Add trace point- trace_hpet_ram_read_invalid()
-                    // Reserved.
-                    0
-                }
-            }
-        }
-    }
-
-    fn write(&self, addr: hwaddr, value: u64, size: u32) {
+    fn decode(&self, mut addr: hwaddr, size: u32) -> HPETAddrDecode {
         let shift = ((addr & 4) * 8) as u32;
         let len = std::cmp::min(size * 8, 64 - shift);
 
-        // TODO: Add trace point - trace_hpet_ram_write(addr, value)
-        if (0x100..=0x3ff).contains(&addr) {
-            match self.timer_and_addr(addr) {
-                None => (), // Reserved.
-                Some((timer, tn_addr)) => timer.borrow_mut().write(tn_addr, value, size),
-            }
+        addr &= !4;
+        let reg = if (0..=0xff).contains(&addr) {
+            GlobalRegister::try_from(addr).map(HPETRegister::Global)
         } else {
-            match addr & !0x4 {
-                HPET_CAP_REG => {} // General Capabilities and ID Register: Read Only
-                HPET_CFG_REG => self.set_cfg_reg(shift, len, value),
-                HPET_INT_STATUS_REG => self.set_int_status_reg(shift, len, value),
-                HPET_COUNTER_REG => self.set_counter_reg(shift, len, value),
-                _ => {
-                    // TODO: Add trace point - trace_hpet_ram_write_invalid()
-                    // Reserved.
+            let timer_id: usize = ((addr - 0x100) / 0x20) as usize;
+            if timer_id <= self.num_timers.get() {
+                // TODO: Add trace point - trace_hpet_ram_[read|write]_timer_id(timer_id)
+                TimerRegister::try_from(addr)
+                    .map(|reg| HPETRegister::Timer(&self.timers[timer_id], reg))
+            } else {
+                // TODO: Add trace point -  trace_hpet_timer_id_out_of_range(timer_id)
+                Err(addr)
+            }
+        };
+
+        // reg is now a Result<HPETRegister, hwaddr>
+        // convert the Err case into HPETRegister as well
+        let reg = reg.unwrap_or_else(HPETRegister::Unknown);
+        HPETAddrDecode { shift, len, reg }
+    }
+
+    fn read(&self, addr: hwaddr, size: u32) -> u64 {
+        // TODO: Add trace point - trace_hpet_ram_read(addr)
+        let HPETAddrDecode { shift, reg, .. } = self.decode(addr, size);
+
+        use GlobalRegister::*;
+        use HPETRegister::*;
+        (match reg {
+            Timer(timer, tn_reg) => timer.borrow_mut().read(tn_reg),
+            Global(CAP) => self.capability.get(), /* including HPET_PERIOD 0x004 */
+            Global(CFG) => self.config.get(),
+            Global(INT_STATUS) => self.int_status.get(),
+            Global(COUNTER) => {
+                // TODO: Add trace point
+                // trace_hpet_ram_read_reading_counter(addr & 4, cur_tick)
+                if self.is_hpet_enabled() {
+                    self.get_ticks()
+                } else {
+                    self.counter.get()
                 }
+            }
+            Unknown(_) => {
+                // TODO: Add trace point- trace_hpet_ram_read_invalid()
+                0
+            }
+        }) >> shift
+    }
+
+    fn write(&self, addr: hwaddr, value: u64, size: u32) {
+        let HPETAddrDecode { shift, len, reg } = self.decode(addr, size);
+
+        // TODO: Add trace point - trace_hpet_ram_write(addr, value)
+        use GlobalRegister::*;
+        use HPETRegister::*;
+        match reg {
+            Timer(timer, tn_reg) => timer.borrow_mut().write(tn_reg, value, shift, len),
+            Global(CAP) => {} // General Capabilities and ID Register: Read Only
+            Global(CFG) => self.set_cfg_reg(shift, len, value),
+            Global(INT_STATUS) => self.set_int_status_reg(shift, len, value),
+            Global(COUNTER) => self.set_counter_reg(shift, len, value),
+            Unknown(_) => {
+                // TODO: Add trace point - trace_hpet_ram_write_invalid()
             }
         }
     }

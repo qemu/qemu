@@ -37,6 +37,8 @@ result_unit_err = "allow"
 should_implement_trait = "deny"
 # can be for a reason, e.g. in callbacks
 unused_self = "allow"
+# common in device crates
+upper_case_acronyms = "allow"
 
 # default-allow lints
 as_ptr_cast_mut = "deny"
