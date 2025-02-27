@@ -2559,8 +2559,9 @@ static void omap_rtc_interrupts_update(struct omap_rtc_s *s)
 static void omap_rtc_alarm_update(struct omap_rtc_s *s)
 {
     s->alarm_ti = mktimegm(&s->alarm_tm);
-    if (s->alarm_ti == -1)
-        printf("%s: conversion failed\n", __func__);
+    if (s->alarm_ti == -1) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: conversion failed\n", __func__);
+    }
 }
 
 static uint64_t omap_rtc_read(void *opaque, hwaddr addr, unsigned size)
@@ -3024,8 +3025,9 @@ static void omap_mcbsp_source_tick(void *opaque)
 
     if (!s->rx_rate)
         return;
-    if (s->rx_req)
-        printf("%s: Rx FIFO overrun\n", __func__);
+    if (s->rx_req) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Rx FIFO overrun\n", __func__);
+    }
 
     s->rx_req = s->rx_rate << bps[(s->rcr[0] >> 5) & 7];
 
@@ -3070,8 +3072,9 @@ static void omap_mcbsp_sink_tick(void *opaque)
 
     if (!s->tx_rate)
         return;
-    if (s->tx_req)
-        printf("%s: Tx FIFO underrun\n", __func__);
+    if (s->tx_req) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Tx FIFO underrun\n", __func__);
+    }
 
     s->tx_req = s->tx_rate << bps[(s->xcr[0] >> 5) & 7];
 
@@ -3173,7 +3176,7 @@ static uint64_t omap_mcbsp_read(void *opaque, hwaddr addr,
         /* Fall through.  */
     case 0x02:	/* DRR1 */
         if (s->rx_req < 2) {
-            printf("%s: Rx FIFO underrun\n", __func__);
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Rx FIFO underrun\n", __func__);
             omap_mcbsp_rx_done(s);
         } else {
             s->tx_req -= 2;
@@ -3278,8 +3281,9 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
             }
             if (s->tx_req < 2)
                 omap_mcbsp_tx_done(s);
-        } else
-            printf("%s: Tx FIFO overrun\n", __func__);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Tx FIFO overrun\n", __func__);
+        }
         return;
 
     case 0x08:	/* SPCR2 */
@@ -3293,8 +3297,11 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
     case 0x0a:	/* SPCR1 */
         s->spcr[0] &= 0x0006;
         s->spcr[0] |= 0xf8f9 & value;
-        if (value & (1 << 15))				/* DLB */
-            printf("%s: Digital Loopback mode enable attempt\n", __func__);
+        if (value & (1 << 15)) {                        /* DLB */
+            qemu_log_mask(LOG_UNIMP,
+                          "%s: Digital Loopback mode enable attempt\n",
+                          __func__);
+        }
         if (~value & 1) {				/* RRST */
             s->spcr[0] &= ~6;
             s->rx_req = 0;
@@ -3325,13 +3332,19 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
         return;
     case 0x18:	/* MCR2 */
         s->mcr[1] = value & 0x03e3;
-        if (value & 3)					/* XMCM */
-            printf("%s: Tx channel selection mode enable attempt\n", __func__);
+        if (value & 3) {                                /* XMCM */
+            qemu_log_mask(LOG_UNIMP,
+                          "%s: Tx channel selection mode enable attempt\n",
+                          __func__);
+        }
         return;
     case 0x1a:	/* MCR1 */
         s->mcr[0] = value & 0x03e1;
-        if (value & 1)					/* RMCM */
-            printf("%s: Rx channel selection mode enable attempt\n", __func__);
+        if (value & 1) {                                /* RMCM */
+            qemu_log_mask(LOG_UNIMP,
+                          "%s: Rx channel selection mode enable attempt\n",
+                          __func__);
+        }
         return;
     case 0x1c:	/* RCERA */
         s->rcer[0] = value & 0xffff;
@@ -3412,8 +3425,9 @@ static void omap_mcbsp_writew(void *opaque, hwaddr addr,
             }
             if (s->tx_req < 4)
                 omap_mcbsp_tx_done(s);
-        } else
-            printf("%s: Tx FIFO overrun\n", __func__);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Tx FIFO overrun\n", __func__);
+        }
         return;
     }
 
