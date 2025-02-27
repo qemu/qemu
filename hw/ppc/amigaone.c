@@ -32,6 +32,14 @@
 #define BUS_FREQ_HZ 100000000
 
 #define INITRD_MIN_ADDR 0x600000
+#define INIT_RAM_ADDR 0x40000000
+
+#define PCI_HIGH_ADDR 0x80000000
+#define PCI_HIGH_SIZE 0x7d000000
+#define PCI_LOW_ADDR  0xfd000000
+#define PCI_LOW_SIZE  0xe0000
+
+#define ARTICIA_ADDR 0xfe000000
 
 /*
  * Firmware binary available at
@@ -287,7 +295,7 @@ static void amigaone_init(MachineState *machine)
         /* Firmware uses this area for startup */
         mr = g_new(MemoryRegion, 1);
         memory_region_init_ram(mr, NULL, "init-cache", 32 * KiB, &error_fatal);
-        memory_region_add_subregion(get_system_memory(), 0x40000000, mr);
+        memory_region_add_subregion(get_system_memory(), INIT_RAM_ADDR, mr);
     }
 
     /* nvram */
@@ -322,7 +330,7 @@ static void amigaone_init(MachineState *machine)
     }
 
     /* Articia S */
-    dev = sysbus_create_simple(TYPE_ARTICIA, 0xfe000000, NULL);
+    dev = sysbus_create_simple(TYPE_ARTICIA, ARTICIA_ADDR, NULL);
 
     i2c_bus = I2C_BUS(qdev_get_child_bus(dev, "smbus"));
     if (machine->ram_size > 512 * MiB) {
@@ -339,12 +347,12 @@ static void amigaone_init(MachineState *machine)
     pci_mem = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1);
     mr = g_new(MemoryRegion, 1);
     memory_region_init_alias(mr, OBJECT(dev), "pci-mem-low", pci_mem,
-                             0, 0xe0000);
-    memory_region_add_subregion(get_system_memory(), 0xfd000000, mr);
+                             0, PCI_LOW_SIZE);
+    memory_region_add_subregion(get_system_memory(), PCI_LOW_ADDR, mr);
     mr = g_new(MemoryRegion, 1);
     memory_region_init_alias(mr, OBJECT(dev), "pci-mem-high", pci_mem,
-                             0x80000000, 0x7d000000);
-    memory_region_add_subregion(get_system_memory(), 0x80000000, mr);
+                             PCI_HIGH_ADDR, PCI_HIGH_SIZE);
+    memory_region_add_subregion(get_system_memory(), PCI_HIGH_ADDR, mr);
     pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));
 
     /* VIA VT82c686B South Bridge (multifunction PCI device) */
