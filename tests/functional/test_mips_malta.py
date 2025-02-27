@@ -45,12 +45,15 @@ class MaltaMachineConsole(LinuxKernelTest):
         'dcfe3a7fe3200da3a00d176b95caaa086495eb158f2bff64afc67d7e1eb2cddc')
 
     def test_mips_malta_cpio(self):
+        self.require_netdev('user')
+        self.set_machine('malta')
+        self.require_device('pcnet')
+
         kernel_path = self.archive_extract(
             self.ASSET_KERNEL_4_5_0,
             member='boot/vmlinux-4.5.0-2-4kc-malta')
         initrd_path = self.uncompress(self.ASSET_INITRD)
 
-        self.set_machine('malta')
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE
                                + 'console=ttyS0 console=tty '
@@ -58,6 +61,8 @@ class MaltaMachineConsole(LinuxKernelTest):
         self.vm.add_args('-kernel', kernel_path,
                          '-initrd', initrd_path,
                          '-append', kernel_command_line,
+                         '-netdev', 'user,id=n1,tftp=' + self.scratch_file('boot'),
+                         '-device', 'pcnet,netdev=n1',
                          '-no-reboot')
         self.vm.launch()
         self.wait_for_console_pattern('Boot successful.')
@@ -66,6 +71,19 @@ class MaltaMachineConsole(LinuxKernelTest):
                                                 'BogoMIPS')
         exec_command_and_wait_for_pattern(self, 'uname -a',
                                                 'Debian')
+
+        exec_command_and_wait_for_pattern(self, 'ip link set eth0 up',
+                                          'eth0: link up')
+        exec_command_and_wait_for_pattern(self,
+                                          'ip addr add 10.0.2.15 dev eth0',
+                                          '#')
+        exec_command_and_wait_for_pattern(self, 'route add default eth0', '#')
+        exec_command_and_wait_for_pattern(self,
+                         'tftp -g -r vmlinux-4.5.0-2-4kc-malta 10.0.2.2', '#')
+        exec_command_and_wait_for_pattern(self,
+                                          'md5sum vmlinux-4.5.0-2-4kc-malta',
+                                          'a98218a7efbdefb2dfdf9ecd08c98318')
+
         exec_command_and_wait_for_pattern(self, 'reboot',
                                                 'reboot: Restarting system')
         # Wait for VM to shut down gracefully
