@@ -14,6 +14,8 @@ quote_rs_native = dependency('quote-1-rs', native: true)
 syn_rs_native = dependency('syn-2-rs', native: true)
 proc_macro2_rs_native = dependency('proc-macro2-1-rs', native: true)
 
+qemuutil_rs = qemuutil.partial_dependency(link_args: true, links: true)
+
 subdir('qemu-api-macros')
 subdir('qemu-api')
 
