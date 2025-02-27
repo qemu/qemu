@@ -247,6 +247,7 @@ static void set_bool(Object *obj, Visitor *v, const char *name, void *opaque,
 
 const PropertyInfo qdev_prop_bool = {
     .type  = "bool",
+    .description = "on/off",
     .get   = get_bool,
     .set   = set_bool,
     .set_default_value = set_default_value_bool,

@@ -985,7 +985,7 @@ inval:
 
 const PropertyInfo qdev_prop_pci_host_devaddr = {
     .type = "str",
-    .description = "Address (bus/device/function) of "
+    .description = "Address (bus:device.function) of "
                    "the host device, example: 04:10.0",
     .get = get_pci_host_devaddr,
     .set = set_pci_host_devaddr,

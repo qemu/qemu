@@ -662,7 +662,7 @@ invalid:
  */
 static const PropertyInfo xen_block_prop_vdev = {
     .type  = "str",
-    .description = "Virtual Disk specifier: d*p*/xvd*/hd*/sd*",
+    .description = "Virtual Disk specifier (d*p*/xvd*/hd*/sd*)",
     .get = xen_block_get_vdev,
     .set = xen_block_set_vdev,
 };

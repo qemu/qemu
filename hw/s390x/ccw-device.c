@@ -75,8 +75,8 @@ static void ccw_device_set_loadparm(Object *obj, Visitor *v,
 
 const PropertyInfo ccw_loadparm = {
     .type  = "str",
-    .description = "Up to 8 chars in set of [A-Za-z0-9. ] to pass"
-            " to the guest loader/kernel",
+    .description = "Up to 8 chars in set of [A-Za-z0-9. ] to select"
+            " a guest kernel",
     .get = ccw_device_get_loadparm,
     .set = ccw_device_set_loadparm,
 };
