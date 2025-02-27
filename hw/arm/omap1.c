@@ -42,6 +42,7 @@
 #include "qemu/cutils.h"
 #include "qemu/bcd.h"
 #include "target/arm/cpu-qom.h"
+#include "trace.h"
 
 static inline void omap_log_badwidth(const char *funcname, hwaddr addr, int sz)
 {
@@ -1731,7 +1732,7 @@ static void omap_clkm_write(void *opaque, hwaddr addr,
     case 0x18:	/* ARM_SYSST */
         if ((s->clkm.clocking_scheme ^ (value >> 11)) & 7) {
             s->clkm.clocking_scheme = (value >> 11) & 7;
-            printf("%s: clocking scheme set to %s\n", __func__,
+            trace_omap1_pwl_clocking_scheme(
                    clkschemename[s->clkm.clocking_scheme]);
         }
         s->clkm.cold_start &= value & 0x3f;
@@ -2335,7 +2336,7 @@ static void omap_pwl_update(struct omap_pwl_s *s)
 
     if (output != s->output) {
         s->output = output;
-        printf("%s: Backlight now at %i/256\n", __func__, output);
+        trace_omap1_pwl_backlight(output);
     }
 }
 
@@ -2470,8 +2471,8 @@ static void omap_pwt_write(void *opaque, hwaddr addr,
         break;
     case 0x04:	/* VRC */
         if ((value ^ s->vrc) & 1) {
-            if (value & 1)
-                printf("%s: %iHz buzz on\n", __func__, (int)
+            if (value & 1) {
+                trace_omap1_pwt_buzz(
                                 /* 1.5 MHz from a 12-MHz or 13-MHz PWT_CLK */
                                 ((omap_clk_getrate(s->clk) >> 3) /
                                  /* Pre-multiplexer divider */
@@ -2487,8 +2488,9 @@ static void omap_pwt_write(void *opaque, hwaddr addr,
                                  /*  80/127 divider */
                                  ((value & (1 << 5)) ?  80 : 127) /
                                  (107 * 55 * 63 * 127)));
-            else
-                printf("%s: silence!\n", __func__);
+            } else {
+                trace_omap1_pwt_silence();
+            }
         }
         s->vrc = value & 0x7f;
         break;
@@ -3494,7 +3496,7 @@ static void omap_lpg_tick(void *opaque)
         timer_mod(s->tm, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + s->on);
 
     s->cycle = !s->cycle;
-    printf("%s: LED is %s\n", __func__, s->cycle ? "on" : "off");
+    trace_omap1_lpg_led(s->cycle ? "on" : "off");
 }
 
 static void omap_lpg_update(struct omap_lpg_s *s)
@@ -3514,11 +3516,11 @@ static void omap_lpg_update(struct omap_lpg_s *s)
     }
 
     timer_del(s->tm);
-    if (on == period && s->on < s->period)
-        printf("%s: LED is on\n", __func__);
-    else if (on == 0 && s->on)
-        printf("%s: LED is off\n", __func__);
-    else if (on && (on != s->on || period != s->period)) {
+    if (on == period && s->on < s->period) {
+        trace_omap1_lpg_led("on");
+    } else if (on == 0 && s->on) {
+        trace_omap1_lpg_led("off");
+    } else if (on && (on != s->on || period != s->period)) {
         s->cycle = 0;
         s->on = on;
         s->period = period;

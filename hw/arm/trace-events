@@ -1,5 +1,12 @@
 # See docs/devel/tracing.rst for syntax documentation.
 
+# omap1.c
+omap1_pwl_clocking_scheme(const char *scheme) "omap1 CLKM: clocking scheme set to %s"
+omap1_pwl_backlight(int output) "omap1 PWL: backlight now at %d/256"
+omap1_pwt_buzz(int freq) "omap1 PWT: %dHz buzz on"
+omap1_pwt_silence(void) "omap1 PWT: buzzer silenced"
+omap1_lpg_led(const char *onoff) "omap1 LPG: LED is %s"
+
 # virt-acpi-build.c
 virt_acpi_setup(void) "No fw cfg or ACPI disabled. Bailing out."
 
