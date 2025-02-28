@@ -13,6 +13,7 @@
 #include "net/net.h"
 #include "hw/irq.h"
 #include "hw/net/smc91c111.h"
+#include "hw/registerfields.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
@@ -124,6 +125,13 @@ static const VMStateDescription vmstate_smc91c111 = {
 #define RS_TOOLONG      0x0800
 #define RS_TOOSHORT     0x0400
 #define RS_MULTICAST    0x0001
+
+FIELD(PTR, PTR, 0, 11)
+FIELD(PTR, NOT_EMPTY, 11, 1)
+FIELD(PTR, RESERVED, 12, 1)
+FIELD(PTR, READ, 13, 1)
+FIELD(PTR, AUTOINCR, 14, 1)
+FIELD(PTR, RCV, 15, 1)
 
 static inline bool packetnum_valid(int packet_num)
 {
@@ -371,6 +379,49 @@ static void smc91c111_reset(DeviceState *dev)
 #define SET_LOW(name, val) s->name = (s->name & 0xff00) | val
 #define SET_HIGH(name, val) s->name = (s->name & 0xff) | (val << 8)
 
+/*
+ * The pointer register's pointer is an 11 bit value (so it exactly
+ * indexes a 2048-byte data frame). Add the specified offset to it,
+ * wrapping around at the 2048 byte mark, and return the resulting
+ * wrapped value. There are flag bits in the top part of the register,
+ * but we can ignore them here as the mask will mask them out.
+ */
+static int ptr_reg_add(smc91c111_state *s, int offset)
+{
+    return (s->ptr + offset) & R_PTR_PTR_MASK;
+}
+
+/*
+ * For an access to the Data Register at @offset, return the
+ * required offset into the packet's data frame. This will
+ * perform the pointer register autoincrement if required, and
+ * guarantees to return an in-bounds offset.
+ */
+static int data_reg_ptr(smc91c111_state *s, int offset)
+{
+    int p;
+
+    if (s->ptr & R_PTR_AUTOINCR_MASK) {
+        /*
+         * Autoincrement: use the current pointer value, and
+         * increment the pointer register's pointer field.
+         */
+        p = FIELD_EX32(s->ptr, PTR, PTR);
+        s->ptr = FIELD_DP32(s->ptr, PTR, PTR, ptr_reg_add(s, 1));
+    } else {
+        /*
+         * No autoincrement: register offset determines which
+         * byte we're addressing. Setting the pointer to the top
+         * of the data buffer and then using the pointer wrapping
+         * to read the bottom byte of the buffer is not something
+         * sensible guest software will do, but the datasheet
+         * doesn't say what the behaviour is, so we don't forbid it.
+         */
+        p = ptr_reg_add(s, offset & 3);
+    }
+    return p;
+}
+
 static void smc91c111_writeb(void *opaque, hwaddr offset,
                              uint32_t value)
 {
@@ -517,12 +568,7 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
                                   n);
                     return;
                 }
-                p = s->ptr & 0x07ff;
-                if (s->ptr & 0x4000) {
-                    s->ptr = (s->ptr & 0xf800) | ((s->ptr + 1) & 0x7ff);
-                } else {
-                    p += (offset & 3);
-                }
+                p = data_reg_ptr(s, offset);
                 s->data[n][p] = value;
             }
             return;
@@ -672,12 +718,7 @@ static uint32_t smc91c111_readb(void *opaque, hwaddr offset)
                                   n);
                     return 0;
                 }
-                p = s->ptr & 0x07ff;
-                if (s->ptr & 0x4000) {
-                    s->ptr = (s->ptr & 0xf800) | ((s->ptr + 1) & 0x07ff);
-                } else {
-                    p += (offset & 3);
-                }
+                p = data_reg_ptr(s, offset);
                 return s->data[n][p];
             }
         case 12: /* Interrupt status.  */
