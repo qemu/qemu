@@ -52,6 +52,7 @@ extern const PropertyInfo qdev_prop_bool;
 extern const PropertyInfo qdev_prop_uint8;
 extern const PropertyInfo qdev_prop_uint16;
 extern const PropertyInfo qdev_prop_uint32;
+extern const PropertyInfo qdev_prop_usize;
 extern const PropertyInfo qdev_prop_int32;
 extern const PropertyInfo qdev_prop_uint64;
 extern const PropertyInfo qdev_prop_uint64_checkmask;

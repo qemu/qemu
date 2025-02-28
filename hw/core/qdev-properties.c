@@ -442,6 +442,43 @@ const PropertyInfo qdev_prop_uint64_checkmask = {
     .set   = set_uint64_checkmask,
 };
 
+/* --- pointer-size integer --- */
+
+static void get_usize(Object *obj, Visitor *v, const char *name, void *opaque,
+                      Error **errp)
+{
+    const Property *prop = opaque;
+
+#if HOST_LONG_BITS == 32
+    uint32_t *ptr = object_field_prop_ptr(obj, prop);
+    visit_type_uint32(v, name, ptr, errp);
+#else
+    uint64_t *ptr = object_field_prop_ptr(obj, prop);
+    visit_type_uint64(v, name, ptr, errp);
+#endif
+}
+
+static void set_usize(Object *obj, Visitor *v, const char *name, void *opaque,
+                      Error **errp)
+{
+    const Property *prop = opaque;
+
+#if HOST_LONG_BITS == 32
+    uint32_t *ptr = object_field_prop_ptr(obj, prop);
+    visit_type_uint32(v, name, ptr, errp);
+#else
+    uint64_t *ptr = object_field_prop_ptr(obj, prop);
+    visit_type_uint64(v, name, ptr, errp);
+#endif
+}
+
+const PropertyInfo qdev_prop_usize = {
+    .type  = "usize",
+    .get   = get_usize,
+    .set   = set_usize,
+    .set_default_value = qdev_propinfo_set_default_value_uint,
+};
+
 /* --- string --- */
 
 static void release_string(Object *obj, const char *name, void *opaque)

@@ -12,7 +12,7 @@ use std::{
 use qemu_api::{
     bindings::{
         address_space_memory, address_space_stl_le, qdev_prop_bit, qdev_prop_bool,
-        qdev_prop_uint32, qdev_prop_uint8,
+        qdev_prop_uint32, qdev_prop_usize,
     },
     c_str,
     cell::{BqlCell, BqlRefCell},
@@ -859,8 +859,8 @@ qemu_api::declare_properties! {
         c_str!("timers"),
         HPETState,
         num_timers,
-        unsafe { &qdev_prop_uint8 },
-        u8,
+        unsafe { &qdev_prop_usize },
+        usize,
         default = HPET_MIN_TIMERS
     ),
     qemu_api::define_property!(
