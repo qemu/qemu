@@ -27,6 +27,7 @@ pub mod qdev;
 pub mod qom;
 pub mod sysbus;
 pub mod timer;
+pub mod uninit;
 pub mod vmstate;
 pub mod zeroable;
 
