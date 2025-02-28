@@ -115,13 +115,22 @@ with tarfile.open(tar_file, "w") as tar:
 
     disk = tarfile.TarInfo("disk")
     disk.size = actual_size
-    tar.addfile(disk)
 
-    # 6. Shrink the tar to the actual size, aligned to 512 bytes.
+    # Since python 3.13 we cannot use addfile() to create the member header.
+    # Add the tarinfo directly using public but undocumented attributes.
 
-    tar_size = offset + (disk.size + 511) & ~511
-    tar.fileobj.seek(tar_size)
-    tar.fileobj.truncate(tar_size)
+    buf = disk.tobuf(tar.format, tar.encoding, tar.errors)
+    tar.fileobj.write(buf)
+    tar.members.append(disk)
+
+    # Update the offset and position to the location of the next member.
+
+    tar.offset = offset + (disk.size + 511) & ~511
+    tar.fileobj.seek(tar.offset)
+
+    # 6. Shrink the tar to the actual size.
+
+    tar.fileobj.truncate(tar.offset)
 
 with tarfile.open(tar_file) as tar:
     members = [{"name": m.name, "size": m.size, "offset": m.offset_data}
