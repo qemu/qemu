@@ -24,17 +24,6 @@ class TuxRunBaselineTest(QemuSystemTest):
     # Tests are ~10-40s, allow for --debug/--enable-gcov overhead
     timeout = 100
 
-    def get_tag(self, tagname, default=None):
-        """
-        Get the metadata tag or return the default.
-        """
-        utag = self._get_unique_tag_val(tagname)
-        print(f"{tagname}/{default} -> {utag}")
-        if utag:
-            return utag
-
-        return default
-
     def setUp(self):
         super().setUp()
 
