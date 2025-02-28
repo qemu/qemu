@@ -33,7 +33,6 @@ from .uncompress import uncompress
 
 class QemuBaseTest(unittest.TestCase):
 
-    qemu_bin = os.getenv('QEMU_TEST_QEMU_BINARY')
     arch = None
 
     workdir = None
@@ -193,6 +192,7 @@ class QemuBaseTest(unittest.TestCase):
         return True
 
     def setUp(self):
+        self.qemu_bin = os.getenv('QEMU_TEST_QEMU_BINARY')
         self.assertIsNotNone(self.qemu_bin, 'QEMU_TEST_QEMU_BINARY must be set')
         self.arch = self.qemu_bin.split('-')[-1]
         self.socketdir = None

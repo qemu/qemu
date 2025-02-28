@@ -173,7 +173,7 @@ QEMU binary selection
 ^^^^^^^^^^^^^^^^^^^^^
 
 The QEMU binary used for the ``self.vm`` QEMUMachine instance will
-primarily depend on the value of the ``qemu_bin`` class attribute.
+primarily depend on the value of the ``qemu_bin`` instance attribute.
 If it is not explicitly set by the test code, its default value will
 be the result the QEMU_TEST_QEMU_BINARY environment variable.
 
