@@ -1037,7 +1037,7 @@ static const ARMCPRegInfo debug_cp_reginfo[] = {
     { .name = "DBGVCR",
       .cp = 14, .opc1 = 0, .crn = 0, .crm = 7, .opc2 = 0,
       .access = PL1_RW, .accessfn = access_tda,
-      .type = ARM_CP_NOP },
+      .type = ARM_CP_CONST, .resetvalue = 0 },
     /*
      * Dummy MDCCINT_EL1, since we don't implement the Debug Communications
      * Channel but Linux may try to access this register. The 32-bit
@@ -1046,7 +1046,7 @@ static const ARMCPRegInfo debug_cp_reginfo[] = {
     { .name = "MDCCINT_EL1", .state = ARM_CP_STATE_BOTH,
       .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = 2, .opc2 = 0,
       .access = PL1_RW, .accessfn = access_tdcc,
-      .type = ARM_CP_NOP },
+      .type = ARM_CP_CONST, .resetvalue = 0 },
     /*
      * Dummy DBGCLAIM registers.
      * "The architecture does not define any functionality for the CLAIM tag bits.",
@@ -1075,7 +1075,8 @@ static const ARMCPRegInfo debug_aa32_el1_reginfo[] = {
     { .name = "DBGVCR32_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 2, .opc1 = 4, .crn = 0, .crm = 7, .opc2 = 0,
       .access = PL2_RW, .accessfn = access_dbgvcr32,
-      .type = ARM_CP_NOP | ARM_CP_EL3_NO_EL2_KEEP },
+      .type = ARM_CP_CONST | ARM_CP_EL3_NO_EL2_KEEP,
+      .resetvalue = 0 },
 };
 
 static const ARMCPRegInfo debug_lpae_cp_reginfo[] = {
