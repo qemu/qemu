@@ -229,7 +229,8 @@ These are of the form PREFIX_NAME, where PREFIX is derived from the
 enumeration type's name, and NAME from the value's name.  For the
 example above, the generator maps 'MyEnum' to MY_ENUM and 'value1' to
 VALUE1, resulting in the enumeration constant MY_ENUM_VALUE1.  The
-optional 'prefix' member overrides PREFIX.
+optional 'prefix' member overrides PREFIX.  This is rarely necessary,
+and should be used with restraint.
 
 The generated C enumeration constants have values 0, 1, ..., N-1 (in
 QAPI schema order), where N is the number of values.  There is an
