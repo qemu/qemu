@@ -1537,6 +1537,7 @@ F: include/hw/ppc/pnv*
 F: include/hw/pci-host/pnv*
 F: include/hw/ssi/pnv_spi*
 F: pc-bios/skiboot.lid
+F: pc-bios/pnv-pnor.bin
 F: tests/qtest/pnv*
 F: tests/functional/test_ppc64_powernv.py
 

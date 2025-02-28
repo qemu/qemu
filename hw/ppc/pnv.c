@@ -64,6 +64,8 @@
 #define FW_LOAD_ADDR            0x0
 #define FW_MAX_SIZE             (16 * MiB)
 
+#define PNOR_FILE_NAME          "pnv-pnor.bin"
+
 #define KERNEL_LOAD_ADDR        0x20000000
 #define KERNEL_MAX_SIZE         (128 * MiB)
 #define INITRD_LOAD_ADDR        0x28000000
@@ -941,7 +943,7 @@ static void pnv_init(MachineState *machine)
     uint64_t chip_ram_start = 0;
     int i;
     char *chip_typename;
-    DriveInfo *pnor = drive_get(IF_MTD, 0, 0);
+    DriveInfo *pnor;
     DeviceState *dev;
 
     if (kvm_enabled()) {
@@ -971,6 +973,18 @@ static void pnv_init(MachineState *machine)
      * Create our simple PNOR device
      */
     dev = qdev_new(TYPE_PNV_PNOR);
+    pnor = drive_get(IF_MTD, 0, 0);
+    if (!pnor && defaults_enabled()) {
+        fw_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, PNOR_FILE_NAME);
+        if (!fw_filename) {
+            warn_report("Could not find PNOR '%s'", PNOR_FILE_NAME);
+        } else {
+            QemuOpts *opts;
+            opts = drive_add(IF_MTD, -1, fw_filename, "format=raw,readonly=on");
+            pnor = drive_new(opts, IF_MTD, &error_fatal);
+            g_free(fw_filename);
+        }
+    }
     if (pnor) {
         qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(pnor));
     }
