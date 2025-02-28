@@ -95,7 +95,7 @@
 use std::{
     ffi::{c_void, CStr},
     fmt,
-    mem::ManuallyDrop,
+    mem::{ManuallyDrop, MaybeUninit},
     ops::{Deref, DerefMut},
     ptr::NonNull,
 };
@@ -203,6 +203,100 @@ impl<T: fmt::Display + ObjectType> fmt::Display for ParentField<T> {
     #[inline(always)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         self.0.fmt(f)
+    }
+}
+
+/// This struct knows that the superclasses of the object have already been
+/// initialized.
+pub struct ParentInit<'a, T>(&'a mut MaybeUninit<T>);
+
+impl<'a, T> ParentInit<'a, T> {
+    #[inline]
+    pub fn with(obj: &'a mut MaybeUninit<T>, f: impl FnOnce(ParentInit<'a, T>)) {
+        let parent_init = ParentInit(obj);
+        f(parent_init)
+    }
+}
+
+impl<T: ObjectType> ParentInit<'_, T> {
+    /// Return the receiver as a mutable raw pointer to Object.
+    ///
+    /// # Safety
+    ///
+    /// Fields beyond `Object` could be uninitialized and it's your
+    /// responsibility to avoid that they're used when the pointer is
+    /// dereferenced, either directly or through a cast.
+    pub fn as_object_mut_ptr(&self) -> *mut bindings::Object {
+        self.as_object_ptr().cast_mut()
+    }
+
+    /// Return the receiver as a mutable raw pointer to Object.
+    ///
+    /// # Safety
+    ///
+    /// Fields beyond `Object` could be uninitialized and it's your
+    /// responsibility to avoid that they're used when the pointer is
+    /// dereferenced, either directly or through a cast.
+    pub fn as_object_ptr(&self) -> *const bindings::Object {
+        self.0.as_ptr().cast()
+    }
+}
+
+impl<'a, T: ObjectImpl> ParentInit<'a, T> {
+    /// Convert from a derived type to one of its parent types, which
+    /// have already been initialized.
+    ///
+    /// # Safety
+    ///
+    /// Structurally this is always a safe operation; the [`IsA`] trait
+    /// provides static verification trait that `Self` dereferences to `U` or
+    /// a child of `U`, and only parent types of `T` are allowed.
+    ///
+    /// However, while the fields of the resulting reference are initialized,
+    /// calls might use uninitialized fields of the subclass.  It is your
+    /// responsibility to avoid this.
+    pub unsafe fn upcast<U: ObjectType>(&self) -> &'a U
+    where
+        T::ParentType: IsA<U>,
+    {
+        // SAFETY: soundness is declared via IsA<U>, which is an unsafe trait;
+        // the parent has been initialized before `instance_init `is called
+        unsafe { &*(self.0.as_ptr().cast::<U>()) }
+    }
+
+    /// Convert from a derived type to one of its parent types, which
+    /// have already been initialized.
+    ///
+    /// # Safety
+    ///
+    /// Structurally this is always a safe operation; the [`IsA`] trait
+    /// provides static verification trait that `Self` dereferences to `U` or
+    /// a child of `U`, and only parent types of `T` are allowed.
+    ///
+    /// However, while the fields of the resulting reference are initialized,
+    /// calls might use uninitialized fields of the subclass.  It is your
+    /// responsibility to avoid this.
+    pub unsafe fn upcast_mut<U: ObjectType>(&mut self) -> &'a mut U
+    where
+        T::ParentType: IsA<U>,
+    {
+        // SAFETY: soundness is declared via IsA<U>, which is an unsafe trait;
+        // the parent has been initialized before `instance_init `is called
+        unsafe { &mut *(self.0.as_mut_ptr().cast::<U>()) }
+    }
+}
+
+impl<T> Deref for ParentInit<'_, T> {
+    type Target = MaybeUninit<T>;
+
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+
+impl<T> DerefMut for ParentInit<'_, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0
     }
 }
 
