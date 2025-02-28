@@ -95,6 +95,7 @@
 use std::{
     ffi::{c_void, CStr},
     fmt,
+    marker::PhantomData,
     mem::{ManuallyDrop, MaybeUninit},
     ops::{Deref, DerefMut},
     ptr::NonNull,
@@ -208,12 +209,92 @@ impl<T: fmt::Display + ObjectType> fmt::Display for ParentField<T> {
 
 /// This struct knows that the superclasses of the object have already been
 /// initialized.
-pub struct ParentInit<'a, T>(&'a mut MaybeUninit<T>);
+///
+/// The declaration of `ParentInit` is.. *"a kind of magic"*.  It uses a
+/// technique that is found in several crates, the main ones probably being
+/// `ghost-cell` (in fact it was introduced by the [`GhostCell` paper](https://plv.mpi-sws.org/rustbelt/ghostcell/))
+/// and `generativity`.
+///
+/// The `PhantomData` makes the `ParentInit` type *invariant* with respect to
+/// the lifetime argument `'init`.  This, together with the `for<'...>` in
+/// `[ParentInit::with]`, block any attempt of the compiler to be creative when
+/// operating on types of type `ParentInit` and to extend their lifetimes.  In
+/// particular, it ensures that the `ParentInit` cannot be made to outlive the
+/// `rust_instance_init()` function that creates it, and therefore that the
+/// `&'init T` reference is valid.
+///
+/// This implementation of the same concept, without the QOM baggage, can help
+/// understanding the effect:
+///
+/// ```
+/// use std::marker::PhantomData;
+///
+/// #[derive(PartialEq, Eq)]
+/// pub struct Jail<'closure, T: Copy>(&'closure T, PhantomData<fn(&'closure ()) -> &'closure ()>);
+///
+/// impl<'closure, T: Copy> Jail<'closure, T> {
+///     fn get(&self) -> T {
+///         *self.0
+///     }
+///
+///     #[inline]
+///     fn with<U>(v: T, f: impl for<'id> FnOnce(Jail<'id, T>) -> U) -> U {
+///         let parent_init = Jail(&v, PhantomData);
+///         f(parent_init)
+///     }
+/// }
+/// ```
+///
+/// It's impossible to escape the `Jail`; `token1` cannot be moved out of the
+/// closure:
+///
+/// ```ignore
+/// let x = 42;
+/// let escape = Jail::with(&x, |token1| {
+///     println!("{}", token1.get());
+///     // fails to compile...
+///     token1
+/// });
+/// // ... so you cannot do this:
+/// println!("{}", escape.get());
+/// ```
+///
+/// Likewise, in the QOM case the `ParentInit` cannot be moved out of
+/// `instance_init()`. Without this trick it would be possible to stash a
+/// `ParentInit` and use it later to access uninitialized memory.
+///
+/// Here is another example, showing how separately-created "identities" stay
+/// isolated:
+///
+/// ```ignore
+/// impl<'closure, T: Copy> Clone for Jail<'closure, T> {
+///     fn clone(&self) -> Jail<'closure, T> {
+///         Jail(self.0, PhantomData)
+///     }
+/// }
+///
+/// fn main() {
+///     Jail::with(42, |token1| {
+///         // this works and returns true: the clone has the same "identity"
+///         println!("{}", token1 == token1.clone());
+///         Jail::with(42, |token2| {
+///             // here the outer token remains accessible...
+///             println!("{}", token1.get());
+///             // ... but the two are separate: this fails to compile:
+///             println!("{}", token1 == token2);
+///         });
+///     });
+/// }
+/// ```
+pub struct ParentInit<'init, T>(
+    &'init mut MaybeUninit<T>,
+    PhantomData<fn(&'init ()) -> &'init ()>,
+);
 
-impl<'a, T> ParentInit<'a, T> {
+impl<'init, T> ParentInit<'init, T> {
     #[inline]
-    pub fn with(obj: &'a mut MaybeUninit<T>, f: impl FnOnce(ParentInit<'a, T>)) {
-        let parent_init = ParentInit(obj);
+    pub fn with(obj: &'init mut MaybeUninit<T>, f: impl for<'id> FnOnce(ParentInit<'id, T>)) {
+        let parent_init = ParentInit(obj, PhantomData);
         f(parent_init)
     }
 }
