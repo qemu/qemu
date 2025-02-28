@@ -456,46 +456,18 @@ static void pnv_lpc_eval_irqs(PnvLpcController *lpc)
 {
     uint32_t active_irqs = 0;
 
-    if (lpc->lpc_hc_irqstat & PPC_BITMASK32(16, 31)) {
-        qemu_log_mask(LOG_UNIMP, "LPC HC Unimplemented irqs in IRQSTAT: "
-                                 "0x%08"PRIx32"\n", lpc->lpc_hc_irqstat);
-    }
-
-    if (lpc->lpc_hc_irqser_ctrl & LPC_HC_IRQSER_EN) {
-        active_irqs = lpc->lpc_hc_irqstat & lpc->lpc_hc_irqmask;
+    active_irqs = lpc->lpc_hc_irqstat & lpc->lpc_hc_irqmask;
+    if (!(lpc->lpc_hc_irqser_ctrl & LPC_HC_IRQSER_EN)) {
+        active_irqs &= ~LPC_HC_IRQ_SERIRQ_ALL;
     }
 
     /* Reflect the interrupt */
-    if (!lpc->psi_has_serirq) {
+    if (lpc->psi_has_serirq) {
         /*
-         * POWER8 ORs all irqs together (also with LPCHC internal interrupt
-         * sources) and outputs a single line that raises the PSI LPCHC irq
-         * which then latches an OPB IRQ status register that sends the irq
-         * to PSI.
-         *
-         * We don't honor the polarity register, it's pointless and unused
-         * anyway
-         */
-        if (active_irqs) {
-            lpc->opb_irq_input |= OPB_MASTER_IRQ_LPC;
-        } else {
-            lpc->opb_irq_input &= ~OPB_MASTER_IRQ_LPC;
-        }
-
-        /* Update OPB internal latch */
-        lpc->opb_irq_stat |= lpc->opb_irq_input & lpc->opb_irq_mask;
-
-        qemu_set_irq(lpc->psi_irq_lpchc, lpc->opb_irq_stat != 0);
-    } else {
-        /*
-         * POWER9 and POWER10 have routing fields in OPB master registers that
+         * POWER9 and later have routing fields in OPB master registers that
          * send LPC irqs to 4 output lines that raise the PSI SERIRQ irqs.
          * These don't appear to get latched into an OPB register like the
          * LPCHC irqs.
-         *
-         * POWER9 LPC controller internal irqs still go via the OPB
-         * and LPCHC PSI irqs like P8, but we have no such internal sources
-         * modelled yet.
          */
         bool serirq_out[4] = { false, false, false, false };
         int irq;
@@ -510,7 +482,33 @@ static void pnv_lpc_eval_irqs(PnvLpcController *lpc)
         qemu_set_irq(lpc->psi_irq_serirq[1], serirq_out[1]);
         qemu_set_irq(lpc->psi_irq_serirq[2], serirq_out[2]);
         qemu_set_irq(lpc->psi_irq_serirq[3], serirq_out[3]);
+
+        /*
+         * POWER9 and later LPC controller internal irqs still go via the OPB
+         * and LPCHC PSI irqs like P8, so take the SERIRQs out and continue.
+         */
+        active_irqs &= ~LPC_HC_IRQ_SERIRQ_ALL;
     }
+
+    /*
+     * POWER8 ORs all irqs together (also with LPCHC internal interrupt
+     * sources) and outputs a single line that raises the PSI LPCHC irq
+     * which then latches an OPB IRQ status register that sends the irq
+     * to PSI.
+     *
+     * We don't honor the polarity register, it's pointless and unused
+     * anyway
+     */
+    if (active_irqs) {
+        lpc->opb_irq_input |= OPB_MASTER_IRQ_LPC;
+    } else {
+        lpc->opb_irq_input &= ~OPB_MASTER_IRQ_LPC;
+    }
+
+    /* Update OPB internal latch */
+    lpc->opb_irq_stat |= lpc->opb_irq_input & lpc->opb_irq_mask;
+
+    qemu_set_irq(lpc->psi_irq_lpchc, lpc->opb_irq_stat != 0);
 }
 
 static uint64_t lpc_hc_read(void *opaque, hwaddr addr, unsigned size)
