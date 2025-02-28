@@ -251,7 +251,35 @@ static const IPMINetfn hiomap_netfn = {
 
 void pnv_bmc_set_pnor(IPMIBmc *bmc, PnvPnor *pnor)
 {
+    uint32_t pnor_size = pnor->size;
+    uint32_t pnor_addr = PNOR_SPI_OFFSET;
+
     if (!pnv_bmc_is_simulator(bmc)) {
+        return;
+    }
+
+    /*
+     * The HIOMAP protocol uses block units and 16-bit addressing.
+     * Prevent overflow or misalign.
+     */
+    if (pnor_addr >= 1U << (BLOCK_SHIFT + 16)) {
+        warn_report("PNOR address is larger than 2^%d, disabling PNOR",
+                    BLOCK_SHIFT + 16);
+        return;
+    }
+    if (pnor_addr & ((1U << BLOCK_SHIFT) - 1)) {
+        warn_report("PNOR address is not aligned to 2^%d, disabling PNOR",
+                    BLOCK_SHIFT);
+        return;
+    }
+    if (pnor_size > 1U << (BLOCK_SHIFT + 16)) {
+        warn_report("PNOR size is larger than 2^%d, disabling PNOR",
+                    BLOCK_SHIFT + 16);
+        return;
+    }
+    if (pnor_size & ((1U << BLOCK_SHIFT) - 1)) {
+        warn_report("PNOR size is not aligned to 2^%d, disabling PNOR",
+                    BLOCK_SHIFT);
         return;
     }
 
