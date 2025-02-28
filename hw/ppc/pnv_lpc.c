@@ -85,7 +85,7 @@ enum {
 
 #define ISA_IO_SIZE             0x00010000
 #define ISA_MEM_SIZE            0x10000000
-#define ISA_FW_SIZE             0x10000000
+#define ISA_FW_SIZE             0x100000000
 #define LPC_IO_OPB_ADDR         0xd0010000
 #define LPC_IO_OPB_SIZE         0x00010000
 #define LPC_MEM_OPB_ADDR        0xe0000000
@@ -561,10 +561,13 @@ static void lpc_hc_write(void *opaque, hwaddr addr, uint64_t val,
 
     switch (addr) {
     case LPC_HC_FW_SEG_IDSEL:
-        /* XXX Actually figure out how that works as this impact
-         * memory regions/aliases
+        /*
+         * ISA FW "devices" are modeled as 16x256MB windows into a
+         * 4GB LPC FW address space.
          */
+        val &= 0xf; /* Selects device 0-15 */
         lpc->lpc_hc_fw_seg_idsel = val;
+        memory_region_set_alias_offset(&lpc->opb_isa_fw, val * LPC_FW_OPB_SIZE);
         break;
     case LPC_HC_FW_RD_ACC_SIZE:
         lpc->lpc_hc_fw_rd_acc_size = val;
@@ -798,9 +801,9 @@ static void pnv_lpc_realize(DeviceState *dev, Error **errp)
     memory_region_init(&lpc->opb_mr, OBJECT(dev), "lpc-opb", 0x100000000ull);
     address_space_init(&lpc->opb_as, &lpc->opb_mr, "lpc-opb");
 
-    /* Create ISA IO and Mem space regions which are the root of
-     * the ISA bus (ie, ISA address spaces). We don't create a
-     * separate one for FW which we alias to memory.
+    /*
+     * Create ISA IO, Mem, and FW space regions which are the root of
+     * the ISA bus (ie, ISA address spaces).
      */
     memory_region_init(&lpc->isa_io, OBJECT(dev), "isa-io", ISA_IO_SIZE);
     memory_region_init(&lpc->isa_mem, OBJECT(dev), "isa-mem", ISA_MEM_SIZE);
