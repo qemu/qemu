@@ -20,6 +20,25 @@ class MemAddrCheck(QemuSystemTest):
     # this reason.
     DELAY_Q35_BOOT_SEQUENCE = 1
 
+    # This helper can go away when the 32-bit host deprecation
+    # turns into full & final removal of support.
+    def ensure_64bit_binary(self):
+        with open(self.qemu_bin, "rb") as fh:
+            ident = fh.read(4)
+
+            # "\x7fELF"
+            if ident != bytes([0x7f, 0x45, 0x4C, 0x46]):
+                # Non-ELF file implies macOS or Windows which
+                # we already assume to be 64-bit only
+                return
+
+            # bits == 1 -> 32-bit; bits == 2 -> 64-bit
+            bits = int.from_bytes(fh.read(1), byteorder='little')
+            if bits != 2:
+                # 32-bit ELF builds won't be able to address sufficient
+                # RAM to run the tests
+                self.skipTest("64-bit build host is required")
+
     # first, lets test some 32-bit processors.
     # for all 32-bit cases, pci64_hole_size is 0.
     def test_phybits_low_pse36(self):
@@ -38,6 +57,7 @@ class MemAddrCheck(QemuSystemTest):
         If maxmem is set to 59.5G with all other QEMU parameters identical, QEMU
         should start fine.
         """
+        self.ensure_64bit_binary()
         self.vm.add_args('-S', '-machine', 'q35', '-m',
                          '512,slots=1,maxmem=59.6G',
                          '-cpu', 'pentium,pse36=on', '-display', 'none',
@@ -55,6 +75,7 @@ class MemAddrCheck(QemuSystemTest):
         access up to a maximum of 64GiB of memory. Rest is the same as the case
         with pse36 above.
         """
+        self.ensure_64bit_binary()
         self.vm.add_args('-S', '-machine', 'q35', '-m',
                          '512,slots=1,maxmem=59.6G',
                          '-cpu', 'pentium,pae=on', '-display', 'none',
@@ -71,6 +92,7 @@ class MemAddrCheck(QemuSystemTest):
         Setting maxmem to 59.5G and making sure that QEMU can start with the
         same options as the failing case above with pse36 cpu feature.
         """
+        self.ensure_64bit_binary()
         self.vm.add_args('-machine', 'q35', '-m',
                          '512,slots=1,maxmem=59.5G',
                          '-cpu', 'pentium,pse36=on', '-display', 'none',
@@ -88,6 +110,7 @@ class MemAddrCheck(QemuSystemTest):
         Setting maxmem to 59.5G and making sure that QEMU can start fine
         with the same options as the case above.
         """
+        self.ensure_64bit_binary()
         self.vm.add_args('-machine', 'q35', '-m',
                          '512,slots=1,maxmem=59.5G',
                          '-cpu', 'pentium,pae=on', '-display', 'none',
@@ -104,6 +127,7 @@ class MemAddrCheck(QemuSystemTest):
         Pentium2 has 36 bits of addressing, so its same as pentium
         with pse36 ON.
         """
+        self.ensure_64bit_binary()
         self.vm.add_args('-machine', 'q35', '-m',
                          '512,slots=1,maxmem=59.5G',
                          '-cpu', 'pentium2', '-display', 'none',
@@ -123,6 +147,7 @@ class MemAddrCheck(QemuSystemTest):
         message because the region for memory hotplug is always placed
         above 4 GiB due to the PCI hole and simplicity.
         """
+        self.ensure_64bit_binary()
         self.vm.add_args('-S', '-machine', 'q35', '-m',
                          '512,slots=1,maxmem=4G',
                          '-cpu', 'pentium', '-display', 'none',
@@ -150,6 +175,7 @@ class MemAddrCheck(QemuSystemTest):
         which is equal to 987.5 GiB. Setting the value to 988 GiB should
         make QEMU fail with the error message.
         """
+        self.ensure_64bit_binary()
         self.vm.add_args('-S', '-machine', 'pc-q35-7.0', '-m',
                          '512,slots=1,maxmem=988G',
                          '-display', 'none',
@@ -170,6 +196,7 @@ class MemAddrCheck(QemuSystemTest):
         Make sure QEMU fails when maxmem size is 976 GiB (12 GiB less
         than 988 GiB).
         """
+        self.ensure_64bit_binary()
         self.vm.add_args('-S', '-machine', 'pc-q35-7.1', '-m',
                          '512,slots=1,maxmem=976G',
                          '-display', 'none',
@@ -186,6 +213,7 @@ class MemAddrCheck(QemuSystemTest):
         Same as q35-7.0 AMD case except that here we check that QEMU can
         successfully start when maxmem is < 988G.
         """
+        self.ensure_64bit_binary()
         self.vm.add_args('-S', '-machine', 'pc-q35-7.0', '-m',
                          '512,slots=1,maxmem=987.5G',
                          '-display', 'none',
@@ -202,6 +230,7 @@ class MemAddrCheck(QemuSystemTest):
         Same as q35-7.1 AMD case except that here we check that QEMU can
         successfully start when maxmem is < 976G.
         """
+        self.ensure_64bit_binary()
         self.vm.add_args('-S', '-machine', 'pc-q35-7.1', '-m',
                          '512,slots=1,maxmem=975.5G',
                          '-display', 'none',
@@ -219,6 +248,7 @@ class MemAddrCheck(QemuSystemTest):
         Intel cpu instead. QEMU should start fine in this case as
         "above_4G" memory starts at 4G.
         """
+        self.ensure_64bit_binary()
         self.vm.add_args('-S', '-cpu', 'Skylake-Server',
                          '-machine', 'pc-q35-7.1', '-m',
                          '512,slots=1,maxmem=976G',
@@ -243,6 +273,7 @@ class MemAddrCheck(QemuSystemTest):
         memory for the VM (1024 - 32 - 1 + 0.5). With 992 GiB, QEMU should
         fail to start.
         """
+        self.ensure_64bit_binary()
         self.vm.add_args('-S', '-cpu', 'EPYC-v4,phys-bits=41',
                          '-machine', 'pc-q35-7.1', '-m',
                          '512,slots=1,maxmem=992G',
@@ -261,6 +292,7 @@ class MemAddrCheck(QemuSystemTest):
         Same as above but by setting maxram between 976 GiB and 992 Gib,
         QEMU should start fine.
         """
+        self.ensure_64bit_binary()
         self.vm.add_args('-S', '-cpu', 'EPYC-v4,phys-bits=41',
                          '-machine', 'pc-q35-7.1', '-m',
                          '512,slots=1,maxmem=990G',
@@ -281,6 +313,7 @@ class MemAddrCheck(QemuSystemTest):
         So maxmem here should be at most 986 GiB considering all memory boundary
         alignment constraints with 40 bits (1 TiB) of processor physical bits.
         """
+        self.ensure_64bit_binary()
         self.vm.add_args('-S', '-cpu', 'Skylake-Server,phys-bits=40',
                          '-machine', 'q35,cxl=on', '-m',
                          '512,slots=1,maxmem=987G',
@@ -299,6 +332,7 @@ class MemAddrCheck(QemuSystemTest):
         with the exact same parameters as above, QEMU should start fine even
         with cxl enabled.
         """
+        self.ensure_64bit_binary()
         self.vm.add_args('-S', '-cpu', 'Skylake-Server,phys-bits=40',
                          '-machine', 'q35,cxl=on', '-m',
                          '512,slots=1,maxmem=987G',
