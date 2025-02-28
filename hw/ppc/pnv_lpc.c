@@ -353,6 +353,8 @@ static const MemoryRegionOps pnv_lpc_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
+static void pnv_lpc_opb_noresponse(PnvLpcController *lpc);
+
 static uint64_t pnv_lpc_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
     PnvLpcController *lpc = PNV_LPC(opaque);
@@ -376,6 +378,7 @@ static uint64_t pnv_lpc_mmio_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     if (result != MEMTX_OK) {
+        pnv_lpc_opb_noresponse(lpc);
         qemu_log_mask(LOG_GUEST_ERROR, "OPB read failed at @0x%"
                       HWADDR_PRIx "\n", addr);
     }
@@ -406,6 +409,7 @@ static void pnv_lpc_mmio_write(void *opaque, hwaddr addr,
     }
 
     if (result != MEMTX_OK) {
+        pnv_lpc_opb_noresponse(lpc);
         qemu_log_mask(LOG_GUEST_ERROR, "OPB write failed at @0x%"
                       HWADDR_PRIx "\n", addr);
     }
@@ -509,6 +513,12 @@ static void pnv_lpc_eval_irqs(PnvLpcController *lpc)
     lpc->opb_irq_stat |= lpc->opb_irq_input & lpc->opb_irq_mask;
 
     qemu_set_irq(lpc->psi_irq_lpchc, lpc->opb_irq_stat != 0);
+}
+
+static void pnv_lpc_opb_noresponse(PnvLpcController *lpc)
+{
+    lpc->lpc_hc_irqstat |= LPC_HC_IRQ_SYNC_NORESP_ERR;
+    pnv_lpc_eval_irqs(lpc);
 }
 
 static uint64_t lpc_hc_read(void *opaque, hwaddr addr, unsigned size)
