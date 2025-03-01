@@ -190,7 +190,6 @@ static void at24c_eeprom_realize(DeviceState *dev, Error **errp)
     }
 
     ee->mem = g_malloc0(ee->rsize);
-    memset(ee->mem, 0, ee->rsize);
 
     if (ee->init_rom) {
         memcpy(ee->mem, ee->init_rom, MIN(ee->init_rom_size, ee->rsize));
