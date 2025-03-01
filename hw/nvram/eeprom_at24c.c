@@ -191,10 +191,6 @@ static void at24c_eeprom_realize(DeviceState *dev, Error **errp)
 
     ee->mem = g_malloc0(ee->rsize);
 
-    if (ee->init_rom) {
-        memcpy(ee->mem, ee->init_rom, MIN(ee->init_rom_size, ee->rsize));
-    }
-
     if (ee->blk) {
         int ret = blk_pread(ee->blk, 0, ee->rsize, ee->mem, 0);
 
@@ -204,6 +200,8 @@ static void at24c_eeprom_realize(DeviceState *dev, Error **errp)
             return;
         }
         DPRINTK("Reset read backing file\n");
+    } else if (ee->init_rom) {
+        memcpy(ee->mem, ee->init_rom, MIN(ee->init_rom_size, ee->rsize));
     }
 
     /*
