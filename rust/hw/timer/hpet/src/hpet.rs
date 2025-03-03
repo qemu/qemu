@@ -151,14 +151,14 @@ fn timer_handler(timer_cell: &BqlRefCell<HPETTimer>) {
 
 /// HPET Timer Abstraction
 #[repr(C)]
-#[derive(Debug, Default, qemu_api_macros::offsets)]
+#[derive(Debug, qemu_api_macros::offsets)]
 pub struct HPETTimer {
     /// timer N index within the timer block (`HPETState`)
     #[doc(alias = "tn")]
     index: usize,
-    qemu_timer: Option<Box<Timer>>,
+    qemu_timer: Timer,
     /// timer block abstraction containing this timer
-    state: Option<NonNull<HPETState>>,
+    state: NonNull<HPETState>,
 
     // Memory-mapped, software visible timer registers
     /// Timer N Configuration and Capability Register
@@ -181,32 +181,34 @@ pub struct HPETTimer {
 }
 
 impl HPETTimer {
-    fn init(&mut self, index: usize, state_ptr: *mut HPETState) -> &mut Self {
-        *self = HPETTimer::default();
-        self.index = index;
-        self.state = NonNull::new(state_ptr);
-        self
-    }
+    fn init(&mut self, index: usize, state: &HPETState) {
+        *self = HPETTimer {
+            index,
+            qemu_timer: Timer::new(),
+            state: NonNull::new(state as *const _ as *mut _).unwrap(),
+            config: 0,
+            cmp: 0,
+            fsb: 0,
+            cmp64: 0,
+            period: 0,
+            wrap_flag: 0,
+            last: 0,
+        };
 
-    fn init_timer_with_state(&mut self) {
-        self.qemu_timer = Some(Box::new({
-            let mut t = Timer::new();
-            t.init_full(
-                None,
-                CLOCK_VIRTUAL,
-                Timer::NS,
-                0,
-                timer_handler,
-                &self.get_state().timers[self.index],
-            );
-            t
-        }));
+        self.qemu_timer.init_full(
+            None,
+            CLOCK_VIRTUAL,
+            Timer::NS,
+            0,
+            timer_handler,
+            &state.timers[self.index],
+        )
     }
 
     fn get_state(&self) -> &HPETState {
         // SAFETY:
         // the pointer is convertible to a reference
-        unsafe { self.state.unwrap().as_ref() }
+        unsafe { self.state.as_ref() }
     }
 
     fn is_int_active(&self) -> bool {
@@ -330,7 +332,7 @@ impl HPETTimer {
         }
 
         self.last = ns;
-        self.qemu_timer.as_ref().unwrap().modify(self.last);
+        self.qemu_timer.modify(self.last);
     }
 
     fn set_timer(&mut self) {
@@ -353,7 +355,7 @@ impl HPETTimer {
     fn del_timer(&mut self) {
         // Just remove the timer from the timer_list without destroying
         // this timer instance.
-        self.qemu_timer.as_ref().unwrap().delete();
+        self.qemu_timer.delete();
 
         if self.is_int_active() {
             // For level-triggered interrupt, this leaves interrupt status
@@ -581,13 +583,8 @@ impl HPETState {
     }
 
     fn init_timer(&self) {
-        let raw_ptr: *mut HPETState = self as *const HPETState as *mut HPETState;
-
         for (index, timer) in self.timers.iter().enumerate() {
-            timer
-                .borrow_mut()
-                .init(index, raw_ptr)
-                .init_timer_with_state();
+            timer.borrow_mut().init(index, self);
         }
     }
 
