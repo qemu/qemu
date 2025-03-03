@@ -34,7 +34,7 @@ class ReplayKernelBase(LinuxKernelTest):
 
         logger = logging.getLogger('replay')
         start_time = time.time()
-        vm = self.get_vm()
+        vm = self.get_vm(name='recording' if record else 'replay')
         vm.set_console()
         if record:
             logger.info('recording the execution...')

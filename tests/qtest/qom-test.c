@@ -88,6 +88,17 @@ static void test_machine(gconstpointer data)
 
     qts = qtest_initf("-machine %s", machine);
 
+    if (g_test_slow()) {
+        /* Make sure we can get the machine class properties: */
+        g_autofree char *qom_machine = g_strdup_printf("%s-machine", machine);
+
+        response = qtest_qmp(qts, "{ 'execute': 'qom-list-properties',"
+                                  "  'arguments': { 'typename': %s } }",
+                             qom_machine);
+        g_assert(response);
+        qobject_unref(response);
+    }
+
     test_properties(qts, "/machine", true);
 
     response = qtest_qmp(qts, "{ 'execute': 'quit' }");
