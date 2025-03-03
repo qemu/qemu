@@ -76,16 +76,16 @@ static void load_state_from_tss32(CPUState *cpu, struct x86_tss_segment32 *tss)
     RSI(env) = tss->esi;
     RDI(env) = tss->edi;
 
-    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->ldt}}, R_LDTR);
-    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->es}}, R_ES);
-    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->cs}}, R_CS);
-    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->ss}}, R_SS);
-    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->ds}}, R_DS);
-    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->fs}}, R_FS);
-    vmx_write_segment_selector(cpu, (x68_segment_selector){{tss->gs}}, R_GS);
+    vmx_write_segment_selector(cpu, (x86_segment_selector){{tss->ldt}}, R_LDTR);
+    vmx_write_segment_selector(cpu, (x86_segment_selector){{tss->es}}, R_ES);
+    vmx_write_segment_selector(cpu, (x86_segment_selector){{tss->cs}}, R_CS);
+    vmx_write_segment_selector(cpu, (x86_segment_selector){{tss->ss}}, R_SS);
+    vmx_write_segment_selector(cpu, (x86_segment_selector){{tss->ds}}, R_DS);
+    vmx_write_segment_selector(cpu, (x86_segment_selector){{tss->fs}}, R_FS);
+    vmx_write_segment_selector(cpu, (x86_segment_selector){{tss->gs}}, R_GS);
 }
 
-static int task_switch_32(CPUState *cpu, x68_segment_selector tss_sel, x68_segment_selector old_tss_sel,
+static int task_switch_32(CPUState *cpu, x86_segment_selector tss_sel, x86_segment_selector old_tss_sel,
                           uint64_t old_tss_base, struct x86_segment_descriptor *new_desc)
 {
     struct x86_tss_segment32 tss_seg;
@@ -108,7 +108,7 @@ static int task_switch_32(CPUState *cpu, x68_segment_selector tss_sel, x68_segme
     return 0;
 }
 
-void vmx_handle_task_switch(CPUState *cpu, x68_segment_selector tss_sel, int reason, bool gate_valid, uint8_t gate, uint64_t gate_type)
+void vmx_handle_task_switch(CPUState *cpu, x86_segment_selector tss_sel, int reason, bool gate_valid, uint8_t gate, uint64_t gate_type)
 {
     uint64_t rip = rreg(cpu->accel->fd, HV_X86_RIP);
     if (!gate_valid || (gate_type != VMCS_INTR_T_HWEXCEPTION &&
@@ -119,10 +119,10 @@ void vmx_handle_task_switch(CPUState *cpu, x68_segment_selector tss_sel, int rea
         return;
     }
 
-    load_regs(cpu);
+    hvf_load_regs(cpu);
 
     struct x86_segment_descriptor curr_tss_desc, next_tss_desc;
-    x68_segment_selector old_tss_sel = vmx_read_segment_selector(cpu, R_TR);
+    x86_segment_selector old_tss_sel = vmx_read_segment_selector(cpu, R_TR);
     uint64_t old_tss_base = vmx_read_segment_base(cpu, R_TR);
     uint32_t desc_limit;
     struct x86_call_gate task_gate_desc;
@@ -140,7 +140,7 @@ void vmx_handle_task_switch(CPUState *cpu, x68_segment_selector tss_sel, int rea
         x86_read_call_gate(cpu, &task_gate_desc, gate);
 
         dpl = task_gate_desc.dpl;
-        x68_segment_selector cs = vmx_read_segment_selector(cpu, R_CS);
+        x86_segment_selector cs = vmx_read_segment_selector(cpu, R_CS);
         if (tss_sel.rpl > dpl || cs.rpl > dpl)
             ;//DPRINTF("emulate_gp");
     }
@@ -178,7 +178,7 @@ void vmx_handle_task_switch(CPUState *cpu, x68_segment_selector tss_sel, int rea
     x86_segment_descriptor_to_vmx(cpu, tss_sel, &next_tss_desc, &vmx_seg);
     vmx_write_segment_descriptor(cpu, &vmx_seg, R_TR);
 
-    store_regs(cpu);
+    hvf_store_regs(cpu);
 
     hv_vcpu_invalidate_tlb(cpu->accel->fd);
 }

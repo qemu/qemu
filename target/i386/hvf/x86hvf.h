@@ -31,4 +31,7 @@ void hvf_get_xsave(CPUState *cs);
 void hvf_get_msrs(CPUState *cs);
 void vmx_clear_int_window_exiting(CPUState *cs);
 void vmx_update_tpr(CPUState *cs);
+
+void hvf_load_regs(CPUState *cpu);
+void hvf_store_regs(CPUState *cpu);
 #endif

@@ -1893,6 +1893,16 @@ static void decode_prefix(CPUX86State *env, struct x86_decode *decode)
     }
 }
 
+static struct x86_segment_descriptor get_cs_descriptor(CPUState *s)
+{
+    struct vmx_segment vmx_cs;
+    x86_segment_descriptor cs;
+    vmx_read_segment_descriptor(s, &vmx_cs, R_CS);
+    vmx_segment_to_x86_descriptor(s, &vmx_cs, &cs);
+
+    return cs;
+}
+
 void set_addressing_size(CPUX86State *env, struct x86_decode *decode)
 {
     decode->addressing_size = -1;
@@ -1904,10 +1914,9 @@ void set_addressing_size(CPUX86State *env, struct x86_decode *decode)
         }
     } else if (!x86_is_long_mode(env_cpu(env))) {
         /* protected */
-        struct vmx_segment cs;
-        vmx_read_segment_descriptor(env_cpu(env), &cs, R_CS);
+        x86_segment_descriptor cs = get_cs_descriptor(env_cpu(env));
         /* check db */
-        if ((cs.ar >> 14) & 1) {
+        if (cs.db) {
             if (decode->addr_size_override) {
                 decode->addressing_size = 2;
             } else {
@@ -1941,10 +1950,9 @@ void set_operand_size(CPUX86State *env, struct x86_decode *decode)
         }
     } else if (!x86_is_long_mode(env_cpu(env))) {
         /* protected */
-        struct vmx_segment cs;
-        vmx_read_segment_descriptor(env_cpu(env), &cs, R_CS);
+        x86_segment_descriptor cs = get_cs_descriptor(env_cpu(env));
         /* check db */
-        if ((cs.ar >> 14) & 1) {
+        if (cs.db) {
             if (decode->op_size_override) {
                 decode->operand_size = 2;
             } else{

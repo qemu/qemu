@@ -23,7 +23,7 @@ use qemu_api::{
     qdev::{DeviceImpl, DeviceMethods, DeviceState, Property, ResetType, ResettablePhasesImpl},
     qom::{ObjectImpl, ObjectType, ParentField},
     qom_isa,
-    sysbus::SysBusDevice,
+    sysbus::{SysBusDevice, SysBusDeviceImpl},
     timer::{Timer, CLOCK_VIRTUAL},
 };
 
@@ -836,6 +836,7 @@ impl ObjectImpl for HPETState {
 
     const INSTANCE_INIT: Option<unsafe fn(&mut Self)> = Some(Self::init);
     const INSTANCE_POST_INIT: Option<fn(&Self)> = Some(Self::post_init);
+    const CLASS_INIT: fn(&mut Self::Class) = Self::Class::class_init::<Self>;
 }
 
 // TODO: Make these properties user-configurable!
@@ -887,3 +888,5 @@ impl DeviceImpl for HPETState {
 impl ResettablePhasesImpl for HPETState {
     const HOLD: Option<fn(&Self, ResetType)> = Some(Self::reset_hold);
 }
+
+impl SysBusDeviceImpl for HPETState {}

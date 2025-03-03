@@ -1,2 +1,3 @@
 config X_HPET_RUST
     bool
+    default y if PC && HAVE_RUST

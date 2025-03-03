@@ -62,7 +62,7 @@ if have_user
     stub_ss.add(files('qdev.c'))
   endif
 
-  stub_ss.add(files('monitor-fd.c'))
+  stub_ss.add(files('monitor-internal.c'))
 endif
 
 if have_system

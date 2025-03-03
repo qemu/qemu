@@ -77,6 +77,7 @@ struct HPETState {
     uint8_t rtc_irq_level;
     qemu_irq pit_enabled;
     uint8_t num_timers;
+    uint8_t num_timers_save;
     uint32_t intcap;
     HPETTimer timer[HPET_MAX_TIMERS];
 
@@ -237,15 +238,12 @@ static int hpet_pre_save(void *opaque)
         s->hpet_counter = hpet_get_ticks(s);
     }
 
-    return 0;
-}
-
-static int hpet_pre_load(void *opaque)
-{
-    HPETState *s = opaque;
-
-    /* version 1 only supports 3, later versions will load the actual value */
-    s->num_timers = HPET_MIN_TIMERS;
+    /*
+     * The number of timers must match on source and destination, but it was
+     * also added to the migration stream.  Check that it matches the value
+     * that was configured.
+     */
+    s->num_timers_save = s->num_timers;
     return 0;
 }
 
@@ -253,12 +251,7 @@ static bool hpet_validate_num_timers(void *opaque, int version_id)
 {
     HPETState *s = opaque;
 
-    if (s->num_timers < HPET_MIN_TIMERS) {
-        return false;
-    } else if (s->num_timers > HPET_MAX_TIMERS) {
-        return false;
-    }
-    return true;
+    return s->num_timers == s->num_timers_save;
 }
 
 static int hpet_post_load(void *opaque, int version_id)
@@ -277,16 +270,6 @@ static int hpet_post_load(void *opaque, int version_id)
                         - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     }
 
-    /* Push number of timers into capability returned via HPET_ID */
-    s->capability &= ~HPET_ID_NUM_TIM_MASK;
-    s->capability |= (s->num_timers - 1) << HPET_ID_NUM_TIM_SHIFT;
-    hpet_fw_cfg.hpet[s->hpet_id].event_timer_block_id = (uint32_t)s->capability;
-
-    /* Derive HPET_MSI_SUPPORT from the capability of the first timer. */
-    s->flags &= ~(1 << HPET_MSI_SUPPORT);
-    if (s->timer[0].config & HPET_TN_FSB_CAP) {
-        s->flags |= 1 << HPET_MSI_SUPPORT;
-    }
     return 0;
 }
 
@@ -347,14 +330,13 @@ static const VMStateDescription vmstate_hpet = {
     .version_id = 2,
     .minimum_version_id = 1,
     .pre_save = hpet_pre_save,
-    .pre_load = hpet_pre_load,
     .post_load = hpet_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT64(config, HPETState),
         VMSTATE_UINT64(isr, HPETState),
         VMSTATE_UINT64(hpet_counter, HPETState),
-        VMSTATE_UINT8_V(num_timers, HPETState, 2),
-        VMSTATE_VALIDATE("num_timers in range", hpet_validate_num_timers),
+        VMSTATE_UINT8_V(num_timers_save, HPETState, 2),
+        VMSTATE_VALIDATE("num_timers must match", hpet_validate_num_timers),
         VMSTATE_STRUCT_VARRAY_UINT8(timer, HPETState, num_timers, 0,
                                     vmstate_hpet_timer, HPETTimer),
         VMSTATE_END_OF_LIST()

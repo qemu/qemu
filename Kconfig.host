@@ -61,3 +61,6 @@ config HV_BALLOON_POSSIBLE
 
 config HAVE_RUST
     bool
+
+config MAC_PVG
+    bool

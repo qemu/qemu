@@ -700,13 +700,6 @@ static void rv128_base_cpu_init(Object *obj)
     RISCVCPU *cpu = RISCV_CPU(obj);
     CPURISCVState *env = &cpu->env;
 
-    if (qemu_tcg_mttcg_enabled()) {
-        /* Missing 128-bit aligned atomics */
-        error_report("128-bit RISC-V currently does not work with Multi "
-                     "Threaded TCG. Please use: -accel tcg,thread=single");
-        exit(EXIT_FAILURE);
-    }
-
     cpu->cfg.mmu = true;
     cpu->cfg.pmp = true;
 
@@ -3050,15 +3043,6 @@ void riscv_isa_write_fdt(RISCVCPU *cpu, void *fdt, char *nodename)
     g_free(isa_extensions);
 }
 #endif
-
-#define DEFINE_CPU(type_name, misa_mxl_max, initfn)         \
-    {                                                       \
-        .name = (type_name),                                \
-        .parent = TYPE_RISCV_CPU,                           \
-        .instance_init = (initfn),                          \
-        .class_init = riscv_cpu_class_init,                 \
-        .class_data = (void *)(misa_mxl_max)                \
-    }
 
 #define DEFINE_DYNAMIC_CPU(type_name, misa_mxl_max, initfn) \
     {                                                       \
