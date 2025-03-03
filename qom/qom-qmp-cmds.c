@@ -28,15 +28,11 @@
 #include "qom/object_interfaces.h"
 #include "qom/qom-qobject.h"
 
-ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
+static Object *qom_resolve_path(const char *path, Error **errp)
 {
-    Object *obj;
     bool ambiguous = false;
-    ObjectPropertyInfoList *props = NULL;
-    ObjectProperty *prop;
-    ObjectPropertyIterator iter;
+    Object *obj = object_resolve_path(path, &ambiguous);
 
-    obj = object_resolve_path(path, &ambiguous);
     if (obj == NULL) {
         if (ambiguous) {
             error_setg(errp, "Path '%s' is ambiguous", path);
@@ -44,6 +40,19 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
             error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
                       "Device '%s' not found", path);
         }
+    }
+    return obj;
+}
+
+ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
+{
+    Object *obj;
+    ObjectPropertyInfoList *props = NULL;
+    ObjectProperty *prop;
+    ObjectPropertyIterator iter;
+
+    obj = qom_resolve_path(path, errp);
+    if (obj == NULL) {
         return NULL;
     }
 
