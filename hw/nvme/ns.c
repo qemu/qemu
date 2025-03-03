@@ -727,25 +727,14 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
     uint32_t nsid = ns->params.nsid;
     int i;
 
-    if (!n->subsys) {
-        /* If no subsys, the ns cannot be attached to more than one ctrl. */
-        ns->params.shared = false;
-        if (ns->params.detached) {
-            error_setg(errp, "detached requires that the nvme device is "
-                       "linked to an nvme-subsys device");
-            return;
-        }
-    } else {
-        /*
-         * If this namespace belongs to a subsystem (through a link on the
-         * controller device), reparent the device.
-         */
-        if (!qdev_set_parent_bus(dev, &subsys->bus.parent_bus, errp)) {
-            return;
-        }
-        ns->subsys = subsys;
-        ns->endgrp = &subsys->endgrp;
+    assert(subsys);
+
+    /* reparent to subsystem bus */
+    if (!qdev_set_parent_bus(dev, &subsys->bus.parent_bus, errp)) {
+        return;
     }
+    ns->subsys = subsys;
+    ns->endgrp = &subsys->endgrp;
 
     if (nvme_ns_setup(ns, errp)) {
         return;
@@ -753,7 +742,7 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
 
     if (!nsid) {
         for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
-            if (nvme_ns(n, i) || nvme_subsys_ns(subsys, i)) {
+            if (nvme_subsys_ns(subsys, i)) {
                 continue;
             }
 
@@ -765,38 +754,15 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
             error_setg(errp, "no free namespace id");
             return;
         }
-    } else {
-        if (nvme_ns(n, nsid) || nvme_subsys_ns(subsys, nsid)) {
-            error_setg(errp, "namespace id '%d' already allocated", nsid);
-            return;
-        }
+    } else if (nvme_subsys_ns(subsys, nsid)) {
+        error_setg(errp, "namespace id '%d' already allocated", nsid);
+        return;
     }
 
-    if (subsys) {
-        subsys->namespaces[nsid] = ns;
+    subsys->namespaces[nsid] = ns;
 
-        ns->id_ns.endgid = cpu_to_le16(0x1);
-        ns->id_ns_ind.endgrpid = cpu_to_le16(0x1);
-
-        if (ns->params.detached) {
-            return;
-        }
-
-        if (ns->params.shared) {
-            for (i = 0; i < ARRAY_SIZE(subsys->ctrls); i++) {
-                NvmeCtrl *ctrl = subsys->ctrls[i];
-
-                if (ctrl && ctrl != SUBSYS_SLOT_RSVD) {
-                    nvme_attach_ns(ctrl, ns);
-                }
-            }
-
-            return;
-        }
-
-    }
-
-    nvme_attach_ns(n, ns);
+    ns->id_ns.endgid = cpu_to_le16(0x1);
+    ns->id_ns_ind.endgrpid = cpu_to_le16(0x1);
 }
 
 static const Property nvme_ns_props[] = {
