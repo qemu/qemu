@@ -1691,8 +1691,8 @@ sub process {
 				  "'SPDX-License-Identifer'");
 			} else {
 			    # Other files MAY have SPDX license if appropriate
-			    WARNING("Does new file '$expect_spdx_file' need " .
-				    "'SPDX-License-Identifer'?");
+			    WARN("Does new file '$expect_spdx_file' need " .
+				 "'SPDX-License-Identifer'?");
 			}
 		    }
 		    $expect_spdx = 1;
