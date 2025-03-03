@@ -1430,7 +1430,6 @@ static GAState *initialize_agent(GAConfig *config, int socket_activation)
         if (config->daemonize) {
             /* delay opening/locking of pidfile till filesystems are unfrozen */
             s->deferred_options.pid_filepath = config->pid_filepath;
-            become_daemon(NULL);
         }
         if (config->log_filepath) {
             /* delay opening the log file till filesystems are unfrozen */
@@ -1438,9 +1437,6 @@ static GAState *initialize_agent(GAConfig *config, int socket_activation)
         }
         ga_disable_logging(s);
     } else {
-        if (config->daemonize) {
-            become_daemon(config->pid_filepath);
-        }
         if (config->log_filepath) {
             FILE *log_file = ga_open_logfile(config->log_filepath);
             if (!log_file) {
@@ -1487,6 +1483,20 @@ static GAState *initialize_agent(GAConfig *config, int socket_activation)
 
     ga_apply_command_filters(s);
 
+    if (!channel_init(s, s->config->method, s->config->channel_path,
+                      s->socket_activation ? FIRST_SOCKET_ACTIVATION_FD : -1)) {
+        g_critical("failed to initialize guest agent channel");
+        return NULL;
+    }
+
+    if (config->daemonize) {
+        if (ga_is_frozen(s)) {
+            become_daemon(NULL);
+        } else {
+            become_daemon(config->pid_filepath);
+        }
+    }
+
     ga_state = s;
     return s;
 }
@@ -1513,8 +1523,9 @@ static void cleanup_agent(GAState *s)
 
 static int run_agent_once(GAState *s)
 {
-    if (!channel_init(s, s->config->method, s->config->channel_path,
-                      s->socket_activation ? FIRST_SOCKET_ACTIVATION_FD : -1)) {
+    if (!s->channel &&
+        channel_init(s, s->config->method, s->config->channel_path,
+                     s->socket_activation ? FIRST_SOCKET_ACTIVATION_FD : -1)) {
         g_critical("failed to initialize guest agent channel");
         return EXIT_FAILURE;
     }
@@ -1523,6 +1534,7 @@ static int run_agent_once(GAState *s)
 
     if (s->channel) {
         ga_channel_free(s->channel);
+        s->channel = NULL;
     }
 
     return EXIT_SUCCESS;
@@ -1579,7 +1591,7 @@ static void stop_agent(GAState *s, bool requested)
 
 int main(int argc, char **argv)
 {
-    int ret = EXIT_SUCCESS;
+    int ret = EXIT_FAILURE;
     GAState *s;
     GAConfig *config = g_new0(GAConfig, 1);
     int socket_activation;
@@ -1607,7 +1619,6 @@ int main(int argc, char **argv)
     socket_activation = check_socket_activation();
     if (socket_activation > 1) {
         g_critical("qemu-ga only supports listening on one socket");
-        ret = EXIT_FAILURE;
         goto end;
     }
     if (socket_activation) {
@@ -1631,7 +1642,6 @@ int main(int argc, char **argv)
 
         if (!config->method) {
             g_critical("unsupported listen fd type");
-            ret = EXIT_FAILURE;
             goto end;
         }
     } else if (config->channel_path == NULL) {
@@ -1643,13 +1653,13 @@ int main(int argc, char **argv)
             config->channel_path = g_strdup(QGA_SERIAL_PATH_DEFAULT);
         } else {
             g_critical("must specify a path for this channel");
-            ret = EXIT_FAILURE;
             goto end;
         }
     }
 
     if (config->dumpconf) {
         config_dump(config);
+        ret = EXIT_SUCCESS;
         goto end;
     }
 
@@ -1664,6 +1674,7 @@ int main(int argc, char **argv)
         SERVICE_TABLE_ENTRY service_table[] = {
             { (char *)QGA_SERVICE_NAME, service_main }, { NULL, NULL } };
         StartServiceCtrlDispatcher(service_table);
+        ret = EXIT_SUCCESS;
     } else {
         ret = run_agent(s);
     }

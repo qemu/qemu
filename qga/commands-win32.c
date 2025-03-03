@@ -1273,6 +1273,9 @@ int64_t qmp_guest_fsfreeze_thaw(Error **errp)
     qga_vss_fsfreeze(&i, false, NULL, errp);
 
     ga_unset_frozen(ga_state);
+
+    slog("guest-fsthaw called");
+
     return i;
 }
 
