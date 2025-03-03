@@ -90,8 +90,8 @@ hwaddr openrisc_load_initrd(void *fdt, const char *filename,
     return start + size;
 }
 
-uint32_t openrisc_load_fdt(void *fdt, hwaddr load_start,
-                           uint64_t mem_size)
+uint32_t openrisc_load_fdt(MachineState *ms, void *fdt,
+                           hwaddr load_start, uint64_t mem_size)
 {
     uint32_t fdt_addr;
     int ret;
@@ -109,7 +109,9 @@ uint32_t openrisc_load_fdt(void *fdt, hwaddr load_start,
     /* Should only fail if we've built a corrupted tree */
     g_assert(ret == 0);
     /* copy in the device tree */
-    qemu_fdt_dumpdtb(fdt, fdtsize);
+
+    /* Save FDT for dumpdtb monitor command */
+    ms->fdt = fdt;
 
     rom_add_blob_fixed_as("fdt", fdt, fdtsize, fdt_addr,
                           &address_space_memory);

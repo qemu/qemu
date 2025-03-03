@@ -377,7 +377,7 @@ static int smmu_get_cd(SMMUv3State *s, STE *ste, SMMUTransCfg *cfg,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "Cannot fetch pte at address=0x%"PRIx64"\n", addr);
         event->type = SMMU_EVT_F_CD_FETCH;
-        event->u.f_ste_fetch.addr = addr;
+        event->u.f_cd_fetch.addr = addr;
         return -EINVAL;
     }
     for (i = 0; i < ARRAY_SIZE(buf->word); i++) {

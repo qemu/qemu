@@ -30,12 +30,27 @@ struct fit_loader_match {
 struct fit_loader {
     const struct fit_loader_match *matches;
     hwaddr (*addr_to_phys)(void *opaque, uint64_t addr);
-    const void *(*fdt_filter)(void *opaque, const void *fdt,
-                              const void *match_data, hwaddr *load_addr);
+    void *(*fdt_filter)(void *opaque, const void *fdt,
+                        const void *match_data, hwaddr *load_addr);
     const void *(*kernel_filter)(void *opaque, const void *kernel,
                                  hwaddr *load_addr, hwaddr *entry_addr);
 };
 
-int load_fit(const struct fit_loader *ldr, const char *filename, void *opaque);
+/**
+ * load_fit: load a FIT format image
+ * @ldr: structure defining board specific properties and hooks
+ * @filename: image to load
+ * @pfdt: pointer to update with address of FDT blob
+ * @opaque: opaque value passed back to the hook functions in @ldr
+ * Returns: 0 on success, or a negative errno on failure
+ *
+ * @pfdt is used to tell the caller about the FDT blob. On return, it
+ * has been set to point to the FDT blob, and it is now the caller's
+ * responsibility to free that memory with g_free(). Usually the caller
+ * will want to pass in &machine->fdt here, to record the FDT blob for
+ * the dumpdtb option and QMP/HMP commands.
+ */
+int load_fit(const struct fit_loader *ldr, const char *filename, void **pfdt,
+             void *opaque);
 
 #endif /* HW_LOADER_FIT_H */

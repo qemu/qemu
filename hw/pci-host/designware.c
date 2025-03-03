@@ -55,6 +55,17 @@
 #define DESIGNWARE_PCIE_ATU_DEVFN(x)               (((x) >> 16) & 0xff)
 #define DESIGNWARE_PCIE_ATU_UPPER_TARGET           0x91C
 
+static void designware_pcie_root_bus_class_init(ObjectClass *klass, void *data)
+{
+    BusClass *k = BUS_CLASS(klass);
+
+    /*
+     * Designware has only a single root complex. Enforce the limit on the
+     * parent bus
+     */
+    k->max_dev = 1;
+}
+
 static DesignwarePCIEHost *
 designware_pcie_root_to_host(DesignwarePCIERoot *root)
 {
@@ -699,7 +710,7 @@ static void designware_pcie_host_realize(DeviceState *dev, Error **errp)
                                      &s->pci.memory,
                                      &s->pci.io,
                                      0, 4,
-                                     TYPE_PCIE_BUS);
+                                     TYPE_DESIGNWARE_PCIE_ROOT_BUS);
     pci->bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
 
     memory_region_init(&s->pci.address_space_root,
@@ -754,6 +765,11 @@ static void designware_pcie_host_init(Object *obj)
 
 static const TypeInfo designware_pcie_types[] = {
     {
+        .name           = TYPE_DESIGNWARE_PCIE_ROOT_BUS,
+        .parent         = TYPE_PCIE_BUS,
+        .instance_size  = sizeof(DesignwarePCIERootBus),
+        .class_init     = designware_pcie_root_bus_class_init,
+    }, {
         .name           = TYPE_DESIGNWARE_PCIE_HOST,
         .parent         = TYPE_PCI_HOST_BRIDGE,
         .instance_size  = sizeof(DesignwarePCIEHost),

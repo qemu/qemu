@@ -594,21 +594,6 @@ int qemu_fdt_add_path(void *fdt, const char *path)
     return retval;
 }
 
-void qemu_fdt_dumpdtb(void *fdt, int size)
-{
-    const char *dumpdtb = current_machine->dumpdtb;
-
-    if (dumpdtb) {
-        /* Dump the dtb to a file and quit */
-        if (g_file_set_contents(dumpdtb, fdt, size, NULL)) {
-            info_report("dtb dumped to %s. Exiting.", dumpdtb);
-            exit(0);
-        }
-        error_report("%s: Failed dumping dtb to %s", __func__, dumpdtb);
-        exit(1);
-    }
-}
-
 int qemu_fdt_setprop_sized_cells_from_array(void *fdt,
                                             const char *node_path,
                                             const char *property,
@@ -650,11 +635,16 @@ out:
 
 void qmp_dumpdtb(const char *filename, Error **errp)
 {
+    ERRP_GUARD();
+
     g_autoptr(GError) err = NULL;
     uint32_t size;
 
     if (!current_machine->fdt) {
-        error_setg(errp, "This machine doesn't have a FDT");
+        error_setg(errp, "This machine doesn't have an FDT");
+        error_append_hint(errp,
+                          "(Perhaps it doesn't support FDT at all, or perhaps "
+                          "you need to provide an FDT with the -fdt option?)\n");
         return;
     }
 

@@ -85,11 +85,7 @@ this code that are retained.
  */
 static inline bool no_signaling_nans(float_status *status)
 {
-#if defined(TARGET_XTENSA)
     return status->no_signaling_nans;
-#else
-    return false;
-#endif
 }
 
 /* Define how the architecture discriminates signaling NaNs.
@@ -97,17 +93,10 @@ static inline bool no_signaling_nans(float_status *status)
  * In IEEE 754-1985 this was implementation defined, but in IEEE 754-2008
  * the msb must be zero.  MIPS is (so far) unique in supporting both the
  * 2008 revision and backward compatibility with their original choice.
- * Thus for MIPS we must make the choice at runtime.
  */
 static inline bool snan_bit_is_one(float_status *status)
 {
-#if defined(TARGET_MIPS)
     return status->snan_bit_is_one;
-#elif defined(TARGET_HPPA) || defined(TARGET_SH4)
-    return 1;
-#else
-    return 0;
-#endif
 }
 
 /*----------------------------------------------------------------------------
@@ -227,15 +216,15 @@ floatx80 floatx80_default_nan(float_status *status)
 | The pattern for a default generated extended double-precision inf.
 *----------------------------------------------------------------------------*/
 
-#define floatx80_infinity_high 0x7FFF
-#if defined(TARGET_M68K)
-#define floatx80_infinity_low  UINT64_C(0x0000000000000000)
-#else
-#define floatx80_infinity_low  UINT64_C(0x8000000000000000)
-#endif
-
-const floatx80 floatx80_infinity
-    = make_floatx80_init(floatx80_infinity_high, floatx80_infinity_low);
+floatx80 floatx80_default_inf(bool zSign, float_status *status)
+{
+    /*
+     * Whether the Integer bit is set in the default Infinity is
+     * target dependent.
+     */
+    bool z = status->floatx80_behaviour & floatx80_default_inf_int_bit_is_zero;
+    return packFloatx80(zSign, 0x7fff, z ? 0 : (1ULL << 63));
+}
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the half-precision floating-point value `a' is a quiet

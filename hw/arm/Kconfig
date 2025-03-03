@@ -593,6 +593,30 @@ config FSL_IMX7
     select UNIMP
     select USB_CHIPIDEA
 
+config FSL_IMX8MP
+    bool
+    imply I2C_DEVICES
+    imply PCI_DEVICES
+    select ARM_GIC
+    select FSL_IMX8MP_ANALOG
+    select FSL_IMX8MP_CCM
+    select IMX
+    select IMX_FEC
+    select IMX_I2C
+    select OR_IRQ
+    select PCI_EXPRESS_DESIGNWARE
+    select PCI_EXPRESS_FSL_IMX8M_PHY
+    select SDHCI
+    select UNIMP
+    select USB_DWC3
+    select WDT_IMX2
+
+config FSL_IMX8MP_EVK
+    bool
+    default y
+    depends on TCG && AARCH64
+    select FSL_IMX8MP
+
 config ARM_SMMUV3
     bool
 

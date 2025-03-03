@@ -142,8 +142,7 @@ floatx80 floatx80_scale(floatx80 a, floatx80 b, float_status *status)
         if ((uint64_t) (aSig << 1)) {
             return propagateFloatx80NaN(a, b, status);
         }
-        return packFloatx80(aSign, floatx80_infinity.high,
-                            floatx80_infinity.low);
+        return floatx80_default_inf(aSign, status);
     }
     if (aExp == 0) {
         if (aSig == 0) {
@@ -245,7 +244,7 @@ floatx80 floatx80_lognp1(floatx80 a, float_status *status)
             float_raise(float_flag_invalid, status);
             return floatx80_default_nan(status);
         }
-        return packFloatx80(0, floatx80_infinity.high, floatx80_infinity.low);
+        return floatx80_default_inf(0, status);
     }
 
     if (aExp == 0 && aSig == 0) {
@@ -255,8 +254,7 @@ floatx80 floatx80_lognp1(floatx80 a, float_status *status)
     if (aSign && aExp >= one_exp) {
         if (aExp == one_exp && aSig == one_sig) {
             float_raise(float_flag_divbyzero, status);
-            return packFloatx80(aSign, floatx80_infinity.high,
-                                floatx80_infinity.low);
+            return floatx80_default_inf(aSign, status);
         }
         float_raise(float_flag_invalid, status);
         return floatx80_default_nan(status);
@@ -442,8 +440,7 @@ floatx80 floatx80_logn(floatx80 a, float_status *status)
             propagateFloatx80NaNOneArg(a, status);
         }
         if (aSign == 0) {
-            return packFloatx80(0, floatx80_infinity.high,
-                                floatx80_infinity.low);
+            return floatx80_default_inf(0, status);
         }
     }
 
@@ -452,8 +449,7 @@ floatx80 floatx80_logn(floatx80 a, float_status *status)
     if (aExp == 0) {
         if (aSig == 0) { /* zero */
             float_raise(float_flag_divbyzero, status);
-            return packFloatx80(1, floatx80_infinity.high,
-                                floatx80_infinity.low);
+            return floatx80_default_inf(1, status);
         }
         if ((aSig & one_sig) == 0) { /* denormal */
             normalizeFloatx80Subnormal(aSig, &aExp, &aSig);
@@ -610,15 +606,13 @@ floatx80 floatx80_log10(floatx80 a, float_status *status)
             propagateFloatx80NaNOneArg(a, status);
         }
         if (aSign == 0) {
-            return packFloatx80(0, floatx80_infinity.high,
-                                floatx80_infinity.low);
+            return floatx80_default_inf(0, status);
         }
     }
 
     if (aExp == 0 && aSig == 0) {
         float_raise(float_flag_divbyzero, status);
-        return packFloatx80(1, floatx80_infinity.high,
-                            floatx80_infinity.low);
+        return floatx80_default_inf(1, status);
     }
 
     if (aSign) {
@@ -668,16 +662,14 @@ floatx80 floatx80_log2(floatx80 a, float_status *status)
             propagateFloatx80NaNOneArg(a, status);
         }
         if (aSign == 0) {
-            return packFloatx80(0, floatx80_infinity.high,
-                                floatx80_infinity.low);
+            return floatx80_default_inf(0, status);
         }
     }
 
     if (aExp == 0) {
         if (aSig == 0) {
             float_raise(float_flag_divbyzero, status);
-            return packFloatx80(1, floatx80_infinity.high,
-                                floatx80_infinity.low);
+            return floatx80_default_inf(1, status);
         }
         normalizeFloatx80Subnormal(aSig, &aExp, &aSig);
     }
@@ -740,8 +732,7 @@ floatx80 floatx80_etox(floatx80 a, float_status *status)
         if (aSign) {
             return packFloatx80(0, 0, 0);
         }
-        return packFloatx80(0, floatx80_infinity.high,
-                            floatx80_infinity.low);
+        return floatx80_default_inf(0, status);
     }
 
     if (aExp == 0 && aSig == 0) {
@@ -924,8 +915,7 @@ floatx80 floatx80_twotox(floatx80 a, float_status *status)
         if (aSign) {
             return packFloatx80(0, 0, 0);
         }
-        return packFloatx80(0, floatx80_infinity.high,
-                            floatx80_infinity.low);
+        return floatx80_default_inf(0, status);
     }
 
     if (aExp == 0 && aSig == 0) {
@@ -1075,8 +1065,7 @@ floatx80 floatx80_tentox(floatx80 a, float_status *status)
         if (aSign) {
             return packFloatx80(0, 0, 0);
         }
-        return packFloatx80(0, floatx80_infinity.high,
-                            floatx80_infinity.low);
+        return floatx80_default_inf(0, status);
     }
 
     if (aExp == 0 && aSig == 0) {
@@ -2260,8 +2249,7 @@ floatx80 floatx80_atanh(floatx80 a, float_status *status)
     if (compact >= 0x3FFF8000) { /* |X| >= 1 */
         if (aExp == one_exp && aSig == one_sig) { /* |X| == 1 */
             float_raise(float_flag_divbyzero, status);
-            return packFloatx80(aSign, floatx80_infinity.high,
-                                floatx80_infinity.low);
+            return floatx80_default_inf(aSign, status);
         } else { /* |X| > 1 */
             float_raise(float_flag_invalid, status);
             return floatx80_default_nan(status);
@@ -2320,8 +2308,7 @@ floatx80 floatx80_etoxm1(floatx80 a, float_status *status)
         if (aSign) {
             return packFloatx80(aSign, one_exp, one_sig);
         }
-        return packFloatx80(0, floatx80_infinity.high,
-                            floatx80_infinity.low);
+        return floatx80_default_inf(0, status);
     }
 
     if (aExp == 0 && aSig == 0) {
@@ -2687,8 +2674,7 @@ floatx80 floatx80_sinh(floatx80 a, float_status *status)
         if ((uint64_t) (aSig << 1)) {
             return propagateFloatx80NaNOneArg(a, status);
         }
-        return packFloatx80(aSign, floatx80_infinity.high,
-                            floatx80_infinity.low);
+        return floatx80_default_inf(aSign, status);
     }
 
     if (aExp == 0 && aSig == 0) {
@@ -2774,8 +2760,7 @@ floatx80 floatx80_cosh(floatx80 a, float_status *status)
         if ((uint64_t) (aSig << 1)) {
             return propagateFloatx80NaNOneArg(a, status);
         }
-        return packFloatx80(0, floatx80_infinity.high,
-                            floatx80_infinity.low);
+        return floatx80_default_inf(0, status);
     }
 
     if (aExp == 0 && aSig == 0) {

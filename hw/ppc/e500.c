@@ -658,7 +658,6 @@ static int ppce500_load_device_tree(PPCE500MachineState *pms,
 
 done:
     if (!dry_run) {
-        qemu_fdt_dumpdtb(fdt, fdt_size);
         cpu_physical_memory_write(addr, fdt, fdt_size);
 
         /* Set machine->fdt for 'dumpdtb' QMP/HMP command */

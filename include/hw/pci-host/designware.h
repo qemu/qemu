@@ -25,11 +25,18 @@
 #include "hw/pci/pci_bridge.h"
 #include "qom/object.h"
 
+#define TYPE_DESIGNWARE_PCIE_ROOT_BUS "designware-pcie-root-BUS"
+OBJECT_DECLARE_SIMPLE_TYPE(DesignwarePCIERootBus, DESIGNWARE_PCIE_ROOT_BUS)
+
 #define TYPE_DESIGNWARE_PCIE_HOST "designware-pcie-host"
 OBJECT_DECLARE_SIMPLE_TYPE(DesignwarePCIEHost, DESIGNWARE_PCIE_HOST)
 
 #define TYPE_DESIGNWARE_PCIE_ROOT "designware-pcie-root"
 OBJECT_DECLARE_SIMPLE_TYPE(DesignwarePCIERoot, DESIGNWARE_PCIE_ROOT)
+
+struct DesignwarePCIERootBus {
+    PCIBus parent;
+};
 
 typedef struct DesignwarePCIEViewport {
     DesignwarePCIERoot *root;

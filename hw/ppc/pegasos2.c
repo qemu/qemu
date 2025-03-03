@@ -417,7 +417,6 @@ static void pegasos2_machine_reset(MachineState *machine, ResetType type)
     d[1] = cpu_to_be64(pm->kernel_size - (pm->kernel_entry - pm->kernel_addr));
     qemu_fdt_setprop(fdt, "/chosen", "qemu,boot-kernel", d, sizeof(d));
 
-    qemu_fdt_dumpdtb(fdt, fdt_totalsize(fdt));
     g_free(pm->fdt_blob);
     pm->fdt_blob = fdt;
 

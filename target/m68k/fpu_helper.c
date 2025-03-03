@@ -455,7 +455,7 @@ void HELPER(ftst)(CPUM68KState *env, FPReg *val)
 
     if (floatx80_is_any_nan(val->d)) {
         cc |= FPSR_CC_A;
-    } else if (floatx80_is_infinity(val->d)) {
+    } else if (floatx80_is_infinity(val->d, &env->fp_status)) {
         cc |= FPSR_CC_I;
     } else if (floatx80_is_zero(val->d)) {
         cc |= FPSR_CC_Z;

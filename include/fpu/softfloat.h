@@ -960,7 +960,7 @@ float128 floatx80_to_float128(floatx80, float_status *status);
 /*----------------------------------------------------------------------------
 | The pattern for an extended double-precision inf.
 *----------------------------------------------------------------------------*/
-extern const floatx80 floatx80_infinity;
+floatx80 floatx80_default_inf(bool zSign, float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision operations.
@@ -995,14 +995,19 @@ static inline floatx80 floatx80_chs(floatx80 a)
     return a;
 }
 
-static inline bool floatx80_is_infinity(floatx80 a)
+static inline bool floatx80_is_infinity(floatx80 a, float_status *status)
 {
-#if defined(TARGET_M68K)
-    return (a.high & 0x7fff) == floatx80_infinity.high && !(a.low << 1);
-#else
-    return (a.high & 0x7fff) == floatx80_infinity.high &&
-                       a.low == floatx80_infinity.low;
-#endif
+    /*
+     * It's target-specific whether the Integer bit is permitted
+     * to be 0 in a valid Infinity value. (x86 says no, m68k says yes).
+     */
+    bool intbit = a.low >> 63;
+
+    if (!intbit &&
+        !(status->floatx80_behaviour & floatx80_pseudo_inf_valid)) {
+        return false;
+    }
+    return (a.high & 0x7fff) == 0x7fff && !(a.low << 1);
 }
 
 static inline bool floatx80_is_neg(floatx80 a)
@@ -1068,41 +1073,45 @@ static inline bool floatx80_unordered_quiet(floatx80 a, floatx80 b,
 
 /*----------------------------------------------------------------------------
 | Return whether the given value is an invalid floatx80 encoding.
-| Invalid floatx80 encodings arise when the integer bit is not set, but
-| the exponent is not zero. The only times the integer bit is permitted to
-| be zero is in subnormal numbers and the value zero.
-| This includes what the Intel software developer's manual calls pseudo-NaNs,
-| pseudo-infinities and un-normal numbers. It does not include
-| pseudo-denormals, which must still be correctly handled as inputs even
-| if they are never generated as outputs.
+| Invalid floatx80 encodings may arise when the integer bit is not set
+| correctly; this is target-specific. In Intel terminology the
+| categories are:
+|  exp == 0, int = 0, mantissa == 0 : zeroes
+|  exp == 0, int = 0, mantissa != 0 : denormals
+|  exp == 0, int = 1 : pseudo-denormals
+|  0 < exp < 0x7fff, int = 0 : unnormals
+|  0 < exp < 0x7fff, int = 1 : normals
+|  exp == 0x7fff, int = 0, mantissa == 0 : pseudo-infinities
+|  exp == 0x7fff, int = 1, mantissa == 0 : infinities
+|  exp == 0x7fff, int = 0, mantissa != 0 : pseudo-NaNs
+|  exp == 0x7fff, int = 1, mantissa == 0 : NaNs
+|
+| The usual IEEE cases of zero, denormal, normal, inf and NaN are always valid.
+| x87 permits as input also pseudo-denormals.
+| m68k permits all those and also pseudo-infinities, pseudo-NaNs and unnormals.
+|
+| Since we don't have a target that handles floatx80 but prohibits
+| pseudo-denormals in input, we don't currently have a floatx80_behaviour
+| flag for that case, but instead always accept it. Conveniently this
+| means that all cases with either exponent 0 or the integer bit set are
+| valid for all targets.
 *----------------------------------------------------------------------------*/
-static inline bool floatx80_invalid_encoding(floatx80 a)
+static inline bool floatx80_invalid_encoding(floatx80 a, float_status *s)
 {
-#if defined(TARGET_M68K)
-    /*-------------------------------------------------------------------------
-    | With m68k, the explicit integer bit can be zero in the case of:
-    | - zeros                (exp == 0, mantissa == 0)
-    | - denormalized numbers (exp == 0, mantissa != 0)
-    | - unnormalized numbers (exp != 0, exp < 0x7FFF)
-    | - infinities           (exp == 0x7FFF, mantissa == 0)
-    | - not-a-numbers        (exp == 0x7FFF, mantissa != 0)
-    |
-    | For infinities and NaNs, the explicit integer bit can be either one or
-    | zero.
-    |
-    | The IEEE 754 standard does not define a zero integer bit. Such a number
-    | is an unnormalized number. Hardware does not directly support
-    | denormalized and unnormalized numbers, but implicitly supports them by
-    | trapping them as unimplemented data types, allowing efficient conversion
-    | in software.
-    |
-    | See "M68000 FAMILY PROGRAMMER’S REFERENCE MANUAL",
-    |     "1.6 FLOATING-POINT DATA TYPES"
-    *------------------------------------------------------------------------*/
-    return false;
-#else
-    return (a.low & (1ULL << 63)) == 0 && (a.high & 0x7FFF) != 0;
-#endif
+    if ((a.low >> 63) || (a.high & 0x7fff) == 0) {
+        /* Anything with the Integer bit set or the exponent 0 is valid */
+        return false;
+    }
+
+    if ((a.high & 0x7fff) == 0x7fff) {
+        if (a.low) {
+            return !(s->floatx80_behaviour & floatx80_pseudo_nan_valid);
+        } else {
+            return !(s->floatx80_behaviour & floatx80_pseudo_inf_valid);
+        }
+    } else {
+        return !(s->floatx80_behaviour & floatx80_unnormal_valid);
+    }
 }
 
 #define floatx80_zero make_floatx80(0x0000, 0x0000000000000000LL)

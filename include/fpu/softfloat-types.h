@@ -321,6 +321,56 @@ typedef enum __attribute__((__packed__)) {
 } FloatFTZDetection;
 
 /*
+ * floatx80 is primarily used by x86 and m68k, and there are
+ * differences in the handling, largely related to the explicit
+ * Integer bit which floatx80 has and the other float formats do not.
+ * These flag values allow specification of the target's requirements
+ * and can be ORed together to set floatx80_behaviour.
+ */
+typedef enum __attribute__((__packed__)) {
+    /* In the default Infinity value, is the Integer bit 0 ? */
+    floatx80_default_inf_int_bit_is_zero = 1,
+    /*
+     * Are Pseudo-infinities (Inf with the Integer bit zero) valid?
+     * If so, floatx80_is_infinity() will return true for them.
+     * If not, floatx80_invalid_encoding will return false for them,
+     * and using them as inputs to a float op will raise Invalid.
+     */
+    floatx80_pseudo_inf_valid = 2,
+    /*
+     * Are Pseudo-NaNs (NaNs where the Integer bit is zero) valid?
+     * If not, floatx80_invalid_encoding() will return false for them,
+     * and using them as inputs to a float op will raise Invalid.
+     */
+    floatx80_pseudo_nan_valid = 4,
+    /*
+     * Are Unnormals (0 < exp < 0x7fff, Integer bit zero) valid?
+     * If not, floatx80_invalid_encoding() will return false for them,
+     * and using them as inputs to a float op will raise Invalid.
+     */
+    floatx80_unnormal_valid = 8,
+
+    /*
+     * If the exponent is 0 and the Integer bit is set, Intel call
+     * this a "pseudo-denormal"; x86 supports that only on input
+     * (treating them as denormals by ignoring the Integer bit).
+     * For m68k, the integer bit is considered validly part of the
+     * input value when the exponent is 0, and may be 0 or 1,
+     * giving extra range. They may also be generated as outputs.
+     * (The m68k manual actually calls these values part of the
+     * normalized number range, not the denormalized number range.)
+     *
+     * By default you get the Intel behaviour where the Integer
+     * bit is ignored; if this is set then the Integer bit value
+     * is honoured, m68k-style.
+     *
+     * Either way, floatx80_invalid_encoding() will always accept
+     * pseudo-denormals.
+     */
+    floatx80_pseudo_denormal_valid = 16,
+} FloatX80Behaviour;
+
+/*
  * Floating Point Status. Individual architectures may maintain
  * several versions of float_status for different functions. The
  * correct status for the operation is then passed by reference to
@@ -331,6 +381,7 @@ typedef struct float_status {
     uint16_t float_exception_flags;
     FloatRoundMode float_rounding_mode;
     FloatX80RoundPrec floatx80_rounding_precision;
+    FloatX80Behaviour floatx80_behaviour;
     Float2NaNPropRule float_2nan_prop_rule;
     Float3NaNPropRule float_3nan_prop_rule;
     FloatInfZeroNaNRule float_infzeronan_rule;

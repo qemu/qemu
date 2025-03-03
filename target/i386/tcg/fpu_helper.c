@@ -1141,7 +1141,7 @@ void helper_f2xm1(CPUX86State *env)
     int32_t exp = extractFloatx80Exp(ST0);
     bool sign = extractFloatx80Sign(ST0);
 
-    if (floatx80_invalid_encoding(ST0)) {
+    if (floatx80_invalid_encoding(ST0, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST0 = floatx80_default_nan(&env->fp_status);
     } else if (floatx80_is_any_nan(ST0)) {
@@ -1383,8 +1383,8 @@ void helper_fpatan(CPUX86State *env)
     } else if (floatx80_is_signaling_nan(ST1, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST1 = floatx80_silence_nan(ST1, &env->fp_status);
-    } else if (floatx80_invalid_encoding(ST0) ||
-               floatx80_invalid_encoding(ST1)) {
+    } else if (floatx80_invalid_encoding(ST0, &env->fp_status) ||
+               floatx80_invalid_encoding(ST1, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST1 = floatx80_default_nan(&env->fp_status);
     } else if (floatx80_is_any_nan(ST0)) {
@@ -1393,7 +1393,8 @@ void helper_fpatan(CPUX86State *env)
         /* Pass this NaN through.  */
     } else if (floatx80_is_zero(ST1) && !arg0_sign) {
         /* Pass this zero through.  */
-    } else if (((floatx80_is_infinity(ST0) && !floatx80_is_infinity(ST1)) ||
+    } else if (((floatx80_is_infinity(ST0, &env->fp_status) &&
+                 !floatx80_is_infinity(ST1, &env->fp_status)) ||
                  arg0_exp - arg1_exp >= 80) &&
                !arg0_sign) {
         /*
@@ -1442,8 +1443,8 @@ void helper_fpatan(CPUX86State *env)
             rexp = pi_exp;
             rsig0 = pi_sig_high;
             rsig1 = pi_sig_low;
-        } else if (floatx80_is_infinity(ST1)) {
-            if (floatx80_is_infinity(ST0)) {
+        } else if (floatx80_is_infinity(ST1, &env->fp_status)) {
+            if (floatx80_is_infinity(ST0, &env->fp_status)) {
                 if (arg0_sign) {
                     rexp = pi_34_exp;
                     rsig0 = pi_34_sig_high;
@@ -1462,7 +1463,8 @@ void helper_fpatan(CPUX86State *env)
             rexp = pi_2_exp;
             rsig0 = pi_2_sig_high;
             rsig1 = pi_2_sig_low;
-        } else if (floatx80_is_infinity(ST0) || arg0_exp - arg1_exp >= 80) {
+        } else if (floatx80_is_infinity(ST0, &env->fp_status) ||
+                   arg0_exp - arg1_exp >= 80) {
             /* ST0 is negative.  */
             rexp = pi_exp;
             rsig0 = pi_sig_high;
@@ -1817,7 +1819,7 @@ void helper_fxtract(CPUX86State *env)
                            &env->fp_status);
         fpush(env);
         ST0 = temp.d;
-    } else if (floatx80_invalid_encoding(ST0)) {
+    } else if (floatx80_invalid_encoding(ST0, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST0 = floatx80_default_nan(&env->fp_status);
         fpush(env);
@@ -1829,10 +1831,10 @@ void helper_fxtract(CPUX86State *env)
         }
         fpush(env);
         ST0 = ST1;
-    } else if (floatx80_is_infinity(ST0)) {
+    } else if (floatx80_is_infinity(ST0, &env->fp_status)) {
         fpush(env);
         ST0 = ST1;
-        ST1 = floatx80_infinity;
+        ST1 = floatx80_default_inf(0, &env->fp_status);
     } else {
         int expdif;
 
@@ -1868,7 +1870,8 @@ static void helper_fprem_common(CPUX86State *env, bool mod)
     env->fpus &= ~0x4700; /* (C3,C2,C1,C0) <-- 0000 */
     if (floatx80_is_zero(ST0) || floatx80_is_zero(ST1) ||
         exp0 == 0x7fff || exp1 == 0x7fff ||
-        floatx80_invalid_encoding(ST0) || floatx80_invalid_encoding(ST1)) {
+        floatx80_invalid_encoding(ST0, &env->fp_status) ||
+        floatx80_invalid_encoding(ST1, &env->fp_status)) {
         ST0 = floatx80_modrem(ST0, ST1, mod, &quotient, &env->fp_status);
     } else {
         if (exp0 == 0) {
@@ -2064,8 +2067,8 @@ void helper_fyl2xp1(CPUX86State *env)
     } else if (floatx80_is_signaling_nan(ST1, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST1 = floatx80_silence_nan(ST1, &env->fp_status);
-    } else if (floatx80_invalid_encoding(ST0) ||
-               floatx80_invalid_encoding(ST1)) {
+    } else if (floatx80_invalid_encoding(ST0, &env->fp_status) ||
+               floatx80_invalid_encoding(ST1, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST1 = floatx80_default_nan(&env->fp_status);
     } else if (floatx80_is_any_nan(ST0)) {
@@ -2162,8 +2165,8 @@ void helper_fyl2x(CPUX86State *env)
     } else if (floatx80_is_signaling_nan(ST1, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST1 = floatx80_silence_nan(ST1, &env->fp_status);
-    } else if (floatx80_invalid_encoding(ST0) ||
-               floatx80_invalid_encoding(ST1)) {
+    } else if (floatx80_invalid_encoding(ST0, &env->fp_status) ||
+               floatx80_invalid_encoding(ST1, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST1 = floatx80_default_nan(&env->fp_status);
     } else if (floatx80_is_any_nan(ST0)) {
@@ -2173,7 +2176,7 @@ void helper_fyl2x(CPUX86State *env)
     } else if (arg0_sign && !floatx80_is_zero(ST0)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST1 = floatx80_default_nan(&env->fp_status);
-    } else if (floatx80_is_infinity(ST1)) {
+    } else if (floatx80_is_infinity(ST1, &env->fp_status)) {
         FloatRelation cmp = floatx80_compare(ST0, floatx80_one,
                                              &env->fp_status);
         switch (cmp) {
@@ -2188,7 +2191,7 @@ void helper_fyl2x(CPUX86State *env)
             ST1 = floatx80_default_nan(&env->fp_status);
             break;
         }
-    } else if (floatx80_is_infinity(ST0)) {
+    } else if (floatx80_is_infinity(ST0, &env->fp_status)) {
         if (floatx80_is_zero(ST1)) {
             float_raise(float_flag_invalid, &env->fp_status);
             ST1 = floatx80_default_nan(&env->fp_status);
@@ -2329,7 +2332,8 @@ void helper_frndint(CPUX86State *env)
 void helper_fscale(CPUX86State *env)
 {
     uint8_t old_flags = save_exception_flags(env);
-    if (floatx80_invalid_encoding(ST1) || floatx80_invalid_encoding(ST0)) {
+    if (floatx80_invalid_encoding(ST1, &env->fp_status) ||
+        floatx80_invalid_encoding(ST0, &env->fp_status)) {
         float_raise(float_flag_invalid, &env->fp_status);
         ST0 = floatx80_default_nan(&env->fp_status);
     } else if (floatx80_is_any_nan(ST1)) {
@@ -2341,11 +2345,11 @@ void helper_fscale(CPUX86State *env)
             float_raise(float_flag_invalid, &env->fp_status);
             ST0 = floatx80_silence_nan(ST0, &env->fp_status);
         }
-    } else if (floatx80_is_infinity(ST1) &&
-               !floatx80_invalid_encoding(ST0) &&
+    } else if (floatx80_is_infinity(ST1, &env->fp_status) &&
+               !floatx80_invalid_encoding(ST0, &env->fp_status) &&
                !floatx80_is_any_nan(ST0)) {
         if (floatx80_is_neg(ST1)) {
-            if (floatx80_is_infinity(ST0)) {
+            if (floatx80_is_infinity(ST0, &env->fp_status)) {
                 float_raise(float_flag_invalid, &env->fp_status);
                 ST0 = floatx80_default_nan(&env->fp_status);
             } else {
@@ -2358,9 +2362,8 @@ void helper_fscale(CPUX86State *env)
                 float_raise(float_flag_invalid, &env->fp_status);
                 ST0 = floatx80_default_nan(&env->fp_status);
             } else {
-                ST0 = (floatx80_is_neg(ST0) ?
-                       floatx80_chs(floatx80_infinity) :
-                       floatx80_infinity);
+                ST0 = floatx80_default_inf(floatx80_is_neg(ST0),
+                                           &env->fp_status);
             }
         }
     } else {

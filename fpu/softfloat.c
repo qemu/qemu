@@ -79,9 +79,6 @@ this code that are retained.
  * version 2 or later. See the COPYING file in the top-level directory.
  */
 
-/* softfloat (and in particular the code in softfloat-specialize.h) is
- * target-dependent and needs the TARGET_* macros.
- */
 #include "qemu/osdep.h"
 #include <math.h>
 #include "qemu/bitops.h"
@@ -220,11 +217,9 @@ GEN_INPUT_FLUSH3(float64_input_flush3, float64)
  * the use of hardfloat, since hardfloat relies on the inexact flag being
  * already set.
  */
-#if defined(TARGET_PPC) || defined(__FAST_MATH__)
 # if defined(__FAST_MATH__)
 #  warning disabling hardfloat due to -ffast-math: hardfloat requires an exact \
     IEEE implementation
-# endif
 # define QEMU_NO_HARDFLOAT 1
 # define QEMU_SOFTFLOAT_ATTR QEMU_FLATTEN
 #else
@@ -537,7 +532,8 @@ typedef struct {
  *   round_mask: bits below lsb which must be rounded
  * The following optional modifiers are available:
  *   arm_althp: handle ARM Alternative Half Precision
- *   m68k_denormal: explicit integer bit for extended precision may be 1
+ *   has_explicit_bit: has an explicit integer bit; this affects whether
+ *   the float_status floatx80_behaviour handling applies
  */
 typedef struct {
     int exp_size;
@@ -547,7 +543,7 @@ typedef struct {
     int frac_size;
     int frac_shift;
     bool arm_althp;
-    bool m68k_denormal;
+    bool has_explicit_bit;
     uint64_t round_mask;
 } FloatFmt;
 
@@ -600,9 +596,7 @@ static const FloatFmt floatx80_params[3] = {
     [floatx80_precision_d] = { FLOATX80_PARAMS(52) },
     [floatx80_precision_x] = {
         FLOATX80_PARAMS(64),
-#ifdef TARGET_M68K
-        .m68k_denormal = true,
-#endif
+        .has_explicit_bit = true,
     },
 };
 
@@ -1810,7 +1804,7 @@ static bool floatx80_unpack_canonical(FloatParts128 *p, floatx80 f,
         g_assert_not_reached();
     }
 
-    if (unlikely(floatx80_invalid_encoding(f))) {
+    if (unlikely(floatx80_invalid_encoding(f, s))) {
         float_raise(float_flag_invalid, s);
         return false;
     }
@@ -1860,7 +1854,8 @@ static floatx80 floatx80_round_pack_canonical(FloatParts128 *p,
 
     case float_class_inf:
         /* x86 and m68k differ in the setting of the integer bit. */
-        frac = floatx80_infinity_low;
+        frac = s->floatx80_behaviour & floatx80_default_inf_int_bit_is_zero ?
+            0 : (1ULL << 63);
         exp = fmt->exp_max;
         break;
 
@@ -5144,9 +5139,7 @@ floatx80 roundAndPackFloatx80(FloatX80RoundPrec roundingPrecision, bool zSign,
                ) {
                 return packFloatx80( zSign, 0x7FFE, ~ roundMask );
             }
-            return packFloatx80(zSign,
-                                floatx80_infinity_high,
-                                floatx80_infinity_low);
+            return floatx80_default_inf(zSign, status);
         }
         if ( zExp <= 0 ) {
             isTiny = status->tininess_before_rounding

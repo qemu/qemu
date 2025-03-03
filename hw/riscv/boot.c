@@ -374,8 +374,6 @@ void riscv_load_fdt(hwaddr fdt_addr, void *fdt)
     uint32_t fdtsize = fdt_totalsize(fdt);
 
     /* copy in the device tree */
-    qemu_fdt_dumpdtb(fdt, fdtsize);
-
     rom_add_blob_fixed_as("fdt", fdt, fdtsize, fdt_addr,
                           &address_space_memory);
     qemu_register_reset_nosnapshotload(qemu_fdt_randomize_seeds,
