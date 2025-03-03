@@ -31,7 +31,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(PnvSpi, PNV_SPI)
 #define PNV_SPI_REG_SIZE 8
 #define PNV_SPI_REGS 7
 
-#define TYPE_PNV_SPI_BUS "pnv-spi-bus"
+#define TYPE_PNV_SPI_BUS "spi"
 typedef struct PnvSpi {
     SysBusDevice parent_obj;
 
@@ -42,6 +42,7 @@ typedef struct PnvSpi {
     Fifo8 rx_fifo;
     /* SPI object number */
     uint32_t        spic_num;
+    uint32_t        chip_id;
     uint8_t         transfer_len;
     uint8_t         responder_select;
     /* To verify if shift_n1 happens prior to shift_n2 */

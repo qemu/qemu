@@ -1147,14 +1147,15 @@ static const MemoryRegionOps pnv_spi_xscom_ops = {
 
 static const Property pnv_spi_properties[] = {
     DEFINE_PROP_UINT32("spic_num", PnvSpi, spic_num, 0),
+    DEFINE_PROP_UINT32("chip-id", PnvSpi, chip_id, 0),
     DEFINE_PROP_UINT8("transfer_len", PnvSpi, transfer_len, 4),
 };
 
 static void pnv_spi_realize(DeviceState *dev, Error **errp)
 {
     PnvSpi *s = PNV_SPI(dev);
-    g_autofree char *name = g_strdup_printf(TYPE_PNV_SPI_BUS ".%d",
-                    s->spic_num);
+    g_autofree char *name = g_strdup_printf("chip%d." TYPE_PNV_SPI_BUS ".%d",
+                    s->chip_id, s->spic_num);
     s->ssi_bus = ssi_create_bus(dev, name);
     s->cs_line = g_new0(qemu_irq, 1);
     qdev_init_gpio_out_named(DEVICE(s), s->cs_line, "cs", 1);

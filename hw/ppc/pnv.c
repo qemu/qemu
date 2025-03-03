@@ -2252,6 +2252,8 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
         /* pib_spic[2] connected to 25csm04 which implements 1 byte transfer */
         object_property_set_int(OBJECT(&chip10->pib_spic[i]), "transfer_len",
                                 (i == 2) ? 1 : 4, &error_fatal);
+        object_property_set_int(OBJECT(&chip10->pib_spic[i]), "chip-id",
+                                chip->chip_id, &error_fatal);
         if (!sysbus_realize(SYS_BUS_DEVICE(OBJECT
                                         (&chip10->pib_spic[i])), errp)) {
             return;
