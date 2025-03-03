@@ -40,6 +40,7 @@ typedef struct PnvSpi {
     MemoryRegion    xscom_spic_regs;
     Fifo8 tx_fifo;
     Fifo8 rx_fifo;
+    uint8_t fail_count; /* RDR Match failure counter */
     /* SPI object number */
     uint32_t        spic_num;
     uint32_t        chip_id;

@@ -20,6 +20,7 @@
 #define PNV_SPI_OPCODE_LO_NIBBLE(x) (x & 0x0F)
 #define PNV_SPI_MASKED_OPCODE(x) (x & 0xF0)
 #define PNV_SPI_FIFO_SIZE 16
+#define RDR_MATCH_FAILURE_LIMIT 16
 
 /*
  * Macro from include/hw/ppc/fdt.h
@@ -872,17 +873,26 @@ static void operation_sequencer(PnvSpi *s)
                 rdr_matched = does_rdr_match(s);
                 if (rdr_matched) {
                     trace_pnv_spi_RDR_match("success");
+                    s->fail_count = 0;
                     /* A match occurred, increment the sequencer index. */
                     seq_index++;
                     s->status = SETFIELD(SPI_STS_SEQ_FSM, s->status,
                                     SEQ_STATE_INDEX_INCREMENT);
                 } else {
                     trace_pnv_spi_RDR_match("failed");
+                    s->fail_count++;
                     /*
                      * Branch the sequencer to the index coded into the op
                      * code.
                      */
                     seq_index = PNV_SPI_OPCODE_LO_NIBBLE(opcode);
+                }
+                if (s->fail_count >= RDR_MATCH_FAILURE_LIMIT) {
+                    qemu_log_mask(LOG_GUEST_ERROR, "pnv_spi: RDR match failure"
+                                  " limit crossed %d times hence requesting "
+                                  "sequencer to stop.\n",
+                                  RDR_MATCH_FAILURE_LIMIT);
+                    stop = true;
                 }
                 /*
                  * Regardless of where the branch ended up we want the
