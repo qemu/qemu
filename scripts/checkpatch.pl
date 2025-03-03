@@ -1353,6 +1353,70 @@ sub checkfilename {
 	}
 }
 
+sub checkspdx {
+    my ($file, $expr) = @_;
+
+    # Imported Linux headers probably have SPDX tags, but if they
+    # don't we're not requiring contributors to fix this, as these
+    # files are not expected to be modified locally in QEMU.
+    # Also don't accidentally detect own checking code.
+    if ($file =~ m,include/standard-headers, ||
+	$file =~ m,linux-headers, ||
+	$file =~ m,checkpatch.pl,) {
+	return;
+    }
+
+    my $origexpr = $expr;
+
+    # Flatten sub-expressions
+    $expr =~ s/\(|\)/ /g;
+    $expr =~ s/OR|AND/ /g;
+
+    # Merge WITH exceptions to the license
+    $expr =~ s/\s+WITH\s+/-WITH-/g;
+
+    # Cull more leading/trailing whitespace
+    $expr =~ s/^\s*//g;
+    $expr =~ s/\s*$//g;
+
+    my @bits = split / +/, $expr;
+
+    my $prefer = "GPL-2.0-or-later";
+    my @valid = qw(
+	GPL-2.0-only
+	LGPL-2.1-only
+	LGPL-2.1-or-later
+	BSD-2-Clause
+	BSD-3-Clause
+	MIT
+	);
+
+    my $nonpreferred = 0;
+    my @unknown = ();
+    foreach my $bit (@bits) {
+	if ($bit eq $prefer) {
+	    next;
+	}
+	if (grep /^$bit$/, @valid) {
+	    $nonpreferred = 1;
+	} else {
+	    push @unknown, $bit;
+	}
+    }
+    if (@unknown) {
+	ERROR("Saw unacceptable licenses '" . join(',', @unknown) .
+	      "', valid choices for QEMU are:\n" . join("\n", $prefer, @valid));
+    }
+
+    if ($nonpreferred) {
+	WARN("Saw acceptable license '$origexpr' but note '$prefer' is " .
+	     "preferred for new files unless the code is derived from a " .
+	     "source file with an existing declared license that must be " .
+	     "retained. Please explain the license choice in the commit " .
+	     "message.");
+    }
+}
+
 sub process {
 	my $filename = shift;
 
@@ -1378,6 +1442,8 @@ sub process {
 	my $in_imported_file = 0;
 	my $in_no_imported_file = 0;
 	my $non_utf8_charset = 0;
+	my $expect_spdx = 0;
+	my $expect_spdx_file;
 
 	our @report = ();
 	our $cnt_lines = 0;
@@ -1613,6 +1679,51 @@ sub process {
                         ($realfile eq $acpi_testexpected))) {
 			$reported_maintainer_file = 1;
 			WARN("added, moved or deleted file(s), does MAINTAINERS need updating?\n" . $herecurr);
+		}
+
+# All new files should have a SPDX-License-Identifier tag
+		if ($line =~ /^new file mode\s*\d+\s*$/) {
+		    if ($expect_spdx) {
+			if ($expect_spdx_file =~
+			    /\.(c|h|py|pl|sh|json|inc|Makefile)$/) {
+			    # source code files MUST have SPDX license declared
+			    ERROR("New file '$expect_spdx_file' requires " .
+				  "'SPDX-License-Identifer'");
+			} else {
+			    # Other files MAY have SPDX license if appropriate
+			    WARNING("Does new file '$expect_spdx_file' need " .
+				    "'SPDX-License-Identifer'?");
+			}
+		    }
+		    $expect_spdx = 1;
+		    $expect_spdx_file = undef;
+		} elsif ($expect_spdx) {
+		    $expect_spdx_file = $realfile unless
+			defined $expect_spdx_file;
+
+		    # SPDX tags may occurr in comments which were
+		    # stripped from '$line', so use '$rawline'
+		    if ($rawline =~ /SPDX-License-Identifier/) {
+			$expect_spdx = 0;
+			$expect_spdx_file = undef;
+		    }
+		}
+
+# Check SPDX-License-Identifier references a permitted license
+		if ($rawline =~ m,SPDX-License-Identifier: (.*?)(\*/)?\s*$,) {
+		    &checkspdx($realfile, $1);
+		}
+
+		if ($rawline =~ m,(SPDX-[a-zA-Z0-9-_]+):,) {
+		    my $tag = $1;
+		    my @permitted = qw(
+			SPDX-License-Identifier
+		    );
+
+		    unless (grep { /^$tag$/ } @permitted) {
+			ERROR("Tag $tag not permitted in QEMU code, valid " .
+			      "choices are: " . join(", ", @permitted));
+		    }
 		}
 
 # Check for wrappage within a valid hunk of the file
