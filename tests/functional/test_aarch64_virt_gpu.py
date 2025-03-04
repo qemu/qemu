@@ -17,6 +17,9 @@ from qemu_test import skipIfMissingCommands
 
 from qemu_test.linuxkernel import LinuxKernelTest
 
+from re import search
+from subprocess import check_output, CalledProcessError
+
 class Aarch64VirtGPUMachine(LinuxKernelTest):
 
     ASSET_VIRT_GPU_KERNEL = Asset(
@@ -72,7 +75,7 @@ class Aarch64VirtGPUMachine(LinuxKernelTest):
             elif "'type' does not accept value 'egl-headless'" in excp.output:
                 self.skipTest("egl-headless support is not available")
             else:
-                self.log.info(f"unhandled launch failure: {excp.output}")
+                self.log.info("unhandled launch failure: %s", excp.output)
                 raise excp
 
         self.wait_for_console_pattern('buildroot login:')
@@ -93,6 +96,15 @@ class Aarch64VirtGPUMachine(LinuxKernelTest):
     def test_aarch64_virt_with_vulkan_gpu(self):
 
         self.require_device('virtio-gpu-gl-pci')
+
+        try:
+            vk_info = check_output(["vulkaninfo", "--summary"],
+                                   encoding="utf-8")
+        except CalledProcessError as excp:
+            self.skipTest(f"Miss-configured host Vulkan: {excp.output}")
+
+        if search(r"driverID\s+=\s+DRIVER_ID_NVIDIA_PROPRIETARY", vk_info):
+            self.skipTest("Test skipped on NVIDIA proprietary driver")
 
         self._launch_virt_gpu("virtio-gpu-gl-pci,hostmem=4G,blob=on,venus=on")
         self._run_virt_weston_test("vkmark -b:duration=1.0",
