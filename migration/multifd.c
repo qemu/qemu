@@ -21,6 +21,7 @@
 #include "file.h"
 #include "migration.h"
 #include "migration-stats.h"
+#include "savevm.h"
 #include "socket.h"
 #include "tls.h"
 #include "qemu-file.h"
@@ -252,14 +253,24 @@ static int multifd_recv_unfill_packet_header(MultiFDRecvParams *p,
     return 0;
 }
 
-static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
+static int multifd_recv_unfill_packet_device_state(MultiFDRecvParams *p,
+                                                   Error **errp)
+{
+    MultiFDPacketDeviceState_t *packet = p->packet_dev_state;
+
+    packet->instance_id = be32_to_cpu(packet->instance_id);
+    p->next_packet_size = be32_to_cpu(packet->next_packet_size);
+
+    return 0;
+}
+
+static int multifd_recv_unfill_packet_ram(MultiFDRecvParams *p, Error **errp)
 {
     const MultiFDPacket_t *packet = p->packet;
     int ret = 0;
 
     p->next_packet_size = be32_to_cpu(packet->next_packet_size);
     p->packet_num = be64_to_cpu(packet->packet_num);
-    p->packets_recved++;
 
     /* Always unfill, old QEMUs (<9.0) send data along with SYNC */
     ret = multifd_ram_unfill_packet(p, errp);
@@ -268,6 +279,17 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
                               p->next_packet_size);
 
     return ret;
+}
+
+static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
+{
+    p->packets_recved++;
+
+    if (p->flags & MULTIFD_FLAG_DEVICE_STATE) {
+        return multifd_recv_unfill_packet_device_state(p, errp);
+    }
+
+    return multifd_recv_unfill_packet_ram(p, errp);
 }
 
 static bool multifd_send_should_exit(void)
@@ -1057,6 +1079,7 @@ static void multifd_recv_cleanup_channel(MultiFDRecvParams *p)
     p->packet_len = 0;
     g_free(p->packet);
     p->packet = NULL;
+    g_clear_pointer(&p->packet_dev_state, g_free);
     g_free(p->normal);
     p->normal = NULL;
     g_free(p->zero);
@@ -1158,6 +1181,34 @@ void multifd_recv_sync_main(void)
     trace_multifd_recv_sync_main(multifd_recv_state->packet_num);
 }
 
+static int multifd_device_state_recv(MultiFDRecvParams *p, Error **errp)
+{
+    g_autofree char *dev_state_buf = NULL;
+    int ret;
+
+    dev_state_buf = g_malloc(p->next_packet_size);
+
+    ret = qio_channel_read_all(p->c, dev_state_buf, p->next_packet_size, errp);
+    if (ret != 0) {
+        return ret;
+    }
+
+    if (p->packet_dev_state->idstr[sizeof(p->packet_dev_state->idstr) - 1]
+        != 0) {
+        error_setg(errp, "unterminated multifd device state idstr");
+        return -1;
+    }
+
+    if (!qemu_loadvm_load_state_buffer(p->packet_dev_state->idstr,
+                                       p->packet_dev_state->instance_id,
+                                       dev_state_buf, p->next_packet_size,
+                                       errp)) {
+        ret = -1;
+    }
+
+    return ret;
+}
+
 static void *multifd_recv_thread(void *opaque)
 {
     MigrationState *s = migrate_get_current();
@@ -1176,6 +1227,7 @@ static void *multifd_recv_thread(void *opaque)
     while (true) {
         MultiFDPacketHdr_t hdr;
         uint32_t flags = 0;
+        bool is_device_state = false;
         bool has_data = false;
         uint8_t *pkt_buf;
         size_t pkt_len;
@@ -1209,8 +1261,14 @@ static void *multifd_recv_thread(void *opaque)
                 break;
             }
 
-            pkt_buf = (uint8_t *)p->packet + sizeof(hdr);
-            pkt_len = p->packet_len - sizeof(hdr);
+            is_device_state = p->flags & MULTIFD_FLAG_DEVICE_STATE;
+            if (is_device_state) {
+                pkt_buf = (uint8_t *)p->packet_dev_state + sizeof(hdr);
+                pkt_len = sizeof(*p->packet_dev_state) - sizeof(hdr);
+            } else {
+                pkt_buf = (uint8_t *)p->packet + sizeof(hdr);
+                pkt_len = p->packet_len - sizeof(hdr);
+            }
 
             ret = qio_channel_read_all_eof(p->c, (char *)pkt_buf, pkt_len,
                                            &local_err);
@@ -1235,12 +1293,17 @@ static void *multifd_recv_thread(void *opaque)
             /* recv methods don't know how to handle the SYNC flag */
             p->flags &= ~MULTIFD_FLAG_SYNC;
 
-            /*
-             * Even if it's a SYNC packet, this needs to be set
-             * because older QEMUs (<9.0) still send data along with
-             * the SYNC packet.
-             */
-            has_data = p->normal_num || p->zero_num;
+            if (is_device_state) {
+                has_data = p->next_packet_size > 0;
+            } else {
+                /*
+                 * Even if it's a SYNC packet, this needs to be set
+                 * because older QEMUs (<9.0) still send data along with
+                 * the SYNC packet.
+                 */
+                has_data = p->normal_num || p->zero_num;
+            }
+
             qemu_mutex_unlock(&p->mutex);
         } else {
             /*
@@ -1269,14 +1332,29 @@ static void *multifd_recv_thread(void *opaque)
         }
 
         if (has_data) {
-            ret = multifd_recv_state->ops->recv(p, &local_err);
+            if (is_device_state) {
+                assert(use_packets);
+                ret = multifd_device_state_recv(p, &local_err);
+            } else {
+                ret = multifd_recv_state->ops->recv(p, &local_err);
+            }
             if (ret != 0) {
                 break;
             }
+        } else if (is_device_state) {
+            error_setg(&local_err,
+                       "multifd: received empty device state packet");
+            break;
         }
 
         if (use_packets) {
             if (flags & MULTIFD_FLAG_SYNC) {
+                if (is_device_state) {
+                    error_setg(&local_err,
+                               "multifd: received SYNC device state packet");
+                    break;
+                }
+
                 qemu_sem_post(&multifd_recv_state->sem_sync);
                 qemu_sem_wait(&p->sem_sync);
             }
@@ -1345,6 +1423,7 @@ int multifd_recv_setup(Error **errp)
             p->packet_len = sizeof(MultiFDPacket_t)
                 + sizeof(uint64_t) * page_count;
             p->packet = g_malloc0(p->packet_len);
+            p->packet_dev_state = g_malloc0(sizeof(*p->packet_dev_state));
         }
         p->name = g_strdup_printf(MIGRATION_THREAD_DST_MULTIFD, i);
         p->normal = g_new0(ram_addr_t, page_count);
