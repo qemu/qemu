@@ -13,6 +13,7 @@
 #include "qemu/lockable.h"
 #include "migration/misc.h"
 #include "multifd.h"
+#include "options.h"
 
 static struct {
     QemuMutex queue_job_mutex;
@@ -110,4 +111,10 @@ bool multifd_queue_device_state(char *idstr, uint32_t instance_id,
     }
 
     return true;
+}
+
+bool multifd_device_state_supported(void)
+{
+    return migrate_multifd() && !migrate_mapped_ram() &&
+        migrate_multifd_compression() == MULTIFD_COMPRESSION_NONE;
 }

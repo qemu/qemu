@@ -121,5 +121,6 @@ bool migrate_uri_parse(const char *uri, MigrationChannel **channel,
 /* migration/multifd-device-state.c */
 bool multifd_queue_device_state(char *idstr, uint32_t instance_id,
                                 char *data, size_t len);
+bool multifd_device_state_supported(void);
 
 #endif
