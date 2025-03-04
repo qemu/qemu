@@ -115,6 +115,7 @@ RUN zypper update -y && \
            util-linux \
            virglrenderer-devel \
            vte-devel \
+           vulkan-tools \
            which \
            xen-devel \
            xorriso \

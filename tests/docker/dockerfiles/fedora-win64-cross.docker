@@ -61,6 +61,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                tesseract \
                tesseract-langpack-eng \
                util-linux \
+               vulkan-tools \
                which \
                xorriso \
                zstd && \
