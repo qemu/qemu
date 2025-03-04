@@ -43,6 +43,7 @@
 #define  MIGRATION_THREAD_DST_PREEMPT       "mig/dst/preempt"
 
 struct PostcopyBlocktimeContext;
+typedef struct ThreadPool ThreadPool;
 
 #define  MIGRATION_RESUME_ACK_VALUE  (1)
 
@@ -186,6 +187,10 @@ struct MigrationIncomingState {
     /* The coroutine we should enter (back) after failover */
     Coroutine *colo_incoming_co;
     QemuSemaphore colo_incoming_sem;
+
+    /* Optional load threads pool and its thread exit request flag */
+    ThreadPool *load_threads;
+    bool load_threads_abort;
 
     /*
      * PostcopyBlocktimeContext to keep information for postcopy
