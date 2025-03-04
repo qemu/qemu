@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "qemu/module.h"
 #include "system/arch_init.h"
 
 #ifdef TARGET_SPARC
@@ -40,11 +39,3 @@ int graphic_depth = 32;
 #endif
 
 const uint32_t arch_type = QEMU_ARCH;
-
-void qemu_init_arch_modules(void)
-{
-#ifdef CONFIG_MODULES
-    module_init_info(qemu_modinfo);
-    module_allow_arch(TARGET_NAME);
-#endif
-}
