@@ -32,7 +32,7 @@ class VirtioBalloonx86(QemuSystemTest):
         'e3c1b309d9203604922d6e255c2c5d098a309c2d46215d8fc026954f3c5c27a0')
 
     DEFAULT_KERNEL_PARAMS = ('root=/dev/vda1 console=ttyS0 net.ifnames=0 '
-                             'rd.rescue')
+                             'rd.rescue quiet')
 
     def wait_for_console_pattern(self, success_message, vm=None):
         wait_for_console_pattern(
@@ -46,6 +46,11 @@ class VirtioBalloonx86(QemuSystemTest):
         self.wait_for_console_pattern('Entering emergency mode.')
         prompt = '# '
         self.wait_for_console_pattern(prompt)
+
+        # Synchronize on virtio-block driver creating the root device
+        exec_command_and_wait_for_pattern(self,
+                        "while ! (dmesg -c | grep vda:) ; do sleep 1 ; done",
+                        "vda1")
 
         exec_command_and_wait_for_pattern(self, 'mount /dev/vda1 /sysroot',
                                           prompt)
@@ -65,10 +70,21 @@ class VirtioBalloonx86(QemuSystemTest):
             assert val == UNSET_STATS_VALUE
 
     def assert_running_stats(self, then):
-        ret = self.vm.qmp('qom-get',
-                          {'path': '/machine/peripheral/balloon',
-                           'property': 'guest-stats'})['return']
-        when = ret.get('last-update')
+        # We told the QEMU to refresh stats every 100ms, but
+        # there can be a delay between virtio-ballon driver
+        # being modprobed and seeing the first stats refresh
+        # Retry a few times for robustness under heavy load
+        retries = 10
+        when = 0
+        while when == 0 and retries:
+            ret = self.vm.qmp('qom-get',
+                              {'path': '/machine/peripheral/balloon',
+                               'property': 'guest-stats'})['return']
+            when = ret.get('last-update')
+            if when == 0:
+                retries = retries - 1
+                time.sleep(0.5)
+
         now = time.time()
 
         assert when > then and when < now
