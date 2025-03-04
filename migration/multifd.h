@@ -115,9 +115,13 @@ typedef struct {
     uint32_t num;
     /* number of normal pages */
     uint32_t normal_num;
+    /*
+     * Pointer to the ramblock.  NOTE: it's caller's responsibility to make
+     * sure the pointer is always valid!
+     */
     RAMBlock *block;
-    /* offset of each page */
-    ram_addr_t offset[];
+    /* offset array of each page, managed by multifd */
+    ram_addr_t *offset;
 } MultiFDPages_t;
 
 struct MultiFDRecvData {
@@ -140,7 +144,7 @@ typedef enum {
     MULTIFD_PAYLOAD_DEVICE_STATE,
 } MultiFDPayloadType;
 
-typedef union MultiFDPayload {
+typedef struct MultiFDPayload {
     MultiFDPages_t ram;
     MultiFDDeviceState_t device_state;
 } MultiFDPayload;
@@ -394,11 +398,10 @@ void multifd_ram_save_cleanup(void);
 int multifd_ram_flush_and_sync(QEMUFile *f);
 bool multifd_ram_sync_per_round(void);
 bool multifd_ram_sync_per_section(void);
-size_t multifd_ram_payload_size(void);
+void multifd_ram_payload_alloc(MultiFDPages_t *pages);
+void multifd_ram_payload_free(MultiFDPages_t *pages);
 void multifd_ram_fill_packet(MultiFDSendParams *p);
 int multifd_ram_unfill_packet(MultiFDRecvParams *p, Error **errp);
-
-size_t multifd_device_state_payload_size(void);
 
 void multifd_send_data_clear_device_state(MultiFDDeviceState_t *device_state);
 

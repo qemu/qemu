@@ -20,11 +20,6 @@ static struct {
     MultiFDSendData *send_data;
 } *multifd_send_device_state;
 
-size_t multifd_device_state_payload_size(void)
-{
-    return sizeof(MultiFDDeviceState_t);
-}
-
 void multifd_device_state_send_setup(void)
 {
     assert(!multifd_send_device_state);
