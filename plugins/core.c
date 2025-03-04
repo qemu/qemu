@@ -12,22 +12,14 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 #include "qemu/osdep.h"
-#include "qemu/error-report.h"
-#include "qemu/config-file.h"
-#include "qapi/error.h"
 #include "qemu/lockable.h"
 #include "qemu/option.h"
 #include "qemu/plugin.h"
 #include "qemu/queue.h"
 #include "qemu/rcu_queue.h"
-#include "qemu/xxhash.h"
 #include "qemu/rcu.h"
-#include "hw/core/cpu.h"
-
-#include "exec/exec-all.h"
 #include "exec/tb-flush.h"
-#include "tcg/tcg.h"
-#include "tcg/tcg-op.h"
+#include "tcg/tcg-op-common.h"
 #include "plugin.h"
 
 struct qemu_plugin_cb {
