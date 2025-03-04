@@ -340,6 +340,7 @@ static void bdrv_qed_detach_aio_context(BlockDriverState *bs)
 
     qed_cancel_need_check_timer(s);
     timer_free(s->need_check_timer);
+    s->need_check_timer = NULL;
 }
 
 static void bdrv_qed_attach_aio_context(BlockDriverState *bs,
