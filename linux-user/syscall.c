@@ -13109,6 +13109,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                           arg3, arg4, arg5, arg6);
     }
 
+    /*
+    这里对于syscall的位置进行一次打印输出的尝试！！
+    */
+
+    printf("Are you here to print???");  // 这里成功输出了！！
+
+
     record_syscall_return(cpu, num, ret);
     return ret;
 }
