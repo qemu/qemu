@@ -12,7 +12,7 @@
 from qemu.machine.machine import VMLaunchFailure
 
 from qemu_test import Asset
-from qemu_test import exec_command, exec_command_and_wait_for_pattern
+from qemu_test import exec_command_and_wait_for_pattern as ec_and_wait
 from qemu_test import skipIfMissingCommands
 
 from qemu_test.linuxkernel import LinuxKernelTest
@@ -31,12 +31,7 @@ class Aarch64VirtGPUMachine(LinuxKernelTest):
         'rootfs.ext4.zstd',
         '792da7573f5dc2913ddb7c638151d4a6b2d028a4cb2afb38add513c1924bdad4')
 
-    @skipIfMissingCommands('zstd')
-    def test_aarch64_virt_with_vulkan_gpu(self):
-        # This tests boots with a buildroot test image that contains
-        # vkmark and other GPU exercising tools. We run a headless
-        # weston that nevertheless still exercises the virtio-gpu
-        # backend.
+    def _launch_virt_gpu(self, gpu_device):
 
         self.set_machine('virt')
         self.require_accelerator("tcg")
@@ -54,10 +49,10 @@ class Aarch64VirtGPUMachine(LinuxKernelTest):
                          '-kernel', kernel_path,
                          '-append', kernel_command_line)
         self.vm.add_args("-smp", "2", "-m", "2048")
-        self.vm.add_args("-device",
-                         "virtio-gpu-gl-pci,hostmem=4G,blob=on,venus=on")
+        self.vm.add_args("-device", gpu_device)
         self.vm.add_args("-display", "egl-headless")
         self.vm.add_args("-display", "dbus,gl=on")
+
         self.vm.add_args("-device", "virtio-blk-device,drive=hd0")
         self.vm.add_args("-blockdev",
                          "driver=raw,file.driver=file,"
@@ -81,14 +76,23 @@ class Aarch64VirtGPUMachine(LinuxKernelTest):
                 raise excp
 
         self.wait_for_console_pattern('buildroot login:')
-        exec_command(self, 'root')
-        exec_command(self, 'export XDG_RUNTIME_DIR=/tmp')
-        exec_command_and_wait_for_pattern(self,
-                                          "weston -B headless "
-                                          "--renderer gl "
-                                          "--shell kiosk "
-                                          "-- vkmark -b:duration=1.0",
-                                          "vkmark Score")
+        ec_and_wait(self, 'root', '#')
+
+    def _run_virt_weston_test(self, cmd):
+
+        # make it easier to detect successful return to shell
+        PS1 = 'RES=[$?] # '
+        OK_CMD = 'RES=[0] # '
+
+        ec_and_wait(self, 'export XDG_RUNTIME_DIR=/tmp', '#')
+        ec_and_wait(self, f"export PS1='{PS1}'", OK_CMD)
+        full_cmd = f"weston -B headless --renderer gl --shell kiosk -- {cmd}"
+        ec_and_wait(self, full_cmd, OK_CMD)
+
+    @skipIfMissingCommands('zstd')
+    def test_aarch64_virt_with_vulkan_gpu(self):
+        self._launch_virt_gpu("virtio-gpu-gl-pci,hostmem=4G,blob=on,venus=on")
+        self._run_virt_weston_test("vkmark -b:duration=1.0")
 
 if __name__ == '__main__':
     LinuxKernelTest.main()
