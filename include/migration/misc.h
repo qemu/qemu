@@ -118,4 +118,8 @@ bool migrate_is_uri(const char *uri);
 bool migrate_uri_parse(const char *uri, MigrationChannel **channel,
                        Error **errp);
 
+/* migration/multifd-device-state.c */
+bool multifd_queue_device_state(char *idstr, uint32_t instance_id,
+                                char *data, size_t len);
+
 #endif
