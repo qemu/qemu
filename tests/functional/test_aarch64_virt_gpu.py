@@ -25,14 +25,14 @@ class Aarch64VirtGPUMachine(LinuxKernelTest):
     ASSET_VIRT_GPU_KERNEL = Asset(
         'https://fileserver.linaro.org/s/ce5jXBFinPxtEdx/'
         'download?path=%2F&files='
-        'Image',
-        '89e5099d26166204cc5ca4bb6d1a11b92c217e1f82ec67e3ba363d09157462f6')
+        'Image.6.12.16.aarch64',
+        '7888c51c55d37e86bbbdeb5acea9f08c34e6b0f03c1f5b2463285f6a6f6eec8b')
 
     ASSET_VIRT_GPU_ROOTFS = Asset(
         'https://fileserver.linaro.org/s/ce5jXBFinPxtEdx/'
         'download?path=%2F&files='
-        'rootfs.ext4.zstd',
-        '792da7573f5dc2913ddb7c638151d4a6b2d028a4cb2afb38add513c1924bdad4')
+        'rootfs.aarch64.ext2.zstd',
+        'd45118c899420b7e673f1539a37a35480134b3e36e3a59e2cb69b1781cbb14ef')
 
     def _launch_virt_gpu(self, gpu_device):
 
@@ -47,7 +47,7 @@ class Aarch64VirtGPUMachine(LinuxKernelTest):
                                'console=ttyAMA0 root=/dev/vda')
 
         self.vm.add_args("-accel", "tcg")
-        self.vm.add_args("-cpu", "neoverse-v1,pauth-impdef=on")
+        self.vm.add_args("-cpu", "cortex-a72")
         self.vm.add_args("-machine", "virt,gic-version=max",
                          '-kernel', kernel_path,
                          '-append', kernel_command_line)
