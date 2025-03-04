@@ -264,7 +264,7 @@ static int vfio_save_device_config_state(QEMUFile *f, void *opaque,
     return ret;
 }
 
-static int vfio_load_device_config_state(QEMUFile *f, void *opaque)
+int vfio_load_device_config_state(QEMUFile *f, void *opaque)
 {
     VFIODevice *vbasedev = opaque;
     uint64_t data;
@@ -723,6 +723,13 @@ static int vfio_load_state(QEMUFile *f, void *opaque, int version_id)
         switch (data) {
         case VFIO_MIG_FLAG_DEV_CONFIG_STATE:
         {
+            if (vfio_multifd_transfer_enabled(vbasedev)) {
+                error_report("%s: got DEV_CONFIG_STATE in main migration "
+                             "channel but doing multifd transfer",
+                             vbasedev->name);
+                return -EINVAL;
+            }
+
             return vfio_load_device_config_state(f, opaque);
         }
         case VFIO_MIG_FLAG_DEV_SETUP_STATE:
