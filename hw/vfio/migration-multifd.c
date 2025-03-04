@@ -496,6 +496,148 @@ bool vfio_multifd_setup(VFIODevice *vbasedev, bool alloc_multifd, Error **errp)
     return true;
 }
 
+void vfio_multifd_emit_dummy_eos(VFIODevice *vbasedev, QEMUFile *f)
+{
+    assert(vfio_multifd_transfer_enabled(vbasedev));
+
+    /*
+     * Emit dummy NOP data on the main migration channel since the actual
+     * device state transfer is done via multifd channels.
+     */
+    qemu_put_be64(f, VFIO_MIG_FLAG_END_OF_STATE);
+}
+
+static bool
+vfio_save_complete_precopy_thread_config_state(VFIODevice *vbasedev,
+                                               char *idstr,
+                                               uint32_t instance_id,
+                                               uint32_t idx,
+                                               Error **errp)
+{
+    g_autoptr(QIOChannelBuffer) bioc = NULL;
+    g_autoptr(QEMUFile) f = NULL;
+    int ret;
+    g_autofree VFIODeviceStatePacket *packet = NULL;
+    size_t packet_len;
+
+    bioc = qio_channel_buffer_new(0);
+    qio_channel_set_name(QIO_CHANNEL(bioc), "vfio-device-config-save");
+
+    f = qemu_file_new_output(QIO_CHANNEL(bioc));
+
+    if (vfio_save_device_config_state(f, vbasedev, errp)) {
+        return false;
+    }
+
+    ret = qemu_fflush(f);
+    if (ret) {
+        error_setg(errp, "%s: save config state flush failed: %d",
+                   vbasedev->name, ret);
+        return false;
+    }
+
+    packet_len = sizeof(*packet) + bioc->usage;
+    packet = g_malloc0(packet_len);
+    packet->version = VFIO_DEVICE_STATE_PACKET_VER_CURRENT;
+    packet->idx = idx;
+    packet->flags = VFIO_DEVICE_STATE_CONFIG_STATE;
+    memcpy(&packet->data, bioc->data, bioc->usage);
+
+    if (!multifd_queue_device_state(idstr, instance_id,
+                                    (char *)packet, packet_len)) {
+        error_setg(errp, "%s: multifd config data queuing failed",
+                   vbasedev->name);
+        return false;
+    }
+
+    vfio_mig_add_bytes_transferred(packet_len);
+
+    return true;
+}
+
+/*
+ * This thread is spawned by the migration core directly via
+ * .save_live_complete_precopy_thread SaveVMHandler.
+ *
+ * It exits after either:
+ * * completing saving the remaining device state and device config, OR:
+ * * encountering some error while doing the above, OR:
+ * * being forcefully aborted by the migration core by
+ *   multifd_device_state_save_thread_should_exit() returning true.
+ */
+bool
+vfio_multifd_save_complete_precopy_thread(SaveLiveCompletePrecopyThreadData *d,
+                                          Error **errp)
+{
+    VFIODevice *vbasedev = d->handler_opaque;
+    VFIOMigration *migration = vbasedev->migration;
+    bool ret = false;
+    g_autofree VFIODeviceStatePacket *packet = NULL;
+    uint32_t idx;
+
+    if (!vfio_multifd_transfer_enabled(vbasedev)) {
+        /* Nothing to do, vfio_save_complete_precopy() does the transfer. */
+        return true;
+    }
+
+    trace_vfio_save_complete_precopy_thread_start(vbasedev->name,
+                                                  d->idstr, d->instance_id);
+
+    /* We reach here with device state STOP or STOP_COPY only */
+    if (vfio_migration_set_state(vbasedev, VFIO_DEVICE_STATE_STOP_COPY,
+                                 VFIO_DEVICE_STATE_STOP, errp)) {
+        goto thread_exit;
+    }
+
+    packet = g_malloc0(sizeof(*packet) + migration->data_buffer_size);
+    packet->version = VFIO_DEVICE_STATE_PACKET_VER_CURRENT;
+
+    for (idx = 0; ; idx++) {
+        ssize_t data_size;
+        size_t packet_size;
+
+        if (multifd_device_state_save_thread_should_exit()) {
+            error_setg(errp, "operation cancelled");
+            goto thread_exit;
+        }
+
+        data_size = read(migration->data_fd, &packet->data,
+                         migration->data_buffer_size);
+        if (data_size < 0) {
+            error_setg(errp, "%s: reading state buffer %" PRIu32 " failed: %d",
+                       vbasedev->name, idx, errno);
+            goto thread_exit;
+        } else if (data_size == 0) {
+            break;
+        }
+
+        packet->idx = idx;
+        packet_size = sizeof(*packet) + data_size;
+
+        if (!multifd_queue_device_state(d->idstr, d->instance_id,
+                                        (char *)packet, packet_size)) {
+            error_setg(errp, "%s: multifd data queuing failed", vbasedev->name);
+            goto thread_exit;
+        }
+
+        vfio_mig_add_bytes_transferred(packet_size);
+    }
+
+    if (!vfio_save_complete_precopy_thread_config_state(vbasedev,
+                                                        d->idstr,
+                                                        d->instance_id,
+                                                        idx, errp)) {
+        goto thread_exit;
+   }
+
+    ret = true;
+
+thread_exit:
+    trace_vfio_save_complete_precopy_thread_end(vbasedev->name, ret);
+
+    return ret;
+}
+
 int vfio_multifd_switchover_start(VFIODevice *vbasedev)
 {
     VFIOMigration *migration = vbasedev->migration;

@@ -120,10 +120,10 @@ static void vfio_migration_set_device_state(VFIODevice *vbasedev,
     vfio_migration_send_event(vbasedev);
 }
 
-static int vfio_migration_set_state(VFIODevice *vbasedev,
-                                    enum vfio_device_mig_state new_state,
-                                    enum vfio_device_mig_state recover_state,
-                                    Error **errp)
+int vfio_migration_set_state(VFIODevice *vbasedev,
+                             enum vfio_device_mig_state new_state,
+                             enum vfio_device_mig_state recover_state,
+                             Error **errp)
 {
     VFIOMigration *migration = vbasedev->migration;
     uint64_t buf[DIV_ROUND_UP(sizeof(struct vfio_device_feature) +
@@ -238,8 +238,7 @@ static int vfio_load_buffer(QEMUFile *f, VFIODevice *vbasedev,
     return ret;
 }
 
-static int vfio_save_device_config_state(QEMUFile *f, void *opaque,
-                                         Error **errp)
+int vfio_save_device_config_state(QEMUFile *f, void *opaque, Error **errp)
 {
     VFIODevice *vbasedev = opaque;
     int ret;
@@ -638,6 +637,11 @@ static int vfio_save_complete_precopy(QEMUFile *f, void *opaque)
     int ret;
     Error *local_err = NULL;
 
+    if (vfio_multifd_transfer_enabled(vbasedev)) {
+        vfio_multifd_emit_dummy_eos(vbasedev, f);
+        return 0;
+    }
+
     trace_vfio_save_complete_precopy_start(vbasedev->name);
 
     /* We reach here with device state STOP or STOP_COPY only */
@@ -668,6 +672,11 @@ static void vfio_save_state(QEMUFile *f, void *opaque)
     VFIODevice *vbasedev = opaque;
     Error *local_err = NULL;
     int ret;
+
+    if (vfio_multifd_transfer_enabled(vbasedev)) {
+        vfio_multifd_emit_dummy_eos(vbasedev, f);
+        return;
+    }
 
     ret = vfio_save_device_config_state(f, opaque, &local_err);
     if (ret) {
@@ -825,6 +834,7 @@ static const SaveVMHandlers savevm_vfio_handlers = {
      */
     .load_state_buffer = vfio_multifd_load_state_buffer,
     .switchover_start = vfio_switchover_start,
+    .save_live_complete_precopy_thread = vfio_multifd_save_complete_precopy_thread,
 };
 
 /* ---------------------------------------------------------------------- */
