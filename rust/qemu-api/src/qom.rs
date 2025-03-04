@@ -382,12 +382,15 @@ impl<T> DerefMut for ParentInit<'_, T> {
 }
 
 unsafe extern "C" fn rust_instance_init<T: ObjectImpl>(obj: *mut bindings::Object) {
-    let mut state = NonNull::new(obj).unwrap().cast::<T>();
+    let mut state = NonNull::new(obj).unwrap().cast::<MaybeUninit<T>>();
+
     // SAFETY: obj is an instance of T, since rust_instance_init<T>
     // is called from QOM core as the instance_init function
     // for class T
     unsafe {
-        T::INSTANCE_INIT.unwrap()(state.as_mut());
+        ParentInit::with(state.as_mut(), |parent_init| {
+            T::INSTANCE_INIT.unwrap()(parent_init);
+        });
     }
 }
 
@@ -654,7 +657,7 @@ pub trait ObjectImpl: ObjectType + IsA<Object> {
     ///
     /// FIXME: The argument is not really a valid reference. `&mut
     /// MaybeUninit<Self>` would be a better description.
-    const INSTANCE_INIT: Option<unsafe fn(&mut Self)> = None;
+    const INSTANCE_INIT: Option<unsafe fn(ParentInit<Self>)> = None;
 
     /// Function that is called to finish initialization of an object, once
     /// `INSTANCE_INIT` functions have been called.

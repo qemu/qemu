@@ -16,6 +16,7 @@ use crate::{
     callbacks::FnCall,
     cell::Opaque,
     prelude::*,
+    uninit::MaybeUninitField,
     zeroable::Zeroable,
 };
 
@@ -147,7 +148,7 @@ impl MemoryRegion {
     #[inline(always)]
     unsafe fn do_init_io(
         slot: *mut bindings::MemoryRegion,
-        owner: *mut Object,
+        owner: *mut bindings::Object,
         ops: &'static bindings::MemoryRegionOps,
         name: &'static str,
         size: u64,
@@ -156,7 +157,7 @@ impl MemoryRegion {
             let cstr = CString::new(name).unwrap();
             memory_region_init_io(
                 slot,
-                owner.cast::<bindings::Object>(),
+                owner,
                 ops,
                 owner.cast::<c_void>(),
                 cstr.as_ptr(),
@@ -166,16 +167,15 @@ impl MemoryRegion {
     }
 
     pub fn init_io<T: IsA<Object>>(
-        &mut self,
-        owner: *mut T,
+        this: &mut MaybeUninitField<'_, T, Self>,
         ops: &'static MemoryRegionOps<T>,
         name: &'static str,
         size: u64,
     ) {
         unsafe {
             Self::do_init_io(
-                self.0.as_mut_ptr(),
-                owner.cast::<Object>(),
+                this.as_mut_ptr().cast(),
+                MaybeUninitField::parent_mut(this).cast(),
                 &ops.0,
                 name,
                 size,

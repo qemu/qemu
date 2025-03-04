@@ -21,8 +21,8 @@ use qemu_api::{
         hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder, MEMTXATTRS_UNSPECIFIED,
     },
     prelude::*,
-    qdev::{DeviceImpl, DeviceMethods, DeviceState, Property, ResetType, ResettablePhasesImpl},
-    qom::{ObjectImpl, ObjectType, ParentField},
+    qdev::{DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
+    qom::{ObjectImpl, ObjectType, ParentField, ParentInit},
     qom_isa,
     sysbus::{SysBusDevice, SysBusDeviceImpl},
     timer::{Timer, CLOCK_VIRTUAL, NANOSECONDS_PER_SECOND},
@@ -697,7 +697,7 @@ impl HPETState {
             .set(self.counter.get().deposit(shift, len, val));
     }
 
-    unsafe fn init(&mut self) {
+    unsafe fn init(mut this: ParentInit<Self>) {
         static HPET_RAM_OPS: MemoryRegionOps<HPETState> =
             MemoryRegionOpsBuilder::<HPETState>::new()
                 .read(&HPETState::read)
@@ -707,18 +707,14 @@ impl HPETState {
                 .impl_sizes(4, 8)
                 .build();
 
-        // SAFETY:
-        // self and self.iomem are guaranteed to be valid at this point since callers
-        // must make sure the `self` reference is valid.
         MemoryRegion::init_io(
-            unsafe { &mut *addr_of_mut!(self.iomem) },
-            addr_of_mut!(*self),
+            &mut uninit_field_mut!(*this, iomem),
             &HPET_RAM_OPS,
             "hpet",
             HPET_REG_SPACE_LEN,
         );
 
-        Self::init_timers(unsafe { &mut *((self as *mut Self).cast::<MaybeUninit<Self>>()) });
+        Self::init_timers(&mut this);
     }
 
     fn post_init(&self) {
@@ -900,7 +896,7 @@ unsafe impl ObjectType for HPETState {
 impl ObjectImpl for HPETState {
     type ParentType = SysBusDevice;
 
-    const INSTANCE_INIT: Option<unsafe fn(&mut Self)> = Some(Self::init);
+    const INSTANCE_INIT: Option<unsafe fn(ParentInit<Self>)> = Some(Self::init);
     const INSTANCE_POST_INIT: Option<fn(&Self)> = Some(Self::post_init);
     const CLASS_INIT: fn(&mut Self::Class) = Self::Class::class_init::<Self>;
 }
