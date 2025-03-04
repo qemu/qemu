@@ -232,3 +232,18 @@ Postcopy
 ========
 
 Postcopy migration is currently not supported for VFIO devices.
+
+Multifd
+=======
+
+Starting from QEMU version 10.0 there's a possibility to transfer VFIO device
+_STOP_COPY state via multifd channels. This helps reduce downtime - especially
+with multiple VFIO devices or with devices having a large migration state.
+As an additional benefit, setting the VFIO device to _STOP_COPY state and
+saving its config space is also parallelized (run in a separate thread) in
+such migration mode.
+
+The multifd VFIO device state transfer is controlled by
+"x-migration-multifd-transfer" VFIO device property. This property defaults to
+AUTO, which means that VFIO device state transfer via multifd channels is
+attempted in configurations that otherwise support it.
