@@ -788,6 +788,17 @@ static bool vfio_switchover_ack_needed(void *opaque)
     return vfio_precopy_supported(vbasedev);
 }
 
+static int vfio_switchover_start(void *opaque)
+{
+    VFIODevice *vbasedev = opaque;
+
+    if (vfio_multifd_transfer_enabled(vbasedev)) {
+        return vfio_multifd_switchover_start(vbasedev);
+    }
+
+    return 0;
+}
+
 static const SaveVMHandlers savevm_vfio_handlers = {
     .save_prepare = vfio_save_prepare,
     .save_setup = vfio_save_setup,
@@ -806,6 +817,7 @@ static const SaveVMHandlers savevm_vfio_handlers = {
      * Multifd support
      */
     .load_state_buffer = vfio_multifd_load_state_buffer,
+    .switchover_start = vfio_switchover_start,
 };
 
 /* ---------------------------------------------------------------------- */

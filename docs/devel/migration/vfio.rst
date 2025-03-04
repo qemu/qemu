@@ -67,6 +67,10 @@ VFIO implements the device hooks for the iterative approach as follows:
 * A ``switchover_ack_needed`` function that checks if the VFIO device uses
   "switchover-ack" migration capability when this capability is enabled.
 
+* A ``switchover_start`` function that in the multifd mode starts a thread that
+  reassembles the multifd received data and loads it in-order into the device.
+  In the non-multifd mode this function is a NOP.
+
 * A ``save_state`` function to save the device config space if it is present.
 
 * A ``save_live_complete_precopy`` function that sets the VFIO device in
