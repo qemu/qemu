@@ -485,6 +485,10 @@ bool vfio_multifd_setup(VFIODevice *vbasedev, bool alloc_multifd, Error **errp)
 {
     VFIOMigration *migration = vbasedev->migration;
 
+    /*
+     * Make a copy of this setting at the start in case it is changed
+     * mid-migration.
+     */
     if (vbasedev->migration_multifd_transfer == ON_OFF_AUTO_AUTO) {
         migration->multifd_transfer = vfio_multifd_transfer_supported();
     } else {
