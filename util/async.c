@@ -369,7 +369,7 @@ aio_ctx_finalize(GSource     *source)
     QEMUBH *bh;
     unsigned flags;
 
-    thread_pool_free(ctx->thread_pool);
+    thread_pool_free_aio(ctx->thread_pool);
 
 #ifdef CONFIG_LINUX_AIO
     if (ctx->linux_aio) {
@@ -435,10 +435,10 @@ GSource *aio_get_g_source(AioContext *ctx)
     return &ctx->source;
 }
 
-ThreadPool *aio_get_thread_pool(AioContext *ctx)
+ThreadPoolAio *aio_get_thread_pool(AioContext *ctx)
 {
     if (!ctx->thread_pool) {
-        ctx->thread_pool = thread_pool_new(ctx);
+        ctx->thread_pool = thread_pool_new_aio(ctx);
     }
     return ctx->thread_pool;
 }

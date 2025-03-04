@@ -24,10 +24,10 @@
 
 typedef int ThreadPoolFunc(void *opaque);
 
-typedef struct ThreadPool ThreadPool;
+typedef struct ThreadPoolAio ThreadPoolAio;
 
-ThreadPool *thread_pool_new(struct AioContext *ctx);
-void thread_pool_free(ThreadPool *pool);
+ThreadPoolAio *thread_pool_new_aio(struct AioContext *ctx);
+void thread_pool_free_aio(ThreadPoolAio *pool);
 
 /*
  * thread_pool_submit_{aio,co} API: submit I/O requests in the thread's
@@ -36,7 +36,7 @@ void thread_pool_free(ThreadPool *pool);
 BlockAIOCB *thread_pool_submit_aio(ThreadPoolFunc *func, void *arg,
                                    BlockCompletionFunc *cb, void *opaque);
 int coroutine_fn thread_pool_submit_co(ThreadPoolFunc *func, void *arg);
+void thread_pool_update_params(ThreadPoolAio *pool, struct AioContext *ctx);
 
-void thread_pool_update_params(ThreadPool *pool, struct AioContext *ctx);
 
 #endif
