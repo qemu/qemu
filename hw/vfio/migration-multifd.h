@@ -14,4 +14,6 @@
 
 #include "hw/vfio/vfio-common.h"
 
+bool vfio_multifd_transfer_supported(void);
+
 #endif

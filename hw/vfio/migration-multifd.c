@@ -31,3 +31,9 @@ typedef struct VFIODeviceStatePacket {
     uint32_t flags;
     uint8_t data[0];
 } QEMU_PACKED VFIODeviceStatePacket;
+
+bool vfio_multifd_transfer_supported(void)
+{
+    return multifd_device_state_supported() &&
+        migrate_send_switchover_start();
+}
