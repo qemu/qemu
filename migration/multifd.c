@@ -209,10 +209,10 @@ void multifd_send_fill_packet(MultiFDSendParams *p)
 
     memset(packet, 0, p->packet_len);
 
-    packet->magic = cpu_to_be32(MULTIFD_MAGIC);
-    packet->version = cpu_to_be32(MULTIFD_VERSION);
+    packet->hdr.magic = cpu_to_be32(MULTIFD_MAGIC);
+    packet->hdr.version = cpu_to_be32(MULTIFD_VERSION);
 
-    packet->flags = cpu_to_be32(p->flags);
+    packet->hdr.flags = cpu_to_be32(p->flags);
     packet->next_packet_size = cpu_to_be32(p->next_packet_size);
 
     packet_num = qatomic_fetch_inc(&multifd_send_state->packet_num);
@@ -228,12 +228,12 @@ void multifd_send_fill_packet(MultiFDSendParams *p)
                             p->flags, p->next_packet_size);
 }
 
-static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
+static int multifd_recv_unfill_packet_header(MultiFDRecvParams *p,
+                                             const MultiFDPacketHdr_t *hdr,
+                                             Error **errp)
 {
-    const MultiFDPacket_t *packet = p->packet;
-    uint32_t magic = be32_to_cpu(packet->magic);
-    uint32_t version = be32_to_cpu(packet->version);
-    int ret = 0;
+    uint32_t magic = be32_to_cpu(hdr->magic);
+    uint32_t version = be32_to_cpu(hdr->version);
 
     if (magic != MULTIFD_MAGIC) {
         error_setg(errp, "multifd: received packet magic %x, expected %x",
@@ -247,7 +247,16 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
         return -1;
     }
 
-    p->flags = be32_to_cpu(packet->flags);
+    p->flags = be32_to_cpu(hdr->flags);
+
+    return 0;
+}
+
+static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
+{
+    const MultiFDPacket_t *packet = p->packet;
+    int ret = 0;
+
     p->next_packet_size = be32_to_cpu(packet->next_packet_size);
     p->packet_num = be64_to_cpu(packet->packet_num);
     p->packets_recved++;
@@ -1165,14 +1174,18 @@ static void *multifd_recv_thread(void *opaque)
     }
 
     while (true) {
+        MultiFDPacketHdr_t hdr;
         uint32_t flags = 0;
         bool has_data = false;
+        uint8_t *pkt_buf;
+        size_t pkt_len;
+
         p->normal_num = 0;
 
         if (use_packets) {
             struct iovec iov = {
-                .iov_base = (void *)p->packet,
-                .iov_len = p->packet_len
+                .iov_base = (void *)&hdr,
+                .iov_len = sizeof(hdr)
             };
 
             if (multifd_recv_should_exit()) {
@@ -1184,6 +1197,26 @@ static void *multifd_recv_thread(void *opaque)
             if (!ret) {
                 /* EOF */
                 assert(!local_err);
+                break;
+            }
+
+            if (ret == -1) {
+                break;
+            }
+
+            ret = multifd_recv_unfill_packet_header(p, &hdr, &local_err);
+            if (ret) {
+                break;
+            }
+
+            pkt_buf = (uint8_t *)p->packet + sizeof(hdr);
+            pkt_len = p->packet_len - sizeof(hdr);
+
+            ret = qio_channel_read_all_eof(p->c, (char *)pkt_buf, pkt_len,
+                                           &local_err);
+            if (!ret) {
+                /* EOF */
+                error_setg(&local_err, "multifd: unexpected EOF after packet header");
                 break;
             }
 
