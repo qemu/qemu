@@ -32,8 +32,52 @@ typedef struct VFIODeviceStatePacket {
     uint8_t data[0];
 } QEMU_PACKED VFIODeviceStatePacket;
 
+typedef struct VFIOMultifd {
+} VFIOMultifd;
+
+static VFIOMultifd *vfio_multifd_new(void)
+{
+    VFIOMultifd *multifd = g_new(VFIOMultifd, 1);
+
+    return multifd;
+}
+
+static void vfio_multifd_free(VFIOMultifd *multifd)
+{
+    g_free(multifd);
+}
+
+void vfio_multifd_cleanup(VFIODevice *vbasedev)
+{
+    VFIOMigration *migration = vbasedev->migration;
+
+    g_clear_pointer(&migration->multifd, vfio_multifd_free);
+}
+
 bool vfio_multifd_transfer_supported(void)
 {
     return multifd_device_state_supported() &&
         migrate_send_switchover_start();
+}
+
+bool vfio_multifd_transfer_enabled(VFIODevice *vbasedev)
+{
+    return false;
+}
+
+bool vfio_multifd_setup(VFIODevice *vbasedev, bool alloc_multifd, Error **errp)
+{
+    VFIOMigration *migration = vbasedev->migration;
+
+    if (!vfio_multifd_transfer_enabled(vbasedev)) {
+        /* Nothing further to check or do */
+        return true;
+    }
+
+    if (alloc_multifd) {
+        assert(!migration->multifd);
+        migration->multifd = vfio_multifd_new();
+    }
+
+    return true;
 }

@@ -14,6 +14,10 @@
 
 #include "hw/vfio/vfio-common.h"
 
+bool vfio_multifd_setup(VFIODevice *vbasedev, bool alloc_multifd, Error **errp);
+void vfio_multifd_cleanup(VFIODevice *vbasedev);
+
 bool vfio_multifd_transfer_supported(void);
+bool vfio_multifd_transfer_enabled(VFIODevice *vbasedev);
 
 #endif
