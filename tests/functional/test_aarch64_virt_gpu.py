@@ -93,6 +93,28 @@ class Aarch64VirtGPUMachine(LinuxKernelTest):
         ec_and_wait(self, full_cmd, OK_CMD, fail)
 
     @skipIfMissingCommands('zstd')
+    def test_aarch64_virt_with_virgl_gpu(self):
+
+        self.require_device('virtio-gpu-gl-pci')
+
+        self._launch_virt_gpu("virtio-gpu-gl-pci")
+
+        # subset of the glmark tests
+        tests = " ".join([f"-b {test}" for test in
+                          ["build", "texture", "shading",
+                           "bump", "desktop", "buffer"]])
+
+        self._run_virt_weston_test("glmark2-wayland --validate " + tests)
+
+    @skipIfMissingCommands('zstd')
+    def test_aarch64_virt_with_virgl_blobs_gpu(self):
+
+        self.require_device('virtio-gpu-gl-pci')
+
+        self._launch_virt_gpu("virtio-gpu-gl-pci,hostmem=4G,blob=on")
+        self._run_virt_weston_test("glmark2-wayland -b:duration=1.0")
+
+    @skipIfMissingCommands('zstd')
     def test_aarch64_virt_with_vulkan_gpu(self):
 
         self.require_device('virtio-gpu-gl-pci')
