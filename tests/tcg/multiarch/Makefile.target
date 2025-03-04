@@ -51,7 +51,7 @@ sigreturn-sigmask: LDFLAGS+=-pthread
 # Since this is just a standard piece of library code we've borrowed for a
 # TCG test case, suppress the warning rather than trying to modify the
 # code to work around the compiler.
-sha1: CFLAGS+=-Wno-stringop-overread
+sha1: CFLAGS+=-Wno-stringop-overread -Wno-unknown-warning-option
 
 # The vma-pthread seems very sensitive on gitlab and we currently
 # don't know if its exposing a real bug or the test is flaky.
