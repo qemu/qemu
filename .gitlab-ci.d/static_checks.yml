@@ -70,3 +70,25 @@ check-rust-tools-nightly:
     expire_in: 2 days
     paths:
       - rust/target/doc
+
+check-build-units:
+  extends: .base_job_template
+  stage: build
+  image: $CI_REGISTRY_IMAGE/qemu/debian:$QEMU_CI_CONTAINER_TAG
+  needs:
+    job: amd64-debian-container
+  before_script:
+    - source scripts/ci/gitlab-ci-section
+    - section_start setup "Install Tools"
+    - apt install --assume-yes --no-install-recommends jq
+    - section_end setup
+  script:
+    - mkdir build
+    - cd build
+    - section_start configure "Running configure"
+    - ../configure
+    - cd ..
+    - section_end configure
+    - section_start analyse "Analyse"
+    - .gitlab-ci.d/check-units.py build/compile_commands.json
+    - section_end analyse
