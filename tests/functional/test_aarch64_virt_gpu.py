@@ -78,7 +78,7 @@ class Aarch64VirtGPUMachine(LinuxKernelTest):
         self.wait_for_console_pattern('buildroot login:')
         ec_and_wait(self, 'root', '#')
 
-    def _run_virt_weston_test(self, cmd):
+    def _run_virt_weston_test(self, cmd, fail = None):
 
         # make it easier to detect successful return to shell
         PS1 = 'RES=[$?] # '
@@ -87,7 +87,7 @@ class Aarch64VirtGPUMachine(LinuxKernelTest):
         ec_and_wait(self, 'export XDG_RUNTIME_DIR=/tmp', '#')
         ec_and_wait(self, f"export PS1='{PS1}'", OK_CMD)
         full_cmd = f"weston -B headless --renderer gl --shell kiosk -- {cmd}"
-        ec_and_wait(self, full_cmd, OK_CMD)
+        ec_and_wait(self, full_cmd, OK_CMD, fail)
 
     @skipIfMissingCommands('zstd')
     def test_aarch64_virt_with_vulkan_gpu(self):
@@ -95,7 +95,9 @@ class Aarch64VirtGPUMachine(LinuxKernelTest):
         self.require_device('virtio-gpu-gl-pci')
 
         self._launch_virt_gpu("virtio-gpu-gl-pci,hostmem=4G,blob=on,venus=on")
-        self._run_virt_weston_test("vkmark -b:duration=1.0")
+        self._run_virt_weston_test("vkmark -b:duration=1.0",
+                                   "debug: stuck in fence wait with iter at")
+
 
 if __name__ == '__main__':
     LinuxKernelTest.main()
