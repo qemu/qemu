@@ -181,8 +181,10 @@ struct AspeedMachineState {
 
 #ifdef TARGET_AARCH64
 /* AST2700 evb hardware value */
-#define AST2700_EVB_HW_STRAP1 0x000000C0
-#define AST2700_EVB_HW_STRAP2 0x00000003
+/* SCU HW Strap1 */
+#define AST2700_EVB_HW_STRAP1 0x00000800
+/* SCUIO HW Strap1 */
+#define AST2700_EVB_HW_STRAP2 0x00000700
 #endif
 
 /* Rainier hardware value: (QEMU prototype) */
