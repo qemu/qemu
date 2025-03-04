@@ -2891,6 +2891,8 @@ static bool migration_switchover_start(MigrationState *s, Error **errp)
 
     precopy_notify_complete();
 
+    qemu_savevm_maybe_send_switchover_start(s->to_dst_file);
+
     return true;
 }
 
