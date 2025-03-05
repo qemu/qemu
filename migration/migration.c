@@ -402,10 +402,23 @@ void migration_incoming_state_destroy(void)
     struct MigrationIncomingState *mis = migration_incoming_get_current();
 
     multifd_recv_cleanup();
+
     /*
      * RAM state cleanup needs to happen after multifd cleanup, because
      * multifd threads can use some of its states (receivedmap).
+     * The VFIO load_cleanup() implementation is BQL-sensitive. It requires
+     * BQL must NOT be taken when recycling load threads, so that it won't
+     * block the load threads from making progress on address space
+     * modification operations.
+     *
+     * To make it work, we could try to not take BQL for all load_cleanup(),
+     * or conditionally unlock BQL only if bql_locked() in VFIO.
+     *
+     * Since most existing call sites take BQL for load_cleanup(), make
+     * it simple by taking BQL always as the rule, so that VFIO can unlock
+     * BQL and retake unconditionally.
      */
+    assert(bql_locked());
     qemu_loadvm_state_cleanup();
 
     if (mis->to_src_file) {
