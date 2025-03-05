@@ -393,6 +393,12 @@ typedef struct CPUArchState {
 #endif
 } CPULoongArchState;
 
+typedef struct LoongArchCPUTopo {
+    int32_t socket_id;  /* socket-id of this VCPU */
+    int32_t core_id;    /* core-id of this VCPU */
+    int32_t thread_id;  /* thread-id of this VCPU */
+} LoongArchCPUTopo;
+
 /**
  * LoongArchCPU:
  * @env: #CPULoongArchState
@@ -411,6 +417,10 @@ struct ArchCPU {
     OnOffAuto lasx;
     OnOffAuto kvm_pv_ipi;
     OnOffAuto kvm_steal_time;
+    int32_t socket_id;  /* socket-id of this CPU */
+    int32_t core_id;    /* core-id of this CPU */
+    int32_t thread_id;  /* thread-id of this CPU */
+    int32_t node_id;    /* NUMA node of this CPU */
 
     /* 'compatible' string for this CPU for Linux device trees */
     const char *dtb_compatible;
@@ -429,6 +439,7 @@ struct LoongArchCPUClass {
     CPUClass parent_class;
 
     DeviceRealize parent_realize;
+    DeviceUnrealize parent_unrealize;
     ResettablePhases parent_phases;
 };
 

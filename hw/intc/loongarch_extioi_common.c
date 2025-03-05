@@ -4,11 +4,82 @@
  * Copyright (C) 2024 Loongson Technology Corporation Limited
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
 #include "hw/intc/loongarch_extioi_common.h"
 #include "migration/vmstate.h"
+#include "target/loongarch/cpu.h"
+
+static ExtIOICore *loongarch_extioi_get_cpu(LoongArchExtIOICommonState *s,
+                                            DeviceState *dev)
+{
+    CPUClass *k = CPU_GET_CLASS(dev);
+    uint64_t arch_id = k->get_arch_id(CPU(dev));
+    int i;
+
+    for (i = 0; i < s->num_cpu; i++) {
+        if (s->cpu[i].arch_id == arch_id) {
+            return &s->cpu[i];
+        }
+    }
+
+    return NULL;
+}
+
+static void loongarch_extioi_cpu_plug(HotplugHandler *hotplug_dev,
+                                      DeviceState *dev, Error **errp)
+{
+    LoongArchExtIOICommonState *s = LOONGARCH_EXTIOI_COMMON(hotplug_dev);
+    Object *obj = OBJECT(dev);
+    ExtIOICore *core;
+    int pin, index;
+
+    if (!object_dynamic_cast(obj, TYPE_LOONGARCH_CPU)) {
+        warn_report("LoongArch extioi: Invalid %s device type",
+                                       object_get_typename(obj));
+        return;
+    }
+
+    core = loongarch_extioi_get_cpu(s, dev);
+    if (!core) {
+        return;
+    }
+
+    core->cpu = CPU(dev);
+    index = core - s->cpu;
+
+    /*
+     * connect extioi irq to the cpu irq
+     * cpu_pin[LS3A_INTC_IP + 2 : 2] <= intc_pin[LS3A_INTC_IP : 0]
+     */
+    for (pin = 0; pin < LS3A_INTC_IP; pin++) {
+        qdev_connect_gpio_out(DEVICE(s), index * LS3A_INTC_IP + pin,
+                              qdev_get_gpio_in(dev, pin + 2));
+    }
+}
+
+static void loongarch_extioi_cpu_unplug(HotplugHandler *hotplug_dev,
+                                        DeviceState *dev, Error **errp)
+{
+    LoongArchExtIOICommonState *s = LOONGARCH_EXTIOI_COMMON(hotplug_dev);
+    Object *obj = OBJECT(dev);
+    ExtIOICore *core;
+
+    if (!object_dynamic_cast(obj, TYPE_LOONGARCH_CPU)) {
+        warn_report("LoongArch extioi: Invalid %s device type",
+                                       object_get_typename(obj));
+        return;
+    }
+
+    core = loongarch_extioi_get_cpu(s, dev);
+    if (!core) {
+        return;
+    }
+
+    core->cpu = NULL;
+}
 
 static void loongarch_extioi_common_realize(DeviceState *dev, Error **errp)
 {
@@ -16,7 +87,7 @@ static void loongarch_extioi_common_realize(DeviceState *dev, Error **errp)
     MachineState *machine = MACHINE(qdev_get_machine());
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     const CPUArchIdList *id_list;
-    int i;
+    int i, pin;
 
     assert(mc->possible_cpu_arch_ids);
     id_list = mc->possible_cpu_arch_ids(machine);
@@ -30,6 +101,10 @@ static void loongarch_extioi_common_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < s->num_cpu; i++) {
         s->cpu[i].arch_id = id_list->cpus[i].arch_id;
         s->cpu[i].cpu = CPU(id_list->cpus[i].cpu);
+
+        for (pin = 0; pin < LS3A_INTC_IP; pin++) {
+            qdev_init_gpio_out(dev, &s->cpu[i].parent_irq[pin], 1);
+        }
     }
 }
 
@@ -103,11 +178,14 @@ static void loongarch_extioi_common_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     LoongArchExtIOICommonClass *lecc = LOONGARCH_EXTIOI_COMMON_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
     device_class_set_parent_realize(dc, loongarch_extioi_common_realize,
                                     &lecc->parent_realize);
     device_class_set_props(dc, extioi_properties);
     dc->vmsd = &vmstate_loongarch_extioi;
+    hc->plug = loongarch_extioi_cpu_plug;
+    hc->unplug = loongarch_extioi_cpu_unplug;
 }
 
 static const TypeInfo loongarch_extioi_common_types[] = {
@@ -117,6 +195,10 @@ static const TypeInfo loongarch_extioi_common_types[] = {
         .instance_size      = sizeof(LoongArchExtIOICommonState),
         .class_size         = sizeof(LoongArchExtIOICommonClass),
         .class_init         = loongarch_extioi_common_class_init,
+        .interfaces         = (InterfaceInfo[]) {
+            { TYPE_HOTPLUG_HANDLER },
+            { }
+        },
         .abstract           = true,
     }
 };

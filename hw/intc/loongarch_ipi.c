@@ -6,6 +6,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "hw/boards.h"
 #include "qapi/error.h"
 #include "hw/intc/loongarch_ipi.h"
@@ -48,6 +49,22 @@ static int loongarch_cpu_by_arch_id(LoongsonIPICommonState *lics,
     return MEMTX_ERROR;
 }
 
+static IPICore *loongarch_ipi_get_cpu(LoongsonIPICommonState *lics,
+                                      DeviceState *dev)
+{
+    CPUClass *k = CPU_GET_CLASS(dev);
+    uint64_t arch_id = k->get_arch_id(CPU(dev));
+    int i;
+
+    for (i = 0; i < lics->num_cpu; i++) {
+        if (lics->cpu[i].arch_id == arch_id) {
+            return &lics->cpu[i];
+        }
+    }
+
+    return NULL;
+}
+
 static void loongarch_ipi_realize(DeviceState *dev, Error **errp)
 {
     LoongsonIPICommonState *lics = LOONGSON_IPI_COMMON(dev);
@@ -76,9 +93,57 @@ static void loongarch_ipi_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static void loongarch_ipi_cpu_plug(HotplugHandler *hotplug_dev,
+                                   DeviceState *dev, Error **errp)
+{
+    LoongsonIPICommonState *lics = LOONGSON_IPI_COMMON(hotplug_dev);
+    Object *obj = OBJECT(dev);
+    IPICore *core;
+    int index;
+
+    if (!object_dynamic_cast(obj, TYPE_LOONGARCH_CPU)) {
+        warn_report("LoongArch extioi: Invalid %s device type",
+                                       object_get_typename(obj));
+        return;
+    }
+
+    core = loongarch_ipi_get_cpu(lics, dev);
+    if (!core) {
+        return;
+    }
+
+    core->cpu = CPU(dev);
+    index = core - lics->cpu;
+
+    /* connect ipi irq to cpu irq */
+    qdev_connect_gpio_out(DEVICE(lics), index, qdev_get_gpio_in(dev, IRQ_IPI));
+}
+
+static void loongarch_ipi_cpu_unplug(HotplugHandler *hotplug_dev,
+                                     DeviceState *dev, Error **errp)
+{
+    LoongsonIPICommonState *lics = LOONGSON_IPI_COMMON(hotplug_dev);
+    Object *obj = OBJECT(dev);
+    IPICore *core;
+
+    if (!object_dynamic_cast(obj, TYPE_LOONGARCH_CPU)) {
+        warn_report("LoongArch extioi: Invalid %s device type",
+                                       object_get_typename(obj));
+        return;
+    }
+
+    core = loongarch_ipi_get_cpu(lics, dev);
+    if (!core) {
+        return;
+    }
+
+    core->cpu = NULL;
+}
+
 static void loongarch_ipi_class_init(ObjectClass *klass, void *data)
 {
     LoongsonIPICommonClass *licc = LOONGSON_IPI_COMMON_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
     LoongarchIPIClass *lic = LOONGARCH_IPI_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -86,6 +151,8 @@ static void loongarch_ipi_class_init(ObjectClass *klass, void *data)
                                     &lic->parent_realize);
     licc->get_iocsr_as = get_iocsr_as;
     licc->cpu_by_arch_id = loongarch_cpu_by_arch_id;
+    hc->plug = loongarch_ipi_cpu_plug;
+    hc->unplug = loongarch_ipi_cpu_unplug;
 }
 
 static const TypeInfo loongarch_ipi_types[] = {
@@ -95,6 +162,10 @@ static const TypeInfo loongarch_ipi_types[] = {
         .instance_size      = sizeof(LoongarchIPIState),
         .class_size         = sizeof(LoongarchIPIClass),
         .class_init         = loongarch_ipi_class_init,
+        .interfaces         = (InterfaceInfo[]) {
+            { TYPE_HOTPLUG_HANDLER },
+            { }
+        },
     }
 };
 

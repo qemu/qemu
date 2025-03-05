@@ -187,11 +187,17 @@ static DeviceState *create_acpi_ged(DeviceState *pch_pic,
 {
     DeviceState *dev;
     MachineState *ms = MACHINE(lvms);
+    MachineClass *mc = MACHINE_GET_CLASS(lvms);
     uint32_t event = ACPI_GED_PWR_DOWN_EVT;
 
     if (ms->ram_slots) {
         event |= ACPI_GED_MEM_HOTPLUG_EVT;
     }
+
+    if (mc->has_hotpluggable_cpus) {
+        event |= ACPI_GED_CPU_HOTPLUG_EVT;
+    }
+
     dev = qdev_new(TYPE_ACPI_GED);
     qdev_prop_set_uint32(dev, "ged-event", event);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
@@ -202,6 +208,10 @@ static DeviceState *create_acpi_ged(DeviceState *pch_pic,
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, VIRT_GED_MEM_ADDR);
     /* ged regs used for reset and power down */
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, VIRT_GED_REG_ADDR);
+
+    if (mc->has_hotpluggable_cpus) {
+        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 3, VIRT_GED_CPUHP_ADDR);
+    }
 
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
                        qdev_get_gpio_in(pch_pic, VIRT_SCI_IRQ - VIRT_GSI_BASE));
@@ -312,11 +322,12 @@ static void virt_devices_init(DeviceState *pch_pic,
 
 static void virt_cpu_irq_init(LoongArchVirtMachineState *lvms)
 {
-    int num, pin;
+    int num;
     MachineState *ms = MACHINE(lvms);
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     const CPUArchIdList *possible_cpus;
     CPUState *cs;
+    Error *err = NULL;
 
     /* cpu nodes */
     possible_cpus = mc->possible_cpu_arch_ids(ms);
@@ -326,18 +337,8 @@ static void virt_cpu_irq_init(LoongArchVirtMachineState *lvms)
             continue;
         }
 
-        /* connect ipi irq to cpu irq */
-        qdev_connect_gpio_out(lvms->ipi, num,
-                              qdev_get_gpio_in(DEVICE(cs), IRQ_IPI));
-
-        /*
-         * connect ext irq to the cpu irq
-         * cpu_pin[9:2] <= intc_pin[7:0]
-         */
-        for (pin = 0; pin < LS3A_INTC_IP; pin++) {
-            qdev_connect_gpio_out(lvms->extioi, (num * LS3A_INTC_IP + pin),
-                                  qdev_get_gpio_in(DEVICE(cs), pin + 2));
-        }
+        hotplug_handler_plug(HOTPLUG_HANDLER(lvms->ipi), DEVICE(cs), &err);
+        hotplug_handler_plug(HOTPLUG_HANDLER(lvms->extioi), DEVICE(cs), &err);
     }
 }
 
@@ -656,15 +657,13 @@ static void fw_cfg_add_memory(MachineState *ms)
 
 static void virt_init(MachineState *machine)
 {
-    LoongArchCPU *lacpu;
     const char *cpu_model = machine->cpu_type;
     MemoryRegion *address_space_mem = get_system_memory();
     LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(machine);
     int i;
     hwaddr base, size, ram_size = machine->ram_size;
-    const CPUArchIdList *possible_cpus;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
-    CPUState *cpu;
+    Object *cpuobj;
 
     if (!cpu_model) {
         cpu_model = LOONGARCH_CPU_TYPE_NAME("la464");
@@ -680,14 +679,15 @@ static void virt_init(MachineState *machine)
     memory_region_add_subregion(&lvms->system_iocsr, 0, &lvms->iocsr_mem);
 
     /* Init CPUs */
-    possible_cpus = mc->possible_cpu_arch_ids(machine);
-    for (i = 0; i < possible_cpus->len; i++) {
-        cpu = cpu_create(machine->cpu_type);
-        cpu->cpu_index = i;
-        machine->possible_cpus->cpus[i].cpu = cpu;
-        lacpu = LOONGARCH_CPU(cpu);
-        lacpu->phy_id = machine->possible_cpus->cpus[i].arch_id;
-        lacpu->env.address_space_iocsr = &lvms->as_iocsr;
+    mc->possible_cpu_arch_ids(machine);
+    for (i = 0; i < machine->smp.cpus; i++) {
+        cpuobj = object_new(machine->cpu_type);
+        if (cpuobj == NULL) {
+            error_report("Fail to create object with type %s ",
+                         machine->cpu_type);
+            exit(EXIT_FAILURE);
+        }
+        qdev_realize_and_unref(DEVICE(cpuobj), NULL, &error_fatal);
     }
     fw_cfg_add_memory(machine);
 
@@ -783,6 +783,232 @@ static void virt_initfn(Object *obj)
     virt_flash_create(lvms);
 }
 
+static void virt_get_topo_from_index(MachineState *ms,
+                                     LoongArchCPUTopo *topo, int index)
+{
+    topo->socket_id = index / (ms->smp.cores * ms->smp.threads);
+    topo->core_id = index / ms->smp.threads % ms->smp.cores;
+    topo->thread_id = index % ms->smp.threads;
+}
+
+static unsigned int topo_align_up(unsigned int count)
+{
+    g_assert(count >= 1);
+    count -= 1;
+    return BIT(count ? 32 - clz32(count) : 0);
+}
+
+/*
+ * LoongArch Reference Manual Vol1, Chapter 7.4.12 CPU Identity
+ *  For CPU architecture, bit0 .. bit8 is valid for CPU id, max cpuid is 512
+ *  However for IPI/Eiointc interrupt controller, max supported cpu id for
+ *  irq routingis 256
+ *
+ *  Here max cpu id is 256 for virt machine
+ */
+static int virt_get_arch_id_from_topo(MachineState *ms, LoongArchCPUTopo *topo)
+{
+    int arch_id, threads, cores, sockets;
+
+    threads = topo_align_up(ms->smp.threads);
+    cores = topo_align_up(ms->smp.cores);
+    sockets = topo_align_up(ms->smp.sockets);
+    if ((threads * cores * sockets) > 256) {
+        error_report("Exceeding max cpuid 256 with sockets[%d] cores[%d]"
+                     " threads[%d]", ms->smp.sockets, ms->smp.cores,
+                     ms->smp.threads);
+        exit(1);
+    }
+
+    arch_id = topo->thread_id + topo->core_id * threads;
+    arch_id += topo->socket_id * threads * cores;
+    return arch_id;
+}
+
+/* Find cpu slot in machine->possible_cpus by arch_id */
+static CPUArchId *virt_find_cpu_slot(MachineState *ms, int arch_id)
+{
+    int n;
+    for (n = 0; n < ms->possible_cpus->len; n++) {
+        if (ms->possible_cpus->cpus[n].arch_id == arch_id) {
+            return &ms->possible_cpus->cpus[n];
+        }
+    }
+
+    return NULL;
+}
+
+/* Find cpu slot for cold-plut CPU object where cpu is NULL */
+static CPUArchId *virt_find_empty_cpu_slot(MachineState *ms)
+{
+    int n;
+    for (n = 0; n < ms->possible_cpus->len; n++) {
+        if (ms->possible_cpus->cpus[n].cpu == NULL) {
+            return &ms->possible_cpus->cpus[n];
+        }
+    }
+
+    return NULL;
+}
+
+static void virt_cpu_pre_plug(HotplugHandler *hotplug_dev,
+                              DeviceState *dev, Error **errp)
+{
+    LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(hotplug_dev);
+    MachineState *ms = MACHINE(OBJECT(hotplug_dev));
+    LoongArchCPU *cpu = LOONGARCH_CPU(dev);
+    CPUState *cs = CPU(dev);
+    CPUArchId *cpu_slot;
+    Error *err = NULL;
+    LoongArchCPUTopo topo;
+    int arch_id;
+
+    if (lvms->acpi_ged) {
+        if ((cpu->thread_id < 0) || (cpu->thread_id >= ms->smp.threads)) {
+            error_setg(&err,
+                       "Invalid thread-id %u specified, must be in range 1:%u",
+                       cpu->thread_id, ms->smp.threads - 1);
+            goto out;
+        }
+
+        if ((cpu->core_id < 0) || (cpu->core_id >= ms->smp.cores)) {
+            error_setg(&err,
+                       "Invalid core-id %u specified, must be in range 1:%u",
+                       cpu->core_id, ms->smp.cores - 1);
+            goto out;
+        }
+
+        if ((cpu->socket_id < 0) || (cpu->socket_id >= ms->smp.sockets)) {
+            error_setg(&err,
+                       "Invalid socket-id %u specified, must be in range 1:%u",
+                       cpu->socket_id, ms->smp.sockets - 1);
+            goto out;
+        }
+
+        topo.socket_id = cpu->socket_id;
+        topo.core_id = cpu->core_id;
+        topo.thread_id = cpu->thread_id;
+        arch_id =  virt_get_arch_id_from_topo(ms, &topo);
+        cpu_slot = virt_find_cpu_slot(ms, arch_id);
+        if (CPU(cpu_slot->cpu)) {
+            error_setg(&err,
+                       "cpu(id%d=%d:%d:%d) with arch-id %" PRIu64 " exists",
+                       cs->cpu_index, cpu->socket_id, cpu->core_id,
+                       cpu->thread_id, cpu_slot->arch_id);
+            goto out;
+        }
+    } else {
+        /* For cold-add cpu, find empty cpu slot */
+        cpu_slot = virt_find_empty_cpu_slot(ms);
+        topo.socket_id = cpu_slot->props.socket_id;
+        topo.core_id = cpu_slot->props.core_id;
+        topo.thread_id = cpu_slot->props.thread_id;
+        object_property_set_int(OBJECT(dev), "socket-id", topo.socket_id, NULL);
+        object_property_set_int(OBJECT(dev), "core-id", topo.core_id, NULL);
+        object_property_set_int(OBJECT(dev), "thread-id", topo.thread_id, NULL);
+    }
+
+    cpu->env.address_space_iocsr = &lvms->as_iocsr;
+    cpu->phy_id = cpu_slot->arch_id;
+    cs->cpu_index = cpu_slot - ms->possible_cpus->cpus;
+    numa_cpu_pre_plug(cpu_slot, dev, &err);
+out:
+    if (err) {
+        error_propagate(errp, err);
+    }
+}
+
+static void virt_cpu_unplug_request(HotplugHandler *hotplug_dev,
+                                    DeviceState *dev, Error **errp)
+{
+    LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(hotplug_dev);
+    Error *err = NULL;
+    LoongArchCPU *cpu = LOONGARCH_CPU(dev);
+    CPUState *cs = CPU(dev);
+
+    if (cs->cpu_index == 0) {
+        error_setg(&err, "hot-unplug of boot cpu(id%d=%d:%d:%d) not supported",
+                   cs->cpu_index, cpu->socket_id,
+                   cpu->core_id, cpu->thread_id);
+        error_propagate(errp, err);
+        return;
+    }
+
+    hotplug_handler_unplug_request(HOTPLUG_HANDLER(lvms->acpi_ged), dev, &err);
+    if (err) {
+        error_propagate(errp, err);
+    }
+}
+
+static void virt_cpu_unplug(HotplugHandler *hotplug_dev,
+                            DeviceState *dev, Error **errp)
+{
+    CPUArchId *cpu_slot;
+    Error *err = NULL;
+    LoongArchCPU *cpu = LOONGARCH_CPU(dev);
+    LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(hotplug_dev);
+
+    /* Notify ipi and extioi irqchip to remove interrupt routing to CPU */
+    hotplug_handler_unplug(HOTPLUG_HANDLER(lvms->ipi), dev, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    hotplug_handler_unplug(HOTPLUG_HANDLER(lvms->extioi), dev, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    /* Notify acpi ged CPU removed */
+    hotplug_handler_unplug(HOTPLUG_HANDLER(lvms->acpi_ged), dev, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    cpu_slot = virt_find_cpu_slot(MACHINE(lvms), cpu->phy_id);
+    cpu_slot->cpu = NULL;
+    return;
+}
+
+static void virt_cpu_plug(HotplugHandler *hotplug_dev,
+                          DeviceState *dev, Error **errp)
+{
+    CPUArchId *cpu_slot;
+    LoongArchCPU *cpu = LOONGARCH_CPU(dev);
+    LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(hotplug_dev);
+    Error *err = NULL;
+
+    cpu_slot = virt_find_cpu_slot(MACHINE(lvms), cpu->phy_id);
+    cpu_slot->cpu = CPU(dev);
+    if (lvms->ipi) {
+        hotplug_handler_plug(HOTPLUG_HANDLER(lvms->ipi), dev, &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+    }
+
+    if (lvms->extioi) {
+        hotplug_handler_plug(HOTPLUG_HANDLER(lvms->extioi), dev, &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+    }
+
+    if (lvms->acpi_ged) {
+        hotplug_handler_plug(HOTPLUG_HANDLER(lvms->acpi_ged), dev, &err);
+        if (err) {
+            error_propagate(errp, err);
+        }
+    }
+
+    return;
+}
+
 static bool memhp_type_supported(DeviceState *dev)
 {
     /* we only support pc dimm now */
@@ -801,6 +1027,8 @@ static void virt_device_pre_plug(HotplugHandler *hotplug_dev,
 {
     if (memhp_type_supported(dev)) {
         virt_mem_pre_plug(hotplug_dev, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_LOONGARCH_CPU)) {
+        virt_cpu_pre_plug(hotplug_dev, dev, errp);
     }
 }
 
@@ -819,6 +1047,8 @@ static void virt_device_unplug_request(HotplugHandler *hotplug_dev,
 {
     if (memhp_type_supported(dev)) {
         virt_mem_unplug_request(hotplug_dev, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_LOONGARCH_CPU)) {
+        virt_cpu_unplug_request(hotplug_dev, dev, errp);
     }
 }
 
@@ -837,6 +1067,8 @@ static void virt_device_unplug(HotplugHandler *hotplug_dev,
 {
     if (memhp_type_supported(dev)) {
         virt_mem_unplug(hotplug_dev, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_LOONGARCH_CPU)) {
+        virt_cpu_unplug(hotplug_dev, dev, errp);
     }
 }
 
@@ -864,6 +1096,8 @@ static void virt_device_plug_cb(HotplugHandler *hotplug_dev,
         }
     } else if (memhp_type_supported(dev)) {
         virt_mem_plug(hotplug_dev, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_LOONGARCH_CPU)) {
+        virt_cpu_plug(hotplug_dev, dev, errp);
     }
 }
 
@@ -873,6 +1107,7 @@ static HotplugHandler *virt_get_hotplug_handler(MachineState *machine,
     MachineClass *mc = MACHINE_GET_CLASS(machine);
 
     if (device_is_dynamic_sysbus(mc, dev) ||
+        object_dynamic_cast(OBJECT(dev), TYPE_LOONGARCH_CPU) ||
         object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_IOMMU_PCI) ||
         memhp_type_supported(dev)) {
         return HOTPLUG_HANDLER(machine);
@@ -882,8 +1117,9 @@ static HotplugHandler *virt_get_hotplug_handler(MachineState *machine,
 
 static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
 {
-    int n;
+    int n, arch_id;
     unsigned int max_cpus = ms->smp.max_cpus;
+    LoongArchCPUTopo topo;
 
     if (ms->possible_cpus) {
         assert(ms->possible_cpus->len == max_cpus);
@@ -894,17 +1130,17 @@ static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
                                   sizeof(CPUArchId) * max_cpus);
     ms->possible_cpus->len = max_cpus;
     for (n = 0; n < ms->possible_cpus->len; n++) {
+        virt_get_topo_from_index(ms, &topo, n);
+        arch_id = virt_get_arch_id_from_topo(ms, &topo);
         ms->possible_cpus->cpus[n].type = ms->cpu_type;
-        ms->possible_cpus->cpus[n].arch_id = n;
-
+        ms->possible_cpus->cpus[n].arch_id = arch_id;
+        ms->possible_cpus->cpus[n].vcpus_count = 1;
         ms->possible_cpus->cpus[n].props.has_socket_id = true;
-        ms->possible_cpus->cpus[n].props.socket_id  =
-                                   n / (ms->smp.cores * ms->smp.threads);
+        ms->possible_cpus->cpus[n].props.socket_id = topo.socket_id;
         ms->possible_cpus->cpus[n].props.has_core_id = true;
-        ms->possible_cpus->cpus[n].props.core_id =
-                                   n / ms->smp.threads % ms->smp.cores;
+        ms->possible_cpus->cpus[n].props.core_id = topo.core_id;
         ms->possible_cpus->cpus[n].props.has_thread_id = true;
-        ms->possible_cpus->cpus[n].props.thread_id = n % ms->smp.threads;
+        ms->possible_cpus->cpus[n].props.thread_id = topo.thread_id;
     }
     return ms->possible_cpus;
 }
@@ -952,6 +1188,7 @@ static void virt_class_init(ObjectClass *oc, void *data)
     mc->numa_mem_supported = true;
     mc->auto_enable_numa_with_memhp = true;
     mc->auto_enable_numa_with_memdev = true;
+    mc->has_hotpluggable_cpus = true;
     mc->get_hotplug_handler = virt_get_hotplug_handler;
     mc->default_nic = "virtio-net-pci";
     hc->plug = virt_device_plug_cb;
