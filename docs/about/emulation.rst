@@ -185,7 +185,7 @@ for that architecture.
     - https://sourceware.org/git/gitweb.cgi?p=newlib-cygwin.git;a=blob;f=libgloss/nios2/nios2-semi.txt;hb=HEAD
   * - RISC-V
     - System and User-mode
-    - https://github.com/riscv/riscv-semihosting-spec/blob/main/riscv-semihosting-spec.adoc
+    - https://github.com/riscv-non-isa/riscv-semihosting/blob/main/riscv-semihosting.adoc
   * - Xtensa
     - System
     - Tensilica ISS SIMCALL
