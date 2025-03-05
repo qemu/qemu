@@ -495,6 +495,28 @@ void test_store_new()
     check_output_w(__LINE__, 1);
 }
 
+void test_qfloat()
+{
+    asm volatile(
+        "r0 = #0xf\n"
+        "v0 = vsplat(r0)\n"
+        "v1 = vsplat(r0)\n"
+        "{\n"
+        "   v2.qf16 = vadd(v0.qf16, v1.qf16)\n"
+        "}\n"
+        "vmem(%0) = v2\n"
+        :
+        : "r"(&output[0])
+        : "r0", "v0", "v1", "v2", "memory"
+    );
+
+    for (int i = 0; i < MAX_VEC_SIZE_BYTES / 4; i++) {
+        expect[0].w[i] = 0x10010;
+    }
+
+    check_output_w(__LINE__, 1);
+}
+
 int main()
 {
     init_buffers();
@@ -537,6 +559,8 @@ int main()
     test_vcombine();
 
     test_store_new();
+
+    test_qfloat();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;
