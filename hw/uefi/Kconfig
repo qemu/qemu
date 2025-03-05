@@ -1,0 +1,3 @@
+config UEFI_VARS
+	bool
+        default y if X86_64 || AARCH64
