@@ -458,6 +458,10 @@ bool migrate_rdma_caps_check(bool *caps, Error **errp)
         error_setg(errp, "RDMA and multifd can't be used together");
         return false;
     }
+    if (caps[MIGRATION_CAPABILITY_POSTCOPY_RAM]) {
+        error_setg(errp, "RDMA and postcopy-ram can't be used together");
+        return false;
+    }
 
     return true;
 }
