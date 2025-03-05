@@ -36,6 +36,7 @@ test_timeouts = {
   'intel_iommu': 300,
   'mips_malta' : 120,
   'mipsel_replay' : 480,
+  'mips64el_replay' : 180,
   'netdev_ethtool' : 180,
   'ppc_40p' : 240,
   'ppc64_hv' : 1000,
