@@ -18,6 +18,14 @@
 #include "exec/log.h"
 #include "cpu-csr.h"
 
+bool check_ps(CPULoongArchState *env, int tlb_ps)
+{
+     if (tlb_ps > 64) {
+         return false;
+     }
+     return BIT_ULL(tlb_ps) & (env->CSR_PRCFG2);
+}
+
 void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
                                uint64_t *dir_width, target_ulong level)
 {
@@ -191,8 +199,10 @@ static void fill_tlb_entry(CPULoongArchState *env, int index)
         lo1 = env->CSR_TLBELO1;
     }
 
-    if (csr_ps == 0) {
-        qemu_log_mask(CPU_LOG_MMU, "page size is 0\n");
+    /*check csr_ps */
+    if (!check_ps(env, csr_ps)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "csr_ps %d is illegal\n", csr_ps);
+        return;
     }
 
     /* Only MTLB has the ps fields */
@@ -302,7 +312,16 @@ void helper_tlbfill(CPULoongArchState *env)
         pagesize = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, PS);
     }
 
+    if (!check_ps(env, pagesize)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "pagesize %d is illegal\n", pagesize);
+        return;
+    }
+
     stlb_ps = FIELD_EX64(env->CSR_STLBPS, CSR_STLBPS, PS);
+    if (!check_ps(env, stlb_ps)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "stlb_ps %d is illegal\n", stlb_ps);
+        return;
+    }
 
     if (pagesize == stlb_ps) {
         /* Only write into STLB bits [47:13] */
