@@ -42,6 +42,8 @@ enum TTYState {
     TTY_STATE_NORM,
     TTY_STATE_ESC,
     TTY_STATE_CSI,
+    TTY_STATE_G0,
+    TTY_STATE_G1,
 };
 
 typedef struct QemuTextConsole {
@@ -88,6 +90,7 @@ struct VCChardev {
     int esc_params[MAX_ESC_PARAMS];
     int nb_esc_params;
     TextAttributes t_attrib; /* currently active text attributes */
+    TextAttributes t_attrib_saved;
     int x_saved, y_saved;
 };
 typedef struct VCChardev VCChardev;
@@ -615,10 +618,9 @@ static void vc_put_one(VCChardev *vc, int ch)
 
 static void vc_respond_str(VCChardev *vc, const char *buf)
 {
-    while (*buf) {
-        vc_put_one(vc, *buf);
-        buf++;
-    }
+    QemuTextConsole *s = vc->console;
+
+    qemu_chr_be_write(s->chr, (const uint8_t *)buf, strlen(buf));
 }
 
 /* set cursor, checking bounds */
@@ -641,6 +643,113 @@ static void vc_set_cursor(VCChardev *vc, int x, int y)
 
     s->x = x;
     s->y = y;
+}
+
+/**
+ * vc_csi_P() - (DCH) deletes one or more characters from the cursor
+ * position to the right. As characters are deleted, the remaining
+ * characters between the cursor and right margin move to the
+ * left. Character attributes move with the characters.
+ */
+static void vc_csi_P(struct VCChardev *vc, unsigned int nr)
+{
+    QemuTextConsole *s = vc->console;
+    TextCell *c1, *c2;
+    unsigned int x1, x2, y;
+    unsigned int end, len;
+
+    if (!nr) {
+        nr = 1;
+    }
+    if (nr > s->width - s->x) {
+        nr = s->width - s->x;
+        if (!nr) {
+            return;
+        }
+    }
+
+    x1 = s->x;
+    x2 = s->x + nr;
+    len = s->width - x2;
+    if (len) {
+        y = (s->y_base + s->y) % s->total_height;
+        c1 = &s->cells[y * s->width + x1];
+        c2 = &s->cells[y * s->width + x2];
+        memmove(c1, c2, len * sizeof(*c1));
+        for (end = x1 + len; x1 < end; x1++) {
+            vc_update_xy(vc, x1, s->y);
+        }
+    }
+    /* Clear the rest */
+    for (; x1 < s->width; x1++) {
+        vc_clear_xy(vc, x1, s->y);
+    }
+}
+
+/**
+ * vc_csi_at() - (ICH) inserts `nr` blank characters with the default
+ * character attribute. The cursor remains at the beginning of the
+ * blank characters. Text between the cursor and right margin moves to
+ * the right. Characters scrolled past the right margin are lost.
+ */
+static void vc_csi_at(struct VCChardev *vc, unsigned int nr)
+{
+    QemuTextConsole *s = vc->console;
+    TextCell *c1, *c2;
+    unsigned int x1, x2, y;
+    unsigned int end, len;
+
+    if (!nr) {
+        nr = 1;
+    }
+    if (nr > s->width - s->x) {
+        nr = s->width - s->x;
+        if (!nr) {
+            return;
+        }
+    }
+
+    x1 = s->x + nr;
+    x2 = s->x;
+    len = s->width - x1;
+    if (len) {
+        y = (s->y_base + s->y) % s->total_height;
+        c1 = &s->cells[y * s->width + x1];
+        c2 = &s->cells[y * s->width + x2];
+        memmove(c1, c2, len * sizeof(*c1));
+        for (end = x1 + len; x1 < end; x1++) {
+            vc_update_xy(vc, x1, s->y);
+        }
+    }
+    /* Insert blanks */
+    for (x1 = s->x; x1 < s->x + nr; x1++) {
+        vc_clear_xy(vc, x1, s->y);
+    }
+}
+
+/**
+ * vc_save_cursor() - saves cursor position and character attributes.
+ */
+static void vc_save_cursor(VCChardev *vc)
+{
+    QemuTextConsole *s = vc->console;
+
+    vc->x_saved = s->x;
+    vc->y_saved = s->y;
+    vc->t_attrib_saved = vc->t_attrib;
+}
+
+/**
+ * vc_restore_cursor() - restores cursor position and character
+ * attributes from saved state.
+ */
+static void vc_restore_cursor(VCChardev *vc)
+{
+    QemuTextConsole *s = vc->console;
+
+    s->x = vc->x_saved;
+    s->y = vc->y_saved;
+    vc->t_attrib = vc->t_attrib_saved;
 }
 
 static void vc_putchar(VCChardev *vc, int ch)
@@ -694,6 +803,16 @@ static void vc_putchar(VCChardev *vc, int ch)
                 vc->esc_params[i] = 0;
             vc->nb_esc_params = 0;
             vc->state = TTY_STATE_CSI;
+        } else if (ch == '(') {
+            vc->state = TTY_STATE_G0;
+        } else if (ch == ')') {
+            vc->state = TTY_STATE_G1;
+        } else if (ch == '7') {
+            vc_save_cursor(vc);
+            vc->state = TTY_STATE_NORM;
+        } else if (ch == '8') {
+            vc_restore_cursor(vc);
+            vc->state = TTY_STATE_NORM;
         } else {
             vc->state = TTY_STATE_NORM;
         }
@@ -810,6 +929,9 @@ static void vc_putchar(VCChardev *vc, int ch)
                     break;
                 }
                 break;
+            case 'P':
+                vc_csi_P(vc, vc->esc_params[0]);
+                break;
             case 'm':
                 vc_handle_escape(vc);
                 break;
@@ -822,21 +944,19 @@ static void vc_putchar(VCChardev *vc, int ch)
                 case 6:
                     /* report cursor position */
                     response = g_strdup_printf("\033[%d;%dR",
-                           (s->y_base + s->y) % s->total_height + 1,
-                            s->x + 1);
+                                               s->y + 1, s->x + 1);
                     vc_respond_str(vc, response);
                     break;
                 }
                 break;
             case 's':
-                /* save cursor position */
-                vc->x_saved = s->x;
-                vc->y_saved = s->y;
+                vc_save_cursor(vc);
                 break;
             case 'u':
-                /* restore cursor position */
-                s->x = vc->x_saved;
-                s->y = vc->y_saved;
+                vc_restore_cursor(vc);
+                break;
+            case '@':
+                vc_csi_at(vc, vc->esc_params[0]);
                 break;
             default:
                 trace_console_putchar_unhandled(ch);
@@ -844,6 +964,16 @@ static void vc_putchar(VCChardev *vc, int ch)
             }
             break;
         }
+        break;
+    case TTY_STATE_G0: /* set character sets */
+    case TTY_STATE_G1: /* set character sets */
+        switch (ch) {
+        case 'B':
+            /* Latin-1 map */
+            break;
+        }
+        vc->state = TTY_STATE_NORM;
+        break;
     }
 }
 
