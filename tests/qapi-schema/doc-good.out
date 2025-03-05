@@ -58,6 +58,9 @@ doc freeform
 = Section
 doc freeform
     body=
+Just text, no heading.
+doc freeform
+    body=
 == Subsection
 
 *with emphasis*
