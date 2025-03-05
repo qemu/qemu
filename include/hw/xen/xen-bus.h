@@ -8,9 +8,10 @@
 #ifndef HW_XEN_BUS_H
 #define HW_XEN_BUS_H
 
+#include "hw/qdev-core.h"
 #include "hw/xen/xen_backend_ops.h"
-#include "hw/sysbus.h"
 #include "qemu/notify.h"
+#include "qemu/queue.h"
 #include "qom/object.h"
 
 typedef struct XenEventChannel XenEventChannel;

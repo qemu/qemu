@@ -15,6 +15,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qemu/host-utils.h"
 
 static inline char hexdump_nibble(unsigned x)
 {
@@ -96,4 +97,21 @@ void qemu_hexdump(FILE *fp, const char *prefix,
                 prefix, b, QEMU_HEXDUMP_LINE_WIDTH, str->str, ascii);
     }
 
+}
+
+void qemu_hexdump_to_buffer(char *restrict buffer, size_t buffer_size,
+                            const uint8_t *restrict data, size_t data_size)
+{
+    size_t i;
+    uint64_t required_buffer_size;
+    bool overflow = umul64_overflow(data_size, 2, &required_buffer_size);
+    overflow |= uadd64_overflow(required_buffer_size, 1, &required_buffer_size);
+    assert(!overflow && buffer_size >= required_buffer_size);
+
+    for (i = 0; i < data_size; i++) {
+        uint8_t val = data[i];
+        *(buffer++) = hexdump_nibble(val >> 4);
+        *(buffer++) = hexdump_nibble(val & 0xf);
+    }
+    *buffer = '\0';
 }

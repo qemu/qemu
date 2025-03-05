@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+config VMAPPLE_AES
+    bool
+
+config VMAPPLE_BDIF
+    bool
+
+config VMAPPLE_CFG
+    bool
+
+config VMAPPLE_VIRTIO_BLK
+    bool
+
+config VMAPPLE
+    bool
+    depends on ARM
+    depends on HVF
+    default y if ARM
+    imply PCI_DEVICES
+    select ARM_GICV3
+    select PLATFORM_BUS
+    select PCI_EXPRESS
+    select PCI_EXPRESS_GENERIC_BRIDGE
+    select PL011 # UART
+    select PL031 # RTC
+    select PL061 # GPIO
+    select GPIO_PWR
+    select PVPANIC_MMIO
+    select VMAPPLE_AES
+    select VMAPPLE_BDIF
+    select VMAPPLE_CFG
+    select MAC_PVG_MMIO
+    select VMAPPLE_VIRTIO_BLK

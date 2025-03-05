@@ -386,7 +386,8 @@ static void imx_serial_write(void *opaque, hwaddr offset,
 static int imx_can_receive(void *opaque)
 {
     IMXSerialState *s = (IMXSerialState *)opaque;
-    return s->ucr2 & UCR2_RXEN && fifo32_num_used(&s->rx_fifo) < FIFO_SIZE;
+
+    return s->ucr2 & UCR2_RXEN ? fifo32_num_free(&s->rx_fifo) : 0;
 }
 
 static void imx_put_data(void *opaque, uint32_t value)
@@ -417,7 +418,10 @@ static void imx_receive(void *opaque, const uint8_t *buf, int size)
     IMXSerialState *s = (IMXSerialState *)opaque;
 
     s->usr2 |= USR2_WAKE;
-    imx_put_data(opaque, *buf);
+
+    for (int i = 0; i < size; i++) {
+        imx_put_data(opaque, buf[i]);
+    }
 }
 
 static void imx_event(void *opaque, QEMUChrEvent event)

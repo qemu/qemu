@@ -423,8 +423,10 @@ static void etsec_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = etsec_realize;
+    dc->desc = "Freescale Enhanced Three-Speed Ethernet Controller";
     device_class_set_legacy_reset(dc, etsec_reset);
     device_class_set_props(dc, etsec_properties);
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
 static const TypeInfo etsec_types[] = {

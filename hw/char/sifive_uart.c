@@ -251,6 +251,23 @@ static int sifive_uart_be_change(void *opaque)
     return 0;
 }
 
+static void sifive_uart_reset_enter(Object *obj, ResetType type)
+{
+    SiFiveUARTState *s = SIFIVE_UART(obj);
+
+    s->txfifo = 0;
+    s->ie = 0;
+    s->ip = 0;
+    s->txctrl = 0;
+    s->rxctrl = 0;
+    s->div = 0;
+
+    s->rx_fifo_len = 0;
+
+    memset(s->rx_fifo, 0, SIFIVE_UART_RX_FIFO_SIZE);
+    fifo8_reset(&s->tx_fifo);
+}
+
 static const Property sifive_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", SiFiveUARTState, chr),
 };
@@ -270,30 +287,24 @@ static void sifive_uart_realize(DeviceState *dev, Error **errp)
 {
     SiFiveUARTState *s = SIFIVE_UART(dev);
 
+    fifo8_create(&s->tx_fifo, SIFIVE_UART_TX_FIFO_SIZE);
+
     s->fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                           fifo_trigger_update, s);
 
-    qemu_chr_fe_set_handlers(&s->chr, sifive_uart_can_rx, sifive_uart_rx,
-                             sifive_uart_event, sifive_uart_be_change, s,
-                             NULL, true);
+    if (qemu_chr_fe_backend_connected(&s->chr)) {
+        qemu_chr_fe_set_handlers(&s->chr, sifive_uart_can_rx, sifive_uart_rx,
+                                 sifive_uart_event, sifive_uart_be_change, s,
+                                 NULL, true);
+    }
 
 }
 
-static void sifive_uart_reset_enter(Object *obj, ResetType type)
+static void sifive_uart_unrealize(DeviceState *dev)
 {
-    SiFiveUARTState *s = SIFIVE_UART(obj);
+    SiFiveUARTState *s = SIFIVE_UART(dev);
 
-    s->txfifo = 0;
-    s->ie = 0;
-    s->ip = 0;
-    s->txctrl = 0;
-    s->rxctrl = 0;
-    s->div = 0;
-
-    s->rx_fifo_len = 0;
-
-    memset(s->rx_fifo, 0, SIFIVE_UART_RX_FIFO_SIZE);
-    fifo8_create(&s->tx_fifo, SIFIVE_UART_TX_FIFO_SIZE);
+    fifo8_destroy(&s->tx_fifo);
 }
 
 static void sifive_uart_reset_hold(Object *obj, ResetType type)
@@ -329,6 +340,7 @@ static void sifive_uart_class_init(ObjectClass *oc, void *data)
     ResettableClass *rc = RESETTABLE_CLASS(oc);
 
     dc->realize = sifive_uart_realize;
+    dc->unrealize = sifive_uart_unrealize;
     dc->vmsd = &vmstate_sifive_uart;
     rc->phases.enter = sifive_uart_reset_enter;
     rc->phases.hold  = sifive_uart_reset_hold;

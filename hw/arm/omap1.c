@@ -42,6 +42,7 @@
 #include "qemu/cutils.h"
 #include "qemu/bcd.h"
 #include "target/arm/cpu-qom.h"
+#include "trace.h"
 
 static inline void omap_log_badwidth(const char *funcname, hwaddr addr, int sz)
 {
@@ -1731,7 +1732,7 @@ static void omap_clkm_write(void *opaque, hwaddr addr,
     case 0x18:	/* ARM_SYSST */
         if ((s->clkm.clocking_scheme ^ (value >> 11)) & 7) {
             s->clkm.clocking_scheme = (value >> 11) & 7;
-            printf("%s: clocking scheme set to %s\n", __func__,
+            trace_omap1_pwl_clocking_scheme(
                    clkschemename[s->clkm.clocking_scheme]);
         }
         s->clkm.cold_start &= value & 0x3f;
@@ -2335,7 +2336,7 @@ static void omap_pwl_update(struct omap_pwl_s *s)
 
     if (output != s->output) {
         s->output = output;
-        printf("%s: Backlight now at %i/256\n", __func__, output);
+        trace_omap1_pwl_backlight(output);
     }
 }
 
@@ -2470,8 +2471,8 @@ static void omap_pwt_write(void *opaque, hwaddr addr,
         break;
     case 0x04:	/* VRC */
         if ((value ^ s->vrc) & 1) {
-            if (value & 1)
-                printf("%s: %iHz buzz on\n", __func__, (int)
+            if (value & 1) {
+                trace_omap1_pwt_buzz(
                                 /* 1.5 MHz from a 12-MHz or 13-MHz PWT_CLK */
                                 ((omap_clk_getrate(s->clk) >> 3) /
                                  /* Pre-multiplexer divider */
@@ -2487,8 +2488,9 @@ static void omap_pwt_write(void *opaque, hwaddr addr,
                                  /*  80/127 divider */
                                  ((value & (1 << 5)) ?  80 : 127) /
                                  (107 * 55 * 63 * 127)));
-            else
-                printf("%s: silence!\n", __func__);
+            } else {
+                trace_omap1_pwt_silence();
+            }
         }
         s->vrc = value & 0x7f;
         break;
@@ -2559,8 +2561,9 @@ static void omap_rtc_interrupts_update(struct omap_rtc_s *s)
 static void omap_rtc_alarm_update(struct omap_rtc_s *s)
 {
     s->alarm_ti = mktimegm(&s->alarm_tm);
-    if (s->alarm_ti == -1)
-        printf("%s: conversion failed\n", __func__);
+    if (s->alarm_ti == -1) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: conversion failed\n", __func__);
+    }
 }
 
 static uint64_t omap_rtc_read(void *opaque, hwaddr addr, unsigned size)
@@ -2659,25 +2662,16 @@ static void omap_rtc_write(void *opaque, hwaddr addr,
 
     switch (offset) {
     case 0x00:	/* SECONDS_REG */
-#ifdef ALMDEBUG
-        printf("RTC SEC_REG <-- %02x\n", value);
-#endif
         s->ti -= s->current_tm.tm_sec;
         s->ti += from_bcd(value);
         return;
 
     case 0x04:	/* MINUTES_REG */
-#ifdef ALMDEBUG
-        printf("RTC MIN_REG <-- %02x\n", value);
-#endif
         s->ti -= s->current_tm.tm_min * 60;
         s->ti += from_bcd(value) * 60;
         return;
 
     case 0x08:	/* HOURS_REG */
-#ifdef ALMDEBUG
-        printf("RTC HRS_REG <-- %02x\n", value);
-#endif
         s->ti -= s->current_tm.tm_hour * 3600;
         if (s->pm_am) {
             s->ti += (from_bcd(value & 0x3f) & 12) * 3600;
@@ -2687,17 +2681,11 @@ static void omap_rtc_write(void *opaque, hwaddr addr,
         return;
 
     case 0x0c:	/* DAYS_REG */
-#ifdef ALMDEBUG
-        printf("RTC DAY_REG <-- %02x\n", value);
-#endif
         s->ti -= s->current_tm.tm_mday * 86400;
         s->ti += from_bcd(value) * 86400;
         return;
 
     case 0x10:	/* MONTHS_REG */
-#ifdef ALMDEBUG
-        printf("RTC MTH_REG <-- %02x\n", value);
-#endif
         memcpy(&new_tm, &s->current_tm, sizeof(new_tm));
         new_tm.tm_mon = from_bcd(value);
         ti[0] = mktimegm(&s->current_tm);
@@ -2714,9 +2702,6 @@ static void omap_rtc_write(void *opaque, hwaddr addr,
         return;
 
     case 0x14:	/* YEARS_REG */
-#ifdef ALMDEBUG
-        printf("RTC YRS_REG <-- %02x\n", value);
-#endif
         memcpy(&new_tm, &s->current_tm, sizeof(new_tm));
         new_tm.tm_year += from_bcd(value) - (new_tm.tm_year % 100);
         ti[0] = mktimegm(&s->current_tm);
@@ -2736,25 +2721,16 @@ static void omap_rtc_write(void *opaque, hwaddr addr,
         return;	/* Ignored */
 
     case 0x20:	/* ALARM_SECONDS_REG */
-#ifdef ALMDEBUG
-        printf("ALM SEC_REG <-- %02x\n", value);
-#endif
         s->alarm_tm.tm_sec = from_bcd(value);
         omap_rtc_alarm_update(s);
         return;
 
     case 0x24:	/* ALARM_MINUTES_REG */
-#ifdef ALMDEBUG
-        printf("ALM MIN_REG <-- %02x\n", value);
-#endif
         s->alarm_tm.tm_min = from_bcd(value);
         omap_rtc_alarm_update(s);
         return;
 
     case 0x28:	/* ALARM_HOURS_REG */
-#ifdef ALMDEBUG
-        printf("ALM HRS_REG <-- %02x\n", value);
-#endif
         if (s->pm_am)
             s->alarm_tm.tm_hour =
                     ((from_bcd(value & 0x3f)) % 12) +
@@ -2765,33 +2741,21 @@ static void omap_rtc_write(void *opaque, hwaddr addr,
         return;
 
     case 0x2c:	/* ALARM_DAYS_REG */
-#ifdef ALMDEBUG
-        printf("ALM DAY_REG <-- %02x\n", value);
-#endif
         s->alarm_tm.tm_mday = from_bcd(value);
         omap_rtc_alarm_update(s);
         return;
 
     case 0x30:	/* ALARM_MONTHS_REG */
-#ifdef ALMDEBUG
-        printf("ALM MON_REG <-- %02x\n", value);
-#endif
         s->alarm_tm.tm_mon = from_bcd(value);
         omap_rtc_alarm_update(s);
         return;
 
     case 0x34:	/* ALARM_YEARS_REG */
-#ifdef ALMDEBUG
-        printf("ALM YRS_REG <-- %02x\n", value);
-#endif
         s->alarm_tm.tm_year = from_bcd(value);
         omap_rtc_alarm_update(s);
         return;
 
     case 0x40:	/* RTC_CTRL_REG */
-#ifdef ALMDEBUG
-        printf("RTC CONTROL <-- %02x\n", value);
-#endif
         s->pm_am = (value >> 3) & 1;
         s->auto_comp = (value >> 2) & 1;
         s->round = (value >> 1) & 1;
@@ -2801,32 +2765,20 @@ static void omap_rtc_write(void *opaque, hwaddr addr,
         return;
 
     case 0x44:	/* RTC_STATUS_REG */
-#ifdef ALMDEBUG
-        printf("RTC STATUSL <-- %02x\n", value);
-#endif
         s->status &= ~((value & 0xc0) ^ 0x80);
         omap_rtc_interrupts_update(s);
         return;
 
     case 0x48:	/* RTC_INTERRUPTS_REG */
-#ifdef ALMDEBUG
-        printf("RTC INTRS <-- %02x\n", value);
-#endif
         s->interrupts = value;
         return;
 
     case 0x4c:	/* RTC_COMP_LSB_REG */
-#ifdef ALMDEBUG
-        printf("RTC COMPLSB <-- %02x\n", value);
-#endif
         s->comp_reg &= 0xff00;
         s->comp_reg |= 0x00ff & value;
         return;
 
     case 0x50:	/* RTC_COMP_MSB_REG */
-#ifdef ALMDEBUG
-        printf("RTC COMPMSB <-- %02x\n", value);
-#endif
         s->comp_reg &= 0x00ff;
         s->comp_reg |= 0xff00 & (value << 8);
         return;
@@ -3024,8 +2976,9 @@ static void omap_mcbsp_source_tick(void *opaque)
 
     if (!s->rx_rate)
         return;
-    if (s->rx_req)
-        printf("%s: Rx FIFO overrun\n", __func__);
+    if (s->rx_req) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Rx FIFO overrun\n", __func__);
+    }
 
     s->rx_req = s->rx_rate << bps[(s->rcr[0] >> 5) & 7];
 
@@ -3070,8 +3023,9 @@ static void omap_mcbsp_sink_tick(void *opaque)
 
     if (!s->tx_rate)
         return;
-    if (s->tx_req)
-        printf("%s: Tx FIFO underrun\n", __func__);
+    if (s->tx_req) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Tx FIFO underrun\n", __func__);
+    }
 
     s->tx_req = s->tx_rate << bps[(s->xcr[0] >> 5) & 7];
 
@@ -3173,7 +3127,7 @@ static uint64_t omap_mcbsp_read(void *opaque, hwaddr addr,
         /* Fall through.  */
     case 0x02:	/* DRR1 */
         if (s->rx_req < 2) {
-            printf("%s: Rx FIFO underrun\n", __func__);
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Rx FIFO underrun\n", __func__);
             omap_mcbsp_rx_done(s);
         } else {
             s->tx_req -= 2;
@@ -3278,8 +3232,9 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
             }
             if (s->tx_req < 2)
                 omap_mcbsp_tx_done(s);
-        } else
-            printf("%s: Tx FIFO overrun\n", __func__);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Tx FIFO overrun\n", __func__);
+        }
         return;
 
     case 0x08:	/* SPCR2 */
@@ -3293,8 +3248,11 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
     case 0x0a:	/* SPCR1 */
         s->spcr[0] &= 0x0006;
         s->spcr[0] |= 0xf8f9 & value;
-        if (value & (1 << 15))				/* DLB */
-            printf("%s: Digital Loopback mode enable attempt\n", __func__);
+        if (value & (1 << 15)) {                        /* DLB */
+            qemu_log_mask(LOG_UNIMP,
+                          "%s: Digital Loopback mode enable attempt\n",
+                          __func__);
+        }
         if (~value & 1) {				/* RRST */
             s->spcr[0] &= ~6;
             s->rx_req = 0;
@@ -3325,13 +3283,19 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
         return;
     case 0x18:	/* MCR2 */
         s->mcr[1] = value & 0x03e3;
-        if (value & 3)					/* XMCM */
-            printf("%s: Tx channel selection mode enable attempt\n", __func__);
+        if (value & 3) {                                /* XMCM */
+            qemu_log_mask(LOG_UNIMP,
+                          "%s: Tx channel selection mode enable attempt\n",
+                          __func__);
+        }
         return;
     case 0x1a:	/* MCR1 */
         s->mcr[0] = value & 0x03e1;
-        if (value & 1)					/* RMCM */
-            printf("%s: Rx channel selection mode enable attempt\n", __func__);
+        if (value & 1) {                                /* RMCM */
+            qemu_log_mask(LOG_UNIMP,
+                          "%s: Rx channel selection mode enable attempt\n",
+                          __func__);
+        }
         return;
     case 0x1c:	/* RCERA */
         s->rcer[0] = value & 0xffff;
@@ -3412,8 +3376,9 @@ static void omap_mcbsp_writew(void *opaque, hwaddr addr,
             }
             if (s->tx_req < 4)
                 omap_mcbsp_tx_done(s);
-        } else
-            printf("%s: Tx FIFO overrun\n", __func__);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Tx FIFO overrun\n", __func__);
+        }
         return;
     }
 
@@ -3531,7 +3496,7 @@ static void omap_lpg_tick(void *opaque)
         timer_mod(s->tm, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + s->on);
 
     s->cycle = !s->cycle;
-    printf("%s: LED is %s\n", __func__, s->cycle ? "on" : "off");
+    trace_omap1_lpg_led(s->cycle ? "on" : "off");
 }
 
 static void omap_lpg_update(struct omap_lpg_s *s)
@@ -3551,11 +3516,11 @@ static void omap_lpg_update(struct omap_lpg_s *s)
     }
 
     timer_del(s->tm);
-    if (on == period && s->on < s->period)
-        printf("%s: LED is on\n", __func__);
-    else if (on == 0 && s->on)
-        printf("%s: LED is off\n", __func__);
-    else if (on && (on != s->on || period != s->period)) {
+    if (on == period && s->on < s->period) {
+        trace_omap1_lpg_led("on");
+    } else if (on == 0 && s->on) {
+        trace_omap1_lpg_led("off");
+    } else if (on && (on != s->on || period != s->period)) {
         s->cycle = 0;
         s->on = on;
         s->period = period;

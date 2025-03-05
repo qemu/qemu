@@ -2826,6 +2826,14 @@ S: Maintained
 F: hw/uefi/
 F: include/hw/uefi/
 
+VMapple
+M: Alexander Graf <agraf@csgraf.de>
+M: Phil Dennis-Jordan <phil@philjordan.eu>
+S: Maintained
+F: hw/vmapple/*
+F: include/hw/vmapple/*
+F: docs/system/arm/vmapple.rst
+
 Subsystems
 ----------
 Overall Audio backends
