@@ -116,6 +116,8 @@
 #define VIRTIO_PCI_CAP_PCI_CFG		5
 /* Additional shared memory capability */
 #define VIRTIO_PCI_CAP_SHARED_MEMORY_CFG 8
+/* PCI vendor data configuration */
+#define VIRTIO_PCI_CAP_VENDOR_CFG	9
 
 /* This is the PCI capability header: */
 struct virtio_pci_cap {
@@ -128,6 +130,18 @@ struct virtio_pci_cap {
 	uint8_t padding[2];	/* Pad to full dword. */
 	uint32_t offset;		/* Offset within bar. */
 	uint32_t length;		/* Length of the structure, in bytes. */
+};
+
+/* This is the PCI vendor data capability header: */
+struct virtio_pci_vndr_data {
+	uint8_t cap_vndr;		/* Generic PCI field: PCI_CAP_ID_VNDR */
+	uint8_t cap_next;		/* Generic PCI field: next ptr. */
+	uint8_t cap_len;		/* Generic PCI field: capability length */
+	uint8_t cfg_type;		/* Identifies the structure. */
+	uint16_t vendor_id;	/* Identifies the vendor-specific format. */
+	/* For Vendor Definition */
+	/* Pads structure to a multiple of 4 bytes */
+	/* Reads must not have side effects */
 };
 
 struct virtio_pci_cap64 {

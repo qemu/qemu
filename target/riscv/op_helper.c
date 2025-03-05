@@ -270,6 +270,8 @@ target_ulong helper_sret(CPURISCVState *env)
 {
     uint64_t mstatus;
     target_ulong prev_priv, prev_virt = env->virt_enabled;
+    const target_ulong src_priv = env->priv;
+    const bool src_virt = env->virt_enabled;
 
     if (!(env->priv >= PRV_S)) {
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
@@ -338,6 +340,11 @@ target_ulong helper_sret(CPURISCVState *env)
         env->elp = get_field(env->mstatus, MSTATUS_SPELP);
     }
     env->mstatus = set_field(env->mstatus, MSTATUS_SPELP, 0);
+
+    if (riscv_cpu_cfg(env)->ext_smctr || riscv_cpu_cfg(env)->ext_ssctr) {
+        riscv_ctr_add_entry(env, env->pc, retpc, CTRDATA_TYPE_EXCEP_INT_RET,
+                            src_priv, src_virt);
+    }
 
     return retpc;
 }
@@ -416,6 +423,11 @@ target_ulong helper_mret(CPURISCVState *env)
     }
     env->mstatus = set_field(env->mstatus, MSTATUS_MPELP, 0);
 
+    if (riscv_cpu_cfg(env)->ext_smctr || riscv_cpu_cfg(env)->ext_ssctr) {
+        riscv_ctr_add_entry(env, env->pc, retpc, CTRDATA_TYPE_EXCEP_INT_RET,
+                            PRV_M, false);
+    }
+
     return retpc;
 }
 
@@ -464,6 +476,42 @@ target_ulong helper_mnret(CPURISCVState *env)
     env->mnstatus = set_field(env->mnstatus, MNSTATUS_MNPELP, 0);
 
     return retpc;
+}
+
+void helper_ctr_add_entry(CPURISCVState *env, target_ulong src,
+                          target_ulong dest, target_ulong type)
+{
+    riscv_ctr_add_entry(env, src, dest, (enum CTRType)type,
+                        env->priv, env->virt_enabled);
+}
+
+void helper_ctr_clear(CPURISCVState *env)
+{
+    /*
+     * It's safe to call smstateen_acc_ok() for umode access regardless of the
+     * state of bit 54 (CTR bit in case of m/hstateen) of sstateen. If the bit
+     * is zero, smstateen_acc_ok() will return the correct exception code and
+     * if it's one, smstateen_acc_ok() will return RISCV_EXCP_NONE. In that
+     * scenario the U-mode check below will handle that case.
+     */
+    RISCVException ret = smstateen_acc_ok(env, 0, SMSTATEEN0_CTR);
+    if (ret != RISCV_EXCP_NONE) {
+        riscv_raise_exception(env, ret, GETPC());
+    }
+
+    if (env->priv == PRV_U) {
+        /*
+         * One corner case is when sctrclr is executed from VU-mode and
+         * mstateen.CTR = 0, in which case we are supposed to raise
+         * RISCV_EXCP_ILLEGAL_INST. This case is already handled in
+         * smstateen_acc_ok().
+         */
+        uint32_t excep = env->virt_enabled ? RISCV_EXCP_VIRT_INSTRUCTION_FAULT :
+            RISCV_EXCP_ILLEGAL_INST;
+        riscv_raise_exception(env, excep, GETPC());
+    }
+
+    riscv_ctr_clear(env);
 }
 
 void helper_wfi(CPURISCVState *env)

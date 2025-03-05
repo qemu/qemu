@@ -133,6 +133,8 @@ struct RISCVCPUConfig {
     bool ext_zvfhmin;
     bool ext_smaia;
     bool ext_ssaia;
+    bool ext_smctr;
+    bool ext_ssctr;
     bool ext_sscofpmf;
     bool ext_smepmp;
     bool ext_smrnmi;
@@ -163,6 +165,9 @@ struct RISCVCPUConfig {
     bool has_priv_1_13;
     bool has_priv_1_12;
     bool has_priv_1_11;
+
+    /* Always enabled for TCG if has_priv_1_11 */
+    bool ext_ziccrse;
 
     /* Vendor-specific custom extensions */
     bool ext_xtheadba;

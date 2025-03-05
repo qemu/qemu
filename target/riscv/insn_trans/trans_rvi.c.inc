@@ -93,6 +93,51 @@ static bool trans_jal(DisasContext *ctx, arg_jal *a)
     return true;
 }
 
+#ifndef CONFIG_USER_ONLY
+/*
+ * Indirect calls
+ * - jalr x1, rs where rs != x5;
+ * - jalr x5, rs where rs != x1;
+ * - c.jalr rs1 where rs1 != x5;
+ *
+ * Indirect jumps
+ * - jalr x0, rs where rs != x1 and rs != x5;
+ * - c.jr rs1 where rs1 != x1 and rs1 != x5.
+ *
+ * Returns
+ * - jalr rd, rs where (rs == x1 or rs == x5) and rd != x1 and rd != x5;
+ * - c.jr rs1 where rs1 == x1 or rs1 == x5.
+ *
+ * Co-routine swap
+ * - jalr x1, x5;
+ * - jalr x5, x1;
+ * - c.jalr x5.
+ *
+ * Other indirect jumps
+ * - jalr rd, rs where rs != x1, rs != x5, rd != x0, rd != x1 and rd != x5.
+ */
+static void gen_ctr_jalr(DisasContext *ctx, arg_jalr *a, TCGv dest)
+{
+    TCGv src = tcg_temp_new();
+    TCGv type;
+
+    if ((a->rd == 1 && a->rs1 != 5) || (a->rd == 5 && a->rs1 != 1)) {
+        type = tcg_constant_tl(CTRDATA_TYPE_INDIRECT_CALL);
+    } else if (a->rd == 0 && a->rs1 != 1 && a->rs1 != 5) {
+        type = tcg_constant_tl(CTRDATA_TYPE_INDIRECT_JUMP);
+    } else if ((a->rs1 == 1 || a->rs1 == 5) && (a->rd != 1 && a->rd != 5)) {
+        type = tcg_constant_tl(CTRDATA_TYPE_RETURN);
+    } else if ((a->rs1 == 1 && a->rd == 5) || (a->rs1 == 5 && a->rd == 1)) {
+        type = tcg_constant_tl(CTRDATA_TYPE_CO_ROUTINE_SWAP);
+    } else {
+        type = tcg_constant_tl(CTRDATA_TYPE_OTHER_INDIRECT_JUMP);
+    }
+
+    gen_pc_plus_diff(src, ctx, 0);
+    gen_helper_ctr_add_entry(tcg_env, src, dest, type);
+}
+#endif
+
 static bool trans_jalr(DisasContext *ctx, arg_jalr *a)
 {
     TCGLabel *misaligned = NULL;
@@ -116,6 +161,12 @@ static bool trans_jalr(DisasContext *ctx, arg_jalr *a)
 
     gen_pc_plus_diff(succ_pc, ctx, ctx->cur_insn_len);
     gen_set_gpr(ctx, a->rd, succ_pc);
+
+#ifndef CONFIG_USER_ONLY
+    if (ctx->cfg_ptr->ext_smctr || ctx->cfg_ptr->ext_ssctr) {
+        gen_ctr_jalr(ctx, a, target_pc);
+    }
+#endif
 
     tcg_gen_mov_tl(cpu_pc, target_pc);
     if (ctx->fcfi_enabled) {
@@ -231,6 +282,19 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
     } else {
         tcg_gen_brcond_tl(cond, src1, src2, l);
     }
+
+#ifndef CONFIG_USER_ONLY
+    if (ctx->cfg_ptr->ext_smctr || ctx->cfg_ptr->ext_ssctr) {
+        TCGv type = tcg_constant_tl(CTRDATA_TYPE_NONTAKEN_BRANCH);
+        TCGv dest = tcg_temp_new();
+        TCGv src = tcg_temp_new();
+
+        gen_pc_plus_diff(src, ctx, 0);
+        gen_pc_plus_diff(dest, ctx, ctx->cur_insn_len);
+        gen_helper_ctr_add_entry(tcg_env, src, dest, type);
+    }
+#endif
+
     gen_goto_tb(ctx, 1, ctx->cur_insn_len);
     ctx->pc_save = orig_pc_save;
 
@@ -243,6 +307,17 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
         gen_pc_plus_diff(target_pc, ctx, a->imm);
         gen_exception_inst_addr_mis(ctx, target_pc);
     } else {
+#ifndef CONFIG_USER_ONLY
+        if (ctx->cfg_ptr->ext_smctr || ctx->cfg_ptr->ext_ssctr) {
+            TCGv type = tcg_constant_tl(CTRDATA_TYPE_TAKEN_BRANCH);
+            TCGv dest = tcg_temp_new();
+            TCGv src = tcg_temp_new();
+
+            gen_pc_plus_diff(src, ctx, 0);
+            gen_pc_plus_diff(dest, ctx, a->imm);
+            gen_helper_ctr_add_entry(tcg_env, src, dest, type);
+        }
+#endif
         gen_goto_tb(ctx, 0, a->imm);
     }
     ctx->pc_save = -1;

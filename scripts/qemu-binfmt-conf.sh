@@ -144,35 +144,35 @@ loongarch64_magic='\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x
 loongarch64_mask='\xff\xff\xff\xff\xff\xff\xff\xfc\x00\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff'
 loongarch64_family=loongarch
 
-qemu_get_family() {
-    cpu=${HOST_ARCH:-$(uname -m)}
+# Converts the name of a host CPU architecture to the corresponding QEMU
+# target.
+#
+# FIXME: This can probably be simplified a lot by dropping most entries.
+#        Remember that the script is only used on Linux, so we only need to
+#        handle the strings Linux uses to report the host CPU architecture.
+qemu_normalize() {
+    cpu="$1"
     case "$cpu" in
-    amd64|i386|i486|i586|i686|i86pc|BePC|x86_64)
+    i[3-6]86)
         echo "i386"
         ;;
-    mips*)
-        echo "mips"
+    amd64)
+        echo "x86_64"
         ;;
-    "Power Macintosh"|ppc64|powerpc|ppc)
+    powerpc)
         echo "ppc"
         ;;
-    ppc64el|ppc64le)
-        echo "ppcle"
+    ppc64el)
+        echo "ppc64le"
         ;;
-    arm|armel|armhf|arm64|armv[4-9]*l|aarch64)
+    armel|armhf|armv[4-9]*l)
         echo "arm"
         ;;
-    armeb|armv[4-9]*b|aarch64_be)
+    armv[4-9]*b)
         echo "armeb"
         ;;
-    sparc*)
-        echo "sparc"
-        ;;
-    riscv*)
-        echo "riscv"
-        ;;
-    loongarch*)
-        echo "loongarch"
+    arm64)
+        echo "aarch64"
         ;;
     *)
         echo "$cpu"
@@ -205,6 +205,9 @@ Usage: qemu-binfmt-conf.sh [--qemu-path PATH][--debian][--systemd CPU]
        --persistent:    if yes, the interpreter is loaded when binfmt is
                         configured and remains in memory. All future uses
                         are cloned from the open file.
+       --ignore-family: if yes, it is assumed that the host CPU (e.g. riscv64)
+                        can't natively run programs targeting a CPU that is
+                        part of the same family (e.g. riscv32).
        --preserve-argv0 preserve argv[0]
 
     To import templates with update-binfmts, use :
@@ -309,7 +312,13 @@ EOF
 
 qemu_set_binfmts() {
     # probe cpu type
-    host_family=$(qemu_get_family)
+    host_cpu=$(qemu_normalize ${HOST_ARCH:-$(uname -m)})
+    host_family=$(eval echo \$${host_cpu}_family)
+
+    if [ "$host_family" = "" ] ; then
+        echo "INTERNAL ERROR: unknown host cpu $host_cpu" 1>&2
+        exit 1
+    fi
 
     # register the interpreter for each cpu except for the native one
 
@@ -318,20 +327,28 @@ qemu_set_binfmts() {
         mask=$(eval echo \$${cpu}_mask)
         family=$(eval echo \$${cpu}_family)
 
+        target="$cpu"
+        if [ "$cpu" = "i486" ] ; then
+            target="i386"
+        fi
+
+        qemu="$QEMU_PATH/qemu-$target$QEMU_SUFFIX"
+
         if [ "$magic" = "" ] || [ "$mask" = "" ] || [ "$family" = "" ] ; then
             echo "INTERNAL ERROR: unknown cpu $cpu" 1>&2
             continue
         fi
 
-        qemu="$QEMU_PATH/qemu-$cpu"
-        if [ "$cpu" = "i486" ] ; then
-            qemu="$QEMU_PATH/qemu-i386"
+        if [ "$host_family" = "$family" ] ; then
+            # When --ignore-family is used, we have to generate rules even
+            # for targets that are in the same family as the host CPU. The
+            # only exception is of course when the CPU types exactly match
+            if [ "$target" = "$host_cpu" ] || [ "$IGNORE_FAMILY" = "no" ] ; then
+                continue
+            fi
         fi
 
-        qemu="$qemu$QEMU_SUFFIX"
-        if [ "$host_family" != "$family" ] ; then
-            $BINFMT_SET
-        fi
+        $BINFMT_SET
     done
 }
 
@@ -346,10 +363,11 @@ CREDENTIAL=no
 PERSISTENT=no
 PRESERVE_ARG0=no
 QEMU_SUFFIX=""
+IGNORE_FAMILY=no
 
 _longopts="debian,systemd:,qemu-path:,qemu-suffix:,exportdir:,help,credential:,\
-persistent:,preserve-argv0:"
-options=$(getopt -o ds:Q:S:e:hc:p:g:F: -l ${_longopts} -- "$@")
+persistent:,preserve-argv0:,ignore-family:"
+options=$(getopt -o ds:Q:S:e:hc:p:g:F:i: -l ${_longopts} -- "$@")
 eval set -- "$options"
 
 while true ; do
@@ -408,6 +426,10 @@ while true ; do
     -g|--preserve-argv0)
         shift
         PRESERVE_ARG0="$1"
+        ;;
+    -i|--ignore-family)
+        shift
+        IGNORE_FAMILY="$1"
         ;;
     *)
         break
