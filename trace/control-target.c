@@ -8,8 +8,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/lockable.h"
-#include "cpu.h"
 #include "trace/control.h"
 
 
