@@ -48,6 +48,7 @@
 #pragma GCC poison TARGET_PAGE_MASK
 #pragma GCC poison TARGET_PAGE_BITS
 #pragma GCC poison TARGET_PAGE_ALIGN
+#pragma GCC poison TARGET_PHYS_ADDR_SPACE_BITS
 
 #pragma GCC poison CPU_INTERRUPT_HARD
 #pragma GCC poison CPU_INTERRUPT_EXITTB
