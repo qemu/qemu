@@ -1640,6 +1640,41 @@ static void __do_sanitization(CXLType3Dev *ct3d)
     cxl_discard_all_event_records(&ct3d->cxl_dstate);
 }
 
+static int get_sanitize_duration(uint64_t total_mem)
+{
+    int secs = 0;
+
+    if (total_mem <= 512) {
+        secs = 4;
+    } else if (total_mem <= 1024) {
+        secs = 8;
+    } else if (total_mem <= 2 * 1024) {
+        secs = 15;
+    } else if (total_mem <= 4 * 1024) {
+        secs = 30;
+    } else if (total_mem <= 8 * 1024) {
+        secs = 60;
+    } else if (total_mem <= 16 * 1024) {
+        secs = 2 * 60;
+    } else if (total_mem <= 32 * 1024) {
+        secs = 4 * 60;
+    } else if (total_mem <= 64 * 1024) {
+        secs = 8 * 60;
+    } else if (total_mem <= 128 * 1024) {
+        secs = 15 * 60;
+    } else if (total_mem <= 256 * 1024) {
+        secs = 30 * 60;
+    } else if (total_mem <= 512 * 1024) {
+        secs = 60 * 60;
+    } else if (total_mem <= 1024 * 1024) {
+        secs = 120 * 60;
+    } else {
+        secs = 240 * 60; /* max 4 hrs */
+    }
+
+    return secs;
+}
+
 /*
  * CXL r3.1 Section 8.2.9.9.5.1: Sanitize (Opcode 4400h)
  *
@@ -1668,33 +1703,7 @@ static CXLRetCode cmd_sanitize_overwrite(const struct cxl_cmd *cmd,
     int secs;
 
     total_mem = (ct3d->cxl_dstate.vmem_size + ct3d->cxl_dstate.pmem_size) >> 20;
-    if (total_mem <= 512) {
-        secs = 4;
-    } else if (total_mem <= 1024) {
-        secs = 8;
-    } else if (total_mem <= 2 * 1024) {
-        secs = 15;
-    } else if (total_mem <= 4 * 1024) {
-        secs = 30;
-    } else if (total_mem <= 8 * 1024) {
-        secs = 60;
-    } else if (total_mem <= 16 * 1024) {
-        secs = 2 * 60;
-    } else if (total_mem <= 32 * 1024) {
-        secs = 4 * 60;
-    } else if (total_mem <= 64 * 1024) {
-        secs = 8 * 60;
-    } else if (total_mem <= 128 * 1024) {
-        secs = 15 * 60;
-    } else if (total_mem <= 256 * 1024) {
-        secs = 30 * 60;
-    } else if (total_mem <= 512 * 1024) {
-        secs = 60 * 60;
-    } else if (total_mem <= 1024 * 1024) {
-        secs = 120 * 60;
-    } else {
-        secs = 240 * 60; /* max 4 hrs */
-    }
+    secs = get_sanitize_duration(total_mem);
 
     /* EBUSY other bg cmds as of now */
     cci->bg.runtime = secs * 1000UL;
