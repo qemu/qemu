@@ -251,7 +251,7 @@ Many functional tests download assets (e.g. Linux kernels, initrds,
 firmware images, etc.) from the internet to be able to run tests with
 them. This imposes additional challenges to the test framework.
 
-First there is the the problem that some people might not have an
+First there is the problem that some people might not have an
 unconstrained internet connection, so such tests should not be run by
 default when running ``make check``. To accomplish this situation,
 the tests that download files should only be added to the "thorough"
@@ -274,7 +274,9 @@ the tests are run. This pre-caching is done with the qemu_test.Asset
 class. To use it in your test, declare an asset in your test class with
 its URL and SHA256 checksum like this::
 
-    ASSET_somename = (
+    from qemu_test import Asset
+
+    ASSET_somename = Asset(
         ('https://www.qemu.org/assets/images/qemu_head_200.png'),
         '34b74cad46ea28a2966c1d04e102510daf1fd73e6582b6b74523940d5da029dd')
 
