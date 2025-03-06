@@ -158,6 +158,7 @@ struct VFIOPCIDevice {
     uint32_t display_xres;
     uint32_t display_yres;
     int32_t bootindex;
+    OnOffAuto igd_legacy_mode;
     uint32_t igd_gms;
     OffAutoPCIBAR msix_relo;
     uint8_t nv_gpudirect_clique;

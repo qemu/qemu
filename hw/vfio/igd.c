@@ -15,6 +15,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
+#include "hw/boards.h"
 #include "hw/hw.h"
 #include "hw/nvram/fw_cfg.h"
 #include "pci.h"
@@ -432,9 +433,7 @@ void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
      * bus address.
      */
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
-        !vfio_is_vga(vdev) || nr != 0 ||
-        &vdev->pdev != pci_find_device(pci_device_root_bus(&vdev->pdev),
-                                       0, PCI_DEVFN(0x2, 0))) {
+        !vfio_is_vga(vdev) || nr != 0) {
         return;
     }
 
@@ -482,14 +481,13 @@ void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, bdsm_quirk, next);
 }
 
-bool vfio_probe_igd_config_quirk(VFIOPCIDevice *vdev,
-                                 Error **errp G_GNUC_UNUSED)
+bool vfio_probe_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
 {
-    g_autofree struct vfio_region_info *rom = NULL;
     int ret, gen;
     uint64_t gms_size;
     uint64_t *bdsm_size;
     uint32_t gmch;
+    bool legacy_mode_enabled = false;
     Error *err = NULL;
 
     /*
@@ -498,9 +496,7 @@ bool vfio_probe_igd_config_quirk(VFIOPCIDevice *vdev,
      * PCI bus address.
      */
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
-        !vfio_is_vga(vdev) ||
-        &vdev->pdev != pci_find_device(pci_device_root_bus(&vdev->pdev),
-                                       0, PCI_DEVFN(0x2, 0))) {
+        !vfio_is_vga(vdev)) {
         return true;
     }
 
@@ -516,56 +512,67 @@ bool vfio_probe_igd_config_quirk(VFIOPCIDevice *vdev,
         return true;
     }
 
-    /*
-     * Most of what we're doing here is to enable the ROM to run, so if
-     * there's no ROM, there's no point in setting up this quirk.
-     * NB. We only seem to get BIOS ROMs, so a UEFI VM would need CSM support.
-     */
-    ret = vfio_get_region_info(&vdev->vbasedev,
-                               VFIO_PCI_ROM_REGION_INDEX, &rom);
-    if ((ret || !rom->size) && !vdev->pdev.romfile) {
-        error_report("IGD device %s has no ROM, legacy mode disabled",
-                     vdev->vbasedev.name);
-        return true;
-    }
-
-    /*
-     * Ignore the hotplug corner case, mark the ROM failed, we can't
-     * create the devices we need for legacy mode in the hotplug scenario.
-     */
-    if (vdev->pdev.qdev.hotplugged) {
-        error_report("IGD device %s hotplugged, ROM disabled, "
-                     "legacy mode disabled", vdev->vbasedev.name);
-        vdev->rom_read_failed = true;
-        return true;
-    }
-
     gmch = vfio_pci_read_config(&vdev->pdev, IGD_GMCH, 4);
 
     /*
-     * If IGD VGA Disable is clear (expected) and VGA is not already enabled,
-     * try to enable it.  Probably shouldn't be using legacy mode without VGA,
-     * but also no point in us enabling VGA if disabled in hardware.
+     * For backward compatibility, enable legacy mode when
+     * - Machine type is i440fx (pc_piix)
+     * - IGD device is at guest BDF 00:02.0
+     * - Not manually disabled by x-igd-legacy-mode=off
      */
-    if (!(gmch & 0x2) && !vdev->vga && !vfio_populate_vga(vdev, &err)) {
-        error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
-        error_report("IGD device %s failed to enable VGA access, "
-                     "legacy mode disabled", vdev->vbasedev.name);
-        return true;
-    }
+    if ((vdev->igd_legacy_mode != ON_OFF_AUTO_OFF) &&
+        !strcmp(MACHINE_GET_CLASS(qdev_get_machine())->family, "pc_piix") &&
+        (&vdev->pdev == pci_find_device(pci_device_root_bus(&vdev->pdev),
+        0, PCI_DEVFN(0x2, 0)))) {
+        /*
+         * IGD legacy mode requires:
+         * - VBIOS in ROM BAR or file
+         * - VGA IO/MMIO ranges are claimed by IGD
+         * - OpRegion
+         * - Same LPC bridge and Host bridge VID/DID/SVID/SSID as host
+         */
+        g_autofree struct vfio_region_info *rom = NULL;
 
-    /* Setup OpRegion access */
-    if (!vfio_pci_igd_setup_opregion(vdev, &err)) {
-        error_append_hint(&err, "IGD legacy mode disabled\n");
-        error_report_err(err);
-        return true;
-    }
+        legacy_mode_enabled = true;
+        info_report("IGD legacy mode enabled, "
+                    "use x-igd-legacy-mode=off to disable it if unwanted.");
 
-    /* Setup LPC bridge / Host bridge PCI IDs */
-    if (!vfio_pci_igd_setup_lpc_bridge(vdev, &err)) {
-        error_append_hint(&err, "IGD legacy mode disabled\n");
-        error_report_err(err);
-        return true;
+        /*
+         * Most of what we're doing here is to enable the ROM to run, so if
+         * there's no ROM, there's no point in setting up this quirk.
+         * NB. We only seem to get BIOS ROMs, so UEFI VM would need CSM support.
+         */
+        ret = vfio_get_region_info(&vdev->vbasedev,
+                                   VFIO_PCI_ROM_REGION_INDEX, &rom);
+        if ((ret || !rom->size) && !vdev->pdev.romfile) {
+            error_setg(&err, "Device has no ROM");
+            goto error;
+        }
+
+        /*
+         * If IGD VGA Disable is clear (expected) and VGA is not already
+         * enabled, try to enable it. Probably shouldn't be using legacy mode
+         * without VGA, but also no point in us enabling VGA if disabled in
+         * hardware.
+         */
+        if (!(gmch & 0x2) && !vdev->vga && !vfio_populate_vga(vdev, &err)) {
+            error_setg(&err, "Unable to enable VGA access");
+            goto error;
+        }
+
+        /* Setup OpRegion access */
+        if (!vfio_pci_igd_setup_opregion(vdev, &err)) {
+            goto error;
+        }
+
+        /* Setup LPC bridge / Host bridge PCI IDs */
+        if (!vfio_pci_igd_setup_lpc_bridge(vdev, &err)) {
+            goto error;
+        }
+    } else if (vdev->igd_legacy_mode == ON_OFF_AUTO_ON) {
+        error_setg(&err,
+                   "Machine is not i440fx or assigned BDF is not 00:02.0");
+        goto error;
     }
 
     /*
@@ -627,4 +634,18 @@ bool vfio_probe_igd_config_quirk(VFIOPCIDevice *vdev,
     trace_vfio_pci_igd_bdsm_enabled(vdev->vbasedev.name, (gms_size / MiB));
 
     return true;
+
+error:
+    /*
+     * When legacy mode is implicity enabled, continue on error,
+     * to keep compatibility
+     */
+    if (legacy_mode_enabled && (vdev->igd_legacy_mode == ON_OFF_AUTO_AUTO)) {
+        error_report_err(err);
+        error_report("IGD legacy mode disabled");
+        return true;
+    }
+
+    error_propagate(errp, err);
+    return false;
 }
