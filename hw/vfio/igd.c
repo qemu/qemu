@@ -189,7 +189,7 @@ static bool vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
     return true;
 }
 
-bool vfio_pci_igd_setup_opregion(VFIOPCIDevice *vdev, Error **errp)
+static bool vfio_pci_igd_setup_opregion(VFIOPCIDevice *vdev, Error **errp)
 {
     g_autofree struct vfio_region_info *opregion = NULL;
     int ret;
@@ -560,10 +560,8 @@ bool vfio_probe_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
             goto error;
         }
 
-        /* Setup OpRegion access */
-        if (!vfio_pci_igd_setup_opregion(vdev, &err)) {
-            goto error;
-        }
+        /* Enable OpRegion quirk */
+        vdev->features |= VFIO_FEATURE_ENABLE_IGD_OPREGION;
 
         /* Setup LPC bridge / Host bridge PCI IDs */
         if (!vfio_pci_igd_setup_lpc_bridge(vdev, &err)) {
@@ -572,6 +570,12 @@ bool vfio_probe_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
     } else if (vdev->igd_legacy_mode == ON_OFF_AUTO_ON) {
         error_setg(&err,
                    "Machine is not i440fx or assigned BDF is not 00:02.0");
+        goto error;
+    }
+
+    /* Setup OpRegion access */
+    if ((vdev->features & VFIO_FEATURE_ENABLE_IGD_OPREGION) &&
+        !vfio_pci_igd_setup_opregion(vdev, errp)) {
         goto error;
     }
 
