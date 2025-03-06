@@ -481,7 +481,7 @@ void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, bdsm_quirk, next);
 }
 
-bool vfio_probe_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
+static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
 {
     int ret, gen;
     uint64_t gms_size;
@@ -654,4 +654,29 @@ error:
 
     error_propagate(errp, err);
     return false;
+}
+
+/*
+ * KVMGT/GVT-g vGPU exposes an emulated OpRegion. So far, users have to specify
+ * x-igd-opregion=on to enable the access.
+ * TODO: Check VID/DID and enable opregion access automatically
+ */
+static bool vfio_pci_kvmgt_config_quirk(VFIOPCIDevice *vdev, Error **errp)
+{
+    if ((vdev->features & VFIO_FEATURE_ENABLE_IGD_OPREGION) &&
+        !vfio_pci_igd_setup_opregion(vdev, errp)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool vfio_probe_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
+{
+    /* KVMGT/GVT-g vGPU is exposed as mdev */
+    if (vdev->vbasedev.mdev) {
+        return vfio_pci_kvmgt_config_quirk(vdev, errp);
+    }
+
+    return vfio_pci_igd_config_quirk(vdev, errp);
 }
