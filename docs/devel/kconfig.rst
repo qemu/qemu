@@ -38,7 +38,7 @@ originated in the Linux kernel, though it was heavily simplified and
 the handling of dependencies is stricter in QEMU.
 
 Unlike Linux, there is no user interface to edit the configuration, which
-is instead specified in per-target files under the ``default-configs/``
+is instead specified in per-target files under the ``configs/``
 directory of the QEMU source tree.  This is because, unlike Linux,
 configuration and dependencies can be treated as a black box when building
 QEMU; the default configuration that QEMU ships with should be okay in
@@ -103,7 +103,7 @@ directives can be included:
 **default value**: ``default <value> [if <expr>]``
 
   Default values are assigned to the config symbol if no other value was
-  set by the user via ``default-configs/*.mak`` files, and only if
+  set by the user via ``configs/*.mak`` files, and only if
   ``select`` or ``depends on`` directives do not force the value to true
   or false respectively.  ``<value>`` can be ``y`` or ``n``; it cannot
   be an arbitrary Boolean expression.  However, a condition for applying
@@ -119,7 +119,7 @@ directives can be included:
   This is similar to ``select`` as it applies a lower limit of ``y``
   to another symbol.  However, the lower limit is only a default
   and the "implied" symbol's value may still be set to ``n`` from a
-  ``default-configs/*.mak`` files.  The following two examples are
+  ``configs/*.mak`` files.  The following two examples are
   equivalent::
 
     config FOO
@@ -146,7 +146,7 @@ declares its dependencies in different ways:
       bool
 
   Subsystems always default to false (they have no ``default`` directive)
-  and are never visible in ``default-configs/*.mak`` files.  It's
+  and are never visible in ``configs/*.mak`` files.  It's
   up to other symbols to ``select`` whatever subsystems they require.
 
   They sometimes have ``select`` directives to bring in other required
@@ -238,7 +238,7 @@ declares its dependencies in different ways:
   include libraries (such as ``FDT``) or ``TARGET_BIG_ENDIAN``
   (possibly negated).
 
-  Boards are listed for convenience in the ``default-configs/*.mak``
+  Boards are listed for convenience in the ``configs/*.mak``
   for the target they apply to.
 
 **internal elements**
@@ -251,18 +251,18 @@ declares its dependencies in different ways:
 
   Internal elements group code that is useful in several boards or
   devices.  They are usually enabled with ``select`` and in turn select
-  other elements; they are never visible in ``default-configs/*.mak``
+  other elements; they are never visible in ``configs/*.mak``
   files, and often not even in the Makefile.
 
 Writing and modifying default configurations
 --------------------------------------------
 
 In addition to the Kconfig files under hw/, each target also includes
-a file called ``default-configs/TARGETNAME-softmmu.mak``.  These files
+a file called ``configs/TARGETNAME-softmmu.mak``.  These files
 initialize some Kconfig variables to non-default values and provide the
 starting point to turn on devices and subsystems.
 
-A file in ``default-configs/`` looks like the following example::
+A file in ``configs/`` looks like the following example::
 
     # Default configuration for alpha-softmmu
 
