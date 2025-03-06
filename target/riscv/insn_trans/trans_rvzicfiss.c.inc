@@ -15,6 +15,13 @@
  * You should have received a copy of the GNU General Public License along with
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#define REQUIRE_ZICFISS(ctx) do {        \
+    if (!ctx->cfg_ptr->ext_zicfiss) {    \
+        return false;                    \
+    }                                    \
+} while (0)
+
 static bool trans_sspopchk(DisasContext *ctx, arg_sspopchk *a)
 {
     if (!ctx->bcfi_enabled) {
@@ -77,6 +84,11 @@ static bool trans_ssrdp(DisasContext *ctx, arg_ssrdp *a)
 static bool trans_ssamoswap_w(DisasContext *ctx, arg_amoswap_w *a)
 {
     REQUIRE_A_OR_ZAAMO(ctx);
+    REQUIRE_ZICFISS(ctx);
+    if (ctx->priv == PRV_M) {
+        generate_exception(ctx, RISCV_EXCP_STORE_AMO_ACCESS_FAULT);
+    }
+
     if (!ctx->bcfi_enabled) {
         return false;
     }
@@ -97,6 +109,11 @@ static bool trans_ssamoswap_d(DisasContext *ctx, arg_amoswap_w *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_A_OR_ZAAMO(ctx);
+    REQUIRE_ZICFISS(ctx);
+    if (ctx->priv == PRV_M) {
+        generate_exception(ctx, RISCV_EXCP_STORE_AMO_ACCESS_FAULT);
+    }
+
     if (!ctx->bcfi_enabled) {
         return false;
     }
