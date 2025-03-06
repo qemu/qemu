@@ -14,7 +14,6 @@
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
-from collections import OrderedDict
 import os
 import re
 from typing import (
@@ -154,7 +153,7 @@ class QAPISchemaParser:
                                        "value of 'include' must be a string")
                 incl_fname = os.path.join(os.path.dirname(self._fname),
                                           include)
-                self._add_expr(OrderedDict({'include': incl_fname}), info)
+                self._add_expr({'include': incl_fname}, info)
                 exprs_include = self._include(include, info, incl_fname,
                                               self._included)
                 if exprs_include:
@@ -355,7 +354,7 @@ class QAPISchemaParser:
                 raise QAPIParseError(self, "stray '%s'" % match.group(0))
 
     def get_members(self) -> Dict[str, object]:
-        expr: Dict[str, object] = OrderedDict()
+        expr: Dict[str, object] = {}
         if self.tok == '}':
             self.accept()
             return expr

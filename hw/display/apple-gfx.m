@@ -871,7 +871,7 @@ separator_error:
 }
 
 const PropertyInfo qdev_prop_apple_gfx_display_mode = {
-    .name  = "display_mode",
+    .type  = "display_mode",
     .description =
         "Display mode in pixels and Hertz, as <width>x<height>@<refresh-rate> "
         "Example: 3840x2160@60",

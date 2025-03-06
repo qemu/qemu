@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections import OrderedDict
 import os
 import re
 from typing import (
@@ -557,7 +556,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         super().check(schema)
         assert self._checked and not self._check_complete
 
-        seen = OrderedDict()
+        seen = {}
         if self._base_name:
             self.base = schema.resolve_type(self._base_name, self.info,
                                             "'base'")
@@ -1141,10 +1140,10 @@ class QAPISchema:
         self.docs = parser.docs
         self._entity_list: List[QAPISchemaEntity] = []
         self._entity_dict: Dict[str, QAPISchemaDefinition] = {}
-        self._module_dict: Dict[str, QAPISchemaModule] = OrderedDict()
+        self._module_dict: Dict[str, QAPISchemaModule] = {}
         # NB, values in the dict will identify the first encountered
         # usage of a named feature only
-        self._feature_dict: Dict[str, QAPISchemaFeature] = OrderedDict()
+        self._feature_dict: Dict[str, QAPISchemaFeature] = {}
 
         # All schemas get the names defined in the QapiSpecialFeature enum.
         # Rely on dict iteration order matching insertion order so that
@@ -1454,7 +1453,7 @@ class QAPISchema:
         ifcond = QAPISchemaIfCond(expr.get('if'))
         info = expr.info
         features = self._make_features(expr.get('features'), info)
-        if isinstance(data, OrderedDict):
+        if isinstance(data, dict):
             data = self._make_implicit_object_type(
                 name, info, ifcond,
                 'arg', self._make_members(data, info))
@@ -1473,7 +1472,7 @@ class QAPISchema:
         ifcond = QAPISchemaIfCond(expr.get('if'))
         info = expr.info
         features = self._make_features(expr.get('features'), info)
-        if isinstance(data, OrderedDict):
+        if isinstance(data, dict):
             data = self._make_implicit_object_type(
                 name, info, ifcond,
                 'arg', self._make_members(data, info))
