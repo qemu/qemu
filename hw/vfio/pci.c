@@ -2215,8 +2215,12 @@ static bool vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
         break;
     case PCI_CAP_ID_PM:
         vfio_check_pm_reset(vdev, pos);
-        vdev->pm_cap = pos;
-        ret = pci_add_capability(pdev, cap_id, pos, size, errp) >= 0;
+        ret = pci_pm_init(pdev, pos, errp) >= 0;
+        /*
+         * PCI-core config space emulation needs write access to the power
+         * state enabled for tracking BAR mapping relative to PM state.
+         */
+        pci_set_word(pdev->wmask + pos + PCI_PM_CTRL, PCI_PM_CTRL_STATE_MASK);
         break;
     case PCI_CAP_ID_AF:
         vfio_check_af_flr(vdev, pos);
@@ -2406,26 +2410,6 @@ void vfio_pci_pre_reset(VFIOPCIDevice *vdev)
 
     vfio_disable_interrupts(vdev);
 
-    /* Make sure the device is in D0 */
-    if (vdev->pm_cap) {
-        uint16_t pmcsr;
-        uint8_t state;
-
-        pmcsr = vfio_pci_read_config(pdev, vdev->pm_cap + PCI_PM_CTRL, 2);
-        state = pmcsr & PCI_PM_CTRL_STATE_MASK;
-        if (state) {
-            pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
-            vfio_pci_write_config(pdev, vdev->pm_cap + PCI_PM_CTRL, pmcsr, 2);
-            /* vfio handles the necessary delay here */
-            pmcsr = vfio_pci_read_config(pdev, vdev->pm_cap + PCI_PM_CTRL, 2);
-            state = pmcsr & PCI_PM_CTRL_STATE_MASK;
-            if (state) {
-                error_report("vfio: Unable to power on device, stuck in D%d",
-                             state);
-            }
-        }
-    }
-
     /*
      * Stop any ongoing DMA by disconnecting I/O, MMIO, and bus master.
      * Also put INTx Disable in known state.
@@ -2434,6 +2418,26 @@ void vfio_pci_pre_reset(VFIOPCIDevice *vdev)
     cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
              PCI_COMMAND_INTX_DISABLE);
     vfio_pci_write_config(pdev, PCI_COMMAND, cmd, 2);
+
+    /* Make sure the device is in D0 */
+    if (pdev->pm_cap) {
+        uint16_t pmcsr;
+        uint8_t state;
+
+        pmcsr = vfio_pci_read_config(pdev, pdev->pm_cap + PCI_PM_CTRL, 2);
+        state = pmcsr & PCI_PM_CTRL_STATE_MASK;
+        if (state) {
+            pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
+            vfio_pci_write_config(pdev, pdev->pm_cap + PCI_PM_CTRL, pmcsr, 2);
+            /* vfio handles the necessary delay here */
+            pmcsr = vfio_pci_read_config(pdev, pdev->pm_cap + PCI_PM_CTRL, 2);
+            state = pmcsr & PCI_PM_CTRL_STATE_MASK;
+            if (state) {
+                error_report("vfio: Unable to power on device, stuck in D%d",
+                             state);
+            }
+        }
+    }
 }
 
 void vfio_pci_post_reset(VFIOPCIDevice *vdev)
@@ -3353,6 +3357,8 @@ static void vfio_instance_init(Object *obj)
     pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
 }
 
+static PropertyInfo vfio_pci_migration_multifd_transfer_prop;
+
 static const Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_PCI_HOST_DEVADDR("host", VFIOPCIDevice, host),
     DEFINE_PROP_UUID_NODEFAULT("vf-token", VFIOPCIDevice, vf_token),
@@ -3377,6 +3383,10 @@ static const Property vfio_pci_dev_properties[] = {
                     VFIO_FEATURE_ENABLE_IGD_OPREGION_BIT, false),
     DEFINE_PROP_ON_OFF_AUTO("enable-migration", VFIOPCIDevice,
                             vbasedev.enable_migration, ON_OFF_AUTO_AUTO),
+    DEFINE_PROP("x-migration-multifd-transfer", VFIOPCIDevice,
+                vbasedev.migration_multifd_transfer,
+                vfio_pci_migration_multifd_transfer_prop, OnOffAuto,
+                .set_default = true, .defval.i = ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BOOL("migration-events", VFIOPCIDevice,
                      vbasedev.migration_events, false),
     DEFINE_PROP_BOOL("x-no-mmap", VFIOPCIDevice, vbasedev.no_mmap, false),
@@ -3433,6 +3443,126 @@ static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
     pdc->exit = vfio_exitfn;
     pdc->config_read = vfio_pci_read_config;
     pdc->config_write = vfio_pci_write_config;
+
+    object_class_property_set_description(klass, /* 1.3 */
+                                          "host",
+                                          "Host PCI address [domain:]<bus:slot.function> of assigned device");
+    object_class_property_set_description(klass, /* 1.3 */
+                                          "x-intx-mmap-timeout-ms",
+                                          "When EOI is not provided by KVM/QEMU, wait time "
+                                          "(milliseconds) to re-enable device direct access "
+                                          "after INTx (DEBUG)");
+    object_class_property_set_description(klass, /* 1.5 */
+                                          "x-vga",
+                                          "Expose VGA address spaces for device");
+    object_class_property_set_description(klass, /* 2.3 */
+                                          "x-req",
+                                          "Disable device request notification support (DEBUG)");
+    object_class_property_set_description(klass, /* 2.4 and 2.5 */
+                                          "x-no-mmap",
+                                          "Disable MMAP for device. Allows to trace MMIO "
+                                          "accesses (DEBUG)");
+    object_class_property_set_description(klass, /* 2.5 */
+                                          "x-no-kvm-intx",
+                                          "Disable direct VFIO->KVM INTx injection. Allows to "
+                                          "trace INTx interrupts (DEBUG)");
+    object_class_property_set_description(klass, /* 2.5 */
+                                          "x-no-kvm-msi",
+                                          "Disable direct VFIO->KVM MSI injection. Allows to "
+                                          "trace MSI interrupts (DEBUG)");
+    object_class_property_set_description(klass, /* 2.5 */
+                                          "x-no-kvm-msix",
+                                          "Disable direct VFIO->KVM MSIx injection. Allows to "
+                                          "trace MSIx interrupts (DEBUG)");
+    object_class_property_set_description(klass, /* 2.5 */
+                                          "x-pci-vendor-id",
+                                          "Override PCI Vendor ID with provided value (DEBUG)");
+    object_class_property_set_description(klass, /* 2.5 */
+                                          "x-pci-device-id",
+                                          "Override PCI device ID with provided value (DEBUG)");
+    object_class_property_set_description(klass, /* 2.5 */
+                                          "x-pci-sub-vendor-id",
+                                          "Override PCI Subsystem Vendor ID with provided value "
+                                          "(DEBUG)");
+    object_class_property_set_description(klass, /* 2.5 */
+                                          "x-pci-sub-device-id",
+                                          "Override PCI Subsystem Device ID with provided value "
+                                          "(DEBUG)");
+    object_class_property_set_description(klass, /* 2.6 */
+                                          "sysfsdev",
+                                          "Host sysfs path of assigned device");
+    object_class_property_set_description(klass, /* 2.7 */
+                                          "x-igd-opregion",
+                                          "Expose host IGD OpRegion to guest");
+    object_class_property_set_description(klass, /* 2.7 (See c4c45e943e51) */
+                                          "x-igd-gms",
+                                          "Override IGD data stolen memory size (32MiB units)");
+    object_class_property_set_description(klass, /* 2.11 */
+                                          "x-nv-gpudirect-clique",
+                                          "Add NVIDIA GPUDirect capability indicating P2P DMA "
+                                          "clique for device [0-15]");
+    object_class_property_set_description(klass, /* 2.12 */
+                                          "x-no-geforce-quirks",
+                                          "Disable GeForce quirks (for NVIDIA Quadro/GRID/Tesla). "
+                                          "Improves performance");
+    object_class_property_set_description(klass, /* 2.12 */
+                                          "display",
+                                          "Enable display support for device, ex. vGPU");
+    object_class_property_set_description(klass, /* 2.12 */
+                                          "x-msix-relocation",
+                                          "Specify MSI-X MMIO relocation to the end of specified "
+                                          "existing BAR or new BAR to avoid virtualization overhead "
+                                          "due to adjacent device registers");
+    object_class_property_set_description(klass, /* 3.0 */
+                                          "x-no-kvm-ioeventfd",
+                                          "Disable registration of ioeventfds with KVM (DEBUG)");
+    object_class_property_set_description(klass, /* 3.0 */
+                                          "x-no-vfio-ioeventfd",
+                                          "Disable linking of KVM ioeventfds to VFIO ioeventfds "
+                                          "(DEBUG)");
+    object_class_property_set_description(klass, /* 3.1 */
+                                          "x-balloon-allowed",
+                                          "Override allowing ballooning with device (DEBUG, DANGER)");
+    object_class_property_set_description(klass, /* 3.2 */
+                                          "xres",
+                                          "Set X display resolution the vGPU should use");
+    object_class_property_set_description(klass, /* 3.2 */
+                                          "yres",
+                                          "Set Y display resolution the vGPU should use");
+    object_class_property_set_description(klass, /* 5.2 */
+                                          "x-pre-copy-dirty-page-tracking",
+                                          "Disable dirty pages tracking during iterative phase "
+                                          "(DEBUG)");
+    object_class_property_set_description(klass, /* 5.2, 8.0 non-experimetal */
+                                          "enable-migration",
+                                          "Enale device migration. Also requires a host VFIO PCI "
+                                          "variant or mdev driver with migration support enabled");
+    object_class_property_set_description(klass, /* 8.1 */
+                                          "vf-token",
+                                          "Specify UUID VF token. Required for VF when PF is owned "
+                                          "by another VFIO driver");
+#ifdef CONFIG_IOMMUFD
+    object_class_property_set_description(klass, /* 9.0 */
+                                          "iommufd",
+                                          "Set host IOMMUFD backend device");
+#endif
+    object_class_property_set_description(klass, /* 9.1 */
+                                          "x-device-dirty-page-tracking",
+                                          "Disable device dirty page tracking and use "
+                                          "container-based dirty page tracking (DEBUG)");
+    object_class_property_set_description(klass, /* 9.1 */
+                                          "migration-events",
+                                          "Emit VFIO migration QAPI event when a VFIO device "
+                                          "changes its migration state. For management applications");
+    object_class_property_set_description(klass, /* 9.1 */
+                                          "skip-vsc-check",
+                                          "Skip config space check for Vendor Specific Capability. "
+                                          "Setting to false will enforce strict checking of VSC content "
+                                          "(DEBUG)");
+    object_class_property_set_description(klass, /* 10.0 */
+                                          "x-migration-multifd-transfer",
+                                          "Transfer this device state via "
+                                          "multifd channels when live migrating it");
 }
 
 static const TypeInfo vfio_pci_dev_info = {
@@ -3461,6 +3591,15 @@ static void vfio_pci_nohotplug_dev_class_init(ObjectClass *klass, void *data)
 
     device_class_set_props(dc, vfio_pci_dev_nohotplug_properties);
     dc->hotpluggable = false;
+
+    object_class_property_set_description(klass, /* 3.1 */
+                                          "ramfb",
+                                          "Enable ramfb to provide pre-boot graphics for devices "
+                                          "enabling display option");
+    object_class_property_set_description(klass, /* 8.2 */
+                                          "x-ramfb-migrate",
+                                          "Override default migration support for ramfb support "
+                                          "(DEBUG)");
 }
 
 static const TypeInfo vfio_pci_nohotplug_dev_info = {
@@ -3472,6 +3611,17 @@ static const TypeInfo vfio_pci_nohotplug_dev_info = {
 
 static void register_vfio_pci_dev_type(void)
 {
+    /*
+     * Ordinary ON_OFF_AUTO property isn't runtime-mutable, but source VM can
+     * run for a long time before being migrated so it is desirable to have a
+     * fallback mechanism to the old way of transferring VFIO device state if
+     * it turns to be necessary.
+     * The following makes this type of property have the same mutability level
+     * as ordinary migration parameters.
+     */
+    vfio_pci_migration_multifd_transfer_prop = qdev_prop_on_off_auto;
+    vfio_pci_migration_multifd_transfer_prop.realized_set_allowed = true;
+
     type_register_static(&vfio_pci_dev_info);
     type_register_static(&vfio_pci_nohotplug_dev_info);
 }

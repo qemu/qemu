@@ -51,16 +51,7 @@ struct VFIOCCWDevice {
     EventNotifier crw_notifier;
     EventNotifier req_notifier;
     bool force_orb_pfch;
-    bool warned_orb_pfch;
 };
-
-static inline void warn_once_pfch(VFIOCCWDevice *vcdev, SubchDev *sch,
-                                  const char *msg)
-{
-    warn_report_once_cond(&vcdev->warned_orb_pfch,
-                          "vfio-ccw (devno %x.%x.%04x): %s",
-                          sch->cssid, sch->ssid, sch->devno, msg);
-}
 
 static void vfio_ccw_compute_needs_reset(VFIODevice *vdev)
 {
@@ -83,7 +74,8 @@ static IOInstEnding vfio_ccw_handle_request(SubchDev *sch)
 
     if (!(sch->orb.ctrl0 & ORB_CTRL0_MASK_PFCH) && vcdev->force_orb_pfch) {
         sch->orb.ctrl0 |= ORB_CTRL0_MASK_PFCH;
-        warn_once_pfch(vcdev, sch, "PFCH flag forced");
+        warn_report_once("vfio-ccw (devno %x.%x.%04x): PFCH flag forced",
+                         sch->cssid, sch->ssid, sch->devno);
     }
 
     QEMU_BUILD_BUG_ON(sizeof(region->orb_area) != sizeof(ORB));
@@ -717,6 +709,21 @@ static void vfio_ccw_class_init(ObjectClass *klass, void *data)
     cdc->handle_halt = vfio_ccw_handle_halt;
     cdc->handle_clear = vfio_ccw_handle_clear;
     cdc->handle_store = vfio_ccw_handle_store;
+
+    object_class_property_set_description(klass, /* 2.10 */
+                                          "sysfsdev",
+                                          "Host sysfs path of assigned device");
+    object_class_property_set_description(klass, /* 3.0 */
+                                          "force-orb-pfch",
+                                          "Force unlimited prefetch");
+#ifdef CONFIG_IOMMUFD
+    object_class_property_set_description(klass, /* 9.0 */
+                                          "iommufd",
+                                          "Set host IOMMUFD backend device");
+#endif
+    object_class_property_set_description(klass, /* 9.2 */
+                                          "loadparm",
+                                          "Define which devices that can be used for booting");
 }
 
 static const TypeInfo vfio_ccw_info = {

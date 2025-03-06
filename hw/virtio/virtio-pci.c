@@ -2204,13 +2204,10 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
         pos = pcie_endpoint_cap_init(pci_dev, 0);
         assert(pos > 0);
 
-        pos = pci_add_capability(pci_dev, PCI_CAP_ID_PM, 0,
-                                 PCI_PM_SIZEOF, errp);
+        pos = pci_pm_init(pci_dev, 0, errp);
         if (pos < 0) {
             return;
         }
-
-        pci_dev->exp.pm_cap = pos;
 
         /*
          * Indicates that this function complies with revision 1.2 of the
@@ -2310,11 +2307,11 @@ static bool virtio_pci_no_soft_reset(PCIDevice *dev)
 {
     uint16_t pmcsr;
 
-    if (!pci_is_express(dev) || !dev->exp.pm_cap) {
+    if (!pci_is_express(dev) || !(dev->cap_present & QEMU_PCI_CAP_PM)) {
         return false;
     }
 
-    pmcsr = pci_get_word(dev->config + dev->exp.pm_cap + PCI_PM_CTRL);
+    pmcsr = pci_get_word(dev->config + dev->pm_cap + PCI_PM_CTRL);
 
     /*
      * When No_Soft_Reset bit is set and the device
@@ -2343,7 +2340,7 @@ static void virtio_pci_bus_reset_hold(Object *obj, ResetType type)
 
         if (proxy->flags & VIRTIO_PCI_FLAG_INIT_PM) {
             pci_word_test_and_clear_mask(
-                dev->config + dev->exp.pm_cap + PCI_PM_CTRL,
+                dev->config + dev->pm_cap + PCI_PM_CTRL,
                 PCI_PM_CTRL_STATE_MASK);
         }
     }

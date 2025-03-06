@@ -23,6 +23,7 @@
 #include "migration/qemu-file.h"
 #include "migration/register.h"
 #include "migration/blocker.h"
+#include "migration-multifd.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-vfio.h"
 #include "exec/ramlist.h"
@@ -32,30 +33,13 @@
 #include "hw/hw.h"
 
 /*
- * Flags to be used as unique delimiters for VFIO devices in the migration
- * stream. These flags are composed as:
- * 0xffffffff => MSB 32-bit all 1s
- * 0xef10     => Magic ID, represents emulated (virtual) function IO
- * 0x0000     => 16-bits reserved for flags
- *
- * The beginning of state information is marked by _DEV_CONFIG_STATE,
- * _DEV_SETUP_STATE, or _DEV_DATA_STATE, respectively. The end of a
- * certain state information is marked by _END_OF_STATE.
- */
-#define VFIO_MIG_FLAG_END_OF_STATE      (0xffffffffef100001ULL)
-#define VFIO_MIG_FLAG_DEV_CONFIG_STATE  (0xffffffffef100002ULL)
-#define VFIO_MIG_FLAG_DEV_SETUP_STATE   (0xffffffffef100003ULL)
-#define VFIO_MIG_FLAG_DEV_DATA_STATE    (0xffffffffef100004ULL)
-#define VFIO_MIG_FLAG_DEV_INIT_DATA_SENT (0xffffffffef100005ULL)
-
-/*
  * This is an arbitrary size based on migration of mlx5 devices, where typically
  * total device migration size is on the order of 100s of MB. Testing with
  * larger values, e.g. 128MB and 1GB, did not show a performance improvement.
  */
 #define VFIO_MIG_DEFAULT_DATA_BUFFER_SIZE (1 * MiB)
 
-static int64_t bytes_transferred;
+static unsigned long bytes_transferred;
 
 static const char *mig_state_to_str(enum vfio_device_mig_state state)
 {
@@ -136,10 +120,10 @@ static void vfio_migration_set_device_state(VFIODevice *vbasedev,
     vfio_migration_send_event(vbasedev);
 }
 
-static int vfio_migration_set_state(VFIODevice *vbasedev,
-                                    enum vfio_device_mig_state new_state,
-                                    enum vfio_device_mig_state recover_state,
-                                    Error **errp)
+int vfio_migration_set_state(VFIODevice *vbasedev,
+                             enum vfio_device_mig_state new_state,
+                             enum vfio_device_mig_state recover_state,
+                             Error **errp)
 {
     VFIOMigration *migration = vbasedev->migration;
     uint64_t buf[DIV_ROUND_UP(sizeof(struct vfio_device_feature) +
@@ -254,8 +238,7 @@ static int vfio_load_buffer(QEMUFile *f, VFIODevice *vbasedev,
     return ret;
 }
 
-static int vfio_save_device_config_state(QEMUFile *f, void *opaque,
-                                         Error **errp)
+int vfio_save_device_config_state(QEMUFile *f, void *opaque, Error **errp)
 {
     VFIODevice *vbasedev = opaque;
     int ret;
@@ -280,10 +263,12 @@ static int vfio_save_device_config_state(QEMUFile *f, void *opaque,
     return ret;
 }
 
-static int vfio_load_device_config_state(QEMUFile *f, void *opaque)
+int vfio_load_device_config_state(QEMUFile *f, void *opaque)
 {
     VFIODevice *vbasedev = opaque;
     uint64_t data;
+
+    trace_vfio_load_device_config_state_start(vbasedev->name);
 
     if (vbasedev->ops && vbasedev->ops->vfio_load_config) {
         int ret;
@@ -303,7 +288,7 @@ static int vfio_load_device_config_state(QEMUFile *f, void *opaque)
         return -EINVAL;
     }
 
-    trace_vfio_load_device_config_state(vbasedev->name);
+    trace_vfio_load_device_config_state_end(vbasedev->name);
     return qemu_file_get_error(f);
 }
 
@@ -389,7 +374,7 @@ static ssize_t vfio_save_block(QEMUFile *f, VFIOMigration *migration)
     qemu_put_be64(f, VFIO_MIG_FLAG_DEV_DATA_STATE);
     qemu_put_be64(f, data_size);
     qemu_put_buffer(f, migration->data_buffer, data_size);
-    bytes_transferred += data_size;
+    vfio_mig_add_bytes_transferred(data_size);
 
     trace_vfio_save_block(migration->vbasedev->name, data_size);
 
@@ -467,6 +452,10 @@ static int vfio_save_setup(QEMUFile *f, void *opaque, Error **errp)
     uint64_t stop_copy_size = VFIO_MIG_DEFAULT_DATA_BUFFER_SIZE;
     int ret;
 
+    if (!vfio_multifd_setup(vbasedev, false, errp)) {
+        return -EINVAL;
+    }
+
     qemu_put_be64(f, VFIO_MIG_FLAG_DEV_SETUP_STATE);
 
     vfio_query_stop_copy_size(vbasedev, &stop_copy_size);
@@ -522,6 +511,9 @@ static void vfio_save_cleanup(void *opaque)
     VFIOMigration *migration = vbasedev->migration;
     Error *local_err = NULL;
     int ret;
+
+    /* Currently a NOP, done for symmetry with load_cleanup() */
+    vfio_multifd_cleanup(vbasedev);
 
     /*
      * Changing device state from STOP_COPY to STOP can take time. Do it here,
@@ -645,6 +637,11 @@ static int vfio_save_complete_precopy(QEMUFile *f, void *opaque)
     int ret;
     Error *local_err = NULL;
 
+    if (vfio_multifd_transfer_enabled(vbasedev)) {
+        vfio_multifd_emit_dummy_eos(vbasedev, f);
+        return 0;
+    }
+
     trace_vfio_save_complete_precopy_start(vbasedev->name);
 
     /* We reach here with device state STOP or STOP_COPY only */
@@ -676,6 +673,11 @@ static void vfio_save_state(QEMUFile *f, void *opaque)
     Error *local_err = NULL;
     int ret;
 
+    if (vfio_multifd_transfer_enabled(vbasedev)) {
+        vfio_multifd_emit_dummy_eos(vbasedev, f);
+        return;
+    }
+
     ret = vfio_save_device_config_state(f, opaque, &local_err);
     if (ret) {
         error_prepend(&local_err,
@@ -688,14 +690,27 @@ static void vfio_save_state(QEMUFile *f, void *opaque)
 static int vfio_load_setup(QEMUFile *f, void *opaque, Error **errp)
 {
     VFIODevice *vbasedev = opaque;
+    VFIOMigration *migration = vbasedev->migration;
+    int ret;
 
-    return vfio_migration_set_state(vbasedev, VFIO_DEVICE_STATE_RESUMING,
-                                    vbasedev->migration->device_state, errp);
+    if (!vfio_multifd_setup(vbasedev, true, errp)) {
+        return -EINVAL;
+    }
+
+    ret = vfio_migration_set_state(vbasedev, VFIO_DEVICE_STATE_RESUMING,
+                                   migration->device_state, errp);
+    if (ret) {
+        return ret;
+    }
+
+    return 0;
 }
 
 static int vfio_load_cleanup(void *opaque)
 {
     VFIODevice *vbasedev = opaque;
+
+    vfio_multifd_cleanup(vbasedev);
 
     vfio_migration_cleanup(vbasedev);
     trace_vfio_load_cleanup(vbasedev->name);
@@ -717,6 +732,13 @@ static int vfio_load_state(QEMUFile *f, void *opaque, int version_id)
         switch (data) {
         case VFIO_MIG_FLAG_DEV_CONFIG_STATE:
         {
+            if (vfio_multifd_transfer_enabled(vbasedev)) {
+                error_report("%s: got DEV_CONFIG_STATE in main migration "
+                             "channel but doing multifd transfer",
+                             vbasedev->name);
+                return -EINVAL;
+            }
+
             return vfio_load_device_config_state(f, opaque);
         }
         case VFIO_MIG_FLAG_DEV_SETUP_STATE:
@@ -782,6 +804,17 @@ static bool vfio_switchover_ack_needed(void *opaque)
     return vfio_precopy_supported(vbasedev);
 }
 
+static int vfio_switchover_start(void *opaque)
+{
+    VFIODevice *vbasedev = opaque;
+
+    if (vfio_multifd_transfer_enabled(vbasedev)) {
+        return vfio_multifd_switchover_start(vbasedev);
+    }
+
+    return 0;
+}
+
 static const SaveVMHandlers savevm_vfio_handlers = {
     .save_prepare = vfio_save_prepare,
     .save_setup = vfio_save_setup,
@@ -796,6 +829,12 @@ static const SaveVMHandlers savevm_vfio_handlers = {
     .load_cleanup = vfio_load_cleanup,
     .load_state = vfio_load_state,
     .switchover_ack_needed = vfio_switchover_ack_needed,
+    /*
+     * Multifd support
+     */
+    .load_state_buffer = vfio_multifd_load_state_buffer,
+    .switchover_start = vfio_switchover_start,
+    .save_live_complete_precopy_thread = vfio_multifd_save_complete_precopy_thread,
 };
 
 /* ---------------------------------------------------------------------- */
@@ -1011,12 +1050,17 @@ static int vfio_block_migration(VFIODevice *vbasedev, Error *err, Error **errp)
 
 int64_t vfio_mig_bytes_transferred(void)
 {
-    return bytes_transferred;
+    return MIN(qatomic_read(&bytes_transferred), INT64_MAX);
 }
 
 void vfio_reset_bytes_transferred(void)
 {
-    bytes_transferred = 0;
+    qatomic_set(&bytes_transferred, 0);
+}
+
+void vfio_mig_add_bytes_transferred(unsigned long val)
+{
+    qatomic_add(&bytes_transferred, val);
 }
 
 /*

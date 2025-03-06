@@ -14,9 +14,9 @@ aio_co_schedule_bh_cb(void *ctx, void *co) "ctx %p co %p"
 reentrant_aio(void *ctx, const char *name) "ctx %p name %s"
 
 # thread-pool.c
-thread_pool_submit(void *pool, void *req, void *opaque) "pool %p req %p opaque %p"
-thread_pool_complete(void *pool, void *req, void *opaque, int ret) "pool %p req %p opaque %p ret %d"
-thread_pool_cancel(void *req, void *opaque) "req %p opaque %p"
+thread_pool_submit_aio(void *pool, void *req, void *opaque) "pool %p req %p opaque %p"
+thread_pool_complete_aio(void *pool, void *req, void *opaque, int ret) "pool %p req %p opaque %p ret %d"
+thread_pool_cancel_aio(void *req, void *opaque) "req %p opaque %p"
 
 # buffer.c
 buffer_resize(const char *buf, size_t olen, size_t len) "%s: old %zd, new %zd"

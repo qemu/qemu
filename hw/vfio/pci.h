@@ -160,7 +160,6 @@ struct VFIOPCIDevice {
     int32_t bootindex;
     uint32_t igd_gms;
     OffAutoPCIBAR msix_relo;
-    uint8_t pm_cap;
     uint8_t nv_gpudirect_clique;
     bool pci_aer;
     bool req_enabled;
