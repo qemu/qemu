@@ -219,12 +219,12 @@ void nbd_server_start_options(NbdServerOptions *arg, Error **errp)
                      arg->tls_authz, arg->max_connections, errp);
 }
 
-void qmp_nbd_server_start(SocketAddressLegacy *addr,
-                          bool has_handshake_max_secs,
+void qmp_nbd_server_start(bool has_handshake_max_secs,
                           uint32_t handshake_max_secs,
                           const char *tls_creds,
                           const char *tls_authz,
                           bool has_max_connections, uint32_t max_connections,
+                          SocketAddressLegacy *addr,
                           Error **errp)
 {
     SocketAddress *addr_flat = socket_address_flatten(addr);

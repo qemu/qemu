@@ -852,10 +852,6 @@ int main(int argc, char **argv)
         export_name = "";
     }
 
-    if (!trace_init_backends()) {
-        exit(1);
-    }
-    trace_init_file();
     qemu_set_log(LOG_TRACE, &error_fatal);
 
     socket_activation = check_socket_activation();
@@ -1044,6 +1040,18 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
 #endif /* WIN32 */
     }
+
+    /*
+     * trace_init must be done after daemonization.  Why? Because at
+     * least the simple backend spins up a helper thread as well as an
+     * atexit() handler that waits on that thread, but the helper
+     * thread won't survive a fork, leading to deadlock in the child
+     * if we initialized pre-fork.
+     */
+    if (!trace_init_backends()) {
+        exit(1);
+    }
+    trace_init_file();
 
     if (opts.device != NULL && sockpath == NULL) {
         sockpath = g_malloc(128);
