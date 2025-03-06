@@ -560,13 +560,9 @@ bool vfio_probe_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
             goto error;
         }
 
-        /* Enable OpRegion quirk */
+        /* Enable OpRegion and LPC bridge quirk */
         vdev->features |= VFIO_FEATURE_ENABLE_IGD_OPREGION;
-
-        /* Setup LPC bridge / Host bridge PCI IDs */
-        if (!vfio_pci_igd_setup_lpc_bridge(vdev, &err)) {
-            goto error;
-        }
+        vdev->features |= VFIO_FEATURE_ENABLE_IGD_LPC;
     } else if (vdev->igd_legacy_mode == ON_OFF_AUTO_ON) {
         error_setg(&err,
                    "Machine is not i440fx or assigned BDF is not 00:02.0");
@@ -578,6 +574,12 @@ bool vfio_probe_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
         !vfio_pci_igd_setup_opregion(vdev, errp)) {
         goto error;
     }
+
+    /* Setup LPC bridge / Host bridge PCI IDs */
+    if ((vdev->features & VFIO_FEATURE_ENABLE_IGD_LPC) &&
+        !vfio_pci_igd_setup_lpc_bridge(vdev, errp)) {
+        goto error;
+     }
 
     /*
      * Allow user to override dsm size using x-igd-gms option, in multiples of

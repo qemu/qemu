@@ -154,6 +154,9 @@ struct VFIOPCIDevice {
 #define VFIO_FEATURE_ENABLE_IGD_OPREGION_BIT 2
 #define VFIO_FEATURE_ENABLE_IGD_OPREGION \
                                 (1 << VFIO_FEATURE_ENABLE_IGD_OPREGION_BIT)
+#define VFIO_FEATURE_ENABLE_IGD_LPC_BIT 3
+#define VFIO_FEATURE_ENABLE_IGD_LPC \
+                                (1 << VFIO_FEATURE_ENABLE_IGD_LPC_BIT)
     OnOffAuto display;
     uint32_t display_xres;
     uint32_t display_yres;
