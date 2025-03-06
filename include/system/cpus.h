@@ -1,8 +1,6 @@
 #ifndef QEMU_CPUS_H
 #define QEMU_CPUS_H
 
-#include "system/accel-ops.h"
-
 /* register accel-specific operations */
 void cpus_register_accel(const AccelOpsClass *i);
 
@@ -37,8 +35,6 @@ void qemu_init_cpu_loop(void);
 void resume_all_vcpus(void);
 void pause_all_vcpus(void);
 void cpu_stop_current(void);
-
-extern int icount_align_option;
 
 /* Unblock cpu */
 void qemu_cpu_kick_self(void);

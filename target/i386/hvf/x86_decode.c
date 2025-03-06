@@ -61,8 +61,8 @@ uint64_t sign(uint64_t val, int size)
 static inline uint64_t decode_bytes(CPUX86State *env, struct x86_decode *decode,
                                     int size)
 {
-    target_ulong val = 0;
-    
+    uint64_t val = 0;
+
     switch (size) {
     case 1:
     case 2:

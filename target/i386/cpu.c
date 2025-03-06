@@ -6563,7 +6563,7 @@ void x86_cpu_apply_props(X86CPU *cpu, PropValue *props)
  * Only for builtin_x86_defs models initialized with x86_register_cpudef_types.
  */
 
-static void x86_cpu_apply_version_props(X86CPU *cpu, X86CPUModel *model)
+static void x86_cpu_apply_version_props(X86CPU *cpu, const X86CPUModel *model)
 {
     const X86CPUVersionDefinition *vdef;
     X86CPUVersion version = x86_cpu_model_resolve_version(model);
@@ -6592,7 +6592,7 @@ static void x86_cpu_apply_version_props(X86CPU *cpu, X86CPUModel *model)
 }
 
 static const CPUCaches *x86_cpu_get_versioned_cache_info(X86CPU *cpu,
-                                                         X86CPUModel *model)
+                                                       const X86CPUModel *model)
 {
     const X86CPUVersionDefinition *vdef;
     X86CPUVersion version = x86_cpu_model_resolve_version(model);
@@ -6620,7 +6620,7 @@ static const CPUCaches *x86_cpu_get_versioned_cache_info(X86CPU *cpu,
  * Load data from X86CPUDefinition into a X86CPU object.
  * Only for builtin_x86_defs models initialized with x86_register_cpudef_types.
  */
-static void x86_cpu_load_model(X86CPU *cpu, X86CPUModel *model)
+static void x86_cpu_load_model(X86CPU *cpu, const X86CPUModel *model)
 {
     const X86CPUDefinition *def = model->cpudef;
     CPUX86State *env = &cpu->env;
@@ -6690,7 +6690,7 @@ static const gchar *x86_gdb_arch_name(CPUState *cs)
 
 static void x86_cpu_cpudef_class_init(ObjectClass *oc, void *data)
 {
-    X86CPUModel *model = data;
+    const X86CPUModel *model = data;
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
 
@@ -8691,6 +8691,7 @@ static void x86_disas_set_info(CPUState *cs, disassemble_info *info)
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
 
+    info->endian = BFD_ENDIAN_LITTLE;
     info->mach = (env->hflags & HF_CS64_MASK ? bfd_mach_x86_64
                   : env->hflags & HF_CS32_MASK ? bfd_mach_i386_i386
                   : bfd_mach_i386_i8086);

@@ -21,7 +21,7 @@
 #include "qemu/cutils.h"
 #include "gdbstub/user.h"
 #include "exec/page-protection.h"
-#include "hw/core/tcg-cpu-ops.h"
+#include "accel/tcg/cpu-ops.h"
 
 #include <sys/ucontext.h>
 #include <sys/resource.h>

@@ -175,7 +175,7 @@ F: include/exec/helper-info.c.inc
 F: include/exec/page-protection.h
 F: include/system/cpus.h
 F: include/system/tcg.h
-F: include/hw/core/tcg-cpu-ops.h
+F: include/accel/tcg/cpu-ops.h
 F: host/include/*/host/cpuinfo.h
 F: util/cpuinfo-*.c
 F: include/tcg/
@@ -499,7 +499,7 @@ R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: include/qemu/accel.h
 F: include/system/accel-*.h
-F: include/hw/core/accel-cpu.h
+F: include/accel/accel-cpu-target.h
 F: accel/accel-*.c
 F: accel/Makefile.objs
 F: accel/stubs/Makefile.objs
@@ -3798,6 +3798,7 @@ Overall usermode emulation
 M: Riku Voipio <riku.voipio@iki.fi>
 S: Maintained
 F: accel/tcg/user-exec*.c
+F: hw/core/cpu-user.c
 F: include/user/
 F: common-user/
 

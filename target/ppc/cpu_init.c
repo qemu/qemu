@@ -7401,6 +7401,8 @@ static void ppc_disas_set_info(CPUState *cs, disassemble_info *info)
 
     if ((env->hflags >> MSR_LE) & 1) {
         info->endian = BFD_ENDIAN_LITTLE;
+    } else {
+        info->endian = BFD_ENDIAN_BIG;
     }
     info->mach = env->bfd_mach;
     if (!env->bfd_mach) {
@@ -7430,7 +7432,7 @@ static const struct SysemuCPUOps ppc_sysemu_ops = {
 #endif
 
 #ifdef CONFIG_TCG
-#include "hw/core/tcg-cpu-ops.h"
+#include "accel/tcg/cpu-ops.h"
 
 static const TCGCPUOps ppc_tcg_ops = {
   .initialize = ppc_translate_init,

@@ -50,7 +50,7 @@
 #include "qemu/error-report.h"
 #include "qemu/help_option.h"
 #ifdef CONFIG_TCG
-#include "hw/core/tcg-cpu-ops.h"
+#include "accel/tcg/cpu-ops.h"
 #endif /* CONFIG_TCG */
 #include "cpu.h"
 

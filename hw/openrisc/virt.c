@@ -487,8 +487,6 @@ static void openrisc_virt_init(MachineState *machine)
             exit(1);
         }
 
-        cpu_openrisc_clock_init(cpus[n]);
-
         qemu_register_reset(main_cpu_reset, cpus[n]);
     }
 

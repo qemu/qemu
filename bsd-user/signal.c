@@ -29,7 +29,7 @@
 #include "gdbstub/user.h"
 #include "signal-common.h"
 #include "trace.h"
-#include "hw/core/tcg-cpu-ops.h"
+#include "accel/tcg/cpu-ops.h"
 #include "host-signal.h"
 
 /* target_siginfo_t must fit in gdbstub's siginfo save area. */

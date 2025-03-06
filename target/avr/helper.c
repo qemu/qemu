@@ -22,7 +22,7 @@
 #include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "cpu.h"
-#include "hw/core/tcg-cpu-ops.h"
+#include "accel/tcg/cpu-ops.h"
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
 #include "exec/cpu_ldst.h"

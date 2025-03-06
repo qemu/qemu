@@ -27,7 +27,7 @@
 #include "qemu/accel.h"
 
 #include "cpu.h"
-#include "hw/core/accel-cpu.h"
+#include "accel/accel-cpu-target.h"
 
 #ifndef CONFIG_USER_ONLY
 #include "accel-system.h"
@@ -38,6 +38,7 @@ static const TypeInfo accel_type = {
     .parent = TYPE_OBJECT,
     .class_size = sizeof(AccelClass),
     .instance_size = sizeof(AccelState),
+    .abstract = true,
 };
 
 /* Lookup AccelClass from opt_name. Returns NULL if not found */
