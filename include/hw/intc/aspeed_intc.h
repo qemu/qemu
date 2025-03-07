@@ -43,6 +43,7 @@ struct AspeedINTCClass {
     uint64_t mem_size;
     uint64_t nr_regs;
     uint64_t reg_offset;
+    const MemoryRegionOps *reg_ops;
 };
 
 #endif /* ASPEED_INTC_H */
