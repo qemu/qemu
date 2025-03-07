@@ -128,6 +128,11 @@ void cpr_set_incoming_mode(MigMode mode)
     incoming_mode = mode;
 }
 
+bool cpr_is_incoming(void)
+{
+    return incoming_mode != MIG_MODE_NONE;
+}
+
 int cpr_state_save(MigrationChannel *channel, Error **errp)
 {
     int ret;
