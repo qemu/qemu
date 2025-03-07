@@ -76,52 +76,18 @@ static void aspeed_intc_update(AspeedINTCState *s, int inpin_idx,
     qemu_set_irq(s->output_pins[outpin_idx], level);
 }
 
-/*
- * The address of GICINT128 to GICINT136 are from 0x1000 to 0x1804.
- * Utilize "address & 0x0f00" to get the irq and irq output pin index
- * The value of irq should be 0 to num_inpins.
- * The irq 0 indicates GICINT128, irq 1 indicates GICINT129 and so on.
- */
-static void aspeed_intc_set_irq(void *opaque, int irq, int level)
+static void aspeed_intc_set_irq_handler(AspeedINTCState *s,
+                                        const AspeedINTCIRQ *intc_irq,
+                                        uint32_t select)
 {
-    AspeedINTCState *s = (AspeedINTCState *)opaque;
-    AspeedINTCClass *aic = ASPEED_INTC_GET_CLASS(s);
     const char *name = object_get_typename(OBJECT(s));
-    const AspeedINTCIRQ *intc_irq;
     uint32_t status_reg;
-    uint32_t select = 0;
-    uint32_t enable;
     int outpin_idx;
     int inpin_idx;
-    int i;
 
-    assert(irq < aic->num_inpins);
-
-    intc_irq = &aic->irq_table[irq];
     status_reg = intc_irq->status_reg;
     outpin_idx = intc_irq->outpin_idx;
     inpin_idx = intc_irq->inpin_idx;
-
-    trace_aspeed_intc_set_irq(name, inpin_idx, level);
-    enable = s->enable[inpin_idx];
-
-    if (!level) {
-        return;
-    }
-
-    for (i = 0; i < aic->num_lines; i++) {
-        if (s->orgates[inpin_idx].levels[i]) {
-            if (enable & BIT(i)) {
-                select |= BIT(i);
-            }
-        }
-    }
-
-    if (!select) {
-        return;
-    }
-
-    trace_aspeed_intc_select(name, select);
 
     if (s->mask[inpin_idx] || s->regs[status_reg]) {
         /*
@@ -144,6 +110,48 @@ static void aspeed_intc_set_irq(void *opaque, int irq, int level)
                                       s->regs[status_reg]);
         aspeed_intc_update(s, inpin_idx, outpin_idx, 1);
     }
+}
+
+/*
+ * GICINT128 to GICINT136 map 1:1 to input and output IRQs 0 to 8.
+ * The value of input IRQ should be between 0 and the number of inputs.
+ */
+static void aspeed_intc_set_irq(void *opaque, int irq, int level)
+{
+    AspeedINTCState *s = (AspeedINTCState *)opaque;
+    AspeedINTCClass *aic = ASPEED_INTC_GET_CLASS(s);
+    const char *name = object_get_typename(OBJECT(s));
+    const AspeedINTCIRQ *intc_irq;
+    uint32_t select = 0;
+    uint32_t enable;
+    int inpin_idx;
+    int i;
+
+    assert(irq < aic->num_inpins);
+
+    intc_irq = &aic->irq_table[irq];
+    inpin_idx = intc_irq->inpin_idx;
+    trace_aspeed_intc_set_irq(name, inpin_idx, level);
+    enable = s->enable[inpin_idx];
+
+    if (!level) {
+        return;
+    }
+
+    for (i = 0; i < aic->num_lines; i++) {
+        if (s->orgates[inpin_idx].levels[i]) {
+            if (enable & BIT(i)) {
+                select |= BIT(i);
+            }
+        }
+    }
+
+    if (!select) {
+        return;
+    }
+
+    trace_aspeed_intc_select(name, select);
+    aspeed_intc_set_irq_handler(s, intc_irq, select);
 }
 
 static void aspeed_intc_enable_handler(AspeedINTCState *s, hwaddr offset,
