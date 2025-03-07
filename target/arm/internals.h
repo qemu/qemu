@@ -1819,9 +1819,10 @@ int delete_hw_watchpoint(target_ulong addr, target_ulong len, int type);
 uint64_t gt_get_countervalue(CPUARMState *env);
 /*
  * Return the currently applicable offset between the system counter
- * and CNTVCT_EL0 (this will be either 0 or the value of CNTVOFF_EL2).
+ * and the counter for the specified timer, as used for direct register
+ * accesses.
  */
-uint64_t gt_virt_cnt_offset(CPUARMState *env);
+uint64_t gt_direct_access_timer_offset(CPUARMState *env, int timeridx);
 
 /*
  * Return mask of ARMMMUIdxBit values corresponding to an "invalidate
