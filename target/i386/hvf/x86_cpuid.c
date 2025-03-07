@@ -24,7 +24,7 @@
 #include "qemu/cpuid.h"
 #include "host/cpuinfo.h"
 #include "cpu.h"
-#include "x86.h"
+#include "emulate/x86.h"
 #include "vmx.h"
 #include "system/hvf.h"
 #include "hvf-i386.h"

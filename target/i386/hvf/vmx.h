@@ -29,7 +29,7 @@
 #include <Hypervisor/hv_vmx.h>
 #include "vmcs.h"
 #include "cpu.h"
-#include "x86.h"
+#include "emulate/x86.h"
 #include "system/hvf.h"
 #include "system/hvf_int.h"
 

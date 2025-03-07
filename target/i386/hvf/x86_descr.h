@@ -19,7 +19,7 @@
 #ifndef HVF_X86_DESCR_H
 #define HVF_X86_DESCR_H
 
-#include "x86.h"
+#include "emulate/x86.h"
 
 typedef struct vmx_segment {
     uint16_t sel;

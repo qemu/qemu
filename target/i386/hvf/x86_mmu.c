@@ -19,7 +19,7 @@
 #include "qemu/osdep.h"
 #include "panic.h"
 #include "cpu.h"
-#include "x86.h"
+#include "emulate/x86.h"
 #include "x86_mmu.h"
 #include "vmcs.h"
 #include "vmx.h"
