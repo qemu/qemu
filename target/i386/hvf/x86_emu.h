@@ -27,6 +27,8 @@ struct x86_emul_ops {
     void (*read_mem)(CPUState *cpu, void *data, target_ulong addr, int bytes);
     void (*read_segment_descriptor)(CPUState *cpu, struct x86_segment_descriptor *desc,
                                     enum X86Seg seg);
+    void (*handle_io)(CPUState *cpu, uint16_t port, void *data, int direction,
+                      int size, int count);
 };
 
 extern const struct x86_emul_ops *emul_ops;

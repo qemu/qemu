@@ -396,18 +396,18 @@ static void exec_out(CPUX86State *env, struct x86_decode *decode)
 {
     switch (decode->opcode[0]) {
     case 0xe6:
-        hvf_handle_io(env_cpu(env), decode->op[0].val, &AL(env), 1, 1, 1);
+        emul_ops->handle_io(env_cpu(env), decode->op[0].val, &AL(env), 1, 1, 1);
         break;
     case 0xe7:
-        hvf_handle_io(env_cpu(env), decode->op[0].val, &RAX(env), 1,
-                      decode->operand_size, 1);
+        emul_ops->handle_io(env_cpu(env), decode->op[0].val, &RAX(env), 1,
+                            decode->operand_size, 1);
         break;
     case 0xee:
-        hvf_handle_io(env_cpu(env), DX(env), &AL(env), 1, 1, 1);
+        emul_ops->handle_io(env_cpu(env), DX(env), &AL(env), 1, 1, 1);
         break;
     case 0xef:
-        hvf_handle_io(env_cpu(env), DX(env), &RAX(env), 1,
-                      decode->operand_size, 1);
+        emul_ops->handle_io(env_cpu(env), DX(env), &RAX(env), 1,
+                            decode->operand_size, 1);
         break;
     default:
         VM_PANIC("Bad out opcode\n");
@@ -421,10 +421,10 @@ static void exec_in(CPUX86State *env, struct x86_decode *decode)
     target_ulong val = 0;
     switch (decode->opcode[0]) {
     case 0xe4:
-        hvf_handle_io(env_cpu(env), decode->op[0].val, &AL(env), 0, 1, 1);
+        emul_ops->handle_io(env_cpu(env), decode->op[0].val, &AL(env), 0, 1, 1);
         break;
     case 0xe5:
-        hvf_handle_io(env_cpu(env), decode->op[0].val, &val, 0,
+        emul_ops->handle_io(env_cpu(env), decode->op[0].val, &val, 0,
                       decode->operand_size, 1);
         if (decode->operand_size == 2) {
             AX(env) = val;
@@ -433,10 +433,11 @@ static void exec_in(CPUX86State *env, struct x86_decode *decode)
         }
         break;
     case 0xec:
-        hvf_handle_io(env_cpu(env), DX(env), &AL(env), 0, 1, 1);
+        emul_ops->handle_io(env_cpu(env), DX(env), &AL(env), 0, 1, 1);
         break;
     case 0xed:
-        hvf_handle_io(env_cpu(env), DX(env), &val, 0, decode->operand_size, 1);
+        emul_ops->handle_io(env_cpu(env), DX(env), &val, 0,
+                            decode->operand_size, 1);
         if (decode->operand_size == 2) {
             AX(env) = val;
         } else {
@@ -486,8 +487,8 @@ static void exec_ins_single(CPUX86State *env, struct x86_decode *decode)
     target_ulong addr = linear_addr_size(env_cpu(env), RDI(env),
                                          decode->addressing_size, R_ES);
 
-    hvf_handle_io(env_cpu(env), DX(env), env->hvf_mmio_buf, 0,
-                  decode->operand_size, 1);
+    emul_ops->handle_io(env_cpu(env), DX(env), env->hvf_mmio_buf, 0,
+                        decode->operand_size, 1);
     vmx_write_mem(env_cpu(env), addr, env->hvf_mmio_buf,
                   decode->operand_size);
 
@@ -511,8 +512,8 @@ static void exec_outs_single(CPUX86State *env, struct x86_decode *decode)
 
     vmx_read_mem(env_cpu(env), env->hvf_mmio_buf, addr,
                  decode->operand_size);
-    hvf_handle_io(env_cpu(env), DX(env), env->hvf_mmio_buf, 1,
-                  decode->operand_size, 1);
+    emul_ops->handle_io(env_cpu(env), DX(env), env->hvf_mmio_buf, 1,
+                        decode->operand_size, 1);
 
     string_increment_reg(env, R_ESI, decode);
 }

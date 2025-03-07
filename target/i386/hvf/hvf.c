@@ -245,6 +245,7 @@ static void hvf_read_mem(CPUState *cpu, void *data, target_ulong gva, int bytes)
 static const struct x86_emul_ops hvf_x86_emul_ops = {
     .read_mem = hvf_read_mem,
     .read_segment_descriptor = hvf_read_segment_descriptor,
+    .handle_io = hvf_handle_io,
 };
 
 int hvf_arch_init_vcpu(CPUState *cpu)
