@@ -21,6 +21,7 @@
 #include "panic.h"
 #include "x86_decode.h"
 #include "vmx.h"
+#include "x86_emu.h"
 #include "x86_mmu.h"
 #include "x86_descr.h"
 
@@ -74,7 +75,7 @@ static inline uint64_t decode_bytes(CPUX86State *env, struct x86_decode *decode,
         break;
     }
     target_ulong va  = linear_rip(env_cpu(env), env->eip) + decode->len;
-    vmx_read_mem(env_cpu(env), &val, va, size);
+    emul_ops->read_mem(env_cpu(env), &val, va, size);
     decode->len += size;
     
     return val;
@@ -1893,16 +1894,6 @@ static void decode_prefix(CPUX86State *env, struct x86_decode *decode)
     }
 }
 
-static struct x86_segment_descriptor get_cs_descriptor(CPUState *s)
-{
-    struct vmx_segment vmx_cs;
-    x86_segment_descriptor cs;
-    vmx_read_segment_descriptor(s, &vmx_cs, R_CS);
-    vmx_segment_to_x86_descriptor(s, &vmx_cs, &cs);
-
-    return cs;
-}
-
 void set_addressing_size(CPUX86State *env, struct x86_decode *decode)
 {
     decode->addressing_size = -1;
@@ -1914,7 +1905,8 @@ void set_addressing_size(CPUX86State *env, struct x86_decode *decode)
         }
     } else if (!x86_is_long_mode(env_cpu(env))) {
         /* protected */
-        x86_segment_descriptor cs = get_cs_descriptor(env_cpu(env));
+        x86_segment_descriptor cs;
+        emul_ops->read_segment_descriptor(env_cpu(env), &cs, R_CS);
         /* check db */
         if (cs.db) {
             if (decode->addr_size_override) {
@@ -1950,7 +1942,8 @@ void set_operand_size(CPUX86State *env, struct x86_decode *decode)
         }
     } else if (!x86_is_long_mode(env_cpu(env))) {
         /* protected */
-        x86_segment_descriptor cs = get_cs_descriptor(env_cpu(env));
+        x86_segment_descriptor cs;
+        emul_ops->read_segment_descriptor(env_cpu(env), &cs, R_CS);
         /* check db */
         if (cs.db) {
             if (decode->op_size_override) {
