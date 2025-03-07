@@ -252,6 +252,8 @@ static const struct x86_emul_ops hvf_x86_emul_ops = {
     .write_mem = hvf_write_mem,
     .read_segment_descriptor = hvf_read_segment_descriptor,
     .handle_io = hvf_handle_io,
+    .simulate_rdmsr = hvf_simulate_rdmsr,
+    .simulate_wrmsr = hvf_simulate_wrmsr,
 };
 
 int hvf_arch_init_vcpu(CPUState *cpu)
@@ -506,10 +508,10 @@ void hvf_store_regs(CPUState *cs)
     macvm_set_rip(cs, env->eip);
 }
 
-void hvf_simulate_rdmsr(CPUX86State *env)
+void hvf_simulate_rdmsr(CPUState *cs)
 {
-    X86CPU *cpu = env_archcpu(env);
-    CPUState *cs = env_cpu(env);
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
     uint32_t msr = ECX(env);
     uint64_t val = 0;
 
@@ -611,10 +613,10 @@ void hvf_simulate_rdmsr(CPUX86State *env)
     RDX(env) = (uint32_t)(val >> 32);
 }
 
-void hvf_simulate_wrmsr(CPUX86State *env)
+void hvf_simulate_wrmsr(CPUState *cs)
 {
-    X86CPU *cpu = env_archcpu(env);
-    CPUState *cs = env_cpu(env);
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
     uint32_t msr = ECX(env);
     uint64_t data = ((uint64_t)EDX(env) << 32) | EAX(env);
 
@@ -900,9 +902,9 @@ int hvf_vcpu_exec(CPUState *cpu)
         {
             hvf_load_regs(cpu);
             if (exit_reason == EXIT_REASON_RDMSR) {
-                hvf_simulate_rdmsr(env);
+                hvf_simulate_rdmsr(cpu);
             } else {
-                hvf_simulate_wrmsr(env);
+                hvf_simulate_wrmsr(cpu);
             }
             env->eip += ins_len;
             hvf_store_regs(cpu);

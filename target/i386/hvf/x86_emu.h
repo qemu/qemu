@@ -30,6 +30,8 @@ struct x86_emul_ops {
                                     enum X86Seg seg);
     void (*handle_io)(CPUState *cpu, uint16_t port, void *data, int direction,
                       int size, int count);
+    void (*simulate_rdmsr)(CPUState *cs);
+    void (*simulate_wrmsr)(CPUState *cs);
 };
 
 extern const struct x86_emul_ops *emul_ops;
