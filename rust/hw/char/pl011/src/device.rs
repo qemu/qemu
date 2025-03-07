@@ -648,10 +648,12 @@ pub unsafe extern "C" fn pl011_create(
     // SAFETY: The callers promise that they have owned references.
     // They do not gift them to pl011_create, so use `Owned::from`.
     let irq = unsafe { Owned::<IRQState>::from(&*irq) };
-    let chr = unsafe { Owned::<Chardev>::from(&*chr) };
 
     let dev = PL011State::new();
-    dev.prop_set_chr("chardev", &chr);
+    if !chr.is_null() {
+        let chr = unsafe { Owned::<Chardev>::from(&*chr) };
+        dev.prop_set_chr("chardev", &chr);
+    }
     dev.sysbus_realize();
     dev.mmio_map(0, addr);
     dev.connect_irq(0, &irq);
