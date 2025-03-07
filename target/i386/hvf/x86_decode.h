@@ -15,8 +15,8 @@
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HVF_X86_DECODE_H
-#define HVF_X86_DECODE_H
+#ifndef X86_EMU_DECODE_H
+#define X86_EMU_DECODE_H
 
 #include "cpu.h"
 #include "x86.h"
