@@ -4302,7 +4302,7 @@ static RISCVException rmw_sctrdepth(CPURISCVState *env, int csrno,
         }
 
         /* Update sctrstatus.WRPTR with a legal value */
-        depth = 16 << depth;
+        depth = 16ULL << depth;
         env->sctrstatus =
             env->sctrstatus & (~SCTRSTATUS_WRPTR_MASK | (depth - 1));
     }
