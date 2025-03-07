@@ -1811,10 +1811,10 @@ typedef struct CPUCaches {
         CPUCacheInfo *l3_cache;
 } CPUCaches;
 
-typedef struct HVFX86LazyFlags {
+typedef struct X86LazyFlags {
     target_ulong result;
     target_ulong auxbits;
-} HVFX86LazyFlags;
+} X86LazyFlags;
 
 typedef struct CPUArchState {
     /* standard registers */
@@ -2108,7 +2108,7 @@ typedef struct CPUArchState {
     QemuMutex xen_timers_lock;
 #endif
 #if defined(CONFIG_HVF)
-    HVFX86LazyFlags hvf_lflags;
+    X86LazyFlags lflags;
     void *emu_mmio_buf;
 #endif
 
