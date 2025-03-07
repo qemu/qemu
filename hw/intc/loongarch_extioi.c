@@ -377,11 +377,13 @@ static void loongarch_extioi_unrealize(DeviceState *dev)
     g_free(s->cpu);
 }
 
-static void loongarch_extioi_reset(DeviceState *d)
+static void loongarch_extioi_reset_hold(Object *obj, ResetType type)
 {
-    LoongArchExtIOICommonState *s = LOONGARCH_EXTIOI_COMMON(d);
+    LoongArchExtIOIClass *lec = LOONGARCH_EXTIOI_GET_CLASS(obj);
 
-    s->status = 0;
+    if (lec->parent_phases.hold) {
+        lec->parent_phases.hold(obj, type);
+    }
 }
 
 static int vmstate_extioi_post_load(void *opaque, int version_id)
@@ -406,12 +408,14 @@ static void loongarch_extioi_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     LoongArchExtIOIClass *lec = LOONGARCH_EXTIOI_CLASS(klass);
     LoongArchExtIOICommonClass *lecc = LOONGARCH_EXTIOI_COMMON_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     device_class_set_parent_realize(dc, loongarch_extioi_realize,
                                     &lec->parent_realize);
     device_class_set_parent_unrealize(dc, loongarch_extioi_unrealize,
                                       &lec->parent_unrealize);
-    device_class_set_legacy_reset(dc, loongarch_extioi_reset);
+    resettable_class_set_parent_phases(rc, NULL, loongarch_extioi_reset_hold,
+                                       NULL, &lec->parent_phases);
     lecc->post_load = vmstate_extioi_post_load;
 }
 
