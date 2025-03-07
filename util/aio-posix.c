@@ -600,6 +600,46 @@ static bool try_poll_mode(AioContext *ctx, AioHandlerList *ready_list,
     return false;
 }
 
+static void adjust_polling_time(AioContext *ctx, AioPolledEvent *poll,
+                                int64_t block_ns)
+{
+    if (block_ns <= poll->ns) {
+        /* This is the sweet spot, no adjustment needed */
+    } else if (block_ns > ctx->poll_max_ns) {
+        /* We'd have to poll for too long, poll less */
+        int64_t old = poll->ns;
+
+        if (ctx->poll_shrink) {
+            poll->ns /= ctx->poll_shrink;
+        } else {
+            poll->ns = 0;
+        }
+
+        trace_poll_shrink(ctx, old, poll->ns);
+    } else if (poll->ns < ctx->poll_max_ns &&
+               block_ns < ctx->poll_max_ns) {
+        /* There is room to grow, poll longer */
+        int64_t old = poll->ns;
+        int64_t grow = ctx->poll_grow;
+
+        if (grow == 0) {
+            grow = 2;
+        }
+
+        if (poll->ns) {
+            poll->ns *= grow;
+        } else {
+            poll->ns = 4000; /* start polling at 4 microseconds */
+        }
+
+        if (poll->ns > ctx->poll_max_ns) {
+            poll->ns = ctx->poll_max_ns;
+        }
+
+        trace_poll_grow(ctx, old, poll->ns);
+    }
+}
+
 bool aio_poll(AioContext *ctx, bool blocking)
 {
     AioHandlerList ready_list = QLIST_HEAD_INITIALIZER(ready_list);
@@ -682,42 +722,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     /* Adjust polling time */
     if (ctx->poll_max_ns) {
         int64_t block_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - start;
-
-        if (block_ns <= ctx->poll.ns) {
-            /* This is the sweet spot, no adjustment needed */
-        } else if (block_ns > ctx->poll_max_ns) {
-            /* We'd have to poll for too long, poll less */
-            int64_t old = ctx->poll.ns;
-
-            if (ctx->poll_shrink) {
-                ctx->poll.ns /= ctx->poll_shrink;
-            } else {
-                ctx->poll.ns = 0;
-            }
-
-            trace_poll_shrink(ctx, old, ctx->poll.ns);
-        } else if (ctx->poll.ns < ctx->poll_max_ns &&
-                   block_ns < ctx->poll_max_ns) {
-            /* There is room to grow, poll longer */
-            int64_t old = ctx->poll.ns;
-            int64_t grow = ctx->poll_grow;
-
-            if (grow == 0) {
-                grow = 2;
-            }
-
-            if (ctx->poll.ns) {
-                ctx->poll.ns *= grow;
-            } else {
-                ctx->poll.ns = 4000; /* start polling at 4 microseconds */
-            }
-
-            if (ctx->poll.ns > ctx->poll_max_ns) {
-                ctx->poll.ns = ctx->poll_max_ns;
-            }
-
-            trace_poll_grow(ctx, old, ctx->poll.ns);
-        }
+        adjust_polling_time(ctx, &ctx->poll, block_ns);
     }
 
     progress |= aio_bh_poll(ctx);
