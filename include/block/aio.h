@@ -123,6 +123,10 @@ struct BHListSlice {
 
 typedef QSLIST_HEAD(, AioHandler) AioHandlerSList;
 
+typedef struct AioPolledEvent {
+    int64_t ns;        /* current polling time in nanoseconds */
+} AioPolledEvent;
+
 struct AioContext {
     GSource source;
 
@@ -229,7 +233,7 @@ struct AioContext {
     int poll_disable_cnt;
 
     /* Polling mode parameters */
-    int64_t poll_ns;        /* current polling time in nanoseconds */
+    AioPolledEvent poll;
     int64_t poll_max_ns;    /* maximum polling time in nanoseconds */
     int64_t poll_grow;      /* polling time growth factor */
     int64_t poll_shrink;    /* polling time shrink factor */

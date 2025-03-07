@@ -585,7 +585,7 @@ static bool try_poll_mode(AioContext *ctx, AioHandlerList *ready_list,
         return false;
     }
 
-    max_ns = qemu_soonest_timeout(*timeout, ctx->poll_ns);
+    max_ns = qemu_soonest_timeout(*timeout, ctx->poll.ns);
     if (max_ns && !ctx->fdmon_ops->need_wait(ctx)) {
         /*
          * Enable poll mode. It pairs with the poll_set_started() in
@@ -683,40 +683,40 @@ bool aio_poll(AioContext *ctx, bool blocking)
     if (ctx->poll_max_ns) {
         int64_t block_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - start;
 
-        if (block_ns <= ctx->poll_ns) {
+        if (block_ns <= ctx->poll.ns) {
             /* This is the sweet spot, no adjustment needed */
         } else if (block_ns > ctx->poll_max_ns) {
             /* We'd have to poll for too long, poll less */
-            int64_t old = ctx->poll_ns;
+            int64_t old = ctx->poll.ns;
 
             if (ctx->poll_shrink) {
-                ctx->poll_ns /= ctx->poll_shrink;
+                ctx->poll.ns /= ctx->poll_shrink;
             } else {
-                ctx->poll_ns = 0;
+                ctx->poll.ns = 0;
             }
 
-            trace_poll_shrink(ctx, old, ctx->poll_ns);
-        } else if (ctx->poll_ns < ctx->poll_max_ns &&
+            trace_poll_shrink(ctx, old, ctx->poll.ns);
+        } else if (ctx->poll.ns < ctx->poll_max_ns &&
                    block_ns < ctx->poll_max_ns) {
             /* There is room to grow, poll longer */
-            int64_t old = ctx->poll_ns;
+            int64_t old = ctx->poll.ns;
             int64_t grow = ctx->poll_grow;
 
             if (grow == 0) {
                 grow = 2;
             }
 
-            if (ctx->poll_ns) {
-                ctx->poll_ns *= grow;
+            if (ctx->poll.ns) {
+                ctx->poll.ns *= grow;
             } else {
-                ctx->poll_ns = 4000; /* start polling at 4 microseconds */
+                ctx->poll.ns = 4000; /* start polling at 4 microseconds */
             }
 
-            if (ctx->poll_ns > ctx->poll_max_ns) {
-                ctx->poll_ns = ctx->poll_max_ns;
+            if (ctx->poll.ns > ctx->poll_max_ns) {
+                ctx->poll.ns = ctx->poll_max_ns;
             }
 
-            trace_poll_grow(ctx, old, ctx->poll_ns);
+            trace_poll_grow(ctx, old, ctx->poll.ns);
         }
     }
 
@@ -770,8 +770,9 @@ void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,
     /* No thread synchronization here, it doesn't matter if an incorrect value
      * is used once.
      */
+    ctx->poll.ns = 0;
+
     ctx->poll_max_ns = max_ns;
-    ctx->poll_ns = 0;
     ctx->poll_grow = grow;
     ctx->poll_shrink = shrink;
 
