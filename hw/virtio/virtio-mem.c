@@ -28,7 +28,7 @@
 #include "migration/misc.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
-#include CONFIG_DEVICES
+#include "hw/acpi/acpi.h"
 #include "trace.h"
 
 static const VMStateDescription vmstate_virtio_mem_device_early;
@@ -883,10 +883,8 @@ static uint64_t virtio_mem_get_features(VirtIODevice *vdev, uint64_t features,
     MachineState *ms = MACHINE(qdev_get_machine());
     VirtIOMEM *vmem = VIRTIO_MEM(vdev);
 
-    if (ms->numa_state) {
-#if defined(CONFIG_ACPI)
+    if (ms->numa_state && acpi_builtin()) {
         virtio_add_feature(&features, VIRTIO_MEM_F_ACPI_PXM);
-#endif
     }
     assert(vmem->unplugged_inaccessible != ON_OFF_AUTO_AUTO);
     if (vmem->unplugged_inaccessible == ON_OFF_AUTO_ON) {
