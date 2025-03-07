@@ -38,3 +38,4 @@ guest hardware that is specific to QEMU.
    rocker
    riscv-iommu
    riscv-aia
+   aspeed-intc
