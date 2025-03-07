@@ -2604,7 +2604,6 @@ static uint64_t gt_tval_read(CPUARMState *env, const ARMCPRegInfo *ri,
 
     switch (timeridx) {
     case GTIMER_VIRT:
-    case GTIMER_HYPVIRT:
         offset = gt_virt_cnt_offset(env);
         break;
     case GTIMER_PHYS:
@@ -2624,7 +2623,6 @@ static void gt_tval_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     switch (timeridx) {
     case GTIMER_VIRT:
-    case GTIMER_HYPVIRT:
         offset = gt_virt_cnt_offset(env);
         break;
     case GTIMER_PHYS:
