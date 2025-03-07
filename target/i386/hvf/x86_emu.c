@@ -40,11 +40,7 @@
 #include "x86_decode.h"
 #include "x86.h"
 #include "x86_emu.h"
-#include "x86_mmu.h"
 #include "x86_flags.h"
-#include "vmcs.h"
-#include "vmx.h"
-#include "hvf-i386.h"
 
 #define EXEC_2OP_FLAGS_CMD(env, decode, cmd, FLAGS_FUNC, save_res) \
 {                                                       \

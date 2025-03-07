@@ -20,10 +20,7 @@
 
 #include "panic.h"
 #include "x86_decode.h"
-#include "vmx.h"
 #include "x86_emu.h"
-#include "x86_mmu.h"
-#include "x86_descr.h"
 
 #define OPCODE_ESCAPE   0xf
 
