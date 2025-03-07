@@ -2727,6 +2727,14 @@ config_host_data.set('HAVE_OPTRESET',
                      cc.has_header_symbol('getopt.h', 'optreset'))
 config_host_data.set('HAVE_IPPROTO_MPTCP',
                      cc.has_header_symbol('netinet/in.h', 'IPPROTO_MPTCP'))
+if libaio.found()
+  config_host_data.set('HAVE_IO_PREP_PWRITEV2',
+                       cc.has_header_symbol('libaio.h', 'io_prep_pwritev2'))
+endif
+if linux_io_uring.found()
+  config_host_data.set('HAVE_IO_URING_PREP_WRITEV2',
+                       cc.has_header_symbol('liburing.h', 'io_uring_prep_writev2'))
+endif
 
 # has_member
 config_host_data.set('HAVE_SIGEV_NOTIFY_THREAD_ID',
