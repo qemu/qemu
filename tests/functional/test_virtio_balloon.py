@@ -110,6 +110,7 @@ class VirtioBalloonx86(QemuSystemTest):
 
     def test_virtio_balloon_stats(self):
         self.set_machine('q35')
+        self.require_accelerator("kvm")
         kernel_path = self.ASSET_KERNEL.fetch()
         initrd_path = self.ASSET_INITRD.fetch()
         diskimage_path = self.ASSET_DISKIMAGE.fetch()
@@ -122,7 +123,7 @@ class VirtioBalloonx86(QemuSystemTest):
         # reset, we can reliably catch the clean stats again in BIOS
         # phase before the guest OS launches
         self.vm.add_args("-boot", "menu=on")
-        self.vm.add_args("-machine", "q35,accel=kvm:tcg")
+        self.vm.add_args("-accel", "kvm")
         self.vm.add_args("-device", "virtio-balloon,id=balloon")
         self.vm.add_args('-drive',
                          f'file={diskimage_path},if=none,id=drv0,snapshot=on')
