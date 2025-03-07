@@ -1,5 +1,6 @@
 common_ss.add(when: 'CONFIG_TCG', if_true: files(
   'cpu-exec-common.c',
+  'tcg-runtime.c',
 ))
 tcg_specific_ss = ss.source_set()
 tcg_specific_ss.add(files(
@@ -7,7 +8,6 @@ tcg_specific_ss.add(files(
   'cpu-exec.c',
   'tb-maint.c',
   'tcg-runtime-gvec.c',
-  'tcg-runtime.c',
   'translate-all.c',
   'translator.c',
 ))
