@@ -30,6 +30,7 @@
 #include "qemu/module.h"
 #include "hw/qdev-properties.h"
 #include "system/runstate.h"
+#include "migration/cpr.h"
 #include "migration/vmstate.h"
 #include "trace.h"
 
@@ -333,6 +334,10 @@ static void init_qxl_rom(PCIQXLDevice *d)
     uint32_t fb;
     int i, n;
 
+    if (cpr_is_incoming()) {
+        goto skip_init;
+    }
+
     memset(rom, 0, d->rom_size);
 
     rom->magic         = cpu_to_le32(QXL_ROM_MAGIC);
@@ -390,6 +395,7 @@ static void init_qxl_rom(PCIQXLDevice *d)
             sizeof(rom->client_monitors_config));
     }
 
+skip_init:
     d->shadow_rom = *rom;
     d->rom        = rom;
     d->modes      = modes;
@@ -403,6 +409,9 @@ static void init_qxl_ram(PCIQXLDevice *d)
 
     buf = d->vga.vram_ptr;
     d->ram = (QXLRam *)(buf + le32_to_cpu(d->shadow_rom.ram_header_offset));
+    if (cpr_is_incoming()) {
+        return;
+    }
     d->ram->magic       = cpu_to_le32(QXL_RAM_MAGIC);
     d->ram->int_pending = cpu_to_le32(0);
     d->ram->int_mask    = cpu_to_le32(0);
@@ -539,6 +548,10 @@ static void interface_set_compression_level(QXLInstance *sin, int level)
 
     trace_qxl_interface_set_compression_level(qxl->id, level);
     qxl->shadow_rom.compression_level = cpu_to_le32(level);
+    if (cpr_is_incoming()) {
+        assert(qxl->rom->compression_level == cpu_to_le32(level));
+        return;
+    }
     qxl->rom->compression_level = cpu_to_le32(level);
     qxl_rom_set_dirty(qxl);
 }
@@ -997,7 +1010,8 @@ static void interface_set_client_capabilities(QXLInstance *sin,
     }
 
     if (runstate_check(RUN_STATE_INMIGRATE) ||
-        runstate_check(RUN_STATE_POSTMIGRATE)) {
+        runstate_check(RUN_STATE_POSTMIGRATE) ||
+        cpr_is_incoming()) {
         return;
     }
 
@@ -1200,6 +1214,10 @@ static void qxl_reset_state(PCIQXLDevice *d)
 {
     QXLRom *rom = d->rom;
 
+    if (cpr_is_incoming()) {
+        return;
+    }
+
     qxl_check_state(d);
     d->shadow_rom.update_id = cpu_to_le32(0);
     *rom = d->shadow_rom;
@@ -1370,8 +1388,11 @@ static int qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
     memslot.virt_start = virt_start + (guest_start - pci_start);
     memslot.virt_end   = virt_start + (guest_end   - pci_start);
     memslot.addr_delta = memslot.virt_start - delta;
-    memslot.generation = d->rom->slot_generation = 0;
-    qxl_rom_set_dirty(d);
+    if (!cpr_is_incoming()) {
+        d->rom->slot_generation = 0;
+        qxl_rom_set_dirty(d);
+    }
+    memslot.generation = d->rom->slot_generation;
 
     qemu_spice_add_memslot(&d->ssd, &memslot, async);
     d->guest_slots[slot_id].mr = mr;
