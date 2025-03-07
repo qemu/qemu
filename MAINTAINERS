@@ -534,6 +534,14 @@ S: Supported
 F: target/i386/whpx/
 F: include/system/whpx.h
 
+X86 Instruction Emulator
+M: Cameron Esfahani <dirty@apple.com>
+M: Roman Bolshakov <rbolshakov@ddn.com>
+R: Phil Dennis-Jordan <phil@philjordan.eu>
+R: Wei Liu <wei.liu@kernel.org>
+S: Maintained
+F: target/i386/emulate/
+
 Guest CPU Cores (Xen)
 ---------------------
 X86 Xen CPUs
