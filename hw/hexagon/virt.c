@@ -257,8 +257,7 @@ static void create_qtimer(HexagonVirtMachineState *vms,
     sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), errp);
 
 
-    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 0, m_cfg->qtmr_rg1);
-    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_rg0);
+    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_region);
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 0,
                        qdev_get_gpio_in(vms->l2vic, irqmap[VIRT_QTMR0]));
     sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), 1,
@@ -354,6 +353,7 @@ static void virt_init(MachineState *ms)
                              m_cfg->cfgtable.ext_contexts);
         qdev_prop_set_uint32(DEVICE(cpu), "config-table-addr", m_cfg->cfgbase);
         qdev_prop_set_uint32(DEVICE(cpu), "l2vic-base-addr", m_cfg->l2vic_base);
+        qdev_prop_set_uint32(DEVICE(cpu), "qtimer-base-addr", m_cfg->qtmr_region);
         qdev_prop_set_uint32(DEVICE(cpu), "jtlb-entries",
                              m_cfg->cfgtable.jtlb_size_entries);
 

@@ -143,8 +143,7 @@ typedef struct {
     uint32_t l2vic_size;
     /* QTimer csr base */
     uint32_t csr_base;
-    uint32_t qtmr_rg0;
-    uint32_t qtmr_rg1;
+    uint32_t qtmr_region;
     hexagon_config_table cfgtable;
 } hexagon_machine_config;
 
