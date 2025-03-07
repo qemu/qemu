@@ -25,3 +25,8 @@ void acpi_table_add(const QemuOpts *opts, Error **errp)
 {
     g_assert_not_reached();
 }
+
+bool acpi_builtin(void)
+{
+    return false;
+}
