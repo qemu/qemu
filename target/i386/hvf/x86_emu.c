@@ -1231,6 +1231,8 @@ static struct cmd_handler {
 
 static struct cmd_handler _cmd_handler[X86_DECODE_CMD_LAST];
 
+const struct x86_emul_ops *emul_ops;
+
 static void init_cmd_handler(void)
 {
     int i;
@@ -1253,7 +1255,8 @@ bool exec_instruction(CPUX86State *env, struct x86_decode *ins)
     return true;
 }
 
-void init_emu(void)
+void init_emu(const struct x86_emul_ops *o)
 {
+    emul_ops = o;
     init_cmd_handler();
 }
