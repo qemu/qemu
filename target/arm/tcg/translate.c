@@ -4941,7 +4941,7 @@ static TCGv_i32 op_addr_rr_pre(DisasContext *s, arg_ldst_rr *a)
 }
 
 static void op_addr_rr_post(DisasContext *s, arg_ldst_rr *a,
-                            TCGv_i32 addr, int address_offset)
+                            TCGv_i32 addr)
 {
     if (!a->p) {
         TCGv_i32 ofs = load_reg(s, a->rm);
@@ -4954,7 +4954,6 @@ static void op_addr_rr_post(DisasContext *s, arg_ldst_rr *a,
     } else if (!a->w) {
         return;
     }
-    tcg_gen_addi_i32(addr, addr, address_offset);
     store_reg(s, a->rn, addr);
 }
 
@@ -4974,7 +4973,7 @@ static bool op_load_rr(DisasContext *s, arg_ldst_rr *a,
      * Perform base writeback before the loaded value to
      * ensure correct behavior with overlapping index registers.
      */
-    op_addr_rr_post(s, a, addr, 0);
+    op_addr_rr_post(s, a, addr);
     store_reg_from_load(s, a->rt, tmp);
     return true;
 }
@@ -4999,7 +4998,7 @@ static bool op_store_rr(DisasContext *s, arg_ldst_rr *a,
     gen_aa32_st_i32(s, tmp, addr, mem_idx, mop);
     disas_set_da_iss(s, mop, issinfo);
 
-    op_addr_rr_post(s, a, addr, 0);
+    op_addr_rr_post(s, a, addr);
     return true;
 }
 
@@ -5059,7 +5058,7 @@ static bool trans_LDRD_rr(DisasContext *s, arg_ldst_rr *a)
     do_ldrd_load(s, addr, a->rt, a->rt + 1);
 
     /* LDRD w/ base writeback is undefined if the registers overlap.  */
-    op_addr_rr_post(s, a, addr, 0);
+    op_addr_rr_post(s, a, addr);
     return true;
 }
 
@@ -5111,7 +5110,7 @@ static bool trans_STRD_rr(DisasContext *s, arg_ldst_rr *a)
 
     do_strd_store(s, addr, a->rt, a->rt + 1);
 
-    op_addr_rr_post(s, a, addr, 0);
+    op_addr_rr_post(s, a, addr);
     return true;
 }
 
@@ -5147,13 +5146,14 @@ static TCGv_i32 op_addr_ri_pre(DisasContext *s, arg_ldst_ri *a)
 }
 
 static void op_addr_ri_post(DisasContext *s, arg_ldst_ri *a,
-                            TCGv_i32 addr, int address_offset)
+                            TCGv_i32 addr)
 {
+    int address_offset = 0;
     if (!a->p) {
         if (a->u) {
-            address_offset += a->imm;
+            address_offset = a->imm;
         } else {
-            address_offset -= a->imm;
+            address_offset = -a->imm;
         }
     } else if (!a->w) {
         return;
@@ -5178,7 +5178,7 @@ static bool op_load_ri(DisasContext *s, arg_ldst_ri *a,
      * Perform base writeback before the loaded value to
      * ensure correct behavior with overlapping index registers.
      */
-    op_addr_ri_post(s, a, addr, 0);
+    op_addr_ri_post(s, a, addr);
     store_reg_from_load(s, a->rt, tmp);
     return true;
 }
@@ -5203,7 +5203,7 @@ static bool op_store_ri(DisasContext *s, arg_ldst_ri *a,
     gen_aa32_st_i32(s, tmp, addr, mem_idx, mop);
     disas_set_da_iss(s, mop, issinfo);
 
-    op_addr_ri_post(s, a, addr, 0);
+    op_addr_ri_post(s, a, addr);
     return true;
 }
 
@@ -5216,7 +5216,7 @@ static bool op_ldrd_ri(DisasContext *s, arg_ldst_ri *a, int rt2)
     do_ldrd_load(s, addr, a->rt, rt2);
 
     /* LDRD w/ base writeback is undefined if the registers overlap.  */
-    op_addr_ri_post(s, a, addr, 0);
+    op_addr_ri_post(s, a, addr);
     return true;
 }
 
@@ -5245,7 +5245,7 @@ static bool op_strd_ri(DisasContext *s, arg_ldst_ri *a, int rt2)
 
     do_strd_store(s, addr, a->rt, rt2);
 
-    op_addr_ri_post(s, a, addr, 0);
+    op_addr_ri_post(s, a, addr);
     return true;
 }
 
