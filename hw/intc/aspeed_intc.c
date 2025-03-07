@@ -120,13 +120,6 @@ static uint64_t aspeed_intc_read(void *opaque, hwaddr offset, unsigned int size)
     uint32_t reg = offset >> 2;
     uint32_t value = 0;
 
-    if (reg >= ASPEED_INTC_NR_REGS) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Out-of-bounds read at offset 0x%" HWADDR_PRIx "\n",
-                      __func__, offset);
-        return 0;
-    }
-
     value = s->regs[reg];
     trace_aspeed_intc_read(offset, size, value);
 
@@ -142,13 +135,6 @@ static void aspeed_intc_write(void *opaque, hwaddr offset, uint64_t data,
     uint32_t old_enable;
     uint32_t change;
     uint32_t irq;
-
-    if (reg >= ASPEED_INTC_NR_REGS) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Out-of-bounds write at offset 0x%" HWADDR_PRIx "\n",
-                      __func__, offset);
-        return;
-    }
 
     trace_aspeed_intc_write(offset, size, data);
 
@@ -288,8 +274,9 @@ static void aspeed_intc_instance_init(Object *obj)
 static void aspeed_intc_reset(DeviceState *dev)
 {
     AspeedINTCState *s = ASPEED_INTC(dev);
+    AspeedINTCClass *aic = ASPEED_INTC_GET_CLASS(s);
 
-    memset(s->regs, 0, ASPEED_INTC_NR_REGS << 2);
+    memset(s->regs, 0, aic->nr_regs << 2);
     memset(s->enable, 0, sizeof(s->enable));
     memset(s->mask, 0, sizeof(s->mask));
     memset(s->pending, 0, sizeof(s->pending));
@@ -307,9 +294,9 @@ static void aspeed_intc_realize(DeviceState *dev, Error **errp)
 
     sysbus_init_mmio(sbd, &s->iomem_container);
 
-    s->regs = g_new(uint32_t, ASPEED_INTC_NR_REGS);
+    s->regs = g_new(uint32_t, aic->nr_regs);
     memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_intc_ops, s,
-                          TYPE_ASPEED_INTC ".regs", ASPEED_INTC_NR_REGS << 2);
+                          TYPE_ASPEED_INTC ".regs", aic->nr_regs << 2);
 
     memory_region_add_subregion(&s->iomem_container, 0x0, &s->iomem);
 
@@ -361,6 +348,7 @@ static void aspeed_2700_intc_class_init(ObjectClass *klass, void *data)
     aic->num_lines = 32;
     aic->num_ints = 9;
     aic->mem_size = 0x4000;
+    aic->nr_regs = 0x2000 >> 2;
 }
 
 static const TypeInfo aspeed_2700_intc_info = {
