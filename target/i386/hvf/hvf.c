@@ -168,7 +168,7 @@ void hvf_arch_vcpu_destroy(CPUState *cpu)
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
 
-    g_free(env->hvf_mmio_buf);
+    g_free(env->emu_mmio_buf);
 }
 
 static void init_tsc_freq(CPUX86State *env)
@@ -262,7 +262,7 @@ int hvf_arch_init_vcpu(CPUState *cpu)
     if (hvf_state->hvf_caps == NULL) {
         hvf_state->hvf_caps = g_new0(struct hvf_vcpu_caps, 1);
     }
-    env->hvf_mmio_buf = g_new(char, 4096);
+    env->emu_mmio_buf = g_new(char, 4096);
 
     if (x86cpu->vmware_cpuid_freq) {
         init_tsc_freq(env);
