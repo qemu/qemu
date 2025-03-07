@@ -2654,6 +2654,9 @@ static CPAccessResult gt_stimer_access(CPUARMState *env,
         if (!arm_is_secure(env)) {
             return CP_ACCESS_TRAP_UNCATEGORIZED;
         }
+        if (arm_is_el2_enabled(env)) {
+            return CP_ACCESS_UNDEFINED;
+        }
         if (!(env->cp15.scr_el3 & SCR_ST)) {
             return CP_ACCESS_TRAP_EL3;
         }
