@@ -93,6 +93,32 @@ static void loongarch_ipi_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static void loongarch_ipi_reset_hold(Object *obj, ResetType type)
+{
+    int i;
+    LoongarchIPIClass *lic = LOONGARCH_IPI_GET_CLASS(obj);
+    LoongsonIPICommonState *lics = LOONGSON_IPI_COMMON(obj);
+    IPICore *core;
+
+    if (lic->parent_phases.hold) {
+        lic->parent_phases.hold(obj, type);
+    }
+
+    for (i = 0; i < lics->num_cpu; i++) {
+        core = lics->cpu + i;
+        /* IPI with targeted CPU available however not present */
+        if (!core->cpu) {
+            continue;
+        }
+
+        core->status = 0;
+        core->en = 0;
+        core->set = 0;
+        core->clear = 0;
+        memset(core->buf, 0, sizeof(core->buf));
+    }
+}
+
 static void loongarch_ipi_cpu_plug(HotplugHandler *hotplug_dev,
                                    DeviceState *dev, Error **errp)
 {
@@ -145,10 +171,13 @@ static void loongarch_ipi_class_init(ObjectClass *klass, const void *data)
     LoongsonIPICommonClass *licc = LOONGSON_IPI_COMMON_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
     LoongarchIPIClass *lic = LOONGARCH_IPI_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     device_class_set_parent_realize(dc, loongarch_ipi_realize,
                                     &lic->parent_realize);
+    resettable_class_set_parent_phases(rc, NULL, loongarch_ipi_reset_hold,
+                                       NULL, &lic->parent_phases);
     licc->get_iocsr_as = get_iocsr_as;
     licc->cpu_by_arch_id = loongarch_cpu_by_arch_id;
     hc->plug = loongarch_ipi_cpu_plug;
