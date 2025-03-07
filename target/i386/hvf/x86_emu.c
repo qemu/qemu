@@ -179,7 +179,7 @@ void write_val_ext(CPUX86State *env, target_ulong ptr, target_ulong val, int siz
         write_val_to_reg(ptr, val, size);
         return;
     }
-    vmx_write_mem(env_cpu(env), ptr, &val, size);
+    emul_ops->write_mem(env_cpu(env), &val, ptr, size);
 }
 
 uint8_t *read_mmio(CPUX86State *env, target_ulong ptr, int bytes)
@@ -489,8 +489,8 @@ static void exec_ins_single(CPUX86State *env, struct x86_decode *decode)
 
     emul_ops->handle_io(env_cpu(env), DX(env), env->emu_mmio_buf, 0,
                         decode->operand_size, 1);
-    vmx_write_mem(env_cpu(env), addr, env->emu_mmio_buf,
-                  decode->operand_size);
+    emul_ops->write_mem(env_cpu(env), env->emu_mmio_buf, addr,
+                        decode->operand_size);
 
     string_increment_reg(env, R_EDI, decode);
 }
@@ -596,7 +596,7 @@ static void exec_stos_single(CPUX86State *env, struct x86_decode *decode)
     addr = linear_addr_size(env_cpu(env), RDI(env),
                             decode->addressing_size, R_ES);
     val = read_reg(env, R_EAX, decode->operand_size);
-    vmx_write_mem(env_cpu(env), addr, &val, decode->operand_size);
+    emul_ops->write_mem(env_cpu(env), &val, addr, decode->operand_size);
 
     string_increment_reg(env, R_EDI, decode);
 }

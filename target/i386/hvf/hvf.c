@@ -242,8 +242,14 @@ static void hvf_read_mem(CPUState *cpu, void *data, target_ulong gva, int bytes)
     vmx_read_mem(cpu, data, gva, bytes);
 }
 
+static void hvf_write_mem(CPUState *cpu, void *data, target_ulong gva, int bytes)
+{
+    vmx_write_mem(cpu, gva, data, bytes);
+}
+
 static const struct x86_emul_ops hvf_x86_emul_ops = {
     .read_mem = hvf_read_mem,
+    .write_mem = hvf_write_mem,
     .read_segment_descriptor = hvf_read_segment_descriptor,
     .handle_io = hvf_handle_io,
 };
