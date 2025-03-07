@@ -3,7 +3,6 @@ specific_ss.add(when: 'CONFIG_SYSTEM_ONLY', if_true: [files(
   'ioport.c',
   'memory.c',
   'physmem.c',
-  'watchpoint.c',
 )])
 
 system_ss.add(files(
@@ -24,6 +23,7 @@ system_ss.add(files(
   'runstate.c',
   'tpm-hmp-cmds.c',
   'vl.c',
+  'watchpoint.c',
 ), sdl, libpmem, libdaxctl)
 
 if have_tpm
