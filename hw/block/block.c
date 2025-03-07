@@ -12,6 +12,7 @@
 #include "system/blockdev.h"
 #include "system/block-backend.h"
 #include "hw/block/block.h"
+#include "migration/cpr.h"
 #include "qapi/error.h"
 #include "qapi/qapi-types-block.h"
 
@@ -65,6 +66,10 @@ bool blk_check_size_and_read_all(BlockBackend *blk, DeviceState *dev,
     int64_t blk_len;
     int ret;
     g_autofree char *dev_id = NULL;
+
+    if (cpr_is_incoming()) {
+        return true;
+    }
 
     blk_len = blk_getlength(blk);
     if (blk_len < 0) {
