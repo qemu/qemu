@@ -42,6 +42,7 @@ struct AspeedINTCClass {
     uint32_t num_ints;
     uint64_t mem_size;
     uint64_t nr_regs;
+    uint64_t reg_offset;
 };
 
 #endif /* ASPEED_INTC_H */
