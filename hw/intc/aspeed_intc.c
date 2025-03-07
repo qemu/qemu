@@ -42,6 +42,26 @@ REG32(GICINT136_STATUS,     0x804)
 REG32(GICINT192_201_EN,         0xB00)
 REG32(GICINT192_201_STATUS,     0xB04)
 
+/*
+ * INTCIO Registers
+ *
+ * values below are offset by - 0x100 from datasheet
+ * because its memory region is start at 0x100
+ *
+ */
+REG32(GICINT192_EN,         0x00)
+REG32(GICINT192_STATUS,     0x04)
+REG32(GICINT193_EN,         0x10)
+REG32(GICINT193_STATUS,     0x14)
+REG32(GICINT194_EN,         0x20)
+REG32(GICINT194_STATUS,     0x24)
+REG32(GICINT195_EN,         0x30)
+REG32(GICINT195_STATUS,     0x34)
+REG32(GICINT196_EN,         0x40)
+REG32(GICINT196_STATUS,     0x44)
+REG32(GICINT197_EN,         0x50)
+REG32(GICINT197_STATUS,     0x54)
+
 static const AspeedINTCIRQ *aspeed_intc_get_irq(AspeedINTCClass *aic,
                                                 uint32_t reg)
 {
@@ -432,9 +452,68 @@ static void aspeed_intc_write(void *opaque, hwaddr offset, uint64_t data,
     return;
 }
 
+static uint64_t aspeed_intcio_read(void *opaque, hwaddr offset,
+                                   unsigned int size)
+{
+    AspeedINTCState *s = ASPEED_INTC(opaque);
+    const char *name = object_get_typename(OBJECT(s));
+    uint32_t reg = offset >> 2;
+    uint32_t value = 0;
+
+    value = s->regs[reg];
+    trace_aspeed_intc_read(name, offset, size, value);
+
+    return value;
+}
+
+static void aspeed_intcio_write(void *opaque, hwaddr offset, uint64_t data,
+                                unsigned size)
+{
+    AspeedINTCState *s = ASPEED_INTC(opaque);
+    const char *name = object_get_typename(OBJECT(s));
+    uint32_t reg = offset >> 2;
+
+    trace_aspeed_intc_write(name, offset, size, data);
+
+    switch (reg) {
+    case R_GICINT192_EN:
+    case R_GICINT193_EN:
+    case R_GICINT194_EN:
+    case R_GICINT195_EN:
+    case R_GICINT196_EN:
+    case R_GICINT197_EN:
+        aspeed_intc_enable_handler(s, offset, data);
+        break;
+    case R_GICINT192_STATUS:
+    case R_GICINT193_STATUS:
+    case R_GICINT194_STATUS:
+    case R_GICINT195_STATUS:
+    case R_GICINT196_STATUS:
+    case R_GICINT197_STATUS:
+        aspeed_intc_status_handler(s, offset, data);
+        break;
+    default:
+        s->regs[reg] = data;
+        break;
+    }
+
+    return;
+}
+
+
 static const MemoryRegionOps aspeed_intc_ops = {
     .read = aspeed_intc_read,
     .write = aspeed_intc_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    }
+};
+
+static const MemoryRegionOps aspeed_intcio_ops = {
+    .read = aspeed_intcio_read,
+    .write = aspeed_intcio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -567,10 +646,43 @@ static const TypeInfo aspeed_2700_intc_info = {
     .class_init = aspeed_2700_intc_class_init,
 };
 
+static AspeedINTCIRQ aspeed_2700_intcio_irqs[ASPEED_INTC_MAX_INPINS] = {
+    {0, 0, 1, R_GICINT192_EN, R_GICINT192_STATUS},
+    {1, 1, 1, R_GICINT193_EN, R_GICINT193_STATUS},
+    {2, 2, 1, R_GICINT194_EN, R_GICINT194_STATUS},
+    {3, 3, 1, R_GICINT195_EN, R_GICINT195_STATUS},
+    {4, 4, 1, R_GICINT196_EN, R_GICINT196_STATUS},
+    {5, 5, 1, R_GICINT197_EN, R_GICINT197_STATUS},
+};
+
+static void aspeed_2700_intcio_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedINTCClass *aic = ASPEED_INTC_CLASS(klass);
+
+    dc->desc = "ASPEED 2700 INTC IO Controller";
+    aic->num_lines = 32;
+    aic->num_inpins = 6;
+    aic->num_outpins = 6;
+    aic->mem_size = 0x400;
+    aic->nr_regs = 0x58 >> 2;
+    aic->reg_offset = 0x100;
+    aic->reg_ops = &aspeed_intcio_ops;
+    aic->irq_table = aspeed_2700_intcio_irqs;
+    aic->irq_table_count = ARRAY_SIZE(aspeed_2700_intcio_irqs);
+}
+
+static const TypeInfo aspeed_2700_intcio_info = {
+    .name = TYPE_ASPEED_2700_INTCIO,
+    .parent = TYPE_ASPEED_INTC,
+    .class_init = aspeed_2700_intcio_class_init,
+};
+
 static void aspeed_intc_register_types(void)
 {
     type_register_static(&aspeed_intc_info);
     type_register_static(&aspeed_2700_intc_info);
+    type_register_static(&aspeed_2700_intcio_info);
 }
 
 type_init(aspeed_intc_register_types);
