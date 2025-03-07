@@ -19,11 +19,10 @@
 
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
-#include "qemu/error-report.h"
-#include "exec/exec-all.h"
+#include "exec/breakpoint.h"
+#include "exec/cpu-interrupt.h"
 #include "exec/page-protection.h"
 #include "exec/translation-block.h"
-#include "tb-internal.h"
 #include "system/tcg.h"
 #include "system/replay.h"
 #include "accel/tcg/cpu-ops.h"

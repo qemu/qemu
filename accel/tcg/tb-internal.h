@@ -75,6 +75,4 @@ void tb_invalidate_phys_range_fast(ram_addr_t ram_addr,
 
 bool tb_invalidate_phys_page_unwind(tb_page_addr_t addr, uintptr_t pc);
 
-void tb_check_watchpoint(CPUState *cpu, uintptr_t retaddr);
-
 #endif
