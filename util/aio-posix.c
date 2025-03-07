@@ -579,13 +579,19 @@ static bool run_poll_handlers(AioContext *ctx, AioHandlerList *ready_list,
 static bool try_poll_mode(AioContext *ctx, AioHandlerList *ready_list,
                           int64_t *timeout)
 {
+    AioHandler *node;
     int64_t max_ns;
 
     if (QLIST_EMPTY_RCU(&ctx->poll_aio_handlers)) {
         return false;
     }
 
-    max_ns = qemu_soonest_timeout(*timeout, ctx->poll.ns);
+    max_ns = 0;
+    QLIST_FOREACH(node, &ctx->poll_aio_handlers, node_poll) {
+        max_ns = MAX(max_ns, node->poll.ns);
+    }
+    max_ns = qemu_soonest_timeout(*timeout, max_ns);
+
     if (max_ns && !ctx->fdmon_ops->need_wait(ctx)) {
         /*
          * Enable poll mode. It pairs with the poll_set_started() in
@@ -721,8 +727,14 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
     /* Adjust polling time */
     if (ctx->poll_max_ns) {
+        AioHandler *node;
         int64_t block_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - start;
-        adjust_polling_time(ctx, &ctx->poll, block_ns);
+
+        QLIST_FOREACH(node, &ctx->poll_aio_handlers, node_poll) {
+            if (QLIST_IS_INSERTED(node, node_ready)) {
+                adjust_polling_time(ctx, &node->poll, block_ns);
+            }
+        }
     }
 
     progress |= aio_bh_poll(ctx);
@@ -772,11 +784,17 @@ void aio_context_use_g_source(AioContext *ctx)
 void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,
                                  int64_t grow, int64_t shrink, Error **errp)
 {
+    AioHandler *node;
+
+    qemu_lockcnt_inc(&ctx->list_lock);
+    QLIST_FOREACH(node, &ctx->aio_handlers, node) {
+        node->poll.ns = 0;
+    }
+    qemu_lockcnt_dec(&ctx->list_lock);
+
     /* No thread synchronization here, it doesn't matter if an incorrect value
      * is used once.
      */
-    ctx->poll.ns = 0;
-
     ctx->poll_max_ns = max_ns;
     ctx->poll_grow = grow;
     ctx->poll_shrink = shrink;
