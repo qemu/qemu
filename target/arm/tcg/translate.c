@@ -6648,10 +6648,42 @@ static bool trans_LDRD_rr(DisasContext *s, arg_ldst_rr *a)
     return true;
 }
 
+static void do_strd_store(DisasContext *s, TCGv_i32 addr, int rt, int rt2)
+{
+    /*
+     * STRD is required to be an atomic 64-bit access if the
+     * address is 8-aligned, two atomic 32-bit accesses if
+     * it's only 4-aligned, and to give an alignment fault
+     * if it's not 4-aligned.
+     * Rt is always the word from the lower address, and Rt2 the
+     * data from the higher address, regardless of endianness.
+     * So (like gen_store_exclusive) we avoid gen_aa32_ld_i64()
+     * so we don't get its SCTLR_B check, and instead do a 64-bit access
+     * using MO_BE if appropriate, using a value constructed
+     * by putting the two halves together in the right order.
+     *
+     * As with LDRD, the 64-bit atomicity is not required for
+     * M-profile, or for A-profile before LPAE, and we provide
+     * the higher guarantee always for simplicity.
+     */
+    int mem_idx = get_mem_index(s);
+    MemOp opc = MO_64 | MO_ALIGN_4 | MO_ATOM_SUBALIGN | s->be_data;
+    TCGv taddr = gen_aa32_addr(s, addr, opc);
+    TCGv_i32 t1 = load_reg(s, rt);
+    TCGv_i32 t2 = load_reg(s, rt2);
+    TCGv_i64 t64 = tcg_temp_new_i64();
+
+    if (s->be_data == MO_BE) {
+        tcg_gen_concat_i32_i64(t64, t2, t1);
+    } else {
+        tcg_gen_concat_i32_i64(t64, t1, t2);
+    }
+    tcg_gen_qemu_st_i64(t64, taddr, mem_idx, opc);
+}
+
 static bool trans_STRD_rr(DisasContext *s, arg_ldst_rr *a)
 {
-    int mem_idx = get_mem_index(s);
-    TCGv_i32 addr, tmp;
+    TCGv_i32 addr;
 
     if (!ENABLE_ARCH_5TE) {
         return false;
@@ -6662,15 +6694,9 @@ static bool trans_STRD_rr(DisasContext *s, arg_ldst_rr *a)
     }
     addr = op_addr_rr_pre(s, a);
 
-    tmp = load_reg(s, a->rt);
-    gen_aa32_st_i32(s, tmp, addr, mem_idx, MO_UL | MO_ALIGN);
+    do_strd_store(s, addr, a->rt, a->rt + 1);
 
-    tcg_gen_addi_i32(addr, addr, 4);
-
-    tmp = load_reg(s, a->rt + 1);
-    gen_aa32_st_i32(s, tmp, addr, mem_idx, MO_UL | MO_ALIGN);
-
-    op_addr_rr_post(s, a, addr, -4);
+    op_addr_rr_post(s, a, addr, 0);
     return true;
 }
 
@@ -6798,20 +6824,13 @@ static bool trans_LDRD_ri_t32(DisasContext *s, arg_ldst_ri2 *a)
 
 static bool op_strd_ri(DisasContext *s, arg_ldst_ri *a, int rt2)
 {
-    int mem_idx = get_mem_index(s);
-    TCGv_i32 addr, tmp;
+    TCGv_i32 addr;
 
     addr = op_addr_ri_pre(s, a);
 
-    tmp = load_reg(s, a->rt);
-    gen_aa32_st_i32(s, tmp, addr, mem_idx, MO_UL | MO_ALIGN);
+    do_strd_store(s, addr, a->rt, rt2);
 
-    tcg_gen_addi_i32(addr, addr, 4);
-
-    tmp = load_reg(s, rt2);
-    gen_aa32_st_i32(s, tmp, addr, mem_idx, MO_UL | MO_ALIGN);
-
-    op_addr_ri_post(s, a, addr, -4);
+    op_addr_ri_post(s, a, addr, 0);
     return true;
 }
 
