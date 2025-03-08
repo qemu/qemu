@@ -10,11 +10,7 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-import hashlib
-import urllib.request
-
 from qemu_test import LinuxKernelTest, Asset, exec_command_and_wait_for_pattern
-from qemu_test.utils import get_usernet_hostfwd_port
 
 
 class IntelIOMMU(LinuxKernelTest):
@@ -125,23 +121,7 @@ class IntelIOMMU(LinuxKernelTest):
 
         # Check virtio-net via HTTP:
         exec_command_and_wait_for_pattern(self, 'dhclient eth0', prompt)
-        exec_command_and_wait_for_pattern(self,
-                        f'python3 -m http.server {self.GUEST_PORT} & sleep 1',
-                        f'Serving HTTP on 0.0.0.0 port {self.GUEST_PORT}')
-        hl = hashlib.sha256()
-        hostport = get_usernet_hostfwd_port(self.vm)
-        url = f'http://localhost:{hostport}{filename}'
-        self.log.info(f'Downloading {url} ...')
-        with urllib.request.urlopen(url) as response:
-            while True:
-                chunk = response.read(1 << 20)
-                if not chunk:
-                    break
-                hl.update(chunk)
-
-        digest = hl.hexdigest()
-        self.log.info(f'sha256sum of download is {digest}.')
-        self.assertEqual(digest, hashsum)
+        self.check_http_download(filename, hashsum, self.GUEST_PORT)
 
     def test_intel_iommu(self):
         self.common_vm_setup()

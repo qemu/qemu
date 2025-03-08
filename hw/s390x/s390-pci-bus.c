@@ -18,6 +18,8 @@
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/s390x/s390-pci-kvm.h"
 #include "hw/s390x/s390-pci-vfio.h"
+#include "hw/s390x/s390-virtio-ccw.h"
+#include "hw/boards.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/qdev-properties.h"
 #include "hw/pci/pci_bridge.h"
@@ -724,12 +726,42 @@ void s390_pci_iommu_enable(S390PCIIOMMU *iommu)
     g_free(name);
 }
 
+void s390_pci_iommu_direct_map_enable(S390PCIIOMMU *iommu)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+    S390CcwMachineState *s390ms = S390_CCW_MACHINE(ms);
+
+    /*
+     * For direct-mapping we must map the entire guest address space.  Rather
+     * than using an iommu, create a memory region alias that maps GPA X to
+     * IOVA X + SDMA.  VFIO will handle pinning via its memory listener.
+     */
+    g_autofree char *name = g_strdup_printf("iommu-dm-s390-%04x",
+                                            iommu->pbdev->uid);
+
+    iommu->dm_mr = g_malloc0(sizeof(*iommu->dm_mr));
+    memory_region_init_alias(iommu->dm_mr, OBJECT(&iommu->mr), name,
+                             get_system_memory(), 0,
+                             s390_get_memory_limit(s390ms));
+    iommu->enabled = true;
+    memory_region_add_subregion(&iommu->mr, iommu->pbdev->zpci_fn.sdma,
+                                iommu->dm_mr);
+}
+
 void s390_pci_iommu_disable(S390PCIIOMMU *iommu)
 {
     iommu->enabled = false;
     g_hash_table_remove_all(iommu->iotlb);
-    memory_region_del_subregion(&iommu->mr, MEMORY_REGION(&iommu->iommu_mr));
-    object_unparent(OBJECT(&iommu->iommu_mr));
+    if (iommu->dm_mr) {
+        memory_region_del_subregion(&iommu->mr, iommu->dm_mr);
+        object_unparent(OBJECT(iommu->dm_mr));
+        g_free(iommu->dm_mr);
+        iommu->dm_mr = NULL;
+    } else {
+        memory_region_del_subregion(&iommu->mr,
+                                    MEMORY_REGION(&iommu->iommu_mr));
+        object_unparent(OBJECT(&iommu->iommu_mr));
+    }
 }
 
 static void s390_pci_iommu_free(S390pciState *s, PCIBus *bus, int32_t devfn)
@@ -1145,6 +1177,7 @@ static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
             /* Always intercept emulated devices */
             pbdev->interp = false;
             pbdev->forwarding_assist = false;
+            pbdev->rtr_avail = false;
         }
 
         if (s390_pci_msix_init(pbdev) && !pbdev->interp) {
@@ -1510,6 +1543,8 @@ static const Property s390_pci_device_properties[] = {
     DEFINE_PROP_STRING("target", S390PCIBusDevice, target),
     DEFINE_PROP_BOOL("interpret", S390PCIBusDevice, interp, true),
     DEFINE_PROP_BOOL("forwarding-assist", S390PCIBusDevice, forwarding_assist,
+                     true),
+    DEFINE_PROP_BOOL("relaxed-translation", S390PCIBusDevice, rtr_avail,
                      true),
 };
 

@@ -64,7 +64,7 @@ class TuxRunPPC64Test(TuxRunBaselineTest):
                          ',"index":1,"id":"pci.1"}')
         self.vm.add_args('-device', '{"driver":"spapr-vscsi","id":"scsi1"'
                          ',"reg":12288}')
-        self.vm.add_args('-m', '2G,slots=32,maxmem=4G',
+        self.vm.add_args('-m', '1G,slots=32,maxmem=2G',
                          '-object', 'memory-backend-ram,id=ram1,size=1G',
                          '-device', 'pc-dimm,id=dimm1,memdev=ram1')
 

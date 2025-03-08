@@ -13,7 +13,7 @@ import os
 import stat
 import shutil
 from urllib.parse import urlparse
-from subprocess import check_call, CalledProcessError
+from subprocess import run, CalledProcessError, DEVNULL
 
 from .asset import Asset
 
@@ -46,8 +46,8 @@ def zstd_uncompress(zstd_path, output_path):
         return
 
     try:
-        check_call(['zstd', "-f", "-d", zstd_path,
-                    "-o", output_path])
+        run(['zstd', "-f", "-d", zstd_path,
+             "-o", output_path], capture_output=True, check=True)
     except CalledProcessError as e:
         os.remove(output_path)
         raise Exception(
