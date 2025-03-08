@@ -28,6 +28,7 @@
 #include "exec/translation-block.h"
 
 #if defined(CONFIG_TCG)
+#include "accel/tcg/getpc.h"
 
 /**
  * probe_access:
@@ -176,15 +177,6 @@ static inline void tb_set_page_addr1(TranslationBlock *tb,
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
 void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t last);
 void tb_set_jmp_target(TranslationBlock *tb, int n, uintptr_t addr);
-
-/* GETPC is the true target of the return instruction that we'll execute.  */
-#if defined(CONFIG_TCG_INTERPRETER)
-extern __thread uintptr_t tci_tb_ptr;
-# define GETPC() tci_tb_ptr
-#else
-# define GETPC() \
-    ((uintptr_t)__builtin_extract_return_addr(__builtin_return_address(0)))
-#endif
 
 #if !defined(CONFIG_USER_ONLY)
 
