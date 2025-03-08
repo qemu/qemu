@@ -2010,6 +2010,7 @@ S: Maintained
 F: hw/*/omap*
 F: include/hw/arm/omap.h
 F: docs/system/arm/sx1.rst
+F: tests/functional/test_arm_sx1.py
 
 IPack
 M: Alberto Garcia <berto@igalia.com>

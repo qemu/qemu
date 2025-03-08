@@ -88,7 +88,7 @@ void rx_cpu_do_interrupt(CPUState *cs)
         cpu_stl_data(env, env->isp, env->pc);
 
         if (vec < 0x100) {
-            env->pc = cpu_ldl_data(env, 0xffffffc0 + vec * 4);
+            env->pc = cpu_ldl_data(env, 0xffffff80 + vec * 4);
         } else {
             env->pc = cpu_ldl_data(env, env->intb + (vec & 0xff) * 4);
         }

@@ -43,7 +43,8 @@ class SX1Test(LinuxKernelTest):
         self.vm.add_args('-append', f'kunit.enable=0 rdinit=/sbin/init {self.CONSOLE_ARGS}')
         self.vm.add_args('-no-reboot')
         self.launch_kernel(zimage_path,
-                           initrd=initrd_path)
+                           initrd=initrd_path,
+                           wait_for='Boot successful')
         self.vm.wait(timeout=120)
 
     def test_arm_sx1_sd(self):
@@ -54,7 +55,7 @@ class SX1Test(LinuxKernelTest):
         self.vm.add_args('-no-reboot')
         self.vm.add_args('-snapshot')
         self.vm.add_args('-drive', f'format=raw,if=sd,file={sd_fs_path}')
-        self.launch_kernel(zimage_path)
+        self.launch_kernel(zimage_path, wait_for='Boot successful')
         self.vm.wait(timeout=120)
 
     def test_arm_sx1_flash(self):
@@ -65,7 +66,7 @@ class SX1Test(LinuxKernelTest):
         self.vm.add_args('-no-reboot')
         self.vm.add_args('-snapshot')
         self.vm.add_args('-drive', f'format=raw,if=pflash,file={flash_path}')
-        self.launch_kernel(zimage_path)
+        self.launch_kernel(zimage_path, wait_for='Boot successful')
         self.vm.wait(timeout=120)
 
 if __name__ == '__main__':
