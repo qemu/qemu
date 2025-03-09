@@ -21,6 +21,7 @@
 
 #include "exec/page-protection.h"
 #include "exec/cpu-common.h"
+#include "exec/cpu-interrupt.h"
 #include "exec/memory.h"
 #include "exec/tswap.h"
 #include "hw/core/cpu.h"
@@ -105,80 +106,9 @@ static inline void stl_phys_notdirty(AddressSpace *as, hwaddr addr, uint32_t val
 
 /* page related stuff */
 #include "exec/cpu-defs.h"
-#ifdef TARGET_PAGE_BITS_VARY
-# include "exec/page-vary.h"
-extern const TargetPageBits target_page;
-# ifdef CONFIG_DEBUG_TCG
-#  define TARGET_PAGE_BITS   ({ assert(target_page.decided); \
-                                target_page.bits; })
-#  define TARGET_PAGE_MASK   ({ assert(target_page.decided); \
-                                (target_long)target_page.mask; })
-# else
-#  define TARGET_PAGE_BITS   target_page.bits
-#  define TARGET_PAGE_MASK   ((target_long)target_page.mask)
-# endif
-# define TARGET_PAGE_SIZE    (-(int)TARGET_PAGE_MASK)
-#else
-# define TARGET_PAGE_BITS_MIN TARGET_PAGE_BITS
-# define TARGET_PAGE_SIZE    (1 << TARGET_PAGE_BITS)
-# define TARGET_PAGE_MASK    ((target_long)-1 << TARGET_PAGE_BITS)
-#endif
-
-#define TARGET_PAGE_ALIGN(addr) ROUND_UP((addr), TARGET_PAGE_SIZE)
+#include "exec/target_page.h"
 
 CPUArchState *cpu_copy(CPUArchState *env);
-
-/* Flags for use in ENV->INTERRUPT_PENDING.
-
-   The numbers assigned here are non-sequential in order to preserve
-   binary compatibility with the vmstate dump.  Bit 0 (0x0001) was
-   previously used for CPU_INTERRUPT_EXIT, and is cleared when loading
-   the vmstate dump.  */
-
-/* External hardware interrupt pending.  This is typically used for
-   interrupts from devices.  */
-#define CPU_INTERRUPT_HARD        0x0002
-
-/* Exit the current TB.  This is typically used when some system-level device
-   makes some change to the memory mapping.  E.g. the a20 line change.  */
-#define CPU_INTERRUPT_EXITTB      0x0004
-
-/* Halt the CPU.  */
-#define CPU_INTERRUPT_HALT        0x0020
-
-/* Debug event pending.  */
-#define CPU_INTERRUPT_DEBUG       0x0080
-
-/* Reset signal.  */
-#define CPU_INTERRUPT_RESET       0x0400
-
-/* Several target-specific external hardware interrupts.  Each target/cpu.h
-   should define proper names based on these defines.  */
-#define CPU_INTERRUPT_TGT_EXT_0   0x0008
-#define CPU_INTERRUPT_TGT_EXT_1   0x0010
-#define CPU_INTERRUPT_TGT_EXT_2   0x0040
-#define CPU_INTERRUPT_TGT_EXT_3   0x0200
-#define CPU_INTERRUPT_TGT_EXT_4   0x1000
-
-/* Several target-specific internal interrupts.  These differ from the
-   preceding target-specific interrupts in that they are intended to
-   originate from within the cpu itself, typically in response to some
-   instruction being executed.  These, therefore, are not masked while
-   single-stepping within the debugger.  */
-#define CPU_INTERRUPT_TGT_INT_0   0x0100
-#define CPU_INTERRUPT_TGT_INT_1   0x0800
-#define CPU_INTERRUPT_TGT_INT_2   0x2000
-
-/* First unused bit: 0x4000.  */
-
-/* The set of all bits that should be masked when single-stepping.  */
-#define CPU_INTERRUPT_SSTEP_MASK \
-    (CPU_INTERRUPT_HARD          \
-     | CPU_INTERRUPT_TGT_EXT_0   \
-     | CPU_INTERRUPT_TGT_EXT_1   \
-     | CPU_INTERRUPT_TGT_EXT_2   \
-     | CPU_INTERRUPT_TGT_EXT_3   \
-     | CPU_INTERRUPT_TGT_EXT_4)
 
 #include "cpu.h"
 
@@ -248,29 +178,6 @@ static inline int cpu_mmu_index(CPUState *cs, bool ifetch)
 
 /* The two sets of flags must not overlap. */
 QEMU_BUILD_BUG_ON(TLB_FLAGS_MASK & TLB_SLOW_FLAGS_MASK);
-
-/**
- * tlb_hit_page: return true if page aligned @addr is a hit against the
- * TLB entry @tlb_addr
- *
- * @addr: virtual address to test (must be page aligned)
- * @tlb_addr: TLB entry address (a CPUTLBEntry addr_read/write/code value)
- */
-static inline bool tlb_hit_page(uint64_t tlb_addr, vaddr addr)
-{
-    return addr == (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK));
-}
-
-/**
- * tlb_hit: return true if @addr is a hit against the TLB entry @tlb_addr
- *
- * @addr: virtual address to test (need not be page aligned)
- * @tlb_addr: TLB entry address (a CPUTLBEntry addr_read/write/code value)
- */
-static inline bool tlb_hit(uint64_t tlb_addr, vaddr addr)
-{
-    return tlb_hit_page(tlb_addr, addr & TARGET_PAGE_MASK);
-}
 
 #endif /* !CONFIG_USER_ONLY */
 

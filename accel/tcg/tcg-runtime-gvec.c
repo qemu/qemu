@@ -19,7 +19,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/host-utils.h"
-#include "cpu.h"
 #include "exec/helper-proto-common.h"
 #include "tcg/tcg-gvec-desc.h"
 

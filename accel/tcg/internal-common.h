@@ -72,4 +72,6 @@ void tcg_exec_unrealizefn(CPUState *cpu);
 /* current cflags for hashing/comparison */
 uint32_t curr_cflags(CPUState *cpu);
 
+void tb_check_watchpoint(CPUState *cpu, uintptr_t retaddr);
+
 #endif

@@ -25,6 +25,7 @@
 #include "pmu.h"
 #include "time_helper.h"
 #include "exec/exec-all.h"
+#include "exec/cputlb.h"
 #include "exec/tb-flush.h"
 #include "system/cpu-timers.h"
 #include "qemu/guest-random.h"

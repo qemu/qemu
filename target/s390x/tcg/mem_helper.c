@@ -26,6 +26,7 @@
 #include "exec/helper-proto.h"
 #include "exec/cpu-common.h"
 #include "exec/exec-all.h"
+#include "exec/cputlb.h"
 #include "exec/page-protection.h"
 #include "exec/cpu_ldst.h"
 #include "accel/tcg/cpu-ops.h"

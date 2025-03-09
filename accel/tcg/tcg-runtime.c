@@ -23,13 +23,9 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/host-utils.h"
-#include "cpu.h"
+#include "exec/cpu-common.h"
 #include "exec/helper-proto-common.h"
-#include "exec/cpu_ldst.h"
-#include "exec/exec-all.h"
-#include "disas/disas.h"
-#include "exec/log.h"
-#include "tcg/tcg.h"
+#include "accel/tcg/getpc.h"
 
 #define HELPER_H  "accel/tcg/tcg-runtime.h"
 #include "exec/helper-info.c.inc"

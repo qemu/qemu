@@ -21,6 +21,7 @@
 
 #include "cpu.h"
 #include "internal.h"
+#include "exec/cputlb.h"
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
 #include "exec/cpu_ldst.h"

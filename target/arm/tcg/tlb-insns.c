@@ -7,7 +7,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "exec/exec-all.h"
+#include "exec/cputlb.h"
 #include "cpu.h"
 #include "internals.h"
 #include "cpu-features.h"

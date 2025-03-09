@@ -15,6 +15,7 @@
 #include "system/hw_accel.h"
 #include "system/runstate.h"
 #include "exec/address-spaces.h"
+#include "exec/cputlb.h"
 #include "exec/exec-all.h"
 #include "system/tcg.h"
 #include "trace.h"
