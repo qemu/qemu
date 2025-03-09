@@ -253,6 +253,7 @@ def is_hvx_insn(tag):
 def need_env(tag):
     return ("A_STORE" in attribdict[tag] or
             "A_LOAD" in attribdict[tag] or
+            "A_DMA" in attribdict[tag] or
             "A_CVI_GATHER" in attribdict[tag] or
             "A_CVI_SCATTER" in attribdict[tag] or
             "A_IMPLICIT_WRITES_USR" in attribdict[tag] or

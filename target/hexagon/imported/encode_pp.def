@@ -788,6 +788,17 @@ DEF_ENC32(Y6_diag,      ICLASS_CR" 0010  010sssss  PP------  001-----")
 DEF_ENC32(Y6_diag0,     ICLASS_CR" 0010  010sssss  PP-ttttt  010-----")
 DEF_ENC32(Y6_diag1,     ICLASS_CR" 0010  010sssss  PP-ttttt  011-----")
 
+DEF_ENC32(Y6_dmcfgrd,"10101000000sssssPP------101ddddd")
+DEF_ENC32(Y6_dmcfgwr,"10101000000sssssPP-ttttt110-----")
+DEF_ENC32(Y6_dmlink,"10100110000sssssPP-ttttt010-----")
+DEF_ENC32(Y6_dmpause,"10101000000-----PP------011ddddd")
+DEF_ENC32(Y6_dmpoll,"10101000000-----PP------010ddddd")
+DEF_ENC32(Y6_dmresume,"10100110000sssssPP------100-----")
+DEF_ENC32(Y6_dmstart,"10100110000sssssPP------001-----")
+DEF_ENC32(Y6_dmsyncht,"10101000000-----PP-----0111ddddd")
+DEF_ENC32(Y6_dmtlbsynch,"10101000000-----PP-----1111ddddd")
+DEF_ENC32(Y6_dmwait,"10101000000-----PP------001ddddd")
+
 DEF_FIELDROW_DESC32(    ICLASS_CR" 0011  --------  PP------  --------","[#3] Cdd=Rss ")
 DEF_ENC32(A4_tfrpcp,    ICLASS_CR" 0011  001sssss  PP------  ---ddddd")
 DEF_ENC32(G4_tfrgpcp,   ICLASS_CR" 0011  000sssss  PP------  ---ddddd")
@@ -2228,6 +2239,5 @@ OP_OPI_RI(lsr,"1")
 DEF_FIELDROW_DESC32(ICLASS_ALU64" 1111 -------- PP------ --------","[#15] Rd=(Rs,Ru,#u6:2)")
 DEF_ENC32(M4_mpyri_addr_u2, ICLASS_ALU64" 1111   0ii sssss PPiddddd iiiuuuuu")
 DEF_ENC32(M4_mpyri_addr,    ICLASS_ALU64" 1111   1ii sssss PPiddddd iiiuuuuu")
-
 
 
