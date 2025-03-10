@@ -10,18 +10,34 @@ use std::{
     ptr::NonNull,
 };
 
-pub use bindings::{Clock, ClockEvent, DeviceClass, DeviceState, Property, ResetType};
+pub use bindings::{ClockEvent, DeviceClass, Property, ResetType};
 
 use crate::{
     bindings::{self, qdev_init_gpio_in, qdev_init_gpio_out, Error, ResettableClass},
     callbacks::FnCall,
-    cell::bql_locked,
+    cell::{bql_locked, Opaque},
     chardev::Chardev,
     irq::InterruptSource,
     prelude::*,
     qom::{ObjectClass, ObjectImpl, Owned},
     vmstate::VMStateDescription,
 };
+
+/// A safe wrapper around [`bindings::Clock`].
+#[repr(transparent)]
+#[derive(Debug, qemu_api_macros::Wrapper)]
+pub struct Clock(Opaque<bindings::Clock>);
+
+unsafe impl Send for Clock {}
+unsafe impl Sync for Clock {}
+
+/// A safe wrapper around [`bindings::DeviceState`].
+#[repr(transparent)]
+#[derive(Debug, qemu_api_macros::Wrapper)]
+pub struct DeviceState(Opaque<bindings::DeviceState>);
+
+unsafe impl Send for DeviceState {}
+unsafe impl Sync for DeviceState {}
 
 /// Trait providing the contents of the `ResettablePhases` struct,
 /// which is part of the QOM `Resettable` interface.
@@ -52,7 +68,7 @@ pub trait ResettablePhasesImpl {
 /// can be downcasted to type `T`. We also expect the device is
 /// readable/writeable from one thread at any time.
 unsafe extern "C" fn rust_resettable_enter_fn<T: ResettablePhasesImpl>(
-    obj: *mut Object,
+    obj: *mut bindings::Object,
     typ: ResetType,
 ) {
     let state = NonNull::new(obj).unwrap().cast::<T>();
@@ -65,7 +81,7 @@ unsafe extern "C" fn rust_resettable_enter_fn<T: ResettablePhasesImpl>(
 /// can be downcasted to type `T`. We also expect the device is
 /// readable/writeable from one thread at any time.
 unsafe extern "C" fn rust_resettable_hold_fn<T: ResettablePhasesImpl>(
-    obj: *mut Object,
+    obj: *mut bindings::Object,
     typ: ResetType,
 ) {
     let state = NonNull::new(obj).unwrap().cast::<T>();
@@ -78,7 +94,7 @@ unsafe extern "C" fn rust_resettable_hold_fn<T: ResettablePhasesImpl>(
 /// can be downcasted to type `T`. We also expect the device is
 /// readable/writeable from one thread at any time.
 unsafe extern "C" fn rust_resettable_exit_fn<T: ResettablePhasesImpl>(
-    obj: *mut Object,
+    obj: *mut bindings::Object,
     typ: ResetType,
 ) {
     let state = NonNull::new(obj).unwrap().cast::<T>();
@@ -117,7 +133,10 @@ pub trait DeviceImpl: ObjectImpl + ResettablePhasesImpl + IsA<DeviceState> {
 /// We expect the FFI user of this function to pass a valid pointer that
 /// can be downcasted to type `T`. We also expect the device is
 /// readable/writeable from one thread at any time.
-unsafe extern "C" fn rust_realize_fn<T: DeviceImpl>(dev: *mut DeviceState, _errp: *mut *mut Error) {
+unsafe extern "C" fn rust_realize_fn<T: DeviceImpl>(
+    dev: *mut bindings::DeviceState,
+    _errp: *mut *mut Error,
+) {
     let state = NonNull::new(dev).unwrap().cast::<T>();
     T::REALIZE.unwrap()(unsafe { state.as_ref() });
 }
@@ -251,7 +270,7 @@ where
         events: ClockEvent,
     ) -> Owned<Clock> {
         fn do_init_clock_in(
-            dev: *mut DeviceState,
+            dev: &DeviceState,
             name: &str,
             cb: Option<unsafe extern "C" fn(*mut c_void, ClockEvent)>,
             events: ClockEvent,
@@ -265,14 +284,15 @@ where
             unsafe {
                 let cstr = CString::new(name).unwrap();
                 let clk = bindings::qdev_init_clock_in(
-                    dev,
+                    dev.as_mut_ptr(),
                     cstr.as_ptr(),
                     cb,
-                    dev.cast::<c_void>(),
+                    dev.as_void_ptr(),
                     events.0,
                 );
 
-                Owned::from(&*clk)
+                let clk: &Clock = Clock::from_raw(clk);
+                Owned::from(clk)
             }
         }
 
@@ -289,7 +309,7 @@ where
             None
         };
 
-        do_init_clock_in(self.as_mut_ptr(), name, cb, events)
+        do_init_clock_in(self.upcast(), name, cb, events)
     }
 
     /// Add an output clock named `name`.
@@ -304,17 +324,23 @@ where
     fn init_clock_out(&self, name: &str) -> Owned<Clock> {
         unsafe {
             let cstr = CString::new(name).unwrap();
-            let clk = bindings::qdev_init_clock_out(self.as_mut_ptr(), cstr.as_ptr());
+            let clk = bindings::qdev_init_clock_out(self.upcast().as_mut_ptr(), cstr.as_ptr());
 
-            Owned::from(&*clk)
+            let clk: &Clock = Clock::from_raw(clk);
+            Owned::from(clk)
         }
     }
 
     fn prop_set_chr(&self, propname: &str, chr: &Owned<Chardev>) {
         assert!(bql_locked());
         let c_propname = CString::new(propname).unwrap();
+        let chr: &Chardev = chr;
         unsafe {
-            bindings::qdev_prop_set_chr(self.as_mut_ptr(), c_propname.as_ptr(), chr.as_mut_ptr());
+            bindings::qdev_prop_set_chr(
+                self.upcast().as_mut_ptr(),
+                c_propname.as_ptr(),
+                chr.as_mut_ptr(),
+            );
         }
     }
 
@@ -323,8 +349,17 @@ where
         num_lines: u32,
         _cb: F,
     ) {
-        let _: () = F::ASSERT_IS_SOME;
+        fn do_init_gpio_in(
+            dev: &DeviceState,
+            num_lines: u32,
+            gpio_in_cb: unsafe extern "C" fn(*mut c_void, c_int, c_int),
+        ) {
+            unsafe {
+                qdev_init_gpio_in(dev.as_mut_ptr(), Some(gpio_in_cb), num_lines as c_int);
+            }
+        }
 
+        let _: () = F::ASSERT_IS_SOME;
         unsafe extern "C" fn rust_irq_handler<T, F: for<'a> FnCall<(&'a T, u32, u32)>>(
             opaque: *mut c_void,
             line: c_int,
@@ -337,19 +372,13 @@ where
         let gpio_in_cb: unsafe extern "C" fn(*mut c_void, c_int, c_int) =
             rust_irq_handler::<Self::Target, F>;
 
-        unsafe {
-            qdev_init_gpio_in(
-                self.as_mut_ptr::<DeviceState>(),
-                Some(gpio_in_cb),
-                num_lines as c_int,
-            );
-        }
+        do_init_gpio_in(self.upcast(), num_lines, gpio_in_cb);
     }
 
     fn init_gpio_out(&self, pins: &[InterruptSource]) {
         unsafe {
             qdev_init_gpio_out(
-                self.as_mut_ptr::<DeviceState>(),
+                self.upcast().as_mut_ptr(),
                 InterruptSource::slice_as_ptr(pins),
                 pins.len() as c_int,
             );

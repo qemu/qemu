@@ -101,15 +101,23 @@ use std::{
     ptr::NonNull,
 };
 
-pub use bindings::{Object, ObjectClass};
+pub use bindings::ObjectClass;
 
 use crate::{
     bindings::{
         self, object_class_dynamic_cast, object_dynamic_cast, object_get_class,
         object_get_typename, object_new, object_ref, object_unref, TypeInfo,
     },
-    cell::bql_locked,
+    cell::{bql_locked, Opaque},
 };
+
+/// A safe wrapper around [`bindings::Object`].
+#[repr(transparent)]
+#[derive(Debug, qemu_api_macros::Wrapper)]
+pub struct Object(Opaque<bindings::Object>);
+
+unsafe impl Send for Object {}
+unsafe impl Sync for Object {}
 
 /// Marker trait: `Self` can be statically upcasted to `P` (i.e. `P` is a direct
 /// or indirect parent of `Self`).
@@ -199,7 +207,7 @@ impl<T: fmt::Display + ObjectType> fmt::Display for ParentField<T> {
     }
 }
 
-unsafe extern "C" fn rust_instance_init<T: ObjectImpl>(obj: *mut Object) {
+unsafe extern "C" fn rust_instance_init<T: ObjectImpl>(obj: *mut bindings::Object) {
     let mut state = NonNull::new(obj).unwrap().cast::<T>();
     // SAFETY: obj is an instance of T, since rust_instance_init<T>
     // is called from QOM core as the instance_init function
@@ -209,7 +217,7 @@ unsafe extern "C" fn rust_instance_init<T: ObjectImpl>(obj: *mut Object) {
     }
 }
 
-unsafe extern "C" fn rust_instance_post_init<T: ObjectImpl>(obj: *mut Object) {
+unsafe extern "C" fn rust_instance_post_init<T: ObjectImpl>(obj: *mut bindings::Object) {
     let state = NonNull::new(obj).unwrap().cast::<T>();
     // SAFETY: obj is an instance of T, since rust_instance_post_init<T>
     // is called from QOM core as the instance_post_init function
@@ -230,7 +238,7 @@ unsafe extern "C" fn rust_class_init<T: ObjectType + ObjectImpl>(
     <T as ObjectImpl>::CLASS_INIT(unsafe { klass.as_mut() })
 }
 
-unsafe extern "C" fn drop_object<T: ObjectImpl>(obj: *mut Object) {
+unsafe extern "C" fn drop_object<T: ObjectImpl>(obj: *mut bindings::Object) {
     // SAFETY: obj is an instance of T, since drop_object<T> is called
     // from the QOM core function object_deinit() as the instance_finalize
     // function for class T.  Note that while object_deinit() will drop the
@@ -280,14 +288,14 @@ pub unsafe trait ObjectType: Sized {
     /// Return the receiver as an Object.  This is always safe, even
     /// if this type represents an interface.
     fn as_object(&self) -> &Object {
-        unsafe { &*self.as_object_ptr() }
+        unsafe { &*self.as_ptr().cast() }
     }
 
     /// Return the receiver as a const raw pointer to Object.
     /// This is preferrable to `as_object_mut_ptr()` if a C
     /// function only needs a `const Object *`.
-    fn as_object_ptr(&self) -> *const Object {
-        self.as_ptr().cast()
+    fn as_object_ptr(&self) -> *const bindings::Object {
+        self.as_object().as_ptr()
     }
 
     /// Return the receiver as a mutable raw pointer to Object.
@@ -297,8 +305,8 @@ pub unsafe trait ObjectType: Sized {
     /// This cast is always safe, but because the result is mutable
     /// and the incoming reference is not, this should only be used
     /// for calls to C functions, and only if needed.
-    unsafe fn as_object_mut_ptr(&self) -> *mut Object {
-        self.as_object_ptr() as *mut _
+    unsafe fn as_object_mut_ptr(&self) -> *mut bindings::Object {
+        self.as_object().as_mut_ptr()
     }
 }
 
@@ -455,90 +463,7 @@ where
 impl<T: ObjectType> ObjectDeref for &T {}
 impl<T: ObjectType> ObjectCast for &T {}
 
-/// Trait for mutable type casting operations in the QOM hierarchy.
-///
-/// This trait provides the mutable counterparts to [`ObjectCast`]'s conversion
-/// functions. Unlike `ObjectCast`, this trait returns `Result` for fallible
-/// conversions to preserve the original smart pointer if the cast fails. This
-/// is necessary because mutable references cannot be copied, so a failed cast
-/// must return ownership of the original reference. For example:
-///
-/// ```ignore
-/// let mut dev = get_device();
-/// // If this fails, we need the original `dev` back to try something else
-/// match dev.dynamic_cast_mut::<FooDevice>() {
-///    Ok(foodev) => /* use foodev */,
-///    Err(dev) => /* still have ownership of dev */
-/// }
-/// ```
-pub trait ObjectCastMut: Sized + ObjectDeref + DerefMut
-where
-    Self::Target: ObjectType,
-{
-    /// Safely convert from a derived type to one of its parent types.
-    ///
-    /// This is always safe; the [`IsA`] trait provides static verification
-    /// that `Self` dereferences to `U` or a child of `U`.
-    fn upcast_mut<'a, U: ObjectType>(self) -> &'a mut U
-    where
-        Self::Target: IsA<U>,
-        Self: 'a,
-    {
-        // SAFETY: soundness is declared via IsA<U>, which is an unsafe trait
-        unsafe { self.unsafe_cast_mut::<U>() }
-    }
-
-    /// Attempt to convert to a derived type.
-    ///
-    /// Returns `Ok(..)` if the object is of type `U`, or `Err(self)` if the
-    /// object if the conversion failed. This is verified at runtime by
-    /// checking the object's type information.
-    fn downcast_mut<'a, U: IsA<Self::Target>>(self) -> Result<&'a mut U, Self>
-    where
-        Self: 'a,
-    {
-        self.dynamic_cast_mut::<U>()
-    }
-
-    /// Attempt to convert between any two types in the QOM hierarchy.
-    ///
-    /// Returns `Ok(..)` if the object is of type `U`, or `Err(self)` if the
-    /// object if the conversion failed. This is verified at runtime by
-    /// checking the object's type information.
-    fn dynamic_cast_mut<'a, U: ObjectType>(self) -> Result<&'a mut U, Self>
-    where
-        Self: 'a,
-    {
-        unsafe {
-            // SAFETY: upcasting to Object is always valid, and the
-            // return type is either NULL or the argument itself
-            let result: *mut U =
-                object_dynamic_cast(self.as_object_mut_ptr(), U::TYPE_NAME.as_ptr()).cast();
-
-            result.as_mut().ok_or(self)
-        }
-    }
-
-    /// Convert to any QOM type without verification.
-    ///
-    /// # Safety
-    ///
-    /// What safety? You need to know yourself that the cast is correct; only
-    /// use when performance is paramount.  It is still better than a raw
-    /// pointer `cast()`, which does not even check that you remain in the
-    /// realm of QOM `ObjectType`s.
-    ///
-    /// `unsafe_cast::<Object>()` is always safe.
-    unsafe fn unsafe_cast_mut<'a, U: ObjectType>(self) -> &'a mut U
-    where
-        Self: 'a,
-    {
-        unsafe { &mut *self.as_mut_ptr::<Self::Target>().cast::<U>() }
-    }
-}
-
 impl<T: ObjectType> ObjectDeref for &mut T {}
-impl<T: ObjectType> ObjectCastMut for &mut T {}
 
 /// Trait a type must implement to be registered with QEMU.
 pub trait ObjectImpl: ObjectType + IsA<Object> {
@@ -621,7 +546,7 @@ pub trait ObjectImpl: ObjectType + IsA<Object> {
 /// We expect the FFI user of this function to pass a valid pointer that
 /// can be downcasted to type `T`. We also expect the device is
 /// readable/writeable from one thread at any time.
-unsafe extern "C" fn rust_unparent_fn<T: ObjectImpl>(dev: *mut Object) {
+unsafe extern "C" fn rust_unparent_fn<T: ObjectImpl>(dev: *mut bindings::Object) {
     let state = NonNull::new(dev).unwrap().cast::<T>();
     T::UNPARENT.unwrap()(unsafe { state.as_ref() });
 }
@@ -796,8 +721,9 @@ pub trait ObjectClassMethods: IsA<Object> {
         // SAFETY: the object created by object_new is allocated on
         // the heap and has a reference count of 1
         unsafe {
-            let obj = &*object_new(Self::TYPE_NAME.as_ptr());
-            Owned::from_raw(obj.unsafe_cast::<Self>())
+            let raw_obj = object_new(Self::TYPE_NAME.as_ptr());
+            let obj = Object::from_raw(raw_obj).unsafe_cast::<Self>();
+            Owned::from_raw(obj)
         }
     }
 }

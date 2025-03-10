@@ -2,31 +2,51 @@
 // Author(s): Zhao Liu <zhai1.liu@intel.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::os::raw::{c_int, c_void};
+use std::{
+    os::raw::{c_int, c_void},
+    pin::Pin,
+};
 
 use crate::{
     bindings::{self, qemu_clock_get_ns, timer_del, timer_init_full, timer_mod, QEMUClockType},
     callbacks::FnCall,
+    cell::Opaque,
 };
 
-pub type Timer = bindings::QEMUTimer;
-pub type TimerListGroup = bindings::QEMUTimerListGroup;
+/// A safe wrapper around [`bindings::QEMUTimer`].
+#[repr(transparent)]
+#[derive(Debug, qemu_api_macros::Wrapper)]
+pub struct Timer(Opaque<bindings::QEMUTimer>);
+
+unsafe impl Send for Timer {}
+unsafe impl Sync for Timer {}
+
+#[repr(transparent)]
+#[derive(qemu_api_macros::Wrapper)]
+pub struct TimerListGroup(Opaque<bindings::QEMUTimerListGroup>);
+
+unsafe impl Send for TimerListGroup {}
+unsafe impl Sync for TimerListGroup {}
 
 impl Timer {
     pub const MS: u32 = bindings::SCALE_MS;
     pub const US: u32 = bindings::SCALE_US;
     pub const NS: u32 = bindings::SCALE_NS;
 
-    pub fn new() -> Self {
-        Default::default()
+    /// Create a `Timer` struct without initializing it.
+    ///
+    /// # Safety
+    ///
+    /// The timer must be initialized before it is armed with
+    /// [`modify`](Self::modify).
+    pub unsafe fn new() -> Self {
+        // SAFETY: requirements relayed to callers of Timer::new
+        Self(unsafe { Opaque::zeroed() })
     }
 
-    const fn as_mut_ptr(&self) -> *mut Self {
-        self as *const Timer as *mut _
-    }
-
+    /// Create a new timer with the given attributes.
     pub fn init_full<'timer, 'opaque: 'timer, T, F>(
-        &'timer mut self,
+        self: Pin<&'timer mut Self>,
         timer_list_group: Option<&TimerListGroup>,
         clk_type: ClockType,
         scale: u32,
@@ -51,7 +71,7 @@ impl Timer {
         // SAFETY: the opaque outlives the timer
         unsafe {
             timer_init_full(
-                self,
+                self.as_mut_ptr(),
                 if let Some(g) = timer_list_group {
                     g as *const TimerListGroup as *mut _
                 } else {
@@ -67,14 +87,19 @@ impl Timer {
     }
 
     pub fn modify(&self, expire_time: u64) {
+        // SAFETY: the only way to obtain a Timer safely is via methods that
+        // take a Pin<&mut Self>, therefore the timer is pinned
         unsafe { timer_mod(self.as_mut_ptr(), expire_time as i64) }
     }
 
     pub fn delete(&self) {
+        // SAFETY: the only way to obtain a Timer safely is via methods that
+        // take a Pin<&mut Self>, therefore the timer is pinned
         unsafe { timer_del(self.as_mut_ptr()) }
     }
 }
 
+// FIXME: use something like PinnedDrop from the pinned_init crate
 impl Drop for Timer {
     fn drop(&mut self) {
         self.delete()

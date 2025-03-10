@@ -42,22 +42,31 @@ _qemu_api_rs = static_library(
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   rust_args: _qemu_api_cfg,
-  dependencies: libc_dep,
+  dependencies: [libc_dep, qemu_api_macros],
 )
 
 rust.test('rust-qemu-api-tests', _qemu_api_rs,
           suite: ['unit', 'rust'])
 
-qemu_api = declare_dependency(
-  link_with: _qemu_api_rs,
-  dependencies: qemu_api_macros,
-)
+qemu_api = declare_dependency(link_with: _qemu_api_rs)
 
 # Rust executables do not support objects, so add an intermediate step.
 rust_qemu_api_objs = static_library(
     'rust_qemu_api_objs',
     objects: [libqom.extract_all_objects(recursive: false),
-              libhwcore.extract_all_objects(recursive: false)])
+              libhwcore.extract_all_objects(recursive: false),
+              libchardev.extract_all_objects(recursive: false),
+              libcrypto.extract_all_objects(recursive: false),
+              libauthz.extract_all_objects(recursive: false),
+              libio.extract_all_objects(recursive: false)])
+rust_qemu_api_deps = declare_dependency(
+    dependencies: [
+      qom_ss.dependencies(),
+      chardev_ss.dependencies(),
+      crypto_ss.dependencies(),
+      authz_ss.dependencies(),
+      io_ss.dependencies()],
+    link_whole: [rust_qemu_api_objs, libqemuutil])
 
 test('rust-qemu-api-integration',
     executable(
@@ -66,8 +75,7 @@ test('rust-qemu-api-integration',
         override_options: ['rust_std=2021', 'build.rust_std=2021'],
         rust_args: ['--test'],
         install: false,
-        dependencies: [qemu_api, qemu_api_macros],
-        link_whole: [rust_qemu_api_objs, libqemuutil]),
+        dependencies: [qemu_api, qemu_api_macros, rust_qemu_api_deps]),
     args: [
         '--test', '--test-threads', '1',
         '--format', 'pretty',

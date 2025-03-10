@@ -330,6 +330,7 @@ macro_rules! impl_vmstate_transparent {
 
 impl_vmstate_transparent!(std::cell::Cell<T> where T: VMState);
 impl_vmstate_transparent!(std::cell::UnsafeCell<T> where T: VMState);
+impl_vmstate_transparent!(std::pin::Pin<T> where T: VMState);
 impl_vmstate_transparent!(crate::cell::BqlCell<T> where T: VMState);
 impl_vmstate_transparent!(crate::cell::BqlRefCell<T> where T: VMState);
 
@@ -469,7 +470,7 @@ macro_rules! vmstate_clock {
                 $crate::assert_field_type!(
                     $struct_name,
                     $field_name,
-                    $crate::qom::Owned<$crate::bindings::Clock>
+                    $crate::qom::Owned<$crate::qdev::Clock>
                 );
                 $crate::offset_of!($struct_name, $field_name)
             },

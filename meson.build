@@ -601,6 +601,10 @@ if get_option('tsan')
   qemu_ldflags = ['-fsanitize=thread'] + qemu_ldflags
 endif
 
+if get_option('debug') and get_option('split_debug')
+  qemu_cflags += '-gsplit-dwarf'
+endif
+
 # Detect support for PT_GNU_RELRO + DT_BIND_NOW.
 # The combination is known as "full relro", because .got.plt is read-only too.
 qemu_ldflags += cc.get_supported_link_arguments('-Wl,-z,relro', '-Wl,-z,now')
@@ -4015,7 +4019,7 @@ libchardev = static_library('chardev', chardev_ss.sources() + genh,
                             build_by_default: false)
 
 chardev = declare_dependency(objects: libchardev.extract_all_objects(recursive: false),
-                             dependencies: chardev_ss.dependencies())
+                             dependencies: [chardev_ss.dependencies(), io])
 
 hwcore_ss = hwcore_ss.apply({})
 libhwcore = static_library('hwcore', sources: hwcore_ss.sources() + genh,
@@ -4099,13 +4103,6 @@ if have_rust
   ]
   foreach enum : c_bitfields
     bindgen_args += ['--bitfield-enum', enum]
-  endforeach
-  c_nocopy = [
-    'QEMUTimer',
-  ]
-  # Used to customize Drop trait
-  foreach struct : c_nocopy
-    bindgen_args += ['--no-copy', struct]
   endforeach
 
   # TODO: Remove this comment when the clang/libclang mismatch issue is solved.
@@ -4590,6 +4587,8 @@ if have_rust
   summary_info += {'bindgen':         bindgen.full_path()}
   summary_info += {'bindgen version': bindgen.version()}
 endif
+# option_cflags is purely for the summary display, meson will pass
+# -g/-O options directly
 option_cflags = (get_option('debug') ? ['-g'] : [])
 if get_option('optimization') != 'plain'
   option_cflags += ['-O' + get_option('optimization')]
