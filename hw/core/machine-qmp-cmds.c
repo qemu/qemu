@@ -25,6 +25,7 @@
 #include "system/numa.h"
 #include "system/runstate.h"
 #include "system/system.h"
+#include "hw/s390x/storage-keys.h"
 
 /*
  * fast means: we NEVER interrupt vCPU threads to retrieve
@@ -405,4 +406,17 @@ GuidInfo *qmp_query_vm_generation_id(Error **errp)
     info = g_malloc0(sizeof(*info));
     info->guid = qemu_uuid_unparse_strdup(&vms->guid);
     return info;
+}
+
+void qmp_dump_skeys(const char *filename, Error **errp)
+{
+    ObjectClass *mc = object_get_class(qdev_get_machine());
+    ObjectClass *oc = object_class_dynamic_cast(mc, TYPE_DUMP_SKEYS_INTERFACE);
+
+    if (!oc) {
+        error_setg(errp, "Storage keys information not available"
+                         " for this architecture");
+        return;
+    }
+    DUMP_SKEYS_INTERFACE_CLASS(oc)->qmp_dump_skeys(filename, errp);
 }

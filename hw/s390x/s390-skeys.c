@@ -15,6 +15,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/s390x/storage-keys.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-misc-target.h"
 #include "qobject/qdict.h"
 #include "qemu/error-report.h"
@@ -217,11 +218,6 @@ out_free:
     g_free(buf);
 out:
     fclose(f);
-}
-
-void qmp_dump_skeys(const char *filename, Error **errp)
-{
-    s390_qmp_dump_skeys(filename, errp);
 }
 
 static bool qemu_s390_skeys_are_enabled(S390SKeysState *ss)
