@@ -7,18 +7,19 @@
 from qemu_test import Asset
 from aspeed import AspeedTest
 
+
 class PalmettoMachine(AspeedTest):
 
     ASSET_PALMETTO_FLASH = Asset(
-        ('https://github.com/openbmc/openbmc/releases/download/2.9.0/'
-         'obmc-phosphor-image-palmetto.static.mtd'),
-        '3e13bbbc28e424865dc42f35ad672b10f2e82cdb11846bb28fa625b48beafd0d');
+        'https://github.com/legoater/qemu-aspeed-boot/raw/master/images/palmetto-bmc/openbmc-20250128071432/obmc-phosphor-image-palmetto-20250128071432.static.mtd',
+        'bce7c392eec75c707a91cfc8fad7ca9a69d7e4f10df936930d65c1cb9897ac81');
 
-    def test_arm_ast2400_palmetto_openbmc_v2_9_0(self):
+    def test_arm_ast2400_palmetto_openbmc(self):
         image_path = self.ASSET_PALMETTO_FLASH.fetch()
 
-        self.do_test_arm_aspeed('palmetto-bmc', image_path)
-
+        self.do_test_arm_aspeed_openbmc('palmetto-bmc', image=image_path,
+                                        uboot='2019.04', cpu_id='0x0',
+                                        soc='AST2400 rev A1');
 
 if __name__ == '__main__':
     AspeedTest.main()
