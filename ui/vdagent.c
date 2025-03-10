@@ -47,7 +47,7 @@ struct VDAgentChardev {
     uint32_t msgsize;
     uint8_t *xbuf;
     uint32_t xoff, xsize;
-    Buffer outbuf;
+    GByteArray *outbuf;
 
     /* mouse */
     DeviceState mouse_dev;
@@ -142,16 +142,16 @@ static void vdagent_send_buf(VDAgentChardev *vd)
 {
     uint32_t len;
 
-    while (!buffer_empty(&vd->outbuf)) {
+    while (vd->outbuf->len) {
         len = qemu_chr_be_can_write(CHARDEV(vd));
         if (len == 0) {
             return;
         }
-        if (len > vd->outbuf.offset) {
-            len = vd->outbuf.offset;
+        if (len > vd->outbuf->len) {
+            len = vd->outbuf->len;
         }
-        qemu_chr_be_write(CHARDEV(vd), vd->outbuf.buffer, len);
-        buffer_advance(&vd->outbuf, len);
+        qemu_chr_be_write(CHARDEV(vd), vd->outbuf->data, len);
+        g_byte_array_remove_range(vd->outbuf, 0, len);
     }
 }
 
@@ -166,7 +166,7 @@ static void vdagent_send_msg(VDAgentChardev *vd, VDAgentMessage *msg)
 
     msg->protocol = VD_AGENT_PROTOCOL;
 
-    if (vd->outbuf.offset + msgsize > VDAGENT_BUFFER_LIMIT) {
+    if (vd->outbuf->len + msgsize > VDAGENT_BUFFER_LIMIT) {
         error_report("buffer full, dropping message");
         return;
     }
@@ -177,9 +177,8 @@ static void vdagent_send_msg(VDAgentChardev *vd, VDAgentMessage *msg)
         if (chunk.size > 1024) {
             chunk.size = 1024;
         }
-        buffer_reserve(&vd->outbuf, sizeof(chunk) + chunk.size);
-        buffer_append(&vd->outbuf, &chunk, sizeof(chunk));
-        buffer_append(&vd->outbuf, msgbuf + msgoff, chunk.size);
+        g_byte_array_append(vd->outbuf, (void *)&chunk, sizeof(chunk));
+        g_byte_array_append(vd->outbuf, msgbuf + msgoff, chunk.size);
         msgoff += chunk.size;
     }
     vdagent_send_buf(vd);
@@ -859,7 +858,7 @@ static void vdagent_disconnect(VDAgentChardev *vd)
 {
     trace_vdagent_disconnect();
 
-    buffer_reset(&vd->outbuf);
+    g_byte_array_set_size(vd->outbuf, 0);
     vdagent_reset_bufs(vd);
     vd->caps = 0;
     if (vd->mouse_hs) {
@@ -920,7 +919,7 @@ static void vdagent_chr_init(Object *obj)
 {
     VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(obj);
 
-    buffer_init(&vd->outbuf, "vdagent-outbuf");
+    vd->outbuf = g_byte_array_new();
     error_setg(&vd->migration_blocker,
                "The vdagent chardev doesn't yet support migration");
 }
@@ -934,7 +933,7 @@ static void vdagent_chr_fini(Object *obj)
     if (vd->mouse_hs) {
         qemu_input_handler_unregister(vd->mouse_hs);
     }
-    buffer_free(&vd->outbuf);
+    g_clear_pointer(&vd->outbuf, g_byte_array_unref);
 }
 
 static const TypeInfo vdagent_chr_type_info = {
