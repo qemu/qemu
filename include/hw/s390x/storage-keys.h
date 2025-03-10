@@ -125,4 +125,19 @@ S390SKeysState *s390_get_skeys_device(void);
 void hmp_dump_skeys(Monitor *mon, const QDict *qdict);
 void hmp_info_skeys(Monitor *mon, const QDict *qdict);
 
+#define TYPE_DUMP_SKEYS_INTERFACE "dump-skeys-interface"
+
+typedef struct DumpSKeysInterface DumpSKeysInterface;
+DECLARE_CLASS_CHECKERS(DumpSKeysInterface, DUMP_SKEYS_INTERFACE,
+                       TYPE_DUMP_SKEYS_INTERFACE)
+
+struct DumpSKeysInterface {
+    InterfaceClass parent_class;
+
+    /**
+     * @qmp_dump_skeys: Callback to dump guest's storage keys to @filename.
+     */
+    void (*qmp_dump_skeys)(const char *filename, Error **errp);
+};
+
 #endif /* S390_STORAGE_KEYS_H */

@@ -475,6 +475,11 @@ static void s390_skeys_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo s390_skeys_types[] = {
     {
+        .name           = TYPE_DUMP_SKEYS_INTERFACE,
+        .parent         = TYPE_INTERFACE,
+        .class_size     = sizeof(DumpSKeysInterface),
+    },
+    {
         .name           = TYPE_S390_SKEYS,
         .parent         = TYPE_DEVICE,
         .instance_size  = sizeof(S390SKeysState),
