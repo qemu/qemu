@@ -2175,8 +2175,6 @@ vext_vv_rm_1(void *vd, void *v0, void *vs1, void *vs2,
              uint32_t vl, uint32_t vm, int vxrm,
              opivv2_rm_fn *fn, uint32_t vma, uint32_t esz)
 {
-    VSTART_CHECK_EARLY_EXIT(env, vl);
-
     for (uint32_t i = env->vstart; i < vl; i++) {
         if (!vm && !vext_elem_mask(v0, i)) {
             /* set masked-off elements to 1s */
@@ -2199,6 +2197,8 @@ vext_vv_rm_2(void *vd, void *v0, void *vs1, void *vs2,
     uint32_t total_elems = vext_get_total_elems(env, desc, esz);
     uint32_t vta = vext_vta(desc);
     uint32_t vma = vext_vma(desc);
+
+    VSTART_CHECK_EARLY_EXIT(env, vl);
 
     switch (env->vxrm) {
     case 0: /* rnu */
@@ -2302,8 +2302,6 @@ vext_vx_rm_1(void *vd, void *v0, target_long s1, void *vs2,
              uint32_t vl, uint32_t vm, int vxrm,
              opivx2_rm_fn *fn, uint32_t vma, uint32_t esz)
 {
-    VSTART_CHECK_EARLY_EXIT(env, vl);
-
     for (uint32_t i = env->vstart; i < vl; i++) {
         if (!vm && !vext_elem_mask(v0, i)) {
             /* set masked-off elements to 1s */
@@ -2326,6 +2324,8 @@ vext_vx_rm_2(void *vd, void *v0, target_long s1, void *vs2,
     uint32_t total_elems = vext_get_total_elems(env, desc, esz);
     uint32_t vta = vext_vta(desc);
     uint32_t vma = vext_vma(desc);
+
+    VSTART_CHECK_EARLY_EXIT(env, vl);
 
     switch (env->vxrm) {
     case 0: /* rnu */
@@ -4662,6 +4662,8 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,          \
     uint32_t i;                                           \
     TD s1 =  *((TD *)vs1 + HD(0));                        \
                                                           \
+    VSTART_CHECK_EARLY_EXIT(env, vl);                     \
+                                                          \
     for (i = env->vstart; i < vl; i++) {                  \
         TS2 s2 = *((TS2 *)vs2 + HS2(i));                  \
         if (!vm && !vext_elem_mask(v0, i)) {              \
@@ -4749,6 +4751,8 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,           \
     uint32_t vta = vext_vta(desc);                         \
     uint32_t i;                                            \
     TD s1 =  *((TD *)vs1 + HD(0));                         \
+                                                           \
+    VSTART_CHECK_EARLY_EXIT(env, vl);                      \
                                                            \
     for (i = env->vstart; i < vl; i++) {                   \
         TS2 s2 = *((TS2 *)vs2 + HS2(i));                   \
@@ -4914,6 +4918,8 @@ static void vmsetm(void *vd, void *v0, void *vs2, CPURISCVState *env,
     int i;
     bool first_mask_bit = false;
 
+    VSTART_CHECK_EARLY_EXIT(env, vl);
+
     for (i = env->vstart; i < vl; i++) {
         if (!vm && !vext_elem_mask(v0, i)) {
             /* set masked-off elements to 1s */
@@ -4985,6 +4991,8 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2, CPURISCVState *env,      \
     uint32_t vma = vext_vma(desc);                                        \
     uint32_t sum = 0;                                                     \
     int i;                                                                \
+                                                                          \
+    VSTART_CHECK_EARLY_EXIT(env, vl);                                     \
                                                                           \
     for (i = env->vstart; i < vl; i++) {                                  \
         if (!vm && !vext_elem_mask(v0, i)) {                              \
@@ -5343,6 +5351,8 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,               \
     uint32_t total_elems = vext_get_total_elems(env, desc, esz);          \
     uint32_t vta = vext_vta(desc);                                        \
     uint32_t num = 0, i;                                                  \
+                                                                          \
+    VSTART_CHECK_EARLY_EXIT(env, vl);                                     \
                                                                           \
     for (i = env->vstart; i < vl; i++) {                                  \
         if (!vext_elem_mask(vs1, i)) {                                    \
