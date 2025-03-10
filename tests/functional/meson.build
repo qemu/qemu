@@ -34,6 +34,7 @@ test_timeouts = {
   'arm_orangepi' : 540,
   'arm_quanta_gsj' : 240,
   'arm_raspi2' : 120,
+  'arm_replay' : 240,
   'arm_tuxrun' : 240,
   'arm_sx1' : 360,
   'intel_iommu': 300,
