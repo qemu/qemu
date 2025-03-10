@@ -141,7 +141,7 @@ struct TCGCPUOps {
      *
      * This method must be provided. If the target does not need to
      * do anything special for halt, the same function used for its
-     * CPUClass::has_work method can be used here, as they have the
+     * SysemuCPUOps::has_work method can be used here, as they have the
      * same function signature.
      */
     bool (*cpu_exec_halt)(CPUState *cpu);
