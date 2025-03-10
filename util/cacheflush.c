@@ -279,8 +279,10 @@ void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
         for (p = rw & -dcache_lsize; p < rw + len; p += dcache_lsize) {
             asm volatile("dc\tcvau, %0" : : "r" (p) : "memory");
         }
-        asm volatile("dsb\tish" : : : "memory");
     }
+
+    /* DSB unconditionally to ensure any outstanding writes are committed. */
+    asm volatile("dsb\tish" : : : "memory");
 
     /*
      * If CTR_EL0.DIC is enabled, Instruction cache cleaning to the Point
