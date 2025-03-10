@@ -122,6 +122,7 @@ int s390_skeys_set(S390SKeysState *ks, uint64_t start_gfn,
 
 S390SKeysState *s390_get_skeys_device(void);
 
+void s390_qmp_dump_skeys(const char *filename, Error **errp);
 void hmp_dump_skeys(Monitor *mon, const QDict *qdict);
 void hmp_info_skeys(Monitor *mon, const QDict *qdict);
 

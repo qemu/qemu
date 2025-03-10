@@ -142,7 +142,7 @@ void hmp_dump_skeys(Monitor *mon, const QDict *qdict)
     }
 }
 
-void qmp_dump_skeys(const char *filename, Error **errp)
+void s390_qmp_dump_skeys(const char *filename, Error **errp)
 {
     S390SKeysState *ss = s390_get_skeys_device();
     S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
@@ -217,6 +217,11 @@ out_free:
     g_free(buf);
 out:
     fclose(f);
+}
+
+void qmp_dump_skeys(const char *filename, Error **errp)
+{
+    s390_qmp_dump_skeys(filename, errp);
 }
 
 static bool qemu_s390_skeys_are_enabled(S390SKeysState *ss)
