@@ -13,6 +13,7 @@
 #include "hw/vfio/vfio-common.h"
 #include "migration/misc.h"
 #include "qapi/error.h"
+#include "qemu/bswap.h"
 #include "qemu/error-report.h"
 #include "qemu/lockable.h"
 #include "qemu/main-loop.h"
@@ -155,11 +156,15 @@ bool vfio_multifd_load_state_buffer(void *opaque, char *data, size_t data_size,
         return false;
     }
 
+    packet->version = be32_to_cpu(packet->version);
     if (packet->version != VFIO_DEVICE_STATE_PACKET_VER_CURRENT) {
         error_setg(errp, "%s: packet has unknown version %" PRIu32,
                    vbasedev->name, packet->version);
         return false;
     }
+
+    packet->idx = be32_to_cpu(packet->idx);
+    packet->flags = be32_to_cpu(packet->flags);
 
     if (packet->idx == UINT32_MAX) {
         error_setg(errp, "%s: packet index is invalid", vbasedev->name);
@@ -558,9 +563,9 @@ vfio_save_complete_precopy_thread_config_state(VFIODevice *vbasedev,
 
     packet_len = sizeof(*packet) + bioc->usage;
     packet = g_malloc0(packet_len);
-    packet->version = VFIO_DEVICE_STATE_PACKET_VER_CURRENT;
-    packet->idx = idx;
-    packet->flags = VFIO_DEVICE_STATE_CONFIG_STATE;
+    packet->version = cpu_to_be32(VFIO_DEVICE_STATE_PACKET_VER_CURRENT);
+    packet->idx = cpu_to_be32(idx);
+    packet->flags = cpu_to_be32(VFIO_DEVICE_STATE_CONFIG_STATE);
     memcpy(&packet->data, bioc->data, bioc->usage);
 
     if (!multifd_queue_device_state(idstr, instance_id,
@@ -610,7 +615,7 @@ vfio_multifd_save_complete_precopy_thread(SaveLiveCompletePrecopyThreadData *d,
     }
 
     packet = g_malloc0(sizeof(*packet) + migration->data_buffer_size);
-    packet->version = VFIO_DEVICE_STATE_PACKET_VER_CURRENT;
+    packet->version = cpu_to_be32(VFIO_DEVICE_STATE_PACKET_VER_CURRENT);
 
     for (idx = 0; ; idx++) {
         ssize_t data_size;
@@ -631,7 +636,7 @@ vfio_multifd_save_complete_precopy_thread(SaveLiveCompletePrecopyThreadData *d,
             break;
         }
 
-        packet->idx = idx;
+        packet->idx = cpu_to_be32(idx);
         packet_size = sizeof(*packet) + data_size;
 
         if (!multifd_queue_device_state(d->idstr, d->instance_id,
