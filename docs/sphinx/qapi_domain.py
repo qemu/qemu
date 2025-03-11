@@ -33,6 +33,7 @@ from sphinx.domains import (
 from sphinx.locale import _, __
 from sphinx.roles import XRefRole
 from sphinx.util import logging
+from sphinx.util.docfields import TypedField
 from sphinx.util.nodes import make_id, make_refnode
 
 
@@ -273,7 +274,18 @@ class QAPIObject(QAPIDescription):
 class QAPICommand(QAPIObject):
     """Description of a QAPI Command."""
 
-    # Nothing unique for now! Changed in later commits O:-)
+    doc_field_types = QAPIObject.doc_field_types.copy()
+    doc_field_types.extend(
+        [
+            # :arg TypeName ArgName: descr
+            TypedField(
+                "argument",
+                label=_("Arguments"),
+                names=("arg",),
+                can_collapse=False,
+            ),
+        ]
+    )
 
 
 class QAPIModule(QAPIDescription):
