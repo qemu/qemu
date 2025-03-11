@@ -221,13 +221,17 @@ div[class^="highlight"] pre {
     margin: 0.25em;
 }
 
-.qapi-deprecated {
+.qapi-deprecated,.qapi-unstable {
     background-color: #fffef5;
     border: solid #fff176 6px;
     font-weight: bold;
     padding: 8px;
     border-radius: 15px;
     margin: 5px;
+}
+
+.qapi-unstable::before {
+    content: '🚧 ';
 }
 
 .qapi-deprecated::before {

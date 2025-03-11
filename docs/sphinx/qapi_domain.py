@@ -218,6 +218,7 @@ class QAPIObject(QAPIDescription):
             # These are QAPI originals:
             "since": directives.unchanged,
             "deprecated": directives.flag,
+            "unstable": directives.flag,
         }
     )
 
@@ -298,6 +299,13 @@ class QAPIObject(QAPIDescription):
                 ":deprecated:",
                 f"This {self.objtype} is deprecated.",
                 "qapi-deprecated",
+            )
+
+        if "unstable" in self.options:
+            _add_pip(
+                ":unstable:",
+                f"This {self.objtype} is unstable/experimental.",
+                "qapi-unstable",
             )
 
         if infopips.children:
