@@ -2,6 +2,7 @@
 #
 # QEMU qapidoc QAPI file parsing extension
 #
+# Copyright (c) 2024-2025 Red Hat
 # Copyright (c) 2020 Linaro
 #
 # This work is licensed under the terms of the GNU GPLv2 or later.
@@ -24,440 +25,431 @@ The Sphinx documentation on writing extensions is at:
 https://www.sphinx-doc.org/en/master/development/index.html
 """
 
+from __future__ import annotations
+
+__version__ = "2.0"
+
+from contextlib import contextmanager
 import os
+from pathlib import Path
 import re
 import sys
-import textwrap
-from typing import List
+from typing import TYPE_CHECKING
 
 from docutils import nodes
-from docutils.parsers.rst import Directive, directives
-from docutils.statemachine import ViewList
-from qapi.error import QAPIError, QAPISemError
-from qapi.gen import QAPISchemaVisitor
-from qapi.schema import QAPISchema
+from docutils.parsers.rst import directives
+from docutils.statemachine import StringList
+from qapi.error import QAPIError
+from qapi.parser import QAPIDoc
+from qapi.schema import (
+    QAPISchema,
+    QAPISchemaArrayType,
+    QAPISchemaCommand,
+    QAPISchemaDefinition,
+    QAPISchemaEnumMember,
+    QAPISchemaEvent,
+    QAPISchemaFeature,
+    QAPISchemaMember,
+    QAPISchemaObjectType,
+    QAPISchemaObjectTypeMember,
+    QAPISchemaType,
+    QAPISchemaVisitor,
+)
+from qapi.source import QAPISourceInfo
 
+from qapidoc_legacy import QAPISchemaGenRSTVisitor  # type: ignore
 from sphinx import addnodes
 from sphinx.directives.code import CodeBlock
 from sphinx.errors import ExtensionError
-from sphinx.util.docutils import switch_source_input
+from sphinx.util import logging
+from sphinx.util.docutils import SphinxDirective, switch_source_input
 from sphinx.util.nodes import nested_parse_with_titles
 
 
-__version__ = "1.0"
+if TYPE_CHECKING:
+    from typing import (
+        Any,
+        Generator,
+        List,
+        Optional,
+        Sequence,
+        Union,
+    )
+
+    from sphinx.application import Sphinx
+    from sphinx.util.typing import ExtensionMetadata
 
 
-def dedent(text: str) -> str:
-    # Adjust indentation to make description text parse as paragraph.
-
-    lines = text.splitlines(True)
-    if re.match(r"\s+", lines[0]):
-        # First line is indented; description started on the line after
-        # the name. dedent the whole block.
-        return textwrap.dedent(text)
-
-    # Descr started on same line. Dedent line 2+.
-    return lines[0] + textwrap.dedent("".join(lines[1:]))
+logger = logging.getLogger(__name__)
 
 
-# Disable black auto-formatter until re-enabled:
-# fmt: off
+class Transmogrifier:
+    # pylint: disable=too-many-public-methods
 
+    # Field names used for different entity types:
+    field_types = {
+        "enum": "value",
+        "struct": "memb",
+        "union": "memb",
+        "event": "memb",
+        "command": "arg",
+        "alternate": "alt",
+    }
 
-class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
-    """A QAPI schema visitor which generates docutils/Sphinx nodes
+    def __init__(self) -> None:
+        self._curr_ent: Optional[QAPISchemaDefinition] = None
+        self._result = StringList()
+        self.indent = 0
 
-    This class builds up a tree of docutils/Sphinx nodes corresponding
-    to documentation for the various QAPI objects. To use it, first
-    create a QAPISchemaGenRSTVisitor object, and call its
-    visit_begin() method.  Then you can call one of the two methods
-    'freeform' (to add documentation for a freeform documentation
-    chunk) or 'symbol' (to add documentation for a QAPI symbol). These
-    will cause the visitor to build up the tree of document
-    nodes. Once you've added all the documentation via 'freeform' and
-    'symbol' method calls, you can call 'get_document_nodes' to get
-    the final list of document nodes (in a form suitable for returning
-    from a Sphinx directive's 'run' method).
-    """
-    def __init__(self, sphinx_directive):
-        self._cur_doc = None
-        self._sphinx_directive = sphinx_directive
-        self._top_node = nodes.section()
-        self._active_headings = [self._top_node]
+    @property
+    def result(self) -> StringList:
+        return self._result
 
-    def _make_dlitem(self, term, defn):
-        """Return a dlitem node with the specified term and definition.
+    @property
+    def entity(self) -> QAPISchemaDefinition:
+        assert self._curr_ent is not None
+        return self._curr_ent
 
-        term should be a list of Text and literal nodes.
-        defn should be one of:
-        - a string, which will be handed to _parse_text_into_node
-        - a list of Text and literal nodes, which will be put into
-          a paragraph node
-        """
-        dlitem = nodes.definition_list_item()
-        dlterm = nodes.term('', '', *term)
-        dlitem += dlterm
-        if defn:
-            dldef = nodes.definition()
-            if isinstance(defn, list):
-                dldef += nodes.paragraph('', '', *defn)
-            else:
-                self._parse_text_into_node(defn, dldef)
-            dlitem += dldef
-        return dlitem
+    @property
+    def member_field_type(self) -> str:
+        return self.field_types[self.entity.meta]
 
-    def _make_section(self, title):
-        """Return a section node with optional title"""
-        section = nodes.section(ids=[self._sphinx_directive.new_serialno()])
-        if title:
-            section += nodes.title(title, title)
-        return section
+    # General-purpose rST generation functions
 
-    def _nodes_for_ifcond(self, ifcond, with_if=True):
-        """Return list of Text, literal nodes for the ifcond
+    def get_indent(self) -> str:
+        return "   " * self.indent
 
-        Return a list which gives text like ' (If: condition)'.
-        If with_if is False, we don't return the "(If: " and ")".
-        """
+    @contextmanager
+    def indented(self) -> Generator[None]:
+        self.indent += 1
+        try:
+            yield
+        finally:
+            self.indent -= 1
 
-        doc = ifcond.docgen()
-        if not doc:
-            return []
-        doc = nodes.literal('', doc)
-        if not with_if:
-            return [doc]
+    def add_line_raw(self, line: str, source: str, *lineno: int) -> None:
+        """Append one line of generated reST to the output."""
 
-        nodelist = [nodes.Text(' ('), nodes.strong('', 'If: ')]
-        nodelist.append(doc)
-        nodelist.append(nodes.Text(')'))
-        return nodelist
+        # NB: Sphinx uses zero-indexed lines; subtract one.
+        lineno = tuple((n - 1 for n in lineno))
 
-    def _nodes_for_one_member(self, member):
-        """Return list of Text, literal nodes for this member
-
-        Return a list of doctree nodes which give text like
-        'name: type (optional) (If: ...)' suitable for use as the
-        'term' part of a definition list item.
-        """
-        term = [nodes.literal('', member.name)]
-        if member.type.doc_type():
-            term.append(nodes.Text(': '))
-            term.append(nodes.literal('', member.type.doc_type()))
-        if member.optional:
-            term.append(nodes.Text(' (optional)'))
-        if member.ifcond.is_present():
-            term.extend(self._nodes_for_ifcond(member.ifcond))
-        return term
-
-    def _nodes_for_variant_when(self, branches, variant):
-        """Return list of Text, literal nodes for variant 'when' clause
-
-        Return a list of doctree nodes which give text like
-        'when tagname is variant (If: ...)' suitable for use in
-        the 'branches' part of a definition list.
-        """
-        term = [nodes.Text(' when '),
-                nodes.literal('', branches.tag_member.name),
-                nodes.Text(' is '),
-                nodes.literal('', '"%s"' % variant.name)]
-        if variant.ifcond.is_present():
-            term.extend(self._nodes_for_ifcond(variant.ifcond))
-        return term
-
-    def _nodes_for_members(self, doc, what, base=None, branches=None):
-        """Return list of doctree nodes for the table of members"""
-        dlnode = nodes.definition_list()
-        for section in doc.args.values():
-            term = self._nodes_for_one_member(section.member)
-            # TODO drop fallbacks when undocumented members are outlawed
-            if section.text:
-                defn = dedent(section.text)
-            else:
-                defn = [nodes.Text('Not documented')]
-
-            dlnode += self._make_dlitem(term, defn)
-
-        if base:
-            dlnode += self._make_dlitem([nodes.Text('The members of '),
-                                         nodes.literal('', base.doc_type())],
-                                        None)
-
-        if branches:
-            for v in branches.variants:
-                if v.type.name == 'q_empty':
-                    continue
-                assert not v.type.is_implicit()
-                term = [nodes.Text('The members of '),
-                        nodes.literal('', v.type.doc_type())]
-                term.extend(self._nodes_for_variant_when(branches, v))
-                dlnode += self._make_dlitem(term, None)
-
-        if not dlnode.children:
-            return []
-
-        section = self._make_section(what)
-        section += dlnode
-        return [section]
-
-    def _nodes_for_enum_values(self, doc):
-        """Return list of doctree nodes for the table of enum values"""
-        seen_item = False
-        dlnode = nodes.definition_list()
-        for section in doc.args.values():
-            termtext = [nodes.literal('', section.member.name)]
-            if section.member.ifcond.is_present():
-                termtext.extend(self._nodes_for_ifcond(section.member.ifcond))
-            # TODO drop fallbacks when undocumented members are outlawed
-            if section.text:
-                defn = dedent(section.text)
-            else:
-                defn = [nodes.Text('Not documented')]
-
-            dlnode += self._make_dlitem(termtext, defn)
-            seen_item = True
-
-        if not seen_item:
-            return []
-
-        section = self._make_section('Values')
-        section += dlnode
-        return [section]
-
-    def _nodes_for_arguments(self, doc, arg_type):
-        """Return list of doctree nodes for the arguments section"""
-        if arg_type and not arg_type.is_implicit():
-            assert not doc.args
-            section = self._make_section('Arguments')
-            dlnode = nodes.definition_list()
-            dlnode += self._make_dlitem(
-                [nodes.Text('The members of '),
-                 nodes.literal('', arg_type.name)],
-                None)
-            section += dlnode
-            return [section]
-
-        return self._nodes_for_members(doc, 'Arguments')
-
-    def _nodes_for_features(self, doc):
-        """Return list of doctree nodes for the table of features"""
-        seen_item = False
-        dlnode = nodes.definition_list()
-        for section in doc.features.values():
-            dlnode += self._make_dlitem(
-                [nodes.literal('', section.member.name)], dedent(section.text))
-            seen_item = True
-
-        if not seen_item:
-            return []
-
-        section = self._make_section('Features')
-        section += dlnode
-        return [section]
-
-    def _nodes_for_sections(self, doc):
-        """Return list of doctree nodes for additional sections"""
-        nodelist = []
-        for section in doc.sections:
-            if section.tag and section.tag == 'TODO':
-                # Hide TODO: sections
-                continue
-
-            if not section.tag:
-                # Sphinx cannot handle sectionless titles;
-                # Instead, just append the results to the prior section.
-                container = nodes.container()
-                self._parse_text_into_node(section.text, container)
-                nodelist += container.children
-                continue
-
-            snode = self._make_section(section.tag)
-            self._parse_text_into_node(dedent(section.text), snode)
-            nodelist.append(snode)
-        return nodelist
-
-    def _nodes_for_if_section(self, ifcond):
-        """Return list of doctree nodes for the "If" section"""
-        nodelist = []
-        if ifcond.is_present():
-            snode = self._make_section('If')
-            snode += nodes.paragraph(
-                '', '', *self._nodes_for_ifcond(ifcond, with_if=False)
+        if line.strip():
+            # not a blank line
+            self._result.append(
+                self.get_indent() + line.rstrip("\n"), source, *lineno
             )
-            nodelist.append(snode)
-        return nodelist
-
-    def _add_doc(self, typ, sections):
-        """Add documentation for a command/object/enum...
-
-        We assume we're documenting the thing defined in self._cur_doc.
-        typ is the type of thing being added ("Command", "Object", etc)
-
-        sections is a list of nodes for sections to add to the definition.
-        """
-
-        doc = self._cur_doc
-        snode = nodes.section(ids=[self._sphinx_directive.new_serialno()])
-        snode += nodes.title('', '', *[nodes.literal(doc.symbol, doc.symbol),
-                                       nodes.Text(' (' + typ + ')')])
-        self._parse_text_into_node(doc.body.text, snode)
-        for s in sections:
-            if s is not None:
-                snode += s
-        self._add_node_to_current_heading(snode)
-
-    def visit_enum_type(self, name, info, ifcond, features, members, prefix):
-        doc = self._cur_doc
-        self._add_doc('Enum',
-                      self._nodes_for_enum_values(doc)
-                      + self._nodes_for_features(doc)
-                      + self._nodes_for_sections(doc)
-                      + self._nodes_for_if_section(ifcond))
-
-    def visit_object_type(self, name, info, ifcond, features,
-                          base, members, branches):
-        doc = self._cur_doc
-        if base and base.is_implicit():
-            base = None
-        self._add_doc('Object',
-                      self._nodes_for_members(doc, 'Members', base, branches)
-                      + self._nodes_for_features(doc)
-                      + self._nodes_for_sections(doc)
-                      + self._nodes_for_if_section(ifcond))
-
-    def visit_alternate_type(self, name, info, ifcond, features,
-                             alternatives):
-        doc = self._cur_doc
-        self._add_doc('Alternate',
-                      self._nodes_for_members(doc, 'Members')
-                      + self._nodes_for_features(doc)
-                      + self._nodes_for_sections(doc)
-                      + self._nodes_for_if_section(ifcond))
-
-    def visit_command(self, name, info, ifcond, features, arg_type,
-                      ret_type, gen, success_response, boxed, allow_oob,
-                      allow_preconfig, coroutine):
-        doc = self._cur_doc
-        self._add_doc('Command',
-                      self._nodes_for_arguments(doc, arg_type)
-                      + self._nodes_for_features(doc)
-                      + self._nodes_for_sections(doc)
-                      + self._nodes_for_if_section(ifcond))
-
-    def visit_event(self, name, info, ifcond, features, arg_type, boxed):
-        doc = self._cur_doc
-        self._add_doc('Event',
-                      self._nodes_for_arguments(doc, arg_type)
-                      + self._nodes_for_features(doc)
-                      + self._nodes_for_sections(doc)
-                      + self._nodes_for_if_section(ifcond))
-
-    def symbol(self, doc, entity):
-        """Add documentation for one symbol to the document tree
-
-        This is the main entry point which causes us to add documentation
-        nodes for a symbol (which could be a 'command', 'object', 'event',
-        etc). We do this by calling 'visit' on the schema entity, which
-        will then call back into one of our visit_* methods, depending
-        on what kind of thing this symbol is.
-        """
-        self._cur_doc = doc
-        entity.visit(self)
-        self._cur_doc = None
-
-    def _start_new_heading(self, heading, level):
-        """Start a new heading at the specified heading level
-
-        Create a new section whose title is 'heading' and which is placed
-        in the docutils node tree as a child of the most recent level-1
-        heading. Subsequent document sections (commands, freeform doc chunks,
-        etc) will be placed as children of this new heading section.
-        """
-        if len(self._active_headings) < level:
-            raise QAPISemError(self._cur_doc.info,
-                               'Level %d subheading found outside a '
-                               'level %d heading'
-                               % (level, level - 1))
-        snode = self._make_section(heading)
-        self._active_headings[level - 1] += snode
-        self._active_headings = self._active_headings[:level]
-        self._active_headings.append(snode)
-        return snode
-
-    def _add_node_to_current_heading(self, node):
-        """Add the node to whatever the current active heading is"""
-        self._active_headings[-1] += node
-
-    def freeform(self, doc):
-        """Add a piece of 'freeform' documentation to the document tree
-
-        A 'freeform' document chunk doesn't relate to any particular
-        symbol (for instance, it could be an introduction).
-
-        If the freeform document starts with a line of the form
-        '= Heading text', this is a section or subsection heading, with
-        the heading level indicated by the number of '=' signs.
-        """
-
-        # QAPIDoc documentation says free-form documentation blocks
-        # must have only a body section, nothing else.
-        assert not doc.sections
-        assert not doc.args
-        assert not doc.features
-        self._cur_doc = doc
-
-        text = doc.body.text
-        if re.match(r'=+ ', text):
-            # Section/subsection heading (if present, will always be
-            # the first line of the block)
-            (heading, _, text) = text.partition('\n')
-            (leader, _, heading) = heading.partition(' ')
-            node = self._start_new_heading(heading, len(leader))
-            if text == '':
-                return
         else:
-            node = nodes.container()
+            self._result.append("", source, *lineno)
 
-        self._parse_text_into_node(text, node)
-        self._cur_doc = None
+    def add_line(self, content: str, info: QAPISourceInfo) -> None:
+        # NB: We *require* an info object; this works out OK because we
+        # don't document built-in objects that don't have
+        # one. Everything else should.
+        self.add_line_raw(content, info.fname, info.line)
 
-    def _parse_text_into_node(self, doctext, node):
-        """Parse a chunk of QAPI-doc-format text into the node
+    def add_lines(
+        self,
+        content: str,
+        info: QAPISourceInfo,
+    ) -> None:
+        lines = content.splitlines(True)
+        for i, line in enumerate(lines):
+            self.add_line_raw(line, info.fname, info.line + i)
 
-        The doc comment can contain most inline rST markup, including
-        bulleted and enumerated lists.
-        As an extra permitted piece of markup, @var will be turned
-        into ``var``.
+    def ensure_blank_line(self) -> None:
+        # Empty document -- no blank line required.
+        if not self._result:
+            return
+
+        # Last line isn't blank, add one.
+        if self._result[-1].strip():  # pylint: disable=no-member
+            fname, line = self._result.info(-1)
+            assert isinstance(line, int)
+            # New blank line is credited to one-after the current last line.
+            # +2: correct for zero/one index, then increment by one.
+            self.add_line_raw("", fname, line + 2)
+
+    def add_field(
+        self,
+        kind: str,
+        name: str,
+        body: str,
+        info: QAPISourceInfo,
+        typ: Optional[str] = None,
+    ) -> None:
+        if typ:
+            text = f":{kind} {typ} {name}: {body}"
+        else:
+            text = f":{kind} {name}: {body}"
+        self.add_lines(text, info)
+
+    def format_type(
+        self, ent: Union[QAPISchemaDefinition | QAPISchemaMember]
+    ) -> Optional[str]:
+        if isinstance(ent, (QAPISchemaEnumMember, QAPISchemaFeature)):
+            return None
+
+        qapi_type = ent
+        optional = False
+        if isinstance(ent, QAPISchemaObjectTypeMember):
+            qapi_type = ent.type
+            optional = ent.optional
+
+        if isinstance(qapi_type, QAPISchemaArrayType):
+            ret = f"[{qapi_type.element_type.doc_type()}]"
+        else:
+            assert isinstance(qapi_type, QAPISchemaType)
+            tmp = qapi_type.doc_type()
+            assert tmp
+            ret = tmp
+        if optional:
+            ret += "?"
+
+        return ret
+
+    def generate_field(
+        self,
+        kind: str,
+        member: QAPISchemaMember,
+        body: str,
+        info: QAPISourceInfo,
+    ) -> None:
+        typ = self.format_type(member)
+        self.add_field(kind, member.name, body, info, typ)
+
+    # Transmogrification helpers
+
+    def visit_paragraph(self, section: QAPIDoc.Section) -> None:
+        # Squelch empty paragraphs.
+        if not section.text:
+            return
+
+        self.ensure_blank_line()
+        self.add_lines(section.text, section.info)
+        self.ensure_blank_line()
+
+    def visit_member(self, section: QAPIDoc.ArgSection) -> None:
+        # FIXME: ifcond for members
+        # TODO: features for members (documented at entity-level,
+        # but sometimes defined per-member. Should we add such
+        # information to member descriptions when we can?)
+        assert section.member
+        self.generate_field(
+            self.member_field_type,
+            section.member,
+            # TODO drop fallbacks when undocumented members are outlawed
+            section.text if section.text else "Not documented",
+            section.info,
+        )
+
+    def visit_feature(self, section: QAPIDoc.ArgSection) -> None:
+        # FIXME - ifcond for features is not handled at all yet!
+        # Proposal: decorate the right-hand column with some graphical
+        # element to indicate conditional availability?
+        assert section.text  # Guaranteed by parser.py
+        assert section.member
+
+        self.generate_field("feat", section.member, section.text, section.info)
+
+    def visit_returns(self, section: QAPIDoc.Section) -> None:
+        assert isinstance(self.entity, QAPISchemaCommand)
+        rtype = self.entity.ret_type
+        # q_empty can produce None, but we won't be documenting anything
+        # without an explicit return statement in the doc block, and we
+        # should not have any such explicit statements when there is no
+        # return value.
+        assert rtype
+
+        typ = self.format_type(rtype)
+        assert typ
+        assert section.text
+        self.add_field("return", typ, section.text, section.info)
+
+    def visit_errors(self, section: QAPIDoc.Section) -> None:
+        # FIXME: the formatting for errors may be inconsistent and may
+        # or may not require different newline placement to ensure
+        # proper rendering as a nested list.
+        self.add_lines(f":error:\n{section.text}", section.info)
+
+    def preamble(self, ent: QAPISchemaDefinition) -> None:
         """
+        Generate option lines for QAPI entity directives.
+        """
+        if ent.doc and ent.doc.since:
+            assert ent.doc.since.kind == QAPIDoc.Kind.SINCE
+            # Generated from the entity's docblock; info location is exact.
+            self.add_line(f":since: {ent.doc.since.text}", ent.doc.since.info)
 
-        # Handle the "@var means ``var`` case
-        doctext = re.sub(r'@([\w-]+)', r'``\1``', doctext)
+        if ent.ifcond.is_present():
+            doc = ent.ifcond.docgen()
+            assert ent.info
+            # Generated from entity definition; info location is approximate.
+            self.add_line(f":ifcond: {doc}", ent.info)
 
-        rstlist = ViewList()
-        for line in doctext.splitlines():
-            # The reported line number will always be that of the start line
-            # of the doc comment, rather than the actual location of the error.
-            # Being more precise would require overhaul of the QAPIDoc class
-            # to track lines more exactly within all the sub-parts of the doc
-            # comment, as well as counting lines here.
-            rstlist.append(line, self._cur_doc.info.fname,
-                           self._cur_doc.info.line)
-        # Append a blank line -- in some cases rST syntax errors get
-        # attributed to the line after one with actual text, and if there
-        # isn't anything in the ViewList corresponding to that then Sphinx
-        # 1.6's AutodocReporter will then misidentify the source/line location
-        # in the error message (usually attributing it to the top-level
-        # .rst file rather than the offending .json file). The extra blank
-        # line won't affect the rendered output.
-        rstlist.append("", self._cur_doc.info.fname, self._cur_doc.info.line)
-        self._sphinx_directive.do_parse(rstlist, node)
+        # Hoist special features such as :deprecated: and :unstable:
+        # into the options block for the entity. If, in the future, new
+        # special features are added, qapi-domain will chirp about
+        # unrecognized options and fail until they are handled in
+        # qapi-domain.
+        for feat in ent.features:
+            if feat.is_special():
+                # FIXME: handle ifcond if present. How to display that
+                # information is TBD.
+                # Generated from entity def; info location is approximate.
+                assert feat.info
+                self.add_line(f":{feat.name}:", feat.info)
 
-    def get_document_nodes(self):
-        """Return the list of docutils nodes which make up the document"""
-        return self._top_node.children
+        self.ensure_blank_line()
 
+    def _insert_member_pointer(self, ent: QAPISchemaDefinition) -> None:
 
-# Turn the black formatter on for the rest of the file.
-# fmt: on
+        def _get_target(
+            ent: QAPISchemaDefinition,
+        ) -> Optional[QAPISchemaDefinition]:
+            if isinstance(ent, (QAPISchemaCommand, QAPISchemaEvent)):
+                return ent.arg_type
+            if isinstance(ent, QAPISchemaObjectType):
+                return ent.base
+            return None
+
+        target = _get_target(ent)
+        if target is not None and not target.is_implicit():
+            assert ent.info
+            self.add_field(
+                self.member_field_type,
+                "q_dummy",
+                f"The members of :qapi:type:`{target.name}`.",
+                ent.info,
+                "q_dummy",
+            )
+
+        if isinstance(ent, QAPISchemaObjectType) and ent.branches is not None:
+            for variant in ent.branches.variants:
+                if variant.type.name == "q_empty":
+                    continue
+                assert ent.info
+                self.add_field(
+                    self.member_field_type,
+                    "q_dummy",
+                    f" When ``{ent.branches.tag_member.name}`` is "
+                    f"``{variant.name}``: "
+                    f"The members of :qapi:type:`{variant.type.name}`.",
+                    ent.info,
+                    "q_dummy",
+                )
+
+    def visit_sections(self, ent: QAPISchemaDefinition) -> None:
+        sections = ent.doc.all_sections if ent.doc else []
+
+        # Determine the index location at which we should generate
+        # documentation for "The members of ..." pointers. This should
+        # go at the end of the members section(s) if any. Note that
+        # index 0 is assumed to be a plain intro section, even if it is
+        # empty; and that a members section if present will always
+        # immediately follow the opening PLAIN section.
+        gen_index = 1
+        if len(sections) > 1:
+            while sections[gen_index].kind == QAPIDoc.Kind.MEMBER:
+                gen_index += 1
+                if gen_index >= len(sections):
+                    break
+
+        # Add sections in source order:
+        for i, section in enumerate(sections):
+            # @var is translated to ``var``:
+            section.text = re.sub(r"@([\w-]+)", r"``\1``", section.text)
+
+            if section.kind == QAPIDoc.Kind.PLAIN:
+                self.visit_paragraph(section)
+            elif section.kind == QAPIDoc.Kind.MEMBER:
+                assert isinstance(section, QAPIDoc.ArgSection)
+                self.visit_member(section)
+            elif section.kind == QAPIDoc.Kind.FEATURE:
+                assert isinstance(section, QAPIDoc.ArgSection)
+                self.visit_feature(section)
+            elif section.kind in (QAPIDoc.Kind.SINCE, QAPIDoc.Kind.TODO):
+                # Since is handled in preamble, TODO is skipped intentionally.
+                pass
+            elif section.kind == QAPIDoc.Kind.RETURNS:
+                self.visit_returns(section)
+            elif section.kind == QAPIDoc.Kind.ERRORS:
+                self.visit_errors(section)
+            else:
+                assert False
+
+            # Generate "The members of ..." entries if necessary:
+            if i == gen_index - 1:
+                self._insert_member_pointer(ent)
+
+        self.ensure_blank_line()
+
+    # Transmogrification core methods
+
+    def visit_module(self, path: str) -> None:
+        name = Path(path).stem
+        # module directives are credited to the first line of a module file.
+        self.add_line_raw(f".. qapi:module:: {name}", path, 1)
+        self.ensure_blank_line()
+
+    def visit_freeform(self, doc: QAPIDoc) -> None:
+        # TODO: Once the old qapidoc transformer is deprecated, freeform
+        # sections can be updated to pure rST, and this transformed removed.
+        #
+        # For now, translate our micro-format into rST. Code adapted
+        # from Peter Maydell's freeform().
+
+        assert len(doc.all_sections) == 1, doc.all_sections
+        body = doc.all_sections[0]
+        text = body.text
+        info = doc.info
+
+        if re.match(r"=+ ", text):
+            # Section/subsection heading (if present, will always be the
+            # first line of the block)
+            (heading, _, text) = text.partition("\n")
+            (leader, _, heading) = heading.partition(" ")
+            # Implicit +1 for heading in the containing .rst doc
+            level = len(leader) + 1
+
+            # https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html#sections
+            markers = ' #*=_^"'
+            overline = level <= 2
+            marker = markers[level]
+
+            self.ensure_blank_line()
+            # This credits all 2 or 3 lines to the single source line.
+            if overline:
+                self.add_line(marker * len(heading), info)
+            self.add_line(heading, info)
+            self.add_line(marker * len(heading), info)
+            self.ensure_blank_line()
+
+            # Eat blank line(s) and advance info
+            trimmed = text.lstrip("\n")
+            text = trimmed
+            info = info.next_line(len(text) - len(trimmed) + 1)
+
+        self.add_lines(text, info)
+        self.ensure_blank_line()
+
+    def visit_entity(self, ent: QAPISchemaDefinition) -> None:
+        assert ent.info
+
+        try:
+            self._curr_ent = ent
+
+            # Squish structs and unions together into an "object" directive.
+            meta = ent.meta
+            if meta in ("struct", "union"):
+                meta = "object"
+
+            # This line gets credited to the start of the /definition/.
+            self.add_line(f".. qapi:{meta}:: {ent.name}", ent.info)
+            with self.indented():
+                self.preamble(ent)
+                self.visit_sections(ent)
+        finally:
+            self._curr_ent = None
 
 
 class QAPISchemaGenDepVisitor(QAPISchemaVisitor):
@@ -468,22 +460,22 @@ class QAPISchemaGenDepVisitor(QAPISchemaVisitor):
     schema file associated with each module in the QAPI input.
     """
 
-    def __init__(self, env, qapidir):
+    def __init__(self, env: Any, qapidir: str) -> None:
         self._env = env
         self._qapidir = qapidir
 
-    def visit_module(self, name):
+    def visit_module(self, name: str) -> None:
         if name != "./builtin":
             qapifile = self._qapidir + "/" + name
             self._env.note_dependency(os.path.abspath(qapifile))
         super().visit_module(name)
 
 
-class NestedDirective(Directive):
-    def run(self):
+class NestedDirective(SphinxDirective):
+    def run(self) -> Sequence[nodes.Node]:
         raise NotImplementedError
 
-    def do_parse(self, rstlist, node):
+    def do_parse(self, rstlist: StringList, node: nodes.Node) -> None:
         """
         Parse rST source lines and add them to the specified node
 
@@ -502,18 +494,104 @@ class QAPIDocDirective(NestedDirective):
 
     required_argument = 1
     optional_arguments = 1
-    option_spec = {"qapifile": directives.unchanged_required}
+    option_spec = {
+        "qapifile": directives.unchanged_required,
+        "transmogrify": directives.flag,
+    }
     has_content = False
 
-    def new_serialno(self):
+    def new_serialno(self) -> str:
         """Return a unique new ID string suitable for use as a node's ID"""
         env = self.state.document.settings.env
         return "qapidoc-%d" % env.new_serialno("qapidoc")
 
-    def run(self):
+    def transmogrify(self, schema: QAPISchema) -> nodes.Element:
+        logger.info("Transmogrifying QAPI to rST ...")
+        vis = Transmogrifier()
+        modules = set()
+
+        for doc in schema.docs:
+            module_source = doc.info.fname
+            if module_source not in modules:
+                vis.visit_module(module_source)
+                modules.add(module_source)
+
+            if doc.symbol:
+                ent = schema.lookup_entity(doc.symbol)
+                assert isinstance(ent, QAPISchemaDefinition)
+                vis.visit_entity(ent)
+            else:
+                vis.visit_freeform(doc)
+
+        logger.info("Transmogrification complete.")
+
+        contentnode = nodes.section()
+        content = vis.result
+        titles_allowed = True
+
+        logger.info("Transmogrifier running nested parse ...")
+        with switch_source_input(self.state, content):
+            if titles_allowed:
+                node: nodes.Element = nodes.section()
+                node.document = self.state.document
+                nested_parse_with_titles(self.state, content, contentnode)
+            else:
+                node = nodes.paragraph()
+                node.document = self.state.document
+                self.state.nested_parse(content, 0, contentnode)
+        logger.info("Transmogrifier's nested parse completed.")
+
+        if self.env.app.verbosity >= 2 or os.environ.get("DEBUG"):
+            argname = "_".join(Path(self.arguments[0]).parts)
+            name = Path(argname).stem + ".ir"
+            self.write_intermediate(content, name)
+
+        sys.stdout.flush()
+        return contentnode
+
+    def write_intermediate(self, content: StringList, filename: str) -> None:
+        logger.info(
+            "writing intermediate rST for '%s' to '%s'",
+            self.arguments[0],
+            filename,
+        )
+
+        srctree = Path(self.env.app.config.qapidoc_srctree).resolve()
+        outlines = []
+        lcol_width = 0
+
+        for i, line in enumerate(content):
+            src, lineno = content.info(i)
+            srcpath = Path(src).resolve()
+            srcpath = srcpath.relative_to(srctree)
+
+            lcol = f"{srcpath}:{lineno:04d}"
+            lcol_width = max(lcol_width, len(lcol))
+            outlines.append((lcol, line))
+
+        with open(filename, "w", encoding="UTF-8") as outfile:
+            for lcol, rcol in outlines:
+                outfile.write(lcol.rjust(lcol_width))
+                outfile.write(" |")
+                if rcol:
+                    outfile.write(f" {rcol}")
+                outfile.write("\n")
+
+    def legacy(self, schema: QAPISchema) -> nodes.Element:
+        vis = QAPISchemaGenRSTVisitor(self)
+        vis.visit_begin(schema)
+        for doc in schema.docs:
+            if doc.symbol:
+                vis.symbol(doc, schema.lookup_entity(doc.symbol))
+            else:
+                vis.freeform(doc)
+        return vis.get_document_node()  # type: ignore
+
+    def run(self) -> Sequence[nodes.Node]:
         env = self.state.document.settings.env
         qapifile = env.config.qapidoc_srctree + "/" + self.arguments[0]
         qapidir = os.path.dirname(qapifile)
+        transmogrify = "transmogrify" in self.options
 
         try:
             schema = QAPISchema(qapifile)
@@ -521,19 +599,17 @@ class QAPIDocDirective(NestedDirective):
             # First tell Sphinx about all the schema files that the
             # output documentation depends on (including 'qapifile' itself)
             schema.visit(QAPISchemaGenDepVisitor(env, qapidir))
-
-            vis = QAPISchemaGenRSTVisitor(self)
-            vis.visit_begin(schema)
-            for doc in schema.docs:
-                if doc.symbol:
-                    vis.symbol(doc, schema.lookup_entity(doc.symbol))
-                else:
-                    vis.freeform(doc)
-            return vis.get_document_nodes()
         except QAPIError as err:
             # Launder QAPI parse errors into Sphinx extension errors
             # so they are displayed nicely to the user
             raise ExtensionError(str(err)) from err
+
+        if transmogrify:
+            contentnode = self.transmogrify(schema)
+        else:
+            contentnode = self.legacy(schema)
+
+        return contentnode.children
 
 
 class QMPExample(CodeBlock, NestedDirective):
@@ -585,7 +661,7 @@ class QMPExample(CodeBlock, NestedDirective):
         )
         return node
 
-    def admonition_wrap(self, *content) -> List[nodes.Node]:
+    def admonition_wrap(self, *content: nodes.Node) -> List[nodes.Node]:
         title = "Example:"
         if "title" in self.options:
             title = f"{title} {self.options['title']}"
@@ -631,8 +707,9 @@ class QMPExample(CodeBlock, NestedDirective):
         return self.admonition_wrap(*content_nodes)
 
 
-def setup(app):
+def setup(app: Sphinx) -> ExtensionMetadata:
     """Register qapi-doc directive with Sphinx"""
+    app.setup_extension("qapi_domain")
     app.add_config_value("qapidoc_srctree", None, "env")
     app.add_directive("qapi-doc", QAPIDocDirective)
     app.add_directive("qmp-example", QMPExample)
