@@ -226,8 +226,8 @@ void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, GString *buf)
     uint32_t qsize = xive_get_field32(END2_W3_QSIZE, end->w3);
     uint32_t qentries = 1 << (qsize + 10);
 
-    uint32_t nvp_blk = xive_get_field32(END2_W6_VP_BLOCK, end->w6);
-    uint32_t nvp_idx = xive_get_field32(END2_W6_VP_OFFSET, end->w6);
+    uint32_t nvx_blk = xive_get_field32(END2_W6_VP_BLOCK, end->w6);
+    uint32_t nvx_idx = xive_get_field32(END2_W6_VP_OFFSET, end->w6);
     uint8_t priority = xive_get_field32(END2_W7_F0_PRIORITY, end->w7);
     uint8_t pq;
 
@@ -256,7 +256,7 @@ void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, GString *buf)
                            xive2_end_is_firmware2(end)   ? 'F' : '-',
                            xive2_end_is_ignore(end) ? 'i' : '-',
                            xive2_end_is_crowd(end)  ? 'c' : '-',
-                           priority, nvp_blk, nvp_idx);
+                           priority, nvx_blk, nvx_idx);
 
     if (qaddr_base) {
         g_string_append_printf(buf, " eq:@%08"PRIx64"% 6d/%5d ^%d",
@@ -372,7 +372,7 @@ static void xive2_end_enqueue(Xive2End *end, uint32_t data)
  * level of pending group interrupts.
  */
 static uint8_t xive2_presenter_backlog_scan(XivePresenter *xptr,
-                                            uint8_t nvp_blk, uint32_t nvp_idx,
+                                            uint8_t nvx_blk, uint32_t nvx_idx,
                                             uint8_t first_group,
                                             uint8_t *out_level)
 {
@@ -387,19 +387,19 @@ static uint8_t xive2_presenter_backlog_scan(XivePresenter *xptr,
 
         while (current_level) {
             mask = (1 << current_level) - 1;
-            nvgc_idx = nvp_idx & ~mask;
+            nvgc_idx = nvx_idx & ~mask;
             nvgc_idx |= mask >> 1;
             qemu_log("fxb %s checking backlog for prio %d group idx %x\n",
                      __func__, prio, nvgc_idx);
 
-            if (xive2_router_get_nvgc(xrtr, false, nvp_blk, nvgc_idx, &nvgc)) {
+            if (xive2_router_get_nvgc(xrtr, false, nvx_blk, nvgc_idx, &nvgc)) {
                 qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVG %x/%x\n",
-                              nvp_blk, nvgc_idx);
+                              nvx_blk, nvgc_idx);
                 return 0xFF;
             }
             if (!xive2_nvgc_is_valid(&nvgc)) {
                 qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid NVG %x/%x\n",
-                              nvp_blk, nvgc_idx);
+                              nvx_blk, nvgc_idx);
                 return 0xFF;
             }
 
@@ -415,7 +415,7 @@ static uint8_t xive2_presenter_backlog_scan(XivePresenter *xptr,
 }
 
 static void xive2_presenter_backlog_decr(XivePresenter *xptr,
-                                         uint8_t nvp_blk, uint32_t nvp_idx,
+                                         uint8_t nvx_blk, uint32_t nvx_idx,
                                          uint8_t group_prio,
                                          uint8_t group_level)
 {
@@ -425,17 +425,17 @@ static void xive2_presenter_backlog_decr(XivePresenter *xptr,
 
     group_level &= 0xF;
     mask = (1 << group_level) - 1;
-    nvgc_idx = nvp_idx & ~mask;
+    nvgc_idx = nvx_idx & ~mask;
     nvgc_idx |= mask >> 1;
 
-    if (xive2_router_get_nvgc(xrtr, false, nvp_blk, nvgc_idx, &nvgc)) {
+    if (xive2_router_get_nvgc(xrtr, false, nvx_blk, nvgc_idx, &nvgc)) {
         qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVG %x/%x\n",
-                      nvp_blk, nvgc_idx);
+                      nvx_blk, nvgc_idx);
         return;
     }
     if (!xive2_nvgc_is_valid(&nvgc)) {
         qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid NVG %x/%x\n",
-                      nvp_blk, nvgc_idx);
+                      nvx_blk, nvgc_idx);
         return;
     }
     count = xive2_nvgc_get_backlog(&nvgc, group_prio);
@@ -443,7 +443,7 @@ static void xive2_presenter_backlog_decr(XivePresenter *xptr,
         return;
     }
     xive2_nvgc_set_backlog(&nvgc, group_prio, count - 1);
-    xive2_router_write_nvgc(xrtr, false, nvp_blk, nvgc_idx, &nvgc);
+    xive2_router_write_nvgc(xrtr, false, nvx_blk, nvgc_idx, &nvgc);
 }
 
 /*
@@ -1289,8 +1289,8 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
     uint8_t priority;
     uint8_t format;
     bool found, precluded;
-    uint8_t nvp_blk;
-    uint32_t nvp_idx;
+    uint8_t nvx_blk;
+    uint32_t nvx_idx;
 
     /* END cache lookup */
     if (xive2_router_get_end(xrtr, end_blk, end_idx, &end)) {
@@ -1355,10 +1355,10 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
     /*
      * Follows IVPE notification
      */
-    nvp_blk = xive_get_field32(END2_W6_VP_BLOCK, end.w6);
-    nvp_idx = xive_get_field32(END2_W6_VP_OFFSET, end.w6);
+    nvx_blk = xive_get_field32(END2_W6_VP_BLOCK, end.w6);
+    nvx_idx = xive_get_field32(END2_W6_VP_OFFSET, end.w6);
 
-    found = xive_presenter_notify(xrtr->xfb, format, nvp_blk, nvp_idx,
+    found = xive_presenter_notify(xrtr->xfb, format, nvx_blk, nvx_idx,
                           xive2_end_is_crowd(&end), xive2_end_is_ignore(&end),
                           priority,
                           xive_get_field32(END2_W7_F1_LOG_SERVER_ID, end.w7),
@@ -1389,15 +1389,15 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
             Xive2Nvp nvp;
 
             /* NVP cache lookup */
-            if (xive2_router_get_nvp(xrtr, nvp_blk, nvp_idx, &nvp)) {
+            if (xive2_router_get_nvp(xrtr, nvx_blk, nvx_idx, &nvp)) {
                 qemu_log_mask(LOG_GUEST_ERROR, "XIVE: no NVP %x/%x\n",
-                              nvp_blk, nvp_idx);
+                              nvx_blk, nvx_idx);
                 return;
             }
 
             if (!xive2_nvp_is_valid(&nvp)) {
                 qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVP %x/%x is invalid\n",
-                              nvp_blk, nvp_idx);
+                              nvx_blk, nvx_idx);
                 return;
             }
 
@@ -1409,7 +1409,7 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
             ipb = xive_get_field32(NVP2_W2_IPB, nvp.w2) |
                 xive_priority_to_ipb(priority);
             nvp.w2 = xive_set_field32(NVP2_W2_IPB, nvp.w2, ipb);
-            xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, &nvp, 2);
+            xive2_router_write_nvp(xrtr, nvx_blk, nvx_idx, &nvp, 2);
         } else {
             Xive2Nvgc nvgc;
             uint32_t backlog;
@@ -1422,15 +1422,15 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
              * counters are stored in the NVG/NVC structures
              */
             if (xive2_router_get_nvgc(xrtr, crowd,
-                                      nvp_blk, nvp_idx, &nvgc)) {
+                                      nvx_blk, nvx_idx, &nvgc)) {
                 qemu_log_mask(LOG_GUEST_ERROR, "XIVE: no %s %x/%x\n",
-                              crowd ? "NVC" : "NVG", nvp_blk, nvp_idx);
+                              crowd ? "NVC" : "NVG", nvx_blk, nvx_idx);
                 return;
             }
 
             if (!xive2_nvgc_is_valid(&nvgc)) {
                 qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVG %x/%x is invalid\n",
-                              nvp_blk, nvp_idx);
+                              nvx_blk, nvx_idx);
                 return;
             }
 
@@ -1442,11 +1442,11 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
              */
             backlog = xive2_nvgc_get_backlog(&nvgc, priority) + 1;
             xive2_nvgc_set_backlog(&nvgc, priority, backlog);
-            xive2_router_write_nvgc(xrtr, crowd, nvp_blk, nvp_idx, &nvgc);
+            xive2_router_write_nvgc(xrtr, crowd, nvx_blk, nvx_idx, &nvgc);
 
             if (backlog == 1) {
                 XiveFabricClass *xfc = XIVE_FABRIC_GET_CLASS(xrtr->xfb);
-                xfc->broadcast(xrtr->xfb, nvp_blk, nvp_idx,
+                xfc->broadcast(xrtr->xfb, nvx_blk, nvx_idx,
                                xive2_end_is_crowd(&end),
                                xive2_end_is_ignore(&end),
                                priority);
