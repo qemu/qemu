@@ -257,9 +257,9 @@ Orange Pi PC integration tests
 
 The Orange Pi PC machine has several integration tests included.
 To run the whole set of tests, build QEMU from source and simply
-provide the following command:
+provide the following command from the build directory:
 
 .. code-block:: bash
 
-  $ AVOCADO_ALLOW_LARGE_STORAGE=yes avocado --show=app,console run \
-     -t machine:orangepi-pc tests/avocado/boot_linux_console.py
+  $ QEMU_TEST_ALLOW_LARGE_STORAGE=1 \
+    meson test --suite thorough func-arm-arm_orangepi

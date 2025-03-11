@@ -135,6 +135,5 @@ provide the following command:
 .. code-block:: bash
 
   $ cd qemu-build-dir
-  $ AVOCADO_ALLOW_LARGE_STORAGE=yes tests/venv/bin/avocado \
-    --verbose --show=app,console run -t machine:bpim2u \
-    ../tests/avocado/boot_linux_console.py
+  $ QEMU_TEST_ALLOW_LARGE_STORAGE=1 \
+    meson test --suite thorough func-arm-arm_bpim2u
