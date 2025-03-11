@@ -7,6 +7,32 @@ static NotifierList clipboard_notifiers =
 
 static QemuClipboardInfo *cbinfo[QEMU_CLIPBOARD_SELECTION__COUNT];
 
+static const VMStateDescription vmstate_cbcontent = {
+    .name = "clipboard/content",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (const VMStateField[]) {
+        VMSTATE_BOOL(available, QemuClipboardContent),
+        VMSTATE_BOOL(requested, QemuClipboardContent),
+        VMSTATE_UINT32(size, QemuClipboardContent),
+        VMSTATE_VBUFFER_ALLOC_UINT32(data, QemuClipboardContent, 0, 0, size),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+const VMStateDescription vmstate_cbinfo = {
+    .name = "clipboard",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (const VMStateField[]) {
+        VMSTATE_INT32(selection, QemuClipboardInfo),
+        VMSTATE_BOOL(has_serial, QemuClipboardInfo),
+        VMSTATE_UINT32(serial, QemuClipboardInfo),
+        VMSTATE_STRUCT_ARRAY(types, QemuClipboardInfo, QEMU_CLIPBOARD_TYPE__COUNT, 0, vmstate_cbcontent, QemuClipboardContent),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 void qemu_clipboard_peer_register(QemuClipboardPeer *peer)
 {
     notifier_list_add(&clipboard_notifiers, &peer->notifier);
