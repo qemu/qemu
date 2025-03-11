@@ -31,34 +31,28 @@ def create_backend(path: str) -> QAPIBackend:
 
     module_path, dot, class_name = path.rpartition('.')
     if not dot:
-        print("argument of -B must be of the form MODULE.CLASS",
-              file=sys.stderr)
-        sys.exit(1)
+        raise QAPIError("argument of -B must be of the form MODULE.CLASS")
 
     try:
         mod = import_module(module_path)
     except Exception as ex:
-        print(f"unable to import '{module_path}': {ex}", file=sys.stderr)
-        sys.exit(1)
+        raise QAPIError(f"unable to import '{module_path}': {ex}") from ex
 
     try:
         klass = getattr(mod, class_name)
-    except AttributeError:
-        print(f"module '{module_path}' has no class '{class_name}'",
-              file=sys.stderr)
-        sys.exit(1)
+    except AttributeError as ex:
+        raise QAPIError(
+            f"module '{module_path}' has no class '{class_name}'") from ex
 
     try:
         backend = klass()
     except Exception as ex:
-        print(f"backend '{path}' cannot be instantiated: {ex}",
-              file=sys.stderr)
-        sys.exit(1)
+        raise QAPIError(
+            f"backend '{path}' cannot be instantiated: {ex}") from ex
 
     if not isinstance(backend, QAPIBackend):
-        print(f"backend '{path}' must be an instance of QAPIBackend",
-              file=sys.stderr)
-        sys.exit(1)
+        raise QAPIError(
+            f"backend '{path}' must be an instance of QAPIBackend")
 
     return backend
 
