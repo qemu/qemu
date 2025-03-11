@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#include "system/runstate.h"
 #include "ui/clipboard.h"
 #include "trace.h"
 
@@ -6,6 +7,10 @@ static NotifierList clipboard_notifiers =
     NOTIFIER_LIST_INITIALIZER(clipboard_notifiers);
 
 static QemuClipboardInfo *cbinfo[QEMU_CLIPBOARD_SELECTION__COUNT];
+
+static VMChangeStateEntry *cb_change_state_entry = NULL;
+
+static bool cb_reset_serial_on_resume = false;
 
 static const VMStateDescription vmstate_cbcontent = {
     .name = "clipboard/content",
@@ -33,8 +38,32 @@ const VMStateDescription vmstate_cbinfo = {
     }
 };
 
+static void qemu_clipboard_change_state(void *opaque, bool running, RunState state)
+{
+    int i;
+
+    if (!running) {
+        return;
+    }
+
+    if (cb_reset_serial_on_resume) {
+        qemu_clipboard_reset_serial();
+    }
+
+    for (i = 0; i < QEMU_CLIPBOARD_SELECTION__COUNT; i++) {
+        if (cbinfo[i]) {
+            qemu_clipboard_update(cbinfo[i]);
+        }
+    }
+
+}
+
 void qemu_clipboard_peer_register(QemuClipboardPeer *peer)
 {
+    if (cb_change_state_entry == NULL) {
+        cb_change_state_entry = qemu_add_vm_change_state_handler(qemu_clipboard_change_state, NULL);
+    }
+
     notifier_list_add(&clipboard_notifiers, &peer->notifier);
 }
 
@@ -109,7 +138,9 @@ void qemu_clipboard_update(QemuClipboardInfo *info)
         }
     }
 
-    notifier_list_notify(&clipboard_notifiers, &notify);
+    if (runstate_is_running() || runstate_check(RUN_STATE_SUSPENDED)) {
+        notifier_list_notify(&clipboard_notifiers, &notify);
+    }
 
     if (cbinfo[info->selection] != info) {
         qemu_clipboard_info_unref(cbinfo[info->selection]);
@@ -189,7 +220,12 @@ void qemu_clipboard_reset_serial(void)
             info->serial = 0;
         }
     }
-    notifier_list_notify(&clipboard_notifiers, &notify);
+
+    if (runstate_is_running() || runstate_check(RUN_STATE_SUSPENDED)) {
+        notifier_list_notify(&clipboard_notifiers, &notify);
+    } else {
+        cb_reset_serial_on_resume = true;
+    }
 }
 
 void qemu_clipboard_set_data(QemuClipboardPeer *peer,
