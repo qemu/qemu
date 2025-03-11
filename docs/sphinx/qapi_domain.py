@@ -16,6 +16,9 @@ from typing import (
     Tuple,
 )
 
+from docutils import nodes
+
+from sphinx.addnodes import pending_xref
 from sphinx.domains import (
     Domain,
     Index,
@@ -24,10 +27,15 @@ from sphinx.domains import (
 )
 from sphinx.locale import _, __
 from sphinx.util import logging
+from sphinx.util.nodes import make_refnode
 
 
 if TYPE_CHECKING:
+    from docutils.nodes import Element
+
     from sphinx.application import Sphinx
+    from sphinx.builders import Builder
+    from sphinx.environment import BuildEnvironment
 
 logger = logging.getLogger(__name__)
 
@@ -179,9 +187,91 @@ class QAPIDomain(Domain):
                 )
                 self.objects[fullname] = obj
 
-    def resolve_any_xref(self, *args: Any, **kwargs: Any) -> Any:
-        # pylint: disable=unused-argument
-        return []
+    def find_obj(
+        self, modname: str, name: str, typ: Optional[str]
+    ) -> list[tuple[str, ObjectEntry]]:
+        """
+        Find a QAPI object for "name", perhaps using the given module.
+
+        Returns a list of (name, object entry) tuples.
+
+        :param modname: The current module context (if any!)
+                        under which we are searching.
+        :param name: The name of the x-ref to resolve;
+                     may or may not include a leading module.
+        :param type: The role name of the x-ref we're resolving, if provided.
+                     (This is absent for "any" lookups.)
+        """
+        if not name:
+            return []
+
+        names: list[str] = []
+        matches: list[tuple[str, ObjectEntry]] = []
+
+        fullname = name
+        if "." in fullname:
+            # We're searching for a fully qualified reference;
+            # ignore the contextual module.
+            pass
+        elif modname:
+            # We're searching for something from somewhere;
+            # try searching the current module first.
+            # e.g. :qapi:cmd:`query-block` or `query-block` is being searched.
+            fullname = f"{modname}.{name}"
+
+        if typ is None:
+            # type isn't specified, this is a generic xref.
+            # search *all* qapi-specific object types.
+            objtypes: List[str] = list(self.object_types)
+        else:
+            # type is specified and will be a role (e.g. obj, mod, cmd)
+            # convert this to eligible object types (e.g. command, module)
+            # using the QAPIDomain.object_types table.
+            objtypes = self.objtypes_for_role(typ, [])
+
+        if name in self.objects and self.objects[name].objtype in objtypes:
+            names = [name]
+        elif (
+            fullname in self.objects
+            and self.objects[fullname].objtype in objtypes
+        ):
+            names = [fullname]
+        else:
+            # exact match wasn't found; e.g. we are searching for
+            # `query-block` from a different (or no) module.
+            searchname = "." + name
+            names = [
+                oname
+                for oname in self.objects
+                if oname.endswith(searchname)
+                and self.objects[oname].objtype in objtypes
+            ]
+
+        matches = [(oname, self.objects[oname]) for oname in names]
+        if len(matches) > 1:
+            matches = [m for m in matches if not m[1].aliased]
+        return matches
+
+    def resolve_any_xref(
+        self,
+        env: BuildEnvironment,
+        fromdocname: str,
+        builder: Builder,
+        target: str,
+        node: pending_xref,
+        contnode: Element,
+    ) -> List[Tuple[str, nodes.reference]]:
+        results: List[Tuple[str, nodes.reference]] = []
+        matches = self.find_obj(node.get("qapi:module"), target, None)
+        for name, obj in matches:
+            rolename = self.role_for_objtype(obj.objtype)
+            assert rolename is not None
+            role = f"qapi:{rolename}"
+            refnode = make_refnode(
+                builder, fromdocname, obj.docname, obj.node_id, contnode, name
+            )
+            results.append((role, refnode))
+        return results
 
 
 def setup(app: Sphinx) -> Dict[str, Any]:
