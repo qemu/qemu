@@ -233,11 +233,12 @@ class Transmogrifier:
         # TODO: features for members (documented at entity-level,
         # but sometimes defined per-member. Should we add such
         # information to member descriptions when we can?)
-        assert section.text and section.member
+        assert section.member
         self.generate_field(
             self.member_field_type,
             section.member,
-            section.text,
+            # TODO drop fallbacks when undocumented members are outlawed
+            section.text if section.text else "Not documented",
             section.info,
         )
 
