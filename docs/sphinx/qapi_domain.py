@@ -19,6 +19,7 @@ from typing import (
 
 from docutils import nodes
 
+from sphinx import addnodes
 from sphinx.addnodes import desc_signature, pending_xref
 from sphinx.directives import ObjectDescription
 from sphinx.domains import (
@@ -34,7 +35,7 @@ from sphinx.util.nodes import make_id, make_refnode
 
 
 if TYPE_CHECKING:
-    from docutils.nodes import Element
+    from docutils.nodes import Element, Node
 
     from sphinx.application import Sphinx
     from sphinx.builders import Builder
@@ -193,6 +194,60 @@ class QAPIDescription(ObjectDescription[Signature]):
         return ""
 
 
+class QAPIModule(QAPIDescription):
+    """
+    Directive to mark description of a new module.
+
+    This directive doesn't generate any special formatting, and is just
+    a pass-through for the content body. Named section titles are
+    allowed in the content body.
+
+    Use this directive to create entries for the QAPI module in the
+    global index and the QAPI index; as well as to associate subsequent
+    definitions with the module they are defined in for purposes of
+    search and QAPI index organization.
+
+    :arg: The name of the module.
+    :opt no-index: Don't add cross-reference targets or index entries.
+    :opt no-typesetting: Don't render the content body (but preserve any
+       cross-reference target IDs in the squelched output.)
+
+    Example::
+
+       .. qapi:module:: block-core
+          :no-index:
+          :no-typesetting:
+
+          Lorem ipsum, dolor sit amet ...
+    """
+
+    def run(self) -> List[Node]:
+        modname = self.arguments[0].strip()
+        self.env.ref_context["qapi:module"] = modname
+        ret = super().run()
+
+        # ObjectDescription always creates a visible signature bar. We
+        # want module items to be "invisible", however.
+
+        # Extract the content body of the directive:
+        assert isinstance(ret[-1], addnodes.desc)
+        desc_node = ret.pop(-1)
+        assert isinstance(desc_node.children[1], addnodes.desc_content)
+        ret.extend(desc_node.children[1].children)
+
+        # Re-home node_ids so anchor refs still work:
+        node_ids: List[str]
+        if node_ids := [
+            node_id
+            for el in desc_node.children[0].traverse(nodes.Element)
+            for node_id in cast(List[str], el.get("ids", ()))
+        ]:
+            target_node = nodes.target(ids=node_ids)
+            ret.insert(1, target_node)
+
+        return ret
+
+
 class QAPIIndex(Index):
     """
     Index subclass to provide the QAPI definition index.
@@ -258,17 +313,21 @@ class QAPIDomain(Domain):
     # This table associates cross-reference object types (key) with an
     # ObjType instance, which defines the valid cross-reference roles
     # for each object type.
+    object_types: Dict[str, ObjType] = {
+        "module": ObjType(_("module"), "mod", "any"),
+    }
 
-    # Actual table entries for module, command, event, etc will come in
-    # forthcoming commits.
-    object_types: Dict[str, ObjType] = {}
-
-    directives = {}
+    # Each of these provides a rST directive,
+    # e.g. .. qapi:module:: block-core
+    directives = {
+        "module": QAPIModule,
+    }
 
     # These are all cross-reference roles; e.g.
     # :qapi:cmd:`query-block`. The keys correlate to the names used in
     # the object_types table values above.
     roles = {
+        "mod": QAPIXRefRole(),
         "any": QAPIXRefRole(),  # reference *any* type of QAPI object.
     }
 
