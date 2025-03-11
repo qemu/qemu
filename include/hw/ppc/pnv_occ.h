@@ -41,10 +41,16 @@ DECLARE_INSTANCE_CHECKER(PnvOCC, PNV10_OCC, TYPE_PNV10_OCC)
 struct PnvOCC {
     DeviceState xd;
 
+    /* OCC dynamic model is driven by this timer. */
+    QEMUTimer state_machine_timer;
+
     /* OCC Misc interrupt */
     uint64_t occmisc;
 
     qemu_irq psi_irq;
+
+    /* OCCs operate on regions of HOMER memory */
+    PnvHomer *homer;
 
     MemoryRegion xscom_regs;
     MemoryRegion sram_regs;
@@ -52,6 +58,9 @@ struct PnvOCC {
 
 struct PnvOCCClass {
     DeviceClass parent_class;
+
+    hwaddr opal_shared_memory_offset; /* offset in HOMER */
+    uint8_t opal_shared_memory_version;
 
     int xscom_size;
     const MemoryRegionOps *xscom_ops;

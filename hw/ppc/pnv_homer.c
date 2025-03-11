@@ -29,94 +29,6 @@
 #include "hw/ppc/pnv_homer.h"
 #include "hw/ppc/pnv_xscom.h"
 
-
-static bool core_max_array(PnvHomer *homer, hwaddr addr)
-{
-    int i;
-    PnvHomerClass *hmrc = PNV_HOMER_GET_CLASS(homer);
-
-    for (i = 0; i <= homer->chip->nr_cores; i++) {
-        if (addr == (hmrc->core_max_base + i)) {
-            return true;
-       }
-    }
-    return false;
-}
-
-/* P8 Pstate table */
-
-#define PNV8_OCC_PSTATE_VERSION          0x1f8001
-#define PNV8_OCC_PSTATE_MIN              0x1f8003
-#define PNV8_OCC_PSTATE_VALID            0x1f8000
-#define PNV8_OCC_PSTATE_THROTTLE         0x1f8002
-#define PNV8_OCC_PSTATE_NOM              0x1f8004
-#define PNV8_OCC_PSTATE_TURBO            0x1f8005
-#define PNV8_OCC_PSTATE_ULTRA_TURBO      0x1f8006
-#define PNV8_OCC_PSTATE_DATA             0x1f8008
-#define PNV8_OCC_PSTATE_ID_ZERO          0x1f8010
-#define PNV8_OCC_PSTATE_ID_ONE           0x1f8018
-#define PNV8_OCC_PSTATE_ID_TWO           0x1f8020
-#define PNV8_OCC_VDD_VOLTAGE_IDENTIFIER  0x1f8012
-#define PNV8_OCC_VCS_VOLTAGE_IDENTIFIER  0x1f8013
-#define PNV8_OCC_PSTATE_ZERO_FREQUENCY   0x1f8014
-#define PNV8_OCC_PSTATE_ONE_FREQUENCY    0x1f801c
-#define PNV8_OCC_PSTATE_TWO_FREQUENCY    0x1f8024
-#define PNV8_CORE_MAX_BASE               0x1f8810
-
-
-static uint64_t pnv_power8_homer_read(void *opaque, hwaddr addr,
-                                      unsigned size)
-{
-    PnvHomer *homer = PNV_HOMER(opaque);
-
-    switch (addr) {
-    case PNV8_OCC_PSTATE_VERSION:
-    case PNV8_OCC_PSTATE_MIN:
-    case PNV8_OCC_PSTATE_ID_ZERO:
-        return 0;
-    case PNV8_OCC_PSTATE_VALID:
-    case PNV8_OCC_PSTATE_THROTTLE:
-    case PNV8_OCC_PSTATE_NOM:
-    case PNV8_OCC_PSTATE_TURBO:
-    case PNV8_OCC_PSTATE_ID_ONE:
-    case PNV8_OCC_VDD_VOLTAGE_IDENTIFIER:
-    case PNV8_OCC_VCS_VOLTAGE_IDENTIFIER:
-        return 1;
-    case PNV8_OCC_PSTATE_ULTRA_TURBO:
-    case PNV8_OCC_PSTATE_ID_TWO:
-        return 2;
-    case PNV8_OCC_PSTATE_DATA:
-        return 0x1000000000000000;
-    /* P8 frequency for 0, 1, and 2 pstates */
-    case PNV8_OCC_PSTATE_ZERO_FREQUENCY:
-    case PNV8_OCC_PSTATE_ONE_FREQUENCY:
-    case PNV8_OCC_PSTATE_TWO_FREQUENCY:
-        return 3000;
-    }
-    /* pstate table core max array */
-    if (core_max_array(homer, addr)) {
-        return 1;
-    }
-    return 0;
-}
-
-static void pnv_power8_homer_write(void *opaque, hwaddr addr,
-                                   uint64_t val, unsigned size)
-{
-    /* callback function defined to homer write */
-    return;
-}
-
-static const MemoryRegionOps pnv_power8_homer_ops = {
-    .read = pnv_power8_homer_read,
-    .write = pnv_power8_homer_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 8,
-    .endianness = DEVICE_BIG_ENDIAN,
-};
-
 /* P8 PBA BARs */
 #define PBA_BAR0                     0x00
 #define PBA_BAR1                     0x01
@@ -131,16 +43,16 @@ static uint64_t pnv_homer_power8_pba_read(void *opaque, hwaddr addr,
                                           unsigned size)
 {
     PnvHomer *homer = PNV_HOMER(opaque);
-    PnvChip *chip = homer->chip;
+    PnvHomerClass *hmrc = PNV_HOMER_GET_CLASS(homer);
     uint32_t reg = addr >> 3;
     uint64_t val = 0;
 
     switch (reg) {
     case PBA_BAR0:
-        val = PNV_HOMER_BASE(chip);
+        val = homer->base;
         break;
     case PBA_BARMASK0: /* P8 homer region mask */
-        val = (PNV_HOMER_SIZE - 1) & 0x300000;
+        val = (hmrc->size - 1) & 0x300000;
         break;
     case PBA_BAR3: /* P8 occ common area */
         val = PNV_OCC_COMMON_AREA_BASE;
@@ -172,15 +84,19 @@ static const MemoryRegionOps pnv_homer_power8_pba_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
+static hwaddr pnv_homer_power8_get_base(PnvChip *chip)
+{
+    return PNV_HOMER_BASE(chip);
+}
+
 static void pnv_homer_power8_class_init(ObjectClass *klass, void *data)
 {
     PnvHomerClass *homer = PNV_HOMER_CLASS(klass);
 
+    homer->get_base = pnv_homer_power8_get_base;
+    homer->size = PNV_HOMER_SIZE;
     homer->pba_size = PNV_XSCOM_PBA_SIZE;
     homer->pba_ops = &pnv_homer_power8_pba_ops;
-    homer->homer_size = PNV_HOMER_SIZE;
-    homer->homer_ops = &pnv_power8_homer_ops;
-    homer->core_max_base = PNV8_CORE_MAX_BASE;
 }
 
 static const TypeInfo pnv_homer_power8_type_info = {
@@ -190,100 +106,20 @@ static const TypeInfo pnv_homer_power8_type_info = {
     .class_init    = pnv_homer_power8_class_init,
 };
 
-/* P9 Pstate table */
-
-#define PNV9_OCC_PSTATE_ID_ZERO          0xe2018
-#define PNV9_OCC_PSTATE_ID_ONE           0xe2020
-#define PNV9_OCC_PSTATE_ID_TWO           0xe2028
-#define PNV9_OCC_PSTATE_DATA             0xe2000
-#define PNV9_OCC_PSTATE_DATA_AREA        0xe2008
-#define PNV9_OCC_PSTATE_MIN              0xe2003
-#define PNV9_OCC_PSTATE_NOM              0xe2004
-#define PNV9_OCC_PSTATE_TURBO            0xe2005
-#define PNV9_OCC_PSTATE_ULTRA_TURBO      0xe2818
-#define PNV9_OCC_MAX_PSTATE_ULTRA_TURBO  0xe2006
-#define PNV9_OCC_PSTATE_MAJOR_VERSION    0xe2001
-#define PNV9_OCC_OPAL_RUNTIME_DATA       0xe2b85
-#define PNV9_CHIP_HOMER_IMAGE_POINTER    0x200008
-#define PNV9_CHIP_HOMER_BASE             0x0
-#define PNV9_OCC_PSTATE_ZERO_FREQUENCY   0xe201c
-#define PNV9_OCC_PSTATE_ONE_FREQUENCY    0xe2024
-#define PNV9_OCC_PSTATE_TWO_FREQUENCY    0xe202c
-#define PNV9_OCC_ROLE_MASTER_OR_SLAVE    0xe2002
-#define PNV9_CORE_MAX_BASE               0xe2819
-
-
-static uint64_t pnv_power9_homer_read(void *opaque, hwaddr addr,
-                                      unsigned size)
-{
-    PnvHomer *homer = PNV_HOMER(opaque);
-
-    switch (addr) {
-    case PNV9_OCC_MAX_PSTATE_ULTRA_TURBO:
-    case PNV9_OCC_PSTATE_ID_ZERO:
-        return 0;
-    case PNV9_OCC_PSTATE_DATA:
-    case PNV9_OCC_ROLE_MASTER_OR_SLAVE:
-    case PNV9_OCC_PSTATE_NOM:
-    case PNV9_OCC_PSTATE_TURBO:
-    case PNV9_OCC_PSTATE_ID_ONE:
-    case PNV9_OCC_PSTATE_ULTRA_TURBO:
-    case PNV9_OCC_OPAL_RUNTIME_DATA:
-        return 1;
-    case PNV9_OCC_PSTATE_MIN:
-    case PNV9_OCC_PSTATE_ID_TWO:
-        return 2;
-
-    /* 3000 khz frequency for 0, 1, and 2 pstates */
-    case PNV9_OCC_PSTATE_ZERO_FREQUENCY:
-    case PNV9_OCC_PSTATE_ONE_FREQUENCY:
-    case PNV9_OCC_PSTATE_TWO_FREQUENCY:
-        return 3000;
-    case PNV9_OCC_PSTATE_MAJOR_VERSION:
-        return 0x90;
-    case PNV9_CHIP_HOMER_BASE:
-    case PNV9_OCC_PSTATE_DATA_AREA:
-    case PNV9_CHIP_HOMER_IMAGE_POINTER:
-        return 0x1000000000000000;
-    }
-    /* pstate table core max array */
-    if (core_max_array(homer, addr)) {
-        return 1;
-    }
-    return 0;
-}
-
-static void pnv_power9_homer_write(void *opaque, hwaddr addr,
-                                   uint64_t val, unsigned size)
-{
-    /* callback function defined to homer write */
-    return;
-}
-
-static const MemoryRegionOps pnv_power9_homer_ops = {
-    .read = pnv_power9_homer_read,
-    .write = pnv_power9_homer_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 8,
-    .endianness = DEVICE_BIG_ENDIAN,
-};
-
 static uint64_t pnv_homer_power9_pba_read(void *opaque, hwaddr addr,
                                           unsigned size)
 {
     PnvHomer *homer = PNV_HOMER(opaque);
-    PnvChip *chip = homer->chip;
+    PnvHomerClass *hmrc = PNV_HOMER_GET_CLASS(homer);
     uint32_t reg = addr >> 3;
     uint64_t val = 0;
 
     switch (reg) {
     case PBA_BAR0:
-        val = PNV9_HOMER_BASE(chip);
+        val = homer->base;
         break;
     case PBA_BARMASK0: /* P9 homer region mask */
-        val = (PNV9_HOMER_SIZE - 1) & 0x300000;
+        val = (hmrc->size - 1) & 0x300000;
         break;
     case PBA_BAR2: /* P9 occ common area */
         val = PNV9_OCC_COMMON_AREA_BASE;
@@ -315,15 +151,19 @@ static const MemoryRegionOps pnv_homer_power9_pba_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
+static hwaddr pnv_homer_power9_get_base(PnvChip *chip)
+{
+    return PNV9_HOMER_BASE(chip);
+}
+
 static void pnv_homer_power9_class_init(ObjectClass *klass, void *data)
 {
     PnvHomerClass *homer = PNV_HOMER_CLASS(klass);
 
+    homer->get_base = pnv_homer_power9_get_base;
+    homer->size = PNV_HOMER_SIZE;
     homer->pba_size = PNV9_XSCOM_PBA_SIZE;
     homer->pba_ops = &pnv_homer_power9_pba_ops;
-    homer->homer_size = PNV9_HOMER_SIZE;
-    homer->homer_ops = &pnv_power9_homer_ops;
-    homer->core_max_base = PNV9_CORE_MAX_BASE;
 }
 
 static const TypeInfo pnv_homer_power9_type_info = {
@@ -337,16 +177,16 @@ static uint64_t pnv_homer_power10_pba_read(void *opaque, hwaddr addr,
                                           unsigned size)
 {
     PnvHomer *homer = PNV_HOMER(opaque);
-    PnvChip *chip = homer->chip;
+    PnvHomerClass *hmrc = PNV_HOMER_GET_CLASS(homer);
     uint32_t reg = addr >> 3;
     uint64_t val = 0;
 
     switch (reg) {
     case PBA_BAR0:
-        val = PNV10_HOMER_BASE(chip);
+        val = homer->base;
         break;
     case PBA_BARMASK0: /* P10 homer region mask */
-        val = (PNV10_HOMER_SIZE - 1) & 0x300000;
+        val = (hmrc->size - 1) & 0x300000;
         break;
     case PBA_BAR2: /* P10 occ common area */
         val = PNV10_OCC_COMMON_AREA_BASE;
@@ -378,15 +218,19 @@ static const MemoryRegionOps pnv_homer_power10_pba_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
+static hwaddr pnv_homer_power10_get_base(PnvChip *chip)
+{
+    return PNV10_HOMER_BASE(chip);
+}
+
 static void pnv_homer_power10_class_init(ObjectClass *klass, void *data)
 {
     PnvHomerClass *homer = PNV_HOMER_CLASS(klass);
 
+    homer->get_base = pnv_homer_power10_get_base;
+    homer->size = PNV_HOMER_SIZE;
     homer->pba_size = PNV10_XSCOM_PBA_SIZE;
     homer->pba_ops = &pnv_homer_power10_pba_ops;
-    homer->homer_size = PNV10_HOMER_SIZE;
-    homer->homer_ops = &pnv_power9_homer_ops; /* TODO */
-    homer->core_max_base = PNV9_CORE_MAX_BASE;
 }
 
 static const TypeInfo pnv_homer_power10_type_info = {
@@ -400,16 +244,22 @@ static void pnv_homer_realize(DeviceState *dev, Error **errp)
 {
     PnvHomer *homer = PNV_HOMER(dev);
     PnvHomerClass *hmrc = PNV_HOMER_GET_CLASS(homer);
+    char homer_str[32];
 
     assert(homer->chip);
 
     pnv_xscom_region_init(&homer->pba_regs, OBJECT(dev), hmrc->pba_ops,
                           homer, "xscom-pba", hmrc->pba_size);
 
-    /* homer region */
-    memory_region_init_io(&homer->regs, OBJECT(dev),
-                          hmrc->homer_ops, homer, "homer-main-memory",
-                          hmrc->homer_size);
+    /* Homer RAM region */
+    homer->base = hmrc->get_base(homer->chip);
+
+    snprintf(homer_str, sizeof(homer_str), "homer-chip%d-memory",
+             homer->chip->chip_id);
+    if (!memory_region_init_ram(&homer->mem, OBJECT(homer),
+                                homer_str, hmrc->size, errp)) {
+        return;
+    }
 }
 
 static const Property pnv_homer_properties[] = {

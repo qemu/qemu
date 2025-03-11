@@ -178,14 +178,14 @@ void test_flush_sync_inject(QTestState *qts)
     int test_nr;
     uint8_t byte;
 
-    printf("# ============================================================\n");
-    printf("# Starting cache flush/queue sync injection tests...\n");
+    g_test_message("=========================================================");
+    g_test_message("Starting cache flush/queue sync injection tests...");
 
     for (test_nr = 0; test_nr < sizeof(xive_inject_tests);
          test_nr++) {
         int op_type = xive_inject_tests[test_nr];
 
-        printf("# Running test %d\n", test_nr);
+        g_test_message("Running test %d", test_nr);
 
         /* start with status byte set to 0 */
         clr_sync(qts, src_pir, ic_topo_id, op_type);

@@ -1,10 +1,9 @@
 /*
  * QEMU PowerPC XIVE2 internal structure definitions (POWER10)
  *
- * Copyright (c) 2019-2022, IBM Corporation.
+ * Copyright (c) 2019-2024, IBM Corporation.
  *
- * This code is licensed under the GPL version 2 or later. See the
- * COPYING file in the top-level directory.
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #ifndef PPC_XIVE2_REGS_H
@@ -152,6 +151,9 @@ typedef struct Xive2Nvp {
         uint32_t       w0;
 #define NVP2_W0_VALID              PPC_BIT32(0)
 #define NVP2_W0_HW                 PPC_BIT32(7)
+#define NVP2_W0_L                  PPC_BIT32(8)
+#define NVP2_W0_G                  PPC_BIT32(9)
+#define NVP2_W0_T                  PPC_BIT32(10)
 #define NVP2_W0_ESC_END            PPC_BIT32(25) /* 'N' bit 0:ESB  1:END */
 #define NVP2_W0_PGOFIRST           PPC_BITMASK32(26, 31)
         uint32_t       w1;
@@ -163,6 +165,8 @@ typedef struct Xive2Nvp {
 #define NVP2_W2_CPPR               PPC_BITMASK32(0, 7)
 #define NVP2_W2_IPB                PPC_BITMASK32(8, 15)
 #define NVP2_W2_LSMFB              PPC_BITMASK32(16, 23)
+#define NVP2_W2_T                  PPC_BIT32(27)
+#define NVP2_W2_LGS                PPC_BITMASK32(28, 31)
         uint32_t       w3;
         uint32_t       w4;
 #define NVP2_W4_ESC_ESB_BLOCK      PPC_BITMASK32(0, 3)  /* N:0 */
@@ -228,5 +232,12 @@ typedef struct Xive2Nvgc {
 
 void xive2_nvgc_pic_print_info(Xive2Nvgc *nvgc, uint32_t nvgc_idx,
                                GString *buf);
+
+#define NVx_BACKLOG_OP            PPC_BITMASK(52, 53)
+#define NVx_BACKLOG_PRIO          PPC_BITMASK(57, 59)
+
+/* split the 6-bit crowd/group level */
+#define NVx_CROWD_LVL(level)      ((level >> 4) & 0b11)
+#define NVx_GROUP_LVL(level)      (level & 0b1111)
 
 #endif /* PPC_XIVE2_REGS_H */

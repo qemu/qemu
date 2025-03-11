@@ -2,6 +2,9 @@
  * QTest testcase for PowerNV 10 interrupt controller (xive2)
  *  - Test irq to hardware thread
  *  - Test 'Pull Thread Context to Odd Thread Reporting Line'
+ *  - Test irq to hardware group
+ *  - Test irq to hardware group going through backlog
+ *  - Test irq to pool thread
  *
  * Copyright (c) 2024, IBM Corporation.
  *
@@ -218,8 +221,8 @@ static void test_hw_irq(QTestState *qts)
     uint16_t reg16;
     uint8_t pq, nsr, cppr;
 
-    printf("# ============================================================\n");
-    printf("# Testing irq %d to hardware thread %d\n", irq, target_pir);
+    g_test_message("=========================================================");
+    g_test_message("Testing irq %d to hardware thread %d", irq, target_pir);
 
     /* irq config */
     set_eas(qts, irq, end_index, irq_data);
@@ -264,6 +267,79 @@ static void test_hw_irq(QTestState *qts)
     g_assert_cmphex(cppr, ==, 0xFF);
 }
 
+static void test_pool_irq(QTestState *qts)
+{
+    uint32_t irq = 2;
+    uint32_t irq_data = 0x600d0d06;
+    uint32_t end_index = 5;
+    uint32_t target_pir = 1;
+    uint32_t target_nvp = 0x100 + target_pir;
+    uint8_t priority = 5;
+    uint32_t reg32;
+    uint16_t reg16;
+    uint8_t pq, nsr, cppr, ipb;
+
+    g_test_message("=========================================================");
+    g_test_message("Testing irq %d to pool thread %d", irq, target_pir);
+
+    /* irq config */
+    set_eas(qts, irq, end_index, irq_data);
+    set_end(qts, end_index, target_nvp, priority, false /* group */);
+
+    /* enable and trigger irq */
+    get_esb(qts, irq, XIVE_EOI_PAGE, XIVE_ESB_SET_PQ_00);
+    set_esb(qts, irq, XIVE_TRIGGER_PAGE, 0, 0);
+
+    /* check irq is raised on cpu */
+    pq = get_esb(qts, irq, XIVE_EOI_PAGE, XIVE_ESB_GET);
+    g_assert_cmpuint(pq, ==, XIVE_ESB_PENDING);
+
+    /* check TIMA values in the PHYS ring (shared by POOL ring) */
+    reg32 = get_tima32(qts, target_pir, TM_QW3_HV_PHYS + TM_WORD0);
+    nsr = reg32 >> 24;
+    cppr = (reg32 >> 16) & 0xFF;
+    g_assert_cmphex(nsr, ==, 0x40);
+    g_assert_cmphex(cppr, ==, 0xFF);
+
+    /* check TIMA values in the POOL ring */
+    reg32 = get_tima32(qts, target_pir, TM_QW2_HV_POOL + TM_WORD0);
+    nsr = reg32 >> 24;
+    cppr = (reg32 >> 16) & 0xFF;
+    ipb = (reg32 >> 8) & 0xFF;
+    g_assert_cmphex(nsr, ==, 0);
+    g_assert_cmphex(cppr, ==, 0);
+    g_assert_cmphex(ipb, ==, 0x80 >> priority);
+
+    /* ack the irq */
+    reg16 = get_tima16(qts, target_pir, TM_SPC_ACK_HV_REG);
+    nsr = reg16 >> 8;
+    cppr = reg16 & 0xFF;
+    g_assert_cmphex(nsr, ==, 0x40);
+    g_assert_cmphex(cppr, ==, priority);
+
+    /* check irq data is what was configured */
+    reg32 = qtest_readl(qts, xive_get_queue_addr(end_index));
+    g_assert_cmphex((reg32 & 0x7fffffff), ==, (irq_data & 0x7fffffff));
+
+    /* check IPB is cleared in the POOL ring */
+    reg32 = get_tima32(qts, target_pir, TM_QW2_HV_POOL + TM_WORD0);
+    ipb = (reg32 >> 8) & 0xFF;
+    g_assert_cmphex(ipb, ==, 0);
+
+    /* End Of Interrupt */
+    set_esb(qts, irq, XIVE_EOI_PAGE, XIVE_ESB_STORE_EOI, 0);
+    pq = get_esb(qts, irq, XIVE_EOI_PAGE, XIVE_ESB_GET);
+    g_assert_cmpuint(pq, ==, XIVE_ESB_RESET);
+
+    /* reset CPPR */
+    set_tima8(qts, target_pir, TM_QW3_HV_PHYS + TM_CPPR, 0xFF);
+    reg32 = get_tima32(qts, target_pir, TM_QW3_HV_PHYS + TM_WORD0);
+    nsr = reg32 >> 24;
+    cppr = (reg32 >> 16) & 0xFF;
+    g_assert_cmphex(nsr, ==, 0x00);
+    g_assert_cmphex(cppr, ==, 0xFF);
+}
+
 #define XIVE_ODD_CL 0x80
 static void test_pull_thread_ctx_to_odd_thread_cl(QTestState *qts)
 {
@@ -276,8 +352,9 @@ static void test_pull_thread_ctx_to_odd_thread_cl(QTestState *qts)
     uint32_t cl_word;
     uint32_t word2;
 
-    printf("# ============================================================\n");
-    printf("# Testing 'Pull Thread Context to Odd Thread Reporting Line'\n");
+    g_test_message("=========================================================");
+    g_test_message("Testing 'Pull Thread Context to Odd Thread Reporting " \
+                   "Line'");
 
     /* clear odd cache line prior to pull operation */
     memset(cl_pair, 0, sizeof(cl_pair));
@@ -315,6 +392,158 @@ static void test_pull_thread_ctx_to_odd_thread_cl(QTestState *qts)
     word2 = get_tima32(qts, target_pir, TM_QW3_HV_PHYS + TM_WORD2);
     g_assert_cmphex(xive_get_field32(TM_QW3W2_VT, word2), ==, 0);
 }
+
+static void test_hw_group_irq(QTestState *qts)
+{
+    uint32_t irq = 100;
+    uint32_t irq_data = 0xdeadbeef;
+    uint32_t end_index = 23;
+    uint32_t chosen_one;
+    uint32_t target_nvp = 0x81; /* group size = 4 */
+    uint8_t priority = 6;
+    uint32_t reg32;
+    uint16_t reg16;
+    uint8_t pq, nsr, cppr;
+
+    g_test_message("=========================================================");
+    g_test_message("Testing irq %d to hardware group of size 4", irq);
+
+    /* irq config */
+    set_eas(qts, irq, end_index, irq_data);
+    set_end(qts, end_index, target_nvp, priority, true /* group */);
+
+    /* enable and trigger irq */
+    get_esb(qts, irq, XIVE_EOI_PAGE, XIVE_ESB_SET_PQ_00);
+    set_esb(qts, irq, XIVE_TRIGGER_PAGE, 0, 0);
+
+    /* check irq is raised on cpu */
+    pq = get_esb(qts, irq, XIVE_EOI_PAGE, XIVE_ESB_GET);
+    g_assert_cmpuint(pq, ==, XIVE_ESB_PENDING);
+
+    /* find the targeted vCPU */
+    for (chosen_one = 0; chosen_one < SMT; chosen_one++) {
+        reg32 = get_tima32(qts, chosen_one, TM_QW3_HV_PHYS + TM_WORD0);
+        nsr = reg32 >> 24;
+        if (nsr == 0x82) {
+            break;
+        }
+    }
+    g_assert_cmphex(chosen_one, <, SMT);
+    cppr = (reg32 >> 16) & 0xFF;
+    g_assert_cmphex(nsr, ==, 0x82);
+    g_assert_cmphex(cppr, ==, 0xFF);
+
+    /* ack the irq */
+    reg16 = get_tima16(qts, chosen_one, TM_SPC_ACK_HV_REG);
+    nsr = reg16 >> 8;
+    cppr = reg16 & 0xFF;
+    g_assert_cmphex(nsr, ==, 0x82);
+    g_assert_cmphex(cppr, ==, priority);
+
+    /* check irq data is what was configured */
+    reg32 = qtest_readl(qts, xive_get_queue_addr(end_index));
+    g_assert_cmphex((reg32 & 0x7fffffff), ==, (irq_data & 0x7fffffff));
+
+    /* End Of Interrupt */
+    set_esb(qts, irq, XIVE_EOI_PAGE, XIVE_ESB_STORE_EOI, 0);
+    pq = get_esb(qts, irq, XIVE_EOI_PAGE, XIVE_ESB_GET);
+    g_assert_cmpuint(pq, ==, XIVE_ESB_RESET);
+
+    /* reset CPPR */
+    set_tima8(qts, chosen_one, TM_QW3_HV_PHYS + TM_CPPR, 0xFF);
+    reg32 = get_tima32(qts, chosen_one, TM_QW3_HV_PHYS + TM_WORD0);
+    nsr = reg32 >> 24;
+    cppr = (reg32 >> 16) & 0xFF;
+    g_assert_cmphex(nsr, ==, 0x00);
+    g_assert_cmphex(cppr, ==, 0xFF);
+}
+
+static void test_hw_group_irq_backlog(QTestState *qts)
+{
+    uint32_t irq = 31;
+    uint32_t irq_data = 0x01234567;
+    uint32_t end_index = 129;
+    uint32_t target_nvp = 0x81; /* group size = 4 */
+    uint32_t chosen_one = 3;
+    uint8_t blocking_priority, priority = 3;
+    uint32_t reg32;
+    uint16_t reg16;
+    uint8_t pq, nsr, cppr, lsmfb, i;
+
+    g_test_message("=========================================================");
+    g_test_message("Testing irq %d to hardware group of size 4 going " \
+                   "through backlog",
+                   irq);
+
+    /*
+     * set current priority of all threads in the group to something
+     * higher than what we're about to trigger
+     */
+    blocking_priority = priority - 1;
+    for (i = 0; i < SMT; i++) {
+        set_tima8(qts, i, TM_QW3_HV_PHYS + TM_CPPR, blocking_priority);
+    }
+
+    /* irq config */
+    set_eas(qts, irq, end_index, irq_data);
+    set_end(qts, end_index, target_nvp, priority, true /* group */);
+
+    /* enable and trigger irq */
+    get_esb(qts, irq, XIVE_EOI_PAGE, XIVE_ESB_SET_PQ_00);
+    set_esb(qts, irq, XIVE_TRIGGER_PAGE, 0, 0);
+
+    /* check irq is raised on cpu */
+    pq = get_esb(qts, irq, XIVE_EOI_PAGE, XIVE_ESB_GET);
+    g_assert_cmpuint(pq, ==, XIVE_ESB_PENDING);
+
+    /* check no interrupt is pending on the 2 possible targets */
+    for (i = 0; i < SMT; i++) {
+        reg32 = get_tima32(qts, i, TM_QW3_HV_PHYS + TM_WORD0);
+        nsr = reg32 >> 24;
+        cppr = (reg32 >> 16) & 0xFF;
+        lsmfb = reg32 & 0xFF;
+        g_assert_cmphex(nsr, ==, 0x0);
+        g_assert_cmphex(cppr, ==, blocking_priority);
+        g_assert_cmphex(lsmfb, ==, priority);
+    }
+
+    /* lower priority of one thread */
+    set_tima8(qts, chosen_one, TM_QW3_HV_PHYS + TM_CPPR, priority + 1);
+
+    /* check backlogged interrupt is presented */
+    reg32 = get_tima32(qts, chosen_one, TM_QW3_HV_PHYS + TM_WORD0);
+    nsr = reg32 >> 24;
+    cppr = (reg32 >> 16) & 0xFF;
+    g_assert_cmphex(nsr, ==, 0x82);
+    g_assert_cmphex(cppr, ==, priority + 1);
+
+    /* ack the irq */
+    reg16 = get_tima16(qts, chosen_one, TM_SPC_ACK_HV_REG);
+    nsr = reg16 >> 8;
+    cppr = reg16 & 0xFF;
+    g_assert_cmphex(nsr, ==, 0x82);
+    g_assert_cmphex(cppr, ==, priority);
+
+    /* check irq data is what was configured */
+    reg32 = qtest_readl(qts, xive_get_queue_addr(end_index));
+    g_assert_cmphex((reg32 & 0x7fffffff), ==, (irq_data & 0x7fffffff));
+
+    /* End Of Interrupt */
+    set_esb(qts, irq, XIVE_EOI_PAGE, XIVE_ESB_STORE_EOI, 0);
+    pq = get_esb(qts, irq, XIVE_EOI_PAGE, XIVE_ESB_GET);
+    g_assert_cmpuint(pq, ==, XIVE_ESB_RESET);
+
+    /* reset CPPR */
+    set_tima8(qts, chosen_one, TM_QW3_HV_PHYS + TM_CPPR, 0xFF);
+    reg32 = get_tima32(qts, chosen_one, TM_QW3_HV_PHYS + TM_WORD0);
+    nsr = reg32 >> 24;
+    cppr = (reg32 >> 16) & 0xFF;
+    lsmfb = reg32 & 0xFF;
+    g_assert_cmphex(nsr, ==, 0x00);
+    g_assert_cmphex(cppr, ==, 0xFF);
+    g_assert_cmphex(lsmfb, ==, 0xFF);
+}
+
 static void test_xive(void)
 {
     QTestState *qts;
@@ -331,7 +560,19 @@ static void test_xive(void)
     test_pull_thread_ctx_to_odd_thread_cl(qts);
 
     reset_state(qts);
+    test_pool_irq(qts);
+
+    reset_state(qts);
+    test_hw_group_irq(qts);
+
+    reset_state(qts);
+    test_hw_group_irq_backlog(qts);
+
+    reset_state(qts);
     test_flush_sync_inject(qts);
+
+    reset_state(qts);
+    test_nvpg_bar(qts);
 
     qtest_quit(qts);
 }

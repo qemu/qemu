@@ -126,6 +126,8 @@ struct PnvXScomInterfaceClass {
 #define PNV9_XSCOM_PEC_PCI_BASE   0xd010800
 #define PNV9_XSCOM_PEC_PCI_SIZE   0x200
 
+#define PNV9_XSCOM_PEC_NEST_CPLT_BASE  0x0d000000
+
 /* XSCOM PCI "pass-through" window to PHB SCOM */
 #define PNV9_XSCOM_PEC_PCI_STK0   0x100
 #define PNV9_XSCOM_PEC_PCI_STK1   0x140
@@ -196,6 +198,8 @@ struct PnvXScomInterfaceClass {
 
 #define PNV10_XSCOM_PEC_NEST_BASE  0x3011800 /* index goes downwards ... */
 #define PNV10_XSCOM_PEC_NEST_SIZE  0x100
+
+#define PNV10_XSCOM_PEC_NEST_CPLT_BASE 0x08000000
 
 #define PNV10_XSCOM_PEC_PCI_BASE   0x8010800 /* index goes upwards ... */
 #define PNV10_XSCOM_PEC_PCI_SIZE   0x200

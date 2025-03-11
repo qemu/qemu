@@ -234,6 +234,16 @@ void helper_store_dawrx0(CPUPPCState *env, target_ulong value)
     ppc_store_dawrx0(env, value);
 }
 
+void helper_store_dawr1(CPUPPCState *env, target_ulong value)
+{
+    ppc_store_dawr1(env, value);
+}
+
+void helper_store_dawrx1(CPUPPCState *env, target_ulong value)
+{
+    ppc_store_dawrx1(env, value);
+}
+
 /*
  * DPDES register is shared. Each bit reflects the state of the
  * doorbell interrupt of a thread of the same core.
@@ -377,6 +387,59 @@ void helper_store_sprd(CPUPPCState *env, target_ulong val)
         break;
     }
 }
+
+target_ulong helper_load_pmsr(CPUPPCState *env)
+{
+    target_ulong lowerps = extract64(env->spr[SPR_PMCR], PPC_BIT_NR(15), 8);
+    target_ulong val = 0;
+
+    val |= PPC_BIT(63); /* verion 0x1 (POWER9/10) */
+    /* Pmin = 0 */
+    /* XXX: POWER9 should be 3 */
+    val |= 4ULL << PPC_BIT_NR(31); /* Pmax */
+    val |= lowerps << PPC_BIT_NR(15); /* Local actual Pstate */
+    val |= lowerps << PPC_BIT_NR(7); /* Global actual Pstate */
+
+    return val;
+}
+
+static void ppc_set_pmcr(PowerPCCPU *cpu, target_ulong val)
+{
+    cpu->env.spr[SPR_PMCR] = val;
+}
+
+void helper_store_pmcr(CPUPPCState *env, target_ulong val)
+{
+    PowerPCCPU *cpu = env_archcpu(env);
+    CPUState *cs = env_cpu(env);
+    CPUState *ccs;
+
+    /* Leave version field unchanged (0x1) */
+    val &= ~PPC_BITMASK(60, 63);
+    val |= PPC_BIT(63);
+
+    val &= ~PPC_BITMASK(0, 7); /* UpperPS ignored */
+    if (val & PPC_BITMASK(16, 59)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Non-zero PMCR reserved bits "
+                      TARGET_FMT_lx"\n", val);
+        val &= ~PPC_BITMASK(16, 59);
+    }
+
+    /* DPDES behaves as 1-thread in LPAR-per-thread mode */
+    if (ppc_cpu_lpar_single_threaded(cs)) {
+        ppc_set_pmcr(cpu, val);
+        return;
+    }
+
+    /* Does iothread need to be locked for walking CPU list? */
+    bql_lock();
+    THREAD_SIBLING_FOREACH(cs, ccs) {
+        PowerPCCPU *ccpu = POWERPC_CPU(ccs);
+        ppc_set_pmcr(ccpu, val);
+    }
+    bql_unlock();
+}
+
 #endif /* defined(TARGET_PPC64) */
 
 void helper_store_pidr(CPUPPCState *env, target_ulong val)

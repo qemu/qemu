@@ -1,10 +1,9 @@
 /*
  * QEMU PowerPC XIVE2 interrupt controller model (POWER10)
  *
- * Copyright (c) 2019-2022, IBM Corporation..
+ * Copyright (c) 2019-2024, IBM Corporation..
  *
- * This code is licensed under the GPL version 2 or later. See the
- * COPYING file in the top-level directory.
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #include "qemu/osdep.h"
@@ -18,6 +17,7 @@
 #include "hw/ppc/xive.h"
 #include "hw/ppc/xive2.h"
 #include "hw/ppc/xive2_regs.h"
+#include "trace.h"
 
 uint32_t xive2_router_get_config(Xive2Router *xrtr)
 {
@@ -54,13 +54,125 @@ static uint32_t xive2_nvgc_get_backlog(Xive2Nvgc *nvgc, uint8_t priority)
 
     /*
      * The per-priority backlog counters are 24-bit and the structure
-     * is stored in big endian
+     * is stored in big endian. NVGC is 32-bytes long, so 24-bytes from
+     * w2, which fits 8 priorities * 24-bits per priority.
      */
     ptr = (uint8_t *)&nvgc->w2 + priority * 3;
     for (i = 0; i < 3; i++, ptr++) {
         val = (val << 8) + *ptr;
     }
     return val;
+}
+
+static void xive2_nvgc_set_backlog(Xive2Nvgc *nvgc, uint8_t priority,
+                                   uint32_t val)
+{
+    uint8_t *ptr, i;
+    uint32_t shift;
+
+    if (priority > 7) {
+        return;
+    }
+
+    if (val > 0xFFFFFF) {
+        val = 0xFFFFFF;
+    }
+    /*
+     * The per-priority backlog counters are 24-bit and the structure
+     * is stored in big endian
+     */
+    ptr = (uint8_t *)&nvgc->w2 + priority * 3;
+    for (i = 0; i < 3; i++, ptr++) {
+        shift = 8 * (2 - i);
+        *ptr = (val >> shift) & 0xFF;
+    }
+}
+
+uint64_t xive2_presenter_nvgc_backlog_op(XivePresenter *xptr,
+                                         bool crowd,
+                                         uint8_t blk, uint32_t idx,
+                                         uint16_t offset, uint16_t val)
+{
+    Xive2Router *xrtr = XIVE2_ROUTER(xptr);
+    uint8_t priority = GETFIELD(NVx_BACKLOG_PRIO, offset);
+    uint8_t op = GETFIELD(NVx_BACKLOG_OP, offset);
+    Xive2Nvgc nvgc;
+    uint32_t count, old_count;
+
+    if (xive2_router_get_nvgc(xrtr, crowd, blk, idx, &nvgc)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No %s %x/%x\n",
+                      crowd ? "NVC" : "NVG", blk, idx);
+        return -1;
+    }
+    if (!xive2_nvgc_is_valid(&nvgc)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid NVG %x/%x\n", blk, idx);
+        return -1;
+    }
+
+    old_count = xive2_nvgc_get_backlog(&nvgc, priority);
+    count = old_count;
+    /*
+     * op:
+     * 0b00 => increment
+     * 0b01 => decrement
+     * 0b1- => read
+     */
+    if (op == 0b00 || op == 0b01) {
+        if (op == 0b00) {
+            count += val;
+        } else {
+            if (count > val) {
+                count -= val;
+            } else {
+                count = 0;
+            }
+        }
+        xive2_nvgc_set_backlog(&nvgc, priority, count);
+        xive2_router_write_nvgc(xrtr, crowd, blk, idx, &nvgc);
+    }
+    trace_xive_nvgc_backlog_op(crowd, blk, idx, op, priority, old_count);
+    return old_count;
+}
+
+uint64_t xive2_presenter_nvp_backlog_op(XivePresenter *xptr,
+                                        uint8_t blk, uint32_t idx,
+                                        uint16_t offset)
+{
+    Xive2Router *xrtr = XIVE2_ROUTER(xptr);
+    uint8_t priority = GETFIELD(NVx_BACKLOG_PRIO, offset);
+    uint8_t op = GETFIELD(NVx_BACKLOG_OP, offset);
+    Xive2Nvp nvp;
+    uint8_t ipb, old_ipb, rc;
+
+    if (xive2_router_get_nvp(xrtr, blk, idx, &nvp)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVP %x/%x\n", blk, idx);
+        return -1;
+    }
+    if (!xive2_nvp_is_valid(&nvp)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid NVP %x/%x\n", blk, idx);
+        return -1;
+    }
+
+    old_ipb = xive_get_field32(NVP2_W2_IPB, nvp.w2);
+    ipb = old_ipb;
+    /*
+     * op:
+     * 0b00 => set priority bit
+     * 0b01 => reset priority bit
+     * 0b1- => read
+     */
+    if (op == 0b00 || op == 0b01) {
+        if (op == 0b00) {
+            ipb |= xive_priority_to_ipb(priority);
+        } else {
+            ipb &= ~xive_priority_to_ipb(priority);
+        }
+        nvp.w2 = xive_set_field32(NVP2_W2_IPB, nvp.w2, ipb);
+        xive2_router_write_nvp(xrtr, blk, idx, &nvp, 2);
+    }
+    rc = !!(old_ipb & xive_priority_to_ipb(priority));
+    trace_xive_nvp_backlog_op(blk, idx, op, priority, rc);
+    return rc;
 }
 
 void xive2_eas_pic_print_info(Xive2Eas *eas, uint32_t lisn, GString *buf)
@@ -114,8 +226,8 @@ void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, GString *buf)
     uint32_t qsize = xive_get_field32(END2_W3_QSIZE, end->w3);
     uint32_t qentries = 1 << (qsize + 10);
 
-    uint32_t nvp_blk = xive_get_field32(END2_W6_VP_BLOCK, end->w6);
-    uint32_t nvp_idx = xive_get_field32(END2_W6_VP_OFFSET, end->w6);
+    uint32_t nvx_blk = xive_get_field32(END2_W6_VP_BLOCK, end->w6);
+    uint32_t nvx_idx = xive_get_field32(END2_W6_VP_OFFSET, end->w6);
     uint8_t priority = xive_get_field32(END2_W7_F0_PRIORITY, end->w7);
     uint8_t pq;
 
@@ -144,7 +256,7 @@ void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, GString *buf)
                            xive2_end_is_firmware2(end)   ? 'F' : '-',
                            xive2_end_is_ignore(end) ? 'i' : '-',
                            xive2_end_is_crowd(end)  ? 'c' : '-',
-                           priority, nvp_blk, nvp_idx);
+                           priority, nvx_blk, nvx_idx);
 
     if (qaddr_base) {
         g_string_append_printf(buf, " eq:@%08"PRIx64"% 6d/%5d ^%d",
@@ -255,6 +367,115 @@ static void xive2_end_enqueue(Xive2End *end, uint32_t data)
     end->w1 = xive_set_field32(END2_W1_PAGE_OFF, end->w1, qindex);
 }
 
+static void xive2_pgofnext(uint8_t *nvgc_blk, uint32_t *nvgc_idx,
+                           uint8_t next_level)
+{
+    uint32_t mask, next_idx;
+    uint8_t next_blk;
+
+    /*
+     * Adjust the block and index of a VP for the next group/crowd
+     * size (PGofFirst/PGofNext field in the NVP and NVGC structures).
+     *
+     * The 6-bit group level is split into a 2-bit crowd and 4-bit
+     * group levels. Encoding is similar. However, we don't support
+     * crowd size of 8. So a crowd level of 0b11 is bumped to a crowd
+     * size of 16.
+     */
+    next_blk = NVx_CROWD_LVL(next_level);
+    if (next_blk == 3) {
+        next_blk = 4;
+    }
+    mask = (1 << next_blk) - 1;
+    *nvgc_blk &= ~mask;
+    *nvgc_blk |= mask >> 1;
+
+    next_idx = NVx_GROUP_LVL(next_level);
+    mask = (1 << next_idx) - 1;
+    *nvgc_idx &= ~mask;
+    *nvgc_idx |= mask >> 1;
+}
+
+/*
+ * Scan the group chain and return the highest priority and group
+ * level of pending group interrupts.
+ */
+static uint8_t xive2_presenter_backlog_scan(XivePresenter *xptr,
+                                            uint8_t nvx_blk, uint32_t nvx_idx,
+                                            uint8_t first_group,
+                                            uint8_t *out_level)
+{
+    Xive2Router *xrtr = XIVE2_ROUTER(xptr);
+    uint32_t nvgc_idx;
+    uint32_t current_level, count;
+    uint8_t nvgc_blk, prio;
+    Xive2Nvgc nvgc;
+
+    for (prio = 0; prio <= XIVE_PRIORITY_MAX; prio++) {
+        current_level = first_group & 0x3F;
+        nvgc_blk = nvx_blk;
+        nvgc_idx = nvx_idx;
+
+        while (current_level) {
+            xive2_pgofnext(&nvgc_blk, &nvgc_idx, current_level);
+
+            if (xive2_router_get_nvgc(xrtr, NVx_CROWD_LVL(current_level),
+                                      nvgc_blk, nvgc_idx, &nvgc)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVGC %x/%x\n",
+                              nvgc_blk, nvgc_idx);
+                return 0xFF;
+            }
+            if (!xive2_nvgc_is_valid(&nvgc)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid NVGC %x/%x\n",
+                              nvgc_blk, nvgc_idx);
+                return 0xFF;
+            }
+
+            count = xive2_nvgc_get_backlog(&nvgc, prio);
+            if (count) {
+                *out_level = current_level;
+                return prio;
+            }
+            current_level = xive_get_field32(NVGC2_W0_PGONEXT, nvgc.w0) & 0x3F;
+        }
+    }
+    return 0xFF;
+}
+
+static void xive2_presenter_backlog_decr(XivePresenter *xptr,
+                                         uint8_t nvx_blk, uint32_t nvx_idx,
+                                         uint8_t group_prio,
+                                         uint8_t group_level)
+{
+    Xive2Router *xrtr = XIVE2_ROUTER(xptr);
+    uint32_t nvgc_idx, count;
+    uint8_t nvgc_blk;
+    Xive2Nvgc nvgc;
+
+    nvgc_blk = nvx_blk;
+    nvgc_idx = nvx_idx;
+    xive2_pgofnext(&nvgc_blk, &nvgc_idx, group_level);
+
+    if (xive2_router_get_nvgc(xrtr, NVx_CROWD_LVL(group_level),
+                              nvgc_blk, nvgc_idx, &nvgc)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVGC %x/%x\n",
+                      nvgc_blk, nvgc_idx);
+        return;
+    }
+    if (!xive2_nvgc_is_valid(&nvgc)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid NVGC %x/%x\n",
+                      nvgc_blk, nvgc_idx);
+        return;
+    }
+    count = xive2_nvgc_get_backlog(&nvgc, group_prio);
+    if (!count) {
+        return;
+    }
+    xive2_nvgc_set_backlog(&nvgc, group_prio, count - 1);
+    xive2_router_write_nvgc(xrtr, NVx_CROWD_LVL(group_level),
+                            nvgc_blk, nvgc_idx, &nvgc);
+}
+
 /*
  * XIVE Thread Interrupt Management Area (TIMA) - Gen2 mode
  *
@@ -313,7 +534,19 @@ static void xive2_tctx_save_ctx(Xive2Router *xrtr, XiveTCTX *tctx,
 
     nvp.w2 = xive_set_field32(NVP2_W2_IPB, nvp.w2, regs[TM_IPB]);
     nvp.w2 = xive_set_field32(NVP2_W2_CPPR, nvp.w2, regs[TM_CPPR]);
-    nvp.w2 = xive_set_field32(NVP2_W2_LSMFB, nvp.w2, regs[TM_LSMFB]);
+    if (nvp.w0 & NVP2_W0_L) {
+        /*
+         * Typically not used. If LSMFB is restored with 0, it will
+         * force a backlog rescan
+         */
+        nvp.w2 = xive_set_field32(NVP2_W2_LSMFB, nvp.w2, regs[TM_LSMFB]);
+    }
+    if (nvp.w0 & NVP2_W0_G) {
+        nvp.w2 = xive_set_field32(NVP2_W2_LGS, nvp.w2, regs[TM_LGS]);
+    }
+    if (nvp.w0 & NVP2_W0_T) {
+        nvp.w2 = xive_set_field32(NVP2_W2_T, nvp.w2, regs[TM_T]);
+    }
     xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, &nvp, 2);
 
     nvp.w1 = xive_set_field32(NVP2_W1_CO, nvp.w1, 0);
@@ -527,7 +760,9 @@ static uint8_t xive2_tctx_restore_os_ctx(Xive2Router *xrtr, XiveTCTX *tctx,
     xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, nvp, 2);
 
     tctx->regs[TM_QW1_OS + TM_CPPR] = cppr;
-    /* we don't model LSMFB */
+    tctx->regs[TM_QW1_OS + TM_LSMFB] = xive_get_field32(NVP2_W2_LSMFB, nvp->w2);
+    tctx->regs[TM_QW1_OS + TM_LGS] = xive_get_field32(NVP2_W2_LGS, nvp->w2);
+    tctx->regs[TM_QW1_OS + TM_T] = xive_get_field32(NVP2_W2_T, nvp->w2);
 
     nvp->w1 = xive_set_field32(NVP2_W1_CO, nvp->w1, 1);
     nvp->w1 = xive_set_field32(NVP2_W1_CO_THRID_VALID, nvp->w1, 1);
@@ -550,8 +785,15 @@ static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
                                    uint8_t nvp_blk, uint32_t nvp_idx,
                                    bool do_restore)
 {
-    Xive2Nvp nvp;
+    XivePresenter *xptr = XIVE_PRESENTER(xrtr);
     uint8_t ipb;
+    uint8_t backlog_level;
+    uint8_t group_level;
+    uint8_t first_group;
+    uint8_t backlog_prio;
+    uint8_t group_prio;
+    uint8_t *regs = &tctx->regs[TM_QW1_OS];
+    Xive2Nvp nvp;
 
     /*
      * Grab the associated thread interrupt context registers in the
@@ -580,15 +822,29 @@ static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
         nvp.w2 = xive_set_field32(NVP2_W2_IPB, nvp.w2, 0);
         xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, &nvp, 2);
     }
+    regs[TM_IPB] |= ipb;
+    backlog_prio = xive_ipb_to_pipr(ipb);
+    backlog_level = 0;
+
+    first_group = xive_get_field32(NVP2_W0_PGOFIRST, nvp.w0);
+    if (first_group && regs[TM_LSMFB] < backlog_prio) {
+        group_prio = xive2_presenter_backlog_scan(xptr, nvp_blk, nvp_idx,
+                                                  first_group, &group_level);
+        regs[TM_LSMFB] = group_prio;
+        if (regs[TM_LGS] && group_prio < backlog_prio) {
+            /* VP can take a group interrupt */
+            xive2_presenter_backlog_decr(xptr, nvp_blk, nvp_idx,
+                                         group_prio, group_level);
+            backlog_prio = group_prio;
+            backlog_level = group_level;
+        }
+    }
+
     /*
-     * Always call xive_tctx_ipb_update(). Even if there were no
-     * escalation triggered, there could be a pending interrupt which
-     * was saved when the context was pulled and that we need to take
-     * into account by recalculating the PIPR (which is not
-     * saved/restored).
-     * It will also raise the External interrupt signal if needed.
+     * Compute the PIPR based on the restored state.
+     * It will raise the External interrupt signal if needed.
      */
-    xive_tctx_ipb_update(tctx, TM_QW1_OS, ipb);
+    xive_tctx_pipr_update(tctx, TM_QW1_OS, backlog_prio, backlog_level);
 }
 
 /*
@@ -628,6 +884,172 @@ void xive2_tm_push_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
         xive2_tctx_need_resend(XIVE2_ROUTER(xptr), tctx, nvp_blk, nvp_idx,
                                do_restore);
     }
+}
+
+static int xive2_tctx_get_nvp_indexes(XiveTCTX *tctx, uint8_t ring,
+                                      uint32_t *nvp_blk, uint32_t *nvp_idx)
+{
+    uint32_t w2, cam;
+
+    w2 = xive_tctx_word2(&tctx->regs[ring]);
+    switch (ring) {
+    case TM_QW1_OS:
+        if (!(be32_to_cpu(w2) & TM2_QW1W2_VO)) {
+            return -1;
+        }
+        cam = xive_get_field32(TM2_QW1W2_OS_CAM, w2);
+        break;
+    case TM_QW2_HV_POOL:
+        if (!(be32_to_cpu(w2) & TM2_QW2W2_VP)) {
+            return -1;
+        }
+        cam = xive_get_field32(TM2_QW2W2_POOL_CAM, w2);
+        break;
+    case TM_QW3_HV_PHYS:
+        if (!(be32_to_cpu(w2) & TM2_QW3W2_VT)) {
+            return -1;
+        }
+        cam = xive2_tctx_hw_cam_line(tctx->xptr, tctx);
+        break;
+    default:
+        return -1;
+    }
+    *nvp_blk = xive2_nvp_blk(cam);
+    *nvp_idx = xive2_nvp_idx(cam);
+    return 0;
+}
+
+static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
+{
+    uint8_t *regs = &tctx->regs[ring];
+    Xive2Router *xrtr = XIVE2_ROUTER(tctx->xptr);
+    uint8_t old_cppr, backlog_prio, first_group, group_level = 0;
+    uint8_t pipr_min, lsmfb_min, ring_min;
+    bool group_enabled;
+    uint32_t nvp_blk, nvp_idx;
+    Xive2Nvp nvp;
+    int rc;
+
+    trace_xive_tctx_set_cppr(tctx->cs->cpu_index, ring,
+                             regs[TM_IPB], regs[TM_PIPR],
+                             cppr, regs[TM_NSR]);
+
+    if (cppr > XIVE_PRIORITY_MAX) {
+        cppr = 0xff;
+    }
+
+    old_cppr = regs[TM_CPPR];
+    regs[TM_CPPR] = cppr;
+
+    /*
+     * Recompute the PIPR based on local pending interrupts. It will
+     * be adjusted below if needed in case of pending group interrupts.
+     */
+    pipr_min = xive_ipb_to_pipr(regs[TM_IPB]);
+    group_enabled = !!regs[TM_LGS];
+    lsmfb_min = (group_enabled) ? regs[TM_LSMFB] : 0xff;
+    ring_min = ring;
+
+    /* PHYS updates also depend on POOL values */
+    if (ring == TM_QW3_HV_PHYS) {
+        uint8_t *pregs = &tctx->regs[TM_QW2_HV_POOL];
+
+        /* POOL values only matter if POOL ctx is valid */
+        if (pregs[TM_WORD2] & 0x80) {
+
+            uint8_t pool_pipr = xive_ipb_to_pipr(pregs[TM_IPB]);
+            uint8_t pool_lsmfb = pregs[TM_LSMFB];
+
+            /*
+             * Determine highest priority interrupt and
+             * remember which ring has it.
+             */
+            if (pool_pipr < pipr_min) {
+                pipr_min = pool_pipr;
+                if (pool_pipr < lsmfb_min) {
+                    ring_min = TM_QW2_HV_POOL;
+                }
+            }
+
+            /* Values needed for group priority calculation */
+            if (pregs[TM_LGS] && (pool_lsmfb < lsmfb_min)) {
+                group_enabled = true;
+                lsmfb_min = pool_lsmfb;
+                if (lsmfb_min < pipr_min) {
+                    ring_min = TM_QW2_HV_POOL;
+                }
+            }
+        }
+    }
+    regs[TM_PIPR] = pipr_min;
+
+    rc = xive2_tctx_get_nvp_indexes(tctx, ring_min, &nvp_blk, &nvp_idx);
+    if (rc) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: set CPPR on invalid context\n");
+        return;
+    }
+
+    if (cppr < old_cppr) {
+        /*
+         * FIXME: check if there's a group interrupt being presented
+         * and if the new cppr prevents it. If so, then the group
+         * interrupt needs to be re-added to the backlog and
+         * re-triggered (see re-trigger END info in the NVGC
+         * structure)
+         */
+    }
+
+    if (group_enabled &&
+        lsmfb_min < cppr &&
+        lsmfb_min < regs[TM_PIPR]) {
+        /*
+         * Thread has seen a group interrupt with a higher priority
+         * than the new cppr or pending local interrupt. Check the
+         * backlog
+         */
+        if (xive2_router_get_nvp(xrtr, nvp_blk, nvp_idx, &nvp)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVP %x/%x\n",
+                          nvp_blk, nvp_idx);
+            return;
+        }
+
+        if (!xive2_nvp_is_valid(&nvp)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid NVP %x/%x\n",
+                          nvp_blk, nvp_idx);
+            return;
+        }
+
+        first_group = xive_get_field32(NVP2_W0_PGOFIRST, nvp.w0);
+        if (!first_group) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid NVP %x/%x\n",
+                          nvp_blk, nvp_idx);
+            return;
+        }
+
+        backlog_prio = xive2_presenter_backlog_scan(tctx->xptr,
+                                                    nvp_blk, nvp_idx,
+                                                    first_group, &group_level);
+        tctx->regs[ring_min + TM_LSMFB] = backlog_prio;
+        if (backlog_prio != 0xFF) {
+            xive2_presenter_backlog_decr(tctx->xptr, nvp_blk, nvp_idx,
+                                         backlog_prio, group_level);
+            regs[TM_PIPR] = backlog_prio;
+        }
+    }
+    /* CPPR has changed, check if we need to raise a pending exception */
+    xive_tctx_notify(tctx, ring_min, group_level);
+}
+
+void xive2_tm_set_hv_cppr(XivePresenter *xptr, XiveTCTX *tctx,
+                          hwaddr offset, uint64_t value, unsigned size)
+{
+    xive2_tctx_set_cppr(tctx, TM_QW3_HV_PHYS, value & 0xff);
+}
+
+void xive2_tm_set_os_cppr(XivePresenter *xptr, XiveTCTX *tctx,
+                          hwaddr offset, uint64_t value, unsigned size)
+{
+    xive2_tctx_set_cppr(tctx, TM_QW1_OS, value & 0xff);
 }
 
 static void xive2_tctx_set_target(XiveTCTX *tctx, uint8_t ring, uint8_t target)
@@ -723,13 +1145,46 @@ int xive2_router_write_nvgc(Xive2Router *xrtr, bool crowd,
    return xrc->write_nvgc(xrtr, crowd, nvgc_blk, nvgc_idx, nvgc);
 }
 
+static bool xive2_vp_match_mask(uint32_t cam1, uint32_t cam2,
+                                uint32_t vp_mask)
+{
+    return (cam1 & vp_mask) == (cam2 & vp_mask);
+}
+
+static uint8_t xive2_get_vp_block_mask(uint32_t nvt_blk, bool crowd)
+{
+    uint8_t size, block_mask = 0b1111;
+
+    /* 3 supported crowd sizes: 2, 4, 16 */
+    if (crowd) {
+        size = xive_get_vpgroup_size(nvt_blk);
+        if (size == 8) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid crowd size of 8n");
+            return block_mask;
+        }
+        block_mask &= ~(size - 1);
+    }
+    return block_mask;
+}
+
+static uint32_t xive2_get_vp_index_mask(uint32_t nvt_index, bool cam_ignore)
+{
+    uint32_t index_mask = 0xFFFFFF; /* 24 bits */
+
+    if (cam_ignore) {
+        index_mask &= ~(xive_get_vpgroup_size(nvt_index) - 1);
+    }
+    return index_mask;
+}
+
 /*
  * The thread context register words are in big-endian format.
  */
 int xive2_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
                                uint8_t format,
                                uint8_t nvt_blk, uint32_t nvt_idx,
-                               bool cam_ignore, uint32_t logic_serv)
+                               bool crowd, bool cam_ignore,
+                               uint32_t logic_serv)
 {
     uint32_t cam =   xive2_nvp_cam_line(nvt_blk, nvt_idx);
     uint32_t qw3w2 = xive_tctx_word2(&tctx->regs[TM_QW3_HV_PHYS]);
@@ -737,44 +1192,51 @@ int xive2_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
     uint32_t qw1w2 = xive_tctx_word2(&tctx->regs[TM_QW1_OS]);
     uint32_t qw0w2 = xive_tctx_word2(&tctx->regs[TM_QW0_USER]);
 
-    /*
-     * TODO (PowerNV): ignore mode. The low order bits of the NVT
-     * identifier are ignored in the "CAM" match.
-     */
+    uint32_t index_mask, vp_mask;
+    uint8_t block_mask;
 
     if (format == 0) {
-        if (cam_ignore == true) {
-            /*
-             * F=0 & i=1: Logical server notification (bits ignored at
-             * the end of the NVT identifier)
-             */
-            qemu_log_mask(LOG_UNIMP, "XIVE: no support for LS NVT %x/%x\n",
-                          nvt_blk, nvt_idx);
-            return -1;
-        }
+        /*
+         * i=0: Specific NVT notification
+         * i=1: VP-group notification (bits ignored at the end of the
+         *      NVT identifier)
+         */
+        block_mask = xive2_get_vp_block_mask(nvt_blk, crowd);
+        index_mask = xive2_get_vp_index_mask(nvt_idx, cam_ignore);
+        vp_mask = xive2_nvp_cam_line(block_mask, index_mask);
 
-        /* F=0 & i=0: Specific NVT notification */
+        /* For VP-group notifications, threads with LGS=0 are excluded */
 
         /* PHYS ring */
         if ((be32_to_cpu(qw3w2) & TM2_QW3W2_VT) &&
-            cam == xive2_tctx_hw_cam_line(xptr, tctx)) {
+            !(cam_ignore && tctx->regs[TM_QW3_HV_PHYS + TM_LGS] == 0) &&
+            xive2_vp_match_mask(cam,
+                                xive2_tctx_hw_cam_line(xptr, tctx),
+                                vp_mask)) {
             return TM_QW3_HV_PHYS;
         }
 
         /* HV POOL ring */
         if ((be32_to_cpu(qw2w2) & TM2_QW2W2_VP) &&
-            cam == xive_get_field32(TM2_QW2W2_POOL_CAM, qw2w2)) {
+            !(cam_ignore && tctx->regs[TM_QW2_HV_POOL + TM_LGS] == 0) &&
+            xive2_vp_match_mask(cam,
+                                xive_get_field32(TM2_QW2W2_POOL_CAM, qw2w2),
+                                vp_mask)) {
             return TM_QW2_HV_POOL;
         }
 
         /* OS ring */
         if ((be32_to_cpu(qw1w2) & TM2_QW1W2_VO) &&
-            cam == xive_get_field32(TM2_QW1W2_OS_CAM, qw1w2)) {
+            !(cam_ignore && tctx->regs[TM_QW1_OS + TM_LGS] == 0) &&
+            xive2_vp_match_mask(cam,
+                                xive_get_field32(TM2_QW1W2_OS_CAM, qw1w2),
+                                vp_mask)) {
             return TM_QW1_OS;
         }
     } else {
         /* F=1 : User level Event-Based Branch (EBB) notification */
 
+        /* FIXME: what if cam_ignore and LGS = 0 ? */
         /* USER ring */
         if  ((be32_to_cpu(qw1w2) & TM2_QW1W2_VO) &&
              (cam == xive_get_field32(TM2_QW1W2_OS_CAM, qw1w2)) &&
@@ -784,6 +1246,37 @@ int xive2_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
         }
     }
     return -1;
+}
+
+bool xive2_tm_irq_precluded(XiveTCTX *tctx, int ring, uint8_t priority)
+{
+    /* HV_POOL ring uses HV_PHYS NSR, CPPR and PIPR registers */
+    uint8_t alt_ring = (ring == TM_QW2_HV_POOL) ? TM_QW3_HV_PHYS : ring;
+    uint8_t *alt_regs = &tctx->regs[alt_ring];
+
+    /*
+     * The xive2_presenter_tctx_match() above tells if there's a match
+     * but for VP-group notification, we still need to look at the
+     * priority to know if the thread can take the interrupt now or if
+     * it is precluded.
+     */
+    if (priority < alt_regs[TM_CPPR]) {
+        return false;
+    }
+    return true;
+}
+
+void xive2_tm_set_lsmfb(XiveTCTX *tctx, int ring, uint8_t priority)
+{
+    uint8_t *regs = &tctx->regs[ring];
+
+    /*
+     * Called by the router during a VP-group notification when the
+     * thread matches but can't take the interrupt because it's
+     * already running at a more favored priority. It then stores the
+     * new interrupt priority in the LSMFB field.
+     */
+    regs[TM_LSMFB] = priority;
 }
 
 static void xive2_router_realize(DeviceState *dev, Error **errp)
@@ -825,10 +1318,9 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
     Xive2End end;
     uint8_t priority;
     uint8_t format;
-    bool found;
-    Xive2Nvp nvp;
-    uint8_t nvp_blk;
-    uint32_t nvp_idx;
+    bool found, precluded;
+    uint8_t nvx_blk;
+    uint32_t nvx_idx;
 
     /* END cache lookup */
     if (xive2_router_get_end(xrtr, end_blk, end_idx, &end)) {
@@ -840,6 +1332,12 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
     if (!xive2_end_is_valid(&end)) {
         qemu_log_mask(LOG_GUEST_ERROR, "XIVE: END %x/%x is invalid\n",
                       end_blk, end_idx);
+        return;
+    }
+
+    if (xive2_end_is_crowd(&end) & !xive2_end_is_ignore(&end)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "XIVE: invalid END, 'crowd' bit requires 'ignore' bit\n");
         return;
     }
 
@@ -887,26 +1385,14 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
     /*
      * Follows IVPE notification
      */
-    nvp_blk = xive_get_field32(END2_W6_VP_BLOCK, end.w6);
-    nvp_idx = xive_get_field32(END2_W6_VP_OFFSET, end.w6);
+    nvx_blk = xive_get_field32(END2_W6_VP_BLOCK, end.w6);
+    nvx_idx = xive_get_field32(END2_W6_VP_OFFSET, end.w6);
 
-    /* NVP cache lookup */
-    if (xive2_router_get_nvp(xrtr, nvp_blk, nvp_idx, &nvp)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: no NVP %x/%x\n",
-                      nvp_blk, nvp_idx);
-        return;
-    }
-
-    if (!xive2_nvp_is_valid(&nvp)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVP %x/%x is invalid\n",
-                      nvp_blk, nvp_idx);
-        return;
-    }
-
-    found = xive_presenter_notify(xrtr->xfb, format, nvp_blk, nvp_idx,
-                          xive2_end_is_ignore(&end),
+    found = xive_presenter_notify(xrtr->xfb, format, nvx_blk, nvx_idx,
+                          xive2_end_is_crowd(&end), xive2_end_is_ignore(&end),
                           priority,
-                          xive_get_field32(END2_W7_F1_LOG_SERVER_ID, end.w7));
+                          xive_get_field32(END2_W7_F1_LOG_SERVER_ID, end.w7),
+                          &precluded);
 
     /* TODO: Auto EOI. */
 
@@ -917,10 +1403,9 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
     /*
      * If no matching NVP is dispatched on a HW thread :
      * - specific VP: update the NVP structure if backlog is activated
-     * - logical server : forward request to IVPE (not supported)
+     * - VP-group: update the backlog counter for that priority in the NVG
      */
     if (xive2_end_is_backlog(&end)) {
-        uint8_t ipb;
 
         if (format == 1) {
             qemu_log_mask(LOG_GUEST_ERROR,
@@ -929,19 +1414,82 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
             return;
         }
 
-        /*
-         * Record the IPB in the associated NVP structure for later
-         * use. The presenter will resend the interrupt when the vCPU
-         * is dispatched again on a HW thread.
-         */
-        ipb = xive_get_field32(NVP2_W2_IPB, nvp.w2) |
-            xive_priority_to_ipb(priority);
-        nvp.w2 = xive_set_field32(NVP2_W2_IPB, nvp.w2, ipb);
-        xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, &nvp, 2);
+        if (!xive2_end_is_ignore(&end)) {
+            uint8_t ipb;
+            Xive2Nvp nvp;
 
-        /*
-         * On HW, follows a "Broadcast Backlog" to IVPEs
-         */
+            /* NVP cache lookup */
+            if (xive2_router_get_nvp(xrtr, nvx_blk, nvx_idx, &nvp)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: no NVP %x/%x\n",
+                              nvx_blk, nvx_idx);
+                return;
+            }
+
+            if (!xive2_nvp_is_valid(&nvp)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVP %x/%x is invalid\n",
+                              nvx_blk, nvx_idx);
+                return;
+            }
+
+            /*
+             * Record the IPB in the associated NVP structure for later
+             * use. The presenter will resend the interrupt when the vCPU
+             * is dispatched again on a HW thread.
+             */
+            ipb = xive_get_field32(NVP2_W2_IPB, nvp.w2) |
+                xive_priority_to_ipb(priority);
+            nvp.w2 = xive_set_field32(NVP2_W2_IPB, nvp.w2, ipb);
+            xive2_router_write_nvp(xrtr, nvx_blk, nvx_idx, &nvp, 2);
+        } else {
+            Xive2Nvgc nvgc;
+            uint32_t backlog;
+            bool crowd;
+
+            crowd = xive2_end_is_crowd(&end);
+
+            /*
+             * For groups and crowds, the per-priority backlog
+             * counters are stored in the NVG/NVC structures
+             */
+            if (xive2_router_get_nvgc(xrtr, crowd,
+                                      nvx_blk, nvx_idx, &nvgc)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: no %s %x/%x\n",
+                              crowd ? "NVC" : "NVG", nvx_blk, nvx_idx);
+                return;
+            }
+
+            if (!xive2_nvgc_is_valid(&nvgc)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVG %x/%x is invalid\n",
+                              nvx_blk, nvx_idx);
+                return;
+            }
+
+            /*
+             * Increment the backlog counter for that priority.
+             * We only call broadcast the first time the counter is
+             * incremented. broadcast will set the LSMFB field of the TIMA of
+             * relevant threads so that they know an interrupt is pending.
+             */
+            backlog = xive2_nvgc_get_backlog(&nvgc, priority) + 1;
+            xive2_nvgc_set_backlog(&nvgc, priority, backlog);
+            xive2_router_write_nvgc(xrtr, crowd, nvx_blk, nvx_idx, &nvgc);
+
+            if (backlog == 1) {
+                XiveFabricClass *xfc = XIVE_FABRIC_GET_CLASS(xrtr->xfb);
+                xfc->broadcast(xrtr->xfb, nvx_blk, nvx_idx,
+                               xive2_end_is_crowd(&end),
+                               xive2_end_is_ignore(&end),
+                               priority);
+
+                if (!xive2_end_is_precluded_escalation(&end)) {
+                    /*
+                     * The interrupt will be picked up when the
+                     * matching thread lowers its priority level
+                     */
+                    return;
+                }
+            }
+        }
     }
 
 do_escalation:

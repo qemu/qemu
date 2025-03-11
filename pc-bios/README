@@ -13,8 +13,8 @@
 
 - SLOF (Slimline Open Firmware) is a free IEEE 1275 Open Firmware
   implementation for certain IBM POWER hardware.  The sources are at
-  https://github.com/aik/SLOF, and the image currently in qemu is
-  built from git tag qemu-slof-20230918.
+  https://gitlab.com/slof/slof, and the image currently in qemu is
+  built from git tag qemu-slof-20241106.
 
 - VOF (Virtual Open Firmware) is a minimalistic firmware to work with
   -machine pseries,x-vof=on. When enabled, the firmware acts as a slim shim and
@@ -42,6 +42,19 @@
   (OpenPower Abstraction Layer) firmware for OpenPOWER systems. It can
   run an hypervisor OS or simply a host OS on the "baremetal"
   platform, also known as the PowerNV (Non-Virtualized) platform.
+
+- pnv-pnor.bin is a non-volatile RAM image used by PowerNV, which stores
+  NVRAM BIOS settings among other things. This image was created with the
+  following command (the ffspart tool can be found in the skiboot source tree):
+
+  ffspart -s 0x1000 -c 34 -i pnv-pnor.in -p pnv-pnor.bin
+
+  Where pnv-pnor.in contains the two lines (no leading whitespace):
+
+  NVRAM,0x01000,0x00020000,,,/dev/zero
+  VERSION,0x21000,0x00001000,,,/dev/zero
+
+  skiboot is then booted once to format the NVRAM partition.
 
 - QemuMacDrivers (https://github.com/ozbenh/QemuMacDrivers) is a project to
   provide virtualised drivers for PPC MacOS guests.

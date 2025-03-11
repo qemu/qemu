@@ -107,5 +107,6 @@ extern void set_end(QTestState *qts, uint32_t index, uint32_t nvp_index,
 
 
 void test_flush_sync_inject(QTestState *qts);
+void test_nvpg_bar(QTestState *qts);
 
 #endif /* TEST_PNV_XIVE2_COMMON_H */

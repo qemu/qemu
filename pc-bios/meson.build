@@ -70,6 +70,7 @@ blobs = [
   's390-ccw.img',
   'slof.bin',
   'skiboot.lid',
+  'pnv-pnor.bin',
   'palcode-clipper',
   'u-boot.e500',
   'u-boot-sam460-20100605.bin',

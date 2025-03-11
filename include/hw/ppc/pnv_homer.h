@@ -41,19 +41,21 @@ struct PnvHomer {
 
     PnvChip *chip;
     MemoryRegion pba_regs;
-    MemoryRegion regs;
+    MemoryRegion mem;
+    hwaddr base;
 };
 
 
 struct PnvHomerClass {
     DeviceClass parent_class;
 
+    /* Get base address of HOMER memory */
+    hwaddr (*get_base)(PnvChip *chip);
+    /* Size of HOMER memory */
+    int size;
+
     int pba_size;
     const MemoryRegionOps *pba_ops;
-    int homer_size;
-    const MemoryRegionOps *homer_ops;
-
-    hwaddr core_max_base;
 };
 
 #endif /* PPC_PNV_HOMER_H */

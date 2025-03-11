@@ -21,6 +21,7 @@ Emulated devices
  * VIA VT82C686B south bridge
  * PCI VGA compatible card (guests may need other card instead)
  * PS/2 keyboard and mouse
+ * 4 KiB NVRAM (use ``-drive if=mtd,format=raw,file=nvram.bin`` to keep contents persistent)
 
 Firmware
 --------
@@ -54,14 +55,14 @@ To boot the system run:
                     -cdrom "A1 Linux Net Installer.iso" \
                     -device ati-vga,model=rv100,romfile=VGABIOS-lgpl-latest.bin
 
-From the firmware menu that appears select ``Boot sequence`` →
-``Amiga Multiboot Options`` and set ``Boot device 1`` to
-``Onboard VIA IDE CDROM``. Then hit escape until the main screen appears again,
-hit escape once more and from the exit menu that appears select either
-``Save settings and exit`` or ``Use settings for this session only``. It may
-take a long time loading the kernel into memory but eventually it boots and the
-installer becomes visible. The ``ati-vga`` RV100 emulation is not
-complete yet so only frame buffer works, DRM and 3D is not available.
+If a firmware menu appears, select ``Boot sequence`` → ``Amiga Multiboot Options``
+and set ``Boot device 1`` to ``Onboard VIA IDE CDROM``. Then hit escape until
+the main screen appears again, hit escape once more and from the exit menu that
+appears select either ``Save settings and exit`` or ``Use settings for this
+session only``. It may take a long time loading the kernel into memory but
+eventually it boots and the installer becomes visible. The ``ati-vga`` RV100
+emulation is not complete yet so only frame buffer works, DRM and 3D is not
+available.
 
 Genesi/bPlan Pegasos II (``pegasos2``)
 ======================================

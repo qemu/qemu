@@ -7,10 +7,9 @@
  * access to the different fields.
  *
  *
- * Copyright (c) 2016-2018, IBM Corporation.
+ * Copyright (c) 2016-2024, IBM Corporation.
  *
- * This code is licensed under the GPL version 2 or later. See the
- * COPYING file in the top-level directory.
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #ifndef PPC_XIVE_REGS_H
@@ -146,7 +145,14 @@
 #define TM_SPC_PULL_PHYS_CTX_OL 0xc38   /* Pull phys ctx to odd cache line    */
 /* XXX more... */
 
-/* NSR fields for the various QW ack types */
+/*
+ * NSR fields for the various QW ack types
+ *
+ * P10 has an extra bit in QW3 for the group level instead of the
+ * reserved 'i' bit. Since it is not used and we don't support group
+ * interrupts on P9, we use the P10 definition for the group level so
+ * that we can have common macros for the NSR
+ */
 #define TM_QW0_NSR_EB           PPC_BIT8(0)
 #define TM_QW1_NSR_EO           PPC_BIT8(0)
 #define TM_QW3_NSR_HE           PPC_BITMASK8(0, 1)
@@ -154,8 +160,15 @@
 #define  TM_QW3_NSR_HE_POOL     1
 #define  TM_QW3_NSR_HE_PHYS     2
 #define  TM_QW3_NSR_HE_LSI      3
-#define TM_QW3_NSR_I            PPC_BIT8(2)
-#define TM_QW3_NSR_GRP_LVL      PPC_BIT8(3, 7)
+#define TM_NSR_GRP_LVL          PPC_BITMASK8(2, 7)
+/*
+ * On P10, the format of the 6-bit group level is: 2 bits for the
+ * crowd size and 4 bits for the group size. Since group/crowd size is
+ * always a power of 2, we encode the log. For example, group_level=4
+ * means crowd size = 0 and group size = 16 (2^4)
+ * Same encoding is used in the NVP and NVGC structures for
+ * PGoFirst and PGoNext fields
+ */
 
 /*
  * EAS (Event Assignment Structure)

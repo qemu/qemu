@@ -247,11 +247,6 @@ static void base_setup(void)
         base_year = 1968;
         base_machine = "SS-5";
         use_mmio = true;
-    } else if (g_str_equal(arch, "ppc") || g_str_equal(arch, "ppc64")) {
-        base = 0xF0000000;
-        base_year = 1968;
-        base_machine = "ref405ep";
-        use_mmio = true;
     } else {
         g_assert_not_reached();
     }

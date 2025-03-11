@@ -92,7 +92,7 @@ static void test_spi_seeprom(const void *data)
     qts = qtest_initf("-machine powernv10 -smp 2,cores=2,"
                       "threads=1 -accel tcg,thread=single -nographic "
                       "-blockdev node-name=pib_spic2,driver=file,"
-                      "filename=%s -device 25csm04,bus=pnv-spi-bus.2,cs=0,"
+                      "filename=%s -device 25csm04,bus=chip0.spi.2,cs=0,"
                       "drive=pib_spic2", tmp_path);
     spi_seeprom_transaction(qts, chip);
     qtest_quit(qts);
