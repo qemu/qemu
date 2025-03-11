@@ -4,6 +4,7 @@ Sphinx cross-version compatibility goop
 
 import re
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Optional,
@@ -12,9 +13,11 @@ from typing import (
 
 from docutils import nodes
 from docutils.nodes import Element, Node, Text
+from docutils.statemachine import StringList
 
 import sphinx
 from sphinx import addnodes, util
+from sphinx.directives import ObjectDescription
 from sphinx.environment import BuildEnvironment
 from sphinx.roles import XRefRole
 from sphinx.util import docfields
@@ -172,3 +175,56 @@ class CompatGroupedField(docfields.GroupedField):
 class CompatTypedField(docfields.TypedField):
     if MAKE_XREF_WORKAROUND:
         make_xref = _compat_make_xref
+
+
+# ################################################################
+# Nested parsing error location fix for Sphinx 5.3.0 < x < 6.2.0 #
+# ################################################################
+
+# When we require Sphinx 4.x, the TYPE_CHECKING hack where we avoid
+# subscripting ObjectDescription at runtime can be removed in favor of
+# just always subscripting the class.
+
+# When we require Sphinx > 6.2.0, the rest of this compatibility hack
+# can be dropped and QAPIObject can just inherit directly from
+# ObjectDescription[Signature].
+
+SOURCE_LOCATION_FIX = (5, 3, 0) <= sphinx.version_info[:3] < (6, 2, 0)
+
+Signature = str
+
+
+if TYPE_CHECKING:
+    _BaseClass = ObjectDescription[Signature]
+else:
+    _BaseClass = ObjectDescription
+
+
+class ParserFix(_BaseClass):
+
+    _temp_content: StringList
+    _temp_offset: int
+    _temp_node: Optional[addnodes.desc_content]
+
+    def before_content(self) -> None:
+        # Work around a sphinx bug and parse the content ourselves.
+        self._temp_content = self.content
+        self._temp_offset = self.content_offset
+        self._temp_node = None
+
+        if SOURCE_LOCATION_FIX:
+            self._temp_node = addnodes.desc_content()
+            self.state.nested_parse(
+                self.content, self.content_offset, self._temp_node
+            )
+            # Sphinx will try to parse the content block itself,
+            # Give it nothingness to parse instead.
+            self.content = StringList()
+            self.content_offset = 0
+
+    def transform_content(self, content_node: addnodes.desc_content) -> None:
+        # Sphinx workaround: Inject our parsed content and restore state.
+        if self._temp_node:
+            content_node += self._temp_node.children
+            self.content = self._temp_content
+            self.content_offset = self._temp_offset

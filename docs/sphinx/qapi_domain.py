@@ -29,6 +29,8 @@ from compat import (
     CompatGroupedField,
     CompatTypedField,
     KeywordNode,
+    ParserFix,
+    Signature,
     SpaceNode,
 )
 from sphinx import addnodes
@@ -147,12 +149,7 @@ class QAPIXRefRole(XRefRole):
         return results, []
 
 
-# Alias for the return of handle_signature(), which is used in several places.
-# (In the Python domain, this is Tuple[str, str] instead.)
-Signature = str
-
-
-class QAPIDescription(ObjectDescription[Signature]):
+class QAPIDescription(ParserFix):
     """
     Generic QAPI description.
 
@@ -422,6 +419,10 @@ class QAPIObject(QAPIDescription):
             logger.warning(msg, location=field)
 
     def transform_content(self, content_node: addnodes.desc_content) -> None:
+        # This hook runs after before_content and the nested parse, but
+        # before the DocFieldTransformer is executed.
+        super().transform_content(content_node)
+
         self._add_infopips(content_node)
 
         # Validate field lists.
@@ -519,10 +520,12 @@ class QAPIObjectWithMembers(QAPIObject):
 
 
 class QAPIEvent(QAPIObjectWithMembers):
+    # pylint: disable=too-many-ancestors
     """Description of a QAPI Event."""
 
 
 class QAPIJSONObject(QAPIObjectWithMembers):
+    # pylint: disable=too-many-ancestors
     """Description of a QAPI Object: structs and unions."""
 
 
