@@ -280,6 +280,85 @@ static void xive2_end_enqueue(Xive2End *end, uint32_t data)
 }
 
 /*
+ * Scan the group chain and return the highest priority and group
+ * level of pending group interrupts.
+ */
+static uint8_t xive2_presenter_backlog_scan(XivePresenter *xptr,
+                                            uint8_t nvp_blk, uint32_t nvp_idx,
+                                            uint8_t first_group,
+                                            uint8_t *out_level)
+{
+    Xive2Router *xrtr = XIVE2_ROUTER(xptr);
+    uint32_t nvgc_idx, mask;
+    uint32_t current_level, count;
+    uint8_t prio;
+    Xive2Nvgc nvgc;
+
+    for (prio = 0; prio <= XIVE_PRIORITY_MAX; prio++) {
+        current_level = first_group & 0xF;
+
+        while (current_level) {
+            mask = (1 << current_level) - 1;
+            nvgc_idx = nvp_idx & ~mask;
+            nvgc_idx |= mask >> 1;
+            qemu_log("fxb %s checking backlog for prio %d group idx %x\n",
+                     __func__, prio, nvgc_idx);
+
+            if (xive2_router_get_nvgc(xrtr, false, nvp_blk, nvgc_idx, &nvgc)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVG %x/%x\n",
+                              nvp_blk, nvgc_idx);
+                return 0xFF;
+            }
+            if (!xive2_nvgc_is_valid(&nvgc)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid NVG %x/%x\n",
+                              nvp_blk, nvgc_idx);
+                return 0xFF;
+            }
+
+            count = xive2_nvgc_get_backlog(&nvgc, prio);
+            if (count) {
+                *out_level = current_level;
+                return prio;
+            }
+            current_level = xive_get_field32(NVGC2_W0_PGONEXT, nvgc.w0) & 0xF;
+        }
+    }
+    return 0xFF;
+}
+
+static void xive2_presenter_backlog_decr(XivePresenter *xptr,
+                                         uint8_t nvp_blk, uint32_t nvp_idx,
+                                         uint8_t group_prio,
+                                         uint8_t group_level)
+{
+    Xive2Router *xrtr = XIVE2_ROUTER(xptr);
+    uint32_t nvgc_idx, mask, count;
+    Xive2Nvgc nvgc;
+
+    group_level &= 0xF;
+    mask = (1 << group_level) - 1;
+    nvgc_idx = nvp_idx & ~mask;
+    nvgc_idx |= mask >> 1;
+
+    if (xive2_router_get_nvgc(xrtr, false, nvp_blk, nvgc_idx, &nvgc)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVG %x/%x\n",
+                      nvp_blk, nvgc_idx);
+        return;
+    }
+    if (!xive2_nvgc_is_valid(&nvgc)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid NVG %x/%x\n",
+                      nvp_blk, nvgc_idx);
+        return;
+    }
+    count = xive2_nvgc_get_backlog(&nvgc, group_prio);
+    if (!count) {
+        return;
+    }
+    xive2_nvgc_set_backlog(&nvgc, group_prio, count - 1);
+    xive2_router_write_nvgc(xrtr, false, nvp_blk, nvgc_idx, &nvgc);
+}
+
+/*
  * XIVE Thread Interrupt Management Area (TIMA) - Gen2 mode
  *
  * TIMA Gen2 VP “save & restore” (S&R) indicated by H bit next to V bit
@@ -588,9 +667,13 @@ static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
                                    uint8_t nvp_blk, uint32_t nvp_idx,
                                    bool do_restore)
 {
+    XivePresenter *xptr = XIVE_PRESENTER(xrtr);
     uint8_t ipb;
     uint8_t backlog_level;
+    uint8_t group_level;
+    uint8_t first_group;
     uint8_t backlog_prio;
+    uint8_t group_prio;
     uint8_t *regs = &tctx->regs[TM_QW1_OS];
     Xive2Nvp nvp;
 
@@ -624,6 +707,20 @@ static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
     regs[TM_IPB] |= ipb;
     backlog_prio = xive_ipb_to_pipr(ipb);
     backlog_level = 0;
+
+    first_group = xive_get_field32(NVP2_W0_PGOFIRST, nvp.w0);
+    if (first_group && regs[TM_LSMFB] < backlog_prio) {
+        group_prio = xive2_presenter_backlog_scan(xptr, nvp_blk, nvp_idx,
+                                                  first_group, &group_level);
+        regs[TM_LSMFB] = group_prio;
+        if (regs[TM_LGS] && group_prio < backlog_prio) {
+            /* VP can take a group interrupt */
+            xive2_presenter_backlog_decr(xptr, nvp_blk, nvp_idx,
+                                         group_prio, group_level);
+            backlog_prio = group_prio;
+            backlog_level = group_level;
+        }
+    }
 
     /*
      * Compute the PIPR based on the restored state.
