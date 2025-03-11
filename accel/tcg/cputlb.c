@@ -2925,25 +2925,25 @@ uint64_t cpu_ldq_code(CPUArchState *env, abi_ptr addr)
     return do_ld8_mmu(cs, addr, oi, 0, MMU_INST_FETCH);
 }
 
-uint8_t cpu_ldb_code_mmu(CPUArchState *env, abi_ptr addr,
+uint8_t cpu_ldb_code_mmu(CPUArchState *env, vaddr addr,
                          MemOpIdx oi, uintptr_t retaddr)
 {
     return do_ld1_mmu(env_cpu(env), addr, oi, retaddr, MMU_INST_FETCH);
 }
 
-uint16_t cpu_ldw_code_mmu(CPUArchState *env, abi_ptr addr,
+uint16_t cpu_ldw_code_mmu(CPUArchState *env, vaddr addr,
                           MemOpIdx oi, uintptr_t retaddr)
 {
     return do_ld2_mmu(env_cpu(env), addr, oi, retaddr, MMU_INST_FETCH);
 }
 
-uint32_t cpu_ldl_code_mmu(CPUArchState *env, abi_ptr addr,
+uint32_t cpu_ldl_code_mmu(CPUArchState *env, vaddr addr,
                           MemOpIdx oi, uintptr_t retaddr)
 {
     return do_ld4_mmu(env_cpu(env), addr, oi, retaddr, MMU_INST_FETCH);
 }
 
-uint64_t cpu_ldq_code_mmu(CPUArchState *env, abi_ptr addr,
+uint64_t cpu_ldq_code_mmu(CPUArchState *env, vaddr addr,
                           MemOpIdx oi, uintptr_t retaddr)
 {
     return do_ld8_mmu(env_cpu(env), addr, oi, retaddr, MMU_INST_FETCH);
