@@ -1214,46 +1214,6 @@ static void do_st16_mmu(CPUState *cpu, vaddr addr, Int128 val,
     clear_helper_retaddr();
 }
 
-uint32_t cpu_ldub_code(CPUArchState *env, abi_ptr ptr)
-{
-    uint32_t ret;
-
-    set_helper_retaddr(1);
-    ret = ldub_p(g2h_untagged(ptr));
-    clear_helper_retaddr();
-    return ret;
-}
-
-uint32_t cpu_lduw_code(CPUArchState *env, abi_ptr ptr)
-{
-    uint32_t ret;
-
-    set_helper_retaddr(1);
-    ret = lduw_p(g2h_untagged(ptr));
-    clear_helper_retaddr();
-    return ret;
-}
-
-uint32_t cpu_ldl_code(CPUArchState *env, abi_ptr ptr)
-{
-    uint32_t ret;
-
-    set_helper_retaddr(1);
-    ret = ldl_p(g2h_untagged(ptr));
-    clear_helper_retaddr();
-    return ret;
-}
-
-uint64_t cpu_ldq_code(CPUArchState *env, abi_ptr ptr)
-{
-    uint64_t ret;
-
-    set_helper_retaddr(1);
-    ret = ldq_p(g2h_untagged(ptr));
-    clear_helper_retaddr();
-    return ret;
-}
-
 uint8_t cpu_ldb_code_mmu(CPUArchState *env, vaddr addr,
                          MemOpIdx oi, uintptr_t ra)
 {
