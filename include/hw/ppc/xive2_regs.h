@@ -236,4 +236,8 @@ void xive2_nvgc_pic_print_info(Xive2Nvgc *nvgc, uint32_t nvgc_idx,
 #define NVx_BACKLOG_OP            PPC_BITMASK(52, 53)
 #define NVx_BACKLOG_PRIO          PPC_BITMASK(57, 59)
 
+/* split the 6-bit crowd/group level */
+#define NVx_CROWD_LVL(level)      ((level >> 4) & 0b11)
+#define NVx_GROUP_LVL(level)      (level & 0b1111)
+
 #endif /* PPC_XIVE2_REGS_H */

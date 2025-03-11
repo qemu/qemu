@@ -367,6 +367,35 @@ static void xive2_end_enqueue(Xive2End *end, uint32_t data)
     end->w1 = xive_set_field32(END2_W1_PAGE_OFF, end->w1, qindex);
 }
 
+static void xive2_pgofnext(uint8_t *nvgc_blk, uint32_t *nvgc_idx,
+                           uint8_t next_level)
+{
+    uint32_t mask, next_idx;
+    uint8_t next_blk;
+
+    /*
+     * Adjust the block and index of a VP for the next group/crowd
+     * size (PGofFirst/PGofNext field in the NVP and NVGC structures).
+     *
+     * The 6-bit group level is split into a 2-bit crowd and 4-bit
+     * group levels. Encoding is similar. However, we don't support
+     * crowd size of 8. So a crowd level of 0b11 is bumped to a crowd
+     * size of 16.
+     */
+    next_blk = NVx_CROWD_LVL(next_level);
+    if (next_blk == 3) {
+        next_blk = 4;
+    }
+    mask = (1 << next_blk) - 1;
+    *nvgc_blk &= ~mask;
+    *nvgc_blk |= mask >> 1;
+
+    next_idx = NVx_GROUP_LVL(next_level);
+    mask = (1 << next_idx) - 1;
+    *nvgc_idx &= ~mask;
+    *nvgc_idx |= mask >> 1;
+}
+
 /*
  * Scan the group chain and return the highest priority and group
  * level of pending group interrupts.
@@ -377,29 +406,28 @@ static uint8_t xive2_presenter_backlog_scan(XivePresenter *xptr,
                                             uint8_t *out_level)
 {
     Xive2Router *xrtr = XIVE2_ROUTER(xptr);
-    uint32_t nvgc_idx, mask;
+    uint32_t nvgc_idx;
     uint32_t current_level, count;
-    uint8_t prio;
+    uint8_t nvgc_blk, prio;
     Xive2Nvgc nvgc;
 
     for (prio = 0; prio <= XIVE_PRIORITY_MAX; prio++) {
-        current_level = first_group & 0xF;
+        current_level = first_group & 0x3F;
+        nvgc_blk = nvx_blk;
+        nvgc_idx = nvx_idx;
 
         while (current_level) {
-            mask = (1 << current_level) - 1;
-            nvgc_idx = nvx_idx & ~mask;
-            nvgc_idx |= mask >> 1;
-            qemu_log("fxb %s checking backlog for prio %d group idx %x\n",
-                     __func__, prio, nvgc_idx);
+            xive2_pgofnext(&nvgc_blk, &nvgc_idx, current_level);
 
-            if (xive2_router_get_nvgc(xrtr, false, nvx_blk, nvgc_idx, &nvgc)) {
-                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVG %x/%x\n",
-                              nvx_blk, nvgc_idx);
+            if (xive2_router_get_nvgc(xrtr, NVx_CROWD_LVL(current_level),
+                                      nvgc_blk, nvgc_idx, &nvgc)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVGC %x/%x\n",
+                              nvgc_blk, nvgc_idx);
                 return 0xFF;
             }
             if (!xive2_nvgc_is_valid(&nvgc)) {
-                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid NVG %x/%x\n",
-                              nvx_blk, nvgc_idx);
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid NVGC %x/%x\n",
+                              nvgc_blk, nvgc_idx);
                 return 0xFF;
             }
 
@@ -408,7 +436,7 @@ static uint8_t xive2_presenter_backlog_scan(XivePresenter *xptr,
                 *out_level = current_level;
                 return prio;
             }
-            current_level = xive_get_field32(NVGC2_W0_PGONEXT, nvgc.w0) & 0xF;
+            current_level = xive_get_field32(NVGC2_W0_PGONEXT, nvgc.w0) & 0x3F;
         }
     }
     return 0xFF;
@@ -420,22 +448,23 @@ static void xive2_presenter_backlog_decr(XivePresenter *xptr,
                                          uint8_t group_level)
 {
     Xive2Router *xrtr = XIVE2_ROUTER(xptr);
-    uint32_t nvgc_idx, mask, count;
+    uint32_t nvgc_idx, count;
+    uint8_t nvgc_blk;
     Xive2Nvgc nvgc;
 
-    group_level &= 0xF;
-    mask = (1 << group_level) - 1;
-    nvgc_idx = nvx_idx & ~mask;
-    nvgc_idx |= mask >> 1;
+    nvgc_blk = nvx_blk;
+    nvgc_idx = nvx_idx;
+    xive2_pgofnext(&nvgc_blk, &nvgc_idx, group_level);
 
-    if (xive2_router_get_nvgc(xrtr, false, nvx_blk, nvgc_idx, &nvgc)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVG %x/%x\n",
-                      nvx_blk, nvgc_idx);
+    if (xive2_router_get_nvgc(xrtr, NVx_CROWD_LVL(group_level),
+                              nvgc_blk, nvgc_idx, &nvgc)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVGC %x/%x\n",
+                      nvgc_blk, nvgc_idx);
         return;
     }
     if (!xive2_nvgc_is_valid(&nvgc)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid NVG %x/%x\n",
-                      nvx_blk, nvgc_idx);
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid NVGC %x/%x\n",
+                      nvgc_blk, nvgc_idx);
         return;
     }
     count = xive2_nvgc_get_backlog(&nvgc, group_prio);
@@ -443,7 +472,8 @@ static void xive2_presenter_backlog_decr(XivePresenter *xptr,
         return;
     }
     xive2_nvgc_set_backlog(&nvgc, group_prio, count - 1);
-    xive2_router_write_nvgc(xrtr, false, nvx_blk, nvgc_idx, &nvgc);
+    xive2_router_write_nvgc(xrtr, NVx_CROWD_LVL(group_level),
+                            nvgc_blk, nvgc_idx, &nvgc);
 }
 
 /*
