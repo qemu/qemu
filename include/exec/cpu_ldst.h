@@ -74,25 +74,6 @@
 #include "user/guest-host.h"
 #endif /* CONFIG_USER_ONLY */
 
-uint32_t cpu_ldub_data(CPUArchState *env, abi_ptr ptr);
-int cpu_ldsb_data(CPUArchState *env, abi_ptr ptr);
-uint32_t cpu_lduw_be_data(CPUArchState *env, abi_ptr ptr);
-int cpu_ldsw_be_data(CPUArchState *env, abi_ptr ptr);
-uint32_t cpu_ldl_be_data(CPUArchState *env, abi_ptr ptr);
-uint64_t cpu_ldq_be_data(CPUArchState *env, abi_ptr ptr);
-uint32_t cpu_lduw_le_data(CPUArchState *env, abi_ptr ptr);
-int cpu_ldsw_le_data(CPUArchState *env, abi_ptr ptr);
-uint32_t cpu_ldl_le_data(CPUArchState *env, abi_ptr ptr);
-uint64_t cpu_ldq_le_data(CPUArchState *env, abi_ptr ptr);
-
-void cpu_stb_data(CPUArchState *env, abi_ptr ptr, uint32_t val);
-void cpu_stw_be_data(CPUArchState *env, abi_ptr ptr, uint32_t val);
-void cpu_stl_be_data(CPUArchState *env, abi_ptr ptr, uint32_t val);
-void cpu_stq_be_data(CPUArchState *env, abi_ptr ptr, uint64_t val);
-void cpu_stw_le_data(CPUArchState *env, abi_ptr ptr, uint32_t val);
-void cpu_stl_le_data(CPUArchState *env, abi_ptr ptr, uint32_t val);
-void cpu_stq_le_data(CPUArchState *env, abi_ptr ptr, uint64_t val);
-
 static inline uint32_t
 cpu_ldub_mmuidx_ra(CPUArchState *env, abi_ptr addr, int mmu_idx, uintptr_t ra)
 {
@@ -340,6 +321,110 @@ cpu_stq_le_data_ra(CPUArchState *env, abi_ptr addr, uint64_t val, uintptr_t ra)
 {
     int mmu_index = cpu_mmu_index(env_cpu(env), false);
     cpu_stq_le_mmuidx_ra(env, addr, val, mmu_index, ra);
+}
+
+/*--------------------------*/
+
+static inline uint32_t
+cpu_ldub_data(CPUArchState *env, abi_ptr addr)
+{
+    return cpu_ldub_data_ra(env, addr, 0);
+}
+
+static inline int
+cpu_ldsb_data(CPUArchState *env, abi_ptr addr)
+{
+    return (int8_t)cpu_ldub_data(env, addr);
+}
+
+static inline uint32_t
+cpu_lduw_be_data(CPUArchState *env, abi_ptr addr)
+{
+    return cpu_lduw_be_data_ra(env, addr, 0);
+}
+
+static inline int
+cpu_ldsw_be_data(CPUArchState *env, abi_ptr addr)
+{
+    return (int16_t)cpu_lduw_be_data(env, addr);
+}
+
+static inline uint32_t
+cpu_ldl_be_data(CPUArchState *env, abi_ptr addr)
+{
+    return cpu_ldl_be_data_ra(env, addr, 0);
+}
+
+static inline uint64_t
+cpu_ldq_be_data(CPUArchState *env, abi_ptr addr)
+{
+    return cpu_ldq_be_data_ra(env, addr, 0);
+}
+
+static inline uint32_t
+cpu_lduw_le_data(CPUArchState *env, abi_ptr addr)
+{
+    return cpu_lduw_le_data_ra(env, addr, 0);
+}
+
+static inline int
+cpu_ldsw_le_data(CPUArchState *env, abi_ptr addr)
+{
+    return (int16_t)cpu_lduw_le_data(env, addr);
+}
+
+static inline uint32_t
+cpu_ldl_le_data(CPUArchState *env, abi_ptr addr)
+{
+    return cpu_ldl_le_data_ra(env, addr, 0);
+}
+
+static inline uint64_t
+cpu_ldq_le_data(CPUArchState *env, abi_ptr addr)
+{
+    return cpu_ldq_le_data_ra(env, addr, 0);
+}
+
+static inline void
+cpu_stb_data(CPUArchState *env, abi_ptr addr, uint32_t val)
+{
+    cpu_stb_data_ra(env, addr, val, 0);
+}
+
+static inline void
+cpu_stw_be_data(CPUArchState *env, abi_ptr addr, uint32_t val)
+{
+    cpu_stw_be_data_ra(env, addr, val, 0);
+}
+
+static inline void
+cpu_stl_be_data(CPUArchState *env, abi_ptr addr, uint32_t val)
+{
+    cpu_stl_be_data_ra(env, addr, val, 0);
+}
+
+static inline void
+cpu_stq_be_data(CPUArchState *env, abi_ptr addr, uint64_t val)
+{
+    cpu_stq_be_data_ra(env, addr, val, 0);
+}
+
+static inline void
+cpu_stw_le_data(CPUArchState *env, abi_ptr addr, uint32_t val)
+{
+    cpu_stw_le_data_ra(env, addr, val, 0);
+}
+
+static inline void
+cpu_stl_le_data(CPUArchState *env, abi_ptr addr, uint32_t val)
+{
+    cpu_stl_le_data_ra(env, addr, val, 0);
+}
+
+static inline void
+cpu_stq_le_data(CPUArchState *env, abi_ptr addr, uint64_t val)
+{
+    cpu_stq_le_data_ra(env, addr, val, 0);
 }
 
 #if TARGET_BIG_ENDIAN
