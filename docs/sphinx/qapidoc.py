@@ -136,6 +136,20 @@ class Transmogrifier:
             # +2: correct for zero/one index, then increment by one.
             self.add_line_raw("", fname, line + 2)
 
+    def add_field(
+        self,
+        kind: str,
+        name: str,
+        body: str,
+        info: QAPISourceInfo,
+        typ: Optional[str] = None,
+    ) -> None:
+        if typ:
+            text = f":{kind} {typ} {name}: {body}"
+        else:
+            text = f":{kind} {name}: {body}"
+        self.add_lines(text, info)
+
     def format_type(
         self, ent: Union[QAPISchemaDefinition | QAPISchemaMember]
     ) -> Optional[str]:
@@ -159,6 +173,16 @@ class Transmogrifier:
             ret += "?"
 
         return ret
+
+    def generate_field(
+        self,
+        kind: str,
+        member: QAPISchemaMember,
+        body: str,
+        info: QAPISourceInfo,
+    ) -> None:
+        typ = self.format_type(member)
+        self.add_field(kind, member.name, body, info, typ)
 
     # Transmogrification helpers
 
