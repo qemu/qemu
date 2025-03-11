@@ -25,6 +25,7 @@ typedef enum QemuClipboardSelection QemuClipboardSelection;
 typedef struct QemuClipboardPeer QemuClipboardPeer;
 typedef struct QemuClipboardNotify QemuClipboardNotify;
 typedef struct QemuClipboardInfo QemuClipboardInfo;
+typedef struct QemuClipboardContent QemuClipboardContent;
 
 /**
  * enum QemuClipboardType
@@ -97,6 +98,24 @@ struct QemuClipboardNotify {
     };
 };
 
+
+/**
+ * struct QemuClipboardContent
+ *
+ * @available: whether the data is available
+ * @requested: whether the data was requested
+ * @size: the size of the @data
+ * @data: the clipboard data
+ *
+ * Clipboard content.
+ */
+struct QemuClipboardContent {
+    bool available;
+    bool requested;
+    uint32_t size;
+    void *data;
+};
+
 /**
  * struct QemuClipboardInfo
  *
@@ -115,12 +134,7 @@ struct QemuClipboardInfo {
     int selection; /* QemuClipboardSelection */
     bool has_serial;
     uint32_t serial;
-    struct {
-        bool available;
-        bool requested;
-        size_t size;
-        void *data;
-    } types[QEMU_CLIPBOARD_TYPE__COUNT];
+    QemuClipboardContent types[QEMU_CLIPBOARD_TYPE__COUNT];
 };
 
 /**
