@@ -28,7 +28,6 @@ void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
-    uint16_t num_vqs = vs->conf.num_queues + VIRTIO_SCSI_VQ_NUM_FIXED;
 
     if (vs->conf.iothread && vs->conf.iothread_vq_mapping_list) {
         error_setg(errp,
@@ -50,35 +49,43 @@ void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp)
         }
     }
 
-    s->vq_aio_context = g_new(AioContext *, num_vqs);
+    s->vq_aio_context = g_new(AioContext *, vs->conf.num_queues +
+                                            VIRTIO_SCSI_VQ_NUM_FIXED);
+
+    /*
+     * Handle the ctrl virtqueue in the main loop thread where device resets
+     * can be performed.
+     */
+    s->vq_aio_context[0] = qemu_get_aio_context();
+
+    /*
+     * Handle the event virtqueue in the main loop thread where its no_poll
+     * behavior won't stop IOThread polling.
+     */
+    s->vq_aio_context[1] = qemu_get_aio_context();
 
     if (vs->conf.iothread_vq_mapping_list) {
         if (!iothread_vq_mapping_apply(vs->conf.iothread_vq_mapping_list,
-                                       s->vq_aio_context, num_vqs, errp)) {
+                    &s->vq_aio_context[VIRTIO_SCSI_VQ_NUM_FIXED],
+                    vs->conf.num_queues, errp)) {
             g_free(s->vq_aio_context);
             s->vq_aio_context = NULL;
             return;
         }
     } else if (vs->conf.iothread) {
         AioContext *ctx = iothread_get_aio_context(vs->conf.iothread);
-        for (uint16_t i = 0; i < num_vqs; i++) {
-            s->vq_aio_context[i] = ctx;
+        for (uint16_t i = 0; i < vs->conf.num_queues; i++) {
+            s->vq_aio_context[VIRTIO_SCSI_VQ_NUM_FIXED + i] = ctx;
         }
 
         /* Released in virtio_scsi_dataplane_cleanup() */
         object_ref(OBJECT(vs->conf.iothread));
     } else {
         AioContext *ctx = qemu_get_aio_context();
-        for (unsigned i = 0; i < num_vqs; i++) {
-            s->vq_aio_context[i] = ctx;
+        for (unsigned i = 0; i < vs->conf.num_queues; i++) {
+            s->vq_aio_context[VIRTIO_SCSI_VQ_NUM_FIXED + i] = ctx;
         }
     }
-
-    /*
-     * Always handle the ctrl virtqueue in the main loop thread where device
-     * resets can be performed.
-     */
-    s->vq_aio_context[0] = qemu_get_aio_context();
 }
 
 /* Context: BQL held */
