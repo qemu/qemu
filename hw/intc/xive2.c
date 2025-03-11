@@ -1,10 +1,9 @@
 /*
  * QEMU PowerPC XIVE2 interrupt controller model (POWER10)
  *
- * Copyright (c) 2019-2022, IBM Corporation..
+ * Copyright (c) 2019-2024, IBM Corporation..
  *
- * This code is licensed under the GPL version 2 or later. See the
- * COPYING file in the top-level directory.
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #include "qemu/osdep.h"
@@ -313,7 +312,19 @@ static void xive2_tctx_save_ctx(Xive2Router *xrtr, XiveTCTX *tctx,
 
     nvp.w2 = xive_set_field32(NVP2_W2_IPB, nvp.w2, regs[TM_IPB]);
     nvp.w2 = xive_set_field32(NVP2_W2_CPPR, nvp.w2, regs[TM_CPPR]);
-    nvp.w2 = xive_set_field32(NVP2_W2_LSMFB, nvp.w2, regs[TM_LSMFB]);
+    if (nvp.w0 & NVP2_W0_L) {
+        /*
+         * Typically not used. If LSMFB is restored with 0, it will
+         * force a backlog rescan
+         */
+        nvp.w2 = xive_set_field32(NVP2_W2_LSMFB, nvp.w2, regs[TM_LSMFB]);
+    }
+    if (nvp.w0 & NVP2_W0_G) {
+        nvp.w2 = xive_set_field32(NVP2_W2_LGS, nvp.w2, regs[TM_LGS]);
+    }
+    if (nvp.w0 & NVP2_W0_T) {
+        nvp.w2 = xive_set_field32(NVP2_W2_T, nvp.w2, regs[TM_T]);
+    }
     xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, &nvp, 2);
 
     nvp.w1 = xive_set_field32(NVP2_W1_CO, nvp.w1, 0);
@@ -527,7 +538,9 @@ static uint8_t xive2_tctx_restore_os_ctx(Xive2Router *xrtr, XiveTCTX *tctx,
     xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, nvp, 2);
 
     tctx->regs[TM_QW1_OS + TM_CPPR] = cppr;
-    /* we don't model LSMFB */
+    tctx->regs[TM_QW1_OS + TM_LSMFB] = xive_get_field32(NVP2_W2_LSMFB, nvp->w2);
+    tctx->regs[TM_QW1_OS + TM_LGS] = xive_get_field32(NVP2_W2_LGS, nvp->w2);
+    tctx->regs[TM_QW1_OS + TM_T] = xive_get_field32(NVP2_W2_T, nvp->w2);
 
     nvp->w1 = xive_set_field32(NVP2_W1_CO, nvp->w1, 1);
     nvp->w1 = xive_set_field32(NVP2_W1_CO_THRID_VALID, nvp->w1, 1);
