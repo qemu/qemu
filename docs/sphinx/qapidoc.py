@@ -303,6 +303,9 @@ class Transmogrifier:
 
         # Add sections in source order:
         for section in sections:
+            # @var is translated to ``var``:
+            section.text = re.sub(r"@([\w-]+)", r"``\1``", section.text)
+
             if section.kind == QAPIDoc.Kind.PLAIN:
                 self.visit_paragraph(section)
             elif section.kind == QAPIDoc.Kind.MEMBER:
