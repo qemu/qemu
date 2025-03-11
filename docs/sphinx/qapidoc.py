@@ -37,7 +37,12 @@ from docutils import nodes
 from docutils.parsers.rst import Directive, directives
 from docutils.statemachine import StringList
 from qapi.error import QAPIError
-from qapi.schema import QAPISchema, QAPISchemaVisitor
+from qapi.parser import QAPIDoc
+from qapi.schema import (
+    QAPISchema,
+    QAPISchemaDefinition,
+    QAPISchemaVisitor,
+)
 from qapi.source import QAPISourceInfo
 
 from qapidoc_legacy import QAPISchemaGenRSTVisitor  # type: ignore
@@ -55,8 +60,6 @@ if TYPE_CHECKING:
         List,
         Sequence,
     )
-
-    from qapi.parser import QAPIDoc
 
     from sphinx.application import Sphinx
     from sphinx.util.typing import ExtensionMetadata
@@ -124,6 +127,38 @@ class Transmogrifier:
             # New blank line is credited to one-after the current last line.
             # +2: correct for zero/one index, then increment by one.
             self.add_line_raw("", fname, line + 2)
+
+    # Transmogrification helpers
+
+    def preamble(self, ent: QAPISchemaDefinition) -> None:
+        """
+        Generate option lines for QAPI entity directives.
+        """
+        if ent.doc and ent.doc.since:
+            assert ent.doc.since.kind == QAPIDoc.Kind.SINCE
+            # Generated from the entity's docblock; info location is exact.
+            self.add_line(f":since: {ent.doc.since.text}", ent.doc.since.info)
+
+        if ent.ifcond.is_present():
+            doc = ent.ifcond.docgen()
+            assert ent.info
+            # Generated from entity definition; info location is approximate.
+            self.add_line(f":ifcond: {doc}", ent.info)
+
+        # Hoist special features such as :deprecated: and :unstable:
+        # into the options block for the entity. If, in the future, new
+        # special features are added, qapi-domain will chirp about
+        # unrecognized options and fail until they are handled in
+        # qapi-domain.
+        for feat in ent.features:
+            if feat.is_special():
+                # FIXME: handle ifcond if present. How to display that
+                # information is TBD.
+                # Generated from entity def; info location is approximate.
+                assert feat.info
+                self.add_line(f":{feat.name}:", feat.info)
+
+        self.ensure_blank_line()
 
     # Transmogrification core methods
 
