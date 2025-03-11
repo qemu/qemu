@@ -830,6 +830,29 @@ class QAPIDomain(Domain):
         matches = self.find_obj(modname, target, typ)
 
         if not matches:
+            # Normally, we could pass warn_dangling=True to QAPIXRefRole(),
+            # but that will trigger on references to these built-in types,
+            # which we'd like to ignore instead.
+
+            # Take care of that warning here instead, so long as the
+            # reference isn't to one of our built-in core types.
+            if target not in (
+                "string",
+                "number",
+                "int",
+                "boolean",
+                "null",
+                "value",
+                "q_empty",
+            ):
+                logger.warning(
+                    __("qapi:%s reference target not found: %r"),
+                    typ,
+                    target,
+                    type="ref",
+                    subtype="qapi",
+                    location=node,
+                )
             return None
 
         if len(matches) > 1:
