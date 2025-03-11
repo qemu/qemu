@@ -267,6 +267,79 @@ static void test_hw_irq(QTestState *qts)
     g_assert_cmphex(cppr, ==, 0xFF);
 }
 
+static void test_pool_irq(QTestState *qts)
+{
+    uint32_t irq = 2;
+    uint32_t irq_data = 0x600d0d06;
+    uint32_t end_index = 5;
+    uint32_t target_pir = 1;
+    uint32_t target_nvp = 0x100 + target_pir;
+    uint8_t priority = 5;
+    uint32_t reg32;
+    uint16_t reg16;
+    uint8_t pq, nsr, cppr, ipb;
+
+    g_test_message("=========================================================");
+    g_test_message("Testing irq %d to pool thread %d", irq, target_pir);
+
+    /* irq config */
+    set_eas(qts, irq, end_index, irq_data);
+    set_end(qts, end_index, target_nvp, priority, false /* group */);
+
+    /* enable and trigger irq */
+    get_esb(qts, irq, XIVE_EOI_PAGE, XIVE_ESB_SET_PQ_00);
+    set_esb(qts, irq, XIVE_TRIGGER_PAGE, 0, 0);
+
+    /* check irq is raised on cpu */
+    pq = get_esb(qts, irq, XIVE_EOI_PAGE, XIVE_ESB_GET);
+    g_assert_cmpuint(pq, ==, XIVE_ESB_PENDING);
+
+    /* check TIMA values in the PHYS ring (shared by POOL ring) */
+    reg32 = get_tima32(qts, target_pir, TM_QW3_HV_PHYS + TM_WORD0);
+    nsr = reg32 >> 24;
+    cppr = (reg32 >> 16) & 0xFF;
+    g_assert_cmphex(nsr, ==, 0x40);
+    g_assert_cmphex(cppr, ==, 0xFF);
+
+    /* check TIMA values in the POOL ring */
+    reg32 = get_tima32(qts, target_pir, TM_QW2_HV_POOL + TM_WORD0);
+    nsr = reg32 >> 24;
+    cppr = (reg32 >> 16) & 0xFF;
+    ipb = (reg32 >> 8) & 0xFF;
+    g_assert_cmphex(nsr, ==, 0);
+    g_assert_cmphex(cppr, ==, 0);
+    g_assert_cmphex(ipb, ==, 0x80 >> priority);
+
+    /* ack the irq */
+    reg16 = get_tima16(qts, target_pir, TM_SPC_ACK_HV_REG);
+    nsr = reg16 >> 8;
+    cppr = reg16 & 0xFF;
+    g_assert_cmphex(nsr, ==, 0x40);
+    g_assert_cmphex(cppr, ==, priority);
+
+    /* check irq data is what was configured */
+    reg32 = qtest_readl(qts, xive_get_queue_addr(end_index));
+    g_assert_cmphex((reg32 & 0x7fffffff), ==, (irq_data & 0x7fffffff));
+
+    /* check IPB is cleared in the POOL ring */
+    reg32 = get_tima32(qts, target_pir, TM_QW2_HV_POOL + TM_WORD0);
+    ipb = (reg32 >> 8) & 0xFF;
+    g_assert_cmphex(ipb, ==, 0);
+
+    /* End Of Interrupt */
+    set_esb(qts, irq, XIVE_EOI_PAGE, XIVE_ESB_STORE_EOI, 0);
+    pq = get_esb(qts, irq, XIVE_EOI_PAGE, XIVE_ESB_GET);
+    g_assert_cmpuint(pq, ==, XIVE_ESB_RESET);
+
+    /* reset CPPR */
+    set_tima8(qts, target_pir, TM_QW3_HV_PHYS + TM_CPPR, 0xFF);
+    reg32 = get_tima32(qts, target_pir, TM_QW3_HV_PHYS + TM_WORD0);
+    nsr = reg32 >> 24;
+    cppr = (reg32 >> 16) & 0xFF;
+    g_assert_cmphex(nsr, ==, 0x00);
+    g_assert_cmphex(cppr, ==, 0xFF);
+}
+
 #define XIVE_ODD_CL 0x80
 static void test_pull_thread_ctx_to_odd_thread_cl(QTestState *qts)
 {
@@ -485,6 +558,9 @@ static void test_xive(void)
 
     /* omit reset_state here and use settings from test_hw_irq */
     test_pull_thread_ctx_to_odd_thread_cl(qts);
+
+    reset_state(qts);
+    test_pool_irq(qts);
 
     reset_state(qts);
     test_hw_group_irq(qts);
