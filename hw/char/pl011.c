@@ -490,16 +490,17 @@ static int pl011_can_receive(void *opaque)
     unsigned fifo_depth = pl011_get_fifo_depth(s);
     unsigned fifo_available = fifo_depth - s->read_count;
 
-    if (!(s->cr & CR_UARTEN)) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "PL011 receiving data on disabled UART\n");
-    }
-    if (!(s->cr & CR_RXE)) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "PL011 receiving data on disabled RX UART\n");
-    }
-    trace_pl011_can_receive(s->lcr, s->read_count, fifo_depth, fifo_available);
+    /*
+     * In theory we should check the UART and RX enable bits here and
+     * return 0 if they are not set (so the guest can't receive data
+     * until you have enabled the UART). In practice we suspect there
+     * is at least some guest code out there which has been tested only
+     * on QEMU and which never bothers to enable the UART because we
+     * historically never enforced that. So we effectively keep the
+     * UART continuously enabled regardless of the enable bits.
+     */
 
+    trace_pl011_can_receive(s->lcr, s->read_count, fifo_depth, fifo_available);
     return fifo_available;
 }
 
