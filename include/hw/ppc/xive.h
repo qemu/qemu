@@ -422,6 +422,7 @@ void xive_router_end_notify(XiveRouter *xrtr, XiveEAS *eas);
 typedef struct XiveTCTXMatch {
     XiveTCTX *tctx;
     uint8_t ring;
+    bool precluded;
 } XiveTCTXMatch;
 
 #define TYPE_XIVE_PRESENTER "xive-presenter"
@@ -450,7 +451,9 @@ int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
 bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
                            uint8_t nvt_blk, uint32_t nvt_idx,
                            bool cam_ignore, uint8_t priority,
-                           uint32_t logic_serv);
+                           uint32_t logic_serv, bool *precluded);
+
+uint32_t xive_get_vpgroup_size(uint32_t nvp_index);
 
 /*
  * XIVE Fabric (Interface between Interrupt Controller and Machine)

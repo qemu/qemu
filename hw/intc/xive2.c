@@ -739,6 +739,12 @@ int xive2_router_write_nvgc(Xive2Router *xrtr, bool crowd,
    return xrc->write_nvgc(xrtr, crowd, nvgc_blk, nvgc_idx, nvgc);
 }
 
+static bool xive2_vp_match_mask(uint32_t cam1, uint32_t cam2,
+                                uint32_t vp_mask)
+{
+    return (cam1 & vp_mask) == (cam2 & vp_mask);
+}
+
 /*
  * The thread context register words are in big-endian format.
  */
@@ -753,44 +759,50 @@ int xive2_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
     uint32_t qw1w2 = xive_tctx_word2(&tctx->regs[TM_QW1_OS]);
     uint32_t qw0w2 = xive_tctx_word2(&tctx->regs[TM_QW0_USER]);
 
-    /*
-     * TODO (PowerNV): ignore mode. The low order bits of the NVT
-     * identifier are ignored in the "CAM" match.
-     */
+    uint32_t vp_mask = 0xFFFFFFFF;
 
     if (format == 0) {
-        if (cam_ignore == true) {
-            /*
-             * F=0 & i=1: Logical server notification (bits ignored at
-             * the end of the NVT identifier)
-             */
-            qemu_log_mask(LOG_UNIMP, "XIVE: no support for LS NVT %x/%x\n",
-                          nvt_blk, nvt_idx);
-            return -1;
+        /*
+         * i=0: Specific NVT notification
+         * i=1: VP-group notification (bits ignored at the end of the
+         *      NVT identifier)
+         */
+        if (cam_ignore) {
+            vp_mask = ~(xive_get_vpgroup_size(nvt_idx) - 1);
         }
 
-        /* F=0 & i=0: Specific NVT notification */
+        /* For VP-group notifications, threads with LGS=0 are excluded */
 
         /* PHYS ring */
         if ((be32_to_cpu(qw3w2) & TM2_QW3W2_VT) &&
-            cam == xive2_tctx_hw_cam_line(xptr, tctx)) {
+            !(cam_ignore && tctx->regs[TM_QW3_HV_PHYS + TM_LGS] == 0) &&
+            xive2_vp_match_mask(cam,
+                                xive2_tctx_hw_cam_line(xptr, tctx),
+                                vp_mask)) {
             return TM_QW3_HV_PHYS;
         }
 
         /* HV POOL ring */
         if ((be32_to_cpu(qw2w2) & TM2_QW2W2_VP) &&
-            cam == xive_get_field32(TM2_QW2W2_POOL_CAM, qw2w2)) {
+            !(cam_ignore && tctx->regs[TM_QW2_HV_POOL + TM_LGS] == 0) &&
+            xive2_vp_match_mask(cam,
+                                xive_get_field32(TM2_QW2W2_POOL_CAM, qw2w2),
+                                vp_mask)) {
             return TM_QW2_HV_POOL;
         }
 
         /* OS ring */
         if ((be32_to_cpu(qw1w2) & TM2_QW1W2_VO) &&
-            cam == xive_get_field32(TM2_QW1W2_OS_CAM, qw1w2)) {
+            !(cam_ignore && tctx->regs[TM_QW1_OS + TM_LGS] == 0) &&
+            xive2_vp_match_mask(cam,
+                                xive_get_field32(TM2_QW1W2_OS_CAM, qw1w2),
+                                vp_mask)) {
             return TM_QW1_OS;
         }
     } else {
         /* F=1 : User level Event-Based Branch (EBB) notification */
 
+        /* FIXME: what if cam_ignore and LGS = 0 ? */
         /* USER ring */
         if  ((be32_to_cpu(qw1w2) & TM2_QW1W2_VO) &&
              (cam == xive_get_field32(TM2_QW1W2_OS_CAM, qw1w2)) &&
@@ -800,6 +812,22 @@ int xive2_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
         }
     }
     return -1;
+}
+
+bool xive2_tm_irq_precluded(XiveTCTX *tctx, int ring, uint8_t priority)
+{
+    uint8_t *regs = &tctx->regs[ring];
+
+    /*
+     * The xive2_presenter_tctx_match() above tells if there's a match
+     * but for VP-group notification, we still need to look at the
+     * priority to know if the thread can take the interrupt now or if
+     * it is precluded.
+     */
+    if (priority < regs[TM_CPPR]) {
+        return false;
+    }
+    return true;
 }
 
 static void xive2_router_realize(DeviceState *dev, Error **errp)
@@ -841,7 +869,7 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
     Xive2End end;
     uint8_t priority;
     uint8_t format;
-    bool found;
+    bool found, precluded;
     Xive2Nvp nvp;
     uint8_t nvp_blk;
     uint32_t nvp_idx;
@@ -922,7 +950,8 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
     found = xive_presenter_notify(xrtr->xfb, format, nvp_blk, nvp_idx,
                           xive2_end_is_ignore(&end),
                           priority,
-                          xive_get_field32(END2_W7_F1_LOG_SERVER_ID, end.w7));
+                          xive_get_field32(END2_W7_F1_LOG_SERVER_ID, end.w7),
+                          &precluded);
 
     /* TODO: Auto EOI. */
 

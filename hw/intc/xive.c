@@ -1655,6 +1655,16 @@ static uint32_t xive_tctx_hw_cam_line(XivePresenter *xptr, XiveTCTX *tctx)
     return xive_nvt_cam_line(blk, 1 << 7 | (pir & 0x7f));
 }
 
+uint32_t xive_get_vpgroup_size(uint32_t nvp_index)
+{
+    /*
+     * Group size is a power of 2. The position of the first 0
+     * (starting with the least significant bits) in the NVP index
+     * gives the size of the group.
+     */
+    return 1 << (ctz32(~nvp_index) + 1);
+}
+
 static uint8_t xive_get_group_level(uint32_t nvp_index)
 {
     /* FIXME add crowd encoding */
@@ -1727,30 +1737,39 @@ int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
 /*
  * This is our simple Xive Presenter Engine model. It is merged in the
  * Router as it does not require an extra object.
- *
- * It receives notification requests sent by the IVRE to find one
- * matching NVT (or more) dispatched on the processor threads. In case
- * of a single NVT notification, the process is abbreviated and the
- * thread is signaled if a match is found. In case of a logical server
- * notification (bits ignored at the end of the NVT identifier), the
- * IVPE and IVRE select a winning thread using different filters. This
- * involves 2 or 3 exchanges on the PowerBus that the model does not
- * support.
- *
- * The parameters represent what is sent on the PowerBus
  */
 bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
                            uint8_t nvt_blk, uint32_t nvt_idx,
                            bool cam_ignore, uint8_t priority,
-                           uint32_t logic_serv)
+                           uint32_t logic_serv, bool *precluded)
 {
     XiveFabricClass *xfc = XIVE_FABRIC_GET_CLASS(xfb);
-    XiveTCTXMatch match = { .tctx = NULL, .ring = 0 };
+    XiveTCTXMatch match = { .tctx = NULL, .ring = 0, .precluded = false };
     uint8_t group_level;
     int count;
 
     /*
-     * Ask the machine to scan the interrupt controllers for a match
+     * Ask the machine to scan the interrupt controllers for a match.
+     *
+     * For VP-specific notification, we expect at most one match and
+     * one call to the presenters is all we need (abbreviated notify
+     * sequence documented by the architecture).
+     *
+     * For VP-group notification, match_nvt() is the equivalent of the
+     * "histogram" and "poll" commands sent to the power bus to the
+     * presenters. 'count' could be more than one, but we always
+     * select the first match for now. 'precluded' tells if (at least)
+     * one thread matches but can't take the interrupt now because
+     * it's running at a more favored priority. We return the
+     * information to the router so that it can take appropriate
+     * actions (backlog, escalation, broadcast, etc...)
+     *
+     * If we were to implement a better way of dispatching the
+     * interrupt in case of multiple matches (instead of the first
+     * match), we would need a heuristic to elect a thread (for
+     * example, the hardware keeps track of an 'age' in the TIMA) and
+     * a new command to the presenters (the equivalent of the "assign"
+     * power bus command in the documented full notify sequence.
      */
     count = xfc->match_nvt(xfb, format, nvt_blk, nvt_idx, cam_ignore,
                            priority, logic_serv, &match);
@@ -1763,6 +1782,8 @@ bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
         group_level = cam_ignore ? xive_get_group_level(nvt_idx) : 0;
         trace_xive_presenter_notify(nvt_blk, nvt_idx, match.ring, group_level);
         xive_tctx_pipr_update(match.tctx, match.ring, priority, group_level);
+    } else {
+        *precluded = match.precluded;
     }
 
     return !!count;
@@ -1802,7 +1823,7 @@ void xive_router_end_notify(XiveRouter *xrtr, XiveEAS *eas)
     uint8_t nvt_blk;
     uint32_t nvt_idx;
     XiveNVT nvt;
-    bool found;
+    bool found, precluded;
 
     uint8_t end_blk = xive_get_field64(EAS_END_BLOCK, eas->w);
     uint32_t end_idx = xive_get_field64(EAS_END_INDEX, eas->w);
@@ -1885,8 +1906,9 @@ void xive_router_end_notify(XiveRouter *xrtr, XiveEAS *eas)
     found = xive_presenter_notify(xrtr->xfb, format, nvt_blk, nvt_idx,
                           xive_get_field32(END_W7_F0_IGNORE, end.w7),
                           priority,
-                          xive_get_field32(END_W7_F1_LOG_SERVER_ID, end.w7));
-
+                          xive_get_field32(END_W7_F1_LOG_SERVER_ID, end.w7),
+                          &precluded);
+    /* we don't support VP-group notification on P9, so precluded is not used */
     /* TODO: Auto EOI. */
 
     if (found) {
