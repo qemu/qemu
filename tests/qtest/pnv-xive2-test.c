@@ -4,6 +4,7 @@
  *  - Test 'Pull Thread Context to Odd Thread Reporting Line'
  *  - Test irq to hardware group
  *  - Test irq to hardware group going through backlog
+ *  - Test irq to pool thread
  *
  * Copyright (c) 2024, IBM Corporation.
  *
@@ -220,8 +221,8 @@ static void test_hw_irq(QTestState *qts)
     uint16_t reg16;
     uint8_t pq, nsr, cppr;
 
-    printf("# ============================================================\n");
-    printf("# Testing irq %d to hardware thread %d\n", irq, target_pir);
+    g_test_message("=========================================================");
+    g_test_message("Testing irq %d to hardware thread %d", irq, target_pir);
 
     /* irq config */
     set_eas(qts, irq, end_index, irq_data);
@@ -278,8 +279,9 @@ static void test_pull_thread_ctx_to_odd_thread_cl(QTestState *qts)
     uint32_t cl_word;
     uint32_t word2;
 
-    printf("# ============================================================\n");
-    printf("# Testing 'Pull Thread Context to Odd Thread Reporting Line'\n");
+    g_test_message("=========================================================");
+    g_test_message("Testing 'Pull Thread Context to Odd Thread Reporting " \
+                   "Line'");
 
     /* clear odd cache line prior to pull operation */
     memset(cl_pair, 0, sizeof(cl_pair));
@@ -330,8 +332,8 @@ static void test_hw_group_irq(QTestState *qts)
     uint16_t reg16;
     uint8_t pq, nsr, cppr;
 
-    printf("# ============================================================\n");
-    printf("# Testing irq %d to hardware group of size 4\n", irq);
+    g_test_message("=========================================================");
+    g_test_message("Testing irq %d to hardware group of size 4", irq);
 
     /* irq config */
     set_eas(qts, irq, end_index, irq_data);
@@ -395,10 +397,10 @@ static void test_hw_group_irq_backlog(QTestState *qts)
     uint16_t reg16;
     uint8_t pq, nsr, cppr, lsmfb, i;
 
-    printf("# ============================================================\n");
-    printf("# Testing irq %d to hardware group of size 4 going through " \
-           "backlog\n",
-           irq);
+    g_test_message("=========================================================");
+    g_test_message("Testing irq %d to hardware group of size 4 going " \
+                   "through backlog",
+                   irq);
 
     /*
      * set current priority of all threads in the group to something

@@ -4,8 +4,7 @@
  *
  * Copyright (c) 2024, IBM Corporation.
  *
- * This work is licensed under the terms of the GNU GPL, version 2 or
- * later. See the COPYING file in the top-level directory.
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 #include "qemu/osdep.h"
 #include "libqtest.h"
@@ -78,8 +77,8 @@ void test_nvpg_bar(QTestState *qts)
     uint32_t count, delta;
     uint8_t i;
 
-    printf("# ============================================================\n");
-    printf("# Testing NVPG BAR operations\n");
+    g_test_message("=========================================================");
+    g_test_message("Testing NVPG BAR operations");
 
     set_nvg(qts, group_target, 0);
     set_nvp(qts, nvp_target, 0x04);
