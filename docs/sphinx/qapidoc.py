@@ -195,6 +195,15 @@ class Transmogrifier:
         self.add_lines(section.text, section.info)
         self.ensure_blank_line()
 
+    def visit_feature(self, section: QAPIDoc.ArgSection) -> None:
+        # FIXME - ifcond for features is not handled at all yet!
+        # Proposal: decorate the right-hand column with some graphical
+        # element to indicate conditional availability?
+        assert section.text  # Guaranteed by parser.py
+        assert section.member
+
+        self.generate_field("feat", section.member, section.text, section.info)
+
     def visit_errors(self, section: QAPIDoc.Section) -> None:
         # FIXME: the formatting for errors may be inconsistent and may
         # or may not require different newline placement to ensure
