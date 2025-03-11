@@ -112,7 +112,7 @@ struct QemuClipboardNotify {
 struct QemuClipboardInfo {
     uint32_t refcount;
     QemuClipboardPeer *owner;
-    QemuClipboardSelection selection;
+    int selection; /* QemuClipboardSelection */
     bool has_serial;
     uint32_t serial;
     struct {
