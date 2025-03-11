@@ -78,6 +78,8 @@ __version__ = "1.0"
 
 
 class Transmogrifier:
+    # pylint: disable=too-many-public-methods
+
     # Field names used for different entity types:
     field_types = {
         "enum": "value",
@@ -361,6 +363,25 @@ class Transmogrifier:
 
         self.add_lines(text, info)
         self.ensure_blank_line()
+
+    def visit_entity(self, ent: QAPISchemaDefinition) -> None:
+        assert ent.info
+
+        try:
+            self._curr_ent = ent
+
+            # Squish structs and unions together into an "object" directive.
+            meta = ent.meta
+            if meta in ("struct", "union"):
+                meta = "object"
+
+            # This line gets credited to the start of the /definition/.
+            self.add_line(f".. qapi:{meta}:: {ent.name}", ent.info)
+            with self.indented():
+                self.preamble(ent)
+                self.visit_sections(ent)
+        finally:
+            self._curr_ent = None
 
 
 class QAPISchemaGenDepVisitor(QAPISchemaVisitor):
