@@ -100,8 +100,15 @@ static void scsi_device_for_each_req_sync(SCSIDevice *s,
     assert(!runstate_is_running());
     assert(qemu_in_main_thread());
 
-    QTAILQ_FOREACH_SAFE(req, &s->requests, next, next_req) {
-        fn(req, opaque);
+    /*
+     * Locking is not necessary because the guest is stopped and no other
+     * threads can be accessing the requests list, but take the lock for
+     * consistency.
+     */
+    WITH_QEMU_LOCK_GUARD(&s->requests_lock) {
+        QTAILQ_FOREACH_SAFE(req, &s->requests, next, next_req) {
+            fn(req, opaque);
+        }
     }
 }
 
@@ -115,21 +122,29 @@ static void scsi_device_for_each_req_async_bh(void *opaque)
 {
     g_autofree SCSIDeviceForEachReqAsyncData *data = opaque;
     SCSIDevice *s = data->s;
-    AioContext *ctx;
-    SCSIRequest *req;
-    SCSIRequest *next;
+    g_autoptr(GList) reqs = NULL;
 
     /*
-     * The BB cannot have changed contexts between this BH being scheduled and
-     * now: BBs' AioContexts, when they have a node attached, can only be
-     * changed via bdrv_try_change_aio_context(), in a drained section.  While
-     * we have the in-flight counter incremented, that drain must block.
+     * Build a list of requests in this AioContext so fn() can be invoked later
+     * outside requests_lock.
      */
-    ctx = blk_get_aio_context(s->conf.blk);
-    assert(ctx == qemu_get_current_aio_context());
+    WITH_QEMU_LOCK_GUARD(&s->requests_lock) {
+        AioContext *ctx = qemu_get_current_aio_context();
+        SCSIRequest *req;
+        SCSIRequest *next;
 
-    QTAILQ_FOREACH_SAFE(req, &s->requests, next, next) {
-        data->fn(req, data->fn_opaque);
+        QTAILQ_FOREACH_SAFE(req, &s->requests, next, next) {
+            if (req->ctx == ctx) {
+                scsi_req_ref(req); /* dropped after calling fn() */
+                reqs = g_list_prepend(reqs, req);
+            }
+        }
+    }
+
+    /* Call fn() on each request */
+    for (GList *elem = g_list_first(reqs); elem; elem = g_list_next(elem)) {
+        data->fn(elem->data, data->fn_opaque);
+        scsi_req_unref(elem->data);
     }
 
     /* Drop the reference taken by scsi_device_for_each_req_async() */
@@ -139,9 +154,35 @@ static void scsi_device_for_each_req_async_bh(void *opaque)
     blk_dec_in_flight(s->conf.blk);
 }
 
+static void scsi_device_for_each_req_async_do_ctx(gpointer key, gpointer value,
+                                                  gpointer user_data)
+{
+    AioContext *ctx = key;
+    SCSIDeviceForEachReqAsyncData *params = user_data;
+    SCSIDeviceForEachReqAsyncData *data;
+
+    data = g_new(SCSIDeviceForEachReqAsyncData, 1);
+    data->s = params->s;
+    data->fn = params->fn;
+    data->fn_opaque = params->fn_opaque;
+
+    /*
+     * Hold a reference to the SCSIDevice until
+     * scsi_device_for_each_req_async_bh() finishes.
+     */
+    object_ref(OBJECT(data->s));
+
+    /* Paired with scsi_device_for_each_req_async_bh() */
+    blk_inc_in_flight(data->s->conf.blk);
+
+    aio_bh_schedule_oneshot(ctx, scsi_device_for_each_req_async_bh, data);
+}
+
 /*
  * Schedule @fn() to be invoked for each enqueued request in device @s. @fn()
- * runs in the AioContext that is executing the request.
+ * must be thread-safe because it runs concurrently in each AioContext that is
+ * executing a request.
+ *
  * Keeps the BlockBackend's in-flight counter incremented until everything is
  * done, so draining it will settle all scheduled @fn() calls.
  */
@@ -151,24 +192,26 @@ static void scsi_device_for_each_req_async(SCSIDevice *s,
 {
     assert(qemu_in_main_thread());
 
-    SCSIDeviceForEachReqAsyncData *data =
-        g_new(SCSIDeviceForEachReqAsyncData, 1);
+    /* The set of AioContexts where the requests are being processed */
+    g_autoptr(GHashTable) aio_contexts = g_hash_table_new(NULL, NULL);
+    WITH_QEMU_LOCK_GUARD(&s->requests_lock) {
+        SCSIRequest *req;
+        QTAILQ_FOREACH(req, &s->requests, next) {
+            g_hash_table_add(aio_contexts, req->ctx);
+        }
+    }
 
-    data->s = s;
-    data->fn = fn;
-    data->fn_opaque = opaque;
-
-    /*
-     * Hold a reference to the SCSIDevice until
-     * scsi_device_for_each_req_async_bh() finishes.
-     */
-    object_ref(OBJECT(s));
-
-    /* Paired with blk_dec_in_flight() in scsi_device_for_each_req_async_bh() */
-    blk_inc_in_flight(s->conf.blk);
-    aio_bh_schedule_oneshot(blk_get_aio_context(s->conf.blk),
-                            scsi_device_for_each_req_async_bh,
-                            data);
+    /* Schedule a BH for each AioContext */
+    SCSIDeviceForEachReqAsyncData params = {
+        .s = s,
+        .fn = fn,
+        .fn_opaque = opaque,
+    };
+    g_hash_table_foreach(
+            aio_contexts,
+            scsi_device_for_each_req_async_do_ctx,
+            &params
+    );
 }
 
 static void scsi_device_realize(SCSIDevice *s, Error **errp)
@@ -349,6 +392,7 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
         dev->lun = lun;
     }
 
+    qemu_mutex_init(&dev->requests_lock);
     QTAILQ_INIT(&dev->requests);
     scsi_device_realize(dev, &local_err);
     if (local_err) {
@@ -368,6 +412,8 @@ static void scsi_qdev_unrealize(DeviceState *qdev)
     }
 
     scsi_device_purge_requests(dev, SENSE_CODE(NO_SENSE));
+
+    qemu_mutex_destroy(&dev->requests_lock);
 
     scsi_device_unrealize(dev);
 
@@ -965,7 +1011,10 @@ static void scsi_req_enqueue_internal(SCSIRequest *req)
         req->sg = NULL;
     }
     req->enqueued = true;
-    QTAILQ_INSERT_TAIL(&req->dev->requests, req, next);
+
+    WITH_QEMU_LOCK_GUARD(&req->dev->requests_lock) {
+        QTAILQ_INSERT_TAIL(&req->dev->requests, req, next);
+    }
 }
 
 int32_t scsi_req_enqueue(SCSIRequest *req)
@@ -985,7 +1034,9 @@ static void scsi_req_dequeue(SCSIRequest *req)
     trace_scsi_req_dequeue(req->dev->id, req->lun, req->tag);
     req->retry = false;
     if (req->enqueued) {
-        QTAILQ_REMOVE(&req->dev->requests, req, next);
+        WITH_QEMU_LOCK_GUARD(&req->dev->requests_lock) {
+            QTAILQ_REMOVE(&req->dev->requests, req, next);
+        }
         req->enqueued = false;
         scsi_req_unref(req);
     }
@@ -1962,8 +2013,7 @@ static void scsi_device_class_init(ObjectClass *klass, void *data)
 
 static void scsi_dev_instance_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(obj);
-    SCSIDevice *s = SCSI_DEVICE(dev);
+    SCSIDevice *s = SCSI_DEVICE(obj);
 
     device_add_bootindex_property(obj, &s->conf.bootindex,
                                   "bootindex", NULL,
