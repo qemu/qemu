@@ -3,8 +3,7 @@
  *
  * Copyright (c) 2017-2018, IBM Corporation.
  *
- * This code is licensed under the GPL version 2 or later. See the
- * COPYING file in the top-level directory.
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #include "qemu/osdep.h"
@@ -27,15 +26,6 @@
  * XIVE Thread Interrupt Management context
  */
 
-/*
- * Convert an Interrupt Pending Buffer (IPB) register to a Pending
- * Interrupt Priority Register (PIPR), which contains the priority of
- * the most favored pending notification.
- */
-static uint8_t ipb_to_pipr(uint8_t ibp)
-{
-    return ibp ? clz32((uint32_t)ibp << 24) : 0xff;
-}
 
 static uint8_t exception_mask(uint8_t ring)
 {
@@ -159,7 +149,7 @@ static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
      * Recompute the PIPR based on local pending interrupts.  The PHYS
      * ring must take the minimum of both the PHYS and POOL PIPR values.
      */
-    pipr_min = ipb_to_pipr(regs[TM_IPB]);
+    pipr_min = xive_ipb_to_pipr(regs[TM_IPB]);
     ring_min = ring;
 
     /* PHYS updates also depend on POOL values */
@@ -169,7 +159,7 @@ static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
         /* POOL values only matter if POOL ctx is valid */
         if (pool_regs[TM_WORD2] & 0x80) {
 
-            uint8_t pool_pipr = ipb_to_pipr(pool_regs[TM_IPB]);
+            uint8_t pool_pipr = xive_ipb_to_pipr(pool_regs[TM_IPB]);
 
             /*
              * Determine highest priority interrupt and
@@ -193,7 +183,7 @@ void xive_tctx_ipb_update(XiveTCTX *tctx, uint8_t ring, uint8_t ipb)
     uint8_t *regs = &tctx->regs[ring];
 
     regs[TM_IPB] |= ipb;
-    regs[TM_PIPR] = ipb_to_pipr(regs[TM_IPB]);
+    regs[TM_PIPR] = xive_ipb_to_pipr(regs[TM_IPB]);
     xive_tctx_notify(tctx, ring);
 }
 
@@ -841,9 +831,9 @@ void xive_tctx_reset(XiveTCTX *tctx)
      * CPPR is first set.
      */
     tctx->regs[TM_QW1_OS + TM_PIPR] =
-        ipb_to_pipr(tctx->regs[TM_QW1_OS + TM_IPB]);
+        xive_ipb_to_pipr(tctx->regs[TM_QW1_OS + TM_IPB]);
     tctx->regs[TM_QW3_HV_PHYS + TM_PIPR] =
-        ipb_to_pipr(tctx->regs[TM_QW3_HV_PHYS + TM_IPB]);
+        xive_ipb_to_pipr(tctx->regs[TM_QW3_HV_PHYS + TM_IPB]);
 }
 
 static void xive_tctx_realize(DeviceState *dev, Error **errp)

@@ -130,11 +130,9 @@
  *   TCTX   Thread interrupt Context
  *
  *
- * Copyright (c) 2017-2018, IBM Corporation.
+ * Copyright (c) 2017-2024, IBM Corporation.
  *
- * This code is licensed under the GPL version 2 or later. See the
- * COPYING file in the top-level directory.
- *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #ifndef PPC_XIVE_H
@@ -508,6 +506,16 @@ static inline uint8_t xive_priority_to_ipb(uint8_t priority)
 {
     return priority > XIVE_PRIORITY_MAX ?
         0 : 1 << (XIVE_PRIORITY_MAX - priority);
+}
+
+/*
+ * Convert an Interrupt Pending Buffer (IPB) register to a Pending
+ * Interrupt Priority Register (PIPR), which contains the priority of
+ * the most favored pending notification.
+ */
+static inline uint8_t xive_ipb_to_pipr(uint8_t ibp)
+{
+    return ibp ? clz32((uint32_t)ibp << 24) : 0xff;
 }
 
 /*
