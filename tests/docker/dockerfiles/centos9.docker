@@ -115,6 +115,7 @@ RUN dnf distro-sync -y && \
         usbredir-devel \
         util-linux \
         vte291-devel \
+        vulkan-tools \
         which \
         xorriso \
         zlib-devel \

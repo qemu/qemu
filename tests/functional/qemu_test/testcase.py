@@ -27,7 +27,7 @@ from qemu.utils import kvm_available, tcg_available
 
 from .archive import archive_extract
 from .asset import Asset
-from .config import BUILD_DIR
+from .config import BUILD_DIR, dso_suffix
 from .uncompress import uncompress
 
 
@@ -182,6 +182,16 @@ class QemuBaseTest(unittest.TestCase):
     '''
     def log_file(self, *args):
         return str(Path(self.outputdir, *args))
+
+    '''
+    @params plugin name
+
+    Return the full path to the plugin taking into account any host OS
+    specific suffixes.
+    '''
+    def plugin_file(self, plugin_name):
+        sfx = dso_suffix()
+        return os.path.join('tests', 'tcg', 'plugins', f'{plugin_name}.{sfx}')
 
     def assets_available(self):
         for name, asset in vars(self.__class__).items():

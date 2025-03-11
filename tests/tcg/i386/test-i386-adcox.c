@@ -29,7 +29,7 @@ void test_adox_adcx(uint32_t in_c, uint32_t in_o, REG adcx_operand, REG adox_ope
         "adcx %3, %1;"
         "pushf; pop %0"
         : "+r" (flags), "+r" (out_adcx), "+r" (out_adox)
-        : "r" ((REG)-1), "0" (flags), "1" (out_adcx), "2" (out_adox));
+        : "r" ((REG) - 1), "0" (flags), "1" (out_adcx), "2" (out_adox));
 
     assert(out_adcx == in_c + adcx_operand - 1);
     assert(out_adox == in_o + adox_operand - 1);
@@ -53,8 +53,8 @@ void test_adcx_adox(uint32_t in_c, uint32_t in_o, REG adcx_operand, REG adox_ope
         "adcx %3, %1;"
         "adox %3, %2;"
         "pushf; pop %0"
-        : "+r" (flags), "+r" (out_adcx), "+r" (out_adox)
-        : "r" ((REG)-1), "0" (flags), "1" (out_adcx), "2" (out_adox));
+        : "+r"(flags), "+r"(out_adcx), "+r"(out_adox)
+        : "r" ((REG)-1));
 
     assert(out_adcx == in_c + adcx_operand - 1);
     assert(out_adox == in_o + adox_operand - 1);

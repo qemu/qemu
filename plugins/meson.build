@@ -57,8 +57,9 @@ if host_os == 'windows'
     command: dlltool_cmd
   )
 endif
-specific_ss.add(files(
-  'loader.c',
-  'core.c',
-  'api.c',
-))
+
+user_ss.add(files('user.c', 'api-user.c'))
+system_ss.add(files('system.c', 'api-system.c'))
+
+common_ss.add(files('loader.c', 'api.c', 'core.c'))
+

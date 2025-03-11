@@ -123,6 +123,7 @@ packages:
   - tar
   - tesseract-ocr
   - tesseract-ocr-eng
+  - vulkan-tools
   - xorriso
   - zlib1g-dev
   - zstd

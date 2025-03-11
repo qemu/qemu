@@ -87,7 +87,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libsndio-dev \
                       libspice-protocol-dev \
                       libspice-server-dev \
-                      libssh-gcrypt-dev \
+                      libssh-dev \
                       libsystemd-dev \
                       libtasn1-6-dev \
                       libubsan1 \
@@ -131,6 +131,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       tar \
                       tesseract-ocr \
                       tesseract-ocr-eng \
+                      vulkan-tools \
                       xorriso \
                       zlib1g-dev \
                       zstd && \
