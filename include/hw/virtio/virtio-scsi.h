@@ -22,6 +22,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/scsi/scsi.h"
 #include "chardev/char-fe.h"
+#include "qapi/qapi-types-virtio.h"
 #include "system/iothread.h"
 
 #define TYPE_VIRTIO_SCSI_COMMON "virtio-scsi-common"
@@ -60,6 +61,7 @@ struct VirtIOSCSIConf {
     CharBackend chardev;
     uint32_t boot_tpgt;
     IOThread *iothread;
+    IOThreadVirtQueueMappingList *iothread_vq_mapping_list;
 };
 
 struct VirtIOSCSI;
@@ -97,7 +99,7 @@ struct VirtIOSCSI {
     QTAILQ_HEAD(, VirtIOSCSIReq) tmf_bh_list;
 
     /* Fields for dataplane below */
-    AioContext *ctx; /* one iothread per virtio-scsi-pci for now */
+    AioContext **vq_aio_context; /* per-virtqueue AioContext pointer */
 
     bool dataplane_started;
     bool dataplane_starting;
@@ -115,6 +117,7 @@ void virtio_scsi_common_realize(DeviceState *dev,
 void virtio_scsi_common_unrealize(DeviceState *dev);
 
 void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp);
+void virtio_scsi_dataplane_cleanup(VirtIOSCSI *s);
 int virtio_scsi_dataplane_start(VirtIODevice *s);
 void virtio_scsi_dataplane_stop(VirtIODevice *s);
 

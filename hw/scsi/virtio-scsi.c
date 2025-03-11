@@ -27,6 +27,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/scsi/scsi.h"
 #include "scsi/constants.h"
+#include "hw/virtio/iothread-vq-mapping.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 #include "trace.h"
@@ -318,13 +319,6 @@ static void virtio_scsi_cancel_notify(Notifier *notifier, void *data)
     g_free(n);
 }
 
-static inline void virtio_scsi_ctx_check(VirtIOSCSI *s, SCSIDevice *d)
-{
-    if (s->dataplane_started && d && blk_is_available(d->conf.blk)) {
-        assert(blk_get_aio_context(d->conf.blk) == s->ctx);
-    }
-}
-
 static void virtio_scsi_do_one_tmf_bh(VirtIOSCSIReq *req)
 {
     VirtIOSCSI *s = req->dev;
@@ -517,9 +511,11 @@ static void virtio_scsi_flush_defer_tmf_to_aio_context(VirtIOSCSI *s)
 
     assert(!s->dataplane_started);
 
-    if (s->ctx) {
+    for (uint32_t i = 0; i < s->parent_obj.conf.num_queues; i++) {
+        AioContext *ctx = s->vq_aio_context[VIRTIO_SCSI_VQ_NUM_FIXED + i];
+
         /* Our BH only runs after previously scheduled BHs */
-        aio_wait_bh_oneshot(s->ctx, dummy_bh, NULL);
+        aio_wait_bh_oneshot(ctx, dummy_bh, NULL);
     }
 }
 
@@ -575,7 +571,6 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
     AioContext *ctx;
     int ret = 0;
 
-    virtio_scsi_ctx_check(s, d);
     /* Here VIRTIO_SCSI_S_OK means "FUNCTION COMPLETE".  */
     req->resp.tmf.response = VIRTIO_SCSI_S_OK;
 
@@ -639,6 +634,8 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
 
     case VIRTIO_SCSI_T_TMF_ABORT_TASK_SET:
     case VIRTIO_SCSI_T_TMF_CLEAR_TASK_SET: {
+        g_autoptr(GHashTable) aio_contexts = g_hash_table_new(NULL, NULL);
+
         if (!d) {
             goto fail;
         }
@@ -648,8 +645,15 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
 
         qatomic_inc(&req->remaining);
 
-        ctx = s->ctx ?: qemu_get_aio_context();
-        virtio_scsi_defer_tmf_to_aio_context(req, ctx);
+        for (uint32_t i = 0; i < s->parent_obj.conf.num_queues; i++) {
+            ctx = s->vq_aio_context[VIRTIO_SCSI_VQ_NUM_FIXED + i];
+
+            if (!g_hash_table_add(aio_contexts, ctx)) {
+                continue; /* skip previously added AioContext */
+            }
+
+            virtio_scsi_defer_tmf_to_aio_context(req, ctx);
+        }
 
         virtio_scsi_tmf_dec_remaining(req);
         ret = -EINPROGRESS;
@@ -770,8 +774,11 @@ static void virtio_scsi_handle_ctrl_vq(VirtIOSCSI *s, VirtQueue *vq)
  */
 static bool virtio_scsi_defer_to_dataplane(VirtIOSCSI *s)
 {
-    if (!s->ctx || s->dataplane_started) {
+    if (s->dataplane_started) {
         return false;
+    }
+    if (s->vq_aio_context[0] == qemu_get_aio_context()) {
+        return false; /* not using IOThreads */
     }
 
     virtio_device_start_ioeventfd(&s->parent_obj.parent_obj);
@@ -946,7 +953,6 @@ static int virtio_scsi_handle_cmd_req_prepare(VirtIOSCSI *s, VirtIOSCSIReq *req)
         virtio_scsi_complete_cmd_req(req);
         return -ENOENT;
     }
-    virtio_scsi_ctx_check(s, d);
     req->sreq = scsi_req_new(d, req->req.cmd.tag,
                              virtio_scsi_get_lun(req->req.cmd.lun),
                              req->req.cmd.cdb, vs->cdb_size, req);
@@ -1218,14 +1224,16 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(hotplug_dev);
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
+    AioContext *ctx = s->vq_aio_context[VIRTIO_SCSI_VQ_NUM_FIXED];
     SCSIDevice *sd = SCSI_DEVICE(dev);
-    int ret;
 
-    if (s->ctx && !s->dataplane_fenced) {
-        ret = blk_set_aio_context(sd->conf.blk, s->ctx, errp);
-        if (ret < 0) {
-            return;
-        }
+    if (ctx != qemu_get_aio_context() && !s->dataplane_fenced) {
+        /*
+         * Try to make the BlockBackend's AioContext match ours. Ignore failure
+         * because I/O will still work although block jobs and other users
+         * might be slower when multiple AioContexts use a BlockBackend.
+         */
+        blk_set_aio_context(sd->conf.blk, ctx, NULL);
     }
 
     if (virtio_vdev_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG)) {
@@ -1260,7 +1268,7 @@ static void virtio_scsi_hotunplug(HotplugHandler *hotplug_dev, DeviceState *dev,
 
     qdev_simple_device_unplug_cb(hotplug_dev, dev, errp);
 
-    if (s->ctx) {
+    if (s->vq_aio_context[VIRTIO_SCSI_VQ_NUM_FIXED] != qemu_get_aio_context()) {
         /* If other users keep the BlockBackend in the iothread, that's ok */
         blk_set_aio_context(sd->conf.blk, qemu_get_aio_context(), NULL);
     }
@@ -1294,7 +1302,7 @@ static void virtio_scsi_drained_begin(SCSIBus *bus)
 
     for (uint32_t i = 0; i < total_queues; i++) {
         VirtQueue *vq = virtio_get_queue(vdev, i);
-        virtio_queue_aio_detach_host_notifier(vq, s->ctx);
+        virtio_queue_aio_detach_host_notifier(vq, s->vq_aio_context[i]);
     }
 }
 
@@ -1320,10 +1328,12 @@ static void virtio_scsi_drained_end(SCSIBus *bus)
 
     for (uint32_t i = 0; i < total_queues; i++) {
         VirtQueue *vq = virtio_get_queue(vdev, i);
+        AioContext *ctx = s->vq_aio_context[i];
+
         if (vq == vs->event_vq) {
-            virtio_queue_aio_attach_host_notifier_no_poll(vq, s->ctx);
+            virtio_queue_aio_attach_host_notifier_no_poll(vq, ctx);
         } else {
-            virtio_queue_aio_attach_host_notifier(vq, s->ctx);
+            virtio_queue_aio_attach_host_notifier(vq, ctx);
         }
     }
 }
@@ -1430,12 +1440,13 @@ void virtio_scsi_common_unrealize(DeviceState *dev)
     virtio_cleanup(vdev);
 }
 
+/* main loop */
 static void virtio_scsi_device_unrealize(DeviceState *dev)
 {
     VirtIOSCSI *s = VIRTIO_SCSI(dev);
 
     virtio_scsi_reset_tmf_bh(s);
-
+    virtio_scsi_dataplane_cleanup(s);
     qbus_set_hotplug_handler(BUS(&s->bus), NULL);
     virtio_scsi_common_unrealize(dev);
     qemu_mutex_destroy(&s->tmf_bh_lock);
@@ -1460,6 +1471,8 @@ static const Property virtio_scsi_properties[] = {
                                                 VIRTIO_SCSI_F_CHANGE, true),
     DEFINE_PROP_LINK("iothread", VirtIOSCSI, parent_obj.conf.iothread,
                      TYPE_IOTHREAD, IOThread *),
+    DEFINE_PROP_IOTHREAD_VQ_MAPPING_LIST("iothread-vq-mapping", VirtIOSCSI,
+            parent_obj.conf.iothread_vq_mapping_list),
 };
 
 static const VMStateDescription vmstate_virtio_scsi = {
