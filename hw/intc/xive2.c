@@ -563,8 +563,11 @@ static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
                                    uint8_t nvp_blk, uint32_t nvp_idx,
                                    bool do_restore)
 {
-    Xive2Nvp nvp;
     uint8_t ipb;
+    uint8_t backlog_level;
+    uint8_t backlog_prio;
+    uint8_t *regs = &tctx->regs[TM_QW1_OS];
+    Xive2Nvp nvp;
 
     /*
      * Grab the associated thread interrupt context registers in the
@@ -593,15 +596,15 @@ static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
         nvp.w2 = xive_set_field32(NVP2_W2_IPB, nvp.w2, 0);
         xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, &nvp, 2);
     }
+    regs[TM_IPB] |= ipb;
+    backlog_prio = xive_ipb_to_pipr(ipb);
+    backlog_level = 0;
+
     /*
-     * Always call xive_tctx_ipb_update(). Even if there were no
-     * escalation triggered, there could be a pending interrupt which
-     * was saved when the context was pulled and that we need to take
-     * into account by recalculating the PIPR (which is not
-     * saved/restored).
-     * It will also raise the External interrupt signal if needed.
+     * Compute the PIPR based on the restored state.
+     * It will raise the External interrupt signal if needed.
      */
-    xive_tctx_ipb_update(tctx, TM_QW1_OS, ipb);
+    xive_tctx_pipr_update(tctx, TM_QW1_OS, backlog_prio, backlog_level);
 }
 
 /*

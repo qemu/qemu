@@ -26,19 +26,6 @@
  * XIVE Thread Interrupt Management context
  */
 
-
-static uint8_t exception_mask(uint8_t ring)
-{
-    switch (ring) {
-    case TM_QW1_OS:
-        return TM_QW1_NSR_EO;
-    case TM_QW3_HV_PHYS:
-        return TM_QW3_NSR_HE;
-    default:
-        g_assert_not_reached();
-    }
-}
-
 static qemu_irq xive_tctx_output(XiveTCTX *tctx, uint8_t ring)
 {
         switch (ring) {
@@ -58,11 +45,10 @@ static uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t ring)
 {
     uint8_t *regs = &tctx->regs[ring];
     uint8_t nsr = regs[TM_NSR];
-    uint8_t mask = exception_mask(ring);
 
     qemu_irq_lower(xive_tctx_output(tctx, ring));
 
-    if (regs[TM_NSR] & mask) {
+    if (regs[TM_NSR] != 0) {
         uint8_t cppr = regs[TM_PIPR];
         uint8_t alt_ring;
         uint8_t *alt_regs;
@@ -77,11 +63,18 @@ static uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t ring)
 
         regs[TM_CPPR] = cppr;
 
-        /* Reset the pending buffer bit */
-        alt_regs[TM_IPB] &= ~xive_priority_to_ipb(cppr);
+        /*
+         * If the interrupt was for a specific VP, reset the pending
+         * buffer bit, otherwise clear the logical server indicator
+         */
+        if (regs[TM_NSR] & TM_NSR_GRP_LVL) {
+            regs[TM_NSR] &= ~TM_NSR_GRP_LVL;
+        } else {
+            alt_regs[TM_IPB] &= ~xive_priority_to_ipb(cppr);
+        }
 
-        /* Drop Exception bit */
-        regs[TM_NSR] &= ~mask;
+        /* Drop the exception bit and any group/crowd */
+        regs[TM_NSR] = 0;
 
         trace_xive_tctx_accept(tctx->cs->cpu_index, alt_ring,
                                alt_regs[TM_IPB], regs[TM_PIPR],
@@ -91,7 +84,7 @@ static uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t ring)
     return ((uint64_t)nsr << 8) | regs[TM_CPPR];
 }
 
-static void xive_tctx_notify(XiveTCTX *tctx, uint8_t ring)
+void xive_tctx_notify(XiveTCTX *tctx, uint8_t ring, uint8_t group_level)
 {
     /* HV_POOL ring uses HV_PHYS NSR, CPPR and PIPR registers */
     uint8_t alt_ring = (ring == TM_QW2_HV_POOL) ? TM_QW3_HV_PHYS : ring;
@@ -101,13 +94,13 @@ static void xive_tctx_notify(XiveTCTX *tctx, uint8_t ring)
     if (alt_regs[TM_PIPR] < alt_regs[TM_CPPR]) {
         switch (ring) {
         case TM_QW1_OS:
-            regs[TM_NSR] |= TM_QW1_NSR_EO;
+            regs[TM_NSR] = TM_QW1_NSR_EO | (group_level & 0x3F);
             break;
         case TM_QW2_HV_POOL:
-            alt_regs[TM_NSR] = (TM_QW3_NSR_HE_POOL << 6);
+            alt_regs[TM_NSR] = (TM_QW3_NSR_HE_POOL << 6) | (group_level & 0x3F);
             break;
         case TM_QW3_HV_PHYS:
-            regs[TM_NSR] |= (TM_QW3_NSR_HE_PHYS << 6);
+            regs[TM_NSR] = (TM_QW3_NSR_HE_PHYS << 6) | (group_level & 0x3F);
             break;
         default:
             g_assert_not_reached();
@@ -175,17 +168,27 @@ static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
     regs[TM_PIPR] = pipr_min;
 
     /* CPPR has changed, check if we need to raise a pending exception */
-    xive_tctx_notify(tctx, ring_min);
+    xive_tctx_notify(tctx, ring_min, 0);
 }
 
-void xive_tctx_ipb_update(XiveTCTX *tctx, uint8_t ring, uint8_t ipb)
-{
+void xive_tctx_pipr_update(XiveTCTX *tctx, uint8_t ring, uint8_t priority,
+                           uint8_t group_level)
+ {
+    /* HV_POOL ring uses HV_PHYS NSR, CPPR and PIPR registers */
+    uint8_t alt_ring = (ring == TM_QW2_HV_POOL) ? TM_QW3_HV_PHYS : ring;
+    uint8_t *alt_regs = &tctx->regs[alt_ring];
     uint8_t *regs = &tctx->regs[ring];
 
-    regs[TM_IPB] |= ipb;
-    regs[TM_PIPR] = xive_ipb_to_pipr(regs[TM_IPB]);
-    xive_tctx_notify(tctx, ring);
-}
+    if (group_level == 0) {
+        /* VP-specific */
+        regs[TM_IPB] |= xive_priority_to_ipb(priority);
+        alt_regs[TM_PIPR] = xive_ipb_to_pipr(regs[TM_IPB]);
+    } else {
+        /* VP-group */
+        alt_regs[TM_PIPR] = xive_priority_to_pipr(priority);
+    }
+    xive_tctx_notify(tctx, ring, group_level);
+ }
 
 /*
  * XIVE Thread Interrupt Management Area (TIMA)
@@ -401,13 +404,13 @@ static void xive_tm_set_os_lgs(XivePresenter *xptr, XiveTCTX *tctx,
 }
 
 /*
- * Adjust the IPB to allow a CPU to process event queues of other
+ * Adjust the PIPR to allow a CPU to process event queues of other
  * priorities during one physical interrupt cycle.
  */
 static void xive_tm_set_os_pending(XivePresenter *xptr, XiveTCTX *tctx,
                                    hwaddr offset, uint64_t value, unsigned size)
 {
-    xive_tctx_ipb_update(tctx, TM_QW1_OS, xive_priority_to_ipb(value & 0xff));
+    xive_tctx_pipr_update(tctx, TM_QW1_OS, value & 0xff, 0);
 }
 
 static void xive_os_cam_decode(uint32_t cam, uint8_t *nvt_blk,
@@ -485,16 +488,20 @@ static void xive_tctx_need_resend(XiveRouter *xrtr, XiveTCTX *tctx,
         /* Reset the NVT value */
         nvt.w4 = xive_set_field32(NVT_W4_IPB, nvt.w4, 0);
         xive_router_write_nvt(xrtr, nvt_blk, nvt_idx, &nvt, 4);
+
+        uint8_t *regs = &tctx->regs[TM_QW1_OS];
+        regs[TM_IPB] |= ipb;
     }
+
     /*
-     * Always call xive_tctx_ipb_update(). Even if there were no
+     * Always call xive_tctx_pipr_update(). Even if there were no
      * escalation triggered, there could be a pending interrupt which
      * was saved when the context was pulled and that we need to take
      * into account by recalculating the PIPR (which is not
      * saved/restored).
      * It will also raise the External interrupt signal if needed.
      */
-    xive_tctx_ipb_update(tctx, TM_QW1_OS, ipb);
+    xive_tctx_pipr_update(tctx, TM_QW1_OS, 0xFF, 0); /* fxb */
 }
 
 /*
@@ -1648,6 +1655,12 @@ static uint32_t xive_tctx_hw_cam_line(XivePresenter *xptr, XiveTCTX *tctx)
     return xive_nvt_cam_line(blk, 1 << 7 | (pir & 0x7f));
 }
 
+static uint8_t xive_get_group_level(uint32_t nvp_index)
+{
+    /* FIXME add crowd encoding */
+    return ctz32(~nvp_index) + 1;
+}
+
 /*
  * The thread context register words are in big-endian format.
  */
@@ -1733,6 +1746,7 @@ bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
 {
     XiveFabricClass *xfc = XIVE_FABRIC_GET_CLASS(xfb);
     XiveTCTXMatch match = { .tctx = NULL, .ring = 0 };
+    uint8_t group_level;
     int count;
 
     /*
@@ -1746,9 +1760,9 @@ bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
 
     /* handle CPU exception delivery */
     if (count) {
-        trace_xive_presenter_notify(nvt_blk, nvt_idx, match.ring);
-        xive_tctx_ipb_update(match.tctx, match.ring,
-                             xive_priority_to_ipb(priority));
+        group_level = cam_ignore ? xive_get_group_level(nvt_idx) : 0;
+        trace_xive_presenter_notify(nvt_blk, nvt_idx, match.ring, group_level);
+        xive_tctx_pipr_update(match.tctx, match.ring, priority, group_level);
     }
 
     return !!count;
