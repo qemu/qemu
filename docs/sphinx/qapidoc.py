@@ -26,14 +26,17 @@ https://www.sphinx-doc.org/en/master/development/index.html
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import os
 import sys
 from typing import TYPE_CHECKING
 
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
+from docutils.statemachine import StringList
 from qapi.error import QAPIError
 from qapi.schema import QAPISchema, QAPISchemaVisitor
+from qapi.source import QAPISourceInfo
 
 from qapidoc_legacy import QAPISchemaGenRSTVisitor  # type: ignore
 from sphinx import addnodes
@@ -44,15 +47,79 @@ from sphinx.util.nodes import nested_parse_with_titles
 
 
 if TYPE_CHECKING:
-    from typing import Any, List, Sequence
-
-    from docutils.statemachine import StringList
+    from typing import (
+        Any,
+        Generator,
+        List,
+        Sequence,
+    )
 
     from sphinx.application import Sphinx
     from sphinx.util.typing import ExtensionMetadata
 
 
 __version__ = "1.0"
+
+
+class Transmogrifier:
+    def __init__(self) -> None:
+        self._result = StringList()
+        self.indent = 0
+
+    # General-purpose rST generation functions
+
+    def get_indent(self) -> str:
+        return "   " * self.indent
+
+    @contextmanager
+    def indented(self) -> Generator[None]:
+        self.indent += 1
+        try:
+            yield
+        finally:
+            self.indent -= 1
+
+    def add_line_raw(self, line: str, source: str, *lineno: int) -> None:
+        """Append one line of generated reST to the output."""
+
+        # NB: Sphinx uses zero-indexed lines; subtract one.
+        lineno = tuple((n - 1 for n in lineno))
+
+        if line.strip():
+            # not a blank line
+            self._result.append(
+                self.get_indent() + line.rstrip("\n"), source, *lineno
+            )
+        else:
+            self._result.append("", source, *lineno)
+
+    def add_line(self, content: str, info: QAPISourceInfo) -> None:
+        # NB: We *require* an info object; this works out OK because we
+        # don't document built-in objects that don't have
+        # one. Everything else should.
+        self.add_line_raw(content, info.fname, info.line)
+
+    def add_lines(
+        self,
+        content: str,
+        info: QAPISourceInfo,
+    ) -> None:
+        lines = content.splitlines(True)
+        for i, line in enumerate(lines):
+            self.add_line_raw(line, info.fname, info.line + i)
+
+    def ensure_blank_line(self) -> None:
+        # Empty document -- no blank line required.
+        if not self._result:
+            return
+
+        # Last line isn't blank, add one.
+        if self._result[-1].strip():  # pylint: disable=no-member
+            fname, line = self._result.info(-1)
+            assert isinstance(line, int)
+            # New blank line is credited to one-after the current last line.
+            # +2: correct for zero/one index, then increment by one.
+            self.add_line_raw("", fname, line + 2)
 
 
 class QAPISchemaGenDepVisitor(QAPISchemaVisitor):
