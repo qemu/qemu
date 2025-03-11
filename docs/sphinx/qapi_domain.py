@@ -214,6 +214,8 @@ class QAPIObject(QAPIDescription):
         {
             # Borrowed from the Python domain:
             "module": directives.unchanged,  # Override contextual module name
+            # These are QAPI originals:
+            "since": directives.unchanged,
         }
     )
 
@@ -227,7 +229,17 @@ class QAPIObject(QAPIDescription):
 
     def get_signature_suffix(self) -> List[nodes.Node]:
         """Return a suffix to put after the object name in the signature."""
-        return []
+        ret: List[nodes.Node] = []
+
+        if "since" in self.options:
+            ret += [
+                SpaceNode(" "),
+                addnodes.desc_sig_element(
+                    "", f"(Since: {self.options['since']})"
+                ),
+            ]
+
+        return ret
 
     def handle_signature(self, sig: str, signode: desc_signature) -> Signature:
         """
