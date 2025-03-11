@@ -84,6 +84,9 @@ struct VirtIOSCSI {
     int resetting; /* written from main loop thread, read from any thread */
     bool events_dropped;
 
+    QemuMutex ctrl_lock; /* protects ctrl_vq */
+    QemuMutex event_lock; /* protects event_vq */
+
     /*
      * TMFs deferred to main loop BH. These fields are protected by
      * tmf_bh_lock.
