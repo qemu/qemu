@@ -73,6 +73,12 @@ void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp)
             s->vq_aio_context[i] = ctx;
         }
     }
+
+    /*
+     * Always handle the ctrl virtqueue in the main loop thread where device
+     * resets can be performed.
+     */
+    s->vq_aio_context[0] = qemu_get_aio_context();
 }
 
 /* Context: BQL held */

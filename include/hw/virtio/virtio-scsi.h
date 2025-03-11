@@ -90,14 +90,6 @@ struct VirtIOSCSI {
 
     QemuMutex ctrl_lock; /* protects ctrl_vq */
 
-    /*
-     * TMFs deferred to main loop BH. These fields are protected by
-     * tmf_bh_lock.
-     */
-    QemuMutex tmf_bh_lock;
-    QEMUBH *tmf_bh;
-    QTAILQ_HEAD(, VirtIOSCSIReq) tmf_bh_list;
-
     /* Fields for dataplane below */
     AioContext **vq_aio_context; /* per-virtqueue AioContext pointer */
 
