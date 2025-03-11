@@ -47,7 +47,7 @@ typedef struct VirtIOSCSIReq {
     /* Used for two-stage request submission and TMFs deferred to BH */
     QTAILQ_ENTRY(VirtIOSCSIReq) next;
 
-    /* Used for cancellation of request during TMFs */
+    /* Used for cancellation of request during TMFs. Atomic. */
     int remaining;
 
     SCSIRequest *sreq;
@@ -298,19 +298,23 @@ typedef struct {
     VirtIOSCSIReq  *tmf_req;
 } VirtIOSCSICancelNotifier;
 
+static void virtio_scsi_tmf_dec_remaining(VirtIOSCSIReq *tmf)
+{
+    if (qatomic_fetch_dec(&tmf->remaining) == 1) {
+        trace_virtio_scsi_tmf_resp(virtio_scsi_get_lun(tmf->req.tmf.lun),
+                                   tmf->req.tmf.tag, tmf->resp.tmf.response);
+
+        virtio_scsi_complete_req(tmf, &tmf->dev->ctrl_lock);
+    }
+}
+
 static void virtio_scsi_cancel_notify(Notifier *notifier, void *data)
 {
     VirtIOSCSICancelNotifier *n = container_of(notifier,
                                                VirtIOSCSICancelNotifier,
                                                notifier);
 
-    if (--n->tmf_req->remaining == 0) {
-        VirtIOSCSIReq *req = n->tmf_req;
-
-        trace_virtio_scsi_tmf_resp(virtio_scsi_get_lun(req->req.tmf.lun),
-                                   req->req.tmf.tag, req->resp.tmf.response);
-        virtio_scsi_complete_req(req, &req->dev->ctrl_lock);
-    }
+    virtio_scsi_tmf_dec_remaining(n->tmf_req);
     g_free(n);
 }
 
@@ -416,7 +420,7 @@ static void virtio_scsi_reset_tmf_bh(VirtIOSCSI *s)
     }
 }
 
-static void virtio_scsi_defer_tmf_to_bh(VirtIOSCSIReq *req)
+static void virtio_scsi_defer_tmf_to_main_loop(VirtIOSCSIReq *req)
 {
     VirtIOSCSI *s = req->dev;
 
@@ -430,6 +434,137 @@ static void virtio_scsi_defer_tmf_to_bh(VirtIOSCSIReq *req)
     }
 }
 
+static void virtio_scsi_tmf_cancel_req(VirtIOSCSIReq *tmf, SCSIRequest *r)
+{
+    VirtIOSCSICancelNotifier *notifier;
+
+    assert(r->ctx == qemu_get_current_aio_context());
+
+    /* Decremented in virtio_scsi_cancel_notify() */
+    qatomic_inc(&tmf->remaining);
+
+    notifier = g_new(VirtIOSCSICancelNotifier, 1);
+    notifier->notifier.notify = virtio_scsi_cancel_notify;
+    notifier->tmf_req = tmf;
+    scsi_req_cancel_async(r, &notifier->notifier);
+}
+
+/* Execute a TMF on the requests in the current AioContext */
+static void virtio_scsi_do_tmf_aio_context(void *opaque)
+{
+    AioContext *ctx = qemu_get_current_aio_context();
+    VirtIOSCSIReq *tmf = opaque;
+    VirtIOSCSI *s = tmf->dev;
+    SCSIDevice *d = virtio_scsi_device_get(s, tmf->req.tmf.lun);
+    SCSIRequest *r;
+    bool match_tag;
+
+    if (!d) {
+        tmf->resp.tmf.response = VIRTIO_SCSI_S_BAD_TARGET;
+        virtio_scsi_tmf_dec_remaining(tmf);
+        return;
+    }
+
+    /*
+     * This function could handle other subtypes that need to be processed in
+     * the request's AioContext in the future, but for now only request
+     * cancelation subtypes are performed here.
+     */
+    switch (tmf->req.tmf.subtype) {
+    case VIRTIO_SCSI_T_TMF_ABORT_TASK:
+        match_tag = true;
+        break;
+    case VIRTIO_SCSI_T_TMF_ABORT_TASK_SET:
+    case VIRTIO_SCSI_T_TMF_CLEAR_TASK_SET:
+        match_tag = false;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    WITH_QEMU_LOCK_GUARD(&d->requests_lock) {
+        QTAILQ_FOREACH(r, &d->requests, next) {
+            VirtIOSCSIReq *cmd_req = r->hba_private;
+            assert(cmd_req); /* request has hba_private while enqueued */
+
+            if (r->ctx != ctx) {
+                continue;
+            }
+            if (match_tag && cmd_req->req.cmd.tag != tmf->req.tmf.tag) {
+                continue;
+            }
+            virtio_scsi_tmf_cancel_req(tmf, r);
+        }
+    }
+
+    /* Incremented by virtio_scsi_do_tmf() */
+    virtio_scsi_tmf_dec_remaining(tmf);
+
+    object_unref(d);
+}
+
+static void dummy_bh(void *opaque)
+{
+    /* Do nothing */
+}
+
+/*
+ * Wait for pending virtio_scsi_defer_tmf_to_aio_context() BHs.
+ */
+static void virtio_scsi_flush_defer_tmf_to_aio_context(VirtIOSCSI *s)
+{
+    GLOBAL_STATE_CODE();
+
+    assert(!s->dataplane_started);
+
+    if (s->ctx) {
+        /* Our BH only runs after previously scheduled BHs */
+        aio_wait_bh_oneshot(s->ctx, dummy_bh, NULL);
+    }
+}
+
+/*
+ * Run the TMF in a specific AioContext, handling only requests in that
+ * AioContext. This is necessary because requests can run in different
+ * AioContext and it is only possible to cancel them from the AioContext where
+ * they are running.
+ */
+static void virtio_scsi_defer_tmf_to_aio_context(VirtIOSCSIReq *tmf,
+                                                 AioContext *ctx)
+{
+    /* Decremented in virtio_scsi_do_tmf_aio_context() */
+    qatomic_inc(&tmf->remaining);
+
+    /* See virtio_scsi_flush_defer_tmf_to_aio_context() cleanup during reset */
+    aio_bh_schedule_oneshot(ctx, virtio_scsi_do_tmf_aio_context, tmf);
+}
+
+/*
+ * Returns the AioContext for a given TMF's tag field or NULL. Note that the
+ * request identified by the tag may have completed by the time you can execute
+ * a BH in the AioContext, so don't assume the request still exists in your BH.
+ */
+static AioContext *find_aio_context_for_tmf_tag(SCSIDevice *d,
+                                                VirtIOSCSIReq *tmf)
+{
+    WITH_QEMU_LOCK_GUARD(&d->requests_lock) {
+        SCSIRequest *r;
+        SCSIRequest *next;
+
+        QTAILQ_FOREACH_SAFE(r, &d->requests, next, next) {
+            VirtIOSCSIReq *cmd_req = r->hba_private;
+
+            /* hba_private is non-NULL while the request is enqueued */
+            assert(cmd_req);
+
+            if (cmd_req->req.cmd.tag == tmf->req.tmf.tag) {
+                return r->ctx;
+            }
+        }
+    }
+    return NULL;
+}
+
 /* Return 0 if the request is ready to be completed and return to guest;
  * -EINPROGRESS if the request is submitted and will be completed later, in the
  *  case of async cancellation. */
@@ -437,6 +572,7 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
 {
     SCSIDevice *d = virtio_scsi_device_get(s, req->req.tmf.lun);
     SCSIRequest *r, *next;
+    AioContext *ctx;
     int ret = 0;
 
     virtio_scsi_ctx_check(s, d);
@@ -454,7 +590,22 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
                               req->req.tmf.tag, req->req.tmf.subtype);
 
     switch (req->req.tmf.subtype) {
-    case VIRTIO_SCSI_T_TMF_ABORT_TASK:
+    case VIRTIO_SCSI_T_TMF_ABORT_TASK: {
+        if (!d) {
+            goto fail;
+        }
+        if (d->lun != virtio_scsi_get_lun(req->req.tmf.lun)) {
+            goto incorrect_lun;
+        }
+
+        ctx = find_aio_context_for_tmf_tag(d, req);
+        if (ctx) {
+            virtio_scsi_defer_tmf_to_aio_context(req, ctx);
+            ret = -EINPROGRESS;
+        }
+        break;
+    }
+
     case VIRTIO_SCSI_T_TMF_QUERY_TASK:
         if (!d) {
             goto fail;
@@ -462,44 +613,49 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
         if (d->lun != virtio_scsi_get_lun(req->req.tmf.lun)) {
             goto incorrect_lun;
         }
-        QTAILQ_FOREACH_SAFE(r, &d->requests, next, next) {
-            VirtIOSCSIReq *cmd_req = r->hba_private;
-            if (cmd_req && cmd_req->req.cmd.tag == req->req.tmf.tag) {
-                break;
-            }
-        }
-        if (r) {
-            /*
-             * Assert that the request has not been completed yet, we
-             * check for it in the loop above.
-             */
-            assert(r->hba_private);
-            if (req->req.tmf.subtype == VIRTIO_SCSI_T_TMF_QUERY_TASK) {
-                /* "If the specified command is present in the task set, then
-                 * return a service response set to FUNCTION SUCCEEDED".
-                 */
-                req->resp.tmf.response = VIRTIO_SCSI_S_FUNCTION_SUCCEEDED;
-            } else {
-                VirtIOSCSICancelNotifier *notifier;
 
-                req->remaining = 1;
-                notifier = g_new(VirtIOSCSICancelNotifier, 1);
-                notifier->tmf_req = req;
-                notifier->notifier.notify = virtio_scsi_cancel_notify;
-                scsi_req_cancel_async(r, &notifier->notifier);
-                ret = -EINPROGRESS;
+        WITH_QEMU_LOCK_GUARD(&d->requests_lock) {
+            QTAILQ_FOREACH(r, &d->requests, next) {
+                VirtIOSCSIReq *cmd_req = r->hba_private;
+                assert(cmd_req); /* request has hba_private while enqueued */
+
+                if (cmd_req->req.cmd.tag == req->req.tmf.tag) {
+                    /*
+                     * "If the specified command is present in the task set,
+                     * then return a service response set to FUNCTION
+                     * SUCCEEDED".
+                     */
+                    req->resp.tmf.response = VIRTIO_SCSI_S_FUNCTION_SUCCEEDED;
+                }
             }
         }
         break;
 
     case VIRTIO_SCSI_T_TMF_LOGICAL_UNIT_RESET:
     case VIRTIO_SCSI_T_TMF_I_T_NEXUS_RESET:
-        virtio_scsi_defer_tmf_to_bh(req);
+        virtio_scsi_defer_tmf_to_main_loop(req);
         ret = -EINPROGRESS;
         break;
 
     case VIRTIO_SCSI_T_TMF_ABORT_TASK_SET:
-    case VIRTIO_SCSI_T_TMF_CLEAR_TASK_SET:
+    case VIRTIO_SCSI_T_TMF_CLEAR_TASK_SET: {
+        if (!d) {
+            goto fail;
+        }
+        if (d->lun != virtio_scsi_get_lun(req->req.tmf.lun)) {
+            goto incorrect_lun;
+        }
+
+        qatomic_inc(&req->remaining);
+
+        ctx = s->ctx ?: qemu_get_aio_context();
+        virtio_scsi_defer_tmf_to_aio_context(req, ctx);
+
+        virtio_scsi_tmf_dec_remaining(req);
+        ret = -EINPROGRESS;
+        break;
+    }
+
     case VIRTIO_SCSI_T_TMF_QUERY_TASK_SET:
         if (!d) {
             goto fail;
@@ -508,33 +664,18 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
             goto incorrect_lun;
         }
 
-        /* Add 1 to "remaining" until virtio_scsi_do_tmf returns.
-         * This way, if the bus starts calling back to the notifiers
-         * even before we finish the loop, virtio_scsi_cancel_notify
-         * will not complete the TMF too early.
-         */
-        req->remaining = 1;
-        QTAILQ_FOREACH_SAFE(r, &d->requests, next, next) {
-            if (r->hba_private) {
-                if (req->req.tmf.subtype == VIRTIO_SCSI_T_TMF_QUERY_TASK_SET) {
-                    /* "If there is any command present in the task set, then
-                     * return a service response set to FUNCTION SUCCEEDED".
-                     */
-                    req->resp.tmf.response = VIRTIO_SCSI_S_FUNCTION_SUCCEEDED;
-                    break;
-                } else {
-                    VirtIOSCSICancelNotifier *notifier;
+        WITH_QEMU_LOCK_GUARD(&d->requests_lock) {
+            QTAILQ_FOREACH_SAFE(r, &d->requests, next, next) {
+                /* Request has hba_private while enqueued */
+                assert(r->hba_private);
 
-                    req->remaining++;
-                    notifier = g_new(VirtIOSCSICancelNotifier, 1);
-                    notifier->notifier.notify = virtio_scsi_cancel_notify;
-                    notifier->tmf_req = req;
-                    scsi_req_cancel_async(r, &notifier->notifier);
-                }
+                /*
+                 * "If there is any command present in the task set, then
+                 * return a service response set to FUNCTION SUCCEEDED".
+                 */
+                req->resp.tmf.response = VIRTIO_SCSI_S_FUNCTION_SUCCEEDED;
+                break;
             }
-        }
-        if (--req->remaining > 0) {
-            ret = -EINPROGRESS;
         }
         break;
 
@@ -941,6 +1082,7 @@ static void virtio_scsi_reset(VirtIODevice *vdev)
     assert(!s->dataplane_started);
 
     virtio_scsi_reset_tmf_bh(s);
+    virtio_scsi_flush_defer_tmf_to_aio_context(s);
 
     qatomic_inc(&s->resetting);
     bus_cold_reset(BUS(&s->bus));
