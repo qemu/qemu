@@ -4,6 +4,9 @@
  * Copyright (c) 2004-2007 Fabrice Bellard
  * Copyright (c) 2007 Jocelyn Mayer
  * Copyright (c) 2010 David Gibson, IBM Corporation.
+ * Copyright (c) 2010-2024, IBM Corporation..
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -4436,7 +4439,7 @@ static void spapr_pic_print_info(InterruptStatsProvider *obj, GString *buf)
  */
 static int spapr_match_nvt(XiveFabric *xfb, uint8_t format,
                            uint8_t nvt_blk, uint32_t nvt_idx,
-                           bool cam_ignore, uint8_t priority,
+                           bool crowd, bool cam_ignore, uint8_t priority,
                            uint32_t logic_serv, XiveTCTXMatch *match)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(xfb);
@@ -4444,7 +4447,7 @@ static int spapr_match_nvt(XiveFabric *xfb, uint8_t format,
     XivePresenterClass *xpc = XIVE_PRESENTER_GET_CLASS(xptr);
     int count;
 
-    count = xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, cam_ignore,
+    count = xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, crowd, cam_ignore,
                            priority, logic_serv, match);
     if (count < 0) {
         return count;

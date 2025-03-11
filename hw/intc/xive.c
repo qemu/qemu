@@ -1665,10 +1665,42 @@ uint32_t xive_get_vpgroup_size(uint32_t nvp_index)
     return 1 << (ctz32(~nvp_index) + 1);
 }
 
-static uint8_t xive_get_group_level(uint32_t nvp_index)
+static uint8_t xive_get_group_level(bool crowd, bool ignore,
+                                    uint32_t nvp_blk, uint32_t nvp_index)
 {
-    /* FIXME add crowd encoding */
-    return ctz32(~nvp_index) + 1;
+    uint8_t level;
+
+    if (!ignore) {
+        g_assert(!crowd);
+        return 0;
+    }
+
+    level = (ctz32(~nvp_index) + 1) & 0b1111;
+    if (crowd) {
+        uint32_t blk;
+
+        /* crowd level is bit position of first 0 from the right in nvp_blk */
+        blk = ctz32(~nvp_blk) + 1;
+
+        /*
+         * Supported crowd sizes are 2^1, 2^2, and 2^4. 2^3 is not supported.
+         * HW will encode level 4 as the value 3.  See xive2_pgofnext().
+         */
+        switch (level) {
+        case 1:
+        case 2:
+            break;
+        case 4:
+            blk = 3;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+
+        /* Crowd level bits reside in upper 2 bits of the 6 bit group level */
+        level |= blk << 4;
+    }
+    return level;
 }
 
 /*
@@ -1740,7 +1772,7 @@ int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
  */
 bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
                            uint8_t nvt_blk, uint32_t nvt_idx,
-                           bool cam_ignore, uint8_t priority,
+                           bool crowd, bool cam_ignore, uint8_t priority,
                            uint32_t logic_serv, bool *precluded)
 {
     XiveFabricClass *xfc = XIVE_FABRIC_GET_CLASS(xfb);
@@ -1771,7 +1803,7 @@ bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
      * a new command to the presenters (the equivalent of the "assign"
      * power bus command in the documented full notify sequence.
      */
-    count = xfc->match_nvt(xfb, format, nvt_blk, nvt_idx, cam_ignore,
+    count = xfc->match_nvt(xfb, format, nvt_blk, nvt_idx, crowd, cam_ignore,
                            priority, logic_serv, &match);
     if (count < 0) {
         return false;
@@ -1779,7 +1811,7 @@ bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
 
     /* handle CPU exception delivery */
     if (count) {
-        group_level = cam_ignore ? xive_get_group_level(nvt_idx) : 0;
+        group_level = xive_get_group_level(crowd, cam_ignore, nvt_blk, nvt_idx);
         trace_xive_presenter_notify(nvt_blk, nvt_idx, match.ring, group_level);
         xive_tctx_pipr_update(match.tctx, match.ring, priority, group_level);
     } else {
@@ -1904,6 +1936,7 @@ void xive_router_end_notify(XiveRouter *xrtr, XiveEAS *eas)
     }
 
     found = xive_presenter_notify(xrtr->xfb, format, nvt_blk, nvt_idx,
+                          false /* crowd */,
                           xive_get_field32(END_W7_F0_IGNORE, end.w7),
                           priority,
                           xive_get_field32(END_W7_F1_LOG_SERVER_ID, end.w7),

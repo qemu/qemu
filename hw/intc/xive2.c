@@ -1121,13 +1121,40 @@ static bool xive2_vp_match_mask(uint32_t cam1, uint32_t cam2,
     return (cam1 & vp_mask) == (cam2 & vp_mask);
 }
 
+static uint8_t xive2_get_vp_block_mask(uint32_t nvt_blk, bool crowd)
+{
+    uint8_t size, block_mask = 0b1111;
+
+    /* 3 supported crowd sizes: 2, 4, 16 */
+    if (crowd) {
+        size = xive_get_vpgroup_size(nvt_blk);
+        if (size == 8) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid crowd size of 8n");
+            return block_mask;
+        }
+        block_mask &= ~(size - 1);
+    }
+    return block_mask;
+}
+
+static uint32_t xive2_get_vp_index_mask(uint32_t nvt_index, bool cam_ignore)
+{
+    uint32_t index_mask = 0xFFFFFF; /* 24 bits */
+
+    if (cam_ignore) {
+        index_mask &= ~(xive_get_vpgroup_size(nvt_index) - 1);
+    }
+    return index_mask;
+}
+
 /*
  * The thread context register words are in big-endian format.
  */
 int xive2_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
                                uint8_t format,
                                uint8_t nvt_blk, uint32_t nvt_idx,
-                               bool cam_ignore, uint32_t logic_serv)
+                               bool crowd, bool cam_ignore,
+                               uint32_t logic_serv)
 {
     uint32_t cam =   xive2_nvp_cam_line(nvt_blk, nvt_idx);
     uint32_t qw3w2 = xive_tctx_word2(&tctx->regs[TM_QW3_HV_PHYS]);
@@ -1135,7 +1162,8 @@ int xive2_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
     uint32_t qw1w2 = xive_tctx_word2(&tctx->regs[TM_QW1_OS]);
     uint32_t qw0w2 = xive_tctx_word2(&tctx->regs[TM_QW0_USER]);
 
-    uint32_t vp_mask = 0xFFFFFFFF;
+    uint32_t index_mask, vp_mask;
+    uint8_t block_mask;
 
     if (format == 0) {
         /*
@@ -1143,9 +1171,9 @@ int xive2_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
          * i=1: VP-group notification (bits ignored at the end of the
          *      NVT identifier)
          */
-        if (cam_ignore) {
-            vp_mask = ~(xive_get_vpgroup_size(nvt_idx) - 1);
-        }
+        block_mask = xive2_get_vp_block_mask(nvt_blk, crowd);
+        index_mask = xive2_get_vp_index_mask(nvt_idx, cam_ignore);
+        vp_mask = xive2_nvp_cam_line(block_mask, index_mask);
 
         /* For VP-group notifications, threads with LGS=0 are excluded */
 
@@ -1277,6 +1305,12 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
         return;
     }
 
+    if (xive2_end_is_crowd(&end) & !xive2_end_is_ignore(&end)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "XIVE: invalid END, 'crowd' bit requires 'ignore' bit\n");
+        return;
+    }
+
     if (xive2_end_is_enqueue(&end)) {
         xive2_end_enqueue(&end, end_data);
         /* Enqueuing event data modifies the EQ toggle and index */
@@ -1325,7 +1359,7 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
     nvp_idx = xive_get_field32(END2_W6_VP_OFFSET, end.w6);
 
     found = xive_presenter_notify(xrtr->xfb, format, nvp_blk, nvp_idx,
-                          xive2_end_is_ignore(&end),
+                          xive2_end_is_crowd(&end), xive2_end_is_ignore(&end),
                           priority,
                           xive_get_field32(END2_W7_F1_LOG_SERVER_ID, end.w7),
                           &precluded);
@@ -1377,17 +1411,24 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
             nvp.w2 = xive_set_field32(NVP2_W2_IPB, nvp.w2, ipb);
             xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, &nvp, 2);
         } else {
-            Xive2Nvgc nvg;
+            Xive2Nvgc nvgc;
             uint32_t backlog;
+            bool crowd;
 
-            /* For groups, the per-priority backlog counters are in the NVG */
-            if (xive2_router_get_nvgc(xrtr, false, nvp_blk, nvp_idx, &nvg)) {
-                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: no NVG %x/%x\n",
-                              nvp_blk, nvp_idx);
+            crowd = xive2_end_is_crowd(&end);
+
+            /*
+             * For groups and crowds, the per-priority backlog
+             * counters are stored in the NVG/NVC structures
+             */
+            if (xive2_router_get_nvgc(xrtr, crowd,
+                                      nvp_blk, nvp_idx, &nvgc)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: no %s %x/%x\n",
+                              crowd ? "NVC" : "NVG", nvp_blk, nvp_idx);
                 return;
             }
 
-            if (!xive2_nvgc_is_valid(&nvg)) {
+            if (!xive2_nvgc_is_valid(&nvgc)) {
                 qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVG %x/%x is invalid\n",
                               nvp_blk, nvp_idx);
                 return;
@@ -1399,13 +1440,16 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
              * incremented. broadcast will set the LSMFB field of the TIMA of
              * relevant threads so that they know an interrupt is pending.
              */
-            backlog = xive2_nvgc_get_backlog(&nvg, priority) + 1;
-            xive2_nvgc_set_backlog(&nvg, priority, backlog);
-            xive2_router_write_nvgc(xrtr, false, nvp_blk, nvp_idx, &nvg);
+            backlog = xive2_nvgc_get_backlog(&nvgc, priority) + 1;
+            xive2_nvgc_set_backlog(&nvgc, priority, backlog);
+            xive2_router_write_nvgc(xrtr, crowd, nvp_blk, nvp_idx, &nvgc);
 
             if (backlog == 1) {
                 XiveFabricClass *xfc = XIVE_FABRIC_GET_CLASS(xrtr->xfb);
-                xfc->broadcast(xrtr->xfb, nvp_blk, nvp_idx, priority);
+                xfc->broadcast(xrtr->xfb, nvp_blk, nvp_idx,
+                               xive2_end_is_crowd(&end),
+                               xive2_end_is_ignore(&end),
+                               priority);
 
                 if (!xive2_end_is_precluded_escalation(&end)) {
                     /*

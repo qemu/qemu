@@ -88,7 +88,8 @@ void xive2_router_notify(XiveNotifier *xn, uint32_t lisn, bool pq_checked);
 int xive2_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
                                uint8_t format,
                                uint8_t nvt_blk, uint32_t nvt_idx,
-                               bool cam_ignore, uint32_t logic_serv);
+                               bool crowd, bool cam_ignore,
+                               uint32_t logic_serv);
 
 uint64_t xive2_presenter_nvp_backlog_op(XivePresenter *xptr,
                                         uint8_t blk, uint32_t idx,

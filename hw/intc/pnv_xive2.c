@@ -624,7 +624,7 @@ static bool pnv_xive2_is_cpu_enabled(PnvXive2 *xive, PowerPCCPU *cpu)
 
 static int pnv_xive2_match_nvt(XivePresenter *xptr, uint8_t format,
                                uint8_t nvt_blk, uint32_t nvt_idx,
-                               bool cam_ignore, uint8_t priority,
+                               bool crowd, bool cam_ignore, uint8_t priority,
                                uint32_t logic_serv, XiveTCTXMatch *match)
 {
     PnvXive2 *xive = PNV_XIVE2(xptr);
@@ -655,8 +655,8 @@ static int pnv_xive2_match_nvt(XivePresenter *xptr, uint8_t format,
                                                  logic_serv);
             } else {
                 ring = xive2_presenter_tctx_match(xptr, tctx, format, nvt_blk,
-                                                   nvt_idx, cam_ignore,
-                                                   logic_serv);
+                                                  nvt_idx, crowd, cam_ignore,
+                                                  logic_serv);
             }
 
             if (ring != -1) {
@@ -707,7 +707,7 @@ static uint32_t pnv_xive2_presenter_get_config(XivePresenter *xptr)
 
 static int pnv_xive2_broadcast(XivePresenter *xptr,
                                uint8_t nvt_blk, uint32_t nvt_idx,
-                               uint8_t priority)
+                               bool crowd, bool ignore, uint8_t priority)
 {
     PnvXive2 *xive = PNV_XIVE2(xptr);
     PnvChip *chip = xive->chip;
@@ -732,10 +732,10 @@ static int pnv_xive2_broadcast(XivePresenter *xptr,
 
             if (gen1_tima_os) {
                 ring = xive_presenter_tctx_match(xptr, tctx, 0, nvt_blk,
-                                                 nvt_idx, true, 0);
+                                                 nvt_idx, ignore, 0);
             } else {
                 ring = xive2_presenter_tctx_match(xptr, tctx, 0, nvt_blk,
-                                                  nvt_idx, true, 0);
+                                                  nvt_idx, crowd, ignore, 0);
             }
 
             if (ring != -1) {

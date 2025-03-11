@@ -2608,7 +2608,7 @@ static void pnv_pic_print_info(InterruptStatsProvider *obj, GString *buf)
 
 static int pnv_match_nvt(XiveFabric *xfb, uint8_t format,
                          uint8_t nvt_blk, uint32_t nvt_idx,
-                         bool cam_ignore, uint8_t priority,
+                         bool crowd, bool cam_ignore, uint8_t priority,
                          uint32_t logic_serv,
                          XiveTCTXMatch *match)
 {
@@ -2622,8 +2622,8 @@ static int pnv_match_nvt(XiveFabric *xfb, uint8_t format,
         XivePresenterClass *xpc = XIVE_PRESENTER_GET_CLASS(xptr);
         int count;
 
-        count = xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, cam_ignore,
-                               priority, logic_serv, match);
+        count = xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, crowd,
+                               cam_ignore, priority, logic_serv, match);
 
         if (count < 0) {
             return count;
@@ -2637,7 +2637,7 @@ static int pnv_match_nvt(XiveFabric *xfb, uint8_t format,
 
 static int pnv10_xive_match_nvt(XiveFabric *xfb, uint8_t format,
                                 uint8_t nvt_blk, uint32_t nvt_idx,
-                                bool cam_ignore, uint8_t priority,
+                                bool crowd, bool cam_ignore, uint8_t priority,
                                 uint32_t logic_serv,
                                 XiveTCTXMatch *match)
 {
@@ -2651,8 +2651,8 @@ static int pnv10_xive_match_nvt(XiveFabric *xfb, uint8_t format,
         XivePresenterClass *xpc = XIVE_PRESENTER_GET_CLASS(xptr);
         int count;
 
-        count = xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, cam_ignore,
-                               priority, logic_serv, match);
+        count = xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, crowd,
+                               cam_ignore, priority, logic_serv, match);
 
         if (count < 0) {
             return count;
@@ -2666,6 +2666,7 @@ static int pnv10_xive_match_nvt(XiveFabric *xfb, uint8_t format,
 
 static int pnv10_xive_broadcast(XiveFabric *xfb,
                                 uint8_t nvt_blk, uint32_t nvt_idx,
+                                bool crowd, bool cam_ignore,
                                 uint8_t priority)
 {
     PnvMachineState *pnv = PNV_MACHINE(xfb);
@@ -2676,7 +2677,7 @@ static int pnv10_xive_broadcast(XiveFabric *xfb,
         XivePresenter *xptr = XIVE_PRESENTER(&chip10->xive);
         XivePresenterClass *xpc = XIVE_PRESENTER_GET_CLASS(xptr);
 
-        xpc->broadcast(xptr, nvt_blk, nvt_idx, priority);
+        xpc->broadcast(xptr, nvt_blk, nvt_idx, crowd, cam_ignore, priority);
     }
     return 0;
 }
