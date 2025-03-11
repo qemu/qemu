@@ -77,6 +77,106 @@ When using the ``'-netdev user,hostfwd=...'`` option, TCP or UDP
 connections can be redirected from the host to the guest. It allows for
 example to redirect X11, telnet or SSH connections.
 
+Using passt as the user mode network stack
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+passt_ can be used as a simple replacement for SLIRP (``-net user``).
+passt doesn't require any capability or privilege. passt has
+better performance than ``-net user``, full IPv6 support and better security
+as it's a daemon that is not executed in QEMU context.
+
+passt can be connected to QEMU either by using a socket
+(``-netdev stream``) or using the vhost-user interface (``-netdev vhost-user``).
+See `passt(1)`_ for more details on passt.
+
+.. _passt: https://passt.top/
+.. _passt(1): https://passt.top/builds/latest/web/passt.1.html
+
+To use socket based passt interface:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Start passt as a daemon::
+
+   passt --socket ~/passt.socket
+
+If ``--socket`` is not provided, passt will print the path of the UNIX domain socket QEMU can connect to (``/tmp/passt_1.socket``, ``/tmp/passt_2.socket``,
+...). Then you can connect your QEMU instance to passt:
+
+.. parsed-literal::
+   |qemu_system| [...OPTIONS...] -device virtio-net-pci,netdev=netdev0 -netdev stream,id=netdev0,server=off,addr.type=unix,addr.path=~/passt.socket
+
+Where ``~/passt.socket`` is the UNIX socket created by passt to
+communicate with QEMU.
+
+To use vhost-based interface:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Start passt with ``--vhost-user``::
+
+   passt --vhost-user --socket ~/passt.socket
+
+Then to connect QEMU:
+
+.. parsed-literal::
+   |qemu_system| [...OPTIONS...] -m $RAMSIZE -chardev socket,id=chr0,path=~/passt.socket -netdev vhost-user,id=netdev0,chardev=chr0 -device virtio-net,netdev=netdev0 -object memory-backend-memfd,id=memfd0,share=on,size=$RAMSIZE -numa node,memdev=memfd0
+
+Where ``$RAMSIZE`` is the memory size of your VM ``-m`` and ``-object memory-backend-memfd,size=`` must match.
+
+Migration of passt:
+^^^^^^^^^^^^^^^^^^^
+
+When passt is connected to QEMU using the vhost-user interface it can
+be migrated with QEMU and the network connections are not interrupted.
+
+As passt runs with no privileges, it relies on passt-repair to save and
+load the TCP connections state, using the TCP_REPAIR socket option.
+The passt-repair helper needs to have the CAP_NET_ADMIN capability, or run as root. If passt-repair is not available, TCP connections will not be preserved.
+
+Example of migration of a guest on the same host
+________________________________________________
+
+Before being able to run passt-repair, the CAP_NET_ADMIN capability must be set
+on the file, run as root::
+
+   setcap cap_net_admin+eip ./passt-repair
+
+Start passt for the source side::
+
+   passt --vhost-user --socket ~/passt_src.socket --repair-path ~/passt-repair_src.socket
+
+Where ``~/passt-repair_src.socket`` is the UNIX socket created by passt to
+communicate with passt-repair. The default value is the ``--socket`` path
+appended with ``.repair``.
+
+Start passt-repair::
+
+   passt-repair ~/passt-repair_src.socket
+
+Start source side QEMU with a monitor to be able to send the migrate command:
+
+.. parsed-literal::
+   |qemu_system| [...OPTIONS...] [...VHOST USER OPTIONS...] -monitor stdio
+
+Start passt for the destination side::
+
+   passt --vhost-user --socket ~/passt_dst.socket --repair-path ~/passt-repair_dst.socket
+
+Start passt-repair::
+
+   passt-repair ~/passt-repair_dst.socket
+
+Start QEMU with the ``-incoming`` parameter:
+
+.. parsed-literal::
+   |qemu_system| [...OPTIONS...] [...VHOST USER OPTIONS...] -incoming tcp:localhost:4444
+
+Then in the source guest monitor the migration can be started::
+
+   (qemu) migrate tcp:localhost:4444
+
+A separate passt-repair instance must be started for every migration. In the case of a failed migration, passt-repair also needs to be restarted before trying
+again.
+
 Hubs
 ~~~~
 
