@@ -78,8 +78,14 @@ __version__ = "1.0"
 
 class Transmogrifier:
     def __init__(self) -> None:
+        self._curr_ent: Optional[QAPISchemaDefinition] = None
         self._result = StringList()
         self.indent = 0
+
+    @property
+    def entity(self) -> QAPISchemaDefinition:
+        assert self._curr_ent is not None
+        return self._curr_ent
 
     # General-purpose rST generation functions
 
