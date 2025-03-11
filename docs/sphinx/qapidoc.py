@@ -40,7 +40,13 @@ from qapi.error import QAPIError
 from qapi.parser import QAPIDoc
 from qapi.schema import (
     QAPISchema,
+    QAPISchemaArrayType,
     QAPISchemaDefinition,
+    QAPISchemaEnumMember,
+    QAPISchemaFeature,
+    QAPISchemaMember,
+    QAPISchemaObjectTypeMember,
+    QAPISchemaType,
     QAPISchemaVisitor,
 )
 from qapi.source import QAPISourceInfo
@@ -58,7 +64,9 @@ if TYPE_CHECKING:
         Any,
         Generator,
         List,
+        Optional,
         Sequence,
+        Union,
     )
 
     from sphinx.application import Sphinx
@@ -127,6 +135,30 @@ class Transmogrifier:
             # New blank line is credited to one-after the current last line.
             # +2: correct for zero/one index, then increment by one.
             self.add_line_raw("", fname, line + 2)
+
+    def format_type(
+        self, ent: Union[QAPISchemaDefinition | QAPISchemaMember]
+    ) -> Optional[str]:
+        if isinstance(ent, (QAPISchemaEnumMember, QAPISchemaFeature)):
+            return None
+
+        qapi_type = ent
+        optional = False
+        if isinstance(ent, QAPISchemaObjectTypeMember):
+            qapi_type = ent.type
+            optional = ent.optional
+
+        if isinstance(qapi_type, QAPISchemaArrayType):
+            ret = f"[{qapi_type.element_type.doc_type()}]"
+        else:
+            assert isinstance(qapi_type, QAPISchemaType)
+            tmp = qapi_type.doc_type()
+            assert tmp
+            ret = tmp
+        if optional:
+            ret += "?"
+
+        return ret
 
     # Transmogrification helpers
 
