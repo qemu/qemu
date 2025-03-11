@@ -12,4 +12,5 @@ some of the basics if you are adding new files and targets to the build.
    kconfig
    docs
    qapi-code-gen
+   qapi-domain
    control-flow-integrity
