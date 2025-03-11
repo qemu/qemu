@@ -10,6 +10,7 @@
 #include "ui/clipboard.h"
 #include "ui/console.h"
 #include "ui/input.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 
 #include "qapi/qapi-types-char.h"
@@ -930,6 +931,146 @@ static void vdagent_chr_class_init(ObjectClass *oc, const void *data)
     cc->chr_accept_input = vdagent_chr_accept_input;
 }
 
+static int post_load(void *opaque, int version_id)
+{
+    VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(opaque);
+
+    if (have_mouse(vd) && vd->mouse_hs) {
+        qemu_input_handler_activate(vd->mouse_hs);
+    }
+
+    if (have_clipboard(vd)) {
+        vdagent_clipboard_peer_register(vd);
+    }
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_chunk = {
+    .name = "vdagent/chunk",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(port, VDIChunkHeader),
+        VMSTATE_UINT32(size, VDIChunkHeader),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_vdba = {
+    .name = "vdagent/bytearray",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(len, GByteArray),
+        VMSTATE_VBUFFER_ALLOC_UINT32(data, GByteArray, 0, 0, len),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+struct CBInfoArray {
+    uint32_t n;
+    QemuClipboardInfo cbinfo[QEMU_CLIPBOARD_SELECTION__COUNT];
+};
+
+static const VMStateDescription vmstate_cbinfo_array = {
+    .name = "cbinfoarray",
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(n, struct CBInfoArray),
+        VMSTATE_STRUCT_VARRAY_UINT32(cbinfo, struct CBInfoArray, n,
+                                     0, vmstate_cbinfo, QemuClipboardInfo),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static int put_cbinfo(QEMUFile *f, void *pv, size_t size,
+                      const VMStateField *field, JSONWriter *vmdesc)
+{
+    VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(pv);
+    struct CBInfoArray cbinfo = {};
+    int i;
+
+    if (!have_clipboard(vd)) {
+        return 0;
+    }
+
+    for (i = 0; i < QEMU_CLIPBOARD_SELECTION__COUNT; i++) {
+        if (qemu_clipboard_peer_owns(&vd->cbpeer, i)) {
+            cbinfo.cbinfo[cbinfo.n++] = *qemu_clipboard_info(i);
+        }
+    }
+
+    return vmstate_save_state(f, &vmstate_cbinfo_array, &cbinfo, vmdesc);
+}
+
+static int get_cbinfo(QEMUFile *f, void *pv, size_t size,
+                      const VMStateField *field)
+{
+    VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(pv);
+    struct CBInfoArray cbinfo = {};
+    int i, ret;
+
+    if (!have_clipboard(vd)) {
+        return 0;
+    }
+
+    vdagent_clipboard_peer_register(vd);
+
+    ret = vmstate_load_state(f, &vmstate_cbinfo_array, &cbinfo, 0);
+    if (ret) {
+        return ret;
+    }
+
+    for (i = 0; i < cbinfo.n; i++) {
+        g_autoptr(QemuClipboardInfo) info =
+            qemu_clipboard_info_new(&vd->cbpeer, cbinfo.cbinfo[i].selection);
+        /* this will steal clipboard data pointer from cbinfo.types */
+        memcpy(info->types, cbinfo.cbinfo[i].types, sizeof(cbinfo.cbinfo[i].types));
+        qemu_clipboard_update(info);
+    }
+
+    return 0;
+}
+
+static const VMStateInfo vmstate_cbinfos = {
+    .name = "vdagent/cbinfos",
+    .get  = get_cbinfo,
+    .put  = put_cbinfo,
+};
+
+static const VMStateDescription vmstate_vdagent = {
+    .name = "vdagent",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .post_load = post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_BOOL(connected, VDAgentChardev),
+        VMSTATE_UINT32(caps, VDAgentChardev),
+        VMSTATE_STRUCT(chunk, VDAgentChardev, 0, vmstate_chunk, VDIChunkHeader),
+        VMSTATE_UINT32(chunksize, VDAgentChardev),
+        VMSTATE_UINT32(msgsize, VDAgentChardev),
+        VMSTATE_VBUFFER_ALLOC_UINT32(msgbuf, VDAgentChardev, 0, 0, msgsize),
+        VMSTATE_UINT32(xsize, VDAgentChardev),
+        VMSTATE_UINT32(xoff, VDAgentChardev),
+        VMSTATE_VBUFFER_ALLOC_UINT32(xbuf, VDAgentChardev, 0, 0, xsize),
+        VMSTATE_STRUCT_POINTER(outbuf, VDAgentChardev, vmstate_vdba, GByteArray),
+        VMSTATE_UINT32(mouse_x, VDAgentChardev),
+        VMSTATE_UINT32(mouse_y, VDAgentChardev),
+        VMSTATE_UINT32(mouse_btn, VDAgentChardev),
+        VMSTATE_UINT32(mouse_display, VDAgentChardev),
+        VMSTATE_UINT32_ARRAY(last_serial, VDAgentChardev,
+                             QEMU_CLIPBOARD_SELECTION__COUNT),
+        VMSTATE_UINT32_ARRAY(cbpending, VDAgentChardev,
+                             QEMU_CLIPBOARD_SELECTION__COUNT),
+        {
+            .name         = "cbinfos",
+            .info         = &vmstate_cbinfos,
+            .flags        = VMS_SINGLE,
+        },
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void vdagent_chr_init(Object *obj)
 {
     VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(obj);
@@ -937,6 +1078,7 @@ static void vdagent_chr_init(Object *obj)
     vd->outbuf = g_byte_array_new();
     error_setg(&vd->migration_blocker,
                "The vdagent chardev doesn't yet support migration");
+    vmstate_register_any(NULL, &vmstate_vdagent, vd);
 }
 
 static void vdagent_chr_fini(Object *obj)
