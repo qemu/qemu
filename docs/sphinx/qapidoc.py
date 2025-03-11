@@ -41,6 +41,7 @@ from qapi.parser import QAPIDoc
 from qapi.schema import (
     QAPISchema,
     QAPISchemaArrayType,
+    QAPISchemaCommand,
     QAPISchemaDefinition,
     QAPISchemaEnumMember,
     QAPISchemaFeature,
@@ -209,6 +210,20 @@ class Transmogrifier:
         assert section.member
 
         self.generate_field("feat", section.member, section.text, section.info)
+
+    def visit_returns(self, section: QAPIDoc.Section) -> None:
+        assert isinstance(self.entity, QAPISchemaCommand)
+        rtype = self.entity.ret_type
+        # q_empty can produce None, but we won't be documenting anything
+        # without an explicit return statement in the doc block, and we
+        # should not have any such explicit statements when there is no
+        # return value.
+        assert rtype
+
+        typ = self.format_type(rtype)
+        assert typ
+        assert section.text
+        self.add_field("return", typ, section.text, section.info)
 
     def visit_errors(self, section: QAPIDoc.Section) -> None:
         # FIXME: the formatting for errors may be inconsistent and may
