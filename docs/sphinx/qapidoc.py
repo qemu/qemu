@@ -288,6 +288,31 @@ class Transmogrifier:
 
         self.ensure_blank_line()
 
+    def visit_sections(self, ent: QAPISchemaDefinition) -> None:
+        sections = ent.doc.all_sections if ent.doc else []
+
+        # Add sections in source order:
+        for section in sections:
+            if section.kind == QAPIDoc.Kind.PLAIN:
+                self.visit_paragraph(section)
+            elif section.kind == QAPIDoc.Kind.MEMBER:
+                assert isinstance(section, QAPIDoc.ArgSection)
+                self.visit_member(section)
+            elif section.kind == QAPIDoc.Kind.FEATURE:
+                assert isinstance(section, QAPIDoc.ArgSection)
+                self.visit_feature(section)
+            elif section.kind in (QAPIDoc.Kind.SINCE, QAPIDoc.Kind.TODO):
+                # Since is handled in preamble, TODO is skipped intentionally.
+                pass
+            elif section.kind == QAPIDoc.Kind.RETURNS:
+                self.visit_returns(section)
+            elif section.kind == QAPIDoc.Kind.ERRORS:
+                self.visit_errors(section)
+            else:
+                assert False
+
+        self.ensure_blank_line()
+
     # Transmogrification core methods
 
     def visit_module(self, path: str) -> None:
