@@ -3532,7 +3532,7 @@ static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
     object_class_property_set_description(klass, /* 9.1 */
                                           "x-device-dirty-page-tracking",
                                           "Disable device dirty page tracking and use "
-                                          "container-based dirty page tracking (DEBUG)");
+                                          "container-based dirty page tracking");
     object_class_property_set_description(klass, /* 9.1 */
                                           "migration-events",
                                           "Emit VFIO migration QAPI event when a VFIO device "
