@@ -668,6 +668,9 @@ class QAPIDoc:
             # section text without tag
             self.text = ''
 
+        def __repr__(self) -> str:
+            return f"<QAPIDoc.Section kind={self.kind!r} text={self.text!r}>"
+
         def append_line(self, line: str) -> None:
             self.text += line + '\n'
 
