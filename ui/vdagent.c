@@ -694,6 +694,18 @@ static void vdagent_chr_open(Chardev *chr,
     *be_opened = true;
 }
 
+static void vdagent_clipboard_peer_register(VDAgentChardev *vd)
+{
+    if (vd->cbpeer.notifier.notify != NULL) {
+        return;
+    }
+
+    vd->cbpeer.name = "vdagent";
+    vd->cbpeer.notifier.notify = vdagent_clipboard_notify;
+    vd->cbpeer.request = vdagent_clipboard_request;
+    qemu_clipboard_peer_register(&vd->cbpeer);
+}
+
 static void vdagent_chr_recv_caps(VDAgentChardev *vd, VDAgentMessage *msg)
 {
     VDAgentAnnounceCapabilities *caps = (void *)msg->data;
@@ -720,13 +732,9 @@ static void vdagent_chr_recv_caps(VDAgentChardev *vd, VDAgentMessage *msg)
 
     memset(vd->last_serial, 0, sizeof(vd->last_serial));
 
-    if (have_clipboard(vd) && vd->cbpeer.notifier.notify == NULL) {
+    if (have_clipboard(vd)) {
         qemu_clipboard_reset_serial();
-
-        vd->cbpeer.name = "vdagent";
-        vd->cbpeer.notifier.notify = vdagent_clipboard_notify;
-        vd->cbpeer.request = vdagent_clipboard_request;
-        qemu_clipboard_peer_register(&vd->cbpeer);
+        vdagent_clipboard_peer_register(vd);
     }
 }
 
