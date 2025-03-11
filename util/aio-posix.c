@@ -28,6 +28,9 @@
 /* Stop userspace polling on a handler if it isn't active for some time */
 #define POLL_IDLE_INTERVAL_NS (7 * NANOSECONDS_PER_SECOND)
 
+static void adjust_polling_time(AioContext *ctx, AioPolledEvent *poll,
+                                int64_t block_ns);
+
 bool aio_poll_disabled(AioContext *ctx)
 {
     return qatomic_read(&ctx->poll_disable_cnt);
@@ -392,7 +395,8 @@ static bool aio_dispatch_handler(AioContext *ctx, AioHandler *node)
  * scanning all handlers with aio_dispatch_handlers().
  */
 static bool aio_dispatch_ready_handlers(AioContext *ctx,
-                                        AioHandlerList *ready_list)
+                                        AioHandlerList *ready_list,
+                                        int64_t block_ns)
 {
     bool progress = false;
     AioHandler *node;
@@ -400,6 +404,14 @@ static bool aio_dispatch_ready_handlers(AioContext *ctx,
     while ((node = QLIST_FIRST(ready_list))) {
         QLIST_REMOVE(node, node_ready);
         progress = aio_dispatch_handler(ctx, node) || progress;
+
+        /*
+         * Adjust polling time only after aio_dispatch_handler(), which can
+         * add the handler to ctx->poll_aio_handlers.
+         */
+        if (ctx->poll_max_ns && QLIST_IS_INSERTED(node, node_poll)) {
+            adjust_polling_time(ctx, &node->poll, block_ns);
+        }
     }
 
     return progress;
@@ -653,6 +665,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     bool use_notify_me;
     int64_t timeout;
     int64_t start = 0;
+    int64_t block_ns = 0;
 
     /*
      * There cannot be two concurrent aio_poll calls for the same AioContext (or
@@ -725,20 +738,13 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
     aio_notify_accept(ctx);
 
-    /* Adjust polling time */
+    /* Calculate blocked time for adaptive polling */
     if (ctx->poll_max_ns) {
-        AioHandler *node;
-        int64_t block_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - start;
-
-        QLIST_FOREACH(node, &ctx->poll_aio_handlers, node_poll) {
-            if (QLIST_IS_INSERTED(node, node_ready)) {
-                adjust_polling_time(ctx, &node->poll, block_ns);
-            }
-        }
+        block_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - start;
     }
 
     progress |= aio_bh_poll(ctx);
-    progress |= aio_dispatch_ready_handlers(ctx, &ready_list);
+    progress |= aio_dispatch_ready_handlers(ctx, &ready_list, block_ns);
 
     aio_free_deleted_handlers(ctx);
 
