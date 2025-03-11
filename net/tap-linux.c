@@ -45,10 +45,21 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
     int len = sizeof(struct virtio_net_hdr);
     unsigned int features;
 
-    fd = RETRY_ON_EINTR(open(PATH_NET_TUN, O_RDWR));
+
+    ret = if_nametoindex(ifname);
+    if (ret) {
+        g_autofree char *file = g_strdup_printf("/dev/tap%d", ret);
+        fd = open(file, O_RDWR);
+    } else {
+        fd = -1;
+    }
+
     if (fd < 0) {
-        error_setg_errno(errp, errno, "could not open %s", PATH_NET_TUN);
-        return -1;
+        fd = RETRY_ON_EINTR(open(PATH_NET_TUN, O_RDWR));
+        if (fd < 0) {
+            error_setg_errno(errp, errno, "could not open %s", PATH_NET_TUN);
+            return -1;
+        }
     }
     memset(&ifr, 0, sizeof(ifr));
     ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
