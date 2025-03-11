@@ -7,3 +7,4 @@ QEMU QMP Reference Manual
    :depth: 3
 
 .. qapi-doc:: qapi/qapi-schema.json
+   :transmogrify:
