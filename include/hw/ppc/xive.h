@@ -442,6 +442,9 @@ struct XivePresenterClass {
                      uint32_t logic_serv, XiveTCTXMatch *match);
     bool (*in_kernel)(const XivePresenter *xptr);
     uint32_t (*get_config)(XivePresenter *xptr);
+    int (*broadcast)(XivePresenter *xptr,
+                     uint8_t nvt_blk, uint32_t nvt_idx,
+                     uint8_t priority);
 };
 
 int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
@@ -472,6 +475,8 @@ struct XiveFabricClass {
                      uint8_t nvt_blk, uint32_t nvt_idx,
                      bool cam_ignore, uint8_t priority,
                      uint32_t logic_serv, XiveTCTXMatch *match);
+    int (*broadcast)(XiveFabric *xfb, uint8_t nvt_blk, uint32_t nvt_idx,
+                     uint8_t priority);
 };
 
 /*

@@ -53,13 +53,38 @@ static uint32_t xive2_nvgc_get_backlog(Xive2Nvgc *nvgc, uint8_t priority)
 
     /*
      * The per-priority backlog counters are 24-bit and the structure
-     * is stored in big endian
+     * is stored in big endian. NVGC is 32-bytes long, so 24-bytes from
+     * w2, which fits 8 priorities * 24-bits per priority.
      */
     ptr = (uint8_t *)&nvgc->w2 + priority * 3;
     for (i = 0; i < 3; i++, ptr++) {
         val = (val << 8) + *ptr;
     }
     return val;
+}
+
+static void xive2_nvgc_set_backlog(Xive2Nvgc *nvgc, uint8_t priority,
+                                   uint32_t val)
+{
+    uint8_t *ptr, i;
+    uint32_t shift;
+
+    if (priority > 7) {
+        return;
+    }
+
+    if (val > 0xFFFFFF) {
+        val = 0xFFFFFF;
+    }
+    /*
+     * The per-priority backlog counters are 24-bit and the structure
+     * is stored in big endian
+     */
+    ptr = (uint8_t *)&nvgc->w2 + priority * 3;
+    for (i = 0; i < 3; i++, ptr++) {
+        shift = 8 * (2 - i);
+        *ptr = (val >> shift) & 0xFF;
+    }
 }
 
 void xive2_eas_pic_print_info(Xive2Eas *eas, uint32_t lisn, GString *buf)
@@ -830,6 +855,19 @@ bool xive2_tm_irq_precluded(XiveTCTX *tctx, int ring, uint8_t priority)
     return true;
 }
 
+void xive2_tm_set_lsmfb(XiveTCTX *tctx, int ring, uint8_t priority)
+{
+    uint8_t *regs = &tctx->regs[ring];
+
+    /*
+     * Called by the router during a VP-group notification when the
+     * thread matches but can't take the interrupt because it's
+     * already running at a more favored priority. It then stores the
+     * new interrupt priority in the LSMFB field.
+     */
+    regs[TM_LSMFB] = priority;
+}
+
 static void xive2_router_realize(DeviceState *dev, Error **errp)
 {
     Xive2Router *xrtr = XIVE2_ROUTER(dev);
@@ -870,7 +908,6 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
     uint8_t priority;
     uint8_t format;
     bool found, precluded;
-    Xive2Nvp nvp;
     uint8_t nvp_blk;
     uint32_t nvp_idx;
 
@@ -934,19 +971,6 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
     nvp_blk = xive_get_field32(END2_W6_VP_BLOCK, end.w6);
     nvp_idx = xive_get_field32(END2_W6_VP_OFFSET, end.w6);
 
-    /* NVP cache lookup */
-    if (xive2_router_get_nvp(xrtr, nvp_blk, nvp_idx, &nvp)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: no NVP %x/%x\n",
-                      nvp_blk, nvp_idx);
-        return;
-    }
-
-    if (!xive2_nvp_is_valid(&nvp)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVP %x/%x is invalid\n",
-                      nvp_blk, nvp_idx);
-        return;
-    }
-
     found = xive_presenter_notify(xrtr->xfb, format, nvp_blk, nvp_idx,
                           xive2_end_is_ignore(&end),
                           priority,
@@ -962,10 +986,9 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
     /*
      * If no matching NVP is dispatched on a HW thread :
      * - specific VP: update the NVP structure if backlog is activated
-     * - logical server : forward request to IVPE (not supported)
+     * - VP-group: update the backlog counter for that priority in the NVG
      */
     if (xive2_end_is_backlog(&end)) {
-        uint8_t ipb;
 
         if (format == 1) {
             qemu_log_mask(LOG_GUEST_ERROR,
@@ -974,19 +997,72 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
             return;
         }
 
-        /*
-         * Record the IPB in the associated NVP structure for later
-         * use. The presenter will resend the interrupt when the vCPU
-         * is dispatched again on a HW thread.
-         */
-        ipb = xive_get_field32(NVP2_W2_IPB, nvp.w2) |
-            xive_priority_to_ipb(priority);
-        nvp.w2 = xive_set_field32(NVP2_W2_IPB, nvp.w2, ipb);
-        xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, &nvp, 2);
+        if (!xive2_end_is_ignore(&end)) {
+            uint8_t ipb;
+            Xive2Nvp nvp;
 
-        /*
-         * On HW, follows a "Broadcast Backlog" to IVPEs
-         */
+            /* NVP cache lookup */
+            if (xive2_router_get_nvp(xrtr, nvp_blk, nvp_idx, &nvp)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: no NVP %x/%x\n",
+                              nvp_blk, nvp_idx);
+                return;
+            }
+
+            if (!xive2_nvp_is_valid(&nvp)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVP %x/%x is invalid\n",
+                              nvp_blk, nvp_idx);
+                return;
+            }
+
+            /*
+             * Record the IPB in the associated NVP structure for later
+             * use. The presenter will resend the interrupt when the vCPU
+             * is dispatched again on a HW thread.
+             */
+            ipb = xive_get_field32(NVP2_W2_IPB, nvp.w2) |
+                xive_priority_to_ipb(priority);
+            nvp.w2 = xive_set_field32(NVP2_W2_IPB, nvp.w2, ipb);
+            xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, &nvp, 2);
+        } else {
+            Xive2Nvgc nvg;
+            uint32_t backlog;
+
+            /* For groups, the per-priority backlog counters are in the NVG */
+            if (xive2_router_get_nvgc(xrtr, false, nvp_blk, nvp_idx, &nvg)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: no NVG %x/%x\n",
+                              nvp_blk, nvp_idx);
+                return;
+            }
+
+            if (!xive2_nvgc_is_valid(&nvg)) {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVG %x/%x is invalid\n",
+                              nvp_blk, nvp_idx);
+                return;
+            }
+
+            /*
+             * Increment the backlog counter for that priority.
+             * We only call broadcast the first time the counter is
+             * incremented. broadcast will set the LSMFB field of the TIMA of
+             * relevant threads so that they know an interrupt is pending.
+             */
+            backlog = xive2_nvgc_get_backlog(&nvg, priority) + 1;
+            xive2_nvgc_set_backlog(&nvg, priority, backlog);
+            xive2_router_write_nvgc(xrtr, false, nvp_blk, nvp_idx, &nvg);
+
+            if (backlog == 1) {
+                XiveFabricClass *xfc = XIVE_FABRIC_GET_CLASS(xrtr->xfb);
+                xfc->broadcast(xrtr->xfb, nvp_blk, nvp_idx, priority);
+
+                if (!xive2_end_is_precluded_escalation(&end)) {
+                    /*
+                     * The interrupt will be picked up when the
+                     * matching thread lowers its priority level
+                     */
+                    return;
+                }
+            }
+        }
     }
 
 do_escalation:
