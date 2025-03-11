@@ -367,6 +367,10 @@ class QAPIEvent(QAPIObjectWithMembers):
     """Description of a QAPI Event."""
 
 
+class QAPIJSONObject(QAPIObjectWithMembers):
+    """Description of a QAPI Object: structs and unions."""
+
+
 class QAPIModule(QAPIDescription):
     """
     Directive to mark description of a new module.
@@ -495,6 +499,7 @@ class QAPIDomain(Domain):
         "command": ObjType(_("command"), "cmd", "any"),
         "event": ObjType(_("event"), "event", "any"),
         "enum": ObjType(_("enum"), "enum", "type", "any"),
+        "object": ObjType(_("object"), "obj", "type", "any"),
         "alternate": ObjType(_("alternate"), "alt", "type", "any"),
     }
 
@@ -505,6 +510,7 @@ class QAPIDomain(Domain):
         "command": QAPICommand,
         "event": QAPIEvent,
         "enum": QAPIEnum,
+        "object": QAPIJSONObject,
         "alternate": QAPIAlternate,
     }
 
@@ -516,6 +522,7 @@ class QAPIDomain(Domain):
         "cmd": QAPIXRefRole(),
         "event": QAPIXRefRole(),
         "enum": QAPIXRefRole(),
+        "obj": QAPIXRefRole(),  # specifically structs and unions.
         "alt": QAPIXRefRole(),
         # reference any data type (excludes modules, commands, events)
         "type": QAPIXRefRole(),
