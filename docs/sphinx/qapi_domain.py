@@ -433,6 +433,24 @@ class QAPIObject(QAPIDescription):
                     self._validate_field(field)
 
 
+class SpecialTypedField(CompatTypedField):
+    def make_field(self, *args: Any, **kwargs: Any) -> nodes.field:
+        ret = super().make_field(*args, **kwargs)
+
+        # Look for the characteristic " -- " text node that Sphinx
+        # inserts for each TypedField entry ...
+        for node in ret.traverse(lambda n: str(n) == " -- "):
+            par = node.parent
+            if par.children[0].astext() != "q_dummy":
+                continue
+
+            # If the first node's text is q_dummy, this is a dummy
+            # field we want to strip down to just its contents.
+            del par.children[:-1]
+
+        return ret
+
+
 class QAPICommand(QAPIObject):
     """Description of a QAPI Command."""
 
@@ -440,7 +458,7 @@ class QAPICommand(QAPIObject):
     doc_field_types.extend(
         [
             # :arg TypeName ArgName: descr
-            CompatTypedField(
+            SpecialTypedField(
                 "argument",
                 label=_("Arguments"),
                 names=("arg",),
@@ -508,7 +526,7 @@ class QAPIObjectWithMembers(QAPIObject):
     doc_field_types.extend(
         [
             # :member type name: descr
-            CompatTypedField(
+            SpecialTypedField(
                 "member",
                 label=_("Members"),
                 names=("memb",),

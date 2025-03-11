@@ -47,8 +47,10 @@ from qapi.schema import (
     QAPISchemaCommand,
     QAPISchemaDefinition,
     QAPISchemaEnumMember,
+    QAPISchemaEvent,
     QAPISchemaFeature,
     QAPISchemaMember,
+    QAPISchemaObjectType,
     QAPISchemaObjectTypeMember,
     QAPISchemaType,
     QAPISchemaVisitor,
@@ -298,11 +300,61 @@ class Transmogrifier:
 
         self.ensure_blank_line()
 
+    def _insert_member_pointer(self, ent: QAPISchemaDefinition) -> None:
+
+        def _get_target(
+            ent: QAPISchemaDefinition,
+        ) -> Optional[QAPISchemaDefinition]:
+            if isinstance(ent, (QAPISchemaCommand, QAPISchemaEvent)):
+                return ent.arg_type
+            if isinstance(ent, QAPISchemaObjectType):
+                return ent.base
+            return None
+
+        target = _get_target(ent)
+        if target is not None and not target.is_implicit():
+            assert ent.info
+            self.add_field(
+                self.member_field_type,
+                "q_dummy",
+                f"The members of :qapi:type:`{target.name}`.",
+                ent.info,
+                "q_dummy",
+            )
+
+        if isinstance(ent, QAPISchemaObjectType) and ent.branches is not None:
+            for variant in ent.branches.variants:
+                if variant.type.name == "q_empty":
+                    continue
+                assert ent.info
+                self.add_field(
+                    self.member_field_type,
+                    "q_dummy",
+                    f" When ``{ent.branches.tag_member.name}`` is "
+                    f"``{variant.name}``: "
+                    f"The members of :qapi:type:`{variant.type.name}`.",
+                    ent.info,
+                    "q_dummy",
+                )
+
     def visit_sections(self, ent: QAPISchemaDefinition) -> None:
         sections = ent.doc.all_sections if ent.doc else []
 
+        # Determine the index location at which we should generate
+        # documentation for "The members of ..." pointers. This should
+        # go at the end of the members section(s) if any. Note that
+        # index 0 is assumed to be a plain intro section, even if it is
+        # empty; and that a members section if present will always
+        # immediately follow the opening PLAIN section.
+        gen_index = 1
+        if len(sections) > 1:
+            while sections[gen_index].kind == QAPIDoc.Kind.MEMBER:
+                gen_index += 1
+                if gen_index >= len(sections):
+                    break
+
         # Add sections in source order:
-        for section in sections:
+        for i, section in enumerate(sections):
             # @var is translated to ``var``:
             section.text = re.sub(r"@([\w-]+)", r"``\1``", section.text)
 
@@ -323,6 +375,10 @@ class Transmogrifier:
                 self.visit_errors(section)
             else:
                 assert False
+
+            # Generate "The members of ..." entries if necessary:
+            if i == gen_index - 1:
+                self._insert_member_pointer(ent)
 
         self.ensure_blank_line()
 
