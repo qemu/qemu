@@ -1,4 +1,5 @@
 # coding=utf-8
+# type: ignore
 #
 # QEMU qapidoc QAPI file parsing extension
 #

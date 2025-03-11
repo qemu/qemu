@@ -24,22 +24,32 @@ The Sphinx documentation on writing extensions is at:
 https://www.sphinx-doc.org/en/master/development/index.html
 """
 
+from __future__ import annotations
+
 import os
 import sys
-from typing import List
+from typing import TYPE_CHECKING
 
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
 from qapi.error import QAPIError
-from qapi.gen import QAPISchemaVisitor
-from qapi.schema import QAPISchema
+from qapi.schema import QAPISchema, QAPISchemaVisitor
 
-from qapidoc_legacy import QAPISchemaGenRSTVisitor
+from qapidoc_legacy import QAPISchemaGenRSTVisitor  # type: ignore
 from sphinx import addnodes
 from sphinx.directives.code import CodeBlock
 from sphinx.errors import ExtensionError
 from sphinx.util.docutils import switch_source_input
 from sphinx.util.nodes import nested_parse_with_titles
+
+
+if TYPE_CHECKING:
+    from typing import Any, List, Sequence
+
+    from docutils.statemachine import StringList
+
+    from sphinx.application import Sphinx
+    from sphinx.util.typing import ExtensionMetadata
 
 
 __version__ = "1.0"
@@ -53,11 +63,11 @@ class QAPISchemaGenDepVisitor(QAPISchemaVisitor):
     schema file associated with each module in the QAPI input.
     """
 
-    def __init__(self, env, qapidir):
+    def __init__(self, env: Any, qapidir: str) -> None:
         self._env = env
         self._qapidir = qapidir
 
-    def visit_module(self, name):
+    def visit_module(self, name: str) -> None:
         if name != "./builtin":
             qapifile = self._qapidir + "/" + name
             self._env.note_dependency(os.path.abspath(qapifile))
@@ -65,10 +75,10 @@ class QAPISchemaGenDepVisitor(QAPISchemaVisitor):
 
 
 class NestedDirective(Directive):
-    def run(self):
+    def run(self) -> Sequence[nodes.Node]:
         raise NotImplementedError
 
-    def do_parse(self, rstlist, node):
+    def do_parse(self, rstlist: StringList, node: nodes.Node) -> None:
         """
         Parse rST source lines and add them to the specified node
 
@@ -93,15 +103,15 @@ class QAPIDocDirective(NestedDirective):
     }
     has_content = False
 
-    def new_serialno(self):
+    def new_serialno(self) -> str:
         """Return a unique new ID string suitable for use as a node's ID"""
         env = self.state.document.settings.env
         return "qapidoc-%d" % env.new_serialno("qapidoc")
 
-    def transmogrify(self, schema) -> nodes.Element:
+    def transmogrify(self, schema: QAPISchema) -> nodes.Element:
         raise NotImplementedError
 
-    def legacy(self, schema) -> nodes.Element:
+    def legacy(self, schema: QAPISchema) -> nodes.Element:
         vis = QAPISchemaGenRSTVisitor(self)
         vis.visit_begin(schema)
         for doc in schema.docs:
@@ -109,9 +119,9 @@ class QAPIDocDirective(NestedDirective):
                 vis.symbol(doc, schema.lookup_entity(doc.symbol))
             else:
                 vis.freeform(doc)
-        return vis.get_document_node()
+        return vis.get_document_node()  # type: ignore
 
-    def run(self):
+    def run(self) -> Sequence[nodes.Node]:
         env = self.state.document.settings.env
         qapifile = env.config.qapidoc_srctree + "/" + self.arguments[0]
         qapidir = os.path.dirname(qapifile)
@@ -185,7 +195,7 @@ class QMPExample(CodeBlock, NestedDirective):
         )
         return node
 
-    def admonition_wrap(self, *content) -> List[nodes.Node]:
+    def admonition_wrap(self, *content: nodes.Node) -> List[nodes.Node]:
         title = "Example:"
         if "title" in self.options:
             title = f"{title} {self.options['title']}"
@@ -231,7 +241,7 @@ class QMPExample(CodeBlock, NestedDirective):
         return self.admonition_wrap(*content_nodes)
 
 
-def setup(app):
+def setup(app: Sphinx) -> ExtensionMetadata:
     """Register qapi-doc directive with Sphinx"""
     app.add_config_value("qapidoc_srctree", None, "env")
     app.add_directive("qapi-doc", QAPIDocDirective)
