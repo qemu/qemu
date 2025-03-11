@@ -40,6 +40,7 @@ struct VDAgentChardev {
     bool clipboard;
 
     /* guest vdagent */
+    bool connected;
     uint32_t caps;
     VDIChunkHeader chunk;
     uint32_t chunksize;
@@ -858,6 +859,7 @@ static void vdagent_disconnect(VDAgentChardev *vd)
 {
     trace_vdagent_disconnect();
 
+    vd->connected = false;
     g_byte_array_set_size(vd->outbuf, 0);
     vdagent_reset_bufs(vd);
     vd->caps = 0;
@@ -876,6 +878,10 @@ static void vdagent_chr_set_fe_open(struct Chardev *chr, int fe_open)
 
     trace_vdagent_fe_open(fe_open);
 
+    if (vd->connected == fe_open) {
+        return;
+    }
+
     if (!fe_open) {
         trace_vdagent_close();
         vdagent_disconnect(vd);
@@ -885,6 +891,7 @@ static void vdagent_chr_set_fe_open(struct Chardev *chr, int fe_open)
         return;
     }
 
+    vd->connected = true;
     vdagent_send_caps(vd, true);
 }
 
