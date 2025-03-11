@@ -106,7 +106,6 @@ struct SCSIDiskState {
     uint64_t max_unmap_size;
     uint64_t max_io_size;
     uint32_t quirks;
-    QEMUBH *bh;
     char *version;
     char *serial;
     char *vendor;
