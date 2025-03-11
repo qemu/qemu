@@ -233,4 +233,7 @@ typedef struct Xive2Nvgc {
 void xive2_nvgc_pic_print_info(Xive2Nvgc *nvgc, uint32_t nvgc_idx,
                                GString *buf);
 
+#define NVx_BACKLOG_OP            PPC_BITMASK(52, 53)
+#define NVx_BACKLOG_PRIO          PPC_BITMASK(57, 59)
+
 #endif /* PPC_XIVE2_REGS_H */

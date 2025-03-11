@@ -2202,21 +2202,40 @@ static const MemoryRegionOps pnv_xive2_tm_ops = {
     },
 };
 
-static uint64_t pnv_xive2_nvc_read(void *opaque, hwaddr offset,
+static uint64_t pnv_xive2_nvc_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
+    XivePresenter *xptr = XIVE_PRESENTER(xive);
+    uint32_t page = addr >> xive->nvpg_shift;
+    uint16_t op = addr & 0xFFF;
+    uint8_t blk = pnv_xive2_block_id(xive);
 
-    xive2_error(xive, "NVC: invalid read @%"HWADDR_PRIx, offset);
-    return -1;
+    if (size != 2) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid nvc load size %d\n",
+                      size);
+        return -1;
+    }
+
+    return xive2_presenter_nvgc_backlog_op(xptr, true, blk, page, op, 1);
 }
 
-static void pnv_xive2_nvc_write(void *opaque, hwaddr offset,
+static void pnv_xive2_nvc_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
+    XivePresenter *xptr = XIVE_PRESENTER(xive);
+    uint32_t page = addr >> xive->nvc_shift;
+    uint16_t op = addr & 0xFFF;
+    uint8_t blk = pnv_xive2_block_id(xive);
 
-    xive2_error(xive, "NVC: invalid write @%"HWADDR_PRIx, offset);
+    if (size != 1) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid nvc write size %d\n",
+                      size);
+        return;
+    }
+
+    (void)xive2_presenter_nvgc_backlog_op(xptr, true, blk, page, op, val);
 }
 
 static const MemoryRegionOps pnv_xive2_nvc_ops = {
@@ -2224,30 +2243,63 @@ static const MemoryRegionOps pnv_xive2_nvc_ops = {
     .write = pnv_xive2_nvc_write,
     .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
-        .min_access_size = 8,
+        .min_access_size = 1,
         .max_access_size = 8,
     },
     .impl = {
-        .min_access_size = 8,
+        .min_access_size = 1,
         .max_access_size = 8,
     },
 };
 
-static uint64_t pnv_xive2_nvpg_read(void *opaque, hwaddr offset,
+static uint64_t pnv_xive2_nvpg_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
+    XivePresenter *xptr = XIVE_PRESENTER(xive);
+    uint32_t page = addr >> xive->nvpg_shift;
+    uint16_t op = addr & 0xFFF;
+    uint32_t index = page >> 1;
+    uint8_t blk = pnv_xive2_block_id(xive);
 
-    xive2_error(xive, "NVPG: invalid read @%"HWADDR_PRIx, offset);
-    return -1;
+    if (size != 2) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid nvpg load size %d\n",
+                      size);
+        return -1;
+    }
+
+    if (page % 2) {
+        /* odd page - NVG */
+        return xive2_presenter_nvgc_backlog_op(xptr, false, blk, index, op, 1);
+    } else {
+        /* even page - NVP */
+        return xive2_presenter_nvp_backlog_op(xptr, blk, index, op);
+    }
 }
 
-static void pnv_xive2_nvpg_write(void *opaque, hwaddr offset,
+static void pnv_xive2_nvpg_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
+    XivePresenter *xptr = XIVE_PRESENTER(xive);
+    uint32_t page = addr >> xive->nvpg_shift;
+    uint16_t op = addr & 0xFFF;
+    uint32_t index = page >> 1;
+    uint8_t blk = pnv_xive2_block_id(xive);
 
-    xive2_error(xive, "NVPG: invalid write @%"HWADDR_PRIx, offset);
+    if (size != 1) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid nvpg write size %d\n",
+                      size);
+        return;
+    }
+
+    if (page % 2) {
+        /* odd page - NVG */
+        (void)xive2_presenter_nvgc_backlog_op(xptr, false, blk, index, op, val);
+    } else {
+        /* even page - NVP */
+        (void)xive2_presenter_nvp_backlog_op(xptr, blk, index, op);
+    }
 }
 
 static const MemoryRegionOps pnv_xive2_nvpg_ops = {
@@ -2255,11 +2307,11 @@ static const MemoryRegionOps pnv_xive2_nvpg_ops = {
     .write = pnv_xive2_nvpg_write,
     .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
-        .min_access_size = 8,
+        .min_access_size = 1,
         .max_access_size = 8,
     },
     .impl = {
-        .min_access_size = 8,
+        .min_access_size = 1,
         .max_access_size = 8,
     },
 };

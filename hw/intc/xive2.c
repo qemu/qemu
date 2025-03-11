@@ -88,6 +88,93 @@ static void xive2_nvgc_set_backlog(Xive2Nvgc *nvgc, uint8_t priority,
     }
 }
 
+uint64_t xive2_presenter_nvgc_backlog_op(XivePresenter *xptr,
+                                         bool crowd,
+                                         uint8_t blk, uint32_t idx,
+                                         uint16_t offset, uint16_t val)
+{
+    Xive2Router *xrtr = XIVE2_ROUTER(xptr);
+    uint8_t priority = GETFIELD(NVx_BACKLOG_PRIO, offset);
+    uint8_t op = GETFIELD(NVx_BACKLOG_OP, offset);
+    Xive2Nvgc nvgc;
+    uint32_t count, old_count;
+
+    if (xive2_router_get_nvgc(xrtr, crowd, blk, idx, &nvgc)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No %s %x/%x\n",
+                      crowd ? "NVC" : "NVG", blk, idx);
+        return -1;
+    }
+    if (!xive2_nvgc_is_valid(&nvgc)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid NVG %x/%x\n", blk, idx);
+        return -1;
+    }
+
+    old_count = xive2_nvgc_get_backlog(&nvgc, priority);
+    count = old_count;
+    /*
+     * op:
+     * 0b00 => increment
+     * 0b01 => decrement
+     * 0b1- => read
+     */
+    if (op == 0b00 || op == 0b01) {
+        if (op == 0b00) {
+            count += val;
+        } else {
+            if (count > val) {
+                count -= val;
+            } else {
+                count = 0;
+            }
+        }
+        xive2_nvgc_set_backlog(&nvgc, priority, count);
+        xive2_router_write_nvgc(xrtr, crowd, blk, idx, &nvgc);
+    }
+    trace_xive_nvgc_backlog_op(crowd, blk, idx, op, priority, old_count);
+    return old_count;
+}
+
+uint64_t xive2_presenter_nvp_backlog_op(XivePresenter *xptr,
+                                        uint8_t blk, uint32_t idx,
+                                        uint16_t offset)
+{
+    Xive2Router *xrtr = XIVE2_ROUTER(xptr);
+    uint8_t priority = GETFIELD(NVx_BACKLOG_PRIO, offset);
+    uint8_t op = GETFIELD(NVx_BACKLOG_OP, offset);
+    Xive2Nvp nvp;
+    uint8_t ipb, old_ipb, rc;
+
+    if (xive2_router_get_nvp(xrtr, blk, idx, &nvp)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVP %x/%x\n", blk, idx);
+        return -1;
+    }
+    if (!xive2_nvp_is_valid(&nvp)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid NVP %x/%x\n", blk, idx);
+        return -1;
+    }
+
+    old_ipb = xive_get_field32(NVP2_W2_IPB, nvp.w2);
+    ipb = old_ipb;
+    /*
+     * op:
+     * 0b00 => set priority bit
+     * 0b01 => reset priority bit
+     * 0b1- => read
+     */
+    if (op == 0b00 || op == 0b01) {
+        if (op == 0b00) {
+            ipb |= xive_priority_to_ipb(priority);
+        } else {
+            ipb &= ~xive_priority_to_ipb(priority);
+        }
+        nvp.w2 = xive_set_field32(NVP2_W2_IPB, nvp.w2, ipb);
+        xive2_router_write_nvp(xrtr, blk, idx, &nvp, 2);
+    }
+    rc = !!(old_ipb & xive_priority_to_ipb(priority));
+    trace_xive_nvp_backlog_op(blk, idx, op, priority, rc);
+    return rc;
+}
+
 void xive2_eas_pic_print_info(Xive2Eas *eas, uint32_t lisn, GString *buf)
 {
     if (!xive2_eas_is_valid(eas)) {

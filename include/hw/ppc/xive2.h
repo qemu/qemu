@@ -90,6 +90,15 @@ int xive2_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
                                uint8_t nvt_blk, uint32_t nvt_idx,
                                bool cam_ignore, uint32_t logic_serv);
 
+uint64_t xive2_presenter_nvp_backlog_op(XivePresenter *xptr,
+                                        uint8_t blk, uint32_t idx,
+                                        uint16_t offset);
+
+uint64_t xive2_presenter_nvgc_backlog_op(XivePresenter *xptr,
+                                         bool crowd,
+                                         uint8_t blk, uint32_t idx,
+                                         uint16_t offset, uint16_t val);
+
 /*
  * XIVE2 END ESBs  (POWER10)
  */

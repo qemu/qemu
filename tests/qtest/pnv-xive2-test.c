@@ -493,6 +493,9 @@ static void test_xive(void)
     reset_state(qts);
     test_flush_sync_inject(qts);
 
+    reset_state(qts);
+    test_nvpg_bar(qts);
+
     qtest_quit(qts);
 }
 
