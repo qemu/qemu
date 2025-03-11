@@ -28,6 +28,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 import os
+from pathlib import Path
 import sys
 from typing import TYPE_CHECKING
 
@@ -120,6 +121,14 @@ class Transmogrifier:
             # New blank line is credited to one-after the current last line.
             # +2: correct for zero/one index, then increment by one.
             self.add_line_raw("", fname, line + 2)
+
+    # Transmogrification core methods
+
+    def visit_module(self, path: str) -> None:
+        name = Path(path).stem
+        # module directives are credited to the first line of a module file.
+        self.add_line_raw(f".. qapi:module:: {name}", path, 1)
+        self.ensure_blank_line()
 
 
 class QAPISchemaGenDepVisitor(QAPISchemaVisitor):
