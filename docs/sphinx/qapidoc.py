@@ -139,6 +139,12 @@ class Transmogrifier:
         self.add_lines(section.text, section.info)
         self.ensure_blank_line()
 
+    def visit_errors(self, section: QAPIDoc.Section) -> None:
+        # FIXME: the formatting for errors may be inconsistent and may
+        # or may not require different newline placement to ensure
+        # proper rendering as a nested list.
+        self.add_lines(f":error:\n{section.text}", section.info)
+
     def preamble(self, ent: QAPISchemaDefinition) -> None:
         """
         Generate option lines for QAPI entity directives.
