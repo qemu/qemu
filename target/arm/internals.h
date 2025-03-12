@@ -392,6 +392,27 @@ static inline FloatRoundMode arm_rmode_to_sf(ARMFPRounding rmode)
     return arm_rmode_to_sf_map[rmode];
 }
 
+/* Return the effective value of SCR_EL3.RW */
+static inline bool arm_scr_rw_eff(CPUARMState *env)
+{
+    /*
+     * SCR_EL3.RW has an effective value of 1 if:
+     *  - we are NS and EL2 is implemented but doesn't support AArch32
+     *  - we are S and EL2 is enabled (in which case it must be AArch64)
+     */
+    ARMCPU *cpu = env_archcpu(env);
+
+    if (env->cp15.scr_el3 & SCR_RW) {
+        return true;
+    }
+    if (env->cp15.scr_el3 & SCR_NS) {
+        return arm_feature(env, ARM_FEATURE_EL2) &&
+            !cpu_isar_feature(aa64_aa32_el2, cpu);
+    } else {
+        return env->cp15.scr_el3 & SCR_EEL2;
+    }
+}
+
 /* Return true if the specified exception level is running in AArch64 state. */
 static inline bool arm_el_is_aa64(CPUARMState *env, int el)
 {
@@ -411,9 +432,8 @@ static inline bool arm_el_is_aa64(CPUARMState *env, int el)
         return aa64;
     }
 
-    if (arm_feature(env, ARM_FEATURE_EL3) &&
-        ((env->cp15.scr_el3 & SCR_NS) || !(env->cp15.scr_el3 & SCR_EEL2))) {
-        aa64 = aa64 && (env->cp15.scr_el3 & SCR_RW);
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        aa64 = aa64 && arm_scr_rw_eff(env);
     }
 
     if (el == 2) {
