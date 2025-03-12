@@ -94,7 +94,7 @@ ssize_t vmnet_receive_common(NetClientState *nc,
 
     if_status = vmnet_write(s->vmnet_if, &packet, &pkt_cnt);
     if (if_status != VMNET_SUCCESS) {
-        error_report("vmnet: write error: %s\n",
+        error_report("vmnet: write error: %s",
                      vmnet_status_map_str(if_status));
         return -1;
     }
