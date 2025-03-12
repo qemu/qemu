@@ -138,6 +138,9 @@ class Asset:
                 tmp_cache_file.unlink()
                 raise
 
+        if not os.path.exists(tmp_cache_file):
+            raise Exception("Retries exceeded downloading %s", self.url)
+
         try:
             # Set these just for informational purposes
             os.setxattr(str(tmp_cache_file), "user.qemu-asset-url",
