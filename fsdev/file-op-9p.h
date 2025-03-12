@@ -129,6 +129,8 @@ struct FileOperations {
     int (*chown)(FsContext *, V9fsPath *, FsCred *);
     int (*mknod)(FsContext *, V9fsPath *, const char *, FsCred *);
     int (*utimensat)(FsContext *, V9fsPath *, const struct timespec *);
+    int (*futimens)(FsContext *ctx, int fid_type, V9fsFidOpenState *fs,
+                    const struct timespec *times);
     int (*remove)(FsContext *, const char *);
     int (*symlink)(FsContext *, const char *, V9fsPath *,
                    const char *, FsCred *);

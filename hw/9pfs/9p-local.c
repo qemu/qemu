@@ -1100,6 +1100,14 @@ out:
     return ret;
 }
 
+static int local_futimens(FsContext *s, int fid_type, V9fsFidOpenState *fs,
+                          const struct timespec *times)
+{
+    int fd = local_fid_fd(fid_type, fs);
+
+    return qemu_futimens(fd, times);
+}
+
 static int local_unlinkat_common(FsContext *ctx, int dirfd, const char *name,
                                  int flags)
 {
@@ -1626,4 +1634,5 @@ FileOperations local_ops = {
     .unlinkat = local_unlinkat,
     .has_valid_file_handle = local_has_valid_file_handle,
     .ftruncate = local_ftruncate,
+    .futimens = local_futimens,
 };
