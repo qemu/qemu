@@ -12,7 +12,7 @@
 
 #include "parallel.h"
 
-#include "exec/ioport.h"
+#include "system/ioport.h"
 #include "hw/isa/isa.h"
 #include "qom/object.h"
 

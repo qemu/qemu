@@ -26,7 +26,7 @@
 #define HW_VGA_INT_H
 
 #include "ui/console.h"
-#include "exec/ioport.h"
+#include "system/ioport.h"
 #include "system/memory.h"
 
 #include "hw/display/bochs-vbe.h"

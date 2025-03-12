@@ -1,7 +1,7 @@
 #ifndef HW_IDE_BUS_H
 #define HW_IDE_BUS_H
 
-#include "exec/ioport.h"
+#include "system/ioport.h"
 #include "hw/ide/ide-dev.h"
 #include "hw/ide/ide-dma.h"
 
