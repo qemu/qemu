@@ -1752,7 +1752,11 @@ static void coroutine_fn v9fs_setattr(void *opaque)
         }
     }
     if (v9iattr.valid & (P9_ATTR_SIZE)) {
-        err = v9fs_co_truncate(pdu, &fidp->path, v9iattr.size);
+        if (fid_has_valid_file_handle(pdu->s, fidp)) {
+            err = v9fs_co_ftruncate(pdu, fidp, v9iattr.size);
+        } else {
+            err = v9fs_co_truncate(pdu, &fidp->path, v9iattr.size);
+        }
         if (err < 0) {
             goto out;
         }

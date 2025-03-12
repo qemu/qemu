@@ -356,6 +356,13 @@ static int synth_truncate(FsContext *ctx, V9fsPath *path, off_t offset)
     return -1;
 }
 
+static int synth_ftruncate(FsContext *ctx, int fid_type, V9fsFidOpenState *fs,
+                           off_t size)
+{
+    errno = ENOSYS;
+    return -1;
+}
+
 static int synth_chmod(FsContext *fs_ctx, V9fsPath *path, FsCred *credp)
 {
     errno = EPERM;
@@ -656,4 +663,5 @@ FileOperations synth_ops = {
     .renameat     = synth_renameat,
     .unlinkat     = synth_unlinkat,
     .has_valid_file_handle = synth_has_valid_file_handle,
+    .ftruncate    = synth_ftruncate,
 };

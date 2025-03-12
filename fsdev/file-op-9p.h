@@ -152,6 +152,8 @@ struct FileOperations {
     int (*fstat)(FsContext *, int, V9fsFidOpenState *, struct stat *);
     int (*rename)(FsContext *, const char *, const char *);
     int (*truncate)(FsContext *, V9fsPath *, off_t);
+    int (*ftruncate)(FsContext *ctx, int fid_type, V9fsFidOpenState *fs,
+                     off_t size);
     int (*fsync)(FsContext *, int, V9fsFidOpenState *, int);
     int (*statfs)(FsContext *s, V9fsPath *path, struct statfs *stbuf);
     ssize_t (*lgetxattr)(FsContext *, V9fsPath *,

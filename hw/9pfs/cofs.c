@@ -184,6 +184,24 @@ int coroutine_fn v9fs_co_truncate(V9fsPDU *pdu, V9fsPath *path, off_t size)
     return err;
 }
 
+int coroutine_fn v9fs_co_ftruncate(V9fsPDU *pdu, V9fsFidState *fidp, off_t size)
+{
+    int err;
+    V9fsState *s = pdu->s;
+
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->ftruncate(&s->ctx, fidp->fid_type, &fidp->fs, size);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}
+
 int coroutine_fn v9fs_co_mknod(V9fsPDU *pdu, V9fsFidState *fidp,
                                V9fsString *name, uid_t uid, gid_t gid,
                                dev_t dev, mode_t mode, struct stat *stbuf)
