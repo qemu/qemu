@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "target/arm/cpregs.h"
 #include "target/arm/cpu-features.h"
+#include "target/arm/internals.h"
 #include "system/tcg.h"
 #include "system/qtest.h"
 
