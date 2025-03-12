@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bswap.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "exec/exec-all.h"
@@ -15,7 +16,6 @@
 #include "accel/tcg/cpu-mmu-index.h"
 #include "exec/translator.h"
 #include "exec/plugin-gen.h"
-#include "exec/tswap.h"
 #include "tcg/tcg-op-common.h"
 #include "internal-target.h"
 #include "disas/disas.h"
@@ -468,7 +468,8 @@ uint8_t translator_ldub(CPUArchState *env, DisasContextBase *db, vaddr pc)
     return val;
 }
 
-uint16_t translator_lduw(CPUArchState *env, DisasContextBase *db, vaddr pc)
+uint16_t translator_lduw_end(CPUArchState *env, DisasContextBase *db,
+                             vaddr pc, MemOp endian)
 {
     uint16_t val;
 
@@ -477,10 +478,14 @@ uint16_t translator_lduw(CPUArchState *env, DisasContextBase *db, vaddr pc)
         val = cpu_ldw_code_mmu(env, pc, oi, 0);
         record_save(db, pc, &val, sizeof(val));
     }
-    return tswap16(val);
+    if (endian & MO_BSWAP) {
+        val = bswap16(val);
+    }
+    return val;
 }
 
-uint32_t translator_ldl(CPUArchState *env, DisasContextBase *db, vaddr pc)
+uint32_t translator_ldl_end(CPUArchState *env, DisasContextBase *db,
+                            vaddr pc, MemOp endian)
 {
     uint32_t val;
 
@@ -489,10 +494,14 @@ uint32_t translator_ldl(CPUArchState *env, DisasContextBase *db, vaddr pc)
         val = cpu_ldl_code_mmu(env, pc, oi, 0);
         record_save(db, pc, &val, sizeof(val));
     }
-    return tswap32(val);
+    if (endian & MO_BSWAP) {
+        val = bswap32(val);
+    }
+    return val;
 }
 
-uint64_t translator_ldq(CPUArchState *env, DisasContextBase *db, vaddr pc)
+uint64_t translator_ldq_end(CPUArchState *env, DisasContextBase *db,
+                            vaddr pc, MemOp endian)
 {
     uint64_t val;
 
@@ -501,7 +510,10 @@ uint64_t translator_ldq(CPUArchState *env, DisasContextBase *db, vaddr pc)
         val = cpu_ldq_code_mmu(env, pc, oi, 0);
         record_save(db, pc, &val, sizeof(val));
     }
-    return tswap64(val);
+    if (endian & MO_BSWAP) {
+        val = bswap64(val);
+    }
+    return val;
 }
 
 void translator_fake_ld(DisasContextBase *db, const void *data, size_t len)
