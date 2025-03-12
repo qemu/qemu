@@ -7,15 +7,15 @@
 # We build two versions of gdbstub, one for each mode
 libuser_ss.add(files(
   'gdbstub.c',
+  'syscalls.c',
   'user.c'
 ))
 
 libsystem_ss.add(files(
   'gdbstub.c',
+  'syscalls.c',
   'system.c'
 ))
-
-common_ss.add(files('syscalls.c'))
 
 # The user-target is specialised by the guest
 specific_ss.add(when: 'CONFIG_USER_ONLY', if_true: files('user-target.c'))
