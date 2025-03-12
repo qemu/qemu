@@ -20,7 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "exec/cputlb.h"
 #include "system/memory.h"
 #include "exec/tb-flush.h"

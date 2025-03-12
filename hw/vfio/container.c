@@ -23,7 +23,7 @@
 #include <linux/vfio.h>
 
 #include "hw/vfio/vfio-common.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "system/memory.h"
 #include "exec/ram_addr.h"
 #include "qemu/error-report.h"

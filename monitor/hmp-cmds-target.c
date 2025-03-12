@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "disas/disas.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "system/memory.h"
 #include "monitor/hmp-target.h"
 #include "monitor/monitor-internal.h"

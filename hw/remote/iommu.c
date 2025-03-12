@@ -14,7 +14,7 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci.h"
 #include "system/memory.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "trace.h"
 
 /**

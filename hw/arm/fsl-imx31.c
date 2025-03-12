@@ -23,7 +23,7 @@
 #include "qapi/error.h"
 #include "hw/arm/fsl-imx31.h"
 #include "system/system.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/qdev-properties.h"
 #include "chardev/char.h"
 #include "target/arm/cpu-qom.h"

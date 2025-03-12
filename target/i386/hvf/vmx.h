@@ -33,7 +33,7 @@
 #include "system/hvf.h"
 #include "system/hvf_int.h"
 
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 
 static inline uint64_t rreg(hv_vcpuid_t vcpu, hv_x86_reg_t reg)
 {

@@ -7,7 +7,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/fsl-imx8mp.h"
 #include "hw/boards.h"

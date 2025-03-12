@@ -28,7 +28,7 @@
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/s390x/ap-bridge.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "qom/object.h"
 
 #define TYPE_VFIO_AP_DEVICE      "vfio-ap"

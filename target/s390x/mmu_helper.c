@@ -17,7 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "cpu.h"
 #include "s390x-internal.h"
 #include "kvm/kvm_s390x.h"

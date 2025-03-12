@@ -17,7 +17,7 @@
 #include "hw/irq.h"
 #include "hw/intc/i8259.h"
 #include "hw/qdev-properties.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "trace.h"

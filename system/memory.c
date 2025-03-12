@@ -33,7 +33,7 @@
 #include "qemu/accel.h"
 #include "hw/boards.h"
 #include "migration/vmstate.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 
 //#define DEBUG_UNASSIGNED
 

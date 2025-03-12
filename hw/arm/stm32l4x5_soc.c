@@ -24,7 +24,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "system/system.h"
 #include "hw/or-irq.h"
 #include "hw/arm/stm32l4x5_soc.h"

@@ -14,7 +14,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "exec/ioport.h"
 #include "exec/gdbstub.h"
 #include "gdbstub/enums.h"

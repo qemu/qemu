@@ -28,7 +28,7 @@
 #include "hw/sysbus.h"
 #include "net/net.h"
 #include "hw/arm/boot.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/arm/exynos4210.h"
 #include "hw/net/lan9118.h"
 #include "hw/qdev-properties.h"

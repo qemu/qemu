@@ -20,7 +20,7 @@
 #include "qobject/qdict.h"
 #include "qemu/error-report.h"
 #include "system/memory_mapping.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "system/kvm.h"
 #include "migration/qemu-file-types.h"
 #include "migration/register.h"

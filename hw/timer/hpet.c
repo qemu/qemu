@@ -36,7 +36,7 @@
 #include "hw/rtc/mc146818rtc_regs.h"
 #include "migration/vmstate.h"
 #include "hw/timer/i8254.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "qom/object.h"
 #include "trace.h"
 

@@ -29,7 +29,7 @@
 #include "hw/input/lasips2.h"
 #include "exec/hwaddr.h"
 #include "trace.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "qapi/error.h"

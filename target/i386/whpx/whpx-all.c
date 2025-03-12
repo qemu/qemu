@@ -10,7 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "exec/ioport.h"
 #include "gdbstub/helpers.h"
 #include "qemu/accel.h"

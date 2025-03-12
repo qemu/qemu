@@ -28,7 +28,7 @@
 #include "tcg_s390x.h"
 #ifndef CONFIG_USER_ONLY
 #include "qemu/timer.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/s390x/ioinst.h"
 #include "hw/s390x/s390_flic.h"
 #include "hw/boards.h"

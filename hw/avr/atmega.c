@@ -13,7 +13,7 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "system/memory.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "system/system.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"

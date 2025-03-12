@@ -13,7 +13,7 @@
 #include <linux/vfio.h>
 #include "system/kvm.h"
 #include "system/hostmem.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 
 #include "hw/vfio/vfio-common.h"
 #include "hw/hw.h"

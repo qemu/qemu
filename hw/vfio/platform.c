@@ -29,7 +29,7 @@
 #include "qemu/module.h"
 #include "qemu/range.h"
 #include "system/memory.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "qemu/queue.h"
 #include "hw/sysbus.h"
 #include "trace.h"

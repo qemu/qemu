@@ -4,7 +4,7 @@
 #define I82596_IOPORT_SIZE       0x20
 
 #include "system/memory.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 
 #define PORT_RESET              0x00    /* reset 82596 */
 #define PORT_SELFTEST           0x01    /* selftest */

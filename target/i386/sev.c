@@ -39,7 +39,7 @@
 #include "qapi/qapi-commands-misc-target.h"
 #include "confidential-guest.h"
 #include "hw/i386/pc.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "qemu/queue.h"
 
 OBJECT_DECLARE_TYPE(SevCommonState, SevCommonStateClass, SEV_COMMON)

@@ -7,7 +7,7 @@
 #define HW_VOF_H
 
 #include "qom/object.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "system/memory.h"
 #include "exec/cpu-defs.h"
 

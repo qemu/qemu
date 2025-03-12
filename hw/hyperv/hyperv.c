@@ -11,7 +11,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "system/memory.h"
 #include "system/kvm.h"
 #include "qemu/bitops.h"

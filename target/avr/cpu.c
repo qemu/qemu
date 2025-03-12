@@ -23,7 +23,7 @@
 #include "qemu/qemu-print.h"
 #include "exec/exec-all.h"
 #include "exec/translation-block.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "cpu.h"
 #include "disas/dis-asm.h"
 #include "tcg/debug-assert.h"

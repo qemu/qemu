@@ -16,7 +16,7 @@
 #include "hw/misc/arm_integrator_debug.h"
 #include "hw/net/smc91c111.h"
 #include "net/net.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "system/runstate.h"
 #include "system/system.h"
 #include "qemu/log.h"

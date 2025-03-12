@@ -22,7 +22,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 

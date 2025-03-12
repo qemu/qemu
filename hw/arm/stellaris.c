@@ -20,7 +20,7 @@
 #include "net/net.h"
 #include "hw/boards.h"
 #include "qemu/log.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "system/system.h"
 #include "hw/arm/armv7m.h"
 #include "hw/char/pl011.h"

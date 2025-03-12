@@ -14,7 +14,7 @@
 #include "system/hw_accel.h"
 #include "system/kvm.h"
 #include "system/xen.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/qdev-properties.h"
 #include "hw/i386/apic_internal.h"
 #include "cpu-internal.h"

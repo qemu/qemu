@@ -17,7 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/boards.h"
 #include "cpu.h"
 #include "boot.h"

@@ -25,7 +25,7 @@
 #include "hw/intc/riscv_aclint.h"
 #include "system/system.h"
 #include "hw/qdev-properties.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/riscv/boot.h"
 
 static const struct MemmapEntry {

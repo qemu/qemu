@@ -17,7 +17,7 @@
 #include "qemu/range.h"
 #include "hw/virtio/vhost.h"
 #include "system/kvm.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "trace.h"
 
 static bool memory_device_is_empty(const MemoryDeviceState *md)

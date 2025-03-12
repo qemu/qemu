@@ -17,7 +17,7 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "target/i386/cpu.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 
 static const Property sgx_epc_properties[] = {
     DEFINE_PROP_UINT64(SGX_EPC_ADDR_PROP, SGXEPCDevice, addr, 0),

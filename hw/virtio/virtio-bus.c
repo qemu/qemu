@@ -28,7 +28,7 @@
 #include "qapi/error.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 
 /* #define DEBUG_VIRTIO_BUS */
 

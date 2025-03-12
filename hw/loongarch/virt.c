@@ -18,7 +18,7 @@
 #include "system/reset.h"
 #include "system/rtc.h"
 #include "hw/loongarch/virt.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/irq.h"
 #include "net/net.h"
 #include "hw/loader.h"

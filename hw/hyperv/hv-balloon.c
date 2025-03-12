@@ -10,7 +10,7 @@
 #include "qemu/osdep.h"
 #include "hv-balloon-internal.h"
 
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "exec/cpu-common.h"
 #include "exec/ramblock.h"
 #include "hw/boards.h"

@@ -23,7 +23,7 @@
 #include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "cpu.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"

@@ -22,7 +22,7 @@
 
 #include <mach/mach_time.h>
 
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/boards.h"
 #include "hw/irq.h"
 #include "qemu/main-loop.h"

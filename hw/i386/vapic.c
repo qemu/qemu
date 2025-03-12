@@ -16,7 +16,7 @@
 #include "system/hw_accel.h"
 #include "system/kvm.h"
 #include "system/runstate.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/sysbus.h"
 #include "hw/boards.h"

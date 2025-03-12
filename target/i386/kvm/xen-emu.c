@@ -17,7 +17,7 @@
 #include "system/kvm_int.h"
 #include "system/kvm_xen.h"
 #include "kvm/kvm_i386.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "xen-emu.h"
 #include "trace.h"
 #include "system/runstate.h"
