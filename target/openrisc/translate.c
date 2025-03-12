@@ -632,6 +632,8 @@ static void do_load(DisasContext *dc, arg_load *a, MemOp mop)
 {
     TCGv ea;
 
+    mop |= MO_TE;
+
     check_r0_write(dc, a->d);
     ea = tcg_temp_new();
     tcg_gen_addi_tl(ea, cpu_R(dc, a->a), a->i);
@@ -640,13 +642,13 @@ static void do_load(DisasContext *dc, arg_load *a, MemOp mop)
 
 static bool trans_l_lwz(DisasContext *dc, arg_load *a)
 {
-    do_load(dc, a, MO_TE | MO_UL);
+    do_load(dc, a, MO_UL);
     return true;
 }
 
 static bool trans_l_lws(DisasContext *dc, arg_load *a)
 {
-    do_load(dc, a, MO_TE | MO_SL);
+    do_load(dc, a, MO_SL);
     return true;
 }
 
@@ -664,13 +666,13 @@ static bool trans_l_lbs(DisasContext *dc, arg_load *a)
 
 static bool trans_l_lhz(DisasContext *dc, arg_load *a)
 {
-    do_load(dc, a, MO_TE | MO_UW);
+    do_load(dc, a, MO_UW);
     return true;
 }
 
 static bool trans_l_lhs(DisasContext *dc, arg_load *a)
 {
-    do_load(dc, a, MO_TE | MO_SW);
+    do_load(dc, a, MO_SW);
     return true;
 }
 
