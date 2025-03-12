@@ -1813,7 +1813,7 @@ static void gen_CMPXCHG(DisasContext *s, X86DecodedInsn *decode)
 static void gen_CMPXCHG16B(DisasContext *s, X86DecodedInsn *decode)
 {
 #ifdef TARGET_X86_64
-    MemOp mop = MO_TE | MO_128 | MO_ALIGN;
+    MemOp mop = MO_LE | MO_128 | MO_ALIGN;
     TCGv_i64 t0, t1;
     TCGv_i128 cmp, val;
 
@@ -1870,10 +1870,10 @@ static void gen_CMPXCHG8B(DisasContext *s, X86DecodedInsn *decode)
 
     /* Only require atomic with LOCK; non-parallel handled in generator. */
     if (s->prefix & PREFIX_LOCK) {
-        tcg_gen_atomic_cmpxchg_i64(old, s->A0, cmp, val, s->mem_index, MO_TEUQ);
+        tcg_gen_atomic_cmpxchg_i64(old, s->A0, cmp, val, s->mem_index, MO_LEUQ);
     } else {
         tcg_gen_nonatomic_cmpxchg_i64(old, s->A0, cmp, val,
-                                      s->mem_index, MO_TEUQ);
+                                      s->mem_index, MO_LEUQ);
     }
 
     /* Compute the required value of Z. */
