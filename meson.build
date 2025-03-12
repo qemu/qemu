@@ -3662,12 +3662,14 @@ io_ss = ss.source_set()
 qmp_ss = ss.source_set()
 qom_ss = ss.source_set()
 system_ss = ss.source_set()
+libsystem_ss = ss.source_set()
 specific_fuzz_ss = ss.source_set()
 specific_ss = ss.source_set()
 rust_devices_ss = ss.source_set()
 stub_ss = ss.source_set()
 trace_ss = ss.source_set()
 user_ss = ss.source_set()
+libuser_ss = ss.source_set()
 util_ss = ss.source_set()
 
 # accel modules
@@ -4044,6 +4046,26 @@ common_ss.add(qom, qemuutil)
 
 common_ss.add_all(when: 'CONFIG_SYSTEM_ONLY', if_true: [system_ss])
 common_ss.add_all(when: 'CONFIG_USER_ONLY', if_true: user_ss)
+
+libuser_ss = libuser_ss.apply({})
+libuser = static_library('user',
+                         libuser_ss.sources() + genh,
+                         c_args: '-DCONFIG_USER_ONLY',
+                         dependencies: libuser_ss.dependencies(),
+                         build_by_default: false)
+libuser = declare_dependency(objects: libuser.extract_all_objects(recursive: false),
+                             dependencies: libuser_ss.dependencies())
+common_ss.add(when: 'CONFIG_USER_ONLY', if_true: libuser)
+
+libsystem_ss = libsystem_ss.apply({})
+libsystem = static_library('system',
+                           libsystem_ss.sources() + genh,
+                           c_args: '-DCONFIG_SOFTMMU',
+                           dependencies: libsystem_ss.dependencies(),
+                           build_by_default: false)
+libsystem = declare_dependency(objects: libsystem.extract_all_objects(recursive: false),
+                               dependencies: libsystem_ss.dependencies())
+common_ss.add(when: 'CONFIG_SYSTEM_ONLY', if_true: libsystem)
 
 # Note that this library is never used directly (only through extract_objects)
 # and is not built by default; therefore, source files not used by the build
