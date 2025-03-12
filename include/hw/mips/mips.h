@@ -7,7 +7,7 @@
 /* Kernels can be configured with 64KB pages */
 #define INITRD_PAGE_SIZE (64 * KiB)
 
-#include "exec/memory.h"
+#include "system/memory.h"
 
 /* bonito.c */
 PCIBus *bonito_init(qemu_irq *pic);

@@ -7,7 +7,7 @@
 #include "qemu/osdep.h"
 #include "disas-internal.h"
 #include "disas/disas.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/core/cpu.h"
 #include "monitor/monitor.h"
 

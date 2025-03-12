@@ -23,7 +23,7 @@
  */
 
 #include "hw/sysbus.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "net/net.h"
 #include "net/eth.h"
 #include "qom/object.h"

@@ -19,7 +19,7 @@
 #include "system/dirtylimit.h"
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/target_page.h"
 #include "hw/boards.h"
 #include "system/kvm.h"

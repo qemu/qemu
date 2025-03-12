@@ -3,7 +3,7 @@
 #ifndef HW_BOARDS_H
 #define HW_BOARDS_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "system/hostmem.h"
 #include "system/blockdev.h"
 #include "qapi/qapi-types-machine.h"

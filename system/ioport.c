@@ -27,7 +27,7 @@
 
 #include "qemu/osdep.h"
 #include "exec/ioport.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/address-spaces.h"
 #include "trace.h"
 

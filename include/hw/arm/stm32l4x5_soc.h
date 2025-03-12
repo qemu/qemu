@@ -24,7 +24,7 @@
 #ifndef HW_ARM_STM32L4x5_SOC_H
 #define HW_ARM_STM32L4x5_SOC_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/arm/armv7m.h"
 #include "hw/or-irq.h"
 #include "hw/misc/stm32l4x5_syscfg.h"

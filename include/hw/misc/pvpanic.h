@@ -15,7 +15,7 @@
 #ifndef HW_MISC_PVPANIC_H
 #define HW_MISC_PVPANIC_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "qom/object.h"
 
 #include "standard-headers/misc/pvpanic.h"

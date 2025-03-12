@@ -11,10 +11,8 @@
  *
  */
 
-#ifndef MEMORY_H
-#define MEMORY_H
-
-#ifndef CONFIG_USER_ONLY
+#ifndef SYSTEM_MEMORY_H
+#define SYSTEM_MEMORY_H
 
 #include "exec/cpu-common.h"
 #include "exec/hwaddr.h"
@@ -3195,7 +3193,5 @@ bool ram_block_discard_is_required(void);
 
 void ram_block_add_cpr_blocker(RAMBlock *rb, Error **errp);
 void ram_block_del_cpr_blocker(RAMBlock *rb);
-
-#endif
 
 #endif

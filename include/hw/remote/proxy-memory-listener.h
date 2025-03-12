@@ -9,7 +9,7 @@
 #ifndef PROXY_MEMORY_LISTENER_H
 #define PROXY_MEMORY_LISTENER_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "io/channel.h"
 
 typedef struct ProxyMemoryListener {

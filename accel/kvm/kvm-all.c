@@ -33,7 +33,7 @@
 #include "system/cpus.h"
 #include "system/accel-blocker.h"
 #include "qemu/bswap.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/ram_addr.h"
 #include "qemu/event_notifier.h"
 #include "qemu/main-loop.h"

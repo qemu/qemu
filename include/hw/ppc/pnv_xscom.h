@@ -20,7 +20,7 @@
 #ifndef PPC_PNV_XSCOM_H
 #define PPC_PNV_XSCOM_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 
 typedef struct PnvXScomInterface PnvXScomInterface;
 typedef struct PnvChip PnvChip;

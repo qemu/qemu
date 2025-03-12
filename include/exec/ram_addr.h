@@ -26,7 +26,7 @@
 #include "exec/ramlist.h"
 #include "exec/ramblock.h"
 #include "exec/exec-all.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/target_page.h"
 #include "qemu/rcu.h"
 

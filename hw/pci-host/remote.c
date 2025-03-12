@@ -28,7 +28,7 @@
 #include "hw/pci/pcie_host.h"
 #include "hw/qdev-properties.h"
 #include "hw/pci-host/remote.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 
 static const char *remote_pcihost_root_bus_path(PCIHostState *host_bridge,
                                                 PCIBus *rootbus)

@@ -50,7 +50,7 @@
 #include "qemu/log.h"
 #include "qemu/memalign.h"
 #include "qemu/memfd.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/ioport.h"
 #include "system/dma.h"
 #include "system/hostmem.h"

@@ -12,7 +12,7 @@
 #ifndef TPM_TPM_PPI_H
 #define TPM_TPM_PPI_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 
 typedef struct TPMPPI {
     MemoryRegion ram;

@@ -7,7 +7,7 @@
 #ifndef FSI_FSI_MASTER_H
 #define FSI_FSI_MASTER_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/qdev-core.h"
 #include "hw/fsi/fsi.h"
 #include "hw/fsi/cfam.h"

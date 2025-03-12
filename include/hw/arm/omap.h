@@ -20,7 +20,7 @@
 #ifndef HW_ARM_OMAP_H
 #define HW_ARM_OMAP_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "target/arm/cpu-qom.h"
 #include "qemu/log.h"
 #include "qom/object.h"

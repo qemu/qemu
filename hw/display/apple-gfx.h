@@ -9,7 +9,7 @@
 #define QEMU_APPLE_GFX_H
 
 #include "qemu/queue.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/qdev-properties.h"
 #include "ui/surface.h"
 

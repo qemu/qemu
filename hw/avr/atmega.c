@@ -12,7 +12,7 @@
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/address-spaces.h"
 #include "system/system.h"
 #include "hw/qdev-properties.h"

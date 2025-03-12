@@ -14,7 +14,7 @@
 #include "qemu/queue.h"
 #include "qemu/event_notifier.h"
 #include "chardev/char-fe.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "qom/object.h"
 #include "hw/sysbus.h"
 

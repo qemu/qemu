@@ -27,7 +27,7 @@
 #include "qobject/qdict.h"
 #include "system/kvm.h"
 #include "system/runstate.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "qemu/xxhash.h"
 #include "migration.h"
 

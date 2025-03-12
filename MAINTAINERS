@@ -3120,7 +3120,7 @@ R: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Supported
 F: include/exec/ioport.h
 F: include/exec/memop.h
-F: include/exec/memory.h
+F: include/system/memory.h
 F: include/exec/ram_addr.h
 F: include/exec/ramblock.h
 F: include/system/memory_mapping.h

@@ -11,7 +11,7 @@
 
 #include "hw/sysbus.h"
 #include "qom/object.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 
 #define TYPE_FSL_IMX8M_PCIE_PHY "fsl-imx8m-pcie-phy"
 OBJECT_DECLARE_SIMPLE_TYPE(FslImx8mPciePhyState, FSL_IMX8M_PCIE_PHY)

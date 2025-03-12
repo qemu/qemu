@@ -12,7 +12,7 @@
 #define REGISTER_H
 
 #include "hw/qdev-core.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/registerfields.h"
 #include "qom/object.h"
 

@@ -53,7 +53,7 @@ echo $(grep_include -F 'trace/generated-tracers.h') files include generated-trac
 echo $(grep_include -F 'qapi/error.h') files include qapi/error.h
 echo $(grep_include -F 'qom/object.h') files include qom/object.h
 echo $(grep_include -F 'block/aio.h') files include block/aio.h
-echo $(grep_include -F 'exec/memory.h') files include exec/memory.h
+echo $(grep_include -F 'system/memory.h') files include system/memory.h
 echo $(grep_include -F 'fpu/softfloat.h') files include fpu/softfloat.h
 echo $(grep_include -F 'qemu/bswap.h') files include qemu/bswap.h
 echo

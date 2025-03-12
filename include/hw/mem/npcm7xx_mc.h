@@ -16,7 +16,7 @@
 #ifndef NPCM7XX_MC_H
 #define NPCM7XX_MC_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/sysbus.h"
 
 /**

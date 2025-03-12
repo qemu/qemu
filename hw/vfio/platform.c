@@ -28,7 +28,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/range.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/address-spaces.h"
 #include "qemu/queue.h"
 #include "hw/sysbus.h"

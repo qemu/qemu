@@ -50,7 +50,7 @@
  * 0xf0000 - 0xfffff System BIOS Area Memory Segments
  */
 
-#include "exec/memory.h"
+#include "system/memory.h"
 
 #define SMRAM_C_BASE    0xa0000
 #define SMRAM_C_END     0xc0000

@@ -22,7 +22,7 @@
 #include "accel/tcg/cpu-ops.h"
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/cpu_ldst.h"
 #include "exec/cputlb.h"
 #include "exec/tb-flush.h"

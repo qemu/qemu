@@ -29,7 +29,7 @@
 #include "hw/sd/sdhci.h"
 #include "hw/usb/chipidea.h"
 #include "hw/watchdog/wdt_imx2.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "target/arm/cpu.h"
 #include "qom/object.h"
 

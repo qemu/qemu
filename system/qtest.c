@@ -17,7 +17,7 @@
 #include "system/runstate.h"
 #include "chardev/char-fe.h"
 #include "exec/ioport.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/tswap.h"
 #include "hw/qdev-core.h"
 #include "hw/irq.h"

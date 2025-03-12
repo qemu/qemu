@@ -22,11 +22,14 @@
 #include "exec/page-protection.h"
 #include "exec/cpu-common.h"
 #include "exec/cpu-interrupt.h"
-#include "exec/memory.h"
 #include "exec/tswap.h"
 #include "hw/core/cpu.h"
 #include "exec/cpu-defs.h"
 #include "exec/target_page.h"
+#ifndef CONFIG_USER_ONLY
+#include "system/memory.h"
+#endif
+
 
 CPUArchState *cpu_copy(CPUArchState *env);
 

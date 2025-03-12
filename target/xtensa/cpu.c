@@ -36,7 +36,7 @@
 #include "migration/vmstate.h"
 #include "hw/qdev-clock.h"
 #ifndef CONFIG_USER_ONLY
-#include "exec/memory.h"
+#include "system/memory.h"
 #endif
 
 

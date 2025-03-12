@@ -13,7 +13,7 @@
 #define QEMU_VHOST_USER_BACKEND_H
 
 #include "qom/object.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "qemu/option.h"
 #include "qemu/bitmap.h"
 #include "hw/virtio/vhost.h"

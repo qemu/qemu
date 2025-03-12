@@ -28,7 +28,7 @@
 #ifndef HW_USB_HCD_UHCI_H
 #define HW_USB_HCD_UHCI_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "qemu/timer.h"
 #include "hw/pci/pci_device.h"
 #include "hw/usb.h"

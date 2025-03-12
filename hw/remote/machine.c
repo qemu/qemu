@@ -16,7 +16,7 @@
 #include "qemu/osdep.h"
 
 #include "hw/remote/machine.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "qapi/error.h"
 #include "hw/pci/pci_host.h"
 #include "hw/remote/iohub.h"

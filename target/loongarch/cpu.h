@@ -14,7 +14,7 @@
 #include "hw/registerfields.h"
 #include "qemu/timer.h"
 #ifndef CONFIG_USER_ONLY
-#include "exec/memory.h"
+#include "system/memory.h"
 #endif
 #include "cpu-csr.h"
 #include "cpu-qom.h"

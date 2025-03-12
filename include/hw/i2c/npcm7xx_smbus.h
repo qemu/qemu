@@ -16,7 +16,7 @@
 #ifndef NPCM7XX_SMBUS_H
 #define NPCM7XX_SMBUS_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/i2c/i2c.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"

@@ -20,7 +20,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/units.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/loader.h"
 #include "hw/loader-fit.h"
 #include "qemu/cutils.h"

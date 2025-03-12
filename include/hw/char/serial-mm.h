@@ -27,7 +27,7 @@
 #define HW_SERIAL_MM_H
 
 #include "hw/char/serial.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "chardev/char.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"

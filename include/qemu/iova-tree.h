@@ -23,7 +23,7 @@
  * for the thread safety issue.
  */
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/hwaddr.h"
 
 #define  IOVA_OK           (0)

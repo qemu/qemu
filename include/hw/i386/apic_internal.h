@@ -22,7 +22,7 @@
 #define QEMU_APIC_INTERNAL_H
 
 #include "cpu.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "qemu/timer.h"
 #include "target/i386/cpu-qom.h"
 #include "qom/object.h"

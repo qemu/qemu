@@ -48,7 +48,7 @@
 #include "qapi/qapi-builtin-visit.h"
 #include "qemu/error-report.h"
 #include "system/cpus.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/target_page.h"
 #include "trace.h"
 #include "qemu/iov.h"

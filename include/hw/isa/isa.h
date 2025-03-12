@@ -3,7 +3,7 @@
 
 /* ISA bus */
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/ioport.h"
 #include "hw/qdev-core.h"
 #include "qom/object.h"

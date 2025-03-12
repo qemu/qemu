@@ -4,7 +4,7 @@
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 #ifndef CONFIG_USER_ONLY
-#include "exec/memory.h"
+#include "system/memory.h"
 #endif
 #include "fpu/softfloat-types.h"
 #include "hw/clock.h"

@@ -59,7 +59,7 @@
 #include "uboot_image.h"
 #include "hw/loader.h"
 #include "hw/nvram/fw_cfg.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/boards.h"
 #include "qemu/cutils.h"
 #include "system/runstate.h"

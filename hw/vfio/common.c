@@ -28,7 +28,7 @@
 #include "hw/vfio/vfio-common.h"
 #include "hw/vfio/pci.h"
 #include "exec/address-spaces.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/ram_addr.h"
 #include "exec/target_page.h"
 #include "hw/hw.h"

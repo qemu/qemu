@@ -13,7 +13,7 @@
 #ifndef HW_VFIO_VFIO_CONTAINER_BASE_H
 #define HW_VFIO_VFIO_CONTAINER_BASE_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 
 typedef struct VFIODevice VFIODevice;
 typedef struct VFIOIOMMUClass VFIOIOMMUClass;

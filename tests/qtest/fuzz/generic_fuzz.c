@@ -20,7 +20,7 @@
 #include "tests/qtest/libqos/pci-pc.h"
 #include "fuzz.h"
 #include "string.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/ramblock.h"
 #include "hw/qdev-core.h"
 #include "hw/pci/pci.h"

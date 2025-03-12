@@ -11,7 +11,7 @@
 #ifndef VHOST_BACKEND_H
 #define VHOST_BACKEND_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 
 typedef enum VhostBackendType {
     VHOST_BACKEND_TYPE_NONE = 0,

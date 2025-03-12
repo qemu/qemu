@@ -7,7 +7,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_device.h"
 #include "hw/rtc/mc146818rtc.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "qemu/notify.h"
 #include "qom/object.h"
 

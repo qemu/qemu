@@ -10,7 +10,7 @@
 
 #include "qemu/int128.h"
 #include "qemu/range.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/cpu-common.h"
 #include "exec/ram_addr.h"
 #include "qapi/error.h"
