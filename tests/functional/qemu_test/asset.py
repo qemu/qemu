@@ -17,6 +17,14 @@ from pathlib import Path
 from shutil import copyfileobj
 from urllib.error import HTTPError
 
+class AssetError(Exception):
+    def __init__(self, asset, msg, transient=False):
+        self.url = asset.url
+        self.msg = msg
+        self.transient = transient
+
+    def __str__(self):
+        return "%s: %s" % (self.url, self.msg)
 
 # Instances of this class must be declared as class level variables
 # starting with a name "ASSET_". This enables the pre-caching logic
@@ -51,7 +59,7 @@ class Asset:
         elif len(self.hash) == 128:
             hl = hashlib.sha512()
         else:
-            raise Exception("unknown hash type")
+            raise AssetError(self, "unknown hash type")
 
         # Calculate the hash of the file:
         with open(cache_file, 'rb') as file:
@@ -111,7 +119,8 @@ class Asset:
             return str(self.cache_file)
 
         if not self.fetchable():
-            raise Exception("Asset cache is invalid and downloads disabled")
+            raise AssetError(self,
+                             "Asset cache is invalid and downloads disabled")
 
         self.log.info("Downloading %s to %s...", self.url, self.cache_file)
         tmp_cache_file = self.cache_file.with_suffix(".download")
@@ -147,13 +156,23 @@ class Asset:
                                tmp_cache_file)
                 tmp_cache_file.unlink()
                 continue
-            except Exception as e:
-                self.log.error("Unable to download %s: %s", self.url, e)
+            except HTTPError as e:
                 tmp_cache_file.unlink()
-                raise
+                self.log.error("Unable to download %s: HTTP error %d",
+                               self.url, e.code)
+                # Treat 404 as fatal, since it is highly likely to
+                # indicate a broken test rather than a transient
+                # server or networking problem
+                if e.code == 404:
+                    raise AssetError(self, "Unable to download: "
+                                     "HTTP error %d" % e.code)
+                continue
+            except Exception as e:
+                tmp_cache_file.unlink()
+                raise AssetError(self, "Unable to download: " % e)
 
         if not os.path.exists(tmp_cache_file):
-            raise Exception("Retries exceeded downloading %s", self.url)
+            raise AssetError(self, "Download retries exceeded", transient=True)
 
         try:
             # Set these just for informational purposes
@@ -167,8 +186,7 @@ class Asset:
 
         if not self._check(tmp_cache_file):
             tmp_cache_file.unlink()
-            raise Exception("Hash of %s does not match %s" %
-                            (self.url, self.hash))
+            raise AssetError(self, "Hash does not match %s" % self.hash)
         tmp_cache_file.replace(self.cache_file)
         # Remove write perms to stop tests accidentally modifying them
         os.chmod(self.cache_file, stat.S_IRUSR | stat.S_IRGRP)
@@ -190,15 +208,10 @@ class Asset:
                 log.info("Attempting to cache '%s'" % asset)
                 try:
                     asset.fetch()
-                except HTTPError as e:
-                    # Treat 404 as fatal, since it is highly likely to
-                    # indicate a broken test rather than a transient
-                    # server or networking problem
-                    if e.code == 404:
+                except AssetError as e:
+                    if not e.transient:
                         raise
-
-                    log.debug(f"HTTP error {e.code} from {asset.url} " +
-                              "skipping asset precache")
+                    log.error("%s: skipping asset precache" % e)
 
         log.removeHandler(handler)
 
