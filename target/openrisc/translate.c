@@ -59,6 +59,11 @@ typedef struct DisasContext {
     TCGv zero;
 } DisasContext;
 
+static inline MemOp mo_endian(DisasContext *dc)
+{
+    return MO_TE;
+}
+
 static inline bool is_user(DisasContext *dc)
 {
 #ifdef CONFIG_USER_ONLY
@@ -622,7 +627,8 @@ static bool trans_l_lwa(DisasContext *dc, arg_load *a)
     check_r0_write(dc, a->d);
     ea = tcg_temp_new();
     tcg_gen_addi_tl(ea, cpu_R(dc, a->a), a->i);
-    tcg_gen_qemu_ld_tl(cpu_R(dc, a->d), ea, dc->mem_idx, MO_TE | MO_UL);
+    tcg_gen_qemu_ld_tl(cpu_R(dc, a->d), ea, dc->mem_idx,
+                       mo_endian(dc) | MO_UL);
     tcg_gen_mov_tl(cpu_lock_addr, ea);
     tcg_gen_mov_tl(cpu_lock_value, cpu_R(dc, a->d));
     return true;
@@ -632,7 +638,7 @@ static void do_load(DisasContext *dc, arg_load *a, MemOp mop)
 {
     TCGv ea;
 
-    mop |= MO_TE;
+    mop |= mo_endian(dc);
 
     check_r0_write(dc, a->d);
     ea = tcg_temp_new();
@@ -690,7 +696,8 @@ static bool trans_l_swa(DisasContext *dc, arg_store *a)
 
     val = tcg_temp_new();
     tcg_gen_atomic_cmpxchg_tl(val, cpu_lock_addr, cpu_lock_value,
-                              cpu_R(dc, a->b), dc->mem_idx, MO_TE | MO_UL);
+                              cpu_R(dc, a->b), dc->mem_idx,
+                              mo_endian(dc) | MO_UL);
     tcg_gen_setcond_tl(TCG_COND_EQ, cpu_sr_f, val, cpu_lock_value);
 
     tcg_gen_br(lab_done);
@@ -707,7 +714,7 @@ static void do_store(DisasContext *dc, arg_store *a, MemOp mop)
 {
     TCGv t0 = tcg_temp_new();
 
-    mop |= MO_TE;
+    mop |= mo_endian(dc);
 
     tcg_gen_addi_tl(t0, cpu_R(dc, a->a), a->i);
     tcg_gen_qemu_st_tl(cpu_R(dc, a->b), t0, dc->mem_idx, mop);
