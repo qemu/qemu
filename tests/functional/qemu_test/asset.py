@@ -121,6 +121,20 @@ class Asset:
                 with tmp_cache_file.open("xb") as dst:
                     with urllib.request.urlopen(self.url) as resp:
                         copyfileobj(resp, dst)
+                        length_hdr = resp.getheader("Content-Length")
+
+                # Verify downloaded file size against length metadata, if
+                # available.
+                if length_hdr is not None:
+                    length = int(length_hdr)
+                    fsize = tmp_cache_file.stat().st_size
+                    if fsize != length:
+                        self.log.error("Unable to download %s: "
+                                       "connection closed before "
+                                       "transfer complete (%d/%d)",
+                                       self.url, fsize, length)
+                        tmp_cache_file.unlink()
+                        continue
                 break
             except FileExistsError:
                 self.log.debug("%s already exists, "
