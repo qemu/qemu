@@ -706,13 +706,16 @@ static bool trans_l_swa(DisasContext *dc, arg_store *a)
 static void do_store(DisasContext *dc, arg_store *a, MemOp mop)
 {
     TCGv t0 = tcg_temp_new();
+
+    mop |= MO_TE;
+
     tcg_gen_addi_tl(t0, cpu_R(dc, a->a), a->i);
     tcg_gen_qemu_st_tl(cpu_R(dc, a->b), t0, dc->mem_idx, mop);
 }
 
 static bool trans_l_sw(DisasContext *dc, arg_store *a)
 {
-    do_store(dc, a, MO_TE | MO_UL);
+    do_store(dc, a, MO_UL);
     return true;
 }
 
@@ -724,7 +727,7 @@ static bool trans_l_sb(DisasContext *dc, arg_store *a)
 
 static bool trans_l_sh(DisasContext *dc, arg_store *a)
 {
-    do_store(dc, a, MO_TE | MO_UW);
+    do_store(dc, a, MO_UW);
     return true;
 }
 
