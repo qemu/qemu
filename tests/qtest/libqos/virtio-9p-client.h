@@ -65,6 +65,16 @@ typedef struct v9fs_attr {
 #define P9_GETATTR_BASIC    0x000007ffULL /* Mask for fields up to BLOCKS */
 #define P9_GETATTR_ALL      0x00003fffULL /* Mask for ALL fields */
 
+#define P9_SETATTR_MODE         0x00000001UL
+#define P9_SETATTR_UID          0x00000002UL
+#define P9_SETATTR_GID          0x00000004UL
+#define P9_SETATTR_SIZE         0x00000008UL
+#define P9_SETATTR_ATIME        0x00000010UL
+#define P9_SETATTR_MTIME        0x00000020UL
+#define P9_SETATTR_CTIME        0x00000040UL
+#define P9_SETATTR_ATIME_SET    0x00000080UL
+#define P9_SETATTR_MTIME_SET    0x00000100UL
+
 struct V9fsDirent {
     v9fs_qid qid;
     uint64_t offset;
@@ -181,6 +191,28 @@ typedef struct TGetAttrRes {
     /* if requestOnly was set: request object for further processing */
     P9Req *req;
 } TGetAttrRes;
+
+/* options for 'Tsetattr' 9p request */
+typedef struct TSetAttrOpt {
+    /* 9P client being used (mandatory) */
+    QVirtio9P *client;
+    /* user supplied tag number being returned with response (optional) */
+    uint16_t tag;
+    /* file ID of file/dir whose attributes shall be modified (required) */
+    uint32_t fid;
+    /* new attribute values to be set by 9p server */
+    v9fs_attr attr;
+    /* only send Tsetattr request but not wait for a reply? (optional) */
+    bool requestOnly;
+    /* do we expect an Rlerror response, if yes which error code? (optional) */
+    uint32_t expectErr;
+} TSetAttrOpt;
+
+/* result of 'Tsetattr' 9p request */
+typedef struct TSetAttrRes {
+    /* if requestOnly was set: request object for further processing */
+    P9Req *req;
+} TSetAttrRes;
 
 /* options for 'Treaddir' 9p request */
 typedef struct TReadDirOpt {
@@ -470,6 +502,8 @@ TWalkRes v9fs_twalk(TWalkOpt opt);
 void v9fs_rwalk(P9Req *req, uint16_t *nwqid, v9fs_qid **wqid);
 TGetAttrRes v9fs_tgetattr(TGetAttrOpt);
 void v9fs_rgetattr(P9Req *req, v9fs_attr *attr);
+TSetAttrRes v9fs_tsetattr(TSetAttrOpt opt);
+void v9fs_rsetattr(P9Req *req);
 TReadDirRes v9fs_treaddir(TReadDirOpt);
 void v9fs_rreaddir(P9Req *req, uint32_t *count, uint32_t *nentries,
                    struct V9fsDirent **entries);
