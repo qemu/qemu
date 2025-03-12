@@ -35,6 +35,7 @@
 
 #include "qemu.h"
 #include "exec/page-protection.h"
+#include "exec/mmap-lock.h"
 #include "user-internals.h"
 #include "loader.h"
 #include "user-mmap.h"

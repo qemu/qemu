@@ -45,6 +45,7 @@
 
 #include "exec/cputlb.h"
 #include "exec/page-protection.h"
+#include "exec/mmap-lock.h"
 #include "tb-internal.h"
 #include "exec/translator.h"
 #include "exec/tb-flush.h"

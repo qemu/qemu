@@ -13,6 +13,7 @@
 #include "exec/translation-block.h"
 #include "tb-internal.h"
 #include "tcg-target-mo.h"
+#include "exec/mmap-lock.h"
 
 /*
  * Access to the various translations structures need to be serialised

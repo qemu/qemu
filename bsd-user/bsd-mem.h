@@ -56,6 +56,7 @@
 #include <fcntl.h>
 
 #include "qemu-bsd.h"
+#include "exec/mmap-lock.h"
 #include "exec/page-protection.h"
 #include "user/page-protection.h"
 
