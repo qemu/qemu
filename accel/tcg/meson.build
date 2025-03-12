@@ -1,11 +1,20 @@
-common_ss.add(when: 'CONFIG_TCG', if_true: files(
+if not get_option('tcg').allowed()
+   subdir_done()
+endif
+
+tcg_ss = ss.source_set()
+
+tcg_ss.add(files(
   'cpu-exec-common.c',
   'tcg-runtime.c',
   'tcg-runtime-gvec.c',
 ))
 if get_option('plugins')
-  common_ss.add(when: 'CONFIG_TCG', if_true: files('plugin-gen.c'))
+  tcg_ss.add(files('plugin-gen.c'))
 endif
+
+libuser_ss.add_all(tcg_ss)
+libsystem_ss.add_all(tcg_ss)
 
 tcg_specific_ss = ss.source_set()
 tcg_specific_ss.add(files(
@@ -22,11 +31,11 @@ specific_ss.add(when: ['CONFIG_SYSTEM_ONLY', 'CONFIG_TCG'], if_true: files(
   'cputlb.c',
 ))
 
-user_ss.add(when: ['CONFIG_TCG'], if_true: files(
+libuser_ss.add(files(
   'user-exec-stub.c',
 ))
 
-system_ss.add(when: ['CONFIG_TCG'], if_true: files(
+libsystem_ss.add(files(
   'icount-common.c',
   'monitor.c',
   'tcg-accel-ops.c',
