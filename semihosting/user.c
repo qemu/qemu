@@ -1,9 +1,7 @@
 /*
- * Semihosting Stubs for all targets
+ * Semihosting for user emulation
  *
- * Copyright (c) 2023 Linaro Ltd
- *
- * Stubs for all targets that don't actually do semihosting.
+ * Copyright (c) 2019 Linaro Ltd
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -11,10 +9,9 @@
 #include "qemu/osdep.h"
 #include "semihosting/semihost.h"
 
-/* Queries to config status default to off */
 bool semihosting_enabled(bool is_user)
 {
-    return false;
+    return true;
 }
 
 SemihostingTarget semihosting_get_target(void)

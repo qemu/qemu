@@ -22,12 +22,6 @@ QemuOptsList qemu_semihosting_config_opts = {
     },
 };
 
-/* Queries to config status default to off */
-bool semihosting_enabled(bool is_user)
-{
-    return false;
-}
-
 /*
  * All the rest are empty subs. We could g_assert_not_reached() but
  * that adds extra weight to the final binary. Waste not want not.
