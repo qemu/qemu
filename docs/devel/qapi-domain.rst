@@ -385,13 +385,13 @@ Type names in references can be surrounded by brackets, like
 ``[typename]``, to indicate an array of that type.  The cross-reference
 will apply only to the type name between the brackets. For example;
 ``:qapi:type:`[Qcow2BitmapInfoFlags]``` renders to:
-:qapi:type:`[Qcow2BitmapInfoFlags]`
+:qapi:type:`[QMP:Qcow2BitmapInfoFlags]`
 
 To indicate an optional argument/member in a field list, the type name
 can be suffixed with ``?``. The cross-reference will be transformed to
 "type, Optional" with the link applying only to the type name. For
 example; ``:qapi:type:`BitmapSyncMode?``` renders to:
-:qapi:type:`BitmapSyncMode?`
+:qapi:type:`QMP:BitmapSyncMode?`
 
 
 Namespaces
@@ -405,11 +405,11 @@ type.
 * A namespace can be explicitly provided;
   e.g. ``:qapi:type:`QMP:BitmapSyncMode``
 * A module can be explicitly provided;
-  ``:qapi:type:`block-core.BitmapSyncMode``` will render to:
-  :qapi:type:`block-core.BitmapSyncMode`
+  ``:qapi:type:`QMP:block-core.BitmapSyncMode``` will render to:
+  :qapi:type:`QMP:block-core.BitmapSyncMode`
 * If you don't want to display the "fully qualified" name, it can be
-  prefixed with a tilde; ``:qapi:type:`~block-core.BitmapSyncMode```
-  will render to: :qapi:type:`~block-core.BitmapSyncMode`
+  prefixed with a tilde; ``:qapi:type:`~QMP:block-core.BitmapSyncMode```
+  will render to: :qapi:type:`~QMP:block-core.BitmapSyncMode`
 
 
 Target resolution
@@ -444,7 +444,7 @@ using the ``custom text <target>`` syntax.
 
 For example, ``:qapi:cmd:`Merge dirty bitmaps
 <block-dirty-bitmap-merge>``` will render as: :qapi:cmd:`Merge dirty
-bitmaps <block-dirty-bitmap-merge>`
+bitmaps <QMP:block-dirty-bitmap-merge>`
 
 
 Directives
