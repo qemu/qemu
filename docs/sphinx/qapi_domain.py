@@ -294,8 +294,9 @@ class QAPIObject(QAPIDescription):
     )
     option_spec.update(
         {
-            # Borrowed from the Python domain:
-            "module": directives.unchanged,  # Override contextual module name
+            # Context overrides:
+            "namespace": directives.unchanged,
+            "module": directives.unchanged,
             # These are QAPI originals:
             "since": directives.unchanged,
             "ifcond": directives.unchanged,

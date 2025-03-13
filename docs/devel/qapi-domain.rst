@@ -466,6 +466,8 @@ QAPI standard options
 
 All QAPI directives -- *except* for module -- support these common options.
 
+* ``:namespace: name`` -- This option allows you to override the
+  namespace association of a given definition.
 * ``:module: modname`` -- Borrowed from the Python domain, this option allows
   you to override the module association of a given definition.
 * ``:since: x.y`` -- Allows the documenting of "Since" information, which is
