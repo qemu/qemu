@@ -3121,7 +3121,7 @@ S: Supported
 F: include/system/ioport.h
 F: include/exec/memop.h
 F: include/system/memory.h
-F: include/exec/ram_addr.h
+F: include/system/ram_addr.h
 F: include/exec/ramblock.h
 F: include/system/memory_mapping.h
 F: system/dma-helpers.c

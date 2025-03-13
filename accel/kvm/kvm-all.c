@@ -34,7 +34,7 @@
 #include "system/accel-blocker.h"
 #include "qemu/bswap.h"
 #include "system/memory.h"
-#include "exec/ram_addr.h"
+#include "system/ram_addr.h"
 #include "qemu/event_notifier.h"
 #include "qemu/main-loop.h"
 #include "trace.h"
