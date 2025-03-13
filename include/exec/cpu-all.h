@@ -34,8 +34,6 @@ CPUArchState *cpu_copy(CPUArchState *env);
 
 #ifdef CONFIG_USER_ONLY
 
-static inline int cpu_mmu_index(CPUState *cs, bool ifetch);
-
 /*
  * Allow some level of source compatibility with softmmu.  We do not
  * support any of the more exotic features, so only invalid pages may
@@ -45,10 +43,6 @@ static inline int cpu_mmu_index(CPUState *cs, bool ifetch);
 #define TLB_MMIO            (1 << (TARGET_PAGE_BITS_MIN - 2))
 #define TLB_WATCHPOINT      0
 
-static inline int cpu_mmu_index(CPUState *cs, bool ifetch)
-{
-    return MMU_USER_IDX;
-}
 #else
 
 /*

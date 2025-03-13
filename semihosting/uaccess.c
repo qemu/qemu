@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "exec/cpu-all.h"
+#include "accel/tcg/cpu-mmu-index.h"
 #include "exec/exec-all.h"
 #include "semihosting/uaccess.h"
 

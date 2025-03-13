@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "accel/tcg/cpu-mmu-index.h"
 #include "internals.h"
 #include "cpu-csr.h"
 
