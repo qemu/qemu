@@ -30,6 +30,7 @@
 #include "exec/address-spaces.h"
 #include "exec/memory.h"
 #include "exec/ram_addr.h"
+#include "exec/target_page.h"
 #include "hw/hw.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
@@ -42,6 +43,7 @@
 #include "migration/misc.h"
 #include "migration/blocker.h"
 #include "migration/qemu-file.h"
+#include "system/tcg.h"
 #include "system/tpm.h"
 
 VFIODeviceList vfio_device_list =
@@ -392,13 +394,14 @@ static void vfio_register_ram_discard_listener(VFIOContainerBase *bcontainer,
                                                MemoryRegionSection *section)
 {
     RamDiscardManager *rdm = memory_region_get_ram_discard_manager(section->mr);
+    int target_page_size = qemu_target_page_size();
     VFIORamDiscardListener *vrdl;
 
     /* Ignore some corner cases not relevant in practice. */
-    g_assert(QEMU_IS_ALIGNED(section->offset_within_region, TARGET_PAGE_SIZE));
+    g_assert(QEMU_IS_ALIGNED(section->offset_within_region, target_page_size));
     g_assert(QEMU_IS_ALIGNED(section->offset_within_address_space,
-                             TARGET_PAGE_SIZE));
-    g_assert(QEMU_IS_ALIGNED(int128_get64(section->size), TARGET_PAGE_SIZE));
+                             target_page_size));
+    g_assert(QEMU_IS_ALIGNED(int128_get64(section->size), target_page_size));
 
     vrdl = g_new0(VFIORamDiscardListener, 1);
     vrdl->bcontainer = bcontainer;
