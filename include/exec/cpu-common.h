@@ -9,9 +9,7 @@
 #define CPU_COMMON_H
 
 #include "exec/vaddr.h"
-#ifndef CONFIG_USER_ONLY
 #include "exec/hwaddr.h"
-#endif
 #include "hw/core/cpu.h"
 #include "tcg/debug-assert.h"
 #include "exec/page-protection.h"
@@ -39,8 +37,6 @@ int cpu_get_free_index(void);
 
 void tcg_iommu_init_notifier_list(CPUState *cpu);
 void tcg_iommu_free_notifier_list(CPUState *cpu);
-
-#if !defined(CONFIG_USER_ONLY)
 
 enum device_endian {
     DEVICE_NATIVE_ENDIAN,
@@ -175,8 +171,6 @@ int qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque);
 int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length);
 int ram_block_discard_guest_memfd_range(RAMBlock *rb, uint64_t start,
                                         size_t length);
-
-#endif
 
 /* Returns: 0 on success, -1 on error */
 int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
