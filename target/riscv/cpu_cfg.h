@@ -196,9 +196,7 @@ struct RISCVCPUConfig {
 
     bool short_isa_string;
 
-#ifndef CONFIG_USER_ONLY
     RISCVSATPMap satp_mode;
-#endif
 };
 
 typedef struct RISCVCPUConfig RISCVCPUConfig;
