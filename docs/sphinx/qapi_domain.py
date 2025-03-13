@@ -7,6 +7,7 @@ QAPI domain extension.
 
 from __future__ import annotations
 
+import re
 from typing import (
     TYPE_CHECKING,
     List,
@@ -94,6 +95,7 @@ class QAPIXRefRole(XRefRole):
         title: str,
         target: str,
     ) -> tuple[str, str]:
+        refnode["qapi:namespace"] = env.ref_context.get("qapi:namespace")
         refnode["qapi:module"] = env.ref_context.get("qapi:module")
 
         # Cross-references that begin with a tilde adjust the title to
@@ -830,40 +832,44 @@ class QAPIDomain(Domain):
                 self.objects[fullname] = obj
 
     def find_obj(
-        self, modname: str, name: str, typ: Optional[str]
-    ) -> list[tuple[str, ObjectEntry]]:
+        self, namespace: str, modname: str, name: str, typ: Optional[str]
+    ) -> List[Tuple[str, ObjectEntry]]:
         """
-        Find a QAPI object for "name", perhaps using the given module.
+        Find a QAPI object for "name", maybe using contextual information.
 
         Returns a list of (name, object entry) tuples.
 
-        :param modname: The current module context (if any!)
-                        under which we are searching.
-        :param name: The name of the x-ref to resolve;
-                     may or may not include a leading module.
-        :param type: The role name of the x-ref we're resolving, if provided.
-                     (This is absent for "any" lookups.)
+        :param namespace: The current namespace context (if any!) under
+            which we are searching.
+        :param modname: The current module context (if any!) under
+            which we are searching.
+        :param name: The name of the x-ref to resolve; may or may not
+            include leading context.
+        :param type: The role name of the x-ref we're resolving, if
+            provided. This is absent for "any" role lookups.
         """
         if not name:
             return []
 
-        names: list[str] = []
-        matches: list[tuple[str, ObjectEntry]] = []
+        # ##
+        # what to search for
+        # ##
 
-        fullname = name
-        if "." in fullname:
-            # We're searching for a fully qualified reference;
-            # ignore the contextual module.
-            pass
-        elif modname:
-            # We're searching for something from somewhere;
-            # try searching the current module first.
-            # e.g. :qapi:cmd:`query-block` or `query-block` is being searched.
-            fullname = f"{modname}.{name}"
+        parts = list(QAPIDescription.split_fqn(name))
+        explicit = tuple(bool(x) for x in parts)
+
+        # Fill in the blanks where possible:
+        if namespace and not parts[0]:
+            parts[0] = namespace
+        if modname and not parts[1]:
+            parts[1] = modname
+
+        implicit_fqn = ""
+        if all(parts):
+            implicit_fqn = f"{parts[0]}:{parts[1]}.{parts[2]}"
 
         if typ is None:
-            # type isn't specified, this is a generic xref.
-            # search *all* qapi-specific object types.
+            # :any: lookup, search everything:
             objtypes: List[str] = list(self.object_types)
         else:
             # type is specified and will be a role (e.g. obj, mod, cmd)
@@ -871,25 +877,57 @@ class QAPIDomain(Domain):
             # using the QAPIDomain.object_types table.
             objtypes = self.objtypes_for_role(typ, [])
 
-        if name in self.objects and self.objects[name].objtype in objtypes:
-            names = [name]
-        elif (
-            fullname in self.objects
-            and self.objects[fullname].objtype in objtypes
-        ):
-            names = [fullname]
-        else:
-            # exact match wasn't found; e.g. we are searching for
-            # `query-block` from a different (or no) module.
-            searchname = "." + name
-            names = [
-                oname
-                for oname in self.objects
-                if oname.endswith(searchname)
-                and self.objects[oname].objtype in objtypes
-            ]
+        # ##
+        # search!
+        # ##
 
-        matches = [(oname, self.objects[oname]) for oname in names]
+        def _search(needle: str) -> List[str]:
+            if (
+                needle
+                and needle in self.objects
+                and self.objects[needle].objtype in objtypes
+            ):
+                return [needle]
+            return []
+
+        if found := _search(name):
+            # Exact match!
+            pass
+        elif found := _search(implicit_fqn):
+            # Exact match using contextual information to fill in the gaps.
+            pass
+        else:
+            # No exact hits, perform applicable fuzzy searches.
+            searches = []
+
+            esc = tuple(re.escape(s) for s in parts)
+
+            # Try searching for ns:*.name or ns:name
+            if explicit[0] and not explicit[1]:
+                searches.append(f"^{esc[0]}:([^\\.]+\\.)?{esc[2]}$")
+            # Try searching for *:module.name or module.name
+            if explicit[1] and not explicit[0]:
+                searches.append(f"(^|:){esc[1]}\\.{esc[2]}$")
+            # Try searching for context-ns:*.name or context-ns:name
+            if parts[0] and not (explicit[0] or explicit[1]):
+                searches.append(f"^{esc[0]}:([^\\.]+\\.)?{esc[2]}$")
+            # Try searching for *:context-mod.name or context-mod.name
+            if parts[1] and not (explicit[0] or explicit[1]):
+                searches.append(f"(^|:){esc[1]}\\.{esc[2]}$")
+            # Try searching for *:name, *.name, or name
+            if not (explicit[0] or explicit[1]):
+                searches.append(f"(^|:|\\.){esc[2]}$")
+
+            for search in searches:
+                if found := [
+                    oname
+                    for oname in self.objects
+                    if re.search(search, oname)
+                    and self.objects[oname].objtype in objtypes
+                ]:
+                    break
+
+        matches = [(oname, self.objects[oname]) for oname in found]
         if len(matches) > 1:
             matches = [m for m in matches if not m[1].aliased]
         return matches
@@ -904,8 +942,9 @@ class QAPIDomain(Domain):
         node: pending_xref,
         contnode: Element,
     ) -> nodes.reference | None:
+        namespace = node.get("qapi:namespace")
         modname = node.get("qapi:module")
-        matches = self.find_obj(modname, target, typ)
+        matches = self.find_obj(namespace, modname, target, typ)
 
         if not matches:
             # Normally, we could pass warn_dangling=True to QAPIXRefRole(),
@@ -958,7 +997,9 @@ class QAPIDomain(Domain):
         contnode: Element,
     ) -> List[Tuple[str, nodes.reference]]:
         results: List[Tuple[str, nodes.reference]] = []
-        matches = self.find_obj(node.get("qapi:module"), target, None)
+        matches = self.find_obj(
+            node.get("qapi:namespace"), node.get("qapi:module"), target, None
+        )
         for name, obj in matches:
             rolename = self.role_for_objtype(obj.objtype)
             assert rolename is not None
