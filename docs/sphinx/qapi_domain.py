@@ -178,15 +178,18 @@ class QAPIDescription(ParserFix):
         # NB: this is used for the global index, not the QAPI index.
         return ("single", f"{name} (QMP {self.objtype})")
 
-    def _get_context(self) -> str:
+    def _get_context(self) -> Tuple[str, str]:
+        namespace = self.options.get(
+            "namespace", self.env.ref_context.get("qapi:namespace", "")
+        )
         modname = self.options.get(
             "module", self.env.ref_context.get("qapi:module", "")
         )
-        assert isinstance(modname, str)
-        return modname
+
+        return namespace, modname
 
     def _get_fqn(self, name: Signature) -> str:
-        modname = self._get_context()
+        namespace, modname = self._get_context()
 
         # If we're documenting a module, don't include the module as
         # part of the FQN; we ARE the module!
@@ -195,6 +198,8 @@ class QAPIDescription(ParserFix):
 
         if modname:
             name = f"{modname}.{name}"
+        if namespace:
+            name = f"{namespace}:{name}"
         return name
 
     def add_target_and_index(
@@ -227,13 +232,18 @@ class QAPIDescription(ParserFix):
                 )
 
     @staticmethod
-    def split_fqn(name: str) -> Tuple[str, str]:
+    def split_fqn(name: str) -> Tuple[str, str, str]:
+        if ":" in name:
+            ns, name = name.split(":")
+        else:
+            ns = ""
+
         if "." in name:
             module, name = name.split(".")
         else:
             module = ""
 
-        return (module, name)
+        return (ns, module, name)
 
     def _object_hierarchy_parts(
         self, sig_node: desc_signature
@@ -251,7 +261,7 @@ class QAPIDescription(ParserFix):
             return ""
 
         config = self.env.app.config
-        modname, name = toc_parts
+        namespace, modname, name = toc_parts
 
         if config.toc_object_entries_show_parents == "domain":
             ret = name
@@ -259,6 +269,10 @@ class QAPIDescription(ParserFix):
                 "qapi:module", ""
             ):
                 ret = f"{modname}.{name}"
+            if namespace and namespace != self.env.ref_context.get(
+                "qapi:namespace", ""
+            ):
+                ret = f"{namespace}:{ret}"
             return ret
         if config.toc_object_entries_show_parents == "hide":
             return name
@@ -334,10 +348,15 @@ class QAPIObject(QAPIDescription):
         As such, the only argument here is "sig", which is just the QAPI
         definition name.
         """
-        modname = self._get_context()
+        # No module or domain info allowed in the signature!
+        assert ":" not in sig
+        assert "." not in sig
 
+        namespace, modname = self._get_context()
         signode["fullname"] = self._get_fqn(sig)
+        signode["namespace"] = namespace
         signode["module"] = modname
+
         sig_prefix = self.get_signature_prefix()
         if sig_prefix:
             signode += addnodes.desc_annotation(
