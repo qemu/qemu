@@ -38,6 +38,7 @@ from sphinx.domains import (
 from sphinx.locale import _, __
 from sphinx.roles import XRefRole
 from sphinx.util import logging
+from sphinx.util.docutils import SphinxDirective
 from sphinx.util.nodes import make_id, make_refnode
 
 
@@ -645,6 +646,17 @@ class QAPIModule(QAPIDescription):
         return ret
 
 
+class QAPINamespace(SphinxDirective):
+    has_content = False
+    required_arguments = 1
+
+    def run(self) -> List[Node]:
+        namespace = self.arguments[0].strip()
+        self.env.ref_context["qapi:namespace"] = namespace
+
+        return []
+
+
 class QAPIIndex(Index):
     """
     Index subclass to provide the QAPI definition index.
@@ -726,6 +738,7 @@ class QAPIDomain(Domain):
     # Each of these provides a rST directive,
     # e.g. .. qapi:module:: block-core
     directives = {
+        "namespace": QAPINamespace,
         "module": QAPIModule,
         "command": QAPICommand,
         "event": QAPIEvent,

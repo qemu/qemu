@@ -464,7 +464,8 @@ removed in a future version.
 QAPI standard options
 ---------------------
 
-All QAPI directives -- *except* for module -- support these common options.
+All QAPI directives -- *except* for namespace and module -- support
+these common options.
 
 * ``:namespace: name`` -- This option allows you to override the
   namespace association of a given definition.
@@ -480,6 +481,23 @@ All QAPI directives -- *except* for module -- support these common options.
 * ``:unstable:`` -- Adds an eyecatch just below the signature bar that
   advertises that this definition is unstable and should not be used in
   production code.
+
+
+qapi:namespace
+--------------
+
+The ``qapi:namespace`` directive marks the start of a QAPI namespace. It
+does not take a content body, nor any options. All subsequent QAPI
+directives are associated with the most recent namespace. This affects
+the definition's "fully qualified name", allowing two different
+namespaces to create an otherwise identically named definition.
+
+Example::
+
+   .. qapi:namespace:: QMP
+
+
+This directive has no visible effect.
 
 
 qapi:module
