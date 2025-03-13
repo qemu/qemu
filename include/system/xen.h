@@ -10,10 +10,6 @@
 #ifndef SYSTEM_XEN_H
 #define SYSTEM_XEN_H
 
-#ifdef CONFIG_USER_ONLY
-#error Cannot include system/xen.h from user emulation
-#endif
-
 #include "exec/cpu-common.h"
 
 #ifdef COMPILING_PER_TARGET

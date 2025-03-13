@@ -18,10 +18,6 @@
 #ifndef QEMU_CONFIDENTIAL_GUEST_SUPPORT_H
 #define QEMU_CONFIDENTIAL_GUEST_SUPPORT_H
 
-#ifdef CONFIG_USER_ONLY
-#error Cannot include system/confidential-guest-support.h from user emulation
-#endif
-
 #include "qom/object.h"
 
 #define TYPE_CONFIDENTIAL_GUEST_SUPPORT "confidential-guest-support"
