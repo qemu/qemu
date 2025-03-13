@@ -451,6 +451,12 @@ class Transmogrifier:
         finally:
             self._curr_ent = None
 
+    def set_namespace(self, namespace: str, source: str, lineno: int) -> None:
+        self.add_line_raw(
+            f".. qapi:namespace:: {namespace}", source, lineno + 1
+        )
+        self.ensure_blank_line()
+
 
 class QAPISchemaGenDepVisitor(QAPISchemaVisitor):
     """A QAPI schema visitor which adds Sphinx dependencies each module
@@ -496,6 +502,7 @@ class QAPIDocDirective(NestedDirective):
     optional_arguments = 1
     option_spec = {
         "qapifile": directives.unchanged_required,
+        "namespace": directives.unchanged,
         "transmogrify": directives.flag,
     }
     has_content = False
@@ -509,6 +516,11 @@ class QAPIDocDirective(NestedDirective):
         logger.info("Transmogrifying QAPI to rST ...")
         vis = Transmogrifier()
         modules = set()
+
+        if "namespace" in self.options:
+            vis.set_namespace(
+                self.options["namespace"], *self.get_source_info()
+            )
 
         for doc in schema.docs:
             module_source = doc.info.fname
