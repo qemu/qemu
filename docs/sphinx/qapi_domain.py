@@ -178,6 +178,25 @@ class QAPIDescription(ParserFix):
         # NB: this is used for the global index, not the QAPI index.
         return ("single", f"{name} (QMP {self.objtype})")
 
+    def _get_context(self) -> str:
+        modname = self.options.get(
+            "module", self.env.ref_context.get("qapi:module", "")
+        )
+        assert isinstance(modname, str)
+        return modname
+
+    def _get_fqn(self, name: Signature) -> str:
+        modname = self._get_context()
+
+        # If we're documenting a module, don't include the module as
+        # part of the FQN; we ARE the module!
+        if self.objtype == "module":
+            modname = ""
+
+        if modname:
+            name = f"{modname}.{name}"
+        return name
+
     def add_target_and_index(
         self, name: Signature, sig: str, signode: desc_signature
     ) -> None:
@@ -187,14 +206,8 @@ class QAPIDescription(ParserFix):
 
         assert self.objtype
 
-        # If we're documenting a module, don't include the module as
-        # part of the FQN.
-        modname = ""
-        if self.objtype != "module":
-            modname = self.options.get(
-                "module", self.env.ref_context.get("qapi:module")
-            )
-        fullname = (modname + "." if modname else "") + name
+        if not (fullname := signode.get("fullname", "")):
+            fullname = self._get_fqn(name)
 
         node_id = make_id(
             self.env, self.state.document, self.objtype, fullname
@@ -213,18 +226,21 @@ class QAPIDescription(ParserFix):
                     (arity, indextext, node_id, "", None)
                 )
 
+    @staticmethod
+    def split_fqn(name: str) -> Tuple[str, str]:
+        if "." in name:
+            module, name = name.split(".")
+        else:
+            module = ""
+
+        return (module, name)
+
     def _object_hierarchy_parts(
         self, sig_node: desc_signature
     ) -> Tuple[str, ...]:
         if "fullname" not in sig_node:
             return ()
-        modname = sig_node.get("module")
-        fullname = sig_node["fullname"]
-
-        if modname:
-            return (modname, *fullname.split("."))
-
-        return tuple(fullname.split("."))
+        return self.split_fqn(sig_node["fullname"])
 
     def _toc_entry_name(self, sig_node: desc_signature) -> str:
         # This controls the name in the TOC and on the sidebar.
@@ -235,13 +251,19 @@ class QAPIDescription(ParserFix):
             return ""
 
         config = self.env.app.config
-        *parents, name = toc_parts
+        modname, name = toc_parts
+
         if config.toc_object_entries_show_parents == "domain":
-            return sig_node.get("fullname", name)
+            ret = name
+            if modname and modname != self.env.ref_context.get(
+                "qapi:module", ""
+            ):
+                ret = f"{modname}.{name}"
+            return ret
         if config.toc_object_entries_show_parents == "hide":
             return name
         if config.toc_object_entries_show_parents == "all":
-            return ".".join(parents + [name])
+            return sig_node.get("fullname", name)
         return ""
 
 
@@ -312,11 +334,9 @@ class QAPIObject(QAPIDescription):
         As such, the only argument here is "sig", which is just the QAPI
         definition name.
         """
-        modname = self.options.get(
-            "module", self.env.ref_context.get("qapi:module")
-        )
+        modname = self._get_context()
 
-        signode["fullname"] = sig
+        signode["fullname"] = self._get_fqn(sig)
         signode["module"] = modname
         sig_prefix = self.get_signature_prefix()
         if sig_prefix:
