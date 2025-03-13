@@ -8,11 +8,13 @@ QAPI domain extension.
 from __future__ import annotations
 
 import re
+import types
 from typing import (
     TYPE_CHECKING,
     List,
     NamedTuple,
     Tuple,
+    Type,
     cast,
 )
 
@@ -669,6 +671,7 @@ class QAPIIndex(Index):
     name = "index"
     localname = _("QAPI Index")
     shortname = _("QAPI Index")
+    namespace = ""
 
     def generate(
         self,
@@ -678,25 +681,20 @@ class QAPIIndex(Index):
         content: Dict[str, List[IndexEntry]] = {}
         collapse = False
 
-        # list of all object (name, ObjectEntry) pairs, sorted by name
-        # (ignoring the module)
-        objects = sorted(
-            self.domain.objects.items(),
-            key=lambda x: x[0].split(".")[-1].lower(),
-        )
-
-        for objname, obj in objects:
+        for objname, obj in self.domain.objects.items():
             if docnames and obj.docname not in docnames:
                 continue
 
-            # Strip the module name out:
-            objname = objname.split(".")[-1]
+            ns, _mod, name = QAPIDescription.split_fqn(objname)
+
+            if self.namespace != ns:
+                continue
 
             # Add an alphabetical entry:
-            entries = content.setdefault(objname[0].upper(), [])
+            entries = content.setdefault(name[0].upper(), [])
             entries.append(
                 IndexEntry(
-                    objname, 0, obj.docname, obj.node_id, obj.objtype, "", ""
+                    name, 0, obj.docname, obj.node_id, obj.objtype, "", ""
                 )
             )
 
@@ -704,10 +702,14 @@ class QAPIIndex(Index):
             category = obj.objtype.title() + "s"
             entries = content.setdefault(category, [])
             entries.append(
-                IndexEntry(objname, 0, obj.docname, obj.node_id, "", "", "")
+                IndexEntry(name, 0, obj.docname, obj.node_id, "", "", "")
             )
 
-        # alphabetically sort categories; type names first, ABC entries last.
+        # Sort entries within each category alphabetically
+        for category in content:
+            content[category] = sorted(content[category])
+
+        # Sort the categories themselves; type names first, ABC entries last.
         sorted_content = sorted(
             content.items(),
             key=lambda x: (len(x[0]) == 1, x[0]),
@@ -779,6 +781,21 @@ class QAPIDomain(Domain):
     def objects(self) -> Dict[str, ObjectEntry]:
         ret = self.data.setdefault("objects", {})
         return ret  # type: ignore[no-any-return]
+
+    def setup(self) -> None:
+        namespaces = set(self.env.app.config.qapi_namespaces)
+        for namespace in namespaces:
+            new_index: Type[QAPIIndex] = types.new_class(
+                f"{namespace}Index", bases=(QAPIIndex,)
+            )
+            new_index.name = f"{namespace.lower()}-index"
+            new_index.localname = _(f"{namespace} Index")
+            new_index.shortname = _(f"{namespace} Index")
+            new_index.namespace = namespace
+
+            self.indices.append(new_index)
+
+        super().setup()
 
     def note_object(
         self,
@@ -1017,6 +1034,12 @@ def setup(app: Sphinx) -> Dict[str, Any]:
         "qapi_allowed_fields",
         set(),
         "env",  # Setting impacts parsing phase
+        types=set,
+    )
+    app.add_config_value(
+        "qapi_namespaces",
+        set(),
+        "env",
         types=set,
     )
     app.add_domain(QAPIDomain)
