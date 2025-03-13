@@ -9,15 +9,9 @@ from __future__ import annotations
 
 from typing import (
     TYPE_CHECKING,
-    AbstractSet,
-    Any,
-    Dict,
-    Iterable,
     List,
     NamedTuple,
-    Optional,
     Tuple,
-    Union,
     cast,
 )
 
@@ -34,7 +28,6 @@ from compat import (
     SpaceNode,
 )
 from sphinx import addnodes
-from sphinx.addnodes import desc_signature, pending_xref
 from sphinx.directives import ObjectDescription
 from sphinx.domains import (
     Domain,
@@ -49,12 +42,23 @@ from sphinx.util.nodes import make_id, make_refnode
 
 
 if TYPE_CHECKING:
+    from typing import (
+        AbstractSet,
+        Any,
+        Dict,
+        Iterable,
+        Optional,
+        Union,
+    )
+
     from docutils.nodes import Element, Node
 
+    from sphinx.addnodes import desc_signature, pending_xref
     from sphinx.application import Sphinx
     from sphinx.builders import Builder
     from sphinx.environment import BuildEnvironment
     from sphinx.util.typing import OptionSpec
+
 
 logger = logging.getLogger(__name__)
 
