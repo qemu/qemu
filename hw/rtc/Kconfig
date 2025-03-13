@@ -26,3 +26,8 @@ config GOLDFISH_RTC
 
 config LS7A_RTC
     bool
+
+config RS5C372_RTC
+    bool
+    depends on I2C
+    default y if I2C_DEVICES

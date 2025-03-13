@@ -150,6 +150,9 @@ struct ACPIREGS {
     Notifier wakeup;
 };
 
+/* Return whether ACPI subsystem is built in */
+bool acpi_builtin(void);
+
 /* PM_TMR */
 void acpi_pm_tmr_update(ACPIREGS *ar, bool enable);
 void acpi_pm_tmr_calc_overflow_time(ACPIREGS *ar);

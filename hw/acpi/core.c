@@ -78,6 +78,11 @@ static void acpi_register_config(void)
 
 opts_init(acpi_register_config);
 
+bool acpi_builtin(void)
+{
+    return true;
+}
+
 static int acpi_checksum(const uint8_t *data, int len)
 {
     int sum, i;

@@ -109,7 +109,7 @@ struct SDHCIState {
 typedef struct SDHCIState SDHCIState;
 
 #define SDHCI_VENDOR_NONE       0
-#define SDHCI_VENDOR_IMX        1
+#define SDHCI_VENDOR_FSL        2
 
 /*
  * Controller does not provide transfer-complete interrupt when not
