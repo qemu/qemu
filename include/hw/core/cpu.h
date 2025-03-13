@@ -614,8 +614,6 @@ extern bool mttcg_enabled;
  */
 bool cpu_paging_enabled(const CPUState *cpu);
 
-#if !defined(CONFIG_USER_ONLY)
-
 /**
  * cpu_get_memory_mapping:
  * @cpu: The CPU whose memory mappings are to be obtained.
@@ -676,8 +674,6 @@ int cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
  */
 GuestPanicInformation *cpu_get_crash_info(CPUState *cpu);
 
-#endif /* !CONFIG_USER_ONLY */
-
 /**
  * CPUDumpFlags:
  * @CPU_DUMP_CODE:
@@ -701,7 +697,6 @@ enum CPUDumpFlags {
  */
 void cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 
-#ifndef CONFIG_USER_ONLY
 /**
  * cpu_get_phys_page_attrs_debug:
  * @cpu: The CPU to obtain the physical page address for.
@@ -757,8 +752,6 @@ bool cpu_virtio_is_big_endian(CPUState *cpu);
  * Returns: %true if the CPU has work, %false otherwise.
  */
 bool cpu_has_work(CPUState *cpu);
-
-#endif /* CONFIG_USER_ONLY */
 
 /**
  * cpu_list_add:
@@ -1136,8 +1129,6 @@ const char *target_name(void);
 
 #ifdef COMPILING_PER_TARGET
 
-#ifndef CONFIG_USER_ONLY
-
 extern const VMStateDescription vmstate_cpu_common;
 
 #define VMSTATE_CPU() {                                                     \
@@ -1147,7 +1138,6 @@ extern const VMStateDescription vmstate_cpu_common;
     .flags = VMS_STRUCT,                                                    \
     .offset = 0,                                                            \
 }
-#endif /* !CONFIG_USER_ONLY */
 
 #endif /* COMPILING_PER_TARGET */
 
