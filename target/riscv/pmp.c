@@ -142,6 +142,11 @@ static inline uint8_t pmp_read_cfg(CPURISCVState *env, uint32_t pmp_index)
 static bool pmp_write_cfg(CPURISCVState *env, uint32_t pmp_index, uint8_t val)
 {
     if (pmp_index < MAX_RISCV_PMPS) {
+        if (env->pmp_state.pmp[pmp_index].cfg_reg == val) {
+            /* no change */
+            return false;
+        }
+
         if (pmp_is_readonly(env, pmp_index)) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "ignoring pmpcfg write - read only\n");
@@ -529,6 +534,11 @@ void pmpaddr_csr_write(CPURISCVState *env, uint32_t addr_index,
     bool is_next_cfg_tor = false;
 
     if (addr_index < MAX_RISCV_PMPS) {
+        if (env->pmp_state.pmp[addr_index].addr_reg == val) {
+            /* no change */
+            return;
+        }
+
         /*
          * In TOR mode, need to check the lock bit of the next pmp
          * (if there is a next).
@@ -545,14 +555,12 @@ void pmpaddr_csr_write(CPURISCVState *env, uint32_t addr_index,
         }
 
         if (!pmp_is_readonly(env, addr_index)) {
-            if (env->pmp_state.pmp[addr_index].addr_reg != val) {
-                env->pmp_state.pmp[addr_index].addr_reg = val;
-                pmp_update_rule_addr(env, addr_index);
-                if (is_next_cfg_tor) {
-                    pmp_update_rule_addr(env, addr_index + 1);
-                }
-                tlb_flush(env_cpu(env));
+            env->pmp_state.pmp[addr_index].addr_reg = val;
+            pmp_update_rule_addr(env, addr_index);
+            if (is_next_cfg_tor) {
+                pmp_update_rule_addr(env, addr_index + 1);
             }
+            tlb_flush(env_cpu(env));
         } else {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "ignoring pmpaddr write - read only\n");
