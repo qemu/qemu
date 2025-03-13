@@ -23,7 +23,7 @@
 #include "system/tcg.h"
 #include "exec/cputlb.h"
 #include "exec/ramlist.h"
-#include "exec/ramblock.h"
+#include "system/ramblock.h"
 #include "exec/exec-all.h"
 #include "system/memory.h"
 #include "exec/target_page.h"

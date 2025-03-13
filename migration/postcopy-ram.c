@@ -31,7 +31,7 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/boards.h"
-#include "exec/ramblock.h"
+#include "system/ramblock.h"
 #include "socket.h"
 #include "yank_functions.h"
 #include "tls.h"
