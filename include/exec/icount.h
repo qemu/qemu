@@ -22,11 +22,19 @@ typedef enum {
     ICOUNT_ADAPTATIVE,
 } ICountMode;
 
-#if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
+#ifdef CONFIG_TCG
 extern ICountMode use_icount;
 #define icount_enabled() (use_icount)
 #else
 #define icount_enabled() ICOUNT_DISABLED
+#endif
+
+/* Protect the CONFIG_USER_ONLY test vs poisoning. */
+#if defined(COMPILING_PER_TARGET) || defined(COMPILING_SYSTEM_VS_USER)
+# ifdef CONFIG_USER_ONLY
+#  undef  icount_enabled
+#  define icount_enabled() ICOUNT_DISABLED
+# endif
 #endif
 
 /*
