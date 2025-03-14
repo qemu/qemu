@@ -357,6 +357,7 @@ static void xen_bus_realize(BusState *bus, Error **errp)
             error_reportf_err(local_err,
                               "failed to set up '%s' enumeration watch: ",
                               type[i]);
+            local_err = NULL;
         }
 
         g_free(node);
