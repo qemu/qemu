@@ -1,6 +1,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "system/cpu-timers.h"
+#include "exec/icount.h"
 
 /* icount - Instruction Counter API */
 

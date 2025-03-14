@@ -14,6 +14,7 @@
 #include "qapi/qapi-commands-machine.h"
 #include "monitor/monitor.h"
 #include "system/cpu-timers.h"
+#include "exec/icount.h"
 #include "system/tcg.h"
 #include "tcg/tcg.h"
 #include "internal-common.h"

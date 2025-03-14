@@ -36,6 +36,7 @@
 #include "hw/core/cpu.h"
 #include "system/cpu-timers.h"
 #include "system/cpu-timers-internal.h"
+#include "exec/icount.h"
 
 /* clock and ticks */
 

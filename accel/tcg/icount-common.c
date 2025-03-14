@@ -35,7 +35,7 @@
 #include "system/replay.h"
 #include "system/runstate.h"
 #include "hw/core/cpu.h"
-#include "system/cpu-timers.h"
+#include "exec/icount.h"
 #include "system/cpu-timers-internal.h"
 
 /*

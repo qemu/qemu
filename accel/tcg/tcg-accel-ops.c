@@ -29,7 +29,7 @@
 #include "system/accel-ops.h"
 #include "system/tcg.h"
 #include "system/replay.h"
-#include "system/cpu-timers.h"
+#include "exec/icount.h"
 #include "qemu/main-loop.h"
 #include "qemu/guest-random.h"
 #include "qemu/timer.h"

@@ -13,7 +13,7 @@
 #include "trace.h"
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"
-#include "system/cpu-timers.h"
+#include "exec/icount.h"
 #include "qemu/range.h"
 
 /* #define DEBUG_IOMMU */

@@ -32,6 +32,7 @@
 #include "exec/helper-proto.h"
 #include "exec/watchpoint.h"
 #include "system/cpu-timers.h"
+#include "exec/icount.h"
 
 /*
  * The following M-mode trigger CSRs are implemented:

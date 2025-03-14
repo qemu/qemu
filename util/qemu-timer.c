@@ -27,6 +27,7 @@
 #include "qemu/timer.h"
 #include "qemu/lockable.h"
 #include "system/cpu-timers.h"
+#include "exec/icount.h"
 #include "system/replay.h"
 #include "system/cpus.h"
 

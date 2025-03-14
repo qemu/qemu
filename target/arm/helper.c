@@ -24,6 +24,7 @@
 #include "exec/translation-block.h"
 #include "hw/irq.h"
 #include "system/cpu-timers.h"
+#include "exec/icount.h"
 #include "system/kvm.h"
 #include "system/tcg.h"
 #include "qapi/error.h"

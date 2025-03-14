@@ -31,7 +31,7 @@
 #include "accel/tcg/cpu-ops.h"
 #include "trace.h"
 #include "semihosting/common-semi.h"
-#include "system/cpu-timers.h"
+#include "exec/icount.h"
 #include "cpu_bits.h"
 #include "debug.h"
 #include "pmp.h"

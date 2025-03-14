@@ -26,7 +26,7 @@
 #include "qemu/osdep.h"
 #include "system/tcg.h"
 #include "exec/replay-core.h"
-#include "system/cpu-timers.h"
+#include "exec/icount.h"
 #include "tcg/startup.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"

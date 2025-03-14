@@ -11,7 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "system/cpu-timers.h"
+#include "exec/icount.h"
 #include "system/replay.h"
 #include "system/runstate.h"
 #include "replay-internal.h"
