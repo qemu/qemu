@@ -61,7 +61,8 @@ static bool buffer_is_zero_lsx(const void *buf, size_t len)
     "2:"
         : "=&r"(ret), "+r"(p)
         : "r"(buf), "r"(e), "r"(l)
-        : "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "fcc0");
+        : "$f0", "$f1", "$f2", "$f3", "$f4", "$f5", "$f6", "$f7", "$f8",
+          "$fcc0");
 
     return ret;
 }
@@ -119,7 +120,8 @@ static bool buffer_is_zero_lasx(const void *buf, size_t len)
     "3:"
         : "=&r"(ret), "+r"(p)
         : "r"(buf), "r"(e), "r"(l)
-        : "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "fcc0");
+        : "$f0", "$f1", "$f2", "$f3", "$f4", "$f5", "$f6", "$f7", "$f8",
+          "$fcc0");
 
     return ret;
 }
