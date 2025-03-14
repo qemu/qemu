@@ -20,6 +20,7 @@ class E500Test(LinuxKernelTest):
 
     def test_ppc64_e500_buildroot(self):
         self.set_machine('ppce500')
+        self.require_netdev('user')
         self.cpu = 'e5500'
 
         uimage_path = self.ASSET_BR2_E5500_UIMAGE.fetch()

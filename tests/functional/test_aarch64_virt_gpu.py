@@ -115,6 +115,7 @@ class Aarch64VirtGPUMachine(LinuxKernelTest):
         self._run_virt_weston_test("glmark2-wayland -b:duration=1.0")
 
     @skipIfMissingCommands('zstd')
+    @skipIfMissingCommands('vulkaninfo')
     def test_aarch64_virt_with_vulkan_gpu(self):
 
         self.require_device('virtio-gpu-gl-pci')
