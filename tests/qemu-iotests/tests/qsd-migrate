@@ -22,7 +22,7 @@ import iotests
 
 from iotests import filter_qemu_io, filter_qtest
 
-iotests.script_initialize(supported_fmts=['generic'],
+iotests.script_initialize(supported_fmts=['qcow2', 'qed', 'raw'],
                           supported_protocols=['file'],
                           supported_platforms=['linux'])
 

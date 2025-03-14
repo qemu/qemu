@@ -368,7 +368,8 @@ static void laio_deferred_fn(void *opaque)
 }
 
 static int laio_do_submit(int fd, struct qemu_laiocb *laiocb, off_t offset,
-                          int type, uint64_t dev_max_batch)
+                          int type, BdrvRequestFlags flags,
+                          uint64_t dev_max_batch)
 {
     LinuxAioState *s = laiocb->ctx;
     struct iocb *iocbs = &laiocb->iocb;
@@ -376,7 +377,15 @@ static int laio_do_submit(int fd, struct qemu_laiocb *laiocb, off_t offset,
 
     switch (type) {
     case QEMU_AIO_WRITE:
+#ifdef HAVE_IO_PREP_PWRITEV2
+    {
+        int laio_flags = (flags & BDRV_REQ_FUA) ? RWF_DSYNC : 0;
+        io_prep_pwritev2(iocbs, fd, qiov->iov, qiov->niov, offset, laio_flags);
+    }
+#else
+        assert(flags == 0);
         io_prep_pwritev(iocbs, fd, qiov->iov, qiov->niov, offset);
+#endif
         break;
     case QEMU_AIO_ZONE_APPEND:
         io_prep_pwritev(iocbs, fd, qiov->iov, qiov->niov, offset);
@@ -409,7 +418,8 @@ static int laio_do_submit(int fd, struct qemu_laiocb *laiocb, off_t offset,
 }
 
 int coroutine_fn laio_co_submit(int fd, uint64_t offset, QEMUIOVector *qiov,
-                                int type, uint64_t dev_max_batch)
+                                int type, BdrvRequestFlags flags,
+                                uint64_t dev_max_batch)
 {
     int ret;
     AioContext *ctx = qemu_get_current_aio_context();
@@ -422,7 +432,7 @@ int coroutine_fn laio_co_submit(int fd, uint64_t offset, QEMUIOVector *qiov,
         .qiov       = qiov,
     };
 
-    ret = laio_do_submit(fd, &laiocb, offset, type, dev_max_batch);
+    ret = laio_do_submit(fd, &laiocb, offset, type, flags, dev_max_batch);
     if (ret < 0) {
         return ret;
     }
@@ -504,4 +514,13 @@ bool laio_has_fdsync(int fd)
 
     io_destroy(ctx);
     return (ret == -EINVAL) ? false : true;
+}
+
+bool laio_has_fua(void)
+{
+#ifdef HAVE_IO_PREP_PWRITEV2
+    return true;
+#else
+    return false;
+#endif
 }

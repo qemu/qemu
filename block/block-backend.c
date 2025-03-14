@@ -2357,18 +2357,6 @@ void *blk_blockalign(BlockBackend *blk, size_t size)
     return qemu_blockalign(blk ? blk_bs(blk) : NULL, size);
 }
 
-bool blk_op_is_blocked(BlockBackend *blk, BlockOpType op, Error **errp)
-{
-    BlockDriverState *bs = blk_bs(blk);
-    GLOBAL_STATE_CODE();
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
-
-    if (!bs) {
-        return false;
-    }
-
-    return bdrv_op_is_blocked(bs, op, errp);
-}
 
 /**
  * Return BB's current AioContext.  Note that this context may change

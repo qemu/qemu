@@ -194,6 +194,7 @@ static int fd_open(BlockDriverState *bs)
 }
 
 static int64_t raw_getlength(BlockDriverState *bs);
+static int coroutine_fn raw_co_flush_to_disk(BlockDriverState *bs);
 
 typedef struct RawPosixAIOData {
     BlockDriverState *bs;
@@ -803,6 +804,13 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
 #endif
     s->needs_alignment = raw_needs_alignment(bs);
+
+    bs->supported_write_flags = BDRV_REQ_FUA;
+    if (s->use_linux_aio && !laio_has_fua()) {
+        bs->supported_write_flags &= ~BDRV_REQ_FUA;
+    } else if (s->use_linux_io_uring && !luring_has_fua()) {
+        bs->supported_write_flags &= ~BDRV_REQ_FUA;
+    }
 
     bs->supported_zero_flags = BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK;
     if (S_ISREG(st.st_mode)) {
@@ -2477,7 +2485,8 @@ static inline bool raw_check_linux_aio(BDRVRawState *s)
 #endif
 
 static int coroutine_fn raw_co_prw(BlockDriverState *bs, int64_t *offset_ptr,
-                                   uint64_t bytes, QEMUIOVector *qiov, int type)
+                                   uint64_t bytes, QEMUIOVector *qiov, int type,
+                                   int flags)
 {
     BDRVRawState *s = bs->opaque;
     RawPosixAIOData acb;
@@ -2508,13 +2517,13 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, int64_t *offset_ptr,
 #ifdef CONFIG_LINUX_IO_URING
     } else if (raw_check_linux_io_uring(s)) {
         assert(qiov->size == bytes);
-        ret = luring_co_submit(bs, s->fd, offset, qiov, type);
+        ret = luring_co_submit(bs, s->fd, offset, qiov, type, flags);
         goto out;
 #endif
 #ifdef CONFIG_LINUX_AIO
     } else if (raw_check_linux_aio(s)) {
         assert(qiov->size == bytes);
-        ret = laio_co_submit(s->fd, offset, qiov, type,
+        ret = laio_co_submit(s->fd, offset, qiov, type, flags,
                               s->aio_max_batch);
         goto out;
 #endif
@@ -2534,6 +2543,10 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, int64_t *offset_ptr,
 
     assert(qiov->size == bytes);
     ret = raw_thread_pool_submit(handle_aiocb_rw, &acb);
+    if (ret == 0 && (flags & BDRV_REQ_FUA)) {
+        /* TODO Use pwritev2() instead if it's available */
+        ret = raw_co_flush_to_disk(bs);
+    }
     goto out; /* Avoid the compiler err of unused label */
 
 out:
@@ -2571,14 +2584,14 @@ static int coroutine_fn raw_co_preadv(BlockDriverState *bs, int64_t offset,
                                       int64_t bytes, QEMUIOVector *qiov,
                                       BdrvRequestFlags flags)
 {
-    return raw_co_prw(bs, &offset, bytes, qiov, QEMU_AIO_READ);
+    return raw_co_prw(bs, &offset, bytes, qiov, QEMU_AIO_READ, flags);
 }
 
 static int coroutine_fn raw_co_pwritev(BlockDriverState *bs, int64_t offset,
                                        int64_t bytes, QEMUIOVector *qiov,
                                        BdrvRequestFlags flags)
 {
-    return raw_co_prw(bs, &offset, bytes, qiov, QEMU_AIO_WRITE);
+    return raw_co_prw(bs, &offset, bytes, qiov, QEMU_AIO_WRITE, flags);
 }
 
 static int coroutine_fn raw_co_flush_to_disk(BlockDriverState *bs)
@@ -2600,12 +2613,12 @@ static int coroutine_fn raw_co_flush_to_disk(BlockDriverState *bs)
 
 #ifdef CONFIG_LINUX_IO_URING
     if (raw_check_linux_io_uring(s)) {
-        return luring_co_submit(bs, s->fd, 0, NULL, QEMU_AIO_FLUSH);
+        return luring_co_submit(bs, s->fd, 0, NULL, QEMU_AIO_FLUSH, 0);
     }
 #endif
 #ifdef CONFIG_LINUX_AIO
     if (s->has_laio_fdsync && raw_check_linux_aio(s)) {
-        return laio_co_submit(s->fd, 0, NULL, QEMU_AIO_FLUSH, 0);
+        return laio_co_submit(s->fd, 0, NULL, QEMU_AIO_FLUSH, 0, 0);
     }
 #endif
     return raw_thread_pool_submit(handle_aiocb_flush, &acb);
@@ -3540,7 +3553,7 @@ static int coroutine_fn raw_co_zone_append(BlockDriverState *bs,
     }
 
     trace_zbd_zone_append(bs, *offset >> BDRV_SECTOR_BITS);
-    return raw_co_prw(bs, offset, len, qiov, QEMU_AIO_ZONE_APPEND);
+    return raw_co_prw(bs, offset, len, qiov, QEMU_AIO_ZONE_APPEND, 0);
 }
 #endif
 
