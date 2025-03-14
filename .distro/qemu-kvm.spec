@@ -621,6 +621,7 @@ This package provides documentation and auxiliary programs used with %{name}.
 
 %package tools
 Summary: %{name} support tools
+Recommends: systemtap-client
 %description tools
 %{name}-tools provides various tools related to %{name} usage.
 
