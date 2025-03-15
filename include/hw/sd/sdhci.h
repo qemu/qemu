@@ -129,6 +129,7 @@ DECLARE_INSTANCE_CHECKER(SDHCIState, SYSBUS_SDHCI,
                          TYPE_SYSBUS_SDHCI)
 
 #define TYPE_FSL_ESDHC_BE "fsl-esdhc-be"
+#define TYPE_FSL_ESDHC_LE "fsl-esdhc-le"
 
 #define TYPE_IMX_USDHC "imx-usdhc"
 

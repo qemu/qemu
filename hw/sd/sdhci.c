@@ -1897,6 +1897,32 @@ static void fsl_esdhc_be_init(Object *obj)
     qdev_prop_set_uint8(dev, "vendor", SDHCI_VENDOR_FSL);
 }
 
+static const MemoryRegionOps esdhc_mmio_le_ops = {
+    .read = esdhc_read,
+    .write = esdhc_write,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+        .unaligned = false
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static void fsl_esdhc_le_init(Object *obj)
+{
+    SDHCIState *s = SYSBUS_SDHCI(obj);
+    DeviceState *dev = DEVICE(obj);
+
+    s->io_ops = &esdhc_mmio_le_ops;
+    s->quirks = SDHCI_QUIRK_NO_BUSY_IRQ;
+    qdev_prop_set_uint8(dev, "sd-spec-version", 2);
+    qdev_prop_set_uint8(dev, "vendor", SDHCI_VENDOR_FSL);
+}
+
 static const MemoryRegionOps usdhc_mmio_ops = {
     .read = esdhc_read,
     .write = esdhc_write,
@@ -1995,6 +2021,11 @@ static const TypeInfo sdhci_types[] = {
         .name = TYPE_FSL_ESDHC_BE,
         .parent = TYPE_SYSBUS_SDHCI,
         .instance_init = fsl_esdhc_be_init,
+    },
+    {
+        .name = TYPE_FSL_ESDHC_LE,
+        .parent = TYPE_SYSBUS_SDHCI,
+        .instance_init = fsl_esdhc_le_init,
     },
     {
         .name = TYPE_IMX_USDHC,
