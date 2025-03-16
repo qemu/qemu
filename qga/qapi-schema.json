@@ -3,6 +3,9 @@
 
 ##
 # = QEMU guest agent protocol commands and structs
+#
+# For a concise listing of all commands, events, and types in the QEMU
+# guest agent, please consult the `qapi-qga-index`.
 ##
 
 { 'pragma': { 'doc-required': true } }

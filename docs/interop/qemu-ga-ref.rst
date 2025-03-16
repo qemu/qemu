@@ -5,3 +5,5 @@ QEMU Guest Agent Protocol Reference
    :depth: 3
 
 .. qapi-doc:: qga/qapi-schema.json
+   :transmogrify:
+   :namespace: QGA

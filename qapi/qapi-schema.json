@@ -5,7 +5,7 @@
 #
 # This document describes all commands currently supported by QMP.
 #
-# For locating a particular item, please see the `qapi-index`.
+# For locating a particular item, please see the `qapi-qmp-index`.
 #
 # Most of the time their usage is exactly the same as in the user
 # Monitor, this means that any other document which also describe

@@ -13,6 +13,14 @@
 # the array type in the main schema, even if it is unused outside of the
 # storage daemon.
 
+##
+# = QEMU storage daemon protocol commands and structs
+#
+# For a concise listing of all commands, events, and types in the QEMU
+# storage daemon, please consult the `qapi-qsd-index`.
+##
+
+
 { 'include': '../../qapi/pragma.json' }
 
 # Documentation generated with qapi-gen.py is in source order, with

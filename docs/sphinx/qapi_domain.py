@@ -7,17 +7,14 @@ QAPI domain extension.
 
 from __future__ import annotations
 
+import re
+import types
 from typing import (
     TYPE_CHECKING,
-    AbstractSet,
-    Any,
-    Dict,
-    Iterable,
     List,
     NamedTuple,
-    Optional,
     Tuple,
-    Union,
+    Type,
     cast,
 )
 
@@ -34,7 +31,6 @@ from compat import (
     SpaceNode,
 )
 from sphinx import addnodes
-from sphinx.addnodes import desc_signature, pending_xref
 from sphinx.directives import ObjectDescription
 from sphinx.domains import (
     Domain,
@@ -45,16 +41,28 @@ from sphinx.domains import (
 from sphinx.locale import _, __
 from sphinx.roles import XRefRole
 from sphinx.util import logging
+from sphinx.util.docutils import SphinxDirective
 from sphinx.util.nodes import make_id, make_refnode
 
 
 if TYPE_CHECKING:
+    from typing import (
+        AbstractSet,
+        Any,
+        Dict,
+        Iterable,
+        Optional,
+        Union,
+    )
+
     from docutils.nodes import Element, Node
 
+    from sphinx.addnodes import desc_signature, pending_xref
     from sphinx.application import Sphinx
     from sphinx.builders import Builder
     from sphinx.environment import BuildEnvironment
     from sphinx.util.typing import OptionSpec
+
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +97,7 @@ class QAPIXRefRole(XRefRole):
         title: str,
         target: str,
     ) -> tuple[str, str]:
+        refnode["qapi:namespace"] = env.ref_context.get("qapi:namespace")
         refnode["qapi:module"] = env.ref_context.get("qapi:module")
 
         # Cross-references that begin with a tilde adjust the title to
@@ -174,6 +183,30 @@ class QAPIDescription(ParserFix):
         # NB: this is used for the global index, not the QAPI index.
         return ("single", f"{name} (QMP {self.objtype})")
 
+    def _get_context(self) -> Tuple[str, str]:
+        namespace = self.options.get(
+            "namespace", self.env.ref_context.get("qapi:namespace", "")
+        )
+        modname = self.options.get(
+            "module", self.env.ref_context.get("qapi:module", "")
+        )
+
+        return namespace, modname
+
+    def _get_fqn(self, name: Signature) -> str:
+        namespace, modname = self._get_context()
+
+        # If we're documenting a module, don't include the module as
+        # part of the FQN; we ARE the module!
+        if self.objtype == "module":
+            modname = ""
+
+        if modname:
+            name = f"{modname}.{name}"
+        if namespace:
+            name = f"{namespace}:{name}"
+        return name
+
     def add_target_and_index(
         self, name: Signature, sig: str, signode: desc_signature
     ) -> None:
@@ -183,14 +216,8 @@ class QAPIDescription(ParserFix):
 
         assert self.objtype
 
-        # If we're documenting a module, don't include the module as
-        # part of the FQN.
-        modname = ""
-        if self.objtype != "module":
-            modname = self.options.get(
-                "module", self.env.ref_context.get("qapi:module")
-            )
-        fullname = (modname + "." if modname else "") + name
+        if not (fullname := signode.get("fullname", "")):
+            fullname = self._get_fqn(name)
 
         node_id = make_id(
             self.env, self.state.document, self.objtype, fullname
@@ -209,18 +236,26 @@ class QAPIDescription(ParserFix):
                     (arity, indextext, node_id, "", None)
                 )
 
+    @staticmethod
+    def split_fqn(name: str) -> Tuple[str, str, str]:
+        if ":" in name:
+            ns, name = name.split(":")
+        else:
+            ns = ""
+
+        if "." in name:
+            module, name = name.split(".")
+        else:
+            module = ""
+
+        return (ns, module, name)
+
     def _object_hierarchy_parts(
         self, sig_node: desc_signature
     ) -> Tuple[str, ...]:
         if "fullname" not in sig_node:
             return ()
-        modname = sig_node.get("module")
-        fullname = sig_node["fullname"]
-
-        if modname:
-            return (modname, *fullname.split("."))
-
-        return tuple(fullname.split("."))
+        return self.split_fqn(sig_node["fullname"])
 
     def _toc_entry_name(self, sig_node: desc_signature) -> str:
         # This controls the name in the TOC and on the sidebar.
@@ -231,13 +266,23 @@ class QAPIDescription(ParserFix):
             return ""
 
         config = self.env.app.config
-        *parents, name = toc_parts
+        namespace, modname, name = toc_parts
+
         if config.toc_object_entries_show_parents == "domain":
-            return sig_node.get("fullname", name)
+            ret = name
+            if modname and modname != self.env.ref_context.get(
+                "qapi:module", ""
+            ):
+                ret = f"{modname}.{name}"
+            if namespace and namespace != self.env.ref_context.get(
+                "qapi:namespace", ""
+            ):
+                ret = f"{namespace}:{ret}"
+            return ret
         if config.toc_object_entries_show_parents == "hide":
             return name
         if config.toc_object_entries_show_parents == "all":
-            return ".".join(parents + [name])
+            return sig_node.get("fullname", name)
         return ""
 
 
@@ -254,8 +299,9 @@ class QAPIObject(QAPIDescription):
     )
     option_spec.update(
         {
-            # Borrowed from the Python domain:
-            "module": directives.unchanged,  # Override contextual module name
+            # Context overrides:
+            "namespace": directives.unchanged,
+            "module": directives.unchanged,
             # These are QAPI originals:
             "since": directives.unchanged,
             "ifcond": directives.unchanged,
@@ -308,12 +354,15 @@ class QAPIObject(QAPIDescription):
         As such, the only argument here is "sig", which is just the QAPI
         definition name.
         """
-        modname = self.options.get(
-            "module", self.env.ref_context.get("qapi:module")
-        )
+        # No module or domain info allowed in the signature!
+        assert ":" not in sig
+        assert "." not in sig
 
-        signode["fullname"] = sig
+        namespace, modname = self._get_context()
+        signode["fullname"] = self._get_fqn(sig)
+        signode["namespace"] = namespace
         signode["module"] = modname
+
         sig_prefix = self.get_signature_prefix()
         if sig_prefix:
             signode += addnodes.desc_annotation(
@@ -601,6 +650,17 @@ class QAPIModule(QAPIDescription):
         return ret
 
 
+class QAPINamespace(SphinxDirective):
+    has_content = False
+    required_arguments = 1
+
+    def run(self) -> List[Node]:
+        namespace = self.arguments[0].strip()
+        self.env.ref_context["qapi:namespace"] = namespace
+
+        return []
+
+
 class QAPIIndex(Index):
     """
     Index subclass to provide the QAPI definition index.
@@ -611,6 +671,7 @@ class QAPIIndex(Index):
     name = "index"
     localname = _("QAPI Index")
     shortname = _("QAPI Index")
+    namespace = ""
 
     def generate(
         self,
@@ -620,25 +681,20 @@ class QAPIIndex(Index):
         content: Dict[str, List[IndexEntry]] = {}
         collapse = False
 
-        # list of all object (name, ObjectEntry) pairs, sorted by name
-        # (ignoring the module)
-        objects = sorted(
-            self.domain.objects.items(),
-            key=lambda x: x[0].split(".")[-1].lower(),
-        )
-
-        for objname, obj in objects:
+        for objname, obj in self.domain.objects.items():
             if docnames and obj.docname not in docnames:
                 continue
 
-            # Strip the module name out:
-            objname = objname.split(".")[-1]
+            ns, _mod, name = QAPIDescription.split_fqn(objname)
+
+            if self.namespace != ns:
+                continue
 
             # Add an alphabetical entry:
-            entries = content.setdefault(objname[0].upper(), [])
+            entries = content.setdefault(name[0].upper(), [])
             entries.append(
                 IndexEntry(
-                    objname, 0, obj.docname, obj.node_id, obj.objtype, "", ""
+                    name, 0, obj.docname, obj.node_id, obj.objtype, "", ""
                 )
             )
 
@@ -646,10 +702,14 @@ class QAPIIndex(Index):
             category = obj.objtype.title() + "s"
             entries = content.setdefault(category, [])
             entries.append(
-                IndexEntry(objname, 0, obj.docname, obj.node_id, "", "", "")
+                IndexEntry(name, 0, obj.docname, obj.node_id, "", "", "")
             )
 
-        # alphabetically sort categories; type names first, ABC entries last.
+        # Sort entries within each category alphabetically
+        for category in content:
+            content[category] = sorted(content[category])
+
+        # Sort the categories themselves; type names first, ABC entries last.
         sorted_content = sorted(
             content.items(),
             key=lambda x: (len(x[0]) == 1, x[0]),
@@ -682,6 +742,7 @@ class QAPIDomain(Domain):
     # Each of these provides a rST directive,
     # e.g. .. qapi:module:: block-core
     directives = {
+        "namespace": QAPINamespace,
         "module": QAPIModule,
         "command": QAPICommand,
         "event": QAPIEvent,
@@ -720,6 +781,21 @@ class QAPIDomain(Domain):
     def objects(self) -> Dict[str, ObjectEntry]:
         ret = self.data.setdefault("objects", {})
         return ret  # type: ignore[no-any-return]
+
+    def setup(self) -> None:
+        namespaces = set(self.env.app.config.qapi_namespaces)
+        for namespace in namespaces:
+            new_index: Type[QAPIIndex] = types.new_class(
+                f"{namespace}Index", bases=(QAPIIndex,)
+            )
+            new_index.name = f"{namespace.lower()}-index"
+            new_index.localname = _(f"{namespace} Index")
+            new_index.shortname = _(f"{namespace} Index")
+            new_index.namespace = namespace
+
+            self.indices.append(new_index)
+
+        super().setup()
 
     def note_object(
         self,
@@ -773,40 +849,44 @@ class QAPIDomain(Domain):
                 self.objects[fullname] = obj
 
     def find_obj(
-        self, modname: str, name: str, typ: Optional[str]
-    ) -> list[tuple[str, ObjectEntry]]:
+        self, namespace: str, modname: str, name: str, typ: Optional[str]
+    ) -> List[Tuple[str, ObjectEntry]]:
         """
-        Find a QAPI object for "name", perhaps using the given module.
+        Find a QAPI object for "name", maybe using contextual information.
 
         Returns a list of (name, object entry) tuples.
 
-        :param modname: The current module context (if any!)
-                        under which we are searching.
-        :param name: The name of the x-ref to resolve;
-                     may or may not include a leading module.
-        :param type: The role name of the x-ref we're resolving, if provided.
-                     (This is absent for "any" lookups.)
+        :param namespace: The current namespace context (if any!) under
+            which we are searching.
+        :param modname: The current module context (if any!) under
+            which we are searching.
+        :param name: The name of the x-ref to resolve; may or may not
+            include leading context.
+        :param type: The role name of the x-ref we're resolving, if
+            provided. This is absent for "any" role lookups.
         """
         if not name:
             return []
 
-        names: list[str] = []
-        matches: list[tuple[str, ObjectEntry]] = []
+        # ##
+        # what to search for
+        # ##
 
-        fullname = name
-        if "." in fullname:
-            # We're searching for a fully qualified reference;
-            # ignore the contextual module.
-            pass
-        elif modname:
-            # We're searching for something from somewhere;
-            # try searching the current module first.
-            # e.g. :qapi:cmd:`query-block` or `query-block` is being searched.
-            fullname = f"{modname}.{name}"
+        parts = list(QAPIDescription.split_fqn(name))
+        explicit = tuple(bool(x) for x in parts)
+
+        # Fill in the blanks where possible:
+        if namespace and not parts[0]:
+            parts[0] = namespace
+        if modname and not parts[1]:
+            parts[1] = modname
+
+        implicit_fqn = ""
+        if all(parts):
+            implicit_fqn = f"{parts[0]}:{parts[1]}.{parts[2]}"
 
         if typ is None:
-            # type isn't specified, this is a generic xref.
-            # search *all* qapi-specific object types.
+            # :any: lookup, search everything:
             objtypes: List[str] = list(self.object_types)
         else:
             # type is specified and will be a role (e.g. obj, mod, cmd)
@@ -814,25 +894,57 @@ class QAPIDomain(Domain):
             # using the QAPIDomain.object_types table.
             objtypes = self.objtypes_for_role(typ, [])
 
-        if name in self.objects and self.objects[name].objtype in objtypes:
-            names = [name]
-        elif (
-            fullname in self.objects
-            and self.objects[fullname].objtype in objtypes
-        ):
-            names = [fullname]
-        else:
-            # exact match wasn't found; e.g. we are searching for
-            # `query-block` from a different (or no) module.
-            searchname = "." + name
-            names = [
-                oname
-                for oname in self.objects
-                if oname.endswith(searchname)
-                and self.objects[oname].objtype in objtypes
-            ]
+        # ##
+        # search!
+        # ##
 
-        matches = [(oname, self.objects[oname]) for oname in names]
+        def _search(needle: str) -> List[str]:
+            if (
+                needle
+                and needle in self.objects
+                and self.objects[needle].objtype in objtypes
+            ):
+                return [needle]
+            return []
+
+        if found := _search(name):
+            # Exact match!
+            pass
+        elif found := _search(implicit_fqn):
+            # Exact match using contextual information to fill in the gaps.
+            pass
+        else:
+            # No exact hits, perform applicable fuzzy searches.
+            searches = []
+
+            esc = tuple(re.escape(s) for s in parts)
+
+            # Try searching for ns:*.name or ns:name
+            if explicit[0] and not explicit[1]:
+                searches.append(f"^{esc[0]}:([^\\.]+\\.)?{esc[2]}$")
+            # Try searching for *:module.name or module.name
+            if explicit[1] and not explicit[0]:
+                searches.append(f"(^|:){esc[1]}\\.{esc[2]}$")
+            # Try searching for context-ns:*.name or context-ns:name
+            if parts[0] and not (explicit[0] or explicit[1]):
+                searches.append(f"^{esc[0]}:([^\\.]+\\.)?{esc[2]}$")
+            # Try searching for *:context-mod.name or context-mod.name
+            if parts[1] and not (explicit[0] or explicit[1]):
+                searches.append(f"(^|:){esc[1]}\\.{esc[2]}$")
+            # Try searching for *:name, *.name, or name
+            if not (explicit[0] or explicit[1]):
+                searches.append(f"(^|:|\\.){esc[2]}$")
+
+            for search in searches:
+                if found := [
+                    oname
+                    for oname in self.objects
+                    if re.search(search, oname)
+                    and self.objects[oname].objtype in objtypes
+                ]:
+                    break
+
+        matches = [(oname, self.objects[oname]) for oname in found]
         if len(matches) > 1:
             matches = [m for m in matches if not m[1].aliased]
         return matches
@@ -847,8 +959,9 @@ class QAPIDomain(Domain):
         node: pending_xref,
         contnode: Element,
     ) -> nodes.reference | None:
+        namespace = node.get("qapi:namespace")
         modname = node.get("qapi:module")
-        matches = self.find_obj(modname, target, typ)
+        matches = self.find_obj(namespace, modname, target, typ)
 
         if not matches:
             # Normally, we could pass warn_dangling=True to QAPIXRefRole(),
@@ -901,7 +1014,9 @@ class QAPIDomain(Domain):
         contnode: Element,
     ) -> List[Tuple[str, nodes.reference]]:
         results: List[Tuple[str, nodes.reference]] = []
-        matches = self.find_obj(node.get("qapi:module"), target, None)
+        matches = self.find_obj(
+            node.get("qapi:namespace"), node.get("qapi:module"), target, None
+        )
         for name, obj in matches:
             rolename = self.role_for_objtype(obj.objtype)
             assert rolename is not None
@@ -919,6 +1034,12 @@ def setup(app: Sphinx) -> Dict[str, Any]:
         "qapi_allowed_fields",
         set(),
         "env",  # Setting impacts parsing phase
+        types=set,
+    )
+    app.add_config_value(
+        "qapi_namespaces",
+        set(),
+        "env",
         types=set,
     )
     app.add_domain(QAPIDomain)

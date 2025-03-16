@@ -161,6 +161,13 @@ qapi_allowed_fields = {
     "see also",
 }
 
+# Due to a limitation in Sphinx, we need to know which indices to
+# generate in advance. Adding a namespace here allows that generation.
+qapi_namespaces = {
+    "QGA",
+    "QMP",
+    "QSD",
+}
 
 # -- Options for HTML output ----------------------------------------------
 
