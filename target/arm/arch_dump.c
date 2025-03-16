@@ -23,6 +23,7 @@
 #include "elf.h"
 #include "system/dump.h"
 #include "cpu-features.h"
+#include "internals.h"
 
 /* struct user_pt_regs from arch/arm64/include/uapi/asm/ptrace.h */
 struct aarch64_user_regs {

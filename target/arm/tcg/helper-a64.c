@@ -631,6 +631,7 @@ static void cpsr_write_from_spsr_elx(CPUARMState *env,
 
 void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
 {
+    ARMCPU *cpu = env_archcpu(env);
     int cur_el = arm_current_el(env);
     unsigned int spsr_idx = aarch64_banked_spsr_index(cur_el);
     uint32_t spsr = env->banked_spsr[spsr_idx];
@@ -677,12 +678,17 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
         goto illegal_return;
     }
 
+    if (!return_to_aa64 && !cpu_isar_feature(aa64_aa32, cpu)) {
+        /* Return to AArch32 when CPU is AArch64-only */
+        goto illegal_return;
+    }
+
     if (new_el == 1 && (arm_hcr_el2_eff(env) & HCR_TGE)) {
         goto illegal_return;
     }
 
     bql_lock();
-    arm_call_pre_el_change_hook(env_archcpu(env));
+    arm_call_pre_el_change_hook(cpu);
     bql_unlock();
 
     if (!return_to_aa64) {
@@ -710,7 +716,7 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
         int tbii;
 
         env->aarch64 = true;
-        spsr &= aarch64_pstate_valid_mask(&env_archcpu(env)->isar);
+        spsr &= aarch64_pstate_valid_mask(&cpu->isar);
         pstate_write(env, spsr);
         if (!arm_singlestep_active(env)) {
             env->pstate &= ~PSTATE_SS;
@@ -749,7 +755,7 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
     aarch64_sve_change_el(env, cur_el, new_el, return_to_aa64);
 
     bql_lock();
-    arm_call_el_change_hook(env_archcpu(env));
+    arm_call_el_change_hook(cpu);
     bql_unlock();
 
     return;
