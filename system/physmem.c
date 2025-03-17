@@ -66,7 +66,6 @@
 #include "qemu/main-loop.h"
 #include "system/replay.h"
 
-#include "exec/memory-internal.h"
 #include "system/ram_addr.h"
 
 #include "qemu/pmem.h"
@@ -87,6 +86,8 @@
 #ifdef CONFIG_LIBDAXCTL
 #include <daxctl/libdaxctl.h>
 #endif
+
+#include "memory-internal.h"
 
 //#define DEBUG_SUBPAGE
 

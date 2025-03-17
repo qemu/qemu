@@ -24,8 +24,6 @@
 #include "qemu/qemu-print.h"
 #include "qom/object.h"
 #include "trace.h"
-
-#include "exec/memory-internal.h"
 #include "system/ram_addr.h"
 #include "system/kvm.h"
 #include "system/runstate.h"
@@ -34,6 +32,8 @@
 #include "hw/boards.h"
 #include "migration/vmstate.h"
 #include "system/address-spaces.h"
+
+#include "memory-internal.h"
 
 //#define DEBUG_UNASSIGNED
 
