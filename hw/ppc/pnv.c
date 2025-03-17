@@ -1191,7 +1191,7 @@ static void pnv_init(MachineState *machine)
      * Since we can not reach the remote BMC machine with LPC memops,
      * map it always for now.
      */
-    memory_region_add_subregion(pnv->chips[0]->fw_mr, PNOR_SPI_OFFSET,
+    memory_region_add_subregion(pnv->chips[0]->fw_mr, pnv->pnor->lpc_address,
                                 &pnv->pnor->mmio);
 
     /*

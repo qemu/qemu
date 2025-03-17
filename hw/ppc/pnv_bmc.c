@@ -174,8 +174,8 @@ static void hiomap_cmd(IPMIBmcSim *ibs, uint8_t *cmd, unsigned int cmd_len,
 {
     PnvPnor *pnor = PNV_PNOR(object_property_get_link(OBJECT(ibs), "pnor",
                                                       &error_abort));
+    uint32_t pnor_addr = pnor->lpc_address;
     uint32_t pnor_size = pnor->size;
-    uint32_t pnor_addr = PNOR_SPI_OFFSET;
     bool readonly = false;
 
     rsp_buffer_push(rsp, cmd[2]);
@@ -251,8 +251,8 @@ static const IPMINetfn hiomap_netfn = {
 
 void pnv_bmc_set_pnor(IPMIBmc *bmc, PnvPnor *pnor)
 {
+    uint32_t pnor_addr = pnor->lpc_address;
     uint32_t pnor_size = pnor->size;
-    uint32_t pnor_addr = PNOR_SPI_OFFSET;
 
     if (!pnv_bmc_is_simulator(bmc)) {
         return;

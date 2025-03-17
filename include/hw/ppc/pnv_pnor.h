@@ -28,6 +28,7 @@ struct PnvPnor {
     BlockBackend   *blk;
 
     uint8_t        *storage;
+    uint32_t       lpc_address; /* Offset within LPC FW space */
     int64_t        size;
     MemoryRegion   mmio;
 };
