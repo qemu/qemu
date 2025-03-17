@@ -198,7 +198,7 @@ static void mps2_fpgaio_write(void *opaque, hwaddr offset, uint64_t value,
 
             s->led0 = value & MAKE_64BIT_MASK(0, s->num_leds);
             for (i = 0; i < s->num_leds; i++) {
-                led_set_state(s->led[i], value & (1 << i));
+                led_set_state(s->led[i], extract64(value, i, 1));
             }
         }
         break;
