@@ -119,7 +119,6 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
 
         self._debugcon_addr = '0x403'
         self._debugcon_log = 'debugcon-log.txt'
-        self.logger = self.log
 
     def _print_log(self, log):
         self.logger.info('\nlogs from biosbits follows:')
