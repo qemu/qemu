@@ -106,7 +106,8 @@ typedef struct DisasContext {
 
 static inline MemOp mo_endian(DisasContext *ctx)
 {
-    return MO_TE;
+   /* The PSW_E bit sets the (little) endianness, but we don't implement it. */
+   return MO_BE;
 }
 
 /* Note that ssm/rsm instructions number PSW_W and PSW_E differently.  */
