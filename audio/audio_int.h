@@ -255,6 +255,7 @@ const char *audio_application_name(void);
 typedef struct RateCtl {
     int64_t start_ticks;
     int64_t bytes_sent;
+    int64_t peeked_frames;
 } RateCtl;
 
 void audio_rate_start(RateCtl *rate);
