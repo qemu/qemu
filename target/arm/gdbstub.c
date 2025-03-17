@@ -44,6 +44,12 @@ int arm_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
 
+#ifdef TARGET_AARCH64
+    if (arm_gdbstub_is_aarch64(cpu)) {
+        return aarch64_cpu_gdb_read_register(cs, mem_buf, n);
+    }
+#endif
+
     if (n < 16) {
         /* Core integer register.  */
         return gdb_get_reg32(mem_buf, env->regs[n]);
@@ -65,6 +71,12 @@ int arm_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
     uint32_t tmp;
+
+#ifdef TARGET_AARCH64
+    if (arm_gdbstub_is_aarch64(cpu)) {
+        return aarch64_cpu_gdb_write_register(cs, mem_buf, n);
+    }
+#endif
 
     tmp = ldl_p(mem_buf);
 

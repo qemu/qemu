@@ -815,11 +815,6 @@ static void aarch64_cpu_finalizefn(Object *obj)
 
 static void aarch64_cpu_class_init(ObjectClass *oc, const void *data)
 {
-    CPUClass *cc = CPU_CLASS(oc);
-
-    cc->gdb_read_register = aarch64_cpu_gdb_read_register;
-    cc->gdb_write_register = aarch64_cpu_gdb_write_register;
-
     object_class_property_add_bool(oc, "aarch64", aarch64_cpu_get_aarch64,
                                    aarch64_cpu_set_aarch64);
     object_class_property_set_description(oc, "aarch64",
