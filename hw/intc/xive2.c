@@ -1344,7 +1344,7 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
         return;
     }
 
-    if (xive2_end_is_crowd(&end) & !xive2_end_is_ignore(&end)) {
+    if (xive2_end_is_crowd(&end) && !xive2_end_is_ignore(&end)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "XIVE: invalid END, 'crowd' bit requires 'ignore' bit\n");
         return;
