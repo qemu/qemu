@@ -25,6 +25,8 @@
 
 static const hwaddr aspeed_soc_ast2700_memmap[] = {
     [ASPEED_DEV_SRAM]      =  0x10000000,
+    [ASPEED_DEV_EHCI1]     =  0x12061000,
+    [ASPEED_DEV_EHCI2]     =  0x12063000,
     [ASPEED_DEV_HACE]      =  0x12070000,
     [ASPEED_DEV_EMMC]      =  0x12090000,
     [ASPEED_DEV_INTC]      =  0x12100000,
@@ -47,6 +49,8 @@ static const hwaddr aspeed_soc_ast2700_memmap[] = {
     [ASPEED_DEV_ETH2]      =  0x14060000,
     [ASPEED_DEV_ETH3]      =  0x14070000,
     [ASPEED_DEV_SDHCI]     =  0x14080000,
+    [ASPEED_DEV_EHCI3]     =  0x14121000,
+    [ASPEED_DEV_EHCI4]     =  0x14123000,
     [ASPEED_DEV_ADC]       =  0x14C00000,
     [ASPEED_DEV_SCUIO]     =  0x14C02000,
     [ASPEED_DEV_GPIO]      =  0x14C0B000,
@@ -91,6 +95,8 @@ static const int aspeed_soc_ast2700a0_irqmap[] = {
     [ASPEED_DEV_TIMER7]    = 22,
     [ASPEED_DEV_TIMER8]    = 23,
     [ASPEED_DEV_DP]        = 28,
+    [ASPEED_DEV_EHCI1]     = 33,
+    [ASPEED_DEV_EHCI2]     = 37,
     [ASPEED_DEV_LPC]       = 128,
     [ASPEED_DEV_IBT]       = 128,
     [ASPEED_DEV_KCS]       = 128,
@@ -137,6 +143,8 @@ static const int aspeed_soc_ast2700a1_irqmap[] = {
     [ASPEED_DEV_TIMER7]    = 22,
     [ASPEED_DEV_TIMER8]    = 23,
     [ASPEED_DEV_DP]        = 28,
+    [ASPEED_DEV_EHCI1]     = 33,
+    [ASPEED_DEV_EHCI2]     = 37,
     [ASPEED_DEV_LPC]       = 192,
     [ASPEED_DEV_IBT]       = 192,
     [ASPEED_DEV_KCS]       = 192,
@@ -212,6 +220,8 @@ static const int ast2700_gic132_gic196_intcmap[] = {
     [ASPEED_DEV_UART10]    = 16,
     [ASPEED_DEV_UART11]    = 17,
     [ASPEED_DEV_UART12]    = 18,
+    [ASPEED_DEV_EHCI3]     = 28,
+    [ASPEED_DEV_EHCI4]     = 29,
 };
 
 /* GICINT 133 */
@@ -432,6 +442,11 @@ static void aspeed_soc_ast2700_init(Object *obj)
     for (i = 0; i < sc->spis_num; i++) {
         snprintf(typename, sizeof(typename), "aspeed.spi%d-%s", i, socname);
         object_initialize_child(obj, "spi[*]", &s->spi[i], typename);
+    }
+
+    for (i = 0; i < sc->ehcis_num; i++) {
+        object_initialize_child(obj, "ehci[*]", &s->ehci[i],
+                                TYPE_PLATFORM_EHCI);
     }
 
     snprintf(typename, sizeof(typename), "aspeed.sdmc-%s", socname);
@@ -709,6 +724,17 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
                         ASPEED_SMC_GET_CLASS(&s->spi[i])->flash_window_base);
     }
 
+    /* EHCI */
+    for (i = 0; i < sc->ehcis_num; i++) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->ehci[i]), errp)) {
+            return;
+        }
+        aspeed_mmio_map(s, SYS_BUS_DEVICE(&s->ehci[i]), 0,
+                        sc->memmap[ASPEED_DEV_EHCI1 + i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->ehci[i]), 0,
+                           aspeed_soc_get_irq(s, ASPEED_DEV_EHCI1 + i));
+    }
+
     /*
      * SDMC - SDRAM Memory Controller
      * The SDMC controller is unlocked at SPL stage.
@@ -900,6 +926,7 @@ static void aspeed_soc_ast2700a0_class_init(ObjectClass *oc, const void *data)
     sc->silicon_rev  = AST2700_A0_SILICON_REV;
     sc->sram_size    = 0x20000;
     sc->spis_num     = 3;
+    sc->ehcis_num    = 2;
     sc->wdts_num     = 8;
     sc->macs_num     = 1;
     sc->uarts_num    = 13;
@@ -927,6 +954,7 @@ static void aspeed_soc_ast2700a1_class_init(ObjectClass *oc, const void *data)
     sc->silicon_rev  = AST2700_A1_SILICON_REV;
     sc->sram_size    = 0x20000;
     sc->spis_num     = 3;
+    sc->ehcis_num    = 4;
     sc->wdts_num     = 8;
     sc->macs_num     = 3;
     sc->uarts_num    = 13;

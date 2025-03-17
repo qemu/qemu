@@ -43,7 +43,7 @@
 #include "hw/intc/arm_gicv3.h"
 
 #define ASPEED_SPIS_NUM  3
-#define ASPEED_EHCIS_NUM 2
+#define ASPEED_EHCIS_NUM 4
 #define ASPEED_WDTS_NUM  8
 #define ASPEED_CPUS_NUM  4
 #define ASPEED_MACS_NUM  4
@@ -192,6 +192,8 @@ enum {
     ASPEED_DEV_SPI2,
     ASPEED_DEV_EHCI1,
     ASPEED_DEV_EHCI2,
+    ASPEED_DEV_EHCI3,
+    ASPEED_DEV_EHCI4,
     ASPEED_DEV_VIC,
     ASPEED_DEV_INTC,
     ASPEED_DEV_INTCIO,
