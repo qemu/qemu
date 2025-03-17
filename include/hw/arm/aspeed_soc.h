@@ -42,7 +42,7 @@
 #include "hw/char/serial-mm.h"
 #include "hw/intc/arm_gicv3.h"
 
-#define ASPEED_SPIS_NUM  2
+#define ASPEED_SPIS_NUM  3
 #define ASPEED_EHCIS_NUM 2
 #define ASPEED_WDTS_NUM  8
 #define ASPEED_CPUS_NUM  4
