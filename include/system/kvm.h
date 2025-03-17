@@ -210,10 +210,10 @@ bool kvm_arm_supports_user_irq(void);
 int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr);
 int kvm_on_sigbus(int code, void *addr);
 
+void kvm_flush_coalesced_mmio_buffer(void);
+
 #ifdef COMPILING_PER_TARGET
 #include "cpu.h"
-
-void kvm_flush_coalesced_mmio_buffer(void);
 
 /**
  * kvm_update_guest_debug(): ensure KVM debug structures updated
