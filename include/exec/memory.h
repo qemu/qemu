@@ -21,6 +21,7 @@
 #include "exec/memattrs.h"
 #include "exec/memop.h"
 #include "exec/ramlist.h"
+#include "exec/tswap.h"
 #include "qemu/bswap.h"
 #include "qemu/queue.h"
 #include "qemu/int128.h"
@@ -2732,6 +2733,12 @@ MemTxResult address_space_write_rom(AddressSpace *as, hwaddr addr,
 #define ARG1_DECL    AddressSpace *as
 #include "exec/memory_ldst.h.inc"
 
+static inline void stl_phys_notdirty(AddressSpace *as, hwaddr addr, uint32_t val)
+{
+    address_space_stl_notdirty(as, addr, val,
+                               MEMTXATTRS_UNSPECIFIED, NULL);
+}
+
 #define SUFFIX
 #define ARG1         as
 #define ARG1_DECL    AddressSpace *as
@@ -2797,6 +2804,9 @@ static inline void address_space_stb_cached(MemoryRegionCache *cache,
         address_space_stb_cached_slow(cache, addr, val, attrs, result);
     }
 }
+
+#define ENDIANNESS
+#include "exec/memory_ldst_cached.h.inc"
 
 #define ENDIANNESS   _le
 #include "exec/memory_ldst_cached.h.inc"
