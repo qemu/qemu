@@ -1686,7 +1686,7 @@ static uint8_t xive_get_group_level(bool crowd, bool ignore,
          * Supported crowd sizes are 2^1, 2^2, and 2^4. 2^3 is not supported.
          * HW will encode level 4 as the value 3.  See xive2_pgofnext().
          */
-        switch (level) {
+        switch (blk) {
         case 1:
         case 2:
             break;
