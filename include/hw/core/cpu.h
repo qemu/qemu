@@ -131,6 +131,10 @@ struct SysemuCPUOps;
  * @gdb_num_core_regs: Number of core registers accessible to GDB or 0 to infer
  *                     from @gdb_core_xml_file.
  * @gdb_core_xml_file: File name for core registers GDB XML description.
+ * @gdb_get_core_xml_file: Optional callback that returns the file name for
+ * the core registers GDB XML description. The returned value is expected to
+ * be a simple constant string: the caller will not g_free() it. If this
+ * is NULL then @gdb_core_xml_file will be used instead.
  * @gdb_stop_before_watchpoint: Indicates whether GDB expects the CPU to stop
  *           before the insn which triggers a watchpoint rather than after it.
  * @gdb_arch_name: Optional callback that returns the architecture name known
@@ -166,6 +170,7 @@ struct CPUClass {
 
     const char *gdb_core_xml_file;
     const gchar * (*gdb_arch_name)(CPUState *cpu);
+    const char * (*gdb_get_core_xml_file)(CPUState *cpu);
 
     void (*disas_set_info)(CPUState *cpu, disassemble_info *info);
 
