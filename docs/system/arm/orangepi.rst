@@ -252,10 +252,10 @@ and set the following environment variables before booting:
 Optionally you may save the environment variables to SD card with 'saveenv'.
 To continue booting simply give the 'boot' command and NetBSD boots.
 
-Orange Pi PC integration tests
-""""""""""""""""""""""""""""""
+Orange Pi PC functional tests
+"""""""""""""""""""""""""""""
 
-The Orange Pi PC machine has several integration tests included.
+The Orange Pi PC machine has several functional tests included.
 To run the whole set of tests, build QEMU from source and simply
 provide the following command from the build directory:
 

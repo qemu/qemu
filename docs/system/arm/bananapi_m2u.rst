@@ -125,10 +125,10 @@ And then boot it.
 
   $ qemu-system-arm -M bpim2u -nographic -sd sd.img
 
-Banana Pi M2U integration tests
-"""""""""""""""""""""""""""""""
+Banana Pi M2U functional tests
+""""""""""""""""""""""""""""""
 
-The Banana Pi M2U machine has several integration tests included.
+The Banana Pi M2U machine has several functional tests included.
 To run the whole set of tests, build QEMU from source and simply
 provide the following command:
 
