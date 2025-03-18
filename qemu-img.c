@@ -4488,7 +4488,11 @@ static void bench_cb(void *opaque, int ret)
          */
         b->in_flight++;
         b->offset += b->step;
-        b->offset %= b->image_size;
+        if (b->image_size == 0) {
+            b->offset = 0;
+        } else {
+            b->offset %= b->image_size;
+        }
         if (b->write) {
             acb = blk_aio_pwritev(b->blk, offset, b->qiov, 0, bench_cb, b);
         } else {
