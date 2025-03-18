@@ -248,21 +248,25 @@ static void pnv_core_power10_xscom_write(void *opaque, hwaddr addr,
 
             if (val & PPC_BIT(7 + 8 * i)) { /* stop */
                 val &= ~PPC_BIT(7 + 8 * i);
-                cpu_pause(cs);
                 env->quiesced = true;
+                ppc_maybe_interrupt(env);
+                cpu_pause(cs);
             }
             if (val & PPC_BIT(6 + 8 * i)) { /* start */
                 val &= ~PPC_BIT(6 + 8 * i);
                 env->quiesced = false;
+                ppc_maybe_interrupt(env);
                 cpu_resume(cs);
             }
             if (val & PPC_BIT(4 + 8 * i)) { /* sreset */
                 val &= ~PPC_BIT(4 + 8 * i);
                 env->quiesced = false;
+                ppc_maybe_interrupt(env);
                 pnv_cpu_do_nmi_resume(cs);
             }
             if (val & PPC_BIT(3 + 8 * i)) { /* clear maint */
                 env->quiesced = false;
+                ppc_maybe_interrupt(env);
                 /*
                  * Hardware has very particular cases for where clear maint
                  * must be used and where start must be used to resume a

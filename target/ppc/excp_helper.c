@@ -1951,6 +1951,10 @@ static int ppc_next_unmasked_interrupt(CPUPPCState *env)
     target_ulong lpcr = env->spr[SPR_LPCR];
     bool async_deliver;
 
+    if (unlikely(env->quiesced)) {
+        return 0;
+    }
+
 #ifdef TARGET_PPC64
     switch (env->excp_model) {
     case POWERPC_EXCP_POWER7:
