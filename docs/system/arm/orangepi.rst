@@ -262,4 +262,4 @@ provide the following command from the build directory:
 .. code-block:: bash
 
   $ QEMU_TEST_ALLOW_LARGE_STORAGE=1 \
-    meson test --suite thorough func-arm-arm_orangepi
+    pyvenv/bin/meson test --suite thorough func-arm-arm_orangepi

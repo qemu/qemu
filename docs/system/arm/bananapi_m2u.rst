@@ -136,4 +136,4 @@ provide the following command:
 
   $ cd qemu-build-dir
   $ QEMU_TEST_ALLOW_LARGE_STORAGE=1 \
-    meson test --suite thorough func-arm-arm_bpim2u
+    pyvenv/bin/meson test --suite thorough func-arm-arm_bpim2u
