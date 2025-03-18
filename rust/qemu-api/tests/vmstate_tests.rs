@@ -2,15 +2,16 @@
 // Author(s): Zhao Liu <zhai1.liu@intel.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::{ffi::CStr, mem::size_of, slice};
+use std::{ffi::CStr, mem::size_of, ptr::NonNull, slice};
 
 use qemu_api::{
     bindings::{
-        vmstate_info_bool, vmstate_info_int64, vmstate_info_int8, vmstate_info_uint64,
-        vmstate_info_uint8, vmstate_info_unused_buffer, VMStateFlags,
+        vmstate_info_bool, vmstate_info_int32, vmstate_info_int64, vmstate_info_int8,
+        vmstate_info_uint64, vmstate_info_uint8, vmstate_info_unused_buffer, VMStateFlags,
     },
     c_str,
-    cell::BqlCell,
+    cell::{BqlCell, Opaque},
+    impl_vmstate_forward,
     vmstate::{VMStateDescription, VMStateField},
     vmstate_fields, vmstate_of, vmstate_struct, vmstate_unused,
     zeroable::Zeroable,
@@ -285,4 +286,114 @@ fn test_vmstate_macro_array() {
 
     // The last VMStateField in VMSTATE_FOOB.
     assert_eq!(foo_fields[5].flags, VMStateFlags::VMS_END);
+}
+
+// =========================== Test VMSTATE_FOOC ===========================
+// Test the use cases of the vmstate macro, corresponding to the following C
+// macro variants:
+//   * VMSTATE_FOOC:
+//     - VMSTATE_POINTER
+//     - VMSTATE_ARRAY_OF_POINTER
+struct FooCWrapper([Opaque<*mut u8>; FOO_ARRAY_MAX]); // Though Opaque<> array is almost impossible.
+
+impl_vmstate_forward!(FooCWrapper);
+
+#[repr(C)]
+#[derive(qemu_api_macros::offsets)]
+struct FooC {
+    ptr: *const i32,
+    ptr_a: NonNull<FooA>,
+    arr_ptr: [Box<u8>; FOO_ARRAY_MAX],
+    arr_ptr_wrap: FooCWrapper,
+}
+
+static VMSTATE_FOOC: VMStateDescription = VMStateDescription {
+    name: c_str!("foo_c").as_ptr(),
+    version_id: 3,
+    minimum_version_id: 1,
+    fields: vmstate_fields! {
+        vmstate_of!(FooC, ptr).with_version_id(2),
+        // FIXME: Currently vmstate_struct doesn't support the pointer to structure.
+        // VMSTATE_STRUCT_POINTER: vmstate_struct!(FooC, ptr_a, VMSTATE_FOOA, NonNull<FooA>)
+        vmstate_unused!(size_of::<NonNull<FooA>>()),
+        vmstate_of!(FooC, arr_ptr),
+        vmstate_of!(FooC, arr_ptr_wrap),
+    },
+    ..Zeroable::ZERO
+};
+
+const PTR_SIZE: usize = size_of::<*mut ()>();
+
+#[test]
+fn test_vmstate_pointer() {
+    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOC.fields, 6) };
+
+    // 1st VMStateField ("ptr") in VMSTATE_FOOC (corresponding to VMSTATE_POINTER)
+    assert_eq!(
+        unsafe { CStr::from_ptr(foo_fields[0].name) }.to_bytes_with_nul(),
+        b"ptr\0"
+    );
+    assert_eq!(foo_fields[0].offset, 0);
+    assert_eq!(foo_fields[0].num_offset, 0);
+    assert_eq!(foo_fields[0].info, unsafe { &vmstate_info_int32 });
+    assert_eq!(foo_fields[0].version_id, 2);
+    assert_eq!(foo_fields[0].size, 4);
+    assert_eq!(foo_fields[0].num, 0);
+    assert_eq!(
+        foo_fields[0].flags.0,
+        VMStateFlags::VMS_SINGLE.0 | VMStateFlags::VMS_POINTER.0
+    );
+    assert!(foo_fields[0].vmsd.is_null());
+    assert!(foo_fields[0].field_exists.is_none());
+}
+
+#[test]
+fn test_vmstate_macro_array_of_pointer() {
+    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOC.fields, 6) };
+
+    // 3rd VMStateField ("arr_ptr") in VMSTATE_FOOC (corresponding to
+    // VMSTATE_ARRAY_OF_POINTER)
+    assert_eq!(
+        unsafe { CStr::from_ptr(foo_fields[2].name) }.to_bytes_with_nul(),
+        b"arr_ptr\0"
+    );
+    assert_eq!(foo_fields[2].offset, 2 * PTR_SIZE);
+    assert_eq!(foo_fields[2].num_offset, 0);
+    assert_eq!(foo_fields[2].info, unsafe { &vmstate_info_uint8 });
+    assert_eq!(foo_fields[2].version_id, 0);
+    assert_eq!(foo_fields[2].size, PTR_SIZE);
+    assert_eq!(foo_fields[2].num, FOO_ARRAY_MAX as i32);
+    assert_eq!(
+        foo_fields[2].flags.0,
+        VMStateFlags::VMS_ARRAY.0 | VMStateFlags::VMS_ARRAY_OF_POINTER.0
+    );
+    assert!(foo_fields[2].vmsd.is_null());
+    assert!(foo_fields[2].field_exists.is_none());
+}
+
+#[test]
+fn test_vmstate_macro_array_of_pointer_wrapped() {
+    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOC.fields, 6) };
+
+    // 4th VMStateField ("arr_ptr_wrap") in VMSTATE_FOOC (corresponding to
+    // VMSTATE_ARRAY_OF_POINTER)
+    assert_eq!(
+        unsafe { CStr::from_ptr(foo_fields[3].name) }.to_bytes_with_nul(),
+        b"arr_ptr_wrap\0"
+    );
+    assert_eq!(foo_fields[3].offset, (FOO_ARRAY_MAX + 2) * PTR_SIZE);
+    assert_eq!(foo_fields[3].num_offset, 0);
+    assert_eq!(foo_fields[2].info, unsafe { &vmstate_info_uint8 });
+    assert_eq!(foo_fields[3].version_id, 0);
+    assert_eq!(foo_fields[3].size, PTR_SIZE);
+    assert_eq!(foo_fields[3].num, FOO_ARRAY_MAX as i32);
+    assert_eq!(
+        foo_fields[2].flags.0,
+        VMStateFlags::VMS_ARRAY.0 | VMStateFlags::VMS_ARRAY_OF_POINTER.0
+    );
+    assert!(foo_fields[3].vmsd.is_null());
+    assert!(foo_fields[3].field_exists.is_none());
+
+    // The last VMStateField in VMSTATE_FOOC.
+    assert_eq!(foo_fields[4].flags, VMStateFlags::VMS_END);
 }
