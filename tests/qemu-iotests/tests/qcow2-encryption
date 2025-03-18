@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# group: rw quick
+#
+# Test case for encryption support in qcow2
+#
+# Copyright (C) 2025 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ../common.rc
+. ../common.filter
+
+# This tests qcow2-specific low-level functionality
+_supported_fmt qcow2
+_supported_proto file
+_require_working_luks
+
+IMG_SIZE=64M
+
+echo
+echo "=== Create an encrypted image ==="
+echo
+
+_make_test_img --object secret,id=sec0,data=123456 -o encrypt.format=luks,encrypt.key-secret=sec0 $IMG_SIZE
+$PYTHON ../qcow2.py "$TEST_IMG" dump-header-exts
+_img_info
+$QEMU_IMG check \
+    --object secret,id=sec0,data=123456 \
+    --image-opts file.filename="$TEST_IMG",encrypt.key-secret=sec0 \
+    | _filter_qemu_img_check
+
+echo
+echo "=== Remove the header extension ==="
+echo
+
+$PYTHON ../qcow2.py "$TEST_IMG" del-header-ext 0x0537be77
+$PYTHON ../qcow2.py "$TEST_IMG" dump-header-exts
+_img_info
+$QEMU_IMG check \
+    --object secret,id=sec0,data=123456 \
+    --image-opts file.filename="$TEST_IMG",encrypt.key-secret=sec0 2>&1 \
+    | _filter_qemu_img_check \
+    | _filter_testdir
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
