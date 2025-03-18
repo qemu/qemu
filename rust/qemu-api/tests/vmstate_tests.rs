@@ -2,7 +2,7 @@
 // Author(s): Zhao Liu <zhai1.liu@intel.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::{ffi::CStr, mem::size_of, ptr::NonNull, slice};
+use std::{ffi::CStr, mem::size_of, os::raw::c_void, ptr::NonNull, slice};
 
 use qemu_api::{
     bindings::{
@@ -13,7 +13,7 @@ use qemu_api::{
     cell::{BqlCell, Opaque},
     impl_vmstate_forward,
     vmstate::{VMStateDescription, VMStateField},
-    vmstate_fields, vmstate_of, vmstate_struct, vmstate_unused,
+    vmstate_fields, vmstate_of, vmstate_struct, vmstate_unused, vmstate_validate,
     zeroable::Zeroable,
 };
 
@@ -396,4 +396,82 @@ fn test_vmstate_macro_array_of_pointer_wrapped() {
 
     // The last VMStateField in VMSTATE_FOOC.
     assert_eq!(foo_fields[4].flags, VMStateFlags::VMS_END);
+}
+
+// =========================== Test VMSTATE_FOOD ===========================
+// Test the use cases of the vmstate macro, corresponding to the following C
+// macro variants:
+//   * VMSTATE_FOOD:
+//     - VMSTATE_VALIDATE
+
+// Add more member fields when vmstate_of/vmstate_struct support "test"
+// parameter.
+struct FooD;
+
+impl FooD {
+    fn validate_food_0(&self, _version_id: u8) -> bool {
+        true
+    }
+
+    fn validate_food_1(_state: &FooD, _version_id: u8) -> bool {
+        false
+    }
+}
+
+fn validate_food_2(_state: &FooD, _version_id: u8) -> bool {
+    true
+}
+
+static VMSTATE_FOOD: VMStateDescription = VMStateDescription {
+    name: c_str!("foo_d").as_ptr(),
+    version_id: 3,
+    minimum_version_id: 1,
+    fields: vmstate_fields! {
+        vmstate_validate!(FooD, c_str!("foo_d_0"), FooD::validate_food_0),
+        vmstate_validate!(FooD, c_str!("foo_d_1"), FooD::validate_food_1),
+        vmstate_validate!(FooD, c_str!("foo_d_2"), validate_food_2),
+    },
+    ..Zeroable::ZERO
+};
+
+#[test]
+fn test_vmstate_validate() {
+    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOD.fields, 4) };
+    let mut foo_d = FooD;
+    let foo_d_p = std::ptr::addr_of_mut!(foo_d).cast::<c_void>();
+
+    // 1st VMStateField in VMSTATE_FOOD
+    assert_eq!(
+        unsafe { CStr::from_ptr(foo_fields[0].name) }.to_bytes_with_nul(),
+        b"foo_d_0\0"
+    );
+    assert_eq!(foo_fields[0].offset, 0);
+    assert_eq!(foo_fields[0].num_offset, 0);
+    assert!(foo_fields[0].info.is_null());
+    assert_eq!(foo_fields[0].version_id, 0);
+    assert_eq!(foo_fields[0].size, 0);
+    assert_eq!(foo_fields[0].num, 0);
+    assert_eq!(
+        foo_fields[0].flags.0,
+        VMStateFlags::VMS_ARRAY.0 | VMStateFlags::VMS_MUST_EXIST.0
+    );
+    assert!(foo_fields[0].vmsd.is_null());
+    assert!(unsafe { foo_fields[0].field_exists.unwrap()(foo_d_p, 0) });
+
+    // 2nd VMStateField in VMSTATE_FOOD
+    assert_eq!(
+        unsafe { CStr::from_ptr(foo_fields[1].name) }.to_bytes_with_nul(),
+        b"foo_d_1\0"
+    );
+    assert!(!unsafe { foo_fields[1].field_exists.unwrap()(foo_d_p, 1) });
+
+    // 3rd VMStateField in VMSTATE_FOOD
+    assert_eq!(
+        unsafe { CStr::from_ptr(foo_fields[2].name) }.to_bytes_with_nul(),
+        b"foo_d_2\0"
+    );
+    assert!(unsafe { foo_fields[2].field_exists.unwrap()(foo_d_p, 2) });
+
+    // The last VMStateField in VMSTATE_FOOD.
+    assert_eq!(foo_fields[3].flags, VMStateFlags::VMS_END);
 }
