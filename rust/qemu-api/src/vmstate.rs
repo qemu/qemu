@@ -447,7 +447,7 @@ macro_rules! vmstate_struct {
                 .as_ptr() as *const ::std::os::raw::c_char,
             $(num_offset: $crate::offset_of!($struct_name, $num),)?
             offset: {
-                $crate::assert_field_type!($struct_name, $field_name, $type);
+                $crate::assert_field_type!($struct_name, $field_name, $type $(, num = $num)?);
                 $crate::offset_of!($struct_name, $field_name)
             },
             size: ::core::mem::size_of::<$type>(),
