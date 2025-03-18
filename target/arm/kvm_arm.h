@@ -97,10 +97,6 @@ void kvm_arm_reset_vcpu(ARMCPU *cpu);
 #ifdef CONFIG_KVM
 /**
  * kvm_arm_create_scratch_host_vcpu:
- * @cpus_to_try: array of QEMU_KVM_ARM_TARGET_* values (terminated with
- * QEMU_KVM_ARM_TARGET_NONE) to try as fallback if the kernel does not
- * know the PREFERRED_TARGET ioctl. Passing NULL is the same as passing
- * an empty array.
  * @fdarray: filled in with kvmfd, vmfd, cpufd file descriptors in that order
  * @init: filled in with the necessary values for creating a host
  * vcpu. If NULL is provided, will not init the vCPU (though the cpufd
@@ -113,8 +109,7 @@ void kvm_arm_reset_vcpu(ARMCPU *cpu);
  * Returns: true on success (and fdarray and init are filled in),
  * false on failure (and fdarray and init are not valid).
  */
-bool kvm_arm_create_scratch_host_vcpu(const uint32_t *cpus_to_try,
-                                      int *fdarray,
+bool kvm_arm_create_scratch_host_vcpu(int *fdarray,
                                       struct kvm_vcpu_init *init);
 
 /**
