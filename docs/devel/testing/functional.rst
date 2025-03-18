@@ -72,8 +72,26 @@ files around on disk by setting ```QEMU_TEST_KEEP_SCRATCH=1``` as an env
 variable.  Any preserved files will be deleted the next time the test is run
 without this variable set.
 
-Overview
---------
+Logging
+-------
+
+The framework collects log files for each test in the build directory
+in the following subfolder::
+
+ <builddir>/tests/functional/<arch>/<fileid>.<classid>.<testname>/
+
+There are usually three log files:
+
+* ``base.log`` contains the generic logging information that is written
+  by the calls to the logging functions in the test code (e.g. by calling
+  the ``self.log.info()`` or ``self.log.debug()`` functions).
+* ``console.log`` contains the output of the serial console of the guest.
+* ``default.log`` contains the output of QEMU. This file could be named
+  differently if the test chooses to use a different identifier for
+  the guest VM (e.g. when the test spins up multiple VMs).
+
+Introduction to writing tests
+-----------------------------
 
 The ``tests/functional/qemu_test`` directory provides the ``qemu_test``
 Python module, containing the ``qemu_test.QemuSystemTest`` class.
