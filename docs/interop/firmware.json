@@ -214,13 +214,23 @@
 #                  PL011 UART. @verbose-static is mutually exclusive
 #                  with @verbose-dynamic.
 #
+# @host-uefi-vars: The firmware expects the host to provide an uefi
+#                  variable store.  qemu supports that via
+#                  "uefi-vars-sysbus" (aarch64, riscv64, loongarch64)
+#                  or "uefi-vars-x64" (x86_64) devices.  The firmware
+#                  will not use flash for nvram.  When loading the
+#                  firmware into flash the 'stateless' setup should be
+#                  used.  It is recommened to load the firmware into
+#                  memory though.
+#
 # Since: 3.0
 ##
 { 'enum' : 'FirmwareFeature',
   'data' : [ 'acpi-s3', 'acpi-s4',
              'amd-sev', 'amd-sev-es', 'amd-sev-snp',
              'intel-tdx',
-             'enrolled-keys', 'requires-smm', 'secure-boot',
+             'enrolled-keys', 'requires-smm',
+             'secure-boot', 'host-uefi-vars',
              'verbose-dynamic', 'verbose-static' ] }
 
 ##
