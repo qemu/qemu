@@ -18,7 +18,7 @@ DIST:=.el9
 
 # Koji (RHEL Brew) build target.
 # Example: rhel-9.3.0-candidate.
-BUILD_TARGET_RHEL:=rhel-9.6.0-candidate
+BUILD_TARGET_RHEL:=rhel-9.7.0-candidate
 
 # Koji (CentOS Stream) build target.
 # Example: c9s-candidate.
