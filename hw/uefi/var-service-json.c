@@ -178,7 +178,7 @@ void uefi_vars_json_init(uefi_vars_state *uv, Error **errp)
 
 void uefi_vars_json_save(uefi_vars_state *uv)
 {
-    GString *gstr;
+    g_autoptr(GString) gstr = NULL;
     int rc;
 
     if (uv->jsonfd == -1) {
@@ -187,18 +187,25 @@ void uefi_vars_json_save(uefi_vars_state *uv)
 
     gstr = uefi_vars_to_json(uv);
 
-    lseek(uv->jsonfd, 0, SEEK_SET);
+    rc = lseek(uv->jsonfd, 0, SEEK_SET);
+    if (rc < 0) {
+        warn_report("%s: lseek error", __func__);
+        return;
+    }
+
     rc = ftruncate(uv->jsonfd, 0);
     if (rc != 0) {
         warn_report("%s: ftruncate error", __func__);
+        return;
     }
+
     rc = write(uv->jsonfd, gstr->str, gstr->len);
     if (rc != gstr->len) {
         warn_report("%s: write error", __func__);
+        return;
     }
-    fsync(uv->jsonfd);
 
-    g_string_free(gstr, true);
+    fsync(uv->jsonfd);
 }
 
 void uefi_vars_json_load(uefi_vars_state *uv, Error **errp)
