@@ -6,7 +6,7 @@
 
 #ifndef TARGET_INSN_START_WORDS
 
-#include "cpu.h"
+#include "cpu-param.h"
 
 #ifndef TARGET_INSN_START_EXTRA_WORDS
 # define TARGET_INSN_START_WORDS 1

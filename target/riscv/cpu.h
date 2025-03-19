@@ -46,12 +46,6 @@ typedef struct CPUArchState CPURISCVState;
 #endif
 
 /*
- * RISC-V-specific extra insn start words:
- * 1: Original instruction opcode
- * 2: more information about instruction
- */
-#define TARGET_INSN_START_EXTRA_WORDS 2
-/*
  * b0: Whether a instruction always raise a store AMO or not.
  */
 #define RISCV_UW2_ALWAYS_STORE_AMO 1
