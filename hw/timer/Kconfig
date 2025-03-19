@@ -11,7 +11,13 @@ config A9_GTIMER
 
 config HPET
     bool
-    default y if PC && !HAVE_RUST
+    default y if PC
+    # The HPET has both a Rust and a C implementation
+    select HPET_C if !HAVE_RUST
+    select X_HPET_RUST if HAVE_RUST
+
+config HPET_C
+    bool
 
 config I8254
     bool

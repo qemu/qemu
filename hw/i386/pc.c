@@ -1704,7 +1704,7 @@ static void pc_machine_initfn(Object *obj)
     pcms->sata_enabled = true;
     pcms->i8042_enabled = true;
     pcms->max_fw_size = 8 * MiB;
-#if defined(CONFIG_HPET) || defined(CONFIG_X_HPET_RUST)
+#if defined(CONFIG_HPET)
     pcms->hpet_enabled = true;
 #endif
     pcms->fd_bootchk = true;
