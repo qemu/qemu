@@ -578,29 +578,47 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
     }
 
     /*
-     * We follow the following table to select which payload we execute.
+     * We follow the following table to select which firmware we use.
      *
-     *  -bios |    -kernel | payload
-     * -------+------------+--------
-     *      N |          N | HSS
-     *      Y | don't care | HSS
-     *      N |          Y | kernel
-     *
-     * This ensures backwards compatibility with how we used to expose -bios
-     * to users but allows them to run through direct kernel booting as well.
+     * -bios         | -kernel    | firmware
+     * --------------+------------+--------
+     * none          |          N | error
+     * none          |          Y | kernel
+     * NULL, default |          N | BIOS_FILENAME
+     * NULL, default |          Y | RISCV64_BIOS_BIN
+     * other         | don't care | other
      */
+    if (machine->firmware && !strcmp(machine->firmware, "none")) {
+        if (!machine->kernel_filename) {
+            error_report("for -bios none, a kernel is required");
+            exit(1);
+        }
 
-    if (machine->kernel_filename) {
-        firmware_name = RISCV64_BIOS_BIN;
-        firmware_load_addr = memmap[MICROCHIP_PFSOC_DRAM_LO].base;
+        firmware_name = NULL;
+        firmware_load_addr = RESET_VECTOR;
+    } else if (!machine->firmware || !strcmp(machine->firmware, "default")) {
+        if (machine->kernel_filename) {
+            firmware_name = RISCV64_BIOS_BIN;
+            firmware_load_addr = memmap[MICROCHIP_PFSOC_DRAM_LO].base;
+        } else {
+            firmware_name = BIOS_FILENAME;
+            firmware_load_addr = RESET_VECTOR;
+        }
     } else {
-        firmware_name = BIOS_FILENAME;
+        firmware_name = machine->firmware;
         firmware_load_addr = RESET_VECTOR;
     }
 
-    /* Load the firmware */
-    firmware_end_addr = riscv_find_and_load_firmware(machine, firmware_name,
-                                                     &firmware_load_addr, NULL);
+    /* Load the firmware if necessary */
+    firmware_end_addr = firmware_load_addr;
+    if (firmware_name) {
+        char *filename = riscv_find_firmware(firmware_name, NULL);
+        if (filename) {
+            firmware_end_addr = riscv_load_firmware(filename,
+                                                    &firmware_load_addr, NULL);
+            g_free(filename);
+        }
+    }
 
     riscv_boot_info_init(&boot_info, &s->soc.u_cpus);
     if (machine->kernel_filename) {
@@ -638,8 +656,15 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
             fdt_load_addr = 0;
         }
 
+        hwaddr start_addr;
+        if (firmware_name) {
+            start_addr = firmware_load_addr;
+        } else {
+            start_addr = kernel_entry;
+        }
+
         /* Load the reset vector */
-        riscv_setup_rom_reset_vec(machine, &s->soc.u_cpus, firmware_load_addr,
+        riscv_setup_rom_reset_vec(machine, &s->soc.u_cpus, start_addr,
                                   memmap[MICROCHIP_PFSOC_ENVM_DATA].base,
                                   memmap[MICROCHIP_PFSOC_ENVM_DATA].size,
                                   kernel_entry, fdt_load_addr);
