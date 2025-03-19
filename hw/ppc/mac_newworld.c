@@ -197,11 +197,6 @@ static void ppc_core99_init(MachineState *machine)
     }
 
     if (machine->kernel_filename) {
-        int bswap_needed = 0;
-
-#ifdef BSWAP_NEEDED
-        bswap_needed = 1;
-#endif
         kernel_base = KERNEL_LOAD_ADDR;
         kernel_size = load_elf(machine->kernel_filename, NULL,
                                translate_kernel_address, NULL, NULL, NULL,
@@ -209,7 +204,7 @@ static void ppc_core99_init(MachineState *machine)
         if (kernel_size < 0) {
             kernel_size = load_aout(machine->kernel_filename, kernel_base,
                                     machine->ram_size - kernel_base,
-                                    bswap_needed, TARGET_PAGE_SIZE);
+                                    true, TARGET_PAGE_SIZE);
         }
         if (kernel_size < 0) {
             kernel_size = load_image_targphys(machine->kernel_filename,
