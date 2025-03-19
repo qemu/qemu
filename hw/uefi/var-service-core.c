@@ -29,6 +29,7 @@ static int uefi_vars_post_load(void *opaque, int version_id)
     uefi_vars_state *uv = opaque;
 
     uefi_vars_update_storage(uv);
+    uefi_vars_json_save(uv);
     uv->buffer = g_malloc(uv->buf_size);
     return 0;
 }
