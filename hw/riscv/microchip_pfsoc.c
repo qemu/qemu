@@ -39,6 +39,7 @@
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/sysbus.h"
@@ -60,9 +61,6 @@
  */
 #define BIOS_FILENAME   "hss.bin"
 #define RESET_VECTOR    0x20220000
-
-/* CLINT timebase frequency */
-#define CLINT_TIMEBASE_FREQ 1000000
 
 /* GEM version */
 #define GEM_REVISION    0x0107010c
@@ -193,6 +191,7 @@ static void microchip_pfsoc_soc_instance_init(Object *obj)
 static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
+    MicrochipIcicleKitState *iks = MICROCHIP_ICICLE_KIT_MACHINE(ms);
     MicrochipPFSoCState *s = MICROCHIP_PFSOC(dev);
     const MemMapEntry *memmap = microchip_pfsoc_memmap;
     MemoryRegion *system_memory = get_system_memory();
@@ -253,7 +252,7 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
         memmap[MICROCHIP_PFSOC_CLINT].base + RISCV_ACLINT_SWI_SIZE,
         RISCV_ACLINT_DEFAULT_MTIMER_SIZE, 0, ms->smp.cpus,
         RISCV_ACLINT_DEFAULT_MTIMECMP, RISCV_ACLINT_DEFAULT_MTIME,
-        CLINT_TIMEBASE_FREQ, false);
+        iks->clint_timebase_freq, false);
 
     /* L2 cache controller */
     create_unimplemented_device("microchip.pfsoc.l2cc",
@@ -671,6 +670,40 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
     }
 }
 
+static void microchip_icicle_kit_set_clint_timebase_freq(Object *obj,
+                                                         Visitor *v,
+                                                         const char *name,
+                                                         void *opaque,
+                                                         Error **errp)
+{
+    MicrochipIcicleKitState *s = MICROCHIP_ICICLE_KIT_MACHINE(obj);
+    uint32_t value;
+
+    if (!visit_type_uint32(v, name, &value, errp)) {
+        return;
+    }
+
+    s->clint_timebase_freq = value;
+}
+
+static void microchip_icicle_kit_get_clint_timebase_freq(Object *obj,
+                                                         Visitor *v,
+                                                         const char *name,
+                                                         void *opaque,
+                                                         Error **errp)
+{
+    MicrochipIcicleKitState *s = MICROCHIP_ICICLE_KIT_MACHINE(obj);
+    uint32_t value = s->clint_timebase_freq;
+
+    visit_type_uint32(v, name, &value, errp);
+}
+
+static void microchip_icicle_kit_machine_instance_init(Object *obj)
+{
+    MicrochipIcicleKitState *m = MICROCHIP_ICICLE_KIT_MACHINE(obj);
+    m->clint_timebase_freq = 1000000;
+}
+
 static void microchip_icicle_kit_machine_class_init(ObjectClass *oc,
                                                     const void *data)
 {
@@ -693,12 +726,20 @@ static void microchip_icicle_kit_machine_class_init(ObjectClass *oc,
      * See memory_tests() in mss_ddr.c in the HSS source code.
      */
     mc->default_ram_size = 1537 * MiB;
+
+    object_class_property_add(oc, "clint-timebase-frequency", "uint32_t",
+                              microchip_icicle_kit_get_clint_timebase_freq,
+                              microchip_icicle_kit_set_clint_timebase_freq,
+                              NULL, NULL);
+    object_class_property_set_description(oc, "clint-timebase-frequency",
+                                  "Set CLINT timebase frequency in Hz.");
 }
 
 static const TypeInfo microchip_icicle_kit_machine_typeinfo = {
     .name       = MACHINE_TYPE_NAME("microchip-icicle-kit"),
     .parent     = TYPE_MACHINE,
     .class_init = microchip_icicle_kit_machine_class_init,
+    .instance_init = microchip_icicle_kit_machine_instance_init,
     .instance_size = sizeof(MicrochipIcicleKitState),
 };
 
