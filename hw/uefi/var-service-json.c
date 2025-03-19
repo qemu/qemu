@@ -214,7 +214,7 @@ void uefi_vars_json_load(uefi_vars_state *uv, Error **errp)
     QObject *qobj;
     Visitor *v;
     char *str;
-    size_t len;
+    ssize_t len;
     int rc;
 
     if (uv->jsonfd == -1) {
@@ -222,7 +222,12 @@ void uefi_vars_json_load(uefi_vars_state *uv, Error **errp)
     }
 
     len = lseek(uv->jsonfd, 0, SEEK_END);
+    if (len < 0) {
+        warn_report("%s: lseek error", __func__);
+        return;
+    }
     if (len == 0) {
+        /* empty file */
         return;
     }
 
@@ -231,6 +236,8 @@ void uefi_vars_json_load(uefi_vars_state *uv, Error **errp)
     rc = read(uv->jsonfd, str, len);
     if (rc != len) {
         warn_report("%s: read error", __func__);
+        g_free(str);
+        return;
     }
     str[len] = 0;
 
