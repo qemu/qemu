@@ -44,7 +44,7 @@ static inline void memcpy_fromfs(void *to, const void *from, unsigned long n)
     memcpy(to, from, n);
 }
 
-#ifdef BSWAP_NEEDED
+#if HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN
 static void bswap_ehdr(struct elfhdr *ehdr)
 {
     bswap16s(&ehdr->e_type);            /* Object file type */
@@ -111,7 +111,7 @@ static void bswap_note(struct elf_note *en)
     bswap32s(&en->n_type);
 }
 
-#else /* ! BSWAP_NEEDED */
+#else
 
 static void bswap_ehdr(struct elfhdr *ehdr) { }
 static void bswap_phdr(struct elf_phdr *phdr, int phnum) { }
@@ -119,7 +119,7 @@ static void bswap_shdr(struct elf_shdr *shdr, int shnum) { }
 static void bswap_sym(struct elf_sym *sym) { }
 static void bswap_note(struct elf_note *en) { }
 
-#endif /* ! BSWAP_NEEDED */
+#endif /* HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN */
 
 #include "elfcore.c"
 
