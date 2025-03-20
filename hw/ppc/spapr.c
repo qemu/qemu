@@ -4771,6 +4771,7 @@ static void spapr_machine_8_2_class_options(MachineClass *mc)
 {
     spapr_machine_9_0_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_8_2, hw_compat_8_2_len);
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power9_v2.2");
 }
 
 DEFINE_SPAPR_MACHINE(8, 2);
