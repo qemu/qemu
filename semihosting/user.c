@@ -11,6 +11,7 @@
 
 bool semihosting_enabled(bool is_user)
 {
+    assert(is_user);
     return true;
 }
 
