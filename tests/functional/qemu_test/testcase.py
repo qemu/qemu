@@ -33,12 +33,6 @@ from .uncompress import uncompress
 
 class QemuBaseTest(unittest.TestCase):
 
-    arch = None
-
-    workdir = None
-    log = None
-    logdir = None
-
     '''
     @params compressed: filename, Asset, or file-like object to uncompress
     @params format: optional compression format (gzip, lzma)

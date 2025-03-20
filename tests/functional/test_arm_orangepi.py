@@ -14,7 +14,7 @@ from qemu_test import wait_for_console_pattern, skipBigDataTest
 from qemu_test.utils import image_pow2ceil_expand
 
 
-class BananaPiMachine(LinuxKernelTest):
+class OrangePiMachine(LinuxKernelTest):
 
     ASSET_DEB = Asset(
         ('https://apt.armbian.com/pool/main/l/linux-6.6.16/'
