@@ -57,6 +57,7 @@ struct IgvmNativeVpContextX64 {
 struct NoCCState {
     X86ConfidentialGuest parent_obj;
     struct IgvmNativeVpContextX64 regs;
+    bool have_regs;
 };
 
 struct NoCCStateClass {
@@ -138,8 +139,10 @@ static int no_cc_kvm_reset(ConfidentialGuestSupport *cgs, Error **errp)
 {
     NoCCState *nocc = NO_CC(cgs);
 
-    info_report("%s: rip 0x%lx", __func__, nocc->regs.rip);
-    no_cc_set_regs(nocc);
+    if (nocc->have_regs) {
+        info_report("%s: load igvm regs, rip 0x%lx", __func__, nocc->regs.rip);
+        no_cc_set_regs(nocc);
+    }
     return 0;
 }
 
@@ -174,6 +177,7 @@ static int no_cc_set_guest_state(hwaddr gpa, uint8_t *ptr, uint64_t len,
                     __func__, gpa, len, names[memory_type]);
         regs = (void *)ptr;
         nocc->regs = *regs;
+        nocc->have_regs = true;
         no_cc_set_regs(nocc);
         return 0;
 
