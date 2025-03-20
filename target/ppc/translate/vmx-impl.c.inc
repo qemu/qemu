@@ -994,8 +994,8 @@ static bool do_vector_rotl_quad(DisasContext *ctx, arg_VX *a, bool mask,
 {
     TCGv_i64 ah, al, vrb, n, t0, t1, zero = tcg_constant_i64(0);
 
-    REQUIRE_VECTOR(ctx);
     REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
 
     ah = tcg_temp_new_i64();
     al = tcg_temp_new_i64();
