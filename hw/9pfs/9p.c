@@ -510,7 +510,15 @@ void coroutine_fn v9fs_reclaim_fd(V9fsPDU *pdu)
             err = (f->fid_type == P9_FID_DIR) ?
                 s->ops->closedir(&s->ctx, &f->fs_reclaim) :
                 s->ops->close(&s->ctx, &f->fs_reclaim);
-            if (!err) {
+
+            /* 'man 2 close' suggests to ignore close() errors except of EBADF */
+            if (unlikely(err && errno == EBADF)) {
+                /*
+                 * unexpected case as FIDs were picked above by having a valid
+                 * file descriptor
+                 */
+                error_report("9pfs: v9fs_reclaim_fd() WARNING: close() failed with EBADF");
+            } else {
                 /* total_open_fd must only be mutated on main thread */
                 nclosed++;
             }
