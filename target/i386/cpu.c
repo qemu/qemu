@@ -8735,11 +8735,14 @@ static void x86_cpu_reset_hold(Object *obj, ResetType type)
     } else if (cs->cpu_index == 0) {
         /* hack alert (tcg) */
         ConfidentialGuestSupport *cgs = MACHINE(qdev_get_machine())->cgs;
-        ConfidentialGuestSupportClass *cgsc = CONFIDENTIAL_GUEST_SUPPORT_GET_CLASS(cgs);
-        Error *errp = NULL;
+        if (cgs) {
+            ConfidentialGuestSupportClass *cgsc =
+                CONFIDENTIAL_GUEST_SUPPORT_GET_CLASS(cgs);
+            Error *errp = NULL;
 
-        if (cgsc->kvm_reset) {
-            cgsc->kvm_reset(cgs, &errp);
+            if (cgsc && cgsc->kvm_reset) {
+                cgsc->kvm_reset(cgs, &errp);
+            }
         }
     }
 
