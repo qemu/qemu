@@ -63,7 +63,7 @@ static const char dummy_fw[] = {
 #define NVRAM_ADDR 0xfd0e0000
 #define NVRAM_SIZE (4 * KiB)
 
-static char default_env[] =
+static const char default_env[] =
     "baudrate=115200\0"
     "stdout=vga\0"
     "stdin=ps2kbd\0"
