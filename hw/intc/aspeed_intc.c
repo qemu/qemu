@@ -111,7 +111,7 @@ static void aspeed_intc_set_irq_handler(AspeedINTCState *s,
     outpin_idx = intc_irq->outpin_idx;
     inpin_idx = intc_irq->inpin_idx;
 
-    if (s->mask[inpin_idx] || s->regs[status_reg]) {
+    if ((s->mask[inpin_idx] & select) || (s->regs[status_reg] & select)) {
         /*
          * a. mask is not 0 means in ISR mode
          * sources interrupt routine are executing.
