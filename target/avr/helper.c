@@ -340,8 +340,7 @@ void helper_fullwr(CPUAVRState *env, uint32_t data, uint32_t addr)
     env->fullacc = false;
 
     /* Following logic assumes this: */
-    assert(OFFSET_CPU_REGISTERS == OFFSET_DATA);
-    assert(OFFSET_IO_REGISTERS == OFFSET_CPU_REGISTERS +
+    assert(OFFSET_IO_REGISTERS == OFFSET_DATA +
                                   NUMBER_OF_CPU_REGISTERS);
 
     if (addr < NUMBER_OF_CPU_REGISTERS) {

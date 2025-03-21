@@ -60,8 +60,6 @@
 #define OFFSET_CODE 0x00000000
 /* CPU registers, IO registers, and SRAM */
 #define OFFSET_DATA 0x00800000
-/* CPU registers specifically, these are mapped at the start of data */
-#define OFFSET_CPU_REGISTERS OFFSET_DATA
 /*
  * IO registers, including status register, stack pointer, and memory
  * mapped peripherals, mapped just after CPU registers
