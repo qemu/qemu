@@ -391,6 +391,4 @@ void hppa_cpu_alarm_timer(void *);
 #endif
 G_NORETURN void hppa_dynamic_excp(CPUHPPAState *env, int excp, uintptr_t ra);
 
-#define CPU_RESOLVING_TYPE TYPE_HPPA_CPU
-
 #endif /* HPPA_CPU_H */
