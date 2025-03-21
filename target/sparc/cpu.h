@@ -604,7 +604,7 @@ void dump_mmu(CPUSPARCState *env);
 
 #if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
 int sparc_cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
-                              uint8_t *buf, int len, bool is_write);
+                              uint8_t *buf, size_t len, bool is_write);
 #endif
 
 /* translate.c */

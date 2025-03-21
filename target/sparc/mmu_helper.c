@@ -389,7 +389,7 @@ void dump_mmu(CPUSPARCState *env)
  * that the sparc ABI is followed.
  */
 int sparc_cpu_memory_rw_debug(CPUState *cs, vaddr address,
-                              uint8_t *buf, int len, bool is_write)
+                              uint8_t *buf, size_t len, bool is_write)
 {
     CPUSPARCState *env = cpu_env(cs);
     target_ulong addr = address;
