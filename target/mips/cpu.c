@@ -551,6 +551,8 @@ static int mips_cpu_mmu_index(CPUState *cs, bool ifunc)
 }
 
 static const TCGCPUOps mips_tcg_ops = {
+    .guest_default_memory_order = TCG_GUEST_DEFAULT_MO,
+
     .initialize = mips_tcg_init,
     .translate_code = mips_translate_code,
     .synchronize_from_tb = mips_cpu_synchronize_from_tb,
