@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 15%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 16%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -465,6 +465,22 @@ Patch147: kvm-iotests-Add-qsd-migrate-case.patch
 # For RHEL-54296 - Provide QMP command for block device reactivation after migration [rhel-9.5]
 # For RHEL-78397 - backport fix for double migration of a paused VM (disk activation rewrite)
 Patch148: kvm-iotests-Add-NBD-based-tests-for-inactive-nodes.patch
+# For RHEL-7188 - [intel iommu][PF] DMAR: DRHD: handling fault status reg
+Patch149: kvm-hw-virtio-virtio-iommu-Migrate-to-3-phase-reset.patch
+# For RHEL-7188 - [intel iommu][PF] DMAR: DRHD: handling fault status reg
+Patch150: kvm-hw-i386-intel-iommu-Migrate-to-3-phase-reset.patch
+# For RHEL-7188 - [intel iommu][PF] DMAR: DRHD: handling fault status reg
+Patch151: kvm-hw-arm-smmuv3-Move-reset-to-exit-phase.patch
+# For RHEL-7188 - [intel iommu][PF] DMAR: DRHD: handling fault status reg
+Patch152: kvm-hw-vfio-common-Add-a-trace-point-in-vfio_reset_handl.patch
+# For RHEL-7188 - [intel iommu][PF] DMAR: DRHD: handling fault status reg
+Patch153: kvm-docs-devel-reset-Document-reset-expectations-for-DMA.patch
+# For RHEL-69622 - [qemu-guest-agent][RFE] Report CPU load average
+Patch154: kvm-qga-implement-a-guest-get-load-command.patch
+# For RHEL-69775 - Guest crashed on the target host when the migration was canceled
+Patch155: kvm-migration-Fix-UAF-for-incoming-migration-on-Migratio.patch
+# For RHEL-47340 - [Qemu RHEL-9] qemu-trace-stap should handle lack of stap more gracefully
+Patch156: kvm-scripts-improve-error-from-qemu-trace-stap-on-missin.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1532,6 +1548,25 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Thu Mar 20 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-16
+- kvm-hw-virtio-virtio-iommu-Migrate-to-3-phase-reset.patch [RHEL-7188]
+- kvm-hw-i386-intel-iommu-Migrate-to-3-phase-reset.patch [RHEL-7188]
+- kvm-hw-arm-smmuv3-Move-reset-to-exit-phase.patch [RHEL-7188]
+- kvm-hw-vfio-common-Add-a-trace-point-in-vfio_reset_handl.patch [RHEL-7188]
+- kvm-docs-devel-reset-Document-reset-expectations-for-DMA.patch [RHEL-7188]
+- kvm-qga-implement-a-guest-get-load-command.patch [RHEL-69622]
+- kvm-migration-Fix-UAF-for-incoming-migration-on-Migratio.patch [RHEL-69775]
+- kvm-scripts-improve-error-from-qemu-trace-stap-on-missin.patch [RHEL-47340]
+- kvm-Recommend-systemtap-client-from-qemu-tools.patch [RHEL-47340]
+- Resolves: RHEL-7188
+  ([intel iommu][PF] DMAR: DRHD: handling fault status reg)
+- Resolves: RHEL-69622
+  ([qemu-guest-agent][RFE] Report CPU load average)
+- Resolves: RHEL-69775
+  (Guest crashed on the target host when the migration was canceled)
+- Resolves: RHEL-47340
+  ([Qemu RHEL-9] qemu-trace-stap should handle lack of stap more gracefully)
+
 * Mon Feb 17 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-15
 - kvm-net-Fix-announce_self.patch [RHEL-73891]
 - kvm-migration-Add-helper-to-get-target-runstate.patch [RHEL-54296 RHEL-78397]
