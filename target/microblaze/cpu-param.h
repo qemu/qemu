@@ -29,7 +29,4 @@
 
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
-/* MicroBlaze is always in-order. */
-#define TCG_GUEST_DEFAULT_MO  TCG_MO_ALL
-
 #endif

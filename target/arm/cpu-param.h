@@ -44,7 +44,4 @@
  */
 #define TARGET_INSN_START_EXTRA_WORDS 2
 
-/* ARM processors have a weak memory model */
-#define TCG_GUEST_DEFAULT_MO      (0)
-
 #endif

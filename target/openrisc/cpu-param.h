@@ -14,6 +14,4 @@
 
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
-#define TCG_GUEST_DEFAULT_MO (0)
-
 #endif
