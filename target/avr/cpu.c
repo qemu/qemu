@@ -23,6 +23,7 @@
 #include "qemu/qemu-print.h"
 #include "exec/exec-all.h"
 #include "exec/translation-block.h"
+#include "exec/address-spaces.h"
 #include "cpu.h"
 #include "disas/dis-asm.h"
 #include "tcg/debug-assert.h"
@@ -110,6 +111,8 @@ static void avr_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
 static void avr_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
+    CPUAVRState *env = cpu_env(cs);
+    AVRCPU *cpu = env_archcpu(env);
     AVRCPUClass *mcc = AVR_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
@@ -122,6 +125,19 @@ static void avr_cpu_realizefn(DeviceState *dev, Error **errp)
     cpu_reset(cs);
 
     mcc->parent_realize(dev, errp);
+
+    /*
+     * Two blocks in the low data space loop back into cpu registers.
+     */
+    memory_region_init_io(&cpu->cpu_reg1, OBJECT(cpu), &avr_cpu_reg1, env,
+                          "avr-cpu-reg1", 32);
+    memory_region_add_subregion(get_system_memory(),
+                                OFFSET_DATA, &cpu->cpu_reg1);
+
+    memory_region_init_io(&cpu->cpu_reg2, OBJECT(cpu), &avr_cpu_reg2, env,
+                          "avr-cpu-reg2", 8);
+    memory_region_add_subregion(get_system_memory(),
+                                OFFSET_DATA + 0x58, &cpu->cpu_reg2);
 }
 
 static void avr_cpu_set_int(void *opaque, int irq, int level)

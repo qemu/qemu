@@ -23,6 +23,7 @@
 
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
+#include "exec/memory.h"
 
 #ifdef CONFIG_USER_ONLY
 #error "AVR 8-bit does not support user mode"
@@ -152,6 +153,9 @@ struct ArchCPU {
 
     CPUAVRState env;
 
+    MemoryRegion cpu_reg1;
+    MemoryRegion cpu_reg2;
+
     /* Initial value of stack pointer */
     uint32_t init_sp;
 };
@@ -251,6 +255,9 @@ static inline void cpu_set_sreg(CPUAVRState *env, uint8_t sreg)
 bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                       MMUAccessType access_type, int mmu_idx,
                       bool probe, uintptr_t retaddr);
+
+extern const MemoryRegionOps avr_cpu_reg1;
+extern const MemoryRegionOps avr_cpu_reg2;
 
 #include "exec/cpu-all.h"
 
