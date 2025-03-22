@@ -23,10 +23,10 @@
 #include "qemu/error-report.h"
 #include "cpu.h"
 #include "accel/tcg/cpu-ops.h"
+#include "accel/tcg/getpc.h"
 #include "exec/cputlb.h"
 #include "exec/page-protection.h"
 #include "exec/cpu_ldst.h"
-#include "exec/address-spaces.h"
 #include "exec/helper-proto.h"
 
 bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
@@ -65,6 +65,11 @@ bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
         }
     }
     return false;
+}
+
+static void do_stb(CPUAVRState *env, uint32_t addr, uint8_t data, uintptr_t ra)
+{
+    cpu_stb_mmuidx_ra(env, addr, data, MMU_DATA_IDX, ra);
 }
 
 void avr_cpu_do_interrupt(CPUState *cs)
@@ -311,8 +316,7 @@ void helper_fullwr(CPUAVRState *env, uint32_t data, uint32_t addr)
         break;
 
     default:
-        address_space_stb(&address_space_memory, OFFSET_DATA + addr, data,
-                          MEMTXATTRS_UNSPECIFIED, NULL);
+        do_stb(env, addr, data, GETPC());
         break;
     }
 }
