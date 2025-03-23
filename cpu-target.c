@@ -77,7 +77,6 @@ const char *parse_cpu_option(const char *cpu_option)
     return cpu_type;
 }
 
-#ifndef cpu_list
 static void cpu_list_entry(gpointer data, gpointer user_data)
 {
     CPUClass *cc = CPU_CLASS(OBJECT_CLASS(data));
@@ -91,17 +90,6 @@ static void cpu_list_entry(gpointer data, gpointer user_data)
     }
 }
 
-static void cpu_list(void)
-{
-    GSList *list;
-
-    list = object_class_get_list_sorted(TYPE_CPU, false);
-    qemu_printf("Available CPUs:\n");
-    g_slist_foreach(list, cpu_list_entry, NULL);
-    g_slist_free(list);
-}
-#endif
-
 void list_cpus(void)
 {
     CPUClass *cc = CPU_CLASS(object_class_by_name(CPU_RESOLVING_TYPE));
@@ -109,7 +97,12 @@ void list_cpus(void)
     if (cc->list_cpus) {
         cc->list_cpus();
     } else {
-        cpu_list();
+        GSList *list;
+
+        list = object_class_get_list_sorted(TYPE_CPU, false);
+        qemu_printf("Available CPUs:\n");
+        g_slist_foreach(list, cpu_list_entry, NULL);
+        g_slist_free(list);
     }
 }
 
