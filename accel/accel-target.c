@@ -27,7 +27,6 @@
 #include "qemu/accel.h"
 #include "qemu/target-info.h"
 
-#include "cpu.h"
 #include "accel/accel-cpu-target.h"
 #include "accel-internal.h"
 

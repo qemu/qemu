@@ -499,7 +499,7 @@ F: include/qemu/accel.h
 F: include/qemu/target-info*.h
 F: include/system/accel-*.h
 F: include/system/cpus.h
-F: include/accel/accel-cpu-target.h
+F: include/accel/accel-cpu*.h
 F: accel/accel-*.?
 F: accel/Makefile.objs
 F: accel/stubs/Makefile.objs
