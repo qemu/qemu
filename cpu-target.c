@@ -104,7 +104,13 @@ static void cpu_list(void)
 
 void list_cpus(void)
 {
-    cpu_list();
+    CPUClass *cc = CPU_CLASS(object_class_by_name(CPU_RESOLVING_TYPE));
+
+    if (cc->list_cpus) {
+        cc->list_cpus();
+    } else {
+        cpu_list();
+    }
 }
 
 /* enable or disable single step mode. EXCP_DEBUG is returned by the
