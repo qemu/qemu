@@ -38,6 +38,7 @@
 #include "hw/mem/nvdimm.h"
 #include "hw/platform-bus.h"
 #include "hw/display/ramfb.h"
+#include "hw/uefi/var-service-api.h"
 #include "hw/mem/pc-dimm.h"
 #include "system/tpm.h"
 #include "system/block-backend.h"
@@ -1207,6 +1208,7 @@ static void virt_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "v-eiointc",
                             "Enable Virt Extend I/O Interrupt Controller.");
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_RAMFB_DEVICE);
+    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_UEFI_VARS_SYSBUS);
 #ifdef CONFIG_TPM
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_TPM_TIS_SYSBUS);
 #endif
