@@ -43,7 +43,7 @@ enum {
     TLBRET_PE = 7,
 };
 
-bool check_ps(CPULoongArchState *ent, int ps);
+bool check_ps(CPULoongArchState *ent, uint8_t ps);
 
 extern const VMStateDescription vmstate_loongarch_cpu;
 

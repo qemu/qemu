@@ -31,7 +31,7 @@ static inline uint64_t load_atom_extract_al16_or_al8(void *pv, int s)
     asm("vld $vr0, %2, 0\n\t"
         "vpickve2gr.d %0, $vr0, 0\n\t"
         "vpickve2gr.d %1, $vr0, 1"
-	: "=r"(l), "=r"(h) : "r"(ptr_align), "m"(*ptr_align) : "f0");
+        : "=r"(l), "=r"(h) : "r"(ptr_align), "m"(*ptr_align) : "$f0");
 
     return (l >> shr) | (h << (-shr & 63));
 }

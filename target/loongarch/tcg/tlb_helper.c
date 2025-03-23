@@ -19,12 +19,12 @@
 #include "exec/log.h"
 #include "cpu-csr.h"
 
-bool check_ps(CPULoongArchState *env, int tlb_ps)
+bool check_ps(CPULoongArchState *env, uint8_t tlb_ps)
 {
-     if (tlb_ps > 64) {
-         return false;
-     }
-     return BIT_ULL(tlb_ps) & (env->CSR_PRCFG2);
+    if (tlb_ps >= 64) {
+        return false;
+    }
+    return BIT_ULL(tlb_ps) & (env->CSR_PRCFG2);
 }
 
 void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,

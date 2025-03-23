@@ -28,7 +28,7 @@ static inline Int128 atomic16_read_ro(const Int128 *ptr)
     asm("vld $vr0, %2, 0\n\t"
         "vpickve2gr.d %0, $vr0, 0\n\t"
         "vpickve2gr.d %1, $vr0, 1"
-	: "=r"(l), "=r"(h) : "r"(ptr), "m"(*ptr) : "f0");
+        : "=r"(l), "=r"(h) : "r"(ptr), "m"(*ptr) : "$f0");
 
     return int128_make128(l, h);
 }
@@ -46,7 +46,7 @@ static inline void atomic16_set(Int128 *ptr, Int128 val)
     asm("vinsgr2vr.d $vr0, %1, 0\n\t"
         "vinsgr2vr.d $vr0, %2, 1\n\t"
         "vst $vr0, %3, 0"
-	: "=m"(*ptr) : "r"(l), "r"(h), "r"(ptr) : "f0");
+        : "=m"(*ptr) : "r"(l), "r"(h), "r"(ptr) : "$f0");
 }
 
 #endif /* LOONGARCH_ATOMIC128_LDST_H */
