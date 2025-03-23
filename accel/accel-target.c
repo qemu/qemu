@@ -25,6 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/accel.h"
+#include "qemu/target-info.h"
 
 #include "cpu.h"
 #include "accel/accel-cpu-target.h"
@@ -88,17 +89,18 @@ static void accel_init_cpu_interfaces(AccelClass *ac)
     const char *ac_name; /* AccelClass name */
     char *acc_name;      /* AccelCPUClass name */
     ObjectClass *acc;    /* AccelCPUClass */
+    const char *cpu_resolving_type = target_cpu_type();
 
     ac_name = object_class_get_name(OBJECT_CLASS(ac));
     g_assert(ac_name != NULL);
 
-    acc_name = g_strdup_printf("%s-%s", ac_name, CPU_RESOLVING_TYPE);
+    acc_name = g_strdup_printf("%s-%s", ac_name, cpu_resolving_type);
     acc = object_class_by_name(acc_name);
     g_free(acc_name);
 
     if (acc) {
         object_class_foreach(accel_init_cpu_int_aux,
-                             CPU_RESOLVING_TYPE, false, acc);
+                             cpu_resolving_type, false, acc);
     }
 }
 

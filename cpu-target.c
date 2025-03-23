@@ -22,6 +22,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/qemu-print.h"
+#include "qemu/target-info.h"
 #include "system/accel-ops.h"
 #include "system/cpus.h"
 #include "exec/cpu-common.h"
@@ -37,7 +38,7 @@ QEMU_BUILD_BUG_ON(offsetof(ArchCPU, env) != sizeof(CPUState));
 
 char *cpu_model_from_type(const char *typename)
 {
-    const char *suffix = "-" CPU_RESOLVING_TYPE;
+    g_autofree char *suffix = g_strdup_printf("-%s", target_cpu_type());
 
     if (!object_class_by_name(typename)) {
         return NULL;
@@ -63,7 +64,7 @@ const char *parse_cpu_option(const char *cpu_option)
         exit(1);
     }
 
-    oc = cpu_class_by_name(CPU_RESOLVING_TYPE, model_pieces[0]);
+    oc = cpu_class_by_name(target_cpu_type(), model_pieces[0]);
     if (oc == NULL) {
         error_report("unable to find CPU model '%s'", model_pieces[0]);
         g_strfreev(model_pieces);
@@ -92,7 +93,7 @@ static void cpu_list_entry(gpointer data, gpointer user_data)
 
 void list_cpus(void)
 {
-    CPUClass *cc = CPU_CLASS(object_class_by_name(CPU_RESOLVING_TYPE));
+    CPUClass *cc = CPU_CLASS(object_class_by_name(target_cpu_type()));
 
     if (cc->list_cpus) {
         cc->list_cpus();
