@@ -88,14 +88,14 @@ void avr_cpu_do_interrupt(CPUState *cs)
     }
 
     if (avr_feature(env, AVR_FEATURE_3_BYTE_PC)) {
-        cpu_stb_data(env, env->sp--, (ret & 0x0000ff));
-        cpu_stb_data(env, env->sp--, (ret & 0x00ff00) >> 8);
-        cpu_stb_data(env, env->sp--, (ret & 0xff0000) >> 16);
+        do_stb(env, env->sp--, ret, 0);
+        do_stb(env, env->sp--, ret >> 8, 0);
+        do_stb(env, env->sp--, ret >> 16, 0);
     } else if (avr_feature(env, AVR_FEATURE_2_BYTE_PC)) {
-        cpu_stb_data(env, env->sp--, (ret & 0x0000ff));
-        cpu_stb_data(env, env->sp--, (ret & 0x00ff00) >> 8);
+        do_stb(env, env->sp--, ret, 0);
+        do_stb(env, env->sp--, ret >> 8, 0);
     } else {
-        cpu_stb_data(env, env->sp--, (ret & 0x0000ff));
+        do_stb(env, env->sp--, ret, 0);
     }
 
     env->pc_w = base + vector * size;
