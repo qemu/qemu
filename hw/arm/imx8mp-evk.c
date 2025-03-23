@@ -10,6 +10,7 @@
 #include "system/address-spaces.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/fsl-imx8mp.h"
+#include "hw/arm/machines-qom.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
 #include "system/qtest.h"
@@ -100,4 +101,5 @@ static void imx8mp_evk_machine_init(MachineClass *mc)
     mc->max_cpus = FSL_IMX8MP_NUM_CPUS;
     mc->default_ram_id = "imx8mp-evk.ram";
 }
-DEFINE_MACHINE("imx8mp-evk", imx8mp_evk_machine_init)
+
+DEFINE_MACHINE_AARCH64("imx8mp-evk", imx8mp_evk_machine_init)
