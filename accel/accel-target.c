@@ -29,10 +29,7 @@
 
 #include "cpu.h"
 #include "accel/accel-cpu-target.h"
-
-#ifndef CONFIG_USER_ONLY
-#include "accel-system.h"
-#endif /* !CONFIG_USER_ONLY */
+#include "accel-internal.h"
 
 static const TypeInfo accel_type = {
     .name = TYPE_ACCEL,
@@ -106,10 +103,7 @@ static void accel_init_cpu_interfaces(AccelClass *ac)
 
 void accel_init_interfaces(AccelClass *ac)
 {
-#ifndef CONFIG_USER_ONLY
-    accel_system_init_ops_interfaces(ac);
-#endif /* !CONFIG_USER_ONLY */
-
+    accel_init_ops_interfaces(ac);
     accel_init_cpu_interfaces(ac);
 }
 
