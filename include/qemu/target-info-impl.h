@@ -14,6 +14,8 @@
 typedef struct TargetInfo {
     /* runtime equivalent of TARGET_NAME definition */
     const char *target_name;
+    /* QOM typename machines for this binary must implement */
+    const char *machine_typename;
 } TargetInfo;
 
 /**

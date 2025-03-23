@@ -14,3 +14,8 @@ const char *target_name(void)
 {
     return target_info()->target_name;
 }
+
+const char *target_machine_typename(void)
+{
+    return target_info()->machine_typename;
+}
