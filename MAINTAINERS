@@ -496,7 +496,6 @@ F: include/exec/cpu*.h
 F: include/exec/exec-all.h
 F: include/exec/target_long.h
 F: include/qemu/accel.h
-F: include/qemu/target-info*.h
 F: include/system/accel-*.h
 F: include/system/cpus.h
 F: include/accel/accel-cpu*.h
@@ -505,7 +504,6 @@ F: accel/Makefile.objs
 F: accel/stubs/Makefile.objs
 F: cpu-common.c
 F: cpu-target.c
-F: target-info*.c
 F: system/cpus.c
 
 Apple Silicon HVF CPUs
@@ -1927,6 +1925,13 @@ F: tests/functional/test_cpu_queries.py
 F: tests/functional/test_empty_cpu_model.py
 F: tests/unit/test-smp-parse.c
 T: git https://gitlab.com/ehabkost/qemu.git machine-next
+
+TargetInfo API
+M: Pierrick Bouvier <pierrick.bouvier@linaro.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
+S: Supported
+F: include/qemu/target-info*.h
+F: target-info*.c
 
 Xtensa Machines
 ---------------

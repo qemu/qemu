@@ -10,6 +10,13 @@
 #define QEMU_TARGET_INFO_H
 
 /**
+ * target_name:
+ *
+ * Returns: Canonical target name (i.e. "i386").
+ */
+const char *target_name(void);
+
+/**
  * target_cpu_type:
  *
  * Returns: target CPU base QOM type name (i.e. TYPE_X86_CPU).
