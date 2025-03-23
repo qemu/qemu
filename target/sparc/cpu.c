@@ -580,7 +580,7 @@ static void print_features(uint32_t features, const char *prefix)
     }
 }
 
-void sparc_cpu_list(void)
+static void sparc_cpu_list(void)
 {
     unsigned int i;
 
@@ -1057,6 +1057,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
                                        &scc->parent_phases);
 
     cc->class_by_name = sparc_cpu_class_by_name;
+    cc->list_cpus = sparc_cpu_list,
     cc->parse_features = sparc_cpu_parse_features;
     cc->dump_state = sparc_cpu_dump_state;
 #if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
