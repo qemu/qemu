@@ -17,6 +17,13 @@
 const char *target_name(void);
 
 /**
+ * target_long_bits:
+ *
+ * Returns: number of bits in a long type for this target (i.e. 64).
+ */
+unsigned target_long_bits(void);
+
+/**
  * target_machine_typename:
  *
  * Returns: Name of the QOM interface implemented by machines

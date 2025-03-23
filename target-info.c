@@ -15,6 +15,11 @@ const char *target_name(void)
     return target_info()->target_name;
 }
 
+unsigned target_long_bits(void)
+{
+    return target_info()->long_bits;
+}
+
 const char *target_cpu_type(void)
 {
     return target_info()->cpu_type;
