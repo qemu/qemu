@@ -91,6 +91,21 @@ macro_rules! assert_field_type {
             }
         };
     };
+
+    ($t:ty, $i:tt, $ti:ty, num = $num:ident) => {
+        const _: () = {
+            #[allow(unused)]
+            fn assert_field_type(v: $t) {
+                fn types_must_be_equal<T, U>(_: T)
+                where
+                    T: $crate::assertions::EqType<Itself = U>,
+                {
+                }
+                let index: usize = v.$num.try_into().unwrap();
+                types_must_be_equal::<_, &$ti>(&v.$i[index]);
+            }
+        };
+    };
 }
 
 /// Assert that an expression matches a pattern.  This can also be
@@ -118,5 +133,27 @@ macro_rules! assert_match {
             $a,
             stringify!($b)
         );
+    };
+}
+
+/// Assert at compile time that an expression is true.  This is similar
+/// to `const { assert!(...); }` but it works outside functions, as well as
+/// on versions of Rust before 1.79.
+///
+/// # Examples
+///
+/// ```
+/// # use qemu_api::static_assert;
+/// static_assert!("abc".len() == 3);
+/// ```
+///
+/// ```compile_fail
+/// # use qemu_api::static_assert;
+/// static_assert!("abc".len() == 2); // does not compile
+/// ```
+#[macro_export]
+macro_rules! static_assert {
+    ($x:expr) => {
+        const _: () = assert!($x);
     };
 }

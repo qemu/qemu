@@ -58,7 +58,8 @@ rust_qemu_api_objs = static_library(
               libchardev.extract_all_objects(recursive: false),
               libcrypto.extract_all_objects(recursive: false),
               libauthz.extract_all_objects(recursive: false),
-              libio.extract_all_objects(recursive: false)])
+              libio.extract_all_objects(recursive: false),
+              libmigration.extract_all_objects(recursive: false)])
 rust_qemu_api_deps = declare_dependency(
     dependencies: [
       qom_ss.dependencies(),
@@ -71,7 +72,7 @@ rust_qemu_api_deps = declare_dependency(
 test('rust-qemu-api-integration',
     executable(
         'rust-qemu-api-integration',
-        'tests/tests.rs',
+        files('tests/tests.rs', 'tests/vmstate_tests.rs'),
         override_options: ['rust_std=2021', 'build.rust_std=2021'],
         rust_args: ['--test'],
         install: false,

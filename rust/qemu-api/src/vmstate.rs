@@ -25,13 +25,11 @@
 //!   functionality that is missing from `vmstate_of!`.
 
 use core::{marker::PhantomData, mem, ptr::NonNull};
+use std::os::raw::{c_int, c_void};
 
 pub use crate::bindings::{VMStateDescription, VMStateField};
 use crate::{
-    bindings::{self, VMStateFlags},
-    prelude::*,
-    qom::Owned,
-    zeroable::Zeroable,
+    bindings::VMStateFlags, callbacks::FnCall, prelude::*, qom::Owned, zeroable::Zeroable,
 };
 
 /// This macro is used to call a function with a generic argument bound
@@ -208,7 +206,7 @@ macro_rules! vmstate_of {
                 .as_bytes()
                 .as_ptr() as *const ::std::os::raw::c_char,
             offset: $crate::offset_of!($struct_name, $field_name),
-            $(.num_offset: $crate::offset_of!($struct_name, $num),)?
+            $(num_offset: $crate::offset_of!($struct_name, $num),)?
             // The calls to `call_func_with_field!` are the magic that
             // computes most of the VMStateField from the type of the field.
             info: $crate::info_enum_to_ref!($crate::call_func_with_field!(
@@ -256,6 +254,10 @@ impl VMStateField {
         if (self.flags.0 & VMStateFlags::VMS_POINTER.0) != 0 {
             self.flags = VMStateFlags(self.flags.0 & !VMStateFlags::VMS_POINTER.0);
             self.flags = VMStateFlags(self.flags.0 | VMStateFlags::VMS_ARRAY_OF_POINTER.0);
+            // VMS_ARRAY_OF_POINTER flag stores the size of pointer.
+            // FIXME: *const, *mut, NonNull and Box<> have the same size as usize.
+            //        Resize if more smart pointers are supported.
+            self.size = std::mem::size_of::<usize>();
         }
         self.flags = VMStateFlags(self.flags.0 & !VMStateFlags::VMS_SINGLE.0);
         self.flags = VMStateFlags(self.flags.0 | VMStateFlags::VMS_ARRAY.0);
@@ -271,11 +273,18 @@ impl VMStateField {
     }
 
     #[must_use]
-    pub const fn with_varray_flag<T: VMState>(mut self, flag: VMStateFlags) -> VMStateField {
-        assert!((self.flags.0 & VMStateFlags::VMS_ARRAY.0) != 0);
+    pub const fn with_varray_flag_unchecked(mut self, flag: VMStateFlags) -> VMStateField {
         self.flags = VMStateFlags(self.flags.0 & !VMStateFlags::VMS_ARRAY.0);
         self.flags = VMStateFlags(self.flags.0 | flag.0);
+        self.num = 0; // varray uses num_offset instead of num.
         self
+    }
+
+    #[must_use]
+    #[allow(unused_mut)]
+    pub const fn with_varray_flag(mut self, flag: VMStateFlags) -> VMStateField {
+        assert!((self.flags.0 & VMStateFlags::VMS_ARRAY.0) != 0);
+        self.with_varray_flag_unchecked(flag)
     }
 
     #[must_use]
@@ -333,6 +342,7 @@ impl_vmstate_transparent!(std::cell::UnsafeCell<T> where T: VMState);
 impl_vmstate_transparent!(std::pin::Pin<T> where T: VMState);
 impl_vmstate_transparent!(crate::cell::BqlCell<T> where T: VMState);
 impl_vmstate_transparent!(crate::cell::BqlRefCell<T> where T: VMState);
+impl_vmstate_transparent!(crate::cell::Opaque<T> where T: VMState);
 
 #[macro_export]
 macro_rules! impl_vmstate_bitsized {
@@ -379,7 +389,7 @@ impl_vmstate_scalar!(vmstate_info_uint8, u8, VMS_VARRAY_UINT8);
 impl_vmstate_scalar!(vmstate_info_uint16, u16, VMS_VARRAY_UINT16);
 impl_vmstate_scalar!(vmstate_info_uint32, u32, VMS_VARRAY_UINT32);
 impl_vmstate_scalar!(vmstate_info_uint64, u64);
-impl_vmstate_scalar!(vmstate_info_timer, bindings::QEMUTimer);
+impl_vmstate_scalar!(vmstate_info_timer, crate::timer::Timer);
 
 // Pointer types using the underlying type's VMState plus VMS_POINTER
 // Note that references are not supported, though references to cells
@@ -440,21 +450,23 @@ macro_rules! vmstate_struct {
             name: ::core::concat!(::core::stringify!($field_name), "\0")
                 .as_bytes()
                 .as_ptr() as *const ::std::os::raw::c_char,
-            $(.num_offset: $crate::offset_of!($struct_name, $num),)?
+            $(num_offset: $crate::offset_of!($struct_name, $num),)?
             offset: {
-                $crate::assert_field_type!($struct_name, $field_name, $type);
+                $crate::assert_field_type!($struct_name, $field_name, $type $(, num = $num)?);
                 $crate::offset_of!($struct_name, $field_name)
             },
             size: ::core::mem::size_of::<$type>(),
             flags: $crate::bindings::VMStateFlags::VMS_STRUCT,
-            vmsd: unsafe { $vmsd },
-            ..$crate::zeroable::Zeroable::ZERO $(
-                .with_varray_flag($crate::call_func_with_field!(
-                    $crate::vmstate::vmstate_varray_flag,
-                    $struct_name,
-                    $num))
-               $(.with_varray_multiply($factor))?)?
-        }
+            vmsd: $vmsd,
+            ..$crate::zeroable::Zeroable::ZERO
+         } $(.with_varray_flag_unchecked(
+                  $crate::call_func_with_field!(
+                      $crate::vmstate::vmstate_varray_flag,
+                      $struct_name,
+                      $num
+                  )
+              )
+           $(.with_varray_multiply($factor))?)?
     };
 }
 
@@ -475,7 +487,10 @@ macro_rules! vmstate_clock {
                 $crate::offset_of!($struct_name, $field_name)
             },
             size: ::core::mem::size_of::<*const $crate::qdev::Clock>(),
-            flags: VMStateFlags(VMStateFlags::VMS_STRUCT.0 | VMStateFlags::VMS_POINTER.0),
+            flags: $crate::bindings::VMStateFlags(
+                $crate::bindings::VMStateFlags::VMS_STRUCT.0
+                    | $crate::bindings::VMStateFlags::VMS_POINTER.0,
+            ),
             vmsd: unsafe { ::core::ptr::addr_of!($crate::bindings::vmstate_clock) },
             ..$crate::zeroable::Zeroable::ZERO
         }
@@ -497,6 +512,53 @@ macro_rules! vmstate_fields {
         ];
         _FIELDS.as_ptr()
     }}
+}
+
+pub extern "C" fn rust_vms_test_field_exists<T, F: for<'a> FnCall<(&'a T, u8), bool>>(
+    opaque: *mut c_void,
+    version_id: c_int,
+) -> bool {
+    let owner: &T = unsafe { &*(opaque.cast::<T>()) };
+    let version: u8 = version_id.try_into().unwrap();
+    // SAFETY: the opaque was passed as a reference to `T`.
+    F::call((owner, version))
+}
+
+pub type VMSFieldExistCb = unsafe extern "C" fn(
+    opaque: *mut std::os::raw::c_void,
+    version_id: std::os::raw::c_int,
+) -> bool;
+
+#[doc(alias = "VMSTATE_VALIDATE")]
+#[macro_export]
+macro_rules! vmstate_validate {
+    ($struct_name:ty, $test_name:expr, $test_fn:expr $(,)?) => {
+        $crate::bindings::VMStateField {
+            name: ::std::ffi::CStr::as_ptr($test_name),
+            field_exists: {
+                const fn test_cb_builder__<
+                    T,
+                    F: for<'a> $crate::callbacks::FnCall<(&'a T, u8), bool>,
+                >(
+                    _phantom: ::core::marker::PhantomData<F>,
+                ) -> $crate::vmstate::VMSFieldExistCb {
+                    let _: () = F::ASSERT_IS_SOME;
+                    $crate::vmstate::rust_vms_test_field_exists::<T, F>
+                }
+
+                const fn phantom__<T>(_: &T) -> ::core::marker::PhantomData<T> {
+                    ::core::marker::PhantomData
+                }
+                Some(test_cb_builder__::<$struct_name, _>(phantom__(&$test_fn)))
+            },
+            flags: $crate::bindings::VMStateFlags(
+                $crate::bindings::VMStateFlags::VMS_MUST_EXIST.0
+                    | $crate::bindings::VMStateFlags::VMS_ARRAY.0,
+            ),
+            num: 0, // 0 elements: no data, only run test_fn callback
+            ..$crate::zeroable::Zeroable::ZERO
+        }
+    };
 }
 
 /// A transparent wrapper type for the `subsections` field of

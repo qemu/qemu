@@ -26,7 +26,7 @@
 #include CONFIG_DEVICES
 #include "target/i386/cpu.h"
 
-#if !defined(CONFIG_HPET) && !defined(CONFIG_X_HPET_RUST)
+#if !defined(CONFIG_HPET)
 struct hpet_fw_config hpet_fw_cfg = {.count = UINT8_MAX};
 #endif
 

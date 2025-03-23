@@ -226,7 +226,7 @@ static void bswap_ahdr(struct exec *e)
 
 
 ssize_t load_aout(const char *filename, hwaddr addr, int max_sz,
-                  int bswap_needed, hwaddr target_page_size)
+                  bool big_endian, hwaddr target_page_size)
 {
     int fd;
     ssize_t size, ret;
@@ -241,7 +241,7 @@ ssize_t load_aout(const char *filename, hwaddr addr, int max_sz,
     if (size < 0)
         goto fail;
 
-    if (bswap_needed) {
+    if (big_endian != HOST_BIG_ENDIAN) {
         bswap_ahdr(&e);
     }
 

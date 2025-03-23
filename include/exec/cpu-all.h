@@ -26,18 +26,6 @@
 #include "exec/tswap.h"
 #include "hw/core/cpu.h"
 
-/* some important defines:
- *
- * HOST_BIG_ENDIAN : whether the host cpu is big endian and
- * otherwise little endian.
- *
- * TARGET_BIG_ENDIAN : same for the target cpu
- */
-
-#if HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN
-#define BSWAP_NEEDED
-#endif
-
 /* Target-endianness CPU memory access functions. These fit into the
  * {ld,st}{type}{sign}{size}{endian}_p naming scheme described in bswap.h.
  */

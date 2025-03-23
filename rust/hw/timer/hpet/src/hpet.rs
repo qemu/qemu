@@ -12,7 +12,7 @@ use std::{
 use qemu_api::{
     bindings::{
         address_space_memory, address_space_stl_le, qdev_prop_bit, qdev_prop_bool,
-        qdev_prop_uint32, qdev_prop_uint8,
+        qdev_prop_uint32, qdev_prop_usize,
     },
     c_str,
     cell::{BqlCell, BqlRefCell},
@@ -776,7 +776,7 @@ impl HPETState {
             let timer_id: usize = ((addr - 0x100) / 0x20) as usize;
             if timer_id <= self.num_timers.get() {
                 // TODO: Add trace point - trace_hpet_ram_[read|write]_timer_id(timer_id)
-                TimerRegister::try_from(addr)
+                TimerRegister::try_from(addr & 0x18)
                     .map(|reg| HPETRegister::Timer(&self.timers[timer_id], reg))
             } else {
                 // TODO: Add trace point -  trace_hpet_timer_id_out_of_range(timer_id)
@@ -859,8 +859,8 @@ qemu_api::declare_properties! {
         c_str!("timers"),
         HPETState,
         num_timers,
-        unsafe { &qdev_prop_uint8 },
-        u8,
+        unsafe { &qdev_prop_usize },
+        usize,
         default = HPET_MIN_TIMERS
     ),
     qemu_api::define_property!(

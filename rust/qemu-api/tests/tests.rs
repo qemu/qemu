@@ -17,6 +17,8 @@ use qemu_api::{
     zeroable::Zeroable,
 };
 
+mod vmstate_tests;
+
 // Test that macros can compile.
 pub static VMSTATE: VMStateDescription = VMStateDescription {
     name: c_str!("name").as_ptr(),

@@ -11,6 +11,12 @@ config PARALLEL
 
 config PL011
     bool
+    # The PL011 has both a Rust and a C implementation
+    select PL011_C if !HAVE_RUST
+    select X_PL011_RUST if HAVE_RUST
+
+config PL011_C
+    bool
 
 config SERIAL
     bool
