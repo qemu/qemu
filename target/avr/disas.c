@@ -68,28 +68,35 @@ static bool decode_insn(DisasContext *ctx, uint16_t insn);
 
 int avr_print_insn(bfd_vma addr, disassemble_info *info)
 {
-    DisasContext ctx;
+    DisasContext ctx = { info };
     DisasContext *pctx = &ctx;
     bfd_byte buffer[4];
     uint16_t insn;
     int status;
 
-    ctx.info = info;
-
-    status = info->read_memory_func(addr, buffer, 4, info);
+    status = info->read_memory_func(addr, buffer, 2, info);
     if (status != 0) {
         info->memory_error_func(status, addr, info);
         return -1;
     }
     insn = bfd_getl16(buffer);
-    ctx.next_word = bfd_getl16(buffer + 2);
-    ctx.next_word_used = false;
+
+    status = info->read_memory_func(addr + 2, buffer + 2, 2, info);
+    if (status == 0) {
+        ctx.next_word = bfd_getl16(buffer + 2);
+    }
 
     if (!decode_insn(&ctx, insn)) {
         output(".db", "0x%02x, 0x%02x", buffer[0], buffer[1]);
     }
 
-    return ctx.next_word_used ? 4 : 2;
+    if (!ctx.next_word_used) {
+        return 2;
+    } else if (status == 0) {
+        return 4;
+    }
+    info->memory_error_func(status, addr + 2, info);
+    return -1;
 }
 
 
