@@ -110,7 +110,8 @@ static void rtas_query_cpu_stopped_state(PowerPCCPU *cpu_,
     id = rtas_ld(args, 0);
     cpu = spapr_find_cpu(id);
     if (cpu != NULL) {
-        if (CPU(cpu)->halted) {
+        CPUPPCState *env = &cpu->env;
+        if (env->quiesced) {
             rtas_st(rets, 1, 0);
         } else {
             rtas_st(rets, 1, 2);
@@ -215,6 +216,8 @@ static void rtas_stop_self(PowerPCCPU *cpu, SpaprMachineState *spapr,
      * For the same reason, set PSSCR_EC.
      */
     env->spr[SPR_PSSCR] |= PSSCR_EC;
+    env->quiesced = true; /* set "RTAS stopped" state. */
+    ppc_maybe_interrupt(env);
     cs->halted = 1;
     ppc_store_lpcr(cpu, env->spr[SPR_LPCR] & ~pcc->lpcr_pm);
     kvmppc_set_reg_ppc_online(cpu, 0);

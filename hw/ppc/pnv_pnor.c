@@ -108,6 +108,8 @@ static void pnv_pnor_realize(DeviceState *dev, Error **errp)
         memset(s->storage, 0xFF, s->size);
     }
 
+    s->lpc_address = PNOR_SPI_OFFSET;
+
     memory_region_init_io(&s->mmio, OBJECT(s), &pnv_pnor_ops, s,
                           TYPE_PNV_PNOR, s->size);
 }

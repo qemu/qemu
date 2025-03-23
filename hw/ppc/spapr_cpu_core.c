@@ -37,6 +37,9 @@ static void spapr_reset_vcpu(PowerPCCPU *cpu)
 
     cpu_reset(cs);
 
+    env->quiesced = true; /* set "RTAS stopped" state. */
+    ppc_maybe_interrupt(env);
+
     /*
      * "PowerPC Processor binding to IEEE 1275" defines the initial MSR state
      * as 32bit (MSR_SF=0) with MSR_ME=1 and MSR_FP=1 in "8.2.1. Initial
@@ -98,6 +101,9 @@ void spapr_cpu_set_entry_state(PowerPCCPU *cpu, target_ulong nip,
     CPU(cpu)->halted = 0;
     /* Enable Power-saving mode Exit Cause exceptions */
     ppc_store_lpcr(cpu, env->spr[SPR_LPCR] | pcc->lpcr_pm);
+
+    env->quiesced = false; /* clear "RTAS stopped" state. */
+    ppc_maybe_interrupt(env);
 }
 
 /*

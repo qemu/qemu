@@ -1153,13 +1153,15 @@ static bool xive2_vp_match_mask(uint32_t cam1, uint32_t cam2,
 
 static uint8_t xive2_get_vp_block_mask(uint32_t nvt_blk, bool crowd)
 {
-    uint8_t size, block_mask = 0b1111;
+    uint8_t block_mask = 0b1111;
 
     /* 3 supported crowd sizes: 2, 4, 16 */
     if (crowd) {
-        size = xive_get_vpgroup_size(nvt_blk);
-        if (size == 8) {
-            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid crowd size of 8n");
+        uint32_t size = xive_get_vpgroup_size(nvt_blk);
+
+        if (size != 2 && size != 4 && size != 16) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid crowd size of %d",
+                                           size);
             return block_mask;
         }
         block_mask &= ~(size - 1);
@@ -1172,7 +1174,14 @@ static uint32_t xive2_get_vp_index_mask(uint32_t nvt_index, bool cam_ignore)
     uint32_t index_mask = 0xFFFFFF; /* 24 bits */
 
     if (cam_ignore) {
-        index_mask &= ~(xive_get_vpgroup_size(nvt_index) - 1);
+        uint32_t size = xive_get_vpgroup_size(nvt_index);
+
+        if (size < 2) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid group size of %d",
+                                           size);
+            return index_mask;
+        }
+        index_mask &= ~(size - 1);
     }
     return index_mask;
 }
@@ -1335,7 +1344,7 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
         return;
     }
 
-    if (xive2_end_is_crowd(&end) & !xive2_end_is_ignore(&end)) {
+    if (xive2_end_is_crowd(&end) && !xive2_end_is_ignore(&end)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "XIVE: invalid END, 'crowd' bit requires 'ignore' bit\n");
         return;

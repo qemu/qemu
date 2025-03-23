@@ -63,7 +63,7 @@ static const char dummy_fw[] = {
 #define NVRAM_ADDR 0xfd0e0000
 #define NVRAM_SIZE (4 * KiB)
 
-static char default_env[] =
+static const char default_env[] =
     "baudrate=115200\0"
     "stdout=vga\0"
     "stdin=ps2kbd\0"
@@ -108,8 +108,8 @@ static void nvram_write(void *opaque, hwaddr addr, uint64_t val,
     uint8_t *p = memory_region_get_ram_ptr(&s->mr);
 
     p[addr] = val;
-    if (s->blk) {
-        blk_pwrite(s->blk, addr, 1, &val, 0);
+    if (s->blk && blk_pwrite(s->blk, addr, 1, &val, 0) < 0) {
+        error_report("%s: could not write %s", __func__, blk_name(s->blk));
     }
 }
 
@@ -151,15 +151,17 @@ static void nvram_realize(DeviceState *dev, Error **errp)
         *c = cpu_to_be32(CRC32_DEFAULT_ENV);
         /* Also copies terminating \0 as env is terminated by \0\0 */
         memcpy(p + 4, default_env, sizeof(default_env));
-        if (s->blk) {
-            blk_pwrite(s->blk, 0, sizeof(crc) + sizeof(default_env), p, 0);
+        if (s->blk &&
+            blk_pwrite(s->blk, 0, sizeof(crc) + sizeof(default_env), p, 0) < 0
+           ) {
+            error_report("%s: could not write %s", __func__, blk_name(s->blk));
         }
         return;
     }
     if (*c == 0) {
         *c = cpu_to_be32(crc32(0, p + 4, NVRAM_SIZE - 4));
-        if (s->blk) {
-            blk_pwrite(s->blk, 0, 4, p, 0);
+        if (s->blk && blk_pwrite(s->blk, 0, 4, p, 0) < 0) {
+            error_report("%s: could not write %s", __func__, blk_name(s->blk));
         }
     }
     if (be32_to_cpu(*c) != crc) {

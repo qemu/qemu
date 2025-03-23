@@ -1356,6 +1356,17 @@ struct CPUArchState {
      * special way (such as routing some resume causes to 0x100, i.e. sreset).
      */
     bool resume_as_sreset;
+
+    /*
+     * On powernv, quiesced means the CPU has been stopped using PC direct
+     * control xscom registers.
+     *
+     * On spapr, quiesced means it is in the "RTAS stopped" state.
+     *
+     * The core halted/stopped variables aren't sufficient for this, because
+     * they can be changed with various side-band operations like qmp cont,
+     * powersave interrupts, etc.
+     */
     bool quiesced;
 #endif
 

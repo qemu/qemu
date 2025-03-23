@@ -364,7 +364,12 @@ static void pnv_occ_register_types(void)
 
 type_init(pnv_occ_register_types);
 
-/* From skiboot/hw/occ.c with tab to space conversion */
+/*
+ * From skiboot/hw/occ.c with following changes:
+ * - tab to space conversion
+ * - Type conversions u8->uint8_t s8->int8_t __be16->uint16_t etc
+ * - __packed -> QEMU_PACKED
+ */
 /* OCC Communication Area for PStates */
 
 #define OPAL_DYNAMIC_DATA_OFFSET        0x0B80
@@ -383,20 +388,6 @@ type_init(pnv_occ_register_types);
 #define P10_PIR_CHIP_MASK               0x0000
 #define FREQ_MAX_IN_DOMAIN              0
 #define FREQ_MOST_RECENTLY_SET          1
-
-#define u8 uint8_t
-#define s8 int8_t
-#define u16 uint16_t
-#define s16 int16_t
-#define u32 uint32_t
-#define s32 int32_t
-#define u64 uint64_t
-#define s64 int64_t
-#define __be16 uint16_t
-#define __be32 uint32_t
-#ifndef __packed
-#define __packed QEMU_PACKED
-#endif /* !__packed */
 
 /**
  * OCC-OPAL Shared Memory Region
@@ -434,69 +425,69 @@ type_init(pnv_occ_register_types);
  * @spare/reserved/pad:         Unused data
  */
 struct occ_pstate_table {
-    u8 valid;
-    u8 version;
-    union __packed {
-        struct __packed { /* Version 0x01 and 0x02 */
-            u8 throttle;
-            s8 pstate_min;
-            s8 pstate_nom;
-            s8 pstate_turbo;
-            s8 pstate_ultra_turbo;
-            u8 spare;
-            u64 reserved;
-            struct __packed {
-                s8 id;
-                u8 flags;
-                u8 vdd;
-                u8 vcs;
-                __be32 freq_khz;
+    uint8_t valid;
+    uint8_t version;
+    union QEMU_PACKED {
+        struct QEMU_PACKED { /* Version 0x01 and 0x02 */
+            uint8_t throttle;
+            int8_t pstate_min;
+            int8_t pstate_nom;
+            int8_t pstate_turbo;
+            int8_t pstate_ultra_turbo;
+            uint8_t spare;
+            uint64_t reserved;
+            struct QEMU_PACKED {
+                int8_t id;
+                uint8_t flags;
+                uint8_t vdd;
+                uint8_t vcs;
+                uint32_t freq_khz;
             } pstates[MAX_PSTATES];
-            s8 core_max[MAX_P8_CORES];
-            u8 pad[100];
+            int8_t core_max[MAX_P8_CORES];
+            uint8_t pad[100];
         } v2;
-        struct __packed { /* Version 0x90 */
-            u8 occ_role;
-            u8 pstate_min;
-            u8 pstate_nom;
-            u8 pstate_turbo;
-            u8 pstate_ultra_turbo;
-            u8 spare;
-            u64 reserved1;
-            u64 reserved2;
-            struct __packed {
-                u8 id;
-                u8 flags;
-                u16 reserved;
-                __be32 freq_khz;
+        struct QEMU_PACKED { /* Version 0x90 */
+            uint8_t occ_role;
+            uint8_t pstate_min;
+            uint8_t pstate_nom;
+            uint8_t pstate_turbo;
+            uint8_t pstate_ultra_turbo;
+            uint8_t spare;
+            uint64_t reserved1;
+            uint64_t reserved2;
+            struct QEMU_PACKED {
+                uint8_t id;
+                uint8_t flags;
+                uint16_t reserved;
+                uint32_t freq_khz;
             } pstates[MAX_PSTATES];
-            u8 core_max[MAX_P9_CORES];
-            u8 pad[56];
+            uint8_t core_max[MAX_P9_CORES];
+            uint8_t pad[56];
         } v9;
-        struct __packed { /* Version 0xA0 */
-            u8 occ_role;
-            u8 pstate_min;
-            u8 pstate_fixed_freq;
-            u8 pstate_base;
-            u8 pstate_ultra_turbo;
-            u8 pstate_fmax;
-            u8 minor;
-            u8 pstate_bottom_throttle;
-            u8 spare;
-            u8 spare1;
-            u32 reserved_32;
-            u64 reserved_64;
-            struct __packed {
-                u8 id;
-                u8 valid;
-                u16 reserved;
-                __be32 freq_khz;
+        struct QEMU_PACKED { /* Version 0xA0 */
+            uint8_t occ_role;
+            uint8_t pstate_min;
+            uint8_t pstate_fixed_freq;
+            uint8_t pstate_base;
+            uint8_t pstate_ultra_turbo;
+            uint8_t pstate_fmax;
+            uint8_t minor;
+            uint8_t pstate_bottom_throttle;
+            uint8_t spare;
+            uint8_t spare1;
+            uint32_t reserved_32;
+            uint64_t reserved_64;
+            struct QEMU_PACKED {
+                uint8_t id;
+                uint8_t valid;
+                uint16_t reserved;
+                uint32_t freq_khz;
             } pstates[MAX_PSTATES];
-            u8 core_max[MAX_P10_CORES];
-            u8 pad[48];
+            uint8_t core_max[MAX_P10_CORES];
+            uint8_t pad[48];
         } v10;
     };
-} __packed;
+} QEMU_PACKED;
 
 /**
  * OPAL-OCC Command Response Interface
@@ -531,13 +522,13 @@ struct occ_pstate_table {
  * @spare:                      Unused byte
  */
 struct opal_command_buffer {
-    u8 flag;
-    u8 request_id;
-    u8 cmd;
-    u8 spare;
-    __be16 data_size;
-    u8 data[MAX_OPAL_CMD_DATA_LENGTH];
-} __packed;
+    uint8_t flag;
+    uint8_t request_id;
+    uint8_t cmd;
+    uint8_t spare;
+    uint16_t data_size;
+    uint8_t data[MAX_OPAL_CMD_DATA_LENGTH];
+} QEMU_PACKED;
 
 /**
  * OPAL-OCC Response Buffer
@@ -571,13 +562,13 @@ struct opal_command_buffer {
  * @data:                       Response specific data
  */
 struct occ_response_buffer {
-    u8 flag;
-    u8 request_id;
-    u8 cmd;
-    u8 status;
-    __be16 data_size;
-    u8 data[MAX_OCC_RSP_DATA_LENGTH];
-} __packed;
+    uint8_t flag;
+    uint8_t request_id;
+    uint8_t cmd;
+    uint8_t status;
+    uint16_t data_size;
+    uint8_t data[MAX_OCC_RSP_DATA_LENGTH];
+} QEMU_PACKED;
 
 /**
  * OCC-OPAL Shared Memory Interface Dynamic Data Vx90
@@ -608,31 +599,31 @@ struct occ_response_buffer {
  * @rsp:                        OCC Response Buffer
  */
 struct occ_dynamic_data {
-    u8 occ_state;
-    u8 major_version;
-    u8 minor_version;
-    u8 gpus_present;
-    union __packed {
-        struct __packed { /* Version 0x90 */
-            u8 spare1;
+    uint8_t occ_state;
+    uint8_t major_version;
+    uint8_t minor_version;
+    uint8_t gpus_present;
+    union QEMU_PACKED {
+        struct QEMU_PACKED { /* Version 0x90 */
+            uint8_t spare1;
         } v9;
-        struct __packed { /* Version 0xA0 */
-            u8 wof_enabled;
+        struct QEMU_PACKED { /* Version 0xA0 */
+            uint8_t wof_enabled;
         } v10;
     };
-    u8 cpu_throttle;
-    u8 mem_throttle;
-    u8 quick_pwr_drop;
-    u8 pwr_shifting_ratio;
-    u8 pwr_cap_type;
-    __be16 hard_min_pwr_cap;
-    __be16 max_pwr_cap;
-    __be16 cur_pwr_cap;
-    __be16 soft_min_pwr_cap;
-    u8 pad[110];
+    uint8_t cpu_throttle;
+    uint8_t mem_throttle;
+    uint8_t quick_pwr_drop;
+    uint8_t pwr_shifting_ratio;
+    uint8_t pwr_cap_type;
+    uint16_t hard_min_pwr_cap;
+    uint16_t max_pwr_cap;
+    uint16_t cur_pwr_cap;
+    uint16_t soft_min_pwr_cap;
+    uint8_t pad[110];
     struct opal_command_buffer cmd;
     struct occ_response_buffer rsp;
-} __packed;
+} QEMU_PACKED;
 
 enum occ_response_status {
     OCC_RSP_SUCCESS                 = 0x00,

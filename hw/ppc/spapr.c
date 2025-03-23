@@ -296,6 +296,7 @@ static void spapr_dt_pa_features(SpaprMachineState *spapr,
         pa_features[40 + 2] &= ~0x80; /* Radix MMU */
     }
     if (spapr_get_cap(spapr, SPAPR_CAP_DAWR1)) {
+        g_assert(pa_size > 66);
         pa_features[66] |= 0x80;
     }
 
@@ -4815,6 +4816,7 @@ static void spapr_machine_8_2_class_options(MachineClass *mc)
 {
     spapr_machine_9_0_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_8_2, hw_compat_8_2_len);
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power9_v2.2");
 }
 
 DEFINE_SPAPR_MACHINE(8, 2);

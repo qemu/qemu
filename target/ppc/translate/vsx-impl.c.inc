@@ -61,8 +61,8 @@ static bool trans_LXVD2X(DisasContext *ctx, arg_LXVD2X *a)
     TCGv EA;
     TCGv_i64 t0;
 
-    REQUIRE_VSX(ctx);
     REQUIRE_INSNS_FLAGS2(ctx, VSX);
+    REQUIRE_VSX(ctx);
 
     t0 = tcg_temp_new_i64();
     gen_set_access_type(ctx, ACCESS_INT);
@@ -80,8 +80,8 @@ static bool trans_LXVW4X(DisasContext *ctx, arg_LXVW4X *a)
     TCGv EA;
     TCGv_i64 xth, xtl;
 
-    REQUIRE_VSX(ctx);
     REQUIRE_INSNS_FLAGS2(ctx, VSX);
+    REQUIRE_VSX(ctx);
 
     xth = tcg_temp_new_i64();
     xtl = tcg_temp_new_i64();
@@ -113,12 +113,12 @@ static bool trans_LXVWSX(DisasContext *ctx, arg_LXVWSX *a)
     TCGv EA;
     TCGv_i32 data;
 
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
     if (a->rt < 32) {
         REQUIRE_VSX(ctx);
     } else {
         REQUIRE_VECTOR(ctx);
     }
-    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
 
     gen_set_access_type(ctx, ACCESS_INT);
     EA = do_ea_calc(ctx, a->ra, cpu_gpr[a->rb]);
@@ -133,8 +133,8 @@ static bool trans_LXVDSX(DisasContext *ctx, arg_LXVDSX *a)
     TCGv EA;
     TCGv_i64 data;
 
-    REQUIRE_VSX(ctx);
     REQUIRE_INSNS_FLAGS2(ctx, VSX);
+    REQUIRE_VSX(ctx);
 
     gen_set_access_type(ctx, ACCESS_INT);
     EA = do_ea_calc(ctx, a->ra, cpu_gpr[a->rb]);
@@ -185,8 +185,8 @@ static bool trans_LXVH8X(DisasContext *ctx, arg_LXVH8X *a)
     TCGv EA;
     TCGv_i64 xth, xtl;
 
-    REQUIRE_VSX(ctx);
     REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_VSX(ctx);
 
     xth = tcg_temp_new_i64();
     xtl = tcg_temp_new_i64();
@@ -208,8 +208,8 @@ static bool trans_LXVB16X(DisasContext *ctx, arg_LXVB16X *a)
     TCGv EA;
     TCGv_i128 data;
 
-    REQUIRE_VSX(ctx);
     REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_VSX(ctx);
 
     data = tcg_temp_new_i128();
     gen_set_access_type(ctx, ACCESS_INT);
@@ -312,8 +312,8 @@ static bool trans_STXVD2X(DisasContext *ctx, arg_STXVD2X *a)
     TCGv EA;
     TCGv_i64 t0;
 
-    REQUIRE_VSX(ctx);
     REQUIRE_INSNS_FLAGS2(ctx, VSX);
+    REQUIRE_VSX(ctx);
 
     t0 = tcg_temp_new_i64();
     gen_set_access_type(ctx, ACCESS_INT);
@@ -331,8 +331,8 @@ static bool trans_STXVW4X(DisasContext *ctx, arg_STXVW4X *a)
     TCGv EA;
     TCGv_i64 xsh, xsl;
 
-    REQUIRE_VSX(ctx);
     REQUIRE_INSNS_FLAGS2(ctx, VSX);
+    REQUIRE_VSX(ctx);
 
     xsh = tcg_temp_new_i64();
     xsl = tcg_temp_new_i64();
@@ -364,8 +364,8 @@ static bool trans_STXVH8X(DisasContext *ctx, arg_STXVH8X *a)
     TCGv EA;
     TCGv_i64 xsh, xsl;
 
-    REQUIRE_VSX(ctx);
     REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_VSX(ctx);
 
     xsh = tcg_temp_new_i64();
     xsl = tcg_temp_new_i64();
@@ -394,8 +394,8 @@ static bool trans_STXVB16X(DisasContext *ctx, arg_STXVB16X *a)
     TCGv EA;
     TCGv_i128 data;
 
-    REQUIRE_VSX(ctx);
     REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_VSX(ctx);
 
     data = tcg_temp_new_i128();
     gen_set_access_type(ctx, ACCESS_INT);
