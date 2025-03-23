@@ -10,6 +10,8 @@
 #ifndef ACCEL_INTERNAL_H
 #define ACCEL_INTERNAL_H
 
+#include "qemu/accel.h"
+
 void accel_init_ops_interfaces(AccelClass *ac);
 
 #endif /* ACCEL_SYSTEM_H */
