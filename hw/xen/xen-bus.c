@@ -353,10 +353,10 @@ static void xen_bus_realize(BusState *bus, Error **errp)
             xs_node_watch(xenbus->xsh, node, key, xen_bus_backend_changed,
                           xenbus, &local_err);
         if (local_err) {
-            /* This need not be treated as a hard error so don't propagate */
-            error_reportf_err(local_err,
-                              "failed to set up '%s' enumeration watch: ",
-                              type[i]);
+            warn_reportf_err(local_err,
+                             "failed to set up '%s' enumeration watch: ",
+                             type[i]);
+            local_err = NULL;
         }
 
         g_free(node);
