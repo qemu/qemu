@@ -936,29 +936,15 @@ static void virt_cpu_unplug(HotplugHandler *hotplug_dev,
                             DeviceState *dev, Error **errp)
 {
     CPUArchId *cpu_slot;
-    Error *err = NULL;
     LoongArchCPU *cpu = LOONGARCH_CPU(dev);
     LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(hotplug_dev);
 
     /* Notify ipi and extioi irqchip to remove interrupt routing to CPU */
-    hotplug_handler_unplug(HOTPLUG_HANDLER(lvms->ipi), dev, &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
-
-    hotplug_handler_unplug(HOTPLUG_HANDLER(lvms->extioi), dev, &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
+    hotplug_handler_unplug(HOTPLUG_HANDLER(lvms->ipi), dev, &error_abort);
+    hotplug_handler_unplug(HOTPLUG_HANDLER(lvms->extioi), dev, &error_abort);
 
     /* Notify acpi ged CPU removed */
-    hotplug_handler_unplug(HOTPLUG_HANDLER(lvms->acpi_ged), dev, &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
+    hotplug_handler_unplug(HOTPLUG_HANDLER(lvms->acpi_ged), dev, &error_abort);
 
     cpu_slot = virt_find_cpu_slot(MACHINE(lvms), cpu->phy_id);
     cpu_slot->cpu = NULL;
@@ -971,29 +957,18 @@ static void virt_cpu_plug(HotplugHandler *hotplug_dev,
     CPUArchId *cpu_slot;
     LoongArchCPU *cpu = LOONGARCH_CPU(dev);
     LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(hotplug_dev);
-    Error *err = NULL;
 
     if (lvms->ipi) {
-        hotplug_handler_plug(HOTPLUG_HANDLER(lvms->ipi), dev, &err);
-        if (err) {
-            error_propagate(errp, err);
-            return;
-        }
+        hotplug_handler_plug(HOTPLUG_HANDLER(lvms->ipi), dev, &error_abort);
     }
 
     if (lvms->extioi) {
-        hotplug_handler_plug(HOTPLUG_HANDLER(lvms->extioi), dev, &err);
-        if (err) {
-            error_propagate(errp, err);
-            return;
-        }
+        hotplug_handler_plug(HOTPLUG_HANDLER(lvms->extioi), dev, &error_abort);
     }
 
     if (lvms->acpi_ged) {
-        hotplug_handler_plug(HOTPLUG_HANDLER(lvms->acpi_ged), dev, &err);
-        if (err) {
-            error_propagate(errp, err);
-        }
+        hotplug_handler_plug(HOTPLUG_HANDLER(lvms->acpi_ged), dev,
+                             &error_abort);
     }
 
     cpu_slot = virt_find_cpu_slot(MACHINE(lvms), cpu->phy_id);
