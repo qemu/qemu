@@ -1880,7 +1880,7 @@
       'load5m': 'number',
       'load15m': 'number'
   },
-  'if': 'CONFIG_GETLOADAVG'
+  'if': { 'any': ['CONFIG_WIN32', 'CONFIG_GETLOADAVG'] }
 }
 
 ##
@@ -1888,13 +1888,18 @@
 #
 # Retrieve CPU process load information
 #
+# .. note:: Windows does not have load average API, so QGA emulates it by
+#           calculating the average CPU usage in the last 1, 5, 15 minutes
+#           similar as Linux does this.
+#           Calculation starts from the first time this command is called.
+#
 # Returns: load information
 #
 # Since: 10.0
 ##
 { 'command': 'guest-get-load',
   'returns': 'GuestLoadAverage',
-  'if': 'CONFIG_GETLOADAVG'
+  'if': { 'any': ['CONFIG_WIN32', 'CONFIG_GETLOADAVG'] }
 }
 
 ##

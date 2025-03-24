@@ -33,6 +33,7 @@
 #include "qemu-version.h"
 #ifdef _WIN32
 #include <dbt.h>
+#include <pdh.h>
 #include "qga/service-win32.h"
 #include "qga/vss-win32.h"
 #endif
@@ -105,6 +106,9 @@ struct GAState {
     GAService service;
     HANDLE wakeup_event;
     HANDLE event_log;
+    HANDLE load_avg_wait_handle;
+    HANDLE load_avg_event;
+    HQUERY load_avg_pdh_query;
 #endif
     bool delimit_response;
     bool frozen;
@@ -579,6 +583,25 @@ void ga_unset_frozen(GAState *s)
 const char *ga_fsfreeze_hook(GAState *s)
 {
     return s->fsfreeze_hook;
+}
+#endif
+
+#ifdef _WIN32
+void ga_set_load_avg_wait_handle(GAState *s, HANDLE wait_handle)
+{
+    s->load_avg_wait_handle = wait_handle;
+}
+void ga_set_load_avg_event(GAState *s, HANDLE event)
+{
+    s->load_avg_event = event;
+}
+void ga_set_load_avg_pdh_query(GAState *s, HQUERY query)
+{
+    s->load_avg_pdh_query = query;
+}
+HQUERY ga_get_load_avg_pdh_query(GAState *s)
+{
+    return s->load_avg_pdh_query;
 }
 #endif
 
@@ -1402,6 +1425,10 @@ static GAState *initialize_agent(GAConfig *config, int socket_activation)
     g_debug("Guest agent version %s started", QEMU_FULL_VERSION);
 
 #ifdef _WIN32
+    s->load_avg_wait_handle = INVALID_HANDLE_VALUE;
+    s->load_avg_event = INVALID_HANDLE_VALUE;
+    s->load_avg_pdh_query = NULL;
+
     s->event_log = RegisterEventSource(NULL, "qemu-ga");
     if (!s->event_log) {
         g_autofree gchar *errmsg = g_win32_error_message(GetLastError());
@@ -1506,6 +1533,18 @@ static void cleanup_agent(GAState *s)
 #ifdef _WIN32
     CloseHandle(s->wakeup_event);
     CloseHandle(s->event_log);
+
+    if (s->load_avg_wait_handle != INVALID_HANDLE_VALUE) {
+        UnregisterWait(s->load_avg_wait_handle);
+    }
+
+    if (s->load_avg_event != INVALID_HANDLE_VALUE) {
+        CloseHandle(s->load_avg_event);
+    }
+
+    if (s->load_avg_pdh_query) {
+        PdhCloseQuery(s->load_avg_pdh_query);
+    }
 #endif
     if (s->command_state) {
         ga_command_state_cleanup_all(s->command_state);
