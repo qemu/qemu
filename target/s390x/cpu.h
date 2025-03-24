@@ -900,13 +900,6 @@ static inline uint8_t s390_cpu_get_state(S390CPU *cpu)
 }
 
 
-/* cpu_models.c */
-void s390_cpu_list(void);
-#define cpu_list s390_cpu_list
-void s390_set_qemu_cpu_model(uint16_t type, uint8_t gen, uint8_t ec_ga,
-                             const S390FeatInit feat_init);
-
-
 /* helper.c */
 #define CPU_RESOLVING_TYPE TYPE_S390_CPU
 
