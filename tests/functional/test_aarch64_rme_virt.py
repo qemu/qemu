@@ -60,8 +60,10 @@ class Aarch64RMEVirtMachine(QemuSystemTest):
     # and launching a nested VM using it.
     def test_aarch64_rme_virt(self):
         self.set_machine('virt')
-        self.vm.set_console()
         self.require_accelerator('tcg')
+        self.require_netdev('user')
+
+        self.vm.set_console()
 
         stack_path_tar_gz = self.ASSET_RME_STACK_VIRT.fetch()
         self.archive_extract(stack_path_tar_gz, format="tar")

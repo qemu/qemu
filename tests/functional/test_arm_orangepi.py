@@ -147,6 +147,8 @@ class OrangePiMachine(LinuxKernelTest):
     @skipBigDataTest()
     def test_arm_orangepi_armbian(self):
         self.set_machine('orangepi-pc')
+        self.require_netdev('user')
+
         # This test download a 275 MiB compressed image and expand it
         # to 1036 MiB, but the underlying filesystem is 1552 MiB...
         # As we expand it to 2 GiB we are safe.
@@ -181,6 +183,8 @@ class OrangePiMachine(LinuxKernelTest):
     @skipBigDataTest()
     def test_arm_orangepi_uboot_netbsd9(self):
         self.set_machine('orangepi-pc')
+        self.require_netdev('user')
+
         # This test download a 304MB compressed image and expand it to 2GB
         # We use the common OrangePi PC 'plus' build of U-Boot for our secondary
         # program loader (SPL). We will then set the path to the more specific

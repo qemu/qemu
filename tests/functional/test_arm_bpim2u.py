@@ -140,6 +140,8 @@ class BananaPiMachine(LinuxKernelTest):
     @skipBigDataTest()
     def test_arm_bpim2u_openwrt_22_03_3(self):
         self.set_machine('bpim2u')
+        self.require_netdev('user')
+
         # This test download a 8.9 MiB compressed image and expand it
         # to 127 MiB.
         image_path = self.uncompress(self.ASSET_SD_IMAGE)

@@ -107,6 +107,8 @@ class CubieboardMachine(LinuxKernelTest):
         # This test download a 7.5 MiB compressed image and expand it
         # to 126 MiB.
         self.set_machine('cubieboard')
+        self.require_netdev('user')
+
         image_path = self.uncompress(self.ASSET_OPENWRT)
         image_pow2ceil_expand(image_path)
 
