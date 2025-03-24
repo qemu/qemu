@@ -973,8 +973,6 @@ static void virt_cpu_plug(HotplugHandler *hotplug_dev,
     LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(hotplug_dev);
     Error *err = NULL;
 
-    cpu_slot = virt_find_cpu_slot(MACHINE(lvms), cpu->phy_id);
-    cpu_slot->cpu = CPU(dev);
     if (lvms->ipi) {
         hotplug_handler_plug(HOTPLUG_HANDLER(lvms->ipi), dev, &err);
         if (err) {
@@ -998,6 +996,8 @@ static void virt_cpu_plug(HotplugHandler *hotplug_dev,
         }
     }
 
+    cpu_slot = virt_find_cpu_slot(MACHINE(lvms), cpu->phy_id);
+    cpu_slot->cpu = CPU(dev);
     return;
 }
 
