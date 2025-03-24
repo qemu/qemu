@@ -332,6 +332,22 @@ static void test_qga_get_fsinfo(gconstpointer fix)
     }
 }
 
+static void test_qga_get_load(gconstpointer fix)
+{
+    const TestFixture *fixture = fix;
+    g_autoptr(QDict) ret = NULL;
+    QDict *load;
+
+    ret = qmp_fd(fixture->fd, "{'execute': 'guest-get-load'}");
+    g_assert_nonnull(ret);
+    qmp_assert_no_error(ret);
+
+    load = qdict_get_qdict(ret, "return");
+    g_assert(qdict_haskey(load, "load1m"));
+    g_assert(qdict_haskey(load, "load5m"));
+    g_assert(qdict_haskey(load, "load15m"));
+}
+
 static void test_qga_get_memory_block_info(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
@@ -1105,6 +1121,7 @@ int main(int argc, char **argv)
         g_test_add_data_func("/qga/get-vcpus", &fix, test_qga_get_vcpus);
     }
     g_test_add_data_func("/qga/get-fsinfo", &fix, test_qga_get_fsinfo);
+    g_test_add_data_func("/qga/get-load", &fix, test_qga_get_load);
     g_test_add_data_func("/qga/get-memory-block-info", &fix,
                          test_qga_get_memory_block_info);
     g_test_add_data_func("/qga/get-memory-blocks", &fix,
