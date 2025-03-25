@@ -104,14 +104,8 @@ static inline uint8_t *gdb_get_reg_ptr(GByteArray *buf, int len)
 #ifdef COMPILING_PER_TARGET
 #if TARGET_LONG_BITS == 64
 #define gdb_get_regl(buf, val) gdb_get_reg64(buf, val)
-#define ldtul_p(addr) ldq_p(addr)
-#define ldtul_le_p(addr) ldq_le_p(addr)
-#define ldtul_be_p(addr) ldq_be_p(addr)
 #else
 #define gdb_get_regl(buf, val) gdb_get_reg32(buf, val)
-#define ldtul_p(addr) ldl_p(addr)
-#define ldtul_le_p(addr) ldl_le_p(addr)
-#define ldtul_be_p(addr) ldl_be_p(addr)
 #endif
 #endif /* COMPILING_PER_TARGET */
 
