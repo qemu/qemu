@@ -37,6 +37,10 @@
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 
+/* Forward declarations referenced in analyze_funcs_generated.c.inc */
+static void mark_implicit_reads(DisasContext *ctx);
+static void mark_implicit_writes(DisasContext *ctx);
+
 #include "analyze_funcs_generated.c.inc"
 
 typedef void (*AnalyzeInsn)(DisasContext *ctx);
@@ -377,6 +381,17 @@ static void mark_implicit_pred_reads(DisasContext *ctx)
     mark_implicit_pred_read(ctx, A_IMPLICIT_READS_P3, 3);
 }
 
+static void mark_implicit_reads(DisasContext *ctx)
+{
+    mark_implicit_pred_reads(ctx);
+}
+
+static void mark_implicit_writes(DisasContext *ctx)
+{
+    mark_implicit_reg_writes(ctx);
+    mark_implicit_pred_writes(ctx);
+}
+
 static void analyze_packet(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
@@ -388,9 +403,6 @@ static void analyze_packet(DisasContext *ctx)
         if (opcode_analyze[insn->opcode]) {
             opcode_analyze[insn->opcode](ctx);
         }
-        mark_implicit_reg_writes(ctx);
-        mark_implicit_pred_writes(ctx);
-        mark_implicit_pred_reads(ctx);
     }
 
     ctx->need_commit = need_commit(ctx);
