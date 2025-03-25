@@ -1108,6 +1108,8 @@ static void npcm7xx_clk_pll_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "NPCM7xx Clock PLL Module";
     dc->vmsd = &vmstate_npcm7xx_clk_pll;
+    /* Reason: Part of NPCMCLKState component */
+    dc->user_creatable = false;
 }
 
 static void npcm7xx_clk_sel_class_init(ObjectClass *klass, void *data)
@@ -1116,6 +1118,8 @@ static void npcm7xx_clk_sel_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "NPCM7xx Clock SEL Module";
     dc->vmsd = &vmstate_npcm7xx_clk_sel;
+    /* Reason: Part of NPCMCLKState component */
+    dc->user_creatable = false;
 }
 
 static void npcm7xx_clk_divider_class_init(ObjectClass *klass, void *data)
@@ -1124,6 +1128,8 @@ static void npcm7xx_clk_divider_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "NPCM7xx Clock Divider Module";
     dc->vmsd = &vmstate_npcm7xx_clk_divider;
+    /* Reason: Part of NPCMCLKState component */
+    dc->user_creatable = false;
 }
 
 static void npcm_clk_class_init(ObjectClass *klass, void *data)

@@ -137,6 +137,8 @@ static void pll_class_init(ObjectClass *klass, void *data)
 
     device_class_set_legacy_reset(dc, pll_reset);
     dc->vmsd = &pll_vmstate;
+    /* Reason: Part of BCM2835CprmanState component */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo cprman_pll_info = {
@@ -241,6 +243,8 @@ static void pll_channel_class_init(ObjectClass *klass, void *data)
 
     device_class_set_legacy_reset(dc, pll_channel_reset);
     dc->vmsd = &pll_channel_vmstate;
+    /* Reason: Part of BCM2835CprmanState component */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo cprman_pll_channel_info = {
@@ -362,6 +366,8 @@ static void clock_mux_class_init(ObjectClass *klass, void *data)
 
     device_class_set_legacy_reset(dc, clock_mux_reset);
     dc->vmsd = &clock_mux_vmstate;
+    /* Reason: Part of BCM2835CprmanState component */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo cprman_clock_mux_info = {
@@ -416,6 +422,8 @@ static void dsi0hsck_mux_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &dsi0hsck_mux_vmstate;
+    /* Reason: Part of BCM2835CprmanState component */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo cprman_dsi0hsck_mux_info = {
