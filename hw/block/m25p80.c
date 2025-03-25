@@ -1870,7 +1870,9 @@ static void m25p80_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_m25p80;
     device_class_set_props(dc, m25p80_properties);
     device_class_set_legacy_reset(dc, m25p80_reset);
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     mc->pi = data;
+    dc->desc = "Serial Flash";
 }
 
 static const TypeInfo m25p80_info = {
