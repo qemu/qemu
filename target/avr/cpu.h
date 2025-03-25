@@ -45,8 +45,6 @@
 
 /* Number of CPU registers */
 #define NUMBER_OF_CPU_REGISTERS 32
-/* Number of IO registers accessible by ld/st/in/out */
-#define NUMBER_OF_IO_REGISTERS 64
 
 /* CPU registers mapped into i/o ports 0x38-0x3f. */
 #define REG_38_RAMPD  0
