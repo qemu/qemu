@@ -41,6 +41,7 @@ struct AtmegaMcuState {
     MemoryRegion flash;
     MemoryRegion eeprom;
     MemoryRegion sram;
+    MemoryRegion sram_io;
     DeviceState *io;
     AVRMaskState pwr[POWER_MAX];
     AVRUsartState usart[USART_MAX];

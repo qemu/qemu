@@ -19,6 +19,7 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 #include "hw/misc/unimp.h"
+#include "migration/vmstate.h"
 #include "atmega.h"
 
 enum AtmegaPeripheral {
@@ -224,8 +225,6 @@ static void atmega_realize(DeviceState *dev, Error **errp)
     char *devname;
     size_t i;
 
-    assert(mc->io_size <= 0x200);
-
     if (!s->xtal_freq_hz) {
         error_setg(errp, "\"xtal-frequency-hz\" property must be provided.");
         return;
@@ -240,11 +239,37 @@ static void atmega_realize(DeviceState *dev, Error **errp)
     qdev_realize(DEVICE(&s->cpu), NULL, &error_abort);
     cpudev = DEVICE(&s->cpu);
 
-    /* SRAM */
-    memory_region_init_ram(&s->sram, OBJECT(dev), "sram", mc->sram_size,
-                           &error_abort);
-    memory_region_add_subregion(get_system_memory(),
-                                OFFSET_DATA + mc->io_size, &s->sram);
+    /*
+     * SRAM
+     *
+     * Softmmu is not able mix i/o and ram on the same page.
+     * Therefore in all cases, the first page exclusively contains i/o.
+     *
+     * If the MCU's i/o region matches the page size, then we can simply
+     * allocate all ram starting at the second page.  Otherwise, we must
+     * allocate some ram as i/o to complete the first page.
+     */
+    assert(mc->io_size == 0x100 || mc->io_size == 0x200);
+    if (mc->io_size >= TARGET_PAGE_SIZE) {
+        memory_region_init_ram(&s->sram, OBJECT(dev), "sram", mc->sram_size,
+                               &error_abort);
+        memory_region_add_subregion(get_system_memory(),
+                                    OFFSET_DATA + mc->io_size, &s->sram);
+    } else {
+        int sram_io_size = TARGET_PAGE_SIZE - mc->io_size;
+        void *sram_io_mem = g_malloc0(sram_io_size);
+
+        memory_region_init_ram_device_ptr(&s->sram_io, OBJECT(dev), "sram-as-io",
+                                          sram_io_size, sram_io_mem);
+        memory_region_add_subregion(get_system_memory(),
+                                    OFFSET_DATA + mc->io_size, &s->sram_io);
+        vmstate_register_ram(&s->sram_io, dev);
+
+        memory_region_init_ram(&s->sram, OBJECT(dev), "sram",
+                               mc->sram_size - sram_io_size, &error_abort);
+        memory_region_add_subregion(get_system_memory(),
+                                    OFFSET_DATA + TARGET_PAGE_SIZE, &s->sram);
+    }
 
     /* Flash */
     memory_region_init_rom(&s->flash, OBJECT(dev),
