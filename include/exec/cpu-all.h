@@ -19,7 +19,6 @@
 #ifndef CPU_ALL_H
 #define CPU_ALL_H
 
-#include "exec/cpu-common.h"
 #include "hw/core/cpu.h"
 #include "exec/cpu-defs.h"
 
