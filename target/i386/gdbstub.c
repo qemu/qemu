@@ -459,6 +459,7 @@ static int i386_cpu_gdb_get_egprs(CPUState *cs, GByteArray *mem_buf, int n)
 
 static int i386_cpu_gdb_set_egprs(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    const unsigned regsz = target_long_bits() / 8;
     CPUX86State *env = &X86_CPU(cs)->env;
 
     if (n >= 0 && n < EGPR_NUM) {
@@ -467,7 +468,7 @@ static int i386_cpu_gdb_set_egprs(CPUState *cs, uint8_t *mem_buf, int n)
          * XCR0[APX_F] (at least for modification in gdbstub) to be enabled.
          */
         if (env->hflags & HF_CS64_MASK && env->xcr0 & XSTATE_APX_MASK) {
-            env->regs[gpr_map[n + CPU_NB_REGS]] = ldtul_p(mem_buf);
+            env->regs[gpr_map[n + CPU_NB_REGS]] = ldn_p(mem_buf, regsz);
 
             /*
              * Per SDM Vol 1, "Processor Tracking of XSAVE-Managed State",
@@ -486,7 +487,7 @@ static int i386_cpu_gdb_set_egprs(CPUState *cs, uint8_t *mem_buf, int n)
                 env->xstate_bv |= XSTATE_APX_MASK;
             }
         }
-        return sizeof(target_ulong);
+        return regsz;
     }
     return 0;
 }
