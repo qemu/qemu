@@ -216,29 +216,29 @@ target_ulong helper_inb(CPUAVRState *env, uint32_t port)
 {
     target_ulong data = 0;
 
-    switch (port) {
-    case 0x38: /* RAMPD */
+    switch (port - 0x38) {
+    case REG_38_RAMPD:
         data = 0xff & (env->rampD >> 16);
         break;
-    case 0x39: /* RAMPX */
+    case REG_38_RAMPX:
         data = 0xff & (env->rampX >> 16);
         break;
-    case 0x3a: /* RAMPY */
+    case REG_38_RAMPY:
         data = 0xff & (env->rampY >> 16);
         break;
-    case 0x3b: /* RAMPZ */
+    case REG_38_RAMPZ:
         data = 0xff & (env->rampZ >> 16);
         break;
-    case 0x3c: /* EIND */
+    case REG_38_EIDN:
         data = 0xff & (env->eind >> 16);
         break;
-    case 0x3d: /* SPL */
+    case REG_38_SPL:
         data = env->sp & 0x00ff;
         break;
-    case 0x3e: /* SPH */
+    case REG_38_SPH:
         data = env->sp >> 8;
         break;
-    case 0x3f: /* SREG */
+    case REG_38_SREG:
         data = cpu_get_sreg(env);
         break;
     default:
@@ -265,39 +265,39 @@ void helper_outb(CPUAVRState *env, uint32_t port, uint32_t data)
 {
     data &= 0x000000ff;
 
-    switch (port) {
-    case 0x38: /* RAMPD */
+    switch (port - 0x38) {
+    case REG_38_RAMPD:
         if (avr_feature(env, AVR_FEATURE_RAMPD)) {
             env->rampD = (data & 0xff) << 16;
         }
         break;
-    case 0x39: /* RAMPX */
+    case REG_38_RAMPX:
         if (avr_feature(env, AVR_FEATURE_RAMPX)) {
             env->rampX = (data & 0xff) << 16;
         }
         break;
-    case 0x3a: /* RAMPY */
+    case REG_38_RAMPY:
         if (avr_feature(env, AVR_FEATURE_RAMPY)) {
             env->rampY = (data & 0xff) << 16;
         }
         break;
-    case 0x3b: /* RAMPZ */
+    case REG_38_RAMPZ:
         if (avr_feature(env, AVR_FEATURE_RAMPZ)) {
             env->rampZ = (data & 0xff) << 16;
         }
         break;
-    case 0x3c: /* EIDN */
+    case REG_38_EIDN:
         env->eind = (data & 0xff) << 16;
         break;
-    case 0x3d: /* SPL */
+    case REG_38_SPL:
         env->sp = (env->sp & 0xff00) | (data);
         break;
-    case 0x3e: /* SPH */
+    case REG_38_SPH:
         if (avr_feature(env, AVR_FEATURE_2_BYTE_SP)) {
             env->sp = (env->sp & 0x00ff) | (data << 8);
         }
         break;
-    case 0x3f: /* SREG */
+    case REG_38_SREG:
         cpu_set_sreg(env, data);
         break;
     default:
