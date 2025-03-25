@@ -24,7 +24,6 @@
 #include "qom/object.h"
 #include "target/i386/kvm/hyperv-proto.h"
 #include "target/i386/cpu.h"
-#include "exec/cpu-all.h"
 #include "exec/target_page.h"
 
 struct SynICState {

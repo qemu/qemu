@@ -259,6 +259,4 @@ bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 extern const MemoryRegionOps avr_cpu_reg1;
 extern const MemoryRegionOps avr_cpu_reg2;
 
-#include "exec/cpu-all.h"
-
 #endif /* QEMU_AVR_CPU_H */

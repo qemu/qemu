@@ -205,9 +205,6 @@ CPU_CONVERT(le, 64, uint64_t)
  *   te   : target endian
  * (except for byte accesses, which have no endian infix).
  *
- * The target endian accessors are obviously only available to source
- * files which are built per-target; they are defined in cpu-all.h.
- *
  * In all cases these functions take a host pointer.
  * For accessors that take a guest address rather than a
  * host address, see the cpu_{ld,st}_* accessors defined in

@@ -2604,7 +2604,6 @@ static inline bool is_mmu_index_32(int mmu_index)
 #define CC_SRC2 (env->cc_src2)
 #define CC_OP   (env->cc_op)
 
-#include "exec/cpu-all.h"
 #include "svm.h"
 
 #if !defined(CONFIG_USER_ONLY)
