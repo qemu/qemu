@@ -35,6 +35,41 @@ VFIODeviceList vfio_device_list =
     QLIST_HEAD_INITIALIZER(vfio_device_list);
 
 /*
+ * We want to differentiate hot reset of multiple in-use devices vs
+ * hot reset of a single in-use device. VFIO_DEVICE_RESET will already
+ * handle the case of doing hot resets when there is only a single
+ * device per bus. The in-use here refers to how many VFIODevices are
+ * affected. A hot reset that affects multiple devices, but only a
+ * single in-use device, means that we can call it from our bus
+ * ->reset() callback since the extent is effectively a single
+ * device. This allows us to make use of it in the hotplug path. When
+ * there are multiple in-use devices, we can only trigger the hot
+ * reset during a system reset and thus from our reset handler. We
+ * separate _one vs _multi here so that we don't overlap and do a
+ * double reset on the system reset path where both our reset handler
+ * and ->reset() callback are used. Calling _one() will only do a hot
+ * reset for the one in-use devices case, calling _multi() will do
+ * nothing if a _one() would have been sufficient.
+ */
+void vfio_reset_handler(void *opaque)
+{
+    VFIODevice *vbasedev;
+
+    trace_vfio_reset_handler();
+    QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
+        if (vbasedev->dev->realized) {
+            vbasedev->ops->vfio_compute_needs_reset(vbasedev);
+        }
+    }
+
+    QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
+        if (vbasedev->dev->realized && vbasedev->needs_reset) {
+            vbasedev->ops->vfio_hot_reset_multi(vbasedev);
+        }
+    }
+}
+
+/*
  * Common VFIO interrupt disable
  */
 void vfio_disable_irqindex(VFIODevice *vbasedev, int index)
