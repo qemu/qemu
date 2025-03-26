@@ -34,7 +34,8 @@
 #include "pci.h"
 #include "hw/vfio/vfio-container.h"
 
-VFIOGroupList vfio_group_list =
+typedef QLIST_HEAD(VFIOGroupList, VFIOGroup) VFIOGroupList;
+static VFIOGroupList vfio_group_list =
     QLIST_HEAD_INITIALIZER(vfio_group_list);
 
 static int vfio_ram_block_discard_disable(VFIOContainer *container, bool state)
