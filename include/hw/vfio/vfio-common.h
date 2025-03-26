@@ -23,7 +23,6 @@
 
 #include "system/memory.h"
 #include "qemu/queue.h"
-#include "qemu/notify.h"
 #include "ui/console.h"
 #include "hw/display/ramfb.h"
 #ifdef CONFIG_LINUX
@@ -35,23 +34,6 @@
 #include "system/iommufd.h"
 
 #define VFIO_MSG_PREFIX "vfio %s: "
-
-/*
- * Flags to be used as unique delimiters for VFIO devices in the migration
- * stream. These flags are composed as:
- * 0xffffffff => MSB 32-bit all 1s
- * 0xef10     => Magic ID, represents emulated (virtual) function IO
- * 0x0000     => 16-bits reserved for flags
- *
- * The beginning of state information is marked by _DEV_CONFIG_STATE,
- * _DEV_SETUP_STATE, or _DEV_DATA_STATE, respectively. The end of a
- * certain state information is marked by _END_OF_STATE.
- */
-#define VFIO_MIG_FLAG_END_OF_STATE      (0xffffffffef100001ULL)
-#define VFIO_MIG_FLAG_DEV_CONFIG_STATE  (0xffffffffef100002ULL)
-#define VFIO_MIG_FLAG_DEV_SETUP_STATE   (0xffffffffef100003ULL)
-#define VFIO_MIG_FLAG_DEV_DATA_STATE    (0xffffffffef100004ULL)
-#define VFIO_MIG_FLAG_DEV_INIT_DATA_SENT (0xffffffffef100005ULL)
 
 enum {
     VFIO_DEVICE_TYPE_PCI = 0,
@@ -77,27 +59,6 @@ typedef struct VFIORegion {
     VFIOMmap *mmaps;
     uint8_t nr; /* cache the region number for debug */
 } VFIORegion;
-
-typedef struct VFIOMultifd VFIOMultifd;
-
-typedef struct VFIOMigration {
-    struct VFIODevice *vbasedev;
-    VMChangeStateEntry *vm_state;
-    NotifierWithReturn migration_state;
-    uint32_t device_state;
-    int data_fd;
-    void *data_buffer;
-    size_t data_buffer_size;
-    uint64_t mig_flags;
-    uint64_t precopy_init_size;
-    uint64_t precopy_dirty_size;
-    bool multifd_transfer;
-    VFIOMultifd *multifd;
-    bool initial_data_sent;
-
-    bool event_save_iterate_started;
-    bool event_precopy_empty_hit;
-} VFIOMigration;
 
 struct VFIOGroup;
 
@@ -136,6 +97,7 @@ typedef struct VFIOIOMMUFDContainer {
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOIOMMUFDContainer, VFIO_IOMMU_IOMMUFD);
 
 typedef struct VFIODeviceOps VFIODeviceOps;
+typedef struct VFIOMigration VFIOMigration;
 
 typedef struct VFIODevice {
     QLIST_ENTRY(VFIODevice) next;
@@ -290,12 +252,8 @@ extern VFIODeviceList vfio_device_list;
 extern const MemoryListener vfio_memory_listener;
 extern int vfio_kvm_device_fd;
 
-void vfio_migration_add_bytes_transferred(unsigned long val);
 bool vfio_device_state_is_running(VFIODevice *vbasedev);
 bool vfio_device_state_is_precopy(VFIODevice *vbasedev);
-
-int vfio_save_device_config_state(QEMUFile *f, void *opaque, Error **errp);
-int vfio_load_device_config_state(QEMUFile *f, void *opaque);
 
 #ifdef CONFIG_LINUX
 int vfio_get_region_info(VFIODevice *vbasedev, int index,
@@ -311,15 +269,7 @@ struct vfio_info_cap_header *
 vfio_get_device_info_cap(struct vfio_device_info *info, uint16_t id);
 struct vfio_info_cap_header *
 vfio_get_cap(void *ptr, uint32_t cap_offset, uint16_t id);
-
-int vfio_migration_set_state(VFIODevice *vbasedev,
-                             enum vfio_device_mig_state new_state,
-                             enum vfio_device_mig_state recover_state,
-                             Error **errp);
 #endif
-
-bool vfio_migration_realize(VFIODevice *vbasedev, Error **errp);
-void vfio_migration_exit(VFIODevice *vbasedev);
 
 int vfio_bitmap_alloc(VFIOBitmap *vbmap, hwaddr size);
 bool vfio_devices_all_dirty_tracking_started(
