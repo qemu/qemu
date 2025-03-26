@@ -331,3 +331,40 @@ VFIODevice *vfio_get_vfio_device(Object *obj)
         return NULL;
     }
 }
+
+bool vfio_attach_device(char *name, VFIODevice *vbasedev,
+                        AddressSpace *as, Error **errp)
+{
+    const VFIOIOMMUClass *ops =
+        VFIO_IOMMU_CLASS(object_class_by_name(TYPE_VFIO_IOMMU_LEGACY));
+    HostIOMMUDevice *hiod = NULL;
+
+    if (vbasedev->iommufd) {
+        ops = VFIO_IOMMU_CLASS(object_class_by_name(TYPE_VFIO_IOMMU_IOMMUFD));
+    }
+
+    assert(ops);
+
+
+    if (!vbasedev->mdev) {
+        hiod = HOST_IOMMU_DEVICE(object_new(ops->hiod_typename));
+        vbasedev->hiod = hiod;
+    }
+
+    if (!ops->attach_device(name, vbasedev, as, errp)) {
+        object_unref(hiod);
+        vbasedev->hiod = NULL;
+        return false;
+    }
+
+    return true;
+}
+
+void vfio_detach_device(VFIODevice *vbasedev)
+{
+    if (!vbasedev->bcontainer) {
+        return;
+    }
+    object_unref(vbasedev->hiod);
+    VFIO_IOMMU_GET_CLASS(vbasedev->bcontainer)->detach_device(vbasedev);
+}
