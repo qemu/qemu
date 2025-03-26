@@ -12,6 +12,8 @@
 #ifdef CONFIG_LINUX
 #include <linux/vfio.h>
 
+extern int vfio_kvm_device_fd;
+
 struct vfio_info_cap_header *
 vfio_get_cap(void *ptr, uint32_t cap_offset, uint16_t id);
 struct vfio_info_cap_header *
