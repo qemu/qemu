@@ -616,12 +616,7 @@ static bool vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     group->container = container;
     QLIST_INSERT_HEAD(&container->group_list, group, container_next);
 
-    bcontainer->listener = vfio_memory_listener;
-    memory_listener_register(&bcontainer->listener, bcontainer->space->as);
-
-    if (bcontainer->error) {
-        error_propagate_prepend(errp, bcontainer->error,
-            "memory listener initialization failed: ");
+    if (!vfio_listener_register(bcontainer, errp)) {
         goto listener_release_exit;
     }
 
@@ -631,7 +626,7 @@ static bool vfio_connect_container(VFIOGroup *group, AddressSpace *as,
 listener_release_exit:
     QLIST_REMOVE(group, container_next);
     vfio_kvm_device_del_group(group);
-    memory_listener_unregister(&bcontainer->listener);
+    vfio_listener_unregister(bcontainer);
     if (vioc->release) {
         vioc->release(bcontainer);
     }
@@ -669,7 +664,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
      * group.
      */
     if (QLIST_EMPTY(&container->group_list)) {
-        memory_listener_unregister(&bcontainer->listener);
+        vfio_listener_unregister(bcontainer);
         if (vioc->release) {
             vioc->release(bcontainer);
         }

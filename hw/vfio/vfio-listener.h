@@ -9,6 +9,7 @@
 #ifndef HW_VFIO_VFIO_LISTENER_H
 #define HW_VFIO_VFIO_LISTENER_H
 
-extern const MemoryListener vfio_memory_listener;
+bool vfio_listener_register(VFIOContainerBase *bcontainer, Error **errp);
+void vfio_listener_unregister(VFIOContainerBase *bcontainer);
 
 #endif /* HW_VFIO_VFIO_LISTENER_H */
