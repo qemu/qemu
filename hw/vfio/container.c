@@ -35,6 +35,7 @@
 #include "hw/vfio/vfio-container.h"
 #include "vfio-helpers.h"
 #include "vfio-cpr.h"
+#include "vfio-listener.h"
 
 #define TYPE_HOST_IOMMU_DEVICE_LEGACY_VFIO TYPE_HOST_IOMMU_DEVICE "-legacy-vfio"
 
