@@ -51,11 +51,11 @@ VFIODeviceList vfio_device_list =
  * reset for the one in-use devices case, calling _multi() will do
  * nothing if a _one() would have been sufficient.
  */
-void vfio_reset_handler(void *opaque)
+void vfio_device_reset_handler(void *opaque)
 {
     VFIODevice *vbasedev;
 
-    trace_vfio_reset_handler();
+    trace_vfio_device_reset_handler();
     QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
         if (vbasedev->dev->realized) {
             vbasedev->ops->vfio_compute_needs_reset(vbasedev);
@@ -72,7 +72,7 @@ void vfio_reset_handler(void *opaque)
 /*
  * Common VFIO interrupt disable
  */
-void vfio_disable_irqindex(VFIODevice *vbasedev, int index)
+void vfio_device_irq_disable(VFIODevice *vbasedev, int index)
 {
     struct vfio_irq_set irq_set = {
         .argsz = sizeof(irq_set),
@@ -85,7 +85,7 @@ void vfio_disable_irqindex(VFIODevice *vbasedev, int index)
     ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
 }
 
-void vfio_unmask_single_irqindex(VFIODevice *vbasedev, int index)
+void vfio_device_irq_unmask(VFIODevice *vbasedev, int index)
 {
     struct vfio_irq_set irq_set = {
         .argsz = sizeof(irq_set),
@@ -98,7 +98,7 @@ void vfio_unmask_single_irqindex(VFIODevice *vbasedev, int index)
     ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
 }
 
-void vfio_mask_single_irqindex(VFIODevice *vbasedev, int index)
+void vfio_device_irq_mask(VFIODevice *vbasedev, int index)
 {
     struct vfio_irq_set irq_set = {
         .argsz = sizeof(irq_set),
@@ -147,8 +147,8 @@ static const char *index_to_str(VFIODevice *vbasedev, int index)
     }
 }
 
-bool vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
-                            int action, int fd, Error **errp)
+bool vfio_device_irq_set_signaling(VFIODevice *vbasedev, int index, int subindex,
+                                   int action, int fd, Error **errp)
 {
     ERRP_GUARD();
     g_autofree struct vfio_irq_set *irq_set = NULL;
@@ -185,8 +185,8 @@ bool vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
     return false;
 }
 
-int vfio_get_region_info(VFIODevice *vbasedev, int index,
-                         struct vfio_region_info **info)
+int vfio_device_get_region_info(VFIODevice *vbasedev, int index,
+                                struct vfio_region_info **info)
 {
     size_t argsz = sizeof(struct vfio_region_info);
 
@@ -212,8 +212,8 @@ retry:
     return 0;
 }
 
-int vfio_get_dev_region_info(VFIODevice *vbasedev, uint32_t type,
-                             uint32_t subtype, struct vfio_region_info **info)
+int vfio_device_get_region_info_type(VFIODevice *vbasedev, uint32_t type,
+                                     uint32_t subtype, struct vfio_region_info **info)
 {
     int i;
 
@@ -221,7 +221,7 @@ int vfio_get_dev_region_info(VFIODevice *vbasedev, uint32_t type,
         struct vfio_info_cap_header *hdr;
         struct vfio_region_info_cap_type *cap_type;
 
-        if (vfio_get_region_info(vbasedev, i, info)) {
+        if (vfio_device_get_region_info(vbasedev, i, info)) {
             continue;
         }
 
@@ -233,8 +233,8 @@ int vfio_get_dev_region_info(VFIODevice *vbasedev, uint32_t type,
 
         cap_type = container_of(hdr, struct vfio_region_info_cap_type, header);
 
-        trace_vfio_get_dev_region(vbasedev->name, i,
-                                  cap_type->type, cap_type->subtype);
+        trace_vfio_device_get_region_info_type(vbasedev->name, i,
+                                               cap_type->type, cap_type->subtype);
 
         if (cap_type->type == type && cap_type->subtype == subtype) {
             return 0;
@@ -247,12 +247,12 @@ int vfio_get_dev_region_info(VFIODevice *vbasedev, uint32_t type,
     return -ENODEV;
 }
 
-bool vfio_has_region_cap(VFIODevice *vbasedev, int region, uint16_t cap_type)
+bool vfio_device_has_region_cap(VFIODevice *vbasedev, int region, uint16_t cap_type)
 {
     g_autofree struct vfio_region_info *info = NULL;
     bool ret = false;
 
-    if (!vfio_get_region_info(vbasedev, region, &info)) {
+    if (!vfio_device_get_region_info(vbasedev, region, &info)) {
         if (vfio_get_region_info_cap(info, cap_type)) {
             ret = true;
         }
@@ -367,7 +367,7 @@ VFIODevice *vfio_get_vfio_device(Object *obj)
     }
 }
 
-bool vfio_attach_device(char *name, VFIODevice *vbasedev,
+bool vfio_device_attach(char *name, VFIODevice *vbasedev,
                         AddressSpace *as, Error **errp)
 {
     const VFIOIOMMUClass *ops =
@@ -395,7 +395,7 @@ bool vfio_attach_device(char *name, VFIODevice *vbasedev,
     return true;
 }
 
-void vfio_detach_device(VFIODevice *vbasedev)
+void vfio_device_detach(VFIODevice *vbasedev)
 {
     if (!vbasedev->bcontainer) {
         return;

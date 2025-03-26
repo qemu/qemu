@@ -185,7 +185,7 @@ int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
     g_autofree struct vfio_region_info *info = NULL;
     int ret;
 
-    ret = vfio_get_region_info(vbasedev, index, &info);
+    ret = vfio_device_get_region_info(vbasedev, index, &info);
     if (ret) {
         return ret;
     }

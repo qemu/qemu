@@ -865,7 +865,7 @@ static int vfio_device_groupid(VFIODevice *vbasedev, Error **errp)
 }
 
 /*
- * vfio_attach_device: attach a device to a security context
+ * vfio_device_attach: attach a device to a security context
  * @name and @vbasedev->name are likely to be different depending
  * on the type of the device, hence the need for passing @name
  */
@@ -881,7 +881,7 @@ static bool vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
         return false;
     }
 
-    trace_vfio_attach_device(vbasedev->name, groupid);
+    trace_vfio_device_attach(vbasedev->name, groupid);
 
     if (!vfio_device_hiod_realize(vbasedev, errp)) {
         return false;
@@ -919,7 +919,7 @@ static void vfio_legacy_detach_device(VFIODevice *vbasedev)
     QLIST_REMOVE(vbasedev, global_next);
     QLIST_REMOVE(vbasedev, container_next);
     vbasedev->bcontainer = NULL;
-    trace_vfio_detach_device(vbasedev->name, group->groupid);
+    trace_vfio_device_detach(vbasedev->name, group->groupid);
     vfio_put_base_device(vbasedev);
     vfio_put_group(group);
 }

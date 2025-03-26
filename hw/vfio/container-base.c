@@ -19,7 +19,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/vfio/vfio-container-base.h"
-#include "hw/vfio/vfio-device.h" /* vfio_reset_handler */
+#include "hw/vfio/vfio-device.h" /* vfio_device_reset_handler */
 #include "system/reset.h"
 #include "vfio-helpers.h"
 
@@ -44,7 +44,7 @@ VFIOAddressSpace *vfio_address_space_get(AddressSpace *as)
     QLIST_INIT(&space->containers);
 
     if (QLIST_EMPTY(&vfio_address_spaces)) {
-        qemu_register_reset(vfio_reset_handler, NULL);
+        qemu_register_reset(vfio_device_reset_handler, NULL);
     }
 
     QLIST_INSERT_HEAD(&vfio_address_spaces, space, list);
@@ -62,7 +62,7 @@ void vfio_address_space_put(VFIOAddressSpace *space)
     g_free(space);
 
     if (QLIST_EMPTY(&vfio_address_spaces)) {
-        qemu_unregister_reset(vfio_reset_handler, NULL);
+        qemu_unregister_reset(vfio_device_reset_handler, NULL);
     }
 }
 

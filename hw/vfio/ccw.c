@@ -426,8 +426,8 @@ static bool vfio_ccw_register_irq_notifier(VFIOCCWDevice *vcdev,
     fd = event_notifier_get_fd(notifier);
     qemu_set_fd_handler(fd, fd_read, NULL, vcdev);
 
-    if (!vfio_set_irq_signaling(vdev, irq, 0,
-                                VFIO_IRQ_SET_ACTION_TRIGGER, fd, errp)) {
+    if (!vfio_device_irq_set_signaling(vdev, irq, 0,
+                                       VFIO_IRQ_SET_ACTION_TRIGGER, fd, errp)) {
         qemu_set_fd_handler(fd, NULL, NULL, vcdev);
         event_notifier_cleanup(notifier);
     }
@@ -456,8 +456,8 @@ static void vfio_ccw_unregister_irq_notifier(VFIOCCWDevice *vcdev,
         return;
     }
 
-    if (!vfio_set_irq_signaling(&vcdev->vdev, irq, 0,
-                                VFIO_IRQ_SET_ACTION_TRIGGER, -1, &err)) {
+    if (!vfio_device_irq_set_signaling(&vcdev->vdev, irq, 0,
+                                       VFIO_IRQ_SET_ACTION_TRIGGER, -1, &err)) {
         warn_reportf_err(err, VFIO_MSG_PREFIX, vcdev->vdev.name);
     }
 
@@ -488,7 +488,7 @@ static bool vfio_ccw_get_region(VFIOCCWDevice *vcdev, Error **errp)
         return false;
     }
 
-    ret = vfio_get_region_info(vdev, VFIO_CCW_CONFIG_REGION_INDEX, &info);
+    ret = vfio_device_get_region_info(vdev, VFIO_CCW_CONFIG_REGION_INDEX, &info);
     if (ret) {
         error_setg_errno(errp, -ret, "vfio: Error getting config info");
         return false;
@@ -505,8 +505,8 @@ static bool vfio_ccw_get_region(VFIOCCWDevice *vcdev, Error **errp)
     g_free(info);
 
     /* check for the optional async command region */
-    ret = vfio_get_dev_region_info(vdev, VFIO_REGION_TYPE_CCW,
-                                   VFIO_REGION_SUBTYPE_CCW_ASYNC_CMD, &info);
+    ret = vfio_device_get_region_info_type(vdev, VFIO_REGION_TYPE_CCW,
+                                           VFIO_REGION_SUBTYPE_CCW_ASYNC_CMD, &info);
     if (!ret) {
         vcdev->async_cmd_region_size = info->size;
         if (sizeof(*vcdev->async_cmd_region) != vcdev->async_cmd_region_size) {
@@ -518,8 +518,8 @@ static bool vfio_ccw_get_region(VFIOCCWDevice *vcdev, Error **errp)
         g_free(info);
     }
 
-    ret = vfio_get_dev_region_info(vdev, VFIO_REGION_TYPE_CCW,
-                                   VFIO_REGION_SUBTYPE_CCW_SCHIB, &info);
+    ret = vfio_device_get_region_info_type(vdev, VFIO_REGION_TYPE_CCW,
+                                           VFIO_REGION_SUBTYPE_CCW_SCHIB, &info);
     if (!ret) {
         vcdev->schib_region_size = info->size;
         if (sizeof(*vcdev->schib_region) != vcdev->schib_region_size) {
@@ -531,8 +531,8 @@ static bool vfio_ccw_get_region(VFIOCCWDevice *vcdev, Error **errp)
         g_free(info);
     }
 
-    ret = vfio_get_dev_region_info(vdev, VFIO_REGION_TYPE_CCW,
-                                   VFIO_REGION_SUBTYPE_CCW_CRW, &info);
+    ret = vfio_device_get_region_info_type(vdev, VFIO_REGION_TYPE_CCW,
+                                           VFIO_REGION_SUBTYPE_CCW_CRW, &info);
 
     if (!ret) {
         vcdev->crw_region_size = info->size;
@@ -583,7 +583,7 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
         goto out_unrealize;
     }
 
-    if (!vfio_attach_device(cdev->mdevid, vbasedev,
+    if (!vfio_device_attach(cdev->mdevid, vbasedev,
                             &address_space_memory, errp)) {
         goto out_attach_dev_err;
     }
@@ -620,7 +620,7 @@ out_irq_notifier_err:
 out_io_notifier_err:
     vfio_ccw_put_region(vcdev);
 out_region_err:
-    vfio_detach_device(vbasedev);
+    vfio_device_detach(vbasedev);
 out_attach_dev_err:
     g_free(vbasedev->name);
 out_unrealize:
@@ -639,7 +639,7 @@ static void vfio_ccw_unrealize(DeviceState *dev)
     vfio_ccw_unregister_irq_notifier(vcdev, VFIO_CCW_CRW_IRQ_INDEX);
     vfio_ccw_unregister_irq_notifier(vcdev, VFIO_CCW_IO_IRQ_INDEX);
     vfio_ccw_put_region(vcdev);
-    vfio_detach_device(&vcdev->vdev);
+    vfio_device_detach(&vcdev->vdev);
     g_free(vcdev->vdev.name);
 
     if (cdc->unrealize) {

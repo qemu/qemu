@@ -117,8 +117,8 @@ static bool vfio_ap_register_irq_notifier(VFIOAPDevice *vapdev,
     fd = event_notifier_get_fd(notifier);
     qemu_set_fd_handler(fd, fd_read, NULL, vapdev);
 
-    if (!vfio_set_irq_signaling(vdev, irq, 0, VFIO_IRQ_SET_ACTION_TRIGGER, fd,
-                                errp)) {
+    if (!vfio_device_irq_set_signaling(vdev, irq, 0, VFIO_IRQ_SET_ACTION_TRIGGER, fd,
+                                       errp)) {
         qemu_set_fd_handler(fd, NULL, NULL, vapdev);
         event_notifier_cleanup(notifier);
     }
@@ -141,8 +141,8 @@ static void vfio_ap_unregister_irq_notifier(VFIOAPDevice *vapdev,
         return;
     }
 
-    if (!vfio_set_irq_signaling(&vapdev->vdev, irq, 0,
-                                VFIO_IRQ_SET_ACTION_TRIGGER, -1, &err)) {
+    if (!vfio_device_irq_set_signaling(&vapdev->vdev, irq, 0,
+                                       VFIO_IRQ_SET_ACTION_TRIGGER, -1, &err)) {
         warn_reportf_err(err, VFIO_MSG_PREFIX, vapdev->vdev.name);
     }
 
@@ -162,7 +162,7 @@ static void vfio_ap_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!vfio_attach_device(vbasedev->name, vbasedev,
+    if (!vfio_device_attach(vbasedev->name, vbasedev,
                             &address_space_memory, errp)) {
         goto error;
     }
@@ -187,7 +187,7 @@ static void vfio_ap_unrealize(DeviceState *dev)
     VFIOAPDevice *vapdev = VFIO_AP_DEVICE(dev);
 
     vfio_ap_unregister_irq_notifier(vapdev, VFIO_AP_REQ_IRQ_INDEX);
-    vfio_detach_device(&vapdev->vdev);
+    vfio_device_detach(&vapdev->vdev);
     g_free(vapdev->vdev.name);
 }
 

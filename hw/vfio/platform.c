@@ -119,8 +119,8 @@ static int vfio_set_trigger_eventfd(VFIOINTp *intp,
 
     qemu_set_fd_handler(fd, (IOHandler *)handler, NULL, intp);
 
-    if (!vfio_set_irq_signaling(vbasedev, intp->pin, 0,
-                                VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err)) {
+    if (!vfio_device_irq_set_signaling(vbasedev, intp->pin, 0,
+                                       VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err)) {
         error_reportf_err(err, VFIO_MSG_PREFIX, vbasedev->name);
         qemu_set_fd_handler(fd, NULL, NULL, NULL);
         return -EINVAL;
@@ -301,7 +301,7 @@ static void vfio_platform_eoi(VFIODevice *vbasedev)
 
             if (vfio_irq_is_automasked(intp)) {
                 /* unmasks the physical level-sensitive IRQ */
-                vfio_unmask_single_irqindex(vbasedev, intp->pin);
+                vfio_device_irq_unmask(vbasedev, intp->pin);
             }
 
             /* a single IRQ can be active at a time */
@@ -357,8 +357,8 @@ static int vfio_set_resample_eventfd(VFIOINTp *intp)
     Error *err = NULL;
 
     qemu_set_fd_handler(fd, NULL, NULL, NULL);
-    if (!vfio_set_irq_signaling(vbasedev, intp->pin, 0,
-                                VFIO_IRQ_SET_ACTION_UNMASK, fd, &err)) {
+    if (!vfio_device_irq_set_signaling(vbasedev, intp->pin, 0,
+                                       VFIO_IRQ_SET_ACTION_UNMASK, fd, &err)) {
         error_reportf_err(err, VFIO_MSG_PREFIX, vbasedev->name);
         return -EINVAL;
     }
@@ -546,7 +546,7 @@ static bool vfio_base_device_init(VFIODevice *vbasedev, Error **errp)
         return false;
     }
 
-    if (!vfio_attach_device(vbasedev->name, vbasedev,
+    if (!vfio_device_attach(vbasedev->name, vbasedev,
                             &address_space_memory, errp)) {
         return false;
     }
@@ -555,7 +555,7 @@ static bool vfio_base_device_init(VFIODevice *vbasedev, Error **errp)
         return true;
     }
 
-    vfio_detach_device(vbasedev);
+    vfio_device_detach(vbasedev);
     return false;
 }
 
