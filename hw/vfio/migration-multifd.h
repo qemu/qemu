@@ -12,7 +12,7 @@
 #ifndef HW_VFIO_MIGRATION_MULTIFD_H
 #define HW_VFIO_MIGRATION_MULTIFD_H
 
-#include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-device.h"
 
 bool vfio_multifd_setup(VFIODevice *vbasedev, bool alloc_multifd, Error **errp);
 void vfio_multifd_cleanup(VFIODevice *vbasedev);

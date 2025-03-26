@@ -15,7 +15,7 @@
 #include <linux/vfio.h>
 #include <linux/iommufd.h>
 
-#include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-device.h"
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "qapi/error.h"

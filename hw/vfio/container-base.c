@@ -19,7 +19,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/vfio/vfio-container-base.h"
-#include "hw/vfio/vfio-common.h" /* vfio_reset_handler */
+#include "hw/vfio/vfio-device.h" /* vfio_reset_handler */
 #include "system/reset.h"
 #include "vfio-helpers.h"
 

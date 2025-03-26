@@ -25,7 +25,7 @@
 #endif
 #include <linux/vfio.h>
 
-#include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-device.h"
 #include "hw/vfio/pci.h"
 #include "system/address-spaces.h"
 #include "system/memory.h"

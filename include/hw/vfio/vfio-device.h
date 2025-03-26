@@ -1,5 +1,5 @@
 /*
- * common header for vfio based device assignment support
+ * VFIO Device interface
  *
  * Copyright Red Hat, Inc. 2012
  *

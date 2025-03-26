@@ -21,7 +21,7 @@
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
 
-#include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-device.h"
 #include "hw/vfio/pci.h"
 #include "hw/hw.h"
 #include "trace.h"

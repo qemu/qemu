@@ -23,7 +23,7 @@
 #include <sys/ioctl.h>
 
 #include "system/kvm.h"
-#include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-device.h"
 #include "hw/hw.h"
 #include "qapi/error.h"
 #include "vfio-helpers.h"

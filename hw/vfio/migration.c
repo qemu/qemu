@@ -16,7 +16,7 @@
 #include <sys/ioctl.h>
 
 #include "system/runstate.h"
-#include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-device.h"
 #include "hw/vfio/vfio-migration.h"
 #include "migration/misc.h"
 #include "migration/savevm.h"

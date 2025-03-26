@@ -14,7 +14,7 @@
 #ifndef HW_VFIO_CCW_H
 #define HW_VFIO_CCW_H
 
-#include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-device.h"
 #include "hw/s390x/s390-ccw.h"
 #include "hw/s390x/ccw-device.h"
 #include "qom/object.h"

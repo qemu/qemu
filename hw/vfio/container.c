@@ -22,7 +22,7 @@
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
 
-#include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-device.h"
 #include "system/address-spaces.h"
 #include "system/memory.h"
 #include "system/ram_addr.h"
