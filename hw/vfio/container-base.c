@@ -141,7 +141,7 @@ int vfio_container_set_dirty_page_tracking(VFIOContainerBase *bcontainer,
     return ret;
 }
 
-static bool vfio_devices_all_device_dirty_tracking_started(
+static bool vfio_container_devices_dirty_tracking_is_started(
     const VFIOContainerBase *bcontainer)
 {
     VFIODevice *vbasedev;
@@ -155,10 +155,10 @@ static bool vfio_devices_all_device_dirty_tracking_started(
     return true;
 }
 
-bool vfio_devices_all_dirty_tracking_started(
+bool vfio_container_dirty_tracking_is_started(
     const VFIOContainerBase *bcontainer)
 {
-    return vfio_devices_all_device_dirty_tracking_started(bcontainer) ||
+    return vfio_container_devices_dirty_tracking_is_started(bcontainer) ||
            bcontainer->dirty_pages_started;
 }
 
