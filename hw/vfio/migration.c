@@ -17,6 +17,7 @@
 
 #include "system/runstate.h"
 #include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-migration.h"
 #include "migration/misc.h"
 #include "migration/savevm.h"
 #include "migration/vmstate.h"
@@ -373,7 +374,7 @@ static ssize_t vfio_save_block(QEMUFile *f, VFIOMigration *migration)
     qemu_put_be64(f, VFIO_MIG_FLAG_DEV_DATA_STATE);
     qemu_put_be64(f, data_size);
     qemu_put_buffer(f, migration->data_buffer, data_size);
-    vfio_mig_add_bytes_transferred(data_size);
+    vfio_migration_add_bytes_transferred(data_size);
 
     trace_vfio_save_block(migration->vbasedev->name, data_size);
 
@@ -1047,22 +1048,22 @@ static int vfio_block_migration(VFIODevice *vbasedev, Error *err, Error **errp)
 
 /* ---------------------------------------------------------------------- */
 
-int64_t vfio_mig_bytes_transferred(void)
+int64_t vfio_migration_bytes_transferred(void)
 {
     return MIN(qatomic_read(&bytes_transferred), INT64_MAX);
 }
 
-void vfio_mig_reset_bytes_transferred(void)
+void vfio_migration_reset_bytes_transferred(void)
 {
     qatomic_set(&bytes_transferred, 0);
 }
 
-void vfio_mig_add_bytes_transferred(unsigned long val)
+void vfio_migration_add_bytes_transferred(unsigned long val)
 {
     qatomic_add(&bytes_transferred, val);
 }
 
-bool vfio_mig_active(void)
+bool vfio_migration_active(void)
 {
     VFIODevice *vbasedev;
 

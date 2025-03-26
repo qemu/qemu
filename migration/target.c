@@ -11,21 +11,21 @@
 #include CONFIG_DEVICES
 
 #ifdef CONFIG_VFIO
-#include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-migration.h"
 #endif
 
 #ifdef CONFIG_VFIO
 void migration_populate_vfio_info(MigrationInfo *info)
 {
-    if (vfio_mig_active()) {
+    if (vfio_migration_active()) {
         info->vfio = g_malloc0(sizeof(*info->vfio));
-        info->vfio->transferred = vfio_mig_bytes_transferred();
+        info->vfio->transferred = vfio_migration_bytes_transferred();
     }
 }
 
 void migration_reset_vfio_bytes_transferred(void)
 {
-    vfio_mig_reset_bytes_transferred();
+    vfio_migration_reset_bytes_transferred();
 }
 #else
 void migration_populate_vfio_info(MigrationInfo *info)
