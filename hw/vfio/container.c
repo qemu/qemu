@@ -546,7 +546,7 @@ static bool vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     VFIOAddressSpace *space;
     VFIOIOMMUClass *vioc;
 
-    space = vfio_get_address_space(as);
+    space = vfio_address_space_get(as);
 
     /*
      * VFIO is currently incompatible with discarding of RAM insofar as the
@@ -675,7 +675,7 @@ close_fd_exit:
     close(fd);
 
 put_space_exit:
-    vfio_put_address_space(space);
+    vfio_address_space_put(space);
 
     return false;
 }
@@ -714,7 +714,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
         close(container->fd);
         object_unref(container);
 
-        vfio_put_address_space(space);
+        vfio_address_space_put(space);
     }
 }
 

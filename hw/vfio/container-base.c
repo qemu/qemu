@@ -14,6 +14,56 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/vfio/vfio-container-base.h"
+#include "hw/vfio/vfio-common.h" /* vfio_reset_handler */
+#include "system/reset.h"
+
+static QLIST_HEAD(, VFIOAddressSpace) vfio_address_spaces =
+    QLIST_HEAD_INITIALIZER(vfio_address_spaces);
+
+VFIOAddressSpace *vfio_address_space_get(AddressSpace *as)
+{
+    VFIOAddressSpace *space;
+
+    QLIST_FOREACH(space, &vfio_address_spaces, list) {
+        if (space->as == as) {
+            return space;
+        }
+    }
+
+    /* No suitable VFIOAddressSpace, create a new one */
+    space = g_malloc0(sizeof(*space));
+    space->as = as;
+    QLIST_INIT(&space->containers);
+
+    if (QLIST_EMPTY(&vfio_address_spaces)) {
+        qemu_register_reset(vfio_reset_handler, NULL);
+    }
+
+    QLIST_INSERT_HEAD(&vfio_address_spaces, space, list);
+
+    return space;
+}
+
+void vfio_address_space_put(VFIOAddressSpace *space)
+{
+    if (!QLIST_EMPTY(&space->containers)) {
+        return;
+    }
+
+    QLIST_REMOVE(space, list);
+    g_free(space);
+
+    if (QLIST_EMPTY(&vfio_address_spaces)) {
+        qemu_unregister_reset(vfio_reset_handler, NULL);
+    }
+}
+
+void vfio_address_space_insert(VFIOAddressSpace *space,
+                               VFIOContainerBase *bcontainer)
+{
+    QLIST_INSERT_HEAD(&space->containers, bcontainer, next);
+    bcontainer->space = space;
+}
 
 int vfio_container_dma_map(VFIOContainerBase *bcontainer,
                            hwaddr iova, ram_addr_t size,

@@ -71,6 +71,11 @@ typedef struct VFIORamDiscardListener {
     QLIST_ENTRY(VFIORamDiscardListener) next;
 } VFIORamDiscardListener;
 
+VFIOAddressSpace *vfio_address_space_get(AddressSpace *as);
+void vfio_address_space_put(VFIOAddressSpace *space);
+void vfio_address_space_insert(VFIOAddressSpace *space,
+                               VFIOContainerBase *bcontainer);
+
 int vfio_container_dma_map(VFIOContainerBase *bcontainer,
                            hwaddr iova, ram_addr_t size,
                            void *vaddr, bool readonly);
@@ -163,4 +168,5 @@ struct VFIOIOMMUClass {
                        MemoryRegionSection *section);
     void (*release)(VFIOContainerBase *bcontainer);
 };
+
 #endif /* HW_VFIO_VFIO_CONTAINER_BASE_H */

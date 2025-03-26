@@ -486,7 +486,7 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
         goto err_connect_bind;
     }
 
-    space = vfio_get_address_space(as);
+    space = vfio_address_space_get(as);
 
     /*
      * The HostIOMMUDevice data from legacy backend is static and doesn't need
@@ -606,7 +606,7 @@ err_discard_disable:
 err_attach_container:
     iommufd_cdev_container_destroy(container);
 err_alloc_ioas:
-    vfio_put_address_space(space);
+    vfio_address_space_put(space);
     iommufd_cdev_unbind_and_disconnect(vbasedev);
 err_connect_bind:
     close(vbasedev->fd);
@@ -631,7 +631,7 @@ static void iommufd_cdev_detach(VFIODevice *vbasedev)
     vfio_cpr_unregister_container(bcontainer);
     iommufd_cdev_detach_container(vbasedev, container);
     iommufd_cdev_container_destroy(container);
-    vfio_put_address_space(space);
+    vfio_address_space_put(space);
 
     iommufd_cdev_unbind_and_disconnect(vbasedev);
     close(vbasedev->fd);
