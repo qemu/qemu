@@ -30,6 +30,7 @@
 #include "qemu/error-report.h"
 #include "qemu/units.h"
 #include "monitor/monitor.h"
+#include "vfio-helpers.h"
 
 /*
  * Common VFIO interrupt disable

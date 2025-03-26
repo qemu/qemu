@@ -29,6 +29,7 @@
 #include "qemu/error-report.h"
 #include "qemu/units.h"
 #include "monitor/monitor.h"
+#include "vfio-helpers.h"
 
 /*
  * IO Port/MMIO - Beware of the endians, VFIO is always little endian

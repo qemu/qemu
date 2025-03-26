@@ -21,6 +21,7 @@
 #include "hw/s390x/s390-pci-vfio.h"
 #include "hw/vfio/pci.h"
 #include "hw/vfio/vfio-container.h"
+#include "hw/vfio/vfio-helpers.h"
 
 /*
  * Get the current DMA available count from vfio.  Returns true if vfio is
