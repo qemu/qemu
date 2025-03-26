@@ -886,9 +886,10 @@ static void tlb_reset_dirty_range_locked(CPUTLBEntryFull *full, CPUTLBEntry *ent
                                          uintptr_t start, uintptr_t length)
 {
     const uintptr_t addr = ent->addr_write;
+    int flags = addr | full->slow_flags[MMU_DATA_STORE];
 
-    if ((addr & (TLB_INVALID_MASK | TLB_MMIO |
-                 TLB_DISCARD_WRITE | TLB_NOTDIRTY)) == 0) {
+    flags &= TLB_INVALID_MASK | TLB_MMIO | TLB_DISCARD_WRITE | TLB_NOTDIRTY;
+    if (flags == 0) {
         uintptr_t host = (addr & TARGET_PAGE_MASK) + ent->addend;
         if ((host - start) < length) {
             qatomic_set(&ent->addr_write, addr | TLB_NOTDIRTY);
