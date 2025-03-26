@@ -46,9 +46,6 @@
 #include "vfio-migration-internal.h"
 #include "vfio-helpers.h"
 
-VFIODeviceList vfio_device_list =
-    QLIST_HEAD_INITIALIZER(vfio_device_list);
-
 /*
  * Device state interfaces
  */

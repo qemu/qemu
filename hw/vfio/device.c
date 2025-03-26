@@ -31,6 +31,9 @@
 #include "monitor/monitor.h"
 #include "vfio-helpers.h"
 
+VFIODeviceList vfio_device_list =
+    QLIST_HEAD_INITIALIZER(vfio_device_list);
+
 /*
  * Common VFIO interrupt disable
  */
