@@ -1052,7 +1052,7 @@ int64_t vfio_mig_bytes_transferred(void)
     return MIN(qatomic_read(&bytes_transferred), INT64_MAX);
 }
 
-void vfio_reset_bytes_transferred(void)
+void vfio_mig_reset_bytes_transferred(void)
 {
     qatomic_set(&bytes_transferred, 0);
 }

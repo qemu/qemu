@@ -25,7 +25,7 @@ void migration_populate_vfio_info(MigrationInfo *info)
 
 void migration_reset_vfio_bytes_transferred(void)
 {
-    vfio_reset_bytes_transferred();
+    vfio_mig_reset_bytes_transferred();
 }
 #else
 void migration_populate_vfio_info(MigrationInfo *info)
