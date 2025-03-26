@@ -37,6 +37,7 @@
 #include "hw/platform-bus.h"
 #include "hw/qdev-properties.h"
 #include "system/kvm.h"
+#include "hw/vfio/vfio-region.h"
 
 /*
  * Functions used whatever the injection method

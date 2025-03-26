@@ -11,6 +11,7 @@
 
 #include "ui/console.h"
 #include "hw/display/ramfb.h"
+#include "hw/vfio/vfio-region.h"
 
 typedef struct VFIODMABuf {
     QemuDmaBuf *buf;

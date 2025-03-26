@@ -47,6 +47,8 @@ typedef struct VFIOINTp {
 /* function type for user side eventfd handler */
 typedef void (*eventfd_user_side_handler_t)(VFIOINTp *intp);
 
+typedef struct VFIORegion VFIORegion;
+
 struct VFIOPlatformDevice {
     SysBusDevice sbdev;
     VFIODevice vbasedev; /* not a QOM object */

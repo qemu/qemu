@@ -39,25 +39,6 @@ enum {
     VFIO_DEVICE_TYPE_CCW = 2,
     VFIO_DEVICE_TYPE_AP = 3,
 };
-
-typedef struct VFIOMmap {
-    MemoryRegion mem;
-    void *mmap;
-    off_t offset;
-    size_t size;
-} VFIOMmap;
-
-typedef struct VFIORegion {
-    struct VFIODevice *vbasedev;
-    off_t fd_offset; /* offset of region within device fd */
-    MemoryRegion *mem; /* slow, read/write access */
-    size_t size;
-    uint32_t flags; /* VFIO region flags (rd/wr/mmap) */
-    uint32_t nr_mmaps;
-    VFIOMmap *mmaps;
-    uint8_t nr; /* cache the region number for debug */
-} VFIORegion;
-
 struct VFIOGroup;
 
 typedef struct VFIOContainer {
@@ -168,17 +149,7 @@ void vfio_unmask_single_irqindex(VFIODevice *vbasedev, int index);
 void vfio_mask_single_irqindex(VFIODevice *vbasedev, int index);
 bool vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
                             int action, int fd, Error **errp);
-void vfio_region_write(void *opaque, hwaddr addr,
-                           uint64_t data, unsigned size);
-uint64_t vfio_region_read(void *opaque,
-                          hwaddr addr, unsigned size);
-int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
-                      int index, const char *name);
-int vfio_region_mmap(VFIORegion *region);
-void vfio_region_mmaps_set_enabled(VFIORegion *region, bool enabled);
-void vfio_region_unmap(VFIORegion *region);
-void vfio_region_exit(VFIORegion *region);
-void vfio_region_finalize(VFIORegion *region);
+
 void vfio_reset_handler(void *opaque);
 struct vfio_device_info *vfio_get_device_info(int fd);
 bool vfio_device_is_mdev(VFIODevice *vbasedev);
@@ -194,7 +165,6 @@ int vfio_kvm_device_del_fd(int fd, Error **errp);
 bool vfio_cpr_register_container(VFIOContainerBase *bcontainer, Error **errp);
 void vfio_cpr_unregister_container(VFIOContainerBase *bcontainer);
 
-extern const MemoryRegionOps vfio_region_ops;
 typedef QLIST_HEAD(VFIOGroupList, VFIOGroup) VFIOGroupList;
 typedef QLIST_HEAD(VFIODeviceList, VFIODevice) VFIODeviceList;
 extern VFIOGroupList vfio_group_list;

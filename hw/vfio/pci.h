@@ -15,6 +15,7 @@
 #include "system/memory.h"
 #include "hw/pci/pci_device.h"
 #include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-region.h"
 #include "qemu/event_notifier.h"
 #include "qemu/queue.h"
 #include "qemu/timer.h"
