@@ -141,16 +141,6 @@ int vfio_container_set_dirty_page_tracking(VFIOContainerBase *bcontainer,
     return ret;
 }
 
-int vfio_container_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
-                   VFIOBitmap *vbmap, hwaddr iova, hwaddr size, Error **errp)
-{
-    VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
-
-    g_assert(vioc->query_dirty_bitmap);
-    return vioc->query_dirty_bitmap(bcontainer, vbmap, iova, size,
-                                               errp);
-}
-
 static bool vfio_devices_all_device_dirty_tracking_started(
     const VFIOContainerBase *bcontainer)
 {
@@ -214,6 +204,16 @@ static int vfio_device_dma_logging_report(VFIODevice *vbasedev, hwaddr iova,
     return 0;
 }
 
+static int vfio_container_iommu_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
+                   VFIOBitmap *vbmap, hwaddr iova, hwaddr size, Error **errp)
+{
+    VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
+
+    g_assert(vioc->query_dirty_bitmap);
+    return vioc->query_dirty_bitmap(bcontainer, vbmap, iova, size,
+                                               errp);
+}
+
 static int vfio_container_devices_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
                  VFIOBitmap *vbmap, hwaddr iova, hwaddr size, Error **errp)
 {
@@ -263,8 +263,8 @@ int vfio_get_dirty_bitmap(const VFIOContainerBase *bcontainer, uint64_t iova,
         ret = vfio_container_devices_query_dirty_bitmap(bcontainer, &vbmap, iova, size,
                                                         errp);
     } else {
-        ret = vfio_container_query_dirty_bitmap(bcontainer, &vbmap, iova, size,
-                                                errp);
+        ret = vfio_container_iommu_query_dirty_bitmap(bcontainer, &vbmap, iova, size,
+                                                     errp);
     }
 
     if (ret) {
