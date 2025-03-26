@@ -25,6 +25,7 @@ bool vfio_get_info_dma_avail(struct vfio_iommu_type1_info *info,
 #endif
 
 int vfio_bitmap_alloc(VFIOBitmap *vbmap, hwaddr size);
+struct vfio_device_info *vfio_get_device_info(int fd);
 
 int vfio_kvm_device_add_fd(int fd, Error **errp);
 int vfio_kvm_device_del_fd(int fd, Error **errp);
