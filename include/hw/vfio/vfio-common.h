@@ -252,9 +252,6 @@ extern VFIODeviceList vfio_device_list;
 extern const MemoryListener vfio_memory_listener;
 extern int vfio_kvm_device_fd;
 
-bool vfio_device_state_is_running(VFIODevice *vbasedev);
-bool vfio_device_state_is_precopy(VFIODevice *vbasedev);
-
 #ifdef CONFIG_LINUX
 int vfio_get_region_info(VFIODevice *vbasedev, int index,
                          struct vfio_region_info **info);
