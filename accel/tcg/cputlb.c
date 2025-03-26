@@ -882,18 +882,16 @@ void tlb_unprotect_code(ram_addr_t ram_addr)
  *
  * Called with tlb_c.lock held.
  */
-static void tlb_reset_dirty_range_locked(CPUTLBEntry *tlb_entry,
+static void tlb_reset_dirty_range_locked(CPUTLBEntryFull *full, CPUTLBEntry *ent,
                                          uintptr_t start, uintptr_t length)
 {
-    uintptr_t addr = tlb_entry->addr_write;
+    const uintptr_t addr = ent->addr_write;
 
     if ((addr & (TLB_INVALID_MASK | TLB_MMIO |
                  TLB_DISCARD_WRITE | TLB_NOTDIRTY)) == 0) {
-        addr &= TARGET_PAGE_MASK;
-        addr += tlb_entry->addend;
-        if ((addr - start) < length) {
-            qatomic_set(&tlb_entry->addr_write,
-                        tlb_entry->addr_write | TLB_NOTDIRTY);
+        uintptr_t host = (addr & TARGET_PAGE_MASK) + ent->addend;
+        if ((host - start) < length) {
+            qatomic_set(&ent->addr_write, addr | TLB_NOTDIRTY);
         }
     }
 }
@@ -918,16 +916,18 @@ void tlb_reset_dirty(CPUState *cpu, uintptr_t start, uintptr_t length)
 
     qemu_spin_lock(&cpu->neg.tlb.c.lock);
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+        CPUTLBDesc *desc = &cpu->neg.tlb.d[mmu_idx];
+        CPUTLBDescFast *fast = &cpu->neg.tlb.f[mmu_idx];
+        unsigned int n = tlb_n_entries(fast);
         unsigned int i;
-        unsigned int n = tlb_n_entries(&cpu->neg.tlb.f[mmu_idx]);
 
         for (i = 0; i < n; i++) {
-            tlb_reset_dirty_range_locked(&cpu->neg.tlb.f[mmu_idx].table[i],
+            tlb_reset_dirty_range_locked(&desc->fulltlb[i], &fast->table[i],
                                          start, length);
         }
 
         for (i = 0; i < CPU_VTLB_SIZE; i++) {
-            tlb_reset_dirty_range_locked(&cpu->neg.tlb.d[mmu_idx].vtable[i],
+            tlb_reset_dirty_range_locked(&desc->vfulltlb[i], &desc->vtable[i],
                                          start, length);
         }
     }
