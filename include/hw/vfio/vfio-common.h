@@ -23,8 +23,6 @@
 
 #include "system/memory.h"
 #include "qemu/queue.h"
-#include "ui/console.h"
-#include "hw/display/ramfb.h"
 #ifdef CONFIG_LINUX
 #include <linux/vfio.h>
 #endif
@@ -181,32 +179,6 @@ typedef struct VFIOGroup {
 #define TYPE_HOST_IOMMU_DEVICE_LEGACY_VFIO TYPE_HOST_IOMMU_DEVICE "-legacy-vfio"
 #define TYPE_HOST_IOMMU_DEVICE_IOMMUFD_VFIO \
             TYPE_HOST_IOMMU_DEVICE_IOMMUFD "-vfio"
-
-typedef struct VFIODMABuf {
-    QemuDmaBuf *buf;
-    uint32_t pos_x, pos_y, pos_updates;
-    uint32_t hot_x, hot_y, hot_updates;
-    int dmabuf_id;
-    QTAILQ_ENTRY(VFIODMABuf) next;
-} VFIODMABuf;
-
-typedef struct VFIODisplay {
-    QemuConsole *con;
-    RAMFBState *ramfb;
-    struct vfio_region_info *edid_info;
-    struct vfio_region_gfx_edid *edid_regs;
-    uint8_t *edid_blob;
-    QEMUTimer *edid_link_timer;
-    struct {
-        VFIORegion buffer;
-        DisplaySurface *surface;
-    } region;
-    struct {
-        QTAILQ_HEAD(, VFIODMABuf) bufs;
-        VFIODMABuf *primary;
-        VFIODMABuf *cursor;
-    } dmabuf;
-} VFIODisplay;
 
 VFIOAddressSpace *vfio_get_address_space(AddressSpace *as);
 void vfio_put_address_space(VFIOAddressSpace *space);

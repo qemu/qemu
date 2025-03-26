@@ -20,6 +20,7 @@
 #include "qemu/timer.h"
 #include "qom/object.h"
 #include "system/kvm.h"
+#include "vfio-display.h"
 
 #define PCI_ANY_ID (~0)
 
