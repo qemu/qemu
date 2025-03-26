@@ -39,16 +39,6 @@ enum {
     VFIO_DEVICE_TYPE_CCW = 2,
     VFIO_DEVICE_TYPE_AP = 3,
 };
-struct VFIOGroup;
-
-typedef struct VFIOContainer {
-    VFIOContainerBase bcontainer;
-    int fd; /* /dev/vfio/vfio, empowered by the attached groups */
-    unsigned iommu_type;
-    QLIST_HEAD(, VFIOGroup) group_list;
-} VFIOContainer;
-
-OBJECT_DECLARE_SIMPLE_TYPE(VFIOContainer, VFIO_IOMMU_LEGACY);
 
 typedef struct VFIODeviceOps VFIODeviceOps;
 typedef struct VFIOMigration VFIOMigration;
@@ -125,15 +115,6 @@ struct VFIODeviceOps {
     int (*vfio_load_config)(VFIODevice *vdev, QEMUFile *f);
 };
 
-typedef struct VFIOGroup {
-    int fd;
-    int groupid;
-    VFIOContainer *container;
-    QLIST_HEAD(, VFIODevice) device_list;
-    QLIST_ENTRY(VFIOGroup) next;
-    QLIST_ENTRY(VFIOGroup) container_next;
-    bool ram_block_discard_allowed;
-} VFIOGroup;
 
 #define TYPE_HOST_IOMMU_DEVICE_LEGACY_VFIO TYPE_HOST_IOMMU_DEVICE "-legacy-vfio"
 #define TYPE_HOST_IOMMU_DEVICE_IOMMUFD_VFIO \
