@@ -163,7 +163,7 @@ class BananaPiMachine(LinuxKernelTest):
                 self, 'Hit any key to stop autoboot:', '=>')
         exec_command_and_wait_for_pattern(self, "setenv extraargs '" +
                                                 kernel_command_line + "'", '=>')
-        exec_command_and_wait_for_pattern(self, 'boot', 'Starting kernel ...');
+        exec_command_and_wait_for_pattern(self, 'boot', 'Starting kernel ...')
 
         self.wait_for_console_pattern(
             'Please press Enter to activate this console.')
