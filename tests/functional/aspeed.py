@@ -44,7 +44,7 @@ class AspeedTest(LinuxKernelTest):
 
     def do_test_arm_aspeed_buildroot_poweroff(self):
         exec_command_and_wait_for_pattern(self, 'poweroff',
-                                          'System halted');
+                                          'System halted')
 
     def do_test_arm_aspeed_sdk_start(self, image):
         self.require_netdev('user')

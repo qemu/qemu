@@ -27,38 +27,38 @@ class AST2600Machine(AspeedTest):
         image_path = self.ASSET_BR2_202411_AST2600_FLASH.fetch()
 
         self.vm.add_args('-device',
-                         'tmp105,bus=aspeed.i2c.bus.3,address=0x4d,id=tmp-test');
+                         'tmp105,bus=aspeed.i2c.bus.3,address=0x4d,id=tmp-test')
         self.vm.add_args('-device',
-                         'ds1338,bus=aspeed.i2c.bus.3,address=0x32');
+                         'ds1338,bus=aspeed.i2c.bus.3,address=0x32')
         self.vm.add_args('-device',
-                         'i2c-echo,bus=aspeed.i2c.bus.3,address=0x42');
+                         'i2c-echo,bus=aspeed.i2c.bus.3,address=0x42')
         self.do_test_arm_aspeed_buildroot_start(image_path, '0xf00',
                                                 'ast2600-evb login:')
 
         exec_command_and_wait_for_pattern(self,
              'echo lm75 0x4d > /sys/class/i2c-dev/i2c-3/device/new_device',
-             'i2c i2c-3: new_device: Instantiated device lm75 at 0x4d');
+             'i2c i2c-3: new_device: Instantiated device lm75 at 0x4d')
         exec_command_and_wait_for_pattern(self,
                              'cat /sys/class/hwmon/hwmon1/temp1_input', '0')
         self.vm.cmd('qom-set', path='/machine/peripheral/tmp-test',
-                    property='temperature', value=18000);
+                    property='temperature', value=18000)
         exec_command_and_wait_for_pattern(self,
                              'cat /sys/class/hwmon/hwmon1/temp1_input', '18000')
 
         exec_command_and_wait_for_pattern(self,
              'echo ds1307 0x32 > /sys/class/i2c-dev/i2c-3/device/new_device',
-             'i2c i2c-3: new_device: Instantiated device ds1307 at 0x32');
+             'i2c i2c-3: new_device: Instantiated device ds1307 at 0x32')
         year = time.strftime("%Y")
-        exec_command_and_wait_for_pattern(self, 'hwclock -f /dev/rtc1', year);
+        exec_command_and_wait_for_pattern(self, 'hwclock -f /dev/rtc1', year)
 
         exec_command_and_wait_for_pattern(self,
              'echo slave-24c02 0x1064 > /sys/bus/i2c/devices/i2c-3/new_device',
-             'i2c i2c-3: new_device: Instantiated device slave-24c02 at 0x64');
+             'i2c i2c-3: new_device: Instantiated device slave-24c02 at 0x64')
         exec_command_and_wait_for_pattern(self,
-             'i2cset -y 3 0x42 0x64 0x00 0xaa i', '#');
+             'i2cset -y 3 0x42 0x64 0x00 0xaa i', '#')
         exec_command_and_wait_for_pattern(self,
              'hexdump /sys/bus/i2c/devices/3-1064/slave-eeprom',
-             '0000000 ffaa ffff ffff ffff ffff ffff ffff ffff');
+             '0000000 ffaa ffff ffff ffff ffff ffff ffff ffff')
         self.do_test_arm_aspeed_buildroot_poweroff()
 
     ASSET_BR2_202302_AST2600_TPM_FLASH = Asset(
@@ -90,10 +90,10 @@ class AST2600Machine(AspeedTest):
 
         exec_command_and_wait_for_pattern(self,
             'echo tpm_tis_i2c 0x2e > /sys/bus/i2c/devices/i2c-12/new_device',
-            'tpm_tis_i2c 12-002e: 2.0 TPM (device-id 0x1, rev-id 1)');
+            'tpm_tis_i2c 12-002e: 2.0 TPM (device-id 0x1, rev-id 1)')
         exec_command_and_wait_for_pattern(self,
             'cat /sys/class/tpm/tpm0/pcr-sha256/0',
-            'B804724EA13F52A9072BA87FE8FDCC497DFC9DF9AA15B9088694639C431688E0');
+            'B804724EA13F52A9072BA87FE8FDCC497DFC9DF9AA15B9088694639C431688E0')
 
         self.do_test_arm_aspeed_buildroot_poweroff()
 
@@ -107,9 +107,9 @@ class AST2600Machine(AspeedTest):
         self.archive_extract(self.ASSET_SDK_V806_AST2600_A2)
 
         self.vm.add_args('-device',
-            'tmp105,bus=aspeed.i2c.bus.5,address=0x4d,id=tmp-test');
+            'tmp105,bus=aspeed.i2c.bus.5,address=0x4d,id=tmp-test')
         self.vm.add_args('-device',
-            'ds1338,bus=aspeed.i2c.bus.5,address=0x32');
+            'ds1338,bus=aspeed.i2c.bus.5,address=0x32')
         self.do_test_arm_aspeed_sdk_start(
             self.scratch_file("ast2600-a2", "image-bmc"))
 
@@ -120,20 +120,20 @@ class AST2600Machine(AspeedTest):
 
         exec_command_and_wait_for_pattern(self,
             'echo lm75 0x4d > /sys/class/i2c-dev/i2c-5/device/new_device',
-            'i2c i2c-5: new_device: Instantiated device lm75 at 0x4d');
+            'i2c i2c-5: new_device: Instantiated device lm75 at 0x4d')
         exec_command_and_wait_for_pattern(self,
              'cat /sys/class/hwmon/hwmon19/temp1_input', '0')
         self.vm.cmd('qom-set', path='/machine/peripheral/tmp-test',
-                    property='temperature', value=18000);
+                    property='temperature', value=18000)
         exec_command_and_wait_for_pattern(self,
              'cat /sys/class/hwmon/hwmon19/temp1_input', '18000')
 
         exec_command_and_wait_for_pattern(self,
              'echo ds1307 0x32 > /sys/class/i2c-dev/i2c-5/device/new_device',
-             'i2c i2c-5: new_device: Instantiated device ds1307 at 0x32');
+             'i2c i2c-5: new_device: Instantiated device ds1307 at 0x32')
         year = time.strftime("%Y")
         exec_command_and_wait_for_pattern(self,
-             '/sbin/hwclock -f /dev/rtc1', year);
+             '/sbin/hwclock -f /dev/rtc1', year)
 
 if __name__ == '__main__':
     AspeedTest.main()

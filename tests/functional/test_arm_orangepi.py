@@ -174,7 +174,7 @@ class OrangePiMachine(LinuxKernelTest):
         exec_command_and_wait_for_pattern(self, ' ', '=>')
         exec_command_and_wait_for_pattern(self, "setenv extraargs '" +
                                                 kernel_command_line + "'", '=>')
-        exec_command_and_wait_for_pattern(self, 'boot', 'Starting kernel ...');
+        exec_command_and_wait_for_pattern(self, 'boot', 'Starting kernel ...')
 
         self.wait_for_console_pattern('systemd[1]: Hostname set ' +
                                       'to <orangepipc>')
