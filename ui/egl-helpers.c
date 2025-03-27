@@ -257,6 +257,11 @@ int egl_rendernode_init(const char *rendernode, DisplayGLMode mode)
         error_report("egl: EGL_MESA_image_dma_buf_export not supported");
         goto err;
     }
+    if (!epoxy_has_egl_extension(qemu_egl_display,
+                                 "EGL_EXT_image_dma_buf_import_modifiers")) {
+        error_report("egl: EGL_EXT_image_dma_buf_import_modifiers not supported");
+        goto err;
+    }
 
     qemu_egl_rn_ctx = qemu_egl_init_ctx();
     if (!qemu_egl_rn_ctx) {
@@ -308,7 +313,7 @@ void egl_dmabuf_import_texture(QemuDmaBuf *dmabuf)
     EGLImageKHR image = EGL_NO_IMAGE_KHR;
     EGLint attrs[64];
     int i = 0;
-    uint64_t modifier;
+    uint64_t modifier = qemu_dmabuf_get_modifier(dmabuf);
     uint32_t texture = qemu_dmabuf_get_texture(dmabuf);
 
     if (texture != 0) {
@@ -328,15 +333,12 @@ void egl_dmabuf_import_texture(QemuDmaBuf *dmabuf)
     attrs[i++] = qemu_dmabuf_get_strides(dmabuf, NULL)[0];
     attrs[i++] = EGL_DMA_BUF_PLANE0_OFFSET_EXT;
     attrs[i++] = 0;
-#ifdef EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT
-    modifier = qemu_dmabuf_get_modifier(dmabuf);
     if (modifier) {
         attrs[i++] = EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT;
         attrs[i++] = (modifier >>  0) & 0xffffffff;
         attrs[i++] = EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT;
         attrs[i++] = (modifier >> 32) & 0xffffffff;
     }
-#endif
     attrs[i++] = EGL_NONE;
 
     image = eglCreateImageKHR(qemu_egl_display,
