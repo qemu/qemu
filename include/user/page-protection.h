@@ -16,7 +16,6 @@
 #include "exec/target_long.h"
 #include "exec/translation-block.h"
 
-void page_protect(tb_page_addr_t page_addr);
 int page_unprotect(tb_page_addr_t address, uintptr_t pc);
 
 int page_get_flags(target_ulong address);

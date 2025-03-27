@@ -657,7 +657,7 @@ target_ulong page_find_range_empty(target_ulong min, target_ulong max,
     }
 }
 
-void page_protect(tb_page_addr_t address)
+void tb_lock_page0(tb_page_addr_t address)
 {
     PageFlagsNode *p;
     target_ulong start, last;
