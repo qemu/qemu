@@ -9,8 +9,6 @@
 #ifndef ACCEL_TCG_TB_INTERNAL_TARGET_H
 #define ACCEL_TCG_TB_INTERNAL_TARGET_H
 
-#include "exec/cpu-all.h"
-#include "exec/exec-all.h"
 #include "exec/translation-block.h"
 
 /*
