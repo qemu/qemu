@@ -158,6 +158,7 @@ static void io_mem_init(void);
 static void memory_map_init(void);
 static void tcg_log_global_after_sync(MemoryListener *listener);
 static void tcg_commit(MemoryListener *listener);
+static bool ram_is_cpr_compatible(RAMBlock *rb);
 
 /**
  * CPUAddressSpace: all the information a CPU needs about an AddressSpace
@@ -1908,13 +1909,18 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
             goto out_free;
         }
 
-        error_setg(&new_block->cpr_blocker,
-                   "Memory region %s uses guest_memfd, "
-                   "which is not supported with CPR.",
-                   memory_region_name(new_block->mr));
-        migrate_add_blocker_modes(&new_block->cpr_blocker, errp,
-                                  MIG_MODE_CPR_TRANSFER,
-                                  -1);
+        /*
+         * Add a specific guest_memfd blocker if a generic one would not be
+         * added by ram_block_add_cpr_blocker.
+         */
+        if (ram_is_cpr_compatible(new_block)) {
+            error_setg(&new_block->cpr_blocker,
+                       "Memory region %s uses guest_memfd, "
+                       "which is not supported with CPR.",
+                       memory_region_name(new_block->mr));
+            migrate_add_blocker_modes(&new_block->cpr_blocker, errp,
+                                      MIG_MODE_CPR_TRANSFER, -1);
+        }
     }
 
     ram_size = (new_block->offset + new_block->max_length) >> TARGET_PAGE_BITS;
