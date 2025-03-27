@@ -74,4 +74,38 @@ uint32_t curr_cflags(CPUState *cpu);
 
 void tb_check_watchpoint(CPUState *cpu, uintptr_t retaddr);
 
+/**
+ * get_page_addr_code_hostp()
+ * @env: CPUArchState
+ * @addr: guest virtual address of guest code
+ *
+ * See get_page_addr_code() (full-system version) for documentation on the
+ * return value.
+ *
+ * Sets *@hostp (when @hostp is non-NULL) as follows.
+ * If the return value is -1, sets *@hostp to NULL. Otherwise, sets *@hostp
+ * to the host address where @addr's content is kept.
+ *
+ * Note: this function can trigger an exception.
+ */
+tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, vaddr addr,
+                                        void **hostp);
+
+/**
+ * get_page_addr_code()
+ * @env: CPUArchState
+ * @addr: guest virtual address of guest code
+ *
+ * If we cannot translate and execute from the entire RAM page, or if
+ * the region is not backed by RAM, returns -1. Otherwise, returns the
+ * ram_addr_t corresponding to the guest code at @addr.
+ *
+ * Note: this function can trigger an exception.
+ */
+static inline tb_page_addr_t get_page_addr_code(CPUArchState *env,
+                                                vaddr addr)
+{
+    return get_page_addr_code_hostp(env, addr, NULL);
+}
+
 #endif

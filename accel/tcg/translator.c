@@ -17,6 +17,7 @@
 #include "exec/translator.h"
 #include "exec/plugin-gen.h"
 #include "tcg/tcg-op-common.h"
+#include "internal-common.h"
 #include "internal-target.h"
 #include "disas/disas.h"
 #include "tb-internal.h"
