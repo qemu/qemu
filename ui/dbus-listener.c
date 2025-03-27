@@ -504,19 +504,22 @@ static void dbus_scanout_texture(DisplayChangeListener *dcl,
                                backing_width, backing_height, x, y, w, h);
 #ifdef CONFIG_GBM
     g_autoptr(QemuDmaBuf) dmabuf = NULL;
-    int fd;
-    uint32_t offset = 0, stride, fourcc;
+    int fd[DMABUF_MAX_PLANES], num_planes;
+    uint32_t offset[DMABUF_MAX_PLANES], stride[DMABUF_MAX_PLANES], fourcc;
     uint64_t modifier;
 
     assert(tex_id);
-    fd = egl_get_fd_for_texture(tex_id, (EGLint *)&stride, (EGLint *)&fourcc,
-                                &modifier);
-    if (fd < 0) {
-        error_report("%s: failed to get fd for texture", __func__);
+    if (!egl_dmabuf_export_texture(tex_id, fd, (EGLint *)offset, (EGLint *)stride,
+                                   (EGLint *)&fourcc, &num_planes, &modifier)) {
+        error_report("%s: failed to export dmabuf for texture", __func__);
         return;
     }
-    dmabuf = qemu_dmabuf_new(w, h, &offset, &stride, x, y, backing_width,
-                             backing_height, fourcc, modifier, &fd, 1,
+    if (num_planes > 1) {
+        error_report("%s: does not support multi-plane dmabuf", __func__);
+        return;
+    }
+    dmabuf = qemu_dmabuf_new(w, h, offset, stride, x, y, backing_width,
+                             backing_height, fourcc, modifier, fd, num_planes,
                              false, backing_y_0_top);
 
     dbus_scanout_dmabuf(dcl, dmabuf);
