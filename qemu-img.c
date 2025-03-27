@@ -4571,7 +4571,7 @@ static int img_bench(int argc, char **argv)
         {
             unsigned long res;
 
-            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > INT_MAX) {
+            if (qemu_strtoul(optarg, NULL, 0, &res) <= 0 || res > INT_MAX) {
                 error_report("Invalid queue depth specified");
                 return 1;
             }
