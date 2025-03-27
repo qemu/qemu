@@ -9,11 +9,6 @@
 #include "qemu/osdep.h"
 #include "exec/target_page.h"
 
-int qemu_target_page_bits_min(void)
-{
-    return TARGET_PAGE_BITS_MIN;
-}
-
 /* Convert target pages to MiB (2**20). */
 size_t qemu_target_pages_to_MiB(size_t pages)
 {

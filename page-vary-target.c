@@ -23,6 +23,15 @@
 #include "exec/page-vary.h"
 #include "exec/target_page.h"
 
+int migration_legacy_page_bits(void)
+{
+#ifdef TARGET_PAGE_BITS_VARY
+    return TARGET_PAGE_BITS_MIN;
+#else
+    return TARGET_PAGE_BITS;
+#endif
+}
+
 bool set_preferred_target_page_bits(int bits)
 {
 #ifdef TARGET_PAGE_BITS_VARY
