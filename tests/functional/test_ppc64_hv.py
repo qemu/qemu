@@ -125,6 +125,7 @@ class HypervisorTest(QemuSystemTest):
 
     def test_hv_pseries(self):
         self.require_accelerator("tcg")
+        self.require_netdev('user')
         self.set_machine('pseries')
         self.vm.add_args("-accel", "tcg,thread=multi")
         self.vm.add_args('-device', 'nvme,serial=1234,drive=drive0')
@@ -136,6 +137,7 @@ class HypervisorTest(QemuSystemTest):
 
     def test_hv_pseries_kvm(self):
         self.require_accelerator("kvm")
+        self.require_netdev('user')
         self.set_machine('pseries')
         self.vm.add_args("-accel", "kvm")
         self.vm.add_args('-device', 'nvme,serial=1234,drive=drive0')
@@ -147,6 +149,7 @@ class HypervisorTest(QemuSystemTest):
 
     def test_hv_powernv(self):
         self.require_accelerator("tcg")
+        self.require_netdev('user')
         self.set_machine('powernv')
         self.vm.add_args("-accel", "tcg,thread=multi")
         self.vm.add_args('-device', 'nvme,bus=pcie.2,addr=0x0,serial=1234,drive=drive0',

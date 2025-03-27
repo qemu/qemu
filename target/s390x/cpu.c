@@ -377,7 +377,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     resettable_class_set_parent_phases(rc, NULL, s390_cpu_reset_hold, NULL,
                                        &scc->parent_phases);
 
-    cc->class_by_name = s390_cpu_class_by_name,
+    cc->class_by_name = s390_cpu_class_by_name;
     cc->mmu_index = s390x_cpu_mmu_index;
     cc->dump_state = s390_cpu_dump_state;
     cc->query_cpu_fast = s390_query_cpu_fast;

@@ -74,6 +74,8 @@ class Aarch64VirtGPUMachine(LinuxKernelTest):
                 self.skipTest("Can't access host DRM render node")
             elif "'type' does not accept value 'egl-headless'" in excp.output:
                 self.skipTest("egl-headless support is not available")
+            elif "'type' does not accept value 'dbus'" in excp.output:
+                self.skipTest("dbus display support is not available")
             else:
                 self.log.info("unhandled launch failure: %s", excp.output)
                 raise excp

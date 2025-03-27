@@ -33,6 +33,7 @@ class Aarch64RMESbsaRefMachine(QemuSystemTest):
     def test_aarch64_rme_sbsaref(self):
         self.set_machine('sbsa-ref')
         self.require_accelerator('tcg')
+        self.require_netdev('user')
 
         self.vm.set_console()
 

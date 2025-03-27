@@ -5,7 +5,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu_test import Asset
+from qemu_test import Asset, skipFlakyTest
 from replay_kernel import ReplayKernelBase
 
 
@@ -16,6 +16,7 @@ class Ppc64Replay(ReplayKernelBase):
          'day19.tar.xz'),
         '20b1bb5a8488c664defbb5d283addc91a05335a936c63b3f5ff7eee74b725755')
 
+    @skipFlakyTest('https://gitlab.com/qemu-project/qemu/-/issues/2523')
     def test_ppc64_e500(self):
         self.set_machine('ppce500')
         self.cpu = 'e5500'

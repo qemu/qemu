@@ -12,6 +12,7 @@
 
 import socket
 from typing import List
+from qemu.machine.machine import VMLaunchFailure
 
 from qemu_test import QemuSystemTest
 from qemu_test.ports import Ports
@@ -32,7 +33,14 @@ class Vnc(QemuSystemTest):
     def test_no_vnc_change_password(self):
         self.vm.add_args('-nodefaults', '-S')
         self.vm.launch()
-        self.assertFalse(self.vm.qmp('query-vnc')['return']['enabled'])
+
+        query_vnc_response = self.vm.qmp('query-vnc')
+        if 'error' in query_vnc_response:
+            self.assertEqual(query_vnc_response['error']['class'],
+                             'CommandNotFound')
+            self.skipTest('VNC support not available')
+        self.assertFalse(query_vnc_response['return']['enabled'])
+
         set_password_response = self.vm.qmp('change-vnc-password',
                                             password='new_password')
         self.assertIn('error', set_password_response)
@@ -41,9 +49,19 @@ class Vnc(QemuSystemTest):
         self.assertEqual(set_password_response['error']['desc'],
                          'Could not set password')
 
+    def launch_guarded(self):
+        try:
+            self.vm.launch()
+        except VMLaunchFailure as excp:
+            if "-vnc: invalid option" in excp.output:
+                self.skipTest("VNC support not available")
+            else:
+                self.log.info("unhandled launch failure: %s", excp.output)
+                raise excp
+
     def test_change_password_requires_a_password(self):
         self.vm.add_args('-nodefaults', '-S', '-vnc', ':1,to=999')
-        self.vm.launch()
+        self.launch_guarded()
         self.assertTrue(self.vm.qmp('query-vnc')['return']['enabled'])
         set_password_response = self.vm.qmp('change-vnc-password',
                                             password='new_password')
@@ -55,7 +73,7 @@ class Vnc(QemuSystemTest):
 
     def test_change_password(self):
         self.vm.add_args('-nodefaults', '-S', '-vnc', ':1,to=999,password=on')
-        self.vm.launch()
+        self.launch_guarded()
         self.assertTrue(self.vm.qmp('query-vnc')['return']['enabled'])
         self.vm.cmd('change-vnc-password',
                     password='new_password')
@@ -66,7 +84,7 @@ class Vnc(QemuSystemTest):
         self.assertFalse(check_connect(c))
 
         self.vm.add_args('-nodefaults', '-S', '-vnc', f'{VNC_ADDR}:{a - 5900}')
-        self.vm.launch()
+        self.launch_guarded()
         self.assertEqual(self.vm.qmp('query-vnc')['return']['service'], str(a))
         self.assertTrue(check_connect(a))
         self.assertFalse(check_connect(b))
