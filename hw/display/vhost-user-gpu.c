@@ -249,6 +249,8 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
     case VHOST_USER_GPU_DMABUF_SCANOUT: {
         VhostUserGpuDMABUFScanout *m = &msg->payload.dmabuf_scanout;
         int fd = qemu_chr_fe_get_msgfd(&g->vhost_chr);
+        uint32_t offset = 0;
+        uint32_t stride = m->fd_stride;
         uint64_t modifier = 0;
         QemuDmaBuf *dmabuf;
 
@@ -282,10 +284,10 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
         }
 
         dmabuf = qemu_dmabuf_new(m->width, m->height,
-                                 m->fd_stride, 0, 0,
+                                 &offset, &stride, 0, 0,
                                  m->fd_width, m->fd_height,
                                  m->fd_drm_fourcc, modifier,
-                                 fd, false, m->fd_flags &
+                                 &fd, 1, false, m->fd_flags &
                                  VIRTIO_GPU_RESOURCE_FLAG_Y_0_TOP);
 
         dpy_gl_scanout_dmabuf(con, dmabuf);
