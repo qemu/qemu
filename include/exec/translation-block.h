@@ -13,6 +13,7 @@
 #include "exec/vaddr.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu/interval-tree.h"
+#include "exec/target_page.h"
 #endif
 
 /*
@@ -156,5 +157,54 @@ static inline uint32_t tb_cflags(const TranslationBlock *tb)
 
 bool tcg_cflags_has(CPUState *cpu, uint32_t flags);
 void tcg_cflags_set(CPUState *cpu, uint32_t flags);
+
+static inline tb_page_addr_t tb_page_addr0(const TranslationBlock *tb)
+{
+#ifdef CONFIG_USER_ONLY
+    return tb->itree.start;
+#else
+    return tb->page_addr[0];
+#endif
+}
+
+static inline tb_page_addr_t tb_page_addr1(const TranslationBlock *tb)
+{
+#ifdef CONFIG_USER_ONLY
+    tb_page_addr_t next = tb->itree.last & TARGET_PAGE_MASK;
+    return next == (tb->itree.start & TARGET_PAGE_MASK) ? -1 : next;
+#else
+    return tb->page_addr[1];
+#endif
+}
+
+static inline void tb_set_page_addr0(TranslationBlock *tb,
+                                     tb_page_addr_t addr)
+{
+#ifdef CONFIG_USER_ONLY
+    tb->itree.start = addr;
+    /*
+     * To begin, we record an interval of one byte.  When the translation
+     * loop encounters a second page, the interval will be extended to
+     * include the first byte of the second page, which is sufficient to
+     * allow tb_page_addr1() above to work properly.  The final corrected
+     * interval will be set by tb_page_add() from tb->size before the
+     * node is added to the interval tree.
+     */
+    tb->itree.last = addr;
+#else
+    tb->page_addr[0] = addr;
+#endif
+}
+
+static inline void tb_set_page_addr1(TranslationBlock *tb,
+                                     tb_page_addr_t addr)
+{
+#ifdef CONFIG_USER_ONLY
+    /* Extend the interval to the first byte of the second page.  See above. */
+    tb->itree.last = addr;
+#else
+    tb->page_addr[1] = addr;
+#endif
+}
 
 #endif /* EXEC_TRANSLATION_BLOCK_H */
