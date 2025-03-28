@@ -887,24 +887,24 @@ void helper_mtc0_memorymapid(CPUMIPSState *env, target_ulong arg1)
     }
 }
 
-void update_pagemask(CPUMIPSState *env, target_ulong arg1, int32_t *pagemask)
+uint32_t compute_pagemask(uint32_t val)
 {
     /* Don't care MASKX as we don't support 1KB page */
-    uint32_t mask = extract32((uint32_t)arg1, CP0PM_MASK, 16);
+    uint32_t mask = extract32(val, CP0PM_MASK, 16);
     int maskbits = cto32(mask);
 
     /* Ensure no more set bit after first zero, and maskbits even. */
     if ((mask >> maskbits) == 0 && maskbits % 2 == 0) {
-        env->CP0_PageMask = mask << CP0PM_MASK;
+        return mask << CP0PM_MASK;
     } else {
         /* When invalid, set to default target page size. */
-        env->CP0_PageMask = 0;
+        return 0;
     }
 }
 
 void helper_mtc0_pagemask(CPUMIPSState *env, target_ulong arg1)
 {
-    update_pagemask(env, arg1, &env->CP0_PageMask);
+    env->CP0_PageMask = compute_pagemask(arg1);
 }
 
 void helper_mtc0_pagegrain(CPUMIPSState *env, target_ulong arg1)
