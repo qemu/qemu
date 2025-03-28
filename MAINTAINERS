@@ -319,6 +319,7 @@ L: qemu-riscv@nongnu.org
 S: Supported
 F: configs/targets/riscv*
 F: docs/system/target-riscv.rst
+F: docs/specs/riscv-iommu.rst
 F: target/riscv/
 F: hw/char/riscv_htif.c
 F: hw/riscv/
