@@ -33,7 +33,6 @@
 #ifdef CONFIG_USER_ONLY
 /* Allow user-only to vary page size from 4k */
 # define TARGET_PAGE_BITS_VARY
-# define TARGET_PAGE_BITS_MIN 12
 #else
 # define TARGET_PAGE_BITS 12
 #endif

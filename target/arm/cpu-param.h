@@ -24,7 +24,6 @@
 # else
 /* Allow user-only to vary page size from 4k */
 #  define TARGET_PAGE_BITS_VARY
-#  define TARGET_PAGE_BITS_MIN  12
 # endif
 # else
 #  define TARGET_PAGE_BITS 12
@@ -35,7 +34,7 @@
  * have to support 1K tiny pages.
  */
 # define TARGET_PAGE_BITS_VARY
-# define TARGET_PAGE_BITS_MIN  10
+# define TARGET_PAGE_BITS_LEGACY 10
 #endif /* !CONFIG_USER_ONLY */
 
 /* ARM processors have a weak memory model */

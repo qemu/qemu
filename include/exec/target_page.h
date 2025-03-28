@@ -41,7 +41,6 @@ extern const TargetPageBits target_page;
 # endif
 # define TARGET_PAGE_SIZE    (-(int)TARGET_PAGE_MASK)
 #else
-# define TARGET_PAGE_BITS_MIN TARGET_PAGE_BITS
 # define TARGET_PAGE_SIZE    (1 << TARGET_PAGE_BITS)
 # define TARGET_PAGE_MASK    ((TARGET_PAGE_TYPE)-1 << TARGET_PAGE_BITS)
 #endif

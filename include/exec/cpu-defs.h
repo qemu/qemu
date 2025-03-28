@@ -34,14 +34,8 @@
 #ifndef TARGET_VIRT_ADDR_SPACE_BITS
 # error TARGET_VIRT_ADDR_SPACE_BITS must be defined in cpu-param.h
 #endif
-#ifndef TARGET_PAGE_BITS
-# ifdef TARGET_PAGE_BITS_VARY
-#  ifndef TARGET_PAGE_BITS_MIN
-#   error TARGET_PAGE_BITS_MIN must be defined in cpu-param.h
-#  endif
-# else
-#  error TARGET_PAGE_BITS must be defined in cpu-param.h
-# endif
+#if !defined(TARGET_PAGE_BITS) && !defined(TARGET_PAGE_BITS_VARY)
+# error TARGET_PAGE_BITS must be defined in cpu-param.h
 #endif
 
 #include "exec/target_long.h"
