@@ -877,18 +877,13 @@ void update_pagemask(CPUMIPSState *env, target_ulong arg1, int32_t *pagemask)
     if ((mask >> maskbits) != 0) {
         goto invalid;
     }
-    /* We don't support VTLB entry smaller than target page */
-    if ((maskbits + TARGET_PAGE_BITS_MIN) < TARGET_PAGE_BITS) {
-        goto invalid;
-    }
     env->CP0_PageMask = mask << CP0PM_MASK;
 
     return;
 
 invalid:
     /* When invalid, set to default target page size. */
-    mask = (~TARGET_PAGE_MASK >> TARGET_PAGE_BITS_MIN);
-    env->CP0_PageMask = mask << CP0PM_MASK;
+    env->CP0_PageMask = 0;
 }
 
 void helper_mtc0_pagemask(CPUMIPSState *env, target_ulong arg1)
