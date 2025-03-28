@@ -2372,7 +2372,7 @@ static void lsi_scsi_exit(PCIDevice *dev)
     LSIState *s = LSI53C895A(dev);
 
     address_space_destroy(&s->pci_io_as);
-    timer_del(s->scripts_timer);
+    timer_free(s->scripts_timer);
 }
 
 static void lsi_class_init(ObjectClass *klass, void *data)
