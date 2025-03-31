@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 16%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 17%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -481,6 +481,18 @@ Patch154: kvm-qga-implement-a-guest-get-load-command.patch
 Patch155: kvm-migration-Fix-UAF-for-incoming-migration-on-Migratio.patch
 # For RHEL-47340 - [Qemu RHEL-9] qemu-trace-stap should handle lack of stap more gracefully
 Patch156: kvm-scripts-improve-error-from-qemu-trace-stap-on-missin.patch
+# For RHEL-7301 - [intel iommu] VFIO_MAP_DMA failed: Bad address on system_powerdown
+Patch157: kvm-hw-pci-Rename-has_power-to-enabled.patch
+# For RHEL-7301 - [intel iommu] VFIO_MAP_DMA failed: Bad address on system_powerdown
+Patch158: kvm-hw-pci-Basic-support-for-PCI-power-management.patch
+# For RHEL-7301 - [intel iommu] VFIO_MAP_DMA failed: Bad address on system_powerdown
+Patch159: kvm-pci-Use-PCI-PM-capability-initializer.patch
+# For RHEL-7301 - [intel iommu] VFIO_MAP_DMA failed: Bad address on system_powerdown
+Patch160: kvm-vfio-pci-Delete-local-pm_cap.patch
+# For RHEL-7301 - [intel iommu] VFIO_MAP_DMA failed: Bad address on system_powerdown
+Patch161: kvm-pcie-virtio-Remove-redundant-pm_cap.patch
+# For RHEL-7301 - [intel iommu] VFIO_MAP_DMA failed: Bad address on system_powerdown
+Patch162: kvm-hw-vfio-pci-Re-order-pre-reset.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1549,6 +1561,19 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Mon Mar 31 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-17
+- kvm-hw-pci-Rename-has_power-to-enabled.patch [RHEL-7301]
+- kvm-hw-pci-Basic-support-for-PCI-power-management.patch [RHEL-7301]
+- kvm-pci-Use-PCI-PM-capability-initializer.patch [RHEL-7301]
+- kvm-vfio-pci-Delete-local-pm_cap.patch [RHEL-7301]
+- kvm-pcie-virtio-Remove-redundant-pm_cap.patch [RHEL-7301]
+- kvm-hw-vfio-pci-Re-order-pre-reset.patch [RHEL-7301]
+- kvm-Also-recommend-systemtap-devel-from-qemu-tools.patch [RHEL-47340]
+- Resolves: RHEL-7301
+  ([intel iommu] VFIO_MAP_DMA failed: Bad address on system_powerdown)
+- Resolves: RHEL-47340
+  ([Qemu RHEL-9] qemu-trace-stap should handle lack of stap more gracefully)
+
 * Thu Mar 20 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-16
 - kvm-hw-virtio-virtio-iommu-Migrate-to-3-phase-reset.patch [RHEL-7188]
 - kvm-hw-i386-intel-iommu-Migrate-to-3-phase-reset.patch [RHEL-7188]
