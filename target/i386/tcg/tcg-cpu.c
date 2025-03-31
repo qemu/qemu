@@ -23,7 +23,7 @@
 #include "qemu/accel.h"
 #include "accel/accel-cpu-target.h"
 #include "exec/translation-block.h"
-
+#include "exec/target_page.h"
 #include "tcg-cpu.h"
 
 /* Frob eflags into and out of the CPU temporary format.  */

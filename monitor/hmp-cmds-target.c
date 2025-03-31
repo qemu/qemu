@@ -31,6 +31,7 @@
 #include "qapi/error.h"
 #include "qobject/qdict.h"
 #include "system/hw_accel.h"
+#include "exec/target_page.h"
 
 /* Set the current CPU defined by the user. Callers must hold BQL. */
 int monitor_set_cpu(Monitor *mon, int cpu_index)

@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
+#include "exec/target_page.h"
 #include "system/kvm.h"
 #include "kvm_ppc.h"
 #include "internal.h"

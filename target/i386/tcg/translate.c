@@ -26,6 +26,7 @@
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
 #include "exec/translator.h"
+#include "exec/target_page.h"
 #include "fpu/softfloat.h"
 
 #include "exec/helper-proto.h"

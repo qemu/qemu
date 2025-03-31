@@ -18,6 +18,7 @@
 #include "qemu/datadir.h"
 #include "qemu/units.h"
 #include "qemu/guest-random.h"
+#include "exec/target_page.h"
 #include "qapi/error.h"
 #include "e500.h"
 #include "e500-ccsr.h"

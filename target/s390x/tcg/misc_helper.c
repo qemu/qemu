@@ -29,6 +29,7 @@
 #include "exec/exec-all.h"
 #include "exec/cputlb.h"
 #include "exec/cpu_ldst.h"
+#include "exec/target_page.h"
 #include "qapi/error.h"
 #include "tcg_s390x.h"
 #include "s390-tod.h"

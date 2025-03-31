@@ -25,6 +25,7 @@
 #include "exec/helper-gen.h"
 #include "exec/translation-block.h"
 #include "exec/translator.h"
+#include "exec/target_page.h"
 #include "exec/log.h"
 #include "qemu/qemu-print.h"
 

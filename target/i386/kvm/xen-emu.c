@@ -13,6 +13,7 @@
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "qemu/error-report.h"
+#include "exec/target_page.h"
 #include "hw/xen/xen.h"
 #include "system/kvm_int.h"
 #include "system/kvm_xen.h"

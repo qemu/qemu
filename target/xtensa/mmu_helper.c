@@ -36,6 +36,7 @@
 #include "accel/tcg/cpu-mmu-index.h"
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
+#include "exec/target_page.h"
 #include "system/memory.h"
 
 #define XTENSA_MPU_SEGMENT_MASK 0x0000001f

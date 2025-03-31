@@ -22,6 +22,7 @@
 #include "exec/translation-block.h"
 #include "tcg-cpu.h"
 #include "cpu.h"
+#include "exec/target_page.h"
 #include "internals.h"
 #include "pmu.h"
 #include "time_helper.h"

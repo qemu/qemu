@@ -12,6 +12,7 @@
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
+#include "exec/target_page.h"
 #include "system/memory.h"
 #include "system/address-spaces.h"
 #include "system/system.h"

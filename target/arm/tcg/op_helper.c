@@ -20,6 +20,7 @@
 #include "qemu/main-loop.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
+#include "exec/target_page.h"
 #include "internals.h"
 #include "cpu-features.h"
 #include "exec/exec-all.h"

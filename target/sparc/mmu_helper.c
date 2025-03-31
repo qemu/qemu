@@ -23,6 +23,7 @@
 #include "exec/cputlb.h"
 #include "accel/tcg/cpu-mmu-index.h"
 #include "exec/page-protection.h"
+#include "exec/target_page.h"
 #include "exec/tlb-flags.h"
 #include "system/memory.h"
 #include "qemu/qemu-print.h"

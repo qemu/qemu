@@ -35,6 +35,7 @@
 #include "target/hppa/cpu.h"
 #include "trace.h"
 #include "qom/object.h"
+#include "exec/target_page.h"
 
 /*
  * Helper functions
