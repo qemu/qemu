@@ -10,6 +10,7 @@
 #define ACCEL_TCG_CPU_MMU_INDEX_H
 
 #include "hw/core/cpu.h"
+#include "accel/tcg/cpu-ops.h"
 #include "tcg/debug-assert.h"
 #ifdef COMPILING_PER_TARGET
 # ifdef CONFIG_USER_ONLY
@@ -33,7 +34,9 @@ static inline int cpu_mmu_index(CPUState *cs, bool ifetch)
 # endif
 #endif
 
-    int ret = cs->cc->mmu_index(cs, ifetch);
+    const TCGCPUOps *tcg_ops = cs->cc->tcg_ops;
+    int ret = tcg_ops->mmu_index ? tcg_ops->mmu_index(cs, ifetch)
+                                 : cs->cc->mmu_index(cs, ifetch);
     tcg_debug_assert(ret >= 0 && ret < NB_MMU_MODES);
     return ret;
 }
