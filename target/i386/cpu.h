@@ -2598,7 +2598,6 @@ static inline bool is_mmu_index_32(int mmu_index)
 }
 
 int x86_mmu_index_pl(CPUX86State *env, unsigned pl);
-int cpu_mmu_index_kernel(CPUX86State *env);
 
 #define CC_DST  (env->cc_dst)
 #define CC_SRC  (env->cc_src)

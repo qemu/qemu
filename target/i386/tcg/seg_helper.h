@@ -20,6 +20,8 @@
 #ifndef SEG_HELPER_H
 #define SEG_HELPER_H
 
+#include "cpu.h"
+
 //#define DEBUG_PCALL
 
 #ifdef DEBUG_PCALL
@@ -30,6 +32,8 @@
 # define LOG_PCALL(...) do { } while (0)
 # define LOG_PCALL_STATE(cpu) do { } while (0)
 #endif
+
+int cpu_mmu_index_kernel(CPUX86State *env);
 
 /*
  * TODO: Convert callers to compute cpu_mmu_index_kernel once
