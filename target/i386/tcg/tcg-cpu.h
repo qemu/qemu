@@ -78,4 +78,6 @@ QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, pkru_state) != XSAVE_PKRU_OFFSET);
 
 bool tcg_cpu_realizefn(CPUState *cs, Error **errp);
 
+int x86_mmu_index_pl(CPUX86State *env, unsigned pl);
+
 #endif /* TCG_CPU_H */
