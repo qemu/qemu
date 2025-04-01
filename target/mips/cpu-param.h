@@ -18,12 +18,7 @@
 #  define TARGET_VIRT_ADDR_SPACE_BITS 32
 #endif
 #endif
-#ifdef CONFIG_USER_ONLY
 #define TARGET_PAGE_BITS 12
-#else
-#define TARGET_PAGE_BITS_VARY
-#define TARGET_PAGE_BITS_MIN 12
-#endif
 
 #define TCG_GUEST_DEFAULT_MO (0)
 

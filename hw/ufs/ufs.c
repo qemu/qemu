@@ -25,6 +25,7 @@
 #include "qapi/error.h"
 #include "migration/vmstate.h"
 #include "scsi/constants.h"
+#include "hw/irq.h"
 #include "trace.h"
 #include "ufs.h"
 
@@ -1807,6 +1808,8 @@ static void ufs_realize(PCIDevice *pci_dev, Error **errp)
 static void ufs_exit(PCIDevice *pci_dev)
 {
     UfsHc *u = UFS(pci_dev);
+
+    qemu_free_irq(u->irq);
 
     qemu_bh_delete(u->doorbell_bh);
     qemu_bh_delete(u->complete_bh);

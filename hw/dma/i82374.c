@@ -150,6 +150,8 @@ static void i82374_class_init(ObjectClass *klass, void *data)
     dc->realize = i82374_realize;
     dc->vmsd = &vmstate_i82374;
     device_class_set_props(dc, i82374_properties);
+    dc->desc = "Intel 82374 DMA controller";
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo i82374_info = {

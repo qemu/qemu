@@ -864,36 +864,24 @@ void helper_mtc0_memorymapid(CPUMIPSState *env, target_ulong arg1)
     }
 }
 
-void update_pagemask(CPUMIPSState *env, target_ulong arg1, int32_t *pagemask)
+uint32_t compute_pagemask(uint32_t val)
 {
-    uint32_t mask;
-    int maskbits;
-
     /* Don't care MASKX as we don't support 1KB page */
-    mask = extract32((uint32_t)arg1, CP0PM_MASK, 16);
-    maskbits = cto32(mask);
+    uint32_t mask = extract32(val, CP0PM_MASK, 16);
+    int maskbits = cto32(mask);
 
-    /* Ensure no more set bit after first zero */
-    if ((mask >> maskbits) != 0) {
-        goto invalid;
+    /* Ensure no more set bit after first zero, and maskbits even. */
+    if ((mask >> maskbits) == 0 && maskbits % 2 == 0) {
+        return mask << CP0PM_MASK;
+    } else {
+        /* When invalid, set to default target page size. */
+        return 0;
     }
-    /* We don't support VTLB entry smaller than target page */
-    if ((maskbits + TARGET_PAGE_BITS_MIN) < TARGET_PAGE_BITS) {
-        goto invalid;
-    }
-    env->CP0_PageMask = mask << CP0PM_MASK;
-
-    return;
-
-invalid:
-    /* When invalid, set to default target page size. */
-    mask = (~TARGET_PAGE_MASK >> TARGET_PAGE_BITS_MIN);
-    env->CP0_PageMask = mask << CP0PM_MASK;
 }
 
 void helper_mtc0_pagemask(CPUMIPSState *env, target_ulong arg1)
 {
-    update_pagemask(env, arg1, &env->CP0_PageMask);
+    env->CP0_PageMask = compute_pagemask(arg1);
 }
 
 void helper_mtc0_pagegrain(CPUMIPSState *env, target_ulong arg1)
