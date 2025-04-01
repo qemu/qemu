@@ -29,7 +29,7 @@
 #include <linux/kvm.h>
 #endif
 #ifdef CONFIG_TCG
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 #include "tcg/tcg.h"
 #endif
 

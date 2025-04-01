@@ -23,7 +23,7 @@
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
 #include "system/memory.h"
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 #include "exec/cputlb.h"
 #include "exec/tb-flush.h"
 #include "system/ram_addr.h"

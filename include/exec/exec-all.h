@@ -21,7 +21,7 @@
 #define EXEC_ALL_H
 
 #if defined(CONFIG_USER_ONLY)
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 #endif
 #include "exec/mmu-access-type.h"
 #include "exec/translation-block.h"

@@ -37,7 +37,7 @@
 #include "mmu-radix64.h"
 #include "mmu-booke.h"
 #include "exec/helper-proto.h"
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 
 /* #define FLUSH_ALL_TLBS */
 

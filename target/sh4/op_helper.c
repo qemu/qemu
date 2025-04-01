@@ -20,7 +20,7 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 #include "fpu/softfloat.h"
 
 #ifndef CONFIG_USER_ONLY

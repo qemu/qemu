@@ -59,8 +59,8 @@
  * The "mmu" suffix carries the full MemOpIdx, with both mmu_idx and the
  * MemOp including alignment requirements.  The alignment will be enforced.
  */
-#ifndef CPU_LDST_H
-#define CPU_LDST_H
+#ifndef ACCEL_TCG_CPU_LDST_H
+#define ACCEL_TCG_CPU_LDST_H
 
 #ifndef CONFIG_TCG
 #error Can only include this header with TCG
@@ -560,4 +560,4 @@ static inline void clear_helper_retaddr(void)
 #define clear_helper_retaddr()   do { } while (0)
 #endif
 
-#endif /* CPU_LDST_H */
+#endif /* ACCEL_TCG_CPU_LDST_H */

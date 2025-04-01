@@ -20,7 +20,7 @@
 #ifndef TARGET_ARM_SVE_LDST_INTERNAL_H
 #define TARGET_ARM_SVE_LDST_INTERNAL_H
 
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 
 /*
  * Load one element into @vd + @reg_off from @host.
