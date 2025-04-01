@@ -34,9 +34,7 @@ static inline int cpu_mmu_index(CPUState *cs, bool ifetch)
 # endif
 #endif
 
-    const TCGCPUOps *tcg_ops = cs->cc->tcg_ops;
-    int ret = tcg_ops->mmu_index ? tcg_ops->mmu_index(cs, ifetch)
-                                 : cs->cc->mmu_index(cs, ifetch);
+    int ret = cs->cc->tcg_ops->mmu_index(cs, ifetch);
     tcg_debug_assert(ret >= 0 && ret < NB_MMU_MODES);
     return ret;
 }
