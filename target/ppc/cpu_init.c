@@ -7216,6 +7216,11 @@ static void ppc_restore_state_to_opc(CPUState *cs,
 
     cpu->env.nip = data[0];
 }
+
+static int ppc_cpu_mmu_index(CPUState *cs, bool ifetch)
+{
+    return ppc_env_mmu_index(cpu_env(cs), ifetch);
+}
 #endif /* CONFIG_TCG */
 
 #ifndef CONFIG_USER_ONLY
@@ -7224,11 +7229,6 @@ static bool ppc_cpu_has_work(CPUState *cs)
     return cs->interrupt_request & CPU_INTERRUPT_HARD;
 }
 #endif /* !CONFIG_USER_ONLY */
-
-static int ppc_cpu_mmu_index(CPUState *cs, bool ifetch)
-{
-    return ppc_env_mmu_index(cpu_env(cs), ifetch);
-}
 
 static void ppc_cpu_reset_hold(Object *obj, ResetType type)
 {
@@ -7482,6 +7482,7 @@ static const TCGCPUOps ppc_tcg_ops = {
   .initialize = ppc_translate_init,
   .translate_code = ppc_translate_code,
   .restore_state_to_opc = ppc_restore_state_to_opc,
+  .mmu_index = ppc_cpu_mmu_index,
 
 #ifdef CONFIG_USER_ONLY
   .record_sigsegv = ppc_cpu_record_sigsegv,
@@ -7518,7 +7519,6 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
                                        &pcc->parent_phases);
 
     cc->class_by_name = ppc_cpu_class_by_name;
-    cc->mmu_index = ppc_cpu_mmu_index;
     cc->dump_state = ppc_cpu_dump_state;
     cc->set_pc = ppc_cpu_set_pc;
     cc->get_pc = ppc_cpu_get_pc;
