@@ -419,6 +419,8 @@ void ipmi_bt_get_fwinfo(struct IPMIBT *ib, IPMIFwInfo *info)
     info->interface_type = IPMI_SMBIOS_BT;
     info->ipmi_spec_major_revision = 2;
     info->ipmi_spec_minor_revision = 0;
+    /* BT System Interface Format, IPMI v1.5 */
+    info->ipmi_channel_protocol = IPMI_CHANNEL_PROTOCOL_BT_15;
     info->base_address = ib->io_base;
     info->register_length = ib->io_length;
     info->register_spacing = 1;
