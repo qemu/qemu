@@ -49,6 +49,7 @@ static void isa_ipmi_kcs_get_fwinfo(IPMIInterface *ii, IPMIFwInfo *info)
     ISAIPMIKCSDevice *iik = ISA_IPMI_KCS(ii);
 
     ipmi_kcs_get_fwinfo(&iik->kcs, info);
+    info->irq_source = IPMI_ISA_IRQ;
     info->interrupt_number = iik->isairq;
     info->uuid = iik->uuid;
 }

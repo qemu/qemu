@@ -91,6 +91,11 @@ typedef struct IPMIFwInfo {
 
     int interrupt_number;
     enum {
+        IPMI_NO_IRQ = 0,
+        IPMI_ISA_IRQ,
+        IPMI_PCI_IRQ,
+    } irq_source;
+    enum {
         IPMI_LEVEL_IRQ,
         IPMI_EDGE_IRQ
     } irq_type;

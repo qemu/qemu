@@ -49,6 +49,7 @@ static void isa_ipmi_bt_get_fwinfo(struct IPMIInterface *ii, IPMIFwInfo *info)
     ISAIPMIBTDevice *iib = ISA_IPMI_BT(ii);
 
     ipmi_bt_get_fwinfo(&iib->bt, info);
+    info->irq_source = IPMI_ISA_IRQ;
     info->interrupt_number = iib->isairq;
     info->i2c_slave_address = iib->bt.bmc->slave_addr;
     info->uuid = iib->uuid;
