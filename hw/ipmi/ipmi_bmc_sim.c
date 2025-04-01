@@ -514,7 +514,8 @@ static void gen_event(IPMIBmcSim *ibs, unsigned int sens_num, uint8_t deassert,
 
 static void sensor_set_discrete_bit(IPMIBmcSim *ibs, unsigned int sensor,
                                     unsigned int bit, unsigned int val,
-                                    uint8_t evd1, uint8_t evd2, uint8_t evd3)
+                                    uint8_t evd1, uint8_t evd2, uint8_t evd3,
+                                    bool do_log)
 {
     IPMISensor *sens;
     uint16_t mask;
@@ -534,7 +535,7 @@ static void sensor_set_discrete_bit(IPMIBmcSim *ibs, unsigned int sensor,
             return; /* Already asserted */
         }
         sens->assert_states |= mask & sens->assert_suppt;
-        if (sens->assert_enable & mask & sens->assert_states) {
+        if (do_log && (sens->assert_enable & mask & sens->assert_states)) {
             /* Send an event on assert */
             gen_event(ibs, sensor, 0, evd1, evd2, evd3);
         }
@@ -544,7 +545,7 @@ static void sensor_set_discrete_bit(IPMIBmcSim *ibs, unsigned int sensor,
             return; /* Already deasserted */
         }
         sens->deassert_states |= mask & sens->deassert_suppt;
-        if (sens->deassert_enable & mask & sens->deassert_states) {
+        if (do_log && (sens->deassert_enable & mask & sens->deassert_states)) {
             /* Send an event on deassert */
             gen_event(ibs, sensor, 1, evd1, evd2, evd3);
         }
@@ -700,6 +701,7 @@ static void ipmi_sim_handle_timeout(IPMIBmcSim *ibs)
 {
     IPMIInterface *s = ibs->parent.intf;
     IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(s);
+    bool do_log = !IPMI_BMC_WATCHDOG_GET_DONT_LOG(ibs);
 
     if (!ibs->watchdog_running) {
         goto out;
@@ -711,14 +713,16 @@ static void ipmi_sim_handle_timeout(IPMIBmcSim *ibs)
             ibs->msg_flags |= IPMI_BMC_MSG_FLAG_WATCHDOG_TIMEOUT_MASK;
             k->do_hw_op(s, IPMI_SEND_NMI, 0);
             sensor_set_discrete_bit(ibs, IPMI_WATCHDOG_SENSOR, 8, 1,
-                                    0xc8, (2 << 4) | 0xf, 0xff);
+                                    0xc8, (2 << 4) | 0xf, 0xff,
+                                    do_log);
             break;
 
         case IPMI_BMC_WATCHDOG_PRE_MSG_INT:
             ibs->msg_flags |= IPMI_BMC_MSG_FLAG_WATCHDOG_TIMEOUT_MASK;
             k->set_atn(s, 1, attn_irq_enabled(ibs));
             sensor_set_discrete_bit(ibs, IPMI_WATCHDOG_SENSOR, 8, 1,
-                                    0xc8, (3 << 4) | 0xf, 0xff);
+                                    0xc8, (3 << 4) | 0xf, 0xff,
+                                    do_log);
             break;
 
         default:
@@ -738,24 +742,28 @@ static void ipmi_sim_handle_timeout(IPMIBmcSim *ibs)
     switch (IPMI_BMC_WATCHDOG_GET_ACTION(ibs)) {
     case IPMI_BMC_WATCHDOG_ACTION_NONE:
         sensor_set_discrete_bit(ibs, IPMI_WATCHDOG_SENSOR, 0, 1,
-                                0xc0, ibs->watchdog_use & 0xf, 0xff);
+                                0xc0, ibs->watchdog_use & 0xf, 0xff,
+                                do_log);
         break;
 
     case IPMI_BMC_WATCHDOG_ACTION_RESET:
         sensor_set_discrete_bit(ibs, IPMI_WATCHDOG_SENSOR, 1, 1,
-                                0xc1, ibs->watchdog_use & 0xf, 0xff);
+                                0xc1, ibs->watchdog_use & 0xf, 0xff,
+                                do_log);
         k->do_hw_op(s, IPMI_RESET_CHASSIS, 0);
         break;
 
     case IPMI_BMC_WATCHDOG_ACTION_POWER_DOWN:
         sensor_set_discrete_bit(ibs, IPMI_WATCHDOG_SENSOR, 2, 1,
-                                0xc2, ibs->watchdog_use & 0xf, 0xff);
+                                0xc2, ibs->watchdog_use & 0xf, 0xff,
+                                do_log);
         k->do_hw_op(s, IPMI_POWEROFF_CHASSIS, 0);
         break;
 
     case IPMI_BMC_WATCHDOG_ACTION_POWER_CYCLE:
         sensor_set_discrete_bit(ibs, IPMI_WATCHDOG_SENSOR, 2, 1,
-                                0xc3, ibs->watchdog_use & 0xf, 0xff);
+                                0xc3, ibs->watchdog_use & 0xf, 0xff,
+                                do_log);
         k->do_hw_op(s, IPMI_POWERCYCLE_CHASSIS, 0);
         break;
     }
