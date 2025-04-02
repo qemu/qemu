@@ -632,6 +632,8 @@ typedef struct TestBlockJob {
     BlockDriverState *bs;
     int run_ret;
     int prepare_ret;
+
+    /* Accessed with atomics */
     bool running;
     bool should_complete;
 } TestBlockJob;
@@ -667,10 +669,10 @@ static int coroutine_fn test_job_run(Job *job, Error **errp)
 
     /* We are running the actual job code past the pause point in
      * job_co_entry(). */
-    s->running = true;
+    qatomic_set(&s->running, true);
 
     job_transition_to_ready(&s->common.job);
-    while (!s->should_complete) {
+    while (!qatomic_read(&s->should_complete)) {
         /* Avoid job_sleep_ns() because it marks the job as !busy. We want to
          * emulate some actual activity (probably some I/O) here so that drain
          * has to wait for this activity to stop. */
@@ -685,7 +687,7 @@ static int coroutine_fn test_job_run(Job *job, Error **errp)
 static void test_job_complete(Job *job, Error **errp)
 {
     TestBlockJob *s = container_of(job, TestBlockJob, common.job);
-    s->should_complete = true;
+    qatomic_set(&s->should_complete, true);
 }
 
 BlockJobDriver test_job_driver = {
@@ -791,7 +793,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
         /* job_co_entry() is run in the I/O thread, wait for the actual job
          * code to start (we don't want to catch the job in the pause point in
          * job_co_entry(). */
-        while (!tjob->running) {
+        while (!qatomic_read(&tjob->running)) {
             aio_poll(qemu_get_aio_context(), false);
         }
     }
@@ -799,7 +801,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
     WITH_JOB_LOCK_GUARD() {
         g_assert_cmpint(job->job.pause_count, ==, 0);
         g_assert_false(job->job.paused);
-        g_assert_true(tjob->running);
+        g_assert_true(qatomic_read(&tjob->running));
         g_assert_true(job->job.busy); /* We're in qemu_co_sleep_ns() */
     }
 
@@ -825,7 +827,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
          *
          * paused is reset in the I/O thread, wait for it
          */
-        while (job->job.paused) {
+        while (job_is_paused(&job->job)) {
             aio_poll(qemu_get_aio_context(), false);
         }
     }
@@ -858,7 +860,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
          *
          * paused is reset in the I/O thread, wait for it
          */
-        while (job->job.paused) {
+        while (job_is_paused(&job->job)) {
             aio_poll(qemu_get_aio_context(), false);
         }
     }
@@ -1411,10 +1413,12 @@ static void test_set_aio_context(void)
 
 typedef struct TestDropBackingBlockJob {
     BlockJob common;
-    bool should_complete;
     bool *did_complete;
     BlockDriverState *detach_also;
     BlockDriverState *bs;
+
+    /* Accessed with atomics */
+    bool should_complete;
 } TestDropBackingBlockJob;
 
 static int coroutine_fn test_drop_backing_job_run(Job *job, Error **errp)
@@ -1422,7 +1426,7 @@ static int coroutine_fn test_drop_backing_job_run(Job *job, Error **errp)
     TestDropBackingBlockJob *s =
         container_of(job, TestDropBackingBlockJob, common.job);
 
-    while (!s->should_complete) {
+    while (!qatomic_read(&s->should_complete)) {
         job_sleep_ns(job, 0);
     }
 
@@ -1541,7 +1545,7 @@ static void test_blockjob_commit_by_drained_end(void)
 
     job_start(&job->common.job);
 
-    job->should_complete = true;
+    qatomic_set(&job->should_complete, true);
     bdrv_drained_begin(bs_child);
     g_assert(!job_has_completed);
     bdrv_drained_end(bs_child);
@@ -1557,15 +1561,17 @@ static void test_blockjob_commit_by_drained_end(void)
 
 typedef struct TestSimpleBlockJob {
     BlockJob common;
-    bool should_complete;
     bool *did_complete;
+
+    /* Accessed with atomics */
+    bool should_complete;
 } TestSimpleBlockJob;
 
 static int coroutine_fn test_simple_job_run(Job *job, Error **errp)
 {
     TestSimpleBlockJob *s = container_of(job, TestSimpleBlockJob, common.job);
 
-    while (!s->should_complete) {
+    while (!qatomic_read(&s->should_complete)) {
         job_sleep_ns(job, 0);
     }
 
@@ -1700,7 +1706,7 @@ static void test_drop_intermediate_poll(void)
     job->did_complete = &job_has_completed;
 
     job_start(&job->common.job);
-    job->should_complete = true;
+    qatomic_set(&job->should_complete, true);
 
     g_assert(!job_has_completed);
     ret = bdrv_drop_intermediate(chain[1], chain[0], NULL, false);

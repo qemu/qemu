@@ -545,6 +545,9 @@ bool job_is_ready(Job *job);
 /* Same as job_is_ready(), but called with job lock held. */
 bool job_is_ready_locked(Job *job);
 
+/** Returns whether the job is paused. Called with job_mutex *not* held. */
+bool job_is_paused(Job *job);
+
 /**
  * Request @job to pause at the next pause point. Must be paired with
  * job_resume(). If the job is supposed to be resumed by user action, call
