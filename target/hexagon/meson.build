@@ -280,12 +280,13 @@ if idef_parser_enabled and 'hexagon-linux-user' in target_dirs
         command: [python, files('gen_idef_parser_funcs.py'), semantics_generated, '@OUTPUT@'],
     )
 
+    compiler = meson.get_compiler('c').get_id()
     preprocessed_idef_parser_input_generated = custom_target(
         'idef_parser_input.preprocessed.h.inc',
         output: 'idef_parser_input.preprocessed.h.inc',
         input: idef_parser_input_generated,
         depend_files: [idef_parser_dir / 'macros.h.inc'],
-        command: [idef_parser_dir / 'prepare', '@INPUT@', '-I' + idef_parser_dir, '-o', '@OUTPUT@'],
+        command: [compiler, '-x', 'c', '-E', '-I', idef_parser_dir, '-o', '@OUTPUT@', '@INPUT@'],
     )
 
     flex = generator(
