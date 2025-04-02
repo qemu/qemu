@@ -160,11 +160,7 @@ static PageForEachNext foreach_tb_next(PageForEachNext tb,
 /*
  * In system mode we want L1_MAP to be based on ram offsets.
  */
-#if HOST_LONG_BITS < TARGET_PHYS_ADDR_SPACE_BITS
-# define L1_MAP_ADDR_SPACE_BITS  HOST_LONG_BITS
-#else
-# define L1_MAP_ADDR_SPACE_BITS  TARGET_PHYS_ADDR_SPACE_BITS
-#endif
+#define L1_MAP_ADDR_SPACE_BITS  HOST_LONG_BITS
 
 /* Size of the L2 (and L3, etc) page tables.  */
 #define V_L2_BITS 10
