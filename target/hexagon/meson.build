@@ -324,7 +324,7 @@ if idef_parser_enabled and 'hexagon-linux-user' in target_dirs
     )
 
     indent = find_program('indent', required: false)
-    if indent.found()
+    if indent.found() and host_os == 'linux'
         idef_generated_tcg_c = custom_target(
             'indent',
             input: idef_generated_tcg[0],
