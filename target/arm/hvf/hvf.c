@@ -2278,28 +2278,23 @@ static inline bool hvf_arm_hw_debug_active(CPUState *cpu)
     return ((cur_hw_wps > 0) || (cur_hw_bps > 0));
 }
 
-static void hvf_arch_set_traps(void)
+static void hvf_arch_set_traps(CPUState *cpu)
 {
-    CPUState *cpu;
     bool should_enable_traps = false;
     hv_return_t r = HV_SUCCESS;
 
     /* Check whether guest debugging is enabled for at least one vCPU; if it
      * is, enable exiting the guest on all vCPUs */
-    CPU_FOREACH(cpu) {
-        should_enable_traps |= cpu->accel->guest_debug_enabled;
-    }
-    CPU_FOREACH(cpu) {
-        /* Set whether debug exceptions exit the guest */
-        r = hv_vcpu_set_trap_debug_exceptions(cpu->accel->fd,
-                                              should_enable_traps);
-        assert_hvf_ok(r);
+    should_enable_traps |= cpu->accel->guest_debug_enabled;
+    /* Set whether debug exceptions exit the guest */
+    r = hv_vcpu_set_trap_debug_exceptions(cpu->accel->fd,
+                                            should_enable_traps);
+    assert_hvf_ok(r);
 
-        /* Set whether accesses to debug registers exit the guest */
-        r = hv_vcpu_set_trap_debug_reg_accesses(cpu->accel->fd,
-                                                should_enable_traps);
-        assert_hvf_ok(r);
-    }
+    /* Set whether accesses to debug registers exit the guest */
+    r = hv_vcpu_set_trap_debug_reg_accesses(cpu->accel->fd,
+                                            should_enable_traps);
+    assert_hvf_ok(r);
 }
 
 void hvf_arch_update_guest_debug(CPUState *cpu)
@@ -2340,7 +2335,7 @@ void hvf_arch_update_guest_debug(CPUState *cpu)
             deposit64(env->cp15.mdscr_el1, MDSCR_EL1_MDE_SHIFT, 1, 0);
     }
 
-    hvf_arch_set_traps();
+    hvf_arch_set_traps(cpu);
 }
 
 bool hvf_arch_supports_guest_debug(void)
