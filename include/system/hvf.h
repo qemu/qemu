@@ -14,10 +14,11 @@
 #define HVF_H
 
 #include "qemu/accel.h"
+#include "qemu/queue.h"
+#include "exec/vaddr.h"
 #include "qom/object.h"
 
 #ifdef COMPILING_PER_TARGET
-#include "cpu.h"
 
 #ifdef CONFIG_HVF
 extern bool hvf_allowed;
