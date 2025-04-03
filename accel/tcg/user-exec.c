@@ -128,7 +128,7 @@ MMUAccessType adjust_signal_pc(uintptr_t *pc, bool is_write)
 bool handle_sigsegv_accerr_write(CPUState *cpu, sigset_t *old_set,
                                  uintptr_t host_pc, abi_ptr guest_addr)
 {
-    switch (page_unprotect(guest_addr, host_pc)) {
+    switch (page_unprotect(cpu, guest_addr, host_pc)) {
     case 0:
         /*
          * Fault not caused by a page marked unwritable to protect
@@ -584,7 +584,7 @@ bool page_check_range(target_ulong start, target_ulong len, int flags)
                 break;
             }
             /* Asking about writable, but has been protected: undo. */
-            if (!page_unprotect(start, 0)) {
+            if (!page_unprotect(NULL, start, 0)) {
                 ret = false;
                 break;
             }
@@ -704,10 +704,12 @@ void tb_lock_page0(tb_page_addr_t address)
  * immediately exited. (We can only return 2 if the 'pc' argument is
  * non-zero.)
  */
-int page_unprotect(tb_page_addr_t address, uintptr_t pc)
+int page_unprotect(CPUState *cpu, tb_page_addr_t address, uintptr_t pc)
 {
     PageFlagsNode *p;
     bool current_tb_invalidated;
+
+    assert((cpu == NULL) == (pc == 0));
 
     /*
      * Technically this isn't safe inside a signal handler.  However we

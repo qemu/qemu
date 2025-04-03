@@ -4260,7 +4260,7 @@ static int wmr_page_unprotect_regions(void *opaque, target_ulong start,
         size_t step = MAX(TARGET_PAGE_SIZE, qemu_real_host_page_size());
 
         while (1) {
-            page_unprotect(start, 0);
+            page_unprotect(NULL, start, 0);
             if (end - start <= step) {
                 break;
             }
