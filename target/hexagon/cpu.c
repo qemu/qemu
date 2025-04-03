@@ -313,6 +313,11 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     mcc->parent_realize(dev, errp);
 }
 
+static int hexagon_cpu_mmu_index(CPUState *cs, bool ifetch)
+{
+    return MMU_USER_IDX;
+}
+
 static void hexagon_cpu_init(Object *obj)
 {
 }
@@ -324,6 +329,7 @@ static const TCGCPUOps hexagon_tcg_ops = {
     .translate_code = hexagon_translate_code,
     .synchronize_from_tb = hexagon_cpu_synchronize_from_tb,
     .restore_state_to_opc = hexagon_restore_state_to_opc,
+    .mmu_index = hexagon_cpu_mmu_index,
 };
 
 static void hexagon_cpu_class_init(ObjectClass *c, void *data)
