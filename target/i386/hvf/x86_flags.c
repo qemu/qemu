@@ -293,6 +293,7 @@ void set_SF(CPUX86State *env, bool val)
 
 void lflags_to_rflags(CPUX86State *env)
 {
+    env->eflags &= ~(CC_C|CC_P|CC_A|CC_Z|CC_S|CC_O);
     env->eflags |= get_CF(env) ? CC_C : 0;
     env->eflags |= get_PF(env) ? CC_P : 0;
     env->eflags |= get_AF(env) ? CC_A : 0;
