@@ -28,20 +28,10 @@
 void lflags_to_rflags(CPUX86State *env);
 void rflags_to_lflags(CPUX86State *env);
 
-bool get_PF(CPUX86State *env);
-void set_PF(CPUX86State *env, bool val);
 bool get_CF(CPUX86State *env);
 void set_CF(CPUX86State *env, bool val);
-bool get_AF(CPUX86State *env);
-void set_AF(CPUX86State *env, bool val);
-bool get_ZF(CPUX86State *env);
-void set_ZF(CPUX86State *env, bool val);
-bool get_SF(CPUX86State *env);
-void set_SF(CPUX86State *env, bool val);
-bool get_OF(CPUX86State *env);
-void set_OF(CPUX86State *env, bool val);
 
-void SET_FLAGS_OxxxxC(CPUX86State *env, uint32_t new_of, uint32_t new_cf);
+void SET_FLAGS_OxxxxC(CPUX86State *env, bool new_of, bool new_cf);
 
 void SET_FLAGS_OSZAPC_SUB32(CPUX86State *env, uint32_t v1, uint32_t v2,
                             uint32_t diff);
