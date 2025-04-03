@@ -69,6 +69,7 @@
 #include "internal-target.h"
 #include "tcg/perf.h"
 #include "tcg/insn-start-words.h"
+#include "cpu.h"
 
 TBContext tb_ctx;
 
