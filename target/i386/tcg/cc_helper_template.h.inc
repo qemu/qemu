@@ -175,13 +175,10 @@ static uint32_t glue(compute_all_logic, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 static uint32_t glue(compute_all_inc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
     uint32_t cf, pf, af, zf, sf, of;
-    DATA_TYPE src2;
 
     cf = src1;
-    src1 = dst - 1;
-    src2 = 1;
     pf = compute_pf(dst);
-    af = (dst ^ src1 ^ src2) & CC_A;
+    af = (dst ^ (dst - 1)) & CC_A; /* bits 0..3 are all clear */
     zf = (dst == 0) * CC_Z;
     sf = lshift(dst, 8 - DATA_BITS) & CC_S;
     of = (dst == SIGN_MASK) * CC_O;
@@ -191,13 +188,10 @@ static uint32_t glue(compute_all_inc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 static uint32_t glue(compute_all_dec, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
     uint32_t cf, pf, af, zf, sf, of;
-    DATA_TYPE src2;
 
     cf = src1;
-    src1 = dst + 1;
-    src2 = 1;
     pf = compute_pf(dst);
-    af = (dst ^ src1 ^ src2) & CC_A;
+    af = (dst ^ (dst + 1)) & CC_A; /* bits 0..3 are all set */
     zf = (dst == 0) * CC_Z;
     sf = lshift(dst, 8 - DATA_BITS) & CC_S;
     of = (dst == SIGN_MASK - 1) * CC_O;
