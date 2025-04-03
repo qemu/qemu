@@ -38,6 +38,7 @@
 #include "hw/qdev-core.h"
 #else
 #include "hw/boards.h"
+#include "system/tcg.h"
 #endif
 #include "internal-common.h"
 #include "cpu-param.h"
@@ -57,6 +58,17 @@ typedef struct TCGState TCGState;
 
 DECLARE_INSTANCE_CHECKER(TCGState, TCG_STATE,
                          TYPE_TCG_ACCEL)
+
+#ifndef CONFIG_USER_ONLY
+
+static bool mttcg_enabled;
+
+bool qemu_tcg_mttcg_enabled(void)
+{
+    return mttcg_enabled;
+}
+
+#endif /* !CONFIG_USER_ONLY */
 
 /*
  * We default to false if we know other options have been enabled
@@ -97,7 +109,6 @@ static void tcg_accel_instance_init(Object *obj)
 #endif
 }
 
-bool mttcg_enabled;
 bool one_insn_per_tb;
 
 static int tcg_init_machine(MachineState *ms)
@@ -106,14 +117,14 @@ static int tcg_init_machine(MachineState *ms)
     unsigned max_threads = 1;
 
     tcg_allowed = true;
-    mttcg_enabled = s->mttcg_enabled;
 
     page_init();
     tb_htable_init();
 
 #ifndef CONFIG_USER_ONLY
-    if (mttcg_enabled) {
+    if (s->mttcg_enabled) {
         max_threads = ms->smp.max_cpus;
+        mttcg_enabled = true;
     }
 #endif
     tcg_init(s->tb_size * MiB, s->splitwx_enabled, max_threads);
