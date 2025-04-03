@@ -125,7 +125,7 @@ int delete_hw_breakpoint(target_ulong pc)
  * need to ensure you mask the address as required and set BAS=0xff
  */
 
-int insert_hw_watchpoint(target_ulong addr, target_ulong len, int type)
+int insert_hw_watchpoint(vaddr addr, vaddr len, int type)
 {
     HWWatchpoint wp = {
         .wcr = R_DBGWCR_E_MASK, /* E=1, enable */
@@ -182,7 +182,7 @@ int insert_hw_watchpoint(target_ulong addr, target_ulong len, int type)
     return 0;
 }
 
-bool check_watchpoint_in_range(int i, target_ulong addr)
+bool check_watchpoint_in_range(int i, vaddr addr)
 {
     HWWatchpoint *wp = get_hw_wp(i);
     uint64_t addr_top, addr_bottom = wp->wvr;
@@ -214,7 +214,7 @@ bool check_watchpoint_in_range(int i, target_ulong addr)
  * Delete a breakpoint and shuffle any above down
  */
 
-int delete_hw_watchpoint(target_ulong addr, target_ulong len, int type)
+int delete_hw_watchpoint(vaddr addr, vaddr len, int type)
 {
     int i;
     for (i = 0; i < cur_hw_wps; i++) {
@@ -239,7 +239,7 @@ bool find_hw_breakpoint(CPUState *cpu, target_ulong pc)
     return false;
 }
 
-CPUWatchpoint *find_hw_watchpoint(CPUState *cpu, target_ulong addr)
+CPUWatchpoint *find_hw_watchpoint(CPUState *cpu, vaddr addr)
 {
     int i;
 

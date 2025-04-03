@@ -26,6 +26,7 @@
 #define TARGET_ARM_INTERNALS_H
 
 #include "exec/hwaddr.h"
+#include "exec/vaddr.h"
 #include "exec/breakpoint.h"
 #include "hw/registerfields.h"
 #include "tcg/tcg-gvec-desc.h"
@@ -1952,10 +1953,10 @@ bool find_hw_breakpoint(CPUState *cpu, target_ulong pc);
 int insert_hw_breakpoint(target_ulong pc);
 int delete_hw_breakpoint(target_ulong pc);
 
-bool check_watchpoint_in_range(int i, target_ulong addr);
-CPUWatchpoint *find_hw_watchpoint(CPUState *cpu, target_ulong addr);
-int insert_hw_watchpoint(target_ulong addr, target_ulong len, int type);
-int delete_hw_watchpoint(target_ulong addr, target_ulong len, int type);
+bool check_watchpoint_in_range(int i, vaddr addr);
+CPUWatchpoint *find_hw_watchpoint(CPUState *cpu, vaddr addr);
+int insert_hw_watchpoint(vaddr addr, vaddr len, int type);
+int delete_hw_watchpoint(vaddr addr, vaddr len, int type);
 
 /* Return the current value of the system counter in ticks */
 uint64_t gt_get_countervalue(CPUARMState *env);
