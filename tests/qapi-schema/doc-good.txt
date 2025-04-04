@@ -264,7 +264,7 @@ Example::
 
    -> "this example"
 
-   <- "has no title"
+   <- ... has no title ...
 
 
 "EVT_BOXED" (Event)

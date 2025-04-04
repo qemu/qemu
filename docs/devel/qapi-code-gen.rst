@@ -1029,7 +1029,9 @@ used.
 QMP Examples can be added by using the ``.. qmp-example::`` directive.
 In its simplest form, this can be used to contain a single QMP code
 block which accepts standard JSON syntax with additional server
-directionality indicators (``->`` and ``<-``), and elisions (``...``).
+directionality indicators (``->`` and ``<-``), and elisions.  An
+elision is commonly ``...``, but it can also be or a pair of ``...``
+with text in between.
 
 Optionally, a plaintext title may be provided by using the ``:title:``
 directive option.  If the title is omitted, the example title will
@@ -1062,7 +1064,7 @@ For example::
   #               "device": "ide0-hd0",
   #               ...
   #             }
-  #             ...
+  #             ... more ...
   #          ] }
   #
   #    Above, lengthy output has been omitted for brevity.

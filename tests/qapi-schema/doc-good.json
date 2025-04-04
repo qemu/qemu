@@ -212,7 +212,7 @@
 #
 #    -> "this example"
 #
-#    <- "has no title"
+#    <- ... has no title ...
 ##
 { 'command': 'cmd-boxed', 'boxed': true,
   'data': 'Object',
