@@ -117,8 +117,6 @@ static void isa_ipmi_bt_realize(DeviceState *dev, Error **errp)
     qdev_set_legacy_instance_id(dev, iib->bt.io_base, iib->bt.io_length);
 
     isa_register_ioport(isadev, &iib->bt.io, iib->bt.io_base);
-
-    vmstate_register(NULL, 0, &vmstate_ISAIPMIBTDevice, dev);
 }
 
 static void isa_ipmi_bt_init(Object *obj)
@@ -147,6 +145,7 @@ static void isa_ipmi_bt_class_init(ObjectClass *oc, void *data)
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(oc);
 
     dc->realize = isa_ipmi_bt_realize;
+    dc->vmsd = &vmstate_ISAIPMIBTDevice;
     device_class_set_props(dc, ipmi_isa_properties);
 
     iic->get_backend_data = isa_ipmi_bt_get_backend_data;

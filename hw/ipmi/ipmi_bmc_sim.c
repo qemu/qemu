@@ -2187,8 +2187,6 @@ static void ipmi_sim_realize(DeviceState *dev, Error **errp)
     register_cmds(ibs);
 
     ibs->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ipmi_timeout, ibs);
-
-    vmstate_register(NULL, 0, &vmstate_ipmi_sim, ibs);
 }
 
 static const Property ipmi_sim_properties[] = {
@@ -2212,6 +2210,7 @@ static void ipmi_sim_class_init(ObjectClass *oc, void *data)
 
     dc->hotpluggable = false;
     dc->realize = ipmi_sim_realize;
+    dc->vmsd = &vmstate_ipmi_sim;
     device_class_set_props(dc, ipmi_sim_properties);
     bk->handle_command = ipmi_sim_handle_command;
 }
