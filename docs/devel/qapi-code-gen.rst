@@ -1038,19 +1038,14 @@ default to "Example:".
 A simple QMP example::
 
   # .. qmp-example::
-  #    :title: Using query-block
   #
-  #    -> { "execute": "query-block" }
-  #    <- { ... }
+  #     -> { "execute": "query-name" }
+  #     <- { "return": { "name": "Fred" } }
 
 More complex or multi-step examples where exposition is needed before
 or between QMP code blocks can be created by using the ``:annotated:``
 directive option.  When using this option, nested QMP code blocks must
 be entered explicitly with rST's ``::`` syntax.
-
-Highlighting in non-QMP languages can be accomplished by using the
-``.. code-block:: lang`` directive, and non-highlighted text can be
-achieved by omitting the language argument.
 
 For example::
 
@@ -1061,10 +1056,20 @@ For example::
   #    This is a more complex example that can use
   #    ``arbitrary rST syntax`` in its exposition::
   #
-  #      -> { "execute": "query-block" }
-  #      <- { ... }
+  #     -> { "execute": "query-block" }
+  #     <- { "return": [
+  #             {
+  #               "device": "ide0-hd0",
+  #               ...
+  #             }
+  #             ...
+  #          ] }
   #
   #    Above, lengthy output has been omitted for brevity.
+
+Highlighting in non-QMP languages can be accomplished by using the
+``.. code-block:: lang`` directive, and non-highlighted text can be
+achieved by omitting the language argument.
 
 
 Examples of complete definition documentation::
