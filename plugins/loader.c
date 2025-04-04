@@ -379,7 +379,7 @@ static void plugin_reset_destroy(struct qemu_plugin_reset_data *data)
 {
     qemu_rec_mutex_lock(&plugin.lock);
     plugin_reset_destroy__locked(data);
-    qemu_rec_mutex_lock(&plugin.lock);
+    qemu_rec_mutex_unlock(&plugin.lock);
 }
 
 static void plugin_flush_destroy(CPUState *cpu, run_on_cpu_data arg)
