@@ -422,7 +422,7 @@ void tcg_region_reset_all(void)
     tcg_region_tree_reset_all();
 }
 
-static size_t tcg_n_regions(size_t tb_size, unsigned max_cpus)
+static size_t tcg_n_regions(size_t tb_size, unsigned max_threads)
 {
 #ifdef CONFIG_USER_ONLY
     return 1;
@@ -431,24 +431,25 @@ static size_t tcg_n_regions(size_t tb_size, unsigned max_cpus)
 
     /*
      * It is likely that some vCPUs will translate more code than others,
-     * so we first try to set more regions than max_cpus, with those regions
+     * so we first try to set more regions than threads, with those regions
      * being of reasonable size. If that's not possible we make do by evenly
      * dividing the code_gen_buffer among the vCPUs.
+     *
+     * Use a single region if all we have is one vCPU thread.
      */
-    /* Use a single region if all we have is one vCPU thread */
-    if (max_cpus == 1 || !qemu_tcg_mttcg_enabled()) {
+    if (max_threads == 1) {
         return 1;
     }
 
     /*
-     * Try to have more regions than max_cpus, with each region being >= 2 MB.
+     * Try to have more regions than threads, with each region being >= 2 MB.
      * If we can't, then just allocate one region per vCPU thread.
      */
     n_regions = tb_size / (2 * MiB);
-    if (n_regions <= max_cpus) {
-        return max_cpus;
+    if (n_regions <= max_threads) {
+        return max_threads;
     }
-    return MIN(n_regions, max_cpus * 8);
+    return MIN(n_regions, max_threads * 8);
 #endif
 }
 
@@ -731,11 +732,7 @@ static int alloc_code_gen_buffer(size_t size, int splitwx, Error **errp)
  * and then assigning regions to TCG threads so that the threads can translate
  * code in parallel without synchronization.
  *
- * In system-mode the number of TCG threads is bounded by max_cpus, so we use at
- * least max_cpus regions in MTTCG. In !MTTCG we use a single region.
- * Note that the TCG options from the command-line (i.e. -accel accel=tcg,[...])
- * must have been parsed before calling this function, since it calls
- * qemu_tcg_mttcg_enabled().
+ * In system-mode the number of TCG threads is bounded by max_threads,
  *
  * In user-mode we use a single region.  Having multiple regions in user-mode
  * is not supported, because the number of vCPU threads (recall that each thread
@@ -749,7 +746,7 @@ static int alloc_code_gen_buffer(size_t size, int splitwx, Error **errp)
  * in practice. Multi-threaded guests share most if not all of their translated
  * code, which makes parallel code generation less appealing than in system-mode
  */
-void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
+void tcg_region_init(size_t tb_size, int splitwx, unsigned max_threads)
 {
     const size_t page_size = qemu_real_host_page_size();
     size_t region_size;
@@ -787,7 +784,7 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
      * As a result of this we might end up with a few extra pages at the end of
      * the buffer; we will assign those to the last region.
      */
-    region.n = tcg_n_regions(tb_size, max_cpus);
+    region.n = tcg_n_regions(tb_size, max_threads);
     region_size = tb_size / region.n;
     region_size = QEMU_ALIGN_DOWN(region_size, page_size);
 

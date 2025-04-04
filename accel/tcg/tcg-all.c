@@ -103,18 +103,20 @@ bool one_insn_per_tb;
 static int tcg_init_machine(MachineState *ms)
 {
     TCGState *s = TCG_STATE(current_accel());
-#ifdef CONFIG_USER_ONLY
-    unsigned max_cpus = 1;
-#else
-    unsigned max_cpus = ms->smp.max_cpus;
-#endif
+    unsigned max_threads = 1;
 
     tcg_allowed = true;
     mttcg_enabled = s->mttcg_enabled;
 
     page_init();
     tb_htable_init();
-    tcg_init(s->tb_size * MiB, s->splitwx_enabled, max_cpus);
+
+#ifndef CONFIG_USER_ONLY
+    if (mttcg_enabled) {
+        max_threads = ms->smp.max_cpus;
+    }
+#endif
+    tcg_init(s->tb_size * MiB, s->splitwx_enabled, max_threads);
 
 #if defined(CONFIG_SOFTMMU)
     /*

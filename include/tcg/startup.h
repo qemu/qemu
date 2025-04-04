@@ -29,12 +29,12 @@
  * tcg_init: Initialize the TCG runtime
  * @tb_size: translation buffer size
  * @splitwx: use separate rw and rx mappings
- * @max_cpus: number of vcpus in system mode
+ * @max_threads: number of vcpu threads in system mode
  *
  * Allocate and initialize TCG resources, especially the JIT buffer.
- * In user-only mode, @max_cpus is unused.
+ * In user-only mode, @max_threads is unused.
  */
-void tcg_init(size_t tb_size, int splitwx, unsigned max_cpus);
+void tcg_init(size_t tb_size, int splitwx, unsigned max_threads);
 
 /**
  * tcg_register_thread: Register this thread with the TCG runtime
