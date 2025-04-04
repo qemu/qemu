@@ -7,21 +7,16 @@ system_ss.add(when: ['CONFIG_XEN_BUS'], if_true: files(
   'xen_pvdev.c',
 ))
 
-system_ss.add(when: ['CONFIG_XEN', xen], if_true: files(
-  'xen-operations.c',
-),
-if_false: files(
-  'xen_stubs.c',
-))
-
-xen_specific_ss = ss.source_set()
-xen_specific_ss.add(files(
-  'xen-mapcache.c',
+xen_common_ss = ss.source_set()
+xen_common_ss.add(files(
   'xen-hvm-common.c',
+  'xen-mapcache.c',
+  'xen-operations.c',
   'xen-pvh-common.c',
 ))
+
 if have_xen_pci_passthrough
-  xen_specific_ss.add(files(
+  xen_common_ss.add(files(
     'xen-host-pci-device.c',
     'xen_pt.c',
     'xen_pt_config_init.c',
@@ -30,7 +25,8 @@ if have_xen_pci_passthrough
     'xen_pt_msi.c',
   ))
 else
-  xen_specific_ss.add(files('xen_pt_stub.c'))
+  xen_common_ss.add(files('xen_pt_stub.c'))
 endif
 
-specific_ss.add_all(when: ['CONFIG_XEN', xen], if_true: xen_specific_ss)
+system_ss.add_all(when: ['CONFIG_XEN', xen], if_true: xen_common_ss)
+system_ss.add(when: ['CONFIG_XEN', xen], if_false: files('xen_stubs.c'))
