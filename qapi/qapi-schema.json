@@ -26,10 +26,10 @@
 #
 # Example:
 #
-# ::
+# .. qmp-example::
 #
-#   -> data issued by the Client
-#   <- Server data response
+#   -> ... text sent by client (commands) ...
+#   <- ... text sent by server (command responses and events) ...
 #
 # Please refer to the
 # :doc:`QEMU Machine Protocol Specification </interop/qmp-spec>`
