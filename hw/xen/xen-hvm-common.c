@@ -2,8 +2,8 @@
 #include "qemu/units.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
+#include "qemu/target-info.h"
 #include "qapi/error.h"
-#include "exec/target_long.h"
 #include "exec/target_page.h"
 #include "trace.h"
 
@@ -455,7 +455,7 @@ static void handle_ioreq(XenIOState *state, ioreq_t *req)
                        req->addr, req->data, req->count, req->size);
 
     if (!req->data_is_ptr && (req->dir == IOREQ_WRITE) &&
-            (req->size < sizeof (target_ulong))) {
+            (req_size_bits < target_long_bits())) {
         req->data &= MAKE_64BIT_MASK(0, req_size_bits);
     }
 
