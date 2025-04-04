@@ -763,8 +763,8 @@ Names beginning with ``x-`` used to signify "experimental".  This
 convention has been replaced by special feature "unstable".
 
 Pragmas ``command-name-exceptions`` and ``member-name-exceptions`` let
-you violate naming rules.  Use for new code is strongly discouraged. See
-`Pragma directives`_ for details.
+you violate naming rules.  Use for new code is strongly discouraged.
+See `Pragma directives`_ for details.
 
 
 Downstream extensions
@@ -1013,7 +1013,7 @@ like this::
 document the success and the error response, respectively.
 
 "Errors" sections should be formatted as an rST list, each entry
-detailing a relevant error condition. For example::
+detailing a relevant error condition.  For example::
 
  # Errors:
  #     - If @device does not exist, DeviceNotFound
@@ -1026,13 +1026,13 @@ definition.
 QMP).  In other sections, the text is formatted, and rST markup can be
 used.
 
-QMP Examples can be added by using the ``.. qmp-example::``
-directive. In its simplest form, this can be used to contain a single
-QMP code block which accepts standard JSON syntax with additional server
+QMP Examples can be added by using the ``.. qmp-example::`` directive.
+In its simplest form, this can be used to contain a single QMP code
+block which accepts standard JSON syntax with additional server
 directionality indicators (``->`` and ``<-``), and elisions (``...``).
 
 Optionally, a plaintext title may be provided by using the ``:title:``
-directive option. If the title is omitted, the example title will
+directive option.  If the title is omitted, the example title will
 default to "Example:".
 
 A simple QMP example::
@@ -1043,10 +1043,10 @@ A simple QMP example::
   #    -> { "execute": "query-block" }
   #    <- { ... }
 
-More complex or multi-step examples where exposition is needed before or
-between QMP code blocks can be created by using the ``:annotated:``
-directive option. When using this option, nested QMP code blocks must be
-entered explicitly with rST's ``::`` syntax.
+More complex or multi-step examples where exposition is needed before
+or between QMP code blocks can be created by using the ``:annotated:``
+directive option.  When using this option, nested QMP code blocks must
+be entered explicitly with rST's ``::`` syntax.
 
 Highlighting in non-QMP languages can be accomplished by using the
 ``.. code-block:: lang`` directive, and non-highlighted text can be
@@ -1466,7 +1466,9 @@ As an example, we'll use the following schema, which describes a
 single complex user-defined type, along with command which takes a
 list of that type as a parameter, and returns a single element of that
 type.  The user is responsible for writing the implementation of
-qmp_my_command(); everything else is produced by the generator. ::
+qmp_my_command(); everything else is produced by the generator.
+
+::
 
     $ cat example-schema.json
     { 'struct': 'UserDefOne',
