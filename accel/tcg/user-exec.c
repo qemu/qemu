@@ -749,7 +749,8 @@ int page_unprotect(CPUState *cpu, tb_page_addr_t address, uintptr_t pc)
             len = TARGET_PAGE_SIZE;
             prot = p->flags | PAGE_WRITE;
             pageflags_set_clear(start, start + len - 1, PAGE_WRITE, 0);
-            current_tb_invalidated = tb_invalidate_phys_page_unwind(start, pc);
+            current_tb_invalidated =
+                tb_invalidate_phys_page_unwind(cpu, start, pc);
         } else {
             start = address & -host_page_size;
             len = host_page_size;
@@ -772,7 +773,7 @@ int page_unprotect(CPUState *cpu, tb_page_addr_t address, uintptr_t pc)
                  * the corresponding translated code.
                  */
                 current_tb_invalidated |=
-                    tb_invalidate_phys_page_unwind(addr, pc);
+                    tb_invalidate_phys_page_unwind(cpu, addr, pc);
             }
         }
         if (prot & PAGE_EXEC) {

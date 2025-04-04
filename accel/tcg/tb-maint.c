@@ -1045,7 +1045,8 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr)
  * TB (because it was modified by this store and the guest CPU has
  * precise-SMC semantics).
  */
-bool tb_invalidate_phys_page_unwind(tb_page_addr_t addr, uintptr_t pc)
+bool tb_invalidate_phys_page_unwind(CPUState *cpu, tb_page_addr_t addr,
+                                    uintptr_t pc)
 {
     TranslationBlock *current_tb;
     bool current_tb_modified;
@@ -1083,15 +1084,14 @@ bool tb_invalidate_phys_page_unwind(tb_page_addr_t addr, uintptr_t pc)
              * the CPU state.
              */
             current_tb_modified = true;
-            cpu_restore_state_from_tb(current_cpu, current_tb, pc);
+            cpu_restore_state_from_tb(cpu, current_tb, pc);
         }
         tb_phys_invalidate__locked(tb);
     }
 
     if (current_tb_modified) {
         /* Force execution of one insn next time.  */
-        CPUState *cpu = current_cpu;
-        cpu->cflags_next_tb = 1 | CF_NOIRQ | curr_cflags(current_cpu);
+        cpu->cflags_next_tb = 1 | CF_NOIRQ | curr_cflags(cpu);
         return true;
     }
     return false;
