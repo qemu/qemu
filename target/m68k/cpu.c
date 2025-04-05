@@ -591,6 +591,7 @@ static const struct SysemuCPUOps m68k_sysemu_ops = {
 static const TCGCPUOps m68k_tcg_ops = {
     /* MTTCG not yet supported: require strict ordering */
     .guest_default_memory_order = TCG_MO_ALL,
+    .mttcg_supported = false,
 
     .initialize = m68k_tcg_init,
     .translate_code = m68k_translate_code,

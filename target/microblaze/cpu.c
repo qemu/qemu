@@ -429,6 +429,7 @@ static const struct SysemuCPUOps mb_sysemu_ops = {
 static const TCGCPUOps mb_tcg_ops = {
     /* MicroBlaze is always in-order. */
     .guest_default_memory_order = TCG_MO_ALL,
+    .mttcg_supported = true,
 
     .initialize = mb_tcg_init,
     .translate_code = mb_translate_code,

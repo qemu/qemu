@@ -141,6 +141,7 @@ static void riscv_restore_state_to_opc(CPUState *cs,
 }
 
 const TCGCPUOps riscv_tcg_ops = {
+    .mttcg_supported = true,
     .guest_default_memory_order = 0,
 
     .initialize = riscv_translate_init,

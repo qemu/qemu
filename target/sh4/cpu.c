@@ -264,6 +264,7 @@ static const struct SysemuCPUOps sh4_sysemu_ops = {
 static const TCGCPUOps superh_tcg_ops = {
     /* MTTCG not yet supported: require strict ordering */
     .guest_default_memory_order = TCG_MO_ALL,
+    .mttcg_supported = false,
 
     .initialize = sh4_translate_init,
     .translate_code = sh4_translate_code,

@@ -237,6 +237,7 @@ static const struct SysemuCPUOps alpha_sysemu_ops = {
 static const TCGCPUOps alpha_tcg_ops = {
     /* Alpha processors have a weak memory model */
     .guest_default_memory_order = 0,
+    .mttcg_supported = true,
 
     .initialize = alpha_translate_init,
     .translate_code = alpha_translate_code,

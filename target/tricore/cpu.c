@@ -174,6 +174,7 @@ static const struct SysemuCPUOps tricore_sysemu_ops = {
 static const TCGCPUOps tricore_tcg_ops = {
     /* MTTCG not yet supported: require strict ordering */
     .guest_default_memory_order = TCG_MO_ALL,
+    .mttcg_supported = false,
     .initialize = tricore_tcg_init,
     .translate_code = tricore_translate_code,
     .synchronize_from_tb = tricore_cpu_synchronize_from_tb,

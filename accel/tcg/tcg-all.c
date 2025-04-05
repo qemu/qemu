@@ -41,8 +41,9 @@
 #include "hw/boards.h"
 #include "system/tcg.h"
 #endif
+#include "accel/tcg/cpu-ops.h"
 #include "internal-common.h"
-#include "cpu-param.h"
+#include "cpu.h"
 
 
 struct TCGState {
@@ -88,11 +89,9 @@ static int tcg_init_machine(MachineState *ms)
     unsigned max_threads = 1;
 
 #ifndef CONFIG_USER_ONLY
-# ifdef TARGET_SUPPORTS_MTTCG
-    bool mttcg_supported = true;
-# else
-    bool mttcg_supported = false;
-# endif
+    CPUClass *cc = CPU_CLASS(object_class_by_name(CPU_RESOLVING_TYPE));
+    bool mttcg_supported = cc->tcg_ops->mttcg_supported;
+
     switch (s->mttcg_enabled) {
     case ON_OFF_AUTO_AUTO:
         /*

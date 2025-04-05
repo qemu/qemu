@@ -260,6 +260,7 @@ static const TCGCPUOps hppa_tcg_ops = {
      * basis.  It's probably easier to fall back to a strong memory model.
      */
     .guest_default_memory_order = TCG_MO_ALL,
+    .mttcg_supported = true,
 
     .initialize = hppa_translate_init,
     .translate_code = hppa_translate_code,

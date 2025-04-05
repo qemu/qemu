@@ -1023,6 +1023,7 @@ static const TCGCPUOps sparc_tcg_ops = {
      *   by an implied MEMBAR #StoreStore.
      */
     .guest_default_memory_order = TCG_MO_LD_LD | TCG_MO_LD_ST | TCG_MO_ST_ST,
+    .mttcg_supported = true,
 
     .initialize = sparc_tcg_init,
     .translate_code = sparc_translate_code,

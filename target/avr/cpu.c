@@ -225,6 +225,7 @@ static const struct SysemuCPUOps avr_sysemu_ops = {
 
 static const TCGCPUOps avr_tcg_ops = {
     .guest_default_memory_order = 0,
+    .mttcg_supported = false,
     .initialize = avr_cpu_tcg_init,
     .translate_code = avr_cpu_translate_code,
     .synchronize_from_tb = avr_cpu_synchronize_from_tb,
