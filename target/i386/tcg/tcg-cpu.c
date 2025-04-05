@@ -124,7 +124,7 @@ static bool x86_debug_check_breakpoint(CPUState *cs)
 
 #include "accel/tcg/cpu-ops.h"
 
-static const TCGCPUOps x86_tcg_ops = {
+const TCGCPUOps x86_tcg_ops = {
     /*
      * The x86 has a strong memory model with some store-after-load re-ordering
      */
@@ -151,17 +151,6 @@ static const TCGCPUOps x86_tcg_ops = {
     .need_replay_interrupt = x86_need_replay_interrupt,
 #endif /* !CONFIG_USER_ONLY */
 };
-
-static void x86_tcg_cpu_init_ops(AccelCPUClass *accel_cpu, CPUClass *cc)
-{
-    /* for x86, all cpus use the same set of operations */
-    cc->tcg_ops = &x86_tcg_ops;
-}
-
-static void x86_tcg_cpu_class_init(CPUClass *cc)
-{
-    cc->init_accel_cpu = x86_tcg_cpu_init_ops;
-}
 
 static void x86_tcg_cpu_xsave_init(void)
 {
@@ -211,7 +200,6 @@ static void x86_tcg_cpu_accel_class_init(ObjectClass *oc, void *data)
     acc->cpu_target_realize = tcg_cpu_realizefn;
 #endif /* CONFIG_USER_ONLY */
 
-    acc->cpu_class_init = x86_tcg_cpu_class_init;
     acc->cpu_instance_init = x86_tcg_cpu_instance_init;
 }
 static const TypeInfo x86_tcg_cpu_accel_type_info = {
