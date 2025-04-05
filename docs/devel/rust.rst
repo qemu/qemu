@@ -66,6 +66,8 @@ be run via ``meson test`` or ``make``::
 
    make check-rust
 
+Note that doctests require all ``.o`` files from the build to be available.
+
 Supported tools
 '''''''''''''''
 

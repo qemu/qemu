@@ -76,7 +76,8 @@
       fi
     - section_end buildenv
     - section_start test "Running tests"
-    - $MAKE NINJA=":" $MAKE_CHECK_ARGS
+    # doctests need all the compilation artifacts
+    - $MAKE NINJA=":" MTESTARGS="--no-suite doc" $MAKE_CHECK_ARGS
     - section_end test
 
 .native_test_job_template:
