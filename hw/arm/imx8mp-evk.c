@@ -19,7 +19,22 @@
 
 static void imx8mp_evk_modify_dtb(const struct arm_boot_info *info, void *fdt)
 {
-    int offset;
+    int i, offset;
+
+    /* Temporarily disable following nodes until they are implemented */
+    const char *nodes_to_remove[] = {
+        "nxp,imx8mp-fspi",
+    };
+
+    for (i = 0; i < ARRAY_SIZE(nodes_to_remove); i++) {
+        const char *dev_str = nodes_to_remove[i];
+
+        offset = fdt_node_offset_by_compatible(fdt, -1, dev_str);
+        while (offset >= 0) {
+            fdt_nop_node(fdt, offset);
+            offset = fdt_node_offset_by_compatible(fdt, offset, dev_str);
+        }
+    }
 
     /* Remove cpu-idle-states property from CPU nodes */
     offset = fdt_node_offset_by_compatible(fdt, -1, "arm,cortex-a53");
