@@ -15,6 +15,19 @@
 #include "system/qtest.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include <libfdt.h>
+
+static void imx8mp_evk_modify_dtb(const struct arm_boot_info *info, void *fdt)
+{
+    int offset;
+
+    /* Remove cpu-idle-states property from CPU nodes */
+    offset = fdt_node_offset_by_compatible(fdt, -1, "arm,cortex-a53");
+    while (offset >= 0) {
+        fdt_nop_property(fdt, offset, "cpu-idle-states");
+        offset = fdt_node_offset_by_compatible(fdt, offset, "arm,cortex-a53");
+    }
+}
 
 static void imx8mp_evk_init(MachineState *machine)
 {
@@ -32,6 +45,7 @@ static void imx8mp_evk_init(MachineState *machine)
         .board_id = -1,
         .ram_size = machine->ram_size,
         .psci_conduit = QEMU_PSCI_CONDUIT_SMC,
+        .modify_dtb = imx8mp_evk_modify_dtb,
     };
 
     s = FSL_IMX8MP(object_new(TYPE_FSL_IMX8MP));
