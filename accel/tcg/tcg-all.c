@@ -60,14 +60,11 @@ DECLARE_INSTANCE_CHECKER(TCGState, TCG_STATE,
                          TYPE_TCG_ACCEL)
 
 #ifndef CONFIG_USER_ONLY
-
-static bool mttcg_enabled;
-
 bool qemu_tcg_mttcg_enabled(void)
 {
-    return mttcg_enabled;
+    TCGState *s = TCG_STATE(current_accel());
+    return s->mttcg_enabled;
 }
-
 #endif /* !CONFIG_USER_ONLY */
 
 /*
@@ -124,7 +121,6 @@ static int tcg_init_machine(MachineState *ms)
 #ifndef CONFIG_USER_ONLY
     if (s->mttcg_enabled) {
         max_threads = ms->smp.max_cpus;
-        mttcg_enabled = true;
     }
 #endif
     tcg_init(s->tb_size * MiB, s->splitwx_enabled, max_threads);
