@@ -93,7 +93,8 @@ static int tcg_init_machine(MachineState *ms)
 # else
     bool mttcg_supported = false;
 # endif
-    if (s->mttcg_enabled == ON_OFF_AUTO_AUTO) {
+    switch (s->mttcg_enabled) {
+    case ON_OFF_AUTO_AUTO:
         /*
          * We default to false if we know other options have been enabled
          * which are currently incompatible with MTTCG. Otherwise when each
@@ -108,12 +109,22 @@ static int tcg_init_machine(MachineState *ms)
          */
         if (mttcg_supported && !icount_enabled()) {
             s->mttcg_enabled = ON_OFF_AUTO_ON;
+            max_threads = ms->smp.max_cpus;
         } else {
             s->mttcg_enabled = ON_OFF_AUTO_OFF;
         }
-    }
-    if (s->mttcg_enabled == ON_OFF_AUTO_ON) {
+        break;
+    case ON_OFF_AUTO_ON:
+        if (!mttcg_supported) {
+            warn_report("Guest not yet converted to MTTCG - "
+                        "you may get unexpected results");
+        }
         max_threads = ms->smp.max_cpus;
+        break;
+    case ON_OFF_AUTO_OFF:
+        break;
+    default:
+        g_assert_not_reached();
     }
 #endif
 
@@ -153,10 +164,6 @@ static void tcg_set_thread(Object *obj, const char *value, Error **errp)
         if (icount_enabled()) {
             error_setg(errp, "No MTTCG when icount is enabled");
         } else {
-#ifndef TARGET_SUPPORTS_MTTCG
-            warn_report("Guest not yet converted to MTTCG - "
-                        "you may get unexpected results");
-#endif
             s->mttcg_enabled = ON_OFF_AUTO_ON;
         }
     } else if (strcmp(value, "single") == 0) {
