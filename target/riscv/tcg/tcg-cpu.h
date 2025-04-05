@@ -26,6 +26,8 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp);
 void riscv_tcg_cpu_finalize_features(RISCVCPU *cpu, Error **errp);
 bool riscv_cpu_tcg_compatible(RISCVCPU *cpu);
 
+extern const TCGCPUOps riscv_tcg_ops;
+
 struct DisasContext;
 struct RISCVCPUConfig;
 typedef struct RISCVDecoder {

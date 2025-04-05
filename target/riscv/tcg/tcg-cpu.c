@@ -140,7 +140,7 @@ static void riscv_restore_state_to_opc(CPUState *cs,
     env->excp_uw2 = data[2];
 }
 
-static const TCGCPUOps riscv_tcg_ops = {
+const TCGCPUOps riscv_tcg_ops = {
     .guest_default_memory_order = 0,
 
     .initialize = riscv_translate_init,
@@ -1527,24 +1527,10 @@ static void riscv_tcg_cpu_instance_init(CPUState *cs)
     }
 }
 
-static void riscv_tcg_cpu_init_ops(AccelCPUClass *accel_cpu, CPUClass *cc)
-{
-    /*
-     * All cpus use the same set of operations.
-     */
-    cc->tcg_ops = &riscv_tcg_ops;
-}
-
-static void riscv_tcg_cpu_class_init(CPUClass *cc)
-{
-    cc->init_accel_cpu = riscv_tcg_cpu_init_ops;
-}
-
 static void riscv_tcg_cpu_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelCPUClass *acc = ACCEL_CPU_CLASS(oc);
 
-    acc->cpu_class_init = riscv_tcg_cpu_class_init;
     acc->cpu_instance_init = riscv_tcg_cpu_instance_init;
     acc->cpu_target_realize = riscv_tcg_cpu_realize;
 }
