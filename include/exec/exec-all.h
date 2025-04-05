@@ -121,10 +121,8 @@ int probe_access_full_mmu(CPUArchState *env, vaddr addr, int size,
 #endif /* CONFIG_TCG */
 
 /* TranslationBlock invalidate API */
-void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
 void tb_invalidate_phys_range(CPUState *cpu, tb_page_addr_t start,
                               tb_page_addr_t last);
-void tb_set_jmp_target(TranslationBlock *tb, int n, uintptr_t addr);
 
 #if !defined(CONFIG_USER_ONLY)
 
