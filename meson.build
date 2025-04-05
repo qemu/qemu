@@ -4404,7 +4404,7 @@ foreach target : target_dirs
                               build_by_default: true,
                               build_always_stale: true)
       rlib = static_library('rust_' + target.underscorify(),
-                            rlib_rs,
+                            structured_sources([], {'.': rlib_rs}),
                             dependencies: target_rust.dependencies(),
                             override_options: ['rust_std=2021', 'build.rust_std=2021'],
                             rust_abi: 'c')
