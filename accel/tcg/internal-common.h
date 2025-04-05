@@ -11,6 +11,7 @@
 
 #include "exec/cpu-common.h"
 #include "exec/translation-block.h"
+#include "exec/mmap-lock.h"
 
 extern int64_t max_delay;
 extern int64_t max_advance;
@@ -107,5 +108,33 @@ static inline tb_page_addr_t get_page_addr_code(CPUArchState *env,
 {
     return get_page_addr_code_hostp(env, addr, NULL);
 }
+
+/*
+ * Access to the various translations structures need to be serialised
+ * via locks for consistency.  In user-mode emulation access to the
+ * memory related structures are protected with mmap_lock.
+ * In !user-mode we use per-page locks.
+ */
+#ifdef CONFIG_USER_ONLY
+#define assert_memory_lock() tcg_debug_assert(have_mmap_lock())
+#else
+#define assert_memory_lock()
+#endif
+
+#if defined(CONFIG_SOFTMMU) && defined(CONFIG_DEBUG_TCG)
+void assert_no_pages_locked(void);
+#else
+static inline void assert_no_pages_locked(void) { }
+#endif
+
+#ifdef CONFIG_USER_ONLY
+static inline void page_table_config_init(void) { }
+#else
+void page_table_config_init(void);
+#endif
+
+#ifndef CONFIG_USER_ONLY
+G_NORETURN void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr);
+#endif /* CONFIG_USER_ONLY */
 
 #endif

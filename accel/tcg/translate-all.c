@@ -66,7 +66,6 @@
 #include "tb-context.h"
 #include "tb-internal.h"
 #include "internal-common.h"
-#include "internal-target.h"
 #include "tcg/perf.h"
 #include "tcg/insn-start-words.h"
 #include "cpu.h"

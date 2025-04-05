@@ -43,7 +43,6 @@
 #include "tb-internal.h"
 #include "tlb-bounds.h"
 #include "internal-common.h"
-#include "internal-target.h"
 #ifdef CONFIG_PLUGIN
 #include "qemu/plugin-memory.h"
 #endif
