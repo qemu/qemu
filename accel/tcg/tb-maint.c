@@ -28,6 +28,7 @@
 #include "exec/mmap-lock.h"
 #include "exec/tb-flush.h"
 #include "exec/target_page.h"
+#include "accel/tcg/cpu-ops.h"
 #include "tb-internal.h"
 #include "system/tcg.h"
 #include "tcg/tcg.h"
@@ -1042,9 +1043,7 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr)
 /*
  * Called with mmap_lock held. If pc is not 0 then it indicates the
  * host PC of the faulting store instruction that caused this invalidate.
- * Returns true if the caller needs to abort execution of the current
- * TB (because it was modified by this store and the guest CPU has
- * precise-SMC semantics).
+ * Returns true if the caller needs to abort execution of the current TB.
  */
 bool tb_invalidate_phys_page_unwind(CPUState *cpu, tb_page_addr_t addr,
                                     uintptr_t pc)
@@ -1059,10 +1058,7 @@ bool tb_invalidate_phys_page_unwind(CPUState *cpu, tb_page_addr_t addr,
      * Without precise smc semantics, or when outside of a TB,
      * we can skip to invalidate.
      */
-#ifndef TARGET_HAS_PRECISE_SMC
-    pc = 0;
-#endif
-    if (!pc) {
+    if (!pc || !cpu || !cpu->cc->tcg_ops->precise_smc) {
         tb_invalidate_phys_page(addr);
         return false;
     }
@@ -1113,13 +1109,15 @@ tb_invalidate_phys_page_range__locked(CPUState *cpu,
 {
     TranslationBlock *tb;
     PageForEachNext n;
-#ifdef TARGET_HAS_PRECISE_SMC
     bool current_tb_modified = false;
-    TranslationBlock *current_tb = retaddr ? tcg_tb_lookup(retaddr) : NULL;
-#endif /* TARGET_HAS_PRECISE_SMC */
+    TranslationBlock *current_tb = NULL;
 
     /* Range may not cross a page. */
     tcg_debug_assert(((start ^ last) & TARGET_PAGE_MASK) == 0);
+
+    if (retaddr && cpu && cpu->cc->tcg_ops->precise_smc) {
+        current_tb = tcg_tb_lookup(retaddr);
+    }
 
     /*
      * We remove all the TBs in the range [start, last].
@@ -1138,8 +1136,7 @@ tb_invalidate_phys_page_range__locked(CPUState *cpu,
             tb_last = tb_start + (tb_last & ~TARGET_PAGE_MASK);
         }
         if (!(tb_last < start || tb_start > last)) {
-#ifdef TARGET_HAS_PRECISE_SMC
-            if (current_tb == tb &&
+            if (unlikely(current_tb == tb) &&
                 (tb_cflags(current_tb) & CF_COUNT_MASK) != 1) {
                 /*
                  * If we are modifying the current TB, we must stop
@@ -1149,9 +1146,8 @@ tb_invalidate_phys_page_range__locked(CPUState *cpu,
                  * restore the CPU state.
                  */
                 current_tb_modified = true;
-                cpu_restore_state_from_tb(current_cpu, current_tb, retaddr);
+                cpu_restore_state_from_tb(cpu, current_tb, retaddr);
             }
-#endif /* TARGET_HAS_PRECISE_SMC */
             tb_phys_invalidate__locked(tb);
         }
     }
@@ -1161,15 +1157,13 @@ tb_invalidate_phys_page_range__locked(CPUState *cpu,
         tlb_unprotect_code(start);
     }
 
-#ifdef TARGET_HAS_PRECISE_SMC
-    if (current_tb_modified) {
+    if (unlikely(current_tb_modified)) {
         page_collection_unlock(pages);
         /* Force execution of one insn next time.  */
-        current_cpu->cflags_next_tb = 1 | CF_NOIRQ | curr_cflags(current_cpu);
+        cpu->cflags_next_tb = 1 | CF_NOIRQ | curr_cflags(cpu);
         mmap_unlock();
-        cpu_loop_exit_noexc(current_cpu);
+        cpu_loop_exit_noexc(cpu);
     }
-#endif
 }
 
 /*

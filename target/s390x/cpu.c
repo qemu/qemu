@@ -346,6 +346,7 @@ void cpu_get_tb_cpu_state(CPUS390XState *env, vaddr *pc,
 
 static const TCGCPUOps s390_tcg_ops = {
     .mttcg_supported = true,
+    .precise_smc = true,
     /*
      * The z/Architecture has a strong memory model with some
      * store-after-load re-ordering.

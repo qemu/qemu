@@ -733,12 +733,12 @@ int page_unprotect(CPUState *cpu, tb_page_addr_t address, uintptr_t pc)
          * this thread raced with another one which got here first and
          * set the page to PAGE_WRITE and did the TB invalidate for us.
          */
-#ifdef TARGET_HAS_PRECISE_SMC
-        TranslationBlock *current_tb = tcg_tb_lookup(pc);
-        if (current_tb) {
-            current_tb_invalidated = tb_cflags(current_tb) & CF_INVALID;
+        if (pc && cpu->cc->tcg_ops->precise_smc) {
+            TranslationBlock *current_tb = tcg_tb_lookup(pc);
+            if (current_tb) {
+                current_tb_invalidated = tb_cflags(current_tb) & CF_INVALID;
+            }
         }
-#endif
     } else {
         int host_page_size = qemu_real_host_page_size();
         target_ulong start, len, i;

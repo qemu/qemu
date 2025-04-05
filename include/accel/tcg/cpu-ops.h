@@ -29,6 +29,13 @@ struct TCGCPUOps {
     bool mttcg_supported;
 
     /**
+     * @precise_smc: Stores which modify code within the current TB force
+     *               the TB to exit; the next executed instruction will see
+     *               the result of the store.
+     */
+    bool precise_smc;
+
+    /**
      * @guest_default_memory_order: default barrier that is required
      *                              for the guest memory ordering.
      */
