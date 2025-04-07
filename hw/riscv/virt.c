@@ -1276,27 +1276,22 @@ static FWCfgState *create_fw_cfg(const MachineState *ms)
 static DeviceState *virt_create_plic(const MemMapEntry *memmap, int socket,
                                      int base_hartid, int hart_count)
 {
-    DeviceState *ret;
     g_autofree char *plic_hart_config = NULL;
 
     /* Per-socket PLIC hart topology configuration string */
     plic_hart_config = riscv_plic_hart_config_string(hart_count);
 
     /* Per-socket PLIC */
-    ret = sifive_plic_create(
-            memmap[VIRT_PLIC].base + socket * memmap[VIRT_PLIC].size,
-            plic_hart_config, hart_count, base_hartid,
-            VIRT_IRQCHIP_NUM_SOURCES,
-            ((1U << VIRT_IRQCHIP_NUM_PRIO_BITS) - 1),
-            VIRT_PLIC_PRIORITY_BASE,
-            VIRT_PLIC_PENDING_BASE,
-            VIRT_PLIC_ENABLE_BASE,
-            VIRT_PLIC_ENABLE_STRIDE,
-            VIRT_PLIC_CONTEXT_BASE,
-            VIRT_PLIC_CONTEXT_STRIDE,
-            memmap[VIRT_PLIC].size);
-
-    return ret;
+    return sifive_plic_create(
+             memmap[VIRT_PLIC].base + socket * memmap[VIRT_PLIC].size,
+             plic_hart_config, hart_count, base_hartid,
+             VIRT_IRQCHIP_NUM_SOURCES,
+             ((1U << VIRT_IRQCHIP_NUM_PRIO_BITS) - 1),
+             VIRT_PLIC_PRIORITY_BASE, VIRT_PLIC_PENDING_BASE,
+             VIRT_PLIC_ENABLE_BASE, VIRT_PLIC_ENABLE_STRIDE,
+             VIRT_PLIC_CONTEXT_BASE,
+             VIRT_PLIC_CONTEXT_STRIDE,
+             memmap[VIRT_PLIC].size);
 }
 
 static DeviceState *virt_create_aia(RISCVVirtAIAType aia_type, int aia_guests,

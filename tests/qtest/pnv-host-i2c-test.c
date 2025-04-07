@@ -191,12 +191,10 @@ static uint8_t pnv_i2c_pca9554_read_pins(PnvI2cDev *dev)
 {
     uint8_t send_buf[1];
     uint8_t recv_buf[1];
-    uint8_t inputs;
     send_buf[0] = PCA9554_INPUT;
     pnv_i2c_send(dev, send_buf, 1);
     pnv_i2c_recv(dev, recv_buf, 1);
-    inputs = recv_buf[0];
-    return inputs;
+    return recv_buf[0];
 }
 
 static void pnv_i2c_pca9554_flip_polarity(PnvI2cDev *dev)
