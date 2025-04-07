@@ -68,10 +68,9 @@ struct SCSIDiskClass {
     SCSIDeviceClass parent_class;
     /*
      * Callbacks receive ret == 0 for success. Errors are represented either as
-     * negative errno values, or as positive SAM status codes.
-     *
-     * Beware: For errors returned in host_status, the function may directly
-     * complete the request and never call the callback.
+     * negative errno values, or as positive SAM status codes. For host_status
+     * errors, the function passes ret == -ENODEV and sets the host_status field
+     * of the SCSIRequest.
      */
     DMAIOFunc       *dma_readv;
     DMAIOFunc       *dma_writev;
@@ -226,10 +225,25 @@ static bool scsi_handle_rw_error(SCSIDiskReq *r, int ret, bool acct_failed)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(OBJECT(s));
     SCSISense sense = SENSE_CODE(NO_SENSE);
+    int16_t host_status;
     int error;
     bool req_has_sense = false;
     BlockErrorAction action;
     int status;
+
+    /*
+     * host_status should only be set for SG_IO requests that came back with a
+     * host_status error in scsi_block_sgio_complete(). This error path passes
+     * -ENODEV as the return value.
+     *
+     * Reset host_status in the request because we may still want to complete
+     * the request successfully with the 'stop' or 'ignore' error policy.
+     */
+    host_status = r->req.host_status;
+    if (host_status != -1) {
+        assert(ret == -ENODEV);
+        r->req.host_status = -1;
+    }
 
     if (ret < 0) {
         status = scsi_sense_from_errno(-ret, &sense);
@@ -289,6 +303,10 @@ static bool scsi_handle_rw_error(SCSIDiskReq *r, int ret, bool acct_failed)
     case BLOCK_ERROR_ACTION_REPORT:
         if (acct_failed) {
             block_acct_failed(blk_get_stats(s->qdev.conf.blk), &r->acct);
+        }
+        if (host_status != -1) {
+            scsi_req_complete_failed(&r->req, host_status);
+            return true;
         }
         if (req_has_sense) {
             sdc->update_sense(&r->req);
@@ -411,7 +429,6 @@ done:
     scsi_req_unref(&r->req);
 }
 
-/* May not be called in all error cases, don't rely on cleanup here */
 static void scsi_dma_complete(void *opaque, int ret)
 {
     SCSIDiskReq *r = (SCSIDiskReq *)opaque;
@@ -452,7 +469,6 @@ done:
     scsi_req_unref(&r->req);
 }
 
-/* May not be called in all error cases, don't rely on cleanup here */
 static void scsi_read_complete(void *opaque, int ret)
 {
     SCSIDiskReq *r = (SCSIDiskReq *)opaque;
@@ -592,7 +608,6 @@ done:
     scsi_req_unref(&r->req);
 }
 
-/* May not be called in all error cases, don't rely on cleanup here */
 static void scsi_write_complete(void * opaque, int ret)
 {
     SCSIDiskReq *r = (SCSIDiskReq *)opaque;
@@ -2854,14 +2869,10 @@ static void scsi_block_sgio_complete(void *opaque, int ret)
     sg_io_hdr_t *io_hdr = &req->io_header;
 
     if (ret == 0) {
-        /* FIXME This skips calling req->cb() and any cleanup in it */
         if (io_hdr->host_status != SCSI_HOST_OK) {
-            scsi_req_complete_failed(&r->req, io_hdr->host_status);
-            scsi_req_unref(&r->req);
-            return;
-        }
-
-        if (io_hdr->driver_status & SG_ERR_DRIVER_TIMEOUT) {
+            r->req.host_status = io_hdr->host_status;
+            ret = -ENODEV;
+        } else if (io_hdr->driver_status & SG_ERR_DRIVER_TIMEOUT) {
             ret = BUSY;
         } else {
             ret = io_hdr->status;
