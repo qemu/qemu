@@ -255,7 +255,6 @@ static void gic_write_vp(MIPSGICState *gic, uint32_t vp_index, hwaddr addr,
     return;
 bad_offset:
     qemu_log_mask(LOG_GUEST_ERROR, "Wrong GIC offset at 0x%" PRIx64 "\n", addr);
-    return;
 }
 
 static void gic_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)

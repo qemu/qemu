@@ -288,8 +288,6 @@ static void vhost_vdpa_iommu_region_add(MemoryListener *listener,
 
     QLIST_INSERT_HEAD(&s->iommu_list, iommu, iommu_next);
     memory_region_iommu_replay(iommu->iommu_mr, &iommu->n);
-
-    return;
 }
 
 static void vhost_vdpa_iommu_region_del(MemoryListener *listener,

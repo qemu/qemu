@@ -241,7 +241,6 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
 
 give_sigsegv:
     force_sigsegv(sig);
-    return;
 }
 
 static void restore_sigcontext(CPUXtensaState *env,

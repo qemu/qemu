@@ -3640,7 +3640,6 @@ static void gen_multi0F(DisasContext *s, X86DecodedInsn *decode)
     return;
  illegal_op:
     gen_illegal_opcode(s);
-    return;
 }
 
 #include "decode-new.c.inc"

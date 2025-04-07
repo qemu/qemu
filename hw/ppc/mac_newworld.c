@@ -630,8 +630,6 @@ static void core99_instance_init(Object *obj)
     object_property_set_description(obj, "via",
                                     "Set VIA configuration. "
                                     "Valid values are cuda, pmu and pmu-adb");
-
-    return;
 }
 
 static const TypeInfo core99_machine_info = {

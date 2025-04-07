@@ -1069,7 +1069,6 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
 err:
     p->status = USB_RET_STALL;
     s->bulk_out_pos = 0;
-    return;
 }
 
 static void ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p,

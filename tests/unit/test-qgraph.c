@@ -44,7 +44,6 @@ static void *driverfunct(void *obj, QGuestAllocator *machine, void *arg)
 
 static void testfunct(void *obj, void *arg, QGuestAllocator *alloc)
 {
-    return;
 }
 
 static void check_interface(const char *interface)

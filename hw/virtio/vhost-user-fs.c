@@ -267,7 +267,6 @@ err_virtio:
     g_free(fs->req_vqs);
     virtio_cleanup(vdev);
     g_free(fs->vhost_dev.vqs);
-    return;
 }
 
 static void vuf_device_unrealize(DeviceState *dev)

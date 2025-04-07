@@ -472,7 +472,6 @@ void ipmi_bmc_gen_event(IPMIBmc *b, uint8_t *evt, bool log)
     ibs->msg_flags |= IPMI_BMC_MSG_FLAG_EVT_BUF_FULL;
     k->set_atn(s, 1, attn_irq_enabled(ibs));
  out:
-    return;
 }
 static void gen_event(IPMIBmcSim *ibs, unsigned int sens_num, uint8_t deassert,
                       uint8_t evd1, uint8_t evd2, uint8_t evd3)
@@ -1014,7 +1013,6 @@ static void get_msg(IPMIBmcSim *ibs,
     }
 
 out:
-    return;
 }
 
 static unsigned char

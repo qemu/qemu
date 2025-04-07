@@ -342,5 +342,4 @@ void migrate_allocator(QGuestAllocator *src,
     QTAILQ_INIT(src->free);
     node = mlist_new(src->start, src->end - src->start);
     QTAILQ_INSERT_HEAD(src->free, node, MLIST_ENTNAME);
-    return;
 }

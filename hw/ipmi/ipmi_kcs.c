@@ -198,7 +198,6 @@ static void ipmi_kcs_handle_event(IPMIInterface *ii)
     ik->data_in_reg = -1;
     IPMI_KCS_SET_IBF(ik->status_reg, 0);
  out_noibf:
-    return;
 }
 
 static void ipmi_kcs_handle_rsp(IPMIInterface *ii, uint8_t msg_id,

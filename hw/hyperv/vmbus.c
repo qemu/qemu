@@ -2073,7 +2073,6 @@ static void send_unload(VMBus *vmbus)
     qemu_mutex_unlock(&vmbus->rx_queue_lock);
 
     post_msg(vmbus, &msg, sizeof(msg));
-    return;
 }
 
 static bool complete_unload(VMBus *vmbus)

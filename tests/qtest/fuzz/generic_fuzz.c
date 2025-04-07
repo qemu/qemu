@@ -572,7 +572,6 @@ static void op_add_dma_pattern(QTestState *s,
     pattern p = {a.index, a.stride, len - sizeof(a), data + sizeof(a)};
     p.index = a.index % p.len;
     g_array_append_val(dma_patterns, p);
-    return;
 }
 
 static void op_clear_dma_patterns(QTestState *s,

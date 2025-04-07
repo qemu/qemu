@@ -146,7 +146,6 @@ static void ipmi_bt_handle_event(IPMIInterface *ii)
                            sizeof(ib->inmsg), ib->waiting_rsp);
     }
  out:
-    return;
 }
 
 static void ipmi_bt_handle_rsp(IPMIInterface *ii, uint8_t msg_id,

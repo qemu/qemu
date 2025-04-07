@@ -1792,7 +1792,6 @@ static void _decode_opc(DisasContext * ctx)
         gen_helper_raise_fpu_disable(tcg_env);
     }
     ctx->base.is_jmp = DISAS_NORETURN;
-    return;
 }
 
 static void decode_opc(DisasContext * ctx)

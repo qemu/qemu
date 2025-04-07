@@ -235,8 +235,6 @@ void spapr_dt_persistent_memory(SpaprMachineState *spapr, void *fdt)
         spapr_dt_nvdimm(spapr, fdt, offset, nvdimm);
     }
     g_slist_free(nvdimms);
-
-    return;
 }
 
 static target_ulong h_scm_read_metadata(PowerPCCPU *cpu,

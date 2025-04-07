@@ -826,8 +826,6 @@ static void get_disk_properties(HANDLE vol_h, GuestDiskAddress *disk,
     }
 out_free:
     g_free(dev_desc);
-
-    return;
 }
 
 static void get_single_disk_info(int disk_number,
@@ -891,7 +889,6 @@ static void get_single_disk_info(int disk_number,
 
 err_close:
     CloseHandle(disk_h);
-    return;
 }
 
 /* VSS provider works with volumes, thus there is no difference if
@@ -2117,7 +2114,6 @@ static void ga_get_win_version(RTL_OSVERSIONINFOEXW *info, Error **errp)
 
     rtl_get_version_t rtl_get_version = (rtl_get_version_t)fun;
     rtl_get_version(info);
-    return;
 }
 
 static char *ga_get_win_name(const OSVERSIONINFOEXW *os_version, bool id)

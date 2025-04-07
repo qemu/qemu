@@ -2022,7 +2022,6 @@ void qtest_client_inproc_recv(void *opaque, const char *str)
         qts->rx = g_string_new(NULL);
     }
     g_string_append(qts->rx, str);
-    return;
 }
 
 void qtest_qom_set_bool(QTestState *s, const char *path, const char *property,

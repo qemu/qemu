@@ -142,7 +142,6 @@ static void continue_send(IPMIBmcExtern *ibe)
                          qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 4000000000ULL);
         }
     }
-    return;
 }
 
 static void extern_timeout(void *opaque)
@@ -231,7 +230,6 @@ static void ipmi_bmc_extern_handle_command(IPMIBmc *b,
     continue_send(ibe);
 
  out:
-    return;
 }
 
 static void handle_hw_op(IPMIBmcExtern *ibe, unsigned char hw_op)

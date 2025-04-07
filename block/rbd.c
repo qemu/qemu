@@ -254,7 +254,6 @@ static void qemu_rbd_parse_filename(const char *filename, QDict *options,
 done:
     g_free(buf);
     qobject_unref(keypairs);
-    return;
 }
 
 static int qemu_rbd_set_auth(rados_t cluster, BlockdevOptionsRbd *opts,

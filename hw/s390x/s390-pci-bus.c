@@ -597,7 +597,6 @@ static void s390_pci_iommu_replay(IOMMUMemoryRegion *iommu,
      * zpci device" construct. But when we support migration of vfio-pci
      * devices in future, we need to revisit this.
      */
-    return;
 }
 
 static S390PCIIOMMU *s390_pci_get_iommu(S390pciState *s, PCIBus *bus,

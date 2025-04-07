@@ -418,7 +418,6 @@ fail_vfio:
     abort();
 fail_irqfd:
     vfio_start_eventfd_injection(sbdev, irq);
-    return;
 }
 
 /* VFIO skeleton */

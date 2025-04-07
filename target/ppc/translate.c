@@ -3627,7 +3627,6 @@ static void pmu_count_insns(DisasContext *ctx)
 #else
 static void pmu_count_insns(DisasContext *ctx)
 {
-    return;
 }
 #endif /* #if defined(TARGET_PPC64) */
 

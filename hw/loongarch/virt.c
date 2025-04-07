@@ -948,7 +948,6 @@ static void virt_cpu_unplug(HotplugHandler *hotplug_dev,
 
     cpu_slot = virt_find_cpu_slot(MACHINE(lvms), cpu->phy_id);
     cpu_slot->cpu = NULL;
-    return;
 }
 
 static void virt_cpu_plug(HotplugHandler *hotplug_dev,
@@ -973,7 +972,6 @@ static void virt_cpu_plug(HotplugHandler *hotplug_dev,
 
     cpu_slot = virt_find_cpu_slot(MACHINE(lvms), cpu->phy_id);
     cpu_slot->cpu = CPU(dev);
-    return;
 }
 
 static bool memhp_type_supported(DeviceState *dev)

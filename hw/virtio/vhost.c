@@ -732,7 +732,6 @@ out:
         memory_region_unref(old_sections[n_old_sections].mr);
     }
     g_free(old_sections);
-    return;
 }
 
 /* Adds the section data to the tmp_section structure.

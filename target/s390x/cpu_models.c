@@ -578,7 +578,6 @@ static void check_compat_model_failed(Error **errp,
     error_setg(errp, "%s. Maximum supported model in the current configuration: \'%s\'",
                msg, max_model->def->name);
     error_append_hint(errp, "Consider a different accelerator, try \"-accel help\"\n");
-    return;
 }
 
 static bool check_compatibility(const S390CPUModel *max_model,

@@ -793,7 +793,6 @@ separator_error:
     error_setg(errp, "reserved region fields must be separated with ':'");
 out:
     g_free(str);
-    return;
 }
 
 const PropertyInfo qdev_prop_reserved_region = {

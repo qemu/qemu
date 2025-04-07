@@ -972,8 +972,6 @@ static void qemu_gluster_reopen_commit(BDRVReopenState *state)
 
     g_free(state->opaque);
     state->opaque = NULL;
-
-    return;
 }
 
 
@@ -993,8 +991,6 @@ static void qemu_gluster_reopen_abort(BDRVReopenState *state)
 
     g_free(state->opaque);
     state->opaque = NULL;
-
-    return;
 }
 
 #ifdef CONFIG_GLUSTERFS_ZEROFILL

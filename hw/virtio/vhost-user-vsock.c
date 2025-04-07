@@ -128,7 +128,6 @@ err_vhost_dev:
 err_virtio:
     vhost_vsock_common_unrealize(vdev);
     vhost_user_cleanup(&vsock->vhost_user);
-    return;
 }
 
 static void vuv_device_unrealize(DeviceState *dev)

@@ -1298,8 +1298,6 @@ static void free_list(GSList *list)
     }
 
     g_slist_free(list);
-
-    return;
 }
 
 static GSList *prepare_tx_data(XlnxVersalCANFDState *s)

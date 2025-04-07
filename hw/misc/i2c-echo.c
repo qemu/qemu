@@ -143,8 +143,6 @@ static void i2c_echo_realize(DeviceState *dev, Error **errp)
 
     state->bus = I2C_BUS(bus);
     state->bh = qemu_bh_new(i2c_echo_bh, state);
-
-    return;
 }
 
 static void i2c_echo_class_init(ObjectClass *oc, void *data)

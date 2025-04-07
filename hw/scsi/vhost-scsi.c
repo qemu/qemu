@@ -314,7 +314,6 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
     if (vhostfd >= 0) {
         close(vhostfd);
     }
-    return;
 }
 
 static void vhost_scsi_unrealize(DeviceState *dev)

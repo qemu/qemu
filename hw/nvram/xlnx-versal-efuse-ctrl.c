@@ -494,7 +494,6 @@ static void efuse_rd_addr_postw(RegisterInfo *reg, uint64_t val64)
 
     ARRAY_FIELD_DP32(s->regs, EFUSE_ISR, RD_DONE, 1);
     efuse_imr_update_irq(s);
-    return;
 }
 
 static uint64_t efuse_cache_load_prew(RegisterInfo *reg, uint64_t val64)

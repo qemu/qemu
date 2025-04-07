@@ -178,7 +178,6 @@ static void virtio_input_host_realize(DeviceState *dev, Error **errp)
 err_close:
     close(vih->fd);
     vih->fd = -1;
-    return;
 }
 
 static void virtio_input_host_unrealize(DeviceState *dev)

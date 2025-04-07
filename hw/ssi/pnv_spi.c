@@ -996,7 +996,6 @@ static void operation_sequencer(PnvSpi *s)
     } /* end of while */
     /* Update sequencer index field in status.*/
     s->status = SETFIELD(SPI_STS_SEQ_INDEX, s->status, seq_index);
-    return;
 } /* end of operation_sequencer() */
 
 /*
@@ -1142,7 +1141,6 @@ static void pnv_spi_xscom_write(void *opaque, hwaddr addr,
         qemu_log_mask(LOG_GUEST_ERROR, "pnv_spi_regs: Invalid xscom "
                  "write at 0x%" PRIx32 "\n", reg);
     }
-    return;
 }
 
 static const MemoryRegionOps pnv_spi_xscom_ops = {

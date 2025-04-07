@@ -4,5 +4,4 @@
 
 void nvdimm_acpi_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev)
 {
-    return;
 }

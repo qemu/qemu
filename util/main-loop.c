@@ -212,7 +212,6 @@ static void main_loop_init(EventLoopBase *base, Error **errp)
     main_loop_update_params(base, errp);
 
     mloop = m;
-    return;
 }
 
 static bool main_loop_can_be_deleted(EventLoopBase *base)

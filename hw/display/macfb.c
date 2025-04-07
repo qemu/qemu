@@ -383,7 +383,6 @@ static void macfb_sense_write(MacfbState *s, uint32_t val)
     s->regs[DAFB_MODE_SENSE >> 2] = val;
 
     trace_macfb_sense_write(val);
-    return;
 }
 
 static void macfb_update_mode(MacfbState *s)

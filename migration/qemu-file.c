@@ -561,8 +561,6 @@ void qemu_put_buffer_at(QEMUFile *f, const uint8_t *buf, size_t buflen,
     }
 
     stat64_add(&mig_stats.qemu_file_transferred, buflen);
-
-    return;
 }
 
 

@@ -3648,7 +3648,6 @@ static void virtio_queue_packed_restore_last_avail_idx(VirtIODevice *vdev,
                                                        int n)
 {
     /* We don't have a reference like avail idx in shared memory */
-    return;
 }
 
 static void virtio_queue_split_restore_last_avail_idx(VirtIODevice *vdev,
@@ -3673,7 +3672,6 @@ void virtio_queue_restore_last_avail_idx(VirtIODevice *vdev, int n)
 static void virtio_queue_packed_update_used_idx(VirtIODevice *vdev, int n)
 {
     /* used idx was updated through set_last_avail_idx() */
-    return;
 }
 
 static void virtio_queue_split_update_used_idx(VirtIODevice *vdev, int n)

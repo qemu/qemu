@@ -712,7 +712,6 @@ static void combine_tlb(SMMUTLBEntry *tlbe, SMMUTLBEntry *tlbe_s2,
     tlbe->entry.iova = iova & ~tlbe->entry.addr_mask;
     /* parent_perm has s2 perm while perm keeps s1 perm. */
     tlbe->parent_perm = tlbe_s2->entry.perm;
-    return;
 }
 
 /**
