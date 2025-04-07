@@ -213,7 +213,7 @@ static void ipmi_bmc_extern_handle_command(IPMIBmc *b,
         rsp[2] = err;
         ibe->waiting_rsp = false;
         k->handle_rsp(s, msg_id, rsp, 3);
-        goto out;
+        return;
     }
 
     addchar(ibe, msg_id);
@@ -228,8 +228,6 @@ static void ipmi_bmc_extern_handle_command(IPMIBmc *b,
 
     /* Start the transmit */
     continue_send(ibe);
-
- out:
 }
 
 static void handle_hw_op(IPMIBmcExtern *ibe, unsigned char hw_op)
