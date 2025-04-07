@@ -190,25 +190,7 @@ impl PL011Registers {
 
         let mut update = false;
         let result = match offset {
-            DR => {
-                self.flags.set_receive_fifo_full(false);
-                let c = self.read_fifo[self.read_pos];
-                if self.read_count > 0 {
-                    self.read_count -= 1;
-                    self.read_pos = (self.read_pos + 1) & (self.fifo_depth() - 1);
-                }
-                if self.read_count == 0 {
-                    self.flags.set_receive_fifo_empty(true);
-                }
-                if self.read_count + 1 == self.read_trigger {
-                    self.int_level &= !Interrupt::RX.0;
-                }
-                // Update error bits.
-                self.receive_status_error_clear.set_from_data(c);
-                // Must call qemu_chr_fe_accept_input
-                update = true;
-                u32::from(c)
-            }
+            DR => self.read_data_register(&mut update),
             RSR => u32::from(self.receive_status_error_clear),
             FR => u32::from(self.flags),
             FBRD => self.fbrd,
@@ -304,6 +286,25 @@ impl PL011Registers {
             }
         }
         false
+    }
+
+    fn read_data_register(&mut self, update: &mut bool) -> u32 {
+        self.flags.set_receive_fifo_full(false);
+        let c = self.read_fifo[self.read_pos];
+
+        if self.read_count > 0 {
+            self.read_count -= 1;
+            self.read_pos = (self.read_pos + 1) & (self.fifo_depth() - 1);
+        }
+        if self.read_count == 0 {
+            self.flags.set_receive_fifo_empty(true);
+        }
+        if self.read_count + 1 == self.read_trigger {
+            self.int_level &= !Interrupt::RX.0;
+        }
+        self.receive_status_error_clear.set_from_data(c);
+        *update = true;
+        u32::from(c)
     }
 
     #[inline]
