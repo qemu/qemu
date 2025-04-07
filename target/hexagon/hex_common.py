@@ -350,6 +350,7 @@ class Register:
             f"{self.helper_arg_type()} {self.helper_arg_name()}"
         )
 
+
 #
 # Every register is either Single or Pair or Hvx
 #
@@ -1070,11 +1071,22 @@ def init_registers():
     for reg in new_regs:
         new_registers[f"{reg.regtype}{reg.regid}"] = reg
 
-def get_register(tag, regtype, regid):
-    if f"{regtype}{regid}V" in semdict[tag]:
-        return registers[f"{regtype}{regid}"]
-    else:
-        return new_registers[f"{regtype}{regid}"]
+def is_new_reg(tag, regid):
+    if regid[0] in "NO":
+        return True
+    return regid[0] == "P" and \
+           f"{regid}N" in semdict[tag] and \
+           f"{regid}V" not in semdict[tag]
+
+def get_register(tag, regtype, regid, subtype=""):
+    regid = f"{regtype}{regid}"
+    is_new = is_new_reg(tag, regid)
+    try:
+        reg = new_registers[regid] if is_new else registers[regid]
+    except KeyError:
+        raise Exception(f"Unknown {'new ' if is_new else ''}register {regid}" +\
+                        f"from '{tag}' with syntax '{semdict[tag]}'") from None
+    return reg
 
 def helper_ret_type(tag, regs):
     ## If there is a scalar result, it is the return type
