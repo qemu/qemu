@@ -1725,7 +1725,7 @@ void gen_cancel(Context *c, YYLTYPE *locp)
 
 void gen_load_cancel(Context *c, YYLTYPE *locp)
 {
-    OUT(c, locp, "if (insn->slot == 0 && pkt->pkt_has_store_s1) {\n");
+    OUT(c, locp, "if (insn->slot == 0 && pkt->pkt_has_scalar_store_s1) {\n");
     OUT(c, locp, "ctx->s1_store_processed = false;\n");
     OUT(c, locp, "process_store(ctx, 1);\n");
     OUT(c, locp, "}\n");
@@ -1750,7 +1750,7 @@ void gen_load(Context *c, YYLTYPE *locp, HexValue *width,
 
     /* Lookup the effective address EA */
     find_variable(c, locp, ea, ea);
-    OUT(c, locp, "if (insn->slot == 0 && pkt->pkt_has_store_s1) {\n");
+    OUT(c, locp, "if (insn->slot == 0 && pkt->pkt_has_scalar_store_s1) {\n");
     OUT(c, locp, "probe_noshuf_load(", ea, ", ", width, ", ctx->mem_idx);\n");
     OUT(c, locp, "process_store(ctx, 1);\n");
     OUT(c, locp, "}\n");

@@ -463,11 +463,11 @@ void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask)
  * If the load is in slot 0 and there is a store in slot1 (that
  * wasn't cancelled), we have to do the store first.
  */
-static void check_noshuf(CPUHexagonState *env, bool pkt_has_store_s1,
+static void check_noshuf(CPUHexagonState *env, bool pkt_has_scalar_store_s1,
                          uint32_t slot, target_ulong vaddr, int size,
                          uintptr_t ra)
 {
-    if (slot == 0 && pkt_has_store_s1 &&
+    if (slot == 0 && pkt_has_scalar_store_s1 &&
         ((env->slot_cancelled & (1 << 1)) == 0)) {
         probe_read(env, vaddr, size, MMU_USER_IDX, ra);
         commit_store(env, 1, ra);
