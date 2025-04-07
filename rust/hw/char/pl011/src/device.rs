@@ -221,12 +221,7 @@ impl PL011Registers {
         // eprintln!("write offset {offset} value {value}");
         use RegisterOffset::*;
         match offset {
-            DR => {
-                // interrupts always checked
-                let _ = self.loopback_tx(value.into());
-                self.int_level |= Interrupt::TX.0;
-                return true;
-            }
+            DR => return self.write_data_register(value),
             RSR => {
                 self.receive_status_error_clear = 0.into();
             }
@@ -305,6 +300,13 @@ impl PL011Registers {
         self.receive_status_error_clear.set_from_data(c);
         *update = true;
         u32::from(c)
+    }
+
+    fn write_data_register(&mut self, value: u32) -> bool {
+        // interrupts always checked
+        let _ = self.loopback_tx(value.into());
+        self.int_level |= Interrupt::TX.0;
+        true
     }
 
     #[inline]
