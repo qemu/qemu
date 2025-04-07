@@ -304,6 +304,23 @@ online to check that this board did not completely bitrot yet). It is
 recommended to use another MIPS machine for future MIPS code development
 instead.
 
+RISC-V default machine option (since 10.0)
+''''''''''''''''''''''''''''''''''''''''''
+
+RISC-V defines ``spike`` as the default machine if no machine option is
+given in the command line.  This happens because ``spike`` is the first
+RISC-V machine implemented in QEMU and setting it as default was
+convenient at that time.  Now we have 7 riscv64 and 6 riscv32 machines
+and having ``spike`` as a default is no longer justified.  This default
+will also promote situations where users think they're running ``virt``
+(the most used RISC-V machine type in 10.0) when in fact they're
+running ``spike``.
+
+Removing the default machine option forces users to always set the machine
+they want to use and avoids confusion.  Existing users of the ``spike``
+machine must ensure that they're setting the ``spike`` machine in the
+command line (``-M spike``).
+
 
 Backend options
 ---------------
