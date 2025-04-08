@@ -1,0 +1,32 @@
+QA output created by qcow2-encryption
+
+=== Create an encrypted image ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+Header extension:
+magic                     0x537be77 (Crypto header)
+length                    16
+data                      <binary>
+
+Header extension:
+magic                     0x6803f857 (Feature table)
+length                    384
+data                      <binary>
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64 MiB (67108864 bytes)
+encrypted: yes
+cluster_size: 65536
+No errors were found on the image.
+
+=== Remove the header extension ===
+
+Header extension:
+magic                     0x6803f857 (Feature table)
+length                    384
+data                      <binary>
+
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Missing CRYPTO header for crypt method 2
+qemu-img: Could not open 'file.filename=TEST_DIR/t.qcow2,encrypt.key-secret=sec0': Missing CRYPTO header for crypt method 2
+*** done

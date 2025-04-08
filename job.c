@@ -251,6 +251,12 @@ bool job_is_cancelled_locked(Job *job)
     return job->force_cancel;
 }
 
+bool job_is_paused(Job *job)
+{
+    JOB_LOCK_GUARD();
+    return job->paused;
+}
+
 bool job_is_cancelled(Job *job)
 {
     JOB_LOCK_GUARD();
