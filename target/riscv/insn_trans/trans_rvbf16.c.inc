@@ -119,8 +119,11 @@ static bool trans_vfwmaccbf16_vv(DisasContext *ctx, arg_vfwmaccbf16_vv *a)
     REQUIRE_FPU;
     REQUIRE_ZVFBFWMA(ctx);
 
+    uint8_t sew = ctx->sew;
     if (require_rvv(ctx) && vext_check_isa_ill(ctx) && (ctx->sew == MO_16) &&
-        vext_check_dss(ctx, a->rd, a->rs1, a->rs2, a->vm)) {
+        vext_check_dss(ctx, a->rd, a->rs1, a->rs2, a->vm) &&
+        vext_check_input_eew(ctx, a->rd, sew + 1, a->rs1, sew, a->vm) &&
+        vext_check_input_eew(ctx, a->rd, sew + 1, a->rs2, sew, a->vm)) {
         uint32_t data = 0;
 
         gen_set_rm_chkfrm(ctx, RISCV_FRM_DYN);
@@ -146,8 +149,10 @@ static bool trans_vfwmaccbf16_vf(DisasContext *ctx, arg_vfwmaccbf16_vf *a)
     REQUIRE_FPU;
     REQUIRE_ZVFBFWMA(ctx);
 
+    uint8_t sew = ctx->sew;
     if (require_rvv(ctx) && (ctx->sew == MO_16) && vext_check_isa_ill(ctx) &&
-        vext_check_ds(ctx, a->rd, a->rs2, a->vm)) {
+        vext_check_ds(ctx, a->rd, a->rs2, a->vm) &&
+        vext_check_input_eew(ctx, a->rd, sew + 1, a->rs2, sew, a->vm)) {
         uint32_t data = 0;
 
         gen_set_rm(ctx, RISCV_FRM_DYN);
