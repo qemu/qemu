@@ -26,6 +26,7 @@ typedef struct VFIOSpaprContainer {
     VFIOContainer container;
     MemoryListener prereg_listener;
     QLIST_HEAD(, VFIOHostDMAWindow) hostwin_list;
+    unsigned int levels;
 } VFIOSpaprContainer;
 
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOSpaprContainer, VFIO_IOMMU_SPAPR);
@@ -236,9 +237,11 @@ static bool vfio_spapr_create_window(VFIOContainer *container,
 {
     int ret = 0;
     VFIOContainerBase *bcontainer = &container->bcontainer;
+    VFIOSpaprContainer *scontainer = container_of(container, VFIOSpaprContainer,
+                                                  container);
     IOMMUMemoryRegion *iommu_mr = IOMMU_MEMORY_REGION(section->mr);
     uint64_t pagesize = memory_region_iommu_get_min_page_size(iommu_mr), pgmask;
-    unsigned entries, bits_total, bits_per_level, max_levels;
+    unsigned entries, bits_total, bits_per_level, max_levels, ddw_levels;
     struct vfio_iommu_spapr_tce_create create = { .argsz = sizeof(create) };
     long rampagesize = qemu_minrampagesize();
 
@@ -291,16 +294,29 @@ static bool vfio_spapr_create_window(VFIOContainer *container,
      */
     bits_per_level = ctz64(qemu_real_host_page_size()) + 8;
     create.levels = bits_total / bits_per_level;
-    if (bits_total % bits_per_level) {
-        ++create.levels;
-    }
-    max_levels = (64 - create.page_shift) / ctz64(qemu_real_host_page_size());
-    for ( ; create.levels <= max_levels; ++create.levels) {
-        ret = ioctl(container->fd, VFIO_IOMMU_SPAPR_TCE_CREATE, &create);
-        if (!ret) {
-            break;
+
+    ddw_levels = scontainer->levels;
+    if (ddw_levels > 1) {
+        if (bits_total % bits_per_level) {
+            ++create.levels;
         }
+        max_levels = (64 - create.page_shift) / ctz64(qemu_real_host_page_size());
+        for ( ; create.levels <= max_levels; ++create.levels) {
+            ret = ioctl(container->fd, VFIO_IOMMU_SPAPR_TCE_CREATE, &create);
+            if (!ret) {
+                break;
+            }
+        }
+    } else { /* ddw_levels == 1 */
+        if (create.levels > ddw_levels) {
+            error_setg_errno(errp, EINVAL, "Host doesn't support multi-level TCE tables"
+                             ". Use larger IO page size. Supported mask is 0x%lx",
+                             bcontainer->pgsizes);
+            return false;
+        }
+        ret = ioctl(container->fd, VFIO_IOMMU_SPAPR_TCE_CREATE, &create);
     }
+
     if (ret) {
         error_setg_errno(errp, errno, "Failed to create a window, ret = %d", ret);
         return false;
@@ -500,6 +516,8 @@ static bool vfio_spapr_container_setup(VFIOContainerBase *bcontainer,
                          "VFIO_IOMMU_SPAPR_TCE_GET_INFO failed");
         goto listener_unregister_exit;
     }
+
+    scontainer->levels = info.ddw.levels;
 
     if (v2) {
         bcontainer->pgsizes = info.ddw.pgsizes;
