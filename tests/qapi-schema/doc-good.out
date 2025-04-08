@@ -217,7 +217,7 @@ another feature
 
    -> "this example"
 
-   <- "has no title"
+   <- ... has no title ...
 doc symbol=EVT_BOXED
     body=
 

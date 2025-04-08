@@ -3,37 +3,24 @@
 ##
 # = Introduction
 #
-# This document describes all commands currently supported by QMP.
+# This manual describes the commands and events supported by the QEMU
+# Monitor Protocol (QMP).
 #
 # For locating a particular item, please see the `qapi-qmp-index`.
 #
-# Most of the time their usage is exactly the same as in the user
-# Monitor, this means that any other document which also describe
-# commands (the manpage, QEMU's manual, etc) can and should be
-# consulted.
+# The following notation is used in examples:
 #
-# QMP has two types of commands: regular and query commands.  Regular
-# commands usually change the Virtual Machine's state someway, while
-# query commands just return information.  The sections below are
-# divided accordingly.
+# .. qmp-example::
 #
-# It's important to observe that all communication examples are
-# formatted in a reader-friendly way, so that they're easier to
-# understand.  However, in real protocol usage, they're emitted as a
-# single line.
+#   -> ... text sent by client (commands) ...
+#   <- ... text sent by server (command responses and events) ...
 #
-# Also, the following notation is used to denote data flow:
-#
-# Example:
-#
-# ::
-#
-#   -> data issued by the Client
-#   <- Server data response
+# Example text is formatted for readability.  However, in real
+# protocol usage, its commonly emitted as a single line.
 #
 # Please refer to the
 # :doc:`QEMU Machine Protocol Specification </interop/qmp-spec>`
-# for detailed information on the Server command and response formats.
+# for the general format of commands, responses, and events.
 ##
 
 { 'include': 'pragma.json' }

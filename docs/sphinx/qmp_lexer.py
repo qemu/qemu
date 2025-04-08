@@ -24,7 +24,7 @@ class QMPExampleMarkersLexer(RegexLexer):
         'root': [
             (r'-> ', token.Generic.Prompt),
             (r'<- ', token.Generic.Prompt),
-            (r' ?\.{3} ?', token.Generic.Prompt),
+            (r'\.{3}( .* \.{3})?', token.Comment.Multiline),
         ]
     }
 

@@ -14,10 +14,26 @@
 # storage daemon.
 
 ##
-# = QEMU storage daemon protocol commands and structs
+# = Introduction
 #
-# For a concise listing of all commands, events, and types in the QEMU
-# storage daemon, please consult the `qapi-qsd-index`.
+# This manual describes the commands and events supported by the QEMU
+# storage daemon QMP.
+#
+# For locating a particular item, please see the `qapi-qsd-index`.
+#
+# The following notation is used in examples:
+#
+# .. qmp-example::
+#
+#   -> ... text sent by client (commands) ...
+#   <- ... text sent by server (command responses and events) ...
+#
+# Example text is formatted for readability.  However, in real
+# protocol usage, its commonly emitted as a single line.
+#
+# Please refer to the
+# :doc:`QEMU Machine Protocol Specification </interop/qmp-spec>`
+# for the general format of commands, responses, and events.
 ##
 
 
