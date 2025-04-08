@@ -1688,11 +1688,11 @@ sub process {
 			    /\.(c|h|py|pl|sh|json|inc|Makefile)$/) {
 			    # source code files MUST have SPDX license declared
 			    ERROR("New file '$expect_spdx_file' requires " .
-				  "'SPDX-License-Identifer'");
+				  "'SPDX-License-Identifier'");
 			} else {
 			    # Other files MAY have SPDX license if appropriate
 			    WARN("Does new file '$expect_spdx_file' need " .
-				 "'SPDX-License-Identifer'?");
+				 "'SPDX-License-Identifier'?");
 			}
 		    }
 		    $expect_spdx = 1;
