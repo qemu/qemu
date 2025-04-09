@@ -1753,8 +1753,8 @@ static void ufs_init_hc(UfsHc *u)
     u->geometry_desc.length = sizeof(GeometryDescriptor);
     u->geometry_desc.descriptor_idn = UFS_QUERY_DESC_IDN_GEOMETRY;
     u->geometry_desc.max_number_lu = (UFS_MAX_LUS == 32) ? 0x1 : 0x0;
-    u->geometry_desc.segment_size = cpu_to_be32(0x2000); /* 4KB */
-    u->geometry_desc.allocation_unit_size = 0x1; /* 4KB */
+    u->geometry_desc.segment_size = cpu_to_be32(0x2000); /* 4MB: 8192 * 512B */
+    u->geometry_desc.allocation_unit_size = 0x1; /* 4MB: 1 segment */
     u->geometry_desc.min_addr_block_size = 0x8; /* 4KB */
     u->geometry_desc.max_in_buffer_size = 0x8;
     u->geometry_desc.max_out_buffer_size = 0x8;

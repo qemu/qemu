@@ -268,6 +268,9 @@ typedef struct NvmeNamespace {
     NvmeSubsystem *subsys;
     NvmeEnduranceGroup *endgrp;
 
+    /* NULL for shared namespaces; set to specific controller if private */
+    NvmeCtrl *ctrl;
+
     struct {
         uint32_t err_rec;
     } features;

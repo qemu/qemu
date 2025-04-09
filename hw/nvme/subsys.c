@@ -56,7 +56,7 @@ int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp)
 {
     NvmeSubsystem *subsys = n->subsys;
     NvmeSecCtrlEntry *sctrl = nvme_sctrl(n);
-    int cntlid, nsid, num_rsvd, num_vfs = n->params.sriov_max_vfs;
+    int cntlid, num_rsvd, num_vfs = n->params.sriov_max_vfs;
 
     if (pci_is_vf(&n->parent_obj)) {
         cntlid = le16_to_cpu(sctrl->scid);
@@ -91,13 +91,6 @@ int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp)
     }
 
     subsys->ctrls[cntlid] = n;
-
-    for (nsid = 1; nsid < ARRAY_SIZE(subsys->namespaces); nsid++) {
-        NvmeNamespace *ns = subsys->namespaces[nsid];
-        if (ns && ns->params.shared && !ns->params.detached) {
-            nvme_attach_ns(n, ns);
-        }
-    }
 
     return cntlid;
 }

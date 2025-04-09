@@ -70,11 +70,11 @@ Supported guest CPU types:
 - ``cortex-a76`` (64-bit)
 - ``cortex-a710`` (64-bit)
 - ``a64fx`` (64-bit)
-- ``host`` (with KVM only)
+- ``host`` (with KVM and HVF only)
 - ``neoverse-n1`` (64-bit)
 - ``neoverse-v1`` (64-bit)
 - ``neoverse-n2`` (64-bit)
-- ``max`` (same as ``host`` for KVM; best possible emulation with TCG)
+- ``max`` (same as ``host`` for KVM and HVF; best possible emulation with TCG)
 
 Note that the default is ``cortex-a15``, so for an AArch64 guest you must
 specify a CPU type.
