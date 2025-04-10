@@ -382,8 +382,7 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
                                  args->opts_source ? args->opts_source : "",
                                  ignore_stderr);
     if (!args->only_target) {
-        *from = qtest_init_with_env_and_capabilities(QEMU_ENV_SRC, cmd_source,
-                                                     capabilities, true);
+        *from = qtest_init_ext(QEMU_ENV_SRC, cmd_source, capabilities, true);
         qtest_qmp_set_event_callback(*from,
                                      migrate_watch_for_events,
                                      &src_state);
@@ -411,8 +410,8 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
                                  shmem_opts ? shmem_opts : "",
                                  args->opts_target ? args->opts_target : "",
                                  ignore_stderr);
-    *to = qtest_init_with_env_and_capabilities(QEMU_ENV_DST, cmd_target,
-                                               capabilities, !args->defer_target_connect);
+    *to = qtest_init_ext(QEMU_ENV_DST, cmd_target, capabilities,
+                         !args->defer_target_connect);
     qtest_qmp_set_event_callback(*to,
                                  migrate_watch_for_events,
                                  &dst_state);
