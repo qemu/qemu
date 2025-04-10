@@ -104,8 +104,11 @@ static bool csr_qtest_callback(CharBackend *chr, gchar **words)
 
 static void riscv_cpu_register_csr_qtest_callback(void)
 {
-    static GOnce once;
-    g_once(&once, (GThreadFunc)qtest_set_command_cb, csr_qtest_callback);
+    static bool first = true;
+    if (first) {
+        first = false;
+        qtest_set_command_cb(csr_qtest_callback);
+    }
 }
 #endif
 
