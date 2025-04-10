@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu-main.h"
 #include "qemu/main-loop.h"
+#include "system/replay.h"
 #include "system/system.h"
 
 #ifdef CONFIG_SDL
@@ -44,10 +45,12 @@ static void *qemu_default_main(void *opaque)
 {
     int status;
 
+    replay_mutex_lock();
     bql_lock();
     status = qemu_main_loop();
     qemu_cleanup(status);
     bql_unlock();
+    replay_mutex_unlock();
 
     exit(status);
 }
@@ -67,6 +70,7 @@ int main(int argc, char **argv)
 {
     qemu_init(argc, argv);
     bql_unlock();
+    replay_mutex_unlock();
     if (qemu_main) {
         QemuThread main_loop_thread;
         qemu_thread_create(&main_loop_thread, "qemu_main",
