@@ -190,6 +190,21 @@ typedef struct SaveVMHandlers {
     /* This runs outside the BQL!  */
 
     /**
+     * @save_postcopy_prepare
+     *
+     * This hook will be invoked on the source side right before switching
+     * to postcopy (before VM stopped).
+     *
+     * @f:      QEMUFile where to send the data
+     * @opaque: Data pointer passed to register_savevm_live()
+     * @errp:   Error** used to report error message
+     *
+     * Returns: true if succeeded, false if error occured.  When false is
+     * returned, @errp must be set.
+     */
+    bool (*save_postcopy_prepare)(QEMUFile *f, void *opaque, Error **errp);
+
+    /**
      * @state_pending_estimate
      *
      * This estimates the remaining data to transfer

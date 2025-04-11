@@ -2727,6 +2727,10 @@ static int postcopy_start(MigrationState *ms, Error **errp)
         }
     }
 
+    if (!qemu_savevm_state_postcopy_prepare(ms->to_dst_file, errp)) {
+        return -1;
+    }
+
     trace_postcopy_start();
     bql_lock();
     trace_postcopy_start_set_run();
