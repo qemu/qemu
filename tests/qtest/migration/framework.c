@@ -30,6 +30,7 @@
 #define QEMU_VM_FILE_MAGIC 0x5145564d
 #define QEMU_ENV_SRC "QTEST_QEMU_BINARY_SRC"
 #define QEMU_ENV_DST "QTEST_QEMU_BINARY_DST"
+#define MULTIFD_TEST_CHANNELS 4
 
 unsigned start_address;
 unsigned end_address;
@@ -207,6 +208,51 @@ static QList *migrate_start_get_qmp_capabilities(const MigrateStart *args)
     return capabilities;
 }
 
+static void migrate_start_set_capabilities(QTestState *from, QTestState *to,
+                                           MigrateStart *args)
+{
+    /*
+     * MigrationCapability_lookup and MIGRATION_CAPABILITY_ constants
+     * are from qapi-types-migration.h.
+     */
+    for (uint8_t i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
+        if (!args->caps[i]) {
+            continue;
+        }
+        if (from) {
+            migrate_set_capability(from,
+                            MigrationCapability_lookup.array[i], true);
+        }
+        if (to) {
+            migrate_set_capability(to,
+                            MigrationCapability_lookup.array[i], true);
+        }
+    }
+
+    /*
+     * Always enable migration events.  Libvirt always uses it, let's try
+     * to mimic as closer as that.
+     */
+    migrate_set_capability(from, "events", true);
+    if (!args->defer_target_connect) {
+        migrate_set_capability(to, "events", true);
+    }
+
+    /*
+     * Default number of channels should be fine for most
+     * tests. Individual tests can override by calling
+     * migrate_set_parameter() directly.
+     */
+    if (args->caps[MIGRATION_CAPABILITY_MULTIFD]) {
+        migrate_set_parameter_int(from, "multifd-channels",
+                                  MULTIFD_TEST_CHANNELS);
+        migrate_set_parameter_int(to, "multifd-channels",
+                                  MULTIFD_TEST_CHANNELS);
+    }
+
+    return;
+}
+
 int migrate_start(QTestState **from, QTestState **to, const char *uri,
                   MigrateStart *args)
 {
@@ -379,14 +425,7 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
         unlink(shmem_path);
     }
 
-    /*
-     * Always enable migration events.  Libvirt always uses it, let's try
-     * to mimic as closer as that.
-     */
-    migrate_set_capability(*from, "events", true);
-    if (!args->defer_target_connect) {
-        migrate_set_capability(*to, "events", true);
-    }
+    migrate_start_set_capabilities(*from, *to, args);
 
     return 0;
 }
@@ -432,6 +471,10 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
 {
     QTestState *from, *to;
 
+    /* set postcopy capabilities */
+    args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME] = true;
+    args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_RAM] = true;
+
     if (migrate_start(&from, &to, "defer", &args->start)) {
         return -1;
     }
@@ -440,17 +483,7 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
         args->postcopy_data = args->start_hook(from, to);
     }
 
-    migrate_set_capability(from, "postcopy-ram", true);
-    migrate_set_capability(to, "postcopy-ram", true);
-    migrate_set_capability(to, "postcopy-blocktime", true);
-
-    if (args->postcopy_preempt) {
-        migrate_set_capability(from, "postcopy-preempt", true);
-        migrate_set_capability(to, "postcopy-preempt", true);
-    }
-
     migrate_ensure_non_converge(from);
-
     migrate_prepare_for_dirty_mem(from);
     qtest_qmp_assert_success(to, "{ 'execute': 'migrate-incoming',"
                              "  'arguments': { "
@@ -948,14 +981,8 @@ void *migrate_hook_start_precopy_tcp_multifd_common(QTestState *from,
                                                     QTestState *to,
                                                     const char *method)
 {
-    migrate_set_parameter_int(from, "multifd-channels", 16);
-    migrate_set_parameter_int(to, "multifd-channels", 16);
-
     migrate_set_parameter_str(from, "multifd-compression", method);
     migrate_set_parameter_str(to, "multifd-compression", method);
-
-    migrate_set_capability(from, "multifd", true);
-    migrate_set_capability(to, "multifd", true);
 
     /* Start incoming migration from the 1st socket */
     migrate_incoming_qmp(to, "tcp:127.0.0.1:0", NULL, "{}");
