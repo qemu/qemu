@@ -73,9 +73,8 @@ lower_a32_serror:
 	mov	x0, SYS_WRITE0
 	adr	x1, .error
 	semihosting_call
-	mov	x0, SYS_EXIT
-	mov	x1, 1
-	semihosting_call
+	mov	x0, 1 /* EXIT_FAILURE */
+	bl 	_exit
 	/* never returns */
 
 	.section .rodata
