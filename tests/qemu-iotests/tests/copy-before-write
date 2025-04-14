@@ -99,6 +99,68 @@ class TestCbwError(iotests.QMPTestCase):
         log = iotests.filter_qemu_io(log)
         return log
 
+    def do_cbw_error_via_blockdev_backup(self, on_cbw_error=None):
+        self.vm.cmd('blockdev-add', {
+            'node-name': 'source',
+            'driver': iotests.imgfmt,
+            'file': {
+                'driver': 'file',
+                'filename': source_img
+            }
+        })
+
+        self.vm.cmd('blockdev-add', {
+            'node-name': 'target',
+            'driver': iotests.imgfmt,
+            'file': {
+                'driver': 'blkdebug',
+                'image': {
+                    'driver': 'file',
+                    'filename': temp_img
+                },
+                'inject-error': [
+                    {
+                        'event': 'write_aio',
+                        'errno': 5,
+                        'immediately': False,
+                        'once': True
+                    }
+                ]
+            }
+        })
+
+        blockdev_backup_options = {
+            'device': 'source',
+            'target': 'target',
+            'sync': 'none',
+            'job-id': 'job-id',
+            'filter-node-name': 'cbw'
+        }
+
+        if on_cbw_error:
+            blockdev_backup_options['on-cbw-error'] = on_cbw_error
+
+        self.vm.cmd('blockdev-backup', blockdev_backup_options)
+
+        self.vm.cmd('blockdev-add', {
+            'node-name': 'access',
+            'driver': 'snapshot-access',
+            'file': 'cbw'
+        })
+
+        result = self.vm.qmp('human-monitor-command',
+                             command_line='qemu-io cbw "write 0 1M"')
+        self.assert_qmp(result, 'return', '')
+
+        result = self.vm.qmp('human-monitor-command',
+                             command_line='qemu-io access "read 0 1M"')
+        self.assert_qmp(result, 'return', '')
+
+        self.vm.shutdown()
+        log = self.vm.get_log()
+        log = iotests.filter_qemu_io(log)
+        return log
+
     def test_break_snapshot_on_cbw_error(self):
         """break-snapshot behavior:
         Guest write succeed, but further snapshot-read fails, as snapshot is
@@ -119,6 +181,39 @@ read failed: Permission denied
         """
         log = self.do_cbw_error('break-guest-write')
 
+        self.assertEqual(log, """\
+write failed: Input/output error
+read 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+""")
+
+    def test_break_snapshot_policy_forwarding(self):
+        """Ensure CBW filter accepts break-snapshot policy
+        specified in blockdev-backup QMP command.
+        """
+        log = self.do_cbw_error_via_blockdev_backup('break-snapshot')
+        self.assertEqual(log, """\
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read failed: Permission denied
+""")
+
+    def test_break_guest_write_policy_forwarding(self):
+        """Ensure CBW filter accepts break-guest-write policy
+        specified in blockdev-backup QMP command.
+        """
+        log = self.do_cbw_error_via_blockdev_backup('break-guest-write')
+        self.assertEqual(log, """\
+write failed: Input/output error
+read 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+""")
+
+    def test_default_on_cbw_error_policy_forwarding(self):
+        """Ensure break-guest-write policy is used by default when
+        on-cbw-error is not explicitly specified.
+        """
+        log = self.do_cbw_error_via_blockdev_backup()
         self.assertEqual(log, """\
 write failed: Input/output error
 read 1048576/1048576 bytes at offset 0
