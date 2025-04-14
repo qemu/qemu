@@ -114,4 +114,4 @@
     - cd build
     - du -chs ${CI_PROJECT_DIR}/*-cache
   variables:
-    QEMU_JOB_AVOCADO: 1
+    QEMU_JOB_FUNCTIONAL: 1
