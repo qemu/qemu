@@ -13,6 +13,7 @@ endif
 test_timeouts = {
   'aarch64_aspeed' : 600,
   'aarch64_raspi4' : 480,
+  'aarch64_reverse_debug' : 180,
   'aarch64_rme_virt' : 1200,
   'aarch64_rme_sbsaref' : 1200,
   'aarch64_sbsaref_alpine' : 1200,
@@ -78,6 +79,7 @@ tests_aarch64_system_thorough = [
   'aarch64_raspi3',
   'aarch64_raspi4',
   'aarch64_replay',
+  'aarch64_reverse_debug',
   'aarch64_rme_virt',
   'aarch64_rme_sbsaref',
   'aarch64_sbsaref',
@@ -229,6 +231,7 @@ tests_ppc64_system_thorough = [
   'ppc64_powernv',
   'ppc64_pseries',
   'ppc64_replay',
+  'ppc64_reverse_debug',
   'ppc64_tuxrun',
   'ppc64_mac99',
 ]
@@ -311,6 +314,7 @@ tests_x86_64_system_thorough = [
   'x86_64_hotplug_cpu',
   'x86_64_kvm_xen',
   'x86_64_replay',
+  'x86_64_reverse_debug',
   'x86_64_tuxrun',
 ]
 
