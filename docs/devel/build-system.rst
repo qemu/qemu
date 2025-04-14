@@ -134,7 +134,7 @@ in how the build process runs Python code.
 
 At this stage, ``configure`` also queries the chosen Python interpreter
 about QEMU's build dependencies.  Note that the build process does  *not*
-look for ``meson``, ``sphinx-build`` or ``avocado`` binaries in the PATH;
+look for ``meson`` or ``sphinx-build`` binaries in the PATH;
 likewise, there are no options such as ``--meson`` or ``--sphinx-build``.
 This avoids a potential mismatch, where Meson and Sphinx binaries on the
 PATH might operate in a different Python environment than the one chosen
@@ -151,7 +151,7 @@ virtual environment with ``pip``, either from wheels in ``python/wheels``
 or by downloading the package with PyPI.  Downloading can be disabled with
 ``--disable-download``; and anyway, it only happens when a ``configure``
 option (currently, only ``--enable-docs``) is explicitly enabled but
-the dependencies are not present\ [#pip]_.
+the dependencies are not present.
 
 .. [#distlib] The scripts are created based on the package's metadata,
               specifically the ``console_script`` entry points.  This is the
@@ -163,10 +163,6 @@ the dependencies are not present\ [#pip]_.
               directory more informative.  Portability is also not an issue,
               because the Python Packaging Authority provides a package
               ``distlib.scripts`` to perform this task.
-
-.. [#pip] ``pip`` might also be used when running ``make check-avocado``
-           if downloading is enabled, to ensure that Avocado is
-           available.
 
 The required versions of the packages are stored in a configuration file
 ``pythondeps.toml``.  The format is custom to QEMU, but it is documented
@@ -497,8 +493,7 @@ number of dynamically created files listed later.
   ``pyvenv/bin``, and calling ``pip`` to install dependencies.
 
 ``tests/Makefile.include``
-  Rules for external test harnesses. These include the TCG tests
-  and the Avocado-based integration tests.
+  Rules for external test harnesses like the TCG tests.
 
 ``tests/docker/Makefile.include``
   Rules for Docker tests. Like ``tests/Makefile.include``, this file is

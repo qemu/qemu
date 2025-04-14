@@ -919,21 +919,6 @@ Python. You can run the functional tests simply by executing:
 
 See :ref:`checkfunctional-ref` for more details.
 
-Integration tests using the Avocado Framework
----------------------------------------------
-
-The ``tests/avocado`` directory hosts integration tests. They're usually
-higher level tests, and may interact with external resources and with
-various guest operating systems.
-
-You can run the avocado tests simply by executing:
-
-.. code::
-
-  make check-avocado
-
-See :ref:`checkavocado-ref` for more details.
-
 .. _checktcg-ref:
 
 Testing with "make check-tcg"

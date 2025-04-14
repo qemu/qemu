@@ -27,9 +27,5 @@ pycotap = { accepted = ">=1.1.0", installed = "1.3.1" }
 sphinx = { accepted = ">=3.4.3", installed = "5.3.0", canary = "sphinx-build" }
 sphinx_rtd_theme = { accepted = ">=0.5", installed = "1.1.1" }
 
-[avocado]
-# Note that qemu.git/python/ is always implicitly installed.
-# Prefer an LTS version when updating the accepted versions of
-# avocado-framework, for example right now the limit is 92.x.
-avocado-framework = { accepted = "(>=103.0, <104.0)", installed = "103.0", canary = "avocado" }
-pycdlib = { accepted = ">=1.11.0" }
+[testdeps]
+qemu.qmp = { accepted = ">=0.0.3", installed = "0.0.3" }

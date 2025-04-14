@@ -2073,7 +2073,7 @@ S: Supported
 F: hw/acpi/viot.c
 F: hw/acpi/viot.h
 
-ACPI/AVOCADO/BIOSBITS
+ACPI/FUNCTIONAL/BIOSBITS
 M: Ani Sinha <anisinha@redhat.com>
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
@@ -4245,12 +4245,6 @@ M: Alex Bennée <alex.bennee@linaro.org>
 R: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Maintained
 F: tests/tcg/Makefile.target
-
-Integration Testing with the Avocado framework
-W: https://trello.com/b/6Qi1pxVn/avocado-qemu
-R: Cleber Rosa <crosa@redhat.com>
-S: Odd Fixes
-F: tests/avocado/
 
 GitLab custom runner (Works On Arm Sponsored)
 M: Alex Bennée <alex.bennee@linaro.org>
