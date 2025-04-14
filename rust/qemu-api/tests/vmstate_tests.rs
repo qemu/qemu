@@ -28,7 +28,7 @@ const FOO_ARRAY_MAX: usize = 3;
 //     - VMSTATE_VARRAY_UINT16_UNSAFE
 //     - VMSTATE_VARRAY_MULTIPLY
 #[repr(C)]
-#[derive(qemu_api_macros::offsets)]
+#[derive(Default, qemu_api_macros::offsets)]
 struct FooA {
     arr: [u8; FOO_ARRAY_MAX],
     num: u16,
@@ -147,8 +147,9 @@ fn test_vmstate_varray_multiply() {
 //     - VMSTATE_STRUCT_VARRAY_UINT8
 //     - (no C version) MULTIPLY variant of VMSTATE_STRUCT_VARRAY_UINT32
 //     - VMSTATE_ARRAY
+//     - VMSTATE_STRUCT_VARRAY_UINT8 with BqlCell wrapper & test_fn
 #[repr(C)]
-#[derive(qemu_api_macros::offsets)]
+#[derive(Default, qemu_api_macros::offsets)]
 struct FooB {
     arr_a: [FooA; FOO_ARRAY_MAX],
     num_a: u8,
@@ -158,6 +159,12 @@ struct FooB {
     val: bool,
     // FIXME: Use Timer array. Now we can't since it's hard to link savevm.c to test.
     arr_i64: [i64; FOO_ARRAY_MAX],
+    arr_a_wrap: [FooA; FOO_ARRAY_MAX],
+    num_a_wrap: BqlCell<u32>,
+}
+
+fn validate_foob(_state: &FooB, _version_id: u8) -> bool {
+    true
 }
 
 static VMSTATE_FOOB: VMStateDescription = VMStateDescription {
@@ -170,13 +177,14 @@ static VMSTATE_FOOB: VMStateDescription = VMStateDescription {
         vmstate_struct!(FooB, arr_a[0 .. num_a], &VMSTATE_FOOA, FooA).with_version_id(1),
         vmstate_struct!(FooB, arr_a_mul[0 .. num_a_mul * 32], &VMSTATE_FOOA, FooA).with_version_id(2),
         vmstate_of!(FooB, arr_i64),
+        vmstate_struct!(FooB, arr_a_wrap[0 .. num_a_wrap], &VMSTATE_FOOA, FooA, validate_foob),
     },
     ..Zeroable::ZERO
 };
 
 #[test]
 fn test_vmstate_bool_v() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOB.fields, 6) };
+    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOB.fields, 7) };
 
     // 1st VMStateField ("val") in VMSTATE_FOOB (corresponding to VMSTATE_BOOL_V)
     assert_eq!(
@@ -196,7 +204,7 @@ fn test_vmstate_bool_v() {
 
 #[test]
 fn test_vmstate_uint64() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOB.fields, 6) };
+    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOB.fields, 7) };
 
     // 2nd VMStateField ("wrap") in VMSTATE_FOOB (corresponding to VMSTATE_U64)
     assert_eq!(
@@ -216,7 +224,7 @@ fn test_vmstate_uint64() {
 
 #[test]
 fn test_vmstate_struct_varray_uint8() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOB.fields, 6) };
+    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOB.fields, 7) };
 
     // 3rd VMStateField ("arr_a") in VMSTATE_FOOB (corresponding to
     // VMSTATE_STRUCT_VARRAY_UINT8)
@@ -240,7 +248,7 @@ fn test_vmstate_struct_varray_uint8() {
 
 #[test]
 fn test_vmstate_struct_varray_uint32_multiply() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOB.fields, 6) };
+    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOB.fields, 7) };
 
     // 4th VMStateField ("arr_a_mul") in VMSTATE_FOOB (corresponding to
     // (no C version) MULTIPLY variant of VMSTATE_STRUCT_VARRAY_UINT32)
@@ -266,7 +274,7 @@ fn test_vmstate_struct_varray_uint32_multiply() {
 
 #[test]
 fn test_vmstate_macro_array() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOB.fields, 6) };
+    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOB.fields, 7) };
 
     // 5th VMStateField ("arr_i64") in VMSTATE_FOOB (corresponding to
     // VMSTATE_ARRAY)
@@ -283,9 +291,26 @@ fn test_vmstate_macro_array() {
     assert_eq!(foo_fields[4].flags, VMStateFlags::VMS_ARRAY);
     assert!(foo_fields[4].vmsd.is_null());
     assert!(foo_fields[4].field_exists.is_none());
+}
+
+#[test]
+fn test_vmstate_struct_varray_uint8_wrapper() {
+    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOB.fields, 7) };
+    let mut foo_b: FooB = Default::default();
+    let foo_b_p = std::ptr::addr_of_mut!(foo_b).cast::<c_void>();
+
+    // 6th VMStateField ("arr_a_wrap") in VMSTATE_FOOB (corresponding to
+    // VMSTATE_STRUCT_VARRAY_UINT8). Other fields are checked in
+    // test_vmstate_struct_varray_uint8.
+    assert_eq!(
+        unsafe { CStr::from_ptr(foo_fields[5].name) }.to_bytes_with_nul(),
+        b"arr_a_wrap\0"
+    );
+    assert_eq!(foo_fields[5].num_offset, 228);
+    assert!(unsafe { foo_fields[5].field_exists.unwrap()(foo_b_p, 0) });
 
     // The last VMStateField in VMSTATE_FOOB.
-    assert_eq!(foo_fields[5].flags, VMStateFlags::VMS_END);
+    assert_eq!(foo_fields[6].flags, VMStateFlags::VMS_END);
 }
 
 // =========================== Test VMSTATE_FOOC ===========================
