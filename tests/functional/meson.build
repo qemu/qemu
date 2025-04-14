@@ -42,6 +42,7 @@ test_timeouts = {
   'mips_malta' : 480,
   'mipsel_malta' : 420,
   'mipsel_replay' : 480,
+  'mips64_malta' : 240,
   'mips64el_malta' : 420,
   'mips64el_replay' : 180,
   'netdev_ethtool' : 180,
@@ -191,6 +192,7 @@ tests_mipsel_system_thorough = [
 ]
 
 tests_mips64_system_thorough = [
+  'mips64_malta',
   'mips64_tuxrun',
 ]
 
