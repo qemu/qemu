@@ -353,7 +353,7 @@ impl HPETTimer {
         // still operate and generate appropriate status bits, but
         // will not cause an interrupt"
         self.get_state()
-            .update_int_status(self.index as u32, set && self.is_int_level_triggered());
+            .update_int_status(self.index.into(), set && self.is_int_level_triggered());
         self.set_irq(set);
     }
 
