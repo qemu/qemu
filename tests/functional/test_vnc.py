@@ -55,6 +55,8 @@ class Vnc(QemuSystemTest):
         except VMLaunchFailure as excp:
             if "-vnc: invalid option" in excp.output:
                 self.skipTest("VNC support not available")
+            elif "Cipher backend does not support DES algorithm" in excp.output:
+                self.skipTest("No cryptographic backend available")
             else:
                 self.log.info("unhandled launch failure: %s", excp.output)
                 raise excp
