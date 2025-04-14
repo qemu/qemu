@@ -184,7 +184,7 @@ fn timer_handler(timer_cell: &BqlRefCell<HPETTimer>) {
 pub struct HPETTimer {
     /// timer N index within the timer block (`HPETState`)
     #[doc(alias = "tn")]
-    index: usize,
+    index: u8,
     qemu_timer: Timer,
     /// timer block abstraction containing this timer
     state: NonNull<HPETState>,
@@ -210,7 +210,7 @@ pub struct HPETTimer {
 }
 
 impl HPETTimer {
-    fn init(&mut self, index: usize, state: &HPETState) {
+    fn init(&mut self, index: u8, state: &HPETState) {
         *self = HPETTimer {
             index,
             // SAFETY: the HPETTimer will only be used after the timer
@@ -235,7 +235,7 @@ impl HPETTimer {
             Timer::NS,
             0,
             timer_handler,
-            &state.timers[self.index],
+            &state.timers[self.index as usize],
         )
     }
 
@@ -246,7 +246,7 @@ impl HPETTimer {
     }
 
     fn is_int_active(&self) -> bool {
-        self.get_state().is_timer_int_active(self.index)
+        self.get_state().is_timer_int_active(self.index.into())
     }
 
     const fn is_fsb_route_enabled(&self) -> bool {
@@ -611,7 +611,7 @@ impl HPETState {
 
     fn init_timer(&self) {
         for (index, timer) in self.timers.iter().enumerate() {
-            timer.borrow_mut().init(index, self);
+            timer.borrow_mut().init(index.try_into().unwrap(), self);
         }
     }
 
