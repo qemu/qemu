@@ -4767,14 +4767,25 @@ static void spapr_machine_latest_class_options(MachineClass *mc)
     DEFINE_SPAPR_MACHINE_IMPL(false, major, minor)
 
 /*
- * pseries-10.0
+ * pseries-10.1
  */
-static void spapr_machine_10_0_class_options(MachineClass *mc)
+static void spapr_machine_10_1_class_options(MachineClass *mc)
 {
     /* Defaults for the latest behaviour inherited from the base class */
 }
 
-DEFINE_SPAPR_MACHINE_AS_LATEST(10, 0);
+DEFINE_SPAPR_MACHINE_AS_LATEST(10, 1);
+
+/*
+ * pseries-10.0
+ */
+static void spapr_machine_10_0_class_options(MachineClass *mc)
+{
+    spapr_machine_10_1_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_10_0, hw_compat_10_0_len);
+}
+
+DEFINE_SPAPR_MACHINE(10, 0);
 
 /*
  * pseries-9.2
