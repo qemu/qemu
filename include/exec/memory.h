@@ -2162,7 +2162,7 @@ void memory_region_flush_rom_device(MemoryRegion *mr, hwaddr addr, hwaddr size);
  * only useful on RAM regions.
  *
  * @mr: the region being updated.
- * @readonly: whether rhe region is to be ROM or RAM.
+ * @readonly: whether the region is to be ROM or RAM.
  */
 void memory_region_set_readonly(MemoryRegion *mr, bool readonly);
 
@@ -2173,7 +2173,7 @@ void memory_region_set_readonly(MemoryRegion *mr, bool readonly);
  * only useful on RAM regions.
  *
  * @mr: the region being updated.
- * @nonvolatile: whether rhe region is to be non-volatile.
+ * @nonvolatile: whether the region is to be non-volatile.
  */
 void memory_region_set_nonvolatile(MemoryRegion *mr, bool nonvolatile);
 

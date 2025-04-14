@@ -5,7 +5,7 @@ Codebase
 This section presents the various parts of QEMU and how the codebase is
 organized.
 
-Beyond giving succint descriptions, the goal is to offer links to various
+Beyond giving succinct descriptions, the goal is to offer links to various
 parts of the documentation/codebase.
 
 Subsystems
@@ -67,7 +67,7 @@ yet, so sometimes the source code is all you have.
 * `chardev <https://gitlab.com/qemu-project/qemu/-/tree/master/chardev>`_:
   Various backends used by char devices.
 * `common-user <https://gitlab.com/qemu-project/qemu/-/tree/master/common-user>`_:
-  User-mode assembly code for dealing with signals occuring during syscalls.
+  User-mode assembly code for dealing with signals occurring during syscalls.
 * `configs <https://gitlab.com/qemu-project/qemu/-/tree/master/configs>`_:
   Makefiles defining configurations to build QEMU.
 * `contrib <https://gitlab.com/qemu-project/qemu/-/tree/master/contrib>`_:
@@ -102,7 +102,7 @@ yet, so sometimes the source code is all you have.
 * `.gitlab-ci.d <https://gitlab.com/qemu-project/qemu/-/tree/master/.gitlab-ci.d>`_:
   `CI <ci>` yaml and scripts.
 * `include <https://gitlab.com/qemu-project/qemu/-/tree/master/include>`_:
-  All headers associated to different subsystems in QEMU. The hierachy used
+  All headers associated to different subsystems in QEMU. The hierarchy used
   mirrors source code organization and naming.
 * `hw <https://gitlab.com/qemu-project/qemu/-/tree/master/hw>`_:
   `Devices <device-emulation>` and boards emulation. Devices are categorized by
