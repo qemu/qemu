@@ -6,9 +6,6 @@ Functional testing with Python
 The ``tests/functional`` directory hosts functional tests written in
 Python. They are usually higher level tests, and may interact with
 external resources and with various guest operating systems.
-The functional tests have initially evolved from the Avocado tests, so there
-is a lot of similarity to those tests here (see :ref:`checkavocado-ref` for
-details about the Avocado tests).
 
 The tests should be written in the style of the Python `unittest`_ framework,
 using stdio for the TAP protocol. The folder ``tests/functional/qemu_test``

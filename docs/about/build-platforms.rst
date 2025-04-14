@@ -123,11 +123,11 @@ Rust build dependencies
   to build QEMU.
 
 Optional build dependencies
-  Build components whose absence does not affect the ability to build
-  QEMU may not be available in distros, or may be too old for QEMU's
-  requirements.  Many of these, such as the Avocado testing framework
-  or various linters, are written in Python and therefore can also
-  be installed using ``pip``.  Cross compilers are another example
+  Build components whose absence does not affect the ability to build QEMU
+  may not be available in distros, or may be too old for our requirements.
+  Many of these, such as additional modules for the functional testing
+  framework or various linters, are written in Python and therefore can
+  also be installed using ``pip``.  Cross compilers are another example
   of optional build-time dependency; in this case it is possible to
   download them from repositories such as EPEL, to use container-based
   cross compilation using ``docker`` or ``podman``, or to use pre-built
