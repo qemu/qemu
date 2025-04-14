@@ -179,11 +179,3 @@ class LinuxSSH(QemuSystemTest, LinuxSSHMixIn):
         :avocado: tags=device:pcnet32
         """
         self.check_mips_malta('mips64', 'be')
-
-    def test_mips_malta64el_kernel3_2_0(self):
-        """
-        :avocado: tags=arch:mips64el
-        :avocado: tags=endian:little
-        :avocado: tags=device:pcnet32
-        """
-        self.check_mips_malta('mips64', 'le')
