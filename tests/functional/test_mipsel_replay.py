@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu_test import Asset, wait_for_console_pattern, skipSlowTest
+from qemu_test import Asset, skipSlowTest
 from replay_kernel import ReplayKernelBase
 
 

@@ -11,8 +11,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
-
 from qemu.machine import machine
 
 from qemu_test import QemuSystemTest, Asset, exec_command_and_wait_for_pattern
