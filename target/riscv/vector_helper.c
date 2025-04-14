@@ -5089,9 +5089,11 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
     }                                                                     \
                                                                           \
     for (i = i_max; i < vl; ++i) {                                        \
-        if (vm || vext_elem_mask(v0, i)) {                                \
-            *((ETYPE *)vd + H(i)) = 0;                                    \
+        if (!vm && !vext_elem_mask(v0, i)) {                              \
+            vext_set_elems_1s(vd, vma, i * esz, (i + 1) * esz);           \
+            continue;                                                     \
         }                                                                 \
+        *((ETYPE *)vd + H(i)) = 0;                                        \
     }                                                                     \
                                                                           \
     env->vstart = 0;                                                      \
