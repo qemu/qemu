@@ -11,6 +11,12 @@
 #include "user/cpu_loop.h"
 #include "signal-common.h"
 
+/* Break codes */
+enum {
+    BRK_OVERFLOW = 6,
+    BRK_DIVZERO = 7
+};
+
 void cpu_loop(CPULoongArchState *env)
 {
     CPUState *cs = env_cpu(env);
@@ -66,8 +72,25 @@ void cpu_loop(CPULoongArchState *env)
             force_sig_fault(TARGET_SIGFPE, si_code, env->pc);
             break;
         case EXCP_DEBUG:
-        case EXCCODE_BRK:
             force_sig_fault(TARGET_SIGTRAP, TARGET_TRAP_BRKPT, env->pc);
+            break;
+        case EXCCODE_BRK:
+            {
+                unsigned int opcode;
+
+                get_user_u32(opcode, env->pc);
+
+                switch (opcode & 0x7fff) {
+                case BRK_OVERFLOW:
+                    force_sig_fault(TARGET_SIGFPE, TARGET_FPE_INTOVF, env->pc);
+                    break;
+                case BRK_DIVZERO:
+                    force_sig_fault(TARGET_SIGFPE, TARGET_FPE_INTDIV, env->pc);
+                    break;
+                default:
+                    force_sig_fault(TARGET_SIGTRAP, TARGET_TRAP_BRKPT, env->pc);
+                }
+            }
             break;
         case EXCCODE_BCE:
             force_sig_fault(TARGET_SIGSYS, TARGET_SI_KERNEL, env->pc);
