@@ -4,11 +4,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
-import logging
-
-from qemu_test import Asset, exec_command_and_wait_for_pattern
-from qemu_test import skipIfMissingImports, skipFlakyTest, skipUntrustedTest
+from qemu_test import Asset, skipUntrustedTest
 from replay_kernel import ReplayKernelBase
 
 

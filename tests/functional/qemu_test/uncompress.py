@@ -13,7 +13,7 @@ import os
 import stat
 import shutil
 from urllib.parse import urlparse
-from subprocess import run, CalledProcessError, DEVNULL
+from subprocess import run, CalledProcessError
 
 from .asset import Asset
 

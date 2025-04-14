@@ -4,9 +4,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu_test import Asset
+from qemu_test import Asset, exec_command_and_wait_for_pattern
 from aspeed import AspeedTest
-from qemu_test import exec_command_and_wait_for_pattern
 
 
 class AST2500Machine(AspeedTest):

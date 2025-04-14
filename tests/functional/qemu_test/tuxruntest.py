@@ -10,8 +10,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
-import stat
-from subprocess import check_call, DEVNULL
 
 from qemu_test import QemuSystemTest
 from qemu_test import exec_command_and_wait_for_pattern

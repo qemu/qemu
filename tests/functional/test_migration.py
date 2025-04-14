@@ -11,13 +11,12 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-
 import tempfile
-import os
 import time
 
 from qemu_test import QemuSystemTest, skipIfMissingCommands
 from qemu_test.ports import Ports
+
 
 class MigrationTest(QemuSystemTest):
 

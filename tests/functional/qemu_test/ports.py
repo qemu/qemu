@@ -10,11 +10,10 @@
 import fcntl
 import os
 import socket
-import sys
-import tempfile
 
 from .config import BUILD_DIR
 from typing import List
+
 
 class Ports():
 

@@ -13,12 +13,8 @@
 import logging
 from subprocess import check_call, DEVNULL
 
-from qemu.machine.machine import VMLaunchFailure
-
-from qemu_test import QemuSystemTest, Asset
-from qemu_test import exec_command, exec_command_and_wait_for_pattern
-from qemu_test import wait_for_console_pattern
-from qemu_test import skipIfMissingCommands, get_qemu_img
+from qemu_test import QemuSystemTest, Asset, exec_command_and_wait_for_pattern
+from qemu_test import wait_for_console_pattern, get_qemu_img
 
 
 class Aarch64VirtMachine(QemuSystemTest):

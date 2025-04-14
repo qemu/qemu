@@ -11,11 +11,11 @@
 # later.  See the COPYING file in the top-level directory.
 
 import socket
-from typing import List
-from qemu.machine.machine import VMLaunchFailure
 
+from qemu.machine.machine import VMLaunchFailure
 from qemu_test import QemuSystemTest
 from qemu_test.ports import Ports
+
 
 VNC_ADDR = '127.0.0.1'
 
