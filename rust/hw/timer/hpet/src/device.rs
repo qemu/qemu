@@ -4,6 +4,7 @@
 
 use std::{
     ffi::{c_int, c_void, CStr},
+    mem::MaybeUninit,
     pin::Pin,
     ptr::{addr_of_mut, null_mut, NonNull},
     slice::from_ref,
@@ -25,6 +26,7 @@ use qemu_api::{
     qom_isa,
     sysbus::{SysBusDevice, SysBusDeviceImpl},
     timer::{Timer, CLOCK_VIRTUAL, NANOSECONDS_PER_SECOND},
+    uninit_field_mut,
     vmstate::VMStateDescription,
     vmstate_fields, vmstate_of, vmstate_struct, vmstate_subsections, vmstate_validate,
     zeroable::Zeroable,
@@ -212,13 +214,13 @@ pub struct HPETTimer {
 }
 
 impl HPETTimer {
-    fn init(&mut self, index: u8, state: &HPETState) {
-        *self = HPETTimer {
+    fn new(index: u8, state: *const HPETState) -> HPETTimer {
+        HPETTimer {
             index,
             // SAFETY: the HPETTimer will only be used after the timer
             // is initialized below.
             qemu_timer: unsafe { Timer::new() },
-            state: NonNull::new((state as *const HPETState).cast_mut()).unwrap(),
+            state: NonNull::new(state.cast_mut()).unwrap(),
             config: 0,
             cmp: 0,
             fsb: 0,
@@ -226,19 +228,15 @@ impl HPETTimer {
             period: 0,
             wrap_flag: 0,
             last: 0,
-        };
+        }
+    }
 
+    fn init_timer_with_cell(cell: &BqlRefCell<Self>) {
+        let mut timer = cell.borrow_mut();
         // SAFETY: HPETTimer is only used as part of HPETState, which is
         // always pinned.
-        let qemu_timer = unsafe { Pin::new_unchecked(&mut self.qemu_timer) };
-        qemu_timer.init_full(
-            None,
-            CLOCK_VIRTUAL,
-            Timer::NS,
-            0,
-            timer_handler,
-            &state.timers[self.index as usize],
-        )
+        let qemu_timer = unsafe { Pin::new_unchecked(&mut timer.qemu_timer) };
+        qemu_timer.init_full(None, CLOCK_VIRTUAL, Timer::NS, 0, timer_handler, cell);
     }
 
     fn get_state(&self) -> &HPETState {
@@ -607,9 +605,18 @@ impl HPETState {
         }
     }
 
-    fn init_timer(&self) {
-        for (index, timer) in self.timers.iter().enumerate() {
-            timer.borrow_mut().init(index.try_into().unwrap(), self);
+    fn init_timers(this: &mut MaybeUninit<Self>) {
+        let state = this.as_ptr();
+        for index in 0..HPET_MAX_TIMERS {
+            let mut timer = uninit_field_mut!(*this, timers[index]);
+
+            // Initialize in two steps, to avoid calling Timer::init_full on a
+            // temporary that can be moved.
+            let timer = timer.write(BqlRefCell::new(HPETTimer::new(
+                index.try_into().unwrap(),
+                state,
+            )));
+            HPETTimer::init_timer_with_cell(timer);
         }
     }
 
@@ -710,6 +717,8 @@ impl HPETState {
             "hpet",
             HPET_REG_SPACE_LEN,
         );
+
+        Self::init_timers(unsafe { &mut *((self as *mut Self).cast::<MaybeUninit<Self>>()) });
     }
 
     fn post_init(&self) {
@@ -731,7 +740,6 @@ impl HPETState {
 
         self.hpet_id.set(HPETFwConfig::assign_hpet_id()?);
 
-        self.init_timer();
         // 64-bit General Capabilities and ID Register; LegacyReplacementRoute.
         self.capability.set(
             HPET_CAP_REV_ID_VALUE << HPET_CAP_REV_ID_SHIFT |
