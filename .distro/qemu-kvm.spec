@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 17%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 18%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -493,6 +493,58 @@ Patch160: kvm-vfio-pci-Delete-local-pm_cap.patch
 Patch161: kvm-pcie-virtio-Remove-redundant-pm_cap.patch
 # For RHEL-7301 - [intel iommu] VFIO_MAP_DMA failed: Bad address on system_powerdown
 Patch162: kvm-hw-vfio-pci-Re-order-pre-reset.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch163: kvm-virtio-kconfig-memory-devices-are-PCI-only.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch164: kvm-hw-s390-ccw-device-Convert-to-three-phase-reset.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch165: kvm-hw-s390-virtio-ccw-Convert-to-three-phase-reset.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch166: kvm-target-s390-Convert-CPU-to-Resettable-interface.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch167: kvm-reset-Use-ResetType-for-qemu_devices_reset-and-Machi.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch168: kvm-reset-Add-RESET_TYPE_WAKEUP.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch169: kvm-virtio-mem-Use-new-Resettable-framework-instead-of-L.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch170: kvm-virtio-mem-Add-support-for-suspend-wake-up-with-plug.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch171: kvm-virtio-mem-unplug-memory-only-during-system-resets-n.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch172: kvm-s390x-s390-virtio-ccw-don-t-crash-on-weird-RAM-sizes.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch173: kvm-s390x-s390-virtio-hcall-remove-hypercall-registratio.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch174: kvm-s390x-s390-virtio-hcall-prepare-for-more-diag500-hyp.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch175: kvm-s390x-rename-s390-virtio-hcall-to-s390-hypercall.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch176: kvm-s390x-s390-virtio-ccw-move-setting-the-maximum-guest.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch177: kvm-s390x-introduce-s390_get_memory_limit.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch178: kvm-s390x-s390-hypercall-introduce-DIAG500-STORAGE_LIMIT.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch179: kvm-s390x-s390-stattrib-kvm-prepare-for-memory-devices-a.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch180: kvm-s390x-s390-skeys-prepare-for-memory-devices.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch181: kvm-s390x-s390-virtio-ccw-prepare-for-memory-devices.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch182: kvm-s390x-pv-prepare-for-memory-devices.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch183: kvm-s390x-remember-the-maximum-page-size.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch184: kvm-s390x-virtio-ccw-add-support-for-virtio-based-memory.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch185: kvm-s390x-virtio-mem-support.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch186: kvm-hw-virtio-Also-include-md-stubs-in-case-CONFIG_VIRTI.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch187: kvm-virtio-mem-don-t-warn-about-THP-sizes-on-a-kernel-wi.patch
+# For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
+Patch188: kvm-redhat-Enable-virtio-mem-on-s390x.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1561,6 +1613,36 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Mon Apr 14 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-18
+- kvm-virtio-kconfig-memory-devices-are-PCI-only.patch [RHEL-72977]
+- kvm-hw-s390-ccw-device-Convert-to-three-phase-reset.patch [RHEL-72977]
+- kvm-hw-s390-virtio-ccw-Convert-to-three-phase-reset.patch [RHEL-72977]
+- kvm-target-s390-Convert-CPU-to-Resettable-interface.patch [RHEL-72977]
+- kvm-reset-Use-ResetType-for-qemu_devices_reset-and-Machi.patch [RHEL-72977]
+- kvm-reset-Add-RESET_TYPE_WAKEUP.patch [RHEL-72977]
+- kvm-virtio-mem-Use-new-Resettable-framework-instead-of-L.patch [RHEL-72977]
+- kvm-virtio-mem-Add-support-for-suspend-wake-up-with-plug.patch [RHEL-72977]
+- kvm-virtio-mem-unplug-memory-only-during-system-resets-n.patch [RHEL-72977]
+- kvm-s390x-s390-virtio-ccw-don-t-crash-on-weird-RAM-sizes.patch [RHEL-72977]
+- kvm-s390x-s390-virtio-hcall-remove-hypercall-registratio.patch [RHEL-72977]
+- kvm-s390x-s390-virtio-hcall-prepare-for-more-diag500-hyp.patch [RHEL-72977]
+- kvm-s390x-rename-s390-virtio-hcall-to-s390-hypercall.patch [RHEL-72977]
+- kvm-s390x-s390-virtio-ccw-move-setting-the-maximum-guest.patch [RHEL-72977]
+- kvm-s390x-introduce-s390_get_memory_limit.patch [RHEL-72977]
+- kvm-s390x-s390-hypercall-introduce-DIAG500-STORAGE_LIMIT.patch [RHEL-72977]
+- kvm-s390x-s390-stattrib-kvm-prepare-for-memory-devices-a.patch [RHEL-72977]
+- kvm-s390x-s390-skeys-prepare-for-memory-devices.patch [RHEL-72977]
+- kvm-s390x-s390-virtio-ccw-prepare-for-memory-devices.patch [RHEL-72977]
+- kvm-s390x-pv-prepare-for-memory-devices.patch [RHEL-72977]
+- kvm-s390x-remember-the-maximum-page-size.patch [RHEL-72977]
+- kvm-s390x-virtio-ccw-add-support-for-virtio-based-memory.patch [RHEL-72977]
+- kvm-s390x-virtio-mem-support.patch [RHEL-72977]
+- kvm-hw-virtio-Also-include-md-stubs-in-case-CONFIG_VIRTI.patch [RHEL-72977]
+- kvm-virtio-mem-don-t-warn-about-THP-sizes-on-a-kernel-wi.patch [RHEL-72977]
+- kvm-redhat-Enable-virtio-mem-on-s390x.patch [RHEL-72977]
+- Resolves: RHEL-72977
+  ([IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part)
+
 * Mon Mar 31 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-17
 - kvm-hw-pci-Rename-has_power-to-enabled.patch [RHEL-7301]
 - kvm-hw-pci-Basic-support-for-PCI-power-management.patch [RHEL-7301]
