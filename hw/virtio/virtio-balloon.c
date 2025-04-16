@@ -958,7 +958,7 @@ static void virtio_balloon_device_reset(VirtIODevice *vdev)
     s->poison_val = 0;
 }
 
-static void virtio_balloon_set_status(VirtIODevice *vdev, uint8_t status)
+static int virtio_balloon_set_status(VirtIODevice *vdev, uint8_t status)
 {
     VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
 
@@ -988,6 +988,7 @@ static void virtio_balloon_set_status(VirtIODevice *vdev, uint8_t status)
             qemu_mutex_unlock(&s->free_page_lock);
         }
     }
+    return 0;
 }
 
 static ResettableState *virtio_balloon_get_reset_state(Object *obj)

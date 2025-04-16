@@ -83,7 +83,7 @@ err_host_notifiers:
     return ret;
 }
 
-static void vu_scmi_stop(VirtIODevice *vdev)
+static int vu_scmi_stop(VirtIODevice *vdev)
 {
     VHostUserSCMI *scmi = VHOST_USER_SCMI(vdev);
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
@@ -93,41 +93,46 @@ static void vu_scmi_stop(VirtIODevice *vdev)
 
     /* vhost_dev_is_started() check in the callers is not fully reliable. */
     if (!scmi->started_vu) {
-        return;
+        return 0;
     }
     scmi->started_vu = false;
 
     if (!k->set_guest_notifiers) {
-        return;
+        return 0;
     }
 
-    vhost_dev_stop(vhost_dev, vdev, true);
+    ret = vhost_dev_stop(vhost_dev, vdev, true);
 
-    ret = k->set_guest_notifiers(qbus->parent, vhost_dev->nvqs, false);
-    if (ret < 0) {
+    if (k->set_guest_notifiers(qbus->parent, vhost_dev->nvqs, false) < 0) {
         error_report("vhost guest notifier cleanup failed: %d", ret);
-        return;
+        return -1;
     }
     vhost_dev_disable_notifiers(vhost_dev, vdev);
+    return ret;
 }
 
-static void vu_scmi_set_status(VirtIODevice *vdev, uint8_t status)
+static int vu_scmi_set_status(VirtIODevice *vdev, uint8_t status)
 {
     VHostUserSCMI *scmi = VHOST_USER_SCMI(vdev);
     bool should_start = virtio_device_should_start(vdev, status);
 
     if (!scmi->connected) {
-        return;
+        return -1;
     }
     if (vhost_dev_is_started(&scmi->vhost_dev) == should_start) {
-        return;
+        return 0;
     }
 
     if (should_start) {
         vu_scmi_start(vdev);
     } else {
-        vu_scmi_stop(vdev);
+        int ret;
+        ret = vu_scmi_stop(vdev);
+        if (ret < 0) {
+            return ret;
+        }
     }
+    return 0;
 }
 
 static uint64_t vu_scmi_get_features(VirtIODevice *vdev, uint64_t features,

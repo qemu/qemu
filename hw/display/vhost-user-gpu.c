@@ -516,7 +516,7 @@ vhost_user_gpu_set_config(VirtIODevice *vdev,
     }
 }
 
-static void
+static int
 vhost_user_gpu_set_status(VirtIODevice *vdev, uint8_t val)
 {
     VhostUserGPU *g = VHOST_USER_GPU(vdev);
@@ -525,18 +525,24 @@ vhost_user_gpu_set_status(VirtIODevice *vdev, uint8_t val)
     if (val & VIRTIO_CONFIG_S_DRIVER_OK && vdev->vm_running) {
         if (!vhost_user_gpu_do_set_socket(g, &err)) {
             error_report_err(err);
-            return;
+            return 0;
         }
         vhost_user_backend_start(g->vhost);
     } else {
+        int ret;
+
         /* unblock any wait and stop processing */
         if (g->vhost_gpu_fd != -1) {
             vhost_user_gpu_update_blocked(g, true);
             qemu_chr_fe_deinit(&g->vhost_chr, true);
             g->vhost_gpu_fd = -1;
         }
-        vhost_user_backend_stop(g->vhost);
+        ret = vhost_user_backend_stop(g->vhost);
+        if (ret < 0) {
+            return ret;
+        }
     }
+    return 0;
 }
 
 static bool

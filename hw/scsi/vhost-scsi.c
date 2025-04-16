@@ -114,7 +114,7 @@ static void vhost_scsi_stop(VHostSCSI *s)
     vhost_scsi_common_stop(vsc);
 }
 
-static void vhost_scsi_set_status(VirtIODevice *vdev, uint8_t val)
+static int vhost_scsi_set_status(VirtIODevice *vdev, uint8_t val)
 {
     VHostSCSI *s = VHOST_SCSI(vdev);
     VHostSCSICommon *vsc = VHOST_SCSI_COMMON(s);
@@ -125,7 +125,7 @@ static void vhost_scsi_set_status(VirtIODevice *vdev, uint8_t val)
     }
 
     if (vhost_dev_is_started(&vsc->dev) == start) {
-        return;
+        return 0;
     }
 
     if (start) {
@@ -139,6 +139,7 @@ static void vhost_scsi_set_status(VirtIODevice *vdev, uint8_t val)
     } else {
         vhost_scsi_stop(s);
     }
+    return 0;
 }
 
 static void vhost_dummy_handle_output(VirtIODevice *vdev, VirtQueue *vq)
