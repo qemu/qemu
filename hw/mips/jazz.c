@@ -59,12 +59,6 @@ enum jazz_model_e {
     JAZZ_PICA61,
 };
 
-#if TARGET_BIG_ENDIAN
-#define BIOS_FILENAME "mips_bios.bin"
-#else
-#define BIOS_FILENAME "mipsel_bios.bin"
-#endif
-
 static void main_cpu_reset(void *opaque)
 {
     MIPSCPU *cpu = opaque;
@@ -168,6 +162,8 @@ static void mips_jazz_init_net(IOMMUMemoryRegion *rc4030_dma_mr,
 static void mips_jazz_init(MachineState *machine,
                            enum jazz_model_e jazz_model)
 {
+    const char *bios_name = TARGET_BIG_ENDIAN ? "mips_bios.bin"
+                                              : "mipsel_bios.bin";
     MemoryRegion *address_space = get_system_memory();
     char *filename;
     int bios_size, n;
@@ -245,7 +241,8 @@ static void mips_jazz_init(MachineState *machine,
     memory_region_add_subregion(address_space, 0xfff00000LL, bios2);
 
     /* load the BIOS image. */
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, machine->firmware ?: BIOS_FILENAME);
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,
+                              machine->firmware ?: bios_name);
     if (filename) {
         bios_size = load_image_targphys(filename, 0xfff00000LL,
                                         MAGNUM_BIOS_SIZE);
