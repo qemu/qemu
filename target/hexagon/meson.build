@@ -41,20 +41,10 @@ hexagon_ss.add(semantics_generated)
 #
 # Step 2
 # We use Python scripts to generate the following files
-#     tcg_func_table_generated.c.inc
 #     printinsn_generated.h.inc
 #     op_attribs_generated.h.inc
 #     opcodes_def_generated.h.inc
 #
-tcg_func_table_generated = custom_target(
-    'tcg_func_table_generated.c.inc',
-    output: 'tcg_func_table_generated.c.inc',
-    depends: [semantics_generated],
-    depend_files: [hex_common_py],
-    command: [python, files('gen_tcg_func_table.py'), semantics_generated, '@OUTPUT@'],
-)
-hexagon_ss.add(tcg_func_table_generated)
-
 printinsn_generated = custom_target(
     'printinsn_generated.h.inc',
     output: 'printinsn_generated.h.inc',

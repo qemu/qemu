@@ -1454,4 +1454,8 @@ void gen_add_sat_i64(DisasContext *ctx, TCGv_i64 ret, TCGv_i64 a, TCGv_i64 b)
 }
 
 #include "tcg_funcs_generated.c.inc"
-#include "tcg_func_table_generated.c.inc"
+const SemanticInsn opcode_genptr[XX_LAST_OPCODE] = {
+#define OPCODE(X)    [X] = generate_##X
+#include "opcodes_def_generated.h.inc"
+#undef OPCODE
+};
