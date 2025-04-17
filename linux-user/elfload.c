@@ -12,6 +12,7 @@
 #include "exec/page-protection.h"
 #include "exec/mmap-lock.h"
 #include "exec/translation-block.h"
+#include "exec/tswap.h"
 #include "user/guest-base.h"
 #include "user-internals.h"
 #include "signal-common.h"
@@ -2122,9 +2123,12 @@ static inline void memcpy_fromfs(void * to, const void * from, unsigned long n)
     memcpy(to, from, n);
 }
 
-#if HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN
 static void bswap_ehdr(struct elfhdr *ehdr)
 {
+    if (!target_needs_bswap()) {
+        return;
+    }
+
     bswap16s(&ehdr->e_type);            /* Object file type */
     bswap16s(&ehdr->e_machine);         /* Architecture */
     bswap32s(&ehdr->e_version);         /* Object file version */
@@ -2142,8 +2146,11 @@ static void bswap_ehdr(struct elfhdr *ehdr)
 
 static void bswap_phdr(struct elf_phdr *phdr, int phnum)
 {
-    int i;
-    for (i = 0; i < phnum; ++i, ++phdr) {
+    if (!target_needs_bswap()) {
+        return;
+    }
+
+    for (int i = 0; i < phnum; ++i, ++phdr) {
         bswap32s(&phdr->p_type);        /* Segment type */
         bswap32s(&phdr->p_flags);       /* Segment flags */
         bswaptls(&phdr->p_offset);      /* Segment file offset */
@@ -2157,8 +2164,11 @@ static void bswap_phdr(struct elf_phdr *phdr, int phnum)
 
 static void bswap_shdr(struct elf_shdr *shdr, int shnum)
 {
-    int i;
-    for (i = 0; i < shnum; ++i, ++shdr) {
+    if (!target_needs_bswap()) {
+        return;
+    }
+
+    for (int i = 0; i < shnum; ++i, ++shdr) {
         bswap32s(&shdr->sh_name);
         bswap32s(&shdr->sh_type);
         bswaptls(&shdr->sh_flags);
@@ -2174,6 +2184,10 @@ static void bswap_shdr(struct elf_shdr *shdr, int shnum)
 
 static void bswap_sym(struct elf_sym *sym)
 {
+    if (!target_needs_bswap()) {
+        return;
+    }
+
     bswap32s(&sym->st_name);
     bswaptls(&sym->st_value);
     bswaptls(&sym->st_size);
@@ -2183,21 +2197,16 @@ static void bswap_sym(struct elf_sym *sym)
 #ifdef TARGET_MIPS
 static void bswap_mips_abiflags(Mips_elf_abiflags_v0 *abiflags)
 {
+    if (!target_needs_bswap()) {
+        return;
+    }
+
     bswap16s(&abiflags->version);
     bswap32s(&abiflags->ases);
     bswap32s(&abiflags->isa_ext);
     bswap32s(&abiflags->flags1);
     bswap32s(&abiflags->flags2);
 }
-#endif
-#else
-static inline void bswap_ehdr(struct elfhdr *ehdr) { }
-static inline void bswap_phdr(struct elf_phdr *phdr, int phnum) { }
-static inline void bswap_shdr(struct elf_shdr *shdr, int shnum) { }
-static inline void bswap_sym(struct elf_sym *sym) { }
-#ifdef TARGET_MIPS
-static inline void bswap_mips_abiflags(Mips_elf_abiflags_v0 *abiflags) { }
-#endif
 #endif
 
 #ifdef USE_ELF_CORE_DUMP
@@ -3144,11 +3153,11 @@ static bool parse_elf_properties(const ImageSource *src,
      * The contents of a valid PT_GNU_PROPERTY is a sequence of uint32_t.
      * Swap most of them now, beyond the header and namesz.
      */
-#if HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN
-    for (int i = 4; i < n / 4; i++) {
-        bswap32s(note.data + i);
+    if (target_needs_bswap()) {
+        for (int i = 4; i < n / 4; i++) {
+            bswap32s(note.data + i);
+        }
     }
-#endif
 
     /*
      * Note that nhdr is 3 words, and that the "name" described by namesz
@@ -4000,9 +4009,12 @@ struct target_elf_prpsinfo {
     char    pr_psargs[ELF_PRARGSZ]; /* initial part of arg list */
 };
 
-#if HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN
 static void bswap_prstatus(struct target_elf_prstatus *prstatus)
 {
+    if (!target_needs_bswap()) {
+        return;
+    }
+
     prstatus->pr_info.si_signo = tswap32(prstatus->pr_info.si_signo);
     prstatus->pr_info.si_code = tswap32(prstatus->pr_info.si_code);
     prstatus->pr_info.si_errno = tswap32(prstatus->pr_info.si_errno);
@@ -4020,6 +4032,10 @@ static void bswap_prstatus(struct target_elf_prstatus *prstatus)
 
 static void bswap_psinfo(struct target_elf_prpsinfo *psinfo)
 {
+    if (!target_needs_bswap()) {
+        return;
+    }
+
     psinfo->pr_flag = tswapal(psinfo->pr_flag);
     psinfo->pr_uid = tswap16(psinfo->pr_uid);
     psinfo->pr_gid = tswap16(psinfo->pr_gid);
@@ -4031,15 +4047,14 @@ static void bswap_psinfo(struct target_elf_prpsinfo *psinfo)
 
 static void bswap_note(struct elf_note *en)
 {
+    if (!target_needs_bswap()) {
+        return;
+    }
+
     bswap32s(&en->n_namesz);
     bswap32s(&en->n_descsz);
     bswap32s(&en->n_type);
 }
-#else
-static inline void bswap_prstatus(struct target_elf_prstatus *p) { }
-static inline void bswap_psinfo(struct target_elf_prpsinfo *p) {}
-static inline void bswap_note(struct elf_note *en) { }
-#endif /* HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN */
 
 /*
  * Calculate file (dump) size of given memory region.
