@@ -133,7 +133,7 @@ bool cpu_virtio_is_big_endian(CPUState *cpu)
     if (cpu->cc->sysemu_ops->virtio_is_big_endian) {
         return cpu->cc->sysemu_ops->virtio_is_big_endian(cpu);
     }
-    return target_words_bigendian();
+    return target_big_endian();
 }
 
 GuestPanicInformation *cpu_get_crash_info(CPUState *cpu)

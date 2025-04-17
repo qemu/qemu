@@ -45,7 +45,7 @@ static inline bool devend_big_endian(enum device_endian end)
                       DEVICE_HOST_ENDIAN != DEVICE_BIG_ENDIAN);
 
     if (end == DEVICE_NATIVE_ENDIAN) {
-        return target_words_bigendian();
+        return target_big_endian();
     }
     return end == DEVICE_BIG_ENDIAN;
 }

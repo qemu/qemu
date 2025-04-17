@@ -2575,7 +2575,7 @@ void memory_region_add_eventfd(MemoryRegion *mr,
     unsigned i;
 
     if (size) {
-        MemOp mop = (target_words_bigendian() ? MO_BE : MO_LE) | size_memop(size);
+        MemOp mop = (target_big_endian() ? MO_BE : MO_LE) | size_memop(size);
         adjust_endianness(mr, &mrfd.data, mop);
     }
     memory_region_transaction_begin();
@@ -2611,7 +2611,7 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     unsigned i;
 
     if (size) {
-        MemOp mop = (target_words_bigendian() ? MO_BE : MO_LE) | size_memop(size);
+        MemOp mop = (target_big_endian() ? MO_BE : MO_LE) | size_memop(size);
         adjust_endianness(mr, &mrfd.data, mop);
     }
     memory_region_transaction_begin();

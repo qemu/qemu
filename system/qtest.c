@@ -693,7 +693,7 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
 
         qtest_send(chr, "OK\n");
     } else if (strcmp(words[0], "endianness") == 0) {
-        if (target_words_bigendian()) {
+        if (target_big_endian()) {
             qtest_sendf(chr, "OK big\n");
         } else {
             qtest_sendf(chr, "OK little\n");

@@ -160,8 +160,8 @@ void cpu_abort(CPUState *cpu, const char *fmt, ...)
     abort();
 }
 
-#undef target_words_bigendian
-bool target_words_bigendian(void)
+#undef target_big_endian
+bool target_big_endian(void)
 {
     return TARGET_BIG_ENDIAN;
 }
