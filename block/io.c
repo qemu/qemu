@@ -3105,11 +3105,12 @@ int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
     /* Invalidate the cached block-status data range if this discard overlaps */
     bdrv_bsc_invalidate_range(bs, offset, bytes);
 
-    /* Discard is advisory, but some devices track and coalesce
+    /*
+     * Discard is advisory, but some devices track and coalesce
      * unaligned requests, so we must pass everything down rather than
-     * round here.  Still, most devices will just silently ignore
-     * unaligned requests (by returning -ENOTSUP), so we must fragment
-     * the request accordingly.  */
+     * round here.  Still, most devices reject unaligned requests with
+     * -EINVAL or -ENOTSUP, so we must fragment the request accordingly.
+     */
     align = MAX(bs->bl.pdiscard_alignment, bs->bl.request_alignment);
     assert(align % bs->bl.request_alignment == 0);
     head = offset % align;
@@ -3176,7 +3177,11 @@ int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
             }
         }
         if (ret && ret != -ENOTSUP) {
-            goto out;
+            if (ret == -EINVAL && (offset % align != 0 || num % align != 0)) {
+                /* Silently skip rejected unaligned head/tail requests */
+            } else {
+                goto out; /* bail out */
+            }
         }
 
         offset += num;
