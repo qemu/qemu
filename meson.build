@@ -3795,6 +3795,8 @@ endif
 common_ss.add(pagevary)
 specific_ss.add(files('page-target.c', 'page-vary-target.c'))
 
+specific_ss.add(files('target-info-stub.c'))
+
 subdir('backends')
 subdir('disas')
 subdir('migration')
