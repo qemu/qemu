@@ -69,11 +69,11 @@ safe_syscall_end:
 
         /* code path setting errno */
 0:      neg     a0, a0
-        j       safe_syscall_set_errno_tail
+        tail    safe_syscall_set_errno_tail
 
         /* code path when we didn't execute the syscall */
 2:      li      a0, QEMU_ERESTARTSYS
-        j       safe_syscall_set_errno_tail
+        tail    safe_syscall_set_errno_tail
 
         .cfi_endproc
         .size   safe_syscall_base, .-safe_syscall_base
