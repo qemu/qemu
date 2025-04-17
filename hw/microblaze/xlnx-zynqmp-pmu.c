@@ -181,12 +181,12 @@ static void xlnx_zynqmp_pmu_init(MachineState *machine)
 
 static void xlnx_zynqmp_pmu_machine_init(MachineClass *mc)
 {
-#if TARGET_BIG_ENDIAN
-    mc->desc = "Xilinx ZynqMP PMU machine (big endian)";
-    mc->deprecation_reason = "big endian support is not tested";
-#else
-    mc->desc = "Xilinx ZynqMP PMU machine (little endian)";
-#endif
+    if (TARGET_BIG_ENDIAN) {
+        mc->desc = "Xilinx ZynqMP PMU machine (big endian)";
+        mc->deprecation_reason = "big endian support is not tested";
+    } else {
+        mc->desc = "Xilinx ZynqMP PMU machine (little endian)";
+    }
     mc->init = xlnx_zynqmp_pmu_init;
 }
 
