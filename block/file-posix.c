@@ -785,17 +785,6 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
 #endif
 
-    if (S_ISBLK(st.st_mode)) {
-#ifdef __linux__
-        /* On Linux 3.10, BLKDISCARD leaves stale data in the page cache.  Do
-         * not rely on the contents of discarded blocks unless using O_DIRECT.
-         * Same for BLKZEROOUT.
-         */
-        if (!(bs->open_flags & BDRV_O_NOCACHE)) {
-            s->has_write_zeroes = false;
-        }
-#endif
-    }
 #ifdef __FreeBSD__
     if (S_ISCHR(st.st_mode)) {
         /*
