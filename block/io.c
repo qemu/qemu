@@ -3102,7 +3102,7 @@ int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
         return 0;
     }
 
-    if (!bs->drv->bdrv_co_pdiscard && !bs->drv->bdrv_aio_pdiscard) {
+    if (!bs->drv->bdrv_co_pdiscard) {
         return 0;
     }
 
@@ -3162,24 +3162,8 @@ int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
             ret = -ENOMEDIUM;
             goto out;
         }
-        if (bs->drv->bdrv_co_pdiscard) {
-            ret = bs->drv->bdrv_co_pdiscard(bs, offset, num);
-        } else {
-            BlockAIOCB *acb;
-            CoroutineIOCompletion co = {
-                .coroutine = qemu_coroutine_self(),
-            };
 
-            acb = bs->drv->bdrv_aio_pdiscard(bs, offset, num,
-                                             bdrv_co_io_em_complete, &co);
-            if (acb == NULL) {
-                ret = -EIO;
-                goto out;
-            } else {
-                qemu_coroutine_yield();
-                ret = co.ret;
-            }
-        }
+        ret = bs->drv->bdrv_co_pdiscard(bs, offset, num);
         if (ret && ret != -ENOTSUP) {
             if (ret == -EINVAL && (offset % align != 0 || num % align != 0)) {
                 /* Silently skip rejected unaligned head/tail requests */
