@@ -2316,6 +2316,8 @@ void virtio_queue_enable(VirtIODevice *vdev, uint32_t queue_index)
     }
 }
 
+static int virtio_set_features_nocheck(VirtIODevice *vdev, uint64_t val);
+
 void virtio_reset(void *opaque)
 {
     VirtIODevice *vdev = opaque;
@@ -2346,7 +2348,7 @@ void virtio_reset(void *opaque)
     vdev->start_on_kick = false;
     vdev->started = false;
     vdev->broken = false;
-    vdev->guest_features = 0;
+    virtio_set_features_nocheck(vdev, 0);
     vdev->queue_sel = 0;
     vdev->status = 0;
     vdev->disabled = false;
