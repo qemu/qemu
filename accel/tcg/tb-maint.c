@@ -1210,7 +1210,7 @@ void tb_invalidate_phys_range(CPUState *cpu, tb_page_addr_t start,
  * Called via softmmu_template.h when code areas are written to with
  * iothread mutex not held.
  */
-void tb_invalidate_phys_range_fast(ram_addr_t start,
+void tb_invalidate_phys_range_fast(CPUState *cpu, ram_addr_t start,
                                    unsigned len, uintptr_t ra)
 {
     PageDesc *p = page_find(start >> TARGET_PAGE_BITS);
@@ -1219,7 +1219,7 @@ void tb_invalidate_phys_range_fast(ram_addr_t start,
         ram_addr_t last = start + len - 1;
         struct page_collection *pages = page_collection_lock(start, last);
 
-        tb_invalidate_phys_page_range__locked(NULL, pages, p,
+        tb_invalidate_phys_page_range__locked(cpu, pages, p,
                                               start, last, ra);
         page_collection_unlock(pages);
     }
