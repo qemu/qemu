@@ -1100,9 +1100,12 @@ bool tb_invalidate_phys_page_unwind(CPUState *cpu, tb_page_addr_t addr,
 /*
  * @p must be non-NULL.
  * Call with all @pages locked.
+ * (@cpu, @retaddr) may be (NULL, 0) outside of a cpu context,
+ * in which case precise_smc need not be detected.
  */
 static void
-tb_invalidate_phys_page_range__locked(struct page_collection *pages,
+tb_invalidate_phys_page_range__locked(CPUState *cpu,
+                                      struct page_collection *pages,
                                       PageDesc *p, tb_page_addr_t start,
                                       tb_page_addr_t last,
                                       uintptr_t retaddr)
@@ -1194,7 +1197,7 @@ void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t last)
         page_start = index << TARGET_PAGE_BITS;
         page_last = page_start | ~TARGET_PAGE_MASK;
         page_last = MIN(page_last, last);
-        tb_invalidate_phys_page_range__locked(pages, pd,
+        tb_invalidate_phys_page_range__locked(NULL, pages, pd,
                                               page_start, page_last, 0);
     }
     page_collection_unlock(pages);
@@ -1215,7 +1218,7 @@ static void tb_invalidate_phys_page_fast__locked(struct page_collection *pages,
     }
 
     assert_page_locked(p);
-    tb_invalidate_phys_page_range__locked(pages, p, start, start + len - 1, ra);
+    tb_invalidate_phys_page_range__locked(NULL, pages, p, start, start + len - 1, ra);
 }
 
 /*
