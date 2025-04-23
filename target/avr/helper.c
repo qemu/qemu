@@ -23,10 +23,10 @@
 #include "qemu/error-report.h"
 #include "cpu.h"
 #include "accel/tcg/cpu-ops.h"
+#include "accel/tcg/getpc.h"
 #include "exec/cputlb.h"
 #include "exec/page-protection.h"
 #include "exec/cpu_ldst.h"
-#include "exec/address-spaces.h"
 #include "exec/helper-proto.h"
 
 bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
@@ -67,6 +67,11 @@ bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     return false;
 }
 
+static void do_stb(CPUAVRState *env, uint32_t addr, uint8_t data, uintptr_t ra)
+{
+    cpu_stb_mmuidx_ra(env, addr, data, MMU_DATA_IDX, ra);
+}
+
 void avr_cpu_do_interrupt(CPUState *cs)
 {
     CPUAVRState *env = cpu_env(cs);
@@ -83,14 +88,14 @@ void avr_cpu_do_interrupt(CPUState *cs)
     }
 
     if (avr_feature(env, AVR_FEATURE_3_BYTE_PC)) {
-        cpu_stb_data(env, env->sp--, (ret & 0x0000ff));
-        cpu_stb_data(env, env->sp--, (ret & 0x00ff00) >> 8);
-        cpu_stb_data(env, env->sp--, (ret & 0xff0000) >> 16);
+        do_stb(env, env->sp--, ret, 0);
+        do_stb(env, env->sp--, ret >> 8, 0);
+        do_stb(env, env->sp--, ret >> 16, 0);
     } else if (avr_feature(env, AVR_FEATURE_2_BYTE_PC)) {
-        cpu_stb_data(env, env->sp--, (ret & 0x0000ff));
-        cpu_stb_data(env, env->sp--, (ret & 0x00ff00) >> 8);
+        do_stb(env, env->sp--, ret, 0);
+        do_stb(env, env->sp--, ret >> 8, 0);
     } else {
-        cpu_stb_data(env, env->sp--, (ret & 0x0000ff));
+        do_stb(env, env->sp--, ret, 0);
     }
 
     env->pc_w = base + vector * size;
@@ -108,7 +113,7 @@ bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                       MMUAccessType access_type, int mmu_idx,
                       bool probe, uintptr_t retaddr)
 {
-    int prot, page_size = TARGET_PAGE_SIZE;
+    int prot;
     uint32_t paddr;
 
     address &= TARGET_PAGE_MASK;
@@ -133,23 +138,9 @@ bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         /* Access to memory. */
         paddr = OFFSET_DATA + address;
         prot = PAGE_READ | PAGE_WRITE;
-        if (address < NUMBER_OF_CPU_REGISTERS + NUMBER_OF_IO_REGISTERS) {
-            /*
-             * Access to CPU registers, exit and rebuilt this TB to use
-             * full access in case it touches specially handled registers
-             * like SREG or SP.  For probing, set page_size = 1, in order
-             * to force tlb_fill to be called for the next access.
-             */
-            if (probe) {
-                page_size = 1;
-            } else {
-                cpu_env(cs)->fullacc = 1;
-                cpu_loop_exit_restore(cs, retaddr);
-            }
-        }
     }
 
-    tlb_set_page(cs, address, paddr, prot, mmu_idx, page_size);
+    tlb_set_page(cs, address, paddr, prot, mmu_idx, TARGET_PAGE_SIZE);
     return true;
 }
 
@@ -203,133 +194,77 @@ void helper_wdr(CPUAVRState *env)
 }
 
 /*
- * This function implements IN instruction
- *
- * It does the following
- * a.  if an IO register belongs to CPU, its value is read and returned
- * b.  otherwise io address is translated to mem address and physical memory
- *     is read.
- * c.  it caches the value for sake of SBI, SBIC, SBIS & CBI implementation
- *
+ * The first 32 bytes of the data space are mapped to the cpu regs.
+ * We cannot write these from normal store operations because TCG
+ * does not expect global temps to be modified -- a global may be
+ * live in a host cpu register across the store.  We can however
+ * read these, as TCG does make sure the global temps are saved
+ * in case the load operation traps.
  */
-target_ulong helper_inb(CPUAVRState *env, uint32_t port)
+
+static uint64_t avr_cpu_reg1_read(void *opaque, hwaddr addr, unsigned size)
 {
-    target_ulong data = 0;
+    CPUAVRState *env = opaque;
 
-    switch (port) {
-    case 0x38: /* RAMPD */
-        data = 0xff & (env->rampD >> 16);
-        break;
-    case 0x39: /* RAMPX */
-        data = 0xff & (env->rampX >> 16);
-        break;
-    case 0x3a: /* RAMPY */
-        data = 0xff & (env->rampY >> 16);
-        break;
-    case 0x3b: /* RAMPZ */
-        data = 0xff & (env->rampZ >> 16);
-        break;
-    case 0x3c: /* EIND */
-        data = 0xff & (env->eind >> 16);
-        break;
-    case 0x3d: /* SPL */
-        data = env->sp & 0x00ff;
-        break;
-    case 0x3e: /* SPH */
-        data = env->sp >> 8;
-        break;
-    case 0x3f: /* SREG */
-        data = cpu_get_sreg(env);
-        break;
-    default:
-        /* not a special register, pass to normal memory access */
-        data = address_space_ldub(&address_space_memory,
-                                  OFFSET_IO_REGISTERS + port,
-                                  MEMTXATTRS_UNSPECIFIED, NULL);
-    }
-
-    return data;
+    assert(addr < 32);
+    return env->r[addr];
 }
 
 /*
- *  This function implements OUT instruction
- *
- *  It does the following
- *  a.  if an IO register belongs to CPU, its value is written into the register
- *  b.  otherwise io address is translated to mem address and physical memory
- *      is written.
- *  c.  it caches the value for sake of SBI, SBIC, SBIS & CBI implementation
- *
+ * The range 0x38-0x3f of the i/o space is mapped to cpu regs.
+ * As above, we cannot write these from normal store operations.
  */
-void helper_outb(CPUAVRState *env, uint32_t port, uint32_t data)
-{
-    data &= 0x000000ff;
 
-    switch (port) {
-    case 0x38: /* RAMPD */
-        if (avr_feature(env, AVR_FEATURE_RAMPD)) {
-            env->rampD = (data & 0xff) << 16;
-        }
-        break;
-    case 0x39: /* RAMPX */
-        if (avr_feature(env, AVR_FEATURE_RAMPX)) {
-            env->rampX = (data & 0xff) << 16;
-        }
-        break;
-    case 0x3a: /* RAMPY */
-        if (avr_feature(env, AVR_FEATURE_RAMPY)) {
-            env->rampY = (data & 0xff) << 16;
-        }
-        break;
-    case 0x3b: /* RAMPZ */
-        if (avr_feature(env, AVR_FEATURE_RAMPZ)) {
-            env->rampZ = (data & 0xff) << 16;
-        }
-        break;
-    case 0x3c: /* EIDN */
-        env->eind = (data & 0xff) << 16;
-        break;
-    case 0x3d: /* SPL */
-        env->sp = (env->sp & 0xff00) | (data);
-        break;
-    case 0x3e: /* SPH */
-        if (avr_feature(env, AVR_FEATURE_2_BYTE_SP)) {
-            env->sp = (env->sp & 0x00ff) | (data << 8);
-        }
-        break;
-    case 0x3f: /* SREG */
-        cpu_set_sreg(env, data);
-        break;
-    default:
-        /* not a special register, pass to normal memory access */
-        address_space_stb(&address_space_memory, OFFSET_IO_REGISTERS + port,
-                          data, MEMTXATTRS_UNSPECIFIED, NULL);
+static uint64_t avr_cpu_reg2_read(void *opaque, hwaddr addr, unsigned size)
+{
+    CPUAVRState *env = opaque;
+
+    switch (addr) {
+    case REG_38_RAMPD:
+        return 0xff & (env->rampD >> 16);
+    case REG_38_RAMPX:
+        return 0xff & (env->rampX >> 16);
+    case REG_38_RAMPY:
+        return 0xff & (env->rampY >> 16);
+    case REG_38_RAMPZ:
+        return 0xff & (env->rampZ >> 16);
+    case REG_38_EIDN:
+        return 0xff & (env->eind >> 16);
+    case REG_38_SPL:
+        return env->sp & 0x00ff;
+    case REG_38_SPH:
+        return 0xff & (env->sp >> 8);
+    case REG_38_SREG:
+        return cpu_get_sreg(env);
     }
+    g_assert_not_reached();
 }
 
-/*
- *  this function implements LD instruction when there is a possibility to read
- *  from a CPU register
- */
-target_ulong helper_fullrd(CPUAVRState *env, uint32_t addr)
+static void avr_cpu_trap_write(void *opaque, hwaddr addr,
+                               uint64_t data64, unsigned size)
 {
-    uint8_t data;
+    CPUAVRState *env = opaque;
+    CPUState *cs = env_cpu(env);
 
-    env->fullacc = false;
-
-    if (addr < NUMBER_OF_CPU_REGISTERS) {
-        /* CPU registers */
-        data = env->r[addr];
-    } else if (addr < NUMBER_OF_CPU_REGISTERS + NUMBER_OF_IO_REGISTERS) {
-        /* IO registers */
-        data = helper_inb(env, addr - NUMBER_OF_CPU_REGISTERS);
-    } else {
-        /* memory */
-        data = address_space_ldub(&address_space_memory, OFFSET_DATA + addr,
-                                  MEMTXATTRS_UNSPECIFIED, NULL);
-    }
-    return data;
+    env->fullacc = true;
+    cpu_loop_exit_restore(cs, cs->mem_io_pc);
 }
+
+const MemoryRegionOps avr_cpu_reg1 = {
+    .read = avr_cpu_reg1_read,
+    .write = avr_cpu_trap_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 1,
+};
+
+const MemoryRegionOps avr_cpu_reg2 = {
+    .read = avr_cpu_reg2_read,
+    .write = avr_cpu_trap_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 1,
+};
 
 /*
  *  this function implements ST instruction when there is a possibility to write
@@ -339,20 +274,49 @@ void helper_fullwr(CPUAVRState *env, uint32_t data, uint32_t addr)
 {
     env->fullacc = false;
 
-    /* Following logic assumes this: */
-    assert(OFFSET_CPU_REGISTERS == OFFSET_DATA);
-    assert(OFFSET_IO_REGISTERS == OFFSET_CPU_REGISTERS +
-                                  NUMBER_OF_CPU_REGISTERS);
-
-    if (addr < NUMBER_OF_CPU_REGISTERS) {
+    switch (addr) {
+    case 0 ... 31:
         /* CPU registers */
         env->r[addr] = data;
-    } else if (addr < NUMBER_OF_CPU_REGISTERS + NUMBER_OF_IO_REGISTERS) {
-        /* IO registers */
-        helper_outb(env, addr - NUMBER_OF_CPU_REGISTERS, data);
-    } else {
-        /* memory */
-        address_space_stb(&address_space_memory, OFFSET_DATA + addr, data,
-                          MEMTXATTRS_UNSPECIFIED, NULL);
+        break;
+
+    case REG_38_RAMPD + 0x38 + NUMBER_OF_CPU_REGISTERS:
+        if (avr_feature(env, AVR_FEATURE_RAMPD)) {
+            env->rampD = data << 16;
+        }
+        break;
+    case REG_38_RAMPX + 0x38 + NUMBER_OF_CPU_REGISTERS:
+        if (avr_feature(env, AVR_FEATURE_RAMPX)) {
+            env->rampX = data << 16;
+        }
+        break;
+    case REG_38_RAMPY + 0x38 + NUMBER_OF_CPU_REGISTERS:
+        if (avr_feature(env, AVR_FEATURE_RAMPY)) {
+            env->rampY = data << 16;
+        }
+        break;
+    case REG_38_RAMPZ + 0x38 + NUMBER_OF_CPU_REGISTERS:
+        if (avr_feature(env, AVR_FEATURE_RAMPZ)) {
+            env->rampZ = data << 16;
+        }
+        break;
+    case REG_38_EIDN + 0x38 + NUMBER_OF_CPU_REGISTERS:
+        env->eind = data << 16;
+        break;
+    case REG_38_SPL + 0x38 + NUMBER_OF_CPU_REGISTERS:
+        env->sp = (env->sp & 0xff00) | data;
+        break;
+    case REG_38_SPH + 0x38 + NUMBER_OF_CPU_REGISTERS:
+        if (avr_feature(env, AVR_FEATURE_2_BYTE_SP)) {
+            env->sp = (env->sp & 0x00ff) | (data << 8);
+        }
+        break;
+    case REG_38_SREG + 0x38 + NUMBER_OF_CPU_REGISTERS:
+        cpu_set_sreg(env, data);
+        break;
+
+    default:
+        do_stb(env, addr, data, GETPC());
+        break;
     }
 }

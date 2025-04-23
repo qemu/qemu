@@ -194,6 +194,9 @@ static bool avr_have_feature(DisasContext *ctx, int feature)
 static bool decode_insn(DisasContext *ctx, uint16_t insn);
 #include "decode-insn.c.inc"
 
+static void gen_inb(DisasContext *ctx, TCGv data, int port);
+static void gen_outb(DisasContext *ctx, TCGv data, int port);
+
 /*
  * Arithmetic Instructions
  */
@@ -1293,9 +1296,8 @@ static bool trans_SBRS(DisasContext *ctx, arg_SBRS *a)
 static bool trans_SBIC(DisasContext *ctx, arg_SBIC *a)
 {
     TCGv data = tcg_temp_new_i32();
-    TCGv port = tcg_constant_i32(a->reg);
 
-    gen_helper_inb(data, tcg_env, port);
+    gen_inb(ctx, data, a->reg);
     tcg_gen_andi_tl(data, data, 1 << a->bit);
     ctx->skip_cond = TCG_COND_EQ;
     ctx->skip_var0 = data;
@@ -1311,9 +1313,8 @@ static bool trans_SBIC(DisasContext *ctx, arg_SBIC *a)
 static bool trans_SBIS(DisasContext *ctx, arg_SBIS *a)
 {
     TCGv data = tcg_temp_new_i32();
-    TCGv port = tcg_constant_i32(a->reg);
 
-    gen_helper_inb(data, tcg_env, port);
+    gen_inb(ctx, data, a->reg);
     tcg_gen_andi_tl(data, data, 1 << a->bit);
     ctx->skip_cond = TCG_COND_NE;
     ctx->skip_var0 = data;
@@ -1502,11 +1503,18 @@ static void gen_data_store(DisasContext *ctx, TCGv data, TCGv addr)
 
 static void gen_data_load(DisasContext *ctx, TCGv data, TCGv addr)
 {
-    if (ctx->base.tb->flags & TB_FLAGS_FULL_ACCESS) {
-        gen_helper_fullrd(data, tcg_env, addr);
-    } else {
-        tcg_gen_qemu_ld_tl(data, addr, MMU_DATA_IDX, MO_UB);
-    }
+    tcg_gen_qemu_ld_tl(data, addr, MMU_DATA_IDX, MO_UB);
+}
+
+static void gen_inb(DisasContext *ctx, TCGv data, int port)
+{
+    gen_data_load(ctx, data, tcg_constant_i32(port + NUMBER_OF_CPU_REGISTERS));
+}
+
+static void gen_outb(DisasContext *ctx, TCGv data, int port)
+{
+    gen_helper_fullwr(tcg_env, data,
+                      tcg_constant_i32(port + NUMBER_OF_CPU_REGISTERS));
 }
 
 /*
@@ -1578,7 +1586,6 @@ static bool trans_LDS(DisasContext *ctx, arg_LDS *a)
     TCGv Rd = cpu_r[a->rd];
     TCGv addr = tcg_temp_new_i32();
     TCGv H = cpu_rampD;
-    a->imm = next_word(ctx);
 
     tcg_gen_mov_tl(addr, H); /* addr = H:M:L */
     tcg_gen_shli_tl(addr, addr, 16);
@@ -1783,7 +1790,6 @@ static bool trans_STS(DisasContext *ctx, arg_STS *a)
     TCGv Rd = cpu_r[a->rd];
     TCGv addr = tcg_temp_new_i32();
     TCGv H = cpu_rampD;
-    a->imm = next_word(ctx);
 
     tcg_gen_mov_tl(addr, H); /* addr = H:M:L */
     tcg_gen_shli_tl(addr, addr, 16);
@@ -2128,9 +2134,8 @@ static bool trans_SPMX(DisasContext *ctx, arg_SPMX *a)
 static bool trans_IN(DisasContext *ctx, arg_IN *a)
 {
     TCGv Rd = cpu_r[a->rd];
-    TCGv port = tcg_constant_i32(a->imm);
 
-    gen_helper_inb(Rd, tcg_env, port);
+    gen_inb(ctx, Rd, a->imm);
     return true;
 }
 
@@ -2141,9 +2146,8 @@ static bool trans_IN(DisasContext *ctx, arg_IN *a)
 static bool trans_OUT(DisasContext *ctx, arg_OUT *a)
 {
     TCGv Rd = cpu_r[a->rd];
-    TCGv port = tcg_constant_i32(a->imm);
 
-    gen_helper_outb(tcg_env, port, Rd);
+    gen_outb(ctx, Rd, a->imm);
     return true;
 }
 
@@ -2409,11 +2413,10 @@ static bool trans_SWAP(DisasContext *ctx, arg_SWAP *a)
 static bool trans_SBI(DisasContext *ctx, arg_SBI *a)
 {
     TCGv data = tcg_temp_new_i32();
-    TCGv port = tcg_constant_i32(a->reg);
 
-    gen_helper_inb(data, tcg_env, port);
+    gen_inb(ctx, data, a->reg);
     tcg_gen_ori_tl(data, data, 1 << a->bit);
-    gen_helper_outb(tcg_env, port, data);
+    gen_outb(ctx, data, a->reg);
     return true;
 }
 
@@ -2424,11 +2427,10 @@ static bool trans_SBI(DisasContext *ctx, arg_SBI *a)
 static bool trans_CBI(DisasContext *ctx, arg_CBI *a)
 {
     TCGv data = tcg_temp_new_i32();
-    TCGv port = tcg_constant_i32(a->reg);
 
-    gen_helper_inb(data, tcg_env, port);
+    gen_inb(ctx, data, a->reg);
     tcg_gen_andi_tl(data, data, ~(1 << a->bit));
-    gen_helper_outb(tcg_env, port, data);
+    gen_outb(ctx, data, a->reg);
     return true;
 }
 
