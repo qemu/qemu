@@ -165,7 +165,6 @@ static int loongarch_get_addr_from_tlb(CPULoongArchState *env, hwaddr *physical,
 }
 #endif
 
-#ifdef CONFIG_TCG
 void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
                         uint64_t *dir_width, target_ulong level)
 {
@@ -295,15 +294,6 @@ static int loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
 
     return TLBRET_NOMATCH;
 }
-#else
-static int loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
-                                 int *prot, target_ulong address,
-                                 MMUAccessType access_type, int mmu_idx,
-                                 int is_debug)
-{
-    return TLBRET_NOMATCH;
-}
-#endif
 
 static hwaddr dmw_va2pa(CPULoongArchState *env, target_ulong va,
                         target_ulong dmw)
