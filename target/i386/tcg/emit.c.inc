@@ -1170,11 +1170,28 @@ static void gen_AAS(DisasContext *s, X86DecodedInsn *decode)
     assume_cc_op(s, CC_OP_EFLAGS);
 }
 
+static void gen_ADD(DisasContext *s, X86DecodedInsn *decode);
 static void gen_ADC(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[1].ot;
-    TCGv c_in = tcg_temp_new();
+    TCGv c_in;
 
+    /*
+     * Try to avoid CC_OP_ADC by transforming as follows:
+     * CC_ADC: src1 = dst + c_in, src2 = 0, src3 = c_in
+     * CC_ADD: src1 = dst + c_in, src2 = c_in (no src3)
+     *
+     * In general src2 vs. src3 matters when computing AF and OF, but not here:
+     * - AF is bit 4 of dst^src1^src2, which is bit 4 of dst^src1 in both cases
+     * - OF is a function of the two MSBs, and in both cases they are zero for src2
+     */
+    if (decode->e.op2 == X86_TYPE_I && decode->immediate == 0) {
+        gen_compute_eflags_c(s, s->T1);
+        gen_ADD(s, decode);
+        return;
+    }
+
+    c_in = tcg_temp_new();
     gen_compute_eflags_c(s, c_in);
     if (s->prefix & PREFIX_LOCK) {
         tcg_gen_add_tl(s->T0, c_in, s->T1);
@@ -1693,22 +1710,22 @@ static void gen_CMPccXADD(DisasContext *s, X86DecodedInsn *decode)
     switch (jcc_op) {
     case JCC_O:
         /* (src1 ^ src2) & (src1 ^ dst). newv is only used here for a moment */
+        cmp_lhs = tcg_temp_new(), cmp_rhs = tcg_constant_tl(0);
         tcg_gen_xor_tl(newv, s->cc_srcT, s->T0);
-        tcg_gen_xor_tl(s->tmp0, s->cc_srcT, cmpv);
-        tcg_gen_and_tl(s->tmp0, s->tmp0, newv);
-        tcg_gen_sextract_tl(s->tmp0, s->tmp0, 0, 8 << ot);
-        cmp_lhs = s->tmp0, cmp_rhs = tcg_constant_tl(0);
+        tcg_gen_xor_tl(cmp_lhs, s->cc_srcT, cmpv);
+        tcg_gen_and_tl(cmp_lhs, cmp_lhs, newv);
+        tcg_gen_sextract_tl(cmp_lhs, cmp_lhs, 0, 8 << ot);
         break;
 
     case JCC_P:
-        tcg_gen_ext8u_tl(s->tmp0, s->T0);
-        tcg_gen_ctpop_tl(s->tmp0, s->tmp0);
-        cmp_lhs = s->tmp0, cmp_rhs = tcg_constant_tl(1);
+        cmp_lhs = tcg_temp_new(), cmp_rhs = tcg_constant_tl(1);
+        tcg_gen_ext8u_tl(cmp_lhs, s->T0);
+        tcg_gen_ctpop_tl(cmp_lhs, cmp_lhs);
         break;
 
     case JCC_S:
-        tcg_gen_sextract_tl(s->tmp0, s->T0, 0, 8 << ot);
-        cmp_lhs = s->tmp0, cmp_rhs = tcg_constant_tl(0);
+        cmp_lhs = tcg_temp_new(), cmp_rhs = tcg_constant_tl(0);
+        tcg_gen_sextract_tl(cmp_lhs, s->T0, 0, 8 << ot);
         break;
 
     default:
@@ -1859,7 +1876,7 @@ static void gen_CMPXCHG8B(DisasContext *s, X86DecodedInsn *decode)
                                       s->mem_index, MO_TEUQ);
     }
 
-    /* Set tmp0 to match the required value of Z. */
+    /* Compute the required value of Z. */
     tcg_gen_setcond_i64(TCG_COND_EQ, cmp, old, cmp);
     Z = tcg_temp_new();
     tcg_gen_trunc_i64_tl(Z, cmp);
@@ -1899,9 +1916,10 @@ static void gen_CPUID(DisasContext *s, X86DecodedInsn *decode)
 static void gen_CRC32(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[2].ot;
+    TCGv_i32 tmp = tcg_temp_new_i32();
 
-    tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
-    gen_helper_crc32(s->T0, s->tmp2_i32, s->T1, tcg_constant_i32(8 << ot));
+    tcg_gen_trunc_tl_i32(tmp, s->T0);
+    gen_helper_crc32(s->T0, tmp, s->T1, tcg_constant_i32(8 << ot));
 }
 
 static void gen_CVTPI2Px(DisasContext *s, X86DecodedInsn *decode)
@@ -2359,8 +2377,10 @@ static void gen_LAR(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_LDMXCSR(DisasContext *s, X86DecodedInsn *decode)
 {
-    tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
-    gen_helper_ldmxcsr(tcg_env, s->tmp2_i32);
+    TCGv_i32 tmp = tcg_temp_new_i32();
+
+    tcg_gen_trunc_tl_i32(tmp, s->T0);
+    gen_helper_ldmxcsr(tcg_env, tmp);
 }
 
 static void gen_lxx_seg(DisasContext *s, X86DecodedInsn *decode, int seg)
@@ -2573,11 +2593,13 @@ static void gen_MOVDQ(DisasContext *s, X86DecodedInsn *decode)
 static void gen_MOVMSK(DisasContext *s, X86DecodedInsn *decode)
 {
     typeof(gen_helper_movmskps_ymm) *ps, *pd, *fn;
+    TCGv_i32 tmp = tcg_temp_new_i32();
+
     ps = s->vex_l ? gen_helper_movmskps_ymm : gen_helper_movmskps_xmm;
     pd = s->vex_l ? gen_helper_movmskpd_ymm : gen_helper_movmskpd_xmm;
     fn = s->prefix & PREFIX_DATA ? pd : ps;
-    fn(s->tmp2_i32, tcg_env, OP_PTR2);
-    tcg_gen_extu_i32_tl(s->T0, s->tmp2_i32);
+    fn(tmp, tcg_env, OP_PTR2);
+    tcg_gen_extu_i32_tl(s->T0, tmp);
 }
 
 static void gen_MOVQ(DisasContext *s, X86DecodedInsn *decode)
@@ -2674,13 +2696,17 @@ static void gen_MULX(DisasContext *s, X86DecodedInsn *decode)
     switch (ot) {
     case MO_32:
 #ifdef TARGET_X86_64
-        tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
-        tcg_gen_trunc_tl_i32(s->tmp3_i32, s->T1);
-        tcg_gen_mulu2_i32(s->tmp2_i32, s->tmp3_i32,
-                          s->tmp2_i32, s->tmp3_i32);
-        tcg_gen_extu_i32_tl(cpu_regs[s->vex_v], s->tmp2_i32);
-        tcg_gen_extu_i32_tl(s->T0, s->tmp3_i32);
-        break;
+        {
+            TCGv_i32 t0 = tcg_temp_new_i32();
+            TCGv_i32 t1 = tcg_temp_new_i32();
+
+            tcg_gen_trunc_tl_i32(t0, s->T0);
+            tcg_gen_trunc_tl_i32(t1, s->T1);
+            tcg_gen_mulu2_i32(t0, t1, t0, t1);
+            tcg_gen_extu_i32_tl(cpu_regs[s->vex_v], t0);
+            tcg_gen_extu_i32_tl(s->T0, t1);
+            break;
+        }
 
     case MO_64:
 #endif
@@ -3724,10 +3750,14 @@ static void gen_RORX(DisasContext *s, X86DecodedInsn *decode)
     switch (ot) {
     case MO_32:
 #ifdef TARGET_X86_64
-        tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
-        tcg_gen_rotri_i32(s->tmp2_i32, s->tmp2_i32, b);
-        tcg_gen_extu_i32_tl(s->T0, s->tmp2_i32);
-        break;
+        {
+            TCGv_i32 tmp = tcg_temp_new_i32();
+
+            tcg_gen_trunc_tl_i32(tmp, s->T0);
+            tcg_gen_rotri_i32(tmp, tmp, b);
+            tcg_gen_extu_i32_tl(s->T0, tmp);
+            break;
+        }
 
     case MO_64:
 #endif
@@ -3830,22 +3860,64 @@ static void gen_SARX(DisasContext *s, X86DecodedInsn *decode)
     tcg_gen_sar_tl(s->T0, s->T0, s->T1);
 }
 
+static void gen_SUB(DisasContext *s, X86DecodedInsn *decode);
 static void gen_SBB(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
-    TCGv c_in = tcg_temp_new();
+    TCGv c_in;
 
+    /*
+     * Try to avoid CC_OP_SBB by transforming as follows:
+     * CC_SBB: src1 = dst + c_in, src2 = 0, src3 = c_in
+     * CC_SUB: src1 = dst + c_in, src2 = c_in (no src3)
+     *
+     * In general src2 vs. src3 matters when computing AF and OF, but not here:
+     * - AF is bit 4 of dst^src1^src2, which is bit 4 of dst^src1 in both cases
+     * - OF is a function of the two MSBs, and in both cases they are zero for src2
+     */
+    if (decode->e.op2 == X86_TYPE_I && decode->immediate == 0) {
+        gen_compute_eflags_c(s, s->T1);
+        gen_SUB(s, decode);
+        return;
+    }
+
+    c_in = tcg_temp_new();
     gen_compute_eflags_c(s, c_in);
+
+    /*
+     * Here the change is as follows:
+     * CC_SBB: src1 = T0, src2 = T0, src3 = c_in
+     * CC_SUB: src1 = 0, src2 = c_in (no src3)
+     *
+     * The difference also does not matter:
+     * - AF is bit 4 of dst^src1^src2, but bit 4 of src1^src2 is zero in both cases
+     *   therefore AF comes straight from dst (in fact it is c_in)
+     * - for OF, src1 and src2 have the same sign in both cases, meaning there
+     *   can be no overflow
+     */
+    if (decode->e.op2 != X86_TYPE_I && !decode->op[0].has_ea && decode->op[0].n == decode->op[2].n) {
+        if (s->cc_op == CC_OP_DYNAMIC) {
+            tcg_gen_neg_tl(s->T0, c_in);
+        } else {
+            /*
+             * Do not negate c_in because it will often be dead and only the
+             * instruction generated by negsetcond will survive.
+             */
+            gen_neg_setcc(s, JCC_B << 1, s->T0);
+        }
+        tcg_gen_movi_tl(s->cc_srcT, 0);
+        decode->cc_src = c_in;
+        decode->cc_dst = s->T0;
+        decode->cc_op = CC_OP_SUBB + ot;
+        return;
+    }
+
     if (s->prefix & PREFIX_LOCK) {
         tcg_gen_add_tl(s->T0, s->T1, c_in);
         tcg_gen_neg_tl(s->T0, s->T0);
         tcg_gen_atomic_add_fetch_tl(s->T0, s->A0, s->T0,
                                     s->mem_index, ot | MO_LE);
     } else {
-        /*
-         * TODO: SBB reg, reg could use gen_prepare_eflags_c followed by
-         * negsetcond, and CC_OP_SUBB as the cc_op.
-         */
         tcg_gen_sub_tl(s->T0, s->T0, s->T1);
         tcg_gen_sub_tl(s->T0, s->T0, c_in);
     }
@@ -3956,8 +4028,7 @@ static void gen_SHLD(DisasContext *s, X86DecodedInsn *decode)
     }
 
     decode->cc_dst = s->T0;
-    decode->cc_src = s->tmp0;
-    gen_shiftd_rm_T1(s, ot, false, count);
+    decode->cc_src = gen_shiftd_rm_T1(s, ot, false, count);
     if (can_be_zero) {
         gen_shift_dynamic_flags(s, decode, count, CC_OP_SHLB + ot);
     } else {
@@ -4009,8 +4080,7 @@ static void gen_SHRD(DisasContext *s, X86DecodedInsn *decode)
     }
 
     decode->cc_dst = s->T0;
-    decode->cc_src = s->tmp0;
-    gen_shiftd_rm_T1(s, ot, true, count);
+    decode->cc_src = gen_shiftd_rm_T1(s, ot, true, count);
     if (can_be_zero) {
         gen_shift_dynamic_flags(s, decode, count, CC_OP_SARB + ot);
     } else {
@@ -4277,7 +4347,7 @@ static void gen_VCVTSI2Sx(DisasContext *s, X86DecodedInsn *decode)
         }
         return;
     }
-    in = s->tmp2_i32;
+    in = tcg_temp_new_i32();
     tcg_gen_trunc_tl_i32(in, s->T1);
 #else
     in = s->T1;
@@ -4307,7 +4377,7 @@ static inline void gen_VCVTtSx2SI(DisasContext *s, X86DecodedInsn *decode,
         return;
     }
 
-    out = s->tmp2_i32;
+    out = tcg_temp_new_i32();
 #else
     out = s->T0;
 #endif
@@ -4359,7 +4429,7 @@ static void gen_VEXTRACTPS(DisasContext *s, X86DecodedInsn *decode)
     gen_pextr(s, decode, MO_32);
 }
 
-static void gen_vinsertps(DisasContext *s, X86DecodedInsn *decode)
+static void gen_vinsertps(DisasContext *s, X86DecodedInsn *decode, TCGv_i32 tmp)
 {
     int val = decode->immediate;
     int dest_word = (val >> 4) & 3;
@@ -4376,7 +4446,7 @@ static void gen_vinsertps(DisasContext *s, X86DecodedInsn *decode)
     }
 
     if (new_mask != (val & 15)) {
-        tcg_gen_st_i32(s->tmp2_i32, tcg_env,
+        tcg_gen_st_i32(tmp, tcg_env,
                        vector_elem_offset(&decode->op[0], MO_32, dest_word));
     }
 
@@ -4395,15 +4465,19 @@ static void gen_vinsertps(DisasContext *s, X86DecodedInsn *decode)
 static void gen_VINSERTPS_r(DisasContext *s, X86DecodedInsn *decode)
 {
     int val = decode->immediate;
-    tcg_gen_ld_i32(s->tmp2_i32, tcg_env,
+    TCGv_i32 tmp = tcg_temp_new_i32();
+
+    tcg_gen_ld_i32(tmp, tcg_env,
                    vector_elem_offset(&decode->op[2], MO_32, (val >> 6) & 3));
-    gen_vinsertps(s, decode);
+    gen_vinsertps(s, decode, tmp);
 }
 
 static void gen_VINSERTPS_m(DisasContext *s, X86DecodedInsn *decode)
 {
-    tcg_gen_qemu_ld_i32(s->tmp2_i32, s->A0, s->mem_index, MO_LEUL);
-    gen_vinsertps(s, decode);
+    TCGv_i32 tmp = tcg_temp_new_i32();
+
+    tcg_gen_qemu_ld_i32(tmp, s->A0, s->mem_index, MO_LEUL);
+    gen_vinsertps(s, decode, tmp);
 }
 
 static void gen_VINSERTx128(DisasContext *s, X86DecodedInsn *decode)
@@ -4524,25 +4598,29 @@ static void gen_VMOVSD_ld(DisasContext *s, X86DecodedInsn *decode)
 static void gen_VMOVSS(DisasContext *s, X86DecodedInsn *decode)
 {
     int vec_len = vector_len(s, decode);
+    TCGv_i32 tmp = tcg_temp_new_i32();
 
-    tcg_gen_ld_i32(s->tmp2_i32, OP_PTR2, offsetof(ZMMReg, ZMM_L(0)));
+    tcg_gen_ld_i32(tmp, OP_PTR2, offsetof(ZMMReg, ZMM_L(0)));
     tcg_gen_gvec_mov(MO_64, decode->op[0].offset, decode->op[1].offset, vec_len, vec_len);
-    tcg_gen_st_i32(s->tmp2_i32, OP_PTR0, offsetof(ZMMReg, ZMM_L(0)));
+    tcg_gen_st_i32(tmp, OP_PTR0, offsetof(ZMMReg, ZMM_L(0)));
 }
 
 static void gen_VMOVSS_ld(DisasContext *s, X86DecodedInsn *decode)
 {
     int vec_len = vector_len(s, decode);
+    TCGv_i32 tmp = tcg_temp_new_i32();
 
-    tcg_gen_qemu_ld_i32(s->tmp2_i32, s->A0, s->mem_index, MO_LEUL);
+    tcg_gen_qemu_ld_i32(tmp, s->A0, s->mem_index, MO_LEUL);
     tcg_gen_gvec_dup_imm(MO_64, decode->op[0].offset, vec_len, vec_len, 0);
-    tcg_gen_st_i32(s->tmp2_i32, OP_PTR0, offsetof(ZMMReg, ZMM_L(0)));
+    tcg_gen_st_i32(tmp, OP_PTR0, offsetof(ZMMReg, ZMM_L(0)));
 }
 
 static void gen_VMOVSS_st(DisasContext *s, X86DecodedInsn *decode)
 {
-    tcg_gen_ld_i32(s->tmp2_i32, OP_PTR2, offsetof(ZMMReg, ZMM_L(0)));
-    tcg_gen_qemu_st_i32(s->tmp2_i32, s->A0, s->mem_index, MO_LEUL);
+    TCGv_i32 tmp = tcg_temp_new_i32();
+
+    tcg_gen_ld_i32(tmp, OP_PTR2, offsetof(ZMMReg, ZMM_L(0)));
+    tcg_gen_qemu_st_i32(tmp, s->A0, s->mem_index, MO_LEUL);
 }
 
 static void gen_VPMASKMOV_st(DisasContext *s, X86DecodedInsn *decode)

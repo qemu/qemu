@@ -12,7 +12,7 @@ use std::{
 use qemu_api::{
     bindings::{
         address_space_memory, address_space_stl_le, qdev_prop_bit, qdev_prop_bool,
-        qdev_prop_uint32, qdev_prop_usize,
+        qdev_prop_uint32, qdev_prop_uint8,
     },
     c_str,
     cell::{BqlCell, BqlRefCell},
@@ -34,9 +34,9 @@ use crate::fw_cfg::HPETFwConfig;
 const HPET_REG_SPACE_LEN: u64 = 0x400; // 1024 bytes
 
 /// Minimum recommended hardware implementation.
-const HPET_MIN_TIMERS: usize = 3;
+const HPET_MIN_TIMERS: u8 = 3;
 /// Maximum timers in each timer block.
-const HPET_MAX_TIMERS: usize = 32;
+const HPET_MAX_TIMERS: u8 = 32;
 
 /// Flags that HPETState.flags supports.
 const HPET_FLAG_MSI_SUPPORT_SHIFT: usize = 0;
@@ -184,7 +184,7 @@ fn timer_handler(timer_cell: &BqlRefCell<HPETTimer>) {
 pub struct HPETTimer {
     /// timer N index within the timer block (`HPETState`)
     #[doc(alias = "tn")]
-    index: usize,
+    index: u8,
     qemu_timer: Timer,
     /// timer block abstraction containing this timer
     state: NonNull<HPETState>,
@@ -210,7 +210,7 @@ pub struct HPETTimer {
 }
 
 impl HPETTimer {
-    fn init(&mut self, index: usize, state: &HPETState) {
+    fn init(&mut self, index: u8, state: &HPETState) {
         *self = HPETTimer {
             index,
             // SAFETY: the HPETTimer will only be used after the timer
@@ -235,7 +235,7 @@ impl HPETTimer {
             Timer::NS,
             0,
             timer_handler,
-            &state.timers[self.index],
+            &state.timers[self.index as usize],
         )
     }
 
@@ -246,7 +246,7 @@ impl HPETTimer {
     }
 
     fn is_int_active(&self) -> bool {
-        self.get_state().is_timer_int_active(self.index)
+        self.get_state().is_timer_int_active(self.index.into())
     }
 
     const fn is_fsb_route_enabled(&self) -> bool {
@@ -353,7 +353,7 @@ impl HPETTimer {
         // still operate and generate appropriate status bits, but
         // will not cause an interrupt"
         self.get_state()
-            .update_int_status(self.index as u32, set && self.is_int_level_triggered());
+            .update_int_status(self.index.into(), set && self.is_int_level_triggered());
         self.set_irq(set);
     }
 
@@ -559,14 +559,19 @@ pub struct HPETState {
 
     /// HPET timer array managed by this timer block.
     #[doc(alias = "timer")]
-    timers: [BqlRefCell<HPETTimer>; HPET_MAX_TIMERS],
-    num_timers: BqlCell<usize>,
+    timers: [BqlRefCell<HPETTimer>; HPET_MAX_TIMERS as usize],
+    num_timers: BqlCell<u8>,
 
     /// Instance id (HPET timer block ID).
     hpet_id: BqlCell<usize>,
 }
 
 impl HPETState {
+    // Get num_timers with `usize` type, which is useful to play with array index.
+    fn get_num_timers(&self) -> usize {
+        self.num_timers.get().into()
+    }
+
     const fn has_msi_flag(&self) -> bool {
         self.flags & (1 << HPET_FLAG_MSI_SUPPORT_SHIFT) != 0
     }
@@ -606,7 +611,7 @@ impl HPETState {
 
     fn init_timer(&self) {
         for (index, timer) in self.timers.iter().enumerate() {
-            timer.borrow_mut().init(index, self);
+            timer.borrow_mut().init(index.try_into().unwrap(), self);
         }
     }
 
@@ -628,7 +633,7 @@ impl HPETState {
             self.hpet_offset
                 .set(ticks_to_ns(self.counter.get()) - CLOCK_VIRTUAL.get_ns());
 
-            for timer in self.timers.iter().take(self.num_timers.get()) {
+            for timer in self.timers.iter().take(self.get_num_timers()) {
                 let mut t = timer.borrow_mut();
 
                 if t.is_int_enabled() && t.is_int_active() {
@@ -640,7 +645,7 @@ impl HPETState {
             // Halt main counter and disable interrupt generation.
             self.counter.set(self.get_ticks());
 
-            for timer in self.timers.iter().take(self.num_timers.get()) {
+            for timer in self.timers.iter().take(self.get_num_timers()) {
                 timer.borrow_mut().del_timer();
             }
         }
@@ -663,7 +668,7 @@ impl HPETState {
         let new_val = val << shift;
         let cleared = new_val & self.int_status.get();
 
-        for (index, timer) in self.timers.iter().take(self.num_timers.get()).enumerate() {
+        for (index, timer) in self.timers.iter().take(self.get_num_timers()).enumerate() {
             if cleared & (1 << index) != 0 {
                 timer.borrow_mut().update_irq(false);
             }
@@ -737,7 +742,7 @@ impl HPETState {
             1 << HPET_CAP_COUNT_SIZE_CAP_SHIFT |
             1 << HPET_CAP_LEG_RT_CAP_SHIFT |
             HPET_CAP_VENDER_ID_VALUE << HPET_CAP_VENDER_ID_SHIFT |
-            ((self.num_timers.get() - 1) as u64) << HPET_CAP_NUM_TIM_SHIFT | // indicate the last timer
+            ((self.get_num_timers() - 1) as u64) << HPET_CAP_NUM_TIM_SHIFT | // indicate the last timer
             (HPET_CLK_PERIOD * FS_PER_NS) << HPET_CAP_CNT_CLK_PERIOD_SHIFT, // 10 ns
         );
 
@@ -746,7 +751,7 @@ impl HPETState {
     }
 
     fn reset_hold(&self, _type: ResetType) {
-        for timer in self.timers.iter().take(self.num_timers.get()) {
+        for timer in self.timers.iter().take(self.get_num_timers()) {
             timer.borrow_mut().reset();
         }
 
@@ -774,7 +779,7 @@ impl HPETState {
             GlobalRegister::try_from(addr).map(HPETRegister::Global)
         } else {
             let timer_id: usize = ((addr - 0x100) / 0x20) as usize;
-            if timer_id <= self.num_timers.get() {
+            if timer_id <= self.get_num_timers() {
                 // TODO: Add trace point - trace_hpet_ram_[read|write]_timer_id(timer_id)
                 TimerRegister::try_from(addr & 0x18)
                     .map(|reg| HPETRegister::Timer(&self.timers[timer_id], reg))
@@ -859,8 +864,8 @@ qemu_api::declare_properties! {
         c_str!("timers"),
         HPETState,
         num_timers,
-        unsafe { &qdev_prop_usize },
-        usize,
+        unsafe { &qdev_prop_uint8 },
+        u8,
         default = HPET_MIN_TIMERS
     ),
     qemu_api::define_property!(

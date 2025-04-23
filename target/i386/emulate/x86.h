@@ -16,8 +16,8 @@
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HVF_X86_H
-#define HVF_X86_H
+#ifndef X86_EMU_DEFS_H
+#define X86_EMU_DEFS_H
 
 typedef struct x86_register {
     union {

@@ -23,7 +23,20 @@
 #include "x86_decode.h"
 #include "cpu.h"
 
-void init_emu(void);
+struct x86_emul_ops {
+    void (*read_mem)(CPUState *cpu, void *data, target_ulong addr, int bytes);
+    void (*write_mem)(CPUState *cpu, void *data, target_ulong addr, int bytes);
+    void (*read_segment_descriptor)(CPUState *cpu, struct x86_segment_descriptor *desc,
+                                    enum X86Seg seg);
+    void (*handle_io)(CPUState *cpu, uint16_t port, void *data, int direction,
+                      int size, int count);
+    void (*simulate_rdmsr)(CPUState *cs);
+    void (*simulate_wrmsr)(CPUState *cs);
+};
+
+extern const struct x86_emul_ops *emul_ops;
+
+void init_emu(const struct x86_emul_ops *ops);
 bool exec_instruction(CPUX86State *env, struct x86_decode *ins);
 void x86_emul_raise_exception(CPUX86State *env, int exception_index, int error_code);
 

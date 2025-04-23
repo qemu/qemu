@@ -383,12 +383,12 @@ fn test_vmstate_macro_array_of_pointer_wrapped() {
     );
     assert_eq!(foo_fields[3].offset, (FOO_ARRAY_MAX + 2) * PTR_SIZE);
     assert_eq!(foo_fields[3].num_offset, 0);
-    assert_eq!(foo_fields[2].info, unsafe { &vmstate_info_uint8 });
+    assert_eq!(foo_fields[3].info, unsafe { &vmstate_info_uint8 });
     assert_eq!(foo_fields[3].version_id, 0);
     assert_eq!(foo_fields[3].size, PTR_SIZE);
     assert_eq!(foo_fields[3].num, FOO_ARRAY_MAX as i32);
     assert_eq!(
-        foo_fields[2].flags.0,
+        foo_fields[3].flags.0,
         VMStateFlags::VMS_ARRAY.0 | VMStateFlags::VMS_ARRAY_OF_POINTER.0
     );
     assert!(foo_fields[3].vmsd.is_null());

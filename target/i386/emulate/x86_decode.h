@@ -15,8 +15,8 @@
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HVF_X86_DECODE_H
-#define HVF_X86_DECODE_H
+#ifndef X86_EMU_DECODE_H
+#define X86_EMU_DECODE_H
 
 #include "cpu.h"
 #include "x86.h"
@@ -295,8 +295,6 @@ typedef struct x86_decode {
     struct x86_modrm modrm;
     struct x86_decode_op op[4];
     bool is_fpu;
-    uint32_t flags_mask;
-
 } x86_decode;
 
 uint64_t sign(uint64_t val, int size);

@@ -59,12 +59,12 @@
 #include "hvf-i386.h"
 #include "vmcs.h"
 #include "vmx.h"
-#include "x86.h"
+#include "emulate/x86.h"
 #include "x86_descr.h"
-#include "x86_flags.h"
+#include "emulate/x86_flags.h"
 #include "x86_mmu.h"
-#include "x86_decode.h"
-#include "x86_emu.h"
+#include "emulate/x86_decode.h"
+#include "emulate/x86_emu.h"
 #include "x86_task.h"
 #include "x86hvf.h"
 
@@ -168,7 +168,7 @@ void hvf_arch_vcpu_destroy(CPUState *cpu)
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
 
-    g_free(env->hvf_mmio_buf);
+    g_free(env->emu_mmio_buf);
 }
 
 static void init_tsc_freq(CPUX86State *env)
@@ -229,6 +229,33 @@ hv_return_t hvf_arch_vm_create(MachineState *ms, uint32_t pa_range)
     return hv_vm_create(HV_VM_DEFAULT);
 }
 
+static void hvf_read_segment_descriptor(CPUState *s, struct x86_segment_descriptor *desc,
+                                        X86Seg seg)
+{
+    struct vmx_segment vmx_segment;
+    vmx_read_segment_descriptor(s, &vmx_segment, seg);
+    vmx_segment_to_x86_descriptor(s, &vmx_segment, desc);
+}
+
+static void hvf_read_mem(CPUState *cpu, void *data, target_ulong gva, int bytes)
+{
+    vmx_read_mem(cpu, data, gva, bytes);
+}
+
+static void hvf_write_mem(CPUState *cpu, void *data, target_ulong gva, int bytes)
+{
+    vmx_write_mem(cpu, gva, data, bytes);
+}
+
+static const struct x86_emul_ops hvf_x86_emul_ops = {
+    .read_mem = hvf_read_mem,
+    .write_mem = hvf_write_mem,
+    .read_segment_descriptor = hvf_read_segment_descriptor,
+    .handle_io = hvf_handle_io,
+    .simulate_rdmsr = hvf_simulate_rdmsr,
+    .simulate_wrmsr = hvf_simulate_wrmsr,
+};
+
 int hvf_arch_init_vcpu(CPUState *cpu)
 {
     X86CPU *x86cpu = X86_CPU(cpu);
@@ -237,13 +264,13 @@ int hvf_arch_init_vcpu(CPUState *cpu)
     int r;
     uint64_t reqCap;
 
-    init_emu();
+    init_emu(&hvf_x86_emul_ops);
     init_decoder();
 
     if (hvf_state->hvf_caps == NULL) {
         hvf_state->hvf_caps = g_new0(struct hvf_vcpu_caps, 1);
     }
-    env->hvf_mmio_buf = g_new(char, 4096);
+    env->emu_mmio_buf = g_new(char, 4096);
 
     if (x86cpu->vmware_cpuid_freq) {
         init_tsc_freq(env);
@@ -481,10 +508,10 @@ void hvf_store_regs(CPUState *cs)
     macvm_set_rip(cs, env->eip);
 }
 
-void hvf_simulate_rdmsr(CPUX86State *env)
+void hvf_simulate_rdmsr(CPUState *cs)
 {
-    X86CPU *cpu = env_archcpu(env);
-    CPUState *cs = env_cpu(env);
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
     uint32_t msr = ECX(env);
     uint64_t val = 0;
 
@@ -586,10 +613,10 @@ void hvf_simulate_rdmsr(CPUX86State *env)
     RDX(env) = (uint32_t)(val >> 32);
 }
 
-void hvf_simulate_wrmsr(CPUX86State *env)
+void hvf_simulate_wrmsr(CPUState *cs)
 {
-    X86CPU *cpu = env_archcpu(env);
-    CPUState *cs = env_cpu(env);
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
     uint32_t msr = ECX(env);
     uint64_t data = ((uint64_t)EDX(env) << 32) | EAX(env);
 
@@ -875,9 +902,9 @@ int hvf_vcpu_exec(CPUState *cpu)
         {
             hvf_load_regs(cpu);
             if (exit_reason == EXIT_REASON_RDMSR) {
-                hvf_simulate_rdmsr(env);
+                hvf_simulate_rdmsr(cpu);
             } else {
-                hvf_simulate_wrmsr(env);
+                hvf_simulate_wrmsr(cpu);
             }
             env->eip += ins_len;
             hvf_store_regs(cpu);
