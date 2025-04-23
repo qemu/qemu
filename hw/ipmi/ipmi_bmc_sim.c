@@ -70,6 +70,7 @@
 #define IPMI_CMD_GET_MSG                  0x33
 #define IPMI_CMD_SEND_MSG                 0x34
 #define IPMI_CMD_READ_EVT_MSG_BUF         0x35
+#define IPMI_CMD_GET_CHANNEL_INFO         0x42
 
 #define IPMI_NETFN_STORAGE            0x0a
 
@@ -234,6 +235,7 @@ struct IPMIBmcSim {
 #define IPMI_BMC_MSG_FLAG_RCV_MSG_QUEUE_SET(s) \
     (IPMI_BMC_MSG_FLAG_RCV_MSG_QUEUE & (s)->msg_flags)
 
+#define IPMI_BMC_GLOBAL_ENABLES_SUPPORTED 0x0f
 #define IPMI_BMC_RCV_MSG_QUEUE_INT_BIT    0
 #define IPMI_BMC_EVBUF_FULL_INT_BIT       1
 #define IPMI_BMC_EVENT_MSG_BUF_BIT        2
@@ -513,7 +515,8 @@ static void gen_event(IPMIBmcSim *ibs, unsigned int sens_num, uint8_t deassert,
 
 static void sensor_set_discrete_bit(IPMIBmcSim *ibs, unsigned int sensor,
                                     unsigned int bit, unsigned int val,
-                                    uint8_t evd1, uint8_t evd2, uint8_t evd3)
+                                    uint8_t evd1, uint8_t evd2, uint8_t evd3,
+                                    bool do_log)
 {
     IPMISensor *sens;
     uint16_t mask;
@@ -533,7 +536,7 @@ static void sensor_set_discrete_bit(IPMIBmcSim *ibs, unsigned int sensor,
             return; /* Already asserted */
         }
         sens->assert_states |= mask & sens->assert_suppt;
-        if (sens->assert_enable & mask & sens->assert_states) {
+        if (do_log && (sens->assert_enable & mask & sens->assert_states)) {
             /* Send an event on assert */
             gen_event(ibs, sensor, 0, evd1, evd2, evd3);
         }
@@ -543,7 +546,7 @@ static void sensor_set_discrete_bit(IPMIBmcSim *ibs, unsigned int sensor,
             return; /* Already deasserted */
         }
         sens->deassert_states |= mask & sens->deassert_suppt;
-        if (sens->deassert_enable & mask & sens->deassert_states) {
+        if (do_log && (sens->deassert_enable & mask & sens->deassert_states)) {
             /* Send an event on deassert */
             gen_event(ibs, sensor, 1, evd1, evd2, evd3);
         }
@@ -699,6 +702,7 @@ static void ipmi_sim_handle_timeout(IPMIBmcSim *ibs)
 {
     IPMIInterface *s = ibs->parent.intf;
     IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(s);
+    bool do_log = !IPMI_BMC_WATCHDOG_GET_DONT_LOG(ibs);
 
     if (!ibs->watchdog_running) {
         goto out;
@@ -710,14 +714,16 @@ static void ipmi_sim_handle_timeout(IPMIBmcSim *ibs)
             ibs->msg_flags |= IPMI_BMC_MSG_FLAG_WATCHDOG_TIMEOUT_MASK;
             k->do_hw_op(s, IPMI_SEND_NMI, 0);
             sensor_set_discrete_bit(ibs, IPMI_WATCHDOG_SENSOR, 8, 1,
-                                    0xc8, (2 << 4) | 0xf, 0xff);
+                                    0xc8, (2 << 4) | 0xf, 0xff,
+                                    do_log);
             break;
 
         case IPMI_BMC_WATCHDOG_PRE_MSG_INT:
             ibs->msg_flags |= IPMI_BMC_MSG_FLAG_WATCHDOG_TIMEOUT_MASK;
             k->set_atn(s, 1, attn_irq_enabled(ibs));
             sensor_set_discrete_bit(ibs, IPMI_WATCHDOG_SENSOR, 8, 1,
-                                    0xc8, (3 << 4) | 0xf, 0xff);
+                                    0xc8, (3 << 4) | 0xf, 0xff,
+                                    do_log);
             break;
 
         default:
@@ -737,24 +743,28 @@ static void ipmi_sim_handle_timeout(IPMIBmcSim *ibs)
     switch (IPMI_BMC_WATCHDOG_GET_ACTION(ibs)) {
     case IPMI_BMC_WATCHDOG_ACTION_NONE:
         sensor_set_discrete_bit(ibs, IPMI_WATCHDOG_SENSOR, 0, 1,
-                                0xc0, ibs->watchdog_use & 0xf, 0xff);
+                                0xc0, ibs->watchdog_use & 0xf, 0xff,
+                                do_log);
         break;
 
     case IPMI_BMC_WATCHDOG_ACTION_RESET:
         sensor_set_discrete_bit(ibs, IPMI_WATCHDOG_SENSOR, 1, 1,
-                                0xc1, ibs->watchdog_use & 0xf, 0xff);
+                                0xc1, ibs->watchdog_use & 0xf, 0xff,
+                                do_log);
         k->do_hw_op(s, IPMI_RESET_CHASSIS, 0);
         break;
 
     case IPMI_BMC_WATCHDOG_ACTION_POWER_DOWN:
         sensor_set_discrete_bit(ibs, IPMI_WATCHDOG_SENSOR, 2, 1,
-                                0xc2, ibs->watchdog_use & 0xf, 0xff);
+                                0xc2, ibs->watchdog_use & 0xf, 0xff,
+                                do_log);
         k->do_hw_op(s, IPMI_POWEROFF_CHASSIS, 0);
         break;
 
     case IPMI_BMC_WATCHDOG_ACTION_POWER_CYCLE:
         sensor_set_discrete_bit(ibs, IPMI_WATCHDOG_SENSOR, 2, 1,
-                                0xc3, ibs->watchdog_use & 0xf, 0xff);
+                                0xc3, ibs->watchdog_use & 0xf, 0xff,
+                                do_log);
         k->do_hw_op(s, IPMI_POWERCYCLE_CHASSIS, 0);
         break;
     }
@@ -925,7 +935,14 @@ static void set_bmc_global_enables(IPMIBmcSim *ibs,
                                    uint8_t *cmd, unsigned int cmd_len,
                                    RspBuffer *rsp)
 {
-    set_global_enables(ibs, cmd[2]);
+    uint8_t val = cmd[2];
+
+    if (val & ~IPMI_BMC_GLOBAL_ENABLES_SUPPORTED) {
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
+        return;
+    }
+
+    set_global_enables(ibs, val);
 }
 
 static void get_bmc_global_enables(IPMIBmcSim *ibs,
@@ -1020,8 +1037,8 @@ static void send_msg(IPMIBmcSim *ibs,
     uint8_t *buf;
     uint8_t netfn, rqLun, rsLun, rqSeq;
 
-    if (cmd[2] != 0) {
-        /* We only handle channel 0 with no options */
+    if (cmd[2] != IPMI_CHANNEL_IPMB) {
+        /* We only handle channel 0h (IPMB) with no options */
         rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
         return;
     }
@@ -1216,6 +1233,68 @@ static void get_watchdog_timer(IPMIBmcSim *ibs,
     } else {
         rsp_buffer_push(rsp, 0);
         rsp_buffer_push(rsp, 0);
+    }
+}
+
+static void get_channel_info(IPMIBmcSim *ibs,
+                             uint8_t *cmd, unsigned int cmd_len,
+                             RspBuffer *rsp)
+{
+    IPMIInterface *s = ibs->parent.intf;
+    IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(s);
+    IPMIFwInfo info = {};
+    uint8_t ch = cmd[2] & 0x0f;
+
+    /* Only define channel 0h (IPMB) and Fh (system interface) */
+
+    if (ch == 0x0e) { /* "This channel" */
+        ch = IPMI_CHANNEL_SYSTEM;
+    }
+    rsp_buffer_push(rsp, ch);
+
+    if (ch != IPMI_CHANNEL_IPMB && ch != IPMI_CHANNEL_SYSTEM) {
+        /* Not a supported channel */
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
+        return;
+    }
+
+    if (k->get_fwinfo) {
+        k->get_fwinfo(s, &info);
+    }
+
+    if (ch == IPMI_CHANNEL_IPMB) {
+        rsp_buffer_push(rsp, IPMI_CHANNEL_MEDIUM_IPMB);
+        rsp_buffer_push(rsp, IPMI_CHANNEL_PROTOCOL_IPMB);
+    } else { /* IPMI_CHANNEL_SYSTEM */
+        rsp_buffer_push(rsp, IPMI_CHANNEL_MEDIUM_SYSTEM);
+        rsp_buffer_push(rsp, info.ipmi_channel_protocol);
+    }
+
+    rsp_buffer_push(rsp, 0x00); /* Session-less */
+
+    /* IPMI Enterprise Number for Vendor ID */
+    rsp_buffer_push(rsp, 0xf2);
+    rsp_buffer_push(rsp, 0x1b);
+    rsp_buffer_push(rsp, 0x00);
+
+    if (ch == IPMI_CHANNEL_SYSTEM) {
+        uint8_t irq;
+
+        if (info.irq_source == IPMI_ISA_IRQ) {
+            irq = info.interrupt_number;
+        } else if (info.irq_source == IPMI_PCI_IRQ) {
+            irq = 0x10 + info.interrupt_number;
+        } else {
+            irq = 0xff; /* no interrupt / unspecified */
+        }
+
+        /* Both interrupts use the same irq number */
+        rsp_buffer_push(rsp, irq);
+        rsp_buffer_push(rsp, irq);
+    } else {
+        /* Reserved */
+        rsp_buffer_push(rsp, 0x00);
+        rsp_buffer_push(rsp, 0x00);
     }
 }
 
@@ -2015,6 +2094,7 @@ static const IPMICmdHandler app_cmds[] = {
     [IPMI_CMD_RESET_WATCHDOG_TIMER] = { reset_watchdog_timer },
     [IPMI_CMD_SET_WATCHDOG_TIMER] = { set_watchdog_timer, 8 },
     [IPMI_CMD_GET_WATCHDOG_TIMER] = { get_watchdog_timer },
+    [IPMI_CMD_GET_CHANNEL_INFO] = { get_channel_info, 3 },
 };
 static const IPMINetfn app_netfn = {
     .cmd_nums = ARRAY_SIZE(app_cmds),
@@ -2187,8 +2267,6 @@ static void ipmi_sim_realize(DeviceState *dev, Error **errp)
     register_cmds(ibs);
 
     ibs->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ipmi_timeout, ibs);
-
-    vmstate_register(NULL, 0, &vmstate_ipmi_sim, ibs);
 }
 
 static const Property ipmi_sim_properties[] = {
@@ -2212,6 +2290,7 @@ static void ipmi_sim_class_init(ObjectClass *oc, void *data)
 
     dc->hotpluggable = false;
     dc->realize = ipmi_sim_realize;
+    dc->vmsd = &vmstate_ipmi_sim;
     device_class_set_props(dc, ipmi_sim_properties);
     bk->handle_command = ipmi_sim_handle_command;
 }

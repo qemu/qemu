@@ -41,6 +41,15 @@ enum ipmi_op {
     IPMI_SEND_NMI
 };
 
+/* Channel properties */
+#define IPMI_CHANNEL_IPMB                0x00
+#define IPMI_CHANNEL_SYSTEM              0x0f
+#define IPMI_CHANNEL_MEDIUM_IPMB         0x01
+#define IPMI_CHANNEL_MEDIUM_SYSTEM       0x0c
+#define IPMI_CHANNEL_PROTOCOL_IPMB       0x01
+#define IPMI_CHANNEL_PROTOCOL_KCS        0x05
+#define IPMI_CHANNEL_PROTOCOL_BT_15      0x08
+
 #define IPMI_CC_INVALID_CMD                              0xc1
 #define IPMI_CC_COMMAND_INVALID_FOR_LUN                  0xc2
 #define IPMI_CC_TIMEOUT                                  0xc3
@@ -76,6 +85,7 @@ typedef struct IPMIFwInfo {
     int interface_type;
     uint8_t ipmi_spec_major_revision;
     uint8_t ipmi_spec_minor_revision;
+    uint8_t ipmi_channel_protocol;
     uint8_t i2c_slave_address;
     uint32_t uuid;
 
@@ -90,6 +100,11 @@ typedef struct IPMIFwInfo {
     } memspace;
 
     int interrupt_number;
+    enum {
+        IPMI_NO_IRQ = 0,
+        IPMI_ISA_IRQ,
+        IPMI_PCI_IRQ,
+    } irq_source;
     enum {
         IPMI_LEVEL_IRQ,
         IPMI_EDGE_IRQ

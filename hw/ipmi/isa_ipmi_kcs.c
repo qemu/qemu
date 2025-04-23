@@ -49,6 +49,7 @@ static void isa_ipmi_kcs_get_fwinfo(IPMIInterface *ii, IPMIFwInfo *info)
     ISAIPMIKCSDevice *iik = ISA_IPMI_KCS(ii);
 
     ipmi_kcs_get_fwinfo(&iik->kcs, info);
+    info->irq_source = IPMI_ISA_IRQ;
     info->interrupt_number = iik->isairq;
     info->uuid = iik->uuid;
 }
@@ -72,6 +73,10 @@ static bool vmstate_kcs_before_version2(void *opaque, int version)
     return version <= 1;
 }
 
+/*
+ * Version 1 had an incorrect name, it clashed with the BT IPMI
+ * device, so receive it, but transmit a different version.
+ */
 static const VMStateDescription vmstate_ISAIPMIKCSDevice = {
     .name = TYPE_IPMI_INTERFACE,
     .version_id = 2,
@@ -119,13 +124,6 @@ static void ipmi_isa_realize(DeviceState *dev, Error **errp)
     qdev_set_legacy_instance_id(dev, iik->kcs.io_base, iik->kcs.io_length);
 
     isa_register_ioport(isadev, &iik->kcs.io, iik->kcs.io_base);
-
-    /*
-     * Version 1 had an incorrect name, it clashed with the BT
-     * IPMI device, so receive it, but transmit a different
-     * version.
-     */
-    vmstate_register(NULL, 0, &vmstate_ISAIPMIKCSDevice, iik);
 }
 
 static void isa_ipmi_kcs_init(Object *obj)
@@ -154,6 +152,7 @@ static void isa_ipmi_kcs_class_init(ObjectClass *oc, void *data)
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(oc);
 
     dc->realize = ipmi_isa_realize;
+    dc->vmsd = &vmstate_ISAIPMIKCSDevice;
     device_class_set_props(dc, ipmi_isa_properties);
 
     iic->get_backend_data = isa_ipmi_kcs_get_backend_data;

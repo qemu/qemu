@@ -405,6 +405,7 @@ void ipmi_kcs_get_fwinfo(IPMIKCS *ik, IPMIFwInfo *info)
     info->interface_type = IPMI_SMBIOS_KCS;
     info->ipmi_spec_major_revision = 2;
     info->ipmi_spec_minor_revision = 0;
+    info->ipmi_channel_protocol = IPMI_CHANNEL_PROTOCOL_KCS;
     info->base_address = ik->io_base;
     info->i2c_slave_address = ik->bmc->slave_addr;
     info->register_length = ik->io_length;

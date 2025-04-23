@@ -72,7 +72,12 @@ static void smbios_build_one_type_38(IPMIFwInfo *info)
                      " SMBIOS, ignoring this entry.", info->register_spacing);
         return;
     }
-    t->interrupt_number = info->interrupt_number;
+    if (info->irq_source == IPMI_ISA_IRQ) {
+        t->interrupt_number = info->interrupt_number;
+    } else {
+        /* TODO: How to handle PCI? */
+        t->interrupt_number = 0;
+    }
 
     SMBIOS_BUILD_TABLE_POST;
 }
