@@ -15,6 +15,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/s390x/storage-keys.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-misc-target.h"
 #include "qobject/qdict.h"
 #include "qemu/error-report.h"
@@ -142,7 +143,7 @@ void hmp_dump_skeys(Monitor *mon, const QDict *qdict)
     }
 }
 
-void qmp_dump_skeys(const char *filename, Error **errp)
+void s390_qmp_dump_skeys(const char *filename, Error **errp)
 {
     S390SKeysState *ss = s390_get_skeys_device();
     S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
@@ -316,14 +317,6 @@ static void qemu_s390_skeys_class_init(ObjectClass *oc, void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo qemu_s390_skeys_info = {
-    .name          = TYPE_QEMU_S390_SKEYS,
-    .parent        = TYPE_S390_SKEYS,
-    .instance_size = sizeof(QEMUS390SKeysState),
-    .class_init    = qemu_s390_skeys_class_init,
-    .class_size    = sizeof(S390SKeysClass),
-};
-
 static void s390_storage_keys_save(QEMUFile *f, void *opaque)
 {
     S390SKeysState *ss = S390_SKEYS(opaque);
@@ -481,19 +474,27 @@ static void s390_skeys_class_init(ObjectClass *oc, void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo s390_skeys_info = {
-    .name          = TYPE_S390_SKEYS,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(S390SKeysState),
-    .class_init    = s390_skeys_class_init,
-    .class_size    = sizeof(S390SKeysClass),
-    .abstract = true,
+static const TypeInfo s390_skeys_types[] = {
+    {
+        .name           = TYPE_DUMP_SKEYS_INTERFACE,
+        .parent         = TYPE_INTERFACE,
+        .class_size     = sizeof(DumpSKeysInterface),
+    },
+    {
+        .name           = TYPE_S390_SKEYS,
+        .parent         = TYPE_DEVICE,
+        .instance_size  = sizeof(S390SKeysState),
+        .class_init     = s390_skeys_class_init,
+        .class_size     = sizeof(S390SKeysClass),
+        .abstract       = true,
+    },
+    {
+        .name           = TYPE_QEMU_S390_SKEYS,
+        .parent         = TYPE_S390_SKEYS,
+        .instance_size  = sizeof(QEMUS390SKeysState),
+        .class_init     = qemu_s390_skeys_class_init,
+        .class_size     = sizeof(S390SKeysClass),
+    },
 };
 
-static void qemu_s390_skeys_register_types(void)
-{
-    type_register_static(&s390_skeys_info);
-    type_register_static(&qemu_s390_skeys_info);
-}
-
-type_init(qemu_s390_skeys_register_types)
+DEFINE_TYPES(s390_skeys_types)

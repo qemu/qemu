@@ -217,12 +217,12 @@ class S390CPUTopology(QemuSystemTest):
         self.assertEqual(res['return']['polarization'], 'horizontal')
         self.check_topology(0, 0, 0, 0, 'medium', False)
 
-        self.guest_set_dispatching('1');
+        self.guest_set_dispatching('1')
         res = self.vm.qmp('query-s390x-cpu-polarization')
         self.assertEqual(res['return']['polarization'], 'vertical')
         self.check_topology(0, 0, 0, 0, 'medium', False)
 
-        self.guest_set_dispatching('0');
+        self.guest_set_dispatching('0')
         res = self.vm.qmp('query-s390x-cpu-polarization')
         self.assertEqual(res['return']['polarization'], 'horizontal')
         self.check_topology(0, 0, 0, 0, 'medium', False)
@@ -283,7 +283,7 @@ class S390CPUTopology(QemuSystemTest):
         self.check_polarization('vertical:high')
         self.check_topology(0, 0, 0, 0, 'high', False)
 
-        self.guest_set_dispatching('0');
+        self.guest_set_dispatching('0')
         self.check_polarization("horizontal")
         self.check_topology(0, 0, 0, 0, 'high', False)
 
@@ -310,11 +310,11 @@ class S390CPUTopology(QemuSystemTest):
         self.check_topology(0, 0, 0, 0, 'high', True)
         self.check_polarization("horizontal")
 
-        self.guest_set_dispatching('1');
+        self.guest_set_dispatching('1')
         self.check_topology(0, 0, 0, 0, 'high', True)
         self.check_polarization("vertical:high")
 
-        self.guest_set_dispatching('0');
+        self.guest_set_dispatching('0')
         self.check_topology(0, 0, 0, 0, 'high', True)
         self.check_polarization("horizontal")
 
@@ -360,7 +360,7 @@ class S390CPUTopology(QemuSystemTest):
 
         self.check_topology(0, 0, 0, 0, 'high', True)
 
-        self.guest_set_dispatching('1');
+        self.guest_set_dispatching('1')
 
         self.check_topology(0, 0, 0, 0, 'high', True)
 

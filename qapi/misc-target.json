@@ -275,25 +275,6 @@
   'if': 'TARGET_I386' }
 
 ##
-# @dump-skeys:
-#
-# Dump guest's storage keys
-#
-# @filename: the path to the file to dump to
-#
-# Since: 2.5
-#
-# .. qmp-example::
-#
-#     -> { "execute": "dump-skeys",
-#          "arguments": { "filename": "/tmp/skeys" } }
-#     <- { "return": {} }
-##
-{ 'command': 'dump-skeys',
-  'data': { 'filename': 'str' },
-  'if': 'TARGET_S390X' }
-
-##
 # @GICCapability:
 #
 # The struct describes capability for a specific GIC (Generic

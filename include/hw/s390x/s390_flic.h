@@ -42,7 +42,6 @@ OBJECT_DECLARE_TYPE(S390FLICState, S390FLICStateClass,
 struct S390FLICState {
     SysBusDevice parent_obj;
     bool ais_supported;
-    bool migration_enabled;
 };
 
 

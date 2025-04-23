@@ -13,7 +13,6 @@
 
 import tempfile
 import mmap
-import os
 import re
 
 from qemu.machine.machine import VMLaunchFailure

@@ -69,10 +69,6 @@ variables:
     - if: '$QEMU_CI != "1" && $QEMU_CI != "2" && $CI_PROJECT_NAMESPACE != $QEMU_CI_UPSTREAM'
       when: never
 
-    # Avocado jobs don't run in forks unless $QEMU_CI_AVOCADO_TESTING is set
-    - if: '$QEMU_JOB_AVOCADO && $QEMU_CI_AVOCADO_TESTING != "1" && $CI_PROJECT_NAMESPACE != $QEMU_CI_UPSTREAM'
-      when: never
-
 
     #############################################################
     # Stage 2: fine tune execution of jobs in specific scenarios
@@ -101,8 +97,8 @@ variables:
       when: manual
       allow_failure: true
 
-    # Avocado jobs can be manually start in forks if $QEMU_CI_AVOCADO_TESTING is unset
-    - if: '$QEMU_JOB_AVOCADO && $CI_PROJECT_NAMESPACE != $QEMU_CI_UPSTREAM'
+    # Functional jobs can be manually started in forks
+    - if: '$QEMU_JOB_FUNCTIONAL && $QEMU_CI_FUNCTIONAL != "1" && $CI_PROJECT_NAMESPACE != $QEMU_CI_UPSTREAM'
       when: manual
       allow_failure: true
 

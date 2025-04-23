@@ -470,11 +470,6 @@ static void qemu_s390_flic_class_init(ObjectClass *oc, void *data)
     fsc->inject_crw_mchk = qemu_s390_inject_crw_mchk;
 }
 
-static const Property s390_flic_common_properties[] = {
-    DEFINE_PROP_BOOL("migration-enabled", S390FLICState,
-                     migration_enabled, true),
-};
-
 static void s390_flic_common_realize(DeviceState *dev, Error **errp)
 {
     S390FLICState *fs = S390_FLIC_COMMON(dev);
@@ -486,7 +481,6 @@ static void s390_flic_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    device_class_set_props(dc, s390_flic_common_properties);
     dc->realize = s390_flic_common_realize;
 }
 
@@ -515,18 +509,10 @@ static void qemu_s390_flic_register_types(void)
 
 type_init(qemu_s390_flic_register_types)
 
-static bool adapter_info_so_needed(void *opaque)
-{
-    S390FLICState *fs = s390_get_flic();
-
-    return fs->migration_enabled;
-}
-
 const VMStateDescription vmstate_adapter_info_so = {
     .name = "s390_adapter_info/summary_offset",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = adapter_info_so_needed,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(summary_offset, AdapterInfo),
         VMSTATE_END_OF_LIST()

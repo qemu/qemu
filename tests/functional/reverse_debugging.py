@@ -1,5 +1,7 @@
 # Reverse debugging test
 #
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
 # Copyright (c) 2020 ISP RAS
 #
 # Author:
@@ -10,14 +12,9 @@
 import os
 import logging
 
-from avocado import skipUnless
-from avocado_qemu import BUILD_DIR
-from avocado.utils import datadrainer
-from avocado.utils import gdb
-from avocado.utils import process
-from avocado.utils.network.ports import find_free_port
-from avocado.utils.path import find_command
-from boot_linux_console import LinuxKernelTest
+from qemu_test import LinuxKernelTest, get_qemu_img
+from qemu_test.ports import Ports
+
 
 class ReverseDebugging(LinuxKernelTest):
     """
@@ -36,8 +33,10 @@ class ReverseDebugging(LinuxKernelTest):
     endian_is_le = True
 
     def run_vm(self, record, shift, args, replay_path, image_path, port):
+        from avocado.utils import datadrainer
+
         logger = logging.getLogger('replay')
-        vm = self.get_vm()
+        vm = self.get_vm(name='record' if record else 'replay')
         vm.set_console()
         if record:
             logger.info('recording the execution...')
@@ -100,25 +99,25 @@ class ReverseDebugging(LinuxKernelTest):
         return vm.qmp('query-replay')['return']['icount']
 
     def reverse_debugging(self, shift=7, args=None):
+        from avocado.utils import gdb
+        from avocado.utils import process
+
         logger = logging.getLogger('replay')
 
         # create qcow2 for snapshots
         logger.info('creating qcow2 image for VM snapshots')
         image_path = os.path.join(self.workdir, 'disk.qcow2')
-        qemu_img = os.path.join(BUILD_DIR, 'qemu-img')
-        if not os.path.exists(qemu_img):
-            qemu_img = find_command('qemu-img', False)
-        if qemu_img is False:
-            self.cancel('Could not find "qemu-img", which is required to '
-                        'create the temporary qcow2 image')
+        qemu_img = get_qemu_img(self)
+        if qemu_img is None:
+            self.skipTest('Could not find "qemu-img", which is required to '
+                          'create the temporary qcow2 image')
         cmd = '%s create -f qcow2 %s 128M' % (qemu_img, image_path)
         process.run(cmd)
 
         replay_path = os.path.join(self.workdir, 'replay.bin')
-        port = find_free_port()
 
         # record the log
-        vm = self.run_vm(True, shift, args, replay_path, image_path, port)
+        vm = self.run_vm(True, shift, args, replay_path, image_path, -1)
         while self.vm_get_icount(vm) <= self.STEPS:
             pass
         last_icount = self.vm_get_icount(vm)
@@ -127,7 +126,9 @@ class ReverseDebugging(LinuxKernelTest):
         logger.info("recorded log with %s+ steps" % last_icount)
 
         # replay and run debug commands
-        vm = self.run_vm(False, shift, args, replay_path, image_path, port)
+        with Ports() as ports:
+            port = ports.find_free_port()
+            vm = self.run_vm(False, shift, args, replay_path, image_path, port)
         logger.info('connecting to gdbstub')
         g = gdb.GDBRemote('127.0.0.1', port, False, False)
         g.connect()
@@ -193,80 +194,3 @@ class ReverseDebugging(LinuxKernelTest):
 
         logger.info('exiting gdb and qemu')
         vm.shutdown()
-
-class ReverseDebugging_X86_64(ReverseDebugging):
-    """
-    :avocado: tags=accel:tcg
-    """
-
-    REG_PC = 0x10
-    REG_CS = 0x12
-    def get_pc(self, g):
-        return self.get_reg_le(g, self.REG_PC) \
-            + self.get_reg_le(g, self.REG_CS) * 0x10
-
-    # unidentified gitlab timeout problem
-    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-    def test_x86_64_pc(self):
-        """
-        :avocado: tags=arch:x86_64
-        :avocado: tags=machine:pc
-        """
-        # start with BIOS only
-        self.reverse_debugging()
-
-class ReverseDebugging_AArch64(ReverseDebugging):
-    """
-    :avocado: tags=accel:tcg
-    """
-
-    REG_PC = 32
-
-    # unidentified gitlab timeout problem
-    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-    def test_aarch64_virt(self):
-        """
-        :avocado: tags=arch:aarch64
-        :avocado: tags=machine:virt
-        :avocado: tags=cpu:cortex-a53
-        """
-        kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
-                      '/linux/releases/29/Everything/aarch64/os/images/pxeboot'
-                      '/vmlinuz')
-        kernel_hash = '8c73e469fc6ea06a58dc83a628fc695b693b8493'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
-
-        self.reverse_debugging(
-            args=('-kernel', kernel_path))
-
-class ReverseDebugging_ppc64(ReverseDebugging):
-    """
-    :avocado: tags=accel:tcg
-    """
-
-    REG_PC = 0x40
-
-    # unidentified gitlab timeout problem
-    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-    def test_ppc64_pseries(self):
-        """
-        :avocado: tags=arch:ppc64
-        :avocado: tags=machine:pseries
-        :avocado: tags=flaky
-        """
-        # SLOF branches back to its entry point, which causes this test
-        # to take the 'hit a breakpoint again' path. That's not a problem,
-        # just slightly different than the other machines.
-        self.endian_is_le = False
-        self.reverse_debugging()
-
-    # See https://gitlab.com/qemu-project/qemu/-/issues/1992
-    @skipUnless(os.getenv('QEMU_TEST_FLAKY_TESTS'), 'Test is unstable on GitLab')
-    def test_ppc64_powernv(self):
-        """
-        :avocado: tags=arch:ppc64
-        :avocado: tags=machine:powernv
-        :avocado: tags=flaky
-        """
-        self.endian_is_le = False
-        self.reverse_debugging()

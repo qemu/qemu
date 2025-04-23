@@ -11,11 +11,11 @@
 # later.  See the COPYING file in the top-level directory.
 
 import socket
-from typing import List
-from qemu.machine.machine import VMLaunchFailure
 
+from qemu.machine.machine import VMLaunchFailure
 from qemu_test import QemuSystemTest
 from qemu_test.ports import Ports
+
 
 VNC_ADDR = '127.0.0.1'
 
@@ -55,6 +55,8 @@ class Vnc(QemuSystemTest):
         except VMLaunchFailure as excp:
             if "-vnc: invalid option" in excp.output:
                 self.skipTest("VNC support not available")
+            elif "Cipher backend does not support DES algorithm" in excp.output:
+                self.skipTest("No cryptographic backend available")
             else:
                 self.log.info("unhandled launch failure: %s", excp.output)
                 raise excp

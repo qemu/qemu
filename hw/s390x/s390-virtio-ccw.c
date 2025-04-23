@@ -810,6 +810,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     NMIClass *nc = NMI_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
     S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
+    DumpSKeysInterface *dsi = DUMP_SKEYS_INTERFACE_CLASS(oc);
 
     s390mc->hpage_1m_allowed = true;
     s390mc->max_threads = 1;
@@ -835,6 +836,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     nc->nmi_monitor_handler = s390_nmi;
     mc->default_ram_id = "s390.ram";
     mc->default_nic = "virtio-net-ccw";
+    dsi->qmp_dump_skeys = s390_qmp_dump_skeys;
 
     object_class_property_add_bool(oc, "aes-key-wrap",
                                    machine_get_aes_key_wrap,
@@ -876,6 +878,7 @@ static const TypeInfo ccw_machine_info = {
     .interfaces = (InterfaceInfo[]) {
         { TYPE_NMI },
         { TYPE_HOTPLUG_HANDLER},
+        { TYPE_DUMP_SKEYS_INTERFACE},
         { }
     },
 };
@@ -921,14 +924,26 @@ static const TypeInfo ccw_machine_info = {
     DEFINE_CCW_MACHINE_IMPL(false, major, minor)
 
 
+static void ccw_machine_10_1_instance_options(MachineState *machine)
+{
+}
+
+static void ccw_machine_10_1_class_options(MachineClass *mc)
+{
+}
+DEFINE_CCW_MACHINE_AS_LATEST(10, 1);
+
 static void ccw_machine_10_0_instance_options(MachineState *machine)
 {
+    ccw_machine_10_1_instance_options(machine);
 }
 
 static void ccw_machine_10_0_class_options(MachineClass *mc)
 {
+    ccw_machine_10_1_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_10_0, hw_compat_10_0_len);
 }
-DEFINE_CCW_MACHINE_AS_LATEST(10, 0);
+DEFINE_CCW_MACHINE(10, 0);
 
 static void ccw_machine_9_2_instance_options(MachineState *machine)
 {
@@ -1269,30 +1284,6 @@ static void ccw_machine_2_10_class_options(MachineClass *mc)
     compat_props_add(mc->compat_props, hw_compat_2_10, hw_compat_2_10_len);
 }
 DEFINE_CCW_MACHINE(2, 10);
-
-static void ccw_machine_2_9_instance_options(MachineState *machine)
-{
-    ccw_machine_2_10_instance_options(machine);
-    s390_cpudef_featoff_greater(12, 1, S390_FEAT_ESOP);
-    s390_cpudef_featoff_greater(12, 1, S390_FEAT_SIDE_EFFECT_ACCESS_ESOP2);
-    s390_cpudef_featoff_greater(12, 1, S390_FEAT_ZPCI);
-    s390_cpudef_featoff_greater(12, 1, S390_FEAT_ADAPTER_INT_SUPPRESSION);
-    s390_cpudef_featoff_greater(12, 1, S390_FEAT_ADAPTER_EVENT_NOTIFICATION);
-    css_migration_enabled = false;
-}
-
-static void ccw_machine_2_9_class_options(MachineClass *mc)
-{
-    static GlobalProperty compat[] = {
-        { TYPE_S390_STATTRIB, "migration-enabled", "off", },
-        { TYPE_S390_FLIC_COMMON, "migration-enabled", "off", },
-    };
-
-    ccw_machine_2_10_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_9, hw_compat_2_9_len);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
-}
-DEFINE_CCW_MACHINE(2, 9);
 
 #endif
 
