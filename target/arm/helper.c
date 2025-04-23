@@ -4987,7 +4987,7 @@ static void ic_ivau_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     mmap_lock();
 
-    tb_invalidate_phys_range(start_address, end_address);
+    tb_invalidate_phys_range(env_cpu(env), start_address, end_address);
 
     mmap_unlock();
 }

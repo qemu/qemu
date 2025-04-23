@@ -1012,7 +1012,8 @@ TranslationBlock *tb_link_page(TranslationBlock *tb)
  * Called with mmap_lock held for user-mode emulation.
  * NOTE: this function must not be called while a TB is running.
  */
-void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t last)
+void tb_invalidate_phys_range(CPUState *cpu, tb_page_addr_t start,
+                              tb_page_addr_t last)
 {
     TranslationBlock *tb;
     PageForEachNext n;
@@ -1035,7 +1036,7 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr)
 
     start = addr & TARGET_PAGE_MASK;
     last = addr | ~TARGET_PAGE_MASK;
-    tb_invalidate_phys_range(start, last);
+    tb_invalidate_phys_range(NULL, start, last);
 }
 
 /*
@@ -1178,7 +1179,8 @@ tb_invalidate_phys_page_range__locked(CPUState *cpu,
  * access: the virtual CPU will exit the current TB if code is modified inside
  * this TB.
  */
-void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t last)
+void tb_invalidate_phys_range(CPUState *cpu, tb_page_addr_t start,
+                              tb_page_addr_t last)
 {
     struct page_collection *pages;
     tb_page_addr_t index, index_last;
@@ -1197,7 +1199,7 @@ void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t last)
         page_start = index << TARGET_PAGE_BITS;
         page_last = page_start | ~TARGET_PAGE_MASK;
         page_last = MIN(page_last, last);
-        tb_invalidate_phys_page_range__locked(NULL, pages, pd,
+        tb_invalidate_phys_page_range__locked(cpu, pages, pd,
                                               page_start, page_last, 0);
     }
     page_collection_unlock(pages);
