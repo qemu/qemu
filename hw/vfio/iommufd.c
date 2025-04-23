@@ -500,17 +500,6 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
 
     space = vfio_address_space_get(as);
 
-    /*
-     * The HostIOMMUDevice data from legacy backend is static and doesn't need
-     * any information from the (type1-iommu) backend to be initialized. In
-     * contrast however, the IOMMUFD HostIOMMUDevice data requires the iommufd
-     * FD to be connected and having a devid to be able to successfully call
-     * iommufd_backend_get_device_info().
-     */
-    if (!vfio_device_hiod_realize(vbasedev, errp)) {
-        goto err_alloc_ioas;
-    }
-
     /* try to attach to an existing container in this space */
     QLIST_FOREACH(bcontainer, &space->containers, next) {
         container = container_of(bcontainer, VFIOIOMMUFDContainer, bcontainer);
@@ -585,6 +574,10 @@ found_container:
         goto err_listener_register;
     }
 
+    if (!vfio_device_hiod_realize(vbasedev, errp)) {
+        goto err_hiod_realize;
+    }
+
     /*
      * TODO: examine RAM_BLOCK_DISCARD stuff, should we do group level
      * for discarding incompatibility check as well?
@@ -606,6 +599,8 @@ found_container:
                                    vbasedev->num_regions, vbasedev->flags);
     return true;
 
+err_hiod_realize:
+    vfio_cpr_unregister_container(bcontainer);
 err_listener_register:
     iommufd_cdev_ram_block_discard_disable(false);
 err_discard_disable:
