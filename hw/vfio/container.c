@@ -883,10 +883,6 @@ static bool vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
 
     trace_vfio_device_attach(vbasedev->name, groupid);
 
-    if (!vfio_device_hiod_realize(vbasedev, errp)) {
-        return false;
-    }
-
     group = vfio_group_get(groupid, as, errp);
     if (!group) {
         return false;
@@ -895,13 +891,15 @@ static bool vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
     QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
         if (strcmp(vbasedev_iter->name, vbasedev->name) == 0) {
             error_setg(errp, "device is already attached");
-            vfio_group_put(group);
-            return false;
+            goto group_put_exit;
         }
     }
     if (!vfio_device_get(group, name, vbasedev, errp)) {
-        vfio_group_put(group);
-        return false;
+        goto group_put_exit;
+    }
+
+    if (!vfio_device_hiod_realize(vbasedev, errp)) {
+        goto device_put_exit;
     }
 
     bcontainer = &group->container->bcontainer;
@@ -910,6 +908,12 @@ static bool vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
     QLIST_INSERT_HEAD(&vfio_device_list, vbasedev, global_next);
 
     return true;
+
+device_put_exit:
+    vfio_device_put(vbasedev);
+group_put_exit:
+    vfio_group_put(group);
+    return false;
 }
 
 static void vfio_legacy_detach_device(VFIODevice *vbasedev)
