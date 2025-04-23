@@ -32,10 +32,7 @@
 #include "trace.h"
 #include "qom/object.h"
 
-/* debug PIC */
-//#define DEBUG_PIC
-
-//#define DEBUG_IRQ_LATENCY
+/*#define DEBUG_IRQ_LATENCY*/
 
 #define TYPE_I8259 "isa-i8259"
 typedef struct PICClass PICClass;
