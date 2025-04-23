@@ -32,6 +32,7 @@
 #include "exec/cpu_ldst.h"
 #include "tcg/tcg.h"
 #endif
+#include "tcg/tcg_loongarch.h"
 
 const char * const regnames[32] = {
     "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
