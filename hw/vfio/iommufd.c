@@ -287,7 +287,8 @@ static bool iommufd_cdev_autodomains_get(VFIODevice *vbasedev,
 {
     ERRP_GUARD();
     IOMMUFDBackend *iommufd = vbasedev->iommufd;
-    uint32_t flags = 0;
+    uint32_t type, flags = 0;
+    uint64_t hw_caps;
     VFIOIOASHwpt *hwpt;
     uint32_t hwpt_id;
     int ret;
@@ -324,7 +325,12 @@ static bool iommufd_cdev_autodomains_get(VFIODevice *vbasedev,
      * vfio_migration_realize() may decide to use VF dirty tracking
      * instead.
      */
-    if (vbasedev->hiod->caps.hw_caps & IOMMU_HW_CAP_DIRTY_TRACKING) {
+    if (!iommufd_backend_get_device_info(vbasedev->iommufd, vbasedev->devid,
+                                         &type, NULL, 0, &hw_caps, errp)) {
+        return false;
+    }
+
+    if (hw_caps & IOMMU_HW_CAP_DIRTY_TRACKING) {
         flags = IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
     }
 
