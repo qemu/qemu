@@ -898,7 +898,9 @@ static bool vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
         goto group_put_exit;
     }
 
-    if (!vfio_device_hiod_realize(vbasedev, errp)) {
+    if (!vfio_device_hiod_create_and_realize(vbasedev,
+                                             TYPE_HOST_IOMMU_DEVICE_LEGACY_VFIO,
+                                             errp)) {
         goto device_put_exit;
     }
 
@@ -924,6 +926,7 @@ static void vfio_legacy_detach_device(VFIODevice *vbasedev)
     QLIST_REMOVE(vbasedev, container_next);
     vbasedev->bcontainer = NULL;
     trace_vfio_device_detach(vbasedev->name, group->groupid);
+    object_unref(vbasedev->hiod);
     vfio_device_put(vbasedev);
     vfio_group_put(group);
 }

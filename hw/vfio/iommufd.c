@@ -574,7 +574,8 @@ found_container:
         goto err_listener_register;
     }
 
-    if (!vfio_device_hiod_realize(vbasedev, errp)) {
+    if (!vfio_device_hiod_create_and_realize(vbasedev,
+                     TYPE_HOST_IOMMU_DEVICE_IOMMUFD_VFIO, errp)) {
         goto err_hiod_realize;
     }
 
@@ -630,6 +631,7 @@ static void iommufd_cdev_detach(VFIODevice *vbasedev)
         iommufd_cdev_ram_block_discard_disable(false);
     }
 
+    object_unref(vbasedev->hiod);
     vfio_cpr_unregister_container(bcontainer);
     iommufd_cdev_detach_container(vbasedev, container);
     iommufd_cdev_container_destroy(container);

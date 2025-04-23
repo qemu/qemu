@@ -347,15 +347,24 @@ bool vfio_device_is_mdev(VFIODevice *vbasedev)
     return subsys && (strcmp(subsys, "/sys/bus/mdev") == 0);
 }
 
-bool vfio_device_hiod_realize(VFIODevice *vbasedev, Error **errp)
+bool vfio_device_hiod_create_and_realize(VFIODevice *vbasedev,
+                                         const char *typename, Error **errp)
 {
-    HostIOMMUDevice *hiod = vbasedev->hiod;
+    HostIOMMUDevice *hiod;
 
-    if (!hiod) {
+    if (vbasedev->mdev) {
         return true;
     }
 
-    return HOST_IOMMU_DEVICE_GET_CLASS(hiod)->realize(hiod, vbasedev, errp);
+    hiod = HOST_IOMMU_DEVICE(object_new(typename));
+
+    if (!HOST_IOMMU_DEVICE_GET_CLASS(hiod)->realize(hiod, vbasedev, errp)) {
+        object_unref(hiod);
+        return false;
+    }
+
+    vbasedev->hiod = hiod;
+    return true;
 }
 
 VFIODevice *vfio_get_vfio_device(Object *obj)
@@ -372,7 +381,6 @@ bool vfio_device_attach(char *name, VFIODevice *vbasedev,
 {
     const VFIOIOMMUClass *ops =
         VFIO_IOMMU_CLASS(object_class_by_name(TYPE_VFIO_IOMMU_LEGACY));
-    HostIOMMUDevice *hiod = NULL;
 
     if (vbasedev->iommufd) {
         ops = VFIO_IOMMU_CLASS(object_class_by_name(TYPE_VFIO_IOMMU_IOMMUFD));
@@ -380,19 +388,7 @@ bool vfio_device_attach(char *name, VFIODevice *vbasedev,
 
     assert(ops);
 
-
-    if (!vbasedev->mdev) {
-        hiod = HOST_IOMMU_DEVICE(object_new(ops->hiod_typename));
-        vbasedev->hiod = hiod;
-    }
-
-    if (!ops->attach_device(name, vbasedev, as, errp)) {
-        object_unref(hiod);
-        vbasedev->hiod = NULL;
-        return false;
-    }
-
-    return true;
+    return ops->attach_device(name, vbasedev, as, errp);
 }
 
 void vfio_device_detach(VFIODevice *vbasedev)
@@ -400,6 +396,5 @@ void vfio_device_detach(VFIODevice *vbasedev)
     if (!vbasedev->bcontainer) {
         return;
     }
-    object_unref(vbasedev->hiod);
     VFIO_IOMMU_GET_CLASS(vbasedev->bcontainer)->detach_device(vbasedev);
 }
