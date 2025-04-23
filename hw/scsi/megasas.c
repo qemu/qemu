@@ -2486,7 +2486,7 @@ typedef struct MegasasInfo {
     const VMStateDescription *vmsd;
     const Property *props;
     size_t props_count;
-    InterfaceInfo *interfaces;
+    const InterfaceInfo *interfaces;
 } MegasasInfo;
 
 static struct MegasasInfo megasas_devices[] = {

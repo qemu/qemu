@@ -490,7 +490,7 @@ struct TypeInfo
     void (*class_base_init)(ObjectClass *klass, const void *data);
     const void *class_data;
 
-    InterfaceInfo *interfaces;
+    const InterfaceInfo *interfaces;
 };
 
 /**
