@@ -209,8 +209,8 @@ static uint32_t get_random_tlb(uint32_t low, uint32_t high)
  * field in tlb entry contains bit[47:13], so need adjust.
  * virt_vpn = vaddr[47:13]
  */
-bool loongarch_tlb_search(CPULoongArchState *env, target_ulong vaddr,
-                          int *index)
+static bool loongarch_tlb_search(CPULoongArchState *env, target_ulong vaddr,
+                                 int *index)
 {
     LoongArchTLB *tlb;
     uint16_t csr_asid, tlb_asid, stlb_idx;
