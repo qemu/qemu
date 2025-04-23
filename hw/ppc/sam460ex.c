@@ -142,7 +142,7 @@ static int sam460ex_load_device_tree(MachineState *machine,
     uint32_t clock_freq = CPU_FREQ;
     int offset;
 
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
+    filename = qemu_find_file(QEMU_FILE_TYPE_DTB, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
         error_report("Couldn't find dtb file `%s'", BINARY_DEVICE_TREE_FILE);
         exit(1);

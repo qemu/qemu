@@ -64,7 +64,7 @@ static int bamboo_load_device_tree(MachineState *machine,
     uint32_t tb_freq = 400000000;
     uint32_t clock_freq = 400000000;
 
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
+    filename = qemu_find_file(QEMU_FILE_TYPE_DTB, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
         return -1;
     }

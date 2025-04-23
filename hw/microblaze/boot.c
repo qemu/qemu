@@ -130,7 +130,7 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, bool is_little_endian,
     dtb_arg = current_machine->dtb;
     /* default to pcbios dtb as passed by machine_init */
     if (!dtb_arg && dtb_filename) {
-        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, dtb_filename);
+        filename = qemu_find_file(QEMU_FILE_TYPE_DTB, dtb_filename);
     }
 
     boot_info.machine_cpu_reset = machine_cpu_reset;

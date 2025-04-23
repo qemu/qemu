@@ -146,7 +146,7 @@ static int xilinx_load_device_tree(MachineState *machine,
         /* Try the local "ppc.dtb" override.  */
         fdt = load_device_tree("ppc.dtb", &fdt_size);
         if (!fdt) {
-            path = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
+            path = qemu_find_file(QEMU_FILE_TYPE_DTB, BINARY_DEVICE_TREE_FILE);
             if (path) {
                 fdt = load_device_tree(path, &fdt_size);
                 g_free(path);
