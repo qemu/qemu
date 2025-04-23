@@ -1217,7 +1217,7 @@ static const TypeInfo pnv_spi_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PnvSpi),
     .class_init    = pnv_spi_class_init,
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }
     }

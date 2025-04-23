@@ -162,7 +162,7 @@ static const TypeInfo can_bus_info = {
     .instance_size = sizeof(CanBusState),
     .instance_init = can_bus_instance_init,
     .class_init = can_bus_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

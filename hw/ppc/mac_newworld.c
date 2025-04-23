@@ -639,7 +639,7 @@ static const TypeInfo core99_machine_info = {
     .class_init    = core99_machine_class_init,
     .instance_init = core99_instance_init,
     .instance_size = sizeof(Core99MachineState),
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_FW_PATH_PROVIDER },
         { }
     },

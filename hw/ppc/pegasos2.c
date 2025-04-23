@@ -619,7 +619,7 @@ static const TypeInfo pegasos2_machine_info = {
     .parent        = TYPE_MACHINE,
     .class_init    = pegasos2_machine_class_init,
     .instance_size = sizeof(Pegasos2MachineState),
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_PPC_VIRTUAL_HYPERVISOR },
         { TYPE_VOF_MACHINE_IF },
         { }

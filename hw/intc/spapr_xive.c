@@ -856,7 +856,7 @@ static const TypeInfo spapr_xive_info = {
     .instance_size = sizeof(SpaprXive),
     .class_init = spapr_xive_class_init,
     .class_size = sizeof(SpaprXiveClass),
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_SPAPR_INTC },
         { }
     },

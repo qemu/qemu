@@ -944,7 +944,7 @@ static const TypeInfo vfu_object_info = {
     .instance_finalize = vfu_object_finalize,
     .class_size = sizeof(VfuObjectClass),
     .class_init = vfu_object_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

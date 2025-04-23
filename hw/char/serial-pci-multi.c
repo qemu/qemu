@@ -194,7 +194,7 @@ static const TypeInfo multi_2x_serial_pci_info = {
     .instance_size = sizeof(PCIMultiSerialState),
     .instance_init = multi_serial_init,
     .class_init    = multi_2x_serial_pci_class_initfn,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },
@@ -206,7 +206,7 @@ static const TypeInfo multi_4x_serial_pci_info = {
     .instance_size = sizeof(PCIMultiSerialState),
     .instance_init = multi_serial_init,
     .class_init    = multi_4x_serial_pci_class_initfn,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },

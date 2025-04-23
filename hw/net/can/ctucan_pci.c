@@ -262,7 +262,7 @@ static const TypeInfo ctucan_pci_info = {
     .instance_size = sizeof(CtuCanPCIState),
     .class_init    = ctucan_pci_class_init,
     .instance_init = ctucan_pci_instance_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },

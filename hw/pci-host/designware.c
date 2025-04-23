@@ -769,7 +769,7 @@ static const TypeInfo designware_pcie_types[] = {
         .parent         = TYPE_PCI_BRIDGE,
         .instance_size  = sizeof(DesignwarePCIERoot),
         .class_init     = designware_pcie_root_class_init,
-        .interfaces     = (InterfaceInfo[]) {
+        .interfaces     = (const InterfaceInfo[]) {
             { INTERFACE_PCIE_DEVICE },
             { }
         },

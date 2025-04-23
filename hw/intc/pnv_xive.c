@@ -2106,7 +2106,7 @@ static const TypeInfo pnv_xive_info = {
     .instance_size = sizeof(PnvXive),
     .class_init    = pnv_xive_class_init,
     .class_size    = sizeof(PnvXiveClass),
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }
     }

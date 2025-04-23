@@ -319,7 +319,7 @@ static const TypeInfo thread_context_info = {
     .instance_size = sizeof(ThreadContext),
     .instance_init = thread_context_instance_init,
     .instance_finalize = thread_context_instance_finalize,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

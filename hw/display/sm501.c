@@ -2196,7 +2196,7 @@ static const TypeInfo sm501_pci_info = {
     .instance_size = sizeof(SM501PCIState),
     .class_init    = sm501_pci_class_init,
     .instance_init = sm501_pci_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },

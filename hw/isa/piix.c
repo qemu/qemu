@@ -445,7 +445,7 @@ static const TypeInfo piix_pci_type_info = {
     .instance_init = pci_piix_init,
     .abstract = true,
     .class_init = pci_piix_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { TYPE_ACPI_DEV_AML_IF },
         { },

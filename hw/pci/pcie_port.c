@@ -230,7 +230,7 @@ static const TypeInfo pcie_slot_type_info = {
     .instance_size = sizeof(PCIESlot),
     .abstract = true,
     .class_init = pcie_slot_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { }
     }

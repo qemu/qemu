@@ -196,7 +196,7 @@ static const TypeInfo loongarch_extioi_common_types[] = {
         .instance_size      = sizeof(LoongArchExtIOICommonState),
         .class_size         = sizeof(LoongArchExtIOICommonClass),
         .class_init         = loongarch_extioi_common_class_init,
-        .interfaces         = (InterfaceInfo[]) {
+        .interfaces         = (const InterfaceInfo[]) {
             { TYPE_HOTPLUG_HANDLER },
             { }
         },

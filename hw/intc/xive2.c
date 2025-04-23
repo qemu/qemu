@@ -1609,7 +1609,7 @@ static const TypeInfo xive2_router_info = {
     .instance_size = sizeof(Xive2Router),
     .class_size    = sizeof(Xive2RouterClass),
     .class_init    = xive2_router_class_init,
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { TYPE_XIVE_NOTIFIER },
         { TYPE_XIVE_PRESENTER },
         { }

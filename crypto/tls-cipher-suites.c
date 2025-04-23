@@ -118,7 +118,7 @@ static const TypeInfo qcrypto_tls_cipher_suites_info = {
     .instance_size = sizeof(QCryptoTLSCipherSuites),
     .class_size = sizeof(QCryptoTLSCredsClass),
     .class_init = qcrypto_tls_cipher_suites_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { TYPE_FW_CFG_DATA_GENERATOR_INTERFACE },
         { }

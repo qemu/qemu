@@ -644,7 +644,7 @@ static const TypeInfo arm_gicv3_common_type = {
     .class_init = arm_gicv3_common_class_init,
     .instance_finalize = arm_gicv3_finalize,
     .abstract = true,
-    .interfaces = (InterfaceInfo []) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_ARM_LINUX_BOOT_IF },
         { },
     },

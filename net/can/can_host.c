@@ -92,7 +92,7 @@ static const TypeInfo can_host_info = {
     .class_size = sizeof(CanHostClass),
     .abstract = true,
     .class_init = can_host_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

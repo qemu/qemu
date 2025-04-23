@@ -958,7 +958,7 @@ static const TypeInfo i8042_info = {
     .instance_size = sizeof(ISAKBDState),
     .instance_init = i8042_initfn,
     .class_init    = i8042_class_initfn,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_ACPI_DEV_AML_IF },
         { },
     },

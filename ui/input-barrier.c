@@ -732,7 +732,7 @@ static const TypeInfo input_barrier_info = {
     .instance_size = sizeof(InputBarrier),
     .instance_init = input_barrier_instance_init,
     .instance_finalize = input_barrier_instance_finalize,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

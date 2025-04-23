@@ -641,7 +641,7 @@ static const TypeInfo cryptodev_backend_info = {
     .instance_finalize = cryptodev_backend_finalize,
     .class_size = sizeof(CryptoDevBackendClass),
     .class_init = cryptodev_backend_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

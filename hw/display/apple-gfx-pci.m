@@ -147,7 +147,7 @@ static const TypeInfo apple_gfx_pci_types[] = {
         .instance_size = sizeof(AppleGFXPCIState),
         .class_init    = apple_gfx_pci_class_init,
         .instance_init = apple_gfx_pci_init,
-        .interfaces = (InterfaceInfo[]) {
+        .interfaces = (const InterfaceInfo[]) {
             { INTERFACE_PCIE_DEVICE },
             { },
         },

@@ -77,7 +77,7 @@ static const TypeInfo pr_manager_info = {
     .name = TYPE_PR_MANAGER,
     .class_size = sizeof(PRManagerClass),
     .abstract = true,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

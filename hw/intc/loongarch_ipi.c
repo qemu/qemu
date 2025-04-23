@@ -162,7 +162,7 @@ static const TypeInfo loongarch_ipi_types[] = {
         .instance_size      = sizeof(LoongarchIPIState),
         .class_size         = sizeof(LoongarchIPIClass),
         .class_init         = loongarch_ipi_class_init,
-        .interfaces         = (InterfaceInfo[]) {
+        .interfaces         = (const InterfaceInfo[]) {
             { TYPE_HOTPLUG_HANDLER },
             { }
         },

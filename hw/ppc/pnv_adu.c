@@ -204,7 +204,7 @@ static const TypeInfo pnv_adu_type_info = {
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvADU),
     .class_init    = pnv_adu_class_init,
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { } },
 };

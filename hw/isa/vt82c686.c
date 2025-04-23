@@ -243,7 +243,7 @@ static const TypeInfo via_pm_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(ViaPMState),
     .abstract      = true,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },
@@ -634,7 +634,7 @@ static const TypeInfo via_isa_info = {
     .instance_size = sizeof(ViaISAState),
     .instance_init = via_isa_init,
     .abstract      = true,
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },

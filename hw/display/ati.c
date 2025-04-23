@@ -1079,7 +1079,7 @@ static const TypeInfo ati_vga_info = {
     .instance_size = sizeof(ATIVGAState),
     .class_init = ati_vga_class_init,
     .instance_init = ati_vga_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
           { INTERFACE_CONVENTIONAL_PCI_DEVICE },
           { },
     },

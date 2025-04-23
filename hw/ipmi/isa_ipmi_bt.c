@@ -161,7 +161,7 @@ static const TypeInfo isa_ipmi_bt_info = {
     .instance_size = sizeof(ISAIPMIBTDevice),
     .instance_init = isa_ipmi_bt_init,
     .class_init    = isa_ipmi_bt_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_IPMI_INTERFACE },
         { TYPE_ACPI_DEV_AML_IF },
         { }

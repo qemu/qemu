@@ -913,7 +913,7 @@ static const TypeInfo pnv_psi_power9_info = {
     .instance_size = sizeof(Pnv9Psi),
     .instance_init = pnv_psi_power9_instance_init,
     .class_init    = pnv_psi_power9_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
             { TYPE_XIVE_NOTIFIER },
             { },
     },
@@ -959,7 +959,7 @@ static const TypeInfo pnv_psi_info = {
     .class_init    = pnv_psi_class_init,
     .class_size    = sizeof(PnvPsiClass),
     .abstract      = true,
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }
     }

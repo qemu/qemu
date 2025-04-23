@@ -253,7 +253,7 @@ static const TypeInfo qauthz_list_info = {
     .instance_size = sizeof(QAuthZList),
     .instance_finalize = qauthz_list_finalize,
     .class_init = qauthz_list_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

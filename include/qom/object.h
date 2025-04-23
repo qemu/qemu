@@ -294,7 +294,7 @@ struct Object
         .class_size = CLASS_SIZE, \
         .class_init = module_obj_name##_class_init, \
         .abstract = ABSTRACT, \
-        .interfaces = (InterfaceInfo[]) { __VA_ARGS__ } , \
+        .interfaces = (const InterfaceInfo[]) { __VA_ARGS__ } , \
     }; \
     \
     static void \

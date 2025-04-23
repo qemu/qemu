@@ -1278,7 +1278,7 @@ static const TypeInfo uhci_pci_type_info = {
     .class_size    = sizeof(UHCIPCIDeviceClass),
     .abstract = true,
     .class_init = uhci_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },

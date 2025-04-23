@@ -188,7 +188,7 @@ static const TypeInfo remote_object_info = {
     .instance_finalize = remote_object_finalize,
     .class_size = sizeof(RemoteObjectClass),
     .class_init = remote_object_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

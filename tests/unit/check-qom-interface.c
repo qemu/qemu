@@ -52,7 +52,7 @@ static const TypeInfo direct_impl_info = {
     .name = TYPE_DIRECT_IMPL,
     .parent = TYPE_OBJECT,
     .class_init = test_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_TEST_IF },
         { }
     }

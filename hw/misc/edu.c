@@ -436,7 +436,7 @@ static const TypeInfo edu_types[] = {
         .instance_size = sizeof(EduState),
         .instance_init = edu_instance_init,
         .class_init    = edu_class_init,
-        .interfaces    = (InterfaceInfo[]) {
+        .interfaces    = (const InterfaceInfo[]) {
             { INTERFACE_CONVENTIONAL_PCI_DEVICE },
             { },
         },

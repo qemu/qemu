@@ -478,7 +478,7 @@ static const TypeInfo pnv_chiptod_power9_type_info = {
     .parent        = TYPE_PNV_CHIPTOD,
     .instance_size = sizeof(PnvChipTOD),
     .class_init    = pnv_chiptod_power9_class_init,
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }
     }
@@ -514,7 +514,7 @@ static const TypeInfo pnv_chiptod_power10_type_info = {
     .parent        = TYPE_PNV_CHIPTOD,
     .instance_size = sizeof(PnvChipTOD),
     .class_init    = pnv_chiptod_power10_class_init,
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }
     }

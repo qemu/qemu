@@ -159,7 +159,7 @@ static const TypeInfo pnv_n1_chiplet_info = {
     .instance_init = pnv_n1_chiplet_instance_init,
     .instance_size = sizeof(PnvN1Chiplet),
     .class_init    = pnv_n1_chiplet_class_init,
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }
     }

@@ -528,7 +528,7 @@ static const TypeInfo e500_pci_types[] = {
         .parent        = TYPE_PCI_DEVICE,
         .instance_size = sizeof(PPCE500PCIBridgeState),
         .class_init    = e500_host_bridge_class_init,
-        .interfaces    = (InterfaceInfo[]) {
+        .interfaces    = (const InterfaceInfo[]) {
             { INTERFACE_CONVENTIONAL_PCI_DEVICE },
             { },
         },

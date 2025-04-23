@@ -99,7 +99,7 @@ static const TypeInfo cswmbcci_info = {
     .parent = TYPE_PCI_DEVICE,
     .class_init = cswmbcci_class_init,
     .instance_size = sizeof(CSWMBCCIDev),
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
         { }
     },

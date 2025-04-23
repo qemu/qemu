@@ -658,7 +658,7 @@ static const TypeInfo m48txx_sysbus_type_info = {
     .instance_init = m48t59_init1,
     .abstract = true,
     .class_init = m48txx_sysbus_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_NVRAM },
         { }
     }

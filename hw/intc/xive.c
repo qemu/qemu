@@ -2108,7 +2108,7 @@ static const TypeInfo xive_router_info = {
     .instance_size = sizeof(XiveRouter),
     .class_size    = sizeof(XiveRouterClass),
     .class_init    = xive_router_class_init,
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { TYPE_XIVE_NOTIFIER },
         { TYPE_XIVE_PRESENTER },
         { }

@@ -828,7 +828,7 @@ static const TypeInfo qcrypto_tls_creds_x509_info = {
     .instance_finalize = qcrypto_tls_creds_x509_finalize,
     .class_size = sizeof(QCryptoTLSCredsX509Class),
     .class_init = qcrypto_tls_creds_x509_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

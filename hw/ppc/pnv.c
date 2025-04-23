@@ -2973,7 +2973,7 @@ static const TypeInfo types[] = {
         .name          = MACHINE_TYPE_NAME("powernv10"),
         .parent        = TYPE_PNV_MACHINE,
         .class_init    = pnv_machine_power10_class_init,
-        .interfaces = (InterfaceInfo[]) {
+        .interfaces = (const InterfaceInfo[]) {
             { TYPE_XIVE_FABRIC },
             { },
         },
@@ -2982,7 +2982,7 @@ static const TypeInfo types[] = {
         .name          = MACHINE_TYPE_NAME("powernv9"),
         .parent        = TYPE_PNV_MACHINE,
         .class_init    = pnv_machine_power9_class_init,
-        .interfaces = (InterfaceInfo[]) {
+        .interfaces = (const InterfaceInfo[]) {
             { TYPE_XIVE_FABRIC },
             { },
         },
@@ -2991,7 +2991,7 @@ static const TypeInfo types[] = {
         .name          = MACHINE_TYPE_NAME("powernv8"),
         .parent        = TYPE_PNV_MACHINE,
         .class_init    = pnv_machine_power8_class_init,
-        .interfaces = (InterfaceInfo[]) {
+        .interfaces = (const InterfaceInfo[]) {
             { TYPE_XICS_FABRIC },
             { },
         },
@@ -3003,7 +3003,7 @@ static const TypeInfo types[] = {
         .instance_size = sizeof(PnvMachineState),
         .class_init    = pnv_machine_class_init,
         .class_size    = sizeof(PnvMachineClass),
-        .interfaces = (InterfaceInfo[]) {
+        .interfaces = (const InterfaceInfo[]) {
             { TYPE_INTERRUPT_STATS_PROVIDER },
             { TYPE_NMI },
             { },

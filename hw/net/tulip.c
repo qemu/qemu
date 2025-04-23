@@ -1035,7 +1035,7 @@ static const TypeInfo tulip_info = {
     .instance_size = sizeof(TULIPState),
     .class_init    = tulip_class_init,
     .instance_init = tulip_instance_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },

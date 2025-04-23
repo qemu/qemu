@@ -209,7 +209,7 @@ static const TypeInfo riscv_iommu_pci = {
     .class_init = riscv_iommu_pci_class_init,
     .instance_init = riscv_iommu_pci_init,
     .instance_size = sizeof(RISCVIOMMUStatePci),
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
         { },
     },

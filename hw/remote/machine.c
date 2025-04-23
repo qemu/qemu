@@ -146,7 +146,7 @@ static const TypeInfo remote_machine = {
     .instance_size = sizeof(RemoteMachineState),
     .instance_init = remote_machine_instance_init,
     .class_init = remote_machine_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { }
     }

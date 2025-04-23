@@ -87,7 +87,7 @@ static const TypeInfo simba_pci_bridge_info = {
     .parent        = TYPE_PCI_BRIDGE,
     .class_init    = simba_pci_bridge_class_init,
     .instance_size = sizeof(SimbaPCIBridge),
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },

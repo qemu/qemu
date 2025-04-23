@@ -248,7 +248,7 @@ static const TypeInfo glue_info_types[] = {
         .instance_init = glue_init,
         .instance_finalize = glue_finalize,
         .class_init = glue_class_init,
-        .interfaces = (InterfaceInfo[]) {
+        .interfaces = (const InterfaceInfo[]) {
              { TYPE_NMI },
              { }
         },

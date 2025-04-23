@@ -967,7 +967,7 @@ static const TypeInfo throttle_group_info = {
     .instance_size = sizeof(ThrottleGroup),
     .instance_init = throttle_group_obj_init,
     .instance_finalize = throttle_group_obj_finalize,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     },

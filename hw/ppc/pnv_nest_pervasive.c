@@ -194,7 +194,7 @@ static const TypeInfo pnv_nest_pervasive_info = {
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvNestChipletPervasive),
     .class_init    = pnv_nest_pervasive_class_init,
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }
     }

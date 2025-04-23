@@ -662,7 +662,7 @@ static const TypeInfo xilinx_axidma_data_stream_info = {
     .instance_size = sizeof(XilinxAXIDMAStreamSink),
     .class_init    = xilinx_axidma_stream_class_init,
     .class_data    = &xilinx_axidma_data_stream_class,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_STREAM_SINK },
         { }
     }
@@ -674,7 +674,7 @@ static const TypeInfo xilinx_axidma_control_stream_info = {
     .instance_size = sizeof(XilinxAXIDMAStreamSink),
     .class_init    = xilinx_axidma_stream_class_init,
     .class_data    = &xilinx_axidma_control_stream_class,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_STREAM_SINK },
         { }
     }

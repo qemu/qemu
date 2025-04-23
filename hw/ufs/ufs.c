@@ -1892,7 +1892,7 @@ static const TypeInfo ufs_info = {
     .parent = TYPE_PCI_DEVICE,
     .class_init = ufs_class_init,
     .instance_size = sizeof(UfsHc),
-    .interfaces = (InterfaceInfo[]){ { INTERFACE_PCIE_DEVICE }, {} },
+    .interfaces = (const InterfaceInfo[]){ { INTERFACE_PCIE_DEVICE }, {} },
 };
 
 static const TypeInfo ufs_bus_info = {

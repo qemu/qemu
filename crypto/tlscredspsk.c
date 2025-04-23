@@ -255,7 +255,7 @@ static const TypeInfo qcrypto_tls_creds_psk_info = {
     .instance_finalize = qcrypto_tls_creds_psk_finalize,
     .class_size = sizeof(QCryptoTLSCredsPSKClass),
     .class_init = qcrypto_tls_creds_psk_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

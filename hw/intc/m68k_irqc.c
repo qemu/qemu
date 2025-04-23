@@ -110,7 +110,7 @@ static const TypeInfo m68k_irqc_type_info = {
     .instance_size = sizeof(M68KIRQCState),
     .instance_init = m68k_irqc_instance_init,
     .class_init = m68k_irqc_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
          { TYPE_NMI },
          { TYPE_INTERRUPT_STATS_PROVIDER },
          { }

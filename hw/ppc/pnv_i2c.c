@@ -569,7 +569,7 @@ static const TypeInfo pnv_i2c_info = {
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvI2C),
     .class_init    = pnv_i2c_class_init,
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }
     }

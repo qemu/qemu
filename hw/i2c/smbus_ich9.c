@@ -145,7 +145,7 @@ static const TypeInfo ich9_smb_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(ICH9SMBState),
     .class_init = ich9_smb_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { TYPE_ACPI_DEV_AML_IF },
         { },

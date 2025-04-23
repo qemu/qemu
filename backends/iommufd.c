@@ -342,7 +342,7 @@ static const TypeInfo types[] = {
         .instance_finalize = iommufd_backend_finalize,
         .class_size = sizeof(IOMMUFDBackendClass),
         .class_init = iommufd_backend_class_init,
-        .interfaces = (InterfaceInfo[]) {
+        .interfaces = (const InterfaceInfo[]) {
             { TYPE_USER_CREATABLE },
             { }
         }

@@ -532,7 +532,7 @@ static const TypeInfo cfu_apb_info = {
     .instance_size = sizeof(XlnxVersalCFUAPB),
     .class_init    = cfu_apb_class_init,
     .instance_init = cfu_apb_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_XLNX_CFI_IF },
         { }
     }
@@ -545,7 +545,7 @@ static const TypeInfo cfu_fdro_info = {
     .class_init    = cfu_fdro_class_init,
     .instance_init = cfu_fdro_init,
     .instance_finalize = cfu_fdro_finalize,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_XLNX_CFI_IF },
         { }
     }

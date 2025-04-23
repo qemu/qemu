@@ -1012,7 +1012,7 @@ static const TypeInfo qtest_info = {
     .parent = TYPE_OBJECT,
     .class_init = qtest_class_init,
     .instance_size = sizeof(QTest),
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

@@ -268,7 +268,7 @@ static const TypeInfo diva_aux_info = {
     .instance_size = sizeof(DivaAuxState),
     .instance_init = diva_aux_init,
     .class_init    = diva_aux_class_initfn,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },
@@ -282,7 +282,7 @@ static const TypeInfo diva_serial_pci_info = {
     .instance_size = sizeof(PCIDivaSerialState),
     .instance_init = diva_serial_init,
     .class_init    = diva_serial_class_initfn,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },

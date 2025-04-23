@@ -744,7 +744,7 @@ static const TypeInfo xlnx_csu_dma_info = {
     .class_init    = xlnx_csu_dma_class_init,
     .class_size    = sizeof(XlnxCSUDMAClass),
     .instance_init = xlnx_csu_dma_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_STREAM_SINK },
         { }
     }

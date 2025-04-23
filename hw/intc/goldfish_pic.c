@@ -204,7 +204,7 @@ static const TypeInfo goldfish_pic_info = {
     .class_init = goldfish_pic_class_init,
     .instance_init = goldfish_pic_instance_init,
     .instance_size = sizeof(GoldfishPICState),
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
          { TYPE_INTERRUPT_STATS_PROVIDER },
          { }
     },

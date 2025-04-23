@@ -552,7 +552,7 @@ static const TypeInfo tpm_tis_i2c_info = {
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(TPMStateI2C),
     .class_init    = tpm_tis_i2c_class_init,
-        .interfaces = (InterfaceInfo[]) {
+        .interfaces = (const InterfaceInfo[]) {
         { TYPE_TPM_IF },
         { }
     }

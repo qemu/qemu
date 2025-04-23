@@ -363,7 +363,7 @@ static const TypeInfo netfilter_info = {
     .instance_size = sizeof(NetFilterState),
     .instance_init = netfilter_init,
     .instance_finalize = netfilter_finalize,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

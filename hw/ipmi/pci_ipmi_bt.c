@@ -145,7 +145,7 @@ static const TypeInfo pci_ipmi_bt_info = {
     .instance_size = sizeof(PCIIPMIBTDevice),
     .instance_init = pci_ipmi_bt_instance_init,
     .class_init    = pci_ipmi_bt_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_IPMI_INTERFACE },
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { }
