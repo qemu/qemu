@@ -11,6 +11,7 @@
 #include "cpu.h"
 #include "internals.h"
 #include "cpu-csr.h"
+#include "tcg/tcg_loongarch.h"
 
 #ifdef CONFIG_TCG
 static int loongarch_map_tlb_entry(CPULoongArchState *env, hwaddr *physical,
@@ -142,7 +143,7 @@ bool loongarch_tlb_search(CPULoongArchState *env, target_ulong vaddr,
     return false;
 }
 
-static int loongarch_get_addr_from_tlb(CPULoongArchState *env, hwaddr *physical,
+int loongarch_get_addr_from_tlb(CPULoongArchState *env, hwaddr *physical,
                                        int *prot, target_ulong address,
                                        MMUAccessType access_type, int mmu_idx)
 {
@@ -154,13 +155,6 @@ static int loongarch_get_addr_from_tlb(CPULoongArchState *env, hwaddr *physical,
                                        address, access_type, index, mmu_idx);
     }
 
-    return TLBRET_NOMATCH;
-}
-#else
-static int loongarch_get_addr_from_tlb(CPULoongArchState *env, hwaddr *physical,
-                                       int *prot, target_ulong address,
-                                       MMUAccessType access_type, int mmu_idx)
-{
     return TLBRET_NOMATCH;
 }
 #endif
