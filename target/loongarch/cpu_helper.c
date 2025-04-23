@@ -7,6 +7,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "system/tcg.h"
 #include "cpu.h"
 #include "internals.h"
 #include "cpu-csr.h"
@@ -141,6 +142,21 @@ bool loongarch_tlb_search(CPULoongArchState *env, target_ulong vaddr,
     return false;
 }
 
+static int loongarch_get_addr_from_tlb(CPULoongArchState *env, hwaddr *physical,
+                                       int *prot, target_ulong address,
+                                       MMUAccessType access_type, int mmu_idx)
+{
+    int index, match;
+
+    match = loongarch_tlb_search(env, address, &index);
+    if (match) {
+        return loongarch_map_tlb_entry(env, physical, prot,
+                                       address, access_type, index, mmu_idx);
+    }
+
+    return TLBRET_NOMATCH;
+}
+
 static int loongarch_page_table_walker(CPULoongArchState *env, hwaddr *physical,
                                  int *prot, target_ulong address)
 {
@@ -221,13 +237,17 @@ static int loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
                                  MMUAccessType access_type, int mmu_idx,
                                  int is_debug)
 {
-    int index, match;
+    int ret;
 
-    match = loongarch_tlb_search(env, address, &index);
-    if (match) {
-        return loongarch_map_tlb_entry(env, physical, prot,
-                                       address, access_type, index, mmu_idx);
-    } else if (is_debug) {
+    if (tcg_enabled()) {
+        ret = loongarch_get_addr_from_tlb(env, physical, prot, address,
+                                          access_type, mmu_idx);
+        if (ret != TLBRET_NOMATCH) {
+            return ret;
+        }
+    }
+
+    if (is_debug) {
         /*
          * For debugger memory access, we want to do the map when there is a
          * legal mapping, even if the mapping is not yet in TLB. return 0 if
