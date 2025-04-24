@@ -23,7 +23,6 @@
 #include "exec/hwaddr.h"
 #include "exec/memattrs.h"
 #include "exec/mmu-access-type.h"
-#include "exec/translation-block.h"
 #include "exec/vaddr.h"
 
 #if defined(CONFIG_TCG)
@@ -122,10 +121,6 @@ int probe_access_full_mmu(CPUArchState *env, vaddr addr, int size,
 
 #endif /* !CONFIG_USER_ONLY */
 #endif /* CONFIG_TCG */
-
-/* TranslationBlock invalidate API */
-void tb_invalidate_phys_range(CPUState *cpu, tb_page_addr_t start,
-                              tb_page_addr_t last);
 
 #if !defined(CONFIG_USER_ONLY)
 
