@@ -679,6 +679,9 @@ static void pc_q35_rhel_machine_9_6_0_options(MachineClass *m)
     m->desc = "RHEL-9.6.0 PC (Q35 + ICH9, 2009)";
     pcmc->smbios_stream_product = "RHEL";
     pcmc->smbios_stream_version = "9.6.0";
+
+    /* NB: remember to move this line to the *latest* RHEL 9 machine */
+    compat_props_add(m->compat_props, hw_compat_rhel_9, hw_compat_rhel_9_len);
 }
 
 DEFINE_Q35_MACHINE_BUGFIX(9, 6, 0);

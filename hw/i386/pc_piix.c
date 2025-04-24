@@ -929,6 +929,7 @@ static void pc_i440fx_rhel_machine_7_6_0_options(MachineClass *m)
     compat_props_add(m->compat_props, pc_rhel_8_0_compat, pc_rhel_8_0_compat_len);
     compat_props_add(m->compat_props, hw_compat_rhel_7_6, hw_compat_rhel_7_6_len);
     compat_props_add(m->compat_props, pc_rhel_7_6_compat, pc_rhel_7_6_compat_len);
+    compat_props_add(m->compat_props, hw_compat_rhel_9, hw_compat_rhel_9_len);
 }
 
 DEFINE_I440FX_MACHINE(7, 6, 0);

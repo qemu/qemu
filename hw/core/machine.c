@@ -305,6 +305,15 @@ GlobalProperty hw_compat_2_1[] = {
 };
 const size_t hw_compat_2_1_len = G_N_ELEMENTS(hw_compat_2_1);
 
+/* Apply this to all RHEL9 boards going backward and forward */
+GlobalProperty hw_compat_rhel_9[] = {
+    /* supported by userspace, but RHEL 9 *kernels* do not support USO. */
+    { TYPE_VIRTIO_NET, "host_uso", "off"},
+    { TYPE_VIRTIO_NET, "guest_uso4", "off"},
+    { TYPE_VIRTIO_NET, "guest_uso6", "off"},
+};
+const size_t hw_compat_rhel_9_len = G_N_ELEMENTS(hw_compat_rhel_9);
+
 /*
  * RHEL only: machine types for previous major releases are deprecated
  */
@@ -341,12 +350,6 @@ GlobalProperty hw_compat_rhel_9_5[] = {
 const size_t hw_compat_rhel_9_5_len = G_N_ELEMENTS(hw_compat_rhel_9_5);
 
 GlobalProperty hw_compat_rhel_9_4[] = {
-  /* hw_compat_rhel_9_4 from hw_compat_8_0 */
-    { TYPE_VIRTIO_NET, "host_uso", "off"},
-  /* hw_compat_rhel_9_4 from hw_compat_8_0 */
-    { TYPE_VIRTIO_NET, "guest_uso4", "off"},
-  /* hw_compat_rhel_9_4 from hw_compat_8_0 */
-    { TYPE_VIRTIO_NET, "guest_uso6", "off"},
   /* hw_compat_rhel_9_4 from hw_compat_8_1 */
      { TYPE_PCI_BRIDGE, "x-pci-express-writeable-slt-bug", "true" },
   /* hw_compat_rhel_9_4 from hw_compat_8_1 */
