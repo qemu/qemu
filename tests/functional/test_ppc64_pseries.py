@@ -63,6 +63,7 @@ class pseriesMachine(QemuSystemTest):
         wait_for_console_pattern(self, self.good_message, self.panic_message)
 
     def test_ppc64_linux_smt_boot(self):
+        self.set_machine('pseries')
         self.vm.add_args('-smp', '4,threads=4')
         self.do_test_ppc64_linux_boot()
         console_pattern = 'CPU maps initialized for 4 threads per core'
