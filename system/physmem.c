@@ -29,6 +29,7 @@
 
 #ifdef CONFIG_TCG
 #include "accel/tcg/cpu-ops.h"
+#include "accel/tcg/iommu.h"
 #endif /* CONFIG_TCG */
 
 #include "exec/exec-all.h"
@@ -587,6 +588,8 @@ MemoryRegion *flatview_translate(FlatView *fv, hwaddr addr, hwaddr *xlat,
     return mr;
 }
 
+#ifdef CONFIG_TCG
+
 typedef struct TCGIOMMUNotifier {
     IOMMUNotifier n;
     MemoryRegion *mr;
@@ -770,6 +773,8 @@ hwaddr memory_region_section_get_iotlb(CPUState *cpu,
     AddressSpaceDispatch *d = flatview_to_dispatch(section->fv);
     return section - d->map.sections;
 }
+
+#endif /* CONFIG_TCG */
 
 void cpu_address_space_init(CPUState *cpu, int asidx,
                             const char *prefix, MemoryRegion *mr)
