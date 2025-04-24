@@ -654,8 +654,6 @@ static void scrub_shadow_regions(struct vhost_dev *dev,
     }
     *nr_rem_reg = rm_idx;
     *nr_add_reg = add_idx;
-
-    return;
 }
 
 static int send_remove_regions(struct vhost_dev *dev,

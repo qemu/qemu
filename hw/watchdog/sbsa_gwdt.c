@@ -174,7 +174,6 @@ static void sbsa_gwdt_write(void *opaque, hwaddr offset, uint64_t data,
         qemu_log_mask(LOG_GUEST_ERROR, "bad address in control frame write :"
                 " 0x%x\n", (int)offset);
     }
-    return;
 }
 
 static void wdt_sbsa_gwdt_reset(DeviceState *dev)

@@ -2383,7 +2383,6 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
     }
 
     g_free(config);
-    return;
 }
 
 static bool vfio_add_capabilities(VFIOPCIDevice *vdev, Error **errp)

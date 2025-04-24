@@ -237,12 +237,10 @@ uint64_t qemu_plugin_tb_vaddr(const struct qemu_plugin_tb *tb)
 struct qemu_plugin_insn *
 qemu_plugin_tb_get_insn(const struct qemu_plugin_tb *tb, size_t idx)
 {
-    struct qemu_plugin_insn *insn;
     if (unlikely(idx >= tb->n)) {
         return NULL;
     }
-    insn = g_ptr_array_index(tb->insns, idx);
-    return insn;
+    return g_ptr_array_index(tb->insns, idx);
 }
 
 /*

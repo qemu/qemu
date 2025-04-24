@@ -203,7 +203,6 @@ static void x86_load_eif(X86MachineState *x86ms, FWCfgState *fw_cfg,
 
     unlink(machine->kernel_filename);
     unlink(machine->initrd_filename);
-    return;
 }
 
 static bool create_memfd_backend(MachineState *ms, const char *path,

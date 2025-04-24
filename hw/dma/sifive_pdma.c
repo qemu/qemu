@@ -152,7 +152,6 @@ done:
 error:
     s->chan[ch].state = DMA_CHAN_STATE_ERROR;
     s->chan[ch].control |= CONTROL_ERR;
-    return;
 }
 
 static inline void sifive_pdma_update_irq(SiFivePDMAState *s, int ch)

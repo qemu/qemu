@@ -146,8 +146,6 @@ static void vnc_init_basic_info(SocketAddress *addr,
     default:
         abort();
     }
-
-    return;
 }
 
 static void vnc_init_basic_info_from_server_addr(QIOChannelSocket *ioc,

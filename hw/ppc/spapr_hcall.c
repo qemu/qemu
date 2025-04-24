@@ -982,7 +982,6 @@ static void spapr_check_setup_free_hpt(SpaprMachineState *spapr,
         /* RADIX->HASH || NOTHING->HASH : Allocate HPT */
         spapr_setup_hpt(spapr);
     }
-    return;
 }
 
 #define FLAGS_MASK              0x01FULL

@@ -2226,7 +2226,6 @@ static uint64_t megasas_queue_read(void *opaque, hwaddr addr,
 static void megasas_queue_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
-    return;
 }
 
 static const MemoryRegionOps megasas_queue_ops = {

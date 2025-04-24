@@ -116,7 +116,6 @@ static void walk_map(struct xkb_keymap *map, xkb_keycode_t code, void *data)
     if (kshift != kaltgrshift && kaltgr != kaltgrshift) {
         print_sym(kaltgrshift, qcode, " shift altgr");
     }
-    return;
 }
 
 static void usage(FILE *out)

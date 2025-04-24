@@ -360,8 +360,6 @@ static void test_clock_enable(void)
 
 int main(int argc, char **argv)
 {
-    int ret;
-
     g_test_init(&argc, &argv, NULL);
     g_test_set_nonfatal_assertions();
 
@@ -372,8 +370,6 @@ int main(int argc, char **argv)
     qtest_add_func("stm32l4x5/usart/send_str", test_send_str);
     qtest_add_func("stm32l4x5/usart/ack", test_ack);
     qtest_add_func("stm32l4x5/usart/clock_enable", test_clock_enable);
-    ret = g_test_run();
-
-    return ret;
+    return g_test_run();
 }
 

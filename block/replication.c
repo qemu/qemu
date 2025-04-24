@@ -176,7 +176,6 @@ static void replication_child_perm(BlockDriverState *bs, BdrvChild *c,
     *nshared = BLK_PERM_CONSISTENT_READ
                | BLK_PERM_WRITE
                | BLK_PERM_WRITE_UNCHANGED;
-    return;
 }
 
 static int64_t coroutine_fn GRAPH_RDLOCK

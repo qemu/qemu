@@ -412,7 +412,6 @@ err_read_event_bits:
 
 err_close:
     close(il->fd);
-    return;
 }
 
 static void input_linux_instance_finalize(Object *obj)

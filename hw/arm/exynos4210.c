@@ -462,7 +462,6 @@ static uint64_t exynos4210_chipid_and_omr_read(void *opaque, hwaddr offset,
 static void exynos4210_chipid_and_omr_write(void *opaque, hwaddr offset,
                                             uint64_t value, unsigned size)
 {
-    return;
 }
 
 static const MemoryRegionOps exynos4210_chipid_and_omr_ops = {

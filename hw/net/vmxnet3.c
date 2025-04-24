@@ -932,7 +932,6 @@ static void vmxnet3_rx_update_descr(struct NetRxPkt *pkt,
 
 nocsum:
     rxcd->cnc = 1;
-    return;
 }
 
 static void

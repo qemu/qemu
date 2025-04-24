@@ -443,7 +443,6 @@ static void pl061_write(void *opaque, hwaddr offset,
         return;
     }
     pl061_update(s);
-    return;
 }
 
 static void pl061_enter_reset(Object *obj, ResetType type)

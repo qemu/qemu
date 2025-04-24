@@ -374,5 +374,4 @@ void mips_semihosting(CPUMIPSState *env)
         error_report("Unknown UHI operation %d", op);
         abort();
     }
-    return;
 }

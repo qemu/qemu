@@ -1328,8 +1328,6 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
     }
     QTAILQ_INSERT_TAIL(&net_compares, s, next);
     qemu_mutex_unlock(&colo_compare_mutex);
-
-    return;
 }
 
 static void colo_flush_packets(void *opaque, void *user_data)

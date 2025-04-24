@@ -441,7 +441,6 @@ void queue_signal(CPUArchState *env, int sig, int si_type,
     ts->sync_signal.pending = sig;
     /* Signal that a new signal is pending. */
     qatomic_set(&ts->signal_pending, 1);
-    return;
 }
 
 static int fatal_signal(int sig)

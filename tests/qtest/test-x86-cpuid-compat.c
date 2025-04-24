@@ -193,7 +193,6 @@ static void add_feature_test(const char *name, const char *cpu,
     args->bitnr = bitnr;
     args->expected_value = expected_value;
     qtest_add_data_func(name, args, test_feature_flag);
-    return;
 }
 
 static void test_plus_minus_subprocess(void)

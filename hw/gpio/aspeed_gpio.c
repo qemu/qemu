@@ -800,7 +800,6 @@ static void aspeed_gpio_write_index_mode(void *opaque, hwaddr offset,
         return;
     }
     aspeed_gpio_update(s, set, set->data_value, UINT32_MAX);
-    return;
 }
 
 static void aspeed_gpio_write(void *opaque, hwaddr offset, uint64_t data,
@@ -928,7 +927,6 @@ static void aspeed_gpio_write(void *opaque, hwaddr offset, uint64_t data,
         return;
     }
     aspeed_gpio_update(s, set, set->data_value, UINT32_MAX);
-    return;
 }
 
 static int get_set_idx(AspeedGPIOState *s, const char *group, int *group_idx)
@@ -1183,7 +1181,6 @@ static void aspeed_gpio_2700_write_control_reg(AspeedGPIOState *s,
     }
 
     aspeed_gpio_update(s, set, set->data_value, UINT32_MAX);
-    return;
 }
 
 static uint64_t aspeed_gpio_2700_read(void *opaque, hwaddr offset,
@@ -1308,8 +1305,6 @@ static void aspeed_gpio_2700_write(void *opaque, hwaddr offset,
                       PRIx64"\n", __func__, offset);
         break;
     }
-
-    return;
 }
 
 /* Setup functions */

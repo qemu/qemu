@@ -211,7 +211,6 @@ static uint64_t machine_id_read(void *opaque, hwaddr addr, unsigned size)
 static void machine_id_write(void *opaque, hwaddr addr, uint64_t val,
                              unsigned size)
 {
-    return;
 }
 
 static const MemoryRegionOps machine_id_ops = {
@@ -232,7 +231,6 @@ static uint64_t ramio_read(void *opaque, hwaddr addr, unsigned size)
 static void ramio_write(void *opaque, hwaddr addr, uint64_t val,
                         unsigned size)
 {
-    return;
 }
 
 static const MemoryRegionOps ramio_ops = {

@@ -257,8 +257,6 @@ static void imx_gpio_write(void *opaque, hwaddr offset, uint64_t value,
                       HWADDR_PRIx "\n", TYPE_IMX_GPIO, __func__, offset);
         break;
     }
-
-    return;
 }
 
 static const MemoryRegionOps imx_gpio_ops = {

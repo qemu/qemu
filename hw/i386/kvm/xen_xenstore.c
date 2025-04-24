@@ -209,7 +209,6 @@ static int xen_xenstore_post_load(void *opaque, int ver)
 {
     XenXenstoreState *s = opaque;
     GByteArray *save;
-    int ret;
 
     /*
      * As qemu/dom0, rebind to the guest's port. The Windows drivers may
@@ -231,8 +230,7 @@ static int xen_xenstore_post_load(void *opaque, int ver)
     s->impl_state = NULL;
     s->impl_state_size = 0;
 
-    ret = xs_impl_deserialize(s->impl, save, xen_domid, fire_watch_cb, s);
-    return ret;
+    return xs_impl_deserialize(s->impl, save, xen_domid, fire_watch_cb, s);
 }
 
 static const VMStateDescription xen_xenstore_vmstate = {

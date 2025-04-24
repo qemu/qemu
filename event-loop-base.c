@@ -73,8 +73,6 @@ static void event_loop_base_set_param(Object *obj, Visitor *v,
     if (bc->update_params) {
         bc->update_params(base, errp);
     }
-
-    return;
 }
 
 static void event_loop_base_complete(UserCreatable *uc, Error **errp)

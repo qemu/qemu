@@ -14,7 +14,6 @@
 void arch_handle_ioreq(XenIOState *state, ioreq_t *req)
 {
     hw_error("Invalid ioreq type 0x%x\n", req->type);
-    return;
 }
 
 void arch_xen_set_memory(XenIOState *state, MemoryRegionSection *section,

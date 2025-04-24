@@ -211,8 +211,6 @@ static inline void tpm_tis_i2c_clear_data(TPMStateI2C *i2cst)
     i2cst->tis_addr = 0xffffffff;
     i2cst->reg_name = NULL;
     memset(i2cst->data, 0, sizeof(i2cst->data));
-
-    return;
 }
 
 /* Send data to TPM */
@@ -281,8 +279,6 @@ static inline void tpm_tis_i2c_tpm_send(TPMStateI2C *i2cst)
 
         tpm_tis_i2c_clear_data(i2cst);
     }
-
-    return;
 }
 
 /* Callback from TPM to indicate that response is copied */

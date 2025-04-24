@@ -82,7 +82,6 @@ static void sparse_mem_enter_reset(Object *obj, ResetType type)
 {
     SparseMemState *s = SPARSE_MEM(obj);
     g_hash_table_remove_all(s->mapped);
-    return;
 }
 
 static const MemoryRegionOps sparse_mem_ops = {

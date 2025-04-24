@@ -150,7 +150,6 @@ static void pnv_occ_common_area_write(void *opaque, hwaddr addr,
                                              uint64_t val, unsigned width)
 {
     /* callback function defined to occ common area write */
-    return;
 }
 
 static const MemoryRegionOps pnv_occ_power8_xscom_ops = {

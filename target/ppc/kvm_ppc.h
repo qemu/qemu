@@ -221,7 +221,6 @@ static inline int kvmppc_smt_threads(void)
 
 static inline void kvmppc_error_append_smt_possible_hint(Error *const *errp)
 {
-    return;
 }
 
 static inline int kvmppc_set_smt_threads(int smt)
@@ -259,7 +258,6 @@ static inline target_ulong kvmppc_configure_v3_mmu(PowerPCCPU *cpu,
 static inline void kvmppc_set_reg_ppc_online(PowerPCCPU *cpu,
                                              unsigned int online)
 {
-    return;
 }
 
 static inline void kvmppc_set_reg_tb_offset(PowerPCCPU *cpu, int64_t tb_offset)
@@ -456,7 +454,6 @@ static inline PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void)
 
 static inline void kvmppc_check_papr_resize_hpt(Error **errp)
 {
-    return;
 }
 
 static inline int kvmppc_resize_hpt_prepare(PowerPCCPU *cpu,

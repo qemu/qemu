@@ -71,7 +71,6 @@ static void compute_default_paths(void)
 
 static int is_intel_processor(void)
 {
-    int result;
     int ebx, ecx, edx;
 
     /* Execute CPUID instruction with eax=0 (basic identification) */
@@ -87,9 +86,7 @@ static int is_intel_processor(void)
      *  0x49656e69 = "ineI"
      *  0x6c65746e = "ntel"
      */
-    result = (ebx == 0x756e6547) && (edx == 0x49656e69) && (ecx == 0x6c65746e);
-
-    return result;
+    return (ebx == 0x756e6547) && (edx == 0x49656e69) && (ecx == 0x6c65746e);
 }
 
 static int is_rapl_enabled(void)

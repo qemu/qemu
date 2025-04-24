@@ -82,7 +82,6 @@ static void multifd_nocomp_send_cleanup(MultiFDSendParams *p, Error **errp)
 {
     g_free(p->iov);
     p->iov = NULL;
-    return;
 }
 
 static void multifd_ram_prepare_header(MultiFDSendParams *p)

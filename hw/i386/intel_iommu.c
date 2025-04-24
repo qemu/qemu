@@ -4515,8 +4515,6 @@ static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
         trace_vtd_replay_ce_invalid(bus_n, PCI_SLOT(vtd_as->devfn),
                                     PCI_FUNC(vtd_as->devfn));
     }
-
-    return;
 }
 
 static void vtd_cap_init(IntelIOMMUState *s)

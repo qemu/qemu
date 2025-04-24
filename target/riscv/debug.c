@@ -553,8 +553,6 @@ static void type2_reg_write(CPURISCVState *env, target_ulong index,
     default:
         g_assert_not_reached();
     }
-
-    return;
 }
 
 /* type 6 trigger */
@@ -669,8 +667,6 @@ static void type6_reg_write(CPURISCVState *env, target_ulong index,
     default:
         g_assert_not_reached();
     }
-
-    return;
 }
 
 /* icount trigger type */
@@ -851,8 +847,6 @@ static void itrigger_reg_write(CPURISCVState *env, target_ulong index,
     default:
         g_assert_not_reached();
     }
-
-    return;
 }
 
 static int itrigger_get_adjust_count(CPURISCVState *env)

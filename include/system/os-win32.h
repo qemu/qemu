@@ -130,7 +130,6 @@ static inline int os_mlock(bool on_fault G_GNUC_UNUSED)
 
 static inline void os_setup_limits(void)
 {
-    return;
 }
 
 #define fsync _commit

@@ -668,7 +668,6 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
 
  out_unlock_next:
     qemu_spin_unlock(&tb_next->jmp_lock);
-    return;
 }
 
 static inline bool cpu_handle_halt(CPUState *cpu)

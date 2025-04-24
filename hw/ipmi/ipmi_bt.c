@@ -98,14 +98,14 @@ static void ipmi_bt_handle_event(IPMIInterface *ii)
     IPMIBT *ib = iic->get_backend_data(ii);
 
     if (ib->inlen < 4) {
-        goto out;
+        return;
     }
     /* Note that overruns are handled by handle_command */
     if (ib->inmsg[0] != (ib->inlen - 1)) {
         /* Length mismatch, just ignore. */
         IPMI_BT_SET_BBUSY(ib->control_reg, 1);
         ib->inlen = 0;
-        goto out;
+        return;
     }
     if ((ib->inmsg[1] == (IPMI_NETFN_APP << 2)) &&
                         (ib->inmsg[3] == IPMI_CMD_GET_BT_INTF_CAP)) {
@@ -136,7 +136,7 @@ static void ipmi_bt_handle_event(IPMIInterface *ii)
             IPMI_BT_SET_B2H_IRQ(ib->mask_reg, 1);
             ipmi_bt_raise_irq(ib);
         }
-        goto out;
+        return;
     }
     ib->waiting_seq = ib->inmsg[2];
     ib->inmsg[2] = ib->inmsg[1];
@@ -145,8 +145,6 @@ static void ipmi_bt_handle_event(IPMIInterface *ii)
         bk->handle_command(ib->bmc, ib->inmsg + 2, ib->inlen - 2,
                            sizeof(ib->inmsg), ib->waiting_rsp);
     }
- out:
-    return;
 }
 
 static void ipmi_bt_handle_rsp(IPMIInterface *ii, uint8_t msg_id,

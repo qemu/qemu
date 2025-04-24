@@ -448,8 +448,6 @@ static void aspeed_intc_write(void *opaque, hwaddr offset, uint64_t data,
         s->regs[reg] = data;
         break;
     }
-
-    return;
 }
 
 static uint64_t aspeed_intcio_read(void *opaque, hwaddr offset,
@@ -496,8 +494,6 @@ static void aspeed_intcio_write(void *opaque, hwaddr offset, uint64_t data,
         s->regs[reg] = data;
         break;
     }
-
-    return;
 }
 
 

@@ -908,7 +908,6 @@ unlock:
     qemu_mutex_unlock(&tg->lock);
     qapi_free_ThrottleLimits(argp);
     error_propagate(errp, local_err);
-    return;
 }
 
 static void throttle_group_get_limits(Object *obj, Visitor *v,

@@ -92,8 +92,6 @@ static void cpc_write(void *opaque, hwaddr offset, uint64_t data,
                       "%s: Bad offset 0x%x\n",  __func__, (int)offset);
         break;
     }
-
-    return;
 }
 
 static uint64_t cpc_read(void *opaque, hwaddr offset, unsigned size)

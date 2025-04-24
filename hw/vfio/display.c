@@ -104,7 +104,6 @@ static void vfio_display_edid_update(VFIOPCIDevice *vdev, bool enabled,
 
 err:
     trace_vfio_display_edid_write_error();
-    return;
 }
 
 static void vfio_display_edid_ui_info(void *opaque, uint32_t idx,

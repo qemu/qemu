@@ -729,7 +729,6 @@ static uint64_t tcx_dummy_readl(void *opaque, hwaddr addr,
 static void tcx_dummy_writel(void *opaque, hwaddr addr,
                          uint64_t val, unsigned size)
 {
-    return;
 }
 
 static const MemoryRegionOps tcx_dummy_ops = {

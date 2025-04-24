@@ -472,8 +472,6 @@ static void usb_serial_token_in(USBSerialState *s, USBPacket *p)
         s->recv_ptr = (s->recv_ptr + len) % RECV_BUF;
         packet_len -= len + 2;
     }
-
-    return;
 }
 
 static void usb_serial_handle_data(USBDevice *dev, USBPacket *p)

@@ -1609,7 +1609,6 @@ static void handle_input(VirtIODevice *vdev, VirtQueue *vq)
     if (in_elem) {
         virtqueue_detach_element(vq, in_elem, 0);
     }
-    return;
 }
 
 static uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp)

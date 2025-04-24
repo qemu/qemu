@@ -406,7 +406,6 @@ static void asc_fifo_write(void *opaque, hwaddr addr, uint64_t value,
     } else {
         fs->fifo[addr] = value;
     }
-    return;
 }
 
 static const MemoryRegionOps asc_fifo_ops = {

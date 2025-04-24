@@ -758,6 +758,4 @@ void arch_handle_ioreq(XenIOState *state, ioreq_t *req)
     default:
         hw_error("Invalid ioreq type 0x%x\n", req->type);
     }
-
-    return;
 }

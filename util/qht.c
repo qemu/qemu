@@ -367,7 +367,6 @@ void qht_map_lock_buckets__no_stale(struct qht *ht, struct qht_map **pmap)
     qht_map_lock_buckets(map);
     qht_unlock(ht);
     *pmap = map;
-    return;
 }
 
 /*

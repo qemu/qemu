@@ -1234,8 +1234,6 @@ static void usb_mtp_object_delete(MTPState *s, uint32_t handle,
     default:
         g_assert_not_reached();
     }
-
-    return;
 }
 
 static void usb_mtp_command(MTPState *s, MTPControl *c)

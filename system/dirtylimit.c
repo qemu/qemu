@@ -337,8 +337,6 @@ static void dirtylimit_adjust_throttle(CPUState *cpu)
     if (!dirtylimit_done(quota, current)) {
         dirtylimit_set_throttle(cpu, quota, current);
     }
-
-    return;
 }
 
 void dirtylimit_process(void)

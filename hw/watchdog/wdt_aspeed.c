@@ -225,7 +225,6 @@ static void aspeed_wdt_write(void *opaque, hwaddr offset, uint64_t data,
                       "%s: Out-of-bounds write at offset 0x%" HWADDR_PRIx "\n",
                       __func__, offset);
     }
-    return;
 }
 
 static const VMStateDescription vmstate_aspeed_wdt = {

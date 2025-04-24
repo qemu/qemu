@@ -154,7 +154,6 @@ static void ibex_spi_host_reset(DeviceState *dev)
     ibex_spi_txfifo_reset(s);
 
     s->init_status = true;
-    return;
 }
 
 /*
