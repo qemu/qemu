@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "hex_regs.h"
 #include "reg_fields.h"
+#include "accel/tcg/getpc.h"
 
 #define GET_FIELD(FIELD, REGIN) \
     fEXTRACTU_BITS(REGIN, reg_field_info[FIELD].width, \
