@@ -210,6 +210,10 @@ bool kvm_arm_supports_user_irq(void);
 int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr);
 int kvm_on_sigbus(int code, void *addr);
 
+int kvm_check_extension(KVMState *s, unsigned int extension);
+
+int kvm_vm_ioctl(KVMState *s, unsigned long type, ...);
+
 void kvm_flush_coalesced_mmio_buffer(void);
 
 #ifdef COMPILING_PER_TARGET
@@ -236,8 +240,6 @@ static inline int kvm_update_guest_debug(CPUState *cpu, unsigned long reinject_t
 /* internal API */
 
 int kvm_ioctl(KVMState *s, unsigned long type, ...);
-
-int kvm_vm_ioctl(KVMState *s, unsigned long type, ...);
 
 int kvm_vcpu_ioctl(CPUState *cpu, unsigned long type, ...);
 
@@ -440,8 +442,6 @@ void kvm_arch_remove_all_hw_breakpoints(void);
 void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg);
 
 bool kvm_arch_stop_on_emulation_error(CPUState *cpu);
-
-int kvm_check_extension(KVMState *s, unsigned int extension);
 
 int kvm_vm_check_extension(KVMState *s, unsigned int extension);
 
