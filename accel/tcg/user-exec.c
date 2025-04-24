@@ -199,13 +199,13 @@ int walk_memory_regions(void *priv, walk_memory_regions_fn fn)
     return rc;
 }
 
-static int dump_region(void *priv, target_ulong start,
-                       target_ulong end, unsigned long prot)
+static int dump_region(void *opaque, vaddr start, vaddr end, int prot)
 {
-    FILE *f = (FILE *)priv;
+    FILE *f = opaque;
 
-    fprintf(f, TARGET_FMT_lx"-"TARGET_FMT_lx" "TARGET_FMT_lx" %c%c%c\n",
-            start, end, end - start,
+    fprintf(f, TARGET_ABI_FMT_ptr "-" TARGET_ABI_FMT_ptr
+            " " TARGET_ABI_FMT_ptr " %c%c%c\n",
+            (abi_ptr)start, (abi_ptr)end, (abi_ptr)(end - start),
             ((prot & PAGE_READ) ? 'r' : '-'),
             ((prot & PAGE_WRITE) ? 'w' : '-'),
             ((prot & PAGE_EXEC) ? 'x' : '-'));
