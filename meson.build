@@ -2191,14 +2191,6 @@ gnu_source_prefix = '''
   #endif
 '''
 
-# Check whether the glibc provides STATX_BASIC_STATS
-
-has_statx = cc.has_header_symbol('sys/stat.h', 'STATX_BASIC_STATS', prefix: gnu_source_prefix)
-
-# Check whether statx() provides mount ID information
-
-has_statx_mnt_id = cc.has_header_symbol('sys/stat.h', 'STATX_MNT_ID', prefix: gnu_source_prefix)
-
 have_vhost_user_blk_server = get_option('vhost_user_blk_server') \
   .require(host_os == 'linux',
            error_message: 'vhost_user_blk_server requires linux') \
@@ -2560,8 +2552,6 @@ config_host_data.set('CONFIG_CRYPTO_SM3', crypto_sm3.found())
 config_host_data.set('CONFIG_HOGWEED', hogweed.found())
 config_host_data.set('CONFIG_QEMU_PRIVATE_XTS', xts == 'private')
 config_host_data.set('CONFIG_MALLOC_TRIM', has_malloc_trim)
-config_host_data.set('CONFIG_STATX', has_statx)
-config_host_data.set('CONFIG_STATX_MNT_ID', has_statx_mnt_id)
 config_host_data.set('CONFIG_ZSTD', zstd.found())
 config_host_data.set('CONFIG_QPL', qpl.found())
 config_host_data.set('CONFIG_UADK', uadk.found())
