@@ -20,8 +20,11 @@
 #ifndef EXEC_ALL_H
 #define EXEC_ALL_H
 
+#include "exec/hwaddr.h"
+#include "exec/memattrs.h"
 #include "exec/mmu-access-type.h"
 #include "exec/translation-block.h"
+#include "exec/vaddr.h"
 
 #if defined(CONFIG_TCG)
 #include "accel/tcg/getpc.h"
