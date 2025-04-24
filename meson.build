@@ -2185,10 +2185,21 @@ if not has_malloc_trim and get_option('malloc_trim').enabled()
   endif
 endif
 
-gnu_source_prefix = '''
+osdep_prefix = '''
   #ifndef _GNU_SOURCE
   #define _GNU_SOURCE
   #endif
+
+  #include <stddef.h>
+  #include <sys/types.h>
+
+  #include <limits.h>
+  /* Put unistd.h before time.h as that triggers localtime_r/gmtime_r
+   * function availability on recentish Mingw-w64 platforms. */
+  #include <unistd.h>
+  #include <time.h>
+  #include <errno.h>
+  #include <fcntl.h>
 '''
 
 have_vhost_user_blk_server = get_option('vhost_user_blk_server') \
@@ -2703,7 +2714,7 @@ config_host_data.set('CONFIG_FIEMAP',
                      cc.has_header('linux/fiemap.h') and
                      cc.has_header_symbol('linux/fs.h', 'FS_IOC_FIEMAP'))
 config_host_data.set('CONFIG_GETCPU',
-                     cc.has_header_symbol('sched.h', 'getcpu', prefix: gnu_source_prefix))
+                     cc.has_header_symbol('sched.h', 'getcpu', prefix: osdep_prefix))
 config_host_data.set('CONFIG_GETRANDOM',
                      cc.has_function('getrandom') and
                      cc.has_header_symbol('sys/random.h', 'GRND_NONBLOCK'))
@@ -2748,8 +2759,7 @@ config_host_data.set('HAVE_UTMPX',
 config_host_data.set('CONFIG_EVENTFD', cc.links('''
   #include <sys/eventfd.h>
   int main(void) { return eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC); }'''))
-config_host_data.set('CONFIG_FDATASYNC', cc.links(gnu_source_prefix + '''
-  #include <unistd.h>
+config_host_data.set('CONFIG_FDATASYNC', cc.links(osdep_prefix + '''
   int main(void) {
   #if defined(_POSIX_SYNCHRONIZED_IO) && _POSIX_SYNCHRONIZED_IO > 0
   return fdatasync(0);
@@ -2758,10 +2768,8 @@ config_host_data.set('CONFIG_FDATASYNC', cc.links(gnu_source_prefix + '''
   #endif
   }'''))
 
-has_madvise = cc.links(gnu_source_prefix + '''
-  #include <sys/types.h>
+has_madvise = cc.links(osdep_prefix + '''
   #include <sys/mman.h>
-  #include <stddef.h>
   int main(void) { return madvise(NULL, 0, MADV_DONTNEED); }''')
 missing_madvise_proto = false
 if has_madvise
@@ -2771,21 +2779,18 @@ if has_madvise
   # missing-prototype case, we try again with a definitely-bogus prototype.
   # This will only compile if the system headers don't provide the prototype;
   # otherwise the conflicting prototypes will cause a compiler error.
-  missing_madvise_proto = cc.links(gnu_source_prefix + '''
-    #include <sys/types.h>
+  missing_madvise_proto = cc.links(osdep_prefix + '''>
     #include <sys/mman.h>
-    #include <stddef.h>
     extern int madvise(int);
     int main(void) { return madvise(0); }''')
 endif
 config_host_data.set('CONFIG_MADVISE', has_madvise)
 config_host_data.set('HAVE_MADVISE_WITHOUT_PROTOTYPE', missing_madvise_proto)
 
-config_host_data.set('CONFIG_MEMFD', cc.links(gnu_source_prefix + '''
+config_host_data.set('CONFIG_MEMFD', cc.links(osdep_prefix + '''
   #include <sys/mman.h>
   int main(void) { return memfd_create("foo", MFD_ALLOW_SEALING); }'''))
-config_host_data.set('CONFIG_OPEN_BY_HANDLE', cc.links(gnu_source_prefix + '''
-  #include <fcntl.h>
+config_host_data.set('CONFIG_OPEN_BY_HANDLE', cc.links(osdep_prefix + '''
   #if !defined(AT_EMPTY_PATH)
   # error missing definition
   #else
@@ -2796,13 +2801,12 @@ config_host_data.set('CONFIG_OPEN_BY_HANDLE', cc.links(gnu_source_prefix + '''
 # i.e. errno is set and -1 is returned. That's not really how POSIX defines the
 # function. On the flip side, it has madvise() which is preferred anyways.
 if host_os != 'darwin'
-  config_host_data.set('CONFIG_POSIX_MADVISE', cc.links(gnu_source_prefix + '''
+  config_host_data.set('CONFIG_POSIX_MADVISE', cc.links(osdep_prefix + '''
     #include <sys/mman.h>
-    #include <stddef.h>
     int main(void) { return posix_madvise(NULL, 0, POSIX_MADV_DONTNEED); }'''))
 endif
 
-config_host_data.set('CONFIG_PTHREAD_SETNAME_NP_W_TID', cc.links(gnu_source_prefix + '''
+config_host_data.set('CONFIG_PTHREAD_SETNAME_NP_W_TID', cc.links(osdep_prefix + '''
   #include <pthread.h>
 
   static void *f(void *p) { return NULL; }
@@ -2813,7 +2817,7 @@ config_host_data.set('CONFIG_PTHREAD_SETNAME_NP_W_TID', cc.links(gnu_source_pref
     pthread_setname_np(thread, "QEMU");
     return 0;
   }''', dependencies: threads))
-config_host_data.set('CONFIG_PTHREAD_SETNAME_NP_WO_TID', cc.links(gnu_source_prefix + '''
+config_host_data.set('CONFIG_PTHREAD_SETNAME_NP_WO_TID', cc.links(osdep_prefix + '''
   #include <pthread.h>
 
   static void *f(void *p) { pthread_setname_np("QEMU"); return NULL; }
@@ -2823,7 +2827,7 @@ config_host_data.set('CONFIG_PTHREAD_SETNAME_NP_WO_TID', cc.links(gnu_source_pre
     pthread_create(&thread, 0, f, 0);
     return 0;
   }''', dependencies: threads))
-config_host_data.set('CONFIG_PTHREAD_SET_NAME_NP', cc.links(gnu_source_prefix + '''
+config_host_data.set('CONFIG_PTHREAD_SET_NAME_NP', cc.links(osdep_prefix + '''
   #include <pthread.h>
   #include <pthread_np.h>
 
@@ -2835,9 +2839,8 @@ config_host_data.set('CONFIG_PTHREAD_SET_NAME_NP', cc.links(gnu_source_prefix + 
     pthread_set_name_np(thread, "QEMU");
     return 0;
   }''', dependencies: threads))
-config_host_data.set('CONFIG_PTHREAD_CONDATTR_SETCLOCK', cc.links(gnu_source_prefix + '''
+config_host_data.set('CONFIG_PTHREAD_CONDATTR_SETCLOCK', cc.links(osdep_prefix + '''
   #include <pthread.h>
-  #include <time.h>
 
   int main(void)
   {
@@ -2846,7 +2849,7 @@ config_host_data.set('CONFIG_PTHREAD_CONDATTR_SETCLOCK', cc.links(gnu_source_pre
     pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
     return 0;
   }''', dependencies: threads))
-config_host_data.set('CONFIG_PTHREAD_AFFINITY_NP', cc.links(gnu_source_prefix + '''
+config_host_data.set('CONFIG_PTHREAD_AFFINITY_NP', cc.links(osdep_prefix + '''
   #include <pthread.h>
 
   static void *f(void *p) { return NULL; }
@@ -2863,15 +2866,10 @@ config_host_data.set('CONFIG_PTHREAD_AFFINITY_NP', cc.links(gnu_source_prefix + 
     CPU_FREE(cpuset);
     return 0;
   }''', dependencies: threads))
-config_host_data.set('CONFIG_SIGNALFD', cc.links(gnu_source_prefix + '''
+config_host_data.set('CONFIG_SIGNALFD', cc.links(osdep_prefix + '''
   #include <sys/signalfd.h>
-  #include <stddef.h>
   int main(void) { return signalfd(-1, NULL, SFD_CLOEXEC); }'''))
-config_host_data.set('CONFIG_SPLICE', cc.links(gnu_source_prefix + '''
-  #include <unistd.h>
-  #include <fcntl.h>
-  #include <limits.h>
-
+config_host_data.set('CONFIG_SPLICE', cc.links(osdep_prefix + '''
   int main(void)
   {
     int len, fd = 0;
@@ -2880,13 +2878,13 @@ config_host_data.set('CONFIG_SPLICE', cc.links(gnu_source_prefix + '''
     return 0;
   }'''))
 
-config_host_data.set('HAVE_MLOCKALL', cc.links(gnu_source_prefix + '''
+config_host_data.set('HAVE_MLOCKALL', cc.links(osdep_prefix + '''
   #include <sys/mman.h>
   int main(void) {
     return mlockall(MCL_FUTURE);
   }'''))
 
-config_host_data.set('HAVE_MLOCK_ONFAULT', cc.links(gnu_source_prefix + '''
+config_host_data.set('HAVE_MLOCK_ONFAULT', cc.links(osdep_prefix + '''
   #include <sys/mman.h>
   int main(void) {
       return mlockall(MCL_FUTURE | MCL_ONFAULT);
@@ -2895,7 +2893,7 @@ config_host_data.set('HAVE_MLOCK_ONFAULT', cc.links(gnu_source_prefix + '''
 have_l2tpv3 = false
 if get_option('l2tpv3').allowed() and have_system
   have_l2tpv3 = cc.has_type('struct mmsghdr',
-    prefix: gnu_source_prefix + '''
+    prefix: osdep_prefix + '''
       #include <sys/socket.h>
       #include <linux/ip.h>''')
 endif
@@ -3011,13 +3009,13 @@ if has_int128_type
   endif
 endif
 
-config_host_data.set('CONFIG_GETAUXVAL', cc.links(gnu_source_prefix + '''
+config_host_data.set('CONFIG_GETAUXVAL', cc.links(osdep_prefix + '''
   #include <sys/auxv.h>
   int main(void) {
     return getauxval(AT_HWCAP) == 0;
   }'''))
 
-config_host_data.set('CONFIG_ELF_AUX_INFO', cc.links(gnu_source_prefix + '''
+config_host_data.set('CONFIG_ELF_AUX_INFO', cc.links(osdep_prefix + '''
   #include <sys/auxv.h>
   int main(void) {
     unsigned long hwcap = 0;
@@ -3130,9 +3128,7 @@ config_host_data.set('CONFIG_MEMBARRIER', get_option('membarrier') \
   .allowed())
 
 have_afalg = get_option('crypto_afalg') \
-  .require(cc.compiles(gnu_source_prefix + '''
-    #include <errno.h>
-    #include <sys/types.h>
+  .require(cc.compiles(osdep_prefix + '''
     #include <sys/socket.h>
     #include <linux/if_alg.h>
     int main(void) {
