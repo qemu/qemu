@@ -213,8 +213,18 @@ static bool tcg_target_const_match(int64_t val, int ct,
     }
     if (ct & (TCG_CT_CONST_VCMP | TCG_CT_CONST_VADD)) {
         int64_t vec_val = sextract64(val, 0, 8 << vece);
-        if ((ct & TCG_CT_CONST_VCMP) && -0x10 <= vec_val && vec_val <= 0x1f) {
-            return true;
+        if (ct & TCG_CT_CONST_VCMP) {
+            switch (cond) {
+            case TCG_COND_EQ:
+            case TCG_COND_LE:
+            case TCG_COND_LT:
+                return -0x10 <= vec_val && vec_val <= 0x0f;
+            case TCG_COND_LEU:
+            case TCG_COND_LTU:
+                return 0x00 <= vec_val && vec_val <= 0x1f;
+            default:
+                return false;
+            }
         }
         if ((ct & TCG_CT_CONST_VADD) && -0x1f <= vec_val && vec_val <= 0x1f) {
             return true;
@@ -2029,28 +2039,22 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
                  * Try vseqi/vslei/vslti
                  */
                 int64_t value = sextract64(a2, 0, 8 << vece);
-                if ((cond == TCG_COND_EQ ||
-                     cond == TCG_COND_LE ||
-                     cond == TCG_COND_LT) &&
-                    (-0x10 <= value && value <= 0x0f)) {
+                switch (cond) {
+                case TCG_COND_EQ:
+                case TCG_COND_LE:
+                case TCG_COND_LT:
                     insn = cmp_vec_imm_insn[cond][lasx][vece];
                     tcg_out32(s, encode_vdvjsk5_insn(insn, a0, a1, value));
                     break;
-                } else if ((cond == TCG_COND_LEU ||
-                            cond == TCG_COND_LTU) &&
-                           (0x00 <= value && value <= 0x1f)) {
+                case TCG_COND_LEU:
+                case TCG_COND_LTU:
                     insn = cmp_vec_imm_insn[cond][lasx][vece];
                     tcg_out32(s, encode_vdvjuk5_insn(insn, a0, a1, value));
                     break;
+                default:
+                    g_assert_not_reached();
                 }
-
-                /*
-                 * Fallback to:
-                 * dupi_vec temp, a2
-                 * cmp_vec a0, a1, temp, cond
-                 */
-                tcg_out_dupi_vec(s, type, vece, TCG_VEC_TMP0, a2);
-                a2 = TCG_VEC_TMP0;
+                break;
             }
 
             insn = cmp_vec_insn[cond][lasx][vece];
