@@ -13,7 +13,8 @@
 
 #include "qemu/osdep.h"
 #include "exec/memop.h"
-#include "exec/memory.h"
+#include "exec/target_page.h"
+#include "system/memory.h"
 #include "qemu/error-report.h"
 #include "system/hw_accel.h"
 #include "hw/boards.h"

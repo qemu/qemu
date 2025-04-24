@@ -14,7 +14,7 @@
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "qapi/qapi-types-migration.h"
-#include "exec/ramblock.h"
+#include "system/ramblock.h"
 #include "multifd.h"
 #include "qpl/qpl.h"
 

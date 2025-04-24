@@ -11,10 +11,6 @@
 #ifndef SYSTEM_REPLAY_H
 #define SYSTEM_REPLAY_H
 
-#ifdef CONFIG_USER_ONLY
-#error Cannot include this header from user emulation
-#endif
-
 #include "exec/replay-core.h"
 #include "qapi/qapi-types-misc.h"
 #include "qapi/qapi-types-run-state.h"

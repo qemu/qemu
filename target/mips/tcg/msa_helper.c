@@ -22,9 +22,10 @@
 #include "internal.h"
 #include "tcg/tcg.h"
 #include "exec/exec-all.h"
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 #include "exec/helper-proto.h"
 #include "exec/memop.h"
+#include "exec/target_page.h"
 #include "fpu/softfloat.h"
 #include "fpu_helper.h"
 

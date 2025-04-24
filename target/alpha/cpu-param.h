@@ -18,14 +18,12 @@
  * a 4k minimum to match x86 host, which can minimize emulation issues.
  */
 # define TARGET_PAGE_BITS_VARY
-# define TARGET_PAGE_BITS_MIN 12
 # define TARGET_VIRT_ADDR_SPACE_BITS  63
 #else
 # define TARGET_PAGE_BITS 13
 # define TARGET_VIRT_ADDR_SPACE_BITS  (30 + TARGET_PAGE_BITS)
 #endif
 
-/* Alpha processors have a weak memory model */
-#define TCG_GUEST_DEFAULT_MO      (0)
+#define TARGET_INSN_START_EXTRA_WORDS 0
 
 #endif

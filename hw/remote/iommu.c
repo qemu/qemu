@@ -13,8 +13,8 @@
 #include "hw/remote/iommu.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci.h"
-#include "exec/memory.h"
-#include "exec/address-spaces.h"
+#include "system/memory.h"
+#include "system/address-spaces.h"
 #include "trace.h"
 
 /**

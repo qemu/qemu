@@ -21,7 +21,7 @@
 #include "qemu/error-report.h"
 #include "system/kvm.h"
 #include "migration/cpu.h"
-#include "system/cpu-timers.h"
+#include "exec/icount.h"
 #include "debug.h"
 
 static bool pmp_needed(void *opaque)

@@ -26,6 +26,7 @@
 #include "mmu-hash32.h"
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
+#include "exec/target_page.h"
 #include "exec/log.h"
 #include "helper_regs.h"
 #include "qemu/error-report.h"

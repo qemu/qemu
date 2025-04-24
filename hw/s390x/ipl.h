@@ -14,7 +14,9 @@
 #define HW_S390_IPL_H
 
 #include "cpu.h"
-#include "exec/address-spaces.h"
+#include "exec/target_page.h"
+#include "system/address-spaces.h"
+#include "system/memory.h"
 #include "hw/qdev-core.h"
 #include "hw/s390x/ipl/qipl.h"
 #include "qom/object.h"

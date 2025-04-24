@@ -15,6 +15,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/loader.h"
 #include "cpu.h"
+#include "exec/target_page.h"
 #include "hw/hyperv/hyperv.h"
 #include "hw/hyperv/vmbus-bridge.h"
 #include "hw/hyperv/hyperv-proto.h"

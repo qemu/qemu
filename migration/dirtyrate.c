@@ -14,7 +14,7 @@
 #include "qemu/error-report.h"
 #include "hw/core/cpu.h"
 #include "qapi/error.h"
-#include "exec/ramblock.h"
+#include "system/ramblock.h"
 #include "exec/target_page.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/main-loop.h"
@@ -27,7 +27,7 @@
 #include "qobject/qdict.h"
 #include "system/kvm.h"
 #include "system/runstate.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "qemu/xxhash.h"
 #include "migration.h"
 

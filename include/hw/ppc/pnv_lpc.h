@@ -20,7 +20,7 @@
 #ifndef PPC_PNV_LPC_H
 #define PPC_PNV_LPC_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/ppc/pnv.h"
 #include "hw/qdev-core.h"
 #include "hw/isa/isa.h" /* For ISA_NUM_IRQS */

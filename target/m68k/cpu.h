@@ -21,7 +21,9 @@
 #ifndef M68K_CPU_H
 #define M68K_CPU_H
 
+#include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"
+#include "exec/cpu-interrupt.h"
 #include "qemu/cpu-float.h"
 #include "cpu-qom.h"
 
@@ -75,8 +77,6 @@
 
 #define M68K_MAX_TTR 2
 #define TTR(type, index) ttr[((type & ACCESS_CODE) == ACCESS_CODE) * 2 + index]
-
-#define TARGET_INSN_START_EXTRA_WORDS 1
 
 typedef CPU_LDoubleU FPReg;
 
@@ -593,8 +593,6 @@ void m68k_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
                                  int mmu_idx, MemTxAttrs attrs,
                                  MemTxResult response, uintptr_t retaddr);
 #endif
-
-#include "exec/cpu-all.h"
 
 /* TB flags */
 #define TB_FLAGS_MACSR          0x0f

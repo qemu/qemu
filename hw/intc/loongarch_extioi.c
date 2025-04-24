@@ -11,7 +11,7 @@
 #include "qapi/error.h"
 #include "hw/irq.h"
 #include "hw/loongarch/virt.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/intc/loongarch_extioi.h"
 #include "trace.h"
 

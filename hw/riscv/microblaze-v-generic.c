@@ -22,7 +22,7 @@
 #include "net/net.h"
 #include "hw/boards.h"
 #include "hw/char/serial-mm.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/char/xilinx_uartlite.h"
 #include "hw/misc/unimp.h"
 

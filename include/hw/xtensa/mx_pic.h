@@ -28,7 +28,7 @@
 #ifndef XTENSA_MX_PIC_H
 #define XTENSA_MX_PIC_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 
 struct XtensaMxPic;
 typedef struct XtensaMxPic XtensaMxPic;

@@ -34,7 +34,7 @@
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
 #include "elf.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/tswap.h"
 #include "hw/char/serial-mm.h"
 #include "net/net.h"

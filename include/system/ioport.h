@@ -21,10 +21,10 @@
  * IO ports API
  */
 
-#ifndef IOPORT_H
-#define IOPORT_H
+#ifndef SYSTEM_IOPORT_H
+#define SYSTEM_IOPORT_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 
 #define MAX_IOPORTS     (64 * 1024)
 #define IOPORTS_MASK    (MAX_IOPORTS - 1)
@@ -39,9 +39,7 @@ typedef struct MemoryRegionPortio {
 
 #define PORTIO_END_OF_LIST() { }
 
-#ifndef CONFIG_USER_ONLY
 extern const MemoryRegionOps unassigned_io_ops;
-#endif
 
 void cpu_outb(uint32_t addr, uint8_t val);
 void cpu_outw(uint32_t addr, uint16_t val);

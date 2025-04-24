@@ -24,7 +24,7 @@
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "qapi/error.h"
 #include "trace.h"
 #include "qom/object.h"

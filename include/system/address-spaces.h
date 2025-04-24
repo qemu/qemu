@@ -11,15 +11,13 @@
  *
  */
 
-#ifndef EXEC_ADDRESS_SPACES_H
-#define EXEC_ADDRESS_SPACES_H
+#ifndef SYSTEM_ADDRESS_SPACES_H
+#define SYSTEM_ADDRESS_SPACES_H
 
 /*
  * Internal interfaces between memory.c/exec.c/vl.c.  Do not #include unless
  * you're one of them.
  */
-
-#ifndef CONFIG_USER_ONLY
 
 /* Get the root memory region.  This interface should only be used temporarily
  * until a proper bus interface is available.
@@ -33,7 +31,5 @@ MemoryRegion *get_system_io(void);
 
 extern AddressSpace address_space_memory;
 extern AddressSpace address_space_io;
-
-#endif
 
 #endif

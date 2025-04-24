@@ -6,12 +6,8 @@
 
 #ifndef TARGET_INSN_START_WORDS
 
-#include "cpu.h"
+#include "cpu-param.h"
 
-#ifndef TARGET_INSN_START_EXTRA_WORDS
-# define TARGET_INSN_START_WORDS 1
-#else
 # define TARGET_INSN_START_WORDS (1 + TARGET_INSN_START_EXTRA_WORDS)
-#endif
 
 #endif /* TARGET_INSN_START_WORDS */

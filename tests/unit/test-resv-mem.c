@@ -10,7 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/range.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "qemu/reserved-region.h"
 
 #define DEBUG 0

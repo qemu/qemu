@@ -11,7 +11,7 @@
 #define HW_VIRTIO_VHOST_IOVA_TREE_H
 
 #include "qemu/iova-tree.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 
 typedef struct VhostIOVATree VhostIOVATree;
 

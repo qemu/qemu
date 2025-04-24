@@ -1,7 +1,7 @@
 #ifndef STRONGARM_H
 #define STRONGARM_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "target/arm/cpu-qom.h"
 
 #define SA_CS0          0x00000000

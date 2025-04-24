@@ -22,6 +22,7 @@
 
 #include "cpu-qom.h"
 #include "hw/registerfields.h"
+#include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"
 #include "qemu/cpu-float.h"
 #include "tricore-defs.h"
@@ -249,8 +250,6 @@ int tricore_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n);
 void fpu_set_state(CPUTriCoreState *env);
 
 #define MMU_USER_IDX 2
-
-#include "exec/cpu-all.h"
 
 FIELD(TB_FLAGS, PRIV, 0, 2)
 

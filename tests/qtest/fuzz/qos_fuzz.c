@@ -19,7 +19,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "qemu/main-loop.h"
 
 #include "tests/qtest/libqtest.h"

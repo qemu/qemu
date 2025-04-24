@@ -2,7 +2,7 @@
 #define HW_I8257_H
 
 #include "hw/isa/isa.h"
-#include "exec/ioport.h"
+#include "system/ioport.h"
 #include "qom/object.h"
 
 #define TYPE_I8257 "i8257"

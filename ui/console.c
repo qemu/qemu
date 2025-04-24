@@ -35,7 +35,7 @@
 #include "qemu/option.h"
 #include "chardev/char.h"
 #include "trace.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "qom/object.h"
 #include "qemu/memfd.h"
 

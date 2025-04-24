@@ -20,10 +20,11 @@
 #include "qemu/main-loop.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
+#include "exec/target_page.h"
 #include "internals.h"
 #include "cpu-features.h"
 #include "exec/exec-all.h"
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 #include "cpregs.h"
 
 #define SIGNBIT (uint32_t)0x80000000

@@ -12,6 +12,7 @@
 #include "qemu/osdep.h"
 
 #include "cpu.h"
+#include "exec/target_page.h"
 #include "s390x-internal.h"
 #include "hw/s390x/ioinst.h"
 #include "trace.h"

@@ -16,7 +16,7 @@
 #include "qapi/error.h"
 #include "qom/object.h"
 #include "exec/target_page.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "migration/vmstate.h"
 
 #include "hw/sysbus.h"

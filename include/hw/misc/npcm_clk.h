@@ -16,7 +16,7 @@
 #ifndef NPCM_CLK_H
 #define NPCM_CLK_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/clock.h"
 #include "hw/sysbus.h"
 

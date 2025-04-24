@@ -19,7 +19,7 @@
 #include "hw/arm/boot.h"
 #include "hw/boards.h"
 #include "qemu/error-report.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "net/net.h"
 #include "hw/net/lan9118.h"
 #include "hw/char/serial-mm.h"

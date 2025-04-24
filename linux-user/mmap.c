@@ -21,6 +21,7 @@
 #include "trace.h"
 #include "exec/log.h"
 #include "exec/page-protection.h"
+#include "exec/mmap-lock.h"
 #include "exec/tb-flush.h"
 #include "exec/translation-block.h"
 #include "qemu.h"

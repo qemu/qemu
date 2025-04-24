@@ -24,7 +24,7 @@
 #include "hw/boards.h"
 #include "system/balloon.h"
 #include "hw/virtio/virtio-balloon.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-machine.h"
 #include "qapi/visitor.h"

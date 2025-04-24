@@ -1499,7 +1499,7 @@ static void process_constraint_sets(void);
 static TCGTemp *tcg_global_reg_new_internal(TCGContext *s, TCGType type,
                                             TCGReg reg, const char *name);
 
-static void tcg_context_init(unsigned max_cpus)
+static void tcg_context_init(unsigned max_threads)
 {
     TCGContext *s = &tcg_init_ctx;
     int n, i;
@@ -1538,15 +1538,15 @@ static void tcg_context_init(unsigned max_cpus)
      * In user-mode we simply share the init context among threads, since we
      * use a single region. See the documentation tcg_region_init() for the
      * reasoning behind this.
-     * In system-mode we will have at most max_cpus TCG threads.
+     * In system-mode we will have at most max_threads TCG threads.
      */
 #ifdef CONFIG_USER_ONLY
     tcg_ctxs = &tcg_ctx;
     tcg_cur_ctxs = 1;
     tcg_max_ctxs = 1;
 #else
-    tcg_max_ctxs = max_cpus;
-    tcg_ctxs = g_new0(TCGContext *, max_cpus);
+    tcg_max_ctxs = max_threads;
+    tcg_ctxs = g_new0(TCGContext *, max_threads);
 #endif
 
     tcg_debug_assert(!tcg_regset_test_reg(s->reserved_regs, TCG_AREG0));
@@ -1554,10 +1554,10 @@ static void tcg_context_init(unsigned max_cpus)
     tcg_env = temp_tcgv_ptr(ts);
 }
 
-void tcg_init(size_t tb_size, int splitwx, unsigned max_cpus)
+void tcg_init(size_t tb_size, int splitwx, unsigned max_threads)
 {
-    tcg_context_init(max_cpus);
-    tcg_region_init(tb_size, splitwx, max_cpus);
+    tcg_context_init(max_threads);
+    tcg_region_init(tb_size, splitwx, max_threads);
 }
 
 /*

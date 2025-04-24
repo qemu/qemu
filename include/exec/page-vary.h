@@ -49,4 +49,13 @@ bool set_preferred_target_page_bits(int bits);
  */
 void finalize_target_page_bits(void);
 
+/**
+ * migration_legacy_page_bits
+ *
+ * For migration compatibility with qemu v2.9, prior to the introduction
+ * of the configuration/target-page-bits section, return the value of
+ * TARGET_PAGE_BITS that the target had then.
+ */
+int migration_legacy_page_bits(void);
+
 #endif /* EXEC_PAGE_VARY_H */

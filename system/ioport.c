@@ -26,10 +26,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
-#include "exec/ioport.h"
-#include "exec/memory.h"
-#include "exec/address-spaces.h"
+#include "system/ioport.h"
+#include "system/memory.h"
+#include "system/address-spaces.h"
 #include "trace.h"
 
 struct MemoryRegionPortioList {

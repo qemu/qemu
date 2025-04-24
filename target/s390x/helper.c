@@ -27,6 +27,8 @@
 #include "target/s390x/kvm/pv.h"
 #include "system/hw_accel.h"
 #include "system/runstate.h"
+#include "exec/target_page.h"
+#include "exec/watchpoint.h"
 
 void s390x_tod_timer(void *opaque)
 {

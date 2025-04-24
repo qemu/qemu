@@ -33,7 +33,7 @@
 #include "system/system.h"
 #include "hw/boards.h"
 #include "hw/misc/unimp.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/char/xilinx_uartlite.h"
 
 #include "boot.h"

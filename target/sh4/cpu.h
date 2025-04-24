@@ -21,7 +21,9 @@
 #define SH4_CPU_H
 
 #include "cpu-qom.h"
+#include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"
+#include "exec/cpu-interrupt.h"
 #include "qemu/cpu-float.h"
 
 /* CPU Subtypes */
@@ -124,8 +126,6 @@ typedef struct tlb_t {
 
 #define UTLB_SIZE 64
 #define ITLB_SIZE 4
-
-#define TARGET_INSN_START_EXTRA_WORDS 1
 
 enum sh_features {
     SH_FEATURE_SH4A = 1,
@@ -285,8 +285,6 @@ void cpu_load_tlb(CPUSH4State * env);
 
 /* MMU modes definitions */
 #define MMU_USER_IDX 1
-
-#include "exec/cpu-all.h"
 
 /* MMU control register */
 #define MMUCR    0x1F000010

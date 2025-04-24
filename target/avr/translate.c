@@ -29,6 +29,7 @@
 #include "exec/helper-gen.h"
 #include "exec/log.h"
 #include "exec/translator.h"
+#include "exec/target_page.h"
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"

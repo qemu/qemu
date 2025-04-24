@@ -2,7 +2,7 @@
 #define QEMU_H
 
 #include "cpu.h"
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 
 #include "user/abitypes.h"
 #include "user/page-protection.h"
@@ -361,5 +361,8 @@ void *lock_user_string(abi_ulong guest_addr);
     (host_ptr = lock_user(type, guest_addr, sizeof(*host_ptr), copy))
 #define unlock_user_struct(host_ptr, guest_addr, copy)		\
     unlock_user(host_ptr, guest_addr, (copy) ? sizeof(*host_ptr) : 0)
+
+/* Clone cpu state */
+CPUArchState *cpu_copy(CPUArchState *env);
 
 #endif /* QEMU_H */

@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "exec/target_page.h"
 #include "hw/ppc/ppc.h"
 #include "qemu/timer.h"
 #include "system/reset.h"

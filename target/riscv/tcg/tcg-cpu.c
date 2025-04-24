@@ -22,6 +22,7 @@
 #include "exec/translation-block.h"
 #include "tcg-cpu.h"
 #include "cpu.h"
+#include "exec/target_page.h"
 #include "internals.h"
 #include "pmu.h"
 #include "time_helper.h"
@@ -35,6 +36,7 @@
 #include "tcg/tcg.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/boards.h"
+#include "system/tcg.h"
 #endif
 
 /* Hash that stores user set extensions */
@@ -91,6 +93,11 @@ static const char *cpu_priv_ver_to_str(int priv_ver)
     return priv_spec_str;
 }
 
+static int riscv_cpu_mmu_index(CPUState *cs, bool ifetch)
+{
+    return riscv_env_mmu_index(cpu_env(cs), ifetch);
+}
+
 static void riscv_cpu_synchronize_from_tb(CPUState *cs,
                                           const TranslationBlock *tb)
 {
@@ -133,11 +140,15 @@ static void riscv_restore_state_to_opc(CPUState *cs,
     env->excp_uw2 = data[2];
 }
 
-static const TCGCPUOps riscv_tcg_ops = {
+const TCGCPUOps riscv_tcg_ops = {
+    .mttcg_supported = true,
+    .guest_default_memory_order = 0,
+
     .initialize = riscv_translate_init,
     .translate_code = riscv_translate_code,
     .synchronize_from_tb = riscv_cpu_synchronize_from_tb,
     .restore_state_to_opc = riscv_restore_state_to_opc,
+    .mmu_index = riscv_cpu_mmu_index,
 
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = riscv_cpu_tlb_fill,
@@ -1039,7 +1050,6 @@ static bool riscv_cpu_is_generic(Object *cpu_obj)
 static bool riscv_tcg_cpu_realize(CPUState *cs, Error **errp)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
-    RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cpu);
 
     if (!riscv_cpu_tcg_compatible(cpu)) {
         g_autofree char *name = riscv_cpu_get_name(cpu);
@@ -1047,6 +1057,9 @@ static bool riscv_tcg_cpu_realize(CPUState *cs, Error **errp)
                    name);
         return false;
     }
+
+#ifndef CONFIG_USER_ONLY
+    RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cpu);
 
     if (mcc->misa_mxl_max >= MXL_RV128 && qemu_tcg_mttcg_enabled()) {
         /* Missing 128-bit aligned atomics */
@@ -1056,7 +1069,6 @@ static bool riscv_tcg_cpu_realize(CPUState *cs, Error **errp)
         return false;
     }
 
-#ifndef CONFIG_USER_ONLY
     CPURISCVState *env = &cpu->env;
 
     tcg_cflags_set(CPU(cs), CF_PCREL);
@@ -1516,24 +1528,10 @@ static void riscv_tcg_cpu_instance_init(CPUState *cs)
     }
 }
 
-static void riscv_tcg_cpu_init_ops(AccelCPUClass *accel_cpu, CPUClass *cc)
-{
-    /*
-     * All cpus use the same set of operations.
-     */
-    cc->tcg_ops = &riscv_tcg_ops;
-}
-
-static void riscv_tcg_cpu_class_init(CPUClass *cc)
-{
-    cc->init_accel_cpu = riscv_tcg_cpu_init_ops;
-}
-
 static void riscv_tcg_cpu_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelCPUClass *acc = ACCEL_CPU_CLASS(oc);
 
-    acc->cpu_class_init = riscv_tcg_cpu_class_init;
     acc->cpu_instance_init = riscv_tcg_cpu_instance_init;
     acc->cpu_target_realize = riscv_tcg_cpu_realize;
 }

@@ -27,7 +27,7 @@
 #include "hw/s390x/vfio-ccw.h"
 #include "hw/qdev-properties.h"
 #include "hw/s390x/ccw-device.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"

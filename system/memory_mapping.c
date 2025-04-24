@@ -16,8 +16,8 @@
 #include "qapi/error.h"
 
 #include "system/memory_mapping.h"
-#include "exec/memory.h"
-#include "exec/address-spaces.h"
+#include "system/memory.h"
+#include "system/address-spaces.h"
 #include "hw/core/cpu.h"
 
 //#define DEBUG_GUEST_PHYS_REGION_ADD

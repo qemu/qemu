@@ -35,7 +35,7 @@
 #include "block/raw-aio.h"
 #include "qemu/coroutine_int.h"
 #include "qemu/coroutine-tls.h"
-#include "system/cpu-timers.h"
+#include "exec/icount.h"
 #include "trace.h"
 
 /***********************************************************/

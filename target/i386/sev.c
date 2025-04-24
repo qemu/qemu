@@ -26,6 +26,7 @@
 #include "qemu/uuid.h"
 #include "qemu/error-report.h"
 #include "crypto/hash.h"
+#include "exec/target_page.h"
 #include "system/kvm.h"
 #include "kvm/kvm_i386.h"
 #include "sev.h"
@@ -39,7 +40,7 @@
 #include "qapi/qapi-commands-misc-target.h"
 #include "confidential-guest.h"
 #include "hw/i386/pc.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "qemu/queue.h"
 
 OBJECT_DECLARE_TYPE(SevCommonState, SevCommonStateClass, SEV_COMMON)

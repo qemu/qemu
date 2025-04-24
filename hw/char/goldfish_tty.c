@@ -15,7 +15,7 @@
 #include "chardev/char-fe.h"
 #include "qemu/log.h"
 #include "trace.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "system/dma.h"
 #include "hw/char/goldfish_tty.h"
 

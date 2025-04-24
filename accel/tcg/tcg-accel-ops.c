@@ -29,7 +29,7 @@
 #include "system/accel-ops.h"
 #include "system/tcg.h"
 #include "system/replay.h"
-#include "system/cpu-timers.h"
+#include "exec/icount.h"
 #include "qemu/main-loop.h"
 #include "qemu/guest-random.h"
 #include "qemu/timer.h"
@@ -37,6 +37,7 @@
 #include "exec/hwaddr.h"
 #include "exec/tb-flush.h"
 #include "exec/translation-block.h"
+#include "exec/watchpoint.h"
 #include "gdbstub/enums.h"
 
 #include "hw/core/cpu.h"

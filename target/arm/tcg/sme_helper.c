@@ -22,7 +22,7 @@
 #include "internals.h"
 #include "tcg/tcg-gvec-desc.h"
 #include "exec/helper-proto.h"
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 #include "exec/exec-all.h"
 #include "qemu/int128.h"
 #include "fpu/softfloat.h"

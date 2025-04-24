@@ -210,10 +210,10 @@ bool kvm_arm_supports_user_irq(void);
 int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr);
 int kvm_on_sigbus(int code, void *addr);
 
+void kvm_flush_coalesced_mmio_buffer(void);
+
 #ifdef COMPILING_PER_TARGET
 #include "cpu.h"
-
-void kvm_flush_coalesced_mmio_buffer(void);
 
 /**
  * kvm_update_guest_debug(): ensure KVM debug structures updated
@@ -390,9 +390,7 @@ bool kvm_vcpu_id_is_valid(int vcpu_id);
 /* Returns VCPU ID to be used on KVM_CREATE_VCPU ioctl() */
 unsigned long kvm_arch_vcpu_id(CPUState *cpu);
 
-#ifdef KVM_HAVE_MCE_INJECTION
 void kvm_arch_on_sigbus_vcpu(CPUState *cpu, int code, void *addr);
-#endif
 
 void kvm_arch_init_irq_routing(KVMState *s);
 

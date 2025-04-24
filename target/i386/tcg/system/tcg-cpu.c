@@ -23,7 +23,8 @@
 
 #include "system/system.h"
 #include "qemu/units.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
+#include "system/memory.h"
 
 #include "tcg/tcg-cpu.h"
 

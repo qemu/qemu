@@ -16,7 +16,7 @@
 #include "system/numa.h"
 #include "qapi/qapi-types-machine.h"
 #include "qom/object.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "qemu/bitmap.h"
 #include "qemu/thread-context.h"
 

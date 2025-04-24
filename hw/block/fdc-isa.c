@@ -42,7 +42,7 @@
 #include "system/block-backend.h"
 #include "system/blockdev.h"
 #include "system/system.h"
-#include "exec/ioport.h"
+#include "system/ioport.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"

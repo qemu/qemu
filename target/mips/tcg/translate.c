@@ -27,6 +27,7 @@
 #include "internal.h"
 #include "exec/helper-proto.h"
 #include "exec/translation-block.h"
+#include "exec/target_page.h"
 #include "semihosting/semihost.h"
 #include "trace.h"
 #include "fpu_helper.h"

@@ -13,7 +13,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "qom/object.h"
 
 #define TYPE_OR1K_OMPIC "or1k-ompic"

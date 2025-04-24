@@ -36,7 +36,7 @@
 #include "migration/vmstate.h"
 #include "hw/qdev-clock.h"
 #ifndef CONFIG_USER_ONLY
-#include "exec/memory.h"
+#include "system/memory.h"
 #endif
 
 
@@ -232,10 +232,15 @@ static const struct SysemuCPUOps xtensa_sysemu_ops = {
 #include "accel/tcg/cpu-ops.h"
 
 static const TCGCPUOps xtensa_tcg_ops = {
+    /* Xtensa processors have a weak memory model */
+    .guest_default_memory_order = 0,
+    .mttcg_supported = true,
+
     .initialize = xtensa_translate_init,
     .translate_code = xtensa_translate_code,
     .debug_excp_handler = xtensa_breakpoint_handler,
     .restore_state_to_opc = xtensa_restore_state_to_opc,
+    .mmu_index = xtensa_cpu_mmu_index,
 
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = xtensa_cpu_tlb_fill,
@@ -262,7 +267,6 @@ static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
                                        &xcc->parent_phases);
 
     cc->class_by_name = xtensa_cpu_class_by_name;
-    cc->mmu_index = xtensa_cpu_mmu_index;
     cc->dump_state = xtensa_cpu_dump_state;
     cc->set_pc = xtensa_cpu_set_pc;
     cc->get_pc = xtensa_cpu_get_pc;

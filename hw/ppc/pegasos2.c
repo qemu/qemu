@@ -31,7 +31,7 @@
 #include "qemu/error-report.h"
 #include "system/kvm.h"
 #include "kvm_ppc.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "qom/qom-qobject.h"
 #include "qobject/qdict.h"
 #include "trace.h"

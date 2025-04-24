@@ -11,7 +11,7 @@
 
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "qom/object.h"
 #include "qemu/units.h"
 

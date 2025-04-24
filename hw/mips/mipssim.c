@@ -28,7 +28,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/datadir.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/clock.h"
 #include "hw/mips/mips.h"
 #include "hw/char/serial-mm.h"

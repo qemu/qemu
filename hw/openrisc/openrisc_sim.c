@@ -28,7 +28,7 @@
 #include "net/net.h"
 #include "hw/openrisc/boot.h"
 #include "hw/qdev-properties.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "system/device_tree.h"
 #include "system/system.h"
 #include "hw/sysbus.h"

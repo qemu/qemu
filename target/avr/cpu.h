@@ -22,8 +22,10 @@
 #define QEMU_AVR_CPU_H
 
 #include "cpu-qom.h"
+#include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"
-#include "exec/memory.h"
+#include "exec/cpu-interrupt.h"
+#include "system/memory.h"
 
 #ifdef CONFIG_USER_ONLY
 #error "AVR 8-bit does not support user mode"
@@ -256,7 +258,5 @@ bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
 extern const MemoryRegionOps avr_cpu_reg1;
 extern const MemoryRegionOps avr_cpu_reg2;
-
-#include "exec/cpu-all.h"
 
 #endif /* QEMU_AVR_CPU_H */

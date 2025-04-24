@@ -13,6 +13,6 @@
 
 #define TARGET_PAGE_BITS 12
 
-#define TCG_GUEST_DEFAULT_MO (0)
+#define TARGET_INSN_START_EXTRA_WORDS 0
 
 #endif

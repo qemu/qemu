@@ -9,6 +9,7 @@
 #include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "exec/tb-flush.h"
+#include "exec/target_page.h"
 #include "helper_regs.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/spapr.h"

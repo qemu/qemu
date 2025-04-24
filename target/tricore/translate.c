@@ -22,7 +22,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "tcg/tcg-op.h"
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 #include "qemu/qemu-print.h"
 
 #include "exec/helper-proto.h"
@@ -31,6 +31,7 @@
 #include "tricore-opcodes.h"
 #include "exec/translator.h"
 #include "exec/translation-block.h"
+#include "exec/target_page.h"
 #include "exec/log.h"
 
 #define HELPER_H "helper.h"

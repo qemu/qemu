@@ -12,7 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
-#include "exec/ramblock.h"
+#include "system/ramblock.h"
 #include "migration.h"
 #include "migration-stats.h"
 #include "multifd.h"

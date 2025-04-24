@@ -11,7 +11,7 @@
 #include "qemu/osdep.h"
 #include <blkio.h>
 #include "block/block_int.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "exec/cpu-common.h" /* for qemu_ram_get_fd() */
 #include "qemu/defer-call.h"
 #include "qapi/error.h"
@@ -19,7 +19,7 @@
 #include "qobject/qdict.h"
 #include "qemu/module.h"
 #include "system/block-backend.h"
-#include "exec/memory.h" /* for ram_block_discard_disable() */
+#include "system/memory.h" /* for ram_block_discard_disable() */
 
 #include "block/block-io.h"
 

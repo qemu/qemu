@@ -7,7 +7,7 @@
 #ifndef FSI_CFAM_H
 #define FSI_CFAM_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 
 #include "hw/fsi/fsi.h"
 #include "hw/fsi/lbus.h"

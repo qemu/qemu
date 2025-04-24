@@ -54,7 +54,7 @@
 #include "hw/arm/armv7m.h"
 #include "hw/or-irq.h"
 #include "hw/boards.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "system/system.h"
 #include "system/reset.h"
 #include "hw/misc/unimp.h"

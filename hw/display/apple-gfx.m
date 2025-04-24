@@ -18,7 +18,7 @@
 #include "qapi/visitor.h"
 #include "qapi/error.h"
 #include "block/aio-wait.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "system/dma.h"
 #include "migration/blocker.h"
 #include "ui/console.h"

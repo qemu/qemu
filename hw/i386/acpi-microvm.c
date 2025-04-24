@@ -24,7 +24,7 @@
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/acpi_aml_interface.h"
 #include "hw/acpi/aml-build.h"

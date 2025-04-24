@@ -1,7 +1,7 @@
 #ifndef QEMU_PCI_H
 #define QEMU_PCI_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "system/dma.h"
 #include "system/host_iommu_device.h"
 

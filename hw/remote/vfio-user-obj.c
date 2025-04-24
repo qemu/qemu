@@ -57,7 +57,7 @@
 #include "hw/qdev-core.h"
 #include "hw/pci/pci.h"
 #include "qemu/timer.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "hw/remote/vfio-user-obj.h"

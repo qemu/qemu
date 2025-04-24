@@ -16,6 +16,14 @@
 # define TARGET_VIRT_ADDR_SPACE_BITS 32 /* sv32 */
 #endif
 #define TARGET_PAGE_BITS 12 /* 4 KiB Pages */
+
+/*
+ * RISC-V-specific extra insn start words:
+ * 1: Original instruction opcode
+ * 2: more information about instruction
+ */
+#define TARGET_INSN_START_EXTRA_WORDS 2
+
 /*
  * The current MMU Modes are:
  *  - U mode 0b000
@@ -25,7 +33,5 @@
  *  - S mode HLV/HLVX/HSV 0b101
  *  - M mode HLV/HLVX/HSV 0b111
  */
-
-#define TCG_GUEST_DEFAULT_MO 0
 
 #endif

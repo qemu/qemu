@@ -17,7 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "cpu.h"
 #include "s390x-internal.h"
 #include "kvm/kvm_s390x.h"
@@ -25,6 +25,7 @@
 #include "system/tcg.h"
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
+#include "exec/target_page.h"
 #include "hw/hw.h"
 #include "hw/s390x/storage-keys.h"
 #include "hw/boards.h"

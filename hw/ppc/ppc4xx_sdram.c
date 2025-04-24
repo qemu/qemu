@@ -34,7 +34,7 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
-#include "exec/address-spaces.h" /* get_system_memory() */
+#include "system/address-spaces.h" /* get_system_memory() */
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/ppc/ppc4xx.h"

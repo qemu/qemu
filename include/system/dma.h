@@ -10,8 +10,8 @@
 #ifndef DMA_H
 #define DMA_H
 
-#include "exec/memory.h"
-#include "exec/address-spaces.h"
+#include "system/memory.h"
+#include "system/address-spaces.h"
 #include "block/block.h"
 #include "block/accounting.h"
 

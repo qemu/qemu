@@ -26,7 +26,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/arm/boot.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/arm/stm32f205_soc.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-clock.h"

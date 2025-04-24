@@ -4,34 +4,18 @@
 # types such as hwaddr.
 #
 
-# We need to build the core gdb code via a library to be able to tweak
-# cflags so:
-
-gdb_user_ss = ss.source_set()
-gdb_system_ss = ss.source_set()
-
 # We build two versions of gdbstub, one for each mode
-gdb_user_ss.add(files('gdbstub.c', 'user.c'))
-gdb_system_ss.add(files('gdbstub.c', 'system.c'))
+libuser_ss.add(files(
+  'gdbstub.c',
+  'syscalls.c',
+  'user.c'
+))
 
-gdb_user_ss = gdb_user_ss.apply({})
-gdb_system_ss = gdb_system_ss.apply({})
-
-libgdb_user = static_library('gdb_user',
-                             gdb_user_ss.sources() + genh,
-                             c_args: '-DCONFIG_USER_ONLY',
-                             build_by_default: false)
-
-libgdb_system = static_library('gdb_system',
-                                gdb_system_ss.sources() + genh,
-                                build_by_default: false)
-
-gdb_user = declare_dependency(objects: libgdb_user.extract_all_objects(recursive: false))
-user_ss.add(gdb_user)
-gdb_system = declare_dependency(objects: libgdb_system.extract_all_objects(recursive: false))
-system_ss.add(gdb_system)
-
-common_ss.add(files('syscalls.c'))
+libsystem_ss.add(files(
+  'gdbstub.c',
+  'syscalls.c',
+  'system.c'
+))
 
 # The user-target is specialised by the guest
 specific_ss.add(when: 'CONFIG_USER_ONLY', if_true: files('user-target.c'))

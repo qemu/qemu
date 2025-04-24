@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "exec/target_page.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 #include "hw/qdev-properties.h"
 #include "hw/s390x/storage-keys.h"
@@ -20,7 +21,7 @@
 #include "qobject/qdict.h"
 #include "qemu/error-report.h"
 #include "system/memory_mapping.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "system/kvm.h"
 #include "migration/qemu-file-types.h"
 #include "migration/register.h"

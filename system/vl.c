@@ -89,6 +89,7 @@
 #include "audio/audio.h"
 #include "system/cpus.h"
 #include "system/cpu-timers.h"
+#include "exec/icount.h"
 #include "migration/colo.h"
 #include "migration/postcopy-ram.h"
 #include "system/kvm.h"

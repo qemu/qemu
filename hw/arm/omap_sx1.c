@@ -34,7 +34,7 @@
 #include "hw/arm/boot.h"
 #include "hw/block/flash.h"
 #include "system/qtest.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 

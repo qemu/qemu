@@ -24,7 +24,7 @@
 #include "exec/page-protection.h"
 #include "hw/loader.h"
 #include "elf.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "ppc440.h"
 #include "hw/pci-host/ppc4xx.h"
 #include "hw/block/flash.h"

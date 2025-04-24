@@ -14,7 +14,7 @@
 #include "qapi/visitor.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/s390x/ioinst.h"
 #include "hw/qdev-properties.h"
 #include "hw/s390x/css.h"

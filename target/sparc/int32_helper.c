@@ -21,7 +21,7 @@
 #include "qemu/main-loop.h"
 #include "cpu.h"
 #include "trace.h"
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 #include "exec/log.h"
 #include "system/runstate.h"
 

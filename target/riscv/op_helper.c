@@ -23,8 +23,9 @@
 #include "internals.h"
 #include "exec/exec-all.h"
 #include "exec/cputlb.h"
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 #include "exec/helper-proto.h"
+#include "exec/tlb-flags.h"
 #include "trace.h"
 
 /* Exceptions processing helpers */

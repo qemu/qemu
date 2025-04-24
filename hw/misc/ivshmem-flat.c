@@ -17,7 +17,7 @@
 #include "hw/qdev-properties-system.h"
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "trace.h"
 
 #include "hw/misc/ivshmem-flat.h"

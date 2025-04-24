@@ -13,7 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/core/cpu.h"
-#include "exec/ioport.h"
+#include "system/ioport.h"
 
 #include "fuzz.h"
 

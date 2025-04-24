@@ -1,7 +1,7 @@
 #ifndef PM_SMBUS_H
 #define PM_SMBUS_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/i2c/smbus_master.h"
 
 #define PM_SMBUS_MAX_MSG_SIZE 32

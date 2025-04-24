@@ -8,16 +8,16 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bswap.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
-#include "exec/exec-all.h"
+#include "accel/tcg/cpu-ldst-common.h"
+#include "accel/tcg/cpu-mmu-index.h"
+#include "exec/target_page.h"
 #include "exec/translator.h"
-#include "exec/cpu_ldst.h"
 #include "exec/plugin-gen.h"
-#include "exec/cpu_ldst.h"
-#include "exec/tswap.h"
 #include "tcg/tcg-op-common.h"
-#include "internal-target.h"
+#include "internal-common.h"
 #include "disas/disas.h"
 #include "tb-internal.h"
 
@@ -25,8 +25,7 @@ static void set_can_do_io(DisasContextBase *db, bool val)
 {
     QEMU_BUILD_BUG_ON(sizeof_field(CPUState, neg.can_do_io) != 1);
     tcg_gen_st8_i32(tcg_constant_i32(val), tcg_env,
-                    offsetof(ArchCPU, parent_obj.neg.can_do_io) -
-                    offsetof(ArchCPU, env));
+                    offsetof(CPUState, neg.can_do_io) - sizeof(CPUState));
 }
 
 bool translator_io_start(DisasContextBase *db)
@@ -49,8 +48,8 @@ static TCGOp *gen_tb_start(DisasContextBase *db, uint32_t cflags)
     if ((cflags & CF_USE_ICOUNT) || !(cflags & CF_NOIRQ)) {
         count = tcg_temp_new_i32();
         tcg_gen_ld_i32(count, tcg_env,
-                       offsetof(ArchCPU, parent_obj.neg.icount_decr.u32)
-                       - offsetof(ArchCPU, env));
+                       offsetof(CPUState, neg.icount_decr.u32) -
+                       sizeof(CPUState));
     }
 
     if (cflags & CF_USE_ICOUNT) {
@@ -79,8 +78,8 @@ static TCGOp *gen_tb_start(DisasContextBase *db, uint32_t cflags)
 
     if (cflags & CF_USE_ICOUNT) {
         tcg_gen_st16_i32(count, tcg_env,
-                         offsetof(ArchCPU, parent_obj.neg.icount_decr.u16.low)
-                         - offsetof(ArchCPU, env));
+                         offsetof(CPUState, neg.icount_decr.u16.low) -
+                         sizeof(CPUState));
     }
 
     return icount_start_insn;
@@ -142,6 +141,7 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
     db->host_addr[1] = NULL;
     db->record_start = 0;
     db->record_len = 0;
+    db->code_mmuidx = cpu_mmu_index(cpu, true);
 
     ops->init_disas_context(db, cpu);
     tcg_debug_assert(db->is_jmp == DISAS_NEXT);  /* no early exit */
@@ -265,12 +265,14 @@ static bool translator_ld(CPUArchState *env, DisasContextBase *db,
 
     if (likely(((base ^ last) & TARGET_PAGE_MASK) == 0)) {
         /* Entire read is from the first page. */
-        memcpy(dest, host + (pc - base), len);
-        return true;
+        goto do_read;
     }
 
     if (unlikely(((base ^ pc) & TARGET_PAGE_MASK) == 0)) {
-        /* Read begins on the first page and extends to the second. */
+        /*
+         * Read begins on the first page and extends to the second.
+         * The unaligned read is never atomic.
+         */
         size_t len0 = -(pc | TARGET_PAGE_MASK);
         memcpy(dest, host + (pc - base), len0);
         pc += len0;
@@ -329,7 +331,39 @@ static bool translator_ld(CPUArchState *env, DisasContextBase *db,
         host = db->host_addr[1];
     }
 
-    memcpy(dest, host + (pc - base), len);
+ do_read:
+    /*
+     * Assume aligned reads should be atomic, if possible.
+     * We're not in a position to jump out with EXCP_ATOMIC.
+     */
+    host += pc - base;
+    switch (len) {
+    case 2:
+        if (QEMU_IS_ALIGNED(pc, 2)) {
+            uint16_t t = qatomic_read((uint16_t *)host);
+            stw_he_p(dest, t);
+            return true;
+        }
+        break;
+    case 4:
+        if (QEMU_IS_ALIGNED(pc, 4)) {
+            uint32_t t = qatomic_read((uint32_t *)host);
+            stl_he_p(dest, t);
+            return true;
+        }
+        break;
+#ifdef CONFIG_ATOMIC64
+    case 8:
+        if (QEMU_IS_ALIGNED(pc, 8)) {
+            uint64_t t = qatomic_read__nocheck((uint64_t *)host);
+            stq_he_p(dest, t);
+            return true;
+        }
+        break;
+#endif
+    }
+    /* Unaligned or partial read from the second page is not atomic. */
+    memcpy(dest, host, len);
     return true;
 }
 
@@ -423,55 +457,62 @@ bool translator_st(const DisasContextBase *db, void *dest,
 
 uint8_t translator_ldub(CPUArchState *env, DisasContextBase *db, vaddr pc)
 {
-    uint8_t raw;
+    uint8_t val;
 
-    if (!translator_ld(env, db, &raw, pc, sizeof(raw))) {
-        raw = cpu_ldub_code(env, pc);
-        record_save(db, pc, &raw, sizeof(raw));
+    if (!translator_ld(env, db, &val, pc, sizeof(val))) {
+        MemOpIdx oi = make_memop_idx(MO_UB, db->code_mmuidx);
+        val = cpu_ldb_code_mmu(env, pc, oi, 0);
+        record_save(db, pc, &val, sizeof(val));
     }
-    return raw;
+    return val;
 }
 
-uint16_t translator_lduw(CPUArchState *env, DisasContextBase *db, vaddr pc)
+uint16_t translator_lduw_end(CPUArchState *env, DisasContextBase *db,
+                             vaddr pc, MemOp endian)
 {
-    uint16_t raw, tgt;
+    uint16_t val;
 
-    if (translator_ld(env, db, &raw, pc, sizeof(raw))) {
-        tgt = tswap16(raw);
-    } else {
-        tgt = cpu_lduw_code(env, pc);
-        raw = tswap16(tgt);
-        record_save(db, pc, &raw, sizeof(raw));
+    if (!translator_ld(env, db, &val, pc, sizeof(val))) {
+        MemOpIdx oi = make_memop_idx(MO_UW, db->code_mmuidx);
+        val = cpu_ldw_code_mmu(env, pc, oi, 0);
+        record_save(db, pc, &val, sizeof(val));
     }
-    return tgt;
+    if (endian & MO_BSWAP) {
+        val = bswap16(val);
+    }
+    return val;
 }
 
-uint32_t translator_ldl(CPUArchState *env, DisasContextBase *db, vaddr pc)
+uint32_t translator_ldl_end(CPUArchState *env, DisasContextBase *db,
+                            vaddr pc, MemOp endian)
 {
-    uint32_t raw, tgt;
+    uint32_t val;
 
-    if (translator_ld(env, db, &raw, pc, sizeof(raw))) {
-        tgt = tswap32(raw);
-    } else {
-        tgt = cpu_ldl_code(env, pc);
-        raw = tswap32(tgt);
-        record_save(db, pc, &raw, sizeof(raw));
+    if (!translator_ld(env, db, &val, pc, sizeof(val))) {
+        MemOpIdx oi = make_memop_idx(MO_UL, db->code_mmuidx);
+        val = cpu_ldl_code_mmu(env, pc, oi, 0);
+        record_save(db, pc, &val, sizeof(val));
     }
-    return tgt;
+    if (endian & MO_BSWAP) {
+        val = bswap32(val);
+    }
+    return val;
 }
 
-uint64_t translator_ldq(CPUArchState *env, DisasContextBase *db, vaddr pc)
+uint64_t translator_ldq_end(CPUArchState *env, DisasContextBase *db,
+                            vaddr pc, MemOp endian)
 {
-    uint64_t raw, tgt;
+    uint64_t val;
 
-    if (translator_ld(env, db, &raw, pc, sizeof(raw))) {
-        tgt = tswap64(raw);
-    } else {
-        tgt = cpu_ldq_code(env, pc);
-        raw = tswap64(tgt);
-        record_save(db, pc, &raw, sizeof(raw));
+    if (!translator_ld(env, db, &val, pc, sizeof(val))) {
+        MemOpIdx oi = make_memop_idx(MO_UQ, db->code_mmuidx);
+        val = cpu_ldq_code_mmu(env, pc, oi, 0);
+        record_save(db, pc, &val, sizeof(val));
     }
-    return tgt;
+    if (endian & MO_BSWAP) {
+        val = bswap64(val);
+    }
+    return val;
 }
 
 void translator_fake_ld(DisasContextBase *db, const void *data, size_t len)

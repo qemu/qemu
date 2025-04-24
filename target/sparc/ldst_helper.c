@@ -26,7 +26,9 @@
 #include "exec/exec-all.h"
 #include "exec/cputlb.h"
 #include "exec/page-protection.h"
-#include "exec/cpu_ldst.h"
+#include "exec/target_page.h"
+#include "accel/tcg/cpu-ldst.h"
+#include "system/memory.h"
 #ifdef CONFIG_USER_ONLY
 #include "user/page-protection.h"
 #endif

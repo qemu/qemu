@@ -33,8 +33,8 @@
 #include "system/cpus.h"
 #include "system/accel-blocker.h"
 #include "qemu/bswap.h"
-#include "exec/memory.h"
-#include "exec/ram_addr.h"
+#include "system/memory.h"
+#include "system/ram_addr.h"
 #include "qemu/event_notifier.h"
 #include "qemu/main-loop.h"
 #include "trace.h"
@@ -56,6 +56,11 @@
 #ifdef CONFIG_EVENTFD
 #include <sys/eventfd.h>
 #endif
+
+#if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__)
+# define KVM_HAVE_MCE_INJECTION 1
+#endif
+
 
 /* KVM uses PAGE_SIZE in its definition of KVM_COALESCED_MMIO_MAX. We
  * need to use the real host PAGE_SIZE, as that's what KVM will use.

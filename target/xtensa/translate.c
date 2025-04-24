@@ -35,14 +35,15 @@
 #include "tcg/tcg-op.h"
 #include "qemu/log.h"
 #include "qemu/qemu-print.h"
-#include "semihosting/semihost.h"
 #include "exec/translator.h"
 #include "exec/translation-block.h"
-
+#include "exec/target_page.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
-
 #include "exec/log.h"
+#ifndef CONFIG_USER_ONLY
+#include "semihosting/semihost.h"
+#endif
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"
@@ -2241,17 +2242,15 @@ static uint32_t test_exceptions_simcall(DisasContext *dc,
                                         const OpcodeArg arg[],
                                         const uint32_t par[])
 {
-    bool is_semi = semihosting_enabled(dc->cring != 0);
-#ifdef CONFIG_USER_ONLY
-    bool ill = true;
-#else
-    /* Between RE.2 and RE.3 simcall opcode's become nop for the hardware. */
-    bool ill = dc->config->hw_version <= 250002 && !is_semi;
-#endif
-    if (ill || !is_semi) {
-        qemu_log_mask(LOG_GUEST_ERROR, "SIMCALL but semihosting is disabled\n");
+#ifndef CONFIG_USER_ONLY
+    if (semihosting_enabled(dc->cring != 0)) {
+        return 0;
     }
-    return ill ? XTENSA_OP_ILL : 0;
+#endif
+    qemu_log_mask(LOG_GUEST_ERROR, "SIMCALL but semihosting is disabled\n");
+
+    /* Between RE.2 and RE.3 simcall opcode's become nop for the hardware. */
+    return dc->config->hw_version <= 250002 ? XTENSA_OP_ILL : 0;
 }
 
 static void translate_simcall(DisasContext *dc, const OpcodeArg arg[],

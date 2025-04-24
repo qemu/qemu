@@ -9,7 +9,7 @@
 #ifndef QEMU_KVM_INT_H
 #define QEMU_KVM_INT_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "qapi/qapi-types-common.h"
 #include "qemu/accel.h"
 #include "qemu/queue.h"

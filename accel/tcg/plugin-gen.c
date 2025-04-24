@@ -22,13 +22,12 @@
 #include "qemu/osdep.h"
 #include "qemu/plugin.h"
 #include "qemu/log.h"
-#include "cpu.h"
 #include "tcg/tcg.h"
 #include "tcg/tcg-temp-internal.h"
-#include "tcg/tcg-op.h"
-#include "exec/exec-all.h"
+#include "tcg/tcg-op-common.h"
 #include "exec/plugin-gen.h"
 #include "exec/translator.h"
+#include "exec/translation-block.h"
 
 enum plugin_gen_from {
     PLUGIN_GEN_FROM_TB,
@@ -89,15 +88,13 @@ static void gen_enable_mem_helper(struct qemu_plugin_tb *ptb,
     qemu_plugin_add_dyn_cb_arr(arr);
 
     tcg_gen_st_ptr(tcg_constant_ptr((intptr_t)arr), tcg_env,
-                   offsetof(CPUState, neg.plugin_mem_cbs) -
-                   offsetof(ArchCPU, env));
+                   offsetof(CPUState, neg.plugin_mem_cbs) - sizeof(CPUState));
 }
 
 static void gen_disable_mem_helper(void)
 {
     tcg_gen_st_ptr(tcg_constant_ptr(0), tcg_env,
-                   offsetof(CPUState, neg.plugin_mem_cbs) -
-                   offsetof(ArchCPU, env));
+                   offsetof(CPUState, neg.plugin_mem_cbs) - sizeof(CPUState));
 }
 
 static TCGv_i32 gen_cpu_index(void)
@@ -113,7 +110,7 @@ static TCGv_i32 gen_cpu_index(void)
     }
     TCGv_i32 cpu_index = tcg_temp_ebb_new_i32();
     tcg_gen_ld_i32(cpu_index, tcg_env,
-                   -offsetof(ArchCPU, env) + offsetof(CPUState, cpu_index));
+                   offsetof(CPUState, cpu_index) - sizeof(CPUState));
     return cpu_index;
 }
 

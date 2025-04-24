@@ -27,6 +27,7 @@
 #include "exec/cputlb.h"
 #include "exec/exec-all.h"
 #include "exec/page-protection.h"
+#include "exec/target_page.h"
 #include "exec/log.h"
 #include "helper_regs.h"
 #include "qemu/error-report.h"
@@ -36,7 +37,7 @@
 #include "mmu-radix64.h"
 #include "mmu-booke.h"
 #include "exec/helper-proto.h"
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 
 /* #define FLUSH_ALL_TLBS */
 

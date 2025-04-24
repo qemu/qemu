@@ -32,8 +32,10 @@
 #include "exec/exec-all.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-clock.h"
-#include "semihosting/semihost.h"
 #include "fpu_helper.h"
+#ifndef CONFIG_USER_ONLY
+#include "semihosting/semihost.h"
+#endif
 
 const char regnames[32][3] = {
     "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
@@ -179,11 +181,6 @@ static bool mips_cpu_has_work(CPUState *cs)
     return has_work;
 }
 #endif /* !CONFIG_USER_ONLY */
-
-static int mips_cpu_mmu_index(CPUState *cs, bool ifunc)
-{
-    return mips_env_mmu_index(cpu_env(cs));
-}
 
 #include "cpu-defs.c.inc"
 
@@ -415,12 +412,11 @@ static void mips_cpu_reset_hold(Object *obj, ResetType type)
     restore_pamask(env);
     cs->exception_index = EXCP_NONE;
 
+#ifndef CONFIG_USER_ONLY
     if (semihosting_get_argc()) {
         /* UHI interface can be used to obtain argc and argv */
         env->active_tc.gpr[4] = -1;
     }
-
-#ifndef CONFIG_USER_ONLY
     if (kvm_enabled()) {
         kvm_mips_reset_vcpu(cpu);
     }
@@ -548,11 +544,21 @@ static const Property mips_cpu_properties[] = {
 
 #ifdef CONFIG_TCG
 #include "accel/tcg/cpu-ops.h"
+
+static int mips_cpu_mmu_index(CPUState *cs, bool ifunc)
+{
+    return mips_env_mmu_index(cpu_env(cs));
+}
+
 static const TCGCPUOps mips_tcg_ops = {
+    .mttcg_supported = TARGET_LONG_BITS == 32,
+    .guest_default_memory_order = 0,
+
     .initialize = mips_tcg_init,
     .translate_code = mips_translate_code,
     .synchronize_from_tb = mips_cpu_synchronize_from_tb,
     .restore_state_to_opc = mips_restore_state_to_opc,
+    .mmu_index = mips_cpu_mmu_index,
 
 #if !defined(CONFIG_USER_ONLY)
     .tlb_fill = mips_cpu_tlb_fill,
@@ -580,7 +586,6 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
                                        &mcc->parent_phases);
 
     cc->class_by_name = mips_cpu_class_by_name;
-    cc->mmu_index = mips_cpu_mmu_index;
     cc->dump_state = mips_cpu_dump_state;
     cc->set_pc = mips_cpu_set_pc;
     cc->get_pc = mips_cpu_get_pc;

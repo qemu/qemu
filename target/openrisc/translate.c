@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "accel/tcg/cpu-mmu-index.h"
 #include "exec/exec-all.h"
 #include "tcg/tcg-op.h"
 #include "qemu/log.h"
@@ -27,7 +28,7 @@
 #include "qemu/qemu-print.h"
 #include "exec/translator.h"
 #include "exec/translation-block.h"
-
+#include "exec/target_page.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 

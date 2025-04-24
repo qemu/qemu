@@ -20,7 +20,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qapi/qapi-commands-misc-target.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "system/hw_accel.h"
 #include "system/reset.h"
 #include <sys/ioctl.h>

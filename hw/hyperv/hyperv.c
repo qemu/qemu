@@ -11,8 +11,8 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
-#include "exec/address-spaces.h"
-#include "exec/memory.h"
+#include "system/address-spaces.h"
+#include "system/memory.h"
 #include "system/kvm.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
@@ -24,7 +24,7 @@
 #include "qom/object.h"
 #include "target/i386/kvm/hyperv-proto.h"
 #include "target/i386/cpu.h"
-#include "exec/cpu-all.h"
+#include "exec/target_page.h"
 
 struct SynICState {
     DeviceState parent_obj;

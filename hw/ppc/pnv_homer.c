@@ -20,7 +20,7 @@
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "exec/hwaddr.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "system/cpus.h"
 #include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"

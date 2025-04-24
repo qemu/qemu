@@ -21,7 +21,10 @@
 #define HPPA_CPU_H
 
 #include "cpu-qom.h"
+#include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"
+#include "exec/cpu-interrupt.h"
+#include "system/memory.h"
 #include "qemu/cpu-float.h"
 #include "qemu/interval-tree.h"
 #include "hw/registerfields.h"
@@ -44,8 +47,6 @@
 
 #define PRIV_KERNEL       0
 #define PRIV_USER         3
-
-#define TARGET_INSN_START_EXTRA_WORDS 2
 
 /* No need to flush MMU_ABS*_IDX  */
 #define HPPA_MMU_FLUSH_MASK                             \
@@ -302,8 +303,6 @@ struct HPPACPUClass {
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;
 };
-
-#include "exec/cpu-all.h"
 
 static inline bool hppa_is_pa20(const CPUHPPAState *env)
 {

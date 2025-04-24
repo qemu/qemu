@@ -1,7 +1,7 @@
 #ifndef QEMU_FRAMEBUFFER_H
 #define QEMU_FRAMEBUFFER_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 
 /* Framebuffer device helper routines.  */
 

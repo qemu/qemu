@@ -13,7 +13,7 @@
 #ifndef MACFB_H
 #define MACFB_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/irq.h"
 #include "hw/nubus/nubus.h"
 #include "hw/sysbus.h"

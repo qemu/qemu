@@ -18,6 +18,7 @@
 
 #include "qemu/osdep.h"
 #include "qom/object.h"
+#include "exec/target_page.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"

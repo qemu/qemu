@@ -27,7 +27,7 @@
 #include "exec/exec-all.h"
 #include "exec/cputlb.h"
 #include "exec/tb-flush.h"
-#include "system/cpu-timers.h"
+#include "exec/icount.h"
 #include "qemu/guest-random.h"
 #include "qapi/error.h"
 #include <stdbool.h>

@@ -21,7 +21,7 @@
 #ifndef HW_VFIO_VFIO_COMMON_H
 #define HW_VFIO_VFIO_COMMON_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "qemu/queue.h"
 #include "qemu/notify.h"
 #include "ui/console.h"

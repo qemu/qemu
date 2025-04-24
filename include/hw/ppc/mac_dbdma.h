@@ -23,7 +23,7 @@
 #ifndef HW_MAC_DBDMA_H
 #define HW_MAC_DBDMA_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "qemu/iov.h"
 #include "system/dma.h"
 #include "hw/sysbus.h"

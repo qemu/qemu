@@ -13,7 +13,7 @@
 #include "hw/boards.h"
 #include "hw/arm/boot.h"
 #include "system/system.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 
 #include "hw/arm/nrf51_soc.h"
 #include "hw/i2c/microbit_i2c.h"

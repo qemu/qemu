@@ -28,7 +28,7 @@
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "qom/object.h"
 #include "qemu/error-report.h" /* for error_report() */
 #include "qemu/module.h"

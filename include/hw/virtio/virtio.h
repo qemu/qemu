@@ -14,7 +14,7 @@
 #ifndef QEMU_VIRTIO_H
 #define QEMU_VIRTIO_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/qdev-core.h"
 #include "net/net.h"
 #include "migration/vmstate.h"

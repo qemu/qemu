@@ -20,7 +20,7 @@
 #ifndef QEMU_RESERVED_REGION_H
 #define QEMU_RESERVED_REGION_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 
 /*
  * Insert a new region into a sorted list of reserved regions. In case

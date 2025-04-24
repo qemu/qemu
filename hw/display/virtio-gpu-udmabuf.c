@@ -19,7 +19,7 @@
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-gpu-pixman.h"
 #include "trace.h"
-#include "exec/ramblock.h"
+#include "system/ramblock.h"
 #include "system/hostmem.h"
 #include <sys/ioctl.h>
 #include <linux/memfd.h>

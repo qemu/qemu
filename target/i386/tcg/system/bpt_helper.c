@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
+#include "exec/watchpoint.h"
 #include "tcg/helper-tcg.h"
 
 

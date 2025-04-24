@@ -24,13 +24,14 @@
 
 #include "qemu/osdep.h"
 #include "disas/disas.h"
-#include "exec/address-spaces.h"
-#include "exec/memory.h"
+#include "system/address-spaces.h"
+#include "system/memory.h"
 #include "monitor/hmp-target.h"
 #include "monitor/monitor-internal.h"
 #include "qapi/error.h"
 #include "qobject/qdict.h"
 #include "system/hw_accel.h"
+#include "exec/target_page.h"
 
 /* Set the current CPU defined by the user. Callers must hold BQL. */
 int monitor_set_cpu(Monitor *mon, int cpu_index)

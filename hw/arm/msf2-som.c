@@ -33,7 +33,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/arm/boot.h"
 #include "hw/qdev-clock.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/arm/msf2-soc.h"
 
 #define DDR_BASE_ADDRESS      0xA0000000

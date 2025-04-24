@@ -10,7 +10,7 @@
 #ifndef HW_ACPI_TCO_H
 #define HW_ACPI_TCO_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "migration/vmstate.h"
 
 /* As per ICH9 spec, the internal timer has an error of ~0.6s on every tick */

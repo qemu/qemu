@@ -3118,18 +3118,18 @@ M: Peter Xu <peterx@redhat.com>
 M: David Hildenbrand <david@redhat.com>
 R: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Supported
-F: include/exec/ioport.h
+F: include/system/ioport.h
 F: include/exec/memop.h
-F: include/exec/memory.h
-F: include/exec/ram_addr.h
-F: include/exec/ramblock.h
+F: include/system/memory.h
+F: include/system/ram_addr.h
+F: include/system/ramblock.h
 F: include/system/memory_mapping.h
 F: system/dma-helpers.c
 F: system/ioport.c
 F: system/memory.c
 F: system/memory_mapping.c
 F: system/physmem.c
-F: include/exec/memory-internal.h
+F: system/memory-internal.h
 F: scripts/coccinelle/memory-region-housekeeping.cocci
 
 Memory devices

@@ -18,7 +18,7 @@
 #include "system/kvm_int.h"
 #include "hw/pci/pci.h"
 #include "exec/memattrs.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/boards.h"
 #include "hw/irq.h"
 #include "hw/loongarch/virt.h"

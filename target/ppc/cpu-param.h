@@ -33,11 +33,10 @@
 #ifdef CONFIG_USER_ONLY
 /* Allow user-only to vary page size from 4k */
 # define TARGET_PAGE_BITS_VARY
-# define TARGET_PAGE_BITS_MIN 12
 #else
 # define TARGET_PAGE_BITS 12
 #endif
 
-#define TCG_GUEST_DEFAULT_MO 0
+#define TARGET_INSN_START_EXTRA_WORDS 0
 
 #endif

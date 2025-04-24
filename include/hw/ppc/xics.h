@@ -28,7 +28,7 @@
 #ifndef XICS_H
 #define XICS_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 

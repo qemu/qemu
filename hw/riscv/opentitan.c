@@ -28,7 +28,7 @@
 #include "hw/riscv/boot.h"
 #include "qemu/units.h"
 #include "system/system.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 
 /*
  * This version of the OpenTitan machine currently supports

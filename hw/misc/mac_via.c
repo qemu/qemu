@@ -16,7 +16,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "migration/vmstate.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"

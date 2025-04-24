@@ -27,6 +27,7 @@
 #include "qemu/cutils.h"
 #include "qemu/timer.h"
 #include "system/cpu-timers.h"
+#include "exec/icount.h"
 #include "system/replay.h"
 #include "qemu/main-loop.h"
 #include "block/aio.h"

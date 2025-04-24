@@ -26,8 +26,8 @@
 #define HW_VGA_INT_H
 
 #include "ui/console.h"
-#include "exec/ioport.h"
-#include "exec/memory.h"
+#include "system/ioport.h"
+#include "system/memory.h"
 
 #include "hw/display/bochs-vbe.h"
 #include "hw/acpi/acpi_aml_interface.h"

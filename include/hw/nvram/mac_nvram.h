@@ -26,7 +26,7 @@
 #ifndef MAC_NVRAM_H
 #define MAC_NVRAM_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/sysbus.h"
 
 #define MACIO_NVRAM_SIZE 0x2000
