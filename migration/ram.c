@@ -91,6 +91,36 @@
 
 XBZRLECacheStats xbzrle_counters;
 
+/*
+ * This structure locates a specific location of a guest page.  In QEMU,
+ * it's described in a tuple of (ramblock, offset).
+ */
+struct PageLocation {
+    RAMBlock *block;
+    unsigned long offset;
+};
+typedef struct PageLocation PageLocation;
+
+/**
+ * PageLocationHint: describes a hint to a page location
+ *
+ * @valid     set if the hint is vaild and to be consumed
+ * @location: the hint content
+ *
+ * In postcopy preempt mode, the urgent channel may provide hints to the
+ * background channel, so that QEMU source can try to migrate whatever is
+ * right after the requested urgent pages.
+ *
+ * This is based on the assumption that the VM (already running on the
+ * destination side) tends to access the memory with spatial locality.
+ * This is also the default behavior of vanilla postcopy (preempt off).
+ */
+struct PageLocationHint {
+    bool valid;
+    PageLocation location;
+};
+typedef struct PageLocationHint PageLocationHint;
+
 /* used by the search for pages to send */
 struct PageSearchStatus {
     /* The migration channel used for a specific host page */
@@ -395,6 +425,13 @@ struct RAMState {
      * RAM migration.
      */
     unsigned int postcopy_bmap_sync_requested;
+    /*
+     * Page hint during postcopy when preempt mode is on.  Return path
+     * thread sets it, while background migration thread consumes it.
+     *
+     * Protected by @bitmap_mutex.
+     */
+    PageLocationHint page_hint;
 };
 typedef struct RAMState RAMState;
 
@@ -2019,6 +2056,21 @@ static void pss_host_page_finish(PageSearchStatus *pss)
     pss->host_page_start = pss->host_page_end = 0;
 }
 
+static void ram_page_hint_update(RAMState *rs, PageSearchStatus *pss)
+{
+    PageLocationHint *hint = &rs->page_hint;
+
+    /* If there's a pending hint not consumed, don't bother */
+    if (hint->valid) {
+        return;
+    }
+
+    /* Provide a hint to the background stream otherwise */
+    hint->location.block = pss->block;
+    hint->location.offset = pss->page;
+    hint->valid = true;
+}
+
 /*
  * Send an urgent host page specified by `pss'.  Need to be called with
  * bitmap_mutex held.
@@ -2064,6 +2116,7 @@ out:
     /* For urgent requests, flush immediately if sent */
     if (sent) {
         qemu_fflush(pss->pss_channel);
+        ram_page_hint_update(rs, pss);
     }
     return ret;
 }
@@ -2151,6 +2204,30 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss)
     return (res < 0 ? res : pages);
 }
 
+static bool ram_page_hint_valid(RAMState *rs)
+{
+    /* There's only page hint during postcopy preempt mode */
+    if (!postcopy_preempt_active()) {
+        return false;
+    }
+
+    return rs->page_hint.valid;
+}
+
+static void ram_page_hint_collect(RAMState *rs, RAMBlock **block,
+                                  unsigned long *page)
+{
+    PageLocationHint *hint = &rs->page_hint;
+
+    assert(hint->valid);
+
+    *block = hint->location.block;
+    *page = hint->location.offset;
+
+    /* Mark the hint consumed */
+    hint->valid = false;
+}
+
 /**
  * ram_find_and_save_block: finds a dirty page and sends it to f
  *
@@ -2167,6 +2244,8 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss)
 static int ram_find_and_save_block(RAMState *rs)
 {
     PageSearchStatus *pss = &rs->pss[RAM_CHANNEL_PRECOPY];
+    unsigned long next_page;
+    RAMBlock *next_block;
     int pages = 0;
 
     /* No dirty page as there is zero RAM */
@@ -2186,7 +2265,14 @@ static int ram_find_and_save_block(RAMState *rs)
         rs->last_page = 0;
     }
 
-    pss_init(pss, rs->last_seen_block, rs->last_page);
+    if (ram_page_hint_valid(rs)) {
+        ram_page_hint_collect(rs, &next_block, &next_page);
+    } else {
+        next_block = rs->last_seen_block;
+        next_page = rs->last_page;
+    }
+
+    pss_init(pss, next_block, next_page);
 
     while (true){
         if (!get_queued_page(rs, pss)) {
@@ -2319,6 +2405,13 @@ static void ram_save_cleanup(void *opaque)
     ram_state_cleanup(rsp);
 }
 
+static void ram_page_hint_reset(PageLocationHint *hint)
+{
+    hint->location.block = NULL;
+    hint->location.offset = 0;
+    hint->valid = false;
+}
+
 static void ram_state_reset(RAMState *rs)
 {
     int i;
@@ -2331,6 +2424,8 @@ static void ram_state_reset(RAMState *rs)
     rs->last_page = 0;
     rs->last_version = ram_list.version;
     rs->xbzrle_started = false;
+
+    ram_page_hint_reset(&rs->page_hint);
 }
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
