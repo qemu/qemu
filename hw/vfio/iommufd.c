@@ -416,6 +416,7 @@ static void iommufd_cdev_container_destroy(VFIOIOMMUFDContainer *container)
     if (!QLIST_EMPTY(&bcontainer->device_list)) {
         return;
     }
+    vfio_cpr_unregister_container(bcontainer);
     vfio_listener_unregister(bcontainer);
     iommufd_backend_free_id(container->be, container->ioas_id);
     object_unref(container);
@@ -561,6 +562,10 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
         goto err_listener_register;
     }
 
+    if (!vfio_cpr_register_container(bcontainer, errp)) {
+        goto err_listener_register;
+    }
+
     bcontainer->initialized = true;
 
 found_container:
@@ -570,13 +575,9 @@ found_container:
         goto err_listener_register;
     }
 
-    if (!vfio_cpr_register_container(bcontainer, errp)) {
-        goto err_listener_register;
-    }
-
     if (!vfio_device_hiod_create_and_realize(vbasedev,
                      TYPE_HOST_IOMMU_DEVICE_IOMMUFD_VFIO, errp)) {
-        goto err_hiod_realize;
+        goto err_listener_register;
     }
 
     /*
@@ -600,8 +601,6 @@ found_container:
                                    vbasedev->num_regions, vbasedev->flags);
     return true;
 
-err_hiod_realize:
-    vfio_cpr_unregister_container(bcontainer);
 err_listener_register:
     iommufd_cdev_ram_block_discard_disable(false);
 err_discard_disable:
@@ -632,7 +631,6 @@ static void iommufd_cdev_detach(VFIODevice *vbasedev)
     }
 
     object_unref(vbasedev->hiod);
-    vfio_cpr_unregister_container(bcontainer);
     iommufd_cdev_detach_container(vbasedev, container);
     iommufd_cdev_container_destroy(container);
     vfio_address_space_put(space);
