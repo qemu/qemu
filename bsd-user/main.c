@@ -36,7 +36,6 @@
 #include "qemu/help_option.h"
 #include "qemu/module.h"
 #include "qemu/plugin.h"
-#include "exec/exec-all.h"
 #include "user/guest-base.h"
 #include "user/page-protection.h"
 #include "tcg/startup.h"

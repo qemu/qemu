@@ -22,7 +22,6 @@
 #include "cpu.h"
 #include "internal.h"
 #include "exec/helper-proto.h"
-#include "exec/exec-all.h"
 #include "exec/memop.h"
 #include "fpu_helper.h"
 

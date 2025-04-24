@@ -21,7 +21,6 @@
 #include "qemu/log.h"
 #include "cpu.h"
 #include "fpu/softfloat.h"
-#include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "qemu/qemu-print.h"
 #include "hw/hppa/hppa_hardware.h"

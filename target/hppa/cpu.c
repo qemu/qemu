@@ -24,7 +24,6 @@
 #include "qemu/timer.h"
 #include "cpu.h"
 #include "qemu/module.h"
-#include "exec/exec-all.h"
 #include "exec/translation-block.h"
 #include "exec/target_page.h"
 #include "fpu/softfloat.h"

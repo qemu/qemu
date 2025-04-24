@@ -26,7 +26,6 @@
 #include "crypto/aes-round.h"
 #include "crypto/sm4.h"
 #include "exec/memop.h"
-#include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "internals.h"
 #include "vector_internals.h"

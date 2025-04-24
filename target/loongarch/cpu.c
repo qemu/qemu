@@ -15,7 +15,6 @@
 #include "system/kvm.h"
 #include "kvm/kvm_loongarch.h"
 #include "hw/qdev-properties.h"
-#include "exec/exec-all.h"
 #include "exec/translation-block.h"
 #include "cpu.h"
 #include "internals.h"

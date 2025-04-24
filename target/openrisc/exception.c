@@ -19,7 +19,6 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "exec/exec-all.h"
 #include "exception.h"
 
 G_NORETURN void raise_exception(OpenRISCCPU *cpu, uint32_t excp)

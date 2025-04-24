@@ -26,7 +26,6 @@
 #include "qemu/host-utils.h"
 #include "qemu/module.h"
 #include "qom/object.h"
-#include "exec/exec-all.h"
 #include "trace.h"
 
 #include "riscv-iommu.h"

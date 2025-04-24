@@ -19,7 +19,6 @@
 #include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "internal.h"
-#include "exec/exec-all.h"
 #include "exec/translation-block.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"

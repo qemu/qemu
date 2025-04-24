@@ -21,7 +21,6 @@
 
 #include "trace.h"
 #include "disas/disas.h"
-#include "exec/exec-all.h"
 #include "tcg/tcg.h"
 #if defined(CONFIG_USER_ONLY)
 #include "qemu.h"

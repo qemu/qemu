@@ -18,7 +18,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "exec/exec-all.h"
 #include "exec/translation-block.h"
 #include "tcg-cpu.h"
 #include "cpu.h"

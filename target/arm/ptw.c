@@ -10,7 +10,6 @@
 #include "qemu/log.h"
 #include "qemu/range.h"
 #include "qemu/main-loop.h"
-#include "exec/exec-all.h"
 #include "exec/page-protection.h"
 #include "exec/target_page.h"
 #include "exec/tlb-flags.h"

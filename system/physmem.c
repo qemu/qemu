@@ -32,7 +32,6 @@
 #include "accel/tcg/iommu.h"
 #endif /* CONFIG_TCG */
 
-#include "exec/exec-all.h"
 #include "exec/cputlb.h"
 #include "exec/page-protection.h"
 #include "exec/target_page.h"

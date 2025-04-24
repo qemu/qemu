@@ -13,7 +13,6 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "helper_regs.h"
-#include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"

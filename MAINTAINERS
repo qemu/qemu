@@ -493,7 +493,6 @@ M: Richard Henderson <richard.henderson@linaro.org>
 R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: include/exec/cpu*.h
-F: include/exec/exec-all.h
 F: include/exec/target_long.h
 F: include/qemu/accel.h
 F: include/system/accel-*.h

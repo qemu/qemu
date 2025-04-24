@@ -40,7 +40,6 @@
 #include "qemu/plugin.h"
 #include "user/guest-base.h"
 #include "user/page-protection.h"
-#include "exec/exec-all.h"
 #include "exec/gdbstub.h"
 #include "gdbstub/user.h"
 #include "tcg/startup.h"

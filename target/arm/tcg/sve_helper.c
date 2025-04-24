@@ -20,7 +20,6 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "internals.h"
-#include "exec/exec-all.h"
 #include "exec/page-protection.h"
 #include "exec/helper-proto.h"
 #include "exec/target_page.h"

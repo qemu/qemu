@@ -20,7 +20,6 @@
 #include "qemu/bitops.h"
 #include "qemu/qemu-print.h"
 #include "exec/cputlb.h"
-#include "exec/exec-all.h"
 #include "exec/translation-block.h"
 #include "hw/irq.h"
 #include "system/cpu-timers.h"

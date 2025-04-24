@@ -11,7 +11,6 @@
 #include "cpu.h"
 #include "kvm/kvm_s390x.h"
 #include "s390x-internal.h"
-#include "exec/exec-all.h"
 #include "system/kvm.h"
 #include "system/tcg.h"
 #include "hw/s390x/ioinst.h"
