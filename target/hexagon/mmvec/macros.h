@@ -22,6 +22,7 @@
 #include "arch.h"
 #include "mmvec/system_ext_mmvec.h"
 #include "accel/tcg/getpc.h"
+#include "accel/tcg/probe.h"
 
 #ifndef QEMU_GENERATE
 #define VdV      (*(MMVector *restrict)(VdV_void))

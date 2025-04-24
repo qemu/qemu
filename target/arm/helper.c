@@ -30,6 +30,7 @@
 #include "qapi/error.h"
 #include "qemu/guest-random.h"
 #ifdef CONFIG_TCG
+#include "accel/tcg/probe.h"
 #include "semihosting/common-semi.h"
 #endif
 #include "cpregs.h"
