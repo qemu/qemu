@@ -26,7 +26,6 @@
 #include "exec/vaddr.h"
 
 #if defined(CONFIG_TCG)
-#include "accel/tcg/getpc.h"
 
 /**
  * probe_access:

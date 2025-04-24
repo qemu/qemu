@@ -13,4 +13,6 @@
 #include "exec/helper-proto.h.inc"
 #undef  HELPER_H
 
+#include "accel/tcg/getpc.h"
+
 #endif /* HELPER_PROTO_COMMON_H */
