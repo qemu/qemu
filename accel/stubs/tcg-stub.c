@@ -11,8 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "exec/tb-flush.h"
-#include "exec/exec-all.h"
+#include "exec/cpu-common.h"
 
 G_NORETURN void cpu_loop_exit(CPUState *cpu)
 {
