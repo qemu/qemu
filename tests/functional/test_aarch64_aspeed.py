@@ -25,6 +25,18 @@ class AST2x00MachineSDK(QemuSystemTest):
 
         self.vm.launch()
 
+    def verify_vbootrom_firmware_flow(self):
+        wait_for_console_pattern(self, 'Found valid FIT image')
+        wait_for_console_pattern(self, '[uboot] loading')
+        wait_for_console_pattern(self, 'done')
+        wait_for_console_pattern(self, '[fdt] loading')
+        wait_for_console_pattern(self, 'done')
+        wait_for_console_pattern(self, '[tee] loading')
+        wait_for_console_pattern(self, 'done')
+        wait_for_console_pattern(self, '[atf] loading')
+        wait_for_console_pattern(self, 'done')
+        wait_for_console_pattern(self, 'Jumping to BL31 (Trusted Firmware-A)')
+
     def verify_openbmc_boot_and_login(self, name):
         wait_for_console_pattern(self, 'U-Boot 2023.10')
         wait_for_console_pattern(self, '## Loading kernel from FIT Image')
@@ -94,6 +106,11 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.do_test_aarch64_aspeed_sdk_start(
             self.scratch_file(name, 'image-bmc'))
 
+    def start_ast2700_test_vbootrom(self, name):
+        self.vm.add_args('-bios', 'ast27x0_bootrom.bin')
+        self.do_test_aarch64_aspeed_sdk_start(
+                self.scratch_file(name, 'image-bmc'))
+
     def test_aarch64_ast2700_evb_sdk_v09_06(self):
         self.set_machine('ast2700-evb')
 
@@ -107,6 +124,15 @@ class AST2x00MachineSDK(QemuSystemTest):
 
         self.archive_extract(self.ASSET_SDK_V906_AST2700A1)
         self.start_ast2700_test('ast2700-default')
+        self.verify_openbmc_boot_and_login('ast2700-default')
+        self.do_ast2700_i2c_test()
+
+    def test_aarch64_ast2700a1_evb_sdk_vbootrom_v09_06(self):
+        self.set_machine('ast2700a1-evb')
+
+        self.archive_extract(self.ASSET_SDK_V906_AST2700A1)
+        self.start_ast2700_test_vbootrom('ast2700-default')
+        self.verify_vbootrom_firmware_flow()
         self.verify_openbmc_boot_and_login('ast2700-default')
         self.do_ast2700_i2c_test()
 
