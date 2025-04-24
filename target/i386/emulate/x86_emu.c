@@ -474,10 +474,10 @@ static inline void string_rep(CPUX86State *env, struct x86_decode *decode,
     while (rcx--) {
         func(env, decode);
         write_reg(env, R_ECX, rcx, decode->addressing_size);
-        if ((PREFIX_REP == rep) && !env->lflags.result) {
+        if ((PREFIX_REP == rep) && !env->cc_dst) {
             break;
         }
-        if ((PREFIX_REPN == rep) && env->lflags.result) {
+        if ((PREFIX_REPN == rep) && env->cc_dst) {
             break;
         }
     }
