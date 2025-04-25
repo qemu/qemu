@@ -210,6 +210,7 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 #define ARITH_UDIVX (INSN_OP(2) | INSN_OP3(0x0d))
 #define ARITH_SDIVX (INSN_OP(2) | INSN_OP3(0x2d))
 #define ARITH_MOVCC (INSN_OP(2) | INSN_OP3(0x2c))
+#define ARITH_POPC (INSN_OP(2) | INSN_OP3(0x2e))
 #define ARITH_MOVR (INSN_OP(2) | INSN_OP3(0x2f))
 
 #define ARITH_ADDXC (INSN_OP(2) | INSN_OP3(0x36) | INSN_OPF(0x11))
@@ -274,6 +275,7 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 #define STW_LE     (STWA  | INSN_ASI(ASI_PRIMARY_LITTLE))
 #define STX_LE     (STXA  | INSN_ASI(ASI_PRIMARY_LITTLE))
 
+static bool use_popc_instructions;
 #if defined(__VIS__) && __VIS__ >= 0x300
 #define use_vis3_instructions  1
 #else
@@ -1511,8 +1513,23 @@ static const TCGOutOpBinary outop_clz = {
     .base.static_constraint = C_NotImplemented,
 };
 
+static void tgen_ctpop(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
+{
+    tcg_out_arith(s, a0, TCG_REG_G0, a1, ARITH_POPC);
+}
+
+static TCGConstraintSetIndex cset_ctpop(TCGType type, unsigned flags)
+{
+    if (use_popc_instructions && type == TCG_TYPE_I64) {
+        return C_O1_I1(r, r);
+    }
+    return C_NotImplemented;
+}
+
 static const TCGOutOpUnary outop_ctpop = {
-    .base.static_constraint = C_NotImplemented,
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_ctpop,
+    .out_rr = tgen_ctpop,
 };
 
 static const TCGOutOpBinary outop_ctz = {
@@ -2084,15 +2101,15 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 
 static void tcg_target_init(TCGContext *s)
 {
+    unsigned long hwcap = qemu_getauxval(AT_HWCAP);
+
     /*
      * Only probe for the platform and capabilities if we haven't already
      * determined maximum values at compile time.
      */
+    use_popc_instructions = (hwcap & HWCAP_SPARC_POPC) != 0;
 #ifndef use_vis3_instructions
-    {
-        unsigned long hwcap = qemu_getauxval(AT_HWCAP);
-        use_vis3_instructions = (hwcap & HWCAP_SPARC_VIS3) != 0;
-    }
+    use_vis3_instructions = (hwcap & HWCAP_SPARC_VIS3) != 0;
 #endif
 
     tcg_target_available_regs[TCG_TYPE_I32] = ALL_GENERAL_REGS;
