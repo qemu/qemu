@@ -3206,6 +3206,64 @@ static const TypeInfo riscv_cpu_type_infos[] = {
         .cfg.max_satp_mode = VM_1_10_SV39,
     ),
 
+    DEFINE_RISCV_CPU(TYPE_RISCV_CPU_XIANGSHAN_KMH, TYPE_RISCV_VENDOR_CPU,
+        .misa_mxl_max = MXL_RV64,
+        .misa_ext = RVG | RVC | RVB | RVS | RVU | RVH | RVV,
+        .priv_spec = PRIV_VERSION_1_13_0,
+    /*
+     * The RISC-V Instruction Set Manual: Volume I
+     * Unprivileged Architecture
+     */
+    .cfg.ext_zicntr = true,
+    .cfg.ext_zihpm = true,
+    .cfg.ext_zihintntl = true,
+    .cfg.ext_zihintpause = true,
+    .cfg.ext_zimop = true,
+    .cfg.ext_zcmop = true,
+    .cfg.ext_zicond = true,
+    .cfg.ext_zawrs = true,
+    .cfg.ext_zacas = true,
+    .cfg.ext_zfh = true,
+    .cfg.ext_zfa = true,
+    .cfg.ext_zcb = true,
+    .cfg.ext_zbc = true,
+    .cfg.ext_zvfh = true,
+    .cfg.ext_zkn = true,
+    .cfg.ext_zks = true,
+    .cfg.ext_zkt = true,
+    .cfg.ext_zvbb = true,
+    .cfg.ext_zvkt = true,
+    /*
+     * The RISC-V Instruction Set Manual: Volume II
+     * Privileged Architecture
+     */
+    .cfg.ext_smstateen = true,
+    .cfg.ext_smcsrind = true,
+    .cfg.ext_sscsrind = true,
+    .cfg.ext_svnapot = true,
+    .cfg.ext_svpbmt = true,
+    .cfg.ext_svinval = true,
+    .cfg.ext_sstc = true,
+    .cfg.ext_sscofpmf = true,
+    .cfg.ext_ssdbltrp = true,
+    .cfg.ext_ssnpm = true,
+    .cfg.ext_smnpm = true,
+    .cfg.ext_smmpm = true,
+    .cfg.ext_sspm = true,
+    .cfg.ext_supm = true,
+    /* The RISC-V Advanced Interrupt Architecture */
+    .cfg.ext_smaia = true,
+    .cfg.ext_ssaia = true,
+    /* RVA23 Profiles */
+    .cfg.ext_zicbom = true,
+    .cfg.ext_zicbop = true,
+    .cfg.ext_zicboz = true,
+    .cfg.ext_svade = true,
+        .cfg.mmu = true,
+        .cfg.pmp = true,
+        .cfg.max_satp_mode = VM_1_10_SV48,
+    ),
+
 #if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
     DEFINE_RISCV_CPU(TYPE_RISCV_CPU_BASE128, TYPE_RISCV_DYNAMIC_CPU,
         .cfg.max_satp_mode = VM_1_10_SV57,
