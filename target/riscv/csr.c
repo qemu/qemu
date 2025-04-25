@@ -5574,15 +5574,15 @@ RISCVException riscv_csrr(CPURISCVState *env, int csrno,
 }
 
 RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
-                           target_ulong *ret_value,
-                           target_ulong new_value, target_ulong write_mask)
+                           target_ulong *ret_value, target_ulong new_value,
+                           target_ulong write_mask, uintptr_t ra)
 {
     RISCVException ret = riscv_csrrw_check(env, csrno, true);
     if (ret != RISCV_EXCP_NONE) {
         return ret;
     }
 
-    return riscv_csrrw_do64(env, csrno, ret_value, new_value, write_mask, 0);
+    return riscv_csrrw_do64(env, csrno, ret_value, new_value, write_mask, ra);
 }
 
 static RISCVException riscv_csrrw_do128(CPURISCVState *env, int csrno,
@@ -5704,7 +5704,7 @@ RISCVException riscv_csrrw_debug(CPURISCVState *env, int csrno,
     if (!write_mask) {
         ret = riscv_csrr(env, csrno, ret_value);
     } else {
-        ret = riscv_csrrw(env, csrno, ret_value, new_value, write_mask);
+        ret = riscv_csrrw(env, csrno, ret_value, new_value, write_mask, 0);
     }
 #if !defined(CONFIG_USER_ONLY)
     env->debugger = false;
