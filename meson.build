@@ -2463,7 +2463,17 @@ config_host_data.set('CONFIG_FSTRIM', qga_fstrim)
 # has_header
 config_host_data.set('CONFIG_EPOLL', cc.has_header('sys/epoll.h'))
 config_host_data.set('CONFIG_LINUX_MAGIC_H', cc.has_header('linux/magic.h'))
-config_host_data.set('CONFIG_VALGRIND_H', cc.has_header('valgrind/valgrind.h'))
+valgrind = false
+if get_option('valgrind').allowed()
+    if cc.has_header('valgrind/valgrind.h')
+        valgrind = true
+    else
+        if get_option('valgrind').enabled()
+            error('valgrind requested but valgrind.h not found')
+        endif
+    endif
+endif
+config_host_data.set('CONFIG_VALGRIND_H', valgrind)
 config_host_data.set('HAVE_BTRFS_H', cc.has_header('linux/btrfs.h'))
 config_host_data.set('HAVE_DRM_H', cc.has_header('libdrm/drm.h'))
 config_host_data.set('HAVE_PTY_H', cc.has_header('pty.h'))
@@ -4549,6 +4559,7 @@ summary_info += {'libdw':             libdw}
 if host_os == 'freebsd'
   summary_info += {'libinotify-kqueue': inotify}
 endif
+summary_info += {'valgrind':          valgrind}
 summary(summary_info, bool_yn: true, section: 'Dependencies')
 
 if host_arch == 'unknown'
