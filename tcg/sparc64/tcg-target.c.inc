@@ -274,8 +274,10 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 #define STW_LE     (STWA  | INSN_ASI(ASI_PRIMARY_LITTLE))
 #define STX_LE     (STXA  | INSN_ASI(ASI_PRIMARY_LITTLE))
 
-#ifndef use_vis3_instructions
-bool use_vis3_instructions;
+#if defined(__VIS__) && __VIS__ >= 0x300
+#define use_vis3_instructions  1
+#else
+static bool use_vis3_instructions;
 #endif
 
 static bool check_fit_i64(int64_t val, unsigned int bits)
