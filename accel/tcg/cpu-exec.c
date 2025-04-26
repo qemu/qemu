@@ -732,10 +732,10 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
      * If user mode only, we simulate a fake exception which will be
      * handled outside the cpu execution loop.
      */
-#if defined(TARGET_I386)
     const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
-    tcg_ops->fake_user_interrupt(cpu);
-#endif /* TARGET_I386 */
+    if (tcg_ops->fake_user_interrupt) {
+        tcg_ops->fake_user_interrupt(cpu);
+    }
     *ret = cpu->exception_index;
     cpu->exception_index = -1;
     return true;
