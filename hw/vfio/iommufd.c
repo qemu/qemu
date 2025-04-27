@@ -15,7 +15,7 @@
 #include <linux/vfio.h>
 #include <linux/iommufd.h>
 
-#include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-device.h"
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "qapi/error.h"
@@ -25,6 +25,13 @@
 #include "qemu/cutils.h"
 #include "qemu/chardev_open.h"
 #include "pci.h"
+#include "vfio-iommufd.h"
+#include "vfio-helpers.h"
+#include "vfio-cpr.h"
+#include "vfio-listener.h"
+
+#define TYPE_HOST_IOMMU_DEVICE_IOMMUFD_VFIO             \
+            TYPE_HOST_IOMMU_DEVICE_IOMMUFD "-vfio"
 
 static int iommufd_cdev_map(const VFIOContainerBase *bcontainer, hwaddr iova,
                             ram_addr_t size, void *vaddr, bool readonly)
@@ -280,7 +287,8 @@ static bool iommufd_cdev_autodomains_get(VFIODevice *vbasedev,
 {
     ERRP_GUARD();
     IOMMUFDBackend *iommufd = vbasedev->iommufd;
-    uint32_t flags = 0;
+    uint32_t type, flags = 0;
+    uint64_t hw_caps;
     VFIOIOASHwpt *hwpt;
     uint32_t hwpt_id;
     int ret;
@@ -317,7 +325,12 @@ static bool iommufd_cdev_autodomains_get(VFIODevice *vbasedev,
      * vfio_migration_realize() may decide to use VF dirty tracking
      * instead.
      */
-    if (vbasedev->hiod->caps.hw_caps & IOMMU_HW_CAP_DIRTY_TRACKING) {
+    if (!iommufd_backend_get_device_info(vbasedev->iommufd, vbasedev->devid,
+                                         &type, NULL, 0, &hw_caps, errp)) {
+        return false;
+    }
+
+    if (hw_caps & IOMMU_HW_CAP_DIRTY_TRACKING) {
         flags = IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
     }
 
@@ -403,7 +416,8 @@ static void iommufd_cdev_container_destroy(VFIOIOMMUFDContainer *container)
     if (!QLIST_EMPTY(&bcontainer->device_list)) {
         return;
     }
-    memory_listener_unregister(&bcontainer->listener);
+    vfio_cpr_unregister_container(bcontainer);
+    vfio_listener_unregister(bcontainer);
     iommufd_backend_free_id(container->be, container->ioas_id);
     object_unref(container);
 }
@@ -485,18 +499,7 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
         goto err_connect_bind;
     }
 
-    space = vfio_get_address_space(as);
-
-    /*
-     * The HostIOMMUDevice data from legacy backend is static and doesn't need
-     * any information from the (type1-iommu) backend to be initialized. In
-     * contrast however, the IOMMUFD HostIOMMUDevice data requires the iommufd
-     * FD to be connected and having a devid to be able to successfully call
-     * iommufd_backend_get_device_info().
-     */
-    if (!vfio_device_hiod_realize(vbasedev, errp)) {
-        goto err_alloc_ioas;
-    }
+    space = vfio_address_space_get(as);
 
     /* try to attach to an existing container in this space */
     QLIST_FOREACH(bcontainer, &space->containers, next) {
@@ -555,12 +558,11 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
         bcontainer->pgsizes = qemu_real_host_page_size();
     }
 
-    bcontainer->listener = vfio_memory_listener;
-    memory_listener_register(&bcontainer->listener, bcontainer->space->as);
+    if (!vfio_listener_register(bcontainer, errp)) {
+        goto err_listener_register;
+    }
 
-    if (bcontainer->error) {
-        error_propagate_prepend(errp, bcontainer->error,
-                                "memory listener initialization failed: ");
+    if (!vfio_cpr_register_container(bcontainer, errp)) {
         goto err_listener_register;
     }
 
@@ -573,7 +575,8 @@ found_container:
         goto err_listener_register;
     }
 
-    if (!vfio_cpr_register_container(bcontainer, errp)) {
+    if (!vfio_device_hiod_create_and_realize(vbasedev,
+                     TYPE_HOST_IOMMU_DEVICE_IOMMUFD_VFIO, errp)) {
         goto err_listener_register;
     }
 
@@ -605,7 +608,7 @@ err_discard_disable:
 err_attach_container:
     iommufd_cdev_container_destroy(container);
 err_alloc_ioas:
-    vfio_put_address_space(space);
+    vfio_address_space_put(space);
     iommufd_cdev_unbind_and_disconnect(vbasedev);
 err_connect_bind:
     close(vbasedev->fd);
@@ -627,10 +630,10 @@ static void iommufd_cdev_detach(VFIODevice *vbasedev)
         iommufd_cdev_ram_block_discard_disable(false);
     }
 
-    vfio_cpr_unregister_container(bcontainer);
+    object_unref(vbasedev->hiod);
     iommufd_cdev_detach_container(vbasedev, container);
     iommufd_cdev_container_destroy(container);
-    vfio_put_address_space(space);
+    vfio_address_space_put(space);
 
     iommufd_cdev_unbind_and_disconnect(vbasedev);
     close(vbasedev->fd);
@@ -789,8 +792,6 @@ out_single:
 static void vfio_iommu_iommufd_class_init(ObjectClass *klass, void *data)
 {
     VFIOIOMMUClass *vioc = VFIO_IOMMU_CLASS(klass);
-
-    vioc->hiod_typename = TYPE_HOST_IOMMU_DEVICE_IOMMUFD_VFIO;
 
     vioc->dma_map = iommufd_cdev_map;
     vioc->dma_unmap = iommufd_cdev_unmap;

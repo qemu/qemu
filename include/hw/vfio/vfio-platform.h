@@ -17,7 +17,7 @@
 #define HW_VFIO_VFIO_PLATFORM_H
 
 #include "hw/sysbus.h"
-#include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-device.h"
 #include "qemu/event_notifier.h"
 #include "qemu/queue.h"
 #include "qom/object.h"
@@ -46,6 +46,8 @@ typedef struct VFIOINTp {
 
 /* function type for user side eventfd handler */
 typedef void (*eventfd_user_side_handler_t)(VFIOINTp *intp);
+
+typedef struct VFIORegion VFIORegion;
 
 struct VFIOPlatformDevice {
     SysBusDevice sbdev;

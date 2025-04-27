@@ -71,6 +71,11 @@ typedef struct VFIORamDiscardListener {
     QLIST_ENTRY(VFIORamDiscardListener) next;
 } VFIORamDiscardListener;
 
+VFIOAddressSpace *vfio_address_space_get(AddressSpace *as);
+void vfio_address_space_put(VFIOAddressSpace *space);
+void vfio_address_space_insert(VFIOAddressSpace *space,
+                               VFIOContainerBase *bcontainer);
+
 int vfio_container_dma_map(VFIOContainerBase *bcontainer,
                            hwaddr iova, ram_addr_t size,
                            void *vaddr, bool readonly);
@@ -84,8 +89,12 @@ void vfio_container_del_section_window(VFIOContainerBase *bcontainer,
                                        MemoryRegionSection *section);
 int vfio_container_set_dirty_page_tracking(VFIOContainerBase *bcontainer,
                                            bool start, Error **errp);
+bool vfio_container_dirty_tracking_is_started(
+    const VFIOContainerBase *bcontainer);
+bool vfio_container_devices_dirty_tracking_is_supported(
+    const VFIOContainerBase *bcontainer);
 int vfio_container_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
-                   VFIOBitmap *vbmap, hwaddr iova, hwaddr size, Error **errp);
+    uint64_t iova, uint64_t size, ram_addr_t ram_addr, Error **errp);
 
 GList *vfio_container_get_iova_ranges(const VFIOContainerBase *bcontainer);
 
@@ -105,9 +114,6 @@ OBJECT_DECLARE_TYPE(VFIOContainerBase, VFIOIOMMUClass, VFIO_IOMMU)
 
 struct VFIOIOMMUClass {
     ObjectClass parent_class;
-
-    /* Properties */
-    const char *hiod_typename;
 
     /* basic feature */
     bool (*setup)(VFIOContainerBase *bcontainer, Error **errp);
@@ -163,4 +169,5 @@ struct VFIOIOMMUClass {
                        MemoryRegionSection *section);
     void (*release)(VFIOContainerBase *bcontainer);
 };
+
 #endif /* HW_VFIO_VFIO_CONTAINER_BASE_H */

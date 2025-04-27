@@ -25,7 +25,7 @@
 #endif
 #include <linux/vfio.h>
 
-#include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-device.h"
 #include "hw/vfio/pci.h"
 #include "system/address-spaces.h"
 #include "system/memory.h"
@@ -40,160 +40,23 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "migration/misc.h"
-#include "migration/blocker.h"
 #include "migration/qemu-file.h"
 #include "system/tcg.h"
 #include "system/tpm.h"
-
-VFIODeviceList vfio_device_list =
-    QLIST_HEAD_INITIALIZER(vfio_device_list);
-static QLIST_HEAD(, VFIOAddressSpace) vfio_address_spaces =
-    QLIST_HEAD_INITIALIZER(vfio_address_spaces);
-
-#ifdef CONFIG_KVM
-/*
- * We have a single VFIO pseudo device per KVM VM.  Once created it lives
- * for the life of the VM.  Closing the file descriptor only drops our
- * reference to it and the device's reference to kvm.  Therefore once
- * initialized, this file descriptor is only released on QEMU exit and
- * we'll re-use it should another vfio device be attached before then.
- */
-int vfio_kvm_device_fd = -1;
-#endif
+#include "vfio-migration-internal.h"
+#include "vfio-helpers.h"
+#include "vfio-listener.h"
 
 /*
  * Device state interfaces
  */
 
-bool vfio_mig_active(void)
-{
-    VFIODevice *vbasedev;
-
-    if (QLIST_EMPTY(&vfio_device_list)) {
-        return false;
-    }
-
-    QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
-        if (vbasedev->migration_blocker) {
-            return false;
-        }
-    }
-    return true;
-}
-
-static Error *multiple_devices_migration_blocker;
-
-/*
- * Multiple devices migration is allowed only if all devices support P2P
- * migration. Single device migration is allowed regardless of P2P migration
- * support.
- */
-static bool vfio_multiple_devices_migration_is_supported(void)
-{
-    VFIODevice *vbasedev;
-    unsigned int device_num = 0;
-    bool all_support_p2p = true;
-
-    QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
-        if (vbasedev->migration) {
-            device_num++;
-
-            if (!(vbasedev->migration->mig_flags & VFIO_MIGRATION_P2P)) {
-                all_support_p2p = false;
-            }
-        }
-    }
-
-    return all_support_p2p || device_num <= 1;
-}
-
-int vfio_block_multiple_devices_migration(VFIODevice *vbasedev, Error **errp)
-{
-    if (vfio_multiple_devices_migration_is_supported()) {
-        return 0;
-    }
-
-    if (vbasedev->enable_migration == ON_OFF_AUTO_ON) {
-        error_setg(errp, "Multiple VFIO devices migration is supported only if "
-                         "all of them support P2P migration");
-        return -EINVAL;
-    }
-
-    if (multiple_devices_migration_blocker) {
-        return 0;
-    }
-
-    error_setg(&multiple_devices_migration_blocker,
-               "Multiple VFIO devices migration is supported only if all of "
-               "them support P2P migration");
-    return migrate_add_blocker_normal(&multiple_devices_migration_blocker,
-                                      errp);
-}
-
-void vfio_unblock_multiple_devices_migration(void)
-{
-    if (!multiple_devices_migration_blocker ||
-        !vfio_multiple_devices_migration_is_supported()) {
-        return;
-    }
-
-    migrate_del_blocker(&multiple_devices_migration_blocker);
-}
-
-bool vfio_viommu_preset(VFIODevice *vbasedev)
-{
-    return vbasedev->bcontainer->space->as != &address_space_memory;
-}
-
-static void vfio_set_migration_error(int ret)
-{
-    if (migration_is_running()) {
-        migration_file_set_error(ret, NULL);
-    }
-}
-
-bool vfio_device_state_is_running(VFIODevice *vbasedev)
-{
-    VFIOMigration *migration = vbasedev->migration;
-
-    return migration->device_state == VFIO_DEVICE_STATE_RUNNING ||
-           migration->device_state == VFIO_DEVICE_STATE_RUNNING_P2P;
-}
-
-bool vfio_device_state_is_precopy(VFIODevice *vbasedev)
-{
-    VFIOMigration *migration = vbasedev->migration;
-
-    return migration->device_state == VFIO_DEVICE_STATE_PRE_COPY ||
-           migration->device_state == VFIO_DEVICE_STATE_PRE_COPY_P2P;
-}
-
-static bool vfio_devices_all_device_dirty_tracking_started(
-    const VFIOContainerBase *bcontainer)
-{
-    VFIODevice *vbasedev;
-
-    QLIST_FOREACH(vbasedev, &bcontainer->device_list, container_next) {
-        if (!vbasedev->dirty_tracking) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-bool vfio_devices_all_dirty_tracking_started(
-    const VFIOContainerBase *bcontainer)
-{
-    return vfio_devices_all_device_dirty_tracking_started(bcontainer) ||
-           bcontainer->dirty_pages_started;
-}
 
 static bool vfio_log_sync_needed(const VFIOContainerBase *bcontainer)
 {
     VFIODevice *vbasedev;
 
-    if (!vfio_devices_all_dirty_tracking_started(bcontainer)) {
+    if (!vfio_container_dirty_tracking_is_started(bcontainer)) {
         return false;
     }
 
@@ -210,22 +73,6 @@ static bool vfio_log_sync_needed(const VFIOContainerBase *bcontainer)
             return false;
         }
     }
-    return true;
-}
-
-bool vfio_devices_all_device_dirty_tracking(const VFIOContainerBase *bcontainer)
-{
-    VFIODevice *vbasedev;
-
-    QLIST_FOREACH(vbasedev, &bcontainer->device_list, container_next) {
-        if (vbasedev->device_dirty_page_tracking == ON_OFF_AUTO_OFF) {
-            return false;
-        }
-        if (!vbasedev->dirty_pages_supported) {
-            return false;
-        }
-    }
-
     return true;
 }
 
@@ -287,9 +134,14 @@ static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
                                 iova, iova + iotlb->addr_mask);
 
     if (iotlb->target_as != &address_space_memory) {
-        error_report("Wrong target AS \"%s\", only system memory is allowed",
-                     iotlb->target_as->name ? iotlb->target_as->name : "none");
-        vfio_set_migration_error(-EINVAL);
+        error_setg(&local_err,
+                   "Wrong target AS \"%s\", only system memory is allowed",
+                   iotlb->target_as->name ? iotlb->target_as->name : "none");
+        if (migration_is_running()) {
+            migration_file_set_error(-EINVAL, local_err);
+        } else {
+            error_report_err(local_err);
+        }
         return;
     }
 
@@ -322,11 +174,16 @@ static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
         ret = vfio_container_dma_unmap(bcontainer, iova,
                                        iotlb->addr_mask + 1, iotlb);
         if (ret) {
-            error_report("vfio_container_dma_unmap(%p, 0x%"HWADDR_PRIx", "
-                         "0x%"HWADDR_PRIx") = %d (%s)",
-                         bcontainer, iova,
-                         iotlb->addr_mask + 1, ret, strerror(-ret));
-            vfio_set_migration_error(ret);
+            error_setg(&local_err,
+                       "vfio_container_dma_unmap(%p, 0x%"HWADDR_PRIx", "
+                       "0x%"HWADDR_PRIx") = %d (%s)",
+                       bcontainer, iova,
+                       iotlb->addr_mask + 1, ret, strerror(-ret));
+            if (migration_is_running()) {
+                migration_file_set_error(ret, local_err);
+            } else {
+                error_report_err(local_err);
+            }
         }
     }
 out:
@@ -386,7 +243,7 @@ static int vfio_ram_discard_notify_populate(RamDiscardListener *rdl,
     return 0;
 }
 
-static void vfio_register_ram_discard_listener(VFIOContainerBase *bcontainer,
+static void vfio_ram_discard_register_listener(VFIOContainerBase *bcontainer,
                                                MemoryRegionSection *section)
 {
     RamDiscardManager *rdm = memory_region_get_ram_discard_manager(section->mr);
@@ -461,7 +318,7 @@ static void vfio_register_ram_discard_listener(VFIOContainerBase *bcontainer,
     }
 }
 
-static void vfio_unregister_ram_discard_listener(VFIOContainerBase *bcontainer,
+static void vfio_ram_discard_unregister_listener(VFIOContainerBase *bcontainer,
                                                  MemoryRegionSection *section)
 {
     RamDiscardManager *rdm = memory_region_get_ram_discard_manager(section->mr);
@@ -648,7 +505,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
      * about changes.
      */
     if (memory_region_has_ram_discard_manager(section->mr)) {
-        vfio_register_ram_discard_listener(bcontainer, section);
+        vfio_ram_discard_register_listener(bcontainer, section);
         return;
     }
 
@@ -771,7 +628,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
         pgmask = (1ULL << ctz64(bcontainer->pgsizes)) - 1;
         try_unmap = !((iova & pgmask) || (int128_get64(llsize) & pgmask));
     } else if (memory_region_has_ram_discard_manager(section->mr)) {
-        vfio_unregister_ram_discard_listener(bcontainer, section);
+        vfio_ram_discard_unregister_listener(bcontainer, section);
         /* Unregistering will trigger an unmap. */
         try_unmap = false;
     }
@@ -1079,7 +936,7 @@ static bool vfio_listener_log_global_start(MemoryListener *listener,
                                                  listener);
     bool ret;
 
-    if (vfio_devices_all_device_dirty_tracking(bcontainer)) {
+    if (vfio_container_devices_dirty_tracking_is_supported(bcontainer)) {
         ret = vfio_devices_dma_logging_start(bcontainer, errp);
     } else {
         ret = vfio_container_set_dirty_page_tracking(bcontainer, true, errp) == 0;
@@ -1098,7 +955,7 @@ static void vfio_listener_log_global_stop(MemoryListener *listener)
     Error *local_err = NULL;
     int ret = 0;
 
-    if (vfio_devices_all_device_dirty_tracking(bcontainer)) {
+    if (vfio_container_devices_dirty_tracking_is_supported(bcontainer)) {
         vfio_devices_dma_logging_stop(bcontainer);
     } else {
         ret = vfio_container_set_dirty_page_tracking(bcontainer, false,
@@ -1108,102 +965,12 @@ static void vfio_listener_log_global_stop(MemoryListener *listener)
     if (ret) {
         error_prepend(&local_err,
                       "vfio: Could not stop dirty page tracking - ");
-        error_report_err(local_err);
-        vfio_set_migration_error(ret);
-    }
-}
-
-static int vfio_device_dma_logging_report(VFIODevice *vbasedev, hwaddr iova,
-                                          hwaddr size, void *bitmap)
-{
-    uint64_t buf[DIV_ROUND_UP(sizeof(struct vfio_device_feature) +
-                        sizeof(struct vfio_device_feature_dma_logging_report),
-                        sizeof(uint64_t))] = {};
-    struct vfio_device_feature *feature = (struct vfio_device_feature *)buf;
-    struct vfio_device_feature_dma_logging_report *report =
-        (struct vfio_device_feature_dma_logging_report *)feature->data;
-
-    report->iova = iova;
-    report->length = size;
-    report->page_size = qemu_real_host_page_size();
-    report->bitmap = (uintptr_t)bitmap;
-
-    feature->argsz = sizeof(buf);
-    feature->flags = VFIO_DEVICE_FEATURE_GET |
-                     VFIO_DEVICE_FEATURE_DMA_LOGGING_REPORT;
-
-    if (ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature)) {
-        return -errno;
-    }
-
-    return 0;
-}
-
-int vfio_devices_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
-                 VFIOBitmap *vbmap, hwaddr iova, hwaddr size, Error **errp)
-{
-    VFIODevice *vbasedev;
-    int ret;
-
-    QLIST_FOREACH(vbasedev, &bcontainer->device_list, container_next) {
-        ret = vfio_device_dma_logging_report(vbasedev, iova, size,
-                                             vbmap->bitmap);
-        if (ret) {
-            error_setg_errno(errp, -ret,
-                             "%s: Failed to get DMA logging report, iova: "
-                             "0x%" HWADDR_PRIx ", size: 0x%" HWADDR_PRIx,
-                             vbasedev->name, iova, size);
-
-            return ret;
+        if (migration_is_running()) {
+            migration_file_set_error(ret, local_err);
+        } else {
+            error_report_err(local_err);
         }
     }
-
-    return 0;
-}
-
-int vfio_get_dirty_bitmap(const VFIOContainerBase *bcontainer, uint64_t iova,
-                          uint64_t size, ram_addr_t ram_addr, Error **errp)
-{
-    bool all_device_dirty_tracking =
-        vfio_devices_all_device_dirty_tracking(bcontainer);
-    uint64_t dirty_pages;
-    VFIOBitmap vbmap;
-    int ret;
-
-    if (!bcontainer->dirty_pages_supported && !all_device_dirty_tracking) {
-        cpu_physical_memory_set_dirty_range(ram_addr, size,
-                                            tcg_enabled() ? DIRTY_CLIENTS_ALL :
-                                            DIRTY_CLIENTS_NOCODE);
-        return 0;
-    }
-
-    ret = vfio_bitmap_alloc(&vbmap, size);
-    if (ret) {
-        error_setg_errno(errp, -ret,
-                         "Failed to allocate dirty tracking bitmap");
-        return ret;
-    }
-
-    if (all_device_dirty_tracking) {
-        ret = vfio_devices_query_dirty_bitmap(bcontainer, &vbmap, iova, size,
-                                              errp);
-    } else {
-        ret = vfio_container_query_dirty_bitmap(bcontainer, &vbmap, iova, size,
-                                                errp);
-    }
-
-    if (ret) {
-        goto out;
-    }
-
-    dirty_pages = cpu_physical_memory_set_dirty_lebitmap(vbmap.bitmap, ram_addr,
-                                                         vbmap.pages);
-
-    trace_vfio_get_dirty_bitmap(iova, size, vbmap.size, ram_addr, dirty_pages);
-out:
-    g_free(vbmap.bitmap);
-
-    return ret;
 }
 
 typedef struct {
@@ -1225,25 +992,24 @@ static void vfio_iommu_map_dirty_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
     trace_vfio_iommu_map_dirty_notify(iova, iova + iotlb->addr_mask);
 
     if (iotlb->target_as != &address_space_memory) {
-        error_report("Wrong target AS \"%s\", only system memory is allowed",
-                     iotlb->target_as->name ? iotlb->target_as->name : "none");
+        error_setg(&local_err,
+                   "Wrong target AS \"%s\", only system memory is allowed",
+                   iotlb->target_as->name ? iotlb->target_as->name : "none");
         goto out;
     }
 
     rcu_read_lock();
     if (!vfio_get_xlat_addr(iotlb, NULL, &translated_addr, NULL, &local_err)) {
-        error_report_err(local_err);
         goto out_unlock;
     }
 
-    ret = vfio_get_dirty_bitmap(bcontainer, iova, iotlb->addr_mask + 1,
+    ret = vfio_container_query_dirty_bitmap(bcontainer, iova, iotlb->addr_mask + 1,
                                 translated_addr, &local_err);
     if (ret) {
         error_prepend(&local_err,
                       "vfio_iommu_map_dirty_notify(%p, 0x%"HWADDR_PRIx", "
                       "0x%"HWADDR_PRIx") failed - ", bcontainer, iova,
                       iotlb->addr_mask + 1);
-        error_report_err(local_err);
     }
 
 out_unlock:
@@ -1251,11 +1017,15 @@ out_unlock:
 
 out:
     if (ret) {
-        vfio_set_migration_error(ret);
+        if (migration_is_running()) {
+            migration_file_set_error(ret, local_err);
+        } else {
+            error_report_err(local_err);
+        }
     }
 }
 
-static int vfio_ram_discard_get_dirty_bitmap(MemoryRegionSection *section,
+static int vfio_ram_discard_query_dirty_bitmap(MemoryRegionSection *section,
                                              void *opaque)
 {
     const hwaddr size = int128_get64(section->size);
@@ -1270,7 +1040,7 @@ static int vfio_ram_discard_get_dirty_bitmap(MemoryRegionSection *section,
      * Sync the whole mapped region (spanning multiple individual mappings)
      * in one go.
      */
-    ret = vfio_get_dirty_bitmap(vrdl->bcontainer, iova, size, ram_addr,
+    ret = vfio_container_query_dirty_bitmap(vrdl->bcontainer, iova, size, ram_addr,
                                 &local_err);
     if (ret) {
         error_report_err(local_err);
@@ -1302,7 +1072,7 @@ vfio_sync_ram_discard_listener_dirty_bitmap(VFIOContainerBase *bcontainer,
      * which correspond to populated parts. Replay all populated parts.
      */
     return ram_discard_manager_replay_populated(rdm, section,
-                                              vfio_ram_discard_get_dirty_bitmap,
+                                                vfio_ram_discard_query_dirty_bitmap,
                                                 &vrdl);
 }
 
@@ -1364,7 +1134,7 @@ static int vfio_sync_dirty_bitmap(VFIOContainerBase *bcontainer,
     ram_addr = memory_region_get_ram_addr(section->mr) +
                section->offset_within_region;
 
-    return vfio_get_dirty_bitmap(bcontainer,
+    return vfio_container_query_dirty_bitmap(bcontainer,
                    REAL_HOST_PAGE_ALIGN(section->offset_within_address_space),
                                  int128_get64(section->size), ram_addr, errp);
 }
@@ -1384,13 +1154,16 @@ static void vfio_listener_log_sync(MemoryListener *listener,
     if (vfio_log_sync_needed(bcontainer)) {
         ret = vfio_sync_dirty_bitmap(bcontainer, section, &local_err);
         if (ret) {
-            error_report_err(local_err);
-            vfio_set_migration_error(ret);
+            if (migration_is_running()) {
+                migration_file_set_error(ret, local_err);
+            } else {
+                error_report_err(local_err);
+            }
         }
     }
 }
 
-const MemoryListener vfio_memory_listener = {
+static const MemoryListener vfio_memory_listener = {
     .name = "vfio",
     .region_add = vfio_listener_region_add,
     .region_del = vfio_listener_region_del,
@@ -1399,184 +1172,21 @@ const MemoryListener vfio_memory_listener = {
     .log_sync = vfio_listener_log_sync,
 };
 
-void vfio_reset_handler(void *opaque)
+bool vfio_listener_register(VFIOContainerBase *bcontainer, Error **errp)
 {
-    VFIODevice *vbasedev;
+    bcontainer->listener = vfio_memory_listener;
+    memory_listener_register(&bcontainer->listener, bcontainer->space->as);
 
-    trace_vfio_reset_handler();
-    QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
-        if (vbasedev->dev->realized) {
-            vbasedev->ops->vfio_compute_needs_reset(vbasedev);
-        }
-    }
-
-    QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
-        if (vbasedev->dev->realized && vbasedev->needs_reset) {
-            vbasedev->ops->vfio_hot_reset_multi(vbasedev);
-        }
-    }
-}
-
-int vfio_kvm_device_add_fd(int fd, Error **errp)
-{
-#ifdef CONFIG_KVM
-    struct kvm_device_attr attr = {
-        .group = KVM_DEV_VFIO_FILE,
-        .attr = KVM_DEV_VFIO_FILE_ADD,
-        .addr = (uint64_t)(unsigned long)&fd,
-    };
-
-    if (!kvm_enabled()) {
-        return 0;
-    }
-
-    if (vfio_kvm_device_fd < 0) {
-        struct kvm_create_device cd = {
-            .type = KVM_DEV_TYPE_VFIO,
-        };
-
-        if (kvm_vm_ioctl(kvm_state, KVM_CREATE_DEVICE, &cd)) {
-            error_setg_errno(errp, errno, "Failed to create KVM VFIO device");
-            return -errno;
-        }
-
-        vfio_kvm_device_fd = cd.fd;
-    }
-
-    if (ioctl(vfio_kvm_device_fd, KVM_SET_DEVICE_ATTR, &attr)) {
-        error_setg_errno(errp, errno, "Failed to add fd %d to KVM VFIO device",
-                         fd);
-        return -errno;
-    }
-#endif
-    return 0;
-}
-
-int vfio_kvm_device_del_fd(int fd, Error **errp)
-{
-#ifdef CONFIG_KVM
-    struct kvm_device_attr attr = {
-        .group = KVM_DEV_VFIO_FILE,
-        .attr = KVM_DEV_VFIO_FILE_DEL,
-        .addr = (uint64_t)(unsigned long)&fd,
-    };
-
-    if (vfio_kvm_device_fd < 0) {
-        error_setg(errp, "KVM VFIO device isn't created yet");
-        return -EINVAL;
-    }
-
-    if (ioctl(vfio_kvm_device_fd, KVM_SET_DEVICE_ATTR, &attr)) {
-        error_setg_errno(errp, errno,
-                         "Failed to remove fd %d from KVM VFIO device", fd);
-        return -errno;
-    }
-#endif
-    return 0;
-}
-
-VFIOAddressSpace *vfio_get_address_space(AddressSpace *as)
-{
-    VFIOAddressSpace *space;
-
-    QLIST_FOREACH(space, &vfio_address_spaces, list) {
-        if (space->as == as) {
-            return space;
-        }
-    }
-
-    /* No suitable VFIOAddressSpace, create a new one */
-    space = g_malloc0(sizeof(*space));
-    space->as = as;
-    QLIST_INIT(&space->containers);
-
-    if (QLIST_EMPTY(&vfio_address_spaces)) {
-        qemu_register_reset(vfio_reset_handler, NULL);
-    }
-
-    QLIST_INSERT_HEAD(&vfio_address_spaces, space, list);
-
-    return space;
-}
-
-void vfio_put_address_space(VFIOAddressSpace *space)
-{
-    if (!QLIST_EMPTY(&space->containers)) {
-        return;
-    }
-
-    QLIST_REMOVE(space, list);
-    g_free(space);
-
-    if (QLIST_EMPTY(&vfio_address_spaces)) {
-        qemu_unregister_reset(vfio_reset_handler, NULL);
-    }
-}
-
-void vfio_address_space_insert(VFIOAddressSpace *space,
-                               VFIOContainerBase *bcontainer)
-{
-    QLIST_INSERT_HEAD(&space->containers, bcontainer, next);
-    bcontainer->space = space;
-}
-
-struct vfio_device_info *vfio_get_device_info(int fd)
-{
-    struct vfio_device_info *info;
-    uint32_t argsz = sizeof(*info);
-
-    info = g_malloc0(argsz);
-
-retry:
-    info->argsz = argsz;
-
-    if (ioctl(fd, VFIO_DEVICE_GET_INFO, info)) {
-        g_free(info);
-        return NULL;
-    }
-
-    if (info->argsz > argsz) {
-        argsz = info->argsz;
-        info = g_realloc(info, argsz);
-        goto retry;
-    }
-
-    return info;
-}
-
-bool vfio_attach_device(char *name, VFIODevice *vbasedev,
-                        AddressSpace *as, Error **errp)
-{
-    const VFIOIOMMUClass *ops =
-        VFIO_IOMMU_CLASS(object_class_by_name(TYPE_VFIO_IOMMU_LEGACY));
-    HostIOMMUDevice *hiod = NULL;
-
-    if (vbasedev->iommufd) {
-        ops = VFIO_IOMMU_CLASS(object_class_by_name(TYPE_VFIO_IOMMU_IOMMUFD));
-    }
-
-    assert(ops);
-
-
-    if (!vbasedev->mdev) {
-        hiod = HOST_IOMMU_DEVICE(object_new(ops->hiod_typename));
-        vbasedev->hiod = hiod;
-    }
-
-    if (!ops->attach_device(name, vbasedev, as, errp)) {
-        object_unref(hiod);
-        vbasedev->hiod = NULL;
+    if (bcontainer->error) {
+        error_propagate_prepend(errp, bcontainer->error,
+                                "memory listener initialization failed: ");
         return false;
     }
 
     return true;
 }
 
-void vfio_detach_device(VFIODevice *vbasedev)
+void vfio_listener_unregister(VFIOContainerBase *bcontainer)
 {
-    if (!vbasedev->bcontainer) {
-        return;
-    }
-    object_unref(vbasedev->hiod);
-    VFIO_IOMMU_GET_CLASS(vbasedev->bcontainer)->detach_device(vbasedev);
+    memory_listener_unregister(&bcontainer->listener);
 }

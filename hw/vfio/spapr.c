@@ -15,17 +15,26 @@
 #include "system/hostmem.h"
 #include "system/address-spaces.h"
 
-#include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-container.h"
 #include "hw/hw.h"
 #include "system/ram_addr.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "trace.h"
+#include "vfio-helpers.h"
+
+typedef struct VFIOHostDMAWindow {
+    hwaddr min_iova;
+    hwaddr max_iova;
+    uint64_t iova_pgsizes;
+    QLIST_ENTRY(VFIOHostDMAWindow) hostwin_next;
+} VFIOHostDMAWindow;
 
 typedef struct VFIOSpaprContainer {
     VFIOContainer container;
     MemoryListener prereg_listener;
     QLIST_HEAD(, VFIOHostDMAWindow) hostwin_list;
+    unsigned int levels;
 } VFIOSpaprContainer;
 
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOSpaprContainer, VFIO_IOMMU_SPAPR);
@@ -230,15 +239,17 @@ static int vfio_spapr_remove_window(VFIOContainer *container,
     return 0;
 }
 
-static int vfio_spapr_create_window(VFIOContainer *container,
+static bool vfio_spapr_create_window(VFIOContainer *container,
                                     MemoryRegionSection *section,
-                                    hwaddr *pgsize)
+                                    hwaddr *pgsize, Error **errp)
 {
     int ret = 0;
     VFIOContainerBase *bcontainer = &container->bcontainer;
+    VFIOSpaprContainer *scontainer = container_of(container, VFIOSpaprContainer,
+                                                  container);
     IOMMUMemoryRegion *iommu_mr = IOMMU_MEMORY_REGION(section->mr);
     uint64_t pagesize = memory_region_iommu_get_min_page_size(iommu_mr), pgmask;
-    unsigned entries, bits_total, bits_per_level, max_levels;
+    unsigned entries, bits_total, bits_per_level, max_levels, ddw_levels;
     struct vfio_iommu_spapr_tce_create create = { .argsz = sizeof(create) };
     long rampagesize = qemu_minrampagesize();
 
@@ -252,11 +263,11 @@ static int vfio_spapr_create_window(VFIOContainer *container,
     pgmask = bcontainer->pgsizes & (pagesize | (pagesize - 1));
     pagesize = pgmask ? (1ULL << (63 - clz64(pgmask))) : 0;
     if (!pagesize) {
-        error_report("Host doesn't support page size 0x%"PRIx64
-                     ", the supported mask is 0x%lx",
-                     memory_region_iommu_get_min_page_size(iommu_mr),
-                     bcontainer->pgsizes);
-        return -EINVAL;
+        error_setg_errno(errp, EINVAL, "Host doesn't support page size 0x%"PRIx64
+                         ", the supported mask is 0x%lx",
+                         memory_region_iommu_get_min_page_size(iommu_mr),
+                         bcontainer->pgsizes);
+        return false;
     }
 
     /*
@@ -291,28 +302,41 @@ static int vfio_spapr_create_window(VFIOContainer *container,
      */
     bits_per_level = ctz64(qemu_real_host_page_size()) + 8;
     create.levels = bits_total / bits_per_level;
-    if (bits_total % bits_per_level) {
-        ++create.levels;
-    }
-    max_levels = (64 - create.page_shift) / ctz64(qemu_real_host_page_size());
-    for ( ; create.levels <= max_levels; ++create.levels) {
-        ret = ioctl(container->fd, VFIO_IOMMU_SPAPR_TCE_CREATE, &create);
-        if (!ret) {
-            break;
+
+    ddw_levels = scontainer->levels;
+    if (ddw_levels > 1) {
+        if (bits_total % bits_per_level) {
+            ++create.levels;
         }
+        max_levels = (64 - create.page_shift) / ctz64(qemu_real_host_page_size());
+        for ( ; create.levels <= max_levels; ++create.levels) {
+            ret = ioctl(container->fd, VFIO_IOMMU_SPAPR_TCE_CREATE, &create);
+            if (!ret) {
+                break;
+            }
+        }
+    } else { /* ddw_levels == 1 */
+        if (create.levels > ddw_levels) {
+            error_setg_errno(errp, EINVAL, "Host doesn't support multi-level TCE tables"
+                             ". Use larger IO page size. Supported mask is 0x%lx",
+                             bcontainer->pgsizes);
+            return false;
+        }
+        ret = ioctl(container->fd, VFIO_IOMMU_SPAPR_TCE_CREATE, &create);
     }
+
     if (ret) {
-        error_report("Failed to create a window, ret = %d (%m)", ret);
-        return -errno;
+        error_setg_errno(errp, errno, "Failed to create a window, ret = %d", ret);
+        return false;
     }
 
     if (create.start_addr != section->offset_within_address_space) {
         vfio_spapr_remove_window(container, create.start_addr);
 
-        error_report("Host doesn't support DMA window at %"HWADDR_PRIx", must be %"PRIx64,
-                     section->offset_within_address_space,
-                     (uint64_t)create.start_addr);
-        return -EINVAL;
+        error_setg_errno(errp, EINVAL, "Host doesn't support DMA window at %"HWADDR_PRIx
+                         ", must be %"PRIx64, section->offset_within_address_space,
+                         (uint64_t)create.start_addr);
+        return false;
     }
     trace_vfio_spapr_create_window(create.page_shift,
                                    create.levels,
@@ -320,7 +344,7 @@ static int vfio_spapr_create_window(VFIOContainer *container,
                                    create.start_addr);
     *pgsize = pagesize;
 
-    return 0;
+    return true;
 }
 
 static bool
@@ -377,9 +401,8 @@ vfio_spapr_container_add_section_window(VFIOContainerBase *bcontainer,
         }
     }
 
-    ret = vfio_spapr_create_window(container, section, &pgsize);
-    if (ret) {
-        error_setg_errno(errp, -ret, "Failed to create SPAPR window");
+    ret = vfio_spapr_create_window(container, section, &pgsize, errp);
+    if (!ret) {
         return false;
     }
 
@@ -501,6 +524,8 @@ static bool vfio_spapr_container_setup(VFIOContainerBase *bcontainer,
                          "VFIO_IOMMU_SPAPR_TCE_GET_INFO failed");
         goto listener_unregister_exit;
     }
+
+    scontainer->levels = info.ddw.levels;
 
     if (v2) {
         bcontainer->pgsizes = info.ddw.pgsizes;

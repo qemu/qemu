@@ -10,7 +10,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-device.h"
 #include "migration/misc.h"
 #include "qapi/error.h"
 #include "qemu/bswap.h"
@@ -21,6 +21,7 @@
 #include "io/channel-buffer.h"
 #include "migration/qemu-file.h"
 #include "migration-multifd.h"
+#include "vfio-migration-internal.h"
 #include "trace.h"
 
 #define VFIO_DEVICE_STATE_CONFIG_STATE (1)
@@ -575,7 +576,7 @@ vfio_save_complete_precopy_thread_config_state(VFIODevice *vbasedev,
         return false;
     }
 
-    vfio_mig_add_bytes_transferred(packet_len);
+    vfio_migration_add_bytes_transferred(packet_len);
 
     return true;
 }
@@ -645,7 +646,7 @@ vfio_multifd_save_complete_precopy_thread(SaveLiveCompletePrecopyThreadData *d,
             goto thread_exit;
         }
 
-        vfio_mig_add_bytes_transferred(packet_size);
+        vfio_migration_add_bytes_transferred(packet_size);
     }
 
     if (!vfio_save_complete_precopy_thread_config_state(vbasedev,

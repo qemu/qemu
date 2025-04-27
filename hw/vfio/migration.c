@@ -16,7 +16,8 @@
 #include <sys/ioctl.h>
 
 #include "system/runstate.h"
-#include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-device.h"
+#include "hw/vfio/vfio-migration.h"
 #include "migration/misc.h"
 #include "migration/savevm.h"
 #include "migration/vmstate.h"
@@ -30,6 +31,7 @@
 #include "pci.h"
 #include "trace.h"
 #include "hw/hw.h"
+#include "vfio-migration-internal.h"
 
 /*
  * This is an arbitrary size based on migration of mlx5 devices, where typically
@@ -373,7 +375,7 @@ static ssize_t vfio_save_block(QEMUFile *f, VFIOMigration *migration)
     qemu_put_be64(f, VFIO_MIG_FLAG_DEV_DATA_STATE);
     qemu_put_be64(f, data_size);
     qemu_put_buffer(f, migration->data_buffer, data_size);
-    vfio_mig_add_bytes_transferred(data_size);
+    vfio_migration_add_bytes_transferred(data_size);
 
     trace_vfio_save_block(migration->vbasedev->name, data_size);
 
@@ -1021,6 +1023,65 @@ static int vfio_migration_init(VFIODevice *vbasedev)
     return 0;
 }
 
+static Error *multiple_devices_migration_blocker;
+
+/*
+ * Multiple devices migration is allowed only if all devices support P2P
+ * migration. Single device migration is allowed regardless of P2P migration
+ * support.
+ */
+static bool vfio_multiple_devices_migration_is_supported(void)
+{
+    VFIODevice *vbasedev;
+    unsigned int device_num = 0;
+    bool all_support_p2p = true;
+
+    QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
+        if (vbasedev->migration) {
+            device_num++;
+
+            if (!(vbasedev->migration->mig_flags & VFIO_MIGRATION_P2P)) {
+                all_support_p2p = false;
+            }
+        }
+    }
+
+    return all_support_p2p || device_num <= 1;
+}
+
+static int vfio_block_multiple_devices_migration(VFIODevice *vbasedev, Error **errp)
+{
+    if (vfio_multiple_devices_migration_is_supported()) {
+        return 0;
+    }
+
+    if (vbasedev->enable_migration == ON_OFF_AUTO_ON) {
+        error_setg(errp, "Multiple VFIO devices migration is supported only if "
+                         "all of them support P2P migration");
+        return -EINVAL;
+    }
+
+    if (multiple_devices_migration_blocker) {
+        return 0;
+    }
+
+    error_setg(&multiple_devices_migration_blocker,
+               "Multiple VFIO devices migration is supported only if all of "
+               "them support P2P migration");
+    return migrate_add_blocker_normal(&multiple_devices_migration_blocker,
+                                      errp);
+}
+
+static void vfio_unblock_multiple_devices_migration(void)
+{
+    if (!multiple_devices_migration_blocker ||
+        !vfio_multiple_devices_migration_is_supported()) {
+        return;
+    }
+
+    migrate_del_blocker(&multiple_devices_migration_blocker);
+}
+
 static void vfio_migration_deinit(VFIODevice *vbasedev)
 {
     VFIOMigration *migration = vbasedev->migration;
@@ -1047,19 +1108,40 @@ static int vfio_block_migration(VFIODevice *vbasedev, Error *err, Error **errp)
 
 /* ---------------------------------------------------------------------- */
 
-int64_t vfio_mig_bytes_transferred(void)
+int64_t vfio_migration_bytes_transferred(void)
 {
     return MIN(qatomic_read(&bytes_transferred), INT64_MAX);
 }
 
-void vfio_reset_bytes_transferred(void)
+void vfio_migration_reset_bytes_transferred(void)
 {
     qatomic_set(&bytes_transferred, 0);
 }
 
-void vfio_mig_add_bytes_transferred(unsigned long val)
+void vfio_migration_add_bytes_transferred(unsigned long val)
 {
     qatomic_add(&bytes_transferred, val);
+}
+
+bool vfio_migration_active(void)
+{
+    VFIODevice *vbasedev;
+
+    if (QLIST_EMPTY(&vfio_device_list)) {
+        return false;
+    }
+
+    QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
+        if (vbasedev->migration_blocker) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool vfio_viommu_preset(VFIODevice *vbasedev)
+{
+    return vbasedev->bcontainer->space->as != &address_space_memory;
 }
 
 /*
@@ -1137,4 +1219,20 @@ void vfio_migration_exit(VFIODevice *vbasedev)
     }
 
     migrate_del_blocker(&vbasedev->migration_blocker);
+}
+
+bool vfio_device_state_is_running(VFIODevice *vbasedev)
+{
+    VFIOMigration *migration = vbasedev->migration;
+
+    return migration->device_state == VFIO_DEVICE_STATE_RUNNING ||
+           migration->device_state == VFIO_DEVICE_STATE_RUNNING_P2P;
+}
+
+bool vfio_device_state_is_precopy(VFIODevice *vbasedev)
+{
+    VFIOMigration *migration = vbasedev->migration;
+
+    return migration->device_state == VFIO_DEVICE_STATE_PRE_COPY ||
+           migration->device_state == VFIO_DEVICE_STATE_PRE_COPY_P2P;
 }
