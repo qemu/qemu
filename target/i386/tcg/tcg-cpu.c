@@ -120,6 +120,15 @@ static bool x86_debug_check_breakpoint(CPUState *cs)
     /* RF disables all architectural breakpoints. */
     return !(env->eflags & RF_MASK);
 }
+
+static void x86_cpu_exec_reset(CPUState *cs)
+{
+    CPUArchState *env = cpu_env(cs);
+
+    cpu_svm_check_intercept_param(env, SVM_EXIT_INIT, 0, 0);
+    do_cpu_init(env_archcpu(env));
+    cs->exception_index = EXCP_HALTED;
+}
 #endif
 
 #include "accel/tcg/cpu-ops.h"
@@ -147,7 +156,7 @@ const TCGCPUOps x86_tcg_ops = {
     .do_interrupt = x86_cpu_do_interrupt,
     .cpu_exec_halt = x86_cpu_exec_halt,
     .cpu_exec_interrupt = x86_cpu_exec_interrupt,
-    .cpu_exec_reset = cpu_reset,
+    .cpu_exec_reset = x86_cpu_exec_reset,
     .do_unaligned_access = x86_cpu_do_unaligned_access,
     .debug_excp_handler = breakpoint_handler,
     .debug_check_breakpoint = x86_debug_check_breakpoint,

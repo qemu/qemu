@@ -819,33 +819,22 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
             cpu->exception_index = EXCP_HLT;
             bql_unlock();
             return true;
-        }
-#if defined(TARGET_I386)
-        else if (interrupt_request & CPU_INTERRUPT_INIT) {
-            X86CPU *x86_cpu = X86_CPU(cpu);
-            CPUArchState *env = &x86_cpu->env;
-            replay_interrupt();
-            cpu_svm_check_intercept_param(env, SVM_EXIT_INIT, 0, 0);
-            do_cpu_init(x86_cpu);
-            cpu->exception_index = EXCP_HALTED;
-            bql_unlock();
-            return true;
-        }
-#else
-        else if (interrupt_request & CPU_INTERRUPT_RESET) {
-            replay_interrupt();
-            cpu->cc->tcg_ops->cpu_exec_reset(cpu);
-            bql_unlock();
-            return true;
-        }
-#endif /* !TARGET_I386 */
-        /* The target hook has 3 exit conditions:
-           False when the interrupt isn't processed,
-           True when it is, and we should restart on a new TB,
-           and via longjmp via cpu_loop_exit.  */
-        else {
+        } else {
             const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
 
+            if (interrupt_request & CPU_INTERRUPT_RESET) {
+                replay_interrupt();
+                tcg_ops->cpu_exec_reset(cpu);
+                bql_unlock();
+                return true;
+            }
+
+            /*
+             * The target hook has 3 exit conditions:
+             * False when the interrupt isn't processed,
+             * True when it is, and we should restart on a new TB,
+             * and via longjmp via cpu_loop_exit.
+             */
             if (tcg_ops->cpu_exec_interrupt(cpu, interrupt_request)) {
                 if (!tcg_ops->need_replay_interrupt ||
                     tcg_ops->need_replay_interrupt(interrupt_request)) {
