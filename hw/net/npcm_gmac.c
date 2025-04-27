@@ -916,7 +916,7 @@ static const Property npcm_gmac_properties[] = {
     DEFINE_NIC_PROPERTIES(NPCMGMACState, conf),
 };
 
-static void npcm_gmac_class_init(ObjectClass *klass, void *data)
+static void npcm_gmac_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

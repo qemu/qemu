@@ -140,7 +140,7 @@ static void loongarch_ipi_cpu_unplug(HotplugHandler *hotplug_dev,
     core->cpu = NULL;
 }
 
-static void loongarch_ipi_class_init(ObjectClass *klass, void *data)
+static void loongarch_ipi_class_init(ObjectClass *klass, const void *data)
 {
     LoongsonIPICommonClass *licc = LOONGSON_IPI_COMMON_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
@@ -162,7 +162,7 @@ static const TypeInfo loongarch_ipi_types[] = {
         .instance_size      = sizeof(LoongarchIPIState),
         .class_size         = sizeof(LoongarchIPIClass),
         .class_init         = loongarch_ipi_class_init,
-        .interfaces         = (InterfaceInfo[]) {
+        .interfaces         = (const InterfaceInfo[]) {
             { TYPE_HOTPLUG_HANDLER },
             { }
         },

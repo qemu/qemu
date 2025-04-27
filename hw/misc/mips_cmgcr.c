@@ -229,7 +229,7 @@ static void mips_gcr_realize(DeviceState *dev, Error **errp)
     s->vps = g_new(MIPSGCRVPState, s->num_vps);
 }
 
-static void mips_gcr_class_init(ObjectClass *klass, void *data)
+static void mips_gcr_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     device_class_set_props(dc, mips_gcr_properties);

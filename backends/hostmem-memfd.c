@@ -133,7 +133,7 @@ memfd_backend_instance_init(Object *obj)
 }
 
 static void
-memfd_backend_class_init(ObjectClass *oc, void *data)
+memfd_backend_class_init(ObjectClass *oc, const void *data)
 {
     HostMemoryBackendClass *bc = MEMORY_BACKEND_CLASS(oc);
 

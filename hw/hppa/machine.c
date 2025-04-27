@@ -683,7 +683,7 @@ static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
-static void HP_B160L_machine_init_class_init(ObjectClass *oc, void *data)
+static void HP_B160L_machine_init_class_init(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
         TYPE_HPPA_CPU,
@@ -713,13 +713,13 @@ static const TypeInfo HP_B160L_machine_init_typeinfo = {
     .name = MACHINE_TYPE_NAME("B160L"),
     .parent = TYPE_MACHINE,
     .class_init = HP_B160L_machine_init_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_NMI },
         { }
     },
 };
 
-static void HP_C3700_machine_init_class_init(ObjectClass *oc, void *data)
+static void HP_C3700_machine_init_class_init(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
         TYPE_HPPA64_CPU,
@@ -749,7 +749,7 @@ static const TypeInfo HP_C3700_machine_init_typeinfo = {
     .name = MACHINE_TYPE_NAME("C3700"),
     .parent = TYPE_MACHINE,
     .class_init = HP_C3700_machine_init_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_NMI },
         { }
     },

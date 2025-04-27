@@ -166,7 +166,7 @@ const VMStateDescription vmstate_mphi_state = {
     }
 };
 
-static void mphi_class_init(ObjectClass *klass, void *data)
+static void mphi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

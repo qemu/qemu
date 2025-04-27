@@ -1817,7 +1817,7 @@ static const Property gem_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void gem_class_init(ObjectClass *klass, void *data)
+static void gem_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

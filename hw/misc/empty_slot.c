@@ -84,7 +84,7 @@ static const Property empty_slot_properties[] = {
     DEFINE_PROP_STRING("name", EmptySlot, name),
 };
 
-static void empty_slot_class_init(ObjectClass *klass, void *data)
+static void empty_slot_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

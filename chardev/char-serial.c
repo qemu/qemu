@@ -298,7 +298,7 @@ static void qemu_chr_parse_serial(QemuOpts *opts, ChardevBackend *backend,
     serial->device = g_strdup(device);
 }
 
-static void char_serial_class_init(ObjectClass *oc, void *data)
+static void char_serial_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

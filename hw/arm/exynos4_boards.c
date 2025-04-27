@@ -154,7 +154,7 @@ static const char * const valid_cpu_types[] = {
     NULL
 };
 
-static void nuri_class_init(ObjectClass *oc, void *data)
+static void nuri_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -174,7 +174,7 @@ static const TypeInfo nuri_type = {
     .class_init = nuri_class_init,
 };
 
-static void smdkc210_class_init(ObjectClass *oc, void *data)
+static void smdkc210_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 

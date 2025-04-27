@@ -144,7 +144,7 @@ static void chipidea_init(Object *obj)
     }
 }
 
-static void chipidea_class_init(ObjectClass *klass, void *data)
+static void chipidea_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusEHCIClass *sec = SYS_BUS_EHCI_CLASS(klass);

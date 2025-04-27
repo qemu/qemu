@@ -515,7 +515,7 @@ static const Property omap_i2c_properties[] = {
     DEFINE_PROP_UINT8("revision", OMAPI2CState, revision, 0),
 };
 
-static void omap_i2c_class_init(ObjectClass *klass, void *data)
+static void omap_i2c_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

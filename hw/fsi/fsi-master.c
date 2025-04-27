@@ -144,7 +144,7 @@ static void fsi_master_reset(DeviceState *dev)
     s->regs[FSI_MVER] = 0xe0050101;
 }
 
-static void fsi_master_class_init(ObjectClass *klass, void *data)
+static void fsi_master_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -80,7 +80,7 @@ static void virtio_pmem_pci_fill_device_info(const MemoryDeviceState *md,
     info->type = MEMORY_DEVICE_INFO_KIND_VIRTIO_PMEM;
 }
 
-static void virtio_pmem_pci_class_init(ObjectClass *klass, void *data)
+static void virtio_pmem_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);

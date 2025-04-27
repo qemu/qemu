@@ -194,7 +194,7 @@ static const Property pnv_phb_properties[] = {
                      PnvPhb4PecState *),
 };
 
-static void pnv_phb_class_init(ObjectClass *klass, void *data)
+static void pnv_phb_class_init(ObjectClass *klass, const void *data)
 {
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -304,7 +304,7 @@ static const Property pnv_phb_root_port_properties[] = {
     DEFINE_PROP_UINT32("version", PnvPHBRootPort, version, 0),
 };
 
-static void pnv_phb_root_port_class_init(ObjectClass *klass, void *data)
+static void pnv_phb_root_port_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

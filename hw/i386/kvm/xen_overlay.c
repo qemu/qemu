@@ -151,7 +151,7 @@ static void xen_overlay_reset(DeviceState *dev)
     kvm_xen_soft_reset();
 }
 
-static void xen_overlay_class_init(ObjectClass *klass, void *data)
+static void xen_overlay_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

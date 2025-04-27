@@ -31,7 +31,7 @@ static void vhost_user_scmi_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     qdev_realize(vdev, BUS(&vpci_dev->bus), errp);
 }
 
-static void vhost_user_scmi_pci_class_init(ObjectClass *klass, void *data)
+static void vhost_user_scmi_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);

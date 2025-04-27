@@ -556,7 +556,7 @@ static const Property bcm2835_property_props[] = {
     DEFINE_PROP_STRING("command-line", BCM2835PropertyState, command_line),
 };
 
-static void bcm2835_property_class_init(ObjectClass *klass, void *data)
+static void bcm2835_property_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

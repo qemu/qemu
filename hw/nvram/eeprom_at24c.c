@@ -235,7 +235,7 @@ static const Property at24c_eeprom_props[] = {
 };
 
 static
-void at24c_eeprom_class_init(ObjectClass *klass, void *data)
+void at24c_eeprom_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);

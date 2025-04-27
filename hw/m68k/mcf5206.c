@@ -605,7 +605,7 @@ static const Property mcf5206_mbar_properties[] = {
                      TYPE_M68K_CPU, M68kCPU *),
 };
 
-static void mcf5206_mbar_class_init(ObjectClass *oc, void *data)
+static void mcf5206_mbar_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

@@ -934,7 +934,7 @@ static const Property pflash_cfi01_properties[] = {
                      old_multiple_chip_handling, false),
 };
 
-static void pflash_cfi01_class_init(ObjectClass *klass, void *data)
+static void pflash_cfi01_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

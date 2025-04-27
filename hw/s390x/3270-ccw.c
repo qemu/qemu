@@ -150,7 +150,7 @@ out_err:
     g_free(sch);
 }
 
-static void emulated_ccw_3270_class_init(ObjectClass *klass, void *data)
+static void emulated_ccw_3270_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

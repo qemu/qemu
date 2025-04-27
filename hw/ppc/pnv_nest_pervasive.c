@@ -181,7 +181,7 @@ static void pnv_nest_pervasive_realize(DeviceState *dev, Error **errp)
                           PNV10_XSCOM_CHIPLET_CTRL_REGS_SIZE);
 }
 
-static void pnv_nest_pervasive_class_init(ObjectClass *klass, void *data)
+static void pnv_nest_pervasive_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -194,7 +194,7 @@ static const TypeInfo pnv_nest_pervasive_info = {
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvNestChipletPervasive),
     .class_init    = pnv_nest_pervasive_class_init,
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }
     }

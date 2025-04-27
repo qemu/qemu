@@ -479,7 +479,7 @@ static const VMStateDescription vmstate_aspeed_hace = {
     }
 };
 
-static void aspeed_hace_class_init(ObjectClass *klass, void *data)
+static void aspeed_hace_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -497,7 +497,7 @@ static const TypeInfo aspeed_hace_info = {
     .class_size = sizeof(AspeedHACEClass)
 };
 
-static void aspeed_ast2400_hace_class_init(ObjectClass *klass, void *data)
+static void aspeed_ast2400_hace_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedHACEClass *ahc = ASPEED_HACE_CLASS(klass);
@@ -516,7 +516,7 @@ static const TypeInfo aspeed_ast2400_hace_info = {
     .class_init = aspeed_ast2400_hace_class_init,
 };
 
-static void aspeed_ast2500_hace_class_init(ObjectClass *klass, void *data)
+static void aspeed_ast2500_hace_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedHACEClass *ahc = ASPEED_HACE_CLASS(klass);
@@ -535,7 +535,7 @@ static const TypeInfo aspeed_ast2500_hace_info = {
     .class_init = aspeed_ast2500_hace_class_init,
 };
 
-static void aspeed_ast2600_hace_class_init(ObjectClass *klass, void *data)
+static void aspeed_ast2600_hace_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedHACEClass *ahc = ASPEED_HACE_CLASS(klass);
@@ -554,7 +554,7 @@ static const TypeInfo aspeed_ast2600_hace_info = {
     .class_init = aspeed_ast2600_hace_class_init,
 };
 
-static void aspeed_ast1030_hace_class_init(ObjectClass *klass, void *data)
+static void aspeed_ast1030_hace_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedHACEClass *ahc = ASPEED_HACE_CLASS(klass);
@@ -573,7 +573,7 @@ static const TypeInfo aspeed_ast1030_hace_info = {
     .class_init = aspeed_ast1030_hace_class_init,
 };
 
-static void aspeed_ast2700_hace_class_init(ObjectClass *klass, void *data)
+static void aspeed_ast2700_hace_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedHACEClass *ahc = ASPEED_HACE_CLASS(klass);

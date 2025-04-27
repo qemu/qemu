@@ -37,7 +37,7 @@ ram_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
 }
 
 static void
-ram_backend_class_init(ObjectClass *oc, void *data)
+ram_backend_class_init(ObjectClass *oc, const void *data)
 {
     HostMemoryBackendClass *bc = MEMORY_BACKEND_CLASS(oc);
 

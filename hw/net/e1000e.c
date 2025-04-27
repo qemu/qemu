@@ -673,7 +673,7 @@ static const Property e1000e_properties[] = {
     DEFINE_PROP_BOOL("migrate-timadj", E1000EState, timadj, true),
 };
 
-static void e1000e_class_init(ObjectClass *class, void *data)
+static void e1000e_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     ResettableClass *rc = RESETTABLE_CLASS(class);
@@ -721,7 +721,7 @@ static const TypeInfo e1000e_info = {
     .instance_size = sizeof(E1000EState),
     .class_init = e1000e_class_init,
     .instance_init = e1000e_instance_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
         { }
     },

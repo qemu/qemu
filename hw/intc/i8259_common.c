@@ -200,7 +200,7 @@ static const Property pic_properties_common[] = {
     DEFINE_PROP_BIT("master", PICCommonState, master,  0, false),
 };
 
-static void pic_common_class_init(ObjectClass *klass, void *data)
+static void pic_common_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
@@ -226,7 +226,7 @@ static const TypeInfo pic_common_type = {
     .class_size = sizeof(PICCommonClass),
     .class_init = pic_common_class_init,
     .abstract = true,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_INTERRUPT_STATS_PROVIDER },
         { }
     },

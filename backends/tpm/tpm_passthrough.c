@@ -364,7 +364,7 @@ static void tpm_passthrough_inst_finalize(Object *obj)
     qapi_free_TPMPassthroughOptions(tpm_pt->options);
 }
 
-static void tpm_passthrough_class_init(ObjectClass *klass, void *data)
+static void tpm_passthrough_class_init(ObjectClass *klass, const void *data)
 {
     TPMBackendClass *tbc = TPM_BACKEND_CLASS(klass);
 

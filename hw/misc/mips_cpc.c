@@ -166,7 +166,7 @@ static const Property mips_cpc_properties[] = {
     DEFINE_PROP_UINT64("vp-start-running", MIPSCPCState, vp_start_running, 0x1),
 };
 
-static void mips_cpc_class_init(ObjectClass *klass, void *data)
+static void mips_cpc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

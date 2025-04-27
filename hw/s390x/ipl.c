@@ -736,7 +736,7 @@ static void s390_ipl_reset(DeviceState *dev)
     }
 }
 
-static void s390_ipl_class_init(ObjectClass *klass, void *data)
+static void s390_ipl_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

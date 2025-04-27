@@ -61,7 +61,7 @@ static const Property debug_exit_properties[] = {
     DEFINE_PROP_UINT32("iosize", ISADebugExitState, iosize, 0x02),
 };
 
-static void debug_exit_class_initfn(ObjectClass *klass, void *data)
+static void debug_exit_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

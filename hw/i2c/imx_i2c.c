@@ -297,7 +297,7 @@ static void imx_i2c_realize(DeviceState *dev, Error **errp)
     s->bus = i2c_init_bus(dev, NULL);
 }
 
-static void imx_i2c_class_init(ObjectClass *klass, void *data)
+static void imx_i2c_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

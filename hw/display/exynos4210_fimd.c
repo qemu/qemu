@@ -1958,7 +1958,7 @@ static void exynos4210_fimd_realize(DeviceState *dev, Error **errp)
     s->console = graphic_console_init(dev, 0, &exynos4210_fimd_ops, s);
 }
 
-static void exynos4210_fimd_class_init(ObjectClass *klass, void *data)
+static void exynos4210_fimd_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

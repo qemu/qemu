@@ -913,7 +913,7 @@ static const Property smc91c111_properties[] = {
     DEFINE_NIC_PROPERTIES(smc91c111_state, conf),
 };
 
-static void smc91c111_class_init(ObjectClass *klass, void *data)
+static void smc91c111_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

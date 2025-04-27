@@ -793,7 +793,7 @@ static const VMStateDescription vmstate_macfb_nubus = {
     }
 };
 
-static void macfb_sysbus_class_init(ObjectClass *klass, void *data)
+static void macfb_sysbus_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -804,7 +804,7 @@ static void macfb_sysbus_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, macfb_sysbus_properties);
 }
 
-static void macfb_nubus_class_init(ObjectClass *klass, void *data)
+static void macfb_nubus_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     MacfbNubusDeviceClass *ndc = NUBUS_MACFB_CLASS(klass);

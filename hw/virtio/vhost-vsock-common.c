@@ -290,7 +290,7 @@ static const Property vhost_vsock_common_properties[] = {
                             ON_OFF_AUTO_AUTO),
 };
 
-static void vhost_vsock_common_class_init(ObjectClass *klass, void *data)
+static void vhost_vsock_common_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

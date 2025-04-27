@@ -50,7 +50,7 @@ static void sgx_epc_backend_instance_init(Object *obj)
     m->dump = false;
 }
 
-static void sgx_epc_backend_class_init(ObjectClass *oc, void *data)
+static void sgx_epc_backend_class_init(ObjectClass *oc, const void *data)
 {
     HostMemoryBackendClass *bc = MEMORY_BACKEND_CLASS(oc);
 

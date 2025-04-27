@@ -144,7 +144,7 @@ static const Property mpcore_priv_properties[] = {
     DEFINE_PROP_UINT32("num-irq", ARM11MPCorePriveState, num_irq, 64),
 };
 
-static void mpcore_priv_class_init(ObjectClass *klass, void *data)
+static void mpcore_priv_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

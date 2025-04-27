@@ -51,7 +51,7 @@ static const Property virtio_ccw_blk_properties[] = {
     DEFINE_PROP_CCW_LOADPARM("loadparm", CcwDevice, loadparm),
 };
 
-static void virtio_ccw_blk_class_init(ObjectClass *klass, void *data)
+static void virtio_ccw_blk_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);

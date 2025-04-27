@@ -416,7 +416,7 @@ static const VMStateDescription vmstate_riscv_imsic = {
         }
 };
 
-static void riscv_imsic_class_init(ObjectClass *klass, void *data)
+static void riscv_imsic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -65,7 +65,7 @@ static void filter_replay_instance_finalize(Object *obj)
     replay_unregister_net(nfrs->rns);
 }
 
-static void filter_replay_class_init(ObjectClass *oc, void *data)
+static void filter_replay_class_init(ObjectClass *oc, const void *data)
 {
     NetFilterClass *nfc = NETFILTER_CLASS(oc);
 

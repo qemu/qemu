@@ -490,7 +490,7 @@ static void e500_pcihost_realize(DeviceState *dev, Error **errp)
     pci_bus_set_route_irq_fn(b, e500_route_intx_pin_to_irq);
 }
 
-static void e500_host_bridge_class_init(ObjectClass *klass, void *data)
+static void e500_host_bridge_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -512,7 +512,7 @@ static const Property pcihost_properties[] = {
     DEFINE_PROP_UINT32("first_pin_irq", PPCE500PCIState, first_pin_irq, 0x1),
 };
 
-static void e500_pcihost_class_init(ObjectClass *klass, void *data)
+static void e500_pcihost_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -528,7 +528,7 @@ static const TypeInfo e500_pci_types[] = {
         .parent        = TYPE_PCI_DEVICE,
         .instance_size = sizeof(PPCE500PCIBridgeState),
         .class_init    = e500_host_bridge_class_init,
-        .interfaces    = (InterfaceInfo[]) {
+        .interfaces    = (const InterfaceInfo[]) {
             { INTERFACE_CONVENTIONAL_PCI_DEVICE },
             { },
         },

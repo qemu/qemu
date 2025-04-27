@@ -22,7 +22,7 @@ static char *ap_bus_get_dev_path(DeviceState *dev)
     return g_strdup_printf("/1");
 }
 
-static void ap_bus_class_init(ObjectClass *oc, void *data)
+static void ap_bus_class_init(ObjectClass *oc, const void *data)
 {
     BusClass *k = BUS_CLASS(oc);
 
@@ -61,7 +61,7 @@ void s390_init_ap(void)
     qbus_set_hotplug_handler(bus, OBJECT(dev));
  }
 
-static void ap_bridge_class_init(ObjectClass *oc, void *data)
+static void ap_bridge_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
@@ -75,7 +75,7 @@ static const TypeInfo ap_bridge_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = 0,
     .class_init    = ap_bridge_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { }
     }

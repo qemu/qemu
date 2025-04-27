@@ -1382,7 +1382,7 @@ static void memory_region_ram_device_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps ram_device_mem_ops = {
     .read = memory_region_ram_device_read,
     .write = memory_region_ram_device_write,
-    .endianness = DEVICE_HOST_ENDIAN,
+    .endianness = HOST_BIG_ENDIAN ? DEVICE_BIG_ENDIAN : DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 8,
@@ -2575,7 +2575,7 @@ void memory_region_add_eventfd(MemoryRegion *mr,
     unsigned i;
 
     if (size) {
-        MemOp mop = (target_words_bigendian() ? MO_BE : MO_LE) | size_memop(size);
+        MemOp mop = (target_big_endian() ? MO_BE : MO_LE) | size_memop(size);
         adjust_endianness(mr, &mrfd.data, mop);
     }
     memory_region_transaction_begin();
@@ -2611,7 +2611,7 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     unsigned i;
 
     if (size) {
-        MemOp mop = (target_words_bigendian() ? MO_BE : MO_LE) | size_memop(size);
+        MemOp mop = (target_big_endian() ? MO_BE : MO_LE) | size_memop(size);
         adjust_endianness(mr, &mrfd.data, mop);
     }
     memory_region_transaction_begin();

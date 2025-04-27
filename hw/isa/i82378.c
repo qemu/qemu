@@ -122,7 +122,7 @@ static void i82378_init(Object *obj)
     qdev_init_gpio_in(dev, i82378_request_pic_irq, 16);
 }
 
-static void i82378_class_init(ObjectClass *klass, void *data)
+static void i82378_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -142,7 +142,7 @@ static const TypeInfo i82378_type_info = {
     .instance_size = sizeof(I82378State),
     .instance_init = i82378_init,
     .class_init = i82378_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },

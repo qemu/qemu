@@ -328,7 +328,7 @@ static const VMStateDescription vmstate_riscv_mtimer = {
         }
 };
 
-static void riscv_aclint_mtimer_class_init(ObjectClass *klass, void *data)
+static void riscv_aclint_mtimer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = riscv_aclint_mtimer_realize;
@@ -509,7 +509,7 @@ static void riscv_aclint_swi_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void riscv_aclint_swi_class_init(ObjectClass *klass, void *data)
+static void riscv_aclint_swi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = riscv_aclint_swi_realize;

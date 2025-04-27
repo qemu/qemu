@@ -269,7 +269,7 @@ dbus_chr_parse(QemuOpts *opts, ChardevBackend *backend,
 }
 
 static void
-char_dbus_class_init(ObjectClass *oc, void *data)
+char_dbus_class_init(ObjectClass *oc, const void *data)
 {
     DBusChardevClass *klass = DBUS_CHARDEV_CLASS(oc);
     ChardevClass *cc = CHARDEV_CLASS(oc);

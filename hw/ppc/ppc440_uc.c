@@ -1027,7 +1027,7 @@ static const Property ppc460ex_pcie_props[] = {
                      PowerPCCPU *),
 };
 
-static void ppc460ex_pcie_class_init(ObjectClass *klass, void *data)
+static void ppc460ex_pcie_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

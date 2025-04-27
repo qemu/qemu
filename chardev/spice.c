@@ -347,7 +347,7 @@ static void qemu_chr_parse_spice_port(QemuOpts *opts, ChardevBackend *backend,
     spiceport->fqdn = g_strdup(name);
 }
 
-static void char_spice_class_init(ObjectClass *oc, void *data)
+static void char_spice_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
@@ -366,7 +366,7 @@ static const TypeInfo char_spice_type_info = {
 };
 module_obj(TYPE_CHARDEV_SPICE);
 
-static void char_spicevmc_class_init(ObjectClass *oc, void *data)
+static void char_spicevmc_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
@@ -382,7 +382,7 @@ static const TypeInfo char_spicevmc_type_info = {
 };
 module_obj(TYPE_CHARDEV_SPICEVMC);
 
-static void char_spiceport_class_init(ObjectClass *oc, void *data)
+static void char_spiceport_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

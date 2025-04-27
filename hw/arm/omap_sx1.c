@@ -202,7 +202,7 @@ static void sx1_init_v2(MachineState *machine)
     sx1_init(machine, 2);
 }
 
-static void sx1_machine_v2_class_init(ObjectClass *oc, void *data)
+static void sx1_machine_v2_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -221,7 +221,7 @@ static const TypeInfo sx1_machine_v2_type = {
     .class_init = sx1_machine_v2_class_init,
 };
 
-static void sx1_machine_v1_class_init(ObjectClass *oc, void *data)
+static void sx1_machine_v1_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 

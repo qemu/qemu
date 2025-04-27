@@ -118,7 +118,7 @@ static const Property guest_loader_props[] = {
     DEFINE_PROP_STRING("initrd", GuestLoaderState, initrd),
 };
 
-static void guest_loader_class_init(ObjectClass *klass, void *data)
+static void guest_loader_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

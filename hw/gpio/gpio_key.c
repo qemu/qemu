@@ -85,7 +85,7 @@ static void gpio_key_realize(DeviceState *dev, Error **errp)
     s->timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, gpio_key_timer_expired, s);
 }
 
-static void gpio_key_class_init(ObjectClass *klass, void *data)
+static void gpio_key_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

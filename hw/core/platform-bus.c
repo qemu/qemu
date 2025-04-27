@@ -209,7 +209,7 @@ static const Property platform_bus_properties[] = {
     DEFINE_PROP_UINT32("mmio_size", PlatformBusDevice, mmio_size, 0),
 };
 
-static void platform_bus_class_init(ObjectClass *klass, void *data)
+static void platform_bus_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

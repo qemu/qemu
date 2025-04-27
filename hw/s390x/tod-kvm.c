@@ -133,7 +133,7 @@ static void kvm_s390_tod_realize(DeviceState *dev, Error **errp)
     qemu_add_vm_change_state_handler(kvm_s390_tod_vm_state_change, td);
 }
 
-static void kvm_s390_tod_class_init(ObjectClass *oc, void *data)
+static void kvm_s390_tod_class_init(ObjectClass *oc, const void *data)
 {
     S390TODClass *tdc = S390_TOD_CLASS(oc);
 

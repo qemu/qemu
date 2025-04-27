@@ -73,7 +73,7 @@ static void sbsa_ec_init(Object *obj)
     sysbus_init_mmio(dev, &s->iomem);
 }
 
-static void sbsa_ec_class_init(ObjectClass *klass, void *data)
+static void sbsa_ec_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -635,7 +635,7 @@ int xen_be_bind_evtchn(struct XenLegacyDevice *xendev)
 }
 
 
-static void xendev_class_init(ObjectClass *klass, void *data)
+static void xendev_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -650,7 +650,7 @@ static const TypeInfo xendev_type_info = {
     .instance_size = sizeof(XenLegacyDevice),
 };
 
-static void xen_sysbus_class_init(ObjectClass *klass, void *data)
+static void xen_sysbus_class_init(ObjectClass *klass, const void *data)
 {
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
@@ -661,7 +661,7 @@ static const TypeInfo xensysbus_info = {
     .name       = TYPE_XENSYSBUS,
     .parent     = TYPE_BUS,
     .class_init = xen_sysbus_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { }
     }

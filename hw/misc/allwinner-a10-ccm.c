@@ -199,7 +199,7 @@ static const VMStateDescription allwinner_a10_ccm_vmstate = {
     }
 };
 
-static void allwinner_a10_ccm_class_init(ObjectClass *klass, void *data)
+static void allwinner_a10_ccm_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

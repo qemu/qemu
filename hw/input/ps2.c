@@ -1254,7 +1254,7 @@ static void ps2_mouse_realize(DeviceState *dev, Error **errp)
     qemu_input_handler_register(dev, &ps2_mouse_handler);
 }
 
-static void ps2_kbd_class_init(ObjectClass *klass, void *data)
+static void ps2_kbd_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -1273,7 +1273,7 @@ static const TypeInfo ps2_kbd_info = {
     .class_init    = ps2_kbd_class_init
 };
 
-static void ps2_mouse_class_init(ObjectClass *klass, void *data)
+static void ps2_mouse_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -1299,7 +1299,7 @@ static void ps2_init(Object *obj)
     qdev_init_gpio_out(DEVICE(obj), &s->irq, 1);
 }
 
-static void ps2_class_init(ObjectClass *klass, void *data)
+static void ps2_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

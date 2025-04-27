@@ -143,7 +143,7 @@ static const Property lance_properties[] = {
     DEFINE_NIC_PROPERTIES(SysBusPCNetState, state.conf),
 };
 
-static void lance_class_init(ObjectClass *klass, void *data)
+static void lance_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

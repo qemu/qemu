@@ -52,7 +52,7 @@ static void qemu_s390_tod_set(S390TODState *td, const S390TOD *tod,
     }
 }
 
-static void qemu_s390_tod_class_init(ObjectClass *oc, void *data)
+static void qemu_s390_tod_class_init(ObjectClass *oc, const void *data)
 {
     S390TODClass *tdc = S390_TOD_CLASS(oc);
 

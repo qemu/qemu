@@ -163,7 +163,7 @@ static const Property virtio_mem_pci_class_properties[] = {
                        DEV_NVECTORS_UNSPECIFIED),
 };
 
-static void virtio_mem_pci_class_init(ObjectClass *klass, void *data)
+static void virtio_mem_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);

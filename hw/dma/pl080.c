@@ -413,7 +413,7 @@ static const Property pl080_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void pl080_class_init(ObjectClass *oc, void *data)
+static void pl080_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

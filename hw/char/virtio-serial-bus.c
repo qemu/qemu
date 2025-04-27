@@ -840,7 +840,7 @@ static const Property virtser_props[] = {
     DEFINE_PROP_STRING("name", VirtIOSerialPort, name),
 };
 
-static void virtser_bus_class_init(ObjectClass *klass, void *data)
+static void virtser_bus_class_init(ObjectClass *klass, const void *data)
 {
     BusClass *k = BUS_CLASS(klass);
     k->print_dev = virtser_bus_dev_print;
@@ -1092,7 +1092,7 @@ static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
     QLIST_INSERT_HEAD(&vserdevices.devices, vser, next);
 }
 
-static void virtio_serial_port_class_init(ObjectClass *klass, void *data)
+static void virtio_serial_port_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
 
@@ -1159,7 +1159,7 @@ static const Property virtio_serial_properties[] = {
                       VIRTIO_CONSOLE_F_EMERG_WRITE, true),
 };
 
-static void virtio_serial_class_init(ObjectClass *klass, void *data)
+static void virtio_serial_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
@@ -1188,7 +1188,7 @@ static const TypeInfo virtio_device_info = {
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOSerial),
     .class_init = virtio_serial_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { }
     }

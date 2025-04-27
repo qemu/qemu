@@ -293,7 +293,7 @@ static void nitro_enclave_set_parent_id(Object *obj, const char *value,
     nems->parent_id = g_strdup(value);
 }
 
-static void nitro_enclave_class_init(ObjectClass *oc, void *data)
+static void nitro_enclave_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MicrovmMachineClass *mmc = MICROVM_MACHINE_CLASS(oc);

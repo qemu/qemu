@@ -466,7 +466,7 @@ static void apic_common_initfn(Object *obj)
                         apic_common_set_id, NULL, NULL);
 }
 
-static void apic_common_class_init(ObjectClass *klass, void *data)
+static void apic_common_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -570,7 +570,7 @@ static GlobalProperty vmapple_compat_defaults[] = {
     { TYPE_XHCI_PCI, "conditional-intr-mapping", "on" },
 };
 
-static void vmapple_machine_class_init(ObjectClass *oc, void *data)
+static void vmapple_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 

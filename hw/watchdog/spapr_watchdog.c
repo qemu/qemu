@@ -249,7 +249,7 @@ static void spapr_wdt_realize(DeviceState *dev, Error **errp)
                                   &w->leave_others, OBJ_PROP_FLAG_READ);
 }
 
-static void spapr_wdt_class_init(ObjectClass *oc, void *data)
+static void spapr_wdt_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

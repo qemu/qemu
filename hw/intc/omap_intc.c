@@ -379,7 +379,7 @@ static const Property omap_intc_properties[] = {
     DEFINE_PROP_UINT32("size", OMAPIntcState, size, 0x100),
 };
 
-static void omap_intc_class_init(ObjectClass *klass, void *data)
+static void omap_intc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

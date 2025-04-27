@@ -970,7 +970,7 @@ static const Property serial_properties[] = {
     DEFINE_PROP_BOOL("wakeup", SerialState, wakeup, false),
 };
 
-static void serial_class_init(ObjectClass *klass, void* data)
+static void serial_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

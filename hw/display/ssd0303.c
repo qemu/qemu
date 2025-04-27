@@ -311,7 +311,7 @@ static void ssd0303_realize(DeviceState *dev, Error **errp)
     qemu_console_resize(s->con, 96 * MAGNIFY, 16 * MAGNIFY);
 }
 
-static void ssd0303_class_init(ObjectClass *klass, void *data)
+static void ssd0303_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);

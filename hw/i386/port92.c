@@ -97,7 +97,7 @@ static void port92_realizefn(DeviceState *dev, Error **errp)
     isa_register_ioport(isadev, &s->io, 0x92);
 }
 
-static void port92_class_initfn(ObjectClass *klass, void *data)
+static void port92_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

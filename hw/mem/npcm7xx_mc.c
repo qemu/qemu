@@ -65,7 +65,7 @@ static void npcm7xx_mc_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->mmio);
 }
 
-static void npcm7xx_mc_class_init(ObjectClass *klass, void *data)
+static void npcm7xx_mc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

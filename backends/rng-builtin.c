@@ -55,7 +55,7 @@ static void rng_builtin_finalize(Object *obj)
     qemu_bh_delete(s->bh);
 }
 
-static void rng_builtin_class_init(ObjectClass *klass, void *data)
+static void rng_builtin_class_init(ObjectClass *klass, const void *data)
 {
     RngBackendClass *rbc = RNG_BACKEND_CLASS(klass);
 

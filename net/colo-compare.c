@@ -1352,7 +1352,7 @@ static void colo_flush_packets(void *opaque, void *user_data)
     }
 }
 
-static void colo_compare_class_init(ObjectClass *oc, void *data)
+static void colo_compare_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
@@ -1476,7 +1476,7 @@ static const TypeInfo colo_compare_info = {
     .instance_finalize = colo_compare_finalize,
     .class_size = sizeof(CompareClass),
     .class_init = colo_compare_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

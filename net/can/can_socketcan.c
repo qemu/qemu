@@ -308,7 +308,7 @@ static void can_host_socketcan_instance_init(Object *obj)
 }
 
 static void can_host_socketcan_class_init(ObjectClass *klass,
-                                          void *class_data G_GNUC_UNUSED)
+                                          const void *class_data G_GNUC_UNUSED)
 {
     CanHostClass *chc = CAN_HOST_CLASS(klass);
 

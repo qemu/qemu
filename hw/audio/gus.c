@@ -298,7 +298,7 @@ static const Property gus_properties[] = {
     DEFINE_PROP_UINT32 ("dma",     GUSState, emu.gusdma,  3),
 };
 
-static void gus_class_initfn (ObjectClass *klass, void *data)
+static void gus_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
 

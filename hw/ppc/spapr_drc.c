@@ -589,7 +589,7 @@ static void spapr_dr_connector_instance_init(Object *obj)
     drc->state = drck->empty_state;
 }
 
-static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
+static void spapr_dr_connector_class_init(ObjectClass *k, const void *data)
 {
     DeviceClass *dk = DEVICE_CLASS(k);
 
@@ -665,7 +665,7 @@ static void unrealize_physical(DeviceState *d)
     qemu_unregister_reset(drc_physical_reset, drcp);
 }
 
-static void spapr_drc_physical_class_init(ObjectClass *k, void *data)
+static void spapr_drc_physical_class_init(ObjectClass *k, const void *data)
 {
     DeviceClass *dk = DEVICE_CLASS(k);
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
@@ -679,7 +679,7 @@ static void spapr_drc_physical_class_init(ObjectClass *k, void *data)
     drck->empty_state = SPAPR_DRC_STATE_PHYSICAL_POWERON;
 }
 
-static void spapr_drc_logical_class_init(ObjectClass *k, void *data)
+static void spapr_drc_logical_class_init(ObjectClass *k, const void *data)
 {
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
@@ -690,7 +690,7 @@ static void spapr_drc_logical_class_init(ObjectClass *k, void *data)
     drck->empty_state = SPAPR_DRC_STATE_LOGICAL_UNUSABLE;
 }
 
-static void spapr_drc_cpu_class_init(ObjectClass *k, void *data)
+static void spapr_drc_cpu_class_init(ObjectClass *k, const void *data)
 {
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
@@ -701,7 +701,7 @@ static void spapr_drc_cpu_class_init(ObjectClass *k, void *data)
     drck->dt_populate = spapr_core_dt_populate;
 }
 
-static void spapr_drc_pci_class_init(ObjectClass *k, void *data)
+static void spapr_drc_pci_class_init(ObjectClass *k, const void *data)
 {
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
@@ -712,7 +712,7 @@ static void spapr_drc_pci_class_init(ObjectClass *k, void *data)
     drck->dt_populate = spapr_pci_dt_populate;
 }
 
-static void spapr_drc_lmb_class_init(ObjectClass *k, void *data)
+static void spapr_drc_lmb_class_init(ObjectClass *k, const void *data)
 {
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
@@ -723,7 +723,7 @@ static void spapr_drc_lmb_class_init(ObjectClass *k, void *data)
     drck->dt_populate = spapr_lmb_dt_populate;
 }
 
-static void spapr_drc_phb_class_init(ObjectClass *k, void *data)
+static void spapr_drc_phb_class_init(ObjectClass *k, const void *data)
 {
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
@@ -734,7 +734,7 @@ static void spapr_drc_phb_class_init(ObjectClass *k, void *data)
     drck->dt_populate = spapr_phb_dt_populate;
 }
 
-static void spapr_drc_pmem_class_init(ObjectClass *k, void *data)
+static void spapr_drc_pmem_class_init(ObjectClass *k, const void *data)
 {
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 

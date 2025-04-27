@@ -240,7 +240,7 @@ static const VMStateDescription vmstate_rng = {
     }
 };
 
-static void nrf51_rng_class_init(ObjectClass *klass, void *data)
+static void nrf51_rng_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -747,7 +747,7 @@ static const Property open_eth_properties[] = {
     DEFINE_NIC_PROPERTIES(OpenEthState, conf),
 };
 
-static void open_eth_class_init(ObjectClass *klass, void *data)
+static void open_eth_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

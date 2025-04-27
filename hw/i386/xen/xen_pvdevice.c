@@ -122,7 +122,7 @@ static const Property xen_pv_props[] = {
     DEFINE_PROP_UINT32("size", XenPVDevice, size, 0x400000),
 };
 
-static void xen_pv_class_init(ObjectClass *klass, void *data)
+static void xen_pv_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -139,7 +139,7 @@ static const TypeInfo xen_pv_type_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(XenPVDevice),
     .class_init    = xen_pv_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },

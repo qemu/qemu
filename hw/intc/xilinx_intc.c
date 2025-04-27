@@ -214,7 +214,7 @@ static const Property xilinx_intc_properties[] = {
     DEFINE_PROP_UINT32("kind-of-intr", XpsIntc, c_kind_of_intr, 0),
 };
 
-static void xilinx_intc_class_init(ObjectClass *klass, void *data)
+static void xilinx_intc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

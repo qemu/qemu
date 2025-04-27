@@ -585,7 +585,7 @@ static const VMStateDescription vmstate_usb_msd = {
     }
 };
 
-static void usb_msd_class_initfn_common(ObjectClass *klass, void *data)
+static void usb_msd_class_initfn_common(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);

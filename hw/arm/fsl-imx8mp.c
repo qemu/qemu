@@ -689,7 +689,7 @@ static const Property fsl_imx8mp_properties[] = {
     DEFINE_PROP_BOOL("fec1-phy-connected", FslImx8mpState, phy_connected, true),
 };
 
-static void fsl_imx8mp_class_init(ObjectClass *oc, void *data)
+static void fsl_imx8mp_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

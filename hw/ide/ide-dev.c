@@ -198,7 +198,7 @@ static const Property ide_hd_properties[] = {
     DEFINE_PROP_UINT16("rotation_rate", IDEDrive, dev.rotation_rate, 0),
 };
 
-static void ide_hd_class_init(ObjectClass *klass, void *data)
+static void ide_hd_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
@@ -220,7 +220,7 @@ static const Property ide_cd_properties[] = {
     DEFINE_IDE_DEV_PROPERTIES(),
 };
 
-static void ide_cd_class_init(ObjectClass *klass, void *data)
+static void ide_cd_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
@@ -238,7 +238,7 @@ static const TypeInfo ide_cd_info = {
     .class_init    = ide_cd_class_init,
 };
 
-static void ide_device_class_init(ObjectClass *klass, void *data)
+static void ide_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->realize = ide_qdev_realize;

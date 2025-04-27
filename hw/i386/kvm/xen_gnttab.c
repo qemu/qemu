@@ -135,7 +135,7 @@ static const VMStateDescription xen_gnttab_vmstate = {
     }
 };
 
-static void xen_gnttab_class_init(ObjectClass *klass, void *data)
+static void xen_gnttab_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

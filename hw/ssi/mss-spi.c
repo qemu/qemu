@@ -398,7 +398,7 @@ static const VMStateDescription vmstate_mss_spi = {
     }
 };
 
-static void mss_spi_class_init(ObjectClass *klass, void *data)
+static void mss_spi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

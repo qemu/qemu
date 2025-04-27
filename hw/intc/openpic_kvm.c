@@ -267,7 +267,7 @@ static const Property kvm_openpic_properties[] = {
                        OPENPIC_MODEL_FSL_MPIC_20),
 };
 
-static void kvm_openpic_class_init(ObjectClass *oc, void *data)
+static void kvm_openpic_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

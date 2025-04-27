@@ -418,7 +418,7 @@ static const Property etsec_properties[] = {
     DEFINE_NIC_PROPERTIES(eTSEC, conf),
 };
 
-static void etsec_class_init(ObjectClass *klass, void *data)
+static void etsec_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -272,7 +272,7 @@ static void qemu_chr_parse_hub(QemuOpts *opts, ChardevBackend *backend,
     }
 }
 
-static void char_hub_class_init(ObjectClass *oc, void *data)
+static void char_hub_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

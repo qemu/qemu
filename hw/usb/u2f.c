@@ -317,7 +317,7 @@ const VMStateDescription vmstate_u2f_key = {
     }
 };
 
-static void u2f_key_class_init(ObjectClass *klass, void *data)
+static void u2f_key_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);

@@ -1671,7 +1671,7 @@ static const Property pl330_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void pl330_class_init(ObjectClass *klass, void *data)
+static void pl330_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

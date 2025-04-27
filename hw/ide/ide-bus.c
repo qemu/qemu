@@ -29,7 +29,7 @@
 static char *idebus_get_fw_dev_path(DeviceState *dev);
 static void idebus_unrealize(BusState *qdev);
 
-static void ide_bus_class_init(ObjectClass *klass, void *data)
+static void ide_bus_class_init(ObjectClass *klass, const void *data)
 {
     BusClass *k = BUS_CLASS(klass);
 

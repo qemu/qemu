@@ -325,7 +325,7 @@ static void dm163_realize(DeviceState *dev, Error **errp)
                         RGB_MATRIX_NUM_ROWS * LED_SQUARE_SIZE);
 }
 
-static void dm163_class_init(ObjectClass *klass, void *data)
+static void dm163_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

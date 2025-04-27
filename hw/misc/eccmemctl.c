@@ -329,7 +329,7 @@ static const Property ecc_properties[] = {
     DEFINE_PROP_UINT32("version", ECCState, version, -1),
 };
 
-static void ecc_class_init(ObjectClass *klass, void *data)
+static void ecc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

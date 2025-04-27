@@ -139,7 +139,7 @@ static void highbank_regs_init(Object *obj)
     sysbus_init_mmio(dev, &s->iomem);
 }
 
-static void highbank_regs_class_init(ObjectClass *klass, void *data)
+static void highbank_regs_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -341,7 +341,7 @@ static void midway_init(MachineState *machine)
     calxeda_init(machine, CALXEDA_MIDWAY);
 }
 
-static void highbank_class_init(ObjectClass *oc, void *data)
+static void highbank_class_init(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("cortex-a9"),
@@ -365,7 +365,7 @@ static const TypeInfo highbank_type = {
     .class_init = highbank_class_init,
 };
 
-static void midway_class_init(ObjectClass *oc, void *data)
+static void midway_class_init(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("cortex-a15"),

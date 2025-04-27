@@ -349,7 +349,7 @@ static void ppc4xx_pcihost_realize(DeviceState *dev, Error **errp)
     qemu_register_reset(ppc4xx_pci_reset, s);
 }
 
-static void ppc4xx_host_bridge_class_init(ObjectClass *klass, void *data)
+static void ppc4xx_host_bridge_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -370,13 +370,13 @@ static const TypeInfo ppc4xx_host_bridge_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init    = ppc4xx_host_bridge_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },
 };
 
-static void ppc4xx_pcihost_class_init(ObjectClass *klass, void *data)
+static void ppc4xx_pcihost_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -163,7 +163,7 @@ static char *get_chardev(Object *obj, Error **errp)
     return NULL;
 }
 
-static void vhost_user_backend_class_init(ObjectClass *oc, void *data)
+static void vhost_user_backend_class_init(ObjectClass *oc, const void *data)
 {
     object_class_property_add_str(oc, "chardev", get_chardev, set_chardev);
 }

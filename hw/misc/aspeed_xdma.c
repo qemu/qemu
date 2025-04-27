@@ -150,7 +150,7 @@ static const VMStateDescription aspeed_xdma_vmstate = {
     },
 };
 
-static void aspeed_2600_xdma_class_init(ObjectClass *klass, void *data)
+static void aspeed_2600_xdma_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedXDMAClass *axc = ASPEED_XDMA_CLASS(klass);
@@ -173,7 +173,7 @@ static const TypeInfo aspeed_2600_xdma_info = {
     .class_init = aspeed_2600_xdma_class_init,
 };
 
-static void aspeed_2500_xdma_class_init(ObjectClass *klass, void *data)
+static void aspeed_2500_xdma_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedXDMAClass *axc = ASPEED_XDMA_CLASS(klass);
@@ -195,7 +195,7 @@ static const TypeInfo aspeed_2500_xdma_info = {
     .class_init = aspeed_2500_xdma_class_init,
 };
 
-static void aspeed_2400_xdma_class_init(ObjectClass *klass, void *data)
+static void aspeed_2400_xdma_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedXDMAClass *axc = ASPEED_XDMA_CLASS(klass);
@@ -217,7 +217,7 @@ static const TypeInfo aspeed_2400_xdma_info = {
     .class_init = aspeed_2400_xdma_class_init,
 };
 
-static void aspeed_xdma_class_init(ObjectClass *classp, void *data)
+static void aspeed_xdma_class_init(ObjectClass *classp, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(classp);
 

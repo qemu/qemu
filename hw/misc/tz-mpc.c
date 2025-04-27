@@ -592,7 +592,7 @@ static const Property tz_mpc_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void tz_mpc_class_init(ObjectClass *klass, void *data)
+static void tz_mpc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -611,7 +611,7 @@ static const TypeInfo tz_mpc_info = {
 };
 
 static void tz_mpc_iommu_memory_region_class_init(ObjectClass *klass,
-                                                  void *data)
+                                                  const void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 

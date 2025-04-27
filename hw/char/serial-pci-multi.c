@@ -144,7 +144,8 @@ static const Property multi_4x_serial_pci_properties[] = {
     DEFINE_PROP_UINT8("prog_if",  PCIMultiSerialState, prog_if, 0x02),
 };
 
-static void multi_2x_serial_pci_class_initfn(ObjectClass *klass, void *data)
+static void multi_2x_serial_pci_class_initfn(ObjectClass *klass,
+                                             const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
@@ -159,7 +160,8 @@ static void multi_2x_serial_pci_class_initfn(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static void multi_4x_serial_pci_class_initfn(ObjectClass *klass, void *data)
+static void multi_4x_serial_pci_class_initfn(ObjectClass *klass,
+                                             const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
@@ -192,7 +194,7 @@ static const TypeInfo multi_2x_serial_pci_info = {
     .instance_size = sizeof(PCIMultiSerialState),
     .instance_init = multi_serial_init,
     .class_init    = multi_2x_serial_pci_class_initfn,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },
@@ -204,7 +206,7 @@ static const TypeInfo multi_4x_serial_pci_info = {
     .instance_size = sizeof(PCIMultiSerialState),
     .instance_init = multi_serial_init,
     .class_init    = multi_4x_serial_pci_class_initfn,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },

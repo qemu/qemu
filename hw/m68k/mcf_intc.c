@@ -182,7 +182,7 @@ static const Property mcf_intc_properties[] = {
                      TYPE_M68K_CPU, M68kCPU *),
 };
 
-static void mcf_intc_class_init(ObjectClass *oc, void *data)
+static void mcf_intc_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

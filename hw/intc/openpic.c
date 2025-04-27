@@ -1611,7 +1611,7 @@ static const Property openpic_properties[] = {
     DEFINE_PROP_UINT32("nb_cpus", OpenPICState, nb_cpus, 1),
 };
 
-static void openpic_class_init(ObjectClass *oc, void *data)
+static void openpic_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

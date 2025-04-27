@@ -220,7 +220,7 @@ void win_chr_set_file(Chardev *chr, HANDLE file, bool keep_open)
     s->file = file;
 }
 
-static void char_win_class_init(ObjectClass *oc, void *data)
+static void char_win_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

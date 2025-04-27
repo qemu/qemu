@@ -371,7 +371,7 @@ static const Property cxl_upstream_props[] = {
                                 width, PCIE_LINK_WIDTH_16),
 };
 
-static void cxl_upstream_class_init(ObjectClass *oc, void *data)
+static void cxl_upstream_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(oc);
@@ -394,7 +394,7 @@ static const TypeInfo cxl_usp_info = {
     .parent = TYPE_PCIE_PORT,
     .instance_size = sizeof(CXLUpstreamPort),
     .class_init = cxl_upstream_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
         { INTERFACE_CXL_DEVICE },
         { }

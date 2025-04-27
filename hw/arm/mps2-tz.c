@@ -1267,7 +1267,7 @@ static void mps2_machine_reset(MachineState *machine, ResetType type)
     qemu_devices_reset(type);
 }
 
-static void mps2tz_class_init(ObjectClass *oc, void *data)
+static void mps2tz_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     IDAUInterfaceClass *iic = IDAU_INTERFACE_CLASS(oc);
@@ -1304,7 +1304,7 @@ static void mps2tz_set_default_ram_info(MPS2TZMachineClass *mmc)
     g_assert_not_reached();
 }
 
-static void mps2tz_an505_class_init(ObjectClass *oc, void *data)
+static void mps2tz_an505_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_CLASS(oc);
@@ -1338,7 +1338,7 @@ static void mps2tz_an505_class_init(ObjectClass *oc, void *data)
     mps2tz_set_default_ram_info(mmc);
 }
 
-static void mps2tz_an521_class_init(ObjectClass *oc, void *data)
+static void mps2tz_an521_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_CLASS(oc);
@@ -1372,7 +1372,7 @@ static void mps2tz_an521_class_init(ObjectClass *oc, void *data)
     mps2tz_set_default_ram_info(mmc);
 }
 
-static void mps3tz_an524_class_init(ObjectClass *oc, void *data)
+static void mps3tz_an524_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_CLASS(oc);
@@ -1411,7 +1411,7 @@ static void mps3tz_an524_class_init(ObjectClass *oc, void *data)
                                           "are BRAM (default) and QSPI.");
 }
 
-static void mps3tz_an547_class_init(ObjectClass *oc, void *data)
+static void mps3tz_an547_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_CLASS(oc);
@@ -1453,7 +1453,7 @@ static const TypeInfo mps2tz_info = {
     .instance_size = sizeof(MPS2TZMachineState),
     .class_size = sizeof(MPS2TZMachineClass),
     .class_init = mps2tz_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_IDAU_INTERFACE },
         { }
     },

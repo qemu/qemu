@@ -290,7 +290,7 @@ static const Property prep_systemio_properties[] = {
     DEFINE_PROP_UINT8("equipment", PrepSystemIoState, equipment, 0),
 };
 
-static void prep_systemio_class_initfn(ObjectClass *klass, void *data)
+static void prep_systemio_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

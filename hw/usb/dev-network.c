@@ -1411,7 +1411,7 @@ static const Property net_properties[] = {
     DEFINE_NIC_PROPERTIES(USBNetState, conf),
 };
 
-static void usb_net_class_initfn(ObjectClass *klass, void *data)
+static void usb_net_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);

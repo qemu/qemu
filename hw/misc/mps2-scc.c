@@ -474,7 +474,7 @@ static const Property mps2_scc_properties[] = {
                       qdev_prop_uint32, uint32_t),
 };
 
-static void mps2_scc_class_init(ObjectClass *klass, void *data)
+static void mps2_scc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

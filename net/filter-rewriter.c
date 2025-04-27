@@ -411,7 +411,7 @@ static void filter_rewriter_init(Object *obj)
     s->failover_mode = FAILOVER_MODE_OFF;
 }
 
-static void colo_rewriter_class_init(ObjectClass *oc, void *data)
+static void colo_rewriter_class_init(ObjectClass *oc, const void *data)
 {
     NetFilterClass *nfc = NETFILTER_CLASS(oc);
 

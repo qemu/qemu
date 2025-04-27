@@ -1228,7 +1228,7 @@ void load_image_to_fw_cfg(FWCfgState *fw_cfg, uint16_t size_key,
     fw_cfg_add_bytes(fw_cfg, data_key, data, size);
 }
 
-static void fw_cfg_class_init(ObjectClass *klass, void *data)
+static void fw_cfg_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1303,7 +1303,7 @@ static void fw_cfg_io_realize(DeviceState *dev, Error **errp)
     fw_cfg_common_realize(dev, errp);
 }
 
-static void fw_cfg_io_class_init(ObjectClass *klass, void *data)
+static void fw_cfg_io_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1364,7 +1364,7 @@ static void fw_cfg_mem_realize(DeviceState *dev, Error **errp)
     fw_cfg_common_realize(dev, errp);
 }
 
-static void fw_cfg_mem_class_init(ObjectClass *klass, void *data)
+static void fw_cfg_mem_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

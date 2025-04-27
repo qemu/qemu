@@ -285,7 +285,7 @@ static const Property tz_msc_properties[] = {
                      TYPE_IDAU_INTERFACE, IDAUInterface *),
 };
 
-static void tz_msc_class_init(ObjectClass *klass, void *data)
+static void tz_msc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -1546,7 +1546,7 @@ static void exynos4210_mct_finalize(Object *obj)
     }
 }
 
-static void exynos4210_mct_class_init(ObjectClass *klass, void *data)
+static void exynos4210_mct_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

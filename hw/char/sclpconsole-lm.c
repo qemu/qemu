@@ -339,7 +339,7 @@ static const Property console_properties[] = {
     DEFINE_PROP_BOOL("echo", SCLPConsoleLM, echo, true),
 };
 
-static void console_class_init(ObjectClass *klass, void *data)
+static void console_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCLPEventClass *ec = SCLP_EVENT_CLASS(klass);

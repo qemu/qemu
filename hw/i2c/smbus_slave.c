@@ -201,7 +201,7 @@ static int smbus_i2c_send(I2CSlave *s, uint8_t data)
     return 0;
 }
 
-static void smbus_device_class_init(ObjectClass *klass, void *data)
+static void smbus_device_class_init(ObjectClass *klass, const void *data)
 {
     I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
 

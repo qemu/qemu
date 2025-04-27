@@ -67,7 +67,7 @@ static void xen_primary_console_realize(DeviceState *dev, Error **errp)
     xen_primary_console_singleton = s;
 }
 
-static void xen_primary_console_class_init(ObjectClass *klass, void *data)
+static void xen_primary_console_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

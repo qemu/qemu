@@ -216,7 +216,7 @@ static const Property nrf51_soc_properties[] = {
                        NRF51822_FLASH_SIZE),
 };
 
-static void nrf51_soc_class_init(ObjectClass *klass, void *data)
+static void nrf51_soc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

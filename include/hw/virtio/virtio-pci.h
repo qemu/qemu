@@ -255,8 +255,8 @@ typedef struct VirtioPCIDeviceTypeInfo {
     size_t class_size;
     void (*instance_init)(Object *obj);
     void (*instance_finalize)(Object *obj);
-    void (*class_init)(ObjectClass *klass, void *data);
-    InterfaceInfo *interfaces;
+    void (*class_init)(ObjectClass *klass, const void *data);
+    const InterfaceInfo *interfaces;
 } VirtioPCIDeviceTypeInfo;
 
 /* Register virtio-pci type(s).  @t must be static. */

@@ -448,7 +448,7 @@ static const VMStateDescription sse_counter_vmstate = {
     }
 };
 
-static void sse_counter_class_init(ObjectClass *klass, void *data)
+static void sse_counter_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

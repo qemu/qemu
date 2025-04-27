@@ -38,7 +38,7 @@ static const TypeInfo test_if_info = {
 
 #define PATTERN 0xFAFBFCFD
 
-static void test_class_init(ObjectClass *oc, void *data)
+static void test_class_init(ObjectClass *oc, const void *data)
 {
     TestIfClass *tc = TEST_IF_CLASS(oc);
 
@@ -52,7 +52,7 @@ static const TypeInfo direct_impl_info = {
     .name = TYPE_DIRECT_IMPL,
     .parent = TYPE_OBJECT,
     .class_init = test_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_TEST_IF },
         { }
     }

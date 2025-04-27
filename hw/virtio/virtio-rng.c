@@ -260,7 +260,7 @@ static const Property virtio_rng_properties[] = {
     DEFINE_PROP_LINK("rng", VirtIORNG, conf.rng, TYPE_RNG_BACKEND, RngBackend *),
 };
 
-static void virtio_rng_class_init(ObjectClass *klass, void *data)
+static void virtio_rng_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

@@ -116,7 +116,7 @@ static const Property vga_mmio_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", VGAMmioState, vga.vram_size_mb, 8),
 };
 
-static void vga_mmio_class_initfn(ObjectClass *klass, void *data)
+static void vga_mmio_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

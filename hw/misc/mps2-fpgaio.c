@@ -328,7 +328,7 @@ static const Property mps2_fpgaio_properties[] = {
     DEFINE_PROP_BOOL("has-dbgctrl", MPS2FPGAIO, has_dbgctrl, false),
 };
 
-static void mps2_fpgaio_class_init(ObjectClass *klass, void *data)
+static void mps2_fpgaio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

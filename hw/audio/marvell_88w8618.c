@@ -287,7 +287,7 @@ static const VMStateDescription mv88w8618_audio_vmsd = {
     }
 };
 
-static void mv88w8618_audio_class_init(ObjectClass *klass, void *data)
+static void mv88w8618_audio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

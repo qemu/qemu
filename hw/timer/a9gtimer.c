@@ -377,7 +377,7 @@ static const Property a9_gtimer_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", A9GTimerState, num_cpu, 0),
 };
 
-static void a9_gtimer_class_init(ObjectClass *klass, void *data)
+static void a9_gtimer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

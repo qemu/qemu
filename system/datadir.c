@@ -30,7 +30,7 @@
 static const char *data_dir[16];
 static int data_dir_idx;
 
-char *qemu_find_file(int type, const char *name)
+char *qemu_find_file(QemuFileType type, const char *name)
 {
     int i;
     const char *subdir;
@@ -45,6 +45,9 @@ char *qemu_find_file(int type, const char *name)
     switch (type) {
     case QEMU_FILE_TYPE_BIOS:
         subdir = "";
+        break;
+    case QEMU_FILE_TYPE_DTB:
+        subdir = "dtb/";
         break;
     case QEMU_FILE_TYPE_KEYMAP:
         subdir = "keymaps/";

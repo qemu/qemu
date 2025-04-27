@@ -789,7 +789,7 @@ out_single:
     return ret;
 }
 
-static void vfio_iommu_iommufd_class_init(ObjectClass *klass, void *data)
+static void vfio_iommu_iommufd_class_init(ObjectClass *klass, const void *data)
 {
     VFIOIOMMUClass *vioc = VFIO_IOMMU_CLASS(klass);
 
@@ -847,7 +847,7 @@ hiod_iommufd_vfio_get_page_size_mask(HostIOMMUDevice *hiod)
 }
 
 
-static void hiod_iommufd_vfio_class_init(ObjectClass *oc, void *data)
+static void hiod_iommufd_vfio_class_init(ObjectClass *oc, const void *data)
 {
     HostIOMMUDeviceClass *hiodc = HOST_IOMMU_DEVICE_CLASS(oc);
 

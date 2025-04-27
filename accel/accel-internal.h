@@ -1,5 +1,5 @@
 /*
- * QEMU System Emulation accel internal functions
+ * QEMU accel internal functions
  *
  * Copyright 2021 SUSE LLC
  *
@@ -7,9 +7,11 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef ACCEL_SYSTEM_H
-#define ACCEL_SYSTEM_H
+#ifndef ACCEL_INTERNAL_H
+#define ACCEL_INTERNAL_H
 
-void accel_system_init_ops_interfaces(AccelClass *ac);
+#include "qemu/accel.h"
+
+void accel_init_ops_interfaces(AccelClass *ac);
 
 #endif /* ACCEL_SYSTEM_H */

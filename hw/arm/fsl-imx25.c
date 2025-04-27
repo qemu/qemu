@@ -311,7 +311,7 @@ static const Property fsl_imx25_properties[] = {
     DEFINE_PROP_UINT32("fec-phy-num", FslIMX25State, phy_num, 0),
 };
 
-static void fsl_imx25_class_init(ObjectClass *oc, void *data)
+static void fsl_imx25_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

@@ -367,7 +367,7 @@ OBJECT_DEFINE_TYPE_WITH_INTERFACES(S390PVGuest,
                                    { TYPE_USER_CREATABLE },
                                    { NULL })
 
-static void s390_pv_guest_class_init(ObjectClass *oc, void *data)
+static void s390_pv_guest_class_init(ObjectClass *oc, const void *data)
 {
     ConfidentialGuestSupportClass *klass = CONFIDENTIAL_GUEST_SUPPORT_CLASS(oc);
 

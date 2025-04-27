@@ -1220,7 +1220,7 @@ static const Property intel_hda_properties[] = {
     DEFINE_PROP_BOOL("old_msi_addr", IntelHDAState, old_msi_addr, false),
 };
 
-static void intel_hda_class_init(ObjectClass *klass, void *data)
+static void intel_hda_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -1234,7 +1234,7 @@ static void intel_hda_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, intel_hda_properties);
 }
 
-static void intel_hda_class_init_ich6(ObjectClass *klass, void *data)
+static void intel_hda_class_init_ich6(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -1245,7 +1245,7 @@ static void intel_hda_class_init_ich6(ObjectClass *klass, void *data)
     dc->desc = "Intel HD Audio Controller (ich6)";
 }
 
-static void intel_hda_class_init_ich9(ObjectClass *klass, void *data)
+static void intel_hda_class_init_ich9(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -1262,7 +1262,7 @@ static const TypeInfo intel_hda_info = {
     .instance_size = sizeof(IntelHDAState),
     .class_init    = intel_hda_class_init,
     .abstract      = true,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },
@@ -1280,7 +1280,7 @@ static const TypeInfo intel_hda_info_ich9 = {
     .class_init    = intel_hda_class_init_ich9,
 };
 
-static void hda_codec_device_class_init(ObjectClass *klass, void *data)
+static void hda_codec_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->realize = hda_codec_dev_realize;

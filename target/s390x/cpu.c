@@ -371,7 +371,7 @@ static const TCGCPUOps s390_tcg_ops = {
 };
 #endif /* CONFIG_TCG */
 
-static void s390_cpu_class_init(ObjectClass *oc, void *data)
+static void s390_cpu_class_init(ObjectClass *oc, const void *data)
 {
     S390CPUClass *scc = S390_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(scc);
@@ -386,6 +386,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
                                        &scc->parent_phases);
 
     cc->class_by_name = s390_cpu_class_by_name;
+    cc->list_cpus = s390_cpu_list;
     cc->dump_state = s390_cpu_dump_state;
     cc->query_cpu_fast = s390_query_cpu_fast;
     cc->set_pc = s390_cpu_set_pc;

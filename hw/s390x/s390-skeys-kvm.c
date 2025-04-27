@@ -52,7 +52,7 @@ static int kvm_s390_skeys_set(S390SKeysState *ss, uint64_t start_gfn,
     return kvm_vm_ioctl(kvm_state, KVM_S390_SET_SKEYS, &args);
 }
 
-static void kvm_s390_skeys_class_init(ObjectClass *oc, void *data)
+static void kvm_s390_skeys_class_init(ObjectClass *oc, const void *data)
 {
     S390SKeysClass *skeyclass = S390_SKEYS_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);

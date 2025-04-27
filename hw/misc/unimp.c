@@ -75,7 +75,7 @@ static const Property unimp_properties[] = {
     DEFINE_PROP_STRING("name", UnimplementedDeviceState, name),
 };
 
-static void unimp_class_init(ObjectClass *klass, void *data)
+static void unimp_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -237,7 +237,7 @@ static const TCGCPUOps avr_tcg_ops = {
     .do_interrupt = avr_cpu_do_interrupt,
 };
 
-static void avr_cpu_class_init(ObjectClass *oc, void *data)
+static void avr_cpu_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);

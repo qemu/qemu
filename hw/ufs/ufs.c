@@ -1844,7 +1844,7 @@ static const VMStateDescription ufs_vmstate = {
     .unmigratable = 1,
 };
 
-static void ufs_class_init(ObjectClass *oc, void *data)
+static void ufs_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
@@ -1880,7 +1880,7 @@ static char *ufs_bus_get_dev_path(DeviceState *dev)
     return qdev_get_dev_path(bus->parent);
 }
 
-static void ufs_bus_class_init(ObjectClass *class, void *data)
+static void ufs_bus_class_init(ObjectClass *class, const void *data)
 {
     BusClass *bc = BUS_CLASS(class);
     bc->get_dev_path = ufs_bus_get_dev_path;
@@ -1892,7 +1892,7 @@ static const TypeInfo ufs_info = {
     .parent = TYPE_PCI_DEVICE,
     .class_init = ufs_class_init,
     .instance_size = sizeof(UfsHc),
-    .interfaces = (InterfaceInfo[]){ { INTERFACE_PCIE_DEVICE }, {} },
+    .interfaces = (const InterfaceInfo[]){ { INTERFACE_PCIE_DEVICE }, {} },
 };
 
 static const TypeInfo ufs_bus_info = {

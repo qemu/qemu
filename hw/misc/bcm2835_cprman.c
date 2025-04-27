@@ -131,7 +131,7 @@ static const VMStateDescription pll_vmstate = {
     }
 };
 
-static void pll_class_init(ObjectClass *klass, void *data)
+static void pll_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -237,7 +237,7 @@ static const VMStateDescription pll_channel_vmstate = {
     }
 };
 
-static void pll_channel_class_init(ObjectClass *klass, void *data)
+static void pll_channel_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -360,7 +360,7 @@ static const VMStateDescription clock_mux_vmstate = {
     }
 };
 
-static void clock_mux_class_init(ObjectClass *klass, void *data)
+static void clock_mux_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -417,7 +417,7 @@ static const VMStateDescription dsi0hsck_mux_vmstate = {
     }
 };
 
-static void dsi0hsck_mux_class_init(ObjectClass *klass, void *data)
+static void dsi0hsck_mux_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -790,7 +790,7 @@ static const Property cprman_properties[] = {
     DEFINE_PROP_UINT32("xosc-freq-hz", BCM2835CprmanState, xosc_freq, 19200000),
 };
 
-static void cprman_class_init(ObjectClass *klass, void *data)
+static void cprman_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

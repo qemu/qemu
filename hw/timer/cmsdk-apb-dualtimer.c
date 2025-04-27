@@ -534,7 +534,7 @@ static const VMStateDescription cmsdk_apb_dualtimer_vmstate = {
     }
 };
 
-static void cmsdk_apb_dualtimer_class_init(ObjectClass *klass, void *data)
+static void cmsdk_apb_dualtimer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

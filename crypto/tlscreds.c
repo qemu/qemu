@@ -223,7 +223,7 @@ qcrypto_tls_creds_prop_get_endpoint(Object *obj,
 
 
 static void
-qcrypto_tls_creds_class_init(ObjectClass *oc, void *data)
+qcrypto_tls_creds_class_init(ObjectClass *oc, const void *data)
 {
     object_class_property_add_bool(oc, "verify-peer",
                                    qcrypto_tls_creds_prop_get_verify,

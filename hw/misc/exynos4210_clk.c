@@ -141,7 +141,7 @@ static const VMStateDescription exynos4210_clk_vmstate = {
     }
 };
 
-static void exynos4210_clk_class_init(ObjectClass *klass, void *data)
+static void exynos4210_clk_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

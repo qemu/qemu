@@ -250,7 +250,7 @@ static const Property nvdimm_properties[] = {
     DEFINE_PROP_BOOL(NVDIMM_UNARMED_PROP, NVDIMMDevice, unarmed, false),
 };
 
-static void nvdimm_class_init(ObjectClass *oc, void *data)
+static void nvdimm_class_init(ObjectClass *oc, const void *data)
 {
     PCDIMMDeviceClass *ddc = PC_DIMM_CLASS(oc);
     MemoryDeviceClass *mdc = MEMORY_DEVICE_CLASS(oc);

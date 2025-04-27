@@ -165,7 +165,7 @@ static const VMStateDescription vmstate_cadence_sdhci = {
     },
 };
 
-static void cadence_sdhci_class_init(ObjectClass *classp, void *data)
+static void cadence_sdhci_class_init(ObjectClass *classp, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(classp);
 

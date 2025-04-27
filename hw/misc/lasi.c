@@ -263,7 +263,7 @@ static void lasi_init(Object *obj)
     qdev_init_gpio_in(DEVICE(obj), lasi_set_irq, LASI_IRQS);
 }
 
-static void lasi_class_init(ObjectClass *klass, void *data)
+static void lasi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

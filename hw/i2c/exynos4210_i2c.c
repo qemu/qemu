@@ -309,7 +309,7 @@ static void exynos4210_i2c_init(Object *obj)
     s->bus = i2c_init_bus(dev, "i2c");
 }
 
-static void exynos4210_i2c_class_init(ObjectClass *klass, void *data)
+static void exynos4210_i2c_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

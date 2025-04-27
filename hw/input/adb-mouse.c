@@ -287,7 +287,7 @@ static void adb_mouse_initfn(Object *obj)
     d->devaddr = ADB_DEVID_MOUSE;
 }
 
-static void adb_mouse_class_init(ObjectClass *oc, void *data)
+static void adb_mouse_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     ADBDeviceClass *adc = ADB_DEVICE_CLASS(oc);

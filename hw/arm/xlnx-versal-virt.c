@@ -808,7 +808,7 @@ static void versal_virt_machine_finalize(Object *obj)
     g_free(s->ospi_model);
 }
 
-static void versal_virt_machine_class_init(ObjectClass *oc, void *data)
+static void versal_virt_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 

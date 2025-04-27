@@ -11,7 +11,7 @@
 #include "qemu/osdep.h"
 #include "hw/isa/superio.h"
 
-static void fdc37m81x_class_init(ObjectClass *klass, void *data)
+static void fdc37m81x_class_init(ObjectClass *klass, const void *data)
 {
     ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
 

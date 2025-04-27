@@ -236,7 +236,7 @@ qcrypto_tls_creds_psk_prop_get_username(Object *obj,
 }
 
 static void
-qcrypto_tls_creds_psk_class_init(ObjectClass *oc, void *data)
+qcrypto_tls_creds_psk_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
@@ -255,7 +255,7 @@ static const TypeInfo qcrypto_tls_creds_psk_info = {
     .instance_finalize = qcrypto_tls_creds_psk_finalize,
     .class_size = sizeof(QCryptoTLSCredsPSKClass),
     .class_init = qcrypto_tls_creds_psk_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

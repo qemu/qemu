@@ -447,7 +447,7 @@ void resume_mux_open(void)
                          chardev_options_parsed_cb, NULL);
 }
 
-static void char_mux_class_init(ObjectClass *oc, void *data)
+static void char_mux_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

@@ -334,7 +334,7 @@ static const VMStateDescription vmstate_sifive_uart = {
 };
 
 
-static void sifive_uart_class_init(ObjectClass *oc, void *data)
+static void sifive_uart_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     ResettableClass *rc = RESETTABLE_CLASS(oc);

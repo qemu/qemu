@@ -392,7 +392,7 @@ static const VMStateDescription vmstate_raven = {
     },
 };
 
-static void raven_class_init(ObjectClass *klass, void *data)
+static void raven_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -416,7 +416,7 @@ static const TypeInfo raven_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(RavenPCIState),
     .class_init = raven_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },
@@ -431,7 +431,7 @@ static const Property raven_pcihost_properties[] = {
                      false),
 };
 
-static void raven_pcihost_class_init(ObjectClass *klass, void *data)
+static void raven_pcihost_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

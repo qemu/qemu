@@ -173,7 +173,7 @@ static const Property mips_cps_properties[] = {
     DEFINE_PROP_BOOL("cpu-big-endian", MIPSCPSState, cpu_is_bigendian, false),
 };
 
-static void mips_cps_class_init(ObjectClass *klass, void *data)
+static void mips_cps_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

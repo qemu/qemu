@@ -2082,7 +2082,7 @@ static const Property mtp_properties[] = {
     DEFINE_PROP_BOOL("readonly", MTPState, readonly, true),
 };
 
-static void usb_mtp_class_initfn(ObjectClass *klass, void *data)
+static void usb_mtp_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);

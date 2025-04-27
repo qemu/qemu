@@ -34,7 +34,7 @@ static const VMStateDescription vfio_platform_calxeda_xgmac_vmstate = {
     .unmigratable = 1,
 };
 
-static void vfio_calxeda_xgmac_class_init(ObjectClass *klass, void *data)
+static void vfio_calxeda_xgmac_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VFIOCalxedaXgmacDeviceClass *vcxc =

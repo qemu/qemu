@@ -748,7 +748,7 @@ static const Property fsl_imx7_properties[] = {
                      true),
 };
 
-static void fsl_imx7_class_init(ObjectClass *oc, void *data)
+static void fsl_imx7_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

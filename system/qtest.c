@@ -693,7 +693,7 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
 
         qtest_send(chr, "OK\n");
     } else if (strcmp(words[0], "endianness") == 0) {
-        if (target_words_bigendian()) {
+        if (target_big_endian()) {
             qtest_sendf(chr, "OK big\n");
         } else {
             qtest_sendf(chr, "OK little\n");
@@ -994,7 +994,7 @@ static char *qtest_get_chardev(Object *obj, Error **errp)
     return g_strdup(q->chr_name);
 }
 
-static void qtest_class_init(ObjectClass *oc, void *data)
+static void qtest_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
@@ -1012,7 +1012,7 @@ static const TypeInfo qtest_info = {
     .parent = TYPE_OBJECT,
     .class_init = qtest_class_init,
     .instance_size = sizeof(QTest),
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

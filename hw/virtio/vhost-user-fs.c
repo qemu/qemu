@@ -418,7 +418,7 @@ static void vuf_instance_init(Object *obj)
                                   "/filesystem@0", DEVICE(obj));
 }
 
-static void vuf_class_init(ObjectClass *klass, void *data)
+static void vuf_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

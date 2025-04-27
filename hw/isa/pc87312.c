@@ -332,7 +332,7 @@ static const Property pc87312_properties[] = {
     DEFINE_PROP_UINT8("config", PC87312State, config, 1),
 };
 
-static void pc87312_class_init(ObjectClass *klass, void *data)
+static void pc87312_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);

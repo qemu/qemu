@@ -393,7 +393,7 @@ static void cryptodev_vhost_user_finalize(Object *obj)
 }
 
 static void
-cryptodev_vhost_user_class_init(ObjectClass *oc, void *data)
+cryptodev_vhost_user_class_init(ObjectClass *oc, const void *data)
 {
     CryptoDevBackendClass *bc = CRYPTODEV_BACKEND_CLASS(oc);
 

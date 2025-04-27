@@ -49,7 +49,7 @@ static const Property virtio_9p_pci_properties[] = {
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
 };
 
-static void virtio_9p_pci_class_init(ObjectClass *klass, void *data)
+static void virtio_9p_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);

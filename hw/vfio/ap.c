@@ -241,7 +241,7 @@ static void vfio_ap_set_fd(Object *obj, const char *str, Error **errp)
 }
 #endif
 
-static void vfio_ap_class_init(ObjectClass *klass, void *data)
+static void vfio_ap_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

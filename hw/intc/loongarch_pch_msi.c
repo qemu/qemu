@@ -79,7 +79,7 @@ static const Property loongarch_msi_properties[] = {
     DEFINE_PROP_UINT32("msi_irq_num",  LoongArchPCHMSI, irq_num, 0),
 };
 
-static void loongarch_pch_msi_class_init(ObjectClass *klass, void *data)
+static void loongarch_pch_msi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

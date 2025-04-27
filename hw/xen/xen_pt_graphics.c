@@ -347,7 +347,7 @@ static const IGDDeviceIDInfo igd_combo_id_infos[] = {
     {0x162D, 0x9cc3, 0x03}, /* BDWGT3SRVR, BDWM_w7 */
 };
 
-static void isa_bridge_class_init(ObjectClass *klass, void *data)
+static void isa_bridge_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -363,7 +363,7 @@ static const TypeInfo isa_bridge_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init = isa_bridge_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },

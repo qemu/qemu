@@ -260,7 +260,7 @@ static const TCGCPUOps openrisc_tcg_ops = {
 #endif /* !CONFIG_USER_ONLY */
 };
 
-static void openrisc_cpu_class_init(ObjectClass *oc, void *data)
+static void openrisc_cpu_class_init(ObjectClass *oc, const void *data)
 {
     OpenRISCCPUClass *occ = OPENRISC_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(occ);

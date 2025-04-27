@@ -176,7 +176,7 @@ static void pnv_icp_realize(DeviceState *dev, Error **errp)
                           icp, "icp-thread", 0x1000);
 }
 
-static void pnv_icp_class_init(ObjectClass *klass, void *data)
+static void pnv_icp_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ICPStateClass *icpc = ICP_CLASS(klass);

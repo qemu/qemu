@@ -436,7 +436,7 @@ static void xics_spapr_deactivate(SpaprInterruptController *intc)
     }
 }
 
-static void ics_spapr_class_init(ObjectClass *klass, void *data)
+static void ics_spapr_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ICSStateClass *isc = ICS_CLASS(klass);
@@ -461,7 +461,7 @@ static const TypeInfo ics_spapr_info = {
     .name = TYPE_ICS_SPAPR,
     .parent = TYPE_ICS,
     .class_init = ics_spapr_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_SPAPR_INTC },
         { }
     },

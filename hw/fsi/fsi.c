@@ -76,7 +76,7 @@ static void fsi_slave_init(Object *o)
                           s, TYPE_FSI_SLAVE, 0x400);
 }
 
-static void fsi_slave_class_init(ObjectClass *klass, void *data)
+static void fsi_slave_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

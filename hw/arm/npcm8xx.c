@@ -779,7 +779,7 @@ static const Property npcm8xx_properties[] = {
                      MemoryRegion *),
 };
 
-static void npcm8xx_class_init(ObjectClass *oc, void *data)
+static void npcm8xx_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     NPCM8xxClass *nc = NPCM8XX_CLASS(oc);

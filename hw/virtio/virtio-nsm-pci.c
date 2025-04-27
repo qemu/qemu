@@ -40,7 +40,7 @@ static void virtio_nsm_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     }
 }
 
-static void virtio_nsm_pci_class_init(ObjectClass *klass, void *data)
+static void virtio_nsm_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);

@@ -116,7 +116,8 @@ static const VMStateDescription allwinner_h3_sysctrl_vmstate = {
     }
 };
 
-static void allwinner_h3_sysctrl_class_init(ObjectClass *klass, void *data)
+static void allwinner_h3_sysctrl_class_init(ObjectClass *klass,
+                                            const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

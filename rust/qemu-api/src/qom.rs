@@ -227,7 +227,7 @@ unsafe extern "C" fn rust_instance_post_init<T: ObjectImpl>(obj: *mut bindings::
 
 unsafe extern "C" fn rust_class_init<T: ObjectType + ObjectImpl>(
     klass: *mut ObjectClass,
-    _data: *mut c_void,
+    _data: *const c_void,
 ) {
     let mut klass = NonNull::new(klass)
         .unwrap()
@@ -492,7 +492,7 @@ pub trait ObjectImpl: ObjectType + IsA<Object> {
     /// the effects of copying the contents of the parent's class struct
     /// to the descendants.
     const CLASS_BASE_INIT: Option<
-        unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut c_void),
+        unsafe extern "C" fn(klass: *mut ObjectClass, data: *const c_void),
     > = None;
 
     const TYPE_INFO: TypeInfo = TypeInfo {
@@ -513,8 +513,8 @@ pub trait ObjectImpl: ObjectType + IsA<Object> {
         class_size: core::mem::size_of::<Self::Class>(),
         class_init: Some(rust_class_init::<Self>),
         class_base_init: Self::CLASS_BASE_INIT,
-        class_data: core::ptr::null_mut(),
-        interfaces: core::ptr::null_mut(),
+        class_data: core::ptr::null(),
+        interfaces: core::ptr::null(),
     };
 
     // methods on ObjectClass

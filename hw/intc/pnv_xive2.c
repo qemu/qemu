@@ -2505,7 +2505,7 @@ static int pnv_xive2_dt_xscom(PnvXScomInterface *dev, void *fdt,
     return 0;
 }
 
-static void pnv_xive2_class_init(ObjectClass *klass, void *data)
+static void pnv_xive2_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvXScomInterfaceClass *xdc = PNV_XSCOM_INTERFACE_CLASS(klass);
@@ -2547,7 +2547,7 @@ static const TypeInfo pnv_xive2_info = {
     .instance_size = sizeof(PnvXive2),
     .class_init    = pnv_xive2_class_init,
     .class_size    = sizeof(PnvXive2Class),
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }
     }

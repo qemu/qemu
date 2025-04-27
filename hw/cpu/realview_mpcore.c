@@ -107,7 +107,7 @@ static void mpcore_rirq_init(Object *obj)
     }
 }
 
-static void mpcore_rirq_class_init(ObjectClass *klass, void *data)
+static void mpcore_rirq_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

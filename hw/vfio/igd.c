@@ -301,7 +301,8 @@ static void vfio_pci_igd_lpc_bridge_realize(PCIDevice *pdev, Error **errp)
     }
 }
 
-static void vfio_pci_igd_lpc_bridge_class_init(ObjectClass *klass, void *data)
+static void vfio_pci_igd_lpc_bridge_class_init(ObjectClass *klass,
+                                               const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -317,7 +318,7 @@ static const TypeInfo vfio_pci_igd_lpc_bridge_info = {
     .name = "vfio-pci-igd-lpc-bridge",
     .parent = TYPE_PCI_DEVICE,
     .class_init = vfio_pci_igd_lpc_bridge_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },

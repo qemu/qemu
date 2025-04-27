@@ -106,7 +106,7 @@ static void armsse_cpuid_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static void armsse_cpuid_class_init(ObjectClass *klass, void *data)
+static void armsse_cpuid_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

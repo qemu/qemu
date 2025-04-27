@@ -200,7 +200,7 @@ static const VMStateDescription vmstate_lan9118_phy = {
     }
 };
 
-static void lan9118_phy_class_init(ObjectClass *klass, void *data)
+static void lan9118_phy_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

@@ -2486,7 +2486,7 @@ typedef struct MegasasInfo {
     const VMStateDescription *vmsd;
     const Property *props;
     size_t props_count;
-    InterfaceInfo *interfaces;
+    const InterfaceInfo *interfaces;
 } MegasasInfo;
 
 static struct MegasasInfo megasas_devices[] = {
@@ -2503,7 +2503,7 @@ static struct MegasasInfo megasas_devices[] = {
         .vmsd = &vmstate_megasas_gen1,
         .props = megasas_properties_gen1,
         .props_count = ARRAY_SIZE(megasas_properties_gen1),
-        .interfaces = (InterfaceInfo[]) {
+        .interfaces = (const InterfaceInfo[]) {
             { INTERFACE_CONVENTIONAL_PCI_DEVICE },
             { },
         },
@@ -2520,14 +2520,14 @@ static struct MegasasInfo megasas_devices[] = {
         .vmsd = &vmstate_megasas_gen2,
         .props = megasas_properties_gen2,
         .props_count = ARRAY_SIZE(megasas_properties_gen2),
-        .interfaces = (InterfaceInfo[]) {
+        .interfaces = (const InterfaceInfo[]) {
             { INTERFACE_PCIE_DEVICE },
             { }
         },
     }
 };
 
-static void megasas_class_init(ObjectClass *oc, void *data)
+static void megasas_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
@@ -2572,7 +2572,7 @@ static void megasas_register_types(void)
 
         type_info.name = info->name;
         type_info.parent = TYPE_MEGASAS_BASE;
-        type_info.class_data = (void *)info;
+        type_info.class_data = info;
         type_info.class_init = megasas_class_init;
         type_info.interfaces = info->interfaces;
 

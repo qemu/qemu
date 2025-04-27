@@ -710,7 +710,7 @@ static const Property wm8750_properties[] = {
     DEFINE_AUDIO_PROPERTIES(WM8750State, card),
 };
 
-static void wm8750_class_init(ObjectClass *klass, void *data)
+static void wm8750_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);

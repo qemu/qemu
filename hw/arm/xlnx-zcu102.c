@@ -267,7 +267,7 @@ static void xlnx_zcu102_machine_instance_init(Object *obj)
                              0);
 }
 
-static void xlnx_zcu102_machine_class_init(ObjectClass *oc, void *data)
+static void xlnx_zcu102_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 

@@ -401,7 +401,7 @@ static int vmstate_extioi_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static void loongarch_extioi_class_init(ObjectClass *klass, void *data)
+static void loongarch_extioi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     LoongArchExtIOIClass *lec = LOONGARCH_EXTIOI_CLASS(klass);

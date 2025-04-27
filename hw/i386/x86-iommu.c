@@ -132,7 +132,7 @@ static const Property x86_iommu_properties[] = {
     DEFINE_PROP_BOOL("pt", X86IOMMUState, pt_supported, true),
 };
 
-static void x86_iommu_class_init(ObjectClass *klass, void *data)
+static void x86_iommu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = x86_iommu_realize;

@@ -280,7 +280,7 @@ struct Object
     static void \
     module_obj_name##_finalize(Object *obj); \
     static void \
-    module_obj_name##_class_init(ObjectClass *oc, void *data); \
+    module_obj_name##_class_init(ObjectClass *oc, const void *data); \
     static void \
     module_obj_name##_init(Object *obj); \
     \
@@ -294,7 +294,7 @@ struct Object
         .class_size = CLASS_SIZE, \
         .class_init = module_obj_name##_class_init, \
         .abstract = ABSTRACT, \
-        .interfaces = (InterfaceInfo[]) { __VA_ARGS__ } , \
+        .interfaces = (const InterfaceInfo[]) { __VA_ARGS__ } , \
     }; \
     \
     static void \
@@ -486,11 +486,11 @@ struct TypeInfo
     bool abstract;
     size_t class_size;
 
-    void (*class_init)(ObjectClass *klass, void *data);
-    void (*class_base_init)(ObjectClass *klass, void *data);
-    void *class_data;
+    void (*class_init)(ObjectClass *klass, const void *data);
+    void (*class_base_init)(ObjectClass *klass, const void *data);
+    const void *class_data;
 
-    InterfaceInfo *interfaces;
+    const InterfaceInfo *interfaces;
 };
 
 /**

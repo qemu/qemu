@@ -66,7 +66,7 @@ static void simba_pci_bridge_realize(PCIDevice *dev, Error **errp)
     pci_bridge_update_mappings(PCI_BRIDGE(br));
 }
 
-static void simba_pci_bridge_class_init(ObjectClass *klass, void *data)
+static void simba_pci_bridge_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -87,7 +87,7 @@ static const TypeInfo simba_pci_bridge_info = {
     .parent        = TYPE_PCI_BRIDGE,
     .class_init    = simba_pci_bridge_class_init,
     .instance_size = sizeof(SimbaPCIBridge),
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },

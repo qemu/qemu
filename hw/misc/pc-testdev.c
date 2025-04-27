@@ -193,7 +193,7 @@ static void testdev_realizefn(DeviceState *d, Error **errp)
     memory_region_add_subregion(mem, 0xff000000, &dev->iomem);
 }
 
-static void testdev_class_init(ObjectClass *klass, void *data)
+static void testdev_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

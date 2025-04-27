@@ -103,7 +103,7 @@ qauthz_pam_finalize(Object *obj)
 
 
 static void
-qauthz_pam_class_init(ObjectClass *oc, void *data)
+qauthz_pam_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
     QAuthZClass *authz = QAUTHZ_CLASS(oc);
@@ -136,7 +136,7 @@ static const TypeInfo qauthz_pam_info = {
     .instance_size = sizeof(QAuthZPAM),
     .instance_finalize = qauthz_pam_finalize,
     .class_init = qauthz_pam_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

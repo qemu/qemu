@@ -113,7 +113,7 @@ static void m48t59_isa_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void m48txx_isa_class_init(ObjectClass *klass, void *data)
+static void m48txx_isa_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     NvramClass *nc = NVRAM_CLASS(klass);
@@ -126,7 +126,7 @@ static void m48txx_isa_class_init(ObjectClass *klass, void *data)
     nc->toggle_lock = m48txx_isa_toggle_lock;
 }
 
-static void m48txx_isa_concrete_class_init(ObjectClass *klass, void *data)
+static void m48txx_isa_concrete_class_init(ObjectClass *klass, const void *data)
 {
     M48txxISADeviceClass *u = M48TXX_ISA_CLASS(klass);
     const M48txxInfo *info = data;
@@ -140,7 +140,7 @@ static const TypeInfo m48txx_isa_type_info = {
     .instance_size = sizeof(M48txxISAState),
     .abstract = true,
     .class_init = m48txx_isa_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_NVRAM },
         { }
     }

@@ -185,7 +185,7 @@ static const TCGCPUOps tricore_tcg_ops = {
     .cpu_exec_halt = tricore_cpu_has_work,
 };
 
-static void tricore_cpu_class_init(ObjectClass *c, void *data)
+static void tricore_cpu_class_init(ObjectClass *c, const void *data)
 {
     TriCoreCPUClass *mcc = TRICORE_CPU_CLASS(c);
     CPUClass *cc = CPU_CLASS(c);

@@ -32,10 +32,7 @@
 #include "trace.h"
 #include "qom/object.h"
 
-/* debug PIC */
-//#define DEBUG_PIC
-
-//#define DEBUG_IRQ_LATENCY
+/*#define DEBUG_IRQ_LATENCY*/
 
 #define TYPE_I8259 "isa-i8259"
 typedef struct PICClass PICClass;
@@ -436,7 +433,7 @@ qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq_in)
     return irq_set;
 }
 
-static void i8259_class_init(ObjectClass *klass, void *data)
+static void i8259_class_init(ObjectClass *klass, const void *data)
 {
     PICClass *k = PIC_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

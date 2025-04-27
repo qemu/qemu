@@ -270,7 +270,7 @@ static const Property mipsnet_properties[] = {
     DEFINE_NIC_PROPERTIES(MIPSnetState, conf),
 };
 
-static void mipsnet_class_init(ObjectClass *klass, void *data)
+static void mipsnet_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

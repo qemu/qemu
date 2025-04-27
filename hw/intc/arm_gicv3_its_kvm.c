@@ -239,7 +239,7 @@ static const Property kvm_arm_its_props[] = {
                      GICv3State *),
 };
 
-static void kvm_arm_its_class_init(ObjectClass *klass, void *data)
+static void kvm_arm_its_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

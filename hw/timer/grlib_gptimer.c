@@ -409,7 +409,7 @@ static const Property grlib_gptimer_properties[] = {
     DEFINE_PROP_UINT32("nr-timers", GPTimerUnit, nr_timers, 2),
 };
 
-static void grlib_gptimer_class_init(ObjectClass *klass, void *data)
+static void grlib_gptimer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

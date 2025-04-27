@@ -119,7 +119,7 @@ static const Property or_irq_properties[] = {
     DEFINE_PROP_UINT16("num-lines", OrIRQState, num_lines, 1),
 };
 
-static void or_irq_class_init(ObjectClass *klass, void *data)
+static void or_irq_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

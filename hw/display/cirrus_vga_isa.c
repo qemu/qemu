@@ -76,7 +76,7 @@ static const Property isa_cirrus_vga_properties[] = {
                      cirrus_vga.enable_blitter, true),
 };
 
-static void isa_cirrus_vga_class_init(ObjectClass *klass, void *data)
+static void isa_cirrus_vga_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -806,7 +806,7 @@ static const Property nvme_ns_props[] = {
     DEFINE_PROP_STRING("fdp.ruhs", NvmeNamespace, params.fdp.ruhs),
 };
 
-static void nvme_ns_class_init(ObjectClass *oc, void *data)
+static void nvme_ns_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

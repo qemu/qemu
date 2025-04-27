@@ -689,7 +689,7 @@ static void vfio_ccw_set_fd(Object *obj, const char *str, Error **errp)
 }
 #endif
 
-static void vfio_ccw_class_init(ObjectClass *klass, void *data)
+static void vfio_ccw_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     S390CCWDeviceClass *cdc = S390_CCW_DEVICE_CLASS(klass);

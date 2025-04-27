@@ -385,7 +385,7 @@ static const VMStateDescription vmstate_macio_oldworld = {
     }
 };
 
-static void macio_oldworld_class_init(ObjectClass *oc, void *data)
+static void macio_oldworld_class_init(ObjectClass *oc, const void *data)
 {
     PCIDeviceClass *pdc = PCI_DEVICE_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -410,7 +410,7 @@ static const Property macio_newworld_properties[] = {
     DEFINE_PROP_BOOL("has-adb", NewWorldMacIOState, has_adb, false),
 };
 
-static void macio_newworld_class_init(ObjectClass *oc, void *data)
+static void macio_newworld_class_init(ObjectClass *oc, const void *data)
 {
     PCIDeviceClass *pdc = PCI_DEVICE_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -425,7 +425,7 @@ static const Property macio_properties[] = {
     DEFINE_PROP_UINT64("frequency", MacIOState, frequency, 0),
 };
 
-static void macio_class_init(ObjectClass *klass, void *data)
+static void macio_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -465,7 +465,7 @@ static const TypeInfo macio_type_info = {
     .instance_init = macio_instance_init,
     .abstract      = true,
     .class_init    = macio_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },

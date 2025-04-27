@@ -110,7 +110,8 @@ static void mchp_pfsoc_ddr_sgmii_phy_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->sgmii_phy);
 }
 
-static void mchp_pfsoc_ddr_sgmii_phy_class_init(ObjectClass *klass, void *data)
+static void mchp_pfsoc_ddr_sgmii_phy_class_init(ObjectClass *klass,
+                                                const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -192,7 +193,7 @@ static void mchp_pfsoc_ddr_cfg_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->cfg);
 }
 
-static void mchp_pfsoc_ddr_cfg_class_init(ObjectClass *klass, void *data)
+static void mchp_pfsoc_ddr_cfg_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

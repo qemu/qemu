@@ -849,7 +849,7 @@ static const Property npcm7xx_emc_properties[] = {
     DEFINE_NIC_PROPERTIES(NPCM7xxEMCState, conf),
 };
 
-static void npcm7xx_emc_class_init(ObjectClass *klass, void *data)
+static void npcm7xx_emc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

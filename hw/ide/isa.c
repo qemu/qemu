@@ -107,7 +107,7 @@ static const Property isa_ide_properties[] = {
     DEFINE_PROP_UINT32("irq",     ISAIDEState, irqnum,  14),
 };
 
-static void isa_ide_class_initfn(ObjectClass *klass, void *data)
+static void isa_ide_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

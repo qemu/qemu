@@ -11,15 +11,15 @@
 #include "qemu/bswap.h"
 
 /**
- * target_words_bigendian:
+ * target_big_endian:
  * Returns true if the (default) endianness of the target is big endian,
  * false otherwise. Common code should normally never need to know about the
  * endianness of the target, so please do *not* use this function unless you
  * know very well what you are doing!
  */
-bool target_words_bigendian(void);
+bool target_big_endian(void);
 #ifdef COMPILING_PER_TARGET
-#define target_words_bigendian()  TARGET_BIG_ENDIAN
+#define target_big_endian()   TARGET_BIG_ENDIAN
 #endif
 
 /*
@@ -29,7 +29,7 @@ bool target_words_bigendian(void);
 #ifdef COMPILING_PER_TARGET
 #define target_needs_bswap()  (HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN)
 #else
-#define target_needs_bswap()  (HOST_BIG_ENDIAN != target_words_bigendian())
+#define target_needs_bswap()  (HOST_BIG_ENDIAN != target_big_endian())
 #endif /* COMPILING_PER_TARGET */
 
 static inline uint16_t tswap16(uint16_t s)
@@ -83,7 +83,7 @@ static inline void tswap64s(uint64_t *s)
 /* Return ld{word}_{le,be}_p following target endianness. */
 #define LOAD_IMPL(word, args...)                    \
 do {                                                \
-    if (target_words_bigendian()) {                 \
+    if (target_big_endian()) {                      \
         return glue(glue(ld, word), _be_p)(args);   \
     } else {                                        \
         return glue(glue(ld, word), _le_p)(args);   \
@@ -120,7 +120,7 @@ static inline uint64_t ldn_p(const void *ptr, int sz)
 /* Call st{word}_{le,be}_p following target endianness. */
 #define STORE_IMPL(word, args...)           \
 do {                                        \
-    if (target_words_bigendian()) {         \
+    if (target_big_endian()) {              \
         glue(glue(st, word), _be_p)(args);  \
     } else {                                \
         glue(glue(st, word), _le_p)(args);  \

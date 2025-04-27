@@ -1101,7 +1101,7 @@ static const Property escc_properties[] = {
     DEFINE_PROP_STRING("chnA-sunkbd-layout", ESCCState, chn[1].sunkbd_layout),
 };
 
-static void escc_class_init(ObjectClass *klass, void *data)
+static void escc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

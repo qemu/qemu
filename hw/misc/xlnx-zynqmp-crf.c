@@ -239,7 +239,7 @@ static const VMStateDescription vmstate_crf = {
     }
 };
 
-static void crf_class_init(ObjectClass *klass, void *data)
+static void crf_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

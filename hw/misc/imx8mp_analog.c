@@ -138,7 +138,7 @@ static const VMStateDescription imx8mp_analog_vmstate = {
     },
 };
 
-static void imx8mp_analog_class_init(ObjectClass *klass, void *data)
+static void imx8mp_analog_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

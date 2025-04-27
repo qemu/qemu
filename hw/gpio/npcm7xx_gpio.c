@@ -396,7 +396,7 @@ static const Property npcm7xx_gpio_properties[] = {
     DEFINE_PROP_UINT32("reset-odsc", NPCM7xxGPIOState, reset_odsc, 0),
 };
 
-static void npcm7xx_gpio_class_init(ObjectClass *klass, void *data)
+static void npcm7xx_gpio_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *reset = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

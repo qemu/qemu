@@ -69,7 +69,7 @@ shm_backend_instance_init(Object *obj)
 }
 
 static void
-shm_backend_class_init(ObjectClass *oc, void *data)
+shm_backend_class_init(ObjectClass *oc, const void *data)
 {
     HostMemoryBackendClass *bc = MEMORY_BACKEND_CLASS(oc);
 

@@ -149,7 +149,7 @@ static bool can_bus_can_be_deleted(UserCreatable *uc)
 }
 
 static void can_bus_class_init(ObjectClass *klass,
-                                void *class_data G_GNUC_UNUSED)
+                               const void *class_data G_GNUC_UNUSED)
 {
     UserCreatableClass *uc_klass = USER_CREATABLE_CLASS(klass);
 
@@ -162,7 +162,7 @@ static const TypeInfo can_bus_info = {
     .instance_size = sizeof(CanBusState),
     .instance_init = can_bus_instance_init,
     .class_init = can_bus_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

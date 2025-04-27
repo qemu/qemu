@@ -133,7 +133,7 @@ static void synic_reset(DeviceState *dev)
     assert(QLIST_EMPTY(&synic->sint_routes));
 }
 
-static void synic_class_init(ObjectClass *klass, void *data)
+static void synic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

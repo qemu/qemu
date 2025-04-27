@@ -140,7 +140,7 @@ static const Property macio_nvram_properties[] = {
     DEFINE_PROP_DRIVE("drive", MacIONVRAMState, blk),
 };
 
-static void macio_nvram_class_init(ObjectClass *oc, void *data)
+static void macio_nvram_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

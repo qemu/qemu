@@ -594,7 +594,7 @@ static void musca_init(MachineState *machine)
                        0, 0x2000000);
 }
 
-static void musca_class_init(ObjectClass *oc, void *data)
+static void musca_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     static const char * const valid_cpu_types[] = {
@@ -609,7 +609,7 @@ static void musca_class_init(ObjectClass *oc, void *data)
     mc->init = musca_init;
 }
 
-static void musca_a_class_init(ObjectClass *oc, void *data)
+static void musca_a_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MuscaMachineClass *mmc = MUSCA_MACHINE_CLASS(oc);
@@ -623,7 +623,7 @@ static void musca_a_class_init(ObjectClass *oc, void *data)
     mmc->num_mpcs = ARRAY_SIZE(a_mpc_info);
 }
 
-static void musca_b1_class_init(ObjectClass *oc, void *data)
+static void musca_b1_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MuscaMachineClass *mmc = MUSCA_MACHINE_CLASS(oc);

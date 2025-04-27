@@ -372,7 +372,7 @@ static void x86_machine_initfn(Object *obj)
     x86ms->above_4g_mem_start = 4 * GiB;
 }
 
-static void x86_machine_class_init(ObjectClass *oc, void *data)
+static void x86_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     X86MachineClass *x86mc = X86_MACHINE_CLASS(oc);
@@ -450,7 +450,7 @@ static const TypeInfo x86_machine_info = {
     .instance_init = x86_machine_initfn,
     .class_size = sizeof(X86MachineClass),
     .class_init = x86_machine_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
          { TYPE_NMI },
          { }
     },

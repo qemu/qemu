@@ -1056,7 +1056,7 @@ static void tpm_emulator_inst_finalize(Object *obj)
     vmstate_unregister(NULL, &vmstate_tpm_emulator, obj);
 }
 
-static void tpm_emulator_class_init(ObjectClass *klass, void *data)
+static void tpm_emulator_class_init(ObjectClass *klass, const void *data)
 {
     TPMBackendClass *tbc = TPM_BACKEND_CLASS(klass);
 

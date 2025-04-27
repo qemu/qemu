@@ -668,7 +668,7 @@ static void baum_chr_open(Chardev *chr,
     qemu_set_fd_handler(baum->brlapi_fd, baum_chr_read, NULL, baum);
 }
 
-static void char_braille_class_init(ObjectClass *oc, void *data)
+static void char_braille_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

@@ -220,7 +220,7 @@ static const TCGCPUOps rx_tcg_ops = {
     .do_interrupt = rx_cpu_do_interrupt,
 };
 
-static void rx_cpu_class_init(ObjectClass *klass, void *data)
+static void rx_cpu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     CPUClass *cc = CPU_CLASS(klass);

@@ -515,7 +515,7 @@ static const VMStateDescription vmstate_npcm7xx_mft = {
     },
 };
 
-static void npcm7xx_mft_class_init(ObjectClass *klass, void *data)
+static void npcm7xx_mft_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

@@ -2365,7 +2365,6 @@ int x86_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int x86_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 void x86_cpu_gdb_init(CPUState *cs);
 
-void x86_cpu_list(void);
 int cpu_x86_support_mca_broadcast(CPUX86State *env);
 
 #ifndef CONFIG_USER_ONLY
@@ -2558,8 +2557,6 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 #else
 #define TARGET_DEFAULT_CPU_TYPE X86_CPU_TYPE_NAME("qemu32")
 #endif
-
-#define cpu_list x86_cpu_list
 
 /* MMU modes definitions */
 #define MMU_KSMAP64_IDX    0

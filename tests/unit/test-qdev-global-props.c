@@ -51,7 +51,7 @@ static const Property static_props[] = {
     DEFINE_PROP_UINT32("prop2", MyType, prop2, PROP_DEFAULT),
 };
 
-static void static_prop_class_init(ObjectClass *oc, void *data)
+static void static_prop_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
@@ -177,7 +177,7 @@ static void dynamic_instance_init(Object *obj)
                         NULL, NULL);
 }
 
-static void dynamic_class_init(ObjectClass *oc, void *data)
+static void dynamic_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
@@ -193,7 +193,7 @@ static const TypeInfo dynamic_prop_type = {
     .class_init = dynamic_class_init,
 };
 
-static void hotplug_class_init(ObjectClass *oc, void *data)
+static void hotplug_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
@@ -209,7 +209,7 @@ static const TypeInfo hotplug_type = {
     .class_init = hotplug_class_init,
 };
 
-static void nohotplug_class_init(ObjectClass *oc, void *data)
+static void nohotplug_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

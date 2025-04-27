@@ -137,7 +137,7 @@ static void smbus_eeprom_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
+static void smbus_eeprom_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SMBusDeviceClass *sc = SMBUS_DEVICE_CLASS(klass);

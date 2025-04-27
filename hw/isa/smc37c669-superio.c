@@ -58,7 +58,7 @@ static unsigned int get_fdc_dma(ISASuperIODevice *sio, uint8_t index)
     return 2;
 }
 
-static void smc37c669_class_init(ObjectClass *klass, void *data)
+static void smc37c669_class_init(ObjectClass *klass, const void *data)
 {
     ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
 

@@ -417,7 +417,7 @@ static const Property pci_piix_props[] = {
     DEFINE_PROP_BOOL("smm-enabled", PIIXState, smm_enabled, false),
 };
 
-static void pci_piix_class_init(ObjectClass *klass, void *data)
+static void pci_piix_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -445,7 +445,7 @@ static const TypeInfo piix_pci_type_info = {
     .instance_init = pci_piix_init,
     .abstract = true,
     .class_init = pci_piix_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { TYPE_ACPI_DEV_AML_IF },
         { },
@@ -464,7 +464,7 @@ static void piix3_init(Object *obj)
     object_initialize_child(obj, "ide", &d->ide, TYPE_PIIX3_IDE);
 }
 
-static void piix3_class_init(ObjectClass *klass, void *data)
+static void piix3_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -494,7 +494,7 @@ static void piix4_init(Object *obj)
     object_initialize_child(obj, "ide", &s->ide, TYPE_PIIX4_IDE);
 }
 
-static void piix4_class_init(ObjectClass *klass, void *data)
+static void piix4_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);

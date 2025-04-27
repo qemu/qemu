@@ -634,7 +634,7 @@ static const Property arm_sysctl_properties[] = {
                       db_clock_reset, qdev_prop_uint32, uint32_t),
 };
 
-static void arm_sysctl_class_init(ObjectClass *klass, void *data)
+static void arm_sysctl_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

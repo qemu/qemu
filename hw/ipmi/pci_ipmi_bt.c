@@ -119,7 +119,7 @@ static void *pci_ipmi_bt_get_backend_data(IPMIInterface *ii)
     return &pib->bt;
 }
 
-static void pci_ipmi_bt_class_init(ObjectClass *oc, void *data)
+static void pci_ipmi_bt_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pdc = PCI_DEVICE_CLASS(oc);
@@ -145,7 +145,7 @@ static const TypeInfo pci_ipmi_bt_info = {
     .instance_size = sizeof(PCIIPMIBTDevice),
     .instance_init = pci_ipmi_bt_instance_init,
     .class_init    = pci_ipmi_bt_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_IPMI_INTERFACE },
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { }

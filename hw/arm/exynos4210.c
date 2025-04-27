@@ -842,7 +842,7 @@ static void exynos4210_init(Object *obj)
                             TYPE_EXYNOS4210_COMBINER);
 }
 
-static void exynos4210_class_init(ObjectClass *klass, void *data)
+static void exynos4210_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

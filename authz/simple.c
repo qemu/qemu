@@ -78,7 +78,7 @@ qauthz_simple_complete(UserCreatable *uc, Error **errp)
 
 
 static void
-qauthz_simple_class_init(ObjectClass *oc, void *data)
+qauthz_simple_class_init(ObjectClass *oc, const void *data)
 {
     QAuthZClass *authz = QAUTHZ_CLASS(oc);
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
@@ -111,7 +111,7 @@ static const TypeInfo qauthz_simple_info = {
     .instance_size = sizeof(QAuthZSimple),
     .instance_finalize = qauthz_simple_finalize,
     .class_init = qauthz_simple_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

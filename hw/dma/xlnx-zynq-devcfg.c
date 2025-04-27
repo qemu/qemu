@@ -380,7 +380,7 @@ static void xlnx_zynq_devcfg_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static void xlnx_zynq_devcfg_class_init(ObjectClass *klass, void *data)
+static void xlnx_zynq_devcfg_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -361,7 +361,7 @@ static void ssd0323_realize(SSIPeripheral *d, Error **errp)
     qdev_init_gpio_in(dev, ssd0323_cd, 1);
 }
 
-static void ssd0323_class_init(ObjectClass *klass, void *data)
+static void ssd0323_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);

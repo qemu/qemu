@@ -668,7 +668,7 @@ int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
                         tcet->liobn, 0, tcet->nb_table << tcet->page_shift);
 }
 
-static void spapr_tce_table_class_init(ObjectClass *klass, void *data)
+static void spapr_tce_table_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = spapr_tce_table_realize;
@@ -693,7 +693,8 @@ static const TypeInfo spapr_tce_table_info = {
     .class_init = spapr_tce_table_class_init,
 };
 
-static void spapr_iommu_memory_region_class_init(ObjectClass *klass, void *data)
+static void spapr_iommu_memory_region_class_init(ObjectClass *klass,
+                                                 const void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 

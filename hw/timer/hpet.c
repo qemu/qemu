@@ -736,7 +736,7 @@ static const Property hpet_device_properties[] = {
     DEFINE_PROP_BOOL("hpet-offset-saved", HPETState, hpet_offset_saved, true),
 };
 
-static void hpet_device_class_init(ObjectClass *klass, void *data)
+static void hpet_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

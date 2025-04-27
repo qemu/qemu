@@ -306,7 +306,7 @@ static void gen_mips16_restore(DisasContext *ctx,
     int astatic;
     TCGv t0 = tcg_temp_new();
 
-    gen_op_addr_addi(ctx, t0, cpu_gpr[29], -framesize);
+    gen_op_addr_addi(ctx, t0, cpu_gpr[29], framesize);
 
     if (do_ra) {
         decr_and_load(ctx, 31, t0);
@@ -386,7 +386,7 @@ static void gen_mips16_restore(DisasContext *ctx,
         }
     }
 
-    gen_op_addr_addi(ctx, cpu_gpr[29], cpu_gpr[29], -framesize);
+    gen_op_addr_addi(ctx, cpu_gpr[29], cpu_gpr[29], framesize);
 }
 
 #if defined(TARGET_MIPS64)

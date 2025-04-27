@@ -750,7 +750,7 @@ static const VMStateDescription vmstate_kbd_mmio = {
     }
 };
 
-static void i8042_mmio_class_init(ObjectClass *klass, void *data)
+static void i8042_mmio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -939,7 +939,7 @@ static const Property i8042_properties[] = {
     DEFINE_PROP_UINT8("mouse-irq", ISAKBDState, mouse_irq, 12),
 };
 
-static void i8042_class_initfn(ObjectClass *klass, void *data)
+static void i8042_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
@@ -958,7 +958,7 @@ static const TypeInfo i8042_info = {
     .instance_size = sizeof(ISAKBDState),
     .instance_init = i8042_initfn,
     .class_init    = i8042_class_initfn,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_ACPI_DEV_AML_IF },
         { },
     },

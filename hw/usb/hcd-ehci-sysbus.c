@@ -80,7 +80,7 @@ static void ehci_sysbus_finalize(Object *obj)
     usb_ehci_finalize(s);
 }
 
-static void ehci_sysbus_class_init(ObjectClass *klass, void *data)
+static void ehci_sysbus_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusEHCIClass *sec = SYS_BUS_EHCI_CLASS(klass);
@@ -95,7 +95,7 @@ static void ehci_sysbus_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
 }
 
-static void ehci_platform_class_init(ObjectClass *oc, void *data)
+static void ehci_platform_class_init(ObjectClass *oc, const void *data)
 {
     SysBusEHCIClass *sec = SYS_BUS_EHCI_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -105,7 +105,7 @@ static void ehci_platform_class_init(ObjectClass *oc, void *data)
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
 }
 
-static void ehci_exynos4210_class_init(ObjectClass *oc, void *data)
+static void ehci_exynos4210_class_init(ObjectClass *oc, const void *data)
 {
     SysBusEHCIClass *sec = SYS_BUS_EHCI_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -115,7 +115,7 @@ static void ehci_exynos4210_class_init(ObjectClass *oc, void *data)
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
 }
 
-static void ehci_aw_h3_class_init(ObjectClass *oc, void *data)
+static void ehci_aw_h3_class_init(ObjectClass *oc, const void *data)
 {
     SysBusEHCIClass *sec = SYS_BUS_EHCI_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -125,7 +125,7 @@ static void ehci_aw_h3_class_init(ObjectClass *oc, void *data)
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
 }
 
-static void ehci_npcm7xx_class_init(ObjectClass *oc, void *data)
+static void ehci_npcm7xx_class_init(ObjectClass *oc, const void *data)
 {
     SysBusEHCIClass *sec = SYS_BUS_EHCI_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -137,7 +137,7 @@ static void ehci_npcm7xx_class_init(ObjectClass *oc, void *data)
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
 }
 
-static void ehci_tegra2_class_init(ObjectClass *oc, void *data)
+static void ehci_tegra2_class_init(ObjectClass *oc, const void *data)
 {
     SysBusEHCIClass *sec = SYS_BUS_EHCI_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -154,7 +154,7 @@ static void ehci_ppc4xx_init(Object *o)
     s->ehci.companion_enable = true;
 }
 
-static void ehci_ppc4xx_class_init(ObjectClass *oc, void *data)
+static void ehci_ppc4xx_class_init(ObjectClass *oc, const void *data)
 {
     SysBusEHCIClass *sec = SYS_BUS_EHCI_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -220,7 +220,7 @@ static void fusbh200_ehci_init(Object *obj)
                                 &f->mem_vendor);
 }
 
-static void fusbh200_ehci_class_init(ObjectClass *oc, void *data)
+static void fusbh200_ehci_class_init(ObjectClass *oc, const void *data)
 {
     SysBusEHCIClass *sec = SYS_BUS_EHCI_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);

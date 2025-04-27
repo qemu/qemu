@@ -559,7 +559,7 @@ listener_unregister_exit:
     return false;
 }
 
-static void vfio_iommu_spapr_class_init(ObjectClass *klass, void *data)
+static void vfio_iommu_spapr_class_init(ObjectClass *klass, const void *data)
 {
     VFIOIOMMUClass *vioc = VFIO_IOMMU_CLASS(klass);
 

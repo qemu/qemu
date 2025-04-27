@@ -75,7 +75,7 @@ static void sun4v_rtc_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static void sun4v_rtc_class_init(ObjectClass *klass, void *data)
+static void sun4v_rtc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

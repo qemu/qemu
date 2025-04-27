@@ -637,7 +637,7 @@ static const Property serial_properties[] = {
     DEFINE_PROP_BOOL("always-plugged", USBSerialState, always_plugged, false),
 };
 
-static void usb_serial_dev_class_init(ObjectClass *klass, void *data)
+static void usb_serial_dev_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
@@ -658,7 +658,7 @@ static const TypeInfo usb_serial_dev_type_info = {
     .class_init = usb_serial_dev_class_init,
 };
 
-static void usb_serial_class_initfn(ObjectClass *klass, void *data)
+static void usb_serial_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
@@ -678,7 +678,7 @@ static const Property braille_properties[] = {
     DEFINE_PROP_CHR("chardev", USBSerialState, cs),
 };
 
-static void usb_braille_class_initfn(ObjectClass *klass, void *data)
+static void usb_braille_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);

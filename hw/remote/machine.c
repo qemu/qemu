@@ -121,7 +121,7 @@ static void remote_machine_dev_unplug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void remote_machine_class_init(ObjectClass *oc, void *data)
+static void remote_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
@@ -146,7 +146,7 @@ static const TypeInfo remote_machine = {
     .instance_size = sizeof(RemoteMachineState),
     .instance_init = remote_machine_instance_init,
     .class_init = remote_machine_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { }
     }

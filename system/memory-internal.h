@@ -41,11 +41,8 @@ void mtree_print_dispatch(struct AddressSpaceDispatch *d,
 /* returns true if end is big endian. */
 static inline bool devend_big_endian(enum device_endian end)
 {
-    QEMU_BUILD_BUG_ON(DEVICE_HOST_ENDIAN != DEVICE_LITTLE_ENDIAN &&
-                      DEVICE_HOST_ENDIAN != DEVICE_BIG_ENDIAN);
-
     if (end == DEVICE_NATIVE_ENDIAN) {
-        return target_words_bigendian();
+        return target_big_endian();
     }
     return end == DEVICE_BIG_ENDIAN;
 }

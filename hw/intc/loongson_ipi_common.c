@@ -303,7 +303,7 @@ static const VMStateDescription vmstate_loongson_ipi_common = {
     }
 };
 
-static void loongson_ipi_common_class_init(ObjectClass *klass, void *data)
+static void loongson_ipi_common_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     LoongsonIPICommonClass *licc = LOONGSON_IPI_COMMON_CLASS(klass);

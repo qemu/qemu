@@ -3177,7 +3177,7 @@ static void scsi_property_add_specifics(DeviceClass *dc)
     }
 }
 
-static void scsi_disk_base_class_initfn(ObjectClass *klass, void *data)
+static void scsi_disk_base_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCSIDiskClass *sdc = SCSI_DISK_BASE_CLASS(klass);
@@ -3247,7 +3247,7 @@ static const VMStateDescription vmstate_scsi_disk_state = {
     }
 };
 
-static void scsi_hd_class_initfn(ObjectClass *klass, void *data)
+static void scsi_hd_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
@@ -3289,7 +3289,7 @@ static const Property scsi_cd_properties[] = {
                     SCSI_DISK_QUIRK_MODE_PAGE_TRUNCATED, 0),
 };
 
-static void scsi_cd_class_initfn(ObjectClass *klass, void *data)
+static void scsi_cd_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
@@ -3326,7 +3326,7 @@ static const Property scsi_block_properties[] = {
                        DEFAULT_IO_TIMEOUT),
 };
 
-static void scsi_block_class_initfn(ObjectClass *klass, void *data)
+static void scsi_block_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);

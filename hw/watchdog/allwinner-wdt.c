@@ -348,7 +348,7 @@ static void allwinner_wdt_realize(DeviceState *dev, Error **errp)
     ptimer_transaction_commit(s->timer);
 }
 
-static void allwinner_wdt_class_init(ObjectClass *klass, void *data)
+static void allwinner_wdt_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -358,7 +358,7 @@ static void allwinner_wdt_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &allwinner_wdt_vmstate;
 }
 
-static void allwinner_wdt_sun4i_class_init(ObjectClass *klass, void *data)
+static void allwinner_wdt_sun4i_class_init(ObjectClass *klass, const void *data)
 {
     AwWdtClass *awc = AW_WDT_CLASS(klass);
 
@@ -371,7 +371,7 @@ static void allwinner_wdt_sun4i_class_init(ObjectClass *klass, void *data)
     awc->get_intv_value = allwinner_wdt_sun4i_get_intv_value;
 }
 
-static void allwinner_wdt_sun6i_class_init(ObjectClass *klass, void *data)
+static void allwinner_wdt_sun6i_class_init(ObjectClass *klass, const void *data)
 {
     AwWdtClass *awc = AW_WDT_CLASS(klass);
 

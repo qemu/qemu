@@ -197,7 +197,7 @@ static const VMStateDescription vmstate_dps310 = {
     }
 };
 
-static void dps310_class_init(ObjectClass *klass, void *data)
+static void dps310_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);

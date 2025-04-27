@@ -212,7 +212,7 @@ static const Property rs6000mc_properties[] = {
     DEFINE_PROP_BOOL("auto-configure", RS6000MCState, autoconfigure, true),
 };
 
-static void rs6000mc_class_initfn(ObjectClass *klass, void *data)
+static void rs6000mc_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

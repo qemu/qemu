@@ -1473,7 +1473,7 @@ static const VMStateDescription vmstate_aspeed_gpio = {
    }
 };
 
-static void aspeed_gpio_class_init(ObjectClass *klass, void *data)
+static void aspeed_gpio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1483,7 +1483,7 @@ static void aspeed_gpio_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_aspeed_gpio;
 }
 
-static void aspeed_gpio_ast2400_class_init(ObjectClass *klass, void *data)
+static void aspeed_gpio_ast2400_class_init(ObjectClass *klass, const void *data)
 {
     AspeedGPIOClass *agc = ASPEED_GPIO_CLASS(klass);
 
@@ -1496,7 +1496,7 @@ static void aspeed_gpio_ast2400_class_init(ObjectClass *klass, void *data)
     agc->reg_ops = &aspeed_gpio_ops;
 }
 
-static void aspeed_gpio_2500_class_init(ObjectClass *klass, void *data)
+static void aspeed_gpio_2500_class_init(ObjectClass *klass, const void *data)
 {
     AspeedGPIOClass *agc = ASPEED_GPIO_CLASS(klass);
 
@@ -1509,7 +1509,8 @@ static void aspeed_gpio_2500_class_init(ObjectClass *klass, void *data)
     agc->reg_ops = &aspeed_gpio_ops;
 }
 
-static void aspeed_gpio_ast2600_3_3v_class_init(ObjectClass *klass, void *data)
+static void aspeed_gpio_ast2600_3_3v_class_init(ObjectClass *klass,
+                                                const void *data)
 {
     AspeedGPIOClass *agc = ASPEED_GPIO_CLASS(klass);
 
@@ -1522,7 +1523,8 @@ static void aspeed_gpio_ast2600_3_3v_class_init(ObjectClass *klass, void *data)
     agc->reg_ops = &aspeed_gpio_ops;
 }
 
-static void aspeed_gpio_ast2600_1_8v_class_init(ObjectClass *klass, void *data)
+static void aspeed_gpio_ast2600_1_8v_class_init(ObjectClass *klass,
+                                                const void *data)
 {
     AspeedGPIOClass *agc = ASPEED_GPIO_CLASS(klass);
 
@@ -1535,7 +1537,7 @@ static void aspeed_gpio_ast2600_1_8v_class_init(ObjectClass *klass, void *data)
     agc->reg_ops = &aspeed_gpio_ops;
 }
 
-static void aspeed_gpio_1030_class_init(ObjectClass *klass, void *data)
+static void aspeed_gpio_1030_class_init(ObjectClass *klass, const void *data)
 {
     AspeedGPIOClass *agc = ASPEED_GPIO_CLASS(klass);
 
@@ -1548,7 +1550,7 @@ static void aspeed_gpio_1030_class_init(ObjectClass *klass, void *data)
     agc->reg_ops = &aspeed_gpio_ops;
 }
 
-static void aspeed_gpio_2700_class_init(ObjectClass *klass, void *data)
+static void aspeed_gpio_2700_class_init(ObjectClass *klass, const void *data)
 {
     AspeedGPIOClass *agc = ASPEED_GPIO_CLASS(klass);
 

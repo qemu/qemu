@@ -79,7 +79,7 @@ static void digic_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(sbd, 0, DIGIC_UART_BASE);
 }
 
-static void digic_class_init(ObjectClass *oc, void *data)
+static void digic_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

@@ -622,7 +622,7 @@ static void ibex_spi_host_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 }
 
-static void ibex_spi_host_class_init(ObjectClass *klass, void *data)
+static void ibex_spi_host_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = ibex_spi_host_realize;

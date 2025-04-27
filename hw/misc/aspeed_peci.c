@@ -130,7 +130,7 @@ static void aspeed_peci_reset(DeviceState *dev)
     memset(s->regs, 0, sizeof(s->regs));
 }
 
-static void aspeed_peci_class_init(ObjectClass *klass, void *data)
+static void aspeed_peci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

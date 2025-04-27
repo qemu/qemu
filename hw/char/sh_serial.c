@@ -450,7 +450,7 @@ static const Property sh_serial_properties[] = {
     DEFINE_PROP_UINT8("features", SHSerialState, feat, 0),
 };
 
-static void sh_serial_class_init(ObjectClass *oc, void *data)
+static void sh_serial_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

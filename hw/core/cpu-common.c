@@ -25,6 +25,9 @@
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "qemu/lockcnt.h"
+#include "qemu/error-report.h"
+#include "qemu/qemu-print.h"
+#include "qemu/target-info.h"
 #include "exec/log.h"
 #include "exec/gdbstub.h"
 #include "system/tcg.h"
@@ -152,6 +155,21 @@ ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model)
     return NULL;
 }
 
+char *cpu_model_from_type(const char *typename)
+{
+    g_autofree char *suffix = g_strdup_printf("-%s", target_cpu_type());
+
+    if (!object_class_by_name(typename)) {
+        return NULL;
+    }
+
+    if (g_str_has_suffix(typename, suffix)) {
+        return g_strndup(typename, strlen(typename) - strlen(suffix));
+    }
+
+    return g_strdup(typename);
+}
+
 static void cpu_common_parse_features(const char *typename, char *features,
                                       Error **errp)
 {
@@ -181,6 +199,33 @@ static void cpu_common_parse_features(const char *typename, char *features,
         }
         featurestr = strtok(NULL, ",");
     }
+}
+
+const char *parse_cpu_option(const char *cpu_option)
+{
+    ObjectClass *oc;
+    CPUClass *cc;
+    gchar **model_pieces;
+    const char *cpu_type;
+
+    model_pieces = g_strsplit(cpu_option, ",", 2);
+    if (!model_pieces[0]) {
+        error_report("-cpu option cannot be empty");
+        exit(1);
+    }
+
+    oc = cpu_class_by_name(target_cpu_type(), model_pieces[0]);
+    if (oc == NULL) {
+        error_report("unable to find CPU model '%s'", model_pieces[0]);
+        g_strfreev(model_pieces);
+        exit(EXIT_FAILURE);
+    }
+
+    cpu_type = object_class_get_name(oc);
+    cc = CPU_CLASS(oc);
+    cc->parse_features(cpu_type, model_pieces[1], &error_fatal);
+    g_strfreev(model_pieces);
+    return cpu_type;
 }
 
 bool cpu_exec_realizefn(CPUState *cpu, Error **errp)
@@ -320,7 +365,7 @@ static int64_t cpu_common_get_arch_id(CPUState *cpu)
     return cpu->cpu_index;
 }
 
-static void cpu_common_class_init(ObjectClass *klass, void *data)
+static void cpu_common_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -359,3 +404,32 @@ static void cpu_register_types(void)
 }
 
 type_init(cpu_register_types)
+
+static void cpu_list_entry(gpointer data, gpointer user_data)
+{
+    CPUClass *cc = CPU_CLASS(OBJECT_CLASS(data));
+    const char *typename = object_class_get_name(OBJECT_CLASS(data));
+    g_autofree char *model = cpu_model_from_type(typename);
+
+    if (cc->deprecation_note) {
+        qemu_printf("  %s (deprecated)\n", model);
+    } else {
+        qemu_printf("  %s\n", model);
+    }
+}
+
+void list_cpus(void)
+{
+    CPUClass *cc = CPU_CLASS(object_class_by_name(target_cpu_type()));
+
+    if (cc->list_cpus) {
+        cc->list_cpus();
+    } else {
+        GSList *list;
+
+        list = object_class_get_list_sorted(TYPE_CPU, false);
+        qemu_printf("Available CPUs:\n");
+        g_slist_foreach(list, cpu_list_entry, NULL);
+        g_slist_free(list);
+    }
+}

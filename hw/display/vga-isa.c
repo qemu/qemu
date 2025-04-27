@@ -92,7 +92,7 @@ static const Property vga_isa_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", ISAVGAState, state.vram_size_mb, 8),
 };
 
-static void vga_isa_class_initfn(ObjectClass *klass, void *data)
+static void vga_isa_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

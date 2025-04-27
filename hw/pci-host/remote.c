@@ -46,7 +46,7 @@ static void remote_pcihost_realize(DeviceState *dev, Error **errp)
                                 0, TYPE_PCIE_BUS);
 }
 
-static void remote_pcihost_class_init(ObjectClass *klass, void *data)
+static void remote_pcihost_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);

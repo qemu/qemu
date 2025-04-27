@@ -94,7 +94,7 @@ static void ccw_device_reset_hold(Object *obj, ResetType type)
     css_reset_sch(ccw_dev->sch);
 }
 
-static void ccw_device_class_init(ObjectClass *klass, void *data)
+static void ccw_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     CCWDeviceClass *k = CCW_DEVICE_CLASS(klass);

@@ -1099,7 +1099,7 @@ out_single:
     return ret;
 }
 
-static void vfio_iommu_legacy_class_init(ObjectClass *klass, void *data)
+static void vfio_iommu_legacy_class_init(ObjectClass *klass, const void *data)
 {
     VFIOIOMMUClass *vioc = VFIO_IOMMU_CLASS(klass);
 
@@ -1161,7 +1161,7 @@ static void vfio_iommu_legacy_instance_init(Object *obj)
     QLIST_INIT(&container->group_list);
 }
 
-static void hiod_legacy_vfio_class_init(ObjectClass *oc, void *data)
+static void hiod_legacy_vfio_class_init(ObjectClass *oc, const void *data)
 {
     HostIOMMUDeviceClass *hioc = HOST_IOMMU_DEVICE_CLASS(oc);
 

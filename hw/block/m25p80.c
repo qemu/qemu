@@ -528,7 +528,7 @@ struct Flash {
 
 struct M25P80Class {
     SSIPeripheralClass parent_class;
-    FlashPartInfo *pi;
+    const FlashPartInfo *pi;
 };
 
 OBJECT_DECLARE_TYPE(Flash, M25P80Class, M25P80)
@@ -1857,7 +1857,7 @@ static const VMStateDescription vmstate_m25p80 = {
     }
 };
 
-static void m25p80_class_init(ObjectClass *klass, void *data)
+static void m25p80_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);
@@ -1893,7 +1893,7 @@ static void m25p80_register_types(void)
             .name       = known_devices[i].part_name,
             .parent     = TYPE_M25P80,
             .class_init = m25p80_class_init,
-            .class_data = (void *)&known_devices[i],
+            .class_data = &known_devices[i],
         };
         type_register_static(&ti);
     }

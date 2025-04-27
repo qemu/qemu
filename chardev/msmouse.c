@@ -267,7 +267,7 @@ static void msmouse_chr_open(Chardev *chr,
     fifo8_create(&mouse->outbuf, MSMOUSE_BUF_SZ);
 }
 
-static void char_msmouse_class_init(ObjectClass *oc, void *data)
+static void char_msmouse_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

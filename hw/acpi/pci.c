@@ -133,7 +133,7 @@ static void acpi_generic_initiator_set_node(Object *obj, Visitor *v,
     ms->numa_state->nodes[gi->node].has_gi = true;
 }
 
-static void acpi_generic_initiator_class_init(ObjectClass *oc, void *data)
+static void acpi_generic_initiator_class_init(ObjectClass *oc, const void *data)
 {
     object_class_property_add_str(oc, "pci-dev", NULL,
         acpi_generic_initiator_set_pci_device);
@@ -247,7 +247,7 @@ static void acpi_generic_port_set_node(Object *obj, Visitor *v,
     gp->node = value;
 }
 
-static void acpi_generic_port_class_init(ObjectClass *oc, void *data)
+static void acpi_generic_port_class_init(ObjectClass *oc, const void *data)
 {
     object_class_property_add_str(oc, "pci-bus", NULL,
         acpi_generic_port_set_pci_bus);

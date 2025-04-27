@@ -1049,7 +1049,7 @@ static const Property ati_vga_properties[] = {
     DEFINE_PROP_UINT8("x-pixman", ATIVGAState, use_pixman, DEFAULT_X_PIXMAN),
 };
 
-static void ati_vga_class_init(ObjectClass *klass, void *data)
+static void ati_vga_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -1079,7 +1079,7 @@ static const TypeInfo ati_vga_info = {
     .instance_size = sizeof(ATIVGAState),
     .class_init = ati_vga_class_init,
     .instance_init = ati_vga_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
           { INTERFACE_CONVENTIONAL_PCI_DEVICE },
           { },
     },

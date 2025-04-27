@@ -31,7 +31,7 @@ static const Property ide_cf_properties[] = {
                 IDEDrive, dev.chs_trans, BIOS_ATA_TRANSLATION_AUTO),
 };
 
-static void ide_cf_class_init(ObjectClass *klass, void *data)
+static void ide_cf_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);

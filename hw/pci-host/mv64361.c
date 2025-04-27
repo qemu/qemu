@@ -26,7 +26,7 @@
 
 #define TYPE_MV64361_PCI_BRIDGE "mv64361-pcibridge"
 
-static void mv64361_pcibridge_class_init(ObjectClass *klass, void *data)
+static void mv64361_pcibridge_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -46,7 +46,7 @@ static const TypeInfo mv64361_pcibridge_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init    = mv64361_pcibridge_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },
@@ -102,7 +102,7 @@ static const Property mv64361_pcihost_props[] = {
     DEFINE_PROP_UINT8("index", MV64361PCIState, index, 0),
 };
 
-static void mv64361_pcihost_class_init(ObjectClass *klass, void *data)
+static void mv64361_pcihost_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -923,7 +923,7 @@ static void mv64361_reset(DeviceState *dev)
     set_mem_windows(s, 0xfbfff);
 }
 
-static void mv64361_class_init(ObjectClass *klass, void *data)
+static void mv64361_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

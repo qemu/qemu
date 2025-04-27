@@ -56,7 +56,7 @@ static void arduino_machine_init(MachineState *machine)
     }
 }
 
-static void arduino_machine_class_init(ObjectClass *oc, void *data)
+static void arduino_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -69,7 +69,7 @@ static void arduino_machine_class_init(ObjectClass *oc, void *data)
     mc->no_parallel = 1;
 }
 
-static void arduino_duemilanove_class_init(ObjectClass *oc, void *data)
+static void arduino_duemilanove_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);
@@ -84,7 +84,7 @@ static void arduino_duemilanove_class_init(ObjectClass *oc, void *data)
     amc->xtal_hz    = 16 * 1000 * 1000;
 };
 
-static void arduino_uno_class_init(ObjectClass *oc, void *data)
+static void arduino_uno_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);
@@ -99,7 +99,7 @@ static void arduino_uno_class_init(ObjectClass *oc, void *data)
     amc->xtal_hz    = 16 * 1000 * 1000;
 };
 
-static void arduino_mega_class_init(ObjectClass *oc, void *data)
+static void arduino_mega_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);
@@ -114,7 +114,7 @@ static void arduino_mega_class_init(ObjectClass *oc, void *data)
     amc->xtal_hz    = 16 * 1000 * 1000;
 };
 
-static void arduino_mega2560_class_init(ObjectClass *oc, void *data)
+static void arduino_mega2560_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);

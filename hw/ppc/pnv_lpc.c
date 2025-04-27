@@ -714,7 +714,7 @@ static void pnv_lpc_power8_realize(DeviceState *dev, Error **errp)
                           PNV_XSCOM_LPC_SIZE);
 }
 
-static void pnv_lpc_power8_class_init(ObjectClass *klass, void *data)
+static void pnv_lpc_power8_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvXScomInterfaceClass *xdc = PNV_XSCOM_INTERFACE_CLASS(klass);
@@ -732,7 +732,7 @@ static const TypeInfo pnv_lpc_power8_info = {
     .name          = TYPE_PNV8_LPC,
     .parent        = TYPE_PNV_LPC,
     .class_init    = pnv_lpc_power8_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }
     }
@@ -760,7 +760,7 @@ static void pnv_lpc_power9_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_out_named(dev, lpc->psi_irq_serirq, "SERIRQ", 4);
 }
 
-static void pnv_lpc_power9_class_init(ObjectClass *klass, void *data)
+static void pnv_lpc_power9_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvLpcClass *plc = PNV_LPC_CLASS(klass);
@@ -777,7 +777,7 @@ static const TypeInfo pnv_lpc_power9_info = {
     .class_init    = pnv_lpc_power9_class_init,
 };
 
-static void pnv_lpc_power10_class_init(ObjectClass *klass, void *data)
+static void pnv_lpc_power10_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -843,7 +843,7 @@ static const Property pnv_lpc_properties[] = {
     DEFINE_PROP_BOOL("psi-serirq", PnvLpcController, psi_has_serirq, false),
 };
 
-static void pnv_lpc_class_init(ObjectClass *klass, void *data)
+static void pnv_lpc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

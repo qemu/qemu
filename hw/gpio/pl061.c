@@ -566,7 +566,7 @@ static const Property pl061_props[] = {
     DEFINE_PROP_UINT32("pulldowns", PL061State, pulldowns, 0x0),
 };
 
-static void pl061_class_init(ObjectClass *klass, void *data)
+static void pl061_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

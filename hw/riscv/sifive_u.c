@@ -713,7 +713,7 @@ static void sifive_u_machine_instance_init(Object *obj)
     object_property_set_description(obj, "serial", "Board serial number");
 }
 
-static void sifive_u_machine_class_init(ObjectClass *oc, void *data)
+static void sifive_u_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -946,7 +946,7 @@ static const Property sifive_u_soc_props[] = {
     DEFINE_PROP_STRING("cpu-type", SiFiveUSoCState, cpu_type),
 };
 
-static void sifive_u_soc_class_init(ObjectClass *oc, void *data)
+static void sifive_u_soc_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

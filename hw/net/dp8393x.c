@@ -939,7 +939,7 @@ static const Property dp8393x_properties[] = {
     DEFINE_PROP_BOOL("big_endian", dp8393xState, big_endian, false),
 };
 
-static void dp8393x_class_init(ObjectClass *klass, void *data)
+static void dp8393x_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

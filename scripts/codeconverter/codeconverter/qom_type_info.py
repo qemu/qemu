@@ -798,7 +798,8 @@ class RedundantTypeSizes(TypeInfoVar):
 #
 #
 #            if 'class_init' not in fields:
-#                yield self.prepend(('static void %s_class_init(ObjectClass *oc, void *data)\n'
+#                yield self.prepend(('static void %s_class_init(ObjectClass *oc,\n'
+#                                                              'const void *data)\n'
 #                                    '{\n'
 #                                    '}\n\n') % (ids.lowercase))
 #                yield self.append_field('class_init', ids.lowercase+'_class_init')

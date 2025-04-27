@@ -72,7 +72,7 @@ static void can_host_complete(UserCreatable *uc, Error **errp)
 }
 
 static void can_host_class_init(ObjectClass *klass,
-                                void *class_data G_GNUC_UNUSED)
+                                const void *class_data G_GNUC_UNUSED)
 {
     UserCreatableClass *uc_klass = USER_CREATABLE_CLASS(klass);
 
@@ -92,7 +92,7 @@ static const TypeInfo can_host_info = {
     .class_size = sizeof(CanHostClass),
     .abstract = true,
     .class_init = can_host_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

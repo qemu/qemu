@@ -176,7 +176,7 @@ static const VMStateDescription vmstate_sysbus_fdc = {
     }
 };
 
-static void sysbus_fdc_common_class_init(ObjectClass *klass, void *data)
+static void sysbus_fdc_common_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -208,7 +208,7 @@ static const Property sysbus_fdc_properties[] = {
                         FloppyDriveType),
 };
 
-static void sysbus_fdc_class_init(ObjectClass *klass, void *data)
+static void sysbus_fdc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -231,7 +231,7 @@ static const Property sun4m_fdc_properties[] = {
                         FloppyDriveType),
 };
 
-static void sun4m_fdc_class_init(ObjectClass *klass, void *data)
+static void sun4m_fdc_class_init(ObjectClass *klass, const void *data)
 {
     FDCtrlSysBusClass *sbdc = SYSBUS_FDC_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

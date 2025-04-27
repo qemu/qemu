@@ -612,7 +612,7 @@ static void omap_mmc_initfn(Object *obj)
     qbus_init(&s->sdbus, sizeof(s->sdbus), TYPE_SD_BUS, DEVICE(obj), "sd-bus");
 }
 
-static void omap_mmc_class_init(ObjectClass *oc, void *data)
+static void omap_mmc_class_init(ObjectClass *oc, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(oc);
 

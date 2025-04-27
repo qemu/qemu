@@ -917,7 +917,7 @@ static void mac_dbdma_realize(DeviceState *dev, Error **errp)
     s->bh = qemu_bh_new_guarded(DBDMA_run_bh, s, &dev->mem_reentrancy_guard);
 }
 
-static void mac_dbdma_class_init(ObjectClass *oc, void *data)
+static void mac_dbdma_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

@@ -319,7 +319,7 @@ static void bcm2835_gpio_realize(DeviceState *dev, Error **errp)
     s->sdbus_sdhost = SD_BUS(obj);
 }
 
-static void bcm2835_gpio_class_init(ObjectClass *klass, void *data)
+static void bcm2835_gpio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

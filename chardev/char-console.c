@@ -34,7 +34,7 @@ static void qemu_chr_open_win_con(Chardev *chr,
     win_chr_set_file(chr, GetStdHandle(STD_OUTPUT_HANDLE), true);
 }
 
-static void char_console_class_init(ObjectClass *oc, void *data)
+static void char_console_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

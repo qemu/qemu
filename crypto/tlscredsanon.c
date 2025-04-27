@@ -137,7 +137,7 @@ qcrypto_tls_creds_anon_finalize(Object *obj)
 
 
 static void
-qcrypto_tls_creds_anon_class_init(ObjectClass *oc, void *data)
+qcrypto_tls_creds_anon_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
@@ -152,7 +152,7 @@ static const TypeInfo qcrypto_tls_creds_anon_info = {
     .instance_finalize = qcrypto_tls_creds_anon_finalize,
     .class_size = sizeof(QCryptoTLSCredsAnonClass),
     .class_init = qcrypto_tls_creds_anon_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }

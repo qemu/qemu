@@ -299,7 +299,7 @@ static void igbvf_pci_uninit(PCIDevice *dev)
     msix_uninit(dev, &s->msix, &s->msix);
 }
 
-static void igbvf_class_init(ObjectClass *class, void *data)
+static void igbvf_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     PCIDeviceClass *c = PCI_DEVICE_CLASS(class);
@@ -325,7 +325,7 @@ static const TypeInfo igbvf_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IgbVfState),
     .class_init = igbvf_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
         { }
     },

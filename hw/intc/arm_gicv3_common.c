@@ -623,7 +623,7 @@ static const Property arm_gicv3_common_properties[] = {
                      MemoryRegion *),
 };
 
-static void arm_gicv3_common_class_init(ObjectClass *klass, void *data)
+static void arm_gicv3_common_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -644,7 +644,7 @@ static const TypeInfo arm_gicv3_common_type = {
     .class_init = arm_gicv3_common_class_init,
     .instance_finalize = arm_gicv3_finalize,
     .abstract = true,
-    .interfaces = (InterfaceInfo []) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_ARM_LINUX_BOOT_IF },
         { },
     },

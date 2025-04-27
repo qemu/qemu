@@ -484,7 +484,7 @@ static const VMStateDescription allwinner_r40_dramc_vmstate = {
     }
 };
 
-static void allwinner_r40_dramc_class_init(ObjectClass *klass, void *data)
+static void allwinner_r40_dramc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

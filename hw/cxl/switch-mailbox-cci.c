@@ -72,7 +72,7 @@ static const Property cxl_switch_cci_props[] = {
                      target, TYPE_CXL_USP, PCIDevice *),
 };
 
-static void cswmbcci_class_init(ObjectClass *oc, void *data)
+static void cswmbcci_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
@@ -99,7 +99,7 @@ static const TypeInfo cswmbcci_info = {
     .parent = TYPE_PCI_DEVICE,
     .class_init = cswmbcci_class_init,
     .instance_size = sizeof(CSWMBCCIDev),
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
         { }
     },

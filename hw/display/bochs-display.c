@@ -351,7 +351,7 @@ static const Property bochs_display_properties[] = {
     DEFINE_EDID_PROPERTIES(BochsDisplayState, edid_info),
 };
 
-static void bochs_display_class_init(ObjectClass *klass, void *data)
+static void bochs_display_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -374,7 +374,7 @@ static const TypeInfo bochs_display_type_info = {
     .instance_size  = sizeof(BochsDisplayState),
     .instance_init  = bochs_display_init,
     .class_init     = bochs_display_class_init,
-    .interfaces     = (InterfaceInfo[]) {
+    .interfaces     = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },

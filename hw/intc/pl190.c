@@ -273,7 +273,7 @@ static const VMStateDescription vmstate_pl190 = {
     }
 };
 
-static void pl190_class_init(ObjectClass *klass, void *data)
+static void pl190_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

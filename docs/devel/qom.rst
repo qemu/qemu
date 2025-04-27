@@ -147,7 +147,7 @@ to introduce an overridden virtual function:
 
    #include "qdev.h"
 
-   void my_device_class_init(ObjectClass *klass, void *class_data)
+   void my_device_class_init(ObjectClass *klass, const void *class_data)
    {
        DeviceClass *dc = DEVICE_CLASS(klass);
        dc->reset = my_device_reset;
@@ -249,7 +249,7 @@ class, which someone might choose to change at some point.
        // do something
    }
 
-   static void my_class_init(ObjectClass *oc, void *data)
+   static void my_class_init(ObjectClass *oc, const void *data)
    {
        MyClass *mc = MY_CLASS(oc);
 
@@ -279,7 +279,7 @@ class, which someone might choose to change at some point.
        // do something else here
    }
 
-   static void derived_class_init(ObjectClass *oc, void *data)
+   static void derived_class_init(ObjectClass *oc, const void *data)
    {
        MyClass *mc = MY_CLASS(oc);
        DerivedClass *dc = DERIVED_CLASS(oc);
@@ -363,7 +363,7 @@ This is equivalent to the following:
    :caption: Expansion from defining a simple type
 
    static void my_device_finalize(Object *obj);
-   static void my_device_class_init(ObjectClass *oc, void *data);
+   static void my_device_class_init(ObjectClass *oc, const void *data);
    static void my_device_init(Object *obj);
 
    static const TypeInfo my_device_info = {

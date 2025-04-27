@@ -383,7 +383,7 @@ static const Property nrf51_timer_properties[] = {
     DEFINE_PROP_UINT8("id", NRF51TimerState, id, 0),
 };
 
-static void nrf51_timer_class_init(ObjectClass *klass, void *data)
+static void nrf51_timer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

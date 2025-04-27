@@ -161,7 +161,7 @@ static const Property a15mp_priv_properties[] = {
     DEFINE_PROP_UINT32("num-irq", A15MPPrivState, num_irq, 0),
 };
 
-static void a15mp_priv_class_init(ObjectClass *klass, void *data)
+static void a15mp_priv_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

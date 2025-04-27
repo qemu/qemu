@@ -8212,7 +8212,6 @@ void helper_msa_ffint_u_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 /* Element-by-element access macros */
 #define DF_ELEMENTS(df) (MSA_WRLEN / DF_BITS(df))
 
-#if TARGET_BIG_ENDIAN
 static inline uint64_t bswap16x4(uint64_t x)
 {
     uint64_t m = 0x00ff00ff00ff00ffull;
@@ -8223,7 +8222,6 @@ static inline uint64_t bswap32x2(uint64_t x)
 {
     return ror64(bswap64(x), 32);
 }
-#endif
 
 void helper_msa_ld_b(CPUMIPSState *env, uint32_t wd,
                      target_ulong addr)
@@ -8252,10 +8250,10 @@ void helper_msa_ld_h(CPUMIPSState *env, uint32_t wd,
      */
     d0 = cpu_ldq_le_data_ra(env, addr + 0, ra);
     d1 = cpu_ldq_le_data_ra(env, addr + 8, ra);
-#if TARGET_BIG_ENDIAN
-    d0 = bswap16x4(d0);
-    d1 = bswap16x4(d1);
-#endif
+    if (mips_env_is_bigendian(env)) {
+        d0 = bswap16x4(d0);
+        d1 = bswap16x4(d1);
+    }
     pwd->d[0] = d0;
     pwd->d[1] = d1;
 }
@@ -8273,10 +8271,10 @@ void helper_msa_ld_w(CPUMIPSState *env, uint32_t wd,
      */
     d0 = cpu_ldq_le_data_ra(env, addr + 0, ra);
     d1 = cpu_ldq_le_data_ra(env, addr + 8, ra);
-#if TARGET_BIG_ENDIAN
-    d0 = bswap32x2(d0);
-    d1 = bswap32x2(d1);
-#endif
+    if (mips_env_is_bigendian(env)) {
+        d0 = bswap32x2(d0);
+        d1 = bswap32x2(d1);
+    }
     pwd->d[0] = d0;
     pwd->d[1] = d1;
 }
@@ -8339,10 +8337,10 @@ void helper_msa_st_h(CPUMIPSState *env, uint32_t wd,
     /* Store 8 bytes at a time.  See helper_msa_ld_h. */
     d0 = pwd->d[0];
     d1 = pwd->d[1];
-#if TARGET_BIG_ENDIAN
-    d0 = bswap16x4(d0);
-    d1 = bswap16x4(d1);
-#endif
+    if (mips_env_is_bigendian(env)) {
+        d0 = bswap16x4(d0);
+        d1 = bswap16x4(d1);
+    }
     cpu_stq_le_data_ra(env, addr + 0, d0, ra);
     cpu_stq_le_data_ra(env, addr + 8, d1, ra);
 }
@@ -8360,10 +8358,10 @@ void helper_msa_st_w(CPUMIPSState *env, uint32_t wd,
     /* Store 8 bytes at a time.  See helper_msa_ld_w. */
     d0 = pwd->d[0];
     d1 = pwd->d[1];
-#if TARGET_BIG_ENDIAN
-    d0 = bswap32x2(d0);
-    d1 = bswap32x2(d1);
-#endif
+    if (mips_env_is_bigendian(env)) {
+        d0 = bswap32x2(d0);
+        d1 = bswap32x2(d1);
+    }
     cpu_stq_le_data_ra(env, addr + 0, d0, ra);
     cpu_stq_le_data_ra(env, addr + 8, d1, ra);
 }

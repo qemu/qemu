@@ -264,7 +264,7 @@ static const Property rx62n_properties[] = {
     DEFINE_PROP_UINT32("xtal-frequency-hz", RX62NState, xtal_freq_hz, 0),
 };
 
-static void rx62n_class_init(ObjectClass *klass, void *data)
+static void rx62n_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -272,7 +272,7 @@ static void rx62n_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, rx62n_properties);
 }
 
-static void r5f562n7_class_init(ObjectClass *oc, void *data)
+static void r5f562n7_class_init(ObjectClass *oc, const void *data)
 {
     RX62NClass *rxc = RX62N_MCU_CLASS(oc);
 
@@ -281,7 +281,7 @@ static void r5f562n7_class_init(ObjectClass *oc, void *data)
     rxc->data_flash_size = 32 * KiB;
 };
 
-static void r5f562n8_class_init(ObjectClass *oc, void *data)
+static void r5f562n8_class_init(ObjectClass *oc, const void *data)
 {
     RX62NClass *rxc = RX62N_MCU_CLASS(oc);
 

@@ -224,7 +224,7 @@ static const Property virtio_input_host_properties[] = {
     DEFINE_PROP_STRING("evdev", VirtIOInputHost, evdev),
 };
 
-static void virtio_input_host_class_init(ObjectClass *klass, void *data)
+static void virtio_input_host_class_init(ObjectClass *klass, const void *data)
 {
     VirtIOInputClass *vic = VIRTIO_INPUT_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);

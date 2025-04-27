@@ -373,7 +373,7 @@ static const Property hv_syndbg_properties[] = {
     DEFINE_PROP_BOOL("use_hcalls", HvSynDbg, use_hcalls, false),
 };
 
-static void hv_syndbg_class_init(ObjectClass *klass, void *data)
+static void hv_syndbg_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

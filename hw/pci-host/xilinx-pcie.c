@@ -165,7 +165,7 @@ static const Property xilinx_pcie_host_props[] = {
     DEFINE_PROP_BOOL("link_up", XilinxPCIEHost, link_up, true),
 };
 
-static void xilinx_pcie_host_class_init(ObjectClass *klass, void *data)
+static void xilinx_pcie_host_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
@@ -286,7 +286,7 @@ static void xilinx_pcie_root_realize(PCIDevice *pci_dev, Error **errp)
     }
 }
 
-static void xilinx_pcie_root_class_init(ObjectClass *klass, void *data)
+static void xilinx_pcie_root_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -314,7 +314,7 @@ static const TypeInfo xilinx_pcie_root_info = {
     .parent = TYPE_PCI_BRIDGE,
     .instance_size = sizeof(XilinxPCIERoot),
     .class_init = xilinx_pcie_root_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
         { }
     },

@@ -270,7 +270,7 @@ static void qemu_chr_parse_parallel(QemuOpts *opts, ChardevBackend *backend,
     parallel->device = g_strdup(device);
 }
 
-static void char_parallel_class_init(ObjectClass *oc, void *data)
+static void char_parallel_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 

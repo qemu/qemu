@@ -68,7 +68,8 @@ static void resettable_container_finalize(Object *obj)
 {
 }
 
-static void resettable_container_class_init(ObjectClass *klass, void *data)
+static void resettable_container_class_init(ObjectClass *klass,
+                                            const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 

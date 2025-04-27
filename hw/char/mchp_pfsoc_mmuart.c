@@ -121,7 +121,7 @@ static const VMStateDescription mchp_pfsoc_mmuart_vmstate = {
     }
 };
 
-static void mchp_pfsoc_mmuart_class_init(ObjectClass *oc, void *data)
+static void mchp_pfsoc_mmuart_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

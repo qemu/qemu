@@ -380,7 +380,7 @@ static const Property grlib_irqmp_properties[] = {
     DEFINE_PROP_UINT32("ncpus", IRQMP, ncpus, 1),
 };
 
-static void grlib_irqmp_class_init(ObjectClass *klass, void *data)
+static void grlib_irqmp_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

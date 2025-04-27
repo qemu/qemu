@@ -270,7 +270,7 @@ static void file_backend_unparent(Object *obj)
 }
 
 static void
-file_backend_class_init(ObjectClass *oc, void *data)
+file_backend_class_init(ObjectClass *oc, const void *data)
 {
     HostMemoryBackendClass *bc = MEMORY_BACKEND_CLASS(oc);
 

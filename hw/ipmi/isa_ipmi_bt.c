@@ -139,7 +139,7 @@ static const Property ipmi_isa_properties[] = {
     DEFINE_PROP_INT32("irq",   ISAIPMIBTDevice, isairq,  5),
 };
 
-static void isa_ipmi_bt_class_init(ObjectClass *oc, void *data)
+static void isa_ipmi_bt_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_CLASS(oc);
@@ -161,7 +161,7 @@ static const TypeInfo isa_ipmi_bt_info = {
     .instance_size = sizeof(ISAIPMIBTDevice),
     .instance_init = isa_ipmi_bt_init,
     .class_init    = isa_ipmi_bt_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_IPMI_INTERFACE },
         { TYPE_ACPI_DEV_AML_IF },
         { }

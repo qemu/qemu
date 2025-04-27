@@ -549,7 +549,7 @@ static const Property pnv_i2c_properties[] = {
     DEFINE_PROP_UINT32("num-busses", PnvI2C, num_busses, 1),
 };
 
-static void pnv_i2c_class_init(ObjectClass *klass, void *data)
+static void pnv_i2c_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvXScomInterfaceClass *xscomc = PNV_XSCOM_INTERFACE_CLASS(klass);
@@ -569,7 +569,7 @@ static const TypeInfo pnv_i2c_info = {
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvI2C),
     .class_init    = pnv_i2c_class_init,
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }
     }

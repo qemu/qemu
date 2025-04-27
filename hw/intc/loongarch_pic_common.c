@@ -71,7 +71,8 @@ static const VMStateDescription vmstate_loongarch_pic_common = {
     }
 };
 
-static void loongarch_pic_common_class_init(ObjectClass *klass, void *data)
+static void loongarch_pic_common_class_init(ObjectClass *klass,
+                                            const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     LoongArchPICCommonClass *lpcc = LOONGARCH_PIC_COMMON_CLASS(klass);

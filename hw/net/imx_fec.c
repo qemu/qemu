@@ -1230,7 +1230,7 @@ static const Property imx_eth_properties[] = {
                      IMXFECState *),
 };
 
-static void imx_eth_class_init(ObjectClass *klass, void *data)
+static void imx_eth_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

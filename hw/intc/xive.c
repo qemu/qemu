@@ -930,7 +930,7 @@ static const Property xive_tctx_properties[] = {
                      XivePresenter *),
 };
 
-static void xive_tctx_class_init(ObjectClass *klass, void *data)
+static void xive_tctx_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1412,7 +1412,7 @@ static const Property xive_source_properties[] = {
                      XiveNotifier *),
 };
 
-static void xive_source_class_init(ObjectClass *klass, void *data)
+static void xive_source_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -2085,7 +2085,7 @@ static const Property xive_router_properties[] = {
                      TYPE_XIVE_FABRIC, XiveFabric *),
 };
 
-static void xive_router_class_init(ObjectClass *klass, void *data)
+static void xive_router_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     XiveNotifierClass *xnc = XIVE_NOTIFIER_CLASS(klass);
@@ -2108,7 +2108,7 @@ static const TypeInfo xive_router_info = {
     .instance_size = sizeof(XiveRouter),
     .class_size    = sizeof(XiveRouterClass),
     .class_init    = xive_router_class_init,
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { TYPE_XIVE_NOTIFIER },
         { TYPE_XIVE_PRESENTER },
         { }
@@ -2254,7 +2254,7 @@ static const Property xive_end_source_properties[] = {
                      XiveRouter *),
 };
 
-static void xive_end_source_class_init(ObjectClass *klass, void *data)
+static void xive_end_source_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

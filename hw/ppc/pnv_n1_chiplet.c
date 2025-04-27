@@ -136,7 +136,7 @@ static void pnv_n1_chiplet_realize(DeviceState *dev, Error **errp)
                           PNV10_XSCOM_N1_PB_SCOM_ES_SIZE);
 }
 
-static void pnv_n1_chiplet_class_init(ObjectClass *klass, void *data)
+static void pnv_n1_chiplet_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -159,7 +159,7 @@ static const TypeInfo pnv_n1_chiplet_info = {
     .instance_init = pnv_n1_chiplet_instance_init,
     .instance_size = sizeof(PnvN1Chiplet),
     .class_init    = pnv_n1_chiplet_class_init,
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }
     }
