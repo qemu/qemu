@@ -834,7 +834,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
 #else
         else if (interrupt_request & CPU_INTERRUPT_RESET) {
             replay_interrupt();
-            cpu_reset(cpu);
+            cpu->cc->tcg_ops->cpu_exec_reset(cpu);
             bql_unlock();
             return true;
         }
@@ -1070,6 +1070,7 @@ bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
 #ifndef CONFIG_USER_ONLY
         assert(tcg_ops->cpu_exec_halt);
         assert(tcg_ops->cpu_exec_interrupt);
+        assert(tcg_ops->cpu_exec_reset);
 #endif /* !CONFIG_USER_ONLY */
         assert(tcg_ops->translate_code);
         assert(tcg_ops->mmu_index);
