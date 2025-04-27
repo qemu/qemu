@@ -285,14 +285,11 @@ static void log_cpu_exec(vaddr pc, CPUState *cpu,
         if (qemu_loglevel_mask(CPU_LOG_TB_CPU)) {
             FILE *logfile = qemu_log_trylock();
             if (logfile) {
-                int flags = 0;
+                int flags = CPU_DUMP_CCOP;
 
                 if (qemu_loglevel_mask(CPU_LOG_TB_FPU)) {
                     flags |= CPU_DUMP_FPU;
                 }
-#if defined(TARGET_I386)
-                flags |= CPU_DUMP_CCOP;
-#endif
                 if (qemu_loglevel_mask(CPU_LOG_TB_VPU)) {
                     flags |= CPU_DUMP_VPU;
                 }
