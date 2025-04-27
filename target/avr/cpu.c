@@ -54,13 +54,10 @@ static int avr_cpu_mmu_index(CPUState *cs, bool ifetch)
     return ifetch ? MMU_CODE_IDX : MMU_DATA_IDX;
 }
 
-void cpu_get_tb_cpu_state(CPUAVRState *env, vaddr *pc,
-                          uint64_t *cs_base, uint32_t *pflags)
+TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
 {
+    CPUAVRState *env = cpu_env(cs);
     uint32_t flags = 0;
-
-    *pc = env->pc_w * 2;
-    *cs_base = 0;
 
     if (env->fullacc) {
         flags |= TB_FLAGS_FULL_ACCESS;
@@ -69,7 +66,7 @@ void cpu_get_tb_cpu_state(CPUAVRState *env, vaddr *pc,
         flags |= TB_FLAGS_SKIP;
     }
 
-    *pflags = flags;
+    return (TCGTBCPUState){ .pc = env->pc_w * 2, .flags = flags };
 }
 
 static void avr_cpu_synchronize_from_tb(CPUState *cs,

@@ -256,9 +256,9 @@ void hreg_update_pmu_hflags(CPUPPCState *env)
     env->hflags |= hreg_compute_pmu_hflags_value(env);
 }
 
-void cpu_get_tb_cpu_state(CPUPPCState *env, vaddr *pc,
-                          uint64_t *cs_base, uint32_t *flags)
+TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
 {
+    CPUPPCState *env = cpu_env(cs);
     uint32_t hflags_current = env->hflags;
 
 #ifdef CONFIG_DEBUG_TCG
@@ -270,9 +270,7 @@ void cpu_get_tb_cpu_state(CPUPPCState *env, vaddr *pc,
     }
 #endif
 
-    *pc = env->nip;
-    *cs_base = 0;
-    *flags = hflags_current;
+    return (TCGTBCPUState){ .pc = env->nip, .flags = hflags_current };
 }
 
 void cpu_interrupt_exittb(CPUState *cs)

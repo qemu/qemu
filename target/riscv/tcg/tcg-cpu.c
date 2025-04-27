@@ -98,16 +98,13 @@ static int riscv_cpu_mmu_index(CPUState *cs, bool ifetch)
     return riscv_env_mmu_index(cpu_env(cs), ifetch);
 }
 
-void cpu_get_tb_cpu_state(CPURISCVState *env, vaddr *pc,
-                          uint64_t *cs_base, uint32_t *pflags)
+TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
 {
+    CPURISCVState *env = cpu_env(cs);
     RISCVCPU *cpu = env_archcpu(env);
     RISCVExtStatus fs, vs;
     uint32_t flags = 0;
     bool pm_signext = riscv_cpu_virt_mem_enabled(env);
-
-    *pc = env->xl == MXL_RV32 ? env->pc & UINT32_MAX : env->pc;
-    *cs_base = 0;
 
     if (cpu->cfg.ext_zve32x) {
         /*
@@ -192,7 +189,10 @@ void cpu_get_tb_cpu_state(CPURISCVState *env, vaddr *pc,
     flags = FIELD_DP32(flags, TB_FLAGS, PM_PMM, riscv_pm_get_pmm(env));
     flags = FIELD_DP32(flags, TB_FLAGS, PM_SIGNEXTEND, pm_signext);
 
-    *pflags = flags;
+    return (TCGTBCPUState){
+        .pc = env->xl == MXL_RV32 ? env->pc & UINT32_MAX : env->pc,
+        .flags = flags
+    };
 }
 
 static void riscv_cpu_synchronize_from_tb(CPUState *cs,

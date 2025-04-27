@@ -10,6 +10,7 @@
 #include "internals.h"
 #include "cpu-features.h"
 #include "exec/helper-proto.h"
+#include "exec/translation-block.h"
 #include "accel/tcg/cpu-ops.h"
 #include "cpregs.h"
 
@@ -544,21 +545,22 @@ static bool mve_no_pred(CPUARMState *env)
     return true;
 }
 
-void cpu_get_tb_cpu_state(CPUARMState *env, vaddr *pc,
-                          uint64_t *cs_base, uint32_t *pflags)
+TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
 {
+    CPUARMState *env = cpu_env(cs);
     CPUARMTBFlags flags;
+    vaddr pc;
 
     assert_hflags_rebuild_correctly(env);
     flags = env->hflags;
 
     if (EX_TBFLAG_ANY(flags, AARCH64_STATE)) {
-        *pc = env->pc;
+        pc = env->pc;
         if (cpu_isar_feature(aa64_bti, env_archcpu(env))) {
             DP_TBFLAG_A64(flags, BTYPE, env->btype);
         }
     } else {
-        *pc = env->regs[15];
+        pc = env->regs[15];
 
         if (arm_feature(env, ARM_FEATURE_M)) {
             if (arm_feature(env, ARM_FEATURE_M_SECURITY) &&
@@ -620,6 +622,9 @@ void cpu_get_tb_cpu_state(CPUARMState *env, vaddr *pc,
         DP_TBFLAG_ANY(flags, PSTATE__SS, 1);
     }
 
-    *pflags = flags.flags;
-    *cs_base = flags.flags2;
+    return (TCGTBCPUState){
+        .pc = pc,
+        .flags = flags.flags,
+        .cs_base = flags.flags2,
+    };
 }

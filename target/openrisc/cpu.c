@@ -41,14 +41,16 @@ static vaddr openrisc_cpu_get_pc(CPUState *cs)
     return cpu->env.pc;
 }
 
-void cpu_get_tb_cpu_state(CPUOpenRISCState *env, vaddr *pc,
-                          uint64_t *cs_base, uint32_t *flags)
+TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
 {
-    *pc = env->pc;
-    *cs_base = 0;
-    *flags = (env->dflag ? TB_FLAGS_DFLAG : 0)
-           | (cpu_get_gpr(env, 0) ? 0 : TB_FLAGS_R0_0)
-           | (env->sr & (SR_SM | SR_DME | SR_IME | SR_OVE));
+    CPUOpenRISCState *env = cpu_env(cs);
+
+    return (TCGTBCPUState){
+        .pc = env->pc,
+        .flags = ((env->dflag ? TB_FLAGS_DFLAG : 0)
+                  | (cpu_get_gpr(env, 0) ? 0 : TB_FLAGS_R0_0)
+                  | (env->sr & (SR_SM | SR_DME | SR_IME | SR_OVE))),
+    };
 }
 
 static void openrisc_cpu_synchronize_from_tb(CPUState *cs,

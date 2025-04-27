@@ -16,10 +16,10 @@
 #include "exec/memop.h"
 #include "exec/mmu-access-type.h"
 #include "exec/vaddr.h"
+#include "accel/tcg/tb-cpu-state.h"
 #include "tcg/tcg-mo.h"
 
-void cpu_get_tb_cpu_state(CPUArchState *env, vaddr *pc,
-                          uint64_t *cs_base, uint32_t *flags);
+TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs);
 
 struct TCGCPUOps {
     /**
