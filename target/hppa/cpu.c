@@ -29,6 +29,7 @@
 #include "fpu/softfloat.h"
 #include "tcg/tcg.h"
 #include "hw/hppa/hppa_hardware.h"
+#include "accel/tcg/cpu-ops.h"
 
 static void hppa_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -248,8 +249,6 @@ static const struct SysemuCPUOps hppa_sysemu_ops = {
     .get_phys_page_debug = hppa_cpu_get_phys_page_debug,
 };
 #endif
-
-#include "accel/tcg/cpu-ops.h"
 
 static const TCGCPUOps hppa_tcg_ops = {
     /* PA-RISC 1.x processors have a strong memory model.  */

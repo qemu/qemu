@@ -31,6 +31,7 @@
 #include "exec/gdbstub.h"
 #include "exec/translation-block.h"
 #include "fpu/softfloat-helpers.h"
+#include "accel/tcg/cpu-ops.h"
 #include "tcg/tcg.h"
 
 static const struct {
@@ -92,6 +93,14 @@ static vaddr mb_cpu_get_pc(CPUState *cs)
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
 
     return cpu->env.pc;
+}
+
+void cpu_get_tb_cpu_state(CPUMBState *env, vaddr *pc,
+                          uint64_t *cs_base, uint32_t *flags)
+{
+    *pc = env->pc;
+    *flags = (env->iflags & IFLAGS_TB_MASK) | (env->msr & MSR_TB_MASK);
+    *cs_base = (*flags & IMM_FLAG ? env->imm : 0);
 }
 
 static void mb_cpu_synchronize_from_tb(CPUState *cs,
@@ -422,8 +431,6 @@ static const struct SysemuCPUOps mb_sysemu_ops = {
     .get_phys_page_attrs_debug = mb_cpu_get_phys_page_attrs_debug,
 };
 #endif
-
-#include "accel/tcg/cpu-ops.h"
 
 static const TCGCPUOps mb_tcg_ops = {
     /* MicroBlaze is always in-order. */

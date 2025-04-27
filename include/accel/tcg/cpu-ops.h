@@ -18,6 +18,9 @@
 #include "exec/vaddr.h"
 #include "tcg/tcg-mo.h"
 
+void cpu_get_tb_cpu_state(CPUArchState *env, vaddr *pc,
+                          uint64_t *cs_base, uint32_t *flags);
+
 struct TCGCPUOps {
     /**
      * mttcg_supported: multi-threaded TCG is supported

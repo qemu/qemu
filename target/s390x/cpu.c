@@ -302,6 +302,7 @@ static const Property s390x_cpu_properties[] = {
 
 #ifdef CONFIG_TCG
 #include "accel/tcg/cpu-ops.h"
+#include "tcg/tcg_s390x.h"
 
 static int s390x_cpu_mmu_index(CPUState *cs, bool ifetch)
 {

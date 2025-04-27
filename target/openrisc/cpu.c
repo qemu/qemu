@@ -23,6 +23,7 @@
 #include "cpu.h"
 #include "exec/translation-block.h"
 #include "fpu/softfloat-helpers.h"
+#include "accel/tcg/cpu-ops.h"
 #include "tcg/tcg.h"
 
 static void openrisc_cpu_set_pc(CPUState *cs, vaddr value)
@@ -38,6 +39,16 @@ static vaddr openrisc_cpu_get_pc(CPUState *cs)
     OpenRISCCPU *cpu = OPENRISC_CPU(cs);
 
     return cpu->env.pc;
+}
+
+void cpu_get_tb_cpu_state(CPUOpenRISCState *env, vaddr *pc,
+                          uint64_t *cs_base, uint32_t *flags)
+{
+    *pc = env->pc;
+    *cs_base = 0;
+    *flags = (env->dflag ? TB_FLAGS_DFLAG : 0)
+           | (cpu_get_gpr(env, 0) ? 0 : TB_FLAGS_R0_0)
+           | (env->sr & (SR_SM | SR_DME | SR_IME | SR_OVE));
 }
 
 static void openrisc_cpu_synchronize_from_tb(CPUState *cs,
@@ -238,8 +249,6 @@ static const struct SysemuCPUOps openrisc_sysemu_ops = {
     .get_phys_page_debug = openrisc_cpu_get_phys_page_debug,
 };
 #endif
-
-#include "accel/tcg/cpu-ops.h"
 
 static const TCGCPUOps openrisc_tcg_ops = {
     .guest_default_memory_order = 0,

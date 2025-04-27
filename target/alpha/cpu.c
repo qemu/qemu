@@ -25,6 +25,7 @@
 #include "cpu.h"
 #include "exec/translation-block.h"
 #include "exec/target_page.h"
+#include "accel/tcg/cpu-ops.h"
 #include "fpu/softfloat.h"
 
 
@@ -38,6 +39,17 @@ static vaddr alpha_cpu_get_pc(CPUState *cs)
 {
     CPUAlphaState *env = cpu_env(cs);
     return env->pc;
+}
+
+void cpu_get_tb_cpu_state(CPUAlphaState *env, vaddr *pc,
+                          uint64_t *cs_base, uint32_t *pflags)
+{
+    *pc = env->pc;
+    *cs_base = 0;
+    *pflags = env->flags & ENV_FLAG_TB_MASK;
+#ifdef CONFIG_USER_ONLY
+    *pflags |= TB_FLAG_UNALIGN * !env_cpu(env)->prctl_unalign_sigbus;
+#endif
 }
 
 static void alpha_cpu_synchronize_from_tb(CPUState *cs,
@@ -230,8 +242,6 @@ static const struct SysemuCPUOps alpha_sysemu_ops = {
     .get_phys_page_debug = alpha_cpu_get_phys_page_debug,
 };
 #endif
-
-#include "accel/tcg/cpu-ops.h"
 
 static const TCGCPUOps alpha_tcg_ops = {
     /* Alpha processors have a weak memory model */

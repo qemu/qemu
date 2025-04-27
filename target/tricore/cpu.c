@@ -23,6 +23,7 @@
 #include "exec/translation-block.h"
 #include "qemu/error-report.h"
 #include "tcg/debug-assert.h"
+#include "accel/tcg/cpu-ops.h"
 
 static inline void set_feature(CPUTriCoreState *env, int feature)
 {
@@ -42,6 +43,18 @@ static void tricore_cpu_set_pc(CPUState *cs, vaddr value)
 static vaddr tricore_cpu_get_pc(CPUState *cs)
 {
     return cpu_env(cs)->PC;
+}
+
+void cpu_get_tb_cpu_state(CPUTriCoreState *env, vaddr *pc,
+                          uint64_t *cs_base, uint32_t *flags)
+{
+    uint32_t new_flags = 0;
+    *pc = env->PC;
+    *cs_base = 0;
+
+    new_flags |= FIELD_DP32(new_flags, TB_FLAGS, PRIV,
+            extract32(env->PSW, 10, 2));
+    *flags = new_flags;
 }
 
 static void tricore_cpu_synchronize_from_tb(CPUState *cs,
@@ -167,8 +180,6 @@ static const struct SysemuCPUOps tricore_sysemu_ops = {
     .has_work = tricore_cpu_has_work,
     .get_phys_page_debug = tricore_cpu_get_phys_page_debug,
 };
-
-#include "accel/tcg/cpu-ops.h"
 
 static const TCGCPUOps tricore_tcg_ops = {
     /* MTTCG not yet supported: require strict ordering */

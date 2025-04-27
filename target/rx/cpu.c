@@ -28,6 +28,7 @@
 #include "hw/loader.h"
 #include "fpu/softfloat.h"
 #include "tcg/debug-assert.h"
+#include "accel/tcg/cpu-ops.h"
 
 static void rx_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -41,6 +42,15 @@ static vaddr rx_cpu_get_pc(CPUState *cs)
     RXCPU *cpu = RX_CPU(cs);
 
     return cpu->env.pc;
+}
+
+void cpu_get_tb_cpu_state(CPURXState *env, vaddr *pc,
+                          uint64_t *cs_base, uint32_t *flags)
+{
+    *pc = env->pc;
+    *cs_base = 0;
+    *flags = FIELD_DP32(0, PSW, PM, env->psw_pm);
+    *flags = FIELD_DP32(*flags, PSW, U, env->psw_u);
 }
 
 static void rx_cpu_synchronize_from_tb(CPUState *cs,
@@ -200,8 +210,6 @@ static const struct SysemuCPUOps rx_sysemu_ops = {
     .has_work = rx_cpu_has_work,
     .get_phys_page_debug = rx_cpu_get_phys_page_debug,
 };
-
-#include "accel/tcg/cpu-ops.h"
 
 static const TCGCPUOps rx_tcg_ops = {
     /* MTTCG not yet supported: require strict ordering */

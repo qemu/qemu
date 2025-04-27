@@ -27,6 +27,7 @@
 #include "disas/dis-asm.h"
 #include "tcg/debug-assert.h"
 #include "hw/qdev-properties.h"
+#include "accel/tcg/cpu-ops.h"
 
 static void avr_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -51,6 +52,24 @@ static bool avr_cpu_has_work(CPUState *cs)
 static int avr_cpu_mmu_index(CPUState *cs, bool ifetch)
 {
     return ifetch ? MMU_CODE_IDX : MMU_DATA_IDX;
+}
+
+void cpu_get_tb_cpu_state(CPUAVRState *env, vaddr *pc,
+                          uint64_t *cs_base, uint32_t *pflags)
+{
+    uint32_t flags = 0;
+
+    *pc = env->pc_w * 2;
+    *cs_base = 0;
+
+    if (env->fullacc) {
+        flags |= TB_FLAGS_FULL_ACCESS;
+    }
+    if (env->skip) {
+        flags |= TB_FLAGS_SKIP;
+    }
+
+    *pflags = flags;
 }
 
 static void avr_cpu_synchronize_from_tb(CPUState *cs,
@@ -219,8 +238,6 @@ static const struct SysemuCPUOps avr_sysemu_ops = {
     .has_work = avr_cpu_has_work,
     .get_phys_page_debug = avr_cpu_get_phys_page_debug,
 };
-
-#include "accel/tcg/cpu-ops.h"
 
 static const TCGCPUOps avr_tcg_ops = {
     .guest_default_memory_order = 0,

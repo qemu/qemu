@@ -24,6 +24,7 @@
 #include "accel/accel-cpu-target.h"
 #include "exec/translation-block.h"
 #include "exec/target_page.h"
+#include "accel/tcg/cpu-ops.h"
 #include "tcg-cpu.h"
 
 /* Frob eflags into and out of the CPU temporary format.  */
@@ -45,6 +46,20 @@ static void x86_cpu_exec_exit(CPUState *cs)
     CPUX86State *env = &cpu->env;
 
     env->eflags = cpu_compute_eflags(env);
+}
+
+void cpu_get_tb_cpu_state(CPUX86State *env, vaddr *pc,
+                          uint64_t *cs_base, uint32_t *flags)
+{
+    *flags = env->hflags |
+        (env->eflags & (IOPL_MASK | TF_MASK | RF_MASK | VM_MASK | AC_MASK));
+    if (env->hflags & HF_CS64_MASK) {
+        *cs_base = 0;
+        *pc = env->eip;
+    } else {
+        *cs_base = env->segs[R_CS].base;
+        *pc = (uint32_t)(*cs_base + env->eip);
+    }
 }
 
 static void x86_cpu_synchronize_from_tb(CPUState *cs,
@@ -130,8 +145,6 @@ static void x86_cpu_exec_reset(CPUState *cs)
     cs->exception_index = EXCP_HALTED;
 }
 #endif
-
-#include "accel/tcg/cpu-ops.h"
 
 const TCGCPUOps x86_tcg_ops = {
     .mttcg_supported = true,
