@@ -127,6 +127,10 @@ static void arm_virt_compat_set(MachineClass *mc)
                      arm_virt_compat_len);
     compat_props_add(mc->compat_props, arm_rhel_compat,
                      arm_rhel_compat_len);
+    compat_props_add(mc->compat_props, arm_rhel9_compat,
+                     arm_rhel9_compat_len);
+    compat_props_add(mc->compat_props, hw_compat_rhel_9,
+                     hw_compat_rhel_9_len);
 }
 
 #define DEFINE_VIRT_MACHINE_IMPL(latest, ...) \
@@ -3599,10 +3603,6 @@ DEFINE_VIRT_MACHINE(2, 6)
 
 static void virt_rhel_machine_9_6_0_options(MachineClass *mc)
 {
-    compat_props_add(mc->compat_props, arm_rhel9_compat, arm_rhel9_compat_len);
-
-    /* NB: remember to move this line to the *latest* RHEL 9 machine */
-    compat_props_add(mc->compat_props, hw_compat_rhel_9, hw_compat_rhel_9_len);
 }
 DEFINE_VIRT_MACHINE_AS_LATEST(9, 6, 0)
 
