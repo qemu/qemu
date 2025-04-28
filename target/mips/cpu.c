@@ -549,7 +549,7 @@ static int mips_cpu_mmu_index(CPUState *cs, bool ifunc)
     return mips_env_mmu_index(cpu_env(cs));
 }
 
-TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
+static TCGTBCPUState mips_get_tb_cpu_state(CPUState *cs)
 {
     CPUMIPSState *env = cpu_env(cs);
 
@@ -566,6 +566,7 @@ static const TCGCPUOps mips_tcg_ops = {
 
     .initialize = mips_tcg_init,
     .translate_code = mips_translate_code,
+    .get_tb_cpu_state = mips_get_tb_cpu_state,
     .synchronize_from_tb = mips_cpu_synchronize_from_tb,
     .restore_state_to_opc = mips_restore_state_to_opc,
     .mmu_index = mips_cpu_mmu_index,

@@ -309,7 +309,7 @@ static int s390x_cpu_mmu_index(CPUState *cs, bool ifetch)
     return s390x_env_mmu_index(cpu_env(cs), ifetch);
 }
 
-TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
+static TCGTBCPUState s390x_get_tb_cpu_state(CPUState *cs)
 {
     CPUS390XState *env = cpu_env(cs);
     uint32_t flags;
@@ -358,6 +358,7 @@ static const TCGCPUOps s390_tcg_ops = {
 
     .initialize = s390x_translate_init,
     .translate_code = s390x_translate_code,
+    .get_tb_cpu_state = s390x_get_tb_cpu_state,
     .restore_state_to_opc = s390x_restore_state_to_opc,
     .mmu_index = s390x_cpu_mmu_index,
 

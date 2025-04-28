@@ -98,7 +98,7 @@ static int riscv_cpu_mmu_index(CPUState *cs, bool ifetch)
     return riscv_env_mmu_index(cpu_env(cs), ifetch);
 }
 
-TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
+static TCGTBCPUState riscv_get_tb_cpu_state(CPUState *cs)
 {
     CPURISCVState *env = cpu_env(cs);
     RISCVCPU *cpu = env_archcpu(env);
@@ -243,6 +243,7 @@ const TCGCPUOps riscv_tcg_ops = {
 
     .initialize = riscv_translate_init,
     .translate_code = riscv_translate_code,
+    .get_tb_cpu_state = riscv_get_tb_cpu_state,
     .synchronize_from_tb = riscv_cpu_synchronize_from_tb,
     .restore_state_to_opc = riscv_restore_state_to_opc,
     .mmu_index = riscv_cpu_mmu_index,

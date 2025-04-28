@@ -255,7 +255,7 @@ static vaddr hexagon_cpu_get_pc(CPUState *cs)
     return cpu_env(cs)->gpr[HEX_REG_PC];
 }
 
-TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
+static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
 {
     CPUHexagonState *env = cpu_env(cs);
     vaddr pc = env->gpr[HEX_REG_PC];
@@ -344,6 +344,7 @@ static const TCGCPUOps hexagon_tcg_ops = {
     .mttcg_supported = false,
     .initialize = hexagon_translate_init,
     .translate_code = hexagon_translate_code,
+    .get_tb_cpu_state = hexagon_get_tb_cpu_state,
     .synchronize_from_tb = hexagon_cpu_synchronize_from_tb,
     .restore_state_to_opc = hexagon_restore_state_to_opc,
     .mmu_index = hexagon_cpu_mmu_index,

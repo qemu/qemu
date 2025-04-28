@@ -545,7 +545,7 @@ static bool mve_no_pred(CPUARMState *env)
     return true;
 }
 
-TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
+TCGTBCPUState arm_get_tb_cpu_state(CPUState *cs)
 {
     CPUARMState *env = cpu_env(cs);
     CPUARMTBFlags flags;

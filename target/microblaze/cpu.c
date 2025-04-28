@@ -95,7 +95,7 @@ static vaddr mb_cpu_get_pc(CPUState *cs)
     return cpu->env.pc;
 }
 
-TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
+static TCGTBCPUState mb_get_tb_cpu_state(CPUState *cs)
 {
     CPUMBState *env = cpu_env(cs);
 
@@ -442,6 +442,7 @@ static const TCGCPUOps mb_tcg_ops = {
 
     .initialize = mb_tcg_init,
     .translate_code = mb_translate_code,
+    .get_tb_cpu_state = mb_get_tb_cpu_state,
     .synchronize_from_tb = mb_cpu_synchronize_from_tb,
     .restore_state_to_opc = mb_restore_state_to_opc,
     .mmu_index = mb_cpu_mmu_index,

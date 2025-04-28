@@ -41,7 +41,7 @@ static vaddr alpha_cpu_get_pc(CPUState *cs)
     return env->pc;
 }
 
-TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
+static TCGTBCPUState alpha_get_tb_cpu_state(CPUState *cs)
 {
     CPUAlphaState *env = cpu_env(cs);
     uint32_t flags = env->flags & ENV_FLAG_TB_MASK;
@@ -251,6 +251,7 @@ static const TCGCPUOps alpha_tcg_ops = {
 
     .initialize = alpha_translate_init,
     .translate_code = alpha_translate_code,
+    .get_tb_cpu_state = alpha_get_tb_cpu_state,
     .synchronize_from_tb = alpha_cpu_synchronize_from_tb,
     .restore_state_to_opc = alpha_restore_state_to_opc,
     .mmu_index = alpha_cpu_mmu_index,

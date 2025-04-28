@@ -45,7 +45,7 @@ static vaddr tricore_cpu_get_pc(CPUState *cs)
     return cpu_env(cs)->PC;
 }
 
-TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
+static TCGTBCPUState tricore_get_tb_cpu_state(CPUState *cs)
 {
     CPUTriCoreState *env = cpu_env(cs);
 
@@ -185,6 +185,7 @@ static const TCGCPUOps tricore_tcg_ops = {
     .mttcg_supported = false,
     .initialize = tricore_tcg_init,
     .translate_code = tricore_translate_code,
+    .get_tb_cpu_state = tricore_get_tb_cpu_state,
     .synchronize_from_tb = tricore_cpu_synchronize_from_tb,
     .restore_state_to_opc = tricore_restore_state_to_opc,
     .mmu_index = tricore_cpu_mmu_index,

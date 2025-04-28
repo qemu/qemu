@@ -395,7 +395,7 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
      */
     cpu->neg.can_do_io = true;
 
-    TCGTBCPUState s = cpu_get_tb_cpu_state(cpu);
+    TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
     s.cflags = curr_cflags(cpu);
 
     if (check_for_breakpoints(cpu, s.pc, &s.cflags)) {
@@ -567,7 +567,7 @@ void cpu_exec_step_atomic(CPUState *cpu)
         g_assert(!cpu->running);
         cpu->running = true;
 
-        TCGTBCPUState s = cpu_get_tb_cpu_state(cpu);
+        TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
         s.cflags = curr_cflags(cpu);
 
         /* Execute in a serial context. */
@@ -935,7 +935,7 @@ cpu_exec_loop(CPUState *cpu, SyncClocks *sc)
 
         while (!cpu_handle_interrupt(cpu, &last_tb)) {
             TranslationBlock *tb;
-            TCGTBCPUState s = cpu_get_tb_cpu_state(cpu);
+            TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
             s.cflags = cpu->cflags_next_tb;
 
             /*
@@ -1052,6 +1052,7 @@ bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
         assert(tcg_ops->cpu_exec_reset);
 #endif /* !CONFIG_USER_ONLY */
         assert(tcg_ops->translate_code);
+        assert(tcg_ops->get_tb_cpu_state);
         assert(tcg_ops->mmu_index);
         tcg_ops->initialize();
         tcg_target_initialized = true;

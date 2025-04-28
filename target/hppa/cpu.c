@@ -51,7 +51,7 @@ static vaddr hppa_cpu_get_pc(CPUState *cs)
                          env->iaoq_f & -4);
 }
 
-TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
+static TCGTBCPUState hppa_get_tb_cpu_state(CPUState *cs)
 {
     CPUHPPAState *env = cpu_env(cs);
     uint32_t flags = 0;
@@ -262,6 +262,7 @@ static const TCGCPUOps hppa_tcg_ops = {
 
     .initialize = hppa_translate_init,
     .translate_code = hppa_translate_code,
+    .get_tb_cpu_state = hppa_get_tb_cpu_state,
     .synchronize_from_tb = hppa_cpu_synchronize_from_tb,
     .restore_state_to_opc = hppa_restore_state_to_opc,
     .mmu_index = hppa_cpu_mmu_index,

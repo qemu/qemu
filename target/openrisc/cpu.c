@@ -41,7 +41,7 @@ static vaddr openrisc_cpu_get_pc(CPUState *cs)
     return cpu->env.pc;
 }
 
-TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
+static TCGTBCPUState openrisc_get_tb_cpu_state(CPUState *cs)
 {
     CPUOpenRISCState *env = cpu_env(cs);
 
@@ -258,6 +258,7 @@ static const TCGCPUOps openrisc_tcg_ops = {
 
     .initialize = openrisc_translate_init,
     .translate_code = openrisc_translate_code,
+    .get_tb_cpu_state = openrisc_get_tb_cpu_state,
     .synchronize_from_tb = openrisc_cpu_synchronize_from_tb,
     .restore_state_to_opc = openrisc_restore_state_to_opc,
     .mmu_index = openrisc_cpu_mmu_index,

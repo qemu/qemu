@@ -716,7 +716,7 @@ static void sparc_cpu_synchronize_from_tb(CPUState *cs,
     cpu->env.npc = tb->cs_base;
 }
 
-TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
+static TCGTBCPUState sparc_get_tb_cpu_state(CPUState *cs)
 {
     CPUSPARCState *env = cpu_env(cs);
     uint32_t flags = cpu_mmu_index(cs, false);
@@ -1029,6 +1029,7 @@ static const TCGCPUOps sparc_tcg_ops = {
 
     .initialize = sparc_tcg_init,
     .translate_code = sparc_translate_code,
+    .get_tb_cpu_state = sparc_get_tb_cpu_state,
     .synchronize_from_tb = sparc_cpu_synchronize_from_tb,
     .restore_state_to_opc = sparc_restore_state_to_opc,
     .mmu_index = sparc_cpu_mmu_index,

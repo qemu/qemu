@@ -19,8 +19,6 @@
 #include "accel/tcg/tb-cpu-state.h"
 #include "tcg/tcg-mo.h"
 
-TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs);
-
 struct TCGCPUOps {
     /**
      * mttcg_supported: multi-threaded TCG is supported
@@ -63,6 +61,12 @@ struct TCGCPUOps {
      */
     void (*translate_code)(CPUState *cpu, TranslationBlock *tb,
                            int *max_insns, vaddr pc, void *host_pc);
+    /**
+     * @get_tb_cpu_state: Extract CPU state for a TCG #TranslationBlock
+     *
+     * Fill in all data required to select or compile a TranslationBlock.
+     */
+    TCGTBCPUState (*get_tb_cpu_state)(CPUState *cs);
     /**
      * @synchronize_from_tb: Synchronize state from a TCG #TranslationBlock
      *

@@ -40,7 +40,7 @@ static vaddr m68k_cpu_get_pc(CPUState *cs)
     return cpu->env.pc;
 }
 
-TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
+static TCGTBCPUState m68k_get_tb_cpu_state(CPUState *cs)
 {
     CPUM68KState *env = cpu_env(cs);
     uint32_t flags;
@@ -613,6 +613,7 @@ static const TCGCPUOps m68k_tcg_ops = {
 
     .initialize = m68k_tcg_init,
     .translate_code = m68k_translate_code,
+    .get_tb_cpu_state = m68k_get_tb_cpu_state,
     .restore_state_to_opc = m68k_restore_state_to_opc,
     .mmu_index = m68k_cpu_mmu_index,
 

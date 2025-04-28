@@ -28,6 +28,7 @@
 #include "cpu-models.h"
 #include "spr_common.h"
 #include "accel/tcg/cpu-ops.h"
+#include "internal.h"
 
 /* Swap temporary saved registers with GPRs */
 void hreg_swap_gpr_tgpr(CPUPPCState *env)
@@ -256,7 +257,7 @@ void hreg_update_pmu_hflags(CPUPPCState *env)
     env->hflags |= hreg_compute_pmu_hflags_value(env);
 }
 
-TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
+TCGTBCPUState ppc_get_tb_cpu_state(CPUState *cs)
 {
     CPUPPCState *env = cpu_env(cs);
     uint32_t hflags_current = env->hflags;

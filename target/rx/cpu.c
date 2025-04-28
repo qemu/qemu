@@ -44,7 +44,7 @@ static vaddr rx_cpu_get_pc(CPUState *cs)
     return cpu->env.pc;
 }
 
-TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
+static TCGTBCPUState rx_get_tb_cpu_state(CPUState *cs)
 {
     CPURXState *env = cpu_env(cs);
     uint32_t flags = 0;
@@ -220,6 +220,7 @@ static const TCGCPUOps rx_tcg_ops = {
 
     .initialize = rx_translate_init,
     .translate_code = rx_translate_code,
+    .get_tb_cpu_state = rx_get_tb_cpu_state,
     .synchronize_from_tb = rx_cpu_synchronize_from_tb,
     .restore_state_to_opc = rx_restore_state_to_opc,
     .mmu_index = rx_cpu_mmu_index,

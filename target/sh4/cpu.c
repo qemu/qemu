@@ -43,7 +43,7 @@ static vaddr superh_cpu_get_pc(CPUState *cs)
     return cpu->env.pc;
 }
 
-TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
+static TCGTBCPUState superh_get_tb_cpu_state(CPUState *cs)
 {
     CPUSH4State *env = cpu_env(cs);
     uint32_t flags;
@@ -289,6 +289,7 @@ static const TCGCPUOps superh_tcg_ops = {
 
     .initialize = sh4_translate_init,
     .translate_code = sh4_translate_code,
+    .get_tb_cpu_state = superh_get_tb_cpu_state,
     .synchronize_from_tb = superh_cpu_synchronize_from_tb,
     .restore_state_to_opc = superh_restore_state_to_opc,
     .mmu_index = sh4_cpu_mmu_index,

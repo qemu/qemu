@@ -54,7 +54,7 @@ static int avr_cpu_mmu_index(CPUState *cs, bool ifetch)
     return ifetch ? MMU_CODE_IDX : MMU_DATA_IDX;
 }
 
-TCGTBCPUState cpu_get_tb_cpu_state(CPUState *cs)
+static TCGTBCPUState avr_get_tb_cpu_state(CPUState *cs)
 {
     CPUAVRState *env = cpu_env(cs);
     uint32_t flags = 0;
@@ -241,6 +241,7 @@ static const TCGCPUOps avr_tcg_ops = {
     .mttcg_supported = false,
     .initialize = avr_cpu_tcg_init,
     .translate_code = avr_cpu_translate_code,
+    .get_tb_cpu_state = avr_get_tb_cpu_state,
     .synchronize_from_tb = avr_cpu_synchronize_from_tb,
     .restore_state_to_opc = avr_restore_state_to_opc,
     .mmu_index = avr_cpu_mmu_index,

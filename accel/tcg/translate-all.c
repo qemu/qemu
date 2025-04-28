@@ -590,7 +590,7 @@ void tb_check_watchpoint(CPUState *cpu, uintptr_t retaddr)
         /* The exception probably happened in a helper.  The CPU state should
            have been saved before calling it. Fetch the PC from there.  */
         CPUArchState *env = cpu_env(cpu);
-        TCGTBCPUState s = cpu_get_tb_cpu_state(cpu);
+        TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
         tb_page_addr_t addr = get_page_addr_code(env, s.pc);
 
         if (addr != -1) {
