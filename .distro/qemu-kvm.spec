@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 18%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 19%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -545,6 +545,10 @@ Patch186: kvm-hw-virtio-Also-include-md-stubs-in-case-CONFIG_VIRTI.patch
 Patch187: kvm-virtio-mem-don-t-warn-about-THP-sizes-on-a-kernel-wi.patch
 # For RHEL-72977 - [IBM 9.7 FEAT] KVM: Enable virtio-mem support - qemu part
 Patch188: kvm-redhat-Enable-virtio-mem-on-s390x.patch
+# For RHEL-7130 - [Hyper-V][RHEL9.2] Nested Hyper-V on KVM: L1 Windows VM with BIOS mode fails to boot up when using '-cpu host,hv_passthrough’ flag
+Patch189: kvm-target-i386-Fix-conditional-CONFIG_SYNDBG-enablement.patch
+# For RHEL-7130 - [Hyper-V][RHEL9.2] Nested Hyper-V on KVM: L1 Windows VM with BIOS mode fails to boot up when using '-cpu host,hv_passthrough’ flag
+Patch190: kvm-target-i386-Exclude-hv-syndbg-from-hv-passthrough.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1613,6 +1617,12 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Mon Apr 28 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-19
+- kvm-target-i386-Fix-conditional-CONFIG_SYNDBG-enablement.patch [RHEL-7130]
+- kvm-target-i386-Exclude-hv-syndbg-from-hv-passthrough.patch [RHEL-7130]
+- Resolves: RHEL-7130
+  ([Hyper-V][RHEL9.2] Nested Hyper-V on KVM: L1 Windows VM with BIOS mode fails to boot up when using '-cpu host,hv_passthrough’ flag)
+
 * Mon Apr 14 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-18
 - kvm-virtio-kconfig-memory-devices-are-PCI-only.patch [RHEL-72977]
 - kvm-hw-s390-ccw-device-Convert-to-three-phase-reset.patch [RHEL-72977]
