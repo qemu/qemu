@@ -5,6 +5,7 @@ endif
 tcg_ss = ss.source_set()
 
 tcg_ss.add(files(
+  'cpu-exec.c',
   'cpu-exec-common.c',
   'tcg-runtime.c',
   'tcg-runtime-gvec.c',
@@ -21,7 +22,6 @@ libsystem_ss.add_all(tcg_ss)
 tcg_specific_ss = ss.source_set()
 tcg_specific_ss.add(files(
   'tcg-all.c',
-  'cpu-exec.c',
   'translate-all.c',
 ))
 tcg_specific_ss.add(when: 'CONFIG_USER_ONLY', if_true: files('user-exec.c'))
