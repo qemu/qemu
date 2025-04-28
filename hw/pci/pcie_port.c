@@ -188,7 +188,7 @@ int pcie_count_ds_ports(PCIBus *bus)
     return dsp_count;
 }
 
-static bool pcie_slot_is_hotpluggbale_bus(HotplugHandler *plug_handler,
+static bool pcie_slot_is_hotpluggable_bus(HotplugHandler *plug_handler,
                                           BusState *bus)
 {
     PCIESlot *s = PCIE_SLOT(bus->parent);
@@ -221,7 +221,7 @@ static void pcie_slot_class_init(ObjectClass *oc, const void *data)
     hc->plug = pcie_cap_slot_plug_cb;
     hc->unplug = pcie_cap_slot_unplug_cb;
     hc->unplug_request = pcie_cap_slot_unplug_request_cb;
-    hc->is_hotpluggable_bus = pcie_slot_is_hotpluggbale_bus;
+    hc->is_hotpluggable_bus = pcie_slot_is_hotpluggable_bus;
 }
 
 static const TypeInfo pcie_slot_type_info = {
