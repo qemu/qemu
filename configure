@@ -360,6 +360,10 @@ elif check_define __NetBSD__; then
   host_os=netbsd
 elif check_define __APPLE__; then
   host_os=darwin
+elif check_define EMSCRIPTEN ; then
+  host_os=emscripten
+  cpu=wasm32
+  cross_compile="yes"
 else
   # This is a fatal error, but don't report it yet, because we
   # might be going to just print the --help text, or it might
@@ -525,6 +529,9 @@ case "$cpu" in
     host_arch=x86_64
     linux_arch=x86
     CPU_CFLAGS="-m64"
+    ;;
+  wasm32)
+    CPU_CFLAGS="-m32"
     ;;
 esac
 
