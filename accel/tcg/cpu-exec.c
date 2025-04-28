@@ -24,6 +24,7 @@
 #include "hw/core/cpu.h"
 #include "accel/tcg/cpu-ldst.h"
 #include "accel/tcg/cpu-ops.h"
+#include "accel/tcg/helper-retaddr.h"
 #include "trace.h"
 #include "disas/disas.h"
 #include "exec/cpu-common.h"
