@@ -232,35 +232,33 @@ static TranslationBlock *tb_htable_lookup(CPUState *cpu, vaddr pc,
  *
  * Returns: an existing translation block or NULL.
  */
-static inline TranslationBlock *tb_lookup(CPUState *cpu, vaddr pc,
-                                          uint64_t cs_base, uint32_t flags,
-                                          uint32_t cflags)
+static inline TranslationBlock *tb_lookup(CPUState *cpu, TCGTBCPUState s)
 {
     TranslationBlock *tb;
     CPUJumpCache *jc;
     uint32_t hash;
 
     /* we should never be trying to look up an INVALID tb */
-    tcg_debug_assert(!(cflags & CF_INVALID));
+    tcg_debug_assert(!(s.cflags & CF_INVALID));
 
-    hash = tb_jmp_cache_hash_func(pc);
+    hash = tb_jmp_cache_hash_func(s.pc);
     jc = cpu->tb_jmp_cache;
 
     tb = qatomic_read(&jc->array[hash].tb);
     if (likely(tb &&
-               jc->array[hash].pc == pc &&
-               tb->cs_base == cs_base &&
-               tb->flags == flags &&
-               tb_cflags(tb) == cflags)) {
+               jc->array[hash].pc == s.pc &&
+               tb->cs_base == s.cs_base &&
+               tb->flags == s.flags &&
+               tb_cflags(tb) == s.cflags)) {
         goto hit;
     }
 
-    tb = tb_htable_lookup(cpu, pc, cs_base, flags, cflags);
+    tb = tb_htable_lookup(cpu, s.pc, s.cs_base, s.flags, s.cflags);
     if (tb == NULL) {
         return NULL;
     }
 
-    jc->array[hash].pc = pc;
+    jc->array[hash].pc = s.pc;
     qatomic_set(&jc->array[hash].tb, tb);
 
 hit:
@@ -268,7 +266,7 @@ hit:
      * As long as tb is not NULL, the contents are consistent.  Therefore,
      * the virtual PC has to match for non-CF_PCREL translations.
      */
-    assert((tb_cflags(tb) & CF_PCREL) || tb->pc == pc);
+    assert((tb_cflags(tb) & CF_PCREL) || tb->pc == s.pc);
     return tb;
 }
 
@@ -402,7 +400,7 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
         cpu_loop_exit(cpu);
     }
 
-    tb = tb_lookup(cpu, s.pc, s.cs_base, s.flags, s.cflags);
+    tb = tb_lookup(cpu, s);
     if (tb == NULL) {
         return tcg_code_gen_epilogue;
     }
@@ -581,7 +579,7 @@ void cpu_exec_step_atomic(CPUState *cpu)
          * Any breakpoint for this insn will have been recognized earlier.
          */
 
-        tb = tb_lookup(cpu, s.pc, s.cs_base, s.flags, s.cflags);
+        tb = tb_lookup(cpu, s);
         if (tb == NULL) {
             mmap_lock();
             tb = tb_gen_code(cpu, s.pc, s.cs_base, s.flags, s.cflags);
@@ -955,7 +953,7 @@ cpu_exec_loop(CPUState *cpu, SyncClocks *sc)
                 break;
             }
 
-            tb = tb_lookup(cpu, s.pc, s.cs_base, s.flags, s.cflags);
+            tb = tb_lookup(cpu, s);
             if (tb == NULL) {
                 CPUJumpCache *jc;
                 uint32_t h;
