@@ -214,13 +214,6 @@ GlobalProperty pc_compat_3_1[] = {
 };
 const size_t pc_compat_3_1_len = G_N_ELEMENTS(pc_compat_3_1);
 
-GlobalProperty pc_compat_3_0[] = {
-    { TYPE_X86_CPU, "x-hv-synic-kvm-only", "on" },
-    { "Skylake-Server" "-" TYPE_X86_CPU, "pku", "off" },
-    { "Skylake-Server-IBRS" "-" TYPE_X86_CPU, "pku", "off" },
-};
-const size_t pc_compat_3_0_len = G_N_ELEMENTS(pc_compat_3_0);
-
 /*
  * @PC_FW_DATA:
  * Size of the chunk of memory at the top of RAM for the BIOS ACPI tables
