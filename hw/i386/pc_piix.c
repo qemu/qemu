@@ -655,19 +655,6 @@ static void pc_i440fx_machine_4_0_options(MachineClass *m)
 
 DEFINE_I440FX_MACHINE(4, 0);
 
-static void pc_i440fx_machine_3_1_options(MachineClass *m)
-{
-    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
-
-    pc_i440fx_machine_4_0_options(m);
-    m->smbus_no_migration_support = true;
-    pcmc->pvh_enabled = false;
-    compat_props_add(m->compat_props, hw_compat_3_1, hw_compat_3_1_len);
-    compat_props_add(m->compat_props, pc_compat_3_1, pc_compat_3_1_len);
-}
-
-DEFINE_I440FX_MACHINE(3, 1);
-
 #ifdef CONFIG_XEN
 static void xenfv_machine_4_2_options(MachineClass *m)
 {
@@ -679,16 +666,4 @@ static void xenfv_machine_4_2_options(MachineClass *m)
 
 DEFINE_PC_MACHINE(xenfv_4_2, "xenfv-4.2", pc_xen_hvm_init,
                   xenfv_machine_4_2_options);
-
-static void xenfv_machine_3_1_options(MachineClass *m)
-{
-    pc_i440fx_machine_3_1_options(m);
-    m->desc = "Xen Fully-virtualized PC";
-    m->alias = "xenfv";
-    m->max_cpus = HVM_MAX_VCPUS;
-    m->default_machine_opts = "accel=xen,suppress-vmdesc=on";
-}
-
-DEFINE_PC_MACHINE(xenfv, "xenfv-3.1", pc_xen_hvm_init,
-                  xenfv_machine_3_1_options);
 #endif
