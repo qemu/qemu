@@ -180,31 +180,6 @@ const size_t pc_compat_4_1_len = G_N_ELEMENTS(pc_compat_4_1);
 GlobalProperty pc_compat_4_0[] = {};
 const size_t pc_compat_4_0_len = G_N_ELEMENTS(pc_compat_4_0);
 
-GlobalProperty pc_compat_3_1[] = {
-    { "intel-iommu", "dma-drain", "off" },
-    { "Opteron_G3" "-" TYPE_X86_CPU, "rdtscp", "off" },
-    { "Opteron_G4" "-" TYPE_X86_CPU, "rdtscp", "off" },
-    { "Opteron_G4" "-" TYPE_X86_CPU, "npt", "off" },
-    { "Opteron_G4" "-" TYPE_X86_CPU, "nrip-save", "off" },
-    { "Opteron_G5" "-" TYPE_X86_CPU, "rdtscp", "off" },
-    { "Opteron_G5" "-" TYPE_X86_CPU, "npt", "off" },
-    { "Opteron_G5" "-" TYPE_X86_CPU, "nrip-save", "off" },
-    { "EPYC" "-" TYPE_X86_CPU, "npt", "off" },
-    { "EPYC" "-" TYPE_X86_CPU, "nrip-save", "off" },
-    { "EPYC-IBPB" "-" TYPE_X86_CPU, "npt", "off" },
-    { "EPYC-IBPB" "-" TYPE_X86_CPU, "nrip-save", "off" },
-    { "Skylake-Client" "-" TYPE_X86_CPU,      "mpx", "on" },
-    { "Skylake-Client-IBRS" "-" TYPE_X86_CPU, "mpx", "on" },
-    { "Skylake-Server" "-" TYPE_X86_CPU,      "mpx", "on" },
-    { "Skylake-Server-IBRS" "-" TYPE_X86_CPU, "mpx", "on" },
-    { "Cascadelake-Server" "-" TYPE_X86_CPU,  "mpx", "on" },
-    { "Icelake-Client" "-" TYPE_X86_CPU,      "mpx", "on" },
-    { "Icelake-Server" "-" TYPE_X86_CPU,      "mpx", "on" },
-    { "Cascadelake-Server" "-" TYPE_X86_CPU, "stepping", "5" },
-    { TYPE_X86_CPU, "x-intel-pt-auto-level", "off" },
-};
-const size_t pc_compat_3_1_len = G_N_ELEMENTS(pc_compat_3_1);
-
 /*
  * @PC_FW_DATA:
  * Size of the chunk of memory at the top of RAM for the BIOS ACPI tables
