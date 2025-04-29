@@ -110,9 +110,6 @@ struct PCMachineClass {
     bool enforce_amd_1tb_hole;
     bool isa_bios_alias;
 
-    /* use PVH to load kernels that support this feature */
-    bool pvh_enabled;
-
     /* create kvmclock device even when KVM PV features are not exposed */
     bool kvmclock_create_always;
 

@@ -164,7 +164,7 @@ static void nitro_enclave_machine_initfn(Object *obj)
 }
 
 static void x86_load_eif(X86MachineState *x86ms, FWCfgState *fw_cfg,
-                         int acpi_data_size, bool pvh_enabled)
+                         int acpi_data_size)
 {
     Error *err = NULL;
     char *eif_kernel, *eif_initrd, *eif_cmdline;
