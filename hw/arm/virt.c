@@ -1766,12 +1766,7 @@ static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, int idx)
     uint8_t clustersz;
 
     /*
-     * Adjust MPIDR like 64-bit KVM hosts, which incorporate the
-     * GIC's target-list limitations. 32-bit KVM hosts currently
-     * always create clusters of 4 CPUs, but that is expected to
-     * change when they gain support for gicv3. When KVM is enabled
-     * it will override the changes we make here, therefore our
-     * purposes are to make TCG consistent (with 64-bit KVM hosts)
+     * Adjust MPIDR to make TCG consistent (with 64-bit KVM hosts)
      * and to improve SGI efficiency.
      */
     if (vms->gic_version == VIRT_GIC_VERSION_2) {
