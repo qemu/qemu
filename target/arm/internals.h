@@ -1906,8 +1906,6 @@ static inline bool arm_fgt_active(CPUARMState *env, int el)
         (!arm_feature(env, ARM_FEATURE_EL3) || (env->cp15.scr_el3 & SCR_FGTEN));
 }
 
-void assert_hflags_rebuild_correctly(CPUARMState *env);
-
 /*
  * Although the ARM implementation of hardware assisted debugging
  * allows for different breakpoints per-core, the current GDB

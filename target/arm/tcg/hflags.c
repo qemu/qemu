@@ -499,7 +499,7 @@ void HELPER(rebuild_hflags_a64)(CPUARMState *env, int el)
     env->hflags = rebuild_hflags_a64(env, el, fp_el, mmu_idx);
 }
 
-void assert_hflags_rebuild_correctly(CPUARMState *env)
+static void assert_hflags_rebuild_correctly(CPUARMState *env)
 {
 #ifdef CONFIG_DEBUG_TCG
     CPUARMTBFlags c = env->hflags;
