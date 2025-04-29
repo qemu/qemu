@@ -996,7 +996,7 @@ static void create_fdt_rtc(RISCVVirtState *s, const MemMapEntry *memmap,
     }
 }
 
-static void create_fdt_flash(RISCVVirtState *s, const MemMapEntry *memmap)
+static void create_fdt_flash(RISCVVirtState *s)
 {
     MachineState *ms = MACHINE(s);
     hwaddr flashsize = s->memmap[VIRT_FLASH].size / 2;
@@ -1011,11 +1011,11 @@ static void create_fdt_flash(RISCVVirtState *s, const MemMapEntry *memmap)
     qemu_fdt_setprop_cell(ms->fdt, name, "bank-width", 4);
 }
 
-static void create_fdt_fw_cfg(RISCVVirtState *s, const MemMapEntry *memmap)
+static void create_fdt_fw_cfg(RISCVVirtState *s)
 {
     MachineState *ms = MACHINE(s);
-    hwaddr base = memmap[VIRT_FW_CFG].base;
-    hwaddr size = memmap[VIRT_FW_CFG].size;
+    hwaddr base = s->memmap[VIRT_FW_CFG].base;
+    hwaddr size = s->memmap[VIRT_FW_CFG].size;
     g_autofree char *nodename = g_strdup_printf("/fw-cfg@%" PRIx64, base);
 
     qemu_fdt_add_subnode(ms->fdt, nodename);
@@ -1146,7 +1146,7 @@ static void finalize_fdt(RISCVVirtState *s)
     create_fdt_rtc(s, s->memmap, irq_mmio_phandle);
 }
 
-static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap)
+static void create_fdt(RISCVVirtState *s)
 {
     MachineState *ms = MACHINE(s);
     uint8_t rng_seed[32];
@@ -1173,7 +1173,8 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap)
      * The "/soc/pci@..." node is needed for PCIE hotplugs
      * that might happen before finalize_fdt().
      */
-    name = g_strdup_printf("/soc/pci@%lx", (long) memmap[VIRT_PCIE_ECAM].base);
+    name = g_strdup_printf("/soc/pci@%lx",
+                           (long) s->memmap[VIRT_PCIE_ECAM].base);
     qemu_fdt_add_subnode(ms->fdt, name);
 
     qemu_fdt_add_subnode(ms->fdt, "/chosen");
@@ -1185,8 +1186,8 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap)
 
     qemu_fdt_add_subnode(ms->fdt, "/aliases");
 
-    create_fdt_flash(s, memmap);
-    create_fdt_fw_cfg(s, memmap);
+    create_fdt_flash(s);
+    create_fdt_fw_cfg(s);
     create_fdt_pmu(s);
 }
 
@@ -1715,7 +1716,7 @@ static void virt_machine_init(MachineState *machine)
             exit(1);
         }
     } else {
-        create_fdt(s, s->memmap);
+        create_fdt(s);
     }
 
     if (virt_is_iommu_sys_enabled(s)) {
