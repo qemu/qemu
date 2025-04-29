@@ -1522,13 +1522,14 @@ static void virt_machine_done(Notifier *notifier, void *data)
 
 static void virt_machine_init(MachineState *machine)
 {
-    const MemMapEntry *memmap = virt_memmap;
     RISCVVirtState *s = RISCV_VIRT_MACHINE(machine);
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *mask_rom = g_new(MemoryRegion, 1);
     DeviceState *mmio_irqchip, *virtio_irqchip, *pcie_irqchip;
     int i, base_hartid, hart_count;
     int socket_count = riscv_socket_count(machine);
+
+    s->memmap = virt_memmap;
 
     /* Check socket count limit */
     if (VIRT_SOCKETS_MAX < socket_count) {
@@ -1577,7 +1578,7 @@ static void virt_machine_init(MachineState *machine)
         if (virt_aclint_allowed() && s->have_aclint) {
             if (s->aia_type == VIRT_AIA_TYPE_APLIC_IMSIC) {
                 /* Per-socket ACLINT MTIMER */
-                riscv_aclint_mtimer_create(memmap[VIRT_CLINT].base +
+                riscv_aclint_mtimer_create(s->memmap[VIRT_CLINT].base +
                             i * RISCV_ACLINT_DEFAULT_MTIMER_SIZE,
                         RISCV_ACLINT_DEFAULT_MTIMER_SIZE,
                         base_hartid, hart_count,
@@ -1586,28 +1587,28 @@ static void virt_machine_init(MachineState *machine)
                         RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ, true);
             } else {
                 /* Per-socket ACLINT MSWI, MTIMER, and SSWI */
-                riscv_aclint_swi_create(memmap[VIRT_CLINT].base +
-                            i * memmap[VIRT_CLINT].size,
+                riscv_aclint_swi_create(s->memmap[VIRT_CLINT].base +
+                            i * s->memmap[VIRT_CLINT].size,
                         base_hartid, hart_count, false);
-                riscv_aclint_mtimer_create(memmap[VIRT_CLINT].base +
-                            i * memmap[VIRT_CLINT].size +
+                riscv_aclint_mtimer_create(s->memmap[VIRT_CLINT].base +
+                            i * s->memmap[VIRT_CLINT].size +
                             RISCV_ACLINT_SWI_SIZE,
                         RISCV_ACLINT_DEFAULT_MTIMER_SIZE,
                         base_hartid, hart_count,
                         RISCV_ACLINT_DEFAULT_MTIMECMP,
                         RISCV_ACLINT_DEFAULT_MTIME,
                         RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ, true);
-                riscv_aclint_swi_create(memmap[VIRT_ACLINT_SSWI].base +
-                            i * memmap[VIRT_ACLINT_SSWI].size,
+                riscv_aclint_swi_create(s->memmap[VIRT_ACLINT_SSWI].base +
+                            i * s->memmap[VIRT_ACLINT_SSWI].size,
                         base_hartid, hart_count, true);
             }
         } else if (tcg_enabled()) {
             /* Per-socket SiFive CLINT */
             riscv_aclint_swi_create(
-                    memmap[VIRT_CLINT].base + i * memmap[VIRT_CLINT].size,
+                    s->memmap[VIRT_CLINT].base + i * s->memmap[VIRT_CLINT].size,
                     base_hartid, hart_count, false);
-            riscv_aclint_mtimer_create(memmap[VIRT_CLINT].base +
-                        i * memmap[VIRT_CLINT].size + RISCV_ACLINT_SWI_SIZE,
+            riscv_aclint_mtimer_create(s->memmap[VIRT_CLINT].base +
+                    i * s->memmap[VIRT_CLINT].size + RISCV_ACLINT_SWI_SIZE,
                     RISCV_ACLINT_DEFAULT_MTIMER_SIZE, base_hartid, hart_count,
                     RISCV_ACLINT_DEFAULT_MTIMECMP, RISCV_ACLINT_DEFAULT_MTIME,
                     RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ, true);
@@ -1615,11 +1616,11 @@ static void virt_machine_init(MachineState *machine)
 
         /* Per-socket interrupt controller */
         if (s->aia_type == VIRT_AIA_TYPE_NONE) {
-            s->irqchip[i] = virt_create_plic(memmap, i,
+            s->irqchip[i] = virt_create_plic(s->memmap, i,
                                              base_hartid, hart_count);
         } else {
             s->irqchip[i] = virt_create_aia(s->aia_type, s->aia_guests,
-                                            memmap, i, base_hartid,
+                                            s->memmap, i, base_hartid,
                                             hart_count);
         }
 
@@ -1641,8 +1642,8 @@ static void virt_machine_init(MachineState *machine)
     if (kvm_enabled() && virt_use_kvm_aia_aplic_imsic(s->aia_type)) {
         kvm_riscv_aia_create(machine, IMSIC_MMIO_GROUP_MIN_SHIFT,
                              VIRT_IRQCHIP_NUM_SOURCES, VIRT_IRQCHIP_NUM_MSIS,
-                             memmap[VIRT_APLIC_S].base,
-                             memmap[VIRT_IMSIC_S].base,
+                             s->memmap[VIRT_APLIC_S].base,
+                             s->memmap[VIRT_IMSIC_S].base,
                              s->aia_guests);
     }
 
@@ -1658,21 +1659,20 @@ static void virt_machine_init(MachineState *machine)
         virt_high_pcie_memmap.size = VIRT32_HIGH_PCIE_MMIO_SIZE;
     } else {
         virt_high_pcie_memmap.size = VIRT64_HIGH_PCIE_MMIO_SIZE;
-        virt_high_pcie_memmap.base = memmap[VIRT_DRAM].base + machine->ram_size;
+        virt_high_pcie_memmap.base = s->memmap[VIRT_DRAM].base +
+                                     machine->ram_size;
         virt_high_pcie_memmap.base =
             ROUND_UP(virt_high_pcie_memmap.base, virt_high_pcie_memmap.size);
     }
 
-    s->memmap = virt_memmap;
-
     /* register system main memory (actual RAM) */
-    memory_region_add_subregion(system_memory, memmap[VIRT_DRAM].base,
-        machine->ram);
+    memory_region_add_subregion(system_memory, s->memmap[VIRT_DRAM].base,
+                                machine->ram);
 
     /* boot rom */
     memory_region_init_rom(mask_rom, NULL, "riscv_virt_board.mrom",
-                           memmap[VIRT_MROM].size, &error_fatal);
-    memory_region_add_subregion(system_memory, memmap[VIRT_MROM].base,
+                           s->memmap[VIRT_MROM].size, &error_fatal);
+    memory_region_add_subregion(system_memory, s->memmap[VIRT_MROM].base,
                                 mask_rom);
 
     /*
@@ -1683,12 +1683,12 @@ static void virt_machine_init(MachineState *machine)
     rom_set_fw(s->fw_cfg);
 
     /* SiFive Test MMIO device */
-    sifive_test_create(memmap[VIRT_TEST].base);
+    sifive_test_create(s->memmap[VIRT_TEST].base);
 
     /* VirtIO MMIO devices */
     for (i = 0; i < VIRTIO_COUNT; i++) {
         sysbus_create_simple("virtio-mmio",
-            memmap[VIRT_VIRTIO].base + i * memmap[VIRT_VIRTIO].size,
+            s->memmap[VIRT_VIRTIO].base + i * s->memmap[VIRT_VIRTIO].size,
             qdev_get_gpio_in(virtio_irqchip, VIRTIO_IRQ + i));
     }
 
@@ -1696,11 +1696,11 @@ static void virt_machine_init(MachineState *machine)
 
     create_platform_bus(s, mmio_irqchip);
 
-    serial_mm_init(system_memory, memmap[VIRT_UART0].base,
+    serial_mm_init(system_memory, s->memmap[VIRT_UART0].base,
         0, qdev_get_gpio_in(mmio_irqchip, UART0_IRQ), 399193,
         serial_hd(0), DEVICE_LITTLE_ENDIAN);
 
-    sysbus_create_simple("goldfish_rtc", memmap[VIRT_RTC].base,
+    sysbus_create_simple("goldfish_rtc", s->memmap[VIRT_RTC].base,
         qdev_get_gpio_in(mmio_irqchip, RTC_IRQ));
 
     for (i = 0; i < ARRAY_SIZE(s->flash); i++) {
@@ -1718,7 +1718,7 @@ static void virt_machine_init(MachineState *machine)
             exit(1);
         }
     } else {
-        create_fdt(s, memmap);
+        create_fdt(s, s->memmap);
     }
 
     if (virt_is_iommu_sys_enabled(s)) {
