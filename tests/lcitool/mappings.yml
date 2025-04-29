@@ -8,6 +8,10 @@ mappings:
 
   meson:
     OpenSUSELeap15:
+    # Use Meson from PyPI wherever Rust is enabled
+    Debian:
+    Fedora:
+    Ubuntu:
 
   python3:
     OpenSUSELeap15: python311-base
@@ -72,7 +76,7 @@ mappings:
 pypi_mappings:
   # Request more recent version
   meson:
-    default: meson==1.5.0
+    default: meson==1.8.1
 
   # Drop packages that need devel headers
   python3-numpy:
