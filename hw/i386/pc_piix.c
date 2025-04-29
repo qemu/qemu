@@ -644,17 +644,6 @@ static void pc_i440fx_machine_4_1_options(MachineClass *m)
 
 DEFINE_I440FX_MACHINE(4, 1);
 
-static void pc_i440fx_machine_4_0_options(MachineClass *m)
-{
-    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
-    pc_i440fx_machine_4_1_options(m);
-    pcmc->default_cpu_version = CPU_VERSION_LEGACY;
-    compat_props_add(m->compat_props, hw_compat_4_0, hw_compat_4_0_len);
-    compat_props_add(m->compat_props, pc_compat_4_0, pc_compat_4_0_len);
-}
-
-DEFINE_I440FX_MACHINE(4, 0);
-
 #ifdef CONFIG_XEN
 static void xenfv_machine_4_2_options(MachineClass *m)
 {
