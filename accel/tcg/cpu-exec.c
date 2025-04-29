@@ -195,26 +195,24 @@ static bool tb_lookup_cmp(const void *p, const void *d)
     return false;
 }
 
-static TranslationBlock *tb_htable_lookup(CPUState *cpu, vaddr pc,
-                                          uint64_t cs_base, uint32_t flags,
-                                          uint32_t cflags)
+static TranslationBlock *tb_htable_lookup(CPUState *cpu, TCGTBCPUState s)
 {
     tb_page_addr_t phys_pc;
     struct tb_desc desc;
     uint32_t h;
 
     desc.env = cpu_env(cpu);
-    desc.cs_base = cs_base;
-    desc.flags = flags;
-    desc.cflags = cflags;
-    desc.pc = pc;
-    phys_pc = get_page_addr_code(desc.env, pc);
+    desc.cs_base = s.cs_base;
+    desc.flags = s.flags;
+    desc.cflags = s.cflags;
+    desc.pc = s.pc;
+    phys_pc = get_page_addr_code(desc.env, s.pc);
     if (phys_pc == -1) {
         return NULL;
     }
     desc.page_addr0 = phys_pc;
-    h = tb_hash_func(phys_pc, (cflags & CF_PCREL ? 0 : pc),
-                     flags, cs_base, cflags);
+    h = tb_hash_func(phys_pc, (s.cflags & CF_PCREL ? 0 : s.pc),
+                     s.flags, s.cs_base, s.cflags);
     return qht_lookup_custom(&tb_ctx.htable, &desc, h, tb_lookup_cmp);
 }
 
@@ -253,7 +251,7 @@ static inline TranslationBlock *tb_lookup(CPUState *cpu, TCGTBCPUState s)
         goto hit;
     }
 
-    tb = tb_htable_lookup(cpu, s.pc, s.cs_base, s.flags, s.cflags);
+    tb = tb_htable_lookup(cpu, s);
     if (tb == NULL) {
         return NULL;
     }
