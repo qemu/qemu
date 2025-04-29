@@ -642,8 +642,7 @@ static bool load_elfboot(const char *kernel_filename,
 
 void x86_load_linux(X86MachineState *x86ms,
                     FWCfgState *fw_cfg,
-                    int acpi_data_size,
-                    bool pvh_enabled)
+                    int acpi_data_size)
 {
     uint16_t protocol;
     int setup_size, kernel_size, cmdline_size;

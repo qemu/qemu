@@ -199,7 +199,7 @@ static void x86_load_eif(X86MachineState *x86ms, FWCfgState *fw_cfg,
         machine->kernel_cmdline = eif_cmdline;
     }
 
-    x86_load_linux(x86ms, fw_cfg, 0, true);
+    x86_load_linux(x86ms, fw_cfg, 0);
 
     unlink(machine->kernel_filename);
     unlink(machine->initrd_filename);
