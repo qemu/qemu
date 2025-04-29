@@ -136,7 +136,7 @@ const VMStateDescription vmstate_openrisc_cpu = {
     .minimum_version_id = 1,
     .post_load = cpu_post_load,
     .fields = (const VMStateField[]) {
-        VMSTATE_CPU(),
+        VMSTATE_STRUCT(parent_obj, OpenRISCCPU, 0, vmstate_cpu_common, CPUState),
         VMSTATE_STRUCT(env, OpenRISCCPU, 1, vmstate_env, CPUOpenRISCState),
         VMSTATE_END_OF_LIST()
     }

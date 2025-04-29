@@ -93,7 +93,7 @@ static const VMStateDescription vmstate_env = {
 };
 
 static const VMStateField vmstate_cpu_fields[] = {
-    VMSTATE_CPU(),
+    VMSTATE_STRUCT(parent_obj, MicroBlazeCPU, 0, vmstate_cpu_common, CPUState),
     VMSTATE_STRUCT(env, MicroBlazeCPU, 1, vmstate_env, CPUMBState),
     VMSTATE_END_OF_LIST()
 };

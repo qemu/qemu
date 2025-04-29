@@ -1121,19 +1121,7 @@ bool cpu_exec_realizefn(CPUState *cpu, Error **errp);
 void cpu_exec_unrealizefn(CPUState *cpu);
 void cpu_exec_reset_hold(CPUState *cpu);
 
-#ifdef COMPILING_PER_TARGET
-
 extern const VMStateDescription vmstate_cpu_common;
-
-#define VMSTATE_CPU() {                                                     \
-    .name = "parent_obj",                                                   \
-    .size = sizeof(CPUState),                                               \
-    .vmsd = &vmstate_cpu_common,                                            \
-    .flags = VMS_STRUCT,                                                    \
-    .offset = 0,                                                            \
-}
-
-#endif /* COMPILING_PER_TARGET */
 
 #define UNASSIGNED_CPU_INDEX -1
 #define UNASSIGNED_CLUSTER_INDEX -1
