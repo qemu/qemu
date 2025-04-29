@@ -177,9 +177,6 @@ const size_t pc_compat_4_2_len = G_N_ELEMENTS(pc_compat_4_2);
 GlobalProperty pc_compat_4_1[] = {};
 const size_t pc_compat_4_1_len = G_N_ELEMENTS(pc_compat_4_1);
 
-GlobalProperty pc_compat_4_0[] = {};
-const size_t pc_compat_4_0_len = G_N_ELEMENTS(pc_compat_4_0);
-
 /*
  * @PC_FW_DATA:
  * Size of the chunk of memory at the top of RAM for the BIOS ACPI tables
