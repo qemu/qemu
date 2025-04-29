@@ -134,6 +134,11 @@
 #define RAW_LOCK_PERM_BASE             100
 #define RAW_LOCK_SHARED_BASE           200
 
+/* TODO Remove this when the kernel side is merged */
+#if !defined(DM_MPATH_PROBE_PATHS) && defined(DM_GET_TARGET_VERSION)
+#define DM_MPATH_PROBE_PATHS _IO(DM_IOCTL, DM_GET_TARGET_VERSION_CMD + 1)
+#endif
+
 typedef struct BDRVRawState {
     int fd;
     bool use_lock;
