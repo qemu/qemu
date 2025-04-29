@@ -135,6 +135,7 @@ typedef struct KVMCPUConfig {
     const char *description;
     target_ulong offset;
     uint64_t kvm_reg_id;
+    uint32_t prop_size;
     bool user_set;
     bool supported;
 } KVMCPUConfig;
@@ -237,6 +238,7 @@ static void kvm_riscv_update_cpu_misa_ext(RISCVCPU *cpu, CPUState *cs)
 
 #define KVM_CSR_CFG(_name, _env_prop, reg_id) \
     {.name = _name, .offset = ENV_CSR_OFFSET(_env_prop), \
+     .prop_size = sizeof(((CPURISCVState *)0)->_env_prop), \
      .kvm_reg_id = reg_id}
 
 static KVMCPUConfig kvm_csr_cfgs[] = {
@@ -646,9 +648,9 @@ static int kvm_riscv_get_regs_csr(CPUState *cs)
             return ret;
         }
 
-        if (KVM_REG_SIZE(csr_cfg->kvm_reg_id) == sizeof(uint32_t)) {
-            kvm_cpu_csr_set_u32(cpu, csr_cfg, reg);
-        } else if (KVM_REG_SIZE(csr_cfg->kvm_reg_id) == sizeof(uint64_t)) {
+        if (csr_cfg->prop_size == sizeof(uint32_t)) {
+            kvm_cpu_csr_set_u32(cpu, csr_cfg, (uint32_t)reg);
+        } else if (csr_cfg->prop_size == sizeof(uint64_t)) {
             kvm_cpu_csr_set_u64(cpu, csr_cfg, reg);
         } else {
             g_assert_not_reached();
@@ -671,9 +673,9 @@ static int kvm_riscv_put_regs_csr(CPUState *cs)
             continue;
         }
 
-        if (KVM_REG_SIZE(csr_cfg->kvm_reg_id) == sizeof(uint32_t)) {
+        if (csr_cfg->prop_size == sizeof(uint32_t)) {
             reg = kvm_cpu_csr_get_u32(cpu, csr_cfg);
-        } else if (KVM_REG_SIZE(csr_cfg->kvm_reg_id) == sizeof(uint64_t)) {
+        } else if (csr_cfg->prop_size == sizeof(uint64_t)) {
             reg = kvm_cpu_csr_get_u64(cpu, csr_cfg);
         } else {
             g_assert_not_reached();
