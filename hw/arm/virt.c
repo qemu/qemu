@@ -3562,10 +3562,3 @@ static void virt_machine_4_1_options(MachineClass *mc)
     mc->auto_enable_numa_with_memhp = false;
 }
 DEFINE_VIRT_MACHINE(4, 1)
-
-static void virt_machine_4_0_options(MachineClass *mc)
-{
-    virt_machine_4_1_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_4_0, hw_compat_4_0_len);
-}
-DEFINE_VIRT_MACHINE(4, 0)
