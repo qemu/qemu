@@ -150,12 +150,9 @@ static void init_delay_params(SyncClocks *sc, const CPUState *cpu)
 #endif /* CONFIG USER ONLY */
 
 struct tb_desc {
-    vaddr pc;
-    uint64_t cs_base;
+    TCGTBCPUState s;
     CPUArchState *env;
     tb_page_addr_t page_addr0;
-    uint32_t flags;
-    uint32_t cflags;
 };
 
 static bool tb_lookup_cmp(const void *p, const void *d)
@@ -163,11 +160,11 @@ static bool tb_lookup_cmp(const void *p, const void *d)
     const TranslationBlock *tb = p;
     const struct tb_desc *desc = d;
 
-    if ((tb_cflags(tb) & CF_PCREL || tb->pc == desc->pc) &&
+    if ((tb_cflags(tb) & CF_PCREL || tb->pc == desc->s.pc) &&
         tb_page_addr0(tb) == desc->page_addr0 &&
-        tb->cs_base == desc->cs_base &&
-        tb->flags == desc->flags &&
-        tb_cflags(tb) == desc->cflags) {
+        tb->cs_base == desc->s.cs_base &&
+        tb->flags == desc->s.flags &&
+        tb_cflags(tb) == desc->s.cflags) {
         /* check next page if needed */
         tb_page_addr_t tb_phys_page1 = tb_page_addr1(tb);
         if (tb_phys_page1 == -1) {
@@ -185,7 +182,7 @@ static bool tb_lookup_cmp(const void *p, const void *d)
              * is different for the new TB.  Therefore any exception raised
              * here by the faulting lookup is not premature.
              */
-            virt_page1 = TARGET_PAGE_ALIGN(desc->pc);
+            virt_page1 = TARGET_PAGE_ALIGN(desc->s.pc);
             phys_page1 = get_page_addr_code(desc->env, virt_page1);
             if (tb_phys_page1 == phys_page1) {
                 return true;
@@ -201,11 +198,8 @@ static TranslationBlock *tb_htable_lookup(CPUState *cpu, TCGTBCPUState s)
     struct tb_desc desc;
     uint32_t h;
 
+    desc.s = s;
     desc.env = cpu_env(cpu);
-    desc.cs_base = s.cs_base;
-    desc.flags = s.flags;
-    desc.cflags = s.cflags;
-    desc.pc = s.pc;
     phys_pc = get_page_addr_code(desc.env, s.pc);
     if (phys_pc == -1) {
         return NULL;
