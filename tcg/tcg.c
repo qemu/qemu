@@ -1989,7 +1989,6 @@ void tcg_func_start(TCGContext *s)
     QSIMPLEQ_INIT(&s->labels);
 
     tcg_debug_assert(s->addr_type <= TCG_TYPE_REG);
-    tcg_debug_assert(s->insn_start_words > 0);
 }
 
 static TCGTemp *tcg_temp_alloc(TCGContext *s)
@@ -2943,7 +2942,7 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
             nb_oargs = 0;
             col += ne_fprintf(f, "\n ----");
 
-            for (i = 0, k = s->insn_start_words; i < k; ++i) {
+            for (i = 0, k = INSN_START_WORDS; i < k; ++i) {
                 col += ne_fprintf(f, " %016" PRIx64,
                                   tcg_get_insn_start_param(op, i));
             }
@@ -6835,7 +6834,7 @@ static void tcg_out_st_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
 
 int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
 {
-    int i, start_words, num_insns;
+    int i, num_insns;
     TCGOp *op;
 
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)
@@ -6925,9 +6924,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
     QSIMPLEQ_INIT(&s->ldst_labels);
     s->pool_labels = NULL;
 
-    start_words = s->insn_start_words;
     s->gen_insn_data =
-        tcg_malloc(sizeof(uint64_t) * s->gen_tb->icount * start_words);
+        tcg_malloc(sizeof(uint64_t) * s->gen_tb->icount * INSN_START_WORDS);
 
     tcg_out_tb_start(s);
 
@@ -6969,8 +6967,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
                 assert(s->gen_insn_end_off[num_insns] == off);
             }
             num_insns++;
-            for (i = 0; i < start_words; ++i) {
-                s->gen_insn_data[num_insns * start_words + i] =
+            for (i = 0; i < INSN_START_WORDS; ++i) {
+                s->gen_insn_data[num_insns * INSN_START_WORDS + i] =
                     tcg_get_insn_start_param(op, i);
             }
             break;

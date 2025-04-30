@@ -120,7 +120,7 @@ static int64_t decode_sleb128(const uint8_t **pp)
 /* Encode the data collected about the instructions while compiling TB.
    Place the data at BLOCK, and return the number of bytes consumed.
 
-   The logical table consists of TARGET_INSN_START_WORDS target_ulong's,
+   The logical table consists of INSN_START_WORDS uint64_t's,
    which come from the target's insn_start data, followed by a uintptr_t
    which comes from the host pc of the end of the code implementing the insn.
 
@@ -140,13 +140,13 @@ static int encode_search(TranslationBlock *tb, uint8_t *block)
     for (i = 0, n = tb->icount; i < n; ++i) {
         uint64_t prev, curr;
 
-        for (j = 0; j < TARGET_INSN_START_WORDS; ++j) {
+        for (j = 0; j < INSN_START_WORDS; ++j) {
             if (i == 0) {
                 prev = (!(tb_cflags(tb) & CF_PCREL) && j == 0 ? tb->pc : 0);
             } else {
-                prev = insn_data[(i - 1) * TARGET_INSN_START_WORDS + j];
+                prev = insn_data[(i - 1) * INSN_START_WORDS + j];
             }
-            curr = insn_data[i * TARGET_INSN_START_WORDS + j];
+            curr = insn_data[i * INSN_START_WORDS + j];
             p = encode_sleb128(p, curr - prev);
         }
         prev = (i == 0 ? 0 : insn_end_off[i - 1]);
@@ -178,7 +178,7 @@ static int cpu_unwind_data_from_tb(TranslationBlock *tb, uintptr_t host_pc,
         return -1;
     }
 
-    memset(data, 0, sizeof(uint64_t) * TARGET_INSN_START_WORDS);
+    memset(data, 0, sizeof(uint64_t) * INSN_START_WORDS);
     if (!(tb_cflags(tb) & CF_PCREL)) {
         data[0] = tb->pc;
     }
@@ -188,7 +188,7 @@ static int cpu_unwind_data_from_tb(TranslationBlock *tb, uintptr_t host_pc,
      * at which the end of the insn exceeds host_pc.
      */
     for (i = 0; i < num_insns; ++i) {
-        for (j = 0; j < TARGET_INSN_START_WORDS; ++j) {
+        for (j = 0; j < INSN_START_WORDS; ++j) {
             data[j] += decode_sleb128(&p);
         }
         iter_pc += decode_sleb128(&p);
@@ -206,7 +206,7 @@ static int cpu_unwind_data_from_tb(TranslationBlock *tb, uintptr_t host_pc,
 void cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
                                uintptr_t host_pc)
 {
-    uint64_t data[TARGET_INSN_START_WORDS];
+    uint64_t data[INSN_START_WORDS];
     int insns_left = cpu_unwind_data_from_tb(tb, host_pc, data);
 
     if (insns_left < 0) {
@@ -349,7 +349,6 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
     tcg_ctx->page_mask = TARGET_PAGE_MASK;
     tcg_ctx->tlb_dyn_max_bits = CPU_TLB_DYN_MAX_BITS;
 #endif
-    tcg_ctx->insn_start_words = TARGET_INSN_START_WORDS;
     tcg_ctx->guest_mo = cpu->cc->tcg_ops->guest_default_memory_order;
 
  restart_translate:
@@ -457,7 +456,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
             fprintf(logfile, "OUT: [size=%d]\n", gen_code_size);
             fprintf(logfile,
                     "  -- guest addr 0x%016" PRIx64 " + tb prologue\n",
-                    tcg_ctx->gen_insn_data[insn * TARGET_INSN_START_WORDS]);
+                    tcg_ctx->gen_insn_data[insn * INSN_START_WORDS]);
             chunk_start = tcg_ctx->gen_insn_end_off[insn];
             disas(logfile, tb->tc.ptr, chunk_start);
 
@@ -470,7 +469,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
                 size_t chunk_end = tcg_ctx->gen_insn_end_off[insn];
                 if (chunk_end > chunk_start) {
                     fprintf(logfile, "  -- guest addr 0x%016" PRIx64 "\n",
-                            tcg_ctx->gen_insn_data[insn * TARGET_INSN_START_WORDS]);
+                            tcg_ctx->gen_insn_data[insn * INSN_START_WORDS]);
                     disas(logfile, tb->tc.ptr + chunk_start,
                           chunk_end - chunk_start);
                     chunk_start = chunk_end;
