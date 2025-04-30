@@ -1728,8 +1728,6 @@ static bool vtd_as_pt_enabled(VTDAddressSpace *as)
 static bool vtd_switch_address_space(VTDAddressSpace *as)
 {
     bool use_iommu, pt;
-    /* Whether we need to take the BQL on our own */
-    bool take_bql = !bql_locked();
 
     assert(as);
 
@@ -1746,9 +1744,7 @@ static bool vtd_switch_address_space(VTDAddressSpace *as)
      * from vtd_pt_enable_fast_path(). However the memory APIs need
      * it. We'd better make sure we have had it already, or, take it.
      */
-    if (take_bql) {
-        bql_lock();
-    }
+    BQL_LOCK_GUARD();
 
     /* Turn off first then on the other */
     if (use_iommu) {
@@ -1799,10 +1795,6 @@ static bool vtd_switch_address_space(VTDAddressSpace *as)
         memory_region_set_enabled(&as->iommu_ir_fault, true);
     } else {
         memory_region_set_enabled(&as->iommu_ir_fault, false);
-    }
-
-    if (take_bql) {
-        bql_unlock();
     }
 
     return use_iommu;
