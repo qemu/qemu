@@ -109,7 +109,7 @@ static int64_t decode_sleb128(const uint8_t **pp)
         val |= (int64_t)(byte & 0x7f) << shift;
         shift += 7;
     } while (byte & 0x80);
-    if (shift < TARGET_LONG_BITS && (byte & 0x40)) {
+    if (shift < 64 && (byte & 0x40)) {
         val |= -(int64_t)1 << shift;
     }
 
