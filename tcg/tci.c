@@ -26,6 +26,11 @@
 #include <ffi.h>
 
 
+#define ctpop_tr    glue(ctpop, TCG_TARGET_REG_BITS)
+#define deposit_tr  glue(deposit, TCG_TARGET_REG_BITS)
+#define extract_tr  glue(extract, TCG_TARGET_REG_BITS)
+#define sextract_tr glue(sextract, TCG_TARGET_REG_BITS)
+
 /*
  * Enable TCI assertions only when debugging TCG (and without NDEBUG defined).
  * Without assertions, the interpreter runs much faster.
@@ -174,17 +179,6 @@ static void tci_args_rrrrrc(uint32_t insn, TCGReg *r0, TCGReg *r1,
     *c5 = extract32(insn, 28, 4);
 }
 
-static void tci_args_rrrrrr(uint32_t insn, TCGReg *r0, TCGReg *r1,
-                            TCGReg *r2, TCGReg *r3, TCGReg *r4, TCGReg *r5)
-{
-    *r0 = extract32(insn, 8, 4);
-    *r1 = extract32(insn, 12, 4);
-    *r2 = extract32(insn, 16, 4);
-    *r3 = extract32(insn, 20, 4);
-    *r4 = extract32(insn, 24, 4);
-    *r5 = extract32(insn, 28, 4);
-}
-
 static bool tci_compare32(uint32_t u0, uint32_t u1, TCGCond condition)
 {
     bool result = false;
@@ -331,18 +325,6 @@ static void tci_qemu_st(CPUArchState *env, uint64_t taddr, uint64_t val,
     }
 }
 
-#if TCG_TARGET_REG_BITS == 64
-# define CASE_32_64(x) \
-        case glue(glue(INDEX_op_, x), _i64): \
-        case glue(glue(INDEX_op_, x), _i32):
-# define CASE_64(x) \
-        case glue(glue(INDEX_op_, x), _i64):
-#else
-# define CASE_32_64(x) \
-        case glue(glue(INDEX_op_, x), _i32):
-# define CASE_64(x)
-#endif
-
 /* Interpret pseudo code in tb. */
 /*
  * Disable CFI checks.
@@ -356,6 +338,7 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
     tcg_target_ulong regs[TCG_TARGET_NB_REGS];
     uint64_t stack[(TCG_STATIC_CALL_ARGS_SIZE + TCG_STATIC_FRAME_SIZE)
                    / sizeof(uint64_t)];
+    bool carry = false;
 
     regs[TCG_AREG0] = (tcg_target_ulong)env;
     regs[TCG_REG_CALL_STACK] = (uintptr_t)stack;
@@ -364,13 +347,12 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
     for (;;) {
         uint32_t insn;
         TCGOpcode opc;
-        TCGReg r0, r1, r2, r3, r4, r5;
+        TCGReg r0, r1, r2, r3, r4;
         tcg_target_ulong t1;
         TCGCond condition;
         uint8_t pos, len;
         uint32_t tmp32;
         uint64_t tmp64, taddr;
-        uint64_t T1, T2;
         MemOpIdx oi;
         int32_t ofs;
         void *ptr;
@@ -436,34 +418,25 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             tci_args_l(insn, tb_ptr, &ptr);
             tb_ptr = ptr;
             continue;
-        case INDEX_op_setcond_i32:
-            tci_args_rrrc(insn, &r0, &r1, &r2, &condition);
-            regs[r0] = tci_compare32(regs[r1], regs[r2], condition);
-            break;
-        case INDEX_op_movcond_i32:
-            tci_args_rrrrrc(insn, &r0, &r1, &r2, &r3, &r4, &condition);
-            tmp32 = tci_compare32(regs[r1], regs[r2], condition);
-            regs[r0] = regs[tmp32 ? r3 : r4];
-            break;
 #if TCG_TARGET_REG_BITS == 32
         case INDEX_op_setcond2_i32:
             tci_args_rrrrrc(insn, &r0, &r1, &r2, &r3, &r4, &condition);
-            T1 = tci_uint64(regs[r2], regs[r1]);
-            T2 = tci_uint64(regs[r4], regs[r3]);
-            regs[r0] = tci_compare64(T1, T2, condition);
+            regs[r0] = tci_compare64(tci_uint64(regs[r2], regs[r1]),
+                                     tci_uint64(regs[r4], regs[r3]),
+                                     condition);
             break;
 #elif TCG_TARGET_REG_BITS == 64
-        case INDEX_op_setcond_i64:
+        case INDEX_op_setcond:
             tci_args_rrrc(insn, &r0, &r1, &r2, &condition);
             regs[r0] = tci_compare64(regs[r1], regs[r2], condition);
             break;
-        case INDEX_op_movcond_i64:
+        case INDEX_op_movcond:
             tci_args_rrrrrc(insn, &r0, &r1, &r2, &r3, &r4, &condition);
             tmp32 = tci_compare64(regs[r1], regs[r2], condition);
             regs[r0] = regs[tmp32 ? r3 : r4];
             break;
 #endif
-        CASE_32_64(mov)
+        case INDEX_op_mov:
             tci_args_rr(insn, &r0, &r1);
             regs[r0] = regs[r1];
             break;
@@ -475,411 +448,325 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             tci_args_rl(insn, tb_ptr, &r0, &ptr);
             regs[r0] = *(tcg_target_ulong *)ptr;
             break;
+        case INDEX_op_tci_setcarry:
+            carry = true;
+            break;
 
             /* Load/store operations (32 bit). */
 
-        CASE_32_64(ld8u)
+        case INDEX_op_ld8u:
             tci_args_rrs(insn, &r0, &r1, &ofs);
             ptr = (void *)(regs[r1] + ofs);
             regs[r0] = *(uint8_t *)ptr;
             break;
-        CASE_32_64(ld8s)
+        case INDEX_op_ld8s:
             tci_args_rrs(insn, &r0, &r1, &ofs);
             ptr = (void *)(regs[r1] + ofs);
             regs[r0] = *(int8_t *)ptr;
             break;
-        CASE_32_64(ld16u)
+        case INDEX_op_ld16u:
             tci_args_rrs(insn, &r0, &r1, &ofs);
             ptr = (void *)(regs[r1] + ofs);
             regs[r0] = *(uint16_t *)ptr;
             break;
-        CASE_32_64(ld16s)
+        case INDEX_op_ld16s:
             tci_args_rrs(insn, &r0, &r1, &ofs);
             ptr = (void *)(regs[r1] + ofs);
             regs[r0] = *(int16_t *)ptr;
             break;
-        case INDEX_op_ld_i32:
-        CASE_64(ld32u)
+        case INDEX_op_ld:
             tci_args_rrs(insn, &r0, &r1, &ofs);
             ptr = (void *)(regs[r1] + ofs);
-            regs[r0] = *(uint32_t *)ptr;
+            regs[r0] = *(tcg_target_ulong *)ptr;
             break;
-        CASE_32_64(st8)
+        case INDEX_op_st8:
             tci_args_rrs(insn, &r0, &r1, &ofs);
             ptr = (void *)(regs[r1] + ofs);
             *(uint8_t *)ptr = regs[r0];
             break;
-        CASE_32_64(st16)
+        case INDEX_op_st16:
             tci_args_rrs(insn, &r0, &r1, &ofs);
             ptr = (void *)(regs[r1] + ofs);
             *(uint16_t *)ptr = regs[r0];
             break;
-        case INDEX_op_st_i32:
-        CASE_64(st32)
+        case INDEX_op_st:
             tci_args_rrs(insn, &r0, &r1, &ofs);
             ptr = (void *)(regs[r1] + ofs);
-            *(uint32_t *)ptr = regs[r0];
+            *(tcg_target_ulong *)ptr = regs[r0];
             break;
 
             /* Arithmetic operations (mixed 32/64 bit). */
 
-        CASE_32_64(add)
+        case INDEX_op_add:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = regs[r1] + regs[r2];
             break;
-        CASE_32_64(sub)
+        case INDEX_op_sub:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = regs[r1] - regs[r2];
             break;
-        CASE_32_64(mul)
+        case INDEX_op_mul:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = regs[r1] * regs[r2];
             break;
-        CASE_32_64(and)
+        case INDEX_op_and:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = regs[r1] & regs[r2];
             break;
-        CASE_32_64(or)
+        case INDEX_op_or:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = regs[r1] | regs[r2];
             break;
-        CASE_32_64(xor)
+        case INDEX_op_xor:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = regs[r1] ^ regs[r2];
             break;
-#if TCG_TARGET_HAS_andc_i32 || TCG_TARGET_HAS_andc_i64
-        CASE_32_64(andc)
+        case INDEX_op_andc:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = regs[r1] & ~regs[r2];
             break;
-#endif
-#if TCG_TARGET_HAS_orc_i32 || TCG_TARGET_HAS_orc_i64
-        CASE_32_64(orc)
+        case INDEX_op_orc:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = regs[r1] | ~regs[r2];
             break;
-#endif
-#if TCG_TARGET_HAS_eqv_i32 || TCG_TARGET_HAS_eqv_i64
-        CASE_32_64(eqv)
+        case INDEX_op_eqv:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = ~(regs[r1] ^ regs[r2]);
             break;
-#endif
-#if TCG_TARGET_HAS_nand_i32 || TCG_TARGET_HAS_nand_i64
-        CASE_32_64(nand)
+        case INDEX_op_nand:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = ~(regs[r1] & regs[r2]);
             break;
-#endif
-#if TCG_TARGET_HAS_nor_i32 || TCG_TARGET_HAS_nor_i64
-        CASE_32_64(nor)
+        case INDEX_op_nor:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = ~(regs[r1] | regs[r2]);
             break;
+        case INDEX_op_neg:
+            tci_args_rr(insn, &r0, &r1);
+            regs[r0] = -regs[r1];
+            break;
+        case INDEX_op_not:
+            tci_args_rr(insn, &r0, &r1);
+            regs[r0] = ~regs[r1];
+            break;
+        case INDEX_op_ctpop:
+            tci_args_rr(insn, &r0, &r1);
+            regs[r0] = ctpop_tr(regs[r1]);
+            break;
+        case INDEX_op_addco:
+            tci_args_rrr(insn, &r0, &r1, &r2);
+            t1 = regs[r1] + regs[r2];
+            carry = t1 < regs[r1];
+            regs[r0] = t1;
+            break;
+        case INDEX_op_addci:
+            tci_args_rrr(insn, &r0, &r1, &r2);
+            regs[r0] = regs[r1] + regs[r2] + carry;
+            break;
+        case INDEX_op_addcio:
+            tci_args_rrr(insn, &r0, &r1, &r2);
+            if (carry) {
+                t1 = regs[r1] + regs[r2] + 1;
+                carry = t1 <= regs[r1];
+            } else {
+                t1 = regs[r1] + regs[r2];
+                carry = t1 < regs[r1];
+            }
+            regs[r0] = t1;
+            break;
+        case INDEX_op_subbo:
+            tci_args_rrr(insn, &r0, &r1, &r2);
+            carry = regs[r1] < regs[r2];
+            regs[r0] = regs[r1] - regs[r2];
+            break;
+        case INDEX_op_subbi:
+            tci_args_rrr(insn, &r0, &r1, &r2);
+            regs[r0] = regs[r1] - regs[r2] - carry;
+            break;
+        case INDEX_op_subbio:
+            tci_args_rrr(insn, &r0, &r1, &r2);
+            if (carry) {
+                carry = regs[r1] <= regs[r2];
+                regs[r0] = regs[r1] - regs[r2] - 1;
+            } else {
+                carry = regs[r1] < regs[r2];
+                regs[r0] = regs[r1] - regs[r2];
+            }
+            break;
+        case INDEX_op_muls2:
+            tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
+#if TCG_TARGET_REG_BITS == 32
+            tmp64 = (int64_t)(int32_t)regs[r2] * (int32_t)regs[r3];
+            tci_write_reg64(regs, r1, r0, tmp64);
+#else
+            muls64(&regs[r0], &regs[r1], regs[r2], regs[r3]);
 #endif
+            break;
+        case INDEX_op_mulu2:
+            tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
+#if TCG_TARGET_REG_BITS == 32
+            tmp64 = (uint64_t)(uint32_t)regs[r2] * (uint32_t)regs[r3];
+            tci_write_reg64(regs, r1, r0, tmp64);
+#else
+            mulu64(&regs[r0], &regs[r1], regs[r2], regs[r3]);
+#endif
+            break;
 
             /* Arithmetic operations (32 bit). */
 
-        case INDEX_op_div_i32:
+        case INDEX_op_tci_divs32:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = (int32_t)regs[r1] / (int32_t)regs[r2];
             break;
-        case INDEX_op_divu_i32:
+        case INDEX_op_tci_divu32:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = (uint32_t)regs[r1] / (uint32_t)regs[r2];
             break;
-        case INDEX_op_rem_i32:
+        case INDEX_op_tci_rems32:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = (int32_t)regs[r1] % (int32_t)regs[r2];
             break;
-        case INDEX_op_remu_i32:
+        case INDEX_op_tci_remu32:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = (uint32_t)regs[r1] % (uint32_t)regs[r2];
             break;
-#if TCG_TARGET_HAS_clz_i32
-        case INDEX_op_clz_i32:
+        case INDEX_op_tci_clz32:
             tci_args_rrr(insn, &r0, &r1, &r2);
             tmp32 = regs[r1];
             regs[r0] = tmp32 ? clz32(tmp32) : regs[r2];
             break;
-#endif
-#if TCG_TARGET_HAS_ctz_i32
-        case INDEX_op_ctz_i32:
+        case INDEX_op_tci_ctz32:
             tci_args_rrr(insn, &r0, &r1, &r2);
             tmp32 = regs[r1];
             regs[r0] = tmp32 ? ctz32(tmp32) : regs[r2];
             break;
-#endif
-#if TCG_TARGET_HAS_ctpop_i32
-        case INDEX_op_ctpop_i32:
-            tci_args_rr(insn, &r0, &r1);
-            regs[r0] = ctpop32(regs[r1]);
+        case INDEX_op_tci_setcond32:
+            tci_args_rrrc(insn, &r0, &r1, &r2, &condition);
+            regs[r0] = tci_compare32(regs[r1], regs[r2], condition);
             break;
-#endif
+        case INDEX_op_tci_movcond32:
+            tci_args_rrrrrc(insn, &r0, &r1, &r2, &r3, &r4, &condition);
+            tmp32 = tci_compare32(regs[r1], regs[r2], condition);
+            regs[r0] = regs[tmp32 ? r3 : r4];
+            break;
 
-            /* Shift/rotate operations (32 bit). */
+            /* Shift/rotate operations. */
 
-        case INDEX_op_shl_i32:
+        case INDEX_op_shl:
             tci_args_rrr(insn, &r0, &r1, &r2);
-            regs[r0] = (uint32_t)regs[r1] << (regs[r2] & 31);
+            regs[r0] = regs[r1] << (regs[r2] % TCG_TARGET_REG_BITS);
             break;
-        case INDEX_op_shr_i32:
+        case INDEX_op_shr:
             tci_args_rrr(insn, &r0, &r1, &r2);
-            regs[r0] = (uint32_t)regs[r1] >> (regs[r2] & 31);
+            regs[r0] = regs[r1] >> (regs[r2] % TCG_TARGET_REG_BITS);
             break;
-        case INDEX_op_sar_i32:
+        case INDEX_op_sar:
             tci_args_rrr(insn, &r0, &r1, &r2);
-            regs[r0] = (int32_t)regs[r1] >> (regs[r2] & 31);
+            regs[r0] = ((tcg_target_long)regs[r1]
+                        >> (regs[r2] % TCG_TARGET_REG_BITS));
             break;
-#if TCG_TARGET_HAS_rot_i32
-        case INDEX_op_rotl_i32:
+        case INDEX_op_tci_rotl32:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = rol32(regs[r1], regs[r2] & 31);
             break;
-        case INDEX_op_rotr_i32:
+        case INDEX_op_tci_rotr32:
             tci_args_rrr(insn, &r0, &r1, &r2);
             regs[r0] = ror32(regs[r1], regs[r2] & 31);
             break;
-#endif
-        case INDEX_op_deposit_i32:
+        case INDEX_op_deposit:
             tci_args_rrrbb(insn, &r0, &r1, &r2, &pos, &len);
-            regs[r0] = deposit32(regs[r1], pos, len, regs[r2]);
+            regs[r0] = deposit_tr(regs[r1], pos, len, regs[r2]);
             break;
-        case INDEX_op_extract_i32:
+        case INDEX_op_extract:
             tci_args_rrbb(insn, &r0, &r1, &pos, &len);
-            regs[r0] = extract32(regs[r1], pos, len);
+            regs[r0] = extract_tr(regs[r1], pos, len);
             break;
-        case INDEX_op_sextract_i32:
+        case INDEX_op_sextract:
             tci_args_rrbb(insn, &r0, &r1, &pos, &len);
-            regs[r0] = sextract32(regs[r1], pos, len);
+            regs[r0] = sextract_tr(regs[r1], pos, len);
             break;
-        case INDEX_op_brcond_i32:
-            tci_args_rl(insn, tb_ptr, &r0, &ptr);
-            if ((uint32_t)regs[r0]) {
-                tb_ptr = ptr;
-            }
-            break;
-#if TCG_TARGET_REG_BITS == 32 || TCG_TARGET_HAS_add2_i32
-        case INDEX_op_add2_i32:
-            tci_args_rrrrrr(insn, &r0, &r1, &r2, &r3, &r4, &r5);
-            T1 = tci_uint64(regs[r3], regs[r2]);
-            T2 = tci_uint64(regs[r5], regs[r4]);
-            tci_write_reg64(regs, r1, r0, T1 + T2);
-            break;
-#endif
-#if TCG_TARGET_REG_BITS == 32 || TCG_TARGET_HAS_sub2_i32
-        case INDEX_op_sub2_i32:
-            tci_args_rrrrrr(insn, &r0, &r1, &r2, &r3, &r4, &r5);
-            T1 = tci_uint64(regs[r3], regs[r2]);
-            T2 = tci_uint64(regs[r5], regs[r4]);
-            tci_write_reg64(regs, r1, r0, T1 - T2);
-            break;
-#endif
-#if TCG_TARGET_HAS_mulu2_i32
-        case INDEX_op_mulu2_i32:
-            tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
-            tmp64 = (uint64_t)(uint32_t)regs[r2] * (uint32_t)regs[r3];
-            tci_write_reg64(regs, r1, r0, tmp64);
-            break;
-#endif
-#if TCG_TARGET_HAS_muls2_i32
-        case INDEX_op_muls2_i32:
-            tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
-            tmp64 = (int64_t)(int32_t)regs[r2] * (int32_t)regs[r3];
-            tci_write_reg64(regs, r1, r0, tmp64);
-            break;
-#endif
-#if TCG_TARGET_HAS_ext8s_i32 || TCG_TARGET_HAS_ext8s_i64
-        CASE_32_64(ext8s)
-            tci_args_rr(insn, &r0, &r1);
-            regs[r0] = (int8_t)regs[r1];
-            break;
-#endif
-#if TCG_TARGET_HAS_ext16s_i32 || TCG_TARGET_HAS_ext16s_i64 || \
-    TCG_TARGET_HAS_bswap16_i32 || TCG_TARGET_HAS_bswap16_i64
-        CASE_32_64(ext16s)
-            tci_args_rr(insn, &r0, &r1);
-            regs[r0] = (int16_t)regs[r1];
-            break;
-#endif
-#if TCG_TARGET_HAS_ext8u_i32 || TCG_TARGET_HAS_ext8u_i64
-        CASE_32_64(ext8u)
-            tci_args_rr(insn, &r0, &r1);
-            regs[r0] = (uint8_t)regs[r1];
-            break;
-#endif
-#if TCG_TARGET_HAS_ext16u_i32 || TCG_TARGET_HAS_ext16u_i64
-        CASE_32_64(ext16u)
-            tci_args_rr(insn, &r0, &r1);
-            regs[r0] = (uint16_t)regs[r1];
-            break;
-#endif
-#if TCG_TARGET_HAS_bswap16_i32 || TCG_TARGET_HAS_bswap16_i64
-        CASE_32_64(bswap16)
-            tci_args_rr(insn, &r0, &r1);
-            regs[r0] = bswap16(regs[r1]);
-            break;
-#endif
-#if TCG_TARGET_HAS_bswap32_i32 || TCG_TARGET_HAS_bswap32_i64
-        CASE_32_64(bswap32)
-            tci_args_rr(insn, &r0, &r1);
-            regs[r0] = bswap32(regs[r1]);
-            break;
-#endif
-#if TCG_TARGET_HAS_not_i32 || TCG_TARGET_HAS_not_i64
-        CASE_32_64(not)
-            tci_args_rr(insn, &r0, &r1);
-            regs[r0] = ~regs[r1];
-            break;
-#endif
-        CASE_32_64(neg)
-            tci_args_rr(insn, &r0, &r1);
-            regs[r0] = -regs[r1];
-            break;
-#if TCG_TARGET_REG_BITS == 64
-            /* Load/store operations (64 bit). */
-
-        case INDEX_op_ld32s_i64:
-            tci_args_rrs(insn, &r0, &r1, &ofs);
-            ptr = (void *)(regs[r1] + ofs);
-            regs[r0] = *(int32_t *)ptr;
-            break;
-        case INDEX_op_ld_i64:
-            tci_args_rrs(insn, &r0, &r1, &ofs);
-            ptr = (void *)(regs[r1] + ofs);
-            regs[r0] = *(uint64_t *)ptr;
-            break;
-        case INDEX_op_st_i64:
-            tci_args_rrs(insn, &r0, &r1, &ofs);
-            ptr = (void *)(regs[r1] + ofs);
-            *(uint64_t *)ptr = regs[r0];
-            break;
-
-            /* Arithmetic operations (64 bit). */
-
-        case INDEX_op_div_i64:
-            tci_args_rrr(insn, &r0, &r1, &r2);
-            regs[r0] = (int64_t)regs[r1] / (int64_t)regs[r2];
-            break;
-        case INDEX_op_divu_i64:
-            tci_args_rrr(insn, &r0, &r1, &r2);
-            regs[r0] = (uint64_t)regs[r1] / (uint64_t)regs[r2];
-            break;
-        case INDEX_op_rem_i64:
-            tci_args_rrr(insn, &r0, &r1, &r2);
-            regs[r0] = (int64_t)regs[r1] % (int64_t)regs[r2];
-            break;
-        case INDEX_op_remu_i64:
-            tci_args_rrr(insn, &r0, &r1, &r2);
-            regs[r0] = (uint64_t)regs[r1] % (uint64_t)regs[r2];
-            break;
-#if TCG_TARGET_HAS_clz_i64
-        case INDEX_op_clz_i64:
-            tci_args_rrr(insn, &r0, &r1, &r2);
-            regs[r0] = regs[r1] ? clz64(regs[r1]) : regs[r2];
-            break;
-#endif
-#if TCG_TARGET_HAS_ctz_i64
-        case INDEX_op_ctz_i64:
-            tci_args_rrr(insn, &r0, &r1, &r2);
-            regs[r0] = regs[r1] ? ctz64(regs[r1]) : regs[r2];
-            break;
-#endif
-#if TCG_TARGET_HAS_ctpop_i64
-        case INDEX_op_ctpop_i64:
-            tci_args_rr(insn, &r0, &r1);
-            regs[r0] = ctpop64(regs[r1]);
-            break;
-#endif
-#if TCG_TARGET_HAS_mulu2_i64
-        case INDEX_op_mulu2_i64:
-            tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
-            mulu64(&regs[r0], &regs[r1], regs[r2], regs[r3]);
-            break;
-#endif
-#if TCG_TARGET_HAS_muls2_i64
-        case INDEX_op_muls2_i64:
-            tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
-            muls64(&regs[r0], &regs[r1], regs[r2], regs[r3]);
-            break;
-#endif
-#if TCG_TARGET_HAS_add2_i64
-        case INDEX_op_add2_i64:
-            tci_args_rrrrrr(insn, &r0, &r1, &r2, &r3, &r4, &r5);
-            T1 = regs[r2] + regs[r4];
-            T2 = regs[r3] + regs[r5] + (T1 < regs[r2]);
-            regs[r0] = T1;
-            regs[r1] = T2;
-            break;
-#endif
-#if TCG_TARGET_HAS_add2_i64
-        case INDEX_op_sub2_i64:
-            tci_args_rrrrrr(insn, &r0, &r1, &r2, &r3, &r4, &r5);
-            T1 = regs[r2] - regs[r4];
-            T2 = regs[r3] - regs[r5] - (regs[r2] < regs[r4]);
-            regs[r0] = T1;
-            regs[r1] = T2;
-            break;
-#endif
-
-            /* Shift/rotate operations (64 bit). */
-
-        case INDEX_op_shl_i64:
-            tci_args_rrr(insn, &r0, &r1, &r2);
-            regs[r0] = regs[r1] << (regs[r2] & 63);
-            break;
-        case INDEX_op_shr_i64:
-            tci_args_rrr(insn, &r0, &r1, &r2);
-            regs[r0] = regs[r1] >> (regs[r2] & 63);
-            break;
-        case INDEX_op_sar_i64:
-            tci_args_rrr(insn, &r0, &r1, &r2);
-            regs[r0] = (int64_t)regs[r1] >> (regs[r2] & 63);
-            break;
-#if TCG_TARGET_HAS_rot_i64
-        case INDEX_op_rotl_i64:
-            tci_args_rrr(insn, &r0, &r1, &r2);
-            regs[r0] = rol64(regs[r1], regs[r2] & 63);
-            break;
-        case INDEX_op_rotr_i64:
-            tci_args_rrr(insn, &r0, &r1, &r2);
-            regs[r0] = ror64(regs[r1], regs[r2] & 63);
-            break;
-#endif
-        case INDEX_op_deposit_i64:
-            tci_args_rrrbb(insn, &r0, &r1, &r2, &pos, &len);
-            regs[r0] = deposit64(regs[r1], pos, len, regs[r2]);
-            break;
-        case INDEX_op_extract_i64:
-            tci_args_rrbb(insn, &r0, &r1, &pos, &len);
-            regs[r0] = extract64(regs[r1], pos, len);
-            break;
-        case INDEX_op_sextract_i64:
-            tci_args_rrbb(insn, &r0, &r1, &pos, &len);
-            regs[r0] = sextract64(regs[r1], pos, len);
-            break;
-        case INDEX_op_brcond_i64:
+        case INDEX_op_brcond:
             tci_args_rl(insn, tb_ptr, &r0, &ptr);
             if (regs[r0]) {
                 tb_ptr = ptr;
             }
             break;
-        case INDEX_op_ext32s_i64:
+        case INDEX_op_bswap16:
+            tci_args_rr(insn, &r0, &r1);
+            regs[r0] = bswap16(regs[r1]);
+            break;
+        case INDEX_op_bswap32:
+            tci_args_rr(insn, &r0, &r1);
+            regs[r0] = bswap32(regs[r1]);
+            break;
+#if TCG_TARGET_REG_BITS == 64
+            /* Load/store operations (64 bit). */
+
+        case INDEX_op_ld32u:
+            tci_args_rrs(insn, &r0, &r1, &ofs);
+            ptr = (void *)(regs[r1] + ofs);
+            regs[r0] = *(uint32_t *)ptr;
+            break;
+        case INDEX_op_ld32s:
+            tci_args_rrs(insn, &r0, &r1, &ofs);
+            ptr = (void *)(regs[r1] + ofs);
+            regs[r0] = *(int32_t *)ptr;
+            break;
+        case INDEX_op_st32:
+            tci_args_rrs(insn, &r0, &r1, &ofs);
+            ptr = (void *)(regs[r1] + ofs);
+            *(uint32_t *)ptr = regs[r0];
+            break;
+
+            /* Arithmetic operations (64 bit). */
+
+        case INDEX_op_divs:
+            tci_args_rrr(insn, &r0, &r1, &r2);
+            regs[r0] = (int64_t)regs[r1] / (int64_t)regs[r2];
+            break;
+        case INDEX_op_divu:
+            tci_args_rrr(insn, &r0, &r1, &r2);
+            regs[r0] = (uint64_t)regs[r1] / (uint64_t)regs[r2];
+            break;
+        case INDEX_op_rems:
+            tci_args_rrr(insn, &r0, &r1, &r2);
+            regs[r0] = (int64_t)regs[r1] % (int64_t)regs[r2];
+            break;
+        case INDEX_op_remu:
+            tci_args_rrr(insn, &r0, &r1, &r2);
+            regs[r0] = (uint64_t)regs[r1] % (uint64_t)regs[r2];
+            break;
+        case INDEX_op_clz:
+            tci_args_rrr(insn, &r0, &r1, &r2);
+            regs[r0] = regs[r1] ? clz64(regs[r1]) : regs[r2];
+            break;
+        case INDEX_op_ctz:
+            tci_args_rrr(insn, &r0, &r1, &r2);
+            regs[r0] = regs[r1] ? ctz64(regs[r1]) : regs[r2];
+            break;
+
+            /* Shift/rotate operations (64 bit). */
+
+        case INDEX_op_rotl:
+            tci_args_rrr(insn, &r0, &r1, &r2);
+            regs[r0] = rol64(regs[r1], regs[r2] & 63);
+            break;
+        case INDEX_op_rotr:
+            tci_args_rrr(insn, &r0, &r1, &r2);
+            regs[r0] = ror64(regs[r1], regs[r2] & 63);
+            break;
         case INDEX_op_ext_i32_i64:
             tci_args_rr(insn, &r0, &r1);
             regs[r0] = (int32_t)regs[r1];
             break;
-        case INDEX_op_ext32u_i64:
         case INDEX_op_extu_i32_i64:
             tci_args_rr(insn, &r0, &r1);
             regs[r0] = (uint32_t)regs[r1];
             break;
-#if TCG_TARGET_HAS_bswap64_i64
-        case INDEX_op_bswap64_i64:
+        case INDEX_op_bswap64:
             tci_args_rr(insn, &r0, &r1);
             regs[r0] = bswap64(regs[r1]);
             break;
-#endif
 #endif /* TCG_TARGET_REG_BITS == 64 */
 
             /* QEMU specific operations. */
@@ -902,46 +789,33 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             tb_ptr = ptr;
             break;
 
-        case INDEX_op_qemu_ld_i32:
+        case INDEX_op_qemu_ld:
             tci_args_rrm(insn, &r0, &r1, &oi);
             taddr = regs[r1];
             regs[r0] = tci_qemu_ld(env, taddr, oi, tb_ptr);
             break;
 
-        case INDEX_op_qemu_ld_i64:
-            if (TCG_TARGET_REG_BITS == 64) {
-                tci_args_rrm(insn, &r0, &r1, &oi);
-                taddr = regs[r1];
-            } else {
-                tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
-                taddr = regs[r2];
-                oi = regs[r3];
-            }
-            tmp64 = tci_qemu_ld(env, taddr, oi, tb_ptr);
-            if (TCG_TARGET_REG_BITS == 32) {
-                tci_write_reg64(regs, r1, r0, tmp64);
-            } else {
-                regs[r0] = tmp64;
-            }
-            break;
-
-        case INDEX_op_qemu_st_i32:
+        case INDEX_op_qemu_st:
             tci_args_rrm(insn, &r0, &r1, &oi);
             taddr = regs[r1];
             tci_qemu_st(env, taddr, regs[r0], oi, tb_ptr);
             break;
 
-        case INDEX_op_qemu_st_i64:
-            if (TCG_TARGET_REG_BITS == 64) {
-                tci_args_rrm(insn, &r0, &r1, &oi);
-                tmp64 = regs[r0];
-                taddr = regs[r1];
-            } else {
-                tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
-                tmp64 = tci_uint64(regs[r1], regs[r0]);
-                taddr = regs[r2];
-                oi = regs[r3];
-            }
+        case INDEX_op_qemu_ld2:
+            tcg_debug_assert(TCG_TARGET_REG_BITS == 32);
+            tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
+            taddr = regs[r2];
+            oi = regs[r3];
+            tmp64 = tci_qemu_ld(env, taddr, oi, tb_ptr);
+            tci_write_reg64(regs, r1, r0, tmp64);
+            break;
+
+        case INDEX_op_qemu_st2:
+            tcg_debug_assert(TCG_TARGET_REG_BITS == 32);
+            tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
+            tmp64 = tci_uint64(regs[r1], regs[r0]);
+            taddr = regs[r2];
+            oi = regs[r3];
             tci_qemu_st(env, taddr, tmp64, oi, tb_ptr);
             break;
 
@@ -1005,7 +879,7 @@ int print_insn_tci(bfd_vma addr, disassemble_info *info)
     const char *op_name;
     uint32_t insn;
     TCGOpcode op;
-    TCGReg r0, r1, r2, r3, r4, r5;
+    TCGReg r0, r1, r2, r3, r4;
     tcg_target_ulong i1;
     int32_t s2;
     TCGCond c;
@@ -1040,15 +914,14 @@ int print_insn_tci(bfd_vma addr, disassemble_info *info)
         info->fprintf_func(info->stream, "%-12s  %d, %p", op_name, len, ptr);
         break;
 
-    case INDEX_op_brcond_i32:
-    case INDEX_op_brcond_i64:
+    case INDEX_op_brcond:
         tci_args_rl(insn, tb_ptr, &r0, &ptr);
         info->fprintf_func(info->stream, "%-12s  %s, 0, ne, %p",
                            op_name, str_r(r0), ptr);
         break;
 
-    case INDEX_op_setcond_i32:
-    case INDEX_op_setcond_i64:
+    case INDEX_op_setcond:
+    case INDEX_op_tci_setcond32:
         tci_args_rrrc(insn, &r0, &r1, &r2, &c);
         info->fprintf_func(info->stream, "%-12s  %s, %s, %s, %s",
                            op_name, str_r(r0), str_r(r1), str_r(r2), str_c(c));
@@ -1066,126 +939,95 @@ int print_insn_tci(bfd_vma addr, disassemble_info *info)
                            op_name, str_r(r0), ptr);
         break;
 
-    case INDEX_op_ld8u_i32:
-    case INDEX_op_ld8u_i64:
-    case INDEX_op_ld8s_i32:
-    case INDEX_op_ld8s_i64:
-    case INDEX_op_ld16u_i32:
-    case INDEX_op_ld16u_i64:
-    case INDEX_op_ld16s_i32:
-    case INDEX_op_ld16s_i64:
-    case INDEX_op_ld32u_i64:
-    case INDEX_op_ld32s_i64:
-    case INDEX_op_ld_i32:
-    case INDEX_op_ld_i64:
-    case INDEX_op_st8_i32:
-    case INDEX_op_st8_i64:
-    case INDEX_op_st16_i32:
-    case INDEX_op_st16_i64:
-    case INDEX_op_st32_i64:
-    case INDEX_op_st_i32:
-    case INDEX_op_st_i64:
+    case INDEX_op_tci_setcarry:
+        info->fprintf_func(info->stream, "%-12s", op_name);
+        break;
+
+    case INDEX_op_ld8u:
+    case INDEX_op_ld8s:
+    case INDEX_op_ld16u:
+    case INDEX_op_ld16s:
+    case INDEX_op_ld32u:
+    case INDEX_op_ld:
+    case INDEX_op_st8:
+    case INDEX_op_st16:
+    case INDEX_op_st32:
+    case INDEX_op_st:
         tci_args_rrs(insn, &r0, &r1, &s2);
         info->fprintf_func(info->stream, "%-12s  %s, %s, %d",
                            op_name, str_r(r0), str_r(r1), s2);
         break;
 
-    case INDEX_op_mov_i32:
-    case INDEX_op_mov_i64:
-    case INDEX_op_ext8s_i32:
-    case INDEX_op_ext8s_i64:
-    case INDEX_op_ext8u_i32:
-    case INDEX_op_ext8u_i64:
-    case INDEX_op_ext16s_i32:
-    case INDEX_op_ext16s_i64:
-    case INDEX_op_ext16u_i32:
-    case INDEX_op_ext32s_i64:
-    case INDEX_op_ext32u_i64:
+    case INDEX_op_bswap16:
+    case INDEX_op_bswap32:
+    case INDEX_op_ctpop:
+    case INDEX_op_mov:
+    case INDEX_op_neg:
+    case INDEX_op_not:
     case INDEX_op_ext_i32_i64:
     case INDEX_op_extu_i32_i64:
-    case INDEX_op_bswap16_i32:
-    case INDEX_op_bswap16_i64:
-    case INDEX_op_bswap32_i32:
-    case INDEX_op_bswap32_i64:
-    case INDEX_op_bswap64_i64:
-    case INDEX_op_not_i32:
-    case INDEX_op_not_i64:
-    case INDEX_op_neg_i32:
-    case INDEX_op_neg_i64:
-    case INDEX_op_ctpop_i32:
-    case INDEX_op_ctpop_i64:
+    case INDEX_op_bswap64:
         tci_args_rr(insn, &r0, &r1);
         info->fprintf_func(info->stream, "%-12s  %s, %s",
                            op_name, str_r(r0), str_r(r1));
         break;
 
-    case INDEX_op_add_i32:
-    case INDEX_op_add_i64:
-    case INDEX_op_sub_i32:
-    case INDEX_op_sub_i64:
-    case INDEX_op_mul_i32:
-    case INDEX_op_mul_i64:
-    case INDEX_op_and_i32:
-    case INDEX_op_and_i64:
-    case INDEX_op_or_i32:
-    case INDEX_op_or_i64:
-    case INDEX_op_xor_i32:
-    case INDEX_op_xor_i64:
-    case INDEX_op_andc_i32:
-    case INDEX_op_andc_i64:
-    case INDEX_op_orc_i32:
-    case INDEX_op_orc_i64:
-    case INDEX_op_eqv_i32:
-    case INDEX_op_eqv_i64:
-    case INDEX_op_nand_i32:
-    case INDEX_op_nand_i64:
-    case INDEX_op_nor_i32:
-    case INDEX_op_nor_i64:
-    case INDEX_op_div_i32:
-    case INDEX_op_div_i64:
-    case INDEX_op_rem_i32:
-    case INDEX_op_rem_i64:
-    case INDEX_op_divu_i32:
-    case INDEX_op_divu_i64:
-    case INDEX_op_remu_i32:
-    case INDEX_op_remu_i64:
-    case INDEX_op_shl_i32:
-    case INDEX_op_shl_i64:
-    case INDEX_op_shr_i32:
-    case INDEX_op_shr_i64:
-    case INDEX_op_sar_i32:
-    case INDEX_op_sar_i64:
-    case INDEX_op_rotl_i32:
-    case INDEX_op_rotl_i64:
-    case INDEX_op_rotr_i32:
-    case INDEX_op_rotr_i64:
-    case INDEX_op_clz_i32:
-    case INDEX_op_clz_i64:
-    case INDEX_op_ctz_i32:
-    case INDEX_op_ctz_i64:
+    case INDEX_op_add:
+    case INDEX_op_addci:
+    case INDEX_op_addcio:
+    case INDEX_op_addco:
+    case INDEX_op_and:
+    case INDEX_op_andc:
+    case INDEX_op_clz:
+    case INDEX_op_ctz:
+    case INDEX_op_divs:
+    case INDEX_op_divu:
+    case INDEX_op_eqv:
+    case INDEX_op_mul:
+    case INDEX_op_nand:
+    case INDEX_op_nor:
+    case INDEX_op_or:
+    case INDEX_op_orc:
+    case INDEX_op_rems:
+    case INDEX_op_remu:
+    case INDEX_op_rotl:
+    case INDEX_op_rotr:
+    case INDEX_op_sar:
+    case INDEX_op_shl:
+    case INDEX_op_shr:
+    case INDEX_op_sub:
+    case INDEX_op_subbi:
+    case INDEX_op_subbio:
+    case INDEX_op_subbo:
+    case INDEX_op_xor:
+    case INDEX_op_tci_ctz32:
+    case INDEX_op_tci_clz32:
+    case INDEX_op_tci_divs32:
+    case INDEX_op_tci_divu32:
+    case INDEX_op_tci_rems32:
+    case INDEX_op_tci_remu32:
+    case INDEX_op_tci_rotl32:
+    case INDEX_op_tci_rotr32:
         tci_args_rrr(insn, &r0, &r1, &r2);
         info->fprintf_func(info->stream, "%-12s  %s, %s, %s",
                            op_name, str_r(r0), str_r(r1), str_r(r2));
         break;
 
-    case INDEX_op_deposit_i32:
-    case INDEX_op_deposit_i64:
+    case INDEX_op_deposit:
         tci_args_rrrbb(insn, &r0, &r1, &r2, &pos, &len);
         info->fprintf_func(info->stream, "%-12s  %s, %s, %s, %d, %d",
                            op_name, str_r(r0), str_r(r1), str_r(r2), pos, len);
         break;
 
-    case INDEX_op_extract_i32:
-    case INDEX_op_extract_i64:
-    case INDEX_op_sextract_i32:
-    case INDEX_op_sextract_i64:
+    case INDEX_op_extract:
+    case INDEX_op_sextract:
         tci_args_rrbb(insn, &r0, &r1, &pos, &len);
         info->fprintf_func(info->stream, "%-12s  %s,%s,%d,%d",
                            op_name, str_r(r0), str_r(r1), pos, len);
         break;
 
-    case INDEX_op_movcond_i32:
-    case INDEX_op_movcond_i64:
+    case INDEX_op_tci_movcond32:
+    case INDEX_op_movcond:
     case INDEX_op_setcond2_i32:
         tci_args_rrrrrc(insn, &r0, &r1, &r2, &r3, &r4, &c);
         info->fprintf_func(info->stream, "%-12s  %s, %s, %s, %s, %s, %s",
@@ -1193,41 +1035,27 @@ int print_insn_tci(bfd_vma addr, disassemble_info *info)
                            str_r(r3), str_r(r4), str_c(c));
         break;
 
-    case INDEX_op_mulu2_i32:
-    case INDEX_op_mulu2_i64:
-    case INDEX_op_muls2_i32:
-    case INDEX_op_muls2_i64:
+    case INDEX_op_muls2:
+    case INDEX_op_mulu2:
         tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
         info->fprintf_func(info->stream, "%-12s  %s, %s, %s, %s",
                            op_name, str_r(r0), str_r(r1),
                            str_r(r2), str_r(r3));
         break;
 
-    case INDEX_op_add2_i32:
-    case INDEX_op_add2_i64:
-    case INDEX_op_sub2_i32:
-    case INDEX_op_sub2_i64:
-        tci_args_rrrrrr(insn, &r0, &r1, &r2, &r3, &r4, &r5);
-        info->fprintf_func(info->stream, "%-12s  %s, %s, %s, %s, %s, %s",
-                           op_name, str_r(r0), str_r(r1), str_r(r2),
-                           str_r(r3), str_r(r4), str_r(r5));
-        break;
-
-    case INDEX_op_qemu_ld_i64:
-    case INDEX_op_qemu_st_i64:
-        if (TCG_TARGET_REG_BITS == 32) {
-            tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
-            info->fprintf_func(info->stream, "%-12s  %s, %s, %s, %s",
-                               op_name, str_r(r0), str_r(r1),
-                               str_r(r2), str_r(r3));
-            break;
-        }
-        /* fall through */
-    case INDEX_op_qemu_ld_i32:
-    case INDEX_op_qemu_st_i32:
+    case INDEX_op_qemu_ld:
+    case INDEX_op_qemu_st:
         tci_args_rrm(insn, &r0, &r1, &oi);
         info->fprintf_func(info->stream, "%-12s  %s, %s, %x",
                            op_name, str_r(r0), str_r(r1), oi);
+        break;
+
+    case INDEX_op_qemu_ld2:
+    case INDEX_op_qemu_st2:
+        tci_args_rrrr(insn, &r0, &r1, &r2, &r3);
+        info->fprintf_func(info->stream, "%-12s  %s, %s, %s, %s",
+                           op_name, str_r(r0), str_r(r1),
+                           str_r(r2), str_r(r3));
         break;
 
     case 0:

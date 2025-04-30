@@ -133,9 +133,11 @@ static void tcg_out_addi_ptr(TCGContext *s, TCGReg, TCGReg, tcg_target_long);
 static bool tcg_out_xchg(TCGContext *s, TCGType type, TCGReg r1, TCGReg r2);
 static void tcg_out_exit_tb(TCGContext *s, uintptr_t arg);
 static void tcg_out_goto_tb(TCGContext *s, int which);
-static void tcg_out_op(TCGContext *s, TCGOpcode opc, TCGType type,
-                       const TCGArg args[TCG_MAX_OP_ARGS],
-                       const int const_args[TCG_MAX_OP_ARGS]);
+static void tcg_out_goto_ptr(TCGContext *s, TCGReg dest);
+static void tcg_out_mb(TCGContext *s, unsigned bar);
+static void tcg_out_br(TCGContext *s, TCGLabel *l);
+static void tcg_out_set_carry(TCGContext *s);
+static void tcg_out_set_borrow(TCGContext *s);
 #if TCG_TARGET_MAYBE_vec
 static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
                             TCGReg dst, TCGReg src);
@@ -861,6 +863,7 @@ static int tcg_out_pool_finalize(TCGContext *s)
 #define C_N1_O1_I4(O1, O2, I1, I2, I3, I4) C_PFX6(c_n1_o1_i4_, O1, O2, I1, I2, I3, I4),
 
 typedef enum {
+    C_Dynamic = -2,
     C_NotImplemented = -1,
 #include "tcg-target-con-set.h"
 } TCGConstraintSetIndex;
@@ -954,6 +957,164 @@ static const TCGConstraintSet constraint_sets[] = {
 #define C_O2_I4(O1, O2, I1, I2, I3, I4) C_PFX6(c_o2_i4_, O1, O2, I1, I2, I3, I4)
 #define C_N1_O1_I4(O1, O2, I1, I2, I3, I4) C_PFX6(c_n1_o1_i4_, O1, O2, I1, I2, I3, I4)
 
+/*
+ * TCGOutOp is the base class for a set of structures that describe how
+ * to generate code for a given TCGOpcode.
+ *
+ * @static_constraint:
+ *   C_NotImplemented: The TCGOpcode is not supported by the backend.
+ *   C_Dynamic:        Use @dynamic_constraint to select a constraint set
+ *                     based on any of @type, @flags, or host isa.
+ *   Otherwise:        The register allocation constrains for the TCGOpcode.
+ *
+ * Subclasses of TCGOutOp will define a set of output routines that may
+ * be used.  Such routines will often be selected by the set of registers
+ * and constants that come out of register allocation.  The set of
+ * routines that are provided will guide the set of constraints that are
+ * legal.  In particular, assume that tcg_optimize() has done its job in
+ * swapping commutative operands and folding operations for which all
+ * operands are constant.
+ */
+typedef struct TCGOutOp {
+    TCGConstraintSetIndex static_constraint;
+    TCGConstraintSetIndex (*dynamic_constraint)(TCGType type, unsigned flags);
+} TCGOutOp;
+
+typedef struct TCGOutOpAddSubCarry {
+    TCGOutOp base;
+    void (*out_rrr)(TCGContext *s, TCGType type,
+                    TCGReg a0, TCGReg a1, TCGReg a2);
+    void (*out_rri)(TCGContext *s, TCGType type,
+                    TCGReg a0, TCGReg a1, tcg_target_long a2);
+    void (*out_rir)(TCGContext *s, TCGType type,
+                    TCGReg a0, tcg_target_long a1, TCGReg a2);
+    void (*out_rii)(TCGContext *s, TCGType type,
+                    TCGReg a0, tcg_target_long a1, tcg_target_long a2);
+} TCGOutOpAddSubCarry;
+
+typedef struct TCGOutOpBinary {
+    TCGOutOp base;
+    void (*out_rrr)(TCGContext *s, TCGType type,
+                    TCGReg a0, TCGReg a1, TCGReg a2);
+    void (*out_rri)(TCGContext *s, TCGType type,
+                    TCGReg a0, TCGReg a1, tcg_target_long a2);
+} TCGOutOpBinary;
+
+typedef struct TCGOutOpBrcond {
+    TCGOutOp base;
+    void (*out_rr)(TCGContext *s, TCGType type, TCGCond cond,
+                   TCGReg a1, TCGReg a2, TCGLabel *label);
+    void (*out_ri)(TCGContext *s, TCGType type, TCGCond cond,
+                   TCGReg a1, tcg_target_long a2, TCGLabel *label);
+} TCGOutOpBrcond;
+
+typedef struct TCGOutOpBrcond2 {
+    TCGOutOp base;
+    void (*out)(TCGContext *s, TCGCond cond, TCGReg al, TCGReg ah,
+                TCGArg bl, bool const_bl,
+                TCGArg bh, bool const_bh, TCGLabel *l);
+} TCGOutOpBrcond2;
+
+typedef struct TCGOutOpBswap {
+    TCGOutOp base;
+    void (*out_rr)(TCGContext *s, TCGType type,
+                   TCGReg a0, TCGReg a1, unsigned flags);
+} TCGOutOpBswap;
+
+typedef struct TCGOutOpDeposit {
+    TCGOutOp base;
+    void (*out_rrr)(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                    TCGReg a2, unsigned ofs, unsigned len);
+    void (*out_rri)(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                    tcg_target_long a2, unsigned ofs, unsigned len);
+    void (*out_rzr)(TCGContext *s, TCGType type, TCGReg a0,
+                    TCGReg a2, unsigned ofs, unsigned len);
+} TCGOutOpDeposit;
+
+typedef struct TCGOutOpDivRem {
+    TCGOutOp base;
+    void (*out_rr01r)(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, TCGReg a4);
+} TCGOutOpDivRem;
+
+typedef struct TCGOutOpExtract {
+    TCGOutOp base;
+    void (*out_rr)(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                   unsigned ofs, unsigned len);
+} TCGOutOpExtract;
+
+typedef struct TCGOutOpExtract2 {
+    TCGOutOp base;
+    void (*out_rrr)(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                    TCGReg a2, unsigned shr);
+} TCGOutOpExtract2;
+
+typedef struct TCGOutOpLoad {
+    TCGOutOp base;
+    void (*out)(TCGContext *s, TCGType type, TCGReg dest,
+                TCGReg base, intptr_t offset);
+} TCGOutOpLoad;
+
+typedef struct TCGOutOpMovcond {
+    TCGOutOp base;
+    void (*out)(TCGContext *s, TCGType type, TCGCond cond,
+                TCGReg ret, TCGReg c1, TCGArg c2, bool const_c2,
+                TCGArg vt, bool const_vt, TCGArg vf, bool consf_vf);
+} TCGOutOpMovcond;
+
+typedef struct TCGOutOpMul2 {
+    TCGOutOp base;
+    void (*out_rrrr)(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2, TCGReg a3);
+} TCGOutOpMul2;
+
+typedef struct TCGOutOpQemuLdSt {
+    TCGOutOp base;
+    void (*out)(TCGContext *s, TCGType type, TCGReg dest,
+                TCGReg addr, MemOpIdx oi);
+} TCGOutOpQemuLdSt;
+
+typedef struct TCGOutOpQemuLdSt2 {
+    TCGOutOp base;
+    void (*out)(TCGContext *s, TCGType type, TCGReg dlo, TCGReg dhi,
+                TCGReg addr, MemOpIdx oi);
+} TCGOutOpQemuLdSt2;
+
+typedef struct TCGOutOpUnary {
+    TCGOutOp base;
+    void (*out_rr)(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1);
+} TCGOutOpUnary;
+
+typedef struct TCGOutOpSetcond {
+    TCGOutOp base;
+    void (*out_rrr)(TCGContext *s, TCGType type, TCGCond cond,
+                    TCGReg ret, TCGReg a1, TCGReg a2);
+    void (*out_rri)(TCGContext *s, TCGType type, TCGCond cond,
+                    TCGReg ret, TCGReg a1, tcg_target_long a2);
+} TCGOutOpSetcond;
+
+typedef struct TCGOutOpSetcond2 {
+    TCGOutOp base;
+    void (*out)(TCGContext *s, TCGCond cond, TCGReg ret, TCGReg al, TCGReg ah,
+                TCGArg bl, bool const_bl, TCGArg bh, bool const_bh);
+} TCGOutOpSetcond2;
+
+typedef struct TCGOutOpStore {
+    TCGOutOp base;
+    void (*out_r)(TCGContext *s, TCGType type, TCGReg data,
+                  TCGReg base, intptr_t offset);
+    void (*out_i)(TCGContext *s, TCGType type, tcg_target_long data,
+                  TCGReg base, intptr_t offset);
+} TCGOutOpStore;
+
+typedef struct TCGOutOpSubtract {
+    TCGOutOp base;
+    void (*out_rrr)(TCGContext *s, TCGType type,
+                    TCGReg a0, TCGReg a1, TCGReg a2);
+    void (*out_rir)(TCGContext *s, TCGType type,
+                    TCGReg a0, tcg_target_long a1, TCGReg a2);
+} TCGOutOpSubtract;
+
 #include "tcg-target.c.inc"
 
 #ifndef CONFIG_TCG_INTERPRETER
@@ -962,6 +1123,144 @@ QEMU_BUILD_BUG_ON((int)(offsetof(CPUNegativeOffsetState, tlb.f[0]) -
                         sizeof(CPUNegativeOffsetState))
                   < MIN_TLB_MASK_TABLE_OFS);
 #endif
+
+#if TCG_TARGET_REG_BITS == 64
+/*
+ * We require these functions for slow-path function calls.
+ * Adapt them generically for opcode output.
+ */
+
+static void tgen_exts_i32_i64(TCGContext *s, TCGType t, TCGReg a0, TCGReg a1)
+{
+    tcg_out_exts_i32_i64(s, a0, a1);
+}
+
+static const TCGOutOpUnary outop_exts_i32_i64 = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out_rr = tgen_exts_i32_i64,
+};
+
+static void tgen_extu_i32_i64(TCGContext *s, TCGType t, TCGReg a0, TCGReg a1)
+{
+    tcg_out_extu_i32_i64(s, a0, a1);
+}
+
+static const TCGOutOpUnary outop_extu_i32_i64 = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out_rr = tgen_extu_i32_i64,
+};
+
+static void tgen_extrl_i64_i32(TCGContext *s, TCGType t, TCGReg a0, TCGReg a1)
+{
+    tcg_out_extrl_i64_i32(s, a0, a1);
+}
+
+static const TCGOutOpUnary outop_extrl_i64_i32 = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out_rr = TCG_TARGET_HAS_extr_i64_i32 ? tgen_extrl_i64_i32 : NULL,
+};
+#endif
+
+static const TCGOutOp outop_goto_ptr = {
+    .static_constraint = C_O0_I1(r),
+};
+
+static const TCGOutOpLoad outop_ld = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out = tcg_out_ld,
+};
+
+/*
+ * Register V as the TCGOutOp for O.
+ * This verifies that V is of type T, otherwise give a nice compiler error.
+ * This prevents trivial mistakes within each arch/tcg-target.c.inc.
+ */
+#define OUTOP(O, T, V)  [O] = _Generic(V, T: &V.base)
+
+/* Register allocation descriptions for every TCGOpcode. */
+static const TCGOutOp * const all_outop[NB_OPS] = {
+    OUTOP(INDEX_op_add, TCGOutOpBinary, outop_add),
+    OUTOP(INDEX_op_addci, TCGOutOpAddSubCarry, outop_addci),
+    OUTOP(INDEX_op_addcio, TCGOutOpBinary, outop_addcio),
+    OUTOP(INDEX_op_addco, TCGOutOpBinary, outop_addco),
+    /* addc1o is implemented with set_carry + addcio */
+    OUTOP(INDEX_op_addc1o, TCGOutOpBinary, outop_addcio),
+    OUTOP(INDEX_op_and, TCGOutOpBinary, outop_and),
+    OUTOP(INDEX_op_andc, TCGOutOpBinary, outop_andc),
+    OUTOP(INDEX_op_brcond, TCGOutOpBrcond, outop_brcond),
+    OUTOP(INDEX_op_bswap16, TCGOutOpBswap, outop_bswap16),
+    OUTOP(INDEX_op_bswap32, TCGOutOpBswap, outop_bswap32),
+    OUTOP(INDEX_op_clz, TCGOutOpBinary, outop_clz),
+    OUTOP(INDEX_op_ctpop, TCGOutOpUnary, outop_ctpop),
+    OUTOP(INDEX_op_ctz, TCGOutOpBinary, outop_ctz),
+    OUTOP(INDEX_op_deposit, TCGOutOpDeposit, outop_deposit),
+    OUTOP(INDEX_op_divs, TCGOutOpBinary, outop_divs),
+    OUTOP(INDEX_op_divu, TCGOutOpBinary, outop_divu),
+    OUTOP(INDEX_op_divs2, TCGOutOpDivRem, outop_divs2),
+    OUTOP(INDEX_op_divu2, TCGOutOpDivRem, outop_divu2),
+    OUTOP(INDEX_op_eqv, TCGOutOpBinary, outop_eqv),
+    OUTOP(INDEX_op_extract, TCGOutOpExtract, outop_extract),
+    OUTOP(INDEX_op_extract2, TCGOutOpExtract2, outop_extract2),
+    OUTOP(INDEX_op_ld8u, TCGOutOpLoad, outop_ld8u),
+    OUTOP(INDEX_op_ld8s, TCGOutOpLoad, outop_ld8s),
+    OUTOP(INDEX_op_ld16u, TCGOutOpLoad, outop_ld16u),
+    OUTOP(INDEX_op_ld16s, TCGOutOpLoad, outop_ld16s),
+    OUTOP(INDEX_op_ld, TCGOutOpLoad, outop_ld),
+    OUTOP(INDEX_op_movcond, TCGOutOpMovcond, outop_movcond),
+    OUTOP(INDEX_op_mul, TCGOutOpBinary, outop_mul),
+    OUTOP(INDEX_op_muls2, TCGOutOpMul2, outop_muls2),
+    OUTOP(INDEX_op_mulsh, TCGOutOpBinary, outop_mulsh),
+    OUTOP(INDEX_op_mulu2, TCGOutOpMul2, outop_mulu2),
+    OUTOP(INDEX_op_muluh, TCGOutOpBinary, outop_muluh),
+    OUTOP(INDEX_op_nand, TCGOutOpBinary, outop_nand),
+    OUTOP(INDEX_op_neg, TCGOutOpUnary, outop_neg),
+    OUTOP(INDEX_op_negsetcond, TCGOutOpSetcond, outop_negsetcond),
+    OUTOP(INDEX_op_nor, TCGOutOpBinary, outop_nor),
+    OUTOP(INDEX_op_not, TCGOutOpUnary, outop_not),
+    OUTOP(INDEX_op_or, TCGOutOpBinary, outop_or),
+    OUTOP(INDEX_op_orc, TCGOutOpBinary, outop_orc),
+    OUTOP(INDEX_op_qemu_ld, TCGOutOpQemuLdSt, outop_qemu_ld),
+    OUTOP(INDEX_op_qemu_ld2, TCGOutOpQemuLdSt2, outop_qemu_ld2),
+    OUTOP(INDEX_op_qemu_st, TCGOutOpQemuLdSt, outop_qemu_st),
+    OUTOP(INDEX_op_qemu_st2, TCGOutOpQemuLdSt2, outop_qemu_st2),
+    OUTOP(INDEX_op_rems, TCGOutOpBinary, outop_rems),
+    OUTOP(INDEX_op_remu, TCGOutOpBinary, outop_remu),
+    OUTOP(INDEX_op_rotl, TCGOutOpBinary, outop_rotl),
+    OUTOP(INDEX_op_rotr, TCGOutOpBinary, outop_rotr),
+    OUTOP(INDEX_op_sar, TCGOutOpBinary, outop_sar),
+    OUTOP(INDEX_op_setcond, TCGOutOpSetcond, outop_setcond),
+    OUTOP(INDEX_op_sextract, TCGOutOpExtract, outop_sextract),
+    OUTOP(INDEX_op_shl, TCGOutOpBinary, outop_shl),
+    OUTOP(INDEX_op_shr, TCGOutOpBinary, outop_shr),
+    OUTOP(INDEX_op_st, TCGOutOpStore, outop_st),
+    OUTOP(INDEX_op_st8, TCGOutOpStore, outop_st8),
+    OUTOP(INDEX_op_st16, TCGOutOpStore, outop_st16),
+    OUTOP(INDEX_op_sub, TCGOutOpSubtract, outop_sub),
+    OUTOP(INDEX_op_subbi, TCGOutOpAddSubCarry, outop_subbi),
+    OUTOP(INDEX_op_subbio, TCGOutOpAddSubCarry, outop_subbio),
+    OUTOP(INDEX_op_subbo, TCGOutOpAddSubCarry, outop_subbo),
+    /* subb1o is implemented with set_borrow + subbio */
+    OUTOP(INDEX_op_subb1o, TCGOutOpAddSubCarry, outop_subbio),
+    OUTOP(INDEX_op_xor, TCGOutOpBinary, outop_xor),
+
+    [INDEX_op_goto_ptr] = &outop_goto_ptr,
+
+#if TCG_TARGET_REG_BITS == 32
+    OUTOP(INDEX_op_brcond2_i32, TCGOutOpBrcond2, outop_brcond2),
+    OUTOP(INDEX_op_setcond2_i32, TCGOutOpSetcond2, outop_setcond2),
+#else
+    OUTOP(INDEX_op_bswap64, TCGOutOpUnary, outop_bswap64),
+    OUTOP(INDEX_op_ext_i32_i64, TCGOutOpUnary, outop_exts_i32_i64),
+    OUTOP(INDEX_op_extu_i32_i64, TCGOutOpUnary, outop_extu_i32_i64),
+    OUTOP(INDEX_op_extrl_i64_i32, TCGOutOpUnary, outop_extrl_i64_i32),
+    OUTOP(INDEX_op_extrh_i64_i32, TCGOutOpUnary, outop_extrh_i64_i32),
+    OUTOP(INDEX_op_ld32u, TCGOutOpLoad, outop_ld32u),
+    OUTOP(INDEX_op_ld32s, TCGOutOpLoad, outop_ld32s),
+    OUTOP(INDEX_op_st32, TCGOutOpStore, outop_st),
+#endif
+};
+
+#undef OUTOP
 
 /*
  * All TCG threads except the parent (i.e. the one that called tcg_context_init
@@ -2146,208 +2445,56 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_exit_tb:
     case INDEX_op_goto_tb:
     case INDEX_op_goto_ptr:
-    case INDEX_op_qemu_ld_i32:
-    case INDEX_op_qemu_st_i32:
-    case INDEX_op_qemu_ld_i64:
-    case INDEX_op_qemu_st_i64:
         return true;
 
-    case INDEX_op_qemu_st8_i32:
-        return TCG_TARGET_HAS_qemu_st8_i32;
-
-    case INDEX_op_qemu_ld_i128:
-    case INDEX_op_qemu_st_i128:
-        return TCG_TARGET_HAS_qemu_ldst_i128;
-
-    case INDEX_op_mov_i32:
-    case INDEX_op_setcond_i32:
-    case INDEX_op_brcond_i32:
-    case INDEX_op_movcond_i32:
-    case INDEX_op_ld8u_i32:
-    case INDEX_op_ld8s_i32:
-    case INDEX_op_ld16u_i32:
-    case INDEX_op_ld16s_i32:
-    case INDEX_op_ld_i32:
-    case INDEX_op_st8_i32:
-    case INDEX_op_st16_i32:
-    case INDEX_op_st_i32:
-    case INDEX_op_add_i32:
-    case INDEX_op_sub_i32:
-    case INDEX_op_neg_i32:
-    case INDEX_op_mul_i32:
-    case INDEX_op_and_i32:
-    case INDEX_op_or_i32:
-    case INDEX_op_xor_i32:
-    case INDEX_op_shl_i32:
-    case INDEX_op_shr_i32:
-    case INDEX_op_sar_i32:
-    case INDEX_op_extract_i32:
-    case INDEX_op_sextract_i32:
-    case INDEX_op_deposit_i32:
+    case INDEX_op_qemu_ld:
+    case INDEX_op_qemu_st:
+        tcg_debug_assert(type <= TCG_TYPE_REG);
         return true;
 
-    case INDEX_op_negsetcond_i32:
-        return TCG_TARGET_HAS_negsetcond_i32;
-    case INDEX_op_div_i32:
-    case INDEX_op_divu_i32:
-        return TCG_TARGET_HAS_div_i32;
-    case INDEX_op_rem_i32:
-    case INDEX_op_remu_i32:
-        return TCG_TARGET_HAS_rem_i32;
-    case INDEX_op_div2_i32:
-    case INDEX_op_divu2_i32:
-        return TCG_TARGET_HAS_div2_i32;
-    case INDEX_op_rotl_i32:
-    case INDEX_op_rotr_i32:
-        return TCG_TARGET_HAS_rot_i32;
-    case INDEX_op_extract2_i32:
-        return TCG_TARGET_HAS_extract2_i32;
-    case INDEX_op_add2_i32:
-        return TCG_TARGET_HAS_add2_i32;
-    case INDEX_op_sub2_i32:
-        return TCG_TARGET_HAS_sub2_i32;
-    case INDEX_op_mulu2_i32:
-        return TCG_TARGET_HAS_mulu2_i32;
-    case INDEX_op_muls2_i32:
-        return TCG_TARGET_HAS_muls2_i32;
-    case INDEX_op_muluh_i32:
-        return TCG_TARGET_HAS_muluh_i32;
-    case INDEX_op_mulsh_i32:
-        return TCG_TARGET_HAS_mulsh_i32;
-    case INDEX_op_ext8s_i32:
-        return TCG_TARGET_HAS_ext8s_i32;
-    case INDEX_op_ext16s_i32:
-        return TCG_TARGET_HAS_ext16s_i32;
-    case INDEX_op_ext8u_i32:
-        return TCG_TARGET_HAS_ext8u_i32;
-    case INDEX_op_ext16u_i32:
-        return TCG_TARGET_HAS_ext16u_i32;
-    case INDEX_op_bswap16_i32:
-        return TCG_TARGET_HAS_bswap16_i32;
-    case INDEX_op_bswap32_i32:
-        return TCG_TARGET_HAS_bswap32_i32;
-    case INDEX_op_not_i32:
-        return TCG_TARGET_HAS_not_i32;
-    case INDEX_op_andc_i32:
-        return TCG_TARGET_HAS_andc_i32;
-    case INDEX_op_orc_i32:
-        return TCG_TARGET_HAS_orc_i32;
-    case INDEX_op_eqv_i32:
-        return TCG_TARGET_HAS_eqv_i32;
-    case INDEX_op_nand_i32:
-        return TCG_TARGET_HAS_nand_i32;
-    case INDEX_op_nor_i32:
-        return TCG_TARGET_HAS_nor_i32;
-    case INDEX_op_clz_i32:
-        return TCG_TARGET_HAS_clz_i32;
-    case INDEX_op_ctz_i32:
-        return TCG_TARGET_HAS_ctz_i32;
-    case INDEX_op_ctpop_i32:
-        return TCG_TARGET_HAS_ctpop_i32;
+    case INDEX_op_qemu_ld2:
+    case INDEX_op_qemu_st2:
+        if (TCG_TARGET_REG_BITS == 32) {
+            tcg_debug_assert(type == TCG_TYPE_I64);
+            return true;
+        }
+        tcg_debug_assert(type == TCG_TYPE_I128);
+        goto do_lookup;
+
+    case INDEX_op_add:
+    case INDEX_op_and:
+    case INDEX_op_brcond:
+    case INDEX_op_deposit:
+    case INDEX_op_extract:
+    case INDEX_op_ld8u:
+    case INDEX_op_ld8s:
+    case INDEX_op_ld16u:
+    case INDEX_op_ld16s:
+    case INDEX_op_ld:
+    case INDEX_op_mov:
+    case INDEX_op_movcond:
+    case INDEX_op_negsetcond:
+    case INDEX_op_or:
+    case INDEX_op_setcond:
+    case INDEX_op_sextract:
+    case INDEX_op_st8:
+    case INDEX_op_st16:
+    case INDEX_op_st:
+    case INDEX_op_xor:
+        return has_type;
 
     case INDEX_op_brcond2_i32:
     case INDEX_op_setcond2_i32:
         return TCG_TARGET_REG_BITS == 32;
 
-    case INDEX_op_mov_i64:
-    case INDEX_op_setcond_i64:
-    case INDEX_op_brcond_i64:
-    case INDEX_op_movcond_i64:
-    case INDEX_op_ld8u_i64:
-    case INDEX_op_ld8s_i64:
-    case INDEX_op_ld16u_i64:
-    case INDEX_op_ld16s_i64:
-    case INDEX_op_ld32u_i64:
-    case INDEX_op_ld32s_i64:
-    case INDEX_op_ld_i64:
-    case INDEX_op_st8_i64:
-    case INDEX_op_st16_i64:
-    case INDEX_op_st32_i64:
-    case INDEX_op_st_i64:
-    case INDEX_op_add_i64:
-    case INDEX_op_sub_i64:
-    case INDEX_op_neg_i64:
-    case INDEX_op_mul_i64:
-    case INDEX_op_and_i64:
-    case INDEX_op_or_i64:
-    case INDEX_op_xor_i64:
-    case INDEX_op_shl_i64:
-    case INDEX_op_shr_i64:
-    case INDEX_op_sar_i64:
+    case INDEX_op_ld32u:
+    case INDEX_op_ld32s:
+    case INDEX_op_st32:
     case INDEX_op_ext_i32_i64:
     case INDEX_op_extu_i32_i64:
-    case INDEX_op_extract_i64:
-    case INDEX_op_sextract_i64:
-    case INDEX_op_deposit_i64:
-        return TCG_TARGET_REG_BITS == 64;
-
-    case INDEX_op_negsetcond_i64:
-        return TCG_TARGET_HAS_negsetcond_i64;
-    case INDEX_op_div_i64:
-    case INDEX_op_divu_i64:
-        return TCG_TARGET_HAS_div_i64;
-    case INDEX_op_rem_i64:
-    case INDEX_op_remu_i64:
-        return TCG_TARGET_HAS_rem_i64;
-    case INDEX_op_div2_i64:
-    case INDEX_op_divu2_i64:
-        return TCG_TARGET_HAS_div2_i64;
-    case INDEX_op_rotl_i64:
-    case INDEX_op_rotr_i64:
-        return TCG_TARGET_HAS_rot_i64;
-    case INDEX_op_extract2_i64:
-        return TCG_TARGET_HAS_extract2_i64;
     case INDEX_op_extrl_i64_i32:
     case INDEX_op_extrh_i64_i32:
-        return TCG_TARGET_HAS_extr_i64_i32;
-    case INDEX_op_ext8s_i64:
-        return TCG_TARGET_HAS_ext8s_i64;
-    case INDEX_op_ext16s_i64:
-        return TCG_TARGET_HAS_ext16s_i64;
-    case INDEX_op_ext32s_i64:
-        return TCG_TARGET_HAS_ext32s_i64;
-    case INDEX_op_ext8u_i64:
-        return TCG_TARGET_HAS_ext8u_i64;
-    case INDEX_op_ext16u_i64:
-        return TCG_TARGET_HAS_ext16u_i64;
-    case INDEX_op_ext32u_i64:
-        return TCG_TARGET_HAS_ext32u_i64;
-    case INDEX_op_bswap16_i64:
-        return TCG_TARGET_HAS_bswap16_i64;
-    case INDEX_op_bswap32_i64:
-        return TCG_TARGET_HAS_bswap32_i64;
-    case INDEX_op_bswap64_i64:
-        return TCG_TARGET_HAS_bswap64_i64;
-    case INDEX_op_not_i64:
-        return TCG_TARGET_HAS_not_i64;
-    case INDEX_op_andc_i64:
-        return TCG_TARGET_HAS_andc_i64;
-    case INDEX_op_orc_i64:
-        return TCG_TARGET_HAS_orc_i64;
-    case INDEX_op_eqv_i64:
-        return TCG_TARGET_HAS_eqv_i64;
-    case INDEX_op_nand_i64:
-        return TCG_TARGET_HAS_nand_i64;
-    case INDEX_op_nor_i64:
-        return TCG_TARGET_HAS_nor_i64;
-    case INDEX_op_clz_i64:
-        return TCG_TARGET_HAS_clz_i64;
-    case INDEX_op_ctz_i64:
-        return TCG_TARGET_HAS_ctz_i64;
-    case INDEX_op_ctpop_i64:
-        return TCG_TARGET_HAS_ctpop_i64;
-    case INDEX_op_add2_i64:
-        return TCG_TARGET_HAS_add2_i64;
-    case INDEX_op_sub2_i64:
-        return TCG_TARGET_HAS_sub2_i64;
-    case INDEX_op_mulu2_i64:
-        return TCG_TARGET_HAS_mulu2_i64;
-    case INDEX_op_muls2_i64:
-        return TCG_TARGET_HAS_muls2_i64;
-    case INDEX_op_muluh_i64:
-        return TCG_TARGET_HAS_muluh_i64;
-    case INDEX_op_mulsh_i64:
-        return TCG_TARGET_HAS_mulsh_i64;
+        return TCG_TARGET_REG_BITS == 64;
 
     case INDEX_op_mov_vec:
     case INDEX_op_dup_vec:
@@ -2416,8 +2563,33 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
         return has_type && TCG_TARGET_HAS_cmpsel_vec;
 
     default:
-        tcg_debug_assert(op > INDEX_op_last_generic && op < NB_OPS);
+        if (op < INDEX_op_last_generic) {
+            const TCGOutOp *outop;
+            TCGConstraintSetIndex con_set;
+
+            if (!has_type) {
+                return false;
+            }
+
+    do_lookup:
+            outop = all_outop[op];
+            tcg_debug_assert(outop != NULL);
+
+            con_set = outop->static_constraint;
+            if (con_set == C_Dynamic) {
+                con_set = outop->dynamic_constraint(type, flags);
+            }
+            if (con_set >= 0) {
+                return true;
+            }
+            tcg_debug_assert(con_set == C_NotImplemented);
+            return false;
+        }
+        tcg_debug_assert(op < NB_OPS);
         return true;
+
+    case INDEX_op_last_generic:
+        g_assert_not_reached();
     }
 }
 
@@ -2808,17 +2980,22 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
                 col += ne_fprintf(f, ",%s", t);
             }
         } else {
-            col += ne_fprintf(f, " %s ", def->name);
+            if (def->flags & TCG_OPF_INT) {
+                col += ne_fprintf(f, " %s_i%d ",
+                                  def->name,
+                                  8 * tcg_type_size(TCGOP_TYPE(op)));
+            } else if (def->flags & TCG_OPF_VECTOR) {
+                col += ne_fprintf(f, "%s v%d,e%d,",
+                                  def->name,
+                                  8 * tcg_type_size(TCGOP_TYPE(op)),
+                                  8 << TCGOP_VECE(op));
+            } else {
+                col += ne_fprintf(f, " %s ", def->name);
+            }
 
             nb_oargs = def->nb_oargs;
             nb_iargs = def->nb_iargs;
             nb_cargs = def->nb_cargs;
-
-            if (def->flags & TCG_OPF_VECTOR) {
-                col += ne_fprintf(f, "v%d,e%d,",
-                                  8 * tcg_type_size(TCGOP_TYPE(op)),
-                                  8 << TCGOP_VECE(op));
-            }
 
             k = 0;
             for (i = 0; i < nb_oargs; i++) {
@@ -2834,16 +3011,12 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
                                                   op->args[k++]));
             }
             switch (c) {
-            case INDEX_op_brcond_i32:
-            case INDEX_op_setcond_i32:
-            case INDEX_op_negsetcond_i32:
-            case INDEX_op_movcond_i32:
+            case INDEX_op_brcond:
+            case INDEX_op_setcond:
+            case INDEX_op_negsetcond:
+            case INDEX_op_movcond:
             case INDEX_op_brcond2_i32:
             case INDEX_op_setcond2_i32:
-            case INDEX_op_brcond_i64:
-            case INDEX_op_setcond_i64:
-            case INDEX_op_negsetcond_i64:
-            case INDEX_op_movcond_i64:
             case INDEX_op_cmp_vec:
             case INDEX_op_cmpsel_vec:
                 if (op->args[k] < ARRAY_SIZE(cond_name)
@@ -2854,13 +3027,10 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
                 }
                 i = 1;
                 break;
-            case INDEX_op_qemu_ld_i32:
-            case INDEX_op_qemu_st_i32:
-            case INDEX_op_qemu_st8_i32:
-            case INDEX_op_qemu_ld_i64:
-            case INDEX_op_qemu_st_i64:
-            case INDEX_op_qemu_ld_i128:
-            case INDEX_op_qemu_st_i128:
+            case INDEX_op_qemu_ld:
+            case INDEX_op_qemu_st:
+            case INDEX_op_qemu_ld2:
+            case INDEX_op_qemu_st2:
                 {
                     const char *s_al, *s_op, *s_at;
                     MemOpIdx oi = op->args[k++];
@@ -2883,11 +3053,9 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
                     i = 1;
                 }
                 break;
-            case INDEX_op_bswap16_i32:
-            case INDEX_op_bswap16_i64:
-            case INDEX_op_bswap32_i32:
-            case INDEX_op_bswap32_i64:
-            case INDEX_op_bswap64_i64:
+            case INDEX_op_bswap16:
+            case INDEX_op_bswap32:
+            case INDEX_op_bswap64:
                 {
                     TCGArg flags = op->args[k];
                     const char *name = NULL;
@@ -2928,8 +3096,7 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
             switch (c) {
             case INDEX_op_set_label:
             case INDEX_op_br:
-            case INDEX_op_brcond_i32:
-            case INDEX_op_brcond_i64:
+            case INDEX_op_brcond:
             case INDEX_op_brcond2_i32:
                 col += ne_fprintf(f, "%s$L%d", k ? "," : "",
                                   arg_label(op->args[k])->id);
@@ -3335,19 +3502,27 @@ static void process_constraint_sets(void)
 
 static const TCGArgConstraint *opcode_args_ct(const TCGOp *op)
 {
-    const TCGOpDef *def = &tcg_op_defs[op->opc];
+    TCGOpcode opc = op->opc;
+    TCGType type = TCGOP_TYPE(op);
+    unsigned flags = TCGOP_FLAGS(op);
+    const TCGOpDef *def = &tcg_op_defs[opc];
+    const TCGOutOp *outop = all_outop[opc];
     TCGConstraintSetIndex con_set;
-
-#ifdef CONFIG_DEBUG_TCG
-    assert(tcg_op_supported(op->opc, TCGOP_TYPE(op), TCGOP_FLAGS(op)));
-#endif
 
     if (def->flags & TCG_OPF_NOT_PRESENT) {
         return empty_cts;
     }
 
-    con_set = tcg_target_op_def(op->opc, TCGOP_TYPE(op), TCGOP_FLAGS(op));
-    tcg_debug_assert(con_set >= 0 && con_set < ARRAY_SIZE(constraint_sets));
+    if (outop) {
+        con_set = outop->static_constraint;
+        if (con_set == C_Dynamic) {
+            con_set = outop->dynamic_constraint(type, flags);
+        }
+    } else {
+        con_set = tcg_target_op_def(opc, type, flags);
+    }
+    tcg_debug_assert(con_set >= 0);
+    tcg_debug_assert(con_set < ARRAY_SIZE(constraint_sets));
 
     /* The constraint arguments must match TCGOpcode arguments. */
     tcg_debug_assert(constraint_sets[con_set].nb_oargs == def->nb_oargs);
@@ -3376,8 +3551,7 @@ void tcg_op_remove(TCGContext *s, TCGOp *op)
     case INDEX_op_br:
         remove_label_use(op, 0);
         break;
-    case INDEX_op_brcond_i32:
-    case INDEX_op_brcond_i64:
+    case INDEX_op_brcond:
         remove_label_use(op, 3);
         break;
     case INDEX_op_brcond2_i32:
@@ -3449,21 +3623,21 @@ TCGOp *tcg_emit_op(TCGOpcode opc, unsigned nargs)
 }
 
 TCGOp *tcg_op_insert_before(TCGContext *s, TCGOp *old_op,
-                            TCGOpcode opc, unsigned nargs)
+                            TCGOpcode opc, TCGType type, unsigned nargs)
 {
     TCGOp *new_op = tcg_op_alloc(opc, nargs);
 
-    TCGOP_TYPE(new_op) = TCGOP_TYPE(old_op);
+    TCGOP_TYPE(new_op) = type;
     QTAILQ_INSERT_BEFORE(old_op, new_op, link);
     return new_op;
 }
 
 TCGOp *tcg_op_insert_after(TCGContext *s, TCGOp *old_op,
-                           TCGOpcode opc, unsigned nargs)
+                           TCGOpcode opc, TCGType type, unsigned nargs)
 {
     TCGOp *new_op = tcg_op_alloc(opc, nargs);
 
-    TCGOP_TYPE(new_op) = TCGOP_TYPE(old_op);
+    TCGOP_TYPE(new_op) = type;
     QTAILQ_INSERT_AFTER(&s->ops, old_op, new_op, link);
     return new_op;
 }
@@ -3478,8 +3652,7 @@ static void move_label_uses(TCGLabel *to, TCGLabel *from)
         case INDEX_op_br:
             op->args[0] = label_arg(to);
             break;
-        case INDEX_op_brcond_i32:
-        case INDEX_op_brcond_i64:
+        case INDEX_op_brcond:
             op->args[3] = label_arg(to);
             break;
         case INDEX_op_brcond2_i32:
@@ -3798,6 +3971,17 @@ liveness_pass_0(TCGContext *s)
     }
 }
 
+static void assert_carry_dead(TCGContext *s)
+{
+    /*
+     * Carry operations can be separated by a few insns like mov,
+     * load or store, but they should always be "close", and
+     * carry-out operations should always be paired with carry-in.
+     * At various boundaries, carry must have been consumed.
+     */
+    tcg_debug_assert(!s->carry_live);
+}
+
 /* Liveness analysis : update the opc_arg_life array to tell if a
    given input arguments is dead. Instructions updating dead
    temporaries are removed. */
@@ -3808,28 +3992,28 @@ liveness_pass_1(TCGContext *s)
     int nb_temps = s->nb_temps;
     TCGOp *op, *op_prev;
     TCGRegSet *prefs;
-    int i;
 
     prefs = tcg_malloc(sizeof(TCGRegSet) * nb_temps);
-    for (i = 0; i < nb_temps; ++i) {
+    for (int i = 0; i < nb_temps; ++i) {
         s->temps[i].state_ptr = prefs + i;
     }
 
     /* ??? Should be redundant with the exit_tb that ends the TB.  */
     la_func_end(s, nb_globals, nb_temps);
 
+    s->carry_live = false;
     QTAILQ_FOREACH_REVERSE_SAFE(op, &s->ops, link, op_prev) {
         int nb_iargs, nb_oargs;
         TCGOpcode opc_new, opc_new2;
-        bool have_opc_new2;
         TCGLifeData arg_life = 0;
         TCGTemp *ts;
         TCGOpcode opc = op->opc;
-        const TCGOpDef *def = &tcg_op_defs[opc];
+        const TCGOpDef *def;
         const TCGArgConstraint *args_ct;
 
         switch (opc) {
         case INDEX_op_call:
+            assert_carry_dead(s);
             {
                 const TCGHelperInfo *info = tcg_call_info(op);
                 int call_flags = tcg_call_flags(op);
@@ -3839,7 +4023,7 @@ liveness_pass_1(TCGContext *s)
 
                 /* pure functions can be removed if their result is unused */
                 if (call_flags & TCG_CALL_NO_SIDE_EFFECTS) {
-                    for (i = 0; i < nb_oargs; i++) {
+                    for (int i = 0; i < nb_oargs; i++) {
                         ts = arg_temp(op->args[i]);
                         if (ts->state != TS_DEAD) {
                             goto do_not_remove_call;
@@ -3850,7 +4034,7 @@ liveness_pass_1(TCGContext *s)
             do_not_remove_call:
 
                 /* Output args are dead.  */
-                for (i = 0; i < nb_oargs; i++) {
+                for (int i = 0; i < nb_oargs; i++) {
                     ts = arg_temp(op->args[i]);
                     if (ts->state & TS_DEAD) {
                         arg_life |= DEAD_ARG << i;
@@ -3873,7 +4057,7 @@ liveness_pass_1(TCGContext *s)
                 }
 
                 /* Record arguments that die in this helper.  */
-                for (i = nb_oargs; i < nb_iargs + nb_oargs; i++) {
+                for (int i = nb_oargs; i < nb_iargs + nb_oargs; i++) {
                     ts = arg_temp(op->args[i]);
                     if (ts->state & TS_DEAD) {
                         arg_life |= DEAD_ARG << i;
@@ -3893,7 +4077,7 @@ liveness_pass_1(TCGContext *s)
                  * order so that if a temp is used more than once, the stack
                  * reset to max happens before the register reset to 0.
                  */
-                for (i = nb_iargs - 1; i >= 0; i--) {
+                for (int i = nb_iargs - 1; i >= 0; i--) {
                     const TCGCallArgumentLoc *loc = &info->in[i];
                     ts = arg_temp(op->args[nb_oargs + i]);
 
@@ -3921,7 +4105,7 @@ liveness_pass_1(TCGContext *s)
                  * If a temp is used once, this produces a single set bit;
                  * if a temp is used multiple times, this produces a set.
                  */
-                for (i = 0; i < nb_iargs; i++) {
+                for (int i = 0; i < nb_iargs; i++) {
                     const TCGCallArgumentLoc *loc = &info->in[i];
                     ts = arg_temp(op->args[nb_oargs + i]);
 
@@ -3941,6 +4125,7 @@ liveness_pass_1(TCGContext *s)
             }
             break;
         case INDEX_op_insn_start:
+            assert_carry_dead(s);
             break;
         case INDEX_op_discard:
             /* mark the temporary as dead */
@@ -3949,62 +4134,15 @@ liveness_pass_1(TCGContext *s)
             la_reset_pref(ts);
             break;
 
-        case INDEX_op_add2_i32:
-            opc_new = INDEX_op_add_i32;
-            goto do_addsub2;
-        case INDEX_op_sub2_i32:
-            opc_new = INDEX_op_sub_i32;
-            goto do_addsub2;
-        case INDEX_op_add2_i64:
-            opc_new = INDEX_op_add_i64;
-            goto do_addsub2;
-        case INDEX_op_sub2_i64:
-            opc_new = INDEX_op_sub_i64;
-        do_addsub2:
-            nb_iargs = 4;
-            nb_oargs = 2;
-            /* Test if the high part of the operation is dead, but not
-               the low part.  The result can be optimized to a simple
-               add or sub.  This happens often for x86_64 guest when the
-               cpu mode is set to 32 bit.  */
-            if (arg_temp(op->args[1])->state == TS_DEAD) {
-                if (arg_temp(op->args[0])->state == TS_DEAD) {
-                    goto do_remove;
-                }
-                /* Replace the opcode and adjust the args in place,
-                   leaving 3 unused args at the end.  */
-                op->opc = opc = opc_new;
-                op->args[1] = op->args[2];
-                op->args[2] = op->args[4];
-                /* Fall through and mark the single-word operation live.  */
-                nb_iargs = 2;
-                nb_oargs = 1;
-            }
-            goto do_not_remove;
-
-        case INDEX_op_mulu2_i32:
-            opc_new = INDEX_op_mul_i32;
-            opc_new2 = INDEX_op_muluh_i32;
-            have_opc_new2 = TCG_TARGET_HAS_muluh_i32;
+        case INDEX_op_muls2:
+            opc_new = INDEX_op_mul;
+            opc_new2 = INDEX_op_mulsh;
             goto do_mul2;
-        case INDEX_op_muls2_i32:
-            opc_new = INDEX_op_mul_i32;
-            opc_new2 = INDEX_op_mulsh_i32;
-            have_opc_new2 = TCG_TARGET_HAS_mulsh_i32;
-            goto do_mul2;
-        case INDEX_op_mulu2_i64:
-            opc_new = INDEX_op_mul_i64;
-            opc_new2 = INDEX_op_muluh_i64;
-            have_opc_new2 = TCG_TARGET_HAS_muluh_i64;
-            goto do_mul2;
-        case INDEX_op_muls2_i64:
-            opc_new = INDEX_op_mul_i64;
-            opc_new2 = INDEX_op_mulsh_i64;
-            have_opc_new2 = TCG_TARGET_HAS_mulsh_i64;
-            goto do_mul2;
+        case INDEX_op_mulu2:
+            opc_new = INDEX_op_mul;
+            opc_new2 = INDEX_op_muluh;
         do_mul2:
-            nb_iargs = 2;
-            nb_oargs = 2;
+            assert_carry_dead(s);
             if (arg_temp(op->args[1])->state == TS_DEAD) {
                 if (arg_temp(op->args[0])->state == TS_DEAD) {
                     /* Both parts of the operation are dead.  */
@@ -4014,7 +4152,8 @@ liveness_pass_1(TCGContext *s)
                 op->opc = opc = opc_new;
                 op->args[1] = op->args[2];
                 op->args[2] = op->args[3];
-            } else if (arg_temp(op->args[0])->state == TS_DEAD && have_opc_new2) {
+            } else if (arg_temp(op->args[0])->state == TS_DEAD &&
+                       tcg_op_supported(opc_new2, TCGOP_TYPE(op), 0)) {
                 /* The low part of the operation is dead; generate the high. */
                 op->opc = opc = opc_new2;
                 op->args[0] = op->args[1];
@@ -4024,19 +4163,94 @@ liveness_pass_1(TCGContext *s)
                 goto do_not_remove;
             }
             /* Mark the single-word operation live.  */
-            nb_oargs = 1;
             goto do_not_remove;
 
-        default:
-            /* XXX: optimize by hardcoding common cases (e.g. triadic ops) */
-            nb_iargs = def->nb_iargs;
-            nb_oargs = def->nb_oargs;
+        case INDEX_op_addco:
+            if (s->carry_live) {
+                goto do_not_remove;
+            }
+            op->opc = opc = INDEX_op_add;
+            goto do_default;
 
-            /* Test if the operation can be removed because all
-               its outputs are dead. We assume that nb_oargs == 0
-               implies side effects */
-            if (!(def->flags & TCG_OPF_SIDE_EFFECTS) && nb_oargs != 0) {
-                for (i = 0; i < nb_oargs; i++) {
+        case INDEX_op_addcio:
+            if (s->carry_live) {
+                goto do_not_remove;
+            }
+            op->opc = opc = INDEX_op_addci;
+            goto do_default;
+
+        case INDEX_op_subbo:
+            if (s->carry_live) {
+                goto do_not_remove;
+            }
+            /* Lower to sub, but this may also require canonicalization. */
+            op->opc = opc = INDEX_op_sub;
+            ts = arg_temp(op->args[2]);
+            if (ts->kind == TEMP_CONST) {
+                ts = tcg_constant_internal(ts->type, -ts->val);
+                if (ts->state_ptr == NULL) {
+                    tcg_debug_assert(temp_idx(ts) == nb_temps);
+                    nb_temps++;
+                    ts->state_ptr = tcg_malloc(sizeof(TCGRegSet));
+                    ts->state = TS_DEAD;
+                    la_reset_pref(ts);
+                }
+                op->args[2] = temp_arg(ts);
+                op->opc = opc = INDEX_op_add;
+            }
+            goto do_default;
+
+        case INDEX_op_subbio:
+            if (s->carry_live) {
+                goto do_not_remove;
+            }
+            op->opc = opc = INDEX_op_subbi;
+            goto do_default;
+
+        case INDEX_op_addc1o:
+            if (s->carry_live) {
+                goto do_not_remove;
+            }
+            /* Lower to add, add +1. */
+            op_prev = tcg_op_insert_before(s, op, INDEX_op_add,
+                                           TCGOP_TYPE(op), 3);
+            op_prev->args[0] = op->args[0];
+            op_prev->args[1] = op->args[1];
+            op_prev->args[2] = op->args[2];
+            op->opc = opc = INDEX_op_add;
+            op->args[1] = op->args[0];
+            ts = arg_temp(op->args[0]);
+            ts = tcg_constant_internal(ts->type, 1);
+            op->args[2] = temp_arg(ts);
+            goto do_default;
+
+        case INDEX_op_subb1o:
+            if (s->carry_live) {
+                goto do_not_remove;
+            }
+            /* Lower to sub, add -1. */
+            op_prev = tcg_op_insert_before(s, op, INDEX_op_sub,
+                                           TCGOP_TYPE(op), 3);
+            op_prev->args[0] = op->args[0];
+            op_prev->args[1] = op->args[1];
+            op_prev->args[2] = op->args[2];
+            op->opc = opc = INDEX_op_add;
+            op->args[1] = op->args[0];
+            ts = arg_temp(op->args[0]);
+            ts = tcg_constant_internal(ts->type, -1);
+            op->args[2] = temp_arg(ts);
+            goto do_default;
+
+        default:
+        do_default:
+            /*
+             * Test if the operation can be removed because all
+             * its outputs are dead. We assume that nb_oargs == 0
+             * implies side effects.
+             */
+            def = &tcg_op_defs[opc];
+            if (!(def->flags & TCG_OPF_SIDE_EFFECTS) && def->nb_oargs != 0) {
+                for (int i = def->nb_oargs - 1; i >= 0; i--) {
                     if (arg_temp(op->args[i])->state != TS_DEAD) {
                         goto do_not_remove;
                     }
@@ -4050,7 +4264,11 @@ liveness_pass_1(TCGContext *s)
             break;
 
         do_not_remove:
-            for (i = 0; i < nb_oargs; i++) {
+            def = &tcg_op_defs[opc];
+            nb_iargs = def->nb_iargs;
+            nb_oargs = def->nb_oargs;
+
+            for (int i = 0; i < nb_oargs; i++) {
                 ts = arg_temp(op->args[i]);
 
                 /* Remember the preference of the uses that followed.  */
@@ -4071,12 +4289,16 @@ liveness_pass_1(TCGContext *s)
 
             /* If end of basic block, update.  */
             if (def->flags & TCG_OPF_BB_EXIT) {
+                assert_carry_dead(s);
                 la_func_end(s, nb_globals, nb_temps);
             } else if (def->flags & TCG_OPF_COND_BRANCH) {
+                assert_carry_dead(s);
                 la_bb_sync(s, nb_globals, nb_temps);
             } else if (def->flags & TCG_OPF_BB_END) {
+                assert_carry_dead(s);
                 la_bb_end(s, nb_globals, nb_temps);
             } else if (def->flags & TCG_OPF_SIDE_EFFECTS) {
+                assert_carry_dead(s);
                 la_global_sync(s, nb_globals);
                 if (def->flags & TCG_OPF_CALL_CLOBBER) {
                     la_cross_call(s, nb_temps);
@@ -4084,15 +4306,18 @@ liveness_pass_1(TCGContext *s)
             }
 
             /* Record arguments that die in this opcode.  */
-            for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
+            for (int i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
                 ts = arg_temp(op->args[i]);
                 if (ts->state & TS_DEAD) {
                     arg_life |= DEAD_ARG << i;
                 }
             }
+            if (def->flags & TCG_OPF_CARRY_OUT) {
+                s->carry_live = false;
+            }
 
             /* Input arguments are live for preceding opcodes.  */
-            for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
+            for (int i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
                 ts = arg_temp(op->args[i]);
                 if (ts->state & TS_DEAD) {
                     /* For operands that were dead, initially allow
@@ -4101,11 +4326,13 @@ liveness_pass_1(TCGContext *s)
                     ts->state &= ~TS_DEAD;
                 }
             }
+            if (def->flags & TCG_OPF_CARRY_IN) {
+                s->carry_live = true;
+            }
 
             /* Incorporate constraints for this operand.  */
             switch (opc) {
-            case INDEX_op_mov_i32:
-            case INDEX_op_mov_i64:
+            case INDEX_op_mov:
                 /* Note that these are TCG_OPF_NOT_PRESENT and do not
                    have proper constraints.  That said, special case
                    moves to propagate preferences backward.  */
@@ -4117,7 +4344,7 @@ liveness_pass_1(TCGContext *s)
 
             default:
                 args_ct = opcode_args_ct(op);
-                for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
+                for (int i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
                     const TCGArgConstraint *ct = &args_ct[i];
                     TCGRegSet set, *pset;
 
@@ -4141,6 +4368,7 @@ liveness_pass_1(TCGContext *s)
         }
         op->life = arg_life;
     }
+    assert_carry_dead(s);
 }
 
 /* Liveness analysis: Convert indirect regs to direct temporaries.  */
@@ -4211,10 +4439,8 @@ liveness_pass_2(TCGContext *s)
             arg_ts = arg_temp(op->args[i]);
             dir_ts = arg_ts->state_ptr;
             if (dir_ts && arg_ts->state == TS_DEAD) {
-                TCGOpcode lopc = (arg_ts->type == TCG_TYPE_I32
-                                  ? INDEX_op_ld_i32
-                                  : INDEX_op_ld_i64);
-                TCGOp *lop = tcg_op_insert_before(s, op, lopc, 3);
+                TCGOp *lop = tcg_op_insert_before(s, op, INDEX_op_ld,
+                                                  arg_ts->type, 3);
 
                 lop->args[0] = temp_arg(dir_ts);
                 lop->args[1] = temp_arg(arg_ts->mem_base);
@@ -4263,7 +4489,7 @@ liveness_pass_2(TCGContext *s)
         }
 
         /* Outputs become available.  */
-        if (opc == INDEX_op_mov_i32 || opc == INDEX_op_mov_i64) {
+        if (opc == INDEX_op_mov) {
             arg_ts = arg_temp(op->args[0]);
             dir_ts = arg_ts->state_ptr;
             if (dir_ts) {
@@ -4274,10 +4500,8 @@ liveness_pass_2(TCGContext *s)
                 arg_ts->state = 0;
 
                 if (NEED_SYNC_ARG(0)) {
-                    TCGOpcode sopc = (arg_ts->type == TCG_TYPE_I32
-                                      ? INDEX_op_st_i32
-                                      : INDEX_op_st_i64);
-                    TCGOp *sop = tcg_op_insert_after(s, op, sopc, 3);
+                    TCGOp *sop = tcg_op_insert_after(s, op, INDEX_op_st,
+                                                     arg_ts->type, 3);
                     TCGTemp *out_ts = dir_ts;
 
                     if (IS_DEAD_ARG(0)) {
@@ -4310,10 +4534,8 @@ liveness_pass_2(TCGContext *s)
 
                 /* Sync outputs upon their last write.  */
                 if (NEED_SYNC_ARG(i)) {
-                    TCGOpcode sopc = (arg_ts->type == TCG_TYPE_I32
-                                      ? INDEX_op_st_i32
-                                      : INDEX_op_st_i64);
-                    TCGOp *sop = tcg_op_insert_after(s, op, sopc, 3);
+                    TCGOp *sop = tcg_op_insert_after(s, op, INDEX_op_st,
+                                                     arg_ts->type, 3);
 
                     sop->args[0] = temp_arg(dir_ts);
                     sop->args[1] = temp_arg(arg_ts->mem_base);
@@ -4726,9 +4948,8 @@ static void sync_globals(TCGContext *s, TCGRegSet allocated_regs)
    all globals are stored at their canonical location. */
 static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
 {
-    int i;
-
-    for (i = s->nb_globals; i < s->nb_temps; i++) {
+    assert_carry_dead(s);
+    for (int i = s->nb_globals; i < s->nb_temps; i++) {
         TCGTemp *ts = &s->temps[i];
 
         switch (ts->kind) {
@@ -4759,6 +4980,7 @@ static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
  */
 static void tcg_reg_alloc_cbranch(TCGContext *s, TCGRegSet allocated_regs)
 {
+    assert_carry_dead(s);
     sync_globals(s, allocated_regs);
 
     for (int i = s->nb_globals; i < s->nb_temps; i++) {
@@ -5030,6 +5252,10 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     int const_args[TCG_MAX_OP_ARGS];
     TCGCond op_cond;
 
+    if (def->flags & TCG_OPF_CARRY_IN) {
+        tcg_debug_assert(s->carry_live);
+    }
+
     nb_oargs = def->nb_oargs;
     nb_iargs = def->nb_iargs;
 
@@ -5042,22 +5268,18 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     o_allocated_regs = s->reserved_regs;
 
     switch (op->opc) {
-    case INDEX_op_brcond_i32:
-    case INDEX_op_brcond_i64:
+    case INDEX_op_brcond:
         op_cond = op->args[2];
         break;
-    case INDEX_op_setcond_i32:
-    case INDEX_op_setcond_i64:
-    case INDEX_op_negsetcond_i32:
-    case INDEX_op_negsetcond_i64:
+    case INDEX_op_setcond:
+    case INDEX_op_negsetcond:
     case INDEX_op_cmp_vec:
         op_cond = op->args[3];
         break;
     case INDEX_op_brcond2_i32:
         op_cond = op->args[4];
         break;
-    case INDEX_op_movcond_i32:
-    case INDEX_op_movcond_i64:
+    case INDEX_op_movcond:
     case INDEX_op_setcond2_i32:
     case INDEX_op_cmpsel_vec:
         op_cond = op->args[5];
@@ -5290,6 +5512,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         tcg_reg_alloc_bb_end(s, i_allocated_regs);
     } else {
         if (def->flags & TCG_OPF_CALL_CLOBBER) {
+            assert_carry_dead(s);
             /* XXX: permit generic clobber register list ? */
             for (i = 0; i < TCG_TARGET_NB_REGS; i++) {
                 if (tcg_regset_test_reg(tcg_target_call_clobber_regs, i)) {
@@ -5366,50 +5589,345 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     }
 
     /* emit instruction */
+    TCGType type = TCGOP_TYPE(op);
     switch (op->opc) {
-    case INDEX_op_ext8s_i32:
-        tcg_out_ext8s(s, TCG_TYPE_I32, new_args[0], new_args[1]);
-        break;
-    case INDEX_op_ext8s_i64:
-        tcg_out_ext8s(s, TCG_TYPE_I64, new_args[0], new_args[1]);
-        break;
-    case INDEX_op_ext8u_i32:
-    case INDEX_op_ext8u_i64:
-        tcg_out_ext8u(s, new_args[0], new_args[1]);
-        break;
-    case INDEX_op_ext16s_i32:
-        tcg_out_ext16s(s, TCG_TYPE_I32, new_args[0], new_args[1]);
-        break;
-    case INDEX_op_ext16s_i64:
-        tcg_out_ext16s(s, TCG_TYPE_I64, new_args[0], new_args[1]);
-        break;
-    case INDEX_op_ext16u_i32:
-    case INDEX_op_ext16u_i64:
-        tcg_out_ext16u(s, new_args[0], new_args[1]);
-        break;
-    case INDEX_op_ext32s_i64:
-        tcg_out_ext32s(s, new_args[0], new_args[1]);
-        break;
-    case INDEX_op_ext32u_i64:
-        tcg_out_ext32u(s, new_args[0], new_args[1]);
-        break;
-    case INDEX_op_ext_i32_i64:
-        tcg_out_exts_i32_i64(s, new_args[0], new_args[1]);
-        break;
-    case INDEX_op_extu_i32_i64:
-        tcg_out_extu_i32_i64(s, new_args[0], new_args[1]);
-        break;
-    case INDEX_op_extrl_i64_i32:
-        tcg_out_extrl_i64_i32(s, new_args[0], new_args[1]);
-        break;
-    default:
-        if (def->flags & TCG_OPF_VECTOR) {
-            tcg_out_vec_op(s, op->opc, TCGOP_TYPE(op) - TCG_TYPE_V64,
-                           TCGOP_VECE(op), new_args, const_args);
-        } else {
-            tcg_out_op(s, op->opc, TCGOP_TYPE(op), new_args, const_args);
+    case INDEX_op_addc1o:
+        tcg_out_set_carry(s);
+        /* fall through */
+    case INDEX_op_add:
+    case INDEX_op_addcio:
+    case INDEX_op_addco:
+    case INDEX_op_and:
+    case INDEX_op_andc:
+    case INDEX_op_clz:
+    case INDEX_op_ctz:
+    case INDEX_op_divs:
+    case INDEX_op_divu:
+    case INDEX_op_eqv:
+    case INDEX_op_mul:
+    case INDEX_op_mulsh:
+    case INDEX_op_muluh:
+    case INDEX_op_nand:
+    case INDEX_op_nor:
+    case INDEX_op_or:
+    case INDEX_op_orc:
+    case INDEX_op_rems:
+    case INDEX_op_remu:
+    case INDEX_op_rotl:
+    case INDEX_op_rotr:
+    case INDEX_op_sar:
+    case INDEX_op_shl:
+    case INDEX_op_shr:
+    case INDEX_op_xor:
+        {
+            const TCGOutOpBinary *out =
+                container_of(all_outop[op->opc], TCGOutOpBinary, base);
+
+            /* Constants should never appear in the first source operand. */
+            tcg_debug_assert(!const_args[1]);
+            if (const_args[2]) {
+                out->out_rri(s, type, new_args[0], new_args[1], new_args[2]);
+            } else {
+                out->out_rrr(s, type, new_args[0], new_args[1], new_args[2]);
+            }
         }
         break;
+
+    case INDEX_op_sub:
+        {
+            const TCGOutOpSubtract *out = &outop_sub;
+
+            /*
+             * Constants should never appear in the second source operand.
+             * These are folded to add with negative constant.
+             */
+            tcg_debug_assert(!const_args[2]);
+            if (const_args[1]) {
+                out->out_rir(s, type, new_args[0], new_args[1], new_args[2]);
+            } else {
+                out->out_rrr(s, type, new_args[0], new_args[1], new_args[2]);
+            }
+        }
+        break;
+
+    case INDEX_op_subb1o:
+        tcg_out_set_borrow(s);
+        /* fall through */
+    case INDEX_op_addci:
+    case INDEX_op_subbi:
+    case INDEX_op_subbio:
+    case INDEX_op_subbo:
+        {
+            const TCGOutOpAddSubCarry *out =
+                container_of(all_outop[op->opc], TCGOutOpAddSubCarry, base);
+
+            if (const_args[2]) {
+                if (const_args[1]) {
+                    out->out_rii(s, type, new_args[0],
+                                 new_args[1], new_args[2]);
+                } else {
+                    out->out_rri(s, type, new_args[0],
+                                 new_args[1], new_args[2]);
+                }
+            } else if (const_args[1]) {
+                out->out_rir(s, type, new_args[0], new_args[1], new_args[2]);
+            } else {
+                out->out_rrr(s, type, new_args[0], new_args[1], new_args[2]);
+            }
+        }
+        break;
+
+    case INDEX_op_bswap64:
+    case INDEX_op_ext_i32_i64:
+    case INDEX_op_extu_i32_i64:
+    case INDEX_op_extrl_i64_i32:
+    case INDEX_op_extrh_i64_i32:
+        assert(TCG_TARGET_REG_BITS == 64);
+        /* fall through */
+    case INDEX_op_ctpop:
+    case INDEX_op_neg:
+    case INDEX_op_not:
+        {
+            const TCGOutOpUnary *out =
+                container_of(all_outop[op->opc], TCGOutOpUnary, base);
+
+            /* Constants should have been folded. */
+            tcg_debug_assert(!const_args[1]);
+            out->out_rr(s, type, new_args[0], new_args[1]);
+        }
+        break;
+
+    case INDEX_op_bswap16:
+    case INDEX_op_bswap32:
+        {
+            const TCGOutOpBswap *out =
+                container_of(all_outop[op->opc], TCGOutOpBswap, base);
+
+            tcg_debug_assert(!const_args[1]);
+            out->out_rr(s, type, new_args[0], new_args[1], new_args[2]);
+        }
+        break;
+
+    case INDEX_op_deposit:
+        {
+            const TCGOutOpDeposit *out = &outop_deposit;
+
+            if (const_args[2]) {
+                tcg_debug_assert(!const_args[1]);
+                out->out_rri(s, type, new_args[0], new_args[1],
+                             new_args[2], new_args[3], new_args[4]);
+            } else if (const_args[1]) {
+                tcg_debug_assert(new_args[1] == 0);
+                tcg_debug_assert(!const_args[2]);
+                out->out_rzr(s, type, new_args[0], new_args[2],
+                             new_args[3], new_args[4]);
+            } else {
+                out->out_rrr(s, type, new_args[0], new_args[1],
+                             new_args[2], new_args[3], new_args[4]);
+            }
+        }
+        break;
+
+    case INDEX_op_divs2:
+    case INDEX_op_divu2:
+        {
+            const TCGOutOpDivRem *out =
+                container_of(all_outop[op->opc], TCGOutOpDivRem, base);
+
+            /* Only used by x86 and s390x, which use matching constraints. */
+            tcg_debug_assert(new_args[0] == new_args[2]);
+            tcg_debug_assert(new_args[1] == new_args[3]);
+            tcg_debug_assert(!const_args[4]);
+            out->out_rr01r(s, type, new_args[0], new_args[1], new_args[4]);
+        }
+        break;
+
+    case INDEX_op_extract:
+    case INDEX_op_sextract:
+        {
+            const TCGOutOpExtract *out =
+                container_of(all_outop[op->opc], TCGOutOpExtract, base);
+
+            tcg_debug_assert(!const_args[1]);
+            out->out_rr(s, type, new_args[0], new_args[1],
+                        new_args[2], new_args[3]);
+        }
+        break;
+
+    case INDEX_op_extract2:
+        {
+            const TCGOutOpExtract2 *out = &outop_extract2;
+
+            tcg_debug_assert(!const_args[1]);
+            tcg_debug_assert(!const_args[2]);
+            out->out_rrr(s, type, new_args[0], new_args[1],
+                         new_args[2], new_args[3]);
+        }
+        break;
+
+    case INDEX_op_ld8u:
+    case INDEX_op_ld8s:
+    case INDEX_op_ld16u:
+    case INDEX_op_ld16s:
+    case INDEX_op_ld32u:
+    case INDEX_op_ld32s:
+    case INDEX_op_ld:
+        {
+            const TCGOutOpLoad *out =
+                container_of(all_outop[op->opc], TCGOutOpLoad, base);
+
+            tcg_debug_assert(!const_args[1]);
+            out->out(s, type, new_args[0], new_args[1], new_args[2]);
+        }
+        break;
+
+    case INDEX_op_muls2:
+    case INDEX_op_mulu2:
+        {
+            const TCGOutOpMul2 *out =
+                container_of(all_outop[op->opc], TCGOutOpMul2, base);
+
+            tcg_debug_assert(!const_args[2]);
+            tcg_debug_assert(!const_args[3]);
+            out->out_rrrr(s, type, new_args[0], new_args[1],
+                          new_args[2], new_args[3]);
+        }
+        break;
+
+    case INDEX_op_st32:
+        /* Use tcg_op_st w/ I32. */
+        type = TCG_TYPE_I32;
+        /* fall through */
+    case INDEX_op_st:
+    case INDEX_op_st8:
+    case INDEX_op_st16:
+        {
+            const TCGOutOpStore *out =
+                container_of(all_outop[op->opc], TCGOutOpStore, base);
+
+            if (const_args[0]) {
+                out->out_i(s, type, new_args[0], new_args[1], new_args[2]);
+            } else {
+                out->out_r(s, type, new_args[0], new_args[1], new_args[2]);
+            }
+        }
+        break;
+
+    case INDEX_op_qemu_ld:
+    case INDEX_op_qemu_st:
+        {
+            const TCGOutOpQemuLdSt *out =
+                container_of(all_outop[op->opc], TCGOutOpQemuLdSt, base);
+
+            out->out(s, type, new_args[0], new_args[1], new_args[2]);
+        }
+        break;
+
+    case INDEX_op_qemu_ld2:
+    case INDEX_op_qemu_st2:
+        {
+            const TCGOutOpQemuLdSt2 *out =
+                container_of(all_outop[op->opc], TCGOutOpQemuLdSt2, base);
+
+            out->out(s, type, new_args[0], new_args[1],
+                     new_args[2], new_args[3]);
+        }
+        break;
+
+    case INDEX_op_brcond:
+        {
+            const TCGOutOpBrcond *out = &outop_brcond;
+            TCGCond cond = new_args[2];
+            TCGLabel *label = arg_label(new_args[3]);
+
+            tcg_debug_assert(!const_args[0]);
+            if (const_args[1]) {
+                out->out_ri(s, type, cond, new_args[0], new_args[1], label);
+            } else {
+                out->out_rr(s, type, cond, new_args[0], new_args[1], label);
+            }
+        }
+        break;
+
+    case INDEX_op_movcond:
+        {
+            const TCGOutOpMovcond *out = &outop_movcond;
+            TCGCond cond = new_args[5];
+
+            tcg_debug_assert(!const_args[1]);
+            out->out(s, type, cond, new_args[0],
+                     new_args[1], new_args[2], const_args[2],
+                     new_args[3], const_args[3],
+                     new_args[4], const_args[4]);
+        }
+        break;
+
+    case INDEX_op_setcond:
+    case INDEX_op_negsetcond:
+        {
+            const TCGOutOpSetcond *out =
+                container_of(all_outop[op->opc], TCGOutOpSetcond, base);
+            TCGCond cond = new_args[3];
+
+            tcg_debug_assert(!const_args[1]);
+            if (const_args[2]) {
+                out->out_rri(s, type, cond,
+                             new_args[0], new_args[1], new_args[2]);
+            } else {
+                out->out_rrr(s, type, cond,
+                             new_args[0], new_args[1], new_args[2]);
+            }
+        }
+        break;
+
+#if TCG_TARGET_REG_BITS == 32
+    case INDEX_op_brcond2_i32:
+        {
+            const TCGOutOpBrcond2 *out = &outop_brcond2;
+            TCGCond cond = new_args[4];
+            TCGLabel *label = arg_label(new_args[5]);
+
+            tcg_debug_assert(!const_args[0]);
+            tcg_debug_assert(!const_args[1]);
+            out->out(s, cond, new_args[0], new_args[1],
+                     new_args[2], const_args[2],
+                     new_args[3], const_args[3], label);
+        }
+        break;
+    case INDEX_op_setcond2_i32:
+        {
+            const TCGOutOpSetcond2 *out = &outop_setcond2;
+            TCGCond cond = new_args[5];
+
+            tcg_debug_assert(!const_args[1]);
+            tcg_debug_assert(!const_args[2]);
+            out->out(s, cond, new_args[0], new_args[1], new_args[2],
+                     new_args[3], const_args[3], new_args[4], const_args[4]);
+        }
+        break;
+#else
+    case INDEX_op_brcond2_i32:
+    case INDEX_op_setcond2_i32:
+        g_assert_not_reached();
+#endif
+
+    case INDEX_op_goto_ptr:
+        tcg_debug_assert(!const_args[0]);
+        tcg_out_goto_ptr(s, new_args[0]);
+        break;
+
+    default:
+        tcg_debug_assert(def->flags & TCG_OPF_VECTOR);
+        tcg_out_vec_op(s, op->opc, type - TCG_TYPE_V64,
+                       TCGOP_VECE(op), new_args, const_args);
+        break;
+    }
+
+    if (def->flags & TCG_OPF_CARRY_IN) {
+        s->carry_live = false;
+    }
+    if (def->flags & TCG_OPF_CARRY_OUT) {
+        s->carry_live = true;
     }
 
     /* move the outputs in the correct register if needed */
@@ -6414,12 +6932,28 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
     tcg_out_tb_start(s);
 
     num_insns = -1;
+    s->carry_live = false;
     QTAILQ_FOREACH(op, &s->ops, link) {
         TCGOpcode opc = op->opc;
 
         switch (opc) {
-        case INDEX_op_mov_i32:
-        case INDEX_op_mov_i64:
+        case INDEX_op_extrl_i64_i32:
+            assert(TCG_TARGET_REG_BITS == 64);
+            /*
+             * If TCG_TYPE_I32 is represented in some canonical form,
+             * e.g. zero or sign-extended, then emit as a unary op.
+             * Otherwise we can treat this as a plain move.
+             * If the output dies, treat this as a plain move, because
+             * this will be implemented with a store.
+             */
+            if (TCG_TARGET_HAS_extr_i64_i32) {
+                TCGLifeData arg_life = op->life;
+                if (!IS_DEAD_ARG(0)) {
+                    goto do_default;
+                }
+            }
+            /* fall through */
+        case INDEX_op_mov:
         case INDEX_op_mov_vec:
             tcg_reg_alloc_mov(s, op);
             break;
@@ -6427,6 +6961,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
             tcg_reg_alloc_dup(s, op);
             break;
         case INDEX_op_insn_start:
+            assert_carry_dead(s);
             if (num_insns >= 0) {
                 size_t off = tcg_current_code_size(s);
                 s->gen_insn_end_off[num_insns] = off;
@@ -6447,6 +6982,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
             tcg_out_label(s, arg_label(op->args[0]));
             break;
         case INDEX_op_call:
+            assert_carry_dead(s);
             tcg_reg_alloc_call(s, op);
             break;
         case INDEX_op_exit_tb:
@@ -6455,12 +6991,19 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
         case INDEX_op_goto_tb:
             tcg_out_goto_tb(s, op->args[0]);
             break;
+        case INDEX_op_br:
+            tcg_out_br(s, arg_label(op->args[0]));
+            break;
+        case INDEX_op_mb:
+            tcg_out_mb(s, op->args[0]);
+            break;
         case INDEX_op_dup2_vec:
             if (tcg_reg_alloc_dup2(s, op)) {
                 break;
             }
             /* fall through */
         default:
+        do_default:
             /* Sanity check that we've not introduced any unhandled opcodes. */
             tcg_debug_assert(tcg_op_supported(opc, TCGOP_TYPE(op),
                                               TCGOP_FLAGS(op)));
@@ -6482,6 +7025,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
             return -2;
         }
     }
+    assert_carry_dead(s);
+
     tcg_debug_assert(num_insns + 1 == s->gen_tb->icount);
     s->gen_insn_end_off[num_insns] = tcg_current_code_size(s);
 

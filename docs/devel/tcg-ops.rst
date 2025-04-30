@@ -239,7 +239,7 @@ Jumps/Labels
 
      - | Jump to label.
 
-   * - brcond_i32/i64 *t0*, *t1*, *cond*, *label*
+   * - brcond *t0*, *t1*, *cond*, *label*
 
      - | Conditional jump if *t0* *cond* *t1* is true. *cond* can be:
        |
@@ -261,98 +261,117 @@ Arithmetic
 
 .. list-table::
 
-   * - add_i32/i64 *t0*, *t1*, *t2*
+   * - add *t0*, *t1*, *t2*
 
      - | *t0* = *t1* + *t2*
 
-   * - sub_i32/i64 *t0*, *t1*, *t2*
+   * - sub *t0*, *t1*, *t2*
 
      - | *t0* = *t1* - *t2*
 
-   * - neg_i32/i64 *t0*, *t1*
+   * - neg *t0*, *t1*
 
      - | *t0* = -*t1* (two's complement)
 
-   * - mul_i32/i64 *t0*, *t1*, *t2*
+   * - mul *t0*, *t1*, *t2*
 
      - | *t0* = *t1* * *t2*
 
-   * - div_i32/i64 *t0*, *t1*, *t2*
+   * - divs *t0*, *t1*, *t2*
 
      - | *t0* = *t1* / *t2* (signed)
        | Undefined behavior if division by zero or overflow.
 
-   * - divu_i32/i64 *t0*, *t1*, *t2*
+   * - divu *t0*, *t1*, *t2*
 
      - | *t0* = *t1* / *t2* (unsigned)
        | Undefined behavior if division by zero.
 
-   * - rem_i32/i64 *t0*, *t1*, *t2*
+   * - rems *t0*, *t1*, *t2*
 
      - | *t0* = *t1* % *t2* (signed)
        | Undefined behavior if division by zero or overflow.
 
-   * - remu_i32/i64 *t0*, *t1*, *t2*
+   * - remu *t0*, *t1*, *t2*
 
      - | *t0* = *t1* % *t2* (unsigned)
        | Undefined behavior if division by zero.
 
+   * - divs2 *q*, *r*, *nl*, *nh*, *d*
+
+     - | *q* = *nh:nl* / *d* (signed)
+       | *r* = *nh:nl* % *d*
+       | Undefined behaviour if division by zero, or the double-word
+         numerator divided by the single-word divisor does not fit
+         within the single-word quotient.  The code generator will
+         pass *nh* as a simple sign-extension of *nl*, so the only
+         overflow should be *INT_MIN* / -1.
+
+   * - divu2 *q*, *r*, *nl*, *nh*, *d*
+
+     - | *q* = *nh:nl* / *d* (unsigned)
+       | *r* = *nh:nl* % *d*
+       | Undefined behaviour if division by zero, or the double-word
+         numerator divided by the single-word divisor does not fit
+         within the single-word quotient.  The code generator will
+         pass 0 to *nh* to make a simple zero-extension of *nl*,
+         so overflow should never occur.
 
 Logical
 -------
 
 .. list-table::
 
-   * - and_i32/i64 *t0*, *t1*, *t2*
+   * - and *t0*, *t1*, *t2*
 
      - | *t0* = *t1* & *t2*
 
-   * - or_i32/i64 *t0*, *t1*, *t2*
+   * - or *t0*, *t1*, *t2*
 
      - | *t0* = *t1* | *t2*
 
-   * - xor_i32/i64 *t0*, *t1*, *t2*
+   * - xor *t0*, *t1*, *t2*
 
      - | *t0* = *t1* ^ *t2*
 
-   * - not_i32/i64 *t0*, *t1*
+   * - not *t0*, *t1*
 
      - | *t0* = ~\ *t1*
 
-   * - andc_i32/i64 *t0*, *t1*, *t2*
+   * - andc *t0*, *t1*, *t2*
 
      - | *t0* = *t1* & ~\ *t2*
 
-   * - eqv_i32/i64 *t0*, *t1*, *t2*
+   * - eqv *t0*, *t1*, *t2*
 
      - | *t0* = ~(*t1* ^ *t2*), or equivalently, *t0* = *t1* ^ ~\ *t2*
 
-   * - nand_i32/i64 *t0*, *t1*, *t2*
+   * - nand *t0*, *t1*, *t2*
 
      - | *t0* = ~(*t1* & *t2*)
 
-   * - nor_i32/i64 *t0*, *t1*, *t2*
+   * - nor *t0*, *t1*, *t2*
 
      - | *t0* = ~(*t1* | *t2*)
 
-   * - orc_i32/i64 *t0*, *t1*, *t2*
+   * - orc *t0*, *t1*, *t2*
 
      - | *t0* = *t1* | ~\ *t2*
 
-   * - clz_i32/i64 *t0*, *t1*, *t2*
+   * - clz *t0*, *t1*, *t2*
 
      - | *t0* = *t1* ? clz(*t1*) : *t2*
 
-   * - ctz_i32/i64 *t0*, *t1*, *t2*
+   * - ctz *t0*, *t1*, *t2*
 
      - | *t0* = *t1* ? ctz(*t1*) : *t2*
 
-   * - ctpop_i32/i64 *t0*, *t1*
+   * - ctpop *t0*, *t1*
 
      - | *t0* = number of bits set in *t1*
        |
-       | With *ctpop* short for "count population", matching
-       | the function name used in ``include/qemu/host-utils.h``.
+       | The name *ctpop* is short for "count population", and matches
+         the function name used in ``include/qemu/host-utils.h``.
 
 
 Shifts/Rotates
@@ -360,30 +379,30 @@ Shifts/Rotates
 
 .. list-table::
 
-   * - shl_i32/i64 *t0*, *t1*, *t2*
+   * - shl *t0*, *t1*, *t2*
 
      - | *t0* = *t1* << *t2*
-       | Unspecified behavior if *t2* < 0 or *t2* >= 32 (resp 64)
+       | Unspecified behavior for negative or out-of-range shifts.
 
-   * - shr_i32/i64 *t0*, *t1*, *t2*
+   * - shr *t0*, *t1*, *t2*
 
      - | *t0* = *t1* >> *t2* (unsigned)
-       | Unspecified behavior if *t2* < 0 or *t2* >= 32 (resp 64)
+       | Unspecified behavior for negative or out-of-range shifts.
 
-   * - sar_i32/i64 *t0*, *t1*, *t2*
+   * - sar *t0*, *t1*, *t2*
 
      - | *t0* = *t1* >> *t2* (signed)
-       | Unspecified behavior if *t2* < 0 or *t2* >= 32 (resp 64)
+       | Unspecified behavior for negative or out-of-range shifts.
 
-   * - rotl_i32/i64 *t0*, *t1*, *t2*
+   * - rotl *t0*, *t1*, *t2*
 
      - | Rotation of *t2* bits to the left
-       | Unspecified behavior if *t2* < 0 or *t2* >= 32 (resp 64)
+       | Unspecified behavior for negative or out-of-range shifts.
 
-   * - rotr_i32/i64 *t0*, *t1*, *t2*
+   * - rotr *t0*, *t1*, *t2*
 
      - | Rotation of *t2* bits to the right.
-       | Unspecified behavior if *t2* < 0 or *t2* >= 32 (resp 64)
+       | Unspecified behavior for negative or out-of-range shifts.
 
 
 Misc
@@ -391,26 +410,12 @@ Misc
 
 .. list-table::
 
-   * - mov_i32/i64 *t0*, *t1*
+   * - mov *t0*, *t1*
 
      - | *t0* = *t1*
-       | Move *t1* to *t0* (both operands must have the same type).
+       | Move *t1* to *t0*.
 
-   * - ext8s_i32/i64 *t0*, *t1*
-
-       ext8u_i32/i64 *t0*, *t1*
-
-       ext16s_i32/i64 *t0*, *t1*
-
-       ext16u_i32/i64 *t0*, *t1*
-
-       ext32s_i64 *t0*, *t1*
-
-       ext32u_i64 *t0*, *t1*
-
-     - | 8, 16 or 32 bit sign/zero extension (both operands must have the same type)
-
-   * - bswap16_i32/i64 *t0*, *t1*, *flags*
+   * - bswap16 *t0*, *t1*, *flags*
 
      - | 16 bit byte swap on the low bits of a 32/64 bit input.
        |
@@ -420,24 +425,24 @@ Misc
        |
        | If neither ``TCG_BSWAP_OZ`` nor ``TCG_BSWAP_OS`` are set, then the bits of *t0* above bit 15 may contain any value.
 
-   * - bswap32_i64 *t0*, *t1*, *flags*
+   * - bswap32 *t0*, *t1*, *flags*
 
-     - | 32 bit byte swap on a 64-bit value.  The flags are the same as for bswap16,
-         except they apply from bit 31 instead of bit 15.
+     - | 32 bit byte swap.  The flags are the same as for bswap16, except
+         they apply from bit 31 instead of bit 15.  On TCG_TYPE_I32, the
+         flags should be zero.
 
-   * - bswap32_i32 *t0*, *t1*, *flags*
+   * - bswap64 *t0*, *t1*, *flags*
 
-       bswap64_i64 *t0*, *t1*, *flags*
-
-     - | 32/64 bit byte swap. The flags are ignored, but still present
-         for consistency with the other bswap opcodes.
+     - | 64 bit byte swap. The flags are ignored, but still present
+         for consistency with the other bswap opcodes. For future
+         compatibility, the flags should be zero.
 
    * - discard_i32/i64 *t0*
 
      - | Indicate that the value of *t0* won't be used later. It is useful to
          force dead code elimination.
 
-   * - deposit_i32/i64 *dest*, *t1*, *t2*, *pos*, *len*
+   * - deposit *dest*, *t1*, *t2*, *pos*, *len*
 
      - | Deposit *t2* as a bitfield into *t1*, placing the result in *dest*.
        |
@@ -446,14 +451,16 @@ Misc
        |     *len* - the length of the bitfield
        |     *pos* - the position of the first bit, counting from the LSB
        |
-       | For example, "deposit_i32 dest, t1, t2, 8, 4" indicates a 4-bit field
+       | For example, "deposit dest, t1, t2, 8, 4" indicates a 4-bit field
          at bit 8. This operation would be equivalent to
        |
        |     *dest* = (*t1* & ~0x0f00) | ((*t2* << 8) & 0x0f00)
+       |
+       | on TCG_TYPE_I32.
 
-   * - extract_i32/i64 *dest*, *t1*, *pos*, *len*
+   * - extract *dest*, *t1*, *pos*, *len*
 
-       sextract_i32/i64 *dest*, *t1*, *pos*, *len*
+       sextract *dest*, *t1*, *pos*, *len*
 
      - | Extract a bitfield from *t1*, placing the result in *dest*.
        |
@@ -462,16 +469,16 @@ Misc
          to the left with zeros; for sextract_*, the result will be extended
          to the left with copies of the bitfield sign bit at *pos* + *len* - 1.
        |
-       | For example, "sextract_i32 dest, t1, 8, 4" indicates a 4-bit field
+       | For example, "sextract dest, t1, 8, 4" indicates a 4-bit field
          at bit 8. This operation would be equivalent to
        |
        |    *dest* = (*t1* << 20) >> 28
        |
-       | (using an arithmetic right shift).
+       | (using an arithmetic right shift) on TCG_TYPE_I32.
 
-   * - extract2_i32/i64 *dest*, *t1*, *t2*, *pos*
+   * - extract2 *dest*, *t1*, *t2*, *pos*
 
-     - | For N = {32,64}, extract an N-bit quantity from the concatenation
+     - | For TCG_TYPE_I{N}, extract an N-bit quantity from the concatenation
          of *t2*:*t1*, beginning at *pos*. The tcg_gen_extract2_{i32,i64} expander
          accepts 0 <= *pos* <= N as inputs. The backend code generator will
          not see either 0 or N as inputs for these opcodes.
@@ -494,19 +501,19 @@ Conditional moves
 
 .. list-table::
 
-   * - setcond_i32/i64 *dest*, *t1*, *t2*, *cond*
+   * - setcond *dest*, *t1*, *t2*, *cond*
 
      - | *dest* = (*t1* *cond* *t2*)
        |
        | Set *dest* to 1 if (*t1* *cond* *t2*) is true, otherwise set to 0.
 
-   * - negsetcond_i32/i64 *dest*, *t1*, *t2*, *cond*
+   * - negsetcond *dest*, *t1*, *t2*, *cond*
 
      - | *dest* = -(*t1* *cond* *t2*)
        |
        | Set *dest* to -1 if (*t1* *cond* *t2*) is true, otherwise set to 0.
 
-   * - movcond_i32/i64 *dest*, *c1*, *c2*, *v1*, *v2*, *cond*
+   * - movcond *dest*, *c1*, *c2*, *v1*, *v2*, *cond*
 
      - | *dest* = (*c1* *cond* *c2* ? *v1* : *v2*)
        |
@@ -586,26 +593,79 @@ Multiword arithmetic support
 
 .. list-table::
 
-   * - add2_i32/i64 *t0_low*, *t0_high*, *t1_low*, *t1_high*, *t2_low*, *t2_high*
+   * - addco *t0*, *t1*, *t2*
 
-       sub2_i32/i64 *t0_low*, *t0_high*, *t1_low*, *t1_high*, *t2_low*, *t2_high*
+     - | Compute *t0* = *t1* + *t2* and in addition output to the
+         carry bit provided by the host architecture.
 
-     - | Similar to add/sub, except that the double-word inputs *t1* and *t2* are
-         formed from two single-word arguments, and the double-word output *t0*
-         is returned in two single-word outputs.
+   * - addci *t0, *t1*, *t2*
 
-   * - mulu2_i32/i64 *t0_low*, *t0_high*, *t1*, *t2*
+     - | Compute *t0* = *t1* + *t2* + *C*, where *C* is the
+         input carry bit provided by the host architecture.
+         The output carry bit need not be computed.
+
+   * - addcio *t0, *t1*, *t2*
+
+     - | Compute *t0* = *t1* + *t2* + *C*, where *C* is the
+         input carry bit provided by the host architecture,
+         and also compute the output carry bit.
+
+   * - addc1o *t0, *t1*, *t2*
+
+     - | Compute *t0* = *t1* + *t2* + 1, and in addition output to the
+         carry bit provided by the host architecture.  This is akin to
+         *addcio* with a fixed carry-in value of 1.
+       | This is intended to be used by the optimization pass,
+         intermediate to complete folding of the addition chain.
+         In some cases complete folding is not possible and this
+         opcode will remain until output.  If this happens, the
+         code generator will use ``tcg_out_set_carry`` and then
+         the output routine for *addcio*.
+
+   * - subbo *t0*, *t1*, *t2*
+
+     - | Compute *t0* = *t1* - *t2* and in addition output to the
+         borrow bit provided by the host architecture.
+       | Depending on the host architecture, the carry bit may or may not be
+         identical to the borrow bit.  Thus the addc\* and subb\*
+         opcodes must not be mixed.
+
+   * - subbi *t0, *t1*, *t2*
+
+     - | Compute *t0* = *t1* - *t2* - *B*, where *B* is the
+         input borrow bit provided by the host architecture.
+         The output borrow bit need not be computed.
+
+   * - subbio *t0, *t1*, *t2*
+
+     - | Compute *t0* = *t1* - *t2* - *B*, where *B* is the
+         input borrow bit provided by the host architecture,
+         and also compute the output borrow bit.
+
+   * - subb1o *t0, *t1*, *t2*
+
+     - | Compute *t0* = *t1* - *t2* - 1, and in addition output to the
+         borrow bit provided by the host architecture.  This is akin to
+         *subbio* with a fixed borrow-in value of 1.
+       | This is intended to be used by the optimization pass,
+         intermediate to complete folding of the subtraction chain.
+         In some cases complete folding is not possible and this
+         opcode will remain until output.  If this happens, the
+         code generator will use ``tcg_out_set_borrow`` and then
+         the output routine for *subbio*.
+
+   * - mulu2 *t0_low*, *t0_high*, *t1*, *t2*
 
      - | Similar to mul, except two unsigned inputs *t1* and *t2* yielding the full
          double-word product *t0*. The latter is returned in two single-word outputs.
 
-   * - muls2_i32/i64 *t0_low*, *t0_high*, *t1*, *t2*
+   * - muls2 *t0_low*, *t0_high*, *t1*, *t2*
 
      - | Similar to mulu2, except the two inputs *t1* and *t2* are signed.
 
-   * - mulsh_i32/i64 *t0*, *t1*, *t2*
+   * - mulsh *t0*, *t1*, *t2*
 
-       muluh_i32/i64 *t0*, *t1*, *t2*
+       muluh *t0*, *t1*, *t2*
 
      - | Provide the high part of a signed or unsigned multiply, respectively.
        |
@@ -684,8 +744,6 @@ QEMU specific operations
 
        qemu_st_i32/i64/i128 *t0*, *t1*, *flags*, *memidx*
 
-       qemu_st8_i32 *t0*, *t1*, *flags*, *memidx*
-
      - | Load data at the guest address *t1* into *t0*, or store data in *t0* at guest
          address *t1*.  The _i32/_i64/_i128 size applies to the size of the input/output
          register *t0* only.  The address *t1* is always sized according to the guest,
@@ -703,10 +761,6 @@ QEMU specific operations
          64-bit memory access specified in *flags*.
        |
        | For qemu_ld/st_i128, these are only supported for a 64-bit host.
-       |
-       | For i386, qemu_st8_i32 is exactly like qemu_st_i32, except the size of
-         the memory operation is known to be 8-bit.  This allows the backend to
-         provide a different set of register constraints.
 
 
 Host vector operations
@@ -884,9 +938,9 @@ Assumptions
 The target word size (``TCG_TARGET_REG_BITS``) is expected to be 32 bit or
 64 bit. It is expected that the pointer has the same size as the word.
 
-On a 32 bit target, all 64 bit operations are converted to 32 bits. A
-few specific operations must be implemented to allow it (see add2_i32,
-sub2_i32, brcond2_i32).
+On a 32 bit target, all 64 bit operations are converted to 32 bits.
+A few specific operations must be implemented to allow it
+(see brcond2_i32, setcond2_i32).
 
 On a 64 bit target, the values are transferred between 32 and 64-bit
 registers using the following ops:
