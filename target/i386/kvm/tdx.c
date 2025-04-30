@@ -1120,6 +1120,18 @@ int tdx_parse_tdvf(void *flash_ptr, int size)
     return tdvf_parse_metadata(&tdx_guest->tdvf, flash_ptr, size);
 }
 
+void tdx_handle_get_tdvmcall_info(X86CPU *cpu, struct kvm_run *run)
+{
+    if (run->tdx.get_tdvmcall_info.leaf != 1) {
+	return;
+    }
+
+    run->tdx.get_tdvmcall_info.r11 = 0;
+    run->tdx.get_tdvmcall_info.r12 = 0;
+    run->tdx.get_tdvmcall_info.r13 = 0;
+    run->tdx.get_tdvmcall_info.r14 = 0;
+}
+
 static void tdx_panicked_on_fatal_error(X86CPU *cpu, uint64_t error_code,
                                         char *message, uint64_t gpa)
 {
