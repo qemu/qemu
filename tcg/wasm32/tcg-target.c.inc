@@ -195,6 +195,18 @@ static void tcg_wasm_out_op_i64_xor(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x85);
 }
+static void tcg_wasm_out_op_i64_add(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x7c);
+}
+static void tcg_wasm_out_op_i64_sub(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x7d);
+}
+static void tcg_wasm_out_op_i64_mul(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x7e);
+}
 static void tcg_wasm_out_op_var(TCGContext *s, uint8_t instr, uint8_t i)
 {
     tcg_wasm_out8(s, instr);
@@ -229,6 +241,9 @@ static void tcg_wasm_out_op_global_set_r(TCGContext *s, TCGReg r0)
 tcg_wasm_out_i64_calc(and);
 tcg_wasm_out_i64_calc(or);
 tcg_wasm_out_i64_calc(xor);
+tcg_wasm_out_i64_calc(add);
+tcg_wasm_out_i64_calc(sub);
+tcg_wasm_out_i64_calc(mul);
 
 static bool patch_reloc(tcg_insn_unit *code_ptr_i, int type,
                         intptr_t value, intptr_t addend)
@@ -632,6 +647,7 @@ static void tgen_add(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_add, a0, a1, a2);
+    tcg_wasm_out_i64_calc_add(s, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_add = {
@@ -810,6 +826,7 @@ static void tgen_mul(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_mul, a0, a1, a2);
+    tcg_wasm_out_i64_calc_mul(s, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_mul = {
@@ -1000,6 +1017,7 @@ static void tgen_sub(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_sub, a0, a1, a2);
+    tcg_wasm_out_i64_calc_sub(s, a0, a1, a2);
 }
 
 static const TCGOutOpSubtract outop_sub = {
