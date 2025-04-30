@@ -22,46 +22,15 @@
 #include "trace.h"
 #include "disas/disas.h"
 #include "tcg/tcg.h"
-#if defined(CONFIG_USER_ONLY)
-#include "qemu.h"
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
-#include <sys/param.h>
-#if __FreeBSD_version >= 700104
-#define HAVE_KINFO_GETVMMAP
-#define sigqueue sigqueue_freebsd  /* avoid redefinition */
-#include <sys/proc.h>
-#include <machine/profile.h>
-#define _KERNEL
-#include <sys/user.h>
-#undef _KERNEL
-#undef sigqueue
-#include <libutil.h>
-#endif
-#endif
-#else
-#include "system/ram_addr.h"
-#endif
-
-#include "cpu-param.h"
-#include "exec/cputlb.h"
-#include "exec/page-protection.h"
 #include "exec/mmap-lock.h"
 #include "tb-internal.h"
 #include "tlb-bounds.h"
-#include "exec/translator.h"
 #include "exec/tb-flush.h"
-#include "qemu/bitmap.h"
-#include "qemu/qemu-print.h"
-#include "qemu/main-loop.h"
 #include "qemu/cacheinfo.h"
 #include "qemu/target-info.h"
-#include "qemu/timer.h"
 #include "exec/log.h"
 #include "exec/icount.h"
-#include "system/tcg.h"
-#include "qapi/error.h"
 #include "accel/tcg/cpu-ops.h"
-#include "accel/tcg/getpc.h"
 #include "tb-jmp-cache.h"
 #include "tb-hash.h"
 #include "tb-context.h"
@@ -69,7 +38,6 @@
 #include "internal-common.h"
 #include "tcg/perf.h"
 #include "tcg/insn-start-words.h"
-#include "cpu.h"
 
 TBContext tb_ctx;
 

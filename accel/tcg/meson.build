@@ -10,6 +10,7 @@ tcg_ss.add(files(
   'tcg-runtime.c',
   'tcg-runtime-gvec.c',
   'tb-maint.c',
+  'translate-all.c',
   'translator.c',
 ))
 if get_option('plugins')
@@ -22,7 +23,6 @@ libsystem_ss.add_all(tcg_ss)
 tcg_specific_ss = ss.source_set()
 tcg_specific_ss.add(files(
   'tcg-all.c',
-  'translate-all.c',
 ))
 tcg_specific_ss.add(when: 'CONFIG_USER_ONLY', if_true: files('user-exec.c'))
 specific_ss.add_all(when: 'CONFIG_TCG', if_true: tcg_specific_ss)
