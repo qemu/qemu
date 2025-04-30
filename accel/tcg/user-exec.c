@@ -850,6 +850,12 @@ void *probe_access(CPUArchState *env, vaddr addr, int size,
     return size ? g2h(env_cpu(env), addr) : NULL;
 }
 
+void *tlb_vaddr_to_host(CPUArchState *env, vaddr addr,
+                        MMUAccessType access_type, int mmu_idx)
+{
+    return g2h(env_cpu(env), addr);
+}
+
 tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, vaddr addr,
                                         void **hostp)
 {

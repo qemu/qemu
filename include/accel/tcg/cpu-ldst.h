@@ -515,15 +515,7 @@ static inline uint64_t cpu_ldq_code(CPUArchState *env, abi_ptr addr)
  * Otherwise (TLB entry is for an I/O access, guest software
  * TLB fill required, etc) return NULL.
  */
-#ifdef CONFIG_USER_ONLY
-static inline void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
-                                      MMUAccessType access_type, int mmu_idx)
-{
-    return g2h(env_cpu(env), addr);
-}
-#else
 void *tlb_vaddr_to_host(CPUArchState *env, vaddr addr,
                         MMUAccessType access_type, int mmu_idx);
-#endif
 
 #endif /* ACCEL_TCG_CPU_LDST_H */
