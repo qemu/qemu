@@ -227,6 +227,23 @@ static void tcg_wasm_out_op_i64_extend_i32_s(TCGContext *s)
 {
     tcg_wasm_out8(s, 0xac);
 }
+static void tcg_wasm_out_op_i64_extend_i32_u(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0xad);
+}
+static void tcg_wasm_out_op_if_ret_i64(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x04);
+    tcg_wasm_out8(s, 0x7e);
+}
+static void tcg_wasm_out_op_else(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x05);
+}
+static void tcg_wasm_out_op_end(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x0b);
+}
 static void tcg_wasm_out_op_var(TCGContext *s, uint8_t instr, uint8_t i)
 {
     tcg_wasm_out8(s, instr);
@@ -265,6 +282,42 @@ tcg_wasm_out_i64_calc(add);
 tcg_wasm_out_i64_calc(sub);
 tcg_wasm_out_i64_calc(mul);
 
+static const struct {
+    uint8_t i32;
+    uint8_t i64;
+} tcg_cond_to_inst[] = {
+    [TCG_COND_EQ] =  { 0x46 /* i32.eq */   , 0x51 /* i64.eq */},
+    [TCG_COND_NE] =  { 0x47 /* i32.ne */   , 0x52 /* i64.ne */},
+    [TCG_COND_LT] =  { 0x48 /* i32.lt_s */ , 0x53 /* i64.lt_s */},
+    [TCG_COND_GE] =  { 0x4e /* i32.ge_s */ , 0x59 /* i64.ge_s */},
+    [TCG_COND_LE] =  { 0x4c /* i32.le_s */ , 0x57 /* i64.le_s */},
+    [TCG_COND_GT] =  { 0x4a /* i32.gt_s */ , 0x55 /* i64.gt_s */},
+    [TCG_COND_LTU] = { 0x49 /* i32.lt_u */ , 0x54 /* i64.lt_u */},
+    [TCG_COND_GEU] = { 0x4f /* i32.ge_u */ , 0x5a /* i64.ge_u */},
+    [TCG_COND_LEU] = { 0x4d /* i32.le_u */ , 0x58 /* i64.le_u */},
+    [TCG_COND_GTU] = { 0x4b /* i32.gt_u */ , 0x56 /* i64.gt_u */}
+};
+
+static void tcg_wasm_out_op_cond_i64(
+    TCGContext *s, TCGCond cond, TCGReg arg1, TCGReg arg2)
+{
+    uint8_t op = tcg_cond_to_inst[cond].i64;
+    tcg_wasm_out_op_global_get_r(s, arg1);
+    tcg_wasm_out_op_global_get_r(s, arg2);
+    tcg_wasm_out8(s, op);
+}
+
+static void tcg_wasm_out_op_cond_i32(
+    TCGContext *s, TCGCond cond, TCGReg arg1, TCGReg arg2)
+{
+    uint8_t op = tcg_cond_to_inst[cond].i32;
+    tcg_wasm_out_op_global_get_r(s, arg1);
+    tcg_wasm_out_op_i32_wrap_i64(s);
+    tcg_wasm_out_op_global_get_r(s, arg2);
+    tcg_wasm_out_op_i32_wrap_i64(s);
+    tcg_wasm_out8(s, op);
+}
+
 static void tcg_wasm_out_leb128_sint64_t(TCGContext *s, int64_t v)
 {
     bool more = true;
@@ -286,6 +339,12 @@ static void tcg_wasm_out_op_i64_const(TCGContext *s, int64_t v)
 {
     tcg_wasm_out8(s, 0x42);
     tcg_wasm_out_leb128_sint64_t(s, v);
+}
+
+static void tcg_wasm_out_op_not(TCGContext *s)
+{
+    tcg_wasm_out_op_i64_const(s, -1);
+    tcg_wasm_out_op_i64_xor(s);
 }
 
 static void tcg_wasm_out_shl(TCGContext *s, TCGReg ret,
@@ -345,6 +404,66 @@ static void tcg_wasm_out_shr_s(
     default:
         g_assert_not_reached();
     }
+}
+
+static void tcg_wasm_out_setcond(TCGContext *s, TCGType type, TCGReg ret,
+                                 TCGReg arg1, TCGReg arg2, TCGCond cond)
+{
+    switch (type) {
+    case TCG_TYPE_I32:
+        tcg_wasm_out_op_cond_i32(s, cond, arg1, arg2);
+        break;
+    case TCG_TYPE_I64:
+        tcg_wasm_out_op_cond_i64(s, cond, arg1, arg2);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    tcg_wasm_out_op_i64_extend_i32_u(s);
+    tcg_wasm_out_op_global_set_r(s, ret);
+}
+
+static void tcg_wasm_out_negsetcond(TCGContext *s, TCGType type, TCGReg ret,
+                                    TCGReg arg1, TCGReg arg2, TCGCond cond)
+{
+    switch (type) {
+    case TCG_TYPE_I32:
+        tcg_wasm_out_op_cond_i32(s, cond, arg1, arg2);
+        break;
+    case TCG_TYPE_I64:
+        tcg_wasm_out_op_cond_i64(s, cond, arg1, arg2);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    tcg_wasm_out_op_i64_extend_i32_u(s);
+    tcg_wasm_out_op_not(s);
+    tcg_wasm_out_op_i64_const(s, 1);
+    tcg_wasm_out_op_i64_add(s);
+    tcg_wasm_out_op_global_set_r(s, ret);
+}
+
+static void tcg_wasm_out_movcond(TCGContext *s, TCGType type, TCGReg ret,
+                                 TCGReg c1, TCGReg c2,
+                                 TCGReg v1, TCGReg v2,
+                                 TCGCond cond)
+{
+    switch (type) {
+    case TCG_TYPE_I32:
+        tcg_wasm_out_op_cond_i32(s, cond, c1, c2);
+        break;
+    case TCG_TYPE_I64:
+        tcg_wasm_out_op_cond_i64(s, cond, c1, c2);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    tcg_wasm_out_op_if_ret_i64(s);
+    tcg_wasm_out_op_global_get_r(s, v1);
+    tcg_wasm_out_op_else(s);
+    tcg_wasm_out_op_global_get_r(s, v2);
+    tcg_wasm_out_op_end(s);
+    tcg_wasm_out_op_global_set_r(s, ret);
 }
 
 static bool patch_reloc(tcg_insn_unit *code_ptr_i, int type,
@@ -1261,13 +1380,20 @@ static const TCGOutOpUnary outop_not = {
     .out_rr = tgen_not,
 };
 
-static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
-                         TCGReg dest, TCGReg arg1, TCGReg arg2)
+static void tgen_setcond_tci(TCGContext *s, TCGType type, TCGCond cond,
+                             TCGReg dest, TCGReg arg1, TCGReg arg2)
 {
     TCGOpcode opc = (type == TCG_TYPE_I32
                      ? INDEX_op_tci_setcond32
                      : INDEX_op_setcond);
     tcg_out_op_rrrc(s, opc, dest, arg1, arg2, cond);
+}
+
+static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
+                         TCGReg dest, TCGReg arg1, TCGReg arg2)
+{
+    tgen_setcond_tci(s, type, cond, dest, arg1, arg2);
+    tcg_wasm_out_setcond(s, type, dest, arg1, arg2, cond);
 }
 
 static const TCGOutOpSetcond outop_setcond = {
@@ -1278,8 +1404,9 @@ static const TCGOutOpSetcond outop_setcond = {
 static void tgen_negsetcond(TCGContext *s, TCGType type, TCGCond cond,
                             TCGReg dest, TCGReg arg1, TCGReg arg2)
 {
-    tgen_setcond(s, type, cond, dest, arg1, arg2);
+    tgen_setcond_tci(s, type, cond, dest, arg1, arg2);
     tgen_neg(s, type, dest, dest);
+    tcg_wasm_out_negsetcond(s, type, dest, arg1, arg2, cond);
 }
 
 static const TCGOutOpSetcond outop_negsetcond = {
@@ -1290,7 +1417,7 @@ static const TCGOutOpSetcond outop_negsetcond = {
 static void tgen_brcond(TCGContext *s, TCGType type, TCGCond cond,
                         TCGReg arg0, TCGReg arg1, TCGLabel *l)
 {
-    tgen_setcond(s, type, cond, TCG_REG_TMP, arg0, arg1);
+    tgen_setcond_tci(s, type, cond, TCG_REG_TMP, arg0, arg1);
     tcg_out_op_rl(s, INDEX_op_brcond, TCG_REG_TMP, l);
 }
 
@@ -1307,6 +1434,7 @@ static void tgen_movcond(TCGContext *s, TCGType type, TCGCond cond,
                      ? INDEX_op_tci_movcond32
                      : INDEX_op_movcond);
     tcg_out_op_rrrrrc(s, opc, ret, c1, c2, vt, vf, cond);
+    tcg_wasm_out_movcond(s, type, ret, c1, c2, vt, vf, cond);
 }
 
 static const TCGOutOpMovcond outop_movcond = {
