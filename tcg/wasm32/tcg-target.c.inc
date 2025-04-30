@@ -123,6 +123,11 @@ static const uint8_t tcg_target_reg_index[TCG_TARGET_NB_REGS] = {
  */
 #define CARRY_IDX 16
 
+/*
+ * Global variable Index used for storing the current block index
+ */
+#define BLOCK_PTR_IDX 17
+
 /* Temporary local variables */
 #define TMP32_LOCAL_0_IDX 1
 #define TMP32_LOCAL_1_IDX 2
@@ -340,6 +345,16 @@ static void tcg_wasm_out_op_i64_le_u(TCGContext *s)
 static void tcg_wasm_out_op_i64_eqz(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x50);
+}
+static void tcg_wasm_out_op_br(TCGContext *s, int i)
+{
+    tcg_wasm_out8(s, 0x0c);
+    tcg_wasm_out8(s, i);
+}
+static void tcg_wasm_out_op_loop_noret(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x03);
+    tcg_wasm_out8(s, 0x40);
 }
 static void tcg_wasm_out_op_if_noret(TCGContext *s)
 {
@@ -1355,6 +1370,152 @@ static void tcg_wasm_out_div_u(
     default:
         g_assert_not_reached();
     }
+}
+
+typedef struct LabelInfo {
+    struct LabelInfo *next;
+    int label;
+    int block;
+} LabelInfo;
+
+__thread LabelInfo *label_info;
+
+static void init_label_info(void)
+{
+    label_info = NULL;
+}
+
+static void add_label(int label, int block)
+{
+    LabelInfo *e = tcg_malloc(sizeof(LabelInfo));
+    e->label = label;
+    e->block = block;
+    e->next = NULL;
+    if (label_info == NULL) {
+        label_info = e;
+        return;
+    }
+    LabelInfo *last = label_info;
+    for (LabelInfo *p = last; p; p = p->next) {
+        last = p;
+    }
+    last->next = e;
+}
+
+typedef struct BlockPlaceholder {
+    struct BlockPlaceholder *next;
+    int label;
+    int pos;
+} BlockPlaceholder;
+
+__thread BlockPlaceholder *block_placeholder;
+
+__thread int block_idx;
+
+static void init_blocks(void)
+{
+    block_placeholder = NULL;
+    block_idx = 0;
+}
+
+static void add_block_placeholder(int label, int pos)
+{
+    BlockPlaceholder *e = tcg_malloc(sizeof(BlockPlaceholder));
+    e->label = label;
+    e->pos = pos;
+    e->next = NULL;
+    if (block_placeholder == NULL) {
+        block_placeholder = e;
+        return;
+    }
+    BlockPlaceholder *last = block_placeholder;
+    for (BlockPlaceholder *p = last; p; p = p->next) {
+        last = p;
+    }
+    last->next = e;
+}
+
+static int get_block_of_label(int label)
+{
+    for (LabelInfo *p = label_info; p; p = p->next) {
+        if (p->label == label) {
+            return p->block;
+        }
+    }
+    return -1;
+}
+
+static void tcg_wasm_out_new_block(TCGContext *s)
+{
+    tcg_wasm_out_op_end(s); /* close this block */
+
+    /* next block */
+    tcg_wasm_out_op_global_get(s, BLOCK_PTR_IDX);
+    tcg_wasm_out_op_i64_const(s, ++block_idx);
+    tcg_wasm_out_op_i64_le_u(s);
+    tcg_wasm_out_op_if_noret(s);
+}
+
+static void tcg_out_label_cb(TCGContext *s, TCGLabel *l)
+{
+    add_label(l->id, block_idx + 1);
+    tcg_wasm_out_new_block(s);
+}
+
+static void tcg_wasm_out_op_br_to_label(TCGContext *s, TCGLabel *l, bool br_if)
+{
+    int toploop_depth = 1;
+    if (br_if) {
+        tcg_wasm_out_op_if_noret(s);
+        toploop_depth++;
+    }
+    tcg_wasm_out8(s, 0x42); /* i64.const */
+
+    add_block_placeholder(l->id, sub_buf_len());
+
+    tcg_wasm_out8(s, 0x80); /* filled before instantiation */
+    tcg_wasm_out8(s, 0x80);
+    tcg_wasm_out8(s, 0x80);
+    tcg_wasm_out8(s, 0x80);
+    tcg_wasm_out8(s, 0x00);
+    tcg_wasm_out_op_global_set(s, BLOCK_PTR_IDX);
+    if (get_block_of_label(l->id) != -1) {
+        /*
+         * The label is placed before this br, branch to the top of loop
+         */
+        tcg_wasm_out_op_br(s, toploop_depth);
+    } else {
+        /*
+         * The label will be generated after this br,
+         * branch to the end of the current block
+         */
+        tcg_wasm_out_op_br(s, toploop_depth - 1);
+    }
+    if (br_if) {
+        tcg_wasm_out_op_end(s);
+    }
+}
+
+static void tcg_wasm_out_br(TCGContext *s, TCGLabel *l)
+{
+    tcg_wasm_out_op_br_to_label(s, l, false);
+}
+
+static void tcg_wasm_out_brcond(TCGContext *s, TCGType type,
+                                TCGReg arg1, TCGReg arg2,
+                                TCGCond cond, TCGLabel *l)
+{
+    switch (type) {
+    case TCG_TYPE_I32:
+        tcg_wasm_out_op_cond_i32(s, cond, arg1, arg2);
+        break;
+    case TCG_TYPE_I64:
+        tcg_wasm_out_op_cond_i64(s, cond, arg1, arg2);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    tcg_wasm_out_op_br_to_label(s, l, true);
 }
 
 static bool patch_reloc(tcg_insn_unit *code_ptr_i, int type,
@@ -2512,6 +2673,7 @@ static void tgen_brcond(TCGContext *s, TCGType type, TCGCond cond,
 {
     tgen_setcond_tci(s, type, cond, TCG_REG_TMP, arg0, arg1);
     tcg_out_op_rl(s, INDEX_op_brcond, TCG_REG_TMP, l);
+    tcg_wasm_out_brcond(s, type, arg0, arg1, cond, l);
 }
 
 static const TCGOutOpBrcond outop_brcond = {
@@ -2576,6 +2738,7 @@ static void tcg_out_mb(TCGContext *s, unsigned a0)
 static void tcg_out_br(TCGContext *s, TCGLabel *l)
 {
     tcg_out_op_l(s, INDEX_op_br, l);
+    tcg_wasm_out_br(s, l);
 }
 
 static void tgen_ld8u(TCGContext *s, TCGType type, TCGReg dest,
@@ -2796,6 +2959,23 @@ static inline void tcg_target_qemu_prologue(TCGContext *s)
 static void tcg_out_tb_start(TCGContext *s)
 {
     init_sub_buf();
+    init_blocks();
+    init_label_info();
+
+    tcg_wasm_out_op_loop_noret(s);
+    tcg_wasm_out_op_global_get(s, BLOCK_PTR_IDX);
+    tcg_wasm_out_op_i64_eqz(s);
+    tcg_wasm_out_op_if_noret(s);
+}
+
+static int tcg_out_tb_end(TCGContext *s)
+{
+    tcg_wasm_out_op_end(s); /* end if */
+    tcg_wasm_out_op_end(s); /* end loop */
+    tcg_wasm_out8(s, 0x0);  /* unreachable */
+    tcg_wasm_out_op_end(s); /* end func */
+
+    return 0;
 }
 
 bool tcg_target_has_memory_bswap(MemOp memop)
