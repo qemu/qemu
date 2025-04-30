@@ -1573,7 +1573,7 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
         int ret;
 
         ret = hdev_get_pdiscard_alignment(&st, &dalign);
-        if (ret == 0) {
+        if (ret == 0 && dalign != 0) {
             uint32_t ralign = bs->bl.request_alignment;
 
             /* Probably never happens, but handle it just in case */
