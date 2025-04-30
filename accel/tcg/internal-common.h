@@ -12,6 +12,7 @@
 #include "exec/cpu-common.h"
 #include "exec/translation-block.h"
 #include "exec/mmap-lock.h"
+#include "accel/tcg/tb-cpu-state.h"
 
 extern int64_t max_delay;
 extern int64_t max_advance;
@@ -46,9 +47,7 @@ static inline bool cpu_plugin_mem_cbs_enabled(const CPUState *cpu)
 #endif
 }
 
-TranslationBlock *tb_gen_code(CPUState *cpu, vaddr pc,
-                              uint64_t cs_base, uint32_t flags,
-                              int cflags);
+TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s);
 void page_init(void);
 void tb_htable_init(void);
 void tb_reset_jump(TranslationBlock *tb, int n);

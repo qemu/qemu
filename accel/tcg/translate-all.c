@@ -290,9 +290,7 @@ static int setjmp_gen_code(CPUArchState *env, TranslationBlock *tb,
 }
 
 /* Called with mmap_lock held for user mode emulation.  */
-TranslationBlock *tb_gen_code(CPUState *cpu,
-                              vaddr pc, uint64_t cs_base,
-                              uint32_t flags, int cflags)
+TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
 {
     CPUArchState *env = cpu_env(cpu);
     TranslationBlock *tb, *existing_tb;
@@ -305,14 +303,14 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     assert_memory_lock();
     qemu_thread_jit_write();
 
-    phys_pc = get_page_addr_code_hostp(env, pc, &host_pc);
+    phys_pc = get_page_addr_code_hostp(env, s.pc, &host_pc);
 
     if (phys_pc == -1) {
         /* Generate a one-shot TB with 1 insn in it */
-        cflags = (cflags & ~CF_COUNT_MASK) | 1;
+        s.cflags = (s.cflags & ~CF_COUNT_MASK) | 1;
     }
 
-    max_insns = cflags & CF_COUNT_MASK;
+    max_insns = s.cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
         max_insns = TCG_MAX_INSNS;
     }
@@ -332,12 +330,12 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 
     gen_code_buf = tcg_ctx->code_gen_ptr;
     tb->tc.ptr = tcg_splitwx_to_rx(gen_code_buf);
-    if (!(cflags & CF_PCREL)) {
-        tb->pc = pc;
+    if (!(s.cflags & CF_PCREL)) {
+        tb->pc = s.pc;
     }
-    tb->cs_base = cs_base;
-    tb->flags = flags;
-    tb->cflags = cflags;
+    tb->cs_base = s.cs_base;
+    tb->flags = s.flags;
+    tb->cflags = s.cflags;
     tb_set_page_addr0(tb, phys_pc);
     tb_set_page_addr1(tb, -1);
     if (phys_pc != -1) {
@@ -355,9 +353,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tcg_ctx->guest_mo = cpu->cc->tcg_ops->guest_default_memory_order;
 
  restart_translate:
-    trace_translate_block(tb, pc, tb->tc.ptr);
+    trace_translate_block(tb, s.pc, tb->tc.ptr);
 
-    gen_code_size = setjmp_gen_code(env, tb, pc, host_pc, &max_insns, &ti);
+    gen_code_size = setjmp_gen_code(env, tb, s.pc, host_pc, &max_insns, &ti);
     if (unlikely(gen_code_size < 0)) {
         switch (gen_code_size) {
         case -1:
@@ -434,10 +432,10 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
      * For CF_PCREL, attribute all executions of the generated code
      * to its first mapping.
      */
-    perf_report_code(pc, tb, tcg_splitwx_to_rx(gen_code_buf));
+    perf_report_code(s.pc, tb, tcg_splitwx_to_rx(gen_code_buf));
 
     if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM) &&
-        qemu_log_in_addr_range(pc)) {
+        qemu_log_in_addr_range(s.pc)) {
         FILE *logfile = qemu_log_trylock();
         if (logfile) {
             int code_size, data_size;
