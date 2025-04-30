@@ -98,6 +98,138 @@ static const char *const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 };
 #endif
 
+/* converts a TCG register to a wasm variable index */
+static const uint8_t tcg_target_reg_index[TCG_TARGET_NB_REGS] = {
+    0,  /* TCG_REG_R0 */
+    1,  /* TCG_REG_R1 */
+    2,  /* TCG_REG_R2 */
+    3,  /* TCG_REG_R3 */
+    4,  /* TCG_REG_R4 */
+    5,  /* TCG_REG_R5 */
+    6,  /* TCG_REG_R6 */
+    7,  /* TCG_REG_R7 */
+    8,  /* TCG_REG_R8 */
+    9,  /* TCG_REG_R9 */
+    10, /* TCG_REG_R10 */
+    11, /* TCG_REG_R11 */
+    12, /* TCG_REG_R12 */
+    13, /* TCG_REG_R13 */
+    14, /* TCG_REG_R14 */
+    15, /* TCG_REG_R15 */
+};
+
+#define BUF_SIZE 1024
+typedef struct LinkedBuf {
+    struct LinkedBuf *next;
+    uint8_t data[BUF_SIZE];
+    uint32_t size;
+} LinkedBuf;
+
+static LinkedBuf *new_linked_buf(void)
+{
+    LinkedBuf *p = tcg_malloc(sizeof(LinkedBuf));
+    p->size = 0;
+    p->next = NULL;
+    return p;
+}
+
+static inline LinkedBuf *linked_buf_out8(LinkedBuf *buf, uint8_t v)
+{
+    if (buf->size == BUF_SIZE) {
+        buf->next = new_linked_buf();
+        buf = buf->next;
+    }
+    buf->data[buf->size++] = v;
+    return buf;
+}
+
+static inline int linked_buf_len(LinkedBuf *buf)
+{
+    int total = 0;
+    for (LinkedBuf *p = buf; p; p = p->next) {
+        total += p->size;
+    }
+    return total;
+}
+
+static inline void linked_buf_write(LinkedBuf *buf, void *dst)
+{
+    for (LinkedBuf *p = buf; p; p = p->next) {
+        memcpy(dst, p->data, p->size);
+        dst += p->size;
+    }
+}
+
+/*
+ * wasm code is generataed in the dynamically allocated buffer which
+ * are managed as a linked list.
+ */
+__thread LinkedBuf *sub_buf_root;
+__thread LinkedBuf *sub_buf_cur;
+
+static void init_sub_buf(void)
+{
+    sub_buf_root = new_linked_buf();
+    sub_buf_cur = sub_buf_root;
+}
+
+static inline int sub_buf_len(void)
+{
+    return linked_buf_len(sub_buf_root);
+}
+
+static inline void tcg_wasm_out8(TCGContext *s, uint32_t v)
+{
+    sub_buf_cur = linked_buf_out8(sub_buf_cur, v);
+}
+
+static void tcg_wasm_out_op_i64_and(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x83);
+}
+static void tcg_wasm_out_op_i64_or(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x84);
+}
+static void tcg_wasm_out_op_i64_xor(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x85);
+}
+static void tcg_wasm_out_op_var(TCGContext *s, uint8_t instr, uint8_t i)
+{
+    tcg_wasm_out8(s, instr);
+    tcg_wasm_out8(s, i);
+}
+static void tcg_wasm_out_op_global_get(TCGContext *s, uint8_t i)
+{
+    tcg_wasm_out_op_var(s, 0x23, i);
+}
+static void tcg_wasm_out_op_global_set(TCGContext *s, uint8_t i)
+{
+    tcg_wasm_out_op_var(s, 0x24, i);
+}
+static void tcg_wasm_out_op_global_get_r(TCGContext *s, TCGReg r0)
+{
+    tcg_wasm_out_op_global_get(s, tcg_target_reg_index[r0]);
+}
+static void tcg_wasm_out_op_global_set_r(TCGContext *s, TCGReg r0)
+{
+    tcg_wasm_out_op_global_set(s, tcg_target_reg_index[r0]);
+}
+
+#define tcg_wasm_out_i64_calc(op)                                       \
+    static void tcg_wasm_out_i64_calc_##op(                             \
+        TCGContext *s, TCGReg ret, TCGReg arg1, TCGReg arg2)            \
+    {                                                                   \
+        tcg_wasm_out_op_global_get_r(s, arg1);                          \
+        tcg_wasm_out_op_global_get_r(s, arg2);                          \
+        tcg_wasm_out_op_i64_##op(s);                                    \
+        tcg_wasm_out_op_global_set_r(s, ret);                           \
+    }
+tcg_wasm_out_i64_calc(and);
+tcg_wasm_out_i64_calc(or);
+tcg_wasm_out_i64_calc(xor);
+
 static bool patch_reloc(tcg_insn_unit *code_ptr_i, int type,
                         intptr_t value, intptr_t addend)
 {
@@ -557,6 +689,7 @@ static void tgen_and(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_and, a0, a1, a2);
+    tcg_wasm_out_i64_calc_and(s, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_and = {
@@ -747,6 +880,7 @@ static void tgen_or(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_or, a0, a1, a2);
+    tcg_wasm_out_i64_calc_or(s, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_or = {
@@ -918,6 +1052,7 @@ static void tgen_xor(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_xor, a0, a1, a2);
+    tcg_wasm_out_i64_calc_xor(s, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_xor = {
@@ -1305,7 +1440,7 @@ static inline void tcg_target_qemu_prologue(TCGContext *s)
 
 static void tcg_out_tb_start(TCGContext *s)
 {
-    /* nothing to do */
+    init_sub_buf();
 }
 
 bool tcg_target_has_memory_bswap(MemOp memop)
