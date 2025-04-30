@@ -207,6 +207,26 @@ static void tcg_wasm_out_op_i64_mul(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x7e);
 }
+static void tcg_wasm_out_op_i64_shl(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x86);
+}
+static void tcg_wasm_out_op_i64_shr_s(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x87);
+}
+static void tcg_wasm_out_op_i64_shr_u(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x88);
+}
+static void tcg_wasm_out_op_i32_wrap_i64(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0xa7);
+}
+static void tcg_wasm_out_op_i64_extend_i32_s(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0xac);
+}
 static void tcg_wasm_out_op_var(TCGContext *s, uint8_t instr, uint8_t i)
 {
     tcg_wasm_out8(s, instr);
@@ -244,6 +264,88 @@ tcg_wasm_out_i64_calc(xor);
 tcg_wasm_out_i64_calc(add);
 tcg_wasm_out_i64_calc(sub);
 tcg_wasm_out_i64_calc(mul);
+
+static void tcg_wasm_out_leb128_sint64_t(TCGContext *s, int64_t v)
+{
+    bool more = true;
+    uint8_t b;
+    while (more) {
+        b = v & 0x7f;
+        v >>= 7;
+        if (((v == 0) && ((b & 0x40) == 0)) ||
+            ((v == -1) && ((b & 0x40) != 0))) {
+            more = false;
+        } else {
+            b |= 0x80;
+        }
+        tcg_wasm_out8(s, b);
+    }
+}
+
+static void tcg_wasm_out_op_i64_const(TCGContext *s, int64_t v)
+{
+    tcg_wasm_out8(s, 0x42);
+    tcg_wasm_out_leb128_sint64_t(s, v);
+}
+
+static void tcg_wasm_out_shl(TCGContext *s, TCGReg ret,
+                             TCGReg arg1, TCGReg arg2)
+{
+    tcg_wasm_out_op_global_get_r(s, arg1);
+    tcg_wasm_out_op_global_get_r(s, arg2);
+    tcg_wasm_out_op_i64_shl(s);
+    tcg_wasm_out_op_global_set_r(s, ret);
+}
+
+static void tcg_wasm_out_shr_u(
+    TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1, TCGReg arg2)
+{
+    switch (type) {
+    case TCG_TYPE_I32:
+        tcg_wasm_out_op_global_get_r(s, arg1);
+        tcg_wasm_out_op_i64_const(s, 0xffffffff);
+        tcg_wasm_out_op_i64_and(s);
+        tcg_wasm_out_op_global_get_r(s, arg2);
+        tcg_wasm_out_op_i64_const(s, 0x7f);
+        tcg_wasm_out_op_i64_and(s);
+        tcg_wasm_out_op_i64_shr_u(s);
+        tcg_wasm_out_op_global_set_r(s, ret);
+        break;
+    case TCG_TYPE_I64:
+        tcg_wasm_out_op_global_get_r(s, arg1);
+        tcg_wasm_out_op_global_get_r(s, arg2);
+        tcg_wasm_out_op_i64_shr_u(s);
+        tcg_wasm_out_op_global_set_r(s, ret);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void tcg_wasm_out_shr_s(
+    TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1, TCGReg arg2)
+{
+    switch (type) {
+    case TCG_TYPE_I32:
+        tcg_wasm_out_op_global_get_r(s, arg1);
+        tcg_wasm_out_op_i32_wrap_i64(s);
+        tcg_wasm_out_op_i64_extend_i32_s(s);
+        tcg_wasm_out_op_global_get_r(s, arg2);
+        tcg_wasm_out_op_i64_const(s, 0x7f);
+        tcg_wasm_out_op_i64_and(s);
+        tcg_wasm_out_op_i64_shr_s(s);
+        tcg_wasm_out_op_global_set_r(s, ret);
+        break;
+    case TCG_TYPE_I64:
+        tcg_wasm_out_op_global_get_r(s, arg1);
+        tcg_wasm_out_op_global_get_r(s, arg2);
+        tcg_wasm_out_op_i64_shr_s(s);
+        tcg_wasm_out_op_global_set_r(s, ret);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
 
 static bool patch_reloc(tcg_insn_unit *code_ptr_i, int type,
                         intptr_t value, intptr_t addend)
@@ -975,11 +1077,13 @@ static const TCGOutOpBinary outop_rotr = {
 static void tgen_sar(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
+    TCGReg orig_a1 = a1;
     if (type < TCG_TYPE_REG) {
         tcg_out_ext32s(s, TCG_REG_TMP, a1);
         a1 = TCG_REG_TMP;
     }
     tcg_out_op_rrr(s, INDEX_op_sar, a0, a1, a2);
+    tcg_wasm_out_shr_s(s, type, a0, orig_a1, a2);
 }
 
 static const TCGOutOpBinary outop_sar = {
@@ -991,6 +1095,7 @@ static void tgen_shl(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_shl, a0, a1, a2);
+    tcg_wasm_out_shl(s, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_shl = {
@@ -1001,11 +1106,13 @@ static const TCGOutOpBinary outop_shl = {
 static void tgen_shr(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
+    TCGReg orig_a1 = a1;
     if (type < TCG_TYPE_REG) {
         tcg_out_ext32u(s, TCG_REG_TMP, a1);
         a1 = TCG_REG_TMP;
     }
     tcg_out_op_rrr(s, INDEX_op_shr, a0, a1, a2);
+    tcg_wasm_out_shr_u(s, type, a0, orig_a1, a2);
 }
 
 static const TCGOutOpBinary outop_shr = {
