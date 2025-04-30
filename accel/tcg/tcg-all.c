@@ -36,15 +36,11 @@
 #include "qapi/qapi-builtin-visit.h"
 #include "qemu/units.h"
 #include "qemu/target-info.h"
-#if defined(CONFIG_USER_ONLY)
-#include "hw/qdev-core.h"
-#else
+#ifndef CONFIG_USER_ONLY
 #include "hw/boards.h"
-#include "system/tcg.h"
 #endif
 #include "accel/tcg/cpu-ops.h"
 #include "internal-common.h"
-#include "cpu-param.h"
 
 
 struct TCGState {
