@@ -38,9 +38,6 @@ struct loongarch_linux_hdr {
 struct memmap_entry *memmap_table;
 unsigned memmap_entries;
 
-ram_addr_t initrd_offset;
-uint64_t initrd_size;
-
 static const unsigned int slave_boot_code[] = {
                   /* Configure reset ebase.                    */
     0x0400302c,   /* csrwr      $t0, LOONGARCH_CSR_EENTRY      */
@@ -121,7 +118,8 @@ static void init_efi_boot_memmap(struct efi_system_table *systab,
     }
 }
 
-static void init_efi_initrd_table(struct efi_system_table *systab,
+static void init_efi_initrd_table(struct loongarch_boot_info *info,
+                                  struct efi_system_table *systab,
                                   void *p, void *start)
 {
     efi_guid_t tbl_guid = LINUX_EFI_INITRD_MEDIA_GUID;
@@ -132,8 +130,8 @@ static void init_efi_initrd_table(struct efi_system_table *systab,
     systab->tables[1].table = (struct efi_configuration_table *)(p - start);
     systab->nr_tables = 2;
 
-    initrd_table->base = initrd_offset;
-    initrd_table->size = initrd_size;
+    initrd_table->base = info->initrd_addr;
+    initrd_table->size = info->initrd_size;
 }
 
 static void init_efi_fdt_table(struct efi_system_table *systab)
@@ -169,7 +167,7 @@ static void init_systab(struct loongarch_boot_info *info, void *p, void *start)
     init_efi_boot_memmap(systab, p, start);
     p += ROUND_UP(sizeof(struct efi_boot_memmap) +
                   sizeof(efi_memory_desc_t) * memmap_entries, 64 * KiB);
-    init_efi_initrd_table(systab, p, start);
+    init_efi_initrd_table(info, systab, p, start);
     p += ROUND_UP(sizeof(struct efi_initrd), 64 * KiB);
     init_efi_fdt_table(systab);
 
@@ -276,8 +274,8 @@ static ram_addr_t alloc_initrd_memory(struct loongarch_boot_info *info,
 
 static int64_t load_kernel_info(struct loongarch_boot_info *info)
 {
-    uint64_t kernel_entry, kernel_low, kernel_high;
-    ssize_t kernel_size;
+    uint64_t kernel_entry, kernel_low, kernel_high, initrd_offset = 0;
+    ssize_t kernel_size, initrd_size;
 
     kernel_size = load_elf(info->kernel_filename, NULL,
                            cpu_loongarch_virt_to_phys, NULL,
@@ -313,8 +311,9 @@ static int64_t load_kernel_info(struct loongarch_boot_info *info)
                          info->initrd_filename);
             exit(1);
         }
-    } else {
-        initrd_size = 0;
+
+        info->initrd_addr = initrd_offset;
+        info->initrd_size = initrd_size;
     }
 
     return kernel_entry;
