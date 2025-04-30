@@ -126,7 +126,7 @@ MMUAccessType adjust_signal_pc(uintptr_t *pc, bool is_write)
  * guest, we'd end up in an infinite loop of retrying the faulting access.
  */
 bool handle_sigsegv_accerr_write(CPUState *cpu, sigset_t *old_set,
-                                 uintptr_t host_pc, abi_ptr guest_addr)
+                                 uintptr_t host_pc, vaddr guest_addr)
 {
     switch (page_unprotect(cpu, guest_addr, host_pc)) {
     case 0:
