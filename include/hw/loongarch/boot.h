@@ -106,9 +106,6 @@ struct loongarch_boot_info {
     uint64_t initrd_size;
 };
 
-extern struct memmap_entry *memmap_table;
-extern unsigned memmap_entries;
-
 struct memmap_entry {
     uint64_t address;
     uint64_t length;

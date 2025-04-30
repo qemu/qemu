@@ -63,6 +63,8 @@ struct LoongArchVirtMachineState {
     struct loongarch_boot_info bootinfo;
     DeviceState *ipi;
     DeviceState *extioi;
+    struct memmap_entry *memmap_table;
+    unsigned int memmap_entries;
 };
 
 #define TYPE_LOONGARCH_VIRT_MACHINE  MACHINE_TYPE_NAME("virt")

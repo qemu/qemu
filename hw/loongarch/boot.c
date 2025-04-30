@@ -35,9 +35,6 @@ struct loongarch_linux_hdr {
     uint32_t pe_header_offset;
 } QEMU_PACKED;
 
-struct memmap_entry *memmap_table;
-unsigned memmap_entries;
-
 static const unsigned int slave_boot_code[] = {
                   /* Configure reset ebase.                    */
     0x0400302c,   /* csrwr      $t0, LOONGARCH_CSR_EENTRY      */
@@ -91,12 +88,16 @@ static inline void *guidcpy(void *dst, const void *src)
     return memcpy(dst, src, sizeof(efi_guid_t));
 }
 
-static void init_efi_boot_memmap(struct efi_system_table *systab,
+static void init_efi_boot_memmap(MachineState *ms,
+                                 struct efi_system_table *systab,
                                  void *p, void *start)
 {
     unsigned i;
     struct efi_boot_memmap *boot_memmap = p;
     efi_guid_t tbl_guid = LINUX_EFI_BOOT_MEMMAP_GUID;
+    LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(ms);
+    struct memmap_entry *memmap_table;
+    unsigned int memmap_entries;
 
     /* efi_configuration_table 1 */
     guidcpy(&systab->tables[0].guid, &tbl_guid);
@@ -108,6 +109,8 @@ static void init_efi_boot_memmap(struct efi_system_table *systab,
     boot_memmap->map_size = 0;
 
     efi_memory_desc_t *map = p + sizeof(struct efi_boot_memmap);
+    memmap_table = lvms->memmap_table;
+    memmap_entries = lvms->memmap_entries;
     for (i = 0; i < memmap_entries; i++) {
         map = (void *)boot_memmap + sizeof(*map);
         map[i].type = memmap_table[i].type;
@@ -144,10 +147,12 @@ static void init_efi_fdt_table(struct efi_system_table *systab)
     systab->nr_tables = 3;
 }
 
-static void init_systab(struct loongarch_boot_info *info, void *p, void *start)
+static void init_systab(MachineState *ms,
+                        struct loongarch_boot_info *info, void *p, void *start)
 {
     void *bp_tables_start;
     struct efi_system_table *systab = p;
+    LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(ms);
 
     info->a2 = p - start;
 
@@ -164,9 +169,9 @@ static void init_systab(struct loongarch_boot_info *info, void *p, void *start)
     systab->tables = p;
     bp_tables_start = p;
 
-    init_efi_boot_memmap(systab, p, start);
+    init_efi_boot_memmap(ms, systab, p, start);
     p += ROUND_UP(sizeof(struct efi_boot_memmap) +
-                  sizeof(efi_memory_desc_t) * memmap_entries, 64 * KiB);
+                  sizeof(efi_memory_desc_t) * lvms->memmap_entries, 64 * KiB);
     init_efi_initrd_table(info, systab, p, start);
     p += ROUND_UP(sizeof(struct efi_initrd), 64 * KiB);
     init_efi_fdt_table(systab);
@@ -368,17 +373,19 @@ static void loongarch_firmware_boot(LoongArchVirtMachineState *lvms,
     fw_cfg_add_kernel_info(info, lvms->fw_cfg);
 }
 
-static void init_boot_rom(struct loongarch_boot_info *info, void *p)
+static void init_boot_rom(MachineState *ms,
+                          struct loongarch_boot_info *info, void *p)
 {
     void *start = p;
 
     init_cmdline(info, p, start);
     p += COMMAND_LINE_SIZE;
 
-    init_systab(info, p, start);
+    init_systab(ms, info, p, start);
 }
 
-static void loongarch_direct_kernel_boot(struct loongarch_boot_info *info)
+static void loongarch_direct_kernel_boot(MachineState *ms,
+                                         struct loongarch_boot_info *info)
 {
     void *p, *bp;
     int64_t kernel_addr = VIRT_FLASH0_BASE;
@@ -396,7 +403,7 @@ static void loongarch_direct_kernel_boot(struct loongarch_boot_info *info)
     /* Load cmdline and system tables at [0 - 1 MiB] */
     p = g_malloc0(1 * MiB);
     bp = p;
-    init_boot_rom(info, p);
+    init_boot_rom(ms, info, p);
     rom_add_blob_fixed_as("boot_info", bp, 1 * MiB, 0, &address_space_memory);
 
     /* Load slave boot code at pflash0 . */
@@ -436,6 +443,6 @@ void loongarch_load_kernel(MachineState *ms, struct loongarch_boot_info *info)
     if (lvms->bios_loaded) {
         loongarch_firmware_boot(lvms, info);
     } else {
-        loongarch_direct_kernel_boot(info);
+        loongarch_direct_kernel_boot(ms, info);
     }
 }
