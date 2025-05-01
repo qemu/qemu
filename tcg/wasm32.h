@@ -49,6 +49,14 @@ static inline int32_t call_wasm_tb(wasm_tb_func f, struct wasmContext *ctx)
 }
 
 /*
+ * wasmInstanceInfo holds the relationship between TB and Wasm instance.
+ */
+struct wasmInstanceInfo {
+    void *tb_ptr;
+    wasm_tb_func tb_func;
+};
+
+/*
  * TB of wasm backend starts from a header which stores pointers for each data
  * stored in the following region in the TB.
  */
@@ -69,6 +77,43 @@ struct wasmTBHeader {
      */
     void *import_ptr;
     int import_size;
+
+    /*
+     * Counter holds how many times the TB is executed before instantiation
+     * for each thread.
+     */
+    int32_t *counter_ptr;
+
+    /*
+     * Pointer to the instance information on each thread.
+     */
+    struct wasmInstanceInfo **info_ptr;
 };
+
+static inline uint32_t *get_tci_ptr(void *tb_ptr)
+{
+    return (uint32_t *)(((struct wasmTBHeader *)tb_ptr)->tci_ptr);
+}
+
+static inline int32_t get_counter(void *tb_ptr, int idx)
+{
+    return ((struct wasmTBHeader *)tb_ptr)->counter_ptr[idx];
+}
+
+static inline void set_counter(void *tb_ptr, int idx, int v)
+{
+    ((struct wasmTBHeader *)tb_ptr)->counter_ptr[idx] = v;
+}
+
+static inline struct wasmInstanceInfo *get_info(void *tb_ptr, int idx)
+{
+    return ((struct wasmTBHeader *)tb_ptr)->info_ptr[idx];
+}
+
+static inline void set_info(void *tb_ptr, int idx,
+                            struct wasmInstanceInfo *info)
+{
+    ((struct wasmTBHeader *)tb_ptr)->info_ptr[idx] = info;
+}
 
 #endif

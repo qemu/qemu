@@ -27,6 +27,11 @@
 
 #include "../wasm32.h"
 
+/*
+ * This is included to get the max number of threads via tcg_max_ctxs.
+ */
+#include "../tcg-internal.h"
+
 /* Used for function call generation. */
 #define TCG_TARGET_CALL_STACK_OFFSET    0
 #define TCG_TARGET_STACK_ALIGN          8
@@ -3746,6 +3751,18 @@ static void tcg_out_tb_start(TCGContext *s)
     /* TB starts from a header */
     h = (struct wasmTBHeader *)(s->code_ptr);
     s->code_ptr += sizeof(struct wasmTBHeader);
+
+    /* locate counters */
+    h->counter_ptr = (int32_t *)s->code_ptr;
+    size = tcg_max_ctxs * sizeof(int32_t);
+    memset(s->code_ptr, 0, size);
+    s->code_ptr += size;
+
+    /* locate instance information */
+    h->info_ptr = (struct wasmInstanceInfo **)s->code_ptr;
+    size = tcg_max_ctxs * sizeof(void *);
+    memset(s->code_ptr, 0, size);
+    s->code_ptr += size;
 
     /* Followed by TCI code */
     h->tci_ptr = s->code_ptr;
