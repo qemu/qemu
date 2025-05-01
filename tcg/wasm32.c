@@ -25,6 +25,7 @@
 #include "disas/dis-asm.h"
 #include "tcg-has.h"
 #include <ffi.h>
+#include <emscripten.h>
 
 
 #define ctpop_tr    glue(ctpop, TCG_TARGET_REG_BITS)
@@ -43,6 +44,29 @@
 #endif
 
 __thread uintptr_t tci_tb_ptr;
+
+EM_JS(int, instantiate_wasm, (int wasm_begin,
+                              int wasm_size,
+                              int import_vec_begin,
+                              int import_vec_size),
+{
+    const memory_v = new DataView(HEAP8.buffer);
+    const wasm = HEAP8.subarray(wasm_begin, wasm_begin + wasm_size);
+    var helper = {};
+    for (var i = 0; i < import_vec_size / 4; i++) {
+        helper[i] = wasmTable.get(
+            memory_v.getInt32(import_vec_begin + i * 4, true));
+    }
+    const mod = new WebAssembly.Module(new Uint8Array(wasm));
+    const inst = new WebAssembly.Instance(mod, {
+            "env" : {
+                "buffer" : wasmMemory,
+            },
+            "helper" : helper,
+    });
+
+    return addFunction(inst.exports.start, 'ii');
+});
 
 static void tci_write_reg64(tcg_target_ulong *regs, uint32_t high_index,
                             uint32_t low_index, uint64_t value)
