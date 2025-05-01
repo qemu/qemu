@@ -500,7 +500,7 @@ void page_set_flags(vaddr start, vaddr last, int flags)
        guest address space.  If this assert fires, it probably indicates
        a missing call to h2g_valid.  */
     assert(start <= last);
-    assert(last <= GUEST_ADDR_MAX);
+    assert(last <= guest_addr_max);
     /* Only set PAGE_ANON with new mappings. */
     assert(!(flags & PAGE_ANON) || (flags & PAGE_RESET));
     assert_memory_lock();
@@ -621,7 +621,7 @@ vaddr page_find_range_empty(vaddr min, vaddr max, vaddr len, vaddr align)
     vaddr len_m1, align_m1;
 
     assert(min <= max);
-    assert(max <= GUEST_ADDR_MAX);
+    assert(max <= guest_addr_max);
     assert(len != 0);
     assert(is_power_of_2(align));
     assert_memory_lock();
