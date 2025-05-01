@@ -877,7 +877,4 @@ extern const size_t hw_compat_3_0_len;
 extern GlobalProperty hw_compat_2_12[];
 extern const size_t hw_compat_2_12_len;
 
-extern GlobalProperty hw_compat_2_11[];
-extern const size_t hw_compat_2_11_len;
-
 #endif
