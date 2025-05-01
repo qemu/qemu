@@ -141,7 +141,8 @@ static const uint8_t tcg_target_reg_index[TCG_TARGET_NB_REGS] = {
 #define TMP64_LOCAL_0_IDX 3
 
 /* function index */
-#define HELPER_IDX_START 0 /* helper funcitons */
+#define CHECK_UNWINDING_IDX 0 /* a funtion of checking Asyncify status */
+#define HELPER_IDX_START 1 /* helper funcitons */
 
 #define BUF_SIZE 1024
 typedef struct LinkedBuf {
@@ -1901,6 +1902,17 @@ static int get_helper_idx(TCGContext *s, int helper_idx_on_qemu)
     return -1;
 }
 
+static void tcg_wasm_out_handle_unwinding(TCGContext *s)
+{
+    tcg_wasm_out_op_call(s, CHECK_UNWINDING_IDX);
+    tcg_wasm_out_op_i32_eqz(s);
+    tcg_wasm_out_op_if_noret(s);
+    tcg_wasm_out_op_i32_const(s, 0);
+    /* returns if unwinding */
+    tcg_wasm_out_op_return(s);
+    tcg_wasm_out_op_end(s);
+}
+
 static void tcg_wasm_out_call(TCGContext *s, int func,
                               const TCGHelperInfo *info)
 {
@@ -1914,7 +1926,16 @@ static void tcg_wasm_out_call(TCGContext *s, int func,
     tcg_wasm_out_op_i32_const(s, (int32_t)s->code_ptr);
     tcg_wasm_out_op_i32_store(s, 0, 0);
 
+    /*
+     * update the block index so that the possible rewinding will
+     * skip this block
+     */
+    tcg_wasm_out_op_i64_const(s, block_idx + 1);
+    tcg_wasm_out_op_global_set(s, BLOCK_PTR_IDX);
+    tcg_wasm_out_new_block(s);
+
     gen_call(s, info, func_idx);
+    tcg_wasm_out_handle_unwinding(s);
 }
 
 static void gen_func_type_qemu_ld(TCGContext *s, uint32_t oi)
@@ -1992,6 +2013,14 @@ static void tcg_wasm_out_qemu_ld(TCGContext *s, TCGReg data_reg,
         addr_reg = TCG_REG_TMP;
     }
 
+    /*
+     * update the block index so that the possible rewinding will
+     * skip this block
+     */
+    tcg_wasm_out_op_i64_const(s, block_idx + 1);
+    tcg_wasm_out_op_global_set(s, BLOCK_PTR_IDX);
+    tcg_wasm_out_new_block(s);
+
     /* call helper */
     tcg_wasm_out_op_global_get_r(s, TCG_AREG0);
     tcg_wasm_out_op_i32_wrap_i64(s);
@@ -2001,6 +2030,7 @@ static void tcg_wasm_out_qemu_ld(TCGContext *s, TCGReg data_reg,
 
     tcg_wasm_out_op_call(s, func_idx);
     tcg_wasm_out_op_global_set_r(s, data_reg);
+    tcg_wasm_out_handle_unwinding(s);
 }
 
 static void *qemu_st_helper_ptr(uint32_t oi)
@@ -2040,6 +2070,14 @@ static void tcg_wasm_out_qemu_st(TCGContext *s, TCGReg data_reg,
         addr_reg = TCG_REG_TMP;
     }
 
+    /*
+     * update the block index so that the possible rewinding will
+     * skip this block
+     */
+    tcg_wasm_out_op_i64_const(s, block_idx + 1);
+    tcg_wasm_out_op_global_set(s, BLOCK_PTR_IDX);
+    tcg_wasm_out_new_block(s);
+
     /* call helper */
     tcg_wasm_out_op_global_get_r(s, TCG_AREG0);
     tcg_wasm_out_op_i32_wrap_i64(s);
@@ -2057,6 +2095,7 @@ static void tcg_wasm_out_qemu_st(TCGContext *s, TCGReg data_reg,
     tcg_wasm_out_op_i32_const(s, (int32_t)s->code_ptr);
 
     tcg_wasm_out_op_call(s, func_idx);
+    tcg_wasm_out_handle_unwinding(s);
 }
 
 static bool patch_reloc(tcg_insn_unit *code_ptr_i, int type,
@@ -3513,6 +3552,9 @@ static const uint8_t mod_1[] = {
     0x60,                         /* 0: Type of "start" function */
     0x01, 0x7f,                   /* arg: ctx pointer (i32) */
     0x01, 0x7f,                   /* return: res (i32) */
+    0x60,                         /* 1: Type of the asyncify helper */
+    0x0,                          /* no argument */
+    0x01, 0x7f,                   /* return: res (i32) */
 };
 
 static const uint8_t mod_2[] = {
@@ -3523,6 +3565,9 @@ static const uint8_t mod_2[] = {
     0x06, 0x62, 0x75, 0x66, 0x66, 0x65, 0x72, /* name: "buffer" */
     0x02, 0x03,                               /* shared mem */
     0x00, 0xff, 0xff, 0x03,                   /* min: 0, max: 0xffff pages */
+    0x06, 0x68, 0x65, 0x6c, 0x70, 0x65, 0x72, /* module: "helper" */
+    0x01, 0x75,                               /* name: "u" */
+    0x00, 0x01,                               /* func type 1 */
 };
 
 static const uint8_t mod_3[] = {
@@ -3581,7 +3626,7 @@ static int write_mod_1(TCGContext *s)
     linked_buf_write(types_buf_root, s->code_ptr);
     s->code_ptr += types_buf_len();
 
-    uint32_t type_section_size = types_buf_len() + 10;
+    uint32_t type_section_size = types_buf_len() + 14;
     fill_uint32_leb128(base + 9, type_section_size);
     fill_uint32_leb128(base + 14, HELPER_IDX_START + helpers_num + 1);
 
@@ -3706,6 +3751,11 @@ static void tcg_out_tb_start(TCGContext *s)
     h->tci_ptr = s->code_ptr;
 
     /* generate wasm code to initialize fundamental registers */
+    tcg_wasm_out_ctx_i32_load(s, do_init);
+    tcg_wasm_out_op_i32_const(s, 0);
+    tcg_wasm_out_op_i32_ne(s);
+    tcg_wasm_out_op_if_noret(s);
+
     tcg_wasm_out_op_global_get_r(s, TCG_AREG0);
     tcg_wasm_out_op_i64_eqz(s);
     tcg_wasm_out_op_if_noret(s);
@@ -3719,8 +3769,10 @@ static void tcg_out_tb_start(TCGContext *s)
     tcg_wasm_out_op_global_set_r(s, TCG_REG_CALL_STACK);
     tcg_wasm_out_op_end(s);
 
+    tcg_wasm_out_ctx_i32_store_const(s, do_init, 0);
     tcg_wasm_out_op_i64_const(s, 0);
     tcg_wasm_out_op_global_set(s, BLOCK_PTR_IDX);
+    tcg_wasm_out_op_end(s);
 
     tcg_wasm_out_op_loop_noret(s);
     tcg_wasm_out_op_global_get(s, BLOCK_PTR_IDX);

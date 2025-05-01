@@ -53,6 +53,9 @@ EM_JS(int, instantiate_wasm, (int wasm_begin,
     const memory_v = new DataView(HEAP8.buffer);
     const wasm = HEAP8.subarray(wasm_begin, wasm_begin + wasm_size);
     var helper = {};
+    helper.u = () => {
+        return (Asyncify.state != Asyncify.State.Unwinding) ? 1 : 0;
+    };
     for (var i = 0; i < import_vec_size / 4; i++) {
         helper[i] = wasmTable.get(
             memory_v.getInt32(import_vec_begin + i * 4, true));
