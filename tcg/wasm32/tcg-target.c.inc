@@ -140,6 +140,9 @@ static const uint8_t tcg_target_reg_index[TCG_TARGET_NB_REGS] = {
 #define TMP32_LOCAL_1_IDX 2
 #define TMP64_LOCAL_0_IDX 3
 
+/* function index */
+#define HELPER_IDX_START 0 /* helper funcitons */
+
 #define BUF_SIZE 1024
 typedef struct LinkedBuf {
     struct LinkedBuf *next;
@@ -617,6 +620,12 @@ static void tcg_wasm_out_op_i32_load(TCGContext *s, uint32_t a, uint32_t o)
 static void tcg_wasm_out_op_i32_store(TCGContext *s, uint32_t a, uint32_t o)
 {
     tcg_wasm_out_op_loadstore(s, 0x36, a, o);
+}
+
+static void tcg_wasm_out_op_call(TCGContext *s, uint32_t func_idx)
+{
+    tcg_wasm_out8(s, 0x10);
+    tcg_wasm_out_leb128_uint32_t(s, func_idx);
 }
 
 static void tcg_wasm_out_op_not(TCGContext *s)
@@ -1626,6 +1635,165 @@ static void tcg_wasm_out_goto_tb(
     tcg_wasm_out_op_end(s);
 }
 
+static void push_arg_i64(TCGContext *s, int *stack_offset)
+{
+    tcg_wasm_out_op_global_get_r(s, TCG_REG_CALL_STACK);
+    tcg_wasm_out_op_i32_wrap_i64(s);
+    tcg_wasm_out_op_i64_load(s, 0, *stack_offset);
+    *stack_offset = *stack_offset + 8;
+}
+
+static void gen_call(TCGContext *s, const TCGHelperInfo *info, int func_idx)
+{
+    unsigned typemask = info->typemask;
+    int rettype = typemask & 7;
+    int stack_offset = 0;
+
+    if (rettype ==  dh_typecode_i128) {
+        /* receive 128bit return value via the buffer */
+        tcg_wasm_out_ctx_i32_load(s, buf128);
+    }
+
+    for (typemask >>= 3; typemask; typemask >>= 3) {
+        int typecode = typemask & 7;
+        if (typecode == dh_typecode_void) {
+            continue;
+        }
+        switch (typecode) {
+        case dh_typecode_i32:
+        case dh_typecode_s32:
+        case dh_typecode_ptr:
+            push_arg_i64(s, &stack_offset);
+            tcg_wasm_out_op_i32_wrap_i64(s);
+            break;
+        case dh_typecode_i64:
+        case dh_typecode_s64:
+            push_arg_i64(s, &stack_offset);
+            break;
+        case dh_typecode_i128:
+            tcg_wasm_out_op_global_get_r(s, TCG_REG_CALL_STACK);
+            tcg_wasm_out_op_i32_wrap_i64(s);
+            tcg_wasm_out_op_i32_const(s, stack_offset);
+            tcg_wasm_out_op_i32_add(s);
+            stack_offset += 16;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+
+    tcg_wasm_out_op_call(s, func_idx);
+
+    if (rettype != dh_typecode_void) {
+        switch (rettype) {
+        case dh_typecode_i32:
+        case dh_typecode_s32:
+        case dh_typecode_ptr:
+            tcg_wasm_out_op_i64_extend_i32_s(s);
+            tcg_wasm_out_op_global_set_r(s, TCG_REG_R0);
+            break;
+        case dh_typecode_i64:
+        case dh_typecode_s64:
+            tcg_wasm_out_op_global_set_r(s, TCG_REG_R0);
+            break;
+        case dh_typecode_i128:
+            tcg_wasm_out_ctx_i32_load(s, buf128);
+            tcg_wasm_out_op_i64_load(s, 0, 0);
+            tcg_wasm_out_op_global_set_r(s, TCG_REG_R0);
+            tcg_wasm_out_ctx_i32_load(s, buf128);
+            tcg_wasm_out_op_i64_load(s, 0, 8);
+            tcg_wasm_out_op_global_set_r(s, TCG_REG_R1);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+
+    return;
+}
+
+typedef struct HelperInfo {
+    struct HelperInfo *next;
+    uint32_t idx_on_qemu;
+} HelperInfo;
+
+__thread HelperInfo *helpers;
+
+static void init_helpers(void)
+{
+    helpers = NULL;
+}
+
+static int register_helper(TCGContext *s, int helper_idx_on_qemu)
+{
+    int idx = HELPER_IDX_START;
+
+    tcg_debug_assert(helper_idx_on_qemu >= 0);
+
+    HelperInfo *e = tcg_malloc(sizeof(HelperInfo));
+    e->idx_on_qemu = helper_idx_on_qemu;
+    e->next = NULL;
+    if (helpers == NULL) {
+        helpers = e;
+        return idx;
+    }
+    HelperInfo *last = helpers;
+    for (HelperInfo *p = last; p; p = p->next) {
+        last = p;
+        idx++;
+    }
+    last->next = e;
+    return idx;
+}
+
+static int helpers_len(void)
+{
+    int n = 0;
+    for (HelperInfo *p = helpers; p; p = p->next) {
+        n++;
+    }
+    return n;
+}
+
+static inline int helpers_copy(uint32_t *dst)
+{
+    void *start = dst;
+    for (HelperInfo *p = helpers; p; p = p->next) {
+        *dst++ = p->idx_on_qemu;
+    }
+    return (int)dst - (int)start;
+}
+
+
+static int get_helper_idx(TCGContext *s, int helper_idx_on_qemu)
+{
+    int idx = HELPER_IDX_START;
+
+    for (HelperInfo *p = helpers; p; p = p->next) {
+        if (p->idx_on_qemu == helper_idx_on_qemu) {
+            return idx;
+        }
+        idx++;
+    }
+    return -1;
+}
+
+static void tcg_wasm_out_call(TCGContext *s, int func,
+                              const TCGHelperInfo *info)
+{
+    int func_idx = get_helper_idx(s, (int)func);
+    if (func_idx < 0) {
+        func_idx = register_helper(s, (int)func);
+    }
+
+    tcg_wasm_out_ctx_i32_load(s, tci_tb_ptr);
+    tcg_wasm_out_op_i32_const(s, (int32_t)s->code_ptr);
+    tcg_wasm_out_op_i32_store(s, 0, 0);
+
+    gen_call(s, info, func_idx);
+}
+
+
 static bool patch_reloc(tcg_insn_unit *code_ptr_i, int type,
                         intptr_t value, intptr_t addend)
 {
@@ -2034,6 +2202,7 @@ static void tcg_out_call(TCGContext *s, const tcg_insn_unit *func,
     insn = deposit32(insn, 0, 8, INDEX_op_call);
     insn = deposit32(insn, 8, 4, which);
     tcg_out32(s, insn);
+    tcg_wasm_out_call(s, (int)func, info);
 }
 
 static void tcg_out_exit_tb(TCGContext *s, uintptr_t arg)
@@ -3072,6 +3241,7 @@ static void tcg_out_tb_start(TCGContext *s)
     init_sub_buf();
     init_blocks();
     init_label_info();
+    init_helpers();
 
     tcg_wasm_out_op_loop_noret(s);
     tcg_wasm_out_op_global_get(s, BLOCK_PTR_IDX);
