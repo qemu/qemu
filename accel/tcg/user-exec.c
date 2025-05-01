@@ -29,6 +29,7 @@
 #include "accel/tcg/helper-retaddr.h"
 #include "accel/tcg/probe.h"
 #include "user/cpu_loop.h"
+#include "user/guest-host.h"
 #include "qemu/main-loop.h"
 #include "user/page-protection.h"
 #include "exec/page-protection.h"
@@ -202,10 +203,19 @@ int walk_memory_regions(void *priv, walk_memory_regions_fn fn)
 static int dump_region(void *opaque, vaddr start, vaddr end, int prot)
 {
     FILE *f = opaque;
+    uint64_t mask;
+    int width;
 
-    fprintf(f, TARGET_ABI_FMT_ptr "-" TARGET_ABI_FMT_ptr
-            " " TARGET_ABI_FMT_ptr " %c%c%c\n",
-            (abi_ptr)start, (abi_ptr)end, (abi_ptr)(end - start),
+    if (guest_addr_max <= UINT32_MAX) {
+        mask = UINT32_MAX, width = 8;
+    } else {
+        mask = UINT64_MAX, width = 16;
+    }
+
+    fprintf(f, "%0*" PRIx64 "-%0*" PRIx64 " %0*" PRIx64 " %c%c%c\n",
+            width, start & mask,
+            width, end & mask,
+            width, (end - start) & mask,
             ((prot & PAGE_READ) ? 'r' : '-'),
             ((prot & PAGE_WRITE) ? 'w' : '-'),
             ((prot & PAGE_EXEC) ? 'x' : '-'));
@@ -215,10 +225,10 @@ static int dump_region(void *opaque, vaddr start, vaddr end, int prot)
 /* dump memory mappings */
 void page_dump(FILE *f)
 {
-    const int length = sizeof(abi_ptr) * 2;
+    int width = guest_addr_max <= UINT32_MAX ? 8 : 16;
 
     fprintf(f, "%-*s %-*s %-*s %s\n",
-            length, "start", length, "end", length, "size", "prot");
+            width, "start", width, "end", width, "size", "prot");
     walk_memory_regions(f, dump_region);
 }
 
@@ -1135,7 +1145,7 @@ static uint64_t do_ld8_mmu(CPUState *cpu, vaddr addr, MemOpIdx oi,
     return ret;
 }
 
-static Int128 do_ld16_mmu(CPUState *cpu, abi_ptr addr,
+static Int128 do_ld16_mmu(CPUState *cpu, vaddr addr,
                           MemOpIdx oi, uintptr_t ra)
 {
     void *haddr;
