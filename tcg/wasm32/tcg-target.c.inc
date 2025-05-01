@@ -520,6 +520,56 @@ static void tcg_wasm_out_op_not(TCGContext *s)
     tcg_wasm_out_op_i64_xor(s);
 }
 
+static void tcg_wasm_out_andc(
+    TCGContext *s, TCGReg ret, TCGReg arg1, TCGReg arg2)
+{
+    tcg_wasm_out_op_global_get_r(s, arg1);
+    tcg_wasm_out_op_global_get_r(s, arg2);
+    tcg_wasm_out_op_not(s);
+    tcg_wasm_out_op_i64_and(s);
+    tcg_wasm_out_op_global_set_r(s, ret);
+}
+
+static void tcg_wasm_out_orc(
+    TCGContext *s, TCGReg ret, TCGReg arg1, TCGReg arg2)
+{
+    tcg_wasm_out_op_global_get_r(s, arg1);
+    tcg_wasm_out_op_global_get_r(s, arg2);
+    tcg_wasm_out_op_not(s);
+    tcg_wasm_out_op_i64_or(s);
+    tcg_wasm_out_op_global_set_r(s, ret);
+}
+
+static void tcg_wasm_out_eqv(
+    TCGContext *s, TCGReg ret, TCGReg arg1, TCGReg arg2)
+{
+    tcg_wasm_out_op_global_get_r(s, arg1);
+    tcg_wasm_out_op_global_get_r(s, arg2);
+    tcg_wasm_out_op_i64_xor(s);
+    tcg_wasm_out_op_not(s);
+    tcg_wasm_out_op_global_set_r(s, ret);
+}
+
+static void tcg_wasm_out_nand(
+    TCGContext *s, TCGReg ret, TCGReg arg1, TCGReg arg2)
+{
+    tcg_wasm_out_op_global_get_r(s, arg1);
+    tcg_wasm_out_op_global_get_r(s, arg2);
+    tcg_wasm_out_op_i64_and(s);
+    tcg_wasm_out_op_not(s);
+    tcg_wasm_out_op_global_set_r(s, ret);
+}
+
+static void tcg_wasm_out_nor(
+    TCGContext *s, TCGReg ret, TCGReg arg1, TCGReg arg2)
+{
+    tcg_wasm_out_op_global_get_r(s, arg1);
+    tcg_wasm_out_op_global_get_r(s, arg2);
+    tcg_wasm_out_op_i64_or(s);
+    tcg_wasm_out_op_not(s);
+    tcg_wasm_out_op_global_set_r(s, ret);
+}
+
 static void tcg_wasm_out_shl(TCGContext *s, TCGReg ret,
                              TCGReg arg1, TCGReg arg2)
 {
@@ -1618,6 +1668,7 @@ static void tgen_andc(TCGContext *s, TCGType type,
                       TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_andc, a0, a1, a2);
+    tcg_wasm_out_andc(s, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_andc = {
@@ -1707,6 +1758,7 @@ static void tgen_eqv(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_eqv, a0, a1, a2);
+    tcg_wasm_out_eqv(s, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_eqv = {
@@ -1788,6 +1840,7 @@ static void tgen_nand(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_nand, a0, a1, a2);
+    tcg_wasm_out_nand(s, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_nand = {
@@ -1799,6 +1852,7 @@ static void tgen_nor(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_nor, a0, a1, a2);
+    tcg_wasm_out_nor(s, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_nor = {
@@ -1822,6 +1876,7 @@ static void tgen_orc(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_orc, a0, a1, a2);
+    tcg_wasm_out_orc(s, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_orc = {
