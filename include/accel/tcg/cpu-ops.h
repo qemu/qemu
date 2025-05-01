@@ -157,6 +157,13 @@ struct TCGCPUOps {
      */
     void (*record_sigbus)(CPUState *cpu, vaddr addr,
                           MMUAccessType access_type, uintptr_t ra);
+
+    /**
+     * untagged_addr: Remove an ignored tag from an address
+     * @cpu: cpu context
+     * @addr: tagged guest address
+     */
+    vaddr (*untagged_addr)(CPUState *cs, vaddr addr);
 #else
     /** @do_interrupt: Callback for interrupt handling.  */
     void (*do_interrupt)(CPUState *cpu);

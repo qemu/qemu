@@ -10,7 +10,7 @@
 
 #include "exec/vaddr.h"
 #include "user/guest-base.h"
-#include "cpu.h"
+#include "accel/tcg/cpu-ops.h"
 
 /*
  * If non-zero, the guest virtual address space is a contiguous subset
@@ -29,12 +29,14 @@ extern unsigned long reserved_va;
  */
 extern unsigned long guest_addr_max;
 
-#ifndef TARGET_TAGGED_ADDRESSES
 static inline vaddr cpu_untagged_addr(CPUState *cs, vaddr x)
 {
+    const TCGCPUOps *tcg_ops = cs->cc->tcg_ops;
+    if (tcg_ops->untagged_addr) {
+        return tcg_ops->untagged_addr(cs, x);
+    }
     return x;
 }
-#endif
 
 /* All direct uses of g2h and h2g need to go away for usermode softmmu.  */
 static inline void *g2h_untagged(vaddr x)
