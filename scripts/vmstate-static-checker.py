@@ -91,6 +91,7 @@ def check_fields_match(name, s_field, d_field):
                       'mem_win_size', 'mig_mem_win_size',
                       'io_win_addr', 'mig_io_win_addr',
                       'io_win_size', 'mig_io_win_size'],
+        'hpet': ['num_timers', 'num_timers_save'],
     }
 
     if not name in changed_names:
