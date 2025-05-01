@@ -348,14 +348,14 @@ static void designware_pcie_root_config_write(PCIDevice *d, uint32_t address,
 
     case DESIGNWARE_PCIE_ATU_LOWER_BASE:
     case DESIGNWARE_PCIE_ATU_UPPER_BASE:
-        viewport->base = deposit64(root->msi.base,
+        viewport->base = deposit64(viewport->base,
                                    address == DESIGNWARE_PCIE_ATU_LOWER_BASE
                                    ? 0 : 32, 32, val);
         break;
 
     case DESIGNWARE_PCIE_ATU_LOWER_TARGET:
     case DESIGNWARE_PCIE_ATU_UPPER_TARGET:
-        viewport->target = deposit64(root->msi.base,
+        viewport->target = deposit64(viewport->target,
                                      address == DESIGNWARE_PCIE_ATU_LOWER_TARGET
                                      ? 0 : 32, 32, val);
         break;
