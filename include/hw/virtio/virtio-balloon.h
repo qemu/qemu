@@ -70,7 +70,6 @@ struct VirtIOBalloon {
     int64_t stats_poll_interval;
     uint32_t host_features;
 
-    bool qemu_4_0_config_size;
     uint32_t poison_val;
 
     /* State of the resettable container */
