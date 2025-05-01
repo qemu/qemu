@@ -365,9 +365,6 @@ struct TCGContext {
     int nb_indirects;
     int nb_ops;
     TCGType addr_type;            /* TCG_TYPE_I32 or TCG_TYPE_I64 */
-
-    int page_mask;
-    uint8_t page_bits;
     TCGBar guest_mo;
 
     TCGRegSet reserved_regs;

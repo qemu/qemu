@@ -34,6 +34,7 @@
 #include "qemu/cacheflush.h"
 #include "qemu/cacheinfo.h"
 #include "qemu/timer.h"
+#include "exec/target_page.h"
 #include "exec/translation-block.h"
 #include "exec/tlb-common.h"
 #include "tcg/startup.h"
