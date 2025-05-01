@@ -1793,6 +1793,112 @@ static void tcg_wasm_out_call(TCGContext *s, int func,
     gen_call(s, info, func_idx);
 }
 
+static void *qemu_ld_helper_ptr(uint32_t oi)
+{
+    MemOp mop = get_memop(oi);
+    switch (mop & MO_SSIZE) {
+    case MO_UB:
+        return helper_ldub_mmu;
+    case MO_SB:
+        return helper_ldsb_mmu;
+    case MO_UW:
+        return helper_lduw_mmu;
+    case MO_SW:
+        return helper_ldsw_mmu;
+    case MO_UL:
+        return helper_ldul_mmu;
+    case MO_SL:
+        return helper_ldsl_mmu;
+    case MO_UQ:
+        return helper_ldq_mmu;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void tcg_wasm_out_qemu_ld(TCGContext *s, TCGReg data_reg,
+                                 TCGReg addr_reg, MemOpIdx oi)
+{
+    int helper_idx;
+    int func_idx;
+    bool addr64 = s->addr_type == TCG_TYPE_I64;
+
+    helper_idx = (uint32_t)qemu_ld_helper_ptr(oi);
+    func_idx = get_helper_idx(s, helper_idx);
+    if (func_idx < 0) {
+        func_idx = register_helper(s, helper_idx);
+    }
+
+    if (!addr64) {
+        tcg_wasm_out_ext32u(s, TCG_REG_TMP, addr_reg);
+        addr_reg = TCG_REG_TMP;
+    }
+
+    /* call helper */
+    tcg_wasm_out_op_global_get_r(s, TCG_AREG0);
+    tcg_wasm_out_op_i32_wrap_i64(s);
+    tcg_wasm_out_op_global_get_r(s, addr_reg);
+    tcg_wasm_out_op_i32_const(s, oi);
+    tcg_wasm_out_op_i32_const(s, (int32_t)s->code_ptr);
+
+    tcg_wasm_out_op_call(s, func_idx);
+    tcg_wasm_out_op_global_set_r(s, data_reg);
+}
+
+static void *qemu_st_helper_ptr(uint32_t oi)
+{
+    MemOp mop = get_memop(oi);
+    switch (mop & MO_SIZE) {
+    case MO_8:
+        return helper_stb_mmu;
+    case MO_16:
+        return helper_stw_mmu;
+    case MO_32:
+        return helper_stl_mmu;
+    case MO_64:
+        return helper_stq_mmu;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void tcg_wasm_out_qemu_st(TCGContext *s, TCGReg data_reg,
+                                 TCGReg addr_reg, MemOpIdx oi)
+{
+    int helper_idx;
+    int func_idx;
+    bool addr64 = s->addr_type == TCG_TYPE_I64;
+    MemOp mop = get_memop(oi);
+
+    helper_idx = (uint32_t)qemu_st_helper_ptr(oi);
+    func_idx = get_helper_idx(s, helper_idx);
+    if (func_idx < 0) {
+        func_idx = register_helper(s, helper_idx);
+    }
+
+    if (!addr64) {
+        tcg_wasm_out_ext32u(s, TCG_REG_TMP, addr_reg);
+        addr_reg = TCG_REG_TMP;
+    }
+
+    /* call helper */
+    tcg_wasm_out_op_global_get_r(s, TCG_AREG0);
+    tcg_wasm_out_op_i32_wrap_i64(s);
+    tcg_wasm_out_op_global_get_r(s, addr_reg);
+    switch (mop & MO_SSIZE) {
+    case MO_UQ:
+        tcg_wasm_out_op_global_get_r(s, data_reg);
+        break;
+    default:
+        tcg_wasm_out_op_global_get_r(s, data_reg);
+        tcg_wasm_out_op_i32_wrap_i64(s);
+        break;
+    }
+    tcg_wasm_out_op_i32_const(s, oi);
+    tcg_wasm_out_op_i32_const(s, (int32_t)s->code_ptr);
+
+    tcg_wasm_out_op_call(s, func_idx);
+}
 
 static bool patch_reloc(tcg_insn_unit *code_ptr_i, int type,
                         intptr_t value, intptr_t addend)
@@ -3128,6 +3234,7 @@ static void tgen_qemu_ld(TCGContext *s, TCGType type, TCGReg data,
                          TCGReg addr, MemOpIdx oi)
 {
     tcg_out_op_rrm(s, INDEX_op_qemu_ld, data, addr, oi);
+    tcg_wasm_out_qemu_ld(s, data, addr, oi);
 }
 
 static const TCGOutOpQemuLdSt outop_qemu_ld = {
@@ -3153,6 +3260,7 @@ static void tgen_qemu_st(TCGContext *s, TCGType type, TCGReg data,
                          TCGReg addr, MemOpIdx oi)
 {
     tcg_out_op_rrm(s, INDEX_op_qemu_st, data, addr, oi);
+    tcg_wasm_out_qemu_st(s, data, addr, oi);
 }
 
 static const TCGOutOpQemuLdSt outop_qemu_st = {
