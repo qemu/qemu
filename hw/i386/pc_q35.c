@@ -632,13 +632,3 @@ static void pc_q35_machine_2_12_options(MachineClass *m)
 }
 
 DEFINE_Q35_MACHINE(2, 12);
-
-static void pc_q35_machine_2_11_options(MachineClass *m)
-{
-    pc_q35_machine_2_12_options(m);
-    m->default_nic = "e1000";
-    compat_props_add(m->compat_props, hw_compat_2_11, hw_compat_2_11_len);
-    compat_props_add(m->compat_props, pc_compat_2_11, pc_compat_2_11_len);
-}
-
-DEFINE_Q35_MACHINE(2, 11);
