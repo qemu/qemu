@@ -368,7 +368,6 @@ struct TCGContext {
 
     int page_mask;
     uint8_t page_bits;
-    uint8_t tlb_dyn_max_bits;
     TCGBar guest_mo;
 
     TCGRegSet reserved_regs;

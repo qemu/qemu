@@ -2199,10 +2199,8 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
             trexw = (ttype == TCG_TYPE_I32 ? 0 : P_REXW);
             if (TCG_TYPE_PTR == TCG_TYPE_I64) {
                 hrexw = P_REXW;
-                if (s->page_bits + s->tlb_dyn_max_bits > 32) {
-                    tlbtype = TCG_TYPE_I64;
-                    tlbrexw = P_REXW;
-                }
+                tlbtype = TCG_TYPE_I64;
+                tlbrexw = P_REXW;
             }
         }
 

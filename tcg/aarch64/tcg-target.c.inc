@@ -1661,16 +1661,12 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
         unsigned s_mask = (1u << s_bits) - 1;
         unsigned mem_index = get_mmuidx(oi);
         TCGReg addr_adj;
-        TCGType mask_type;
         uint64_t compare_mask;
 
         ldst = new_ldst_label(s);
         ldst->is_ld = is_ld;
         ldst->oi = oi;
         ldst->addr_reg = addr_reg;
-
-        mask_type = (s->page_bits + s->tlb_dyn_max_bits > 32
-                     ? TCG_TYPE_I64 : TCG_TYPE_I32);
 
         /* Load cpu->neg.tlb.f[mmu_idx].{mask,table} into {tmp0,tmp1}. */
         QEMU_BUILD_BUG_ON(offsetof(CPUTLBDescFast, mask) != 0);
@@ -1679,7 +1675,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
                      tlb_mask_table_ofs(s, mem_index), 1, 0);
 
         /* Extract the TLB index from the address into X0.  */
-        tcg_out_insn(s, 3502S, AND_LSR, mask_type == TCG_TYPE_I64,
+        tcg_out_insn(s, 3502S, AND_LSR, TCG_TYPE_I64,
                      TCG_REG_TMP0, TCG_REG_TMP0, addr_reg,
                      s->page_bits - CPU_TLB_ENTRY_BITS);
 
