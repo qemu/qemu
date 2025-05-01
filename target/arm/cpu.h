@@ -3213,8 +3213,4 @@ extern const uint64_t pred_esz_masks[5];
 #define LOG2_TAG_GRANULE 4
 #define TAG_GRANULE      (1 << LOG2_TAG_GRANULE)
 
-#ifdef CONFIG_USER_ONLY
-#define TARGET_PAGE_DATA_SIZE (TARGET_PAGE_SIZE >> (LOG2_TAG_GRANULE + 1))
-#endif /* CONFIG_USER_ONLY */
-
 #endif

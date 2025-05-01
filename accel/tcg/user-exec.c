@@ -870,7 +870,6 @@ tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, vaddr addr,
     return addr;
 }
 
-#ifdef TARGET_PAGE_DATA_SIZE
 /*
  * Allocate chunks of target data together.  For the only current user,
  * if we allocate one hunk per page, we have overhead of 40/128 or 40%.
@@ -886,10 +885,16 @@ typedef struct TargetPageDataNode {
 } TargetPageDataNode;
 
 static IntervalTreeRoot targetdata_root;
+static size_t target_page_data_size;
 
 void page_reset_target_data(vaddr start, vaddr last)
 {
     IntervalTreeNode *n, *next;
+    size_t size = target_page_data_size;
+
+    if (likely(size == 0)) {
+        return;
+    }
 
     assert_memory_lock();
 
@@ -920,16 +925,21 @@ void page_reset_target_data(vaddr start, vaddr last)
         n_last = MIN(last, n->last);
         p_len = (n_last + 1 - n_start) >> TARGET_PAGE_BITS;
 
-        memset(t->data + p_ofs * TARGET_PAGE_DATA_SIZE, 0,
-               p_len * TARGET_PAGE_DATA_SIZE);
+        memset(t->data + p_ofs * size, 0, p_len * size);
     }
 }
 
-void *page_get_target_data(vaddr address)
+void *page_get_target_data(vaddr address, size_t size)
 {
     IntervalTreeNode *n;
     TargetPageDataNode *t;
     vaddr page, region, p_ofs;
+
+    /* Remember the size from the first call, and it should be constant. */
+    if (unlikely(target_page_data_size != size)) {
+        assert(target_page_data_size == 0);
+        target_page_data_size = size;
+    }
 
     page = address & TARGET_PAGE_MASK;
     region = address & TBD_MASK;
@@ -945,8 +955,7 @@ void *page_get_target_data(vaddr address)
         mmap_lock();
         n = interval_tree_iter_first(&targetdata_root, page, page);
         if (!n) {
-            t = g_malloc0(sizeof(TargetPageDataNode)
-                          + TPD_PAGES * TARGET_PAGE_DATA_SIZE);
+            t = g_malloc0(sizeof(TargetPageDataNode) + TPD_PAGES * size);
             n = &t->itree;
             n->start = region;
             n->last = region | ~TBD_MASK;
@@ -957,11 +966,8 @@ void *page_get_target_data(vaddr address)
 
     t = container_of(n, TargetPageDataNode, itree);
     p_ofs = (page - region) >> TARGET_PAGE_BITS;
-    return t->data + p_ofs * TARGET_PAGE_DATA_SIZE;
+    return t->data + p_ofs * size;
 }
-#else
-void page_reset_target_data(vaddr start, vaddr last) { }
-#endif /* TARGET_PAGE_DATA_SIZE */
 
 /* The system-mode versions of these helpers are in cputlb.c.  */
 

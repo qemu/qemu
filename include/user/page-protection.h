@@ -73,18 +73,20 @@ bool page_check_range_empty(vaddr start, vaddr last);
 vaddr page_find_range_empty(vaddr min, vaddr max, vaddr len, vaddr align);
 
 /**
- * page_get_target_data(address)
+ * page_get_target_data
  * @address: guest virtual address
+ * @size: per-page size
  *
- * Return TARGET_PAGE_DATA_SIZE bytes of out-of-band data to associate
+ * Return @size bytes of out-of-band data to associate
  * with the guest page at @address, allocating it if necessary.  The
  * caller should already have verified that the address is valid.
+ * The value of @size must be the same for every call.
  *
  * The memory will be freed when the guest page is deallocated,
  * e.g. with the munmap system call.
  */
 __attribute__((returns_nonnull))
-void *page_get_target_data(vaddr address);
+void *page_get_target_data(vaddr address, size_t size);
 
 typedef int (*walk_memory_regions_fn)(void *, vaddr, vaddr, int);
 int walk_memory_regions(void *, walk_memory_regions_fn);

@@ -37,7 +37,6 @@
 #include "qemu/guest-random.h"
 #include "mte_helper.h"
 
-
 static int choose_nonexcluded_tag(int tag, int offset, uint16_t exclude)
 {
     if (exclude == 0xffff) {
@@ -63,6 +62,7 @@ uint8_t *allocation_tag_mem_probe(CPUARMState *env, int ptr_mmu_idx,
                                   bool probe, uintptr_t ra)
 {
 #ifdef CONFIG_USER_ONLY
+    const size_t page_data_size = TARGET_PAGE_SIZE >> (LOG2_TAG_GRANULE + 1);
     uint64_t clean_ptr = useronly_clean_ptr(ptr);
     int flags = page_get_flags(clean_ptr);
     uint8_t *tags;
@@ -83,7 +83,7 @@ uint8_t *allocation_tag_mem_probe(CPUARMState *env, int ptr_mmu_idx,
         return NULL;
     }
 
-    tags = page_get_target_data(clean_ptr);
+    tags = page_get_target_data(clean_ptr, page_data_size);
 
     index = extract32(ptr, LOG2_TAG_GRANULE + 1,
                       TARGET_PAGE_BITS - LOG2_TAG_GRANULE - 1);
