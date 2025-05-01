@@ -221,14 +221,6 @@ GlobalProperty pc_compat_3_0[] = {
 };
 const size_t pc_compat_3_0_len = G_N_ELEMENTS(pc_compat_3_0);
 
-GlobalProperty pc_compat_2_12[] = {
-    { TYPE_X86_CPU, "legacy-cache", "on" },
-    { TYPE_X86_CPU, "topoext", "off" },
-    { "EPYC-" TYPE_X86_CPU, "xlevel", "0x8000000a" },
-    { "EPYC-IBPB-" TYPE_X86_CPU, "xlevel", "0x8000000a" },
-};
-const size_t pc_compat_2_12_len = G_N_ELEMENTS(pc_compat_2_12);
-
 /*
  * @PC_FW_DATA:
  * Size of the chunk of memory at the top of RAM for the BIOS ACPI tables
