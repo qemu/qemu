@@ -235,13 +235,6 @@ GlobalProperty pc_compat_2_11[] = {
 };
 const size_t pc_compat_2_11_len = G_N_ELEMENTS(pc_compat_2_11);
 
-GlobalProperty pc_compat_2_10[] = {
-    { TYPE_X86_CPU, "x-hv-max-vps", "0x40" },
-    { "i440FX-pcihost", "x-pci-hole64-fix", "off" },
-    { "q35-pcihost", "x-pci-hole64-fix", "off" },
-};
-const size_t pc_compat_2_10_len = G_N_ELEMENTS(pc_compat_2_10);
-
 /*
  * @PC_FW_DATA:
  * Size of the chunk of memory at the top of RAM for the BIOS ACPI tables
