@@ -200,6 +200,14 @@ static void tcg_wasm_out_op_i64_xor(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x85);
 }
+static void tcg_wasm_out_op_i64_clz(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x79);
+}
+static void tcg_wasm_out_op_i64_ctz(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x7a);
+}
 static void tcg_wasm_out_op_i64_popcnt(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x7b);
@@ -244,6 +252,10 @@ static void tcg_wasm_out_op_i64_shr_u(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x88);
 }
+static void tcg_wasm_out_op_i64_rotl(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x89);
+}
 static void tcg_wasm_out_op_i64_rotr(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x8a);
@@ -267,6 +279,14 @@ static void tcg_wasm_out_op_i64_extend8_s(TCGContext *s)
 static void tcg_wasm_out_op_i64_extend16_s(TCGContext *s)
 {
     tcg_wasm_out8(s, 0xc3);
+}
+static void tcg_wasm_out_op_i32_clz(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x67);
+}
+static void tcg_wasm_out_op_i32_ctz(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x68);
 }
 static void tcg_wasm_out_op_i32_add(TCGContext *s)
 {
@@ -292,15 +312,32 @@ static void tcg_wasm_out_op_i32_shr_u(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x76);
 }
+static void tcg_wasm_out_op_i32_rotl(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x77);
+}
 static void tcg_wasm_out_op_i32_rotr(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x78);
+}
+static void tcg_wasm_out_op_i32_eqz(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x45);
+}
+static void tcg_wasm_out_op_i64_eqz(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x50);
 }
 
 static void tcg_wasm_out_op_if_ret_i64(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x04);
     tcg_wasm_out8(s, 0x7e);
+}
+static void tcg_wasm_out_op_if_ret_i32(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x04);
+    tcg_wasm_out8(s, 0x7f);
 }
 static void tcg_wasm_out_op_else(TCGContext *s)
 {
@@ -360,6 +397,8 @@ tcg_wasm_out_i64_calc(xor);
 tcg_wasm_out_i64_calc(add);
 tcg_wasm_out_i64_calc(sub);
 tcg_wasm_out_i64_calc(mul);
+tcg_wasm_out_i64_calc(rotl);
+tcg_wasm_out_i64_calc(rotr);
 
 static const struct {
     uint8_t i32;
@@ -916,6 +955,118 @@ static void tcg_wasm_out_bswap16(
     tcg_wasm_out_op_i32_or(s);
     tcg_wasm_out_op_i64_extend_i32_u(s);
     tcg_wasm_out_op_global_set_r(s, dest);
+}
+
+static void tcg_wasm_out_rotl(
+    TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1, TCGReg arg2)
+{
+    switch (type) {
+    case TCG_TYPE_I32:
+        tcg_wasm_out_op_global_get_r(s, arg1);
+        tcg_wasm_out_op_i32_wrap_i64(s);
+        tcg_wasm_out_op_global_get_r(s, arg2);
+        tcg_wasm_out_op_i32_wrap_i64(s);
+        tcg_wasm_out_op_i32_rotl(s);
+        tcg_wasm_out_op_i64_extend_i32_s(s);
+        tcg_wasm_out_op_global_set_r(s, ret);
+        break;
+    case TCG_TYPE_I64:
+        tcg_wasm_out_i64_calc_rotl(s, ret, arg1, arg2);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void tcg_wasm_out_rotr(
+    TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1, TCGReg arg2)
+{
+    switch (type) {
+    case TCG_TYPE_I32:
+        tcg_wasm_out_op_global_get_r(s, arg1);
+        tcg_wasm_out_op_i32_wrap_i64(s);
+        tcg_wasm_out_op_global_get_r(s, arg2);
+        tcg_wasm_out_op_i32_wrap_i64(s);
+        tcg_wasm_out_op_i32_rotr(s);
+        tcg_wasm_out_op_i64_extend_i32_s(s);
+        tcg_wasm_out_op_global_set_r(s, ret);
+        break;
+    case TCG_TYPE_I64:
+        tcg_wasm_out_i64_calc_rotr(s, ret, arg1, arg2);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void tcg_wasm_out_clz(
+    TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1, TCGReg arg2)
+{
+    switch (type) {
+    case TCG_TYPE_I32:
+        tcg_wasm_out_op_global_get_r(s, arg1);
+        tcg_wasm_out_op_i32_wrap_i64(s);
+        tcg_wasm_out_op_i32_eqz(s);
+        tcg_wasm_out_op_if_ret_i32(s);
+        tcg_wasm_out_op_global_get_r(s, arg2);
+        tcg_wasm_out_op_i32_wrap_i64(s);
+        tcg_wasm_out_op_else(s);
+        tcg_wasm_out_op_global_get_r(s, arg1);
+        tcg_wasm_out_op_i32_wrap_i64(s);
+        tcg_wasm_out_op_i32_clz(s);
+        tcg_wasm_out_op_end(s);
+        tcg_wasm_out_op_i64_extend_i32_s(s);
+        tcg_wasm_out_op_global_set_r(s, ret);
+        break;
+    case TCG_TYPE_I64:
+        tcg_wasm_out_op_global_get_r(s, arg1);
+        tcg_wasm_out_op_i64_eqz(s);
+        tcg_wasm_out_op_if_ret_i64(s);
+        tcg_wasm_out_op_global_get_r(s, arg2);
+        tcg_wasm_out_op_else(s);
+        tcg_wasm_out_op_global_get_r(s, arg1);
+        tcg_wasm_out_op_i64_clz(s);
+        tcg_wasm_out_op_end(s);
+        tcg_wasm_out_op_global_set_r(s, ret);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void tcg_wasm_out_ctz(
+    TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1, TCGReg arg2)
+{
+    switch (type) {
+    case TCG_TYPE_I32:
+        tcg_wasm_out_op_global_get_r(s, arg1);
+        tcg_wasm_out_op_i32_wrap_i64(s);
+        tcg_wasm_out_op_i32_eqz(s);
+        tcg_wasm_out_op_if_ret_i32(s);
+        tcg_wasm_out_op_global_get_r(s, arg2);
+        tcg_wasm_out_op_i32_wrap_i64(s);
+        tcg_wasm_out_op_else(s);
+        tcg_wasm_out_op_global_get_r(s, arg1);
+        tcg_wasm_out_op_i32_wrap_i64(s);
+        tcg_wasm_out_op_i32_ctz(s);
+        tcg_wasm_out_op_end(s);
+        tcg_wasm_out_op_i64_extend_i32_s(s);
+        tcg_wasm_out_op_global_set_r(s, ret);
+        break;
+    case TCG_TYPE_I64:
+        tcg_wasm_out_op_global_get_r(s, arg1);
+        tcg_wasm_out_op_i64_eqz(s);
+        tcg_wasm_out_op_if_ret_i64(s);
+        tcg_wasm_out_op_global_get_r(s, arg2);
+        tcg_wasm_out_op_else(s);
+        tcg_wasm_out_op_global_get_r(s, arg1);
+        tcg_wasm_out_op_i64_ctz(s);
+        tcg_wasm_out_op_end(s);
+        tcg_wasm_out_op_global_set_r(s, ret);
+        break;
+    default:
+        g_assert_not_reached();
+    }
 }
 
 static void tcg_wasm_out_ld(
@@ -1710,6 +1861,7 @@ static void tgen_clz(TCGContext *s, TCGType type,
                      ? INDEX_op_tci_clz32
                      : INDEX_op_clz);
     tcg_out_op_rrr(s, opc, a0, a1, a2);
+    tcg_wasm_out_clz(s, type, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_clz = {
@@ -1724,6 +1876,7 @@ static void tgen_ctz(TCGContext *s, TCGType type,
                      ? INDEX_op_tci_ctz32
                      : INDEX_op_ctz);
     tcg_out_op_rrr(s, opc, a0, a1, a2);
+    tcg_wasm_out_ctz(s, type, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_ctz = {
@@ -1948,6 +2101,7 @@ static void tgen_rotl(TCGContext *s, TCGType type,
                      ? INDEX_op_tci_rotl32
                      : INDEX_op_rotl);
     tcg_out_op_rrr(s, opc, a0, a1, a2);
+    tcg_wasm_out_rotl(s, type, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_rotl = {
@@ -1962,6 +2116,7 @@ static void tgen_rotr(TCGContext *s, TCGType type,
                      ? INDEX_op_tci_rotr32
                      : INDEX_op_rotr);
     tcg_out_op_rrr(s, opc, a0, a1, a2);
+    tcg_wasm_out_rotr(s, type, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_rotr = {
