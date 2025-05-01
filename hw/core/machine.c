@@ -258,12 +258,6 @@ GlobalProperty hw_compat_2_11[] = {
 };
 const size_t hw_compat_2_11_len = G_N_ELEMENTS(hw_compat_2_11);
 
-GlobalProperty hw_compat_2_10[] = {
-    { "virtio-mouse-device", "wheel-axis", "false" },
-    { "virtio-tablet-device", "wheel-axis", "false" },
-};
-const size_t hw_compat_2_10_len = G_N_ELEMENTS(hw_compat_2_10);
-
 MachineState *current_machine;
 
 static char *machine_get_kernel(Object *obj, Error **errp)
