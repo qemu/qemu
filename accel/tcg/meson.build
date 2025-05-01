@@ -21,11 +21,8 @@ endif
 libuser_ss.add_all(tcg_ss)
 libsystem_ss.add_all(tcg_ss)
 
-tcg_specific_ss = ss.source_set()
-tcg_specific_ss.add(when: 'CONFIG_USER_ONLY', if_true: files('user-exec.c'))
-specific_ss.add_all(when: 'CONFIG_TCG', if_true: tcg_specific_ss)
-
 libuser_ss.add(files(
+  'user-exec.c',
   'user-exec-stub.c',
 ))
 
