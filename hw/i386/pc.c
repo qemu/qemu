@@ -229,12 +229,6 @@ GlobalProperty pc_compat_2_12[] = {
 };
 const size_t pc_compat_2_12_len = G_N_ELEMENTS(pc_compat_2_12);
 
-GlobalProperty pc_compat_2_11[] = {
-    { TYPE_X86_CPU, "x-migrate-smi-count", "off" },
-    { "Skylake-Server" "-" TYPE_X86_CPU, "clflushopt", "off" },
-};
-const size_t pc_compat_2_11_len = G_N_ELEMENTS(pc_compat_2_11);
-
 /*
  * @PC_FW_DATA:
  * Size of the chunk of memory at the top of RAM for the BIOS ACPI tables
