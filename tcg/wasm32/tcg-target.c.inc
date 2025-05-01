@@ -3351,6 +3351,23 @@ static void tcg_out_tb_start(TCGContext *s)
     init_label_info();
     init_helpers();
 
+    /* generate wasm code to initialize fundamental registers */
+    tcg_wasm_out_op_global_get_r(s, TCG_AREG0);
+    tcg_wasm_out_op_i64_eqz(s);
+    tcg_wasm_out_op_if_noret(s);
+
+    tcg_wasm_out_ctx_i32_load(s, env);
+    tcg_wasm_out_op_i64_extend_i32_u(s);
+    tcg_wasm_out_op_global_set_r(s, TCG_AREG0);
+
+    tcg_wasm_out_ctx_i32_load(s, stack);
+    tcg_wasm_out_op_i64_extend_i32_u(s);
+    tcg_wasm_out_op_global_set_r(s, TCG_REG_CALL_STACK);
+    tcg_wasm_out_op_end(s);
+
+    tcg_wasm_out_op_i64_const(s, 0);
+    tcg_wasm_out_op_global_set(s, BLOCK_PTR_IDX);
+
     tcg_wasm_out_op_loop_noret(s);
     tcg_wasm_out_op_global_get(s, BLOCK_PTR_IDX);
     tcg_wasm_out_op_i64_eqz(s);
