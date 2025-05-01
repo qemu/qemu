@@ -25,6 +25,8 @@
  * THE SOFTWARE.
  */
 
+#include "../wasm32.h"
+
 /* Used for function call generation. */
 #define TCG_TARGET_CALL_STACK_OFFSET    0
 #define TCG_TARGET_STACK_ALIGN          8
@@ -127,6 +129,11 @@ static const uint8_t tcg_target_reg_index[TCG_TARGET_NB_REGS] = {
  * Global variable Index used for storing the current block index
  */
 #define BLOCK_PTR_IDX 17
+
+/*
+ * pointer to wasmContext
+ */
+#define CTX_IDX 0
 
 /* Temporary local variables */
 #define TMP32_LOCAL_0_IDX 1
@@ -334,6 +341,14 @@ static void tcg_wasm_out_op_i32_eqz(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x45);
 }
+static void tcg_wasm_out_op_i32_eq(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x46);
+}
+static void tcg_wasm_out_op_i32_ne(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x47);
+}
 static void tcg_wasm_out_op_i64_lt_u(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x54);
@@ -379,6 +394,10 @@ static void tcg_wasm_out_op_else(TCGContext *s)
 static void tcg_wasm_out_op_end(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x0b);
+}
+static void tcg_wasm_out_op_return(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x0f);
 }
 static void tcg_wasm_out_op_var(TCGContext *s, uint8_t instr, uint8_t i)
 {
@@ -588,6 +607,16 @@ static void tcg_wasm_out_op_i64_load32_s(TCGContext *s, uint32_t a, uint32_t o)
 static void tcg_wasm_out_op_i64_load32_u(TCGContext *s, uint32_t a, uint32_t o)
 {
     tcg_wasm_out_op_loadstore(s, 0x35, a, o);
+}
+
+static void tcg_wasm_out_op_i32_load(TCGContext *s, uint32_t a, uint32_t o)
+{
+    tcg_wasm_out_op_loadstore(s, 0x28, a, o);
+}
+
+static void tcg_wasm_out_op_i32_store(TCGContext *s, uint32_t a, uint32_t o)
+{
+    tcg_wasm_out_op_loadstore(s, 0x36, a, o);
 }
 
 static void tcg_wasm_out_op_not(TCGContext *s)
@@ -1518,6 +1547,85 @@ static void tcg_wasm_out_brcond(TCGContext *s, TCGType type,
     tcg_wasm_out_op_br_to_label(s, l, true);
 }
 
+#define tcg_wasm_out_ctx_i32_store_const(s, f, v)                       \
+    do {                                                                \
+        tcg_wasm_out_op_local_get(s, CTX_IDX);                          \
+        tcg_wasm_out_op_i32_const(s, v);                                \
+        tcg_wasm_out_op_i32_store(s, 0, offsetof(struct wasmContext, f)); \
+    } while (0)
+
+#define tcg_wasm_out_ctx_i32_store_r(s, f, r)                           \
+    do {                                                                \
+        tcg_wasm_out_op_local_get(s, CTX_IDX);                          \
+        tcg_wasm_out_op_global_get_r(s, r);                             \
+        tcg_wasm_out_op_i32_wrap_i64(s);                                \
+        tcg_wasm_out_op_i32_store(s, 0, offsetof(struct wasmContext, f)); \
+    } while (0)
+
+#define tcg_wasm_out_ctx_i32_store_local32(s, f, var)                   \
+    do {                                                                \
+        tcg_wasm_out_op_local_get(s, CTX_IDX);                          \
+        tcg_wasm_out_op_local_get(s, var);                              \
+        tcg_wasm_out_op_i32_store(s, 0, offsetof(struct wasmContext, f)); \
+    } while (0)
+
+#define tcg_wasm_out_ctx_i32_load(s, f)                                 \
+    do {                                                                \
+        tcg_wasm_out_op_local_get(s, CTX_IDX);                          \
+        tcg_wasm_out_op_i32_load(s, 0, offsetof(struct wasmContext, f)); \
+    } while (0)
+
+static void tcg_wasm_out_exit_tb(TCGContext *s, uintptr_t arg)
+{
+    tcg_wasm_out_ctx_i32_store_const(s, tb_ptr, 0);
+    tcg_wasm_out_op_i32_const(s, (int32_t)arg);
+    tcg_wasm_out_op_return(s);
+}
+
+static void tcg_wasm_out_goto_ptr(TCGContext *s, TCGReg arg)
+{
+    tcg_wasm_out_op_global_get_r(s, arg);
+    tcg_wasm_out_op_i32_wrap_i64(s);
+    tcg_wasm_out_ctx_i32_load(s, tb_ptr);
+    tcg_wasm_out_op_i32_eq(s);
+    tcg_wasm_out_op_if_noret(s);
+    tcg_wasm_out_op_i64_const(s, 0);
+    tcg_wasm_out_op_global_set(s, BLOCK_PTR_IDX);
+    tcg_wasm_out_op_br(s, 2); /* br to the top of loop */
+    tcg_wasm_out_op_end(s);
+
+    tcg_wasm_out_ctx_i32_store_r(s, tb_ptr, arg);
+    tcg_wasm_out_op_i32_const(s, 0);
+    tcg_wasm_out_op_return(s);
+}
+
+static void tcg_wasm_out_goto_tb(
+    TCGContext *s, int which, uint32_t cur_reset_ptr)
+{
+    tcg_wasm_out_op_i32_const(s, (int32_t)get_jmp_target_addr(s, which));
+    tcg_wasm_out_op_i32_load(s, 0, 0);
+    tcg_wasm_out_op_local_set(s, TMP32_LOCAL_0_IDX);
+
+    tcg_wasm_out_op_local_get(s, TMP32_LOCAL_0_IDX);
+    tcg_wasm_out_op_i32_const(s, cur_reset_ptr);
+    tcg_wasm_out_op_i32_ne(s);
+    tcg_wasm_out_op_if_noret(s);
+
+    tcg_wasm_out_op_local_get(s, TMP32_LOCAL_0_IDX);
+    tcg_wasm_out_ctx_i32_load(s, tb_ptr);
+    tcg_wasm_out_op_i32_eq(s);
+    tcg_wasm_out_op_if_noret(s);
+    tcg_wasm_out_op_i64_const(s, 0);
+    tcg_wasm_out_op_global_set(s, BLOCK_PTR_IDX);
+    tcg_wasm_out_op_br(s, 3); /* br to the top of loop */
+    tcg_wasm_out_op_end(s);
+
+    tcg_wasm_out_ctx_i32_store_local32(s, tb_ptr, TMP32_LOCAL_0_IDX);
+    tcg_wasm_out_op_i32_const(s, 0);
+    tcg_wasm_out_op_return(s);
+    tcg_wasm_out_op_end(s);
+}
+
 static bool patch_reloc(tcg_insn_unit *code_ptr_i, int type,
                         intptr_t value, intptr_t addend)
 {
@@ -1931,6 +2039,7 @@ static void tcg_out_call(TCGContext *s, const tcg_insn_unit *func,
 static void tcg_out_exit_tb(TCGContext *s, uintptr_t arg)
 {
     tcg_out_op_p(s, INDEX_op_exit_tb, (void *)arg);
+    tcg_wasm_out_exit_tb(s, arg);
 }
 
 static void tcg_out_goto_tb(TCGContext *s, int which)
@@ -1938,11 +2047,13 @@ static void tcg_out_goto_tb(TCGContext *s, int which)
     /* indirect jump method. */
     tcg_out_op_p(s, INDEX_op_goto_tb, (void *)get_jmp_target_addr(s, which));
     set_jmp_reset_offset(s, which);
+    tcg_wasm_out_goto_tb(s, which, (uint32_t)s->code_ptr);
 }
 
 static void tcg_out_goto_ptr(TCGContext *s, TCGReg a0)
 {
     tcg_out_op_r(s, INDEX_op_goto_ptr, a0);
+    tcg_wasm_out_goto_ptr(s, a0);
 }
 
 void tb_target_set_jmp_target(const TranslationBlock *tb, int n,

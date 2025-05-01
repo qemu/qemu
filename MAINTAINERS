@@ -3999,6 +3999,7 @@ M: Kohei Tokunaga <ktokunaga.mail@gmail.com>
 S: Maintained
 F: tcg/wasm32/
 F: tcg/wasm32.c
+F: tcg/wasm32.h
 
 Block drivers
 -------------
