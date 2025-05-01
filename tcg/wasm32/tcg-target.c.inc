@@ -200,6 +200,10 @@ static void tcg_wasm_out_op_i64_xor(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x85);
 }
+static void tcg_wasm_out_op_i64_popcnt(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x7b);
+}
 static void tcg_wasm_out_op_i64_add(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x7c);
@@ -568,6 +572,29 @@ static void tcg_wasm_out_nor(
     tcg_wasm_out_op_i64_or(s);
     tcg_wasm_out_op_not(s);
     tcg_wasm_out_op_global_set_r(s, ret);
+}
+
+static void tcg_wasm_out_neg(TCGContext *s, TCGReg ret, TCGReg arg)
+{
+    tcg_wasm_out_op_global_get_r(s, arg);
+    tcg_wasm_out_op_not(s);
+    tcg_wasm_out_op_i64_const(s, 1);
+    tcg_wasm_out_op_i64_add(s);
+    tcg_wasm_out_op_global_set_r(s, ret);
+}
+
+static void tcg_wasm_out_not(TCGContext *s, TCGReg ret, TCGReg arg)
+{
+    tcg_wasm_out_op_global_get_r(s, arg);
+    tcg_wasm_out_op_not(s);
+    tcg_wasm_out_op_global_set_r(s, ret);
+}
+
+static void tcg_wasm_out_ctpop(TCGContext *s, TCGReg dest, TCGReg src)
+{
+    tcg_wasm_out_op_global_get_r(s, src);
+    tcg_wasm_out_op_i64_popcnt(s);
+    tcg_wasm_out_op_global_set_r(s, dest);
 }
 
 static void tcg_wasm_out_shl(TCGContext *s, TCGReg ret,
@@ -2056,6 +2083,7 @@ static const TCGOutOpBinary outop_xor = {
 static void tgen_ctpop(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
 {
     tcg_out_op_rr(s, INDEX_op_ctpop, a0, a1);
+    tcg_wasm_out_ctpop(s, a0, a1);
 }
 
 static TCGConstraintSetIndex cset_ctpop(TCGType type, unsigned flags)
@@ -2112,9 +2140,15 @@ static const TCGOutOpUnary outop_bswap64 = {
 };
 #endif
 
-static void tgen_neg(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
+static void tgen_neg_tci(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
 {
     tcg_out_op_rr(s, INDEX_op_neg, a0, a1);
+ }
+
+static void tgen_neg(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
+{
+    tgen_neg_tci(s, type, a0, a1);
+    tcg_wasm_out_neg(s, a0, a1);
 }
 
 static const TCGOutOpUnary outop_neg = {
@@ -2125,6 +2159,7 @@ static const TCGOutOpUnary outop_neg = {
 static void tgen_not(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
 {
     tcg_out_op_rr(s, INDEX_op_not, a0, a1);
+    tcg_wasm_out_not(s, a0, a1);
 }
 
 static const TCGOutOpUnary outop_not = {
@@ -2157,7 +2192,7 @@ static void tgen_negsetcond(TCGContext *s, TCGType type, TCGCond cond,
                             TCGReg dest, TCGReg arg1, TCGReg arg2)
 {
     tgen_setcond_tci(s, type, cond, dest, arg1, arg2);
-    tgen_neg(s, type, dest, dest);
+    tgen_neg_tci(s, type, dest, dest);
     tcg_wasm_out_negsetcond(s, type, dest, arg1, arg2, cond);
 }
 
