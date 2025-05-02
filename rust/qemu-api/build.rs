@@ -8,8 +8,6 @@ use std::os::unix::fs::symlink as symlink_file;
 use std::os::windows::fs::symlink_file;
 use std::{env, fs::remove_file, io::Result, path::Path};
 
-use version_check as rustc;
-
 fn main() -> Result<()> {
     // Placing bindings.inc.rs in the source directory is supported
     // but not documented or encouraged.
@@ -37,11 +35,6 @@ fn main() -> Result<()> {
         remove_file(dest_path)?;
     }
     symlink_file(file, dest_path)?;
-
-    // Check for available rustc features
-    if rustc::is_min_version("1.77.0").unwrap_or(false) {
-        println!("cargo:rustc-cfg=has_offset_of");
-    }
 
     println!("cargo:rerun-if-changed=build.rs");
     Ok(())

@@ -26,7 +26,6 @@ pub static VMSTATE: VMStateDescription = VMStateDescription {
     ..Zeroable::ZERO
 };
 
-#[derive(qemu_api_macros::offsets)]
 #[repr(C)]
 #[derive(qemu_api_macros::Object)]
 pub struct DummyState {
@@ -79,7 +78,6 @@ impl DeviceImpl for DummyState {
     }
 }
 
-#[derive(qemu_api_macros::offsets)]
 #[repr(C)]
 #[derive(qemu_api_macros::Object)]
 pub struct DummyChildState {

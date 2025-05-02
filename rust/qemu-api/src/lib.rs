@@ -23,7 +23,6 @@ pub mod errno;
 pub mod irq;
 pub mod memory;
 pub mod module;
-pub mod offset_of;
 pub mod qdev;
 pub mod qom;
 pub mod sysbus;
@@ -165,6 +164,3 @@ unsafe impl GlobalAlloc for QemuAllocator {
         }
     }
 }
-
-#[cfg(has_offset_of)]
-pub use core::mem::offset_of;

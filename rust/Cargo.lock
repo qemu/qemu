@@ -108,7 +108,6 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "qemu_api_macros",
- "version_check",
 ]
 
 [[package]]
