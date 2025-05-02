@@ -38,7 +38,6 @@
 struct PCISerialState {
     PCIDevice dev;
     SerialState state;
-    uint8_t prog_if;
 };
 
 #define TYPE_PCI_SERIAL "pci-serial"
@@ -53,8 +52,8 @@ static void serial_pci_realize(PCIDevice *dev, Error **errp)
         return;
     }
 
-    pci->dev.config[PCI_CLASS_PROG] = pci->prog_if;
-    pci->dev.config[PCI_INTERRUPT_PIN] = 0x01;
+    pci->dev.config[PCI_CLASS_PROG] = 2; /* 16550 compatible */
+    pci->dev.config[PCI_INTERRUPT_PIN] = 1;
     s->irq = pci_allocate_irq(&pci->dev);
 
     memory_region_init_io(&s->io, OBJECT(pci), &serial_io_ops, s, "serial", 8);
@@ -81,10 +80,6 @@ static const VMStateDescription vmstate_pci_serial = {
     }
 };
 
-static const Property serial_pci_properties[] = {
-    DEFINE_PROP_UINT8("prog_if",  PCISerialState, prog_if, 0x02),
-};
-
 static void serial_pci_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -96,7 +91,6 @@ static void serial_pci_class_initfn(ObjectClass *klass, const void *data)
     pc->revision = 1;
     pc->class_id = PCI_CLASS_COMMUNICATION_SERIAL;
     dc->vmsd = &vmstate_pci_serial;
-    device_class_set_props(dc, serial_pci_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 

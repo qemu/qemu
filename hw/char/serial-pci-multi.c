@@ -46,7 +46,6 @@ typedef struct PCIMultiSerialState {
     SerialState  state[PCI_SERIAL_MAX_PORTS];
     uint32_t     level[PCI_SERIAL_MAX_PORTS];
     IRQState     irqs[PCI_SERIAL_MAX_PORTS];
-    uint8_t      prog_if;
 } PCIMultiSerialState;
 
 static void multi_serial_pci_exit(PCIDevice *dev)
@@ -97,8 +96,8 @@ static void multi_serial_pci_realize(PCIDevice *dev, Error **errp)
     SerialState *s;
     size_t i, nports = multi_serial_get_port_count(pc);
 
-    pci->dev.config[PCI_CLASS_PROG] = pci->prog_if;
-    pci->dev.config[PCI_INTERRUPT_PIN] = 0x01;
+    pci->dev.config[PCI_CLASS_PROG] = 2; /* 16550 compatible */
+    pci->dev.config[PCI_INTERRUPT_PIN] = 1;
     memory_region_init(&pci->iobar, OBJECT(pci), "multiserial", 8 * nports);
     pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->iobar);
 
@@ -133,7 +132,6 @@ static const VMStateDescription vmstate_pci_multi_serial = {
 static const Property multi_2x_serial_pci_properties[] = {
     DEFINE_PROP_CHR("chardev1",  PCIMultiSerialState, state[0].chr),
     DEFINE_PROP_CHR("chardev2",  PCIMultiSerialState, state[1].chr),
-    DEFINE_PROP_UINT8("prog_if",  PCIMultiSerialState, prog_if, 0x02),
 };
 
 static const Property multi_4x_serial_pci_properties[] = {
@@ -141,7 +139,6 @@ static const Property multi_4x_serial_pci_properties[] = {
     DEFINE_PROP_CHR("chardev2",  PCIMultiSerialState, state[1].chr),
     DEFINE_PROP_CHR("chardev3",  PCIMultiSerialState, state[2].chr),
     DEFINE_PROP_CHR("chardev4",  PCIMultiSerialState, state[3].chr),
-    DEFINE_PROP_UINT8("prog_if",  PCIMultiSerialState, prog_if, 0x02),
 };
 
 static void multi_2x_serial_pci_class_initfn(ObjectClass *klass,

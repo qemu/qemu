@@ -51,7 +51,6 @@ typedef struct PCIDivaSerialState {
     SerialState  state[PCI_SERIAL_MAX_PORTS];
     uint32_t     level[PCI_SERIAL_MAX_PORTS];
     qemu_irq     *irqs;
-    uint8_t      prog_if;
     bool         disable;
 } PCIDivaSerialState;
 
@@ -124,8 +123,8 @@ static void diva_pci_realize(PCIDevice *dev, Error **errp)
     size_t i, offset = 0;
     size_t portmask = di.omask;
 
-    pci->dev.config[PCI_CLASS_PROG] = pci->prog_if;
-    pci->dev.config[PCI_INTERRUPT_PIN] = 0x01;
+    pci->dev.config[PCI_CLASS_PROG] = 2; /* 16550 compatible */
+    pci->dev.config[PCI_INTERRUPT_PIN] = 1;
     memory_region_init(&pci->membar, OBJECT(pci), "serial_ports", 4096);
     pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &pci->membar);
     pci->irqs = qemu_allocate_irqs(multi_serial_irq_mux, pci, di.nports);
@@ -178,7 +177,6 @@ static const Property diva_serial_properties[] = {
     DEFINE_PROP_CHR("chardev2",  PCIDivaSerialState, state[1].chr),
     DEFINE_PROP_CHR("chardev3",  PCIDivaSerialState, state[2].chr),
     DEFINE_PROP_CHR("chardev4",  PCIDivaSerialState, state[3].chr),
-    DEFINE_PROP_UINT8("prog_if",  PCIDivaSerialState, prog_if, 0x02),
     DEFINE_PROP_UINT32("subvendor", PCIDivaSerialState, subvendor,
                                     PCI_DEVICE_ID_HP_DIVA_TOSCA1),
 };
