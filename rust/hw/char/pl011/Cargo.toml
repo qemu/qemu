@@ -1,15 +1,16 @@
 [package]
 name = "pl011"
 version = "0.1.0"
-edition = "2021"
 authors = ["Manos Pitsidianakis <manos.pitsidianakis@linaro.org>"]
-license = "GPL-2.0-or-later"
 description = "pl011 device model for QEMU"
 resolver = "2"
 publish = false
-keywords = []
-categories = []
-rust-version = "1.63.0"
+
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
 
 [lib]
 crate-type = ["staticlib"]
