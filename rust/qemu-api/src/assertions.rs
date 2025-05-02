@@ -78,33 +78,26 @@ macro_rules! assert_same_type {
 /// ```
 #[macro_export]
 macro_rules! assert_field_type {
-    ($t:ty, $i:tt, $ti:ty) => {
+    (@internal $param_name:ident, $ti:ty, $t:ty, $($field:tt)*) => {
         const _: () = {
             #[allow(unused)]
-            fn assert_field_type(v: $t) {
-                fn types_must_be_equal<T, U>(_: T)
+            fn assert_field_type($param_name: &$t) {
+                fn types_must_be_equal<T, U>(_: &T)
                 where
                     T: $crate::assertions::EqType<Itself = U>,
                 {
                 }
-                types_must_be_equal::<_, $ti>(v.$i);
+                types_must_be_equal::<_, $ti>(&$($field)*);
             }
         };
     };
 
+    ($t:ty, $i:tt, $ti:ty) => {
+        $crate::assert_field_type!(@internal v, $ti, $t, v.$i);
+    };
+
     ($t:ty, $i:tt, $ti:ty, num = $num:ident) => {
-        const _: () = {
-            #[allow(unused)]
-            fn assert_field_type(v: $t) {
-                fn types_must_be_equal<T, U>(_: T)
-                where
-                    T: $crate::assertions::EqType<Itself = U>,
-                {
-                }
-                let index: usize = v.$num.try_into().unwrap();
-                types_must_be_equal::<_, &$ti>(&v.$i[index]);
-            }
-        };
+        $crate::assert_field_type!(@internal v, $ti, $t, v.$i[0]);
     };
 }
 
