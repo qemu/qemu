@@ -14,7 +14,6 @@ use qemu_api::{
         vmstate_info_bool, vmstate_info_int32, vmstate_info_int64, vmstate_info_int8,
         vmstate_info_uint64, vmstate_info_uint8, vmstate_info_unused_buffer, VMStateFlags,
     },
-    c_str,
     cell::{BqlCell, Opaque},
     impl_vmstate_forward,
     vmstate::{VMStateDescription, VMStateField},
@@ -43,7 +42,7 @@ struct FooA {
 }
 
 static VMSTATE_FOOA: VMStateDescription = VMStateDescription {
-    name: c_str!("foo_a").as_ptr(),
+    name: c"foo_a".as_ptr(),
     version_id: 1,
     minimum_version_id: 1,
     fields: vmstate_fields! {
@@ -173,7 +172,7 @@ fn validate_foob(_state: &FooB, _version_id: u8) -> bool {
 }
 
 static VMSTATE_FOOB: VMStateDescription = VMStateDescription {
-    name: c_str!("foo_b").as_ptr(),
+    name: c"foo_b".as_ptr(),
     version_id: 2,
     minimum_version_id: 1,
     fields: vmstate_fields! {
@@ -337,7 +336,7 @@ struct FooC {
 }
 
 static VMSTATE_FOOC: VMStateDescription = VMStateDescription {
-    name: c_str!("foo_c").as_ptr(),
+    name: c"foo_c".as_ptr(),
     version_id: 3,
     minimum_version_id: 1,
     fields: vmstate_fields! {
@@ -452,13 +451,13 @@ fn validate_food_2(_state: &FooD, _version_id: u8) -> bool {
 }
 
 static VMSTATE_FOOD: VMStateDescription = VMStateDescription {
-    name: c_str!("foo_d").as_ptr(),
+    name: c"foo_d".as_ptr(),
     version_id: 3,
     minimum_version_id: 1,
     fields: vmstate_fields! {
-        vmstate_validate!(FooD, c_str!("foo_d_0"), FooD::validate_food_0),
-        vmstate_validate!(FooD, c_str!("foo_d_1"), FooD::validate_food_1),
-        vmstate_validate!(FooD, c_str!("foo_d_2"), validate_food_2),
+        vmstate_validate!(FooD, c"foo_d_0", FooD::validate_food_0),
+        vmstate_validate!(FooD, c"foo_d_1", FooD::validate_food_1),
+        vmstate_validate!(FooD, c"foo_d_2", validate_food_2),
     },
     ..Zeroable::ZERO
 };

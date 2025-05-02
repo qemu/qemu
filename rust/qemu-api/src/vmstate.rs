@@ -427,7 +427,7 @@ unsafe impl<T: VMState, const N: usize> VMState for [T; N] {
 macro_rules! vmstate_unused {
     ($size:expr) => {{
         $crate::bindings::VMStateField {
-            name: $crate::c_str!("unused").as_ptr(),
+            name: c"unused".as_ptr(),
             size: $size,
             info: unsafe { ::core::ptr::addr_of!($crate::bindings::vmstate_info_unused_buffer) },
             flags: $crate::bindings::VMStateFlags::VMS_BUFFER,

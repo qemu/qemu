@@ -77,13 +77,13 @@
 //!
 //! ```
 //! # use qemu_api::prelude::*;
-//! # use qemu_api::{c_str, cell::BqlRefCell, irq::InterruptSource, irq::IRQState};
+//! # use qemu_api::{cell::BqlRefCell, irq::InterruptSource, irq::IRQState};
 //! # use qemu_api::{sysbus::SysBusDevice, qom::Owned, qom::ParentField};
 //! # const N_GPIOS: usize = 8;
 //! # struct PL061Registers { /* ... */ }
 //! # unsafe impl ObjectType for PL061State {
 //! #     type Class = <SysBusDevice as ObjectType>::Class;
-//! #     const TYPE_NAME: &'static std::ffi::CStr = c_str!("pl061");
+//! #     const TYPE_NAME: &'static std::ffi::CStr = c"pl061";
 //! # }
 //! struct PL061State {
 //!     parent_obj: ParentField<SysBusDevice>,
