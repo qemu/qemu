@@ -118,9 +118,14 @@ Rust build dependencies
   include bindgen or have an older version, it is recommended to install
   a newer version using ``cargo install bindgen-cli``.
 
-  Developers may want to use Cargo-based tools in the QEMU source tree;
-  this requires Cargo 1.74.0.  Note that Cargo is not required in order
-  to build QEMU.
+  QEMU requires Rust 1.77.0.  This is available on all supported platforms
+  with one exception, namely the ``mips64el`` architecture on Debian bookworm.
+  For all other architectures, Debian bookworm provides a new-enough Rust
+  compiler in the ``rustc-web`` package.
+
+  Also, on Ubuntu 22.04 or 24.04 this requires the ``rustc-1.77``
+  (or newer) package.  The path to ``rustc`` and ``rustdoc`` must be
+  provided manually to the configure script.
 
 Optional build dependencies
   Build components whose absence does not affect the ability to build QEMU

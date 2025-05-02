@@ -141,7 +141,8 @@ fedora_rustup_nightly_extras = [
     'RUN $CARGO --list\n',
 ]
 
-ubuntu2204_bindgen_extras = [
+ubuntu2204_rust_extras = [
+    "ENV RUSTC=/usr/bin/rustc-1.77\n",
     "ENV CARGO_HOME=/usr/local/cargo\n",
     'ENV PATH=$CARGO_HOME/bin:$PATH\n',
     "RUN DEBIAN_FRONTEND=noninteractive eatmydata \\\n",
@@ -170,7 +171,7 @@ try:
     generate_dockerfile("fedora", "fedora-40")
     generate_dockerfile("opensuse-leap", "opensuse-leap-15")
     generate_dockerfile("ubuntu2204", "ubuntu-2204",
-                        trailer="".join(ubuntu2204_bindgen_extras))
+                        trailer="".join(ubuntu2204_rust_extras))
 
     #
     # Non-fatal Rust-enabled build

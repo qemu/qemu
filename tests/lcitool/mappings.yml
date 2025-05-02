@@ -64,6 +64,11 @@ mappings:
   python3-wheel:
     OpenSUSELeap15: python311-pip
 
+  rust:
+    Debian12: rustc-web
+    Ubuntu2204: rustc-1.77
+    Ubuntu2404: rustc-1.77
+
 pypi_mappings:
   # Request more recent version
   meson:

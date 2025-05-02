@@ -114,7 +114,7 @@ packages:
   - python3-venv
   - python3-yaml
   - rpm2cpio
-  - rustc
+  - rustc-1.77
   - sed
   - socat
   - sparse
