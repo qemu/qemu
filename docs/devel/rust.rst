@@ -74,8 +74,6 @@ Supported tools
 QEMU supports rustc version 1.63.0 and newer.  Notably, the following features
 are missing:
 
-* ``core::ffi`` (1.64.0).  Use ``std::os::raw`` and ``std::ffi`` instead.
-
 * ``cast_mut()``/``cast_const()`` (1.65.0).  Use ``as`` instead.
 
 * "let ... else" (1.65.0).  Use ``if let`` instead.  This is currently patched
