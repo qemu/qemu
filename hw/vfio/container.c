@@ -558,6 +558,26 @@ static bool vfio_container_attach_discard_disable(VFIOContainer *container,
     return !ret;
 }
 
+static bool vfio_container_group_add(VFIOContainer *container, VFIOGroup *group,
+                                     Error **errp)
+{
+    if (!vfio_container_attach_discard_disable(container, group, errp)) {
+        return false;
+    }
+    group->container = container;
+    QLIST_INSERT_HEAD(&container->group_list, group, container_next);
+    vfio_group_add_kvm_device(group);
+    return true;
+}
+
+static void vfio_container_group_del(VFIOContainer *container, VFIOGroup *group)
+{
+    QLIST_REMOVE(group, container_next);
+    group->container = NULL;
+    vfio_group_del_kvm_device(group);
+    vfio_ram_block_discard_disable(container, false);
+}
+
 static bool vfio_container_connect(VFIOGroup *group, AddressSpace *as,
                                    Error **errp)
 {
@@ -568,20 +588,13 @@ static bool vfio_container_connect(VFIOGroup *group, AddressSpace *as,
     VFIOIOMMUClass *vioc = NULL;
     bool new_container = false;
     bool group_was_added = false;
-    bool discard_disabled = false;
 
     space = vfio_address_space_get(as);
 
     QLIST_FOREACH(bcontainer, &space->containers, next) {
         container = container_of(bcontainer, VFIOContainer, bcontainer);
         if (!ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
-            if (!vfio_container_attach_discard_disable(container, group, errp)) {
-                return false;
-            }
-            group->container = container;
-            QLIST_INSERT_HEAD(&container->group_list, group, container_next);
-            vfio_group_add_kvm_device(group);
-            return true;
+            return vfio_container_group_add(container, group, errp);
         }
     }
 
@@ -608,11 +621,6 @@ static bool vfio_container_connect(VFIOGroup *group, AddressSpace *as,
         goto fail;
     }
 
-    if (!vfio_container_attach_discard_disable(container, group, errp)) {
-        goto fail;
-    }
-    discard_disabled = true;
-
     vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
     assert(vioc->setup);
 
@@ -620,12 +628,11 @@ static bool vfio_container_connect(VFIOGroup *group, AddressSpace *as,
         goto fail;
     }
 
-    vfio_group_add_kvm_device(group);
-
     vfio_address_space_insert(space, bcontainer);
 
-    group->container = container;
-    QLIST_INSERT_HEAD(&container->group_list, group, container_next);
+    if (!vfio_container_group_add(container, group, errp)) {
+        goto fail;
+    }
     group_was_added = true;
 
     if (!vfio_listener_register(bcontainer, errp)) {
@@ -640,14 +647,10 @@ fail:
     vfio_listener_unregister(bcontainer);
 
     if (group_was_added) {
-        QLIST_REMOVE(group, container_next);
-        vfio_group_del_kvm_device(group);
+        vfio_container_group_del(container, group);
     }
     if (vioc && vioc->release) {
         vioc->release(bcontainer);
-    }
-    if (discard_disabled) {
-        vfio_ram_block_discard_disable(container, false);
     }
     if (new_container) {
         vfio_cpr_unregister_container(bcontainer);
