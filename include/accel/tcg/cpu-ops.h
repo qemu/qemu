@@ -223,6 +223,13 @@ struct TCGCPUOps {
                      MMUAccessType access_type, int mmu_idx,
                      bool probe, uintptr_t retaddr);
     /**
+     * @pointer_wrap:
+     *
+     * We have incremented @base to @result, resulting in a page change.
+     * For the current cpu state, adjust @result for possible overflow.
+     */
+    vaddr (*pointer_wrap)(CPUState *cpu, int mmu_idx, vaddr result, vaddr base);
+    /**
      * @do_transaction_failed: Callback for handling failed memory transactions
      * (ie bus faults or external aborts; not MMU faults)
      */
