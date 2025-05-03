@@ -261,6 +261,7 @@ static const TCGCPUOps alpha_tcg_ops = {
     .record_sigbus = alpha_cpu_record_sigbus,
 #else
     .tlb_fill = alpha_cpu_tlb_fill,
+    .pointer_wrap = cpu_pointer_wrap_notreached,
     .cpu_exec_interrupt = alpha_cpu_exec_interrupt,
     .cpu_exec_halt = alpha_cpu_has_work,
     .cpu_exec_reset = cpu_reset,

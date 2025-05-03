@@ -2933,3 +2933,16 @@ uint64_t cpu_ldq_code_mmu(CPUArchState *env, vaddr addr,
 {
     return do_ld8_mmu(env_cpu(env), addr, oi, retaddr, MMU_INST_FETCH);
 }
+
+/*
+ * Common pointer_wrap implementations.
+ */
+
+/*
+ * To be used for strict alignment targets.
+ * Because no accesses are unaligned, no accesses wrap either.
+ */
+vaddr cpu_pointer_wrap_notreached(CPUState *cs, int idx, vaddr res, vaddr base)
+{
+    g_assert_not_reached();
+}

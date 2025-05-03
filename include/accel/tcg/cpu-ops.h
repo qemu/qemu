@@ -322,6 +322,11 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
  */
 int cpu_watchpoint_address_matches(CPUState *cpu, vaddr addr, vaddr len);
 
+/*
+ * Common pointer_wrap implementations.
+ */
+vaddr cpu_pointer_wrap_notreached(CPUState *, int, vaddr, vaddr);
+
 #endif
 
 #endif /* TCG_CPU_OPS_H */
