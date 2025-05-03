@@ -326,6 +326,7 @@ int cpu_watchpoint_address_matches(CPUState *cpu, vaddr addr, vaddr len);
  * Common pointer_wrap implementations.
  */
 vaddr cpu_pointer_wrap_notreached(CPUState *, int, vaddr, vaddr);
+vaddr cpu_pointer_wrap_uint32(CPUState *, int, vaddr, vaddr);
 
 #endif
 
