@@ -1773,11 +1773,8 @@ static bool mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
         l->page[1].size = l->page[0].size - size0;
         l->page[0].size = size0;
 
-        if (cpu->cc->tcg_ops->pointer_wrap) {
-            l->page[1].addr = cpu->cc->tcg_ops->pointer_wrap(cpu, l->mmu_idx,
-                                                             l->page[1].addr,
-                                                             addr);
-        }
+        l->page[1].addr = cpu->cc->tcg_ops->pointer_wrap(cpu, l->mmu_idx,
+                                                         l->page[1].addr, addr);
 
         /*
          * Lookup both pages, recognizing exceptions from either.  If the
