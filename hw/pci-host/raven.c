@@ -24,7 +24,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/datadir.h"
 #include "qemu/units.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
@@ -35,9 +34,7 @@
 #include "migration/vmstate.h"
 #include "hw/intc/i8259.h"
 #include "hw/irq.h"
-#include "hw/loader.h"
 #include "hw/or-irq.h"
-#include "elf.h"
 #include "qom/object.h"
 
 #define TYPE_RAVEN_PCI_DEVICE "raven"
@@ -47,10 +44,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(RavenPCIState, RAVEN_PCI_DEVICE)
 
 struct RavenPCIState {
     PCIDevice dev;
-
-    uint32_t elf_machine;
-    char *bios_name;
-    MemoryRegion bios;
 };
 
 typedef struct PRePPCIState PREPPCIState;
@@ -76,8 +69,6 @@ struct PRePPCIState {
 
     int contiguous_map;
 };
-
-#define BIOS_SIZE (1 * MiB)
 
 #define PCI_IO_BASE_ADDR    0x80000000  /* Physical address on main bus */
 
@@ -333,48 +324,9 @@ static void raven_pcihost_initfn(Object *obj)
 
 static void raven_realize(PCIDevice *d, Error **errp)
 {
-    RavenPCIState *s = RAVEN_PCI_DEVICE(d);
-    char *filename;
-    int bios_size = -1;
-
     d->config[PCI_CACHE_LINE_SIZE] = 0x08;
     d->config[PCI_LATENCY_TIMER] = 0x10;
     d->config[PCI_CAPABILITY_LIST] = 0x00;
-
-    if (!memory_region_init_rom_nomigrate(&s->bios, OBJECT(s), "bios",
-                                          BIOS_SIZE, errp)) {
-        return;
-    }
-    memory_region_add_subregion(get_system_memory(), (uint32_t)(-BIOS_SIZE),
-                                &s->bios);
-    if (s->bios_name) {
-        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, s->bios_name);
-        if (filename) {
-            if (s->elf_machine != EM_NONE) {
-                bios_size = load_elf(filename, NULL, NULL, NULL, NULL,
-                                     NULL, NULL, NULL,
-                                     ELFDATA2MSB, s->elf_machine, 0, 0);
-            }
-            if (bios_size < 0) {
-                bios_size = get_image_size(filename);
-                if (bios_size > 0 && bios_size <= BIOS_SIZE) {
-                    hwaddr bios_addr;
-                    bios_size = (bios_size + 0xfff) & ~0xfff;
-                    bios_addr = (uint32_t)(-BIOS_SIZE);
-                    bios_size = load_image_targphys(filename, bios_addr,
-                                                    bios_size);
-                }
-            }
-        }
-        g_free(filename);
-        if (bios_size < 0 || bios_size > BIOS_SIZE) {
-            memory_region_del_subregion(get_system_memory(), &s->bios);
-            error_setg(errp, "Could not load bios image '%s'", s->bios_name);
-            return;
-        }
-    }
-
-    vmstate_register_ram_global(&s->bios);
 }
 
 static const VMStateDescription vmstate_raven = {
@@ -417,19 +369,12 @@ static const TypeInfo raven_info = {
     },
 };
 
-static const Property raven_pcihost_properties[] = {
-    DEFINE_PROP_UINT32("elf-machine", PREPPCIState, pci_dev.elf_machine,
-                       EM_NONE),
-    DEFINE_PROP_STRING("bios-name", PREPPCIState, pci_dev.bios_name),
-};
-
 static void raven_pcihost_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->realize = raven_pcihost_realizefn;
-    device_class_set_props(dc, raven_pcihost_properties);
     dc->fw_name = "pci";
 }
 

@@ -35,6 +35,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
+#include "qemu/datadir.h"
 #include "hw/loader.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/isa/pc87312.h"
@@ -55,6 +56,8 @@
 #define KERNEL_LOAD_ADDR 0x01000000
 #define INITRD_LOAD_ADDR 0x01800000
 
+#define BIOS_ADDR         0xfff00000
+#define BIOS_SIZE         (1 * MiB)
 #define NVRAM_SIZE        0x2000
 
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
@@ -241,6 +244,9 @@ static void ibm_40p_init(MachineState *machine)
     ISADevice *isa_dev;
     ISABus *isa_bus;
     void *fw_cfg;
+    MemoryRegion *bios = g_new(MemoryRegion, 1);
+    char *filename;
+    ssize_t bios_size = -1;
     uint32_t kernel_base = 0, initrd_base = 0;
     long kernel_size = 0, initrd_size = 0;
     char boot_device;
@@ -263,10 +269,27 @@ static void ibm_40p_init(MachineState *machine)
     cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
     qemu_register_reset(ppc_prep_reset, cpu);
 
+    /* allocate and load firmware */
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (!filename) {
+        error_report("Could not find bios image '%s'", bios_name);
+        exit(1);
+    }
+    memory_region_init_rom(bios, NULL, "bios", BIOS_SIZE, &error_fatal);
+    memory_region_add_subregion(get_system_memory(), BIOS_ADDR, bios);
+    bios_size = load_elf(filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                         ELFDATA2MSB, PPC_ELF_MACHINE, 0, 0);
+    if (bios_size < 0) {
+        bios_size = load_image_targphys(filename, BIOS_ADDR, BIOS_SIZE);
+    }
+    if (bios_size < 0 || bios_size > BIOS_SIZE) {
+        error_report("Could not load bios image '%s'", filename);
+        return;
+    }
+    g_free(filename);
+
     /* PCI host */
     dev = qdev_new("raven-pcihost");
-    qdev_prop_set_string(dev, "bios-name", bios_name);
-    qdev_prop_set_uint32(dev, "elf-machine", PPC_ELF_MACHINE);
     pcihost = SYS_BUS_DEVICE(dev);
     object_property_add_child(qdev_get_machine(), "raven", OBJECT(dev));
     sysbus_realize_and_unref(pcihost, &error_fatal);
