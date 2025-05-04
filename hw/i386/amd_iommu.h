@@ -329,7 +329,7 @@ struct AMDVIState {
     bool excl_enabled;
 
     hwaddr devtab;               /* base address device table    */
-    size_t devtab_len;           /* device table length          */
+    uint64_t devtab_len;         /* device table length          */
 
     hwaddr cmdbuf;               /* command buffer base address  */
     uint64_t cmdbuf_len;         /* command buffer length        */
