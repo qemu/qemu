@@ -5,7 +5,7 @@
 
 extern const struct AcpiGenericAddress x86_nvdimm_acpi_dsmio;
 
-/* PCI Hot-plug registers bases. See docs/spec/acpi_pci_hotplug.txt */
+/* PCI Hot-plug registers' base. See docs/specs/acpi_pci_hotplug.rst */
 #define ACPI_PCIHP_SEJ_BASE 0x8
 #define ACPI_PCIHP_BNMR_BASE 0x10
 
