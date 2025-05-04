@@ -75,7 +75,6 @@ struct PRePPCIState {
     RavenPCIState pci_dev;
 
     int contiguous_map;
-    bool is_legacy_prep;
 };
 
 #define BIOS_SIZE (1 * MiB)
@@ -243,22 +242,18 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
     MemoryRegion *address_space_mem = get_system_memory();
     int i;
 
-    if (s->is_legacy_prep) {
-        for (i = 0; i < PCI_NUM_PINS; i++) {
-            sysbus_init_irq(dev, &s->pci_irqs[i]);
-        }
-    } else {
-        /* According to PReP specification section 6.1.6 "System Interrupt
-         * Assignments", all PCI interrupts are routed via IRQ 15 */
-        s->or_irq = OR_IRQ(object_new(TYPE_OR_IRQ));
-        object_property_set_int(OBJECT(s->or_irq), "num-lines", PCI_NUM_PINS,
-                                &error_fatal);
-        qdev_realize(DEVICE(s->or_irq), NULL, &error_fatal);
-        sysbus_init_irq(dev, &s->or_irq->out_irq);
+    /*
+     * According to PReP specification section 6.1.6 "System Interrupt
+     * Assignments", all PCI interrupts are routed via IRQ 15
+     */
+    s->or_irq = OR_IRQ(object_new(TYPE_OR_IRQ));
+    object_property_set_int(OBJECT(s->or_irq), "num-lines", PCI_NUM_PINS,
+                            &error_fatal);
+    qdev_realize(DEVICE(s->or_irq), NULL, &error_fatal);
+    sysbus_init_irq(dev, &s->or_irq->out_irq);
 
-        for (i = 0; i < PCI_NUM_PINS; i++) {
-            s->pci_irqs[i] = qdev_get_gpio_in(DEVICE(s->or_irq), i);
-        }
+    for (i = 0; i < PCI_NUM_PINS; i++) {
+        s->pci_irqs[i] = qdev_get_gpio_in(DEVICE(s->or_irq), i);
     }
 
     qdev_init_gpio_in(d, raven_change_gpio, 1);
@@ -426,9 +421,6 @@ static const Property raven_pcihost_properties[] = {
     DEFINE_PROP_UINT32("elf-machine", PREPPCIState, pci_dev.elf_machine,
                        EM_NONE),
     DEFINE_PROP_STRING("bios-name", PREPPCIState, pci_dev.bios_name),
-    /* Temporary workaround until legacy prep machine is removed */
-    DEFINE_PROP_BOOL("is-legacy-prep", PREPPCIState, is_legacy_prep,
-                     false),
 };
 
 static void raven_pcihost_class_init(ObjectClass *klass, const void *data)
