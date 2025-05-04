@@ -7386,6 +7386,12 @@ static void ppc_cpu_exec_exit(CPUState *cs)
         cpu->vhyp_class->cpu_exec_exit(cpu->vhyp, cpu);
     }
 }
+
+static vaddr ppc_pointer_wrap(CPUState *cs, int mmu_idx,
+                              vaddr result, vaddr base)
+{
+    return (cpu_env(cs)->hflags >> HFLAGS_64) & 1 ? result : (uint32_t)result;
+}
 #endif /* CONFIG_TCG */
 
 #endif /* !CONFIG_USER_ONLY */
@@ -7490,6 +7496,7 @@ static const TCGCPUOps ppc_tcg_ops = {
   .record_sigsegv = ppc_cpu_record_sigsegv,
 #else
   .tlb_fill = ppc_cpu_tlb_fill,
+  .pointer_wrap = ppc_pointer_wrap,
   .cpu_exec_interrupt = ppc_cpu_exec_interrupt,
   .cpu_exec_halt = ppc_cpu_has_work,
   .cpu_exec_reset = cpu_reset,
