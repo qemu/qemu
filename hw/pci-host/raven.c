@@ -72,16 +72,9 @@ struct PRePPCIState {
 
 #define PCI_IO_BASE_ADDR    0x80000000  /* Physical address on main bus */
 
-static inline uint32_t raven_pci_io_config(hwaddr addr)
+static inline uint32_t raven_idsel_to_addr(hwaddr addr)
 {
-    int i;
-
-    for (i = 0; i < 11; i++) {
-        if ((addr & (1 << (11 + i))) != 0) {
-            break;
-        }
-    }
-    return (addr & 0x7ff) |  (i << 11);
+    return (ctz16(addr >> 11) << 11) | (addr & 0x7ff);
 }
 
 static void raven_pci_io_write(void *opaque, hwaddr addr,
@@ -89,7 +82,7 @@ static void raven_pci_io_write(void *opaque, hwaddr addr,
 {
     PREPPCIState *s = opaque;
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
-    pci_data_write(phb->bus, raven_pci_io_config(addr), val, size);
+    pci_data_write(phb->bus, raven_idsel_to_addr(addr), val, size);
 }
 
 static uint64_t raven_pci_io_read(void *opaque, hwaddr addr,
@@ -97,7 +90,7 @@ static uint64_t raven_pci_io_read(void *opaque, hwaddr addr,
 {
     PREPPCIState *s = opaque;
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
-    return pci_data_read(phb->bus, raven_pci_io_config(addr), size);
+    return pci_data_read(phb->bus, raven_idsel_to_addr(addr), size);
 }
 
 static const MemoryRegionOps raven_pci_io_ops = {
