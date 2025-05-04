@@ -54,13 +54,6 @@
 #include "hw/xen/xen.h"
 #include "hw/i386/kvm/xen_evtchn.h"
 
-//#define DEBUG_PCI
-#ifdef DEBUG_PCI
-# define PCI_DPRINTF(format, ...)       printf(format, ## __VA_ARGS__)
-#else
-# define PCI_DPRINTF(format, ...)       do { } while (0)
-#endif
-
 bool pci_available = true;
 
 static char *pcibus_get_dev_path(DeviceState *dev);
@@ -2439,12 +2432,12 @@ static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, uint32_t size)
     /* Only a valid rom will be patched. */
     rom_magic = pci_get_word(ptr);
     if (rom_magic != 0xaa55) {
-        PCI_DPRINTF("Bad ROM magic %04x\n", rom_magic);
+        trace_pci_bad_rom_magic(rom_magic, 0xaa55);
         return;
     }
     pcir_offset = pci_get_word(ptr + 0x18);
     if (pcir_offset + 8 >= size || memcmp(ptr + pcir_offset, "PCIR", 4)) {
-        PCI_DPRINTF("Bad PCIR offset 0x%x or signature\n", pcir_offset);
+        trace_pci_bad_pcir_offset(pcir_offset);
         return;
     }
 
@@ -2453,8 +2446,8 @@ static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, uint32_t size)
     rom_vendor_id = pci_get_word(ptr + pcir_offset + 4);
     rom_device_id = pci_get_word(ptr + pcir_offset + 6);
 
-    PCI_DPRINTF("%s: ROM id %04x%04x / PCI id %04x%04x\n", pdev->romfile,
-                vendor_id, device_id, rom_vendor_id, rom_device_id);
+    trace_pci_rom_and_pci_ids(pdev->romfile, vendor_id, device_id,
+                              rom_vendor_id, rom_device_id);
 
     checksum = ptr[6];
 
@@ -2462,7 +2455,7 @@ static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, uint32_t size)
         /* Patch vendor id and checksum (at offset 6 for etherboot roms). */
         checksum += (uint8_t)rom_vendor_id + (uint8_t)(rom_vendor_id >> 8);
         checksum -= (uint8_t)vendor_id + (uint8_t)(vendor_id >> 8);
-        PCI_DPRINTF("ROM checksum %02x / %02x\n", ptr[6], checksum);
+        trace_pci_rom_checksum_change(ptr[6], checksum);
         ptr[6] = checksum;
         pci_set_word(ptr + pcir_offset + 4, vendor_id);
     }
@@ -2471,7 +2464,7 @@ static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, uint32_t size)
         /* Patch device id and checksum (at offset 6 for etherboot roms). */
         checksum += (uint8_t)rom_device_id + (uint8_t)(rom_device_id >> 8);
         checksum -= (uint8_t)device_id + (uint8_t)(device_id >> 8);
-        PCI_DPRINTF("ROM checksum %02x / %02x\n", ptr[6], checksum);
+        trace_pci_rom_checksum_change(ptr[6], checksum);
         ptr[6] = checksum;
         pci_set_word(ptr + pcir_offset + 6, device_id);
     }
