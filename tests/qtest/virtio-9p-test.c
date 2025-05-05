@@ -20,6 +20,7 @@
 #define tversion(...) v9fs_tversion((TVersionOpt) __VA_ARGS__)
 #define tattach(...) v9fs_tattach((TAttachOpt) __VA_ARGS__)
 #define tgetattr(...) v9fs_tgetattr((TGetAttrOpt) __VA_ARGS__)
+#define tsetattr(...) v9fs_tsetattr((TSetAttrOpt) __VA_ARGS__)
 #define treaddir(...) v9fs_treaddir((TReadDirOpt) __VA_ARGS__)
 #define tlopen(...) v9fs_tlopen((TLOpenOpt) __VA_ARGS__)
 #define twrite(...) v9fs_twrite((TWriteOpt) __VA_ARGS__)
@@ -735,6 +736,20 @@ static void fs_use_after_unlink(void *obj, void *data,
         .data = buf
     }).count;
     g_assert_cmpint(count, ==, write_count);
+
+    /* truncate file to (arbitrarily chosen) size 2001 */
+    tsetattr({
+        .client = v9p, .fid = fid_file, .attr = (v9fs_attr) {
+            .valid = P9_SETATTR_SIZE,
+            .size = 2001
+        }
+     });
+    /* truncate apparently succeeded, let's double-check the size */
+    tgetattr({
+        .client = v9p, .fid = fid_file, .request_mask = P9_GETATTR_BASIC,
+        .rgetattr.attr = &attr
+    });
+    g_assert_cmpint(attr.size, ==, 2001);
 }
 
 static void cleanup_9p_local_driver(void *data)

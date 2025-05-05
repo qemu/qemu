@@ -434,16 +434,24 @@ void coroutine_fn v9fs_reclaim_fd(V9fsPDU *pdu)
     V9fsFidState *f;
     GHashTableIter iter;
     gpointer fid;
+    int err;
+    int nclosed = 0;
+
+    /* prevent multiple coroutines running this function simultaniously */
+    if (s->reclaiming) {
+        return;
+    }
+    s->reclaiming = true;
 
     g_hash_table_iter_init(&iter, s->fids);
 
     QSLIST_HEAD(, V9fsFidState) reclaim_list =
         QSLIST_HEAD_INITIALIZER(reclaim_list);
 
+    /* Pick FIDs to be closed, collect them on reclaim_list. */
     while (g_hash_table_iter_next(&iter, &fid, (gpointer *) &f)) {
         /*
-         * Unlink fids cannot be reclaimed. Check
-         * for them and skip them. Also skip fids
+         * Unlinked fids cannot be reclaimed, skip those, and also skip fids
          * currently being operated on.
          */
         if (f->ref || f->flags & FID_NON_RECLAIMABLE) {
@@ -493,23 +501,42 @@ void coroutine_fn v9fs_reclaim_fd(V9fsPDU *pdu)
         }
     }
     /*
-     * Now close the fid in reclaim list. Free them if they
-     * are already clunked.
+     * Close the picked FIDs altogether on a background I/O driver thread. Do
+     * this all at once to keep latency (i.e. amount of thread hops between main
+     * thread <-> fs driver background thread) as low as possible.
      */
+    v9fs_co_run_in_worker({
+        QSLIST_FOREACH(f, &reclaim_list, reclaim_next) {
+            err = (f->fid_type == P9_FID_DIR) ?
+                s->ops->closedir(&s->ctx, &f->fs_reclaim) :
+                s->ops->close(&s->ctx, &f->fs_reclaim);
+
+            /* 'man 2 close' suggests to ignore close() errors except of EBADF */
+            if (unlikely(err && errno == EBADF)) {
+                /*
+                 * unexpected case as FIDs were picked above by having a valid
+                 * file descriptor
+                 */
+                error_report("9pfs: v9fs_reclaim_fd() WARNING: close() failed with EBADF");
+            } else {
+                /* total_open_fd must only be mutated on main thread */
+                nclosed++;
+            }
+        }
+    });
+    total_open_fd -= nclosed;
+    /* Free the closed FIDs. */
     while (!QSLIST_EMPTY(&reclaim_list)) {
         f = QSLIST_FIRST(&reclaim_list);
         QSLIST_REMOVE(&reclaim_list, f, V9fsFidState, reclaim_next);
-        if (f->fid_type == P9_FID_FILE) {
-            v9fs_co_close(pdu, &f->fs_reclaim);
-        } else if (f->fid_type == P9_FID_DIR) {
-            v9fs_co_closedir(pdu, &f->fs_reclaim);
-        }
         /*
          * Now drop the fid reference, free it
          * if clunked.
          */
         put_fid(pdu, f);
     }
+
+    s->reclaiming = false;
 }
 
 /*
@@ -1574,6 +1601,11 @@ out_nofid:
     pdu_complete(pdu, err);
 }
 
+static bool fid_has_valid_file_handle(V9fsState *s, V9fsFidState *fidp)
+{
+    return s->ops->has_valid_file_handle(fidp->fid_type, &fidp->fs);
+}
+
 static void coroutine_fn v9fs_getattr(void *opaque)
 {
     int32_t fid;
@@ -1596,9 +1628,7 @@ static void coroutine_fn v9fs_getattr(void *opaque)
         retval = -ENOENT;
         goto out_nofid;
     }
-    if ((fidp->fid_type == P9_FID_FILE && fidp->fs.fd != -1) ||
-        (fidp->fid_type == P9_FID_DIR && fidp->fs.dir.stream))
-    {
+    if (fid_has_valid_file_handle(pdu->s, fidp)) {
         retval = v9fs_co_fstat(pdu, fidp, &stbuf);
     } else {
         retval = v9fs_co_lstat(pdu, &fidp->path, &stbuf);
@@ -1705,7 +1735,11 @@ static void coroutine_fn v9fs_setattr(void *opaque)
         } else {
             times[1].tv_nsec = UTIME_OMIT;
         }
-        err = v9fs_co_utimensat(pdu, &fidp->path, times);
+        if (fid_has_valid_file_handle(pdu->s, fidp)) {
+            err = v9fs_co_futimens(pdu, fidp, times);
+        } else {
+            err = v9fs_co_utimensat(pdu, &fidp->path, times);
+        }
         if (err < 0) {
             goto out;
         }
@@ -1730,7 +1764,11 @@ static void coroutine_fn v9fs_setattr(void *opaque)
         }
     }
     if (v9iattr.valid & (P9_ATTR_SIZE)) {
-        err = v9fs_co_truncate(pdu, &fidp->path, v9iattr.size);
+        if (fid_has_valid_file_handle(pdu->s, fidp)) {
+            err = v9fs_co_ftruncate(pdu, fidp, v9iattr.size);
+        } else {
+            err = v9fs_co_truncate(pdu, &fidp->path, v9iattr.size);
+        }
         if (err < 0) {
             goto out;
         }
@@ -4323,6 +4361,8 @@ int v9fs_device_realize_common(V9fsState *s, const V9fsTransport *t,
 
     s->ctx.fst = &fse->fst;
     fsdev_throttle_init(s->ctx.fst);
+
+    s->reclaiming = false;
 
     rc = 0;
 out:

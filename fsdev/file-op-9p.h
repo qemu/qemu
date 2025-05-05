@@ -129,6 +129,8 @@ struct FileOperations {
     int (*chown)(FsContext *, V9fsPath *, FsCred *);
     int (*mknod)(FsContext *, V9fsPath *, const char *, FsCred *);
     int (*utimensat)(FsContext *, V9fsPath *, const struct timespec *);
+    int (*futimens)(FsContext *ctx, int fid_type, V9fsFidOpenState *fs,
+                    const struct timespec *times);
     int (*remove)(FsContext *, const char *);
     int (*symlink)(FsContext *, const char *, V9fsPath *,
                    const char *, FsCred *);
@@ -152,6 +154,8 @@ struct FileOperations {
     int (*fstat)(FsContext *, int, V9fsFidOpenState *, struct stat *);
     int (*rename)(FsContext *, const char *, const char *);
     int (*truncate)(FsContext *, V9fsPath *, off_t);
+    int (*ftruncate)(FsContext *ctx, int fid_type, V9fsFidOpenState *fs,
+                     off_t size);
     int (*fsync)(FsContext *, int, V9fsFidOpenState *, int);
     int (*statfs)(FsContext *s, V9fsPath *path, struct statfs *stbuf);
     ssize_t (*lgetxattr)(FsContext *, V9fsPath *,
@@ -164,6 +168,7 @@ struct FileOperations {
     int (*renameat)(FsContext *ctx, V9fsPath *olddir, const char *old_name,
                     V9fsPath *newdir, const char *new_name);
     int (*unlinkat)(FsContext *ctx, V9fsPath *dir, const char *name, int flags);
+    bool (*has_valid_file_handle)(int fid_type, V9fsFidOpenState *fs);
 };
 
 #endif

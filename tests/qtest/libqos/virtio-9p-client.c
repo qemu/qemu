@@ -557,6 +557,55 @@ void v9fs_rgetattr(P9Req *req, v9fs_attr *attr)
     v9fs_req_free(req);
 }
 
+/*
+ * size[4] Tsetattr tag[2] fid[4] valid[4] mode[4] uid[4] gid[4] size[8]
+ *                  atime_sec[8] atime_nsec[8] mtime_sec[8] mtime_nsec[8]
+ */
+TSetAttrRes v9fs_tsetattr(TSetAttrOpt opt)
+{
+    P9Req *req;
+    uint32_t err;
+
+    g_assert(opt.client);
+
+    req = v9fs_req_init(
+        opt.client, 4/*fid*/ + 4/*valid*/ + 4/*mode*/ + 4/*uid*/ + 4/*gid*/ +
+        8/*size*/ + 8/*atime_sec*/ + 8/*atime_nsec*/ + 8/*mtime_sec*/ +
+        8/*mtime_nsec*/, P9_TSETATTR, opt.tag
+    );
+    v9fs_uint32_write(req, opt.fid);
+    v9fs_uint32_write(req, (uint32_t) opt.attr.valid);
+    v9fs_uint32_write(req, opt.attr.mode);
+    v9fs_uint32_write(req, opt.attr.uid);
+    v9fs_uint32_write(req, opt.attr.gid);
+    v9fs_uint64_write(req, opt.attr.size);
+    v9fs_uint64_write(req, opt.attr.atime_sec);
+    v9fs_uint64_write(req, opt.attr.atime_nsec);
+    v9fs_uint64_write(req, opt.attr.mtime_sec);
+    v9fs_uint64_write(req, opt.attr.mtime_nsec);
+    v9fs_req_send(req);
+
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_rlerror(req, &err);
+            g_assert_cmpint(err, ==, opt.expectErr);
+        } else {
+            v9fs_rsetattr(req);
+        }
+        req = NULL; /* request was freed */
+    }
+
+    return (TSetAttrRes) { .req = req };
+}
+
+/* size[4] Rsetattr tag[2] */
+void v9fs_rsetattr(P9Req *req)
+{
+    v9fs_req_recv(req, P9_RSETATTR);
+    v9fs_req_free(req);
+}
+
 /* size[4] Treaddir tag[2] fid[4] offset[8] count[4] */
 TReadDirRes v9fs_treaddir(TReadDirOpt opt)
 {

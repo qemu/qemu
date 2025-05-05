@@ -356,6 +356,13 @@ static int synth_truncate(FsContext *ctx, V9fsPath *path, off_t offset)
     return -1;
 }
 
+static int synth_ftruncate(FsContext *ctx, int fid_type, V9fsFidOpenState *fs,
+                           off_t size)
+{
+    errno = ENOSYS;
+    return -1;
+}
+
 static int synth_chmod(FsContext *fs_ctx, V9fsPath *path, FsCred *credp)
 {
     errno = EPERM;
@@ -415,6 +422,13 @@ static int synth_utimensat(FsContext *fs_ctx, V9fsPath *path,
 {
     errno = EPERM;
     return 0;
+}
+
+static int synth_futimens(FsContext *fs_ctx, int fid_type, V9fsFidOpenState *fs,
+                          const struct timespec *buf)
+{
+    errno = ENOSYS;
+    return -1;
 }
 
 static int synth_remove(FsContext *ctx, const char *path)
@@ -615,6 +629,11 @@ static int synth_init(FsContext *ctx, Error **errp)
     return 0;
 }
 
+static bool synth_has_valid_file_handle(int fid_type, V9fsFidOpenState *fs)
+{
+    return false;
+}
+
 FileOperations synth_ops = {
     .init         = synth_init,
     .lstat        = synth_lstat,
@@ -650,4 +669,7 @@ FileOperations synth_ops = {
     .name_to_path = synth_name_to_path,
     .renameat     = synth_renameat,
     .unlinkat     = synth_unlinkat,
+    .has_valid_file_handle = synth_has_valid_file_handle,
+    .ftruncate    = synth_ftruncate,
+    .futimens     = synth_futimens,
 };

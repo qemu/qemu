@@ -71,8 +71,12 @@ int coroutine_fn v9fs_co_statfs(V9fsPDU *, V9fsPath *, struct statfs *);
 int coroutine_fn v9fs_co_lstat(V9fsPDU *, V9fsPath *, struct stat *);
 int coroutine_fn v9fs_co_chmod(V9fsPDU *, V9fsPath *, mode_t);
 int coroutine_fn v9fs_co_utimensat(V9fsPDU *, V9fsPath *, struct timespec [2]);
+int coroutine_fn v9fs_co_futimens(V9fsPDU *pdu, V9fsFidState *fidp,
+                                  struct timespec times[2]);
 int coroutine_fn v9fs_co_chown(V9fsPDU *, V9fsPath *, uid_t, gid_t);
 int coroutine_fn v9fs_co_truncate(V9fsPDU *, V9fsPath *, off_t);
+int coroutine_fn v9fs_co_ftruncate(V9fsPDU *pdu, V9fsFidState *fidp,
+                                   off_t size);
 int coroutine_fn v9fs_co_llistxattr(V9fsPDU *, V9fsPath *, void *, size_t);
 int coroutine_fn v9fs_co_lgetxattr(V9fsPDU *, V9fsPath *,
                                    V9fsString *, void *, size_t);
