@@ -685,9 +685,13 @@ static bool vfio_pci_kvmgt_config_quirk(VFIOPCIDevice *vdev, Error **errp)
         return true;
     }
 
+    if (!vfio_pci_igd_opregion_detect(vdev, &opregion, errp)) {
+        /* Should never reach here, KVMGT always emulates OpRegion */
+        return false;
+    }
+
     if ((vdev->features & VFIO_FEATURE_ENABLE_IGD_OPREGION) &&
-        (!vfio_pci_igd_opregion_detect(vdev, &opregion, errp) ||
-         !vfio_pci_igd_opregion_init(vdev, opregion, errp))) {
+        !vfio_pci_igd_opregion_init(vdev, opregion, errp)) {
         return false;
     }
 
