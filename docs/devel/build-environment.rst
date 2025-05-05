@@ -97,11 +97,11 @@ build QEMU in MSYS2 itself.
 
 ::
 
-    pacman -S wget
+    pacman -S wget base-devel git
     wget https://raw.githubusercontent.com/msys2/MINGW-packages/refs/heads/master/mingw-w64-qemu/PKGBUILD
     # Some packages may be missing for your environment, installation will still
     # be done though.
-    makepkg -s PKGBUILD || true
+    makepkg --syncdeps --nobuild PKGBUILD || true
 
 Build on windows-aarch64
 ++++++++++++++++++++++++

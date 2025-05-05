@@ -115,6 +115,8 @@ option('dbus_display', type: 'feature', value: 'auto',
        description: '-display dbus support')
 option('tpm', type : 'feature', value : 'auto',
        description: 'TPM support')
+option('valgrind', type : 'feature', value: 'auto',
+       description: 'valgrind debug support for coroutine stacks')
 
 # Do not enable it by default even for Mingw32, because it doesn't
 # work on Wine.

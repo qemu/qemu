@@ -30,7 +30,7 @@ static struct kvm_s390_pv_info_vm info_vm;
 static struct kvm_s390_pv_info_dump info_dump;
 
 static int __s390_pv_cmd(uint32_t cmd, const char *cmdname, void *data,
-                         int *pvrc)
+                         struct S390PVResponse *pv_resp)
 {
     struct kvm_pv_cmd pv_cmd = {
         .cmd = cmd,
@@ -47,8 +47,10 @@ static int __s390_pv_cmd(uint32_t cmd, const char *cmdname, void *data,
                      "IOCTL rc: %d", cmd, cmdname, pv_cmd.rc, pv_cmd.rrc,
                      rc);
     }
-    if (pvrc) {
-        *pvrc = pv_cmd.rc;
+    if (pv_resp) {
+        pv_resp->cmd = cmd;
+        pv_resp->rc = pv_cmd.rc;
+        pv_resp->rrc = pv_cmd.rrc;
     }
     return rc;
 }
@@ -57,16 +59,15 @@ static int __s390_pv_cmd(uint32_t cmd, const char *cmdname, void *data,
  * This macro lets us pass the command as a string to the function so
  * we can print it on an error.
  */
-#define s390_pv_cmd(cmd, data) __s390_pv_cmd(cmd, #cmd, data, NULL)
-#define s390_pv_cmd_pvrc(cmd, data, pvrc) __s390_pv_cmd(cmd, #cmd, data, pvrc)
-#define s390_pv_cmd_exit(cmd, data)    \
-{                                      \
-    int rc;                            \
-                                       \
-    rc = __s390_pv_cmd(cmd, #cmd, data, NULL); \
-    if (rc) {                          \
-        exit(1);                       \
-    }                                  \
+#define s390_pv_cmd(cmd, data)  __s390_pv_cmd(cmd, #cmd, data, NULL)
+#define s390_pv_cmd_pv_resp(cmd, data, pv_resp) \
+                                __s390_pv_cmd(cmd, #cmd, data, pv_resp)
+
+static void s390_pv_cmd_exit(uint32_t cmd, void *data)
+{
+    if (s390_pv_cmd(cmd, data)) {
+        exit(1);
+    }
 }
 
 int s390_pv_query_info(void)
@@ -147,18 +148,20 @@ bool s390_pv_vm_try_disable_async(S390CcwMachineState *ms)
     return true;
 }
 
-int s390_pv_set_sec_parms(uint64_t origin, uint64_t length, Error **errp)
+#define UV_RC_SSC_INVAL_HOSTKEY    0x0108
+int s390_pv_set_sec_parms(uint64_t origin, uint64_t length,
+                          struct S390PVResponse *pv_resp, Error **errp)
 {
-    int ret, pvrc;
+    int ret;
     struct kvm_s390_pv_sec_parm args = {
         .origin = origin,
         .length = length,
     };
 
-    ret = s390_pv_cmd_pvrc(KVM_PV_SET_SEC_PARMS, &args, &pvrc);
+    ret = s390_pv_cmd_pv_resp(KVM_PV_SET_SEC_PARMS, &args, pv_resp);
     if (ret) {
         error_setg(errp, "Failed to set secure execution parameters");
-        if (pvrc == 0x108) {
+        if (pv_resp->rc == UV_RC_SSC_INVAL_HOSTKEY) {
             error_append_hint(errp, "Please check whether the image is "
                                     "correctly encrypted for this host\n");
         }
@@ -170,7 +173,8 @@ int s390_pv_set_sec_parms(uint64_t origin, uint64_t length, Error **errp)
 /*
  * Called for each component in the SE type IPL parameter block 0.
  */
-int s390_pv_unpack(uint64_t addr, uint64_t size, uint64_t tweak)
+int s390_pv_unpack(uint64_t addr, uint64_t size,
+                   uint64_t tweak, struct S390PVResponse *pv_resp)
 {
     struct kvm_s390_pv_unp args = {
         .addr = addr,
@@ -178,7 +182,7 @@ int s390_pv_unpack(uint64_t addr, uint64_t size, uint64_t tweak)
         .tweak = tweak,
     };
 
-    return s390_pv_cmd(KVM_PV_UNPACK, &args);
+    return s390_pv_cmd_pv_resp(KVM_PV_UNPACK, &args, pv_resp);
 }
 
 void s390_pv_prep_reset(void)
@@ -186,9 +190,9 @@ void s390_pv_prep_reset(void)
     s390_pv_cmd_exit(KVM_PV_PREP_RESET, NULL);
 }
 
-int s390_pv_verify(void)
+int s390_pv_verify(struct S390PVResponse *pv_resp)
 {
-    return s390_pv_cmd(KVM_PV_VERIFY, NULL);
+    return s390_pv_cmd_pv_resp(KVM_PV_VERIFY, NULL, pv_resp);
 }
 
 void s390_pv_unshare(void)
@@ -196,13 +200,29 @@ void s390_pv_unshare(void)
     s390_pv_cmd_exit(KVM_PV_UNSHARE_ALL, NULL);
 }
 
-void s390_pv_inject_reset_error(CPUState *cs)
+void s390_pv_inject_reset_error(CPUState *cs,
+                                struct S390PVResponse pv_resp)
 {
     int r1 = (cs->kvm_run->s390_sieic.ipa & 0x00f0) >> 4;
     CPUS390XState *env = &S390_CPU(cs)->env;
 
+    union {
+        struct {
+            uint16_t pv_cmd;
+            uint16_t pv_rrc;
+            uint16_t pv_rc;
+            uint16_t diag_rc;
+        };
+        uint64_t regs;
+    } resp = {
+              .pv_cmd = pv_resp.cmd,
+              .pv_rrc = pv_resp.rrc,
+              .pv_rc = pv_resp.rc,
+              .diag_rc = DIAG_308_RC_INVAL_FOR_PV
+             };
+
     /* Report that we are unable to enter protected mode */
-    env->regs[r1 + 1] = DIAG_308_RC_INVAL_FOR_PV;
+    env->regs[r1 + 1] = resp.regs;
 }
 
 uint64_t kvm_s390_pv_dmp_get_size_cpu(void)
