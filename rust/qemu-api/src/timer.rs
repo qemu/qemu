@@ -121,3 +121,5 @@ impl ClockType {
 pub const CLOCK_VIRTUAL: ClockType = ClockType {
     id: QEMUClockType::QEMU_CLOCK_VIRTUAL,
 };
+
+pub const NANOSECONDS_PER_SECOND: u64 = 1000000000;

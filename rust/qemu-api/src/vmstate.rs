@@ -200,13 +200,14 @@ pub const fn vmstate_varray_flag<T: VMState>(_: PhantomData<T>) -> VMStateFlags 
 /// and [`impl_vmstate_forward!`](crate::impl_vmstate_forward) help with this.
 #[macro_export]
 macro_rules! vmstate_of {
-    ($struct_name:ty, $field_name:ident $([0 .. $num:ident $(* $factor:expr)?])? $(,)?) => {
+    ($struct_name:ty, $field_name:ident $([0 .. $num:ident $(* $factor:expr)?])? $(, $test_fn:expr)? $(,)?) => {
         $crate::bindings::VMStateField {
             name: ::core::concat!(::core::stringify!($field_name), "\0")
                 .as_bytes()
                 .as_ptr() as *const ::std::os::raw::c_char,
             offset: $crate::offset_of!($struct_name, $field_name),
             $(num_offset: $crate::offset_of!($struct_name, $num),)?
+            $(field_exists: $crate::vmstate_exist_fn!($struct_name, $test_fn),)?
             // The calls to `call_func_with_field!` are the magic that
             // computes most of the VMStateField from the type of the field.
             info: $crate::info_enum_to_ref!($crate::call_func_with_field!(
@@ -435,6 +436,38 @@ macro_rules! vmstate_unused {
     }};
 }
 
+pub extern "C" fn rust_vms_test_field_exists<T, F: for<'a> FnCall<(&'a T, u8), bool>>(
+    opaque: *mut c_void,
+    version_id: c_int,
+) -> bool {
+    // SAFETY: the opaque was passed as a reference to `T`.
+    let owner: &T = unsafe { &*(opaque.cast::<T>()) };
+    let version: u8 = version_id.try_into().unwrap();
+    F::call((owner, version))
+}
+
+pub type VMSFieldExistCb = unsafe extern "C" fn(
+    opaque: *mut std::os::raw::c_void,
+    version_id: std::os::raw::c_int,
+) -> bool;
+
+#[macro_export]
+macro_rules! vmstate_exist_fn {
+    ($struct_name:ty, $test_fn:expr) => {{
+        const fn test_cb_builder__<T, F: for<'a> $crate::callbacks::FnCall<(&'a T, u8), bool>>(
+            _phantom: ::core::marker::PhantomData<F>,
+        ) -> $crate::vmstate::VMSFieldExistCb {
+            let _: () = F::ASSERT_IS_SOME;
+            $crate::vmstate::rust_vms_test_field_exists::<T, F>
+        }
+
+        const fn phantom__<T>(_: &T) -> ::core::marker::PhantomData<T> {
+            ::core::marker::PhantomData
+        }
+        Some(test_cb_builder__::<$struct_name, _>(phantom__(&$test_fn)))
+    }};
+}
+
 // FIXME: including the `vmsd` field in a `const` is not possible without
 // the const_refs_static feature (stabilized in Rust 1.83.0).  Without it,
 // it is not possible to use VMS_STRUCT in a transparent manner using
@@ -445,7 +478,7 @@ macro_rules! vmstate_unused {
 #[doc(alias = "VMSTATE_STRUCT")]
 #[macro_export]
 macro_rules! vmstate_struct {
-    ($struct_name:ty, $field_name:ident $([0 .. $num:ident $(* $factor:expr)?])?, $vmsd:expr, $type:ty $(,)?) => {
+    ($struct_name:ty, $field_name:ident $([0 .. $num:ident $(* $factor:expr)?])?, $vmsd:expr, $type:ty $(, $test_fn:expr)? $(,)?) => {
         $crate::bindings::VMStateField {
             name: ::core::concat!(::core::stringify!($field_name), "\0")
                 .as_bytes()
@@ -458,6 +491,7 @@ macro_rules! vmstate_struct {
             size: ::core::mem::size_of::<$type>(),
             flags: $crate::bindings::VMStateFlags::VMS_STRUCT,
             vmsd: $vmsd,
+            $(field_exists: $crate::vmstate_exist_fn!($struct_name, $test_fn),)?
             ..$crate::zeroable::Zeroable::ZERO
          } $(.with_varray_flag_unchecked(
                   $crate::call_func_with_field!(
@@ -473,7 +507,7 @@ macro_rules! vmstate_struct {
 #[doc(alias = "VMSTATE_CLOCK")]
 #[macro_export]
 macro_rules! vmstate_clock {
-    ($struct_name:ty, $field_name:ident) => {{
+    ($struct_name:ty, $field_name:ident $([0 .. $num:ident $(* $factor:expr)?])?) => {{
         $crate::bindings::VMStateField {
             name: ::core::concat!(::core::stringify!($field_name), "\0")
                 .as_bytes()
@@ -482,7 +516,7 @@ macro_rules! vmstate_clock {
                 $crate::assert_field_type!(
                     $struct_name,
                     $field_name,
-                    $crate::qom::Owned<$crate::qdev::Clock>
+                    $crate::qom::Owned<$crate::qdev::Clock> $(, num = $num)?
                 );
                 $crate::offset_of!($struct_name, $field_name)
             },
@@ -493,7 +527,14 @@ macro_rules! vmstate_clock {
             ),
             vmsd: unsafe { ::core::ptr::addr_of!($crate::bindings::vmstate_clock) },
             ..$crate::zeroable::Zeroable::ZERO
-        }
+         } $(.with_varray_flag_unchecked(
+                  $crate::call_func_with_field!(
+                      $crate::vmstate::vmstate_varray_flag,
+                      $struct_name,
+                      $num
+                  )
+              )
+           $(.with_varray_multiply($factor))?)?
     }};
 }
 
@@ -514,43 +555,13 @@ macro_rules! vmstate_fields {
     }}
 }
 
-pub extern "C" fn rust_vms_test_field_exists<T, F: for<'a> FnCall<(&'a T, u8), bool>>(
-    opaque: *mut c_void,
-    version_id: c_int,
-) -> bool {
-    let owner: &T = unsafe { &*(opaque.cast::<T>()) };
-    let version: u8 = version_id.try_into().unwrap();
-    // SAFETY: the opaque was passed as a reference to `T`.
-    F::call((owner, version))
-}
-
-pub type VMSFieldExistCb = unsafe extern "C" fn(
-    opaque: *mut std::os::raw::c_void,
-    version_id: std::os::raw::c_int,
-) -> bool;
-
 #[doc(alias = "VMSTATE_VALIDATE")]
 #[macro_export]
 macro_rules! vmstate_validate {
     ($struct_name:ty, $test_name:expr, $test_fn:expr $(,)?) => {
         $crate::bindings::VMStateField {
             name: ::std::ffi::CStr::as_ptr($test_name),
-            field_exists: {
-                const fn test_cb_builder__<
-                    T,
-                    F: for<'a> $crate::callbacks::FnCall<(&'a T, u8), bool>,
-                >(
-                    _phantom: ::core::marker::PhantomData<F>,
-                ) -> $crate::vmstate::VMSFieldExistCb {
-                    let _: () = F::ASSERT_IS_SOME;
-                    $crate::vmstate::rust_vms_test_field_exists::<T, F>
-                }
-
-                const fn phantom__<T>(_: &T) -> ::core::marker::PhantomData<T> {
-                    ::core::marker::PhantomData
-                }
-                Some(test_cb_builder__::<$struct_name, _>(phantom__(&$test_fn)))
-            },
+            field_exists: $crate::vmstate_exist_fn!($struct_name, $test_fn),
             flags: $crate::bindings::VMStateFlags(
                 $crate::bindings::VMStateFlags::VMS_MUST_EXIST.0
                     | $crate::bindings::VMStateFlags::VMS_ARRAY.0,

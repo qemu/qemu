@@ -7,6 +7,13 @@ members = [
     "hw/timer/hpet",
 ]
 
+[workspace.package]
+edition = "2021"
+homepage = "https://www.qemu.org"
+license = "GPL-2.0-or-later"
+repository = "https://gitlab.com/qemu-project/qemu/"
+rust-version = "1.63.0"
+
 [workspace.lints.rust]
 unexpected_cfgs = { level = "deny", check-cfg = [
     'cfg(MESON)', 'cfg(HAVE_GLIB_WITH_ALIGNED_ALLOC)',

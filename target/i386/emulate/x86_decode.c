@@ -1408,7 +1408,7 @@ struct decode_tbl _2op_inst[] = {
 };
 
 struct decode_x87_tbl invl_inst_x87 = {0x0, 0, 0, 0, 0, false, false, NULL,
-                                       NULL, decode_invalid, 0};
+                                       NULL, decode_invalid};
 
 struct decode_x87_tbl _x87_inst[] = {
     {0xd8, 0, 3, X86_DECODE_CMD_FADD, 10, false, false,
@@ -1456,8 +1456,7 @@ struct decode_x87_tbl _x87_inst[] = {
      decode_x87_modrm_st0, NULL, decode_d9_4},
     {0xd9, 4, 0, X86_DECODE_CMD_INVL, 4, false, false,
      decode_x87_modrm_bytep, NULL, NULL},
-    {0xd9, 5, 3, X86_DECODE_CMD_FLDxx, 10, false, false, NULL, NULL, NULL,
-     RFLAGS_MASK_NONE},
+    {0xd9, 5, 3, X86_DECODE_CMD_FLDxx, 10, false, false, NULL, NULL, NULL},
     {0xd9, 5, 0, X86_DECODE_CMD_FLDCW, 2, false, false,
      decode_x87_modrm_bytep, NULL, NULL},
 
@@ -1478,20 +1477,17 @@ struct decode_x87_tbl _x87_inst[] = {
      decode_x87_modrm_st0, NULL},
     {0xda, 3, 3, X86_DECODE_CMD_FCMOV, 10, false, false, decode_x87_modrm_st0,
      decode_x87_modrm_st0, NULL},
-    {0xda, 4, 3, X86_DECODE_CMD_INVL, 10, false, false, NULL, NULL, NULL,
-     RFLAGS_MASK_NONE},
+    {0xda, 4, 3, X86_DECODE_CMD_INVL, 10, false, false, NULL, NULL, NULL},
     {0xda, 4, 0, X86_DECODE_CMD_FSUB, 4, false, false, decode_x87_modrm_st0,
      decode_x87_modrm_intp, NULL},
     {0xda, 5, 3, X86_DECODE_CMD_FUCOM, 10, false, true, decode_x87_modrm_st0,
      decode_decode_x87_modrm_st0, NULL},
     {0xda, 5, 0, X86_DECODE_CMD_FSUB, 4, true, false, decode_x87_modrm_st0,
      decode_x87_modrm_intp, NULL},
-    {0xda, 6, 3, X86_DECODE_CMD_INVL, 10, false, false, NULL, NULL, NULL,
-     RFLAGS_MASK_NONE},
+    {0xda, 6, 3, X86_DECODE_CMD_INVL, 10, false, false, NULL, NULL, NULL},
     {0xda, 6, 0, X86_DECODE_CMD_FDIV, 4, false, false, decode_x87_modrm_st0,
      decode_x87_modrm_intp, NULL},
-    {0xda, 7, 3, X86_DECODE_CMD_INVL, 10, false, false, NULL, NULL, NULL,
-     RFLAGS_MASK_NONE},
+    {0xda, 7, 3, X86_DECODE_CMD_INVL, 10, false, false, NULL, NULL, NULL},
     {0xda, 7, 0, X86_DECODE_CMD_FDIV, 4, true, false, decode_x87_modrm_st0,
      decode_x87_modrm_intp, NULL},
 
@@ -1511,8 +1507,7 @@ struct decode_x87_tbl _x87_inst[] = {
      decode_x87_modrm_intp, NULL, NULL},
     {0xdb, 4, 3, X86_DECODE_CMD_INVL, 10, false, false, NULL, NULL,
      decode_db_4},
-    {0xdb, 4, 0, X86_DECODE_CMD_INVL, 10, false, false, NULL, NULL, NULL,
-     RFLAGS_MASK_NONE},
+    {0xdb, 4, 0, X86_DECODE_CMD_INVL, 10, false, false, NULL, NULL, NULL},
     {0xdb, 5, 3, X86_DECODE_CMD_FUCOMI, 10, false, false,
      decode_x87_modrm_st0, decode_x87_modrm_st0, NULL},
     {0xdb, 5, 0, X86_DECODE_CMD_FLD, 10, false, false,

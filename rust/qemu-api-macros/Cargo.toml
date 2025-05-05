@@ -1,15 +1,16 @@
 [package]
 name = "qemu_api_macros"
 version = "0.1.0"
-edition = "2021"
 authors = ["Manos Pitsidianakis <manos.pitsidianakis@linaro.org>"]
-license = "GPL-2.0-or-later"
 description = "Rust bindings for QEMU - Utility macros"
 resolver = "2"
 publish = false
-keywords = []
-categories = []
-rust-version = "1.63.0"
+
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
 
 [lib]
 proc-macro = true

@@ -1,11 +1,14 @@
 [package]
 name = "hpet"
 version = "0.1.0"
-edition = "2021"
 authors = ["Zhao Liu <zhao1.liu@intel.com>"]
-license = "GPL-2.0-or-later"
 description = "IA-PC High Precision Event Timer emulation in Rust"
-rust-version = "1.63.0"
+
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
 
 [lib]
 crate-type = ["staticlib"]

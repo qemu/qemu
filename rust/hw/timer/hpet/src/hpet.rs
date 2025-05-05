@@ -4,6 +4,7 @@
 
 use std::{
     ffi::CStr,
+    os::raw::{c_int, c_void},
     pin::Pin,
     ptr::{addr_of_mut, null_mut, NonNull},
     slice::from_ref,
@@ -25,7 +26,10 @@ use qemu_api::{
     qom::{ObjectImpl, ObjectType, ParentField},
     qom_isa,
     sysbus::{SysBusDevice, SysBusDeviceImpl},
-    timer::{Timer, CLOCK_VIRTUAL},
+    timer::{Timer, CLOCK_VIRTUAL, NANOSECONDS_PER_SECOND},
+    vmstate::VMStateDescription,
+    vmstate_fields, vmstate_of, vmstate_struct, vmstate_subsections, vmstate_validate,
+    zeroable::Zeroable,
 };
 
 use crate::fw_cfg::HPETFwConfig;
@@ -561,6 +565,7 @@ pub struct HPETState {
     #[doc(alias = "timer")]
     timers: [BqlRefCell<HPETTimer>; HPET_MAX_TIMERS as usize],
     num_timers: BqlCell<u8>,
+    num_timers_save: BqlCell<u8>,
 
     /// Instance id (HPET timer block ID).
     hpet_id: BqlCell<usize>,
@@ -839,6 +844,49 @@ impl HPETState {
             }
         }
     }
+
+    fn pre_save(&self) -> i32 {
+        if self.is_hpet_enabled() {
+            self.counter.set(self.get_ticks());
+        }
+
+        /*
+         * The number of timers must match on source and destination, but it was
+         * also added to the migration stream.  Check that it matches the value
+         * that was configured.
+         */
+        self.num_timers_save.set(self.num_timers.get());
+        0
+    }
+
+    fn post_load(&self, _version_id: u8) -> i32 {
+        for timer in self.timers.iter().take(self.get_num_timers()) {
+            let mut t = timer.borrow_mut();
+
+            t.cmp64 = t.calculate_cmp64(t.get_state().counter.get(), t.cmp);
+            t.last = CLOCK_VIRTUAL.get_ns() - NANOSECONDS_PER_SECOND;
+        }
+
+        // Recalculate the offset between the main counter and guest time
+        if !self.hpet_offset_saved {
+            self.hpet_offset
+                .set(ticks_to_ns(self.counter.get()) - CLOCK_VIRTUAL.get_ns());
+        }
+
+        0
+    }
+
+    fn is_rtc_irq_level_needed(&self) -> bool {
+        self.rtc_irq_level.get() != 0
+    }
+
+    fn is_offset_needed(&self) -> bool {
+        self.is_hpet_enabled() && self.hpet_offset_saved
+    }
+
+    fn validate_num_timers(&self, _version_id: u8) -> bool {
+        self.num_timers.get() == self.num_timers_save.get()
+    }
 }
 
 qom_isa!(HPETState: SysBusDevice, DeviceState, Object);
@@ -895,9 +943,105 @@ qemu_api::declare_properties! {
     ),
 }
 
+unsafe extern "C" fn hpet_rtc_irq_level_needed(opaque: *mut c_void) -> bool {
+    // SAFETY:
+    // the pointer is convertible to a reference
+    let state: &HPETState = unsafe { NonNull::new(opaque.cast::<HPETState>()).unwrap().as_ref() };
+    state.is_rtc_irq_level_needed()
+}
+
+unsafe extern "C" fn hpet_offset_needed(opaque: *mut c_void) -> bool {
+    // SAFETY:
+    // the pointer is convertible to a reference
+    let state: &HPETState = unsafe { NonNull::new(opaque.cast::<HPETState>()).unwrap().as_ref() };
+    state.is_offset_needed()
+}
+
+unsafe extern "C" fn hpet_pre_save(opaque: *mut c_void) -> c_int {
+    // SAFETY:
+    // the pointer is convertible to a reference
+    let state: &mut HPETState =
+        unsafe { NonNull::new(opaque.cast::<HPETState>()).unwrap().as_mut() };
+    state.pre_save() as c_int
+}
+
+unsafe extern "C" fn hpet_post_load(opaque: *mut c_void, version_id: c_int) -> c_int {
+    // SAFETY:
+    // the pointer is convertible to a reference
+    let state: &mut HPETState =
+        unsafe { NonNull::new(opaque.cast::<HPETState>()).unwrap().as_mut() };
+    let version: u8 = version_id.try_into().unwrap();
+    state.post_load(version) as c_int
+}
+
+static VMSTATE_HPET_RTC_IRQ_LEVEL: VMStateDescription = VMStateDescription {
+    name: c_str!("hpet/rtc_irq_level").as_ptr(),
+    version_id: 1,
+    minimum_version_id: 1,
+    needed: Some(hpet_rtc_irq_level_needed),
+    fields: vmstate_fields! {
+        vmstate_of!(HPETState, rtc_irq_level),
+    },
+    ..Zeroable::ZERO
+};
+
+static VMSTATE_HPET_OFFSET: VMStateDescription = VMStateDescription {
+    name: c_str!("hpet/offset").as_ptr(),
+    version_id: 1,
+    minimum_version_id: 1,
+    needed: Some(hpet_offset_needed),
+    fields: vmstate_fields! {
+        vmstate_of!(HPETState, hpet_offset),
+    },
+    ..Zeroable::ZERO
+};
+
+static VMSTATE_HPET_TIMER: VMStateDescription = VMStateDescription {
+    name: c_str!("hpet_timer").as_ptr(),
+    version_id: 1,
+    minimum_version_id: 1,
+    fields: vmstate_fields! {
+        vmstate_of!(HPETTimer, index),
+        vmstate_of!(HPETTimer, config),
+        vmstate_of!(HPETTimer, cmp),
+        vmstate_of!(HPETTimer, fsb),
+        vmstate_of!(HPETTimer, period),
+        vmstate_of!(HPETTimer, wrap_flag),
+        vmstate_of!(HPETTimer, qemu_timer),
+    },
+    ..Zeroable::ZERO
+};
+
+const VALIDATE_TIMERS_NAME: &CStr = c_str!("num_timers must match");
+
+static VMSTATE_HPET: VMStateDescription = VMStateDescription {
+    name: c_str!("hpet").as_ptr(),
+    version_id: 2,
+    minimum_version_id: 1,
+    pre_save: Some(hpet_pre_save),
+    post_load: Some(hpet_post_load),
+    fields: vmstate_fields! {
+        vmstate_of!(HPETState, config),
+        vmstate_of!(HPETState, int_status),
+        vmstate_of!(HPETState, counter),
+        vmstate_of!(HPETState, num_timers_save).with_version_id(2),
+        vmstate_validate!(HPETState, VALIDATE_TIMERS_NAME, HPETState::validate_num_timers),
+        vmstate_struct!(HPETState, timers[0 .. num_timers], &VMSTATE_HPET_TIMER, BqlRefCell<HPETTimer>, HPETState::validate_num_timers).with_version_id(0),
+    },
+    subsections: vmstate_subsections! {
+        VMSTATE_HPET_RTC_IRQ_LEVEL,
+        VMSTATE_HPET_OFFSET,
+    },
+    ..Zeroable::ZERO
+};
+
 impl DeviceImpl for HPETState {
     fn properties() -> &'static [Property] {
         &HPET_PROPERTIES
+    }
+
+    fn vmsd() -> Option<&'static VMStateDescription> {
+        Some(&VMSTATE_HPET)
     }
 
     const REALIZE: Option<fn(&Self)> = Some(Self::realize);
