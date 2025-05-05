@@ -157,6 +157,12 @@ fw_cfg requirements on the VM firmware:
    it's expected that this fw_cfg file is only relevant to a single PCI
    class VGA device with Intel vendor ID, appearing at PCI bus address 00:02.0.
 
+   Starting from Meteor Lake, IGD devices access stolen memory via its MMIO
+   BAR2 (LMEMBAR) and removed the BDSM register in config space. There is
+   no need for guest firmware to allocate data stolen memory in guest address
+   space and write it to BDSM register. Value of this fw_cfg file is 0 in
+   such case.
+
 Upstream Seabios has OpRegion and BDSM (pre-Gen11 device only) support.
 However, the support is not accepted by upstream EDK2/OVMF. A recommended
 solution is to create a virtual OpRom with following DXE drivers:

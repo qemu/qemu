@@ -103,6 +103,7 @@ static int igd_gen(VFIOPCIDevice *vdev)
     /*
      * Unfortunately, Intel changes it's specification quite often. This makes
      * it impossible to use a suitable default value for unknown devices.
+     * Return -1 for not applying any generation-specific quirks.
      */
     return -1;
 }
@@ -459,20 +460,12 @@ void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
     VFIOConfigMirrorQuirk *ggc_mirror, *bdsm_mirror;
     int gen;
 
-    /*
-     * This must be an Intel VGA device at address 00:02.0 for us to even
-     * consider enabling legacy mode. Some driver have dependencies on the PCI
-     * bus address.
-     */
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
         !vfio_is_vga(vdev) || nr != 0) {
         return;
     }
 
-    /*
-     * Only on IGD devices of gen 11 and above, the BDSM register is mirrored
-     * into MMIO space and read from MMIO space by the Windows driver.
-     */
+    /* Only on IGD Gen6-12 device needs quirks in BAR 0 */
     gen = igd_gen(vdev);
     if (gen < 6) {
         return;
@@ -519,7 +512,7 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
 {
     g_autofree struct vfio_region_info *opregion = NULL;
     int ret, gen;
-    uint64_t gms_size;
+    uint64_t gms_size = 0;
     uint64_t *bdsm_size;
     uint32_t gmch;
     bool legacy_mode_enabled = false;
@@ -536,18 +529,7 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
     }
     info_report("OpRegion detected on Intel display %x.", vdev->device_id);
 
-    /*
-     * IGD is not a standard, they like to change their specs often.  We
-     * only attempt to support back to SandBridge and we hope that newer
-     * devices maintain compatibility with generation 8.
-     */
     gen = igd_gen(vdev);
-    if (gen == -1) {
-        error_report("IGD device %s is unsupported in legacy mode, "
-                     "try SandyBridge or newer", vdev->vbasedev.name);
-        return true;
-    }
-
     gmch = vfio_pci_read_config(&vdev->pdev, IGD_GMCH, 4);
 
     /*
@@ -645,31 +627,33 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
         pci_set_long(vdev->emulated_config_bits + IGD_GMCH, ~0);
     }
 
-    gms_size = igd_stolen_memory_size(gen, gmch);
+    if (gen > 0) {
+        gms_size = igd_stolen_memory_size(gen, gmch);
+
+        /* BDSM is read-write, emulated. BIOS needs to be able to write it */
+        if (gen < 11) {
+            pci_set_long(vdev->pdev.config + IGD_BDSM, 0);
+            pci_set_long(vdev->pdev.wmask + IGD_BDSM, ~0);
+            pci_set_long(vdev->emulated_config_bits + IGD_BDSM, ~0);
+        } else {
+            pci_set_quad(vdev->pdev.config + IGD_BDSM_GEN11, 0);
+            pci_set_quad(vdev->pdev.wmask + IGD_BDSM_GEN11, ~0);
+            pci_set_quad(vdev->emulated_config_bits + IGD_BDSM_GEN11, ~0);
+        }
+    }
 
     /*
      * Request reserved memory for stolen memory via fw_cfg.  VM firmware
      * must allocate a 1MB aligned reserved memory region below 4GB with
-     * the requested size (in bytes) for use by the Intel PCI class VGA
-     * device at VM address 00:02.0.  The base address of this reserved
-     * memory region must be written to the device BDSM register at PCI
-     * config offset 0x5C.
+     * the requested size (in bytes) for use by the IGD device. The base
+     * address of this reserved memory region must be written to the
+     * device BDSM register.
+     * For newer device without BDSM register, this fw_cfg item is 0.
      */
     bdsm_size = g_malloc(sizeof(*bdsm_size));
     *bdsm_size = cpu_to_le64(gms_size);
     fw_cfg_add_file(fw_cfg_find(), "etc/igd-bdsm-size",
                     bdsm_size, sizeof(*bdsm_size));
-
-    /* BDSM is read-write, emulated.  The BIOS needs to be able to write it */
-    if (gen < 11) {
-        pci_set_long(vdev->pdev.config + IGD_BDSM, 0);
-        pci_set_long(vdev->pdev.wmask + IGD_BDSM, ~0);
-        pci_set_long(vdev->emulated_config_bits + IGD_BDSM, ~0);
-    } else {
-        pci_set_quad(vdev->pdev.config + IGD_BDSM_GEN11, 0);
-        pci_set_quad(vdev->pdev.wmask + IGD_BDSM_GEN11, ~0);
-        pci_set_quad(vdev->emulated_config_bits + IGD_BDSM_GEN11, ~0);
-    }
 
     trace_vfio_pci_igd_bdsm_enabled(vdev->vbasedev.name, (gms_size / MiB));
 
