@@ -185,9 +185,10 @@ static bool vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
     return true;
 }
 
-static bool vfio_pci_igd_setup_opregion(VFIOPCIDevice *vdev, Error **errp)
+static bool vfio_pci_igd_opregion_detect(VFIOPCIDevice *vdev,
+                                         struct vfio_region_info **opregion,
+                                         Error **errp)
 {
-    g_autofree struct vfio_region_info *opregion = NULL;
     int ret;
 
     /* Hotplugging is not supported for opregion access */
@@ -198,14 +199,10 @@ static bool vfio_pci_igd_setup_opregion(VFIOPCIDevice *vdev, Error **errp)
 
     ret = vfio_device_get_region_info_type(&vdev->vbasedev,
                     VFIO_REGION_TYPE_PCI_VENDOR_TYPE | PCI_VENDOR_ID_INTEL,
-                    VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION, &opregion);
+                    VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION, opregion);
     if (ret) {
         error_setg_errno(errp, -ret,
                          "Device does not supports IGD OpRegion feature");
-        return false;
-    }
-
-    if (!vfio_pci_igd_opregion_init(vdev, opregion, errp)) {
         return false;
     }
 
@@ -480,6 +477,7 @@ void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
 
 static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
 {
+    g_autofree struct vfio_region_info *opregion = NULL;
     int ret, gen;
     uint64_t gms_size;
     uint64_t *bdsm_size;
@@ -487,15 +485,16 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
     bool legacy_mode_enabled = false;
     Error *err = NULL;
 
-    /*
-     * This must be an Intel VGA device at address 00:02.0 for us to even
-     * consider enabling legacy mode.  The vBIOS has dependencies on the
-     * PCI bus address.
-     */
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
         !vfio_is_vga(vdev)) {
         return true;
     }
+
+    /* IGD device always comes with OpRegion */
+    if (!vfio_pci_igd_opregion_detect(vdev, &opregion, errp)) {
+        return true;
+    }
+    info_report("OpRegion detected on Intel display %x.", vdev->device_id);
 
     /*
      * IGD is not a standard, they like to change their specs often.  We
@@ -572,7 +571,7 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
 
     /* Setup OpRegion access */
     if ((vdev->features & VFIO_FEATURE_ENABLE_IGD_OPREGION) &&
-        !vfio_pci_igd_setup_opregion(vdev, errp)) {
+        !vfio_pci_igd_opregion_init(vdev, opregion, errp)) {
         goto error;
     }
 
@@ -672,8 +671,11 @@ error:
  */
 static bool vfio_pci_kvmgt_config_quirk(VFIOPCIDevice *vdev, Error **errp)
 {
+    g_autofree struct vfio_region_info *opregion = NULL;
+
     if ((vdev->features & VFIO_FEATURE_ENABLE_IGD_OPREGION) &&
-        !vfio_pci_igd_setup_opregion(vdev, errp)) {
+        (!vfio_pci_igd_opregion_detect(vdev, &opregion, errp) ||
+         !vfio_pci_igd_opregion_init(vdev, opregion, errp))) {
         return false;
     }
 
