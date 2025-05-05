@@ -84,6 +84,18 @@ void cpu_loop(CPUMIPSState *env)
 
         switch(trapnr) {
         case EXCP_SYSCALL:
+            if (
+                persistent_exits &&
+                (
+                     env->active_tc.gpr[2] == TARGET_NR_exit_group ||
+                     // uclibc may use the following signal instead of
+                     // exit_group:
+                     env->active_tc.gpr[2] == TARGET_NR_exit
+                )
+            ) {
+              env->active_tc.PC = afl_persistent_addr;
+              continue;
+            }
             env->active_tc.PC += 4;
 # ifdef TARGET_ABI_MIPSO32
             syscall_num = env->active_tc.gpr[2] - 4000;
