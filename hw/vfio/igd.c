@@ -182,10 +182,6 @@ static bool vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
 
     trace_vfio_pci_igd_opregion_enabled(vdev->vbasedev.name);
 
-    pci_set_long(vdev->pdev.config + IGD_ASLS, 0);
-    pci_set_long(vdev->pdev.wmask + IGD_ASLS, ~0);
-    pci_set_long(vdev->emulated_config_bits + IGD_ASLS, ~0);
-
     return true;
 }
 
@@ -584,7 +580,15 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
     if ((vdev->features & VFIO_FEATURE_ENABLE_IGD_LPC) &&
         !vfio_pci_igd_setup_lpc_bridge(vdev, errp)) {
         goto error;
-     }
+    }
+
+    /*
+     * ASLS (OpRegion address) is read-only, emulated
+     * It contains HPA, guest firmware need to reprogram it with GPA.
+     */
+    pci_set_long(vdev->pdev.config + IGD_ASLS, 0);
+    pci_set_long(vdev->pdev.wmask + IGD_ASLS, ~0);
+    pci_set_long(vdev->emulated_config_bits + IGD_ASLS, ~0);
 
     /*
      * Allow user to override dsm size using x-igd-gms option, in multiples of
