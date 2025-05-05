@@ -107,15 +107,6 @@ static void test_precopy_file_offset_bad(void)
     test_file_common(&args, false);
 }
 
-static void *migrate_hook_start_mapped_ram(QTestState *from,
-                                           QTestState *to)
-{
-    migrate_set_capability(from, "mapped-ram", true);
-    migrate_set_capability(to, "mapped-ram", true);
-
-    return NULL;
-}
-
 static void test_precopy_file_mapped_ram_live(void)
 {
     g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
@@ -123,7 +114,9 @@ static void test_precopy_file_mapped_ram_live(void)
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = "defer",
-        .start_hook = migrate_hook_start_mapped_ram,
+        .start = {
+            .caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true,
+        },
     };
 
     test_file_common(&args, false);
@@ -136,24 +129,12 @@ static void test_precopy_file_mapped_ram(void)
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = "defer",
-        .start_hook = migrate_hook_start_mapped_ram,
+        .start = {
+            .caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true,
+        },
     };
 
     test_file_common(&args, true);
-}
-
-static void *migrate_hook_start_multifd_mapped_ram(QTestState *from,
-                                                   QTestState *to)
-{
-    migrate_hook_start_mapped_ram(from, to);
-
-    migrate_set_parameter_int(from, "multifd-channels", 4);
-    migrate_set_parameter_int(to, "multifd-channels", 4);
-
-    migrate_set_capability(from, "multifd", true);
-    migrate_set_capability(to, "multifd", true);
-
-    return NULL;
 }
 
 static void test_multifd_file_mapped_ram_live(void)
@@ -163,7 +144,10 @@ static void test_multifd_file_mapped_ram_live(void)
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = "defer",
-        .start_hook = migrate_hook_start_multifd_mapped_ram,
+        .start = {
+            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
+            .caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true,
+        },
     };
 
     test_file_common(&args, false);
@@ -176,7 +160,10 @@ static void test_multifd_file_mapped_ram(void)
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = "defer",
-        .start_hook = migrate_hook_start_multifd_mapped_ram,
+        .start = {
+            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
+            .caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true,
+        },
     };
 
     test_file_common(&args, true);
@@ -185,8 +172,6 @@ static void test_multifd_file_mapped_ram(void)
 static void *migrate_hook_start_multifd_mapped_ram_dio(QTestState *from,
                                                        QTestState *to)
 {
-    migrate_hook_start_multifd_mapped_ram(from, to);
-
     migrate_set_parameter_bool(from, "direct-io", true);
     migrate_set_parameter_bool(to, "direct-io", true);
 
@@ -201,6 +186,10 @@ static void test_multifd_file_mapped_ram_dio(void)
         .connect_uri = uri,
         .listen_uri = "defer",
         .start_hook = migrate_hook_start_multifd_mapped_ram_dio,
+        .start = {
+            .caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true,
+            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
+        },
     };
 
     if (!probe_o_direct_support(tmpfs)) {
@@ -246,7 +235,6 @@ static void *migrate_hook_start_multifd_mapped_ram_fdset_dio(QTestState *from,
     fdset_add_fds(from, file, O_WRONLY, 2, true);
     fdset_add_fds(to, file, O_RDONLY, 2, true);
 
-    migrate_hook_start_multifd_mapped_ram(from, to);
     migrate_set_parameter_bool(from, "direct-io", true);
     migrate_set_parameter_bool(to, "direct-io", true);
 
@@ -261,8 +249,6 @@ static void *migrate_hook_start_multifd_mapped_ram_fdset(QTestState *from,
     fdset_add_fds(from, file, O_WRONLY, 2, false);
     fdset_add_fds(to, file, O_RDONLY, 2, false);
 
-    migrate_hook_start_multifd_mapped_ram(from, to);
-
     return NULL;
 }
 
@@ -275,6 +261,10 @@ static void test_multifd_file_mapped_ram_fdset(void)
         .listen_uri = "defer",
         .start_hook = migrate_hook_start_multifd_mapped_ram_fdset,
         .end_hook = migrate_hook_end_multifd_mapped_ram_fdset,
+        .start = {
+            .caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true,
+            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
+        },
     };
 
     test_file_common(&args, true);
@@ -289,6 +279,10 @@ static void test_multifd_file_mapped_ram_fdset_dio(void)
         .listen_uri = "defer",
         .start_hook = migrate_hook_start_multifd_mapped_ram_fdset_dio,
         .end_hook = migrate_hook_end_multifd_mapped_ram_fdset,
+        .start = {
+            .caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true,
+            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
+        },
     };
 
     if (!probe_o_direct_support(tmpfs)) {

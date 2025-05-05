@@ -98,6 +98,7 @@ static void test_ignore_shared(void)
     QTestState *from, *to;
     MigrateStart args = {
         .use_shmem = true,
+        .caps[MIGRATION_CAPABILITY_X_IGNORE_SHARED] = true,
     };
 
     if (migrate_start(&from, &to, uri, &args)) {
@@ -106,9 +107,6 @@ static void test_ignore_shared(void)
 
     migrate_ensure_non_converge(from);
     migrate_prepare_for_dirty_mem(from);
-
-    migrate_set_capability(from, "x-ignore-shared", true);
-    migrate_set_capability(to, "x-ignore-shared", true);
 
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");

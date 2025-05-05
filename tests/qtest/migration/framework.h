@@ -12,6 +12,7 @@
 #define TEST_FRAMEWORK_H
 
 #include "libqtest.h"
+#include <qapi/qapi-types-migration.h>
 
 #define FILE_TEST_FILENAME "migfile"
 #define FILE_TEST_OFFSET 0x1000
@@ -120,6 +121,13 @@ typedef struct {
 
     /* Do not connect to target monitor and qtest sockets in qtest_init */
     bool defer_target_connect;
+
+    /*
+     * Migration capabilities to be set in both source and
+     * destination. For unilateral capabilities, use
+     * migration_set_capabilities().
+     */
+    bool caps[MIGRATION_CAPABILITY__MAX];
 } MigrateStart;
 
 typedef enum PostcopyRecoveryFailStage {
@@ -207,7 +215,6 @@ typedef struct {
 
     /* Postcopy specific fields */
     void *postcopy_data;
-    bool postcopy_preempt;
     PostcopyRecoveryFailStage postcopy_recovery_fail_stage;
 } MigrateCommon;
 
