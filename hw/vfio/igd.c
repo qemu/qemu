@@ -412,6 +412,44 @@ static bool vfio_pci_igd_setup_lpc_bridge(VFIOPCIDevice *vdev, Error **errp)
     return true;
 }
 
+static bool vfio_pci_igd_override_gms(int gen, uint32_t gms, uint32_t *gmch)
+{
+    bool ret = false;
+
+    if (gen == -1) {
+        error_report("x-igd-gms is not supported on this device");
+    } else if (gen < 8) {
+        if (gms <= 0x10) {
+            *gmch &= ~(IGD_GMCH_GEN6_GMS_MASK << IGD_GMCH_GEN6_GMS_SHIFT);
+            *gmch |= gms << IGD_GMCH_GEN6_GMS_SHIFT;
+            ret = true;
+        } else {
+            error_report(QERR_INVALID_PARAMETER_VALUE, "x-igd-gms", "0~0x10");
+        }
+    } else if (gen == 8) {
+        if (gms <= 0x40) {
+            *gmch &= ~(IGD_GMCH_GEN8_GMS_MASK << IGD_GMCH_GEN8_GMS_SHIFT);
+            *gmch |= gms << IGD_GMCH_GEN8_GMS_SHIFT;
+            ret = true;
+        } else {
+            error_report(QERR_INVALID_PARAMETER_VALUE, "x-igd-gms", "0~0x40");
+        }
+    } else {
+        /* 0x0  to 0x40: 32MB increments starting at 0MB */
+        /* 0xf0 to 0xfe: 4MB increments starting at 4MB */
+        if ((gms <= 0x40) || (gms >= 0xf0 && gms <= 0xfe)) {
+            *gmch &= ~(IGD_GMCH_GEN8_GMS_MASK << IGD_GMCH_GEN8_GMS_SHIFT);
+            *gmch |= gms << IGD_GMCH_GEN8_GMS_SHIFT;
+            ret = true;
+        } else {
+            error_report(QERR_INVALID_PARAMETER_VALUE,
+                         "x-igd-gms", "0~0x40 or 0xf0~0xfe");
+        }
+    }
+
+    return ret;
+}
+
 #define IGD_GGC_MMIO_OFFSET     0x108040
 #define IGD_BDSM_MMIO_OFFSET    0x1080C0
 
@@ -594,24 +632,9 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
      * 32MiB. This option should only be used when the desired size cannot be
      * set from DVMT Pre-Allocated option in host BIOS.
      */
-    if (vdev->igd_gms) {
-        if (gen < 8) {
-            if (vdev->igd_gms <= 0x10) {
-                gmch &= ~(IGD_GMCH_GEN6_GMS_MASK << IGD_GMCH_GEN6_GMS_SHIFT);
-                gmch |= vdev->igd_gms << IGD_GMCH_GEN6_GMS_SHIFT;
-            } else {
-                error_report(QERR_INVALID_PARAMETER_VALUE,
-                             "x-igd-gms", "0~0x10");
-            }
-        } else {
-            if (vdev->igd_gms <= 0x40) {
-                gmch &= ~(IGD_GMCH_GEN8_GMS_MASK << IGD_GMCH_GEN8_GMS_SHIFT);
-                gmch |= vdev->igd_gms << IGD_GMCH_GEN8_GMS_SHIFT;
-            } else {
-                error_report(QERR_INVALID_PARAMETER_VALUE,
-                             "x-igd-gms", "0~0x40");
-            }
-        }
+    if (vdev->igd_gms &&
+        !vfio_pci_igd_override_gms(gen, vdev->igd_gms, &gmch)) {
+        return false;
     }
 
     gms_size = igd_stolen_memory_size(gen, gmch);
