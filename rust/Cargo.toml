@@ -89,6 +89,7 @@ suspicious_operation_groupings = "deny"
 transmute_ptr_to_ptr = "deny"
 transmute_undefined_repr = "deny"
 type_repetition_in_bounds = "deny"
+uninlined_format_args = "deny"
 used_underscore_binding = "deny"
 
 # nice to have, but cannot be enabled yet

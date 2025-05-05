@@ -18,13 +18,13 @@ fn get_fields<'a>(
 ) -> Result<&'a Punctuated<Field, Comma>, MacroError> {
     let Data::Struct(ref s) = &input.data else {
         return Err(MacroError::Message(
-            format!("Struct required for {}", msg),
+            format!("Struct required for {msg}"),
             input.ident.span(),
         ));
     };
     let Fields::Named(ref fs) = &s.fields else {
         return Err(MacroError::Message(
-            format!("Named fields required for {}", msg),
+            format!("Named fields required for {msg}"),
             input.ident.span(),
         ));
     };
@@ -34,19 +34,19 @@ fn get_fields<'a>(
 fn get_unnamed_field<'a>(input: &'a DeriveInput, msg: &str) -> Result<&'a Field, MacroError> {
     let Data::Struct(ref s) = &input.data else {
         return Err(MacroError::Message(
-            format!("Struct required for {}", msg),
+            format!("Struct required for {msg}"),
             input.ident.span(),
         ));
     };
     let Fields::Unnamed(FieldsUnnamed { ref unnamed, .. }) = &s.fields else {
         return Err(MacroError::Message(
-            format!("Tuple struct required for {}", msg),
+            format!("Tuple struct required for {msg}"),
             s.fields.span(),
         ));
     };
     if unnamed.len() != 1 {
         return Err(MacroError::Message(
-            format!("A single field is required for {}", msg),
+            format!("A single field is required for {msg}"),
             s.fields.span(),
         ));
     }
@@ -60,7 +60,7 @@ fn is_c_repr(input: &DeriveInput, msg: &str) -> Result<(), MacroError> {
         Ok(())
     } else {
         Err(MacroError::Message(
-            format!("#[repr(C)] required for {}", msg),
+            format!("#[repr(C)] required for {msg}"),
             input.ident.span(),
         ))
     }
@@ -73,7 +73,7 @@ fn is_transparent_repr(input: &DeriveInput, msg: &str) -> Result<(), MacroError>
         Ok(())
     } else {
         Err(MacroError::Message(
-            format!("#[repr(transparent)] required for {}", msg),
+            format!("#[repr(transparent)] required for {msg}"),
             input.ident.span(),
         ))
     }
@@ -168,7 +168,7 @@ fn get_repr_uN(input: &DeriveInput, msg: &str) -> Result<Path, MacroError> {
     }
 
     Err(MacroError::Message(
-        format!("#[repr(u8/u16/u32/u64) required for {}", msg),
+        format!("#[repr(u8/u16/u32/u64) required for {msg}"),
         input.ident.span(),
     ))
 }
