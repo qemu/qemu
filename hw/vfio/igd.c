@@ -478,22 +478,24 @@ void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
         return;
     }
 
-    ggc_quirk = vfio_quirk_alloc(1);
-    ggc_mirror = ggc_quirk->data = g_malloc0(sizeof(*ggc_mirror));
-    ggc_mirror->mem = ggc_quirk->mem;
-    ggc_mirror->vdev = vdev;
-    ggc_mirror->bar = nr;
-    ggc_mirror->offset = IGD_GGC_MMIO_OFFSET;
-    ggc_mirror->config_offset = IGD_GMCH;
+    if (vdev->igd_gms) {
+        ggc_quirk = vfio_quirk_alloc(1);
+        ggc_mirror = ggc_quirk->data = g_malloc0(sizeof(*ggc_mirror));
+        ggc_mirror->mem = ggc_quirk->mem;
+        ggc_mirror->vdev = vdev;
+        ggc_mirror->bar = nr;
+        ggc_mirror->offset = IGD_GGC_MMIO_OFFSET;
+        ggc_mirror->config_offset = IGD_GMCH;
 
-    memory_region_init_io(ggc_mirror->mem, OBJECT(vdev),
-                          &vfio_generic_mirror_quirk, ggc_mirror,
-                          "vfio-igd-ggc-quirk", 2);
-    memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
-                                        ggc_mirror->offset, ggc_mirror->mem,
-                                        1);
+        memory_region_init_io(ggc_mirror->mem, OBJECT(vdev),
+                              &vfio_generic_mirror_quirk, ggc_mirror,
+                              "vfio-igd-ggc-quirk", 2);
+        memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
+                                            ggc_mirror->offset, ggc_mirror->mem,
+                                            1);
 
-    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, ggc_quirk, next);
+        QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, ggc_quirk, next);
+    }
 
     bdsm_quirk = vfio_quirk_alloc(1);
     bdsm_mirror = bdsm_quirk->data = g_malloc0(sizeof(*bdsm_mirror));
@@ -632,9 +634,15 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
      * 32MiB. This option should only be used when the desired size cannot be
      * set from DVMT Pre-Allocated option in host BIOS.
      */
-    if (vdev->igd_gms &&
-        !vfio_pci_igd_override_gms(gen, vdev->igd_gms, &gmch)) {
-        return false;
+    if (vdev->igd_gms) {
+        if (!vfio_pci_igd_override_gms(gen, vdev->igd_gms, &gmch)) {
+            return false;
+        }
+
+        /* GMCH is read-only, emulated */
+        pci_set_long(vdev->pdev.config + IGD_GMCH, gmch);
+        pci_set_long(vdev->pdev.wmask + IGD_GMCH, 0);
+        pci_set_long(vdev->emulated_config_bits + IGD_GMCH, ~0);
     }
 
     gms_size = igd_stolen_memory_size(gen, gmch);
@@ -651,11 +659,6 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
     *bdsm_size = cpu_to_le64(gms_size);
     fw_cfg_add_file(fw_cfg_find(), "etc/igd-bdsm-size",
                     bdsm_size, sizeof(*bdsm_size));
-
-    /* GMCH is read-only, emulated */
-    pci_set_long(vdev->pdev.config + IGD_GMCH, gmch);
-    pci_set_long(vdev->pdev.wmask + IGD_GMCH, 0);
-    pci_set_long(vdev->emulated_config_bits + IGD_GMCH, ~0);
 
     /* BDSM is read-write, emulated.  The BIOS needs to be able to write it */
     if (gen < 11) {
