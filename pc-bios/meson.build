@@ -28,6 +28,7 @@ if unpack_edk2_blobs
 endif
 
 blobs = [
+  'ast27x0_bootrom.bin',
   'bios.bin',
   'bios-256k.bin',
   'bios-microvm.bin',

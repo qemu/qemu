@@ -1174,6 +1174,7 @@ F: docs/system/arm/fby35.rst
 F: tests/*/*aspeed*
 F: tests/*/*ast2700*
 F: hw/arm/fby35.c
+F: pc-bios/ast27x0_bootrom.bin
 
 NRF51
 M: Joel Stanley <joel@jms.id.au>
