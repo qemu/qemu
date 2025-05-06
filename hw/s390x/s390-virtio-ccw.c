@@ -748,39 +748,6 @@ static inline void machine_set_dea_key_wrap(Object *obj, bool value,
     ms->dea_key_wrap = value;
 }
 
-static S390CcwMachineClass *current_mc;
-
-/*
- * Get the class of the s390-ccw-virtio machine that is currently in use.
- * Note: libvirt is using the "none" machine to probe for the features of the
- * host CPU, so in case this is called with the "none" machine, the function
- * returns the TYPE_S390_CCW_MACHINE base class. In this base class, all the
- * various "*_allowed" variables are enabled, so that the *_allowed() wrappers
- * below return the correct default value for the "none" machine.
- *
- * Attention! Do *not* add additional new wrappers for CPU features via this
- * mechanism anymore. CPU features should be handled via the CPU models,
- * i.e. checking with s390_has_feat() should be sufficient.
- */
-static S390CcwMachineClass *get_machine_class(void)
-{
-    if (unlikely(!current_mc)) {
-        /*
-        * No s390 ccw machine was instantiated, we are likely to
-        * be called for the 'none' machine. The properties will
-        * have their after-initialization values.
-        */
-        current_mc = S390_CCW_MACHINE_CLASS(
-                     object_class_by_name(TYPE_S390_CCW_MACHINE));
-    }
-    return current_mc;
-}
-
-bool hpage_1m_allowed(void)
-{
-    return get_machine_class()->hpage_1m_allowed;
-}
-
 static void machine_get_loadparm(Object *obj, Visitor *v,
                                  const char *name, void *opaque,
                                  Error **errp)
@@ -814,7 +781,6 @@ static void ccw_machine_class_init(ObjectClass *oc, const void *data)
     S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
     DumpSKeysInterface *dsi = DUMP_SKEYS_INTERFACE_CLASS(oc);
 
-    s390mc->hpage_1m_allowed = true;
     s390mc->max_threads = 1;
     mc->reset = s390_machine_reset;
     mc->block_default_type = IF_VIRTIO;
@@ -888,7 +854,6 @@ static const TypeInfo ccw_machine_info = {
 #define DEFINE_CCW_MACHINE_IMPL(latest, ...)                                  \
     static void MACHINE_VER_SYM(mach_init, ccw, __VA_ARGS__)(MachineState *mach) \
     {                                                                         \
-        current_mc = S390_CCW_MACHINE_CLASS(MACHINE_GET_CLASS(mach));         \
         MACHINE_VER_SYM(instance_options, ccw, __VA_ARGS__)(mach);            \
         ccw_init(mach);                                                       \
     }                                                                         \

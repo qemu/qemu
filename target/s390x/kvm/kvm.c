@@ -298,12 +298,6 @@ void kvm_s390_set_max_pagesize(uint64_t pagesize, Error **errp)
         return;
     }
 
-    if (!hpage_1m_allowed()) {
-        error_setg(errp, "This QEMU machine does not support huge page "
-                   "mappings");
-        return;
-    }
-
     if (pagesize != 1 * MiB) {
         error_setg(errp, "Memory backing with 2G pages was specified, "
                    "but KVM does not support this memory backing");
