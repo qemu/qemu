@@ -1275,18 +1275,6 @@ static void ccw_machine_2_11_class_options(MachineClass *mc)
 }
 DEFINE_CCW_MACHINE(2, 11);
 
-static void ccw_machine_2_10_instance_options(MachineState *machine)
-{
-    ccw_machine_2_11_instance_options(machine);
-}
-
-static void ccw_machine_2_10_class_options(MachineClass *mc)
-{
-    ccw_machine_2_11_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_10, hw_compat_2_10_len);
-}
-DEFINE_CCW_MACHINE(2, 10);
-
 #endif
 
 static void ccw_machine_register_types(void)
