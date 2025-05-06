@@ -708,10 +708,6 @@ static FloatPartsN *partsN(muladd_scalbn)(FloatPartsN *a, FloatPartsN *b,
  return_normal:
     a->exp += scale;
  finish_sign:
-    if (flags & float_muladd_negate_result) {
-        a->sign ^= 1;
-    }
-
     /*
      * All result types except for "return the default NaN
      * because this is an Invalid Operation" go through here;

@@ -1731,11 +1731,8 @@ static float64 float64_round_pack_canonical(FloatParts64 *p,
     return float64_pack_raw(p);
 }
 
-static float64 float64r32_round_pack_canonical(FloatParts64 *p,
-                                               float_status *s)
+static float64 float64r32_pack_raw(FloatParts64 *p)
 {
-    parts_uncanon(p, s, &float32_params);
-
     /*
      * In parts_uncanon, we placed the fraction for float32 at the lsb.
      * We need to adjust the fraction higher so that the least N bits are
@@ -1774,6 +1771,13 @@ static float64 float64r32_round_pack_canonical(FloatParts64 *p,
     }
 
     return float64_pack_raw(p);
+}
+
+static float64 float64r32_round_pack_canonical(FloatParts64 *p,
+                                               float_status *s)
+{
+    parts_uncanon(p, s, &float32_params);
+    return float64r32_pack_raw(p);
 }
 
 static void float128_unpack_canonical(FloatParts128 *p, float128 f,
@@ -2240,7 +2244,12 @@ float16_muladd_scalbn(float16 a, float16 b, float16 c,
     float16_unpack_canonical(&pc, c, status);
     pr = parts_muladd_scalbn(&pa, &pb, &pc, scale, flags, status);
 
-    return float16_round_pack_canonical(pr, status);
+    /* Round before applying negate result. */
+    parts_uncanon(pr, status, &float16_params);
+    if ((flags & float_muladd_negate_result) && !is_nan(pr->cls)) {
+        pr->sign ^= 1;
+    }
+    return float16_pack_raw(pr);
 }
 
 float16 float16_muladd(float16 a, float16 b, float16 c,
@@ -2260,7 +2269,12 @@ float32_muladd_scalbn(float32 a, float32 b, float32 c,
     float32_unpack_canonical(&pc, c, status);
     pr = parts_muladd_scalbn(&pa, &pb, &pc, scale, flags, status);
 
-    return float32_round_pack_canonical(pr, status);
+    /* Round before applying negate result. */
+    parts_uncanon(pr, status, &float32_params);
+    if ((flags & float_muladd_negate_result) && !is_nan(pr->cls)) {
+        pr->sign ^= 1;
+    }
+    return float32_pack_raw(pr);
 }
 
 float64 QEMU_SOFTFLOAT_ATTR
@@ -2274,7 +2288,12 @@ float64_muladd_scalbn(float64 a, float64 b, float64 c,
     float64_unpack_canonical(&pc, c, status);
     pr = parts_muladd_scalbn(&pa, &pb, &pc, scale, flags, status);
 
-    return float64_round_pack_canonical(pr, status);
+    /* Round before applying negate result. */
+    parts_uncanon(pr, status, &float64_params);
+    if ((flags & float_muladd_negate_result) && !is_nan(pr->cls)) {
+        pr->sign ^= 1;
+    }
+    return float64_pack_raw(pr);
 }
 
 static bool force_soft_fma;
@@ -2428,7 +2447,12 @@ float64 float64r32_muladd(float64 a, float64 b, float64 c,
     float64_unpack_canonical(&pc, c, status);
     pr = parts_muladd_scalbn(&pa, &pb, &pc, 0, flags, status);
 
-    return float64r32_round_pack_canonical(pr, status);
+    /* Round before applying negate result. */
+    parts_uncanon(pr, status, &float32_params);
+    if ((flags & float_muladd_negate_result) && !is_nan(pr->cls)) {
+        pr->sign ^= 1;
+    }
+    return float64r32_pack_raw(pr);
 }
 
 bfloat16 QEMU_FLATTEN bfloat16_muladd(bfloat16 a, bfloat16 b, bfloat16 c,
@@ -2441,7 +2465,12 @@ bfloat16 QEMU_FLATTEN bfloat16_muladd(bfloat16 a, bfloat16 b, bfloat16 c,
     bfloat16_unpack_canonical(&pc, c, status);
     pr = parts_muladd_scalbn(&pa, &pb, &pc, 0, flags, status);
 
-    return bfloat16_round_pack_canonical(pr, status);
+    /* Round before applying negate result. */
+    parts_uncanon(pr, status, &bfloat16_params);
+    if ((flags & float_muladd_negate_result) && !is_nan(pr->cls)) {
+        pr->sign ^= 1;
+    }
+    return bfloat16_pack_raw(pr);
 }
 
 float128 QEMU_FLATTEN float128_muladd(float128 a, float128 b, float128 c,
@@ -2454,7 +2483,12 @@ float128 QEMU_FLATTEN float128_muladd(float128 a, float128 b, float128 c,
     float128_unpack_canonical(&pc, c, status);
     pr = parts_muladd_scalbn(&pa, &pb, &pc, 0, flags, status);
 
-    return float128_round_pack_canonical(pr, status);
+    /* Round before applying negate result. */
+    parts_uncanon(pr, status, &float128_params);
+    if ((flags & float_muladd_negate_result) && !is_nan(pr->cls)) {
+        pr->sign ^= 1;
+    }
+    return float128_pack_raw(pr);
 }
 
 /*
