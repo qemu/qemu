@@ -235,6 +235,45 @@ static int64_t load_loongarch_linux_image(const char *filename,
     return size;
 }
 
+static ram_addr_t alloc_initrd_memory(struct loongarch_boot_info *info,
+                uint64_t advice_start, ssize_t rd_size)
+{
+    hwaddr base, ram_size, gap, low_end;
+    ram_addr_t initrd_end, initrd_start;
+
+    base = VIRT_LOWMEM_BASE;
+    gap = VIRT_LOWMEM_SIZE;
+    initrd_start = advice_start;
+    initrd_end = initrd_start + rd_size;
+
+    ram_size = info->ram_size;
+    low_end = base + MIN(ram_size, gap);
+    if (initrd_end <= low_end) {
+        return initrd_start;
+    }
+
+    if (ram_size <= gap) {
+        error_report("The low memory too small for initial ram disk '%s',"
+             "You need to expand the ram",
+             info->initrd_filename);
+        exit(1);
+    }
+
+    /*
+     * Try to load initrd in the high memory
+     */
+    ram_size -= gap;
+    initrd_start = VIRT_HIGHMEM_BASE;
+    if (rd_size <= ram_size) {
+        return initrd_start;
+    }
+
+    error_report("The high memory too small for initial ram disk '%s',"
+         "You need to expand the ram",
+         info->initrd_filename);
+    exit(1);
+}
+
 static int64_t load_kernel_info(struct loongarch_boot_info *info)
 {
     uint64_t kernel_entry, kernel_low, kernel_high;
@@ -263,15 +302,10 @@ static int64_t load_kernel_info(struct loongarch_boot_info *info)
         initrd_size = get_image_size(info->initrd_filename);
         if (initrd_size > 0) {
             initrd_offset = ROUND_UP(kernel_high + 4 * kernel_size, 64 * KiB);
-
-            if (initrd_offset + initrd_size > info->ram_size) {
-                error_report("memory too small for initial ram disk '%s'",
-                             info->initrd_filename);
-                exit(1);
-            }
-
-            initrd_size = load_image_targphys(info->initrd_filename, initrd_offset,
-                                              info->ram_size - initrd_offset);
+            initrd_offset = alloc_initrd_memory(info, initrd_offset,
+                                                initrd_size);
+            initrd_size = load_image_targphys(info->initrd_filename,
+                                              initrd_offset, initrd_size);
         }
 
         if (initrd_size == (target_ulong)-1) {
