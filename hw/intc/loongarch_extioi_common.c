@@ -108,6 +108,43 @@ static void loongarch_extioi_common_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static void loongarch_extioi_common_reset_hold(Object *obj, ResetType type)
+{
+    LoongArchExtIOICommonClass *lecc = LOONGARCH_EXTIOI_COMMON_GET_CLASS(obj);
+    LoongArchExtIOICommonState *s = LOONGARCH_EXTIOI_COMMON(obj);
+    ExtIOICore *core;
+    int i;
+
+    if (lecc->parent_phases.hold) {
+        lecc->parent_phases.hold(obj, type);
+    }
+
+    /* Clear HW registers for the board */
+    memset(s->nodetype, 0, sizeof(s->nodetype));
+    memset(s->bounce, 0, sizeof(s->bounce));
+    memset(s->isr, 0, sizeof(s->isr));
+    memset(s->enable, 0, sizeof(s->enable));
+    memset(s->ipmap, 0, sizeof(s->ipmap));
+    memset(s->coremap, 0, sizeof(s->coremap));
+    memset(s->sw_pending, 0, sizeof(s->sw_pending));
+    memset(s->sw_ipmap, 0, sizeof(s->sw_ipmap));
+    memset(s->sw_coremap, 0, sizeof(s->sw_coremap));
+
+    for (i = 0; i < s->num_cpu; i++) {
+        core = s->cpu + i;
+        /* EXTIOI with targeted CPU available however not present */
+        if (!core->cpu) {
+            continue;
+        }
+
+        /* Clear HW registers for CPUs */
+        memset(core->coreisr, 0, sizeof(core->coreisr));
+        memset(core->sw_isr, 0, sizeof(core->sw_isr));
+    }
+
+    s->status = 0;
+}
+
 static int loongarch_extioi_common_pre_save(void *opaque)
 {
     LoongArchExtIOICommonState *s = (LoongArchExtIOICommonState *)opaque;
@@ -180,9 +217,13 @@ static void loongarch_extioi_common_class_init(ObjectClass *klass,
     DeviceClass *dc = DEVICE_CLASS(klass);
     LoongArchExtIOICommonClass *lecc = LOONGARCH_EXTIOI_COMMON_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     device_class_set_parent_realize(dc, loongarch_extioi_common_realize,
                                     &lecc->parent_realize);
+    resettable_class_set_parent_phases(rc, NULL,
+                                       loongarch_extioi_common_reset_hold,
+                                       NULL, &lecc->parent_phases);
     device_class_set_props(dc, extioi_properties);
     dc->vmsd = &vmstate_loongarch_extioi;
     hc->plug = loongarch_extioi_cpu_plug;

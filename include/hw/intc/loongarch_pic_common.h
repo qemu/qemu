@@ -76,6 +76,7 @@ struct LoongArchPICCommonClass {
     SysBusDeviceClass parent_class;
 
     DeviceRealize parent_realize;
+    ResettablePhases parent_phases;
     int (*pre_save)(LoongArchPICCommonState *s);
     int (*post_load)(LoongArchPICCommonState *s, int version_id);
 };

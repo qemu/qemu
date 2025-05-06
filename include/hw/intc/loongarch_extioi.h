@@ -22,6 +22,7 @@ struct LoongArchExtIOIClass {
 
     DeviceRealize parent_realize;
     DeviceUnrealize parent_unrealize;
+    ResettablePhases parent_phases;
 };
 
 #endif /* LOONGARCH_EXTIOI_H */

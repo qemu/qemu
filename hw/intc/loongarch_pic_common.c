@@ -44,6 +44,27 @@ static void loongarch_pic_common_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static void loongarch_pic_common_reset_hold(Object *obj, ResetType type)
+{
+    LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(obj);
+    int i;
+
+    s->int_mask = UINT64_MAX;
+    s->htmsi_en = 0x0;
+    s->intedge  = 0x0;
+    s->intclr   = 0x0;
+    s->auto_crtl0 = 0x0;
+    s->auto_crtl1 = 0x0;
+    for (i = 0; i < 64; i++) {
+        s->route_entry[i] = 0x1;
+        s->htmsi_vector[i] = 0x0;
+    }
+    s->intirr = 0x0;
+    s->intisr = 0x0;
+    s->last_intirr = 0x0;
+    s->int_polarity = 0x0;
+}
+
 static const Property loongarch_pic_common_properties[] = {
     DEFINE_PROP_UINT32("pch_pic_irq_num", LoongArchPICCommonState, irq_num, 0),
 };
@@ -76,9 +97,13 @@ static void loongarch_pic_common_class_init(ObjectClass *klass,
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     LoongArchPICCommonClass *lpcc = LOONGARCH_PIC_COMMON_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     device_class_set_parent_realize(dc, loongarch_pic_common_realize,
                                     &lpcc->parent_realize);
+    resettable_class_set_parent_phases(rc, NULL,
+                                       loongarch_pic_common_reset_hold,
+                                       NULL, &lpcc->parent_phases);
     device_class_set_props(dc, loongarch_pic_common_properties);
     dc->vmsd = &vmstate_loongarch_pic_common;
 }

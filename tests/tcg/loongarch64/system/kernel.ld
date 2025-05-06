@@ -3,7 +3,7 @@ ENTRY(_start)
 SECTIONS
 {
     /* Linux kernel legacy start address.  */
-    . = 0x9000000000200000;
+    . = 0x200000;
     _text = .;
     .text : {
         *(.text)
