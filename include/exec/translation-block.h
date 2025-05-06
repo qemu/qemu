@@ -207,4 +207,8 @@ static inline void tb_set_page_addr1(TranslationBlock *tb,
 #endif
 }
 
+/* TranslationBlock invalidate API */
+void tb_invalidate_phys_range(CPUState *cpu, tb_page_addr_t start,
+                              tb_page_addr_t last);
+
 #endif /* EXEC_TRANSLATION_BLOCK_H */

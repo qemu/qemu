@@ -27,6 +27,8 @@
 #include "power8-pmu.h"
 #include "cpu-models.h"
 #include "spr_common.h"
+#include "accel/tcg/cpu-ops.h"
+#include "internal.h"
 
 /* Swap temporary saved registers with GPRs */
 void hreg_swap_gpr_tgpr(CPUPPCState *env)
@@ -255,25 +257,22 @@ void hreg_update_pmu_hflags(CPUPPCState *env)
     env->hflags |= hreg_compute_pmu_hflags_value(env);
 }
 
-#ifdef CONFIG_DEBUG_TCG
-void cpu_get_tb_cpu_state(CPUPPCState *env, vaddr *pc,
-                          uint64_t *cs_base, uint32_t *flags)
+TCGTBCPUState ppc_get_tb_cpu_state(CPUState *cs)
 {
+    CPUPPCState *env = cpu_env(cs);
     uint32_t hflags_current = env->hflags;
-    uint32_t hflags_rebuilt;
 
-    *pc = env->nip;
-    *cs_base = 0;
-    *flags = hflags_current;
-
-    hflags_rebuilt = hreg_compute_hflags_value(env);
+#ifdef CONFIG_DEBUG_TCG
+    uint32_t hflags_rebuilt = hreg_compute_hflags_value(env);
     if (unlikely(hflags_current != hflags_rebuilt)) {
         cpu_abort(env_cpu(env),
                   "TCG hflags mismatch (current:0x%08x rebuilt:0x%08x)\n",
                   hflags_current, hflags_rebuilt);
     }
-}
 #endif
+
+    return (TCGTBCPUState){ .pc = env->nip, .flags = hflags_current };
+}
 
 void cpu_interrupt_exittb(CPUState *cs)
 {

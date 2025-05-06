@@ -28,6 +28,7 @@
 #include "hw/loader.h"
 #include "fpu/softfloat.h"
 #include "tcg/debug-assert.h"
+#include "accel/tcg/cpu-ops.h"
 
 static void rx_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -41,6 +42,17 @@ static vaddr rx_cpu_get_pc(CPUState *cs)
     RXCPU *cpu = RX_CPU(cs);
 
     return cpu->env.pc;
+}
+
+static TCGTBCPUState rx_get_tb_cpu_state(CPUState *cs)
+{
+    CPURXState *env = cpu_env(cs);
+    uint32_t flags = 0;
+
+    flags = FIELD_DP32(flags, PSW, PM, env->psw_pm);
+    flags = FIELD_DP32(flags, PSW, U, env->psw_u);
+
+    return (TCGTBCPUState){ .pc = env->pc, .flags = flags };
 }
 
 static void rx_cpu_synchronize_from_tb(CPUState *cs,
@@ -201,8 +213,6 @@ static const struct SysemuCPUOps rx_sysemu_ops = {
     .get_phys_page_debug = rx_cpu_get_phys_page_debug,
 };
 
-#include "accel/tcg/cpu-ops.h"
-
 static const TCGCPUOps rx_tcg_ops = {
     /* MTTCG not yet supported: require strict ordering */
     .guest_default_memory_order = TCG_MO_ALL,
@@ -210,6 +220,7 @@ static const TCGCPUOps rx_tcg_ops = {
 
     .initialize = rx_translate_init,
     .translate_code = rx_translate_code,
+    .get_tb_cpu_state = rx_get_tb_cpu_state,
     .synchronize_from_tb = rx_cpu_synchronize_from_tb,
     .restore_state_to_opc = rx_restore_state_to_opc,
     .mmu_index = rx_cpu_mmu_index,
@@ -217,6 +228,7 @@ static const TCGCPUOps rx_tcg_ops = {
 
     .cpu_exec_interrupt = rx_cpu_exec_interrupt,
     .cpu_exec_halt = rx_cpu_has_work,
+    .cpu_exec_reset = cpu_reset,
     .do_interrupt = rx_cpu_do_interrupt,
 };
 

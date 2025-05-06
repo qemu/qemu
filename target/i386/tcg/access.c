@@ -4,7 +4,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "accel/tcg/cpu-ldst.h"
-#include "exec/exec-all.h"
+#include "accel/tcg/probe.h"
 #include "exec/target_page.h"
 #include "access.h"
 

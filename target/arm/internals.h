@@ -28,6 +28,7 @@
 #include "exec/hwaddr.h"
 #include "exec/vaddr.h"
 #include "exec/breakpoint.h"
+#include "accel/tcg/tb-cpu-state.h"
 #include "hw/registerfields.h"
 #include "tcg/tcg-gvec-desc.h"
 #include "system/memory.h"
@@ -372,6 +373,7 @@ void arm_restore_state_to_opc(CPUState *cs,
                               const uint64_t *data);
 
 #ifdef CONFIG_TCG
+TCGTBCPUState arm_get_tb_cpu_state(CPUState *cs);
 void arm_cpu_synchronize_from_tb(CPUState *cs, const TranslationBlock *tb);
 
 /* Our implementation of TCGCPUOps::cpu_exec_halt */
@@ -1905,8 +1907,6 @@ static inline bool arm_fgt_active(CPUARMState *env, int el)
         (arm_hcr_el2_eff(env) & (HCR_E2H | HCR_TGE)) != (HCR_E2H | HCR_TGE) &&
         (!arm_feature(env, ARM_FEATURE_EL3) || (env->cp15.scr_el3 & SCR_FGTEN));
 }
-
-void assert_hflags_rebuild_correctly(CPUARMState *env);
 
 /*
  * Although the ARM implementation of hardware assisted debugging

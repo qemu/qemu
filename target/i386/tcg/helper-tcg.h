@@ -20,7 +20,6 @@
 #ifndef I386_HELPER_TCG_H
 #define I386_HELPER_TCG_H
 
-#include "exec/exec-all.h"
 #include "qemu/host-utils.h"
 
 /* Maximum instruction code size */

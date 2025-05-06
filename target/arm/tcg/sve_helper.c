@@ -20,7 +20,6 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "internals.h"
-#include "exec/exec-all.h"
 #include "exec/page-protection.h"
 #include "exec/helper-proto.h"
 #include "exec/target_page.h"
@@ -31,7 +30,9 @@
 #include "vec_internal.h"
 #include "sve_ldst_internal.h"
 #include "accel/tcg/cpu-ldst.h"
+#include "accel/tcg/helper-retaddr.h"
 #include "accel/tcg/cpu-ops.h"
+#include "accel/tcg/probe.h"
 #ifdef CONFIG_USER_ONLY
 #include "user/page-protection.h"
 #endif

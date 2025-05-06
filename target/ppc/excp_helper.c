@@ -24,7 +24,6 @@
 #include "system/system.h"
 #include "system/runstate.h"
 #include "cpu.h"
-#include "exec/exec-all.h"
 #include "internal.h"
 #include "helper_regs.h"
 #include "hw/ppc/ppc.h"

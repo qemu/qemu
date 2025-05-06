@@ -45,11 +45,11 @@ void tb_unlock_pages(TranslationBlock *);
 #endif
 
 #ifdef CONFIG_SOFTMMU
-void tb_invalidate_phys_range_fast(ram_addr_t ram_addr,
-                                   unsigned size,
-                                   uintptr_t retaddr);
+void tb_invalidate_phys_range_fast(CPUState *cpu, ram_addr_t ram_addr,
+                                   unsigned size, uintptr_t retaddr);
 #endif /* CONFIG_SOFTMMU */
 
-bool tb_invalidate_phys_page_unwind(tb_page_addr_t addr, uintptr_t pc);
+bool tb_invalidate_phys_page_unwind(CPUState *cpu, tb_page_addr_t addr,
+                                    uintptr_t pc);
 
 #endif

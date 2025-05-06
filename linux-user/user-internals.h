@@ -19,7 +19,6 @@
 #define LINUX_USER_USER_INTERNALS_H
 
 #include "user/thunk.h"
-#include "exec/exec-all.h"
 #include "qemu/log.h"
 
 extern char *exec_path;

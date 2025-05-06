@@ -17,7 +17,6 @@
 #include "s390x-internal.h"
 #include "tcg_s390x.h"
 #include "exec/helper-proto.h"
-#include "exec/exec-all.h"
 #include "accel/tcg/cpu-ldst.h"
 
 static uint64_t R(uint64_t x, int c)

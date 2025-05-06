@@ -19,7 +19,6 @@
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
 #include "cpu.h"
-#include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "accel/tcg/cpu-ldst.h"
 #include "fpu/softfloat.h"

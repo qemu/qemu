@@ -313,7 +313,7 @@ void perf_report_code(uint64_t guest_pc, TranslationBlock *tb,
                       const void *start)
 {
     struct debuginfo_query *q;
-    size_t insn, start_words;
+    size_t insn;
     uint64_t *gen_insn_data;
 
     if (!perfmap && !jitdump) {
@@ -329,11 +329,10 @@ void perf_report_code(uint64_t guest_pc, TranslationBlock *tb,
 
     /* Query debuginfo for each guest instruction. */
     gen_insn_data = tcg_ctx->gen_insn_data;
-    start_words = tcg_ctx->insn_start_words;
 
     for (insn = 0; insn < tb->icount; insn++) {
         /* FIXME: This replicates the restore_state_to_opc() logic. */
-        q[insn].address = gen_insn_data[insn * start_words + 0];
+        q[insn].address = gen_insn_data[insn * INSN_START_WORDS + 0];
         if (tb_cflags(tb) & CF_PCREL) {
             q[insn].address |= (guest_pc & qemu_target_page_mask());
         }

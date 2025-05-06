@@ -35,8 +35,6 @@
 
 #define ELF_MACHINE_UNAME "S390X"
 
-#define TARGET_HAS_PRECISE_SMC
-
 #define MMU_USER_IDX 0
 
 #define S390_MAX_CPUS 248
@@ -412,15 +410,6 @@ static inline int s390x_env_mmu_index(CPUS390XState *env, bool ifetch)
     }
 #endif
 }
-
-#ifdef CONFIG_TCG
-
-#include "tcg/tcg_s390x.h"
-
-void cpu_get_tb_cpu_state(CPUS390XState *env, vaddr *pc,
-                          uint64_t *cs_base, uint32_t *flags);
-
-#endif /* CONFIG_TCG */
 
 /* PER bits from control register 9 */
 #define PER_CR9_EVENT_BRANCH                    0x80000000

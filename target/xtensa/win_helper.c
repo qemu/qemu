@@ -30,7 +30,6 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
-#include "exec/exec-all.h"
 
 static void copy_window_from_phys(CPUXtensaState *env,
                                   uint32_t window, uint32_t phys, uint32_t n)

@@ -21,9 +21,9 @@
 #include "qapi/error.h"
 #include "qemu/qemu-print.h"
 #include "cpu.h"
-#include "exec/exec-all.h"
 #include "exec/translation-block.h"
 #include "fpu/softfloat-helpers.h"
+#include "accel/tcg/cpu-ops.h"
 #include "tcg/tcg.h"
 
 static void openrisc_cpu_set_pc(CPUState *cs, vaddr value)
@@ -39,6 +39,18 @@ static vaddr openrisc_cpu_get_pc(CPUState *cs)
     OpenRISCCPU *cpu = OPENRISC_CPU(cs);
 
     return cpu->env.pc;
+}
+
+static TCGTBCPUState openrisc_get_tb_cpu_state(CPUState *cs)
+{
+    CPUOpenRISCState *env = cpu_env(cs);
+
+    return (TCGTBCPUState){
+        .pc = env->pc,
+        .flags = ((env->dflag ? TB_FLAGS_DFLAG : 0)
+                  | (cpu_get_gpr(env, 0) ? 0 : TB_FLAGS_R0_0)
+                  | (env->sr & (SR_SM | SR_DME | SR_IME | SR_OVE))),
+    };
 }
 
 static void openrisc_cpu_synchronize_from_tb(CPUState *cs,
@@ -240,14 +252,13 @@ static const struct SysemuCPUOps openrisc_sysemu_ops = {
 };
 #endif
 
-#include "accel/tcg/cpu-ops.h"
-
 static const TCGCPUOps openrisc_tcg_ops = {
     .guest_default_memory_order = 0,
     .mttcg_supported = true,
 
     .initialize = openrisc_translate_init,
     .translate_code = openrisc_translate_code,
+    .get_tb_cpu_state = openrisc_get_tb_cpu_state,
     .synchronize_from_tb = openrisc_cpu_synchronize_from_tb,
     .restore_state_to_opc = openrisc_restore_state_to_opc,
     .mmu_index = openrisc_cpu_mmu_index,
@@ -256,6 +267,7 @@ static const TCGCPUOps openrisc_tcg_ops = {
     .tlb_fill = openrisc_cpu_tlb_fill,
     .cpu_exec_interrupt = openrisc_cpu_exec_interrupt,
     .cpu_exec_halt = openrisc_cpu_has_work,
+    .cpu_exec_reset = cpu_reset,
     .do_interrupt = openrisc_cpu_do_interrupt,
 #endif /* !CONFIG_USER_ONLY */
 };

@@ -14,6 +14,12 @@
 typedef struct TargetInfo {
     /* runtime equivalent of TARGET_NAME definition */
     const char *target_name;
+    /* runtime equivalent of TARGET_LONG_BITS definition */
+    unsigned long_bits;
+    /* runtime equivalent of CPU_RESOLVING_TYPE definition */
+    const char *cpu_type;
+    /* QOM typename machines for this binary must implement */
+    const char *machine_typename;
 } TargetInfo;
 
 /**

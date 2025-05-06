@@ -302,15 +302,16 @@ static const Property s390x_cpu_properties[] = {
 
 #ifdef CONFIG_TCG
 #include "accel/tcg/cpu-ops.h"
+#include "tcg/tcg_s390x.h"
 
 static int s390x_cpu_mmu_index(CPUState *cs, bool ifetch)
 {
     return s390x_env_mmu_index(cpu_env(cs), ifetch);
 }
 
-void cpu_get_tb_cpu_state(CPUS390XState *env, vaddr *pc,
-                          uint64_t *cs_base, uint32_t *pflags)
+static TCGTBCPUState s390x_get_tb_cpu_state(CPUState *cs)
 {
+    CPUS390XState *env = cpu_env(cs);
     uint32_t flags;
 
     if (env->psw.addr & 1) {
@@ -321,9 +322,6 @@ void cpu_get_tb_cpu_state(CPUS390XState *env, vaddr *pc,
         env->int_pgm_ilen = 2; /* see s390_cpu_tlb_fill() */
         tcg_s390_program_interrupt(env, PGM_SPECIFICATION, 0);
     }
-
-    *pc = env->psw.addr;
-    *cs_base = env->ex_value;
 
     flags = (env->psw.mask >> FLAG_MASK_PSW_SHIFT) & FLAG_MASK_PSW;
     if (env->psw.mask & PSW_MASK_PER) {
@@ -341,11 +339,17 @@ void cpu_get_tb_cpu_state(CPUS390XState *env, vaddr *pc,
     if (env->cregs[0] & CR0_VECTOR) {
         flags |= FLAG_MASK_VECTOR;
     }
-    *pflags = flags;
+
+    return (TCGTBCPUState){
+        .pc = env->psw.addr,
+        .flags = flags,
+        .cs_base = env->ex_value,
+    };
 }
 
 static const TCGCPUOps s390_tcg_ops = {
     .mttcg_supported = true,
+    .precise_smc = true,
     /*
      * The z/Architecture has a strong memory model with some
      * store-after-load re-ordering.
@@ -354,6 +358,7 @@ static const TCGCPUOps s390_tcg_ops = {
 
     .initialize = s390x_translate_init,
     .translate_code = s390x_translate_code,
+    .get_tb_cpu_state = s390x_get_tb_cpu_state,
     .restore_state_to_opc = s390x_restore_state_to_opc,
     .mmu_index = s390x_cpu_mmu_index,
 
@@ -364,6 +369,7 @@ static const TCGCPUOps s390_tcg_ops = {
     .tlb_fill = s390_cpu_tlb_fill,
     .cpu_exec_interrupt = s390_cpu_exec_interrupt,
     .cpu_exec_halt = s390_cpu_has_work,
+    .cpu_exec_reset = cpu_reset,
     .do_interrupt = s390_cpu_do_interrupt,
     .debug_excp_handler = s390x_cpu_debug_excp_handler,
     .do_unaligned_access = s390x_cpu_do_unaligned_access,

@@ -168,7 +168,7 @@ F: include/exec/helper*.h.inc
 F: include/exec/helper-info.c.inc
 F: include/exec/page-protection.h
 F: include/system/tcg.h
-F: include/accel/tcg/cpu-ops.h
+F: include/accel/tcg/
 F: host/include/*/host/cpuinfo.h
 F: util/cpuinfo-*.c
 F: include/tcg/
@@ -493,7 +493,6 @@ M: Richard Henderson <richard.henderson@linaro.org>
 R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: include/exec/cpu*.h
-F: include/exec/exec-all.h
 F: include/exec/target_long.h
 F: include/qemu/accel.h
 F: include/system/accel-*.h

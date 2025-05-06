@@ -24,12 +24,12 @@
 #include "qemu/timer.h"
 #include "cpu.h"
 #include "qemu/module.h"
-#include "exec/exec-all.h"
 #include "exec/translation-block.h"
 #include "exec/target_page.h"
 #include "fpu/softfloat.h"
 #include "tcg/tcg.h"
 #include "hw/hppa/hppa_hardware.h"
+#include "accel/tcg/cpu-ops.h"
 
 static void hppa_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -51,11 +51,12 @@ static vaddr hppa_cpu_get_pc(CPUState *cs)
                          env->iaoq_f & -4);
 }
 
-void cpu_get_tb_cpu_state(CPUHPPAState *env, vaddr *pc,
-                          uint64_t *pcsbase, uint32_t *pflags)
+static TCGTBCPUState hppa_get_tb_cpu_state(CPUState *cs)
 {
+    CPUHPPAState *env = cpu_env(cs);
     uint32_t flags = 0;
     uint64_t cs_base = 0;
+    vaddr pc;
 
     /*
      * TB lookup assumes that PC contains the complete virtual address.
@@ -63,7 +64,7 @@ void cpu_get_tb_cpu_state(CPUHPPAState *env, vaddr *pc,
      * incomplete virtual address.  This also means that we must separate
      * out current cpu privilege from the low bits of IAOQ_F.
      */
-    *pc = hppa_cpu_get_pc(env_cpu(env));
+    pc = hppa_cpu_get_pc(env_cpu(env));
     flags |= (env->iaoq_f & 3) << TB_FLAG_PRIV_SHIFT;
 
     /*
@@ -99,8 +100,7 @@ void cpu_get_tb_cpu_state(CPUHPPAState *env, vaddr *pc,
     }
 #endif
 
-    *pcsbase = cs_base;
-    *pflags = flags;
+    return (TCGTBCPUState){ .pc = pc, .flags = flags, .cs_base = cs_base };
 }
 
 static void hppa_cpu_synchronize_from_tb(CPUState *cs,
@@ -250,8 +250,6 @@ static const struct SysemuCPUOps hppa_sysemu_ops = {
 };
 #endif
 
-#include "accel/tcg/cpu-ops.h"
-
 static const TCGCPUOps hppa_tcg_ops = {
     /* PA-RISC 1.x processors have a strong memory model.  */
     /*
@@ -264,6 +262,7 @@ static const TCGCPUOps hppa_tcg_ops = {
 
     .initialize = hppa_translate_init,
     .translate_code = hppa_translate_code,
+    .get_tb_cpu_state = hppa_get_tb_cpu_state,
     .synchronize_from_tb = hppa_cpu_synchronize_from_tb,
     .restore_state_to_opc = hppa_restore_state_to_opc,
     .mmu_index = hppa_cpu_mmu_index,
@@ -272,6 +271,7 @@ static const TCGCPUOps hppa_tcg_ops = {
     .tlb_fill_align = hppa_cpu_tlb_fill_align,
     .cpu_exec_interrupt = hppa_cpu_exec_interrupt,
     .cpu_exec_halt = hppa_cpu_has_work,
+    .cpu_exec_reset = cpu_reset,
     .do_interrupt = hppa_cpu_do_interrupt,
     .do_unaligned_access = hppa_cpu_do_unaligned_access,
     .do_transaction_failed = hppa_cpu_do_transaction_failed,

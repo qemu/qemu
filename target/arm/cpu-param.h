@@ -17,14 +17,9 @@
 #endif
 
 #ifdef CONFIG_USER_ONLY
-# ifdef TARGET_AARCH64
-#  define TARGET_TAGGED_ADDRESSES
-# ifdef __FreeBSD__
-#  define TARGET_PAGE_BITS 12
-# else
+# if defined(TARGET_AARCH64) && defined(CONFIG_LINUX)
 /* Allow user-only to vary page size from 4k */
 #  define TARGET_PAGE_BITS_VARY
-# endif
 # else
 #  define TARGET_PAGE_BITS 12
 # endif

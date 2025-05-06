@@ -1,30 +1,14 @@
 /*
- * internal execution defines for qemu
+ * Probe guest virtual addresses for access permissions.
  *
- *  Copyright (c) 2003 Fabrice Bellard
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, see <http://www.gnu.org/licenses/>.
+ * Copyright (c) 2003 Fabrice Bellard
+ * SPDX-License-Identifier: LGPL-2.1-or-later
  */
-
-#ifndef EXEC_ALL_H
-#define EXEC_ALL_H
+#ifndef ACCEL_TCG_PROBE_H
+#define ACCEL_TCG_PROBE_H
 
 #include "exec/mmu-access-type.h"
-#include "exec/translation-block.h"
-
-#if defined(CONFIG_TCG)
-#include "accel/tcg/getpc.h"
+#include "exec/vaddr.h"
 
 /**
  * probe_access:
@@ -118,36 +102,21 @@ int probe_access_full_mmu(CPUArchState *env, vaddr addr, int size,
                           void **phost, CPUTLBEntryFull **pfull);
 
 #endif /* !CONFIG_USER_ONLY */
-#endif /* CONFIG_TCG */
-
-/* TranslationBlock invalidate API */
-void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
-void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t last);
-void tb_set_jmp_target(TranslationBlock *tb, int n, uintptr_t addr);
-
-#if !defined(CONFIG_USER_ONLY)
 
 /**
- * iotlb_to_section:
- * @cpu: CPU performing the access
- * @index: TCG CPU IOTLB entry
+ * tlb_vaddr_to_host:
+ * @env: CPUArchState
+ * @addr: guest virtual address to look up
+ * @access_type: 0 for read, 1 for write, 2 for execute
+ * @mmu_idx: MMU index to use for lookup
  *
- * Given a TCG CPU IOTLB entry, return the MemoryRegionSection that
- * it refers to. @index will have been initially created and returned
- * by memory_region_section_get_iotlb().
+ * Look up the specified guest virtual index in the TCG softmmu TLB.
+ * If we can translate a host virtual address suitable for direct RAM
+ * access, without causing a guest exception, then return it.
+ * Otherwise (TLB entry is for an I/O access, guest software
+ * TLB fill required, etc) return NULL.
  */
-struct MemoryRegionSection *iotlb_to_section(CPUState *cpu,
-                                             hwaddr index, MemTxAttrs attrs);
-#endif
-
-#if !defined(CONFIG_USER_ONLY)
-
-MemoryRegionSection *
-address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr addr,
-                                  hwaddr *xlat, hwaddr *plen,
-                                  MemTxAttrs attrs, int *prot);
-hwaddr memory_region_section_get_iotlb(CPUState *cpu,
-                                       MemoryRegionSection *section);
-#endif
+void *tlb_vaddr_to_host(CPUArchState *env, vaddr addr,
+                        MMUAccessType access_type, int mmu_idx);
 
 #endif

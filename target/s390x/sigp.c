@@ -16,7 +16,6 @@
 #include "system/runstate.h"
 #include "system/address-spaces.h"
 #include "exec/cputlb.h"
-#include "exec/exec-all.h"
 #include "system/tcg.h"
 #include "trace.h"
 #include "qapi/qapi-types-machine.h"

@@ -34,7 +34,7 @@
 #include "qemu/host-utils.h"
 #include "exec/cputlb.h"
 #include "accel/tcg/cpu-mmu-index.h"
-#include "exec/exec-all.h"
+#include "accel/tcg/probe.h"
 #include "exec/page-protection.h"
 #include "exec/target_page.h"
 #include "system/memory.h"

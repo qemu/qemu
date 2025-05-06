@@ -9,7 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "accel/tcg/cpu-mmu-index.h"
-#include "exec/exec-all.h"
+#include "accel/tcg/probe.h"
 #include "exec/target_page.h"
 #include "exec/tlb-flags.h"
 #include "semihosting/uaccess.h"

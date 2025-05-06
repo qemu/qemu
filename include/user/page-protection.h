@@ -12,13 +12,12 @@
 #error Cannot include this header from system emulation
 #endif
 
-#include "cpu-param.h"
-#include "exec/target_long.h"
+#include "exec/vaddr.h"
 #include "exec/translation-block.h"
 
-int page_unprotect(tb_page_addr_t address, uintptr_t pc);
+int page_unprotect(CPUState *cpu, tb_page_addr_t address, uintptr_t pc);
 
-int page_get_flags(target_ulong address);
+int page_get_flags(vaddr address);
 
 /**
  * page_set_flags:
@@ -31,9 +30,9 @@ int page_get_flags(target_ulong address);
  * The flag PAGE_WRITE_ORG is positioned automatically depending
  * on PAGE_WRITE.  The mmap_lock should already be held.
  */
-void page_set_flags(target_ulong start, target_ulong last, int flags);
+void page_set_flags(vaddr start, vaddr last, int flags);
 
-void page_reset_target_data(target_ulong start, target_ulong last);
+void page_reset_target_data(vaddr start, vaddr last);
 
 /**
  * page_check_range
@@ -45,7 +44,7 @@ void page_reset_target_data(target_ulong start, target_ulong last);
  * Return false if any page is unmapped.  Thus testing flags == 0 is
  * equivalent to testing for flags == PAGE_VALID.
  */
-bool page_check_range(target_ulong start, target_ulong last, int flags);
+bool page_check_range(vaddr start, vaddr last, int flags);
 
 /**
  * page_check_range_empty:
@@ -57,7 +56,7 @@ bool page_check_range(target_ulong start, target_ulong last, int flags);
  * The memory lock must be held so that the caller will can ensure
  * the result stays true until a new mapping can be installed.
  */
-bool page_check_range_empty(target_ulong start, target_ulong last);
+bool page_check_range_empty(vaddr start, vaddr last);
 
 /**
  * page_find_range_empty
@@ -71,26 +70,25 @@ bool page_check_range_empty(target_ulong start, target_ulong last);
  * The memory lock must be held, as the caller will want to ensure
  * the returned range stays empty until a new mapping can be installed.
  */
-target_ulong page_find_range_empty(target_ulong min, target_ulong max,
-                                   target_ulong len, target_ulong align);
+vaddr page_find_range_empty(vaddr min, vaddr max, vaddr len, vaddr align);
 
 /**
- * page_get_target_data(address)
+ * page_get_target_data
  * @address: guest virtual address
+ * @size: per-page size
  *
- * Return TARGET_PAGE_DATA_SIZE bytes of out-of-band data to associate
+ * Return @size bytes of out-of-band data to associate
  * with the guest page at @address, allocating it if necessary.  The
  * caller should already have verified that the address is valid.
+ * The value of @size must be the same for every call.
  *
  * The memory will be freed when the guest page is deallocated,
  * e.g. with the munmap system call.
  */
 __attribute__((returns_nonnull))
-void *page_get_target_data(target_ulong address);
+void *page_get_target_data(vaddr address, size_t size);
 
-typedef int (*walk_memory_regions_fn)(void *, target_ulong,
-                                      target_ulong, unsigned long);
-
+typedef int (*walk_memory_regions_fn)(void *, vaddr, vaddr, int);
 int walk_memory_regions(void *, walk_memory_regions_fn);
 
 void page_dump(FILE *f);

@@ -23,9 +23,9 @@
 #include "qapi/error.h"
 #include "qemu/qemu-print.h"
 #include "cpu.h"
-#include "exec/exec-all.h"
 #include "exec/translation-block.h"
 #include "exec/target_page.h"
+#include "accel/tcg/cpu-ops.h"
 #include "fpu/softfloat.h"
 
 
@@ -39,6 +39,18 @@ static vaddr alpha_cpu_get_pc(CPUState *cs)
 {
     CPUAlphaState *env = cpu_env(cs);
     return env->pc;
+}
+
+static TCGTBCPUState alpha_get_tb_cpu_state(CPUState *cs)
+{
+    CPUAlphaState *env = cpu_env(cs);
+    uint32_t flags = env->flags & ENV_FLAG_TB_MASK;
+
+#ifdef CONFIG_USER_ONLY
+    flags |= TB_FLAG_UNALIGN * !cs->prctl_unalign_sigbus;
+#endif
+
+    return (TCGTBCPUState){ .pc = env->pc, .flags = flags };
 }
 
 static void alpha_cpu_synchronize_from_tb(CPUState *cs,
@@ -232,8 +244,6 @@ static const struct SysemuCPUOps alpha_sysemu_ops = {
 };
 #endif
 
-#include "accel/tcg/cpu-ops.h"
-
 static const TCGCPUOps alpha_tcg_ops = {
     /* Alpha processors have a weak memory model */
     .guest_default_memory_order = 0,
@@ -241,6 +251,7 @@ static const TCGCPUOps alpha_tcg_ops = {
 
     .initialize = alpha_translate_init,
     .translate_code = alpha_translate_code,
+    .get_tb_cpu_state = alpha_get_tb_cpu_state,
     .synchronize_from_tb = alpha_cpu_synchronize_from_tb,
     .restore_state_to_opc = alpha_restore_state_to_opc,
     .mmu_index = alpha_cpu_mmu_index,
@@ -252,6 +263,7 @@ static const TCGCPUOps alpha_tcg_ops = {
     .tlb_fill = alpha_cpu_tlb_fill,
     .cpu_exec_interrupt = alpha_cpu_exec_interrupt,
     .cpu_exec_halt = alpha_cpu_has_work,
+    .cpu_exec_reset = cpu_reset,
     .do_interrupt = alpha_cpu_do_interrupt,
     .do_transaction_failed = alpha_cpu_do_transaction_failed,
     .do_unaligned_access = alpha_cpu_do_unaligned_access,

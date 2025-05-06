@@ -21,55 +21,23 @@
 
 #include "trace.h"
 #include "disas/disas.h"
-#include "exec/exec-all.h"
 #include "tcg/tcg.h"
-#if defined(CONFIG_USER_ONLY)
-#include "qemu.h"
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
-#include <sys/param.h>
-#if __FreeBSD_version >= 700104
-#define HAVE_KINFO_GETVMMAP
-#define sigqueue sigqueue_freebsd  /* avoid redefinition */
-#include <sys/proc.h>
-#include <machine/profile.h>
-#define _KERNEL
-#include <sys/user.h>
-#undef _KERNEL
-#undef sigqueue
-#include <libutil.h>
-#endif
-#endif
-#else
-#include "system/ram_addr.h"
-#endif
-
-#include "cpu-param.h"
-#include "exec/cputlb.h"
-#include "exec/page-protection.h"
 #include "exec/mmap-lock.h"
 #include "tb-internal.h"
 #include "tlb-bounds.h"
-#include "exec/translator.h"
 #include "exec/tb-flush.h"
-#include "qemu/bitmap.h"
-#include "qemu/qemu-print.h"
-#include "qemu/main-loop.h"
 #include "qemu/cacheinfo.h"
-#include "qemu/timer.h"
+#include "qemu/target-info.h"
 #include "exec/log.h"
 #include "exec/icount.h"
-#include "system/tcg.h"
-#include "qapi/error.h"
 #include "accel/tcg/cpu-ops.h"
 #include "tb-jmp-cache.h"
 #include "tb-hash.h"
 #include "tb-context.h"
 #include "tb-internal.h"
 #include "internal-common.h"
-#include "internal-target.h"
 #include "tcg/perf.h"
 #include "tcg/insn-start-words.h"
-#include "cpu.h"
 
 TBContext tb_ctx;
 
@@ -110,7 +78,7 @@ static int64_t decode_sleb128(const uint8_t **pp)
         val |= (int64_t)(byte & 0x7f) << shift;
         shift += 7;
     } while (byte & 0x80);
-    if (shift < TARGET_LONG_BITS && (byte & 0x40)) {
+    if (shift < 64 && (byte & 0x40)) {
         val |= -(int64_t)1 << shift;
     }
 
@@ -121,7 +89,7 @@ static int64_t decode_sleb128(const uint8_t **pp)
 /* Encode the data collected about the instructions while compiling TB.
    Place the data at BLOCK, and return the number of bytes consumed.
 
-   The logical table consists of TARGET_INSN_START_WORDS target_ulong's,
+   The logical table consists of INSN_START_WORDS uint64_t's,
    which come from the target's insn_start data, followed by a uintptr_t
    which comes from the host pc of the end of the code implementing the insn.
 
@@ -141,13 +109,13 @@ static int encode_search(TranslationBlock *tb, uint8_t *block)
     for (i = 0, n = tb->icount; i < n; ++i) {
         uint64_t prev, curr;
 
-        for (j = 0; j < TARGET_INSN_START_WORDS; ++j) {
+        for (j = 0; j < INSN_START_WORDS; ++j) {
             if (i == 0) {
                 prev = (!(tb_cflags(tb) & CF_PCREL) && j == 0 ? tb->pc : 0);
             } else {
-                prev = insn_data[(i - 1) * TARGET_INSN_START_WORDS + j];
+                prev = insn_data[(i - 1) * INSN_START_WORDS + j];
             }
-            curr = insn_data[i * TARGET_INSN_START_WORDS + j];
+            curr = insn_data[i * INSN_START_WORDS + j];
             p = encode_sleb128(p, curr - prev);
         }
         prev = (i == 0 ? 0 : insn_end_off[i - 1]);
@@ -179,7 +147,7 @@ static int cpu_unwind_data_from_tb(TranslationBlock *tb, uintptr_t host_pc,
         return -1;
     }
 
-    memset(data, 0, sizeof(uint64_t) * TARGET_INSN_START_WORDS);
+    memset(data, 0, sizeof(uint64_t) * INSN_START_WORDS);
     if (!(tb_cflags(tb) & CF_PCREL)) {
         data[0] = tb->pc;
     }
@@ -189,7 +157,7 @@ static int cpu_unwind_data_from_tb(TranslationBlock *tb, uintptr_t host_pc,
      * at which the end of the insn exceeds host_pc.
      */
     for (i = 0; i < num_insns; ++i) {
-        for (j = 0; j < TARGET_INSN_START_WORDS; ++j) {
+        for (j = 0; j < INSN_START_WORDS; ++j) {
             data[j] += decode_sleb128(&p);
         }
         iter_pc += decode_sleb128(&p);
@@ -207,7 +175,7 @@ static int cpu_unwind_data_from_tb(TranslationBlock *tb, uintptr_t host_pc,
 void cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
                                uintptr_t host_pc)
 {
-    uint64_t data[TARGET_INSN_START_WORDS];
+    uint64_t data[INSN_START_WORDS];
     int insns_left = cpu_unwind_data_from_tb(tb, host_pc, data);
 
     if (insns_left < 0) {
@@ -291,9 +259,7 @@ static int setjmp_gen_code(CPUArchState *env, TranslationBlock *tb,
 }
 
 /* Called with mmap_lock held for user mode emulation.  */
-TranslationBlock *tb_gen_code(CPUState *cpu,
-                              vaddr pc, uint64_t cs_base,
-                              uint32_t flags, int cflags)
+TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
 {
     CPUArchState *env = cpu_env(cpu);
     TranslationBlock *tb, *existing_tb;
@@ -306,14 +272,14 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     assert_memory_lock();
     qemu_thread_jit_write();
 
-    phys_pc = get_page_addr_code_hostp(env, pc, &host_pc);
+    phys_pc = get_page_addr_code_hostp(env, s.pc, &host_pc);
 
     if (phys_pc == -1) {
         /* Generate a one-shot TB with 1 insn in it */
-        cflags = (cflags & ~CF_COUNT_MASK) | 1;
+        s.cflags = (s.cflags & ~CF_COUNT_MASK) | 1;
     }
 
-    max_insns = cflags & CF_COUNT_MASK;
+    max_insns = s.cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
         max_insns = TCG_MAX_INSNS;
     }
@@ -333,12 +299,12 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 
     gen_code_buf = tcg_ctx->code_gen_ptr;
     tb->tc.ptr = tcg_splitwx_to_rx(gen_code_buf);
-    if (!(cflags & CF_PCREL)) {
-        tb->pc = pc;
+    if (!(s.cflags & CF_PCREL)) {
+        tb->pc = s.pc;
     }
-    tb->cs_base = cs_base;
-    tb->flags = flags;
-    tb->cflags = cflags;
+    tb->cs_base = s.cs_base;
+    tb->flags = s.flags;
+    tb->cflags = s.cflags;
     tb_set_page_addr0(tb, phys_pc);
     tb_set_page_addr1(tb, -1);
     if (phys_pc != -1) {
@@ -346,19 +312,18 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     }
 
     tcg_ctx->gen_tb = tb;
-    tcg_ctx->addr_type = TARGET_LONG_BITS == 32 ? TCG_TYPE_I32 : TCG_TYPE_I64;
+    tcg_ctx->addr_type = target_long_bits() == 32 ? TCG_TYPE_I32 : TCG_TYPE_I64;
 #ifdef CONFIG_SOFTMMU
     tcg_ctx->page_bits = TARGET_PAGE_BITS;
     tcg_ctx->page_mask = TARGET_PAGE_MASK;
     tcg_ctx->tlb_dyn_max_bits = CPU_TLB_DYN_MAX_BITS;
 #endif
-    tcg_ctx->insn_start_words = TARGET_INSN_START_WORDS;
     tcg_ctx->guest_mo = cpu->cc->tcg_ops->guest_default_memory_order;
 
  restart_translate:
-    trace_translate_block(tb, pc, tb->tc.ptr);
+    trace_translate_block(tb, s.pc, tb->tc.ptr);
 
-    gen_code_size = setjmp_gen_code(env, tb, pc, host_pc, &max_insns, &ti);
+    gen_code_size = setjmp_gen_code(env, tb, s.pc, host_pc, &max_insns, &ti);
     if (unlikely(gen_code_size < 0)) {
         switch (gen_code_size) {
         case -1:
@@ -435,10 +400,10 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
      * For CF_PCREL, attribute all executions of the generated code
      * to its first mapping.
      */
-    perf_report_code(pc, tb, tcg_splitwx_to_rx(gen_code_buf));
+    perf_report_code(s.pc, tb, tcg_splitwx_to_rx(gen_code_buf));
 
     if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM) &&
-        qemu_log_in_addr_range(pc)) {
+        qemu_log_in_addr_range(s.pc)) {
         FILE *logfile = qemu_log_trylock();
         if (logfile) {
             int code_size, data_size;
@@ -460,7 +425,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
             fprintf(logfile, "OUT: [size=%d]\n", gen_code_size);
             fprintf(logfile,
                     "  -- guest addr 0x%016" PRIx64 " + tb prologue\n",
-                    tcg_ctx->gen_insn_data[insn * TARGET_INSN_START_WORDS]);
+                    tcg_ctx->gen_insn_data[insn * INSN_START_WORDS]);
             chunk_start = tcg_ctx->gen_insn_end_off[insn];
             disas(logfile, tb->tc.ptr, chunk_start);
 
@@ -473,7 +438,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
                 size_t chunk_end = tcg_ctx->gen_insn_end_off[insn];
                 if (chunk_end > chunk_start) {
                     fprintf(logfile, "  -- guest addr 0x%016" PRIx64 "\n",
-                            tcg_ctx->gen_insn_data[insn * TARGET_INSN_START_WORDS]);
+                            tcg_ctx->gen_insn_data[insn * INSN_START_WORDS]);
                     disas(logfile, tb->tc.ptr + chunk_start,
                           chunk_end - chunk_start);
                     chunk_start = chunk_end;
@@ -591,15 +556,11 @@ void tb_check_watchpoint(CPUState *cpu, uintptr_t retaddr)
         /* The exception probably happened in a helper.  The CPU state should
            have been saved before calling it. Fetch the PC from there.  */
         CPUArchState *env = cpu_env(cpu);
-        vaddr pc;
-        uint64_t cs_base;
-        tb_page_addr_t addr;
-        uint32_t flags;
+        TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
+        tb_page_addr_t addr = get_page_addr_code(env, s.pc);
 
-        cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
-        addr = get_page_addr_code(env, pc);
         if (addr != -1) {
-            tb_invalidate_phys_range(addr, addr);
+            tb_invalidate_phys_range(cpu, addr, addr);
         }
     }
 }

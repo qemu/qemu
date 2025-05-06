@@ -526,7 +526,7 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
 static inline target_ulong get_memio_eip(CPUX86State *env)
 {
 #ifdef CONFIG_TCG
-    uint64_t data[TARGET_INSN_START_WORDS];
+    uint64_t data[INSN_START_WORDS];
     CPUState *cs = env_cpu(env);
 
     if (!cpu_unwind_state_data(cs, cs->mem_io_pc, data)) {

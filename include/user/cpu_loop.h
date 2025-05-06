@@ -20,11 +20,9 @@
 #ifndef USER_CPU_LOOP_H
 #define USER_CPU_LOOP_H
 
-#include "exec/abi_ptr.h"
+#include "exec/vaddr.h"
 #include "exec/mmu-access-type.h"
-#include "exec/log.h"
-#include "exec/target_long.h"
-#include "special-errno.h"
+
 
 /**
  * adjust_signal_pc:
@@ -46,7 +44,7 @@ MMUAccessType adjust_signal_pc(uintptr_t *pc, bool is_write);
  * Return true if the write fault has been handled, and should be re-tried.
  */
 bool handle_sigsegv_accerr_write(CPUState *cpu, sigset_t *old_set,
-                                 uintptr_t host_pc, abi_ptr guest_addr);
+                                 uintptr_t host_pc, vaddr guest_addr);
 
 /**
  * cpu_loop_exit_sigsegv:
@@ -59,7 +57,7 @@ bool handle_sigsegv_accerr_write(CPUState *cpu, sigset_t *old_set,
  * Use the TCGCPUOps hook to record cpu state, do guest operating system
  * specific things to raise SIGSEGV, and jump to the main cpu loop.
  */
-G_NORETURN void cpu_loop_exit_sigsegv(CPUState *cpu, target_ulong addr,
+G_NORETURN void cpu_loop_exit_sigsegv(CPUState *cpu, vaddr addr,
                                       MMUAccessType access_type,
                                       bool maperr, uintptr_t ra);
 
@@ -73,7 +71,7 @@ G_NORETURN void cpu_loop_exit_sigsegv(CPUState *cpu, target_ulong addr,
  * Use the TCGCPUOps hook to record cpu state, do guest operating system
  * specific things to raise SIGBUS, and jump to the main cpu loop.
  */
-G_NORETURN void cpu_loop_exit_sigbus(CPUState *cpu, target_ulong addr,
+G_NORETURN void cpu_loop_exit_sigbus(CPUState *cpu, vaddr addr,
                                      MMUAccessType access_type,
                                      uintptr_t ra);
 

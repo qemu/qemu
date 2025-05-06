@@ -51,7 +51,6 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "system/address-spaces.h"
-#include "exec/exec-all.h"
 #include "gdbstub/enums.h"
 #include "hw/boards.h"
 #include "system/accel-ops.h"

@@ -21,6 +21,7 @@
 #include "exec/breakpoint.h"
 #include "hw/registerfields.h"
 #include "exec/page-protection.h"
+#include "accel/tcg/tb-cpu-state.h"
 
 /* PM instructions */
 typedef enum {
@@ -307,5 +308,7 @@ static inline int ger_pack_masks(int pmsk, int ymsk, int xmsk)
     msk = FIELD_DP32(msk, GER_MSK, PMSK, pmsk);
     return msk;
 }
+
+TCGTBCPUState ppc_get_tb_cpu_state(CPUState *cs);
 
 #endif /* PPC_INTERNAL_H */

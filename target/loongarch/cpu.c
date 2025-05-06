@@ -15,7 +15,6 @@
 #include "system/kvm.h"
 #include "kvm/kvm_loongarch.h"
 #include "hw/qdev-properties.h"
-#include "exec/exec-all.h"
 #include "exec/translation-block.h"
 #include "cpu.h"
 #include "internals.h"
@@ -30,6 +29,7 @@
 #endif
 #ifdef CONFIG_TCG
 #include "accel/tcg/cpu-ldst.h"
+#include "accel/tcg/cpu-ops.h"
 #include "tcg/tcg.h"
 #endif
 #include "tcg/tcg_loongarch.h"
@@ -335,6 +335,20 @@ static bool loongarch_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     return false;
 }
 #endif
+
+static TCGTBCPUState loongarch_get_tb_cpu_state(CPUState *cs)
+{
+    CPULoongArchState *env = cpu_env(cs);
+    uint32_t flags;
+
+    flags = env->CSR_CRMD & (R_CSR_CRMD_PLV_MASK | R_CSR_CRMD_PG_MASK);
+    flags |= FIELD_EX64(env->CSR_EUEN, CSR_EUEN, FPE) * HW_FLAGS_EUEN_FPE;
+    flags |= FIELD_EX64(env->CSR_EUEN, CSR_EUEN, SXE) * HW_FLAGS_EUEN_SXE;
+    flags |= FIELD_EX64(env->CSR_EUEN, CSR_EUEN, ASXE) * HW_FLAGS_EUEN_ASXE;
+    flags |= is_va32(env) * HW_FLAGS_VA32;
+
+    return (TCGTBCPUState){ .pc = env->pc, .flags = flags };
+}
 
 static void loongarch_cpu_synchronize_from_tb(CPUState *cs,
                                               const TranslationBlock *tb)
@@ -862,14 +876,13 @@ static void loongarch_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 }
 
 #ifdef CONFIG_TCG
-#include "accel/tcg/cpu-ops.h"
-
 static const TCGCPUOps loongarch_tcg_ops = {
     .guest_default_memory_order = 0,
     .mttcg_supported = true,
 
     .initialize = loongarch_translate_init,
     .translate_code = loongarch_translate_code,
+    .get_tb_cpu_state = loongarch_get_tb_cpu_state,
     .synchronize_from_tb = loongarch_cpu_synchronize_from_tb,
     .restore_state_to_opc = loongarch_restore_state_to_opc,
     .mmu_index = loongarch_cpu_mmu_index,
@@ -878,6 +891,7 @@ static const TCGCPUOps loongarch_tcg_ops = {
     .tlb_fill = loongarch_cpu_tlb_fill,
     .cpu_exec_interrupt = loongarch_cpu_exec_interrupt,
     .cpu_exec_halt = loongarch_cpu_has_work,
+    .cpu_exec_reset = cpu_reset,
     .do_interrupt = loongarch_cpu_do_interrupt,
     .do_transaction_failed = loongarch_cpu_do_transaction_failed,
 #endif

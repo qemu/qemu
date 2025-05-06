@@ -783,12 +783,9 @@ typedef struct CPUArchState {
 #else /* CONFIG_USER_ONLY */
     /* For usermode syscall translation.  */
     bool eabi;
-#endif /* CONFIG_USER_ONLY */
-
-#ifdef TARGET_TAGGED_ADDRESSES
     /* Linux syscall tagged address support */
     bool tagged_addr_enable;
-#endif
+#endif /* CONFIG_USER_ONLY */
 } CPUARMState;
 
 static inline void set_feature(CPUARMState *env, int feature)
@@ -3119,9 +3116,6 @@ static inline bool bswap_code(bool sctlr_b)
 #endif
 }
 
-void cpu_get_tb_cpu_state(CPUARMState *env, vaddr *pc,
-                          uint64_t *cs_base, uint32_t *flags);
-
 enum {
     QEMU_PSCI_CONDUIT_DISABLED = 0,
     QEMU_PSCI_CONDUIT_SMC = 1,
@@ -3218,36 +3212,5 @@ extern const uint64_t pred_esz_masks[5];
 /* We associate one allocation tag per 16 bytes, the minimum.  */
 #define LOG2_TAG_GRANULE 4
 #define TAG_GRANULE      (1 << LOG2_TAG_GRANULE)
-
-#ifdef CONFIG_USER_ONLY
-
-#define TARGET_PAGE_DATA_SIZE (TARGET_PAGE_SIZE >> (LOG2_TAG_GRANULE + 1))
-
-#ifdef TARGET_TAGGED_ADDRESSES
-/**
- * cpu_untagged_addr:
- * @cs: CPU context
- * @x: tagged address
- *
- * Remove any address tag from @x.  This is explicitly related to the
- * linux syscall TIF_TAGGED_ADDR setting, not TBI in general.
- *
- * There should be a better place to put this, but we need this in
- * include/exec/cpu_ldst.h, and not some place linux-user specific.
- */
-static inline target_ulong cpu_untagged_addr(CPUState *cs, target_ulong x)
-{
-    CPUARMState *env = cpu_env(cs);
-    if (env->tagged_addr_enable) {
-        /*
-         * TBI is enabled for userspace but not kernelspace addresses.
-         * Only clear the tag if bit 55 is clear.
-         */
-        x &= sextract64(x, 0, 56);
-    }
-    return x;
-}
-#endif /* TARGET_TAGGED_ADDRESSES */
-#endif /* CONFIG_USER_ONLY */
 
 #endif

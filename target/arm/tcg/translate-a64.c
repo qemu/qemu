@@ -17,7 +17,6 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
-#include "exec/exec-all.h"
 #include "exec/target_page.h"
 #include "translate.h"
 #include "translate-a64.h"
