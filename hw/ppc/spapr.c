@@ -907,6 +907,7 @@ static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
     int rtas;
     GString *hypertas = g_string_sized_new(256);
     GString *qemu_hypertas = g_string_sized_new(256);
+    uint64_t max_device_addr = 0;
     uint32_t lrdr_capacity[] = {
         0,
         0,
@@ -917,12 +918,14 @@ static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
 
     /* Do we have device memory? */
     if (MACHINE(spapr)->device_memory) {
-        uint64_t max_device_addr = MACHINE(spapr)->device_memory->base +
+        max_device_addr = MACHINE(spapr)->device_memory->base +
             memory_region_size(&MACHINE(spapr)->device_memory->mr);
-
-        lrdr_capacity[0] = cpu_to_be32(max_device_addr >> 32);
-        lrdr_capacity[1] = cpu_to_be32(max_device_addr & 0xffffffff);
+    } else if (ms->ram_size == ms->maxram_size) {
+        max_device_addr = ms->ram_size;
     }
+
+    lrdr_capacity[0] = cpu_to_be32(max_device_addr >> 32);
+    lrdr_capacity[1] = cpu_to_be32(max_device_addr & 0xffffffff);
 
     _FDT(rtas = fdt_add_subnode(fdt, 0, "rtas"));
 
