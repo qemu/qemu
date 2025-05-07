@@ -100,8 +100,7 @@ static int kvm_arm_vcpu_finalize(ARMCPU *cpu, int feature)
     return kvm_vcpu_ioctl(CPU(cpu), KVM_ARM_VCPU_FINALIZE, &feature);
 }
 
-bool kvm_arm_create_scratch_host_vcpu(const uint32_t *cpus_to_try,
-                                      int *fdarray,
+bool kvm_arm_create_scratch_host_vcpu(int *fdarray,
                                       struct kvm_vcpu_init *init)
 {
     int ret = 0, kvmfd = -1, vmfd = -1, cpufd = -1;
@@ -150,40 +149,13 @@ bool kvm_arm_create_scratch_host_vcpu(const uint32_t *cpus_to_try,
         struct kvm_vcpu_init preferred;
 
         ret = ioctl(vmfd, KVM_ARM_PREFERRED_TARGET, &preferred);
-        if (!ret) {
-            init->target = preferred.target;
+        if (ret < 0) {
+            goto err;
         }
+        init->target = preferred.target;
     }
-    if (ret >= 0) {
-        ret = ioctl(cpufd, KVM_ARM_VCPU_INIT, init);
-        if (ret < 0) {
-            goto err;
-        }
-    } else if (cpus_to_try) {
-        /* Old kernel which doesn't know about the
-         * PREFERRED_TARGET ioctl: we know it will only support
-         * creating one kind of guest CPU which is its preferred
-         * CPU type.
-         */
-        struct kvm_vcpu_init try;
-
-        while (*cpus_to_try != QEMU_KVM_ARM_TARGET_NONE) {
-            try.target = *cpus_to_try++;
-            memcpy(try.features, init->features, sizeof(init->features));
-            ret = ioctl(cpufd, KVM_ARM_VCPU_INIT, &try);
-            if (ret >= 0) {
-                break;
-            }
-        }
-        if (ret < 0) {
-            goto err;
-        }
-        init->target = try.target;
-    } else {
-        /* Treat a NULL cpus_to_try argument the same as an empty
-         * list, which means we will fail the call since this must
-         * be an old kernel which doesn't support PREFERRED_TARGET.
-         */
+    ret = ioctl(cpufd, KVM_ARM_VCPU_INIT, init);
+    if (ret < 0) {
         goto err;
     }
 
@@ -259,17 +231,6 @@ static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     uint64_t features = 0;
     int err;
 
-    /* Old kernels may not know about the PREFERRED_TARGET ioctl: however
-     * we know these will only support creating one kind of guest CPU,
-     * which is its preferred CPU type. Fortunately these old kernels
-     * support only a very limited number of CPUs.
-     */
-    static const uint32_t cpus_to_try[] = {
-        KVM_ARM_TARGET_AEM_V8,
-        KVM_ARM_TARGET_FOUNDATION_V8,
-        KVM_ARM_TARGET_CORTEX_A57,
-        QEMU_KVM_ARM_TARGET_NONE
-    };
     /*
      * target = -1 informs kvm_arm_create_scratch_host_vcpu()
      * to use the preferred target
@@ -300,7 +261,7 @@ static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
         features |= 1ULL << ARM_FEATURE_PMU;
     }
 
-    if (!kvm_arm_create_scratch_host_vcpu(cpus_to_try, fdarray, &init)) {
+    if (!kvm_arm_create_scratch_host_vcpu(fdarray, &init)) {
         return false;
     }
 
@@ -1835,7 +1796,7 @@ uint32_t kvm_arm_sve_get_vls(ARMCPU *cpu)
 
         probed = true;
 
-        if (!kvm_arm_create_scratch_host_vcpu(NULL, fdarray, &init)) {
+        if (!kvm_arm_create_scratch_host_vcpu(fdarray, &init)) {
             error_report("failed to create scratch VCPU with SVE enabled");
             abort();
         }

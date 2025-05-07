@@ -117,14 +117,8 @@ typedef enum VirtGICType {
 
 struct VirtMachineClass {
     MachineClass parent;
-    bool disallow_affinity_adjustment;
-    bool no_its;
     bool no_tcg_its;
-    bool no_pmu;
-    bool claim_edge_triggered_timers;
-    bool smbios_old_sys_ver;
     bool no_highmem_compact;
-    bool no_highmem_ecam;
     bool no_ged;   /* Machines < 4.2 have no support for ACPI GED device */
     bool kvm_no_adjvtime;
     bool no_kvm_steal_time;

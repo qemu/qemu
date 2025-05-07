@@ -67,6 +67,9 @@
 /* SDHCI Modules */
 #define NPCM8XX_MMC_BA          0xf0842000
 
+/* PSPI Modules */
+#define NPCM8XX_PSPI_BA         0xf0201000
+
 /* Run PLL1 at 1600 MHz */
 #define NPCM8XX_PLLCON1_FIXUP_VAL   0x00402101
 /* Run the CPU from PLL1 and UART from PLL2 */
@@ -83,6 +86,7 @@ enum NPCM8xxInterrupt {
     NPCM8XX_PECI_IRQ            = 6,
     NPCM8XX_KCS_HIB_IRQ         = 9,
     NPCM8XX_MMC_IRQ             = 26,
+    NPCM8XX_PSPI_IRQ            = 28,
     NPCM8XX_TIMER0_IRQ          = 32,   /* Timer Module 0 */
     NPCM8XX_TIMER1_IRQ,
     NPCM8XX_TIMER2_IRQ,
@@ -441,6 +445,7 @@ static void npcm8xx_init(Object *obj)
     }
 
     object_initialize_child(obj, "mmc", &s->mmc, TYPE_NPCM7XX_SDHCI);
+    object_initialize_child(obj, "pspi", &s->pspi, TYPE_NPCM_PSPI);
 }
 
 static void npcm8xx_realize(DeviceState *dev, Error **errp)
@@ -705,6 +710,11 @@ static void npcm8xx_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->mmc), 0,
             npcm8xx_irq(s, NPCM8XX_MMC_IRQ));
 
+    /* PSPI */
+    sysbus_realize(SYS_BUS_DEVICE(&s->pspi), &error_abort);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->pspi), 0, NPCM8XX_PSPI_BA);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->pspi), 0,
+            npcm8xx_irq(s, NPCM8XX_PSPI_IRQ));
 
     create_unimplemented_device("npcm8xx.shm",          0xc0001000,   4 * KiB);
     create_unimplemented_device("npcm8xx.gicextra",     0xdfffa000,  24 * KiB);
@@ -720,7 +730,6 @@ static void npcm8xx_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("npcm8xx.siox[1]",      0xf0101000,   4 * KiB);
     create_unimplemented_device("npcm8xx.siox[2]",      0xf0102000,   4 * KiB);
     create_unimplemented_device("npcm8xx.tmps",         0xf0188000,   4 * KiB);
-    create_unimplemented_device("npcm8xx.pspi",         0xf0201000,   4 * KiB);
     create_unimplemented_device("npcm8xx.viru1",        0xf0204000,   4 * KiB);
     create_unimplemented_device("npcm8xx.viru2",        0xf0205000,   4 * KiB);
     create_unimplemented_device("npcm8xx.jtm1",         0xf0208000,   4 * KiB);
