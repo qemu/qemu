@@ -10,11 +10,10 @@
 //! called.
 
 use std::{
-    ffi::CStr,
+    ffi::{c_int, c_void, CStr},
     fmt::{self, Debug},
     io::{self, ErrorKind, Write},
     marker::PhantomPinned,
-    os::raw::{c_int, c_void},
     ptr::addr_of_mut,
     slice,
 };
@@ -161,7 +160,7 @@ impl CharBackend {
                 receive_cb,
                 event_cb,
                 None,
-                (owner as *const T as *mut T).cast::<c_void>(),
+                (owner as *const T).cast_mut().cast::<c_void>(),
                 core::ptr::null_mut(),
                 true,
             );

@@ -71,35 +71,8 @@ Building Rust code with ``--enable-modules`` is not supported yet.
 Supported tools
 '''''''''''''''
 
-QEMU supports rustc version 1.63.0 and newer.  Notably, the following features
+QEMU supports rustc version 1.77.0 and newer.  Notably, the following features
 are missing:
-
-* ``core::ffi`` (1.64.0).  Use ``std::os::raw`` and ``std::ffi`` instead.
-
-* ``cast_mut()``/``cast_const()`` (1.65.0).  Use ``as`` instead.
-
-* "let ... else" (1.65.0).  Use ``if let`` instead.  This is currently patched
-  in QEMU's vendored copy of the bilge crate.
-
-* Generic Associated Types (1.65.0)
-
-* ``CStr::from_bytes_with_nul()`` as a ``const`` function (1.72.0).
-
-* "Return position ``impl Trait`` in Traits" (1.75.0, blocker for including
-  the pinned-init create).
-
-* ``MaybeUninit::zeroed()`` as a ``const`` function (1.75.0).  QEMU's
-  ``Zeroable`` trait can be implemented without ``MaybeUninit::zeroed()``,
-  so this would be just a cleanup.
-
-* ``c"" literals`` (stable in 1.77.0).  QEMU provides a ``c_str!()`` macro
-  to define ``CStr`` constants easily
-
-* ``offset_of!`` (stable in 1.77.0).  QEMU uses ``offset_of!()`` heavily; it
-  provides a replacement in the ``qemu_api`` crate, but it does not support
-  lifetime parameters and therefore ``&'a Something`` fields in the struct
-  may have to be replaced by ``NonNull<Something>``.  *Nested* ``offset_of!``
-  was only stabilized in Rust 1.82.0, but it is not used.
 
 * inline const expression (stable in 1.79.0), currently worked around with
   associated constants in the ``FnCall`` trait.
@@ -124,12 +97,6 @@ are missing:
   replaces it.
 
 __ https://github.com/rust-lang/rust/pull/125258
-
-It is expected that QEMU will advance its minimum supported version of
-rustc to 1.77.0 as soon as possible; as of January 2025, blockers
-for that right now are Debian bookworm and 32-bit MIPS processors.
-This unfortunately means that references to statics in constants will
-remain an issue.
 
 QEMU also supports version 0.60.x of bindgen, which is missing option
 ``--generate-cstr``.  This option requires version 0.66.x and will
@@ -183,7 +150,6 @@ module           status
 ``bitops``       complete
 ``callbacks``    complete
 ``cell``         stable
-``c_str``        complete
 ``errno``        complete
 ``irq``          complete
 ``memory``       stable
@@ -440,7 +406,7 @@ Adding dependencies
 Generally, the set of dependent crates is kept small.  Think twice before
 adding a new external crate, especially if it comes with a large set of
 dependencies itself.  Sometimes QEMU only needs a small subset of the
-functionality; see for example QEMU's ``assertions`` or ``c_str`` modules.
+functionality; see for example QEMU's ``assertions`` module.
 
 On top of this recommendation, adding external crates to QEMU is a
 slightly complicated process, mostly due to the need to teach Meson how

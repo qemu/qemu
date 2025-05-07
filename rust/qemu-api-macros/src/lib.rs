@@ -6,7 +6,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
     parse_macro_input, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Data,
-    DeriveInput, Field, Fields, FieldsUnnamed, Ident, Meta, Path, Token, Type, Variant, Visibility,
+    DeriveInput, Field, Fields, FieldsUnnamed, Ident, Meta, Path, Token, Variant,
 };
 
 mod utils;
@@ -16,50 +16,41 @@ fn get_fields<'a>(
     input: &'a DeriveInput,
     msg: &str,
 ) -> Result<&'a Punctuated<Field, Comma>, MacroError> {
-    if let Data::Struct(s) = &input.data {
-        if let Fields::Named(fs) = &s.fields {
-            Ok(&fs.named)
-        } else {
-            Err(MacroError::Message(
-                format!("Named fields required for {}", msg),
-                input.ident.span(),
-            ))
-        }
-    } else {
-        Err(MacroError::Message(
-            format!("Struct required for {}", msg),
+    let Data::Struct(ref s) = &input.data else {
+        return Err(MacroError::Message(
+            format!("Struct required for {msg}"),
             input.ident.span(),
-        ))
-    }
+        ));
+    };
+    let Fields::Named(ref fs) = &s.fields else {
+        return Err(MacroError::Message(
+            format!("Named fields required for {msg}"),
+            input.ident.span(),
+        ));
+    };
+    Ok(&fs.named)
 }
 
 fn get_unnamed_field<'a>(input: &'a DeriveInput, msg: &str) -> Result<&'a Field, MacroError> {
-    if let Data::Struct(s) = &input.data {
-        let unnamed = match &s.fields {
-            Fields::Unnamed(FieldsUnnamed {
-                unnamed: ref fields,
-                ..
-            }) => fields,
-            _ => {
-                return Err(MacroError::Message(
-                    format!("Tuple struct required for {}", msg),
-                    s.fields.span(),
-                ))
-            }
-        };
-        if unnamed.len() != 1 {
-            return Err(MacroError::Message(
-                format!("A single field is required for {}", msg),
-                s.fields.span(),
-            ));
-        }
-        Ok(&unnamed[0])
-    } else {
-        Err(MacroError::Message(
-            format!("Struct required for {}", msg),
+    let Data::Struct(ref s) = &input.data else {
+        return Err(MacroError::Message(
+            format!("Struct required for {msg}"),
             input.ident.span(),
-        ))
+        ));
+    };
+    let Fields::Unnamed(FieldsUnnamed { ref unnamed, .. }) = &s.fields else {
+        return Err(MacroError::Message(
+            format!("Tuple struct required for {msg}"),
+            s.fields.span(),
+        ));
+    };
+    if unnamed.len() != 1 {
+        return Err(MacroError::Message(
+            format!("A single field is required for {msg}"),
+            s.fields.span(),
+        ));
     }
+    Ok(&unnamed[0])
 }
 
 fn is_c_repr(input: &DeriveInput, msg: &str) -> Result<(), MacroError> {
@@ -69,7 +60,7 @@ fn is_c_repr(input: &DeriveInput, msg: &str) -> Result<(), MacroError> {
         Ok(())
     } else {
         Err(MacroError::Message(
-            format!("#[repr(C)] required for {}", msg),
+            format!("#[repr(C)] required for {msg}"),
             input.ident.span(),
         ))
     }
@@ -82,7 +73,7 @@ fn is_transparent_repr(input: &DeriveInput, msg: &str) -> Result<(), MacroError>
         Ok(())
     } else {
         Err(MacroError::Message(
-            format!("#[repr(transparent)] required for {}", msg),
+            format!("#[repr(transparent)] required for {msg}"),
             input.ident.span(),
         ))
     }
@@ -160,33 +151,6 @@ pub fn derive_opaque(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-#[rustfmt::skip::macros(quote)]
-fn derive_offsets_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream, MacroError> {
-    is_c_repr(&input, "#[derive(offsets)]")?;
-
-    let name = &input.ident;
-    let fields = get_fields(&input, "#[derive(offsets)]")?;
-    let field_names: Vec<&Ident> = fields.iter().map(|f| f.ident.as_ref().unwrap()).collect();
-    let field_types: Vec<&Type> = fields.iter().map(|f| &f.ty).collect();
-    let field_vis: Vec<&Visibility> = fields.iter().map(|f| &f.vis).collect();
-
-    Ok(quote! {
-	::qemu_api::with_offsets! {
-	    struct #name {
-		#(#field_vis #field_names: #field_types,)*
-	    }
-	}
-    })
-}
-
-#[proc_macro_derive(offsets)]
-pub fn derive_offsets(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    let expanded = derive_offsets_or_error(input).unwrap_or_else(Into::into);
-
-    TokenStream::from(expanded)
-}
-
 #[allow(non_snake_case)]
 fn get_repr_uN(input: &DeriveInput, msg: &str) -> Result<Path, MacroError> {
     let repr = input.attrs.iter().find(|attr| attr.path().is_ident("repr"));
@@ -204,26 +168,25 @@ fn get_repr_uN(input: &DeriveInput, msg: &str) -> Result<Path, MacroError> {
     }
 
     Err(MacroError::Message(
-        format!("#[repr(u8/u16/u32/u64) required for {}", msg),
+        format!("#[repr(u8/u16/u32/u64) required for {msg}"),
         input.ident.span(),
     ))
 }
 
 fn get_variants(input: &DeriveInput) -> Result<&Punctuated<Variant, Comma>, MacroError> {
-    if let Data::Enum(e) = &input.data {
-        if let Some(v) = e.variants.iter().find(|v| v.fields != Fields::Unit) {
-            return Err(MacroError::Message(
-                "Cannot derive TryInto for enum with non-unit variants.".to_string(),
-                v.fields.span(),
-            ));
-        }
-        Ok(&e.variants)
-    } else {
-        Err(MacroError::Message(
+    let Data::Enum(ref e) = &input.data else {
+        return Err(MacroError::Message(
             "Cannot derive TryInto for union or struct.".to_string(),
             input.ident.span(),
-        ))
+        ));
+    };
+    if let Some(v) = e.variants.iter().find(|v| v.fields != Fields::Unit) {
+        return Err(MacroError::Message(
+            "Cannot derive TryInto for enum with non-unit variants.".to_string(),
+            v.fields.span(),
+        ));
     }
+    Ok(&e.variants)
 }
 
 #[rustfmt::skip::macros(quote)]

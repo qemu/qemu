@@ -3,13 +3,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use std::{
-    os::raw::{c_int, c_void},
+    ffi::{c_int, c_void},
     ptr::NonNull,
 };
 
 use qemu_api::{
     bindings::{qdev_prop_bool, qdev_prop_chr},
-    c_str,
     prelude::*,
     vmstate::VMStateDescription,
     vmstate_clock, vmstate_fields, vmstate_of, vmstate_struct, vmstate_subsections, vmstate_unused,
@@ -25,7 +24,7 @@ extern "C" fn pl011_clock_needed(opaque: *mut c_void) -> bool {
 
 /// Migration subsection for [`PL011State`] clock.
 static VMSTATE_PL011_CLOCK: VMStateDescription = VMStateDescription {
-    name: c_str!("pl011/clock").as_ptr(),
+    name: c"pl011/clock".as_ptr(),
     version_id: 1,
     minimum_version_id: 1,
     needed: Some(pl011_clock_needed),
@@ -46,7 +45,7 @@ extern "C" fn pl011_post_load(opaque: *mut c_void, version_id: c_int) -> c_int {
 }
 
 static VMSTATE_PL011_REGS: VMStateDescription = VMStateDescription {
-    name: c_str!("pl011/regs").as_ptr(),
+    name: c"pl011/regs".as_ptr(),
     version_id: 2,
     minimum_version_id: 2,
     fields: vmstate_fields! {
@@ -70,7 +69,7 @@ static VMSTATE_PL011_REGS: VMStateDescription = VMStateDescription {
 };
 
 pub static VMSTATE_PL011: VMStateDescription = VMStateDescription {
-    name: c_str!("pl011").as_ptr(),
+    name: c"pl011".as_ptr(),
     version_id: 2,
     minimum_version_id: 2,
     post_load: Some(pl011_post_load),
@@ -87,14 +86,14 @@ pub static VMSTATE_PL011: VMStateDescription = VMStateDescription {
 qemu_api::declare_properties! {
     PL011_PROPERTIES,
     qemu_api::define_property!(
-        c_str!("chardev"),
+        c"chardev",
         PL011State,
         char_backend,
         unsafe { &qdev_prop_chr },
         CharBackend
     ),
     qemu_api::define_property!(
-        c_str!("migrate-clk"),
+        c"migrate-clk",
         PL011State,
         migrate_clock,
         unsafe { &qdev_prop_bool },

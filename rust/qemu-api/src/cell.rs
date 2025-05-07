@@ -77,13 +77,13 @@
 //!
 //! ```
 //! # use qemu_api::prelude::*;
-//! # use qemu_api::{c_str, cell::BqlRefCell, irq::InterruptSource, irq::IRQState};
+//! # use qemu_api::{cell::BqlRefCell, irq::InterruptSource, irq::IRQState};
 //! # use qemu_api::{sysbus::SysBusDevice, qom::Owned, qom::ParentField};
 //! # const N_GPIOS: usize = 8;
 //! # struct PL061Registers { /* ... */ }
 //! # unsafe impl ObjectType for PL061State {
 //! #     type Class = <SysBusDevice as ObjectType>::Class;
-//! #     const TYPE_NAME: &'static std::ffi::CStr = c_str!("pl061");
+//! #     const TYPE_NAME: &'static std::ffi::CStr = c"pl061";
 //! # }
 //! struct PL061State {
 //!     parent_obj: ParentField<SysBusDevice>,
@@ -1016,7 +1016,7 @@ impl<T> Opaque<T> {
 
     /// Returns a raw pointer to the opaque data.
     pub const fn as_ptr(&self) -> *const T {
-        self.as_mut_ptr() as *const _
+        self.as_mut_ptr().cast_const()
     }
 
     /// Returns a raw pointer to the opaque data that can be passed to a

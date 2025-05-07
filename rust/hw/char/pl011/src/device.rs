@@ -74,7 +74,7 @@ impl std::ops::Index<u32> for Fifo {
 }
 
 #[repr(C)]
-#[derive(Debug, Default, qemu_api_macros::offsets)]
+#[derive(Debug, Default)]
 pub struct PL011Registers {
     #[doc(alias = "fr")]
     pub flags: registers::Flags,
@@ -98,7 +98,7 @@ pub struct PL011Registers {
 }
 
 #[repr(C)]
-#[derive(qemu_api_macros::Object, qemu_api_macros::offsets)]
+#[derive(qemu_api_macros::Object)]
 /// PL011 Device Model in QEMU
 pub struct PL011State {
     pub parent_obj: ParentField<SysBusDevice>,

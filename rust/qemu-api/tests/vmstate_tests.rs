@@ -2,14 +2,18 @@
 // Author(s): Zhao Liu <zhai1.liu@intel.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::{ffi::CStr, mem::size_of, os::raw::c_void, ptr::NonNull, slice};
+use std::{
+    ffi::{c_void, CStr},
+    mem::size_of,
+    ptr::NonNull,
+    slice,
+};
 
 use qemu_api::{
     bindings::{
         vmstate_info_bool, vmstate_info_int32, vmstate_info_int64, vmstate_info_int8,
         vmstate_info_uint64, vmstate_info_uint8, vmstate_info_unused_buffer, VMStateFlags,
     },
-    c_str,
     cell::{BqlCell, Opaque},
     impl_vmstate_forward,
     vmstate::{VMStateDescription, VMStateField},
@@ -28,7 +32,7 @@ const FOO_ARRAY_MAX: usize = 3;
 //     - VMSTATE_VARRAY_UINT16_UNSAFE
 //     - VMSTATE_VARRAY_MULTIPLY
 #[repr(C)]
-#[derive(Default, qemu_api_macros::offsets)]
+#[derive(Default)]
 struct FooA {
     arr: [u8; FOO_ARRAY_MAX],
     num: u16,
@@ -38,7 +42,7 @@ struct FooA {
 }
 
 static VMSTATE_FOOA: VMStateDescription = VMStateDescription {
-    name: c_str!("foo_a").as_ptr(),
+    name: c"foo_a".as_ptr(),
     version_id: 1,
     minimum_version_id: 1,
     fields: vmstate_fields! {
@@ -149,7 +153,7 @@ fn test_vmstate_varray_multiply() {
 //     - VMSTATE_ARRAY
 //     - VMSTATE_STRUCT_VARRAY_UINT8 with BqlCell wrapper & test_fn
 #[repr(C)]
-#[derive(Default, qemu_api_macros::offsets)]
+#[derive(Default)]
 struct FooB {
     arr_a: [FooA; FOO_ARRAY_MAX],
     num_a: u8,
@@ -168,7 +172,7 @@ fn validate_foob(_state: &FooB, _version_id: u8) -> bool {
 }
 
 static VMSTATE_FOOB: VMStateDescription = VMStateDescription {
-    name: c_str!("foo_b").as_ptr(),
+    name: c"foo_b".as_ptr(),
     version_id: 2,
     minimum_version_id: 1,
     fields: vmstate_fields! {
@@ -324,7 +328,6 @@ struct FooCWrapper([Opaque<*mut u8>; FOO_ARRAY_MAX]); // Though Opaque<> array i
 impl_vmstate_forward!(FooCWrapper);
 
 #[repr(C)]
-#[derive(qemu_api_macros::offsets)]
 struct FooC {
     ptr: *const i32,
     ptr_a: NonNull<FooA>,
@@ -333,7 +336,7 @@ struct FooC {
 }
 
 static VMSTATE_FOOC: VMStateDescription = VMStateDescription {
-    name: c_str!("foo_c").as_ptr(),
+    name: c"foo_c".as_ptr(),
     version_id: 3,
     minimum_version_id: 1,
     fields: vmstate_fields! {
@@ -448,13 +451,13 @@ fn validate_food_2(_state: &FooD, _version_id: u8) -> bool {
 }
 
 static VMSTATE_FOOD: VMStateDescription = VMStateDescription {
-    name: c_str!("foo_d").as_ptr(),
+    name: c"foo_d".as_ptr(),
     version_id: 3,
     minimum_version_id: 1,
     fields: vmstate_fields! {
-        vmstate_validate!(FooD, c_str!("foo_d_0"), FooD::validate_food_0),
-        vmstate_validate!(FooD, c_str!("foo_d_1"), FooD::validate_food_1),
-        vmstate_validate!(FooD, c_str!("foo_d_2"), validate_food_2),
+        vmstate_validate!(FooD, c"foo_d_0", FooD::validate_food_0),
+        vmstate_validate!(FooD, c"foo_d_1", FooD::validate_food_1),
+        vmstate_validate!(FooD, c"foo_d_2", validate_food_2),
     },
     ..Zeroable::ZERO
 };

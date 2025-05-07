@@ -5,8 +5,7 @@
 //! Bindings to create devices and access device functionality from Rust.
 
 use std::{
-    ffi::{CStr, CString},
-    os::raw::{c_int, c_void},
+    ffi::{c_int, c_void, CStr, CString},
     ptr::NonNull,
 };
 
@@ -191,7 +190,7 @@ macro_rules! define_property {
             // use associated function syntax for type checking
             name: ::std::ffi::CStr::as_ptr($name),
             info: $prop,
-            offset: $crate::offset_of!($state, $field) as isize,
+            offset: ::std::mem::offset_of!($state, $field) as isize,
             bitnr: $bitnr,
             set_default: true,
             defval: $crate::bindings::Property__bindgen_ty_1 { u: $defval as u64 },
@@ -203,7 +202,7 @@ macro_rules! define_property {
             // use associated function syntax for type checking
             name: ::std::ffi::CStr::as_ptr($name),
             info: $prop,
-            offset: $crate::offset_of!($state, $field) as isize,
+            offset: ::std::mem::offset_of!($state, $field) as isize,
             set_default: true,
             defval: $crate::bindings::Property__bindgen_ty_1 { u: $defval as u64 },
             ..$crate::zeroable::Zeroable::ZERO
@@ -214,7 +213,7 @@ macro_rules! define_property {
             // use associated function syntax for type checking
             name: ::std::ffi::CStr::as_ptr($name),
             info: $prop,
-            offset: $crate::offset_of!($state, $field) as isize,
+            offset: ::std::mem::offset_of!($state, $field) as isize,
             set_default: false,
             ..$crate::zeroable::Zeroable::ZERO
         }

@@ -25,7 +25,7 @@
 //!   functionality that is missing from `vmstate_of!`.
 
 use core::{marker::PhantomData, mem, ptr::NonNull};
-use std::os::raw::{c_int, c_void};
+use std::ffi::{c_int, c_void};
 
 pub use crate::bindings::{VMStateDescription, VMStateField};
 use crate::{
@@ -205,8 +205,8 @@ macro_rules! vmstate_of {
             name: ::core::concat!(::core::stringify!($field_name), "\0")
                 .as_bytes()
                 .as_ptr() as *const ::std::os::raw::c_char,
-            offset: $crate::offset_of!($struct_name, $field_name),
-            $(num_offset: $crate::offset_of!($struct_name, $num),)?
+            offset: ::std::mem::offset_of!($struct_name, $field_name),
+            $(num_offset: ::std::mem::offset_of!($struct_name, $num),)?
             $(field_exists: $crate::vmstate_exist_fn!($struct_name, $test_fn),)?
             // The calls to `call_func_with_field!` are the magic that
             // computes most of the VMStateField from the type of the field.
@@ -427,7 +427,7 @@ unsafe impl<T: VMState, const N: usize> VMState for [T; N] {
 macro_rules! vmstate_unused {
     ($size:expr) => {{
         $crate::bindings::VMStateField {
-            name: $crate::c_str!("unused").as_ptr(),
+            name: c"unused".as_ptr(),
             size: $size,
             info: unsafe { ::core::ptr::addr_of!($crate::bindings::vmstate_info_unused_buffer) },
             flags: $crate::bindings::VMStateFlags::VMS_BUFFER,
@@ -483,10 +483,10 @@ macro_rules! vmstate_struct {
             name: ::core::concat!(::core::stringify!($field_name), "\0")
                 .as_bytes()
                 .as_ptr() as *const ::std::os::raw::c_char,
-            $(num_offset: $crate::offset_of!($struct_name, $num),)?
+            $(num_offset: ::std::mem::offset_of!($struct_name, $num),)?
             offset: {
                 $crate::assert_field_type!($struct_name, $field_name, $type $(, num = $num)?);
-                $crate::offset_of!($struct_name, $field_name)
+                ::std::mem::offset_of!($struct_name, $field_name)
             },
             size: ::core::mem::size_of::<$type>(),
             flags: $crate::bindings::VMStateFlags::VMS_STRUCT,
@@ -518,7 +518,7 @@ macro_rules! vmstate_clock {
                     $field_name,
                     $crate::qom::Owned<$crate::qdev::Clock> $(, num = $num)?
                 );
-                $crate::offset_of!($struct_name, $field_name)
+                ::std::mem::offset_of!($struct_name, $field_name)
             },
             size: ::core::mem::size_of::<*const $crate::qdev::Clock>(),
             flags: $crate::bindings::VMStateFlags(

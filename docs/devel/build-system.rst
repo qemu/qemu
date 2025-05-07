@@ -168,7 +168,7 @@ The required versions of the packages are stored in a configuration file
 ``pythondeps.toml``.  The format is custom to QEMU, but it is documented
 at the top of the file itself and it should be easy to understand.  The
 requirements should make it possible to use the version that is packaged
-that is provided by supported distros.
+by QEMU's supported distros.
 
 When dependencies are downloaded, instead, ``configure`` uses a "known
 good" version that is also listed in ``pythondeps.toml``.  In this

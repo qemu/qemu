@@ -6,7 +6,6 @@ use std::{ffi::CStr, ptr::addr_of};
 
 use qemu_api::{
     bindings::{module_call_init, module_init_type, qdev_prop_bool},
-    c_str,
     cell::{self, BqlCell},
     declare_properties, define_property,
     prelude::*,
@@ -21,12 +20,11 @@ mod vmstate_tests;
 
 // Test that macros can compile.
 pub static VMSTATE: VMStateDescription = VMStateDescription {
-    name: c_str!("name").as_ptr(),
+    name: c"name".as_ptr(),
     unmigratable: true,
     ..Zeroable::ZERO
 };
 
-#[derive(qemu_api_macros::offsets)]
 #[repr(C)]
 #[derive(qemu_api_macros::Object)]
 pub struct DummyState {
@@ -49,7 +47,7 @@ impl DummyClass {
 declare_properties! {
     DUMMY_PROPERTIES,
         define_property!(
-            c_str!("migrate-clk"),
+            c"migrate-clk",
             DummyState,
             migrate_clock,
             unsafe { &qdev_prop_bool },
@@ -59,7 +57,7 @@ declare_properties! {
 
 unsafe impl ObjectType for DummyState {
     type Class = DummyClass;
-    const TYPE_NAME: &'static CStr = c_str!("dummy");
+    const TYPE_NAME: &'static CStr = c"dummy";
 }
 
 impl ObjectImpl for DummyState {
@@ -79,7 +77,6 @@ impl DeviceImpl for DummyState {
     }
 }
 
-#[derive(qemu_api_macros::offsets)]
 #[repr(C)]
 #[derive(qemu_api_macros::Object)]
 pub struct DummyChildState {
@@ -94,7 +91,7 @@ pub struct DummyChildClass {
 
 unsafe impl ObjectType for DummyChildState {
     type Class = DummyChildClass;
-    const TYPE_NAME: &'static CStr = c_str!("dummy_child");
+    const TYPE_NAME: &'static CStr = c"dummy_child";
 }
 
 impl ObjectImpl for DummyChildState {

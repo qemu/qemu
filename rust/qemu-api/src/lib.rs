@@ -15,7 +15,6 @@ pub mod prelude;
 
 pub mod assertions;
 pub mod bitops;
-pub mod c_str;
 pub mod callbacks;
 pub mod cell;
 pub mod chardev;
@@ -23,7 +22,6 @@ pub mod errno;
 pub mod irq;
 pub mod memory;
 pub mod module;
-pub mod offset_of;
 pub mod qdev;
 pub mod qom;
 pub mod sysbus;
@@ -33,7 +31,7 @@ pub mod zeroable;
 
 use std::{
     alloc::{GlobalAlloc, Layout},
-    os::raw::c_void,
+    ffi::c_void,
 };
 
 #[cfg(HAVE_GLIB_WITH_ALIGNED_ALLOC)]
@@ -165,6 +163,3 @@ unsafe impl GlobalAlloc for QemuAllocator {
         }
     }
 }
-
-#[cfg(has_offset_of)]
-pub use core::mem::offset_of;

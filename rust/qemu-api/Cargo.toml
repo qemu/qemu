@@ -17,9 +17,6 @@ rust-version.workspace = true
 qemu_api_macros = { path = "../qemu-api-macros" }
 libc = "0.2.162"
 
-[build-dependencies]
-version_check = "~0.9"
-
 [features]
 default = ["debug_cell"]
 allocator = []

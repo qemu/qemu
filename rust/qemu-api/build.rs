@@ -8,15 +8,13 @@ use std::os::unix::fs::symlink as symlink_file;
 use std::os::windows::fs::symlink_file;
 use std::{env, fs::remove_file, io::Result, path::Path};
 
-use version_check as rustc;
-
 fn main() -> Result<()> {
     // Placing bindings.inc.rs in the source directory is supported
     // but not documented or encouraged.
     let path = env::var("MESON_BUILD_ROOT")
         .unwrap_or_else(|_| format!("{}/src", env!("CARGO_MANIFEST_DIR")));
 
-    let file = format!("{}/bindings.inc.rs", path);
+    let file = format!("{path}/bindings.inc.rs");
     let file = Path::new(&file);
     if !Path::new(&file).exists() {
         panic!(concat!(
@@ -31,17 +29,12 @@ fn main() -> Result<()> {
     }
 
     let out_dir = env::var("OUT_DIR").unwrap();
-    let dest_path = format!("{}/bindings.inc.rs", out_dir);
+    let dest_path = format!("{out_dir}/bindings.inc.rs");
     let dest_path = Path::new(&dest_path);
     if dest_path.symlink_metadata().is_ok() {
         remove_file(dest_path)?;
     }
     symlink_file(file, dest_path)?;
-
-    // Check for available rustc features
-    if rustc::is_min_version("1.77.0").unwrap_or(false) {
-        println!("cargo:rustc-cfg=has_offset_of");
-    }
 
     println!("cargo:rerun-if-changed=build.rs");
     Ok(())

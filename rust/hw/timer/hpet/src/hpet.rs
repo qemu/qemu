@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use std::{
-    ffi::CStr,
-    os::raw::{c_int, c_void},
+    ffi::{c_int, c_void, CStr},
     pin::Pin,
     ptr::{addr_of_mut, null_mut, NonNull},
     slice::from_ref,
@@ -15,7 +14,6 @@ use qemu_api::{
         address_space_memory, address_space_stl_le, qdev_prop_bit, qdev_prop_bool,
         qdev_prop_uint32, qdev_prop_uint8,
     },
-    c_str,
     cell::{BqlCell, BqlRefCell},
     irq::InterruptSource,
     memory::{
@@ -184,7 +182,7 @@ fn timer_handler(timer_cell: &BqlRefCell<HPETTimer>) {
 
 /// HPET Timer Abstraction
 #[repr(C)]
-#[derive(Debug, qemu_api_macros::offsets)]
+#[derive(Debug)]
 pub struct HPETTimer {
     /// timer N index within the timer block (`HPETState`)
     #[doc(alias = "tn")]
@@ -220,7 +218,7 @@ impl HPETTimer {
             // SAFETY: the HPETTimer will only be used after the timer
             // is initialized below.
             qemu_timer: unsafe { Timer::new() },
-            state: NonNull::new(state as *const _ as *mut _).unwrap(),
+            state: NonNull::new((state as *const HPETState).cast_mut()).unwrap(),
             config: 0,
             cmp: 0,
             fsb: 0,
@@ -524,7 +522,7 @@ impl HPETTimer {
 
 /// HPET Event Timer Block Abstraction
 #[repr(C)]
-#[derive(qemu_api_macros::Object, qemu_api_macros::offsets)]
+#[derive(qemu_api_macros::Object)]
 pub struct HPETState {
     parent_obj: ParentField<SysBusDevice>,
     iomem: MemoryRegion,
@@ -909,7 +907,7 @@ impl ObjectImpl for HPETState {
 qemu_api::declare_properties! {
     HPET_PROPERTIES,
     qemu_api::define_property!(
-        c_str!("timers"),
+        c"timers",
         HPETState,
         num_timers,
         unsafe { &qdev_prop_uint8 },
@@ -917,7 +915,7 @@ qemu_api::declare_properties! {
         default = HPET_MIN_TIMERS
     ),
     qemu_api::define_property!(
-        c_str!("msi"),
+        c"msi",
         HPETState,
         flags,
         unsafe { &qdev_prop_bit },
@@ -926,7 +924,7 @@ qemu_api::declare_properties! {
         default = false,
     ),
     qemu_api::define_property!(
-        c_str!("hpet-intcap"),
+        c"hpet-intcap",
         HPETState,
         int_route_cap,
         unsafe { &qdev_prop_uint32 },
@@ -934,7 +932,7 @@ qemu_api::declare_properties! {
         default = 0
     ),
     qemu_api::define_property!(
-        c_str!("hpet-offset-saved"),
+        c"hpet-offset-saved",
         HPETState,
         hpet_offset_saved,
         unsafe { &qdev_prop_bool },
@@ -975,7 +973,7 @@ unsafe extern "C" fn hpet_post_load(opaque: *mut c_void, version_id: c_int) -> c
 }
 
 static VMSTATE_HPET_RTC_IRQ_LEVEL: VMStateDescription = VMStateDescription {
-    name: c_str!("hpet/rtc_irq_level").as_ptr(),
+    name: c"hpet/rtc_irq_level".as_ptr(),
     version_id: 1,
     minimum_version_id: 1,
     needed: Some(hpet_rtc_irq_level_needed),
@@ -986,7 +984,7 @@ static VMSTATE_HPET_RTC_IRQ_LEVEL: VMStateDescription = VMStateDescription {
 };
 
 static VMSTATE_HPET_OFFSET: VMStateDescription = VMStateDescription {
-    name: c_str!("hpet/offset").as_ptr(),
+    name: c"hpet/offset".as_ptr(),
     version_id: 1,
     minimum_version_id: 1,
     needed: Some(hpet_offset_needed),
@@ -997,7 +995,7 @@ static VMSTATE_HPET_OFFSET: VMStateDescription = VMStateDescription {
 };
 
 static VMSTATE_HPET_TIMER: VMStateDescription = VMStateDescription {
-    name: c_str!("hpet_timer").as_ptr(),
+    name: c"hpet_timer".as_ptr(),
     version_id: 1,
     minimum_version_id: 1,
     fields: vmstate_fields! {
@@ -1012,10 +1010,10 @@ static VMSTATE_HPET_TIMER: VMStateDescription = VMStateDescription {
     ..Zeroable::ZERO
 };
 
-const VALIDATE_TIMERS_NAME: &CStr = c_str!("num_timers must match");
+const VALIDATE_TIMERS_NAME: &CStr = c"num_timers must match";
 
 static VMSTATE_HPET: VMStateDescription = VMStateDescription {
-    name: c_str!("hpet").as_ptr(),
+    name: c"hpet".as_ptr(),
     version_id: 2,
     minimum_version_id: 1,
     pre_save: Some(hpet_pre_save),

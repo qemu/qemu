@@ -5,9 +5,8 @@
 //! Bindings for `MemoryRegion`, `MemoryRegionOps` and `MemTxAttrs`
 
 use std::{
-    ffi::{CStr, CString},
+    ffi::{c_uint, c_void, CStr, CString},
     marker::PhantomData,
-    os::raw::{c_uint, c_void},
 };
 
 pub use bindings::{hwaddr, MemTxAttrs};
