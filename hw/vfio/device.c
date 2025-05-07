@@ -412,3 +412,10 @@ void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainerBase *bcontainer,
 
     QLIST_INSERT_HEAD(&vfio_device_list, vbasedev, global_next);
 }
+
+void vfio_device_unprepare(VFIODevice *vbasedev)
+{
+    QLIST_REMOVE(vbasedev, container_next);
+    QLIST_REMOVE(vbasedev, global_next);
+    vbasedev->bcontainer = NULL;
+}

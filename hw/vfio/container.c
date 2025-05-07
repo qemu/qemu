@@ -927,10 +927,10 @@ static void vfio_legacy_detach_device(VFIODevice *vbasedev)
 {
     VFIOGroup *group = vbasedev->group;
 
-    QLIST_REMOVE(vbasedev, global_next);
-    QLIST_REMOVE(vbasedev, container_next);
-    vbasedev->bcontainer = NULL;
     trace_vfio_device_detach(vbasedev->name, group->groupid);
+
+    vfio_device_unprepare(vbasedev);
+
     object_unref(vbasedev->hiod);
     vfio_device_put(vbasedev);
     vfio_group_put(group);

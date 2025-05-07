@@ -615,9 +615,7 @@ static void iommufd_cdev_detach(VFIODevice *vbasedev)
     VFIOIOMMUFDContainer *container = container_of(bcontainer,
                                                    VFIOIOMMUFDContainer,
                                                    bcontainer);
-    QLIST_REMOVE(vbasedev, global_next);
-    QLIST_REMOVE(vbasedev, container_next);
-    vbasedev->bcontainer = NULL;
+    vfio_device_unprepare(vbasedev);
 
     if (!vbasedev->ram_block_discard_allowed) {
         iommufd_cdev_ram_block_discard_disable(false);
