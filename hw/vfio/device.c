@@ -202,6 +202,12 @@ int vfio_device_get_region_info(VFIODevice *vbasedev, int index,
     size_t argsz = sizeof(struct vfio_region_info);
     int ret;
 
+    /* check cache */
+    if (vbasedev->reginfo[index] != NULL) {
+        *info = vbasedev->reginfo[index];
+        return 0;
+    }
+
     *info = g_malloc0(argsz);
 
     (*info)->index = index;
@@ -222,6 +228,9 @@ retry:
         goto retry;
     }
 
+    /* fill cache */
+    vbasedev->reginfo[index] = *info;
+
     return 0;
 }
 
@@ -240,7 +249,6 @@ int vfio_device_get_region_info_type(VFIODevice *vbasedev, uint32_t type,
 
         hdr = vfio_get_region_info_cap(*info, VFIO_REGION_INFO_CAP_TYPE);
         if (!hdr) {
-            g_free(*info);
             continue;
         }
 
@@ -252,8 +260,6 @@ int vfio_device_get_region_info_type(VFIODevice *vbasedev, uint32_t type,
         if (cap_type->type == type && cap_type->subtype == subtype) {
             return 0;
         }
-
-        g_free(*info);
     }
 
     *info = NULL;
@@ -262,7 +268,7 @@ int vfio_device_get_region_info_type(VFIODevice *vbasedev, uint32_t type,
 
 bool vfio_device_has_region_cap(VFIODevice *vbasedev, int region, uint16_t cap_type)
 {
-    g_autofree struct vfio_region_info *info = NULL;
+    struct vfio_region_info *info = NULL;
     bool ret = false;
 
     if (!vfio_device_get_region_info(vbasedev, region, &info)) {
@@ -435,10 +441,21 @@ void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainerBase *bcontainer,
     QLIST_INSERT_HEAD(&bcontainer->device_list, vbasedev, container_next);
 
     QLIST_INSERT_HEAD(&vfio_device_list, vbasedev, global_next);
+
+    vbasedev->reginfo = g_new0(struct vfio_region_info *,
+                               vbasedev->num_regions);
 }
 
 void vfio_device_unprepare(VFIODevice *vbasedev)
 {
+    int i;
+
+    for (i = 0; i < vbasedev->num_regions; i++) {
+        g_free(vbasedev->reginfo[i]);
+    }
+    g_free(vbasedev->reginfo);
+    vbasedev->reginfo = NULL;
+
     QLIST_REMOVE(vbasedev, container_next);
     QLIST_REMOVE(vbasedev, global_next);
     vbasedev->bcontainer = NULL;

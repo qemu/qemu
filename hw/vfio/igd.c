@@ -349,8 +349,8 @@ static int vfio_pci_igd_lpc_init(VFIOPCIDevice *vdev,
 
 static bool vfio_pci_igd_setup_lpc_bridge(VFIOPCIDevice *vdev, Error **errp)
 {
-    g_autofree struct vfio_region_info *host = NULL;
-    g_autofree struct vfio_region_info *lpc = NULL;
+    struct vfio_region_info *host = NULL;
+    struct vfio_region_info *lpc = NULL;
     PCIDevice *lpc_bridge;
     int ret;
 
@@ -510,7 +510,7 @@ void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
 
 static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
 {
-    g_autofree struct vfio_region_info *opregion = NULL;
+    struct vfio_region_info *opregion = NULL;
     int ret, gen;
     uint64_t gms_size = 0;
     uint64_t *bdsm_size;
@@ -551,7 +551,7 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
          * - OpRegion
          * - Same LPC bridge and Host bridge VID/DID/SVID/SSID as host
          */
-        g_autofree struct vfio_region_info *rom = NULL;
+        struct vfio_region_info *rom = NULL;
 
         legacy_mode_enabled = true;
         info_report("IGD legacy mode enabled, "
@@ -681,7 +681,7 @@ error:
  */
 static bool vfio_pci_kvmgt_config_quirk(VFIOPCIDevice *vdev, Error **errp)
 {
-    g_autofree struct vfio_region_info *opregion = NULL;
+    struct vfio_region_info *opregion = NULL;
     int gen;
 
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
