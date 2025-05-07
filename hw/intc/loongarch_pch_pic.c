@@ -79,10 +79,10 @@ static uint64_t loongarch_pch_pic_low_readw(void *opaque, hwaddr addr,
     uint32_t offset = addr & 0xfff;
 
     switch (offset) {
-    case PCH_PIC_INT_ID_LO:
+    case PCH_PIC_INT_ID:
         val = PCH_PIC_INT_ID_VAL;
         break;
-    case PCH_PIC_INT_ID_HI:
+    case PCH_PIC_INT_ID + 4:
         /*
          * With 7A1000 manual
          *   bit  0-15 pch irqchip version
@@ -90,28 +90,29 @@ static uint64_t loongarch_pch_pic_low_readw(void *opaque, hwaddr addr,
          */
         val = deposit32(PCH_PIC_INT_ID_VER, 16, 16, s->irq_num - 1);
         break;
-    case PCH_PIC_INT_MASK_LO:
+    case PCH_PIC_INT_MASK:
         val = (uint32_t)s->int_mask;
         break;
-    case PCH_PIC_INT_MASK_HI:
+    case PCH_PIC_INT_MASK + 4:
         val = s->int_mask >> 32;
         break;
-    case PCH_PIC_INT_EDGE_LO:
+    case PCH_PIC_INT_EDGE:
         val = (uint32_t)s->intedge;
         break;
-    case PCH_PIC_INT_EDGE_HI:
+    case PCH_PIC_INT_EDGE + 4:
         val = s->intedge >> 32;
         break;
-    case PCH_PIC_HTMSI_EN_LO:
+    case PCH_PIC_HTMSI_EN:
         val = (uint32_t)s->htmsi_en;
         break;
-    case PCH_PIC_HTMSI_EN_HI:
+    case PCH_PIC_HTMSI_EN + 4:
         val = s->htmsi_en >> 32;
         break;
-    case PCH_PIC_AUTO_CTRL0_LO:
-    case PCH_PIC_AUTO_CTRL0_HI:
-    case PCH_PIC_AUTO_CTRL1_LO:
-    case PCH_PIC_AUTO_CTRL1_HI:
+    case PCH_PIC_AUTO_CTRL0:
+    case PCH_PIC_AUTO_CTRL0 + 4:
+    case PCH_PIC_AUTO_CTRL1:
+    case PCH_PIC_AUTO_CTRL1 + 4:
+        /* PCH PIC connect to EXTIOI always, discard auto_ctrl access */
         break;
     default:
         break;
@@ -140,7 +141,7 @@ static void loongarch_pch_pic_low_writew(void *opaque, hwaddr addr,
     trace_loongarch_pch_pic_low_writew(size, addr, data);
 
     switch (offset) {
-    case PCH_PIC_INT_MASK_LO:
+    case PCH_PIC_INT_MASK:
         old = s->int_mask;
         s->int_mask = get_writew_val(old, data, 0);
         old_valid = (uint32_t)old;
@@ -151,7 +152,7 @@ static void loongarch_pch_pic_low_writew(void *opaque, hwaddr addr,
             pch_pic_update_irq(s, (~old_valid & data), 0);
         }
         break;
-    case PCH_PIC_INT_MASK_HI:
+    case PCH_PIC_INT_MASK + 4:
         old = s->int_mask;
         s->int_mask = get_writew_val(old, data, 1);
         old_valid = (uint32_t)(old >> 32);
@@ -164,20 +165,20 @@ static void loongarch_pch_pic_low_writew(void *opaque, hwaddr addr,
             pch_pic_update_irq(s, int_mask << 32, 0);
         }
         break;
-    case PCH_PIC_INT_EDGE_LO:
+    case PCH_PIC_INT_EDGE:
         s->intedge = get_writew_val(s->intedge, data, 0);
         break;
-    case PCH_PIC_INT_EDGE_HI:
+    case PCH_PIC_INT_EDGE + 4:
         s->intedge = get_writew_val(s->intedge, data, 1);
         break;
-    case PCH_PIC_INT_CLEAR_LO:
+    case PCH_PIC_INT_CLEAR:
         if (s->intedge & data) {
             s->intirr &= (~data);
             pch_pic_update_irq(s, data, 0);
             s->intisr &= (~data);
         }
         break;
-    case PCH_PIC_INT_CLEAR_HI:
+    case PCH_PIC_INT_CLEAR + 4:
         value <<= 32;
         if (s->intedge & value) {
             s->intirr &= (~value);
@@ -185,16 +186,17 @@ static void loongarch_pch_pic_low_writew(void *opaque, hwaddr addr,
             s->intisr &= (~value);
         }
         break;
-    case PCH_PIC_HTMSI_EN_LO:
+    case PCH_PIC_HTMSI_EN:
         s->htmsi_en = get_writew_val(s->htmsi_en, data, 0);
         break;
-    case PCH_PIC_HTMSI_EN_HI:
+    case PCH_PIC_HTMSI_EN + 4:
         s->htmsi_en = get_writew_val(s->htmsi_en, data, 1);
         break;
-    case PCH_PIC_AUTO_CTRL0_LO:
-    case PCH_PIC_AUTO_CTRL0_HI:
-    case PCH_PIC_AUTO_CTRL1_LO:
-    case PCH_PIC_AUTO_CTRL1_HI:
+    case PCH_PIC_AUTO_CTRL0:
+    case PCH_PIC_AUTO_CTRL0 + 4:
+    case PCH_PIC_AUTO_CTRL1:
+    case PCH_PIC_AUTO_CTRL1 + 4:
+        /* discard auto_ctrl access */
         break;
     default:
         break;
