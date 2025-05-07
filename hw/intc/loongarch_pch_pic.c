@@ -200,12 +200,15 @@ static uint64_t loongarch_pch_pic_read(void *opaque, hwaddr addr,
         break;
     }
 
+    trace_loongarch_pch_pic_read(size, addr, val);
     return val;
 }
 
 static void loongarch_pch_pic_write(void *opaque, hwaddr addr,
                                     uint64_t value, unsigned size)
 {
+    trace_loongarch_pch_pic_write(size, addr, value);
+
     switch (size) {
     case 1:
         pch_pic_write(opaque, addr, value, UCHAR_MAX);
@@ -230,55 +233,40 @@ static void loongarch_pch_pic_write(void *opaque, hwaddr addr,
 static uint64_t loongarch_pch_pic_low_readw(void *opaque, hwaddr addr,
                                             unsigned size)
 {
-    uint64_t val;
-
-    val = loongarch_pch_pic_read(opaque, addr, size);
-    trace_loongarch_pch_pic_low_readw(size, addr, val);
-    return val;
+    return loongarch_pch_pic_read(opaque, addr, size);
 }
 
 static void loongarch_pch_pic_low_writew(void *opaque, hwaddr addr,
                                          uint64_t value, unsigned size)
 {
-    trace_loongarch_pch_pic_low_writew(size, addr, value);
     loongarch_pch_pic_write(opaque, addr, value, size);
 }
 
 static uint64_t loongarch_pch_pic_high_readw(void *opaque, hwaddr addr,
                                         unsigned size)
 {
-    uint64_t val;
-
     addr += PCH_PIC_INT_STATUS;
-    val = loongarch_pch_pic_read(opaque, addr, size);
-    trace_loongarch_pch_pic_high_readw(size, addr, val);
-    return val;
+    return loongarch_pch_pic_read(opaque, addr, size);
 }
 
 static void loongarch_pch_pic_high_writew(void *opaque, hwaddr addr,
                                      uint64_t value, unsigned size)
 {
     addr += PCH_PIC_INT_STATUS;
-    trace_loongarch_pch_pic_high_writew(size, addr, value);
     loongarch_pch_pic_write(opaque, addr, value, size);
 }
 
 static uint64_t loongarch_pch_pic_readb(void *opaque, hwaddr addr,
                                         unsigned size)
 {
-    uint64_t val;
-
     addr += PCH_PIC_ROUTE_ENTRY;
-    val = loongarch_pch_pic_read(opaque, addr, size);
-    trace_loongarch_pch_pic_readb(size, addr, val);
-    return val;
+    return loongarch_pch_pic_read(opaque, addr, size);
 }
 
 static void loongarch_pch_pic_writeb(void *opaque, hwaddr addr,
                                      uint64_t data, unsigned size)
 {
     addr += PCH_PIC_ROUTE_ENTRY;
-    trace_loongarch_pch_pic_writeb(size, addr, data);
     loongarch_pch_pic_write(opaque, addr, data, size);
 }
 
