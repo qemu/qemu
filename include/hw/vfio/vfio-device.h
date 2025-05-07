@@ -188,6 +188,24 @@ struct VFIODeviceIOOps {
      * Configure IRQs as defined by @irqs.
      */
     int (*set_irqs)(VFIODevice *vdev, struct vfio_irq_set *irqs);
+
+    /**
+     * @region_read
+     *
+     * Read @size bytes from the region @nr at offset @off into the buffer
+     * @data.
+     */
+    int (*region_read)(VFIODevice *vdev, uint8_t nr, off_t off, uint32_t size,
+                       void *data);
+
+    /**
+     * @region_write
+     *
+     * Write @size bytes to the region @nr at offset @off from the buffer
+     * @data.
+     */
+    int (*region_write)(VFIODevice *vdev, uint8_t nr, off_t off, uint32_t size,
+                        void *data);
 };
 
 void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainerBase *bcontainer,
