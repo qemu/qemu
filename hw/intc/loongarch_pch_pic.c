@@ -230,34 +230,6 @@ static void loongarch_pch_pic_write(void *opaque, hwaddr addr,
     }
 }
 
-static uint64_t loongarch_pch_pic_high_readw(void *opaque, hwaddr addr,
-                                        unsigned size)
-{
-    addr += PCH_PIC_INT_STATUS;
-    return loongarch_pch_pic_read(opaque, addr, size);
-}
-
-static void loongarch_pch_pic_high_writew(void *opaque, hwaddr addr,
-                                     uint64_t value, unsigned size)
-{
-    addr += PCH_PIC_INT_STATUS;
-    loongarch_pch_pic_write(opaque, addr, value, size);
-}
-
-static uint64_t loongarch_pch_pic_readb(void *opaque, hwaddr addr,
-                                        unsigned size)
-{
-    addr += PCH_PIC_ROUTE_ENTRY;
-    return loongarch_pch_pic_read(opaque, addr, size);
-}
-
-static void loongarch_pch_pic_writeb(void *opaque, hwaddr addr,
-                                     uint64_t data, unsigned size)
-{
-    addr += PCH_PIC_ROUTE_ENTRY;
-    loongarch_pch_pic_write(opaque, addr, data, size);
-}
-
 static const MemoryRegionOps loongarch_pch_pic_ops = {
     .read = loongarch_pch_pic_read,
     .write = loongarch_pch_pic_write,
@@ -275,34 +247,6 @@ static const MemoryRegionOps loongarch_pch_pic_ops = {
     .impl = {
         .min_access_size = 1,
         .max_access_size = 8,
-    },
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
-static const MemoryRegionOps loongarch_pch_pic_reg32_high_ops = {
-    .read = loongarch_pch_pic_high_readw,
-    .write = loongarch_pch_pic_high_writew,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 8,
-    },
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
-static const MemoryRegionOps loongarch_pch_pic_reg8_ops = {
-    .read = loongarch_pch_pic_readb,
-    .write = loongarch_pch_pic_writeb,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 1,
-    },
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 1,
     },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
@@ -333,16 +277,8 @@ static void loongarch_pic_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_in(dev, pch_pic_irq_handler, s->irq_num);
     memory_region_init_io(&s->iomem, OBJECT(dev),
                           &loongarch_pch_pic_ops,
-                          s, TYPE_LOONGARCH_PIC, 0x100);
-    memory_region_init_io(&s->iomem8, OBJECT(dev), &loongarch_pch_pic_reg8_ops,
-                          s, PCH_PIC_NAME(.reg8), 0x2a0);
-    memory_region_init_io(&s->iomem32_high, OBJECT(dev),
-                          &loongarch_pch_pic_reg32_high_ops,
-                          s, PCH_PIC_NAME(.reg32_part2), 0xc60);
+                          s, TYPE_LOONGARCH_PIC, VIRT_PCH_REG_SIZE);
     sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_mmio(sbd, &s->iomem8);
-    sysbus_init_mmio(sbd, &s->iomem32_high);
-
 }
 
 static void loongarch_pic_class_init(ObjectClass *klass, const void *data)

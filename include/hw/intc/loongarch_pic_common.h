@@ -66,8 +66,6 @@ struct LoongArchPICCommonState {
     uint8_t htmsi_vector[64]; /* 0x200 - 0x238 */
 
     MemoryRegion iomem;
-    MemoryRegion iomem32_high;
-    MemoryRegion iomem8;
     unsigned int irq_num;
 };
 
