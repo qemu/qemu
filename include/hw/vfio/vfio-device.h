@@ -41,6 +41,7 @@ enum {
 };
 
 typedef struct VFIODeviceOps VFIODeviceOps;
+typedef struct VFIODeviceIOOps VFIODeviceIOOps;
 typedef struct VFIOMigration VFIOMigration;
 
 typedef struct IOMMUFDBackend IOMMUFDBackend;
@@ -66,6 +67,7 @@ typedef struct VFIODevice {
     OnOffAuto migration_multifd_transfer;
     bool migration_events;
     VFIODeviceOps *ops;
+    VFIODeviceIOOps *io_ops;
     unsigned int num_irqs;
     unsigned int num_regions;
     unsigned int flags;
@@ -151,6 +153,42 @@ typedef QLIST_HEAD(VFIODeviceList, VFIODevice) VFIODeviceList;
 extern VFIODeviceList vfio_device_list;
 
 #ifdef CONFIG_LINUX
+/*
+ * How devices communicate with the server.  The default option is through
+ * ioctl() to the kernel VFIO driver, but vfio-user can use a socket to a remote
+ * process.
+ */
+struct VFIODeviceIOOps {
+    /**
+     * @device_feature
+     *
+     * Fill in feature info for the given device.
+     */
+    int (*device_feature)(VFIODevice *vdev, struct vfio_device_feature *);
+
+    /**
+     * @get_region_info
+     *
+     * Fill in @info with information on the region given by @info->index.
+     */
+    int (*get_region_info)(VFIODevice *vdev,
+                           struct vfio_region_info *info);
+
+    /**
+     * @get_irq_info
+     *
+     * Fill in @irq with information on the IRQ given by @info->index.
+     */
+    int (*get_irq_info)(VFIODevice *vdev, struct vfio_irq_info *irq);
+
+    /**
+     * @set_irqs
+     *
+     * Configure IRQs as defined by @irqs.
+     */
+    int (*set_irqs)(VFIODevice *vdev, struct vfio_irq_set *irqs);
+};
+
 void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainerBase *bcontainer,
                          struct vfio_device_info *info);
 
