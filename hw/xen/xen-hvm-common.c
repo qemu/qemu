@@ -711,7 +711,7 @@ static int xen_map_ioreq_server(XenIOState *state)
     /*
      * If we fail to map the shared page with xenforeignmemory_map_resource()
      * or if we're using buffered ioreqs, we need xen_get_ioreq_server_info()
-     * to provide the the addresses to map the shared page and/or to get the
+     * to provide the addresses to map the shared page and/or to get the
      * event-channel port for buffered ioreqs.
      */
     if (state->shared_page == NULL || state->has_bufioreq) {
