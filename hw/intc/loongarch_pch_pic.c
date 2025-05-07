@@ -123,7 +123,7 @@ static void pch_pic_write(void *opaque, hwaddr addr, uint64_t value,
 {
     LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(opaque);
     uint32_t offset;
-    uint64_t old, mask, data;
+    uint64_t old, mask, data, *ptemp;
 
     offset = addr & 7;
     addr -= offset;
@@ -160,6 +160,14 @@ static void pch_pic_write(void *opaque, hwaddr addr, uint64_t value,
         break;
     case PCH_PIC_INT_POL:
         s->int_polarity = (s->int_polarity & ~mask) | data;
+        break;
+    case PCH_PIC_HTMSI_VEC ... PCH_PIC_HTMSI_VEC_END:
+        ptemp = (uint64_t *)(s->htmsi_vector + addr - PCH_PIC_HTMSI_VEC);
+        *ptemp = (*ptemp & ~mask) | data;
+        break;
+    case PCH_PIC_ROUTE_ENTRY ... PCH_PIC_ROUTE_ENTRY_END:
+        ptemp = (uint64_t *)(s->route_entry + addr - PCH_PIC_ROUTE_ENTRY);
+        *ptemp = (*ptemp & ~mask) | data;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -269,28 +277,9 @@ static uint64_t loongarch_pch_pic_readb(void *opaque, hwaddr addr,
 static void loongarch_pch_pic_writeb(void *opaque, hwaddr addr,
                                      uint64_t data, unsigned size)
 {
-    LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(opaque);
-    int32_t offset_tmp;
-
     addr += PCH_PIC_ROUTE_ENTRY;
     trace_loongarch_pch_pic_writeb(size, addr, data);
-
-    switch (addr) {
-    case PCH_PIC_HTMSI_VEC ... PCH_PIC_HTMSI_VEC_END:
-        offset_tmp = addr - PCH_PIC_HTMSI_VEC;
-        if (offset_tmp >= 0 && offset_tmp < 64) {
-            s->htmsi_vector[offset_tmp] = (uint8_t)(data & 0xff);
-        }
-        break;
-    case PCH_PIC_ROUTE_ENTRY ... PCH_PIC_ROUTE_ENTRY_END:
-        offset_tmp = addr - PCH_PIC_ROUTE_ENTRY;
-        if (offset_tmp >= 0 && offset_tmp < 64) {
-            s->route_entry[offset_tmp] = (uint8_t)(data & 0xff);
-        }
-        break;
-    default:
-        break;
-    }
+    loongarch_pch_pic_write(opaque, addr, data, size);
 }
 
 static const MemoryRegionOps loongarch_pch_pic_reg32_low_ops = {
