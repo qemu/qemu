@@ -115,6 +115,20 @@ struct VFIODeviceOps {
     int (*vfio_load_config)(VFIODevice *vdev, QEMUFile *f);
 };
 
+/*
+ * Given a return value of either a short number of bytes read or -errno,
+ * construct a meaningful error message.
+ */
+#define strreaderror(ret) \
+    (ret < 0 ? strerror(-ret) : "short read")
+
+/*
+ * Given a return value of either a short number of bytes written or -errno,
+ * construct a meaningful error message.
+ */
+#define strwriteerror(ret) \
+    (ret < 0 ? strerror(-ret) : "short write")
+
 void vfio_device_irq_disable(VFIODevice *vbasedev, int index);
 void vfio_device_irq_unmask(VFIODevice *vbasedev, int index);
 void vfio_device_irq_mask(VFIODevice *vbasedev, int index);
