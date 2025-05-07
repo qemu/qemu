@@ -12,6 +12,7 @@
 #include "qemu/error-report.h"
 #include "system/hvf.h"
 #include "system/hvf_int.h"
+#include "hw/core/cpu.h"
 
 const char *hvf_return_string(hv_return_t ret)
 {
