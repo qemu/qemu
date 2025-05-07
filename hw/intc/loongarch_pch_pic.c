@@ -158,6 +158,9 @@ static void pch_pic_write(void *opaque, hwaddr addr, uint64_t value,
     case PCH_PIC_AUTO_CTRL1:
         /* Discard auto_ctrl access */
         break;
+    case PCH_PIC_INT_POL:
+        s->int_polarity = (s->int_polarity & ~mask) | data;
+        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "pch_pic_write: Bad address 0x%"PRIx64"\n", addr);
@@ -226,14 +229,6 @@ static uint64_t loongarch_pch_pic_low_readw(void *opaque, hwaddr addr,
     return val;
 }
 
-static uint64_t get_writew_val(uint64_t value, uint32_t target, bool hi)
-{
-    uint64_t mask = 0xffffffff00000000;
-    uint64_t data = target;
-
-    return hi ? (value & ~mask) | (data << 32) : (value & mask) | data;
-}
-
 static void loongarch_pch_pic_low_writew(void *opaque, hwaddr addr,
                                          uint64_t value, unsigned size)
 {
@@ -255,22 +250,9 @@ static uint64_t loongarch_pch_pic_high_readw(void *opaque, hwaddr addr,
 static void loongarch_pch_pic_high_writew(void *opaque, hwaddr addr,
                                      uint64_t value, unsigned size)
 {
-    LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(opaque);
-    uint32_t data = (uint32_t)value;
-
     addr += PCH_PIC_INT_STATUS;
-    trace_loongarch_pch_pic_high_writew(size, addr, data);
-
-    switch (addr) {
-    case PCH_PIC_INT_POL:
-        s->int_polarity = get_writew_val(s->int_polarity, data, 0);
-        break;
-    case PCH_PIC_INT_POL + 4:
-        s->int_polarity = get_writew_val(s->int_polarity, data, 1);
-        break;
-    default:
-        break;
-    }
+    trace_loongarch_pch_pic_high_writew(size, addr, value);
+    loongarch_pch_pic_write(opaque, addr, value, size);
 }
 
 static uint64_t loongarch_pch_pic_readb(void *opaque, hwaddr addr,
