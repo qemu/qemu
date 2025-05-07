@@ -208,19 +208,19 @@ static uint64_t loongarch_pch_pic_high_readw(void *opaque, hwaddr addr,
 {
     LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(opaque);
     uint64_t val = 0;
-    uint32_t offset = addr & 0xfff;
+    uint32_t offset = addr + PCH_PIC_INT_STATUS;
 
     switch (offset) {
-    case STATUS_LO_START:
+    case PCH_PIC_INT_STATUS:
         val = (uint32_t)(s->intisr & (~s->int_mask));
         break;
-    case STATUS_HI_START:
+    case PCH_PIC_INT_STATUS + 4:
         val = (s->intisr & (~s->int_mask)) >> 32;
         break;
-    case POL_LO_START:
+    case PCH_PIC_INT_POL:
         val = (uint32_t)s->int_polarity;
         break;
-    case POL_HI_START:
+    case PCH_PIC_INT_POL + 4:
         val = s->int_polarity >> 32;
         break;
     default:
@@ -236,21 +236,21 @@ static void loongarch_pch_pic_high_writew(void *opaque, hwaddr addr,
 {
     LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(opaque);
     uint32_t offset, data = (uint32_t)value;
-    offset = addr & 0xfff;
+    offset = addr + PCH_PIC_INT_STATUS;
 
     trace_loongarch_pch_pic_high_writew(size, addr, data);
 
     switch (offset) {
-    case STATUS_LO_START:
+    case PCH_PIC_INT_STATUS:
         s->intisr = get_writew_val(s->intisr, data, 0);
         break;
-    case STATUS_HI_START:
+    case PCH_PIC_INT_STATUS + 4:
         s->intisr = get_writew_val(s->intisr, data, 1);
         break;
-    case POL_LO_START:
+    case PCH_PIC_INT_POL:
         s->int_polarity = get_writew_val(s->int_polarity, data, 0);
         break;
-    case POL_HI_START:
+    case PCH_PIC_INT_POL + 4:
         s->int_polarity = get_writew_val(s->int_polarity, data, 1);
         break;
     default:
