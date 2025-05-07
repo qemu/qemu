@@ -49,6 +49,19 @@ static void loongarch_pic_common_reset_hold(Object *obj, ResetType type)
     LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(obj);
     int i;
 
+    /*
+     * With Loongson 7A1000 user manual
+     * Chapter 5.2 "Description of Interrupt-related Registers"
+     *
+     * Interrupt controller identification register 1
+     *   Bit 24-31 Interrupt Controller ID
+     * Interrupt controller identification register 2
+     *   Bit  0-7  Interrupt Controller version number
+     *   Bit 16-23 The number of interrupt sources supported
+     */
+    s->id.desc.id = PCH_PIC_INT_ID_VAL;
+    s->id.desc.version = PCH_PIC_INT_ID_VER;
+    s->id.desc.irq_num = s->irq_num - 1;
     s->int_mask = UINT64_MAX;
     s->htmsi_en = 0x0;
     s->intedge  = 0x0;

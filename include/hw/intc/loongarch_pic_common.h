@@ -10,9 +10,9 @@
 #include "hw/pci-host/ls7a.h"
 #include "hw/sysbus.h"
 
-#define PCH_PIC_INT_ID_VAL              0x7000000UL
-#define PCH_PIC_INT_ID_VER              0x1UL
 #define PCH_PIC_INT_ID                  0x00
+#define  PCH_PIC_INT_ID_VAL             0x7
+#define  PCH_PIC_INT_ID_VER             0x1
 #define PCH_PIC_INT_MASK                0x20
 #define PCH_PIC_HTMSI_EN                0x40
 #define PCH_PIC_INT_EDGE                0x60
@@ -30,10 +30,23 @@
 OBJECT_DECLARE_TYPE(LoongArchPICCommonState,
                     LoongArchPICCommonClass, LOONGARCH_PIC_COMMON)
 
+union LoongArchPIC_ID {
+    struct {
+        uint8_t _reserved_0[3];
+        uint8_t id;
+        uint8_t version;
+        uint8_t _reserved_1;
+        uint8_t irq_num;
+        uint8_t _reserved_2;
+    } QEMU_PACKED desc;
+    uint64_t data;
+};
+
 struct LoongArchPICCommonState {
     SysBusDevice parent_obj;
 
     qemu_irq parent_irq[64];
+    union LoongArchPIC_ID id; /* 0x00  interrupt ID register */
     uint64_t int_mask;        /* 0x020 interrupt mask register */
     uint64_t htmsi_en;        /* 0x040 1=msi */
     uint64_t intedge;         /* 0x060 edge=1 level=0 */
