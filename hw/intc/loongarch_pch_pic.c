@@ -118,6 +118,53 @@ static uint64_t pch_pic_read(void *opaque, hwaddr addr, uint64_t field_mask)
     return (val >> (offset * 8)) & field_mask;
 }
 
+static void pch_pic_write(void *opaque, hwaddr addr, uint64_t value,
+                          uint64_t field_mask)
+{
+    LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(opaque);
+    uint32_t offset;
+    uint64_t old, mask, data;
+
+    offset = addr & 7;
+    addr -= offset;
+    mask = field_mask << (offset * 8);
+    data = (value & field_mask) << (offset * 8);
+    switch (addr) {
+    case PCH_PIC_INT_MASK:
+        old = s->int_mask;
+        s->int_mask = (old & ~mask) | data;
+        if (old & ~data) {
+            pch_pic_update_irq(s, old & ~data, 1);
+        }
+
+        if (~old & data) {
+            pch_pic_update_irq(s, ~old & data, 0);
+        }
+        break;
+    case PCH_PIC_INT_EDGE:
+        s->intedge = (s->intedge & ~mask) | data;
+        break;
+    case PCH_PIC_INT_CLEAR:
+        if (s->intedge & data) {
+            s->intirr &= ~data;
+            pch_pic_update_irq(s, data, 0);
+            s->intisr &= ~data;
+        }
+        break;
+    case PCH_PIC_HTMSI_EN:
+        s->htmsi_en = (s->htmsi_en & ~mask) | data;
+        break;
+    case PCH_PIC_AUTO_CTRL0:
+    case PCH_PIC_AUTO_CTRL1:
+        /* Discard auto_ctrl access */
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pch_pic_write: Bad address 0x%"PRIx64"\n", addr);
+        break;
+    }
+}
+
 static uint64_t loongarch_pch_pic_read(void *opaque, hwaddr addr,
                                        unsigned size)
 {
@@ -145,6 +192,30 @@ static uint64_t loongarch_pch_pic_read(void *opaque, hwaddr addr,
     return val;
 }
 
+static void loongarch_pch_pic_write(void *opaque, hwaddr addr,
+                                    uint64_t value, unsigned size)
+{
+    switch (size) {
+    case 1:
+        pch_pic_write(opaque, addr, value, UCHAR_MAX);
+        break;
+    case 2:
+        pch_pic_write(opaque, addr, value, USHRT_MAX);
+        break;
+        break;
+    case 4:
+        pch_pic_write(opaque, addr, value, UINT_MAX);
+        break;
+    case 8:
+        pch_pic_write(opaque, addr, value, UINT64_MAX);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "loongarch_pch_pic_write: Bad size %d\n", size);
+        break;
+    }
+}
+
 static uint64_t loongarch_pch_pic_low_readw(void *opaque, hwaddr addr,
                                             unsigned size)
 {
@@ -166,73 +237,8 @@ static uint64_t get_writew_val(uint64_t value, uint32_t target, bool hi)
 static void loongarch_pch_pic_low_writew(void *opaque, hwaddr addr,
                                          uint64_t value, unsigned size)
 {
-    LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(opaque);
-    uint32_t old_valid, data = (uint32_t)value;
-    uint64_t old, int_mask;
-
-    trace_loongarch_pch_pic_low_writew(size, addr, data);
-
-    switch (addr) {
-    case PCH_PIC_INT_MASK:
-        old = s->int_mask;
-        s->int_mask = get_writew_val(old, data, 0);
-        old_valid = (uint32_t)old;
-        if (old_valid & ~data) {
-            pch_pic_update_irq(s, (old_valid & ~data), 1);
-        }
-        if (~old_valid & data) {
-            pch_pic_update_irq(s, (~old_valid & data), 0);
-        }
-        break;
-    case PCH_PIC_INT_MASK + 4:
-        old = s->int_mask;
-        s->int_mask = get_writew_val(old, data, 1);
-        old_valid = (uint32_t)(old >> 32);
-        int_mask = old_valid & ~data;
-        if (int_mask) {
-            pch_pic_update_irq(s, int_mask << 32, 1);
-        }
-        int_mask = ~old_valid & data;
-        if (int_mask) {
-            pch_pic_update_irq(s, int_mask << 32, 0);
-        }
-        break;
-    case PCH_PIC_INT_EDGE:
-        s->intedge = get_writew_val(s->intedge, data, 0);
-        break;
-    case PCH_PIC_INT_EDGE + 4:
-        s->intedge = get_writew_val(s->intedge, data, 1);
-        break;
-    case PCH_PIC_INT_CLEAR:
-        if (s->intedge & data) {
-            s->intirr &= (~data);
-            pch_pic_update_irq(s, data, 0);
-            s->intisr &= (~data);
-        }
-        break;
-    case PCH_PIC_INT_CLEAR + 4:
-        value <<= 32;
-        if (s->intedge & value) {
-            s->intirr &= (~value);
-            pch_pic_update_irq(s, value, 0);
-            s->intisr &= (~value);
-        }
-        break;
-    case PCH_PIC_HTMSI_EN:
-        s->htmsi_en = get_writew_val(s->htmsi_en, data, 0);
-        break;
-    case PCH_PIC_HTMSI_EN + 4:
-        s->htmsi_en = get_writew_val(s->htmsi_en, data, 1);
-        break;
-    case PCH_PIC_AUTO_CTRL0:
-    case PCH_PIC_AUTO_CTRL0 + 4:
-    case PCH_PIC_AUTO_CTRL1:
-    case PCH_PIC_AUTO_CTRL1 + 4:
-        /* discard auto_ctrl access */
-        break;
-    default:
-        break;
-    }
+    trace_loongarch_pch_pic_low_writew(size, addr, value);
+    loongarch_pch_pic_write(opaque, addr, value, size);
 }
 
 static uint64_t loongarch_pch_pic_high_readw(void *opaque, hwaddr addr,
