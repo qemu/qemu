@@ -3153,7 +3153,7 @@ bdrv_attach_child_common(BlockDriverState *child_bs,
      * stop new requests from coming in. This is fine, we don't care about the
      * old requests here, they are not for this child. If another place enters a
      * drain section for the same parent, but wants it to be fully quiesced, it
-     * will not run most of the the code in .drained_begin() again (which is not
+     * will not run most of the code in .drained_begin() again (which is not
      * a problem, we already did this), but it will still poll until the parent
      * is fully quiesced, so it will not be negatively affected either.
      */
