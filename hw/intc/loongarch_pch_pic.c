@@ -230,18 +230,6 @@ static void loongarch_pch_pic_write(void *opaque, hwaddr addr,
     }
 }
 
-static uint64_t loongarch_pch_pic_low_readw(void *opaque, hwaddr addr,
-                                            unsigned size)
-{
-    return loongarch_pch_pic_read(opaque, addr, size);
-}
-
-static void loongarch_pch_pic_low_writew(void *opaque, hwaddr addr,
-                                         uint64_t value, unsigned size)
-{
-    loongarch_pch_pic_write(opaque, addr, value, size);
-}
-
 static uint64_t loongarch_pch_pic_high_readw(void *opaque, hwaddr addr,
                                         unsigned size)
 {
@@ -270,9 +258,9 @@ static void loongarch_pch_pic_writeb(void *opaque, hwaddr addr,
     loongarch_pch_pic_write(opaque, addr, data, size);
 }
 
-static const MemoryRegionOps loongarch_pch_pic_reg32_low_ops = {
-    .read = loongarch_pch_pic_low_readw,
-    .write = loongarch_pch_pic_low_writew,
+static const MemoryRegionOps loongarch_pch_pic_ops = {
+    .read = loongarch_pch_pic_read,
+    .write = loongarch_pch_pic_write,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 8,
@@ -336,15 +324,15 @@ static void loongarch_pic_realize(DeviceState *dev, Error **errp)
 
     qdev_init_gpio_out(dev, s->parent_irq, s->irq_num);
     qdev_init_gpio_in(dev, pch_pic_irq_handler, s->irq_num);
-    memory_region_init_io(&s->iomem32_low, OBJECT(dev),
-                          &loongarch_pch_pic_reg32_low_ops,
-                          s, PCH_PIC_NAME(.reg32_part1), 0x100);
+    memory_region_init_io(&s->iomem, OBJECT(dev),
+                          &loongarch_pch_pic_ops,
+                          s, TYPE_LOONGARCH_PIC, 0x100);
     memory_region_init_io(&s->iomem8, OBJECT(dev), &loongarch_pch_pic_reg8_ops,
                           s, PCH_PIC_NAME(.reg8), 0x2a0);
     memory_region_init_io(&s->iomem32_high, OBJECT(dev),
                           &loongarch_pch_pic_reg32_high_ops,
                           s, PCH_PIC_NAME(.reg32_part2), 0xc60);
-    sysbus_init_mmio(sbd, &s->iomem32_low);
+    sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_mmio(sbd, &s->iomem8);
     sysbus_init_mmio(sbd, &s->iomem32_high);
 
