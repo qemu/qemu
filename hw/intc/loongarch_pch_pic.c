@@ -234,12 +234,6 @@ static void loongarch_pch_pic_high_writew(void *opaque, hwaddr addr,
     trace_loongarch_pch_pic_high_writew(size, addr, data);
 
     switch (addr) {
-    case PCH_PIC_INT_STATUS:
-        s->intisr = get_writew_val(s->intisr, data, 0);
-        break;
-    case PCH_PIC_INT_STATUS + 4:
-        s->intisr = get_writew_val(s->intisr, data, 1);
-        break;
     case PCH_PIC_INT_POL:
         s->int_polarity = get_writew_val(s->int_polarity, data, 0);
         break;
