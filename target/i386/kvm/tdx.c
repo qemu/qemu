@@ -16,6 +16,7 @@
 #include "qapi/error.h"
 #include "qom/object_interfaces.h"
 #include "crypto/hash.h"
+#include "system/kvm_int.h"
 #include "system/runstate.h"
 #include "system/system.h"
 #include "system/ramblock.h"
@@ -385,6 +386,13 @@ static int tdx_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
         x86ms->pic = ON_OFF_AUTO_OFF;
     } else if (x86ms->pic == ON_OFF_AUTO_ON) {
         error_setg(errp, "TDX VM doesn't support PIC");
+        return -EINVAL;
+    }
+
+    if (kvm_state->kernel_irqchip_split == ON_OFF_AUTO_AUTO) {
+        kvm_state->kernel_irqchip_split = ON_OFF_AUTO_ON;
+    } else if (kvm_state->kernel_irqchip_split != ON_OFF_AUTO_ON) {
+        error_setg(errp, "TDX VM requires kernel_irqchip to be split");
         return -EINVAL;
     }
 
