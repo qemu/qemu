@@ -17,9 +17,9 @@ class HppaSeabios(QemuSystemTest):
     def boot_seabios(self):
         mach = self.machine
         bits = self.MACH_BITS[mach]
+        self.vm.add_args('-no-shutdown')
         self.vm.set_console()
         self.vm.launch()
-        self.machine
         wait_for_console_pattern(self, f'SeaBIOS PA-RISC {bits}-bit Firmware')
         wait_for_console_pattern(self, f'Emulated machine:     HP {mach} ({bits}-bit')
 
