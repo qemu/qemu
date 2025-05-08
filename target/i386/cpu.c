@@ -1678,6 +1678,22 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     },
 };
 
+bool is_feature_word_cpuid(uint32_t feature, uint32_t index, int reg)
+{
+    FeatureWordInfo *wi;
+    FeatureWord w;
+
+    for (w = 0; w < FEATURE_WORDS; w++) {
+        wi = &feature_word_info[w];
+        if (wi->type == CPUID_FEATURE_WORD && wi->cpuid.eax == feature &&
+            (!wi->cpuid.needs_ecx || wi->cpuid.ecx == index) &&
+            wi->cpuid.reg == reg) {
+            return true;
+        }
+    }
+    return false;
+}
+
 typedef struct FeatureMask {
     FeatureWord index;
     uint64_t mask;

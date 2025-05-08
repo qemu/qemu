@@ -45,6 +45,7 @@
 static TdxGuest *tdx_guest;
 
 static struct kvm_tdx_capabilities *tdx_caps;
+static struct kvm_cpuid2 *tdx_supported_cpuid;
 
 /* Valid after kvm_arch_init()->confidential_guest_kvm_init()->tdx_kvm_init() */
 bool is_tdx_vm(void)
@@ -366,6 +367,20 @@ static Notifier tdx_machine_done_notify = {
     .notify = tdx_finalize_vm,
 };
 
+static void tdx_setup_supported_cpuid(void)
+{
+    if (tdx_supported_cpuid) {
+        return;
+    }
+
+    tdx_supported_cpuid = g_malloc0(sizeof(*tdx_supported_cpuid) +
+                    KVM_MAX_CPUID_ENTRIES * sizeof(struct kvm_cpuid_entry2));
+
+    memcpy(tdx_supported_cpuid->entries, tdx_caps->cpuid.entries,
+           tdx_caps->cpuid.nent * sizeof(struct kvm_cpuid_entry2));
+    tdx_supported_cpuid->nent = tdx_caps->cpuid.nent;
+}
+
 static int tdx_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
@@ -403,6 +418,8 @@ static int tdx_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
         }
     }
 
+    tdx_setup_supported_cpuid();
+
     /* TDX relies on KVM_HC_MAP_GPA_RANGE to handle TDG.VP.VMCALL<MapGPA> */
     if (!kvm_enable_hypercall(BIT_ULL(KVM_HC_MAP_GPA_RANGE))) {
         return -EOPNOTSUPP;
@@ -438,6 +455,22 @@ static void tdx_cpu_instance_init(X86ConfidentialGuest *cg, CPUState *cpu)
     object_property_set_bool(OBJECT(cpu), "pmu", false, &error_abort);
 
     x86cpu->enable_cpuid_0x1f = true;
+}
+
+static uint32_t tdx_adjust_cpuid_features(X86ConfidentialGuest *cg,
+                                          uint32_t feature, uint32_t index,
+                                          int reg, uint32_t value)
+{
+    struct kvm_cpuid_entry2 *e;
+
+    if (is_feature_word_cpuid(feature, index, reg)) {
+        e = cpuid_find_entry(tdx_supported_cpuid, feature, index);
+        if (e) {
+            value &= cpuid_entry_get_reg(e, reg);
+        }
+    }
+
+    return value;
 }
 
 static int tdx_validate_attributes(TdxGuest *tdx, Error **errp)
@@ -834,4 +867,5 @@ static void tdx_guest_class_init(ObjectClass *oc, const void *data)
     klass->kvm_init = tdx_kvm_init;
     x86_klass->kvm_type = tdx_kvm_type;
     x86_klass->cpu_instance_init = tdx_cpu_instance_init;
+    x86_klass->adjust_cpuid_features = tdx_adjust_cpuid_features;
 }
