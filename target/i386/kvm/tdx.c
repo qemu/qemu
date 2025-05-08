@@ -615,6 +615,52 @@ int tdx_parse_tdvf(void *flash_ptr, int size)
     return tdvf_parse_metadata(&tdx_guest->tdvf, flash_ptr, size);
 }
 
+/*
+ * Only 8 registers can contain valid ASCII byte stream to form the fatal
+ * message, and their sequence is: R14, R15, RBX, RDI, RSI, R8, R9, RDX
+ */
+#define TDX_FATAL_MESSAGE_MAX        64
+
+int tdx_handle_report_fatal_error(X86CPU *cpu, struct kvm_run *run)
+{
+    uint64_t error_code = run->system_event.data[R_R12];
+    uint64_t reg_mask = run->system_event.data[R_ECX];
+    char *message = NULL;
+    uint64_t *tmp;
+
+    if (error_code & 0xffff) {
+        error_report("TDX: REPORT_FATAL_ERROR: invalid error code: 0x%lx",
+                     error_code);
+        return -1;
+    }
+
+    if (reg_mask) {
+        message = g_malloc0(TDX_FATAL_MESSAGE_MAX + 1);
+        tmp = (uint64_t *)message;
+
+#define COPY_REG(REG)                               \
+    do {                                            \
+        if (reg_mask & BIT_ULL(REG)) {              \
+            *(tmp++) = run->system_event.data[REG]; \
+        }                                           \
+    } while (0)
+
+        COPY_REG(R_R14);
+        COPY_REG(R_R15);
+        COPY_REG(R_EBX);
+        COPY_REG(R_EDI);
+        COPY_REG(R_ESI);
+        COPY_REG(R_R8);
+        COPY_REG(R_R9);
+        COPY_REG(R_EDX);
+        *((char *)tmp) = '\0';
+    }
+#undef COPY_REG
+
+    error_report("TD guest reports fatal error. %s", message ? : "");
+    return -1;
+}
+
 static bool tdx_guest_get_sept_ve_disable(Object *obj, Error **errp)
 {
     TdxGuest *tdx = TDX_GUEST(obj);
