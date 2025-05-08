@@ -621,6 +621,12 @@ static void tdx_add_supported_cpuid_by_xfam(void)
     e->edx |= (tdx_caps->supported_xfam & CPUID_XSTATE_XCR0_MASK) >> 32;
 
     e = find_in_supported_entry(0xd, 1);
+    /*
+     * Mark XFD always support for TDX, it will be cleared finally in
+     * tdx_adjust_cpuid_features() if XFD is unavailable on the hardware
+     * because in this case the original data has it as 0.
+     */
+    e->eax |= CPUID_XSAVE_XFD;
     e->ecx |= (tdx_caps->supported_xfam & CPUID_XSTATE_XSS_MASK);
     e->edx |= (tdx_caps->supported_xfam & CPUID_XSTATE_XSS_MASK) >> 32;
 }
