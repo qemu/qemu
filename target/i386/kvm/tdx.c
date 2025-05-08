@@ -19,6 +19,8 @@
 #include "system/system.h"
 #include "system/ramblock.h"
 
+#include <linux/kvm_para.h>
+
 #include "hw/i386/e820_memory_layout.h"
 #include "hw/i386/tdvf.h"
 #include "hw/i386/x86.h"
@@ -374,6 +376,11 @@ static int tdx_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
         if (r) {
             return r;
         }
+    }
+
+    /* TDX relies on KVM_HC_MAP_GPA_RANGE to handle TDG.VP.VMCALL<MapGPA> */
+    if (!kvm_enable_hypercall(BIT_ULL(KVM_HC_MAP_GPA_RANGE))) {
+        return -EOPNOTSUPP;
     }
 
     qemu_add_machine_init_done_notifier(&tdx_machine_done_notify);
