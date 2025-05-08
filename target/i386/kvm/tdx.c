@@ -458,6 +458,34 @@ KvmCpuidInfo tdx_fixed1_bits = {
     },
 };
 
+typedef struct TdxAttrsMap {
+    uint32_t attr_index;
+    uint32_t cpuid_leaf;
+    uint32_t cpuid_subleaf;
+    int cpuid_reg;
+    uint32_t feat_mask;
+} TdxAttrsMap;
+
+static TdxAttrsMap tdx_attrs_maps[] = {
+    {.attr_index = 27,
+     .cpuid_leaf = 7,
+     .cpuid_subleaf = 1,
+     .cpuid_reg = R_EAX,
+     .feat_mask = CPUID_7_1_EAX_LASS,},
+
+    {.attr_index = 30,
+     .cpuid_leaf = 7,
+     .cpuid_subleaf = 0,
+     .cpuid_reg = R_ECX,
+     .feat_mask = CPUID_7_0_ECX_PKS,},
+
+    {.attr_index = 31,
+     .cpuid_leaf = 7,
+     .cpuid_subleaf = 0,
+     .cpuid_reg = R_ECX,
+     .feat_mask = CPUID_7_0_ECX_KeyLocker,},
+};
+
 static struct kvm_cpuid_entry2 *find_in_supported_entry(uint32_t function,
                                                         uint32_t index)
 {
@@ -494,6 +522,37 @@ static void tdx_add_supported_cpuid_by_fixed1_bits(void)
     }
 }
 
+static void tdx_add_supported_cpuid_by_attrs(void)
+{
+    struct kvm_cpuid_entry2 *e;
+    TdxAttrsMap *map;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(tdx_attrs_maps); i++) {
+        map = &tdx_attrs_maps[i];
+        if (!((1ULL << map->attr_index) & tdx_caps->supported_attrs)) {
+            continue;
+        }
+
+        e = find_in_supported_entry(map->cpuid_leaf, map->cpuid_subleaf);
+
+        switch(map->cpuid_reg) {
+        case R_EAX:
+            e->eax |= map->feat_mask;
+            break;
+        case R_EBX:
+            e->ebx |= map->feat_mask;
+            break;
+        case R_ECX:
+            e->ecx |= map->feat_mask;
+            break;
+        case R_EDX:
+            e->edx |= map->feat_mask;
+            break;
+        }
+    }
+}
+
 static void tdx_setup_supported_cpuid(void)
 {
     if (tdx_supported_cpuid) {
@@ -508,6 +567,7 @@ static void tdx_setup_supported_cpuid(void)
     tdx_supported_cpuid->nent = tdx_caps->cpuid.nent;
 
     tdx_add_supported_cpuid_by_fixed1_bits();
+    tdx_add_supported_cpuid_by_attrs();
 }
 
 static int tdx_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
