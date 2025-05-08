@@ -627,54 +627,30 @@ static TCGv eip_cur_tl(DisasContext *s)
 static void gen_lea_v_seg_dest(DisasContext *s, MemOp aflag, TCGv dest, TCGv a0,
                                int def_seg, int ovr_seg)
 {
-    switch (aflag) {
-#ifdef TARGET_X86_64
-    case MO_64:
-        if (ovr_seg < 0) {
-            tcg_gen_mov_tl(dest, a0);
-            return;
+    int easize;
+    bool has_base;
+
+    if (ovr_seg < 0) {
+        ovr_seg = def_seg;
+    }
+
+    has_base = ovr_seg >= R_FS || (ovr_seg >= 0 && ADDSEG(s));
+    easize = CODE64(s) ? MO_64 : MO_32;
+
+    if (has_base) {
+        if (aflag < easize) {
+            /* Truncate before summing base.  */
+            tcg_gen_ext_tl(dest, a0, aflag);
+            a0 = dest;
         }
-        break;
-#endif
-    case MO_32:
-        /* 32 bit address */
-        if (ovr_seg < 0 && ADDSEG(s)) {
-            ovr_seg = def_seg;
-        }
-        if (ovr_seg < 0) {
-            tcg_gen_ext32u_tl(dest, a0);
-            return;
-        }
-        break;
-    case MO_16:
-        /* 16 bit address */
-        tcg_gen_ext16u_tl(dest, a0);
+        tcg_gen_add_tl(dest, a0, cpu_seg_base[ovr_seg]);
         a0 = dest;
-        if (ovr_seg < 0) {
-            if (ADDSEG(s)) {
-                ovr_seg = def_seg;
-            } else {
-                return;
-            }
-        }
-        break;
-    default:
-        g_assert_not_reached();
+    } else {
+        /* Possibly one extension, but that's it.  */
+        easize = aflag;
     }
 
-    if (ovr_seg >= 0) {
-        TCGv seg = cpu_seg_base[ovr_seg];
-
-        if (aflag == MO_64) {
-            tcg_gen_add_tl(dest, a0, seg);
-        } else if (CODE64(s)) {
-            tcg_gen_ext32u_tl(dest, a0);
-            tcg_gen_add_tl(dest, dest, seg);
-        } else {
-            tcg_gen_add_tl(dest, a0, seg);
-            tcg_gen_ext32u_tl(dest, dest);
-        }
-    }
+    tcg_gen_ext_tl(dest, a0, easize);
 }
 
 static void gen_lea_v_seg(DisasContext *s, TCGv a0,
