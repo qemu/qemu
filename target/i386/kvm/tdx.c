@@ -23,6 +23,8 @@
 
 #include <linux/kvm_para.h>
 
+#include "cpu.h"
+#include "cpu-internal.h"
 #include "hw/i386/e820_memory_layout.h"
 #include "hw/i386/tdvf.h"
 #include "hw/i386/x86.h"
@@ -486,6 +488,32 @@ static TdxAttrsMap tdx_attrs_maps[] = {
      .feat_mask = CPUID_7_0_ECX_KeyLocker,},
 };
 
+typedef struct TdxXFAMDep {
+    int xfam_bit;
+    FeatureMask feat_mask;
+} TdxXFAMDep;
+
+/*
+ * Note, only the CPUID bits whose virtualization type are "XFAM & Native" are
+ * defiend here.
+ *
+ * For those whose virtualization type are "XFAM & Configured & Native", they
+ * are reported as configurable bits. And they are not supported if not in the
+ * configureable bits list from KVM even if the corresponding XFAM bit is
+ * supported.
+ */
+TdxXFAMDep tdx_xfam_deps[] = {
+    { XSTATE_YMM_BIT,       { FEAT_1_ECX, CPUID_EXT_FMA }},
+    { XSTATE_YMM_BIT,       { FEAT_7_0_EBX, CPUID_7_0_EBX_AVX2 }},
+    { XSTATE_OPMASK_BIT,    { FEAT_7_0_ECX, CPUID_7_0_ECX_AVX512_VBMI}},
+    { XSTATE_OPMASK_BIT,    { FEAT_7_0_EDX, CPUID_7_0_EDX_AVX512_FP16}},
+    { XSTATE_PT_BIT,        { FEAT_7_0_EBX, CPUID_7_0_EBX_INTEL_PT}},
+    { XSTATE_PKRU_BIT,      { FEAT_7_0_ECX, CPUID_7_0_ECX_PKU}},
+    { XSTATE_XTILE_CFG_BIT, { FEAT_7_0_EDX, CPUID_7_0_EDX_AMX_BF16 }},
+    { XSTATE_XTILE_CFG_BIT, { FEAT_7_0_EDX, CPUID_7_0_EDX_AMX_TILE }},
+    { XSTATE_XTILE_CFG_BIT, { FEAT_7_0_EDX, CPUID_7_0_EDX_AMX_INT8 }},
+};
+
 static struct kvm_cpuid_entry2 *find_in_supported_entry(uint32_t function,
                                                         uint32_t index)
 {
@@ -553,6 +581,50 @@ static void tdx_add_supported_cpuid_by_attrs(void)
     }
 }
 
+static void tdx_add_supported_cpuid_by_xfam(void)
+{
+    struct kvm_cpuid_entry2 *e;
+    int i;
+
+    const TdxXFAMDep *xfam_dep;
+    const FeatureWordInfo *f;
+    for (i = 0; i < ARRAY_SIZE(tdx_xfam_deps); i++) {
+        xfam_dep = &tdx_xfam_deps[i];
+        if (!((1ULL << xfam_dep->xfam_bit) & tdx_caps->supported_xfam)) {
+            continue;
+        }
+
+        f = &feature_word_info[xfam_dep->feat_mask.index];
+        if (f->type != CPUID_FEATURE_WORD) {
+            continue;
+        }
+
+        e = find_in_supported_entry(f->cpuid.eax, f->cpuid.ecx);
+        switch(f->cpuid.reg) {
+        case R_EAX:
+            e->eax |= xfam_dep->feat_mask.mask;
+            break;
+        case R_EBX:
+            e->ebx |= xfam_dep->feat_mask.mask;
+            break;
+        case R_ECX:
+            e->ecx |= xfam_dep->feat_mask.mask;
+            break;
+        case R_EDX:
+            e->edx |= xfam_dep->feat_mask.mask;
+            break;
+        }
+    }
+
+    e = find_in_supported_entry(0xd, 0);
+    e->eax |= (tdx_caps->supported_xfam & CPUID_XSTATE_XCR0_MASK);
+    e->edx |= (tdx_caps->supported_xfam & CPUID_XSTATE_XCR0_MASK) >> 32;
+
+    e = find_in_supported_entry(0xd, 1);
+    e->ecx |= (tdx_caps->supported_xfam & CPUID_XSTATE_XSS_MASK);
+    e->edx |= (tdx_caps->supported_xfam & CPUID_XSTATE_XSS_MASK) >> 32;
+}
+
 static void tdx_setup_supported_cpuid(void)
 {
     if (tdx_supported_cpuid) {
@@ -568,6 +640,7 @@ static void tdx_setup_supported_cpuid(void)
 
     tdx_add_supported_cpuid_by_fixed1_bits();
     tdx_add_supported_cpuid_by_attrs();
+    tdx_add_supported_cpuid_by_xfam();
 }
 
 static int tdx_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
