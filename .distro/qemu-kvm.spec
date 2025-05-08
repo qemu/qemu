@@ -636,6 +636,9 @@ BuildRequires: pulseaudio-libs-devel
 BuildRequires: spice-protocol
 BuildRequires: capstone-devel
 BuildRequires: python3-tomli
+%ifarch %{valgrind_arches}
+BuildRequires: valgrind-devel
+%endif
 
 # Requires for qemu-kvm package
 Requires: %{name}-core = %{epoch}:%{version}-%{release}
@@ -1012,6 +1015,7 @@ ulimit -n 10240
   --disable-u2f                    \\\
   --disable-usb-redir              \\\
   --disable-user                   \\\
+  --disable-valgrind               \\\
   --disable-vde                    \\\
   --disable-vdi                    \\\
   --disable-vduse-blk-export       \\\
@@ -1134,6 +1138,9 @@ run_configure \
   --enable-tpm \
 %if %{have_usbredir}
   --enable-usb-redir \
+%endif
+%ifarch %{valgrind_arches}
+  --enable-valgrind \
 %endif
   --enable-vdi \
   --enable-vhost-kernel \
