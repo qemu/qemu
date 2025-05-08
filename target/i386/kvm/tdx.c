@@ -16,6 +16,7 @@
 #include "qapi/error.h"
 #include "qom/object_interfaces.h"
 #include "crypto/hash.h"
+#include "system/runstate.h"
 #include "system/system.h"
 #include "system/ramblock.h"
 
@@ -615,11 +616,27 @@ int tdx_parse_tdvf(void *flash_ptr, int size)
     return tdvf_parse_metadata(&tdx_guest->tdvf, flash_ptr, size);
 }
 
+static void tdx_panicked_on_fatal_error(X86CPU *cpu, uint64_t error_code,
+                                        char *message, uint64_t gpa)
+{
+    GuestPanicInformation *panic_info;
+
+    panic_info = g_new0(GuestPanicInformation, 1);
+    panic_info->type = GUEST_PANIC_INFORMATION_TYPE_TDX;
+    panic_info->u.tdx.error_code = (uint32_t) error_code;
+    panic_info->u.tdx.message = message;
+    panic_info->u.tdx.gpa = gpa;
+
+    qemu_system_guest_panicked(panic_info);
+}
+
 /*
  * Only 8 registers can contain valid ASCII byte stream to form the fatal
  * message, and their sequence is: R14, R15, RBX, RDI, RSI, R8, R9, RDX
  */
 #define TDX_FATAL_MESSAGE_MAX        64
+
+#define TDX_REPORT_FATAL_ERROR_GPA_VALID    BIT_ULL(63)
 
 int tdx_handle_report_fatal_error(X86CPU *cpu, struct kvm_run *run)
 {
@@ -627,6 +644,7 @@ int tdx_handle_report_fatal_error(X86CPU *cpu, struct kvm_run *run)
     uint64_t reg_mask = run->system_event.data[R_ECX];
     char *message = NULL;
     uint64_t *tmp;
+    uint64_t gpa = -1ull;
 
     if (error_code & 0xffff) {
         error_report("TDX: REPORT_FATAL_ERROR: invalid error code: 0x%lx",
@@ -657,7 +675,12 @@ int tdx_handle_report_fatal_error(X86CPU *cpu, struct kvm_run *run)
     }
 #undef COPY_REG
 
-    error_report("TD guest reports fatal error. %s", message ? : "");
+    if (error_code & TDX_REPORT_FATAL_ERROR_GPA_VALID) {
+        gpa = run->system_event.data[R_R13];
+    }
+
+    tdx_panicked_on_fatal_error(cpu, error_code, message, gpa);
+
     return -1;
 }
 
