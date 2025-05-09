@@ -101,6 +101,35 @@ static void test_precopy_unix_dirty_ring(void)
 
 #ifdef CONFIG_RDMA
 
+#include <sys/resource.h>
+
+/*
+ * During migration over RDMA, it will try to pin portions of guest memory,
+ * typically exceeding 100MB in this test, while the remainder will be
+ * transmitted as compressed zero pages.
+ *
+ * REQUIRED_MEMLOCK_SZ indicates the minimal mlock size in the current context.
+ */
+#define REQUIRED_MEMLOCK_SZ (128 << 20) /* 128MB */
+
+/* check 'ulimit -l' */
+static bool mlock_check(void)
+{
+    uid_t uid;
+    struct rlimit rlim;
+
+    uid = getuid();
+    if (uid == 0) {
+        return true;
+    }
+
+    if (getrlimit(RLIMIT_MEMLOCK, &rlim) != 0) {
+        return false;
+    }
+
+    return rlim.rlim_cur >= REQUIRED_MEMLOCK_SZ;
+}
+
 #define RDMA_MIGRATION_HELPER "scripts/rdma-migration-helper.sh"
 static int new_rdma_link(char *buffer)
 {
@@ -135,6 +164,11 @@ static int new_rdma_link(char *buffer)
 static void test_precopy_rdma_plain(void)
 {
     char buffer[128] = {};
+
+    if (!mlock_check()) {
+        g_test_skip("'ulimit -l' is too small, require >=128M");
+        return;
+    }
 
     if (new_rdma_link(buffer)) {
         g_test_skip("No rdma link available\n"
