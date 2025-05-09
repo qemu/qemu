@@ -1483,7 +1483,7 @@ static int coroutine_fn qemu_gluster_co_block_status(BlockDriverState *bs,
         return ret;
     }
 
-    if (mode != BDRV_WANT_PRECISE) {
+    if (!(mode & BDRV_WANT_ZERO)) {
         *pnum = bytes;
         *map = offset;
         *file = bs;
