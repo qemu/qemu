@@ -11,10 +11,12 @@
 #include "ui/dmabuf.h"
 
 struct QemuDmaBuf {
-    int       fd;
+    int       fd[DMABUF_MAX_PLANES];
     uint32_t  width;
     uint32_t  height;
-    uint32_t  stride;
+    uint32_t  offset[DMABUF_MAX_PLANES];
+    uint32_t  stride[DMABUF_MAX_PLANES];
+    uint32_t  num_planes;
     uint32_t  fourcc;
     uint64_t  modifier;
     uint32_t  texture;
@@ -30,28 +32,33 @@ struct QemuDmaBuf {
 };
 
 QemuDmaBuf *qemu_dmabuf_new(uint32_t width, uint32_t height,
-                            uint32_t stride, uint32_t x,
-                            uint32_t y, uint32_t backing_width,
-                            uint32_t backing_height, uint32_t fourcc,
-                            uint64_t modifier, int32_t dmabuf_fd,
+                            const uint32_t *offset, const uint32_t *stride,
+                            uint32_t x, uint32_t y,
+                            uint32_t backing_width, uint32_t backing_height,
+                            uint32_t fourcc, uint64_t modifier,
+                            const int32_t *dmabuf_fd, uint32_t num_planes,
                             bool allow_fences, bool y0_top) {
     QemuDmaBuf *dmabuf;
+
+    assert(num_planes > 0 && num_planes <= DMABUF_MAX_PLANES);
 
     dmabuf = g_new0(QemuDmaBuf, 1);
 
     dmabuf->width = width;
     dmabuf->height = height;
-    dmabuf->stride = stride;
+    memcpy(dmabuf->offset, offset, num_planes * sizeof(*offset));
+    memcpy(dmabuf->stride, stride, num_planes * sizeof(*stride));
     dmabuf->x = x;
     dmabuf->y = y;
     dmabuf->backing_width = backing_width;
     dmabuf->backing_height = backing_height;
     dmabuf->fourcc = fourcc;
     dmabuf->modifier = modifier;
-    dmabuf->fd = dmabuf_fd;
+    memcpy(dmabuf->fd, dmabuf_fd, num_planes * sizeof(*dmabuf_fd));
     dmabuf->allow_fences = allow_fences;
     dmabuf->y0_top = y0_top;
     dmabuf->fence_fd = -1;
+    dmabuf->num_planes = num_planes;
 
     return dmabuf;
 }
@@ -65,31 +72,40 @@ void qemu_dmabuf_free(QemuDmaBuf *dmabuf)
     g_free(dmabuf);
 }
 
-int qemu_dmabuf_get_fd(QemuDmaBuf *dmabuf)
+const int *qemu_dmabuf_get_fds(QemuDmaBuf *dmabuf, int *nfds)
 {
     assert(dmabuf != NULL);
+
+    if (nfds) {
+        *nfds = ARRAY_SIZE(dmabuf->fd);
+    }
 
     return dmabuf->fd;
 }
 
-int qemu_dmabuf_dup_fd(QemuDmaBuf *dmabuf)
+void qemu_dmabuf_dup_fds(QemuDmaBuf *dmabuf, int *fds, int nfds)
 {
-    assert(dmabuf != NULL);
+    int i;
 
-    if (dmabuf->fd >= 0) {
-        return dup(dmabuf->fd);
-    } else {
-        return -1;
+    assert(dmabuf != NULL);
+    assert(nfds >= dmabuf->num_planes);
+
+    for (i = 0; i < dmabuf->num_planes; i++) {
+        fds[i] = dmabuf->fd[i] >= 0 ? dup(dmabuf->fd[i]) : -1;
     }
 }
 
 void qemu_dmabuf_close(QemuDmaBuf *dmabuf)
 {
+    int i;
+
     assert(dmabuf != NULL);
 
-    if (dmabuf->fd >= 0) {
-        close(dmabuf->fd);
-        dmabuf->fd = -1;
+    for (i = 0; i < dmabuf->num_planes; i++) {
+        if (dmabuf->fd[i] >= 0) {
+            close(dmabuf->fd[i]);
+            dmabuf->fd[i] = -1;
+        }
     }
 }
 
@@ -107,11 +123,33 @@ uint32_t qemu_dmabuf_get_height(QemuDmaBuf *dmabuf)
     return dmabuf->height;
 }
 
-uint32_t qemu_dmabuf_get_stride(QemuDmaBuf *dmabuf)
+const uint32_t *qemu_dmabuf_get_offsets(QemuDmaBuf *dmabuf, int *noffsets)
 {
     assert(dmabuf != NULL);
 
+    if (noffsets) {
+        *noffsets = ARRAY_SIZE(dmabuf->offset);
+    }
+
+    return dmabuf->offset;
+}
+
+const uint32_t *qemu_dmabuf_get_strides(QemuDmaBuf *dmabuf, int *nstrides)
+{
+    assert(dmabuf != NULL);
+
+    if (nstrides) {
+        *nstrides = ARRAY_SIZE(dmabuf->stride);
+    }
+
     return dmabuf->stride;
+}
+
+uint32_t qemu_dmabuf_get_num_planes(QemuDmaBuf *dmabuf)
+{
+    assert(dmabuf != NULL);
+
+    return dmabuf->num_planes;
 }
 
 uint32_t qemu_dmabuf_get_fourcc(QemuDmaBuf *dmabuf)
@@ -220,10 +258,4 @@ void qemu_dmabuf_set_draw_submitted(QemuDmaBuf *dmabuf, bool draw_submitted)
 {
     assert(dmabuf != NULL);
     dmabuf->draw_submitted = draw_submitted;
-}
-
-void qemu_dmabuf_set_fd(QemuDmaBuf *dmabuf, int32_t fd)
-{
-    assert(dmabuf != NULL);
-    dmabuf->fd = fd;
 }
