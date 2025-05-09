@@ -848,23 +848,31 @@ static int coroutine_fn GRAPH_UNLOCKED mirror_dirty_init(MirrorBlockJob *s)
         target_bs->detect_zeroes == BLOCKDEV_DETECT_ZEROES_OPTIONS_UNMAP &&
         bdrv_can_write_zeroes_with_unmap(target_bs);
 
+    /* Determine if the image is already zero, regardless of sync mode.  */
     bdrv_graph_co_rdlock();
     bs = s->mirror_top_bs->backing->bs;
+    if (s->target_is_zero) {
+        ret = 1;
+    } else {
+        ret = bdrv_co_is_all_zeroes(target_bs);
+    }
     bdrv_graph_co_rdunlock();
 
-    if (s->sync_mode == MIRROR_SYNC_MODE_TOP) {
+    /* Determine if a pre-zeroing pass is necessary.  */
+    if (ret < 0) {
+        return ret;
+    } else if (s->sync_mode == MIRROR_SYNC_MODE_TOP) {
         /* In TOP mode, there is no benefit to a pre-zeroing pass.  */
-    } else if (!s->target_is_zero || punch_holes) {
+    } else if (ret == 0 || punch_holes) {
         /*
          * Here, we are in FULL mode; our goal is to avoid writing
          * zeroes if the destination already reads as zero, except
          * when we are trying to punch holes.  This is possible if
-         * zeroing happened externally (s->target_is_zero) or if we
-         * have a fast way to pre-zero the image (the dirty bitmap
-         * will be populated later by the non-zero portions, the same
-         * as for TOP mode).  If pre-zeroing is not fast, or we need
-         * to punch holes, then our only recourse is to write the
-         * entire image.
+         * zeroing happened externally (ret > 0) or if we have a fast
+         * way to pre-zero the image (the dirty bitmap will be
+         * populated later by the non-zero portions, the same as for
+         * TOP mode).  If pre-zeroing is not fast, or we need to punch
+         * holes, then our only recourse is to write the entire image.
          */
         if (!bdrv_can_write_zeroes_with_unmap(target_bs)) {
             bdrv_set_dirty_bitmap(s->dirty_bitmap, 0, s->bdev_length);
