@@ -74,7 +74,7 @@ static const VMStateDescription vmstate_env = {
 };
 
 static const VMStateField vmstate_cpu_fields[] = {
-    VMSTATE_CPU(),
+    VMSTATE_STRUCT(parent_obj, AlphaCPU, 0, vmstate_cpu_common, CPUState),
     VMSTATE_STRUCT(env, AlphaCPU, 1, vmstate_env, CPUAlphaState),
     VMSTATE_END_OF_LIST()
 };

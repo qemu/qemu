@@ -458,11 +458,11 @@ static void acpi_ged_initfn(Object *obj)
      * container for memory hotplug IO and expose it as GED sysbus
      * MMIO so that boards can map it separately.
      */
-     memory_region_init(&s->container_memhp, OBJECT(dev), "memhp container",
-                        MEMORY_HOTPLUG_IO_LEN);
-     sysbus_init_mmio(sbd, &s->container_memhp);
-     acpi_memory_hotplug_init(&s->container_memhp, OBJECT(dev),
-                              &s->memhp_state, 0);
+    memory_region_init(&s->container_memhp, OBJECT(dev), "memhp container",
+                       MEMORY_HOTPLUG_IO_LEN);
+    sysbus_init_mmio(sbd, &s->container_memhp);
+    acpi_memory_hotplug_init(&s->container_memhp, OBJECT(dev),
+                             &s->memhp_state, 0);
 
     memory_region_init_io(&ged_st->regs, obj, &ged_regs_ops, ged_st,
                           TYPE_ACPI_GED "-regs", ACPI_GED_REG_COUNT);

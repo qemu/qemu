@@ -14,19 +14,24 @@
 #define HVF_H
 
 #include "qemu/accel.h"
+#include "qemu/queue.h"
+#include "exec/vaddr.h"
 #include "qom/object.h"
 
 #ifdef COMPILING_PER_TARGET
-#include "cpu.h"
+# ifdef CONFIG_HVF
+#  define CONFIG_HVF_IS_POSSIBLE
+# endif /* !CONFIG_HVF */
+#else
+# define CONFIG_HVF_IS_POSSIBLE
+#endif /* COMPILING_PER_TARGET */
 
-#ifdef CONFIG_HVF
+#ifdef CONFIG_HVF_IS_POSSIBLE
 extern bool hvf_allowed;
 #define hvf_enabled() (hvf_allowed)
-#else /* !CONFIG_HVF */
+#else /* !CONFIG_HVF_IS_POSSIBLE */
 #define hvf_enabled() 0
-#endif /* !CONFIG_HVF */
-
-#endif /* COMPILING_PER_TARGET */
+#endif /* !CONFIG_HVF_IS_POSSIBLE */
 
 #define TYPE_HVF_ACCEL ACCEL_CLASS_NAME("hvf")
 
