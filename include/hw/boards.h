@@ -636,7 +636,11 @@ struct MachineState {
 /*
  * How many years/major releases for each phase
  * of the life cycle. Assumes use of versioning
- * scheme where major is bumped each year
+ * scheme where major is bumped each year.
+ *
+ * These values must match the ver_machine_deprecation_version
+ * and ver_machine_deletion_version logic in docs/conf.py and
+ * the text in docs/about/deprecated.rst
  */
 #define MACHINE_VER_DELETION_MAJOR 6
 #define MACHINE_VER_DEPRECATION_MAJOR 3
@@ -650,10 +654,41 @@ struct MachineState {
     " years old are subject to deletion after " \
     stringify(MACHINE_VER_DELETION_MAJOR) " years"
 
-#define _MACHINE_VER_IS_EXPIRED_IMPL(cutoff, major, minor) \
+#define _MACHINE_VER_IS_CURRENT_EXPIRED(cutoff, major, minor) \
     (((QEMU_VERSION_MAJOR - major) > cutoff) || \
      (((QEMU_VERSION_MAJOR - major) == cutoff) && \
       (QEMU_VERSION_MINOR - minor) >= 0))
+
+#define _MACHINE_VER_IS_NEXT_MINOR_EXPIRED(cutoff, major, minor) \
+    (((QEMU_VERSION_MAJOR - major) > cutoff) || \
+     (((QEMU_VERSION_MAJOR - major) == cutoff) && \
+      ((QEMU_VERSION_MINOR + 1) - minor) >= 0))
+
+#define _MACHINE_VER_IS_NEXT_MAJOR_EXPIRED(cutoff, major, minor) \
+    ((((QEMU_VERSION_MAJOR + 1) - major) > cutoff) ||            \
+     ((((QEMU_VERSION_MAJOR + 1) - major) == cutoff) &&          \
+      (0 - minor) >= 0))
+
+/*
+ * - The first check applies to formal releases
+ * - The second check applies to dev snapshots / release candidates
+ *   where the next major version is the same.
+ *   e.g. 9.0.50, 9.1.50, 9.0.90, 9.1.90
+ * - The third check applies to dev snapshots / release candidates
+ *   where the next major version will change.
+ *   e.g. 9.2.50, 9.2.90
+ *
+ * NB: this assumes we do 3 minor releases per year, before bumping major,
+ * and dev snapshots / release candidates are numbered with micro >= 50
+ * If this ever changes the logic below will need modifying....
+ */
+#define _MACHINE_VER_IS_EXPIRED_IMPL(cutoff, major, minor) \
+    ((QEMU_VERSION_MICRO < 50 && \
+      _MACHINE_VER_IS_CURRENT_EXPIRED(cutoff, major, minor)) || \
+     (QEMU_VERSION_MICRO >= 50 && QEMU_VERSION_MINOR < 2 && \
+      _MACHINE_VER_IS_NEXT_MINOR_EXPIRED(cutoff, major, minor)) || \
+     (QEMU_VERSION_MICRO >= 50 && QEMU_VERSION_MINOR == 2 && \
+      _MACHINE_VER_IS_NEXT_MAJOR_EXPIRED(cutoff, major, minor)))
 
 #define _MACHINE_VER_IS_EXPIRED2(cutoff, major, minor) \
     _MACHINE_VER_IS_EXPIRED_IMPL(cutoff, major, minor)
@@ -719,28 +754,11 @@ struct MachineState {
  * suitable period of time has passed, it will cause
  * execution of the method to return, avoiding registration
  * of the machine
- *
- * The new deprecation and deletion policy for versioned
- * machine types was introduced in QEMU 9.1.0.
- *
- * Under the new policy a number of old machine types (any
- * prior to 2.12) would be liable for immediate deletion
- * which would be a violation of our historical deprecation
- * and removal policy
- *
- * Thus deletions are temporarily gated on existance of
- * the env variable "QEMU_DELETE_MACHINES" / QEMU version
- * number >= 10.1.0. This gate can be deleted in the 10.1.0
- * dev cycle
  */
 #define MACHINE_VER_DELETION(...) \
     do { \
         if (MACHINE_VER_SHOULD_DELETE(__VA_ARGS__)) { \
-            if (getenv("QEMU_DELETE_MACHINES") || \
-                QEMU_VERSION_MAJOR > 10 || (QEMU_VERSION_MAJOR == 10 && \
-                                            QEMU_VERSION_MINOR >= 1)) { \
-                return; \
-            } \
+            return; \
         } \
     } while (0)
 

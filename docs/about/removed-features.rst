@@ -981,10 +981,12 @@ from Linux in 2021, and is not supported anymore by QEMU either.
 System emulator machines
 ------------------------
 
-Note: Versioned machine types that have been introduced in a QEMU version
-that has initially been released more than 6 years before are considered
-obsolete and will be removed without further notice in this document.
-Please use newer machine types instead.
+Versioned machine types (aarch64, arm, i386, m68k, ppc64, s390x, x86_64)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+In accordance with our versioned machine type deprecation policy, all machine
+types with version |VER_MACHINE_DELETION_VERSION|, or older, have been
+removed.
 
 ``s390-virtio`` (removed in 2.6)
 ''''''''''''''''''''''''''''''''
