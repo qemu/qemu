@@ -67,5 +67,6 @@ int main(int argc, char **argv)
 
     qtest_quit(ast2700_evb_data.s);
     unlink(ast2700_evb_data.tmp_path);
+    g_free(ast2700_evb_data.tmp_path);
     return ret;
 }
