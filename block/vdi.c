@@ -523,8 +523,8 @@ static int vdi_reopen_prepare(BDRVReopenState *state,
 }
 
 static int coroutine_fn GRAPH_RDLOCK
-vdi_co_block_status(BlockDriverState *bs, bool want_zero, int64_t offset,
-                    int64_t bytes, int64_t *pnum, int64_t *map,
+vdi_co_block_status(BlockDriverState *bs, unsigned int mode,
+                    int64_t offset, int64_t bytes, int64_t *pnum, int64_t *map,
                     BlockDriverState **file)
 {
     BDRVVdiState *s = (BDRVVdiState *)bs->opaque;

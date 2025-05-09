@@ -41,11 +41,11 @@ snapshot_access_co_preadv_part(BlockDriverState *bs,
 
 static int coroutine_fn GRAPH_RDLOCK
 snapshot_access_co_block_status(BlockDriverState *bs,
-                                bool want_zero, int64_t offset,
+                                unsigned int mode, int64_t offset,
                                 int64_t bytes, int64_t *pnum,
                                 int64_t *map, BlockDriverState **file)
 {
-    return bdrv_co_snapshot_block_status(bs->file->bs, want_zero, offset,
+    return bdrv_co_snapshot_block_status(bs->file->bs, mode, offset,
                                          bytes, pnum, map, file);
 }
 

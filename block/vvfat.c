@@ -3134,9 +3134,9 @@ vvfat_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
 }
 
 static int coroutine_fn vvfat_co_block_status(BlockDriverState *bs,
-                                              bool want_zero, int64_t offset,
-                                              int64_t bytes, int64_t *n,
-                                              int64_t *map,
+                                              unsigned int mode,
+                                              int64_t offset, int64_t bytes,
+                                              int64_t *n, int64_t *map,
                                               BlockDriverState **file)
 {
     *n = bytes;

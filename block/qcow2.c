@@ -2141,9 +2141,9 @@ static void qcow2_join_options(QDict *options, QDict *old_options)
 }
 
 static int coroutine_fn GRAPH_RDLOCK
-qcow2_co_block_status(BlockDriverState *bs, bool want_zero, int64_t offset,
-                      int64_t count, int64_t *pnum, int64_t *map,
-                      BlockDriverState **file)
+qcow2_co_block_status(BlockDriverState *bs, unsigned int mode,
+                      int64_t offset, int64_t count, int64_t *pnum,
+                      int64_t *map, BlockDriverState **file)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t host_offset;

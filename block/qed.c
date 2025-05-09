@@ -833,9 +833,9 @@ fail:
 }
 
 static int coroutine_fn GRAPH_RDLOCK
-bdrv_qed_co_block_status(BlockDriverState *bs, bool want_zero, int64_t pos,
-                         int64_t bytes, int64_t *pnum, int64_t *map,
-                         BlockDriverState **file)
+bdrv_qed_co_block_status(BlockDriverState *bs, unsigned int mode,
+                         int64_t pos, int64_t bytes, int64_t *pnum,
+                         int64_t *map, BlockDriverState **file)
 {
     BDRVQEDState *s = bs->opaque;
     size_t len = MIN(bytes, SIZE_MAX);

@@ -333,6 +333,17 @@ typedef enum {
 #define BDRV_BLOCK_RECURSE      0x40
 #define BDRV_BLOCK_COMPRESSED   0x80
 
+/*
+ * Block status hints: the bitwise-or of these flags emphasize what
+ * the caller hopes to learn, and some drivers may be able to give
+ * faster answers by doing less work when the hint permits.
+ */
+#define BDRV_WANT_ZERO          BDRV_BLOCK_ZERO
+#define BDRV_WANT_OFFSET_VALID  BDRV_BLOCK_OFFSET_VALID
+#define BDRV_WANT_ALLOCATED     BDRV_BLOCK_ALLOCATED
+#define BDRV_WANT_PRECISE       (BDRV_WANT_ZERO | BDRV_WANT_OFFSET_VALID | \
+                                 BDRV_WANT_OFFSET_VALID)
+
 typedef QTAILQ_HEAD(BlockReopenQueue, BlockReopenQueueEntry) BlockReopenQueue;
 
 typedef struct BDRVReopenState {

@@ -416,9 +416,9 @@ parallels_co_flush_to_os(BlockDriverState *bs)
 }
 
 static int coroutine_fn GRAPH_RDLOCK
-parallels_co_block_status(BlockDriverState *bs, bool want_zero, int64_t offset,
-                          int64_t bytes, int64_t *pnum, int64_t *map,
-                          BlockDriverState **file)
+parallels_co_block_status(BlockDriverState *bs, unsigned int mode,
+                          int64_t offset, int64_t bytes, int64_t *pnum,
+                          int64_t *map, BlockDriverState **file)
 {
     BDRVParallelsState *s = bs->opaque;
     int count;
