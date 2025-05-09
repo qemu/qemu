@@ -53,8 +53,6 @@ typedef struct MirrorBlockJob {
     Error *replace_blocker;
     MirrorSyncMode sync_mode;
     BlockMirrorBackingMode backing_mode;
-    /* Whether the target image requires explicit zero-initialization */
-    bool zero_target;
     /* Whether the target should be assumed to be already zero initialized */
     bool target_is_zero;
     /*
@@ -854,7 +852,9 @@ static int coroutine_fn GRAPH_UNLOCKED mirror_dirty_init(MirrorBlockJob *s)
     bs = s->mirror_top_bs->backing->bs;
     bdrv_graph_co_rdunlock();
 
-    if (s->zero_target && (!s->target_is_zero || punch_holes)) {
+    if (s->sync_mode == MIRROR_SYNC_MODE_TOP) {
+        /* In TOP mode, there is no benefit to a pre-zeroing pass.  */
+    } else if (!s->target_is_zero || punch_holes) {
         /*
          * Here, we are in FULL mode; our goal is to avoid writing
          * zeroes if the destination already reads as zero, except
@@ -1730,7 +1730,7 @@ static BlockJob *mirror_start_job(
                              uint32_t granularity, int64_t buf_size,
                              MirrorSyncMode sync_mode,
                              BlockMirrorBackingMode backing_mode,
-                             bool zero_target, bool target_is_zero,
+                             bool target_is_zero,
                              BlockdevOnError on_source_error,
                              BlockdevOnError on_target_error,
                              bool unmap,
@@ -1898,7 +1898,6 @@ static BlockJob *mirror_start_job(
     s->on_target_error = on_target_error;
     s->sync_mode = sync_mode;
     s->backing_mode = backing_mode;
-    s->zero_target = zero_target;
     s->target_is_zero = target_is_zero;
     qatomic_set(&s->copy_mode, copy_mode);
     s->base = base;
@@ -2028,7 +2027,7 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
                   int creation_flags, int64_t speed,
                   uint32_t granularity, int64_t buf_size,
                   MirrorSyncMode mode, BlockMirrorBackingMode backing_mode,
-                  bool zero_target, bool target_is_zero,
+                  bool target_is_zero,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   bool unmap, const char *filter_node_name,
@@ -2051,7 +2050,6 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
 
     mirror_start_job(job_id, bs, creation_flags, target, replaces,
                      speed, granularity, buf_size, mode, backing_mode,
-                     zero_target,
                      target_is_zero, on_source_error, on_target_error, unmap,
                      NULL, NULL, &mirror_job_driver, base, false,
                      filter_node_name, true, copy_mode, false, errp);
@@ -2080,7 +2078,6 @@ BlockJob *commit_active_start(const char *job_id, BlockDriverState *bs,
     job = mirror_start_job(
                      job_id, bs, creation_flags, base, NULL, speed, 0, 0,
                      MIRROR_SYNC_MODE_TOP, MIRROR_LEAVE_BACKING_CHAIN, false,
-                     false,
                      on_error, on_error, true, cb, opaque,
                      &commit_active_job_driver, base, auto_complete,
                      filter_node_name, false, MIRROR_COPY_MODE_BACKGROUND,
