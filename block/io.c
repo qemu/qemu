@@ -2751,28 +2751,31 @@ int coroutine_fn bdrv_co_block_status(BlockDriverState *bs, int64_t offset,
  * by @offset and @bytes is known to read as zeroes.
  * Return 1 if that is the case, 0 otherwise and -errno on error.
  * This test is meant to be fast rather than accurate so returning 0
- * does not guarantee non-zero data.
+ * does not guarantee non-zero data; but a return of 1 is reliable.
  */
 int coroutine_fn bdrv_co_is_zero_fast(BlockDriverState *bs, int64_t offset,
                                       int64_t bytes)
 {
     int ret;
-    int64_t pnum = bytes;
+    int64_t pnum;
     IO_CODE();
 
-    if (!bytes) {
-        return 1;
+    while (bytes) {
+        ret = bdrv_co_common_block_status_above(bs, NULL, false,
+                                                BDRV_WANT_ZERO, offset, bytes,
+                                                &pnum, NULL, NULL, NULL);
+
+        if (ret < 0) {
+            return ret;
+        }
+        if (!(ret & BDRV_BLOCK_ZERO)) {
+            return 0;
+        }
+        offset += pnum;
+        bytes -= pnum;
     }
 
-    ret = bdrv_co_common_block_status_above(bs, NULL, false, BDRV_WANT_ZERO,
-                                            offset, bytes, &pnum, NULL, NULL,
-                                            NULL);
-
-    if (ret < 0) {
-        return ret;
-    }
-
-    return (pnum == bytes) && (ret & BDRV_BLOCK_ZERO);
+    return 1;
 }
 
 int coroutine_fn bdrv_co_is_allocated(BlockDriverState *bs, int64_t offset,
