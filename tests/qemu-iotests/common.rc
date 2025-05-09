@@ -140,6 +140,12 @@ _optstr_add()
     fi
 }
 
+# report real disk usage for sparse files
+disk_usage()
+{
+    du --block-size=1 "$1" | awk '{print $1}'
+}
+
 # Set the variables to the empty string to turn Valgrind off
 # for specific processes, e.g.
 # $ VALGRIND_QEMU_IO= ./check -qcow2 -valgrind 015
