@@ -25,7 +25,7 @@ struct virtio_snd_config {
 	uint32_t streams;
 	/* # of available channel maps */
 	uint32_t chmaps;
-	/* # of available control elements */
+	/* # of available control elements (if VIRTIO_SND_F_CTLS) */
 	uint32_t controls;
 };
 

@@ -47,6 +47,7 @@ Intel document [1] shows how to dump VBIOS to file. For UEFI Option ROM, see
 
 QEMU also provides a "Legacy" mode that implicitly enables full functionality
 on IGD, it is automatically enabled when
+* IGD generation is 6 to 9 (Sandy Bridge to Comet Lake)
 * Machine type is i440fx
 * IGD is assigned to guest BDF 00:02.0
 * ROM BAR or romfile is present
@@ -101,7 +102,7 @@ digital formats work well.
 
 Options
 =======
-* x-igd-opregion=[on|*off*]
+* x-igd-opregion=[*on*|off]
   Copy host IGD OpRegion and expose it to guest with fw_cfg
 
 * x-igd-lpc=[on|*off*]
@@ -123,7 +124,7 @@ Examples
 
 * Adding IGD with OpRegion and LPC ID hack, but without VGA ranges
   (For UEFI guests)
-  -device vfio-pci,host=00:02.0,id=hostdev0,addr=2.0,x-igd-legacy-mode=off,x-igd-opregion=on,x-igd-lpc=on,romfile=efi_oprom.rom
+  -device vfio-pci,host=00:02.0,id=hostdev0,addr=2.0,x-igd-legacy-mode=off,x-igd-lpc=on,romfile=efi_oprom.rom
 
 
 Guest firmware
@@ -155,6 +156,12 @@ fw_cfg requirements on the VM firmware:
    has other dependencies on the device appearing at guest address 00:02.0,
    it's expected that this fw_cfg file is only relevant to a single PCI
    class VGA device with Intel vendor ID, appearing at PCI bus address 00:02.0.
+
+   Starting from Meteor Lake, IGD devices access stolen memory via its MMIO
+   BAR2 (LMEMBAR) and removed the BDSM register in config space. There is
+   no need for guest firmware to allocate data stolen memory in guest address
+   space and write it to BDSM register. Value of this fw_cfg file is 0 in
+   such case.
 
 Upstream Seabios has OpRegion and BDSM (pre-Gen11 device only) support.
 However, the support is not accepted by upstream EDK2/OVMF. A recommended

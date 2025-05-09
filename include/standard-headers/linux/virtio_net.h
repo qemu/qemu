@@ -327,6 +327,19 @@ struct virtio_net_rss_config {
 	uint8_t hash_key_data[/* hash_key_length */];
 };
 
+struct virtio_net_rss_config_hdr {
+	uint32_t hash_types;
+	uint16_t indirection_table_mask;
+	uint16_t unclassified_queue;
+	uint16_t indirection_table[/* 1 + indirection_table_mask */];
+};
+
+struct virtio_net_rss_config_trailer {
+	uint16_t max_tx_vq;
+	uint8_t hash_key_length;
+	uint8_t hash_key_data[/* hash_key_length */];
+};
+
  #define VIRTIO_NET_CTRL_MQ_RSS_CONFIG          1
 
 /*

@@ -371,5 +371,6 @@
 #define __NR_getxattrat (__NR_Linux + 464)
 #define __NR_listxattrat (__NR_Linux + 465)
 #define __NR_removexattrat (__NR_Linux + 466)
+#define __NR_open_tree_attr (__NR_Linux + 467)
 
 #endif /* _ASM_UNISTD_N64_H */

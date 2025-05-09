@@ -82,7 +82,7 @@ void vfio_device_irq_disable(VFIODevice *vbasedev, int index)
         .count = 0,
     };
 
-    ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
+    vbasedev->io_ops->set_irqs(vbasedev, &irq_set);
 }
 
 void vfio_device_irq_unmask(VFIODevice *vbasedev, int index)
@@ -95,7 +95,7 @@ void vfio_device_irq_unmask(VFIODevice *vbasedev, int index)
         .count = 1,
     };
 
-    ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
+    vbasedev->io_ops->set_irqs(vbasedev, &irq_set);
 }
 
 void vfio_device_irq_mask(VFIODevice *vbasedev, int index)
@@ -108,7 +108,7 @@ void vfio_device_irq_mask(VFIODevice *vbasedev, int index)
         .count = 1,
     };
 
-    ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
+    vbasedev->io_ops->set_irqs(vbasedev, &irq_set);
 }
 
 static inline const char *action_to_str(int action)
@@ -167,7 +167,7 @@ bool vfio_device_irq_set_signaling(VFIODevice *vbasedev, int index, int subindex
     pfd = (int32_t *)&irq_set->data;
     *pfd = fd;
 
-    if (!ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irq_set)) {
+    if (!vbasedev->io_ops->set_irqs(vbasedev, irq_set)) {
         return true;
     }
 
@@ -185,10 +185,28 @@ bool vfio_device_irq_set_signaling(VFIODevice *vbasedev, int index, int subindex
     return false;
 }
 
+int vfio_device_get_irq_info(VFIODevice *vbasedev, int index,
+                             struct vfio_irq_info *info)
+{
+    memset(info, 0, sizeof(*info));
+
+    info->argsz = sizeof(*info);
+    info->index = index;
+
+    return vbasedev->io_ops->get_irq_info(vbasedev, info);
+}
+
 int vfio_device_get_region_info(VFIODevice *vbasedev, int index,
                                 struct vfio_region_info **info)
 {
     size_t argsz = sizeof(struct vfio_region_info);
+    int ret;
+
+    /* check cache */
+    if (vbasedev->reginfo[index] != NULL) {
+        *info = vbasedev->reginfo[index];
+        return 0;
+    }
 
     *info = g_malloc0(argsz);
 
@@ -196,10 +214,11 @@ int vfio_device_get_region_info(VFIODevice *vbasedev, int index,
 retry:
     (*info)->argsz = argsz;
 
-    if (ioctl(vbasedev->fd, VFIO_DEVICE_GET_REGION_INFO, *info)) {
+    ret = vbasedev->io_ops->get_region_info(vbasedev, *info);
+    if (ret != 0) {
         g_free(*info);
         *info = NULL;
-        return -errno;
+        return ret;
     }
 
     if ((*info)->argsz > argsz) {
@@ -208,6 +227,9 @@ retry:
 
         goto retry;
     }
+
+    /* fill cache */
+    vbasedev->reginfo[index] = *info;
 
     return 0;
 }
@@ -227,7 +249,6 @@ int vfio_device_get_region_info_type(VFIODevice *vbasedev, uint32_t type,
 
         hdr = vfio_get_region_info_cap(*info, VFIO_REGION_INFO_CAP_TYPE);
         if (!hdr) {
-            g_free(*info);
             continue;
         }
 
@@ -239,8 +260,6 @@ int vfio_device_get_region_info_type(VFIODevice *vbasedev, uint32_t type,
         if (cap_type->type == type && cap_type->subtype == subtype) {
             return 0;
         }
-
-        g_free(*info);
     }
 
     *info = NULL;
@@ -249,7 +268,7 @@ int vfio_device_get_region_info_type(VFIODevice *vbasedev, uint32_t type,
 
 bool vfio_device_has_region_cap(VFIODevice *vbasedev, int region, uint16_t cap_type)
 {
-    g_autofree struct vfio_region_info *info = NULL;
+    struct vfio_region_info *info = NULL;
     bool ret = false;
 
     if (!vfio_device_get_region_info(vbasedev, region, &info)) {
@@ -305,11 +324,14 @@ void vfio_device_set_fd(VFIODevice *vbasedev, const char *str, Error **errp)
     vbasedev->fd = fd;
 }
 
+static VFIODeviceIOOps vfio_device_io_ops_ioctl;
+
 void vfio_device_init(VFIODevice *vbasedev, int type, VFIODeviceOps *ops,
                       DeviceState *dev, bool ram_discard)
 {
     vbasedev->type = type;
     vbasedev->ops = ops;
+    vbasedev->io_ops = &vfio_device_io_ops_ioctl;
     vbasedev->dev = dev;
     vbasedev->fd = -1;
 
@@ -370,25 +392,33 @@ bool vfio_device_hiod_create_and_realize(VFIODevice *vbasedev,
 VFIODevice *vfio_get_vfio_device(Object *obj)
 {
     if (object_dynamic_cast(obj, TYPE_VFIO_PCI)) {
-        return &VFIO_PCI(obj)->vbasedev;
+        return &VFIO_PCI_BASE(obj)->vbasedev;
     } else {
         return NULL;
     }
 }
 
-bool vfio_device_attach(char *name, VFIODevice *vbasedev,
-                        AddressSpace *as, Error **errp)
+bool vfio_device_attach_by_iommu_type(const char *iommu_type, char *name,
+                                      VFIODevice *vbasedev, AddressSpace *as,
+                                      Error **errp)
 {
     const VFIOIOMMUClass *ops =
-        VFIO_IOMMU_CLASS(object_class_by_name(TYPE_VFIO_IOMMU_LEGACY));
-
-    if (vbasedev->iommufd) {
-        ops = VFIO_IOMMU_CLASS(object_class_by_name(TYPE_VFIO_IOMMU_IOMMUFD));
-    }
+        VFIO_IOMMU_CLASS(object_class_by_name(iommu_type));
 
     assert(ops);
 
     return ops->attach_device(name, vbasedev, as, errp);
+}
+
+bool vfio_device_attach(char *name, VFIODevice *vbasedev,
+                        AddressSpace *as, Error **errp)
+{
+    const char *iommu_type = vbasedev->iommufd ?
+                             TYPE_VFIO_IOMMU_IOMMUFD :
+                             TYPE_VFIO_IOMMU_LEGACY;
+
+    return vfio_device_attach_by_iommu_type(iommu_type, name, vbasedev,
+                                            as, errp);
 }
 
 void vfio_device_detach(VFIODevice *vbasedev)
@@ -398,3 +428,120 @@ void vfio_device_detach(VFIODevice *vbasedev)
     }
     VFIO_IOMMU_GET_CLASS(vbasedev->bcontainer)->detach_device(vbasedev);
 }
+
+void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainerBase *bcontainer,
+                         struct vfio_device_info *info)
+{
+    vbasedev->num_irqs = info->num_irqs;
+    vbasedev->num_regions = info->num_regions;
+    vbasedev->flags = info->flags;
+    vbasedev->reset_works = !!(info->flags & VFIO_DEVICE_FLAGS_RESET);
+
+    vbasedev->bcontainer = bcontainer;
+    QLIST_INSERT_HEAD(&bcontainer->device_list, vbasedev, container_next);
+
+    QLIST_INSERT_HEAD(&vfio_device_list, vbasedev, global_next);
+
+    vbasedev->reginfo = g_new0(struct vfio_region_info *,
+                               vbasedev->num_regions);
+}
+
+void vfio_device_unprepare(VFIODevice *vbasedev)
+{
+    int i;
+
+    for (i = 0; i < vbasedev->num_regions; i++) {
+        g_free(vbasedev->reginfo[i]);
+    }
+    g_free(vbasedev->reginfo);
+    vbasedev->reginfo = NULL;
+
+    QLIST_REMOVE(vbasedev, container_next);
+    QLIST_REMOVE(vbasedev, global_next);
+    vbasedev->bcontainer = NULL;
+}
+
+/*
+ * Traditional ioctl() based io
+ */
+
+static int vfio_device_io_device_feature(VFIODevice *vbasedev,
+                                         struct vfio_device_feature *feature)
+{
+    int ret;
+
+    ret = ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature);
+
+    return ret < 0 ? -errno : ret;
+}
+
+static int vfio_device_io_get_region_info(VFIODevice *vbasedev,
+                                          struct vfio_region_info *info)
+{
+    int ret;
+
+    ret = ioctl(vbasedev->fd, VFIO_DEVICE_GET_REGION_INFO, info);
+
+    return ret < 0 ? -errno : ret;
+}
+
+static int vfio_device_io_get_irq_info(VFIODevice *vbasedev,
+                                       struct vfio_irq_info *info)
+{
+    int ret;
+
+    ret = ioctl(vbasedev->fd, VFIO_DEVICE_GET_IRQ_INFO, info);
+
+    return ret < 0 ? -errno : ret;
+}
+
+static int vfio_device_io_set_irqs(VFIODevice *vbasedev,
+                                   struct vfio_irq_set *irqs)
+{
+    int ret;
+
+    ret = ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irqs);
+
+    return ret < 0 ? -errno : ret;
+}
+
+static int vfio_device_io_region_read(VFIODevice *vbasedev, uint8_t index,
+                                      off_t off, uint32_t size, void *data)
+{
+    struct vfio_region_info *info;
+    int ret;
+
+    ret = vfio_device_get_region_info(vbasedev, index, &info);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = pread(vbasedev->fd, data, size, info->offset + off);
+
+    return ret < 0 ? -errno : ret;
+}
+
+static int vfio_device_io_region_write(VFIODevice *vbasedev, uint8_t index,
+                                       off_t off, uint32_t size, void *data)
+{
+    struct vfio_region_info *info;
+    int ret;
+
+    ret = vfio_device_get_region_info(vbasedev, index, &info);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = pwrite(vbasedev->fd, data, size, info->offset + off);
+
+    return ret < 0 ? -errno : ret;
+}
+
+static VFIODeviceIOOps vfio_device_io_ops_ioctl = {
+    .device_feature = vfio_device_io_device_feature,
+    .get_region_info = vfio_device_io_get_region_info,
+    .get_irq_info = vfio_device_io_get_irq_info,
+    .set_irqs = vfio_device_io_set_irqs,
+    .region_read = vfio_device_io_region_read,
+    .region_write = vfio_device_io_region_write,
+};

@@ -41,6 +41,7 @@ enum {
 };
 
 typedef struct VFIODeviceOps VFIODeviceOps;
+typedef struct VFIODeviceIOOps VFIODeviceIOOps;
 typedef struct VFIOMigration VFIOMigration;
 
 typedef struct IOMMUFDBackend IOMMUFDBackend;
@@ -66,6 +67,7 @@ typedef struct VFIODevice {
     OnOffAuto migration_multifd_transfer;
     bool migration_events;
     VFIODeviceOps *ops;
+    VFIODeviceIOOps *io_ops;
     unsigned int num_irqs;
     unsigned int num_regions;
     unsigned int flags;
@@ -81,6 +83,7 @@ typedef struct VFIODevice {
     IOMMUFDBackend *iommufd;
     VFIOIOASHwpt *hwpt;
     QLIST_ENTRY(VFIODevice) hwpt_next;
+    struct vfio_region_info **reginfo;
 } VFIODevice;
 
 struct VFIODeviceOps {
@@ -115,6 +118,20 @@ struct VFIODeviceOps {
     int (*vfio_load_config)(VFIODevice *vdev, QEMUFile *f);
 };
 
+/*
+ * Given a return value of either a short number of bytes read or -errno,
+ * construct a meaningful error message.
+ */
+#define strreaderror(ret) \
+    (ret < 0 ? strerror(-ret) : "short read")
+
+/*
+ * Given a return value of either a short number of bytes written or -errno,
+ * construct a meaningful error message.
+ */
+#define strwriteerror(ret) \
+    (ret < 0 ? strerror(-ret) : "short write")
+
 void vfio_device_irq_disable(VFIODevice *vbasedev, int index);
 void vfio_device_irq_unmask(VFIODevice *vbasedev, int index);
 void vfio_device_irq_mask(VFIODevice *vbasedev, int index);
@@ -127,6 +144,9 @@ bool vfio_device_hiod_create_and_realize(VFIODevice *vbasedev,
                                          const char *typename, Error **errp);
 bool vfio_device_attach(char *name, VFIODevice *vbasedev,
                         AddressSpace *as, Error **errp);
+bool vfio_device_attach_by_iommu_type(const char *iommu_type, char *name,
+                                      VFIODevice *vbasedev, AddressSpace *as,
+                                      Error **errp);
 void vfio_device_detach(VFIODevice *vbasedev);
 VFIODevice *vfio_get_vfio_device(Object *obj);
 
@@ -134,11 +154,73 @@ typedef QLIST_HEAD(VFIODeviceList, VFIODevice) VFIODeviceList;
 extern VFIODeviceList vfio_device_list;
 
 #ifdef CONFIG_LINUX
+/*
+ * How devices communicate with the server.  The default option is through
+ * ioctl() to the kernel VFIO driver, but vfio-user can use a socket to a remote
+ * process.
+ */
+struct VFIODeviceIOOps {
+    /**
+     * @device_feature
+     *
+     * Fill in feature info for the given device.
+     */
+    int (*device_feature)(VFIODevice *vdev, struct vfio_device_feature *);
+
+    /**
+     * @get_region_info
+     *
+     * Fill in @info with information on the region given by @info->index.
+     */
+    int (*get_region_info)(VFIODevice *vdev,
+                           struct vfio_region_info *info);
+
+    /**
+     * @get_irq_info
+     *
+     * Fill in @irq with information on the IRQ given by @info->index.
+     */
+    int (*get_irq_info)(VFIODevice *vdev, struct vfio_irq_info *irq);
+
+    /**
+     * @set_irqs
+     *
+     * Configure IRQs as defined by @irqs.
+     */
+    int (*set_irqs)(VFIODevice *vdev, struct vfio_irq_set *irqs);
+
+    /**
+     * @region_read
+     *
+     * Read @size bytes from the region @nr at offset @off into the buffer
+     * @data.
+     */
+    int (*region_read)(VFIODevice *vdev, uint8_t nr, off_t off, uint32_t size,
+                       void *data);
+
+    /**
+     * @region_write
+     *
+     * Write @size bytes to the region @nr at offset @off from the buffer
+     * @data.
+     */
+    int (*region_write)(VFIODevice *vdev, uint8_t nr, off_t off, uint32_t size,
+                        void *data);
+};
+
+void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainerBase *bcontainer,
+                         struct vfio_device_info *info);
+
+void vfio_device_unprepare(VFIODevice *vbasedev);
+
 int vfio_device_get_region_info(VFIODevice *vbasedev, int index,
                                 struct vfio_region_info **info);
 int vfio_device_get_region_info_type(VFIODevice *vbasedev, uint32_t type,
                                      uint32_t subtype, struct vfio_region_info **info);
 bool vfio_device_has_region_cap(VFIODevice *vbasedev, int region, uint16_t cap_type);
+
+int vfio_device_get_irq_info(VFIODevice *vbasedev, int index,
+                                struct vfio_irq_info *info);
 #endif
 
 /* Returns 0 on success, or a negative errno. */
