@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+# group: rw auto quick
+#
+# Test blockdev-mirror with raw sparse destination
+#
+# Copyright (C) 2025 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+status=1 # failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    _cleanup_qemu
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+cd ..
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt qcow2 raw  # Format of the source. dst is always raw file
+_supported_proto file
+_supported_os Linux
+
+echo
+echo "=== Initial image setup ==="
+echo
+
+TEST_IMG="$TEST_IMG.base" _make_test_img 20M
+$QEMU_IO -c 'w 8M 2M' -f $IMGFMT "$TEST_IMG.base" | _filter_qemu_io
+
+_launch_qemu \
+    -blockdev '{"driver":"file", "cache":{"direct":true, "no-flush":false},
+                "filename":"'"$TEST_IMG.base"'", "node-name":"src-file"}' \
+    -blockdev '{"driver":"'$IMGFMT'", "node-name":"src", "file":"src-file"}'
+h1=$QEMU_HANDLE
+_send_qemu_cmd $h1 '{"execute": "qmp_capabilities"}' 'return'
+
+# Check several combinations; most should result in a sparse destination;
+# the destination should only be fully allocated if pre-allocated
+# and not punching holes due to detect-zeroes
+# do_test creation discard zeroes result
+do_test() {
+    creation=$1
+    discard=$2
+    zeroes=$3
+    expected=$4
+
+echo
+echo "=== Testing creation=$creation discard=$discard zeroes=$zeroes ==="
+echo
+
+rm -f $TEST_IMG
+if test $creation = external; then
+    truncate --size=20M $TEST_IMG
+else
+    _send_qemu_cmd $h1 '{"execute": "blockdev-create", "arguments":
+          {"options": {"driver":"file", "filename":"'$TEST_IMG'",
+            "size":'$((20*1024*1024))', "preallocation":"'$creation'"},
+           "job-id":"job1"}}' 'concluded'
+    _send_qemu_cmd $h1 '{"execute": "job-dismiss", "arguments":
+          {"id": "job1"}}' 'return'
+fi
+_send_qemu_cmd $h1 '{"execute": "blockdev-add", "arguments":
+                     {"node-name": "dst", "driver":"file",
+                      "filename":"'$TEST_IMG'", "aio":"threads",
+                      "auto-read-only":true, "discard":"'$discard'",
+                      "detect-zeroes":"'$zeroes'"}}' 'return'
+_send_qemu_cmd $h1 '{"execute":"blockdev-mirror", "arguments":
+                     {"sync":"full", "device":"src", "target":"dst",
+                      "job-id":"job2"}}' 'return'
+_timed_wait_for $h1 '"ready"'
+_send_qemu_cmd $h1 '{"execute": "job-complete", "arguments":
+               {"id":"job2"}}' 'return' \
+                  | _filter_block_job_offset | _filter_block_job_len
+_send_qemu_cmd $h1 '{"execute": "blockdev-del", "arguments":
+                {"node-name": "dst"}}' 'return' \
+                  | _filter_block_job_offset | _filter_block_job_len
+$QEMU_IMG compare -U -f $IMGFMT -F raw $TEST_IMG.base $TEST_IMG
+result=$(disk_usage $TEST_IMG)
+if test $result -lt $((3*1024*1024)); then
+    actual=sparse
+elif test $result = $((20*1024*1024)); then
+    actual=full
+else
+    actual=unknown
+fi
+echo "Destination is $actual; expected $expected"
+}
+
+do_test external ignore off sparse
+do_test external unmap off sparse
+do_test external unmap unmap sparse
+do_test off ignore off sparse
+do_test off unmap off sparse
+do_test off unmap unmap sparse
+do_test full ignore off full
+do_test full unmap off sparse
+do_test full unmap unmap sparse
+
+_send_qemu_cmd $h1 '{"execute":"quit"}' ''
+
+# success, all done
+echo '*** done'
+rm -f $seq.full
+status=0
