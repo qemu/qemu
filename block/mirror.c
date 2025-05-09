@@ -51,7 +51,7 @@ typedef struct MirrorBlockJob {
     BlockDriverState *to_replace;
     /* Used to block operations on the drive-mirror-replace target */
     Error *replace_blocker;
-    bool is_none_mode;
+    MirrorSyncMode sync_mode;
     BlockMirrorBackingMode backing_mode;
     /* Whether the target image requires explicit zero-initialization */
     bool zero_target;
@@ -723,9 +723,10 @@ static int mirror_exit_common(Job *job)
                              &error_abort);
 
     if (!abort && s->backing_mode == MIRROR_SOURCE_BACKING_CHAIN) {
-        BlockDriverState *backing = s->is_none_mode ? src : s->base;
+        BlockDriverState *backing;
         BlockDriverState *unfiltered_target = bdrv_skip_filters(target_bs);
 
+        backing = s->sync_mode == MIRROR_SYNC_MODE_NONE ? src : s->base;
         if (bdrv_cow_bs(unfiltered_target) != backing) {
             bdrv_set_backing_hd(unfiltered_target, backing, &local_err);
             if (local_err) {
@@ -1020,7 +1021,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
     mirror_free_init(s);
 
     s->last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-    if (!s->is_none_mode) {
+    if (s->sync_mode != MIRROR_SYNC_MODE_NONE) {
         ret = mirror_dirty_init(s);
         if (ret < 0 || job_is_cancelled(&s->common.job)) {
             goto immediate_exit;
@@ -1711,6 +1712,7 @@ static BlockJob *mirror_start_job(
                              int creation_flags, BlockDriverState *target,
                              const char *replaces, int64_t speed,
                              uint32_t granularity, int64_t buf_size,
+                             MirrorSyncMode sync_mode,
                              BlockMirrorBackingMode backing_mode,
                              bool zero_target,
                              BlockdevOnError on_source_error,
@@ -1719,7 +1721,7 @@ static BlockJob *mirror_start_job(
                              BlockCompletionFunc *cb,
                              void *opaque,
                              const BlockJobDriver *driver,
-                             bool is_none_mode, BlockDriverState *base,
+                             BlockDriverState *base,
                              bool auto_complete, const char *filter_node_name,
                              bool is_mirror, MirrorCopyMode copy_mode,
                              bool base_ro,
@@ -1878,7 +1880,7 @@ static BlockJob *mirror_start_job(
     s->replaces = g_strdup(replaces);
     s->on_source_error = on_source_error;
     s->on_target_error = on_target_error;
-    s->is_none_mode = is_none_mode;
+    s->sync_mode = sync_mode;
     s->backing_mode = backing_mode;
     s->zero_target = zero_target;
     qatomic_set(&s->copy_mode, copy_mode);
@@ -2015,7 +2017,6 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
                   bool unmap, const char *filter_node_name,
                   MirrorCopyMode copy_mode, Error **errp)
 {
-    bool is_none_mode;
     BlockDriverState *base;
 
     GLOBAL_STATE_CODE();
@@ -2028,14 +2029,13 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
     }
 
     bdrv_graph_rdlock_main_loop();
-    is_none_mode = mode == MIRROR_SYNC_MODE_NONE;
     base = mode == MIRROR_SYNC_MODE_TOP ? bdrv_backing_chain_next(bs) : NULL;
     bdrv_graph_rdunlock_main_loop();
 
     mirror_start_job(job_id, bs, creation_flags, target, replaces,
-                     speed, granularity, buf_size, backing_mode, zero_target,
-                     on_source_error, on_target_error, unmap, NULL, NULL,
-                     &mirror_job_driver, is_none_mode, base, false,
+                     speed, granularity, buf_size, mode, backing_mode,
+                     zero_target, on_source_error, on_target_error, unmap,
+                     NULL, NULL, &mirror_job_driver, base, false,
                      filter_node_name, true, copy_mode, false, errp);
 }
 
@@ -2061,9 +2061,9 @@ BlockJob *commit_active_start(const char *job_id, BlockDriverState *bs,
 
     job = mirror_start_job(
                      job_id, bs, creation_flags, base, NULL, speed, 0, 0,
-                     MIRROR_LEAVE_BACKING_CHAIN, false,
+                     MIRROR_SYNC_MODE_TOP, MIRROR_LEAVE_BACKING_CHAIN, false,
                      on_error, on_error, true, cb, opaque,
-                     &commit_active_job_driver, false, base, auto_complete,
+                     &commit_active_job_driver, base, auto_complete,
                      filter_node_name, false, MIRROR_COPY_MODE_BACKGROUND,
                      base_read_only, errp);
     if (!job) {
