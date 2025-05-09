@@ -1466,7 +1466,7 @@ exit:
  * (Based on raw_co_block_status() from file-posix.c.)
  */
 static int coroutine_fn qemu_gluster_co_block_status(BlockDriverState *bs,
-                                                     bool want_zero,
+                                                     unsigned int mode,
                                                      int64_t offset,
                                                      int64_t bytes,
                                                      int64_t *pnum,
@@ -1483,7 +1483,7 @@ static int coroutine_fn qemu_gluster_co_block_status(BlockDriverState *bs,
         return ret;
     }
 
-    if (!want_zero) {
+    if (mode != BDRV_WANT_PRECISE) {
         *pnum = bytes;
         *map = offset;
         *file = bs;

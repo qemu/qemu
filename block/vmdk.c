@@ -1777,7 +1777,7 @@ static inline uint64_t vmdk_find_offset_in_cluster(VmdkExtent *extent,
 }
 
 static int coroutine_fn GRAPH_RDLOCK
-vmdk_co_block_status(BlockDriverState *bs, bool want_zero,
+vmdk_co_block_status(BlockDriverState *bs, unsigned int mode,
                      int64_t offset, int64_t bytes, int64_t *pnum,
                      int64_t *map, BlockDriverState **file)
 {
