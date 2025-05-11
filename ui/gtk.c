@@ -801,6 +801,24 @@ void gd_update_monitor_refresh_rate(VirtualConsole *vc, GtkWidget *widget)
 #endif
 }
 
+void gd_update_scale(VirtualConsole *vc, int ww, int wh, int fbw, int fbh)
+{
+    if (!vc) {
+        return;
+    }
+
+    if (vc->s->full_screen) {
+        vc->gfx.scale_x = (double)ww / fbw;
+        vc->gfx.scale_y = (double)wh / fbh;
+    } else if (vc->s->free_scale) {
+        double sx, sy;
+
+        sx = (double)ww / fbw;
+        sy = (double)wh / fbh;
+
+        vc->gfx.scale_x = vc->gfx.scale_y = MIN(sx, sy);
+    }
+}
 /**
  * DOC: Coordinate handling.
  *
@@ -908,17 +926,7 @@ static gboolean gd_draw_event(GtkWidget *widget, cairo_t *cr, void *opaque)
     ww_widget = gdk_window_get_width(gtk_widget_get_window(widget));
     wh_widget = gdk_window_get_height(gtk_widget_get_window(widget));
 
-    if (s->full_screen) {
-        vc->gfx.scale_x = (double)ww_widget / fbw;
-        vc->gfx.scale_y = (double)wh_widget / fbh;
-    } else if (s->free_scale) {
-        double sx, sy;
-
-        sx = (double)ww_widget / fbw;
-        sy = (double)wh_widget / fbh;
-
-        vc->gfx.scale_x = vc->gfx.scale_y = MIN(sx, sy);
-    }
+    gd_update_scale(vc, ww_widget, wh_widget, fbw, fbh);
 
     ww_surface = fbw * vc->gfx.scale_x;
     wh_surface = fbh * vc->gfx.scale_y;
