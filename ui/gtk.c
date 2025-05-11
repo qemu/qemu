@@ -800,6 +800,71 @@ void gd_update_monitor_refresh_rate(VirtualConsole *vc, GtkWidget *widget)
 #endif
 }
 
+/**
+ * DOC: Coordinate handling.
+ *
+ * We are coping with sizes and positions in various coordinates and the
+ * handling of these coordinates is somewhat confusing. It would benefit us
+ * all if we define these coordinates explicitly and clearly. Besides, it's
+ * also helpful to follow the same naming convention for variables
+ * representing values in different coordinates.
+ *
+ * I. Definitions
+ *
+ * - (guest) buffer coordinate: this is the coordinates that the guest will
+ *   see. The x/y offsets and width/height specified in commands sent by
+ *   guest is basically in buffer coordinate.
+ *
+ * - (host) pixel coordinate: this is the coordinate in pixel level on the
+ *   host destop. A window/widget of width 300 in pixel coordinate means it
+ *   occupies 300 pixels horizontally.
+ *
+ * - (host) logical window coordinate: the existence of global scaling
+ *   factor in desktop level makes this kind of coordinate play a role. It
+ *   always holds that (logical window size) * (global scale factor) =
+ *   (pixel size).
+ *
+ * - global scale factor: this is specified in desktop level and is
+ *   typically invariant during the life cycle of the process. Users with
+ *   high-DPI monitors might set this scale, for example, to 2, in order to
+ *   make the UI look larger.
+ *
+ * - zooming scale: this can be freely controlled by the QEMU user to zoom
+ *   in/out the guest content.
+ *
+ * II. Representation
+ *
+ * We'd like to use consistent representation for variables in different
+ * coordinates:
+ * - buffer coordinate: prefix fb
+ * - pixel coordinate: prefix p
+ * - logical window coordinate: prefix w
+ *
+ * For scales:
+ * - global scale factor: prefix gs
+ * - zooming scale: prefix scale/s
+ *
+ * Example: fbw, pw, ww for width in different coordinates
+ *
+ * III. Equation
+ *
+ * - fbw * gs * scale_x = pw
+ * - pw = gs * ww
+ *
+ * Consequently we have
+ *
+ * - fbw * scale_x = ww
+ *
+ * Example: assuming we are running QEMU on a 3840x2160 screen and have set
+ * global scaling factor to 2, if the guest buffer size is 1920x1080 and the
+ * zooming scale is 0.5, then we have:
+ * - fbw = 1920, fbh = 1080
+ * - pw  = 1920, ph  = 1080
+ * - ww  = 960,  wh  = 540
+ * A bonus of this configuration is that we can achieve pixel to pixel
+ * presentation of the guest content.
+ */
+
 static gboolean gd_draw_event(GtkWidget *widget, cairo_t *cr, void *opaque)
 {
     VirtualConsole *vc = opaque;
