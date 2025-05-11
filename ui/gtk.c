@@ -772,8 +772,21 @@ static void gd_resize_event(GtkGLArea *area,
                             gint width, gint height, gpointer *opaque)
 {
     VirtualConsole *vc = (void *)opaque;
+    double pw = width, ph = height;
+    double sx = vc->gfx.scale_x, sy = vc->gfx.scale_y;
+    GdkWindow *window = gtk_widget_get_window(GTK_WIDGET(area));
+    const int gs = gdk_window_get_scale_factor(window);
 
-    gd_set_ui_size(vc, width, height);
+    if (!vc->s->free_scale && !vc->s->full_screen) {
+        pw /= sx;
+        ph /= sy;
+    }
+
+    /**
+     * width and height here are in pixel coordinate, so we must divide it
+     * by global window scale (gs)
+     */
+    gd_set_ui_size(vc, pw / gs, ph / gs);
 }
 
 #endif
@@ -1836,8 +1849,16 @@ static gboolean gd_configure(GtkWidget *widget,
                              GdkEventConfigure *cfg, gpointer opaque)
 {
     VirtualConsole *vc = opaque;
+    const double sx = vc->gfx.scale_x, sy = vc->gfx.scale_y;
+    double width = cfg->width, height = cfg->height;
 
-    gd_set_ui_size(vc, cfg->width, cfg->height);
+    if (!vc->s->free_scale && !vc->s->full_screen) {
+        width /= sx;
+        height /= sy;
+    }
+
+    gd_set_ui_size(vc, width, height);
+
     return FALSE;
 }
 
