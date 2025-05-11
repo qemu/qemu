@@ -95,8 +95,9 @@ void gd_egl_draw(VirtualConsole *vc)
 #endif
         gd_egl_scanout_flush(&vc->gfx.dcl, 0, 0, vc->gfx.w, vc->gfx.h);
 
-        vc->gfx.scale_x = (double)ww / surface_width(vc->gfx.ds);
-        vc->gfx.scale_y = (double)wh / surface_height(vc->gfx.ds);
+        gd_update_scale(vc, ww, wh,
+                        surface_width(vc->gfx.ds),
+                        surface_height(vc->gfx.ds));
 
         glFlush();
 #ifdef CONFIG_GBM
@@ -122,8 +123,9 @@ void gd_egl_draw(VirtualConsole *vc)
 
         eglSwapBuffers(qemu_egl_display, vc->gfx.esurface);
 
-        vc->gfx.scale_x = (double)ww / surface_width(vc->gfx.ds);
-        vc->gfx.scale_y = (double)wh / surface_height(vc->gfx.ds);
+        gd_update_scale(vc, ww, wh,
+                        surface_width(vc->gfx.ds),
+                        surface_height(vc->gfx.ds));
 
         glFlush();
     }
