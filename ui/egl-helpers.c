@@ -93,14 +93,18 @@ void egl_fb_destroy(egl_fb *fb)
 
     fb->width = 0;
     fb->height = 0;
+    fb->x = 0;
+    fb->y = 0;
     fb->texture = 0;
     fb->framebuffer = 0;
 }
 
-void egl_fb_setup_default(egl_fb *fb, int width, int height)
+void egl_fb_setup_default(egl_fb *fb, int width, int height, int x, int y)
 {
     fb->width = width;
     fb->height = height;
+    fb->x = x;
+    fb->y = y;
     fb->framebuffer = 0; /* default framebuffer */
 }
 
@@ -145,6 +149,7 @@ void egl_fb_blit(egl_fb *dst, egl_fb *src, bool flip)
     glBindFramebuffer(GL_READ_FRAMEBUFFER, src->framebuffer);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dst->framebuffer);
     glViewport(0, 0, dst->width, dst->height);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     if (src->dmabuf) {
         x1 = qemu_dmabuf_get_x(src->dmabuf);
@@ -161,7 +166,8 @@ void egl_fb_blit(egl_fb *dst, egl_fb *src, bool flip)
     x2 = x1 + w;
 
     glBlitFramebuffer(x1, y1, x2, y2,
-                      0, 0, dst->width, dst->height,
+                      dst->x, dst->y,
+                      dst->x + dst->width, dst->y + dst->height,
                       GL_COLOR_BUFFER_BIT, GL_LINEAR);
 }
 
