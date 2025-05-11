@@ -43,6 +43,8 @@ void gd_gl_area_draw(VirtualConsole *vc)
     QemuDmaBuf *dmabuf = vc->gfx.guest_fb.dmabuf;
 #endif
     int pw, ph, gs, y1, y2;
+    int ww, wh;
+    int fbw, fbh;
 
     if (!vc->gfx.gls) {
         return;
@@ -50,8 +52,14 @@ void gd_gl_area_draw(VirtualConsole *vc)
 
     gtk_gl_area_make_current(GTK_GL_AREA(vc->gfx.drawing_area));
     gs = gdk_window_get_scale_factor(gtk_widget_get_window(vc->gfx.drawing_area));
-    pw = gtk_widget_get_allocated_width(vc->gfx.drawing_area) * gs;
-    ph = gtk_widget_get_allocated_height(vc->gfx.drawing_area) * gs;
+    fbw = surface_width(vc->gfx.ds);
+    fbh = surface_height(vc->gfx.ds);
+    ww = gtk_widget_get_allocated_width(vc->gfx.drawing_area);
+    wh = gtk_widget_get_allocated_height(vc->gfx.drawing_area);
+    pw = ww * gs;
+    ph = wh * gs;
+
+    gd_update_scale(vc, ww, wh, fbw, fbh);
 
     if (vc->gfx.scanout_mode) {
         if (!vc->gfx.guest_fb.framebuffer) {
