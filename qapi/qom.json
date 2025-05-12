@@ -871,7 +871,7 @@
 #     link characteristics read from PCIe Configuration space.
 #     To get the full path latency from CPU to CXL attached DRAM
 #     CXL device:  Add the latency from CPU to Generic Port (from
-#     HMAT indexed via the the node ID in this SRAT structure) to
+#     HMAT indexed via the node ID in this SRAT structure) to
 #     that for CXL bus links, the latency across intermediate switches
 #     and from the EP port to the actual memory.  Bandwidth is more
 #     complex as there may be interleaving across multiple devices

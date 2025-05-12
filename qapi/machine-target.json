@@ -350,7 +350,7 @@
 #     migration-safe in the future (since 4.1)
 #
 # @deprecated: If true, this CPU model is deprecated and may be
-#     removed in in some future version of QEMU according to the QEMU
+#     removed in some future version of QEMU according to the QEMU
 #     deprecation policy.  (since 5.2)
 #
 # @unavailable-features is a list of QOM property names that represent

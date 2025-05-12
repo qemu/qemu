@@ -11,7 +11,7 @@ The syntax is:
 
 .. parsed-literal::
 
-   |qemu_system| -kernel bzImage -hda rootdisk.img -append "root=/dev/hda"
+   |qemu_system| -kernel bzImage -drive file=rootdisk.img,format=raw -append "root=/dev/sda"
 
 Use ``-kernel`` to provide the Linux kernel image and ``-append`` to
 give the kernel command line arguments. The ``-initrd`` option can be
@@ -23,8 +23,8 @@ virtual serial port and the QEMU monitor to the console with the
 
 .. parsed-literal::
 
-   |qemu_system| -kernel bzImage -hda rootdisk.img \
-                    -append "root=/dev/hda console=ttyS0" -nographic
+   |qemu_system| -kernel bzImage -drive file=rootdisk.img,format=raw \
+                    -append "root=/dev/sda console=ttyS0" -nographic
 
 Use Ctrl-a c to switch between the serial console and the monitor (see
 :ref:`GUI_keys`).

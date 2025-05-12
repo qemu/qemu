@@ -20,7 +20,7 @@ connection, use the ``-gdb dev`` option instead of ``-s``. See
 
 .. parsed-literal::
 
-   |qemu_system| -s -S -kernel bzImage -hda rootdisk.img -append "root=/dev/hda"
+   |qemu_system| -s -S -kernel bzImage -drive file=rootdisk.img,format=raw -append "root=/dev/sda"
 
 QEMU will launch but will silently wait for gdb to connect.
 

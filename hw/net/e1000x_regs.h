@@ -900,7 +900,7 @@ struct e1000_context_desc {
             uint16_t tucse;     /* TCP checksum end */
         } tcp_fields;
     } upper_setup;
-    uint32_t cmd_and_length;    /* */
+    uint32_t cmd_and_length;
     union {
         uint32_t data;
         struct {
