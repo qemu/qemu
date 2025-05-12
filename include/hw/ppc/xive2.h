@@ -29,9 +29,11 @@ OBJECT_DECLARE_TYPE(Xive2Router, Xive2RouterClass, XIVE2_ROUTER);
  * Configuration flags
  */
 
-#define XIVE2_GEN1_TIMA_OS      0x00000001
-#define XIVE2_VP_SAVE_RESTORE   0x00000002
-#define XIVE2_THREADID_8BITS    0x00000004
+#define XIVE2_GEN1_TIMA_OS          0x00000001
+#define XIVE2_VP_SAVE_RESTORE       0x00000002
+#define XIVE2_THREADID_8BITS        0x00000004
+#define XIVE2_EN_VP_GRP_PRIORITY    0x00000008
+#define XIVE2_VP_INT_PRIO           0x00000030
 
 typedef struct Xive2RouterClass {
     SysBusDeviceClass parent;

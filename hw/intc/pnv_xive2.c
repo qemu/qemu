@@ -605,19 +605,27 @@ static uint32_t pnv_xive2_get_config(Xive2Router *xrtr)
 {
     PnvXive2 *xive = PNV_XIVE2(xrtr);
     uint32_t cfg = 0;
+    uint64_t reg = xive->cq_regs[CQ_XIVE_CFG >> 3];
 
-    if (xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_GEN1_TIMA_OS) {
+    if (reg & CQ_XIVE_CFG_GEN1_TIMA_OS) {
         cfg |= XIVE2_GEN1_TIMA_OS;
     }
 
-    if (xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_EN_VP_SAVE_RESTORE) {
+    if (reg & CQ_XIVE_CFG_EN_VP_SAVE_RESTORE) {
         cfg |= XIVE2_VP_SAVE_RESTORE;
     }
 
-    if (GETFIELD(CQ_XIVE_CFG_HYP_HARD_RANGE,
-              xive->cq_regs[CQ_XIVE_CFG >> 3]) == CQ_XIVE_CFG_THREADID_8BITS) {
+    if (GETFIELD(CQ_XIVE_CFG_HYP_HARD_RANGE, reg) ==
+                      CQ_XIVE_CFG_THREADID_8BITS) {
         cfg |= XIVE2_THREADID_8BITS;
     }
+
+    if (reg & CQ_XIVE_CFG_EN_VP_GRP_PRIORITY) {
+        cfg |= XIVE2_EN_VP_GRP_PRIORITY;
+    }
+
+    cfg = SETFIELD(XIVE2_VP_INT_PRIO, cfg,
+                   GETFIELD(CQ_XIVE_CFG_VP_INT_PRIO, reg));
 
     return cfg;
 }
