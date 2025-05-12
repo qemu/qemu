@@ -1762,8 +1762,8 @@ uint32_t xive_get_vpgroup_size(uint32_t nvp_index)
     return 1U << (first_zero + 1);
 }
 
-static uint8_t xive_get_group_level(bool crowd, bool ignore,
-                                    uint32_t nvp_blk, uint32_t nvp_index)
+uint8_t xive_get_group_level(bool crowd, bool ignore,
+                             uint32_t nvp_blk, uint32_t nvp_index)
 {
     int first_zero;
     uint8_t level;
@@ -1881,15 +1881,14 @@ int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
  * This is our simple Xive Presenter Engine model. It is merged in the
  * Router as it does not require an extra object.
  */
-bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
+bool xive_presenter_match(XiveFabric *xfb, uint8_t format,
                            uint8_t nvt_blk, uint32_t nvt_idx,
                            bool crowd, bool cam_ignore, uint8_t priority,
-                           uint32_t logic_serv, bool *precluded)
+                           uint32_t logic_serv, XiveTCTXMatch *match)
 {
     XiveFabricClass *xfc = XIVE_FABRIC_GET_CLASS(xfb);
-    XiveTCTXMatch match = { .tctx = NULL, .ring = 0, .precluded = false };
-    uint8_t group_level;
-    int count;
+
+    memset(match, 0, sizeof(*match));
 
     /*
      * Ask the machine to scan the interrupt controllers for a match.
@@ -1914,22 +1913,8 @@ bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
      * a new command to the presenters (the equivalent of the "assign"
      * power bus command in the documented full notify sequence.
      */
-    count = xfc->match_nvt(xfb, format, nvt_blk, nvt_idx, crowd, cam_ignore,
-                           priority, logic_serv, &match);
-    if (count < 0) {
-        return false;
-    }
-
-    /* handle CPU exception delivery */
-    if (count) {
-        group_level = xive_get_group_level(crowd, cam_ignore, nvt_blk, nvt_idx);
-        trace_xive_presenter_notify(nvt_blk, nvt_idx, match.ring, group_level);
-        xive_tctx_pipr_update(match.tctx, match.ring, priority, group_level);
-    } else {
-        *precluded = match.precluded;
-    }
-
-    return !!count;
+    return xfc->match_nvt(xfb, format, nvt_blk, nvt_idx, crowd, cam_ignore,
+                          priority, logic_serv, match);
 }
 
 /*
@@ -1966,7 +1951,7 @@ void xive_router_end_notify(XiveRouter *xrtr, XiveEAS *eas)
     uint8_t nvt_blk;
     uint32_t nvt_idx;
     XiveNVT nvt;
-    bool found, precluded;
+    XiveTCTXMatch match;
 
     uint8_t end_blk = xive_get_field64(EAS_END_BLOCK, eas->w);
     uint32_t end_idx = xive_get_field64(EAS_END_INDEX, eas->w);
@@ -2046,16 +2031,16 @@ void xive_router_end_notify(XiveRouter *xrtr, XiveEAS *eas)
         return;
     }
 
-    found = xive_presenter_notify(xrtr->xfb, format, nvt_blk, nvt_idx,
-                          false /* crowd */,
-                          xive_get_field32(END_W7_F0_IGNORE, end.w7),
-                          priority,
-                          xive_get_field32(END_W7_F1_LOG_SERVER_ID, end.w7),
-                          &precluded);
-    /* we don't support VP-group notification on P9, so precluded is not used */
     /* TODO: Auto EOI. */
-
-    if (found) {
+    /* we don't support VP-group notification on P9, so precluded is not used */
+    if (xive_presenter_match(xrtr->xfb, format, nvt_blk, nvt_idx,
+                             false /* crowd */,
+                             xive_get_field32(END_W7_F0_IGNORE, end.w7),
+                             priority,
+                             xive_get_field32(END_W7_F1_LOG_SERVER_ID, end.w7),
+                             &match)) {
+        trace_xive_presenter_notify(nvt_blk, nvt_idx, match.ring, 0);
+        xive_tctx_pipr_update(match.tctx, match.ring, priority, 0);
         return;
     }
 

@@ -1559,7 +1559,8 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
     Xive2End end;
     uint8_t priority;
     uint8_t format;
-    bool found, precluded;
+    XiveTCTXMatch match;
+    bool crowd, cam_ignore;
     uint8_t nvx_blk;
     uint32_t nvx_idx;
 
@@ -1629,16 +1630,19 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
      */
     nvx_blk = xive_get_field32(END2_W6_VP_BLOCK, end.w6);
     nvx_idx = xive_get_field32(END2_W6_VP_OFFSET, end.w6);
-
-    found = xive_presenter_notify(xrtr->xfb, format, nvx_blk, nvx_idx,
-                          xive2_end_is_crowd(&end), xive2_end_is_ignore(&end),
-                          priority,
-                          xive_get_field32(END2_W7_F1_LOG_SERVER_ID, end.w7),
-                          &precluded);
+    crowd = xive2_end_is_crowd(&end);
+    cam_ignore = xive2_end_is_ignore(&end);
 
     /* TODO: Auto EOI. */
+    if (xive_presenter_match(xrtr->xfb, format, nvx_blk, nvx_idx,
+                             crowd, cam_ignore, priority,
+                             xive_get_field32(END2_W7_F1_LOG_SERVER_ID, end.w7),
+                             &match)) {
+        uint8_t group_level;
 
-    if (found) {
+        group_level = xive_get_group_level(crowd, cam_ignore, nvx_blk, nvx_idx);
+        trace_xive_presenter_notify(nvx_blk, nvx_idx, match.ring, group_level);
+        xive_tctx_pipr_update(match.tctx, match.ring, priority, group_level);
         return;
     }
 
@@ -1656,7 +1660,7 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
             return;
         }
 
-        if (!xive2_end_is_ignore(&end)) {
+        if (!cam_ignore) {
             uint8_t ipb;
             Xive2Nvp nvp;
 
@@ -1685,9 +1689,6 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
         } else {
             Xive2Nvgc nvgc;
             uint32_t backlog;
-            bool crowd;
-
-            crowd = xive2_end_is_crowd(&end);
 
             /*
              * For groups and crowds, the per-priority backlog
@@ -1719,9 +1720,7 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
             if (backlog == 1) {
                 XiveFabricClass *xfc = XIVE_FABRIC_GET_CLASS(xrtr->xfb);
                 xfc->broadcast(xrtr->xfb, nvx_blk, nvx_idx,
-                               xive2_end_is_crowd(&end),
-                               xive2_end_is_ignore(&end),
-                               priority);
+                               crowd, cam_ignore, priority);
 
                 if (!xive2_end_is_precluded_escalation(&end)) {
                     /*

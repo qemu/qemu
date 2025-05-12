@@ -2608,62 +2608,46 @@ static void pnv_pic_print_info(InterruptStatsProvider *obj, GString *buf)
     }
 }
 
-static int pnv_match_nvt(XiveFabric *xfb, uint8_t format,
-                         uint8_t nvt_blk, uint32_t nvt_idx,
-                         bool crowd, bool cam_ignore, uint8_t priority,
-                         uint32_t logic_serv,
-                         XiveTCTXMatch *match)
+static bool pnv_match_nvt(XiveFabric *xfb, uint8_t format,
+                          uint8_t nvt_blk, uint32_t nvt_idx,
+                          bool crowd, bool cam_ignore, uint8_t priority,
+                          uint32_t logic_serv,
+                          XiveTCTXMatch *match)
 {
     PnvMachineState *pnv = PNV_MACHINE(xfb);
-    int total_count = 0;
     int i;
 
     for (i = 0; i < pnv->num_chips; i++) {
         Pnv9Chip *chip9 = PNV9_CHIP(pnv->chips[i]);
         XivePresenter *xptr = XIVE_PRESENTER(&chip9->xive);
         XivePresenterClass *xpc = XIVE_PRESENTER_GET_CLASS(xptr);
-        int count;
 
-        count = xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, crowd,
-                               cam_ignore, priority, logic_serv, match);
-
-        if (count < 0) {
-            return count;
-        }
-
-        total_count += count;
+        xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, crowd,
+                       cam_ignore, priority, logic_serv, match);
     }
 
-    return total_count;
+    return !!match->count;
 }
 
-static int pnv10_xive_match_nvt(XiveFabric *xfb, uint8_t format,
-                                uint8_t nvt_blk, uint32_t nvt_idx,
-                                bool crowd, bool cam_ignore, uint8_t priority,
-                                uint32_t logic_serv,
-                                XiveTCTXMatch *match)
+static bool pnv10_xive_match_nvt(XiveFabric *xfb, uint8_t format,
+                                 uint8_t nvt_blk, uint32_t nvt_idx,
+                                 bool crowd, bool cam_ignore, uint8_t priority,
+                                 uint32_t logic_serv,
+                                 XiveTCTXMatch *match)
 {
     PnvMachineState *pnv = PNV_MACHINE(xfb);
-    int total_count = 0;
     int i;
 
     for (i = 0; i < pnv->num_chips; i++) {
         Pnv10Chip *chip10 = PNV10_CHIP(pnv->chips[i]);
         XivePresenter *xptr = XIVE_PRESENTER(&chip10->xive);
         XivePresenterClass *xpc = XIVE_PRESENTER_GET_CLASS(xptr);
-        int count;
 
-        count = xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, crowd,
-                               cam_ignore, priority, logic_serv, match);
-
-        if (count < 0) {
-            return count;
-        }
-
-        total_count += count;
+        xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, crowd,
+                       cam_ignore, priority, logic_serv, match);
     }
 
-    return total_count;
+    return !!match->count;
 }
 
 static int pnv10_xive_broadcast(XiveFabric *xfb,

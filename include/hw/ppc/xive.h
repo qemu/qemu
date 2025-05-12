@@ -425,6 +425,7 @@ void xive_router_end_notify(XiveRouter *xrtr, XiveEAS *eas);
 
 typedef struct XiveTCTXMatch {
     XiveTCTX *tctx;
+    int count;
     uint8_t ring;
     bool precluded;
 } XiveTCTXMatch;
@@ -440,10 +441,10 @@ DECLARE_CLASS_CHECKERS(XivePresenterClass, XIVE_PRESENTER,
 
 struct XivePresenterClass {
     InterfaceClass parent;
-    int (*match_nvt)(XivePresenter *xptr, uint8_t format,
-                     uint8_t nvt_blk, uint32_t nvt_idx,
-                     bool crowd, bool cam_ignore, uint8_t priority,
-                     uint32_t logic_serv, XiveTCTXMatch *match);
+    bool (*match_nvt)(XivePresenter *xptr, uint8_t format,
+                      uint8_t nvt_blk, uint32_t nvt_idx,
+                      bool crowd, bool cam_ignore, uint8_t priority,
+                      uint32_t logic_serv, XiveTCTXMatch *match);
     bool (*in_kernel)(const XivePresenter *xptr);
     uint32_t (*get_config)(XivePresenter *xptr);
     int (*broadcast)(XivePresenter *xptr,
@@ -455,12 +456,14 @@ int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
                               uint8_t format,
                               uint8_t nvt_blk, uint32_t nvt_idx,
                               bool cam_ignore, uint32_t logic_serv);
-bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
-                           uint8_t nvt_blk, uint32_t nvt_idx,
-                           bool crowd, bool cam_ignore, uint8_t priority,
-                           uint32_t logic_serv, bool *precluded);
+bool xive_presenter_match(XiveFabric *xfb, uint8_t format,
+                          uint8_t nvt_blk, uint32_t nvt_idx,
+                          bool crowd, bool cam_ignore, uint8_t priority,
+                          uint32_t logic_serv, XiveTCTXMatch *match);
 
 uint32_t xive_get_vpgroup_size(uint32_t nvp_index);
+uint8_t xive_get_group_level(bool crowd, bool ignore,
+                             uint32_t nvp_blk, uint32_t nvp_index);
 
 /*
  * XIVE Fabric (Interface between Interrupt Controller and Machine)
@@ -475,10 +478,10 @@ DECLARE_CLASS_CHECKERS(XiveFabricClass, XIVE_FABRIC,
 
 struct XiveFabricClass {
     InterfaceClass parent;
-    int (*match_nvt)(XiveFabric *xfb, uint8_t format,
-                     uint8_t nvt_blk, uint32_t nvt_idx,
-                     bool crowd, bool cam_ignore, uint8_t priority,
-                     uint32_t logic_serv, XiveTCTXMatch *match);
+    bool (*match_nvt)(XiveFabric *xfb, uint8_t format,
+                      uint8_t nvt_blk, uint32_t nvt_idx,
+                      bool crowd, bool cam_ignore, uint8_t priority,
+                      uint32_t logic_serv, XiveTCTXMatch *match);
     int (*broadcast)(XiveFabric *xfb, uint8_t nvt_blk, uint32_t nvt_idx,
                      bool crowd, bool cam_ignore, uint8_t priority);
 };

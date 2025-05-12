@@ -640,14 +640,13 @@ static bool pnv_xive2_is_cpu_enabled(PnvXive2 *xive, PowerPCCPU *cpu)
     return xive->tctxt_regs[reg >> 3] & PPC_BIT(bit);
 }
 
-static int pnv_xive2_match_nvt(XivePresenter *xptr, uint8_t format,
-                               uint8_t nvt_blk, uint32_t nvt_idx,
-                               bool crowd, bool cam_ignore, uint8_t priority,
-                               uint32_t logic_serv, XiveTCTXMatch *match)
+static bool pnv_xive2_match_nvt(XivePresenter *xptr, uint8_t format,
+                                uint8_t nvt_blk, uint32_t nvt_idx,
+                                bool crowd, bool cam_ignore, uint8_t priority,
+                                uint32_t logic_serv, XiveTCTXMatch *match)
 {
     PnvXive2 *xive = PNV_XIVE2(xptr);
     PnvChip *chip = xive->chip;
-    int count = 0;
     int i, j;
     bool gen1_tima_os =
         xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_GEN1_TIMA_OS;
@@ -692,7 +691,8 @@ static int pnv_xive2_match_nvt(XivePresenter *xptr, uint8_t format,
                                   "thread context NVT %x/%x\n",
                                   nvt_blk, nvt_idx);
                     /* Should set a FIR if we ever model it */
-                    return -1;
+                    match->count++;
+                    continue;
                 }
                 /*
                  * For a group notification, we need to know if the
@@ -717,13 +717,13 @@ static int pnv_xive2_match_nvt(XivePresenter *xptr, uint8_t format,
                             }
                         }
                     }
-                    count++;
+                    match->count++;
                 }
             }
         }
     }
 
-    return count;
+    return !!match->count;
 }
 
 static uint32_t pnv_xive2_presenter_get_config(XivePresenter *xptr)
