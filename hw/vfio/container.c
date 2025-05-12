@@ -208,8 +208,8 @@ static int vfio_legacy_dma_unmap(const VFIOContainerBase *bcontainer,
     return ret;
 }
 
-static int vfio_legacy_dma_map(const VFIOContainerBase *bcontainer, hwaddr iova,
-                               ram_addr_t size, void *vaddr, bool readonly)
+int vfio_legacy_dma_map(const VFIOContainerBase *bcontainer, hwaddr iova,
+                        ram_addr_t size, void *vaddr, bool readonly)
 {
     const VFIOContainer *container = container_of(bcontainer, VFIOContainer,
                                                   bcontainer);

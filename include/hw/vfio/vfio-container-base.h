@@ -255,4 +255,7 @@ struct VFIOIOMMUClass {
 VFIORamDiscardListener *vfio_find_ram_discard_listener(
     VFIOContainerBase *bcontainer, MemoryRegionSection *section);
 
+int vfio_legacy_dma_map(const VFIOContainerBase *bcontainer, hwaddr iova,
+                        ram_addr_t size, void *vaddr, bool readonly);
+
 #endif /* HW_VFIO_VFIO_CONTAINER_BASE_H */
