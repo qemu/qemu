@@ -683,6 +683,8 @@ static void xive2_redistribute(Xive2Router *xrtr, XiveTCTX *tctx, uint8_t ring)
     xive_tctx_reset_signal(tctx, ring);
 }
 
+static void xive2_tctx_process_pending(XiveTCTX *tctx, uint8_t sig_ring);
+
 static uint64_t xive2_tm_pull_ctx(XivePresenter *xptr, XiveTCTX *tctx,
                                   hwaddr offset, unsigned size, uint8_t ring)
 {
@@ -736,6 +738,18 @@ static uint64_t xive2_tm_pull_ctx(XivePresenter *xptr, XiveTCTX *tctx,
             if (cur_ring == xive_nsr_exception_ring(cur_ring, nsr)) {
                 xive_tctx_reset_signal(tctx, cur_ring);
             }
+        }
+    }
+
+    if (ring == TM_QW2_HV_POOL) {
+        /* Re-check phys for interrupts if pool was disabled */
+        nsr = tctx->regs[TM_QW3_HV_PHYS + TM_NSR];
+        if (xive_nsr_indicates_exception(TM_QW3_HV_PHYS, nsr)) {
+            /* Ring must be PHYS because POOL would have been redistributed */
+            g_assert(xive_nsr_exception_ring(TM_QW3_HV_PHYS, nsr) ==
+                                                           TM_QW3_HV_PHYS);
+        } else {
+            xive2_tctx_process_pending(tctx, TM_QW3_HV_PHYS);
         }
     }
 
@@ -924,8 +938,6 @@ static uint8_t xive2_tctx_restore_ctx(Xive2Router *xrtr, XiveTCTX *tctx,
     /* return restored CPPR to generate a CPU exception if needed */
     return cppr;
 }
-
-static void xive2_tctx_process_pending(XiveTCTX *tctx, uint8_t sig_ring);
 
 static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
                                    uint8_t nvp_blk, uint32_t nvp_idx,

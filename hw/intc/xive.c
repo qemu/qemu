@@ -320,6 +320,9 @@ static uint64_t xive_tm_pull_pool_ctx(XivePresenter *xptr, XiveTCTX *tctx,
 
     xive_tctx_reset_signal(tctx, TM_QW1_OS);
     xive_tctx_reset_signal(tctx, TM_QW2_HV_POOL);
+    /* Re-check phys for interrupts if pool was disabled */
+    xive_tctx_pipr_recompute_from_ipb(tctx, TM_QW3_HV_PHYS);
+
     return qw2w2;
 }
 
