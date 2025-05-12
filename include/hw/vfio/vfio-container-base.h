@@ -258,4 +258,7 @@ VFIORamDiscardListener *vfio_find_ram_discard_listener(
 int vfio_legacy_dma_map(const VFIOContainerBase *bcontainer, hwaddr iova,
                         ram_addr_t size, void *vaddr, bool readonly);
 
+void vfio_container_region_add(VFIOContainerBase *bcontainer,
+                               MemoryRegionSection *section, bool cpr_remap);
+
 #endif /* HW_VFIO_VFIO_CONTAINER_BASE_H */

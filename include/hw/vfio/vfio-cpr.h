@@ -10,10 +10,14 @@
 #define HW_VFIO_VFIO_CPR_H
 
 #include "migration/misc.h"
+#include "system/memory.h"
 
 typedef struct VFIOContainerCPR {
     Error *blocker;
     bool reused;
+    bool vaddr_unmapped;
+    NotifierWithReturn transfer_notifier;
+    MemoryListener remap_listener;
 } VFIOContainerCPR;
 
 typedef struct VFIODeviceCPR {
@@ -38,5 +42,11 @@ void vfio_cpr_unregister_container(struct VFIOContainerBase *bcontainer);
 
 bool vfio_cpr_container_match(struct VFIOContainer *container,
                               struct VFIOGroup *group, int *fd);
+
+void vfio_cpr_giommu_remap(struct VFIOContainerBase *bcontainer,
+                           MemoryRegionSection *section);
+
+bool vfio_cpr_ram_discard_register_listener(
+    struct VFIOContainerBase *bcontainer, MemoryRegionSection *section);
 
 #endif /* HW_VFIO_VFIO_CPR_H */
