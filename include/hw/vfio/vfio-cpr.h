@@ -18,6 +18,7 @@ typedef struct VFIOContainerCPR {
 
 typedef struct VFIODeviceCPR {
     bool reused;
+    Error *mdev_blocker;
 } VFIODeviceCPR;
 
 struct VFIOContainer;
