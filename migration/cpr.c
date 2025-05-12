@@ -95,6 +95,24 @@ int cpr_find_fd(const char *name, int id)
     trace_cpr_find_fd(name, id, fd);
     return fd;
 }
+
+int cpr_open_fd(const char *path, int flags, const char *name, int id,
+                bool *reused, Error **errp)
+{
+    int fd = cpr_find_fd(name, id);
+
+    if (reused) {
+        *reused = (fd >= 0);
+    }
+    if (fd < 0) {
+        fd = qemu_open(path, flags, errp);
+        if (fd >= 0) {
+            cpr_save_fd(name, id, fd);
+        }
+    }
+    return fd;
+}
+
 /*************************************************************************/
 #define CPR_STATE "CprState"
 
@@ -227,4 +245,10 @@ void cpr_state_close(void)
         qemu_fclose(cpr_state_file);
         cpr_state_file = NULL;
     }
+}
+
+bool cpr_needed_for_reuse(void *opaque)
+{
+    MigMode mode = migrate_mode();
+    return mode == MIG_MODE_CPR_TRANSFER;
 }
