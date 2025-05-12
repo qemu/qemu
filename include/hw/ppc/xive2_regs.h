@@ -39,15 +39,18 @@
 
 typedef struct Xive2Eas {
         uint64_t       w;
-#define EAS2_VALID                 PPC_BIT(0)
-#define EAS2_END_BLOCK             PPC_BITMASK(4, 7) /* Destination EQ block# */
-#define EAS2_END_INDEX             PPC_BITMASK(8, 31) /* Destination EQ index */
-#define EAS2_MASKED                PPC_BIT(32) /* Masked                 */
-#define EAS2_END_DATA              PPC_BITMASK(33, 63) /* written to the EQ */
+#define EAS2_VALID         PPC_BIT(0)
+#define EAS2_QOS           PPC_BIT(1, 2)       /* Quality of Service(unimp) */
+#define EAS2_RESUME        PPC_BIT(3)          /* END Resume(unimp) */
+#define EAS2_END_BLOCK     PPC_BITMASK(4, 7)   /* Destination EQ block# */
+#define EAS2_END_INDEX     PPC_BITMASK(8, 31)  /* Destination EQ index */
+#define EAS2_MASKED        PPC_BIT(32)         /* Masked */
+#define EAS2_END_DATA      PPC_BITMASK(33, 63) /* written to the EQ */
 } Xive2Eas;
 
 #define xive2_eas_is_valid(eas)   (be64_to_cpu((eas)->w) & EAS2_VALID)
 #define xive2_eas_is_masked(eas)  (be64_to_cpu((eas)->w) & EAS2_MASKED)
+#define xive2_eas_is_resume(eas)  (be64_to_cpu((eas)->w) & EAS2_RESUME)
 
 void xive2_eas_pic_print_info(Xive2Eas *eas, uint32_t lisn, GString *buf);
 

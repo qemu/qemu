@@ -80,6 +80,7 @@ int xive2_router_write_nvgc(Xive2Router *xrtr, bool crowd,
 uint32_t xive2_router_get_config(Xive2Router *xrtr);
 
 void xive2_router_notify(XiveNotifier *xn, uint32_t lisn, bool pq_checked);
+void xive2_notify(Xive2Router *xrtr, uint32_t lisn, bool pq_checked);
 
 /*
  * XIVE2 Presenter (POWER10)

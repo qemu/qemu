@@ -1552,18 +1552,39 @@ do_escalation:
         }
     }
 
-    /*
-     * The END trigger becomes an Escalation trigger
-     */
-    xive2_router_end_notify(xrtr,
-                           xive_get_field32(END2_W4_END_BLOCK,     end.w4),
-                           xive_get_field32(END2_W4_ESC_END_INDEX, end.w4),
-                           xive_get_field32(END2_W5_ESC_END_DATA,  end.w5));
+    if (xive2_end_is_escalate_end(&end)) {
+        /*
+         * Perform END Adaptive escalation processing
+         * The END trigger becomes an Escalation trigger
+         */
+        xive2_router_end_notify(xrtr,
+                               xive_get_field32(END2_W4_END_BLOCK,     end.w4),
+                               xive_get_field32(END2_W4_ESC_END_INDEX, end.w4),
+                               xive_get_field32(END2_W5_ESC_END_DATA,  end.w5));
+    } /* end END adaptive escalation */
+
+    else {
+        uint32_t lisn;              /* Logical Interrupt Source Number */
+
+        /*
+         *  Perform ESB escalation processing
+         *      E[N] == 1 --> N
+         *      Req[Block] <- E[ESB_Block]
+         *      Req[Index] <- E[ESB_Index]
+         *      Req[Offset] <- 0x000
+         *      Execute <ESB Store> Req command
+         */
+        lisn = XIVE_EAS(xive_get_field32(END2_W4_END_BLOCK,     end.w4),
+                        xive_get_field32(END2_W4_ESC_END_INDEX, end.w4));
+
+        xive2_notify(xrtr, lisn, true /* pq_checked */);
+    }
+
+    return;
 }
 
-void xive2_router_notify(XiveNotifier *xn, uint32_t lisn, bool pq_checked)
+void xive2_notify(Xive2Router *xrtr , uint32_t lisn, bool pq_checked)
 {
-    Xive2Router *xrtr = XIVE2_ROUTER(xn);
     uint8_t eas_blk = XIVE_EAS_BLOCK(lisn);
     uint32_t eas_idx = XIVE_EAS_INDEX(lisn);
     Xive2Eas eas;
@@ -1606,13 +1627,30 @@ void xive2_router_notify(XiveNotifier *xn, uint32_t lisn, bool pq_checked)
         return;
     }
 
+    /* TODO: add support for EAS resume */
+    if (xive2_eas_is_resume(&eas)) {
+        qemu_log_mask(LOG_UNIMP,
+                      "XIVE: EAS resume processing unimplemented - LISN %x\n",
+                      lisn);
+        return;
+    }
+
     /*
      * The event trigger becomes an END trigger
      */
     xive2_router_end_notify(xrtr,
-                             xive_get_field64(EAS2_END_BLOCK, eas.w),
-                             xive_get_field64(EAS2_END_INDEX, eas.w),
-                             xive_get_field64(EAS2_END_DATA,  eas.w));
+                            xive_get_field64(EAS2_END_BLOCK, eas.w),
+                            xive_get_field64(EAS2_END_INDEX, eas.w),
+                            xive_get_field64(EAS2_END_DATA,  eas.w));
+    return;
+}
+
+void xive2_router_notify(XiveNotifier *xn, uint32_t lisn, bool pq_checked)
+{
+    Xive2Router *xrtr = XIVE2_ROUTER(xn);
+
+    xive2_notify(xrtr, lisn, pq_checked);
+    return;
 }
 
 static const Property xive2_router_properties[] = {
