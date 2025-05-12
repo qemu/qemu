@@ -7,13 +7,12 @@
 
 #include "qemu/osdep.h"
 #include "hw/vfio/vfio-device.h"
-#include "migration/misc.h"
 #include "hw/vfio/vfio-cpr.h"
 #include "qapi/error.h"
 #include "system/runstate.h"
 
-static int vfio_cpr_reboot_notifier(NotifierWithReturn *notifier,
-                                    MigrationEvent *e, Error **errp)
+int vfio_cpr_reboot_notifier(NotifierWithReturn *notifier,
+                             MigrationEvent *e, Error **errp)
 {
     if (e->type == MIG_EVENT_PRECOPY_SETUP &&
         !runstate_check(RUN_STATE_SUSPENDED) && !vm_get_suspended()) {
