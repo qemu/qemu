@@ -54,7 +54,8 @@ static uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t ring)
         uint8_t *alt_regs;
 
         /* POOL interrupt uses IPB in QW2, POOL ring */
-        if ((ring == TM_QW3_HV_PHYS) && (nsr & (TM_QW3_NSR_HE_POOL << 6))) {
+        if ((ring == TM_QW3_HV_PHYS) &&
+            ((nsr & TM_QW3_NSR_HE) == (TM_QW3_NSR_HE_POOL << 6))) {
             alt_ring = TM_QW2_HV_POOL;
         } else {
             alt_ring = ring;
