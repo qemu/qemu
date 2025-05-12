@@ -584,12 +584,11 @@ void xive_tctx_pic_print_info(XiveTCTX *tctx, GString *buf);
 Object *xive_tctx_create(Object *cpu, XivePresenter *xptr, Error **errp);
 void xive_tctx_reset(XiveTCTX *tctx);
 void xive_tctx_destroy(XiveTCTX *tctx);
-void xive_tctx_pipr_update(XiveTCTX *tctx, uint8_t ring, uint8_t priority,
-                           uint8_t group_level);
+void xive_tctx_pipr_set(XiveTCTX *tctx, uint8_t ring, uint8_t priority,
+                        uint8_t group_level);
 void xive_tctx_pipr_present(XiveTCTX *tctx, uint8_t ring, uint8_t priority,
                             uint8_t group_level);
 void xive_tctx_reset_signal(XiveTCTX *tctx, uint8_t ring);
-void xive_tctx_notify(XiveTCTX *tctx, uint8_t ring, uint8_t group_level);
 uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t ring);
 
 /*

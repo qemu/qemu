@@ -125,12 +125,16 @@ uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t sig_ring)
     return ((uint64_t)nsr << 8) | sig_regs[TM_CPPR];
 }
 
-void xive_tctx_notify(XiveTCTX *tctx, uint8_t ring, uint8_t group_level)
+/* Change PIPR and calculate NSR and irq based on PIPR, CPPR, group */
+void xive_tctx_pipr_set(XiveTCTX *tctx, uint8_t ring, uint8_t pipr,
+                        uint8_t group_level)
 {
     uint8_t *sig_regs = xive_tctx_signal_regs(tctx, ring);
     uint8_t *regs = &tctx->regs[ring];
 
-    if (sig_regs[TM_PIPR] < sig_regs[TM_CPPR]) {
+    sig_regs[TM_PIPR] = pipr;
+
+    if (pipr < sig_regs[TM_CPPR]) {
         switch (ring) {
         case TM_QW1_OS:
             sig_regs[TM_NSR] = TM_QW1_NSR_EO | (group_level & 0x3F);
@@ -145,7 +149,7 @@ void xive_tctx_notify(XiveTCTX *tctx, uint8_t ring, uint8_t group_level)
             g_assert_not_reached();
         }
         trace_xive_tctx_notify(tctx->cs->cpu_index, ring,
-                               regs[TM_IPB], sig_regs[TM_PIPR],
+                               regs[TM_IPB], pipr,
                                sig_regs[TM_CPPR], sig_regs[TM_NSR]);
         qemu_irq_raise(xive_tctx_output(tctx, ring));
     } else {
@@ -213,28 +217,9 @@ static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
         }
     }
 
-    sig_regs[TM_PIPR] = pipr_min;
-
-    /* CPPR has changed, check if we need to raise a pending exception */
-    xive_tctx_notify(tctx, ring_min, 0);
+    /* CPPR has changed, this may present or preclude a pending exception */
+    xive_tctx_pipr_set(tctx, ring_min, pipr_min, 0);
 }
-
-void xive_tctx_pipr_update(XiveTCTX *tctx, uint8_t ring, uint8_t priority,
-                           uint8_t group_level)
-{
-    uint8_t *sig_regs = xive_tctx_signal_regs(tctx, ring);
-    uint8_t *regs = &tctx->regs[ring];
-
-    if (group_level == 0) {
-        /* VP-specific */
-        regs[TM_IPB] |= xive_priority_to_ipb(priority);
-        sig_regs[TM_PIPR] = xive_ipb_to_pipr(regs[TM_IPB]);
-    } else {
-        /* VP-group */
-        sig_regs[TM_PIPR] = xive_priority_to_pipr(priority);
-    }
-    xive_tctx_notify(tctx, ring, group_level);
- }
 
 static void xive_tctx_pipr_recompute_from_ipb(XiveTCTX *tctx, uint8_t ring)
 {
@@ -244,8 +229,7 @@ static void xive_tctx_pipr_recompute_from_ipb(XiveTCTX *tctx, uint8_t ring)
     /* Does not support a presented group interrupt */
     g_assert(!xive_nsr_indicates_group_exception(ring, sig_regs[TM_NSR]));
 
-    sig_regs[TM_PIPR] = xive_ipb_to_pipr(regs[TM_IPB]);
-    xive_tctx_notify(tctx, ring, 0);
+    xive_tctx_pipr_set(tctx, ring, xive_ipb_to_pipr(regs[TM_IPB]), 0);
 }
 
 void xive_tctx_pipr_present(XiveTCTX *tctx, uint8_t ring, uint8_t priority,
@@ -264,8 +248,7 @@ void xive_tctx_pipr_present(XiveTCTX *tctx, uint8_t ring, uint8_t priority,
     }
     g_assert(pipr <= xive_ipb_to_pipr(regs[TM_IPB]));
     g_assert(pipr < sig_regs[TM_PIPR]);
-    sig_regs[TM_PIPR] = pipr;
-    xive_tctx_notify(tctx, ring, group_level);
+    xive_tctx_pipr_set(tctx, ring, pipr, group_level);
 }
 
 /*

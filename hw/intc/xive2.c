@@ -966,10 +966,10 @@ static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
     }
 
     /*
-     * Compute the PIPR based on the restored state.
+     * Set the PIPR/NSR based on the restored state.
      * It will raise the External interrupt signal if needed.
      */
-    xive_tctx_pipr_update(tctx, TM_QW1_OS, backlog_prio, backlog_level);
+    xive_tctx_pipr_set(tctx, TM_QW1_OS, backlog_prio, backlog_level);
 }
 
 /*
@@ -1144,8 +1144,7 @@ static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
             }
 
             /* interrupt is VP directed, pending in IPB */
-            sig_regs[TM_PIPR] = cppr;
-            xive_tctx_notify(tctx, ring, 0); /* Ensure interrupt is cleared */
+            xive_tctx_pipr_set(tctx, ring, cppr, 0);
             return;
         } else {
             /* CPPR was lowered, but still above PIPR. No action needed. */
@@ -1255,11 +1254,10 @@ again:
         pipr_min = backlog_prio;
     }
 
-    /* PIPR should not be set to a value greater than CPPR */
-    sig_regs[TM_PIPR] = (pipr_min > cppr) ? cppr : pipr_min;
-
-    /* CPPR has changed, check if we need to raise a pending exception */
-    xive_tctx_notify(tctx, ring_min, group_level);
+    if (pipr_min > cppr) {
+        pipr_min = cppr;
+    }
+    xive_tctx_pipr_set(tctx, ring_min, pipr_min, group_level);
 }
 
 void xive2_tm_set_hv_cppr(XivePresenter *xptr, XiveTCTX *tctx,
