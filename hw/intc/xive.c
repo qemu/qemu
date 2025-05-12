@@ -25,6 +25,45 @@
 /*
  * XIVE Thread Interrupt Management context
  */
+bool xive_nsr_indicates_exception(uint8_t ring, uint8_t nsr)
+{
+    switch (ring) {
+    case TM_QW1_OS:
+        return !!(nsr & TM_QW1_NSR_EO);
+    case TM_QW2_HV_POOL:
+    case TM_QW3_HV_PHYS:
+        return !!(nsr & TM_QW3_NSR_HE);
+    default:
+        g_assert_not_reached();
+    }
+}
+
+bool xive_nsr_indicates_group_exception(uint8_t ring, uint8_t nsr)
+{
+    if ((nsr & TM_NSR_GRP_LVL) > 0) {
+        g_assert(xive_nsr_indicates_exception(ring, nsr));
+        return true;
+    }
+    return false;
+}
+
+uint8_t xive_nsr_exception_ring(uint8_t ring, uint8_t nsr)
+{
+    /* NSR determines if pool/phys ring is for phys or pool interrupt */
+    if ((ring == TM_QW3_HV_PHYS) || (ring == TM_QW2_HV_POOL)) {
+        uint8_t he = (nsr & TM_QW3_NSR_HE) >> 6;
+
+        if (he == TM_QW3_NSR_HE_PHYS) {
+            return TM_QW3_HV_PHYS;
+        } else if (he == TM_QW3_NSR_HE_POOL) {
+            return TM_QW2_HV_POOL;
+        } else {
+            /* Don't support LSI mode */
+            g_assert_not_reached();
+        }
+    }
+    return ring;
+}
 
 static qemu_irq xive_tctx_output(XiveTCTX *tctx, uint8_t ring)
 {
@@ -48,18 +87,12 @@ static uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t ring)
 
     qemu_irq_lower(xive_tctx_output(tctx, ring));
 
-    if (regs[TM_NSR] != 0) {
+    if (xive_nsr_indicates_exception(ring, nsr)) {
         uint8_t cppr = regs[TM_PIPR];
         uint8_t alt_ring;
         uint8_t *alt_regs;
 
-        /* POOL interrupt uses IPB in QW2, POOL ring */
-        if ((ring == TM_QW3_HV_PHYS) &&
-            ((nsr & TM_QW3_NSR_HE) == (TM_QW3_NSR_HE_POOL << 6))) {
-            alt_ring = TM_QW2_HV_POOL;
-        } else {
-            alt_ring = ring;
-        }
+        alt_ring = xive_nsr_exception_ring(ring, nsr);
         alt_regs = &tctx->regs[alt_ring];
 
         regs[TM_CPPR] = cppr;
@@ -68,7 +101,7 @@ static uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t ring)
          * If the interrupt was for a specific VP, reset the pending
          * buffer bit, otherwise clear the logical server indicator
          */
-        if (!(regs[TM_NSR] & TM_NSR_GRP_LVL)) {
+        if (!xive_nsr_indicates_group_exception(ring, nsr)) {
             alt_regs[TM_IPB] &= ~xive_priority_to_ipb(cppr);
         }
 
