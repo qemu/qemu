@@ -532,6 +532,12 @@ static void xive_tm_set_os_lgs(XivePresenter *xptr, XiveTCTX *tctx,
     xive_tctx_set_lgs(tctx, TM_QW1_OS, value & 0xff);
 }
 
+static void xive_tm_set_pool_lgs(XivePresenter *xptr, XiveTCTX *tctx,
+                          hwaddr offset, uint64_t value, unsigned size)
+{
+    xive_tctx_set_lgs(tctx, TM_QW2_HV_POOL, value & 0xff);
+}
+
 /*
  * Adjust the PIPR to allow a CPU to process event queues of other
  * priorities during one physical interrupt cycle.
@@ -737,6 +743,8 @@ static const XiveTmOp xive2_tm_operations[] = {
       xive2_tm_push_pool_ctx, NULL },
     { XIVE_TM_HV_PAGE, TM_QW2_HV_POOL + TM_WORD2, 8, true, true,
       xive2_tm_push_pool_ctx, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW2_HV_POOL + TM_LGS,   1, true, true,
+      xive_tm_set_pool_lgs, NULL },
     { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_CPPR,  1, true, true,
       xive2_tm_set_hv_cppr, NULL },
     { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_WORD2, 1, true, true,
