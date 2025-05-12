@@ -1098,66 +1098,19 @@ void xive2_tm_ack_os_el(XivePresenter *xptr, XiveTCTX *tctx,
     xive2_tctx_accept_el(xptr, tctx, TM_QW1_OS, TM_QW1_OS);
 }
 
-/* NOTE: CPPR only exists for TM_QW1_OS and TM_QW3_HV_PHYS */
-static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
+/* Re-calculate and present pending interrupts */
+static void xive2_tctx_process_pending(XiveTCTX *tctx, uint8_t sig_ring)
 {
-    uint8_t *sig_regs = &tctx->regs[ring];
+    uint8_t *sig_regs = &tctx->regs[sig_ring];
     Xive2Router *xrtr = XIVE2_ROUTER(tctx->xptr);
-    uint8_t old_cppr, backlog_prio, first_group, group_level;
+    uint8_t backlog_prio, first_group, group_level;
     uint8_t pipr_min, lsmfb_min, ring_min;
+    uint8_t cppr = sig_regs[TM_CPPR];
     bool group_enabled;
-    uint8_t nvp_blk;
-    uint32_t nvp_idx;
     Xive2Nvp nvp;
     int rc;
-    uint8_t nsr = sig_regs[TM_NSR];
 
-    g_assert(ring == TM_QW1_OS || ring == TM_QW3_HV_PHYS);
-
-    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_NSR] == 0);
-    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_PIPR] == 0);
-    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_CPPR] == 0);
-
-    /* XXX: should show pool IPB for PHYS ring */
-    trace_xive_tctx_set_cppr(tctx->cs->cpu_index, ring,
-                             sig_regs[TM_IPB], sig_regs[TM_PIPR],
-                             cppr, nsr);
-
-    if (cppr > XIVE_PRIORITY_MAX) {
-        cppr = 0xff;
-    }
-
-    old_cppr = sig_regs[TM_CPPR];
-    sig_regs[TM_CPPR] = cppr;
-
-    /* Handle increased CPPR priority (lower value) */
-    if (cppr < old_cppr) {
-        if (cppr <= sig_regs[TM_PIPR]) {
-            /* CPPR lowered below PIPR, must un-present interrupt */
-            if (xive_nsr_indicates_exception(ring, nsr)) {
-                if (xive_nsr_indicates_group_exception(ring, nsr)) {
-                    /* redistribute precluded active grp interrupt */
-                    xive2_redistribute(xrtr, tctx,
-                                       xive_nsr_exception_ring(ring, nsr));
-                    return;
-                }
-            }
-
-            /* interrupt is VP directed, pending in IPB */
-            xive_tctx_pipr_set(tctx, ring, cppr, 0);
-            return;
-        } else {
-            /* CPPR was lowered, but still above PIPR. No action needed. */
-            return;
-        }
-    }
-
-    /* CPPR didn't change, nothing needs to be done */
-    if (cppr == old_cppr) {
-        return;
-    }
-
-    /* CPPR priority decreased (higher value) */
+    g_assert(sig_ring == TM_QW3_HV_PHYS || sig_ring == TM_QW1_OS);
 
     /*
      * Recompute the PIPR based on local pending interrupts. It will
@@ -1167,11 +1120,11 @@ again:
     pipr_min = xive_ipb_to_pipr(sig_regs[TM_IPB]);
     group_enabled = !!sig_regs[TM_LGS];
     lsmfb_min = group_enabled ? sig_regs[TM_LSMFB] : 0xff;
-    ring_min = ring;
+    ring_min = sig_ring;
     group_level = 0;
 
     /* PHYS updates also depend on POOL values */
-    if (ring == TM_QW3_HV_PHYS) {
+    if (sig_ring == TM_QW3_HV_PHYS) {
         uint8_t *pool_regs = &tctx->regs[TM_QW2_HV_POOL];
 
         /* POOL values only matter if POOL ctx is valid */
@@ -1201,20 +1154,25 @@ again:
         }
     }
 
-    rc = xive2_tctx_get_nvp_indexes(tctx, ring_min, &nvp_blk, &nvp_idx);
-    if (rc) {
-        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: set CPPR on invalid context\n");
-        return;
-    }
-
     if (group_enabled &&
         lsmfb_min < cppr &&
         lsmfb_min < pipr_min) {
+
+        uint8_t nvp_blk;
+        uint32_t nvp_idx;
+
         /*
          * Thread has seen a group interrupt with a higher priority
          * than the new cppr or pending local interrupt. Check the
          * backlog
          */
+        rc = xive2_tctx_get_nvp_indexes(tctx, ring_min, &nvp_blk, &nvp_idx);
+        if (rc) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: set CPPR on invalid "
+                                           "context\n");
+            return;
+        }
+
         if (xive2_router_get_nvp(xrtr, nvp_blk, nvp_idx, &nvp)) {
             qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVP %x/%x\n",
                           nvp_blk, nvp_idx);
@@ -1258,6 +1216,63 @@ again:
         pipr_min = cppr;
     }
     xive_tctx_pipr_set(tctx, ring_min, pipr_min, group_level);
+}
+
+/* NOTE: CPPR only exists for TM_QW1_OS and TM_QW3_HV_PHYS */
+static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t sig_ring, uint8_t cppr)
+{
+    uint8_t *sig_regs = &tctx->regs[sig_ring];
+    Xive2Router *xrtr = XIVE2_ROUTER(tctx->xptr);
+    uint8_t old_cppr;
+    uint8_t nsr = sig_regs[TM_NSR];
+
+    g_assert(sig_ring == TM_QW1_OS || sig_ring == TM_QW3_HV_PHYS);
+
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_NSR] == 0);
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_PIPR] == 0);
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_CPPR] == 0);
+
+    /* XXX: should show pool IPB for PHYS ring */
+    trace_xive_tctx_set_cppr(tctx->cs->cpu_index, sig_ring,
+                             sig_regs[TM_IPB], sig_regs[TM_PIPR],
+                             cppr, nsr);
+
+    if (cppr > XIVE_PRIORITY_MAX) {
+        cppr = 0xff;
+    }
+
+    old_cppr = sig_regs[TM_CPPR];
+    sig_regs[TM_CPPR] = cppr;
+
+    /* Handle increased CPPR priority (lower value) */
+    if (cppr < old_cppr) {
+        if (cppr <= sig_regs[TM_PIPR]) {
+            /* CPPR lowered below PIPR, must un-present interrupt */
+            if (xive_nsr_indicates_exception(sig_ring, nsr)) {
+                if (xive_nsr_indicates_group_exception(sig_ring, nsr)) {
+                    /* redistribute precluded active grp interrupt */
+                    xive2_redistribute(xrtr, tctx,
+                                       xive_nsr_exception_ring(sig_ring, nsr));
+                    return;
+                }
+            }
+
+            /* interrupt is VP directed, pending in IPB */
+            xive_tctx_pipr_set(tctx, sig_ring, cppr, 0);
+            return;
+        } else {
+            /* CPPR was lowered, but still above PIPR. No action needed. */
+            return;
+        }
+    }
+
+    /* CPPR didn't change, nothing needs to be done */
+    if (cppr == old_cppr) {
+        return;
+    }
+
+    /* CPPR priority decreased (higher value) */
+    xive2_tctx_process_pending(tctx, sig_ring);
 }
 
 void xive2_tm_set_hv_cppr(XivePresenter *xptr, XiveTCTX *tctx,
