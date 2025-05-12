@@ -835,8 +835,9 @@ static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
         nvp.w2 = xive_set_field32(NVP2_W2_IPB, nvp.w2, 0);
         xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, &nvp, 2);
     }
+    /* IPB bits in the backlog are merged with the TIMA IPB bits */
     regs[TM_IPB] |= ipb;
-    backlog_prio = xive_ipb_to_pipr(ipb);
+    backlog_prio = xive_ipb_to_pipr(regs[TM_IPB]);
     backlog_level = 0;
 
     first_group = xive_get_field32(NVP2_W0_PGOFIRST, nvp.w0);
