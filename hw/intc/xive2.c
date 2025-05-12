@@ -995,6 +995,12 @@ static void xive2_tm_push_ctx(XivePresenter *xptr, XiveTCTX *tctx,
     bool v;
     bool do_restore;
 
+    if (xive_ring_valid(tctx, ring)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Attempt to push VP to enabled"
+                                       " ring 0x%02x\n", ring);
+        return;
+    }
+
     /* First update the thead context */
     switch (size) {
     case 1:
@@ -1021,19 +1027,32 @@ static void xive2_tm_push_ctx(XivePresenter *xptr, XiveTCTX *tctx,
     /* Check the interrupt pending bits */
     if (v) {
         Xive2Router *xrtr = XIVE2_ROUTER(xptr);
-        uint8_t *sig_regs = xive_tctx_signal_regs(tctx, ring);
-        uint8_t nsr = sig_regs[TM_NSR];
+        uint8_t cur_ring;
 
         xive2_tctx_restore_nvp(xrtr, tctx, ring,
                                nvp_blk, nvp_idx, do_restore);
 
-        if (xive_nsr_indicates_group_exception(ring, nsr)) {
-            /* redistribute precluded active grp interrupt */
-            g_assert(ring == TM_QW2_HV_POOL); /* PHYS ring has the interrupt */
-            xive2_redistribute(xrtr, tctx, xive_nsr_exception_ring(ring, nsr));
+        for (cur_ring = TM_QW1_OS; cur_ring <= ring;
+             cur_ring += XIVE_TM_RING_SIZE) {
+            uint8_t *sig_regs = xive_tctx_signal_regs(tctx, cur_ring);
+            uint8_t nsr = sig_regs[TM_NSR];
+
+            if (!xive_ring_valid(tctx, cur_ring)) {
+                continue;
+            }
+
+            if (cur_ring == TM_QW2_HV_POOL) {
+                if (xive_nsr_indicates_exception(cur_ring, nsr)) {
+                    g_assert(xive_nsr_exception_ring(cur_ring, nsr) ==
+                                                               TM_QW3_HV_PHYS);
+                    xive2_redistribute(xrtr, tctx,
+                                       xive_nsr_exception_ring(ring, nsr));
+                }
+                xive2_tctx_process_pending(tctx, TM_QW3_HV_PHYS);
+                break;
+            }
+            xive2_tctx_process_pending(tctx, cur_ring);
         }
-        xive2_tctx_process_pending(tctx, ring == TM_QW2_HV_POOL ?
-                                                 TM_QW3_HV_PHYS : ring);
     }
 }
 
@@ -1159,6 +1178,7 @@ static void xive2_tctx_process_pending(XiveTCTX *tctx, uint8_t sig_ring)
     int rc;
 
     g_assert(sig_ring == TM_QW3_HV_PHYS || sig_ring == TM_QW1_OS);
+    g_assert(sig_regs[TM_WORD2] & 0x80);
     g_assert(!xive_nsr_indicates_group_exception(sig_ring, sig_regs[TM_NSR]));
 
     /*
