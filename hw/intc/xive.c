@@ -606,7 +606,7 @@ static uint64_t xive_tm_pull_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
     return qw1w2;
 }
 
-static void xive_tctx_need_resend(XiveRouter *xrtr, XiveTCTX *tctx,
+static void xive_tctx_restore_nvp(XiveRouter *xrtr, XiveTCTX *tctx,
                                   uint8_t nvt_blk, uint32_t nvt_idx)
 {
     XiveNVT nvt;
@@ -632,16 +632,6 @@ static void xive_tctx_need_resend(XiveRouter *xrtr, XiveTCTX *tctx,
         uint8_t *regs = &tctx->regs[TM_QW1_OS];
         regs[TM_IPB] |= ipb;
     }
-
-    /*
-     * Always call xive_tctx_recompute_from_ipb(). Even if there were no
-     * escalation triggered, there could be a pending interrupt which
-     * was saved when the context was pulled and that we need to take
-     * into account by recalculating the PIPR (which is not
-     * saved/restored).
-     * It will also raise the External interrupt signal if needed.
-     */
-    xive_tctx_pipr_recompute_from_ipb(tctx, TM_QW1_OS); /* fxb */
 }
 
 /*
@@ -663,7 +653,17 @@ static void xive_tm_push_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
 
     /* Check the interrupt pending bits */
     if (vo) {
-        xive_tctx_need_resend(XIVE_ROUTER(xptr), tctx, nvt_blk, nvt_idx);
+        xive_tctx_restore_nvp(XIVE_ROUTER(xptr), tctx, nvt_blk, nvt_idx);
+
+        /*
+         * Always call xive_tctx_recompute_from_ipb(). Even if there were no
+         * escalation triggered, there could be a pending interrupt which
+         * was saved when the context was pulled and that we need to take
+         * into account by recalculating the PIPR (which is not
+         * saved/restored).
+         * It will also raise the External interrupt signal if needed.
+         */
+        xive_tctx_pipr_recompute_from_ipb(tctx, TM_QW1_OS); /* fxb */
     }
 }
 
