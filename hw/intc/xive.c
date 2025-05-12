@@ -95,8 +95,6 @@ uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t sig_ring)
     g_assert(tctx->regs[TM_QW2_HV_POOL + TM_PIPR] == 0);
     g_assert(tctx->regs[TM_QW2_HV_POOL + TM_CPPR] == 0);
 
-    qemu_irq_lower(xive_tctx_output(tctx, sig_ring));
-
     if (xive_nsr_indicates_exception(sig_ring, nsr)) {
         uint8_t cppr = sig_regs[TM_PIPR];
         uint8_t ring;
@@ -117,6 +115,7 @@ uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t sig_ring)
 
         /* Clear the exception from NSR */
         sig_regs[TM_NSR] = 0;
+        qemu_irq_lower(xive_tctx_output(tctx, sig_ring));
 
         trace_xive_tctx_accept(tctx->cs->cpu_index, ring,
                                regs[TM_IPB], sig_regs[TM_PIPR],
