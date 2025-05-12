@@ -365,6 +365,7 @@ static inline uint32_t xive_tctx_word2(uint8_t *ring)
     return *((uint32_t *) &ring[TM_WORD2]);
 }
 
+bool xive_ring_valid(XiveTCTX *tctx, uint8_t ring);
 bool xive_nsr_indicates_exception(uint8_t ring, uint8_t nsr);
 bool xive_nsr_indicates_group_exception(uint8_t ring, uint8_t nsr);
 uint8_t xive_nsr_exception_ring(uint8_t ring, uint8_t nsr);
