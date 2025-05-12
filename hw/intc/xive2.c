@@ -188,12 +188,27 @@ void xive2_eas_pic_print_info(Xive2Eas *eas, uint32_t lisn, GString *buf)
                            (uint32_t) xive_get_field64(EAS2_END_DATA, eas->w));
 }
 
+#define XIVE2_QSIZE_CHUNK_CL    128
+#define XIVE2_QSIZE_CHUNK_4k   4096
+/* Calculate max number of queue entries for an END */
+static uint32_t xive2_end_get_qentries(Xive2End *end)
+{
+    uint32_t w3 = end->w3;
+    uint32_t qsize = xive_get_field32(END2_W3_QSIZE, w3);
+    if (xive_get_field32(END2_W3_CL, w3)) {
+        g_assert(qsize <= 4);
+        return (XIVE2_QSIZE_CHUNK_CL << qsize) / sizeof(uint32_t);
+    } else {
+        g_assert(qsize <= 12);
+        return (XIVE2_QSIZE_CHUNK_4k << qsize) / sizeof(uint32_t);
+    }
+}
+
 void xive2_end_queue_pic_print_info(Xive2End *end, uint32_t width, GString *buf)
 {
     uint64_t qaddr_base = xive2_end_qaddr(end);
-    uint32_t qsize = xive_get_field32(END2_W3_QSIZE, end->w3);
     uint32_t qindex = xive_get_field32(END2_W1_PAGE_OFF, end->w1);
-    uint32_t qentries = 1 << (qsize + 10);
+    uint32_t qentries = xive2_end_get_qentries(end);
     int i;
 
     /*
@@ -223,8 +238,7 @@ void xive2_end_pic_print_info(Xive2End *end, uint32_t end_idx, GString *buf)
     uint64_t qaddr_base = xive2_end_qaddr(end);
     uint32_t qindex = xive_get_field32(END2_W1_PAGE_OFF, end->w1);
     uint32_t qgen = xive_get_field32(END2_W1_GENERATION, end->w1);
-    uint32_t qsize = xive_get_field32(END2_W3_QSIZE, end->w3);
-    uint32_t qentries = 1 << (qsize + 10);
+    uint32_t qentries = xive2_end_get_qentries(end);
 
     uint32_t nvx_blk = xive_get_field32(END2_W6_VP_BLOCK, end->w6);
     uint32_t nvx_idx = xive_get_field32(END2_W6_VP_OFFSET, end->w6);
@@ -341,13 +355,12 @@ void xive2_nvgc_pic_print_info(Xive2Nvgc *nvgc, uint32_t nvgc_idx, GString *buf)
 static void xive2_end_enqueue(Xive2End *end, uint32_t data)
 {
     uint64_t qaddr_base = xive2_end_qaddr(end);
-    uint32_t qsize = xive_get_field32(END2_W3_QSIZE, end->w3);
     uint32_t qindex = xive_get_field32(END2_W1_PAGE_OFF, end->w1);
     uint32_t qgen = xive_get_field32(END2_W1_GENERATION, end->w1);
 
     uint64_t qaddr = qaddr_base + (qindex << 2);
     uint32_t qdata = cpu_to_be32((qgen << 31) | (data & 0x7fffffff));
-    uint32_t qentries = 1 << (qsize + 10);
+    uint32_t qentries = xive2_end_get_qentries(end);
 
     if (dma_memory_write(&address_space_memory, qaddr, &qdata, sizeof(qdata),
                          MEMTXATTRS_UNSPECIFIED)) {

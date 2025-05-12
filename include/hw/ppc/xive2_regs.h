@@ -87,6 +87,7 @@ typedef struct Xive2End {
 #define END2_W2_EQ_ADDR_HI         PPC_BITMASK32(8, 31)
         uint32_t       w3;
 #define END2_W3_EQ_ADDR_LO         PPC_BITMASK32(0, 24)
+#define END2_W3_CL                 PPC_BIT32(27)
 #define END2_W3_QSIZE              PPC_BITMASK32(28, 31)
         uint32_t       w4;
 #define END2_W4_END_BLOCK          PPC_BITMASK32(4, 7)
