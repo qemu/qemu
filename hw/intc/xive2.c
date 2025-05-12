@@ -1323,6 +1323,34 @@ void xive2_tm_set_os_cppr(XivePresenter *xptr, XiveTCTX *tctx,
     xive2_tctx_set_cppr(tctx, TM_QW1_OS, value & 0xff);
 }
 
+/*
+ * Adjust the IPB to allow a CPU to process event queues of other
+ * priorities during one physical interrupt cycle.
+ */
+void xive2_tm_set_os_pending(XivePresenter *xptr, XiveTCTX *tctx,
+                             hwaddr offset, uint64_t value, unsigned size)
+{
+    Xive2Router *xrtr = XIVE2_ROUTER(xptr);
+    uint8_t ring = TM_QW1_OS;
+    uint8_t *regs = &tctx->regs[ring];
+    uint8_t priority = value & 0xff;
+
+    /*
+     * XXX: should this simply set a bit in IPB and wait for it to be picked
+     * up next cycle, or is it supposed to present it now? We implement the
+     * latter here.
+     */
+    regs[TM_IPB] |= xive_priority_to_ipb(priority);
+    if (xive_ipb_to_pipr(regs[TM_IPB]) >= regs[TM_PIPR]) {
+        return;
+    }
+    if (xive_nsr_indicates_group_exception(ring, regs[TM_NSR])) {
+        xive2_redistribute(xrtr, tctx, ring);
+    }
+
+    xive_tctx_pipr_present(tctx, ring, priority, 0);
+}
+
 static void xive2_tctx_set_target(XiveTCTX *tctx, uint8_t ring, uint8_t target)
 {
     uint8_t *regs = &tctx->regs[ring];
