@@ -225,6 +225,20 @@ void xive_tctx_pipr_update(XiveTCTX *tctx, uint8_t ring, uint8_t priority,
     xive_tctx_notify(tctx, ring, group_level);
  }
 
+static void xive_tctx_pipr_recompute_from_ipb(XiveTCTX *tctx, uint8_t ring)
+{
+    /* HV_POOL ring uses HV_PHYS NSR, CPPR and PIPR registers */
+    uint8_t alt_ring = (ring == TM_QW2_HV_POOL) ? TM_QW3_HV_PHYS : ring;
+    uint8_t *aregs = &tctx->regs[alt_ring];
+    uint8_t *regs = &tctx->regs[ring];
+
+    /* Does not support a presented group interrupt */
+    g_assert(!xive_nsr_indicates_group_exception(alt_ring, aregs[TM_NSR]));
+
+    aregs[TM_PIPR] = xive_ipb_to_pipr(regs[TM_IPB]);
+    xive_tctx_notify(tctx, ring, 0);
+}
+
 void xive_tctx_pipr_present(XiveTCTX *tctx, uint8_t ring, uint8_t priority,
                             uint8_t group_level)
 {
@@ -517,7 +531,12 @@ static void xive_tm_set_os_lgs(XivePresenter *xptr, XiveTCTX *tctx,
 static void xive_tm_set_os_pending(XivePresenter *xptr, XiveTCTX *tctx,
                                    hwaddr offset, uint64_t value, unsigned size)
 {
-    xive_tctx_pipr_update(tctx, TM_QW1_OS, value & 0xff, 0);
+    uint8_t ring = TM_QW1_OS;
+    uint8_t *regs = &tctx->regs[ring];
+
+    /* XXX: how should this work exactly? */
+    regs[TM_IPB] |= xive_priority_to_ipb(value & 0xff);
+    xive_tctx_pipr_recompute_from_ipb(tctx, ring);
 }
 
 static void xive_os_cam_decode(uint32_t cam, uint8_t *nvt_blk,
@@ -601,14 +620,14 @@ static void xive_tctx_need_resend(XiveRouter *xrtr, XiveTCTX *tctx,
     }
 
     /*
-     * Always call xive_tctx_pipr_update(). Even if there were no
+     * Always call xive_tctx_recompute_from_ipb(). Even if there were no
      * escalation triggered, there could be a pending interrupt which
      * was saved when the context was pulled and that we need to take
      * into account by recalculating the PIPR (which is not
      * saved/restored).
      * It will also raise the External interrupt signal if needed.
      */
-    xive_tctx_pipr_update(tctx, TM_QW1_OS, 0xFF, 0); /* fxb */
+    xive_tctx_pipr_recompute_from_ipb(tctx, TM_QW1_OS); /* fxb */
 }
 
 /*
