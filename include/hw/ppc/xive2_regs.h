@@ -158,6 +158,7 @@ typedef struct Xive2Nvp {
 #define NVP2_W0_L                  PPC_BIT32(8)
 #define NVP2_W0_G                  PPC_BIT32(9)
 #define NVP2_W0_T                  PPC_BIT32(10)
+#define NVP2_W0_P                  PPC_BIT32(11)
 #define NVP2_W0_ESC_END            PPC_BIT32(25) /* 'N' bit 0:ESB  1:END */
 #define NVP2_W0_PGOFIRST           PPC_BITMASK32(26, 31)
         uint32_t       w1;

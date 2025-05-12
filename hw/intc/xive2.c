@@ -512,12 +512,13 @@ static void xive2_presenter_backlog_decr(XivePresenter *xptr,
  */
 
 static void xive2_tctx_save_ctx(Xive2Router *xrtr, XiveTCTX *tctx,
-                                uint8_t nvp_blk, uint32_t nvp_idx,
-                                uint8_t ring)
+                                uint8_t ring,
+                                uint8_t nvp_blk, uint32_t nvp_idx)
 {
     CPUPPCState *env = &POWERPC_CPU(tctx->cs)->env;
     uint32_t pir = env->spr_cb[SPR_PIR].default_value;
     Xive2Nvp nvp;
+    uint8_t *sig_regs = xive_tctx_signal_regs(tctx, ring);
     uint8_t *regs = &tctx->regs[ring];
 
     if (xive2_router_get_nvp(xrtr, nvp_blk, nvp_idx, &nvp)) {
@@ -553,7 +554,14 @@ static void xive2_tctx_save_ctx(Xive2Router *xrtr, XiveTCTX *tctx,
     }
 
     nvp.w2 = xive_set_field32(NVP2_W2_IPB, nvp.w2, regs[TM_IPB]);
-    nvp.w2 = xive_set_field32(NVP2_W2_CPPR, nvp.w2, regs[TM_CPPR]);
+
+    if ((nvp.w0 & NVP2_W0_P) || ring != TM_QW2_HV_POOL) {
+        /*
+         * Non-pool contexts always save CPPR (ignore p bit). XXX: Clarify
+         * whether that is the correct behaviour.
+         */
+        nvp.w2 = xive_set_field32(NVP2_W2_CPPR, nvp.w2, sig_regs[TM_CPPR]);
+    }
     if (nvp.w0 & NVP2_W0_L) {
         /*
          * Typically not used. If LSMFB is restored with 0, it will
@@ -722,7 +730,7 @@ static uint64_t xive2_tm_pull_ctx(XivePresenter *xptr, XiveTCTX *tctx,
     }
 
     if (xive2_router_get_config(xrtr) & XIVE2_VP_SAVE_RESTORE && do_save) {
-        xive2_tctx_save_ctx(xrtr, tctx, nvp_blk, nvp_idx, ring);
+        xive2_tctx_save_ctx(xrtr, tctx, ring, nvp_blk, nvp_idx);
     }
 
     /*
@@ -863,12 +871,15 @@ void xive2_tm_pull_phys_ctx_ol(XivePresenter *xptr, XiveTCTX *tctx,
     xive2_tm_pull_ctx_ol(xptr, tctx, offset, value, size, TM_QW3_HV_PHYS);
 }
 
-static uint8_t xive2_tctx_restore_os_ctx(Xive2Router *xrtr, XiveTCTX *tctx,
-                                        uint8_t nvp_blk, uint32_t nvp_idx,
-                                        Xive2Nvp *nvp)
+static uint8_t xive2_tctx_restore_ctx(Xive2Router *xrtr, XiveTCTX *tctx,
+                                      uint8_t ring,
+                                      uint8_t nvp_blk, uint32_t nvp_idx,
+                                      Xive2Nvp *nvp)
 {
     CPUPPCState *env = &POWERPC_CPU(tctx->cs)->env;
     uint32_t pir = env->spr_cb[SPR_PIR].default_value;
+    uint8_t *sig_regs = xive_tctx_signal_regs(tctx, ring);
+    uint8_t *regs = &tctx->regs[ring];
     uint8_t cppr;
 
     if (!xive2_nvp_is_hw(nvp)) {
@@ -881,10 +892,10 @@ static uint8_t xive2_tctx_restore_os_ctx(Xive2Router *xrtr, XiveTCTX *tctx,
     nvp->w2 = xive_set_field32(NVP2_W2_CPPR, nvp->w2, 0);
     xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, nvp, 2);
 
-    tctx->regs[TM_QW1_OS + TM_CPPR] = cppr;
-    tctx->regs[TM_QW1_OS + TM_LSMFB] = xive_get_field32(NVP2_W2_LSMFB, nvp->w2);
-    tctx->regs[TM_QW1_OS + TM_LGS] = xive_get_field32(NVP2_W2_LGS, nvp->w2);
-    tctx->regs[TM_QW1_OS + TM_T] = xive_get_field32(NVP2_W2_T, nvp->w2);
+    sig_regs[TM_CPPR] = cppr;
+    regs[TM_LSMFB] = xive_get_field32(NVP2_W2_LSMFB, nvp->w2);
+    regs[TM_LGS] = xive_get_field32(NVP2_W2_LGS, nvp->w2);
+    regs[TM_T] = xive_get_field32(NVP2_W2_T, nvp->w2);
 
     nvp->w1 = xive_set_field32(NVP2_W1_CO, nvp->w1, 1);
     nvp->w1 = xive_set_field32(NVP2_W1_CO_THRID_VALID, nvp->w1, 1);
@@ -893,9 +904,18 @@ static uint8_t xive2_tctx_restore_os_ctx(Xive2Router *xrtr, XiveTCTX *tctx,
     /*
      * Checkout privilege: 0:OS, 1:Pool, 2:Hard
      *
-     * TODO: we only support OS push/pull
+     * TODO: we don't support hard push/pull
      */
-    nvp->w1 = xive_set_field32(NVP2_W1_CO_PRIV, nvp->w1, 0);
+    switch (ring) {
+    case TM_QW1_OS:
+        nvp->w1 = xive_set_field32(NVP2_W1_CO_PRIV, nvp->w1, 0);
+        break;
+    case TM_QW2_HV_POOL:
+        nvp->w1 = xive_set_field32(NVP2_W1_CO_PRIV, nvp->w1, 1);
+        break;
+    default:
+        g_assert_not_reached();
+    }
 
     xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, nvp, 1);
 
@@ -930,9 +950,8 @@ static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
     }
 
     /* Automatically restore thread context registers */
-    if (xive2_router_get_config(xrtr) & XIVE2_VP_SAVE_RESTORE &&
-        do_restore) {
-        xive2_tctx_restore_os_ctx(xrtr, tctx, nvp_blk, nvp_idx, &nvp);
+    if (xive2_router_get_config(xrtr) & XIVE2_VP_SAVE_RESTORE && do_restore) {
+        xive2_tctx_restore_ctx(xrtr, tctx, TM_QW1_OS, nvp_blk, nvp_idx, &nvp);
     }
 
     ipb = xive_get_field32(NVP2_W2_IPB, nvp.w2);
