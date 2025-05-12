@@ -209,9 +209,9 @@ static inline uint32_t xive2_nvp_idx(uint32_t cam_line)
     return cam_line & ((1 << XIVE2_NVP_SHIFT) - 1);
 }
 
-static inline uint32_t xive2_nvp_blk(uint32_t cam_line)
+static inline uint8_t xive2_nvp_blk(uint32_t cam_line)
 {
-    return (cam_line >> XIVE2_NVP_SHIFT) & 0xf;
+    return (uint8_t)((cam_line >> XIVE2_NVP_SHIFT) & 0xf);
 }
 
 void xive2_nvp_pic_print_info(Xive2Nvp *nvp, uint32_t nvp_idx, GString *buf);

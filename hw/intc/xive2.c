@@ -23,6 +23,9 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
                                     uint32_t end_idx, uint32_t end_data,
                                     bool redistribute);
 
+static int xive2_tctx_get_nvp_indexes(XiveTCTX *tctx, uint8_t ring,
+                                      uint8_t *nvp_blk, uint32_t *nvp_idx);
+
 uint32_t xive2_router_get_config(Xive2Router *xrtr)
 {
     Xive2RouterClass *xrc = XIVE2_ROUTER_GET_CLASS(xrtr);
@@ -604,8 +607,10 @@ static uint32_t xive2_tctx_hw_cam_line(XivePresenter *xptr, XiveTCTX *tctx)
 static void xive2_redistribute(Xive2Router *xrtr, XiveTCTX *tctx, uint8_t ring)
 {
     uint8_t *regs = &tctx->regs[ring];
-    uint8_t nsr = regs[TM_NSR];
-    uint8_t pipr = regs[TM_PIPR];
+    uint8_t *alt_regs = (ring == TM_QW2_HV_POOL) ? &tctx->regs[TM_QW3_HV_PHYS] :
+                                                   regs;
+    uint8_t nsr = alt_regs[TM_NSR];
+    uint8_t pipr = alt_regs[TM_PIPR];
     uint8_t crowd = NVx_CROWD_LVL(nsr);
     uint8_t group = NVx_GROUP_LVL(nsr);
     uint8_t nvgc_blk, end_blk, nvp_blk;
@@ -614,10 +619,6 @@ static void xive2_redistribute(Xive2Router *xrtr, XiveTCTX *tctx, uint8_t ring)
     uint8_t prio_limit;
     uint32_t cfg;
     uint8_t alt_ring;
-    uint32_t target_ringw2;
-    uint32_t cam;
-    bool valid;
-    bool hw;
 
     /* redistribution is only for group/crowd interrupts */
     if (!xive_nsr_indicates_group_exception(ring, nsr)) {
@@ -625,11 +626,9 @@ static void xive2_redistribute(Xive2Router *xrtr, XiveTCTX *tctx, uint8_t ring)
     }
 
     alt_ring = xive_nsr_exception_ring(ring, nsr);
-    target_ringw2 = xive_tctx_word2(&tctx->regs[alt_ring]);
-    cam = be32_to_cpu(target_ringw2);
 
-    /* extract nvp block and index from targeted ring's cam */
-    xive2_cam_decode(cam, &nvp_blk, &nvp_idx, &valid, &hw);
+    /* Don't check return code since ring is expected to be invalidated */
+    xive2_tctx_get_nvp_indexes(tctx, alt_ring, &nvp_blk, &nvp_idx);
 
     trace_xive_redistribute(tctx->cs->cpu_index, alt_ring, nvp_blk, nvp_idx);
 
@@ -676,9 +675,21 @@ static void xive2_redistribute(Xive2Router *xrtr, XiveTCTX *tctx, uint8_t ring)
     xive2_router_end_notify(xrtr, end_blk, end_idx, 0, true);
 
     /* clear interrupt indication for the context */
-    regs[TM_NSR] = 0;
-    regs[TM_PIPR] = regs[TM_CPPR];
+    alt_regs[TM_NSR] = 0;
+    alt_regs[TM_PIPR] = alt_regs[TM_CPPR];
     xive_tctx_reset_signal(tctx, ring);
+}
+
+static uint8_t xive2_hv_irq_ring(uint8_t nsr)
+{
+    switch (nsr >> 6) {
+    case TM_QW3_NSR_HE_POOL:
+        return TM_QW2_HV_POOL;
+    case TM_QW3_NSR_HE_PHYS:
+        return TM_QW3_HV_PHYS;
+    default:
+        return -1;
+    }
 }
 
 static uint64_t xive2_tm_pull_ctx(XivePresenter *xptr, XiveTCTX *tctx,
@@ -696,7 +707,7 @@ static uint64_t xive2_tm_pull_ctx(XivePresenter *xptr, XiveTCTX *tctx,
 
     xive2_cam_decode(cam, &nvp_blk, &nvp_idx, &valid, &do_save);
 
-    if (!valid) {
+    if (xive2_tctx_get_nvp_indexes(tctx, ring, &nvp_blk, &nvp_idx)) {
         qemu_log_mask(LOG_GUEST_ERROR, "XIVE: pulling invalid NVP %x/%x !?\n",
                       nvp_blk, nvp_idx);
     }
@@ -706,13 +717,25 @@ static uint64_t xive2_tm_pull_ctx(XivePresenter *xptr, XiveTCTX *tctx,
          cur_ring += XIVE_TM_RING_SIZE) {
         uint32_t ringw2 = xive_tctx_word2(&tctx->regs[cur_ring]);
         uint32_t ringw2_new = xive_set_field32(TM2_QW1W2_VO, ringw2, 0);
+        bool is_valid = !!(xive_get_field32(TM2_QW1W2_VO, ringw2));
+        uint8_t alt_ring;
         memcpy(&tctx->regs[cur_ring + TM_WORD2], &ringw2_new, 4);
-    }
 
-    /* Active group/crowd interrupts need to be redistributed */
-    nsr = tctx->regs[ring + TM_NSR];
-    if (xive_nsr_indicates_group_exception(ring, nsr)) {
-        xive2_redistribute(xrtr, tctx, ring);
+        /* Skip the rest for USER or invalid contexts */
+        if ((cur_ring == TM_QW0_USER) || !is_valid) {
+            continue;
+        }
+
+        /* Active group/crowd interrupts need to be redistributed */
+        alt_ring = (cur_ring == TM_QW2_HV_POOL) ? TM_QW3_HV_PHYS : cur_ring;
+        nsr = tctx->regs[alt_ring + TM_NSR];
+        if (xive_nsr_indicates_group_exception(alt_ring, nsr)) {
+            /* For HV rings, only redistribute if cur_ring matches NSR */
+            if ((cur_ring == TM_QW1_OS) ||
+                (cur_ring == xive2_hv_irq_ring(nsr))) {
+                xive2_redistribute(xrtr, tctx, cur_ring);
+            }
+        }
     }
 
     if (xive2_router_get_config(xrtr) & XIVE2_VP_SAVE_RESTORE && do_save) {
@@ -734,6 +757,18 @@ uint64_t xive2_tm_pull_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
                               hwaddr offset, unsigned size)
 {
     return xive2_tm_pull_ctx(xptr, tctx, offset, size, TM_QW1_OS);
+}
+
+uint64_t xive2_tm_pull_pool_ctx(XivePresenter *xptr, XiveTCTX *tctx,
+                                hwaddr offset, unsigned size)
+{
+    return xive2_tm_pull_ctx(xptr, tctx, offset, size, TM_QW2_HV_POOL);
+}
+
+uint64_t xive2_tm_pull_phys_ctx(XivePresenter *xptr, XiveTCTX *tctx,
+                                hwaddr offset, unsigned size)
+{
+    return xive2_tm_pull_ctx(xptr, tctx, offset, size, TM_QW3_HV_PHYS);
 }
 
 #define REPORT_LINE_GEN1_SIZE       16
@@ -993,37 +1028,40 @@ void xive2_tm_push_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
     }
 }
 
+/* returns -1 if ring is invalid, but still populates block and index */
 static int xive2_tctx_get_nvp_indexes(XiveTCTX *tctx, uint8_t ring,
-                                      uint32_t *nvp_blk, uint32_t *nvp_idx)
+                                      uint8_t *nvp_blk, uint32_t *nvp_idx)
 {
-    uint32_t w2, cam;
+    uint32_t w2;
+    uint32_t cam = 0;
+    int rc = 0;
 
     w2 = xive_tctx_word2(&tctx->regs[ring]);
     switch (ring) {
     case TM_QW1_OS:
         if (!(be32_to_cpu(w2) & TM2_QW1W2_VO)) {
-            return -1;
+            rc = -1;
         }
         cam = xive_get_field32(TM2_QW1W2_OS_CAM, w2);
         break;
     case TM_QW2_HV_POOL:
         if (!(be32_to_cpu(w2) & TM2_QW2W2_VP)) {
-            return -1;
+            rc = -1;
         }
         cam = xive_get_field32(TM2_QW2W2_POOL_CAM, w2);
         break;
     case TM_QW3_HV_PHYS:
         if (!(be32_to_cpu(w2) & TM2_QW3W2_VT)) {
-            return -1;
+            rc = -1;
         }
         cam = xive2_tctx_hw_cam_line(tctx->xptr, tctx);
         break;
     default:
-        return -1;
+        rc = -1;
     }
     *nvp_blk = xive2_nvp_blk(cam);
     *nvp_idx = xive2_nvp_idx(cam);
-    return 0;
+    return rc;
 }
 
 static void xive2_tctx_accept_el(XivePresenter *xptr, XiveTCTX *tctx,
@@ -1031,7 +1069,8 @@ static void xive2_tctx_accept_el(XivePresenter *xptr, XiveTCTX *tctx,
 {
     uint64_t rd;
     Xive2Router *xrtr = XIVE2_ROUTER(xptr);
-    uint32_t nvp_blk, nvp_idx, xive2_cfg;
+    uint32_t nvp_idx, xive2_cfg;
+    uint8_t nvp_blk;
     Xive2Nvp nvp;
     uint64_t phys_addr;
     uint8_t OGen = 0;
@@ -1084,7 +1123,8 @@ static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
     uint8_t old_cppr, backlog_prio, first_group, group_level;
     uint8_t pipr_min, lsmfb_min, ring_min;
     bool group_enabled;
-    uint32_t nvp_blk, nvp_idx;
+    uint8_t nvp_blk;
+    uint32_t nvp_idx;
     Xive2Nvp nvp;
     int rc;
     uint8_t nsr = regs[TM_NSR];
