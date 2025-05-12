@@ -945,8 +945,9 @@ static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
                                    uint8_t nvp_blk, uint32_t nvp_idx,
                                    bool do_restore)
 {
+    uint8_t *sig_regs = xive_tctx_signal_regs(tctx, ring);
     uint8_t *regs = &tctx->regs[ring];
-    uint8_t ipb;
+    uint8_t ipb, nsr = sig_regs[TM_NSR];
     Xive2Nvp nvp;
 
     /*
@@ -978,6 +979,11 @@ static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
     /* IPB bits in the backlog are merged with the TIMA IPB bits */
     regs[TM_IPB] |= ipb;
 
+    if (xive_nsr_indicates_group_exception(ring, nsr)) {
+        /* redistribute precluded active grp interrupt */
+        g_assert(ring == TM_QW2_HV_POOL); /* PHYS ring has the grp interrupt */
+        xive2_redistribute(xrtr, tctx, xive_nsr_exception_ring(ring, nsr));
+    }
     xive2_tctx_process_pending(tctx, ring == TM_QW2_HV_POOL ?
                                          TM_QW3_HV_PHYS : ring);
 }
