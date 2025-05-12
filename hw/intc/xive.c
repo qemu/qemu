@@ -228,7 +228,23 @@ void xive_tctx_pipr_update(XiveTCTX *tctx, uint8_t ring, uint8_t priority,
 void xive_tctx_pipr_present(XiveTCTX *tctx, uint8_t ring, uint8_t priority,
                             uint8_t group_level)
 {
-    xive_tctx_pipr_update(tctx, ring, priority, group_level);
+    /* HV_POOL ring uses HV_PHYS NSR, CPPR and PIPR registers */
+    uint8_t alt_ring = (ring == TM_QW2_HV_POOL) ? TM_QW3_HV_PHYS : ring;
+    uint8_t *aregs = &tctx->regs[alt_ring];
+    uint8_t *regs = &tctx->regs[ring];
+    uint8_t pipr = xive_priority_to_pipr(priority);
+
+    if (group_level == 0) {
+        regs[TM_IPB] |= xive_priority_to_ipb(priority);
+        if (pipr >= aregs[TM_PIPR]) {
+            /* VP interrupts can come here with lower priority than PIPR */
+            return;
+        }
+    }
+    g_assert(pipr <= xive_ipb_to_pipr(regs[TM_IPB]));
+    g_assert(pipr < aregs[TM_PIPR]);
+    aregs[TM_PIPR] = pipr;
+    xive_tctx_notify(tctx, ring, group_level);
 }
 
 /*
