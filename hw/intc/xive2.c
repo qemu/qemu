@@ -939,7 +939,7 @@ static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
 {
     uint8_t *regs = &tctx->regs[ring];
     Xive2Router *xrtr = XIVE2_ROUTER(tctx->xptr);
-    uint8_t old_cppr, backlog_prio, first_group, group_level = 0;
+    uint8_t old_cppr, backlog_prio, first_group, group_level;
     uint8_t pipr_min, lsmfb_min, ring_min;
     bool group_enabled;
     uint32_t nvp_blk, nvp_idx;
@@ -961,10 +961,12 @@ static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
      * Recompute the PIPR based on local pending interrupts. It will
      * be adjusted below if needed in case of pending group interrupts.
      */
+again:
     pipr_min = xive_ipb_to_pipr(regs[TM_IPB]);
     group_enabled = !!regs[TM_LGS];
-    lsmfb_min = (group_enabled) ? regs[TM_LSMFB] : 0xff;
+    lsmfb_min = group_enabled ? regs[TM_LSMFB] : 0xff;
     ring_min = ring;
+    group_level = 0;
 
     /* PHYS updates also depend on POOL values */
     if (ring == TM_QW3_HV_PHYS) {
@@ -998,9 +1000,6 @@ static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
         }
     }
 
-    /* PIPR should not be set to a value greater than CPPR */
-    regs[TM_PIPR] = (pipr_min > cppr) ? cppr : pipr_min;
-
     rc = xive2_tctx_get_nvp_indexes(tctx, ring_min, &nvp_blk, &nvp_idx);
     if (rc) {
         qemu_log_mask(LOG_GUEST_ERROR, "XIVE: set CPPR on invalid context\n");
@@ -1019,7 +1018,7 @@ static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
 
     if (group_enabled &&
         lsmfb_min < cppr &&
-        lsmfb_min < regs[TM_PIPR]) {
+        lsmfb_min < pipr_min) {
         /*
          * Thread has seen a group interrupt with a higher priority
          * than the new cppr or pending local interrupt. Check the
@@ -1048,12 +1047,25 @@ static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
                                                     nvp_blk, nvp_idx,
                                                     first_group, &group_level);
         tctx->regs[ring_min + TM_LSMFB] = backlog_prio;
-        if (backlog_prio != 0xFF) {
-            xive2_presenter_backlog_decr(tctx->xptr, nvp_blk, nvp_idx,
-                                         backlog_prio, group_level);
-            regs[TM_PIPR] = backlog_prio;
+        if (backlog_prio != lsmfb_min) {
+            /*
+             * If the group backlog scan finds a less favored or no interrupt,
+             * then re-do the processing which may turn up a more favored
+             * interrupt from IPB or the other pool. Backlog should not
+             * find a priority < LSMFB.
+             */
+            g_assert(backlog_prio >= lsmfb_min);
+            goto again;
         }
+
+        xive2_presenter_backlog_decr(tctx->xptr, nvp_blk, nvp_idx,
+                                     backlog_prio, group_level);
+        pipr_min = backlog_prio;
     }
+
+    /* PIPR should not be set to a value greater than CPPR */
+    regs[TM_PIPR] = (pipr_min > cppr) ? cppr : pipr_min;
+
     /* CPPR has changed, check if we need to raise a pending exception */
     xive_tctx_notify(tctx, ring_min, group_level);
 }
