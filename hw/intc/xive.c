@@ -241,25 +241,75 @@ static uint64_t xive_tm_ack_hv_reg(XivePresenter *xptr, XiveTCTX *tctx,
     return xive_tctx_accept(tctx, TM_QW3_HV_PHYS);
 }
 
+static void xive_pool_cam_decode(uint32_t cam, uint8_t *nvt_blk,
+                                 uint32_t *nvt_idx, bool *vp)
+{
+    if (nvt_blk) {
+        *nvt_blk = xive_nvt_blk(cam);
+    }
+    if (nvt_idx) {
+        *nvt_idx = xive_nvt_idx(cam);
+    }
+    if (vp) {
+        *vp = !!(cam & TM_QW2W2_VP);
+    }
+}
+
+static uint32_t xive_tctx_get_pool_cam(XiveTCTX *tctx, uint8_t *nvt_blk,
+                                       uint32_t *nvt_idx, bool *vp)
+{
+    uint32_t qw2w2 = xive_tctx_word2(&tctx->regs[TM_QW2_HV_POOL]);
+    uint32_t cam = be32_to_cpu(qw2w2);
+
+    xive_pool_cam_decode(cam, nvt_blk, nvt_idx, vp);
+    return qw2w2;
+}
+
+static void xive_tctx_set_pool_cam(XiveTCTX *tctx, uint32_t qw2w2)
+{
+    memcpy(&tctx->regs[TM_QW2_HV_POOL + TM_WORD2], &qw2w2, 4);
+}
+
 static uint64_t xive_tm_pull_pool_ctx(XivePresenter *xptr, XiveTCTX *tctx,
                                       hwaddr offset, unsigned size)
 {
-    uint32_t qw2w2_prev = xive_tctx_word2(&tctx->regs[TM_QW2_HV_POOL]);
     uint32_t qw2w2;
+    uint32_t qw2w2_new;
+    uint8_t nvt_blk;
+    uint32_t nvt_idx;
+    bool vp;
 
-    qw2w2 = xive_set_field32(TM_QW2W2_VP, qw2w2_prev, 0);
-    memcpy(&tctx->regs[TM_QW2_HV_POOL + TM_WORD2], &qw2w2, 4);
+    qw2w2 = xive_tctx_get_pool_cam(tctx, &nvt_blk, &nvt_idx, &vp);
+
+    if (!vp) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: pull invalid POOL NVT %x/%x !?\n",
+                      nvt_blk, nvt_idx);
+    }
+
+    /* Invalidate CAM line */
+    qw2w2_new = xive_set_field32(TM_QW2W2_VP, qw2w2, 0);
+    xive_tctx_set_pool_cam(tctx, qw2w2_new);
+
+    xive_tctx_reset_signal(tctx, TM_QW1_OS);
+    xive_tctx_reset_signal(tctx, TM_QW2_HV_POOL);
     return qw2w2;
 }
 
 static uint64_t xive_tm_pull_phys_ctx(XivePresenter *xptr, XiveTCTX *tctx,
                                       hwaddr offset, unsigned size)
 {
-    uint8_t qw3b8_prev = tctx->regs[TM_QW3_HV_PHYS + TM_WORD2];
-    uint8_t qw3b8;
+    uint8_t qw3b8 = tctx->regs[TM_QW3_HV_PHYS + TM_WORD2];
+    uint8_t qw3b8_new;
 
-    qw3b8 = qw3b8_prev & ~TM_QW3B8_VT;
-    tctx->regs[TM_QW3_HV_PHYS + TM_WORD2] = qw3b8;
+    qw3b8 = tctx->regs[TM_QW3_HV_PHYS + TM_WORD2];
+    if (!(qw3b8 & TM_QW3B8_VT)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: pulling invalid PHYS thread!?\n");
+    }
+    qw3b8_new = qw3b8 & ~TM_QW3B8_VT;
+    tctx->regs[TM_QW3_HV_PHYS + TM_WORD2] = qw3b8_new;
+
+    xive_tctx_reset_signal(tctx, TM_QW1_OS);
+    xive_tctx_reset_signal(tctx, TM_QW3_HV_PHYS);
     return qw3b8;
 }
 
@@ -489,7 +539,7 @@ static uint64_t xive_tm_pull_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
     qw1w2 = xive_tctx_get_os_cam(tctx, &nvt_blk, &nvt_idx, &vo);
 
     if (!vo) {
-        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: pulling invalid NVT %x/%x !?\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: pull invalid OS NVT %x/%x !?\n",
                       nvt_blk, nvt_idx);
     }
 
