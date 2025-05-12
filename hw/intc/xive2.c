@@ -1009,6 +1009,56 @@ static int xive2_tctx_get_nvp_indexes(XiveTCTX *tctx, uint8_t ring,
     return 0;
 }
 
+static void xive2_tctx_accept_el(XivePresenter *xptr, XiveTCTX *tctx,
+                                 uint8_t ring, uint8_t cl_ring)
+{
+    uint64_t rd;
+    Xive2Router *xrtr = XIVE2_ROUTER(xptr);
+    uint32_t nvp_blk, nvp_idx, xive2_cfg;
+    Xive2Nvp nvp;
+    uint64_t phys_addr;
+    uint8_t OGen = 0;
+
+    xive2_tctx_get_nvp_indexes(tctx, cl_ring, &nvp_blk, &nvp_idx);
+
+    if (xive2_router_get_nvp(xrtr, (uint8_t)nvp_blk, nvp_idx, &nvp)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVP %x/%x\n",
+                      nvp_blk, nvp_idx);
+        return;
+    }
+
+    if (!xive2_nvp_is_valid(&nvp)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid NVP %x/%x\n",
+                      nvp_blk, nvp_idx);
+        return;
+    }
+
+
+    rd = xive_tctx_accept(tctx, ring);
+
+    if (ring == TM_QW1_OS) {
+        OGen = tctx->regs[ring + TM_OGEN];
+    }
+    xive2_cfg = xive2_router_get_config(xrtr);
+    phys_addr = xive2_nvp_reporting_addr(&nvp);
+    uint8_t report_data[REPORT_LINE_GEN1_SIZE];
+    memset(report_data, 0xff, sizeof(report_data));
+    if ((OGen == 1) || (xive2_cfg & XIVE2_GEN1_TIMA_OS)) {
+        report_data[8] = (rd >> 8) & 0xff;
+        report_data[9] = rd & 0xff;
+    } else {
+        report_data[0] = (rd >> 8) & 0xff;
+        report_data[1] = rd & 0xff;
+    }
+    cpu_physical_memory_write(phys_addr, report_data, REPORT_LINE_GEN1_SIZE);
+}
+
+void xive2_tm_ack_os_el(XivePresenter *xptr, XiveTCTX *tctx,
+                        hwaddr offset, uint64_t value, unsigned size)
+{
+    xive2_tctx_accept_el(xptr, tctx, TM_QW1_OS, TM_QW1_OS);
+}
+
 static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
 {
     uint8_t *regs = &tctx->regs[ring];
