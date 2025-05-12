@@ -903,18 +903,14 @@ static uint8_t xive2_tctx_restore_os_ctx(Xive2Router *xrtr, XiveTCTX *tctx,
     return cppr;
 }
 
+static void xive2_tctx_process_pending(XiveTCTX *tctx, uint8_t sig_ring);
+
 static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
                                    uint8_t nvp_blk, uint32_t nvp_idx,
                                    bool do_restore)
 {
-    XivePresenter *xptr = XIVE_PRESENTER(xrtr);
-    uint8_t ipb;
-    uint8_t backlog_level;
-    uint8_t group_level;
-    uint8_t first_group;
-    uint8_t backlog_prio;
-    uint8_t group_prio;
     uint8_t *regs = &tctx->regs[TM_QW1_OS];
+    uint8_t ipb;
     Xive2Nvp nvp;
 
     /*
@@ -946,30 +942,8 @@ static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
     }
     /* IPB bits in the backlog are merged with the TIMA IPB bits */
     regs[TM_IPB] |= ipb;
-    backlog_prio = xive_ipb_to_pipr(regs[TM_IPB]);
-    backlog_level = 0;
 
-    first_group = xive_get_field32(NVP2_W0_PGOFIRST, nvp.w0);
-    if (first_group && regs[TM_LSMFB] < backlog_prio) {
-        group_prio = xive2_presenter_backlog_scan(xptr, nvp_blk, nvp_idx,
-                                                  first_group, &group_level);
-        regs[TM_LSMFB] = group_prio;
-        if (regs[TM_LGS] && group_prio < backlog_prio &&
-            group_prio < regs[TM_CPPR]) {
-
-            /* VP can take a group interrupt */
-            xive2_presenter_backlog_decr(xptr, nvp_blk, nvp_idx,
-                                         group_prio, group_level);
-            backlog_prio = group_prio;
-            backlog_level = group_level;
-        }
-    }
-
-    /*
-     * Set the PIPR/NSR based on the restored state.
-     * It will raise the External interrupt signal if needed.
-     */
-    xive_tctx_pipr_set(tctx, TM_QW1_OS, backlog_prio, backlog_level);
+    xive2_tctx_process_pending(tctx, TM_QW1_OS);
 }
 
 /*
@@ -1103,8 +1077,12 @@ static void xive2_tctx_process_pending(XiveTCTX *tctx, uint8_t sig_ring)
 {
     uint8_t *sig_regs = &tctx->regs[sig_ring];
     Xive2Router *xrtr = XIVE2_ROUTER(tctx->xptr);
-    uint8_t backlog_prio, first_group, group_level;
-    uint8_t pipr_min, lsmfb_min, ring_min;
+    uint8_t backlog_prio;
+    uint8_t first_group;
+    uint8_t group_level;
+    uint8_t pipr_min;
+    uint8_t lsmfb_min;
+    uint8_t ring_min;
     uint8_t cppr = sig_regs[TM_CPPR];
     bool group_enabled;
     Xive2Nvp nvp;
