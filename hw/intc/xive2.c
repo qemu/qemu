@@ -1638,11 +1638,21 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
                              crowd, cam_ignore, priority,
                              xive_get_field32(END2_W7_F1_LOG_SERVER_ID, end.w7),
                              &match)) {
+        XiveTCTX *tctx = match.tctx;
+        uint8_t ring = match.ring;
+        uint8_t alt_ring = (ring == TM_QW2_HV_POOL) ? TM_QW3_HV_PHYS : ring;
+        uint8_t *aregs = &tctx->regs[alt_ring];
+        uint8_t nsr = aregs[TM_NSR];
         uint8_t group_level;
 
+        if (priority < aregs[TM_PIPR] &&
+            xive_nsr_indicates_group_exception(alt_ring, nsr)) {
+            xive2_redistribute(xrtr, tctx, alt_ring);
+        }
+
         group_level = xive_get_group_level(crowd, cam_ignore, nvx_blk, nvx_idx);
-        trace_xive_presenter_notify(nvx_blk, nvx_idx, match.ring, group_level);
-        xive_tctx_pipr_update(match.tctx, match.ring, priority, group_level);
+        trace_xive_presenter_notify(nvx_blk, nvx_idx, ring, group_level);
+        xive_tctx_pipr_update(tctx, ring, priority, group_level);
         return;
     }
 
