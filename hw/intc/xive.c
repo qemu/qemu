@@ -110,6 +110,9 @@ void xive_tctx_notify(XiveTCTX *tctx, uint8_t ring, uint8_t group_level)
                                regs[TM_IPB], alt_regs[TM_PIPR],
                                alt_regs[TM_CPPR], alt_regs[TM_NSR]);
         qemu_irq_raise(xive_tctx_output(tctx, ring));
+    } else {
+        alt_regs[TM_NSR] = 0;
+        qemu_irq_lower(xive_tctx_output(tctx, ring));
     }
 }
 
