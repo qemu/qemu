@@ -68,13 +68,11 @@ static uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t ring)
          * If the interrupt was for a specific VP, reset the pending
          * buffer bit, otherwise clear the logical server indicator
          */
-        if (regs[TM_NSR] & TM_NSR_GRP_LVL) {
-            regs[TM_NSR] &= ~TM_NSR_GRP_LVL;
-        } else {
+        if (!(regs[TM_NSR] & TM_NSR_GRP_LVL)) {
             alt_regs[TM_IPB] &= ~xive_priority_to_ipb(cppr);
         }
 
-        /* Drop the exception bit and any group/crowd */
+        /* Clear the exception from NSR */
         regs[TM_NSR] = 0;
 
         trace_xive_tctx_accept(tctx->cs->cpu_index, alt_ring,
