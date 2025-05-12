@@ -845,7 +845,9 @@ static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
         group_prio = xive2_presenter_backlog_scan(xptr, nvp_blk, nvp_idx,
                                                   first_group, &group_level);
         regs[TM_LSMFB] = group_prio;
-        if (regs[TM_LGS] && group_prio < backlog_prio) {
+        if (regs[TM_LGS] && group_prio < backlog_prio &&
+            group_prio < regs[TM_CPPR]) {
+
             /* VP can take a group interrupt */
             xive2_presenter_backlog_decr(xptr, nvp_blk, nvp_idx,
                                          group_prio, group_level);
