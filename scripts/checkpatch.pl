@@ -1443,6 +1443,25 @@ sub process_file_list {
 		      join("\n  ", @acpi_nontestexpected) .
 		      "\n\nfound in the same patch\n");
 	}
+
+	my $sawmaintainers = 0;
+	my @maybemaintainers;
+	foreach my $fileinfo (@fileinfos) {
+		if ($fileinfo->{action} ne "modified" &&
+		    $fileinfo->{filenew} !~ m#^tests/data/acpi/#) {
+			push @maybemaintainers, $fileinfo->{filenew};
+		}
+		if ($fileinfo->{filenew} eq "MAINTAINERS") {
+			$sawmaintainers = 1;
+		}
+	}
+
+	# If we don't see a MAINTAINERS update, prod the user to check
+	if (int(@maybemaintainers) > 0 && !$sawmaintainers) {
+		WARN("added, moved or deleted file(s):\n\n  " .
+		     join("\n  ", @maybemaintainers) .
+		     "\n\nDoes MAINTAINERS need updating?\n");
+	}
 }
 
 # Called at the start of processing a diff hunk for a file
@@ -1486,7 +1505,6 @@ sub process {
 
 	my $in_header_lines = $file ? 0 : 1;
 	my $in_commit_log = 0;		#Scanning lines before patch
-	my $reported_maintainer_file = 0;
 	my $reported_mixing_imported_file = 0;
 	my $in_imported_file = 0;
 	my $in_no_imported_file = 0;
@@ -1759,23 +1777,6 @@ sub process {
 				ERROR("space required after Signed-off-by:\n" .
 					$herecurr);
 			}
-		}
-
-# Check if MAINTAINERS is being updated.  If so, there's probably no need to
-# emit the "does MAINTAINERS need updating?" message on file add/move/delete
-		if ($line =~ /^\s*MAINTAINERS\s*\|/) {
-			$reported_maintainer_file = 1;
-		}
-
-# Check for added, moved or deleted files
-		if (!$reported_maintainer_file && !$in_commit_log &&
-		    ($line =~ /^(?:new|deleted) file mode\s*\d+\s*$/ ||
-		     $line =~ /^rename (?:from|to) [\w\/\.\-]+\s*$/ ||
-		     ($line =~ /\{\s*([\w\/\.\-]*)\s*\=\>\s*([\w\/\.\-]*)\s*\}/ &&
-		      (defined($1) || defined($2)))) &&
-		    $realfile !~ m#^tests/data/acpi/#) {
-			$reported_maintainer_file = 1;
-			WARN("added, moved or deleted file(s), does MAINTAINERS need updating?\n" . $herecurr);
 		}
 
 # Check SPDX-License-Identifier references a permitted license
