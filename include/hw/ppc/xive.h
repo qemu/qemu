@@ -539,7 +539,7 @@ static inline uint8_t xive_ipb_to_pipr(uint8_t ibp)
 }
 
 /*
- * XIVE Thread Interrupt Management Aera (TIMA)
+ * XIVE Thread Interrupt Management Area (TIMA)
  *
  * This region gives access to the registers of the thread interrupt
  * management context. It is four page wide, each page providing a
@@ -550,6 +550,30 @@ static inline uint8_t xive_ipb_to_pipr(uint8_t ibp)
 #define XIVE_TM_HV_PAGE         0x1
 #define XIVE_TM_OS_PAGE         0x2
 #define XIVE_TM_USER_PAGE       0x3
+
+/*
+ * The TCTX (TIMA) has 4 rings (phys, pool, os, user), but only signals
+ * (raises an interrupt on) the CPU from 3 of them. Phys and pool both
+ * cause a hypervisor privileged interrupt so interrupts presented on
+ * those rings signal using the phys ring. This helper returns the signal
+ * regs from the given ring.
+ */
+static inline uint8_t *xive_tctx_signal_regs(XiveTCTX *tctx, uint8_t ring)
+{
+    /*
+     * This is a good point to add invariants to ensure nothing has tried to
+     * signal using the POOL ring.
+     */
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_NSR] == 0);
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_PIPR] == 0);
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_CPPR] == 0);
+
+    if (ring == TM_QW2_HV_POOL) {
+        /* POOL and PHYS rings share the signal regs (PIPR, NSR, CPPR) */
+        ring = TM_QW3_HV_PHYS;
+    }
+    return &tctx->regs[ring];
+}
 
 void xive_tctx_tm_write(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
                         uint64_t value, unsigned size);

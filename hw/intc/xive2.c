@@ -606,11 +606,9 @@ static uint32_t xive2_tctx_hw_cam_line(XivePresenter *xptr, XiveTCTX *tctx)
 
 static void xive2_redistribute(Xive2Router *xrtr, XiveTCTX *tctx, uint8_t ring)
 {
-    uint8_t *regs = &tctx->regs[ring];
-    uint8_t *alt_regs = (ring == TM_QW2_HV_POOL) ? &tctx->regs[TM_QW3_HV_PHYS] :
-                                                   regs;
-    uint8_t nsr = alt_regs[TM_NSR];
-    uint8_t pipr = alt_regs[TM_PIPR];
+    uint8_t *sig_regs = xive_tctx_signal_regs(tctx, ring);
+    uint8_t nsr = sig_regs[TM_NSR];
+    uint8_t pipr = sig_regs[TM_PIPR];
     uint8_t crowd = NVx_CROWD_LVL(nsr);
     uint8_t group = NVx_GROUP_LVL(nsr);
     uint8_t nvgc_blk, end_blk, nvp_blk;
@@ -618,19 +616,16 @@ static void xive2_redistribute(Xive2Router *xrtr, XiveTCTX *tctx, uint8_t ring)
     Xive2Nvgc nvgc;
     uint8_t prio_limit;
     uint32_t cfg;
-    uint8_t alt_ring;
 
     /* redistribution is only for group/crowd interrupts */
     if (!xive_nsr_indicates_group_exception(ring, nsr)) {
         return;
     }
 
-    alt_ring = xive_nsr_exception_ring(ring, nsr);
-
     /* Don't check return code since ring is expected to be invalidated */
-    xive2_tctx_get_nvp_indexes(tctx, alt_ring, &nvp_blk, &nvp_idx);
+    xive2_tctx_get_nvp_indexes(tctx, ring, &nvp_blk, &nvp_idx);
 
-    trace_xive_redistribute(tctx->cs->cpu_index, alt_ring, nvp_blk, nvp_idx);
+    trace_xive_redistribute(tctx->cs->cpu_index, ring, nvp_blk, nvp_idx);
 
     trace_xive_redistribute(tctx->cs->cpu_index, ring, nvp_blk, nvp_idx);
     /* convert crowd/group to blk/idx */
@@ -675,21 +670,9 @@ static void xive2_redistribute(Xive2Router *xrtr, XiveTCTX *tctx, uint8_t ring)
     xive2_router_end_notify(xrtr, end_blk, end_idx, 0, true);
 
     /* clear interrupt indication for the context */
-    alt_regs[TM_NSR] = 0;
-    alt_regs[TM_PIPR] = alt_regs[TM_CPPR];
+    sig_regs[TM_NSR] = 0;
+    sig_regs[TM_PIPR] = sig_regs[TM_CPPR];
     xive_tctx_reset_signal(tctx, ring);
-}
-
-static uint8_t xive2_hv_irq_ring(uint8_t nsr)
-{
-    switch (nsr >> 6) {
-    case TM_QW3_NSR_HE_POOL:
-        return TM_QW2_HV_POOL;
-    case TM_QW3_NSR_HE_PHYS:
-        return TM_QW3_HV_PHYS;
-    default:
-        return -1;
-    }
 }
 
 static uint64_t xive2_tm_pull_ctx(XivePresenter *xptr, XiveTCTX *tctx,
@@ -718,7 +701,8 @@ static uint64_t xive2_tm_pull_ctx(XivePresenter *xptr, XiveTCTX *tctx,
         uint32_t ringw2 = xive_tctx_word2(&tctx->regs[cur_ring]);
         uint32_t ringw2_new = xive_set_field32(TM2_QW1W2_VO, ringw2, 0);
         bool is_valid = !!(xive_get_field32(TM2_QW1W2_VO, ringw2));
-        uint8_t alt_ring;
+        uint8_t *sig_regs;
+
         memcpy(&tctx->regs[cur_ring + TM_WORD2], &ringw2_new, 4);
 
         /* Skip the rest for USER or invalid contexts */
@@ -727,12 +711,11 @@ static uint64_t xive2_tm_pull_ctx(XivePresenter *xptr, XiveTCTX *tctx,
         }
 
         /* Active group/crowd interrupts need to be redistributed */
-        alt_ring = (cur_ring == TM_QW2_HV_POOL) ? TM_QW3_HV_PHYS : cur_ring;
-        nsr = tctx->regs[alt_ring + TM_NSR];
-        if (xive_nsr_indicates_group_exception(alt_ring, nsr)) {
-            /* For HV rings, only redistribute if cur_ring matches NSR */
-            if ((cur_ring == TM_QW1_OS) ||
-                (cur_ring == xive2_hv_irq_ring(nsr))) {
+        sig_regs = xive_tctx_signal_regs(tctx, ring);
+        nsr = sig_regs[TM_NSR];
+        if (xive_nsr_indicates_group_exception(cur_ring, nsr)) {
+            /* Ensure ring matches NSR (for HV NSR POOL vs PHYS rings) */
+            if (cur_ring == xive_nsr_exception_ring(cur_ring, nsr)) {
                 xive2_redistribute(xrtr, tctx, cur_ring);
             }
         }
@@ -1118,7 +1101,7 @@ void xive2_tm_ack_os_el(XivePresenter *xptr, XiveTCTX *tctx,
 /* NOTE: CPPR only exists for TM_QW1_OS and TM_QW3_HV_PHYS */
 static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
 {
-    uint8_t *regs = &tctx->regs[ring];
+    uint8_t *sig_regs = &tctx->regs[ring];
     Xive2Router *xrtr = XIVE2_ROUTER(tctx->xptr);
     uint8_t old_cppr, backlog_prio, first_group, group_level;
     uint8_t pipr_min, lsmfb_min, ring_min;
@@ -1127,33 +1110,41 @@ static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
     uint32_t nvp_idx;
     Xive2Nvp nvp;
     int rc;
-    uint8_t nsr = regs[TM_NSR];
+    uint8_t nsr = sig_regs[TM_NSR];
 
+    g_assert(ring == TM_QW1_OS || ring == TM_QW3_HV_PHYS);
+
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_NSR] == 0);
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_PIPR] == 0);
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_CPPR] == 0);
+
+    /* XXX: should show pool IPB for PHYS ring */
     trace_xive_tctx_set_cppr(tctx->cs->cpu_index, ring,
-                             regs[TM_IPB], regs[TM_PIPR],
+                             sig_regs[TM_IPB], sig_regs[TM_PIPR],
                              cppr, nsr);
 
     if (cppr > XIVE_PRIORITY_MAX) {
         cppr = 0xff;
     }
 
-    old_cppr = regs[TM_CPPR];
-    regs[TM_CPPR] = cppr;
+    old_cppr = sig_regs[TM_CPPR];
+    sig_regs[TM_CPPR] = cppr;
 
     /* Handle increased CPPR priority (lower value) */
     if (cppr < old_cppr) {
-        if (cppr <= regs[TM_PIPR]) {
+        if (cppr <= sig_regs[TM_PIPR]) {
             /* CPPR lowered below PIPR, must un-present interrupt */
             if (xive_nsr_indicates_exception(ring, nsr)) {
                 if (xive_nsr_indicates_group_exception(ring, nsr)) {
                     /* redistribute precluded active grp interrupt */
-                    xive2_redistribute(xrtr, tctx, ring);
+                    xive2_redistribute(xrtr, tctx,
+                                       xive_nsr_exception_ring(ring, nsr));
                     return;
                 }
             }
 
             /* interrupt is VP directed, pending in IPB */
-            regs[TM_PIPR] = cppr;
+            sig_regs[TM_PIPR] = cppr;
             xive_tctx_notify(tctx, ring, 0); /* Ensure interrupt is cleared */
             return;
         } else {
@@ -1174,9 +1165,9 @@ static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
      * be adjusted below if needed in case of pending group interrupts.
      */
 again:
-    pipr_min = xive_ipb_to_pipr(regs[TM_IPB]);
-    group_enabled = !!regs[TM_LGS];
-    lsmfb_min = group_enabled ? regs[TM_LSMFB] : 0xff;
+    pipr_min = xive_ipb_to_pipr(sig_regs[TM_IPB]);
+    group_enabled = !!sig_regs[TM_LGS];
+    lsmfb_min = group_enabled ? sig_regs[TM_LSMFB] : 0xff;
     ring_min = ring;
     group_level = 0;
 
@@ -1265,7 +1256,7 @@ again:
     }
 
     /* PIPR should not be set to a value greater than CPPR */
-    regs[TM_PIPR] = (pipr_min > cppr) ? cppr : pipr_min;
+    sig_regs[TM_PIPR] = (pipr_min > cppr) ? cppr : pipr_min;
 
     /* CPPR has changed, check if we need to raise a pending exception */
     xive_tctx_notify(tctx, ring_min, group_level);
@@ -1490,9 +1481,7 @@ int xive2_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
 
 bool xive2_tm_irq_precluded(XiveTCTX *tctx, int ring, uint8_t priority)
 {
-    /* HV_POOL ring uses HV_PHYS NSR, CPPR and PIPR registers */
-    uint8_t alt_ring = (ring == TM_QW2_HV_POOL) ? TM_QW3_HV_PHYS : ring;
-    uint8_t *alt_regs = &tctx->regs[alt_ring];
+    uint8_t *sig_regs = xive_tctx_signal_regs(tctx, ring);
 
     /*
      * The xive2_presenter_tctx_match() above tells if there's a match
@@ -1500,7 +1489,7 @@ bool xive2_tm_irq_precluded(XiveTCTX *tctx, int ring, uint8_t priority)
      * priority to know if the thread can take the interrupt now or if
      * it is precluded.
      */
-    if (priority < alt_regs[TM_PIPR]) {
+    if (priority < sig_regs[TM_PIPR]) {
         return false;
     }
     return true;
@@ -1640,14 +1629,13 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
                              &match)) {
         XiveTCTX *tctx = match.tctx;
         uint8_t ring = match.ring;
-        uint8_t alt_ring = (ring == TM_QW2_HV_POOL) ? TM_QW3_HV_PHYS : ring;
-        uint8_t *aregs = &tctx->regs[alt_ring];
-        uint8_t nsr = aregs[TM_NSR];
+        uint8_t *sig_regs = xive_tctx_signal_regs(tctx, ring);
+        uint8_t nsr = sig_regs[TM_NSR];
         uint8_t group_level;
 
-        if (priority < aregs[TM_PIPR] &&
-            xive_nsr_indicates_group_exception(alt_ring, nsr)) {
-            xive2_redistribute(xrtr, tctx, alt_ring);
+        if (priority < sig_regs[TM_PIPR] &&
+            xive_nsr_indicates_group_exception(ring, nsr)) {
+            xive2_redistribute(xrtr, tctx, xive_nsr_exception_ring(ring, nsr));
         }
 
         group_level = xive_get_group_level(crowd, cam_ignore, nvx_blk, nvx_idx);

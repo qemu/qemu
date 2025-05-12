@@ -80,69 +80,77 @@ static qemu_irq xive_tctx_output(XiveTCTX *tctx, uint8_t ring)
         }
 }
 
-uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t ring)
+/*
+ * interrupt is accepted on the presentation ring, for PHYS ring the NSR
+ * directs it to the PHYS or POOL rings.
+ */
+uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t sig_ring)
 {
-    uint8_t *regs = &tctx->regs[ring];
-    uint8_t nsr = regs[TM_NSR];
+    uint8_t *sig_regs = &tctx->regs[sig_ring];
+    uint8_t nsr = sig_regs[TM_NSR];
 
-    qemu_irq_lower(xive_tctx_output(tctx, ring));
+    g_assert(sig_ring == TM_QW1_OS || sig_ring == TM_QW3_HV_PHYS);
 
-    if (xive_nsr_indicates_exception(ring, nsr)) {
-        uint8_t cppr = regs[TM_PIPR];
-        uint8_t alt_ring;
-        uint8_t *alt_regs;
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_NSR] == 0);
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_PIPR] == 0);
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_CPPR] == 0);
 
-        alt_ring = xive_nsr_exception_ring(ring, nsr);
-        alt_regs = &tctx->regs[alt_ring];
+    qemu_irq_lower(xive_tctx_output(tctx, sig_ring));
 
-        regs[TM_CPPR] = cppr;
+    if (xive_nsr_indicates_exception(sig_ring, nsr)) {
+        uint8_t cppr = sig_regs[TM_PIPR];
+        uint8_t ring;
+        uint8_t *regs;
+
+        ring = xive_nsr_exception_ring(sig_ring, nsr);
+        regs = &tctx->regs[ring];
+
+        sig_regs[TM_CPPR] = cppr;
 
         /*
          * If the interrupt was for a specific VP, reset the pending
          * buffer bit, otherwise clear the logical server indicator
          */
-        if (!xive_nsr_indicates_group_exception(ring, nsr)) {
-            alt_regs[TM_IPB] &= ~xive_priority_to_ipb(cppr);
+        if (!xive_nsr_indicates_group_exception(sig_ring, nsr)) {
+            regs[TM_IPB] &= ~xive_priority_to_ipb(cppr);
         }
 
         /* Clear the exception from NSR */
-        regs[TM_NSR] = 0;
+        sig_regs[TM_NSR] = 0;
 
-        trace_xive_tctx_accept(tctx->cs->cpu_index, alt_ring,
-                               alt_regs[TM_IPB], regs[TM_PIPR],
-                               regs[TM_CPPR], regs[TM_NSR]);
+        trace_xive_tctx_accept(tctx->cs->cpu_index, ring,
+                               regs[TM_IPB], sig_regs[TM_PIPR],
+                               sig_regs[TM_CPPR], sig_regs[TM_NSR]);
     }
 
-    return ((uint64_t)nsr << 8) | regs[TM_CPPR];
+    return ((uint64_t)nsr << 8) | sig_regs[TM_CPPR];
 }
 
 void xive_tctx_notify(XiveTCTX *tctx, uint8_t ring, uint8_t group_level)
 {
-    /* HV_POOL ring uses HV_PHYS NSR, CPPR and PIPR registers */
-    uint8_t alt_ring = (ring == TM_QW2_HV_POOL) ? TM_QW3_HV_PHYS : ring;
-    uint8_t *alt_regs = &tctx->regs[alt_ring];
+    uint8_t *sig_regs = xive_tctx_signal_regs(tctx, ring);
     uint8_t *regs = &tctx->regs[ring];
 
-    if (alt_regs[TM_PIPR] < alt_regs[TM_CPPR]) {
+    if (sig_regs[TM_PIPR] < sig_regs[TM_CPPR]) {
         switch (ring) {
         case TM_QW1_OS:
-            regs[TM_NSR] = TM_QW1_NSR_EO | (group_level & 0x3F);
+            sig_regs[TM_NSR] = TM_QW1_NSR_EO | (group_level & 0x3F);
             break;
         case TM_QW2_HV_POOL:
-            alt_regs[TM_NSR] = (TM_QW3_NSR_HE_POOL << 6) | (group_level & 0x3F);
+            sig_regs[TM_NSR] = (TM_QW3_NSR_HE_POOL << 6) | (group_level & 0x3F);
             break;
         case TM_QW3_HV_PHYS:
-            regs[TM_NSR] = (TM_QW3_NSR_HE_PHYS << 6) | (group_level & 0x3F);
+            sig_regs[TM_NSR] = (TM_QW3_NSR_HE_PHYS << 6) | (group_level & 0x3F);
             break;
         default:
             g_assert_not_reached();
         }
         trace_xive_tctx_notify(tctx->cs->cpu_index, ring,
-                               regs[TM_IPB], alt_regs[TM_PIPR],
-                               alt_regs[TM_CPPR], alt_regs[TM_NSR]);
+                               regs[TM_IPB], sig_regs[TM_PIPR],
+                               sig_regs[TM_CPPR], sig_regs[TM_NSR]);
         qemu_irq_raise(xive_tctx_output(tctx, ring));
     } else {
-        alt_regs[TM_NSR] = 0;
+        sig_regs[TM_NSR] = 0;
         qemu_irq_lower(xive_tctx_output(tctx, ring));
     }
 }
@@ -159,25 +167,32 @@ void xive_tctx_reset_signal(XiveTCTX *tctx, uint8_t ring)
 
 static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
 {
-    uint8_t *regs = &tctx->regs[ring];
+    uint8_t *sig_regs = &tctx->regs[ring];
     uint8_t pipr_min;
     uint8_t ring_min;
 
+    g_assert(ring == TM_QW1_OS || ring == TM_QW3_HV_PHYS);
+
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_NSR] == 0);
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_PIPR] == 0);
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_CPPR] == 0);
+
+    /* XXX: should show pool IPB for PHYS ring */
     trace_xive_tctx_set_cppr(tctx->cs->cpu_index, ring,
-                             regs[TM_IPB], regs[TM_PIPR],
-                             cppr, regs[TM_NSR]);
+                             sig_regs[TM_IPB], sig_regs[TM_PIPR],
+                             cppr, sig_regs[TM_NSR]);
 
     if (cppr > XIVE_PRIORITY_MAX) {
         cppr = 0xff;
     }
 
-    tctx->regs[ring + TM_CPPR] = cppr;
+    sig_regs[TM_CPPR] = cppr;
 
     /*
      * Recompute the PIPR based on local pending interrupts.  The PHYS
      * ring must take the minimum of both the PHYS and POOL PIPR values.
      */
-    pipr_min = xive_ipb_to_pipr(regs[TM_IPB]);
+    pipr_min = xive_ipb_to_pipr(sig_regs[TM_IPB]);
     ring_min = ring;
 
     /* PHYS updates also depend on POOL values */
@@ -186,7 +201,6 @@ static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
 
         /* POOL values only matter if POOL ctx is valid */
         if (pool_regs[TM_WORD2] & 0x80) {
-
             uint8_t pool_pipr = xive_ipb_to_pipr(pool_regs[TM_IPB]);
 
             /*
@@ -200,7 +214,7 @@ static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
         }
     }
 
-    regs[TM_PIPR] = pipr_min;
+    sig_regs[TM_PIPR] = pipr_min;
 
     /* CPPR has changed, check if we need to raise a pending exception */
     xive_tctx_notify(tctx, ring_min, 0);
@@ -208,56 +222,50 @@ static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
 
 void xive_tctx_pipr_update(XiveTCTX *tctx, uint8_t ring, uint8_t priority,
                            uint8_t group_level)
- {
-    /* HV_POOL ring uses HV_PHYS NSR, CPPR and PIPR registers */
-    uint8_t alt_ring = (ring == TM_QW2_HV_POOL) ? TM_QW3_HV_PHYS : ring;
-    uint8_t *alt_regs = &tctx->regs[alt_ring];
+{
+    uint8_t *sig_regs = xive_tctx_signal_regs(tctx, ring);
     uint8_t *regs = &tctx->regs[ring];
 
     if (group_level == 0) {
         /* VP-specific */
         regs[TM_IPB] |= xive_priority_to_ipb(priority);
-        alt_regs[TM_PIPR] = xive_ipb_to_pipr(regs[TM_IPB]);
+        sig_regs[TM_PIPR] = xive_ipb_to_pipr(regs[TM_IPB]);
     } else {
         /* VP-group */
-        alt_regs[TM_PIPR] = xive_priority_to_pipr(priority);
+        sig_regs[TM_PIPR] = xive_priority_to_pipr(priority);
     }
     xive_tctx_notify(tctx, ring, group_level);
  }
 
 static void xive_tctx_pipr_recompute_from_ipb(XiveTCTX *tctx, uint8_t ring)
 {
-    /* HV_POOL ring uses HV_PHYS NSR, CPPR and PIPR registers */
-    uint8_t alt_ring = (ring == TM_QW2_HV_POOL) ? TM_QW3_HV_PHYS : ring;
-    uint8_t *aregs = &tctx->regs[alt_ring];
+    uint8_t *sig_regs = xive_tctx_signal_regs(tctx, ring);
     uint8_t *regs = &tctx->regs[ring];
 
     /* Does not support a presented group interrupt */
-    g_assert(!xive_nsr_indicates_group_exception(alt_ring, aregs[TM_NSR]));
+    g_assert(!xive_nsr_indicates_group_exception(ring, sig_regs[TM_NSR]));
 
-    aregs[TM_PIPR] = xive_ipb_to_pipr(regs[TM_IPB]);
+    sig_regs[TM_PIPR] = xive_ipb_to_pipr(regs[TM_IPB]);
     xive_tctx_notify(tctx, ring, 0);
 }
 
 void xive_tctx_pipr_present(XiveTCTX *tctx, uint8_t ring, uint8_t priority,
                             uint8_t group_level)
 {
-    /* HV_POOL ring uses HV_PHYS NSR, CPPR and PIPR registers */
-    uint8_t alt_ring = (ring == TM_QW2_HV_POOL) ? TM_QW3_HV_PHYS : ring;
-    uint8_t *aregs = &tctx->regs[alt_ring];
+    uint8_t *sig_regs = xive_tctx_signal_regs(tctx, ring);
     uint8_t *regs = &tctx->regs[ring];
     uint8_t pipr = xive_priority_to_pipr(priority);
 
     if (group_level == 0) {
         regs[TM_IPB] |= xive_priority_to_ipb(priority);
-        if (pipr >= aregs[TM_PIPR]) {
+        if (pipr >= sig_regs[TM_PIPR]) {
             /* VP interrupts can come here with lower priority than PIPR */
             return;
         }
     }
     g_assert(pipr <= xive_ipb_to_pipr(regs[TM_IPB]));
-    g_assert(pipr < aregs[TM_PIPR]);
-    aregs[TM_PIPR] = pipr;
+    g_assert(pipr < sig_regs[TM_PIPR]);
+    sig_regs[TM_PIPR] = pipr;
     xive_tctx_notify(tctx, ring, group_level);
 }
 
