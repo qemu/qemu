@@ -1250,7 +1250,9 @@ static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t sig_ring, uint8_t cppr)
     }
 
     /* CPPR priority decreased (higher value) */
-    xive2_tctx_process_pending(tctx, sig_ring);
+    if (!xive_nsr_indicates_exception(sig_ring, nsr)) {
+        xive2_tctx_process_pending(tctx, sig_ring);
+    }
 }
 
 void xive2_tm_set_hv_cppr(XivePresenter *xptr, XiveTCTX *tctx,
