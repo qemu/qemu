@@ -1652,7 +1652,7 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
 
         group_level = xive_get_group_level(crowd, cam_ignore, nvx_blk, nvx_idx);
         trace_xive_presenter_notify(nvx_blk, nvx_idx, ring, group_level);
-        xive_tctx_pipr_update(tctx, ring, priority, group_level);
+        xive_tctx_pipr_present(tctx, ring, priority, group_level);
         return;
     }
 

@@ -225,6 +225,12 @@ void xive_tctx_pipr_update(XiveTCTX *tctx, uint8_t ring, uint8_t priority,
     xive_tctx_notify(tctx, ring, group_level);
  }
 
+void xive_tctx_pipr_present(XiveTCTX *tctx, uint8_t ring, uint8_t priority,
+                            uint8_t group_level)
+{
+    xive_tctx_pipr_update(tctx, ring, priority, group_level);
+}
+
 /*
  * XIVE Thread Interrupt Management Area (TIMA)
  */
@@ -2040,7 +2046,7 @@ void xive_router_end_notify(XiveRouter *xrtr, XiveEAS *eas)
                              xive_get_field32(END_W7_F1_LOG_SERVER_ID, end.w7),
                              &match)) {
         trace_xive_presenter_notify(nvt_blk, nvt_idx, match.ring, 0);
-        xive_tctx_pipr_update(match.tctx, match.ring, priority, 0);
+        xive_tctx_pipr_present(match.tctx, match.ring, priority, 0);
         return;
     }
 
