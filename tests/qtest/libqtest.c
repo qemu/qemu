@@ -574,10 +574,8 @@ void qtest_qmp_handshake(QTestState *s, QList *capabilities)
     }
 }
 
-QTestState *qtest_init_with_env_and_capabilities(const char *var,
-                                                 const char *extra_args,
-                                                 QList *capabilities,
-                                                 bool do_connect)
+QTestState *qtest_init_ext(const char *var, const char *extra_args,
+                           QList *capabilities, bool do_connect)
 {
     QTestState *s = qtest_init_internal(qtest_qemu_binary(var), extra_args,
                                         do_connect);
@@ -594,15 +592,9 @@ QTestState *qtest_init_with_env_and_capabilities(const char *var,
     return s;
 }
 
-QTestState *qtest_init_with_env(const char *var, const char *extra_args,
-                                bool do_connect)
-{
-    return qtest_init_with_env_and_capabilities(var, extra_args, NULL, true);
-}
-
 QTestState *qtest_init(const char *extra_args)
 {
-    return qtest_init_with_env(NULL, extra_args, true);
+    return qtest_init_ext(NULL, extra_args, NULL, true);
 }
 
 QTestState *qtest_vinitf(const char *fmt, va_list ap)
@@ -1662,7 +1654,7 @@ static struct MachInfo *qtest_get_machines(const char *var)
 
     silence_spawn_log = !g_test_verbose();
 
-    qts = qtest_init_with_env(qemu_var, "-machine none", true);
+    qts = qtest_init_ext(qemu_var, "-machine none", NULL, true);
     response = qtest_qmp(qts, "{ 'execute': 'query-machines' }");
     g_assert(response);
     list = qdict_get_qlist(response, "return");
@@ -1717,7 +1709,7 @@ static struct CpuModel *qtest_get_cpu_models(void)
 
     silence_spawn_log = !g_test_verbose();
 
-    qts = qtest_init_with_env(NULL, "-machine none", true);
+    qts = qtest_init_ext(NULL, "-machine none", NULL, true);
     response = qtest_qmp(qts, "{ 'execute': 'query-cpu-definitions' }");
     g_assert(response);
     list = qdict_get_qlist(response, "return");
