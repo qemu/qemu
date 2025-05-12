@@ -1182,8 +1182,6 @@ static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
 #endif
 }
 
-#ifdef TARGET_AARCH64
-
 static void aarch64_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -1340,15 +1338,6 @@ static void aarch64_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         }
     }
 }
-
-#else
-
-static inline void aarch64_cpu_dump_state(CPUState *cs, FILE *f, int flags)
-{
-    g_assert_not_reached();
-}
-
-#endif
 
 static void arm_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
