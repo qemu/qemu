@@ -1417,6 +1417,39 @@ sub checkspdx {
     }
 }
 
+# All three of the methods below take a 'file info' record
+# which is a hash ref containing
+#
+#  'isgit': 1 if an enhanced git diff or 0 for a plain diff
+#  'githeader': 1 if still parsing git patch header, 0 otherwise
+#  'linestart': line number of start of file diff
+#  'lineend': line number of end of file diff
+#  'filenew': the new filename
+#  'fileold': the old filename (same as 'new filename' except
+#             for renames in git diffs)
+#  'action': one of 'modified' (always) or 'new' or 'deleted' or
+#            'renamed' (git diffs only)
+#  'mode': file mode for new/deleted files (git diffs only)
+#  'similarity': file similarity when renamed (git diffs only)
+#  'facts': hash ref for storing any metadata related to checks
+#
+
+# Called at the end of each patch, with the list of
+# real filenames that were seen in the patch
+sub process_file_list {
+	my @fileinfos = @_;
+}
+
+# Called at the start of processing a diff hunk for a file
+sub process_start_of_file {
+	my $fileinfo = shift;
+}
+
+# Called at the end of processing a diff hunk for a file
+sub process_end_of_file {
+	my $fileinfo = shift;
+}
+
 sub process {
 	my $filename = shift;
 
@@ -1453,7 +1486,10 @@ sub process {
 	my $realfile = '';
 	my $realline = 0;
 	my $realcnt = 0;
+	my $fileinfo;
+	my @fileinfolist;
 	my $here = '';
+	my $oldhere = '';
 	my $in_comment = 0;
 	my $comment_edge = 0;
 	my $first_line = 0;
@@ -1591,17 +1627,56 @@ sub process {
 		$prefix = "$filename:$realline: " if ($emacs && $file);
 		$prefix = "$filename:$linenr: " if ($emacs && !$file);
 
+		$oldhere = $here;
 		$here = "#$linenr: " if (!$file);
 		$here = "#$realline: " if ($file);
 
 		# extract the filename as it passes
-		if ($line =~ /^diff --git.*?(\S+)$/) {
-			$realfile = $1;
-			$realfile =~ s@^([^/]*)/@@ if (!$file);
+		if ($line =~ /^diff --git\s+(\S+)\s+(\S+)$/) {
+			my $fileold = $1;
+			my $filenew = $2;
+
+			if (defined $fileinfo) {
+				$fileinfo->{lineend} = $oldhere;
+				process_end_of_file($fileinfo)
+		        }
+			$fileold =~ s@^([^/]*)/@@ if (!$file);
+			$filenew =~ s@^([^/]*)/@@ if (!$file);
+			$realfile = $filenew;
 	                checkfilename($realfile, \$acpi_testexpected, \$acpi_nontestexpected);
+
+			$fileinfo = {
+				"isgit" => 1,
+				"githeader" => 1,
+				"linestart" => $here,
+				"lineend" => 0,
+				"fileold" => $fileold,
+				"filenew" => $filenew,
+				"action" => "modified",
+				"mode" => 0,
+				"similarity" => 0,
+				"facts" => {},
+		        };
+			push @fileinfolist, $fileinfo;
+		} elsif (defined $fileinfo && $fileinfo->{githeader} &&
+			 $line =~ /^(new|deleted) (?:file )?mode\s+([0-7]+)$/) {
+			$fileinfo->{action} = $1;
+			$fileinfo->{mode} = oct($2);
+		} elsif (defined $fileinfo && $fileinfo->{githeader} &&
+			 $line =~ /^similarity index (\d+)%/) {
+			$fileinfo->{similarity} = int($1);
+		} elsif (defined $fileinfo && $fileinfo->{githeader} &&
+			 $line =~ /^rename (from|to) [\w\/\.\-]+\s*$/) {
+			$fileinfo->{action} = "renamed";
+			# For a no-change rename, we'll never have any "+++..."
+			# lines, so trigger actions now
+			if ($1 eq "to" && $fileinfo->{similarity} == 100)  {
+				process_start_of_file($fileinfo);
+			}
 		} elsif ($line =~ /^\+\+\+\s+(\S+)/) {
 			$realfile = $1;
 			$realfile =~ s@^([^/]*)/@@ if (!$file);
+
 	                checkfilename($realfile, \$acpi_testexpected, \$acpi_nontestexpected);
 
 			$p1_prefix = $1;
@@ -1609,6 +1684,30 @@ sub process {
 			    -e "$root/$p1_prefix") {
 				WARN("patch prefix '$p1_prefix' exists, appears to be a -p0 patch\n");
 			}
+
+			if (defined $fileinfo && !$fileinfo->{isgit}) {
+				$fileinfo->{lineend} = $oldhere;
+				process_end_of_file($fileinfo);
+			}
+
+			if (!defined $fileinfo || !$fileinfo->{isgit}) {
+				$fileinfo = {
+					"isgit" => 0,
+					"githeader" => 0,
+					"linestart" => $here,
+					"lineend" => 0,
+					"fileold" => $realfile,
+					"filenew" => $realfile,
+					"action" => "modified",
+					"mode" => 0,
+					"similarity" => 0,
+					"facts" => {},
+			        };
+				push @fileinfolist, $fileinfo;
+			} else {
+				$fileinfo->{githeader} = 0;
+			}
+			process_start_of_file($fileinfo);
 
 			next;
 		}
@@ -3215,6 +3314,11 @@ sub process {
 			ERROR("Use g_assert or g_assert_not_reached\n". $herecurr);
 		}
 	}
+
+	if (defined $fileinfo) {
+		process_end_of_file($fileinfo);
+	}
+	process_file_list(@fileinfolist);
 
 	if ($is_patch && $chk_signoff && $signoff == 0) {
 		ERROR("Missing Signed-off-by: line(s)\n");
