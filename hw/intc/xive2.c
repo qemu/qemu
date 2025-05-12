@@ -583,6 +583,7 @@ static void xive2_tctx_save_ctx(Xive2Router *xrtr, XiveTCTX *tctx,
     xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, &nvp, 1);
 }
 
+/* POOL cam is the same as OS cam encoding */
 static void xive2_cam_decode(uint32_t cam, uint8_t *nvp_blk,
                              uint32_t *nvp_idx, bool *valid, bool *hw)
 {
@@ -940,10 +941,11 @@ static uint8_t xive2_tctx_restore_ctx(Xive2Router *xrtr, XiveTCTX *tctx,
 }
 
 static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
+                                   uint8_t ring,
                                    uint8_t nvp_blk, uint32_t nvp_idx,
                                    bool do_restore)
 {
-    uint8_t *regs = &tctx->regs[TM_QW1_OS];
+    uint8_t *regs = &tctx->regs[ring];
     uint8_t ipb;
     Xive2Nvp nvp;
 
@@ -965,7 +967,7 @@ static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
 
     /* Automatically restore thread context registers */
     if (xive2_router_get_config(xrtr) & XIVE2_VP_SAVE_RESTORE && do_restore) {
-        xive2_tctx_restore_ctx(xrtr, tctx, TM_QW1_OS, nvp_blk, nvp_idx, &nvp);
+        xive2_tctx_restore_ctx(xrtr, tctx, ring, nvp_blk, nvp_idx, &nvp);
     }
 
     ipb = xive_get_field32(NVP2_W2_IPB, nvp.w2);
@@ -976,46 +978,60 @@ static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
     /* IPB bits in the backlog are merged with the TIMA IPB bits */
     regs[TM_IPB] |= ipb;
 
-    xive2_tctx_process_pending(tctx, TM_QW1_OS);
+    xive2_tctx_process_pending(tctx, ring == TM_QW2_HV_POOL ?
+                                         TM_QW3_HV_PHYS : ring);
 }
 
 /*
- * Updating the OS CAM line can trigger a resend of interrupt
+ * Updating the ring CAM line can trigger a resend of interrupt
  */
-void xive2_tm_push_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
-                          hwaddr offset, uint64_t value, unsigned size)
+static void xive2_tm_push_ctx(XivePresenter *xptr, XiveTCTX *tctx,
+                              hwaddr offset, uint64_t value, unsigned size,
+                              uint8_t ring)
 {
     uint32_t cam;
-    uint32_t qw1w2;
-    uint64_t qw1dw1;
+    uint32_t w2;
+    uint64_t dw1;
     uint8_t nvp_blk;
     uint32_t nvp_idx;
-    bool vo;
+    bool v;
     bool do_restore;
 
     /* First update the thead context */
     switch (size) {
     case 4:
         cam = value;
-        qw1w2 = cpu_to_be32(cam);
-        memcpy(&tctx->regs[TM_QW1_OS + TM_WORD2], &qw1w2, 4);
+        w2 = cpu_to_be32(cam);
+        memcpy(&tctx->regs[ring + TM_WORD2], &w2, 4);
         break;
     case 8:
         cam = value >> 32;
-        qw1dw1 = cpu_to_be64(value);
-        memcpy(&tctx->regs[TM_QW1_OS + TM_WORD2], &qw1dw1, 8);
+        dw1 = cpu_to_be64(value);
+        memcpy(&tctx->regs[ring + TM_WORD2], &dw1, 8);
         break;
     default:
         g_assert_not_reached();
     }
 
-    xive2_cam_decode(cam, &nvp_blk, &nvp_idx, &vo, &do_restore);
+    xive2_cam_decode(cam, &nvp_blk, &nvp_idx, &v, &do_restore);
 
     /* Check the interrupt pending bits */
-    if (vo) {
-        xive2_tctx_need_resend(XIVE2_ROUTER(xptr), tctx, nvp_blk, nvp_idx,
-                               do_restore);
+    if (v) {
+        xive2_tctx_need_resend(XIVE2_ROUTER(xptr), tctx, ring,
+                               nvp_blk, nvp_idx, do_restore);
     }
+}
+
+void xive2_tm_push_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
+                          hwaddr offset, uint64_t value, unsigned size)
+{
+    xive2_tm_push_ctx(xptr, tctx, offset, value, size, TM_QW1_OS);
+}
+
+void xive2_tm_push_pool_ctx(XivePresenter *xptr, XiveTCTX *tctx,
+                            hwaddr offset, uint64_t value, unsigned size)
+{
+    xive2_tm_push_ctx(xptr, tctx, offset, value, size, TM_QW2_HV_POOL);
 }
 
 /* returns -1 if ring is invalid, but still populates block and index */
