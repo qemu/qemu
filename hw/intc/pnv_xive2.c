@@ -643,13 +643,18 @@ static int pnv_xive2_match_nvt(XivePresenter *xptr, uint8_t format,
     int i, j;
     bool gen1_tima_os =
         xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_GEN1_TIMA_OS;
+    static int next_start_core;
+    static int next_start_thread;
+    int start_core = next_start_core;
+    int start_thread = next_start_thread;
 
     for (i = 0; i < chip->nr_cores; i++) {
-        PnvCore *pc = chip->cores[i];
+        PnvCore *pc = chip->cores[(i + start_core) % chip->nr_cores];
         CPUCore *cc = CPU_CORE(pc);
 
         for (j = 0; j < cc->nr_threads; j++) {
-            PowerPCCPU *cpu = pc->threads[j];
+            /* Start search for match with different thread each call */
+            PowerPCCPU *cpu = pc->threads[(j + start_thread) % cc->nr_threads];
             XiveTCTX *tctx;
             int ring;
 
@@ -694,6 +699,15 @@ static int pnv_xive2_match_nvt(XivePresenter *xptr, uint8_t format,
                     if (!match->tctx) {
                         match->ring = ring;
                         match->tctx = tctx;
+
+                        next_start_thread = j + start_thread + 1;
+                        if (next_start_thread >= cc->nr_threads) {
+                            next_start_thread = 0;
+                            next_start_core = i + start_core + 1;
+                            if (next_start_core >= chip->nr_cores) {
+                                next_start_core = 0;
+                            }
+                        }
                     }
                     count++;
                 }
