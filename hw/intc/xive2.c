@@ -19,6 +19,10 @@
 #include "hw/ppc/xive2_regs.h"
 #include "trace.h"
 
+static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
+                                    uint32_t end_idx, uint32_t end_data,
+                                    bool redistribute);
+
 uint32_t xive2_router_get_config(Xive2Router *xrtr)
 {
     Xive2RouterClass *xrc = XIVE2_ROUTER_GET_CLASS(xrtr);
@@ -597,6 +601,68 @@ static uint32_t xive2_tctx_hw_cam_line(XivePresenter *xptr, XiveTCTX *tctx)
     return xive2_nvp_cam_line(blk, 1 << tid_shift | (pir & tid_mask));
 }
 
+static void xive2_redistribute(Xive2Router *xrtr, XiveTCTX *tctx,
+                               uint8_t nvp_blk, uint32_t nvp_idx, uint8_t ring)
+{
+    uint8_t nsr = tctx->regs[ring + TM_NSR];
+    uint8_t crowd = NVx_CROWD_LVL(nsr);
+    uint8_t group = NVx_GROUP_LVL(nsr);
+    uint8_t nvgc_blk;
+    uint8_t nvgc_idx;
+    uint8_t end_blk;
+    uint32_t end_idx;
+    uint8_t pipr = tctx->regs[ring + TM_PIPR];
+    Xive2Nvgc nvgc;
+    uint8_t prio_limit;
+    uint32_t cfg;
+
+    /* convert crowd/group to blk/idx */
+    if (group > 0) {
+        nvgc_idx = (nvp_idx & (0xffffffff << group)) |
+                   ((1 << (group - 1)) - 1);
+    } else {
+        nvgc_idx = nvp_idx;
+    }
+
+    if (crowd > 0) {
+        crowd = (crowd == 3) ? 4 : crowd;
+        nvgc_blk = (nvp_blk & (0xffffffff << crowd)) |
+                   ((1 << (crowd - 1)) - 1);
+    } else {
+        nvgc_blk = nvp_blk;
+    }
+
+    /* Use blk/idx to retrieve the NVGC */
+    if (xive2_router_get_nvgc(xrtr, crowd, nvgc_blk, nvgc_idx, &nvgc)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: no %s %x/%x\n",
+                      crowd ? "NVC" : "NVG", nvgc_blk, nvgc_idx);
+        return;
+    }
+
+    /* retrieve the END blk/idx from the NVGC */
+    end_blk = xive_get_field32(NVGC2_W1_END_BLK, nvgc.w1);
+    end_idx = xive_get_field32(NVGC2_W1_END_IDX, nvgc.w1);
+
+    /* determine number of priorities being used */
+    cfg = xive2_router_get_config(xrtr);
+    if (cfg & XIVE2_EN_VP_GRP_PRIORITY) {
+        prio_limit = 1 << GETFIELD(NVGC2_W1_PSIZE, nvgc.w1);
+    } else {
+        prio_limit = 1 << GETFIELD(XIVE2_VP_INT_PRIO, cfg);
+    }
+
+    /* add priority offset to end index */
+    end_idx += pipr % prio_limit;
+
+    /* trigger the group END */
+    xive2_router_end_notify(xrtr, end_blk, end_idx, 0, true);
+
+    /* clear interrupt indication for the context */
+    tctx->regs[ring + TM_NSR] = 0;
+    tctx->regs[ring + TM_PIPR] = tctx->regs[ring + TM_CPPR];
+    xive_tctx_reset_signal(tctx, ring);
+}
+
 static uint64_t xive2_tm_pull_ctx(XivePresenter *xptr, XiveTCTX *tctx,
                                   hwaddr offset, unsigned size, uint8_t ring)
 {
@@ -608,6 +674,7 @@ static uint64_t xive2_tm_pull_ctx(XivePresenter *xptr, XiveTCTX *tctx,
     uint8_t cur_ring;
     bool valid;
     bool do_save;
+    uint8_t nsr;
 
     xive2_cam_decode(cam, &nvp_blk, &nvp_idx, &valid, &do_save);
 
@@ -622,6 +689,12 @@ static uint64_t xive2_tm_pull_ctx(XivePresenter *xptr, XiveTCTX *tctx,
         uint32_t ringw2 = xive_tctx_word2(&tctx->regs[cur_ring]);
         uint32_t ringw2_new = xive_set_field32(TM2_QW1W2_VO, ringw2, 0);
         memcpy(&tctx->regs[cur_ring + TM_WORD2], &ringw2_new, 4);
+    }
+
+    /* Active group/crowd interrupts need to be redistributed */
+    nsr = tctx->regs[ring + TM_NSR];
+    if (xive_nsr_indicates_group_exception(ring, nsr)) {
+        xive2_redistribute(xrtr, tctx, nvp_blk, nvp_idx, ring);
     }
 
     if (xive2_router_get_config(xrtr) & XIVE2_VP_SAVE_RESTORE && do_save) {
@@ -1352,7 +1425,8 @@ static bool xive2_router_end_es_notify(Xive2Router *xrtr, uint8_t end_blk,
  * message has the same parameters than in the function below.
  */
 static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
-                                    uint32_t end_idx, uint32_t end_data)
+                                    uint32_t end_idx, uint32_t end_data,
+                                    bool redistribute)
 {
     Xive2End end;
     uint8_t priority;
@@ -1380,7 +1454,7 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
         return;
     }
 
-    if (xive2_end_is_enqueue(&end)) {
+    if (!redistribute && xive2_end_is_enqueue(&end)) {
         xive2_end_enqueue(&end, end_data);
         /* Enqueuing event data modifies the EQ toggle and index */
         xive2_router_write_end(xrtr, end_blk, end_idx, &end, 1);
@@ -1560,7 +1634,8 @@ do_escalation:
         xive2_router_end_notify(xrtr,
                                xive_get_field32(END2_W4_END_BLOCK,     end.w4),
                                xive_get_field32(END2_W4_ESC_END_INDEX, end.w4),
-                               xive_get_field32(END2_W5_ESC_END_DATA,  end.w5));
+                               xive_get_field32(END2_W5_ESC_END_DATA,  end.w5),
+                               false);
     } /* end END adaptive escalation */
 
     else {
@@ -1641,7 +1716,8 @@ void xive2_notify(Xive2Router *xrtr , uint32_t lisn, bool pq_checked)
     xive2_router_end_notify(xrtr,
                             xive_get_field64(EAS2_END_BLOCK, eas.w),
                             xive_get_field64(EAS2_END_INDEX, eas.w),
-                            xive_get_field64(EAS2_END_DATA,  eas.w));
+                            xive_get_field64(EAS2_END_DATA,  eas.w),
+                            false);
     return;
 }
 

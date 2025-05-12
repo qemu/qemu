@@ -224,6 +224,9 @@ typedef struct Xive2Nvgc {
 #define NVGC2_W0_VALID             PPC_BIT32(0)
 #define NVGC2_W0_PGONEXT           PPC_BITMASK32(26, 31)
         uint32_t        w1;
+#define NVGC2_W1_PSIZE             PPC_BITMASK32(0, 1)
+#define NVGC2_W1_END_BLK           PPC_BITMASK32(4, 7)
+#define NVGC2_W1_END_IDX           PPC_BITMASK32(8, 31)
         uint32_t        w2;
         uint32_t        w3;
         uint32_t        w4;
