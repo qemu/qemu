@@ -601,20 +601,37 @@ static uint32_t xive2_tctx_hw_cam_line(XivePresenter *xptr, XiveTCTX *tctx)
     return xive2_nvp_cam_line(blk, 1 << tid_shift | (pir & tid_mask));
 }
 
-static void xive2_redistribute(Xive2Router *xrtr, XiveTCTX *tctx,
-                               uint8_t nvp_blk, uint32_t nvp_idx, uint8_t ring)
+static void xive2_redistribute(Xive2Router *xrtr, XiveTCTX *tctx, uint8_t ring)
 {
-    uint8_t nsr = tctx->regs[ring + TM_NSR];
+    uint8_t *regs = &tctx->regs[ring];
+    uint8_t nsr = regs[TM_NSR];
+    uint8_t pipr = regs[TM_PIPR];
     uint8_t crowd = NVx_CROWD_LVL(nsr);
     uint8_t group = NVx_GROUP_LVL(nsr);
-    uint8_t nvgc_blk;
-    uint8_t nvgc_idx;
-    uint8_t end_blk;
-    uint32_t end_idx;
-    uint8_t pipr = tctx->regs[ring + TM_PIPR];
+    uint8_t nvgc_blk, end_blk, nvp_blk;
+    uint32_t nvgc_idx, end_idx, nvp_idx;
     Xive2Nvgc nvgc;
     uint8_t prio_limit;
     uint32_t cfg;
+    uint8_t alt_ring;
+    uint32_t target_ringw2;
+    uint32_t cam;
+    bool valid;
+    bool hw;
+
+    /* redistribution is only for group/crowd interrupts */
+    if (!xive_nsr_indicates_group_exception(ring, nsr)) {
+        return;
+    }
+
+    alt_ring = xive_nsr_exception_ring(ring, nsr);
+    target_ringw2 = xive_tctx_word2(&tctx->regs[alt_ring]);
+    cam = be32_to_cpu(target_ringw2);
+
+    /* extract nvp block and index from targeted ring's cam */
+    xive2_cam_decode(cam, &nvp_blk, &nvp_idx, &valid, &hw);
+
+    trace_xive_redistribute(tctx->cs->cpu_index, alt_ring, nvp_blk, nvp_idx);
 
     trace_xive_redistribute(tctx->cs->cpu_index, ring, nvp_blk, nvp_idx);
     /* convert crowd/group to blk/idx */
@@ -659,8 +676,8 @@ static void xive2_redistribute(Xive2Router *xrtr, XiveTCTX *tctx,
     xive2_router_end_notify(xrtr, end_blk, end_idx, 0, true);
 
     /* clear interrupt indication for the context */
-    tctx->regs[ring + TM_NSR] = 0;
-    tctx->regs[ring + TM_PIPR] = tctx->regs[ring + TM_CPPR];
+    regs[TM_NSR] = 0;
+    regs[TM_PIPR] = regs[TM_CPPR];
     xive_tctx_reset_signal(tctx, ring);
 }
 
@@ -695,7 +712,7 @@ static uint64_t xive2_tm_pull_ctx(XivePresenter *xptr, XiveTCTX *tctx,
     /* Active group/crowd interrupts need to be redistributed */
     nsr = tctx->regs[ring + TM_NSR];
     if (xive_nsr_indicates_group_exception(ring, nsr)) {
-        xive2_redistribute(xrtr, tctx, nvp_blk, nvp_idx, ring);
+        xive2_redistribute(xrtr, tctx, ring);
     }
 
     if (xive2_router_get_config(xrtr) & XIVE2_VP_SAVE_RESTORE && do_save) {
@@ -1059,6 +1076,7 @@ void xive2_tm_ack_os_el(XivePresenter *xptr, XiveTCTX *tctx,
     xive2_tctx_accept_el(xptr, tctx, TM_QW1_OS, TM_QW1_OS);
 }
 
+/* NOTE: CPPR only exists for TM_QW1_OS and TM_QW3_HV_PHYS */
 static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
 {
     uint8_t *regs = &tctx->regs[ring];
@@ -1069,10 +1087,11 @@ static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
     uint32_t nvp_blk, nvp_idx;
     Xive2Nvp nvp;
     int rc;
+    uint8_t nsr = regs[TM_NSR];
 
     trace_xive_tctx_set_cppr(tctx->cs->cpu_index, ring,
                              regs[TM_IPB], regs[TM_PIPR],
-                             cppr, regs[TM_NSR]);
+                             cppr, nsr);
 
     if (cppr > XIVE_PRIORITY_MAX) {
         cppr = 0xff;
@@ -1080,6 +1099,35 @@ static void xive2_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
 
     old_cppr = regs[TM_CPPR];
     regs[TM_CPPR] = cppr;
+
+    /* Handle increased CPPR priority (lower value) */
+    if (cppr < old_cppr) {
+        if (cppr <= regs[TM_PIPR]) {
+            /* CPPR lowered below PIPR, must un-present interrupt */
+            if (xive_nsr_indicates_exception(ring, nsr)) {
+                if (xive_nsr_indicates_group_exception(ring, nsr)) {
+                    /* redistribute precluded active grp interrupt */
+                    xive2_redistribute(xrtr, tctx, ring);
+                    return;
+                }
+            }
+
+            /* interrupt is VP directed, pending in IPB */
+            regs[TM_PIPR] = cppr;
+            xive_tctx_notify(tctx, ring, 0); /* Ensure interrupt is cleared */
+            return;
+        } else {
+            /* CPPR was lowered, but still above PIPR. No action needed. */
+            return;
+        }
+    }
+
+    /* CPPR didn't change, nothing needs to be done */
+    if (cppr == old_cppr) {
+        return;
+    }
+
+    /* CPPR priority decreased (higher value) */
 
     /*
      * Recompute the PIPR based on local pending interrupts. It will
@@ -1127,16 +1175,6 @@ again:
     if (rc) {
         qemu_log_mask(LOG_GUEST_ERROR, "XIVE: set CPPR on invalid context\n");
         return;
-    }
-
-    if (cppr < old_cppr) {
-        /*
-         * FIXME: check if there's a group interrupt being presented
-         * and if the new cppr prevents it. If so, then the group
-         * interrupt needs to be re-added to the backlog and
-         * re-triggered (see re-trigger END info in the NVGC
-         * structure)
-         */
     }
 
     if (group_enabled &&
