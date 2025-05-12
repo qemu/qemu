@@ -1044,13 +1044,12 @@ again:
 
     /* PHYS updates also depend on POOL values */
     if (ring == TM_QW3_HV_PHYS) {
-        uint8_t *pregs = &tctx->regs[TM_QW2_HV_POOL];
+        uint8_t *pool_regs = &tctx->regs[TM_QW2_HV_POOL];
 
         /* POOL values only matter if POOL ctx is valid */
-        if (pregs[TM_WORD2] & 0x80) {
-
-            uint8_t pool_pipr = xive_ipb_to_pipr(pregs[TM_IPB]);
-            uint8_t pool_lsmfb = pregs[TM_LSMFB];
+        if (pool_regs[TM_WORD2] & 0x80) {
+            uint8_t pool_pipr = xive_ipb_to_pipr(pool_regs[TM_IPB]);
+            uint8_t pool_lsmfb = pool_regs[TM_LSMFB];
 
             /*
              * Determine highest priority interrupt and
@@ -1064,7 +1063,7 @@ again:
             }
 
             /* Values needed for group priority calculation */
-            if (pregs[TM_LGS] && (pool_lsmfb < lsmfb_min)) {
+            if (pool_regs[TM_LGS] && (pool_lsmfb < lsmfb_min)) {
                 group_enabled = true;
                 lsmfb_min = pool_lsmfb;
                 if (lsmfb_min < pipr_min) {
