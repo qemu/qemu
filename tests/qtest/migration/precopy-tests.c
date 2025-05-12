@@ -569,7 +569,7 @@ static void test_multifd_tcp_channels_none(void)
  *
  *  And see that it works
  */
-static void test_multifd_tcp_cancel(void)
+static void test_multifd_tcp_cancel(bool postcopy_ram)
 {
     MigrateStart args = {
         .hide_stderr = true,
@@ -582,6 +582,11 @@ static void test_multifd_tcp_cancel(void)
 
     migrate_ensure_non_converge(from);
     migrate_prepare_for_dirty_mem(from);
+
+    if (postcopy_ram) {
+        migrate_set_capability(from, "postcopy-ram", true);
+        migrate_set_capability(to, "postcopy-ram", true);
+    }
 
     migrate_set_parameter_int(from, "multifd-channels", 16);
     migrate_set_parameter_int(to, "multifd-channels", 16);
@@ -624,6 +629,10 @@ static void test_multifd_tcp_cancel(void)
         return;
     }
 
+    if (postcopy_ram) {
+        migrate_set_capability(to2, "postcopy-ram", true);
+    }
+
     migrate_set_parameter_int(to2, "multifd-channels", 16);
 
     migrate_set_capability(to2, "multifd", true);
@@ -645,6 +654,16 @@ static void test_multifd_tcp_cancel(void)
     wait_for_serial("dest_serial");
     wait_for_migration_complete(from);
     migrate_end(from, to2, true);
+}
+
+static void test_multifd_precopy_tcp_cancel(void)
+{
+    test_multifd_tcp_cancel(false);
+}
+
+static void test_multifd_postcopy_tcp_cancel(void)
+{
+    test_multifd_tcp_cancel(true);
 }
 
 static void test_cancel_src_after_failed(QTestState *from, QTestState *to,
@@ -1233,7 +1252,12 @@ static void migration_test_add_precopy_smoke(MigrationTestEnv *env)
     migration_test_add("/migration/multifd/tcp/uri/plain/none",
                        test_multifd_tcp_uri_none);
     migration_test_add("/migration/multifd/tcp/plain/cancel",
-                       test_multifd_tcp_cancel);
+                       test_multifd_precopy_tcp_cancel);
+    if (env->has_uffd) {
+        migration_test_add("/migration/multifd+postcopy/tcp/plain/cancel",
+                           test_multifd_postcopy_tcp_cancel);
+    }
+
 #ifdef CONFIG_RDMA
     migration_test_add("/migration/precopy/rdma/plain",
                        test_precopy_rdma_plain);
