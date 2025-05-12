@@ -1276,6 +1276,7 @@ static uint64_t xive_source_esb_read(void *opaque, hwaddr addr, unsigned size)
 
         /* Forward the source event notification for routing */
         if (ret) {
+            trace_xive_source_notify(srcno);
             xive_source_notify(xsrc, srcno);
         }
         break;
@@ -1371,6 +1372,8 @@ out:
     /* Forward the source event notification for routing */
     if (notify) {
         xive_source_notify(xsrc, srcno);
+    } else {
+        trace_xive_source_blocked(srcno);
     }
 }
 

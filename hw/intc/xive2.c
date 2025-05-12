@@ -616,6 +616,7 @@ static void xive2_redistribute(Xive2Router *xrtr, XiveTCTX *tctx,
     uint8_t prio_limit;
     uint32_t cfg;
 
+    trace_xive_redistribute(tctx->cs->cpu_index, ring, nvp_blk, nvp_idx);
     /* convert crowd/group to blk/idx */
     if (group > 0) {
         nvgc_idx = (nvp_idx & (0xffffffff << group)) |
@@ -1455,6 +1456,7 @@ static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,
     }
 
     if (!redistribute && xive2_end_is_enqueue(&end)) {
+        trace_xive_end_enqueue(end_blk, end_idx, end_data);
         xive2_end_enqueue(&end, end_data);
         /* Enqueuing event data modifies the EQ toggle and index */
         xive2_router_write_end(xrtr, end_blk, end_idx, &end, 1);
@@ -1631,11 +1633,11 @@ do_escalation:
          * Perform END Adaptive escalation processing
          * The END trigger becomes an Escalation trigger
          */
-        xive2_router_end_notify(xrtr,
-                               xive_get_field32(END2_W4_END_BLOCK,     end.w4),
-                               xive_get_field32(END2_W4_ESC_END_INDEX, end.w4),
-                               xive_get_field32(END2_W5_ESC_END_DATA,  end.w5),
-                               false);
+        uint8_t esc_blk = xive_get_field32(END2_W4_END_BLOCK, end.w4);
+        uint32_t esc_idx = xive_get_field32(END2_W4_ESC_END_INDEX, end.w4);
+        uint32_t esc_data = xive_get_field32(END2_W5_ESC_END_DATA, end.w5);
+        trace_xive_escalate_end(end_blk, end_idx, esc_blk, esc_idx, esc_data);
+        xive2_router_end_notify(xrtr, esc_blk, esc_idx, esc_data, false);
     } /* end END adaptive escalation */
 
     else {
@@ -1652,6 +1654,7 @@ do_escalation:
         lisn = XIVE_EAS(xive_get_field32(END2_W4_END_BLOCK,     end.w4),
                         xive_get_field32(END2_W4_ESC_END_INDEX, end.w4));
 
+        trace_xive_escalate_esb(end_blk, end_idx, lisn);
         xive2_notify(xrtr, lisn, true /* pq_checked */);
     }
 
