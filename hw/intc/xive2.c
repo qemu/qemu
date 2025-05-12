@@ -1005,6 +1005,11 @@ static void xive2_tm_push_ctx(XivePresenter *xptr, XiveTCTX *tctx,
 
     /* First update the thead context */
     switch (size) {
+    case 1:
+        tctx->regs[ring + TM_WORD2] = value & 0xff;
+        cam = xive2_tctx_hw_cam_line(xptr, tctx);
+        cam |= ((value & 0xc0) << 24); /* V and H bits */
+        break;
     case 4:
         cam = value;
         w2 = cpu_to_be32(cam);
@@ -1038,6 +1043,12 @@ void xive2_tm_push_pool_ctx(XivePresenter *xptr, XiveTCTX *tctx,
                             hwaddr offset, uint64_t value, unsigned size)
 {
     xive2_tm_push_ctx(xptr, tctx, offset, value, size, TM_QW2_HV_POOL);
+}
+
+void xive2_tm_push_phys_ctx(XivePresenter *xptr, XiveTCTX *tctx,
+                            hwaddr offset, uint64_t value, unsigned size)
+{
+    xive2_tm_push_ctx(xptr, tctx, offset, value, size, TM_QW3_HV_PHYS);
 }
 
 /* returns -1 if ring is invalid, but still populates block and index */
