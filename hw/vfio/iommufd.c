@@ -21,13 +21,13 @@
 #include "qapi/error.h"
 #include "system/iommufd.h"
 #include "hw/qdev-core.h"
+#include "hw/vfio/vfio-cpr.h"
 #include "system/reset.h"
 #include "qemu/cutils.h"
 #include "qemu/chardev_open.h"
 #include "pci.h"
 #include "vfio-iommufd.h"
 #include "vfio-helpers.h"
-#include "vfio-cpr.h"
 #include "vfio-listener.h"
 
 #define TYPE_HOST_IOMMU_DEVICE_IOMMUFD_VFIO             \
