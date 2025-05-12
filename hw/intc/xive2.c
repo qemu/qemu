@@ -1089,6 +1089,7 @@ static void xive2_tctx_process_pending(XiveTCTX *tctx, uint8_t sig_ring)
     int rc;
 
     g_assert(sig_ring == TM_QW3_HV_PHYS || sig_ring == TM_QW1_OS);
+    g_assert(!xive_nsr_indicates_group_exception(sig_ring, sig_regs[TM_NSR]));
 
     /*
      * Recompute the PIPR based on local pending interrupts. It will

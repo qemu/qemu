@@ -132,6 +132,8 @@ void xive_tctx_pipr_set(XiveTCTX *tctx, uint8_t ring, uint8_t pipr,
     uint8_t *sig_regs = xive_tctx_signal_regs(tctx, ring);
     uint8_t *regs = &tctx->regs[ring];
 
+    g_assert(!xive_nsr_indicates_group_exception(ring, sig_regs[TM_NSR]));
+
     sig_regs[TM_PIPR] = pipr;
 
     if (pipr < sig_regs[TM_CPPR]) {
