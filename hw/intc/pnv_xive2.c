@@ -101,12 +101,10 @@ static uint32_t pnv_xive2_block_id(PnvXive2 *xive)
 }
 
 /*
- * Remote access to controllers. HW uses MMIOs. For now, a simple scan
- * of the chips is good enough.
- *
- * TODO: Block scope support
+ * Remote access to INT controllers. HW uses MMIOs(?). For now, a simple
+ * scan of all the chips INT controller is good enough.
  */
-static PnvXive2 *pnv_xive2_get_remote(uint8_t blk)
+static PnvXive2 *pnv_xive2_get_remote(uint32_t vsd_type, hwaddr fwd_addr)
 {
     PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
     int i;
@@ -115,10 +113,23 @@ static PnvXive2 *pnv_xive2_get_remote(uint8_t blk)
         Pnv10Chip *chip10 = PNV10_CHIP(pnv->chips[i]);
         PnvXive2 *xive = &chip10->xive;
 
-        if (pnv_xive2_block_id(xive) == blk) {
+        /*
+         * Is this the XIVE matching the forwarded VSD address is for this
+         * VSD type
+         */
+        if ((vsd_type == VST_ESB   && fwd_addr == xive->esb_base) ||
+            (vsd_type == VST_END   && fwd_addr == xive->end_base)  ||
+            ((vsd_type == VST_NVP ||
+              vsd_type == VST_NVG) && fwd_addr == xive->nvpg_base) ||
+            (vsd_type == VST_NVC   && fwd_addr == xive->nvc_base)) {
             return xive;
         }
     }
+
+    qemu_log_mask(LOG_GUEST_ERROR,
+                 "XIVE: >>>>> %s vsd_type %u  fwd_addr 0x%"HWADDR_PRIx
+                  " NOT FOUND\n",
+                  __func__, vsd_type, fwd_addr);
     return NULL;
 }
 
@@ -251,8 +262,7 @@ static uint64_t pnv_xive2_vst_addr(PnvXive2 *xive, uint32_t type, uint8_t blk,
 
     /* Remote VST access */
     if (GETFIELD(VSD_MODE, vsd) == VSD_MODE_FORWARD) {
-        xive = pnv_xive2_get_remote(blk);
-
+        xive = pnv_xive2_get_remote(type, (vsd & VSD_ADDRESS_MASK));
         return xive ? pnv_xive2_vst_addr(xive, type, blk, idx) : 0;
     }
 
