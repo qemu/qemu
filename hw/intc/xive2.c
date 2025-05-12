@@ -727,20 +727,22 @@ static uint64_t xive2_tm_pull_ctx(XivePresenter *xptr, XiveTCTX *tctx,
                 xive2_redistribute(xrtr, tctx, cur_ring);
             }
         }
+
+        /*
+         * Lower external interrupt line of requested ring and below except for
+         * USER, which doesn't exist.
+         */
+        if (xive_nsr_indicates_exception(cur_ring, nsr)) {
+            if (cur_ring == xive_nsr_exception_ring(cur_ring, nsr)) {
+                xive_tctx_reset_signal(tctx, cur_ring);
+            }
+        }
     }
 
     if (xive2_router_get_config(xrtr) & XIVE2_VP_SAVE_RESTORE && do_save) {
         xive2_tctx_save_ctx(xrtr, tctx, ring, nvp_blk, nvp_idx);
     }
 
-    /*
-     * Lower external interrupt line of requested ring and below except for
-     * USER, which doesn't exist.
-     */
-    for (cur_ring = TM_QW1_OS; cur_ring <= ring;
-         cur_ring += XIVE_TM_RING_SIZE) {
-        xive_tctx_reset_signal(tctx, cur_ring);
-    }
     return target_ringw2;
 }
 
