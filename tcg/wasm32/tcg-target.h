@@ -41,7 +41,7 @@
 #define TCG_TARGET_H
 
 #define TCG_TARGET_INTERPRETER 1
-#define TCG_TARGET_INSN_UNIT_SIZE 4
+#define TCG_TARGET_INSN_UNIT_SIZE 1
 #define MAX_CODE_GEN_BUFFER_SIZE  ((size_t)-1)
 
 /* Number of registers available. */

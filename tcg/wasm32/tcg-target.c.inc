@@ -39,6 +39,8 @@
 #endif
 #define TCG_TARGET_CALL_RET_I128        TCG_CALL_RET_NORMAL
 
+typedef uint32_t tcg_insn_unit_tci;
+
 static TCGConstraintSetIndex
 tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
 {
@@ -96,16 +98,18 @@ static const char *const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 };
 #endif
 
-static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(tcg_insn_unit *code_ptr_i, int type,
                         intptr_t value, intptr_t addend)
 {
+    tcg_insn_unit_tci *code_ptr = (tcg_insn_unit_tci *)code_ptr_i;
     intptr_t diff = value - (intptr_t)(code_ptr + 1);
 
     tcg_debug_assert(addend == 0);
     tcg_debug_assert(type == 20);
 
     if (diff == sextract32(diff, 0, type)) {
-        tcg_patch32(code_ptr, deposit32(*code_ptr, 32 - type, type, diff));
+        tcg_patch32((tcg_insn_unit *)code_ptr,
+                    deposit32(*code_ptr, 32 - type, type, diff));
         return true;
     }
     return false;
@@ -122,7 +126,7 @@ static void stack_bounds_check(TCGReg base, intptr_t offset)
 
 static void tcg_out_op_l(TCGContext *s, TCGOpcode op, TCGLabel *l0)
 {
-    tcg_insn_unit insn = 0;
+    tcg_insn_unit_tci insn = 0;
 
     tcg_out_reloc(s, s->code_ptr, 20, l0, 0);
     insn = deposit32(insn, 0, 8, op);
@@ -131,14 +135,14 @@ static void tcg_out_op_l(TCGContext *s, TCGOpcode op, TCGLabel *l0)
 
 static void tcg_out_op_p(TCGContext *s, TCGOpcode op, void *p0)
 {
-    tcg_insn_unit insn = 0;
+    tcg_insn_unit_tci insn = 0;
     intptr_t diff;
 
     /* Special case for exit_tb: map null -> 0. */
     if (p0 == NULL) {
         diff = 0;
     } else {
-        diff = p0 - (void *)(s->code_ptr + 1);
+        diff = p0 - (void *)(s->code_ptr + 4);
         tcg_debug_assert(diff != 0);
         if (diff != sextract32(diff, 0, 20)) {
             tcg_raise_tb_overflow(s);
@@ -151,7 +155,7 @@ static void tcg_out_op_p(TCGContext *s, TCGOpcode op, void *p0)
 
 static void tcg_out_op_r(TCGContext *s, TCGOpcode op, TCGReg r0)
 {
-    tcg_insn_unit insn = 0;
+    tcg_insn_unit_tci insn = 0;
 
     insn = deposit32(insn, 0, 8, op);
     insn = deposit32(insn, 8, 4, r0);
@@ -165,7 +169,7 @@ static void tcg_out_op_v(TCGContext *s, TCGOpcode op)
 
 static void tcg_out_op_ri(TCGContext *s, TCGOpcode op, TCGReg r0, int32_t i1)
 {
-    tcg_insn_unit insn = 0;
+    tcg_insn_unit_tci insn = 0;
 
     tcg_debug_assert(i1 == sextract32(i1, 0, 20));
     insn = deposit32(insn, 0, 8, op);
@@ -176,7 +180,7 @@ static void tcg_out_op_ri(TCGContext *s, TCGOpcode op, TCGReg r0, int32_t i1)
 
 static void tcg_out_op_rl(TCGContext *s, TCGOpcode op, TCGReg r0, TCGLabel *l1)
 {
-    tcg_insn_unit insn = 0;
+    tcg_insn_unit_tci insn = 0;
 
     tcg_out_reloc(s, s->code_ptr, 20, l1, 0);
     insn = deposit32(insn, 0, 8, op);
@@ -186,7 +190,7 @@ static void tcg_out_op_rl(TCGContext *s, TCGOpcode op, TCGReg r0, TCGLabel *l1)
 
 static void tcg_out_op_rr(TCGContext *s, TCGOpcode op, TCGReg r0, TCGReg r1)
 {
-    tcg_insn_unit insn = 0;
+    tcg_insn_unit_tci insn = 0;
 
     insn = deposit32(insn, 0, 8, op);
     insn = deposit32(insn, 8, 4, r0);
@@ -197,7 +201,7 @@ static void tcg_out_op_rr(TCGContext *s, TCGOpcode op, TCGReg r0, TCGReg r1)
 static void tcg_out_op_rrm(TCGContext *s, TCGOpcode op,
                            TCGReg r0, TCGReg r1, TCGArg m2)
 {
-    tcg_insn_unit insn = 0;
+    tcg_insn_unit_tci insn = 0;
 
     tcg_debug_assert(m2 == extract32(m2, 0, 16));
     insn = deposit32(insn, 0, 8, op);
@@ -210,7 +214,7 @@ static void tcg_out_op_rrm(TCGContext *s, TCGOpcode op,
 static void tcg_out_op_rrr(TCGContext *s, TCGOpcode op,
                            TCGReg r0, TCGReg r1, TCGReg r2)
 {
-    tcg_insn_unit insn = 0;
+    tcg_insn_unit_tci insn = 0;
 
     insn = deposit32(insn, 0, 8, op);
     insn = deposit32(insn, 8, 4, r0);
@@ -222,7 +226,7 @@ static void tcg_out_op_rrr(TCGContext *s, TCGOpcode op,
 static void tcg_out_op_rrs(TCGContext *s, TCGOpcode op,
                            TCGReg r0, TCGReg r1, intptr_t i2)
 {
-    tcg_insn_unit insn = 0;
+    tcg_insn_unit_tci insn = 0;
 
     tcg_debug_assert(i2 == sextract32(i2, 0, 16));
     insn = deposit32(insn, 0, 8, op);
@@ -235,7 +239,7 @@ static void tcg_out_op_rrs(TCGContext *s, TCGOpcode op,
 static void tcg_out_op_rrbb(TCGContext *s, TCGOpcode op, TCGReg r0,
                             TCGReg r1, uint8_t b2, uint8_t b3)
 {
-    tcg_insn_unit insn = 0;
+    tcg_insn_unit_tci insn = 0;
 
     tcg_debug_assert(b2 == extract32(b2, 0, 6));
     tcg_debug_assert(b3 == extract32(b3, 0, 6));
@@ -250,7 +254,7 @@ static void tcg_out_op_rrbb(TCGContext *s, TCGOpcode op, TCGReg r0,
 static void tcg_out_op_rrrc(TCGContext *s, TCGOpcode op,
                             TCGReg r0, TCGReg r1, TCGReg r2, TCGCond c3)
 {
-    tcg_insn_unit insn = 0;
+    tcg_insn_unit_tci insn = 0;
 
     insn = deposit32(insn, 0, 8, op);
     insn = deposit32(insn, 8, 4, r0);
@@ -263,7 +267,7 @@ static void tcg_out_op_rrrc(TCGContext *s, TCGOpcode op,
 static void tcg_out_op_rrrbb(TCGContext *s, TCGOpcode op, TCGReg r0,
                              TCGReg r1, TCGReg r2, uint8_t b3, uint8_t b4)
 {
-    tcg_insn_unit insn = 0;
+    tcg_insn_unit_tci insn = 0;
 
     tcg_debug_assert(b3 == extract32(b3, 0, 6));
     tcg_debug_assert(b4 == extract32(b4, 0, 6));
@@ -279,7 +283,7 @@ static void tcg_out_op_rrrbb(TCGContext *s, TCGOpcode op, TCGReg r0,
 static void tcg_out_op_rrrr(TCGContext *s, TCGOpcode op,
                             TCGReg r0, TCGReg r1, TCGReg r2, TCGReg r3)
 {
-    tcg_insn_unit insn = 0;
+    tcg_insn_unit_tci insn = 0;
 
     insn = deposit32(insn, 0, 8, op);
     insn = deposit32(insn, 8, 4, r0);
@@ -293,7 +297,7 @@ static void tcg_out_op_rrrrrc(TCGContext *s, TCGOpcode op,
                               TCGReg r0, TCGReg r1, TCGReg r2,
                               TCGReg r3, TCGReg r4, TCGCond c5)
 {
-    tcg_insn_unit insn = 0;
+    tcg_insn_unit_tci insn = 0;
 
     insn = deposit32(insn, 0, 8, op);
     insn = deposit32(insn, 8, 4, r0);
@@ -452,7 +456,7 @@ static void tcg_out_call(TCGContext *s, const tcg_insn_unit *func,
                          const TCGHelperInfo *info)
 {
     ffi_cif *cif = info->cif;
-    tcg_insn_unit insn = 0;
+    tcg_insn_unit_tci insn = 0;
     uint8_t which;
 
     if (cif->rtype == &ffi_type_void) {
