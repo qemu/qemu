@@ -361,7 +361,7 @@
 ##
 # @query-sgx:
 #
-# Returns information about SGX
+# Returns information about configured SGX capabilities of guest
 #
 # Returns: @SgxInfo
 #
@@ -380,7 +380,7 @@
 ##
 # @query-sgx-capabilities:
 #
-# Returns information from host SGX capabilities
+# Returns information about SGX capabilities of host
 #
 # Returns: @SgxInfo
 #
