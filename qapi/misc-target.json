@@ -321,7 +321,7 @@
 ##
 # @SgxEpcSection:
 #
-# Information about intel SGX EPC section info
+# Information about intel SGX EPC section
 #
 # @node: the numa node
 #
@@ -346,7 +346,7 @@
 #
 # @flc: true if FLC is supported
 #
-# @sections: The EPC sections info for guest (Since: 7.0)
+# @sections: The EPC sections information (Since: 7.0)
 #
 # Since: 6.2
 ##
