@@ -5,12 +5,16 @@
 //! Device registers exposed as typed structs which are backed by arbitrary
 //! integer bitmaps. [`Data`], [`Control`], [`LineControl`], etc.
 
+// rustc prefers "constant-like" enums to use upper case names, but that
+// is inconsistent in its own way.
+#![allow(non_upper_case_globals)]
+
 // For more detail see the PL011 Technical Reference Manual DDI0183:
 // https://developer.arm.com/documentation/ddi0183/latest/
 
-use bilge::prelude::*;
+use bitfield_struct::bitfield;
 use bits::bits;
-use migration::{impl_vmstate_bitsized, impl_vmstate_forward};
+use migration::impl_vmstate_forward;
 
 /// Offset of each register from the base memory address of the device.
 #[doc(alias = "offset")]
@@ -78,14 +82,18 @@ pub enum RegisterOffset {
 /// The `UARTRSR` register is updated only when a read occurs
 /// from the `UARTDR` register with the same status information
 /// that can also be obtained by reading the `UARTDR` register
-#[bitsize(8)]
-#[derive(Clone, Copy, Default, DebugBits, FromBits)]
+#[bitfield(u8)]
 pub struct Errors {
     pub framing_error: bool,
     pub parity_error: bool,
     pub break_error: bool,
     pub overrun_error: bool,
-    _reserved_unpredictable: u4,
+    #[bits(4)]
+    _reserved_unpredictable: u8,
+}
+
+impl Errors {
+    pub const BREAK: Self = Errors::new().with_break_error(true);
 }
 
 /// Data Register, `UARTDR`
@@ -93,19 +101,18 @@ pub struct Errors {
 /// The `UARTDR` register is the data register; write for TX and
 /// read for RX. It is a 12-bit register, where bits 7..0 are the
 /// character and bits 11..8 are error bits.
-#[bitsize(32)]
-#[derive(Clone, Copy, Default, DebugBits, FromBits)]
+#[bitfield(u32)]
 #[doc(alias = "UARTDR")]
 pub struct Data {
     pub data: u8,
+    #[bits(8)]
     pub errors: Errors,
     _reserved: u16,
 }
-impl_vmstate_bitsized!(Data);
+impl_vmstate_forward!(Data);
 
 impl Data {
-    // bilge is not very const-friendly, unfortunately
-    pub const BREAK: Self = Self { value: 1 << 10 };
+    pub const BREAK: Self = Self::new().with_errors(Errors::BREAK);
 }
 
 /// Receive Status Register / Error Clear Register, `UARTRSR/UARTECR`
@@ -119,13 +126,14 @@ impl Data {
 /// and UARTECR for writes, but really it's a single error status
 /// register where writing anything to the register clears the error
 /// bits.
-#[bitsize(32)]
-#[derive(Clone, Copy, DebugBits, FromBits)]
+#[bitfield(u32)]
 pub struct ReceiveStatusErrorClear {
+    #[bits(8)]
     pub errors: Errors,
-    _reserved_unpredictable: u24,
+    #[bits(24)]
+    _reserved_unpredictable: u32,
 }
-impl_vmstate_bitsized!(ReceiveStatusErrorClear);
+impl_vmstate_forward!(ReceiveStatusErrorClear);
 
 impl ReceiveStatusErrorClear {
     pub fn set_from_data(&mut self, data: Data) {
@@ -138,14 +146,7 @@ impl ReceiveStatusErrorClear {
     }
 }
 
-impl Default for ReceiveStatusErrorClear {
-    fn default() -> Self {
-        0.into()
-    }
-}
-
-#[bitsize(32)]
-#[derive(Clone, Copy, DebugBits, FromBits)]
+#[bitfield(u32, default = false)]
 /// Flag Register, `UARTFR`
 ///
 /// This has the usual inbound RS232 modem-control signals, plus flags
@@ -171,9 +172,10 @@ pub struct Flags {
     pub transmit_fifo_empty: bool,
     /// RI: Ring indicator
     pub ring_indicator: bool,
-    _reserved_zero_no_modify: u23,
+    #[bits(23)]
+    _reserved_zero_no_modify: u32,
 }
-impl_vmstate_bitsized!(Flags);
+impl_vmstate_forward!(Flags);
 
 impl Flags {
     pub fn reset(&mut self) {
@@ -183,16 +185,14 @@ impl Flags {
 
 impl Default for Flags {
     fn default() -> Self {
-        let mut ret: Self = 0.into();
         // After reset TXFF, RXFF, and BUSY are 0, and TXFE and RXFE are 1
-        ret.set_receive_fifo_empty(true);
-        ret.set_transmit_fifo_empty(true);
-        ret
+        Self::from(0)
+            .with_receive_fifo_empty(true)
+            .with_transmit_fifo_empty(true)
     }
 }
 
-#[bitsize(32)]
-#[derive(Clone, Copy, DebugBits, FromBits)]
+#[bitfield(u32)]
 /// Line Control Register, `UARTLCR_H`
 #[doc(alias = "UARTLCR_H")]
 pub struct LineControl {
@@ -201,48 +201,46 @@ pub struct LineControl {
     /// PEN: Parity enable
     pub parity_enabled: bool,
     /// EPS: Even parity select
+    #[bits(1)]
     pub parity: Parity,
     /// STP2: Two stop bits select
     pub two_stops_bits: bool,
     /// FEN: Enable FIFOs
+    #[bits(1)]
     pub fifos_enabled: Mode,
     /// WLEN: Word length in bits
     /// b11 = 8 bits
     /// b10 = 7 bits
     /// b01 = 6 bits
     /// b00 = 5 bits.
+    #[bits(2)]
     pub word_length: WordLength,
     /// SPS Stick parity select
     pub sticky_parity: bool,
     /// 31:8 - Reserved, do not modify, read as zero.
-    _reserved_zero_no_modify: u24,
+    #[bits(24)]
+    _reserved_zero_no_modify: u32,
 }
-impl_vmstate_bitsized!(LineControl);
+impl_vmstate_forward!(LineControl);
 
 impl LineControl {
     pub fn reset(&mut self) {
         // All the bits are cleared to 0 when reset.
-        *self = 0.into();
+        *self = Self::default();
     }
 }
 
-impl Default for LineControl {
-    fn default() -> Self {
-        0.into()
-    }
-}
-
-#[bitsize(1)]
-#[derive(Clone, Copy, Debug, Eq, FromBits, PartialEq)]
 /// `EPS` "Even parity select", field of [Line Control
 /// register](LineControl).
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, common::TryInto)]
 pub enum Parity {
     Odd = 0,
     Even = 1,
 }
 
-#[bitsize(1)]
-#[derive(Clone, Copy, Debug, Eq, FromBits, PartialEq)]
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, common::TryInto)]
 /// `FEN` "Enable FIFOs" or Device mode, field of [Line Control
 /// register](LineControl).
 pub enum Mode {
@@ -253,8 +251,8 @@ pub enum Mode {
     FIFO = 1,
 }
 
-#[bitsize(2)]
-#[derive(Clone, Copy, Debug, Eq, FromBits, PartialEq)]
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, common::TryInto)]
 #[allow(clippy::enum_variant_names)]
 /// `WLEN` Word length, field of [Line Control register](LineControl).
 ///
@@ -276,9 +274,8 @@ pub enum WordLength {
 /// The `UARTCR` register is the control register. It contains various
 /// enable bits, and the bits to write to set the usual outbound RS232
 /// modem control signals. All bits reset to 0 except TXE and RXE.
-#[bitsize(32)]
+#[bitfield(u32, default = false)]
 #[doc(alias = "UARTCR")]
-#[derive(Clone, Copy, DebugBits, FromBits)]
 pub struct Control {
     /// `UARTEN` UART enable: 0 = UART is disabled.
     pub enable_uart: bool,
@@ -286,9 +283,10 @@ pub struct Control {
     /// QEMU does not model this.
     pub enable_sir: bool,
     /// `SIRLP` SIR low-power IrDA mode. QEMU does not model this.
-    pub sir_lowpower_irda_mode: u1,
+    pub sir_lowpower_irda_mode: bool,
     /// Reserved, do not modify, read as zero.
-    _reserved_zero_no_modify: u4,
+    #[bits(4)]
+    _reserved_zero_no_modify: u8,
     /// `LBE` Loopback enable: feed UART output back to the input
     pub enable_loopback: bool,
     /// `TXE` Transmit enable
@@ -310,21 +308,19 @@ pub struct Control {
     /// 31:16 - Reserved, do not modify, read as zero.
     _reserved_zero_no_modify2: u16,
 }
-impl_vmstate_bitsized!(Control);
+impl_vmstate_forward!(Control);
 
 impl Control {
     pub fn reset(&mut self) {
-        *self = 0.into();
-        self.set_enable_receive(true);
-        self.set_enable_transmit(true);
+        *self = Self::default();
     }
 }
 
 impl Default for Control {
     fn default() -> Self {
-        let mut ret: Self = 0.into();
-        ret.reset();
-        ret
+        Self::from(0)
+            .with_enable_receive(true)
+            .with_enable_transmit(true)
     }
 }
 

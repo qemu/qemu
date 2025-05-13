@@ -11,6 +11,7 @@
 /attrs-*
 /bilge-*
 /bilge-impl-*
+/bitfield-struct-*
 /either-*
 /foreign-*
 /glib-sys-*

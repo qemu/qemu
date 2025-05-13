@@ -1,0 +1,6 @@
+[wrap-file]
+directory = bitfield-struct-0.13.0
+source_url = https://crates.io/api/v1/crates/bitfield-struct/0.13.0/download
+source_filename = bitfield-struct-0.13.0.tar.gz
+source_hash = 3ca6739863c590881f038d033a146c51ddae239186a4327014839fd864f44ed5
+method = cargo
