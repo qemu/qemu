@@ -118,6 +118,11 @@ static const uint8_t tcg_target_reg_index[TCG_TARGET_NB_REGS] = {
     15, /* TCG_REG_R15 */
 };
 
+/*
+ * Global variable to store the carry flag
+ */
+#define CARRY_IDX 16
+
 /* Temporary local variables */
 #define TMP32_LOCAL_0_IDX 1
 #define TMP32_LOCAL_1_IDX 2
@@ -324,9 +329,22 @@ static void tcg_wasm_out_op_i32_eqz(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x45);
 }
+static void tcg_wasm_out_op_i64_lt_u(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x54);
+}
+static void tcg_wasm_out_op_i64_le_u(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x58);
+}
 static void tcg_wasm_out_op_i64_eqz(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x50);
+}
+static void tcg_wasm_out_op_if_noret(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x04);
+    tcg_wasm_out8(s, 0x40);
 }
 
 static void tcg_wasm_out_op_if_ret_i64(TCGContext *s)
@@ -1789,10 +1807,28 @@ static TCGConstraintSetIndex cset_addsubcarry(TCGType type, unsigned flags)
     return type == TCG_TYPE_REG ? C_O1_I2(r, r, r) : C_NotImplemented;
 }
 
+static void tcg_wasm_out_addco(TCGContext *s, TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_wasm_out_op_global_get_r(s, a1);
+    tcg_wasm_out_op_global_get_r(s, a2);
+    tcg_wasm_out_op_i64_add(s);
+    tcg_wasm_out_op_global_set_r(s, a0);
+    tcg_wasm_out_op_global_get_r(s, a0);
+    if (a0 == a1) {
+        tcg_wasm_out_op_global_get_r(s, a2);
+    } else {
+        tcg_wasm_out_op_global_get_r(s, a1);
+    }
+    tcg_wasm_out_op_i64_lt_u(s);
+    tcg_wasm_out_op_i64_extend_i32_s(s);
+    tcg_wasm_out_op_global_set(s, CARRY_IDX);
+}
+
 static void tgen_addco(TCGContext *s, TCGType type,
                        TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_addco, a0, a1, a2);
+    tcg_wasm_out_addco(s, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_addco = {
@@ -1801,10 +1837,21 @@ static const TCGOutOpBinary outop_addco = {
     .out_rrr = tgen_addco,
 };
 
+static void tcg_wasm_out_addci(TCGContext *s, TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_wasm_out_op_global_get_r(s, a1);
+    tcg_wasm_out_op_global_get_r(s, a2);
+    tcg_wasm_out_op_i64_add(s);
+    tcg_wasm_out_op_global_get(s, CARRY_IDX);
+    tcg_wasm_out_op_i64_add(s);
+    tcg_wasm_out_op_global_set_r(s, a0);
+}
+
 static void tgen_addci(TCGContext *s, TCGType type,
                        TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_addci, a0, a1, a2);
+    tcg_wasm_out_addci(s, a0, a1, a2);
 }
 
 static const TCGOutOpAddSubCarry outop_addci = {
@@ -1813,10 +1860,51 @@ static const TCGOutOpAddSubCarry outop_addci = {
     .out_rrr = tgen_addci,
 };
 
+static void tcg_wasm_out_addcio(TCGContext *s, TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_wasm_out_op_global_get(s, CARRY_IDX);
+    tcg_wasm_out_op_if_noret(s);
+
+    tcg_wasm_out_op_global_get_r(s, a1);
+    tcg_wasm_out_op_global_get_r(s, a2);
+    tcg_wasm_out_op_i64_add(s);
+    tcg_wasm_out_op_i64_const(s, 1);
+    tcg_wasm_out_op_i64_add(s);
+    tcg_wasm_out_op_global_set_r(s, a0);
+    tcg_wasm_out_op_global_get_r(s, a0);
+    if (a0 == a1) {
+        tcg_wasm_out_op_global_get_r(s, a2);
+    } else {
+        tcg_wasm_out_op_global_get_r(s, a1);
+    }
+    tcg_wasm_out_op_i64_le_u(s);
+    tcg_wasm_out_op_i64_extend_i32_s(s);
+    tcg_wasm_out_op_global_set(s, CARRY_IDX);
+
+    tcg_wasm_out_op_else(s);
+
+    tcg_wasm_out_op_global_get_r(s, a1);
+    tcg_wasm_out_op_global_get_r(s, a2);
+    tcg_wasm_out_op_i64_add(s);
+    tcg_wasm_out_op_global_set_r(s, a0);
+    tcg_wasm_out_op_global_get_r(s, a0);
+    if (a0 == a1) {
+        tcg_wasm_out_op_global_get_r(s, a2);
+    } else {
+        tcg_wasm_out_op_global_get_r(s, a1);
+    }
+    tcg_wasm_out_op_i64_lt_u(s);
+    tcg_wasm_out_op_i64_extend_i32_s(s);
+    tcg_wasm_out_op_global_set(s, CARRY_IDX);
+
+    tcg_wasm_out_op_end(s);
+}
+
 static void tgen_addcio(TCGContext *s, TCGType type,
                         TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_addcio, a0, a1, a2);
+    tcg_wasm_out_addcio(s, a0, a1, a2);
 }
 
 static const TCGOutOpBinary outop_addcio = {
@@ -1828,6 +1916,8 @@ static const TCGOutOpBinary outop_addcio = {
 static void tcg_out_set_carry(TCGContext *s)
 {
     tcg_out_op_v(s, INDEX_op_tci_setcarry);
+    tcg_wasm_out_op_i64_const(s, 1);
+    tcg_wasm_out_op_global_set(s, CARRY_IDX);
 }
 
 static void tgen_and(TCGContext *s, TCGType type,
@@ -2182,10 +2272,25 @@ static const TCGOutOpSubtract outop_sub = {
     .out_rrr = tgen_sub,
 };
 
+static void tcg_wasm_out_subbo(TCGContext *s, TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_wasm_out_op_global_get_r(s, a1);
+    tcg_wasm_out_op_global_get_r(s, a2);
+    tcg_wasm_out_op_i64_lt_u(s);
+    tcg_wasm_out_op_i64_extend_i32_s(s);
+    tcg_wasm_out_op_global_set(s, CARRY_IDX);
+
+    tcg_wasm_out_op_global_get_r(s, a1);
+    tcg_wasm_out_op_global_get_r(s, a2);
+    tcg_wasm_out_op_i64_sub(s);
+    tcg_wasm_out_op_global_set_r(s, a0);
+}
+
 static void tgen_subbo(TCGContext *s, TCGType type,
                        TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_subbo, a0, a1, a2);
+    tcg_wasm_out_subbo(s, a0, a1, a2);
 }
 
 static const TCGOutOpAddSubCarry outop_subbo = {
@@ -2194,10 +2299,21 @@ static const TCGOutOpAddSubCarry outop_subbo = {
     .out_rrr = tgen_subbo,
 };
 
+static void tcg_wasm_out_subbi(TCGContext *s, TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_wasm_out_op_global_get_r(s, a1);
+    tcg_wasm_out_op_global_get_r(s, a2);
+    tcg_wasm_out_op_i64_sub(s);
+    tcg_wasm_out_op_global_get(s, CARRY_IDX);
+    tcg_wasm_out_op_i64_sub(s);
+    tcg_wasm_out_op_global_set_r(s, a0);
+}
+
 static void tgen_subbi(TCGContext *s, TCGType type,
                        TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_subbi, a0, a1, a2);
+    tcg_wasm_out_subbi(s, a0, a1, a2);
 }
 
 static const TCGOutOpAddSubCarry outop_subbi = {
@@ -2206,10 +2322,43 @@ static const TCGOutOpAddSubCarry outop_subbi = {
     .out_rrr = tgen_subbi,
 };
 
+static void tcg_wasm_out_subbio(TCGContext *s, TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_wasm_out_op_global_get(s, CARRY_IDX);
+    tcg_wasm_out_op_if_noret(s);
+
+    tcg_wasm_out_op_global_get_r(s, a1);
+    tcg_wasm_out_op_global_get_r(s, a2);
+    tcg_wasm_out_op_i64_le_u(s);
+    tcg_wasm_out_op_i64_extend_i32_s(s);
+    tcg_wasm_out_op_global_set(s, CARRY_IDX);
+    tcg_wasm_out_op_global_get_r(s, a1);
+    tcg_wasm_out_op_global_get_r(s, a2);
+    tcg_wasm_out_op_i64_sub(s);
+    tcg_wasm_out_op_i64_const(s, 1);
+    tcg_wasm_out_op_i64_sub(s);
+    tcg_wasm_out_op_global_set_r(s, a0);
+
+    tcg_wasm_out_op_else(s);
+
+    tcg_wasm_out_op_global_get_r(s, a1);
+    tcg_wasm_out_op_global_get_r(s, a2);
+    tcg_wasm_out_op_i64_lt_u(s);
+    tcg_wasm_out_op_i64_extend_i32_s(s);
+    tcg_wasm_out_op_global_set(s, CARRY_IDX);
+    tcg_wasm_out_op_global_get_r(s, a1);
+    tcg_wasm_out_op_global_get_r(s, a2);
+    tcg_wasm_out_op_i64_sub(s);
+    tcg_wasm_out_op_global_set_r(s, a0);
+
+    tcg_wasm_out_op_end(s);
+}
+
 static void tgen_subbio(TCGContext *s, TCGType type,
                         TCGReg a0, TCGReg a1, TCGReg a2)
 {
     tcg_out_op_rrr(s, INDEX_op_subbio, a0, a1, a2);
+    tcg_wasm_out_subbio(s, a0, a1, a2);
 }
 
 static const TCGOutOpAddSubCarry outop_subbio = {
@@ -2221,6 +2370,8 @@ static const TCGOutOpAddSubCarry outop_subbio = {
 static void tcg_out_set_borrow(TCGContext *s)
 {
     tcg_out_op_v(s, INDEX_op_tci_setcarry);  /* borrow == carry */
+    tcg_wasm_out_op_i64_const(s, 1);
+    tcg_wasm_out_op_global_set(s, CARRY_IDX);
 }
 
 static void tgen_xor(TCGContext *s, TCGType type,
