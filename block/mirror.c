@@ -920,11 +920,16 @@ static int coroutine_fn GRAPH_UNLOCKED mirror_dirty_init(MirrorBlockJob *s)
          * zeroing happened externally (ret > 0) or if we have a fast
          * way to pre-zero the image (the dirty bitmap will be
          * populated later by the non-zero portions, the same as for
-         * TOP mode).  If pre-zeroing is not fast, then our only
-         * recourse is to mark the entire image dirty.  The act of
-         * pre-zeroing will populate the zero bitmap.
+         * TOP mode).  If pre-zeroing is not fast, or we need to visit
+         * the entire image in order to punch holes even in the
+         * non-allocated regions of the source, then just mark the
+         * entire image dirty and leave the zero bitmap clear at this
+         * point in time.  Otherwise, it can be faster to pre-zero the
+         * image now, even if we re-write the allocated portions of
+         * the disk later, and the pre-zero pass will populate the
+         * zero bitmap.
          */
-        if (!bdrv_can_write_zeroes_with_unmap(target_bs)) {
+        if (!bdrv_can_write_zeroes_with_unmap(target_bs) || punch_holes) {
             bdrv_set_dirty_bitmap(s->dirty_bitmap, 0, s->bdev_length);
             return 0;
         }
