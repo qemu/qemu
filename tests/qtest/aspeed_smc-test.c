@@ -228,5 +228,10 @@ int main(int argc, char **argv)
     unlink(ast2500_evb_data.tmp_path);
     unlink(ast2600_evb_data.tmp_path);
     unlink(ast1030_evb_data.tmp_path);
+    g_free(palmetto_data.tmp_path);
+    g_free(ast2500_evb_data.tmp_path);
+    g_free(ast2600_evb_data.tmp_path);
+    g_free(ast1030_evb_data.tmp_path);
+
     return ret;
 }
