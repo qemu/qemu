@@ -203,6 +203,11 @@ build-previous-qemu:
     GIT_FETCH_EXTRA_FLAGS: --prune --quiet
   before_script:
     - source scripts/ci/gitlab-ci-section
+    # Skip if this series contains the release bump commit. During the
+    # release process there might be a window of commits when the
+    # version tag is not yet present in the remote and git fetch would
+    # fail.
+    - if grep -q "\.0$" VERSION; then exit 0; fi
     - export QEMU_PREV_VERSION="$(sed 's/\([0-9.]*\)\.[0-9]*/v\1.0/' VERSION)"
     - git remote add upstream https://gitlab.com/qemu-project/qemu
     - git fetch upstream refs/tags/$QEMU_PREV_VERSION:refs/tags/$QEMU_PREV_VERSION
@@ -223,6 +228,9 @@ build-previous-qemu:
     IMAGE: opensuse-leap
     MAKE_CHECK_ARGS: check-build
   script:
+    # Skip for round release numbers, this job is only relevant for
+    # testing a development tree.
+    - if grep -q "\.0$" VERSION; then exit 0; fi
     # Use the migration-tests from the older QEMU tree. This avoids
     # testing an old QEMU against new features/tests that it is not
     # compatible with.
