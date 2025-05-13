@@ -7,7 +7,7 @@
 //! This library implements a device model for the IA-PC HPET (High
 //! Precision Event Timers) device in QEMU.
 
+pub mod device;
 pub mod fw_cfg;
-pub mod hpet;
 
 pub const TYPE_HPET: &::std::ffi::CStr = c"hpet";
