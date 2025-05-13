@@ -3,8 +3,12 @@
  * Tiny Code Generator for QEMU
  *
  * Copyright (c) 2009, 2011 Stefan Weil
+ * Copyright (c) 2018 SiFive, Inc
+ * Copyright (c) 2008-2009 Arnaud Patard <arnaud.patard@rtp-net.org>
+ * Copyright (c) 2009 Aurelien Jarno <aurelien@aurel32.net>
+ * Copyright (c) 2008 Fabrice Bellard
  *
- * Based on tci/tcg-target.c.inc
+ * Based on tci/tcg-target.c.inc and riscv/tcg-target.c.inc
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -370,6 +374,10 @@ static void tcg_wasm_out_op_i64_eqz(TCGContext *s)
 {
     tcg_wasm_out8(s, 0x50);
 }
+static void tcg_wasm_out_op_i64_eq(TCGContext *s)
+{
+    tcg_wasm_out8(s, 0x51);
+}
 static void tcg_wasm_out_op_br(TCGContext *s, int i)
 {
     tcg_wasm_out8(s, 0x0c);
@@ -441,6 +449,10 @@ static void tcg_wasm_out_op_local_get(TCGContext *s, uint8_t i)
 static void tcg_wasm_out_op_local_set(TCGContext *s, uint8_t i)
 {
     tcg_wasm_out_op_var(s, 0x21, i);
+}
+static void tcg_wasm_out_op_local_tee(TCGContext *s, uint8_t i)
+{
+    tcg_wasm_out_op_var(s, 0x22, i);
 }
 
 #define tcg_wasm_out_i64_calc(op)                                       \
@@ -1999,12 +2011,161 @@ static void *qemu_ld_helper_ptr(uint32_t oi)
     }
 }
 
+static void tcg_wasm_out_i32_load_s(TCGContext *s, int off)
+{
+    if (off < 0) {
+        tcg_wasm_out_op_i32_const(s, off);
+        tcg_wasm_out_op_i32_add(s);
+        off = 0;
+    }
+    tcg_wasm_out_op_i32_load(s, 0, off);
+}
+
+static void tcg_wasm_out_i64_load_s(TCGContext *s, int off)
+{
+    if (off < 0) {
+        tcg_wasm_out_op_i32_const(s, off);
+        tcg_wasm_out_op_i32_add(s);
+        off = 0;
+    }
+    tcg_wasm_out_op_i64_load(s, 0, off);
+}
+
+#define MIN_TLB_MASK_TABLE_OFS INT_MIN
+
+static uint8_t prepare_host_addr_wasm(TCGContext *s, uint8_t *hit_var,
+                                      TCGReg addr_reg, MemOpIdx oi,
+                                      bool is_ld)
+{
+    MemOp opc = get_memop(oi);
+    TCGAtomAlign aa;
+    unsigned a_mask;
+    unsigned s_bits = opc & MO_SIZE;
+    unsigned s_mask = (1u << s_bits) - 1;
+    int mem_index = get_mmuidx(oi);
+    int fast_ofs = tlb_mask_table_ofs(s, mem_index);
+    int mask_ofs = fast_ofs + offsetof(CPUTLBDescFast, mask);
+    int table_ofs = fast_ofs + offsetof(CPUTLBDescFast, table);
+    int add_off = offsetof(CPUTLBEntry, addend);
+    tcg_target_long compare_mask;
+
+    if (!tcg_use_softmmu) {
+        g_assert_not_reached();
+    }
+
+    *hit_var = TMP64_LOCAL_0_IDX;
+    tcg_wasm_out_op_i64_const(s, 0);
+    tcg_wasm_out_op_local_set(s, *hit_var);
+
+    aa = atom_and_align_for_opc(s, opc, MO_ATOM_IFALIGN, false);
+    a_mask = (1u << aa.align) - 1;
+
+    /* Get the CPUTLBEntry offset */
+    tcg_wasm_out_op_global_get_r(s, addr_reg);
+    tcg_wasm_out_op_i64_const(s, s->page_bits - CPU_TLB_ENTRY_BITS);
+    tcg_wasm_out_op_i64_shr_u(s);
+    tcg_wasm_out_op_i32_wrap_i64(s);
+    tcg_wasm_out_op_global_get_r_i32(s, TCG_AREG0);
+    tcg_wasm_out_i32_load_s(s, mask_ofs);
+    tcg_wasm_out_op_i32_and(s);
+
+    /* Get the pointer to the target CPUTLBEntry */
+    tcg_wasm_out_op_global_get_r_i32(s, TCG_AREG0);
+    tcg_wasm_out_i32_load_s(s, table_ofs);
+    tcg_wasm_out_op_i32_add(s);
+    tcg_wasm_out_op_local_tee(s, TMP32_LOCAL_0_IDX);
+
+    /* Load the tlb copmarator */
+    tcg_wasm_out_i64_load_s(
+        s, is_ld ? offsetof(CPUTLBEntry, addr_read)
+        : offsetof(CPUTLBEntry, addr_write));
+
+    /*
+     * For aligned accesses, we check the first byte and include the
+     * alignment bits within the address.  For unaligned access, we
+     * check that we don't cross pages using the address of the last
+     * byte of the access.
+     */
+    tcg_wasm_out_op_global_get_r(s, addr_reg);
+    if (a_mask < s_mask) {
+        tcg_wasm_out_op_i64_const(s, s_mask - a_mask);
+        tcg_wasm_out_op_i64_add(s);
+    }
+    compare_mask = (uint64_t)s->page_mask | a_mask;
+    tcg_wasm_out_op_i64_const(s, compare_mask);
+    tcg_wasm_out_op_i64_and(s);
+
+    /* Compare masked address with the TLB entry. */
+    tcg_wasm_out_op_i64_eq(s);
+    tcg_wasm_out_op_if_noret(s);
+
+    /* TLB Hit - translate address using addend.  */
+    tcg_wasm_out_op_local_get(s, TMP32_LOCAL_0_IDX);
+    tcg_wasm_out_i32_load_s(s, add_off);
+    tcg_wasm_out_op_global_get_r(s, addr_reg);
+    tcg_wasm_out_op_i32_wrap_i64(s);
+    tcg_wasm_out_op_i32_add(s);
+    tcg_wasm_out_op_local_set(s, TMP32_LOCAL_1_IDX);
+    tcg_wasm_out_op_i64_const(s, 1);
+    tcg_wasm_out_op_local_set(s, *hit_var);
+
+    tcg_wasm_out_op_end(s);
+
+    return TMP32_LOCAL_1_IDX;
+}
+
+static void tcg_wasm_out_qemu_ld_direct(
+    TCGContext *s, TCGReg r, uint8_t base, MemOp opc)
+{
+    switch (opc & (MO_SSIZE)) {
+    case MO_UB:
+        tcg_wasm_out_op_local_get(s, base);
+        tcg_wasm_out_op_i64_load8_u(s, 0, 0);
+        tcg_wasm_out_op_global_set_r(s, r);
+        break;
+    case MO_SB:
+        tcg_wasm_out_op_local_get(s, base);
+        tcg_wasm_out_op_i64_load8_s(s, 0, 0);
+        tcg_wasm_out_op_global_set_r(s, r);
+        break;
+    case MO_UW:
+        tcg_wasm_out_op_local_get(s, base);
+        tcg_wasm_out_op_i64_load16_u(s, 0, 0);
+        tcg_wasm_out_op_global_set_r(s, r);
+        break;
+    case MO_SW:
+        tcg_wasm_out_op_local_get(s, base);
+        tcg_wasm_out_op_i64_load16_s(s, 0, 0);
+        tcg_wasm_out_op_global_set_r(s, r);
+        break;
+    case MO_UL:
+        tcg_wasm_out_op_local_get(s, base);
+        tcg_wasm_out_op_i64_load32_u(s, 0, 0);
+        tcg_wasm_out_op_global_set_r(s, r);
+        break;
+    case MO_SL:
+        tcg_wasm_out_op_local_get(s, base);
+        tcg_wasm_out_op_i64_load32_s(s, 0, 0);
+        tcg_wasm_out_op_global_set_r(s, r);
+        break;
+    case MO_UQ:
+        tcg_wasm_out_op_local_get(s, base);
+        tcg_wasm_out_op_i64_load(s, 0, 0);
+        tcg_wasm_out_op_global_set_r(s, r);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static void tcg_wasm_out_qemu_ld(TCGContext *s, TCGReg data_reg,
                                  TCGReg addr_reg, MemOpIdx oi)
 {
     int helper_idx;
     int func_idx;
     bool addr64 = s->addr_type == TCG_TYPE_I64;
+    MemOp mop = get_memop(oi);
+    uint8_t base_var, hit_var;
 
     helper_idx = (uint32_t)qemu_ld_helper_ptr(oi);
     func_idx = get_helper_idx(s, helper_idx);
@@ -2018,6 +2179,14 @@ static void tcg_wasm_out_qemu_ld(TCGContext *s, TCGReg data_reg,
         addr_reg = TCG_REG_TMP;
     }
 
+    base_var = prepare_host_addr_wasm(s, &hit_var, addr_reg, oi, true);
+    tcg_wasm_out_op_local_get(s, hit_var);
+    tcg_wasm_out_op_i64_const(s, 1);
+    tcg_wasm_out_op_i64_eq(s);
+    tcg_wasm_out_op_if_noret(s);
+    tcg_wasm_out_qemu_ld_direct(s, data_reg, base_var, mop); /* fast path */
+    tcg_wasm_out_op_end(s);
+
     /*
      * update the block index so that the possible rewinding will
      * skip this block
@@ -2025,6 +2194,10 @@ static void tcg_wasm_out_qemu_ld(TCGContext *s, TCGReg data_reg,
     tcg_wasm_out_op_i64_const(s, block_idx + 1);
     tcg_wasm_out_op_global_set(s, BLOCK_PTR_IDX);
     tcg_wasm_out_new_block(s);
+
+    tcg_wasm_out_op_local_get(s, hit_var);
+    tcg_wasm_out_op_i64_eqz(s);
+    tcg_wasm_out_op_if_noret(s);
 
     /* call helper */
     tcg_wasm_out_op_global_get_r(s, TCG_AREG0);
@@ -2036,6 +2209,8 @@ static void tcg_wasm_out_qemu_ld(TCGContext *s, TCGReg data_reg,
     tcg_wasm_out_op_call(s, func_idx);
     tcg_wasm_out_op_global_set_r(s, data_reg);
     tcg_wasm_out_handle_unwinding(s);
+
+    tcg_wasm_out_op_end(s);
 }
 
 static void *qemu_st_helper_ptr(uint32_t oi)
@@ -2055,6 +2230,35 @@ static void *qemu_st_helper_ptr(uint32_t oi)
     }
 }
 
+static void tcg_wasm_out_qemu_st_direct(
+    TCGContext *s, TCGReg lo, uint8_t base, MemOp opc)
+{
+    switch (opc & (MO_SSIZE)) {
+    case MO_8:
+        tcg_wasm_out_op_local_get(s, base);
+        tcg_wasm_out_op_global_get_r(s, lo);
+        tcg_wasm_out_op_i64_store8(s, 0, 0);
+        break;
+    case MO_16:
+        tcg_wasm_out_op_local_get(s, base);
+        tcg_wasm_out_op_global_get_r(s, lo);
+        tcg_wasm_out_op_i64_store16(s, 0, 0);
+        break;
+    case MO_32:
+        tcg_wasm_out_op_local_get(s, base);
+        tcg_wasm_out_op_global_get_r(s, lo);
+        tcg_wasm_out_op_i64_store32(s, 0, 0);
+        break;
+    case MO_64:
+        tcg_wasm_out_op_local_get(s, base);
+        tcg_wasm_out_op_global_get_r(s, lo);
+        tcg_wasm_out_op_i64_store(s, 0, 0);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static void tcg_wasm_out_qemu_st(TCGContext *s, TCGReg data_reg,
                                  TCGReg addr_reg, MemOpIdx oi)
 {
@@ -2062,6 +2266,7 @@ static void tcg_wasm_out_qemu_st(TCGContext *s, TCGReg data_reg,
     int func_idx;
     bool addr64 = s->addr_type == TCG_TYPE_I64;
     MemOp mop = get_memop(oi);
+    uint8_t base_var, hit_var;
 
     helper_idx = (uint32_t)qemu_st_helper_ptr(oi);
     func_idx = get_helper_idx(s, helper_idx);
@@ -2075,6 +2280,14 @@ static void tcg_wasm_out_qemu_st(TCGContext *s, TCGReg data_reg,
         addr_reg = TCG_REG_TMP;
     }
 
+    base_var = prepare_host_addr_wasm(s, &hit_var, addr_reg, oi, false);
+    tcg_wasm_out_op_local_get(s, hit_var);
+    tcg_wasm_out_op_i64_const(s, 1);
+    tcg_wasm_out_op_i64_eq(s);
+    tcg_wasm_out_op_if_noret(s);
+    tcg_wasm_out_qemu_st_direct(s, data_reg, base_var, mop); /* fast path */
+    tcg_wasm_out_op_end(s);
+
     /*
      * update the block index so that the possible rewinding will
      * skip this block
@@ -2082,6 +2295,10 @@ static void tcg_wasm_out_qemu_st(TCGContext *s, TCGReg data_reg,
     tcg_wasm_out_op_i64_const(s, block_idx + 1);
     tcg_wasm_out_op_global_set(s, BLOCK_PTR_IDX);
     tcg_wasm_out_new_block(s);
+
+    tcg_wasm_out_op_local_get(s, hit_var);
+    tcg_wasm_out_op_i64_eqz(s);
+    tcg_wasm_out_op_if_noret(s);
 
     /* call helper */
     tcg_wasm_out_op_global_get_r(s, TCG_AREG0);
@@ -2101,6 +2318,8 @@ static void tcg_wasm_out_qemu_st(TCGContext *s, TCGReg data_reg,
 
     tcg_wasm_out_op_call(s, func_idx);
     tcg_wasm_out_handle_unwinding(s);
+
+    tcg_wasm_out_op_end(s);
 }
 
 static bool patch_reloc(tcg_insn_unit *code_ptr_i, int type,
@@ -3845,7 +4064,7 @@ static int tcg_out_tb_end(TCGContext *s)
 
 bool tcg_target_has_memory_bswap(MemOp memop)
 {
-    return true;
+    return false;
 }
 
 static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
