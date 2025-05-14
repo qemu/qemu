@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 19%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 20%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -549,6 +549,16 @@ Patch188: kvm-redhat-Enable-virtio-mem-on-s390x.patch
 Patch189: kvm-target-i386-Fix-conditional-CONFIG_SYNDBG-enablement.patch
 # For RHEL-7130 - [Hyper-V][RHEL9.2] Nested Hyper-V on KVM: L1 Windows VM with BIOS mode fails to boot up when using '-cpu host,hv_passthrough’ flag
 Patch190: kvm-target-i386-Exclude-hv-syndbg-from-hv-passthrough.patch
+# For RHEL-80313 - Unable to migrate VM from RHEL10.0/qemu-kvm-9.6 to RHEL9.6/qemu-kvm-9.6
+Patch191: kvm-virtio-net-disable-USO-for-virt-rhel9.6.patch
+# For RHEL-80313 - Unable to migrate VM from RHEL10.0/qemu-kvm-9.6 to RHEL9.6/qemu-kvm-9.6
+Patch192: kvm-arm-Use-arm_virt_compat_set-to-apply-the-compat.patch
+# For RHEL-86032 - QEMU sends unaligned discards on 4K devices [RHEL-9.7]
+Patch193: kvm-file-posix-probe-discard-alignment-on-Linux-block-de.patch
+# For RHEL-86032 - QEMU sends unaligned discards on 4K devices [RHEL-9.7]
+Patch194: kvm-block-io-skip-head-tail-requests-on-EINVAL.patch
+# For RHEL-86032 - QEMU sends unaligned discards on 4K devices [RHEL-9.7]
+Patch195: kvm-file-posix-Fix-crash-on-discard_granularity-0.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1617,6 +1627,17 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Tue May 13 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-20
+- kvm-virtio-net-disable-USO-for-virt-rhel9.6.patch [RHEL-80313]
+- kvm-arm-Use-arm_virt_compat_set-to-apply-the-compat.patch [RHEL-80313]
+- kvm-file-posix-probe-discard-alignment-on-Linux-block-de.patch [RHEL-86032]
+- kvm-block-io-skip-head-tail-requests-on-EINVAL.patch [RHEL-86032]
+- kvm-file-posix-Fix-crash-on-discard_granularity-0.patch [RHEL-86032]
+- Resolves: RHEL-80313
+  (Unable to migrate VM from RHEL10.0/qemu-kvm-9.6 to RHEL9.6/qemu-kvm-9.6)
+- Resolves: RHEL-86032
+  (QEMU sends unaligned discards on 4K devices [RHEL-9.7])
+
 * Mon Apr 28 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-19
 - kvm-target-i386-Fix-conditional-CONFIG_SYNDBG-enablement.patch [RHEL-7130]
 - kvm-target-i386-Exclude-hv-syndbg-from-hv-passthrough.patch [RHEL-7130]
