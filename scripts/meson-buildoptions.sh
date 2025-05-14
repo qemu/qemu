@@ -97,8 +97,6 @@ meson_options_help() {
   printf "%s\n" '  alsa            ALSA sound support'
   printf "%s\n" '  attr            attr/xattr support'
   printf "%s\n" '  auth-pam        PAM access control'
-  printf "%s\n" '  avx2            AVX2 optimizations'
-  printf "%s\n" '  avx512bw        AVX512BW optimizations'
   printf "%s\n" '  blkio           libblkio block device driver'
   printf "%s\n" '  bochs           bochs image format support'
   printf "%s\n" '  bpf             eBPF support'
@@ -244,10 +242,6 @@ _meson_option_parse() {
     --audio-drv-list=*) quote_sh "-Daudio_drv_list=$2" ;;
     --enable-auth-pam) printf "%s" -Dauth_pam=enabled ;;
     --disable-auth-pam) printf "%s" -Dauth_pam=disabled ;;
-    --enable-avx2) printf "%s" -Davx2=enabled ;;
-    --disable-avx2) printf "%s" -Davx2=disabled ;;
-    --enable-avx512bw) printf "%s" -Davx512bw=enabled ;;
-    --disable-avx512bw) printf "%s" -Davx512bw=disabled ;;
     --enable-gcov) printf "%s" -Db_coverage=true ;;
     --disable-gcov) printf "%s" -Db_coverage=false ;;
     --enable-lto) printf "%s" -Db_lto=true ;;

@@ -247,6 +247,8 @@ have_vhost_net_vdpa = have_vhost_vdpa and get_option('vhost_net').allowed()
 have_vhost_net_kernel = have_vhost_kernel and get_option('vhost_net').allowed()
 have_vhost_net = have_vhost_net_kernel or have_vhost_net_user or have_vhost_net_vdpa
 
+have_tcg = get_option('tcg').allowed() and (have_system or have_user)
+
 have_tools = get_option('tools') \
   .disable_auto_if(not have_system) \
   .allowed()
@@ -863,7 +865,7 @@ elif host_os == 'haiku'
             cc.find_library('network'),
             cc.find_library('bsd')]
 elif host_os == 'openbsd'
-  if get_option('tcg').allowed() and target_dirs.length() > 0
+  if have_tcg
     # Disable OpenBSD W^X if available
     emulator_link_args = cc.get_supported_link_arguments('-Wl,-z,wxneeded')
   endif
@@ -904,7 +906,7 @@ if host_os == 'netbsd'
 endif
 
 tcg_arch = host_arch
-if get_option('tcg').allowed()
+if have_tcg
   if host_arch == 'unknown'
     if not get_option('tcg_interpreter')
       error('Unsupported CPU @0@, try --enable-tcg-interpreter'.format(cpu))
@@ -2534,7 +2536,7 @@ config_host_data.set('CONFIG_PIXMAN', pixman.found())
 config_host_data.set('CONFIG_SLIRP', slirp.found())
 config_host_data.set('CONFIG_SNAPPY', snappy.found())
 config_host_data.set('CONFIG_SOLARIS', host_os == 'sunos')
-if get_option('tcg').allowed()
+if have_tcg
   config_host_data.set('CONFIG_TCG', 1)
   config_host_data.set('CONFIG_TCG_INTERPRETER', tcg_arch == 'tci')
 endif
@@ -3097,22 +3099,16 @@ config_host_data.set('CONFIG_ASM_HWPROBE_H',
                      cc.has_header_symbol('asm/hwprobe.h',
                                           'RISCV_HWPROBE_EXT_ZBA'))
 
-config_host_data.set('CONFIG_AVX2_OPT', get_option('avx2') \
-  .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX2') \
-  .require(cc.links('''
-    #include <cpuid.h>
+if have_cpuid_h
+  have_avx2 = cc.links('''
     #include <immintrin.h>
     static int __attribute__((target("avx2"))) bar(void *a) {
       __m256i x = *(__m256i *)a;
       return _mm256_testz_si256(x, x);
     }
     int main(int argc, char *argv[]) { return bar(argv[argc - 1]); }
-  '''), error_message: 'AVX2 not available').allowed())
-
-config_host_data.set('CONFIG_AVX512BW_OPT', get_option('avx512bw') \
-  .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX512BW') \
-  .require(cc.links('''
-    #include <cpuid.h>
+  ''')
+  have_avx512bw = cc.links('''
     #include <immintrin.h>
     static int __attribute__((target("avx512bw"))) bar(void *a) {
       __m512i *x = a;
@@ -3120,7 +3116,21 @@ config_host_data.set('CONFIG_AVX512BW_OPT', get_option('avx512bw') \
       return res[1];
     }
     int main(int argc, char *argv[]) { return bar(argv[0]); }
-  '''), error_message: 'AVX512BW not available').allowed())
+  ''')
+  if get_option('x86_version') >= '3' and not have_avx2
+    error('Cannot enable AVX optimizations due to missing intrinsics')
+  elif get_option('x86_version') >= '4' and not have_avx512bw
+    error('Cannot enable AVX512 optimizations due to missing intrinsics')
+  endif
+else
+  have_avx2 = false
+  have_avx512bw = false
+  if get_option('x86_version') >= '3'
+    error('Cannot enable AVX optimizations due to missing cpuid.h')
+  endif
+endif
+config_host_data.set('CONFIG_AVX2_OPT', have_avx2)
+config_host_data.set('CONFIG_AVX512BW_OPT', have_avx512bw)
 
 # For both AArch64 and AArch32, detect if builtins are available.
 config_host_data.set('CONFIG_ARM_AES_BUILTIN', cc.compiles('''
@@ -3893,16 +3903,11 @@ foreach d, list : modules
                     install: true,
                     install_dir: qemu_moddir)
       if module_ss.sources() != []
-        # FIXME: Should use sl.extract_all_objects(recursive: true) as
-        # input. Sources can be used multiple times but objects are
-        # unique when it comes to lookup in compile_commands.json.
-        # Depnds on a mesion version with
-        # https://github.com/mesonbuild/meson/pull/8900
         modinfo_files += custom_target(d + '-' + m + '.modinfo',
                                        output: d + '-' + m + '.modinfo',
-                                       input: module_ss.sources() + genh,
+                                       input: sl.extract_all_objects(recursive: true),
                                        capture: true,
-                                       command: [modinfo_collect, module_ss.sources()])
+                                       command: [modinfo_collect, '@INPUT@'])
       endif
     else
       if d == 'block'
@@ -3941,12 +3946,11 @@ foreach d, list : target_modules
                     dependencies: target_module_ss.dependencies(),
                     install: true,
                     install_dir: qemu_moddir)
-            # FIXME: Should use sl.extract_all_objects(recursive: true) too.
             modinfo_files += custom_target(module_name + '.modinfo',
                                            output: module_name + '.modinfo',
-                                           input: target_module_ss.sources() + genh,
+                                           input: sl.extract_all_objects(recursive: true),
                                            capture: true,
-                                           command: [modinfo_collect, '--target', target, target_module_ss.sources()])
+                                           command: [modinfo_collect, '--target', target, '@INPUT@'])
           endif
         endif
       endforeach
@@ -4951,7 +4955,7 @@ if host_arch == 'unknown'
   message('compile or work on this host CPU. You can help by volunteering')
   message('to maintain it and providing a build host for our continuous')
   message('integration setup.')
-  if get_option('tcg').allowed() and target_dirs.length() > 0
+  if have_tcg
     message()
     message('configure has succeeded and you can continue to build, but')
     message('QEMU will use a slow interpreter to emulate the target CPU.')

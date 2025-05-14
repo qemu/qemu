@@ -29,41 +29,50 @@
 #include "x86.h"
 
 
-/* this is basically bocsh code */
+/*
+ * The algorithms here are similar to those in Bochs.  After an ALU
+ * operation, CC_DST can be used to compute ZF, SF and PF, whereas
+ * CC_SRC is used to compute AF, CF and OF.  In reality, SF and PF are the
+ * XOR of the value computed from CC_DST and the value found in bits 7 and 2
+ * of CC_SRC; this way the same logic can be used to compute the flags
+ * both before and after an ALU operation.
+ *
+ * Compared to the TCG CC_OP codes, this avoids conditionals when converting
+ * to and from the RFLAGS representation.
+ */
 
-#define LF_SIGN_BIT     31
+#define LF_SIGN_BIT    (TARGET_LONG_BITS - 1)
 
-#define LF_BIT_SD      (0)          /* lazy Sign Flag Delta            */
-#define LF_BIT_AF      (3)          /* lazy Adjust flag                */
-#define LF_BIT_PDB     (8)          /* lazy Parity Delta Byte (8 bits) */
-#define LF_BIT_CF      (31)         /* lazy Carry Flag                 */
-#define LF_BIT_PO      (30)         /* lazy Partial Overflow = CF ^ OF */
+#define LF_BIT_PD      (2)          /* lazy Parity Delta, same bit as PF */
+#define LF_BIT_AF      (3)          /* lazy Adjust flag */
+#define LF_BIT_SD      (7)          /* lazy Sign Flag Delta, same bit as SF */
+#define LF_BIT_CF      (TARGET_LONG_BITS - 1) /* lazy Carry Flag */
+#define LF_BIT_PO      (TARGET_LONG_BITS - 2) /* lazy Partial Overflow = CF ^ OF */
 
-#define LF_MASK_SD     (0x01 << LF_BIT_SD)
-#define LF_MASK_AF     (0x01 << LF_BIT_AF)
-#define LF_MASK_PDB    (0xFF << LF_BIT_PDB)
-#define LF_MASK_CF     (0x01 << LF_BIT_CF)
-#define LF_MASK_PO     (0x01 << LF_BIT_PO)
+#define LF_MASK_PD     ((target_ulong)0x01 << LF_BIT_PD)
+#define LF_MASK_AF     ((target_ulong)0x01 << LF_BIT_AF)
+#define LF_MASK_SD     ((target_ulong)0x01 << LF_BIT_SD)
+#define LF_MASK_CF     ((target_ulong)0x01 << LF_BIT_CF)
+#define LF_MASK_PO     ((target_ulong)0x01 << LF_BIT_PO)
 
 /* ******************* */
 /* OSZAPC */
 /* ******************* */
 
-/* size, carries, result */
+/* use carries to fill in AF, PO and CF, while ensuring PD and SD are clear.
+ * for full-word operations just clear PD and SD; for smaller operand
+ * sizes only keep AF in the low byte and shift the carries left to
+ * place PO and CF in the top two bits.
+ */
 #define SET_FLAGS_OSZAPC_SIZE(size, lf_carries, lf_result) { \
-    target_ulong temp = ((lf_carries) & (LF_MASK_AF)) | \
-    (((lf_carries) >> (size - 2)) << LF_BIT_PO); \
-    env->lflags.result = (target_ulong)(int##size##_t)(lf_result); \
-    if ((size) == 32) { \
-        temp = ((lf_carries) & ~(LF_MASK_PDB | LF_MASK_SD)); \
-    } else if ((size) == 16) { \
-        temp = ((lf_carries) & (LF_MASK_AF)) | ((lf_carries) << 16); \
-    } else if ((size) == 8)  { \
-        temp = ((lf_carries) & (LF_MASK_AF)) | ((lf_carries) << 24); \
+    env->cc_dst = (target_ulong)(int##size##_t)(lf_result); \
+    target_ulong temp = (lf_carries); \
+    if ((size) == TARGET_LONG_BITS) { \
+        temp = temp & ~(LF_MASK_PD | LF_MASK_SD); \
     } else { \
-        VM_PANIC("unimplemented");  \
+        temp = (temp & LF_MASK_AF) | (temp << (TARGET_LONG_BITS - (size))); \
     } \
-    env->lflags.auxbits = (target_ulong)(uint32_t)temp; \
+    env->cc_src = temp; \
 }
 
 /* carries, result */
@@ -77,23 +86,18 @@
 /* ******************* */
 /* OSZAP */
 /* ******************* */
-/* size, carries, result */
+/* same as setting OSZAPC, but preserve CF and flip PO if the old value of CF
+ * did not match the high bit of lf_carries. */
 #define SET_FLAGS_OSZAP_SIZE(size, lf_carries, lf_result) { \
-    target_ulong temp = ((lf_carries) & (LF_MASK_AF)) | \
-    (((lf_carries) >> (size - 2)) << LF_BIT_PO); \
-    if ((size) == 32) { \
-        temp = ((lf_carries) & ~(LF_MASK_PDB | LF_MASK_SD)); \
-    } else if ((size) == 16) { \
-        temp = ((lf_carries) & (LF_MASK_AF)) | ((lf_carries) << 16); \
-    } else if ((size) == 8) { \
-        temp = ((lf_carries) & (LF_MASK_AF)) | ((lf_carries) << 24); \
+    env->cc_dst = (target_ulong)(int##size##_t)(lf_result); \
+    target_ulong temp = (lf_carries); \
+    if ((size) == TARGET_LONG_BITS) { \
+        temp = (temp & ~(LF_MASK_PD | LF_MASK_SD)); \
     } else { \
-        VM_PANIC("unimplemented");      \
+        temp = (temp & LF_MASK_AF) | (temp << (TARGET_LONG_BITS - (size))); \
     } \
-    env->lflags.result = (target_ulong)(int##size##_t)(lf_result); \
-    target_ulong delta_c = (env->lflags.auxbits ^ temp) & LF_MASK_CF; \
-    delta_c ^= (delta_c >> 1); \
-    env->lflags.auxbits = (target_ulong)(uint32_t)(temp ^ delta_c); \
+    target_ulong cf_changed = ((target_long)(env->cc_src ^ temp)) < 0; \
+    env->cc_src = temp ^ (cf_changed * (LF_MASK_PO | LF_MASK_CF)); \
 }
 
 /* carries, result */
@@ -104,11 +108,11 @@
 #define SET_FLAGS_OSZAP_32(carries, result) \
     SET_FLAGS_OSZAP_SIZE(32, carries, result)
 
-void SET_FLAGS_OxxxxC(CPUX86State *env, uint32_t new_of, uint32_t new_cf)
+void SET_FLAGS_OxxxxC(CPUX86State *env, bool new_of, bool new_cf)
 {
-    uint32_t temp_po = new_of ^ new_cf;
-    env->lflags.auxbits &= ~(LF_MASK_PO | LF_MASK_CF);
-    env->lflags.auxbits |= (temp_po << LF_BIT_PO) | (new_cf << LF_BIT_CF);
+    env->cc_src &= ~(LF_MASK_PO | LF_MASK_CF);
+    env->cc_src |= (-(target_ulong)new_cf << LF_BIT_PO);
+    env->cc_src ^= ((target_ulong)new_of << LF_BIT_PO);
 }
 
 void SET_FLAGS_OSZAPC_SUB32(CPUX86State *env, uint32_t v1, uint32_t v2,
@@ -202,104 +206,68 @@ void SET_FLAGS_OSZAPC_LOGIC8(CPUX86State *env, uint8_t v1, uint8_t v2,
     SET_FLAGS_OSZAPC_8(0, diff);
 }
 
-bool get_PF(CPUX86State *env)
+static inline uint32_t get_PF(CPUX86State *env)
 {
-    uint32_t temp = (255 & env->lflags.result);
-    temp = temp ^ (255 & (env->lflags.auxbits >> LF_BIT_PDB));
-    temp = (temp ^ (temp >> 4)) & 0x0F;
-    return (0x9669U >> temp) & 1;
+    return ((parity8(env->cc_dst) - 1) ^ env->cc_src) & CC_P;
 }
 
-void set_PF(CPUX86State *env, bool val)
+static inline uint32_t get_OF(CPUX86State *env)
 {
-    uint32_t temp = (255 & env->lflags.result) ^ (!val);
-    env->lflags.auxbits &= ~(LF_MASK_PDB);
-    env->lflags.auxbits |= (temp << LF_BIT_PDB);
-}
-
-bool get_OF(CPUX86State *env)
-{
-    return ((env->lflags.auxbits + (1U << LF_BIT_PO)) >> LF_BIT_CF) & 1;
+    return ((env->cc_src >> (LF_BIT_CF - 11)) + CC_O / 2) & CC_O;
 }
 
 bool get_CF(CPUX86State *env)
 {
-    return (env->lflags.auxbits >> LF_BIT_CF) & 1;
-}
-
-void set_OF(CPUX86State *env, bool val)
-{
-    bool old_cf = get_CF(env);
-    SET_FLAGS_OxxxxC(env, val, old_cf);
+    return ((target_long)env->cc_src) < 0;
 }
 
 void set_CF(CPUX86State *env, bool val)
 {
-    bool old_of = get_OF(env);
-    SET_FLAGS_OxxxxC(env, old_of, val);
+    /* If CF changes, flip PO and CF */
+    target_ulong temp = -(target_ulong)val;
+    target_ulong cf_changed = ((target_long)(env->cc_src ^ temp)) < 0;
+    env->cc_src ^= cf_changed * (LF_MASK_PO | LF_MASK_CF);
 }
 
-bool get_AF(CPUX86State *env)
+static inline uint32_t get_ZF(CPUX86State *env)
 {
-    return (env->lflags.auxbits >> LF_BIT_AF) & 1;
+    return env->cc_dst ? 0 : CC_Z;
 }
 
-void set_AF(CPUX86State *env, bool val)
+static inline uint32_t get_SF(CPUX86State *env)
 {
-    env->lflags.auxbits &= ~(LF_MASK_AF);
-    env->lflags.auxbits |= val << LF_BIT_AF;
-}
-
-bool get_ZF(CPUX86State *env)
-{
-    return !env->lflags.result;
-}
-
-void set_ZF(CPUX86State *env, bool val)
-{
-    if (val) {
-        env->lflags.auxbits ^=
-         (((env->lflags.result >> LF_SIGN_BIT) & 1) << LF_BIT_SD);
-        /* merge the parity bits into the Parity Delta Byte */
-        uint32_t temp_pdb = (255 & env->lflags.result);
-        env->lflags.auxbits ^= (temp_pdb << LF_BIT_PDB);
-        /* now zero the .result value */
-        env->lflags.result = 0;
-    } else {
-        env->lflags.result |= (1 << 8);
-    }
-}
-
-bool get_SF(CPUX86State *env)
-{
-    return ((env->lflags.result >> LF_SIGN_BIT) ^
-            (env->lflags.auxbits >> LF_BIT_SD)) & 1;
-}
-
-void set_SF(CPUX86State *env, bool val)
-{
-    bool temp_sf = get_SF(env);
-    env->lflags.auxbits ^= (temp_sf ^ val) << LF_BIT_SD;
+    return ((env->cc_dst >> (LF_SIGN_BIT - LF_BIT_SD)) ^
+            env->cc_src) & CC_S;
 }
 
 void lflags_to_rflags(CPUX86State *env)
 {
     env->eflags &= ~(CC_C|CC_P|CC_A|CC_Z|CC_S|CC_O);
-    env->eflags |= get_CF(env) ? CC_C : 0;
-    env->eflags |= get_PF(env) ? CC_P : 0;
-    env->eflags |= get_AF(env) ? CC_A : 0;
-    env->eflags |= get_ZF(env) ? CC_Z : 0;
-    env->eflags |= get_SF(env) ? CC_S : 0;
-    env->eflags |= get_OF(env) ? CC_O : 0;
+    /* rotate left by one to move carry-out bits into CF and AF */
+    env->eflags |= (
+        (env->cc_src << 1) |
+        (env->cc_src >> (TARGET_LONG_BITS - 1))) & (CC_C | CC_A);
+    env->eflags |= get_SF(env);
+    env->eflags |= get_PF(env);
+    env->eflags |= get_ZF(env);
+    env->eflags |= get_OF(env);
 }
 
 void rflags_to_lflags(CPUX86State *env)
 {
-    env->lflags.auxbits = env->lflags.result = 0;
-    set_OF(env, env->eflags & CC_O);
-    set_SF(env, env->eflags & CC_S);
-    set_ZF(env, env->eflags & CC_Z);
-    set_AF(env, env->eflags & CC_A);
-    set_PF(env, env->eflags & CC_P);
-    set_CF(env, env->eflags & CC_C);
+    target_ulong cf_xor_of;
+
+    env->cc_src = CC_P;
+    env->cc_src ^= env->eflags & (CC_S | CC_P);
+
+    /* rotate right by one to move CF and AF into the carry-out positions */
+    env->cc_src |= (
+        (env->eflags >> 1) |
+        (env->eflags << (TARGET_LONG_BITS - 1))) & (CC_C | CC_A);
+
+    cf_xor_of = (env->eflags & (CC_C | CC_O)) + (CC_O - CC_C);
+    env->cc_src |= -cf_xor_of & LF_MASK_PO;
+
+    /* Leave the low byte zero so that parity is not affected.  */
+    env->cc_dst = !(env->eflags & CC_Z) << 8;
 }

@@ -1,4 +1,4 @@
-if not get_option('tcg').allowed()
+if not have_tcg
    subdir_done()
 endif
 

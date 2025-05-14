@@ -326,10 +326,10 @@ static void tss_set_busy(CPUX86State *env, int tss_selector, bool value,
 #define SWITCH_TSS_IRET 1
 #define SWITCH_TSS_CALL 2
 
-/* return 0 if switching to a 16-bit selector */
-static int switch_tss_ra(CPUX86State *env, int tss_selector,
-                         uint32_t e1, uint32_t e2, int source,
-                         uint32_t next_eip, uintptr_t retaddr)
+static void switch_tss_ra(CPUX86State *env, int tss_selector,
+                          uint32_t e1, uint32_t e2, int source,
+                          uint32_t next_eip, bool has_error_code,
+                          uint32_t error_code, uintptr_t retaddr)
 {
     int tss_limit, tss_limit_max, type, old_tss_limit_max, old_type, i;
     target_ulong tss_base;
@@ -473,10 +473,6 @@ static int switch_tss_ra(CPUX86State *env, int tss_selector,
         new_segs[R_GS] = 0;
         new_trap = 0;
     }
-    /* XXX: avoid a compiler warning, see
-     http://support.amd.com/us/Processor_TechDocs/24593.pdf
-     chapters 12.2.5 and 13.2.4 on how to implement TSS Trap bit */
-    (void)new_trap;
 
     /* clear busy bit (it is restartable) */
     if (source == SWITCH_TSS_JMP || source == SWITCH_TSS_IRET) {
@@ -599,14 +595,43 @@ static int switch_tss_ra(CPUX86State *env, int tss_selector,
         cpu_x86_update_dr7(env, env->dr[7] & ~DR7_LOCAL_BP_MASK);
     }
 #endif
-    return type >> 3;
+
+    if (has_error_code) {
+        int cpl = env->hflags & HF_CPL_MASK;
+        StackAccess sa;
+
+        /* push the error code */
+        sa.env = env;
+        sa.ra = retaddr;
+        sa.mmu_index = x86_mmu_index_pl(env, cpl);
+        sa.sp = env->regs[R_ESP];
+        if (env->segs[R_SS].flags & DESC_B_MASK) {
+            sa.sp_mask = 0xffffffff;
+        } else {
+            sa.sp_mask = 0xffff;
+        }
+        sa.ss_base = env->segs[R_SS].base;
+        if (type & 8) {
+            pushl(&sa, error_code);
+        } else {
+            pushw(&sa, error_code);
+        }
+        SET_ESP(sa.sp, sa.sp_mask);
+    }
+
+    if (new_trap) {
+        env->dr[6] |= DR6_BT;
+        raise_exception_ra(env, EXCP01_DB, retaddr);
+    }
 }
 
-static int switch_tss(CPUX86State *env, int tss_selector,
-                      uint32_t e1, uint32_t e2, int source,
-                      uint32_t next_eip)
+static void switch_tss(CPUX86State *env, int tss_selector,
+                       uint32_t e1, uint32_t e2, int source,
+                       uint32_t next_eip, bool has_error_code,
+                       int error_code)
 {
-    return switch_tss_ra(env, tss_selector, e1, e2, source, next_eip, 0);
+    switch_tss_ra(env, tss_selector, e1, e2, source, next_eip,
+                  has_error_code, error_code, 0);
 }
 
 static inline unsigned int get_sp_mask(unsigned int e2)
@@ -719,25 +744,8 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
         if (!(e2 & DESC_P_MASK)) {
             raise_exception_err(env, EXCP0B_NOSEG, intno * 8 + 2);
         }
-        shift = switch_tss(env, intno * 8, e1, e2, SWITCH_TSS_CALL, old_eip);
-        if (has_error_code) {
-            /* push the error code on the destination stack */
-            cpl = env->hflags & HF_CPL_MASK;
-            sa.mmu_index = x86_mmu_index_pl(env, cpl);
-            if (env->segs[R_SS].flags & DESC_B_MASK) {
-                sa.sp_mask = 0xffffffff;
-            } else {
-                sa.sp_mask = 0xffff;
-            }
-            sa.sp = env->regs[R_ESP];
-            sa.ss_base = env->segs[R_SS].base;
-            if (shift) {
-                pushl(&sa, error_code);
-            } else {
-                pushw(&sa, error_code);
-            }
-            SET_ESP(sa.sp, sa.sp_mask);
-        }
+        switch_tss(env, intno * 8, e1, e2, SWITCH_TSS_CALL, old_eip,
+                   has_error_code, error_code);
         return;
     }
 
@@ -1533,7 +1541,8 @@ void helper_ljmp_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
             if (dpl < cpl || dpl < rpl) {
                 raise_exception_err_ra(env, EXCP0D_GPF, new_cs & 0xfffc, GETPC());
             }
-            switch_tss_ra(env, new_cs, e1, e2, SWITCH_TSS_JMP, next_eip, GETPC());
+            switch_tss_ra(env, new_cs, e1, e2, SWITCH_TSS_JMP, next_eip,
+                          false, 0, GETPC());
             break;
         case 4: /* 286 call gate */
         case 12: /* 386 call gate */
@@ -1745,7 +1754,8 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
             if (dpl < cpl || dpl < rpl) {
                 raise_exception_err_ra(env, EXCP0D_GPF, new_cs & 0xfffc, GETPC());
             }
-            switch_tss_ra(env, new_cs, e1, e2, SWITCH_TSS_CALL, next_eip, GETPC());
+            switch_tss_ra(env, new_cs, e1, e2, SWITCH_TSS_CALL, next_eip,
+                          false, 0, GETPC());
             return;
         case 4: /* 286 call gate */
         case 12: /* 386 call gate */
@@ -2256,7 +2266,8 @@ void helper_iret_protected(CPUX86State *env, int shift, int next_eip)
         if (type != 3) {
             raise_exception_err_ra(env, EXCP0A_TSS, tss_selector & 0xfffc, GETPC());
         }
-        switch_tss_ra(env, tss_selector, e1, e2, SWITCH_TSS_IRET, next_eip, GETPC());
+        switch_tss_ra(env, tss_selector, e1, e2, SWITCH_TSS_IRET, next_eip,
+                      false, 0, GETPC());
     } else {
         helper_ret_protected(env, shift, 1, 0, GETPC());
     }

@@ -109,8 +109,8 @@ static void decode_modrm_reg(CPUX86State *env, struct x86_decode *decode,
 {
     op->type = X86_VAR_REG;
     op->reg = decode->modrm.reg;
-    op->ptr = get_reg_ref(env, op->reg, decode->rex.rex, decode->rex.r,
-                          decode->operand_size);
+    op->regptr = get_reg_ref(env, op->reg, decode->rex.rex, decode->rex.r,
+                             decode->operand_size);
 }
 
 static void decode_rax(CPUX86State *env, struct x86_decode *decode,
@@ -119,8 +119,8 @@ static void decode_rax(CPUX86State *env, struct x86_decode *decode,
     op->type = X86_VAR_REG;
     op->reg = R_EAX;
     /* Since reg is always AX, REX prefix has no impact. */
-    op->ptr = get_reg_ref(env, op->reg, false, 0,
-                          decode->operand_size);
+    op->regptr = get_reg_ref(env, op->reg, false, 0,
+                             decode->operand_size);
 }
 
 static inline void decode_immediate(CPUX86State *env, struct x86_decode *decode,
@@ -262,16 +262,16 @@ static void decode_incgroup(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = decode->opcode[0] - 0x40;
-    decode->op[0].ptr = get_reg_ref(env, decode->op[0].reg, decode->rex.rex,
-                                    decode->rex.b, decode->operand_size);
+    decode->op[0].regptr = get_reg_ref(env, decode->op[0].reg, decode->rex.rex,
+                                       decode->rex.b, decode->operand_size);
 }
 
 static void decode_decgroup(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = decode->opcode[0] - 0x48;
-    decode->op[0].ptr = get_reg_ref(env, decode->op[0].reg, decode->rex.rex,
-                                    decode->rex.b, decode->operand_size);
+    decode->op[0].regptr = get_reg_ref(env, decode->op[0].reg, decode->rex.rex,
+                                       decode->rex.b, decode->operand_size);
 }
 
 static void decode_incgroup2(CPUX86State *env, struct x86_decode *decode)
@@ -287,16 +287,16 @@ static void decode_pushgroup(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = decode->opcode[0] - 0x50;
-    decode->op[0].ptr = get_reg_ref(env, decode->op[0].reg, decode->rex.rex,
-                                    decode->rex.b, decode->operand_size);
+    decode->op[0].regptr = get_reg_ref(env, decode->op[0].reg, decode->rex.rex,
+                                       decode->rex.b, decode->operand_size);
 }
 
 static void decode_popgroup(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = decode->opcode[0] - 0x58;
-    decode->op[0].ptr = get_reg_ref(env, decode->op[0].reg, decode->rex.rex,
-                                    decode->rex.b, decode->operand_size);
+    decode->op[0].regptr = get_reg_ref(env, decode->op[0].reg, decode->rex.rex,
+                                       decode->rex.b, decode->operand_size);
 }
 
 static void decode_jxx(CPUX86State *env, struct x86_decode *decode)
@@ -377,16 +377,16 @@ static void decode_xchgroup(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = decode->opcode[0] - 0x90;
-    decode->op[0].ptr = get_reg_ref(env, decode->op[0].reg, decode->rex.rex,
-                                    decode->rex.b, decode->operand_size);
+    decode->op[0].regptr = get_reg_ref(env, decode->op[0].reg, decode->rex.rex,
+                                       decode->rex.b, decode->operand_size);
 }
 
 static void decode_movgroup(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = decode->opcode[0] - 0xb8;
-    decode->op[0].ptr = get_reg_ref(env, decode->op[0].reg, decode->rex.rex,
-                                    decode->rex.b, decode->operand_size);
+    decode->op[0].regptr = get_reg_ref(env, decode->op[0].reg, decode->rex.rex,
+                                       decode->rex.b, decode->operand_size);
     decode_immediate(env, decode, &decode->op[1], decode->operand_size);
 }
 
@@ -394,15 +394,15 @@ static void fetch_moffs(CPUX86State *env, struct x86_decode *decode,
                         struct x86_decode_op *op)
 {
     op->type = X86_VAR_OFFSET;
-    op->ptr = decode_bytes(env, decode, decode->addressing_size);
+    op->addr = decode_bytes(env, decode, decode->addressing_size);
 }
 
 static void decode_movgroup8(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = decode->opcode[0] - 0xb0;
-    decode->op[0].ptr = get_reg_ref(env, decode->op[0].reg, decode->rex.rex,
-                                    decode->rex.b, decode->operand_size);
+    decode->op[0].regptr = get_reg_ref(env, decode->op[0].reg, decode->rex.rex,
+                                       decode->rex.b, decode->operand_size);
     decode_immediate(env, decode, &decode->op[1], decode->operand_size);
 }
 
@@ -411,8 +411,8 @@ static void decode_rcx(CPUX86State *env, struct x86_decode *decode,
 {
     op->type = X86_VAR_REG;
     op->reg = R_ECX;
-    op->ptr = get_reg_ref(env, op->reg, decode->rex.rex, decode->rex.b,
-                          decode->operand_size);
+    op->regptr = get_reg_ref(env, op->reg, decode->rex.rex, decode->rex.b,
+                             decode->operand_size);
 }
 
 struct decode_tbl {
@@ -631,8 +631,8 @@ static void decode_bswap(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = decode->opcode[1] - 0xc8;
-    decode->op[0].ptr = get_reg_ref(env, decode->op[0].reg, decode->rex.rex,
-                                    decode->rex.b, decode->operand_size);
+    decode->op[0].regptr = get_reg_ref(env, decode->op[0].reg, decode->rex.rex,
+                                       decode->rex.b, decode->operand_size);
 }
 
 static void decode_d9_4(CPUX86State *env, struct x86_decode *decode)
@@ -1656,16 +1656,16 @@ void calc_modrm_operand16(CPUX86State *env, struct x86_decode *decode,
     }
 calc_addr:
     if (X86_DECODE_CMD_LEA == decode->cmd) {
-        op->ptr = (uint16_t)ptr;
+        op->addr = (uint16_t)ptr;
     } else {
-        op->ptr = decode_linear_addr(env, decode, (uint16_t)ptr, seg);
+        op->addr = decode_linear_addr(env, decode, (uint16_t)ptr, seg);
     }
 }
 
-target_ulong get_reg_ref(CPUX86State *env, int reg, int rex_present,
+void *get_reg_ref(CPUX86State *env, int reg, int rex_present,
                          int is_extended, int size)
 {
-    target_ulong ptr = 0;
+    void *ptr = NULL;
 
     if (is_extended) {
         reg |= R_R8;
@@ -1674,13 +1674,13 @@ target_ulong get_reg_ref(CPUX86State *env, int reg, int rex_present,
     switch (size) {
     case 1:
         if (is_extended || reg < 4 || rex_present) {
-            ptr = (target_ulong)&RL(env, reg);
+            ptr = &RL(env, reg);
         } else {
-            ptr = (target_ulong)&RH(env, reg - 4);
+            ptr = &RH(env, reg - 4);
         }
         break;
     default:
-        ptr = (target_ulong)&RRX(env, reg);
+        ptr = &RRX(env, reg);
         break;
     }
     return ptr;
@@ -1691,7 +1691,7 @@ target_ulong get_reg_val(CPUX86State *env, int reg, int rex_present,
 {
     target_ulong val = 0;
     memcpy(&val,
-           (void *)get_reg_ref(env, reg, rex_present, is_extended, size),
+           get_reg_ref(env, reg, rex_present, is_extended, size),
            size);
     return val;
 }
@@ -1758,9 +1758,9 @@ void calc_modrm_operand32(CPUX86State *env, struct x86_decode *decode,
     }
 
     if (X86_DECODE_CMD_LEA == decode->cmd) {
-        op->ptr = (uint32_t)ptr;
+        op->addr = (uint32_t)ptr;
     } else {
-        op->ptr = decode_linear_addr(env, decode, (uint32_t)ptr, seg);
+        op->addr = decode_linear_addr(env, decode, (uint32_t)ptr, seg);
     }
 }
 
@@ -1788,9 +1788,9 @@ void calc_modrm_operand64(CPUX86State *env, struct x86_decode *decode,
     }
 
     if (X86_DECODE_CMD_LEA == decode->cmd) {
-        op->ptr = ptr;
+        op->addr = ptr;
     } else {
-        op->ptr = decode_linear_addr(env, decode, ptr, seg);
+        op->addr = decode_linear_addr(env, decode, ptr, seg);
     }
 }
 
@@ -1801,8 +1801,8 @@ void calc_modrm_operand(CPUX86State *env, struct x86_decode *decode,
     if (3 == decode->modrm.mod) {
         op->reg = decode->modrm.reg;
         op->type = X86_VAR_REG;
-        op->ptr = get_reg_ref(env, decode->modrm.rm, decode->rex.rex,
-                              decode->rex.b, decode->operand_size);
+        op->regptr = get_reg_ref(env, decode->modrm.rm, decode->rex.rex,
+                                 decode->rex.b, decode->operand_size);
         return;
     }
 

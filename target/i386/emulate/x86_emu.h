@@ -42,11 +42,11 @@ void x86_emul_raise_exception(CPUX86State *env, int exception_index, int error_c
 
 target_ulong read_reg(CPUX86State *env, int reg, int size);
 void write_reg(CPUX86State *env, int reg, target_ulong val, int size);
-target_ulong read_val_from_reg(target_ulong reg_ptr, int size);
-void write_val_to_reg(target_ulong reg_ptr, target_ulong val, int size);
-void write_val_ext(CPUX86State *env, target_ulong ptr, target_ulong val, int size);
+target_ulong read_val_from_reg(void *reg_ptr, int size);
+void write_val_to_reg(void *reg_ptr, target_ulong val, int size);
+void write_val_ext(CPUX86State *env, struct x86_decode_op *decode, target_ulong val, int size);
 uint8_t *read_mmio(CPUX86State *env, target_ulong ptr, int bytes);
-target_ulong read_val_ext(CPUX86State *env, target_ulong ptr, int size);
+target_ulong read_val_ext(CPUX86State *env, struct x86_decode_op *decode, int size);
 
 void exec_movzx(CPUX86State *env, struct x86_decode *decode);
 void exec_shl(CPUX86State *env, struct x86_decode *decode);

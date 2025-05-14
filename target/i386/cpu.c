@@ -922,6 +922,17 @@ void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
 #define TCG_8000_0008_EBX  (CPUID_8000_0008_EBX_XSAVEERPTR | \
           CPUID_8000_0008_EBX_WBNOINVD | CPUID_8000_0008_EBX_KERNEL_FEATURES)
 
+#if defined CONFIG_USER_ONLY
+#define CPUID_8000_0021_EAX_KERNEL_FEATURES CPUID_8000_0021_EAX_AUTO_IBRS
+#else
+#define CPUID_8000_0021_EAX_KERNEL_FEATURES 0
+#endif
+
+#define TCG_8000_0021_EAX_FEATURES ( \
+            CPUID_8000_0021_EAX_NO_NESTED_DATA_BP | \
+            CPUID_8000_0021_EAX_NULL_SEL_CLR_BASE | \
+            CPUID_8000_0021_EAX_KERNEL_FEATURES)
+
 FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     [FEAT_1_EDX] = {
         .type = CPUID_FEATURE_WORD,
@@ -1249,7 +1260,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             "ibpb-brtype", "srso-no", "srso-user-kernel-no", NULL,
         },
         .cpuid = { .eax = 0x80000021, .reg = R_EAX, },
-        .tcg_features = 0,
+        .tcg_features = TCG_8000_0021_EAX_FEATURES,
         .unmigratable_flags = 0,
     },
     [FEAT_8000_0021_EBX] = {
@@ -1372,6 +1383,14 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             "bhi-no", NULL, NULL, NULL,
             "pbrsb-no", NULL, "gds-no", "rfds-no",
             "rfds-clear", NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, "its-no", NULL,
         },
         .msr = {
             .index = MSR_IA32_ARCH_CAPABILITIES,

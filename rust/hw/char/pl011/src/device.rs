@@ -329,7 +329,7 @@ impl PL011Registers {
         // hardware flow-control is enabled.
         //
         // For simplicity, the above described is not emulated.
-        self.loopback_enabled() && self.put_fifo(value)
+        self.loopback_enabled() && self.fifo_rx_put(value)
     }
 
     #[must_use]
@@ -439,7 +439,7 @@ impl PL011Registers {
     }
 
     #[must_use]
-    pub fn put_fifo(&mut self, value: registers::Data) -> bool {
+    pub fn fifo_rx_put(&mut self, value: registers::Data) -> bool {
         let depth = self.fifo_depth();
         assert!(depth > 0);
         let slot = (self.read_pos + self.read_count) & (depth - 1);
@@ -580,19 +580,26 @@ impl PL011State {
     fn can_receive(&self) -> u32 {
         let regs = self.regs.borrow();
         // trace_pl011_can_receive(s->lcr, s->read_count, r);
-        u32::from(regs.read_count < regs.fifo_depth())
+        regs.fifo_depth() - regs.read_count
     }
 
     fn receive(&self, buf: &[u8]) {
-        if buf.is_empty() {
+        let mut regs = self.regs.borrow_mut();
+        if regs.loopback_enabled() {
+            // In loopback mode, the RX input signal is internally disconnected
+            // from the entire receiving logics; thus, all inputs are ignored,
+            // and BREAK detection on RX input signal is also not performed.
             return;
         }
-        let mut regs = self.regs.borrow_mut();
-        let c: u32 = buf[0].into();
-        let update_irq = !regs.loopback_enabled() && regs.put_fifo(c.into());
+
+        let mut update_irq = false;
+        for &c in buf {
+            let c: u32 = c.into();
+            update_irq |= regs.fifo_rx_put(c.into());
+        }
+
         // Release the BqlRefCell before calling self.update()
         drop(regs);
-
         if update_irq {
             self.update();
         }
@@ -602,7 +609,7 @@ impl PL011State {
         let mut update_irq = false;
         let mut regs = self.regs.borrow_mut();
         if event == Event::CHR_EVENT_BREAK && !regs.loopback_enabled() {
-            update_irq = regs.put_fifo(registers::Data::BREAK);
+            update_irq = regs.fifo_rx_put(registers::Data::BREAK);
         }
         // Release the BqlRefCell before calling self.update()
         drop(regs);
