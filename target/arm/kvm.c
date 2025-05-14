@@ -1843,8 +1843,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     CPUARMState *env = &cpu->env;
     uint64_t psciver;
 
-    if (cpu->kvm_target == QEMU_KVM_ARM_TARGET_NONE ||
-        !object_dynamic_cast(OBJECT(cpu), TYPE_AARCH64_CPU)) {
+    if (cpu->kvm_target == QEMU_KVM_ARM_TARGET_NONE) {
         error_report("KVM is not supported for this guest CPU type");
         return -EINVAL;
     }
