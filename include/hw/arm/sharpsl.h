@@ -11,7 +11,7 @@
 
 /* zaurus.c */
 
-#define SL_PXA_PARAM_BASE	0xa0000a00
+#define SL_PXA_PARAM_BASE   0xa0000a00
 void sl_bootparam_write(hwaddr ptr);
 
 #endif

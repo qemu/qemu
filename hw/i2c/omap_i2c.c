@@ -55,16 +55,16 @@ struct OMAPI2CState {
     uint16_t test;
 };
 
-#define OMAP2_INTR_REV	0x34
-#define OMAP2_GC_REV	0x34
+#define OMAP2_INTR_REV  0x34
+#define OMAP2_GC_REV    0x34
 
 static void omap_i2c_interrupts_update(OMAPI2CState *s)
 {
     qemu_set_irq(s->irq, s->stat & s->mask);
-    if ((s->dma >> 15) & 1)					/* RDMA_EN */
-        qemu_set_irq(s->drq[0], (s->stat >> 3) & 1);		/* RRDY */
-    if ((s->dma >> 7) & 1)					/* XDMA_EN */
-        qemu_set_irq(s->drq[1], (s->stat >> 4) & 1);		/* XRDY */
+    if ((s->dma >> 15) & 1)                             /* RDMA_EN */
+        qemu_set_irq(s->drq[0], (s->stat >> 3) & 1);    /* RRDY */
+    if ((s->dma >> 7) & 1)                              /* XDMA_EN */
+        qemu_set_irq(s->drq[1], (s->stat >> 4) & 1);    /* XRDY */
 }
 
 static void omap_i2c_fifo_run(OMAPI2CState *s)
@@ -74,25 +74,25 @@ static void omap_i2c_fifo_run(OMAPI2CState *s)
     if (!i2c_bus_busy(s->bus))
         return;
 
-    if ((s->control >> 2) & 1) {				/* RM */
-        if ((s->control >> 1) & 1) {				/* STP */
+    if ((s->control >> 2) & 1) {                /* RM */
+        if ((s->control >> 1) & 1) {            /* STP */
             i2c_end_transfer(s->bus);
-            s->control &= ~(1 << 1);				/* STP */
+            s->control &= ~(1 << 1);            /* STP */
             s->count_cur = s->count;
             s->txlen = 0;
-        } else if ((s->control >> 9) & 1) {			/* TRX */
+        } else if ((s->control >> 9) & 1) {     /* TRX */
             while (ack && s->txlen)
                 ack = (i2c_send(s->bus,
                                         (s->fifo >> ((-- s->txlen) << 3)) &
                                         0xff) >= 0);
-            s->stat |= 1 << 4;					/* XRDY */
+            s->stat |= 1 << 4;                  /* XRDY */
         } else {
             while (s->rxlen < 4)
                 s->fifo |= i2c_recv(s->bus) << ((s->rxlen ++) << 3);
-            s->stat |= 1 << 3;					/* RRDY */
+            s->stat |= 1 << 3;                  /* RRDY */
         }
     } else {
-        if ((s->control >> 9) & 1) {				/* TRX */
+        if ((s->control >> 9) & 1) {            /* TRX */
             while (ack && s->count_cur && s->txlen) {
                 ack = (i2c_send(s->bus,
                                         (s->fifo >> ((-- s->txlen) << 3)) &
@@ -100,12 +100,12 @@ static void omap_i2c_fifo_run(OMAPI2CState *s)
                 s->count_cur --;
             }
             if (ack && s->count_cur)
-                s->stat |= 1 << 4;				/* XRDY */
+                s->stat |= 1 << 4;              /* XRDY */
             else
-                s->stat &= ~(1 << 4);				/* XRDY */
+                s->stat &= ~(1 << 4);           /* XRDY */
             if (!s->count_cur) {
-                s->stat |= 1 << 2;				/* ARDY */
-                s->control &= ~(1 << 10);			/* MST */
+                s->stat |= 1 << 2;              /* ARDY */
+                s->control &= ~(1 << 10);       /* MST */
             }
         } else {
             while (s->count_cur && s->rxlen < 4) {
@@ -113,26 +113,26 @@ static void omap_i2c_fifo_run(OMAPI2CState *s)
                 s->count_cur --;
             }
             if (s->rxlen)
-                s->stat |= 1 << 3;				/* RRDY */
+                s->stat |= 1 << 3;              /* RRDY */
             else
-                s->stat &= ~(1 << 3);				/* RRDY */
+                s->stat &= ~(1 << 3);           /* RRDY */
         }
         if (!s->count_cur) {
-            if ((s->control >> 1) & 1) {			/* STP */
+            if ((s->control >> 1) & 1) {        /* STP */
                 i2c_end_transfer(s->bus);
-                s->control &= ~(1 << 1);			/* STP */
+                s->control &= ~(1 << 1);        /* STP */
                 s->count_cur = s->count;
                 s->txlen = 0;
             } else {
-                s->stat |= 1 << 2;				/* ARDY */
-                s->control &= ~(1 << 10);			/* MST */
+                s->stat |= 1 << 2;              /* ARDY */
+                s->control &= ~(1 << 10);       /* MST */
             }
         }
     }
 
-    s->stat |= (!ack) << 1;					/* NACK */
+    s->stat |= (!ack) << 1;                     /* NACK */
     if (!ack)
-        s->control &= ~(1 << 1);				/* STP */
+        s->control &= ~(1 << 1);                /* STP */
 }
 
 static void omap_i2c_reset(DeviceState *dev)
@@ -163,16 +163,16 @@ static uint32_t omap_i2c_read(void *opaque, hwaddr addr)
     uint16_t ret;
 
     switch (offset) {
-    case 0x00:	/* I2C_REV */
-        return s->revision;					/* REV */
+    case 0x00:  /* I2C_REV */
+        return s->revision;                     /* REV */
 
-    case 0x04:	/* I2C_IE */
+    case 0x04:  /* I2C_IE */
         return s->mask;
 
-    case 0x08:	/* I2C_STAT */
+    case 0x08:  /* I2C_STAT */
         return s->stat | (i2c_bus_busy(s->bus) << 12);
 
-    case 0x0c:	/* I2C_IV */
+    case 0x0c:  /* I2C_IV */
         if (s->revision >= OMAP2_INTR_REV)
             break;
         ret = ctz32(s->stat & s->mask);
@@ -185,18 +185,18 @@ static uint32_t omap_i2c_read(void *opaque, hwaddr addr)
         omap_i2c_interrupts_update(s);
         return ret;
 
-    case 0x10:	/* I2C_SYSS */
-        return (s->control >> 15) & 1;				/* I2C_EN */
+    case 0x10:  /* I2C_SYSS */
+        return (s->control >> 15) & 1;  /* I2C_EN */
 
-    case 0x14:	/* I2C_BUF */
+    case 0x14:  /* I2C_BUF */
         return s->dma;
 
-    case 0x18:	/* I2C_CNT */
-        return s->count_cur;					/* DCOUNT */
+    case 0x18:  /* I2C_CNT */
+        return s->count_cur;    /* DCOUNT */
 
-    case 0x1c:	/* I2C_DATA */
+    case 0x1c:  /* I2C_DATA */
         ret = 0;
-        if (s->control & (1 << 14)) {				/* BE */
+        if (s->control & (1 << 14)) {   /* BE */
             ret |= ((s->fifo >> 0) & 0xff) << 8;
             ret |= ((s->fifo >> 8) & 0xff) << 0;
         } else {
@@ -204,7 +204,7 @@ static uint32_t omap_i2c_read(void *opaque, hwaddr addr)
             ret |= ((s->fifo >> 0) & 0xff) << 0;
         }
         if (s->rxlen == 1) {
-            s->stat |= 1 << 15;					/* SBD */
+            s->stat |= 1 << 15;                 /* SBD */
             s->rxlen = 0;
         } else if (s->rxlen > 1) {
             if (s->rxlen > 2)
@@ -214,41 +214,41 @@ static uint32_t omap_i2c_read(void *opaque, hwaddr addr)
             /* XXX: remote access (qualifier) error - what's that?  */
         }
         if (!s->rxlen) {
-            s->stat &= ~(1 << 3);				/* RRDY */
-            if (((s->control >> 10) & 1) &&			/* MST */
-                            ((~s->control >> 9) & 1)) {		/* TRX */
-                s->stat |= 1 << 2;				/* ARDY */
-                s->control &= ~(1 << 10);			/* MST */
+            s->stat &= ~(1 << 3);                           /* RRDY */
+            if (((s->control >> 10) & 1) &&                 /* MST */
+                            ((~s->control >> 9) & 1)) {     /* TRX */
+                s->stat |= 1 << 2;                          /* ARDY */
+                s->control &= ~(1 << 10);                   /* MST */
             }
         }
-        s->stat &= ~(1 << 11);					/* ROVR */
+        s->stat &= ~(1 << 11);                              /* ROVR */
         omap_i2c_fifo_run(s);
         omap_i2c_interrupts_update(s);
         return ret;
 
-    case 0x20:	/* I2C_SYSC */
+    case 0x20:  /* I2C_SYSC */
         return 0;
 
-    case 0x24:	/* I2C_CON */
+    case 0x24:  /* I2C_CON */
         return s->control;
 
-    case 0x28:	/* I2C_OA */
+    case 0x28:  /* I2C_OA */
         return s->addr[0];
 
-    case 0x2c:	/* I2C_SA */
+    case 0x2c:  /* I2C_SA */
         return s->addr[1];
 
-    case 0x30:	/* I2C_PSC */
+    case 0x30:  /* I2C_PSC */
         return s->divider;
 
-    case 0x34:	/* I2C_SCLL */
+    case 0x34:  /* I2C_SCLL */
         return s->times[0];
 
-    case 0x38:	/* I2C_SCLH */
+    case 0x38:  /* I2C_SCLH */
         return s->times[1];
 
-    case 0x3c:	/* I2C_SYSTEST */
-        if (s->test & (1 << 15)) {				/* ST_EN */
+    case 0x3c:  /* I2C_SYSTEST */
+        if (s->test & (1 << 15)) {              /* ST_EN */
             s->test ^= 0xa;
             return s->test;
         } else
@@ -267,17 +267,17 @@ static void omap_i2c_write(void *opaque, hwaddr addr,
     int nack;
 
     switch (offset) {
-    case 0x00:	/* I2C_REV */
-    case 0x0c:	/* I2C_IV */
-    case 0x10:	/* I2C_SYSS */
+    case 0x00:  /* I2C_REV */
+    case 0x0c:  /* I2C_IV */
+    case 0x10:  /* I2C_SYSS */
         OMAP_RO_REG(addr);
         return;
 
-    case 0x04:	/* I2C_IE */
+    case 0x04:  /* I2C_IE */
         s->mask = value & (s->revision < OMAP2_GC_REV ? 0x1f : 0x3f);
         break;
 
-    case 0x08:	/* I2C_STAT */
+    case 0x08:  /* I2C_STAT */
         if (s->revision < OMAP2_INTR_REV) {
             OMAP_RO_REG(addr);
             return;
@@ -288,40 +288,40 @@ static void omap_i2c_write(void *opaque, hwaddr addr,
         omap_i2c_interrupts_update(s);
         break;
 
-    case 0x14:	/* I2C_BUF */
+    case 0x14:  /* I2C_BUF */
         s->dma = value & 0x8080;
-        if (value & (1 << 15))					/* RDMA_EN */
-            s->mask &= ~(1 << 3);				/* RRDY_IE */
-        if (value & (1 << 7))					/* XDMA_EN */
-            s->mask &= ~(1 << 4);				/* XRDY_IE */
+        if (value & (1 << 15))                  /* RDMA_EN */
+            s->mask &= ~(1 << 3);               /* RRDY_IE */
+        if (value & (1 << 7))                   /* XDMA_EN */
+            s->mask &= ~(1 << 4);               /* XRDY_IE */
         break;
 
-    case 0x18:	/* I2C_CNT */
-        s->count = value;					/* DCOUNT */
+    case 0x18:  /* I2C_CNT */
+        s->count = value;                   /* DCOUNT */
         break;
 
-    case 0x1c:	/* I2C_DATA */
+    case 0x1c:  /* I2C_DATA */
         if (s->txlen > 2) {
             /* XXX: remote access (qualifier) error - what's that?  */
             break;
         }
         s->fifo <<= 16;
         s->txlen += 2;
-        if (s->control & (1 << 14)) {				/* BE */
+        if (s->control & (1 << 14)) {           /* BE */
             s->fifo |= ((value >> 8) & 0xff) << 8;
             s->fifo |= ((value >> 0) & 0xff) << 0;
         } else {
             s->fifo |= ((value >> 0) & 0xff) << 8;
             s->fifo |= ((value >> 8) & 0xff) << 0;
         }
-        s->stat &= ~(1 << 10);					/* XUDF */
+        s->stat &= ~(1 << 10);                  /* XUDF */
         if (s->txlen > 2)
-            s->stat &= ~(1 << 4);				/* XRDY */
+            s->stat &= ~(1 << 4);               /* XRDY */
         omap_i2c_fifo_run(s);
         omap_i2c_interrupts_update(s);
         break;
 
-    case 0x20:	/* I2C_SYSC */
+    case 0x20:  /* I2C_SYSC */
         if (s->revision < OMAP2_INTR_REV) {
             OMAP_BAD_REG(addr);
             return;
@@ -332,9 +332,9 @@ static void omap_i2c_write(void *opaque, hwaddr addr,
         }
         break;
 
-    case 0x24:	/* I2C_CON */
+    case 0x24:  /* I2C_CON */
         s->control = value & 0xcf87;
-        if (~value & (1 << 15)) {				/* I2C_EN */
+        if (~value & (1 << 15)) {               /* I2C_EN */
             if (s->revision < OMAP2_INTR_REV) {
                 omap_i2c_reset(DEVICE(s));
             }
@@ -351,14 +351,14 @@ static void omap_i2c_write(void *opaque, hwaddr addr,
                           __func__);
             break;
         }
-        if ((value & (1 << 15)) && value & (1 << 0)) {		/* STT */
-            nack = !!i2c_start_transfer(s->bus, s->addr[1],	/* SA */
-                            (~value >> 9) & 1);			/* TRX */
-            s->stat |= nack << 1;				/* NACK */
-            s->control &= ~(1 << 0);				/* STT */
+        if ((value & (1 << 15)) && value & (1 << 0)) {      /* STT */
+            nack = !!i2c_start_transfer(s->bus, s->addr[1], /* SA */
+                            (~value >> 9) & 1);             /* TRX */
+            s->stat |= nack << 1;                           /* NACK */
+            s->control &= ~(1 << 0);                        /* STT */
             s->fifo = 0;
             if (nack)
-                s->control &= ~(1 << 1);			/* STP */
+                s->control &= ~(1 << 1);                    /* STP */
             else {
                 s->count_cur = s->count;
                 omap_i2c_fifo_run(s);
@@ -367,34 +367,34 @@ static void omap_i2c_write(void *opaque, hwaddr addr,
         }
         break;
 
-    case 0x28:	/* I2C_OA */
+    case 0x28:  /* I2C_OA */
         s->addr[0] = value & 0x3ff;
         break;
 
-    case 0x2c:	/* I2C_SA */
+    case 0x2c:  /* I2C_SA */
         s->addr[1] = value & 0x3ff;
         break;
 
-    case 0x30:	/* I2C_PSC */
+    case 0x30:  /* I2C_PSC */
         s->divider = value;
         break;
 
-    case 0x34:	/* I2C_SCLL */
+    case 0x34:  /* I2C_SCLL */
         s->times[0] = value;
         break;
 
-    case 0x38:	/* I2C_SCLH */
+    case 0x38:  /* I2C_SCLH */
         s->times[1] = value;
         break;
 
-    case 0x3c:	/* I2C_SYSTEST */
+    case 0x3c:  /* I2C_SYSTEST */
         s->test = value & 0xf80f;
-        if (value & (1 << 11))					/* SBB */
+        if (value & (1 << 11))                  /* SBB */
             if (s->revision >= OMAP2_INTR_REV) {
                 s->stat |= 0x3f;
                 omap_i2c_interrupts_update(s);
             }
-        if (value & (1 << 15)) {                    /* ST_EN */
+        if (value & (1 << 15)) {                /* ST_EN */
             qemu_log_mask(LOG_UNIMP,
                           "%s: System Test not supported\n", __func__);
         }
@@ -413,7 +413,7 @@ static void omap_i2c_writeb(void *opaque, hwaddr addr,
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     switch (offset) {
-    case 0x1c:	/* I2C_DATA */
+    case 0x1c:  /* I2C_DATA */
         if (s->txlen > 2) {
             /* XXX: remote access (qualifier) error - what's that?  */
             break;
@@ -421,9 +421,9 @@ static void omap_i2c_writeb(void *opaque, hwaddr addr,
         s->fifo <<= 8;
         s->txlen += 1;
         s->fifo |= value & 0xff;
-        s->stat &= ~(1 << 10);					/* XUDF */
+        s->stat &= ~(1 << 10);                  /* XUDF */
         if (s->txlen > 2)
-            s->stat &= ~(1 << 4);				/* XRDY */
+            s->stat &= ~(1 << 4);               /* XRDY */
         omap_i2c_fifo_run(s);
         omap_i2c_interrupts_update(s);
         break;

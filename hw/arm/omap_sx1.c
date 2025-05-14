@@ -1,7 +1,7 @@
 /* omap_sx1.c Support for the Siemens SX1 smartphone emulation.
  *
  *   Copyright (C) 2008
- * 	Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+ *   Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
  *   Copyright (C) 2007 Vladimir Ananiev <vovan888@gmail.com>
  *
  *   based on PalmOne's (TM) PDAs support (palm.c)

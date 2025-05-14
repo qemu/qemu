@@ -102,8 +102,8 @@ static inline void omap_inth_update(OMAPIntcState *s, int is_fiq)
     }
 }
 
-#define INT_FALLING_EDGE	0
-#define INT_LOW_LEVEL		1
+#define INT_FALLING_EDGE    0
+#define INT_LOW_LEVEL       1
 
 static void omap_set_intr(void *opaque, int irq, int req)
 {
@@ -142,13 +142,13 @@ static uint64_t omap_inth_read(void *opaque, hwaddr addr,
     offset &= 0xff;
 
     switch (offset) {
-    case 0x00:	/* ITR */
+    case 0x00:  /* ITR */
         return bank->irqs;
 
-    case 0x04:	/* MIR */
+    case 0x04:  /* MIR */
         return bank->mask;
 
-    case 0x10:	/* SIR_IRQ_CODE */
+    case 0x10:  /* SIR_IRQ_CODE */
     case 0x14:  /* SIR_FIQ_CODE */
         if (bank_no != 0)
             break;
@@ -159,49 +159,49 @@ static uint64_t omap_inth_read(void *opaque, hwaddr addr,
             bank->irqs &= ~(1 << i);
         return line_no;
 
-    case 0x18:	/* CONTROL_REG */
+    case 0x18:  /* CONTROL_REG */
         if (bank_no != 0)
             break;
         return 0;
 
-    case 0x1c:	/* ILR0 */
-    case 0x20:	/* ILR1 */
-    case 0x24:	/* ILR2 */
-    case 0x28:	/* ILR3 */
-    case 0x2c:	/* ILR4 */
-    case 0x30:	/* ILR5 */
-    case 0x34:	/* ILR6 */
-    case 0x38:	/* ILR7 */
-    case 0x3c:	/* ILR8 */
-    case 0x40:	/* ILR9 */
-    case 0x44:	/* ILR10 */
-    case 0x48:	/* ILR11 */
-    case 0x4c:	/* ILR12 */
-    case 0x50:	/* ILR13 */
-    case 0x54:	/* ILR14 */
-    case 0x58:	/* ILR15 */
-    case 0x5c:	/* ILR16 */
-    case 0x60:	/* ILR17 */
-    case 0x64:	/* ILR18 */
-    case 0x68:	/* ILR19 */
-    case 0x6c:	/* ILR20 */
-    case 0x70:	/* ILR21 */
-    case 0x74:	/* ILR22 */
-    case 0x78:	/* ILR23 */
-    case 0x7c:	/* ILR24 */
-    case 0x80:	/* ILR25 */
-    case 0x84:	/* ILR26 */
-    case 0x88:	/* ILR27 */
-    case 0x8c:	/* ILR28 */
-    case 0x90:	/* ILR29 */
-    case 0x94:	/* ILR30 */
-    case 0x98:	/* ILR31 */
+    case 0x1c:  /* ILR0 */
+    case 0x20:  /* ILR1 */
+    case 0x24:  /* ILR2 */
+    case 0x28:  /* ILR3 */
+    case 0x2c:  /* ILR4 */
+    case 0x30:  /* ILR5 */
+    case 0x34:  /* ILR6 */
+    case 0x38:  /* ILR7 */
+    case 0x3c:  /* ILR8 */
+    case 0x40:  /* ILR9 */
+    case 0x44:  /* ILR10 */
+    case 0x48:  /* ILR11 */
+    case 0x4c:  /* ILR12 */
+    case 0x50:  /* ILR13 */
+    case 0x54:  /* ILR14 */
+    case 0x58:  /* ILR15 */
+    case 0x5c:  /* ILR16 */
+    case 0x60:  /* ILR17 */
+    case 0x64:  /* ILR18 */
+    case 0x68:  /* ILR19 */
+    case 0x6c:  /* ILR20 */
+    case 0x70:  /* ILR21 */
+    case 0x74:  /* ILR22 */
+    case 0x78:  /* ILR23 */
+    case 0x7c:  /* ILR24 */
+    case 0x80:  /* ILR25 */
+    case 0x84:  /* ILR26 */
+    case 0x88:  /* ILR27 */
+    case 0x8c:  /* ILR28 */
+    case 0x90:  /* ILR29 */
+    case 0x94:  /* ILR30 */
+    case 0x98:  /* ILR31 */
         i = (offset - 0x1c) >> 2;
         return (bank->priority[i] << 2) |
                 (((bank->sens_edge >> i) & 1) << 1) |
                 ((bank->fiq >> i) & 1);
 
-    case 0x9c:	/* ISR */
+    case 0x9c:  /* ISR */
         return 0x00000000;
 
     }
@@ -219,24 +219,24 @@ static void omap_inth_write(void *opaque, hwaddr addr,
     offset &= 0xff;
 
     switch (offset) {
-    case 0x00:	/* ITR */
+    case 0x00:  /* ITR */
         /* Important: ignore the clearing if the IRQ is level-triggered and
            the input bit is 1 */
         bank->irqs &= value | (bank->inputs & bank->sens_edge);
         return;
 
-    case 0x04:	/* MIR */
+    case 0x04:  /* MIR */
         bank->mask = value;
         omap_inth_update(s, 0);
         omap_inth_update(s, 1);
         return;
 
-    case 0x10:	/* SIR_IRQ_CODE */
-    case 0x14:	/* SIR_FIQ_CODE */
+    case 0x10:  /* SIR_IRQ_CODE */
+    case 0x14:  /* SIR_FIQ_CODE */
         OMAP_RO_REG(addr);
         break;
 
-    case 0x18:	/* CONTROL_REG */
+    case 0x18:  /* CONTROL_REG */
         if (bank_no != 0)
             break;
         if (value & 2) {
@@ -251,38 +251,38 @@ static void omap_inth_write(void *opaque, hwaddr addr,
         }
         return;
 
-    case 0x1c:	/* ILR0 */
-    case 0x20:	/* ILR1 */
-    case 0x24:	/* ILR2 */
-    case 0x28:	/* ILR3 */
-    case 0x2c:	/* ILR4 */
-    case 0x30:	/* ILR5 */
-    case 0x34:	/* ILR6 */
-    case 0x38:	/* ILR7 */
-    case 0x3c:	/* ILR8 */
-    case 0x40:	/* ILR9 */
-    case 0x44:	/* ILR10 */
-    case 0x48:	/* ILR11 */
-    case 0x4c:	/* ILR12 */
-    case 0x50:	/* ILR13 */
-    case 0x54:	/* ILR14 */
-    case 0x58:	/* ILR15 */
-    case 0x5c:	/* ILR16 */
-    case 0x60:	/* ILR17 */
-    case 0x64:	/* ILR18 */
-    case 0x68:	/* ILR19 */
-    case 0x6c:	/* ILR20 */
-    case 0x70:	/* ILR21 */
-    case 0x74:	/* ILR22 */
-    case 0x78:	/* ILR23 */
-    case 0x7c:	/* ILR24 */
-    case 0x80:	/* ILR25 */
-    case 0x84:	/* ILR26 */
-    case 0x88:	/* ILR27 */
-    case 0x8c:	/* ILR28 */
-    case 0x90:	/* ILR29 */
-    case 0x94:	/* ILR30 */
-    case 0x98:	/* ILR31 */
+    case 0x1c:  /* ILR0 */
+    case 0x20:  /* ILR1 */
+    case 0x24:  /* ILR2 */
+    case 0x28:  /* ILR3 */
+    case 0x2c:  /* ILR4 */
+    case 0x30:  /* ILR5 */
+    case 0x34:  /* ILR6 */
+    case 0x38:  /* ILR7 */
+    case 0x3c:  /* ILR8 */
+    case 0x40:  /* ILR9 */
+    case 0x44:  /* ILR10 */
+    case 0x48:  /* ILR11 */
+    case 0x4c:  /* ILR12 */
+    case 0x50:  /* ILR13 */
+    case 0x54:  /* ILR14 */
+    case 0x58:  /* ILR15 */
+    case 0x5c:  /* ILR16 */
+    case 0x60:  /* ILR17 */
+    case 0x64:  /* ILR18 */
+    case 0x68:  /* ILR19 */
+    case 0x6c:  /* ILR20 */
+    case 0x70:  /* ILR21 */
+    case 0x74:  /* ILR22 */
+    case 0x78:  /* ILR23 */
+    case 0x7c:  /* ILR24 */
+    case 0x80:  /* ILR25 */
+    case 0x84:  /* ILR26 */
+    case 0x88:  /* ILR27 */
+    case 0x8c:  /* ILR28 */
+    case 0x90:  /* ILR29 */
+    case 0x94:  /* ILR30 */
+    case 0x98:  /* ILR31 */
         i = (offset - 0x1c) >> 2;
         bank->priority[i] = (value >> 2) & 0x1f;
         bank->sens_edge &= ~(1 << i);
@@ -291,7 +291,7 @@ static void omap_inth_write(void *opaque, hwaddr addr,
         bank->fiq |= (value & 1) << i;
         return;
 
-    case 0x9c:	/* ISR */
+    case 0x9c:  /* ISR */
         for (i = 0; i < 32; i ++)
             if (value & (1 << i)) {
                 omap_set_intr(s, 32 * bank_no + i, 1);

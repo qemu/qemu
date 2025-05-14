@@ -144,7 +144,7 @@ static inline void omap_timer_update(struct omap_mpu_timer_s *timer)
     int64_t expires;
 
     if (timer->enable && timer->st && timer->rate) {
-        timer->val = timer->reset_val;	/* Should skip this on clk enable */
+        timer->val = timer->reset_val;  /* Should skip this on clk enable */
         expires = muldiv64((uint64_t) timer->val << (timer->ptv + 1),
                            NANOSECONDS_PER_SECOND, timer->rate);
 
@@ -212,13 +212,13 @@ static uint64_t omap_mpu_timer_read(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* CNTL_TIMER */
+    case 0x00:  /* CNTL_TIMER */
         return (s->enable << 5) | (s->ptv << 2) | (s->ar << 1) | s->st;
 
-    case 0x04:	/* LOAD_TIM */
+    case 0x04:  /* LOAD_TIM */
         break;
 
-    case 0x08:	/* READ_TIM */
+    case 0x08:  /* READ_TIM */
         return omap_timer_read(s);
     }
 
@@ -237,7 +237,7 @@ static void omap_mpu_timer_write(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* CNTL_TIMER */
+    case 0x00:  /* CNTL_TIMER */
         omap_timer_sync(s);
         s->enable = (value >> 5) & 1;
         s->ptv = (value >> 2) & 7;
@@ -246,11 +246,11 @@ static void omap_mpu_timer_write(void *opaque, hwaddr addr,
         omap_timer_update(s);
         return;
 
-    case 0x04:	/* LOAD_TIM */
+    case 0x04:  /* LOAD_TIM */
         s->reset_val = value;
         return;
 
-    case 0x08:	/* READ_TIM */
+    case 0x08:  /* READ_TIM */
         OMAP_RO_REG(addr);
         break;
 
@@ -318,14 +318,14 @@ static uint64_t omap_wd_timer_read(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* CNTL_TIMER */
+    case 0x00:  /* CNTL_TIMER */
         return (s->timer.ptv << 9) | (s->timer.ar << 8) |
                 (s->timer.st << 7) | (s->free << 1);
 
-    case 0x04:	/* READ_TIMER */
+    case 0x04:  /* READ_TIMER */
         return omap_timer_read(&s->timer);
 
-    case 0x08:	/* TIMER_MODE */
+    case 0x08:  /* TIMER_MODE */
         return s->mode << 15;
     }
 
@@ -344,7 +344,7 @@ static void omap_wd_timer_write(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* CNTL_TIMER */
+    case 0x00:  /* CNTL_TIMER */
         omap_timer_sync(&s->timer);
         s->timer.ptv = (value >> 9) & 7;
         s->timer.ar = (value >> 8) & 1;
@@ -353,11 +353,11 @@ static void omap_wd_timer_write(void *opaque, hwaddr addr,
         omap_timer_update(&s->timer);
         break;
 
-    case 0x04:	/* LOAD_TIMER */
+    case 0x04:  /* LOAD_TIMER */
         s->timer.reset_val = value & 0xffff;
         break;
 
-    case 0x08:	/* TIMER_MODE */
+    case 0x08:  /* TIMER_MODE */
         if (!s->mode && ((value >> 15) & 1))
             omap_clk_get(s->timer.clk);
         s->mode |= (value >> 15) & 1;
@@ -442,13 +442,13 @@ static uint64_t omap_os_timer_read(void *opaque, hwaddr addr,
     }
 
     switch (offset) {
-    case 0x00:	/* TVR */
+    case 0x00:  /* TVR */
         return s->timer.reset_val;
 
-    case 0x04:	/* TCR */
+    case 0x04:  /* TCR */
         return omap_timer_read(&s->timer);
 
-    case 0x08:	/* CR */
+    case 0x08:  /* CR */
         return (s->timer.ar << 3) | (s->timer.it_ena << 2) | s->timer.st;
 
     default:
@@ -470,15 +470,15 @@ static void omap_os_timer_write(void *opaque, hwaddr addr,
     }
 
     switch (offset) {
-    case 0x00:	/* TVR */
+    case 0x00:  /* TVR */
         s->timer.reset_val = value & 0x00ffffff;
         break;
 
-    case 0x04:	/* TCR */
+    case 0x04:  /* TCR */
         OMAP_RO_REG(addr);
         break;
 
-    case 0x08:	/* CR */
+    case 0x08:  /* CR */
         s->timer.ar = (value >> 3) & 1;
         s->timer.it_ena = (value >> 2) & 1;
         if (s->timer.st != (value & 1) || (value & 2)) {
@@ -543,34 +543,34 @@ static uint64_t omap_ulpd_pm_read(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x14:	/* IT_STATUS */
+    case 0x14:  /* IT_STATUS */
         ret = s->ulpd_pm_regs[addr >> 2];
         s->ulpd_pm_regs[addr >> 2] = 0;
         qemu_irq_lower(qdev_get_gpio_in(s->ih[1], OMAP_INT_GAUGE_32K));
         return ret;
 
-    case 0x18:	/* Reserved */
-    case 0x1c:	/* Reserved */
-    case 0x20:	/* Reserved */
-    case 0x28:	/* Reserved */
-    case 0x2c:	/* Reserved */
+    case 0x18:  /* Reserved */
+    case 0x1c:  /* Reserved */
+    case 0x20:  /* Reserved */
+    case 0x28:  /* Reserved */
+    case 0x2c:  /* Reserved */
         OMAP_BAD_REG(addr);
         /* fall through */
-    case 0x00:	/* COUNTER_32_LSB */
-    case 0x04:	/* COUNTER_32_MSB */
-    case 0x08:	/* COUNTER_HIGH_FREQ_LSB */
-    case 0x0c:	/* COUNTER_HIGH_FREQ_MSB */
-    case 0x10:	/* GAUGING_CTRL */
-    case 0x24:	/* SETUP_ANALOG_CELL3_ULPD1 */
-    case 0x30:	/* CLOCK_CTRL */
-    case 0x34:	/* SOFT_REQ */
-    case 0x38:	/* COUNTER_32_FIQ */
-    case 0x3c:	/* DPLL_CTRL */
-    case 0x40:	/* STATUS_REQ */
+    case 0x00:  /* COUNTER_32_LSB */
+    case 0x04:  /* COUNTER_32_MSB */
+    case 0x08:  /* COUNTER_HIGH_FREQ_LSB */
+    case 0x0c:  /* COUNTER_HIGH_FREQ_MSB */
+    case 0x10:  /* GAUGING_CTRL */
+    case 0x24:  /* SETUP_ANALOG_CELL3_ULPD1 */
+    case 0x30:  /* CLOCK_CTRL */
+    case 0x34:  /* SOFT_REQ */
+    case 0x38:  /* COUNTER_32_FIQ */
+    case 0x3c:  /* DPLL_CTRL */
+    case 0x40:  /* STATUS_REQ */
         /* XXX: check clk::usecount state for every clock */
-    case 0x48:	/* LOCL_TIME */
-    case 0x4c:	/* APLL_CTRL */
-    case 0x50:	/* POWER_CTRL */
+    case 0x48:  /* LOCL_TIME */
+    case 0x4c:  /* APLL_CTRL */
+    case 0x50:  /* POWER_CTRL */
         return s->ulpd_pm_regs[addr >> 2];
     }
 
@@ -581,22 +581,22 @@ static uint64_t omap_ulpd_pm_read(void *opaque, hwaddr addr,
 static inline void omap_ulpd_clk_update(struct omap_mpu_state_s *s,
                 uint16_t diff, uint16_t value)
 {
-    if (diff & (1 << 4))				/* USB_MCLK_EN */
+    if (diff & (1 << 4))                /* USB_MCLK_EN */
         omap_clk_onoff(omap_findclk(s, "usb_clk0"), (value >> 4) & 1);
-    if (diff & (1 << 5))				/* DIS_USB_PVCI_CLK */
+    if (diff & (1 << 5))                /* DIS_USB_PVCI_CLK */
         omap_clk_onoff(omap_findclk(s, "usb_w2fc_ck"), (~value >> 5) & 1);
 }
 
 static inline void omap_ulpd_req_update(struct omap_mpu_state_s *s,
                 uint16_t diff, uint16_t value)
 {
-    if (diff & (1 << 0))				/* SOFT_DPLL_REQ */
+    if (diff & (1 << 0))                /* SOFT_DPLL_REQ */
         omap_clk_canidle(omap_findclk(s, "dpll4"), (~value >> 0) & 1);
-    if (diff & (1 << 1))				/* SOFT_COM_REQ */
+    if (diff & (1 << 1))                /* SOFT_COM_REQ */
         omap_clk_canidle(omap_findclk(s, "com_mclk_out"), (~value >> 1) & 1);
-    if (diff & (1 << 2))				/* SOFT_SDW_REQ */
+    if (diff & (1 << 2))                /* SOFT_SDW_REQ */
         omap_clk_canidle(omap_findclk(s, "bt_mclk_out"), (~value >> 2) & 1);
-    if (diff & (1 << 3))				/* SOFT_USB_REQ */
+    if (diff & (1 << 3))                /* SOFT_USB_REQ */
         omap_clk_canidle(omap_findclk(s, "usb_clk0"), (~value >> 3) & 1);
 }
 
@@ -615,16 +615,16 @@ static void omap_ulpd_pm_write(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* COUNTER_32_LSB */
-    case 0x04:	/* COUNTER_32_MSB */
-    case 0x08:	/* COUNTER_HIGH_FREQ_LSB */
-    case 0x0c:	/* COUNTER_HIGH_FREQ_MSB */
-    case 0x14:	/* IT_STATUS */
-    case 0x40:	/* STATUS_REQ */
+    case 0x00:  /* COUNTER_32_LSB */
+    case 0x04:  /* COUNTER_32_MSB */
+    case 0x08:  /* COUNTER_HIGH_FREQ_LSB */
+    case 0x0c:  /* COUNTER_HIGH_FREQ_MSB */
+    case 0x14:  /* IT_STATUS */
+    case 0x40:  /* STATUS_REQ */
         OMAP_RO_REG(addr);
         break;
 
-    case 0x10:	/* GAUGING_CTRL */
+    case 0x10:  /* GAUGING_CTRL */
         /* Bits 0 and 1 seem to be confused in the OMAP 310 TRM */
         if ((s->ulpd_pm_regs[addr >> 2] ^ value) & 1) {
             now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -638,50 +638,50 @@ static void omap_ulpd_pm_write(void *opaque, hwaddr addr,
                 ticks = muldiv64(now, 32768, NANOSECONDS_PER_SECOND);
                 s->ulpd_pm_regs[0x00 >> 2] = (ticks >>  0) & 0xffff;
                 s->ulpd_pm_regs[0x04 >> 2] = (ticks >> 16) & 0xffff;
-                if (ticks >> 32)	/* OVERFLOW_32K */
+                if (ticks >> 32)    /* OVERFLOW_32K */
                     s->ulpd_pm_regs[0x14 >> 2] |= 1 << 2;
 
                 /* High frequency ticks */
                 ticks = muldiv64(now, 12000000, NANOSECONDS_PER_SECOND);
                 s->ulpd_pm_regs[0x08 >> 2] = (ticks >>  0) & 0xffff;
                 s->ulpd_pm_regs[0x0c >> 2] = (ticks >> 16) & 0xffff;
-                if (ticks >> 32)	/* OVERFLOW_HI_FREQ */
+                if (ticks >> 32)    /* OVERFLOW_HI_FREQ */
                     s->ulpd_pm_regs[0x14 >> 2] |= 1 << 1;
 
-                s->ulpd_pm_regs[0x14 >> 2] |= 1 << 0;	/* IT_GAUGING */
+                s->ulpd_pm_regs[0x14 >> 2] |= 1 << 0;   /* IT_GAUGING */
                 qemu_irq_raise(qdev_get_gpio_in(s->ih[1], OMAP_INT_GAUGE_32K));
             }
         }
         s->ulpd_pm_regs[addr >> 2] = value;
         break;
 
-    case 0x18:	/* Reserved */
-    case 0x1c:	/* Reserved */
-    case 0x20:	/* Reserved */
-    case 0x28:	/* Reserved */
-    case 0x2c:	/* Reserved */
+    case 0x18:  /* Reserved */
+    case 0x1c:  /* Reserved */
+    case 0x20:  /* Reserved */
+    case 0x28:  /* Reserved */
+    case 0x2c:  /* Reserved */
         OMAP_BAD_REG(addr);
         /* fall through */
-    case 0x24:	/* SETUP_ANALOG_CELL3_ULPD1 */
-    case 0x38:	/* COUNTER_32_FIQ */
-    case 0x48:	/* LOCL_TIME */
-    case 0x50:	/* POWER_CTRL */
+    case 0x24:  /* SETUP_ANALOG_CELL3_ULPD1 */
+    case 0x38:  /* COUNTER_32_FIQ */
+    case 0x48:  /* LOCL_TIME */
+    case 0x50:  /* POWER_CTRL */
         s->ulpd_pm_regs[addr >> 2] = value;
         break;
 
-    case 0x30:	/* CLOCK_CTRL */
+    case 0x30:  /* CLOCK_CTRL */
         diff = s->ulpd_pm_regs[addr >> 2] ^ value;
         s->ulpd_pm_regs[addr >> 2] = value & 0x3f;
         omap_ulpd_clk_update(s, diff, value);
         break;
 
-    case 0x34:	/* SOFT_REQ */
+    case 0x34:  /* SOFT_REQ */
         diff = s->ulpd_pm_regs[addr >> 2] ^ value;
         s->ulpd_pm_regs[addr >> 2] = value & 0x1f;
         omap_ulpd_req_update(s, diff, value);
         break;
 
-    case 0x3c:	/* DPLL_CTRL */
+    case 0x3c:  /* DPLL_CTRL */
         /* XXX: OMAP310 TRM claims bit 3 is PLL_ENABLE, and bit 4 is
          * omitted altogether, probably a typo.  */
         /* This register has identical semantics with DPLL(1:3) control
@@ -689,11 +689,11 @@ static void omap_ulpd_pm_write(void *opaque, hwaddr addr,
         diff = s->ulpd_pm_regs[addr >> 2] & value;
         s->ulpd_pm_regs[addr >> 2] = value & 0x2fff;
         if (diff & (0x3ff << 2)) {
-            if (value & (1 << 4)) {			/* PLL_ENABLE */
-                div = ((value >> 5) & 3) + 1;		/* PLL_DIV */
-                mult = MIN((value >> 7) & 0x1f, 1);	/* PLL_MULT */
+            if (value & (1 << 4)) {         /* PLL_ENABLE */
+                div = ((value >> 5) & 3) + 1;       /* PLL_DIV */
+                mult = MIN((value >> 7) & 0x1f, 1); /* PLL_MULT */
             } else {
-                div = bypass_div[((value >> 2) & 3)];	/* BYPASS_DIV */
+                div = bypass_div[((value >> 2) & 3)];   /* BYPASS_DIV */
                 mult = 1;
             }
             omap_clk_setrate(omap_findclk(s, "dpll4"), div, mult);
@@ -708,10 +708,10 @@ static void omap_ulpd_pm_write(void *opaque, hwaddr addr,
         s->ulpd_pm_regs[addr >> 2] |= 2;
         break;
 
-    case 0x4c:	/* APLL_CTRL */
+    case 0x4c:  /* APLL_CTRL */
         diff = s->ulpd_pm_regs[addr >> 2] & value;
         s->ulpd_pm_regs[addr >> 2] = value & 0xf;
-        if (diff & (1 << 0))				/* APLL_NDPLL_SWITCH */
+        if (diff & (1 << 0))                /* APLL_NDPLL_SWITCH */
             omap_clk_reparent(omap_findclk(s, "ck_48m"), omap_findclk(s,
                                     (value & (1 << 0)) ? "apll" : "dpll4"));
         break;
@@ -775,43 +775,43 @@ static uint64_t omap_pin_cfg_read(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* FUNC_MUX_CTRL_0 */
-    case 0x04:	/* FUNC_MUX_CTRL_1 */
-    case 0x08:	/* FUNC_MUX_CTRL_2 */
+    case 0x00:  /* FUNC_MUX_CTRL_0 */
+    case 0x04:  /* FUNC_MUX_CTRL_1 */
+    case 0x08:  /* FUNC_MUX_CTRL_2 */
         return s->func_mux_ctrl[addr >> 2];
 
-    case 0x0c:	/* COMP_MODE_CTRL_0 */
+    case 0x0c:  /* COMP_MODE_CTRL_0 */
         return s->comp_mode_ctrl[0];
 
-    case 0x10:	/* FUNC_MUX_CTRL_3 */
-    case 0x14:	/* FUNC_MUX_CTRL_4 */
-    case 0x18:	/* FUNC_MUX_CTRL_5 */
-    case 0x1c:	/* FUNC_MUX_CTRL_6 */
-    case 0x20:	/* FUNC_MUX_CTRL_7 */
-    case 0x24:	/* FUNC_MUX_CTRL_8 */
-    case 0x28:	/* FUNC_MUX_CTRL_9 */
-    case 0x2c:	/* FUNC_MUX_CTRL_A */
-    case 0x30:	/* FUNC_MUX_CTRL_B */
-    case 0x34:	/* FUNC_MUX_CTRL_C */
-    case 0x38:	/* FUNC_MUX_CTRL_D */
+    case 0x10:  /* FUNC_MUX_CTRL_3 */
+    case 0x14:  /* FUNC_MUX_CTRL_4 */
+    case 0x18:  /* FUNC_MUX_CTRL_5 */
+    case 0x1c:  /* FUNC_MUX_CTRL_6 */
+    case 0x20:  /* FUNC_MUX_CTRL_7 */
+    case 0x24:  /* FUNC_MUX_CTRL_8 */
+    case 0x28:  /* FUNC_MUX_CTRL_9 */
+    case 0x2c:  /* FUNC_MUX_CTRL_A */
+    case 0x30:  /* FUNC_MUX_CTRL_B */
+    case 0x34:  /* FUNC_MUX_CTRL_C */
+    case 0x38:  /* FUNC_MUX_CTRL_D */
         return s->func_mux_ctrl[(addr >> 2) - 1];
 
-    case 0x40:	/* PULL_DWN_CTRL_0 */
-    case 0x44:	/* PULL_DWN_CTRL_1 */
-    case 0x48:	/* PULL_DWN_CTRL_2 */
-    case 0x4c:	/* PULL_DWN_CTRL_3 */
+    case 0x40:  /* PULL_DWN_CTRL_0 */
+    case 0x44:  /* PULL_DWN_CTRL_1 */
+    case 0x48:  /* PULL_DWN_CTRL_2 */
+    case 0x4c:  /* PULL_DWN_CTRL_3 */
         return s->pull_dwn_ctrl[(addr & 0xf) >> 2];
 
-    case 0x50:	/* GATE_INH_CTRL_0 */
+    case 0x50:  /* GATE_INH_CTRL_0 */
         return s->gate_inh_ctrl[0];
 
-    case 0x60:	/* VOLTAGE_CTRL_0 */
+    case 0x60:  /* VOLTAGE_CTRL_0 */
         return s->voltage_ctrl[0];
 
-    case 0x70:	/* TEST_DBG_CTRL_0 */
+    case 0x70:  /* TEST_DBG_CTRL_0 */
         return s->test_dbg_ctrl[0];
 
-    case 0x80:	/* MOD_CONF_CTRL_0 */
+    case 0x80:  /* MOD_CONF_CTRL_0 */
         return s->mod_conf_ctrl[0];
     }
 
@@ -823,10 +823,10 @@ static inline void omap_pin_funcmux0_update(struct omap_mpu_state_s *s,
                 uint32_t diff, uint32_t value)
 {
     if (s->compat1509) {
-        if (diff & (1 << 9))			/* BLUETOOTH */
+        if (diff & (1 << 9))            /* BLUETOOTH */
             omap_clk_onoff(omap_findclk(s, "bt_mclk_out"),
                             (~value >> 9) & 1);
-        if (diff & (1 << 7))			/* USB.CLKO */
+        if (diff & (1 << 7))            /* USB.CLKO */
             omap_clk_onoff(omap_findclk(s, "usb.clko"),
                             (value >> 7) & 1);
     }
@@ -856,23 +856,23 @@ static inline void omap_pin_modconf1_update(struct omap_mpu_state_s *s,
                           omap_findclk(s, ((value >> 31) & 1) ?
                                        "ck_48m" : "armper_ck"));
     }
-    if (diff & (1 << 30))			/* CONF_MOD_UART2_CLK_MODE_R */
+    if (diff & (1 << 30))           /* CONF_MOD_UART2_CLK_MODE_R */
          omap_clk_reparent(omap_findclk(s, "uart2_ck"),
                          omap_findclk(s, ((value >> 30) & 1) ?
                                  "ck_48m" : "armper_ck"));
-    if (diff & (1 << 29))			/* CONF_MOD_UART1_CLK_MODE_R */
+    if (diff & (1 << 29))           /* CONF_MOD_UART1_CLK_MODE_R */
          omap_clk_reparent(omap_findclk(s, "uart1_ck"),
                          omap_findclk(s, ((value >> 29) & 1) ?
                                  "ck_48m" : "armper_ck"));
-    if (diff & (1 << 23))			/* CONF_MOD_MMC_SD_CLK_REQ_R */
+    if (diff & (1 << 23))           /* CONF_MOD_MMC_SD_CLK_REQ_R */
          omap_clk_reparent(omap_findclk(s, "mmc_ck"),
                          omap_findclk(s, ((value >> 23) & 1) ?
                                  "ck_48m" : "armper_ck"));
-    if (diff & (1 << 12))			/* CONF_MOD_COM_MCLK_12_48_S */
+    if (diff & (1 << 12))           /* CONF_MOD_COM_MCLK_12_48_S */
          omap_clk_reparent(omap_findclk(s, "com_mclk_out"),
                          omap_findclk(s, ((value >> 12) & 1) ?
                                  "ck_48m" : "armper_ck"));
-    if (diff & (1 << 9))			/* CONF_MOD_USB_HOST_HHC_UHO */
+    if (diff & (1 << 9))            /* CONF_MOD_USB_HOST_HHC_UHO */
          omap_clk_onoff(omap_findclk(s, "usb_hhc_ck"), (value >> 9) & 1);
 }
 
@@ -888,63 +888,63 @@ static void omap_pin_cfg_write(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* FUNC_MUX_CTRL_0 */
+    case 0x00:  /* FUNC_MUX_CTRL_0 */
         diff = s->func_mux_ctrl[addr >> 2] ^ value;
         s->func_mux_ctrl[addr >> 2] = value;
         omap_pin_funcmux0_update(s, diff, value);
         return;
 
-    case 0x04:	/* FUNC_MUX_CTRL_1 */
+    case 0x04:  /* FUNC_MUX_CTRL_1 */
         diff = s->func_mux_ctrl[addr >> 2] ^ value;
         s->func_mux_ctrl[addr >> 2] = value;
         omap_pin_funcmux1_update(s, diff, value);
         return;
 
-    case 0x08:	/* FUNC_MUX_CTRL_2 */
+    case 0x08:  /* FUNC_MUX_CTRL_2 */
         s->func_mux_ctrl[addr >> 2] = value;
         return;
 
-    case 0x0c:	/* COMP_MODE_CTRL_0 */
+    case 0x0c:  /* COMP_MODE_CTRL_0 */
         s->comp_mode_ctrl[0] = value;
         s->compat1509 = (value != 0x0000eaef);
         omap_pin_funcmux0_update(s, ~0, s->func_mux_ctrl[0]);
         omap_pin_funcmux1_update(s, ~0, s->func_mux_ctrl[1]);
         return;
 
-    case 0x10:	/* FUNC_MUX_CTRL_3 */
-    case 0x14:	/* FUNC_MUX_CTRL_4 */
-    case 0x18:	/* FUNC_MUX_CTRL_5 */
-    case 0x1c:	/* FUNC_MUX_CTRL_6 */
-    case 0x20:	/* FUNC_MUX_CTRL_7 */
-    case 0x24:	/* FUNC_MUX_CTRL_8 */
-    case 0x28:	/* FUNC_MUX_CTRL_9 */
-    case 0x2c:	/* FUNC_MUX_CTRL_A */
-    case 0x30:	/* FUNC_MUX_CTRL_B */
-    case 0x34:	/* FUNC_MUX_CTRL_C */
-    case 0x38:	/* FUNC_MUX_CTRL_D */
+    case 0x10:  /* FUNC_MUX_CTRL_3 */
+    case 0x14:  /* FUNC_MUX_CTRL_4 */
+    case 0x18:  /* FUNC_MUX_CTRL_5 */
+    case 0x1c:  /* FUNC_MUX_CTRL_6 */
+    case 0x20:  /* FUNC_MUX_CTRL_7 */
+    case 0x24:  /* FUNC_MUX_CTRL_8 */
+    case 0x28:  /* FUNC_MUX_CTRL_9 */
+    case 0x2c:  /* FUNC_MUX_CTRL_A */
+    case 0x30:  /* FUNC_MUX_CTRL_B */
+    case 0x34:  /* FUNC_MUX_CTRL_C */
+    case 0x38:  /* FUNC_MUX_CTRL_D */
         s->func_mux_ctrl[(addr >> 2) - 1] = value;
         return;
 
-    case 0x40:	/* PULL_DWN_CTRL_0 */
-    case 0x44:	/* PULL_DWN_CTRL_1 */
-    case 0x48:	/* PULL_DWN_CTRL_2 */
-    case 0x4c:	/* PULL_DWN_CTRL_3 */
+    case 0x40:  /* PULL_DWN_CTRL_0 */
+    case 0x44:  /* PULL_DWN_CTRL_1 */
+    case 0x48:  /* PULL_DWN_CTRL_2 */
+    case 0x4c:  /* PULL_DWN_CTRL_3 */
         s->pull_dwn_ctrl[(addr & 0xf) >> 2] = value;
         return;
 
-    case 0x50:	/* GATE_INH_CTRL_0 */
+    case 0x50:  /* GATE_INH_CTRL_0 */
         s->gate_inh_ctrl[0] = value;
         return;
 
-    case 0x60:	/* VOLTAGE_CTRL_0 */
+    case 0x60:  /* VOLTAGE_CTRL_0 */
         s->voltage_ctrl[0] = value;
         return;
 
-    case 0x70:	/* TEST_DBG_CTRL_0 */
+    case 0x70:  /* TEST_DBG_CTRL_0 */
         s->test_dbg_ctrl[0] = value;
         return;
 
-    case 0x80:	/* MOD_CONF_CTRL_0 */
+    case 0x80:  /* MOD_CONF_CTRL_0 */
         diff = s->mod_conf_ctrl[0] ^ value;
         s->mod_conf_ctrl[0] = value;
         omap_pin_modconf1_update(s, diff, value);
@@ -998,17 +998,17 @@ static uint64_t omap_id_read(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0xfffe1800:	/* DIE_ID_LSB */
+    case 0xfffe1800:    /* DIE_ID_LSB */
         return 0xc9581f0e;
-    case 0xfffe1804:	/* DIE_ID_MSB */
+    case 0xfffe1804:    /* DIE_ID_MSB */
         return 0xa8858bfa;
 
-    case 0xfffe2000:	/* PRODUCT_ID_LSB */
+    case 0xfffe2000:    /* PRODUCT_ID_LSB */
         return 0x00aaaafc;
-    case 0xfffe2004:	/* PRODUCT_ID_MSB */
+    case 0xfffe2004:    /* PRODUCT_ID_MSB */
         return 0xcafeb574;
 
-    case 0xfffed400:	/* JTAG_ID_LSB */
+    case 0xfffed400:    /* JTAG_ID_LSB */
         switch (s->mpu_model) {
         case omap310:
             return 0x03310315;
@@ -1019,7 +1019,7 @@ static uint64_t omap_id_read(void *opaque, hwaddr addr,
         }
         break;
 
-    case 0xfffed404:	/* JTAG_ID_MSB */
+    case 0xfffed404:    /* JTAG_ID_MSB */
         switch (s->mpu_model) {
         case omap310:
             return 0xfb57402f;
@@ -1080,22 +1080,22 @@ static uint64_t omap_mpui_read(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* CTRL */
+    case 0x00:  /* CTRL */
         return s->mpui_ctrl;
-    case 0x04:	/* DEBUG_ADDR */
+    case 0x04:  /* DEBUG_ADDR */
         return 0x01ffffff;
-    case 0x08:	/* DEBUG_DATA */
+    case 0x08:  /* DEBUG_DATA */
         return 0xffffffff;
-    case 0x0c:	/* DEBUG_FLAG */
+    case 0x0c:  /* DEBUG_FLAG */
         return 0x00000800;
-    case 0x10:	/* STATUS */
+    case 0x10:  /* STATUS */
         return 0x00000000;
 
     /* Not in OMAP310 */
-    case 0x14:	/* DSP_STATUS */
-    case 0x18:	/* DSP_BOOT_CONFIG */
+    case 0x14:  /* DSP_STATUS */
+    case 0x18:  /* DSP_BOOT_CONFIG */
         return 0x00000000;
-    case 0x1c:	/* DSP_MPUI_CONFIG */
+    case 0x1c:  /* DSP_MPUI_CONFIG */
         return 0x0000ffff;
     }
 
@@ -1114,20 +1114,20 @@ static void omap_mpui_write(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* CTRL */
+    case 0x00:  /* CTRL */
         s->mpui_ctrl = value & 0x007fffff;
         break;
 
-    case 0x04:	/* DEBUG_ADDR */
-    case 0x08:	/* DEBUG_DATA */
-    case 0x0c:	/* DEBUG_FLAG */
-    case 0x10:	/* STATUS */
+    case 0x04:  /* DEBUG_ADDR */
+    case 0x08:  /* DEBUG_DATA */
+    case 0x0c:  /* DEBUG_FLAG */
+    case 0x10:  /* STATUS */
     /* Not in OMAP310 */
-    case 0x14:	/* DSP_STATUS */
+    case 0x14:  /* DSP_STATUS */
         OMAP_RO_REG(addr);
         break;
-    case 0x18:	/* DSP_BOOT_CONFIG */
-    case 0x1c:	/* DSP_MPUI_CONFIG */
+    case 0x18:  /* DSP_BOOT_CONFIG */
+    case 0x1c:  /* DSP_MPUI_CONFIG */
         break;
 
     default:
@@ -1178,19 +1178,19 @@ static uint64_t omap_tipb_bridge_read(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* TIPB_CNTL */
+    case 0x00:  /* TIPB_CNTL */
         return s->control;
-    case 0x04:	/* TIPB_BUS_ALLOC */
+    case 0x04:  /* TIPB_BUS_ALLOC */
         return s->alloc;
-    case 0x08:	/* MPU_TIPB_CNTL */
+    case 0x08:  /* MPU_TIPB_CNTL */
         return s->buffer;
-    case 0x0c:	/* ENHANCED_TIPB_CNTL */
+    case 0x0c:  /* ENHANCED_TIPB_CNTL */
         return s->enh_control;
-    case 0x10:	/* ADDRESS_DBG */
-    case 0x14:	/* DATA_DEBUG_LOW */
-    case 0x18:	/* DATA_DEBUG_HIGH */
+    case 0x10:  /* ADDRESS_DBG */
+    case 0x14:  /* DATA_DEBUG_LOW */
+    case 0x18:  /* DATA_DEBUG_HIGH */
         return 0xffff;
-    case 0x1c:	/* DEBUG_CNTR_SIG */
+    case 0x1c:  /* DEBUG_CNTR_SIG */
         return 0x00f8;
     }
 
@@ -1209,27 +1209,27 @@ static void omap_tipb_bridge_write(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* TIPB_CNTL */
+    case 0x00:  /* TIPB_CNTL */
         s->control = value & 0xffff;
         break;
 
-    case 0x04:	/* TIPB_BUS_ALLOC */
+    case 0x04:  /* TIPB_BUS_ALLOC */
         s->alloc = value & 0x003f;
         break;
 
-    case 0x08:	/* MPU_TIPB_CNTL */
+    case 0x08:  /* MPU_TIPB_CNTL */
         s->buffer = value & 0x0003;
         break;
 
-    case 0x0c:	/* ENHANCED_TIPB_CNTL */
+    case 0x0c:  /* ENHANCED_TIPB_CNTL */
         s->width_intr = !(value & 2);
         s->enh_control = value & 0x000f;
         break;
 
-    case 0x10:	/* ADDRESS_DBG */
-    case 0x14:	/* DATA_DEBUG_LOW */
-    case 0x18:	/* DATA_DEBUG_HIGH */
-    case 0x1c:	/* DEBUG_CNTR_SIG */
+    case 0x10:  /* ADDRESS_DBG */
+    case 0x14:  /* DATA_DEBUG_LOW */
+    case 0x18:  /* DATA_DEBUG_HIGH */
+    case 0x1c:  /* DEBUG_CNTR_SIG */
         OMAP_RO_REG(addr);
         break;
 
@@ -1280,23 +1280,23 @@ static uint64_t omap_tcmi_read(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* IMIF_PRIO */
-    case 0x04:	/* EMIFS_PRIO */
-    case 0x08:	/* EMIFF_PRIO */
-    case 0x0c:	/* EMIFS_CONFIG */
-    case 0x10:	/* EMIFS_CS0_CONFIG */
-    case 0x14:	/* EMIFS_CS1_CONFIG */
-    case 0x18:	/* EMIFS_CS2_CONFIG */
-    case 0x1c:	/* EMIFS_CS3_CONFIG */
-    case 0x24:	/* EMIFF_MRS */
-    case 0x28:	/* TIMEOUT1 */
-    case 0x2c:	/* TIMEOUT2 */
-    case 0x30:	/* TIMEOUT3 */
-    case 0x3c:	/* EMIFF_SDRAM_CONFIG_2 */
-    case 0x40:	/* EMIFS_CFG_DYN_WAIT */
+    case 0x00:  /* IMIF_PRIO */
+    case 0x04:  /* EMIFS_PRIO */
+    case 0x08:  /* EMIFF_PRIO */
+    case 0x0c:  /* EMIFS_CONFIG */
+    case 0x10:  /* EMIFS_CS0_CONFIG */
+    case 0x14:  /* EMIFS_CS1_CONFIG */
+    case 0x18:  /* EMIFS_CS2_CONFIG */
+    case 0x1c:  /* EMIFS_CS3_CONFIG */
+    case 0x24:  /* EMIFF_MRS */
+    case 0x28:  /* TIMEOUT1 */
+    case 0x2c:  /* TIMEOUT2 */
+    case 0x30:  /* TIMEOUT3 */
+    case 0x3c:  /* EMIFF_SDRAM_CONFIG_2 */
+    case 0x40:  /* EMIFS_CFG_DYN_WAIT */
         return s->tcmi_regs[addr >> 2];
 
-    case 0x20:	/* EMIFF_SDRAM_CONFIG */
+    case 0x20:  /* EMIFF_SDRAM_CONFIG */
         ret = s->tcmi_regs[addr >> 2];
         s->tcmi_regs[addr >> 2] &= ~1; /* XXX: Clear SLRF on SDRAM access */
         /* XXX: We can try using the VGA_DIRTY flag for this */
@@ -1318,23 +1318,23 @@ static void omap_tcmi_write(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* IMIF_PRIO */
-    case 0x04:	/* EMIFS_PRIO */
-    case 0x08:	/* EMIFF_PRIO */
-    case 0x10:	/* EMIFS_CS0_CONFIG */
-    case 0x14:	/* EMIFS_CS1_CONFIG */
-    case 0x18:	/* EMIFS_CS2_CONFIG */
-    case 0x1c:	/* EMIFS_CS3_CONFIG */
-    case 0x20:	/* EMIFF_SDRAM_CONFIG */
-    case 0x24:	/* EMIFF_MRS */
-    case 0x28:	/* TIMEOUT1 */
-    case 0x2c:	/* TIMEOUT2 */
-    case 0x30:	/* TIMEOUT3 */
-    case 0x3c:	/* EMIFF_SDRAM_CONFIG_2 */
-    case 0x40:	/* EMIFS_CFG_DYN_WAIT */
+    case 0x00:  /* IMIF_PRIO */
+    case 0x04:  /* EMIFS_PRIO */
+    case 0x08:  /* EMIFF_PRIO */
+    case 0x10:  /* EMIFS_CS0_CONFIG */
+    case 0x14:  /* EMIFS_CS1_CONFIG */
+    case 0x18:  /* EMIFS_CS2_CONFIG */
+    case 0x1c:  /* EMIFS_CS3_CONFIG */
+    case 0x20:  /* EMIFF_SDRAM_CONFIG */
+    case 0x24:  /* EMIFF_MRS */
+    case 0x28:  /* TIMEOUT1 */
+    case 0x2c:  /* TIMEOUT2 */
+    case 0x30:  /* TIMEOUT3 */
+    case 0x3c:  /* EMIFF_SDRAM_CONFIG_2 */
+    case 0x40:  /* EMIFS_CFG_DYN_WAIT */
         s->tcmi_regs[addr >> 2] = value;
         break;
-    case 0x0c:	/* EMIFS_CONFIG */
+    case 0x0c:  /* EMIFS_CONFIG */
         s->tcmi_regs[addr >> 2] = (value & 0xf) | (1 << 4);
         break;
 
@@ -1393,7 +1393,7 @@ static uint64_t omap_dpll_read(void *opaque, hwaddr addr,
         return omap_badwidth_read16(opaque, addr);
     }
 
-    if (addr == 0x00)	/* CTL_REG */
+    if (addr == 0x00)   /* CTL_REG */
         return s->mode;
 
     OMAP_BAD_REG(addr);
@@ -1413,16 +1413,16 @@ static void omap_dpll_write(void *opaque, hwaddr addr,
         return;
     }
 
-    if (addr == 0x00) {	/* CTL_REG */
+    if (addr == 0x00) { /* CTL_REG */
         /* See omap_ulpd_pm_write() too */
         diff = s->mode & value;
         s->mode = value & 0x2fff;
         if (diff & (0x3ff << 2)) {
-            if (value & (1 << 4)) {			/* PLL_ENABLE */
-                div = ((value >> 5) & 3) + 1;		/* PLL_DIV */
-                mult = MIN((value >> 7) & 0x1f, 1);	/* PLL_MULT */
+            if (value & (1 << 4)) {         /* PLL_ENABLE */
+                div = ((value >> 5) & 3) + 1;       /* PLL_DIV */
+                mult = MIN((value >> 7) & 0x1f, 1); /* PLL_MULT */
             } else {
-                div = bypass_div[((value >> 2) & 3)];	/* BYPASS_DIV */
+                div = bypass_div[((value >> 2) & 3)];   /* BYPASS_DIV */
                 mult = 1;
             }
             omap_clk_setrate(s->dpll, div, mult);
@@ -1474,31 +1474,31 @@ static uint64_t omap_clkm_read(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* ARM_CKCTL */
+    case 0x00:  /* ARM_CKCTL */
         return s->clkm.arm_ckctl;
 
-    case 0x04:	/* ARM_IDLECT1 */
+    case 0x04:  /* ARM_IDLECT1 */
         return s->clkm.arm_idlect1;
 
-    case 0x08:	/* ARM_IDLECT2 */
+    case 0x08:  /* ARM_IDLECT2 */
         return s->clkm.arm_idlect2;
 
-    case 0x0c:	/* ARM_EWUPCT */
+    case 0x0c:  /* ARM_EWUPCT */
         return s->clkm.arm_ewupct;
 
-    case 0x10:	/* ARM_RSTCT1 */
+    case 0x10:  /* ARM_RSTCT1 */
         return s->clkm.arm_rstct1;
 
-    case 0x14:	/* ARM_RSTCT2 */
+    case 0x14:  /* ARM_RSTCT2 */
         return s->clkm.arm_rstct2;
 
-    case 0x18:	/* ARM_SYSST */
+    case 0x18:  /* ARM_SYSST */
         return (s->clkm.clocking_scheme << 11) | s->clkm.cold_start;
 
-    case 0x1c:	/* ARM_CKOUT1 */
+    case 0x1c:  /* ARM_CKOUT1 */
         return s->clkm.arm_ckout1;
 
-    case 0x20:	/* ARM_CKOUT2 */
+    case 0x20:  /* ARM_CKOUT2 */
         break;
     }
 
@@ -1511,7 +1511,7 @@ static inline void omap_clkm_ckctl_update(struct omap_mpu_state_s *s,
 {
     omap_clk clk;
 
-    if (diff & (1 << 14)) {				/* ARM_INTHCK_SEL */
+    if (diff & (1 << 14)) {             /* ARM_INTHCK_SEL */
         if (value & (1 << 14))
             /* Reserved */;
         else {
@@ -1519,7 +1519,7 @@ static inline void omap_clkm_ckctl_update(struct omap_mpu_state_s *s,
             omap_clk_reparent(clk, omap_findclk(s, "tc_ck"));
         }
     }
-    if (diff & (1 << 12)) {				/* ARM_TIMXO */
+    if (diff & (1 << 12)) {             /* ARM_TIMXO */
         clk = omap_findclk(s, "armtim_ck");
         if (value & (1 << 12))
             omap_clk_reparent(clk, omap_findclk(s, "clkin"));
@@ -1527,27 +1527,27 @@ static inline void omap_clkm_ckctl_update(struct omap_mpu_state_s *s,
             omap_clk_reparent(clk, omap_findclk(s, "ck_gen1"));
     }
     /* XXX: en_dspck */
-    if (diff & (3 << 10)) {				/* DSPMMUDIV */
+    if (diff & (3 << 10)) {             /* DSPMMUDIV */
         clk = omap_findclk(s, "dspmmu_ck");
         omap_clk_setrate(clk, 1 << ((value >> 10) & 3), 1);
     }
-    if (diff & (3 << 8)) {				/* TCDIV */
+    if (diff & (3 << 8)) {              /* TCDIV */
         clk = omap_findclk(s, "tc_ck");
         omap_clk_setrate(clk, 1 << ((value >> 8) & 3), 1);
     }
-    if (diff & (3 << 6)) {				/* DSPDIV */
+    if (diff & (3 << 6)) {              /* DSPDIV */
         clk = omap_findclk(s, "dsp_ck");
         omap_clk_setrate(clk, 1 << ((value >> 6) & 3), 1);
     }
-    if (diff & (3 << 4)) {				/* ARMDIV */
+    if (diff & (3 << 4)) {              /* ARMDIV */
         clk = omap_findclk(s, "arm_ck");
         omap_clk_setrate(clk, 1 << ((value >> 4) & 3), 1);
     }
-    if (diff & (3 << 2)) {				/* LCDDIV */
+    if (diff & (3 << 2)) {              /* LCDDIV */
         clk = omap_findclk(s, "lcd_ck");
         omap_clk_setrate(clk, 1 << ((value >> 2) & 3), 1);
     }
-    if (diff & (3 << 0)) {				/* PERDIV */
+    if (diff & (3 << 0)) {              /* PERDIV */
         clk = omap_findclk(s, "armper_ck");
         omap_clk_setrate(clk, 1 << ((value >> 0) & 3), 1);
     }
@@ -1566,25 +1566,25 @@ static inline void omap_clkm_idlect1_update(struct omap_mpu_state_s *s,
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
     }
 
-#define SET_CANIDLE(clock, bit)				\
-    if (diff & (1 << bit)) {				\
-        clk = omap_findclk(s, clock);			\
-        omap_clk_canidle(clk, (value >> bit) & 1);	\
+#define SET_CANIDLE(clock, bit)                     \
+    if (diff & (1 << bit)) {                        \
+        clk = omap_findclk(s, clock);               \
+        omap_clk_canidle(clk, (value >> bit) & 1);  \
     }
-    SET_CANIDLE("mpuwd_ck", 0)				/* IDLWDT_ARM */
-    SET_CANIDLE("armxor_ck", 1)				/* IDLXORP_ARM */
-    SET_CANIDLE("mpuper_ck", 2)				/* IDLPER_ARM */
-    SET_CANIDLE("lcd_ck", 3)				/* IDLLCD_ARM */
-    SET_CANIDLE("lb_ck", 4)				/* IDLLB_ARM */
-    SET_CANIDLE("hsab_ck", 5)				/* IDLHSAB_ARM */
-    SET_CANIDLE("tipb_ck", 6)				/* IDLIF_ARM */
-    SET_CANIDLE("dma_ck", 6)				/* IDLIF_ARM */
-    SET_CANIDLE("tc_ck", 6)				/* IDLIF_ARM */
-    SET_CANIDLE("dpll1", 7)				/* IDLDPLL_ARM */
-    SET_CANIDLE("dpll2", 7)				/* IDLDPLL_ARM */
-    SET_CANIDLE("dpll3", 7)				/* IDLDPLL_ARM */
-    SET_CANIDLE("mpui_ck", 8)				/* IDLAPI_ARM */
-    SET_CANIDLE("armtim_ck", 9)				/* IDLTIM_ARM */
+    SET_CANIDLE("mpuwd_ck", 0)          /* IDLWDT_ARM */
+    SET_CANIDLE("armxor_ck", 1)         /* IDLXORP_ARM */
+    SET_CANIDLE("mpuper_ck", 2)         /* IDLPER_ARM */
+    SET_CANIDLE("lcd_ck", 3)            /* IDLLCD_ARM */
+    SET_CANIDLE("lb_ck", 4)             /* IDLLB_ARM */
+    SET_CANIDLE("hsab_ck", 5)           /* IDLHSAB_ARM */
+    SET_CANIDLE("tipb_ck", 6)           /* IDLIF_ARM */
+    SET_CANIDLE("dma_ck", 6)            /* IDLIF_ARM */
+    SET_CANIDLE("tc_ck", 6)             /* IDLIF_ARM */
+    SET_CANIDLE("dpll1", 7)             /* IDLDPLL_ARM */
+    SET_CANIDLE("dpll2", 7)             /* IDLDPLL_ARM */
+    SET_CANIDLE("dpll3", 7)             /* IDLDPLL_ARM */
+    SET_CANIDLE("mpui_ck", 8)           /* IDLAPI_ARM */
+    SET_CANIDLE("armtim_ck", 9)         /* IDLTIM_ARM */
 }
 
 static inline void omap_clkm_idlect2_update(struct omap_mpu_state_s *s,
@@ -1592,22 +1592,22 @@ static inline void omap_clkm_idlect2_update(struct omap_mpu_state_s *s,
 {
     omap_clk clk;
 
-#define SET_ONOFF(clock, bit)				\
-    if (diff & (1 << bit)) {				\
-        clk = omap_findclk(s, clock);			\
-        omap_clk_onoff(clk, (value >> bit) & 1);	\
+#define SET_ONOFF(clock, bit)                       \
+    if (diff & (1 << bit)) {                        \
+        clk = omap_findclk(s, clock);               \
+        omap_clk_onoff(clk, (value >> bit) & 1);    \
     }
-    SET_ONOFF("mpuwd_ck", 0)				/* EN_WDTCK */
-    SET_ONOFF("armxor_ck", 1)				/* EN_XORPCK */
-    SET_ONOFF("mpuper_ck", 2)				/* EN_PERCK */
-    SET_ONOFF("lcd_ck", 3)				/* EN_LCDCK */
-    SET_ONOFF("lb_ck", 4)				/* EN_LBCK */
-    SET_ONOFF("hsab_ck", 5)				/* EN_HSABCK */
-    SET_ONOFF("mpui_ck", 6)				/* EN_APICK */
-    SET_ONOFF("armtim_ck", 7)				/* EN_TIMCK */
-    SET_CANIDLE("dma_ck", 8)				/* DMACK_REQ */
-    SET_ONOFF("arm_gpio_ck", 9)				/* EN_GPIOCK */
-    SET_ONOFF("lbfree_ck", 10)				/* EN_LBFREECK */
+    SET_ONOFF("mpuwd_ck", 0)            /* EN_WDTCK */
+    SET_ONOFF("armxor_ck", 1)           /* EN_XORPCK */
+    SET_ONOFF("mpuper_ck", 2)           /* EN_PERCK */
+    SET_ONOFF("lcd_ck", 3)              /* EN_LCDCK */
+    SET_ONOFF("lb_ck", 4)               /* EN_LBCK */
+    SET_ONOFF("hsab_ck", 5)             /* EN_HSABCK */
+    SET_ONOFF("mpui_ck", 6)             /* EN_APICK */
+    SET_ONOFF("armtim_ck", 7)           /* EN_TIMCK */
+    SET_CANIDLE("dma_ck", 8)            /* DMACK_REQ */
+    SET_ONOFF("arm_gpio_ck", 9)         /* EN_GPIOCK */
+    SET_ONOFF("lbfree_ck", 10)          /* EN_LBFREECK */
 }
 
 static inline void omap_clkm_ckout1_update(struct omap_mpu_state_s *s,
@@ -1615,7 +1615,7 @@ static inline void omap_clkm_ckout1_update(struct omap_mpu_state_s *s,
 {
     omap_clk clk;
 
-    if (diff & (3 << 4)) {				/* TCLKOUT */
+    if (diff & (3 << 4)) {              /* TCLKOUT */
         clk = omap_findclk(s, "tclk_out");
         switch ((value >> 4) & 3) {
         case 1:
@@ -1630,7 +1630,7 @@ static inline void omap_clkm_ckout1_update(struct omap_mpu_state_s *s,
             omap_clk_onoff(clk, 0);
         }
     }
-    if (diff & (3 << 2)) {				/* DCLKOUT */
+    if (diff & (3 << 2)) {              /* DCLKOUT */
         clk = omap_findclk(s, "dclk_out");
         switch ((value >> 2) & 3) {
         case 0:
@@ -1647,7 +1647,7 @@ static inline void omap_clkm_ckout1_update(struct omap_mpu_state_s *s,
             break;
         }
     }
-    if (diff & (3 << 0)) {				/* ACLKOUT */
+    if (diff & (3 << 0)) {              /* ACLKOUT */
         clk = omap_findclk(s, "aclk_out");
         switch ((value >> 0) & 3) {
         case 1:
@@ -1685,51 +1685,51 @@ static void omap_clkm_write(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x00:	/* ARM_CKCTL */
+    case 0x00:  /* ARM_CKCTL */
         diff = s->clkm.arm_ckctl ^ value;
         s->clkm.arm_ckctl = value & 0x7fff;
         omap_clkm_ckctl_update(s, diff, value);
         return;
 
-    case 0x04:	/* ARM_IDLECT1 */
+    case 0x04:  /* ARM_IDLECT1 */
         diff = s->clkm.arm_idlect1 ^ value;
         s->clkm.arm_idlect1 = value & 0x0fff;
         omap_clkm_idlect1_update(s, diff, value);
         return;
 
-    case 0x08:	/* ARM_IDLECT2 */
+    case 0x08:  /* ARM_IDLECT2 */
         diff = s->clkm.arm_idlect2 ^ value;
         s->clkm.arm_idlect2 = value & 0x07ff;
         omap_clkm_idlect2_update(s, diff, value);
         return;
 
-    case 0x0c:	/* ARM_EWUPCT */
+    case 0x0c:  /* ARM_EWUPCT */
         s->clkm.arm_ewupct = value & 0x003f;
         return;
 
-    case 0x10:	/* ARM_RSTCT1 */
+    case 0x10:  /* ARM_RSTCT1 */
         diff = s->clkm.arm_rstct1 ^ value;
         s->clkm.arm_rstct1 = value & 0x0007;
         if (value & 9) {
             qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
             s->clkm.cold_start = 0xa;
         }
-        if (diff & ~value & 4) {				/* DSP_RST */
+        if (diff & ~value & 4) {                /* DSP_RST */
             omap_mpui_reset(s);
             omap_tipb_bridge_reset(s->private_tipb);
             omap_tipb_bridge_reset(s->public_tipb);
         }
-        if (diff & 2) {						/* DSP_EN */
+        if (diff & 2) {                     /* DSP_EN */
             clk = omap_findclk(s, "dsp_ck");
             omap_clk_canidle(clk, (~value >> 1) & 1);
         }
         return;
 
-    case 0x14:	/* ARM_RSTCT2 */
+    case 0x14:  /* ARM_RSTCT2 */
         s->clkm.arm_rstct2 = value & 0x0001;
         return;
 
-    case 0x18:	/* ARM_SYSST */
+    case 0x18:  /* ARM_SYSST */
         if ((s->clkm.clocking_scheme ^ (value >> 11)) & 7) {
             s->clkm.clocking_scheme = (value >> 11) & 7;
             trace_omap1_pwl_clocking_scheme(
@@ -1738,13 +1738,13 @@ static void omap_clkm_write(void *opaque, hwaddr addr,
         s->clkm.cold_start &= value & 0x3f;
         return;
 
-    case 0x1c:	/* ARM_CKOUT1 */
+    case 0x1c:  /* ARM_CKOUT1 */
         diff = s->clkm.arm_ckout1 ^ value;
         s->clkm.arm_ckout1 = value & 0x003f;
         omap_clkm_ckout1_update(s, diff, value);
         return;
 
-    case 0x20:	/* ARM_CKOUT2 */
+    case 0x20:  /* ARM_CKOUT2 */
     default:
         OMAP_BAD_REG(addr);
     }
@@ -1767,16 +1767,16 @@ static uint64_t omap_clkdsp_read(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x04:	/* DSP_IDLECT1 */
+    case 0x04:  /* DSP_IDLECT1 */
         return s->clkm.dsp_idlect1;
 
-    case 0x08:	/* DSP_IDLECT2 */
+    case 0x08:  /* DSP_IDLECT2 */
         return s->clkm.dsp_idlect2;
 
-    case 0x14:	/* DSP_RSTCT2 */
+    case 0x14:  /* DSP_RSTCT2 */
         return s->clkm.dsp_rstct2;
 
-    case 0x18:	/* DSP_SYSST */
+    case 0x18:  /* DSP_SYSST */
         return (s->clkm.clocking_scheme << 11) | s->clkm.cold_start |
                 (cpu->halted << 6);      /* Quite useless... */
     }
@@ -1790,7 +1790,7 @@ static inline void omap_clkdsp_idlect1_update(struct omap_mpu_state_s *s,
 {
     omap_clk clk;
 
-    SET_CANIDLE("dspxor_ck", 1);			/* IDLXORP_DSP */
+    SET_CANIDLE("dspxor_ck", 1);            /* IDLXORP_DSP */
 }
 
 static inline void omap_clkdsp_idlect2_update(struct omap_mpu_state_s *s,
@@ -1798,7 +1798,7 @@ static inline void omap_clkdsp_idlect2_update(struct omap_mpu_state_s *s,
 {
     omap_clk clk;
 
-    SET_ONOFF("dspxor_ck", 1);				/* EN_XORPCK */
+    SET_ONOFF("dspxor_ck", 1);              /* EN_XORPCK */
 }
 
 static void omap_clkdsp_write(void *opaque, hwaddr addr,
@@ -1813,23 +1813,23 @@ static void omap_clkdsp_write(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
-    case 0x04:	/* DSP_IDLECT1 */
+    case 0x04:  /* DSP_IDLECT1 */
         diff = s->clkm.dsp_idlect1 ^ value;
         s->clkm.dsp_idlect1 = value & 0x01f7;
         omap_clkdsp_idlect1_update(s, diff, value);
         break;
 
-    case 0x08:	/* DSP_IDLECT2 */
+    case 0x08:  /* DSP_IDLECT2 */
         s->clkm.dsp_idlect2 = value & 0x0037;
         diff = s->clkm.dsp_idlect1 ^ value;
         omap_clkdsp_idlect2_update(s, diff, value);
         break;
 
-    case 0x14:	/* DSP_RSTCT2 */
+    case 0x14:  /* DSP_RSTCT2 */
         s->clkm.dsp_rstct2 = value & 0x0001;
         break;
 
-    case 0x18:	/* DSP_SYSST */
+    case 0x18:  /* DSP_SYSST */
         s->clkm.cold_start &= value & 0x3f;
         break;
 
@@ -1928,8 +1928,8 @@ static void omap_mpuio_set(void *opaque, int line, int level)
             qemu_irq_raise(s->irq);
             /* TODO: wakeup */
         }
-        if ((s->event & (1 << 0)) &&		/* SET_GPIO_EVENT_MODE */
-                (s->event >> 1) == line)	/* PIN_SELECT */
+        if ((s->event & (1 << 0)) &&        /* SET_GPIO_EVENT_MODE */
+                (s->event >> 1) == line)    /* PIN_SELECT */
             s->latch = s->inputs;
     }
 }
@@ -1959,47 +1959,47 @@ static uint64_t omap_mpuio_read(void *opaque, hwaddr addr,
     }
 
     switch (offset) {
-    case 0x00:	/* INPUT_LATCH */
+    case 0x00:  /* INPUT_LATCH */
         return s->inputs;
 
-    case 0x04:	/* OUTPUT_REG */
+    case 0x04:  /* OUTPUT_REG */
         return s->outputs;
 
-    case 0x08:	/* IO_CNTL */
+    case 0x08:  /* IO_CNTL */
         return s->dir;
 
-    case 0x10:	/* KBR_LATCH */
+    case 0x10:  /* KBR_LATCH */
         return s->row_latch;
 
-    case 0x14:	/* KBC_REG */
+    case 0x14:  /* KBC_REG */
         return s->cols;
 
-    case 0x18:	/* GPIO_EVENT_MODE_REG */
+    case 0x18:  /* GPIO_EVENT_MODE_REG */
         return s->event;
 
-    case 0x1c:	/* GPIO_INT_EDGE_REG */
+    case 0x1c:  /* GPIO_INT_EDGE_REG */
         return s->edge;
 
-    case 0x20:	/* KBD_INT */
+    case 0x20:  /* KBD_INT */
         return (~s->row_latch & 0x1f) && !s->kbd_mask;
 
-    case 0x24:	/* GPIO_INT */
+    case 0x24:  /* GPIO_INT */
         ret = s->ints;
         s->ints &= s->mask;
         if (ret)
             qemu_irq_lower(s->irq);
         return ret;
 
-    case 0x28:	/* KBD_MASKIT */
+    case 0x28:  /* KBD_MASKIT */
         return s->kbd_mask;
 
-    case 0x2c:	/* GPIO_MASKIT */
+    case 0x2c:  /* GPIO_MASKIT */
         return s->mask;
 
-    case 0x30:	/* GPIO_DEBOUNCING_REG */
+    case 0x30:  /* GPIO_DEBOUNCING_REG */
         return s->debounce;
 
-    case 0x34:	/* GPIO_LATCH_REG */
+    case 0x34:  /* GPIO_LATCH_REG */
         return s->latch;
     }
 
@@ -2021,7 +2021,7 @@ static void omap_mpuio_write(void *opaque, hwaddr addr,
     }
 
     switch (offset) {
-    case 0x04:	/* OUTPUT_REG */
+    case 0x04:  /* OUTPUT_REG */
         diff = (s->outputs ^ value) & ~s->dir;
         s->outputs = value;
         while ((ln = ctz32(diff)) != 32) {
@@ -2031,7 +2031,7 @@ static void omap_mpuio_write(void *opaque, hwaddr addr,
         }
         break;
 
-    case 0x08:	/* IO_CNTL */
+    case 0x08:  /* IO_CNTL */
         diff = s->outputs & (s->dir ^ value);
         s->dir = value;
 
@@ -2043,37 +2043,37 @@ static void omap_mpuio_write(void *opaque, hwaddr addr,
         }
         break;
 
-    case 0x14:	/* KBC_REG */
+    case 0x14:  /* KBC_REG */
         s->cols = value;
         omap_mpuio_kbd_update(s);
         break;
 
-    case 0x18:	/* GPIO_EVENT_MODE_REG */
+    case 0x18:  /* GPIO_EVENT_MODE_REG */
         s->event = value & 0x1f;
         break;
 
-    case 0x1c:	/* GPIO_INT_EDGE_REG */
+    case 0x1c:  /* GPIO_INT_EDGE_REG */
         s->edge = value;
         break;
 
-    case 0x28:	/* KBD_MASKIT */
+    case 0x28:  /* KBD_MASKIT */
         s->kbd_mask = value & 1;
         omap_mpuio_kbd_update(s);
         break;
 
-    case 0x2c:	/* GPIO_MASKIT */
+    case 0x2c:  /* GPIO_MASKIT */
         s->mask = value;
         break;
 
-    case 0x30:	/* GPIO_DEBOUNCING_REG */
+    case 0x30:  /* GPIO_DEBOUNCING_REG */
         s->debounce = value & 0x1ff;
         break;
 
-    case 0x00:	/* INPUT_LATCH */
-    case 0x10:	/* KBR_LATCH */
-    case 0x20:	/* KBD_INT */
-    case 0x24:	/* GPIO_INT */
-    case 0x34:	/* GPIO_LATCH_REG */
+    case 0x00:  /* INPUT_LATCH */
+    case 0x10:  /* KBR_LATCH */
+    case 0x20:  /* KBD_INT */
+    case 0x24:  /* GPIO_INT */
+    case 0x34:  /* GPIO_LATCH_REG */
         OMAP_RO_REG(addr);
         return;
 
@@ -2176,24 +2176,24 @@ struct omap_uwire_s {
 
 static void omap_uwire_transfer_start(struct omap_uwire_s *s)
 {
-    int chipselect = (s->control >> 10) & 3;		/* INDEX */
+    int chipselect = (s->control >> 10) & 3;        /* INDEX */
 
-    if ((s->control >> 5) & 0x1f) {			/* NB_BITS_WR */
+    if ((s->control >> 5) & 0x1f) {         /* NB_BITS_WR */
         if (s->control & (1 << 12)) {       /* CS_CMD */
             qemu_log_mask(LOG_UNIMP, "uWireSlave TX CS:%d data:0x%04x\n",
                           chipselect,
                           s->txbuf >> (16 - ((s->control >> 5) & 0x1f)));
         }
-        s->control &= ~(1 << 14);			/* CSRB */
+        s->control &= ~(1 << 14);           /* CSRB */
         /* TODO: depending on s->setup[4] bits [1:0] assert an IRQ or
          * a DRQ.  When is the level IRQ supposed to be reset?  */
     }
 
-    if ((s->control >> 0) & 0x1f) {			/* NB_BITS_RD */
+    if ((s->control >> 0) & 0x1f) {         /* NB_BITS_RD */
         if (s->control & (1 << 12)) {       /* CS_CMD */
             qemu_log_mask(LOG_UNIMP, "uWireSlave RX CS:%d\n", chipselect);
         }
-        s->control |= 1 << 15;				/* RDRB */
+        s->control |= 1 << 15;              /* RDRB */
         /* TODO: depending on s->setup[4] bits [1:0] assert an IRQ or
          * a DRQ.  When is the level IRQ supposed to be reset?  */
     }
@@ -2209,22 +2209,22 @@ static uint64_t omap_uwire_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     switch (offset) {
-    case 0x00:	/* RDR */
-        s->control &= ~(1 << 15);			/* RDRB */
+    case 0x00:  /* RDR */
+        s->control &= ~(1 << 15);           /* RDRB */
         return s->rxbuf;
 
-    case 0x04:	/* CSR */
+    case 0x04:  /* CSR */
         return s->control;
 
-    case 0x08:	/* SR1 */
+    case 0x08:  /* SR1 */
         return s->setup[0];
-    case 0x0c:	/* SR2 */
+    case 0x0c:  /* SR2 */
         return s->setup[1];
-    case 0x10:	/* SR3 */
+    case 0x10:  /* SR3 */
         return s->setup[2];
-    case 0x14:	/* SR4 */
+    case 0x14:  /* SR4 */
         return s->setup[3];
-    case 0x18:	/* SR5 */
+    case 0x18:  /* SR5 */
         return s->setup[4];
     }
 
@@ -2244,39 +2244,39 @@ static void omap_uwire_write(void *opaque, hwaddr addr,
     }
 
     switch (offset) {
-    case 0x00:	/* TDR */
-        s->txbuf = value;				/* TD */
-        if ((s->setup[4] & (1 << 2)) &&			/* AUTO_TX_EN */
-                        ((s->setup[4] & (1 << 3)) ||	/* CS_TOGGLE_TX_EN */
-                         (s->control & (1 << 12)))) {	/* CS_CMD */
-            s->control |= 1 << 14;			/* CSRB */
+    case 0x00:  /* TDR */
+        s->txbuf = value;                               /* TD */
+        if ((s->setup[4] & (1 << 2)) &&                 /* AUTO_TX_EN */
+                        ((s->setup[4] & (1 << 3)) ||    /* CS_TOGGLE_TX_EN */
+                         (s->control & (1 << 12)))) {   /* CS_CMD */
+            s->control |= 1 << 14;                      /* CSRB */
             omap_uwire_transfer_start(s);
         }
         break;
 
-    case 0x04:	/* CSR */
+    case 0x04:  /* CSR */
         s->control = value & 0x1fff;
-        if (value & (1 << 13))				/* START */
+        if (value & (1 << 13))  /* START */
             omap_uwire_transfer_start(s);
         break;
 
-    case 0x08:	/* SR1 */
+    case 0x08:  /* SR1 */
         s->setup[0] = value & 0x003f;
         break;
 
-    case 0x0c:	/* SR2 */
+    case 0x0c:  /* SR2 */
         s->setup[1] = value & 0x0fc0;
         break;
 
-    case 0x10:	/* SR3 */
+    case 0x10:  /* SR3 */
         s->setup[2] = value & 0x0003;
         break;
 
-    case 0x14:	/* SR4 */
+    case 0x14:  /* SR4 */
         s->setup[3] = value & 0x0001;
         break;
 
-    case 0x18:	/* SR5 */
+    case 0x18:  /* SR5 */
         s->setup[4] = value & 0x000f;
         break;
 
@@ -2350,9 +2350,9 @@ static uint64_t omap_pwl_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     switch (offset) {
-    case 0x00:	/* PWL_LEVEL */
+    case 0x00:  /* PWL_LEVEL */
         return s->level;
-    case 0x04:	/* PWL_CTRL */
+    case 0x04:  /* PWL_CTRL */
         return s->enable;
     }
     OMAP_BAD_REG(addr);
@@ -2371,11 +2371,11 @@ static void omap_pwl_write(void *opaque, hwaddr addr,
     }
 
     switch (offset) {
-    case 0x00:	/* PWL_LEVEL */
+    case 0x00:  /* PWL_LEVEL */
         s->level = value;
         omap_pwl_update(s);
         break;
-    case 0x04:	/* PWL_CTRL */
+    case 0x04:  /* PWL_CTRL */
         s->enable = value & 1;
         omap_pwl_update(s);
         break;
@@ -2443,11 +2443,11 @@ static uint64_t omap_pwt_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     switch (offset) {
-    case 0x00:	/* FRC */
+    case 0x00:  /* FRC */
         return s->frc;
-    case 0x04:	/* VCR */
+    case 0x04:  /* VCR */
         return s->vrc;
-    case 0x08:	/* GCR */
+    case 0x08:  /* GCR */
         return s->gcr;
     }
     OMAP_BAD_REG(addr);
@@ -2466,10 +2466,10 @@ static void omap_pwt_write(void *opaque, hwaddr addr,
     }
 
     switch (offset) {
-    case 0x00:	/* FRC */
+    case 0x00:  /* FRC */
         s->frc = value & 0x3f;
         break;
-    case 0x04:	/* VRC */
+    case 0x04:  /* VRC */
         if ((value ^ s->vrc) & 1) {
             if (value & 1) {
                 trace_omap1_pwt_buzz(
@@ -2494,7 +2494,7 @@ static void omap_pwt_write(void *opaque, hwaddr addr,
         }
         s->vrc = value & 0x7f;
         break;
-    case 0x08:	/* GCR */
+    case 0x08:  /* GCR */
         s->gcr = value & 3;
         break;
     default:
@@ -2577,69 +2577,69 @@ static uint64_t omap_rtc_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     switch (offset) {
-    case 0x00:	/* SECONDS_REG */
+    case 0x00:  /* SECONDS_REG */
         return to_bcd(s->current_tm.tm_sec);
 
-    case 0x04:	/* MINUTES_REG */
+    case 0x04:  /* MINUTES_REG */
         return to_bcd(s->current_tm.tm_min);
 
-    case 0x08:	/* HOURS_REG */
+    case 0x08:  /* HOURS_REG */
         if (s->pm_am)
             return ((s->current_tm.tm_hour > 11) << 7) |
                     to_bcd(((s->current_tm.tm_hour - 1) % 12) + 1);
         else
             return to_bcd(s->current_tm.tm_hour);
 
-    case 0x0c:	/* DAYS_REG */
+    case 0x0c:  /* DAYS_REG */
         return to_bcd(s->current_tm.tm_mday);
 
-    case 0x10:	/* MONTHS_REG */
+    case 0x10:  /* MONTHS_REG */
         return to_bcd(s->current_tm.tm_mon + 1);
 
-    case 0x14:	/* YEARS_REG */
+    case 0x14:  /* YEARS_REG */
         return to_bcd(s->current_tm.tm_year % 100);
 
-    case 0x18:	/* WEEK_REG */
+    case 0x18:  /* WEEK_REG */
         return s->current_tm.tm_wday;
 
-    case 0x20:	/* ALARM_SECONDS_REG */
+    case 0x20:  /* ALARM_SECONDS_REG */
         return to_bcd(s->alarm_tm.tm_sec);
 
-    case 0x24:	/* ALARM_MINUTES_REG */
+    case 0x24:  /* ALARM_MINUTES_REG */
         return to_bcd(s->alarm_tm.tm_min);
 
-    case 0x28:	/* ALARM_HOURS_REG */
+    case 0x28:  /* ALARM_HOURS_REG */
         if (s->pm_am)
             return ((s->alarm_tm.tm_hour > 11) << 7) |
                     to_bcd(((s->alarm_tm.tm_hour - 1) % 12) + 1);
         else
             return to_bcd(s->alarm_tm.tm_hour);
 
-    case 0x2c:	/* ALARM_DAYS_REG */
+    case 0x2c:  /* ALARM_DAYS_REG */
         return to_bcd(s->alarm_tm.tm_mday);
 
-    case 0x30:	/* ALARM_MONTHS_REG */
+    case 0x30:  /* ALARM_MONTHS_REG */
         return to_bcd(s->alarm_tm.tm_mon + 1);
 
-    case 0x34:	/* ALARM_YEARS_REG */
+    case 0x34:  /* ALARM_YEARS_REG */
         return to_bcd(s->alarm_tm.tm_year % 100);
 
-    case 0x40:	/* RTC_CTRL_REG */
+    case 0x40:  /* RTC_CTRL_REG */
         return (s->pm_am << 3) | (s->auto_comp << 2) |
                 (s->round << 1) | s->running;
 
-    case 0x44:	/* RTC_STATUS_REG */
+    case 0x44:  /* RTC_STATUS_REG */
         i = s->status;
         s->status &= ~0x3d;
         return i;
 
-    case 0x48:	/* RTC_INTERRUPTS_REG */
+    case 0x48:  /* RTC_INTERRUPTS_REG */
         return s->interrupts;
 
-    case 0x4c:	/* RTC_COMP_LSB_REG */
+    case 0x4c:  /* RTC_COMP_LSB_REG */
         return ((uint16_t) s->comp_reg) & 0xff;
 
-    case 0x50:	/* RTC_COMP_MSB_REG */
+    case 0x50:  /* RTC_COMP_MSB_REG */
         return ((uint16_t) s->comp_reg) >> 8;
     }
 
@@ -2661,17 +2661,17 @@ static void omap_rtc_write(void *opaque, hwaddr addr,
     }
 
     switch (offset) {
-    case 0x00:	/* SECONDS_REG */
+    case 0x00:  /* SECONDS_REG */
         s->ti -= s->current_tm.tm_sec;
         s->ti += from_bcd(value);
         return;
 
-    case 0x04:	/* MINUTES_REG */
+    case 0x04:  /* MINUTES_REG */
         s->ti -= s->current_tm.tm_min * 60;
         s->ti += from_bcd(value) * 60;
         return;
 
-    case 0x08:	/* HOURS_REG */
+    case 0x08:  /* HOURS_REG */
         s->ti -= s->current_tm.tm_hour * 3600;
         if (s->pm_am) {
             s->ti += (from_bcd(value & 0x3f) & 12) * 3600;
@@ -2680,12 +2680,12 @@ static void omap_rtc_write(void *opaque, hwaddr addr,
             s->ti += from_bcd(value & 0x3f) * 3600;
         return;
 
-    case 0x0c:	/* DAYS_REG */
+    case 0x0c:  /* DAYS_REG */
         s->ti -= s->current_tm.tm_mday * 86400;
         s->ti += from_bcd(value) * 86400;
         return;
 
-    case 0x10:	/* MONTHS_REG */
+    case 0x10:  /* MONTHS_REG */
         memcpy(&new_tm, &s->current_tm, sizeof(new_tm));
         new_tm.tm_mon = from_bcd(value);
         ti[0] = mktimegm(&s->current_tm);
@@ -2701,7 +2701,7 @@ static void omap_rtc_write(void *opaque, hwaddr addr,
         }
         return;
 
-    case 0x14:	/* YEARS_REG */
+    case 0x14:  /* YEARS_REG */
         memcpy(&new_tm, &s->current_tm, sizeof(new_tm));
         new_tm.tm_year += from_bcd(value) - (new_tm.tm_year % 100);
         ti[0] = mktimegm(&s->current_tm);
@@ -2717,20 +2717,20 @@ static void omap_rtc_write(void *opaque, hwaddr addr,
         }
         return;
 
-    case 0x18:	/* WEEK_REG */
-        return;	/* Ignored */
+    case 0x18:  /* WEEK_REG */
+        return; /* Ignored */
 
-    case 0x20:	/* ALARM_SECONDS_REG */
+    case 0x20:  /* ALARM_SECONDS_REG */
         s->alarm_tm.tm_sec = from_bcd(value);
         omap_rtc_alarm_update(s);
         return;
 
-    case 0x24:	/* ALARM_MINUTES_REG */
+    case 0x24:  /* ALARM_MINUTES_REG */
         s->alarm_tm.tm_min = from_bcd(value);
         omap_rtc_alarm_update(s);
         return;
 
-    case 0x28:	/* ALARM_HOURS_REG */
+    case 0x28:  /* ALARM_HOURS_REG */
         if (s->pm_am)
             s->alarm_tm.tm_hour =
                     ((from_bcd(value & 0x3f)) % 12) +
@@ -2740,22 +2740,22 @@ static void omap_rtc_write(void *opaque, hwaddr addr,
         omap_rtc_alarm_update(s);
         return;
 
-    case 0x2c:	/* ALARM_DAYS_REG */
+    case 0x2c:  /* ALARM_DAYS_REG */
         s->alarm_tm.tm_mday = from_bcd(value);
         omap_rtc_alarm_update(s);
         return;
 
-    case 0x30:	/* ALARM_MONTHS_REG */
+    case 0x30:  /* ALARM_MONTHS_REG */
         s->alarm_tm.tm_mon = from_bcd(value);
         omap_rtc_alarm_update(s);
         return;
 
-    case 0x34:	/* ALARM_YEARS_REG */
+    case 0x34:  /* ALARM_YEARS_REG */
         s->alarm_tm.tm_year = from_bcd(value);
         omap_rtc_alarm_update(s);
         return;
 
-    case 0x40:	/* RTC_CTRL_REG */
+    case 0x40:  /* RTC_CTRL_REG */
         s->pm_am = (value >> 3) & 1;
         s->auto_comp = (value >> 2) & 1;
         s->round = (value >> 1) & 1;
@@ -2764,21 +2764,21 @@ static void omap_rtc_write(void *opaque, hwaddr addr,
         s->status |= s->running << 1;
         return;
 
-    case 0x44:	/* RTC_STATUS_REG */
+    case 0x44:  /* RTC_STATUS_REG */
         s->status &= ~((value & 0xc0) ^ 0x80);
         omap_rtc_interrupts_update(s);
         return;
 
-    case 0x48:	/* RTC_INTERRUPTS_REG */
+    case 0x48:  /* RTC_INTERRUPTS_REG */
         s->interrupts = value;
         return;
 
-    case 0x4c:	/* RTC_COMP_LSB_REG */
+    case 0x4c:  /* RTC_COMP_LSB_REG */
         s->comp_reg &= 0xff00;
         s->comp_reg |= 0x00ff & value;
         return;
 
-    case 0x50:	/* RTC_COMP_MSB_REG */
+    case 0x50:  /* RTC_COMP_MSB_REG */
         s->comp_reg &= 0x00ff;
         s->comp_reg |= 0xff00 & (value << 8);
         return;
@@ -2929,12 +2929,12 @@ static void omap_mcbsp_intr_update(struct omap_mcbsp_s *s)
 {
     int irq;
 
-    switch ((s->spcr[0] >> 4) & 3) {			/* RINTM */
+    switch ((s->spcr[0] >> 4) & 3) {            /* RINTM */
     case 0:
-        irq = (s->spcr[0] >> 1) & 1;			/* RRDY */
+        irq = (s->spcr[0] >> 1) & 1;            /* RRDY */
         break;
     case 3:
-        irq = (s->spcr[0] >> 3) & 1;			/* RSYNCERR */
+        irq = (s->spcr[0] >> 3) & 1;            /* RSYNCERR */
         break;
     default:
         irq = 0;
@@ -2944,12 +2944,12 @@ static void omap_mcbsp_intr_update(struct omap_mcbsp_s *s)
     if (irq)
         qemu_irq_pulse(s->rxirq);
 
-    switch ((s->spcr[1] >> 4) & 3) {			/* XINTM */
+    switch ((s->spcr[1] >> 4) & 3) {            /* XINTM */
     case 0:
-        irq = (s->spcr[1] >> 1) & 1;			/* XRDY */
+        irq = (s->spcr[1] >> 1) & 1;            /* XRDY */
         break;
     case 3:
-        irq = (s->spcr[1] >> 3) & 1;			/* XSYNCERR */
+        irq = (s->spcr[1] >> 3) & 1;            /* XSYNCERR */
         break;
     default:
         irq = 0;
@@ -2962,9 +2962,9 @@ static void omap_mcbsp_intr_update(struct omap_mcbsp_s *s)
 
 static void omap_mcbsp_rx_newdata(struct omap_mcbsp_s *s)
 {
-    if ((s->spcr[0] >> 1) & 1)				/* RRDY */
-        s->spcr[0] |= 1 << 2;				/* RFULL */
-    s->spcr[0] |= 1 << 1;				/* RRDY */
+    if ((s->spcr[0] >> 1) & 1)              /* RRDY */
+        s->spcr[0] |= 1 << 2;               /* RFULL */
+    s->spcr[0] |= 1 << 1;                   /* RRDY */
     qemu_irq_raise(s->rxdrq);
     omap_mcbsp_intr_update(s);
 }
@@ -3004,14 +3004,14 @@ static void omap_mcbsp_rx_stop(struct omap_mcbsp_s *s)
 
 static void omap_mcbsp_rx_done(struct omap_mcbsp_s *s)
 {
-    s->spcr[0] &= ~(1 << 1);				/* RRDY */
+    s->spcr[0] &= ~(1 << 1);                /* RRDY */
     qemu_irq_lower(s->rxdrq);
     omap_mcbsp_intr_update(s);
 }
 
 static void omap_mcbsp_tx_newdata(struct omap_mcbsp_s *s)
 {
-    s->spcr[1] |= 1 << 1;				/* XRDY */
+    s->spcr[1] |= 1 << 1;               /* XRDY */
     qemu_irq_raise(s->txdrq);
     omap_mcbsp_intr_update(s);
 }
@@ -3046,7 +3046,7 @@ static void omap_mcbsp_tx_start(struct omap_mcbsp_s *s)
 
 static void omap_mcbsp_tx_done(struct omap_mcbsp_s *s)
 {
-    s->spcr[1] &= ~(1 << 1);				/* XRDY */
+    s->spcr[1] &= ~(1 << 1);                /* XRDY */
     qemu_irq_lower(s->txdrq);
     omap_mcbsp_intr_update(s);
     if (s->codec && s->codec->cts)
@@ -3064,27 +3064,27 @@ static void omap_mcbsp_req_update(struct omap_mcbsp_s *s)
 {
     int prev_rx_rate, prev_tx_rate;
     int rx_rate = 0, tx_rate = 0;
-    int cpu_rate = 1500000;	/* XXX */
+    int cpu_rate = 1500000; /* XXX */
 
     /* TODO: check CLKSTP bit */
-    if (s->spcr[1] & (1 << 6)) {			/* GRST */
-        if (s->spcr[0] & (1 << 0)) {			/* RRST */
-            if ((s->srgr[1] & (1 << 13)) &&		/* CLKSM */
-                            (s->pcr & (1 << 8))) {	/* CLKRM */
-                if (~s->pcr & (1 << 7))			/* SCLKME */
+    if (s->spcr[1] & (1 << 6)) {                        /* GRST */
+        if (s->spcr[0] & (1 << 0)) {                    /* RRST */
+            if ((s->srgr[1] & (1 << 13)) &&             /* CLKSM */
+                            (s->pcr & (1 << 8))) {      /* CLKRM */
+                if (~s->pcr & (1 << 7))                 /* SCLKME */
                     rx_rate = cpu_rate /
-                            ((s->srgr[0] & 0xff) + 1);	/* CLKGDV */
+                            ((s->srgr[0] & 0xff) + 1);  /* CLKGDV */
             } else
                 if (s->codec)
                     rx_rate = s->codec->rx_rate;
         }
 
-        if (s->spcr[1] & (1 << 0)) {			/* XRST */
-            if ((s->srgr[1] & (1 << 13)) &&		/* CLKSM */
-                            (s->pcr & (1 << 9))) {	/* CLKXM */
-                if (~s->pcr & (1 << 7))			/* SCLKME */
+        if (s->spcr[1] & (1 << 0)) {                    /* XRST */
+            if ((s->srgr[1] & (1 << 13)) &&             /* CLKSM */
+                            (s->pcr & (1 << 9))) {      /* CLKXM */
+                if (~s->pcr & (1 << 7))                 /* SCLKME */
                     tx_rate = cpu_rate /
-                            ((s->srgr[0] & 0xff) + 1);	/* CLKGDV */
+                            ((s->srgr[0] & 0xff) + 1);  /* CLKGDV */
             } else
                 if (s->codec)
                     tx_rate = s->codec->tx_rate;
@@ -3121,11 +3121,11 @@ static uint64_t omap_mcbsp_read(void *opaque, hwaddr addr,
     }
 
     switch (offset) {
-    case 0x00:	/* DRR2 */
-        if (((s->rcr[0] >> 5) & 7) < 3)			/* RWDLEN1 */
+    case 0x00:  /* DRR2 */
+        if (((s->rcr[0] >> 5) & 7) < 3)         /* RWDLEN1 */
             return 0x0000;
         /* Fall through.  */
-    case 0x02:	/* DRR1 */
+    case 0x02:  /* DRR1 */
         if (s->rx_req < 2) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: Rx FIFO underrun\n", __func__);
             omap_mcbsp_rx_done(s);
@@ -3143,63 +3143,63 @@ static uint64_t omap_mcbsp_read(void *opaque, hwaddr addr,
         }
         return 0x0000;
 
-    case 0x04:	/* DXR2 */
-    case 0x06:	/* DXR1 */
+    case 0x04:  /* DXR2 */
+    case 0x06:  /* DXR1 */
         return 0x0000;
 
-    case 0x08:	/* SPCR2 */
+    case 0x08:  /* SPCR2 */
         return s->spcr[1];
-    case 0x0a:	/* SPCR1 */
+    case 0x0a:  /* SPCR1 */
         return s->spcr[0];
-    case 0x0c:	/* RCR2 */
+    case 0x0c:  /* RCR2 */
         return s->rcr[1];
-    case 0x0e:	/* RCR1 */
+    case 0x0e:  /* RCR1 */
         return s->rcr[0];
-    case 0x10:	/* XCR2 */
+    case 0x10:  /* XCR2 */
         return s->xcr[1];
-    case 0x12:	/* XCR1 */
+    case 0x12:  /* XCR1 */
         return s->xcr[0];
-    case 0x14:	/* SRGR2 */
+    case 0x14:  /* SRGR2 */
         return s->srgr[1];
-    case 0x16:	/* SRGR1 */
+    case 0x16:  /* SRGR1 */
         return s->srgr[0];
-    case 0x18:	/* MCR2 */
+    case 0x18:  /* MCR2 */
         return s->mcr[1];
-    case 0x1a:	/* MCR1 */
+    case 0x1a:  /* MCR1 */
         return s->mcr[0];
-    case 0x1c:	/* RCERA */
+    case 0x1c:  /* RCERA */
         return s->rcer[0];
-    case 0x1e:	/* RCERB */
+    case 0x1e:  /* RCERB */
         return s->rcer[1];
-    case 0x20:	/* XCERA */
+    case 0x20:  /* XCERA */
         return s->xcer[0];
-    case 0x22:	/* XCERB */
+    case 0x22:  /* XCERB */
         return s->xcer[1];
-    case 0x24:	/* PCR0 */
+    case 0x24:  /* PCR0 */
         return s->pcr;
-    case 0x26:	/* RCERC */
+    case 0x26:  /* RCERC */
         return s->rcer[2];
-    case 0x28:	/* RCERD */
+    case 0x28:  /* RCERD */
         return s->rcer[3];
-    case 0x2a:	/* XCERC */
+    case 0x2a:  /* XCERC */
         return s->xcer[2];
-    case 0x2c:	/* XCERD */
+    case 0x2c:  /* XCERD */
         return s->xcer[3];
-    case 0x2e:	/* RCERE */
+    case 0x2e:  /* RCERE */
         return s->rcer[4];
-    case 0x30:	/* RCERF */
+    case 0x30:  /* RCERF */
         return s->rcer[5];
-    case 0x32:	/* XCERE */
+    case 0x32:  /* XCERE */
         return s->xcer[4];
-    case 0x34:	/* XCERF */
+    case 0x34:  /* XCERF */
         return s->xcer[5];
-    case 0x36:	/* RCERG */
+    case 0x36:  /* RCERG */
         return s->rcer[6];
-    case 0x38:	/* RCERH */
+    case 0x38:  /* RCERH */
         return s->rcer[7];
-    case 0x3a:	/* XCERG */
+    case 0x3a:  /* XCERG */
         return s->xcer[6];
-    case 0x3c:	/* XCERH */
+    case 0x3c:  /* XCERH */
         return s->xcer[7];
     }
 
@@ -3214,16 +3214,16 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     switch (offset) {
-    case 0x00:	/* DRR2 */
-    case 0x02:	/* DRR1 */
+    case 0x00:  /* DRR2 */
+    case 0x02:  /* DRR1 */
         OMAP_RO_REG(addr);
         return;
 
-    case 0x04:	/* DXR2 */
-        if (((s->xcr[0] >> 5) & 7) < 3)			/* XWDLEN1 */
+    case 0x04:  /* DXR2 */
+        if (((s->xcr[0] >> 5) & 7) < 3)         /* XWDLEN1 */
             return;
         /* Fall through.  */
-    case 0x06:	/* DXR1 */
+    case 0x06:  /* DXR1 */
         if (s->tx_req > 1) {
             s->tx_req -= 2;
             if (s->codec && s->codec->cts) {
@@ -3237,15 +3237,15 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
         }
         return;
 
-    case 0x08:	/* SPCR2 */
+    case 0x08:  /* SPCR2 */
         s->spcr[1] &= 0x0002;
         s->spcr[1] |= 0x03f9 & value;
-        s->spcr[1] |= 0x0004 & (value << 2);		/* XEMPTY := XRST */
-        if (~value & 1)					/* XRST */
+        s->spcr[1] |= 0x0004 & (value << 2);        /* XEMPTY := XRST */
+        if (~value & 1)                             /* XRST */
             s->spcr[1] &= ~6;
         omap_mcbsp_req_update(s);
         return;
-    case 0x0a:	/* SPCR1 */
+    case 0x0a:  /* SPCR1 */
         s->spcr[0] &= 0x0006;
         s->spcr[0] |= 0xf8f9 & value;
         if (value & (1 << 15)) {                        /* DLB */
@@ -3253,7 +3253,7 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
                           "%s: Digital Loopback mode enable attempt\n",
                           __func__);
         }
-        if (~value & 1) {				/* RRST */
+        if (~value & 1) {               /* RRST */
             s->spcr[0] &= ~6;
             s->rx_req = 0;
             omap_mcbsp_rx_done(s);
@@ -3261,27 +3261,27 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
         omap_mcbsp_req_update(s);
         return;
 
-    case 0x0c:	/* RCR2 */
+    case 0x0c:  /* RCR2 */
         s->rcr[1] = value & 0xffff;
         return;
-    case 0x0e:	/* RCR1 */
+    case 0x0e:  /* RCR1 */
         s->rcr[0] = value & 0x7fe0;
         return;
-    case 0x10:	/* XCR2 */
+    case 0x10:  /* XCR2 */
         s->xcr[1] = value & 0xffff;
         return;
-    case 0x12:	/* XCR1 */
+    case 0x12:  /* XCR1 */
         s->xcr[0] = value & 0x7fe0;
         return;
-    case 0x14:	/* SRGR2 */
+    case 0x14:  /* SRGR2 */
         s->srgr[1] = value & 0xffff;
         omap_mcbsp_req_update(s);
         return;
-    case 0x16:	/* SRGR1 */
+    case 0x16:  /* SRGR1 */
         s->srgr[0] = value & 0xffff;
         omap_mcbsp_req_update(s);
         return;
-    case 0x18:	/* MCR2 */
+    case 0x18:  /* MCR2 */
         s->mcr[1] = value & 0x03e3;
         if (value & 3) {                                /* XMCM */
             qemu_log_mask(LOG_UNIMP,
@@ -3289,7 +3289,7 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
                           __func__);
         }
         return;
-    case 0x1a:	/* MCR1 */
+    case 0x1a:  /* MCR1 */
         s->mcr[0] = value & 0x03e1;
         if (value & 1) {                                /* RMCM */
             qemu_log_mask(LOG_UNIMP,
@@ -3297,55 +3297,55 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
                           __func__);
         }
         return;
-    case 0x1c:	/* RCERA */
+    case 0x1c:  /* RCERA */
         s->rcer[0] = value & 0xffff;
         return;
-    case 0x1e:	/* RCERB */
+    case 0x1e:  /* RCERB */
         s->rcer[1] = value & 0xffff;
         return;
-    case 0x20:	/* XCERA */
+    case 0x20:  /* XCERA */
         s->xcer[0] = value & 0xffff;
         return;
-    case 0x22:	/* XCERB */
+    case 0x22:  /* XCERB */
         s->xcer[1] = value & 0xffff;
         return;
-    case 0x24:	/* PCR0 */
+    case 0x24:  /* PCR0 */
         s->pcr = value & 0x7faf;
         return;
-    case 0x26:	/* RCERC */
+    case 0x26:  /* RCERC */
         s->rcer[2] = value & 0xffff;
         return;
-    case 0x28:	/* RCERD */
+    case 0x28:  /* RCERD */
         s->rcer[3] = value & 0xffff;
         return;
-    case 0x2a:	/* XCERC */
+    case 0x2a:  /* XCERC */
         s->xcer[2] = value & 0xffff;
         return;
-    case 0x2c:	/* XCERD */
+    case 0x2c:  /* XCERD */
         s->xcer[3] = value & 0xffff;
         return;
-    case 0x2e:	/* RCERE */
+    case 0x2e:  /* RCERE */
         s->rcer[4] = value & 0xffff;
         return;
-    case 0x30:	/* RCERF */
+    case 0x30:  /* RCERF */
         s->rcer[5] = value & 0xffff;
         return;
-    case 0x32:	/* XCERE */
+    case 0x32:  /* XCERE */
         s->xcer[4] = value & 0xffff;
         return;
-    case 0x34:	/* XCERF */
+    case 0x34:  /* XCERF */
         s->xcer[5] = value & 0xffff;
         return;
-    case 0x36:	/* RCERG */
+    case 0x36:  /* RCERG */
         s->rcer[6] = value & 0xffff;
         return;
-    case 0x38:	/* RCERH */
+    case 0x38:  /* RCERH */
         s->rcer[7] = value & 0xffff;
         return;
-    case 0x3a:	/* XCERG */
+    case 0x3a:  /* XCERG */
         s->xcer[6] = value & 0xffff;
         return;
-    case 0x3c:	/* XCERH */
+    case 0x3c:  /* XCERH */
         s->xcer[7] = value & 0xffff;
         return;
     }
@@ -3359,8 +3359,8 @@ static void omap_mcbsp_writew(void *opaque, hwaddr addr,
     struct omap_mcbsp_s *s = opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
 
-    if (offset == 0x04) {				/* DXR */
-        if (((s->xcr[0] >> 5) & 7) < 3)			/* XWDLEN1 */
+    if (offset == 0x04) {                       /* DXR */
+        if (((s->xcr[0] >> 5) & 7) < 3)         /* XWDLEN1 */
             return;
         if (s->tx_req > 3) {
             s->tx_req -= 4;
@@ -3504,15 +3504,15 @@ static void omap_lpg_update(struct omap_lpg_s *s)
     int64_t on, period = 1, ticks = 1000;
     static const int per[8] = { 1, 2, 4, 8, 12, 16, 20, 24 };
 
-    if (~s->control & (1 << 6))					/* LPGRES */
+    if (~s->control & (1 << 6))                 /* LPGRES */
         on = 0;
-    else if (s->control & (1 << 7))				/* PERM_ON */
+    else if (s->control & (1 << 7))             /* PERM_ON */
         on = period;
     else {
-        period = muldiv64(ticks, per[s->control & 7],		/* PERCTRL */
+        period = muldiv64(ticks, per[s->control & 7],       /* PERCTRL */
                         256 / 32);
         on = (s->clk && s->power) ? muldiv64(ticks,
-                        per[(s->control >> 3) & 7], 256) : 0;	/* ONCTRL */
+                        per[(s->control >> 3) & 7], 256) : 0;   /* ONCTRL */
     }
 
     timer_del(s->tm);
@@ -3550,10 +3550,10 @@ static uint64_t omap_lpg_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     switch (offset) {
-    case 0x00:	/* LCR */
+    case 0x00:  /* LCR */
         return s->control;
 
-    case 0x04:	/* PMR */
+    case 0x04:  /* PMR */
         return s->power;
     }
 
@@ -3573,14 +3573,14 @@ static void omap_lpg_write(void *opaque, hwaddr addr,
     }
 
     switch (offset) {
-    case 0x00:	/* LCR */
-        if (~value & (1 << 6))					/* LPGRES */
+    case 0x00:  /* LCR */
+        if (~value & (1 << 6))                  /* LPGRES */
             omap_lpg_reset(s);
         s->control = value & 0xff;
         omap_lpg_update(s);
         return;
 
-    case 0x04:	/* PMR */
+    case 0x04:  /* PMR */
         s->power = value & 0x01;
         omap_lpg_update(s);
         return;
@@ -3630,7 +3630,7 @@ static uint64_t omap_mpui_io_read(void *opaque, hwaddr addr,
         return omap_badwidth_read16(opaque, addr);
     }
 
-    if (addr == OMAP_MPUI_BASE)	/* CMR */
+    if (addr == OMAP_MPUI_BASE) /* CMR */
         return 0xfe4d;
 
     OMAP_BAD_REG(addr);
@@ -3703,25 +3703,25 @@ static const struct omap_map_s {
     const char *name;
 } omap15xx_dsp_mm[] = {
     /* Strobe 0 */
-    { 0xe1010000, 0xfffb0000, 0x800, "UART1 BT" },		/* CS0 */
-    { 0xe1010800, 0xfffb0800, 0x800, "UART2 COM" },		/* CS1 */
-    { 0xe1011800, 0xfffb1800, 0x800, "McBSP1 audio" },		/* CS3 */
-    { 0xe1012000, 0xfffb2000, 0x800, "MCSI2 communication" },	/* CS4 */
-    { 0xe1012800, 0xfffb2800, 0x800, "MCSI1 BT u-Law" },	/* CS5 */
-    { 0xe1013000, 0xfffb3000, 0x800, "uWire" },			/* CS6 */
-    { 0xe1013800, 0xfffb3800, 0x800, "I^2C" },			/* CS7 */
-    { 0xe1014000, 0xfffb4000, 0x800, "USB W2FC" },		/* CS8 */
-    { 0xe1014800, 0xfffb4800, 0x800, "RTC" },			/* CS9 */
-    { 0xe1015000, 0xfffb5000, 0x800, "MPUIO" },			/* CS10 */
-    { 0xe1015800, 0xfffb5800, 0x800, "PWL" },			/* CS11 */
-    { 0xe1016000, 0xfffb6000, 0x800, "PWT" },			/* CS12 */
-    { 0xe1017000, 0xfffb7000, 0x800, "McBSP3" },		/* CS14 */
-    { 0xe1017800, 0xfffb7800, 0x800, "MMC" },			/* CS15 */
-    { 0xe1019000, 0xfffb9000, 0x800, "32-kHz timer" },		/* CS18 */
-    { 0xe1019800, 0xfffb9800, 0x800, "UART3" },			/* CS19 */
-    { 0xe101c800, 0xfffbc800, 0x800, "TIPB switches" },		/* CS25 */
+    { 0xe1010000, 0xfffb0000, 0x800, "UART1 BT" },              /* CS0 */
+    { 0xe1010800, 0xfffb0800, 0x800, "UART2 COM" },             /* CS1 */
+    { 0xe1011800, 0xfffb1800, 0x800, "McBSP1 audio" },          /* CS3 */
+    { 0xe1012000, 0xfffb2000, 0x800, "MCSI2 communication" },   /* CS4 */
+    { 0xe1012800, 0xfffb2800, 0x800, "MCSI1 BT u-Law" },        /* CS5 */
+    { 0xe1013000, 0xfffb3000, 0x800, "uWire" },                 /* CS6 */
+    { 0xe1013800, 0xfffb3800, 0x800, "I^2C" },                  /* CS7 */
+    { 0xe1014000, 0xfffb4000, 0x800, "USB W2FC" },              /* CS8 */
+    { 0xe1014800, 0xfffb4800, 0x800, "RTC" },                   /* CS9 */
+    { 0xe1015000, 0xfffb5000, 0x800, "MPUIO" },                 /* CS10 */
+    { 0xe1015800, 0xfffb5800, 0x800, "PWL" },                   /* CS11 */
+    { 0xe1016000, 0xfffb6000, 0x800, "PWT" },                   /* CS12 */
+    { 0xe1017000, 0xfffb7000, 0x800, "McBSP3" },                /* CS14 */
+    { 0xe1017800, 0xfffb7800, 0x800, "MMC" },                   /* CS15 */
+    { 0xe1019000, 0xfffb9000, 0x800, "32-kHz timer" },          /* CS18 */
+    { 0xe1019800, 0xfffb9800, 0x800, "UART3" },                 /* CS19 */
+    { 0xe101c800, 0xfffbc800, 0x800, "TIPB switches" },         /* CS25 */
     /* Strobe 1 */
-    { 0xe101e000, 0xfffce000, 0x800, "GPIOs" },			/* CS28 */
+    { 0xe101e000, 0xfffce000, 0x800, "GPIOs" },                 /* CS28 */
 
     { 0 }
 };
@@ -4025,18 +4025,18 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *dram,
                               0xfffbd800, omap_findclk(s, "clk32-kHz"));
 
     /* Register mappings not currently implemented:
-     * MCSI2 Comm	fffb2000 - fffb27ff (not mapped on OMAP310)
-     * MCSI1 Bluetooth	fffb2800 - fffb2fff (not mapped on OMAP310)
-     * USB W2FC		fffb4000 - fffb47ff
-     * Camera Interface	fffb6800 - fffb6fff
-     * USB Host		fffba000 - fffba7ff
-     * FAC		fffba800 - fffbafff
-     * HDQ/1-Wire	fffbc000 - fffbc7ff
-     * TIPB switches	fffbc800 - fffbcfff
-     * Mailbox		fffcf000 - fffcf7ff
-     * Local bus IF	fffec100 - fffec1ff
-     * Local bus MMU	fffec200 - fffec2ff
-     * DSP MMU		fffed200 - fffed2ff
+     * MCSI2 Comm       fffb2000 - fffb27ff (not mapped on OMAP310)
+     * MCSI1 Bluetooth  fffb2800 - fffb2fff (not mapped on OMAP310)
+     * USB W2FC         fffb4000 - fffb47ff
+     * Camera Interface fffb6800 - fffb6fff
+     * USB Host         fffba000 - fffba7ff
+     * FAC              fffba800 - fffbafff
+     * HDQ/1-Wire       fffbc000 - fffbc7ff
+     * TIPB switches    fffbc800 - fffbcfff
+     * Mailbox          fffcf000 - fffcf7ff
+     * Local bus IF     fffec100 - fffec1ff
+     * Local bus MMU    fffec200 - fffec2ff
+     * DSP MMU          fffed200 - fffed2ff
      */
 
     omap_setup_dsp_mapping(system_memory, omap15xx_dsp_mm);
