@@ -344,11 +344,11 @@ static void mb_cpu_initfn(Object *obj)
 
 #ifndef CONFIG_USER_ONLY
     /* Inbound IRQ and FIR lines */
-    qdev_init_gpio_in(DEVICE(cpu), microblaze_cpu_set_irq, 2);
-    qdev_init_gpio_in_named(DEVICE(cpu), mb_cpu_ns_axi_dp, "ns_axi_dp", 1);
-    qdev_init_gpio_in_named(DEVICE(cpu), mb_cpu_ns_axi_ip, "ns_axi_ip", 1);
-    qdev_init_gpio_in_named(DEVICE(cpu), mb_cpu_ns_axi_dc, "ns_axi_dc", 1);
-    qdev_init_gpio_in_named(DEVICE(cpu), mb_cpu_ns_axi_ic, "ns_axi_ic", 1);
+    qdev_init_gpio_in(DEVICE(obj), microblaze_cpu_set_irq, 2);
+    qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_dp, "ns_axi_dp", 1);
+    qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_ip, "ns_axi_ip", 1);
+    qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_dc, "ns_axi_dc", 1);
+    qdev_init_gpio_in_named(DEVICE(obj), mb_cpu_ns_axi_ic, "ns_axi_ic", 1);
 #endif
 
     /* Restricted 'endianness' property is equivalent of 'little-endian' */
