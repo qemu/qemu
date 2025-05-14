@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# group: rw quick
+#
+# Test for commit of discarded blocks
+#
+# This tests committing a live snapshot where some of the blocks that
+# are present in the base image are discarded in the intermediate image.
+# This intends to check that these blocks are also discarded in the base
+# image after the commit.
+#
+# Copyright (C) 2024 Vincent Vanlaer.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# creator
+owner=libvirt-e6954efa@volkihar.be
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_qemu
+    _rm_test_img "${TEST_IMG}.base"
+    _rm_test_img "${TEST_IMG}.mid"
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+cd ..
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt qcow2
+_supported_proto file
+
+size="1M"
+
+TEST_IMG="$TEST_IMG.base" _make_test_img $size
+TEST_IMG="$TEST_IMG.mid" _make_test_img -b "$TEST_IMG.base" -F $IMGFMT $size
+_make_test_img -b "${TEST_IMG}.mid" -F $IMGFMT $size
+
+$QEMU_IO -c "write -P 0x01 64k 128k" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "discard 64k 64k" "$TEST_IMG.mid" | _filter_qemu_io
+
+echo
+echo "=== Base image info before commit ==="
+TEST_IMG="${TEST_IMG}.base" _img_info | _filter_img_info
+$QEMU_IMG map --output=json "$TEST_IMG.base" | _filter_qemu_img_map
+
+echo
+echo "=== Middle image info before commit ==="
+TEST_IMG="${TEST_IMG}.mid" _img_info | _filter_img_info
+$QEMU_IMG map --output=json "$TEST_IMG.mid" | _filter_qemu_img_map
+
+echo
+echo === Running QEMU Live Commit Test ===
+echo
+
+qemu_comm_method="qmp"
+_launch_qemu -drive file="${TEST_IMG}",if=virtio,id=test
+h=$QEMU_HANDLE
+
+_send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" "return"
+
+_send_qemu_cmd $h "{ 'execute': 'block-commit',
+                                 'arguments': { 'device': 'test',
+                                 'top': '"${TEST_IMG}.mid"',
+                                 'base': '"${TEST_IMG}.base"'} }" '"status": "null"'
+
+_cleanup_qemu
+
+echo
+echo "=== Base image info after commit ==="
+TEST_IMG="${TEST_IMG}.base" _img_info | _filter_img_info
+$QEMU_IMG map --output=json "$TEST_IMG.base" | _filter_qemu_img_map
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

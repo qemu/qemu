@@ -15,6 +15,8 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "trace.h"
+#include "block/block-common.h"
+#include "block/coroutines.h"
 #include "block/block_int.h"
 #include "block/blockjob_int.h"
 #include "qapi/error.h"
@@ -126,6 +128,84 @@ static void commit_clean(Job *job)
     blk_unref(s->top);
 }
 
+static int commit_iteration(CommitBlockJob *s, int64_t offset,
+                            int64_t *requested_bytes, void *buf)
+{
+    BlockErrorAction action;
+    int64_t bytes = *requested_bytes;
+    int ret = 0;
+    bool error_in_source = true;
+
+    /* Copy if allocated above the base */
+    WITH_GRAPH_RDLOCK_GUARD() {
+        ret = bdrv_co_common_block_status_above(blk_bs(s->top),
+            s->base_overlay, true, true, offset, COMMIT_BUFFER_SIZE,
+            &bytes, NULL, NULL, NULL);
+    }
+
+    trace_commit_one_iteration(s, offset, bytes, ret);
+
+    if (ret < 0) {
+        goto fail;
+    }
+
+    if (ret & BDRV_BLOCK_ALLOCATED) {
+        if (ret & BDRV_BLOCK_ZERO) {
+            /*
+             * If the top (sub)clusters are smaller than the base
+             * (sub)clusters, this will not unmap unless the underlying device
+             * does some tracking of these requests. Ideally, we would find
+             * the maximal extent of the zero clusters.
+             */
+            ret = blk_co_pwrite_zeroes(s->base, offset, bytes,
+                                       BDRV_REQ_MAY_UNMAP);
+            if (ret < 0) {
+                error_in_source = false;
+                goto fail;
+            }
+        } else {
+            assert(bytes < SIZE_MAX);
+
+            ret = blk_co_pread(s->top, offset, bytes, buf, 0);
+            if (ret < 0) {
+                goto fail;
+            }
+
+            ret = blk_co_pwrite(s->base, offset, bytes, buf, 0);
+            if (ret < 0) {
+                error_in_source = false;
+                goto fail;
+            }
+        }
+
+        /*
+         * Whether zeroes actually end up on disk depends on the details of
+         * the underlying driver. Therefore, this might rate limit more than
+         * is necessary.
+         */
+        block_job_ratelimit_processed_bytes(&s->common, bytes);
+    }
+
+    /* Publish progress */
+
+    job_progress_update(&s->common.job, bytes);
+
+    *requested_bytes = bytes;
+
+    return 0;
+
+fail:
+    action = block_job_error_action(&s->common, s->on_error,
+                                    error_in_source, -ret);
+    if (action == BLOCK_ERROR_ACTION_REPORT) {
+        return ret;
+    }
+
+    *requested_bytes = 0;
+
+    return 0;
+}
+
 static int coroutine_fn commit_run(Job *job, Error **errp)
 {
     CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
@@ -156,9 +236,6 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
     buf = blk_blockalign(s->top, COMMIT_BUFFER_SIZE);
 
     for (offset = 0; offset < len; offset += n) {
-        bool copy;
-        bool error_in_source = true;
-
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
          */
@@ -166,38 +243,11 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
         if (job_is_cancelled(&s->common.job)) {
             break;
         }
-        /* Copy if allocated above the base */
-        ret = blk_co_is_allocated_above(s->top, s->base_overlay, true,
-                                        offset, COMMIT_BUFFER_SIZE, &n);
-        copy = (ret > 0);
-        trace_commit_one_iteration(s, offset, n, ret);
-        if (copy) {
-            assert(n < SIZE_MAX);
 
-            ret = blk_co_pread(s->top, offset, n, buf, 0);
-            if (ret >= 0) {
-                ret = blk_co_pwrite(s->base, offset, n, buf, 0);
-                if (ret < 0) {
-                    error_in_source = false;
-                }
-            }
-        }
+        ret = commit_iteration(s, offset, &n, buf);
+
         if (ret < 0) {
-            BlockErrorAction action =
-                block_job_error_action(&s->common, s->on_error,
-                                       error_in_source, -ret);
-            if (action == BLOCK_ERROR_ACTION_REPORT) {
-                return ret;
-            } else {
-                n = 0;
-                continue;
-            }
-        }
-        /* Publish progress */
-        job_progress_update(&s->common.job, n);
-
-        if (copy) {
-            block_job_ratelimit_processed_bytes(&s->common, n);
+            return ret;
         }
     }
 

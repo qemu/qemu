@@ -1602,6 +1602,9 @@
 #     default 'report' (no limitations, since this applies to a
 #     different block device than @device).
 #
+# @on-cbw-error: policy defining behavior on I/O errors in
+#     copy-before-write jobs; defaults to break-guest-write.  (Since 10.1)
+#
 # @auto-finalize: When false, this job will wait in a PENDING state
 #     after it has finished its work, waiting for @block-job-finalize
 #     before making any block graph changes.  When true, this job will
@@ -1641,6 +1644,7 @@
             '*compress': 'bool',
             '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError',
+            '*on-cbw-error': 'OnCbwError',
             '*auto-finalize': 'bool', '*auto-dismiss': 'bool',
             '*filter-node-name': 'str',
             '*discard-source': 'bool',
@@ -2956,17 +2960,23 @@
 #
 # Pause an active background block operation.
 #
-# This command returns immediately after marking the active background
-# block operation for pausing.  It is an error to call this command if
-# no operation is in progress or if the job is already paused.
+# This command returns immediately after marking the active job for
+# pausing.  Pausing an already paused job is an error.
 #
-# The operation will pause as soon as possible.  No event is emitted
-# when the operation is actually paused.  Cancelling a paused job
-# automatically resumes it.
+# The job will pause as soon as possible, which means transitioning
+# into the PAUSED state if it was RUNNING, or into STANDBY if it was
+# READY.  The corresponding JOB_STATUS_CHANGE event will be emitted.
+#
+# Cancelling a paused job automatically resumes it.
 #
 # @device: The job identifier.  This used to be a device name (hence
 #     the name of the parameter), but since QEMU 2.7 it can have other
 #     values.
+#
+# Features:
+#
+# @deprecated: This command is deprecated.  Use @job-pause
+#     instead.
 #
 # Errors:
 #     - If no background operation is active on this device,
@@ -2975,6 +2985,7 @@
 # Since: 1.3
 ##
 { 'command': 'block-job-pause', 'data': { 'device': 'str' },
+  'features': ['deprecated'],
   'allow-preconfig': true }
 
 ##
@@ -2982,15 +2993,19 @@
 #
 # Resume an active background block operation.
 #
-# This command returns immediately after resuming a paused background
-# block operation.  It is an error to call this command if no
-# operation is in progress or if the job is not paused.
+# This command returns immediately after resuming a paused job.
+# Resuming an already running job is an error.
 #
 # This command also clears the error status of the job.
 #
 # @device: The job identifier.  This used to be a device name (hence
 #     the name of the parameter), but since QEMU 2.7 it can have other
 #     values.
+#
+# Features:
+#
+# @deprecated: This command is deprecated.  Use @job-resume
+#     instead.
 #
 # Errors:
 #     - If no background operation is active on this device,
@@ -2999,15 +3014,21 @@
 # Since: 1.3
 ##
 { 'command': 'block-job-resume', 'data': { 'device': 'str' },
+  'features': ['deprecated'],
   'allow-preconfig': true }
 
 ##
 # @block-job-complete:
 #
-# Manually trigger completion of an active background block operation.
-# This is supported for drive mirroring, where it also switches the
-# device to write to the target path only.  The ability to complete is
-# signaled with a BLOCK_JOB_READY event.
+# Manually trigger completion of an active job in the READY or STANDBY
+# state.  Completing the job in any other state is an error.
+#
+# This is supported only for drive mirroring, where it also switches
+# the device to write to the target path only. Note that drive
+# mirroring includes drive-mirror, blockdev-mirror and block-commit
+# job (only in case of "active commit", when the node being commited
+# is used by the guest). The ability to complete is signaled with a
+# BLOCK_JOB_READY event.
 #
 # This command completes an active background block operation
 # synchronously.  The ordering of this command's return with the
@@ -3017,11 +3038,14 @@
 # rerror/werror arguments that were specified when starting the
 # operation.
 #
-# A cancelled or paused job cannot be completed.
-#
 # @device: The job identifier.  This used to be a device name (hence
 #     the name of the parameter), but since QEMU 2.7 it can have other
 #     values.
+#
+# Features:
+#
+# @deprecated: This command is deprecated.  Use @job-complete
+#     instead.
 #
 # Errors:
 #     - If no background operation is active on this device,
@@ -3030,15 +3054,19 @@
 # Since: 1.3
 ##
 { 'command': 'block-job-complete', 'data': { 'device': 'str' },
+  'features': ['deprecated'],
   'allow-preconfig': true }
 
 ##
 # @block-job-dismiss:
 #
-# For jobs that have already concluded, remove them from the
-# block-job-query list.  This command only needs to be run for jobs
-# which were started with QEMU 2.12+ job lifetime management
-# semantics.
+# Deletes a job that is in the CONCLUDED state.  This command only
+# needs to be run explicitly for jobs that don't have automatic
+# dismiss enabled. In turn, automatic dismiss may be enabled only
+# for jobs that have @auto-dismiss option, which are drive-backup,
+# blockdev-backup, drive-mirror, blockdev-mirror, block-commit and
+# block-stream. @auto-dismiss is enabled by default for these
+# jobs.
 #
 # This command will refuse to operate on any job that has not yet
 # reached its terminal state, JOB_STATUS_CONCLUDED.  For jobs that
@@ -3047,26 +3075,43 @@
 #
 # @id: The job identifier.
 #
+# Features:
+#
+# @deprecated: This command is deprecated.  Use @job-dismiss
+#     instead.
+#
 # Since: 2.12
 ##
 { 'command': 'block-job-dismiss', 'data': { 'id': 'str' },
+  'features': ['deprecated'],
   'allow-preconfig': true }
 
 ##
 # @block-job-finalize:
 #
-# Once a job that has manual=true reaches the pending state, it can be
-# instructed to finalize any graph changes and do any necessary
-# cleanup via this command.  For jobs in a transaction, instructing
-# one job to finalize will force ALL jobs in the transaction to
-# finalize, so it is only necessary to instruct a single member job to
-# finalize.
+# Instructs all jobs in a transaction (or a single job if it is not
+# part of any transaction) to finalize any graph changes and do any
+# necessary cleanup.  This command requires that all involved jobs are
+# in the PENDING state.
+#
+# For jobs in a transaction, instructing one job to finalize will
+# force ALL jobs in the transaction to finalize, so it is only
+# necessary to instruct a single member job to finalize.
+#
+# The command is applicable only to jobs which have @auto-finalize option
+# and only when this option is set to false.
 #
 # @id: The job identifier.
+#
+# Features:
+#
+# @deprecated: This command is deprecated.  Use @job-finalize
+#     instead.
 #
 # Since: 2.12
 ##
 { 'command': 'block-job-finalize', 'data': { 'id': 'str' },
+  'features': ['deprecated'],
   'allow-preconfig': true }
 
 ##
