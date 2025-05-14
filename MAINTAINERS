@@ -732,6 +732,16 @@ F: include/hw/timer/armv7m_systick.h
 F: include/hw/misc/armv7m_ras.h
 F: tests/qtest/test-arm-mptimer.c
 
+Bananapi M2U
+M: Peter Maydell <peter.maydell@linaro.org>
+L: qemu-arm@nongnu.org
+S: Odd Fixes
+F: docs/system/arm/bananapi_m2u.rst
+F: hw/*/allwinner-r40*.c
+F: hw/arm/bananapi_m2u.c
+F: include/hw/*/allwinner-r40*.h
+F: tests/functional/test_arm_bpim2u.py
+
 B-L475E-IOT01A IoT Node
 M: Samuel Tardieu <sam@rfc1149.net>
 L: qemu-arm@nongnu.org
