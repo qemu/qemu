@@ -1833,7 +1833,7 @@ void aarch64_add_sme_properties(Object *obj);
 /* Return true if the gdbstub is presenting an AArch64 CPU */
 static inline bool arm_gdbstub_is_aarch64(ARMCPU *cpu)
 {
-    return object_dynamic_cast(OBJECT(cpu), TYPE_AARCH64_CPU);
+    return arm_feature(&cpu->env, ARM_FEATURE_AARCH64);
 }
 
 /* Read the CONTROL register as the MRS instruction would. */
