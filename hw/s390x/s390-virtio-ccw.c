@@ -748,39 +748,6 @@ static inline void machine_set_dea_key_wrap(Object *obj, bool value,
     ms->dea_key_wrap = value;
 }
 
-static S390CcwMachineClass *current_mc;
-
-/*
- * Get the class of the s390-ccw-virtio machine that is currently in use.
- * Note: libvirt is using the "none" machine to probe for the features of the
- * host CPU, so in case this is called with the "none" machine, the function
- * returns the TYPE_S390_CCW_MACHINE base class. In this base class, all the
- * various "*_allowed" variables are enabled, so that the *_allowed() wrappers
- * below return the correct default value for the "none" machine.
- *
- * Attention! Do *not* add additional new wrappers for CPU features via this
- * mechanism anymore. CPU features should be handled via the CPU models,
- * i.e. checking with s390_has_feat() should be sufficient.
- */
-static S390CcwMachineClass *get_machine_class(void)
-{
-    if (unlikely(!current_mc)) {
-        /*
-        * No s390 ccw machine was instantiated, we are likely to
-        * be called for the 'none' machine. The properties will
-        * have their after-initialization values.
-        */
-        current_mc = S390_CCW_MACHINE_CLASS(
-                     object_class_by_name(TYPE_S390_CCW_MACHINE));
-    }
-    return current_mc;
-}
-
-bool hpage_1m_allowed(void)
-{
-    return get_machine_class()->hpage_1m_allowed;
-}
-
 static void machine_get_loadparm(Object *obj, Visitor *v,
                                  const char *name, void *opaque,
                                  Error **errp)
@@ -804,6 +771,7 @@ static void machine_set_loadparm(Object *obj, Visitor *v,
     }
 
     s390_ipl_fmt_loadparm(ms->loadparm, val, errp);
+    g_free(val);
 }
 
 static void ccw_machine_class_init(ObjectClass *oc, const void *data)
@@ -814,7 +782,6 @@ static void ccw_machine_class_init(ObjectClass *oc, const void *data)
     S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
     DumpSKeysInterface *dsi = DUMP_SKEYS_INTERFACE_CLASS(oc);
 
-    s390mc->hpage_1m_allowed = true;
     s390mc->max_threads = 1;
     mc->reset = s390_machine_reset;
     mc->block_default_type = IF_VIRTIO;
@@ -888,7 +855,6 @@ static const TypeInfo ccw_machine_info = {
 #define DEFINE_CCW_MACHINE_IMPL(latest, ...)                                  \
     static void MACHINE_VER_SYM(mach_init, ccw, __VA_ARGS__)(MachineState *mach) \
     {                                                                         \
-        current_mc = S390_CCW_MACHINE_CLASS(MACHINE_GET_CLASS(mach));         \
         MACHINE_VER_SYM(instance_options, ccw, __VA_ARGS__)(mach);            \
         ccw_init(mach);                                                       \
     }                                                                         \
@@ -1192,102 +1158,6 @@ static void ccw_machine_4_1_class_options(MachineClass *mc)
     compat_props_add(mc->compat_props, hw_compat_4_1, hw_compat_4_1_len);
 }
 DEFINE_CCW_MACHINE(4, 1);
-
-static void ccw_machine_4_0_instance_options(MachineState *machine)
-{
-    static const S390FeatInit qemu_cpu_feat = { S390_FEAT_LIST_QEMU_V4_0 };
-    ccw_machine_4_1_instance_options(machine);
-    s390_set_qemu_cpu_model(0x2827, 12, 2, qemu_cpu_feat);
-}
-
-static void ccw_machine_4_0_class_options(MachineClass *mc)
-{
-    ccw_machine_4_1_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_4_0, hw_compat_4_0_len);
-}
-DEFINE_CCW_MACHINE(4, 0);
-
-static void ccw_machine_3_1_instance_options(MachineState *machine)
-{
-    static const S390FeatInit qemu_cpu_feat = { S390_FEAT_LIST_QEMU_V3_1 };
-    ccw_machine_4_0_instance_options(machine);
-    s390_cpudef_featoff_greater(14, 1, S390_FEAT_MULTIPLE_EPOCH);
-    s390_cpudef_group_featoff_greater(14, 1, S390_FEAT_GROUP_MULTIPLE_EPOCH_PTFF);
-    s390_set_qemu_cpu_model(0x2827, 12, 2, qemu_cpu_feat);
-}
-
-static void ccw_machine_3_1_class_options(MachineClass *mc)
-{
-    ccw_machine_4_0_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_3_1, hw_compat_3_1_len);
-}
-DEFINE_CCW_MACHINE(3, 1);
-
-static void ccw_machine_3_0_instance_options(MachineState *machine)
-{
-    ccw_machine_3_1_instance_options(machine);
-}
-
-static void ccw_machine_3_0_class_options(MachineClass *mc)
-{
-    S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
-
-    s390mc->hpage_1m_allowed = false;
-    ccw_machine_3_1_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_3_0, hw_compat_3_0_len);
-}
-DEFINE_CCW_MACHINE(3, 0);
-
-static void ccw_machine_2_12_instance_options(MachineState *machine)
-{
-    ccw_machine_3_0_instance_options(machine);
-    s390_cpudef_featoff_greater(11, 1, S390_FEAT_PPA15);
-    s390_cpudef_featoff_greater(11, 1, S390_FEAT_BPB);
-}
-
-static void ccw_machine_2_12_class_options(MachineClass *mc)
-{
-    ccw_machine_3_0_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_12, hw_compat_2_12_len);
-}
-DEFINE_CCW_MACHINE(2, 12);
-
-#ifdef CONFIG_S390X_LEGACY_CPUS
-
-static void ccw_machine_2_11_instance_options(MachineState *machine)
-{
-    static const S390FeatInit qemu_cpu_feat = { S390_FEAT_LIST_QEMU_V2_11 };
-    ccw_machine_2_12_instance_options(machine);
-
-    /* before 2.12 we emulated the very first z900 */
-    s390_set_qemu_cpu_model(0x2064, 7, 1, qemu_cpu_feat);
-}
-
-static void ccw_machine_2_11_class_options(MachineClass *mc)
-{
-    static GlobalProperty compat[] = {
-        { TYPE_SCLP_EVENT_FACILITY, "allow_all_mask_sizes", "off", },
-    };
-
-    ccw_machine_2_12_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_11, hw_compat_2_11_len);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
-}
-DEFINE_CCW_MACHINE(2, 11);
-
-static void ccw_machine_2_10_instance_options(MachineState *machine)
-{
-    ccw_machine_2_11_instance_options(machine);
-}
-
-static void ccw_machine_2_10_class_options(MachineClass *mc)
-{
-    ccw_machine_2_11_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_2_10, hw_compat_2_10_len);
-}
-DEFINE_CCW_MACHINE(2, 10);
-
-#endif
 
 static void ccw_machine_register_types(void)
 {

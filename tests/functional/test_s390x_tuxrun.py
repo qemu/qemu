@@ -24,6 +24,7 @@ class TuxRunS390xTest(TuxRunBaselineTest):
         'bff7971fc2fef56372d98afe4557b82fd0a785a241e44c29b058e577ad1bbb44')
 
     def test_s390(self):
+        self.set_machine('s390-ccw-virtio')
         self.wait_for_shutdown=False
         self.common_tuxrun(kernel_asset=self.ASSET_S390X_KERNEL,
                            rootfs_asset=self.ASSET_S390X_ROOTFS,

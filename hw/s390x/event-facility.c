@@ -45,13 +45,6 @@ struct SCLPEventFacility {
         uint32_t receive_mask_pieces[2];
         sccb_mask_t receive_mask;
     };
-    /*
-     * when false, we keep the same broken, backwards compatible behaviour as
-     * before, allowing only masks of size exactly 4; when true, we implement
-     * the architecture correctly, allowing all valid mask sizes. Needed for
-     * migration toward older versions.
-     */
-    bool allow_all_mask_sizes;
     /* length of the receive mask */
     uint16_t mask_length;
 };
@@ -294,8 +287,7 @@ static void write_event_mask(SCLPEventFacility *ef, SCCB *sccb)
     uint16_t mask_length = be16_to_cpu(we_mask->mask_length);
     sccb_mask_t tmp_mask;
 
-    if (!mask_length || (mask_length > SCLP_EVENT_MASK_LEN_MAX) ||
-        ((mask_length != 4) && !ef->allow_all_mask_sizes)) {
+    if (!mask_length || mask_length > SCLP_EVENT_MASK_LEN_MAX) {
         sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_MASK_LENGTH);
         return;
     }
@@ -355,13 +347,6 @@ static bool vmstate_event_facility_mask64_needed(void *opaque)
     return (ef->receive_mask & 0xFFFFFFFF) != 0;
 }
 
-static bool vmstate_event_facility_mask_length_needed(void *opaque)
-{
-    SCLPEventFacility *ef = opaque;
-
-    return ef->allow_all_mask_sizes;
-}
-
 static const VMStateDescription vmstate_event_facility_mask64 = {
     .name = "vmstate-event-facility/mask64",
     .version_id = 0,
@@ -377,7 +362,6 @@ static const VMStateDescription vmstate_event_facility_mask_length = {
     .name = "vmstate-event-facility/mask_length",
     .version_id = 0,
     .minimum_version_id = 0,
-    .needed = vmstate_event_facility_mask_length_needed,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT16(mask_length, SCLPEventFacility),
         VMSTATE_END_OF_LIST()
@@ -399,31 +383,12 @@ static const VMStateDescription vmstate_event_facility = {
      }
 };
 
-static void sclp_event_set_allow_all_mask_sizes(Object *obj, bool value,
-                                                       Error **errp)
-{
-    SCLPEventFacility *ef = (SCLPEventFacility *)obj;
-
-    ef->allow_all_mask_sizes = value;
-}
-
-static bool sclp_event_get_allow_all_mask_sizes(Object *obj, Error **errp)
-{
-    SCLPEventFacility *ef = (SCLPEventFacility *)obj;
-
-    return ef->allow_all_mask_sizes;
-}
-
 static void init_event_facility(Object *obj)
 {
     SCLPEventFacility *event_facility = EVENT_FACILITY(obj);
     DeviceState *sdev = DEVICE(obj);
 
     event_facility->mask_length = 4;
-    event_facility->allow_all_mask_sizes = true;
-    object_property_add_bool(obj, "allow_all_mask_sizes",
-                             sclp_event_get_allow_all_mask_sizes,
-                             sclp_event_set_allow_all_mask_sizes);
 
     /* Spawn a new bus for SCLP events */
     qbus_init(&event_facility->sbus, sizeof(event_facility->sbus),
