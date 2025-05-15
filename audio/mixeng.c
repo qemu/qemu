@@ -286,7 +286,7 @@ static const float float_scale_reciprocal = 1.f / ((int64_t)INT32_MAX + 1);
 static void conv_natural_float_to_mono(struct st_sample *dst, const void *src,
                                        int samples)
 {
-    float *in = (float *)src;
+    const float *in = src;
 
     while (samples--) {
         dst->r = dst->l = CONV_NATURAL_FLOAT(*in++);
@@ -297,7 +297,7 @@ static void conv_natural_float_to_mono(struct st_sample *dst, const void *src,
 static void conv_natural_float_to_stereo(struct st_sample *dst, const void *src,
                                          int samples)
 {
-    float *in = (float *)src;
+    const float *in = src;
 
     while (samples--) {
         dst->l = CONV_NATURAL_FLOAT(*in++);
@@ -314,7 +314,7 @@ t_sample *mixeng_conv_float[2] = {
 static void clip_natural_float_from_mono(void *dst, const struct st_sample *src,
                                          int samples)
 {
-    float *out = (float *)dst;
+    float *out = dst;
 
     while (samples--) {
         *out++ = CLIP_NATURAL_FLOAT(src->l + src->r);
@@ -325,7 +325,7 @@ static void clip_natural_float_from_mono(void *dst, const struct st_sample *src,
 static void clip_natural_float_from_stereo(
     void *dst, const struct st_sample *src, int samples)
 {
-    float *out = (float *)dst;
+    float *out = dst;
 
     while (samples--) {
         *out++ = CLIP_NATURAL_FLOAT(src->l);
