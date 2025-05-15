@@ -386,13 +386,6 @@ static uint64_t aspeed_hace_read(void *opaque, hwaddr addr, unsigned int size)
 
     addr >>= 2;
 
-    if (addr >= ASPEED_HACE_NR_REGS) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Out-of-bounds read at offset 0x%" HWADDR_PRIx "\n",
-                      __func__, addr << 2);
-        return 0;
-    }
-
     return s->regs[addr];
 }
 
@@ -403,13 +396,6 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
     AspeedHACEClass *ahc = ASPEED_HACE_GET_CLASS(s);
 
     addr >>= 2;
-
-    if (addr >= ASPEED_HACE_NR_REGS) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Out-of-bounds write at offset 0x%" HWADDR_PRIx "\n",
-                      __func__, addr << 2);
-        return;
-    }
 
     switch (addr) {
     case R_STATUS:
@@ -507,13 +493,14 @@ static const MemoryRegionOps aspeed_hace_ops = {
 static void aspeed_hace_reset(DeviceState *dev)
 {
     struct AspeedHACEState *s = ASPEED_HACE(dev);
+    AspeedHACEClass *ahc = ASPEED_HACE_GET_CLASS(s);
 
     if (s->hash_ctx != NULL) {
         qcrypto_hash_free(s->hash_ctx);
         s->hash_ctx = NULL;
     }
 
-    memset(s->regs, 0, sizeof(s->regs));
+    memset(s->regs, 0, ahc->nr_regs << 2);
     s->total_req_len = 0;
 }
 
@@ -521,11 +508,13 @@ static void aspeed_hace_realize(DeviceState *dev, Error **errp)
 {
     AspeedHACEState *s = ASPEED_HACE(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    AspeedHACEClass *ahc = ASPEED_HACE_GET_CLASS(s);
 
     sysbus_init_irq(sbd, &s->irq);
 
+    s->regs = g_new(uint32_t, ahc->nr_regs);
     memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_hace_ops, s,
-            TYPE_ASPEED_HACE, 0x1000);
+                          TYPE_ASPEED_HACE, ahc->nr_regs << 2);
 
     if (!s->dram_mr) {
         error_setg(errp, TYPE_ASPEED_HACE ": 'dram' link not set");
@@ -548,17 +537,25 @@ static const VMStateDescription vmstate_aspeed_hace = {
     .version_id = 2,
     .minimum_version_id = 2,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, AspeedHACEState, ASPEED_HACE_NR_REGS),
         VMSTATE_UINT32(total_req_len, AspeedHACEState),
         VMSTATE_END_OF_LIST(),
     }
 };
+
+static void aspeed_hace_unrealize(DeviceState *dev)
+{
+    AspeedHACEState *s = ASPEED_HACE(dev);
+
+    g_free(s->regs);
+    s->regs = NULL;
+}
 
 static void aspeed_hace_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = aspeed_hace_realize;
+    dc->unrealize = aspeed_hace_unrealize;
     device_class_set_legacy_reset(dc, aspeed_hace_reset);
     device_class_set_props(dc, aspeed_hace_properties);
     dc->vmsd = &vmstate_aspeed_hace;
@@ -579,6 +576,7 @@ static void aspeed_ast2400_hace_class_init(ObjectClass *klass, const void *data)
 
     dc->desc = "AST2400 Hash and Crypto Engine";
 
+    ahc->nr_regs = 0x64 >> 2;
     ahc->src_mask = 0x0FFFFFFF;
     ahc->dest_mask = 0x0FFFFFF8;
     ahc->key_mask = 0x0FFFFFC0;
@@ -598,6 +596,7 @@ static void aspeed_ast2500_hace_class_init(ObjectClass *klass, const void *data)
 
     dc->desc = "AST2500 Hash and Crypto Engine";
 
+    ahc->nr_regs = 0x64 >> 2;
     ahc->src_mask = 0x3fffffff;
     ahc->dest_mask = 0x3ffffff8;
     ahc->key_mask = 0x3FFFFFC0;
@@ -617,6 +616,7 @@ static void aspeed_ast2600_hace_class_init(ObjectClass *klass, const void *data)
 
     dc->desc = "AST2600 Hash and Crypto Engine";
 
+    ahc->nr_regs = 0x64 >> 2;
     ahc->src_mask = 0x7FFFFFFF;
     ahc->dest_mask = 0x7FFFFFF8;
     ahc->key_mask = 0x7FFFFFF8;
@@ -636,6 +636,7 @@ static void aspeed_ast1030_hace_class_init(ObjectClass *klass, const void *data)
 
     dc->desc = "AST1030 Hash and Crypto Engine";
 
+    ahc->nr_regs = 0x64 >> 2;
     ahc->src_mask = 0x7FFFFFFF;
     ahc->dest_mask = 0x7FFFFFF8;
     ahc->key_mask = 0x7FFFFFF8;
@@ -655,6 +656,7 @@ static void aspeed_ast2700_hace_class_init(ObjectClass *klass, const void *data)
 
     dc->desc = "AST2700 Hash and Crypto Engine";
 
+    ahc->nr_regs = 0x64 >> 2;
     ahc->src_mask = 0x7FFFFFFF;
     ahc->dest_mask = 0x7FFFFFF8;
     ahc->key_mask = 0x7FFFFFF8;
