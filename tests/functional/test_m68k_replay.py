@@ -24,7 +24,8 @@ class M68kReplay(ReplayKernelBase):
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
                                'console=ttyS0 vga=off')
         console_pattern = 'No filesystem could mount root'
-        self.run_rr(kernel_path, kernel_command_line, console_pattern)
+        self.run_rr(kernel_path, kernel_command_line, console_pattern,
+                    args=('-audio', 'none'))
 
     ASSET_MCF5208 = Asset(
        'https://qemu-advcal.gitlab.io/qac-best-of-multiarch/download/day07.tar.xz',
