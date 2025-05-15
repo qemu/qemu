@@ -145,15 +145,19 @@ static bool has_padding(AspeedHACEState *s, struct iovec *iov,
 static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode,
                               bool acc_mode)
 {
-    struct iovec iov[ASPEED_HACE_MAX_SG];
-    uint32_t total_msg_len;
-    uint32_t pad_offset;
     g_autofree uint8_t *digest_buf = NULL;
-    size_t digest_len = 0;
-    bool sg_acc_mode_final_request = false;
-    int i;
-    void *haddr;
+    struct iovec iov[ASPEED_HACE_MAX_SG];
+    bool acc_final_request = false;
     Error *local_err = NULL;
+    uint32_t total_msg_len;
+    size_t digest_len = 0;
+    uint32_t sg_addr = 0;
+    uint32_t pad_offset;
+    int iov_idx = 0;
+    uint32_t len = 0;
+    uint32_t src = 0;
+    void *haddr;
+    hwaddr plen;
 
     if (acc_mode && s->hash_ctx == NULL) {
         s->hash_ctx = qcrypto_hash_new(algo, &local_err);
@@ -166,74 +170,69 @@ static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode,
     }
 
     if (sg_mode) {
-        uint32_t len = 0;
-
-        for (i = 0; !(len & SG_LIST_LEN_LAST); i++) {
-            uint32_t addr, src;
-            hwaddr plen;
-
-            if (i == ASPEED_HACE_MAX_SG) {
+        for (iov_idx = 0; !(len & SG_LIST_LEN_LAST); iov_idx++) {
+            if (iov_idx == ASPEED_HACE_MAX_SG) {
                 qemu_log_mask(LOG_GUEST_ERROR,
                         "aspeed_hace: guest failed to set end of sg list marker\n");
                 break;
             }
 
-            src = s->regs[R_HASH_SRC] + (i * SG_LIST_ENTRY_SIZE);
+            src = s->regs[R_HASH_SRC] + (iov_idx * SG_LIST_ENTRY_SIZE);
 
             len = address_space_ldl_le(&s->dram_as, src,
                                        MEMTXATTRS_UNSPECIFIED, NULL);
 
-            addr = address_space_ldl_le(&s->dram_as, src + SG_LIST_LEN_SIZE,
-                                        MEMTXATTRS_UNSPECIFIED, NULL);
-            addr &= SG_LIST_ADDR_MASK;
+            sg_addr = address_space_ldl_le(&s->dram_as, src + SG_LIST_LEN_SIZE,
+                                           MEMTXATTRS_UNSPECIFIED, NULL);
+            sg_addr &= SG_LIST_ADDR_MASK;
 
             plen = len & SG_LIST_LEN_MASK;
-            haddr = address_space_map(&s->dram_as, addr, &plen, false,
+            haddr = address_space_map(&s->dram_as, sg_addr, &plen, false,
                                       MEMTXATTRS_UNSPECIFIED);
             if (haddr == NULL) {
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "%s: qcrypto failed\n", __func__);
                 return;
             }
-            iov[i].iov_base = haddr;
+            iov[iov_idx].iov_base = haddr;
             if (acc_mode) {
                 s->total_req_len += plen;
 
-                if (has_padding(s, &iov[i], plen, &total_msg_len,
+                if (has_padding(s, &iov[iov_idx], plen, &total_msg_len,
                                 &pad_offset)) {
                     /* Padding being present indicates the final request */
-                    sg_acc_mode_final_request = true;
-                    iov[i].iov_len = pad_offset;
+                    acc_final_request = true;
+                    iov[iov_idx].iov_len = pad_offset;
                 } else {
-                    iov[i].iov_len = plen;
+                    iov[iov_idx].iov_len = plen;
                 }
             } else {
-                iov[i].iov_len = plen;
+                iov[iov_idx].iov_len = plen;
             }
         }
     } else {
-        hwaddr len = s->regs[R_HASH_SRC_LEN];
+        plen = s->regs[R_HASH_SRC_LEN];
 
         haddr = address_space_map(&s->dram_as, s->regs[R_HASH_SRC],
-                                  &len, false, MEMTXATTRS_UNSPECIFIED);
+                                  &plen, false, MEMTXATTRS_UNSPECIFIED);
         if (haddr == NULL) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: qcrypto failed\n", __func__);
             return;
         }
         iov[0].iov_base = haddr;
-        iov[0].iov_len = len;
-        i = 1;
+        iov[0].iov_len = plen;
+        iov_idx = 1;
     }
 
     if (acc_mode) {
-        if (qcrypto_hash_updatev(s->hash_ctx, iov, i, &local_err) < 0) {
+        if (qcrypto_hash_updatev(s->hash_ctx, iov, iov_idx, &local_err) < 0) {
             qemu_log_mask(LOG_GUEST_ERROR, "qcrypto hash update failed : %s",
                           error_get_pretty(local_err));
             error_free(local_err);
             return;
         }
 
-        if (sg_acc_mode_final_request) {
+        if (acc_final_request) {
             if (qcrypto_hash_finalize_bytes(s->hash_ctx, &digest_buf,
                                             &digest_len, &local_err)) {
                 qemu_log_mask(LOG_GUEST_ERROR,
@@ -248,7 +247,7 @@ static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode,
             s->hash_ctx = NULL;
             s->total_req_len = 0;
         }
-    } else if (qcrypto_hash_bytesv(algo, iov, i, &digest_buf,
+    } else if (qcrypto_hash_bytesv(algo, iov, iov_idx, &digest_buf,
                                    &digest_len, &local_err) < 0) {
         qemu_log_mask(LOG_GUEST_ERROR, "qcrypto hash bytesv failed : %s",
                       error_get_pretty(local_err));
@@ -263,10 +262,10 @@ static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode,
                       "aspeed_hace: address space write failed\n");
     }
 
-    for (; i > 0; i--) {
-        address_space_unmap(&s->dram_as, iov[i - 1].iov_base,
-                            iov[i - 1].iov_len, false,
-                            iov[i - 1].iov_len);
+    for (; iov_idx > 0; iov_idx--) {
+        address_space_unmap(&s->dram_as, iov[iov_idx - 1].iov_base,
+                            iov[iov_idx - 1].iov_len, false,
+                            iov[iov_idx - 1].iov_len);
     }
 
     /*
