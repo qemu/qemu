@@ -794,7 +794,7 @@ build-wasm32:
     job: wasm32-emsdk-cross-container
   variables:
     IMAGE: emsdk-wasm32-cross
-    CONFIGURE_ARGS: --static --cpu=wasm32 --disable-tools --enable-debug --enable-tcg-interpreter
+    CONFIGURE_ARGS: --static --cpu=wasm32 --disable-tools --enable-debug
 
 build-wasm-wasm64:
   extends: .wasm_build_job_template
@@ -803,7 +803,7 @@ build-wasm-wasm64:
     job: wasm64-emsdk-cross-container
   variables:
     IMAGE: emsdk-wasm64-cross
-    CONFIGURE_ARGS: --static --cpu=wasm64 --wasm64-memory64=1 --disable-tools --enable-debug --enable-tcg-interpreter
+    CONFIGURE_ARGS: --static --cpu=wasm64 --wasm64-memory64=1 --disable-tools --enable-debug
 
 build-wasm-wasm64l:
   extends: .wasm_build_job_template
@@ -812,4 +812,4 @@ build-wasm-wasm64l:
     job: wasm64l-emsdk-cross-container
   variables:
     IMAGE: emsdk-wasm64l-cross
-    CONFIGURE_ARGS: --static --cpu=wasm64 --wasm64-memory64=2 --disable-tools --enable-debug --enable-tcg-interpreter
+    CONFIGURE_ARGS: --static --cpu=wasm64 --wasm64-memory64=2 --disable-tools --enable-debug
