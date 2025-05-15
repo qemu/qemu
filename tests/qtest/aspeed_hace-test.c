@@ -10,6 +10,12 @@
 #include "qemu/bitops.h"
 #include "aspeed-hace-utils.h"
 
+static const struct AspeedMasks ast1030_masks = {
+    .src  = 0x7fffffff,
+    .dest = 0x7ffffff8,
+    .len  = 0x0fffffff,
+};
+
 static const struct AspeedMasks ast2600_masks = {
     .src  = 0x7fffffff,
     .dest = 0x7ffffff8,
@@ -27,6 +33,62 @@ static const struct AspeedMasks ast2400_masks = {
     .dest = 0x0ffffff8,
     .len  = 0x0fffffff,
 };
+
+/* ast1030 */
+static void test_md5_ast1030(void)
+{
+    aspeed_test_md5("-machine ast1030-evb", 0x7e6d0000, 0x00000000);
+}
+
+static void test_sha256_ast1030(void)
+{
+    aspeed_test_sha256("-machine ast1030-evb", 0x7e6d0000, 0x00000000);
+}
+
+static void test_sha256_sg_ast1030(void)
+{
+    aspeed_test_sha256_sg("-machine ast1030-evb", 0x7e6d0000, 0x00000000);
+}
+
+static void test_sha384_ast1030(void)
+{
+    aspeed_test_sha384("-machine ast1030-evb", 0x7e6d0000, 0x00000000);
+}
+
+static void test_sha384_sg_ast1030(void)
+{
+    aspeed_test_sha384_sg("-machine ast1030-evb", 0x7e6d0000, 0x00000000);
+}
+
+static void test_sha512_ast1030(void)
+{
+    aspeed_test_sha512("-machine ast1030-evb", 0x7e6d0000, 0x00000000);
+}
+
+static void test_sha512_sg_ast1030(void)
+{
+    aspeed_test_sha512_sg("-machine ast1030-evb", 0x7e6d0000, 0x00000000);
+}
+
+static void test_sha256_accum_ast1030(void)
+{
+    aspeed_test_sha256_accum("-machine ast1030-evb", 0x7e6d0000, 0x00000000);
+}
+
+static void test_sha384_accum_ast1030(void)
+{
+    aspeed_test_sha384_accum("-machine ast1030-evb", 0x7e6d0000, 0x00000000);
+}
+
+static void test_sha512_accum_ast1030(void)
+{
+    aspeed_test_sha512_accum("-machine ast1030-evb", 0x7e6d0000, 0x00000000);
+}
+
+static void test_addresses_ast1030(void)
+{
+    aspeed_test_addresses("-machine ast1030-evb", 0x7e6d0000, &ast1030_masks);
+}
 
 /* ast2600 */
 static void test_md5_ast2600(void)
@@ -129,6 +191,20 @@ static void test_addresses_ast2400(void)
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
+
+    qtest_add_func("ast1030/hace/addresses", test_addresses_ast1030);
+    qtest_add_func("ast1030/hace/sha512", test_sha512_ast1030);
+    qtest_add_func("ast1030/hace/sha384", test_sha384_ast1030);
+    qtest_add_func("ast1030/hace/sha256", test_sha256_ast1030);
+    qtest_add_func("ast1030/hace/md5", test_md5_ast1030);
+
+    qtest_add_func("ast1030/hace/sha512_sg", test_sha512_sg_ast1030);
+    qtest_add_func("ast1030/hace/sha384_sg", test_sha384_sg_ast1030);
+    qtest_add_func("ast1030/hace/sha256_sg", test_sha256_sg_ast1030);
+
+    qtest_add_func("ast1030/hace/sha512_accum", test_sha512_accum_ast1030);
+    qtest_add_func("ast1030/hace/sha384_accum", test_sha384_accum_ast1030);
+    qtest_add_func("ast1030/hace/sha256_accum", test_sha256_accum_ast1030);
 
     qtest_add_func("ast2600/hace/addresses", test_addresses_ast2600);
     qtest_add_func("ast2600/hace/sha512", test_sha512_ast2600);
