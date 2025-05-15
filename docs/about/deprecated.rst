@@ -345,6 +345,19 @@ machine must ensure that they're setting the ``spike`` machine in the
 command line (``-M spike``).
 
 
+System emulator binaries
+------------------------
+
+``qemu-system-microblazeel`` (since 10.1)
+'''''''''''''''''''''''''''''''''''''''''
+
+The ``qemu-system-microblaze`` binary can emulate little-endian machines
+now, too, so the separate binary ``qemu-system-microblazeel`` (with the
+``el`` suffix) for little-endian targets is not required anymore. The
+``petalogix-s3adsp1800`` machine can now be switched to little endian by
+setting its ``endianness`` property to ``little``.
+
+
 Backend options
 ---------------
 
