@@ -1728,8 +1728,6 @@ static bool vtd_as_pt_enabled(VTDAddressSpace *as)
 static bool vtd_switch_address_space(VTDAddressSpace *as)
 {
     bool use_iommu, pt;
-    /* Whether we need to take the BQL on our own */
-    bool take_bql = !bql_locked();
 
     assert(as);
 
@@ -1746,9 +1744,7 @@ static bool vtd_switch_address_space(VTDAddressSpace *as)
      * from vtd_pt_enable_fast_path(). However the memory APIs need
      * it. We'd better make sure we have had it already, or, take it.
      */
-    if (take_bql) {
-        bql_lock();
-    }
+    BQL_LOCK_GUARD();
 
     /* Turn off first then on the other */
     if (use_iommu) {
@@ -1799,10 +1795,6 @@ static bool vtd_switch_address_space(VTDAddressSpace *as)
         memory_region_set_enabled(&as->iommu_ir_fault, true);
     } else {
         memory_region_set_enabled(&as->iommu_ir_fault, false);
-    }
-
-    if (take_bql) {
-        bql_unlock();
     }
 
     return use_iommu;
@@ -4213,9 +4205,30 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus,
     VTDAddressSpace *vtd_dev_as;
     char name[128];
 
+    vtd_iommu_lock(s);
     vtd_dev_as = g_hash_table_lookup(s->vtd_address_spaces, &key);
+    vtd_iommu_unlock(s);
+
     if (!vtd_dev_as) {
-        struct vtd_as_key *new_key = g_malloc(sizeof(*new_key));
+        struct vtd_as_key *new_key;
+        /* Slow path */
+
+        /*
+         * memory_region_add_subregion_overlap requires the bql,
+         * make sure we own it.
+         */
+        BQL_LOCK_GUARD();
+        vtd_iommu_lock(s);
+
+        /* Check again as we released the lock for a moment */
+        vtd_dev_as = g_hash_table_lookup(s->vtd_address_spaces, &key);
+        if (vtd_dev_as) {
+            vtd_iommu_unlock(s);
+            return vtd_dev_as;
+        }
+
+        /* Still nothing, allocate a new address space */
+        new_key = g_malloc(sizeof(*new_key));
 
         new_key->bus = bus;
         new_key->devfn = devfn;
@@ -4306,6 +4319,8 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus,
         vtd_switch_address_space(vtd_dev_as);
 
         g_hash_table_insert(s->vtd_address_spaces, new_key, vtd_dev_as);
+
+        vtd_iommu_unlock(s);
     }
     return vtd_dev_as;
 }

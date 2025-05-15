@@ -622,7 +622,7 @@ static void guest_reset(VirtIOSerial *vser)
     }
 }
 
-static void set_status(VirtIODevice *vdev, uint8_t status)
+static int set_status(VirtIODevice *vdev, uint8_t status)
 {
     VirtIOSerial *vser;
     VirtIOSerialPort *port;
@@ -650,6 +650,7 @@ static void set_status(VirtIODevice *vdev, uint8_t status)
             vsc->enable_backend(port, vdev->vm_running);
         }
     }
+    return 0;
 }
 
 static void vser_reset(VirtIODevice *vdev)

@@ -90,6 +90,7 @@ struct PCITestDevState {
     int current;
 
     uint64_t membar_size;
+    bool membar_backed;
     MemoryRegion membar;
 };
 
@@ -258,8 +259,14 @@ static void pci_testdev_realize(PCIDevice *pci_dev, Error **errp)
     pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &d->portio);
 
     if (d->membar_size) {
-        memory_region_init(&d->membar, OBJECT(d), "pci-testdev-membar",
-                           d->membar_size);
+        if (d->membar_backed)
+            memory_region_init_ram(&d->membar, OBJECT(d),
+                                   "pci-testdev-membar-backed",
+                                   d->membar_size, NULL);
+        else
+            memory_region_init(&d->membar, OBJECT(d),
+                               "pci-testdev-membar",
+                               d->membar_size);
         pci_register_bar(pci_dev, 2,
                          PCI_BASE_ADDRESS_SPACE_MEMORY |
                          PCI_BASE_ADDRESS_MEM_PREFETCH |
@@ -321,6 +328,7 @@ static void qdev_pci_testdev_reset(DeviceState *dev)
 
 static const Property pci_testdev_properties[] = {
     DEFINE_PROP_SIZE("membar", PCITestDevState, membar_size, 0),
+    DEFINE_PROP_BOOL("membar-backed", PCITestDevState, membar_backed, false),
 };
 
 static void pci_testdev_class_init(ObjectClass *klass, const void *data)

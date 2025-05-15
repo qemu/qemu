@@ -97,30 +97,28 @@ err_host_notifiers:
     vhost_dev_disable_notifiers(&b->dev, b->vdev);
 }
 
-void
+int
 vhost_user_backend_stop(VhostUserBackend *b)
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(b->vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
-    int ret = 0;
+    int ret;
 
     if (!b->started) {
-        return;
+        return 0;
     }
 
-    vhost_dev_stop(&b->dev, b->vdev, true);
+    ret = vhost_dev_stop(&b->dev, b->vdev, true);
 
-    if (k->set_guest_notifiers) {
-        ret = k->set_guest_notifiers(qbus->parent,
-                                     b->dev.nvqs, false);
-        if (ret < 0) {
-            error_report("vhost guest notifier cleanup failed: %d", ret);
-        }
+    if (k->set_guest_notifiers &&
+        k->set_guest_notifiers(qbus->parent, b->dev.nvqs, false) < 0) {
+        error_report("vhost guest notifier cleanup failed: %d", ret);
+        return -1;
     }
-    assert(ret >= 0);
 
     vhost_dev_disable_notifiers(&b->dev, b->vdev);
     b->started = false;
+    return ret;
 }
 
 static void set_chardev(Object *obj, const char *value, Error **errp)

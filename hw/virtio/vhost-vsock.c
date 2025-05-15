@@ -67,37 +67,38 @@ static int vhost_vsock_set_running(VirtIODevice *vdev, int start)
 }
 
 
-static void vhost_vsock_set_status(VirtIODevice *vdev, uint8_t status)
+static int vhost_vsock_set_status(VirtIODevice *vdev, uint8_t status)
 {
     VHostVSockCommon *vvc = VHOST_VSOCK_COMMON(vdev);
     bool should_start = virtio_device_should_start(vdev, status);
     int ret;
 
     if (vhost_dev_is_started(&vvc->vhost_dev) == should_start) {
-        return;
+        return 0;
     }
 
     if (should_start) {
         ret = vhost_vsock_common_start(vdev);
         if (ret < 0) {
-            return;
+            return 0;
         }
 
         ret = vhost_vsock_set_running(vdev, 1);
         if (ret < 0) {
             vhost_vsock_common_stop(vdev);
             error_report("Error starting vhost vsock: %d", -ret);
-            return;
+            return 0;
         }
     } else {
         ret = vhost_vsock_set_running(vdev, 0);
         if (ret < 0) {
             error_report("vhost vsock set running failed: %d", ret);
-            return;
+            return 0;
         }
 
         vhost_vsock_common_stop(vdev);
     }
+    return 0;
 }
 
 static uint64_t vhost_vsock_get_features(VirtIODevice *vdev,

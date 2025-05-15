@@ -54,23 +54,28 @@ const VhostDevConfigOps vsock_ops = {
     .vhost_dev_config_notifier = vuv_handle_config_change,
 };
 
-static void vuv_set_status(VirtIODevice *vdev, uint8_t status)
+static int vuv_set_status(VirtIODevice *vdev, uint8_t status)
 {
     VHostVSockCommon *vvc = VHOST_VSOCK_COMMON(vdev);
     bool should_start = virtio_device_should_start(vdev, status);
+    int ret;
 
     if (vhost_dev_is_started(&vvc->vhost_dev) == should_start) {
-        return;
+        return 0;
     }
 
     if (should_start) {
-        int ret = vhost_vsock_common_start(vdev);
+        ret = vhost_vsock_common_start(vdev);
         if (ret < 0) {
-            return;
+            return ret;
         }
     } else {
-        vhost_vsock_common_stop(vdev);
+        ret = vhost_vsock_common_stop(vdev);
+        if (ret < 0) {
+            return ret;
+        }
     }
+    return 0;
 }
 
 static uint64_t vuv_get_features(VirtIODevice *vdev,

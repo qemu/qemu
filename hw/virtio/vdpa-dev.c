@@ -312,7 +312,7 @@ static void vhost_vdpa_device_stop(VirtIODevice *vdev)
     vhost_dev_disable_notifiers(&s->dev, vdev);
 }
 
-static void vhost_vdpa_device_set_status(VirtIODevice *vdev, uint8_t status)
+static int vhost_vdpa_device_set_status(VirtIODevice *vdev, uint8_t status)
 {
     VhostVdpaDevice *s = VHOST_VDPA_DEVICE(vdev);
     bool should_start = virtio_device_started(vdev, status);
@@ -324,7 +324,7 @@ static void vhost_vdpa_device_set_status(VirtIODevice *vdev, uint8_t status)
     }
 
     if (s->started == should_start) {
-        return;
+        return 0;
     }
 
     if (should_start) {
@@ -335,6 +335,7 @@ static void vhost_vdpa_device_set_status(VirtIODevice *vdev, uint8_t status)
     } else {
         vhost_vdpa_device_stop(vdev);
     }
+    return 0;
 }
 
 static const Property vhost_vdpa_device_properties[] = {
