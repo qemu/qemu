@@ -10,8 +10,10 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
+#include "qemu/iov.h"
 #include "hw/misc/aspeed_hace.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
@@ -87,6 +89,42 @@ static const struct {
     { HASH_ALGO_SHA512_SERIES | HASH_ALGO_SHA512_SHA256,
       QCRYPTO_HASH_ALGO_SHA256 },
 };
+
+static void hace_hexdump(const char *desc, const char *buf, size_t size)
+{
+    g_autoptr(GString) str = g_string_sized_new(64);
+    size_t len;
+    size_t i;
+
+    for (i = 0; i < size; i += len) {
+        len = MIN(16, size - i);
+        g_string_truncate(str, 0);
+        qemu_hexdump_line(str, buf + i, len, 1, 4);
+        trace_aspeed_hace_hexdump(desc, i, str->str);
+    }
+}
+
+static void hace_iov_hexdump(const char *desc, const struct iovec *iov,
+                             const unsigned int iov_cnt)
+{
+    size_t size = 0;
+    char *buf;
+    int i;
+
+    for (i = 0; i < iov_cnt; i++) {
+        size += iov[i].iov_len;
+    }
+
+    buf = g_malloc(size);
+
+    if (!buf) {
+        return;
+    }
+
+    iov_to_buf(iov, iov_cnt, 0, buf, size);
+    hace_hexdump(desc, buf, size);
+    g_free(buf);
+}
 
 static int hash_algo_lookup(uint32_t reg)
 {
@@ -302,6 +340,10 @@ static void hash_write_digest_and_unmap_iov(AspeedHACEState *s,
                       __func__, digest_addr);
     }
 
+    if (trace_event_get_state_backends(TRACE_ASPEED_HACE_HEXDUMP)) {
+        hace_hexdump("digest", (char *)digest_buf, digest_len);
+    }
+
     for (; iov_idx > 0; iov_idx--) {
         address_space_unmap(&s->dram_as, iov[iov_idx - 1].iov_base,
                             iov[iov_idx - 1].iov_len, false,
@@ -393,6 +435,10 @@ static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Failed to prepare iov\n", __func__);
          return;
+    }
+
+    if (trace_event_get_state_backends(TRACE_ASPEED_HACE_HEXDUMP)) {
+        hace_iov_hexdump("plaintext", iov, iov_idx);
     }
 
     /* Executes the hash operation */
