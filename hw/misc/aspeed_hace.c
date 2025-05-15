@@ -151,8 +151,11 @@ static uint64_t hash_get_source_addr(AspeedHACEState *s)
     return src_addr;
 }
 
-static int hash_prepare_direct_iov(AspeedHACEState *s, struct iovec *iov)
+static int hash_prepare_direct_iov(AspeedHACEState *s, struct iovec *iov,
+                                   bool acc_mode, bool *acc_final_request)
 {
+    uint32_t total_msg_len;
+    uint32_t pad_offset;
     uint64_t src;
     void *haddr;
     hwaddr plen;
@@ -171,8 +174,22 @@ static int hash_prepare_direct_iov(AspeedHACEState *s, struct iovec *iov)
     }
 
     iov[0].iov_base = haddr;
-    iov[0].iov_len = plen;
     iov_idx = 1;
+
+    if (acc_mode) {
+        s->total_req_len += plen;
+
+        if (has_padding(s, &iov[0], plen, &total_msg_len,
+                        &pad_offset)) {
+            /* Padding being present indicates the final request */
+            *acc_final_request = true;
+            iov[0].iov_len = pad_offset;
+        } else {
+            iov[0].iov_len = plen;
+        }
+    } else {
+        iov[0].iov_len = plen;
+    }
 
     return iov_idx;
 }
@@ -345,7 +362,8 @@ static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode,
     if (sg_mode) {
         iov_idx = hash_prepare_sg_iov(s, iov, acc_mode, &acc_final_request);
     } else {
-        iov_idx = hash_prepare_direct_iov(s, iov);
+        iov_idx = hash_prepare_direct_iov(s, iov, acc_mode,
+                                          &acc_final_request);
     }
 
     if (iov_idx <= 0) {
