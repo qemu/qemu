@@ -54,13 +54,19 @@ void aspeed_test_md5(const char *machine, const uint32_t base,
                      const uint32_t src_addr);
 void aspeed_test_sha256(const char *machine, const uint32_t base,
                         const uint32_t src_addr);
+void aspeed_test_sha384(const char *machine, const uint32_t base,
+                        const uint32_t src_addr);
 void aspeed_test_sha512(const char *machine, const uint32_t base,
                         const uint32_t src_addr);
 void aspeed_test_sha256_sg(const char *machine, const uint32_t base,
                            const uint32_t src_addr);
+void aspeed_test_sha384_sg(const char *machine, const uint32_t base,
+                           const uint32_t src_addr);
 void aspeed_test_sha512_sg(const char *machine, const uint32_t base,
                            const uint32_t src_addr);
 void aspeed_test_sha256_accum(const char *machine, const uint32_t base,
+                              const uint32_t src_addr);
+void aspeed_test_sha384_accum(const char *machine, const uint32_t base,
                               const uint32_t src_addr);
 void aspeed_test_sha512_accum(const char *machine, const uint32_t base,
                               const uint32_t src_addr);
