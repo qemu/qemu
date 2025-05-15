@@ -27,7 +27,7 @@
 #define TAG_IRQ         BIT(15)
 
 #define R_HASH_SRC      (0x20 / 4)
-#define R_HASH_DEST     (0x24 / 4)
+#define R_HASH_DIGEST   (0x24 / 4)
 #define R_HASH_KEY_BUFF (0x28 / 4)
 #define R_HASH_SRC_LEN  (0x2c / 4)
 
@@ -238,17 +238,30 @@ static int hash_prepare_sg_iov(AspeedHACEState *s, struct iovec *iov,
     return iov_idx;
 }
 
+static uint64_t hash_get_digest_addr(AspeedHACEState *s)
+{
+    uint64_t digest_addr = 0;
+
+    digest_addr = deposit64(digest_addr, 0, 32, s->regs[R_HASH_DIGEST]);
+
+    return digest_addr;
+}
+
 static void hash_write_digest_and_unmap_iov(AspeedHACEState *s,
                                             struct iovec *iov,
                                             int iov_idx,
                                             uint8_t *digest_buf,
                                             size_t digest_len)
 {
-    if (address_space_write(&s->dram_as, s->regs[R_HASH_DEST],
-                            MEMTXATTRS_UNSPECIFIED, digest_buf, digest_len)) {
+    uint64_t digest_addr = 0;
+
+    digest_addr = hash_get_digest_addr(s);
+    if (address_space_write(&s->dram_as, digest_addr,
+                            MEMTXATTRS_UNSPECIFIED,
+                            digest_buf, digest_len)) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Failed to write digest to 0x%x\n",
-                      __func__, s->regs[R_HASH_DEST]);
+                      "%s: Failed to write digest to 0x%" HWADDR_PRIx "\n",
+                      __func__, digest_addr);
     }
 
     for (; iov_idx > 0; iov_idx--) {
@@ -402,7 +415,7 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
     case R_HASH_SRC:
         data &= ahc->src_mask;
         break;
-    case R_HASH_DEST:
+    case R_HASH_DIGEST:
         data &= ahc->dest_mask;
         break;
     case R_HASH_KEY_BUFF:
