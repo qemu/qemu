@@ -18,6 +18,7 @@
 #include "crypto/hash.h"
 #include "hw/qdev-properties.h"
 #include "hw/irq.h"
+#include "trace.h"
 
 #define R_CRYPT_CMD     (0x10 / 4)
 
@@ -170,6 +171,7 @@ static int hash_prepare_direct_iov(AspeedHACEState *s, struct iovec *iov,
 
     plen = s->regs[R_HASH_SRC_LEN];
     src = hash_get_source_addr(s);
+    trace_aspeed_hace_hash_addr("src", src);
     haddr = address_space_map(&s->dram_as, src, &plen, false,
                               MEMTXATTRS_UNSPECIFIED);
     if (haddr == NULL) {
@@ -227,6 +229,7 @@ static int hash_prepare_sg_iov(AspeedHACEState *s, struct iovec *iov,
         sg_addr = address_space_ldl_le(&s->dram_as, src + SG_LIST_LEN_SIZE,
                                        MEMTXATTRS_UNSPECIFIED, NULL);
         sg_addr &= SG_LIST_ADDR_MASK;
+        trace_aspeed_hace_hash_sg(iov_idx, src, sg_addr, len);
         /*
          * To maintain compatibility with older SoCs such as the AST2600,
          * the AST2700 HW automatically set bit 34 of the 64-bit sg_addr.
@@ -290,6 +293,7 @@ static void hash_write_digest_and_unmap_iov(AspeedHACEState *s,
     uint64_t digest_addr = 0;
 
     digest_addr = hash_get_digest_addr(s);
+    trace_aspeed_hace_hash_addr("digest", digest_addr);
     if (address_space_write(&s->dram_as, digest_addr,
                             MEMTXATTRS_UNSPECIFIED,
                             digest_buf, digest_len)) {
@@ -331,6 +335,8 @@ static void hash_execute_acc_mode(AspeedHACEState *s, int algo,
     g_autofree uint8_t *digest_buf = NULL;
     Error *local_err = NULL;
     size_t digest_len = 0;
+
+    trace_aspeed_hace_hash_execute_acc_mode(final_request);
 
     if (s->hash_ctx == NULL) {
         s->hash_ctx = qcrypto_hash_new(algo, &local_err);
@@ -403,6 +409,8 @@ static uint64_t aspeed_hace_read(void *opaque, hwaddr addr, unsigned int size)
 
     addr >>= 2;
 
+    trace_aspeed_hace_read(addr << 2, s->regs[addr]);
+
     return s->regs[addr];
 }
 
@@ -413,6 +421,8 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
     AspeedHACEClass *ahc = ASPEED_HACE_GET_CLASS(s);
 
     addr >>= 2;
+
+    trace_aspeed_hace_write(addr << 2, data);
 
     switch (addr) {
     case R_STATUS:
