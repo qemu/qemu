@@ -1454,7 +1454,7 @@ sub process_start_of_file {
 		my $permhere = $fileinfo->{linestart} . "FILE: " .
 			$fileinfo->{filenew} . "\n";
 		if ($fileinfo->{filenew} =~
-		    /(\bMakefile(?:\.objs)?|\.(c|cc|cpp|h|mak|s|S))$/) {
+		    /(\bMakefile.*|\.(c|cc|cpp|h|mak|s|S))$/) {
 			ERROR("do not set execute permissions for source " .
 			      "files\n" . $permhere);
 		}
