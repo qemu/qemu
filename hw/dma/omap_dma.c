@@ -131,9 +131,9 @@ struct omap_dma_s {
 #define LAST_FRAME_INTR (1 << 4)
 #define END_BLOCK_INTR  (1 << 5)
 #define SYNC            (1 << 6)
-#define END_PKT_INTR	(1 << 7)
-#define TRANS_ERR_INTR	(1 << 8)
-#define MISALIGN_INTR	(1 << 11)
+#define END_PKT_INTR    (1 << 7)
+#define TRANS_ERR_INTR  (1 << 8)
+#define MISALIGN_INTR   (1 << 11)
 
 static inline void omap_dma_interrupts_update(struct omap_dma_s *s)
 {
@@ -526,12 +526,12 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
 
     /* Check all the conditions that terminate the transfer starting
      * with those that can occur the soonest.  */
-#define INTR_CHECK(cond, id, nelements)	\
-    if (cond) {			\
-        elements[id] = nelements;	\
-        if (elements[id] < min_elems)	\
-            min_elems = elements[id];	\
-    } else				\
+#define INTR_CHECK(cond, id, nelements) \
+    if (cond) {         \
+        elements[id] = nelements;   \
+        if (elements[id] < min_elems)   \
+            min_elems = elements[id];   \
+    } else              \
         elements[id] = INT_MAX;
 
     /* Elements */
@@ -740,7 +740,7 @@ static int omap_dma_ch_reg_read(struct omap_dma_s *s,
                 struct omap_dma_channel_s *ch, int reg, uint16_t *value)
 {
     switch (reg) {
-    case 0x00:	/* SYS_DMA_CSDP_CH0 */
+    case 0x00:  /* SYS_DMA_CSDP_CH0 */
         *value = (ch->burst[1] << 14) |
                 (ch->pack[1] << 13) |
                 (ch->port[1] << 9) |
@@ -750,9 +750,9 @@ static int omap_dma_ch_reg_read(struct omap_dma_s *s,
                 (ch->data_type >> 1);
         break;
 
-    case 0x02:	/* SYS_DMA_CCR_CH0 */
+    case 0x02:  /* SYS_DMA_CCR_CH0 */
         if (s->model <= omap_dma_3_1)
-            *value = 0 << 10;			/* FIFO_FLUSH reads as 0 */
+            *value = 0 << 10;           /* FIFO_FLUSH reads as 0 */
         else
             *value = ch->omap_3_1_compatible_disable << 10;
         *value |= (ch->mode[1] << 14) |
@@ -765,11 +765,11 @@ static int omap_dma_ch_reg_read(struct omap_dma_s *s,
                 (ch->fs << 5) | ch->sync;
         break;
 
-    case 0x04:	/* SYS_DMA_CICR_CH0 */
+    case 0x04:  /* SYS_DMA_CICR_CH0 */
         *value = ch->interrupts;
         break;
 
-    case 0x06:	/* SYS_DMA_CSR_CH0 */
+    case 0x06:  /* SYS_DMA_CSR_CH0 */
         *value = ch->status;
         ch->status &= SYNC;
         if (!ch->omap_3_1_compatible_disable && ch->sibling) {
@@ -779,77 +779,77 @@ static int omap_dma_ch_reg_read(struct omap_dma_s *s,
         qemu_irq_lower(ch->irq);
         break;
 
-    case 0x08:	/* SYS_DMA_CSSA_L_CH0 */
+    case 0x08:  /* SYS_DMA_CSSA_L_CH0 */
         *value = ch->addr[0] & 0x0000ffff;
         break;
 
-    case 0x0a:	/* SYS_DMA_CSSA_U_CH0 */
+    case 0x0a:  /* SYS_DMA_CSSA_U_CH0 */
         *value = ch->addr[0] >> 16;
         break;
 
-    case 0x0c:	/* SYS_DMA_CDSA_L_CH0 */
+    case 0x0c:  /* SYS_DMA_CDSA_L_CH0 */
         *value = ch->addr[1] & 0x0000ffff;
         break;
 
-    case 0x0e:	/* SYS_DMA_CDSA_U_CH0 */
+    case 0x0e:  /* SYS_DMA_CDSA_U_CH0 */
         *value = ch->addr[1] >> 16;
         break;
 
-    case 0x10:	/* SYS_DMA_CEN_CH0 */
+    case 0x10:  /* SYS_DMA_CEN_CH0 */
         *value = ch->elements;
         break;
 
-    case 0x12:	/* SYS_DMA_CFN_CH0 */
+    case 0x12:  /* SYS_DMA_CFN_CH0 */
         *value = ch->frames;
         break;
 
-    case 0x14:	/* SYS_DMA_CFI_CH0 */
+    case 0x14:  /* SYS_DMA_CFI_CH0 */
         *value = ch->frame_index[0];
         break;
 
-    case 0x16:	/* SYS_DMA_CEI_CH0 */
+    case 0x16:  /* SYS_DMA_CEI_CH0 */
         *value = ch->element_index[0];
         break;
 
-    case 0x18:	/* SYS_DMA_CPC_CH0 or DMA_CSAC */
+    case 0x18:  /* SYS_DMA_CPC_CH0 or DMA_CSAC */
         if (ch->omap_3_1_compatible_disable)
-            *value = ch->active_set.src & 0xffff;	/* CSAC */
+            *value = ch->active_set.src & 0xffff;   /* CSAC */
         else
             *value = ch->cpc;
         break;
 
-    case 0x1a:	/* DMA_CDAC */
-        *value = ch->active_set.dest & 0xffff;	/* CDAC */
+    case 0x1a:  /* DMA_CDAC */
+        *value = ch->active_set.dest & 0xffff;  /* CDAC */
         break;
 
-    case 0x1c:	/* DMA_CDEI */
+    case 0x1c:  /* DMA_CDEI */
         *value = ch->element_index[1];
         break;
 
-    case 0x1e:	/* DMA_CDFI */
+    case 0x1e:  /* DMA_CDFI */
         *value = ch->frame_index[1];
         break;
 
-    case 0x20:	/* DMA_COLOR_L */
+    case 0x20:  /* DMA_COLOR_L */
         *value = ch->color & 0xffff;
         break;
 
-    case 0x22:	/* DMA_COLOR_U */
+    case 0x22:  /* DMA_COLOR_U */
         *value = ch->color >> 16;
         break;
 
-    case 0x24:	/* DMA_CCR2 */
+    case 0x24:  /* DMA_CCR2 */
         *value = (ch->bs << 2) |
                 (ch->transparent_copy << 1) |
                 ch->constant_fill;
         break;
 
-    case 0x28:	/* DMA_CLNK_CTRL */
+    case 0x28:  /* DMA_CLNK_CTRL */
         *value = (ch->link_enabled << 15) |
                 (ch->link_next_ch & 0xf);
         break;
 
-    case 0x2a:	/* DMA_LCH_CTRL */
+    case 0x2a:  /* DMA_LCH_CTRL */
         *value = (ch->interleave_disabled << 15) |
                 ch->type;
         break;
@@ -864,7 +864,7 @@ static int omap_dma_ch_reg_write(struct omap_dma_s *s,
                 struct omap_dma_channel_s *ch, int reg, uint16_t value)
 {
     switch (reg) {
-    case 0x00:	/* SYS_DMA_CSDP_CH0 */
+    case 0x00:  /* SYS_DMA_CSDP_CH0 */
         ch->burst[1] = (value & 0xc000) >> 14;
         ch->pack[1] = (value & 0x2000) >> 13;
         ch->port[1] = (enum omap_dma_port) ((value & 0x1e00) >> 9);
@@ -887,7 +887,7 @@ static int omap_dma_ch_reg_write(struct omap_dma_s *s,
         }
         break;
 
-    case 0x02:	/* SYS_DMA_CCR_CH0 */
+    case 0x02:  /* SYS_DMA_CCR_CH0 */
         ch->mode[1] = (omap_dma_addressing_t) ((value & 0xc000) >> 14);
         ch->mode[0] = (omap_dma_addressing_t) ((value & 0x3000) >> 12);
         ch->end_prog = (value & 0x0800) >> 11;
@@ -909,88 +909,88 @@ static int omap_dma_ch_reg_write(struct omap_dma_s *s,
 
         break;
 
-    case 0x04:	/* SYS_DMA_CICR_CH0 */
+    case 0x04:  /* SYS_DMA_CICR_CH0 */
         ch->interrupts = value & 0x3f;
         break;
 
-    case 0x06:	/* SYS_DMA_CSR_CH0 */
+    case 0x06:  /* SYS_DMA_CSR_CH0 */
         OMAP_RO_REG((hwaddr) reg);
         break;
 
-    case 0x08:	/* SYS_DMA_CSSA_L_CH0 */
+    case 0x08:  /* SYS_DMA_CSSA_L_CH0 */
         ch->addr[0] &= 0xffff0000;
         ch->addr[0] |= value;
         break;
 
-    case 0x0a:	/* SYS_DMA_CSSA_U_CH0 */
+    case 0x0a:  /* SYS_DMA_CSSA_U_CH0 */
         ch->addr[0] &= 0x0000ffff;
         ch->addr[0] |= (uint32_t) value << 16;
         break;
 
-    case 0x0c:	/* SYS_DMA_CDSA_L_CH0 */
+    case 0x0c:  /* SYS_DMA_CDSA_L_CH0 */
         ch->addr[1] &= 0xffff0000;
         ch->addr[1] |= value;
         break;
 
-    case 0x0e:	/* SYS_DMA_CDSA_U_CH0 */
+    case 0x0e:  /* SYS_DMA_CDSA_U_CH0 */
         ch->addr[1] &= 0x0000ffff;
         ch->addr[1] |= (uint32_t) value << 16;
         break;
 
-    case 0x10:	/* SYS_DMA_CEN_CH0 */
+    case 0x10:  /* SYS_DMA_CEN_CH0 */
         ch->elements = value;
         break;
 
-    case 0x12:	/* SYS_DMA_CFN_CH0 */
+    case 0x12:  /* SYS_DMA_CFN_CH0 */
         ch->frames = value;
         break;
 
-    case 0x14:	/* SYS_DMA_CFI_CH0 */
+    case 0x14:  /* SYS_DMA_CFI_CH0 */
         ch->frame_index[0] = (int16_t) value;
         break;
 
-    case 0x16:	/* SYS_DMA_CEI_CH0 */
+    case 0x16:  /* SYS_DMA_CEI_CH0 */
         ch->element_index[0] = (int16_t) value;
         break;
 
-    case 0x18:	/* SYS_DMA_CPC_CH0 or DMA_CSAC */
+    case 0x18:  /* SYS_DMA_CPC_CH0 or DMA_CSAC */
         OMAP_RO_REG((hwaddr) reg);
         break;
 
-    case 0x1c:	/* DMA_CDEI */
+    case 0x1c:  /* DMA_CDEI */
         ch->element_index[1] = (int16_t) value;
         break;
 
-    case 0x1e:	/* DMA_CDFI */
+    case 0x1e:  /* DMA_CDFI */
         ch->frame_index[1] = (int16_t) value;
         break;
 
-    case 0x20:	/* DMA_COLOR_L */
+    case 0x20:  /* DMA_COLOR_L */
         ch->color &= 0xffff0000;
         ch->color |= value;
         break;
 
-    case 0x22:	/* DMA_COLOR_U */
+    case 0x22:  /* DMA_COLOR_U */
         ch->color &= 0xffff;
         ch->color |= (uint32_t)value << 16;
         break;
 
-    case 0x24:	/* DMA_CCR2 */
+    case 0x24:  /* DMA_CCR2 */
         ch->bs = (value >> 2) & 0x1;
         ch->transparent_copy = (value >> 1) & 0x1;
         ch->constant_fill = value & 0x1;
         break;
 
-    case 0x28:	/* DMA_CLNK_CTRL */
+    case 0x28:  /* DMA_CLNK_CTRL */
         ch->link_enabled = (value >> 15) & 0x1;
-        if (value & (1 << 14)) {			/* Stop_Lnk */
+        if (value & (1 << 14)) {            /* Stop_Lnk */
             ch->link_enabled = 0;
             omap_dma_disable_channel(s, ch);
         }
         ch->link_next_ch = value & 0x1f;
         break;
 
-    case 0x2a:	/* DMA_LCH_CTRL */
+    case 0x2a:  /* DMA_LCH_CTRL */
         ch->interleave_disabled = (value >> 15) & 0x1;
         ch->type = value & 0xf;
         break;
@@ -1005,7 +1005,7 @@ static int omap_dma_3_2_lcd_write(struct omap_dma_lcd_channel_s *s, int offset,
                 uint16_t value)
 {
     switch (offset) {
-    case 0xbc0:	/* DMA_LCD_CSDP */
+    case 0xbc0: /* DMA_LCD_CSDP */
         s->brust_f2 = (value >> 14) & 0x3;
         s->pack_f2 = (value >> 13) & 0x1;
         s->data_type_f2 = (1 << ((value >> 11) & 0x3));
@@ -1014,7 +1014,7 @@ static int omap_dma_3_2_lcd_write(struct omap_dma_lcd_channel_s *s, int offset,
         s->data_type_f1 = (1 << ((value >> 0) & 0x3));
         break;
 
-    case 0xbc2:	/* DMA_LCD_CCR */
+    case 0xbc2: /* DMA_LCD_CCR */
         s->mode_f2 = (value >> 14) & 0x3;
         s->mode_f1 = (value >> 12) & 0x3;
         s->end_prog = (value >> 11) & 0x1;
@@ -1026,7 +1026,7 @@ static int omap_dma_3_2_lcd_write(struct omap_dma_lcd_channel_s *s, int offset,
         s->bs = (value >> 4) & 0x1;
         break;
 
-    case 0xbc4:	/* DMA_LCD_CTRL */
+    case 0xbc4: /* DMA_LCD_CTRL */
         s->dst = (value >> 8) & 0x1;
         s->src = ((value >> 6) & 0x3) << 1;
         s->condition = 0;
@@ -1035,91 +1035,91 @@ static int omap_dma_3_2_lcd_write(struct omap_dma_lcd_channel_s *s, int offset,
         s->dual = value & 1;
         break;
 
-    case 0xbc8:	/* TOP_B1_L */
+    case 0xbc8: /* TOP_B1_L */
         s->src_f1_top &= 0xffff0000;
         s->src_f1_top |= 0x0000ffff & value;
         break;
 
-    case 0xbca:	/* TOP_B1_U */
+    case 0xbca: /* TOP_B1_U */
         s->src_f1_top &= 0x0000ffff;
         s->src_f1_top |= (uint32_t)value << 16;
         break;
 
-    case 0xbcc:	/* BOT_B1_L */
+    case 0xbcc: /* BOT_B1_L */
         s->src_f1_bottom &= 0xffff0000;
         s->src_f1_bottom |= 0x0000ffff & value;
         break;
 
-    case 0xbce:	/* BOT_B1_U */
+    case 0xbce: /* BOT_B1_U */
         s->src_f1_bottom &= 0x0000ffff;
         s->src_f1_bottom |= (uint32_t) value << 16;
         break;
 
-    case 0xbd0:	/* TOP_B2_L */
+    case 0xbd0: /* TOP_B2_L */
         s->src_f2_top &= 0xffff0000;
         s->src_f2_top |= 0x0000ffff & value;
         break;
 
-    case 0xbd2:	/* TOP_B2_U */
+    case 0xbd2: /* TOP_B2_U */
         s->src_f2_top &= 0x0000ffff;
         s->src_f2_top |= (uint32_t) value << 16;
         break;
 
-    case 0xbd4:	/* BOT_B2_L */
+    case 0xbd4: /* BOT_B2_L */
         s->src_f2_bottom &= 0xffff0000;
         s->src_f2_bottom |= 0x0000ffff & value;
         break;
 
-    case 0xbd6:	/* BOT_B2_U */
+    case 0xbd6: /* BOT_B2_U */
         s->src_f2_bottom &= 0x0000ffff;
         s->src_f2_bottom |= (uint32_t) value << 16;
         break;
 
-    case 0xbd8:	/* DMA_LCD_SRC_EI_B1 */
+    case 0xbd8: /* DMA_LCD_SRC_EI_B1 */
         s->element_index_f1 = value;
         break;
 
-    case 0xbda:	/* DMA_LCD_SRC_FI_B1_L */
+    case 0xbda: /* DMA_LCD_SRC_FI_B1_L */
         s->frame_index_f1 &= 0xffff0000;
         s->frame_index_f1 |= 0x0000ffff & value;
         break;
 
-    case 0xbf4:	/* DMA_LCD_SRC_FI_B1_U */
+    case 0xbf4: /* DMA_LCD_SRC_FI_B1_U */
         s->frame_index_f1 &= 0x0000ffff;
         s->frame_index_f1 |= (uint32_t) value << 16;
         break;
 
-    case 0xbdc:	/* DMA_LCD_SRC_EI_B2 */
+    case 0xbdc: /* DMA_LCD_SRC_EI_B2 */
         s->element_index_f2 = value;
         break;
 
-    case 0xbde:	/* DMA_LCD_SRC_FI_B2_L */
+    case 0xbde: /* DMA_LCD_SRC_FI_B2_L */
         s->frame_index_f2 &= 0xffff0000;
         s->frame_index_f2 |= 0x0000ffff & value;
         break;
 
-    case 0xbf6:	/* DMA_LCD_SRC_FI_B2_U */
+    case 0xbf6: /* DMA_LCD_SRC_FI_B2_U */
         s->frame_index_f2 &= 0x0000ffff;
         s->frame_index_f2 |= (uint32_t) value << 16;
         break;
 
-    case 0xbe0:	/* DMA_LCD_SRC_EN_B1 */
+    case 0xbe0: /* DMA_LCD_SRC_EN_B1 */
         s->elements_f1 = value;
         break;
 
-    case 0xbe4:	/* DMA_LCD_SRC_FN_B1 */
+    case 0xbe4: /* DMA_LCD_SRC_FN_B1 */
         s->frames_f1 = value;
         break;
 
-    case 0xbe2:	/* DMA_LCD_SRC_EN_B2 */
+    case 0xbe2: /* DMA_LCD_SRC_EN_B2 */
         s->elements_f2 = value;
         break;
 
-    case 0xbe6:	/* DMA_LCD_SRC_FN_B2 */
+    case 0xbe6: /* DMA_LCD_SRC_FN_B2 */
         s->frames_f2 = value;
         break;
 
-    case 0xbea:	/* DMA_LCD_LCH_CTRL */
+    case 0xbea: /* DMA_LCD_LCH_CTRL */
         s->lch_type = value & 0xf;
         break;
 
@@ -1133,7 +1133,7 @@ static int omap_dma_3_2_lcd_read(struct omap_dma_lcd_channel_s *s, int offset,
                 uint16_t *ret)
 {
     switch (offset) {
-    case 0xbc0:	/* DMA_LCD_CSDP */
+    case 0xbc0: /* DMA_LCD_CSDP */
         *ret = (s->brust_f2 << 14) |
             (s->pack_f2 << 13) |
             ((s->data_type_f2 >> 1) << 11) |
@@ -1142,7 +1142,7 @@ static int omap_dma_3_2_lcd_read(struct omap_dma_lcd_channel_s *s, int offset,
             ((s->data_type_f1 >> 1) << 0);
         break;
 
-    case 0xbc2:	/* DMA_LCD_CCR */
+    case 0xbc2: /* DMA_LCD_CCR */
         *ret = (s->mode_f2 << 14) |
             (s->mode_f1 << 12) |
             (s->end_prog << 11) |
@@ -1154,7 +1154,7 @@ static int omap_dma_3_2_lcd_read(struct omap_dma_lcd_channel_s *s, int offset,
             (s->bs << 4);
         break;
 
-    case 0xbc4:	/* DMA_LCD_CTRL */
+    case 0xbc4: /* DMA_LCD_CTRL */
         qemu_irq_lower(s->irq);
         *ret = (s->dst << 8) |
             ((s->src & 0x6) << 5) |
@@ -1163,79 +1163,79 @@ static int omap_dma_3_2_lcd_read(struct omap_dma_lcd_channel_s *s, int offset,
             s->dual;
         break;
 
-    case 0xbc8:	/* TOP_B1_L */
+    case 0xbc8: /* TOP_B1_L */
         *ret = s->src_f1_top & 0xffff;
         break;
 
-    case 0xbca:	/* TOP_B1_U */
+    case 0xbca: /* TOP_B1_U */
         *ret = s->src_f1_top >> 16;
         break;
 
-    case 0xbcc:	/* BOT_B1_L */
+    case 0xbcc: /* BOT_B1_L */
         *ret = s->src_f1_bottom & 0xffff;
         break;
 
-    case 0xbce:	/* BOT_B1_U */
+    case 0xbce: /* BOT_B1_U */
         *ret = s->src_f1_bottom >> 16;
         break;
 
-    case 0xbd0:	/* TOP_B2_L */
+    case 0xbd0: /* TOP_B2_L */
         *ret = s->src_f2_top & 0xffff;
         break;
 
-    case 0xbd2:	/* TOP_B2_U */
+    case 0xbd2: /* TOP_B2_U */
         *ret = s->src_f2_top >> 16;
         break;
 
-    case 0xbd4:	/* BOT_B2_L */
+    case 0xbd4: /* BOT_B2_L */
         *ret = s->src_f2_bottom & 0xffff;
         break;
 
-    case 0xbd6:	/* BOT_B2_U */
+    case 0xbd6: /* BOT_B2_U */
         *ret = s->src_f2_bottom >> 16;
         break;
 
-    case 0xbd8:	/* DMA_LCD_SRC_EI_B1 */
+    case 0xbd8: /* DMA_LCD_SRC_EI_B1 */
         *ret = s->element_index_f1;
         break;
 
-    case 0xbda:	/* DMA_LCD_SRC_FI_B1_L */
+    case 0xbda: /* DMA_LCD_SRC_FI_B1_L */
         *ret = s->frame_index_f1 & 0xffff;
         break;
 
-    case 0xbf4:	/* DMA_LCD_SRC_FI_B1_U */
+    case 0xbf4: /* DMA_LCD_SRC_FI_B1_U */
         *ret = s->frame_index_f1 >> 16;
         break;
 
-    case 0xbdc:	/* DMA_LCD_SRC_EI_B2 */
+    case 0xbdc: /* DMA_LCD_SRC_EI_B2 */
         *ret = s->element_index_f2;
         break;
 
-    case 0xbde:	/* DMA_LCD_SRC_FI_B2_L */
+    case 0xbde: /* DMA_LCD_SRC_FI_B2_L */
         *ret = s->frame_index_f2 & 0xffff;
         break;
 
-    case 0xbf6:	/* DMA_LCD_SRC_FI_B2_U */
+    case 0xbf6: /* DMA_LCD_SRC_FI_B2_U */
         *ret = s->frame_index_f2 >> 16;
         break;
 
-    case 0xbe0:	/* DMA_LCD_SRC_EN_B1 */
+    case 0xbe0: /* DMA_LCD_SRC_EN_B1 */
         *ret = s->elements_f1;
         break;
 
-    case 0xbe4:	/* DMA_LCD_SRC_FN_B1 */
+    case 0xbe4: /* DMA_LCD_SRC_FN_B1 */
         *ret = s->frames_f1;
         break;
 
-    case 0xbe2:	/* DMA_LCD_SRC_EN_B2 */
+    case 0xbe2: /* DMA_LCD_SRC_EN_B2 */
         *ret = s->elements_f2;
         break;
 
-    case 0xbe6:	/* DMA_LCD_SRC_FN_B2 */
+    case 0xbe6: /* DMA_LCD_SRC_FN_B2 */
         *ret = s->frames_f2;
         break;
 
-    case 0xbea:	/* DMA_LCD_LCH_CTRL */
+    case 0xbea: /* DMA_LCD_LCH_CTRL */
         *ret = s->lch_type;
         break;
 
@@ -1249,7 +1249,7 @@ static int omap_dma_3_1_lcd_write(struct omap_dma_lcd_channel_s *s, int offset,
                 uint16_t value)
 {
     switch (offset) {
-    case 0x300:	/* SYS_DMA_LCD_CTRL */
+    case 0x300: /* SYS_DMA_LCD_CTRL */
         s->src = (value & 0x40) ? imif : emiff;
         s->condition = 0;
         /* Assume no bus errors and thus no BUS_ERROR irq bits.  */
@@ -1257,42 +1257,42 @@ static int omap_dma_3_1_lcd_write(struct omap_dma_lcd_channel_s *s, int offset,
         s->dual = value & 1;
         break;
 
-    case 0x302:	/* SYS_DMA_LCD_TOP_F1_L */
+    case 0x302: /* SYS_DMA_LCD_TOP_F1_L */
         s->src_f1_top &= 0xffff0000;
         s->src_f1_top |= 0x0000ffff & value;
         break;
 
-    case 0x304:	/* SYS_DMA_LCD_TOP_F1_U */
+    case 0x304: /* SYS_DMA_LCD_TOP_F1_U */
         s->src_f1_top &= 0x0000ffff;
         s->src_f1_top |= (uint32_t)value << 16;
         break;
 
-    case 0x306:	/* SYS_DMA_LCD_BOT_F1_L */
+    case 0x306: /* SYS_DMA_LCD_BOT_F1_L */
         s->src_f1_bottom &= 0xffff0000;
         s->src_f1_bottom |= 0x0000ffff & value;
         break;
 
-    case 0x308:	/* SYS_DMA_LCD_BOT_F1_U */
+    case 0x308: /* SYS_DMA_LCD_BOT_F1_U */
         s->src_f1_bottom &= 0x0000ffff;
         s->src_f1_bottom |= (uint32_t)value << 16;
         break;
 
-    case 0x30a:	/* SYS_DMA_LCD_TOP_F2_L */
+    case 0x30a: /* SYS_DMA_LCD_TOP_F2_L */
         s->src_f2_top &= 0xffff0000;
         s->src_f2_top |= 0x0000ffff & value;
         break;
 
-    case 0x30c:	/* SYS_DMA_LCD_TOP_F2_U */
+    case 0x30c: /* SYS_DMA_LCD_TOP_F2_U */
         s->src_f2_top &= 0x0000ffff;
         s->src_f2_top |= (uint32_t)value << 16;
         break;
 
-    case 0x30e:	/* SYS_DMA_LCD_BOT_F2_L */
+    case 0x30e: /* SYS_DMA_LCD_BOT_F2_L */
         s->src_f2_bottom &= 0xffff0000;
         s->src_f2_bottom |= 0x0000ffff & value;
         break;
 
-    case 0x310:	/* SYS_DMA_LCD_BOT_F2_U */
+    case 0x310: /* SYS_DMA_LCD_BOT_F2_U */
         s->src_f2_bottom &= 0x0000ffff;
         s->src_f2_bottom |= (uint32_t)value << 16;
         break;
@@ -1309,7 +1309,7 @@ static int omap_dma_3_1_lcd_read(struct omap_dma_lcd_channel_s *s, int offset,
     int i;
 
     switch (offset) {
-    case 0x300:	/* SYS_DMA_LCD_CTRL */
+    case 0x300: /* SYS_DMA_LCD_CTRL */
         i = s->condition;
         s->condition = 0;
         qemu_irq_lower(s->irq);
@@ -1317,35 +1317,35 @@ static int omap_dma_3_1_lcd_read(struct omap_dma_lcd_channel_s *s, int offset,
                 (s->interrupts << 1) | s->dual;
         break;
 
-    case 0x302:	/* SYS_DMA_LCD_TOP_F1_L */
+    case 0x302: /* SYS_DMA_LCD_TOP_F1_L */
         *ret = s->src_f1_top & 0xffff;
         break;
 
-    case 0x304:	/* SYS_DMA_LCD_TOP_F1_U */
+    case 0x304: /* SYS_DMA_LCD_TOP_F1_U */
         *ret = s->src_f1_top >> 16;
         break;
 
-    case 0x306:	/* SYS_DMA_LCD_BOT_F1_L */
+    case 0x306: /* SYS_DMA_LCD_BOT_F1_L */
         *ret = s->src_f1_bottom & 0xffff;
         break;
 
-    case 0x308:	/* SYS_DMA_LCD_BOT_F1_U */
+    case 0x308: /* SYS_DMA_LCD_BOT_F1_U */
         *ret = s->src_f1_bottom >> 16;
         break;
 
-    case 0x30a:	/* SYS_DMA_LCD_TOP_F2_L */
+    case 0x30a: /* SYS_DMA_LCD_TOP_F2_L */
         *ret = s->src_f2_top & 0xffff;
         break;
 
-    case 0x30c:	/* SYS_DMA_LCD_TOP_F2_U */
+    case 0x30c: /* SYS_DMA_LCD_TOP_F2_U */
         *ret = s->src_f2_top >> 16;
         break;
 
-    case 0x30e:	/* SYS_DMA_LCD_BOT_F2_L */
+    case 0x30e: /* SYS_DMA_LCD_BOT_F2_L */
         *ret = s->src_f2_bottom & 0xffff;
         break;
 
-    case 0x310:	/* SYS_DMA_LCD_BOT_F2_U */
+    case 0x310: /* SYS_DMA_LCD_BOT_F2_U */
         *ret = s->src_f2_bottom >> 16;
         break;
 
@@ -1358,18 +1358,18 @@ static int omap_dma_3_1_lcd_read(struct omap_dma_lcd_channel_s *s, int offset,
 static int omap_dma_sys_write(struct omap_dma_s *s, int offset, uint16_t value)
 {
     switch (offset) {
-    case 0x400:	/* SYS_DMA_GCR */
+    case 0x400: /* SYS_DMA_GCR */
         s->gcr = value;
         break;
 
-    case 0x404:	/* DMA_GSCR */
+    case 0x404: /* DMA_GSCR */
         if (value & 0x8)
             omap_dma_disable_3_1_mapping(s);
         else
             omap_dma_enable_3_1_mapping(s);
         break;
 
-    case 0x408:	/* DMA_GRST */
+    case 0x408: /* DMA_GRST */
         if (value & 0x1)
             omap_dma_reset(s->dma);
         break;
@@ -1384,57 +1384,57 @@ static int omap_dma_sys_read(struct omap_dma_s *s, int offset,
                 uint16_t *ret)
 {
     switch (offset) {
-    case 0x400:	/* SYS_DMA_GCR */
+    case 0x400: /* SYS_DMA_GCR */
         *ret = s->gcr;
         break;
 
-    case 0x404:	/* DMA_GSCR */
+    case 0x404: /* DMA_GSCR */
         *ret = s->omap_3_1_mapping_disabled << 3;
         break;
 
-    case 0x408:	/* DMA_GRST */
+    case 0x408: /* DMA_GRST */
         *ret = 0;
         break;
 
-    case 0x442:	/* DMA_HW_ID */
-    case 0x444:	/* DMA_PCh2_ID */
-    case 0x446:	/* DMA_PCh0_ID */
-    case 0x448:	/* DMA_PCh1_ID */
-    case 0x44a:	/* DMA_PChG_ID */
-    case 0x44c:	/* DMA_PChD_ID */
+    case 0x442: /* DMA_HW_ID */
+    case 0x444: /* DMA_PCh2_ID */
+    case 0x446: /* DMA_PCh0_ID */
+    case 0x448: /* DMA_PCh1_ID */
+    case 0x44a: /* DMA_PChG_ID */
+    case 0x44c: /* DMA_PChD_ID */
         *ret = 1;
         break;
 
-    case 0x44e:	/* DMA_CAPS_0_U */
+    case 0x44e: /* DMA_CAPS_0_U */
         *ret = (s->caps[0] >> 16) & 0xffff;
         break;
-    case 0x450:	/* DMA_CAPS_0_L */
+    case 0x450: /* DMA_CAPS_0_L */
         *ret = (s->caps[0] >>  0) & 0xffff;
         break;
 
-    case 0x452:	/* DMA_CAPS_1_U */
+    case 0x452: /* DMA_CAPS_1_U */
         *ret = (s->caps[1] >> 16) & 0xffff;
         break;
-    case 0x454:	/* DMA_CAPS_1_L */
+    case 0x454: /* DMA_CAPS_1_L */
         *ret = (s->caps[1] >>  0) & 0xffff;
         break;
 
-    case 0x456:	/* DMA_CAPS_2 */
+    case 0x456: /* DMA_CAPS_2 */
         *ret = s->caps[2];
         break;
 
-    case 0x458:	/* DMA_CAPS_3 */
+    case 0x458: /* DMA_CAPS_3 */
         *ret = s->caps[3];
         break;
 
-    case 0x45a:	/* DMA_CAPS_4 */
+    case 0x45a: /* DMA_CAPS_4 */
         *ret = s->caps[4];
         break;
 
-    case 0x460:	/* DMA_PCh2_SR */
-    case 0x480:	/* DMA_PCh0_SR */
-    case 0x482:	/* DMA_PCh1_SR */
-    case 0x4c0:	/* DMA_PChD_SR_0 */
+    case 0x460: /* DMA_PCh2_SR */
+    case 0x480: /* DMA_PCh0_SR */
+    case 0x482: /* DMA_PCh1_SR */
+    case 0x4c0: /* DMA_PChD_SR_0 */
         qemu_log_mask(LOG_UNIMP,
                       "%s: Physical Channel Status Registers not implemented\n",
                       __func__);
@@ -1582,38 +1582,38 @@ static void omap_dma_setcaps(struct omap_dma_s *s)
     case omap_dma_3_2:
         /* XXX Only available for sDMA */
         s->caps[0] =
-                (1 << 19) |	/* Constant Fill Capability */
-                (1 << 18);	/* Transparent BLT Capability */
+                (1 << 19) | /* Constant Fill Capability */
+                (1 << 18);  /* Transparent BLT Capability */
         s->caps[1] =
-                (1 << 1);	/* 1-bit palettized capability (DMA 3.2 only) */
+                (1 << 1);   /* 1-bit palettized capability (DMA 3.2 only) */
         s->caps[2] =
-                (1 << 8) |	/* SEPARATE_SRC_AND_DST_INDEX_CPBLTY */
-                (1 << 7) |	/* DST_DOUBLE_INDEX_ADRS_CPBLTY */
-                (1 << 6) |	/* DST_SINGLE_INDEX_ADRS_CPBLTY */
-                (1 << 5) |	/* DST_POST_INCRMNT_ADRS_CPBLTY */
-                (1 << 4) |	/* DST_CONST_ADRS_CPBLTY */
-                (1 << 3) |	/* SRC_DOUBLE_INDEX_ADRS_CPBLTY */
-                (1 << 2) |	/* SRC_SINGLE_INDEX_ADRS_CPBLTY */
-                (1 << 1) |	/* SRC_POST_INCRMNT_ADRS_CPBLTY */
-                (1 << 0);	/* SRC_CONST_ADRS_CPBLTY */
+                (1 << 8) |  /* SEPARATE_SRC_AND_DST_INDEX_CPBLTY */
+                (1 << 7) |  /* DST_DOUBLE_INDEX_ADRS_CPBLTY */
+                (1 << 6) |  /* DST_SINGLE_INDEX_ADRS_CPBLTY */
+                (1 << 5) |  /* DST_POST_INCRMNT_ADRS_CPBLTY */
+                (1 << 4) |  /* DST_CONST_ADRS_CPBLTY */
+                (1 << 3) |  /* SRC_DOUBLE_INDEX_ADRS_CPBLTY */
+                (1 << 2) |  /* SRC_SINGLE_INDEX_ADRS_CPBLTY */
+                (1 << 1) |  /* SRC_POST_INCRMNT_ADRS_CPBLTY */
+                (1 << 0);   /* SRC_CONST_ADRS_CPBLTY */
         s->caps[3] =
-                (1 << 6) |	/* BLOCK_SYNCHR_CPBLTY (DMA 4 only) */
-                (1 << 7) |	/* PKT_SYNCHR_CPBLTY (DMA 4 only) */
-                (1 << 5) |	/* CHANNEL_CHAINING_CPBLTY */
-                (1 << 4) |	/* LCh_INTERLEAVE_CPBLTY */
-                (1 << 3) |	/* AUTOINIT_REPEAT_CPBLTY (DMA 3.2 only) */
-                (1 << 2) |	/* AUTOINIT_ENDPROG_CPBLTY (DMA 3.2 only) */
-                (1 << 1) |	/* FRAME_SYNCHR_CPBLTY */
-                (1 << 0);	/* ELMNT_SYNCHR_CPBLTY */
+                (1 << 6) |  /* BLOCK_SYNCHR_CPBLTY (DMA 4 only) */
+                (1 << 7) |  /* PKT_SYNCHR_CPBLTY (DMA 4 only) */
+                (1 << 5) |  /* CHANNEL_CHAINING_CPBLTY */
+                (1 << 4) |  /* LCh_INTERLEAVE_CPBLTY */
+                (1 << 3) |  /* AUTOINIT_REPEAT_CPBLTY (DMA 3.2 only) */
+                (1 << 2) |  /* AUTOINIT_ENDPROG_CPBLTY (DMA 3.2 only) */
+                (1 << 1) |  /* FRAME_SYNCHR_CPBLTY */
+                (1 << 0);   /* ELMNT_SYNCHR_CPBLTY */
         s->caps[4] =
-                (1 << 7) |	/* PKT_INTERRUPT_CPBLTY (DMA 4 only) */
-                (1 << 6) |	/* SYNC_STATUS_CPBLTY */
-                (1 << 5) |	/* BLOCK_INTERRUPT_CPBLTY */
-                (1 << 4) |	/* LAST_FRAME_INTERRUPT_CPBLTY */
-                (1 << 3) |	/* FRAME_INTERRUPT_CPBLTY */
-                (1 << 2) |	/* HALF_FRAME_INTERRUPT_CPBLTY */
-                (1 << 1) |	/* EVENT_DROP_INTERRUPT_CPBLTY */
-                (1 << 0);	/* TIMEOUT_INTERRUPT_CPBLTY (DMA 3.2 only) */
+                (1 << 7) |  /* PKT_INTERRUPT_CPBLTY (DMA 4 only) */
+                (1 << 6) |  /* SYNC_STATUS_CPBLTY */
+                (1 << 5) |  /* BLOCK_INTERRUPT_CPBLTY */
+                (1 << 4) |  /* LAST_FRAME_INTERRUPT_CPBLTY */
+                (1 << 3) |  /* FRAME_INTERRUPT_CPBLTY */
+                (1 << 2) |  /* HALF_FRAME_INTERRUPT_CPBLTY */
+                (1 << 1) |  /* EVENT_DROP_INTERRUPT_CPBLTY */
+                (1 << 0);   /* TIMEOUT_INTERRUPT_CPBLTY (DMA 3.2 only) */
         break;
     }
 }

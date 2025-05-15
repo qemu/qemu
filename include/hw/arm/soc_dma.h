@@ -54,7 +54,7 @@ struct soc_dma_ch_s {
     int bytes;
     /* Initialised by the DMA module, call soc_dma_ch_update after writing.  */
     enum soc_dma_access_type type[2];
-    hwaddr vaddr[2];	/* Updated by .transfer_fn().  */
+    hwaddr vaddr[2];    /* Updated by .transfer_fn().  */
     /* Private */
     void *paddr[2];
     soc_dma_io_t io_fn[2];
@@ -70,7 +70,7 @@ struct soc_dma_ch_s {
 struct soc_dma_s {
     /* Following fields are set by the SoC DMA module and can be used
      * by anybody.  */
-    uint64_t drqbmp;	/* Is zeroed by soc_dma_reset() */
+    uint64_t drqbmp;    /* Is zeroed by soc_dma_reset() */
     qemu_irq *drq;
     void *opaque;
     int64_t freq;
