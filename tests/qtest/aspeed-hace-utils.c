@@ -153,22 +153,22 @@ static const uint8_t test_result_accum_sha256[32] = {
     0x5d, 0xae, 0x22, 0x23, 0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c,
     0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad};
 
-static void write_regs(QTestState *s, uint32_t base, uint32_t src,
-                       uint32_t length, uint32_t out, uint32_t method)
+static void write_regs(QTestState *s, uint32_t base, uint64_t src,
+                       uint32_t length, uint64_t out, uint32_t method)
 {
-        qtest_writel(s, base + HACE_HASH_SRC, src);
-        qtest_writel(s, base + HACE_HASH_DIGEST, out);
+        qtest_writel(s, base + HACE_HASH_SRC, extract64(src, 0, 32));
+        qtest_writel(s, base + HACE_HASH_DIGEST, extract64(out, 0, 32));
         qtest_writel(s, base + HACE_HASH_DATA_LEN, length);
         qtest_writel(s, base + HACE_HASH_CMD, HACE_SHA_BE_EN | method);
 }
 
 void aspeed_test_md5(const char *machine, const uint32_t base,
-                     const uint32_t src_addr)
+                     const uint64_t src_addr)
 
 {
     QTestState *s = qtest_init(machine);
 
-    uint32_t digest_addr = src_addr + 0x010000;
+    uint64_t digest_addr = src_addr + 0x010000;
     uint8_t digest[16] = {0};
 
     /* Check engine is idle, no busy or irq bits set */
@@ -198,11 +198,11 @@ void aspeed_test_md5(const char *machine, const uint32_t base,
 }
 
 void aspeed_test_sha256(const char *machine, const uint32_t base,
-                        const uint32_t src_addr)
+                        const uint64_t src_addr)
 {
     QTestState *s = qtest_init(machine);
 
-    const uint32_t digest_addr = src_addr + 0x10000;
+    const uint64_t digest_addr = src_addr + 0x10000;
     uint8_t digest[32] = {0};
 
     /* Check engine is idle, no busy or irq bits set */
@@ -232,11 +232,11 @@ void aspeed_test_sha256(const char *machine, const uint32_t base,
 }
 
 void aspeed_test_sha384(const char *machine, const uint32_t base,
-                        const uint32_t src_addr)
+                        const uint64_t src_addr)
 {
     QTestState *s = qtest_init(machine);
 
-    const uint32_t digest_addr = src_addr + 0x10000;
+    const uint64_t digest_addr = src_addr + 0x10000;
     uint8_t digest[48] = {0};
 
     /* Check engine is idle, no busy or irq bits set */
@@ -266,11 +266,11 @@ void aspeed_test_sha384(const char *machine, const uint32_t base,
 }
 
 void aspeed_test_sha512(const char *machine, const uint32_t base,
-                        const uint32_t src_addr)
+                        const uint64_t src_addr)
 {
     QTestState *s = qtest_init(machine);
 
-    const uint32_t digest_addr = src_addr + 0x10000;
+    const uint64_t digest_addr = src_addr + 0x10000;
     uint8_t digest[64] = {0};
 
     /* Check engine is idle, no busy or irq bits set */
@@ -300,14 +300,14 @@ void aspeed_test_sha512(const char *machine, const uint32_t base,
 }
 
 void aspeed_test_sha256_sg(const char *machine, const uint32_t base,
-                           const uint32_t src_addr)
+                           const uint64_t src_addr)
 {
     QTestState *s = qtest_init(machine);
 
-    const uint32_t src_addr_1 = src_addr + 0x10000;
-    const uint32_t src_addr_2 = src_addr + 0x20000;
-    const uint32_t src_addr_3 = src_addr + 0x30000;
-    const uint32_t digest_addr = src_addr + 0x40000;
+    const uint64_t src_addr_1 = src_addr + 0x10000;
+    const uint64_t src_addr_2 = src_addr + 0x20000;
+    const uint64_t src_addr_3 = src_addr + 0x30000;
+    const uint64_t digest_addr = src_addr + 0x40000;
     uint8_t digest[32] = {0};
     struct AspeedSgList array[] = {
         {  cpu_to_le32(sizeof(test_vector_sg1)),
@@ -351,14 +351,14 @@ void aspeed_test_sha256_sg(const char *machine, const uint32_t base,
 }
 
 void aspeed_test_sha384_sg(const char *machine, const uint32_t base,
-                           const uint32_t src_addr)
+                           const uint64_t src_addr)
 {
     QTestState *s = qtest_init(machine);
 
-    const uint32_t src_addr_1 = src_addr + 0x10000;
-    const uint32_t src_addr_2 = src_addr + 0x20000;
-    const uint32_t src_addr_3 = src_addr + 0x30000;
-    const uint32_t digest_addr = src_addr + 0x40000;
+    const uint64_t src_addr_1 = src_addr + 0x10000;
+    const uint64_t src_addr_2 = src_addr + 0x20000;
+    const uint64_t src_addr_3 = src_addr + 0x30000;
+    const uint64_t digest_addr = src_addr + 0x40000;
     uint8_t digest[48] = {0};
     struct AspeedSgList array[] = {
         {  cpu_to_le32(sizeof(test_vector_sg1)),
@@ -402,14 +402,14 @@ void aspeed_test_sha384_sg(const char *machine, const uint32_t base,
 }
 
 void aspeed_test_sha512_sg(const char *machine, const uint32_t base,
-                           const uint32_t src_addr)
+                           const uint64_t src_addr)
 {
     QTestState *s = qtest_init(machine);
 
-    const uint32_t src_addr_1 = src_addr + 0x10000;
-    const uint32_t src_addr_2 = src_addr + 0x20000;
-    const uint32_t src_addr_3 = src_addr + 0x30000;
-    const uint32_t digest_addr = src_addr + 0x40000;
+    const uint64_t src_addr_1 = src_addr + 0x10000;
+    const uint64_t src_addr_2 = src_addr + 0x20000;
+    const uint64_t src_addr_3 = src_addr + 0x30000;
+    const uint64_t digest_addr = src_addr + 0x40000;
     uint8_t digest[64] = {0};
     struct AspeedSgList array[] = {
         {  cpu_to_le32(sizeof(test_vector_sg1)),
@@ -453,12 +453,12 @@ void aspeed_test_sha512_sg(const char *machine, const uint32_t base,
 }
 
 void aspeed_test_sha256_accum(const char *machine, const uint32_t base,
-                              const uint32_t src_addr)
+                              const uint64_t src_addr)
 {
     QTestState *s = qtest_init(machine);
 
-    const uint32_t buffer_addr = src_addr + 0x10000;
-    const uint32_t digest_addr = src_addr + 0x40000;
+    const uint64_t buffer_addr = src_addr + 0x10000;
+    const uint64_t digest_addr = src_addr + 0x40000;
     uint8_t digest[32] = {0};
     struct AspeedSgList array[] = {
         {  cpu_to_le32(sizeof(test_vector_accum_256) | SG_LIST_LEN_LAST),
@@ -494,12 +494,12 @@ void aspeed_test_sha256_accum(const char *machine, const uint32_t base,
 }
 
 void aspeed_test_sha384_accum(const char *machine, const uint32_t base,
-                              const uint32_t src_addr)
+                              const uint64_t src_addr)
 {
     QTestState *s = qtest_init(machine);
 
-    const uint32_t buffer_addr = src_addr + 0x10000;
-    const uint32_t digest_addr = src_addr + 0x40000;
+    const uint64_t buffer_addr = src_addr + 0x10000;
+    const uint64_t digest_addr = src_addr + 0x40000;
     uint8_t digest[48] = {0};
     struct AspeedSgList array[] = {
         {  cpu_to_le32(sizeof(test_vector_accum_384) | SG_LIST_LEN_LAST),
@@ -535,12 +535,12 @@ void aspeed_test_sha384_accum(const char *machine, const uint32_t base,
 }
 
 void aspeed_test_sha512_accum(const char *machine, const uint32_t base,
-                              const uint32_t src_addr)
+                              const uint64_t src_addr)
 {
     QTestState *s = qtest_init(machine);
 
-    const uint32_t buffer_addr = src_addr + 0x10000;
-    const uint32_t digest_addr = src_addr + 0x40000;
+    const uint64_t buffer_addr = src_addr + 0x10000;
+    const uint64_t digest_addr = src_addr + 0x40000;
     uint8_t digest[64] = {0};
     struct AspeedSgList array[] = {
         {  cpu_to_le32(sizeof(test_vector_accum_512) | SG_LIST_LEN_LAST),
