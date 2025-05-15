@@ -44,6 +44,16 @@ static void test_sha256_sg_ast2600(void)
     aspeed_test_sha256_sg("-machine ast2600-evb", 0x1e6d0000, 0x80000000);
 }
 
+static void test_sha384_ast2600(void)
+{
+    aspeed_test_sha384("-machine ast2600-evb", 0x1e6d0000, 0x80000000);
+}
+
+static void test_sha384_sg_ast2600(void)
+{
+    aspeed_test_sha384_sg("-machine ast2600-evb", 0x1e6d0000, 0x80000000);
+}
+
 static void test_sha512_ast2600(void)
 {
     aspeed_test_sha512("-machine ast2600-evb", 0x1e6d0000, 0x80000000);
@@ -57,6 +67,11 @@ static void test_sha512_sg_ast2600(void)
 static void test_sha256_accum_ast2600(void)
 {
     aspeed_test_sha256_accum("-machine ast2600-evb", 0x1e6d0000, 0x80000000);
+}
+
+static void test_sha384_accum_ast2600(void)
+{
+    aspeed_test_sha384_accum("-machine ast2600-evb", 0x1e6d0000, 0x80000000);
 }
 
 static void test_sha512_accum_ast2600(void)
@@ -117,13 +132,16 @@ int main(int argc, char **argv)
 
     qtest_add_func("ast2600/hace/addresses", test_addresses_ast2600);
     qtest_add_func("ast2600/hace/sha512", test_sha512_ast2600);
+    qtest_add_func("ast2600/hace/sha384", test_sha384_ast2600);
     qtest_add_func("ast2600/hace/sha256", test_sha256_ast2600);
     qtest_add_func("ast2600/hace/md5", test_md5_ast2600);
 
     qtest_add_func("ast2600/hace/sha512_sg", test_sha512_sg_ast2600);
+    qtest_add_func("ast2600/hace/sha384_sg", test_sha384_sg_ast2600);
     qtest_add_func("ast2600/hace/sha256_sg", test_sha256_sg_ast2600);
 
     qtest_add_func("ast2600/hace/sha512_accum", test_sha512_accum_ast2600);
+    qtest_add_func("ast2600/hace/sha384_accum", test_sha384_accum_ast2600);
     qtest_add_func("ast2600/hace/sha256_accum", test_sha256_accum_ast2600);
 
     qtest_add_func("ast2500/hace/addresses", test_addresses_ast2500);
