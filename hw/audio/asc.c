@@ -664,7 +664,7 @@ static void asc_realize(DeviceState *dev, Error **errp)
     s->samples = AUD_get_buffer_size_out(s->voice) >> s->shift;
     s->mixbuf = g_malloc0(s->samples << s->shift);
 
-    s->silentbuf = g_malloc0(s->samples << s->shift);
+    s->silentbuf = g_malloc(s->samples << s->shift);
     memset(s->silentbuf, 0x80, s->samples << s->shift);
 
     /* Add easc registers if required */
