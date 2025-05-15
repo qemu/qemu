@@ -157,7 +157,9 @@ static void write_regs(QTestState *s, uint32_t base, uint64_t src,
                        uint32_t length, uint64_t out, uint32_t method)
 {
         qtest_writel(s, base + HACE_HASH_SRC, extract64(src, 0, 32));
+        qtest_writel(s, base + HACE_HASH_SRC_HI, extract64(src, 32, 32));
         qtest_writel(s, base + HACE_HASH_DIGEST, extract64(out, 0, 32));
+        qtest_writel(s, base + HACE_HASH_DIGEST_HI, extract64(out, 32, 32));
         qtest_writel(s, base + HACE_HASH_DATA_LEN, length);
         qtest_writel(s, base + HACE_HASH_CMD, HACE_SHA_BE_EN | method);
 }

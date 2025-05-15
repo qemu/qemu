@@ -36,6 +36,9 @@
 #define HACE_HASH_KEY_BUFF       0x28
 #define HACE_HASH_DATA_LEN       0x2c
 #define HACE_HASH_CMD            0x30
+#define HACE_HASH_SRC_HI         0x90
+#define HACE_HASH_DIGEST_HI      0x94
+#define HACE_HASH_KEY_BUFF_HI    0x98
 
 /* Scatter-Gather Hash */
 #define SG_LIST_LEN_LAST         BIT(31)
