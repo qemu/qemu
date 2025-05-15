@@ -25,12 +25,14 @@ class MicroblazeMachine(QemuSystemTest):
         ('http://www.qemu-advent-calendar.org/2023/download/day13.tar.gz'),
         'b9b3d43c5dd79db88ada495cc6e0d1f591153fe41355e925d791fbf44de50c22')
 
-    def do_ballerina_be_test(self, machine):
-        self.set_machine(machine)
+    def do_ballerina_be_test(self, force_endianness=False):
+        self.set_machine('petalogix-s3adsp1800')
         self.archive_extract(self.ASSET_IMAGE_BE)
         self.vm.set_console()
         self.vm.add_args('-kernel',
                          self.scratch_file('day17', 'ballerina.bin'))
+        if force_endianness:
+            self.vm.add_args('-M', 'endianness=big')
         self.vm.launch()
         wait_for_console_pattern(self, 'This architecture does not have '
                                        'kernel memory protection')
@@ -39,12 +41,14 @@ class MicroblazeMachine(QemuSystemTest):
         # message, that's why we don't test for a later string here. This
         # needs some investigation by a microblaze wizard one day...
 
-    def do_xmaton_le_test(self, machine):
+    def do_xmaton_le_test(self, force_endianness=False):
         self.require_netdev('user')
-        self.set_machine(machine)
+        self.set_machine('petalogix-s3adsp1800')
         self.archive_extract(self.ASSET_IMAGE_LE)
         self.vm.set_console()
         self.vm.add_args('-kernel', self.scratch_file('day13', 'xmaton.bin'))
+        if force_endianness:
+            self.vm.add_args('-M', 'endianness=little')
         tftproot = self.scratch_file('day13')
         self.vm.add_args('-nic', f'user,tftp={tftproot}')
         self.vm.launch()
@@ -59,9 +63,13 @@ class MicroblazeMachine(QemuSystemTest):
 class MicroblazeBigEndianMachine(MicroblazeMachine):
 
     ASSET_IMAGE_BE = MicroblazeMachine.ASSET_IMAGE_BE
+    ASSET_IMAGE_LE = MicroblazeMachine.ASSET_IMAGE_LE
 
     def test_microblaze_s3adsp1800_legacy_be(self):
-        self.do_ballerina_be_test('petalogix-s3adsp1800')
+        self.do_ballerina_be_test()
+
+    def test_microblaze_s3adsp1800_legacy_le(self):
+        self.do_xmaton_le_test(force_endianness=True)
 
 
 if __name__ == '__main__':
