@@ -142,21 +142,30 @@ static bool has_padding(AspeedHACEState *s, struct iovec *iov,
     return false;
 }
 
+static uint64_t hash_get_source_addr(AspeedHACEState *s)
+{
+    uint64_t src_addr = 0;
+
+    src_addr = deposit64(src_addr, 0, 32, s->regs[R_HASH_SRC]);
+
+    return src_addr;
+}
+
 static int hash_prepare_direct_iov(AspeedHACEState *s, struct iovec *iov)
 {
-    uint32_t src;
+    uint64_t src;
     void *haddr;
     hwaddr plen;
     int iov_idx;
 
     plen = s->regs[R_HASH_SRC_LEN];
-    src = s->regs[R_HASH_SRC];
+    src = hash_get_source_addr(s);
     haddr = address_space_map(&s->dram_as, src, &plen, false,
                               MEMTXATTRS_UNSPECIFIED);
     if (haddr == NULL) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Unable to map address, addr=0x%x, "
-                      "plen=0x%" HWADDR_PRIx "\n",
+                      "%s: Unable to map address, addr=0x%" HWADDR_PRIx
+                      " ,plen=0x%" HWADDR_PRIx "\n",
                       __func__, src, plen);
         return -1;
     }
@@ -175,11 +184,12 @@ static int hash_prepare_sg_iov(AspeedHACEState *s, struct iovec *iov,
     uint32_t pad_offset;
     uint32_t len = 0;
     uint32_t sg_addr;
-    uint32_t src;
+    uint64_t src;
     int iov_idx;
     hwaddr plen;
     void *haddr;
 
+    src = hash_get_source_addr(s);
     for (iov_idx = 0; !(len & SG_LIST_LEN_LAST); iov_idx++) {
         if (iov_idx == ASPEED_HACE_MAX_SG) {
             qemu_log_mask(LOG_GUEST_ERROR,
@@ -187,8 +197,6 @@ static int hash_prepare_sg_iov(AspeedHACEState *s, struct iovec *iov,
                           __func__);
             return -1;
         }
-
-        src = s->regs[R_HASH_SRC] + (iov_idx * SG_LIST_ENTRY_SIZE);
 
         len = address_space_ldl_le(&s->dram_as, src,
                                    MEMTXATTRS_UNSPECIFIED, NULL);
@@ -207,6 +215,8 @@ static int hash_prepare_sg_iov(AspeedHACEState *s, struct iovec *iov,
                           __func__, sg_addr, plen);
             return -1;
         }
+
+        src += SG_LIST_ENTRY_SIZE;
 
         iov[iov_idx].iov_base = haddr;
         if (acc_mode) {
