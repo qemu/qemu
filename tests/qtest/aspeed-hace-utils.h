@@ -50,9 +50,11 @@ struct AspeedSgList {
 struct AspeedMasks {
     uint32_t src;
     uint32_t dest;
+    uint32_t key;
     uint32_t len;
     uint32_t src_hi;
     uint32_t dest_hi;
+    uint32_t key_hi;
 };
 
 void aspeed_test_md5(const char *machine, const uint32_t base,

@@ -13,24 +13,28 @@
 static const struct AspeedMasks ast1030_masks = {
     .src  = 0x7fffffff,
     .dest = 0x7ffffff8,
+    .key = 0x7ffffff8,
     .len  = 0x0fffffff,
 };
 
 static const struct AspeedMasks ast2600_masks = {
     .src  = 0x7fffffff,
     .dest = 0x7ffffff8,
+    .key = 0x7ffffff8,
     .len  = 0x0fffffff,
 };
 
 static const struct AspeedMasks ast2500_masks = {
     .src  = 0x3fffffff,
     .dest = 0x3ffffff8,
+    .key = 0x3fffffc0,
     .len  = 0x0fffffff,
 };
 
 static const struct AspeedMasks ast2400_masks = {
     .src  = 0x0fffffff,
     .dest = 0x0ffffff8,
+    .key = 0x0fffffc0,
     .len  = 0x0fffffff,
 };
 

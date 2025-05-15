@@ -591,6 +591,8 @@ void aspeed_test_addresses(const char *machine, const uint32_t base,
     g_assert_cmphex(qtest_readl(s, base + HACE_HASH_SRC_HI), ==, 0);
     g_assert_cmphex(qtest_readl(s, base + HACE_HASH_DIGEST), ==, 0);
     g_assert_cmphex(qtest_readl(s, base + HACE_HASH_DIGEST_HI), ==, 0);
+    g_assert_cmphex(qtest_readl(s, base + HACE_HASH_KEY_BUFF), ==, 0);
+    g_assert_cmphex(qtest_readl(s, base + HACE_HASH_KEY_BUFF_HI), ==, 0);
     g_assert_cmphex(qtest_readl(s, base + HACE_HASH_DATA_LEN), ==, 0);
 
     /* Check that the address masking is correct */
@@ -609,6 +611,14 @@ void aspeed_test_addresses(const char *machine, const uint32_t base,
     g_assert_cmphex(qtest_readl(s, base + HACE_HASH_DIGEST_HI), ==,
                     expected->dest_hi);
 
+    qtest_writel(s, base + HACE_HASH_KEY_BUFF, 0xffffffff);
+    g_assert_cmphex(qtest_readl(s, base + HACE_HASH_KEY_BUFF), ==,
+                    expected->key);
+
+    qtest_writel(s, base + HACE_HASH_KEY_BUFF_HI, 0xffffffff);
+    g_assert_cmphex(qtest_readl(s, base + HACE_HASH_KEY_BUFF_HI), ==,
+                    expected->key_hi);
+
     qtest_writel(s, base + HACE_HASH_DATA_LEN, 0xffffffff);
     g_assert_cmphex(qtest_readl(s, base + HACE_HASH_DATA_LEN), ==,
                     expected->len);
@@ -618,6 +628,8 @@ void aspeed_test_addresses(const char *machine, const uint32_t base,
     qtest_writel(s, base + HACE_HASH_SRC_HI, 0);
     qtest_writel(s, base + HACE_HASH_DIGEST, 0);
     qtest_writel(s, base + HACE_HASH_DIGEST_HI, 0);
+    qtest_writel(s, base + HACE_HASH_KEY_BUFF, 0);
+    qtest_writel(s, base + HACE_HASH_KEY_BUFF_HI, 0);
     qtest_writel(s, base + HACE_HASH_DATA_LEN, 0);
 
     /* Check that all bits are now zero */
@@ -625,6 +637,8 @@ void aspeed_test_addresses(const char *machine, const uint32_t base,
     g_assert_cmphex(qtest_readl(s, base + HACE_HASH_SRC_HI), ==, 0);
     g_assert_cmphex(qtest_readl(s, base + HACE_HASH_DIGEST), ==, 0);
     g_assert_cmphex(qtest_readl(s, base + HACE_HASH_DIGEST_HI), ==, 0);
+    g_assert_cmphex(qtest_readl(s, base + HACE_HASH_KEY_BUFF), ==, 0);
+    g_assert_cmphex(qtest_readl(s, base + HACE_HASH_KEY_BUFF_HI), ==, 0);
     g_assert_cmphex(qtest_readl(s, base + HACE_HASH_DATA_LEN), ==, 0);
 
     qtest_quit(s);
