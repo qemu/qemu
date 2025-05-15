@@ -601,11 +601,21 @@ def filter_chown(msg):
     return chown_re.sub("chown UID:GID", msg)
 
 def filter_qmp_event(event):
-    '''Filter a QMP event dict'''
+    '''Filter the timestamp of a QMP event dict'''
     event = dict(event)
     if 'timestamp' in event:
         event['timestamp']['seconds'] = 'SECS'
         event['timestamp']['microseconds'] = 'USECS'
+    return event
+
+def filter_block_job(event):
+    '''Filter the offset and length of a QMP block job event dict'''
+    event = dict(event)
+    if 'data' in event:
+        if 'offset' in event['data']:
+            event['data']['offset'] = 'OFFSET'
+        if 'len' in event['data']:
+            event['data']['len'] = 'LEN'
     return event
 
 def filter_qmp(qmsg, filter_fn):

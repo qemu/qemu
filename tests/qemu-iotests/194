@@ -34,6 +34,7 @@ with iotests.FilePath('source.img') as source_img_path, \
 
     img_size = '1G'
     iotests.qemu_img_create('-f', iotests.imgfmt, source_img_path, img_size)
+    iotests.qemu_io('-f', iotests.imgfmt, '-c', 'write 512M 1M', source_img_path)
     iotests.qemu_img_create('-f', iotests.imgfmt, dest_img_path, img_size)
 
     iotests.log('Launching VMs...')
@@ -61,7 +62,8 @@ with iotests.FilePath('source.img') as source_img_path, \
 
     iotests.log('Waiting for `drive-mirror` to complete...')
     iotests.log(source_vm.event_wait('BLOCK_JOB_READY'),
-                filters=[iotests.filter_qmp_event])
+                filters=[iotests.filter_qmp_event,
+                         iotests.filter_block_job])
 
     iotests.log('Starting migration...')
     capabilities = [{'capability': 'events', 'state': True},
@@ -87,7 +89,8 @@ with iotests.FilePath('source.img') as source_img_path, \
 
     while True:
         event2 = source_vm.event_wait('BLOCK_JOB_COMPLETED')
-        iotests.log(event2, filters=[iotests.filter_qmp_event])
+        iotests.log(event2, filters=[iotests.filter_qmp_event,
+                                     iotests.filter_block_job])
         if event2['event'] == 'BLOCK_JOB_COMPLETED':
             iotests.log('Stopping the NBD server on destination...')
             iotests.log(dest_vm.qmp('nbd-server-stop'))

@@ -63,7 +63,7 @@ bdrv_test_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
 }
 
 static int coroutine_fn bdrv_test_co_block_status(BlockDriverState *bs,
-                                                  bool want_zero,
+                                                  unsigned int mode,
                                                   int64_t offset, int64_t count,
                                                   int64_t *pnum, int64_t *map,
                                                   BlockDriverState **file)

@@ -2804,7 +2804,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                    const char *replaces,
                                    enum MirrorSyncMode sync,
                                    BlockMirrorBackingMode backing_mode,
-                                   bool zero_target,
+                                   bool target_is_zero,
                                    bool has_speed, int64_t speed,
                                    bool has_granularity, uint32_t granularity,
                                    bool has_buf_size, int64_t buf_size,
@@ -2871,10 +2871,6 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
         return;
     }
 
-    if (!bdrv_backing_chain_next(bs) && sync == MIRROR_SYNC_MODE_TOP) {
-        sync = MIRROR_SYNC_MODE_FULL;
-    }
-
     if (!replaces) {
         /* We want to mirror from @bs, but keep implicit filters on top */
         unfiltered_bs = bdrv_skip_implicit_filters(bs);
@@ -2915,11 +2911,10 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
     /* pass the node name to replace to mirror start since it's loose coupling
      * and will allow to check whether the node still exist at mirror completion
      */
-    mirror_start(job_id, bs, target,
-                 replaces, job_flags,
-                 speed, granularity, buf_size, sync, backing_mode, zero_target,
-                 on_source_error, on_target_error, unmap, filter_node_name,
-                 copy_mode, errp);
+    mirror_start(job_id, bs, target, replaces, job_flags,
+                 speed, granularity, buf_size, sync, backing_mode,
+                 target_is_zero, on_source_error, on_target_error, unmap,
+                 filter_node_name, copy_mode, errp);
 }
 
 void qmp_drive_mirror(DriveMirror *arg, Error **errp)
@@ -2933,7 +2928,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     int flags;
     int64_t size;
     const char *format = arg->format;
-    bool zero_target;
+    bool target_is_zero;
     int ret;
 
     bs = qmp_get_root_bs(arg->device, errp);
@@ -3047,9 +3042,8 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     }
 
     bdrv_graph_rdlock_main_loop();
-    zero_target = (arg->sync == MIRROR_SYNC_MODE_FULL &&
-                   (arg->mode == NEW_IMAGE_MODE_EXISTING ||
-                    !bdrv_has_zero_init(target_bs)));
+    target_is_zero = (arg->mode != NEW_IMAGE_MODE_EXISTING &&
+                      bdrv_has_zero_init(target_bs));
     bdrv_graph_rdunlock_main_loop();
 
 
@@ -3061,7 +3055,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
 
     blockdev_mirror_common(arg->job_id, bs, target_bs,
                            arg->replaces, arg->sync,
-                           backing_mode, zero_target,
+                           backing_mode, target_is_zero,
                            arg->has_speed, arg->speed,
                            arg->has_granularity, arg->granularity,
                            arg->has_buf_size, arg->buf_size,
@@ -3091,13 +3085,13 @@ void qmp_blockdev_mirror(const char *job_id,
                          bool has_copy_mode, MirrorCopyMode copy_mode,
                          bool has_auto_finalize, bool auto_finalize,
                          bool has_auto_dismiss, bool auto_dismiss,
+                         bool has_target_is_zero, bool target_is_zero,
                          Error **errp)
 {
     BlockDriverState *bs;
     BlockDriverState *target_bs;
     AioContext *aio_context;
     BlockMirrorBackingMode backing_mode = MIRROR_LEAVE_BACKING_CHAIN;
-    bool zero_target;
     int ret;
 
     bs = qmp_get_root_bs(device, errp);
@@ -3110,8 +3104,6 @@ void qmp_blockdev_mirror(const char *job_id,
         return;
     }
 
-    zero_target = (sync == MIRROR_SYNC_MODE_FULL);
-
     aio_context = bdrv_get_aio_context(bs);
 
     ret = bdrv_try_change_aio_context(target_bs, aio_context, NULL, errp);
@@ -3121,7 +3113,8 @@ void qmp_blockdev_mirror(const char *job_id,
 
     blockdev_mirror_common(job_id, bs, target_bs,
                            replaces, sync, backing_mode,
-                           zero_target, has_speed, speed,
+                           has_target_is_zero && target_is_zero,
+                           has_speed, speed,
                            has_granularity, granularity,
                            has_buf_size, buf_size,
                            has_on_source_error, on_source_error,

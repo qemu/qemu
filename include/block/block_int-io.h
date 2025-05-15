@@ -38,8 +38,8 @@
 int coroutine_fn GRAPH_RDLOCK bdrv_co_preadv_snapshot(BdrvChild *child,
     int64_t offset, int64_t bytes, QEMUIOVector *qiov, size_t qiov_offset);
 int coroutine_fn GRAPH_RDLOCK bdrv_co_snapshot_block_status(
-    BlockDriverState *bs, bool want_zero, int64_t offset, int64_t bytes,
-    int64_t *pnum, int64_t *map, BlockDriverState **file);
+    BlockDriverState *bs, unsigned int mode, int64_t offset,
+    int64_t bytes, int64_t *pnum, int64_t *map, BlockDriverState **file);
 int coroutine_fn GRAPH_RDLOCK bdrv_co_pdiscard_snapshot(BlockDriverState *bs,
     int64_t offset, int64_t bytes);
 

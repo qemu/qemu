@@ -1503,9 +1503,9 @@ static int qemu_rbd_diff_iterate_cb(uint64_t offs, size_t len,
 }
 
 static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
-                                                 bool want_zero, int64_t offset,
-                                                 int64_t bytes, int64_t *pnum,
-                                                 int64_t *map,
+                                                 unsigned int mode,
+                                                 int64_t offset, int64_t bytes,
+                                                 int64_t *pnum, int64_t *map,
                                                  BlockDriverState **file)
 {
     BDRVRBDState *s = bs->opaque;

@@ -51,10 +51,10 @@ typedef struct MirrorBlockJob {
     BlockDriverState *to_replace;
     /* Used to block operations on the drive-mirror-replace target */
     Error *replace_blocker;
-    bool is_none_mode;
+    MirrorSyncMode sync_mode;
     BlockMirrorBackingMode backing_mode;
-    /* Whether the target image requires explicit zero-initialization */
-    bool zero_target;
+    /* Whether the target should be assumed to be already zero initialized */
+    bool target_is_zero;
     /*
      * To be accesssed with atomics. Written only under the BQL (required by the
      * current implementation of mirror_change()).
@@ -73,6 +73,7 @@ typedef struct MirrorBlockJob {
     size_t buf_size;
     int64_t bdev_length;
     unsigned long *cow_bitmap;
+    unsigned long *zero_bitmap;
     BdrvDirtyBitmap *dirty_bitmap;
     BdrvDirtyBitmapIter *dbi;
     uint8_t *buf;
@@ -108,9 +109,12 @@ struct MirrorOp {
     int64_t offset;
     uint64_t bytes;
 
-    /* The pointee is set by mirror_co_read(), mirror_co_zero(), and
-     * mirror_co_discard() before yielding for the first time */
+    /*
+     * These pointers are set by mirror_co_read(), mirror_co_zero(), and
+     * mirror_co_discard() before yielding for the first time
+     */
     int64_t *bytes_handled;
+    bool *io_skipped;
 
     bool is_pseudo_op;
     bool is_active_write;
@@ -408,15 +412,34 @@ static void coroutine_fn mirror_co_read(void *opaque)
 static void coroutine_fn mirror_co_zero(void *opaque)
 {
     MirrorOp *op = opaque;
-    int ret;
+    bool write_needed = true;
+    int ret = 0;
 
     op->s->in_flight++;
     op->s->bytes_in_flight += op->bytes;
     *op->bytes_handled = op->bytes;
     op->is_in_flight = true;
 
-    ret = blk_co_pwrite_zeroes(op->s->target, op->offset, op->bytes,
-                               op->s->unmap ? BDRV_REQ_MAY_UNMAP : 0);
+    if (op->s->zero_bitmap) {
+        unsigned long end = DIV_ROUND_UP(op->offset + op->bytes,
+                                         op->s->granularity);
+        assert(QEMU_IS_ALIGNED(op->offset, op->s->granularity));
+        assert(QEMU_IS_ALIGNED(op->bytes, op->s->granularity) ||
+               op->offset + op->bytes == op->s->bdev_length);
+        if (find_next_zero_bit(op->s->zero_bitmap, end,
+                               op->offset / op->s->granularity) == end) {
+            write_needed = false;
+            *op->io_skipped = true;
+        }
+    }
+    if (write_needed) {
+        ret = blk_co_pwrite_zeroes(op->s->target, op->offset, op->bytes,
+                                   op->s->unmap ? BDRV_REQ_MAY_UNMAP : 0);
+    }
+    if (ret >= 0 && op->s->zero_bitmap) {
+        bitmap_set(op->s->zero_bitmap, op->offset / op->s->granularity,
+                   DIV_ROUND_UP(op->bytes, op->s->granularity));
+    }
     mirror_write_complete(op, ret);
 }
 
@@ -435,29 +458,43 @@ static void coroutine_fn mirror_co_discard(void *opaque)
 }
 
 static unsigned mirror_perform(MirrorBlockJob *s, int64_t offset,
-                               unsigned bytes, MirrorMethod mirror_method)
+                               unsigned bytes, MirrorMethod mirror_method,
+                               bool *io_skipped)
 {
     MirrorOp *op;
     Coroutine *co;
     int64_t bytes_handled = -1;
 
+    assert(QEMU_IS_ALIGNED(offset, s->granularity));
+    assert(QEMU_IS_ALIGNED(bytes, s->granularity) ||
+           offset + bytes == s->bdev_length);
     op = g_new(MirrorOp, 1);
     *op = (MirrorOp){
         .s              = s,
         .offset         = offset,
         .bytes          = bytes,
         .bytes_handled  = &bytes_handled,
+        .io_skipped     = io_skipped,
     };
     qemu_co_queue_init(&op->waiting_requests);
 
     switch (mirror_method) {
     case MIRROR_METHOD_COPY:
+        if (s->zero_bitmap) {
+            bitmap_clear(s->zero_bitmap, offset / s->granularity,
+                         DIV_ROUND_UP(bytes, s->granularity));
+        }
         co = qemu_coroutine_create(mirror_co_read, op);
         break;
     case MIRROR_METHOD_ZERO:
+        /* s->zero_bitmap handled in mirror_co_zero */
         co = qemu_coroutine_create(mirror_co_zero, op);
         break;
     case MIRROR_METHOD_DISCARD:
+        if (s->zero_bitmap) {
+            bitmap_clear(s->zero_bitmap, offset / s->granularity,
+                         DIV_ROUND_UP(bytes, s->granularity));
+        }
         co = qemu_coroutine_create(mirror_co_discard, op);
         break;
     default:
@@ -568,6 +605,7 @@ static void coroutine_fn GRAPH_UNLOCKED mirror_iteration(MirrorBlockJob *s)
         int ret = -1;
         int64_t io_bytes;
         int64_t io_bytes_acct;
+        bool io_skipped = false;
         MirrorMethod mirror_method = MIRROR_METHOD_COPY;
 
         assert(!(offset % s->granularity));
@@ -611,8 +649,10 @@ static void coroutine_fn GRAPH_UNLOCKED mirror_iteration(MirrorBlockJob *s)
         }
 
         io_bytes = mirror_clip_bytes(s, offset, io_bytes);
-        io_bytes = mirror_perform(s, offset, io_bytes, mirror_method);
-        if (mirror_method != MIRROR_METHOD_COPY && write_zeroes_ok) {
+        io_bytes = mirror_perform(s, offset, io_bytes, mirror_method,
+                                  &io_skipped);
+        if (io_skipped ||
+            (mirror_method != MIRROR_METHOD_COPY && write_zeroes_ok)) {
             io_bytes_acct = 0;
         } else {
             io_bytes_acct = io_bytes;
@@ -723,9 +763,10 @@ static int mirror_exit_common(Job *job)
                              &error_abort);
 
     if (!abort && s->backing_mode == MIRROR_SOURCE_BACKING_CHAIN) {
-        BlockDriverState *backing = s->is_none_mode ? src : s->base;
+        BlockDriverState *backing;
         BlockDriverState *unfiltered_target = bdrv_skip_filters(target_bs);
 
+        backing = s->sync_mode == MIRROR_SYNC_MODE_NONE ? src : s->base;
         if (bdrv_cow_bs(unfiltered_target) != backing) {
             bdrv_set_backing_hd(unfiltered_target, backing, &local_err);
             if (local_err) {
@@ -841,15 +882,54 @@ static int coroutine_fn GRAPH_UNLOCKED mirror_dirty_init(MirrorBlockJob *s)
     int64_t offset;
     BlockDriverState *bs;
     BlockDriverState *target_bs = blk_bs(s->target);
-    int ret = -1;
+    int ret = -EIO;
     int64_t count;
+    bool punch_holes =
+        target_bs->detect_zeroes == BLOCKDEV_DETECT_ZEROES_OPTIONS_UNMAP &&
+        bdrv_can_write_zeroes_with_unmap(target_bs);
+    int64_t bitmap_length = DIV_ROUND_UP(s->bdev_length, s->granularity);
 
+    /* Determine if the image is already zero, regardless of sync mode.  */
+    s->zero_bitmap = bitmap_new(bitmap_length);
     bdrv_graph_co_rdlock();
     bs = s->mirror_top_bs->backing->bs;
+    if (s->target_is_zero) {
+        ret = 1;
+    } else {
+        ret = bdrv_co_is_all_zeroes(target_bs);
+    }
     bdrv_graph_co_rdunlock();
 
-    if (s->zero_target) {
-        if (!bdrv_can_write_zeroes_with_unmap(target_bs)) {
+    /* Determine if a pre-zeroing pass is necessary.  */
+    if (ret < 0) {
+        return ret;
+    } else if (s->sync_mode == MIRROR_SYNC_MODE_TOP) {
+        /*
+         * In TOP mode, there is no benefit to a pre-zeroing pass, but
+         * the zero bitmap can be set if the destination already reads
+         * as zero and we are not punching holes.
+         */
+        if (ret > 0 && !punch_holes) {
+            bitmap_set(s->zero_bitmap, 0, bitmap_length);
+        }
+    } else if (ret == 0 || punch_holes) {
+        /*
+         * Here, we are in FULL mode; our goal is to avoid writing
+         * zeroes if the destination already reads as zero, except
+         * when we are trying to punch holes.  This is possible if
+         * zeroing happened externally (ret > 0) or if we have a fast
+         * way to pre-zero the image (the dirty bitmap will be
+         * populated later by the non-zero portions, the same as for
+         * TOP mode).  If pre-zeroing is not fast, or we need to visit
+         * the entire image in order to punch holes even in the
+         * non-allocated regions of the source, then just mark the
+         * entire image dirty and leave the zero bitmap clear at this
+         * point in time.  Otherwise, it can be faster to pre-zero the
+         * image now, even if we re-write the allocated portions of
+         * the disk later, and the pre-zero pass will populate the
+         * zero bitmap.
+         */
+        if (!bdrv_can_write_zeroes_with_unmap(target_bs) || punch_holes) {
             bdrv_set_dirty_bitmap(s->dirty_bitmap, 0, s->bdev_length);
             return 0;
         }
@@ -858,6 +938,7 @@ static int coroutine_fn GRAPH_UNLOCKED mirror_dirty_init(MirrorBlockJob *s)
         for (offset = 0; offset < s->bdev_length; ) {
             int bytes = MIN(s->bdev_length - offset,
                             QEMU_ALIGN_DOWN(INT_MAX, s->granularity));
+            bool ignored;
 
             mirror_throttle(s);
 
@@ -873,12 +954,15 @@ static int coroutine_fn GRAPH_UNLOCKED mirror_dirty_init(MirrorBlockJob *s)
                 continue;
             }
 
-            mirror_perform(s, offset, bytes, MIRROR_METHOD_ZERO);
+            mirror_perform(s, offset, bytes, MIRROR_METHOD_ZERO, &ignored);
             offset += bytes;
         }
 
         mirror_wait_for_all_io(s);
         s->initial_zeroing_ongoing = false;
+    } else {
+        /* In FULL mode, and image already reads as zero.  */
+        bitmap_set(s->zero_bitmap, 0, bitmap_length);
     }
 
     /* First part, loop on the sectors and initialize the dirty bitmap.  */
@@ -1020,7 +1104,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
     mirror_free_init(s);
 
     s->last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-    if (!s->is_none_mode) {
+    if (s->sync_mode != MIRROR_SYNC_MODE_NONE) {
         ret = mirror_dirty_init(s);
         if (ret < 0 || job_is_cancelled(&s->common.job)) {
             goto immediate_exit;
@@ -1163,6 +1247,7 @@ immediate_exit:
     assert(s->in_flight == 0);
     qemu_vfree(s->buf);
     g_free(s->cow_bitmap);
+    g_free(s->zero_bitmap);
     g_free(s->in_flight_bitmap);
     bdrv_dirty_iter_free(s->dbi);
 
@@ -1341,7 +1426,8 @@ do_sync_target_write(MirrorBlockJob *job, MirrorMethod method,
 {
     int ret;
     size_t qiov_offset = 0;
-    int64_t bitmap_offset, bitmap_end;
+    int64_t dirty_bitmap_offset, dirty_bitmap_end;
+    int64_t zero_bitmap_offset, zero_bitmap_end;
 
     if (!QEMU_IS_ALIGNED(offset, job->granularity) &&
         bdrv_dirty_bitmap_get(job->dirty_bitmap, offset))
@@ -1385,31 +1471,54 @@ do_sync_target_write(MirrorBlockJob *job, MirrorMethod method,
     }
 
     /*
-     * Tails are either clean or shrunk, so for bitmap resetting
-     * we safely align the range down.
+     * Tails are either clean or shrunk, so for dirty bitmap resetting
+     * we safely align the range narrower.  But for zero bitmap, round
+     * range wider for checking or clearing, and narrower for setting.
      */
-    bitmap_offset = QEMU_ALIGN_UP(offset, job->granularity);
-    bitmap_end = QEMU_ALIGN_DOWN(offset + bytes, job->granularity);
-    if (bitmap_offset < bitmap_end) {
-        bdrv_reset_dirty_bitmap(job->dirty_bitmap, bitmap_offset,
-                                bitmap_end - bitmap_offset);
+    dirty_bitmap_offset = QEMU_ALIGN_UP(offset, job->granularity);
+    dirty_bitmap_end = QEMU_ALIGN_DOWN(offset + bytes, job->granularity);
+    if (dirty_bitmap_offset < dirty_bitmap_end) {
+        bdrv_reset_dirty_bitmap(job->dirty_bitmap, dirty_bitmap_offset,
+                                dirty_bitmap_end - dirty_bitmap_offset);
     }
+    zero_bitmap_offset = offset / job->granularity;
+    zero_bitmap_end = DIV_ROUND_UP(offset + bytes, job->granularity);
 
     job_progress_increase_remaining(&job->common.job, bytes);
     job->active_write_bytes_in_flight += bytes;
 
     switch (method) {
     case MIRROR_METHOD_COPY:
+        if (job->zero_bitmap) {
+            bitmap_clear(job->zero_bitmap, zero_bitmap_offset,
+                         zero_bitmap_end - zero_bitmap_offset);
+        }
         ret = blk_co_pwritev_part(job->target, offset, bytes,
                                   qiov, qiov_offset, flags);
         break;
 
     case MIRROR_METHOD_ZERO:
+        if (job->zero_bitmap) {
+            if (find_next_zero_bit(job->zero_bitmap, zero_bitmap_end,
+                                   zero_bitmap_offset) == zero_bitmap_end) {
+                ret = 0;
+                break;
+            }
+        }
         assert(!qiov);
         ret = blk_co_pwrite_zeroes(job->target, offset, bytes, flags);
+        if (job->zero_bitmap && ret >= 0) {
+            bitmap_set(job->zero_bitmap, dirty_bitmap_offset / job->granularity,
+                       (dirty_bitmap_end - dirty_bitmap_offset) /
+                       job->granularity);
+        }
         break;
 
     case MIRROR_METHOD_DISCARD:
+        if (job->zero_bitmap) {
+            bitmap_clear(job->zero_bitmap, zero_bitmap_offset,
+                         zero_bitmap_end - zero_bitmap_offset);
+        }
         assert(!qiov);
         ret = blk_co_pdiscard(job->target, offset, bytes);
         break;
@@ -1430,10 +1539,10 @@ do_sync_target_write(MirrorBlockJob *job, MirrorMethod method,
          * at function start, and they must be still dirty, as we've locked
          * the region for in-flight op.
          */
-        bitmap_offset = QEMU_ALIGN_DOWN(offset, job->granularity);
-        bitmap_end = QEMU_ALIGN_UP(offset + bytes, job->granularity);
-        bdrv_set_dirty_bitmap(job->dirty_bitmap, bitmap_offset,
-                              bitmap_end - bitmap_offset);
+        dirty_bitmap_offset = QEMU_ALIGN_DOWN(offset, job->granularity);
+        dirty_bitmap_end = QEMU_ALIGN_UP(offset + bytes, job->granularity);
+        bdrv_set_dirty_bitmap(job->dirty_bitmap, dirty_bitmap_offset,
+                              dirty_bitmap_end - dirty_bitmap_offset);
         qatomic_set(&job->actively_synced, false);
 
         action = mirror_error_action(job, false, -ret);
@@ -1711,15 +1820,16 @@ static BlockJob *mirror_start_job(
                              int creation_flags, BlockDriverState *target,
                              const char *replaces, int64_t speed,
                              uint32_t granularity, int64_t buf_size,
+                             MirrorSyncMode sync_mode,
                              BlockMirrorBackingMode backing_mode,
-                             bool zero_target,
+                             bool target_is_zero,
                              BlockdevOnError on_source_error,
                              BlockdevOnError on_target_error,
                              bool unmap,
                              BlockCompletionFunc *cb,
                              void *opaque,
                              const BlockJobDriver *driver,
-                             bool is_none_mode, BlockDriverState *base,
+                             BlockDriverState *base,
                              bool auto_complete, const char *filter_node_name,
                              bool is_mirror, MirrorCopyMode copy_mode,
                              bool base_ro,
@@ -1878,9 +1988,9 @@ static BlockJob *mirror_start_job(
     s->replaces = g_strdup(replaces);
     s->on_source_error = on_source_error;
     s->on_target_error = on_target_error;
-    s->is_none_mode = is_none_mode;
+    s->sync_mode = sync_mode;
     s->backing_mode = backing_mode;
-    s->zero_target = zero_target;
+    s->target_is_zero = target_is_zero;
     qatomic_set(&s->copy_mode, copy_mode);
     s->base = base;
     s->base_overlay = bdrv_find_overlay(bs, base);
@@ -2009,13 +2119,12 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
                   int creation_flags, int64_t speed,
                   uint32_t granularity, int64_t buf_size,
                   MirrorSyncMode mode, BlockMirrorBackingMode backing_mode,
-                  bool zero_target,
+                  bool target_is_zero,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   bool unmap, const char *filter_node_name,
                   MirrorCopyMode copy_mode, Error **errp)
 {
-    bool is_none_mode;
     BlockDriverState *base;
 
     GLOBAL_STATE_CODE();
@@ -2028,14 +2137,13 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
     }
 
     bdrv_graph_rdlock_main_loop();
-    is_none_mode = mode == MIRROR_SYNC_MODE_NONE;
     base = mode == MIRROR_SYNC_MODE_TOP ? bdrv_backing_chain_next(bs) : NULL;
     bdrv_graph_rdunlock_main_loop();
 
     mirror_start_job(job_id, bs, creation_flags, target, replaces,
-                     speed, granularity, buf_size, backing_mode, zero_target,
-                     on_source_error, on_target_error, unmap, NULL, NULL,
-                     &mirror_job_driver, is_none_mode, base, false,
+                     speed, granularity, buf_size, mode, backing_mode,
+                     target_is_zero, on_source_error, on_target_error, unmap,
+                     NULL, NULL, &mirror_job_driver, base, false,
                      filter_node_name, true, copy_mode, false, errp);
 }
 
@@ -2061,9 +2169,9 @@ BlockJob *commit_active_start(const char *job_id, BlockDriverState *bs,
 
     job = mirror_start_job(
                      job_id, bs, creation_flags, base, NULL, speed, 0, 0,
-                     MIRROR_LEAVE_BACKING_CHAIN, false,
+                     MIRROR_SYNC_MODE_TOP, MIRROR_LEAVE_BACKING_CHAIN, false,
                      on_error, on_error, true, cb, opaque,
-                     &commit_active_job_driver, false, base, auto_complete,
+                     &commit_active_job_driver, base, auto_complete,
                      filter_node_name, false, MIRROR_COPY_MODE_BACKGROUND,
                      base_read_only, errp);
     if (!job) {
