@@ -147,9 +147,13 @@ static bool has_padding(AspeedHACEState *s, struct iovec *iov,
 
 static uint64_t hash_get_source_addr(AspeedHACEState *s)
 {
+    AspeedHACEClass *ahc = ASPEED_HACE_GET_CLASS(s);
     uint64_t src_addr = 0;
 
     src_addr = deposit64(src_addr, 0, 32, s->regs[R_HASH_SRC]);
+    if (ahc->has_dma64) {
+        src_addr = deposit64(src_addr, 32, 32, s->regs[R_HASH_SRC_HI]);
+    }
 
     return src_addr;
 }
@@ -223,7 +227,13 @@ static int hash_prepare_sg_iov(AspeedHACEState *s, struct iovec *iov,
         sg_addr = address_space_ldl_le(&s->dram_as, src + SG_LIST_LEN_SIZE,
                                        MEMTXATTRS_UNSPECIFIED, NULL);
         sg_addr &= SG_LIST_ADDR_MASK;
-
+        /*
+         * To maintain compatibility with older SoCs such as the AST2600,
+         * the AST2700 HW automatically set bit 34 of the 64-bit sg_addr.
+         * As a result, the firmware only needs to provide a 32-bit sg_addr
+         * containing bits [31:0]. This is sufficient for the AST2700, as
+         * it uses a DRAM offset rather than a DRAM address.
+         */
         plen = len & SG_LIST_LEN_MASK;
         haddr = address_space_map(&s->dram_as, sg_addr, &plen, false,
                                   MEMTXATTRS_UNSPECIFIED);
@@ -260,9 +270,13 @@ static int hash_prepare_sg_iov(AspeedHACEState *s, struct iovec *iov,
 
 static uint64_t hash_get_digest_addr(AspeedHACEState *s)
 {
+    AspeedHACEClass *ahc = ASPEED_HACE_GET_CLASS(s);
     uint64_t digest_addr = 0;
 
     digest_addr = deposit64(digest_addr, 0, 32, s->regs[R_HASH_DIGEST]);
+    if (ahc->has_dma64) {
+        digest_addr = deposit64(digest_addr, 32, 32, s->regs[R_HASH_DIGEST_HI]);
+    }
 
     return digest_addr;
 }
@@ -697,6 +711,7 @@ static void aspeed_ast2700_hace_class_init(ObjectClass *klass, const void *data)
      * has completed. It is a temporary workaround.
      */
     ahc->raise_crypt_interrupt_workaround = true;
+    ahc->has_dma64 = true;
 }
 
 static const TypeInfo aspeed_ast2700_hace_info = {
