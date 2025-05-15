@@ -909,6 +909,10 @@ int AUD_get_buffer_size_out(SWVoiceOut *sw)
         return 0;
     }
 
+    if (audio_get_pdo_out(sw->s->dev)->mixing_engine) {
+        return sw->resample_buf.size * sw->info.bytes_per_frame;
+    }
+
     return sw->hw->samples * sw->hw->info.bytes_per_frame;
 }
 
