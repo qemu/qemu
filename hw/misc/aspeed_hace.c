@@ -267,25 +267,56 @@ static void hash_execute_non_acc_mode(AspeedHACEState *s, int algo,
     hash_write_digest_and_unmap_iov(s, iov, iov_idx, digest_buf, digest_len);
 }
 
-static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode,
-                              bool acc_mode)
+static void hash_execute_acc_mode(AspeedHACEState *s, int algo,
+                                  struct iovec *iov, int iov_idx,
+                                  bool final_request)
 {
     g_autofree uint8_t *digest_buf = NULL;
-    struct iovec iov[ASPEED_HACE_MAX_SG];
-    bool acc_final_request = false;
     Error *local_err = NULL;
     size_t digest_len = 0;
-    int iov_idx = -1;
 
-    if (acc_mode && s->hash_ctx == NULL) {
+    if (s->hash_ctx == NULL) {
         s->hash_ctx = qcrypto_hash_new(algo, &local_err);
         if (s->hash_ctx == NULL) {
-            qemu_log_mask(LOG_GUEST_ERROR, "qcrypto hash failed : %s",
-                          error_get_pretty(local_err));
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: qcrypto hash new failed : %s",
+                          __func__, error_get_pretty(local_err));
             error_free(local_err);
             return;
         }
     }
+
+    if (qcrypto_hash_updatev(s->hash_ctx, iov, iov_idx, &local_err) < 0) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: qcrypto hash updatev failed : %s",
+                      __func__, error_get_pretty(local_err));
+        error_free(local_err);
+        return;
+    }
+
+    if (final_request) {
+        if (qcrypto_hash_finalize_bytes(s->hash_ctx, &digest_buf,
+                                        &digest_len, &local_err)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: qcrypto hash finalize bytes failed : %s",
+                          __func__, error_get_pretty(local_err));
+            error_free(local_err);
+            local_err = NULL;
+        }
+
+        qcrypto_hash_free(s->hash_ctx);
+
+        s->hash_ctx = NULL;
+        s->total_req_len = 0;
+    }
+
+    hash_write_digest_and_unmap_iov(s, iov, iov_idx, digest_buf, digest_len);
+}
+
+static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode,
+                              bool acc_mode)
+{
+    struct iovec iov[ASPEED_HACE_MAX_SG];
+    bool acc_final_request = false;
+    int iov_idx = -1;
 
     /* Prepares the iov for hashing operations based on the selected mode */
     if (sg_mode) {
@@ -300,32 +331,9 @@ static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode,
          return;
     }
 
+    /* Executes the hash operation */
     if (acc_mode) {
-        if (qcrypto_hash_updatev(s->hash_ctx, iov, iov_idx, &local_err) < 0) {
-            qemu_log_mask(LOG_GUEST_ERROR, "qcrypto hash update failed : %s",
-                          error_get_pretty(local_err));
-            error_free(local_err);
-            return;
-        }
-
-        if (acc_final_request) {
-            if (qcrypto_hash_finalize_bytes(s->hash_ctx, &digest_buf,
-                                            &digest_len, &local_err)) {
-                qemu_log_mask(LOG_GUEST_ERROR,
-                              "qcrypto hash finalize failed : %s",
-                              error_get_pretty(local_err));
-                error_free(local_err);
-                local_err = NULL;
-            }
-
-            qcrypto_hash_free(s->hash_ctx);
-
-            s->hash_ctx = NULL;
-            s->total_req_len = 0;
-        }
-
-        hash_write_digest_and_unmap_iov(s, iov, iov_idx, digest_buf,
-                                        digest_len);
+        hash_execute_acc_mode(s, algo, iov, iov_idx, acc_final_request);
     } else {
         hash_execute_non_acc_mode(s, algo, iov, iov_idx);
     }
