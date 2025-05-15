@@ -50,6 +50,9 @@ struct AspeedHACEClass {
     uint32_t hash_mask;
     uint64_t nr_regs;
     bool raise_crypt_interrupt_workaround;
+    uint32_t src_hi_mask;
+    uint32_t dest_hi_mask;
+    uint32_t key_hi_mask;
 };
 
 #endif /* ASPEED_HACE_H */

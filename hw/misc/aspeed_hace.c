@@ -30,6 +30,9 @@
 #define R_HASH_DIGEST   (0x24 / 4)
 #define R_HASH_KEY_BUFF (0x28 / 4)
 #define R_HASH_SRC_LEN  (0x2c / 4)
+#define R_HASH_SRC_HI       (0x90 / 4)
+#define R_HASH_DIGEST_HI    (0x94 / 4)
+#define R_HASH_KEY_BUFF_HI  (0x98 / 4)
 
 #define R_HASH_CMD      (0x30 / 4)
 /* Hash algorithm selection */
@@ -473,6 +476,15 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
             }
         }
         break;
+    case R_HASH_SRC_HI:
+        data &= ahc->src_hi_mask;
+        break;
+    case R_HASH_DIGEST_HI:
+        data &= ahc->dest_hi_mask;
+        break;
+    case R_HASH_KEY_BUFF_HI:
+        data &= ahc->key_hi_mask;
+        break;
     default:
         break;
     }
@@ -656,11 +668,28 @@ static void aspeed_ast2700_hace_class_init(ObjectClass *klass, const void *data)
 
     dc->desc = "AST2700 Hash and Crypto Engine";
 
-    ahc->nr_regs = 0x64 >> 2;
+    ahc->nr_regs = 0x9C >> 2;
     ahc->src_mask = 0x7FFFFFFF;
     ahc->dest_mask = 0x7FFFFFF8;
     ahc->key_mask = 0x7FFFFFF8;
     ahc->hash_mask = 0x00147FFF;
+
+    /*
+     * The AST2700 supports a maximum DRAM size of 8 GB, with a DRAM
+     * addressable range from 0x0_0000_0000 to 0x1_FFFF_FFFF. Since this range
+     * fits within 34 bits, only bits [33:0] are needed to store the DRAM
+     * offset. To optimize address storage, the high physical address bits
+     * [1:0] of the source, digest and key buffer addresses are stored as
+     * dram_offset bits [33:32].
+     *
+     * This approach eliminates the need to reduce the high part of the DRAM
+     * physical address for DMA operations. Previously, this was calculated as
+     * (high physical address bits [7:0] - 4), since the DRAM start address is
+     * 0x4_00000000, making the high part address [7:0] - 4.
+     */
+    ahc->src_hi_mask = 0x00000003;
+    ahc->dest_hi_mask = 0x00000003;
+    ahc->key_hi_mask = 0x00000003;
 
     /*
      * Currently, it does not support the CRYPT command. Instead, it only
