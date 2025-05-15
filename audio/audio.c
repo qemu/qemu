@@ -1892,7 +1892,8 @@ CaptureVoiceOut *AUD_add_capture(
         cap->buf = g_malloc0_n(hw->mix_buf.size, hw->info.bytes_per_frame);
 
         if (hw->info.is_float) {
-            hw->clip = mixeng_clip_float[hw->info.nchannels == 2];
+            hw->clip = mixeng_clip_float[hw->info.nchannels == 2]
+                [hw->info.swap_endianness];
         } else {
             hw->clip = mixeng_clip
                 [hw->info.nchannels == 2]

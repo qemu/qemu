@@ -174,9 +174,11 @@ static int glue (audio_pcm_sw_init_, TYPE) (
 
     if (sw->info.is_float) {
 #ifdef DAC
-        sw->conv = mixeng_conv_float[sw->info.nchannels == 2];
+        sw->conv = mixeng_conv_float[sw->info.nchannels == 2]
+            [sw->info.swap_endianness];
 #else
-        sw->clip = mixeng_clip_float[sw->info.nchannels == 2];
+        sw->clip = mixeng_clip_float[sw->info.nchannels == 2]
+            [sw->info.swap_endianness];
 #endif
     } else {
 #ifdef DAC
@@ -303,9 +305,11 @@ static HW *glue(audio_pcm_hw_add_new_, TYPE)(AudioState *s,
 
     if (hw->info.is_float) {
 #ifdef DAC
-        hw->clip = mixeng_clip_float[hw->info.nchannels == 2];
+        hw->clip = mixeng_clip_float[hw->info.nchannels == 2]
+            [hw->info.swap_endianness];
 #else
-        hw->conv = mixeng_conv_float[hw->info.nchannels == 2];
+        hw->conv = mixeng_conv_float[hw->info.nchannels == 2]
+            [hw->info.swap_endianness];
 #endif
     } else {
 #ifdef DAC
