@@ -334,7 +334,7 @@
             'size': 'uint64'}}
 
 ##
-# @SGXInfo:
+# @SgxInfo:
 #
 # Information about intel Safe Guard eXtension (SGX) support
 #
@@ -350,7 +350,7 @@
 #
 # Since: 6.2
 ##
-{ 'struct': 'SGXInfo',
+{ 'struct': 'SgxInfo',
   'data': { 'sgx': 'bool',
             'sgx1': 'bool',
             'sgx2': 'bool',
@@ -363,7 +363,7 @@
 #
 # Returns information about SGX
 #
-# Returns: @SGXInfo
+# Returns: @SgxInfo
 #
 # Since: 6.2
 #
@@ -375,14 +375,14 @@
 #                      "sections": [{"node": 0, "size": 67108864},
 #                      {"node": 1, "size": 29360128}]} }
 ##
-{ 'command': 'query-sgx', 'returns': 'SGXInfo', 'if': 'TARGET_I386' }
+{ 'command': 'query-sgx', 'returns': 'SgxInfo', 'if': 'TARGET_I386' }
 
 ##
 # @query-sgx-capabilities:
 #
 # Returns information from host SGX capabilities
 #
-# Returns: @SGXInfo
+# Returns: @SgxInfo
 #
 # Since: 6.2
 #
@@ -394,7 +394,7 @@
 #                      "section" : [{"node": 0, "size": 67108864},
 #                      {"node": 1, "size": 29360128}]} }
 ##
-{ 'command': 'query-sgx-capabilities', 'returns': 'SGXInfo', 'if': 'TARGET_I386' }
+{ 'command': 'query-sgx-capabilities', 'returns': 'SgxInfo', 'if': 'TARGET_I386' }
 
 
 ##

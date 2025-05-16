@@ -153,9 +153,9 @@ static void sgx_epc_reset(void *opaque)
      }
 }
 
-SGXInfo *qmp_query_sgx_capabilities(Error **errp)
+SgxInfo *qmp_query_sgx_capabilities(Error **errp)
 {
-    SGXInfo *info = NULL;
+    SgxInfo *info = NULL;
     uint32_t eax, ebx, ecx, edx;
     Error *local_err = NULL;
 
@@ -166,7 +166,7 @@ SGXInfo *qmp_query_sgx_capabilities(Error **errp)
         return NULL;
     }
 
-    info = g_new0(SGXInfo, 1);
+    info = g_new0(SgxInfo, 1);
     host_cpuid(0x7, 0, &eax, &ebx, &ecx, &edx);
 
     info->sgx = ebx & (1U << 2) ? true : false;
@@ -205,9 +205,9 @@ static SgxEpcSectionList *sgx_get_epc_sections_list(void)
     return head;
 }
 
-SGXInfo *qmp_query_sgx(Error **errp)
+SgxInfo *qmp_query_sgx(Error **errp)
 {
-    SGXInfo *info = NULL;
+    SgxInfo *info = NULL;
     X86MachineState *x86ms;
     PCMachineState *pcms =
         (PCMachineState *)object_dynamic_cast(qdev_get_machine(),
@@ -223,7 +223,7 @@ SGXInfo *qmp_query_sgx(Error **errp)
         return NULL;
     }
 
-    info = g_new0(SGXInfo, 1);
+    info = g_new0(SgxInfo, 1);
 
     info->sgx = true;
     info->sgx1 = true;
@@ -238,7 +238,7 @@ void hmp_info_sgx(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
     SgxEpcSectionList *section_list, *section;
-    g_autoptr(SGXInfo) info = qmp_query_sgx(&err);
+    g_autoptr(SgxInfo) info = qmp_query_sgx(&err);
     uint64_t size = 0;
 
     if (err) {
