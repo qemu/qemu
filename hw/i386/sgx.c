@@ -84,10 +84,10 @@ static uint64_t sgx_calc_section_metric(uint64_t low, uint64_t high)
            ((high & MAKE_64BIT_MASK(0, 20)) << 32);
 }
 
-static SGXEPCSectionList *sgx_calc_host_epc_sections(void)
+static SgxEpcSectionList *sgx_calc_host_epc_sections(void)
 {
-    SGXEPCSectionList *head = NULL, **tail = &head;
-    SGXEPCSection *section;
+    SgxEpcSectionList *head = NULL, **tail = &head;
+    SgxEpcSection *section;
     uint32_t i, type;
     uint32_t eax, ebx, ecx, edx;
     uint32_t j = 0;
@@ -104,7 +104,7 @@ static SGXEPCSectionList *sgx_calc_host_epc_sections(void)
             break;
         }
 
-        section = g_new0(SGXEPCSection, 1);
+        section = g_new0(SgxEpcSection, 1);
         section->node = j++;
         section->size = sgx_calc_section_metric(ecx, edx);
         QAPI_LIST_APPEND(tail, section);
@@ -183,17 +183,17 @@ SGXInfo *qmp_query_sgx_capabilities(Error **errp)
     return info;
 }
 
-static SGXEPCSectionList *sgx_get_epc_sections_list(void)
+static SgxEpcSectionList *sgx_get_epc_sections_list(void)
 {
     GSList *device_list = sgx_epc_get_device_list();
-    SGXEPCSectionList *head = NULL, **tail = &head;
-    SGXEPCSection *section;
+    SgxEpcSectionList *head = NULL, **tail = &head;
+    SgxEpcSection *section;
 
     for (; device_list; device_list = device_list->next) {
         DeviceState *dev = device_list->data;
         Object *obj = OBJECT(dev);
 
-        section = g_new0(SGXEPCSection, 1);
+        section = g_new0(SgxEpcSection, 1);
         section->node = object_property_get_uint(obj, SGX_EPC_NUMA_NODE_PROP,
                                                  &error_abort);
         section->size = object_property_get_uint(obj, SGX_EPC_SIZE_PROP,
@@ -237,7 +237,7 @@ SGXInfo *qmp_query_sgx(Error **errp)
 void hmp_info_sgx(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
-    SGXEPCSectionList *section_list, *section;
+    SgxEpcSectionList *section_list, *section;
     g_autoptr(SGXInfo) info = qmp_query_sgx(&err);
     uint64_t size = 0;
 

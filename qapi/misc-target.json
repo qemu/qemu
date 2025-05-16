@@ -319,7 +319,7 @@
   'if': 'TARGET_ARM' }
 
 ##
-# @SGXEPCSection:
+# @SgxEpcSection:
 #
 # Information about intel SGX EPC section info
 #
@@ -329,7 +329,7 @@
 #
 # Since: 7.0
 ##
-{ 'struct': 'SGXEPCSection',
+{ 'struct': 'SgxEpcSection',
   'data': { 'node': 'int',
             'size': 'uint64'}}
 
@@ -355,7 +355,7 @@
             'sgx1': 'bool',
             'sgx2': 'bool',
             'flc': 'bool',
-            'sections': ['SGXEPCSection']},
+            'sections': ['SgxEpcSection']},
    'if': 'TARGET_I386' }
 
 ##
