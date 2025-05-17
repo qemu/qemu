@@ -271,8 +271,9 @@ const char *nbd_mode_lookup(NBDMode mode)
 /*
  * Testing shows that 2m send buffer is optimal. Changing the receive buffer
  * size has no effect on performance.
+ * On Linux we need to increase net.core.wmem_max to make this effective.
  */
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__linux__)
 #define UNIX_STREAM_SOCKET_SEND_BUFFER_SIZE (2 * MiB)
 #endif
 
