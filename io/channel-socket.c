@@ -78,6 +78,17 @@ qio_channel_socket_new(void)
     return sioc;
 }
 
+int qio_channel_socket_set_send_buffer(QIOChannelSocket *ioc,
+                                       size_t size,
+                                       Error **errp)
+{
+    if (setsockopt(ioc->fd, SOL_SOCKET, SO_SNDBUF, &size, sizeof(size)) < 0) {
+        error_setg_errno(errp, errno, "Unable to set socket send buffer size");
+        return -1;
+    }
+
+    return 0;
+}
 
 static int
 qio_channel_socket_set_fd(QIOChannelSocket *sioc,
