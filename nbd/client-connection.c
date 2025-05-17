@@ -31,6 +31,8 @@
 #include "qapi/clone-visitor.h"
 #include "qemu/coroutine.h"
 
+#include "nbd/nbd-internal.h"
+
 struct NBDClientConnection {
     /* Initialization constants, never change */
     SocketAddress *saddr; /* address to connect to */
@@ -140,6 +142,7 @@ static int nbd_connect(QIOChannelSocket *sioc, SocketAddress *addr,
         return ret;
     }
 
+    nbd_set_socket_send_buffer(sioc);
     qio_channel_set_delay(QIO_CHANNEL(sioc), false);
 
     if (!info) {

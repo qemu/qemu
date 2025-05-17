@@ -3291,6 +3291,8 @@ void nbd_client_new(QIOChannelSocket *sioc,
     client->close_fn = close_fn;
     client->owner = owner;
 
+    nbd_set_socket_send_buffer(sioc);
+
     co = qemu_coroutine_create(nbd_co_client_start, client);
     qemu_coroutine_enter(co);
 }
