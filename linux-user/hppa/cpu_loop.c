@@ -112,7 +112,7 @@ static abi_ulong hppa_lws(CPUHPPAState *env)
 void cpu_loop(CPUHPPAState *env)
 {
     CPUState *cs = env_cpu(env);
-    abi_ulong ret;
+    abi_ulong ret, si_code = 0;
     int trapnr;
 
     while (1) {
@@ -169,7 +169,15 @@ void cpu_loop(CPUHPPAState *env)
             force_sig_fault(TARGET_SIGFPE, TARGET_FPE_CONDTRAP, env->iaoq_f);
             break;
         case EXCP_ASSIST:
-            force_sig_fault(TARGET_SIGFPE, 0, env->iaoq_f);
+            #define set_si_code(mask, val) \
+                if (env->fr[0] & mask) { si_code = val; }
+            set_si_code(R_FPSR_FLG_I_MASK, TARGET_FPE_FLTRES);
+            set_si_code(R_FPSR_FLG_U_MASK, TARGET_FPE_FLTUND);
+            set_si_code(R_FPSR_FLG_O_MASK, TARGET_FPE_FLTOVF);
+            set_si_code(R_FPSR_FLG_Z_MASK, TARGET_FPE_FLTDIV);
+            set_si_code(R_FPSR_FLG_V_MASK, TARGET_FPE_FLTINV);
+            #undef set_si_code
+            force_sig_fault(TARGET_SIGFPE, si_code, env->iaoq_f);
             break;
         case EXCP_BREAK:
             force_sig_fault(TARGET_SIGTRAP, TARGET_TRAP_BRKPT, env->iaoq_f);
