@@ -39,6 +39,7 @@
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/sysbus.h"
@@ -60,9 +61,6 @@
  */
 #define BIOS_FILENAME   "hss.bin"
 #define RESET_VECTOR    0x20220000
-
-/* CLINT timebase frequency */
-#define CLINT_TIMEBASE_FREQ 1000000
 
 /* GEM version */
 #define GEM_REVISION    0x0107010c
@@ -193,6 +191,7 @@ static void microchip_pfsoc_soc_instance_init(Object *obj)
 static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
+    MicrochipIcicleKitState *iks = MICROCHIP_ICICLE_KIT_MACHINE(ms);
     MicrochipPFSoCState *s = MICROCHIP_PFSOC(dev);
     const MemMapEntry *memmap = microchip_pfsoc_memmap;
     MemoryRegion *system_memory = get_system_memory();
@@ -253,7 +252,7 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
         memmap[MICROCHIP_PFSOC_CLINT].base + RISCV_ACLINT_SWI_SIZE,
         RISCV_ACLINT_DEFAULT_MTIMER_SIZE, 0, ms->smp.cpus,
         RISCV_ACLINT_DEFAULT_MTIMECMP, RISCV_ACLINT_DEFAULT_MTIME,
-        CLINT_TIMEBASE_FREQ, false);
+        iks->clint_timebase_freq, false);
 
     /* L2 cache controller */
     create_unimplemented_device("microchip.pfsoc.l2cc",
@@ -516,7 +515,6 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
     uint64_t mem_low_size, mem_high_size;
     hwaddr firmware_load_addr;
     const char *firmware_name;
-    bool kernel_as_payload = false;
     target_ulong firmware_end_addr, kernel_start_addr;
     uint64_t kernel_entry;
     uint64_t fdt_load_addr;
@@ -579,45 +577,50 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
     }
 
     /*
-     * We follow the following table to select which payload we execute.
+     * We follow the following table to select which firmware we use.
      *
-     *  -bios |    -kernel | payload
-     * -------+------------+--------
-     *      N |          N | HSS
-     *      Y | don't care | HSS
-     *      N |          Y | kernel
-     *
-     * This ensures backwards compatibility with how we used to expose -bios
-     * to users but allows them to run through direct kernel booting as well.
-     *
-     * When -kernel is used for direct boot, -dtb must be present to provide
-     * a valid device tree for the board, as we don't generate device tree.
+     * -bios         | -kernel    | firmware
+     * --------------+------------+--------
+     * none          |          N | error
+     * none          |          Y | kernel
+     * NULL, default |          N | BIOS_FILENAME
+     * NULL, default |          Y | RISCV64_BIOS_BIN
+     * other         | don't care | other
      */
-
-    if (machine->kernel_filename && machine->dtb) {
-        int fdt_size;
-        machine->fdt = load_device_tree(machine->dtb, &fdt_size);
-        if (!machine->fdt) {
-            error_report("load_device_tree() failed");
+    if (machine->firmware && !strcmp(machine->firmware, "none")) {
+        if (!machine->kernel_filename) {
+            error_report("for -bios none, a kernel is required");
             exit(1);
         }
 
-        firmware_name = RISCV64_BIOS_BIN;
-        firmware_load_addr = memmap[MICROCHIP_PFSOC_DRAM_LO].base;
-        kernel_as_payload = true;
-    }
-
-    if (!kernel_as_payload) {
-        firmware_name = BIOS_FILENAME;
+        firmware_name = NULL;
+        firmware_load_addr = RESET_VECTOR;
+    } else if (!machine->firmware || !strcmp(machine->firmware, "default")) {
+        if (machine->kernel_filename) {
+            firmware_name = RISCV64_BIOS_BIN;
+            firmware_load_addr = memmap[MICROCHIP_PFSOC_DRAM_LO].base;
+        } else {
+            firmware_name = BIOS_FILENAME;
+            firmware_load_addr = RESET_VECTOR;
+        }
+    } else {
+        firmware_name = machine->firmware;
         firmware_load_addr = RESET_VECTOR;
     }
 
-    /* Load the firmware */
-    firmware_end_addr = riscv_find_and_load_firmware(machine, firmware_name,
-                                                     &firmware_load_addr, NULL);
+    /* Load the firmware if necessary */
+    firmware_end_addr = firmware_load_addr;
+    if (firmware_name) {
+        char *filename = riscv_find_firmware(firmware_name, NULL);
+        if (filename) {
+            firmware_end_addr = riscv_load_firmware(filename,
+                                                    &firmware_load_addr, NULL);
+            g_free(filename);
+        }
+    }
 
     riscv_boot_info_init(&boot_info, &s->soc.u_cpus);
-    if (kernel_as_payload) {
+    if (machine->kernel_filename) {
         kernel_start_addr = riscv_calc_kernel_start_addr(&boot_info,
                                                          firmware_end_addr);
 
@@ -625,18 +628,80 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
                           true, NULL);
         kernel_entry = boot_info.image_low_addr;
 
-        /* Compute the fdt load address in dram */
-        fdt_load_addr = riscv_compute_fdt_addr(memmap[MICROCHIP_PFSOC_DRAM_LO].base,
-                                               memmap[MICROCHIP_PFSOC_DRAM_LO].size,
-                                               machine, &boot_info);
-        riscv_load_fdt(fdt_load_addr, machine->fdt);
+        if (machine->dtb) {
+            int fdt_size;
+            machine->fdt = load_device_tree(machine->dtb, &fdt_size);
+            if (!machine->fdt) {
+                error_report("load_device_tree() failed");
+                exit(1);
+            }
+
+            /* Compute the FDT load address in DRAM */
+            hwaddr kernel_ram_base = memmap[MICROCHIP_PFSOC_DRAM_LO].base;
+            hwaddr kernel_ram_size = memmap[MICROCHIP_PFSOC_DRAM_LO].size;
+
+            if (kernel_entry - kernel_ram_base >= kernel_ram_size) {
+                kernel_ram_base = memmap[MICROCHIP_PFSOC_DRAM_HI].base;
+                kernel_ram_size = mem_high_size;
+            }
+
+            fdt_load_addr = riscv_compute_fdt_addr(kernel_ram_base, kernel_ram_size,
+                                                   machine, &boot_info);
+            riscv_load_fdt(fdt_load_addr, machine->fdt);
+        } else {
+            warn_report_once("The QEMU microchip-icicle-kit machine does not "
+                             "generate a device tree, so no device tree is "
+                             "being provided to the guest.");
+            fdt_load_addr = 0;
+        }
+
+        hwaddr start_addr;
+        if (firmware_name) {
+            start_addr = firmware_load_addr;
+        } else {
+            start_addr = kernel_entry;
+        }
 
         /* Load the reset vector */
-        riscv_setup_rom_reset_vec(machine, &s->soc.u_cpus, firmware_load_addr,
+        riscv_setup_rom_reset_vec(machine, &s->soc.u_cpus, start_addr,
                                   memmap[MICROCHIP_PFSOC_ENVM_DATA].base,
                                   memmap[MICROCHIP_PFSOC_ENVM_DATA].size,
                                   kernel_entry, fdt_load_addr);
     }
+}
+
+static void microchip_icicle_kit_set_clint_timebase_freq(Object *obj,
+                                                         Visitor *v,
+                                                         const char *name,
+                                                         void *opaque,
+                                                         Error **errp)
+{
+    MicrochipIcicleKitState *s = MICROCHIP_ICICLE_KIT_MACHINE(obj);
+    uint32_t value;
+
+    if (!visit_type_uint32(v, name, &value, errp)) {
+        return;
+    }
+
+    s->clint_timebase_freq = value;
+}
+
+static void microchip_icicle_kit_get_clint_timebase_freq(Object *obj,
+                                                         Visitor *v,
+                                                         const char *name,
+                                                         void *opaque,
+                                                         Error **errp)
+{
+    MicrochipIcicleKitState *s = MICROCHIP_ICICLE_KIT_MACHINE(obj);
+    uint32_t value = s->clint_timebase_freq;
+
+    visit_type_uint32(v, name, &value, errp);
+}
+
+static void microchip_icicle_kit_machine_instance_init(Object *obj)
+{
+    MicrochipIcicleKitState *m = MICROCHIP_ICICLE_KIT_MACHINE(obj);
+    m->clint_timebase_freq = 1000000;
 }
 
 static void microchip_icicle_kit_machine_class_init(ObjectClass *oc,
@@ -661,12 +726,20 @@ static void microchip_icicle_kit_machine_class_init(ObjectClass *oc,
      * See memory_tests() in mss_ddr.c in the HSS source code.
      */
     mc->default_ram_size = 1537 * MiB;
+
+    object_class_property_add(oc, "clint-timebase-frequency", "uint32_t",
+                              microchip_icicle_kit_get_clint_timebase_freq,
+                              microchip_icicle_kit_set_clint_timebase_freq,
+                              NULL, NULL);
+    object_class_property_set_description(oc, "clint-timebase-frequency",
+                                  "Set CLINT timebase frequency in Hz.");
 }
 
 static const TypeInfo microchip_icicle_kit_machine_typeinfo = {
     .name       = MACHINE_TYPE_NAME("microchip-icicle-kit"),
     .parent     = TYPE_MACHINE,
     .class_init = microchip_icicle_kit_machine_class_init,
+    .instance_init = microchip_icicle_kit_machine_instance_init,
     .instance_size = sizeof(MicrochipIcicleKitState),
 };
 
