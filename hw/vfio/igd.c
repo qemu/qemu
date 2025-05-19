@@ -203,7 +203,7 @@ static bool vfio_pci_igd_opregion_detect(VFIOPCIDevice *vdev,
                     VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION, opregion);
     if (ret) {
         error_setg_errno(errp, -ret,
-                         "Device does not supports IGD OpRegion feature");
+                         "Device does not support IGD OpRegion feature");
         return false;
     }
 
