@@ -115,13 +115,56 @@ OBJECT_DECLARE_TYPE(VFIOContainerBase, VFIOIOMMUClass, VFIO_IOMMU)
 struct VFIOIOMMUClass {
     ObjectClass parent_class;
 
-    /* basic feature */
+    /**
+     * @setup
+     *
+     * Perform basic setup of the container, including configuring IOMMU
+     * capabilities, IOVA ranges, supported page sizes, etc.
+     *
+     * @bcontainer: #VFIOContainerBase
+     * @errp: pointer to Error*, to store an error if it happens.
+     *
+     * Returns true to indicate success and false for error.
+     */
     bool (*setup)(VFIOContainerBase *bcontainer, Error **errp);
+
+    /**
+     * @listener_begin
+     *
+     * Called at the beginning of an address space update transaction.
+     * See #MemoryListener.
+     *
+     * @bcontainer: #VFIOContainerBase
+     */
     void (*listener_begin)(VFIOContainerBase *bcontainer);
+
+    /**
+     * @listener_commit
+     *
+     * Called at the end of an address space update transaction,
+     * See #MemoryListener.
+     *
+     * @bcontainer: #VFIOContainerBase
+     */
     void (*listener_commit)(VFIOContainerBase *bcontainer);
+
+    /**
+     * @dma_map
+     *
+     * Map an address range into the container.
+     *
+     * @bcontainer: #VFIOContainerBase to use
+     * @iova: start address to map
+     * @size: size of the range to map
+     * @vaddr: process virtual address of mapping
+     * @readonly: true if mapping should be readonly
+     *
+     * Returns 0 to indicate success and -errno otherwise.
+     */
     int (*dma_map)(const VFIOContainerBase *bcontainer,
                    hwaddr iova, ram_addr_t size,
                    void *vaddr, bool readonly);
+
     /**
      * @dma_unmap
      *
@@ -132,12 +175,38 @@ struct VFIOIOMMUClass {
      * @size: size of the range to unmap
      * @iotlb: The IOMMU TLB mapping entry (or NULL)
      * @unmap_all: if set, unmap the entire address space
+     *
+     * Returns 0 to indicate success and -errno otherwise.
      */
     int (*dma_unmap)(const VFIOContainerBase *bcontainer,
                      hwaddr iova, ram_addr_t size,
                      IOMMUTLBEntry *iotlb, bool unmap_all);
+
+
+    /**
+     * @attach_device
+     *
+     * Associate the given device with a container and do some related
+     * initialization of the device context.
+     *
+     * @name: name of the device
+     * @vbasedev: the device
+     * @as: address space to use
+     * @errp: pointer to Error*, to store an error if it happens.
+     *
+     * Returns true to indicate success and false for error.
+     */
     bool (*attach_device)(const char *name, VFIODevice *vbasedev,
                           AddressSpace *as, Error **errp);
+
+    /*
+     * @detach_device
+     *
+     * Detach the given device from its container and clean up any necessary
+     * state.
+     *
+     * @vbasedev: the device to disassociate
+     */
     void (*detach_device)(VFIODevice *vbasedev);
 
     /* migration feature */
@@ -152,7 +221,7 @@ struct VFIOIOMMUClass {
      * @start: indicates whether to start or stop dirty pages tracking
      * @errp: pointer to Error*, to store an error if it happens.
      *
-     * Returns zero to indicate success and negative for error
+     * Returns zero to indicate success and negative for error.
      */
     int (*set_dirty_page_tracking)(const VFIOContainerBase *bcontainer,
                                    bool start, Error **errp);
@@ -167,7 +236,7 @@ struct VFIOIOMMUClass {
      * @size: size of iova range
      * @errp: pointer to Error*, to store an error if it happens.
      *
-     * Returns zero to indicate success and negative for error
+     * Returns zero to indicate success and negative for error.
      */
     int (*query_dirty_bitmap)(const VFIOContainerBase *bcontainer,
                 VFIOBitmap *vbmap, hwaddr iova, hwaddr size, Error **errp);
