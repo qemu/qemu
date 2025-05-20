@@ -1,5 +1,5 @@
 // Copyright (C) 2024 Intel Corporation.
-// Author(s): Zhao Liu <zhai1.liu@intel.com>
+// Author(s): Zhao Liu <zhao1.liu@intel.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use std::ptr::addr_of_mut;
