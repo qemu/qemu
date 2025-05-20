@@ -255,19 +255,19 @@ void lflags_to_rflags(CPUX86State *env)
 
 void rflags_to_lflags(CPUX86State *env)
 {
-    target_ulong cf_xor_of;
+    target_ulong cf_af, cf_xor_of;
 
+    /* Leave the low byte zero so that parity is always even...  */
+    env->cc_dst = !(env->eflags & CC_Z) << 8;
+
+    /* ... and therefore cc_src always uses opposite polarity.  */
     env->cc_src = CC_P;
     env->cc_src ^= env->eflags & (CC_S | CC_P);
 
     /* rotate right by one to move CF and AF into the carry-out positions */
-    env->cc_src |= (
-        (env->eflags >> 1) |
-        (env->eflags << (TARGET_LONG_BITS - 1))) & (CC_C | CC_A);
+    cf_af = env->eflags & (CC_C | CC_A);
+    env->cc_src |= ((cf_af >> 1) | (cf_af << (TARGET_LONG_BITS - 1)));
 
-    cf_xor_of = (env->eflags & (CC_C | CC_O)) + (CC_O - CC_C);
+    cf_xor_of = ((env->eflags & (CC_C | CC_O)) + (CC_O - CC_C)) & CC_O;
     env->cc_src |= -cf_xor_of & LF_MASK_PO;
-
-    /* Leave the low byte zero so that parity is not affected.  */
-    env->cc_dst = !(env->eflags & CC_Z) << 8;
 }
