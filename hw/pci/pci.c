@@ -2939,6 +2939,23 @@ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
     return &address_space_memory;
 }
 
+int pci_iommu_init_iotlb_notifier(PCIDevice *dev, IOMMUNotifier *n,
+                                  IOMMUNotify fn, void *opaque)
+{
+    PCIBus *bus;
+    PCIBus *iommu_bus;
+    int devfn;
+
+    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    if (iommu_bus && iommu_bus->iommu_ops->init_iotlb_notifier) {
+        iommu_bus->iommu_ops->init_iotlb_notifier(bus, iommu_bus->iommu_opaque,
+                                                  devfn, n, fn, opaque);
+        return 0;
+    }
+
+    return -ENODEV;
+}
+
 bool pci_device_set_iommu_device(PCIDevice *dev, HostIOMMUDevice *hiod,
                                  Error **errp)
 {

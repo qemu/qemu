@@ -442,6 +442,26 @@ typedef struct PCIIOMMUOps {
      */
     void (*get_iotlb_info)(void *opaque, uint8_t *addr_width,
                            uint32_t *min_page_size);
+    /**
+     * @init_iotlb_notifier: initialize an IOMMU notifier.
+     *
+     * Optional callback.
+     *
+     * @bus: the #PCIBus of the PCI device.
+     *
+     * @opaque: the data passed to pci_setup_iommu().
+     *
+     * @devfn: device and function number of the PCI device.
+     *
+     * @n: the notifier to be initialized.
+     *
+     * @fn: the callback to be installed.
+     *
+     * @user_opaque: a user pointer that can be used to track a state.
+     */
+    void (*init_iotlb_notifier)(PCIBus *bus, void *opaque, int devfn,
+                                IOMMUNotifier *n, IOMMUNotify fn,
+                                void *user_opaque);
 } PCIIOMMUOps;
 
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
@@ -461,6 +481,19 @@ void pci_device_unset_iommu_device(PCIDevice *dev);
  */
 int pci_iommu_get_iotlb_info(PCIDevice *dev, uint8_t *addr_width,
                              uint32_t *min_page_size);
+
+/**
+ * pci_iommu_init_iotlb_notifier: initialize an IOMMU notifier.
+ *
+ * This function is used by devices before registering an IOTLB notifier.
+ *
+ * @dev: the device.
+ * @n: the notifier to be initialized.
+ * @fn: the callback to be installed.
+ * @opaque: a user pointer that can be used to track a state.
+ */
+int pci_iommu_init_iotlb_notifier(PCIDevice *dev, IOMMUNotifier *n,
+                                  IOMMUNotify fn, void *opaque);
 
 /**
  * pci_setup_iommu: Initialize specific IOMMU handlers for a PCIBus
