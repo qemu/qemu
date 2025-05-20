@@ -462,6 +462,80 @@ typedef struct PCIIOMMUOps {
     void (*init_iotlb_notifier)(PCIBus *bus, void *opaque, int devfn,
                                 IOMMUNotifier *n, IOMMUNotify fn,
                                 void *user_opaque);
+    /**
+     * @register_iotlb_notifier: setup an IOTLB invalidation notifier.
+     *
+     * Callback required if devices are allowed to cache translations.
+     *
+     * @bus: the #PCIBus of the PCI device.
+     *
+     * @opaque: the data passed to pci_setup_iommu().
+     *
+     * @devfn: device and function number of the PCI device.
+     *
+     * @pasid: the pasid of the address space to watch.
+     *
+     * @n: the notifier to register.
+     */
+    void (*register_iotlb_notifier)(PCIBus *bus, void *opaque, int devfn,
+                                    uint32_t pasid, IOMMUNotifier *n);
+    /**
+     * @unregister_iotlb_notifier: remove an IOTLB invalidation notifier.
+     *
+     * Callback required if devices are allowed to cache translations.
+     *
+     * @bus: the #PCIBus of the PCI device.
+     *
+     * @opaque: the data passed to pci_setup_iommu().
+     *
+     * @devfn: device and function number of the PCI device.
+     *
+     * @pasid: the pasid of the address space to stop watching.
+     *
+     * @n: the notifier to unregister.
+     */
+    void (*unregister_iotlb_notifier)(PCIBus *bus, void *opaque, int devfn,
+                                      uint32_t pasid, IOMMUNotifier *n);
+    /**
+     * @ats_request_translation: issue an ATS request.
+     *
+     * Callback required if devices are allowed to use the address
+     * translation service.
+     *
+     * @bus: the #PCIBus of the PCI device.
+     *
+     * @opaque: the data passed to pci_setup_iommu().
+     *
+     * @devfn: device and function number of the PCI device.
+     *
+     * @pasid: the pasid of the address space to use for the request.
+     *
+     * @priv_req: privileged mode bit (PASID TLP).
+     *
+     * @exec_req: execute request bit (PASID TLP).
+     *
+     * @addr: start address of the memory range to be translated.
+     *
+     * @length: length of the memory range in bytes.
+     *
+     * @no_write: request a read-only translation (if supported).
+     *
+     * @result: buffer in which the TLB entries will be stored.
+     *
+     * @result_length: result buffer length.
+     *
+     * @err_count: number of untranslated subregions.
+     *
+     * Returns: the number of translations stored in the result buffer, or
+     * -ENOMEM if the buffer is not large enough.
+     */
+    ssize_t (*ats_request_translation)(PCIBus *bus, void *opaque, int devfn,
+                                       uint32_t pasid, bool priv_req,
+                                       bool exec_req, hwaddr addr,
+                                       size_t length, bool no_write,
+                                       IOMMUTLBEntry *result,
+                                       size_t result_length,
+                                       uint32_t *err_count);
 } PCIIOMMUOps;
 
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
@@ -494,6 +568,58 @@ int pci_iommu_get_iotlb_info(PCIDevice *dev, uint8_t *addr_width,
  */
 int pci_iommu_init_iotlb_notifier(PCIDevice *dev, IOMMUNotifier *n,
                                   IOMMUNotify fn, void *opaque);
+
+/**
+ * pci_ats_request_translation: perform an ATS request.
+ *
+ * Returns the number of translations stored in @result in case of success,
+ * a negative error code otherwise.
+ * -ENOMEM is returned when the result buffer is not large enough to store
+ * all the translations.
+ *
+ * @dev: the ATS-capable PCI device.
+ * @pasid: the pasid of the address space in which the translation will be done.
+ * @priv_req: privileged mode bit (PASID TLP).
+ * @exec_req: execute request bit (PASID TLP).
+ * @addr: start address of the memory range to be translated.
+ * @length: length of the memory range in bytes.
+ * @no_write: request a read-only translation (if supported).
+ * @result: buffer in which the TLB entries will be stored.
+ * @result_length: result buffer length.
+ * @err_count: number of untranslated subregions.
+ */
+ssize_t pci_ats_request_translation(PCIDevice *dev, uint32_t pasid,
+                                    bool priv_req, bool exec_req,
+                                    hwaddr addr, size_t length,
+                                    bool no_write, IOMMUTLBEntry *result,
+                                    size_t result_length,
+                                    uint32_t *err_count);
+
+/**
+ * pci_iommu_register_iotlb_notifier: register a notifier for changes to
+ * IOMMU translation entries in a specific address space.
+ *
+ * Returns 0 on success, or a negative errno otherwise.
+ *
+ * @dev: the device that wants to get notified.
+ * @pasid: the pasid of the address space to track.
+ * @n: the notifier to register.
+ */
+int pci_iommu_register_iotlb_notifier(PCIDevice *dev, uint32_t pasid,
+                                      IOMMUNotifier *n);
+
+/**
+ * pci_iommu_unregister_iotlb_notifier: unregister a notifier that has been
+ * registerd with pci_iommu_register_iotlb_notifier.
+ *
+ * Returns 0 on success, or a negative errno otherwise.
+ *
+ * @dev: the device that wants to stop notifications.
+ * @pasid: the pasid of the address space to stop tracking.
+ * @n: the notifier to unregister.
+ */
+int pci_iommu_unregister_iotlb_notifier(PCIDevice *dev, uint32_t pasid,
+                                        IOMMUNotifier *n);
 
 /**
  * pci_setup_iommu: Initialize specific IOMMU handlers for a PCIBus

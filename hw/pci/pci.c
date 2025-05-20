@@ -2987,6 +2987,87 @@ void pci_device_unset_iommu_device(PCIDevice *dev)
     }
 }
 
+ssize_t pci_ats_request_translation(PCIDevice *dev, uint32_t pasid,
+                                    bool priv_req, bool exec_req,
+                                    hwaddr addr, size_t length,
+                                    bool no_write, IOMMUTLBEntry *result,
+                                    size_t result_length,
+                                    uint32_t *err_count)
+{
+    PCIBus *bus;
+    PCIBus *iommu_bus;
+    int devfn;
+
+    if (!dev->is_master ||
+            ((pasid != PCI_NO_PASID) && !pcie_pasid_enabled(dev))) {
+        return -EPERM;
+    }
+
+    if (result_length == 0) {
+        return -ENOSPC;
+    }
+
+    if (!pcie_ats_enabled(dev)) {
+        return -EPERM;
+    }
+
+    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    if (iommu_bus && iommu_bus->iommu_ops->ats_request_translation) {
+        return iommu_bus->iommu_ops->ats_request_translation(bus,
+                                                     iommu_bus->iommu_opaque,
+                                                     devfn, pasid, priv_req,
+                                                     exec_req, addr, length,
+                                                     no_write, result,
+                                                     result_length, err_count);
+    }
+
+    return -ENODEV;
+}
+
+int pci_iommu_register_iotlb_notifier(PCIDevice *dev, uint32_t pasid,
+                                      IOMMUNotifier *n)
+{
+    PCIBus *bus;
+    PCIBus *iommu_bus;
+    int devfn;
+
+    if ((pasid != PCI_NO_PASID) && !pcie_pasid_enabled(dev)) {
+        return -EPERM;
+    }
+
+    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    if (iommu_bus && iommu_bus->iommu_ops->register_iotlb_notifier) {
+        iommu_bus->iommu_ops->register_iotlb_notifier(bus,
+                                           iommu_bus->iommu_opaque, devfn,
+                                           pasid, n);
+        return 0;
+    }
+
+    return -ENODEV;
+}
+
+int pci_iommu_unregister_iotlb_notifier(PCIDevice *dev, uint32_t pasid,
+                                        IOMMUNotifier *n)
+{
+    PCIBus *bus;
+    PCIBus *iommu_bus;
+    int devfn;
+
+    if ((pasid != PCI_NO_PASID) && !pcie_pasid_enabled(dev)) {
+        return -EPERM;
+    }
+
+    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    if (iommu_bus && iommu_bus->iommu_ops->unregister_iotlb_notifier) {
+        iommu_bus->iommu_ops->unregister_iotlb_notifier(bus,
+                                                        iommu_bus->iommu_opaque,
+                                                        devfn, pasid, n);
+        return 0;
+    }
+
+    return -ENODEV;
+}
+
 int pci_iommu_get_iotlb_info(PCIDevice *dev, uint8_t *addr_width,
                              uint32_t *min_page_size)
 {
