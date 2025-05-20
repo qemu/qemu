@@ -319,9 +319,9 @@
   'if': 'TARGET_ARM' }
 
 ##
-# @SGXEPCSection:
+# @SgxEpcSection:
 #
-# Information about intel SGX EPC section info
+# Information about intel SGX EPC section
 #
 # @node: the numa node
 #
@@ -329,12 +329,12 @@
 #
 # Since: 7.0
 ##
-{ 'struct': 'SGXEPCSection',
+{ 'struct': 'SgxEpcSection',
   'data': { 'node': 'int',
             'size': 'uint64'}}
 
 ##
-# @SGXInfo:
+# @SgxInfo:
 #
 # Information about intel Safe Guard eXtension (SGX) support
 #
@@ -346,24 +346,24 @@
 #
 # @flc: true if FLC is supported
 #
-# @sections: The EPC sections info for guest (Since: 7.0)
+# @sections: The EPC sections information (Since: 7.0)
 #
 # Since: 6.2
 ##
-{ 'struct': 'SGXInfo',
+{ 'struct': 'SgxInfo',
   'data': { 'sgx': 'bool',
             'sgx1': 'bool',
             'sgx2': 'bool',
             'flc': 'bool',
-            'sections': ['SGXEPCSection']},
+            'sections': ['SgxEpcSection']},
    'if': 'TARGET_I386' }
 
 ##
 # @query-sgx:
 #
-# Returns information about SGX
+# Returns information about configured SGX capabilities of guest
 #
-# Returns: @SGXInfo
+# Returns: @SgxInfo
 #
 # Since: 6.2
 #
@@ -375,14 +375,14 @@
 #                      "sections": [{"node": 0, "size": 67108864},
 #                      {"node": 1, "size": 29360128}]} }
 ##
-{ 'command': 'query-sgx', 'returns': 'SGXInfo', 'if': 'TARGET_I386' }
+{ 'command': 'query-sgx', 'returns': 'SgxInfo', 'if': 'TARGET_I386' }
 
 ##
 # @query-sgx-capabilities:
 #
-# Returns information from host SGX capabilities
+# Returns information about SGX capabilities of host
 #
-# Returns: @SGXInfo
+# Returns: @SgxInfo
 #
 # Since: 6.2
 #
@@ -394,7 +394,7 @@
 #                      "section" : [{"node": 0, "size": 67108864},
 #                      {"node": 1, "size": 29360128}]} }
 ##
-{ 'command': 'query-sgx-capabilities', 'returns': 'SGXInfo', 'if': 'TARGET_I386' }
+{ 'command': 'query-sgx-capabilities', 'returns': 'SgxInfo', 'if': 'TARGET_I386' }
 
 
 ##
