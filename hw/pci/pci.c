@@ -2987,6 +2987,72 @@ void pci_device_unset_iommu_device(PCIDevice *dev)
     }
 }
 
+int pci_pri_request_page(PCIDevice *dev, uint32_t pasid, bool priv_req,
+                         bool exec_req, hwaddr addr, bool lpig,
+                         uint16_t prgi, bool is_read, bool is_write)
+{
+    PCIBus *bus;
+    PCIBus *iommu_bus;
+    int devfn;
+
+    if (!dev->is_master ||
+            ((pasid != PCI_NO_PASID) && !pcie_pasid_enabled(dev))) {
+        return -EPERM;
+    }
+
+    if (!pcie_pri_enabled(dev)) {
+        return -EPERM;
+    }
+
+    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    if (iommu_bus && iommu_bus->iommu_ops->pri_request_page) {
+        return iommu_bus->iommu_ops->pri_request_page(bus,
+                                                     iommu_bus->iommu_opaque,
+                                                     devfn, pasid, priv_req,
+                                                     exec_req, addr, lpig, prgi,
+                                                     is_read, is_write);
+    }
+
+    return -ENODEV;
+}
+
+int pci_pri_register_notifier(PCIDevice *dev, uint32_t pasid,
+                              IOMMUPRINotifier *notifier)
+{
+    PCIBus *bus;
+    PCIBus *iommu_bus;
+    int devfn;
+
+    if (!dev->is_master ||
+            ((pasid != PCI_NO_PASID) && !pcie_pasid_enabled(dev))) {
+        return -EPERM;
+    }
+
+    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    if (iommu_bus && iommu_bus->iommu_ops->pri_register_notifier) {
+        iommu_bus->iommu_ops->pri_register_notifier(bus,
+                                                    iommu_bus->iommu_opaque,
+                                                    devfn, pasid, notifier);
+        return 0;
+    }
+
+    return -ENODEV;
+}
+
+void pci_pri_unregister_notifier(PCIDevice *dev, uint32_t pasid)
+{
+    PCIBus *bus;
+    PCIBus *iommu_bus;
+    int devfn;
+
+    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    if (iommu_bus && iommu_bus->iommu_ops->pri_unregister_notifier) {
+        iommu_bus->iommu_ops->pri_unregister_notifier(bus,
+                                                      iommu_bus->iommu_opaque,
+                                                      devfn, pasid);
+    }
+}
+
 ssize_t pci_ats_request_translation(PCIDevice *dev, uint32_t pasid,
                                     bool priv_req, bool exec_req,
                                     hwaddr addr, size_t length,

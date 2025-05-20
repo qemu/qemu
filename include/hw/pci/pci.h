@@ -375,6 +375,28 @@ void pci_bus_get_w64_range(PCIBus *bus, Range *range);
 
 void pci_device_deassert_intx(PCIDevice *dev);
 
+/* Page Request Interface */
+typedef enum {
+    IOMMU_PRI_RESP_SUCCESS,
+    IOMMU_PRI_RESP_INVALID_REQUEST,
+    IOMMU_PRI_RESP_FAILURE,
+} IOMMUPRIResponseCode;
+
+typedef struct IOMMUPRIResponse {
+    IOMMUPRIResponseCode response_code;
+    uint16_t prgi;
+} IOMMUPRIResponse;
+
+struct IOMMUPRINotifier;
+
+typedef void (*IOMMUPRINotify)(struct IOMMUPRINotifier *notifier,
+                               IOMMUPRIResponse *response);
+
+typedef struct IOMMUPRINotifier {
+    IOMMUPRINotify notify;
+} IOMMUPRINotifier;
+
+#define PCI_PRI_PRGI_MASK 0x1ffU
 
 /**
  * struct PCIIOMMUOps: callbacks structure for specific IOMMU handlers
@@ -536,6 +558,72 @@ typedef struct PCIIOMMUOps {
                                        IOMMUTLBEntry *result,
                                        size_t result_length,
                                        uint32_t *err_count);
+    /**
+     * @pri_register_notifier: setup the PRI completion callback.
+     *
+     * Callback required if devices are allowed to use the page request
+     * interface.
+     *
+     * @bus: the #PCIBus of the PCI device.
+     *
+     * @opaque: the data passed to pci_setup_iommu().
+     *
+     * @devfn: device and function number of the PCI device.
+     *
+     * @pasid: the pasid of the address space to track.
+     *
+     * @notifier: the notifier to register.
+     */
+    void (*pri_register_notifier)(PCIBus *bus, void *opaque, int devfn,
+                                  uint32_t pasid, IOMMUPRINotifier *notifier);
+    /**
+     * @pri_unregister_notifier: remove the PRI completion callback.
+     *
+     * Callback required if devices are allowed to use the page request
+     * interface.
+     *
+     * @bus: the #PCIBus of the PCI device.
+     *
+     * @opaque: the data passed to pci_setup_iommu().
+     *
+     * @devfn: device and function number of the PCI device.
+     *
+     * @pasid: the pasid of the address space to stop tracking.
+     */
+    void (*pri_unregister_notifier)(PCIBus *bus, void *opaque, int devfn,
+                                    uint32_t pasid);
+    /**
+     * @pri_request_page: issue a PRI request.
+     *
+     * Callback required if devices are allowed to use the page request
+     * interface.
+     *
+     * @bus: the #PCIBus of the PCI device.
+     *
+     * @opaque: the data passed to pci_setup_iommu().
+     *
+     * @devfn: device and function number of the PCI device.
+     *
+     * @pasid: the pasid of the address space to use for the request.
+     *
+     * @priv_req: privileged mode bit (PASID TLP).
+     *
+     * @exec_req: execute request bit (PASID TLP).
+     *
+     * @addr: untranslated address of the requested page.
+     *
+     * @lpig: last page in group.
+     *
+     * @prgi: page request group index.
+     *
+     * @is_read: request read access.
+     *
+     * @is_write: request write access.
+     */
+    int (*pri_request_page)(PCIBus *bus, void *opaque, int devfn,
+                            uint32_t pasid, bool priv_req, bool exec_req,
+                            hwaddr addr, bool lpig, uint16_t prgi, bool is_read,
+                            bool is_write);
 } PCIIOMMUOps;
 
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
@@ -594,6 +682,48 @@ ssize_t pci_ats_request_translation(PCIDevice *dev, uint32_t pasid,
                                     bool no_write, IOMMUTLBEntry *result,
                                     size_t result_length,
                                     uint32_t *err_count);
+
+/**
+ * pci_pri_request_page: perform a PRI request.
+ *
+ * Returns 0 if the PRI request has been sent to the guest OS,
+ * an error code otherwise.
+ *
+ * @dev: the PRI-capable PCI device.
+ * @pasid: the pasid of the address space in which the translation will be done.
+ * @priv_req: privileged mode bit (PASID TLP).
+ * @exec_req: execute request bit (PASID TLP).
+ * @addr: untranslated address of the requested page.
+ * @lpig: last page in group.
+ * @prgi: page request group index.
+ * @is_read: request read access.
+ * @is_write: request write access.
+ */
+int pci_pri_request_page(PCIDevice *dev, uint32_t pasid, bool priv_req,
+                         bool exec_req, hwaddr addr, bool lpig,
+                         uint16_t prgi, bool is_read, bool is_write);
+
+/**
+ * pci_pri_register_notifier: register the PRI callback for a given address
+ * space.
+ *
+ * Returns 0 on success, an error code otherwise.
+ *
+ * @dev: the PRI-capable PCI device.
+ * @pasid: the pasid of the address space to track.
+ * @notifier: the notifier to register.
+ */
+int pci_pri_register_notifier(PCIDevice *dev, uint32_t pasid,
+                              IOMMUPRINotifier *notifier);
+
+/**
+ * pci_pri_unregister_notifier: remove the PRI callback from a given address
+ * space.
+ *
+ * @dev: the PRI-capable PCI device.
+ * @pasid: the pasid of the address space to stop tracking.
+ */
+void pci_pri_unregister_notifier(PCIDevice *dev, uint32_t pasid);
 
 /**
  * pci_iommu_register_iotlb_notifier: register a notifier for changes to
