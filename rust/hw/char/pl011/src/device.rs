@@ -480,13 +480,13 @@ impl PL011Registers {
 }
 
 impl PL011State {
-    /// Initializes a pre-allocated, unitialized instance of `PL011State`.
+    /// Initializes a pre-allocated, uninitialized instance of `PL011State`.
     ///
     /// # Safety
     ///
     /// `self` must point to a correctly sized and aligned location for the
     /// `PL011State` type. It must not be called more than once on the same
-    /// location/instance. All its fields are expected to hold unitialized
+    /// location/instance. All its fields are expected to hold uninitialized
     /// values with the sole exception of `parent_obj`.
     unsafe fn init(&mut self) {
         static PL011_OPS: MemoryRegionOps<PL011State> = MemoryRegionOpsBuilder::<PL011State>::new()
