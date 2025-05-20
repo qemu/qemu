@@ -1240,6 +1240,32 @@ void pcie_pasid_init(PCIDevice *dev, uint16_t offset, uint8_t pasid_width,
     dev->exp.pasid_cap = offset;
 }
 
+/* PRI */
+void pcie_pri_init(PCIDevice *dev, uint16_t offset, uint32_t outstanding_pr_cap,
+                   bool prg_response_pasid_req)
+{
+    static const uint16_t control_reg_rw_mask = 0x3;
+    static const uint16_t status_reg_rw1_mask = 0x3;
+    static const uint32_t pr_alloc_reg_rw_mask = 0xffffffff;
+    uint16_t status_reg;
+
+    status_reg = prg_response_pasid_req ? PCI_PRI_STATUS_PASID : 0;
+    status_reg |= PCI_PRI_STATUS_STOPPED; /* Stopped by default */
+
+    pcie_add_capability(dev, PCI_EXT_CAP_ID_PRI, PCI_PRI_VER, offset,
+                        PCI_EXT_CAP_PRI_SIZEOF);
+    /* Disabled by default */
+
+    pci_set_word(dev->config + offset + PCI_PRI_STATUS, status_reg);
+    pci_set_long(dev->config + offset + PCI_PRI_MAX_REQ, outstanding_pr_cap);
+
+    pci_set_word(dev->wmask + offset + PCI_PRI_CTRL, control_reg_rw_mask);
+    pci_set_word(dev->w1cmask + offset + PCI_PRI_STATUS, status_reg_rw1_mask);
+    pci_set_long(dev->wmask + offset + PCI_PRI_ALLOC_REQ, pr_alloc_reg_rw_mask);
+
+    dev->exp.pri_cap = offset;
+}
+
 bool pcie_pasid_enabled(const PCIDevice *dev)
 {
     if (!pci_is_express(dev) || !dev->exp.pasid_cap) {
