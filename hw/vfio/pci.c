@@ -2854,6 +2854,18 @@ static bool vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
 
 static void vfio_pci_put_device(VFIOPCIDevice *vdev)
 {
+    vfio_display_finalize(vdev);
+    vfio_bars_finalize(vdev);
+    g_free(vdev->emulated_config_bits);
+    g_free(vdev->rom);
+    /*
+     * XXX Leaking igd_opregion is not an oversight, we can't remove the
+     * fw_cfg entry therefore leaking this allocation seems like the safest
+     * option.
+     *
+     * g_free(vdev->igd_opregion);
+     */
+
     vfio_device_detach(&vdev->vbasedev);
 
     g_free(vdev->vbasedev.name);
@@ -3302,17 +3314,6 @@ static void vfio_instance_finalize(Object *obj)
 {
     VFIOPCIDevice *vdev = VFIO_PCI_BASE(obj);
 
-    vfio_display_finalize(vdev);
-    vfio_bars_finalize(vdev);
-    g_free(vdev->emulated_config_bits);
-    g_free(vdev->rom);
-    /*
-     * XXX Leaking igd_opregion is not an oversight, we can't remove the
-     * fw_cfg entry therefore leaking this allocation seems like the safest
-     * option.
-     *
-     * g_free(vdev->igd_opregion);
-     */
     vfio_pci_put_device(vdev);
 }
 
