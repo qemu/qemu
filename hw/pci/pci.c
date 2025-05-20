@@ -2970,6 +2970,23 @@ void pci_device_unset_iommu_device(PCIDevice *dev)
     }
 }
 
+int pci_iommu_get_iotlb_info(PCIDevice *dev, uint8_t *addr_width,
+                             uint32_t *min_page_size)
+{
+    PCIBus *bus;
+    PCIBus *iommu_bus;
+    int devfn;
+
+    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    if (iommu_bus && iommu_bus->iommu_ops->get_iotlb_info) {
+        iommu_bus->iommu_ops->get_iotlb_info(iommu_bus->iommu_opaque,
+                                             addr_width, min_page_size);
+        return 0;
+    }
+
+    return -ENODEV;
+}
+
 void pci_setup_iommu(PCIBus *bus, const PCIIOMMUOps *ops, void *opaque)
 {
     /*

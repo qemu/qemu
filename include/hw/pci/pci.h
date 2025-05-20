@@ -429,12 +429,38 @@ typedef struct PCIIOMMUOps {
      * @devfn: device and function number of the PCI device.
      */
     void (*unset_iommu_device)(PCIBus *bus, void *opaque, int devfn);
+    /**
+     * @get_iotlb_info: get properties required to initialize a device IOTLB.
+     *
+     * Callback required if devices are allowed to cache translations.
+     *
+     * @opaque: the data passed to pci_setup_iommu().
+     *
+     * @addr_width: the address width of the IOMMU (output parameter).
+     *
+     * @min_page_size: the page size of the IOMMU (output parameter).
+     */
+    void (*get_iotlb_info)(void *opaque, uint8_t *addr_width,
+                           uint32_t *min_page_size);
 } PCIIOMMUOps;
 
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
 bool pci_device_set_iommu_device(PCIDevice *dev, HostIOMMUDevice *hiod,
                                  Error **errp);
 void pci_device_unset_iommu_device(PCIDevice *dev);
+
+/**
+ * pci_iommu_get_iotlb_info: get properties required to initialize a
+ * device IOTLB.
+ *
+ * Returns 0 on success, or a negative errno otherwise.
+ *
+ * @dev: the device that wants to get the information.
+ * @addr_width: the address width of the IOMMU (output parameter).
+ * @min_page_size: the page size of the IOMMU (output parameter).
+ */
+int pci_iommu_get_iotlb_info(PCIDevice *dev, uint8_t *addr_width,
+                             uint32_t *min_page_size);
 
 /**
  * pci_setup_iommu: Initialize specific IOMMU handlers for a PCIBus
