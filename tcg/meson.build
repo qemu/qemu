@@ -27,5 +27,5 @@ if host_os == 'linux'
   tcg_ss.add(files('perf.c'))
 endif
 
-libuser_ss.add_all(tcg_ss)
-libsystem_ss.add_all(tcg_ss)
+user_ss.add_all(tcg_ss)
+system_ss.add_all(tcg_ss)
