@@ -359,6 +359,24 @@ static void inet_parse_test_helper(const char *str,
         g_assert_cmpint(addr.ipv6, ==, exp_addr->ipv6);
         g_assert_cmpint(addr.has_keep_alive, ==, exp_addr->has_keep_alive);
         g_assert_cmpint(addr.keep_alive, ==, exp_addr->keep_alive);
+#ifdef HAVE_TCP_KEEPCNT
+        g_assert_cmpint(addr.has_keep_alive_count, ==,
+                        exp_addr->has_keep_alive_count);
+        g_assert_cmpint(addr.keep_alive_count, ==,
+                        exp_addr->keep_alive_count);
+#endif
+#ifdef HAVE_TCP_KEEPIDLE
+        g_assert_cmpint(addr.has_keep_alive_idle, ==,
+                        exp_addr->has_keep_alive_idle);
+        g_assert_cmpint(addr.keep_alive_idle, ==,
+                        exp_addr->keep_alive_idle);
+#endif
+#ifdef HAVE_TCP_KEEPINTVL
+        g_assert_cmpint(addr.has_keep_alive_interval, ==,
+                        exp_addr->has_keep_alive_interval);
+        g_assert_cmpint(addr.keep_alive_interval, ==,
+                        exp_addr->keep_alive_interval);
+#endif
 #ifdef HAVE_IPPROTO_MPTCP
         g_assert_cmpint(addr.has_mptcp, ==, exp_addr->has_mptcp);
         g_assert_cmpint(addr.mptcp, ==, exp_addr->mptcp);
@@ -460,6 +478,18 @@ static void test_inet_parse_all_options_good(void)
         .ipv6 = true,
         .has_keep_alive = true,
         .keep_alive = true,
+#ifdef HAVE_TCP_KEEPCNT
+        .has_keep_alive_count = true,
+        .keep_alive_count = 10,
+#endif
+#ifdef HAVE_TCP_KEEPIDLE
+        .has_keep_alive_idle = true,
+        .keep_alive_idle = 60,
+#endif
+#ifdef HAVE_TCP_KEEPINTVL
+        .has_keep_alive_interval = true,
+        .keep_alive_interval = 30,
+#endif
 #ifdef HAVE_IPPROTO_MPTCP
         .has_mptcp = true,
         .mptcp = false,
@@ -467,6 +497,15 @@ static void test_inet_parse_all_options_good(void)
     };
     inet_parse_test_helper(
         "[::1]:5000,numeric=on,to=5006,ipv4=off,ipv6=on,keep-alive=on"
+#ifdef HAVE_TCP_KEEPCNT
+        ",keep-alive-count=10"
+#endif
+#ifdef HAVE_TCP_KEEPIDLE
+        ",keep-alive-idle=60"
+#endif
+#ifdef HAVE_TCP_KEEPINTVL
+        ",keep-alive-interval=30"
+#endif
 #ifdef HAVE_IPPROTO_MPTCP
         ",mptcp=off"
 #endif

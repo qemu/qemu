@@ -45,6 +45,14 @@
 # define AI_NUMERICSERV 0
 #endif
 
+/*
+ * On macOS TCP_KEEPIDLE is available under a different name, TCP_KEEPALIVE.
+ * https://github.com/apple/darwin-xnu/blob/xnu-4570.1.46/bsd/man/man4/tcp.4#L172
+ */
+#if defined(TCP_KEEPALIVE) && !defined(TCP_KEEPIDLE)
+# define TCP_KEEPIDLE TCP_KEEPALIVE
+#endif
+
 
 static int inet_getport(struct addrinfo *e)
 {
@@ -218,6 +226,42 @@ static int inet_set_sockopts(int sock, InetSocketAddress *saddr, Error **errp)
                              "Unable to set keep-alive option on socket");
             return -1;
         }
+#ifdef HAVE_TCP_KEEPCNT
+        if (saddr->has_keep_alive_count && saddr->keep_alive_count) {
+            int keep_count = saddr->keep_alive_count;
+            ret = setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, &keep_count,
+                             sizeof(keep_count));
+            if (ret < 0) {
+                error_setg_errno(errp, errno,
+                                 "Unable to set TCP keep-alive count option on socket");
+                return -1;
+            }
+        }
+#endif
+#ifdef HAVE_TCP_KEEPIDLE
+        if (saddr->has_keep_alive_idle && saddr->keep_alive_idle) {
+            int keep_idle = saddr->keep_alive_idle;
+            ret = setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &keep_idle,
+                             sizeof(keep_idle));
+            if (ret < 0) {
+                error_setg_errno(errp, errno,
+                                 "Unable to set TCP keep-alive idle option on socket");
+                return -1;
+            }
+        }
+#endif
+#ifdef HAVE_TCP_KEEPINTVL
+        if (saddr->has_keep_alive_interval && saddr->keep_alive_interval) {
+            int keep_interval = saddr->keep_alive_interval;
+            ret = setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, &keep_interval,
+                             sizeof(keep_interval));
+            if (ret < 0) {
+                error_setg_errno(errp, errno,
+                                 "Unable to set TCP keep-alive interval option on socket");
+                return -1;
+            }
+        }
+#endif
     }
     return 0;
 }
@@ -630,6 +674,24 @@ static QemuOptsList inet_opts = {
             .name = "keep-alive",
             .type = QEMU_OPT_BOOL,
         },
+#ifdef HAVE_TCP_KEEPCNT
+        {
+            .name = "keep-alive-count",
+            .type = QEMU_OPT_NUMBER,
+        },
+#endif
+#ifdef HAVE_TCP_KEEPIDLE
+        {
+            .name = "keep-alive-idle",
+            .type = QEMU_OPT_NUMBER,
+        },
+#endif
+#ifdef HAVE_TCP_KEEPINTVL
+        {
+            .name = "keep-alive-interval",
+            .type = QEMU_OPT_NUMBER,
+        },
+#endif
 #ifdef HAVE_IPPROTO_MPTCP
         {
             .name = "mptcp",
@@ -695,6 +757,24 @@ int inet_parse(InetSocketAddress *addr, const char *str, Error **errp)
         addr->has_keep_alive = true;
         addr->keep_alive = qemu_opt_get_bool(opts, "keep-alive", false);
     }
+#ifdef HAVE_TCP_KEEPCNT
+    if (qemu_opt_find(opts, "keep-alive-count")) {
+        addr->has_keep_alive_count = true;
+        addr->keep_alive_count = qemu_opt_get_number(opts, "keep-alive-count", 0);
+    }
+#endif
+#ifdef HAVE_TCP_KEEPIDLE
+    if (qemu_opt_find(opts, "keep-alive-idle")) {
+        addr->has_keep_alive_idle = true;
+        addr->keep_alive_idle = qemu_opt_get_number(opts, "keep-alive-idle", 0);
+    }
+#endif
+#ifdef HAVE_TCP_KEEPINTVL
+    if (qemu_opt_find(opts, "keep-alive-interval")) {
+        addr->has_keep_alive_interval = true;
+        addr->keep_alive_interval = qemu_opt_get_number(opts, "keep-alive-interval", 0);
+    }
+#endif
 #ifdef HAVE_IPPROTO_MPTCP
     if (qemu_opt_find(opts, "mptcp")) {
         addr->has_mptcp = true;
