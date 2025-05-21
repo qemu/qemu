@@ -78,7 +78,7 @@ void vfio_address_space_insert(VFIOAddressSpace *space,
 
 int vfio_container_dma_map(VFIOContainerBase *bcontainer,
                            hwaddr iova, ram_addr_t size,
-                           void *vaddr, bool readonly);
+                           void *vaddr, bool readonly, MemoryRegion *mr);
 int vfio_container_dma_unmap(VFIOContainerBase *bcontainer,
                              hwaddr iova, ram_addr_t size,
                              IOMMUTLBEntry *iotlb, bool unmap_all);
@@ -151,20 +151,21 @@ struct VFIOIOMMUClass {
     /**
      * @dma_map
      *
-     * Map an address range into the container.
+     * Map an address range into the container. Note that the memory region is
+     * referenced within an RCU read lock region across this call.
      *
      * @bcontainer: #VFIOContainerBase to use
      * @iova: start address to map
      * @size: size of the range to map
      * @vaddr: process virtual address of mapping
      * @readonly: true if mapping should be readonly
+     * @mr: the memory region for this mapping
      *
      * Returns 0 to indicate success and -errno otherwise.
      */
     int (*dma_map)(const VFIOContainerBase *bcontainer,
                    hwaddr iova, ram_addr_t size,
-                   void *vaddr, bool readonly);
-
+                   void *vaddr, bool readonly, MemoryRegion *mr);
     /**
      * @dma_unmap
      *
