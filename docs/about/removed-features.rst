@@ -722,6 +722,15 @@ Use ``multifd-channels`` instead.
 
 Use ``multifd-compression`` instead.
 
+Incorrectly typed ``device_add`` arguments (since 9.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Due to shortcomings in the internal implementation of ``device_add``,
+QEMU used to incorrectly accept certain invalid arguments. Any object
+or list arguments were silently ignored. Other argument types were not
+checked, but an implicit conversion happened, so that e.g. string
+values could be assigned to integer device properties or vice versa.
+
 QEMU Machine Protocol (QMP) events
 ----------------------------------
 
