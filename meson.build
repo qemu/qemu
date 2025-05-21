@@ -3694,14 +3694,14 @@ io_ss = ss.source_set()
 qmp_ss = ss.source_set()
 qom_ss = ss.source_set()
 system_ss = ss.source_set()
-libsystem_ss = ss.source_set()
+libsystem_ss = system_ss
 specific_fuzz_ss = ss.source_set()
 specific_ss = ss.source_set()
 rust_devices_ss = ss.source_set()
 stub_ss = ss.source_set()
 trace_ss = ss.source_set()
 user_ss = ss.source_set()
-libuser_ss = ss.source_set()
+libuser_ss = user_ss
 util_ss = ss.source_set()
 
 # accel modules
@@ -4078,21 +4078,19 @@ common_ss.add(hwcore)
 system_ss.add(authz, blockdev, chardev, crypto, io, qmp)
 common_ss.add(qom, qemuutil)
 
-common_ss.add_all(when: 'CONFIG_SYSTEM_ONLY', if_true: [system_ss])
-common_ss.add_all(when: 'CONFIG_USER_ONLY', if_true: user_ss)
-
 libuser = static_library('user',
-                         libuser_ss.all_sources() + genh,
+                         user_ss.all_sources() + genh,
                          c_args: ['-DCONFIG_USER_ONLY',
                                   '-DCOMPILING_SYSTEM_VS_USER'],
-                         dependencies: libuser_ss.all_dependencies(),
+                         include_directories: common_user_inc,
+                         dependencies: user_ss.all_dependencies(),
                          build_by_default: false)
 
 libsystem = static_library('system',
-                           libsystem_ss.all_sources() + genh,
+                           system_ss.all_sources() + genh,
                            c_args: ['-DCONFIG_SOFTMMU',
                                     '-DCOMPILING_SYSTEM_VS_USER'],
-                           dependencies: libsystem_ss.all_dependencies(),
+                           dependencies: system_ss.all_dependencies(),
                            build_by_default: false)
 
 # Note that this library is never used directly (only through extract_objects)
@@ -4101,7 +4099,6 @@ libsystem = static_library('system',
 common_all = static_library('common',
                             build_by_default: false,
                             sources: common_ss.all_sources() + genh,
-                            include_directories: common_user_inc,
                             implicit_include_directories: false,
                             dependencies: common_ss.all_dependencies())
 
@@ -4115,9 +4112,19 @@ foreach target_base_arch, config_base_arch : config_base_arch_mak
   inc = [common_user_inc + target_inc]
 
   target_common = common_ss.apply(config_target, strict: false)
+  target_system = system_ss.apply(config_target, strict: false)
+  target_user = user_ss.apply(config_target, strict: false)
   common_deps = []
+  system_deps = []
+  user_deps = []
   foreach dep: target_common.dependencies()
     common_deps += dep.partial_dependency(compile_args: true, includes: true)
+  endforeach
+  foreach dep: target_system.dependencies()
+    system_deps += dep.partial_dependency(compile_args: true, includes: true)
+  endforeach
+  foreach dep: target_user.dependencies()
+    user_deps += dep.partial_dependency(compile_args: true, includes: true)
   endforeach
 
   # prevent common code to access cpu compile time definition,
@@ -4133,7 +4140,7 @@ foreach target_base_arch, config_base_arch : config_base_arch_mak
       sources: src.all_sources() + genh,
       include_directories: inc,
       c_args: target_system_c_args,
-      dependencies: src.all_dependencies() + common_deps)
+      dependencies: src.all_dependencies() + common_deps + system_deps)
     hw_common_arch_libs += {target_base_arch: lib}
   endif
 
@@ -4145,7 +4152,8 @@ foreach target_base_arch, config_base_arch : config_base_arch_mak
       sources: src.all_sources() + genh,
       include_directories: inc,
       c_args: target_c_args,
-      dependencies: src.all_dependencies() + common_deps)
+      dependencies: src.all_dependencies() + common_deps +
+                    system_deps + user_deps)
     target_common_arch_libs += {target_base_arch: lib}
   endif
 
@@ -4157,7 +4165,7 @@ foreach target_base_arch, config_base_arch : config_base_arch_mak
       sources: src.all_sources() + genh,
       include_directories: inc,
       c_args: target_system_c_args,
-      dependencies: src.all_dependencies() + common_deps)
+      dependencies: src.all_dependencies() + common_deps + system_deps)
     target_common_system_arch_libs += {target_base_arch: lib}
   endif
 endforeach
@@ -4336,12 +4344,12 @@ foreach target : target_dirs
     arch_deps += src.dependencies()
   endif
   if target_type == 'system'
-    src = libsystem_ss.apply(config_target, strict: false)
+    src = system_ss.apply(config_target, strict: false)
     objects += libsystem.extract_objects(src.sources())
     arch_deps += src.dependencies()
   endif
   if target_type == 'user'
-    src = libuser_ss.apply(config_target, strict: false)
+    src = user_ss.apply(config_target, strict: false)
     objects += libuser.extract_objects(src.sources())
     arch_deps += src.dependencies()
   endif
