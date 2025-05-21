@@ -1499,7 +1499,7 @@ sub process_end_of_file {
 	if ($fileinfo->{action} eq "new" &&
 	    !exists $fileinfo->{facts}->{sawspdx}) {
 		if ($fileinfo->{filenew} =~
-		    /(\.(c|h|py|pl|sh|json|inc)|Makefile.*)$/) {
+		    /(\.(c|h|py|pl|sh|json|inc|rs)|Makefile.*)$/) {
 			# source code files MUST have SPDX license declared
 			ERROR("New file '" . $fileinfo->{filenew} .
 			      "' requires 'SPDX-License-Identifier'");
