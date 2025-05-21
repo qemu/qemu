@@ -303,11 +303,20 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
         port_min = inet_getport(e);
         port_max = saddr->has_to ? saddr->to + port_offset : port_min;
         for (p = port_min; p <= port_max; p++) {
+            if (slisten >= 0) {
+                /*
+                 * We have a socket we tried with the previous port. It cannot
+                 * be rebound, we need to close it and create a new one.
+                 */
+                close(slisten);
+                slisten = -1;
+            }
             inet_setport(e, p);
 
             slisten = create_fast_reuse_socket(e);
             if (slisten < 0) {
-                /* First time we expect we might fail to create the socket
+                /*
+                 * First time we expect we might fail to create the socket
                  * eg if 'e' has AF_INET6 but ipv6 kmod is not loaded.
                  * Later iterations should always succeed if first iteration
                  * worked though, so treat that as fatal.
@@ -317,40 +326,38 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
                 } else {
                     error_setg_errno(errp, errno,
                                      "Failed to recreate failed listening socket");
-                    goto listen_failed;
+                    goto fail;
                 }
             }
             socket_created = true;
 
             rc = try_bind(slisten, saddr, e);
             if (rc < 0) {
-                if (errno != EADDRINUSE) {
-                    error_setg_errno(errp, errno, "Failed to bind socket");
-                    goto listen_failed;
+                if (errno == EADDRINUSE) {
+                    /* This port is already used, try the next one */
+                    continue;
                 }
-            } else {
-                if (!listen(slisten, num)) {
-                    goto listen_ok;
-                }
-                if (errno != EADDRINUSE) {
-                    error_setg_errno(errp, errno, "Failed to listen on socket");
-                    goto listen_failed;
-                }
+                error_setg_errno(errp, errno, "Failed to bind socket");
+                goto fail;
             }
-            /* Someone else managed to bind to the same port and beat us
-             * to listen on it! Socket semantics does not allow us to
-             * recover from this situation, so we need to recreate the
-             * socket to allow bind attempts for subsequent ports:
-             */
-            close(slisten);
-            slisten = -1;
+            if (listen(slisten, num)) {
+                if (errno == EADDRINUSE) {
+                    /* This port is already used, try the next one */
+                    continue;
+                }
+                error_setg_errno(errp, errno, "Failed to listen on socket");
+                goto fail;
+            }
+            /* We have a listening socket */
+            freeaddrinfo(res);
+            return slisten;
         }
     }
     error_setg_errno(errp, errno,
                      socket_created ?
                      "Failed to find an available port" :
                      "Failed to create a socket");
-listen_failed:
+fail:
     saved_errno = errno;
     if (slisten >= 0) {
         close(slisten);
@@ -358,10 +365,6 @@ listen_failed:
     freeaddrinfo(res);
     errno = saved_errno;
     return -1;
-
-listen_ok:
-    freeaddrinfo(res);
-    return slisten;
 }
 
 #ifdef _WIN32
