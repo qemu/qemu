@@ -8,23 +8,44 @@ get_ipv4_addr()
         head -1 | tr -d '\n'
 }
 
+get_ipv6_addr() {
+    ipv6=$(ip -6 -o addr show dev "$1" |
+        sed -n 's/.*[[:blank:]]inet6[[:blank:]]*\([^[:blank:]/]*\).*/\1/p' |
+        head -1 | tr -d '\n')
+
+    [ $? -eq 0 ] || return
+
+    if [[ "$ipv6" =~ ^fe80: ]]; then
+        echo -n "[$ipv6%$1]"
+    else
+        echo -n "[$ipv6]"
+    fi
+}
+
 # existing rdma interfaces
 rdma_interfaces()
 {
-    rdma link show | sed -nE 's/^link .* netdev ([^ ]+).*$/\1 /p'
+    rdma link show | sed -nE 's/^link .* netdev ([^ ]+).*$/\1 /p' |
+    grep -Ev '^(lo|tun|tap)'
 }
 
 # existing valid ipv4 interfaces
 ipv4_interfaces()
 {
-    ip -o addr show | awk '/inet / {print $2}' | grep -v -w lo
+    ip -o addr show | awk '/inet / {print $2}' | grep -Ev '^(lo|tun|tap)'
+}
+
+ipv6_interfaces()
+{
+    ip -o addr show | awk '/inet6 / {print $2}' | grep -Ev '^(lo|tun|tap)'
 }
 
 rdma_rxe_detect()
 {
+    family=$1
     for r in $(rdma_interfaces)
     do
-        ipv4_interfaces | grep -qw $r && get_ipv4_addr $r && return
+        "$family"_interfaces | grep -qw $r && get_"$family"_addr $r && return
     done
 
     return 1
@@ -32,16 +53,23 @@ rdma_rxe_detect()
 
 rdma_rxe_setup()
 {
-    for i in $(ipv4_interfaces)
+    family=$1
+    for i in $("$family"_interfaces)
     do
-        rdma_interfaces | grep -qw $i && continue
+        if rdma_interfaces | grep -qw $i; then
+            echo "$family: Reuse the existing rdma/rxe ${i}_rxe" \
+                 "for $i with $(get_"$family"_addr $i)"
+            return
+        fi
+
         rdma link add "${i}_rxe" type rxe netdev "$i" && {
-            echo "Setup new rdma/rxe ${i}_rxe for $i with $(get_ipv4_addr $i)"
+            echo "$family: Setup new rdma/rxe ${i}_rxe" \
+                 "for $i with $(get_"$family"_addr $i)"
             return
         }
     done
 
-    echo "Failed to setup any new rdma/rxe link" >&2
+    echo "$family: Failed to setup any new rdma/rxe link" >&2
     return 1
 }
 
@@ -49,6 +77,12 @@ rdma_rxe_clean()
 {
     modprobe -r rdma_rxe
 }
+
+IP_FAMILY=${IP_FAMILY:-ipv4}
+if [ "$IP_FAMILY" != "ipv6" ] && [ "$IP_FAMILY" != "ipv4" ]; then
+    echo "Unknown ip family '$IP_FAMILY', only ipv4 or ipv6 is supported." >&2
+    exit 1
+fi
 
 operation=${1:-detect}
 
@@ -62,9 +96,14 @@ if [ "$operation" == "setup" ] || [ "$operation" == "clean" ]; then
         echo "Root privilege is required to setup/clean a rdma/rxe link" >&2
         exit 1
     }
-    rdma_rxe_"$operation"
+    if [ "$operation" == "setup" ]; then
+        rdma_rxe_setup ipv4
+        rdma_rxe_setup ipv6
+    else
+        rdma_rxe_clean
+    fi
 elif [ "$operation" == "detect" ]; then
-    rdma_rxe_detect
+    rdma_rxe_detect "$IP_FAMILY"
 else
     echo "Usage: $0 [setup | detect | clean]"
 fi

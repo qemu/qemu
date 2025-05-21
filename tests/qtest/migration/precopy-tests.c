@@ -101,13 +101,43 @@ static void test_precopy_unix_dirty_ring(void)
 
 #ifdef CONFIG_RDMA
 
+#include <sys/resource.h>
+
+/*
+ * During migration over RDMA, it will try to pin portions of guest memory,
+ * typically exceeding 100MB in this test, while the remainder will be
+ * transmitted as compressed zero pages.
+ *
+ * REQUIRED_MEMLOCK_SZ indicates the minimal mlock size in the current context.
+ */
+#define REQUIRED_MEMLOCK_SZ (128 << 20) /* 128MB */
+
+/* check 'ulimit -l' */
+static bool mlock_check(void)
+{
+    uid_t uid;
+    struct rlimit rlim;
+
+    uid = getuid();
+    if (uid == 0) {
+        return true;
+    }
+
+    if (getrlimit(RLIMIT_MEMLOCK, &rlim) != 0) {
+        return false;
+    }
+
+    return rlim.rlim_cur >= REQUIRED_MEMLOCK_SZ;
+}
+
 #define RDMA_MIGRATION_HELPER "scripts/rdma-migration-helper.sh"
-static int new_rdma_link(char *buffer)
+static int new_rdma_link(char *buffer, bool ipv6)
 {
     char cmd[256];
     bool verbose = g_getenv("QTEST_LOG");
 
-    snprintf(cmd, sizeof(cmd), "%s detect %s", RDMA_MIGRATION_HELPER,
+    snprintf(cmd, sizeof(cmd), "IP_FAMILY=%s %s detect %s",
+             ipv6 ? "ipv6" : "ipv4", RDMA_MIGRATION_HELPER,
              verbose ? "" : "2>/dev/null");
 
     FILE *pipe = popen(cmd, "r");
@@ -132,11 +162,16 @@ static int new_rdma_link(char *buffer)
     return -1;
 }
 
-static void test_precopy_rdma_plain(void)
+static void __test_precopy_rdma_plain(bool ipv6)
 {
     char buffer[128] = {};
 
-    if (new_rdma_link(buffer)) {
+    if (!mlock_check()) {
+        g_test_skip("'ulimit -l' is too small, require >=128M");
+        return;
+    }
+
+    if (new_rdma_link(buffer, ipv6)) {
         g_test_skip("No rdma link available\n"
                     "# To enable the test:\n"
                     "# Run \'" RDMA_MIGRATION_HELPER " setup\' with root to "
@@ -158,6 +193,16 @@ static void test_precopy_rdma_plain(void)
     };
 
     test_precopy_common(&args);
+}
+
+static void test_precopy_rdma_plain(void)
+{
+    __test_precopy_rdma_plain(false);
+}
+
+static void test_precopy_rdma_plain_ipv6(void)
+{
+    __test_precopy_rdma_plain(true);
 }
 #endif
 
@@ -524,7 +569,7 @@ static void test_multifd_tcp_channels_none(void)
  *
  *  And see that it works
  */
-static void test_multifd_tcp_cancel(void)
+static void test_multifd_tcp_cancel(bool postcopy_ram)
 {
     MigrateStart args = {
         .hide_stderr = true,
@@ -537,6 +582,11 @@ static void test_multifd_tcp_cancel(void)
 
     migrate_ensure_non_converge(from);
     migrate_prepare_for_dirty_mem(from);
+
+    if (postcopy_ram) {
+        migrate_set_capability(from, "postcopy-ram", true);
+        migrate_set_capability(to, "postcopy-ram", true);
+    }
 
     migrate_set_parameter_int(from, "multifd-channels", 16);
     migrate_set_parameter_int(to, "multifd-channels", 16);
@@ -579,6 +629,10 @@ static void test_multifd_tcp_cancel(void)
         return;
     }
 
+    if (postcopy_ram) {
+        migrate_set_capability(to2, "postcopy-ram", true);
+    }
+
     migrate_set_parameter_int(to2, "multifd-channels", 16);
 
     migrate_set_capability(to2, "multifd", true);
@@ -600,6 +654,16 @@ static void test_multifd_tcp_cancel(void)
     wait_for_serial("dest_serial");
     wait_for_migration_complete(from);
     migrate_end(from, to2, true);
+}
+
+static void test_multifd_precopy_tcp_cancel(void)
+{
+    test_multifd_tcp_cancel(false);
+}
+
+static void test_multifd_postcopy_tcp_cancel(void)
+{
+    test_multifd_tcp_cancel(true);
 }
 
 static void test_cancel_src_after_failed(QTestState *from, QTestState *to,
@@ -1188,10 +1252,17 @@ static void migration_test_add_precopy_smoke(MigrationTestEnv *env)
     migration_test_add("/migration/multifd/tcp/uri/plain/none",
                        test_multifd_tcp_uri_none);
     migration_test_add("/migration/multifd/tcp/plain/cancel",
-                       test_multifd_tcp_cancel);
+                       test_multifd_precopy_tcp_cancel);
+    if (env->has_uffd) {
+        migration_test_add("/migration/multifd+postcopy/tcp/plain/cancel",
+                           test_multifd_postcopy_tcp_cancel);
+    }
+
 #ifdef CONFIG_RDMA
     migration_test_add("/migration/precopy/rdma/plain",
                        test_precopy_rdma_plain);
+    migration_test_add("/migration/precopy/rdma/plain/ipv6",
+                       test_precopy_rdma_plain_ipv6);
 #endif
 }
 

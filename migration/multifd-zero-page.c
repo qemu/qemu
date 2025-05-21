@@ -85,9 +85,27 @@ void multifd_recv_zero_page_process(MultiFDRecvParams *p)
 {
     for (int i = 0; i < p->zero_num; i++) {
         void *page = p->host + p->zero[i];
-        if (ramblock_recv_bitmap_test_byte_offset(p->block, p->zero[i])) {
+        bool received =
+                ramblock_recv_bitmap_test_byte_offset(p->block, p->zero[i]);
+
+        /*
+         * During multifd migration zero page is written to the memory
+         * only if it is migrated more than once.
+         *
+         * It becomes a problem when both multifd & postcopy options are
+         * enabled. If the zero page which was skipped during multifd phase,
+         * is accessed during the postcopy phase of the migration, a page
+         * fault occurs. But this page fault is not served because the
+         * 'receivedmap' says the zero page is already received. Thus the
+         * thread accessing that page may hang.
+         *
+         * When postcopy is enabled, always write the zero page as and when
+         * it is migrated.
+         */
+        if (migrate_postcopy_ram() || received) {
             memset(page, 0, multifd_ram_page_size());
-        } else {
+        }
+        if (!received) {
             ramblock_recv_bitmap_set_offset(p->block, p->zero[i]);
         }
     }

@@ -475,9 +475,9 @@ ERST
 
     {
         .name       = "migrate",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show migration status",
+        .args_type  = "all:-a",
+        .params     = "[-a]",
+        .help       = "show migration status (-a: all, dump all status)",
         .cmd        = hmp_info_migrate,
     },
 
