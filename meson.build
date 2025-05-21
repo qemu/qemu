@@ -4101,7 +4101,6 @@ common_all = static_library('common',
                             dependencies: common_ss.all_dependencies())
 
 # construct common libraries per base architecture
-hw_common_arch_libs = {}
 target_common_arch_libs = {}
 target_common_system_arch_libs = {}
 foreach target_base_arch, config_base_arch : config_base_arch_mak
@@ -4130,22 +4129,10 @@ foreach target_base_arch, config_base_arch : config_base_arch_mak
   target_c_args = ['-DCPU_DEFS_H']
   target_system_c_args = target_c_args + ['-DCOMPILING_SYSTEM_VS_USER', '-DCONFIG_SOFTMMU']
 
-  if target_base_arch in hw_common_arch
-    src = hw_common_arch[target_base_arch]
-    lib = static_library(
-      'hw_' + target_base_arch,
-      build_by_default: false,
-      sources: src.all_sources() + genh,
-      include_directories: inc,
-      c_args: target_system_c_args,
-      dependencies: src.all_dependencies() + common_deps + system_deps)
-    hw_common_arch_libs += {target_base_arch: lib}
-  endif
-
   if target_base_arch in target_common_arch
     src = target_common_arch[target_base_arch]
     lib = static_library(
-      'target_' + target_base_arch,
+      'common_' + target_base_arch,
       build_by_default: false,
       sources: src.all_sources() + genh,
       include_directories: inc,
@@ -4155,10 +4142,20 @@ foreach target_base_arch, config_base_arch : config_base_arch_mak
     target_common_arch_libs += {target_base_arch: lib}
   endif
 
+  # merge hw_common_arch in target_common_system_arch
+  if target_base_arch in hw_common_arch
+    hw_src = hw_common_arch[target_base_arch]
+    if target_base_arch in target_common_system_arch
+      target_common_system_arch[target_base_arch].add_all(hw_src)
+    else
+      target_common_system_arch += {target_base_arch: hw_src}
+    endif
+  endif
+
   if target_base_arch in target_common_system_arch
     src = target_common_system_arch[target_base_arch]
     lib = static_library(
-      'target_system_' + target_base_arch,
+      'system_' + target_base_arch,
       build_by_default: false,
       sources: src.all_sources() + genh,
       include_directories: inc,
@@ -4349,12 +4346,6 @@ foreach target : target_dirs
   if target_type == 'user'
     src = user_ss.apply(config_target, strict: false)
     objects += libuser.extract_objects(src.sources())
-    arch_deps += src.dependencies()
-  endif
-  if target_type == 'system' and target_base_arch in hw_common_arch_libs
-    src = hw_common_arch[target_base_arch].apply(config_target, strict: false)
-    lib = hw_common_arch_libs[target_base_arch]
-    objects += lib.extract_objects(src.sources())
     arch_deps += src.dependencies()
   endif
   if target_type == 'system' and target_base_arch in target_common_system_arch_libs
