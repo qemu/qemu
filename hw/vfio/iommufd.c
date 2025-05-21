@@ -592,6 +592,10 @@ found_container:
         goto err_listener_register;
     }
 
+    /*
+     * Do not move this code before attachment! The nested IOMMU support
+     * needs device and hwpt id which are generated only after attachment.
+     */
     if (!vfio_device_hiod_create_and_realize(vbasedev,
                      TYPE_HOST_IOMMU_DEVICE_IOMMUFD_VFIO, errp)) {
         goto err_listener_register;
