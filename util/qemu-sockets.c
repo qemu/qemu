@@ -236,12 +236,6 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
     int saved_errno = 0;
     bool socket_created = false;
 
-    if (saddr->keep_alive) {
-        error_setg(errp, "keep-alive option is not supported for passive "
-                   "sockets");
-        return -1;
-    }
-
     memset(&ai,0, sizeof(ai));
     ai.ai_flags = AI_PASSIVE;
     if (saddr->has_numeric && saddr->numeric) {
@@ -349,6 +343,9 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
                 goto fail;
             }
             /* We have a listening socket */
+            if (inet_set_sockopts(slisten, saddr, errp) < 0) {
+                goto fail;
+            }
             freeaddrinfo(res);
             return slisten;
         }
