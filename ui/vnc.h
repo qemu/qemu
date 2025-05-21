@@ -185,6 +185,8 @@ struct VncDisplay
 #endif
 
     AudioState *audio_state;
+
+    VMChangeStateEntry *vmstate_handler_entry;
 };
 
 typedef struct VncTight {

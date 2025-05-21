@@ -3385,6 +3385,16 @@ static const DisplayChangeListenerOps dcl_ops = {
     .dpy_cursor_define    = vnc_dpy_cursor_define,
 };
 
+static void vmstate_change_handler(void *opaque, bool running, RunState state)
+{
+    VncDisplay *vd = opaque;
+
+    if (state != RUN_STATE_RUNNING) {
+        return;
+    }
+    update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
+}
+
 void vnc_display_init(const char *id, Error **errp)
 {
     VncDisplay *vd;
@@ -3421,6 +3431,8 @@ void vnc_display_init(const char *id, Error **errp)
     vd->dcl.ops = &dcl_ops;
     register_displaychangelistener(&vd->dcl);
     vd->kbd = qkbd_state_init(vd->dcl.con);
+    vd->vmstate_handler_entry = qemu_add_vm_change_state_handler(
+        &vmstate_change_handler, vd);
 }
 
 
