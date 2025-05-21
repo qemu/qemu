@@ -58,8 +58,8 @@ class MemAddrCheck(QemuSystemTest):
         should start fine.
         """
         self.ensure_64bit_binary()
-        self.vm.add_args('-S', '-machine', 'q35', '-m',
-                         '512,slots=1,maxmem=59.6G',
+        self.set_machine('q35')
+        self.vm.add_args('-S', '-m', '512,slots=1,maxmem=59.6G',
                          '-cpu', 'pentium,pse36=on', '-display', 'none',
                          '-object', 'memory-backend-ram,id=mem1,size=1G',
                          '-device', 'pc-dimm,id=vm0,memdev=mem1')
@@ -76,8 +76,8 @@ class MemAddrCheck(QemuSystemTest):
         with pse36 above.
         """
         self.ensure_64bit_binary()
-        self.vm.add_args('-S', '-machine', 'q35', '-m',
-                         '512,slots=1,maxmem=59.6G',
+        self.set_machine('q35')
+        self.vm.add_args('-S', '-m', '512,slots=1,maxmem=59.6G',
                          '-cpu', 'pentium,pae=on', '-display', 'none',
                          '-object', 'memory-backend-ram,id=mem1,size=1G',
                          '-device', 'pc-dimm,id=vm0,memdev=mem1')
@@ -93,8 +93,8 @@ class MemAddrCheck(QemuSystemTest):
         same options as the failing case above with pse36 cpu feature.
         """
         self.ensure_64bit_binary()
-        self.vm.add_args('-machine', 'q35', '-m',
-                         '512,slots=1,maxmem=59.5G',
+        self.set_machine('q35')
+        self.vm.add_args('-m', '512,slots=1,maxmem=59.5G',
                          '-cpu', 'pentium,pse36=on', '-display', 'none',
                          '-object', 'memory-backend-ram,id=mem1,size=1G',
                          '-device', 'pc-dimm,id=vm0,memdev=mem1')
@@ -111,8 +111,8 @@ class MemAddrCheck(QemuSystemTest):
         with the same options as the case above.
         """
         self.ensure_64bit_binary()
-        self.vm.add_args('-machine', 'q35', '-m',
-                         '512,slots=1,maxmem=59.5G',
+        self.set_machine('q35')
+        self.vm.add_args('-m', '512,slots=1,maxmem=59.5G',
                          '-cpu', 'pentium,pae=on', '-display', 'none',
                          '-object', 'memory-backend-ram,id=mem1,size=1G',
                          '-device', 'pc-dimm,id=vm0,memdev=mem1')
@@ -128,8 +128,8 @@ class MemAddrCheck(QemuSystemTest):
         with pse36 ON.
         """
         self.ensure_64bit_binary()
-        self.vm.add_args('-machine', 'q35', '-m',
-                         '512,slots=1,maxmem=59.5G',
+        self.set_machine('q35')
+        self.vm.add_args('-m', '512,slots=1,maxmem=59.5G',
                          '-cpu', 'pentium2', '-display', 'none',
                          '-object', 'memory-backend-ram,id=mem1,size=1G',
                          '-device', 'pc-dimm,id=vm0,memdev=mem1')
@@ -148,8 +148,8 @@ class MemAddrCheck(QemuSystemTest):
         above 4 GiB due to the PCI hole and simplicity.
         """
         self.ensure_64bit_binary()
-        self.vm.add_args('-S', '-machine', 'q35', '-m',
-                         '512,slots=1,maxmem=4G',
+        self.set_machine('q35')
+        self.vm.add_args('-S', '-m', '512,slots=1,maxmem=4G',
                          '-cpu', 'pentium', '-display', 'none',
                          '-object', 'memory-backend-ram,id=mem1,size=1G',
                          '-device', 'pc-dimm,id=vm0,memdev=mem1')
@@ -176,8 +176,8 @@ class MemAddrCheck(QemuSystemTest):
         make QEMU fail with the error message.
         """
         self.ensure_64bit_binary()
-        self.vm.add_args('-S', '-machine', 'pc-q35-7.0', '-m',
-                         '512,slots=1,maxmem=988G',
+        self.set_machine('pc-q35-7.0')
+        self.vm.add_args('-S', '-m', '512,slots=1,maxmem=988G',
                          '-display', 'none',
                          '-object', 'memory-backend-ram,id=mem1,size=1G',
                          '-device', 'pc-dimm,id=vm0,memdev=mem1')
@@ -197,8 +197,8 @@ class MemAddrCheck(QemuSystemTest):
         than 988 GiB).
         """
         self.ensure_64bit_binary()
-        self.vm.add_args('-S', '-machine', 'pc-q35-7.1', '-m',
-                         '512,slots=1,maxmem=976G',
+        self.set_machine('pc-q35-7.1')
+        self.vm.add_args('-S', '-m', '512,slots=1,maxmem=976G',
                          '-display', 'none',
                          '-object', 'memory-backend-ram,id=mem1,size=1G',
                          '-device', 'pc-dimm,id=vm0,memdev=mem1')
@@ -214,8 +214,8 @@ class MemAddrCheck(QemuSystemTest):
         successfully start when maxmem is < 988G.
         """
         self.ensure_64bit_binary()
-        self.vm.add_args('-S', '-machine', 'pc-q35-7.0', '-m',
-                         '512,slots=1,maxmem=987.5G',
+        self.set_machine('pc-q35-7.0')
+        self.vm.add_args('-S', '-m', '512,slots=1,maxmem=987.5G',
                          '-display', 'none',
                          '-object', 'memory-backend-ram,id=mem1,size=1G',
                          '-device', 'pc-dimm,id=vm0,memdev=mem1')
@@ -231,8 +231,8 @@ class MemAddrCheck(QemuSystemTest):
         successfully start when maxmem is < 976G.
         """
         self.ensure_64bit_binary()
-        self.vm.add_args('-S', '-machine', 'pc-q35-7.1', '-m',
-                         '512,slots=1,maxmem=975.5G',
+        self.set_machine('pc-q35-7.1')
+        self.vm.add_args('-S', '-m', '512,slots=1,maxmem=975.5G',
                          '-display', 'none',
                          '-object', 'memory-backend-ram,id=mem1,size=1G',
                          '-device', 'pc-dimm,id=vm0,memdev=mem1')
@@ -249,9 +249,9 @@ class MemAddrCheck(QemuSystemTest):
         "above_4G" memory starts at 4G.
         """
         self.ensure_64bit_binary()
+        self.set_machine('pc-q35-7.1')
         self.vm.add_args('-S', '-cpu', 'Skylake-Server',
-                         '-machine', 'pc-q35-7.1', '-m',
-                         '512,slots=1,maxmem=976G',
+                         '-m', '512,slots=1,maxmem=976G',
                          '-display', 'none',
                          '-object', 'memory-backend-ram,id=mem1,size=1G',
                          '-device', 'pc-dimm,id=vm0,memdev=mem1')
@@ -274,9 +274,9 @@ class MemAddrCheck(QemuSystemTest):
         fail to start.
         """
         self.ensure_64bit_binary()
+        self.set_machine('pc-q35-7.1')
         self.vm.add_args('-S', '-cpu', 'EPYC-v4,phys-bits=41',
-                         '-machine', 'pc-q35-7.1', '-m',
-                         '512,slots=1,maxmem=992G',
+                         '-m', '512,slots=1,maxmem=992G',
                          '-display', 'none',
                          '-object', 'memory-backend-ram,id=mem1,size=1G',
                          '-device', 'pc-dimm,id=vm0,memdev=mem1')
@@ -293,9 +293,9 @@ class MemAddrCheck(QemuSystemTest):
         QEMU should start fine.
         """
         self.ensure_64bit_binary()
+        self.set_machine('pc-q35-7.1')
         self.vm.add_args('-S', '-cpu', 'EPYC-v4,phys-bits=41',
-                         '-machine', 'pc-q35-7.1', '-m',
-                         '512,slots=1,maxmem=990G',
+                         '-m', '512,slots=1,maxmem=990G',
                          '-display', 'none',
                          '-object', 'memory-backend-ram,id=mem1,size=1G',
                          '-device', 'pc-dimm,id=vm0,memdev=mem1')
@@ -314,12 +314,12 @@ class MemAddrCheck(QemuSystemTest):
         alignment constraints with 40 bits (1 TiB) of processor physical bits.
         """
         self.ensure_64bit_binary()
+        self.set_machine('q35')
         self.vm.add_args('-S', '-cpu', 'Skylake-Server,phys-bits=40',
-                         '-machine', 'q35,cxl=on', '-m',
-                         '512,slots=1,maxmem=987G',
+                         '-m', '512,slots=1,maxmem=987G',
                          '-display', 'none',
                          '-device', 'pxb-cxl,bus_nr=12,bus=pcie.0,id=cxl.1',
-                         '-M', 'cxl-fmw.0.targets.0=cxl.1,cxl-fmw.0.size=1G')
+                         '-M', 'cxl=on,cxl-fmw.0.targets.0=cxl.1,cxl-fmw.0.size=1G')
         self.vm.set_qmp_monitor(enabled=False)
         self.vm.launch()
         self.vm.wait()
@@ -333,9 +333,10 @@ class MemAddrCheck(QemuSystemTest):
         with cxl enabled.
         """
         self.ensure_64bit_binary()
+        self.set_machine('q35')
         self.vm.add_args('-S', '-cpu', 'Skylake-Server,phys-bits=40',
-                         '-machine', 'q35,cxl=on', '-m',
-                         '512,slots=1,maxmem=987G',
+                         '-machine', 'cxl=on',
+                         '-m', '512,slots=1,maxmem=987G',
                          '-display', 'none',
                          '-device', 'pxb-cxl,bus_nr=12,bus=pcie.0,id=cxl.1')
         self.vm.set_qmp_monitor(enabled=False)
