@@ -179,6 +179,11 @@ Use ``job-dismiss`` instead.
 
 Use ``job-finalize`` instead.
 
+``migrate`` argument ``detach`` (since 10.1)
+''''''''''''''''''''''''''''''''''''''''''''
+
+This argument has always been ignored.
+
 ``query-migrationthreads`` (since 9.2)
 ''''''''''''''''''''''''''''''''''''''
 
