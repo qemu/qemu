@@ -332,6 +332,216 @@ static void test_socket_unix_abstract(void)
 
 #endif  /* CONFIG_LINUX */
 
+static void inet_parse_test_helper(const char *str,
+                                   InetSocketAddress *exp_addr, bool success)
+{
+    InetSocketAddress addr;
+    Error *error = NULL;
+
+    int rc = inet_parse(&addr, str, &error);
+
+    if (success) {
+        g_assert_cmpint(rc, ==, 0);
+    } else {
+        g_assert_cmpint(rc, <, 0);
+    }
+    if (exp_addr != NULL) {
+        g_assert_cmpstr(addr.host, ==, exp_addr->host);
+        g_assert_cmpstr(addr.port, ==, exp_addr->port);
+        /* Own members: */
+        g_assert_cmpint(addr.has_numeric, ==, exp_addr->has_numeric);
+        g_assert_cmpint(addr.numeric, ==, exp_addr->numeric);
+        g_assert_cmpint(addr.has_to, ==, exp_addr->has_to);
+        g_assert_cmpint(addr.to, ==, exp_addr->to);
+        g_assert_cmpint(addr.has_ipv4, ==, exp_addr->has_ipv4);
+        g_assert_cmpint(addr.ipv4, ==, exp_addr->ipv4);
+        g_assert_cmpint(addr.has_ipv6, ==, exp_addr->has_ipv6);
+        g_assert_cmpint(addr.ipv6, ==, exp_addr->ipv6);
+        g_assert_cmpint(addr.has_keep_alive, ==, exp_addr->has_keep_alive);
+        g_assert_cmpint(addr.keep_alive, ==, exp_addr->keep_alive);
+#ifdef HAVE_TCP_KEEPCNT
+        g_assert_cmpint(addr.has_keep_alive_count, ==,
+                        exp_addr->has_keep_alive_count);
+        g_assert_cmpint(addr.keep_alive_count, ==,
+                        exp_addr->keep_alive_count);
+#endif
+#ifdef HAVE_TCP_KEEPIDLE
+        g_assert_cmpint(addr.has_keep_alive_idle, ==,
+                        exp_addr->has_keep_alive_idle);
+        g_assert_cmpint(addr.keep_alive_idle, ==,
+                        exp_addr->keep_alive_idle);
+#endif
+#ifdef HAVE_TCP_KEEPINTVL
+        g_assert_cmpint(addr.has_keep_alive_interval, ==,
+                        exp_addr->has_keep_alive_interval);
+        g_assert_cmpint(addr.keep_alive_interval, ==,
+                        exp_addr->keep_alive_interval);
+#endif
+#ifdef HAVE_IPPROTO_MPTCP
+        g_assert_cmpint(addr.has_mptcp, ==, exp_addr->has_mptcp);
+        g_assert_cmpint(addr.mptcp, ==, exp_addr->mptcp);
+#endif
+    }
+
+    g_free(addr.host);
+    g_free(addr.port);
+}
+
+static void test_inet_parse_nohost_good(void)
+{
+    char host[] = "";
+    char port[] = "5000";
+    InetSocketAddress exp_addr = {
+        .host = host,
+        .port = port,
+    };
+    inet_parse_test_helper(":5000", &exp_addr, true);
+}
+
+static void test_inet_parse_empty_bad(void)
+{
+    inet_parse_test_helper("", NULL, false);
+}
+
+static void test_inet_parse_only_colon_bad(void)
+{
+    inet_parse_test_helper(":", NULL, false);
+}
+
+static void test_inet_parse_ipv4_good(void)
+{
+    char host[] = "127.0.0.1";
+    char port[] = "5000";
+    InetSocketAddress exp_addr = {
+        .host = host,
+        .port = port,
+    };
+    inet_parse_test_helper("127.0.0.1:5000", &exp_addr, true);
+}
+
+static void test_inet_parse_ipv4_noport_bad(void)
+{
+    inet_parse_test_helper("127.0.0.1", NULL, false);
+}
+
+static void test_inet_parse_ipv6_good(void)
+{
+    char host[] = "::1";
+    char port[] = "5000";
+    InetSocketAddress exp_addr = {
+        .host = host,
+        .port = port,
+    };
+    inet_parse_test_helper("[::1]:5000", &exp_addr, true);
+}
+
+static void test_inet_parse_ipv6_noend_bad(void)
+{
+    inet_parse_test_helper("[::1", NULL, false);
+}
+
+static void test_inet_parse_ipv6_noport_bad(void)
+{
+    inet_parse_test_helper("[::1]:", NULL, false);
+}
+
+static void test_inet_parse_ipv6_empty_bad(void)
+{
+    inet_parse_test_helper("[]:5000", NULL, false);
+}
+
+static void test_inet_parse_hostname_good(void)
+{
+    char host[] = "localhost";
+    char port[] = "5000";
+    InetSocketAddress exp_addr = {
+        .host = host,
+        .port = port,
+    };
+    inet_parse_test_helper("localhost:5000", &exp_addr, true);
+}
+
+static void test_inet_parse_all_options_good(void)
+{
+    char host[] = "::1";
+    char port[] = "5000";
+    InetSocketAddress exp_addr = {
+        .host = host,
+        .port = port,
+        .has_numeric = true,
+        .numeric =  true,
+        .has_to = true,
+        .to = 5006,
+        .has_ipv4 = true,
+        .ipv4 = false,
+        .has_ipv6 = true,
+        .ipv6 = true,
+        .has_keep_alive = true,
+        .keep_alive = true,
+#ifdef HAVE_TCP_KEEPCNT
+        .has_keep_alive_count = true,
+        .keep_alive_count = 10,
+#endif
+#ifdef HAVE_TCP_KEEPIDLE
+        .has_keep_alive_idle = true,
+        .keep_alive_idle = 60,
+#endif
+#ifdef HAVE_TCP_KEEPINTVL
+        .has_keep_alive_interval = true,
+        .keep_alive_interval = 30,
+#endif
+#ifdef HAVE_IPPROTO_MPTCP
+        .has_mptcp = true,
+        .mptcp = false,
+#endif
+    };
+    inet_parse_test_helper(
+        "[::1]:5000,numeric=on,to=5006,ipv4=off,ipv6=on,keep-alive=on"
+#ifdef HAVE_TCP_KEEPCNT
+        ",keep-alive-count=10"
+#endif
+#ifdef HAVE_TCP_KEEPIDLE
+        ",keep-alive-idle=60"
+#endif
+#ifdef HAVE_TCP_KEEPINTVL
+        ",keep-alive-interval=30"
+#endif
+#ifdef HAVE_IPPROTO_MPTCP
+        ",mptcp=off"
+#endif
+        , &exp_addr, true);
+}
+
+static void test_inet_parse_all_implicit_bool_good(void)
+{
+    char host[] = "::1";
+    char port[] = "5000";
+    InetSocketAddress exp_addr = {
+        .host = host,
+        .port = port,
+        .has_numeric = true,
+        .numeric =  true,
+        .has_to = true,
+        .to = 5006,
+        .has_ipv4 = true,
+        .ipv4 = true,
+        .has_ipv6 = true,
+        .ipv6 = true,
+        .has_keep_alive = true,
+        .keep_alive = true,
+#ifdef HAVE_IPPROTO_MPTCP
+        .has_mptcp = true,
+        .mptcp = true,
+#endif
+    };
+    inet_parse_test_helper(
+        "[::1]:5000,numeric,to=5006,ipv4,ipv6,keep-alive"
+#ifdef HAVE_IPPROTO_MPTCP
+        ",mptcp"
+#endif
+        , &exp_addr, true);
+}
+
 int main(int argc, char **argv)
 {
     bool has_ipv4, has_ipv6;
@@ -376,6 +586,31 @@ int main(int argc, char **argv)
     g_test_add_func("/util/socket/unix-abstract",
                     test_socket_unix_abstract);
 #endif
+
+    g_test_add_func("/util/socket/inet-parse/nohost-good",
+                    test_inet_parse_nohost_good);
+    g_test_add_func("/util/socket/inet-parse/empty-bad",
+                    test_inet_parse_empty_bad);
+    g_test_add_func("/util/socket/inet-parse/only-colon-bad",
+                    test_inet_parse_only_colon_bad);
+    g_test_add_func("/util/socket/inet-parse/ipv4-good",
+                    test_inet_parse_ipv4_good);
+    g_test_add_func("/util/socket/inet-parse/ipv4-noport-bad",
+                    test_inet_parse_ipv4_noport_bad);
+    g_test_add_func("/util/socket/inet-parse/ipv6-good",
+                    test_inet_parse_ipv6_good);
+    g_test_add_func("/util/socket/inet-parse/ipv6-noend-bad",
+                    test_inet_parse_ipv6_noend_bad);
+    g_test_add_func("/util/socket/inet-parse/ipv6-noport-bad",
+                    test_inet_parse_ipv6_noport_bad);
+    g_test_add_func("/util/socket/inet-parse/ipv6-empty-bad",
+                    test_inet_parse_ipv6_empty_bad);
+    g_test_add_func("/util/socket/inet-parse/hostname-good",
+                    test_inet_parse_hostname_good);
+    g_test_add_func("/util/socket/inet-parse/all-options-good",
+                    test_inet_parse_all_options_good);
+    g_test_add_func("/util/socket/inet-parse/all-bare-bool-good",
+                    test_inet_parse_all_implicit_bool_good);
 
 end:
     return g_test_run();

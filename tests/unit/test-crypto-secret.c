@@ -22,6 +22,7 @@
 
 #include "crypto/init.h"
 #include "crypto/secret.h"
+#include "crypto/cipher.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #if defined(CONFIG_KEYUTILS) && defined(CONFIG_SECRET_KEYRING)
@@ -597,18 +598,21 @@ int main(int argc, char **argv)
     g_test_add_func("/crypto/secret/conv/utf8/base64",
                     test_secret_conv_utf8_base64);
 
-    g_test_add_func("/crypto/secret/crypt/raw",
-                    test_secret_crypt_raw);
-    g_test_add_func("/crypto/secret/crypt/base64",
-                    test_secret_crypt_base64);
-    g_test_add_func("/crypto/secret/crypt/shortkey",
-                    test_secret_crypt_short_key);
-    g_test_add_func("/crypto/secret/crypt/shortiv",
-                    test_secret_crypt_short_iv);
-    g_test_add_func("/crypto/secret/crypt/missingiv",
-                    test_secret_crypt_missing_iv);
-    g_test_add_func("/crypto/secret/crypt/badiv",
-                    test_secret_crypt_bad_iv);
+    if (qcrypto_cipher_supports(QCRYPTO_CIPHER_ALGO_AES_128,
+                                QCRYPTO_CIPHER_MODE_CBC)) {
+        g_test_add_func("/crypto/secret/crypt/raw",
+                        test_secret_crypt_raw);
+        g_test_add_func("/crypto/secret/crypt/base64",
+                        test_secret_crypt_base64);
+        g_test_add_func("/crypto/secret/crypt/shortkey",
+                        test_secret_crypt_short_key);
+        g_test_add_func("/crypto/secret/crypt/shortiv",
+                        test_secret_crypt_short_iv);
+        g_test_add_func("/crypto/secret/crypt/missingiv",
+                        test_secret_crypt_missing_iv);
+        g_test_add_func("/crypto/secret/crypt/badiv",
+                        test_secret_crypt_bad_iv);
+    }
 
     return g_test_run();
 }

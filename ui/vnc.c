@@ -891,7 +891,7 @@ void vnc_convert_pixel(VncState *vs, uint8_t *buf, uint32_t v)
         buf[0] = v;
         break;
     case 2:
-        if (vs->client_be) {
+        if (vs->client_endian == G_BIG_ENDIAN) {
             buf[0] = v >> 8;
             buf[1] = v;
         } else {
@@ -901,7 +901,7 @@ void vnc_convert_pixel(VncState *vs, uint8_t *buf, uint32_t v)
         break;
     default:
     case 4:
-        if (vs->client_be) {
+        if (vs->client_endian == G_BIG_ENDIAN) {
             buf[0] = v >> 24;
             buf[1] = v >> 16;
             buf[2] = v >> 8;
@@ -2240,7 +2240,8 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
 
 static void set_pixel_conversion(VncState *vs)
 {
-    pixman_format_code_t fmt = qemu_pixman_get_format(&vs->client_pf);
+    pixman_format_code_t fmt = qemu_pixman_get_format(&vs->client_pf,
+                                                      vs->client_endian);
 
     if (fmt == VNC_SERVER_FB_FORMAT) {
         vs->write_pixels = vnc_write_pixels_copy;
@@ -2312,7 +2313,7 @@ static void set_pixel_format(VncState *vs, int bits_per_pixel,
     vs->client_pf.bits_per_pixel = bits_per_pixel;
     vs->client_pf.bytes_per_pixel = bits_per_pixel / 8;
     vs->client_pf.depth = bits_per_pixel == 32 ? 24 : bits_per_pixel;
-    vs->client_be = big_endian_flag;
+    vs->client_endian = big_endian_flag ? G_BIG_ENDIAN : G_LITTLE_ENDIAN;
 
     if (!true_color_flag) {
         send_color_map(vs);

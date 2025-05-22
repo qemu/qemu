@@ -30,6 +30,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qemu/cutils.h"
+#include "qemu/option.h"
 #include "trace.h"
 
 #ifndef AI_ADDRCONFIG
@@ -42,6 +43,14 @@
 
 #ifndef AI_NUMERICSERV
 # define AI_NUMERICSERV 0
+#endif
+
+/*
+ * On macOS TCP_KEEPIDLE is available under a different name, TCP_KEEPALIVE.
+ * https://github.com/apple/darwin-xnu/blob/xnu-4570.1.46/bsd/man/man4/tcp.4#L172
+ */
+#if defined(TCP_KEEPALIVE) && !defined(TCP_KEEPIDLE)
+# define TCP_KEEPIDLE TCP_KEEPALIVE
 #endif
 
 
@@ -205,6 +214,58 @@ static int try_bind(int socket, InetSocketAddress *saddr, struct addrinfo *e)
 #endif
 }
 
+static int inet_set_sockopts(int sock, InetSocketAddress *saddr, Error **errp)
+{
+    if (saddr->keep_alive) {
+        int keep_alive = 1;
+        int ret = setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
+                             &keep_alive, sizeof(keep_alive));
+
+        if (ret < 0) {
+            error_setg_errno(errp, errno,
+                             "Unable to set keep-alive option on socket");
+            return -1;
+        }
+#ifdef HAVE_TCP_KEEPCNT
+        if (saddr->has_keep_alive_count && saddr->keep_alive_count) {
+            int keep_count = saddr->keep_alive_count;
+            ret = setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, &keep_count,
+                             sizeof(keep_count));
+            if (ret < 0) {
+                error_setg_errno(errp, errno,
+                                 "Unable to set TCP keep-alive count option on socket");
+                return -1;
+            }
+        }
+#endif
+#ifdef HAVE_TCP_KEEPIDLE
+        if (saddr->has_keep_alive_idle && saddr->keep_alive_idle) {
+            int keep_idle = saddr->keep_alive_idle;
+            ret = setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &keep_idle,
+                             sizeof(keep_idle));
+            if (ret < 0) {
+                error_setg_errno(errp, errno,
+                                 "Unable to set TCP keep-alive idle option on socket");
+                return -1;
+            }
+        }
+#endif
+#ifdef HAVE_TCP_KEEPINTVL
+        if (saddr->has_keep_alive_interval && saddr->keep_alive_interval) {
+            int keep_interval = saddr->keep_alive_interval;
+            ret = setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, &keep_interval,
+                             sizeof(keep_interval));
+            if (ret < 0) {
+                error_setg_errno(errp, errno,
+                                 "Unable to set TCP keep-alive interval option on socket");
+                return -1;
+            }
+        }
+#endif
+    }
+    return 0;
+}
+
 static int inet_listen_saddr(InetSocketAddress *saddr,
                              int port_offset,
                              int num,
@@ -219,12 +280,6 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
     int slisten = -1;
     int saved_errno = 0;
     bool socket_created = false;
-
-    if (saddr->keep_alive) {
-        error_setg(errp, "keep-alive option is not supported for passive "
-                   "sockets");
-        return -1;
-    }
 
     memset(&ai,0, sizeof(ai));
     ai.ai_flags = AI_PASSIVE;
@@ -287,11 +342,20 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
         port_min = inet_getport(e);
         port_max = saddr->has_to ? saddr->to + port_offset : port_min;
         for (p = port_min; p <= port_max; p++) {
+            if (slisten >= 0) {
+                /*
+                 * We have a socket we tried with the previous port. It cannot
+                 * be rebound, we need to close it and create a new one.
+                 */
+                close(slisten);
+                slisten = -1;
+            }
             inet_setport(e, p);
 
             slisten = create_fast_reuse_socket(e);
             if (slisten < 0) {
-                /* First time we expect we might fail to create the socket
+                /*
+                 * First time we expect we might fail to create the socket
                  * eg if 'e' has AF_INET6 but ipv6 kmod is not loaded.
                  * Later iterations should always succeed if first iteration
                  * worked though, so treat that as fatal.
@@ -301,40 +365,41 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
                 } else {
                     error_setg_errno(errp, errno,
                                      "Failed to recreate failed listening socket");
-                    goto listen_failed;
+                    goto fail;
                 }
             }
             socket_created = true;
 
             rc = try_bind(slisten, saddr, e);
             if (rc < 0) {
-                if (errno != EADDRINUSE) {
-                    error_setg_errno(errp, errno, "Failed to bind socket");
-                    goto listen_failed;
+                if (errno == EADDRINUSE) {
+                    /* This port is already used, try the next one */
+                    continue;
                 }
-            } else {
-                if (!listen(slisten, num)) {
-                    goto listen_ok;
-                }
-                if (errno != EADDRINUSE) {
-                    error_setg_errno(errp, errno, "Failed to listen on socket");
-                    goto listen_failed;
-                }
+                error_setg_errno(errp, errno, "Failed to bind socket");
+                goto fail;
             }
-            /* Someone else managed to bind to the same port and beat us
-             * to listen on it! Socket semantics does not allow us to
-             * recover from this situation, so we need to recreate the
-             * socket to allow bind attempts for subsequent ports:
-             */
-            close(slisten);
-            slisten = -1;
+            if (listen(slisten, num)) {
+                if (errno == EADDRINUSE) {
+                    /* This port is already used, try the next one */
+                    continue;
+                }
+                error_setg_errno(errp, errno, "Failed to listen on socket");
+                goto fail;
+            }
+            /* We have a listening socket */
+            if (inet_set_sockopts(slisten, saddr, errp) < 0) {
+                goto fail;
+            }
+            freeaddrinfo(res);
+            return slisten;
         }
     }
     error_setg_errno(errp, errno,
                      socket_created ?
                      "Failed to find an available port" :
                      "Failed to create a socket");
-listen_failed:
+fail:
     saved_errno = errno;
     if (slisten >= 0) {
         close(slisten);
@@ -342,10 +407,6 @@ listen_failed:
     freeaddrinfo(res);
     errno = saved_errno;
     return -1;
-
-listen_ok:
-    freeaddrinfo(res);
-    return slisten;
 }
 
 #ifdef _WIN32
@@ -475,16 +536,9 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
         return sock;
     }
 
-    if (saddr->keep_alive) {
-        int val = 1;
-        int ret = setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
-                             &val, sizeof(val));
-
-        if (ret < 0) {
-            error_setg_errno(errp, errno, "Unable to set KEEPALIVE");
-            close(sock);
-            return -1;
-        }
+    if (inet_set_sockopts(sock, saddr, errp) < 0) {
+        close(sock);
+        return -1;
     }
 
     return sock;
@@ -591,115 +645,140 @@ err:
     return -1;
 }
 
-/* compatibility wrapper */
-static int inet_parse_flag(const char *flagname, const char *optstr, bool *val,
-                           Error **errp)
-{
-    char *end;
-    size_t len;
-
-    end = strstr(optstr, ",");
-    if (end) {
-        if (end[1] == ',') { /* Reject 'ipv6=on,,foo' */
-            error_setg(errp, "error parsing '%s' flag '%s'", flagname, optstr);
-            return -1;
-        }
-        len = end - optstr;
-    } else {
-        len = strlen(optstr);
-    }
-    if (len == 0 || (len == 3 && strncmp(optstr, "=on", len) == 0)) {
-        *val = true;
-    } else if (len == 4 && strncmp(optstr, "=off", len) == 0) {
-        *val = false;
-    } else {
-        error_setg(errp, "error parsing '%s' flag '%s'", flagname, optstr);
-        return -1;
-    }
-    return 0;
-}
+static QemuOptsList inet_opts = {
+    .name = "InetSocketAddress",
+    .head = QTAILQ_HEAD_INITIALIZER(inet_opts.head),
+    .implied_opt_name = "addr",
+    .desc = {
+        {
+            .name = "addr",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "numeric",
+            .type = QEMU_OPT_BOOL,
+        },
+        {
+            .name = "to",
+            .type = QEMU_OPT_NUMBER,
+        },
+        {
+            .name = "ipv4",
+            .type = QEMU_OPT_BOOL,
+        },
+        {
+            .name = "ipv6",
+            .type = QEMU_OPT_BOOL,
+        },
+        {
+            .name = "keep-alive",
+            .type = QEMU_OPT_BOOL,
+        },
+#ifdef HAVE_TCP_KEEPCNT
+        {
+            .name = "keep-alive-count",
+            .type = QEMU_OPT_NUMBER,
+        },
+#endif
+#ifdef HAVE_TCP_KEEPIDLE
+        {
+            .name = "keep-alive-idle",
+            .type = QEMU_OPT_NUMBER,
+        },
+#endif
+#ifdef HAVE_TCP_KEEPINTVL
+        {
+            .name = "keep-alive-interval",
+            .type = QEMU_OPT_NUMBER,
+        },
+#endif
+#ifdef HAVE_IPPROTO_MPTCP
+        {
+            .name = "mptcp",
+            .type = QEMU_OPT_BOOL,
+        },
+#endif
+        { /* end of list */ }
+    },
+};
 
 int inet_parse(InetSocketAddress *addr, const char *str, Error **errp)
 {
-    const char *optstr, *h;
-    char host[65];
-    char port[33];
-    int to;
-    int pos;
-    char *begin;
-
+    QemuOpts *opts = qemu_opts_parse(&inet_opts, str, true, errp);
+    if (!opts) {
+        return -1;
+    }
     memset(addr, 0, sizeof(*addr));
 
     /* parse address */
-    if (str[0] == ':') {
-        /* no host given */
-        host[0] = '\0';
-        if (sscanf(str, ":%32[^,]%n", port, &pos) != 1) {
-            error_setg(errp, "error parsing port in address '%s'", str);
-            return -1;
-        }
-    } else if (str[0] == '[') {
-        /* IPv6 addr */
-        if (sscanf(str, "[%64[^]]]:%32[^,]%n", host, port, &pos) != 2) {
-            error_setg(errp, "error parsing IPv6 address '%s'", str);
-            return -1;
-        }
-    } else {
-        /* hostname or IPv4 addr */
-        if (sscanf(str, "%64[^:]:%32[^,]%n", host, port, &pos) != 2) {
-            error_setg(errp, "error parsing address '%s'", str);
-            return -1;
-        }
+    const char *addr_str = qemu_opt_get(opts, "addr");
+    if (!addr_str) {
+        error_setg(errp, "error parsing address ''");
+        return -1;
     }
-
-    addr->host = g_strdup(host);
-    addr->port = g_strdup(port);
+    if (str[0] == '[') {
+        /* IPv6 addr */
+        const char *ip_end = strstr(addr_str, "]:");
+        if (!ip_end || ip_end - addr_str < 2 || strlen(ip_end) < 3) {
+            error_setg(errp, "error parsing IPv6 address '%s'", addr_str);
+            return -1;
+        }
+        addr->host = g_strndup(addr_str + 1, ip_end - addr_str - 1);
+        addr->port = g_strdup(ip_end + 2);
+    } else {
+        /* no host, hostname or IPv4 addr */
+        const char *port = strchr(addr_str, ':');
+        if (!port || strlen(port) < 2) {
+            error_setg(errp, "error parsing address '%s'", addr_str);
+            return -1;
+        }
+        addr->host = g_strndup(addr_str, port - addr_str);
+        addr->port = g_strdup(port + 1);
+    }
 
     /* parse options */
-    optstr = str + pos;
-    h = strstr(optstr, ",to=");
-    if (h) {
-        h += 4;
-        if (sscanf(h, "%d%n", &to, &pos) != 1 ||
-            (h[pos] != '\0' && h[pos] != ',')) {
-            error_setg(errp, "error parsing to= argument");
-            return -1;
-        }
+    if (qemu_opt_find(opts, "numeric")) {
+        addr->has_numeric = true,
+        addr->numeric = qemu_opt_get_bool(opts, "numeric", false);
+    }
+    if (qemu_opt_find(opts, "to")) {
         addr->has_to = true;
-        addr->to = to;
+        addr->to = qemu_opt_get_number(opts, "to", 0);
     }
-    begin = strstr(optstr, ",ipv4");
-    if (begin) {
-        if (inet_parse_flag("ipv4", begin + 5, &addr->ipv4, errp) < 0) {
-            return -1;
-        }
+    if (qemu_opt_find(opts, "ipv4")) {
         addr->has_ipv4 = true;
+        addr->ipv4 = qemu_opt_get_bool(opts, "ipv4", false);
     }
-    begin = strstr(optstr, ",ipv6");
-    if (begin) {
-        if (inet_parse_flag("ipv6", begin + 5, &addr->ipv6, errp) < 0) {
-            return -1;
-        }
+    if (qemu_opt_find(opts, "ipv6")) {
         addr->has_ipv6 = true;
+        addr->ipv6 = qemu_opt_get_bool(opts, "ipv6", false);
     }
-    begin = strstr(optstr, ",keep-alive");
-    if (begin) {
-        if (inet_parse_flag("keep-alive", begin + strlen(",keep-alive"),
-                            &addr->keep_alive, errp) < 0)
-        {
-            return -1;
-        }
+    if (qemu_opt_find(opts, "keep-alive")) {
         addr->has_keep_alive = true;
+        addr->keep_alive = qemu_opt_get_bool(opts, "keep-alive", false);
     }
+#ifdef HAVE_TCP_KEEPCNT
+    if (qemu_opt_find(opts, "keep-alive-count")) {
+        addr->has_keep_alive_count = true;
+        addr->keep_alive_count = qemu_opt_get_number(opts, "keep-alive-count", 0);
+    }
+#endif
+#ifdef HAVE_TCP_KEEPIDLE
+    if (qemu_opt_find(opts, "keep-alive-idle")) {
+        addr->has_keep_alive_idle = true;
+        addr->keep_alive_idle = qemu_opt_get_number(opts, "keep-alive-idle", 0);
+    }
+#endif
+#ifdef HAVE_TCP_KEEPINTVL
+    if (qemu_opt_find(opts, "keep-alive-interval")) {
+        addr->has_keep_alive_interval = true;
+        addr->keep_alive_interval = qemu_opt_get_number(opts, "keep-alive-interval", 0);
+    }
+#endif
 #ifdef HAVE_IPPROTO_MPTCP
-    begin = strstr(optstr, ",mptcp");
-    if (begin) {
-        if (inet_parse_flag("mptcp", begin + strlen(",mptcp"),
-                            &addr->mptcp, errp) < 0)
-        {
-            return -1;
-        }
+    if (qemu_opt_find(opts, "mptcp")) {
         addr->has_mptcp = true;
+        addr->mptcp = qemu_opt_get_bool(opts, "mptcp", 0);
     }
 #endif
     return 0;
