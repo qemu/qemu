@@ -325,8 +325,9 @@ static void aspeed_ram_capacity_write(void *opaque, hwaddr addr, uint64_t data,
      * If writes the data to the address which is beyond the ram size,
      * it would write the data to the "address % ram_size".
      */
-    result = address_space_write(&s->dram_as, addr % ram_size,
-                                 MEMTXATTRS_UNSPECIFIED, &data, 4);
+    address_space_stl_le(&s->dram_as, addr % ram_size, data,
+                         MEMTXATTRS_UNSPECIFIED, &result);
+
     if (result != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: DRAM write failed, addr:0x%" HWADDR_PRIx
@@ -339,9 +340,10 @@ static const MemoryRegionOps aspeed_ram_capacity_ops = {
     .read = aspeed_ram_capacity_read,
     .write = aspeed_ram_capacity_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl.min_access_size = 4,
     .valid = {
-        .min_access_size = 1,
-        .max_access_size = 8,
+        .min_access_size = 4,
+        .max_access_size = 4,
     },
 };
 
