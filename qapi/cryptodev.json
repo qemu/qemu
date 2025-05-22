@@ -94,7 +94,7 @@
 ##
 # @query-cryptodev:
 #
-# Returns information about current crypto devices.
+# Return information about current crypto devices.
 #
 # Returns: a list of @QCryptodevInfo
 #

@@ -126,7 +126,7 @@
 ##
 # @query-sev:
 #
-# Returns information about SEV/SEV-ES/SEV-SNP.
+# Return information about SEV/SEV-ES/SEV-SNP.
 #
 # If unavailable due to an incompatible configuration the returned
 # @enabled field is set to 'false' and the state of all other fields
@@ -343,7 +343,7 @@
 ##
 # @query-sgx:
 #
-# Returns information about configured SGX capabilities of guest
+# Return information about configured SGX capabilities of guest
 #
 # Returns: @SgxInfo
 #
@@ -362,7 +362,7 @@
 ##
 # @query-sgx-capabilities:
 #
-# Returns information about SGX capabilities of host
+# Return information about SGX capabilities of host
 #
 # Returns: @SgxInfo
 #

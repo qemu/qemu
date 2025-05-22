@@ -533,7 +533,7 @@
 ##
 # @query-audiodevs:
 #
-# Returns information about audiodev configuration
+# Return information about audiodev configuration
 #
 # Returns: array of @Audiodev
 #

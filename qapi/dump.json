@@ -195,7 +195,7 @@
 ##
 # @query-dump-guest-memory-capability:
 #
-# Returns the available formats for dump-guest-memory
+# Return the available formats for dump-guest-memory
 #
 # Returns: A @DumpGuestMemoryCapability object listing available
 #     formats for dump-guest-memory

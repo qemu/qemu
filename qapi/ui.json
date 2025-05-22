@@ -323,7 +323,7 @@
 ##
 # @query-spice:
 #
-# Returns information about the current SPICE server
+# Return information about the current SPICE server
 #
 # Returns: @SpiceInfo
 #
@@ -654,7 +654,7 @@
 ##
 # @query-vnc:
 #
-# Returns information about the current VNC server
+# Return information about the current VNC server
 #
 # Returns: @VncInfo
 #
@@ -685,7 +685,7 @@
 ##
 # @query-vnc-servers:
 #
-# Returns a list of vnc servers.  The list can be empty.
+# Return a list of vnc servers.  The list can be empty.
 #
 # Returns: a list of @VncInfo2
 #
@@ -820,7 +820,7 @@
 ##
 # @query-mice:
 #
-# Returns information about each active mouse device
+# Return information about each active mouse device
 #
 # Returns: a list of @MouseInfo for each device
 #
@@ -1562,7 +1562,7 @@
 ##
 # @query-display-options:
 #
-# Returns information about display configuration
+# Return information about display configuration
 #
 # Returns: @DisplayOptions
 #

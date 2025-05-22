@@ -83,7 +83,7 @@
 ##
 # @query-pr-managers:
 #
-# Returns a list of information about each persistent reservation
+# Return a list of information about each persistent reservation
 # manager.
 #
 # Returns: a list of @PRManagerInfo for each persistent reservation

@@ -99,7 +99,7 @@
 ##
 # @query-cpus-fast:
 #
-# Returns information about all virtual CPUs.
+# Return information about all virtual CPUs.
 #
 # Returns: list of @CpuInfoFast
 #
@@ -467,7 +467,7 @@
 ##
 # @query-kvm:
 #
-# Returns information about KVM acceleration
+# Return information about KVM acceleration
 #
 # Returns: @KvmInfo
 #
@@ -930,7 +930,7 @@
 ##
 # @query-memdev:
 #
-# Returns information for all memory backends.
+# Return information for all memory backends.
 #
 # Returns: a list of @Memdev.
 #
@@ -1235,7 +1235,7 @@
 ##
 # @query-hv-balloon-status-report:
 #
-# Returns the hv-balloon driver data contained in the last received
+# Return the hv-balloon driver data contained in the last received
 # "STATUS" message from the guest.
 #
 # Returns:

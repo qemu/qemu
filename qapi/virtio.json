@@ -24,7 +24,7 @@
 ##
 # @x-query-virtio:
 #
-# Returns a list of all realized VirtIODevices
+# Return a list of all realized VirtIODevices
 #
 # Features:
 #
