@@ -206,7 +206,7 @@ static const MemoryRegionOps cxl_switch_mem_ops = {
 static void pci_cxl_switch_realize(PCIDevice *pdev, Error **errp)
 {
     CXLSwitchState *s = CXL_SWITCH(pdev);
-    CXL_SWITCH_DPRINTF("Info: Realizing device.\n"); // Added device ID manually
+    CXL_SWITCH_DPRINTF("Info: Realizing device with mem-size %"PRIu64".\n", s->mem_size); // Added device ID manually
 
     if (s->mem_size == 0) {
         error_setg(errp, "CXL Switch (%s): mem-size property must be set", object_get_canonical_path_component(OBJECT(s)));
@@ -300,8 +300,7 @@ static void cxl_switch_class_init(ObjectClass *klass, const void *data)
 static void cxl_switch_instance_init(Object *obj)
 {
     CXLSwitchState *s = CXL_SWITCH(obj);
-    // TODO: Let user specify this
-    s->mem_size = 128 * MiB; // Default size
+    s->mem_size = 128 * MiB; // Default size, will be overridden by actual setting
     for (int i = 0; i < 3; i++) {
         s->backing_mem_id[i] = NULL;
     }

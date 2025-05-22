@@ -2,6 +2,10 @@
 
 sudo apt-get install cloud-image-utils qemu
 
+REPLICA_DIR="/home/jotham/qemu-cxl-shm"
+REPLICA_SIZE="256M"
+NUM_REPLICAS=3
+
 # This is already in qcow2 format.
 img=ubuntu-18.04-server-cloudimg-amd64.img
 if [ ! -f "$img" ]; then
@@ -27,6 +31,14 @@ EOF
   cloud-localds "$user_data" user-data
 fi
 
+# Create replica files
+for i in $(seq 0 $((NUM_REPLICAS - 1))); do
+  replica_file="${REPLICA_DIR}/replica${i}.img"
+  truncate -s "$REPLICA_SIZE" "$replica_file"
+  chmod 666 "$replica_file"
+done
+
+
 ./build/qemu-system-x86_64 \
     -m 2G \
     -smp 2 \
@@ -36,7 +48,7 @@ fi
     -enable-kvm \
     -vga std \
     -device virtio-net-pci,netdev=net0 -netdev user,id=net0 \
-    -object memory-backend-file,id=my-memdev0,size=128M,mem-path=/home/jotham/qemu-cxl-shm/replica0.img,share=on \
-    -object memory-backend-file,id=my-memdev1,size=128M,mem-path=/home/jotham/qemu-cxl-shm/replica1.img,share=on \
-    -object memory-backend-file,id=my-memdev2,size=128M,mem-path=/home/jotham/qemu-cxl-shm/replica2.img,share=on \
-    -device cxl-switch,id=cxlsw0,mem-size=128M,memdev0=my-memdev0,memdev1=my-memdev1,memdev2=my-memdev2
+    -object memory-backend-file,id=my-memdev0,size=${REPLICA_SIZE},mem-path=/home/jotham/qemu-cxl-shm/replica0.img,share=on \
+    -object memory-backend-file,id=my-memdev1,size=${REPLICA_SIZE},mem-path=/home/jotham/qemu-cxl-shm/replica1.img,share=on \
+    -object memory-backend-file,id=my-memdev2,size=${REPLICA_SIZE},mem-path=/home/jotham/qemu-cxl-shm/replica2.img,share=on \
+    -device cxl-switch,id=cxlsw0,mem-size=${REPLICA_SIZE},memdev0=my-memdev0,memdev1=my-memdev1,memdev2=my-memdev2
