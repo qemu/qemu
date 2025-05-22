@@ -80,10 +80,8 @@ def mips_check_wheezy(test, kernel_path, image_path, kernel_command_line,
     exec_command_and_wait_for_pattern(test, 'cat /proc/devices', 'usb')
     exec_command_and_wait_for_pattern(test, 'cat /proc/ioports',
                                       ' : piix4_smbus')
-    # lspci for the host bridge does not work on big endian targets:
-    # https://gitlab.com/qemu-project/qemu/-/issues/2826
-    # exec_command_and_wait_for_pattern(test, 'lspci -d 11ab:4620',
-    #                                   'GT-64120')
+    exec_command_and_wait_for_pattern(test, 'lspci -d 11ab:4620',
+                                      'GT-64120')
     exec_command_and_wait_for_pattern(test,
                                       'cat /sys/bus/i2c/devices/i2c-0/name',
                                       'SMBus PIIX4 adapter')
