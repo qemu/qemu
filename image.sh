@@ -38,6 +38,9 @@ for i in $(seq 0 $((NUM_REPLICAS - 1))); do
   chmod 666 "$replica_file"
 done
 
+# Sharing folder on the VM
+# https://dev.to/franzwong/mount-share-folder-in-qemu-with-same-permission-as-host-2980
+# sudo mount -t 9p -o trans=virtio,version=9p2000.L shared /mnt/shared
 
 ./build/qemu-system-x86_64 \
     -m 2G \
@@ -51,4 +54,5 @@ done
     -object memory-backend-file,id=my-memdev0,size=${REPLICA_SIZE},mem-path=/home/jotham/qemu-cxl-shm/replica0.img,share=on \
     -object memory-backend-file,id=my-memdev1,size=${REPLICA_SIZE},mem-path=/home/jotham/qemu-cxl-shm/replica1.img,share=on \
     -object memory-backend-file,id=my-memdev2,size=${REPLICA_SIZE},mem-path=/home/jotham/qemu-cxl-shm/replica2.img,share=on \
-    -device cxl-switch,id=cxlsw0,mem-size=${REPLICA_SIZE},memdev0=my-memdev0,memdev1=my-memdev1,memdev2=my-memdev2
+    -device cxl-switch,id=cxlsw0,mem-size=${REPLICA_SIZE},memdev0=my-memdev0,memdev1=my-memdev1,memdev2=my-memdev2 \
+    -virtfs local,path=qemu_share,mount_tag=shared,security_model=mapped-xattr
