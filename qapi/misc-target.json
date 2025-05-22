@@ -110,7 +110,11 @@
 ##
 # @query-sev:
 #
-# Returns information about SEV
+# Returns information about SEV/SEV-ES/SEV-SNP.
+#
+# If unavailable due to an incompatible configuration the returned
+# @enabled field is set to 'false' and the state of all other fields
+# is unspecified.
 #
 # Returns: @SevInfo
 #
@@ -141,9 +145,18 @@
 ##
 # @query-sev-launch-measure:
 #
-# Query the SEV guest launch information.
+# Query the SEV/SEV-ES guest launch information.
+#
+# This is only valid on x86 machines configured with KVM and the
+# 'sev-guest' confidential virtualization object.  The launch
+# measurement for SEV-SNP guests is only available within the guest.
 #
 # Returns: The @SevLaunchMeasureInfo for the guest
+#
+# Errors:
+#     - If the launch measurement is unavailable, either due to an
+#       invalid guest configuration or if the guest has not reached
+#       the required SEV state, GenericError
 #
 # Since: 2.12
 #
@@ -185,10 +198,14 @@
 ##
 # @query-sev-capabilities:
 #
-# This command is used to get the SEV capabilities, and is supported
-# on AMD X86 platforms only.
+# Get SEV capabilities.
+#
+# This is only supported on AMD X86 platforms with KVM enabled.
 #
 # Returns: SevCapability objects.
+#
+# Errors:
+#     - If SEV is not available on the platform, GenericError
 #
 # Since: 2.12
 #
@@ -205,13 +222,23 @@
 ##
 # @sev-inject-launch-secret:
 #
-# This command injects a secret blob into memory of SEV guest.
+# This command injects a secret blob into memory of a SEV/SEV-ES
+# guest.
+#
+# This is only valid on x86 machines configured with KVM and the
+# 'sev-guest' confidential virtualization object.  SEV-SNP guests do
+# not support launch secret injection.
 #
 # @packet-header: the launch secret packet header encoded in base64
 #
 # @secret: the launch secret data to be injected encoded in base64
 #
 # @gpa: the guest physical address where secret will be injected.
+#
+# Errors:
+#     - If launch secret injection is not possible, either due to
+#       an invalid guest configuration, or if the guest has not
+#       reached the required SEV state, GenericError
 #
 # Since: 6.0
 ##
@@ -236,13 +263,22 @@
 ##
 # @query-sev-attestation-report:
 #
-# This command is used to get the SEV attestation report, and is
-# supported on AMD X86 platforms only.
+# This command is used to get the SEV attestation report.
+#
+# This is only valid on x86 machines configured with KVM and the
+# 'sev-guest' confidential virtualization object.  The attestation
+# report for SEV-SNP guests is only available within the guest.
 #
 # @mnonce: a random 16 bytes value encoded in base64 (it will be
 #     included in report)
 #
 # Returns: SevAttestationReport objects.
+#
+# Errors:
+#     - This will return an error if the attestation report is
+#       unavailable, either due to an invalid guest configuration
+#       or if the guest has not reached the required SEV state,
+#       GenericError
 #
 # Since: 6.1
 #
