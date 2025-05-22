@@ -25,6 +25,11 @@ config PCI_TESTDEV
     default y if TEST_DEVICES
     depends on PCI
 
+config CXL_SWITCH
+    bool
+    default y if PCI_DEVICES
+    depends on PCI && LINUX && IVSHMEM && MSI_NONBROKEN
+
 config EDU
     bool
     default y if TEST_DEVICES
