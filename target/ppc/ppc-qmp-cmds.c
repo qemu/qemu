@@ -28,7 +28,8 @@
 #include "qemu/ctype.h"
 #include "monitor/hmp-target.h"
 #include "monitor/hmp.h"
-#include "qapi/qapi-commands-machine-target.h"
+#include "qapi/error.h"
+#include "qapi/qapi-commands-machine.h"
 #include "cpu-models.h"
 #include "cpu-qom.h"
 
@@ -173,6 +174,15 @@ int target_get_monitor_def(CPUState *cs, const char *name, uint64_t *pval)
 #endif
 
     return -EINVAL;
+}
+
+CpuModelExpansionInfo *
+qmp_query_cpu_model_expansion(CpuModelExpansionType type,
+                              CpuModelInfo *model,
+                              Error **errp)
+{
+    error_setg(errp, "CPU model expansion is not supported on this target");
+    return NULL;
 }
 
 static void ppc_cpu_defs_entry(gpointer data, gpointer user_data)

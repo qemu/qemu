@@ -82,6 +82,8 @@ if have_system
   stub_ss.add(files('monitor-i386-sev.c'))
   stub_ss.add(files('monitor-i386-sgx.c'))
   stub_ss.add(files('monitor-i386-xen.c'))
+  stub_ss.add(files('monitor-cpu.c'))
+  stub_ss.add(files('monitor-cpu-s390x.c'))
 endif
 
 if have_system or have_user

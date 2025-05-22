@@ -38,7 +38,7 @@
 #include "exec/watchpoint.h"
 #ifndef CONFIG_USER_ONLY
 #include "system/reset.h"
-#include "qapi/qapi-commands-machine-target.h"
+#include "qapi/qapi-commands-machine.h"
 #include "system/address-spaces.h"
 #include "hw/boards.h"
 #include "hw/i386/sgx-epc.h"

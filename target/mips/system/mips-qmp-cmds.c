@@ -7,8 +7,18 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/qapi-commands-machine-target.h"
+#include "qapi/error.h"
+#include "qapi/qapi-commands-machine.h"
 #include "cpu.h"
+
+CpuModelExpansionInfo *
+qmp_query_cpu_model_expansion(CpuModelExpansionType type,
+                              CpuModelInfo *model,
+                              Error **errp)
+{
+    error_setg(errp, "CPU model expansion is not supported on this target");
+    return NULL;
+}
 
 static void mips_cpu_add_definition(gpointer data, gpointer user_data)
 {
