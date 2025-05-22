@@ -1,6 +1,7 @@
 # -*- Mode: Python -*-
 # vim: filetype=python
 #
+# SPDX-License-Identifier: GPL-2.0-or-later
 # This work is licensed under the terms of the GNU GPL, version 2 or later.
 # See the COPYING file in the top-level directory.
 
@@ -15,8 +16,7 @@
 # Since: 8.2
 ##
 { 'enum': 'S390CpuPolarization',
-  'data': [ 'horizontal', 'vertical' ],
-  'if': 'TARGET_S390X'
+  'data': [ 'horizontal', 'vertical' ]
 }
 
 ##
@@ -54,8 +54,7 @@
       '*entitlement': 'S390CpuEntitlement',
       '*dedicated': 'bool'
   },
-  'features': [ 'unstable' ],
-  'if': { 'all': [ 'TARGET_S390X' , 'CONFIG_KVM' ] }
+  'features': [ 'unstable' ]
 }
 
 ##
@@ -90,8 +89,7 @@
 ##
 { 'event': 'CPU_POLARIZATION_CHANGE',
   'data': { 'polarization': 'S390CpuPolarization' },
-  'features': [ 'unstable' ],
-  'if': { 'all': [ 'TARGET_S390X', 'CONFIG_KVM' ] }
+  'features': [ 'unstable' ]
 }
 
 ##
@@ -104,8 +102,7 @@
 # Since: 8.2
 ##
 { 'struct': 'CpuPolarizationInfo',
-  'data': { 'polarization': 'S390CpuPolarization' },
-  'if': { 'all': [ 'TARGET_S390X', 'CONFIG_KVM' ] }
+  'data': { 'polarization': 'S390CpuPolarization' }
 }
 
 ##
@@ -120,6 +117,5 @@
 # Since: 8.2
 ##
 { 'command': 'query-s390x-cpu-polarization', 'returns': 'CpuPolarizationInfo',
-  'features': [ 'unstable' ],
-  'if': { 'all': [ 'TARGET_S390X', 'CONFIG_KVM' ] }
+  'features': [ 'unstable' ]
 }
