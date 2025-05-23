@@ -445,13 +445,15 @@ int main(int argc, char *argv[]) {
   fd_set active_fd_set, read_fd_set;
   FD_ZERO(&active_fd_set);
   FD_SET(listen_fd, &active_fd_set);
-  int max_fd = listen_fd;
+  int max_fd = listen_fd + 1;
 
   while (true) {
     read_fd_set = active_fd_set;
     CXL_SWITCH_SERVER_DEBUG_PRINT("Calling select(), max_fd = %d\n", max_fd);
 
-    int activity = select(max_fd - 1, &read_fd_set, NULL, NULL, NULL);
+    int activity = select(max_fd, &read_fd_set, NULL, NULL, NULL);
+    CXL_SWITCH_SERVER_DEBUG_PRINT(
+        "select() returned, activity = %d, errno = %d\n", activity, errno);
     if ((activity < 0) && (errno != EINTR)) {
       perror("Server: select error");
       break;
@@ -465,8 +467,8 @@ int main(int argc, char *argv[]) {
         CXL_SWITCH_SERVER_DEBUG_PRINT(
             "Server: accepted new connection, fd = %d\n", client_fd);
         FD_SET(client_fd, &active_fd_set);
-        if (client_fd > max_fd) {
-          max_fd = client_fd;
+        if (client_fd >= max_fd) {
+          max_fd = client_fd + 1;
         }
       }
     }
