@@ -1,5 +1,6 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/thread.h"
 #include "qemu/typedefs.h"
 #include "qemu/units.h"
 #include "hw/pci/pci.h"
@@ -15,7 +16,14 @@
 #include "standard-headers/linux/pci_regs.h"
 #include "system/memory.h"
 #include "system/hostmem.h"
+#include <stddef.h>
+#include <string.h>
 #include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+
+#include "hw/misc/cxl_switch_ipc.h"
 
 #define CXL_SWITCH_DEBUG 1
 #define CXL_SWITCH_DPRINTF(fmt, ...)                       \
@@ -26,115 +34,116 @@
     } while (0)
 
 
-#define TYPE_PCI_CXL_SWITCH "cxl-switch"
+#define TYPE_PCI_CXL_SWITCH_CLIENT "cxl-switch-client"
 
-typedef struct CXLSwitchState CXLSwitchState;
-DECLARE_INSTANCE_CHECKER(CXLSwitchState, CXL_SWITCH, TYPE_PCI_CXL_SWITCH)
+typedef struct CXLSwitchClientState CXLSwitchClientState;
+DECLARE_INSTANCE_CHECKER(CXLSwitchClientState, CXL_SWITCH_CLIENT, TYPE_PCI_CXL_SWITCH_CLIENT)
 
 #define PCI_VENDOR_ID_QEMU_CXL_SWITCH 0x1AF4
 #define PCI_CXL_DEVICE_ID 0x1337
 
-typedef enum {
-    BACKEND_STATUS_HEALTHY = 0,
-    BACKEND_STATUS_FAILED = 1,
-} BackendHealthStatus;
-
-/**
-    TODO: We will need a way to keep track of active memory regions
-          for allocation/deallocation.
-          At the moment, we are just using a static array of 3 and concerned
-          with getting the replication right.
-*/
-
-struct CXLSwitchState {
+struct CXLSwitchClientState {
     PCIDevice pdev;
 
-    /* The total replicated memory */
-    uint64_t mem_size;
-    MemoryRegion replicated_mr;  // BAR2: Guest access
+    MemoryRegion replicated_mr_bar;  // BAR2: Guest access
 
-    /* 
-        The "emulated" CXL memory devices
-        TODO: Support more than 3 memory devices in the future. 
-    */
-    HostMemoryBackend *backing_hmb[3];
-    MemoryRegion *backing_mr[3];
-    char *backing_mem_id[3]; // Initialized with 3 memdevs, identifies them
-    BackendHealthStatus health_status[3];
+    char *server_socket_path;  // QOM property
+    int server_fd;
+    uint64_t mem_size; // Size of the replicated memory region
 
-    QemuMutex lock; // Protects backing_health which can be concurrently modified
+    QemuMutex lock; // Serialize access to server_fd from MMIO callbacks
 };
 
-static void pci_cxl_switch_register_types(void);
-static void cxl_switch_instance_init(Object *obj);
-static void cxl_switch_class_init(ObjectClass *class, const void *data);
-static void pci_cxl_switch_realize(PCIDevice *pdev, Error **errp);
-static void pci_cxl_switch_uninit(PCIDevice *pdev);
+static void pci_cxl_switch_client_register_types(void);
+static void cxl_switch_client_instance_init(Object *obj);
+static void cxl_switch_client_class_init(ObjectClass *class, const void *data);
+static void pci_cxl_switch_client_realize(PCIDevice *pdev, Error **errp);
+static void pci_cxl_switch_client_uninit(PCIDevice *pdev);
+
+// Helper function to send a request and receive a response from the server
+// A simple blocking implementation
+static int cxl_switch_client_ipc_request_response(CXLSwitchClientState *s,
+                                                  const void *req_buf, size_t req_size,
+                                                  void *resp_buf, size_t resp_size)
+{
+    qemu_mutex_lock(&s->lock);
+
+    if (s->server_fd < 0) {
+        CXL_SWITCH_DPRINTF("Error: Server socket not initialized.\n");
+        qemu_mutex_unlock(&s->lock);
+        return -1;
+    }
+
+    ssize_t bytes_sent = send(s->server_fd, req_buf, req_size, 0);
+    if ((size_t) bytes_sent != req_size) {
+        CXL_SWITCH_DPRINTF("Error: Failed to send request to server. Sent %zd bytes, expected %zu.\n", bytes_sent, req_size);
+        qemu_mutex_unlock(&s->lock);
+        return -1;
+    }
+
+    ssize_t bytes_received = recv(s->server_fd, resp_buf, resp_size, 0);
+    if ((size_t) bytes_received != resp_size) {
+        CXL_SWITCH_DPRINTF("Error: Failed to receive response from server. Received %zd bytes, expected %zu.\n", bytes_received, resp_size);
+        qemu_mutex_unlock(&s->lock);
+        return -1;
+    }
+
+    qemu_mutex_unlock(&s->lock);
+    return 0;
+}
 
 /* BAR2 Replicated Memory Operations */
 
-static uint64_t cxl_switch_mem_read(void *opaque, hwaddr addr, unsigned size)
+static uint64_t cxl_switch_client_mem_read(void *opaque, hwaddr addr, unsigned size)
 {
-    CXLSwitchState *s = opaque;
+    CXLSwitchClientState *s = opaque;
     uint64_t data = ~0ULL; // Default error value (all FFs)
     
-    int replica_to_read = -1;
+    if (s->server_fd < 0) {
+        CXL_SWITCH_DPRINTF("Error: Server socket not initialized.\n");
+        return data;
+    }
+
     if ((addr + size) > s->mem_size) {
         CXL_SWITCH_DPRINTF("GuestError: Read out of bounds (offset=0x%"PRIx64", size=%u, limit=0x%"PRIx64")\n",
                       addr, size, s->mem_size);
         return data;
     }
 
-    /* We lock here as multiple VMs could perform read ops concurrently */
-    qemu_mutex_lock(&s->lock);
+    cxl_ipc_read_req_t read_req = {
+        .type = CXL_MSG_TYPE_READ_REQ,
+        .addr = addr,
+        .size = size,
+    };
+    cxl_ipc_read_resp_t read_resp;
 
-    /* Find a healthy backend */
-    for (int i = 0; i < 3; i++) {
-        if (s->health_status[i] == BACKEND_STATUS_HEALTHY) {
-            replica_to_read = i;
-            break;
-        }
-    }
-
-    if (replica_to_read == -1) {
-        CXL_SWITCH_DPRINTF("GuestError: No healthy backend found for read (offset=0x%"PRIx64", size=%u)\n",
-                      addr, size);
-        qemu_mutex_unlock(&s->lock);
+    CXL_SWITCH_DPRINTF("Info: Sending read request to server (offset=0x%"PRIx64", size=%u)\n",
+                  addr, size);
+    
+    if (cxl_switch_client_ipc_request_response(s, &read_req, sizeof(read_req), &read_resp, sizeof(read_resp)) != 0) {
+        CXL_SWITCH_DPRINTF("Error: IPC request failed.\n");
         return data;
     }
 
-    if (s->backing_mr[replica_to_read]) {
-        uint8_t *ram_ptr = memory_region_get_ram_ptr(s->backing_mr[replica_to_read]);
-        if (ram_ptr) {
-            switch (size) {
-                case 1: data = ldub_p(ram_ptr + addr); break;
-                case 2: data = lduw_le_p(ram_ptr + addr); break;
-                case 4: data = ldl_le_p(ram_ptr + addr); break;
-                case 8: data = ldq_le_p(ram_ptr + addr); break;
-                default:
-                    CXL_SWITCH_DPRINTF("GuestError: Unsupported read size %u from replica %d at offset 0x%"PRIx64"\n",
-                                  size, replica_to_read, addr);
-                    data = ~0ULL;
-                    break;
-            }
-        } else {
-            /* TODO: This should not happen, but if it does, we should try again */
-            CXL_SWITCH_DPRINTF("GuestError: Replica %d backing RAM not available for read at offset 0x%"PRIx64". Marking FAILED.\n",
-                          replica_to_read, addr);
-            s->health_status[replica_to_read] = BACKEND_STATUS_FAILED;
-            data = ~0ULL;
-        }
+    if (read_resp.type != CXL_MSG_TYPE_READ_RESP || read_resp.status != CXL_IPC_STATUS_OK) {
+        CXL_SWITCH_DPRINTF("READ server error: Type=0x%02x, Status=0x%02x, Addr=0x%"PRIx64", Size=%u\n",
+                           read_resp.type, read_resp.status, addr, size);
+        return data;
     }
 
-    qemu_mutex_unlock(&s->lock);
-    return data;
+    CXL_SWITCH_DPRINTF("Info: Read response from server: Type=0x%02x, Status=0x%02x, Addr=0x%"PRIx64", Size=%u, Value=0x%"PRIx64"\n",
+                  read_resp.type, read_resp.status, addr, size, read_resp.value);
+    return read_resp.value;
 }
 
-static void cxl_switch_mem_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
+static void cxl_switch_client_mem_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
-    CXLSwitchState *s = opaque;
-    int successful_writes = 0;
-    int num_healthy_backends_attempted = 0;
+    CXLSwitchClientState *s = opaque;
+
+    if (s->server_fd < 0) {
+        CXL_SWITCH_DPRINTF("Error: Server socket not initialized.\n");
+        return;
+    }
 
     if ((addr + size) > s->mem_size) {
         CXL_SWITCH_DPRINTF("GuestError: Write out of bounds (offset=0x%"PRIx64", size=%u, limit=0x%"PRIx64")\n",
@@ -142,58 +151,35 @@ static void cxl_switch_mem_write(void *opaque, hwaddr addr, uint64_t val, unsign
         return;
     }
 
-    qemu_mutex_lock(&s->lock);
+    cxl_ipc_write_req_t write_req = {
+        .type  = CXL_MSG_TYPE_WRITE_REQ,
+        .addr  = addr,
+        .size  = (uint8_t) size,
+        .value = val
+    };
+    cxl_ipc_write_resp_t write_resp;
 
-    for (int i = 0; i < 3; i++) {
-        if (s->health_status[i] != BACKEND_STATUS_HEALTHY) {
-            continue;
-        }
-        num_healthy_backends_attempted++;
-
-        if (s->backing_mr[i]) {
-            uint8_t *ram_ptr = memory_region_get_ram_ptr(s->backing_mr[i]);
-            if (ram_ptr) {
-                bool write_ok = true;
-                switch (size) {
-                    case 1: stl_p(ram_ptr + addr, (uint8_t) val); break;
-                    case 2: stw_le_p(ram_ptr + addr, (uint16_t) val); break;
-                    case 4: stl_le_p(ram_ptr + addr, (uint32_t) val); break;
-                    case 8: stq_le_p(ram_ptr + addr, val); break;
-                    default:
-                        CXL_SWITCH_DPRINTF("GuestError: Unsupported write size %u to replica %d at offset 0x%"PRIx64"\n",
-                                      size, i, addr);
-                        write_ok = false;
-                        break;
-                }
-                if (write_ok) {
-                    successful_writes++;
-                }
-            } else {
-                CXL_SWITCH_DPRINTF("GuestError: Replica %d backing RAM not available for write at offset 0x%"PRIx64". Marking FAILED.\n",
-                              i, addr);
-                s->health_status[i] = BACKEND_STATUS_FAILED;
-            }
-        } else {
-            CXL_SWITCH_DPRINTF("GuestError: Replica %d backing memory region not available for write at offset 0x%"PRIx64"\n",
-                          i, addr);
-            s->health_status[i] = BACKEND_STATUS_FAILED;
-        }
+    CXL_SWITCH_DPRINTF("Info: Sending write request to server (offset=0x%"PRIx64", size=%u, value=0x%"PRIx64")\n",
+                  addr, size, val);
+    
+    if (cxl_switch_client_ipc_request_response(s, &write_req, sizeof(write_req), &write_resp, sizeof(write_resp)) != 0) {
+        CXL_SWITCH_DPRINTF("Error: IPC request failed.\n");
+        return;
     }
 
-    qemu_mutex_unlock(&s->lock);
-
-    if (num_healthy_backends_attempted > 0 && successful_writes < num_healthy_backends_attempted) {
-        CXL_SWITCH_DPRINTF("GuestError: Write to offset 0x%"PRIx64" succeeded on %d/%d healthy backends.\n",
-                      addr, successful_writes, num_healthy_backends_attempted);
-    } else if (num_healthy_backends_attempted == 0 && s->mem_size > 0) {
-         CXL_SWITCH_DPRINTF("GuestError: Write to offset 0x%"PRIx64" failed: No healthy backends available.\n",
-                      addr);
+    if (write_resp.type != CXL_MSG_TYPE_WRITE_RESP || write_resp.status != CXL_IPC_STATUS_OK) {
+        CXL_SWITCH_DPRINTF("WRITE server error: Type=0x%02x, Status=0x%02x, Addr=0x%"PRIx64", Size=%u\n",
+                           write_resp.type, write_resp.status, addr, size);
+        return;
     }
+
+    CXL_SWITCH_DPRINTF("Info: Write response from server: Type=0x%02x, Status=0x%02x, Addr=0x%"PRIx64", Size=%u\n",
+                  write_resp.type, write_resp.status, addr, size);
 }
 
 static const MemoryRegionOps cxl_switch_mem_ops = {
-    .read = cxl_switch_mem_read,
-    .write = cxl_switch_mem_write,
+    .read = cxl_switch_client_mem_read,
+    .write = cxl_switch_client_mem_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -203,107 +189,114 @@ static const MemoryRegionOps cxl_switch_mem_ops = {
 
 /* PCI Device Lifecycle */
 
-static void pci_cxl_switch_realize(PCIDevice *pdev, Error **errp)
+static void pci_cxl_switch_client_realize(PCIDevice *pdev, Error **errp)
 {
-    CXLSwitchState *s = CXL_SWITCH(pdev);
+    CXLSwitchClientState *s = CXL_SWITCH_CLIENT(pdev);
     CXL_SWITCH_DPRINTF("Info: Realizing device with mem-size %"PRIu64".\n", s->mem_size); // Added device ID manually
+    struct sockaddr_un addr;
 
-    if (s->mem_size == 0) {
-        error_setg(errp, "CXL Switch (%s): mem-size property must be set", object_get_canonical_path_component(OBJECT(s)));
+    s->server_fd = -1;
+    s->mem_size = 0;
+    qemu_mutex_init(&s->lock);
+
+    if (!s->server_socket_path) {
+        s->server_socket_path = g_strdup(CXL_SWITCH_SERVER_SOCKET_PATH_DEFAULT);
+        CXL_SWITCH_DPRINTF("Info: Using default server socket path: %s\n", s->server_socket_path);
+    }
+
+    s->server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (s->server_fd < 0) {
+        error_setg(errp, "CXL Switch (%s): Failed to create socket: %s", object_get_canonical_path_component(OBJECT(s)), strerror(errno));
         return;
     }
 
-    qemu_mutex_init(&s->lock);
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, s->server_socket_path, sizeof(addr.sun_path) - 1);
 
-    /* Init all backing stores to healthy */
-    for (int i = 0; i < 3; i++) {
-        s->health_status[i] = BACKEND_STATUS_HEALTHY;
-        if (!s->backing_mem_id[i] || strlen(s->backing_mem_id[i]) == 0) {
-            error_setg(errp, "CXL Switch (%s): memdev%d property must be set for backend %d", object_get_canonical_path_component(OBJECT(s)), i, i);
-            return;
-        }
-        bool ambiguous;
-        Object *obj = object_resolve_path(s->backing_mem_id[i], &ambiguous);
-        // TODO: handle ambiguous case
-        if (!obj) {
-            error_setg(errp, "CXL Switch (%s): Unable to find HostMemoryBackend '%s' for backend %d", object_get_canonical_path_component(OBJECT(s)), s->backing_mem_id[i], i);
-            return;
-        }
-        s->backing_hmb[i] = MEMORY_BACKEND(obj);
-        if (!s->backing_hmb[i]) {
-            error_setg(errp, "CXL Switch (%s): Object '%s' is not a HostMemoryBackend for backend %d", object_get_canonical_path_component(OBJECT(s)), s->backing_mem_id[i], i);
-            return;
-        }
-        if (host_memory_backend_is_mapped(s->backing_hmb[i])) {
-            error_setg(errp, "CXL Switch (%s): HostMemoryBackend '%s' for backend %d is already in use.", object_get_canonical_path_component(OBJECT(s)), s->backing_mem_id[i], i);
-            return;
-        }
-        s->backing_mr[i] = host_memory_backend_get_memory(s->backing_hmb[i]);
-        if (!s->backing_mr[i] || memory_region_size(s->backing_mr[i]) < s->mem_size) {
-            error_setg(errp, "CXL Switch (%s): Backend %d ('%s') memory region is too small or invalid (size: %"PRIu64", required: %"PRIu64")", 
-                object_get_canonical_path_component(OBJECT(s)), i, s->backing_mem_id[i], s->backing_mr[i] ? memory_region_size(s->backing_mr[i]) : 0, s->mem_size);
-            return;
-        }
-        host_memory_backend_set_mapped(s->backing_hmb[i], true);
-        CXL_SWITCH_DPRINTF("Info: Backend %d ('%s') initialized, size %"PRIu64".\n",
-                    i, s->backing_mem_id[i], memory_region_size(s->backing_mr[i]));
+    CXL_SWITCH_DPRINTF("Info: Connecting to server socket: %s\n", addr.sun_path);
+    if (connect(s->server_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        error_setg(errp, "CXL Switch (%s): Failed to connect to server socket: %s", object_get_canonical_path_component(OBJECT(s)), strerror(errno));
+        close(s->server_fd);
+        s->server_fd = -1;
+        return;
+    }
+    CXL_SWITCH_DPRINTF("Info: Connected to server socket %d successfully.\n", s->server_fd);
+
+    // Send a request to get the memory size
+    cxl_ipc_get_mem_size_req_t mem_size_req = {
+        .type = CXL_MSG_TYPE_GET_MEM_SIZE_REQ,
+    };
+    cxl_ipc_get_mem_size_resp_t mem_size_resp;
+
+    if (cxl_switch_client_ipc_request_response(s, &mem_size_req, sizeof(mem_size_req), &mem_size_resp, sizeof(mem_size_resp)) != 0) {
+        CXL_SWITCH_DPRINTF("Error: IPC request failed.\n");
+        close(s->server_fd);
+        s->server_fd = -1;
+        return;
     }
 
-    // BAR2: replicated memory pool
-    memory_region_init_io(&s->replicated_mr, OBJECT(s), &cxl_switch_mem_ops, s, "cxl-switch-replicated-mem", s->mem_size);
-    pci_register_bar(pdev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_64 | PCI_BASE_ADDRESS_MEM_PREFETCH, &s->replicated_mr);
-    CXL_SWITCH_DPRINTF("Info: BAR0 (effectively BAR2) registered for replication, size %"PRIu64".\n", s->mem_size);
+    if (mem_size_resp.type != CXL_MSG_TYPE_GET_MEM_SIZE_RESP || mem_size_resp.status != CXL_IPC_STATUS_OK) {
+        CXL_SWITCH_DPRINTF("GET_MEM_SIZE server error: Type=0x%02x, Status=0x%02x\n",
+                           mem_size_resp.type, mem_size_resp.status);
+        close(s->server_fd);
+        s->server_fd = -1;
+        return;
+    }
 
-    // TODO: No BAR0 for MMIO commands here
-    // TODO: No chardev here as well
+    s->mem_size = mem_size_resp.mem_size;
+    CXL_SWITCH_DPRINTF("Info: Memory size from server: %"PRIu64" bytes\n", s->mem_size);
+
+    // Initialize the replicated memory region
+    memory_region_init_io(&s->replicated_mr_bar, OBJECT(s), &cxl_switch_mem_ops, s, "cxl-switch-replicated-mem", s->mem_size);
+    pci_register_bar(pdev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_64 | PCI_BASE_ADDRESS_MEM_PREFETCH, &s->replicated_mr_bar);
+
+    CXL_SWITCH_DPRINTF("Info: BAR0 (effectively BAR2) registered for replication, size %"PRIu64".\n", s->mem_size);
 }
 
-static void pci_cxl_switch_uninit(PCIDevice *pdev)
+static void pci_cxl_switch_client_uninit(PCIDevice *pdev)
 {
-    CXLSwitchState *s = CXL_SWITCH(pdev);
-    CXL_SWITCH_DPRINTF("Info: Uninitializing device.\n");
+    CXLSwitchClientState *s = CXL_SWITCH_CLIENT(pdev);
+    CXL_SWITCH_DPRINTF("Info: Uninitializing device %s.\n", object_get_canonical_path_component(OBJECT(s)));
 
-    for (int i = 0; i < 3; i++) {
-        if (s->backing_hmb[i] && host_memory_backend_is_mapped(s->backing_hmb[i])) {
-            host_memory_backend_set_mapped(s->backing_hmb[i], false);
-        }
+    if (s->server_fd >= 0) {
+        CXL_SWITCH_DPRINTF("Info: Closing server socket %d.\n", s->server_fd);
+        close(s->server_fd);
+        s->server_fd = -1;
     }
 
     qemu_mutex_destroy(&s->lock);
+    g_free(s->server_socket_path);
 }
 
 /** QOM Type Registration */
-static Property cxl_switch_properties[] = {
-    DEFINE_PROP_SIZE("mem-size", CXLSwitchState, mem_size, 0),
-    DEFINE_PROP_STRING("memdev0", CXLSwitchState, backing_mem_id[0]),
-    DEFINE_PROP_STRING("memdev1", CXLSwitchState, backing_mem_id[1]),
-    DEFINE_PROP_STRING("memdev2", CXLSwitchState, backing_mem_id[2]),
+static Property cxl_switch_client_properties[] = {
+    DEFINE_PROP_STRING("socket-path", CXLSwitchClientState, server_socket_path),
 };
 
-static void cxl_switch_class_init(ObjectClass *klass, const void *data)
+static void cxl_switch_client_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->realize = pci_cxl_switch_realize;
-    k->exit = pci_cxl_switch_uninit;
+    k->realize = pci_cxl_switch_client_realize;
+    k->exit = pci_cxl_switch_client_uninit;
     k->vendor_id = PCI_VENDOR_ID_QEMU_CXL_SWITCH;
     k->device_id = PCI_CXL_DEVICE_ID;
     k->class_id = PCI_CLASS_MEMORY_RAM;
-    k->revision = 1;
+    k->revision = 2;
 
-    device_class_set_props(dc, cxl_switch_properties);
+    device_class_set_props(dc, cxl_switch_client_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    dc->desc = "CXL Switch";
+    dc->desc = "CXL Switch Client (connects to external CXL Switch Server)";
 }
 
-static void cxl_switch_instance_init(Object *obj)
+static void cxl_switch_client_instance_init(Object *obj)
 {
-    CXLSwitchState *s = CXL_SWITCH(obj);
-    s->mem_size = 128 * MiB; // Default size, will be overridden by actual setting
-    for (int i = 0; i < 3; i++) {
-        s->backing_mem_id[i] = NULL;
-    }
+    CXLSwitchClientState *s = CXL_SWITCH_CLIENT(obj);
+    s->server_socket_path = NULL; // Will be set by QOM property or be defaulted
+    s->server_fd = -1;
+    s->mem_size = 0;
 }
 
 static InterfaceInfo interfaces[] = {
@@ -311,18 +304,18 @@ static InterfaceInfo interfaces[] = {
     { },
 };
 
-static const TypeInfo cxl_switch_info = {
-    .name = TYPE_PCI_CXL_SWITCH,
+static const TypeInfo cxl_switch_client_info = {
+    .name = TYPE_PCI_CXL_SWITCH_CLIENT,
     .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(CXLSwitchState),
-    .instance_init = cxl_switch_instance_init,
-    .class_init = cxl_switch_class_init,
+    .instance_size = sizeof(CXLSwitchClientState),
+    .instance_init = cxl_switch_client_instance_init,
+    .class_init = cxl_switch_client_class_init,
     .interfaces = interfaces,
 };
 
-static void pci_cxl_switch_register_types(void)
+static void pci_cxl_switch_client_register_types(void)
 {
-    type_register_static(&cxl_switch_info);
+    type_register_static(&cxl_switch_client_info);
 }
 
-type_init(pci_cxl_switch_register_types);
+type_init(pci_cxl_switch_client_register_types);

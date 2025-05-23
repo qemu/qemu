@@ -20,3 +20,11 @@ GTAGS
 *.swp
 *.patch
 *.gcov
+
+// From jotham
+*.img
+*.log
+*.cmd
+*.mk
+*.o
+*.mod
