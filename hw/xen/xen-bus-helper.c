@@ -151,7 +151,7 @@ char *xs_node_read(struct qemu_xs_handle *h, xs_transaction_t tid,
     va_end(ap);
 
     value = qemu_xen_xs_read(h, tid, path, len);
-    trace_xs_node_read(path, value);
+    trace_xs_node_read(path, value ? value : "<null>");
     if (!value) {
         error_setg_errno(errp, errno, "failed to read from '%s'", path);
     }
