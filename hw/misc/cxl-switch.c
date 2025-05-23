@@ -29,7 +29,7 @@
 #define CXL_SWITCH_DPRINTF(fmt, ...)                       \
     do {                                                   \
         if (CXL_SWITCH_DEBUG) {                            \
-            printf("CXL Switch: " fmt, ## __VA_ARGS__);    \
+            printf("CXL Switch Client: " fmt, ## __VA_ARGS__);    \
         }                                                  \
     } while (0)
 
