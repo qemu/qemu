@@ -4,7 +4,7 @@
 if ! command -v qemu-img &> /dev/null || ! command -v cloud-localds &> /dev/null; then
     echo "qemu-img or cloud-localds not found. Attempting to install cloud-image-utils and qemu..."
     sudo apt-get update
-    sudo apt-get install -y cloud-image-utils qemu # Added -y for non-interactive install
+    sudo apt-get install -y cloud-image-utils qemu
 fi
 
 REPLICA_DIR="/home/jotham/qemu-cxl-shm"
@@ -13,7 +13,7 @@ NUM_REPLICAS=3
 
 # --- Image 1 Setup ---
 img_base_name="ubuntu-22.04-server-cloudimg-amd64.img" # Base image for both
-img1="ubuntu-22.04-image0.img" # Renamed for clarity, was 'img'
+img1="ubuntu-22.04-image0.img"
 user_data1="user-data0.img"
 
 if [ ! -f "$img1" ]; then
@@ -86,3 +86,7 @@ done
 
 echo "Script complete. You now have images: $img1, $user_data1, $img2, $user_data2"
 echo "And replica files in $REPLICA_DIR"
+
+# Link: https://dev.to/franzwong/mount-share-folder-in-qemu-with-same-permission-as-host-2980
+# Mounting the shared folder in the guest, mkdir dir first in VM
+# sudo mount -t 9p -o trans=virtio,version=9p2000.L shared /mnt/shared
