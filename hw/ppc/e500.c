@@ -79,8 +79,6 @@
 #define MPC85XX_ESDHC_IRQ          72
 #define RTC_REGS_OFFSET            0x68
 
-#define PLATFORM_CLK_FREQ_HZ       (400 * 1000 * 1000)
-
 struct boot_info
 {
     uint32_t dt_base;
@@ -120,7 +118,7 @@ static uint32_t *pci_map_create(void *fdt, uint32_t mpic, int first_slot,
 }
 
 static void dt_serial_create(void *fdt, unsigned long long offset,
-                             const char *soc, const char *mpic,
+                             const char *soc, uint32_t freq, const char *mpic,
                              const char *alias, int idx, bool defcon)
 {
     char *ser;
@@ -131,7 +129,7 @@ static void dt_serial_create(void *fdt, unsigned long long offset,
     qemu_fdt_setprop_string(fdt, ser, "compatible", "ns16550");
     qemu_fdt_setprop_cells(fdt, ser, "reg", offset, 0x100);
     qemu_fdt_setprop_cell(fdt, ser, "cell-index", idx);
-    qemu_fdt_setprop_cell(fdt, ser, "clock-frequency", PLATFORM_CLK_FREQ_HZ);
+    qemu_fdt_setprop_cell(fdt, ser, "clock-frequency", freq);
     qemu_fdt_setprop_cells(fdt, ser, "interrupts", 42, 2);
     qemu_fdt_setprop_phandle(fdt, ser, "interrupt-parent", mpic);
     qemu_fdt_setprop_string(fdt, "/aliases", alias, ser);
@@ -382,8 +380,7 @@ static int ppce500_load_device_tree(PPCE500MachineState *pms,
     int fdt_size;
     void *fdt;
     uint8_t hypercall[16];
-    uint32_t clock_freq = PLATFORM_CLK_FREQ_HZ;
-    uint32_t tb_freq = PLATFORM_CLK_FREQ_HZ;
+    uint32_t clock_freq, tb_freq;
     int i;
     char compatible_sb[] = "fsl,mpc8544-immr\0simple-bus";
     char *soc;
@@ -484,6 +481,9 @@ static int ppce500_load_device_tree(PPCE500MachineState *pms,
         if (kvmppc_get_hasidle(env)) {
             qemu_fdt_setprop(fdt, "/hypervisor", "has-idle", NULL, 0);
         }
+    } else {
+        clock_freq = pmc->clock_freq;
+        tb_freq = pmc->tb_freq;
     }
 
     /* Create CPU nodes */
@@ -564,12 +564,12 @@ static int ppce500_load_device_tree(PPCE500MachineState *pms,
      */
     if (serial_hd(1)) {
         dt_serial_create(fdt, MPC8544_SERIAL1_REGS_OFFSET,
-                         soc, mpic, "serial1", 1, false);
+                         soc, pmc->clock_freq, mpic, "serial1", 1, false);
     }
 
     if (serial_hd(0)) {
         dt_serial_create(fdt, MPC8544_SERIAL0_REGS_OFFSET,
-                         soc, mpic, "serial0", 0, true);
+                         soc, pmc->clock_freq, mpic, "serial0", 0, true);
     }
 
     /* i2c */
@@ -968,7 +968,7 @@ void ppce500_init(MachineState *machine)
         env->spr_cb[SPR_BOOKE_PIR].default_value = cs->cpu_index = i;
         env->mpic_iack = pmc->ccsrbar_base + MPC8544_MPIC_REGS_OFFSET + 0xa0;
 
-        ppc_booke_timers_init(cpu, PLATFORM_CLK_FREQ_HZ, PPC_TIMER_E500);
+        ppc_booke_timers_init(cpu, pmc->tb_freq, PPC_TIMER_E500);
 
         /* Register reset handler */
         if (!i) {
