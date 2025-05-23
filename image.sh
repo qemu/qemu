@@ -1,58 +1,92 @@
 #!/usr/bin/env bash
 
-sudo apt-get install cloud-image-utils qemu
+# Ensure apt-get commands are only run if necessary and with user confirmation or non-interactively
+if ! command -v qemu-img &> /dev/null || ! command -v cloud-localds &> /dev/null; then
+    echo "qemu-img or cloud-localds not found. Attempting to install cloud-image-utils and qemu..."
+    sudo apt-get update
+    sudo apt-get install -y cloud-image-utils qemu
+fi
 
 REPLICA_DIR="/home/jotham/qemu-cxl-shm"
 REPLICA_SIZE="256M"
 NUM_REPLICAS=3
 
-# This is already in qcow2 format.
-img=ubuntu-22.04-server-cloudimg-amd64.img
-if [ ! -f "$img" ]; then
-  wget "https://cloud-images.ubuntu.com/releases/22.04/release/${img}"
+# --- Image 1 Setup ---
+img_base_name="ubuntu-22.04-server-cloudimg-amd64.img" # Base image for both
+img1="ubuntu-22.04-image0.img"
+user_data1="user-data0.img"
 
-  # sparse resize: does not use any extra space, just allows the resize to happen later on.
-  # https://superuser.com/questions/1022019/how-to-increase-size-of-an-ubuntu-cloud-image
-  qemu-img resize "$img" +128G
+if [ ! -f "$img1" ]; then
+  if [ ! -f "$img_base_name" ]; then
+    echo "Downloading base cloud image: ${img_base_name}..."
+    wget "https://cloud-images.ubuntu.com/releases/22.04/release/${img_base_name}"
+  fi
+
+  echo "Creating image: ${img1} from base..."
+  cp "$img_base_name" "$img1"
+  echo "Resizing ${img1} (sparse)..."
+  qemu-img resize "$img1" +128G
 fi
 
-user_data=user-data.img
-if [ ! -f "$user_data" ]; then
-  # For the password.
-  # https://stackoverflow.com/questions/29137679/login-credentials-of-ubuntu-cloud-server-image/53373376#53373376
-  # https://serverfault.com/questions/920117/how-do-i-set-a-password-on-an-ubuntu-cloud-image/940686#940686
-  # https://askubuntu.com/questions/507345/how-to-set-a-password-for-ubuntu-cloud-images-ie-not-use-ssh/1094189#1094189
-  cat >user-data <<EOF
+if [ ! -f "$user_data1" ]; then
+  echo "Creating user data for ${img1}..."
+  cat >user-data-config0.txt <<EOF
 #cloud-config
 password: asdfqwer
 chpasswd: { expire: False }
 ssh_pwauth: True
 EOF
-  cloud-localds "$user_data" user-data
+  cloud-localds "$user_data1" user-data-config0.txt
+  rm user-data-config0.txt # Clean up temporary config file
 fi
 
-# Create replica files
+# --- Image 2 Setup ---
+img2="ubuntu-22.04-image1.img"
+user_data2="user-data1.img"
+
+if [ ! -f "$img2" ]; then
+  if [ ! -f "$img_base_name" ]; then
+    echo "Downloading base cloud image: ${img_base_name}..."
+    wget "https://cloud-images.ubuntu.com/releases/22.04/release/${img_base_name}"
+  fi
+  echo "Creating image: ${img2} from base..."
+  cp "$img_base_name" "$img2"
+  echo "Resizing ${img2} (sparse)..."
+  qemu-img resize "$img2" +128G
+fi
+
+if [ ! -f "$user_data2" ]; then
+  echo "Creating user data for ${img2}..."
+  cat >user-data-config1.txt <<EOF
+#cloud-config
+password: newpassword # Changed password for the second image
+chpasswd: { expire: False }
+ssh_pwauth: True
+EOF
+  cloud-localds "$user_data2" user-data-config1.txt
+  rm user-data-config1.txt # Clean up temporary config file
+fi
+
+
+# --- Replica Files Setup (Common for the CXL device example) ---
+# Ensure REPLICA_DIR exists
+mkdir -p "$REPLICA_DIR"
+
+echo "Creating/updating replica files in ${REPLICA_DIR}..."
 for i in $(seq 0 $((NUM_REPLICAS - 1))); do
   replica_file="${REPLICA_DIR}/replica${i}.img"
-  truncate -s "$REPLICA_SIZE" "$replica_file"
-  chmod 666 "$replica_file"
+  if [ ! -f "$replica_file" ] || [ "$(stat -c%s "$replica_file")" != "$(numfmt --from=iec "$REPLICA_SIZE")" ]; then
+    echo "Creating or resizing ${replica_file} to ${REPLICA_SIZE}..."
+    truncate -s "$REPLICA_SIZE" "$replica_file"
+    chmod 666 "$replica_file"
+  else
+    echo "${replica_file} already exists with correct size."
+  fi
 done
 
-# Sharing folder on the VM
-# https://dev.to/franzwong/mount-share-mkfolder-in-qemu-with-same-permission-as-host-2980
-# sudo mount -t 9p -o trans=virtio,version=9p2000.L shared /mnt/shared
+echo "Script complete. You now have images: $img1, $user_data1, $img2, $user_data2"
+echo "And replica files in $REPLICA_DIR"
 
-./build/qemu-system-x86_64 \
-    -m 16G \
-    -smp 12 \
-    -drive "file=${img},format=qcow2" \
-    -drive "file=${user_data},format=raw" \
-    -nographic \
-    -enable-kvm \
-    -vga std \
-    -device virtio-net-pci,netdev=net0 -netdev user,id=net0 \
-    -object memory-backend-file,id=my-memdev0,size=${REPLICA_SIZE},mem-path=/home/jotham/qemu-cxl-shm/replica0.img,share=on \
-    -object memory-backend-file,id=my-memdev1,size=${REPLICA_SIZE},mem-path=/home/jotham/qemu-cxl-shm/replica1.img,share=on \
-    -object memory-backend-file,id=my-memdev2,size=${REPLICA_SIZE},mem-path=/home/jotham/qemu-cxl-shm/replica2.img,share=on \
-    -device cxl-switch,id=cxlsw0,mem-size=${REPLICA_SIZE},memdev0=my-memdev0,memdev1=my-memdev1,memdev2=my-memdev2 \
-    -virtfs local,path=qemu_share,mount_tag=shared,security_model=mapped-xattr
+# Link: https://dev.to/franzwong/mount-share-folder-in-qemu-with-same-permission-as-host-2980
+# Mounting the shared folder in the guest, mkdir dir first in VM
+# sudo mount -t 9p -o trans=virtio,version=9p2000.L shared /mnt/shared
