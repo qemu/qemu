@@ -41,6 +41,7 @@
 
 #include "scsi/pr-manager.h"
 #include "scsi/constants.h"
+#include "scsi/utils.h"
 
 #if defined(__APPLE__) && (__MACH__)
 #include <sys/ioctl.h>
@@ -72,6 +73,7 @@
 #include <linux/blkzoned.h>
 #endif
 #include <linux/cdrom.h>
+#include <linux/dm-ioctl.h>
 #include <linux/fd.h>
 #include <linux/fs.h>
 #include <linux/hdreg.h>
@@ -138,6 +140,22 @@
 #define RAW_LOCK_PERM_BASE             100
 #define RAW_LOCK_SHARED_BASE           200
 
+/*
+ * Multiple retries are mostly meant for two separate scenarios:
+ *
+ * - DM_MPATH_PROBE_PATHS returns success, but before SG_IO completes, another
+ *   path goes down.
+ *
+ * - DM_MPATH_PROBE_PATHS failed all paths in the current path group, so we have
+ *   to send another SG_IO to switch to another path group to probe the paths in
+ *   it.
+ *
+ * Even if each path is in a separate path group (path_grouping_policy set to
+ * failover), it's rare to have more than eight path groups - and even then
+ * pretty unlikely that only bad path groups would be chosen in eight retries.
+ */
+#define SG_IO_MAX_RETRIES 8
+
 typedef struct BDRVRawState {
     int fd;
     bool use_lock;
@@ -165,6 +183,7 @@ typedef struct BDRVRawState {
     bool use_linux_aio:1;
     bool has_laio_fdsync:1;
     bool use_linux_io_uring:1;
+    bool use_mpath:1;
     int page_cache_inconsistent; /* errno from fdatasync failure */
     bool has_fallocate;
     bool needs_alignment;
@@ -785,17 +804,6 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
 #endif
 
-    if (S_ISBLK(st.st_mode)) {
-#ifdef __linux__
-        /* On Linux 3.10, BLKDISCARD leaves stale data in the page cache.  Do
-         * not rely on the contents of discarded blocks unless using O_DIRECT.
-         * Same for BLKZEROOUT.
-         */
-        if (!(bs->open_flags & BDRV_O_NOCACHE)) {
-            s->has_write_zeroes = false;
-        }
-#endif
-    }
 #ifdef __FreeBSD__
     if (S_ISCHR(st.st_mode)) {
         /*
@@ -4264,15 +4272,105 @@ hdev_open_Mac_error:
     /* Since this does ioctl the device must be already opened */
     bs->sg = hdev_is_sg(bs);
 
+    /* sg devices aren't even block devices and can't use dm-mpath */
+    s->use_mpath = !bs->sg;
+
     return ret;
 }
 
 #if defined(__linux__)
+#if defined(DM_MPATH_PROBE_PATHS)
+static bool coroutine_fn sgio_path_error(int ret, sg_io_hdr_t *io_hdr)
+{
+    if (ret < 0) {
+        switch (ret) {
+        case -ENODEV:
+            return true;
+        case -EAGAIN:
+            /*
+             * The device is probably suspended. This happens while the dm table
+             * is reloaded, e.g. because a path is added or removed. This is an
+             * operation that should complete within 1ms, so just wait a bit and
+             * retry.
+             *
+             * If the device was suspended for another reason, we'll wait and
+             * retry SG_IO_MAX_RETRIES times. This is a tolerable delay before
+             * we return an error and potentially stop the VM.
+             */
+            qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 1000000);
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    if (io_hdr->host_status != SCSI_HOST_OK) {
+        return true;
+    }
+
+    switch (io_hdr->status) {
+    case GOOD:
+    case CONDITION_GOOD:
+    case INTERMEDIATE_GOOD:
+    case INTERMEDIATE_C_GOOD:
+    case RESERVATION_CONFLICT:
+    case COMMAND_TERMINATED:
+        return false;
+    case CHECK_CONDITION:
+        return !scsi_sense_buf_is_guest_recoverable(io_hdr->sbp,
+                                                    io_hdr->mx_sb_len);
+    default:
+        return true;
+    }
+}
+
+static bool coroutine_fn hdev_co_ioctl_sgio_retry(RawPosixAIOData *acb, int ret)
+{
+    BDRVRawState *s = acb->bs->opaque;
+    RawPosixAIOData probe_acb;
+
+    if (!s->use_mpath) {
+        return false;
+    }
+
+    if (!sgio_path_error(ret, acb->ioctl.buf)) {
+        return false;
+    }
+
+    probe_acb = (RawPosixAIOData) {
+        .bs         = acb->bs,
+        .aio_type   = QEMU_AIO_IOCTL,
+        .aio_fildes = s->fd,
+        .aio_offset = 0,
+        .ioctl      = {
+            .buf        = NULL,
+            .cmd        = DM_MPATH_PROBE_PATHS,
+        },
+    };
+
+    ret = raw_thread_pool_submit(handle_aiocb_ioctl, &probe_acb);
+    if (ret == -ENOTTY) {
+        s->use_mpath = false;
+    } else if (ret == -EAGAIN) {
+        /* The device might be suspended for a table reload, worth retrying */
+        return true;
+    }
+
+    return ret == 0;
+}
+#else
+static bool coroutine_fn hdev_co_ioctl_sgio_retry(RawPosixAIOData *acb, int ret)
+{
+    return false;
+}
+#endif /* DM_MPATH_PROBE_PATHS */
+
 static int coroutine_fn
 hdev_co_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 {
     BDRVRawState *s = bs->opaque;
     RawPosixAIOData acb;
+    int retries = SG_IO_MAX_RETRIES;
     int ret;
 
     ret = fd_open(bs);
@@ -4300,7 +4398,11 @@ hdev_co_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
         },
     };
 
-    return raw_thread_pool_submit(handle_aiocb_ioctl, &acb);
+    do {
+        ret = raw_thread_pool_submit(handle_aiocb_ioctl, &acb);
+    } while (req == SG_IO && retries-- && hdev_co_ioctl_sgio_retry(&acb, ret));
+
+    return ret;
 }
 #endif /* linux */
 
