@@ -389,6 +389,7 @@ static void etsec_realize(DeviceState *dev, Error **errp)
 {
     eTSEC        *etsec = ETSEC_COMMON(dev);
 
+    qemu_macaddr_default_if_unset(&etsec->conf.macaddr);
     etsec->nic = qemu_new_nic(&net_etsec_info, &etsec->conf,
                               object_get_typename(OBJECT(dev)), dev->id,
                               &dev->mem_reentrancy_guard, etsec);
