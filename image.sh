@@ -7,9 +7,9 @@ REPLICA_SIZE="256M"
 NUM_REPLICAS=3
 
 # This is already in qcow2 format.
-img=ubuntu-18.04-server-cloudimg-amd64.img
+img=ubuntu-22.04-server-cloudimg-amd64.img
 if [ ! -f "$img" ]; then
-  wget "https://cloud-images.ubuntu.com/releases/18.04/release/${img}"
+  wget "https://cloud-images.ubuntu.com/releases/22.04/release/${img}"
 
   # sparse resize: does not use any extra space, just allows the resize to happen later on.
   # https://superuser.com/questions/1022019/how-to-increase-size-of-an-ubuntu-cloud-image
@@ -39,12 +39,12 @@ for i in $(seq 0 $((NUM_REPLICAS - 1))); do
 done
 
 # Sharing folder on the VM
-# https://dev.to/franzwong/mount-share-folder-in-qemu-with-same-permission-as-host-2980
+# https://dev.to/franzwong/mount-share-mkfolder-in-qemu-with-same-permission-as-host-2980
 # sudo mount -t 9p -o trans=virtio,version=9p2000.L shared /mnt/shared
 
 ./build/qemu-system-x86_64 \
-    -m 2G \
-    -smp 2 \
+    -m 16G \
+    -smp 12 \
     -drive "file=${img},format=qcow2" \
     -drive "file=${user_data},format=raw" \
     -nographic \
