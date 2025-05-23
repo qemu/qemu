@@ -996,6 +996,36 @@ _require_large_file()
     rm "$FILENAME"
 }
 
+# Check whether disk_usage can be reliably used.
+_require_disk_usage()
+{
+    local unusable=false
+    # ZFS triggers known failures on this front; it does not immediately
+    # allocate files, and then aggressively compresses writes even when full
+    # allocation was requested.
+    if [ -z "$TEST_IMG_FILE" ]; then
+        FILENAME="$TEST_IMG"
+    else
+        FILENAME="$TEST_IMG_FILE"
+    fi
+    if [ -e "FILENAME" ]; then
+        echo "unwilling to overwrite existing file"
+        exit 1
+    fi
+    $QEMU_IMG create -f raw "$FILENAME" 5M > /dev/null
+    if [ $(disk_usage "$FILENAME") -gt $((1024*1024)) ]; then
+        unusable=true
+    fi
+    $QEMU_IMG create -f raw -o preallocation=full "$FILENAME" 5M > /dev/null
+    if [ $(disk_usage "$FILENAME") -lt $((4*1024*1024)) ]; then
+        unusable=true
+    fi
+    rm -f "$FILENAME"
+    if $unusable; then
+        _notrun "file system on $TEST_DIR does not handle sparse files nicely"
+    fi
+}
+
 # Check that a set of devices is available in the QEMU binary
 #
 _require_devices()

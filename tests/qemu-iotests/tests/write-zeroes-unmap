@@ -32,6 +32,7 @@ cd ..
 _supported_fmt raw
 _supported_proto file
 _supported_os Linux
+_require_disk_usage
 
 create_test_image() {
     _make_test_img -f $IMGFMT 1m

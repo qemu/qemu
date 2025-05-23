@@ -41,6 +41,7 @@ _supported_os Linux
 
 _default_cache_mode writeback
 _supported_cache_modes writeback writethrough unsafe
+_require_disk_usage
 
 echo
 echo "=== Check mapping of unaligned raw image ==="
