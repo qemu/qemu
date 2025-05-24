@@ -29,7 +29,8 @@
 
 // Server configuration
 typedef struct {
-  char *socket_path;
+  char *socket_path;  // For QEMU clients
+  char *admin_path;   // For admin tool
   char *replica_paths[NUM_REPLICAS];
   uint64_t replicated_mem_size;
 } server_config_t;
@@ -48,14 +49,26 @@ server_state_t server_state;
 
 
 /** Add function prototypes so clang doesnt complain */
+
+// Replica management
 int init_replicas(server_state_t *state);
 void cleanup_replicas(server_state_t *state);
+
+// QEMU Client handlers
 void handle_get_mem_size(int client_fd, server_state_t *state);
 void handle_write_req(int client_fd, const cxl_ipc_write_req_t *req,
                       server_state_t *state);
 void handle_read_req(int client_fd, const cxl_ipc_read_req_t *req,
                      server_state_t *state);
 void handle_client_request(int client_fd, server_state_t *state);
+
+// Admin handlers
+void handle_admin_fail_replica(server_state_t *state, cxl_admin_response_t *resp, int replica_index);
+void handle_admin_command(int admin_fd, server_state_t *state);
+
+/** Function implementations */
+
+// Replica management
 
 int init_replicas(server_state_t *state) {
   for (int i = 0; i < NUM_REPLICAS; i++) {
@@ -131,6 +144,8 @@ void cleanup_replicas(server_state_t *state) {
     }
   }
 }
+
+// QEMU Client handlers
 
 void handle_get_mem_size(int client_fd, server_state_t *state) {
   cxl_ipc_get_mem_size_resp_t resp;
@@ -366,10 +381,89 @@ void handle_client_request(int client_fd, server_state_t *state) {
   }
 }
 
+// Admin handlers
+
+void handle_admin_fail_replica(server_state_t *state,
+                                 cxl_admin_response_t *admin_resp,
+                                  int replica_index) {
+    if (replica_index < 0 || replica_index >= NUM_REPLICAS) {
+        CXL_SWITCH_SERVER_DEBUG_PRINT(
+            "Server: Invalid replica index %d for fail command\n",
+            replica_index);
+        admin_resp->status = CXL_IPC_STATUS_ERROR_INVALID_REQ;
+        return;
+    }
+
+    pthread_mutex_lock(&state->mutex);
+    state->replica_status[replica_index] = CXL_IPC_STATUS_ERROR_GENERIC;
+    if (state->replica_mmap_addrs[replica_index] != MAP_FAILED) {
+        if (munmap(state->replica_mmap_addrs[replica_index],
+               state->config.replicated_mem_size) == -1) {
+                perror("Server: munmap error");
+        }
+        state->replica_mmap_addrs[replica_index] = MAP_FAILED;
+    }
+
+    if (state->replica_fds[replica_index] != -1) {
+        if (close(state->replica_fds[replica_index]) == -1) {
+            perror("Server: close replica fd error");
+        }
+        state->replica_fds[replica_index] = -1;
+    }
+    admin_resp->status = CXL_IPC_STATUS_OK;
+    CXL_SWITCH_SERVER_DEBUG_PRINT("Server: Failed replica %d\n", replica_index);
+    pthread_mutex_unlock(&state->mutex);
+}
+
+void handle_admin_command(int admin_fd, server_state_t *state) {
+    // No need to peek, we expect a full command each time
+    cxl_admin_command_t admin_cmd;
+    cxl_admin_response_t admin_resp;
+    ssize_t n;
+
+    admin_resp.status = CXL_IPC_STATUS_ERROR_GENERIC;
+
+    n = recv(admin_fd, &admin_cmd, sizeof(admin_cmd), MSG_WAITALL);
+    if (n <= 0) {
+        if (n < 0) {
+            perror("Server: admin recv error");
+        } else {
+            CXL_SWITCH_SERVER_DEBUG_PRINT("Server: admin client disconnected\n");
+        }
+        return;
+    }
+    if (n != sizeof(admin_cmd)) {
+        CXL_SWITCH_SERVER_DEBUG_PRINT(
+            "Server: admin command recv error, expected %zu bytes, got %zd\n",
+            sizeof(admin_cmd), n);
+        return;
+    }
+
+    CXL_SWITCH_SERVER_DEBUG_PRINT(
+        "Server: received admin command type %u for replica %u\n",
+        admin_cmd.cmd_type, admin_cmd.replica_index);
+    
+    switch (admin_cmd.cmd_type) {
+        case CXL_ADMIN_CMD_TYPE_FAIL_REPLICA:
+            handle_admin_fail_replica(state, &admin_resp, admin_cmd.replica_index);
+            break;
+        default:
+            CXL_SWITCH_SERVER_DEBUG_PRINT(
+                "Server: unknown admin command type %u\n", admin_cmd.cmd_type);
+            admin_resp.status = CXL_IPC_STATUS_ERROR_INVALID_REQ;
+            break;
+    }
+    
+    if (send(admin_fd, &admin_resp, sizeof(admin_resp), 0) !=
+        sizeof(admin_resp)) {
+        perror("Server: send admin response error");
+    }
+}
+
 int main(int argc, char *argv[]) {
-  if (argc < (1 + 1 + 1 + NUM_REPLICAS)) {
+  if (argc < (1 + 1 + 1 + 1 + NUM_REPLICAS)) {
     fprintf(stderr,
-            "Usage: %s <socket_path> <replica_size_MiB> <replica_path_1> ... "
+            "Usage: %s <socket_path> <admin_socket_path> <replica_size_MiB> <replica_path_1> ... "
             "<replica_path_N>\n",
             argv[0]);
     return EXIT_FAILURE;
@@ -379,10 +473,11 @@ int main(int argc, char *argv[]) {
   memset(&server_state, 0, sizeof(server_state));
 
   server_state.config.socket_path = argv[1];
+  server_state.config.admin_path = argv[2];
   server_state.config.replicated_mem_size =
-      (uint64_t)atoi(argv[2]) * 1024 * 1024; // Convert MiB to bytes
+      (uint64_t)atoi(argv[3]) * 1024 * 1024; // Convert MiB to bytes
   for (int i = 0; i < NUM_REPLICAS; i++) {
-    server_state.config.replica_paths[i] = argv[3 + i];
+    server_state.config.replica_paths[i] = argv[4 + i];
     server_state.replica_fds[i] = -1;
     server_state.replica_mmap_addrs[i] = MAP_FAILED;
   }
@@ -406,6 +501,8 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+
+  // Set up QEMU client listening socket
   int listen_fd;
   struct sockaddr_un addr;
 
@@ -439,19 +536,62 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  CXL_SWITCH_SERVER_DEBUG_PRINT("Server listening on %s\n",
-                                server_state.config.socket_path);
+  CXL_SWITCH_SERVER_DEBUG_PRINT("Server listening on %s and fd = %d\n",
+                                server_state.config.socket_path, listen_fd);
+
+    // Set up admin socket
+    int admin_fd;
+    struct sockaddr_un admin_addr;
+    
+    admin_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (admin_fd < 0) {
+        perror("Server: admin socket error");
+        close(listen_fd);
+        cleanup_replicas(&server_state);
+        pthread_mutex_destroy(&server_state.mutex);
+        return 1;
+    }
+
+    memset(&admin_addr, 0, sizeof(admin_addr));
+    admin_addr.sun_family = AF_UNIX;
+    strncpy(admin_addr.sun_path, server_state.config.admin_path,
+            sizeof(admin_addr.sun_path) - 1);
+    unlink(server_state.config.admin_path); // Remove any existing admin socket
+
+    if (bind(admin_fd, (struct sockaddr *)&admin_addr, sizeof(admin_addr)) < 0) {
+        perror("Server: admin bind error");
+        close(admin_fd);
+        close(listen_fd);
+        cleanup_replicas(&server_state);
+        pthread_mutex_destroy(&server_state.mutex);
+        return 1;
+    }
+
+    if (listen(admin_fd, MAX_CLIENTS) < 0) {
+        perror("Server: admin listen error");
+        close(admin_fd);
+        close(listen_fd);
+        cleanup_replicas(&server_state);
+        pthread_mutex_destroy(&server_state.mutex);
+        return 1;
+    }
+
+    CXL_SWITCH_SERVER_DEBUG_PRINT("Admin server listening on %s and fd = %d\n",
+                                    server_state.config.admin_path, admin_fd);
+
 
   fd_set active_fd_set, read_fd_set;
+  int max_fd = listen_fd > admin_fd ? listen_fd : admin_fd;
+
   FD_ZERO(&active_fd_set);
   FD_SET(listen_fd, &active_fd_set);
-  int max_fd = listen_fd + 1;
+  FD_SET(admin_fd, &active_fd_set);
 
   while (true) {
     read_fd_set = active_fd_set;
     CXL_SWITCH_SERVER_DEBUG_PRINT("Calling select(), max_fd = %d\n", max_fd);
 
-    int activity = select(max_fd, &read_fd_set, NULL, NULL, NULL);
+    int activity = select(max_fd + 1, &read_fd_set, NULL, NULL, NULL);
     CXL_SWITCH_SERVER_DEBUG_PRINT(
         "select() returned, activity = %d, errno = %d\n", activity, errno);
     if ((activity < 0) && (errno != EINTR)) {
@@ -459,7 +599,7 @@ int main(int argc, char *argv[]) {
       break;
     }
 
-    if (FD_ISSET(listen_fd, &read_fd_set)) { // New connection
+    if (FD_ISSET(listen_fd, &read_fd_set)) { // New QEMU client connection
       int client_fd = accept(listen_fd, NULL, NULL);
       if (client_fd < 0) {
         perror("Server: accept error");
@@ -473,9 +613,30 @@ int main(int argc, char *argv[]) {
       }
     }
 
+    if (FD_ISSET(admin_fd, &read_fd_set)) { 
+        // New admin client connection
+        // We are handling only one command and then closing, so no need to add
+        // to active fd set. 
+      int admin_client_fd = accept(admin_fd, NULL, NULL);
+      if (admin_client_fd < 0) {
+        perror("Server: admin accept error");
+      } else {
+        CXL_SWITCH_SERVER_DEBUG_PRINT(
+            "Server: accepted new admin connection, fd = %d\n",
+            admin_client_fd);
+        // Handle admin command directly
+        handle_admin_command(admin_client_fd, &server_state);
+        CXL_SWITCH_SERVER_DEBUG_PRINT(
+            "Server: admin command handled, closing fd = %d\n",
+            admin_client_fd);
+        close(admin_client_fd);
+        }
+    }
+
     // Check existing clients for incoming data
     for (int i = 0; i <= max_fd; i++) {
-      if (i != listen_fd && FD_ISSET(i, &read_fd_set)) {
+        // No need to listen for listen_fd or admin_fd
+      if (i != listen_fd && i != admin_fd && FD_ISSET(i, &read_fd_set)) {
         CXL_SWITCH_SERVER_DEBUG_PRINT("Server: activity on fd = %d\n", i);
         // Assume just one request per activity for now.
         // A more robust impl shud check for partial reads/writes.
