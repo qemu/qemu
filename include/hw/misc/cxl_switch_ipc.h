@@ -5,8 +5,9 @@
 #include <stddef.h>
 
 #define CXL_SWITCH_SERVER_SOCKET_PATH_DEFAULT "/tmp/cxl_switch_server.sock"
+#define CXL_SWITCH_SERVER_ADMIN_SOCKET_PATH_DEFAULT "/tmp/cxl_switch_server_admin.sock"
 
-// Message types
+// Message types for QEMU Client <-> Server
 typedef enum {
     CXL_MSG_TYPE_CONNECT_REQ = 0x00,
     CXL_MSG_TYPE_CONNECT_RESP = 0x01,
@@ -18,6 +19,13 @@ typedef enum {
     CXL_MSG_TYPE_WRITE_RESP = 0x07,
     CXL_MSG_TYPE_ERROR_RESP = 0xFF,
 } cxl_ipc_msg_type_t;
+
+// Admin message types
+typedef enum {
+    CXL_ADMIN_CMD_TYPE_FAIL_REPLICA = 0xA1,
+    CXL_ADMIN_CMD_TYPE_RECOVER_REPLICA = 0xA2,
+    CXL_ADMIN_CMD_TYPE_GET_REPLICA_STATUS = 0xA3,
+} cxl_admin_cmd_type_t;
 
 // Status codes
 typedef enum {
@@ -32,7 +40,7 @@ typedef enum {
 // Common header for all messages.
 // For now, we use distinct structs for each message types for clarity
 
-// --- Message structures ---
+// --- Message structures for QEMU Client <-> Server ---
 // CXL_MSG_TYPE_GET_MEM_SIZE_REQ
 typedef struct {
     uint8_t type; // CXL_MSG_TYPE_GET_MEM_SIZE_REQ
@@ -78,5 +86,17 @@ typedef struct {
     uint8_t type;   // CXL_MSG_TYPE_ERROR_RESP
     uint8_t status; // cxl_ipc_status_t (specific error code)
 } cxl_ipc_error_resp_t;
+
+// --- Admin Message Types ---
+// Admin Command
+typedef struct {
+    uint8_t cmd_type;
+    uint8_t replica_index;
+} cxl_admin_command_t;
+
+// Admin response
+typedef struct {
+    uint8_t status;
+} cxl_admin_response_t;
 
 #endif
