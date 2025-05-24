@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -g -O2 -std=c11
 
-SRCS = sequential_writer.c sequential_reader.c
+SRCS = sequential_writer.c sequential_reader.c interactive_tester.c
 
 TARGETS = $(SRCS:.c=)
 
@@ -15,6 +15,9 @@ sequential_writer: sequential_writer.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 sequential_reader: sequential_reader.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+interactive_tester: interactive_tester.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 # Phony target for cleaning up
