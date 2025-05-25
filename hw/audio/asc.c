@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
+#include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
 #include "audio/audio.h"
@@ -653,11 +654,17 @@ static void asc_realize(DeviceState *dev, Error **errp)
 
     s->voice = AUD_open_out(&s->card, s->voice, "asc.out", s, asc_out_cb,
                             &as);
+    if (!s->voice) {
+        AUD_remove_card(&s->card);
+        error_setg(errp, "Initializing audio stream failed");
+        return;
+    }
+
     s->shift = 1;
     s->samples = AUD_get_buffer_size_out(s->voice) >> s->shift;
     s->mixbuf = g_malloc0(s->samples << s->shift);
 
-    s->silentbuf = g_malloc0(s->samples << s->shift);
+    s->silentbuf = g_malloc(s->samples << s->shift);
     memset(s->silentbuf, 0x80, s->samples << s->shift);
 
     /* Add easc registers if required */

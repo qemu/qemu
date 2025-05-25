@@ -96,7 +96,7 @@
 # @period-length: the period length in microseconds
 #
 # @try-poll: attempt to use poll mode, falling back to non-polling
-#     access on failure (default true)
+#     access on failure (default false)
 #
 # Since: 4.0
 ##

@@ -283,10 +283,15 @@ static const float float_scale_reciprocal = 1.f / ((int64_t)INT32_MAX + 1);
 #endif
 #endif
 
+#define F32_TO_F32S(v) \
+    bswap32((union { uint32_t i; float f; }){ .f = (v) }.i)
+#define F32S_TO_F32(v) \
+    ((union { uint32_t i; float f; }){ .i = bswap32(v) }.f)
+
 static void conv_natural_float_to_mono(struct st_sample *dst, const void *src,
                                        int samples)
 {
-    float *in = (float *)src;
+    const float *in = src;
 
     while (samples--) {
         dst->r = dst->l = CONV_NATURAL_FLOAT(*in++);
@@ -294,10 +299,21 @@ static void conv_natural_float_to_mono(struct st_sample *dst, const void *src,
     }
 }
 
+static void conv_swap_float_to_mono(struct st_sample *dst, const void *src,
+                                    int samples)
+{
+    const uint32_t *in_f32s = src;
+
+    while (samples--) {
+        dst->r = dst->l = CONV_NATURAL_FLOAT(F32S_TO_F32(*in_f32s++));
+        dst++;
+    }
+}
+
 static void conv_natural_float_to_stereo(struct st_sample *dst, const void *src,
                                          int samples)
 {
-    float *in = (float *)src;
+    const float *in = src;
 
     while (samples--) {
         dst->l = CONV_NATURAL_FLOAT(*in++);
@@ -306,15 +322,33 @@ static void conv_natural_float_to_stereo(struct st_sample *dst, const void *src,
     }
 }
 
-t_sample *mixeng_conv_float[2] = {
-    conv_natural_float_to_mono,
-    conv_natural_float_to_stereo,
+static void conv_swap_float_to_stereo(struct st_sample *dst, const void *src,
+                                      int samples)
+{
+    const uint32_t *in_f32s = src;
+
+    while (samples--) {
+        dst->l = CONV_NATURAL_FLOAT(F32S_TO_F32(*in_f32s++));
+        dst->r = CONV_NATURAL_FLOAT(F32S_TO_F32(*in_f32s++));
+        dst++;
+    }
+}
+
+t_sample *mixeng_conv_float[2][2] = {
+    {
+        conv_natural_float_to_mono,
+        conv_swap_float_to_mono,
+    },
+    {
+        conv_natural_float_to_stereo,
+        conv_swap_float_to_stereo,
+    }
 };
 
 static void clip_natural_float_from_mono(void *dst, const struct st_sample *src,
                                          int samples)
 {
-    float *out = (float *)dst;
+    float *out = dst;
 
     while (samples--) {
         *out++ = CLIP_NATURAL_FLOAT(src->l + src->r);
@@ -322,10 +356,21 @@ static void clip_natural_float_from_mono(void *dst, const struct st_sample *src,
     }
 }
 
+static void clip_swap_float_from_mono(void *dst, const struct st_sample *src,
+                                      int samples)
+{
+    uint32_t *out_f32s = dst;
+
+    while (samples--) {
+        *out_f32s++ = F32_TO_F32S(CLIP_NATURAL_FLOAT(src->l + src->r));
+        src++;
+    }
+}
+
 static void clip_natural_float_from_stereo(
     void *dst, const struct st_sample *src, int samples)
 {
-    float *out = (float *)dst;
+    float *out = dst;
 
     while (samples--) {
         *out++ = CLIP_NATURAL_FLOAT(src->l);
@@ -334,9 +379,27 @@ static void clip_natural_float_from_stereo(
     }
 }
 
-f_sample *mixeng_clip_float[2] = {
-    clip_natural_float_from_mono,
-    clip_natural_float_from_stereo,
+static void clip_swap_float_from_stereo(
+    void *dst, const struct st_sample *src, int samples)
+{
+    uint32_t *out_f32s = dst;
+
+    while (samples--) {
+        *out_f32s++ = F32_TO_F32S(CLIP_NATURAL_FLOAT(src->l));
+        *out_f32s++ = F32_TO_F32S(CLIP_NATURAL_FLOAT(src->r));
+        src++;
+    }
+}
+
+f_sample *mixeng_clip_float[2][2] = {
+    {
+        clip_natural_float_from_mono,
+        clip_swap_float_from_mono,
+    },
+    {
+        clip_natural_float_from_stereo,
+        clip_swap_float_from_stereo,
+    }
 };
 
 void audio_sample_to_uint64(const void *samples, int pos,

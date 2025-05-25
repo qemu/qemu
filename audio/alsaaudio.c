@@ -899,7 +899,7 @@ static void alsa_enable_in(HWVoiceIn *hw, bool enable)
 static void alsa_init_per_direction(AudiodevAlsaPerDirectionOptions *apdo)
 {
     if (!apdo->has_try_poll) {
-        apdo->try_poll = true;
+        apdo->try_poll = false;
         apdo->has_try_poll = true;
     }
 }

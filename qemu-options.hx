@@ -965,7 +965,7 @@ SRST
         Sets the period length in microseconds.
 
     ``in|out.try-poll=on|off``
-        Attempt to use poll mode with the device. Default is on.
+        Attempt to use poll mode with the device. Default is off.
 
     ``threshold=threshold``
         Threshold (in microseconds) when playback starts. Default is 0.
@@ -1002,7 +1002,7 @@ SRST
     ``in|out.buffer-count=count``
         Sets the count of the buffers.
 
-    ``in|out.try-poll=on|of``
+    ``in|out.try-poll=on|off``
         Attempt to use poll mode with the device. Default is on.
 
     ``try-mmap=on|off``
