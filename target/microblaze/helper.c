@@ -26,6 +26,7 @@
 #include "exec/target_page.h"
 #include "qemu/host-utils.h"
 #include "exec/log.h"
+#include "exec/helper-proto.h"
 
 
 G_NORETURN
@@ -64,6 +65,12 @@ void mb_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
 }
 
 #ifndef CONFIG_USER_ONLY
+
+void HELPER(unaligned_access)(CPUMBState *env, uint64_t addr)
+{
+    mb_unaligned_access_internal(env_cpu(env), addr, GETPC());
+}
+
 static bool mb_cpu_access_is_secure(MicroBlazeCPU *cpu,
                                     MMUAccessType access_type)
 {
