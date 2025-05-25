@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 
 #include "ui/gtk.h"
@@ -95,11 +96,13 @@ static void gd_clipboard_update_info(GtkDisplayState *gd,
             gtk_clipboard_clear(gd->gtkcb[s]);
             if (targets) {
                 gd->cbowner[s] = true;
-                gtk_clipboard_set_with_data(gd->gtkcb[s],
-                                            targets, n_targets,
-                                            gd_clipboard_get_data,
-                                            gd_clipboard_clear,
-                                            gd);
+                if (!gtk_clipboard_set_with_data(gd->gtkcb[s],
+                                                 targets, n_targets,
+                                                 gd_clipboard_get_data,
+                                                 gd_clipboard_clear,
+                                                 gd)) {
+                    warn_report("Failed to set GTK clipboard");
+                }
 
                 gtk_target_table_free(targets, n_targets);
             }

@@ -488,14 +488,14 @@ static void handle_mousemotion(SDL_Event *ev)
 {
     int max_x, max_y;
     struct sdl2_console *scon = get_scon_from_window(ev->motion.windowID);
+    int scr_w, scr_h, surf_w, surf_h, x, y, dx, dy;
 
     if (!scon || !qemu_console_is_graphic(scon->dcl.con)) {
         return;
     }
 
+    SDL_GetWindowSize(scon->real_window, &scr_w, &scr_h);
     if (qemu_input_is_absolute(scon->dcl.con) || absolute_enabled) {
-        int scr_w, scr_h;
-        SDL_GetWindowSize(scon->real_window, &scr_w, &scr_h);
         max_x = scr_w - 1;
         max_y = scr_h - 1;
         if (gui_grab && !gui_fullscreen
@@ -509,9 +509,14 @@ static void handle_mousemotion(SDL_Event *ev)
             sdl_grab_start(scon);
         }
     }
+    surf_w = surface_width(scon->surface);
+    surf_h = surface_height(scon->surface);
+    x = (int64_t)ev->motion.x * surf_w / scr_w;
+    y = (int64_t)ev->motion.y * surf_h / scr_h;
+    dx = (int64_t)ev->motion.xrel * surf_w / scr_w;
+    dy = (int64_t)ev->motion.yrel * surf_h / scr_h;
     if (gui_grab || qemu_input_is_absolute(scon->dcl.con) || absolute_enabled) {
-        sdl_send_mouse_event(scon, ev->motion.xrel, ev->motion.yrel,
-                             ev->motion.x, ev->motion.y, ev->motion.state);
+        sdl_send_mouse_event(scon, dx, dy, x, y, ev->motion.state);
     }
 }
 
@@ -520,12 +525,17 @@ static void handle_mousebutton(SDL_Event *ev)
     int buttonstate = SDL_GetMouseState(NULL, NULL);
     SDL_MouseButtonEvent *bev;
     struct sdl2_console *scon = get_scon_from_window(ev->button.windowID);
+    int scr_w, scr_h, x, y;
 
     if (!scon || !qemu_console_is_graphic(scon->dcl.con)) {
         return;
     }
 
     bev = &ev->button;
+    SDL_GetWindowSize(scon->real_window, &scr_w, &scr_h);
+    x = (int64_t)bev->x * surface_width(scon->surface) / scr_w;
+    y = (int64_t)bev->y * surface_height(scon->surface) / scr_h;
+
     if (!gui_grab && !qemu_input_is_absolute(scon->dcl.con)) {
         if (ev->type == SDL_MOUSEBUTTONUP && bev->button == SDL_BUTTON_LEFT) {
             /* start grabbing all events */
@@ -537,7 +547,7 @@ static void handle_mousebutton(SDL_Event *ev)
         } else {
             buttonstate &= ~SDL_BUTTON(bev->button);
         }
-        sdl_send_mouse_event(scon, 0, 0, bev->x, bev->y, buttonstate);
+        sdl_send_mouse_event(scon, 0, 0, x, y, buttonstate);
     }
 }
 
