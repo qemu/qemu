@@ -737,6 +737,7 @@ static const MemoryRegionOps aspeed_intc_ops = {
     .read = aspeed_intc_read,
     .write = aspeed_intc_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl.min_access_size = 4,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -747,6 +748,7 @@ static const MemoryRegionOps aspeed_intcio_ops = {
     .read = aspeed_intcio_read,
     .write = aspeed_intcio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl.min_access_size = 4,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -757,6 +759,7 @@ static const MemoryRegionOps aspeed_ssp_intc_ops = {
     .read = aspeed_intc_read,
     .write = aspeed_ssp_intc_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl.min_access_size = 4,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -767,6 +770,7 @@ static const MemoryRegionOps aspeed_ssp_intcio_ops = {
     .read = aspeed_intcio_read,
     .write = aspeed_ssp_intcio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl.min_access_size = 4,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -777,6 +781,7 @@ static const MemoryRegionOps aspeed_tsp_intc_ops = {
     .read = aspeed_intc_read,
     .write = aspeed_tsp_intc_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl.min_access_size = 4,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -787,6 +792,7 @@ static const MemoryRegionOps aspeed_tsp_intcio_ops = {
     .read = aspeed_intcio_read,
     .write = aspeed_tsp_intcio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl.min_access_size = 4,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -995,7 +1001,8 @@ static AspeedINTCIRQ aspeed_2700ssp_intcio_irqs[ASPEED_INTC_MAX_INPINS] = {
     {5, 5, 1, R_SSPINT165_EN, R_SSPINT165_STATUS},
 };
 
-static void aspeed_2700ssp_intcio_class_init(ObjectClass *klass, const void *data)
+static void aspeed_2700ssp_intcio_class_init(ObjectClass *klass,
+                                             const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedINTCClass *aic = ASPEED_INTC_CLASS(klass);
@@ -1063,7 +1070,8 @@ static AspeedINTCIRQ aspeed_2700tsp_intcio_irqs[ASPEED_INTC_MAX_INPINS] = {
     {5, 5, 1, R_TSPINT165_EN, R_TSPINT165_STATUS},
 };
 
-static void aspeed_2700tsp_intcio_class_init(ObjectClass *klass, const void *data)
+static void aspeed_2700tsp_intcio_class_init(ObjectClass *klass,
+                                             const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedINTCClass *aic = ASPEED_INTC_CLASS(klass);

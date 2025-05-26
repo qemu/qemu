@@ -23,14 +23,14 @@
 #include "qobject/qlist.h"
 #include "qemu/log.h"
 
-#define AST2700_SOC_IO_SIZE          0x01000000
+#define AST2700_SOC_IO_SIZE          0x00FE0000
 #define AST2700_SOC_IOMEM_SIZE       0x01000000
 #define AST2700_SOC_DPMCU_SIZE       0x00040000
 #define AST2700_SOC_LTPI_SIZE        0x01000000
 
 static const hwaddr aspeed_soc_ast2700_memmap[] = {
-    [ASPEED_DEV_IOMEM]     =  0x00000000,
     [ASPEED_DEV_VBOOTROM]  =  0x00000000,
+    [ASPEED_DEV_IOMEM]     =  0x00020000,
     [ASPEED_DEV_SRAM]      =  0x10000000,
     [ASPEED_DEV_DPMCU]     =  0x11000000,
     [ASPEED_DEV_IOMEM0]    =  0x12000000,
@@ -346,8 +346,9 @@ static void aspeed_ram_capacity_write(void *opaque, hwaddr addr, uint64_t data,
      * If writes the data to the address which is beyond the ram size,
      * it would write the data to the "address % ram_size".
      */
-    result = address_space_write(&s->dram_as, addr % ram_size,
-                                 MEMTXATTRS_UNSPECIFIED, &data, 4);
+    address_space_stl_le(&s->dram_as, addr % ram_size, data,
+                         MEMTXATTRS_UNSPECIFIED, &result);
+
     if (result != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: DRAM write failed, addr:0x%" HWADDR_PRIx
@@ -360,9 +361,10 @@ static const MemoryRegionOps aspeed_ram_capacity_ops = {
     .read = aspeed_ram_capacity_read,
     .write = aspeed_ram_capacity_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl.min_access_size = 4,
     .valid = {
-        .min_access_size = 1,
-        .max_access_size = 8,
+        .min_access_size = 4,
+        .max_access_size = 4,
     },
 };
 

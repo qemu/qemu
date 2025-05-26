@@ -77,6 +77,7 @@ static void fby35_bmc_init(Fby35State *s)
 
     memory_region_init(&s->bmc_memory, OBJECT(&s->bmc), "bmc-memory",
                        UINT64_MAX);
+    memory_region_add_subregion(get_system_memory(), 0, &s->bmc_memory);
     memory_region_init_ram(&s->bmc_dram, OBJECT(&s->bmc), "bmc-dram",
                            FBY35_BMC_RAM_SIZE, &error_abort);
 

@@ -302,6 +302,14 @@ aspeed_peci_read(uint64_t offset, uint64_t data) "offset 0x%" PRIx64 " data 0x%"
 aspeed_peci_write(uint64_t offset, uint64_t data) "offset 0x%" PRIx64 " data 0x%" PRIx64
 aspeed_peci_raise_interrupt(uint32_t ctrl, uint32_t status) "ctrl 0x%" PRIx32 " status 0x%" PRIx32
 
+# aspeed_hace.c
+aspeed_hace_read(uint64_t offset, uint64_t data) "offset 0x%" PRIx64 " data 0x%" PRIx64
+aspeed_hace_write(uint64_t offset, uint64_t data) "offset 0x%" PRIx64 " data 0x%" PRIx64
+aspeed_hace_hash_sg(int index, uint64_t list_addr, uint64_t buf_addr, uint32_t len) "%d: list_addr 0x%" PRIx64 " buf_addr 0x%" PRIx64 " len 0x%" PRIx32
+aspeed_hace_hash_addr(const char *s, uint64_t addr) "%s: 0x%" PRIx64
+aspeed_hace_hash_execute_acc_mode(bool final_request) "final request: %d"
+aspeed_hace_hexdump(const char *desc, uint32_t offset, char *s) "%s: 0x%08x: %s"
+
 # bcm2835_property.c
 bcm2835_mbox_property(uint32_t tag, uint32_t bufsize, size_t resplen) "mbox property tag:0x%08x in_sz:%u out_sz:%zu"
 
