@@ -1,11 +1,3 @@
-subproject('proc-macro2-1-rs', required: true)
-subproject('quote-1-rs', required: true)
-subproject('syn-2-rs', required: true)
-
-quote_dep = dependency('quote-1-rs', native: true)
-syn_dep = dependency('syn-2-rs', native: true)
-proc_macro2_dep = dependency('proc-macro2-1-rs', native: true)
-
 _qemu_api_macros_rs = rust.proc_macro(
   'qemu_api_macros',
   files('src/lib.rs'),
@@ -16,9 +8,9 @@ _qemu_api_macros_rs = rust.proc_macro(
     '--cfg', 'feature="proc-macro"',
   ],
   dependencies: [
-    proc_macro2_dep,
-    quote_dep,
-    syn_dep,
+    proc_macro2_rs_native,
+    quote_rs_native,
+    syn_rs_native,
   ],
 )
 
