@@ -33,7 +33,7 @@ struct QemuSemaphore {
 };
 
 struct QemuEvent {
-#ifndef __linux__
+#ifndef CONFIG_LINUX
     pthread_mutex_t lock;
     pthread_cond_t cond;
 #endif
