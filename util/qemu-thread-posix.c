@@ -319,38 +319,23 @@ void qemu_sem_wait(QemuSemaphore *sem)
 
 #ifdef CONFIG_LINUX
 #include "qemu/futex.h"
-#else
-static inline void qemu_futex_wake(QemuEvent *ev, int n)
-{
-    assert(ev->initialized);
-    pthread_mutex_lock(&ev->lock);
-    if (n == 1) {
-        pthread_cond_signal(&ev->cond);
-    } else {
-        pthread_cond_broadcast(&ev->cond);
-    }
-    pthread_mutex_unlock(&ev->lock);
-}
-
-static inline void qemu_futex_wait(QemuEvent *ev, unsigned val)
-{
-    assert(ev->initialized);
-    pthread_mutex_lock(&ev->lock);
-    if (ev->value == val) {
-        pthread_cond_wait(&ev->cond, &ev->lock);
-    }
-    pthread_mutex_unlock(&ev->lock);
-}
 #endif
 
 /* Valid transitions:
- * - free->set, when setting the event
- * - busy->set, when setting the event, followed by qemu_futex_wake_all
- * - set->free, when resetting the event
- * - free->busy, when waiting
+ * - FREE -> SET (qemu_event_set)
+ * - BUSY -> SET (qemu_event_set)
+ * - SET -> FREE (qemu_event_reset)
+ * - FREE -> BUSY (qemu_event_wait)
  *
- * set->busy does not happen (it can be observed from the outside but
- * it really is set->free->busy).
+ * With futex, the waking and blocking operations follow
+ * BUSY -> SET and FREE -> BUSY, respectively.
+ *
+ * Without futex, BUSY -> SET and FREE -> BUSY never happen. Instead, the waking
+ * operation follows FREE -> SET and the blocking operation will happen in
+ * qemu_event_wait() if the event is not SET.
+ *
+ * SET->BUSY does not happen (it can be observed from the outside but
+ * it really is SET->FREE->BUSY).
  *
  * busy->free provably cannot happen; to enforce it, the set->free transition
  * is done with an OR, which becomes a no-op if the event has concurrently
@@ -386,6 +371,7 @@ void qemu_event_set(QemuEvent *ev)
 {
     assert(ev->initialized);
 
+#ifdef CONFIG_LINUX
     /*
      * Pairs with both qemu_event_reset() and qemu_event_wait().
      *
@@ -403,12 +389,20 @@ void qemu_event_set(QemuEvent *ev)
             qemu_futex_wake_all(ev);
         }
     }
+#else
+    pthread_mutex_lock(&ev->lock);
+    /* Pairs with qemu_event_reset()'s load acquire.  */
+    qatomic_store_release(&ev->value, EV_SET);
+    pthread_cond_broadcast(&ev->cond);
+    pthread_mutex_unlock(&ev->lock);
+#endif
 }
 
 void qemu_event_reset(QemuEvent *ev)
 {
     assert(ev->initialized);
 
+#ifdef CONFIG_LINUX
     /*
      * If there was a concurrent reset (or even reset+wait),
      * do nothing.  Otherwise change EV_SET->EV_FREE.
@@ -420,21 +414,42 @@ void qemu_event_reset(QemuEvent *ev)
      * Pairs with the first memory barrier in qemu_event_set().
      */
     smp_mb__after_rmw();
+#else
+    /*
+     * If futexes are not available, there are no EV_FREE->EV_BUSY
+     * transitions because wakeups are done entirely through the
+     * condition variable.  Since qatomic_set() only writes EV_FREE,
+     * the load seems useless but in reality, the acquire synchronizes
+     * with qemu_event_set()'s store release: if qemu_event_reset()
+     * sees EV_SET here, then the caller will certainly see a
+     * successful condition and skip qemu_event_wait():
+     *
+     * done = 1;                 if (done == 0)
+     * qemu_event_set() {          qemu_event_reset() {
+     *   lock();
+     *   ev->value = EV_SET ----->     load ev->value
+     *                                 ev->value = old value | EV_FREE
+     *   cond_broadcast()
+     *   unlock();                 }
+     * }                           if (done == 0)
+     *                               // qemu_event_wait() not called
+     */
+    qatomic_set(&ev->value, qatomic_load_acquire(&ev->value) | EV_FREE);
+#endif
 }
 
 void qemu_event_wait(QemuEvent *ev)
 {
-    unsigned value;
-
     assert(ev->initialized);
 
+#ifdef CONFIG_LINUX
     while (true) {
         /*
          * qemu_event_wait must synchronize with qemu_event_set even if it does
          * not go down the slow path, so this load-acquire is needed that
          * synchronizes with the first memory barrier in qemu_event_set().
          */
-        value = qatomic_load_acquire(&ev->value);
+        unsigned value = qatomic_load_acquire(&ev->value);
         if (value == EV_SET) {
             break;
         }
@@ -463,6 +478,13 @@ void qemu_event_wait(QemuEvent *ev)
          */
         qemu_futex_wait(ev, EV_BUSY);
     }
+#else
+    pthread_mutex_lock(&ev->lock);
+    while (qatomic_read(&ev->value) != EV_SET) {
+        pthread_cond_wait(&ev->cond, &ev->lock);
+    }
+    pthread_mutex_unlock(&ev->lock);
+#endif
 }
 
 static __thread NotifierList thread_exit;
