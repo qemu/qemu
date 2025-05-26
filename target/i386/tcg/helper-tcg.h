@@ -97,7 +97,7 @@ static inline unsigned int compute_pf(uint8_t x)
 /* misc_helper.c */
 void cpu_load_eflags(CPUX86State *env, int eflags, int update_mask);
 
-/* sysemu/svm_helper.c */
+/* system/svm_helper.c */
 #ifndef CONFIG_USER_ONLY
 G_NORETURN void cpu_vmexit(CPUX86State *nenv, uint32_t exit_code,
                            uint64_t exit_info_1, uintptr_t retaddr);
@@ -115,7 +115,7 @@ int exception_has_error_code(int intno);
 /* smm_helper.c */
 void do_smm_enter(X86CPU *cpu);
 
-/* sysemu/bpt_helper.c */
+/* system/bpt_helper.c */
 bool check_hw_breakpoints(CPUX86State *env, bool force_dr6_update);
 
 /*
