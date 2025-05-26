@@ -341,8 +341,12 @@ static void inet_parse_test_helper(const char *str,
     int rc = inet_parse(&addr, str, &error);
 
     if (success) {
+        if (error) {
+            error_report_err(error);
+        }
         g_assert_cmpint(rc, ==, 0);
     } else {
+        error_free(error);
         g_assert_cmpint(rc, <, 0);
     }
     if (exp_addr != NULL) {
