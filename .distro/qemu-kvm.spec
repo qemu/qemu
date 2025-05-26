@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 20%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 21%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -559,6 +559,14 @@ Patch193: kvm-file-posix-probe-discard-alignment-on-Linux-block-de.patch
 Patch194: kvm-block-io-skip-head-tail-requests-on-EINVAL.patch
 # For RHEL-86032 - QEMU sends unaligned discards on 4K devices [RHEL-9.7]
 Patch195: kvm-file-posix-Fix-crash-on-discard_granularity-0.patch
+# For RHEL-88153 - [s390x] valgrind not working with qemu-kvm for non-x86 builds
+Patch196: kvm-meson-configure-add-valgrind-option-en-dis-able-valg.patch
+# For RHEL-88153 - [s390x] valgrind not working with qemu-kvm for non-x86 builds
+Patch197: kvm-hw-i386-Fix-machine-type-compatibility.patch
+# For RHEL-88533 - Improve VFIO mmapping performance with  huge  pfnmaps
+Patch198: kvm-vfio-helpers-Refactor-vfio_region_mmap-error-handlin.patch
+# For RHEL-88533 - Improve VFIO mmapping performance with  huge  pfnmaps
+Patch199: kvm-vfio-helpers-Align-mmaps.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1634,6 +1642,19 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Mon May 26 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-21
+- kvm-meson-configure-add-valgrind-option-en-dis-able-valg.patch [RHEL-88153]
+- kvm-distro-add-an-explicit-valgrind-devel-build-dep.patch [RHEL-88153]
+- kvm-hw-i386-Fix-machine-type-compatibility.patch [RHEL-91307]
+- kvm-vfio-helpers-Refactor-vfio_region_mmap-error-handlin.patch [RHEL-88533]
+- kvm-vfio-helpers-Align-mmaps.patch [RHEL-88533]
+- Resolves: RHEL-88153
+  ([s390x] valgrind not working with qemu-kvm for non-x86 builds)
+- Resolves: RHEL-91307
+  (Fix x86 M-type compats)
+- Resolves: RHEL-88533
+  (Improve VFIO mmapping performance with  huge  pfnmaps)
+
 * Tue May 13 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-20
 - kvm-virtio-net-disable-USO-for-virt-rhel9.6.patch [RHEL-80313]
 - kvm-arm-Use-arm_virt_compat_set-to-apply-the-compat.patch [RHEL-80313]
