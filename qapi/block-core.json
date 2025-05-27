@@ -4947,7 +4947,7 @@
 #  3) A reference to a different node: the current child is replaced
 #     with the specified one.
 #
-#  4) NULL: the current child (if any) is detached.
+#  4) null: the current child (if any) is detached.
 #
 # Options (1) and (2) are supported in all cases.  Option (3) is
 # supported for @file and @backing, and option (4) for @backing only.
