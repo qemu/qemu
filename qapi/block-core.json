@@ -1894,7 +1894,7 @@
 # The status of ongoing drive-backup operations can be checked with
 # query-block-jobs where the BlockJobInfo.type field has the value
 # 'backup'.  The operation can be stopped before it has completed
-# using the block-job-cancel command.
+# using the job-cancel or block-job-cancel command.
 #
 # Features:
 #
@@ -1925,7 +1925,7 @@
 # The status of ongoing blockdev-backup operations can be checked with
 # query-block-jobs where the BlockJobInfo.type field has the value
 # 'backup'.  The operation can be stopped before it has completed
-# using the block-job-cancel command.
+# using the job-cancel or block-job-cancel command.
 #
 # Errors:
 #     - If @device is not a valid block device, DeviceNotFound
@@ -2788,7 +2788,7 @@
 # immediately once streaming has started.  The status of ongoing block
 # streaming operations can be checked with query-block-jobs.  The
 # operation can be stopped before it has completed using the
-# block-job-cancel command.
+# job-cancel or block-job-cancel command.
 #
 # The node that receives the data is called the top image, can be
 # located in any part of the chain (but always above the base image;
@@ -3075,8 +3075,8 @@
 #
 # This command will refuse to operate on any job that has not yet
 # reached its terminal state, JOB_STATUS_CONCLUDED.  For jobs that
-# make use of the BLOCK_JOB_READY event, block-job-cancel or
-# job-complete will still need to be used as appropriate.
+# make use of the BLOCK_JOB_READY event, job-cancel, block-job-cancel
+# or job-complete will still need to be used as appropriate.
 #
 # @id: The job identifier.
 #
