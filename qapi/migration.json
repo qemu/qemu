@@ -407,7 +407,7 @@
 # @postcopy-ram: Start executing on the migration target before all of
 #     RAM has been migrated, pulling the remaining pages along as
 #     needed.  The capacity must have the same setting on both source
-#     and target or migration will not even start.  NOTE: If the
+#     and target or migration will not even start.  **Note:** if the
 #     migration fails during postcopy the VM will fail.  (since 2.6)
 #
 # @x-colo: If enabled, migration will never end, and the state of the
@@ -801,10 +801,10 @@
 #     (Since 2.8)
 #
 # @avail-switchover-bandwidth: to set the available bandwidth that
-#     migration can use during switchover phase.  NOTE!  This does not
-#     limit the bandwidth during switchover, but only for calculations
-#     when making decisions to switchover.  By default, this value is
-#     zero, which means QEMU will estimate the bandwidth
+#     migration can use during switchover phase.  **Note:** this does
+#     not limit the bandwidth during switchover, but only for
+#     calculations when making decisions to switchover.  By default,
+#     this value is zero, which means QEMU will estimate the bandwidth
 #     automatically.  This can be set when the estimated value is not
 #     accurate, while the user is able to guarantee such bandwidth is
 #     available when switching over.  When specified correctly, this
@@ -982,10 +982,10 @@
 #     (Since 2.8)
 #
 # @avail-switchover-bandwidth: to set the available bandwidth that
-#     migration can use during switchover phase.  NOTE!  This does not
-#     limit the bandwidth during switchover, but only for calculations
-#     when making decisions to switchover.  By default, this value is
-#     zero, which means QEMU will estimate the bandwidth
+#     migration can use during switchover phase.  **Note:** this does
+#     not limit the bandwidth during switchover, but only for
+#     calculations when making decisions to switchover.  By default,
+#     this value is zero, which means QEMU will estimate the bandwidth
 #     automatically.  This can be set when the estimated value is not
 #     accurate, while the user is able to guarantee such bandwidth is
 #     available when switching over.  When specified correctly, this
@@ -1192,10 +1192,10 @@
 #     (Since 2.8)
 #
 # @avail-switchover-bandwidth: to set the available bandwidth that
-#     migration can use during switchover phase.  NOTE!  This does not
-#     limit the bandwidth during switchover, but only for calculations
-#     when making decisions to switchover.  By default, this value is
-#     zero, which means QEMU will estimate the bandwidth
+#     migration can use during switchover phase.  **Note:** this does
+#     not limit the bandwidth during switchover, but only for
+#     calculations when making decisions to switchover.  By default,
+#     this value is zero, which means QEMU will estimate the bandwidth
 #     automatically.  This can be set when the estimated value is not
 #     accurate, while the user is able to guarantee such bandwidth is
 #     available when switching over.  When specified correctly, this
