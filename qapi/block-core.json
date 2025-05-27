@@ -1322,8 +1322,8 @@
 # @incremental: only copy data described by the dirty bitmap.
 #     (since: 2.4)
 #
-# @bitmap: only copy data described by the dirty bitmap.  (since: 4.2)
-#     Behavior on completion is determined by the BitmapSyncMode.
+# @bitmap: only copy data described by the dirty bitmap.  Behavior on
+#     completion is determined by the BitmapSyncMode.  (since: 4.2)
 #
 # Since: 1.3
 ##
@@ -3415,8 +3415,8 @@
 # Driver specific block device options for LUKS.
 #
 # @key-secret: the ID of a QCryptoSecret object providing the
-#     decryption key (since 2.6).  Mandatory except when doing a
-#     metadata-only probe of the image.
+#     decryption key.  Mandatory except when doing a metadata-only
+#     probe of the image.  (since 2.6)
 #
 # @header: block device holding a detached LUKS header.  (since 9.0)
 #
@@ -4724,11 +4724,11 @@
 #
 # @driver: block driver name
 #
-# @node-name: the node name of the new node (Since 2.0).  This option
-#     is required on the top level of blockdev-add.  Valid node names
-#     start with an alphabetic character and may contain only
-#     alphanumeric characters, '-', '.' and '_'.  Their maximum length
-#     is 31 characters.
+# @node-name: the node name of the new node.  This option is required
+#     on the top level of blockdev-add.  Valid node names start with
+#     an alphabetic character and may contain only alphanumeric
+#     characters, '-', '.' and '_'.  Their maximum length is 31
+#     characters.  (Since 2.0)
 #
 # @discard: discard-related options (default: ignore)
 #
