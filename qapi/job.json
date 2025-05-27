@@ -74,7 +74,7 @@
 #     process.
 #
 # @concluded: The job has finished all work.  If auto-dismiss was set
-#     to false, the job will remain in the query list until it is
+#     to false, the job will remain in this state until it is
 #     dismissed via @job-dismiss.
 #
 # @null: The job is in the process of being dismantled.  This state
