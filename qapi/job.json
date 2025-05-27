@@ -223,9 +223,9 @@
 # jobs.
 #
 # This command will refuse to operate on any job that has not yet
-# reached its terminal state, JOB_STATUS_CONCLUDED.  For jobs that
-# make use of JOB_READY event, job-cancel or job-complete will still
-# need to be used as appropriate.
+# reached its terminal state, CONCLUDED.  For jobs that make use of
+# the JOB_READY event, job-cancel or job-complete will still need to
+# be used as appropriate.
 #
 # @id: The job identifier.
 #
