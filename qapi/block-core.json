@@ -488,7 +488,7 @@
 #
 # @active: true if the backend is active; typical cases for inactive backends
 #     are on the migration source instance after migration completes and on the
-#     destination before it completes. (since: 10.0)
+#     destination before it completes.  (since: 10.0)
 #
 # @encrypted: true if the backing device is encrypted
 #
@@ -3030,10 +3030,10 @@
 # state.  Completing the job in any other state is an error.
 #
 # This is supported only for drive mirroring, where it also switches
-# the device to write to the target path only. Note that drive
+# the device to write to the target path only.  Note that drive
 # mirroring includes drive-mirror, blockdev-mirror and block-commit
 # job (only in case of "active commit", when the node being commited
-# is used by the guest). The ability to complete is signaled with a
+# is used by the guest).  The ability to complete is signaled with a
 # BLOCK_JOB_READY event.
 #
 # This command completes an active background block operation
@@ -3068,10 +3068,10 @@
 #
 # Deletes a job that is in the CONCLUDED state.  This command only
 # needs to be run explicitly for jobs that don't have automatic
-# dismiss enabled. In turn, automatic dismiss may be enabled only
+# dismiss enabled.  In turn, automatic dismiss may be enabled only
 # for jobs that have @auto-dismiss option, which are drive-backup,
 # blockdev-backup, drive-mirror, blockdev-mirror, block-commit and
-# block-stream. @auto-dismiss is enabled by default for these
+# block-stream.  @auto-dismiss is enabled by default for these
 # jobs.
 #
 # This command will refuse to operate on any job that has not yet
@@ -4737,7 +4737,7 @@
 # @active: whether the block node should be activated (default: true).
 #     Having inactive block nodes is useful primarily for migration because it
 #     allows opening an image on the destination while the source is still
-#     holding locks for it. (Since 10.0)
+#     holding locks for it.  (Since 10.0)
 #
 # @read-only: whether the block device should be read-only (default:
 #     false).  Note that some block drivers support only read-only
@@ -4999,14 +4999,14 @@
 ##
 # @blockdev-set-active:
 #
-# Activate or inactivate a block device. Use this to manage the handover of
+# Activate or inactivate a block device.  Use this to manage the handover of
 # block devices on migration with qemu-storage-daemon.
 #
 # Activating a node automatically activates all of its child nodes first.
 # Inactivating a node automatically inactivates any of its child nodes that are
 # not in use by a still active node.
 #
-# @node-name: Name of the graph node to activate or inactivate. By default, all
+# @node-name: Name of the graph node to activate or inactivate.  By default, all
 #     nodes are affected by the operation.
 #
 # @active: true if the nodes should be active when the command returns success,

@@ -55,7 +55,8 @@
 # @sha512: SHA-512.  (since 2.7)
 #
 # @ripemd160: RIPEMD-160.  (since 2.7)
-# @sm3: SM3. (since 9.2.0)
+#
+# @sm3: SM3.  (since 9.2.0)
 #
 # Since: 2.6
 ##

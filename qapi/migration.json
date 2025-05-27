@@ -842,9 +842,9 @@
 #     more CPU.  Defaults to 1.  (Since 5.0)
 #
 # @multifd-qatzip-level: Set the compression level to be used in live
-#     migration. The level is an integer between 1 and 9, where 1 means
+#     migration.  The level is an integer between 1 and 9, where 1 means
 #     the best compression speed, and 9 means the best compression
-#     ratio which will consume more CPU. Defaults to 1.  (Since 9.2)
+#     ratio which will consume more CPU.  Defaults to 1.  (Since 9.2)
 #
 # @multifd-zstd-level: Set the compression level to be used in live
 #     migration, the compression level is an integer between 0 and 20,
@@ -1023,9 +1023,9 @@
 #     more CPU.  Defaults to 1.  (Since 5.0)
 #
 # @multifd-qatzip-level: Set the compression level to be used in live
-#     migration. The level is an integer between 1 and 9, where 1 means
+#     migration.  The level is an integer between 1 and 9, where 1 means
 #     the best compression speed, and 9 means the best compression
-#     ratio which will consume more CPU. Defaults to 1.  (Since 9.2)
+#     ratio which will consume more CPU.  Defaults to 1.  (Since 9.2)
 #
 # @multifd-zstd-level: Set the compression level to be used in live
 #     migration, the compression level is an integer between 0 and 20,
@@ -1233,9 +1233,9 @@
 #     more CPU.  Defaults to 1.  (Since 5.0)
 #
 # @multifd-qatzip-level: Set the compression level to be used in live
-#     migration. The level is an integer between 1 and 9, where 1 means
+#     migration.  The level is an integer between 1 and 9, where 1 means
 #     the best compression speed, and 9 means the best compression
-#     ratio which will consume more CPU. Defaults to 1.  (Since 9.2)
+#     ratio which will consume more CPU.  Defaults to 1.  (Since 9.2)
 #
 # @multifd-zstd-level: Set the compression level to be used in live
 #     migration, the compression level is an integer between 0 and 20,

@@ -694,7 +694,7 @@
 # Structure of HMAT (Heterogeneous Memory Attribute Table)
 #
 # For more information about @HmatLBDataType, see chapter 5.2.27.4:
-# Table 5-146:  Field "Data Type" of ACPI 6.3 spec.
+# Table 5-146: Field "Data Type" of ACPI 6.3 spec.
 #
 # @access-latency: access latency (nanoseconds)
 #
