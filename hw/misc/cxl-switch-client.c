@@ -17,6 +17,7 @@
 #include "system/memory.h"
 #include "system/hostmem.h"
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -32,9 +33,26 @@
             printf("CXL Switch Client: " fmt, ## __VA_ARGS__);    \
         }                                                  \
     } while (0)
-
-
 #define TYPE_PCI_CXL_SWITCH_CLIENT "cxl-switch-client"
+
+// --- BAR Sizes and layout ---
+#define BAR0_MAILBOX_SIZE  0x1000    // 4KB for management mailbox
+#define BAR1_CONTROL_SIZE  0x1000    // 4KB for control registers
+#define BAR2_DATA_SIZE     (1 * MiB) // Default size
+
+// BAR1 Control Registers
+#define REG_COMMAND_DOORBELL 0x00
+#define REG_COMMAND_STATUS   0x04
+
+// Status values for REG_COMMAND_STATUS
+#define CMD_STATUS_IDLE                    0x00
+#define CMD_STATUS_PROCESSING              0x01
+#define CMD_STATUS_RESPONSE_READY          0x02
+#define CMD_STATUS_ERROR_IPC               0xE0
+#define CMD_STATUS_ERROR_SERVER            0xE1
+#define CMD_STATUS_ERROR_INTERNAL          0xE2
+#define CMD_STATUS_ERROR_BUSY              0xE3
+#define CMD_STATUS_ERROR_BAD_WINDOW_CONFIG 0xE4
 
 typedef struct CXLSwitchClientState CXLSwitchClientState;
 DECLARE_INSTANCE_CHECKER(CXLSwitchClientState, CXL_SWITCH_CLIENT, TYPE_PCI_CXL_SWITCH_CLIENT)
@@ -45,13 +63,93 @@ DECLARE_INSTANCE_CHECKER(CXLSwitchClientState, CXL_SWITCH_CLIENT, TYPE_PCI_CXL_S
 struct CXLSwitchClientState {
     PCIDevice pdev;
 
-    MemoryRegion replicated_mr_bar;  // BAR2: Guest access
+    /**
+        Mailbox region used by the user-space RPC library
+        to place command structures inside, such as
+        register service X or request connection.
+
+        Separates data payload from signal/status
+    */
+    MemoryRegion bar0_mailbox_region;
+    uint8_t bar0_mailbox[BAR0_MAILBOX_SIZE];
+
+    /**
+        Small MMIO region for explicit control signal
+    */
+    MemoryRegion bar1_control_region;
+    uint32_t command_status_reg;
+
+    /**
+        This is a hacky attempt at a Dynamic Capacity Device.
+        When a PCIe device is configured, the enumeration process requires
+        the PCIe device to report the characteristics of its BARs to the host
+        system. This includes the type of resource (memory or I/O), whether
+        it's 64 bit prefetchable, and importantly, the size of the memory region
+        it requires. The host then allocates a physical address range in the
+        system's memory map for this BAR and programs the BAR register on the
+        PCI device with the allocated base address.
+        Since QEMU adheres to this model, we have no choice but to present this
+        static size.
+        In our case, our CXL Switch Client wants to request for a shared region
+        of the total CXL memory pooling (which is for the RPC connection). This
+        is handled via the RPC_SET_BAR2_WINDOW_REQ command. This returns the
+        Bar2 window offset and size, which is later referenced by the 
+        memory operations on the bar2.
+        TODO: Align this with an actual DCD and how CXL presents itself. 
+        I am unsure how much engineering effort this will require, hence 
+        sticking to the hack for now, but the effort does seem to be a lot,
+        given that it took moking sometime to get right.
+        Re: https://github.com/moking/qemu/tree/dcd-v6
+    */
+    MemoryRegion bar2_data_region;
+    uint64_t bar2_data_size;           // Actual size of BAR2
+    uint64_t bar2_data_window_offset;  // Offset in the global pool
+    uint64_t bar2_data_window_size;    // Size that the window is configured
+
+    uint64_t total_pool_size;          // Total size of mem pool
 
     char *server_socket_path;  // QOM property
     int server_fd;
-    uint64_t mem_size; // Size of the replicated memory region
-
     QemuMutex lock; // Serialize access to server_fd from MMIO callbacks
+};
+
+// --- Forward declarations for MemoryRegionOps ---
+static uint64_t bar0_mailbox_read(void *opaque, hwaddr addr, unsigned size);
+static void bar0_mailbox_write(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+static uint64_t bar1_control_read(void *opaque, hwaddr addr, unsigned size);
+static void bar1_control_write(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+static uint64_t bar2_data_window_read(void *opaque, hwaddr addr, unsigned size);
+static void bar2_data_window_write(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+
+// --- MemoryRegionOps definitions ---
+static const MemoryRegionOps bar0_mailbox_ops = {
+    .read = bar0_mailbox_read,
+    .write = bar0_mailbox_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
+static const MemoryRegionOps bar1_control_ops = {
+    .read = bar1_control_read,
+    .write = bar1_control_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+static const MemoryRegionOps bar2_data_ops = {
+    .read = bar2_data_window_read,
+    .write = bar2_data_window_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
 };
 
 static void pci_cxl_switch_client_register_types(void);
@@ -92,28 +190,222 @@ static int cxl_switch_client_ipc_request_response(CXLSwitchClientState *s,
     return 0;
 }
 
-/* BAR2 Replicated Memory Operations */
+// --- Bar0 Mailbox Operations ---
+static uint64_t bar0_mailbox_read(void *opaque, hwaddr addr, unsigned size)
+{
+    CXLSwitchClientState *s = opaque;
+    uint64_t data = ~0ULL;
 
-static uint64_t cxl_switch_client_mem_read(void *opaque, hwaddr addr, unsigned size)
+    if ((addr + size) > BAR0_MAILBOX_SIZE) {
+        CXL_SWITCH_DPRINTF("GuestError: Read out of bounds (offset=0x%"PRIx64", size=%u, limit=%u)\n",
+                      addr, size, BAR0_MAILBOX_SIZE);
+        return data;
+    }
+
+    CXL_SWITCH_DPRINTF("Info: Reading from BAR0 mailbox at offset 0x%"PRIx64", size=%u\n",
+                  addr, size);
+    switch (size) {
+        case 1: data = s->bar0_mailbox[addr]; break;
+        case 2: data = le16_to_cpu(*(uint16_t *)&s->bar0_mailbox[addr]); break;
+        case 4: data = le32_to_cpu(*(uint32_t *)&s->bar0_mailbox[addr]); break;
+        case 8: data = le64_to_cpu(*(uint64_t *)&s->bar0_mailbox[addr]); break;
+        default: CXL_SWITCH_DPRINTF("Error: Invalid size %u for BAR0 mailbox read.\n", size); break;
+    }
+
+    return data;
+}
+
+static void bar0_mailbox_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
+{
+    CXLSwitchClientState *s = opaque;
+
+    if ((addr + size) > BAR0_MAILBOX_SIZE) {
+        CXL_SWITCH_DPRINTF("GuestError: Write out of bounds (offset=0x%"PRIx64", size=%u, limit=%u)\n",
+                      addr, size, BAR0_MAILBOX_SIZE);
+        return;
+    }
+
+    CXL_SWITCH_DPRINTF("Info: Writing to BAR0 mailbox at offset 0x%"PRIx64", size=%u, value=0x%"PRIx64"\n",
+                  addr, size, val);
+    switch (size) {
+        case 1: s->bar0_mailbox[addr] = (uint8_t)val; break;
+        case 2: *(uint16_t *)&s->bar0_mailbox[addr] = cpu_to_le16((uint16_t)val); break;
+        case 4: *(uint32_t *)&s->bar0_mailbox[addr] = cpu_to_le32((uint32_t)val); break;
+        case 8: *(uint64_t *)&s->bar0_mailbox[addr] = cpu_to_le64(val); break;
+        default: CXL_SWITCH_DPRINTF("Error: Invalid size %u for BAR0 mailbox write.\n", size); break;
+    }
+}
+
+// --- Bar1 Control Operations ---
+static uint64_t bar1_control_read(void *opaque, hwaddr addr, unsigned size)
+{
+    CXLSwitchClientState *s = opaque;
+    uint32_t reg_val = 0xFFFFFFFF;
+    if (size != 4) return reg_val;
+
+    qemu_mutex_lock(&s->lock);
+    switch (addr) {
+        case REG_COMMAND_STATUS: reg_val = s->command_status_reg; break;
+        default: 
+            CXL_SWITCH_DPRINTF("Error: Invalid address 0x%"PRIx64" for BAR1 control read.\n", addr);
+            break;
+    }
+    qemu_mutex_unlock(&s->lock);
+    CXL_SWITCH_DPRINTF("Info: Reading from BAR1 control at offset 0x%"PRIx64", size=%u, value=0x%08x\n",
+                  addr, size, reg_val);
+    return reg_val;
+}
+
+static void bar1_control_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
+{
+    CXLSwitchClientState *s = opaque;
+    uint8_t cmd_type;
+    uint8_t tmp_status;
+
+    if (size != 4) return;
+
+    if (addr != REG_COMMAND_DOORBELL) {
+        CXL_SWITCH_DPRINTF("Error: Invalid address 0x%"PRIx64" for BAR1 control write.\n", addr);
+        return;
+    }
+
+    qemu_mutex_lock(&s->lock);
+    CXL_SWITCH_DPRINTF("Info: Writing to BAR1 control at offset 0x%"PRIx64", size=%u, value=0x%08"PRIx64". Current status = 0x%x\n",
+                  addr, size, val, s->command_status_reg);
+    
+    if (s->command_status_reg == CMD_STATUS_PROCESSING) {
+        s->command_status_reg = CMD_STATUS_ERROR_BUSY;
+        CXL_SWITCH_DPRINTF("Error: Command already processing, cannot write new command.\n");
+        qemu_mutex_unlock(&s->lock);
+        return;
+    }
+
+    s->command_status_reg = CMD_STATUS_PROCESSING;
+    qemu_mutex_unlock(&s->lock);
+
+    cmd_type = s->bar0_mailbox[0];
+    CXL_SWITCH_DPRINTF("Info: Command type from mailbox: 0x%02x\n", cmd_type);
+
+    int ipc_ret = -1;
+    // Buffer for server's response
+    uint8_t ipc_server_resp_payload[BAR0_MAILBOX_SIZE];
+    size_t expected_server_resp_len = 0;
+
+    switch(cmd_type) {
+        case CXL_MSG_TYPE_RPC_REGISTER_SERVICE_REQ:
+            expected_server_resp_len = sizeof(cxl_ipc_rpc_register_service_resp_t);
+            CXL_SWITCH_DPRINTF("Info: Handling RPC_REGISTER_SERVICE request.\n");
+            ipc_ret = cxl_switch_client_ipc_request_response(s, s->bar0_mailbox, sizeof(cxl_ipc_rpc_register_service_req_t), ipc_server_resp_payload, expected_server_resp_len);
+            break;
+        case CXL_MSG_TYPE_RPC_REQUEST_CHANNEL_REQ:
+            expected_server_resp_len = sizeof(cxl_ipc_rpc_request_channel_resp_t);
+            CXL_SWITCH_DPRINTF("Info: Handling RPC_REQUEST_CHANNEL request.\n");
+            ipc_ret = cxl_switch_client_ipc_request_response(s, s->bar0_mailbox, sizeof(cxl_ipc_rpc_request_channel_req_t), ipc_server_resp_payload, expected_server_resp_len);
+            break;
+        case CXL_MSG_TYPE_RPC_SET_BAR2_WINDOW_REQ: {
+            // Local QEMU Device command
+            cxl_ipc_rpc_set_bar2_window_req_t *set_window_req = (cxl_ipc_rpc_set_bar2_window_req_t *)s->bar0_mailbox;
+            cxl_ipc_rpc_set_bar2_window_resp_t set_window_resp;
+            set_window_resp.type = CXL_MSG_TYPE_RPC_SET_BAR2_WINDOW_RESP;
+    
+            CXL_SWITCH_DPRINTF("Info: Handling RPC_SET_BAR2_WINDOW request. Offset=0x%"PRIx64", Size=0x%"PRIx64"\n",
+                          set_window_req->offset, set_window_req->size);
+            
+            if (set_window_req->size <= s->bar2_data_size && (set_window_req->offset + set_window_req->size) <= s->total_pool_size) {
+                s->bar2_data_window_offset = set_window_req->offset;
+                s->bar2_data_window_size = set_window_req->size;
+                set_window_resp.status = CXL_IPC_STATUS_OK;
+                CXL_SWITCH_DPRINTF("Info: BAR2 window set successfully. Offset=0x%"PRIx64", Size=0x%"PRIx64"\n",
+                              s->bar2_data_window_offset, s->bar2_data_window_size);
+            } else {
+                set_window_resp.status = CXL_IPC_STATUS_BAR2_FAILED;
+                CXL_SWITCH_DPRINTF("Error: Invalid BAR2 window configuration. Offset=0x%"PRIx64", Size=0x%"PRIx64"\n",
+                              set_window_req->offset, set_window_req->size);
+            }
+            // Write response to bar0 mailbox
+            memcpy(s->bar0_mailbox, &set_window_resp, sizeof(set_window_resp));
+            ipc_ret = 0; // No IPC request needed, handled locally
+            tmp_status = set_window_resp.status;
+            expected_server_resp_len = 0; // no server payload
+            break;
+        } 
+        
+        // TODO: Add client notify
+        default:
+            CXL_SWITCH_DPRINTF("Error: Unknown command type 0x%02x.\n", cmd_type);
+            qemu_mutex_lock(&s->lock);
+            s->command_status_reg = CMD_STATUS_ERROR_INTERNAL;
+            qemu_mutex_unlock(&s->lock);
+            return; // Invalid command, exit early
+    }
+    // Lock as we want to modify the command_status_reg
+    qemu_mutex_lock(&s->lock);
+    if (ipc_ret != 0) {
+        // IPC was unsuccessful
+        s->command_status_reg = CMD_STATUS_ERROR_IPC;
+        qemu_mutex_unlock(&s->lock);
+        return;
+    }
+    // IPC was successful or local command handled
+    // Now we want to extract the status from the server's response into tmp_status
+    // If it was a local command, it was already set in tmp_status
+    if (cmd_type != CXL_MSG_TYPE_RPC_SET_BAR2_WINDOW_REQ) {
+        // Was an IPC request, here we know its successful, so we just want to 
+        // handle case where somehow response was larger than mailbox size
+        // in that case, we shud terminate early and note that we messed up somewhere
+        if (expected_server_resp_len > BAR0_MAILBOX_SIZE) {
+            CXL_SWITCH_DPRINTF("Error: Server response size %zu exceeds mailbox size %u.\n", expected_server_resp_len, BAR0_MAILBOX_SIZE);
+            s->command_status_reg = CMD_STATUS_ERROR_INTERNAL;
+            qemu_mutex_unlock(&s->lock);
+            return;
+        }
+        // Copy the server's response payload to the mailbox
+        memcpy(s->bar0_mailbox, ipc_server_resp_payload, expected_server_resp_len);
+        CXL_SWITCH_DPRINTF("Info: Received response from server, size=%zu\n", expected_server_resp_len);
+        // Extract status from the server's response
+        // NOTE: Assumes that all server response have status as second byte
+        //       after the type. Need to adjust if this changes.
+        tmp_status = ((uint8_t *)ipc_server_resp_payload)[1];
+    }
+
+    if (tmp_status == CXL_IPC_STATUS_OK) {
+        s->command_status_reg = CMD_STATUS_RESPONSE_READY;
+    } else {
+        s->command_status_reg = CMD_STATUS_ERROR_SERVER;
+    }
+
+    CXL_SWITCH_DPRINTF("Info: Command 0x%02x completed. Server status was 0x%02x. BAR1 Status updated to 0x%08x.\n", cmd_type, tmp_status, s->command_status_reg);
+    qemu_mutex_unlock(&s->lock);
+}
+
+// --- BAR2 Replicated Memory Operations ---
+
+static uint64_t bar2_data_window_read(void *opaque, hwaddr addr, unsigned size)
 {
     CXLSwitchClientState *s = opaque;
     uint64_t data = ~0ULL; // Default error value (all FFs)
+
+    if (s->bar2_data_window_size == 0) {
+        CXL_SWITCH_DPRINTF("Error: BAR2 data window not configured.\n");
+        return data;
+    }
+
+    if ((addr + size) > s->bar2_data_window_size) {
+        CXL_SWITCH_DPRINTF("GuestError: Read out of bounds (offset=0x%"PRIx64", size=%u, limit=0x%"PRIx64")\n",
+                      addr, size, s->bar2_data_window_size);
+        return data;
+    }
     
     if (s->server_fd < 0) {
         CXL_SWITCH_DPRINTF("Error: Server socket not initialized.\n");
         return data;
     }
 
-    if ((addr + size) > s->mem_size) {
-        CXL_SWITCH_DPRINTF("GuestError: Read out of bounds (offset=0x%"PRIx64", size=%u, limit=0x%"PRIx64")\n",
-                      addr, size, s->mem_size);
-        return data;
-    }
-
+    hwaddr addr_in_pool = s->bar2_data_window_offset + addr;
     cxl_ipc_read_req_t read_req = {
         .type = CXL_MSG_TYPE_READ_REQ,
-        .addr = addr,
-        .size = size,
+        .addr = addr_in_pool,
+        .size = (uint8_t) size,
     };
     cxl_ipc_read_resp_t read_resp;
 
@@ -136,24 +428,30 @@ static uint64_t cxl_switch_client_mem_read(void *opaque, hwaddr addr, unsigned s
     return read_resp.value;
 }
 
-static void cxl_switch_client_mem_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
+static void bar2_data_window_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     CXLSwitchClientState *s = opaque;
+
+    if (s->bar2_data_window_size == 0) {
+        CXL_SWITCH_DPRINTF("Error: BAR2 data window not configured.\n");
+        return;
+    }
+
+    if ((addr + size) > s->bar2_data_window_size) {
+        CXL_SWITCH_DPRINTF("GuestError: Write out of bounds (offset=0x%"PRIx64", size=%u, limit=0x%"PRIx64")\n",
+                      addr, size, s->bar2_data_window_size);
+        return;
+    }
 
     if (s->server_fd < 0) {
         CXL_SWITCH_DPRINTF("Error: Server socket not initialized.\n");
         return;
     }
 
-    if ((addr + size) > s->mem_size) {
-        CXL_SWITCH_DPRINTF("GuestError: Write out of bounds (offset=0x%"PRIx64", size=%u, limit=0x%"PRIx64")\n",
-                      addr, size, s->mem_size);
-        return;
-    }
-
+    hwaddr addr_in_pool = s->bar2_data_window_offset + addr;
     cxl_ipc_write_req_t write_req = {
         .type  = CXL_MSG_TYPE_WRITE_REQ,
-        .addr  = addr,
+        .addr  = addr_in_pool,
         .size  = (uint8_t) size,
         .value = val
     };
@@ -177,26 +475,21 @@ static void cxl_switch_client_mem_write(void *opaque, hwaddr addr, uint64_t val,
                   write_resp.type, write_resp.status, addr, size);
 }
 
-static const MemoryRegionOps cxl_switch_mem_ops = {
-    .read = cxl_switch_client_mem_read,
-    .write = cxl_switch_client_mem_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 8,
-    },
-};
-
 /* PCI Device Lifecycle */
 
 static void pci_cxl_switch_client_realize(PCIDevice *pdev, Error **errp)
 {
     CXLSwitchClientState *s = CXL_SWITCH_CLIENT(pdev);
-    CXL_SWITCH_DPRINTF("Info: Realizing device with mem-size %"PRIu64".\n", s->mem_size); // Added device ID manually
     struct sockaddr_un addr;
 
     s->server_fd = -1;
-    s->mem_size = 0;
+    s->total_pool_size = 0;
+    s->command_status_reg = CMD_STATUS_IDLE;
+    memset(s->bar0_mailbox, 0, BAR0_MAILBOX_SIZE);
+    s->bar2_data_window_offset = 0;
+    s->bar2_data_window_size = 0;
+    s->bar2_data_size = BAR2_DATA_SIZE; // Default size, can be overridden by QOM property
+
     qemu_mutex_init(&s->lock);
 
     if (!s->server_socket_path) {
@@ -244,14 +537,27 @@ static void pci_cxl_switch_client_realize(PCIDevice *pdev, Error **errp)
         return;
     }
 
-    s->mem_size = mem_size_resp.mem_size;
-    CXL_SWITCH_DPRINTF("Info: Memory size from server: %"PRIu64" bytes\n", s->mem_size);
+    s->total_pool_size = mem_size_resp.mem_size;
+    CXL_SWITCH_DPRINTF("Info: Memory size from server: %"PRIu64" bytes\n", s->total_pool_size);
 
-    // Initialize the replicated memory region
-    memory_region_init_io(&s->replicated_mr_bar, OBJECT(s), &cxl_switch_mem_ops, s, "cxl-switch-replicated-mem", s->mem_size);
-    pci_register_bar(pdev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_64 | PCI_BASE_ADDRESS_MEM_PREFETCH, &s->replicated_mr_bar);
+    // Bar0: Management mailbox
+    memory_region_init_io(&s->bar0_mailbox_region, OBJECT(s), &bar0_mailbox_ops, s, "cxl-switch-client-bar0-mailbox", BAR0_MAILBOX_SIZE);
+    pci_register_bar(pdev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_32, &s->bar0_mailbox_region);
+    CXL_SWITCH_DPRINTF("Info: BAR0 (mailbox) registered, size %u bytes.\n", BAR0_MAILBOX_SIZE);
 
-    CXL_SWITCH_DPRINTF("Info: BAR0 (effectively BAR2) registered for replication, size %"PRIu64".\n", s->mem_size);
+    // Bar1: Control registers
+    memory_region_init_io(&s->bar1_control_region, OBJECT(s), &bar1_control_ops, s, "cxl-switch-client-bar1-control", BAR1_CONTROL_SIZE);
+    pci_register_bar(pdev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_32, &s->bar1_control_region);
+    CXL_SWITCH_DPRINTF("Info: BAR1 (control) registered, size %u bytes.\n", BAR1_CONTROL_SIZE);
+
+    // Bar2: Data region
+    memory_region_init_io(&s->bar2_data_region, OBJECT(s), &bar2_data_ops, s, "cxl-switch-client-bar2-data", s->bar2_data_size);
+    pci_register_bar(pdev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_64 | PCI_BASE_ADDRESS_MEM_PREFETCH, &s->bar2_data_region);
+    CXL_SWITCH_DPRINTF("Info: BAR2 (data) registered, size %"PRIu64" bytes.\n", s->bar2_data_size);
+
+    CXL_SWITCH_DPRINTF("Info: CXL Switch Client (%s) realized successfully.\n",
+                  object_get_canonical_path_component(OBJECT(s)));
+    return;
 }
 
 static void pci_cxl_switch_client_uninit(PCIDevice *pdev)
@@ -296,7 +602,12 @@ static void cxl_switch_client_instance_init(Object *obj)
     CXLSwitchClientState *s = CXL_SWITCH_CLIENT(obj);
     s->server_socket_path = NULL; // Will be set by QOM property or be defaulted
     s->server_fd = -1;
-    s->mem_size = 0;
+    s->total_pool_size = 0;
+    s->command_status_reg = CMD_STATUS_IDLE;
+    memset(s->bar0_mailbox, 0, BAR0_MAILBOX_SIZE);
+    s->bar2_data_size = BAR2_DATA_SIZE;
+    s->bar2_data_window_offset = 0;
+    s->bar2_data_window_size = 0;
 }
 
 static InterfaceInfo interfaces[] = {
