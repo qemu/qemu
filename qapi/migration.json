@@ -415,7 +415,7 @@
 #     on secondary side, this process is called COarse-Grain LOck
 #     Stepping (COLO) for Non-stop Service.  (since 2.8)
 #
-# @release-ram: if enabled, qemu will free the migrated ram pages on
+# @release-ram: if enabled, QEMU will free the migrated ram pages on
 #     the source during postcopy-ram migration.  (since 2.9)
 #
 # @return-path: If enabled, migration will use the return path even
@@ -1500,7 +1500,7 @@
 ##
 # @x-colo-lost-heartbeat:
 #
-# Tell qemu that heartbeat is lost, request it to do takeover
+# Tell QEMU that heartbeat is lost, request it to do takeover
 # procedures.  If this command is sent to the PVM, the Primary side
 # will exit COLO mode.  If sent to the Secondary, the Secondary side
 # will run failover work, then takes over server operation to become
@@ -1729,8 +1729,8 @@
 ##
 # @migrate-incoming:
 #
-# Start an incoming migration, the qemu must have been started with
-# -incoming defer
+# Start an incoming migration.  QEMU must have been started with
+# -incoming defer.
 #
 # @uri: The Uniform Resource Identifier identifying the source or
 #     address to listen on

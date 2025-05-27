@@ -1526,12 +1526,12 @@
 #
 # Display (user interface) options.
 #
-# @type: Which DisplayType qemu should use.
+# @type: Which DisplayType QEMU should use.
 #
 # @full-screen: Start user interface in fullscreen mode
 #     (default: off).
 #
-# @window-close: Allow to quit qemu with window close button
+# @window-close: Allow to quit QEMU with window close button
 #     (default: on).
 #
 # @show-cursor: Force showing the mouse cursor (default: off).

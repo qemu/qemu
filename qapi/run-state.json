@@ -135,19 +135,19 @@
 ##
 # @SHUTDOWN:
 #
-# Emitted when the virtual machine has shut down, indicating that qemu
+# Emitted when the virtual machine has shut down, indicating that QEMU
 # is about to exit.
 #
 # @guest: If true, the shutdown was triggered by a guest request (such
 #     as a guest-initiated ACPI shutdown request or other
 #     hardware-specific action) rather than a host request (such as
-#     sending qemu a SIGINT).  (since 2.10)
+#     sending QEMU a SIGINT).  (since 2.10)
 #
 # @reason: The @ShutdownCause which resulted in the SHUTDOWN.
 #     (since 4.0)
 #
 # .. note:: If the command-line option ``-no-shutdown`` has been
-#    specified, qemu will not exit, and a STOP event will eventually
+#    specified, QEMU will not exit, and a STOP event will eventually
 #    follow the SHUTDOWN event.
 #
 # Since: 0.12

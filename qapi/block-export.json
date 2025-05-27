@@ -169,7 +169,7 @@
 # @growable: Whether writes beyond the EOF should grow the block node
 #     accordingly.  (default: false)
 #
-# @allow-other: If this is off, only qemu's user is allowed access to
+# @allow-other: If this is off, only QEMU's user is allowed access to
 #     this export.  That cannot be changed even with chmod or chown.
 #     Enabling this option will allow other users access to the export
 #     with the FUSE mount option "allow_other".  Note that using

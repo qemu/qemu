@@ -2030,7 +2030,7 @@
 #
 # @id: Block graph node identifier.  This @id is generated only for
 #     x-debug-query-block-graph and does not relate to any other
-#     identifiers in Qemu.
+#     identifiers in QEMU.
 #
 # @type: Type of graph node.  Can be one of block-backend, block-job
 #     or block-driver-state.
@@ -2794,7 +2794,7 @@
 # The node that receives the data is called the top image, can be
 # located in any part of the chain (but always above the base image;
 # see below) and can be specified using its device or node name.
-# Earlier qemu versions only allowed 'device' to name the top level
+# Earlier QEMU versions only allowed 'device' to name the top level
 # node; presence of the 'base-node' parameter during introspection can
 # be used as a witness of the enhanced semantics of 'device'.
 #
@@ -3196,7 +3196,7 @@
 #
 # Selects the AIO backend to handle I/O requests
 #
-# @threads: Use qemu's thread pool
+# @threads: Use QEMU's thread pool
 #
 # @native: Use native AIO backend (only Linux and Windows)
 #
@@ -5157,10 +5157,10 @@
 ##
 # @BlockdevQcow2Version:
 #
-# @v2: The original QCOW2 format as introduced in qemu 0.10 (version
+# @v2: The original QCOW2 format as introduced in QEMU 0.10 (version
 #     2)
 #
-# @v3: The extended QCOW2 format as introduced in qemu 1.1 (version 3)
+# @v3: The extended QCOW2 format as introduced in QEMU 1.1 (version 3)
 #
 # Since: 2.12
 ##
