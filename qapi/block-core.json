@@ -1337,7 +1337,7 @@
 # bitmap when used for data copy operations.
 #
 # @on-success: The bitmap is only synced when the operation is
-#     successful.  This is the behavior always used for 'INCREMENTAL'
+#     successful.  This is the behavior always used for incremental
 #     backups.
 #
 # @never: The bitmap is never synchronized with the operation, and is
@@ -1589,7 +1589,7 @@
 #
 # @bitmap-mode: Specifies the type of data the bitmap should contain
 #     after the operation concludes.  Must be present if a bitmap was
-#     provided, Must NOT be present otherwise.  (Since 4.2)
+#     provided, must NOT be present otherwise.  (Since 4.2)
 #
 # @compress: true to compress data, if the target format supports it.
 #     (default: false) (since 2.8)
@@ -1840,7 +1840,7 @@
 # @speed: the maximum speed, in bytes per second
 #
 # @on-error: the action to take on an error.  'ignore' means that the
-#     request should be retried.  (default: report; Since: 5.0)
+#     request should be retried.  (default: report; since: 5.0)
 #
 # @filter-node-name: the node name that should be assigned to the
 #     filter driver that the commit job inserts into the graph above

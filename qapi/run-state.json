@@ -62,7 +62,7 @@
 ##
 # @ShutdownCause:
 #
-# An enumeration of reasons for a Shutdown.
+# An enumeration of reasons for a shutdown.
 #
 # @none: No shutdown request pending
 #

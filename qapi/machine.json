@@ -811,7 +811,7 @@
 #
 # @policy: the write policy, none/write-back/write-through.
 #
-# @line: the cache Line size in bytes.
+# @line: the cache line size in bytes.
 #
 # Since: 5.0
 ##

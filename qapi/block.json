@@ -48,7 +48,7 @@
 ##
 # @FloppyDriveType:
 #
-# Type of Floppy drive to be emulated by the Floppy Disk Controller.
+# Type of floppy drive to be emulated by the Floppy Disk Controller.
 #
 # @144: 1.44MB 3.5" drive
 #

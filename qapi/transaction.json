@@ -21,7 +21,7 @@
 ##
 # @ActionCompletionMode:
 #
-# An enumeration of Transactional completion modes.
+# An enumeration of transactional completion modes.
 #
 # @individual: Do not attempt to cancel any other Actions if any
 #     Actions fail after the Transaction request succeeds.  All

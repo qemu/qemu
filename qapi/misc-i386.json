@@ -195,7 +195,7 @@
 #
 # @cbitpos: C-bit location in page table entry
 #
-# @reduced-phys-bits: Number of physical Address bit reduction when
+# @reduced-phys-bits: Number of physical address bit reduction when
 #     SEV is enabled
 #
 # Since: 2.12
