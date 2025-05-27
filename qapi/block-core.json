@@ -2667,7 +2667,7 @@
 # @iops-total-max: I/O operations burst
 #
 # @iops-total-max-length: length of the iops-total-max burst period,
-#     in seconds It must only be set if @iops-total-max is set as
+#     in seconds.  It must only be set if @iops-total-max is set as
 #     well.
 #
 # @iops-read: limit read operations per second
@@ -2675,14 +2675,14 @@
 # @iops-read-max: I/O operations read burst
 #
 # @iops-read-max-length: length of the iops-read-max burst period, in
-#     seconds It must only be set if @iops-read-max is set as well.
+#     seconds.  It must only be set if @iops-read-max is set as well.
 #
 # @iops-write: limit write operations per second
 #
 # @iops-write-max: I/O operations write burst
 #
 # @iops-write-max-length: length of the iops-write-max burst period,
-#     in seconds It must only be set if @iops-write-max is set as
+#     in seconds.  It must only be set if @iops-write-max is set as
 #     well.
 #
 # @bps-total: limit total bytes per second
@@ -2697,14 +2697,14 @@
 # @bps-read-max: total bytes read burst
 #
 # @bps-read-max-length: length of the bps-read-max burst period, in
-#     seconds It must only be set if @bps-read-max is set as well.
+#     seconds.  It must only be set if @bps-read-max is set as well.
 #
 # @bps-write: limit write bytes per second
 #
 # @bps-write-max: total bytes write burst
 #
 # @bps-write-max-length: length of the bps-write-max burst period, in
-#     seconds It must only be set if @bps-write-max is set as well.
+#     seconds.  It must only be set if @bps-write-max is set as well.
 #
 # @iops-size: when limiting by iops max size of an I/O in bytes
 #
@@ -5580,7 +5580,7 @@
 # @x-blockdev-amend:
 #
 # Starts a job to amend format specific options of an existing open
-# block device The job is automatically finalized, but a manual
+# block device.  The job is automatically finalized, but a manual
 # job-dismiss is required.
 #
 # @job-id: Identifier for the newly created job.
@@ -5589,7 +5589,7 @@
 #
 # @options: Options (driver specific)
 #
-# @force: Allow unsafe operations, format specific For luks that
+# @force: Allow unsafe operations, format specific.  For luks that
 #     allows erase of the last active keyslot (permanent loss of
 #     data), and replacement of an active keyslot (possible loss of
 #     data if IO error happens)

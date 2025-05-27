@@ -80,7 +80,7 @@
 ##
 # @ACPIOSTInfo:
 #
-# OSPM Status Indication for a device For description of possible
+# OSPM Status Indication for a device.  For description of possible
 # values of @source and @status fields see "_OST (OSPM Status
 # Indication)" chapter of ACPI5.0 spec.
 #

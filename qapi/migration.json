@@ -760,9 +760,9 @@
 #     auto-converge detects that migration is not making progress.
 #     The default value is 10.  (Since 2.7)
 #
-# @cpu-throttle-tailslow: Make CPU throttling slower at tail stage At
-#     the tail stage of throttling, the Guest is very sensitive to CPU
-#     percentage while the @cpu-throttle -increment is excessive
+# @cpu-throttle-tailslow: Make CPU throttling slower at tail stage.
+#     At the tail stage of throttling, the Guest is very sensitive to
+#     CPU percentage while the @cpu-throttle -increment is excessive
 #     usually at tail stage.  If this parameter is true, we will
 #     compute the ideal CPU percentage used by the Guest, which may
 #     exactly make the dirty rate match the dirty rate threshold.
@@ -941,9 +941,9 @@
 #     auto-converge detects that migration is not making progress.
 #     The default value is 10.  (Since 2.7)
 #
-# @cpu-throttle-tailslow: Make CPU throttling slower at tail stage At
-#     the tail stage of throttling, the Guest is very sensitive to CPU
-#     percentage while the @cpu-throttle -increment is excessive
+# @cpu-throttle-tailslow: Make CPU throttling slower at tail stage.
+#     At the tail stage of throttling, the Guest is very sensitive to
+#     CPU percentage while the @cpu-throttle -increment is excessive
 #     usually at tail stage.  If this parameter is true, we will
 #     compute the ideal CPU percentage used by the Guest, which may
 #     exactly make the dirty rate match the dirty rate threshold.
@@ -1155,9 +1155,9 @@
 #     auto-converge detects that migration is not making progress.
 #     (Since 2.7)
 #
-# @cpu-throttle-tailslow: Make CPU throttling slower at tail stage At
-#     the tail stage of throttling, the Guest is very sensitive to CPU
-#     percentage while the @cpu-throttle -increment is excessive
+# @cpu-throttle-tailslow: Make CPU throttling slower at tail stage.
+#     At the tail stage of throttling, the Guest is very sensitive to
+#     CPU percentage while the @cpu-throttle -increment is excessive
 #     usually at tail stage.  If this parameter is true, we will
 #     compute the ideal CPU percentage used by the Guest, which may
 #     exactly make the dirty rate match the dirty rate threshold.
