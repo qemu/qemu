@@ -182,8 +182,8 @@
 # @default-cpu-type: default CPU model typename if none is requested
 #     via the -cpu argument.  (since 4.2)
 #
-# @default-ram-id: the default ID of initial RAM memory backend (since
-#     5.2)
+# @default-ram-id: the default ID of initial RAM memory backend
+#     (since 5.2)
 #
 # @acpi: machine type supports ACPI (since 8.0)
 #

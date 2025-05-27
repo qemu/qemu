@@ -20,14 +20,14 @@
 #
 # @create: image creation job type, see "blockdev-create" (since 3.0)
 #
-# @amend: image options amend job type, see "x-blockdev-amend" (since
-#     5.1)
+# @amend: image options amend job type, see "x-blockdev-amend"
+#     (since 5.1)
 #
-# @snapshot-load: snapshot load job type, see "snapshot-load" (since
-#     6.0)
+# @snapshot-load: snapshot load job type, see "snapshot-load"
+#     (since 6.0)
 #
-# @snapshot-save: snapshot save job type, see "snapshot-save" (since
-#     6.0)
+# @snapshot-save: snapshot save job type, see "snapshot-save"
+#     (since 6.0)
 #
 # @snapshot-delete: snapshot delete job type, see "snapshot-delete"
 #     (since 6.0)

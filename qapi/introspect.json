@@ -154,8 +154,8 @@
 #
 # Additional SchemaInfo members for meta-type 'enum'.
 #
-# @members: the enum type's members, in no particular order (since
-#     6.2).
+# @members: the enum type's members, in no particular order.
+#     (since 6.2)
 #
 # @values: the enumeration type's member names, in no particular
 #     order.  Redundant with @members.  Just for backward
