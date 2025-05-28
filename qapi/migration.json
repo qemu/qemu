@@ -1660,6 +1660,10 @@
 #
 # @resume: resume one paused migration, default "off".  (since 3.0)
 #
+# Features:
+#
+# @deprecated: Argument @detach is deprecated.
+#
 # Since: 0.14
 #
 # .. admonition:: Notes
@@ -1668,19 +1672,14 @@
 #        migration's progress and final result (this information is
 #        provided by the 'status' member).
 #
-#     2. All boolean arguments default to false.
-#
-#     3. The user Monitor's "detach" argument is invalid in QMP and
-#        should not be used.
-#
-#     4. The uri argument should have the Uniform Resource Identifier
+#     2. The uri argument should have the Uniform Resource Identifier
 #        of default destination VM.  This connection will be bound to
 #        default network.
 #
-#     5. For now, number of migration streams is restricted to one,
+#     3. For now, number of migration streams is restricted to one,
 #        i.e. number of items in 'channels' list is just 1.
 #
-#     6. The 'uri' and 'channels' arguments are mutually exclusive;
+#     4. The 'uri' and 'channels' arguments are mutually exclusive;
 #        exactly one of the two should be present.
 #
 # .. qmp-example::
@@ -1724,7 +1723,8 @@
 { 'command': 'migrate',
   'data': {'*uri': 'str',
            '*channels': [ 'MigrationChannel' ],
-           '*detach': 'bool', '*resume': 'bool' } }
+           '*detach': { 'type': 'bool', 'features': [ 'deprecated' ] },
+           '*resume': 'bool' } }
 
 ##
 # @migrate-incoming:

@@ -162,6 +162,12 @@ specified with ``-mem-path`` can actually provide the guest RAM configured with
 The ``name`` parameter of the ``-net`` option was a synonym
 for the ``id`` parameter, which should now be used instead.
 
+RISC-V firmware not booted by default (removed in 5.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+QEMU 5.1 changes the default behaviour from ``-bios none`` to ``-bios default``
+for the RISC-V ``virt`` machine and ``sifive_u`` machine.
+
 ``-numa node,mem=...`` (removed in 5.1)
 '''''''''''''''''''''''''''''''''''''''
 
@@ -323,12 +329,6 @@ devices.  Drives the board doesn't pick up can no longer be used with
 
 This option was undocumented and not used in the field.
 Use ``-device usb-ccid`` instead.
-
-RISC-V firmware not booted by default (removed in 5.1)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-QEMU 5.1 changes the default behaviour from ``-bios none`` to ``-bios default``
-for the RISC-V ``virt`` machine and ``sifive_u`` machine.
 
 ``-no-quit`` (removed in 7.0)
 '''''''''''''''''''''''''''''
@@ -722,6 +722,15 @@ Use ``multifd-channels`` instead.
 
 Use ``multifd-compression`` instead.
 
+Incorrectly typed ``device_add`` arguments (since 9.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Due to shortcomings in the internal implementation of ``device_add``,
+QEMU used to incorrectly accept certain invalid arguments. Any object
+or list arguments were silently ignored. Other argument types were not
+checked, but an implicit conversion happened, so that e.g. string
+values could be assigned to integer device properties or vice versa.
+
 QEMU Machine Protocol (QMP) events
 ----------------------------------
 
@@ -902,14 +911,6 @@ The RISC-V no MMU cpus have been removed. The two CPUs: ``rv32imacu-nommu`` and
 ``rv64imacu-nommu`` can no longer be used. Instead the MMU status can be specified
 via the CPU ``mmu`` option when using the ``rv32`` or ``rv64`` CPUs.
 
-RISC-V 'any' CPU type ``-cpu any`` (removed in 9.2)
-'''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The 'any' CPU type was introduced back in 2018 and was around since the
-initial RISC-V QEMU port. Its usage was always been unclear: users don't know
-what to expect from a CPU called 'any', and in fact the CPU does not do anything
-special that isn't already done by the default CPUs rv32/rv64.
-
 ``compat`` property of server class POWER CPUs (removed in 6.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
@@ -956,6 +957,14 @@ The CRIS architecture was pulled from Linux in 4.17 and the compiler
 was no longer packaged in any distro making it harder to run the
 ``check-tcg`` tests.
 
+RISC-V 'any' CPU type ``-cpu any`` (removed in 9.2)
+'''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The 'any' CPU type was introduced back in 2018 and was around since the
+initial RISC-V QEMU port. Its usage was always been unclear: users don't know
+what to expect from a CPU called 'any', and in fact the CPU does not do anything
+special that isn't already done by the default CPUs rv32/rv64.
+
 System accelerators
 -------------------
 
@@ -966,17 +975,17 @@ Userspace local APIC with KVM (x86, removed in 8.0)
 a local APIC.  The ``split`` setting is supported, as is using ``-M
 kernel-irqchip=off`` when the CPU does not have a local APIC.
 
-HAXM (``-accel hax``) (removed in 8.2)
-''''''''''''''''''''''''''''''''''''''
-
-The HAXM project has been retired (see https://github.com/intel/haxm#status).
-Use "whpx" (on Windows) or "hvf" (on macOS) instead.
-
 MIPS "Trap-and-Emulate" KVM support (removed in 8.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 The MIPS "Trap-and-Emulate" KVM host and guest support was removed
 from Linux in 2021, and is not supported anymore by QEMU either.
+
+HAXM (``-accel hax``) (removed in 8.2)
+''''''''''''''''''''''''''''''''''''''
+
+The HAXM project has been retired (see https://github.com/intel/haxm#status).
+Use "whpx" (on Windows) or "hvf" (on macOS) instead.
 
 System emulator machines
 ------------------------
@@ -1035,16 +1044,6 @@ Aspeed ``swift-bmc`` machine (removed in 7.0)
 This machine was removed because it was unused. Alternative AST2500 based
 OpenPOWER machines are ``witherspoon-bmc`` and ``romulus-bmc``.
 
-Aspeed ``tacoma-bmc`` machine (removed in 10.0)
-'''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``tacoma-bmc`` machine was removed because it didn't bring much
-compared to the ``rainier-bmc`` machine. Also, the ``tacoma-bmc`` was
-a board used for bring up of the AST2600 SoC that never left the
-labs. It can be easily replaced by the ``rainier-bmc`` machine, which
-was the actual final product, or by the ``ast2600-evb`` with some
-tweaks.
-
 ppc ``taihu`` machine (removed in 7.2)
 '''''''''''''''''''''''''''''''''''''''''''''
 
@@ -1074,6 +1073,16 @@ has now passed away into history. We are therefore dropping support
 for all machine types using the PXA2xx and OMAP2 SoCs. We are also
 dropping the ``cheetah`` OMAP1 board, because we don't have any
 test images for it and don't know of anybody who does.
+
+Aspeed ``tacoma-bmc`` machine (removed in 10.0)
+'''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``tacoma-bmc`` machine was removed because it didn't bring much
+compared to the ``rainier-bmc`` machine. Also, the ``tacoma-bmc`` was
+a board used for bring up of the AST2600 SoC that never left the
+labs. It can be easily replaced by the ``rainier-bmc`` machine, which
+was the actual final product, or by the ``ast2600-evb`` with some
+tweaks.
 
 ppc ``ref405ep`` machine (removed in 10.0)
 ''''''''''''''''''''''''''''''''''''''''''
