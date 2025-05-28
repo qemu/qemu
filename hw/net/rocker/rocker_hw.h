@@ -9,10 +9,6 @@
 #ifndef ROCKER_HW_H
 #define ROCKER_HW_H
 
-#define __le16 uint16_t
-#define __le32 uint32_t
-#define __le64 uint64_t
-
 /*
  * Return codes
  */
@@ -124,12 +120,12 @@ enum {
  */
 
 typedef struct rocker_desc {
-    __le64 buf_addr;
+    uint64_t buf_addr;
     uint64_t cookie;
-    __le16 buf_size;
-    __le16 tlv_size;
-    __le16 rsvd[5];   /* pad to 32 bytes */
-    __le16 comp_err;
+    uint16_t buf_size;
+    uint16_t tlv_size;
+    uint16_t rsvd[5];   /* pad to 32 bytes */
+    uint16_t comp_err;
 } __attribute__((packed, aligned(8))) RockerDesc;
 
 /*
@@ -137,9 +133,9 @@ typedef struct rocker_desc {
  */
 
 typedef struct rocker_tlv {
-    __le32 type;
-    __le16 len;
-    __le16 rsvd;
+    uint32_t type;
+    uint16_t len;
+    uint16_t rsvd;
 } __attribute__((packed, aligned(8))) RockerTlv;
 
 /* cmd msg */
