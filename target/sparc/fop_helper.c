@@ -445,7 +445,6 @@ static uint32_t finish_fcmp(CPUSPARCState *env, FloatRelation r, uintptr_t ra)
     case float_relation_greater:
         return 2;
     case float_relation_unordered:
-        env->fsr |= FSR_NVA;
         return 3;
     }
     g_assert_not_reached();
