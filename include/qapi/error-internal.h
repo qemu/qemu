@@ -18,6 +18,8 @@ struct Error
 {
     char *msg;
     ErrorClass err_class;
+
+    /* Used for error_abort only, may be NULL. */
     const char *func;
 
     /*
