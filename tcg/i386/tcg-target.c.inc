@@ -2199,16 +2199,14 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
             trexw = (ttype == TCG_TYPE_I32 ? 0 : P_REXW);
             if (TCG_TYPE_PTR == TCG_TYPE_I64) {
                 hrexw = P_REXW;
-                if (s->page_bits + s->tlb_dyn_max_bits > 32) {
-                    tlbtype = TCG_TYPE_I64;
-                    tlbrexw = P_REXW;
-                }
+                tlbtype = TCG_TYPE_I64;
+                tlbrexw = P_REXW;
             }
         }
 
         tcg_out_mov(s, tlbtype, TCG_REG_L0, addr);
         tcg_out_shifti(s, SHIFT_SHR + tlbrexw, TCG_REG_L0,
-                       s->page_bits - CPU_TLB_ENTRY_BITS);
+                       TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
 
         tcg_out_modrm_offset(s, OPC_AND_GvEv + trexw, TCG_REG_L0, TCG_AREG0,
                              fast_ofs + offsetof(CPUTLBDescFast, mask));
@@ -2227,7 +2225,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
             tcg_out_modrm_offset(s, OPC_LEA + trexw, TCG_REG_L1,
                                  addr, s_mask - a_mask);
         }
-        tlb_mask = s->page_mask | a_mask;
+        tlb_mask = TARGET_PAGE_MASK | a_mask;
         tgen_arithi(s, ARITH_AND + trexw, TCG_REG_L1, tlb_mask, 0);
 
         /* cmp 0(TCG_REG_L0), TCG_REG_L1 */

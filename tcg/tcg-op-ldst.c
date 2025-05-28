@@ -27,6 +27,7 @@
 #include "tcg/tcg-temp-internal.h"
 #include "tcg/tcg-op-common.h"
 #include "tcg/tcg-mo.h"
+#include "exec/target_page.h"
 #include "exec/translation-block.h"
 #include "exec/plugin-gen.h"
 #include "tcg-internal.h"
@@ -40,7 +41,7 @@ static void check_max_alignment(unsigned a_bits)
      * FIXME: Must keep the count up-to-date with "exec/tlb-flags.h".
      */
     if (tcg_use_softmmu) {
-        tcg_debug_assert(a_bits + 5 <= tcg_ctx->page_bits);
+        tcg_debug_assert(a_bits + 5 <= TARGET_PAGE_BITS);
     }
 }
 

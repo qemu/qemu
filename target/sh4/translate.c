@@ -54,7 +54,7 @@ typedef struct DisasContext {
 #define UNALIGN(C)   (ctx->tbflags & TB_FLAG_UNALIGN ? MO_UNALN : MO_ALIGN)
 #else
 #define IS_USER(ctx) (!(ctx->tbflags & (1u << SR_MD)))
-#define UNALIGN(C)   0
+#define UNALIGN(C)   MO_ALIGN
 #endif
 
 /* Target-specific values for ctx->base.is_jmp.  */

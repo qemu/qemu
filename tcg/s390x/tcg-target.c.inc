@@ -2004,7 +2004,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
         ldst->addr_reg = addr_reg;
 
         tcg_out_sh64(s, RSY_SRLG, TCG_TMP0, addr_reg, TCG_REG_NONE,
-                     s->page_bits - CPU_TLB_ENTRY_BITS);
+                     TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
 
         tcg_out_insn(s, RXY, NG, TCG_TMP0, TCG_AREG0, TCG_REG_NONE, mask_off);
         tcg_out_insn(s, RXY, AG, TCG_TMP0, TCG_AREG0, TCG_REG_NONE, table_off);
@@ -2016,7 +2016,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
          * byte of the access.
          */
         a_off = (a_mask >= s_mask ? 0 : s_mask - a_mask);
-        tlb_mask = (uint64_t)s->page_mask | a_mask;
+        tlb_mask = (uint64_t)TARGET_PAGE_MASK | a_mask;
         if (a_off == 0) {
             tgen_andi_risbg(s, TCG_REG_R0, addr_reg, tlb_mask);
         } else {

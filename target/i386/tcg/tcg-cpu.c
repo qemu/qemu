@@ -149,6 +149,12 @@ static void x86_cpu_exec_reset(CPUState *cs)
     do_cpu_init(env_archcpu(env));
     cs->exception_index = EXCP_HALTED;
 }
+
+static vaddr x86_pointer_wrap(CPUState *cs, int mmu_idx,
+                              vaddr result, vaddr base)
+{
+    return cpu_env(cs)->hflags & HF_CS64_MASK ? result : (uint32_t)result;
+}
 #endif
 
 const TCGCPUOps x86_tcg_ops = {
@@ -172,6 +178,7 @@ const TCGCPUOps x86_tcg_ops = {
     .record_sigbus = x86_cpu_record_sigbus,
 #else
     .tlb_fill = x86_cpu_tlb_fill,
+    .pointer_wrap = x86_pointer_wrap,
     .do_interrupt = x86_cpu_do_interrupt,
     .cpu_exec_halt = x86_cpu_exec_halt,
     .cpu_exec_interrupt = x86_cpu_exec_interrupt,

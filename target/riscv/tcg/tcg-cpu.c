@@ -237,6 +237,31 @@ static void riscv_restore_state_to_opc(CPUState *cs,
     env->excp_uw2 = data[2];
 }
 
+#ifndef CONFIG_USER_ONLY
+static vaddr riscv_pointer_wrap(CPUState *cs, int mmu_idx,
+                                vaddr result, vaddr base)
+{
+    CPURISCVState *env = cpu_env(cs);
+    uint32_t pm_len;
+    bool pm_signext;
+
+    if (cpu_address_xl(env) == MXL_RV32) {
+        return (uint32_t)result;
+    }
+
+    pm_len = riscv_pm_get_pmlen(riscv_pm_get_pmm(env));
+    if (pm_len == 0) {
+        return result;
+    }
+
+    pm_signext = riscv_cpu_virt_mem_enabled(env);
+    if (pm_signext) {
+        return sextract64(result, 0, 64 - pm_len);
+    }
+    return extract64(result, 0, 64 - pm_len);
+}
+#endif
+
 const TCGCPUOps riscv_tcg_ops = {
     .mttcg_supported = true,
     .guest_default_memory_order = 0,
@@ -250,6 +275,7 @@ const TCGCPUOps riscv_tcg_ops = {
 
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = riscv_cpu_tlb_fill,
+    .pointer_wrap = riscv_pointer_wrap,
     .cpu_exec_interrupt = riscv_cpu_exec_interrupt,
     .cpu_exec_halt = riscv_cpu_has_work,
     .cpu_exec_reset = cpu_reset,

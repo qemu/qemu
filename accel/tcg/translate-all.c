@@ -24,7 +24,6 @@
 #include "tcg/tcg.h"
 #include "exec/mmap-lock.h"
 #include "tb-internal.h"
-#include "tlb-bounds.h"
 #include "exec/tb-flush.h"
 #include "qemu/cacheinfo.h"
 #include "qemu/target-info.h"
@@ -313,11 +312,6 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
 
     tcg_ctx->gen_tb = tb;
     tcg_ctx->addr_type = target_long_bits() == 32 ? TCG_TYPE_I32 : TCG_TYPE_I64;
-#ifdef CONFIG_SOFTMMU
-    tcg_ctx->page_bits = TARGET_PAGE_BITS;
-    tcg_ctx->page_mask = TARGET_PAGE_MASK;
-    tcg_ctx->tlb_dyn_max_bits = CPU_TLB_DYN_MAX_BITS;
-#endif
     tcg_ctx->guest_mo = cpu->cc->tcg_ops->guest_default_memory_order;
 
  restart_translate:

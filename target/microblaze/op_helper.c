@@ -382,6 +382,8 @@ void helper_stackprot(CPUMBState *env, target_ulong addr)
 }
 
 #if !defined(CONFIG_USER_ONLY)
+#include "system/memory.h"
+
 /* Writes/reads to the MMU's special regs end up here.  */
 uint32_t helper_mmu_read(CPUMBState *env, uint32_t ext, uint32_t rn)
 {
@@ -393,38 +395,90 @@ void helper_mmu_write(CPUMBState *env, uint32_t ext, uint32_t rn, uint32_t v)
     mmu_write(env, ext, rn, v);
 }
 
+static void mb_transaction_failed_internal(CPUState *cs, hwaddr physaddr,
+                                           uint64_t addr, unsigned size,
+                                           MMUAccessType access_type,
+                                           uintptr_t retaddr)
+{
+    CPUMBState *env = cpu_env(cs);
+    MicroBlazeCPU *cpu = env_archcpu(env);
+    const char *access_name = "INVALID";
+    bool take = env->msr & MSR_EE;
+    uint32_t esr = ESR_EC_DATA_BUS;
+
+    switch (access_type) {
+    case MMU_INST_FETCH:
+        access_name = "INST_FETCH";
+        esr = ESR_EC_INSN_BUS;
+        take &= cpu->cfg.iopb_bus_exception;
+        break;
+    case MMU_DATA_LOAD:
+        access_name = "DATA_LOAD";
+        take &= cpu->cfg.dopb_bus_exception;
+        break;
+    case MMU_DATA_STORE:
+        access_name = "DATA_STORE";
+        take &= cpu->cfg.dopb_bus_exception;
+        break;
+    }
+
+    qemu_log_mask(CPU_LOG_INT, "Transaction failed: addr 0x%" PRIx64
+                  "physaddr 0x" HWADDR_FMT_plx " size %d access-type %s (%s)\n",
+                  addr, physaddr, size, access_name,
+                  take ? "TAKEN" : "DROPPED");
+
+    if (take) {
+        env->esr = esr;
+        env->ear = addr;
+        cs->exception_index = EXCP_HW_EXCP;
+        cpu_loop_exit_restore(cs, retaddr);
+    }
+}
+
 void mb_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
                                unsigned size, MMUAccessType access_type,
                                int mmu_idx, MemTxAttrs attrs,
                                MemTxResult response, uintptr_t retaddr)
 {
-    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
-    CPUMBState *env = &cpu->env;
-
-    qemu_log_mask(CPU_LOG_INT, "Transaction failed: vaddr 0x%" VADDR_PRIx
-                  " physaddr 0x" HWADDR_FMT_plx " size %d access type %s\n",
-                  addr, physaddr, size,
-                  access_type == MMU_INST_FETCH ? "INST_FETCH" :
-                  (access_type == MMU_DATA_LOAD ? "DATA_LOAD" : "DATA_STORE"));
-
-    if (!(env->msr & MSR_EE)) {
-        return;
-    }
-
-    if (access_type == MMU_INST_FETCH) {
-        if (!cpu->cfg.iopb_bus_exception) {
-            return;
-        }
-        env->esr = ESR_EC_INSN_BUS;
-    } else {
-        if (!cpu->cfg.dopb_bus_exception) {
-            return;
-        }
-        env->esr = ESR_EC_DATA_BUS;
-    }
-
-    env->ear = addr;
-    cs->exception_index = EXCP_HW_EXCP;
-    cpu_loop_exit_restore(cs, retaddr);
+    mb_transaction_failed_internal(cs, physaddr, addr, size,
+                                   access_type, retaddr);
 }
+
+#define LD_EA(NAME, TYPE, FUNC) \
+uint32_t HELPER(NAME)(CPUMBState *env, uint64_t ea)                     \
+{                                                                       \
+    CPUState *cs = env_cpu(env);                                        \
+    MemTxResult txres;                                                  \
+    TYPE ret = FUNC(cs->as, ea, MEMTXATTRS_UNSPECIFIED, &txres);        \
+    if (unlikely(txres != MEMTX_OK)) {                                  \
+        mb_transaction_failed_internal(cs, ea, ea, sizeof(TYPE),        \
+                                       MMU_DATA_LOAD, GETPC());         \
+    }                                                                   \
+    return ret;                                                         \
+}
+
+LD_EA(lbuea, uint8_t, address_space_ldub)
+LD_EA(lhuea_be, uint16_t, address_space_lduw_be)
+LD_EA(lhuea_le, uint16_t, address_space_lduw_le)
+LD_EA(lwea_be, uint32_t, address_space_ldl_be)
+LD_EA(lwea_le, uint32_t, address_space_ldl_le)
+
+#define ST_EA(NAME, TYPE, FUNC) \
+void HELPER(NAME)(CPUMBState *env, uint32_t data, uint64_t ea)          \
+{                                                                       \
+    CPUState *cs = env_cpu(env);                                        \
+    MemTxResult txres;                                                  \
+    FUNC(cs->as, ea, data, MEMTXATTRS_UNSPECIFIED, &txres);             \
+    if (unlikely(txres != MEMTX_OK)) {                                  \
+        mb_transaction_failed_internal(cs, ea, ea, sizeof(TYPE),        \
+                                       MMU_DATA_STORE, GETPC());        \
+    }                                                                   \
+}
+
+ST_EA(sbea, uint8_t, address_space_stb)
+ST_EA(shea_be, uint16_t, address_space_stw_be)
+ST_EA(shea_le, uint16_t, address_space_stw_le)
+ST_EA(swea_be, uint32_t, address_space_stl_be)
+ST_EA(swea_le, uint32_t, address_space_stl_le)
+
 #endif

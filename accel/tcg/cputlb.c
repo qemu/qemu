@@ -1773,6 +1773,9 @@ static bool mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
         l->page[1].size = l->page[0].size - size0;
         l->page[0].size = size0;
 
+        l->page[1].addr = cpu->cc->tcg_ops->pointer_wrap(cpu, l->mmu_idx,
+                                                         l->page[1].addr, addr);
+
         /*
          * Lookup both pages, recognizing exceptions from either.  If the
          * second lookup potentially resized, refresh first CPUTLBEntryFull.
@@ -1871,8 +1874,12 @@ static void *atomic_mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
         goto stop_the_world;
     }
 
-    /* Collect tlb flags for read. */
+    /* Finish collecting tlb flags for both read and write. */
+    full = &cpu->neg.tlb.d[mmu_idx].fulltlb[index];
     tlb_addr |= tlbe->addr_read;
+    tlb_addr &= TLB_FLAGS_MASK & ~TLB_FORCE_SLOW;
+    tlb_addr |= full->slow_flags[MMU_DATA_STORE];
+    tlb_addr |= full->slow_flags[MMU_DATA_LOAD];
 
     /* Notice an IO access or a needs-MMU-lookup access */
     if (unlikely(tlb_addr & (TLB_MMIO | TLB_DISCARD_WRITE))) {
@@ -1882,13 +1889,12 @@ static void *atomic_mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
     }
 
     hostaddr = (void *)((uintptr_t)addr + tlbe->addend);
-    full = &cpu->neg.tlb.d[mmu_idx].fulltlb[index];
 
     if (unlikely(tlb_addr & TLB_NOTDIRTY)) {
         notdirty_write(cpu, addr, size, full, retaddr);
     }
 
-    if (unlikely(tlb_addr & TLB_FORCE_SLOW)) {
+    if (unlikely(tlb_addr & TLB_WATCHPOINT)) {
         int wp_flags = 0;
 
         if (full->slow_flags[MMU_DATA_STORE] & TLB_WATCHPOINT) {
@@ -1897,10 +1903,8 @@ static void *atomic_mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
         if (full->slow_flags[MMU_DATA_LOAD] & TLB_WATCHPOINT) {
             wp_flags |= BP_MEM_READ;
         }
-        if (wp_flags) {
-            cpu_check_watchpoint(cpu, addr, size,
-                                 full->attrs, wp_flags, retaddr);
-        }
+        cpu_check_watchpoint(cpu, addr, size,
+                             full->attrs, wp_flags, retaddr);
     }
 
     return hostaddr;
@@ -2925,4 +2929,23 @@ uint64_t cpu_ldq_code_mmu(CPUArchState *env, vaddr addr,
                           MemOpIdx oi, uintptr_t retaddr)
 {
     return do_ld8_mmu(env_cpu(env), addr, oi, retaddr, MMU_INST_FETCH);
+}
+
+/*
+ * Common pointer_wrap implementations.
+ */
+
+/*
+ * To be used for strict alignment targets.
+ * Because no accesses are unaligned, no accesses wrap either.
+ */
+vaddr cpu_pointer_wrap_notreached(CPUState *cs, int idx, vaddr res, vaddr base)
+{
+    g_assert_not_reached();
+}
+
+/* To be used for strict 32-bit targets. */
+vaddr cpu_pointer_wrap_uint32(CPUState *cs, int idx, vaddr res, vaddr base)
+{
+    return (uint32_t)res;
 }

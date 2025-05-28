@@ -347,6 +347,14 @@ static TCGTBCPUState s390x_get_tb_cpu_state(CPUState *cs)
     };
 }
 
+#ifndef CONFIG_USER_ONLY
+static vaddr s390_pointer_wrap(CPUState *cs, int mmu_idx,
+                               vaddr result, vaddr base)
+{
+    return wrap_address(cpu_env(cs), result);
+}
+#endif
+
 static const TCGCPUOps s390_tcg_ops = {
     .mttcg_supported = true,
     .precise_smc = true,
@@ -367,6 +375,7 @@ static const TCGCPUOps s390_tcg_ops = {
     .record_sigbus = s390_cpu_record_sigbus,
 #else
     .tlb_fill = s390_cpu_tlb_fill,
+    .pointer_wrap = s390_pointer_wrap,
     .cpu_exec_interrupt = s390_cpu_exec_interrupt,
     .cpu_exec_halt = s390_cpu_has_work,
     .cpu_exec_reset = cpu_reset,

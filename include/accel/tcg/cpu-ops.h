@@ -223,6 +223,13 @@ struct TCGCPUOps {
                      MMUAccessType access_type, int mmu_idx,
                      bool probe, uintptr_t retaddr);
     /**
+     * @pointer_wrap:
+     *
+     * We have incremented @base to @result, resulting in a page change.
+     * For the current cpu state, adjust @result for possible overflow.
+     */
+    vaddr (*pointer_wrap)(CPUState *cpu, int mmu_idx, vaddr result, vaddr base);
+    /**
      * @do_transaction_failed: Callback for handling failed memory transactions
      * (ie bus faults or external aborts; not MMU faults)
      */
@@ -314,6 +321,12 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
  * If no watchpoint is registered for the range, the result is 0.
  */
 int cpu_watchpoint_address_matches(CPUState *cpu, vaddr addr, vaddr len);
+
+/*
+ * Common pointer_wrap implementations.
+ */
+vaddr cpu_pointer_wrap_notreached(CPUState *, int, vaddr, vaddr);
+vaddr cpu_pointer_wrap_uint32(CPUState *, int, vaddr, vaddr);
 
 #endif
 

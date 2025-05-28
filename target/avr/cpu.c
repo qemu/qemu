@@ -250,6 +250,12 @@ static const TCGCPUOps avr_tcg_ops = {
     .cpu_exec_reset = cpu_reset,
     .tlb_fill = avr_cpu_tlb_fill,
     .do_interrupt = avr_cpu_do_interrupt,
+    /*
+     * TODO: code and data wrapping are different, but for the most part
+     * AVR only references bytes or aligned code fetches.  But we use
+     * non-aligned MO_16 accesses for stack push/pop.
+     */
+    .pointer_wrap = cpu_pointer_wrap_uint32,
 };
 
 static void avr_cpu_class_init(ObjectClass *oc, const void *data)

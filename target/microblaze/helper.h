@@ -20,12 +20,22 @@ DEF_HELPER_FLAGS_3(fcmp_ne, TCG_CALL_NO_WG, i32, env, i32, i32)
 DEF_HELPER_FLAGS_3(fcmp_ge, TCG_CALL_NO_WG, i32, env, i32, i32)
 
 DEF_HELPER_FLAGS_2(pcmpbf, TCG_CALL_NO_RWG_SE, i32, i32, i32)
-#if !defined(CONFIG_USER_ONLY)
-DEF_HELPER_FLAGS_3(mmu_read, TCG_CALL_NO_RWG, i32, env, i32, i32)
-DEF_HELPER_FLAGS_4(mmu_write, TCG_CALL_NO_RWG, void, env, i32, i32, i32)
-#endif
-
 DEF_HELPER_FLAGS_2(stackprot, TCG_CALL_NO_WG, void, env, tl)
-
 DEF_HELPER_FLAGS_2(get, TCG_CALL_NO_RWG, i32, i32, i32)
 DEF_HELPER_FLAGS_3(put, TCG_CALL_NO_RWG, void, i32, i32, i32)
+
+#ifndef CONFIG_USER_ONLY
+DEF_HELPER_FLAGS_3(mmu_read, TCG_CALL_NO_RWG, i32, env, i32, i32)
+DEF_HELPER_FLAGS_4(mmu_write, TCG_CALL_NO_RWG, void, env, i32, i32, i32)
+DEF_HELPER_FLAGS_2(unaligned_access, TCG_CALL_NO_WG, noreturn, env, i64)
+DEF_HELPER_FLAGS_2(lbuea, TCG_CALL_NO_WG, i32, env, i64)
+DEF_HELPER_FLAGS_2(lhuea_be, TCG_CALL_NO_WG, i32, env, i64)
+DEF_HELPER_FLAGS_2(lhuea_le, TCG_CALL_NO_WG, i32, env, i64)
+DEF_HELPER_FLAGS_2(lwea_be, TCG_CALL_NO_WG, i32, env, i64)
+DEF_HELPER_FLAGS_2(lwea_le, TCG_CALL_NO_WG, i32, env, i64)
+DEF_HELPER_FLAGS_3(sbea, TCG_CALL_NO_WG, void, env, i32, i64)
+DEF_HELPER_FLAGS_3(shea_be, TCG_CALL_NO_WG, void, env, i32, i64)
+DEF_HELPER_FLAGS_3(shea_le, TCG_CALL_NO_WG, void, env, i32, i64)
+DEF_HELPER_FLAGS_3(swea_be, TCG_CALL_NO_WG, void, env, i32, i64)
+DEF_HELPER_FLAGS_3(swea_le, TCG_CALL_NO_WG, void, env, i32, i64)
+#endif

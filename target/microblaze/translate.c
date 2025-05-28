@@ -63,9 +63,6 @@ typedef struct DisasContext {
     DisasContextBase base;
     const MicroBlazeCPUConfig *cfg;
 
-    TCGv_i32 r0;
-    bool r0_set;
-
     /* Decoder.  */
     uint32_t ext_imm;
     unsigned int tb_flags;
@@ -179,14 +176,7 @@ static TCGv_i32 reg_for_read(DisasContext *dc, int reg)
     if (likely(reg != 0)) {
         return cpu_R[reg];
     }
-    if (!dc->r0_set) {
-        if (dc->r0 == NULL) {
-            dc->r0 = tcg_temp_new_i32();
-        }
-        tcg_gen_movi_i32(dc->r0, 0);
-        dc->r0_set = true;
-    }
-    return dc->r0;
+    return tcg_constant_i32(0);
 }
 
 static TCGv_i32 reg_for_write(DisasContext *dc, int reg)
@@ -194,10 +184,7 @@ static TCGv_i32 reg_for_write(DisasContext *dc, int reg)
     if (likely(reg != 0)) {
         return cpu_R[reg];
     }
-    if (dc->r0 == NULL) {
-        dc->r0 = tcg_temp_new_i32();
-    }
-    return dc->r0;
+    return tcg_temp_new_i32();
 }
 
 static bool do_typea(DisasContext *dc, arg_typea *arg, bool side_effects,
@@ -619,19 +606,18 @@ DO_TYPEBI(xori, false, tcg_gen_xori_i32)
 
 static TCGv compute_ldst_addr_typea(DisasContext *dc, int ra, int rb)
 {
-    TCGv ret = tcg_temp_new();
+    TCGv ret;
 
     /* If any of the regs is r0, set t to the value of the other reg.  */
     if (ra && rb) {
-        TCGv_i32 tmp = tcg_temp_new_i32();
-        tcg_gen_add_i32(tmp, cpu_R[ra], cpu_R[rb]);
-        tcg_gen_extu_i32_tl(ret, tmp);
+        ret = tcg_temp_new_i32();
+        tcg_gen_add_i32(ret, cpu_R[ra], cpu_R[rb]);
     } else if (ra) {
-        tcg_gen_extu_i32_tl(ret, cpu_R[ra]);
+        ret = cpu_R[ra];
     } else if (rb) {
-        tcg_gen_extu_i32_tl(ret, cpu_R[rb]);
+        ret = cpu_R[rb];
     } else {
-        tcg_gen_movi_tl(ret, 0);
+        ret = tcg_constant_i32(0);
     }
 
     if ((ra == 1 || rb == 1) && dc->cfg->stackprot) {
@@ -642,15 +628,16 @@ static TCGv compute_ldst_addr_typea(DisasContext *dc, int ra, int rb)
 
 static TCGv compute_ldst_addr_typeb(DisasContext *dc, int ra, int imm)
 {
-    TCGv ret = tcg_temp_new();
+    TCGv ret;
 
     /* If any of the regs is r0, set t to the value of the other reg.  */
-    if (ra) {
-        TCGv_i32 tmp = tcg_temp_new_i32();
-        tcg_gen_addi_i32(tmp, cpu_R[ra], imm);
-        tcg_gen_extu_i32_tl(ret, tmp);
+    if (ra && imm) {
+        ret = tcg_temp_new_i32();
+        tcg_gen_addi_i32(ret, cpu_R[ra], imm);
+    } else if (ra) {
+        ret = cpu_R[ra];
     } else {
-        tcg_gen_movi_tl(ret, (uint32_t)imm);
+        ret = tcg_constant_i32(imm);
     }
 
     if (ra == 1 && dc->cfg->stackprot) {
@@ -660,23 +647,23 @@ static TCGv compute_ldst_addr_typeb(DisasContext *dc, int ra, int imm)
 }
 
 #ifndef CONFIG_USER_ONLY
-static TCGv compute_ldst_addr_ea(DisasContext *dc, int ra, int rb)
+static TCGv_i64 compute_ldst_addr_ea(DisasContext *dc, int ra, int rb)
 {
     int addr_size = dc->cfg->addr_size;
-    TCGv ret = tcg_temp_new();
+    TCGv_i64 ret = tcg_temp_new_i64();
 
     if (addr_size == 32 || ra == 0) {
         if (rb) {
-            tcg_gen_extu_i32_tl(ret, cpu_R[rb]);
+            tcg_gen_extu_i32_i64(ret, cpu_R[rb]);
         } else {
-            tcg_gen_movi_tl(ret, 0);
+            return tcg_constant_i64(0);
         }
     } else {
         if (rb) {
             tcg_gen_concat_i32_i64(ret, cpu_R[rb], cpu_R[ra]);
         } else {
-            tcg_gen_extu_i32_tl(ret, cpu_R[ra]);
-            tcg_gen_shli_tl(ret, ret, 32);
+            tcg_gen_extu_i32_i64(ret, cpu_R[ra]);
+            tcg_gen_shli_i64(ret, ret, 32);
         }
         if (addr_size < 64) {
             /* Mask off out of range bits.  */
@@ -699,6 +686,20 @@ static void record_unaligned_ess(DisasContext *dc, int rd,
     iflags |= (size == MO_32) * ESR_W;
 
     tcg_set_insn_start_param(dc->base.insn_start, 1, iflags);
+}
+
+static void gen_alignment_check_ea(DisasContext *dc, TCGv_i64 ea, int rb,
+                                   int rd, MemOp size, bool store)
+{
+    if (rb && (dc->tb_flags & MSR_EE) && dc->cfg->unaligned_exceptions) {
+        TCGLabel *over = gen_new_label();
+
+        record_unaligned_ess(dc, rd, size, store);
+
+        tcg_gen_brcondi_i64(TCG_COND_TSTEQ, ea, (1 << size) - 1, over);
+        gen_helper_unaligned_access(tcg_env, ea);
+        gen_set_label(over);
+    }
 }
 #endif
 
@@ -765,10 +766,11 @@ static bool trans_lbuea(DisasContext *dc, arg_typea *arg)
         return true;
     }
 #ifdef CONFIG_USER_ONLY
-    return true;
+    g_assert_not_reached();
 #else
-    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
-    return do_load(dc, arg->rd, addr, MO_UB, MMU_NOMMU_IDX, false);
+    TCGv_i64 addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    gen_helper_lbuea(reg_for_write(dc, arg->rd), tcg_env, addr);
+    return true;
 #endif
 }
 
@@ -796,10 +798,13 @@ static bool trans_lhuea(DisasContext *dc, arg_typea *arg)
         return true;
     }
 #ifdef CONFIG_USER_ONLY
-    return true;
+    g_assert_not_reached();
 #else
-    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
-    return do_load(dc, arg->rd, addr, MO_UW, MMU_NOMMU_IDX, false);
+    TCGv_i64 addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    gen_alignment_check_ea(dc, addr, arg->rb, arg->rd, MO_16, false);
+    (mo_endian(dc) == MO_BE ? gen_helper_lhuea_be : gen_helper_lhuea_le)
+        (reg_for_write(dc, arg->rd), tcg_env, addr);
+    return true;
 #endif
 }
 
@@ -827,10 +832,13 @@ static bool trans_lwea(DisasContext *dc, arg_typea *arg)
         return true;
     }
 #ifdef CONFIG_USER_ONLY
-    return true;
+    g_assert_not_reached();
 #else
-    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
-    return do_load(dc, arg->rd, addr, MO_UL, MMU_NOMMU_IDX, false);
+    TCGv_i64 addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    gen_alignment_check_ea(dc, addr, arg->rb, arg->rd, MO_32, false);
+    (mo_endian(dc) == MO_BE ? gen_helper_lwea_be : gen_helper_lwea_le)
+        (reg_for_write(dc, arg->rd), tcg_env, addr);
+    return true;
 #endif
 }
 
@@ -918,10 +926,11 @@ static bool trans_sbea(DisasContext *dc, arg_typea *arg)
         return true;
     }
 #ifdef CONFIG_USER_ONLY
-    return true;
+    g_assert_not_reached();
 #else
-    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
-    return do_store(dc, arg->rd, addr, MO_UB, MMU_NOMMU_IDX, false);
+    TCGv_i64 addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    gen_helper_sbea(tcg_env, reg_for_read(dc, arg->rd), addr);
+    return true;
 #endif
 }
 
@@ -949,10 +958,13 @@ static bool trans_shea(DisasContext *dc, arg_typea *arg)
         return true;
     }
 #ifdef CONFIG_USER_ONLY
-    return true;
+    g_assert_not_reached();
 #else
-    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
-    return do_store(dc, arg->rd, addr, MO_UW, MMU_NOMMU_IDX, false);
+    TCGv_i64 addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    gen_alignment_check_ea(dc, addr, arg->rb, arg->rd, MO_16, true);
+    (mo_endian(dc) == MO_BE ? gen_helper_shea_be : gen_helper_shea_le)
+        (tcg_env, reg_for_read(dc, arg->rd), addr);
+    return true;
 #endif
 }
 
@@ -980,10 +992,13 @@ static bool trans_swea(DisasContext *dc, arg_typea *arg)
         return true;
     }
 #ifdef CONFIG_USER_ONLY
-    return true;
+    g_assert_not_reached();
 #else
-    TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
-    return do_store(dc, arg->rd, addr, MO_UL, MMU_NOMMU_IDX, false);
+    TCGv_i64 addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
+    gen_alignment_check_ea(dc, addr, arg->rb, arg->rd, MO_32, true);
+    (mo_endian(dc) == MO_BE ? gen_helper_swea_be : gen_helper_swea_le)
+        (tcg_env, reg_for_read(dc, arg->rd), addr);
+    return true;
 #endif
 }
 
@@ -1607,8 +1622,6 @@ static void mb_tr_init_disas_context(DisasContextBase *dcb, CPUState *cs)
     dc->cfg = &cpu->cfg;
     dc->tb_flags = dc->base.tb->flags;
     dc->ext_imm = dc->base.tb->cs_base;
-    dc->r0 = NULL;
-    dc->r0_set = false;
     dc->mem_index = cpu_mmu_index(cs, false);
     dc->jmp_cond = dc->tb_flags & D_FLAG ? TCG_COND_ALWAYS : TCG_COND_NEVER;
     dc->jmp_dest = -1;
@@ -1645,11 +1658,6 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
                              mb_cpu_is_big_endian(cs) != TARGET_BIG_ENDIAN);
     if (!decode(dc, ir)) {
         trap_illegal(dc, true);
-    }
-
-    if (dc->r0) {
-        dc->r0 = NULL;
-        dc->r0_set = false;
     }
 
     /* Discard the imm global when its contents cannot be used. */
@@ -1829,7 +1837,7 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     }
 
     qemu_fprintf(f, "\nesr=0x%04x fsr=0x%02x btr=0x%08x edr=0x%x\n"
-                 "ear=0x" TARGET_FMT_lx " slr=0x%x shr=0x%x\n",
+                 "ear=0x%" PRIx64 " slr=0x%x shr=0x%x\n",
                  env->esr, env->fsr, env->btr, env->edr,
                  env->ear, env->slr, env->shr);
 
