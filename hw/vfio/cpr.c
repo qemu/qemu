@@ -8,9 +8,9 @@
 #include "qemu/osdep.h"
 #include "hw/vfio/vfio-device.h"
 #include "migration/misc.h"
+#include "hw/vfio/vfio-cpr.h"
 #include "qapi/error.h"
 #include "system/runstate.h"
-#include "vfio-cpr.h"
 
 static int vfio_cpr_reboot_notifier(NotifierWithReturn *notifier,
                                     MigrationEvent *e, Error **errp)
