@@ -46,10 +46,8 @@
 {"execute": "device_add", "arguments": {"bus": "scsi0.0", "drive": "hd0", "driver": "scsi-hd", "id": "scsi-hd0"}}
 {"return": {}}
 {"execute": "device_add", "arguments": {"bus": "scsi1.0", "drive": "hd0", "driver": "scsi-hd", "id": "scsi-hd1"}}
-{"error": {"class": "GenericError", "desc": "Cannot change iothread of active block backend"}}
-{"execute": "device_del", "arguments": {"id": "scsi-hd0"}}
 {"return": {}}
-{"execute": "device_add", "arguments": {"bus": "scsi1.0", "drive": "hd0", "driver": "scsi-hd", "id": "scsi-hd1"}}
+{"execute": "device_del", "arguments": {"id": "scsi-hd0"}}
 {"return": {}}
 {"execute": "device_del", "arguments": {"id": "scsi-hd1"}}
 {"return": {}}

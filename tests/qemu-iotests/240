@@ -81,8 +81,6 @@ class TestCase(iotests.QMPTestCase):
 
         self.vm.qmp_log('device_del', id='scsi-hd0')
         self.vm.event_wait('DEVICE_DELETED')
-        self.vm.qmp_log('device_add', id='scsi-hd1', driver='scsi-hd', drive='hd0', bus="scsi1.0")
-
         self.vm.qmp_log('device_del', id='scsi-hd1')
         self.vm.event_wait('DEVICE_DELETED')
         self.vm.qmp_log('blockdev-del', node_name='hd0')
