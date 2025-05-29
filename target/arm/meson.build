@@ -48,7 +48,7 @@ subdir('hvf')
 if 'CONFIG_TCG' in config_all_accel
    subdir('tcg')
 else
-    arm_ss.add(files('tcg-stubs.c'))
+    arm_common_system_ss.add(files('tcg-stubs.c'))
 endif
 
 target_arch += {'arm': arm_ss}
