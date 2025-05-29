@@ -4130,7 +4130,7 @@ M: Hanna Reitz <hreitz@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/qcow2*
-F: docs/interop/qcow2.txt
+F: docs/interop/qcow2.rst
 
 qcow
 M: Kevin Wolf <kwolf@redhat.com>
