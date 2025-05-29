@@ -3,7 +3,6 @@ arm_common_ss = ss.source_set()
 arm_ss.add(files(
   'gdbstub.c',
 ))
-arm_ss.add(zlib)
 
 arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
   'cpu64.c',
