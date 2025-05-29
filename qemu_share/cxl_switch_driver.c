@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/printk.h>
+#include <linux/interrupt.h>
 
 
 MODULE_LICENSE("GPL");
@@ -33,6 +34,18 @@ MODULE_DESCRIPTION("A sample kernel module");
 
 #define CXL_VENDOR_ID 0x1AF4
 #define CXL_DEVICE_ID 0x1337
+
+// BAR1 Control Register offsets (from QEMU device cxl-switch-client.c)
+#define REG_COMMAND_DOORBELL 0x00
+#define REG_COMMAND_STATUS   0x04
+#define REG_NOTIF_STATUS     0x08
+#define REG_INTERRUPT_MASK   0x0C
+#define REG_INTERRUPT_STATUS 0x10
+
+// Bits for REG_INTERRUPT_MASK and REG_INTERRUPT_STATUS (from QEMU device cxl-switch-client.c)
+#define IRQ_SOURCE_NEW_CLIENT_NOTIFY  (1 << 0)
+#define IRQ_SOURCE_CMD_RESPONSE_READY (1 << 1)
+#define ALL_INTERRUPT_SOURCES (IRQ_SOURCE_NEW_CLIENT_NOTIFY | IRQ_SOURCE_CMD_RESPONSE_READY)
 
 // Support just one device instance at a time
 #define MAX_DEVICES 1
@@ -67,6 +80,7 @@ struct cxl_switch_client_dev {
 	struct cdev c_dev;       // character device structure
 	struct class *dev_class; // For automatic /dev node creation
     struct device *device;   // For device_create
+    int irq;                 // IRQ number assigned for MSI
 };
 
 static struct cxl_switch_client_dev *cxl_switch_devs[MAX_DEVICES];
@@ -168,6 +182,46 @@ static const struct file_operations cxl_switch_client_fops = {
 	.mmap = cxl_switch_client_mmap,
 };
 
+/* ISR */
+static irqreturn_t cxl_switch_client_isr(int irq, void *dev_id) {
+  struct cxl_switch_client_dev *dev = dev_id;
+  u32 irq_status;
+  u32 irq_mask;
+  u32 active_interrupts;
+
+  // Check that BAR1 was mapped
+  if (!dev->bar1_kva) {
+    pr_warn("%s: BAR1 not mapped, cannot handle IRQ %d\n", DRIVER_NAME, irq);
+    return IRQ_NONE;
+  }
+
+  irq_status = ioread32(dev->bar1_kva + REG_INTERRUPT_STATUS);
+  irq_mask = ioread32(dev->bar1_kva + REG_INTERRUPT_MASK);
+  active_interrupts = irq_status & irq_mask;
+  if (active_interrupts == 0) {
+    return IRQ_NONE;
+  }
+
+  pr_info("%s: Handling IRQ %d for device %s, active interrupts=0x%x\n",
+          DRIVER_NAME, irq, pci_name(dev->pdev), active_interrupts);
+  
+  u32 handled_irqs = 0;
+  if (active_interrupts & IRQ_SOURCE_NEW_CLIENT_NOTIFY) {
+    pr_info("%s: New client notification received.\n", DRIVER_NAME);
+    handled_irqs |= IRQ_SOURCE_NEW_CLIENT_NOTIFY;
+  }
+
+  if (handled_irqs > 0) {
+    iowrite32(handled_irqs, dev->bar1_kva + REG_INTERRUPT_STATUS);
+    pr_info("%s: Acknowledged handled IRQs: 0x%x\n", DRIVER_NAME, handled_irqs);
+    return IRQ_HANDLED;
+  }
+
+  pr_warn("%s: No known IRQs to handle for device %s, status=0x%x, mask=0x%x\n",
+            DRIVER_NAME, pci_name(dev->pdev), irq_status, irq_mask);
+  return IRQ_NONE;
+}
+
 /* PCI Driver */
 
 // Helper function to probe and map a single BAR
@@ -222,6 +276,7 @@ static int cxl_switch_client_pci_probe(struct pci_dev *pdev, const struct pci_de
 
 	current_dev_idx = device_count;
 
+    // 1. Allocate memory for device-specific struct
 	dev = kzalloc(sizeof(struct cxl_switch_client_dev), GFP_KERNEL);
 	if (!dev) {
 		pr_err("%s: Failed to allocate memory for device\n", DRIVER_NAME);
@@ -229,7 +284,7 @@ static int cxl_switch_client_pci_probe(struct pci_dev *pdev, const struct pci_de
 	}
 	dev->pdev = pdev;
 
-	// 1. Enable the PCI device
+	// 2. Enable the PCI device
 	ret = pci_enable_device(pdev);
 	if (ret) {
 		pr_err("%s: Failed to enable PCI device, error=%d\n", DRIVER_NAME, ret);
@@ -237,7 +292,11 @@ static int cxl_switch_client_pci_probe(struct pci_dev *pdev, const struct pci_de
 		return ret;
 	}
 
-	// 2. Request MMIO/IOP resources
+    // 3. Enable bus mastering (for DMA and MSI)
+    pci_set_master(pdev);
+    pr_info("%s: Enabled bus mastering for %s.\n", DRIVER_NAME, DEVICE_NAME);
+
+	// 4. Request MMIO/IOP resources
 	//    Probe each bar with helper function
     
     ret = probe_bar(dev, 0, &dev->bar0_start, &dev->bar0_len, &dev->bar0_kva, "BAR0 Mailbox");
@@ -249,17 +308,47 @@ static int cxl_switch_client_pci_probe(struct pci_dev *pdev, const struct pci_de
     ret = probe_bar(dev, 2, &dev->bar2_start, &dev->bar2_len, &dev->bar2_kva, "BAR2 Data");
     if (ret) goto err_release_bar1;
 
-	// 3. Set DMA ... (not applicable for now?)
-	// 4. Allocate and init shared control data space (N/A?)
-	// 5. Access device configuration space (N/A?)
-	// 6. Register IRQ handler (N/A?)
+    // 5. Setup MSI
+    //    Try to allocate one MSI vector
+    int nvecs = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
+    if (nvecs < 0) {
+      ret = nvecs;
+      pr_err("%s: Failed to allocate MSI vectors for %s, error = %d.\n", DRIVER_NAME, pci_name(pdev), ret);
+      goto err_release_bar2;
+    }
+    //    Get IRQ number for 0th allocated vector
+    dev->irq = pci_irq_vector(pdev, 0);
+    pr_info("%s: MSI vector allocated for %s, IRQ %d.\n", DRIVER_NAME, pci_name(pdev), dev->irq);
 
-	// 7. Initialize character device to talk to cxl switch PCI device
+    //    Request IRQ line for just the 0th allocated vector
+    ret = request_irq(dev->irq, cxl_switch_client_isr, 0, DRIVER_NAME, dev);
+    if (ret) {
+      pr_err("%s: Failed to request IRQ %d for %s, error=%d\n", DRIVER_NAME, dev->irq, pci_name(pdev), ret);
+      goto err_free_irq_vectors;
+    }
+    pr_info("%s: Successfully requested IRQ %d for %s\n", DRIVER_NAME, dev->irq, pci_name(pdev));
+    //    Enable interrupts on the device by writing to its interrupt mask 
+    //    register in BAR1
+    if (dev->bar1_kva) {
+      iowrite32(ALL_INTERRUPT_SOURCES, dev->bar1_kva + REG_INTERRUPT_MASK);
+      pr_info("%s: Enabled all interrupts for %s\n", DRIVER_NAME, pci_name(pdev));
+    } else {
+        pr_err("%s: BAR1 not mapped, cannot enable interrupts for %s\n", DRIVER_NAME, pci_name(pdev));
+        ret = -EIO;
+        goto err_free_irq_handler;
+        
+    }
+
+	// 6. Set DMA ... (not applicable for now?)
+	// 7. Allocate and init shared control data space (N/A?)
+	// 8. Access device configuration space (N/A?)
+
+	// 9. Initialize character device to talk to cxl switch PCI device
 
 	ret = alloc_chrdev_region(&dev->devt, 0, 1, DEVICE_NAME);
 	if (ret < 0) {
 		pr_err("%s: Failed to allocate char device number, error=%d\n", DRIVER_NAME, ret);
-		goto err_release_bar2;
+		goto err_disable_device_irqs;
 	}
 
 	cdev_init(&dev->c_dev, &cxl_switch_client_fops);
@@ -298,6 +387,15 @@ err_cdev_del:
 	cdev_del(&dev->c_dev);
 err_unregister_char_dev:
 	unregister_chrdev_region(dev->devt, 1);
+err_disable_device_irqs:
+    if (dev->bar1_kva) {
+      iowrite32(0, dev->bar1_kva + REG_INTERRUPT_MASK);
+      pr_info("%s: Disabled all interrupts for %s during cleanup\n", DRIVER_NAME, pci_name(pdev));
+    }
+err_free_irq_handler:
+    if (dev->irq > 0) free_irq(dev->irq, dev);
+err_free_irq_vectors:
+    pci_free_irq_vectors(pdev);
 err_release_bar2:
     if (dev->bar2_kva) pci_iounmap(pdev, dev->bar2_kva);
     if (dev->bar2_len) pci_release_region(pdev, 2);
@@ -308,6 +406,7 @@ err_release_bar0:
     if (dev->bar0_kva) pcim_iounmap(pdev, dev->bar0_kva);
     if (dev->bar0_len) pci_release_region(pdev, 0);
 err_disable_device:
+    pci_clear_master(pdev);
 	pci_disable_device(pdev);
 	kfree(dev);
 	return ret;
@@ -331,6 +430,16 @@ static void cxl_switch_client_pci_remove(struct pci_dev *pdev)
 	cdev_del(&dev->c_dev);
 	unregister_chrdev_region(dev->devt, 1);
 
+    if (dev->bar1_kva) {
+      iowrite32(0, dev->bar1_kva + REG_INTERRUPT_MASK);
+    }
+
+    if (dev->irq > 0) {
+      free_irq(dev->irq, dev);
+    }
+
+    pci_free_irq_vectors(pdev);
+
     if (dev->bar2_kva) pcim_iounmap(pdev, dev->bar2_kva);
     if (dev->bar2_len) pci_release_region(pdev, 2);
     if (dev->bar1_kva) pcim_iounmap(pdev, dev->bar1_kva);
@@ -338,6 +447,7 @@ static void cxl_switch_client_pci_remove(struct pci_dev *pdev)
     if (dev->bar0_kva) pcim_iounmap(pdev, dev->bar0_kva);
     if (dev->bar0_len) pci_release_region(pdev, 0);
 
+    pci_clear_master(pdev);
     pci_disable_device(pdev);
 	// Primitive tracking
 	for (i = 0; i < MAX_DEVICES; ++i) {
