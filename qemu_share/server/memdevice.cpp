@@ -1,6 +1,6 @@
 #include "memdevice.hpp"
-#include "hw/misc/cxl_switch_ipc.h"
-#include "qemu_share/server/cxl_fm.hpp"
+#include "cxl_switch_ipc.h"
+#include "cxl_fm.hpp"
 
 #include <exception>
 #include <fcntl.h>
@@ -8,10 +8,13 @@
 #include <cstdint>
 #include <cstring>
 #include <optional>
+#include <stdexcept>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <utility>
+
+namespace cxl_fm {
 
 #define CXL_MEMDEV_DEBUG 1
 #if CXL_MEMDEV_DEBUG
@@ -24,14 +27,14 @@
 
 // --- Memory management ---
 
-void cxl_fm::CXLMemDevice::add_new_block(size_t offset, size_t size) {
+void CXLMemDevice::add_new_block(size_t offset, size_t size) {
   // Implicit conversion from size_t to FreeBlockInfo done here
   auto new_block_it = m_free_blocks_by_offset_.emplace(offset, size);
   auto order_it = m_free_blocks_by_size_.emplace(size, new_block_it.first);
   new_block_it.first->second.ordered_by_size_it = order_it;
 }
 
-std::optional<size_t> cxl_fm::CXLMemDevice::allocate(size_t requested_size) {
+std::optional<size_t> CXLMemDevice::allocate(size_t requested_size) {
   if(free_size_ < requested_size) {
     return std::nullopt;
   }
@@ -57,7 +60,7 @@ std::optional<size_t> cxl_fm::CXLMemDevice::allocate(size_t requested_size) {
   return std::optional<size_t>(offset);
 }
 
-void cxl_fm::CXLMemDevice::free(size_t offset, size_t size) {
+void CXLMemDevice::free(size_t offset, size_t size) {
     // First, we want to know where the new block should be inserted
     // We will find the first element whose offset is greater than the 
     // specified offset
@@ -112,15 +115,46 @@ void cxl_fm::CXLMemDevice::free(size_t offset, size_t size) {
     free_size_ += size;
 }
 
+// --- Read/write interface ---
+void CXLMemDevice::write_data(uint64_t offset_in_mmap, const void* data, uint32_t write_size) {
+  if (status_ != CXL_IPC_STATUS_OK || mmap_addr_ == nullptr) {
+    throw std::runtime_error("CXLMemDevice is not ready for write operations");
+  }
+  if (offset_in_mmap + write_size > size_) {
+    throw std::out_of_range("CXLMemDevice write out of bounds: " +
+                            std::to_string(offset_in_mmap + write_size) +
+                            " > " + std::to_string(size_));
+  }
+  std::memcpy(mmap_addr_ + offset_in_mmap, data, write_size);
+}
+
+void CXLMemDevice::read_data(uint64_t offset_in_mmap, void* data, uint32_t read_size) {
+  if (status_ != CXL_IPC_STATUS_OK || mmap_addr_ == nullptr) {
+    throw std::runtime_error("CXLMemDevice is not ready for read operations");
+  }
+  if (offset_in_mmap + read_size > size_) {
+    throw std::out_of_range("CXLMemDevice read out of bounds: " +
+                            std::to_string(offset_in_mmap + read_size) +
+                            " > " + std::to_string(size_));
+  }
+  std::memcpy(data, mmap_addr_ + offset_in_mmap, read_size);
+}
+
+void CXLMemDevice::mark_unhealthy() {
+  status_ = CXL_IPC_STATUS_ERROR_GENERIC;
+}
+
+
 // --- Constructors ---
 // In contrast to the original C impl, no need for separate init and close
 // Just do stuff and fail in constructor
 // The FM might not want to close if a memdevice fails in the future, possibly
 // because we might want to support adding more memdevices
 // and cos that would be transparent to the QEMU VMs anyways
-cxl_fm::CXLMemDevice::CXLMemDevice(std::string path, uint64_t size)
+CXLMemDevice::CXLMemDevice(std::string path, uint64_t size)
   : path_(std::move(path)),
     size_(size) {
+  CXL_MEMDEV_LOG("Initializing Mem Device at " + path_);
   if (path_.empty()) {
     CXL_MEMDEV_LOG("CXLMemDevice path is empty");
     throw std::invalid_argument("CXLMemDevice path cannot be empty");
@@ -155,9 +189,10 @@ cxl_fm::CXLMemDevice::CXLMemDevice(std::string path, uint64_t size)
     throw std::system_error(errno, std::generic_category(), "Failed to mmap CXLMemDevice");
   }
   status_ = CXL_IPC_STATUS_OK;
+  CXL_MEMDEV_LOG("Successfully initialized Mem Device at " + path_);
 }
 
-cxl_fm::CXLMemDevice::~CXLMemDevice() {
+CXLMemDevice::~CXLMemDevice() {
   // I am actually not sure if there is a point in these guard checks
   // since the constructor must have succeeded (in contrast to C), 
   // but just for convention i guess
@@ -166,12 +201,28 @@ cxl_fm::CXLMemDevice::~CXLMemDevice() {
       CXL_MEMDEV_LOG("Failed to unmap CXLMemDevice: " + std::string(strerror(errno)));
     }
     mmap_addr_ = nullptr;
+    CXL_MEMDEV_LOG("CXLMemDevice at " + path_ + " unmapped.");
   }
   if (fd_ >= 0) {
     if (::close(fd_) == -1) {
       CXL_MEMDEV_LOG("Failed to close CXLMemDevice: " + std::string(strerror(errno)));
     }
     fd_ = -1;
+    CXL_MEMDEV_LOG("CXLMemDevice at " + path_ + " closed.");
   }
-  CXL_MEMDEV_LOG("CXLMemDevice closed and unmapped: " + path_);
+  CXL_MEMDEV_LOG("CXLMemDevice at " + path_ + " destructed.");
+}
+
+CXLMemDevice::CXLMemDevice(CXLMemDevice&& other) noexcept 
+  : free_size_(std::exchange(other.free_size_, 0)),
+    m_free_blocks_by_offset_(std::move(other.m_free_blocks_by_offset_)),
+    m_free_blocks_by_size_(std::move(other.m_free_blocks_by_size_)),
+    path_(std::move(other.path_)),
+    fd_(std::exchange(other.fd_, -1)),
+    mmap_addr_(std::exchange(other.mmap_addr_, nullptr)),
+    size_(std::exchange(other.size_, 0)),
+    status_(std::exchange(other.status_, CXL_IPC_STATUS_ERROR_GENERIC))
+{
+  CXL_MEMDEV_LOG("Move constructor called for MemDevice at " + path_);
+}
 }

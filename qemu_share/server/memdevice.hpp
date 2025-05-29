@@ -21,14 +21,13 @@ namespace cxl_fm {
   
   The Fabric Manager requests XYZ amount of memory from the memory device.
   If the memory device can service this request, it returns an offset + length
-  to the Fabric Manager which is returned to the RPC client/server.
+  to the Fabric Manager which is struct AllocatedRegionInfo.
 
-  Once the offset + length is returned to the RPC client/server, they mmap the 
-  shared memory directly into the QEMU device as BAR2 region. 
-  This means that the CXLMemDevice is only responsible for allocation and 
-  freeing of memory, loads/stores are done by the QEMU device
-  and routed to the CXL Fabric Manager which performs the replication and
-  forwarding.
+  At the RPC client/server end, they have a logical 0 view and their 
+  stores/loads are intercepted by the QEMU Object and routed to the
+  server/Fabric Manager. The FM would route the loads/store to the
+  appropriate offset.
+
 */
 class CXLMemDevice {
   
@@ -77,17 +76,25 @@ public:
   --- CXL Memory Device ---
 
   Boiler plate safe handling of resources done here.
+  Interface for reading and writing.
 
 */
 public:
   CXLMemDevice() = default;
   CXLMemDevice(std::string path, uint64_t size);
   ~CXLMemDevice();
-  // Delete copy constructor, copy assignment, move, move assignment operator
-  CXLMemDevice(const CXLMemDevice &) = delete;
-  CXLMemDevice &operator=(const CXLMemDevice &) = delete;
-  CXLMemDevice(CXLMemDevice &&) = delete;
-  CXLMemDevice &operator=(CXLMemDevice &&) = delete;
+
+  CXLMemDevice(CXLMemDevice&& other) noexcept;
+
+  CXLMemDevice(const CXLMemDevice&) = delete;
+  CXLMemDevice& operator=(const CXLMemDevice&) = delete;
+
+
+  // Read/write public interface called by FM
+  void write_data(uint64_t offset_in_mmap, const void* data, uint32_t write_size);
+  void read_data(uint64_t offset_in_mmap, void* data, uint32_t read_size);
+  // Hack admin method to mark dead
+  void mark_unhealthy();
 
 private:
   std::string path_;
