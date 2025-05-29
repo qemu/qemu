@@ -310,3 +310,107 @@ impl FromForeign for Error {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::CStr;
+
+    use anyhow::anyhow;
+    use foreign::OwnedPointer;
+
+    use super::*;
+    use crate::{assert_match, bindings};
+
+    #[track_caller]
+    fn error_for_test(msg: &CStr) -> OwnedPointer<Error> {
+        // SAFETY: all arguments are controlled by this function
+        let location = panic::Location::caller();
+        unsafe {
+            let err: *mut c_void = libc::malloc(std::mem::size_of::<bindings::Error>());
+            let err: &mut bindings::Error = &mut *err.cast();
+            *err = bindings::Error {
+                msg: msg.clone_to_foreign_ptr(),
+                err_class: bindings::ERROR_CLASS_GENERIC_ERROR,
+                src_len: location.file().len() as c_int,
+                src: location.file().as_ptr().cast::<c_char>(),
+                line: location.line() as c_int,
+                func: ptr::null_mut(),
+                hint: ptr::null_mut(),
+            };
+            OwnedPointer::new(err)
+        }
+    }
+
+    unsafe fn error_get_pretty<'a>(local_err: *mut bindings::Error) -> &'a CStr {
+        unsafe { CStr::from_ptr(bindings::error_get_pretty(local_err)) }
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn test_description() {
+        use std::error::Error;
+
+        assert_eq!(super::Error::from("msg").description(), "msg");
+        assert_eq!(super::Error::from("msg".to_owned()).description(), "msg");
+    }
+
+    #[test]
+    fn test_display() {
+        assert_eq!(&*format!("{}", Error::from("msg")), "msg");
+        assert_eq!(&*format!("{}", Error::from("msg".to_owned())), "msg");
+        assert_eq!(&*format!("{}", Error::from(anyhow!("msg"))), "msg");
+
+        assert_eq!(
+            &*format!("{}", Error::with_error("msg", anyhow!("cause"))),
+            "msg: cause"
+        );
+    }
+
+    #[test]
+    fn test_bool_or_propagate() {
+        unsafe {
+            let mut local_err: *mut bindings::Error = ptr::null_mut();
+
+            assert!(Error::bool_or_propagate(Ok(()), &mut local_err));
+            assert_eq!(local_err, ptr::null_mut());
+
+            let my_err = Error::from("msg");
+            assert!(!Error::bool_or_propagate(Err(my_err), &mut local_err));
+            assert_ne!(local_err, ptr::null_mut());
+            assert_eq!(error_get_pretty(local_err), c"msg");
+            bindings::error_free(local_err);
+        }
+    }
+
+    #[test]
+    fn test_ptr_or_propagate() {
+        unsafe {
+            let mut local_err: *mut bindings::Error = ptr::null_mut();
+
+            let ret = Error::ptr_or_propagate(Ok("abc".to_owned()), &mut local_err);
+            assert_eq!(String::from_foreign(ret), "abc");
+            assert_eq!(local_err, ptr::null_mut());
+
+            let my_err = Error::from("msg");
+            assert_eq!(
+                Error::ptr_or_propagate(Err::<String, _>(my_err), &mut local_err),
+                ptr::null_mut()
+            );
+            assert_ne!(local_err, ptr::null_mut());
+            assert_eq!(error_get_pretty(local_err), c"msg");
+            bindings::error_free(local_err);
+        }
+    }
+
+    #[test]
+    fn test_err_or_unit() {
+        unsafe {
+            let result = Error::err_or_unit(ptr::null_mut());
+            assert_match!(result, Ok(()));
+
+            let err = error_for_test(c"msg");
+            let err = Error::err_or_unit(err.into_inner()).unwrap_err();
+            assert_eq!(&*format!("{err}"), "msg");
+        }
+    }
+}
