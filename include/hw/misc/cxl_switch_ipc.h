@@ -85,6 +85,7 @@ typedef struct {
 // CXL_MSG_TYPE_WRITE_REQ
 typedef struct {
     uint8_t type;    // CXL_MSG_TYPE_WRITE_REQ
+    uint64_t channel_id; // RPC Channel identifier: identifies which mem replicas
     uint64_t addr;   // Address within the replicated memory
     uint8_t size;    // Access size (1, 2, 4, 8)
     uint64_t value;  // Value to write
@@ -99,6 +100,7 @@ typedef struct {
 // CXL_MSG_TYPE_READ_REQ
 typedef struct {
     uint8_t type;   // CXL_MSG_TYPE_READ_REQ
+    uint64_t channel_id; // RPC Channel identifier: identifies which mem replicas
     uint64_t addr;  // Address within the replicated memory
     uint8_t size;   // Access size (1, 2, 4, 8)
 } cxl_ipc_read_req_t;
@@ -120,13 +122,13 @@ typedef struct {
 // Admin Command
 typedef struct {
     uint8_t cmd_type;
-    uint8_t replica_index;
-} cxl_admin_command_t;
+    uint8_t memdev_index;
+} cxl_admin_fail_replica_req_t;
 
 // Admin response
 typedef struct {
     uint8_t status;
-} cxl_admin_response_t;
+} cxl_admin_fail_replica_resp_t;
 
 // --- RPC Management and QEMU Device Control Messages ---
 // CXL_MSG_TYPE_RPC_REGISTER_SERVICE
@@ -161,6 +163,8 @@ typedef struct {
     uint8_t type;
     uint64_t channel_shm_offset;
     uint32_t channel_shm_size;
+    char client_instance_id[MAX_INSTANCE_ID_LEN];
+    char service_name[MAX_SERVICE_NAME_LEN];
 } cxl_ipc_rpc_new_client_notify_t;
 
 // CXL_MSG_TYPE_RPC_CONFIG_BAR2_WINDOW_REQ
