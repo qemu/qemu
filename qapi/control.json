@@ -91,7 +91,7 @@
 ##
 # @query-version:
 #
-# Returns the current version of QEMU.
+# Return the current version of QEMU.
 #
 # Returns: A @VersionInfo object describing the current version of
 #     QEMU.

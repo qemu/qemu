@@ -34,7 +34,7 @@
 ##
 # @query-chardev:
 #
-# Returns information about current character devices.
+# Return information about current character devices.
 #
 # Returns: a list of @ChardevInfo
 #
@@ -80,7 +80,7 @@
 ##
 # @query-chardev-backends:
 #
-# Returns information about character device backends.
+# Return information about character device backends.
 #
 # Returns: a list of @ChardevBackendInfo
 #

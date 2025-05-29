@@ -282,7 +282,7 @@
 ##
 # @query-migrate:
 #
-# Returns information about current migration process.  If migration
+# Return information about current migration process.  If migration
 # is active there will be another json-object with RAM migration
 # status.
 #
@@ -535,7 +535,7 @@
 ##
 # @query-migrate-capabilities:
 #
-# Returns information about the current migration capabilities status
+# Return information about the current migration capabilities status
 #
 # Returns: @MigrationCapabilityStatus
 #
@@ -1320,7 +1320,7 @@
 ##
 # @query-migrate-parameters:
 #
-# Returns information about the current migration parameters
+# Return information about the current migration parameters
 #
 # Returns: @MigrationParameters
 #
@@ -2294,7 +2294,7 @@
 ##
 # @query-vcpu-dirty-limit:
 #
-# Returns information about virtual CPU dirty page rate limits, if
+# Return information about virtual CPU dirty page rate limits, if
 # any.
 #
 # Since: 7.1
@@ -2327,7 +2327,7 @@
 ##
 # @query-migrationthreads:
 #
-# Returns information of migration threads
+# Return information of migration threads
 #
 # Features:
 #

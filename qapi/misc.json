@@ -101,7 +101,7 @@
 ##
 # @query-iothreads:
 #
-# Returns a list of information about each iothread.
+# Return a list of information about each iothread.
 #
 # .. note:: This list excludes the QEMU main loop thread, which is not
 #    declared using the ``-object iothread`` command-line option.  It

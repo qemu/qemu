@@ -1,6 +1,7 @@
 # -*- Mode: Python -*-
 # vim: filetype=python
 #
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 ##
 # @rtc-reset-reinjection:
@@ -9,6 +10,10 @@
 # be used if another mechanism to synchronize guest time is in effect,
 # for example QEMU guest agent's guest-set-time command.
 #
+# Use of this command is only applicable for x86 machines with an RTC,
+# and on other machines will silently return without performing any
+# action.
+#
 # Since: 2.1
 #
 # .. qmp-example::
@@ -16,8 +21,7 @@
 #     -> { "execute": "rtc-reset-reinjection" }
 #     <- { "return": {} }
 ##
-{ 'command': 'rtc-reset-reinjection',
-  'if': 'TARGET_I386' }
+{ 'command': 'rtc-reset-reinjection' }
 
 ##
 # @SevState:
@@ -44,8 +48,7 @@
 ##
 { 'enum': 'SevState',
   'data': ['uninit', 'launch-update', 'launch-secret', 'running',
-           'send-update', 'receive-update' ],
-  'if': 'TARGET_I386' }
+           'send-update', 'receive-update' ] }
 
 ##
 # @SevGuestType:
@@ -59,8 +62,7 @@
 # Since: 6.2
 ##
 { 'enum': 'SevGuestType',
-  'data': [ 'sev', 'sev-snp' ],
-  'if': 'TARGET_I386' }
+  'data': [ 'sev', 'sev-snp' ] }
 
 ##
 # @SevGuestInfo:
@@ -75,8 +77,7 @@
 ##
 { 'struct': 'SevGuestInfo',
   'data': { 'policy': 'uint32',
-            'handle': 'uint32' },
-  'if': 'TARGET_I386' }
+            'handle': 'uint32' } }
 
 ##
 # @SevSnpGuestInfo:
@@ -88,8 +89,7 @@
 # Since: 9.1
 ##
 { 'struct': 'SevSnpGuestInfo',
-  'data': { 'snp-policy': 'uint64' },
-  'if': 'TARGET_I386' }
+  'data': { 'snp-policy': 'uint64' } }
 
 ##
 # @SevInfo:
@@ -120,14 +120,17 @@
   'discriminator': 'sev-type',
   'data': {
       'sev': 'SevGuestInfo',
-      'sev-snp': 'SevSnpGuestInfo' },
-  'if': 'TARGET_I386' }
+      'sev-snp': 'SevSnpGuestInfo' } }
 
 
 ##
 # @query-sev:
 #
-# Returns information about SEV
+# Return information about SEV/SEV-ES/SEV-SNP.
+#
+# If unavailable due to an incompatible configuration the returned
+# @enabled field is set to 'false' and the state of all other fields
+# is unspecified.
 #
 # Returns: @SevInfo
 #
@@ -140,8 +143,7 @@
 #                      "build-id" : 0, "policy" : 0, "state" : "running",
 #                      "handle" : 1 } }
 ##
-{ 'command': 'query-sev', 'returns': 'SevInfo',
-  'if': 'TARGET_I386' }
+{ 'command': 'query-sev', 'returns': 'SevInfo' }
 
 ##
 # @SevLaunchMeasureInfo:
@@ -152,15 +154,23 @@
 #
 # Since: 2.12
 ##
-{ 'struct': 'SevLaunchMeasureInfo', 'data': {'data': 'str'},
-  'if': 'TARGET_I386' }
+{ 'struct': 'SevLaunchMeasureInfo', 'data': {'data': 'str'} }
 
 ##
 # @query-sev-launch-measure:
 #
-# Query the SEV guest launch information.
+# Query the SEV/SEV-ES guest launch information.
+#
+# This is only valid on x86 machines configured with KVM and the
+# 'sev-guest' confidential virtualization object.  The launch
+# measurement for SEV-SNP guests is only available within the guest.
 #
 # Returns: The @SevLaunchMeasureInfo for the guest
+#
+# Errors:
+#     - If the launch measurement is unavailable, either due to an
+#       invalid guest configuration or if the guest has not reached
+#       the required SEV state, GenericError
 #
 # Since: 2.12
 #
@@ -169,8 +179,7 @@
 #     -> { "execute": "query-sev-launch-measure" }
 #     <- { "return": { "data": "4l8LXeNlSPUDlXPJG5966/8%YZ" } }
 ##
-{ 'command': 'query-sev-launch-measure', 'returns': 'SevLaunchMeasureInfo',
-  'if': 'TARGET_I386' }
+{ 'command': 'query-sev-launch-measure', 'returns': 'SevLaunchMeasureInfo' }
 
 ##
 # @SevCapability:
@@ -196,16 +205,19 @@
             'cert-chain': 'str',
             'cpu0-id': 'str',
             'cbitpos': 'int',
-            'reduced-phys-bits': 'int'},
-  'if': 'TARGET_I386' }
+            'reduced-phys-bits': 'int'} }
 
 ##
 # @query-sev-capabilities:
 #
-# This command is used to get the SEV capabilities, and is supported
-# on AMD X86 platforms only.
+# Get SEV capabilities.
+#
+# This is only supported on AMD X86 platforms with KVM enabled.
 #
 # Returns: SevCapability objects.
+#
+# Errors:
+#     - If SEV is not available on the platform, GenericError
 #
 # Since: 2.12
 #
@@ -216,13 +228,17 @@
 #                      "cpu0-id": "2lvmGwo+...61iEinw==",
 #                      "cbitpos": 47, "reduced-phys-bits": 1}}
 ##
-{ 'command': 'query-sev-capabilities', 'returns': 'SevCapability',
-  'if': 'TARGET_I386' }
+{ 'command': 'query-sev-capabilities', 'returns': 'SevCapability' }
 
 ##
 # @sev-inject-launch-secret:
 #
-# This command injects a secret blob into memory of SEV guest.
+# This command injects a secret blob into memory of a SEV/SEV-ES
+# guest.
+#
+# This is only valid on x86 machines configured with KVM and the
+# 'sev-guest' confidential virtualization object.  SEV-SNP guests do
+# not support launch secret injection.
 #
 # @packet-header: the launch secret packet header encoded in base64
 #
@@ -230,11 +246,15 @@
 #
 # @gpa: the guest physical address where secret will be injected.
 #
+# Errors:
+#     - If launch secret injection is not possible, either due to
+#       an invalid guest configuration, or if the guest has not
+#       reached the required SEV state, GenericError
+#
 # Since: 6.0
 ##
 { 'command': 'sev-inject-launch-secret',
-  'data': { 'packet-header': 'str', 'secret': 'str', '*gpa': 'uint64' },
-  'if': 'TARGET_I386' }
+  'data': { 'packet-header': 'str', 'secret': 'str', '*gpa': 'uint64' } }
 
 ##
 # @SevAttestationReport:
@@ -247,19 +267,27 @@
 # Since: 6.1
 ##
 { 'struct': 'SevAttestationReport',
-  'data': { 'data': 'str'},
-  'if': 'TARGET_I386' }
+  'data': { 'data': 'str'} }
 
 ##
 # @query-sev-attestation-report:
 #
-# This command is used to get the SEV attestation report, and is
-# supported on AMD X86 platforms only.
+# This command is used to get the SEV attestation report.
+#
+# This is only valid on x86 machines configured with KVM and the
+# 'sev-guest' confidential virtualization object.  The attestation
+# report for SEV-SNP guests is only available within the guest.
 #
 # @mnonce: a random 16 bytes value encoded in base64 (it will be
 #     included in report)
 #
 # Returns: SevAttestationReport objects.
+#
+# Errors:
+#     - This will return an error if the attestation report is
+#       unavailable, either due to an invalid guest configuration
+#       or if the guest has not reached the required SEV state,
+#       GenericError
 #
 # Since: 6.1
 #
@@ -271,52 +299,7 @@
 ##
 { 'command': 'query-sev-attestation-report',
   'data': { 'mnonce': 'str' },
-  'returns': 'SevAttestationReport',
-  'if': 'TARGET_I386' }
-
-##
-# @GICCapability:
-#
-# The struct describes capability for a specific GIC (Generic
-# Interrupt Controller) version.  These bits are not only decided by
-# QEMU/KVM software version, but also decided by the hardware that the
-# program is running upon.
-#
-# @version: version of GIC to be described.  Currently, only 2 and 3
-#     are supported.
-#
-# @emulated: whether current QEMU/hardware supports emulated GIC
-#     device in user space.
-#
-# @kernel: whether current QEMU/hardware supports hardware accelerated
-#     GIC device in kernel.
-#
-# Since: 2.6
-##
-{ 'struct': 'GICCapability',
-  'data': { 'version': 'int',
-            'emulated': 'bool',
-            'kernel': 'bool' },
-  'if': 'TARGET_ARM' }
-
-##
-# @query-gic-capabilities:
-#
-# This command is ARM-only.  It will return a list of GICCapability
-# objects that describe its capability bits.
-#
-# Returns: a list of GICCapability objects.
-#
-# Since: 2.6
-#
-# .. qmp-example::
-#
-#     -> { "execute": "query-gic-capabilities" }
-#     <- { "return": [{ "version": 2, "emulated": true, "kernel": false },
-#                     { "version": 3, "emulated": false, "kernel": true } ] }
-##
-{ 'command': 'query-gic-capabilities', 'returns': ['GICCapability'],
-  'if': 'TARGET_ARM' }
+  'returns': 'SevAttestationReport' }
 
 ##
 # @SgxEpcSection:
@@ -355,13 +338,12 @@
             'sgx1': 'bool',
             'sgx2': 'bool',
             'flc': 'bool',
-            'sections': ['SgxEpcSection']},
-   'if': 'TARGET_I386' }
+            'sections': ['SgxEpcSection']} }
 
 ##
 # @query-sgx:
 #
-# Returns information about configured SGX capabilities of guest
+# Return information about configured SGX capabilities of guest
 #
 # Returns: @SgxInfo
 #
@@ -375,12 +357,12 @@
 #                      "sections": [{"node": 0, "size": 67108864},
 #                      {"node": 1, "size": 29360128}]} }
 ##
-{ 'command': 'query-sgx', 'returns': 'SgxInfo', 'if': 'TARGET_I386' }
+{ 'command': 'query-sgx', 'returns': 'SgxInfo' }
 
 ##
 # @query-sgx-capabilities:
 #
-# Returns information about SGX capabilities of host
+# Return information about SGX capabilities of host
 #
 # Returns: @SgxInfo
 #
@@ -394,8 +376,7 @@
 #                      "section" : [{"node": 0, "size": 67108864},
 #                      {"node": 1, "size": 29360128}]} }
 ##
-{ 'command': 'query-sgx-capabilities', 'returns': 'SgxInfo', 'if': 'TARGET_I386' }
-
+{ 'command': 'query-sgx-capabilities', 'returns': 'SgxInfo' }
 
 ##
 # @EvtchnPortType:
@@ -417,8 +398,7 @@
 # Since: 8.0
 ##
 { 'enum': 'EvtchnPortType',
-  'data': ['closed', 'unbound', 'interdomain', 'pirq', 'virq', 'ipi'],
-  'if': 'TARGET_I386' }
+  'data': ['closed', 'unbound', 'interdomain', 'pirq', 'virq', 'ipi'] }
 
 ##
 # @EvtchnInfo:
@@ -448,8 +428,7 @@
            'remote-domain': 'str',
            'target': 'uint16',
            'pending': 'bool',
-           'masked': 'bool'},
-  'if': 'TARGET_I386' }
+           'masked': 'bool'} }
 
 
 ##
@@ -487,8 +466,7 @@
 #        }
 ##
 { 'command': 'xen-event-list',
-  'returns': ['EvtchnInfo'],
-  'if': 'TARGET_I386' }
+  'returns': ['EvtchnInfo'] }
 
 ##
 # @xen-event-inject:
@@ -505,5 +483,4 @@
 #     <- { "return": { } }
 ##
 { 'command': 'xen-event-inject',
-  'data': { 'port': 'uint32' },
-  'if': 'TARGET_I386' }
+  'data': { 'port': 'uint32' } }

@@ -39,10 +39,9 @@ qapi_all_modules = [
   'job',
   'machine-common',
   'machine',
-  'machine-target',
+  'machine-s390x',
   'migration',
   'misc',
-  'misc-target',
   'net',
   'pragma',
   'qom',
@@ -64,6 +63,8 @@ if have_system
     'qdev',
     'pci',
     'rocker',
+    'misc-arm',
+    'misc-i386',
     'tpm',
     'uefi',
   ]
@@ -84,14 +85,12 @@ qapi_nonmodule_outputs = [
   'qapi-emit-events.c', 'qapi-emit-events.h',
 ]
 
-# First build all sources
-qapi_util_outputs = [
+qapi_outputs = qapi_nonmodule_outputs + [
   'qapi-builtin-types.c', 'qapi-builtin-visit.c',
   'qapi-builtin-types.h', 'qapi-builtin-visit.h',
 ]
 
 qapi_inputs = []
-qapi_specific_outputs = []
 foreach module : qapi_all_modules
   qapi_inputs += [ files(module + '.json') ]
   qapi_module_outputs = [
@@ -109,24 +108,17 @@ foreach module : qapi_all_modules
       'qapi-commands-@0@.trace-events'.format(module),
     ]
   endif
-  if module.endswith('-target')
-    qapi_specific_outputs += qapi_module_outputs
-  else
-    qapi_util_outputs += qapi_module_outputs
-  endif
+  qapi_outputs += qapi_module_outputs
 endforeach
 
 qapi_files = custom_target('shared QAPI source files',
-  output: qapi_util_outputs + qapi_specific_outputs + qapi_nonmodule_outputs,
+  output: qapi_outputs,
   input: [ files('qapi-schema.json') ],
   command: [ qapi_gen, '-o', 'qapi', '-b', '@INPUT0@' ],
   depend_files: [ qapi_inputs, qapi_gen_depends ])
 
-# Now go through all the outputs and add them to the right sourceset.
-# These loops must be synchronized with the output of the above custom target.
-
 i = 0
-foreach output : qapi_util_outputs
+foreach output : qapi_outputs
   if output.endswith('.h')
     genh += qapi_files[i]
   endif
@@ -134,16 +126,5 @@ foreach output : qapi_util_outputs
     qapi_trace_events += qapi_files[i]
   endif
   util_ss.add(qapi_files[i])
-  i = i + 1
-endforeach
-
-foreach output : qapi_specific_outputs + qapi_nonmodule_outputs
-  if output.endswith('.h')
-    genh += qapi_files[i]
-  endif
-  if output.endswith('.trace-events')
-    qapi_trace_events += qapi_files[i]
-  endif
-  specific_ss.add(when: 'CONFIG_SYSTEM_ONLY', if_true: qapi_files[i])
   i = i + 1
 endforeach
