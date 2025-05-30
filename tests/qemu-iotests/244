@@ -384,6 +384,77 @@ $QEMU_IMG compare --image-opts \
     "driver=raw,file.filename=$TEST_IMG.data"  \
     "file.filename=$TEST_IMG,backing.file.filename=$TEST_IMG.base"
 
+echo
+echo '=== keep_data_file tests ==='
+
+echo
+echo '--- Creating test data file ---'
+
+# Easiest way to create the raw data file without having to create and
+# access it manually
+_make_test_img -o "data_file=$TEST_IMG.data,data_file_raw=on" 1M
+# Values chosen by a fair random.org evaluation
+$QEMU_IO -c 'write -P 3 0 512k' -c 'write -P 96 512k 512k' "$TEST_IMG" |
+    _filter_qemu_io
+
+echo
+echo '--- Testing stand-alone option ---'
+
+# Cannot work, needs data file
+_make_test_img -o "keep_data_file=on" 1M
+
+# Invalid option value
+_make_test_img -o "keep_data_file=true" 1M
+
+# Should be the same as omitting
+_make_test_img -o "keep_data_file=off" 1M
+
+# No preallocation is OK when also specifying data_file_raw; otherwise, none of
+# the data file will be mapped, i.e. its contents will stay hidden, so
+# requesting its contents to be kept (but hidden) doesn't make much sense.
+#
+# Metadata preallocation is OK: It will not overwrite the data file's contents,
+# but ensure the contents are mapped and visible.
+#
+# Any data preallocation (like falloc) is not OK, as this would overwrite the
+# data file's contents despite keep_data_file requesting they should not be
+# overwritten.
+#
+# Note that all of these cases use the data file created above: This verifies
+# that when passing keep_data_file=on, the data file is always kept as-is (and
+# e.g. not deleted on error).
+for prealloc in off metadata falloc full; do
+    # Without metadata preallocation, the data_file_raw flag is required so that
+    # the data file's contents are visible.
+    for data_file_raw in off on; do
+        echo
+        echo "--- Testing prealloc=$prealloc data_file_raw=$data_file_raw ---"
+
+        # Remove previously existing qcow2 (metadata) file
+        _cleanup_test_img
+
+        opts="data_file=$TEST_IMG.data,keep_data_file=on"
+        opts+=",preallocation=$prealloc"
+        opts+=",data_file_raw=$data_file_raw"
+
+        _make_test_img -o "$opts" 1M
+        if [ -f "$TEST_IMG" ]; then
+            $QEMU_IO -c 'read -P 3 0 512k' -c 'read -P 96 512k 512k' "$TEST_IMG" |
+                _filter_qemu_io
+        fi
+    done
+done
+
+echo
+echo '--- Testing non-existent data file ---'
+
+# Maybe a matter of taste whether this should fail or create the file, but
+# failing is simpler (= will always skip create) and seems safer (users may
+# expect the file to exist, and the error will warn them when it does not).
+_make_test_img \
+    -o "data_file=$TEST_IMG.doesnotexist,keep_data_file=on,data_file_raw=on" \
+    1M
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
