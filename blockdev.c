@@ -1580,11 +1580,19 @@ static void external_snapshot_abort(void *opaque)
             AioContext *tmp_context;
             int ret;
 
+            bdrv_graph_wrlock_drained();
+
             aio_context = bdrv_get_aio_context(state->old_bs);
 
-            bdrv_ref(state->old_bs);   /* we can't let bdrv_set_backind_hd()
-                                          close state->old_bs; we need it */
-            bdrv_set_backing_hd(state->new_bs, NULL, &error_abort);
+            /*
+             * Note that state->old_bs would not disappear during the
+             * write-locked section, because the unref from
+             * bdrv_set_backing_hd_drained() only happens at the end of the
+             * write-locked section. However, just be explicit about keeping a
+             * reference and don't rely on that implicit detail.
+             */
+            bdrv_ref(state->old_bs);
+            bdrv_set_backing_hd_drained(state->new_bs, NULL, &error_abort);
 
             /*
              * The call to bdrv_set_backing_hd() above returns state->old_bs to
@@ -1593,16 +1601,14 @@ static void external_snapshot_abort(void *opaque)
              */
             tmp_context = bdrv_get_aio_context(state->old_bs);
             if (aio_context != tmp_context) {
-                ret = bdrv_try_change_aio_context(state->old_bs,
-                                                  aio_context, NULL, NULL);
+                ret = bdrv_try_change_aio_context_locked(state->old_bs,
+                                                         aio_context, NULL,
+                                                         NULL);
                 assert(ret == 0);
             }
 
-            bdrv_drained_begin(state->new_bs);
-            bdrv_graph_wrlock();
             bdrv_replace_node(state->new_bs, state->old_bs, &error_abort);
             bdrv_graph_wrunlock();
-            bdrv_drained_end(state->new_bs);
 
             bdrv_unref(state->old_bs); /* bdrv_replace_node() ref'ed old_bs */
         }
