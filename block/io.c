@@ -413,7 +413,6 @@ static void bdrv_do_drained_end(BlockDriverState *bs, BdrvChild *parent)
     /* At this point, we should be always running in the main loop. */
     GLOBAL_STATE_CODE();
     assert(bs->quiesce_counter > 0);
-    GLOBAL_STATE_CODE();
 
     /* Re-enable things in child-to-parent order */
     old_quiesce_counter = qatomic_fetch_dec(&bs->quiesce_counter);
