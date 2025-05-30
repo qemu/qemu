@@ -248,7 +248,7 @@ struct BlockDriver {
     int GRAPH_UNLOCKED_PTR (*bdrv_open)(
         BlockDriverState *bs, QDict *options, int flags, Error **errp);
 
-    void (*bdrv_close)(BlockDriverState *bs);
+    void GRAPH_UNLOCKED_PTR (*bdrv_close)(BlockDriverState *bs);
 
     int coroutine_fn GRAPH_UNLOCKED_PTR (*bdrv_co_create)(
         BlockdevCreateOptions *opts, Error **errp);

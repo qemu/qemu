@@ -5146,7 +5146,7 @@ static void GRAPH_UNLOCKED bdrv_reopen_abort(BDRVReopenState *reopen_state)
 }
 
 
-static void bdrv_close(BlockDriverState *bs)
+static void GRAPH_UNLOCKED bdrv_close(BlockDriverState *bs)
 {
     BdrvAioNotifier *ban, *ban_next;
     BdrvChild *child, *next;
