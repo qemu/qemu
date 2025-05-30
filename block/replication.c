@@ -364,14 +364,15 @@ static void reopen_backing_file(BlockDriverState *bs, bool writable,
     BlockReopenQueue *reopen_queue = NULL;
 
     GLOBAL_STATE_CODE();
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
+    bdrv_graph_rdlock_main_loop();
     /*
      * s->hidden_disk and s->secondary_disk may not be set yet, as they will
      * only be set after the children are writable.
      */
     hidden_disk = bs->file->bs->backing;
     secondary_disk = hidden_disk->bs->backing;
+    bdrv_graph_rdunlock_main_loop();
 
     if (writable) {
         s->orig_hidden_read_only = bdrv_is_read_only(hidden_disk->bs);

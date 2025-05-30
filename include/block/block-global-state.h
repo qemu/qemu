@@ -121,11 +121,12 @@ BlockDriverState *bdrv_new_open_driver_opts(BlockDriver *drv,
                                             Error **errp);
 BlockDriverState *bdrv_new_open_driver(BlockDriver *drv, const char *node_name,
                                        int flags, Error **errp);
-BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
-                                    BlockDriverState *bs, QDict *options,
-                                    bool keep_old_opts);
+BlockReopenQueue * GRAPH_UNLOCKED
+bdrv_reopen_queue(BlockReopenQueue *bs_queue, BlockDriverState *bs,
+                  QDict *options, bool keep_old_opts);
 void bdrv_reopen_queue_free(BlockReopenQueue *bs_queue);
-int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp);
+int GRAPH_UNLOCKED
+bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp);
 int bdrv_reopen(BlockDriverState *bs, QDict *opts, bool keep_old_opts,
                 Error **errp);
 int bdrv_reopen_set_read_only(BlockDriverState *bs, bool read_only,
