@@ -1253,7 +1253,7 @@ struct BlockDriverState {
     /* do we need to tell the quest if we have a volatile write cache? */
     int enable_write_cache;
 
-    /* Accessed with atomic ops.  */
+    /* Accessed only in the main thread. */
     int quiesce_counter;
 
     unsigned int write_gen;               /* Current data generation */
