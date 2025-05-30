@@ -865,13 +865,13 @@ static int vhost_vdpa_net_load_rss(VhostVDPAState *s, const VirtIONet *n,
      * configuration only at live migration.
      */
     if (!n->rss_data.enabled ||
-        n->rss_data.hash_types == VIRTIO_NET_HASH_REPORT_NONE) {
+        n->rss_data.runtime_hash_types == VIRTIO_NET_HASH_REPORT_NONE) {
         return 0;
     }
 
     table = g_malloc_n(n->rss_data.indirections_len,
                        sizeof(n->rss_data.indirections_table[0]));
-    cfg.hash_types = cpu_to_le32(n->rss_data.hash_types);
+    cfg.hash_types = cpu_to_le32(n->rss_data.runtime_hash_types);
 
     if (do_rss) {
         /*
