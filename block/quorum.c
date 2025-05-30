@@ -1147,9 +1147,7 @@ quorum_del_child(BlockDriverState *bs, BdrvChild *child, Error **errp)
             (s->num_children - i - 1) * sizeof(BdrvChild *));
     s->children = g_renew(BdrvChild *, s->children, --s->num_children);
 
-    bdrv_drain_all_begin();
     bdrv_unref_child(bs, child);
-    bdrv_drain_all_end();
 
     quorum_refresh_flags(bs);
 }

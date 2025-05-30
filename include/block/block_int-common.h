@@ -406,6 +406,13 @@ struct BlockDriver {
     void GRAPH_WRLOCK_PTR (*bdrv_add_child)(
         BlockDriverState *parent, BlockDriverState *child, Error **errp);
 
+    /**
+     * Hot remove a BDS's child. Used in combination with bdrv_add_child, so the
+     * user can take a child offline when it is broken and take a new child
+     * online.
+     *
+     * All block nodes must be drained.
+     */
     void GRAPH_WRLOCK_PTR (*bdrv_del_child)(
         BlockDriverState *parent, BdrvChild *child, Error **errp);
 

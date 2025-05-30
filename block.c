@@ -8276,6 +8276,8 @@ void bdrv_add_child(BlockDriverState *parent_bs, BlockDriverState *child_bs,
 /*
  * Hot remove a BDS's child. Used in combination with bdrv_add_child, so the
  * user can take a child offline when it is broken and take a new child online.
+ *
+ * All block nodes must be drained.
  */
 void bdrv_del_child(BlockDriverState *parent_bs, BdrvChild *child, Error **errp)
 {
