@@ -107,7 +107,6 @@ struct PCMachineClass {
     /* RAM / address space compat: */
     bool gigabyte_align;
     bool has_reserved_memory;
-    bool broken_reserved_end;
     bool enforce_amd_1tb_hole;
     bool isa_bios_alias;
 
@@ -298,12 +297,6 @@ extern const size_t pc_compat_2_7_len;
 
 extern GlobalProperty pc_compat_2_6[];
 extern const size_t pc_compat_2_6_len;
-
-extern GlobalProperty pc_compat_2_5[];
-extern const size_t pc_compat_2_5_len;
-
-extern GlobalProperty pc_compat_2_4[];
-extern const size_t pc_compat_2_4_len;
 
 #define DEFINE_PC_MACHINE(suffix, namestr, initfn, optsfn) \
     static void pc_machine_##suffix##_class_init(ObjectClass *oc, \

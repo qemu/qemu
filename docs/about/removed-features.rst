@@ -1091,6 +1091,15 @@ This machine was removed because PPC 405 CPU have no known users,
 firmware images are not available, OpenWRT dropped support in 2019,
 U-Boot in 2017, and Linux in 2024.
 
+Big-Endian variants of ``petalogix-ml605`` and ``xlnx-zynqmp-pmu`` machines (removed in 10.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Both the MicroBlaze ``petalogix-ml605`` and ``xlnx-zynqmp-pmu`` machines
+were added for little endian CPUs. Big endian support was never tested
+and likely never worked. Starting with QEMU v10.1, the machines are now
+only available as little-endian machines.
+
+
 linux-user mode CPUs
 --------------------
 

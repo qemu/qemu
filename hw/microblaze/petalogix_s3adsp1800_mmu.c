@@ -58,9 +58,20 @@
 #define TYPE_PETALOGIX_S3ADSP1800_MACHINE \
             MACHINE_TYPE_NAME("petalogix-s3adsp1800")
 
+struct S3Adsp1800MachineState {
+    MachineState parent_class;
+
+    EndianMode endianness;
+};
+
+OBJECT_DECLARE_TYPE(S3Adsp1800MachineState, MachineClass,
+                    PETALOGIX_S3ADSP1800_MACHINE)
+
+
 static void
 petalogix_s3adsp1800_init(MachineState *machine)
 {
+    S3Adsp1800MachineState *psms = PETALOGIX_S3ADSP1800_MACHINE(machine);
     ram_addr_t ram_size = machine->ram_size;
     DeviceState *dev;
     MicroBlazeCPU *cpu;
@@ -71,13 +82,12 @@ petalogix_s3adsp1800_init(MachineState *machine)
     MemoryRegion *phys_ram = g_new(MemoryRegion, 1);
     qemu_irq irq[32];
     MemoryRegion *sysmem = get_system_memory();
-    EndianMode endianness = TARGET_BIG_ENDIAN ? ENDIAN_MODE_BIG
-                                              : ENDIAN_MODE_LITTLE;
+    EndianMode endianness = psms->endianness;
 
     cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
     object_property_set_str(OBJECT(cpu), "version", "7.10.d", &error_abort);
     object_property_set_bool(OBJECT(cpu), "little-endian",
-                             !TARGET_BIG_ENDIAN, &error_abort);
+                             endianness == ENDIAN_MODE_LITTLE, &error_abort);
     qdev_realize(DEVICE(cpu), NULL, &error_abort);
 
     /* Attach emulated BRAM through the LMB.  */
@@ -135,20 +145,41 @@ petalogix_s3adsp1800_init(MachineState *machine)
 
     create_unimplemented_device("xps_gpio", GPIO_BASEADDR, 0x10000);
 
-    microblaze_load_kernel(cpu, !TARGET_BIG_ENDIAN, ddr_base, ram_size,
-                           machine->initrd_filename,
+    microblaze_load_kernel(cpu, endianness == ENDIAN_MODE_LITTLE, ddr_base,
+                           ram_size, machine->initrd_filename,
                            BINARY_DEVICE_TREE_FILE,
                            NULL);
+}
+
+static int machine_get_endianness(Object *obj, Error **errp G_GNUC_UNUSED)
+{
+    S3Adsp1800MachineState *ms = PETALOGIX_S3ADSP1800_MACHINE(obj);
+    return ms->endianness;
+}
+
+static void machine_set_endianness(Object *obj, int endianness, Error **errp)
+{
+    S3Adsp1800MachineState *ms = PETALOGIX_S3ADSP1800_MACHINE(obj);
+    ms->endianness = endianness;
 }
 
 static void petalogix_s3adsp1800_machine_class_init(ObjectClass *oc,
                                                     const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    ObjectProperty *prop;
 
     mc->desc = "PetaLogix linux refdesign for xilinx Spartan 3ADSP1800";
     mc->init = petalogix_s3adsp1800_init;
     mc->is_default = true;
+
+    prop = object_class_property_add_enum(oc, "endianness", "EndianMode",
+                                          &EndianMode_lookup,
+                                          machine_get_endianness,
+                                          machine_set_endianness);
+    object_property_set_default_str(prop, TARGET_BIG_ENDIAN ? "big" : "little");
+    object_class_property_set_description(oc, "endianness",
+            "Defines whether the machine runs in big or little endian mode");
 }
 
 static const TypeInfo petalogix_s3adsp1800_machine_types[] = {
@@ -156,6 +187,7 @@ static const TypeInfo petalogix_s3adsp1800_machine_types[] = {
         .name           = TYPE_PETALOGIX_S3ADSP1800_MACHINE,
         .parent         = TYPE_MACHINE,
         .class_init     = petalogix_s3adsp1800_machine_class_init,
+        .instance_size  = sizeof(S3Adsp1800MachineState),
     },
 };
 

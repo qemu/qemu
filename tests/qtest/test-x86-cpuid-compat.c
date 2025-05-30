@@ -365,20 +365,6 @@ int main(int argc, char **argv)
                        "level", 10);
     }
 
-    /*
-     * xlevel doesn't have any feature that triggers auto-level
-     * code on old machine-types.  Just check that the compat code
-     * is working correctly:
-     */
-    if (qtest_has_machine("pc-i440fx-2.4")) {
-        add_cpuid_test("x86/cpuid/xlevel-compat/pc-i440fx-2.4/npt-off",
-                       "SandyBridge", NULL, "pc-i440fx-2.4",
-                       "xlevel", 0x80000008);
-        add_cpuid_test("x86/cpuid/xlevel-compat/pc-i440fx-2.4/npt-on",
-                       "SandyBridge", "svm=on,npt=on", "pc-i440fx-2.4",
-                       "xlevel", 0x80000008);
-    }
-
     /* Test feature parsing */
     add_feature_test("x86/cpuid/features/plus",
                      "486", "+arat",

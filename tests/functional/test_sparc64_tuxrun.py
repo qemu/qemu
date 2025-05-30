@@ -24,6 +24,7 @@ class TuxRunSparc64Test(TuxRunBaselineTest):
         '479c3dc104c82b68be55e2c0c5c38cd473d0b37ad4badccde4775bb88ce34611')
 
     def test_sparc64(self):
+        self.set_machine('sun4u')
         self.root='sda'
         self.wait_for_shutdown=False
         self.common_tuxrun(kernel_asset=self.ASSET_SPARC64_KERNEL,

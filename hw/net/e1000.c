@@ -127,10 +127,8 @@ struct E1000State_st {
     QEMUTimer *flush_queue_timer;
 
 /* Compatibility flags for migration to/from qemu 1.3.0 and older */
-#define E1000_FLAG_MAC_BIT 2
 #define E1000_FLAG_TSO_BIT 3
 #define E1000_FLAG_VET_BIT 4
-#define E1000_FLAG_MAC (1 << E1000_FLAG_MAC_BIT)
 #define E1000_FLAG_TSO (1 << E1000_FLAG_TSO_BIT)
 #define E1000_FLAG_VET (1 << E1000_FLAG_VET_BIT)
 
@@ -1212,52 +1210,51 @@ enum { NWRITEOPS = ARRAY_SIZE(macreg_writeops) };
 
 enum { MAC_ACCESS_PARTIAL = 1, MAC_ACCESS_FLAG_NEEDED = 2 };
 
-#define markflag(x)    ((E1000_FLAG_##x << 2) | MAC_ACCESS_FLAG_NEEDED)
 /* In the array below the meaning of the bits is: [f|f|f|f|f|f|n|p]
  * f - flag bits (up to 6 possible flags)
  * n - flag needed
- * p - partially implenented */
+ * p - partially implemented */
 static const uint8_t mac_reg_access[0x8000] = {
-    [IPAV]    = markflag(MAC),    [WUC]     = markflag(MAC),
-    [IP6AT]   = markflag(MAC),    [IP4AT]   = markflag(MAC),
-    [FFVT]    = markflag(MAC),    [WUPM]    = markflag(MAC),
-    [ECOL]    = markflag(MAC),    [MCC]     = markflag(MAC),
-    [DC]      = markflag(MAC),    [TNCRS]   = markflag(MAC),
-    [RLEC]    = markflag(MAC),    [XONRXC]  = markflag(MAC),
-    [XOFFTXC] = markflag(MAC),    [RFC]     = markflag(MAC),
-    [TSCTFC]  = markflag(MAC),    [MGTPRC]  = markflag(MAC),
-    [WUS]     = markflag(MAC),    [AIT]     = markflag(MAC),
-    [FFLT]    = markflag(MAC),    [FFMT]    = markflag(MAC),
-    [SCC]     = markflag(MAC),    [FCRUC]   = markflag(MAC),
-    [LATECOL] = markflag(MAC),    [COLC]    = markflag(MAC),
-    [SEQEC]   = markflag(MAC),    [CEXTERR] = markflag(MAC),
-    [XONTXC]  = markflag(MAC),    [XOFFRXC] = markflag(MAC),
-    [RJC]     = markflag(MAC),    [RNBC]    = markflag(MAC),
-    [MGTPDC]  = markflag(MAC),    [MGTPTC]  = markflag(MAC),
-    [RUC]     = markflag(MAC),    [ROC]     = markflag(MAC),
-    [GORCL]   = markflag(MAC),    [GORCH]   = markflag(MAC),
-    [GOTCL]   = markflag(MAC),    [GOTCH]   = markflag(MAC),
-    [BPRC]    = markflag(MAC),    [MPRC]    = markflag(MAC),
-    [TSCTC]   = markflag(MAC),    [PRC64]   = markflag(MAC),
-    [PRC127]  = markflag(MAC),    [PRC255]  = markflag(MAC),
-    [PRC511]  = markflag(MAC),    [PRC1023] = markflag(MAC),
-    [PRC1522] = markflag(MAC),    [PTC64]   = markflag(MAC),
-    [PTC127]  = markflag(MAC),    [PTC255]  = markflag(MAC),
-    [PTC511]  = markflag(MAC),    [PTC1023] = markflag(MAC),
-    [PTC1522] = markflag(MAC),    [MPTC]    = markflag(MAC),
-    [BPTC]    = markflag(MAC),
+    [IPAV]    = MAC_ACCESS_FLAG_NEEDED,    [WUC]     = MAC_ACCESS_FLAG_NEEDED,
+    [IP6AT]   = MAC_ACCESS_FLAG_NEEDED,    [IP4AT]   = MAC_ACCESS_FLAG_NEEDED,
+    [FFVT]    = MAC_ACCESS_FLAG_NEEDED,    [WUPM]    = MAC_ACCESS_FLAG_NEEDED,
+    [ECOL]    = MAC_ACCESS_FLAG_NEEDED,    [MCC]     = MAC_ACCESS_FLAG_NEEDED,
+    [DC]      = MAC_ACCESS_FLAG_NEEDED,    [TNCRS]   = MAC_ACCESS_FLAG_NEEDED,
+    [RLEC]    = MAC_ACCESS_FLAG_NEEDED,    [XONRXC]  = MAC_ACCESS_FLAG_NEEDED,
+    [XOFFTXC] = MAC_ACCESS_FLAG_NEEDED,    [RFC]     = MAC_ACCESS_FLAG_NEEDED,
+    [TSCTFC]  = MAC_ACCESS_FLAG_NEEDED,    [MGTPRC]  = MAC_ACCESS_FLAG_NEEDED,
+    [WUS]     = MAC_ACCESS_FLAG_NEEDED,    [AIT]     = MAC_ACCESS_FLAG_NEEDED,
+    [FFLT]    = MAC_ACCESS_FLAG_NEEDED,    [FFMT]    = MAC_ACCESS_FLAG_NEEDED,
+    [SCC]     = MAC_ACCESS_FLAG_NEEDED,    [FCRUC]   = MAC_ACCESS_FLAG_NEEDED,
+    [LATECOL] = MAC_ACCESS_FLAG_NEEDED,    [COLC]    = MAC_ACCESS_FLAG_NEEDED,
+    [SEQEC]   = MAC_ACCESS_FLAG_NEEDED,    [CEXTERR] = MAC_ACCESS_FLAG_NEEDED,
+    [XONTXC]  = MAC_ACCESS_FLAG_NEEDED,    [XOFFRXC] = MAC_ACCESS_FLAG_NEEDED,
+    [RJC]     = MAC_ACCESS_FLAG_NEEDED,    [RNBC]    = MAC_ACCESS_FLAG_NEEDED,
+    [MGTPDC]  = MAC_ACCESS_FLAG_NEEDED,    [MGTPTC]  = MAC_ACCESS_FLAG_NEEDED,
+    [RUC]     = MAC_ACCESS_FLAG_NEEDED,    [ROC]     = MAC_ACCESS_FLAG_NEEDED,
+    [GORCL]   = MAC_ACCESS_FLAG_NEEDED,    [GORCH]   = MAC_ACCESS_FLAG_NEEDED,
+    [GOTCL]   = MAC_ACCESS_FLAG_NEEDED,    [GOTCH]   = MAC_ACCESS_FLAG_NEEDED,
+    [BPRC]    = MAC_ACCESS_FLAG_NEEDED,    [MPRC]    = MAC_ACCESS_FLAG_NEEDED,
+    [TSCTC]   = MAC_ACCESS_FLAG_NEEDED,    [PRC64]   = MAC_ACCESS_FLAG_NEEDED,
+    [PRC127]  = MAC_ACCESS_FLAG_NEEDED,    [PRC255]  = MAC_ACCESS_FLAG_NEEDED,
+    [PRC511]  = MAC_ACCESS_FLAG_NEEDED,    [PRC1023] = MAC_ACCESS_FLAG_NEEDED,
+    [PRC1522] = MAC_ACCESS_FLAG_NEEDED,    [PTC64]   = MAC_ACCESS_FLAG_NEEDED,
+    [PTC127]  = MAC_ACCESS_FLAG_NEEDED,    [PTC255]  = MAC_ACCESS_FLAG_NEEDED,
+    [PTC511]  = MAC_ACCESS_FLAG_NEEDED,    [PTC1023] = MAC_ACCESS_FLAG_NEEDED,
+    [PTC1522] = MAC_ACCESS_FLAG_NEEDED,    [MPTC]    = MAC_ACCESS_FLAG_NEEDED,
+    [BPTC]    = MAC_ACCESS_FLAG_NEEDED,
 
-    [TDFH]  = markflag(MAC) | MAC_ACCESS_PARTIAL,
-    [TDFT]  = markflag(MAC) | MAC_ACCESS_PARTIAL,
-    [TDFHS] = markflag(MAC) | MAC_ACCESS_PARTIAL,
-    [TDFTS] = markflag(MAC) | MAC_ACCESS_PARTIAL,
-    [TDFPC] = markflag(MAC) | MAC_ACCESS_PARTIAL,
-    [RDFH]  = markflag(MAC) | MAC_ACCESS_PARTIAL,
-    [RDFT]  = markflag(MAC) | MAC_ACCESS_PARTIAL,
-    [RDFHS] = markflag(MAC) | MAC_ACCESS_PARTIAL,
-    [RDFTS] = markflag(MAC) | MAC_ACCESS_PARTIAL,
-    [RDFPC] = markflag(MAC) | MAC_ACCESS_PARTIAL,
-    [PBM]   = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [TDFH]    = MAC_ACCESS_FLAG_NEEDED | MAC_ACCESS_PARTIAL,
+    [TDFT]    = MAC_ACCESS_FLAG_NEEDED | MAC_ACCESS_PARTIAL,
+    [TDFHS]   = MAC_ACCESS_FLAG_NEEDED | MAC_ACCESS_PARTIAL,
+    [TDFTS]   = MAC_ACCESS_FLAG_NEEDED | MAC_ACCESS_PARTIAL,
+    [TDFPC]   = MAC_ACCESS_FLAG_NEEDED | MAC_ACCESS_PARTIAL,
+    [RDFH]    = MAC_ACCESS_FLAG_NEEDED | MAC_ACCESS_PARTIAL,
+    [RDFT]    = MAC_ACCESS_FLAG_NEEDED | MAC_ACCESS_PARTIAL,
+    [RDFHS]   = MAC_ACCESS_FLAG_NEEDED | MAC_ACCESS_PARTIAL,
+    [RDFTS]   = MAC_ACCESS_FLAG_NEEDED | MAC_ACCESS_PARTIAL,
+    [RDFPC]   = MAC_ACCESS_FLAG_NEEDED | MAC_ACCESS_PARTIAL,
+    [PBM]     = MAC_ACCESS_FLAG_NEEDED | MAC_ACCESS_PARTIAL,
 };
 
 static void
@@ -1419,13 +1416,6 @@ static int e1000_tx_tso_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static bool e1000_full_mac_needed(void *opaque)
-{
-    E1000State *s = opaque;
-
-    return chkflag(MAC);
-}
-
 static bool e1000_tso_state_needed(void *opaque)
 {
     E1000State *s = opaque;
@@ -1451,7 +1441,6 @@ static const VMStateDescription vmstate_e1000_full_mac_state = {
     .name = "e1000/full_mac_state",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = e1000_full_mac_needed,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(mac_reg, E1000State, 0x8000),
         VMSTATE_END_OF_LIST()
@@ -1679,8 +1668,6 @@ static void pci_e1000_realize(PCIDevice *pci_dev, Error **errp)
 
 static const Property e1000_properties[] = {
     DEFINE_NIC_PROPERTIES(E1000State, conf),
-    DEFINE_PROP_BIT("extra_mac_registers", E1000State,
-                    compat_flags, E1000_FLAG_MAC_BIT, true),
     DEFINE_PROP_BIT("migrate_tso_props", E1000State,
                     compat_flags, E1000_FLAG_TSO_BIT, true),
     DEFINE_PROP_BIT("init-vet", E1000State,
