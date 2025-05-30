@@ -192,10 +192,10 @@ int bdrv_inactivate_all(void);
 
 int bdrv_flush_all(void);
 void bdrv_close_all(void);
-void bdrv_drain_all_begin(void);
+void GRAPH_UNLOCKED bdrv_drain_all_begin(void);
 void bdrv_drain_all_begin_nopoll(void);
 void bdrv_drain_all_end(void);
-void bdrv_drain_all(void);
+void GRAPH_UNLOCKED bdrv_drain_all(void);
 
 void bdrv_aio_cancel(BlockAIOCB *acb);
 
