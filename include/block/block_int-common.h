@@ -983,6 +983,18 @@ struct BdrvChildClass {
                            bool backing_mask_protocol,
                            Error **errp);
 
+    /*
+     * Notifies the parent that the child is trying to change its AioContext.
+     * The parent may in turn change the AioContext of other nodes in the same
+     * transaction. Returns true if the change is possible and the transaction
+     * can be continued. Returns false and sets @errp if not and the transaction
+     * must be aborted.
+     *
+     * @visited will accumulate all visited BdrvChild objects. The caller is
+     * responsible for freeing the list afterwards.
+     *
+     * Must be called with the affected block nodes drained.
+     */
     bool GRAPH_RDLOCK_PTR (*change_aio_ctx)(BdrvChild *child, AioContext *ctx,
                                             GHashTable *visited,
                                             Transaction *tran, Error **errp);
