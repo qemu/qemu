@@ -1721,12 +1721,14 @@ bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv, const char *node_name,
 open_failed:
     bs->drv = NULL;
 
+    bdrv_drain_all_begin();
     bdrv_graph_wrlock();
     if (bs->file != NULL) {
         bdrv_unref_child(bs, bs->file);
         assert(!bs->file);
     }
     bdrv_graph_wrunlock();
+    bdrv_drain_all_end();
 
     g_free(bs->opaque);
     bs->opaque = NULL;
@@ -3305,7 +3307,11 @@ out:
     return ret < 0 ? NULL : child;
 }
 
-/* Callers must ensure that child->frozen is false. */
+/*
+ * Callers must ensure that child->frozen is false.
+ *
+ * All block nodes must be drained.
+ */
 void bdrv_root_unref_child(BdrvChild *child)
 {
     BlockDriverState *child_bs = child->bs;
@@ -3326,10 +3332,8 @@ void bdrv_root_unref_child(BdrvChild *child)
          * When the parent requiring a non-default AioContext is removed, the
          * node moves back to the main AioContext
          */
-        bdrv_drain_all_begin();
         bdrv_try_change_aio_context_locked(child_bs, qemu_get_aio_context(),
                                            NULL, NULL);
-        bdrv_drain_all_end();
     }
 
     bdrv_schedule_unref(child_bs);
@@ -3402,7 +3406,11 @@ bdrv_unset_inherits_from(BlockDriverState *root, BdrvChild *child,
     }
 }
 
-/* Callers must ensure that child->frozen is false. */
+/*
+ * Callers must ensure that child->frozen is false.
+ *
+ * All block nodes must be drained.
+ */
 void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
 {
     GLOBAL_STATE_CODE();
@@ -5172,6 +5180,7 @@ static void bdrv_close(BlockDriverState *bs)
         bs->drv = NULL;
     }
 
+    bdrv_drain_all_begin();
     bdrv_graph_wrlock();
     QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
         bdrv_unref_child(bs, child);
@@ -5180,6 +5189,7 @@ static void bdrv_close(BlockDriverState *bs)
     assert(!bs->backing);
     assert(!bs->file);
     bdrv_graph_wrunlock();
+    bdrv_drain_all_end();
 
     g_free(bs->opaque);
     bs->opaque = NULL;

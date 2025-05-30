@@ -889,9 +889,11 @@ void blk_remove_bs(BlockBackend *blk)
     root = blk->root;
     blk->root = NULL;
 
+    bdrv_drain_all_begin();
     bdrv_graph_wrlock();
     bdrv_root_unref_child(root);
     bdrv_graph_wrunlock();
+    bdrv_drain_all_end();
 }
 
 /*

@@ -955,11 +955,13 @@ static void bdrv_test_top_close(BlockDriverState *bs)
 {
     BdrvChild *c, *next_c;
 
+    bdrv_drain_all_begin();
     bdrv_graph_wrlock();
     QLIST_FOREACH_SAFE(c, &bs->children, next, next_c) {
         bdrv_unref_child(bs, c);
     }
     bdrv_graph_wrunlock();
+    bdrv_drain_all_end();
 }
 
 static int coroutine_fn GRAPH_RDLOCK
@@ -1016,7 +1018,9 @@ static void coroutine_fn test_co_delete_by_drain(void *opaque)
         bdrv_graph_co_rdlock();
         QLIST_FOREACH_SAFE(c, &bs->children, next, next_c) {
             bdrv_graph_co_rdunlock();
+            bdrv_drain_all_begin();
             bdrv_co_unref_child(bs, c);
+            bdrv_drain_all_end();
             bdrv_graph_co_rdlock();
         }
         bdrv_graph_co_rdunlock();
