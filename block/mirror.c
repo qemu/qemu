@@ -761,30 +761,36 @@ static int mirror_exit_common(Job *job)
     bdrv_graph_rdlock_main_loop();
     bdrv_child_refresh_perms(mirror_top_bs, mirror_top_bs->backing,
                              &error_abort);
+    bdrv_graph_rdunlock_main_loop();
 
     if (!abort && s->backing_mode == MIRROR_SOURCE_BACKING_CHAIN) {
         BlockDriverState *backing;
-        BlockDriverState *unfiltered_target = bdrv_skip_filters(target_bs);
+        BlockDriverState *unfiltered_target;
+
+        bdrv_graph_wrlock_drained();
+        unfiltered_target = bdrv_skip_filters(target_bs);
 
         backing = s->sync_mode == MIRROR_SYNC_MODE_NONE ? src : s->base;
         if (bdrv_cow_bs(unfiltered_target) != backing) {
-            bdrv_set_backing_hd(unfiltered_target, backing, &local_err);
+            bdrv_set_backing_hd_drained(unfiltered_target, backing, &local_err);
             if (local_err) {
                 error_report_err(local_err);
                 local_err = NULL;
                 ret = -EPERM;
             }
         }
+        bdrv_graph_wrunlock();
     } else if (!abort && s->backing_mode == MIRROR_OPEN_BACKING_CHAIN) {
+        bdrv_graph_rdlock_main_loop();
         assert(!bdrv_backing_chain_next(target_bs));
         ret = bdrv_open_backing_file(bdrv_skip_filters(target_bs), NULL,
                                      "backing", &local_err);
+        bdrv_graph_rdunlock_main_loop();
         if (ret < 0) {
             error_report_err(local_err);
             local_err = NULL;
         }
     }
-    bdrv_graph_rdunlock_main_loop();
 
     if (s->should_complete && !abort) {
         BlockDriverState *to_replace = s->to_replace ?: src;
