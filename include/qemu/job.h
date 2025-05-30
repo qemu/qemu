@@ -263,7 +263,7 @@ struct JobDriver {
      * This callback will not be invoked if the job has already failed.
      * If it fails, abort and then clean will be called.
      */
-    int (*prepare)(Job *job);
+    int GRAPH_UNLOCKED_PTR (*prepare)(Job *job);
 
     /**
      * If the callback is not NULL, it will be invoked when all the jobs
