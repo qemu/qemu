@@ -34,6 +34,17 @@ static QemuMutex aio_context_list_lock;
 static int has_writer;
 
 /*
+ * Many write-locked sections are also drained sections. There is a convenience
+ * wrapper bdrv_graph_wrlock_drained() which begins a drained section before
+ * acquiring the lock. This variable here is used so bdrv_graph_wrunlock() knows
+ * if it also needs to end such a drained section. It needs to be a counter,
+ * because the aio_poll() call in bdrv_graph_wrlock() might re-enter
+ * bdrv_graph_wrlock_drained(). And note that aio_bh_poll() in
+ * bdrv_graph_wrunlock() might also re-enter a write-locked section.
+ */
+static int wrlock_quiesced_counter;
+
+/*
  * A reader coroutine could move from an AioContext to another.
  * If this happens, there is no problem from the point of view of
  * counters. The problem is that the total count becomes
@@ -112,8 +123,14 @@ void no_coroutine_fn bdrv_graph_wrlock(void)
     assert(!qatomic_read(&has_writer));
     assert(!qemu_in_coroutine());
 
-    /* Make sure that constantly arriving new I/O doesn't cause starvation */
-    bdrv_drain_all_begin_nopoll();
+    bool need_drain = wrlock_quiesced_counter == 0;
+
+    if (need_drain) {
+        /*
+         * Make sure that constantly arriving new I/O doesn't cause starvation
+         */
+        bdrv_drain_all_begin_nopoll();
+    }
 
     /*
      * reader_count == 0: this means writer will read has_reader as 1
@@ -139,7 +156,18 @@ void no_coroutine_fn bdrv_graph_wrlock(void)
         smp_mb();
     } while (reader_count() >= 1);
 
-    bdrv_drain_all_end();
+    if (need_drain) {
+        bdrv_drain_all_end();
+    }
+}
+
+void no_coroutine_fn bdrv_graph_wrlock_drained(void)
+{
+    GLOBAL_STATE_CODE();
+
+    bdrv_drain_all_begin();
+    wrlock_quiesced_counter++;
+    bdrv_graph_wrlock();
 }
 
 void no_coroutine_fn bdrv_graph_wrunlock(void)
@@ -168,6 +196,12 @@ void no_coroutine_fn bdrv_graph_wrunlock(void)
      * progress.
      */
     aio_bh_poll(qemu_get_aio_context());
+
+    if (wrlock_quiesced_counter > 0) {
+        bdrv_drain_all_end();
+        wrlock_quiesced_counter--;
+    }
+
 }
 
 void coroutine_fn bdrv_graph_co_rdlock(void)

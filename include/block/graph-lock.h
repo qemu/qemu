@@ -113,9 +113,20 @@ void no_coroutine_fn TSA_ACQUIRE(graph_lock) TSA_NO_TSA
 bdrv_graph_wrlock(void);
 
 /*
+ * bdrv_graph_wrlock_drained:
+ * Similar to bdrv_graph_wrlock, but will begin a drained section before
+ * locking.
+ */
+void no_coroutine_fn TSA_ACQUIRE(graph_lock) TSA_NO_TSA
+bdrv_graph_wrlock_drained(void);
+
+/*
  * bdrv_graph_wrunlock:
  * Write finished, reset global has_writer to 0 and restart
  * all readers that are waiting.
+ *
+ * Also ends the drained section if bdrv_graph_wrlock_drained() was used to lock
+ * the graph.
  */
 void no_coroutine_fn TSA_RELEASE(graph_lock) TSA_NO_TSA
 bdrv_graph_wrunlock(void);
