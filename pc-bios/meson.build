@@ -88,7 +88,7 @@ blobs = [
 ]
 
 if get_option('install_blobs')
-  install_data(blobs, install_dir: qemu_datadir)
+  install_data(blobs, install_dir: qemu_datadir, install_mode: 'rw-r--r--')
 endif
 
 subdir('descriptors')
