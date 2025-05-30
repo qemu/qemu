@@ -57,6 +57,7 @@ class TestGraphChangesWhileIO(QMPTestCase):
 
     def tearDown(self) -> None:
         self.qsd.stop()
+        os.remove(top)
 
     def test_blockdev_add_while_io(self) -> None:
         # Run qemu-img bench in the background
