@@ -983,9 +983,9 @@ struct BdrvChildClass {
                            bool backing_mask_protocol,
                            Error **errp);
 
-    bool (*change_aio_ctx)(BdrvChild *child, AioContext *ctx,
-                           GHashTable *visited, Transaction *tran,
-                           Error **errp);
+    bool GRAPH_RDLOCK_PTR (*change_aio_ctx)(BdrvChild *child, AioContext *ctx,
+                                            GHashTable *visited,
+                                            Transaction *tran, Error **errp);
 
     /*
      * I/O API functions. These functions are thread-safe.

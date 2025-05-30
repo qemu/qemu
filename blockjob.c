@@ -144,9 +144,9 @@ static TransactionActionDrv change_child_job_context = {
     .clean = g_free,
 };
 
-static bool child_job_change_aio_ctx(BdrvChild *c, AioContext *ctx,
-                                     GHashTable *visited, Transaction *tran,
-                                     Error **errp)
+static bool GRAPH_RDLOCK
+child_job_change_aio_ctx(BdrvChild *c, AioContext *ctx, GHashTable *visited,
+                         Transaction *tran, Error **errp)
 {
     BlockJob *job = c->opaque;
     BdrvStateChildJobContext *s;

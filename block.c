@@ -1226,9 +1226,10 @@ static int bdrv_child_cb_inactivate(BdrvChild *child)
     return 0;
 }
 
-static bool bdrv_child_cb_change_aio_ctx(BdrvChild *child, AioContext *ctx,
-                                         GHashTable *visited, Transaction *tran,
-                                         Error **errp)
+static bool GRAPH_RDLOCK
+bdrv_child_cb_change_aio_ctx(BdrvChild *child, AioContext *ctx,
+                             GHashTable *visited, Transaction *tran,
+                             Error **errp)
 {
     BlockDriverState *bs = child->opaque;
     return bdrv_change_aio_context(bs, ctx, visited, tran, errp);
