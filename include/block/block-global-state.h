@@ -187,7 +187,7 @@ int no_coroutine_fn GRAPH_RDLOCK
 bdrv_inactivate(BlockDriverState *bs, Error **errp);
 
 void bdrv_activate_all(Error **errp);
-int bdrv_inactivate_all(void);
+int GRAPH_UNLOCKED bdrv_inactivate_all(void);
 
 int bdrv_flush_all(void);
 void bdrv_close_all(void);
