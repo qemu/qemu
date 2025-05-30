@@ -4358,7 +4358,7 @@ bdrv_recurse_has_child(BlockDriverState *bs, BlockDriverState *child)
  * returns a pointer to bs_queue, which is either the newly allocated
  * bs_queue, or the existing bs_queue being used.
  *
- * bs is drained here and undrained by bdrv_reopen_queue_free().
+ * bs must be drained.
  */
 static BlockReopenQueue * GRAPH_RDLOCK
 bdrv_reopen_queue_child(BlockReopenQueue *bs_queue, BlockDriverState *bs,
@@ -4377,12 +4377,7 @@ bdrv_reopen_queue_child(BlockReopenQueue *bs_queue, BlockDriverState *bs,
 
     GLOBAL_STATE_CODE();
 
-    /*
-     * Strictly speaking, draining is illegal under GRAPH_RDLOCK. We know that
-     * we've been called with bdrv_graph_rdlock_main_loop(), though, so it's ok
-     * in practice.
-     */
-    bdrv_drained_begin(bs);
+    assert(bs->quiesce_counter > 0);
 
     if (bs_queue == NULL) {
         bs_queue = g_new0(BlockReopenQueue, 1);
@@ -4522,6 +4517,12 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
                                     QDict *options, bool keep_old_opts)
 {
     GLOBAL_STATE_CODE();
+
+    if (bs_queue == NULL) {
+        /* Paired with bdrv_drain_all_end() in bdrv_reopen_queue_free(). */
+        bdrv_drain_all_begin();
+    }
+
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     return bdrv_reopen_queue_child(bs_queue, bs, options, NULL, 0, false,
@@ -4534,12 +4535,14 @@ void bdrv_reopen_queue_free(BlockReopenQueue *bs_queue)
     if (bs_queue) {
         BlockReopenQueueEntry *bs_entry, *next;
         QTAILQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
-            bdrv_drained_end(bs_entry->state.bs);
             qobject_unref(bs_entry->state.explicit_options);
             qobject_unref(bs_entry->state.options);
             g_free(bs_entry);
         }
         g_free(bs_queue);
+
+        /* Paired with bdrv_drain_all_begin() in bdrv_reopen_queue(). */
+        bdrv_drain_all_end();
     }
 }
 
