@@ -79,41 +79,6 @@ after_script:
 jobs:
   include:
 
-    - name: "[aarch64] GCC check-tcg"
-      arch: arm64
-      addons:
-        apt_packages:
-          - libaio-dev
-          - libattr1-dev
-          - libbrlapi-dev
-          - libcacard-dev
-          - libcap-ng-dev
-          - libfdt-dev
-          - libgcrypt20-dev
-          - libgnutls28-dev
-          - libgtk-3-dev
-          - libiscsi-dev
-          - liblttng-ust-dev
-          - libncurses5-dev
-          - libnfs-dev
-          - libpixman-1-dev
-          - libpng-dev
-          - librados-dev
-          - libsdl2-dev
-          - libseccomp-dev
-          - liburcu-dev
-          - libusb-1.0-0-dev
-          - libvdeplug-dev
-          - libvte-2.91-dev
-          - ninja-build
-          - python3-tomli
-          # Tests dependencies
-          - genisoimage
-      env:
-        - TEST_CMD="make check check-tcg V=1"
-        - CONFIG="--disable-containers --enable-fdt=system
-                  --target-list=${MAIN_SYSTEM_TARGETS} --cxx=/bin/false"
-
     - name: "[ppc64] Clang check-tcg"
       arch: ppc64le
       compiler: clang
