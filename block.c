@@ -3269,6 +3269,8 @@ out:
  *
  * On failure NULL is returned, errp is set and the reference to
  * child_bs is also dropped.
+ *
+ * All block nodes must be drained.
  */
 BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
                              BlockDriverState *child_bs,
@@ -3283,7 +3285,6 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
 
     GLOBAL_STATE_CODE();
 
-    bdrv_drain_all_begin();
     child = bdrv_attach_child_noperm(parent_bs, child_bs, child_name,
                                      child_class, child_role, tran, errp);
     if (!child) {
@@ -3298,7 +3299,6 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
 
 out:
     tran_finalize(tran, ret);
-    bdrv_drain_all_end();
 
     bdrv_schedule_unref(child_bs);
 
@@ -3789,10 +3789,12 @@ static BdrvChild *bdrv_open_child_common(const char *filename,
         return NULL;
     }
 
+    bdrv_drain_all_begin();
     bdrv_graph_wrlock();
     child = bdrv_attach_child(parent, bs, bdref_key, child_class, child_role,
                               errp);
     bdrv_graph_wrunlock();
+    bdrv_drain_all_end();
 
     return child;
 }
