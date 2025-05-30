@@ -1396,14 +1396,10 @@ static void test_set_aio_context(void)
     bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
                               &error_abort);
 
-    bdrv_drained_begin(bs);
     bdrv_try_change_aio_context(bs, ctx_a, NULL, &error_abort);
-    bdrv_drained_end(bs);
 
-    bdrv_drained_begin(bs);
     bdrv_try_change_aio_context(bs, ctx_b, NULL, &error_abort);
     bdrv_try_change_aio_context(bs, qemu_get_aio_context(), NULL, &error_abort);
-    bdrv_drained_end(bs);
 
     bdrv_unref(bs);
     iothread_join(a);
