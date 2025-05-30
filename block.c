@@ -7575,10 +7575,10 @@ typedef struct BdrvStateSetAioContext {
     BlockDriverState *bs;
 } BdrvStateSetAioContext;
 
-static bool bdrv_parent_change_aio_context(BdrvChild *c, AioContext *ctx,
-                                           GHashTable *visited,
-                                           Transaction *tran,
-                                           Error **errp)
+static bool GRAPH_RDLOCK
+bdrv_parent_change_aio_context(BdrvChild *c, AioContext *ctx,
+                               GHashTable *visited, Transaction *tran,
+                               Error **errp)
 {
     GLOBAL_STATE_CODE();
     if (g_hash_table_contains(visited, c)) {
