@@ -144,7 +144,7 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
     Error *local_err = NULL;
 
     GLOBAL_STATE_CODE();
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
+    bdrv_graph_rdlock_main_loop();
 
     bs = bdrv_find_node(id);
     if (bs) {
@@ -152,29 +152,31 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
         if (local_err) {
             error_report_err(local_err);
         }
-        return;
+        goto unlock;
     }
 
     blk = blk_by_name(id);
     if (!blk) {
         error_report("Device '%s' not found", id);
-        return;
+        goto unlock;
     }
 
     if (!blk_legacy_dinfo(blk)) {
         error_report("Deleting device added with blockdev-add"
                      " is not supported");
-        return;
+        goto unlock;
     }
 
     bs = blk_bs(blk);
     if (bs) {
         if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_DRIVE_DEL, &local_err)) {
             error_report_err(local_err);
-            return;
+            goto unlock;
         }
 
+        bdrv_graph_rdunlock_main_loop();
         blk_remove_bs(blk);
+        bdrv_graph_rdlock_main_loop();
     }
 
     /* Make the BlockBackend and the attached BlockDriverState anonymous */
@@ -191,6 +193,9 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
     } else {
         blk_unref(blk);
     }
+
+unlock:
+    bdrv_graph_rdunlock_main_loop();
 }
 
 void hmp_commit(Monitor *mon, const QDict *qdict)

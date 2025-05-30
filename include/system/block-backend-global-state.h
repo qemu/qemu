@@ -55,7 +55,7 @@ void monitor_remove_blk(BlockBackend *blk);
 
 BlockBackendPublic *blk_get_public(BlockBackend *blk);
 
-void blk_remove_bs(BlockBackend *blk);
+void GRAPH_UNLOCKED blk_remove_bs(BlockBackend *blk);
 int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp);
 int blk_replace_bs(BlockBackend *blk, BlockDriverState *new_bs, Error **errp);
 bool GRAPH_RDLOCK bdrv_has_blk(BlockDriverState *bs);
