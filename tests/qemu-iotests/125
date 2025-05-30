@@ -35,7 +35,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 get_image_size_on_host()
 {
-    echo $(($(stat -c '%b * %B' "$TEST_IMG_FILE")))
+    disk_usage "$TEST_IMG_FILE"
 }
 
 # get standard environment and filters

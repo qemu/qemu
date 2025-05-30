@@ -40,6 +40,7 @@ cd ..
 _supported_fmt qcow2 raw  # Format of the source. dst is always raw file
 _supported_proto file
 _supported_os Linux
+_require_disk_usage
 
 echo
 echo "=== Initial image setup ==="
@@ -96,13 +97,15 @@ _send_qemu_cmd $h1 '{"execute": "blockdev-del", "arguments":
                 {"node-name": "dst"}}' 'return' \
                   | _filter_block_job_offset | _filter_block_job_len
 $QEMU_IMG compare -U -f $IMGFMT -F raw $TEST_IMG.base $TEST_IMG
+# Some filesystems can fudge allocations for various reasons; rather
+# than expecting precise 2M and 20M images, it is better to allow for slop.
 result=$(disk_usage $TEST_IMG)
-if test $result -lt $((3*1024*1024)); then
+if test $result -lt $((4*1024*1024)); then
     actual=sparse
-elif test $result = $((20*1024*1024)); then
+elif test $result -gt $((19*1024*1024)); then
     actual=full
 else
-    actual=unknown
+    actual="unexpected size ($result)"
 fi
 echo "Destination is $actual; expected $expected"
 }

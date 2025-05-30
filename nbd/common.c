@@ -18,6 +18,9 @@
 
 #include "qemu/osdep.h"
 #include "trace.h"
+#include "io/channel-socket.h"
+#include "qapi/error.h"
+#include "qemu/units.h"
 #include "nbd-internal.h"
 
 /* Discard length bytes from channel.  Return -errno on failure and 0 on
@@ -263,4 +266,27 @@ const char *nbd_mode_lookup(NBDMode mode)
     default:
         return "<unknown>";
     }
+}
+
+/*
+ * Testing shows that 2m send buffer is optimal. Changing the receive buffer
+ * size has no effect on performance.
+ * On Linux we need to increase net.core.wmem_max to make this effective.
+ */
+#if defined(__APPLE__) || defined(__linux__)
+#define UNIX_STREAM_SOCKET_SEND_BUFFER_SIZE (2 * MiB)
+#endif
+
+void nbd_set_socket_send_buffer(QIOChannelSocket *sioc)
+{
+#ifdef UNIX_STREAM_SOCKET_SEND_BUFFER_SIZE
+    if (sioc->localAddr.ss_family == AF_UNIX) {
+        size_t size = UNIX_STREAM_SOCKET_SEND_BUFFER_SIZE;
+        Error *errp = NULL;
+
+        if (qio_channel_socket_set_send_buffer(sioc, size, &errp) < 0) {
+            warn_report_err(errp);
+        }
+    }
+#endif /* UNIX_STREAM_SOCKET_SEND_BUFFER_SIZE */
 }

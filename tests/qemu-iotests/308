@@ -51,6 +51,7 @@ _unsupported_fmt vpc
 
 _supported_proto file # We create the FUSE export manually
 _supported_os Linux # We need /dev/urandom
+_require_disk_usage
 
 # $1: Export ID
 # $2: Options (beyond the node-name and ID)
@@ -290,7 +291,7 @@ echo '--- Try growing non-growable export ---'
 
 # Get the current size so we can write beyond the EOF
 orig_len=$(get_proto_len "$EXT_MP" "$TEST_IMG")
-orig_disk_usage=$(stat -c '%b' "$TEST_IMG")
+orig_disk_usage=$(disk_usage "$TEST_IMG")
 
 # Should fail (exports are non-growable by default)
 # (Note that qemu-io can never write beyond the EOF, so we have to use
@@ -312,7 +313,7 @@ else
     echo 'OK: Post-truncate image size is as expected'
 fi
 
-new_disk_usage=$(stat -c '%b' "$TEST_IMG")
+new_disk_usage=$(disk_usage "$TEST_IMG")
 if [ "$new_disk_usage" -gt "$orig_disk_usage" ]; then
     echo 'OK: Disk usage grew with fallocate'
 else
