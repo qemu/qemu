@@ -1229,9 +1229,11 @@ vmdk_parse_extents(const char *desc, BlockDriverState *bs, QDict *options,
             extent_role |= BDRV_CHILD_METADATA;
         }
 
+        bdrv_graph_rdunlock_main_loop();
         extent_file = bdrv_open_child(extent_path, options, extent_opt_prefix,
                                       bs, &child_of_bds, extent_role, false,
                                       &local_err);
+        bdrv_graph_rdlock_main_loop();
         g_free(extent_path);
         if (!extent_file) {
             error_propagate(errp, local_err);
@@ -1352,12 +1354,12 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVVmdkState *s = bs->opaque;
     uint32_t magic;
 
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
-
     ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
     if (ret < 0) {
         return ret;
     }
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     buf = vmdk_read_desc(bs->file, 0, errp);
     if (!buf) {

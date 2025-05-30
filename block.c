@@ -3766,13 +3766,12 @@ done:
     return bs;
 }
 
-static BdrvChild *bdrv_open_child_common(const char *filename,
-                                         QDict *options, const char *bdref_key,
-                                         BlockDriverState *parent,
-                                         const BdrvChildClass *child_class,
-                                         BdrvChildRole child_role,
-                                         bool allow_none, bool parse_filename,
-                                         Error **errp)
+static BdrvChild * GRAPH_UNLOCKED
+bdrv_open_child_common(const char *filename, QDict *options,
+                       const char *bdref_key, BlockDriverState *parent,
+                       const BdrvChildClass *child_class,
+                       BdrvChildRole child_role, bool allow_none,
+                       bool parse_filename, Error **errp)
 {
     BlockDriverState *bs;
     BdrvChild *child;

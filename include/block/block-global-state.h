@@ -81,7 +81,7 @@ bdrv_insert_node(BlockDriverState *bs, QDict *node_options, int flags,
                  Error **errp);
 int bdrv_drop_filter(BlockDriverState *bs, Error **errp);
 
-BdrvChild * no_coroutine_fn
+BdrvChild * no_coroutine_fn GRAPH_UNLOCKED
 bdrv_open_child(const char *filename, QDict *options, const char *bdref_key,
                 BlockDriverState *parent, const BdrvChildClass *child_class,
                 BdrvChildRole child_role, bool allow_none, Error **errp);
@@ -91,9 +91,10 @@ bdrv_co_open_child(const char *filename, QDict *options, const char *bdref_key,
                 BlockDriverState *parent, const BdrvChildClass *child_class,
                 BdrvChildRole child_role, bool allow_none, Error **errp);
 
-int bdrv_open_file_child(const char *filename,
-                         QDict *options, const char *bdref_key,
-                         BlockDriverState *parent, Error **errp);
+int GRAPH_UNLOCKED
+bdrv_open_file_child(const char *filename, QDict *options,
+                     const char *bdref_key, BlockDriverState *parent,
+                     Error **errp);
 
 BlockDriverState * no_coroutine_fn
 bdrv_open_blockdev_ref(BlockdevRef *ref, Error **errp);
