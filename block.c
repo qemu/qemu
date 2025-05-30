@@ -8220,8 +8220,10 @@ char *bdrv_dirname(BlockDriverState *bs, Error **errp)
 }
 
 /*
- * Hot add/remove a BDS's child. So the user can take a child offline when
- * it is broken and take a new child online
+ * Hot add a BDS's child. Used in combination with bdrv_del_child, so the user
+ * can take a child offline when it is broken and take a new child online.
+ *
+ * All block nodes must be drained.
  */
 void bdrv_add_child(BlockDriverState *parent_bs, BlockDriverState *child_bs,
                     Error **errp)
@@ -8261,6 +8263,10 @@ void bdrv_add_child(BlockDriverState *parent_bs, BlockDriverState *child_bs,
     parent_bs->drv->bdrv_add_child(parent_bs, child_bs, errp);
 }
 
+/*
+ * Hot remove a BDS's child. Used in combination with bdrv_add_child, so the
+ * user can take a child offline when it is broken and take a new child online.
+ */
 void bdrv_del_child(BlockDriverState *parent_bs, BdrvChild *child, Error **errp)
 {
     BdrvChild *tmp;

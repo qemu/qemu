@@ -396,6 +396,13 @@ struct BlockDriver {
     int GRAPH_RDLOCK_PTR (*bdrv_probe_geometry)(
         BlockDriverState *bs, HDGeometry *geo);
 
+    /**
+     * Hot add a BDS's child. Used in combination with bdrv_del_child, so the
+     * user can take a child offline when it is broken and take a new child
+     * online.
+     *
+     * All block nodes must be drained.
+     */
     void GRAPH_WRLOCK_PTR (*bdrv_add_child)(
         BlockDriverState *parent, BlockDriverState *child, Error **errp);
 
