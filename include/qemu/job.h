@@ -283,7 +283,7 @@ struct JobDriver {
      * All jobs will complete with a call to either .commit() or .abort() but
      * never both.
      */
-    void (*abort)(Job *job);
+    void GRAPH_UNLOCKED_PTR (*abort)(Job *job);
 
     /**
      * If the callback is not NULL, it will be invoked after a call to either

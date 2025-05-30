@@ -68,7 +68,7 @@ static int commit_prepare(Job *job)
                                   s->backing_mask_protocol);
 }
 
-static void commit_abort(Job *job)
+static void GRAPH_UNLOCKED commit_abort(Job *job)
 {
     CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
     BlockDriverState *top_bs = blk_bs(s->top);
