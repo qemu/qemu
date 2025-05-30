@@ -291,7 +291,7 @@ pub unsafe trait ObjectType: Sized {
     }
 
     /// Return the receiver as a const raw pointer to Object.
-    /// This is preferrable to `as_object_mut_ptr()` if a C
+    /// This is preferable to `as_object_mut_ptr()` if a C
     /// function only needs a `const Object *`.
     fn as_object_ptr(&self) -> *const bindings::Object {
         self.as_object().as_ptr()
@@ -485,7 +485,7 @@ pub trait ObjectImpl: ObjectType + IsA<Object> {
     /// `INSTANCE_INIT` functions have been called.
     const INSTANCE_POST_INIT: Option<fn(&Self)> = None;
 
-    /// Called on descendent classes after all parent class initialization
+    /// Called on descendant classes after all parent class initialization
     /// has occurred, but before the class itself is initialized.  This
     /// is only useful if a class is not a leaf, and can be used to undo
     /// the effects of copying the contents of the parent's class struct

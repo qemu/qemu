@@ -52,10 +52,10 @@ typedef struct of_dpa_flow_key {
     uint32_t tunnel_id;              /* overlay tunnel id */
     uint32_t tbl_id;                 /* table id */
     struct {
-        __be16 vlan_id;              /* 0 if no VLAN */
+        uint16_t vlan_id;              /* 0 if no VLAN */
         MACAddr src;                 /* ethernet source address */
         MACAddr dst;                 /* ethernet destination address */
-        __be16 type;                 /* ethernet frame type */
+        uint16_t type;                 /* ethernet frame type */
     } eth;
     struct {
         uint8_t proto;               /* IP protocol or ARP opcode */
@@ -66,14 +66,14 @@ typedef struct of_dpa_flow_key {
     union {
         struct {
             struct {
-                __be32 src;          /* IP source address */
-                __be32 dst;          /* IP destination address */
+                uint32_t src;          /* IP source address */
+                uint32_t dst;          /* IP destination address */
             } addr;
             union {
                 struct {
-                    __be16 src;      /* TCP/UDP/SCTP source port */
-                    __be16 dst;      /* TCP/UDP/SCTP destination port */
-                    __be16 flags;    /* TCP flags */
+                    uint16_t src;      /* TCP/UDP/SCTP source port */
+                    uint16_t dst;      /* TCP/UDP/SCTP destination port */
+                    uint16_t flags;    /* TCP flags */
                 } tp;
                 struct {
                     MACAddr sha;     /* ARP source hardware address */
@@ -86,11 +86,11 @@ typedef struct of_dpa_flow_key {
                 Ipv6Addr src;       /* IPv6 source address */
                 Ipv6Addr dst;       /* IPv6 destination address */
             } addr;
-            __be32 label;            /* IPv6 flow label */
+            uint32_t label;            /* IPv6 flow label */
             struct {
-                __be16 src;          /* TCP/UDP/SCTP source port */
-                __be16 dst;          /* TCP/UDP/SCTP destination port */
-                __be16 flags;        /* TCP flags */
+                uint16_t src;          /* TCP/UDP/SCTP source port */
+                uint16_t dst;          /* TCP/UDP/SCTP destination port */
+                uint16_t flags;        /* TCP flags */
             } tp;
             struct {
                 Ipv6Addr target;    /* ND target address */
@@ -112,13 +112,13 @@ typedef struct of_dpa_flow_action {
     struct {
         uint32_t group_id;
         uint32_t tun_log_lport;
-        __be16 vlan_id;
+        uint16_t vlan_id;
     } write;
     struct {
-        __be16 new_vlan_id;
+        uint16_t new_vlan_id;
         uint32_t out_pport;
         uint8_t copy_to_cpu;
-        __be16 vlan_id;
+        uint16_t vlan_id;
     } apply;
 } OfDpaFlowAction;
 
@@ -143,7 +143,7 @@ typedef struct of_dpa_flow {
 typedef struct of_dpa_flow_pkt_fields {
     uint32_t tunnel_id;
     struct eth_header *ethhdr;
-    __be16 *h_proto;
+    uint16_t *h_proto;
     struct vlan_header *vlanhdr;
     struct ip_header *ipv4hdr;
     struct ip6_header *ipv6hdr;
@@ -180,7 +180,7 @@ typedef struct of_dpa_group {
             uint32_t group_id;
             MACAddr src_mac;
             MACAddr dst_mac;
-            __be16 vlan_id;
+            uint16_t vlan_id;
         } l2_rewrite;
         struct {
             uint16_t group_count;
@@ -190,13 +190,13 @@ typedef struct of_dpa_group {
             uint32_t group_id;
             MACAddr src_mac;
             MACAddr dst_mac;
-            __be16 vlan_id;
+            uint16_t vlan_id;
             uint8_t ttl_check;
         } l3_unicast;
     };
 } OfDpaGroup;
 
-static int of_dpa_mask2prefix(__be32 mask)
+static int of_dpa_mask2prefix(uint32_t mask)
 {
     int i;
     int count = 32;
@@ -451,7 +451,7 @@ static void of_dpa_flow_pkt_parse(OfDpaFlowContext *fc,
     fc->iovcnt = iovcnt + 2;
 }
 
-static void of_dpa_flow_pkt_insert_vlan(OfDpaFlowContext *fc, __be16 vlan_id)
+static void of_dpa_flow_pkt_insert_vlan(OfDpaFlowContext *fc, uint16_t vlan_id)
 {
     OfDpaFlowPktFields *fields = &fc->fields;
     uint16_t h_proto = fields->ethhdr->h_proto;
@@ -486,7 +486,7 @@ static void of_dpa_flow_pkt_strip_vlan(OfDpaFlowContext *fc)
 
 static void of_dpa_flow_pkt_hdr_rewrite(OfDpaFlowContext *fc,
                                         uint8_t *src_mac, uint8_t *dst_mac,
-                                        __be16 vlan_id)
+                                        uint16_t vlan_id)
 {
     OfDpaFlowPktFields *fields = &fc->fields;
 

@@ -9,7 +9,7 @@
 //! * [`vmstate_unused!`](crate::vmstate_unused) and
 //!   [`vmstate_of!`](crate::vmstate_of), which are used to express the
 //!   migration format for a struct.  This is based on the [`VMState`] trait,
-//!   which is defined by all migrateable types.
+//!   which is defined by all migratable types.
 //!
 //! * [`impl_vmstate_forward`](crate::impl_vmstate_forward) and
 //!   [`impl_vmstate_bitsized`](crate::impl_vmstate_bitsized), which help with

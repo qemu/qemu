@@ -426,30 +426,11 @@ static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
     uint64_t cur_tick;
 
     trace_hpet_ram_read(addr);
+    addr &= ~4;
 
-    /*address range of all TN regs*/
-    if (addr >= 0x100 && addr <= 0x3ff) {
-        uint8_t timer_id = (addr - 0x100) / 0x20;
-        HPETTimer *timer = &s->timer[timer_id];
-
-        if (timer_id > s->num_timers) {
-            trace_hpet_timer_id_out_of_range(timer_id);
-            return 0;
-        }
-
-        switch (addr & 0x18) {
-        case HPET_TN_CFG: // including interrupt capabilities
-            return timer->config >> shift;
-        case HPET_TN_CMP: // comparator register
-            return timer->cmp >> shift;
-        case HPET_TN_ROUTE:
-            return timer->fsb >> shift;
-        default:
-            trace_hpet_ram_read_invalid();
-            break;
-        }
-    } else {
-        switch (addr & ~4) {
+    /*address range of all global regs*/
+    if (addr <= 0xff) {
+        switch (addr) {
         case HPET_ID: // including HPET_PERIOD
             return s->capability >> shift;
         case HPET_CFG:
@@ -468,6 +449,26 @@ static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
             trace_hpet_ram_read_invalid();
             break;
         }
+    } else {
+        uint8_t timer_id = (addr - 0x100) / 0x20;
+        HPETTimer *timer = &s->timer[timer_id];
+
+        if (timer_id > s->num_timers) {
+            trace_hpet_timer_id_out_of_range(timer_id);
+            return 0;
+        }
+
+        switch (addr & 0x1f) {
+        case HPET_TN_CFG: // including interrupt capabilities
+            return timer->config >> shift;
+        case HPET_TN_CMP: // comparator register
+            return timer->cmp >> shift;
+        case HPET_TN_ROUTE:
+            return timer->fsb >> shift;
+        default:
+            trace_hpet_ram_read_invalid();
+            break;
+        }
     }
     return 0;
 }
@@ -482,9 +483,67 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
     uint64_t old_val, new_val, cleared;
 
     trace_hpet_ram_write(addr, value);
+    addr &= ~4;
 
-    /*address range of all TN regs*/
-    if (addr >= 0x100 && addr <= 0x3ff) {
+    /*address range of all global regs*/
+    if (addr <= 0xff) {
+        switch (addr) {
+        case HPET_ID:
+            return;
+        case HPET_CFG:
+            old_val = s->config;
+            new_val = deposit64(old_val, shift, len, value);
+            new_val = hpet_fixup_reg(new_val, old_val, HPET_CFG_WRITE_MASK);
+            s->config = new_val;
+            if (activating_bit(old_val, new_val, HPET_CFG_ENABLE)) {
+                /* Enable main counter and interrupt generation. */
+                s->hpet_offset =
+                    ticks_to_ns(s->hpet_counter) - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+                for (i = 0; i < s->num_timers; i++) {
+                    if (timer_enabled(&s->timer[i]) && (s->isr & (1 << i))) {
+                        update_irq(&s->timer[i], 1);
+                    }
+                    hpet_set_timer(&s->timer[i]);
+                }
+            } else if (deactivating_bit(old_val, new_val, HPET_CFG_ENABLE)) {
+                /* Halt main counter and disable interrupt generation. */
+                s->hpet_counter = hpet_get_ticks(s);
+                for (i = 0; i < s->num_timers; i++) {
+                    hpet_del_timer(&s->timer[i]);
+                }
+            }
+            /* i8254 and RTC output pins are disabled
+             * when HPET is in legacy mode */
+            if (activating_bit(old_val, new_val, HPET_CFG_LEGACY)) {
+                qemu_set_irq(s->pit_enabled, 0);
+                qemu_irq_lower(s->irqs[0]);
+                qemu_irq_lower(s->irqs[RTC_ISA_IRQ]);
+            } else if (deactivating_bit(old_val, new_val, HPET_CFG_LEGACY)) {
+                qemu_irq_lower(s->irqs[0]);
+                qemu_set_irq(s->pit_enabled, 1);
+                qemu_set_irq(s->irqs[RTC_ISA_IRQ], s->rtc_irq_level);
+            }
+            break;
+        case HPET_STATUS:
+            new_val = value << shift;
+            cleared = new_val & s->isr;
+            for (i = 0; i < s->num_timers; i++) {
+                if (cleared & (1 << i)) {
+                    update_irq(&s->timer[i], 0);
+                }
+            }
+            break;
+        case HPET_COUNTER:
+            if (hpet_enabled(s)) {
+                trace_hpet_ram_write_counter_write_while_enabled();
+            }
+            s->hpet_counter = deposit64(s->hpet_counter, shift, len, value);
+            break;
+        default:
+            trace_hpet_ram_write_invalid();
+            break;
+        }
+    } else {
         uint8_t timer_id = (addr - 0x100) / 0x20;
         HPETTimer *timer = &s->timer[timer_id];
 
@@ -550,63 +609,6 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
             break;
         }
         return;
-    } else {
-        switch (addr & ~4) {
-        case HPET_ID:
-            return;
-        case HPET_CFG:
-            old_val = s->config;
-            new_val = deposit64(old_val, shift, len, value);
-            new_val = hpet_fixup_reg(new_val, old_val, HPET_CFG_WRITE_MASK);
-            s->config = new_val;
-            if (activating_bit(old_val, new_val, HPET_CFG_ENABLE)) {
-                /* Enable main counter and interrupt generation. */
-                s->hpet_offset =
-                    ticks_to_ns(s->hpet_counter) - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-                for (i = 0; i < s->num_timers; i++) {
-                    if (timer_enabled(&s->timer[i]) && (s->isr & (1 << i))) {
-                        update_irq(&s->timer[i], 1);
-                    }
-                    hpet_set_timer(&s->timer[i]);
-                }
-            } else if (deactivating_bit(old_val, new_val, HPET_CFG_ENABLE)) {
-                /* Halt main counter and disable interrupt generation. */
-                s->hpet_counter = hpet_get_ticks(s);
-                for (i = 0; i < s->num_timers; i++) {
-                    hpet_del_timer(&s->timer[i]);
-                }
-            }
-            /* i8254 and RTC output pins are disabled
-             * when HPET is in legacy mode */
-            if (activating_bit(old_val, new_val, HPET_CFG_LEGACY)) {
-                qemu_set_irq(s->pit_enabled, 0);
-                qemu_irq_lower(s->irqs[0]);
-                qemu_irq_lower(s->irqs[RTC_ISA_IRQ]);
-            } else if (deactivating_bit(old_val, new_val, HPET_CFG_LEGACY)) {
-                qemu_irq_lower(s->irqs[0]);
-                qemu_set_irq(s->pit_enabled, 1);
-                qemu_set_irq(s->irqs[RTC_ISA_IRQ], s->rtc_irq_level);
-            }
-            break;
-        case HPET_STATUS:
-            new_val = value << shift;
-            cleared = new_val & s->isr;
-            for (i = 0; i < s->num_timers; i++) {
-                if (cleared & (1 << i)) {
-                    update_irq(&s->timer[i], 0);
-                }
-            }
-            break;
-        case HPET_COUNTER:
-            if (hpet_enabled(s)) {
-                trace_hpet_ram_write_counter_write_while_enabled();
-            }
-            s->hpet_counter = deposit64(s->hpet_counter, shift, len, value);
-            break;
-        default:
-            trace_hpet_ram_write_invalid();
-            break;
-        }
     }
 }
 

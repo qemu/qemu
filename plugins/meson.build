@@ -61,8 +61,8 @@ endif
 user_ss.add(files('user.c', 'api-user.c'))
 system_ss.add(files('system.c', 'api-system.c'))
 
-libuser_ss.add(files('api.c', 'core.c'))
-libsystem_ss.add(files('api.c', 'core.c'))
+user_ss.add(files('api.c', 'core.c'))
+system_ss.add(files('api.c', 'core.c'))
 
 common_ss.add(files('loader.c'))
 

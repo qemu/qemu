@@ -28,7 +28,7 @@ arm_user_ss.add(files(
   'vfp_fpscr.c',
 ))
 
-arm_common_system_ss.add(files('cpu.c'), capstone)
+arm_common_system_ss.add(files('cpu.c'))
 arm_common_system_ss.add(when: 'TARGET_AARCH64', if_false: files(
   'cpu32-stubs.c'))
 arm_common_system_ss.add(when: 'CONFIG_KVM', if_false: files('kvm-stub.c'))

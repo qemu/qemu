@@ -5,13 +5,13 @@
 #
 
 # We build two versions of gdbstub, one for each mode
-libuser_ss.add(files(
+user_ss.add(files(
   'gdbstub.c',
   'syscalls.c',
   'user.c'
 ))
 
-libsystem_ss.add(files(
+system_ss.add(files(
   'gdbstub.c',
   'syscalls.c',
   'system.c'

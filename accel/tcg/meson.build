@@ -18,15 +18,15 @@ if get_option('plugins')
   tcg_ss.add(files('plugin-gen.c'))
 endif
 
-libuser_ss.add_all(tcg_ss)
-libsystem_ss.add_all(tcg_ss)
+user_ss.add_all(tcg_ss)
+system_ss.add_all(tcg_ss)
 
-libuser_ss.add(files(
+user_ss.add(files(
   'user-exec.c',
   'user-exec-stub.c',
 ))
 
-libsystem_ss.add(files(
+system_ss.add(files(
   'cputlb.c',
   'icount-common.c',
   'monitor.c',
