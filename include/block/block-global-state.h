@@ -143,9 +143,10 @@ int bdrv_commit(BlockDriverState *bs);
 int GRAPH_RDLOCK bdrv_make_empty(BdrvChild *c, Error **errp);
 
 void bdrv_register(BlockDriver *bdrv);
-int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
-                           const char *backing_file_str,
-                           bool backing_mask_protocol);
+int GRAPH_UNLOCKED
+bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
+                       const char *backing_file_str,
+                       bool backing_mask_protocol);
 
 BlockDriverState * GRAPH_RDLOCK
 bdrv_find_overlay(BlockDriverState *active, BlockDriverState *bs);
