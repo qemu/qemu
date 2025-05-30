@@ -73,12 +73,11 @@ static int stream_prepare(Job *job)
     s->cor_filter_bs = NULL;
 
     /*
-     * bdrv_set_backing_hd() requires that the unfiltered_bs and the COW child
-     * of unfiltered_bs is drained. Drain already here and use
-     * bdrv_set_backing_hd_drained() instead because the polling during
-     * drained_begin() might change the graph, and if we do this only later, we
-     * may end up working with the wrong base node (or it might even have gone
-     * away by the time we want to use it).
+     * bdrv_set_backing_hd() requires that all block nodes are drained. Drain
+     * already here, because the polling during drained_begin() might change the
+     * graph, and if we do this only later, we may end up working with the wrong
+     * base node (or it might even have gone away by the time we want to use
+     * it).
      */
     if (unfiltered_bs_cow) {
         bdrv_ref(unfiltered_bs_cow);
@@ -105,7 +104,7 @@ static int stream_prepare(Job *job)
         }
 
         bdrv_graph_wrlock();
-        bdrv_set_backing_hd_drained(unfiltered_bs, base, &local_err);
+        bdrv_set_backing_hd(unfiltered_bs, base, &local_err);
         bdrv_graph_wrunlock();
 
         /*

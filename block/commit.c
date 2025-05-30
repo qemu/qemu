@@ -566,8 +566,8 @@ int bdrv_commit(BlockDriverState *bs)
     bdrv_graph_rdunlock_main_loop();
 
     bdrv_graph_wrlock_drained();
-    bdrv_set_backing_hd_drained(commit_top_bs, backing_file_bs, &error_abort);
-    bdrv_set_backing_hd_drained(bs, commit_top_bs, &error_abort);
+    bdrv_set_backing_hd(commit_top_bs, backing_file_bs, &error_abort);
+    bdrv_set_backing_hd(bs, commit_top_bs, &error_abort);
     bdrv_graph_wrunlock();
 
     bdrv_graph_rdlock_main_loop();
@@ -649,7 +649,7 @@ ro_cleanup:
     bdrv_graph_rdunlock_main_loop();
     bdrv_graph_wrlock_drained();
     if (bdrv_cow_bs(bs) != backing_file_bs) {
-        bdrv_set_backing_hd_drained(bs, backing_file_bs, &error_abort);
+        bdrv_set_backing_hd(bs, backing_file_bs, &error_abort);
     }
     bdrv_graph_wrunlock();
     bdrv_graph_rdlock_main_loop();

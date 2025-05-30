@@ -202,9 +202,9 @@ static void test_should_update_child(void)
 
     blk_insert_bs(root, bs, &error_abort);
 
+    bdrv_graph_wrlock_drained();
     bdrv_set_backing_hd(target, bs, &error_abort);
 
-    bdrv_graph_wrlock_drained();
     g_assert(target->backing->bs == bs);
     bdrv_attach_child(filter, target, "target", &child_of_bds,
                       BDRV_CHILD_DATA, &error_abort);

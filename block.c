@@ -3570,9 +3570,8 @@ out:
  *
  * All block nodes must be drained.
  */
-int bdrv_set_backing_hd_drained(BlockDriverState *bs,
-                                BlockDriverState *backing_hd,
-                                Error **errp)
+int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
+                        Error **errp)
 {
     int ret;
     Transaction *tran = tran_new();
@@ -3591,19 +3590,6 @@ int bdrv_set_backing_hd_drained(BlockDriverState *bs,
     ret = bdrv_refresh_perms(bs, tran, errp);
 out:
     tran_finalize(tran, ret);
-    return ret;
-}
-
-int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
-                        Error **errp)
-{
-    int ret;
-    GLOBAL_STATE_CODE();
-
-    bdrv_graph_wrlock_drained();
-    ret = bdrv_set_backing_hd_drained(bs, backing_hd, errp);
-    bdrv_graph_wrunlock();
-
     return ret;
 }
 
@@ -3715,7 +3701,9 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
     /* Hook up the backing file link; drop our reference, bs owns the
      * backing_hd reference now */
     bdrv_graph_rdunlock_main_loop();
+    bdrv_graph_wrlock_drained();
     ret = bdrv_set_backing_hd(bs, backing_hd, errp);
+    bdrv_graph_wrunlock();
     bdrv_graph_rdlock_main_loop();
     bdrv_unref(backing_hd);
 

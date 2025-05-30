@@ -1587,12 +1587,12 @@ static void external_snapshot_abort(void *opaque)
             /*
              * Note that state->old_bs would not disappear during the
              * write-locked section, because the unref from
-             * bdrv_set_backing_hd_drained() only happens at the end of the
-             * write-locked section. However, just be explicit about keeping a
-             * reference and don't rely on that implicit detail.
+             * bdrv_set_backing_hd() only happens at the end of the write-locked
+             * section. However, just be explicit about keeping a reference and
+             * don't rely on that implicit detail.
              */
             bdrv_ref(state->old_bs);
-            bdrv_set_backing_hd_drained(state->new_bs, NULL, &error_abort);
+            bdrv_set_backing_hd(state->new_bs, NULL, &error_abort);
 
             /*
              * The call to bdrv_set_backing_hd() above returns state->old_bs to
@@ -1776,7 +1776,10 @@ static void drive_backup_action(DriveBackup *backup,
     }
 
     if (set_backing_hd) {
-        if (bdrv_set_backing_hd(target_bs, source, errp) < 0) {
+        bdrv_graph_wrlock_drained();
+        ret = bdrv_set_backing_hd(target_bs, source, errp);
+        bdrv_graph_wrunlock();
+        if (ret < 0) {
             goto unref;
         }
     }

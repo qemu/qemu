@@ -193,7 +193,9 @@ static BlockBackend * no_coroutine_fn test_setup(void)
     blk_insert_bs(blk, bs, &error_abort);
 
     backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
+    bdrv_graph_wrlock_drained();
     bdrv_set_backing_hd(bs, backing, &error_abort);
+    bdrv_graph_wrunlock();
 
     bdrv_unref(backing);
     bdrv_unref(bs);
@@ -386,7 +388,9 @@ static void test_nested(void)
 
     backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
     backing_s = backing->opaque;
+    bdrv_graph_wrlock_drained();
     bdrv_set_backing_hd(bs, backing, &error_abort);
+    bdrv_graph_wrunlock();
 
     for (outer = 0; outer < DRAIN_TYPE_MAX; outer++) {
         for (inner = 0; inner < DRAIN_TYPE_MAX; inner++) {
@@ -733,10 +737,12 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
     src_overlay = bdrv_new_open_driver(&bdrv_test, "source-overlay",
                                        BDRV_O_RDWR, &error_abort);
 
+    bdrv_graph_wrlock_drained();
     bdrv_set_backing_hd(src_overlay, src, &error_abort);
     bdrv_unref(src);
     bdrv_set_backing_hd(src, src_backing, &error_abort);
     bdrv_unref(src_backing);
+    bdrv_graph_wrunlock();
 
     blk_src = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     blk_insert_bs(blk_src, src_overlay, &error_abort);
@@ -1436,8 +1442,10 @@ static void test_drop_backing_job_commit(Job *job)
     TestDropBackingBlockJob *s =
         container_of(job, TestDropBackingBlockJob, common.job);
 
+    bdrv_graph_wrlock_drained();
     bdrv_set_backing_hd(s->bs, NULL, &error_abort);
     bdrv_set_backing_hd(s->detach_also, NULL, &error_abort);
+    bdrv_graph_wrunlock();
 
     *s->did_complete = true;
 }
@@ -1530,7 +1538,9 @@ static void test_blockjob_commit_by_drained_end(void)
         snprintf(name, sizeof(name), "parent-node-%i", i);
         bs_parents[i] = bdrv_new_open_driver(&bdrv_test, name, BDRV_O_RDWR,
                                              &error_abort);
+        bdrv_graph_wrlock_drained();
         bdrv_set_backing_hd(bs_parents[i], bs_child, &error_abort);
+        bdrv_graph_wrunlock();
     }
 
     job = block_job_create("job", &test_drop_backing_job_driver, NULL,
@@ -1679,13 +1689,13 @@ static void test_drop_intermediate_poll(void)
 
     job_node = bdrv_new_open_driver(&bdrv_test, "job-node", BDRV_O_RDWR,
                                     &error_abort);
+    bdrv_graph_wrlock_drained();
     bdrv_set_backing_hd(job_node, chain[1], &error_abort);
 
     /*
      * Establish the chain last, so the chain links are the first
      * elements in the BDS.parents lists
      */
-    bdrv_graph_wrlock_drained();
     for (i = 0; i < 3; i++) {
         if (i) {
             /* Takes the reference to chain[i - 1] */
