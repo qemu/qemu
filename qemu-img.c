@@ -3505,6 +3505,7 @@ static int img_snapshot(int argc, char **argv)
         break;
 
     case SNAPSHOT_DELETE:
+        bdrv_drain_all_begin();
         bdrv_graph_rdlock_main_loop();
         ret = bdrv_snapshot_find(bs, &sn, snapshot_name);
         if (ret < 0) {
@@ -3520,6 +3521,7 @@ static int img_snapshot(int argc, char **argv)
             }
         }
         bdrv_graph_rdunlock_main_loop();
+        bdrv_drain_all_end();
         break;
     }
 
