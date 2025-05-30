@@ -1442,25 +1442,6 @@ static void riscv_cpu_add_profiles(Object *cpu_obj)
     }
 }
 
-static bool cpu_ext_is_deprecated(const char *ext_name)
-{
-    return isupper(ext_name[0]);
-}
-
-/*
- * String will be allocated in the heap. Caller is responsible
- * for freeing it.
- */
-static char *cpu_ext_to_lower(const char *ext_name)
-{
-    char *ret = g_malloc0(strlen(ext_name) + 1);
-
-    strcpy(ret, ext_name);
-    ret[0] = tolower(ret[0]);
-
-    return ret;
-}
-
 static void cpu_set_multi_ext_cfg(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
@@ -1471,13 +1452,6 @@ static void cpu_set_multi_ext_cfg(Object *obj, Visitor *v, const char *name,
 
     if (!visit_type_bool(v, name, &value, errp)) {
         return;
-    }
-
-    if (cpu_ext_is_deprecated(multi_ext_cfg->name)) {
-        g_autofree char *lower = cpu_ext_to_lower(multi_ext_cfg->name);
-
-        warn_report("CPU property '%s' is deprecated. Please use '%s' instead",
-                    multi_ext_cfg->name, lower);
     }
 
     cpu_cfg_ext_add_user_opt(multi_ext_cfg->offset, value);
@@ -1515,14 +1489,13 @@ static void cpu_add_multi_ext_prop(Object *cpu_obj,
                                    const RISCVCPUMultiExtConfig *multi_cfg)
 {
     bool generic_cpu = riscv_cpu_is_generic(cpu_obj);
-    bool deprecated_ext = cpu_ext_is_deprecated(multi_cfg->name);
 
     object_property_add(cpu_obj, multi_cfg->name, "bool",
                         cpu_get_multi_ext_cfg,
                         cpu_set_multi_ext_cfg,
                         NULL, (void *)multi_cfg);
 
-    if (!generic_cpu || deprecated_ext) {
+    if (!generic_cpu) {
         return;
     }
 
@@ -1564,8 +1537,6 @@ static void riscv_cpu_add_user_properties(Object *obj)
     riscv_cpu_add_multiext_prop_array(obj, riscv_cpu_extensions);
     riscv_cpu_add_multiext_prop_array(obj, riscv_cpu_vendor_exts);
     riscv_cpu_add_multiext_prop_array(obj, riscv_cpu_experimental_exts);
-
-    riscv_cpu_add_multiext_prop_array(obj, riscv_cpu_deprecated_exts);
 
     riscv_cpu_add_profiles(obj);
 }
