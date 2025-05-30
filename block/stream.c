@@ -80,11 +80,10 @@ static int stream_prepare(Job *job)
      * may end up working with the wrong base node (or it might even have gone
      * away by the time we want to use it).
      */
-    bdrv_drained_begin(unfiltered_bs);
     if (unfiltered_bs_cow) {
         bdrv_ref(unfiltered_bs_cow);
-        bdrv_drained_begin(unfiltered_bs_cow);
     }
+    bdrv_drain_all_begin();
 
     bdrv_graph_rdlock_main_loop();
     base = bdrv_filter_or_cow_bs(s->above_base);
@@ -123,11 +122,10 @@ static int stream_prepare(Job *job)
     }
 
 out:
+    bdrv_drain_all_end();
     if (unfiltered_bs_cow) {
-        bdrv_drained_end(unfiltered_bs_cow);
         bdrv_unref(unfiltered_bs_cow);
     }
-    bdrv_drained_end(unfiltered_bs);
     return ret;
 }
 

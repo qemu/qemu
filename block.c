@@ -3562,8 +3562,7 @@ out:
  * Both @bs and @backing_hd can move to a different AioContext in this
  * function.
  *
- * If a backing child is already present (i.e. we're detaching a node), that
- * child node must be drained.
+ * All block nodes must be drained.
  */
 int bdrv_set_backing_hd_drained(BlockDriverState *bs,
                                 BlockDriverState *backing_hd,
@@ -3578,7 +3577,6 @@ int bdrv_set_backing_hd_drained(BlockDriverState *bs,
         assert(bs->backing->bs->quiesce_counter > 0);
     }
 
-    bdrv_drain_all_begin();
     ret = bdrv_set_file_or_backing_noperm(bs, backing_hd, true, tran, errp);
     if (ret < 0) {
         goto out;
@@ -3587,28 +3585,20 @@ int bdrv_set_backing_hd_drained(BlockDriverState *bs,
     ret = bdrv_refresh_perms(bs, tran, errp);
 out:
     tran_finalize(tran, ret);
-    bdrv_drain_all_end();
     return ret;
 }
 
 int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
                         Error **errp)
 {
-    BlockDriverState *drain_bs;
     int ret;
     GLOBAL_STATE_CODE();
 
-    bdrv_graph_rdlock_main_loop();
-    drain_bs = bs->backing ? bs->backing->bs : bs;
-    bdrv_graph_rdunlock_main_loop();
-
-    bdrv_ref(drain_bs);
-    bdrv_drained_begin(drain_bs);
+    bdrv_drain_all_begin();
     bdrv_graph_wrlock();
     ret = bdrv_set_backing_hd_drained(bs, backing_hd, errp);
     bdrv_graph_wrunlock();
-    bdrv_drained_end(drain_bs);
-    bdrv_unref(drain_bs);
+    bdrv_drain_all_end();
 
     return ret;
 }
