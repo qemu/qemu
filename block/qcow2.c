@@ -4150,8 +4150,7 @@ qcow2_co_create_opts(BlockDriver *drv, const char *filename, QemuOpts *opts,
     }
 
     /* Silently round up size */
-    create_options->u.qcow2.size = ROUND_UP(create_options->u.qcow2.size,
-                                            BDRV_SECTOR_SIZE);
+    qcow2_opts->size = ROUND_UP(qcow2_opts->size, BDRV_SECTOR_SIZE);
 
     /* Create the qcow2 image (format layer) */
     ret = qcow2_co_create(create_options, errp);
