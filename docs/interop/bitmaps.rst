@@ -97,7 +97,7 @@ time.
 
 - Persistent storage formats may impose their own requirements on bitmap names
   and namespaces. Presently, only qcow2 supports persistent bitmaps. See
-  docs/interop/qcow2.txt for more details on restrictions. Notably:
+  :doc:`qcow2` for more details on restrictions. Notably:
 
    - qcow2 bitmap names are limited to between 1 and 1023 bytes long.
 

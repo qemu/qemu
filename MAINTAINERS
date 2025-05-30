@@ -510,6 +510,7 @@ Apple Silicon HVF CPUs
 M: Alexander Graf <agraf@csgraf.de>
 S: Maintained
 F: target/arm/hvf/
+F: target/arm/hvf-stub.c
 
 X86 HVF CPUs
 M: Cameron Esfahani <dirty@apple.com>
@@ -1003,6 +1004,7 @@ F: hw/display/ssd03*
 F: include/hw/input/gamepad.h
 F: include/hw/timer/stellaris-gptm.h
 F: docs/system/arm/stellaris.rst
+F: tests/functional/test_arm_stellaris.py
 
 STM32L4x5 SoC Family
 M: Samuel Tardieu <sam@rfc1149.net>
@@ -4130,7 +4132,7 @@ M: Hanna Reitz <hreitz@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/qcow2*
-F: docs/interop/qcow2.txt
+F: docs/interop/qcow2.rst
 
 qcow
 M: Kevin Wolf <kwolf@redhat.com>

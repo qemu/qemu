@@ -137,6 +137,7 @@ tests_arm_system_thorough = [
   'arm_raspi2',
   'arm_replay',
   'arm_smdkc210',
+  'arm_stellaris',
   'arm_sx1',
   'arm_vexpress',
   'arm_virt',

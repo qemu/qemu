@@ -6,7 +6,6 @@ system_ss.add(files(
 system_ss.add(when: 'CONFIG_FDC', if_true: files('fdc.c'))
 system_ss.add(when: 'CONFIG_FDC_ISA', if_true: files('fdc-isa.c'))
 system_ss.add(when: 'CONFIG_FDC_SYSBUS', if_true: files('fdc-sysbus.c'))
-system_ss.add(when: 'CONFIG_NAND', if_true: files('nand.c'))
 system_ss.add(when: 'CONFIG_PFLASH_CFI01', if_true: files('pflash_cfi01.c'))
 system_ss.add(when: 'CONFIG_PFLASH_CFI02', if_true: files('pflash_cfi02.c'))
 system_ss.add(when: 'CONFIG_SSI_M25P80', if_true: files('m25p80.c'))

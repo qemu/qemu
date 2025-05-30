@@ -15,7 +15,7 @@ not a straightforward operation.
 This document attempts to give an overview of the L2 and refcount
 caches, and how to configure them.
 
-Please refer to the docs/interop/qcow2.txt file for an in-depth
+Please refer to the docs/interop/qcow2.rst file for an in-depth
 technical description of the qcow2 file format.
 
 

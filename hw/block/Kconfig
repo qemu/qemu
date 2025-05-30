@@ -13,9 +13,6 @@ config FDC_SYSBUS
 config SSI_M25P80
     bool
 
-config NAND
-    bool
-
 config PFLASH_CFI01
     bool
 

@@ -3,7 +3,6 @@ arm_common_ss = ss.source_set()
 arm_ss.add(files(
   'gdbstub.c',
 ))
-arm_ss.add(zlib)
 
 arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
   'cpu64.c',
@@ -32,6 +31,7 @@ arm_common_system_ss.add(files('cpu.c'))
 arm_common_system_ss.add(when: 'TARGET_AARCH64', if_false: files(
   'cpu32-stubs.c'))
 arm_common_system_ss.add(when: 'CONFIG_KVM', if_false: files('kvm-stub.c'))
+arm_common_system_ss.add(when: 'CONFIG_HVF', if_false: files('hvf-stub.c'))
 arm_common_system_ss.add(files(
   'arch_dump.c',
   'arm-powerctl.c',
@@ -48,7 +48,7 @@ subdir('hvf')
 if 'CONFIG_TCG' in config_all_accel
    subdir('tcg')
 else
-    arm_ss.add(files('tcg-stubs.c'))
+    arm_common_system_ss.add(files('tcg-stubs.c'))
 endif
 
 target_arch += {'arm': arm_ss}
