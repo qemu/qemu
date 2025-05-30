@@ -3632,7 +3632,8 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
     Error *local_err = NULL;
 
     GLOBAL_STATE_CODE();
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    bdrv_graph_rdlock_main_loop();
 
     if (bs->backing != NULL) {
         goto free_exit;
@@ -3713,7 +3714,9 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
 
     /* Hook up the backing file link; drop our reference, bs owns the
      * backing_hd reference now */
+    bdrv_graph_rdunlock_main_loop();
     ret = bdrv_set_backing_hd(bs, backing_hd, errp);
+    bdrv_graph_rdlock_main_loop();
     bdrv_unref(backing_hd);
 
     if (ret < 0) {
@@ -3725,6 +3728,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
 free_exit:
     g_free(backing_filename);
     qobject_unref(tmp_parent_options);
+    bdrv_graph_rdunlock_main_loop();
     return ret;
 }
 
