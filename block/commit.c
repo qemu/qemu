@@ -514,28 +514,32 @@ int bdrv_commit(BlockDriverState *bs)
     Error *local_err = NULL;
 
     GLOBAL_STATE_CODE();
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!drv)
         return -ENOMEDIUM;
 
+    bdrv_graph_rdlock_main_loop();
+
     backing_file_bs = bdrv_cow_bs(bs);
 
     if (!backing_file_bs) {
-        return -ENOTSUP;
+        ret = -ENOTSUP;
+        goto out;
     }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT_SOURCE, NULL) ||
         bdrv_op_is_blocked(backing_file_bs, BLOCK_OP_TYPE_COMMIT_TARGET, NULL))
     {
-        return -EBUSY;
+        ret = -EBUSY;
+        goto out;
     }
 
     ro = bdrv_is_read_only(backing_file_bs);
 
     if (ro) {
         if (bdrv_reopen_set_read_only(backing_file_bs, false, NULL)) {
-            return -EACCES;
+            ret = -EACCES;
+            goto out;
         }
     }
 
@@ -559,8 +563,14 @@ int bdrv_commit(BlockDriverState *bs)
         goto ro_cleanup;
     }
 
-    bdrv_set_backing_hd(commit_top_bs, backing_file_bs, &error_abort);
-    bdrv_set_backing_hd(bs, commit_top_bs, &error_abort);
+    bdrv_graph_rdunlock_main_loop();
+
+    bdrv_graph_wrlock_drained();
+    bdrv_set_backing_hd_drained(commit_top_bs, backing_file_bs, &error_abort);
+    bdrv_set_backing_hd_drained(bs, commit_top_bs, &error_abort);
+    bdrv_graph_wrunlock();
+
+    bdrv_graph_rdlock_main_loop();
 
     ret = blk_insert_bs(backing, backing_file_bs, &local_err);
     if (ret < 0) {
@@ -635,9 +645,14 @@ int bdrv_commit(BlockDriverState *bs)
     ret = 0;
 ro_cleanup:
     blk_unref(backing);
+
+    bdrv_graph_rdunlock_main_loop();
+    bdrv_graph_wrlock_drained();
     if (bdrv_cow_bs(bs) != backing_file_bs) {
-        bdrv_set_backing_hd(bs, backing_file_bs, &error_abort);
+        bdrv_set_backing_hd_drained(bs, backing_file_bs, &error_abort);
     }
+    bdrv_graph_wrunlock();
+    bdrv_graph_rdlock_main_loop();
     bdrv_unref(commit_top_bs);
     blk_unref(src);
 
@@ -645,6 +660,9 @@ ro_cleanup:
         /* ignoring error return here */
         bdrv_reopen_set_read_only(backing_file_bs, true, NULL);
     }
+
+out:
+    bdrv_graph_rdunlock_main_loop();
 
     return ret;
 }
