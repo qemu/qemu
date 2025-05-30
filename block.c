@@ -7058,31 +7058,25 @@ bdrv_inactivate_recurse(BlockDriverState *bs, bool top_level)
     return 0;
 }
 
+/* All block nodes must be drained. */
 int bdrv_inactivate(BlockDriverState *bs, Error **errp)
 {
     int ret;
 
     GLOBAL_STATE_CODE();
 
-    bdrv_drain_all_begin();
-    bdrv_graph_rdlock_main_loop();
-
     if (bdrv_has_bds_parent(bs, true)) {
         error_setg(errp, "Node has active parent node");
-        ret = -EPERM;
-        goto out;
+        return -EPERM;
     }
 
     ret = bdrv_inactivate_recurse(bs, true);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to inactivate node");
-        goto out;
+        return ret;
     }
 
-out:
-    bdrv_graph_rdunlock_main_loop();
-    bdrv_drain_all_end();
-    return ret;
+    return 0;
 }
 
 int bdrv_inactivate_all(void)
