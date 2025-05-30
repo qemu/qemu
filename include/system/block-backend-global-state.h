@@ -78,7 +78,7 @@ int blk_make_zero(BlockBackend *blk, BdrvRequestFlags flags);
 void blk_aio_cancel(BlockAIOCB *acb);
 int blk_commit_all(void);
 bool blk_in_drain(BlockBackend *blk);
-void blk_drain(BlockBackend *blk);
+void GRAPH_UNLOCKED blk_drain(BlockBackend *blk);
 void GRAPH_UNLOCKED blk_drain_all(void);
 void blk_set_on_error(BlockBackend *blk, BlockdevOnError on_read_error,
                       BlockdevOnError on_write_error);
