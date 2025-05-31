@@ -1047,44 +1047,67 @@ static int img_commit(const img_cmd_t *ccmd, int argc, char **argv)
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"object", required_argument, 0, OPTION_OBJECT},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"cache", required_argument, 0, 't'},
+            {"drop", no_argument, 0, 'd'},
+            {"base", required_argument, 0, 'b'},
+            {"rate-limit", required_argument, 0, 'r'},
+            {"progress", no_argument, 0, 'p'},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":f:ht:b:dpqr:",
+        c = getopt_long(argc, argv, "hf:t:db:r:pq",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
         switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
+            cmd_help(ccmd, "[-f FMT | --image-opts] [-t CACHE_MODE] [-b BASE_IMG]\n"
+"        [-d] [-r RATE] [-q] [--object OBJDEF] FILE\n"
+,
+"  -f, --format FMT\n"
+"     specify FILE image format explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE as an option string (key=value,..), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  -t, --cache CACHE_MODE image cache mode (default: " BDRV_DEFAULT_CACHE ")\n"
+"  -d, --drop\n"
+"     skip emptying FILE on completion\n"
+"  -b, --base BASE_IMG\n"
+"     image in the backing chain to commit change to\n"
+"     (default: immediate backing file; implies --drop)\n"
+"  -r, --rate-limit RATE\n"
+"     I/O rate limit, in bytes per second\n"
+"  -p, --progress\n"
+"     display progress information\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file, or an option string (key=value,..)\n"
+"     with --image-opts, to operate on\n"
+);
             break;
         case 'f':
             fmt = optarg;
             break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
         case 't':
             cache = optarg;
+            break;
+        case 'd':
+            drop = true;
             break;
         case 'b':
             base = optarg;
             /* -b implies -d */
             drop = true;
-            break;
-        case 'd':
-            drop = true;
-            break;
-        case 'p':
-            progress = true;
-            break;
-        case 'q':
-            quiet = true;
             break;
         case 'r':
             rate_limit = cvtnum("rate limit", optarg);
@@ -1092,12 +1115,17 @@ static int img_commit(const img_cmd_t *ccmd, int argc, char **argv)
                 return 1;
             }
             break;
+        case 'p':
+            progress = true;
+            break;
+        case 'q':
+            quiet = true;
+            break;
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
