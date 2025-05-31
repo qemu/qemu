@@ -1487,25 +1487,51 @@ static int img_compare(const img_cmd_t *ccmd, int argc, char **argv)
     for (;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"object", required_argument, 0, OPTION_OBJECT},
+            {"a-format", required_argument, 0, 'f'},
+            {"b-format", required_argument, 0, 'F'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"strict", no_argument, 0, 's'},
+            {"cache", required_argument, 0, 'T'},
             {"force-share", no_argument, 0, 'U'},
+            {"progress", no_argument, 0, 'p'},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:F:T:pqsU",
+        c = getopt_long(argc, argv, "hf:F:sT:Upq",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
         switch (c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
+            cmd_help(ccmd,
+"[[-f FMT] [-F FMT] | --image-opts] [-s] [-T CACHE]\n"
+"        [-U] [-p] [-q] [--object OBJDEF] FILE1 FILE2\n"
+,
+"  -f, --a-format FMT\n"
+"     specify FILE1 image format explicitly (default: probing is used)\n"
+"  -F, --b-format FMT\n"
+"     specify FILE2 image format explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE1 and FILE2 as option strings (key=value,..), not file names\n"
+"     (incompatible with -f|--a-format and -F|--b-format)\n"
+"  -s, --strict\n"
+"     strict mode, also check if sizes are equal\n"
+"  -T, --cache CACHE_MODE\n"
+"     images caching mode (default: " BDRV_DEFAULT_CACHE ")\n"
+"  -U, --force-share\n"
+"     open images in shared mode for concurrent access\n"
+"  -p, --progress\n"
+"     display progress information\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE1, FILE2\n"
+"     names of the image files, or option strings (key=value,..)\n"
+"     with --image-opts, to compare\n"
+);
             break;
         case 'f':
             fmt1 = optarg;
@@ -1513,8 +1539,17 @@ static int img_compare(const img_cmd_t *ccmd, int argc, char **argv)
         case 'F':
             fmt2 = optarg;
             break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        case 's':
+            strict = true;
+            break;
         case 'T':
             cache = optarg;
+            break;
+        case 'U':
+            force_share = true;
             break;
         case 'p':
             progress = true;
@@ -1522,18 +1557,11 @@ static int img_compare(const img_cmd_t *ccmd, int argc, char **argv)
         case 'q':
             quiet = true;
             break;
-        case 's':
-            strict = true;
-            break;
-        case 'U':
-            force_share = true;
-            break;
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
