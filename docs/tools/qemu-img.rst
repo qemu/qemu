@@ -467,11 +467,11 @@ Command description:
   ``--skip-broken-bitmaps`` is also specified to copy only the
   consistent bitmaps.
 
-.. option:: create [--object OBJECTDEF] [-q] [-f FMT] [-b BACKING_FILE [-F BACKING_FMT]] [-u] [-o OPTIONS] FILENAME [SIZE]
+.. option:: create [-f FMT] [-o FMT_OPTS] [-b BACKING_FILE [-B BACKING_FMT]] [-u] [-q] [--object OBJDEF] FILE [SIZE]
 
-  Create the new disk image *FILENAME* of size *SIZE* and format
-  *FMT*. Depending on the file format, you can add one or more *OPTIONS*
-  that enable additional features of this format.
+  Create the new disk image *FILE* of size *SIZE* and format
+  *FMT*. Depending on the file format, you can add one or more *FMT_OPTS*
+  options that enable additional features of this format.
 
   If the option *BACKING_FILE* is specified, then the image will record
   only the differences from *BACKING_FILE*. No size needs to be specified in
@@ -479,7 +479,7 @@ Command description:
   ``commit`` monitor command (or ``qemu-img commit``).
 
   If a relative path name is given, the backing file is looked up relative to
-  the directory containing *FILENAME*.
+  the directory containing *FILE*.
 
   Note that a given backing file will be opened to check that it is valid. Use
   the ``-u`` option to enable unsafe backing file mode, which means that the
