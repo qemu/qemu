@@ -4329,35 +4329,47 @@ static int img_resize(const img_cmd_t *ccmd, int argc, char **argv)
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"object", required_argument, 0, OPTION_OBJECT},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"preallocation", required_argument, 0, OPTION_PREALLOCATION},
             {"shrink", no_argument, 0, OPTION_SHRINK},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, "-:f:hq",
+        c = getopt_long(argc, argv, "-hf:q",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
         switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
-            break;
+            cmd_help(ccmd, "[-f FMT | --image-opts] [--preallocation PREALLOC] [--shrink]\n"
+"        [-q] [--object OBJDEF] FILE [+-]SIZE[bkKMGTPE]\n"
+,
+"  -f, --format FMT\n"
+"     specify FILE format explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE as an option string (key=value,...), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  --shrink\n"
+"     allow operation when the new size is smaller than the original\n"
+"  --preallocation PREALLOC\n"
+"     specify FMT-specific preallocation type for the new areas\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file, or option string (key=value,..)\n"
+"     with --image-opts, to operate on\n"
+"  [+-]SIZE[bkKMGTPE]\n"
+"     new image size or amount by which to shrink (-)/grow (+),\n"
+"     with optional multiplier suffix (powers of 1024, default is bytes)\n"
+);
+            return 0;
         case 'f':
             fmt = optarg;
-            break;
-        case 'q':
-            quiet = true;
-            break;
-        case OPTION_OBJECT:
-            user_creatable_process_cmdline(optarg);
             break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
@@ -4372,6 +4384,12 @@ static int img_resize(const img_cmd_t *ccmd, int argc, char **argv)
             break;
         case OPTION_SHRINK:
             shrink = true;
+            break;
+        case 'q':
+            quiet = true;
+            break;
+        case OPTION_OBJECT:
+            user_creatable_process_cmdline(optarg);
             break;
         case 1: /* a non-optional argument */
             if (!filename) {
@@ -4391,6 +4409,8 @@ static int img_resize(const img_cmd_t *ccmd, int argc, char **argv)
                 error_exit(argv[0], "Extra argument(s) in command line");
             }
             break;
+        default:
+            tryhelp(argv[0]);
         }
     }
     if (!filename && optind < argc) {
