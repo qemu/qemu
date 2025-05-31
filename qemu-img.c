@@ -3611,28 +3611,57 @@ static int img_snapshot(const img_cmd_t *ccmd, int argc, char **argv)
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"object", required_argument, 0, OPTION_OBJECT},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"list", no_argument, 0, SNAPSHOT_LIST},
+            {"apply", required_argument, 0, SNAPSHOT_APPLY},
+            {"create", required_argument, 0, SNAPSHOT_CREATE},
+            {"delete", required_argument, 0, SNAPSHOT_DELETE},
             {"force-share", no_argument, 0, 'U'},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":la:c:d:f:hqU",
+        c = getopt_long(argc, argv, "hf:la:c:d:Uq",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
         switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
-            return 0;
+            cmd_help(ccmd, "[-f FMT | --image-opts] [-l | -a|-c|-d SNAPSHOT]\n"
+"        [-U] [-q] [--object OBJDEF] FILE\n"
+,
+"  -f, --format FMT\n"
+"     specify FILE format explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE as an option string (key=value,..), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  -l, --list\n"
+"     list snapshots in FILE (default action if no -l|-c|-a|-d is given)\n"
+"  -c, --create SNAPSHOT\n"
+"     create named snapshot\n"
+"  -a, --apply SNAPSHOT\n"
+"     apply named snapshot to the base\n"
+"  -d, --delete SNAPSHOT\n"
+"     delete named snapshot\n"
+"  (only one of -l|-c|-a|-d can be specified)\n"
+"  -U, --force-share\n"
+"     open image in shared mode for concurrent access\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file, or option string (key=value,..)\n"
+"     with --image-opts) to operate on\n"
+);
+            break;
         case 'f':
             fmt = optarg;
+            break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
             break;
         case SNAPSHOT_LIST:
         case SNAPSHOT_APPLY:
@@ -3645,18 +3674,17 @@ static int img_snapshot(const img_cmd_t *ccmd, int argc, char **argv)
             action = c;
             snapshot_name = optarg;
             break;
-        case 'q':
-            quiet = true;
-            break;
         case 'U':
             force_share = true;
+            break;
+        case 'q':
+            quiet = true;
             break;
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
