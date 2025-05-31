@@ -18,11 +18,13 @@
 #include "linux/pci.h"
 #include "linux/slab.h"
 #include "linux/types.h"
+#include <asm-generic/ioctl.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/interrupt.h>
-
+#include <linux/uaccess.h>
+#include <linux/eventfd.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("cs5250"); // Replace with your
@@ -57,6 +59,11 @@ static int device_count = 0;
 #define MMAP_OFFSET_PGOFF_BAR1 1
 #define MMAP_OFFSET_PGOFF_BAR2 2
 
+// ioctl command definitions
+#define CXL_SWITCH_IOCTL_MAGIC 'c'
+#define CXL_SWITCH_IOCTL_SET_EVENTFD_NOTIFY    _IOW(CXL_SWITCH_IOCTL_MAGIC, 1, int)
+#define CXL_SWITCH_IOCTL_SET_EVENTFD_CMD_READY _IOW(CXL_SWITCH_IOCTL_MAGIC, 2, int)
+
 /* Per-device data structure */
 struct cxl_switch_client_dev {
 	struct pci_dev *pdev;
@@ -81,6 +88,9 @@ struct cxl_switch_client_dev {
 	struct class *dev_class; // For automatic /dev node creation
     struct device *device;   // For device_create
     int irq;                 // IRQ number assigned for MSI
+
+    struct eventfd_ctx *eventfd_notify_ctx; // New client notifications
+    struct eventfd_ctx *eventfd_cmd_ctx;    // Command ready notifications
 };
 
 static struct cxl_switch_client_dev *cxl_switch_devs[MAX_DEVICES];
@@ -101,6 +111,23 @@ static int cxl_switch_client_open(struct inode *inode, struct file *filp)
 static int cxl_switch_client_release(struct inode *inode, struct file *filp)
 {
 	struct cxl_switch_client_dev *dev = filp->private_data;
+
+    pr_info("%s: Releasing device %s\n", DRIVER_NAME, pci_name(dev->pdev));
+
+    // Release the eventfd contexts, this is a simple device driver
+    // and so will always have one ref to it
+
+    if (dev->eventfd_cmd_ctx) {
+        eventfd_ctx_put(dev->eventfd_cmd_ctx);
+        dev->eventfd_cmd_ctx = NULL;
+        pr_info("%s: Released eventfd_cmd_ctx for %s\n", DRIVER_NAME, pci_name(dev->pdev));
+    }
+
+    if (dev->eventfd_notify_ctx) {
+        eventfd_ctx_put(dev->eventfd_notify_ctx);
+        dev->eventfd_notify_ctx = NULL;
+        pr_info("%s: Released eventfd_notify_ctx for %s\n", DRIVER_NAME, pci_name(dev->pdev));
+    }
 
 	pr_info("%s: Closed device %s\n", DRIVER_NAME, pci_name(dev->pdev));
 	return 0;
@@ -175,11 +202,73 @@ static int cxl_switch_client_mmap(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
+static long cxl_switch_client_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+  struct cxl_switch_client_dev *dev = filp->private_data;
+  int efd_user_fd;  // User-space fd for the event fd
+  struct eventfd_ctx **target_ctx_ptr = NULL;
+
+  // Check command type and permissions before switch case
+  if (_IOC_TYPE(cmd) != CXL_SWITCH_IOCTL_MAGIC) return -ENOTTY;
+  if (_IOC_DIR(cmd) & _IOC_READ) {
+    if (!access_ok((void __user *) arg, _IOC_SIZE(cmd))) return -EFAULT;
+  }
+  if (_IOC_DIR(cmd) & _IOC_WRITE) {
+    if (!access_ok((void __user *) arg, _IOC_SIZE(cmd))) return -EFAULT;
+  }
+
+  if (copy_from_user(&efd_user_fd, (int __user *)arg, sizeof(efd_user_fd))) {
+    pr_err("%s: ioctl failed to copy eventfd user fd from user space\n", DRIVER_NAME);
+    return -EFAULT;
+  }
+
+  switch (cmd) {
+  case CXL_SWITCH_IOCTL_SET_EVENTFD_NOTIFY:
+    target_ctx_ptr = &dev->eventfd_notify_ctx;
+    pr_info("%s: Setting eventfd for new client notifications.\n", DRIVER_NAME);
+    break;
+  case CXL_SWITCH_IOCTL_SET_EVENTFD_CMD_READY:
+    target_ctx_ptr = &dev->eventfd_cmd_ctx;
+    pr_info("%s: Setting eventfd for command ready notifications.\n", DRIVER_NAME);
+    break;
+  default:
+    pr_warn("%s: Unknown ioctl command 0x%x\n", DRIVER_NAME, cmd);
+    return -ENOTTY;
+  }
+
+  if (!target_ctx_ptr) {
+    return 0;
+  }
+
+  struct eventfd_ctx *new_ctx = NULL;
+
+  if (efd_user_fd >= 0) {
+    new_ctx = eventfd_ctx_fdget(efd_user_fd);
+    if (IS_ERR(new_ctx)) {
+      pr_err("%s: Failed to get eventfd context from fd %d, error=%ld\n", DRIVER_NAME, efd_user_fd, PTR_ERR(new_ctx));
+      return PTR_ERR(new_ctx);
+    }
+  }
+
+  if (*target_ctx_ptr) {
+    eventfd_ctx_put(*target_ctx_ptr);
+    pr_info("%s: Replaced existing eventfd context for %s.\n", DRIVER_NAME, (cmd == CXL_SWITCH_IOCTL_SET_EVENTFD_NOTIFY) ? "notify" : "command ready");
+  }
+  *target_ctx_ptr = new_ctx;
+  if (new_ctx) {
+    pr_info("%s: Set new eventfd context for %s (fd=%d).\n", DRIVER_NAME, (cmd == CXL_SWITCH_IOCTL_SET_EVENTFD_NOTIFY) ? "notify" : "command ready", efd_user_fd);
+  } else {
+    pr_info("%s: Cleared eventfd context for %s.\n", DRIVER_NAME, (cmd == CXL_SWITCH_IOCTL_SET_EVENTFD_NOTIFY) ? "notify" : "command ready");
+  }
+  return 0;
+}
+
 static const struct file_operations cxl_switch_client_fops = {
 	.owner = THIS_MODULE,
 	.open = cxl_switch_client_open,
 	.release = cxl_switch_client_release,
 	.mmap = cxl_switch_client_mmap,
+    .unlocked_ioctl = cxl_switch_client_ioctl,
 };
 
 /* ISR */
@@ -208,8 +297,26 @@ static irqreturn_t cxl_switch_client_isr(int irq, void *dev_id) {
   u32 handled_irqs = 0;
   if (active_interrupts & IRQ_SOURCE_NEW_CLIENT_NOTIFY) {
     pr_info("%s: New client notification received.\n", DRIVER_NAME);
+    if (dev->eventfd_notify_ctx) {
+      eventfd_signal(dev->eventfd_notify_ctx);
+      pr_info("%s: Signaled eventfd for new client notification.\n", DRIVER_NAME);
+    } else {
+      pr_info("%s: No eventfd context for new client notifications, skipping signal.\n", DRIVER_NAME);
+    }
     handled_irqs |= IRQ_SOURCE_NEW_CLIENT_NOTIFY;
   }
+
+  if (active_interrupts & IRQ_SOURCE_CMD_RESPONSE_READY) {
+    pr_info("%s: Command response ready notification received.\n", DRIVER_NAME);
+    if (dev->eventfd_cmd_ctx) {
+      eventfd_signal(dev->eventfd_cmd_ctx);
+      pr_info("%s: Signaled eventfd for command response ready.\n", DRIVER_NAME);
+    } else {
+      pr_info("%s: No eventfd context for command responses, skipping signal.\n", DRIVER_NAME);
+    }
+    handled_irqs |= IRQ_SOURCE_CMD_RESPONSE_READY;
+  }
+
 
   if (handled_irqs > 0) {
     iowrite32(handled_irqs, dev->bar1_kva + REG_INTERRUPT_STATUS);
