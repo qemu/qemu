@@ -4864,28 +4864,93 @@ static int img_bench(const img_cmd_t *ccmd, int argc, char **argv)
     for (;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"flush-interval", required_argument, 0, OPTION_FLUSH_INTERVAL},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"cache", required_argument, 0, 't'},
+            {"count", required_argument, 0, 'c'},
+            {"depth", required_argument, 0, 'd'},
+            {"offset", required_argument, 0, 'o'},
+            {"buffer-size", required_argument, 0, 's'},
+            {"step-size", required_argument, 0, 'S'},
+            {"write", no_argument, 0, 'w'},
             {"pattern", required_argument, 0, OPTION_PATTERN},
+            {"flush-interval", required_argument, 0, OPTION_FLUSH_INTERVAL},
             {"no-drain", no_argument, 0, OPTION_NO_DRAIN},
+            {"aio", required_argument, 0, 'i'},
+            {"native", no_argument, 0, 'n'},
             {"force-share", no_argument, 0, 'U'},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hc:d:f:ni:o:qs:S:t:wU", long_options,
-                        NULL);
+        c = getopt_long(argc, argv, "hf:t:c:d:o:s:S:wi:nUq",
+                        long_options, NULL);
         if (c == -1) {
             break;
         }
 
         switch (c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
+            cmd_help(ccmd, "[-f FMT | --image-opts] [-t CACHE]\n"
+"        [-c COUNT] [-d DEPTH] [-o OFFSET] [-s BUFFER_SIZE] [-S STEP_SIZE]\n"
+"        [-w [--pattern PATTERN] [--flush-interval INTERVAL [--no-drain]]]\n"
+"        [-i AIO] [-n] [-U] [-q] FILE\n"
+,
+"  -f, --format FMT\n"
+"     specify FILE format explicitly\n"
+"  --image-opts\n"
+"     indicates that FILE is a complete image specification\n"
+"     instead of a file name (incompatible with --format)\n"
+"  -t, --cache CACHE\n"
+"     cache mode for FILE (default: " BDRV_DEFAULT_CACHE ")\n"
+"  -c, --count COUNT\n"
+"     number of I/O requests to perform\n"
+"  -d, --depth DEPTH\n"
+"     number of requests to perform in parallel\n"
+"  -o, --offset OFFSET\n"
+"     start first request at this OFFSET\n"
+"  -s, --buffer-size BUFFER_SIZE[bkKMGTPE]\n"
+"     size of each I/O request, with optional multiplier suffix\n"
+"     (powers of 1024, default is 4K)\n"
+"  -S, --step-size STEP_SIZE[bkKMGTPE]\n"
+"     each next request offset increment, with optional multiplier suffix\n"
+"     (powers of 1024, default is the same as BUFFER_SIZE)\n"
+"  -w, --write\n"
+"     perform write test (default is read)\n"
+"  --pattern PATTERN\n"
+"     write this pattern byte instead of zero\n"
+"  --flush-interval FLUSH_INTERVAL\n"
+"     issue flush after this number of requests\n"
+"  --no-drain\n"
+"     do not wait when flushing pending requests\n"
+"  -i, --aio AIO\n"
+"     async-io backend (threads, native, io_uring)\n"
+"  -n, --native\n"
+"     use native AIO backend if possible\n"
+"  -U, --force-share\n"
+"     open images in shared mode for concurrent access\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file, or option string (key=value,..)\n"
+"     with --image-opts, to operate on\n"
+);
+            break;
+        case 'f':
+            fmt = optarg;
+            break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        case 't':
+            ret = bdrv_parse_cache_mode(optarg, &flags, &writethrough);
+            if (ret < 0) {
+                error_report("Invalid cache mode");
+                ret = -1;
+                goto out;
+            }
             break;
         case 'c':
         {
@@ -4909,9 +4974,6 @@ static int img_bench(const img_cmd_t *ccmd, int argc, char **argv)
             depth = res;
             break;
         }
-        case 'f':
-            fmt = optarg;
-            break;
         case 'n':
             flags |= BDRV_O_NATIVE_AIO;
             break;
@@ -4931,9 +4993,6 @@ static int img_bench(const img_cmd_t *ccmd, int argc, char **argv)
             }
             break;
         }
-            break;
-        case 'q':
-            quiet = true;
             break;
         case 's':
         {
@@ -4959,20 +5018,9 @@ static int img_bench(const img_cmd_t *ccmd, int argc, char **argv)
             step = sval;
             break;
         }
-        case 't':
-            ret = bdrv_parse_cache_mode(optarg, &flags, &writethrough);
-            if (ret < 0) {
-                error_report("Invalid cache mode");
-                ret = -1;
-                goto out;
-            }
-            break;
         case 'w':
             flags |= BDRV_O_RDWR;
             is_write = true;
-            break;
-        case 'U':
-            force_share = true;
             break;
         case OPTION_PATTERN:
         {
@@ -4999,9 +5047,17 @@ static int img_bench(const img_cmd_t *ccmd, int argc, char **argv)
         case OPTION_NO_DRAIN:
             drain_on_flush = false;
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
+        case 'U':
+            force_share = true;
             break;
+        case 'q':
+            quiet = true;
+            break;
+        case OPTION_OBJECT:
+            user_creatable_process_cmdline(optarg);
+            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
