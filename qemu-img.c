@@ -3798,44 +3798,88 @@ static int img_rebase(const img_cmd_t *ccmd, int argc, char **argv)
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"object", required_argument, 0, OPTION_OBJECT},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
-            {"force-share", no_argument, 0, 'U'},
+            {"cache", required_argument, 0, 't'},
             {"compress", no_argument, 0, 'c'},
+            {"backing", required_argument, 0, 'b'},
+            {"backing-format", required_argument, 0, 'B'},
+            {"backing-cache", required_argument, 0, 'T'},
+            {"backing-unsafe", no_argument, 0, 'u'},
+            {"force-share", no_argument, 0, 'U'},
+            {"progress", no_argument, 0, 'p'},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:F:b:upt:T:qUc",
+        c = getopt_long(argc, argv, "hf:t:cb:F:B:T:uUpq",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
-        switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
+        switch (c) {
         case 'h':
-            help();
+            cmd_help(ccmd, "[-f FMT | --image-opts] [-t CACHE]\n"
+"        [-b BACKING_FILE [-B BACKING_FMT] [-T BACKING_CACHE]] [-u]\n"
+"        [-c] [-U] [-p] [-q] [--object OBJDEF] FILE\n"
+,
+"  -f, --format FMT\n"
+"     specify FILE format explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE as an option string (key=value,..), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  -t, --cache CACHE\n"
+"     cache mode for FILE (default: " BDRV_DEFAULT_CACHE ")\n"
+"  -b, --backing BACKING_FILE|\"\"\n"
+"     rebase onto this file (specify empty name for no backing file)\n"
+"  -B, --backing-format BACKING_FMT (was -F in <=10.0)\n"
+"     specify format for BACKING_FILE explicitly (default: probing is used)\n"
+"  -T, --backing-cache CACHE\n"
+"     BACKING_FILE cache mode (default: " BDRV_DEFAULT_CACHE ")\n"
+"  -u, --backing-unsafe\n"
+"     do not fail if BACKING_FILE can not be read\n"
+"  -c, --compress\n"
+"     compress image (when image supports this)\n"
+"  -U, --force-share\n"
+"     open image in shared mode for concurrent access\n"
+"  -p, --progress\n"
+"     display progress information\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file, or option string (key=value,..)\n"
+"     with --image-opts, to operate on\n"
+);
             return 0;
         case 'f':
             fmt = optarg;
             break;
-        case 'F':
-            out_basefmt = optarg;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        case 't':
+            cache = optarg;
             break;
         case 'b':
             out_baseimg = optarg;
             break;
+        case 'F': /* <=10.0 */
+        case 'B':
+            out_basefmt = optarg;
+            break;
         case 'u':
             unsafe = 1;
             break;
+        case 'c':
+            compress = true;
+            break;
+        case 'U':
+            force_share = true;
+            break;
         case 'p':
             progress = 1;
-            break;
-        case 't':
-            cache = optarg;
             break;
         case 'T':
             src_cache = optarg;
@@ -3846,15 +3890,8 @@ static int img_rebase(const img_cmd_t *ccmd, int argc, char **argv)
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
-        case 'U':
-            force_share = true;
-            break;
-        case 'c':
-            compress = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
