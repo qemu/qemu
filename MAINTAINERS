@@ -2519,7 +2519,7 @@ F: tests/qtest/fuzz-megasas-test.c
 
 Network packet abstractions
 M: Dmitry Fleytman <dmitry.fleytman@gmail.com>
-R: Akihiko Odaki <akihiko.odaki@daynix.com>
+R: Akihiko Odaki <odaki@rsg.ci.i.u-tokyo.ac.jp>
 S: Maintained
 F: include/net/eth.h
 F: net/eth.c
@@ -2549,13 +2549,13 @@ F: docs/specs/rocker.rst
 
 e1000x
 M: Dmitry Fleytman <dmitry.fleytman@gmail.com>
-R: Akihiko Odaki <akihiko.odaki@daynix.com>
+R: Akihiko Odaki <odaki@rsg.ci.i.u-tokyo.ac.jp>
 S: Maintained
 F: hw/net/e1000x*
 
 e1000e
 M: Dmitry Fleytman <dmitry.fleytman@gmail.com>
-R: Akihiko Odaki <akihiko.odaki@daynix.com>
+R: Akihiko Odaki <odaki@rsg.ci.i.u-tokyo.ac.jp>
 S: Maintained
 F: hw/net/e1000e*
 F: tests/qtest/fuzz-e1000e-test.c
@@ -2563,9 +2563,9 @@ F: tests/qtest/e1000e-test.c
 F: tests/qtest/libqos/e1000e.*
 
 igb
-M: Akihiko Odaki <akihiko.odaki@daynix.com>
+M: Akihiko Odaki <odaki@rsg.ci.i.u-tokyo.ac.jp>
 R: Sriram Yagnaraman <sriram.yagnaraman@ericsson.com>
-S: Maintained
+S: Odd Fixes
 F: docs/system/devices/igb.rst
 F: hw/net/igb*
 F: tests/functional/test_netdev_ethtool.py
@@ -2910,7 +2910,7 @@ Core Audio framework backend
 M: Gerd Hoffmann <kraxel@redhat.com>
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Christian Schoenebeck <qemu_oss@crudebyte.com>
-R: Akihiko Odaki <akihiko.odaki@daynix.com>
+R: Akihiko Odaki <odaki@rsg.ci.i.u-tokyo.ac.jp>
 S: Odd Fixes
 F: audio/coreaudio.m
 
@@ -3211,7 +3211,7 @@ F: tests/functional/test_vnc.py
 Cocoa graphics
 M: Peter Maydell <peter.maydell@linaro.org>
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
-R: Akihiko Odaki <akihiko.odaki@daynix.com>
+R: Akihiko Odaki <odaki@rsg.ci.i.u-tokyo.ac.jp>
 S: Odd Fixes
 F: ui/cocoa.m
 
@@ -3738,7 +3738,7 @@ F: util/iova-tree.c
 
 elf2dmp
 M: Viktor Prutyanov <viktor.prutyanov@phystech.edu>
-R: Akihiko Odaki <akihiko.odaki@daynix.com>
+R: Akihiko Odaki <odaki@rsg.ci.i.u-tokyo.ac.jp>
 S: Maintained
 F: contrib/elf2dmp/
 
