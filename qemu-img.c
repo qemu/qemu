@@ -4302,7 +4302,7 @@ static int img_resize(const img_cmd_t *ccmd, int argc, char **argv)
 {
     Error *err = NULL;
     int c, ret, relative;
-    const char *filename, *fmt, *size;
+    const char *filename = NULL, *fmt = NULL, *size = NULL;
     int64_t n, total_size, current_size;
     bool quiet = false;
     BlockBackend *blk = NULL;
@@ -4325,17 +4325,7 @@ static int img_resize(const img_cmd_t *ccmd, int argc, char **argv)
     bool image_opts = false;
     bool shrink = false;
 
-    /* Remove size from argv manually so that negative numbers are not treated
-     * as options by getopt. */
-    if (argc < 3) {
-        error_exit(argv[0], "Not enough arguments");
-        return 1;
-    }
-
-    size = argv[--argc];
-
     /* Parse getopt arguments */
-    fmt = NULL;
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
@@ -4345,7 +4335,7 @@ static int img_resize(const img_cmd_t *ccmd, int argc, char **argv)
             {"shrink", no_argument, 0, OPTION_SHRINK},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":f:hq",
+        c = getopt_long(argc, argv, "-:f:hq",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -4383,12 +4373,35 @@ static int img_resize(const img_cmd_t *ccmd, int argc, char **argv)
         case OPTION_SHRINK:
             shrink = true;
             break;
+        case 1: /* a non-optional argument */
+            if (!filename) {
+                filename = optarg;
+                /* see if we have -size (number) next to filename */
+                if (optind < argc) {
+                    size = argv[optind];
+                    if (size[0] == '-' && size[1] >= '0' && size[1] <= '9') {
+                        ++optind;
+                    } else {
+                        size = NULL;
+                    }
+                }
+            } else if (!size) {
+                size = optarg;
+            } else {
+                error_exit(argv[0], "Extra argument(s) in command line");
+            }
+            break;
         }
     }
-    if (optind != argc - 1) {
+    if (!filename && optind < argc) {
+        filename = argv[optind++];
+    }
+    if (!size && optind < argc) {
+        size = argv[optind++];
+    }
+    if (!filename || !size || optind < argc) {
         error_exit(argv[0], "Expecting image file name and size");
     }
-    filename = argv[optind++];
 
     /* Choose grow, shrink, or absolute resize mode */
     switch (size[0]) {
