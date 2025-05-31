@@ -805,30 +805,56 @@ static int img_check(const img_cmd_t *ccmd, int argc, char **argv)
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"format", required_argument, 0, 'f'},
-            {"repair", required_argument, 0, 'r'},
-            {"output", required_argument, 0, OPTION_OUTPUT},
-            {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"cache", required_argument, 0, 'T'},
+            {"repair", required_argument, 0, 'r'},
             {"force-share", no_argument, 0, 'U'},
+            {"output", required_argument, 0, OPTION_OUTPUT},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:r:T:qU",
+        c = getopt_long(argc, argv, "hf:T:r:Uq",
                         long_options, &option_index);
         if (c == -1) {
             break;
         }
         switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
+            cmd_help(ccmd, "[-f FMT | --image-opts] [-T CACHE_MODE] [-r leaks|all]\n"
+"        [-U] [--output human|json] [-q] [--object OBJDEF] FILE\n"
+,
+"  -f, --format FMT\n"
+"     specifies the format of the image explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE as an option string (key=value,..), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  -T, --cache CACHE_MODE\n" /* why not -t ? */
+"     cache mode (default: " BDRV_DEFAULT_CACHE ")\n"
+"  -r, --repair leaks|all\n"
+"     repair errors of the given category in the image (image will be\n"
+"     opened in read-write mode, incompatible with -U|--force-share)\n"
+"  -U, --force-share\n"
+"     open image in shared mode for concurrent access\n"
+"  --output human|json\n"
+"     output format (default: human)\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file, or an option string (key=value,..)\n"
+"     with --image-opts, to operate on\n"
+);
             break;
         case 'f':
             fmt = optarg;
+            break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        case 'T':
+            cache = optarg;
             break;
         case 'r':
             flags |= BDRV_O_RDWR;
@@ -842,24 +868,20 @@ static int img_check(const img_cmd_t *ccmd, int argc, char **argv)
                            "(expecting 'leaks' or 'all'): %s", optarg);
             }
             break;
+        case 'U':
+            force_share = true;
+            break;
         case OPTION_OUTPUT:
             output_format = parse_output_format(argv[0], optarg);
-            break;
-        case 'T':
-            cache = optarg;
             break;
         case 'q':
             quiet = true;
             break;
-        case 'U':
-            force_share = true;
-            break;
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
     if (optind != argc - 1) {
