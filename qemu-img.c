@@ -5538,31 +5538,54 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
     };
     const struct option long_options[] = {
         { "help", no_argument, 0, 'h'},
-        { "object", required_argument, 0, OPTION_OBJECT},
+        { "format", required_argument, 0, 'f'},
         { "image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+        { "output-format", required_argument, 0, 'O'},
         { "force-share", no_argument, 0, 'U'},
+        { "object", required_argument, 0, OPTION_OBJECT},
         { 0, 0, 0, 0 }
     };
 
-    while ((c = getopt_long(argc, argv, ":hf:O:U", long_options, NULL))) {
+    while ((c = getopt_long(argc, argv, "hf:O:U", long_options, NULL))) {
         if (c == EOF) {
             break;
         }
         switch (c) {
-        case 'O':
-            out_fmt = optarg;
+        case 'h':
+            cmd_help(ccmd, "[-f FMT|--image-opts] [-O OUTPUT_FMT] [-U]\n"
+"        [--object OBJDEF] [bs=BLOCK_SIZE] [count=BLOCKS] if=INPUT of=OUTPUT\n"
+,
+"  -f, --format FMT\n"
+"     specify format for INPUT explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat INPUT as an option string (key=value,..), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  -O, --output-format OUTPUT_FMT\n"
+"     format of the OUTPUT (default: raw)\n"
+"  -U, --force-share\n"
+"     open images in shared mode for concurrent access\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  bs=BLOCK_SIZE[bKMGTP]\n"
+"     size of the I/O block, with optional multiplier suffix (powers of 1024)\n"
+"     (default: 512)\n"
+"  count=COUNT\n"
+"     number of blocks to convert (default whole INPUT)\n"
+"  if=INPUT\n"
+"     name of the file, or option string (key=value,..)\n"
+"     with --image-opts, to use for input\n"
+"  of=OUTPUT\n"
+"     output file name to create (will be overridden if alrady exists)\n"
+);
             break;
         case 'f':
             fmt = optarg;
             break;
-        case ':':
-            missing_argument(argv[optind - 1]);
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
             break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
-        case 'h':
-            help();
+        case 'O':
+            out_fmt = optarg;
             break;
         case 'U':
             force_share = true;
@@ -5570,9 +5593,8 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
