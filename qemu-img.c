@@ -72,7 +72,6 @@ enum {
     OPTION_FLUSH_INTERVAL = 261,
     OPTION_NO_DRAIN = 262,
     OPTION_TARGET_IMAGE_OPTS = 263,
-    OPTION_SIZE = 264,
     OPTION_PREALLOCATION = 265,
     OPTION_SHRINK = 266,
     OPTION_SALVAGE = 267,
@@ -5786,15 +5785,6 @@ static void dump_json_block_measure_info(BlockMeasureInfo *info)
 
 static int img_measure(const img_cmd_t *ccmd, int argc, char **argv)
 {
-    static const struct option long_options[] = {
-        {"help", no_argument, 0, 'h'},
-        {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
-        {"object", required_argument, 0, OPTION_OBJECT},
-        {"output", required_argument, 0, OPTION_OUTPUT},
-        {"size", required_argument, 0, OPTION_SIZE},
-        {"force-share", no_argument, 0, 'U'},
-        {0, 0, 0, 0}
-    };
     OutputFormat output_format = OFORMAT_HUMAN;
     BlockBackend *in_blk = NULL;
     BlockDriver *drv;
@@ -5815,23 +5805,61 @@ static int img_measure(const img_cmd_t *ccmd, int argc, char **argv)
     int ret = 1;
     int c;
 
-    while ((c = getopt_long(argc, argv, "hf:O:o:l:U",
+    static const struct option long_options[] = {
+        {"help", no_argument, 0, 'h'},
+        {"source-format", required_argument, 0, 'f'}, /* img_convert */
+        {"format", required_argument, 0, 'f'},
+        {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+        {"source-image-opts", no_argument, 0, OPTION_IMAGE_OPTS}, /* img_convert */
+        {"snapshot", required_argument, 0, 'l'},
+        {"target-format", required_argument, 0, 'O'},
+        {"target-format-options", required_argument, 0, 'o'}, /* img_convert */
+        {"options", required_argument, 0, 'o'},
+        {"force-share", no_argument, 0, 'U'},
+        {"output", required_argument, 0, OPTION_OUTPUT},
+        {"object", required_argument, 0, OPTION_OBJECT},
+        {"size", required_argument, 0, 's'},
+        {0, 0, 0, 0}
+    };
+
+    while ((c = getopt_long(argc, argv, "hf:l:O:o:Us:",
                             long_options, NULL)) != -1) {
         switch (c) {
-        case '?':
         case 'h':
-            help();
+            cmd_help(ccmd, "[-f FMT|--image-opts] [-l SNAPSHOT]\n"
+"       [-O TARGET_FMT] [-o TARGET_FMT_OPTS] [--output human|json]\n"
+"       [--object OBJDEF] (--size SIZE | FILE)\n"
+,
+"  -f, --format\n"
+"     specify format of FILE explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     indicates that FILE is a complete image specification\n"
+"     instead of a file name (incompatible with --format)\n"
+"  -l, --snapshot SNAPSHOT\n"
+"     use this snapshot in FILE as source\n"
+"  -O, --target-format TARGET_FMT\n"
+"     desired target/output image format (default: raw)\n"
+"  -o TARGET_FMT_OPTS\n"
+"     options specific to TARGET_FMT\n"
+"  --output human|json\n"
+"     output format (default: human)\n"
+"  -U, --force-share\n"
+"     open images in shared mode for concurrent access\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  -s, --size SIZE[bKMGTPE]\n"
+"     measure file size for given image size,\n"
+"     with optional multiplier suffix (powers of 1024)\n"
+"  FILE\n"
+"     measure file size required to convert from FILE (either a file name\n"
+"     or an option string (key=value,..) with --image-options)\n"
+);
             break;
         case 'f':
             fmt = optarg;
             break;
-        case 'O':
-            out_fmt = optarg;
-            break;
-        case 'o':
-            if (accumulate_options(&options, optarg) < 0) {
-                goto out;
-            }
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
             break;
         case 'l':
             if (strstart(optarg, SNAPSHOT_OPT_BASE, NULL)) {
@@ -5846,24 +5874,31 @@ static int img_measure(const img_cmd_t *ccmd, int argc, char **argv)
                 snapshot_name = optarg;
             }
             break;
+        case 'O':
+            out_fmt = optarg;
+            break;
+        case 'o':
+            if (accumulate_options(&options, optarg) < 0) {
+                goto out;
+            }
+            break;
         case 'U':
             force_share = true;
-            break;
-        case OPTION_OBJECT:
-            user_creatable_process_cmdline(optarg);
-            break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
             break;
         case OPTION_OUTPUT:
             output_format = parse_output_format(argv[0], optarg);
             break;
-        case OPTION_SIZE:
+        case OPTION_OBJECT:
+            user_creatable_process_cmdline(optarg);
+            break;
+        case 's':
             img_size = cvtnum("image size", optarg);
             if (img_size < 0) {
                 goto out;
             }
             break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
