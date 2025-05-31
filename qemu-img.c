@@ -4564,26 +4564,48 @@ static int img_amend(const img_cmd_t *ccmd, int argc, char **argv)
     for (;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"object", required_argument, 0, OPTION_OBJECT},
+            {"options", required_argument, 0, 'o'},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"cache", required_argument, 0, 't'},
             {"force", no_argument, 0, OPTION_FORCE},
+            {"progress", no_argument, 0, 'p'},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":ho:f:t:pq",
+        c = getopt_long(argc, argv, "ho:f:t:pq",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
 
         switch (c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
+            cmd_help(ccmd, "-o FMT_OPTS [-f FMT | --image-opts]\n"
+"        [-t CACHE] [--force] [-p] [-q] [--object OBJDEF] FILE\n"
+,
+"  -o, --options FMT_OPTS\n"
+"     FMT-specfic format options (required)\n"
+"  -f, --format FMT\n"
+"     specify FILE format explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE as an option string (key=value,..), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  -t, --cache CACHE\n"
+"     cache mode for FILE (default: " BDRV_DEFAULT_CACHE ")\n"
+"  --force\n"
+"     allow certain unsafe operations\n"
+"  -p, --progres\n"
+"     show operation progress\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file, or option string (key=value,..)\n"
+"     with --image-opts, to operate on\n"
+);
             break;
         case 'o':
             if (accumulate_options(&options, optarg) < 0) {
@@ -4594,8 +4616,14 @@ static int img_amend(const img_cmd_t *ccmd, int argc, char **argv)
         case 'f':
             fmt = optarg;
             break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
         case 't':
             cache = optarg;
+            break;
+        case OPTION_FORCE:
+            force = true;
             break;
         case 'p':
             progress = true;
@@ -4606,12 +4634,8 @@ static int img_amend(const img_cmd_t *ccmd, int argc, char **argv)
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
-        case OPTION_FORCE:
-            force = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 

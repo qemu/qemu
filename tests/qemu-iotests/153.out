@@ -120,8 +120,8 @@ _qemu_img_wrapper compare -U TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
 _qemu_img_wrapper map -U TEST_DIR/t.qcow2
 
 _qemu_img_wrapper amend -o size=32M -U TEST_DIR/t.qcow2
-qemu-img: unrecognized option '-U'
-Try 'qemu-img --help' for more information
+qemu-img amend: invalid option -- 'U'
+Try 'qemu-img amend --help' for more information
 
 _qemu_img_wrapper commit -U TEST_DIR/t.qcow2
 qemu-img commit: invalid option -- 'U'
@@ -244,8 +244,8 @@ _qemu_img_wrapper compare -U TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
 _qemu_img_wrapper map -U TEST_DIR/t.qcow2
 
 _qemu_img_wrapper amend -o size=32M -U TEST_DIR/t.qcow2
-qemu-img: unrecognized option '-U'
-Try 'qemu-img --help' for more information
+qemu-img amend: invalid option -- 'U'
+Try 'qemu-img amend --help' for more information
 
 _qemu_img_wrapper commit -U TEST_DIR/t.qcow2
 qemu-img commit: invalid option -- 'U'
@@ -349,8 +349,8 @@ _qemu_img_wrapper compare -U TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
 _qemu_img_wrapper map -U TEST_DIR/t.qcow2
 
 _qemu_img_wrapper amend -o size=32M -U TEST_DIR/t.qcow2
-qemu-img: unrecognized option '-U'
-Try 'qemu-img --help' for more information
+qemu-img amend: invalid option -- 'U'
+Try 'qemu-img amend --help' for more information
 
 _qemu_img_wrapper commit -U TEST_DIR/t.qcow2
 qemu-img commit: invalid option -- 'U'
