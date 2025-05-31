@@ -5184,54 +5184,81 @@ static int img_bitmap(const img_cmd_t *ccmd, int argc, char **argv)
     for (;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"object", required_argument, 0, OPTION_OBJECT},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"add", no_argument, 0, OPTION_ADD},
+            {"granularity", required_argument, 0, 'g'},
             {"remove", no_argument, 0, OPTION_REMOVE},
             {"clear", no_argument, 0, OPTION_CLEAR},
             {"enable", no_argument, 0, OPTION_ENABLE},
             {"disable", no_argument, 0, OPTION_DISABLE},
             {"merge", required_argument, 0, OPTION_MERGE},
-            {"granularity", required_argument, 0, 'g'},
             {"source-file", required_argument, 0, 'b'},
             {"source-format", required_argument, 0, 'F'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":b:f:F:g:h", long_options, NULL);
+        c = getopt_long(argc, argv, "hf:g:b:F:",
+                        long_options, NULL);
         if (c == -1) {
             break;
         }
 
         switch (c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
-            break;
-        case 'b':
-            src_filename = optarg;
+            cmd_help(ccmd, "[-f FMT | --image-opts]\n"
+"        ( --add [-g SIZE] | --remove | --clear | --enable | --disable |\n"
+"          --merge SOURCE [-b SRC_FILE [-F SRC_FMT]] )..\n"
+"        [--object OBJDEF] FILE BITMAP\n"
+,
+"  -f, --format FMT\n"
+"     specify FILE format explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE as an option string (key=value,..), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  --add\n"
+"     creates BITMAP in FILE, enables to record future edits\n"
+"  -g, --granularity SIZE[bKMGTPE]\n"
+"     sets non-default granularity for the bitmap being added,\n"
+"     with optional multiplier suffix (in powers of 1024)\n"
+"  --remove\n"
+"     removes BITMAP from FILE\n"
+"  --clear\n"
+"     clears BITMAP in FILE\n"
+"  --enable, --disable\n"
+"     starts and stops recording future edits to BITMAP in FILE\n"
+"  --merge SOURCE\n"
+"     merges contents of the SOURCE bitmap into BITMAP in FILE\n"
+"  -b, --source-file SRC_FILE\n"
+"     select alternative source file for --merge\n"
+"  -F, --source-format SRC_FMT\n"
+"     specify format for SRC_FILE explicitly\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file, or option string (key=value,..)\n"
+"     with --image-opts, to operate on\n"
+"  BITMAP\n"
+"     name of the bitmap to add, remove, clear, enable, disable or merge to\n"
+);
             break;
         case 'f':
             fmt = optarg;
             break;
-        case 'F':
-            src_fmt = optarg;
-            break;
-        case 'g':
-            granularity = cvtnum("granularity", optarg);
-            if (granularity < 0) {
-                return 1;
-            }
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
             break;
         case OPTION_ADD:
             act = g_new0(ImgBitmapAction, 1);
             act->act = BITMAP_ADD;
             QSIMPLEQ_INSERT_TAIL(&actions, act, next);
             add = true;
+            break;
+        case 'g':
+            granularity = cvtnum("granularity", optarg);
+            if (granularity < 0) {
+                return 1;
+            }
             break;
         case OPTION_REMOVE:
             act = g_new0(ImgBitmapAction, 1);
@@ -5260,12 +5287,17 @@ static int img_bitmap(const img_cmd_t *ccmd, int argc, char **argv)
             QSIMPLEQ_INSERT_TAIL(&actions, act, next);
             merge = true;
             break;
+        case 'b':
+            src_filename = optarg;
+            break;
+        case 'F':
+            src_fmt = optarg;
+            break;
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
