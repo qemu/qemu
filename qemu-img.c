@@ -398,18 +398,16 @@ static int add_old_style_options(const char *fmt, QemuOpts *opts,
     return 0;
 }
 
-static int64_t cvtnum_full(const char *name, const char *value, int64_t min,
-                           int64_t max)
+static int64_t cvtnum_full(const char *name, const char *value,
+                           bool is_size, int64_t min, int64_t max)
 {
     int err;
     uint64_t res;
 
-    err = qemu_strtosz(value, NULL, &res);
+    err = is_size ? qemu_strtosz(value, NULL, &res) :
+                    qemu_strtou64(value, NULL, 0, &res);
     if (err < 0 && err != -ERANGE) {
-        error_report("Invalid %s specified. You may use "
-                     "k, M, G, T, P or E suffixes for", name);
-        error_report("kilobytes, megabytes, gigabytes, terabytes, "
-                     "petabytes and exabytes.");
+        error_report("Invalid %s specified: '%s'", name, value);
         return err;
     }
     if (err == -ERANGE || res > max || res < min) {
@@ -420,9 +418,9 @@ static int64_t cvtnum_full(const char *name, const char *value, int64_t min,
     return res;
 }
 
-static int64_t cvtnum(const char *name, const char *value)
+static int64_t cvtnum(const char *name, const char *value, bool is_size)
 {
-    return cvtnum_full(name, value, 0, INT64_MAX);
+    return cvtnum_full(name, value, is_size, 0, INT64_MAX);
 }
 
 static int img_create(const img_cmd_t *ccmd, int argc, char **argv)
@@ -525,7 +523,7 @@ static int img_create(const img_cmd_t *ccmd, int argc, char **argv)
 
     /* Get image size, if specified */
     if (optind < argc) {
-        img_size = cvtnum("image size", argv[optind++]);
+        img_size = cvtnum("image size", argv[optind++], true);
         if (img_size < 0) {
             goto fail;
         }
@@ -984,7 +982,7 @@ static int img_commit(const img_cmd_t *ccmd, int argc, char **argv)
             drop = true;
             break;
         case 'r':
-            rate_limit = cvtnum("rate limit", optarg);
+            rate_limit = cvtnum("rate limit", optarg, true);
             if (rate_limit < 0) {
                 return 1;
             }
@@ -2428,7 +2426,7 @@ static int img_convert(const img_cmd_t *ccmd, int argc, char **argv)
         {
             int64_t sval;
 
-            sval = cvtnum("buffer size for sparse output", optarg);
+            sval = cvtnum("buffer size for sparse output", optarg, true);
             if (sval < 0) {
                 goto fail_getopt;
             } else if (!QEMU_IS_ALIGNED(sval, BDRV_SECTOR_SIZE) ||
@@ -2462,16 +2460,15 @@ static int img_convert(const img_cmd_t *ccmd, int argc, char **argv)
             force_share = true;
             break;
         case 'r':
-            rate_limit = cvtnum("rate limit", optarg);
+            rate_limit = cvtnum("rate limit", optarg, true);
             if (rate_limit < 0) {
                 goto fail_getopt;
             }
             break;
         case 'm':
-            if (qemu_strtol(optarg, NULL, 0, &s.num_coroutines) ||
-                s.num_coroutines < 1 || s.num_coroutines > MAX_COROUTINES) {
-                error_report("Invalid number of coroutines. Allowed number of"
-                             " coroutines is between 1 and %d", MAX_COROUTINES);
+            s.num_coroutines = cvtnum_full("number of coroutines", optarg,
+                                           false, 1, MAX_COROUTINES);
+            if (s.num_coroutines < 0) {
                 goto fail_getopt;
             }
             break;
@@ -3376,13 +3373,13 @@ static int img_map(const img_cmd_t *ccmd, int argc, char **argv)
             image_opts = true;
             break;
         case 's':
-            start_offset = cvtnum("start offset", optarg);
+            start_offset = cvtnum("start offset", optarg, true);
             if (start_offset < 0) {
                 return 1;
             }
             break;
         case 'l':
-            max_length = cvtnum("max length", optarg);
+            max_length = cvtnum("max length", optarg, true);
             if (max_length < 0) {
                 return 1;
             }
@@ -4720,9 +4717,9 @@ static int img_bench(const img_cmd_t *ccmd, int argc, char **argv)
     int count = 75000;
     int depth = 64;
     int64_t offset = 0;
-    size_t bufsize = 4096;
+    ssize_t bufsize = 4096;
     int pattern = 0;
-    size_t step = 0;
+    ssize_t step = 0;
     int flush_interval = 0;
     bool drain_on_flush = true;
     int64_t image_size;
@@ -4827,27 +4824,17 @@ static int img_bench(const img_cmd_t *ccmd, int argc, char **argv)
             }
             break;
         case 'c':
-        {
-            unsigned long res;
-
-            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > INT_MAX) {
-                error_report("Invalid request count specified");
+            count = cvtnum_full("request count", optarg, false, 1, INT_MAX);
+            if (count < 0) {
                 return 1;
             }
-            count = res;
             break;
-        }
         case 'd':
-        {
-            unsigned long res;
-
-            if (qemu_strtoul(optarg, NULL, 0, &res) <= 0 || res > INT_MAX) {
-                error_report("Invalid queue depth specified");
+            depth = cvtnum_full("queue depth", optarg, false, 1, INT_MAX);
+            if (depth < 0) {
                 return 1;
             }
-            depth = res;
             break;
-        }
         case 'n':
             flags |= BDRV_O_NATIVE_AIO;
             break;
@@ -4860,64 +4847,40 @@ static int img_bench(const img_cmd_t *ccmd, int argc, char **argv)
             }
             break;
         case 'o':
-        {
-            offset = cvtnum("offset", optarg);
+            offset = cvtnum("offset", optarg, true);
             if (offset < 0) {
                 return 1;
             }
             break;
-        }
-            break;
         case 's':
-        {
-            int64_t sval;
-
-            sval = cvtnum_full("buffer size", optarg, 0, INT_MAX);
-            if (sval < 0) {
+            bufsize = cvtnum_full("buffer size", optarg, true, 1, INT_MAX);
+            if (bufsize < 0) {
                 return 1;
             }
-
-            bufsize = sval;
             break;
-        }
         case 'S':
-        {
-            int64_t sval;
-
-            sval = cvtnum_full("step_size", optarg, 0, INT_MAX);
-            if (sval < 0) {
+            step = cvtnum_full("step size", optarg, true, 0, INT_MAX);
+            if (step < 0) {
                 return 1;
             }
-
-            step = sval;
             break;
-        }
         case 'w':
             flags |= BDRV_O_RDWR;
             is_write = true;
             break;
         case OPTION_PATTERN:
-        {
-            unsigned long res;
-
-            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > 0xff) {
-                error_report("Invalid pattern byte specified");
+            pattern = cvtnum_full("pattern byte", optarg, false, 0, 0xff);
+            if (pattern < 0) {
                 return 1;
             }
-            pattern = res;
             break;
-        }
         case OPTION_FLUSH_INTERVAL:
-        {
-            unsigned long res;
-
-            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > INT_MAX) {
-                error_report("Invalid flush interval specified");
+            flush_interval = cvtnum_full("flush interval", optarg,
+                                         false, 0, INT_MAX);
+            if (flush_interval < 0) {
                 return 1;
             }
-            flush_interval = res;
             break;
-        }
         case OPTION_NO_DRAIN:
             drain_on_flush = false;
             break;
@@ -5129,7 +5092,7 @@ static int img_bitmap(const img_cmd_t *ccmd, int argc, char **argv)
             add = true;
             break;
         case 'g':
-            granularity = cvtnum("granularity", optarg);
+            granularity = cvtnum("granularity", optarg, true);
             if (granularity < 0) {
                 return 1;
             }
@@ -5314,7 +5277,7 @@ static int img_dd_bs(const char *arg,
 {
     int64_t res;
 
-    res = cvtnum_full("bs", arg, 1, INT_MAX);
+    res = cvtnum_full("bs", arg, true, 1, INT_MAX);
 
     if (res < 0) {
         return 1;
@@ -5328,7 +5291,7 @@ static int img_dd_count(const char *arg,
                         struct DdIo *in, struct DdIo *out,
                         struct DdInfo *dd)
 {
-    dd->count = cvtnum("count", arg);
+    dd->count = cvtnum("count", arg, true);
 
     if (dd->count < 0) {
         return 1;
@@ -5359,7 +5322,7 @@ static int img_dd_skip(const char *arg,
                        struct DdIo *in, struct DdIo *out,
                        struct DdInfo *dd)
 {
-    in->offset = cvtnum("skip", arg);
+    in->offset = cvtnum("skip", arg, true);
 
     if (in->offset < 0) {
         return 1;
@@ -5767,7 +5730,7 @@ static int img_measure(const img_cmd_t *ccmd, int argc, char **argv)
             user_creatable_process_cmdline(optarg);
             break;
         case 's':
-            img_size = cvtnum("image size", optarg);
+            img_size = cvtnum("image size", optarg, true);
             if (img_size < 0) {
                 goto out;
             }
