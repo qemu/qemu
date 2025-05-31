@@ -1529,20 +1529,8 @@ static int img_compare(const img_cmd_t *ccmd, int argc, char **argv)
             force_share = true;
             break;
         case OPTION_OBJECT:
-            {
-                Error *local_err = NULL;
-
-                if (!user_creatable_add_from_str(optarg, &local_err)) {
-                    if (local_err) {
-                        error_report_err(local_err);
-                        exit(2);
-                    } else {
-                        /* Help was printed */
-                        exit(EXIT_SUCCESS);
-                    }
-                }
-                break;
-            }
+            user_creatable_process_cmdline(optarg);
+            break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
