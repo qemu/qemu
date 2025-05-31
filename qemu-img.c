@@ -3587,10 +3587,11 @@ out:
     return ret < 0;
 }
 
-#define SNAPSHOT_LIST   1
-#define SNAPSHOT_CREATE 2
-#define SNAPSHOT_APPLY  3
-#define SNAPSHOT_DELETE 4
+/* the same as options */
+#define SNAPSHOT_LIST   'l'
+#define SNAPSHOT_CREATE 'c'
+#define SNAPSHOT_APPLY  'a'
+#define SNAPSHOT_DELETE 'd'
 
 static int img_snapshot(const img_cmd_t *ccmd, int argc, char **argv)
 {
@@ -3598,7 +3599,7 @@ static int img_snapshot(const img_cmd_t *ccmd, int argc, char **argv)
     BlockDriverState *bs;
     QEMUSnapshotInfo sn;
     char *filename, *fmt = NULL, *snapshot_name = NULL;
-    int c, ret = 0, bdrv_oflags;
+    int c, ret = 0;
     int action = 0;
     bool quiet = false;
     Error *err = NULL;
@@ -3606,7 +3607,6 @@ static int img_snapshot(const img_cmd_t *ccmd, int argc, char **argv)
     bool force_share = false;
     int64_t rt;
 
-    bdrv_oflags = BDRV_O_RDWR;
     /* Parse commandline parameters */
     for(;;) {
         static const struct option long_options[] = {
@@ -3634,36 +3634,15 @@ static int img_snapshot(const img_cmd_t *ccmd, int argc, char **argv)
         case 'f':
             fmt = optarg;
             break;
-        case 'l':
+        case SNAPSHOT_LIST:
+        case SNAPSHOT_APPLY:
+        case SNAPSHOT_CREATE:
+        case SNAPSHOT_DELETE:
             if (action) {
                 error_exit(argv[0], "Cannot mix '-l', '-a', '-c', '-d'");
                 return 0;
             }
-            action = SNAPSHOT_LIST;
-            bdrv_oflags &= ~BDRV_O_RDWR; /* no need for RW */
-            break;
-        case 'a':
-            if (action) {
-                error_exit(argv[0], "Cannot mix '-l', '-a', '-c', '-d'");
-                return 0;
-            }
-            action = SNAPSHOT_APPLY;
-            snapshot_name = optarg;
-            break;
-        case 'c':
-            if (action) {
-                error_exit(argv[0], "Cannot mix '-l', '-a', '-c', '-d'");
-                return 0;
-            }
-            action = SNAPSHOT_CREATE;
-            snapshot_name = optarg;
-            break;
-        case 'd':
-            if (action) {
-                error_exit(argv[0], "Cannot mix '-l', '-a', '-c', '-d'");
-                return 0;
-            }
-            action = SNAPSHOT_DELETE;
+            action = c;
             snapshot_name = optarg;
             break;
         case 'q':
@@ -3686,9 +3665,14 @@ static int img_snapshot(const img_cmd_t *ccmd, int argc, char **argv)
     }
     filename = argv[optind++];
 
+    if (!action) {
+        action = SNAPSHOT_LIST;
+    }
+
     /* Open the image */
-    blk = img_open(image_opts, filename, fmt, bdrv_oflags, false, quiet,
-                   force_share);
+    blk = img_open(image_opts, filename, fmt,
+                   action == SNAPSHOT_LIST ? 0 : BDRV_O_RDWR,
+                   false, quiet, force_share);
     if (!blk) {
         return 1;
     }

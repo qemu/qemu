@@ -256,7 +256,7 @@ Parameters to snapshot subcommand:
 
 .. option:: -l
 
-  Lists all snapshots in the given image
+  Lists all snapshots in the given image (default action)
 
 Command description:
 
