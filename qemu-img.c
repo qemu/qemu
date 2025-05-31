@@ -864,8 +864,9 @@ static int img_check(const img_cmd_t *ccmd, int argc, char **argv)
             } else if (!strcmp(optarg, "all")) {
                 fix = BDRV_FIX_LEAKS | BDRV_FIX_ERRORS;
             } else {
-                error_exit(argv[0], "Unknown option value for -r "
-                           "(expecting 'leaks' or 'all'): %s", optarg);
+                error_exit(argv[0],
+                           "--repair (-r) expects 'leaks' or 'all', not '%s'",
+                           optarg);
             }
             break;
         case 'U':
