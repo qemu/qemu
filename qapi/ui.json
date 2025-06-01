@@ -1335,13 +1335,17 @@
 # @show-menubar: Display the main window menubar.  Defaults to "on".
 #     (Since 8.0)
 #
+# @keep-aspect-ratio: Keep width/height aspect ratio of guest content when
+#     resizing host window.  Defaults to "on". (Since 10.1)
+#
 # Since: 2.12
 ##
 { 'struct'  : 'DisplayGTK',
-  'data'    : { '*grab-on-hover' : 'bool',
-                '*zoom-to-fit'   : 'bool',
-                '*show-tabs'     : 'bool',
-                '*show-menubar'  : 'bool'  } }
+  'data'    : { '*grab-on-hover'     : 'bool',
+                '*zoom-to-fit'       : 'bool',
+                '*show-tabs'         : 'bool',
+                '*show-menubar'      : 'bool',
+                '*keep-aspect-ratio' : 'bool'  } }
 
 ##
 # @DisplayEGLHeadless:
