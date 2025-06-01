@@ -1338,6 +1338,8 @@
 # @keep-aspect-ratio: Keep width/height aspect ratio of guest content when
 #     resizing host window.  Defaults to "on". (Since 10.1)
 #
+# @scale: Set preferred scale of the display.  Defaults to 1.0.  (Since 10.1)
+#
 # Since: 2.12
 ##
 { 'struct'  : 'DisplayGTK',
@@ -1345,7 +1347,8 @@
                 '*zoom-to-fit'       : 'bool',
                 '*show-tabs'         : 'bool',
                 '*show-menubar'      : 'bool',
-                '*keep-aspect-ratio' : 'bool'  } }
+                '*keep-aspect-ratio' : 'bool',
+                '*scale'             : 'number'  } }
 
 ##
 # @DisplayEGLHeadless:
