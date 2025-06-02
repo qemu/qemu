@@ -128,6 +128,12 @@ static GSequence *pci_acpi_index_list(void)
     return used_acpi_index_list;
 }
 
+static void pci_set_master(PCIDevice *d, bool enable)
+{
+    memory_region_set_enabled(&d->bus_master_enable_region, enable);
+    d->is_master = enable; /* cache the status */
+}
+
 static void pci_init_bus_master(PCIDevice *pci_dev)
 {
     AddressSpace *dma_as = pci_device_iommu_address_space(pci_dev);
@@ -135,7 +141,7 @@ static void pci_init_bus_master(PCIDevice *pci_dev)
     memory_region_init_alias(&pci_dev->bus_master_enable_region,
                              OBJECT(pci_dev), "bus master",
                              dma_as->root, 0, memory_region_size(dma_as->root));
-    memory_region_set_enabled(&pci_dev->bus_master_enable_region, false);
+    pci_set_master(pci_dev, false);
     memory_region_add_subregion(&pci_dev->bus_master_container_region, 0,
                                 &pci_dev->bus_master_enable_region);
 }
@@ -804,9 +810,8 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size,
         pci_bridge_update_mappings(PCI_BRIDGE(s));
     }
 
-    memory_region_set_enabled(&s->bus_master_enable_region,
-                              pci_get_word(s->config + PCI_COMMAND)
-                              & PCI_COMMAND_MASTER);
+    pci_set_master(s, pci_get_word(s->config + PCI_COMMAND)
+                      & PCI_COMMAND_MASTER);
 
     g_free(config);
     return 0;
@@ -1725,7 +1730,7 @@ static void pci_update_mappings(PCIDevice *d)
     pci_update_vga(d);
 }
 
-static inline int pci_irq_disabled(PCIDevice *d)
+int pci_irq_disabled(PCIDevice *d)
 {
     return pci_get_word(d->config + PCI_COMMAND) & PCI_COMMAND_INTX_DISABLE;
 }
@@ -1787,9 +1792,8 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val_in, int 
 
     if (ranges_overlap(addr, l, PCI_COMMAND, 2)) {
         pci_update_irq_disabled(d, was_irq_disabled);
-        memory_region_set_enabled(&d->bus_master_enable_region,
-                                  (pci_get_word(d->config + PCI_COMMAND)
-                                   & PCI_COMMAND_MASTER) && d->enabled);
+        pci_set_master(d, (pci_get_word(d->config + PCI_COMMAND) &
+                          PCI_COMMAND_MASTER) && d->enabled);
     }
 
     msi_write_config(d, addr, val_in, l);
@@ -2935,6 +2939,23 @@ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
     return &address_space_memory;
 }
 
+int pci_iommu_init_iotlb_notifier(PCIDevice *dev, IOMMUNotifier *n,
+                                  IOMMUNotify fn, void *opaque)
+{
+    PCIBus *bus;
+    PCIBus *iommu_bus;
+    int devfn;
+
+    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    if (iommu_bus && iommu_bus->iommu_ops->init_iotlb_notifier) {
+        iommu_bus->iommu_ops->init_iotlb_notifier(bus, iommu_bus->iommu_opaque,
+                                                  devfn, n, fn, opaque);
+        return 0;
+    }
+
+    return -ENODEV;
+}
+
 bool pci_device_set_iommu_device(PCIDevice *dev, HostIOMMUDevice *hiod,
                                  Error **errp)
 {
@@ -2964,6 +2985,170 @@ void pci_device_unset_iommu_device(PCIDevice *dev)
                                                         iommu_bus->iommu_opaque,
                                                         dev->devfn);
     }
+}
+
+int pci_pri_request_page(PCIDevice *dev, uint32_t pasid, bool priv_req,
+                         bool exec_req, hwaddr addr, bool lpig,
+                         uint16_t prgi, bool is_read, bool is_write)
+{
+    PCIBus *bus;
+    PCIBus *iommu_bus;
+    int devfn;
+
+    if (!dev->is_master ||
+            ((pasid != PCI_NO_PASID) && !pcie_pasid_enabled(dev))) {
+        return -EPERM;
+    }
+
+    if (!pcie_pri_enabled(dev)) {
+        return -EPERM;
+    }
+
+    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    if (iommu_bus && iommu_bus->iommu_ops->pri_request_page) {
+        return iommu_bus->iommu_ops->pri_request_page(bus,
+                                                     iommu_bus->iommu_opaque,
+                                                     devfn, pasid, priv_req,
+                                                     exec_req, addr, lpig, prgi,
+                                                     is_read, is_write);
+    }
+
+    return -ENODEV;
+}
+
+int pci_pri_register_notifier(PCIDevice *dev, uint32_t pasid,
+                              IOMMUPRINotifier *notifier)
+{
+    PCIBus *bus;
+    PCIBus *iommu_bus;
+    int devfn;
+
+    if (!dev->is_master ||
+            ((pasid != PCI_NO_PASID) && !pcie_pasid_enabled(dev))) {
+        return -EPERM;
+    }
+
+    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    if (iommu_bus && iommu_bus->iommu_ops->pri_register_notifier) {
+        iommu_bus->iommu_ops->pri_register_notifier(bus,
+                                                    iommu_bus->iommu_opaque,
+                                                    devfn, pasid, notifier);
+        return 0;
+    }
+
+    return -ENODEV;
+}
+
+void pci_pri_unregister_notifier(PCIDevice *dev, uint32_t pasid)
+{
+    PCIBus *bus;
+    PCIBus *iommu_bus;
+    int devfn;
+
+    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    if (iommu_bus && iommu_bus->iommu_ops->pri_unregister_notifier) {
+        iommu_bus->iommu_ops->pri_unregister_notifier(bus,
+                                                      iommu_bus->iommu_opaque,
+                                                      devfn, pasid);
+    }
+}
+
+ssize_t pci_ats_request_translation(PCIDevice *dev, uint32_t pasid,
+                                    bool priv_req, bool exec_req,
+                                    hwaddr addr, size_t length,
+                                    bool no_write, IOMMUTLBEntry *result,
+                                    size_t result_length,
+                                    uint32_t *err_count)
+{
+    PCIBus *bus;
+    PCIBus *iommu_bus;
+    int devfn;
+
+    if (!dev->is_master ||
+            ((pasid != PCI_NO_PASID) && !pcie_pasid_enabled(dev))) {
+        return -EPERM;
+    }
+
+    if (result_length == 0) {
+        return -ENOSPC;
+    }
+
+    if (!pcie_ats_enabled(dev)) {
+        return -EPERM;
+    }
+
+    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    if (iommu_bus && iommu_bus->iommu_ops->ats_request_translation) {
+        return iommu_bus->iommu_ops->ats_request_translation(bus,
+                                                     iommu_bus->iommu_opaque,
+                                                     devfn, pasid, priv_req,
+                                                     exec_req, addr, length,
+                                                     no_write, result,
+                                                     result_length, err_count);
+    }
+
+    return -ENODEV;
+}
+
+int pci_iommu_register_iotlb_notifier(PCIDevice *dev, uint32_t pasid,
+                                      IOMMUNotifier *n)
+{
+    PCIBus *bus;
+    PCIBus *iommu_bus;
+    int devfn;
+
+    if ((pasid != PCI_NO_PASID) && !pcie_pasid_enabled(dev)) {
+        return -EPERM;
+    }
+
+    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    if (iommu_bus && iommu_bus->iommu_ops->register_iotlb_notifier) {
+        iommu_bus->iommu_ops->register_iotlb_notifier(bus,
+                                           iommu_bus->iommu_opaque, devfn,
+                                           pasid, n);
+        return 0;
+    }
+
+    return -ENODEV;
+}
+
+int pci_iommu_unregister_iotlb_notifier(PCIDevice *dev, uint32_t pasid,
+                                        IOMMUNotifier *n)
+{
+    PCIBus *bus;
+    PCIBus *iommu_bus;
+    int devfn;
+
+    if ((pasid != PCI_NO_PASID) && !pcie_pasid_enabled(dev)) {
+        return -EPERM;
+    }
+
+    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    if (iommu_bus && iommu_bus->iommu_ops->unregister_iotlb_notifier) {
+        iommu_bus->iommu_ops->unregister_iotlb_notifier(bus,
+                                                        iommu_bus->iommu_opaque,
+                                                        devfn, pasid, n);
+        return 0;
+    }
+
+    return -ENODEV;
+}
+
+int pci_iommu_get_iotlb_info(PCIDevice *dev, uint8_t *addr_width,
+                             uint32_t *min_page_size)
+{
+    PCIBus *bus;
+    PCIBus *iommu_bus;
+    int devfn;
+
+    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    if (iommu_bus && iommu_bus->iommu_ops->get_iotlb_info) {
+        iommu_bus->iommu_ops->get_iotlb_info(iommu_bus->iommu_opaque,
+                                             addr_width, min_page_size);
+        return 0;
+    }
+
+    return -ENODEV;
 }
 
 void pci_setup_iommu(PCIBus *bus, const PCIIOMMUOps *ops, void *opaque)
@@ -3100,9 +3285,8 @@ void pci_set_enabled(PCIDevice *d, bool state)
 
     d->enabled = state;
     pci_update_mappings(d);
-    memory_region_set_enabled(&d->bus_master_enable_region,
-                              (pci_get_word(d->config + PCI_COMMAND)
-                               & PCI_COMMAND_MASTER) && d->enabled);
+    pci_set_master(d, (pci_get_word(d->config + PCI_COMMAND)
+                      & PCI_COMMAND_MASTER) && d->enabled);
     if (qdev_is_realized(&d->qdev)) {
         pci_device_reset(d);
     }

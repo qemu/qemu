@@ -70,8 +70,10 @@ struct PCIExpressDevice {
     uint16_t aer_cap;
     PCIEAERLog aer_log;
 
-    /* Offset of ATS capability in config space */
+    /* Offset of ATS, PRI and PASID capabilities in config space */
     uint16_t ats_cap;
+    uint16_t pasid_cap;
+    uint16_t pri_cap;
 
     /* ACS */
     uint16_t acs_cap;
@@ -150,4 +152,13 @@ void pcie_cap_slot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                              Error **errp);
 void pcie_cap_slot_unplug_request_cb(HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp);
+
+void pcie_pasid_init(PCIDevice *dev, uint16_t offset, uint8_t pasid_width,
+                     bool exec_perm, bool priv_mod);
+void pcie_pri_init(PCIDevice *dev, uint16_t offset, uint32_t outstanding_pr_cap,
+                   bool prg_response_pasid_req);
+
+bool pcie_pri_enabled(const PCIDevice *dev);
+bool pcie_pasid_enabled(const PCIDevice *dev);
+bool pcie_ats_enabled(const PCIDevice *dev);
 #endif /* QEMU_PCIE_H */
