@@ -4135,13 +4135,12 @@ common_all = static_library('common',
 target_common_arch_libs = {}
 target_common_system_arch_libs = {}
 foreach target_base_arch, config_base_arch : config_base_arch_mak
-  config_target = config_target_mak[target]
   target_inc = [include_directories('target' / target_base_arch)]
   inc = [common_user_inc + target_inc]
 
-  target_common = common_ss.apply(config_target, strict: false)
-  target_system = system_ss.apply(config_target, strict: false)
-  target_user = user_ss.apply(config_target, strict: false)
+  target_common = common_ss.apply(config_base_arch, strict: false)
+  target_system = system_ss.apply(config_base_arch, strict: false)
+  target_user = user_ss.apply(config_base_arch, strict: false)
   common_deps = []
   system_deps = []
   user_deps = []
