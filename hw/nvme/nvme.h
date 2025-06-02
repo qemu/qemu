@@ -218,6 +218,9 @@ typedef struct NvmeNamespaceParams {
     struct {
         char *ruhs;
     } fdp;
+    uint16_t atomic_nawun;
+    uint16_t atomic_nawupf;
+    bool     atomic_nsfeat;
 } NvmeNamespaceParams;
 
 typedef struct NvmeAtomic {
@@ -280,6 +283,9 @@ typedef struct NvmeNamespace {
         /* reclaim unit handle identifiers indexed by placement handle */
         uint16_t *phs;
     } fdp;
+    uint16_t  atomic_nawun;
+    uint16_t  atomic_nawupf;
+    NvmeAtomic  atomic;
 } NvmeNamespace;
 
 static inline uint32_t nvme_nsid(NvmeNamespace *ns)

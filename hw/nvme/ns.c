@@ -724,10 +724,45 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
     BusState *s = qdev_get_parent_bus(dev);
     NvmeCtrl *n = NVME(s->parent);
     NvmeSubsystem *subsys = n->subsys;
+    NvmeIdCtrl *id = &n->id_ctrl;
+    NvmeIdNs *id_ns = &ns->id_ns;
     uint32_t nsid = ns->params.nsid;
     int i;
 
     assert(subsys);
+
+    /* Set atomic write parameters */
+    if (ns->params.atomic_nsfeat) {
+        id_ns->nsfeat |= NVME_ID_NS_NSFEAT_NSABPNS;
+        id_ns->nawun = cpu_to_le16(ns->params.atomic_nawun);
+        if (!id->awupf || (id_ns->nawun && (id_ns->nawun < id->awun))) {
+            error_report("Invalid NAWUN: %x AWUN=%x", id_ns->nawun, id->awun);
+        }
+        id_ns->nawupf = cpu_to_le16(ns->params.atomic_nawupf);
+        if (!id->awupf || (id_ns->nawupf && (id_ns->nawupf < id->awupf))) {
+            error_report("Invalid NAWUPF: %x AWUPF=%x",
+                id_ns->nawupf, id->awupf);
+        }
+        if (id_ns->nawupf > id_ns->nawun) {
+            error_report("Invalid: NAWUN=%x NAWUPF=%x",
+                id_ns->nawun, id_ns->nawupf);
+        }
+    }
+
+    if (id_ns->nawun || id_ns->nawupf) {
+        NvmeAtomic *atomic = &ns->atomic;
+
+        if (n->dn) {
+            atomic->atomic_max_write_size = cpu_to_le16(id_ns->nawupf) + 1;
+        } else {
+            atomic->atomic_max_write_size = cpu_to_le16(id_ns->nawun) + 1;
+        }
+        if (atomic->atomic_max_write_size == 1) {
+            atomic->atomic_writes = 0;
+        } else {
+            atomic->atomic_writes = 1;
+        }
+    }
 
     /* reparent to subsystem bus */
     if (!qdev_set_parent_bus(dev, &subsys->bus.parent_bus, errp)) {
@@ -804,6 +839,9 @@ static const Property nvme_ns_props[] = {
     DEFINE_PROP_BOOL("eui64-default", NvmeNamespace, params.eui64_default,
                      false),
     DEFINE_PROP_STRING("fdp.ruhs", NvmeNamespace, params.fdp.ruhs),
+    DEFINE_PROP_UINT16("atomic.nawun", NvmeNamespace, params.atomic_nawun, 0),
+    DEFINE_PROP_UINT16("atomic.nawupf", NvmeNamespace, params.atomic_nawupf, 0),
+    DEFINE_PROP_BOOL("atomic.nsfeat", NvmeNamespace, params.atomic_nsfeat, 0),
 };
 
 static void nvme_ns_class_init(ObjectClass *oc, const void *data)

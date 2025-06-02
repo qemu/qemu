@@ -6705,6 +6705,23 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
         } else {
             atomic->atomic_writes = 1;
         }
+        for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
+            ns = nvme_ns(n, i);
+            if (ns && ns->atomic.atomic_writes) {
+                if (n->dn) {
+                    ns->atomic.atomic_max_write_size =
+                        le16_to_cpu(ns->id_ns.nawupf) + 1;
+                } else {
+                    ns->atomic.atomic_max_write_size =
+                        le16_to_cpu(ns->id_ns.nawun) + 1;
+                }
+                if (ns->atomic.atomic_max_write_size == 1) {
+                    ns->atomic.atomic_writes = 0;
+                } else {
+                    ns->atomic.atomic_writes = 1;
+                }
+            }
+        }
         break;
     default:
         return NVME_FEAT_NOT_CHANGEABLE | NVME_DNR;
@@ -7688,6 +7705,12 @@ static int nvme_atomic_write_check(NvmeCtrl *n, NvmeCmd *cmd,
 
 static NvmeAtomic *nvme_get_atomic(NvmeCtrl *n, NvmeCmd *cmd)
 {
+    NvmeNamespace *ns = nvme_ns(n, cmd->nsid);
+
+    if (ns && ns->atomic.atomic_writes) {
+        return &ns->atomic;
+    }
+
     if (n->atomic.atomic_writes) {
         return &n->atomic;
     }
