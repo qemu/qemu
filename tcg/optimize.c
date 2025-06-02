@@ -1039,8 +1039,8 @@ static bool fold_const2_commutative(OptContext *ctx, TCGOp *op)
  * If z_mask allows, fold the output to constant zero.
  * The passed s_mask may be augmented by z_mask.
  */
-static bool fold_masks_zos(OptContext *ctx, TCGOp *op, uint64_t z_mask,
-                           uint64_t o_mask, int64_t s_mask)
+static bool fold_masks_zosa(OptContext *ctx, TCGOp *op, uint64_t z_mask,
+                            uint64_t o_mask, int64_t s_mask, uint64_t a_mask)
 {
     const TCGOpDef *def = &tcg_op_defs[op->opc];
     TCGTemp *ts;
@@ -1061,6 +1061,7 @@ static bool fold_masks_zos(OptContext *ctx, TCGOp *op, uint64_t z_mask,
         z_mask = (int32_t)z_mask;
         o_mask = (int32_t)o_mask;
         s_mask |= INT32_MIN;
+        a_mask = (uint32_t)a_mask;
     }
 
     /* Bits that are known 1 and bits that are known 0 must not overlap. */
@@ -1069,6 +1070,11 @@ static bool fold_masks_zos(OptContext *ctx, TCGOp *op, uint64_t z_mask,
     /* All bits that are not known zero are known one is a constant. */
     if (z_mask == o_mask) {
         return tcg_opt_gen_movi(ctx, op, op->args[0], o_mask);
+    }
+
+    /* If no bits are affected, the operation devolves to a copy. */
+    if (a_mask == 0) {
+        return tcg_opt_gen_mov(ctx, op, op->args[0], op->args[1]);
     }
 
     ts = arg_temp(op->args[0]);
@@ -1090,17 +1096,17 @@ static bool fold_masks_zos(OptContext *ctx, TCGOp *op, uint64_t z_mask,
 static bool fold_masks_zs(OptContext *ctx, TCGOp *op,
                           uint64_t z_mask, uint64_t s_mask)
 {
-    return fold_masks_zos(ctx, op, z_mask, 0, s_mask);
+    return fold_masks_zosa(ctx, op, z_mask, 0, s_mask, -1);
 }
 
 static bool fold_masks_z(OptContext *ctx, TCGOp *op, uint64_t z_mask)
 {
-    return fold_masks_zos(ctx, op, z_mask, 0, 0);
+    return fold_masks_zosa(ctx, op, z_mask, 0, 0, -1);
 }
 
 static bool fold_masks_s(OptContext *ctx, TCGOp *op, uint64_t s_mask)
 {
-    return fold_masks_zos(ctx, op, -1, 0, s_mask);
+    return fold_masks_zosa(ctx, op, -1, 0, s_mask, -1);
 }
 
 /*
