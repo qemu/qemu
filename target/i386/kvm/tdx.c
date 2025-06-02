@@ -284,7 +284,7 @@ static void tdx_post_init_vcpus(void)
 
     hob = tdx_get_hob_entry(tdx_guest);
     CPU_FOREACH(cpu) {
-        tdx_vcpu_ioctl(cpu, KVM_TDX_INIT_VCPU, 0, (void *)hob->address,
+        tdx_vcpu_ioctl(cpu, KVM_TDX_INIT_VCPU, 0, (void *)(uintptr_t)hob->address,
                        &error_fatal);
     }
 }
@@ -339,7 +339,7 @@ static void tdx_finalize_vm(Notifier *notifier, void *unused)
         uint32_t flags;
 
         region = (struct kvm_tdx_init_mem_region) {
-            .source_addr = (uint64_t)entry->mem_ptr,
+            .source_addr = (uintptr_t)entry->mem_ptr,
             .gpa = entry->address,
             .nr_pages = entry->size >> 12,
         };
@@ -893,16 +893,16 @@ static int tdx_check_features(X86ConfidentialGuest *cg, CPUState *cs)
 static int tdx_validate_attributes(TdxGuest *tdx, Error **errp)
 {
     if ((tdx->attributes & ~tdx_caps->supported_attrs)) {
-        error_setg(errp, "Invalid attributes 0x%lx for TDX VM "
-                   "(KVM supported: 0x%llx)", tdx->attributes,
-                   tdx_caps->supported_attrs);
+        error_setg(errp, "Invalid attributes 0x%"PRIx64" for TDX VM "
+                   "(KVM supported: 0x%"PRIx64")", tdx->attributes,
+                   (uint64_t)tdx_caps->supported_attrs);
         return -1;
     }
 
     if (tdx->attributes & ~TDX_SUPPORTED_TD_ATTRS) {
         error_setg(errp, "Some QEMU unsupported TD attribute bits being "
-                    "requested: 0x%lx (QEMU supported: 0x%llx)",
-                    tdx->attributes, TDX_SUPPORTED_TD_ATTRS);
+                    "requested: 0x%"PRIx64" (QEMU supported: 0x%"PRIx64")",
+                    tdx->attributes, (uint64_t)TDX_SUPPORTED_TD_ATTRS);
         return -1;
     }
 
@@ -931,8 +931,8 @@ static int setup_td_xfam(X86CPU *x86cpu, Error **errp)
            env->features[FEAT_XSAVE_XSS_HI];
 
     if (xfam & ~tdx_caps->supported_xfam) {
-        error_setg(errp, "Invalid XFAM 0x%lx for TDX VM (supported: 0x%llx))",
-                   xfam, tdx_caps->supported_xfam);
+        error_setg(errp, "Invalid XFAM 0x%"PRIx64" for TDX VM (supported: 0x%"PRIx64"))",
+                   xfam, (uint64_t)tdx_caps->supported_xfam);
         return -1;
     }
 
@@ -999,14 +999,14 @@ int tdx_pre_create_vcpu(CPUState *cpu, Error **errp)
 
     if (env->tsc_khz && (env->tsc_khz < TDX_MIN_TSC_FREQUENCY_KHZ ||
                          env->tsc_khz > TDX_MAX_TSC_FREQUENCY_KHZ)) {
-        error_setg(errp, "Invalid TSC %ld KHz, must specify cpu_frequency "
+        error_setg(errp, "Invalid TSC %"PRId64" KHz, must specify cpu_frequency "
                          "between [%d, %d] kHz", env->tsc_khz,
                          TDX_MIN_TSC_FREQUENCY_KHZ, TDX_MAX_TSC_FREQUENCY_KHZ);
        return -EINVAL;
     }
 
     if (env->tsc_khz % (25 * 1000)) {
-        error_setg(errp, "Invalid TSC %ld KHz, it must be multiple of 25MHz",
+        error_setg(errp, "Invalid TSC %"PRId64" KHz, it must be multiple of 25MHz",
                    env->tsc_khz);
         return -EINVAL;
     }
@@ -1014,7 +1014,7 @@ int tdx_pre_create_vcpu(CPUState *cpu, Error **errp)
     /* it's safe even env->tsc_khz is 0. KVM uses host's tsc_khz in this case */
     r = kvm_vm_ioctl(kvm_state, KVM_SET_TSC_KHZ, env->tsc_khz);
     if (r < 0) {
-        error_setg_errno(errp, -r, "Unable to set TSC frequency to %ld kHz",
+        error_setg_errno(errp, -r, "Unable to set TSC frequency to %"PRId64" kHz",
                          env->tsc_khz);
         return r;
     }
@@ -1139,7 +1139,7 @@ int tdx_handle_report_fatal_error(X86CPU *cpu, struct kvm_run *run)
     uint64_t gpa = -1ull;
 
     if (error_code & 0xffff) {
-        error_report("TDX: REPORT_FATAL_ERROR: invalid error code: 0x%lx",
+        error_report("TDX: REPORT_FATAL_ERROR: invalid error code: 0x%"PRIx64,
                      error_code);
         return -1;
     }
