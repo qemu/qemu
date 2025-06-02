@@ -220,11 +220,16 @@ typedef struct NvmeNamespaceParams {
     } fdp;
     uint16_t atomic_nawun;
     uint16_t atomic_nawupf;
+    uint16_t atomic_nabsn;
+    uint16_t atomic_nabspf;
+    uint16_t atomic_nabo;
     bool     atomic_nsfeat;
 } NvmeNamespaceParams;
 
 typedef struct NvmeAtomic {
     uint32_t    atomic_max_write_size;
+    uint64_t    atomic_boundary;
+    uint64_t    atomic_nabo;
     bool        atomic_writes;
 } NvmeAtomic;
 
@@ -285,6 +290,9 @@ typedef struct NvmeNamespace {
     } fdp;
     uint16_t  atomic_nawun;
     uint16_t  atomic_nawupf;
+    uint16_t  atomic_nabsn;
+    uint16_t  atomic_nabspf;
+    uint16_t  atomic_nabo;
     NvmeAtomic  atomic;
 } NvmeNamespace;
 

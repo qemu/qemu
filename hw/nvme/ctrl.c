@@ -6711,9 +6711,21 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
                 if (n->dn) {
                     ns->atomic.atomic_max_write_size =
                         le16_to_cpu(ns->id_ns.nawupf) + 1;
+                    if (ns->id_ns.nabspf) {
+                        ns->atomic.atomic_boundary =
+                            le16_to_cpu(ns->id_ns.nabspf) + 1;
+                    } else {
+                        ns->atomic.atomic_boundary = 0;
+                    }
                 } else {
                     ns->atomic.atomic_max_write_size =
                         le16_to_cpu(ns->id_ns.nawun) + 1;
+                    if (ns->id_ns.nabsn) {
+                        ns->atomic.atomic_boundary =
+                            le16_to_cpu(ns->id_ns.nabsn) + 1;
+                    } else {
+                        ns->atomic.atomic_boundary = 0;
+                    }
                 }
                 if (ns->atomic.atomic_max_write_size == 1) {
                     ns->atomic.atomic_writes = 0;
@@ -7636,6 +7648,36 @@ static void nvme_update_sq_tail(NvmeSQueue *sq)
     trace_pci_nvme_update_sq_tail(sq->sqid, sq->tail);
 }
 
+static int nvme_atomic_boundary_check(NvmeCtrl *n, NvmeCmd *cmd,
+    NvmeAtomic *atomic)
+{
+    NvmeRwCmd *rw = (NvmeRwCmd *)cmd;
+
+    if (atomic->atomic_boundary) {
+        uint64_t slba = le64_to_cpu(rw->slba);
+        uint32_t nlb = (uint32_t)le16_to_cpu(rw->nlb);
+        uint64_t elba = slba + nlb;
+        uint64_t imask;
+
+        if ((slba < atomic->atomic_nabo) || (elba < atomic->atomic_nabo)) {
+            return 0;
+        }
+
+        /* Update slba/elba based on boundary offset */
+        slba = slba - atomic->atomic_nabo;
+        elba = slba + nlb;
+
+        imask = ~(atomic->atomic_boundary - 1);
+        if ((slba & imask) != (elba & imask)) {
+            if (n->atomic.atomic_max_write_size &&
+                ((nlb + 1) <= n->atomic.atomic_max_write_size)) {
+                return 1;
+            }
+            return 0;
+        }
+    }
+    return 1;
+}
 #define NVME_ATOMIC_NO_START        0
 #define NVME_ATOMIC_START_ATOMIC    1
 #define NVME_ATOMIC_START_NONATOMIC 2
@@ -7653,6 +7695,15 @@ static int nvme_atomic_write_check(NvmeCtrl *n, NvmeCmd *cmd,
     if ((cmd->opcode == NVME_CMD_READ) || ((cmd->opcode == NVME_CMD_WRITE) &&
         ((rw->nlb + 1) > atomic->atomic_max_write_size))) {
         cmd_atomic_wr = false;
+    }
+
+    /*
+     * Check if a write crosses an atomic boundary.
+     */
+    if (cmd->opcode == NVME_CMD_WRITE) {
+        if (!nvme_atomic_boundary_check(n, cmd, atomic)) {
+            cmd_atomic_wr = false;
+        }
     }
 
     /*
@@ -8741,6 +8792,8 @@ static void nvme_init_state(NvmeCtrl *n)
         } else {
             atomic->atomic_writes = 1;
         }
+        atomic->atomic_boundary = 0;
+        atomic->atomic_nabo = 0;
     }
 }
 
