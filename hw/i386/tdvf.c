@@ -101,16 +101,16 @@ static int tdvf_parse_and_check_section_entry(const TdvfSectionEntry *src,
 
     /* sanity check */
     if (entry->size < entry->data_len) {
-        error_report("Broken metadata RawDataSize 0x%x MemoryDataSize 0x%lx",
+        error_report("Broken metadata RawDataSize 0x%x MemoryDataSize 0x%"PRIx64,
                      entry->data_len, entry->size);
         return -1;
     }
     if (!QEMU_IS_ALIGNED(entry->address, TDVF_ALIGNMENT)) {
-        error_report("MemoryAddress 0x%lx not page aligned", entry->address);
+        error_report("MemoryAddress 0x%"PRIx64" not page aligned", entry->address);
         return -1;
     }
     if (!QEMU_IS_ALIGNED(entry->size, TDVF_ALIGNMENT)) {
-        error_report("MemoryDataSize 0x%lx not page aligned", entry->size);
+        error_report("MemoryDataSize 0x%"PRIx64" not page aligned", entry->size);
         return -1;
     }
 
