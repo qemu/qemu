@@ -17,6 +17,7 @@ proc_macro2_rs_native = dependency('proc-macro2-1-rs', native: true)
 qemuutil_rs = qemuutil.partial_dependency(link_args: true, links: true)
 
 subdir('qemu-api-macros')
+subdir('bits')
 subdir('qemu-api')
 
 subdir('hw')

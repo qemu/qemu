@@ -1,0 +1,19 @@
+[package]
+name = "bits"
+version = "0.1.0"
+authors = ["Paolo Bonzini <pbonzini@redhat.com>"]
+description = "const-friendly bit flags"
+resolver = "2"
+publish = false
+
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+qemu_api_macros = { path = "../qemu-api-macros" }
+
+[lints]
+workspace = true

@@ -12,6 +12,9 @@ use syn::{
 mod utils;
 use utils::MacroError;
 
+mod bits;
+use bits::BitsConstInternal;
+
 fn get_fields<'a>(
     input: &'a DeriveInput,
     msg: &str,
@@ -217,5 +220,14 @@ pub fn derive_tryinto(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let expanded = derive_tryinto_or_error(input).unwrap_or_else(Into::into);
 
+    TokenStream::from(expanded)
+}
+
+#[proc_macro]
+pub fn bits_const_internal(ts: TokenStream) -> TokenStream {
+    let ts = proc_macro2::TokenStream::from(ts);
+    let mut it = ts.into_iter();
+
+    let expanded = BitsConstInternal::parse(&mut it).unwrap_or_else(Into::into);
     TokenStream::from(expanded)
 }
