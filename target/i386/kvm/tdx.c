@@ -1032,7 +1032,9 @@ int tdx_pre_create_vcpu(CPUState *cpu, Error **errp)
             return -1;
         }
         if (data_len != QCRYPTO_HASH_DIGEST_LEN_SHA384) {
-            error_setg(errp, "TDX: failed to decode mrconfigid");
+            error_setg(errp, "TDX 'mrconfigid' sha384 digest was %ld bytes, "
+                             "expected %d bytes", data_len,
+                             QCRYPTO_HASH_DIGEST_LEN_SHA384);
             return -1;
         }
         memcpy(init_vm->mrconfigid, data, data_len);
@@ -1045,7 +1047,9 @@ int tdx_pre_create_vcpu(CPUState *cpu, Error **errp)
             return -1;
         }
         if (data_len != QCRYPTO_HASH_DIGEST_LEN_SHA384) {
-            error_setg(errp, "TDX: failed to decode mrowner");
+            error_setg(errp, "TDX 'mrowner' sha384 digest was %ld bytes, "
+                             "expected %d bytes", data_len,
+                             QCRYPTO_HASH_DIGEST_LEN_SHA384);
             return -1;
         }
         memcpy(init_vm->mrowner, data, data_len);
@@ -1058,7 +1062,9 @@ int tdx_pre_create_vcpu(CPUState *cpu, Error **errp)
             return -1;
         }
         if (data_len != QCRYPTO_HASH_DIGEST_LEN_SHA384) {
-            error_setg(errp, "TDX: failed to decode mrownerconfig");
+            error_setg(errp, "TDX 'mrownerconfig' sha384 digest was %ld bytes, "
+                             "expected %d bytes", data_len,
+                             QCRYPTO_HASH_DIGEST_LEN_SHA384);
             return -1;
         }
         memcpy(init_vm->mrownerconfig, data, data_len);
