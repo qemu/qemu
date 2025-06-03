@@ -36,8 +36,17 @@ def generate_h_begin(events, group):
 
 
 def generate_h(event, group):
-    out('    _simple_%(api)s(%(args)s);',
+    event_id = 'TRACE_' + event.name.upper()
+    if "vcpu" in event.properties:
+        # already checked on the generic format code
+        cond = "true"
+    else:
+        cond = "trace_event_get_state(%s)" % event_id
+    out('    if (%(cond)s) {',
+        '        _simple_%(api)s(%(args)s);',
+        '    }',
         api=event.api(),
+        cond=cond,
         args=", ".join(event.args.names()))
 
 
@@ -72,22 +81,10 @@ def generate_c(event, group):
     if len(event.args) == 0:
         sizestr = '0'
 
-    event_id = 'TRACE_' + event.name.upper()
-    if "vcpu" in event.properties:
-        # already checked on the generic format code
-        cond = "true"
-    else:
-        cond = "trace_event_get_state(%s)" % event_id
-
     out('',
-        '    if (!%(cond)s) {',
-        '        return;',
-        '    }',
-        '',
         '    if (trace_record_start(&rec, %(event_obj)s.id, %(size_str)s)) {',
         '        return; /* Trace Buffer Full, Event Dropped ! */',
         '    }',
-        cond=cond,
         event_obj=event.api(event.QEMU_EVENT),
         size_str=sizestr)
 
