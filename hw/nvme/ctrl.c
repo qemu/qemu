@@ -6816,7 +6816,7 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
 
         switch (sel) {
         case NVME_NS_ATTACHMENT_ATTACH:
-            if (nvme_ns(n, nsid)) {
+            if (nvme_ns(ctrl, nsid)) {
                 return NVME_NS_ALREADY_ATTACHED | NVME_DNR;
             }
 
@@ -6824,7 +6824,7 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
                 return NVME_NS_PRIVATE | NVME_DNR;
             }
 
-            if (!nvme_csi_supported(n, ns->csi)) {
+            if (!nvme_csi_supported(ctrl, ns->csi)) {
                 return NVME_IOCS_NOT_SUPPORTED | NVME_DNR;
             }
 
@@ -6834,6 +6834,10 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
             break;
 
         case NVME_NS_ATTACHMENT_DETACH:
+            if (!nvme_ns(ctrl, nsid)) {
+                return NVME_NS_NOT_ATTACHED | NVME_DNR;
+            }
+
             nvme_detach_ns(ctrl, ns);
             nvme_update_dsm_limits(ctrl, NULL);
 
