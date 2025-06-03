@@ -752,7 +752,7 @@ static void tdx_cpu_instance_init(X86ConfidentialGuest *cg, CPUState *cpu)
     /* invtsc is fixed1 for TD guest */
     object_property_set_bool(OBJECT(cpu), "invtsc", true, &error_abort);
 
-    x86cpu->enable_cpuid_0x1f = true;
+    x86cpu->force_cpuid_0x1f = true;
 }
 
 static uint32_t tdx_adjust_cpuid_features(X86ConfidentialGuest *cg,
