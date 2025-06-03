@@ -73,6 +73,7 @@ version = "0.1.0"
 dependencies = [
  "bilge",
  "bilge-impl",
+ "bits",
  "qemu_api",
  "qemu_api_macros",
 ]
