@@ -8780,7 +8780,7 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     uint8_t *pci_conf = pci_dev->config;
     uint64_t cap = ldq_le_p(&n->bar.cap);
     NvmeSecCtrlEntry *sctrl = nvme_sctrl(n);
-    uint32_t ctratt;
+    uint32_t ctratt = le32_to_cpu(id->ctratt);
     uint16_t oacs;
 
     memcpy(n->cse.acs, nvme_cse_acs_default, sizeof(n->cse.acs));
@@ -8798,10 +8798,11 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
 
     id->oaes = cpu_to_le32(NVME_OAES_NS_ATTR);
 
-    ctratt = NVME_CTRATT_ELBAS;
+    ctratt |= NVME_CTRATT_ELBAS;
     if (n->params.ctratt.mem) {
         ctratt |= NVME_CTRATT_MEM;
     }
+    id->ctratt = cpu_to_le32(ctratt);
 
     id->rab = 6;
 
@@ -8884,17 +8885,6 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     id->psd[0].enlat = cpu_to_le32(0x10);
     id->psd[0].exlat = cpu_to_le32(0x4);
 
-    id->cmic |= NVME_CMIC_MULTI_CTRL;
-    ctratt |= NVME_CTRATT_ENDGRPS;
-
-    id->endgidmax = cpu_to_le16(0x1);
-
-    if (n->subsys->endgrp.fdp.enabled) {
-        ctratt |= NVME_CTRATT_FDPS;
-    }
-
-    id->ctratt = cpu_to_le32(ctratt);
-
     NVME_CAP_SET_MQES(cap, n->params.mqes);
     NVME_CAP_SET_CQR(cap, 1);
     NVME_CAP_SET_TO(cap, 0xf);
@@ -8927,6 +8917,20 @@ static int nvme_init_subsys(NvmeCtrl *n, Error **errp)
         }
 
         n->subsys = NVME_SUBSYS(dev);
+    } else {
+        NvmeIdCtrl *id = &n->id_ctrl;
+        uint32_t ctratt = le32_to_cpu(id->ctratt);
+
+        id->cmic |= NVME_CMIC_MULTI_CTRL;
+        ctratt |= NVME_CTRATT_ENDGRPS;
+
+        id->endgidmax = cpu_to_le16(0x1);
+
+        if (n->subsys->endgrp.fdp.enabled) {
+            ctratt |= NVME_CTRATT_FDPS;
+        }
+
+        id->ctratt = cpu_to_le32(ctratt);
     }
 
     cntlid = nvme_subsys_register_ctrl(n, errp);
