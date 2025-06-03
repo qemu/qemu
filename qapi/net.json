@@ -150,12 +150,12 @@
 # @domainname: guest-visible domain name of the virtual nameserver
 #     (since 3.0)
 #
-# @ipv6-prefix: IPv6 network prefix (default is fec0::) (since 2.6).
-#     The network prefix is given in the usual hexadecimal IPv6
-#     address notation.
+# @ipv6-prefix: IPv6 network prefix (default is fec0::).  The network
+#     prefix is given in the usual hexadecimal IPv6 address notation.
+#     (since 2.6)
 #
-# @ipv6-prefixlen: IPv6 network prefix length (default is 64) (since
-#     2.6)
+# @ipv6-prefixlen: IPv6 network prefix length (default is 64)
+#     (since 2.6)
 #
 # @ipv6-host: guest-visible IPv6 address of the host (since 2.6)
 #
@@ -387,8 +387,8 @@
 #
 # @hubid: hub identifier number
 #
-# @netdev: used to connect hub to a netdev instead of a device (since
-#     2.12)
+# @netdev: used to connect hub to a netdev instead of a device
+#     (since 2.12)
 #
 # Since: 1.2
 ##
@@ -510,8 +510,8 @@
 # @queues: number of queues to be created for multiqueue vhost-vdpa
 #     (default: 1)
 #
-# @x-svq: Start device with (experimental) shadow virtqueue.  (Since
-#     7.1) (default: false)
+# @x-svq: Start device with (experimental) shadow virtqueue.
+#     (Since 7.1) (default: false)
 #
 # Features:
 #

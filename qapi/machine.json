@@ -182,8 +182,8 @@
 # @default-cpu-type: default CPU model typename if none is requested
 #     via the -cpu argument.  (since 4.2)
 #
-# @default-ram-id: the default ID of initial RAM memory backend (since
-#     5.2)
+# @default-ram-id: the default ID of initial RAM memory backend
+#     (since 5.2)
 #
 # @acpi: machine type supports ACPI (since 8.0)
 #
@@ -694,7 +694,7 @@
 # Structure of HMAT (Heterogeneous Memory Attribute Table)
 #
 # For more information about @HmatLBDataType, see chapter 5.2.27.4:
-# Table 5-146:  Field "Data Type" of ACPI 6.3 spec.
+# Table 5-146: Field "Data Type" of ACPI 6.3 spec.
 #
 # @access-latency: access latency (nanoseconds)
 #
@@ -811,7 +811,7 @@
 #
 # @policy: the write policy, none/write-back/write-through.
 #
-# @line: the cache Line size in bytes.
+# @line: the cache line size in bytes.
 #
 # Since: 5.0
 ##
@@ -1089,7 +1089,7 @@
 #    :annotated:
 #
 #    For s390x-virtio-ccw machine type started with
-#    ``-smp 1,maxcpus=2 -cpu qemu`` (Since: 2.11)::
+#    ``-smp 1,maxcpus=2 -cpu qemu``::
 #
 #     -> { "execute": "query-hotpluggable-cpus" }
 #     <- {"return": [
@@ -1160,7 +1160,7 @@
 #
 # Information about the guest balloon device.
 #
-# @actual: the logical size of the VM in bytes Formula used:
+# @actual: the logical size of the VM in bytes.  Formula used:
 #     logical_vm_size = vm_ram_size - balloon_size
 #
 # Since: 0.14
@@ -1199,7 +1199,7 @@
 # is equivalent to the @actual field return by the 'query-balloon'
 # command
 #
-# @actual: the logical size of the VM in bytes Formula used:
+# @actual: the logical size of the VM in bytes.  Formula used:
 #     logical_vm_size = vm_ram_size - balloon_size
 #
 # .. note:: This event is rate-limited.

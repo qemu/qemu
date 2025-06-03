@@ -21,7 +21,7 @@
 ##
 # @ActionCompletionMode:
 #
-# An enumeration of Transactional completion modes.
+# An enumeration of transactional completion modes.
 #
 # @individual: Do not attempt to cancel any other Actions if any
 #     Actions fail after the Transaction request succeeds.  All
@@ -223,7 +223,7 @@
 # exists, the request will be rejected.  Only some image formats
 # support it, for example, qcow2, and rbd,
 #
-# On failure, qemu will try delete the newly created internal snapshot
+# On failure, QEMU will try delete the newly created internal snapshot
 # in the transaction.  When an I/O error occurs during deletion, the
 # user needs to fix it later with qemu-img or other command.
 #

@@ -169,7 +169,7 @@
 # @growable: Whether writes beyond the EOF should grow the block node
 #     accordingly.  (default: false)
 #
-# @allow-other: If this is off, only qemu's user is allowed access to
+# @allow-other: If this is off, only QEMU's user is allowed access to
 #     this export.  That cannot be changed even with chmod or chown.
 #     Enabling this option will allow other users access to the export
 #     with the FUSE mount option "allow_other".  Note that using
@@ -373,9 +373,9 @@
 #     (since: 5.2)
 #
 # @allow-inactive: If true, the export allows the exported node to be inactive.
-#     If it is created for an inactive block node, the node remains inactive. If
+#     If it is created for an inactive block node, the node remains inactive.  If
 #     the export type doesn't support running on an inactive node, an error is
-#     returned. If false, inactive block nodes are automatically activated before
+#     returned.  If false, inactive block nodes are automatically activated before
 #     creating the export and trying to inactivate them later fails.
 #     (since: 10.0; default: false)
 #

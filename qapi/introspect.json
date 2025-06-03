@@ -26,9 +26,9 @@
 # the QAPI schema.
 #
 # Furthermore, while we strive to keep the QMP wire format
-# backwards-compatible across qemu versions, the introspection output
+# backwards-compatible across QEMU versions, the introspection output
 # is not guaranteed to have the same stability.  For example, one
-# version of qemu may list an object member as an optional
+# version of QEMU may list an object member as an optional
 # non-variant, while another lists the same member only through the
 # object's variants; or the type of a member may change from a generic
 # string into a specific enum or from one specific type into an
@@ -154,8 +154,8 @@
 #
 # Additional SchemaInfo members for meta-type 'enum'.
 #
-# @members: the enum type's members, in no particular order (since
-#     6.2).
+# @members: the enum type's members, in no particular order.
+#     (since 6.2)
 #
 # @values: the enumeration type's member names, in no particular
 #     order.  Redundant with @members.  Just for backward

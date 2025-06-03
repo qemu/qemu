@@ -309,9 +309,9 @@
 #
 # @name: name of the sink/source to use
 #
-# @stream-name: name of the PulseAudio stream created by qemu.  Can be
+# @stream-name: name of the PulseAudio stream created by QEMU.  Can be
 #     used to identify the stream in PulseAudio when you create
-#     multiple PulseAudio devices or run multiple qemu instances
+#     multiple PulseAudio devices or run multiple QEMU instances
 #     (default: audiodev's id, since 4.2)
 #
 # @latency: latency you want PulseAudio to achieve in microseconds
@@ -353,9 +353,9 @@
 #
 # @name: name of the sink/source to use
 #
-# @stream-name: name of the PipeWire stream created by qemu.  Can be
+# @stream-name: name of the PipeWire stream created by QEMU.  Can be
 #     used to identify the stream in PipeWire when you create multiple
-#     PipeWire devices or run multiple qemu instances (default:
+#     PipeWire devices or run multiple QEMU instances (default:
 #     audiodev's id)
 #
 # @latency: latency you want PipeWire to achieve in microseconds

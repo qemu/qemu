@@ -20,14 +20,14 @@
 #
 # @create: image creation job type, see "blockdev-create" (since 3.0)
 #
-# @amend: image options amend job type, see "x-blockdev-amend" (since
-#     5.1)
+# @amend: image options amend job type, see "x-blockdev-amend"
+#     (since 5.1)
 #
-# @snapshot-load: snapshot load job type, see "snapshot-load" (since
-#     6.0)
+# @snapshot-load: snapshot load job type, see "snapshot-load"
+#     (since 6.0)
 #
-# @snapshot-save: snapshot save job type, see "snapshot-save" (since
-#     6.0)
+# @snapshot-save: snapshot save job type, see "snapshot-save"
+#     (since 6.0)
 #
 # @snapshot-delete: snapshot delete job type, see "snapshot-delete"
 #     (since 6.0)
@@ -74,7 +74,7 @@
 #     process.
 #
 # @concluded: The job has finished all work.  If auto-dismiss was set
-#     to false, the job will remain in the query list until it is
+#     to false, the job will remain in this state until it is
 #     dismissed via @job-dismiss.
 #
 # @null: The job is in the process of being dismantled.  This state
@@ -191,10 +191,10 @@
 # state.  Completing the job in any other state is an error.
 #
 # This is supported only for drive mirroring, where it also switches
-# the device to write to the target path only. Note that drive
+# the device to write to the target path only.  Note that drive
 # mirroring includes drive-mirror, blockdev-mirror and block-commit
 # job (only in case of "active commit", when the node being commited
-# is used by the guest). The ability to complete is signaled with a
+# is used by the guest).  The ability to complete is signaled with a
 # BLOCK_JOB_READY event.
 #
 # This command completes an active background block operation
@@ -216,16 +216,16 @@
 #
 # Deletes a job that is in the CONCLUDED state.  This command only
 # needs to be run explicitly for jobs that don't have automatic
-# dismiss enabled. In turn, automatic dismiss may be enabled only
+# dismiss enabled.  In turn, automatic dismiss may be enabled only
 # for jobs that have @auto-dismiss option, which are drive-backup,
 # blockdev-backup, drive-mirror, blockdev-mirror, block-commit and
-# block-stream. @auto-dismiss is enabled by default for these
+# block-stream.  @auto-dismiss is enabled by default for these
 # jobs.
 #
 # This command will refuse to operate on any job that has not yet
-# reached its terminal state, JOB_STATUS_CONCLUDED.  For jobs that
-# make use of JOB_READY event, job-cancel or job-complete will still
-# need to be used as appropriate.
+# reached its terminal state, CONCLUDED.  For jobs that make use of
+# the JOB_READY event, job-cancel or job-complete will still need to
+# be used as appropriate.
 #
 # @id: The job identifier.
 #

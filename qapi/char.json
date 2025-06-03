@@ -274,7 +274,7 @@
 # @reconnect: For a client socket, if a socket is disconnected, then
 #     attempt a reconnect after the given number of seconds.  Setting
 #     this to zero disables this function.  The use of this member is
-#     deprecated, use @reconnect-ms instead. (default: 0) (Since: 2.2)
+#     deprecated, use @reconnect-ms instead.  (default: 0) (Since: 2.2)
 #
 # @reconnect-ms: For a client socket, if a socket is disconnected,
 #     then attempt a reconnect after the given number of milliseconds.
@@ -351,7 +351,7 @@
 # Configuration info for stdio chardevs.
 #
 # @signal: Allow signals (such as SIGINT triggered by ^C) be delivered
-#     to qemu.  Default: true.
+#     to QEMU.  Default: true.
 #
 # Since: 1.5
 ##
@@ -443,7 +443,7 @@
 ##
 # @ChardevQemuVDAgent:
 #
-# Configuration info for qemu vdagent implementation.
+# Configuration info for QEMU vdagent implementation.
 #
 # @mouse: enable/disable mouse, default is enabled.
 #
@@ -656,7 +656,7 @@
 ##
 # @ChardevQemuVDAgentWrapper:
 #
-# @data: Configuration info for qemu vdagent implementation
+# @data: Configuration info for QEMU vdagent implementation
 #
 # Since: 6.1
 ##

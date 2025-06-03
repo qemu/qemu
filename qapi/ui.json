@@ -175,8 +175,8 @@
 # @filename: the path of a new file to store the image
 #
 # @device: ID of the display device that should be dumped.  If this
-#     parameter is missing, the primary display will be used.  (Since
-#     2.12)
+#     parameter is missing, the primary display will be used.
+#     (Since 2.12)
 #
 # @head: head to use in case the device supports multiple heads.  If
 #     this parameter is missing, head #0 will be used.  Also note that
@@ -1526,12 +1526,12 @@
 #
 # Display (user interface) options.
 #
-# @type: Which DisplayType qemu should use.
+# @type: Which DisplayType QEMU should use.
 #
 # @full-screen: Start user interface in fullscreen mode
 #     (default: off).
 #
-# @window-close: Allow to quit qemu with window close button
+# @window-close: Allow to quit QEMU with window close button
 #     (default: on).
 #
 # @show-cursor: Force showing the mouse cursor (default: off).

@@ -117,7 +117,7 @@
 # @nibble-mask: Identifies one or more nibbles that the error affects
 #
 # @bank-group: Bank group of the memory event location, incorporating
-#     a number of Banks.
+#     a number of banks.
 #
 # @bank: Bank of the memory event location.  A single bank is accessed
 #     per read or write of the memory.

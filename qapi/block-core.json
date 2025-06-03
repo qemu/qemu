@@ -31,8 +31,8 @@
 # @icount: Current instruction count.  Appears when execution
 #     record/replay is enabled.  Used for "time-traveling" to match
 #     the moment in the recorded execution with the snapshots.  This
-#     counter may be obtained through @query-replay command (since
-#     5.2)
+#     counter may be obtained through @query-replay command
+#     (since 5.2)
 #
 # Since: 1.3
 ##
@@ -488,7 +488,7 @@
 #
 # @active: true if the backend is active; typical cases for inactive backends
 #     are on the migration source instance after migration completes and on the
-#     destination before it completes. (since: 10.0)
+#     destination before it completes.  (since: 10.0)
 #
 # @encrypted: true if the backing device is encrypted
 #
@@ -510,11 +510,11 @@
 #
 # @bps_max: total throughput limit during bursts, in bytes (Since 1.7)
 #
-# @bps_rd_max: read throughput limit during bursts, in bytes (Since
-#     1.7)
+# @bps_rd_max: read throughput limit during bursts, in bytes
+#     (Since 1.7)
 #
-# @bps_wr_max: write throughput limit during bursts, in bytes (Since
-#     1.7)
+# @bps_wr_max: write throughput limit during bursts, in bytes
+#     (Since 1.7)
 #
 # @iops_max: total I/O operations per second during bursts, in bytes
 #     (Since 1.7)
@@ -951,11 +951,11 @@
 # @unmap_operations: The number of unmap operations performed by the
 #     device (Since 4.2)
 #
-# @rd_total_time_ns: Total time spent on reads in nanoseconds (since
-#     0.15).
+# @rd_total_time_ns: Total time spent on reads in nanoseconds
+#     (since 0.15)
 #
-# @wr_total_time_ns: Total time spent on writes in nanoseconds (since
-#     0.15).
+# @wr_total_time_ns: Total time spent on writes in nanoseconds
+#     (since 0.15)
 #
 # @zone_append_total_time_ns: Total time spent on zone append writes
 #     in nanoseconds (since 8.1)
@@ -1322,8 +1322,8 @@
 # @incremental: only copy data described by the dirty bitmap.
 #     (since: 2.4)
 #
-# @bitmap: only copy data described by the dirty bitmap.  (since: 4.2)
-#     Behavior on completion is determined by the BitmapSyncMode.
+# @bitmap: only copy data described by the dirty bitmap.  Behavior on
+#     completion is determined by the BitmapSyncMode.  (since: 4.2)
 #
 # Since: 1.3
 ##
@@ -1337,7 +1337,7 @@
 # bitmap when used for data copy operations.
 #
 # @on-success: The bitmap is only synced when the operation is
-#     successful.  This is the behavior always used for 'INCREMENTAL'
+#     successful.  This is the behavior always used for incremental
 #     backups.
 #
 # @never: The bitmap is never synchronized with the operation, and is
@@ -1417,8 +1417,8 @@
 # @auto-finalize: Job will finalize itself when PENDING, moving to the
 #     CONCLUDED state.  (since 2.12)
 #
-# @auto-dismiss: Job will dismiss itself when CONCLUDED, moving to the
-#     NULL state and disappearing from the query list.  (since 2.12)
+# @auto-dismiss: Job will dismiss itself when CONCLUDED, and
+#     disappear.  (since 2.12)
 #
 # @error: Error information if the job did not complete successfully.
 #     Not set if the job completed successfully.  (since 2.12.1)
@@ -1502,15 +1502,15 @@
 #
 # @device: the name of the device to take a snapshot of.
 #
-# @node-name: graph node name to generate the snapshot from (Since
-#     2.0)
+# @node-name: graph node name to generate the snapshot from
+#     (Since 2.0)
 #
 # @snapshot-file: the target of the new overlay image.  If the file
 #     exists, or if it is a device, the overlay will be created in the
 #     existing file/device.  Otherwise, a new file will be created.
 #
-# @snapshot-node-name: the graph node name of the new image (Since
-#     2.0)
+# @snapshot-node-name: the graph node name of the new image
+#     (Since 2.0)
 #
 # @format: the format of the overlay image, default is 'qcow2'.
 #
@@ -1589,7 +1589,7 @@
 #
 # @bitmap-mode: Specifies the type of data the bitmap should contain
 #     after the operation concludes.  Must be present if a bitmap was
-#     provided, Must NOT be present otherwise.  (Since 4.2)
+#     provided, must **not** be present otherwise.  (Since 4.2)
 #
 # @compress: true to compress data, if the target format supports it.
 #     (default: false) (since 2.8)
@@ -1606,16 +1606,15 @@
 #     copy-before-write jobs; defaults to break-guest-write.  (Since 10.1)
 #
 # @auto-finalize: When false, this job will wait in a PENDING state
-#     after it has finished its work, waiting for @block-job-finalize
-#     before making any block graph changes.  When true, this job will
+#     after it has finished its work, waiting for @job-finalize before
+#     making any block graph changes.  When true, this job will
 #     automatically perform its abort or commit actions.  Defaults to
 #     true.  (Since 2.12)
 #
 # @auto-dismiss: When false, this job will wait in a CONCLUDED state
 #     after it has completely ceased all work, and awaits
-#     @block-job-dismiss.  When true, this job will automatically
-#     disappear from the query list without user intervention.
-#     Defaults to true.  (Since 2.12)
+#     @job-dismiss.  When true, this job will automatically disappear
+#     without user intervention.  Defaults to true.  (Since 2.12)
 #
 # @filter-node-name: the node name that should be assigned to the
 #     filter driver that the backup job inserts into the graph above
@@ -1785,8 +1784,7 @@
 # If top == base, that is an error.  If top has no overlays on top of
 # it, or if it is in use by a writer, the job will not be completed by
 # itself.  The user needs to complete the job with the
-# block-job-complete command after getting the ready event.  (Since
-# 2.0)
+# job-complete command after getting the ready event.  (Since 2.0)
 #
 # If the base image is smaller than top, then the base image will be
 # resized to be the same size as top.  If top is smaller than the base
@@ -1840,7 +1838,7 @@
 # @speed: the maximum speed, in bytes per second
 #
 # @on-error: the action to take on an error.  'ignore' means that the
-#     request should be retried.  (default: report; Since: 5.0)
+#     request should be retried.  (default: report; since: 5.0)
 #
 # @filter-node-name: the node name that should be assigned to the
 #     filter driver that the commit job inserts into the graph above
@@ -1848,16 +1846,15 @@
 #     autogenerated.  (Since: 2.9)
 #
 # @auto-finalize: When false, this job will wait in a PENDING state
-#     after it has finished its work, waiting for @block-job-finalize
-#     before making any block graph changes.  When true, this job will
+#     after it has finished its work, waiting for @job-finalize before
+#     making any block graph changes.  When true, this job will
 #     automatically perform its abort or commit actions.  Defaults to
 #     true.  (Since 3.1)
 #
 # @auto-dismiss: When false, this job will wait in a CONCLUDED state
 #     after it has completely ceased all work, and awaits
-#     @block-job-dismiss.  When true, this job will automatically
-#     disappear from the query list without user intervention.
-#     Defaults to true.  (Since 3.1)
+#     @job-dismiss.  When true, this job will automatically disappear
+#     without user intervention.  Defaults to true.  (Since 3.1)
 #
 # Features:
 #
@@ -1895,7 +1892,7 @@
 # The status of ongoing drive-backup operations can be checked with
 # query-block-jobs where the BlockJobInfo.type field has the value
 # 'backup'.  The operation can be stopped before it has completed
-# using the block-job-cancel command.
+# using the job-cancel or block-job-cancel command.
 #
 # Features:
 #
@@ -1926,7 +1923,7 @@
 # The status of ongoing blockdev-backup operations can be checked with
 # query-block-jobs where the BlockJobInfo.type field has the value
 # 'backup'.  The operation can be stopped before it has completed
-# using the block-job-cancel command.
+# using the job-cancel or block-job-cancel command.
 #
 # Errors:
 #     - If @device is not a valid block device, DeviceNotFound
@@ -2030,7 +2027,7 @@
 #
 # @id: Block graph node identifier.  This @id is generated only for
 #     x-debug-query-block-graph and does not relate to any other
-#     identifiers in Qemu.
+#     identifiers in QEMU.
 #
 # @type: Type of graph node.  Can be one of block-backend, block-job
 #     or block-driver-state.
@@ -2169,8 +2166,8 @@
 # @format: the format of the new destination, default is to probe if
 #     @mode is 'existing', else the format of the source
 #
-# @node-name: the new block driver state node name in the graph (Since
-#     2.1)
+# @node-name: the new block driver state node name in the graph
+#     (Since 2.1)
 #
 # @replaces: with sync=full graph node name to be replaced by the new
 #     image when a whole image copy is done.  This can be used to
@@ -2212,16 +2209,15 @@
 #     'background' (Since: 3.0)
 #
 # @auto-finalize: When false, this job will wait in a PENDING state
-#     after it has finished its work, waiting for @block-job-finalize
-#     before making any block graph changes.  When true, this job will
+#     after it has finished its work, waiting for @job-finalize before
+#     making any block graph changes.  When true, this job will
 #     automatically perform its abort or commit actions.  Defaults to
 #     true.  (Since 3.1)
 #
 # @auto-dismiss: When false, this job will wait in a CONCLUDED state
 #     after it has completely ceased all work, and awaits
-#     @block-job-dismiss.  When true, this job will automatically
-#     disappear from the query list without user intervention.
-#     Defaults to true.  (Since 3.1)
+#     @job-dismiss.  When true, this job will automatically disappear
+#     without user intervention.  Defaults to true.  (Since 3.1)
 #
 # Since: 1.3
 ##
@@ -2531,16 +2527,15 @@
 #     'background' (Since: 3.0)
 #
 # @auto-finalize: When false, this job will wait in a PENDING state
-#     after it has finished its work, waiting for @block-job-finalize
-#     before making any block graph changes.  When true, this job will
+#     after it has finished its work, waiting for @job-finalize before
+#     making any block graph changes.  When true, this job will
 #     automatically perform its abort or commit actions.  Defaults to
 #     true.  (Since 3.1)
 #
 # @auto-dismiss: When false, this job will wait in a CONCLUDED state
 #     after it has completely ceased all work, and awaits
-#     @block-job-dismiss.  When true, this job will automatically
-#     disappear from the query list without user intervention.
-#     Defaults to true.  (Since 3.1)
+#     @job-dismiss.  When true, this job will automatically disappear
+#     without user intervention.  Defaults to true.  (Since 3.1)
 #
 # @target-is-zero: Assume the destination reads as all zeroes before
 #     the mirror started.  Setting this to true can speed up the
@@ -2593,11 +2588,11 @@
 #
 # @bps_max: total throughput limit during bursts, in bytes (Since 1.7)
 #
-# @bps_rd_max: read throughput limit during bursts, in bytes (Since
-#     1.7)
+# @bps_rd_max: read throughput limit during bursts, in bytes
+#     (Since 1.7)
 #
-# @bps_wr_max: write throughput limit during bursts, in bytes (Since
-#     1.7)
+# @bps_wr_max: write throughput limit during bursts, in bytes
+#     (Since 1.7)
 #
 # @iops_max: total I/O operations per second during bursts, in bytes
 #     (Since 1.7)
@@ -2667,7 +2662,7 @@
 # @iops-total-max: I/O operations burst
 #
 # @iops-total-max-length: length of the iops-total-max burst period,
-#     in seconds It must only be set if @iops-total-max is set as
+#     in seconds.  It must only be set if @iops-total-max is set as
 #     well.
 #
 # @iops-read: limit read operations per second
@@ -2675,14 +2670,14 @@
 # @iops-read-max: I/O operations read burst
 #
 # @iops-read-max-length: length of the iops-read-max burst period, in
-#     seconds It must only be set if @iops-read-max is set as well.
+#     seconds.  It must only be set if @iops-read-max is set as well.
 #
 # @iops-write: limit write operations per second
 #
 # @iops-write-max: I/O operations write burst
 #
 # @iops-write-max-length: length of the iops-write-max burst period,
-#     in seconds It must only be set if @iops-write-max is set as
+#     in seconds.  It must only be set if @iops-write-max is set as
 #     well.
 #
 # @bps-total: limit total bytes per second
@@ -2697,14 +2692,14 @@
 # @bps-read-max: total bytes read burst
 #
 # @bps-read-max-length: length of the bps-read-max burst period, in
-#     seconds It must only be set if @bps-read-max is set as well.
+#     seconds.  It must only be set if @bps-read-max is set as well.
 #
 # @bps-write: limit write bytes per second
 #
 # @bps-write-max: total bytes write burst
 #
 # @bps-write-max-length: length of the bps-write-max burst period, in
-#     seconds It must only be set if @bps-write-max is set as well.
+#     seconds.  It must only be set if @bps-write-max is set as well.
 #
 # @iops-size: when limiting by iops max size of an I/O in bytes
 #
@@ -2789,12 +2784,12 @@
 # immediately once streaming has started.  The status of ongoing block
 # streaming operations can be checked with query-block-jobs.  The
 # operation can be stopped before it has completed using the
-# block-job-cancel command.
+# job-cancel or block-job-cancel command.
 #
 # The node that receives the data is called the top image, can be
 # located in any part of the chain (but always above the base image;
 # see below) and can be specified using its device or node name.
-# Earlier qemu versions only allowed 'device' to name the top level
+# Earlier QEMU versions only allowed 'device' to name the top level
 # node; presence of the 'base-node' parameter during introspection can
 # be used as a witness of the enhanced semantics of 'device'.
 #
@@ -2859,16 +2854,15 @@
 #     autogenerated.  (Since: 6.0)
 #
 # @auto-finalize: When false, this job will wait in a PENDING state
-#     after it has finished its work, waiting for @block-job-finalize
-#     before making any block graph changes.  When true, this job will
+#     after it has finished its work, waiting for @job-finalize before
+#     making any block graph changes.  When true, this job will
 #     automatically perform its abort or commit actions.  Defaults to
 #     true.  (Since 3.1)
 #
 # @auto-dismiss: When false, this job will wait in a CONCLUDED state
 #     after it has completely ceased all work, and awaits
-#     @block-job-dismiss.  When true, this job will automatically
-#     disappear from the query list without user intervention.
-#     Defaults to true.  (Since 3.1)
+#     @job-dismiss.  When true, this job will automatically disappear
+#     without user intervention.  Defaults to true.  (Since 3.1)
 #
 # Errors:
 #     - If @device does not exist, DeviceNotFound.
@@ -3030,10 +3024,10 @@
 # state.  Completing the job in any other state is an error.
 #
 # This is supported only for drive mirroring, where it also switches
-# the device to write to the target path only. Note that drive
+# the device to write to the target path only.  Note that drive
 # mirroring includes drive-mirror, blockdev-mirror and block-commit
 # job (only in case of "active commit", when the node being commited
-# is used by the guest). The ability to complete is signaled with a
+# is used by the guest).  The ability to complete is signaled with a
 # BLOCK_JOB_READY event.
 #
 # This command completes an active background block operation
@@ -3068,16 +3062,16 @@
 #
 # Deletes a job that is in the CONCLUDED state.  This command only
 # needs to be run explicitly for jobs that don't have automatic
-# dismiss enabled. In turn, automatic dismiss may be enabled only
+# dismiss enabled.  In turn, automatic dismiss may be enabled only
 # for jobs that have @auto-dismiss option, which are drive-backup,
 # blockdev-backup, drive-mirror, blockdev-mirror, block-commit and
-# block-stream. @auto-dismiss is enabled by default for these
+# block-stream.  @auto-dismiss is enabled by default for these
 # jobs.
 #
 # This command will refuse to operate on any job that has not yet
-# reached its terminal state, JOB_STATUS_CONCLUDED.  For jobs that
-# make use of the BLOCK_JOB_READY event, block-job-cancel or
-# block-job-complete will still need to be used as appropriate.
+# reached its terminal state, CONCLUDED.  For jobs that make use of
+# the BLOCK_JOB_READY event, job-cancel, block-job-cancel or
+# job-complete will still need to be used as appropriate.
 #
 # @id: The job identifier.
 #
@@ -3196,7 +3190,7 @@
 #
 # Selects the AIO backend to handle I/O requests
 #
-# @threads: Use qemu's thread pool
+# @threads: Use QEMU's thread pool
 #
 # @native: Use native AIO backend (only Linux and Windows)
 #
@@ -3415,8 +3409,8 @@
 # Driver specific block device options for LUKS.
 #
 # @key-secret: the ID of a QCryptoSecret object providing the
-#     decryption key (since 2.6).  Mandatory except when doing a
-#     metadata-only probe of the image.
+#     decryption key.  Mandatory except when doing a metadata-only
+#     probe of the image.  (since 2.6)
 #
 # @header: block device holding a detached LUKS header.  (since 9.0)
 #
@@ -3655,8 +3649,8 @@
 #     this feature.  (since 2.5)
 #
 # @encrypt: Image decryption options.  Mandatory for encrypted images,
-#     except when doing a metadata-only probe of the image.  (since
-#     2.10)
+#     except when doing a metadata-only probe of the image.
+#     (since 2.10)
 #
 # @data-file: reference to or definition of the external data file.
 #     This may only be specified for images that require an external
@@ -4326,8 +4320,8 @@
 # @user: Ceph id name.
 #
 # @auth-client-required: Acceptable authentication modes.  This maps
-#     to Ceph configuration option "auth_client_required".  (Since
-#     3.0)
+#     to Ceph configuration option "auth_client_required".
+#     (Since 3.0)
 #
 # @key-secret: ID of a QCryptoSecret object providing a key for cephx
 #     authentication.  This maps to Ceph configuration option "key".
@@ -4581,8 +4575,8 @@
 #     error.  During the first @reconnect-delay seconds, all requests
 #     are paused and will be rerun on a successful reconnect.  After
 #     that time, any delayed requests and all future requests before a
-#     successful reconnect will immediately fail.  Default 0 (Since
-#     4.2)
+#     successful reconnect will immediately fail.  Default 0
+#     (Since 4.2)
 #
 # @open-timeout: In seconds.  If zero, the nbd driver tries the
 #     connection only once, and fails to open if the connection fails.
@@ -4724,11 +4718,11 @@
 #
 # @driver: block driver name
 #
-# @node-name: the node name of the new node (Since 2.0).  This option
-#     is required on the top level of blockdev-add.  Valid node names
-#     start with an alphabetic character and may contain only
-#     alphanumeric characters, '-', '.' and '_'.  Their maximum length
-#     is 31 characters.
+# @node-name: the node name of the new node.  This option is required
+#     on the top level of blockdev-add.  Valid node names start with
+#     an alphabetic character and may contain only alphanumeric
+#     characters, '-', '.' and '_'.  Their maximum length is 31
+#     characters.  (Since 2.0)
 #
 # @discard: discard-related options (default: ignore)
 #
@@ -4737,7 +4731,7 @@
 # @active: whether the block node should be activated (default: true).
 #     Having inactive block nodes is useful primarily for migration because it
 #     allows opening an image on the destination while the source is still
-#     holding locks for it. (Since 10.0)
+#     holding locks for it.  (Since 10.0)
 #
 # @read-only: whether the block device should be read-only (default:
 #     false).  Note that some block drivers support only read-only
@@ -4947,7 +4941,7 @@
 #  3) A reference to a different node: the current child is replaced
 #     with the specified one.
 #
-#  4) NULL: the current child (if any) is detached.
+#  4) null: the current child (if any) is detached.
 #
 # Options (1) and (2) are supported in all cases.  Option (3) is
 # supported for @file and @backing, and option (4) for @backing only.
@@ -4999,14 +4993,14 @@
 ##
 # @blockdev-set-active:
 #
-# Activate or inactivate a block device. Use this to manage the handover of
+# Activate or inactivate a block device.  Use this to manage the handover of
 # block devices on migration with qemu-storage-daemon.
 #
 # Activating a node automatically activates all of its child nodes first.
 # Inactivating a node automatically inactivates any of its child nodes that are
 # not in use by a still active node.
 #
-# @node-name: Name of the graph node to activate or inactivate. By default, all
+# @node-name: Name of the graph node to activate or inactivate.  By default, all
 #     nodes are affected by the operation.
 #
 # @active: true if the nodes should be active when the command returns success,
@@ -5157,10 +5151,10 @@
 ##
 # @BlockdevQcow2Version:
 #
-# @v2: The original QCOW2 format as introduced in qemu 0.10 (version
+# @v2: The original QCOW2 format as introduced in QEMU 0.10 (version
 #     2)
 #
-# @v3: The extended QCOW2 format as introduced in qemu 1.1 (version 3)
+# @v3: The extended QCOW2 format as introduced in QEMU 1.1 (version 3)
 #
 # Since: 2.12
 ##
@@ -5580,7 +5574,7 @@
 # @x-blockdev-amend:
 #
 # Starts a job to amend format specific options of an existing open
-# block device The job is automatically finalized, but a manual
+# block device.  The job is automatically finalized, but a manual
 # job-dismiss is required.
 #
 # @job-id: Identifier for the newly created job.
@@ -5589,7 +5583,7 @@
 #
 # @options: Options (driver specific)
 #
-# @force: Allow unsafe operations, format specific For luks that
+# @force: Allow unsafe operations, format specific.  For luks that
 #     allows erase of the last active keyslot (permanent loss of
 #     data), and replacement of an active keyslot (possible loss of
 #     data if IO error happens)
@@ -5866,7 +5860,7 @@
 # @BLOCK_JOB_PENDING:
 #
 # Emitted when a block job is awaiting explicit authorization to
-# finalize graph changes via @block-job-finalize.  If this job is part
+# finalize graph changes via @job-finalize.  If this job is part
 # of a transaction, it will not emit this event until the transaction
 # has converged first.
 #
