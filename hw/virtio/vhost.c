@@ -47,12 +47,6 @@ static struct vhost_log *vhost_log[VHOST_BACKEND_TYPE_MAX];
 static struct vhost_log *vhost_log_shm[VHOST_BACKEND_TYPE_MAX];
 static QLIST_HEAD(, vhost_dev) vhost_log_devs[VHOST_BACKEND_TYPE_MAX];
 
-/* Memslots used by backends that support private memslots (without an fd). */
-static unsigned int used_memslots;
-
-/* Memslots used by backends that only support shared memslots (with an fd). */
-static unsigned int used_shared_memslots;
-
 static QLIST_HEAD(, vhost_dev) vhost_devices =
     QLIST_HEAD_INITIALIZER(vhost_devices);
 
@@ -74,15 +68,15 @@ unsigned int vhost_get_free_memslots(void)
 
     QLIST_FOREACH(hdev, &vhost_devices, entry) {
         unsigned int r = hdev->vhost_ops->vhost_backend_memslots_limit(hdev);
-        unsigned int cur_free;
+        unsigned int cur_free = r - hdev->mem->nregions;
 
-        if (hdev->vhost_ops->vhost_backend_no_private_memslots &&
-            hdev->vhost_ops->vhost_backend_no_private_memslots(hdev)) {
-            cur_free = r - used_shared_memslots;
+        if (unlikely(r < hdev->mem->nregions)) {
+            warn_report_once("used (%u) vhost backend memory slots exceed"
+                             " the device limit (%u).", hdev->mem->nregions, r);
+            free = 0;
         } else {
-            cur_free = r - used_memslots;
+            free = MIN(free, cur_free);
         }
-        free = MIN(free, cur_free);
     }
     return free;
 }
@@ -665,13 +659,6 @@ static void vhost_commit(MemoryListener *listener)
                        dev->n_mem_sections * sizeof dev->mem->regions[0];
     dev->mem = g_realloc(dev->mem, regions_size);
     dev->mem->nregions = dev->n_mem_sections;
-
-    if (dev->vhost_ops->vhost_backend_no_private_memslots &&
-        dev->vhost_ops->vhost_backend_no_private_memslots(dev)) {
-        used_shared_memslots = dev->mem->nregions;
-    } else {
-        used_memslots = dev->mem->nregions;
-    }
 
     for (i = 0; i < dev->n_mem_sections; i++) {
         struct vhost_memory_region *cur_vmr = dev->mem->regions + i;
@@ -1619,15 +1606,11 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
 
     /*
-     * The listener we registered properly updated the corresponding counter.
-     * So we can trust that these values are accurate.
+     * The listener we registered properly setup the number of required
+     * memslots in vhost_commit().
      */
-    if (hdev->vhost_ops->vhost_backend_no_private_memslots &&
-        hdev->vhost_ops->vhost_backend_no_private_memslots(hdev)) {
-        used = used_shared_memslots;
-    } else {
-        used = used_memslots;
-    }
+    used = hdev->mem->nregions;
+
     /*
      * We assume that all reserved memslots actually require a real memslot
      * in our vhost backend. This might not be true, for example, if the
