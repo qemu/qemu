@@ -135,6 +135,7 @@ tests_arm_system_thorough = [
   'arm_orangepi',
   'arm_quanta_gsj',
   'arm_raspi2',
+  'arm_realview',
   'arm_replay',
   'arm_smdkc210',
   'arm_stellaris',
