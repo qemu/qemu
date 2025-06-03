@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 21%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 22%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -567,6 +567,8 @@ Patch197: kvm-hw-i386-Fix-machine-type-compatibility.patch
 Patch198: kvm-vfio-helpers-Refactor-vfio_region_mmap-error-handlin.patch
 # For RHEL-88533 - Improve VFIO mmapping performance with  huge  pfnmaps
 Patch199: kvm-vfio-helpers-Align-mmaps.patch
+# For RHEL-85159 - Video stuck about 1 min after switchover phase when play one video during postcopy-preempt migration
+Patch200: kvm-migration-postcopy-Spatial-locality-page-hint-for-pr.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1642,6 +1644,16 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Mon Jun 02 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-22
+- kvm-migration-postcopy-Spatial-locality-page-hint-for-pr.patch [RHEL-85159]
+- kvm-Allow-guest-network-get-route-guest-get-load-QGA-com.patch [RHEL-91605 RHEL-91606]
+- Resolves: RHEL-85159
+  (Video stuck about 1 min after switchover phase when play one video during postcopy-preempt migration)
+- Resolves: RHEL-91605
+  ([qemu-guest-agent] Add new api 'guest-network-get-route' to allow-rpc [RHEL-9])
+- Resolves: RHEL-91606
+  ([qemu-guest-agent] Enable 'guest-get-load' by default [RHEL-9])
+
 * Mon May 26 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-21
 - kvm-meson-configure-add-valgrind-option-en-dis-able-valg.patch [RHEL-88153]
 - kvm-distro-add-an-explicit-valgrind-devel-build-dep.patch [RHEL-88153]
