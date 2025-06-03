@@ -25,7 +25,6 @@ class ReverseDebugging_AArch64(ReverseDebugging):
          'releases/29/Everything/aarch64/os/images/pxeboot/vmlinuz'),
         '7e1430b81c26bdd0da025eeb8fbd77b5dc961da4364af26e771bd39f379cbbf7')
 
-    @skipFlakyTest("https://gitlab.com/qemu-project/qemu/-/issues/2921")
     def test_aarch64_virt(self):
         self.set_machine('virt')
         self.cpu = 'cortex-a53'

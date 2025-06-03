@@ -263,6 +263,8 @@ bool replay_has_interrupt(void)
 
 void replay_shutdown_request(ShutdownCause cause)
 {
+    replay_save_instructions();
+
     if (replay_mode == REPLAY_MODE_RECORD) {
         g_assert(replay_mutex_locked());
         replay_put_event(EVENT_SHUTDOWN + cause);
