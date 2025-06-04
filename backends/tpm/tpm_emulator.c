@@ -35,6 +35,7 @@
 #include "system/runstate.h"
 #include "system/tpm_backend.h"
 #include "system/tpm_util.h"
+#include "system/dma.h"
 #include "tpm_int.h"
 #include "tpm_ioctl.h"
 #include "migration/blocker.h"
@@ -45,9 +46,14 @@
 #include "chardev/char-fe.h"
 #include "trace.h"
 #include "qom/object.h"
+#include "crypto/hash.h"
 
 #define TYPE_TPM_EMULATOR "tpm-emulator"
 OBJECT_DECLARE_SIMPLE_TYPE(TPMEmulator, TPM_EMULATOR)
+
+#define PRINT_BUFFER(buf, size)     for (size_t i = 0; i < size; i++) { if (i % 16 == 0) { g_printf("\n"); } g_printf("%02X ", (uint8_t)buf[i]); };
+#define FIRMWARE_HASH_BLOCK 0x1000
+#define HASHES_OFFSET       0x42000
 
 #define TPM_EMULATOR_IMPLEMENTS_ALL_CAPS(S, cap) (((S)->caps & (cap)) == (cap))
 
@@ -92,6 +98,49 @@ struct tpm_error {
     const char *string;
 };
 
+typedef struct {
+    struct tpm_req_hdr hdr;
+    uint32_t capability;
+    uint32_t property;
+    uint32_t property_count;
+} QEMU_PACKED TPM2_GET_CAPABILITY_COMMAND;
+
+typedef struct {
+    struct tpm_resp_hdr hdr;
+    uint8_t more_data;
+    TPMS_CAPABILITY_DATA CapabilityData;
+} QEMU_PACKED TPM2_GET_CAPABILITY_RESPONSE;
+
+typedef struct {
+    struct tpm_req_hdr hdr;
+    TPML_PCR_SELECTION pcr_selection_in;
+} QEMU_PACKED TPM2_PCR_READ_COMMAND;
+
+typedef struct {
+    struct tpm_resp_hdr hdr;
+    uint32_t update_counter;
+    TPML_PCR_SELECTION pcr_selection_out;
+    TPML_DIGEST pcr_values;
+} QEMU_PACKED TPM2_PCR_READ_RESPONSE;
+
+typedef struct {
+    struct tpm_req_hdr hdr;
+    uint16_t startup_type;
+} QEMU_PACKED TPM2_STARTUP_COMMAND;
+
+typedef struct {
+    struct tpm_resp_hdr hdr;
+} QEMU_PACKED TPM2_STARTUP_RESPONSE;
+
+typedef struct {
+    struct tpm_req_hdr hdr;
+    uint16_t shutdown_type;
+} QEMU_PACKED TPM2_SHUTDOWN_COMMAND;
+
+typedef struct {
+    struct tpm_resp_hdr hdr;
+} QEMU_PACKED TPM2_SHUTDOWN_RESPONSE;
+
 static const struct tpm_error tpm_errors[] = {
     /* TPM 1.2 error codes */
     { TPM_BAD_PARAMETER   , "a parameter is bad" },
@@ -133,7 +182,7 @@ static int tpm_emulator_ctrlcmd(TPMEmulator *tpm, unsigned long cmd, void *msg,
     ptm_res res;
 
     WITH_QEMU_LOCK_GUARD(&tpm->mutex) {
-        buf = g_alloca(n);
+        buf = g_malloc0(n);
         memcpy(buf, &cmd_no, sizeof(cmd_no));
         memcpy(buf + sizeof(cmd_no), msg, msg_len_in);
 
@@ -165,6 +214,8 @@ static int tpm_emulator_ctrlcmd(TPMEmulator *tpm, unsigned long cmd, void *msg,
                 return -1;
             }
         }
+
+        g_free(buf);
     }
 
     return 0;
@@ -367,9 +418,9 @@ static int tpm_emulator_set_buffer_size(TPMBackend *tb,
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
     ptm_setbuffersize psbs;
 
-    if (tpm_emulator_stop_tpm(tb) < 0) {
-        return -1;
-    }
+    // if (tpm_emulator_stop_tpm(tb) < 0) {
+    //     return -1;
+    // }
 
     psbs.u.req.buffersize = cpu_to_be32(wanted_size);
 
@@ -401,6 +452,230 @@ static int tpm_emulator_set_buffer_size(TPMBackend *tb,
     return 0;
 }
 
+
+static MemTxResult read_flash(MemoryRegion *flash, uint8_t *buffer)
+{
+    uint64_t val;
+    MemTxResult rc;
+
+    for (ssize_t i = 0; i < flash->size; i += sizeof(uint32_t)) {
+        /**
+         * The flash can read 4 bytes/burst
+         */
+        rc = flash->ops->read_with_attrs(flash->opaque, i, &val,
+                sizeof(uint32_t), (MemTxAttrs) { .secure = 1 });
+        if (rc == MEMTX_OK) {
+            *(uint32_t *)(buffer + i) = (uint32_t)val;
+        }
+    }
+
+    return rc;
+}
+
+
+/**
+ * Read PCR 0 and verify integrity of CRTM
+ * @param   tpm_emu         Pointer to TPM emulator instance
+ * 
+ * @return                  0 on success, 1 on error
+ */
+static int audit_pcr(TPMEmulator *tpm_emu, uint8_t *firmware_hash, int *modified) {
+    TPM2_PCR_READ_COMMAND pcr_read_cmd;
+    TPM2_PCR_READ_RESPONSE pcr_read_resp;
+    TPM2_STARTUP_COMMAND startup_cmd;
+    TPM2_STARTUP_RESPONSE startup_resp;
+    TPM2_SHUTDOWN_COMMAND shutdown_cmd;
+    TPM2_SHUTDOWN_RESPONSE shutdown_resp;
+    TPM2B_DIGEST *pcr_value;
+    uint32_t cmd_len;
+    int ret;
+
+    /**
+     * 1) Startup the TPM
+     */
+    startup_cmd.hdr.tag = cpu_to_be16(TPM2_ST_NO_SESSIONS);
+    startup_cmd.hdr.len = cpu_to_be32(sizeof(TPM2_STARTUP_COMMAND));
+    startup_cmd.hdr.ordinal = cpu_to_be32(TPM2_CC_Startup);
+    startup_cmd.startup_type = cpu_to_be16(TPM_SU_CLEAR);
+
+    ret = tpm_util_request(QIO_CHANNEL_SOCKET(tpm_emu->data_ioc)->fd, 
+                           &startup_cmd, sizeof(TPM2_STARTUP_COMMAND),
+                           &startup_resp, sizeof(TPM2_STARTUP_RESPONSE));
+    if (ret) {
+        goto err_exit;
+    }
+
+    /**
+     * 2) Read PCR 0
+     */
+    cmd_len = sizeof(struct tpm_req_hdr) + sizeof(uint32_t) + sizeof(TPMS_PCR_SELECTION);
+    pcr_read_cmd.hdr.tag = cpu_to_be16(TPM2_ST_NO_SESSIONS);
+    pcr_read_cmd.hdr.len = cpu_to_be32(cmd_len); 
+    pcr_read_cmd.hdr.ordinal = cpu_to_be32(TPM2_CC_PCR_Read);
+    pcr_read_cmd.pcr_selection_in.count = cpu_to_be32(0x00000001);
+    pcr_read_cmd.pcr_selection_in.pcr_selection[0].hash = cpu_to_be16(TPM_ALG_SHA256);
+    pcr_read_cmd.pcr_selection_in.pcr_selection[0].select_size = PCR_SELECT_MAX;
+    pcr_read_cmd.pcr_selection_in.pcr_selection[0].pcr_select[0] = 0x01;
+    pcr_read_cmd.pcr_selection_in.pcr_selection[0].pcr_select[1] = 0x00;
+    pcr_read_cmd.pcr_selection_in.pcr_selection[0].pcr_select[2] = 0x00;
+
+
+    ret = tpm_util_request(QIO_CHANNEL_SOCKET(tpm_emu->data_ioc)->fd, 
+                           &pcr_read_cmd, be32_to_cpu(pcr_read_cmd.hdr.len),
+                           &pcr_read_resp, sizeof(TPM2_PCR_READ_RESPONSE));
+    if (ret) {
+        goto err_exit;
+    }
+
+    /**
+     * 3) Compare with value in firmware
+     */
+    pcr_value = (TPM2B_DIGEST *)((uint8_t *)&pcr_read_resp + 28);
+    for (size_t i = 0; i < be16_to_cpu(pcr_value->size); i++) {
+        if (pcr_value->buffer[i] != firmware_hash[i]) {
+            *modified = 1;
+        }
+    }
+
+    /**
+     * 4) Shutdown the TPM
+     */
+    shutdown_cmd.hdr.tag = cpu_to_be16(TPM2_ST_NO_SESSIONS);
+    shutdown_cmd.hdr.len = cpu_to_be32(sizeof(TPM2_SHUTDOWN_COMMAND));
+    shutdown_cmd.hdr.ordinal = cpu_to_be32(TPM2_CC_Shutdown);
+    shutdown_cmd.shutdown_type = cpu_to_be16(TPM_SU_STATE);
+
+    ret = tpm_util_request(QIO_CHANNEL_SOCKET(tpm_emu->data_ioc)->fd, 
+                           &shutdown_cmd, sizeof(TPM2_SHUTDOWN_COMMAND),
+                           &shutdown_resp, sizeof(TPM2_SHUTDOWN_RESPONSE));
+    if (ret) {
+        goto err_exit;
+    }
+
+    return 0;
+
+err_exit:
+    return 1;
+}
+
+/**
+ * ! Secure Boot
+ */
+static int tpm_emulator_verify_firmware(TPMBackend *tb)
+{
+    TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
+    MemoryRegion *sysmem = get_system_memory();
+    MemoryRegion *mr;
+    MemoryRegion *flash0;
+    MemoryRegion *flash1;
+    uint8_t *firmware;
+    uint8_t *firmware_hash;
+    MemTxResult rc;
+    ptm_hdata hdata;
+    ptm_res res;
+    uint32_t idx;
+    uint32_t firmware_len;
+    uint32_t remain;
+    int ret;
+    int modified;
+
+    /**
+     * 1) Find flashes memory regions and TPM TIS
+     */
+    QTAILQ_FOREACH(mr, &sysmem->subregions, subregions_link) {
+        if (strstr(mr->name, "flash0")) {
+            flash0 = mr;
+        } else if (strstr(mr->name, "flash1")) {
+            flash1 = mr;
+        }
+    }
+
+    /** 
+     * 2) Read flashes
+     */
+    firmware_len = flash0->size + flash1->size;
+    firmware = g_malloc0(firmware_len);
+    if (flash0->addr < flash1->addr) {
+        rc = read_flash(flash0, firmware);
+        if (rc == MEMTX_OK) {
+            rc = read_flash(flash1, firmware + flash0->size);
+        } else {
+            goto err_exit;
+        }
+    } else {
+        rc = read_flash(flash1, firmware);
+        if (rc == MEMTX_OK) {
+            rc = read_flash(flash0, firmware + flash1->size);
+        } else {
+            goto err_exit;
+        }
+    }
+
+    // Retrive firmware hash value
+    firmware_hash = g_malloc0(FIRMWARE_HASH_BLOCK);
+    memcpy(firmware_hash, firmware + HASHES_OFFSET, FIRMWARE_HASH_BLOCK);
+    memset(firmware + HASHES_OFFSET, 0xFF, FIRMWARE_HASH_BLOCK);
+
+    /**
+     * 3) Hash flashes and extend to PCR 0
+     */
+    ret = tpm_emulator_ctrlcmd(tpm_emu, CMD_HASH_START, &res, 0,
+                            sizeof(res), sizeof(ptm_res));
+    if (ret) {
+        goto err_exit;
+    }
+
+    idx = 0;
+    while (idx < firmware_len) {
+        remain = firmware_len - idx;
+        if (remain > sizeof(hdata.u.req.data)) {
+            remain = sizeof(hdata.u.req.data);
+        }
+
+        hdata.u.req.length = cpu_to_be32(remain);
+        memcpy(hdata.u.req.data, firmware + idx, remain);
+
+        ret = tpm_emulator_ctrlcmd(tpm_emu, CMD_HASH_DATA, &hdata,
+                                   offsetof(ptm_hdata, u.req.data) + remain, 
+                                   sizeof(hdata.u.resp.tpm_result),
+                                   sizeof(hdata.u.resp.tpm_result));
+        if (ret) {
+            goto err_exit;
+        }
+
+        idx += remain;
+    }
+
+    memset(&res, 0, sizeof(ptm_res));
+    ret = tpm_emulator_ctrlcmd(tpm_emu, CMD_HASH_END, &res, 0,
+                            sizeof(ptm_res), sizeof(res));
+    if (ret) {
+        goto err_exit;
+    }
+
+    /**
+     * 4) Verify CRTM
+     */
+    ret = audit_pcr(tpm_emu, firmware_hash, &modified);
+    if (ret) {
+        goto err_exit;
+    }
+
+    if (modified) {
+        error_report("SECURITY ERROR - FIRMWARE MODIFIED\n");
+        exit(1);
+    }
+    
+    g_free(firmware);
+    g_free(firmware_hash);
+    return 0;
+    
+err_exit:
+    g_free(firmware);
+    g_free(firmware_hash);
+    return -1;
+}
+
 static int tpm_emulator_startup_tpm_resume(TPMBackend *tb, size_t buffersize,
                                      bool is_resume)
 {
@@ -409,6 +684,7 @@ static int tpm_emulator_startup_tpm_resume(TPMBackend *tb, size_t buffersize,
         .u.req.init_flags = 0,
     };
     ptm_res res;
+
 
     trace_tpm_emulator_startup_tpm_resume(is_resume, buffersize);
 
@@ -435,6 +711,11 @@ static int tpm_emulator_startup_tpm_resume(TPMBackend *tb, size_t buffersize,
                      tpm_emulator_strerror(res));
         goto err_exit;
     }
+
+    if (tpm_emulator_verify_firmware(tb)) {
+        return -1;
+    }
+
     return 0;
 
 err_exit:

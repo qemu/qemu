@@ -106,11 +106,11 @@ bool tpm_util_is_selftest(const uint8_t *in, uint32_t in_len)
 /*
  * Send request to a TPM device. We expect a response within one second.
  */
-static int tpm_util_request(int fd,
-                            const void *request,
-                            size_t requestlen,
-                            void *response,
-                            size_t responselen)
+int tpm_util_request(int fd,
+                     const void *request,
+                     size_t requestlen,
+                     void *response,
+                     size_t responselen)
 {
     GPollFD fds[1] = { {.fd = fd, .events = G_IO_IN } };
     int n;
