@@ -1088,8 +1088,7 @@ static void create_fdt_iommu_sys(RISCVVirtState *s, uint32_t irq_chip,
     qemu_fdt_setprop_cell(fdt, iommu_node, "#iommu-cells", 1);
     qemu_fdt_setprop_cell(fdt, iommu_node, "phandle", iommu_phandle);
 
-    qemu_fdt_setprop_cells(fdt, iommu_node, "reg",
-                           addr >> 32, addr, size >> 32, size);
+    qemu_fdt_setprop_sized_cells(fdt, iommu_node, "reg", 2, addr, 2, size);
     qemu_fdt_setprop_cell(fdt, iommu_node, "interrupt-parent", irq_chip);
 
     qemu_fdt_setprop_cells(fdt, iommu_node, "interrupts",
