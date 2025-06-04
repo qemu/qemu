@@ -387,8 +387,8 @@ static void create_fdt_socket_aclint(RISCVVirtState *s,
         qemu_fdt_add_subnode(ms->fdt, name);
         qemu_fdt_setprop_string(ms->fdt, name, "compatible",
             "riscv,aclint-mswi");
-        qemu_fdt_setprop_cells(ms->fdt, name, "reg",
-            0x0, addr, 0x0, RISCV_ACLINT_SWI_SIZE);
+        qemu_fdt_setprop_sized_cells(ms->fdt, name, "reg",
+            2, addr, 2, RISCV_ACLINT_SWI_SIZE);
         qemu_fdt_setprop(ms->fdt, name, "interrupts-extended",
             aclint_mswi_cells, aclint_cells_size);
         qemu_fdt_setprop(ms->fdt, name, "interrupt-controller", NULL, 0);
@@ -410,11 +410,11 @@ static void create_fdt_socket_aclint(RISCVVirtState *s,
     qemu_fdt_add_subnode(ms->fdt, name);
     qemu_fdt_setprop_string(ms->fdt, name, "compatible",
         "riscv,aclint-mtimer");
-    qemu_fdt_setprop_cells(ms->fdt, name, "reg",
-        0x0, addr + RISCV_ACLINT_DEFAULT_MTIME,
-        0x0, size - RISCV_ACLINT_DEFAULT_MTIME,
-        0x0, addr + RISCV_ACLINT_DEFAULT_MTIMECMP,
-        0x0, RISCV_ACLINT_DEFAULT_MTIME);
+    qemu_fdt_setprop_sized_cells(ms->fdt, name, "reg",
+        2, addr + RISCV_ACLINT_DEFAULT_MTIME,
+        2, size - RISCV_ACLINT_DEFAULT_MTIME,
+        2, addr + RISCV_ACLINT_DEFAULT_MTIMECMP,
+        2, RISCV_ACLINT_DEFAULT_MTIME);
     qemu_fdt_setprop(ms->fdt, name, "interrupts-extended",
         aclint_mtimer_cells, aclint_cells_size);
     riscv_socket_fdt_write_id(ms, name, socket);
@@ -428,8 +428,8 @@ static void create_fdt_socket_aclint(RISCVVirtState *s,
         qemu_fdt_add_subnode(ms->fdt, name);
         qemu_fdt_setprop_string(ms->fdt, name, "compatible",
             "riscv,aclint-sswi");
-        qemu_fdt_setprop_cells(ms->fdt, name, "reg",
-            0x0, addr, 0x0, s->memmap[VIRT_ACLINT_SSWI].size);
+        qemu_fdt_setprop_sized_cells(ms->fdt, name, "reg",
+            2, addr, 2, s->memmap[VIRT_ACLINT_SSWI].size);
         qemu_fdt_setprop(ms->fdt, name, "interrupts-extended",
             aclint_sswi_cells, aclint_cells_size);
         qemu_fdt_setprop(ms->fdt, name, "interrupt-controller", NULL, 0);
