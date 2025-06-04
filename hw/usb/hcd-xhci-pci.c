@@ -28,6 +28,7 @@
 #include "migration/vmstate.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
+#include "sysemu/spdm.h"
 #include "hcd-xhci-pci.h"
 #include "trace.h"
 #include "qapi/error.h"
@@ -105,16 +106,47 @@ static int xhci_pci_vmstate_post_load(void *opaque, int version_id)
    return 0;
 }
 
+#ifdef CONFIG_LIBSPDM
+static uint32_t usb_xhci_pci_read_config(PCIDevice *pci_dev, uint32_t address, int len)
+{
+    uint32_t val;
+
+    if (pcie_find_capability(pci_dev, PCI_EXT_CAP_ID_DOE)) {
+        if (pcie_doe_read_config(&pci_dev->doe_spdm, address, len, &val)) {
+            return val;
+        }
+    }
+
+    return 0;
+}
+
+static void usb_xhci_pci_write_config(PCIDevice *pci_dev, uint32_t address,
+                                      uint32_t val, int len)
+{
+    if (pcie_find_capability(pci_dev, PCI_EXT_CAP_ID_DOE)) {
+        pcie_doe_write_config(&pci_dev->doe_spdm, address, val, len);
+    }
+}
+#endif
+
 static void usb_xhci_pci_realize(struct PCIDevice *dev, Error **errp)
 {
     int ret;
     Error *err = NULL;
     XHCIPciState *s = XHCI_PCI(dev);
+#ifdef CONFIG_LIBSPDM
+    // uint16_t doe_offset;
+    // SpdmDev* usb_xhci_spdm_dev = g_malloc0(sizeof(SpdmDev));
+#endif
 
     dev->config[PCI_CLASS_PROG] = 0x30;    /* xHCI */
     dev->config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin 1 */
     dev->config[PCI_CACHE_LINE_SIZE] = 0x10;
     dev->config[0x60] = 0x30; /* release number */
+#ifdef CONFIG_LIBSPDM
+    // dev->config_write = usb_xhci_pci_write_config;
+    // dev->config_read  = usb_xhci_pci_read_config;
+#endif
 
     object_property_set_link(OBJECT(&s->xhci), "host", OBJECT(s), NULL);
     s->xhci.intr_update = xhci_pci_intr_update;
@@ -162,6 +194,18 @@ static void usb_xhci_pci_realize(struct PCIDevice *dev, Error **errp)
                   0x90, NULL);
     }
     s->xhci.as = pci_get_address_space(dev);
+
+#ifdef CONFIG_LIBSPDM
+    // if (pci_bus_is_express(pci_get_bus(dev))) {
+    //     doe_offset = PCI_CONFIG_SPACE_SIZE;
+    //     pcie_doe_init(dev, &dev->doe_spdm, doe_offset,
+    //                 doe_spdm_dev_prot, true, 0);
+    //     init_default_spdm_dev(usb_xhci_spdm_dev);
+    //     usb_xhci_spdm_dev->doe_cap = &dev->doe_spdm;
+    
+    //     spdm_responder_init(usb_xhci_spdm_dev);
+    // }
+#endif
 }
 
 static void usb_xhci_pci_exit(PCIDevice *dev)

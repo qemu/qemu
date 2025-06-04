@@ -8639,15 +8639,17 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
     pcie_cap_deverr_init(pci_dev);
 
 #ifdef CONFIG_LIBSPDM
-    doe_offset = n->params.sriov_max_vfs ?
-                 PCI_CONFIG_SPACE_SIZE + PCI_ARI_SIZEOF 
-                 : PCI_CONFIG_SPACE_SIZE;
-    pcie_doe_init(pci_dev, &pci_dev->doe_spdm, doe_offset,
-                  doe_spdm_dev_prot, true, 0);
-    init_default_spdm_dev(nvme_spdm_dev);
-    nvme_spdm_dev->doe_cap = &pci_dev->doe_spdm;
+    if (pci_bus_is_express(pci_get_bus(pci_dev))) {
+        doe_offset = n->params.sriov_max_vfs ?
+                    PCI_CONFIG_SPACE_SIZE + PCI_ARI_SIZEOF 
+                    : PCI_CONFIG_SPACE_SIZE;
+        pcie_doe_init(pci_dev, &pci_dev->doe_spdm, doe_offset,
+                    doe_spdm_dev_prot, true, 0);
+        init_default_spdm_dev(nvme_spdm_dev);
+        nvme_spdm_dev->doe_cap = &pci_dev->doe_spdm;
 
-    spdm_responder_init(nvme_spdm_dev);
+        spdm_responder_init(nvme_spdm_dev);
+    }
 #else
     /* DOE Initialisation */
     if (pci_dev->spdm_port) {

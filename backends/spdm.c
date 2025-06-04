@@ -108,6 +108,21 @@ SpdmDev *get_spdm_dev_from_doe_cap(DOECap *doe_cap)
     return NULL;
 }
 
+SpdmDev *get_spdm_dev_from_usb_device(USBDevice *dev)
+{
+    SpdmDevNode *curr = g_spdm_dev_list_entry;
+
+    while (curr != NULL) {
+        if (curr->spdm_dev->usb_device == dev) {
+            return curr->spdm_dev;
+        }
+
+        curr = curr->next;
+    }
+
+    return NULL;
+}
+
 void libspdm_dump_hex_str(const uint8_t *buffer, size_t buffer_size)
 {
     size_t index;
@@ -732,6 +747,8 @@ bool pcie_doe_spdm_dev_rsp(DOECap *doe_cap)
 void init_default_spdm_dev(SpdmDev *spdm_dev)
 {
     spdm_dev->is_responder = true;
+
+    spdm_dev->spdm_connection = SPDM_DISCONNECTED;
 
     spdm_dev->sender_receiver_buffer_acquired = false;
 

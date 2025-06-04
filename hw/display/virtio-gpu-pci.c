@@ -62,13 +62,15 @@ static void virtio_gpu_pci_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
                                  OBJECT(vpci_dev), &error_abort);
     }
 #ifdef CONFIG_LIBSPDM
-    doe_offset = PCI_CONFIG_SPACE_SIZE;
-    pcie_doe_init(pci_dev, &pci_dev->doe_spdm, doe_offset,
-                  doe_spdm_dev_prot, true, 0);
-    init_default_spdm_dev(virtio_gpu_spdm_dev);
-    virtio_gpu_spdm_dev->doe_cap = &pci_dev->doe_spdm;
+    if (pci_bus_is_express(pci_get_bus(pci_dev))) {
+        doe_offset = PCI_CONFIG_SPACE_SIZE;
+        pcie_doe_init(pci_dev, &pci_dev->doe_spdm, doe_offset,
+                    doe_spdm_dev_prot, true, 0);
+        init_default_spdm_dev(virtio_gpu_spdm_dev);
+        virtio_gpu_spdm_dev->doe_cap = &pci_dev->doe_spdm;
 
-    spdm_responder_init(virtio_gpu_spdm_dev);
+        spdm_responder_init(virtio_gpu_spdm_dev);
+    }
 #endif
 }
 

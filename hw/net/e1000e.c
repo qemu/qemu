@@ -424,7 +424,7 @@ static uint32_t e1000e_read_config(PCIDevice *pci_dev, uint32_t address, int len
         }
     }
 
-    return pci_default_read_config(pci_dev, address, len);
+    return 0;
 }
 #endif
 
@@ -514,13 +514,15 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     e1000e_init_net_peer(s, pci_dev, macaddr);
 
 #ifdef CONFIG_LIBSPDM
-    doe_offset = PCI_CONFIG_SPACE_SIZE;
-    pcie_doe_init(pci_dev, &pci_dev->doe_spdm, doe_offset,
-                  doe_spdm_dev_prot, true, 0);
-    init_default_spdm_dev(e1000e_spdm_dev);
-    e1000e_spdm_dev->doe_cap = &pci_dev->doe_spdm;
+    if (pci_bus_is_express(pci_get_bus(pci_dev))) {
+        doe_offset = PCI_CONFIG_SPACE_SIZE;
+        pcie_doe_init(pci_dev, &pci_dev->doe_spdm, doe_offset,
+                    doe_spdm_dev_prot, true, 0);
+        init_default_spdm_dev(e1000e_spdm_dev);
+        e1000e_spdm_dev->doe_cap = &pci_dev->doe_spdm;
 
-    spdm_responder_init(e1000e_spdm_dev);
+        spdm_responder_init(e1000e_spdm_dev);
+    }
 #endif
 
     /* Initialize core */

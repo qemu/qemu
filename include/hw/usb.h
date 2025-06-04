@@ -140,6 +140,7 @@
 #define USB_REQ_SYNCH_FRAME             0x0C
 #define USB_REQ_SET_SEL                 0x30
 #define USB_REQ_SET_ISOCH_DELAY         0x31
+#define USB_REQ_SPDM                    0x32
 
 #define USB_DEVICE_SELF_POWERED         0
 #define USB_DEVICE_REMOTE_WAKEUP        1

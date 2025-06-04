@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#include "sysemu/spdm.h"
 
 #include "hw/usb.h"
 #include "desc.h"
@@ -496,6 +497,7 @@ static void usb_desc_setdefaults(USBDevice *dev)
 void usb_desc_init(USBDevice *dev)
 {
     const USBDesc *desc = usb_device_get_usb_desc(dev);
+    SpdmDev *spdm_dev;
 
     assert(desc != NULL);
     dev->speed = USB_SPEED_FULL;
@@ -514,6 +516,15 @@ void usb_desc_init(USBDevice *dev)
         usb_desc_set_string(dev, 0xee, "MSFT100Q");
     }
     usb_desc_setdefaults(dev);
+
+#ifdef CONFIG_LIBSPDM
+    spdm_dev = g_malloc0(sizeof(SpdmDev));
+
+    init_default_spdm_dev(spdm_dev);
+    spdm_dev->usb_device = dev;
+    spdm_dev->use_transport_layer = SOCKET_TRANSPORT_TYPE_MCTP;
+    spdm_responder_init(spdm_dev);
+#endif
 }
 
 void usb_desc_attach(USBDevice *dev)
@@ -710,7 +721,14 @@ int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
 {
     bool msos = (dev->flags & (1 << USB_DEV_FLAG_MSOS_DESC_IN_USE));
     const USBDesc *desc = usb_device_get_usb_desc(dev);
+    SpdmDev *spdm_dev;
+    libspdm_context_t *spdm_context;
+    libspdm_return_t status;
     int ret = -1;
+
+#ifdef CONFIG_LIBSPDM
+    spdm_dev = get_spdm_dev_from_usb_device(dev);
+#endif
 
     assert(desc != NULL);
     switch(request) {
@@ -806,6 +824,51 @@ int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
             ret = usb_desc_msos(desc, p, index, data, length);
             trace_usb_desc_msos(dev->addr, index, length, ret);
         }
+        break;
+    case DeviceRequest | USB_REQ_SPDM:
+        // g_print("[QEMU @ %s]: SPDM Request - %X\n", __func__, request);
+        // Length = Size of the SPDM message + One byte with the value of the total message
+        // TODO: The size surpasses one byte, change it to two bytes
+        if (value == 0) {
+            data[0] = spdm_dev->message_size + 2;
+            data[1] = (spdm_dev->message_size + 2) >> 8;
+            memcpy((data + 2), spdm_dev->sender_receiver_buffer, spdm_dev->message_size);
+        } else {
+            // Must take one because the offset may lose one byte between transmissions
+            value -= 2;
+            memcpy(
+                data,
+                spdm_dev->sender_receiver_buffer + (value * sizeof(uint8_t)),
+                spdm_dev->message_size - value
+                );
+        }
+        p->actual_length = length;
+        // for (i = 0; i < p->actual_length; i++) {
+        //     g_print("%02X ", data[i]);
+        // }
+        // g_print("\n");
+        ret = 0;
+        break;
+    case DeviceOutRequest | USB_REQ_SPDM:
+        spdm_context = spdm_dev->spdm_context;
+        spdm_dev->sender_receiver_buffer = g_malloc0(length * sizeof(uint8_t));
+        memcpy(spdm_dev->sender_receiver_buffer, data, length);
+        spdm_dev->message_size = length * sizeof(uint8_t);
+
+        // g_print("[QEMU @ %s]: SPDM Request - %X\n", __func__, request);
+        // for (i = 0; i < length; i++) {
+        //     g_print("%02X ", spdm_dev->sender_receiver_buffer[i]);
+        // }
+        // g_print("\n");
+        status = libspdm_responder_dispatch_message(spdm_dev->spdm_context);
+        if (status == LIBSPDM_STATUS_SUCCESS) {
+            spdm_dev->spdm_server_connection_state_callback(spdm_dev->spdm_context,
+                                                       spdm_context->connection_info.connection_state);
+        } else {
+            ret = -1;
+        }
+
+        ret = 0;
         break;
 
     }

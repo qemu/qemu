@@ -17,7 +17,6 @@
 #include "qemu/module.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/spdm.h"
 
 static void rp_aer_vector_update(PCIDevice *d)
 {
@@ -67,10 +66,6 @@ static void rp_realize(PCIDevice *d, Error **errp)
     PCIDeviceClass *dc = PCI_DEVICE_GET_CLASS(d);
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(d);
     int rc;
-#ifdef CONFIG_LIBSPDM
-    uint16_t doe_offset;
-    SpdmDev *rp_spdm_dev = g_malloc0(sizeof(SpdmDev));
-#endif
 
     pci_config_set_interrupt_pin(d->config, 1);
     if (d->cap_present & QEMU_PCIE_CAP_CXL) {
@@ -126,15 +121,6 @@ static void rp_realize(PCIDevice *d, Error **errp)
         pcie_acs_init(d, rpc->acs_offset);
     }
 
-#ifndef CONFIG_LIBSPDM
-    doe_offset = PCI_CONFIG_SPACE_SIZE;
-    pcie_doe_init(d, &d->doe_spdm, doe_offset,
-                  doe_spdm_dev_prot, true, 0);
-    init_default_spdm_dev(rp_spdm_dev);
-    rp_spdm_dev->doe_cap = &d->doe_spdm;
-
-    spdm_responder_init(rp_spdm_dev);
-#endif
     return;
 
 err:

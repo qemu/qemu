@@ -9,6 +9,7 @@
 #include "qemu/osdep.h"
 #include "hw/pci/pcie_doe.h"
 #include "hw/pci/pci_ids.h"
+#include "hw/usb.h"
 #include <glib.h>
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wredundant-decls"
@@ -128,8 +129,16 @@ SpdmDevNode *create_spdm_dev_node(SpdmDev *spdm_dev);
 bool record_spdm_dev_in_list(SpdmDev *spdm_dev);
 bool delete_spdm_dev_in_list(SpdmDev *spdm_dev);
 
+typedef enum SPDMConnection {
+    SPDM_DISCONNECTED = 0,
+    SPDM_DISCOVERING,
+    SPDM_CONNECTED
+} SPDMConnection;
+
 struct SpdmDev {
     void *spdm_context;
+
+    SPDMConnection spdm_connection;
 
     bool is_responder;
     bool is_requester;
@@ -143,6 +152,7 @@ struct SpdmDev {
     void *requester_cert_chain_buffer;
 
     DOECap *doe_cap;
+    USBDevice *usb_device;
 
     /* The developer can choose to use only a buffer or to separate them */
     uint8_t sender_buffer[LIBSPDM_SENDER_BUFFER_SIZE];
@@ -251,6 +261,7 @@ void dump_hex(const uint8_t *data, size_t size);
 
 SpdmDev *get_spdm_dev_from_context(void *context);
 SpdmDev *get_spdm_dev_from_doe_cap(DOECap *doe_cap);
+SpdmDev *get_spdm_dev_from_usb_device(USBDevice *dev);
 
 /*
  * TODO: change this to typedef functions
