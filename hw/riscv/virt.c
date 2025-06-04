@@ -311,8 +311,7 @@ static void create_fdt_socket_memory(RISCVVirtState *s, int socket)
     size = riscv_socket_mem_size(ms, socket);
     mem_name = g_strdup_printf("/memory@%"HWADDR_PRIx, addr);
     qemu_fdt_add_subnode(ms->fdt, mem_name);
-    qemu_fdt_setprop_cells(ms->fdt, mem_name, "reg",
-        addr >> 32, addr, size >> 32, size);
+    qemu_fdt_setprop_sized_cells(ms->fdt, mem_name, "reg", 2, addr, 2, size);
     qemu_fdt_setprop_string(ms->fdt, mem_name, "device_type", "memory");
     riscv_socket_fdt_write_id(ms, mem_name, socket);
 }
