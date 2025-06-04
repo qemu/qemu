@@ -2614,17 +2614,17 @@ static MemTxResult subpage_write(void *opaque, hwaddr addr,
 }
 
 static bool subpage_accepts(void *opaque, hwaddr addr,
-                            unsigned len, bool is_write,
+                            unsigned size, bool is_write,
                             MemTxAttrs attrs)
 {
     subpage_t *subpage = opaque;
 #if defined(DEBUG_SUBPAGE)
     printf("%s: subpage %p %c len %u addr " HWADDR_FMT_plx "\n",
-           __func__, subpage, is_write ? 'w' : 'r', len, addr);
+           __func__, subpage, is_write ? 'w' : 'r', size, addr);
 #endif
 
     return flatview_access_valid(subpage->fv, addr + subpage->base,
-                                 len, is_write, attrs);
+                                 size, is_write, attrs);
 }
 
 static const MemoryRegionOps subpage_ops = {
