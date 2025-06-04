@@ -27,6 +27,7 @@ https://www.sphinx-doc.org/en/master/development/index.html
 
 from __future__ import annotations
 
+
 __version__ = "2.0"
 
 from contextlib import contextmanager
@@ -56,14 +57,14 @@ from qapi.schema import (
     QAPISchemaVisitor,
 )
 from qapi.source import QAPISourceInfo
-
-from qapidoc_legacy import QAPISchemaGenRSTVisitor  # type: ignore
 from sphinx import addnodes
 from sphinx.directives.code import CodeBlock
 from sphinx.errors import ExtensionError
 from sphinx.util import logging
 from sphinx.util.docutils import SphinxDirective, switch_source_input
 from sphinx.util.nodes import nested_parse_with_titles
+
+from qapidoc_legacy import QAPISchemaGenRSTVisitor  # type: ignore
 
 
 if TYPE_CHECKING:
