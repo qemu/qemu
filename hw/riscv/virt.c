@@ -493,8 +493,8 @@ static void create_fdt_socket_plic(RISCVVirtState *s,
                          s->soc[socket].num_harts * sizeof(uint32_t) * 4);
     }
 
-    qemu_fdt_setprop_cells(ms->fdt, plic_name, "reg",
-        0x0, plic_addr, 0x0, s->memmap[VIRT_PLIC].size);
+    qemu_fdt_setprop_sized_cells(ms->fdt, plic_name, "reg",
+                                 2, plic_addr, 2, s->memmap[VIRT_PLIC].size);
     qemu_fdt_setprop_cell(ms->fdt, plic_name, "riscv,ndev",
                           VIRT_IRQCHIP_NUM_SOURCES - 1);
     riscv_socket_fdt_write_id(ms, plic_name, socket);
