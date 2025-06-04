@@ -2329,6 +2329,7 @@ static void pixel_format_message (VncState *vs) {
     char pad[3] = { 0, 0, 0 };
 
     vs->client_pf = qemu_default_pixelformat(32);
+    vs->client_endian = G_BYTE_ORDER;
 
     vnc_write_u8(vs, vs->client_pf.bits_per_pixel); /* bits-per-pixel */
     vnc_write_u8(vs, vs->client_pf.depth); /* depth */
