@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "bits",
     "qemu-api-macros",
     "qemu-api",
     "hw/char/pl011",
@@ -63,7 +64,6 @@ ignored_unit_patterns = "deny"
 implicit_clone = "deny"
 macro_use_imports = "deny"
 missing_safety_doc = "deny"
-multiple_crate_versions = "deny"
 mut_mut = "deny"
 needless_bitwise_bool = "deny"
 needless_pass_by_ref_mut = "deny"

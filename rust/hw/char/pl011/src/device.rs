@@ -85,8 +85,8 @@ pub struct PL011Registers {
     #[doc(alias = "cr")]
     pub control: registers::Control,
     pub dmacr: u32,
-    pub int_enabled: u32,
-    pub int_level: u32,
+    pub int_enabled: Interrupt,
+    pub int_level: Interrupt,
     pub read_fifo: Fifo,
     pub ilpr: u32,
     pub ibrd: u32,
@@ -199,9 +199,9 @@ impl PL011Registers {
             LCR_H => u32::from(self.line_control),
             CR => u32::from(self.control),
             FLS => self.ifl,
-            IMSC => self.int_enabled,
-            RIS => self.int_level,
-            MIS => self.int_level & self.int_enabled,
+            IMSC => u32::from(self.int_enabled),
+            RIS => u32::from(self.int_level),
+            MIS => u32::from(self.int_level & self.int_enabled),
             ICR => {
                 // "The UARTICR Register is the interrupt clear register and is write-only"
                 // Source: ARM DDI 0183G 3.3.13 Interrupt Clear Register, UARTICR
@@ -263,13 +263,13 @@ impl PL011Registers {
                 self.set_read_trigger();
             }
             IMSC => {
-                self.int_enabled = value;
+                self.int_enabled = Interrupt::from(value);
                 return true;
             }
             RIS => {}
             MIS => {}
             ICR => {
-                self.int_level &= !value;
+                self.int_level &= !Interrupt::from(value);
                 return true;
             }
             DMACR => {
@@ -295,7 +295,7 @@ impl PL011Registers {
             self.flags.set_receive_fifo_empty(true);
         }
         if self.read_count + 1 == self.read_trigger {
-            self.int_level &= !Interrupt::RX.0;
+            self.int_level &= !Interrupt::RX;
         }
         self.receive_status_error_clear.set_from_data(c);
         *update = true;
@@ -305,7 +305,7 @@ impl PL011Registers {
     fn write_data_register(&mut self, value: u32) -> bool {
         // interrupts always checked
         let _ = self.loopback_tx(value.into());
-        self.int_level |= Interrupt::TX.0;
+        self.int_level |= Interrupt::TX;
         true
     }
 
@@ -361,19 +361,19 @@ impl PL011Registers {
         // Change interrupts based on updated FR
         let mut il = self.int_level;
 
-        il &= !Interrupt::MS.0;
+        il &= !Interrupt::MS;
 
         if self.flags.data_set_ready() {
-            il |= Interrupt::DSR.0;
+            il |= Interrupt::DSR;
         }
         if self.flags.data_carrier_detect() {
-            il |= Interrupt::DCD.0;
+            il |= Interrupt::DCD;
         }
         if self.flags.clear_to_send() {
-            il |= Interrupt::CTS.0;
+            il |= Interrupt::CTS;
         }
         if self.flags.ring_indicator() {
-            il |= Interrupt::RI.0;
+            il |= Interrupt::RI;
         }
         self.int_level = il;
         true
@@ -391,8 +391,8 @@ impl PL011Registers {
         self.line_control.reset();
         self.receive_status_error_clear.reset();
         self.dmacr = 0;
-        self.int_enabled = 0;
-        self.int_level = 0;
+        self.int_enabled = 0.into();
+        self.int_level = 0.into();
         self.ilpr = 0;
         self.ibrd = 0;
         self.fbrd = 0;
@@ -451,7 +451,7 @@ impl PL011Registers {
         }
 
         if self.read_count == self.read_trigger {
-            self.int_level |= Interrupt::RX.0;
+            self.int_level |= Interrupt::RX;
             return true;
         }
         false
@@ -632,7 +632,7 @@ impl PL011State {
         let regs = self.regs.borrow();
         let flags = regs.int_level & regs.int_enabled;
         for (irq, i) in self.interrupts.iter().zip(IRQMASK) {
-            irq.set(flags & i != 0);
+            irq.set(flags.any_set(i));
         }
     }
 
@@ -642,14 +642,13 @@ impl PL011State {
 }
 
 /// Which bits in the interrupt status matter for each outbound IRQ line ?
-const IRQMASK: [u32; 6] = [
-    /* combined IRQ */
-    Interrupt::E.0 | Interrupt::MS.0 | Interrupt::RT.0 | Interrupt::TX.0 | Interrupt::RX.0,
-    Interrupt::RX.0,
-    Interrupt::TX.0,
-    Interrupt::RT.0,
-    Interrupt::MS.0,
-    Interrupt::E.0,
+const IRQMASK: [Interrupt; 6] = [
+    Interrupt::all(),
+    Interrupt::RX,
+    Interrupt::TX,
+    Interrupt::RT,
+    Interrupt::MS,
+    Interrupt::E,
 ];
 
 /// # Safety

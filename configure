@@ -209,6 +209,8 @@ for opt do
   ;;
   --rustc=*) RUSTC="$optarg"
   ;;
+  --rustdoc=*) RUSTDOC="$optarg"
+  ;;
   --cpu=*) cpu="$optarg"
   ;;
   --extra-cflags=*)
@@ -323,6 +325,7 @@ pkg_config="${PKG_CONFIG-${cross_prefix}pkg-config}"
 sdl2_config="${SDL2_CONFIG-${cross_prefix}sdl2-config}"
 
 rustc="${RUSTC-rustc}"
+rustdoc="${RUSTDOC-rustdoc}"
 
 check_define() {
 cat > $TMPC <<EOF
@@ -660,6 +663,8 @@ for opt do
   ;;
   --rustc=*)
   ;;
+  --rustdoc=*)
+  ;;
   --make=*)
   ;;
   --install=*)
@@ -890,6 +895,7 @@ Advanced options (experts only):
   --cxx=CXX                use C++ compiler CXX [$cxx]
   --objcc=OBJCC            use Objective-C compiler OBJCC [$objcc]
   --rustc=RUSTC            use Rust compiler RUSTC [$rustc]
+  --rustdoc=RUSTDOC        use rustdoc binary RUSTDOC [$rustdoc]
   --extra-cflags=CFLAGS    append extra C compiler flags CFLAGS
   --extra-cxxflags=CXXFLAGS append extra C++ compiler flags CXXFLAGS
   --extra-objcflags=OBJCFLAGS append extra Objective C compiler flags OBJCFLAGS
@@ -1178,6 +1184,14 @@ fi
 ##########################################
 # detect rust triple
 
+meson_version=$($meson --version)
+if test "$rust" != disabled && ! version_ge "$meson_version" 1.8.1; then
+  if test "$rust" = enabled; then
+    error_exit "Rust support needs Meson 1.8.1 or newer"
+  fi
+  echo "Rust needs Meson 1.8.1, disabling" 2>&1
+  rust=disabled
+fi
 if test "$rust" != disabled && has "$rustc" && $rustc -vV > "${TMPDIR1}/${TMPB}.out"; then
   rust_host_triple=$(sed -n 's/^host: //p' "${TMPDIR1}/${TMPB}.out")
 else
@@ -1893,8 +1907,10 @@ if test "$skip_meson" = no; then
   if test "$rust" != disabled; then
     if test "$rust_host_triple" != "$rust_target_triple"; then
       echo "rust = [$(meson_quote $rustc --target "$rust_target_triple")]" >> $cross
+      echo "rustdoc = [$(meson_quote $rustdoc --target "$rust_target_triple")]" >> $cross
     else
       echo "rust = [$(meson_quote $rustc)]" >> $cross
+      echo "rustdoc = [$(meson_quote $rustdoc)]" >> $cross
     fi
   fi
   echo "ar = [$(meson_quote $ar)]" >> $cross

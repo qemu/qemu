@@ -11,6 +11,7 @@
     clippy::restriction,
     clippy::style,
     clippy::missing_const_for_fn,
+    clippy::ptr_offset_with_cast,
     clippy::useless_transmute,
     clippy::missing_safety_doc
 )]

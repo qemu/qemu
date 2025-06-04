@@ -12,6 +12,9 @@ use syn::{
 mod utils;
 use utils::MacroError;
 
+mod bits;
+use bits::BitsConstInternal;
+
 fn get_fields<'a>(
     input: &'a DeriveInput,
     msg: &str,
@@ -190,23 +193,51 @@ fn get_variants(input: &DeriveInput) -> Result<&Punctuated<Variant, Comma>, Macr
 }
 
 #[rustfmt::skip::macros(quote)]
-fn derive_tryinto_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream, MacroError> {
-    let repr = get_repr_uN(&input, "#[derive(TryInto)]")?;
-
-    let name = &input.ident;
-    let variants = get_variants(&input)?;
+fn derive_tryinto_body(
+    name: &Ident,
+    variants: &Punctuated<Variant, Comma>,
+    repr: &Path,
+) -> Result<proc_macro2::TokenStream, MacroError> {
     let discriminants: Vec<&Ident> = variants.iter().map(|f| &f.ident).collect();
 
     Ok(quote! {
+        #(const #discriminants: #repr = #name::#discriminants as #repr;)*;
+        match value {
+            #(#discriminants => Ok(#name::#discriminants),)*
+            _ => Err(value),
+        }
+    })
+}
+
+#[rustfmt::skip::macros(quote)]
+fn derive_tryinto_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream, MacroError> {
+    let repr = get_repr_uN(&input, "#[derive(TryInto)]")?;
+    let name = &input.ident;
+    let body = derive_tryinto_body(name, get_variants(&input)?, &repr)?;
+    let errmsg = format!("invalid value for {name}");
+
+    Ok(quote! {
+        impl #name {
+            #[allow(dead_code)]
+            pub const fn into_bits(self) -> #repr {
+                self as #repr
+            }
+
+            #[allow(dead_code)]
+            pub const fn from_bits(value: #repr) -> Self {
+                match ({
+                    #body
+                }) {
+                    Ok(x) => x,
+                    Err(_) => panic!(#errmsg)
+                }
+            }
+        }
         impl core::convert::TryFrom<#repr> for #name {
             type Error = #repr;
 
             fn try_from(value: #repr) -> Result<Self, Self::Error> {
-                #(const #discriminants: #repr = #name::#discriminants as #repr;)*;
-                match value {
-                    #(#discriminants => Ok(Self::#discriminants),)*
-                    _ => Err(value),
-                }
+                #body
             }
         }
     })
@@ -217,5 +248,14 @@ pub fn derive_tryinto(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let expanded = derive_tryinto_or_error(input).unwrap_or_else(Into::into);
 
+    TokenStream::from(expanded)
+}
+
+#[proc_macro]
+pub fn bits_const_internal(ts: TokenStream) -> TokenStream {
+    let ts = proc_macro2::TokenStream::from(ts);
+    let mut it = ts.into_iter();
+
+    let expanded = BitsConstInternal::parse(&mut it).unwrap_or_else(Into::into);
     TokenStream::from(expanded)
 }

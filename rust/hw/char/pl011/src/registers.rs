@@ -9,7 +9,8 @@
 // https://developer.arm.com/documentation/ddi0183/latest/
 
 use bilge::prelude::*;
-use qemu_api::impl_vmstate_bitsized;
+use bits::bits;
+use qemu_api::{impl_vmstate_bitsized, impl_vmstate_forward};
 
 /// Offset of each register from the base memory address of the device.
 #[doc(alias = "offset")]
@@ -326,22 +327,24 @@ impl Default for Control {
     }
 }
 
-/// Interrupt status bits in UARTRIS, UARTMIS, UARTIMSC
-pub struct Interrupt(pub u32);
+bits! {
+    /// Interrupt status bits in UARTRIS, UARTMIS, UARTIMSC
+    #[derive(Default)]
+    pub struct Interrupt(u32) {
+        OE = 1 << 10,
+        BE = 1 << 9,
+        PE = 1 << 8,
+        FE = 1 << 7,
+        RT = 1 << 6,
+        TX = 1 << 5,
+        RX = 1 << 4,
+        DSR = 1 << 3,
+        DCD = 1 << 2,
+        CTS = 1 << 1,
+        RI = 1 << 0,
 
-impl Interrupt {
-    pub const OE: Self = Self(1 << 10);
-    pub const BE: Self = Self(1 << 9);
-    pub const PE: Self = Self(1 << 8);
-    pub const FE: Self = Self(1 << 7);
-    pub const RT: Self = Self(1 << 6);
-    pub const TX: Self = Self(1 << 5);
-    pub const RX: Self = Self(1 << 4);
-    pub const DSR: Self = Self(1 << 3);
-    pub const DCD: Self = Self(1 << 2);
-    pub const CTS: Self = Self(1 << 1);
-    pub const RI: Self = Self(1 << 0);
-
-    pub const E: Self = Self(Self::OE.0 | Self::BE.0 | Self::PE.0 | Self::FE.0);
-    pub const MS: Self = Self(Self::RI.0 | Self::DSR.0 | Self::DCD.0 | Self::CTS.0);
+        E = bits!(Self as u32: OE | BE | PE | FE),
+        MS = bits!(Self as u32: RI | DSR | DCD | CTS),
+    }
 }
+impl_vmstate_forward!(Interrupt);

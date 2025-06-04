@@ -104,10 +104,7 @@ def generate_lint_flags(cargo_toml: CargoTOML, strict_lints: bool) -> Iterable[s
             else:
                 raise Exception(f"invalid level {level} for {prefix}{lint}")
 
-            # This may change if QEMU ever invokes clippy-driver or rustdoc by
-            # hand.  For now, check the syntax but do not add non-rustc lints to
-            # the command line.
-            if k == "rust" and not (strict_lints and lint in STRICT_LINTS):
+            if not (strict_lints and lint in STRICT_LINTS):
                 lint_list.append(LintFlag(flags=[flag, prefix + lint], priority=priority))
 
     if strict_lints:
