@@ -192,10 +192,10 @@ int bdrv_inactivate_all(void);
 
 int bdrv_flush_all(void);
 void bdrv_close_all(void);
-void bdrv_drain_all_begin(void);
+void GRAPH_UNLOCKED bdrv_drain_all_begin(void);
 void bdrv_drain_all_begin_nopoll(void);
 void bdrv_drain_all_end(void);
-void bdrv_drain_all(void);
+void GRAPH_UNLOCKED bdrv_drain_all(void);
 
 void bdrv_aio_cancel(BlockAIOCB *acb);
 
@@ -274,11 +274,16 @@ int bdrv_debug_remove_breakpoint(BlockDriverState *bs, const char *tag);
 int bdrv_debug_resume(BlockDriverState *bs, const char *tag);
 bool bdrv_debug_is_suspended(BlockDriverState *bs, const char *tag);
 
-bool bdrv_child_change_aio_context(BdrvChild *c, AioContext *ctx,
-                                   GHashTable *visited, Transaction *tran,
-                                   Error **errp);
-int bdrv_try_change_aio_context(BlockDriverState *bs, AioContext *ctx,
-                                BdrvChild *ignore_child, Error **errp);
+bool GRAPH_RDLOCK
+bdrv_child_change_aio_context(BdrvChild *c, AioContext *ctx,
+                              GHashTable *visited, Transaction *tran,
+                              Error **errp);
+int GRAPH_UNLOCKED
+bdrv_try_change_aio_context(BlockDriverState *bs, AioContext *ctx,
+                            BdrvChild *ignore_child, Error **errp);
+int GRAPH_RDLOCK
+bdrv_try_change_aio_context_locked(BlockDriverState *bs, AioContext *ctx,
+                                   BdrvChild *ignore_child, Error **errp);
 
 int GRAPH_RDLOCK bdrv_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz);
 int bdrv_probe_geometry(BlockDriverState *bs, HDGeometry *geo);

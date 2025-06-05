@@ -1132,39 +1132,41 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
     int ret;
 
     GLOBAL_STATE_CODE();
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    bdrv_drain_all_begin();
+    bdrv_graph_rdlock_main_loop();
 
     bs = qmp_get_root_bs(device, errp);
     if (!bs) {
-        return NULL;
+        goto error;
     }
 
     if (!id && !name) {
         error_setg(errp, "Name or id must be provided");
-        return NULL;
+        goto error;
     }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_INTERNAL_SNAPSHOT_DELETE, errp)) {
-        return NULL;
+        goto error;
     }
 
     ret = bdrv_snapshot_find_by_id_and_name(bs, id, name, &sn, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        return NULL;
+        goto error;
     }
     if (!ret) {
         error_setg(errp,
                    "Snapshot with id '%s' and name '%s' does not exist on "
                    "device '%s'",
                    STR_OR_NULL(id), STR_OR_NULL(name), device);
-        return NULL;
+        goto error;
     }
 
     bdrv_snapshot_delete(bs, id, name, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        return NULL;
+        goto error;
     }
 
     info = g_new0(SnapshotInfo, 1);
@@ -1180,6 +1182,9 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
         info->has_icount = true;
     }
 
+error:
+    bdrv_graph_rdunlock_main_loop();
+    bdrv_drain_all_end();
     return info;
 }
 
@@ -1203,7 +1208,7 @@ static void internal_snapshot_action(BlockdevSnapshotInternal *internal,
     Error *local_err = NULL;
     const char *device;
     const char *name;
-    BlockDriverState *bs;
+    BlockDriverState *bs, *check_bs;
     QEMUSnapshotInfo old_sn, *sn;
     bool ret;
     int64_t rt;
@@ -1211,7 +1216,7 @@ static void internal_snapshot_action(BlockdevSnapshotInternal *internal,
     int ret1;
 
     GLOBAL_STATE_CODE();
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
+    bdrv_graph_rdlock_main_loop();
 
     tran_add(tran, &internal_snapshot_drv, state);
 
@@ -1220,13 +1225,28 @@ static void internal_snapshot_action(BlockdevSnapshotInternal *internal,
 
     bs = qmp_get_root_bs(device, errp);
     if (!bs) {
+        bdrv_graph_rdunlock_main_loop();
         return;
     }
 
     state->bs = bs;
 
+    /* Need to drain while unlocked. */
+    bdrv_graph_rdunlock_main_loop();
     /* Paired with .clean() */
     bdrv_drained_begin(bs);
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    /* Make sure the root bs did not change with the drain. */
+    check_bs = qmp_get_root_bs(device, errp);
+    if (bs != check_bs) {
+        if (check_bs) {
+            error_setg(errp, "Block node of device '%s' unexpectedly changed",
+                       device);
+        } /* else errp is already set */
+        return;
+    }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_INTERNAL_SNAPSHOT, errp)) {
         return;
@@ -1295,11 +1315,13 @@ static void internal_snapshot_abort(void *opaque)
     Error *local_error = NULL;
 
     GLOBAL_STATE_CODE();
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!state->created) {
         return;
     }
+
+    bdrv_drain_all_begin();
+    bdrv_graph_rdlock_main_loop();
 
     if (bdrv_snapshot_delete(bs, sn->id_str, sn->name, &local_error) < 0) {
         error_reportf_err(local_error,
@@ -1308,6 +1330,8 @@ static void internal_snapshot_abort(void *opaque)
                           sn->id_str, sn->name,
                           bdrv_get_device_name(bs));
     }
+    bdrv_graph_rdunlock_main_loop();
+    bdrv_drain_all_end();
 }
 
 static void internal_snapshot_clean(void *opaque)
@@ -1353,9 +1377,10 @@ static void external_snapshot_action(TransactionAction *action,
     const char *new_image_file;
     ExternalSnapshotState *state = g_new0(ExternalSnapshotState, 1);
     uint64_t perm, shared;
+    BlockDriverState *check_bs;
 
     /* TODO We'll eventually have to take a writer lock in this function */
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
+    bdrv_graph_rdlock_main_loop();
 
     tran_add(tran, &external_snapshot_drv, state);
 
@@ -1388,11 +1413,25 @@ static void external_snapshot_action(TransactionAction *action,
 
     state->old_bs = bdrv_lookup_bs(device, node_name, errp);
     if (!state->old_bs) {
+        bdrv_graph_rdunlock_main_loop();
         return;
     }
 
+    /* Need to drain while unlocked. */
+    bdrv_graph_rdunlock_main_loop();
     /* Paired with .clean() */
     bdrv_drained_begin(state->old_bs);
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    /* Make sure the associated bs did not change with the drain. */
+    check_bs = bdrv_lookup_bs(device, node_name, errp);
+    if (state->old_bs != check_bs) {
+        if (check_bs) {
+            error_setg(errp, "Block node of device '%s' unexpectedly changed",
+                       device);
+        } /* else errp is already set */
+        return;
+    }
 
     if (!bdrv_is_inserted(state->old_bs)) {
         error_setg(errp, "Device '%s' has no medium",
@@ -3522,6 +3561,7 @@ void qmp_x_blockdev_change(const char *parent, const char *child,
     BlockDriverState *parent_bs, *new_bs = NULL;
     BdrvChild *p_child;
 
+    bdrv_drain_all_begin();
     bdrv_graph_wrlock();
 
     parent_bs = bdrv_lookup_bs(parent, parent, errp);
@@ -3559,6 +3599,7 @@ void qmp_x_blockdev_change(const char *parent, const char *child,
 
 out:
     bdrv_graph_wrunlock();
+    bdrv_drain_all_end();
 }
 
 BlockJobInfoList *qmp_query_block_jobs(Error **errp)
@@ -3592,12 +3633,13 @@ void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
     AioContext *new_context;
     BlockDriverState *bs;
 
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
+    bdrv_drain_all_begin();
+    bdrv_graph_rdlock_main_loop();
 
     bs = bdrv_find_node(node_name);
     if (!bs) {
         error_setg(errp, "Failed to find node with node-name='%s'", node_name);
-        return;
+        goto out;
     }
 
     /* Protects against accidents. */
@@ -3605,14 +3647,14 @@ void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
         error_setg(errp, "Node %s is associated with a BlockBackend and could "
                          "be in use (use force=true to override this check)",
                          node_name);
-        return;
+        goto out;
     }
 
     if (iothread->type == QTYPE_QSTRING) {
         IOThread *obj = iothread_by_id(iothread->u.s);
         if (!obj) {
             error_setg(errp, "Cannot find iothread %s", iothread->u.s);
-            return;
+            goto out;
         }
 
         new_context = iothread_get_aio_context(obj);
@@ -3620,7 +3662,11 @@ void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
         new_context = qemu_get_aio_context();
     }
 
-    bdrv_try_change_aio_context(bs, new_context, NULL, errp);
+    bdrv_try_change_aio_context_locked(bs, new_context, NULL, errp);
+
+out:
+    bdrv_graph_rdunlock_main_loop();
+    bdrv_drain_all_end();
 }
 
 QemuOptsList qemu_common_drive_opts = {

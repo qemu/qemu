@@ -27,6 +27,7 @@ from iotests import imgfmt, qemu_img, qemu_img_create, qemu_io, \
 
 
 top = os.path.join(iotests.test_dir, 'top.img')
+mid = os.path.join(iotests.test_dir, 'mid.img')
 nbd_sock = os.path.join(iotests.sock_dir, 'nbd.sock')
 
 
@@ -57,6 +58,16 @@ class TestGraphChangesWhileIO(QMPTestCase):
 
     def tearDown(self) -> None:
         self.qsd.stop()
+        os.remove(top)
+
+    def _wait_for_blockjob(self, status: str) -> None:
+        done = False
+        while not done:
+            for event in self.qsd.get_qmp().get_events(wait=10.0):
+                if event['event'] != 'JOB_STATUS_CHANGE':
+                    continue
+                if event['data']['status'] == status:
+                    done = True
 
     def test_blockdev_add_while_io(self) -> None:
         # Run qemu-img bench in the background
@@ -116,15 +127,92 @@ class TestGraphChangesWhileIO(QMPTestCase):
                 'device': 'job0',
             })
 
-            cancelled = False
-            while not cancelled:
-                for event in self.qsd.get_qmp().get_events(wait=10.0):
-                    if event['event'] != 'JOB_STATUS_CHANGE':
-                        continue
-                    if event['data']['status'] == 'null':
-                        cancelled = True
+            self._wait_for_blockjob('null')
 
         bench_thr.join()
+
+    def test_remove_lower_snapshot_while_io(self) -> None:
+        # Run qemu-img bench in the background
+        bench_thr = Thread(target=do_qemu_img_bench, args=(100000, ))
+        bench_thr.start()
+
+        # While I/O is performed on 'node0' node, consequently add 2 snapshots
+        # on top of it, then remove (commit) them starting from lower one.
+        while bench_thr.is_alive():
+            # Recreate snapshot images on every iteration
+            qemu_img_create('-f', imgfmt, mid, '1G')
+            qemu_img_create('-f', imgfmt, top, '1G')
+
+            self.qsd.cmd('blockdev-add', {
+                'driver': imgfmt,
+                'node-name': 'mid',
+                'file': {
+                    'driver': 'file',
+                    'filename': mid
+                }
+            })
+
+            self.qsd.cmd('blockdev-snapshot', {
+                'node': 'node0',
+                'overlay': 'mid',
+            })
+
+            self.qsd.cmd('blockdev-add', {
+                'driver': imgfmt,
+                'node-name': 'top',
+                'file': {
+                    'driver': 'file',
+                    'filename': top
+                }
+            })
+
+            self.qsd.cmd('blockdev-snapshot', {
+                'node': 'mid',
+                'overlay': 'top',
+            })
+
+            self.qsd.cmd('block-commit', {
+                'job-id': 'commit-mid',
+                'device': 'top',
+                'top-node': 'mid',
+                'base-node': 'node0',
+                'auto-finalize': True,
+                'auto-dismiss': False,
+            })
+
+            self._wait_for_blockjob('concluded')
+            self.qsd.cmd('job-dismiss', {
+                'id': 'commit-mid',
+            })
+
+            self.qsd.cmd('block-commit', {
+                'job-id': 'commit-top',
+                'device': 'top',
+                'top-node': 'top',
+                'base-node': 'node0',
+                'auto-finalize': True,
+                'auto-dismiss': False,
+            })
+
+            self._wait_for_blockjob('ready')
+            self.qsd.cmd('job-complete', {
+                'id': 'commit-top',
+            })
+
+            self._wait_for_blockjob('concluded')
+            self.qsd.cmd('job-dismiss', {
+                'id': 'commit-top',
+            })
+
+            self.qsd.cmd('blockdev-del', {
+                'node-name': 'mid'
+            })
+            self.qsd.cmd('blockdev-del', {
+                'node-name': 'top'
+            })
+
+        bench_thr.join()
+        os.remove(mid)
 
 if __name__ == '__main__':
     # Format must support raw backing files

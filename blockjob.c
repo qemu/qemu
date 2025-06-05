@@ -144,9 +144,9 @@ static TransactionActionDrv change_child_job_context = {
     .clean = g_free,
 };
 
-static bool child_job_change_aio_ctx(BdrvChild *c, AioContext *ctx,
-                                     GHashTable *visited, Transaction *tran,
-                                     Error **errp)
+static bool GRAPH_RDLOCK
+child_job_change_aio_ctx(BdrvChild *c, AioContext *ctx, GHashTable *visited,
+                         Transaction *tran, Error **errp)
 {
     BlockJob *job = c->opaque;
     BdrvStateChildJobContext *s;
@@ -198,6 +198,7 @@ void block_job_remove_all_bdrv(BlockJob *job)
      * one to make sure that such a concurrent access does not attempt
      * to process an already freed BdrvChild.
      */
+    bdrv_drain_all_begin();
     bdrv_graph_wrlock();
     while (job->nodes) {
         GSList *l = job->nodes;
@@ -211,6 +212,7 @@ void block_job_remove_all_bdrv(BlockJob *job)
         g_slist_free_1(l);
     }
     bdrv_graph_wrunlock();
+    bdrv_drain_all_end();
 }
 
 bool block_job_has_bdrv(BlockJob *job, BlockDriverState *bs)
@@ -496,6 +498,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     int ret;
     GLOBAL_STATE_CODE();
 
+    bdrv_drain_all_begin();
     bdrv_graph_wrlock();
 
     if (job_id == NULL && !(flags & JOB_INTERNAL)) {
@@ -506,6 +509,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
                      flags, cb, opaque, errp);
     if (job == NULL) {
         bdrv_graph_wrunlock();
+        bdrv_drain_all_end();
         return NULL;
     }
 
@@ -544,10 +548,12 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     }
 
     bdrv_graph_wrunlock();
+    bdrv_drain_all_end();
     return job;
 
 fail:
     bdrv_graph_wrunlock();
+    bdrv_drain_all_end();
     job_early_fail(&job->job);
     return NULL;
 }
