@@ -187,23 +187,21 @@ static bool vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
 }
 
 static bool vfio_pci_igd_opregion_detect(VFIOPCIDevice *vdev,
-                                         struct vfio_region_info **opregion,
-                                         Error **errp)
+                                         struct vfio_region_info **opregion)
 {
     int ret;
-
-    /* Hotplugging is not supported for opregion access */
-    if (vdev->pdev.qdev.hotplugged) {
-        error_setg(errp, "IGD OpRegion is not supported on hotplugged device");
-        return false;
-    }
 
     ret = vfio_device_get_region_info_type(&vdev->vbasedev,
                     VFIO_REGION_TYPE_PCI_VENDOR_TYPE | PCI_VENDOR_ID_INTEL,
                     VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION, opregion);
     if (ret) {
-        error_setg_errno(errp, -ret,
-                         "Device does not supports IGD OpRegion feature");
+        return false;
+    }
+
+    /* Hotplugging is not supported for opregion access */
+    if (vdev->pdev.qdev.hotplugged) {
+        warn_report("IGD device detected, but OpRegion is not supported "
+                    "on hotplugged device.");
         return false;
     }
 
@@ -524,7 +522,7 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
     }
 
     /* IGD device always comes with OpRegion */
-    if (!vfio_pci_igd_opregion_detect(vdev, &opregion, errp)) {
+    if (!vfio_pci_igd_opregion_detect(vdev, &opregion)) {
         return true;
     }
     info_report("OpRegion detected on Intel display %x.", vdev->device_id);
@@ -695,7 +693,7 @@ static bool vfio_pci_kvmgt_config_quirk(VFIOPCIDevice *vdev, Error **errp)
         return true;
     }
 
-    if (!vfio_pci_igd_opregion_detect(vdev, &opregion, errp)) {
+    if (!vfio_pci_igd_opregion_detect(vdev, &opregion)) {
         /* Should never reach here, KVMGT always emulates OpRegion */
         return false;
     }
