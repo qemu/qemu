@@ -1773,12 +1773,6 @@ typedef enum TPRAccess {
 
 /* Cache information data structures: */
 
-enum CacheType {
-    DATA_CACHE,
-    INSTRUCTION_CACHE,
-    UNIFIED_CACHE
-};
-
 typedef struct CPUCacheInfo {
     enum CacheType type;
     uint8_t level;
