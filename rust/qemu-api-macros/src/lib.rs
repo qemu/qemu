@@ -203,8 +203,8 @@ fn derive_tryinto_body(
     Ok(quote! {
         #(const #discriminants: #repr = #name::#discriminants as #repr;)*;
         match value {
-            #(#discriminants => Ok(#name::#discriminants),)*
-            _ => Err(value),
+            #(#discriminants => core::result::Result::Ok(#name::#discriminants),)*
+            _ => core::result::Result::Err(value),
         }
     })
 }
@@ -236,7 +236,8 @@ fn derive_tryinto_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStrea
         impl core::convert::TryFrom<#repr> for #name {
             type Error = #repr;
 
-            fn try_from(value: #repr) -> Result<Self, Self::Error> {
+            #[allow(ambiguous_associated_items)]
+            fn try_from(value: #repr) -> Result<Self, #repr> {
                 #body
             }
         }
