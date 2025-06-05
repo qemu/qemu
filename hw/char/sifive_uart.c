@@ -128,8 +128,10 @@ static void sifive_uart_write_tx_fifo(SiFiveUARTState *s, const uint8_t *buf,
         s->txfifo |= SIFIVE_UART_TXFIFO_FULL;
     }
 
-    timer_mod(s->fifo_trigger_handle, current_time +
-                  TX_INTERRUPT_TRIGGER_DELAY_NS);
+    if (!timer_pending(s->fifo_trigger_handle)) {
+        timer_mod(s->fifo_trigger_handle, current_time +
+                      TX_INTERRUPT_TRIGGER_DELAY_NS);
+    }
 }
 
 static uint64_t
