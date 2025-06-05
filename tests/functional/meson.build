@@ -312,6 +312,7 @@ tests_x86_64_system_quick = [
   'virtio_version',
   'x86_cpu_model_versions',
   'vnc',
+  'memlock',
 ]
 
 tests_x86_64_system_thorough = [
