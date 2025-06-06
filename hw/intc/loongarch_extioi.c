@@ -393,10 +393,23 @@ static void loongarch_extioi_reset_hold(Object *obj, ResetType type)
     }
 }
 
+static int vmstate_extioi_pre_save(void *opaque)
+{
+    if (kvm_irqchip_in_kernel()) {
+        return kvm_extioi_get(opaque);
+    }
+
+    return 0;
+}
+
 static int vmstate_extioi_post_load(void *opaque, int version_id)
 {
     LoongArchExtIOICommonState *s = LOONGARCH_EXTIOI_COMMON(opaque);
     int i, start_irq;
+
+    if (kvm_irqchip_in_kernel()) {
+        return kvm_extioi_put(opaque, version_id);
+    }
 
     for (i = 0; i < (EXTIOI_IRQS / 4); i++) {
         start_irq = i * 4;
@@ -423,6 +436,7 @@ static void loongarch_extioi_class_init(ObjectClass *klass, const void *data)
                                       &lec->parent_unrealize);
     resettable_class_set_parent_phases(rc, NULL, loongarch_extioi_reset_hold,
                                        NULL, &lec->parent_phases);
+    lecc->pre_save  = vmstate_extioi_pre_save;
     lecc->post_load = vmstate_extioi_post_load;
 }
 
