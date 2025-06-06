@@ -522,6 +522,10 @@ static MemTxResult virt_iocsr_misc_write(void *opaque, hwaddr addr,
 
     switch (addr) {
     case MISC_FUNC_REG:
+        if (kvm_irqchip_in_kernel()) {
+            return MEMTX_OK;
+        }
+
         if (!virt_is_veiointc_enabled(lvms)) {
             return MEMTX_OK;
         }
@@ -572,6 +576,10 @@ static MemTxResult virt_iocsr_misc_read(void *opaque, hwaddr addr,
         ret = 0x303030354133ULL;     /* "3A5000" */
         break;
     case MISC_FUNC_REG:
+        if (kvm_irqchip_in_kernel()) {
+            return MEMTX_OK;
+        }
+
         if (!virt_is_veiointc_enabled(lvms)) {
             ret |= BIT_ULL(IOCSRM_EXTIOI_EN);
             break;
