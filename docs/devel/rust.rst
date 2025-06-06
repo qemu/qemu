@@ -96,6 +96,11 @@ are missing:
   architecture (VMState).  Right now, VMState lacks type safety because
   it is hard to place the ``VMStateField`` definitions in traits.
 
+* NUL-terminated file names with ``#[track_caller]`` are scheduled for
+  inclusion as ``#![feature(location_file_nul)]``, but it will be a while
+  before QEMU can use them.  For now, there is special code in
+  ``util/error.c`` to support non-NUL-terminated file names.
+
 * associated const equality would be nice to have for some users of
   ``callbacks::FnCall``, but is still experimental.  ``ASSERT_IS_SOME``
   replaces it.
@@ -155,10 +160,10 @@ module           status
 ``callbacks``    complete
 ``cell``         stable
 ``errno``        complete
+``error``        stable
 ``irq``          complete
 ``memory``       stable
 ``module``       complete
-``offset_of``    stable
 ``qdev``         stable
 ``qom``          stable
 ``sysbus``       stable
