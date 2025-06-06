@@ -26,6 +26,7 @@ from qemu_test import QemuSystemTest
 class OmittedCPUProps(QemuSystemTest):
 
     def test_no_die_id(self):
+        self.set_machine('pc')
         self.vm.add_args('-nodefaults', '-S')
         self.vm.add_args('-smp', '1,sockets=2,cores=2,threads=2,maxcpus=8')
         self.vm.add_args('-device', 'qemu64-x86_64-cpu,socket-id=1,core-id=0,thread-id=0')
