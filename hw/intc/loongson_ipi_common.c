@@ -11,6 +11,7 @@
 #include "hw/irq.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
+#include "system/kvm.h"
 #include "trace.h"
 
 MemTxResult loongson_ipi_core_readl(void *opaque, hwaddr addr, uint64_t *data,
@@ -254,6 +255,10 @@ static void loongson_ipi_common_realize(DeviceState *dev, Error **errp)
 {
     LoongsonIPICommonState *s = LOONGSON_IPI_COMMON(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
+    if (kvm_irqchip_in_kernel()) {
+        return;
+    }
 
     memory_region_init_io(&s->ipi_iocsr_mem, OBJECT(dev),
                           &loongson_ipi_iocsr_ops,

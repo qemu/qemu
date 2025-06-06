@@ -11,6 +11,7 @@
 #include "qapi/error.h"
 #include "hw/intc/loongarch_ipi.h"
 #include "hw/qdev-properties.h"
+#include "system/kvm.h"
 #include "target/loongarch/cpu.h"
 
 static AddressSpace *get_iocsr_as(CPUState *cpu)
@@ -90,6 +91,10 @@ static void loongarch_ipi_realize(DeviceState *dev, Error **errp)
         lics->cpu[i].cpu = CPU(id_list->cpus[i].cpu);
         lics->cpu[i].ipi = lics;
         qdev_init_gpio_out(dev, &lics->cpu[i].irq, 1);
+    }
+
+    if (kvm_irqchip_in_kernel()) {
+        kvm_ipi_realize(dev, errp);
     }
 }
 
