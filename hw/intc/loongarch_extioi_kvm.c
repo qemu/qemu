@@ -94,6 +94,10 @@ int kvm_extioi_put(void *opaque, int version_id)
     LoongArchExtIOIState *les = LOONGARCH_EXTIOI(opaque);
     int fd = les->dev_fd;
 
+    if (fd == 0) {
+        return 0;
+    }
+
     kvm_extioi_access_regs(opaque, true);
     kvm_extioi_access_sw_status(opaque, true);
     kvm_device_access(fd, KVM_DEV_LOONGARCH_EXTIOI_GRP_CTRL,

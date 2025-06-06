@@ -26,6 +26,10 @@ static void kvm_pch_pic_access(void *opaque, bool write)
     int fd = lps->dev_fd;
     int addr, offset;
 
+    if (fd == 0) {
+        return;
+    }
+
     kvm_pch_pic_access_reg(fd, PCH_PIC_INT_MASK, &s->int_mask, write);
     kvm_pch_pic_access_reg(fd, PCH_PIC_HTMSI_EN, &s->htmsi_en, write);
     kvm_pch_pic_access_reg(fd, PCH_PIC_INT_EDGE, &s->intedge, write);

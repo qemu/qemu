@@ -122,6 +122,10 @@ static void loongarch_ipi_reset_hold(Object *obj, ResetType type)
         core->clear = 0;
         memset(core->buf, 0, sizeof(core->buf));
     }
+
+    if (kvm_irqchip_in_kernel()) {
+        kvm_ipi_put(obj, 0);
+    }
 }
 
 static void loongarch_ipi_cpu_plug(HotplugHandler *hotplug_dev,

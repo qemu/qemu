@@ -264,6 +264,10 @@ static void loongarch_pic_reset_hold(Object *obj, ResetType type)
     if (lpc->parent_phases.hold) {
         lpc->parent_phases.hold(obj, type);
     }
+
+    if (kvm_irqchip_in_kernel()) {
+        kvm_pic_put(obj, 0);
+    }
 }
 
 static void loongarch_pic_realize(DeviceState *dev, Error **errp)

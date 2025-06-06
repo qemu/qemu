@@ -25,6 +25,10 @@ static void kvm_ipi_access_regs(void *opaque, bool write)
     uint64_t attr;
     int cpu, fd = lis->dev_fd;
 
+    if (fd == 0) {
+        return;
+    }
+
     for (cpu = 0; cpu < ipi->num_cpu; cpu++) {
         core = &ipi->cpu[cpu];
         attr = (cpu << 16) | CORE_STATUS_OFF;
