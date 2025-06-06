@@ -251,7 +251,7 @@ static int hvf_accel_init(AccelState *as, MachineState *ms)
 {
     int x;
     hv_return_t ret;
-    HVFState *s;
+    HVFState *s = HVF_STATE(as);
     int pa_range = 36;
     MachineClass *mc = MACHINE_GET_CLASS(ms);
 
@@ -269,8 +269,6 @@ static int hvf_accel_init(AccelState *as, MachineState *ms)
         exit(1);
     }
     assert_hvf_ok(ret);
-
-    s = g_new0(HVFState, 1);
 
     s->num_slots = ARRAY_SIZE(s->slots);
     for (x = 0; x < s->num_slots; ++x) {
