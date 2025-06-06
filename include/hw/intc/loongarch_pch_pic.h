@@ -27,5 +27,7 @@ struct LoongarchPICClass {
 };
 
 void kvm_pic_realize(DeviceState *dev, Error **errp);
+int kvm_pic_get(void *opaque);
+int kvm_pic_put(void *opaque, int version_id);
 
 #endif /* HW_LOONGARCH_PCH_PIC_H */
