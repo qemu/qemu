@@ -19,6 +19,7 @@ disable=consider-using-f-string,
         too-many-instance-attributes,
         too-many-positional-arguments,
         too-many-statements,
+        unknown-option-value,
         useless-option-value,
 
 [REPORTS]

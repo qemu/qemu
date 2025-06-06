@@ -11,6 +11,15 @@
 # When adding new dependencies, pin the very oldest non-yanked version
 # on PyPI that allows the test suite to pass.
 
+# For some reason, the presence of packaging==14.0 below requires us to
+# also pin setuptools to version 70 or below. Otherwise, the
+# installation of the QEMU package itself fails, failing to find
+# setuptools.
+setuptools<=70
+
+# Dependencies for qapidoc/qapi_domain et al
+sphinx==3.4.3
+
 # Dependencies for the TUI addon (Required for successful linting)
 urwid==2.1.2
 urwid-readline==0.13
@@ -38,10 +47,32 @@ pyflakes==2.5.0
 
 # Transitive mypy dependencies
 mypy-extensions==1.0.0
+tomli==1.1.0
 typing-extensions==4.7.1
 
 # Transitive pylint dependencies
 astroid==2.15.4
+dill==0.2
 lazy-object-proxy==1.4.0
+platformdirs==2.2.0
 toml==0.10.0
+tomlkit==0.10.1
 wrapt==1.14.0
+
+# Transitive sphinx dependencies
+Jinja2==2.7
+MarkupSafe==1.1.0
+alabaster==0.7.1
+babel==1.3
+docutils==0.12
+imagesize==0.5.0
+packaging==14.0
+pytz==2011b0
+requests==2.5.0
+snowballstemmer==1.1
+sphinxcontrib-applehelp==1.0.0
+sphinxcontrib-devhelp==1.0.0
+sphinxcontrib-htmlhelp==1.0.0
+sphinxcontrib-jsmath==1.0.0
+sphinxcontrib-qthelp==1.0.0
+sphinxcontrib-serializinghtml==1.0.0
