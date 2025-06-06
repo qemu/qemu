@@ -12,6 +12,7 @@
 #include "hw/irq.h"
 #include "hw/loongarch/virt.h"
 #include "system/address-spaces.h"
+#include "system/kvm.h"
 #include "hw/intc/loongarch_extioi.h"
 #include "trace.h"
 
@@ -351,22 +352,28 @@ static void loongarch_extioi_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    for (i = 0; i < EXTIOI_IRQS; i++) {
-        sysbus_init_irq(sbd, &s->irq[i]);
-    }
-
-    qdev_init_gpio_in(dev, extioi_setirq, EXTIOI_IRQS);
-    memory_region_init_io(&s->extioi_system_mem, OBJECT(s), &extioi_ops,
-                          s, "extioi_system_mem", 0x900);
-    sysbus_init_mmio(sbd, &s->extioi_system_mem);
-
     if (s->features & BIT(EXTIOI_HAS_VIRT_EXTENSION)) {
-        memory_region_init_io(&s->virt_extend, OBJECT(s), &extioi_virt_ops,
-                              s, "extioi_virt", EXTIOI_VIRT_SIZE);
-        sysbus_init_mmio(sbd, &s->virt_extend);
         s->features |= EXTIOI_VIRT_HAS_FEATURES;
     } else {
         s->status |= BIT(EXTIOI_ENABLE);
+    }
+
+    if (kvm_irqchip_in_kernel()) {
+        kvm_extioi_realize(dev, errp);
+    } else {
+        for (i = 0; i < EXTIOI_IRQS; i++) {
+            sysbus_init_irq(sbd, &s->irq[i]);
+        }
+
+        qdev_init_gpio_in(dev, extioi_setirq, EXTIOI_IRQS);
+        memory_region_init_io(&s->extioi_system_mem, OBJECT(s), &extioi_ops,
+                              s, "extioi_system_mem", 0x900);
+        sysbus_init_mmio(sbd, &s->extioi_system_mem);
+        if (s->features & BIT(EXTIOI_HAS_VIRT_EXTENSION)) {
+            memory_region_init_io(&s->virt_extend, OBJECT(s), &extioi_virt_ops,
+                                  s, "extioi_virt", EXTIOI_VIRT_SIZE);
+            sysbus_init_mmio(sbd, &s->virt_extend);
+        }
     }
 }
 

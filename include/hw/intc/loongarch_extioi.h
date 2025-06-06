@@ -15,6 +15,7 @@ OBJECT_DECLARE_TYPE(LoongArchExtIOIState, LoongArchExtIOIClass, LOONGARCH_EXTIOI
 
 struct LoongArchExtIOIState {
     LoongArchExtIOICommonState parent_obj;
+    int dev_fd;
 };
 
 struct LoongArchExtIOIClass {
@@ -24,5 +25,7 @@ struct LoongArchExtIOIClass {
     DeviceUnrealize parent_unrealize;
     ResettablePhases parent_phases;
 };
+
+void kvm_extioi_realize(DeviceState *dev, Error **errp);
 
 #endif /* LOONGARCH_EXTIOI_H */
