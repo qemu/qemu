@@ -10,6 +10,7 @@
 #include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/intc/loongarch_pch_pic.h"
+#include "system/kvm.h"
 #include "trace.h"
 #include "qapi/error.h"
 
@@ -275,10 +276,15 @@ static void loongarch_pic_realize(DeviceState *dev, Error **errp)
 
     qdev_init_gpio_out(dev, s->parent_irq, s->irq_num);
     qdev_init_gpio_in(dev, pch_pic_irq_handler, s->irq_num);
-    memory_region_init_io(&s->iomem, OBJECT(dev),
-                          &loongarch_pch_pic_ops,
-                          s, TYPE_LOONGARCH_PIC, VIRT_PCH_REG_SIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
+
+    if (kvm_irqchip_in_kernel()) {
+        kvm_pic_realize(dev, errp);
+    } else {
+        memory_region_init_io(&s->iomem, OBJECT(dev),
+                              &loongarch_pch_pic_ops,
+                              s, TYPE_LOONGARCH_PIC, VIRT_PCH_REG_SIZE);
+        sysbus_init_mmio(sbd, &s->iomem);
+    }
 }
 
 static void loongarch_pic_class_init(ObjectClass *klass, const void *data)
