@@ -49,6 +49,11 @@ static void pch_pic_irq_handler(void *opaque, int irq, int level)
     assert(irq < s->irq_num);
     trace_loongarch_pch_pic_irq_handler(irq, level);
 
+    if (kvm_irqchip_in_kernel()) {
+        kvm_set_irq(kvm_state, irq, !!level);
+        return;
+    }
+
     if (s->intedge & mask) {
         /* Edge triggered */
         if (level) {
