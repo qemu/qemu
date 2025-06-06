@@ -11,6 +11,60 @@
 #include "system/kvm.h"
 #include "target/loongarch/cpu.h"
 
+static void kvm_ipi_access_reg(int fd, uint64_t addr, uint32_t *val, bool write)
+{
+    kvm_device_access(fd, KVM_DEV_LOONGARCH_IPI_GRP_REGS,
+                      addr, val, write, &error_abort);
+}
+
+static void kvm_ipi_access_regs(void *opaque, bool write)
+{
+    LoongsonIPICommonState *ipi = (LoongsonIPICommonState *)opaque;
+    LoongarchIPIState *lis = LOONGARCH_IPI(opaque);
+    IPICore *core;
+    uint64_t attr;
+    int cpu, fd = lis->dev_fd;
+
+    for (cpu = 0; cpu < ipi->num_cpu; cpu++) {
+        core = &ipi->cpu[cpu];
+        attr = (cpu << 16) | CORE_STATUS_OFF;
+        kvm_ipi_access_reg(fd, attr, &core->status, write);
+
+        attr = (cpu << 16) | CORE_EN_OFF;
+        kvm_ipi_access_reg(fd, attr, &core->en, write);
+
+        attr = (cpu << 16) | CORE_SET_OFF;
+        kvm_ipi_access_reg(fd, attr, &core->set, write);
+
+        attr = (cpu << 16) | CORE_CLEAR_OFF;
+        kvm_ipi_access_reg(fd, attr, &core->clear, write);
+
+        attr = (cpu << 16) | CORE_BUF_20;
+        kvm_ipi_access_reg(fd, attr, &core->buf[0], write);
+
+        attr = (cpu << 16) | CORE_BUF_28;
+        kvm_ipi_access_reg(fd, attr, &core->buf[2], write);
+
+        attr = (cpu << 16) | CORE_BUF_30;
+        kvm_ipi_access_reg(fd, attr, &core->buf[4], write);
+
+        attr = (cpu << 16) | CORE_BUF_38;
+        kvm_ipi_access_reg(fd, attr, &core->buf[6], write);
+    }
+}
+
+int kvm_ipi_get(void *opaque)
+{
+    kvm_ipi_access_regs(opaque, false);
+    return 0;
+}
+
+int kvm_ipi_put(void *opaque, int version_id)
+{
+    kvm_ipi_access_regs(opaque, true);
+    return 0;
+}
+
 void kvm_ipi_realize(DeviceState *dev, Error **errp)
 {
     LoongarchIPIState *lis = LOONGARCH_IPI(dev);
