@@ -60,7 +60,7 @@ static void stm32_rcc_write(void *opaque, hwaddr addr,
     uint32_t value = val64;
     uint32_t prev_value, new_value, irq_offset;
 
-    trace_stm32_rcc_write(value, addr);
+    trace_stm32_rcc_write(addr, value);
 
     if (addr > STM32_RCC_DCKCFGR2) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%"HWADDR_PRIx"\n",
