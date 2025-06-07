@@ -248,4 +248,15 @@ void vfio_display_finalize(VFIOPCIDevice *vdev);
 
 extern const VMStateDescription vfio_display_vmstate;
 
+void vfio_pci_bars_exit(VFIOPCIDevice *vdev);
+bool vfio_pci_add_capabilities(VFIOPCIDevice *vdev, Error **errp);
+bool vfio_pci_config_setup(VFIOPCIDevice *vdev, Error **errp);
+bool vfio_pci_interrupt_setup(VFIOPCIDevice *vdev, Error **errp);
+void vfio_pci_intx_eoi(VFIODevice *vbasedev);
+void vfio_pci_put_device(VFIOPCIDevice *vdev);
+bool vfio_pci_populate_device(VFIOPCIDevice *vdev, Error **errp);
+void vfio_pci_register_err_notifier(VFIOPCIDevice *vdev);
+void vfio_pci_register_req_notifier(VFIOPCIDevice *vdev);
+void vfio_pci_teardown_msi(VFIOPCIDevice *vdev);
+
 #endif /* HW_VFIO_VFIO_PCI_H */

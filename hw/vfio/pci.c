@@ -103,7 +103,7 @@ static void vfio_intx_interrupt(void *opaque)
     }
 }
 
-static void vfio_intx_eoi(VFIODevice *vbasedev)
+void vfio_pci_intx_eoi(VFIODevice *vbasedev)
 {
     VFIOPCIDevice *vdev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
 
@@ -111,7 +111,7 @@ static void vfio_intx_eoi(VFIODevice *vbasedev)
         return;
     }
 
-    trace_vfio_intx_eoi(vbasedev->name);
+    trace_vfio_pci_intx_eoi(vbasedev->name);
 
     vdev->intx.pending = false;
     pci_irq_deassert(&vdev->pdev);
@@ -236,7 +236,7 @@ static void vfio_intx_update(VFIOPCIDevice *vdev, PCIINTxRoute *route)
     }
 
     /* Re-enable the interrupt in cased we missed an EOI */
-    vfio_intx_eoi(&vdev->vbasedev);
+    vfio_pci_intx_eoi(&vdev->vbasedev);
 }
 
 static void vfio_intx_routing_notifier(PCIDevice *pdev)
@@ -1743,7 +1743,7 @@ static bool vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
     return true;
 }
 
-static void vfio_teardown_msi(VFIOPCIDevice *vdev)
+void vfio_pci_teardown_msi(VFIOPCIDevice *vdev)
 {
     msi_uninit(&vdev->pdev);
 
@@ -1839,7 +1839,7 @@ static void vfio_bars_register(VFIOPCIDevice *vdev)
     }
 }
 
-static void vfio_bars_exit(VFIOPCIDevice *vdev)
+void vfio_pci_bars_exit(VFIOPCIDevice *vdev)
 {
     int i;
 
@@ -2430,7 +2430,7 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
     g_free(config);
 }
 
-static bool vfio_add_capabilities(VFIOPCIDevice *vdev, Error **errp)
+bool vfio_pci_add_capabilities(VFIOPCIDevice *vdev, Error **errp)
 {
     PCIDevice *pdev = &vdev->pdev;
 
@@ -2706,7 +2706,7 @@ static int vfio_pci_load_config(VFIODevice *vbasedev, QEMUFile *f)
 static VFIODeviceOps vfio_pci_ops = {
     .vfio_compute_needs_reset = vfio_pci_compute_needs_reset,
     .vfio_hot_reset_multi = vfio_pci_hot_reset_multi,
-    .vfio_eoi = vfio_intx_eoi,
+    .vfio_eoi = vfio_pci_intx_eoi,
     .vfio_get_object = vfio_pci_get_object,
     .vfio_save_config = vfio_pci_save_config,
     .vfio_load_config = vfio_pci_load_config,
@@ -2777,7 +2777,7 @@ bool vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp)
     return true;
 }
 
-static bool vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
+bool vfio_pci_populate_device(VFIOPCIDevice *vdev, Error **errp)
 {
     VFIODevice *vbasedev = &vdev->vbasedev;
     struct vfio_region_info *reg_info = NULL;
@@ -2823,7 +2823,7 @@ static bool vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
         return false;
     }
 
-    trace_vfio_populate_device_config(vdev->vbasedev.name,
+    trace_vfio_pci_populate_device_config(vdev->vbasedev.name,
                                       (unsigned long)reg_info->size,
                                       (unsigned long)reg_info->offset,
                                       (unsigned long)reg_info->flags);
@@ -2845,7 +2845,7 @@ static bool vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
     ret = vfio_device_get_irq_info(vbasedev, VFIO_PCI_ERR_IRQ_INDEX, &irq_info);
     if (ret) {
         /* This can fail for an old kernel or legacy PCI dev */
-        trace_vfio_populate_device_get_irq_info_failure(strerror(-ret));
+        trace_vfio_pci_populate_device_get_irq_info_failure(strerror(-ret));
     } else if (irq_info.count == 1) {
         vdev->pci_aer = true;
     } else {
@@ -2857,7 +2857,7 @@ static bool vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
     return true;
 }
 
-static void vfio_pci_put_device(VFIOPCIDevice *vdev)
+void vfio_pci_put_device(VFIOPCIDevice *vdev)
 {
     vfio_display_finalize(vdev);
     vfio_bars_finalize(vdev);
@@ -2905,7 +2905,7 @@ static void vfio_err_notifier_handler(void *opaque)
  * and continue after disabling error recovery support for the
  * device.
  */
-static void vfio_register_err_notifier(VFIOPCIDevice *vdev)
+void vfio_pci_register_err_notifier(VFIOPCIDevice *vdev)
 {
     Error *err = NULL;
     int32_t fd;
@@ -2964,7 +2964,7 @@ static void vfio_req_notifier_handler(void *opaque)
     }
 }
 
-static void vfio_register_req_notifier(VFIOPCIDevice *vdev)
+void vfio_pci_register_req_notifier(VFIOPCIDevice *vdev)
 {
     struct vfio_irq_info irq_info;
     Error *err = NULL;
@@ -3018,7 +3018,7 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
     vdev->req_enabled = false;
 }
 
-static bool vfio_pci_config_setup(VFIOPCIDevice *vdev, Error **errp)
+bool vfio_pci_config_setup(VFIOPCIDevice *vdev, Error **errp)
 {
     PCIDevice *pdev = &vdev->pdev;
     VFIODevice *vbasedev = &vdev->vbasedev;
@@ -3124,7 +3124,7 @@ static bool vfio_pci_config_setup(VFIOPCIDevice *vdev, Error **errp)
     return true;
 }
 
-static bool vfio_interrupt_setup(VFIOPCIDevice *vdev, Error **errp)
+bool vfio_pci_interrupt_setup(VFIOPCIDevice *vdev, Error **errp)
 {
     PCIDevice *pdev = &vdev->pdev;
 
@@ -3214,7 +3214,7 @@ static void vfio_pci_realize(PCIDevice *pdev, Error **errp)
         goto error;
     }
 
-    if (!vfio_populate_device(vdev, errp)) {
+    if (!vfio_pci_populate_device(vdev, errp)) {
         goto error;
     }
 
@@ -3228,7 +3228,7 @@ static void vfio_pci_realize(PCIDevice *pdev, Error **errp)
         goto out_teardown;
     }
 
-    if (!vfio_add_capabilities(vdev, errp)) {
+    if (!vfio_pci_add_capabilities(vdev, errp)) {
         goto out_unset_idev;
     }
 
@@ -3244,7 +3244,7 @@ static void vfio_pci_realize(PCIDevice *pdev, Error **errp)
         vfio_bar_quirk_setup(vdev, i);
     }
 
-    if (!vfio_interrupt_setup(vdev, errp)) {
+    if (!vfio_pci_interrupt_setup(vdev, errp)) {
         goto out_unset_idev;
     }
 
@@ -3288,8 +3288,8 @@ static void vfio_pci_realize(PCIDevice *pdev, Error **errp)
         }
     }
 
-    vfio_register_err_notifier(vdev);
-    vfio_register_req_notifier(vdev);
+    vfio_pci_register_err_notifier(vdev);
+    vfio_pci_register_req_notifier(vdev);
     vfio_setup_resetfn_quirk(vdev);
 
     return;
@@ -3310,8 +3310,8 @@ out_unset_idev:
         pci_device_unset_iommu_device(pdev);
     }
 out_teardown:
-    vfio_teardown_msi(vdev);
-    vfio_bars_exit(vdev);
+    vfio_pci_teardown_msi(vdev);
+    vfio_pci_bars_exit(vdev);
 error:
     error_prepend(errp, VFIO_MSG_PREFIX, vbasedev->name);
 }
@@ -3338,9 +3338,9 @@ static void vfio_exitfn(PCIDevice *pdev)
     if (vdev->intx.mmap_timer) {
         timer_free(vdev->intx.mmap_timer);
     }
-    vfio_teardown_msi(vdev);
+    vfio_pci_teardown_msi(vdev);
     vfio_pci_disable_rp_atomics(vdev);
-    vfio_bars_exit(vdev);
+    vfio_pci_bars_exit(vdev);
     vfio_migration_exit(vbasedev);
     if (!vbasedev->mdev) {
         pci_device_unset_iommu_device(pdev);
