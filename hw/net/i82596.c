@@ -5,7 +5,7 @@
  * This work is licensed under the GNU GPL license version 2 or later.
  *
  * This software was written to be compatible with the specification:
- * https://www.intel.com/assets/pdf/general/82596ca.pdf
+ * https://parisc.docs.kernel.org/en/latest/_downloads/96672be0650d9fc046bbcea40b92482f/82596CA.pdf
  */
 
 #include "qemu/osdep.h"
