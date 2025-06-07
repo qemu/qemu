@@ -241,6 +241,7 @@ int vfio_region_mmap(VFIORegion *region)
 {
     int i, ret, prot = 0;
     char *name;
+    int fd;
 
     if (!region->mem) {
         return 0;
@@ -271,14 +272,18 @@ int vfio_region_mmap(VFIORegion *region)
             goto no_mmap;
         }
 
+        /* Use the per-region fd if set, or the shared fd. */
+        fd = region->vbasedev->region_fds ?
+             region->vbasedev->region_fds[region->nr] :
+             region->vbasedev->fd,
+
         map_align = (void *)ROUND_UP((uintptr_t)map_base, (uintptr_t)align);
         munmap(map_base, map_align - map_base);
         munmap(map_align + region->mmaps[i].size,
                align - (map_align - map_base));
 
         region->mmaps[i].mmap = mmap(map_align, region->mmaps[i].size, prot,
-                                     MAP_SHARED | MAP_FIXED,
-                                     region->vbasedev->fd,
+                                     MAP_SHARED | MAP_FIXED, fd,
                                      region->fd_offset +
                                      region->mmaps[i].offset);
         if (region->mmaps[i].mmap == MAP_FAILED) {

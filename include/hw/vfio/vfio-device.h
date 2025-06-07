@@ -66,6 +66,7 @@ typedef struct VFIODevice {
     OnOffAuto enable_migration;
     OnOffAuto migration_multifd_transfer;
     bool migration_events;
+    bool use_region_fds;
     VFIODeviceOps *ops;
     VFIODeviceIOOps *io_ops;
     unsigned int num_irqs;
@@ -84,6 +85,7 @@ typedef struct VFIODevice {
     VFIOIOASHwpt *hwpt;
     QLIST_ENTRY(VFIODevice) hwpt_next;
     struct vfio_region_info **reginfo;
+    int *region_fds;
 } VFIODevice;
 
 struct VFIODeviceOps {
@@ -170,10 +172,11 @@ struct VFIODeviceIOOps {
     /**
      * @get_region_info
      *
-     * Fill in @info with information on the region given by @info->index.
+     * Fill in @info (and optionally @fd) with information on the region given
+     * by @info->index.
      */
     int (*get_region_info)(VFIODevice *vdev,
-                           struct vfio_region_info *info);
+                           struct vfio_region_info *info, int *fd);
 
     /**
      * @get_irq_info
