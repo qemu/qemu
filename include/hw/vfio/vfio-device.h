@@ -205,10 +205,10 @@ struct VFIODeviceIOOps {
      * @region_write
      *
      * Write @size bytes to the region @nr at offset @off from the buffer
-     * @data.
+     * @data; if @post, the write is posted.
      */
     int (*region_write)(VFIODevice *vdev, uint8_t nr, off_t off, uint32_t size,
-                        void *data);
+                        void *data, bool post);
 };
 
 void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainerBase *bcontainer,
