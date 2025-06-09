@@ -1354,25 +1354,30 @@ fail_alloc_desc:
     return r;
 }
 
-int vhost_virtqueue_stop(struct vhost_dev *dev,
-                         struct VirtIODevice *vdev,
-                         struct vhost_virtqueue *vq,
-                         unsigned idx)
+static int do_vhost_virtqueue_stop(struct vhost_dev *dev,
+                                   struct VirtIODevice *vdev,
+                                   struct vhost_virtqueue *vq,
+                                   unsigned idx, bool force)
 {
     int vhost_vq_index = dev->vhost_ops->vhost_get_vq_index(dev, idx);
     struct vhost_vring_state state = {
         .index = vhost_vq_index,
     };
-    int r;
+    int r = 0;
 
     if (virtio_queue_get_desc_addr(vdev, idx) == 0) {
         /* Don't stop the virtqueue which might have not been started */
         return 0;
     }
 
-    r = dev->vhost_ops->vhost_get_vring_base(dev, &state);
-    if (r < 0) {
-        VHOST_OPS_DEBUG(r, "vhost VQ %u ring restore failed: %d", idx, r);
+    if (!force) {
+        r = dev->vhost_ops->vhost_get_vring_base(dev, &state);
+        if (r < 0) {
+            VHOST_OPS_DEBUG(r, "vhost VQ %u ring restore failed: %d", idx, r);
+        }
+    }
+
+    if (r < 0 || force) {
         /* Connection to the backend is broken, so let's sync internal
          * last avail idx to the device used idx.
          */
@@ -1399,6 +1404,14 @@ int vhost_virtqueue_stop(struct vhost_dev *dev,
     vhost_memory_unmap(dev, vq->desc, virtio_queue_get_desc_size(vdev, idx),
                        0, virtio_queue_get_desc_size(vdev, idx));
     return r;
+}
+
+int vhost_virtqueue_stop(struct vhost_dev *dev,
+                         struct VirtIODevice *vdev,
+                         struct vhost_virtqueue *vq,
+                         unsigned idx)
+{
+    return do_vhost_virtqueue_stop(dev, vdev, vq, idx, false);
 }
 
 static int vhost_virtqueue_set_busyloop_timeout(struct vhost_dev *dev,
@@ -2119,7 +2132,8 @@ fail_features:
 }
 
 /* Host notifiers must be enabled at this point. */
-int vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings)
+static int do_vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev,
+                             bool vrings, bool force)
 {
     int i;
     int rc = 0;
@@ -2141,10 +2155,11 @@ int vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings)
         vhost_dev_set_vring_enable(hdev, false);
     }
     for (i = 0; i < hdev->nvqs; ++i) {
-        rc |= vhost_virtqueue_stop(hdev,
-                                   vdev,
-                                   hdev->vqs + i,
-                                   hdev->vq_index + i);
+        rc |= do_vhost_virtqueue_stop(hdev,
+                                      vdev,
+                                      hdev->vqs + i,
+                                      hdev->vq_index + i,
+                                      force);
     }
     if (hdev->vhost_ops->vhost_reset_status) {
         hdev->vhost_ops->vhost_reset_status(hdev);
@@ -2162,6 +2177,17 @@ int vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings)
     vdev->vhost_started = false;
     hdev->vdev = NULL;
     return rc;
+}
+
+int vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings)
+{
+    return do_vhost_dev_stop(hdev, vdev, vrings, false);
+}
+
+int vhost_dev_force_stop(struct vhost_dev *hdev, VirtIODevice *vdev,
+                         bool vrings)
+{
+    return do_vhost_dev_stop(hdev, vdev, vrings, true);
 }
 
 int vhost_net_set_backend(struct vhost_dev *hdev,
