@@ -21,6 +21,7 @@
 #include "hw/s390x/css.h"
 #include "qemu/error-report.h"
 #include "qemu/event_notifier.h"
+#include "qemu/lockable.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
@@ -40,6 +41,15 @@ struct VFIOAPDevice {
     EventNotifier req_notifier;
     EventNotifier cfg_notifier;
 };
+
+typedef struct APConfigChgEvent {
+    QTAILQ_ENTRY(APConfigChgEvent) next;
+} APConfigChgEvent;
+
+static QTAILQ_HEAD(, APConfigChgEvent) cfg_chg_events =
+    QTAILQ_HEAD_INITIALIZER(cfg_chg_events);
+
+static QemuMutex cfg_chg_events_lock;
 
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOAPDevice, VFIO_AP_DEVICE)
 
@@ -74,10 +84,17 @@ static void vfio_ap_req_notifier_handler(void *opaque)
 
 static void vfio_ap_cfg_chg_notifier_handler(void *opaque)
 {
+    APConfigChgEvent *cfg_chg_event;
     VFIOAPDevice *vapdev = opaque;
 
     if (!event_notifier_test_and_clear(&vapdev->cfg_notifier)) {
         return;
+    }
+
+    cfg_chg_event = g_new0(APConfigChgEvent, 1);
+
+    WITH_QEMU_LOCK_GUARD(&cfg_chg_events_lock) {
+        QTAILQ_INSERT_TAIL(&cfg_chg_events, cfg_chg_event, next);
     }
 
     css_generate_css_crws(0);
