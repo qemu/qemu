@@ -4117,6 +4117,7 @@ M: Stefan Hajnoczi <stefanha@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/qed.c
+F: docs/interop/qed_spec.rst
 
 raw
 M: Kevin Wolf <kwolf@redhat.com>
