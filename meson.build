@@ -843,15 +843,12 @@ host_dsosuf = '.so'
 if host_os == 'windows'
   midl = find_program('midl', required: false)
   widl = find_program('widl', required: false)
-  pathcch = cc.find_library('pathcch')
-  synchronization = cc.find_library('Synchronization', required: false)
-  if not synchronization.found()
-    # The library name is lowercase on mingw
-    synchronization = cc.find_library('synchronization', required: true)
-  endif
 
-  socket = cc.find_library('ws2_32')
-  winmm = cc.find_library('winmm')
+  # MinGW uses lowercase for library names
+  pathcch = cc.find_library('pathcch', required: true)
+  synchronization = cc.find_library('synchronization', required: true)
+  socket = cc.find_library('ws2_32', required: true)
+  winmm = cc.find_library('winmm', required: true)
 
   win = import('windows')
   version_res = win.compile_resources('version.rc',
