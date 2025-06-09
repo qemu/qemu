@@ -437,6 +437,7 @@ static ShutdownCause reset_requested;
 static ShutdownCause shutdown_requested;
 static int shutdown_exit_code = EXIT_SUCCESS;
 static int shutdown_signal;
+static bool force_shutdown;
 static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
@@ -455,6 +456,11 @@ static uint32_t wakeup_reason_mask = ~(1 << QEMU_WAKEUP_REASON_NONE);
 ShutdownCause qemu_shutdown_requested_get(void)
 {
     return shutdown_requested;
+}
+
+bool qemu_force_shutdown_requested(void)
+{
+    return force_shutdown;
 }
 
 ShutdownCause qemu_reset_requested_get(void)
@@ -805,6 +811,7 @@ void qemu_system_killed(int signal, pid_t pid)
      * we are in a signal handler.
      */
     shutdown_requested = SHUTDOWN_CAUSE_HOST_SIGNAL;
+    force_shutdown = true;
     qemu_notify_event();
 }
 
@@ -820,6 +827,9 @@ void qemu_system_shutdown_request(ShutdownCause reason)
     trace_qemu_system_shutdown_request(reason);
     replay_shutdown_request(reason);
     shutdown_requested = reason;
+    if (reason == SHUTDOWN_CAUSE_HOST_QMP_QUIT) {
+        force_shutdown = true;
+    }
     qemu_notify_event();
 }
 
