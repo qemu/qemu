@@ -10,6 +10,7 @@
  * directory.
  */
 
+#include <stdbool.h>
 #include "qemu/osdep.h"
 #include CONFIG_DEVICES /* CONFIG_IOMMUFD */
 #include <linux/vfio.h>
@@ -99,6 +100,38 @@ static void vfio_ap_cfg_chg_notifier_handler(void *opaque)
 
     css_generate_css_crws(0);
 
+}
+
+int ap_chsc_sei_nt0_get_event(void *res)
+{
+    ChscSeiNt0Res *nt0_res  = (ChscSeiNt0Res *)res;
+    APConfigChgEvent *cfg_chg_event;
+
+    WITH_QEMU_LOCK_GUARD(&cfg_chg_events_lock) {
+        if (QTAILQ_EMPTY(&cfg_chg_events)) {
+            return EVENT_INFORMATION_NOT_STORED;
+        }
+
+        cfg_chg_event = QTAILQ_FIRST(&cfg_chg_events);
+        QTAILQ_REMOVE(&cfg_chg_events, cfg_chg_event, next);
+    }
+
+    memset(nt0_res, 0, sizeof(*nt0_res));
+    g_free(cfg_chg_event);
+    nt0_res->flags |= PENDING_EVENT_INFO_BITMASK;
+    nt0_res->length = sizeof(ChscSeiNt0Res);
+    nt0_res->code = NT0_RES_RESPONSE_CODE;
+    nt0_res->nt = NT0_RES_NT_DEFAULT;
+    nt0_res->rs = NT0_RES_RS_AP_CHANGE;
+    nt0_res->cc = NT0_RES_CC_AP_CHANGE;
+
+    return EVENT_INFORMATION_STORED;
+}
+
+bool ap_chsc_sei_nt0_have_event(void)
+{
+    QEMU_LOCK_GUARD(&cfg_chg_events_lock);
+    return !QTAILQ_EMPTY(&cfg_chg_events);
 }
 
 static bool vfio_ap_register_irq_notifier(VFIOAPDevice *vapdev,
@@ -196,6 +229,13 @@ static void vfio_ap_realize(DeviceState *dev, Error **errp)
     Error *err = NULL;
     VFIOAPDevice *vapdev = VFIO_AP_DEVICE(dev);
     VFIODevice *vbasedev = &vapdev->vdev;
+
+    static bool lock_initialized;
+
+    if (!lock_initialized) {
+        qemu_mutex_init(&cfg_chg_events_lock);
+        lock_initialized = true;
+    }
 
     if (!vfio_device_get_name(vbasedev, errp)) {
         return;
