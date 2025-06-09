@@ -437,7 +437,7 @@ static void vfio_listener_commit(MemoryListener *listener)
                                                  listener);
     void (*listener_commit)(VFIOContainerBase *bcontainer);
 
-    listener_commit = VFIO_IOMMU_GET_CLASS(bcontainer)->listener_begin;
+    listener_commit = VFIO_IOMMU_GET_CLASS(bcontainer)->listener_commit;
 
     if (listener_commit) {
         listener_commit(bcontainer);
