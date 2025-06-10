@@ -22,6 +22,9 @@ typedef struct VFIOContainerCPR {
                          void *vaddr, bool readonly, MemoryRegion *mr);
 } VFIOContainerCPR;
 
+typedef struct VFIODeviceCPR {
+    Error *mdev_blocker;
+} VFIODeviceCPR;
 
 bool vfio_legacy_cpr_register_container(struct VFIOContainer *container,
                                         Error **errp);
