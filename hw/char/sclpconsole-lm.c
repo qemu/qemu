@@ -214,7 +214,7 @@ static int process_mdb(SCLPEvent *event, MDBO *mdbo)
 {
     int rc;
     int len;
-    uint8_t buffer[SIZE_BUFFER];
+    QEMU_UNINITIALIZED uint8_t buffer[SIZE_BUFFER];
 
     len = be16_to_cpu(mdbo->length);
     len -= sizeof(mdbo->length) + sizeof(mdbo->type)
