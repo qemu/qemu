@@ -66,7 +66,7 @@ static void mv88w8618_audio_callback(void *opaque, int free_out, int free_in)
 {
     mv88w8618_audio_state *s = opaque;
     int16_t *codec_buffer;
-    int8_t buf[4096];
+    QEMU_UNINITIALIZED int8_t buf[4096];
     int8_t *mem_buffer;
     int pos, block_size;
 
