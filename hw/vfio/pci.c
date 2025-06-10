@@ -3411,6 +3411,13 @@ static void vfio_instance_init(Object *obj)
     /* QEMU_PCI_CAP_EXPRESS initialization does not depend on QEMU command
      * line, therefore, no need to wait to realize like other devices */
     pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
+
+    /*
+     * A device that is resuming for cpr is already configured, so do not
+     * reset it during qemu_system_reset prior to cpr load, else interrupts
+     * may be lost.
+     */
+    pci_dev->cap_present |= QEMU_PCI_SKIP_RESET_ON_CPR;
 }
 
 static void vfio_pci_base_dev_class_init(ObjectClass *klass, const void *data)
