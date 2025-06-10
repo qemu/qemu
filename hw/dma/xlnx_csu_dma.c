@@ -287,7 +287,7 @@ static uint32_t xlnx_csu_dma_advance(XlnxCSUDMA *s, uint32_t len)
 static void xlnx_csu_dma_src_notify(void *opaque)
 {
     XlnxCSUDMA *s = XLNX_CSU_DMA(opaque);
-    unsigned char buf[4 * 1024];
+    QEMU_UNINITIALIZED unsigned char buf[4 * 1024];
     size_t rlen = 0;
 
     ptimer_transaction_begin(s->src_timer);
