@@ -192,7 +192,7 @@ static uint16_t handle_recv_msg(HvSynDbg *syndbg, uint64_t outgpa,
 {
     uint16_t ret;
     g_assert(MSG_BUFSZ >= qemu_target_page_size());
-    uint8_t data_buf[MSG_BUFSZ];
+    QEMU_UNINITIALIZED uint8_t data_buf[MSG_BUFSZ];
     hwaddr out_len;
     void *out_data;
     ssize_t recv_byte_count;
