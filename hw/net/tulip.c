@@ -629,7 +629,7 @@ static void tulip_setup_filter_addr(TULIPState *s, uint8_t *buf, int n)
 static void tulip_setup_frame(TULIPState *s,
         struct tulip_descriptor *desc)
 {
-    uint8_t buf[4096];
+    QEMU_UNINITIALIZED uint8_t buf[4096];
     int len = (desc->control >> TDES1_BUF1_SIZE_SHIFT) & TDES1_BUF1_SIZE_MASK;
     int i;
 
