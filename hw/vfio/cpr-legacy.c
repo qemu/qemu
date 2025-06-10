@@ -8,6 +8,7 @@
 #include <linux/vfio.h>
 #include "qemu/osdep.h"
 #include "hw/vfio/vfio-container.h"
+#include "hw/vfio/vfio-device.h"
 #include "migration/blocker.h"
 #include "migration/cpr.h"
 #include "migration/migration.h"
@@ -65,4 +66,45 @@ void vfio_legacy_cpr_unregister_container(VFIOContainer *container)
     migration_remove_notifier(&bcontainer->cpr_reboot_notifier);
     migrate_del_blocker(&container->cpr.blocker);
     vmstate_unregister(NULL, &vfio_container_vmstate, container);
+}
+
+int vfio_cpr_group_get_device_fd(int d, const char *name)
+{
+    const int id = 0;
+    int fd = cpr_find_fd(name, id);
+
+    if (fd < 0) {
+        fd = ioctl(d, VFIO_GROUP_GET_DEVICE_FD, name);
+        if (fd >= 0) {
+            cpr_save_fd(name, id, fd);
+        }
+    }
+    return fd;
+}
+
+static bool same_device(int fd1, int fd2)
+{
+    struct stat st1, st2;
+
+    return !fstat(fd1, &st1) && !fstat(fd2, &st2) && st1.st_dev == st2.st_dev;
+}
+
+bool vfio_cpr_container_match(VFIOContainer *container, VFIOGroup *group,
+                              int fd)
+{
+    if (container->fd == fd) {
+        return true;
+    }
+    if (!same_device(container->fd, fd)) {
+        return false;
+    }
+    /*
+     * Same device, different fd.  This occurs when the container fd is
+     * cpr_save'd multiple times, once for each groupid, so SCM_RIGHTS
+     * produces duplicates.  De-dup it.
+     */
+    cpr_delete_fd("vfio_container_for_group", group->groupid);
+    close(fd);
+    cpr_save_fd("vfio_container_for_group", group->groupid, container->fd);
+    return true;
 }

@@ -13,6 +13,7 @@
 
 struct VFIOContainer;
 struct VFIOContainerBase;
+struct VFIOGroup;
 
 typedef struct VFIOContainerCPR {
     Error *blocker;
@@ -29,5 +30,10 @@ int vfio_cpr_reboot_notifier(NotifierWithReturn *notifier, MigrationEvent *e,
 bool vfio_cpr_register_container(struct VFIOContainerBase *bcontainer,
                                  Error **errp);
 void vfio_cpr_unregister_container(struct VFIOContainerBase *bcontainer);
+
+int vfio_cpr_group_get_device_fd(int d, const char *name);
+
+bool vfio_cpr_container_match(struct VFIOContainer *container,
+                              struct VFIOGroup *group, int fd);
 
 #endif /* HW_VFIO_VFIO_CPR_H */
