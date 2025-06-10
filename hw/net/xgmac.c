@@ -207,7 +207,7 @@ static void xgmac_enet_send(XgmacState *s)
     struct desc bd;
     int frame_size;
     int len;
-    uint8_t frame[8192];
+    QEMU_UNINITIALIZED uint8_t frame[8192];
     uint8_t *ptr;
 
     ptr = frame;
