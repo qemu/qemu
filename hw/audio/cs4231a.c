@@ -528,7 +528,7 @@ static int cs_write_audio (CSState *s, int nchan, int dma_pos,
                            int dma_len, int len)
 {
     int temp, net;
-    uint8_t tmpbuf[4096];
+    QEMU_UNINITIALIZED uint8_t tmpbuf[4096];
     IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
 
     temp = len;
@@ -547,7 +547,7 @@ static int cs_write_audio (CSState *s, int nchan, int dma_pos,
         copied = k->read_memory(s->isa_dma, nchan, tmpbuf, dma_pos, to_copy);
         if (s->tab) {
             int i;
-            int16_t linbuf[4096];
+            QEMU_UNINITIALIZED int16_t linbuf[4096];
 
             for (i = 0; i < copied; ++i)
                 linbuf[i] = s->tab[tmpbuf[i]];
