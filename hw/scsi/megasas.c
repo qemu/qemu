@@ -981,13 +981,11 @@ static int megasas_event_wait(MegasasState *s, MegasasCmd *cmd)
 
 static int megasas_dcmd_pd_get_list(MegasasState *s, MegasasCmd *cmd)
 {
-    struct mfi_pd_list info;
-    size_t dcmd_size = sizeof(info);
+    struct mfi_pd_list info = {};
     BusChild *kid;
     uint32_t offset, dcmd_limit, num_pd_disks = 0, max_pd_disks;
     dma_addr_t residual;
 
-    memset(&info, 0, dcmd_size);
     offset = 8;
     dcmd_limit = offset + sizeof(struct mfi_pd_address);
     if (cmd->iov_size < dcmd_limit) {
@@ -1429,11 +1427,10 @@ static int megasas_dcmd_cfg_read(MegasasState *s, MegasasCmd *cmd)
 
 static int megasas_dcmd_get_properties(MegasasState *s, MegasasCmd *cmd)
 {
-    struct mfi_ctrl_props info;
+    struct mfi_ctrl_props info = {};
     size_t dcmd_size = sizeof(info);
     dma_addr_t residual;
 
-    memset(&info, 0x0, dcmd_size);
     if (cmd->iov_size < dcmd_size) {
         trace_megasas_dcmd_invalid_xfer_len(cmd->index, cmd->iov_size,
                                             dcmd_size);
