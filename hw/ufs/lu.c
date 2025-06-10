@@ -194,7 +194,7 @@ static int ufs_emulate_wlun_inquiry(UfsRequest *req, uint8_t *outbuf,
 static UfsReqResult ufs_emulate_scsi_cmd(UfsLu *lu, UfsRequest *req)
 {
     uint8_t lun = lu->lun;
-    uint8_t outbuf[4096];
+    QEMU_UNINITIALIZED uint8_t outbuf[4096];
     uint8_t sense_buf[UFS_SENSE_SIZE];
     uint8_t scsi_status;
     int len = 0;
