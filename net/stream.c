@@ -148,7 +148,7 @@ static gboolean net_stream_send(QIOChannel *ioc,
     NetStreamState *s = data;
     int size;
     int ret;
-    char buf1[NET_BUFSIZE];
+    QEMU_UNINITIALIZED char buf1[NET_BUFSIZE];
     const char *buf;
 
     size = qio_channel_read(s->ioc, buf1, sizeof(buf1), NULL);
