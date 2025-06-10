@@ -527,7 +527,7 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
 
     if (binfo->dtb_filename) {
         char *filename;
-        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, binfo->dtb_filename);
+        filename = qemu_find_file(QEMU_FILE_TYPE_DTB, binfo->dtb_filename);
         if (!filename) {
             fprintf(stderr, "Couldn't open dtb file %s\n", binfo->dtb_filename);
             goto fail;
