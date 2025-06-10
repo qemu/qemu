@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 22%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 23%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -569,6 +569,12 @@ Patch198: kvm-vfio-helpers-Refactor-vfio_region_mmap-error-handlin.patch
 Patch199: kvm-vfio-helpers-Align-mmaps.patch
 # For RHEL-85159 - Video stuck about 1 min after switchover phase when play one video during postcopy-preempt migration
 Patch200: kvm-migration-postcopy-Spatial-locality-page-hint-for-pr.patch
+# For RHEL-95120 - Allow libvirt to restart passt/vhost-user when the process is killed [rhel-9.7]
+Patch201: kvm-net-vhost-user-add-QAPI-events-to-report-connection-.patch
+# For RHEL-95408 - Support multipath failover with scsi-block [rhel-9]
+Patch202: kvm-file-posix-Define-DM_MPATH_PROBE_PATHS.patch
+# For RHEL-95408 - Support multipath failover with scsi-block [rhel-9]
+Patch203: kvm-file-posix-Probe-paths-and-retry-SG_IO-on-potential-.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1644,6 +1650,15 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Mon Jun 09 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-23
+- kvm-net-vhost-user-add-QAPI-events-to-report-connection-.patch [RHEL-95120]
+- kvm-file-posix-Define-DM_MPATH_PROBE_PATHS.patch [RHEL-95408]
+- kvm-file-posix-Probe-paths-and-retry-SG_IO-on-potential-.patch [RHEL-95408]
+- Resolves: RHEL-95120
+  (Allow libvirt to restart passt/vhost-user when the process is killed [rhel-9.7])
+- Resolves: RHEL-95408
+  (Support multipath failover with scsi-block [rhel-9])
+
 * Mon Jun 02 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-22
 - kvm-migration-postcopy-Spatial-locality-page-hint-for-pr.patch [RHEL-85159]
 - kvm-Allow-guest-network-get-route-guest-get-load-QGA-com.patch [RHEL-91605 RHEL-91606]
