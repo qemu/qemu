@@ -208,6 +208,26 @@
 #endif
 
 /*
+ * Disable -ftrivial-auto-var-init on a local variable.
+ *
+ * Use this in cases where there a method in the device I/O path (or other
+ * important hot paths), that has large variables on the stack. A rule of
+ * thumb is that "large" means a method with 4kb data in the local stack
+ * frame. Any variables which are KB in size, should be annotated with this
+ * attribute, to pre-emptively eliminate any potential overhead from the
+ * compiler's implicit zero'ing of memory.
+ *
+ * Given that this turns off a security hardening feature, when using this
+ * to flag variables, it is important that the code is double-checked to
+ * ensure there is no possible use of uninitialized data in the method.
+ */
+#if __has_attribute(uninitialized)
+# define QEMU_UNINITIALIZED __attribute__((uninitialized))
+#else
+# define QEMU_UNINITIALIZED
+#endif
+
+/*
  * http://clang.llvm.org/docs/ThreadSafetyAnalysis.html
  *
  * TSA is available since clang 3.6-ish.
