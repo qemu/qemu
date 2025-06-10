@@ -886,7 +886,7 @@ static void nabm_writel(void *opaque, uint32_t addr, uint32_t val)
 static int write_audio(AC97LinkState *s, AC97BusMasterRegs *r,
                        int max, int *stop)
 {
-    uint8_t tmpbuf[4096];
+    QEMU_UNINITIALIZED uint8_t tmpbuf[4096];
     uint32_t addr = r->bd.addr;
     uint32_t temp = r->picb << 1;
     uint32_t written = 0;
@@ -959,7 +959,7 @@ static void write_bup(AC97LinkState *s, int elapsed)
 static int read_audio(AC97LinkState *s, AC97BusMasterRegs *r,
                       int max, int *stop)
 {
-    uint8_t tmpbuf[4096];
+    QEMU_UNINITIALIZED uint8_t tmpbuf[4096];
     uint32_t addr = r->bd.addr;
     uint32_t temp = r->picb << 1;
     uint32_t nread = 0;
