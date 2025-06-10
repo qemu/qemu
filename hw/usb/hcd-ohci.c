@@ -577,7 +577,7 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed)
     USBDevice *dev;
     USBEndpoint *ep;
     USBPacket *pkt;
-    uint8_t buf[8192];
+    QEMU_UNINITIALIZED uint8_t buf[8192];
     bool int_req;
     struct ohci_iso_td iso_td;
     uint32_t addr;
