@@ -17,6 +17,9 @@ struct VFIOGroup;
 
 typedef struct VFIOContainerCPR {
     Error *blocker;
+    int (*saved_dma_map)(const struct VFIOContainerBase *bcontainer,
+                         hwaddr iova, ram_addr_t size,
+                         void *vaddr, bool readonly, MemoryRegion *mr);
 } VFIOContainerCPR;
 
 
