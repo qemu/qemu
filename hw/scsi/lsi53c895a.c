@@ -1112,7 +1112,7 @@ bad:
 static void lsi_memcpy(LSIState *s, uint32_t dest, uint32_t src, int count)
 {
     int n;
-    uint8_t buf[LSI_BUF_SIZE];
+    QEMU_UNINITIALIZED uint8_t buf[LSI_BUF_SIZE];
 
     trace_lsi_memcpy(dest, src, count);
     while (count) {
