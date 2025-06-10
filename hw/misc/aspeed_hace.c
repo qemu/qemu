@@ -419,7 +419,7 @@ static void hash_execute_acc_mode(AspeedHACEState *s, int algo,
 static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode,
                               bool acc_mode)
 {
-    struct iovec iov[ASPEED_HACE_MAX_SG];
+    QEMU_UNINITIALIZED struct iovec iov[ASPEED_HACE_MAX_SG];
     bool acc_final_request = false;
     int iov_idx = -1;
 
