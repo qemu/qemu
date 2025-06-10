@@ -789,7 +789,7 @@ static bool occ_opal_process_command(PnvOCC *occ,
 
 static bool occ_model_tick(PnvOCC *occ)
 {
-    struct occ_dynamic_data dynamic_data;
+    QEMU_UNINITIALIZED struct occ_dynamic_data dynamic_data;
 
     if (!occ_read_dynamic_data(occ, &dynamic_data, NULL)) {
         /* Can't move OCC state field to safe because we can't map it! */
