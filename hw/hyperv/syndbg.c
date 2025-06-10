@@ -188,7 +188,7 @@ static uint16_t handle_recv_msg(HvSynDbg *syndbg, uint64_t outgpa,
                                 uint64_t timeout, uint32_t *retrieved_count)
 {
     uint16_t ret;
-    uint8_t data_buf[TARGET_PAGE_SIZE - UDP_PKT_HEADER_SIZE];
+    QEMU_UNINITIALIZED uint8_t data_buf[TARGET_PAGE_SIZE - UDP_PKT_HEADER_SIZE];
     hwaddr out_len;
     void *out_data;
     ssize_t recv_byte_count;
