@@ -41,8 +41,8 @@ static ssize_t tpm_execute(SpaprTpmProxy *tpm_proxy, target_ulong *args)
     target_ulong data_in_size = args[2];
     uint64_t data_out = ppc64_phys_to_real(args[3]);
     target_ulong data_out_size = args[4];
-    uint8_t buf_in[TPM_SPAPR_BUFSIZE];
-    uint8_t buf_out[TPM_SPAPR_BUFSIZE];
+    QEMU_UNINITIALIZED uint8_t buf_in[TPM_SPAPR_BUFSIZE];
+    QEMU_UNINITIALIZED uint8_t buf_out[TPM_SPAPR_BUFSIZE];
     ssize_t ret;
 
     trace_spapr_tpm_execute(data_in, data_in_size, data_out, data_out_size);
