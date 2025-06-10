@@ -2124,7 +2124,7 @@ M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
 F: tests/functional/acpi-bits/*
 F: tests/functional/test_acpi_bits.py
-F: docs/devel/acpi-bits.rst
+F: docs/devel/testing/acpi-bits.rst
 
 ACPI/HEST/GHES
 R: Dongjiu Geng <gengdongjiu1@gmail.com>
@@ -3440,8 +3440,8 @@ F: system/qtest.c
 F: include/system/qtest.h
 F: accel/qtest/
 F: tests/qtest/
-F: docs/devel/qgraph.rst
-F: docs/devel/qtest.rst
+F: docs/devel/testing/qgraph.rst
+F: docs/devel/testing/qtest.rst
 X: tests/qtest/bios-tables-test*
 X: tests/qtest/migration-*
 
@@ -3459,7 +3459,7 @@ F: tests/qtest/fuzz-*test.c
 F: tests/docker/test-fuzz
 F: scripts/oss-fuzz/
 F: hw/mem/sparse-mem.c
-F: docs/devel/fuzzing.rst
+F: docs/devel/testing/fuzzing.rst
 
 Register API
 M: Alistair Francis <alistair@alistair23.me>
@@ -4078,7 +4078,7 @@ M: Stefan Hajnoczi <stefanha@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/blkverify.c
-F: docs/devel/blkverify.rst
+F: docs/devel/testing/blkverify.rst
 
 bochs
 M: Stefan Hajnoczi <stefanha@redhat.com>
@@ -4156,7 +4156,7 @@ M: Hanna Reitz <hreitz@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/blkdebug.c
-F: docs/devel/blkdebug.rst
+F: docs/devel/testing/blkdebug.rst
 
 vpc
 M: Kevin Wolf <kwolf@redhat.com>
@@ -4276,7 +4276,8 @@ F: tests/vm/
 F: tests/lcitool/
 F: tests/functional/test_*_tuxrun.py
 F: scripts/archive-source.sh
-F: docs/devel/testing.rst
+F: docs/devel/testing/ci*
+F: docs/devel/testing/main.rst
 W: https://gitlab.com/qemu-project/qemu/pipelines
 W: https://travis-ci.org/qemu/qemu
 
