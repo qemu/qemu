@@ -136,6 +136,10 @@ static void virt_build_smbios(LoongArchVirtMachineState *lvms)
         return;
     }
 
+    if (kvm_enabled()) {
+        product = "KVM Virtual Machine";
+    }
+
     smbios_set_defaults("QEMU", product, mc->name);
 
     smbios_get_tables(ms, SMBIOS_ENTRY_POINT_TYPE_64,
@@ -168,8 +172,15 @@ static void virt_powerdown_req(Notifier *notifier, void *opaque)
     acpi_send_event(s->acpi_ged, ACPI_POWER_DOWN_STATUS);
 }
 
-static void memmap_add_entry(uint64_t address, uint64_t length, uint32_t type)
+static void memmap_add_entry(MachineState *ms, uint64_t address,
+                             uint64_t length, uint32_t type)
 {
+    LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(ms);
+    struct memmap_entry *memmap_table;
+    unsigned int memmap_entries;
+
+    memmap_table = lvms->memmap_table;
+    memmap_entries = lvms->memmap_entries;
     /* Ensure there are no duplicate entries. */
     for (unsigned i = 0; i < memmap_entries; i++) {
         assert(memmap_table[i].address != address);
@@ -182,6 +193,8 @@ static void memmap_add_entry(uint64_t address, uint64_t length, uint32_t type)
     memmap_table[memmap_entries].type = cpu_to_le32(type);
     memmap_table[memmap_entries].reserved = 0;
     memmap_entries++;
+    lvms->memmap_table = memmap_table;
+    lvms->memmap_entries = memmap_entries;
 }
 
 static DeviceState *create_acpi_ged(DeviceState *pch_pic,
@@ -619,13 +632,13 @@ static void fw_cfg_add_memory(MachineState *ms)
     }
 
     if (size >= gap) {
-        memmap_add_entry(base, gap, 1);
+        memmap_add_entry(ms, base, gap, 1);
         size -= gap;
         base = VIRT_HIGHMEM_BASE;
     }
 
     if (size) {
-        memmap_add_entry(base, size, 1);
+        memmap_add_entry(ms, base, size, 1);
         base += size;
     }
 
@@ -640,7 +653,7 @@ static void fw_cfg_add_memory(MachineState *ms)
          * lowram:  [base, +(gap - numa_info[0].node_mem))
          * highram: [VIRT_HIGHMEM_BASE, +(ram_size - gap))
          */
-        memmap_add_entry(base, gap - numa_info[0].node_mem, 1);
+        memmap_add_entry(ms, base, gap - numa_info[0].node_mem, 1);
         size = ram_size - gap;
         base = VIRT_HIGHMEM_BASE;
     } else {
@@ -648,7 +661,7 @@ static void fw_cfg_add_memory(MachineState *ms)
     }
 
     if (size) {
-        memmap_add_entry(base, size, 1);
+        memmap_add_entry(ms, base, size, 1);
     }
 }
 
@@ -734,8 +747,8 @@ static void virt_init(MachineState *machine)
     rom_set_fw(lvms->fw_cfg);
     if (lvms->fw_cfg != NULL) {
         fw_cfg_add_file(lvms->fw_cfg, "etc/memmap",
-                        memmap_table,
-                        sizeof(struct memmap_entry) * (memmap_entries));
+                        lvms->memmap_table,
+                        sizeof(struct memmap_entry) * lvms->memmap_entries);
     }
 
     /* Initialize the IO interrupt subsystem */

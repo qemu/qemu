@@ -82,7 +82,7 @@ static uint64_t pch_pic_read(void *opaque, hwaddr addr, uint64_t field_mask)
     addr -= offset;
     switch (addr) {
     case PCH_PIC_INT_ID:
-        val = s->id.data;
+        val = cpu_to_le64(s->id.data);
         break;
     case PCH_PIC_INT_MASK:
         val = s->int_mask;
