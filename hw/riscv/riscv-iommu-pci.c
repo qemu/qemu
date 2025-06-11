@@ -68,12 +68,6 @@ typedef struct RISCVIOMMUStatePci {
     RISCVIOMMUState  iommu;   /* common IOMMU state */
 } RISCVIOMMUStatePci;
 
-struct RISCVIOMMUPciClass {
-    /*< public >*/
-    DeviceRealize parent_realize;
-    ResettablePhases parent_phases;
-};
-
 /* interrupt delivery callback */
 static void riscv_iommu_pci_notify(RISCVIOMMUState *iommu, unsigned vector)
 {

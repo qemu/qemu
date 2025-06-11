@@ -150,6 +150,7 @@ tests_arm_linuxuser_thorough = [
 
 tests_avr_system_thorough = [
   'avr_mega2560',
+  'avr_uno',
 ]
 
 tests_hppa_system_quick = [

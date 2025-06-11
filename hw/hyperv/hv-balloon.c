@@ -67,10 +67,6 @@
  * these requests
  */
 
-struct HvBalloonClass {
-    VMBusDeviceClass parent_class;
-} HvBalloonClass;
-
 typedef enum State {
     /* not a real state */
     S_NO_CHANGE = 0,
@@ -162,8 +158,9 @@ typedef struct HvBalloon {
     MemoryRegion *mr;
 } HvBalloon;
 
-OBJECT_DEFINE_TYPE_WITH_INTERFACES(HvBalloon, hv_balloon, HV_BALLOON, VMBUS_DEVICE, \
-                                   { TYPE_MEMORY_DEVICE }, { })
+OBJECT_DEFINE_SIMPLE_TYPE_WITH_INTERFACES(HvBalloon, hv_balloon, \
+                                          HV_BALLOON, VMBUS_DEVICE, \
+                                          { TYPE_MEMORY_DEVICE }, { })
 
 #define HV_BALLOON_SET_STATE(hvb, news)             \
     do {                                            \

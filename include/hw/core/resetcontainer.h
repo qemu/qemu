@@ -20,7 +20,7 @@
 #include "qom/object.h"
 
 #define TYPE_RESETTABLE_CONTAINER "resettable-container"
-OBJECT_DECLARE_TYPE(ResettableContainer, ResettableContainerClass, RESETTABLE_CONTAINER)
+OBJECT_DECLARE_SIMPLE_TYPE(ResettableContainer, RESETTABLE_CONTAINER)
 
 /**
  * resettable_container_add: Add a resettable object to the container

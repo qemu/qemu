@@ -5,7 +5,7 @@
  * This work is licensed under the GNU GPL license version 2 or later.
  *
  * This software was written to be compatible with the specification:
- * https://www.intel.com/assets/pdf/general/82596ca.pdf
+ * https://parisc.docs.kernel.org/en/latest/_downloads/96672be0650d9fc046bbcea40b92482f/82596CA.pdf
  */
 
 #include "qemu/osdep.h"
@@ -177,6 +177,26 @@ static void set_individual_address(I82596State *s, uint32_t addr)
     trace_i82596_new_mac(nc->info_str);
 }
 
+static void i82596_configure(I82596State *s, uint32_t addr)
+{
+    uint8_t byte_cnt;
+    byte_cnt = get_byte(addr + 8) & 0x0f;
+
+    byte_cnt = MAX(byte_cnt, 4);
+    byte_cnt = MIN(byte_cnt, sizeof(s->config));
+    /* copy byte_cnt max. */
+    address_space_read(&address_space_memory, addr + 8,
+                       MEMTXATTRS_UNSPECIFIED, s->config, byte_cnt);
+    /* config byte according to page 35ff */
+    s->config[2] &= 0x82; /* mask valid bits */
+    s->config[2] |= 0x40;
+    s->config[7]  &= 0xf7; /* clear zero bit */
+    assert(I596_NOCRC_INS == 0); /* do CRC insertion */
+    s->config[10] = MAX(s->config[10], 5); /* min frame length */
+    s->config[12] &= 0x40; /* only full duplex field valid */
+    s->config[13] |= 0x3f; /* set ones in byte 13 */
+}
+
 static void set_multicast_list(I82596State *s, uint32_t addr)
 {
     uint16_t mc_count, i;
@@ -234,7 +254,6 @@ static void command_loop(I82596State *s)
 {
     uint16_t cmd;
     uint16_t status;
-    uint8_t byte_cnt;
 
     DBG(printf("STARTING COMMAND LOOP cmd_p=%08x\n", s->cmd_p));
 
@@ -254,20 +273,7 @@ static void command_loop(I82596State *s)
             set_individual_address(s, s->cmd_p);
             break;
         case CmdConfigure:
-            byte_cnt = get_byte(s->cmd_p + 8) & 0x0f;
-            byte_cnt = MAX(byte_cnt, 4);
-            byte_cnt = MIN(byte_cnt, sizeof(s->config));
-            /* copy byte_cnt max. */
-            address_space_read(&address_space_memory, s->cmd_p + 8,
-                               MEMTXATTRS_UNSPECIFIED, s->config, byte_cnt);
-            /* config byte according to page 35ff */
-            s->config[2] &= 0x82; /* mask valid bits */
-            s->config[2] |= 0x40;
-            s->config[7]  &= 0xf7; /* clear zero bit */
-            assert(I596_NOCRC_INS == 0); /* do CRC insertion */
-            s->config[10] = MAX(s->config[10], 5); /* min frame length */
-            s->config[12] &= 0x40; /* only full duplex field valid */
-            s->config[13] |= 0x3f; /* set ones in byte 13 */
+            i82596_configure(s, s->cmd_p);
             break;
         case CmdTDR:
             /* get signal LINK */

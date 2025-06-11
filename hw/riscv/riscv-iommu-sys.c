@@ -53,12 +53,6 @@ struct RISCVIOMMUStateSys {
     uint8_t *msix_pba;
 };
 
-struct RISCVIOMMUSysClass {
-    /*< public >*/
-    DeviceRealize parent_realize;
-    ResettablePhases parent_phases;
-};
-
 static uint64_t msix_table_mmio_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
