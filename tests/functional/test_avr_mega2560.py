@@ -18,12 +18,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import time
+from qemu_test import QemuSystemTest, Asset, wait_for_console_pattern
 
-from qemu_test import QemuSystemTest, Asset
 
 class AVR6Machine(QemuSystemTest):
-    timeout = 5
 
     ASSET_ROM = Asset(('https://github.com/seharris/qemu-avr-tests'
                        '/raw/36c3e67b8755dcf/free-rtos/Demo'
@@ -40,13 +38,12 @@ class AVR6Machine(QemuSystemTest):
         self.set_machine('arduino-mega-2560-v3')
         self.vm.add_args('-bios', rom_path)
         self.vm.add_args('-nographic')
+        self.vm.set_console()
         self.vm.launch()
 
-        time.sleep(2)
-        self.vm.shutdown()
+        wait_for_console_pattern(self,
+                        'XABCDEFGHIJKLMNOPQRSTUVWXABCDEFGHIJKLMNOPQRSTUVWXA')
 
-        self.assertIn('ABCDEFGHIJKLMNOPQRSTUVWXABCDEFGHIJKLMNOPQRSTUVWX',
-                self.vm.get_log())
 
 if __name__ == '__main__':
     QemuSystemTest.main()
