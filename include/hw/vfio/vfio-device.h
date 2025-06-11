@@ -28,6 +28,7 @@
 #endif
 #include "system/system.h"
 #include "hw/vfio/vfio-container-base.h"
+#include "hw/vfio/vfio-cpr.h"
 #include "system/host_iommu_device.h"
 #include "system/iommufd.h"
 
@@ -66,6 +67,7 @@ typedef struct VFIODevice {
     OnOffAuto enable_migration;
     OnOffAuto migration_multifd_transfer;
     bool migration_events;
+    bool use_region_fds;
     VFIODeviceOps *ops;
     VFIODeviceIOOps *io_ops;
     unsigned int num_irqs;
@@ -84,6 +86,8 @@ typedef struct VFIODevice {
     VFIOIOASHwpt *hwpt;
     QLIST_ENTRY(VFIODevice) hwpt_next;
     struct vfio_region_info **reginfo;
+    int *region_fds;
+    VFIODeviceCPR cpr;
 } VFIODevice;
 
 struct VFIODeviceOps {
@@ -164,36 +168,64 @@ struct VFIODeviceIOOps {
      * @device_feature
      *
      * Fill in feature info for the given device.
+     *
+     * @vdev: #VFIODevice to use
+     * @feat: feature information to fill in
+     *
+     * Returns 0 on success or -errno.
      */
-    int (*device_feature)(VFIODevice *vdev, struct vfio_device_feature *);
+    int (*device_feature)(VFIODevice *vdev, struct vfio_device_feature *feat);
 
     /**
      * @get_region_info
      *
-     * Fill in @info with information on the region given by @info->index.
+     * Get the information for a given region on the device.
+     *
+     * @vdev: #VFIODevice to use
+     * @info: set @info->index to the region index to look up; the rest of the
+     *        struct will be filled in on success
+     * @fd: pointer to the fd for the region; will be -1 if not found
+     *
+     * Returns 0 on success or -errno.
      */
     int (*get_region_info)(VFIODevice *vdev,
-                           struct vfio_region_info *info);
+                           struct vfio_region_info *info, int *fd);
 
     /**
      * @get_irq_info
      *
-     * Fill in @irq with information on the IRQ given by @info->index.
+     * @vdev: #VFIODevice to use
+     * @irq: set @irq->index to the IRQ index to look up; the rest of the struct
+     *       will be filled in on success
+     *
+     * Returns 0 on success or -errno.
      */
     int (*get_irq_info)(VFIODevice *vdev, struct vfio_irq_info *irq);
 
     /**
      * @set_irqs
      *
-     * Configure IRQs as defined by @irqs.
+     * Configure IRQs.
+     *
+     * @vdev: #VFIODevice to use
+     * @irqs: IRQ configuration as defined by VFIO docs.
+     *
+     * Returns 0 on success or -errno.
      */
     int (*set_irqs)(VFIODevice *vdev, struct vfio_irq_set *irqs);
 
     /**
      * @region_read
      *
-     * Read @size bytes from the region @nr at offset @off into the buffer
-     * @data.
+     * Read part of a region.
+     *
+     * @vdev: #VFIODevice to use
+     * @nr: region index
+     * @off: offset within the region
+     * @size: size in bytes to read
+     * @data: buffer to read into
+     *
+     * Returns number of bytes read on success or -errno.
      */
     int (*region_read)(VFIODevice *vdev, uint8_t nr, off_t off, uint32_t size,
                        void *data);
@@ -201,11 +233,18 @@ struct VFIODeviceIOOps {
     /**
      * @region_write
      *
-     * Write @size bytes to the region @nr at offset @off from the buffer
-     * @data.
+     * Write part of a region.
+     *
+     * @vdev: #VFIODevice to use
+     * @nr: region index
+     * @off: offset within the region
+     * @size: size in bytes to write
+     * @data: buffer to write from
+     *
+     * Returns number of bytes write on success or -errno.
      */
     int (*region_write)(VFIODevice *vdev, uint8_t nr, off_t off, uint32_t size,
-                        void *data);
+                        void *data, bool post);
 };
 
 void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainerBase *bcontainer,

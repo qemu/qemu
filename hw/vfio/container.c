@@ -31,9 +31,10 @@
 #include "system/reset.h"
 #include "trace.h"
 #include "qapi/error.h"
+#include "migration/cpr.h"
+#include "migration/blocker.h"
 #include "pci.h"
 #include "hw/vfio/vfio-container.h"
-#include "hw/vfio/vfio-cpr.h"
 #include "vfio-helpers.h"
 #include "vfio-listener.h"
 
@@ -134,6 +135,8 @@ static int vfio_legacy_dma_unmap_one(const VFIOContainerBase *bcontainer,
     bool need_dirty_sync = false;
     int ret;
     Error *local_err = NULL;
+
+    g_assert(!cpr_is_incoming());
 
     if (iotlb && vfio_container_dirty_tracking_is_started(bcontainer)) {
         if (!vfio_container_devices_dirty_tracking_is_supported(bcontainer) &&
@@ -426,7 +429,12 @@ static VFIOContainer *vfio_create_container(int fd, VFIOGroup *group,
         return NULL;
     }
 
-    if (!vfio_set_iommu(fd, group->fd, &iommu_type, errp)) {
+    /*
+     * During CPR, just set the container type and skip the ioctls, as the
+     * container and group are already configured in the kernel.
+     */
+    if (!cpr_is_incoming() &&
+        !vfio_set_iommu(fd, group->fd, &iommu_type, errp)) {
         return NULL;
     }
 
@@ -593,6 +601,11 @@ static bool vfio_container_group_add(VFIOContainer *container, VFIOGroup *group,
     group->container = container;
     QLIST_INSERT_HEAD(&container->group_list, group, container_next);
     vfio_group_add_kvm_device(group);
+    /*
+     * Remember the container fd for each group, so we can attach to the same
+     * container after CPR.
+     */
+    cpr_resave_fd("vfio_container_for_group", group->groupid, container->fd);
     return true;
 }
 
@@ -602,6 +615,7 @@ static void vfio_container_group_del(VFIOContainer *container, VFIOGroup *group)
     group->container = NULL;
     vfio_group_del_kvm_device(group);
     vfio_ram_block_discard_disable(container, false);
+    cpr_delete_fd("vfio_container_for_group", group->groupid);
 }
 
 static bool vfio_container_connect(VFIOGroup *group, AddressSpace *as,
@@ -616,17 +630,34 @@ static bool vfio_container_connect(VFIOGroup *group, AddressSpace *as,
     bool group_was_added = false;
 
     space = vfio_address_space_get(as);
+    fd = cpr_find_fd("vfio_container_for_group", group->groupid);
 
-    QLIST_FOREACH(bcontainer, &space->containers, next) {
-        container = container_of(bcontainer, VFIOContainer, bcontainer);
-        if (!ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
-            return vfio_container_group_add(container, group, errp);
+    if (!cpr_is_incoming()) {
+        QLIST_FOREACH(bcontainer, &space->containers, next) {
+            container = container_of(bcontainer, VFIOContainer, bcontainer);
+            if (!ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
+                return vfio_container_group_add(container, group, errp);
+            }
         }
-    }
 
-    fd = qemu_open("/dev/vfio/vfio", O_RDWR, errp);
-    if (fd < 0) {
-        goto fail;
+        fd = qemu_open("/dev/vfio/vfio", O_RDWR, errp);
+        if (fd < 0) {
+            goto fail;
+        }
+    } else {
+        /*
+         * For incoming CPR, the group is already attached in the kernel.
+         * If a container with matching fd is found, then update the
+         * userland group list and return.  If not, then after the loop,
+         * create the container struct and group list.
+         */
+        QLIST_FOREACH(bcontainer, &space->containers, next) {
+            container = container_of(bcontainer, VFIOContainer, bcontainer);
+
+            if (vfio_cpr_container_match(container, group, fd)) {
+                return vfio_container_group_add(container, group, errp);
+            }
+        }
     }
 
     ret = ioctl(fd, VFIO_GET_API_VERSION);
@@ -643,7 +674,7 @@ static bool vfio_container_connect(VFIOGroup *group, AddressSpace *as,
     new_container = true;
     bcontainer = &container->bcontainer;
 
-    if (!vfio_cpr_register_container(bcontainer, errp)) {
+    if (!vfio_legacy_cpr_register_container(container, errp)) {
         goto fail;
     }
 
@@ -661,8 +692,17 @@ static bool vfio_container_connect(VFIOGroup *group, AddressSpace *as,
     }
     group_was_added = true;
 
-    if (!vfio_listener_register(bcontainer, errp)) {
-        goto fail;
+    /*
+     * If CPR, register the listener later, after all state that may
+     * affect regions and mapping boundaries has been cpr load'ed.  Later,
+     * the listener will invoke its callback on each flat section and call
+     * dma_map to supply the new vaddr, and the calls will match the mappings
+     * remembered by the kernel.
+     */
+    if (!cpr_is_incoming()) {
+        if (!vfio_listener_register(bcontainer, errp)) {
+            goto fail;
+        }
     }
 
     bcontainer->initialized = true;
@@ -679,7 +719,7 @@ fail:
         vioc->release(bcontainer);
     }
     if (new_container) {
-        vfio_cpr_unregister_container(bcontainer);
+        vfio_legacy_cpr_unregister_container(container);
         object_unref(container);
     }
     if (fd >= 0) {
@@ -698,6 +738,7 @@ static void vfio_container_disconnect(VFIOGroup *group)
 
     QLIST_REMOVE(group, container_next);
     group->container = NULL;
+    cpr_delete_fd("vfio_container_for_group", group->groupid);
 
     /*
      * Explicitly release the listener first before unset container,
@@ -720,7 +761,7 @@ static void vfio_container_disconnect(VFIOGroup *group)
         VFIOAddressSpace *space = bcontainer->space;
 
         trace_vfio_container_disconnect(container->fd);
-        vfio_cpr_unregister_container(bcontainer);
+        vfio_legacy_cpr_unregister_container(container);
         close(container->fd);
         object_unref(container);
 
@@ -751,7 +792,7 @@ static VFIOGroup *vfio_group_get(int groupid, AddressSpace *as, Error **errp)
     group = g_malloc0(sizeof(*group));
 
     snprintf(path, sizeof(path), "/dev/vfio/%d", groupid);
-    group->fd = qemu_open(path, O_RDWR, errp);
+    group->fd = cpr_open_fd(path, O_RDWR, "vfio_group", groupid, errp);
     if (group->fd < 0) {
         goto free_group_exit;
     }
@@ -783,6 +824,7 @@ static VFIOGroup *vfio_group_get(int groupid, AddressSpace *as, Error **errp)
     return group;
 
 close_fd_exit:
+    cpr_delete_fd("vfio_group", groupid);
     close(group->fd);
 
 free_group_exit:
@@ -804,6 +846,7 @@ static void vfio_group_put(VFIOGroup *group)
     vfio_container_disconnect(group);
     QLIST_REMOVE(group, next);
     trace_vfio_group_put(group->fd);
+    cpr_delete_fd("vfio_group", group->groupid);
     close(group->fd);
     g_free(group);
 }
@@ -814,7 +857,7 @@ static bool vfio_device_get(VFIOGroup *group, const char *name,
     g_autofree struct vfio_device_info *info = NULL;
     int fd;
 
-    fd = ioctl(group->fd, VFIO_GROUP_GET_DEVICE_FD, name);
+    fd = vfio_cpr_group_get_device_fd(group->fd, name);
     if (fd < 0) {
         error_setg_errno(errp, errno, "error getting device from group %d",
                          group->groupid);
@@ -827,8 +870,7 @@ static bool vfio_device_get(VFIOGroup *group, const char *name,
     info = vfio_get_device_info(fd);
     if (!info) {
         error_setg_errno(errp, errno, "error getting device info");
-        close(fd);
-        return false;
+        goto fail;
     }
 
     /*
@@ -842,8 +884,7 @@ static bool vfio_device_get(VFIOGroup *group, const char *name,
         if (!QLIST_EMPTY(&group->device_list)) {
             error_setg(errp, "Inconsistent setting of support for discarding "
                        "RAM (e.g., balloon) within group");
-            close(fd);
-            return false;
+            goto fail;
         }
 
         if (!group->ram_block_discard_allowed) {
@@ -861,6 +902,11 @@ static bool vfio_device_get(VFIOGroup *group, const char *name,
     trace_vfio_device_get(name, info->flags, info->num_regions, info->num_irqs);
 
     return true;
+
+fail:
+    close(fd);
+    cpr_delete_fd(name, 0);
+    return false;
 }
 
 static void vfio_device_put(VFIODevice *vbasedev)
@@ -871,6 +917,7 @@ static void vfio_device_put(VFIODevice *vbasedev)
     QLIST_REMOVE(vbasedev, next);
     vbasedev->group = NULL;
     trace_vfio_device_put(vbasedev->fd);
+    cpr_delete_fd(vbasedev->name, 0);
     close(vbasedev->fd);
 }
 
@@ -940,6 +987,13 @@ static bool vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
         goto device_put_exit;
     }
 
+    if (vbasedev->mdev) {
+        error_setg(&vbasedev->cpr.mdev_blocker,
+                   "CPR does not support vfio mdev %s", vbasedev->name);
+        migrate_add_blocker_modes(&vbasedev->cpr.mdev_blocker, &error_fatal,
+                                  MIG_MODE_CPR_TRANSFER, -1);
+    }
+
     return true;
 
 device_put_exit:
@@ -957,6 +1011,7 @@ static void vfio_legacy_detach_device(VFIODevice *vbasedev)
 
     vfio_device_unprepare(vbasedev);
 
+    migrate_del_blocker(&vbasedev->cpr.mdev_blocker);
     object_unref(vbasedev->hiod);
     vfio_device_put(vbasedev);
     vfio_group_put(group);
