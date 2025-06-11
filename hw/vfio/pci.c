@@ -3425,7 +3425,7 @@ static void vfio_pci_base_dev_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo vfio_pci_base_dev_info = {
     .name = TYPE_VFIO_PCI_BASE,
     .parent = TYPE_PCI_DEVICE,
-    .instance_size = 0,
+    .instance_size = sizeof(VFIOPCIDevice),
     .abstract = true,
     .class_init = vfio_pci_base_dev_class_init,
     .interfaces = (const InterfaceInfo[]) {
@@ -3647,7 +3647,6 @@ static void vfio_pci_dev_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo vfio_pci_dev_info = {
     .name = TYPE_VFIO_PCI,
     .parent = TYPE_VFIO_PCI_BASE,
-    .instance_size = sizeof(VFIOPCIDevice),
     .class_init = vfio_pci_dev_class_init,
     .instance_init = vfio_instance_init,
     .instance_finalize = vfio_instance_finalize,
