@@ -13,6 +13,10 @@
 #ifndef GUEST_AGENT_CORE_H
 #define GUEST_AGENT_CORE_H
 
+#ifdef _WIN32
+#include <pdh.h>
+#endif
+
 #include "qapi/qmp-registry.h"
 #include "qga-qapi-types.h"
 
@@ -41,6 +45,12 @@ void ga_set_response_delimited(GAState *s);
 bool ga_is_frozen(GAState *s);
 void ga_set_frozen(GAState *s);
 void ga_unset_frozen(GAState *s);
+#ifdef _WIN32
+void ga_set_load_avg_event(GAState *s, HANDLE event);
+void ga_set_load_avg_wait_handle(GAState *s, HANDLE wait_handle);
+void ga_set_load_avg_pdh_query(GAState *s, HQUERY query);
+HQUERY ga_get_load_avg_pdh_query(GAState *s);
+#endif
 const char *ga_fsfreeze_hook(GAState *s);
 int64_t ga_get_fd_handle(GAState *s, Error **errp);
 int ga_parse_whence(GuestFileWhence *whence, Error **errp);
