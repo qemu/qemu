@@ -739,7 +739,13 @@ static int tdx_kvm_type(X86ConfidentialGuest *cg)
 
 static void tdx_cpu_instance_init(X86ConfidentialGuest *cg, CPUState *cpu)
 {
+    X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
     X86CPU *x86cpu = X86_CPU(cpu);
+
+    if (xcc->model) {
+        error_report("Named cpu model is not supported for TDX yet!");
+        exit(1);
+    }
 
     object_property_set_bool(OBJECT(cpu), "pmu", false, &error_abort);
 
