@@ -254,7 +254,7 @@ int64_t cpus_get_elapsed_ticks(void)
     return cpu_get_ticks();
 }
 
-static void generic_handle_interrupt(CPUState *cpu, int mask)
+void generic_handle_interrupt(CPUState *cpu, int mask)
 {
     cpu->interrupt_request |= mask;
 
@@ -267,11 +267,7 @@ void cpu_interrupt(CPUState *cpu, int mask)
 {
     g_assert(bql_locked());
 
-    if (cpus_accel->handle_interrupt) {
-        cpus_accel->handle_interrupt(cpu, mask);
-    } else {
-        generic_handle_interrupt(cpu, mask);
-    }
+    cpus_accel->handle_interrupt(cpu, mask);
 }
 
 /*
@@ -680,6 +676,8 @@ void cpus_register_accel(const AccelOpsClass *ops)
 {
     assert(ops != NULL);
     assert(ops->create_vcpu_thread != NULL); /* mandatory */
+    assert(ops->handle_interrupt);
+
     cpus_accel = ops;
 }
 
