@@ -175,7 +175,7 @@ static void out_cb(void *opaque, int avail)
     ViaAC97SGDChannel *c = &s->aur;
     int temp, to_copy, copied;
     bool stop = false;
-    uint8_t tmpbuf[4096];
+    QEMU_UNINITIALIZED uint8_t tmpbuf[4096];
 
     if (c->stat & STAT_PAUSED) {
         return;

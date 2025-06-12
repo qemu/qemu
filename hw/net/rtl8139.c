@@ -1816,7 +1816,7 @@ static int rtl8139_transmit_one(RTL8139State *s, int descriptor)
 
     PCIDevice *d = PCI_DEVICE(s);
     int txsize = s->TxStatus[descriptor] & 0x1fff;
-    uint8_t txbuffer[0x2000];
+    QEMU_UNINITIALIZED uint8_t txbuffer[0x2000];
 
     DPRINTF("+++ transmit reading %d bytes from host memory at 0x%08x\n",
         txsize, s->TxAddr[descriptor]);

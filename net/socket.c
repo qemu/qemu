@@ -157,7 +157,7 @@ static void net_socket_send(void *opaque)
     NetSocketState *s = opaque;
     int size;
     int ret;
-    uint8_t buf1[NET_BUFSIZE];
+    QEMU_UNINITIALIZED uint8_t buf1[NET_BUFSIZE];
     const uint8_t *buf;
 
     size = recv(s->fd, buf1, sizeof(buf1), 0);

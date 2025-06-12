@@ -291,7 +291,7 @@ static void ioq_submit(LinuxAioState *s)
 {
     int ret, len;
     struct qemu_laiocb *aiocb;
-    struct iocb *iocbs[MAX_EVENTS];
+    QEMU_UNINITIALIZED struct iocb *iocbs[MAX_EVENTS];
     QSIMPLEQ_HEAD(, qemu_laiocb) completed;
 
     do {
