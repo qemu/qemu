@@ -1348,8 +1348,13 @@ static void ccw_rhel_machine_9_6_0_instance_options(MachineState *machine)
 
 static void ccw_rhel_machine_9_6_0_class_options(MachineClass *mc)
 {
+    static GlobalProperty compat[] = {
+        { TYPE_S390_PCI_DEVICE, "relaxed-translation", "off", },
+    };
+
     /* NB: remember to move this line to the *latest* RHEL 9 machine */
     compat_props_add(mc->compat_props, hw_compat_rhel_9, hw_compat_rhel_9_len);
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 DEFINE_CCW_MACHINE_AS_LATEST(9, 6, 0);
 
