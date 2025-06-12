@@ -352,7 +352,7 @@ F: target/riscv/insn_trans/trans_xventanacondops.c.inc
 F: disas/riscv-xventana*
 
 RENESAS RX CPUs
-R: Yoshinori Sato <ysato@users.sourceforge.jp>
+R: Yoshinori Sato <yoshinori.sato@nifty.com>
 S: Orphan
 F: target/rx/
 
@@ -368,7 +368,7 @@ F: tests/tcg/s390x/
 L: qemu-s390x@nongnu.org
 
 SH4 TCG CPUs
-R: Yoshinori Sato <ysato@users.sourceforge.jp>
+R: Yoshinori Sato <yoshinori.sato@nifty.com>
 S: Orphan
 F: target/sh4/
 F: hw/sh4/
@@ -1696,7 +1696,7 @@ F: docs/system/riscv/microblaze-v-generic.rst
 RX Machines
 -----------
 rx-gdbsim
-R: Yoshinori Sato <ysato@users.sourceforge.jp>
+R: Yoshinori Sato <yoshinori.sato@nifty.com>
 S: Orphan
 F: docs/system/target-rx.rst
 F: hw/rx/rx-gdbsim.c
@@ -1705,7 +1705,7 @@ F: tests/functional/test_rx_gdbsim.py
 SH4 Machines
 ------------
 R2D
-R: Yoshinori Sato <ysato@users.sourceforge.jp>
+R: Yoshinori Sato <yoshinori.sato@nifty.com>
 R: Magnus Damm <magnus.damm@gmail.com>
 S: Odd Fixes
 F: hw/char/sh_serial.c
@@ -2756,7 +2756,7 @@ F: tests/qtest/*xive*
 F: docs/*/*xive*
 
 Renesas peripherals
-R: Yoshinori Sato <ysato@users.sourceforge.jp>
+R: Yoshinori Sato <yoshinori.sato@nifty.com>
 R: Magnus Damm <magnus.damm@gmail.com>
 S: Odd Fixes
 F: hw/char/renesas_sci.c
@@ -2768,7 +2768,7 @@ F: include/hw/sh4/sh.h
 F: include/hw/timer/renesas_*.h
 
 Renesas RX peripherals
-R: Yoshinori Sato <ysato@users.sourceforge.jp>
+R: Yoshinori Sato <yoshinori.sato@nifty.com>
 S: Orphan
 F: hw/intc/rx_icu.c
 F: hw/rx/
