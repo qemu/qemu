@@ -972,7 +972,6 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
     MachineState *ms = MACHINE(qdev_get_machine());
     unsigned int smp_cpus = ms->smp.cpus;
     int i, affected_cpu = 0;
-    bool vcpu_total_blocktime = false;
     uint64_t read_vcpu_time, current;
 
     if (!dc) {
@@ -994,20 +993,19 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
         dc->vcpu_addr[i] = 0;
         vcpu_blocktime = current - read_vcpu_time;
         affected_cpu += 1;
-        /* we need to know is that mark_postcopy_end was due to
-         * faulted page, another possible case it's prefetched
-         * page and in that case we shouldn't be here */
-        if (!vcpu_total_blocktime && dc->smp_cpus_down == smp_cpus) {
-            vcpu_total_blocktime = true;
-        }
         /* continue cycle, due to one page could affect several vCPUs */
         dc->vcpu_blocktime_total[i] += vcpu_blocktime;
     }
 
-    dc->smp_cpus_down -= affected_cpu;
-    if (vcpu_total_blocktime) {
+    /*
+     * If all vCPUs used to be down, and copying this page would free some
+     * vCPUs, then the system-level blocktime ends here.
+     */
+    if (dc->smp_cpus_down == smp_cpus && affected_cpu) {
         dc->total_blocktime += current - dc->last_begin;
     }
+    dc->smp_cpus_down -= affected_cpu;
+
     trace_mark_postcopy_blocktime_end(addr, dc->total_blocktime,
                                       affected_cpu);
 }
