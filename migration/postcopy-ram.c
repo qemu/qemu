@@ -112,14 +112,15 @@ void postcopy_thread_create(MigrationIncomingState *mis,
 
 typedef struct PostcopyBlocktimeContext {
     /* time when page fault initiated per vCPU */
-    uint32_t *page_fault_vcpu_time;
+    uint64_t *vcpu_blocktime_start;
+    /* blocktime per vCPU */
+    uint64_t *vcpu_blocktime_total;
     /* page address per vCPU */
     uintptr_t *vcpu_addr;
-    uint32_t total_blocktime;
-    /* blocktime per vCPU */
-    uint32_t *vcpu_blocktime;
+    /* total blocktime when all vCPUs are stopped */
+    uint64_t total_blocktime;
     /* point in time when last page fault was initiated */
-    uint32_t last_begin;
+    uint64_t last_begin;
     /* number of vCPU are suspended */
     int smp_cpus_down;
     uint64_t start_time;
@@ -133,9 +134,9 @@ typedef struct PostcopyBlocktimeContext {
 
 static void destroy_blocktime_context(struct PostcopyBlocktimeContext *ctx)
 {
-    g_free(ctx->page_fault_vcpu_time);
+    g_free(ctx->vcpu_blocktime_start);
+    g_free(ctx->vcpu_blocktime_total);
     g_free(ctx->vcpu_addr);
-    g_free(ctx->vcpu_blocktime);
     g_free(ctx);
 }
 
@@ -151,13 +152,14 @@ static struct PostcopyBlocktimeContext *blocktime_context_new(void)
     MachineState *ms = MACHINE(qdev_get_machine());
     unsigned int smp_cpus = ms->smp.cpus;
     PostcopyBlocktimeContext *ctx = g_new0(PostcopyBlocktimeContext, 1);
-    ctx->page_fault_vcpu_time = g_new0(uint32_t, smp_cpus);
-    ctx->vcpu_addr = g_new0(uintptr_t, smp_cpus);
-    ctx->vcpu_blocktime = g_new0(uint32_t, smp_cpus);
 
+    ctx->vcpu_blocktime_start = g_new0(uint64_t, smp_cpus);
+    ctx->vcpu_blocktime_total = g_new0(uint64_t, smp_cpus);
+    ctx->vcpu_addr = g_new0(uintptr_t, smp_cpus);
     ctx->exit_notifier.notify = migration_exit_cb;
     ctx->start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     qemu_add_exit_notifier(&ctx->exit_notifier);
+
     return ctx;
 }
 
@@ -168,7 +170,7 @@ static uint32List *get_vcpu_blocktime_list(PostcopyBlocktimeContext *ctx)
     int i;
 
     for (i = ms->smp.cpus - 1; i >= 0; i--) {
-        QAPI_LIST_PREPEND(list, ctx->vcpu_blocktime[i]);
+        QAPI_LIST_PREPEND(list, (uint32_t)ctx->vcpu_blocktime_total[i]);
     }
 
     return list;
@@ -191,12 +193,12 @@ void fill_destination_postcopy_migration_info(MigrationInfo *info)
     }
 
     info->has_postcopy_blocktime = true;
-    info->postcopy_blocktime = bc->total_blocktime;
+    info->postcopy_blocktime = (uint32_t)bc->total_blocktime;
     info->has_postcopy_vcpu_blocktime = true;
     info->postcopy_vcpu_blocktime = get_vcpu_blocktime_list(bc);
 }
 
-static uint32_t get_postcopy_total_blocktime(void)
+static uint64_t get_postcopy_total_blocktime(void)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
     PostcopyBlocktimeContext *bc = mis->blocktime_ctx;
@@ -816,11 +818,9 @@ static int get_mem_fault_cpu_index(uint32_t pid)
     return -1;
 }
 
-static uint32_t get_low_time_offset(PostcopyBlocktimeContext *dc)
+static uint64_t get_low_time_offset(PostcopyBlocktimeContext *dc)
 {
-    int64_t start_time_offset = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) -
-                                    dc->start_time;
-    return start_time_offset < 1 ? 1 : start_time_offset & UINT32_MAX;
+    return (uint64_t)qemu_clock_get_ms(QEMU_CLOCK_REALTIME) - dc->start_time;
 }
 
 /*
@@ -837,7 +837,7 @@ void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
     int cpu;
     MigrationIncomingState *mis = migration_incoming_get_current();
     PostcopyBlocktimeContext *dc = mis->blocktime_ctx;
-    uint32_t low_time_offset;
+    uint64_t low_time_offset;
 
     if (!dc || ptid == 0) {
         return;
@@ -853,7 +853,7 @@ void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
     }
 
     dc->last_begin = low_time_offset;
-    dc->page_fault_vcpu_time[cpu] = low_time_offset;
+    dc->vcpu_blocktime_start[cpu] = low_time_offset;
     dc->vcpu_addr[cpu] = addr;
 
     /*
@@ -862,7 +862,7 @@ void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
      */
     assert(!ramblock_recv_bitmap_test(rb, (void *)addr));
 
-    trace_mark_postcopy_blocktime_begin(addr, dc, dc->page_fault_vcpu_time[cpu],
+    trace_mark_postcopy_blocktime_begin(addr, dc->vcpu_blocktime_start[cpu],
                                         cpu);
 }
 
@@ -901,7 +901,7 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
     unsigned int smp_cpus = ms->smp.cpus;
     int i, affected_cpu = 0;
     bool vcpu_total_blocktime = false;
-    uint32_t read_vcpu_time, low_time_offset;
+    uint64_t read_vcpu_time, low_time_offset;
 
     if (!dc) {
         return;
@@ -913,9 +913,9 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
      * optimal, more optimal algorithm is keeping tree or hash
      * where key is address value is a list of  */
     for (i = 0; i < smp_cpus; i++) {
-        uint32_t vcpu_blocktime = 0;
+        uint64_t vcpu_blocktime = 0;
 
-        read_vcpu_time = dc->page_fault_vcpu_time[i];
+        read_vcpu_time = dc->vcpu_blocktime_start[i];
         if (dc->vcpu_addr[i] != addr || read_vcpu_time == 0) {
             continue;
         }
@@ -929,14 +929,14 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
             vcpu_total_blocktime = true;
         }
         /* continue cycle, due to one page could affect several vCPUs */
-        dc->vcpu_blocktime[i] += vcpu_blocktime;
+        dc->vcpu_blocktime_total[i] += vcpu_blocktime;
     }
 
     dc->smp_cpus_down -= affected_cpu;
     if (vcpu_total_blocktime) {
         dc->total_blocktime += low_time_offset - dc->last_begin;
     }
-    trace_mark_postcopy_blocktime_end(addr, dc, dc->total_blocktime,
+    trace_mark_postcopy_blocktime_end(addr, dc->total_blocktime,
                                       affected_cpu);
 }
 
