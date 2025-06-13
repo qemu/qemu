@@ -247,6 +247,12 @@
 #     this is the per-vCPU statistics.  This is only present when the
 #     postcopy-blocktime migration capability is enabled.  (Since 10.1)
 #
+# @postcopy-non-vcpu-latency: average remote page fault latency for all
+#     faults happend in non-vCPU threads (in ns).  It has the same
+#     definition of @postcopy-latency but this only provides statistics to
+#     non-vCPU faults.  This is only present when the postcopy-blocktime
+#     migration capability is enabled.  (Since 10.1)
+#
 # @socket-address: Only used for tcp, to know what the real port is
 #     (Since 4.0)
 #
@@ -273,8 +279,8 @@
 #
 # Features:
 #
-# @unstable: Members @postcopy-latency, @postcopy-vcpu-latency are
-#     experimental.
+# @unstable: Members @postcopy-latency, @postcopy-vcpu-latency,
+#     @postcopy-non-vcpu-latency are experimental.
 #
 # Since: 0.14
 ##
@@ -295,6 +301,8 @@
                'type': 'uint64', 'features': [ 'unstable' ] },
            '*postcopy-vcpu-latency': {
                'type': ['uint64'], 'features': [ 'unstable' ] },
+           '*postcopy-non-vcpu-latency': {
+               'type': 'uint64', 'features': [ 'unstable' ] },
            '*socket-address': ['SocketAddress'],
            '*dirty-limit-throttle-time-per-round': 'uint64',
            '*dirty-limit-ring-full-time': 'uint64'} }

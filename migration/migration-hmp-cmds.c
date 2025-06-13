@@ -80,6 +80,11 @@ static void migration_dump_blocktime(Monitor *mon, MigrationInfo *info)
                        info->postcopy_latency);
     }
 
+    if (info->has_postcopy_non_vcpu_latency) {
+        monitor_printf(mon, "Postcopy non-vCPU Latencies (ns): %" PRIu64 "\n",
+                       info->postcopy_non_vcpu_latency);
+    }
+
     if (info->has_postcopy_vcpu_latency) {
         uint64List *item = info->postcopy_vcpu_latency;
         const char *sep = "";

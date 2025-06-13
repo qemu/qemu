@@ -192,6 +192,8 @@ typedef struct PostcopyBlocktimeContext {
     GHashTable *tid_to_vcpu_hash;
     /* Count of non-vCPU faults.  This is only for debugging purpose. */
     uint64_t non_vcpu_faults;
+    /* total blocktime when a non-vCPU thread is stopped */
+    uint64_t non_vcpu_blocktime_total;
 
     /*
      * Handler for exit event, necessary for
@@ -203,7 +205,10 @@ typedef struct PostcopyBlocktimeContext {
 typedef struct {
     /* The time the fault was triggered */
     uint64_t fault_time;
-    /* The vCPU index that was blocked */
+    /*
+     * The vCPU index that was blocked, when cpu==-1, it means it's a
+     * fault from non-vCPU threads.
+     */
     int cpu;
 } BlocktimeVCPUEntry;
 
@@ -344,6 +349,12 @@ void fill_destination_postcopy_migration_info(MigrationInfo *info)
         QAPI_LIST_PREPEND(list_latency, latency);
     }
 
+    latency_total += bc->non_vcpu_blocktime_total;
+    faults += bc->non_vcpu_faults;
+
+    info->has_postcopy_non_vcpu_latency = true;
+    info->postcopy_non_vcpu_latency = bc->non_vcpu_faults ?
+        (bc->non_vcpu_blocktime_total / bc->non_vcpu_faults) : 0;
     info->has_postcopy_blocktime = true;
     /* Convert ns -> ms */
     info->postcopy_blocktime = (uint32_t)(bc->total_blocktime / SCALE_MS);
@@ -983,7 +994,10 @@ static uint64_t get_current_ns(void)
     return (uint64_t)qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 }
 
-/* Inject an (cpu, fault_time) entry into the database, using addr as key */
+/*
+ * Inject an (cpu, fault_time) entry into the database, using addr as key.
+ * When cpu==-1, it means it's a non-vCPU fault.
+ */
 static void blocktime_fault_inject(PostcopyBlocktimeContext *ctx,
                                    uintptr_t addr, int cpu, uint64_t time)
 {
@@ -1066,9 +1080,17 @@ void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
         /* Making sure it won't overflow - it really should never! */
         assert(dc->vcpu_faults_current[cpu] <= 255);
     } else {
-        /* We do not support non-vCPU thread tracking yet */
+        /*
+         * For non-vCPU thread faults, we don't care about tid or cpu index
+         * or time the thread is blocked (e.g., a kworker trying to help
+         * KVM when async_pf=on is OK to be blocked and not affect guest
+         * responsiveness), but we care about latency.  Track it with
+         * cpu=-1.
+         *
+         * Note that this will NOT affect blocktime reports on vCPU being
+         * blocked, but only about system-wide latency reports.
+         */
         dc->non_vcpu_faults++;
-        return;
     }
 
     blocktime_fault_inject(dc, addr, cpu, current);
@@ -1078,6 +1100,7 @@ typedef struct {
     PostcopyBlocktimeContext *ctx;
     uint64_t current;
     int affected_cpus;
+    int affected_non_cpus;
 } BlockTimeVCPUIter;
 
 static void blocktime_cpu_list_iter_fn(gpointer data, gpointer user_data)
@@ -1085,6 +1108,7 @@ static void blocktime_cpu_list_iter_fn(gpointer data, gpointer user_data)
     BlockTimeVCPUIter *iter = user_data;
     PostcopyBlocktimeContext *ctx = iter->ctx;
     BlocktimeVCPUEntry *entry = data;
+    uint64_t time_passed;
     int cpu = entry->cpu;
 
     /*
@@ -1092,17 +1116,27 @@ static void blocktime_cpu_list_iter_fn(gpointer data, gpointer user_data)
      * later than when it was faulted.
      */
     assert(iter->current >= entry->fault_time);
+    time_passed = iter->current - entry->fault_time;
 
-    /*
-     * If we resolved all pending faults on one vCPU due to this page
-     * resolution, take a note.
-     */
-    if (--ctx->vcpu_faults_current[cpu] == 0) {
-        ctx->vcpu_blocktime_total[cpu] += iter->current - entry->fault_time;
-        iter->affected_cpus += 1;
+    if (cpu >= 0) {
+        /*
+         * If we resolved all pending faults on one vCPU due to this page
+         * resolution, take a note.
+         */
+        if (--ctx->vcpu_faults_current[cpu] == 0) {
+            ctx->vcpu_blocktime_total[cpu] += time_passed;
+            iter->affected_cpus += 1;
+        }
+        trace_postcopy_blocktime_end_one(cpu, ctx->vcpu_faults_current[cpu]);
+    } else {
+        iter->affected_non_cpus++;
+        ctx->non_vcpu_blocktime_total += time_passed;
+        /*
+         * We do not maintain how many pending non-vCPU faults because we
+         * do not care about blocktime, only latency.
+         */
+        trace_postcopy_blocktime_end_one(-1, 0);
     }
-
-    trace_postcopy_blocktime_end_one(cpu, ctx->vcpu_faults_current[cpu]);
 }
 
 /*
@@ -1141,6 +1175,7 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
     BlockTimeVCPUIter iter = {
         .current = get_current_ns(),
         .affected_cpus = 0,
+        .affected_non_cpus = 0,
         .ctx = dc,
     };
     gpointer key = (gpointer)addr;
@@ -1174,7 +1209,8 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
     }
     dc->smp_cpus_down -= iter.affected_cpus;
 
-    trace_postcopy_blocktime_end(addr, iter.current, iter.affected_cpus);
+    trace_postcopy_blocktime_end(addr, iter.current, iter.affected_cpus,
+                                 iter.affected_non_cpus);
 }
 
 static void postcopy_pause_fault_thread(MigrationIncomingState *mis)
