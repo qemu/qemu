@@ -242,6 +242,14 @@
 #     average page fault latency. This is only present when the
 #     postcopy-blocktime migration capability is enabled.  (Since 10.1)
 #
+# @postcopy-latency-dist: remote page fault latency distributions.  Each
+#     element of the array is the number of faults that fall into the
+#     bucket period.  For the N-th bucket (N>=0), the latency window is
+#     [2^Nus, 2^(N+1)us).  For example, the 8th element stores how many
+#     remote faults got resolved within [256us, 512us) window. This is only
+#     present when the postcopy-blocktime migration capability is enabled.
+#     (Since 10.1)
+#
 # @postcopy-vcpu-latency: average remote page fault latency per vCPU (in
 #     ns).  It has the same definition of @postcopy-latency, but instead
 #     this is the per-vCPU statistics.  This is only present when the
@@ -280,7 +288,7 @@
 # Features:
 #
 # @unstable: Members @postcopy-latency, @postcopy-vcpu-latency,
-#     @postcopy-non-vcpu-latency are experimental.
+#     @postcopy-latency-dist, @postcopy-non-vcpu-latency are experimental.
 #
 # Since: 0.14
 ##
@@ -299,6 +307,8 @@
            '*postcopy-vcpu-blocktime': ['uint32'],
            '*postcopy-latency': {
                'type': 'uint64', 'features': [ 'unstable' ] },
+           '*postcopy-latency-dist': {
+               'type': ['uint64'], 'features': [ 'unstable' ] },
            '*postcopy-vcpu-latency': {
                'type': ['uint64'], 'features': [ 'unstable' ] },
            '*postcopy-non-vcpu-latency': {

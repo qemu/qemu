@@ -52,6 +52,21 @@ static void migration_global_dump(Monitor *mon)
                    ms->clear_bitmap_shift);
 }
 
+static const gchar *format_time_str(uint64_t us)
+{
+    const char *units[] = {"us", "ms", "sec"};
+    int index = 0;
+
+    while (us > 1000) {
+        us /= 1000;
+        if (++index >= (sizeof(units) - 1)) {
+            break;
+        }
+    }
+
+    return g_strdup_printf("%"PRIu64" %s", us, units[index]);
+}
+
 static void migration_dump_blocktime(Monitor *mon, MigrationInfo *info)
 {
     if (info->has_postcopy_blocktime) {
@@ -99,6 +114,23 @@ static void migration_dump_blocktime(Monitor *mon, MigrationInfo *info)
             sep = ((++count % 10 == 0) && item) ? ",\n  " : ", ";
         }
         monitor_printf(mon, "]\n");
+    }
+
+    if (info->has_postcopy_latency_dist) {
+        uint64List *item = info->postcopy_latency_dist;
+        int count = 0;
+
+        monitor_printf(mon, "Postcopy Latency Distribution:\n");
+
+        while (item) {
+            g_autofree const gchar *from = format_time_str(1UL << count);
+            g_autofree const gchar *to = format_time_str(1UL << (count + 1));
+
+            monitor_printf(mon, "  [ %8s - %8s ]: %10"PRIu64"\n",
+                           from, to, item->value);
+            item = item->next;
+            count++;
+        }
     }
 }
 

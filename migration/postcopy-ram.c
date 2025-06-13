@@ -110,6 +110,15 @@ void postcopy_thread_create(MigrationIncomingState *mis,
 #include <sys/eventfd.h>
 #include <linux/userfaultfd.h>
 
+/*
+ * Here we use 24 buckets, which means the last bucket will cover [2^24 us,
+ * 2^25 us) ~= [16, 32) seconds.  It should be far enough to record even
+ * extreme (perf-wise broken) 1G pages moving over, which can sometimes
+ * take a few seconds due to various reasons.  Anything more than that
+ * might be unsensible to account anymore.
+ */
+#define  BLOCKTIME_LATENCY_BUCKET_N  (24)
+
 /* All the time records are in unit of nanoseconds */
 typedef struct PostcopyBlocktimeContext {
     /* blocktime per vCPU */
@@ -175,6 +184,11 @@ typedef struct PostcopyBlocktimeContext {
      * that a fault was requested.
      */
     GHashTable *vcpu_addr_hash;
+    /*
+     * Each bucket stores the count of faults that were resolved within the
+     * bucket window [2^N us, 2^(N+1) us).
+     */
+    uint64_t latency_buckets[BLOCKTIME_LATENCY_BUCKET_N];
     /* total blocktime when all vCPUs are stopped */
     uint64_t total_blocktime;
     /* point in time when last page fault was initiated */
@@ -283,6 +297,9 @@ static struct PostcopyBlocktimeContext *blocktime_context_new(void)
     unsigned int smp_cpus = ms->smp.cpus;
     PostcopyBlocktimeContext *ctx = g_new0(PostcopyBlocktimeContext, 1);
 
+    /* Initialize all counters to be zeros */
+    memset(ctx->latency_buckets, 0, sizeof(ctx->latency_buckets));
+
     ctx->vcpu_blocktime_total = g_new0(uint64_t, smp_cpus);
     ctx->vcpu_faults_count = g_new0(uint64_t, smp_cpus);
     ctx->vcpu_faults_current = g_new0(uint8_t, smp_cpus);
@@ -320,6 +337,7 @@ void fill_destination_postcopy_migration_info(MigrationInfo *info)
     uint64_t latency_total = 0, faults = 0;
     uint32List *list_blocktime = NULL;
     uint64List *list_latency = NULL;
+    uint64List *latency_buckets = NULL;
     int i;
 
     if (!bc) {
@@ -349,6 +367,10 @@ void fill_destination_postcopy_migration_info(MigrationInfo *info)
         QAPI_LIST_PREPEND(list_latency, latency);
     }
 
+    for (i = BLOCKTIME_LATENCY_BUCKET_N - 1; i >= 0; i--) {
+        QAPI_LIST_PREPEND(latency_buckets, bc->latency_buckets[i]);
+    }
+
     latency_total += bc->non_vcpu_blocktime_total;
     faults += bc->non_vcpu_faults;
 
@@ -364,6 +386,8 @@ void fill_destination_postcopy_migration_info(MigrationInfo *info)
     info->postcopy_latency = faults ? (latency_total / faults) : 0;
     info->has_postcopy_vcpu_latency = true;
     info->postcopy_vcpu_latency = list_latency;
+    info->has_postcopy_latency_dist = true;
+    info->postcopy_latency_dist = latency_buckets;
 }
 
 static uint64_t get_postcopy_total_blocktime(void)
@@ -1096,6 +1120,25 @@ void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
     blocktime_fault_inject(dc, addr, cpu, current);
 }
 
+static void blocktime_latency_account(PostcopyBlocktimeContext *ctx,
+                                      uint64_t time_us)
+{
+    /*
+     * Convert time (in us) to bucket index it belongs.  Take extra caution
+     * of time_us==0 even if normally rare - when happens put into bucket 0.
+     */
+    int index = time_us ? (63 - clz64(time_us)) : 0;
+
+    assert(index >= 0);
+
+    /* If it's too large, put into top bucket */
+    if (index >= BLOCKTIME_LATENCY_BUCKET_N) {
+        index = BLOCKTIME_LATENCY_BUCKET_N - 1;
+    }
+
+    ctx->latency_buckets[index]++;
+}
+
 typedef struct {
     PostcopyBlocktimeContext *ctx;
     uint64_t current;
@@ -1117,6 +1160,9 @@ static void blocktime_cpu_list_iter_fn(gpointer data, gpointer user_data)
      */
     assert(iter->current >= entry->fault_time);
     time_passed = iter->current - entry->fault_time;
+
+    /* Latency buckets are in microseconds */
+    blocktime_latency_account(ctx, time_passed / SCALE_US);
 
     if (cpu >= 0) {
         /*
