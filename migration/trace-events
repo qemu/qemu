@@ -310,8 +310,7 @@ postcopy_preempt_tls_handshake(void) ""
 postcopy_preempt_new_channel(void) ""
 postcopy_preempt_thread_entry(void) ""
 postcopy_preempt_thread_exit(void) ""
-
-get_mem_fault_cpu_index(int cpu, uint32_t pid) "cpu: %d, pid: %u"
+postcopy_blocktime_tid_cpu_map(int cpu, uint32_t tid) "cpu: %d, tid: %u"
 
 # exec.c
 migration_exec_outgoing(const char *cmd) "cmd=%s"
