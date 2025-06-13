@@ -123,7 +123,6 @@ typedef struct PostcopyBlocktimeContext {
     uint64_t last_begin;
     /* number of vCPU are suspended */
     int smp_cpus_down;
-    uint64_t start_time;
 
     /*
      * Handler for exit event, necessary for
@@ -157,7 +156,6 @@ static struct PostcopyBlocktimeContext *blocktime_context_new(void)
     ctx->vcpu_blocktime_total = g_new0(uint64_t, smp_cpus);
     ctx->vcpu_addr = g_new0(uintptr_t, smp_cpus);
     ctx->exit_notifier.notify = migration_exit_cb;
-    ctx->start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     qemu_add_exit_notifier(&ctx->exit_notifier);
 
     return ctx;
@@ -818,9 +816,9 @@ static int get_mem_fault_cpu_index(uint32_t pid)
     return -1;
 }
 
-static uint64_t get_low_time_offset(PostcopyBlocktimeContext *dc)
+static uint64_t get_low_time_offset(void)
 {
-    return (uint64_t)qemu_clock_get_ms(QEMU_CLOCK_REALTIME) - dc->start_time;
+    return (uint64_t)qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
 }
 
 /*
@@ -847,7 +845,7 @@ void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
         return;
     }
 
-    low_time_offset = get_low_time_offset(dc);
+    low_time_offset = get_low_time_offset();
     if (dc->vcpu_addr[cpu] == 0) {
         dc->smp_cpus_down++;
     }
@@ -907,7 +905,7 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
         return;
     }
 
-    low_time_offset = get_low_time_offset(dc);
+    low_time_offset = get_low_time_offset();
     /* lookup cpu, to clear it,
      * that algorithm looks straightforward, but it's not
      * optimal, more optimal algorithm is keeping tree or hash
