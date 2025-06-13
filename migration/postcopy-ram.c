@@ -110,6 +110,7 @@ void postcopy_thread_create(MigrationIncomingState *mis,
 #include <sys/eventfd.h>
 #include <linux/userfaultfd.h>
 
+/* All the time records are in unit of nanoseconds */
 typedef struct PostcopyBlocktimeContext {
     /* time when page fault initiated per vCPU */
     uint64_t *vcpu_blocktime_start;
@@ -168,7 +169,9 @@ static uint32List *get_vcpu_blocktime_list(PostcopyBlocktimeContext *ctx)
     int i;
 
     for (i = ms->smp.cpus - 1; i >= 0; i--) {
-        QAPI_LIST_PREPEND(list, (uint32_t)ctx->vcpu_blocktime_total[i]);
+        /* Convert ns -> ms */
+        QAPI_LIST_PREPEND(
+            list, (uint32_t)(ctx->vcpu_blocktime_total[i] / SCALE_MS));
     }
 
     return list;
@@ -191,7 +194,8 @@ void fill_destination_postcopy_migration_info(MigrationInfo *info)
     }
 
     info->has_postcopy_blocktime = true;
-    info->postcopy_blocktime = (uint32_t)bc->total_blocktime;
+    /* Convert ns -> ms */
+    info->postcopy_blocktime = (uint32_t)(bc->total_blocktime / SCALE_MS);
     info->has_postcopy_vcpu_blocktime = true;
     info->postcopy_vcpu_blocktime = get_vcpu_blocktime_list(bc);
 }
@@ -816,9 +820,9 @@ static int get_mem_fault_cpu_index(uint32_t pid)
     return -1;
 }
 
-static uint64_t get_low_time_offset(void)
+static uint64_t get_current_ns(void)
 {
-    return (uint64_t)qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    return (uint64_t)qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 }
 
 /*
@@ -835,7 +839,7 @@ void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
     int cpu;
     MigrationIncomingState *mis = migration_incoming_get_current();
     PostcopyBlocktimeContext *dc = mis->blocktime_ctx;
-    uint64_t low_time_offset;
+    uint64_t current;
 
     if (!dc || ptid == 0) {
         return;
@@ -845,13 +849,13 @@ void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
         return;
     }
 
-    low_time_offset = get_low_time_offset();
+    current = get_current_ns();
     if (dc->vcpu_addr[cpu] == 0) {
         dc->smp_cpus_down++;
     }
 
-    dc->last_begin = low_time_offset;
-    dc->vcpu_blocktime_start[cpu] = low_time_offset;
+    dc->last_begin = current;
+    dc->vcpu_blocktime_start[cpu] = current;
     dc->vcpu_addr[cpu] = addr;
 
     /*
@@ -899,13 +903,13 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
     unsigned int smp_cpus = ms->smp.cpus;
     int i, affected_cpu = 0;
     bool vcpu_total_blocktime = false;
-    uint64_t read_vcpu_time, low_time_offset;
+    uint64_t read_vcpu_time, current;
 
     if (!dc) {
         return;
     }
 
-    low_time_offset = get_low_time_offset();
+    current = get_current_ns();
     /* lookup cpu, to clear it,
      * that algorithm looks straightforward, but it's not
      * optimal, more optimal algorithm is keeping tree or hash
@@ -918,7 +922,7 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
             continue;
         }
         dc->vcpu_addr[i] = 0;
-        vcpu_blocktime = low_time_offset - read_vcpu_time;
+        vcpu_blocktime = current - read_vcpu_time;
         affected_cpu += 1;
         /* we need to know is that mark_postcopy_end was due to
          * faulted page, another possible case it's prefetched
@@ -932,7 +936,7 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
 
     dc->smp_cpus_down -= affected_cpu;
     if (vcpu_total_blocktime) {
-        dc->total_blocktime += low_time_offset - dc->last_begin;
+        dc->total_blocktime += current - dc->last_begin;
     }
     trace_mark_postcopy_blocktime_end(addr, dc->total_blocktime,
                                       affected_cpu);
