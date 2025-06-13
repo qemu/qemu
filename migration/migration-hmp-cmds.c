@@ -69,7 +69,7 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
     }
 
     if (info->has_status) {
-        monitor_printf(mon, "Status: %s",
+        monitor_printf(mon, "Status: \t\t%s",
                        MigrationStatus_str(info->status));
         if (info->status == MIGRATION_STATUS_FAILED && info->error_desc) {
             monitor_printf(mon, " (%s)\n", info->error_desc);
@@ -78,7 +78,7 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
         }
 
         if (info->total_time) {
-            monitor_printf(mon, "Time (ms): total=%" PRIu64,
+            monitor_printf(mon, "Time (ms): \t\ttotal=%" PRIu64,
                            info->total_time);
             if (info->has_setup_time) {
                 monitor_printf(mon, ", setup=%" PRIu64,
@@ -110,48 +110,51 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
     }
 
     if (info->ram) {
+        g_autofree char *str_psize = size_to_str(info->ram->page_size);
+        g_autofree char *str_total = size_to_str(info->ram->total);
+        g_autofree char *str_transferred = size_to_str(info->ram->transferred);
+        g_autofree char *str_remaining = size_to_str(info->ram->remaining);
+        g_autofree char *str_precopy = size_to_str(info->ram->precopy_bytes);
+        g_autofree char *str_multifd = size_to_str(info->ram->multifd_bytes);
+        g_autofree char *str_postcopy = size_to_str(info->ram->postcopy_bytes);
+
         monitor_printf(mon, "RAM info:\n");
-        monitor_printf(mon, "  Throughput (Mbps): %0.2f\n",
+        monitor_printf(mon, "  Throughput (Mbps): \t%0.2f\n",
                        info->ram->mbps);
-        monitor_printf(mon, "  Sizes (KiB): pagesize=%" PRIu64
-                       ", total=%" PRIu64 ",\n",
-                       info->ram->page_size >> 10,
-                       info->ram->total >> 10);
-        monitor_printf(mon, "    transferred=%" PRIu64
-                       ", remain=%" PRIu64 ",\n",
-                       info->ram->transferred >> 10,
-                       info->ram->remaining >> 10);
-        monitor_printf(mon, "    precopy=%" PRIu64
-                       ", multifd=%" PRIu64
-                       ", postcopy=%" PRIu64,
-                       info->ram->precopy_bytes >> 10,
-                       info->ram->multifd_bytes >> 10,
-                       info->ram->postcopy_bytes >> 10);
+        monitor_printf(mon, "  Sizes: \t\tpagesize=%s, total=%s\n",
+                       str_psize, str_total);
+        monitor_printf(mon, "  Transfers: \t\ttransferred=%s, remain=%s\n",
+                       str_transferred, str_remaining);
+        monitor_printf(mon, "    Channels: \t\tprecopy=%s, "
+                       "multifd=%s, postcopy=%s",
+                       str_precopy, str_multifd, str_postcopy);
 
         if (info->vfio) {
-            monitor_printf(mon, ", vfio=%" PRIu64,
-                           info->vfio->transferred >> 10);
+            g_autofree char *str_vfio = size_to_str(info->vfio->transferred);
+
+            monitor_printf(mon, ", vfio=%s", str_vfio);
         }
         monitor_printf(mon, "\n");
 
-        monitor_printf(mon, "  Pages: normal=%" PRIu64 ", zero=%" PRIu64
-                       ", rate_per_sec=%" PRIu64 "\n",
-                       info->ram->normal,
-                       info->ram->duplicate,
+        monitor_printf(mon, "    Page Types: \tnormal=%" PRIu64
+                       ", zero=%" PRIu64 "\n",
+                       info->ram->normal, info->ram->duplicate);
+        monitor_printf(mon, "  Page Rates (pps): \ttransfer=%" PRIu64,
                        info->ram->pages_per_second);
-        monitor_printf(mon, "  Others: dirty_syncs=%" PRIu64,
-                       info->ram->dirty_sync_count);
-
         if (info->ram->dirty_pages_rate) {
-            monitor_printf(mon, ", dirty_pages_rate=%" PRIu64,
+            monitor_printf(mon, ", dirty=%" PRIu64,
                            info->ram->dirty_pages_rate);
         }
+        monitor_printf(mon, "\n");
+
+        monitor_printf(mon, "  Others: \t\tdirty_syncs=%" PRIu64,
+                       info->ram->dirty_sync_count);
         if (info->ram->postcopy_requests) {
             monitor_printf(mon, ", postcopy_req=%" PRIu64,
                            info->ram->postcopy_requests);
         }
         if (info->ram->downtime_bytes) {
-            monitor_printf(mon, ", downtime_ram=%" PRIu64,
+            monitor_printf(mon, ", downtime_bytes=%" PRIu64,
                            info->ram->downtime_bytes);
         }
         if (info->ram->dirty_sync_missed_zero_copy) {
