@@ -116,6 +116,8 @@ typedef struct PostcopyBlocktimeContext {
     uint64_t *vcpu_blocktime_start;
     /* blocktime per vCPU */
     uint64_t *vcpu_blocktime_total;
+    /* count of faults per vCPU */
+    uint64_t *vcpu_faults_count;
     /* page address per vCPU */
     uintptr_t *vcpu_addr;
     /* total blocktime when all vCPUs are stopped */
@@ -136,6 +138,7 @@ static void destroy_blocktime_context(struct PostcopyBlocktimeContext *ctx)
 {
     g_free(ctx->vcpu_blocktime_start);
     g_free(ctx->vcpu_blocktime_total);
+    g_free(ctx->vcpu_faults_count);
     g_free(ctx->vcpu_addr);
     g_free(ctx);
 }
@@ -155,6 +158,7 @@ static struct PostcopyBlocktimeContext *blocktime_context_new(void)
 
     ctx->vcpu_blocktime_start = g_new0(uint64_t, smp_cpus);
     ctx->vcpu_blocktime_total = g_new0(uint64_t, smp_cpus);
+    ctx->vcpu_faults_count = g_new0(uint64_t, smp_cpus);
     ctx->vcpu_addr = g_new0(uintptr_t, smp_cpus);
     ctx->exit_notifier.notify = migration_exit_cb;
     qemu_add_exit_notifier(&ctx->exit_notifier);
@@ -857,6 +861,7 @@ void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
     dc->last_begin = current;
     dc->vcpu_blocktime_start[cpu] = current;
     dc->vcpu_addr[cpu] = addr;
+    dc->vcpu_faults_count[cpu]++;
 
     /*
      * The caller should only inject a blocktime entry when the page is
