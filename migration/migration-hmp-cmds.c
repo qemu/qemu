@@ -52,6 +52,51 @@ static void migration_global_dump(Monitor *mon)
                    ms->clear_bitmap_shift);
 }
 
+static void migration_dump_blocktime(Monitor *mon, MigrationInfo *info)
+{
+    if (info->has_postcopy_blocktime) {
+        monitor_printf(mon, "Postcopy Blocktime (ms): %" PRIu32 "\n",
+                       info->postcopy_blocktime);
+    }
+
+    if (info->has_postcopy_vcpu_blocktime) {
+        uint32List *item = info->postcopy_vcpu_blocktime;
+        const char *sep = "";
+        int count = 0;
+
+        monitor_printf(mon, "Postcopy vCPU Blocktime (ms):\n [");
+
+        while (item) {
+            monitor_printf(mon, "%s%"PRIu32, sep, item->value);
+            item = item->next;
+            /* Each line 10 vcpu results, newline if there's more */
+            sep = ((++count % 10 == 0) && item) ? ",\n  " : ", ";
+        }
+        monitor_printf(mon, "]\n");
+    }
+
+    if (info->has_postcopy_latency) {
+        monitor_printf(mon, "Postcopy Latency (ns): %" PRIu64 "\n",
+                       info->postcopy_latency);
+    }
+
+    if (info->has_postcopy_vcpu_latency) {
+        uint64List *item = info->postcopy_vcpu_latency;
+        const char *sep = "";
+        int count = 0;
+
+        monitor_printf(mon, "Postcopy vCPU Latencies (ns):\n [");
+
+        while (item) {
+            monitor_printf(mon, "%s%"PRIu64, sep, item->value);
+            item = item->next;
+            /* Each line 10 vcpu results, newline if there's more */
+            sep = ((++count % 10 == 0) && item) ? ",\n  " : ", ";
+        }
+        monitor_printf(mon, "]\n");
+    }
+}
+
 void hmp_info_migrate(Monitor *mon, const QDict *qdict)
 {
     bool show_all = qdict_get_try_bool(qdict, "all", false);
@@ -202,27 +247,7 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
                        info->dirty_limit_ring_full_time);
     }
 
-    if (info->has_postcopy_blocktime) {
-        monitor_printf(mon, "Postcopy Blocktime (ms): %" PRIu32 "\n",
-                       info->postcopy_blocktime);
-    }
-
-    if (info->has_postcopy_vcpu_blocktime) {
-        uint32List *item = info->postcopy_vcpu_blocktime;
-        const char *sep = "";
-        int count = 0;
-
-        monitor_printf(mon, "Postcopy vCPU Blocktime (ms):\n [");
-
-        while (item) {
-            monitor_printf(mon, "%s%"PRIu32, sep, item->value);
-            item = item->next;
-            /* Each line 10 vcpu results, newline if there's more */
-            sep = ((++count % 10 == 0) && item) ? ",\n  " : ", ";
-        }
-        monitor_printf(mon, "]\n");
-    }
-
+    migration_dump_blocktime(mon, info);
 out:
     qapi_free_MigrationInfo(info);
 }
