@@ -4200,10 +4200,11 @@ foreach target_base_arch, config_base_arch : config_base_arch_mak
 endforeach
 
 if have_rust
+  bindings_incdir = include_directories('.', 'include')
   # We would like to use --generate-cstr, but it is only available
   # starting with bindgen 0.66.0.  The oldest supported versions
   # is 0.60.x (Debian 12 has 0.60.1) which introduces --allowlist-file.
-  bindgen_args = [
+  bindgen_args_common = [
     '--disable-header-comment',
     '--raw-line', '// @generated',
     '--ctypes-prefix', 'std::os::raw',
@@ -4219,20 +4220,22 @@ if have_rust
     ]
   if not rustfmt.found()
     if bindgen.version().version_compare('<0.65.0')
-      bindgen_args += ['--no-rustfmt-bindings']
+      bindgen_args_common += ['--no-rustfmt-bindings']
     else
-      bindgen_args += ['--formatter', 'none']
+      bindgen_args_common += ['--formatter', 'none']
     endif
   endif
   if bindgen.version().version_compare('>=0.66.0')
-    bindgen_args += ['--rust-target', '1.59']
+    bindgen_args_common += ['--rust-target', '1.59']
   endif
   if bindgen.version().version_compare('<0.61.0')
     # default in 0.61+
-    bindgen_args += ['--size_t-is-usize']
+    bindgen_args_common += ['--size_t-is-usize']
   else
-    bindgen_args += ['--merge-extern-blocks']
+    bindgen_args_common += ['--merge-extern-blocks']
   endif
+
+  bindgen_args = []
   c_enums = [
     'DeviceCategory',
     'GpioPolarity',
@@ -4264,13 +4267,13 @@ if have_rust
   # this case you must pass the path to `clang` and `libclang` to your build
   # command invocation using the environment variables CLANG_PATH and
   # LIBCLANG_PATH
-  bindings_rs = rust.bindgen(
+  _qemu_api_bindings_inc_rs = rust.bindgen(
     input: 'rust/wrapper.h',
     dependencies: common_ss.all_dependencies(),
     output: 'bindings.inc.rs',
-    include_directories: include_directories('.', 'include'),
+    include_directories: bindings_incdir,
     bindgen_version: ['>=0.60.0'],
-    args: bindgen_args,
+    args: bindgen_args_common + bindgen_args,
     )
   subdir('rust')
 endif

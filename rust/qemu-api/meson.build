@@ -32,7 +32,7 @@ _qemu_api_rs = static_library(
       'src/vmstate.rs',
       'src/zeroable.rs',
     ],
-    {'.' : bindings_rs},
+    {'.' : _qemu_api_bindings_inc_rs},
   ),
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
