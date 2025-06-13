@@ -78,7 +78,7 @@ typedef struct SaveVMHandlers {
     void (*save_cleanup)(void *opaque);
 
     /**
-     * @save_live_complete_precopy
+     * @save_complete
      *
      * Transmits the last section for the device containing any
      * remaining data at the end phase of migration.
@@ -95,7 +95,7 @@ typedef struct SaveVMHandlers {
      *
      * Returns zero to indicate success and negative for error
      */
-    int (*save_live_complete_precopy)(QEMUFile *f, void *opaque);
+    int (*save_complete)(QEMUFile *f, void *opaque);
 
     /**
      * @save_live_complete_precopy_thread (invoked in a separate thread)
@@ -103,7 +103,7 @@ typedef struct SaveVMHandlers {
      * Called at the end of a precopy phase from a separate worker thread
      * in configurations where multifd device state transfer is supported
      * in order to perform asynchronous transmission of the remaining data in
-     * parallel with @save_live_complete_precopy handlers.
+     * parallel with @save_complete handlers.
      * When postcopy is enabled, devices that support postcopy will skip this
      * step.
      *

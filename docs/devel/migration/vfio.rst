@@ -75,10 +75,10 @@ VFIO implements the device hooks for the iterative approach as follows:
   in the non-multifd mode.
   In the multifd mode it just emits either a dummy EOS marker.
 
-* A ``save_live_complete_precopy`` function that sets the VFIO device in
-  _STOP_COPY state and iteratively copies the data for the VFIO device until
-  the vendor driver indicates that no data remains.
-  In the multifd mode it just emits a dummy EOS marker.
+* A ``save_complete`` function that sets the VFIO device in _STOP_COPY
+  state and iteratively copies the data for the VFIO device until the
+  vendor driver indicates that no data remains.  In the multifd mode it
+  just emits a dummy EOS marker.
 
 * A ``save_live_complete_precopy_thread`` function that in the multifd mode
   provides thread handler performing multifd device state transfer.
@@ -195,9 +195,9 @@ Live migration save path
                                       |
                 Then the VFIO device is put in _STOP_COPY state
                      (FINISH_MIGRATE, _ACTIVE, _STOP_COPY)
-         .save_live_complete_precopy() is called for each active device
+               .save_complete() is called for each active device
               For the VFIO device: in the non-multifd mode iterate in
-                        .save_live_complete_precopy() until
+                             .save_complete() until
                                pending data is 0
 	          In the multifd mode this iteration is done in
 	          .save_live_complete_precopy_thread() instead.
