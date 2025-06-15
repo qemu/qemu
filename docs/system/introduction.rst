@@ -81,7 +81,7 @@ may not be optimal for modern systems.
 
 For a non-x86 system where we emulate a broad range of machine types,
 the command lines are generally more explicit in defining the machine
-and boot behaviour. You will find often find example command lines in
+and boot behaviour. You will often find example command lines in
 the :ref:`system-targets-ref` section of the manual.
 
 While the project doesn't want to discourage users from using the
