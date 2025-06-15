@@ -305,6 +305,12 @@ impl PL011Registers {
     }
 
     fn write_data_register(&mut self, value: u32) -> bool {
+        if !self.control.enable_uart() {
+            log_mask_ln!(Log::GuestError, "PL011 data written to disabled UART");
+        }
+        if !self.control.enable_transmit() {
+            log_mask_ln!(Log::GuestError, "PL011 data written to disabled TX UART");
+        }
         // interrupts always checked
         let _ = self.loopback_tx(value.into());
         self.int_level |= Interrupt::TX;
