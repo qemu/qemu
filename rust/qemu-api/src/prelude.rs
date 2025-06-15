@@ -11,6 +11,8 @@ pub use crate::cell::BqlRefCell;
 
 pub use crate::errno;
 
+pub use crate::log_mask_ln;
+
 pub use crate::qdev::DeviceMethods;
 
 pub use crate::qom::InterfaceType;
