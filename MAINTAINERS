@@ -955,6 +955,7 @@ F: hw/cpu/realview_mpcore.c
 F: hw/intc/realview_gic.c
 F: include/hw/intc/realview_gic.h
 F: docs/system/arm/realview.rst
+F: tests/functional/test_arm_realview.py
 
 SABRELITE / i.MX6
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -4116,6 +4117,7 @@ M: Stefan Hajnoczi <stefanha@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/qed.c
+F: docs/interop/qed_spec.rst
 
 raw
 M: Kevin Wolf <kwolf@redhat.com>

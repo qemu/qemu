@@ -18,6 +18,7 @@ are useful for making QEMU interoperate with other software.
    parallels
    prl-xml
    qcow2
+   qed_spec
    pr-helper
    qmp-spec
    qemu-ga
