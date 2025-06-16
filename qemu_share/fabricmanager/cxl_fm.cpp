@@ -88,6 +88,7 @@ void CXLFabricManager::handle_write_mem_req(int qemu_vm_fd, const cxl_ipc_write_
     // one possibility is the RPConnection was freed
     // and this is an errant request.
     // We should ignore the request
+    CXL_FM_LOG("Request came from an inactive or illegal channel id. Early termination.");
     resp.status = CXL_IPC_STATUS_ERROR_INVALID_REQ;
     send(qemu_vm_fd, &resp, sizeof(resp), 0);
     return;
@@ -397,7 +398,7 @@ void CXLFabricManager::handle_rpc_request_channel_req(int qemu_client_fd, const 
   rpc_connection.service_name = service_name_str;
   rpc_connection.allocated_regions = allocated_regions;
 
-  active_rpc_connections_[curr_channel_id] = std::move(rpc_connection);
+  active_rpc_connections_[assigned_channel_id] = std::move(rpc_connection);
 
   // 5. Send response to QEMU client and server
   client_resp.status = CXL_IPC_STATUS_OK;
