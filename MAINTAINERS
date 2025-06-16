@@ -2549,7 +2549,7 @@ F: pc-bios/efi-vmxnet3.rom
 F: pc-bios/vgabios-vmware.bin
 F: roms/config.vga-vmware
 F: tests/qtest/vmxnet3-test.c
-F: docs/specs/vwm_pvscsi-spec.rst
+F: docs/specs/vmw_pvscsi-spec.rst
 
 Rocker
 M: Jiri Pirko <jiri@resnulli.us>
