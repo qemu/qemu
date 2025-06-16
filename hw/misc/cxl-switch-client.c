@@ -38,7 +38,7 @@
 // --- BAR Sizes and layout ---
 #define BAR0_MAILBOX_SIZE  0x1000    // 4KB for management mailbox
 #define BAR1_CONTROL_SIZE  0x1000    // 4KB for control registers
-#define BAR2_DATA_SIZE     (1 * MiB) // Default size
+#define BAR2_DATA_SIZE     (256 * MiB) // Default size
 
 // BAR1 Control Registers
 #define REG_COMMAND_DOORBELL 0x00

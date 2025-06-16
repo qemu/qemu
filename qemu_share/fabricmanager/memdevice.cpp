@@ -35,13 +35,17 @@ void CXLMemDevice::add_new_block(size_t offset, size_t size) {
 }
 
 std::optional<size_t> CXLMemDevice::allocate(size_t requested_size) {
+  CXL_MEMDEV_LOG("Requesting " + std::to_string(requested_size) + " bytes");
+  
   if(free_size_ < requested_size) {
+    CXL_MEMDEV_LOG("Free size (" + std::to_string(free_size_) + " bytes) is less than requested size (" + std::to_string(requested_size) + " bytes)");
     return std::nullopt;
   }
 
   // Get the first free block that is large enough to accommodate the requested size
   auto smallest_block_itit = m_free_blocks_by_size_.lower_bound(requested_size);
   if (smallest_block_itit == m_free_blocks_by_size_.end()) {
+    CXL_MEMDEV_LOG("Could not get a free block large enough");
     return std::nullopt;
   }
 
@@ -152,7 +156,8 @@ void CXLMemDevice::mark_unhealthy() {
 // because we might want to support adding more memdevices
 // and cos that would be transparent to the QEMU VMs anyways
 CXLMemDevice::CXLMemDevice(std::string path, uint64_t size)
-  : path_(std::move(path)),
+  : free_size_(size),
+    path_(std::move(path)),
     size_(size) {
   CXL_MEMDEV_LOG("Initializing Mem Device at " + path_);
   if (path_.empty()) {
@@ -175,7 +180,7 @@ CXLMemDevice::CXLMemDevice(std::string path, uint64_t size)
   }
 
   if (static_cast<uint64_t>(sb.st_size) < size_) {
-    CXL_MEMDEV_LOG("CXLMemDevice size is smaller than expected: " + std::to_string(sb.st_size));
+    CXL_MEMDEV_LOG("CXLMemDevice size is smaller than expected: Got " + std::to_string(sb.st_size) + ", expected " + std::to_string(size_));
     ::close(fd_);
     fd_ = -1;
     throw std::runtime_error("CXLMemDevice size is smaller than expected");
@@ -190,6 +195,9 @@ CXLMemDevice::CXLMemDevice(std::string path, uint64_t size)
   }
   status_ = CXL_IPC_STATUS_OK;
   CXL_MEMDEV_LOG("Successfully initialized Mem Device at " + path_);
+
+  // Initialize mem bookkeeping with single maximum size block
+  add_new_block(0, size_);
 }
 
 CXLMemDevice::~CXLMemDevice() {
