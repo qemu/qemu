@@ -586,6 +586,7 @@ NetBSD Virtual Machine Monitor (NVMM) CPU support
 M: Reinoud Zandijk <reinoud@netbsd.org>
 S: Maintained
 F: include/system/nvmm.h
+F: accel/stubs/nvmm-stub.c
 F: target/i386/nvmm/
 
 Hosts
