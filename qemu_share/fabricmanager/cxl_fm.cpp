@@ -32,7 +32,7 @@
 
 #include "cxl_fm.hpp"
 #include "memdevice.hpp"
-#include "cxl_switch_ipc.h"
+#include "../includes/cxl_switch_ipc.h"
 
 namespace cxl_fm {
 

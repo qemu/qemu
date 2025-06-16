@@ -10,7 +10,7 @@
 #include <sys/select.h>
 
 #include "memdevice.hpp"
-#include "cxl_switch_ipc.h"
+#include "../includes/cxl_switch_ipc.h"
 
 namespace cxl_fm {
 

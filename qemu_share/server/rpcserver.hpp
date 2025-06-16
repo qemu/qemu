@@ -1,16 +1,13 @@
 #ifndef DIANCIE_RPC_LIB_HPP
 #define DIANCIE_RPC_LIB_HPP
 
-#include "../cxl_switch_ipc.h"
+#include "../includes/cxl_switch_ipc.h"
 #include <string>
 #include <asm-generic/ioctl.h>
 
 namespace diancie {
 
-// TODO Chore: move to separate file for both
-#define CXL_SWITCH_IOCTL_MAGIC 'c'
-#define CXL_SWITCH_SET_EVENTFD_NOTIFY _IOW(CXL_SWITCH_IOCTL_MAGIC, 1, int)
-#define CXL_SWITCH_SET_EVENTFD_CMD_READY _IOW(CXL_SWITCH_IOCTL_MAGIC, 2, int)
+#include "../includes/ioctl_defs.h"
 
 #define REG_COMMAND_DOORBELL 0x00
 #define REG_COMMAND_STATUS   0x04

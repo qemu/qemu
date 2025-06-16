@@ -1,5 +1,5 @@
 #include "rpcserver.hpp"
-#include "../cxl_switch_ipc.h"
+#include "../includes/cxl_switch_ipc.h"
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
@@ -38,14 +38,14 @@ DiancieServer::DiancieServer(const std::string &device_path)
   }
 
   // 3. Setup event fds
-  if (!setup_eventfd(eventfd_notify_, CXL_SWITCH_SET_EVENTFD_NOTIFY)) {
+  if (!setup_eventfd(eventfd_notify_, CXL_SWITCH_IOCTL_SET_EVENTFD_NOTIFY)) {
     munmap(bar1_base_, bar1_size_);
     munmap(bar0_base_, bar0_size_);
     close(device_fd_);
     throw std::runtime_error("Failed to setup eventfd for notifications");
   }
 
-  if (!setup_eventfd(eventfd_cmd_ready_, CXL_SWITCH_SET_EVENTFD_CMD_READY)) {
+  if (!setup_eventfd(eventfd_cmd_ready_, CXL_SWITCH_IOCTL_SET_EVENTFD_CMD_READY)) {
     cleanup_eventfd(eventfd_notify_);
     munmap(bar1_base_, bar1_size_);
     munmap(bar0_base_, bar0_size_);

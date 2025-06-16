@@ -1,5 +1,5 @@
 #include "memdevice.hpp"
-#include "cxl_switch_ipc.h"
+#include "../includes/cxl_switch_ipc.h"
 #include "cxl_fm.hpp"
 
 #include <exception>

@@ -8,7 +8,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#include "cxl_switch_ipc.h"
+#include "../includes/cxl_switch_ipc.h"
 
 void print_usage(const char *prog_name) {
   std::cerr << "Usage: " << prog_name << " fail <replica_index>" << std::endl;

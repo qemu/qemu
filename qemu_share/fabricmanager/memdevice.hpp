@@ -5,7 +5,7 @@
 #include <map>
 #include <optional>
 #include <string>
-#include "cxl_switch_ipc.h"
+#include "../includes/cxl_switch_ipc.h"
 
 namespace cxl_fm {
 /**

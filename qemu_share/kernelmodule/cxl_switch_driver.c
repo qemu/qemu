@@ -60,9 +60,7 @@ static int device_count = 0;
 #define MMAP_OFFSET_PGOFF_BAR2 2
 
 // ioctl command definitions
-#define CXL_SWITCH_IOCTL_MAGIC 'c'
-#define CXL_SWITCH_IOCTL_SET_EVENTFD_NOTIFY    _IOW(CXL_SWITCH_IOCTL_MAGIC, 1, int)
-#define CXL_SWITCH_IOCTL_SET_EVENTFD_CMD_READY _IOW(CXL_SWITCH_IOCTL_MAGIC, 2, int)
+#include "../includes/ioctl_defs.h"
 
 /* Per-device data structure */
 struct cxl_switch_client_dev {
