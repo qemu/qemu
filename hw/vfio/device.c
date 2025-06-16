@@ -243,6 +243,13 @@ retry:
     return 0;
 }
 
+int vfio_device_get_region_fd(VFIODevice *vbasedev, int index)
+{
+        return vbasedev->region_fds ?
+               vbasedev->region_fds[index] :
+               vbasedev->fd;
+}
+
 int vfio_device_get_region_info_type(VFIODevice *vbasedev, uint32_t type,
                                      uint32_t subtype, struct vfio_region_info **info)
 {
