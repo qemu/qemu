@@ -228,3 +228,58 @@ mailing list.
 It is also recommended to attempt to contact the original author to let them
 know you are interested in taking over their work, in case they still intended
 to return to the work, or had any suggestions about the best way to continue.
+
+Inclusion of generated files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Files in patches contributed to QEMU are generally expected to be provided
+only in the preferred format for making modifications. The implication of
+this is that the output of code generators or compilers is usually not
+appropriate to contribute to QEMU.
+
+For reasons of practicality there are some exceptions to this rule, where
+generated code is permitted, provided it is also accompanied by the
+corresponding preferred source format. This is done where it is impractical
+to expect those building QEMU to run the code generation or compilation
+process. A non-exhaustive list of examples is:
+
+ * Images: where an bitmap image is created from a vector file it is common
+   to include the rendered bitmaps at desired resolution(s), since subtle
+   changes in the rasterization process / tools may affect quality. The
+   original vector file is expected to accompany any generated bitmaps.
+
+ * Firmware: QEMU includes pre-compiled binary ROMs for a variety of guest
+   firmwares. When such binary ROMs are contributed, the corresponding source
+   must also be provided, either directly, or through a git submodule link.
+
+ * Dockerfiles: the majority of the dockerfiles are automatically generated
+   from a canonical list of build dependencies maintained in tree, together
+   with the libvirt-ci git submodule link. The generated dockerfiles are
+   included in tree because it is desirable to be able to directly build
+   container images from a clean git checkout.
+
+ * eBPF: QEMU includes some generated eBPF machine code, since the required
+   eBPF compilation tools are not broadly available on all targetted OS
+   distributions. The corresponding eBPF C code for the binary is also
+   provided. This is a time-limited exception until the eBPF toolchain is
+   sufficiently broadly available in distros.
+
+In all cases above, the existence of generated files must be acknowledged
+and justified in the commit that introduces them.
+
+Tools which perform changes to existing code with deterministic algorithmic
+manipulation, driven by user specified inputs, are not generally considered
+to be "generators".
+
+For instance, using Coccinelle to convert code from one pattern to another
+pattern, or fixing documentation typos with a spell checker, or transforming
+code using sed / awk / etc, are not considered to be acts of code
+generation. Where an automated manipulation is performed on code, however,
+this should be declared in the commit message.
+
+At times contributors may use or create scripts/tools to generate an initial
+boilerplate code template which is then filled in to produce the final patch.
+The output of such a tool would still be considered the "preferred format",
+since it is intended to be a foundation for further human authored changes.
+Such tools are acceptable to use, provided there is clearly defined copyright
+and licensing for their output.
