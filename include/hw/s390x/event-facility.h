@@ -201,6 +201,11 @@ OBJECT_DECLARE_TYPE(SCLPEventCPI, SCLPEventCPIClass,
 
 struct SCLPEventCPI {
     SCLPEvent event;
+    uint8_t system_type[8];
+    uint8_t system_name[8];
+    uint64_t system_level;
+    uint8_t sysplex_name[8];
+    uint64_t timestamp;
 };
 
 #define TYPE_SCLP_EVENT_FACILITY "s390-sclp-event-facility"
