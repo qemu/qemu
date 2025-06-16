@@ -2644,7 +2644,7 @@ static const char *arm_gdb_get_core_xml_file(CPUState *cs)
  * linux syscall TIF_TAGGED_ADDR setting, not TBI in general.
  *
  * There should be a better place to put this, but we need this in
- * include/exec/cpu_ldst.h, and not some place linux-user specific.
+ * include/accel/tcg/cpu-ldst.h, and not some place linux-user specific.
  *
  * Note that arm-*-user will never set tagged_addr_enable.
  */

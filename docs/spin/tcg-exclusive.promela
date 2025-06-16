@@ -1,6 +1,6 @@
 /*
  * This model describes the implementation of exclusive sections in
- * cpus-common.c (start_exclusive, end_exclusive, cpu_exec_start,
+ * cpu-common.c (start_exclusive, end_exclusive, cpu_exec_start,
  * cpu_exec_end).
  *
  * Author: Paolo Bonzini <pbonzini@redhat.com>
@@ -65,7 +65,7 @@
                              }
 #define COND_BROADCAST(c)    c++
 
-// this is the logic from cpus-common.c
+// this is the logic from cpu-common.c
 
 mutex_t mutex;
 cond_t exclusive_cond;

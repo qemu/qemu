@@ -11,7 +11,7 @@
 
 - System emulation
 
-  You can reference docs/system/loongarch/loongson3.rst to get the information about system emulation of LoongArch.
+  You can reference docs/system/loongarch/virt.rst to get the information about system emulation of LoongArch.
 
 - Linux-user emulation
 
