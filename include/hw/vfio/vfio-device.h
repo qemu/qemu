@@ -240,6 +240,7 @@ struct VFIODeviceIOOps {
      * @off: offset within the region
      * @size: size in bytes to write
      * @data: buffer to write from
+     * @post: true if this is a posted write
      *
      * Returns number of bytes write on success or -errno.
      */
