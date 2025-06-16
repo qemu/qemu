@@ -2538,7 +2538,7 @@ F: net/eth.c
 F: hw/net/net_rx_pkt*
 F: hw/net/net_tx_pkt*
 
-Vmware
+VMware
 M: Dmitry Fleytman <dmitry.fleytman@gmail.com>
 S: Maintained
 F: docs/specs/vmw_pvscsi-spec.rst
