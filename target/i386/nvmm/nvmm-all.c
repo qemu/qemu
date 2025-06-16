@@ -46,7 +46,7 @@ struct qemu_machine {
 
 /* -------------------------------------------------------------------------- */
 
-static bool nvmm_allowed;
+bool nvmm_allowed;
 static struct qemu_machine qemu_mach;
 
 static struct nvmm_machine *
@@ -1190,12 +1190,6 @@ nvmm_accel_init(MachineState *ms)
 
     printf("NetBSD Virtual Machine Monitor accelerator is operational\n");
     return 0;
-}
-
-int
-nvmm_enabled(void)
-{
-    return nvmm_allowed;
 }
 
 static void
