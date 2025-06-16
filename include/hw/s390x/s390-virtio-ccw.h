@@ -54,6 +54,7 @@ struct S390CcwMachineClass {
 
     /*< public >*/
     int max_threads;
+    bool use_cpi;
 };
 
 #endif
