@@ -15,6 +15,7 @@
 #include <mutex>
 #include <optional>
 #include <stdexcept>
+#include <string.h>
 #include <string>
 #include <sys/types.h>
 #include <system_error>
@@ -316,7 +317,7 @@ void CXLFabricManager::handle_rpc_request_channel_req(int qemu_client_fd, const 
   int qemu_server_fd = -1;
 
   CXL_FM_LOG("RPC_REQUEST_CHANNEL_REQ from qemu_fd " + std::to_string(qemu_client_fd) +
-               ": Service='" + service_name_str);
+               ": Service='" + service_name_str + "'");
   
   // 1. Find the RPC service
   auto service_it = service_registry_.find(service_name_str);
@@ -408,6 +409,8 @@ void CXLFabricManager::handle_rpc_request_channel_req(int qemu_client_fd, const 
   // Prepare server payload
   cxl_ipc_rpc_new_client_notify_t server_notify_payload;
   server_notify_payload.type = CXL_MSG_TYPE_RPC_NEW_CLIENT_NOTIFY;
+  strncpy(server_notify_payload.client_instance_id, client_id_str.c_str(), sizeof(server_notify_payload.client_instance_id));
+  strncpy(server_notify_payload.service_name, service_name_str.c_str(), sizeof(server_notify_payload.service_name));
   server_notify_payload.channel_shm_size = requested_size;
   server_notify_payload.channel_shm_offset = 0;
 
