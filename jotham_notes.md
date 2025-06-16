@@ -1,5 +1,24 @@
 # Log
 
+## 16 June
+
+Forgot to update.
+1st week of June was ACM SRC
+2nd week was mental health recovery week
+
+resuming work here
+
+The current workflow:
+
+1. Fabric manager
+2. Server
+3. Client
+
+Service registration is the current next step.
+
+We have vm1, vm2 which insmod the kernel module to interface with the device.
+The fabric manager shud be run first.
+
 ## 23 May
 
 Here is what has been achieved so far as of 23 May.
