@@ -242,7 +242,7 @@ struct AccelCPUState {
     WHV_RUN_VP_EXIT_CONTEXT exit_ctx;
 };
 
-static bool whpx_allowed;
+bool whpx_allowed;
 static bool whp_dispatch_initialized;
 static HMODULE hWinHvPlatform, hWinHvEmulation;
 static uint32_t max_vcpu_index;
@@ -2686,11 +2686,6 @@ error:
     }
 
     return ret;
-}
-
-int whpx_enabled(void)
-{
-    return whpx_allowed;
 }
 
 bool whpx_apic_in_platform(void) {
