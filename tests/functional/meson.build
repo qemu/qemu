@@ -417,4 +417,4 @@ endforeach
 
 run_target('precache-functional',
            depends: precache_all,
-           command: ['true'])
+           command: [python, '-c', ''])
