@@ -1086,7 +1086,7 @@ static void qemu_spice_gl_scanout_texture(DisplayChangeListener *dcl,
 {
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
     EGLint offset[DMABUF_MAX_PLANES], stride[DMABUF_MAX_PLANES], fourcc = 0;
-    int fd[DMABUF_MAX_PLANES], num_planes;
+    int fd[DMABUF_MAX_PLANES], num_planes, i;
     uint64_t modifier;
 
     assert(tex_id);
@@ -1098,11 +1098,26 @@ static void qemu_spice_gl_scanout_texture(DisplayChangeListener *dcl,
 
     trace_qemu_spice_gl_scanout_texture(ssd->qxl.id, w, h, fourcc);
 
-    /* note: spice server will close the fd */
-    spice_server_gl_scanout(&ssd->qxl, fd, backing_width, backing_height,
-                            (uint32_t *)offset, (uint32_t *)stride, num_planes,
-                            fourcc, modifier, y_0_top);
-    qemu_spice_gl_monitor_config(ssd, x, y, w, h);
+    if (spice_remote_client && modifier != DRM_FORMAT_MOD_LINEAR) {
+        egl_fb_destroy(&ssd->guest_fb);
+        egl_fb_setup_for_tex(&ssd->guest_fb,
+                             backing_width, backing_height,
+                             tex_id, false);
+        ssd->backing_y_0_top = y_0_top;
+        ssd->blit_scanout_texture = true;
+        ssd->new_scanout_texture = true;
+
+        for (i = 0; i < num_planes; i++) {
+            close(fd[i]);
+        }
+    } else {
+        /* note: spice server will close the fd */
+        spice_server_gl_scanout(&ssd->qxl, fd, backing_width, backing_height,
+                                (uint32_t *)offset, (uint32_t *)stride,
+                                num_planes, fourcc, modifier, y_0_top);
+        qemu_spice_gl_monitor_config(ssd, x, y, w, h);
+    }
+
     ssd->have_surface = false;
     ssd->have_scanout = true;
 }
@@ -1168,6 +1183,50 @@ static void qemu_spice_gl_release_dmabuf(DisplayChangeListener *dcl,
     egl_dmabuf_release_texture(dmabuf);
 }
 
+static bool spice_gl_blit_scanout_texture(SimpleSpiceDisplay *ssd,
+                                          egl_fb *scanout_tex_fb)
+{
+    uint32_t offsets[DMABUF_MAX_PLANES], strides[DMABUF_MAX_PLANES];
+    int fds[DMABUF_MAX_PLANES], num_planes, fourcc;
+    uint64_t modifier;
+    bool ret;
+
+    egl_fb_destroy(scanout_tex_fb);
+    egl_fb_setup_for_tex(scanout_tex_fb,
+                         surface_width(ssd->ds), surface_height(ssd->ds),
+                         ssd->ds->texture, false);
+    egl_fb_blit(scanout_tex_fb, &ssd->guest_fb, false);
+    glFlush();
+
+    if (!ssd->new_scanout_texture) {
+        return true;
+    }
+
+    ret = egl_dmabuf_export_texture(ssd->ds->texture,
+                                    fds,
+                                    (EGLint *)offsets,
+                                    (EGLint *)strides,
+                                    &fourcc,
+                                    &num_planes,
+                                    &modifier);
+    if (!ret) {
+        error_report("spice: failed to get fd for texture");
+        return false;
+    }
+
+    spice_server_gl_scanout(&ssd->qxl, fds,
+                            surface_width(ssd->ds),
+                            surface_height(ssd->ds),
+                            (uint32_t *)offsets, (uint32_t *)strides,
+                            num_planes, fourcc, modifier,
+                            ssd->backing_y_0_top);
+    qemu_spice_gl_monitor_config(ssd, 0, 0,
+                                 surface_width(ssd->ds),
+                                 surface_height(ssd->ds));
+    ssd->new_scanout_texture = false;
+    return true;
+}
+
 static void qemu_spice_gl_update(DisplayChangeListener *dcl,
                                  uint32_t x, uint32_t y, uint32_t w, uint32_t h)
 {
@@ -1175,6 +1234,7 @@ static void qemu_spice_gl_update(DisplayChangeListener *dcl,
     EGLint fourcc = 0;
     bool render_cursor = false;
     bool y_0_top = false; /* FIXME */
+    bool ret;
     uint32_t width, height, texture;
 
     if (!ssd->have_scanout) {
@@ -1267,6 +1327,15 @@ static void qemu_spice_gl_update(DisplayChangeListener *dcl,
         egl_texture_blend(ssd->gls, &ssd->blit_fb, &ssd->cursor_fb,
                           !y_0_top, ptr_x, ptr_y, 1.0, 1.0);
         glFlush();
+    }
+
+    if (spice_remote_client && ssd->blit_scanout_texture) {
+        egl_fb scanout_tex_fb;
+
+        ret = spice_gl_blit_scanout_texture(ssd, &scanout_tex_fb);
+        if (!ret) {
+            return;
+        }
     }
 
     trace_qemu_spice_gl_update(ssd->qxl.id, w, h, x, y);
