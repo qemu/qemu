@@ -410,6 +410,7 @@ void CXLFabricManager::handle_rpc_request_channel_req(int qemu_client_fd, const 
   // Prepare server payload
   cxl_ipc_rpc_new_client_notify_t server_notify_payload;
   server_notify_payload.type = CXL_MSG_TYPE_RPC_NEW_CLIENT_NOTIFY;
+  server_notify_payload.channel_id = assigned_channel_id;
   strncpy(server_notify_payload.client_instance_id, client_id_str.c_str(), sizeof(server_notify_payload.client_instance_id));
   strncpy(server_notify_payload.service_name, service_name_str.c_str(), sizeof(server_notify_payload.service_name));
   server_notify_payload.channel_shm_size = requested_size;
