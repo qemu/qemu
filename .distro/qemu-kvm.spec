@@ -149,7 +149,7 @@ Obsoletes: %{name}-block-ssh <= %{epoch}:%{version}                    \
 Summary: QEMU is a machine emulator and virtualizer
 Name: qemu-kvm
 Version: 9.1.0
-Release: 23%{?rcrel}%{?dist}%{?cc_suffix}
+Release: 24%{?rcrel}%{?dist}%{?cc_suffix}
 # Epoch because we pushed a qemu-1.0 package. AIUI this can't ever be dropped
 # Epoch 15 used for RHEL 8
 # Epoch 17 used for RHEL 9 (due to release versioning offset in RHEL 8.5)
@@ -575,6 +575,52 @@ Patch201: kvm-net-vhost-user-add-QAPI-events-to-report-connection-.patch
 Patch202: kvm-file-posix-Define-DM_MPATH_PROBE_PATHS.patch
 # For RHEL-95408 - Support multipath failover with scsi-block [rhel-9]
 Patch203: kvm-file-posix-Probe-paths-and-retry-SG_IO-on-potential-.patch
+# For RHEL-11430 - [IBM 9.7 FEAT] KVM: Performance Enhanced Refresh PCI Translation - qemu part
+Patch204: kvm-s390x-pci-add-support-for-guests-that-request-direct.patch
+# For RHEL-11430 - [IBM 9.7 FEAT] KVM: Performance Enhanced Refresh PCI Translation - qemu part
+Patch205: kvm-s390x-pci-indicate-QEMU-supports-relaxed-translation.patch
+# For RHEL-82906 - --migrate-disks-detect-zeroes doesn't take effect for disk migration [rhel-9.7]
+# For RHEL-83015 - Disk size of target raw image is full allocated when doing mirror with default discard value [rhel-9.7]
+Patch206: kvm-block-Expand-block-status-mode-from-bool-to-flags.patch
+# For RHEL-82906 - --migrate-disks-detect-zeroes doesn't take effect for disk migration [rhel-9.7]
+# For RHEL-83015 - Disk size of target raw image is full allocated when doing mirror with default discard value [rhel-9.7]
+Patch207: kvm-file-posix-gluster-Handle-zero-block-status-hint-bet.patch
+# For RHEL-82906 - --migrate-disks-detect-zeroes doesn't take effect for disk migration [rhel-9.7]
+# For RHEL-83015 - Disk size of target raw image is full allocated when doing mirror with default discard value [rhel-9.7]
+Patch208: kvm-block-Let-bdrv_co_is_zero_fast-consolidate-adjacent-.patch
+# For RHEL-82906 - --migrate-disks-detect-zeroes doesn't take effect for disk migration [rhel-9.7]
+# For RHEL-83015 - Disk size of target raw image is full allocated when doing mirror with default discard value [rhel-9.7]
+Patch209: kvm-block-Add-new-bdrv_co_is_all_zeroes-function.patch
+# For RHEL-82906 - --migrate-disks-detect-zeroes doesn't take effect for disk migration [rhel-9.7]
+# For RHEL-83015 - Disk size of target raw image is full allocated when doing mirror with default discard value [rhel-9.7]
+Patch210: kvm-iotests-Improve-iotest-194-to-mirror-data.patch
+# For RHEL-82906 - --migrate-disks-detect-zeroes doesn't take effect for disk migration [rhel-9.7]
+# For RHEL-83015 - Disk size of target raw image is full allocated when doing mirror with default discard value [rhel-9.7]
+Patch211: kvm-mirror-Minor-refactoring.patch
+# For RHEL-82906 - --migrate-disks-detect-zeroes doesn't take effect for disk migration [rhel-9.7]
+# For RHEL-83015 - Disk size of target raw image is full allocated when doing mirror with default discard value [rhel-9.7]
+Patch212: kvm-mirror-Pass-full-sync-mode-rather-than-bool-to-inter.patch
+# For RHEL-82906 - --migrate-disks-detect-zeroes doesn't take effect for disk migration [rhel-9.7]
+# For RHEL-83015 - Disk size of target raw image is full allocated when doing mirror with default discard value [rhel-9.7]
+Patch213: kvm-mirror-Allow-QMP-override-to-declare-target-already-.patch
+# For RHEL-82906 - --migrate-disks-detect-zeroes doesn't take effect for disk migration [rhel-9.7]
+# For RHEL-83015 - Disk size of target raw image is full allocated when doing mirror with default discard value [rhel-9.7]
+Patch214: kvm-mirror-Drop-redundant-zero_target-parameter.patch
+# For RHEL-82906 - --migrate-disks-detect-zeroes doesn't take effect for disk migration [rhel-9.7]
+# For RHEL-83015 - Disk size of target raw image is full allocated when doing mirror with default discard value [rhel-9.7]
+Patch215: kvm-mirror-Skip-pre-zeroing-destination-if-it-is-already.patch
+# For RHEL-82906 - --migrate-disks-detect-zeroes doesn't take effect for disk migration [rhel-9.7]
+# For RHEL-83015 - Disk size of target raw image is full allocated when doing mirror with default discard value [rhel-9.7]
+Patch216: kvm-mirror-Skip-writing-zeroes-when-target-is-already-ze.patch
+# For RHEL-82906 - --migrate-disks-detect-zeroes doesn't take effect for disk migration [rhel-9.7]
+# For RHEL-83015 - Disk size of target raw image is full allocated when doing mirror with default discard value [rhel-9.7]
+Patch217: kvm-iotests-common.rc-add-disk_usage-function.patch
+# For RHEL-82906 - --migrate-disks-detect-zeroes doesn't take effect for disk migration [rhel-9.7]
+# For RHEL-83015 - Disk size of target raw image is full allocated when doing mirror with default discard value [rhel-9.7]
+Patch218: kvm-tests-Add-iotest-mirror-sparse-for-recent-patches.patch
+# For RHEL-82906 - --migrate-disks-detect-zeroes doesn't take effect for disk migration [rhel-9.7]
+# For RHEL-83015 - Disk size of target raw image is full allocated when doing mirror with default discard value [rhel-9.7]
+Patch219: kvm-mirror-Reduce-I-O-when-destination-is-detect-zeroes-.patch
 
 %if %{have_clang}
 BuildRequires: clang
@@ -1650,6 +1696,30 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Mon Jun 16 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-24
+- kvm-s390x-pci-add-support-for-guests-that-request-direct.patch [RHEL-11430]
+- kvm-s390x-pci-indicate-QEMU-supports-relaxed-translation.patch [RHEL-11430]
+- kvm-block-Expand-block-status-mode-from-bool-to-flags.patch [RHEL-82906 RHEL-83015]
+- kvm-file-posix-gluster-Handle-zero-block-status-hint-bet.patch [RHEL-82906 RHEL-83015]
+- kvm-block-Let-bdrv_co_is_zero_fast-consolidate-adjacent-.patch [RHEL-82906 RHEL-83015]
+- kvm-block-Add-new-bdrv_co_is_all_zeroes-function.patch [RHEL-82906 RHEL-83015]
+- kvm-iotests-Improve-iotest-194-to-mirror-data.patch [RHEL-82906 RHEL-83015]
+- kvm-mirror-Minor-refactoring.patch [RHEL-82906 RHEL-83015]
+- kvm-mirror-Pass-full-sync-mode-rather-than-bool-to-inter.patch [RHEL-82906 RHEL-83015]
+- kvm-mirror-Allow-QMP-override-to-declare-target-already-.patch [RHEL-82906 RHEL-83015]
+- kvm-mirror-Drop-redundant-zero_target-parameter.patch [RHEL-82906 RHEL-83015]
+- kvm-mirror-Skip-pre-zeroing-destination-if-it-is-already.patch [RHEL-82906 RHEL-83015]
+- kvm-mirror-Skip-writing-zeroes-when-target-is-already-ze.patch [RHEL-82906 RHEL-83015]
+- kvm-iotests-common.rc-add-disk_usage-function.patch [RHEL-82906 RHEL-83015]
+- kvm-tests-Add-iotest-mirror-sparse-for-recent-patches.patch [RHEL-82906 RHEL-83015]
+- kvm-mirror-Reduce-I-O-when-destination-is-detect-zeroes-.patch [RHEL-82906 RHEL-83015]
+- Resolves: RHEL-11430
+  ([IBM 9.7 FEAT] KVM: Performance Enhanced Refresh PCI Translation - qemu part)
+- Resolves: RHEL-82906
+  (--migrate-disks-detect-zeroes doesn't take effect for disk migration [rhel-9.7])
+- Resolves: RHEL-83015
+  (Disk size of target raw image is full allocated when doing mirror with default discard value [rhel-9.7])
+
 * Mon Jun 09 2025 Jon Maloy <jmaloy@redhat.com> - 9.1.0-23
 - kvm-net-vhost-user-add-QAPI-events-to-report-connection-.patch [RHEL-95120]
 - kvm-file-posix-Define-DM_MPATH_PROBE_PATHS.patch [RHEL-95408]
