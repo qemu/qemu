@@ -31,6 +31,7 @@
 #include "standard-headers/drm/drm_fourcc.h"
 
 bool spice_opengl;
+bool spice_remote_client;
 
 int qemu_spice_rect_is_empty(const QXLRect* r)
 {
