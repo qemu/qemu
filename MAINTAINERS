@@ -1697,6 +1697,13 @@ S: Maintained
 F: hw/riscv/microblaze-v-generic.c
 F: docs/system/riscv/microblaze-v-generic.rst
 
+Xiangshan Kunminghu
+M: Ran Wang <wangran@bosc.ac.cn>
+S: Maintained
+F: docs/system/riscv/xiangshan-kunminghu.rst
+F: hw/riscv/xiangshan_kmh.c
+F: include/hw/riscv/xiangshan_kmh.h
+
 RX Machines
 -----------
 rx-gdbsim
