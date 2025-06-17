@@ -152,6 +152,7 @@ struct SimpleSpiceCursor {
 
 extern bool spice_opengl;
 extern bool spice_remote_client;
+extern int spice_max_refresh_rate;
 
 int qemu_spice_rect_is_empty(const QXLRect* r);
 void qemu_spice_rect_union(QXLRect *dest, const QXLRect *r);
