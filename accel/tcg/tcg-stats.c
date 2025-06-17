@@ -206,9 +206,14 @@ static void dump_exec_info(GString *buf)
     tcg_dump_flush_info(buf);
 }
 
-void tcg_dump_stats(GString *buf)
+void tcg_get_stats(AccelState *accel, GString *buf)
 {
-    dump_accel_info(current_accel(), buf);
+    dump_accel_info(accel, buf);
     dump_exec_info(buf);
     dump_drift_info(buf);
+}
+
+void tcg_dump_stats(GString *buf)
+{
+    tcg_get_stats(current_accel(), buf);
 }
