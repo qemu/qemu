@@ -97,7 +97,7 @@ struct vmrange {
 extern struct vmrange* afl_instr_code;
 extern unsigned char  *afl_area_ptr;
 extern unsigned int    afl_inst_rms;
-extern abi_ulong       afl_entry_point, afl_start_code, afl_end_code;
+extern abi_ulong       afl_entry_point, afl_exit_point, afl_start_code, afl_end_code;
 extern abi_ulong       afl_persistent_addr;
 extern abi_ulong       afl_persistent_ret_addr;
 extern u8              afl_compcov_level;
