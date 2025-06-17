@@ -2912,6 +2912,20 @@ static void load_elf_image(const char *image_name, int image_fd,
         load_symbols(ehdr, image_fd, load_bias);
     }
 
+    if (!afl_exit_point) {
+      char *ptr;
+      if ((ptr = getenv("AFL_EXITPOINT")) != NULL) {
+        afl_exit_point = strtoul(ptr, NULL, 16);
+#ifdef TARGET_ARM
+      /* The least significant bit indicates Thumb mode. */
+        afl_exit_point = afl_exit_point & ~(target_ulong)1;
+#endif
+        if (getenv("AFL_DEBUG") != NULL)
+          fprintf(stderr, "AFL exitpoint: 0x%lx\n",
+                  (unsigned long)afl_exit_point);
+      }
+    }
+
     if (!afl_entry_point) {
       char *ptr;
       if ((ptr = getenv("AFL_ENTRYPOINT")) != NULL) {

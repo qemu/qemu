@@ -117,6 +117,12 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
                 first = false;
             }
             gen_helper_afl_entry_routine(cpu_env);
+        } else if (db->pc_next == afl_exit_point) {
+            TCGArg args[1];
+            args[0].type        = TCG_ARG_CONST;
+            args[0].u.constant  = EXIT_SUCCESS;
+            tcg_gen_call(cpu_env, QEMU_SYM(exit), args, 1);
+            return;
         }
 
         /* Disassemble one instruction.  The translate_insn hook should

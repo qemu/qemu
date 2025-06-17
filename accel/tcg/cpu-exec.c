@@ -67,6 +67,7 @@ unsigned char *afl_area_ptr = dummy;          /* Exported for afl_gen_trace */
 /* Exported variables populated by the code patched into elfload.c: */
 
 abi_ulong afl_entry_point,                      /* ELF entry point (_start) */
+    afl_exit_point,                             /* ELF exit point           */
     afl_start_code,                             /* .text start pointer      */
     afl_end_code;                               /* .text end pointer        */
 
