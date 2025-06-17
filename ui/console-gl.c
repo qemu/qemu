@@ -184,6 +184,12 @@ void surface_gl_destroy_texture(QemuGLShader *gls,
     }
     glDeleteTextures(1, &surface->texture);
     surface->texture = 0;
+#ifdef GL_EXT_memory_object_fd
+    if (surface->mem_obj) {
+        glDeleteMemoryObjectsEXT(1, &surface->mem_obj);
+        surface->mem_obj = 0;
+    }
+#endif
 }
 
 void surface_gl_setup_viewport(QemuGLShader *gls,

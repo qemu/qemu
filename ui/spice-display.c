@@ -893,6 +893,81 @@ static void spice_gl_update(DisplayChangeListener *dcl,
     ssd->gl_updates++;
 }
 
+static bool spice_gl_replace_fd_texture(SimpleSpiceDisplay *ssd,
+                                        int *fds, uint64_t *modifier,
+                                        int *num_planes)
+{
+    uint32_t offsets[DMABUF_MAX_PLANES], strides[DMABUF_MAX_PLANES];
+    GLuint texture;
+    GLuint mem_obj;
+    int fourcc;
+    bool ret;
+
+    if (!spice_remote_client) {
+        return true;
+    }
+
+    if (*modifier == DRM_FORMAT_MOD_LINEAR) {
+        return true;
+    }
+
+    if (*num_planes > 1) {
+        error_report("spice: cannot replace texture with multiple planes");
+        return false;
+    }
+
+    /*
+     * We really want to ensure that the memory layout of the texture
+     * is linear; otherwise, the encoder's output may show corruption.
+     */
+    if (!surface_gl_create_texture_from_fd(ssd->ds, fds[0], &texture,
+                                           &mem_obj)) {
+        error_report("spice: cannot create new texture from fd");
+        return false;
+    }
+
+    /*
+     * A successful return after glImportMemoryFdEXT() means that
+     * the ownership of fd has been passed to GL. In other words,
+     * the fd we got above should not be used anymore.
+     */
+    ret = egl_dmabuf_export_texture(texture,
+                                    fds,
+                                    (EGLint *)offsets,
+                                    (EGLint *)strides,
+                                    &fourcc,
+                                    num_planes,
+                                    modifier);
+    if (!ret) {
+        glDeleteTextures(1, &texture);
+#ifdef GL_EXT_memory_object_fd
+        glDeleteMemoryObjectsEXT(1, &mem_obj);
+#endif
+
+        /*
+         * Since we couldn't export our newly create texture (or create,
+         * an fd associated with it) we need to backtrack and try to
+         * recreate the fd associated with the original texture.
+         */
+        ret = egl_dmabuf_export_texture(ssd->ds->texture,
+                                        fds,
+                                        (EGLint *)offsets,
+                                        (EGLint *)strides,
+                                        &fourcc,
+                                        num_planes,
+                                        modifier);
+        if (!ret) {
+            surface_gl_destroy_texture(ssd->gls, ssd->ds);
+            warn_report("spice: no texture available to display");
+        }
+    } else {
+        surface_gl_destroy_texture(ssd->gls, ssd->ds);
+        ssd->ds->texture = texture;
+        ssd->ds->mem_obj = mem_obj;
+    }
+    return ret;
+}
+
 static void spice_server_gl_scanout(QXLInstance *qxl,
                                     const int *fd,
                                     uint32_t width, uint32_t height,
@@ -917,6 +992,7 @@ static void spice_gl_switch(DisplayChangeListener *dcl,
                             struct DisplaySurface *new_surface)
 {
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
+    bool ret;
 
     if (ssd->ds) {
         surface_gl_destroy_texture(ssd->gls, ssd->ds);
@@ -935,6 +1011,12 @@ static void spice_gl_switch(DisplayChangeListener *dcl,
                                        &fourcc,
                                        &num_planes,
                                        &modifier)) {
+            surface_gl_destroy_texture(ssd->gls, ssd->ds);
+            return;
+        }
+
+        ret = spice_gl_replace_fd_texture(ssd, fd, &modifier, &num_planes);
+        if (!ret) {
             surface_gl_destroy_texture(ssd->gls, ssd->ds);
             return;
         }
