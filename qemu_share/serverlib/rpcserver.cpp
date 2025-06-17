@@ -44,8 +44,8 @@ Connection::~Connection() {
 }
 
 // --- DiancieServer ---
-DiancieServer::DiancieServer(const std::string &device_path)
-    : device_path_(device_path) {
+DiancieServer::DiancieServer(const std::string &device_path, const std::string& service_name, const std::string& instance_id)
+    : device_path_(device_path), service_name_(service_name), instance_id_(instance_id) {
   // 1. Open device fd
   device_fd_ = open(device_path_.c_str(), O_RDWR);
   if (device_fd_ < 0) {
@@ -85,6 +85,11 @@ DiancieServer::DiancieServer(const std::string &device_path)
     throw std::runtime_error("Failed to setup eventfd for command ready");
   }
 
+  // 4. Register service
+  if (!register_service()) {
+    throw std::runtime_error("Failed to register service!");
+  }
+
   std::cout << "Diancie server initialized. Device = " << device_path_
             << ", BAR0 mmapped at " << bar0_base_ << ", BAR1 mmapped at "
             << bar1_base_ << ", notify_efd " << eventfd_notify_
@@ -93,6 +98,7 @@ DiancieServer::DiancieServer(const std::string &device_path)
 
 DiancieServer::~DiancieServer() {
   std::cout << "Cleaning up Diancie server resources." << std::endl;
+  deregister_service();
   cleanup_eventfd(eventfd_notify_);
   cleanup_eventfd(eventfd_cmd_ready_);
 
@@ -135,49 +141,46 @@ void DiancieServer::cleanup_eventfd(int& efd_member) {
   }
 }
 
-bool DiancieServer::register_service(const std::string& service_name, const std::string& instance_id) {
+bool DiancieServer::register_service() {
   cxl_ipc_rpc_register_service_req_t req;
   std::memset(&req, 0, sizeof(req));
   req.type = CXL_MSG_TYPE_RPC_REGISTER_SERVICE_REQ;
   
-  strncpy(req.service_name, service_name.c_str(), MAX_SERVICE_NAME_LEN - 1);
+  strncpy(req.service_name, service_name_.c_str(), MAX_SERVICE_NAME_LEN - 1);
   req.service_name[MAX_SERVICE_NAME_LEN-1] = '\0';
 
-  strncpy(req.instance_id, instance_id.c_str(), MAX_INSTANCE_ID_LEN - 1);
+  strncpy(req.instance_id, instance_id_.c_str(), MAX_INSTANCE_ID_LEN - 1);
   req.instance_id[MAX_INSTANCE_ID_LEN-1] = '\0';
 
   std::cout << "DiancieServer: Preparing to register service '" << req.service_name << "' with instance ID '" << req.instance_id << "'" << std::endl;
 
-  // 1. Write request to BAR0 mailbox
-  memcpy(bar0_base_, &req, sizeof(req));
-  std::cout << "DiancieServer: Wrote registration request to BAR0." << std::endl;
-
-  // 2. ring command doorbell in BAR1
-  volatile uint32_t* doorbell_reg = static_cast<volatile uint32_t*>(
-    static_cast<void*>(static_cast<char*>(bar1_base_) + REG_COMMAND_DOORBELL)
-  );
-  *doorbell_reg = 1; // write itself is the trigger
-  std::cout << "DiancieServer: Rang command doorbell (wrote to BAR1+0x" << std::hex << REG_COMMAND_DOORBELL << ")." << std::dec << std::endl;
-
-  // 3. wait for command response using eventfds
-  std::cout << "DiancieServer: Waiting for response..." << std::endl;
-  if (!wait_for_command_response(5000)) {
-    std::cerr << "DiancieServer: Timeout waiting for command response." << std::endl;
-    return false;
-  }
-
-  uint32_t final_cmd_status = get_command_status();
-  std::cout << "DiancieServer: Command processing finished. Status: 0x" << std::hex << final_cmd_status << std::dec << std::endl;
-
-  if (final_cmd_status == CMD_STATUS_RESPONSE_READY) {
+  if (send_command(&req, sizeof(req))) {
     cxl_ipc_rpc_register_service_resp_t resp;
     memcpy(&resp, bar0_base_, sizeof(resp));
-    std::cout << "DiancieServer: Received response from BAR0. Type: 0x" << std::hex << (int)resp.type
-      << ", Status: 0x" << resp.status << std::dec << std::endl;
     return resp.status == CXL_IPC_STATUS_OK;
+  }
+
+  return false;
+}
+
+void DiancieServer::deregister_service() {
+  std::cout << "DiancieServer: Deregistering service '" << service_name_ << "' with instance ID '" << instance_id_ << "'" << std::endl;
+  cxl_ipc_rpc_deregister_service_req_t req;
+  req.type = CXL_MSG_TYPE_RPC_DEREGISTER_SERVICE_REQ;
+  strncpy(req.service_name, service_name_.c_str(), MAX_SERVICE_NAME_LEN - 1);
+  req.service_name[MAX_SERVICE_NAME_LEN-1] = '\0';
+
+  strncpy(req.instance_id, instance_id_.c_str(), MAX_INSTANCE_ID_LEN - 1);
+  req.instance_id[MAX_INSTANCE_ID_LEN-1] = '\0';
+
+  if (send_command(&req, sizeof(req))) {
+    cxl_ipc_rpc_deregister_service_resp_t resp;
+    memcpy(&resp, bar0_base_, sizeof(resp));
+    if (resp.status == CXL_IPC_STATUS_OK) {
+      std::cout << "DiancieServer: Service '" << service_name_ << "' deregistered successfully." << std::endl;
+    }
   } else {
-    std::cerr << "DiancieServer: Command failed with status 0x" << std::hex << final_cmd_status << std::dec << std::endl;
-    return false;
+    std::cerr << "DiancieServer: Failed to send deregister command." << std::endl;
   }
 }
 
@@ -209,6 +212,18 @@ bool DiancieServer::wait_for_command_response(int timeout_ms) {
 
   std::cerr << "DiancieServer: Unexpected poll revents: " << pfd.revents << std::endl;
   return false;
+}
+
+bool DiancieServer::send_command(const void* req, size_t size) {
+  memcpy(bar0_base_, req, size);
+  volatile uint32_t* doorbell = static_cast<volatile uint32_t*>(static_cast<void*>(static_cast<char*>(bar1_base_) + REG_COMMAND_DOORBELL));
+  *doorbell = 1;
+  if (!wait_for_command_response(5000)) {
+    std::cerr << "Timeout waiting for command response." << std::endl;
+    return false;
+  }
+
+  return get_command_status() == CMD_STATUS_RESPONSE_READY;
 }
 
 cxl_ipc_rpc_new_client_notify_t DiancieServer::wait_for_new_client_notification(int timeout_ms) {

@@ -38,7 +38,7 @@ public:
   // Constructors
   DiancieServer() = delete;
   
-  DiancieServer(const std::string& device_path);
+  DiancieServer(const std::string& device_path, const std::string& service_name, const std::string& instance_id);
   
   ~DiancieServer();
 
@@ -48,18 +48,19 @@ public:
   DiancieServer(DiancieServer&&) = delete;
   DiancieServer& operator=(DiancieServer&&) = delete;
 
-  // ---
-  bool register_service(const std::string& service_name, const std::string& instance_id);
   // Poll method to wait for incoming client connections
   cxl_ipc_rpc_new_client_notify_t wait_for_new_client_notification(int timeout_ms);
   // Accept a notification if possible and return a handle to the mapped memory channel
   std::unique_ptr<Connection> accept_connection(const cxl_ipc_rpc_new_client_notify_t& notif);
   uint32_t get_command_status();
-  
 
 private:
   std::string device_path_;
   int device_fd_ = -1;
+
+  // For logging purposes
+  std::string service_name_;
+  std::string instance_id_;
   
   void *bar0_base_ = nullptr;
   size_t bar0_size_ = 0;
@@ -84,7 +85,11 @@ private:
   bool wait_for_command_response(int timeout_ms);
   uint32_t get_notification_status();
   void clear_notification_status(uint32_t bits_to_clear);
-
+  bool send_command(const void* req, size_t size);
+  // Called once in constructor
+  bool register_service();
+  // Called in destructor?
+  void deregister_service();
 };
 
 }

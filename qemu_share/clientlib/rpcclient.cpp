@@ -13,11 +13,12 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/poll.h>
+#include <type_traits>
 #include <unistd.h>
 
 namespace diancie {
-DiancieClient::DiancieClient(const std::string &device_path)
-    : device_path_(device_path) {
+DiancieClient::DiancieClient(const std::string &device_path, const std::string &service_name, const std::string &instance_id)
+    : device_path_(device_path), service_name_(service_name), instance_id_(instance_id) {
   // 1. Open device fd
   device_fd_ = open(device_path_.c_str(), O_RDWR);
   if (device_fd_ < 0) {
@@ -58,6 +59,28 @@ DiancieClient::DiancieClient(const std::string &device_path)
     close(device_fd_);
     throw std::runtime_error("Failed to setup eventfd for notifications");
   }
+  
+  // 4. Request channel
+  auto channel_info = request_channel(service_name_, instance_id_);
+  if (!channel_info.has_value()) {
+    munmap(bar1_base_, bar1_size_);
+    munmap(bar0_base_, bar0_size_);
+    close(device_fd_);
+    throw std::runtime_error("Failed to request channel!");
+  }
+
+  std::cout << "Channel id from channel info is " << channel_info->channel_id;
+  channel_id_ = channel_info->channel_id;
+  std::cout << "Channel id_ is " << channel_id_ << std::endl;
+
+  // 5. Map mem window
+  if (!set_memory_window(channel_info->offset, channel_info->size)) {
+    release_channel();
+    munmap(bar1_base_, bar1_size_);
+    munmap(bar0_base_, bar0_size_);
+    close(device_fd_);
+    throw std::runtime_error("Failed to set memory window for channel!");
+  }
 
   std::cout << "DiancieClient initialized. Device = " << device_path_
             << ", BAR0 mmapped at " << bar0_base_ << ", BAR1 mmapped at "
@@ -65,6 +88,7 @@ DiancieClient::DiancieClient(const std::string &device_path)
 }
 
 DiancieClient::~DiancieClient() {
+  release_channel();
   if (bar0_base_ != MAP_FAILED && bar0_base_ != nullptr) {
     munmap(bar0_base_, bar0_size_);
   }
@@ -114,6 +138,18 @@ bool DiancieClient::wait_for_command_response(int timeout_ms) {
   return false;
 }
 
+bool DiancieClient::send_command(const void* req, size_t size) {
+  memcpy(bar0_base_, req, size);
+  volatile uint32_t* doorbell = static_cast<volatile uint32_t*>(static_cast<void*>(static_cast<char*>(bar1_base_) + REG_COMMAND_DOORBELL));
+  *doorbell = 1;
+  if (!wait_for_command_response(5000)) {
+    std::cerr << "Timeout waiting for command response." << std::endl;
+    return false;
+  }
+
+  return get_command_status() == CMD_STATUS_RESPONSE_READY;
+}
+
 std::optional<ChannelInfo> DiancieClient::request_channel(const std::string &service_name, const std::string &instance_id) {
   cxl_ipc_rpc_request_channel_req_t req;
   std::memset(&req, 0, sizeof(req));
@@ -121,29 +157,35 @@ std::optional<ChannelInfo> DiancieClient::request_channel(const std::string &ser
   strncpy(req.service_name, service_name.c_str(), MAX_SERVICE_NAME_LEN - 1);
   strncpy(req.instance_id, instance_id.c_str(), MAX_INSTANCE_ID_LEN - 1);
 
-  memcpy(bar0_base_, &req, sizeof(req));
-
   std::cout << "DiancieClient: Requesting channel for service '" 
             << req.service_name << "' with instance ID '" 
             << req.instance_id << "'" << std::endl;
 
-  volatile uint32_t* doorbell = static_cast<volatile uint32_t*>(static_cast<void*>(static_cast<char*>(bar1_base_) + REG_COMMAND_DOORBELL));
-  *doorbell = 1;
-  
-  if (!wait_for_command_response(5000)) {
-    std::cerr << "Timeout waiting for command response." << std::endl;
-    return std::nullopt;
-  }
-
-  if (get_command_status() == CMD_STATUS_RESPONSE_READY) {
+  if (send_command(&req, sizeof(req))) {
     cxl_ipc_rpc_request_channel_resp_t resp;
     memcpy(&resp, bar0_base_, sizeof(resp));
     if (resp.status == CXL_IPC_STATUS_OK) {
-      return ChannelInfo{resp.channel_shm_offset, resp.channel_shm_size};
+      std::cout << "DiancieClient: Channel allocated successfully. "
+                << "Offset: 0x" << std::hex << resp.channel_shm_offset 
+                << ", Size: 0x" << resp.channel_shm_size 
+                << ", Channel ID: " << resp.channel_id << std::dec << std::endl;
+      return ChannelInfo{resp.channel_shm_offset, resp.channel_shm_size, resp.channel_id};
     }
   }
-
   return std::nullopt;
+}
+
+bool DiancieClient::release_channel() {
+  cxl_ipc_rpc_release_channel_req_t req;
+  req.type = CXL_MSG_TYPE_RPC_RELEASE_CHANNEL_REQ;
+  req.channel_id = channel_id_;
+
+  if (send_command(&req, sizeof(req))) {
+    cxl_ipc_rpc_release_channel_resp_t resp;
+    memcpy(&resp, bar0_base_, sizeof(resp));
+    return resp.status == CXL_IPC_STATUS_OK;
+  }
+  return false;
 }
 
 bool DiancieClient::set_memory_window(uint64_t offset, uint64_t size) {
@@ -153,24 +195,12 @@ bool DiancieClient::set_memory_window(uint64_t offset, uint64_t size) {
   req.offset = offset;
   req.size = size;
 
-  memcpy(bar0_base_, &req, sizeof(req));
-
-  volatile uint32_t* doorbell = static_cast<volatile uint32_t*>(static_cast<void*>(static_cast<char*>(bar1_base_) + REG_COMMAND_DOORBELL));
-  *doorbell = 1;
-
-  if (!wait_for_command_response(1000)) {
-    std::cerr << "Timeout waiting for BAR2 window set response." << std::endl;
-    return false;
-  }
-
-  if (get_command_status() == CMD_STATUS_RESPONSE_READY) {
+  if (send_command(&req, sizeof(req))) {
     cxl_ipc_rpc_set_bar2_window_resp_t resp;
     memcpy(&resp, bar0_base_, sizeof(resp));
     return resp.status == CXL_IPC_STATUS_OK;
   }
 
-  std::cerr << "Failed to set BAR2 window, command status: " 
-            << std::hex << get_command_status() << std::dec << std::endl;
   return false;
 }
 

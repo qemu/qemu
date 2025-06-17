@@ -394,9 +394,14 @@ void CXLFabricManager::handle_rpc_request_channel_req(int qemu_client_fd, const 
   RPCConnection rpc_connection;
   rpc_connection.channel_id = assigned_channel_id;
   rpc_connection.client_instance_id = client_id_str;
+  rpc_connection.client_fd = qemu_client_fd;
   rpc_connection.server_instance_id = chosen_server_info.server_instance_id;
+  rpc_connection.server_fd = qemu_server_fd;
   rpc_connection.service_name = service_name_str;
   rpc_connection.allocated_regions = allocated_regions;
+
+  fd_to_channel_ids_[qemu_client_fd].push_back(assigned_channel_id);
+  fd_to_channel_ids_[qemu_server_fd].push_back(assigned_channel_id);
 
   active_rpc_connections_[assigned_channel_id] = std::move(rpc_connection);
 
@@ -406,6 +411,7 @@ void CXLFabricManager::handle_rpc_request_channel_req(int qemu_client_fd, const 
   // TODO: Currently, non-concurrent QEMU VM design, so all logical offsets are 0
   client_resp.channel_shm_size = requested_size;
   client_resp.channel_shm_offset = 0;
+  client_resp.channel_id = assigned_channel_id;
 
   // Prepare server payload
   cxl_ipc_rpc_new_client_notify_t server_notify_payload;
@@ -444,7 +450,7 @@ void CXLFabricManager::handle_qemu_vm_message(int qemu_vm_fd) {
       // Client disconnected
       CXL_FM_LOG("Client disconnected, fd: " + std::to_string(qemu_vm_fd));
       ::close(qemu_vm_fd);
-      FD_CLR(qemu_vm_fd, &active_fds);
+      FD_CLR(qemu_vm_fd, &active_fds_);
     }
     return;
   }
@@ -492,6 +498,15 @@ void CXLFabricManager::handle_qemu_vm_message(int qemu_vm_fd) {
       CXL_FM_LOG("RPC_REGISTER_SERVICE_REQ recv error, expected " + std::to_string(sizeof(rpc_register_req)) + " bytes, got " + std::to_string(n));
     }
     break;
+  case CXL_MSG_TYPE_RPC_DEREGISTER_SERVICE_REQ:
+    CXL_FM_LOG("Handling RPC_DEREGISTER_SERVICE_REQ");
+    cxl_ipc_rpc_deregister_service_req_t rpc_deregister_req;
+    n = ::recv(qemu_vm_fd, &rpc_deregister_req, sizeof(rpc_deregister_req), MSG_WAITALL);
+    if (n == sizeof(rpc_deregister_req)) {
+      handle_deregister_rpc_service(qemu_vm_fd, rpc_deregister_req);
+    } else {
+      CXL_FM_LOG("RPC_DEREGISTER_SERVICE_REQ recv error, expected " + std::to_string(sizeof(rpc_deregister_req)) + " bytes, got " + std::to_string(n));
+    }
   case CXL_MSG_TYPE_RPC_REQUEST_CHANNEL_REQ:
     CXL_FM_LOG("Handling RPC_REQUEST_CHANNEL_REQ");
     cxl_ipc_rpc_request_channel_req_t rpc_request_channel_req;
@@ -500,6 +515,16 @@ void CXLFabricManager::handle_qemu_vm_message(int qemu_vm_fd) {
       handle_rpc_request_channel_req(qemu_vm_fd, rpc_request_channel_req);
     } else {
       CXL_FM_LOG("RPC_REQUEST_CHANNEL_REQ recv error, expected " + std::to_string(sizeof(rpc_request_channel_req)) + " bytes, got " + std::to_string(n));
+    }
+    break;
+  case CXL_MSG_TYPE_RPC_RELEASE_CHANNEL_REQ:
+    CXL_FM_LOG("Handling RPC_RELEASE_CHANNEL_REQ");
+    cxl_ipc_rpc_release_channel_req_t rpc_release_channel_req;
+    n = ::recv(qemu_vm_fd, &rpc_release_channel_req, sizeof(rpc_release_channel_req), MSG_WAITALL);
+    if (n == sizeof(rpc_release_channel_req)) {
+      handle_rpc_release_channel_req(qemu_vm_fd, rpc_release_channel_req);
+    } else {
+      CXL_FM_LOG("RPC_RELEASE_CHANNEL_REQ recv error, expected " + std::to_string(sizeof(rpc_release_channel_req)) + " bytes, got " + std::to_string(n));
     }
     break;
   default:
@@ -581,7 +606,7 @@ void CXLFabricManager::handle_new_qemu_vm_connection(int& max_fd) {
   }
 
   CXL_FM_LOG_P("Accepted new QEMU VM connection, fd: ", client_fd);
-  FD_SET(client_fd, &active_fds);
+  FD_SET(client_fd, &active_fds_);
   if (client_fd > max_fd) {
     max_fd = client_fd;
   }
@@ -605,20 +630,102 @@ void CXLFabricManager::handle_new_admin_connection() {
   CXL_FM_LOG_P("Closed admin connection, fd: ", admin_client_fd);
 }
 
+void CXLFabricManager::handle_deregister_rpc_service(int qemu_vm_fd, const cxl_ipc_rpc_deregister_service_req_t& req) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  service_name_t service_name(req.service_name);
+  instance_id_t instance_id(req.instance_id);
+  CXL_FM_LOG("Handling RPC_DEREGISTER_SERVICE_REQ from fd " + std::to_string(qemu_vm_fd) +
+             ": Service='" + service_name + "', Instance ID='" + instance_id + "'");
+
+  cxl_ipc_rpc_deregister_service_resp_t resp;
+  resp.type = CXL_MSG_TYPE_RPC_REGISTER_SERVICE_RESP;
+  resp.status = CXL_IPC_STATUS_REGISTRATION_FAILED;
+
+  if (service_registry_.count(service_name) > 0) {
+    auto& instances = service_registry_[service_name];
+    auto initial_size = instances.size();
+    instances.erase(std::remove_if(instances.begin(), instances.end(), [&](const RPCServerInstanceInfo& info) {
+      return info.server_instance_id == instance_id && info.qemu_client_fd == qemu_vm_fd;
+    }), instances.end());
+
+    if (instances.size() < initial_size) {
+      resp.status = CXL_IPC_STATUS_OK;
+    }
+  }
+  ::send(qemu_vm_fd, &resp, sizeof(resp), 0);
+}
+
+void CXLFabricManager::handle_rpc_release_channel_req(int qemu_vm_fd, const cxl_ipc_rpc_release_channel_req_t& req) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    CXL_FM_LOG("Request from fd " + std::to_string(qemu_vm_fd) + " to release channel " + std::to_string(req.channel_id));
+    
+    cxl_ipc_rpc_release_channel_resp_t resp;
+    resp.type = CXL_MSG_TYPE_RPC_RELEASE_CHANNEL_RESP;
+    resp.status = CXL_IPC_STATUS_ERROR_GENERIC;
+    
+    if (active_rpc_connections_.count(req.channel_id)) {
+        // clean up the specific channel requested.
+        cleanup_channels_by_id({req.channel_id});
+        resp.status = CXL_IPC_STATUS_OK;
+    }
+    send(qemu_vm_fd, &resp, sizeof(resp), 0);
+}
+
+// Helper functions for cleaning up
+void CXLFabricManager::cleanup_channels_by_id(const std::vector<channel_id_t>& channels_to_clean) {
+    for (const auto& channel_id : channels_to_clean) {
+        if (active_rpc_connections_.count(channel_id)) {
+            auto& conn = active_rpc_connections_.at(channel_id);
+            CXL_FM_LOG("Cleaning up channel " + std::to_string(channel_id) + " between client fd " + std::to_string(conn.client_fd) + " and server fd " + std::to_string(conn.server_fd));
+
+            // 1. Free memory back to devices
+            for (const auto& region : conn.allocated_regions) {
+                region.backing_device->free(region.offset, region.size);
+            }
+
+            // 2. Remove channel from fd_to_channel_ids_ map for both client and server
+            auto client_it = fd_to_channel_ids_.find(conn.client_fd);
+            if (client_it != fd_to_channel_ids_.end()) {
+              auto& client_channel_ids = client_it->second;
+              client_channel_ids.erase(std::remove(client_channel_ids.begin(), client_channel_ids.end(), channel_id), client_channel_ids.end());
+            }
+
+            auto server_it = fd_to_channel_ids_.find(conn.server_fd);
+            if (server_it != fd_to_channel_ids_.end()) {
+              auto& server_channel_ids = server_it->second;
+              server_channel_ids.erase(std::remove(server_channel_ids.begin(), server_channel_ids.end(), channel_id), server_channel_ids.end());
+            }
+
+            // 3. Remove the connection object itself
+            active_rpc_connections_.erase(channel_id);
+        }
+    }
+}
+
+void CXLFabricManager::cleanup_services_by_fd(int fd) {
+    for (auto& pair : service_registry_) {
+        auto& instances = pair.second;
+        instances.erase(std::remove_if(instances.begin(), instances.end(), 
+            [fd](const RPCServerInstanceInfo& info){ return info.qemu_client_fd == fd; }), 
+            instances.end());
+    }
+}
+
+
 void CXLFabricManager::run() {
   CXL_FM_LOG("Starting CXL Fabric Manager event loop.");
   
   fd_set read_fds;
   int max_fd = std::max(main_listen_fd_, admin_listen_fd_);
 
-  FD_ZERO(&active_fds);
-  FD_SET(main_listen_fd_, &active_fds);
-  FD_SET(admin_listen_fd_, &active_fds);
+  FD_ZERO(&active_fds_);
+  FD_SET(main_listen_fd_, &active_fds_);
+  FD_SET(admin_listen_fd_, &active_fds_);
 
   std::vector<int> active_qemu_client_fds;
 
   while (true) {
-    read_fds = active_fds;
+    read_fds = active_fds_;
     
     int activity = ::select(max_fd + 1, &read_fds, nullptr, nullptr, nullptr);
 
@@ -650,24 +757,16 @@ void CXLFabricManager::run() {
         if (peek_ret > 0) { // Data available
           handle_qemu_vm_message(qemu_client_fd);
         } else if (peek_ret == 0) { // Client disconnect
-          CXL_FM_LOG("Client disconnected, fd: " + std::to_string(qemu_client_fd));
-          close(qemu_client_fd);
-          FD_CLR(qemu_client_fd, &active_fds);
-          // Recalculate max fd
-          if (qemu_client_fd == max_fd) {
-            while (max_fd > main_listen_fd_ && FD_ISSET(max_fd, &active_fds)) {
-              max_fd--;
-            }
-          }
+          handle_qemu_disconnect(qemu_client_fd, max_fd);
         } else { // Error
           if (errno != EAGAIN && errno != EWOULDBLOCK) {  
             // EAGAIN and EWOULDBLOCK are ok
             CXL_FM_LOG("Error reading from QEMU client fd " + std::to_string(qemu_client_fd) + ": " + std::string(strerror(errno)));
             close(qemu_client_fd);
-            FD_CLR(qemu_client_fd, &active_fds);
+            FD_CLR(qemu_client_fd, &active_fds_);
             // Recalculate max fd
             if (qemu_client_fd == max_fd) {
-              while (max_fd > main_listen_fd_ && !FD_ISSET(max_fd, &active_fds)) {
+              while (max_fd > main_listen_fd_ && !FD_ISSET(max_fd, &active_fds_)) {
                 max_fd--;
               }
             }
@@ -679,6 +778,29 @@ void CXLFabricManager::run() {
   }
 
   CXL_FM_LOG("CXL Fabric Manager event loop terminated.");
+}
+
+// Center point for cleanup?
+void CXLFabricManager::handle_qemu_disconnect(int qemu_vm_fd, int& max_fd) {
+  std::lock_guard<std::mutex> lock{state_mutex_};
+  CXL_FM_LOG("Client disconnected, fd: " + std::to_string(qemu_vm_fd));
+
+  cleanup_services_by_fd(qemu_vm_fd);
+
+  if (fd_to_channel_ids_.count(qemu_vm_fd) > 0) {
+    CXL_FM_LOG("Found " + std::to_string(fd_to_channel_ids_[qemu_vm_fd].size()) + " channels associated with fd " + std::to_string(qemu_vm_fd) + ". Cleaning up all");
+    cleanup_channels_by_id(fd_to_channel_ids_.at(qemu_vm_fd));
+    fd_to_channel_ids_.erase(qemu_vm_fd);
+  }
+
+  close(qemu_vm_fd);
+  FD_CLR(qemu_vm_fd, &active_fds_);
+  
+  if (qemu_vm_fd == max_fd) {
+    while (max_fd > main_listen_fd_ && FD_ISSET(max_fd, &active_fds_)) {
+      max_fd--;
+    }
+  }
 }
 
 

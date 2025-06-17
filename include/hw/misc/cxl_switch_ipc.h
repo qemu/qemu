@@ -145,6 +145,18 @@ typedef struct {
     uint8_t status;
 } cxl_ipc_rpc_register_service_resp_t;
 
+// CXL_MSG_TYPE_RPC_DEREGISTER_SERVICE
+typedef struct {
+    uint8_t type;
+    char service_name[MAX_SERVICE_NAME_LEN];
+    char instance_id[MAX_INSTANCE_ID_LEN];
+} cxl_ipc_rpc_deregister_service_req_t;
+
+typedef struct {
+    uint8_t type;
+    uint8_t status;
+} cxl_ipc_rpc_deregister_service_resp_t;
+
 // CXL_MSG_TYPE_RPC_REQUEST_CHANNEL
 typedef struct {
     uint8_t type;
@@ -157,13 +169,13 @@ typedef struct {
     uint8_t status;
     uint64_t channel_shm_offset;
     uint32_t channel_shm_size;
+    uint64_t channel_id;
 } cxl_ipc_rpc_request_channel_resp_t;
 
 // CXL_MSG_TAYPE_RPC_RELEASE_CHANNEL
 typedef struct {
     uint8_t type;
-    uint64_t channel_shm_offset;
-    uint64_t channel_shm_size;
+    uint64_t channel_id;
 } cxl_ipc_rpc_release_channel_req_t;
 
 typedef struct {

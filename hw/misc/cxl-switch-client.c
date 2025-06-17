@@ -318,11 +318,22 @@ static void bar1_control_write(void *opaque, hwaddr addr, uint64_t val, unsigned
                     CXL_SWITCH_DPRINTF("Info: Handling RPC_REGISTER_SERVICE request.\n");
                     ipc_ret = cxl_switch_client_ipc_request_response(s, s->bar0_mailbox, sizeof(cxl_ipc_rpc_register_service_req_t), ipc_server_resp_payload, expected_server_resp_len);
                     break;
+                case CXL_MSG_TYPE_RPC_DEREGISTER_SERVICE_REQ:
+                    expected_server_resp_len = sizeof(cxl_ipc_rpc_deregister_service_resp_t);
+                    CXL_SWITCH_DPRINTF("Info: Handling RPC_DEREGISTER_SERVICE request.\n");
+                    ipc_ret = cxl_switch_client_ipc_request_response(s, s->bar0_mailbox, sizeof(cxl_ipc_rpc_deregister_service_req_t), ipc_server_resp_payload, expected_server_resp_len);
+                    break;
                 case CXL_MSG_TYPE_RPC_REQUEST_CHANNEL_REQ:
                     expected_server_resp_len = sizeof(cxl_ipc_rpc_request_channel_resp_t);
                     CXL_SWITCH_DPRINTF("Info: Handling RPC_REQUEST_CHANNEL request.\n");
                     ipc_ret = cxl_switch_client_ipc_request_response(s, s->bar0_mailbox, sizeof(cxl_ipc_rpc_request_channel_req_t), ipc_server_resp_payload, expected_server_resp_len);
                     break;
+                case CXL_MSG_TYPE_RPC_RELEASE_CHANNEL_REQ:
+                    expected_server_resp_len = sizeof(cxl_ipc_rpc_release_channel_resp_t);
+                    CXL_SWITCH_DPRINTF("Info: Handling RPC_RELEASE_CHANNEL request.\n");
+                    ipc_ret = cxl_switch_client_ipc_request_response(s, s->bar0_mailbox, sizeof(cxl_ipc_rpc_release_channel_req_t), ipc_server_resp_payload, expected_server_resp_len);
+                    break;
+                
                 case CXL_MSG_TYPE_RPC_SET_BAR2_WINDOW_REQ: {
                     // Local QEMU Device command
                     cxl_ipc_rpc_set_bar2_window_req_t *set_window_req = (cxl_ipc_rpc_set_bar2_window_req_t *)s->bar0_mailbox;

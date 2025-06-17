@@ -68,6 +68,7 @@ void CXLMemDevice::free(size_t offset, size_t size) {
     // First, we want to know where the new block should be inserted
     // We will find the first element whose offset is greater than the 
     // specified offset
+    std::cout << "MemDevice freeing memory at offset " << offset << " and size " << size << std::endl;
     auto next_block_it = m_free_blocks_by_offset_.upper_bound(offset);
     auto prev_block_it = next_block_it;
     if (prev_block_it != m_free_blocks_by_offset_.begin()) {
