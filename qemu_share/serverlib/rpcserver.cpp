@@ -1,8 +1,11 @@
 #include "rpcserver.hpp"
 #include "../includes/cxl_switch_ipc.h"
+#include "../includes/ioctl_defs.h"
+#include <cstdint>
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <sys/eventfd.h>
 #include <sys/ioctl.h>
@@ -12,6 +15,35 @@
 
 namespace diancie {
 
+// --- Connection ---
+Connection::Connection(int fd, uint64_t size)
+  : fd_(fd), mapped_size_(size) {
+  if (fd_ < 0 || mapped_size_ == 0) {
+    throw std::invalid_argument("Invalid file descriptor or size for Connection");
+  }
+  mapped_base_ = mmap(nullptr, mapped_size_, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);
+  if (mapped_base_ == MAP_FAILED) {
+    close(fd_);
+    throw std::runtime_error("Failed to mmap connection base address: " + std::string(strerror(errno)));
+  }
+  std::cout << "Connection created. fd = " << fd_ 
+            << ", mapped_base_ = " << mapped_base_ 
+            << ", size = " << mapped_size_ << std::endl;
+}
+
+Connection::~Connection() {
+  if (mapped_base_ != nullptr && mapped_base_ != MAP_FAILED) {
+    munmap(mapped_base_, mapped_size_);
+  }
+  if (fd_ >= 0) {
+    close(fd_);
+  }
+  std::cout << "Connection resources cleaned up. fd = " << fd_ 
+            << ", mapped_base_ = " << mapped_base_ 
+            << ", size = " << mapped_size_ << std::endl;
+}
+
+// --- DiancieServer ---
 DiancieServer::DiancieServer(const std::string &device_path)
     : device_path_(device_path) {
   // 1. Open device fd
@@ -220,6 +252,41 @@ cxl_ipc_rpc_new_client_notify_t DiancieServer::wait_for_new_client_notification(
   }
   throw std::runtime_error("Poll indicated event but no POLLIN flag set!");
 }
+
+std::unique_ptr<Connection> DiancieServer::accept_connection(const cxl_ipc_rpc_new_client_notify_t& notif) {
+  cxl_channel_map_info_t map_info;
+  map_info.physical_offset = notif.channel_shm_offset;
+  map_info.size = notif.channel_shm_size;
+
+  std::cout << "DiancieServer: Accepting connection for service '" 
+            << notif.service_name << "' with instance ID '" 
+            << notif.client_instance_id << "'. Channel offset: 0x" 
+            << std::hex << map_info.physical_offset 
+            << ", size: 0x" << map_info.size << std::dec << std::endl;
+  // Use the factory IOCTL to request a new fd
+  if (ioctl(device_fd_, CXL_SWITCH_IOCTL_MAP_CHANNEL, &map_info) < 0) {
+    std::cerr << "DiancieServer: IOCTL failed to map channel: " << strerror(errno) << std::endl;
+    return nullptr;
+  }
+  // Return value is back inside the struct - hacky?
+  int new_channel_fd;
+  memcpy(&new_channel_fd, &map_info, sizeof(new_channel_fd));
+  std::cout << "DiancieServer: IOCTL returned new channel fd: " << new_channel_fd << std::endl;
+  if (new_channel_fd < 0) {
+    std::cerr << "DiancieServer: Failed to create channel, IOCTL returned error fd: " << new_channel_fd << std::endl;
+    return nullptr;
+  }
+
+  try {
+    return std::make_unique<Connection>(new_channel_fd, notif.channel_shm_size);
+  } catch (const std::exception& e) {
+    std::cerr << "DiancieServer: Failed to create Connection: " << e.what() << std::endl;
+    close(new_channel_fd);
+    return nullptr;
+  }
+}
+
+
 
 uint32_t DiancieServer::get_command_status() {
   volatile uint32_t* status_reg_ptr = static_cast<volatile uint32_t*>(

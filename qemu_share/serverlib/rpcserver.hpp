@@ -2,10 +2,35 @@
 #define DIANCIE_RPC_LIB_HPP
 
 #include "../includes/cxl_switch_ipc.h"
+#include <cstdint>
+#include <memory>
 #include <string>
 #include "../includes/ioctl_defs.h"
 
 namespace diancie {
+
+// Represents an active, mmapped connection between the
+// server instance and a client instance.
+class Connection {
+public:
+  Connection(int fd, uint64_t size);
+  ~Connection();
+
+  Connection(const Connection&) = delete;
+  Connection& operator=(const Connection&) = delete;
+
+  void* get_base_address() const {
+    return mapped_base_;
+  }
+
+  uint64_t get_size() const {
+    return mapped_size_;
+  }
+private:
+  int fd_;
+  void* mapped_base_ = nullptr;
+  uint64_t mapped_size_ = 0;
+};
 
 
 class DiancieServer {
@@ -25,9 +50,12 @@ public:
 
   // ---
   bool register_service(const std::string& service_name, const std::string& instance_id);
+  // Poll method to wait for incoming client connections
   cxl_ipc_rpc_new_client_notify_t wait_for_new_client_notification(int timeout_ms);
+  // Accept a notification if possible and return a handle to the mapped memory channel
+  std::unique_ptr<Connection> accept_connection(const cxl_ipc_rpc_new_client_notify_t& notif);
   uint32_t get_command_status();
-
+  
 
 private:
   std::string device_path_;
