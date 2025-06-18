@@ -218,6 +218,11 @@ class Transmogrifier:
         typ = self.format_type(member)
         self.add_field(kind, member.name, body, info, typ)
 
+    @staticmethod
+    def reformat_arobase(text: str) -> str:
+        """ reformats @var to ``var`` """
+        return re.sub(r"@([\w-]+)", r"``\1``", text)
+
     # Transmogrification helpers
 
     def visit_paragraph(self, section: QAPIDoc.Section) -> None:
@@ -361,8 +366,7 @@ class Transmogrifier:
 
         # Add sections in source order:
         for i, section in enumerate(sections):
-            # @var is translated to ``var``:
-            section.text = re.sub(r"@([\w-]+)", r"``\1``", section.text)
+            section.text = self.reformat_arobase(section.text)
 
             if section.kind == QAPIDoc.Kind.PLAIN:
                 self.visit_paragraph(section)
@@ -405,7 +409,7 @@ class Transmogrifier:
 
         assert len(doc.all_sections) == 1, doc.all_sections
         body = doc.all_sections[0]
-        text = body.text
+        text = self.reformat_arobase(body.text)
         info = doc.info
 
         if re.match(r"=+ ", text):
