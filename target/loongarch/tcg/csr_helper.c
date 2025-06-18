@@ -131,8 +131,8 @@ target_ulong helper_csrwr_pwcl(CPULoongArchState *env, target_ulong val)
     }
     if (!check_ps(env, ptbase)) {
          qemu_log_mask(LOG_GUEST_ERROR,
-                      "Attrmpted set ptbase 2^%d\n", ptbase);
+                      "Attempted set ptbase 2^%d\n", ptbase);
     }
-    env->CSR_PWCL =val;
+    env->CSR_PWCL = val;
     return old_v;
 }
