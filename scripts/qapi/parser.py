@@ -584,10 +584,6 @@ class QAPISchemaParser:
                         doc.append_line(text)
                     line = self.get_doc_indented(doc)
                     no_more_args = True
-                elif line.startswith('='):
-                    raise QAPIParseError(
-                        self,
-                        "unexpected '=' markup in definition documentation")
                 else:
                     # plain paragraph
                     doc.ensure_untagged_section(self.info)
