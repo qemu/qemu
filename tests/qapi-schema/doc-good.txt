@@ -1,6 +1,8 @@
 Section
 *******
 
+Just text, no heading.
+
 
 Subsection
 ==========
@@ -35,249 +37,145 @@ Example:
 
 -> in <- out Examples: - *verbatim* - {braces}
 
+Enum Enum
+    *Availability*: "IFCOND"
 
-"Enum" (Enum)
--------------
+   Values:
+      * **one** -- The _one_ {and only}, description on the same line
 
+      * **two** -- Not documented
 
-Values
-~~~~~~
+   Features:
+      * **enum-feat** -- Also _one_ {and only}
 
-"one" (**If: **"IFONE")
-   The _one_ {and only}, description on the same line
+      * **enum-member-feat** -- a member feature
 
-"two"
-   Not documented
+   "two" is undocumented
 
+Object Base
+    *Availability*: "IFALL1 and IFALL2"
 
-Features
-~~~~~~~~
+   Members:
+      * **base1** ("Enum") -- description starts on a new line,
+        minimally indented
 
-"enum-feat"
-   Also _one_ {and only}
+Object Variant1
 
-"enum-member-feat"
-   a member feature
+   A paragraph
 
-"two" is undocumented
+   Another paragraph
 
+   "var1" is undocumented
 
-If
-~~
+   Members:
+      * **var1** ("string") -- Not documented
 
-"IFCOND"
+   Features:
+      * **variant1-feat** -- a feature
 
+      * **member-feat** -- a member feature
 
-"Base" (Object)
----------------
+Object Variant2
 
+Object Object
 
-Members
-~~~~~~~
+   Members:
+      * The members of "Base".
 
-"base1": "Enum"
-   description starts on a new line, minimally indented
+      * When "base1" is "one": The members of "Variant1".
 
+      * When "base1" is "two": The members of "Variant2".
 
-If
-~~
+   Features:
+      * **union-feat1** -- a feature
 
-"IFALL1 and IFALL2"
+Alternate Alternate
+    *Availability*: "not (IFONE or IFTWO)"
 
+   Alternatives:
+      * **i** ("int") -- description starts on the same line remainder
+        indented the same "b" is undocumented
 
-"Variant1" (Object)
--------------------
+      * **b** ("boolean") -- Not documented
 
-A paragraph
-
-Another paragraph
-
-"var1" is undocumented
-
-
-Members
-~~~~~~~
-
-"var1": "string" (**If: **"IFSTR")
-   Not documented
-
-
-Features
-~~~~~~~~
-
-"variant1-feat"
-   a feature
-
-"member-feat"
-   a member feature
-
-
-"Variant2" (Object)
--------------------
-
-
-"Object" (Object)
------------------
-
-
-Members
-~~~~~~~
-
-The members of "Base"
-The members of "Variant1" when "base1" is ""one""
-The members of "Variant2" when "base1" is ""two"" (**If: **"IFONE or
-IFTWO")
-
-Features
-~~~~~~~~
-
-"union-feat1"
-   a feature
-
-
-"Alternate" (Alternate)
------------------------
-
-
-Members
-~~~~~~~
-
-"i": "int"
-   description starts on the same line remainder indented the same "b"
-   is undocumented
-
-"b": "boolean"
-   Not documented
-
-
-Features
-~~~~~~~~
-
-"alt-feat"
-   a feature
-
-
-If
-~~
-
-"not (IFONE or IFTWO)"
+   Features:
+      * **alt-feat** -- a feature
 
 
 Another subsection
 ==================
 
+Command cmd (Since: 2.10)
 
-"cmd" (Command)
----------------
+   Arguments:
+      * **arg1** ("int") -- description starts on a new line, indented
 
+      * **arg2** ("string", *optional*) -- description starts on the
+        same line remainder indented differently
 
-Arguments
-~~~~~~~~~
+      * **arg3** ("boolean") -- Not documented
 
-"arg1": "int"
-   description starts on a new line, indented
+   Features:
+      * **cmd-feat1** -- a feature
 
-"arg2": "string" (optional)
-   description starts on the same line remainder indented differently
+      * **cmd-feat2** -- another feature
 
-"arg3": "boolean"
-   Not documented
+   Note:
 
+     "arg3" is undocumented
 
-Features
-~~~~~~~~
+   Return:
+      "Object" -- "Object"
 
-"cmd-feat1"
-   a feature
+   Errors:
+      some
 
-"cmd-feat2"
-   another feature
+   Notes:
 
-Note:
+   * Lorem ipsum dolor sit amet
 
-  "arg3" is undocumented
+   * Ut enim ad minim veniam
 
+   Duis aute irure dolor
 
-Returns
-~~~~~~~
+   Example: Ideal fast-food burger situation:
 
-"Object"
+      -> "in"
+      <- "out"
 
+   Examples:
 
-Errors
-~~~~~~
+      - Not a QMP code block
+      - Merely a preformatted code block literal
+      It isn't even an rST list.
+      - *verbatim*
+      - {braces}
 
-some
+   Note::
+      Ceci n'est pas une note
 
-Notes:
+Command cmd-boxed
 
-* Lorem ipsum dolor sit amet
+   If you're bored enough to read this, go see a video of boxed cats
 
-* Ut enim ad minim veniam
+   Arguments:
+      * The members of "Object".
 
-Duis aute irure dolor
+   Features:
+      * **cmd-feat1** -- a feature
 
-Example: Ideal fast-food burger situation:
+      * **cmd-feat2** -- another feature
 
-   -> "in"
-   <- "out"
+   Example::
 
-Examples:
+      -> "this example"
 
-   - Not a QMP code block
-   - Merely a preformatted code block literal
-   It isn't even an rST list.
-   - *verbatim*
-   - {braces}
+      <- ... has no title ...
 
-Note::
-   Ceci n'est pas une note
+Event EVT_BOXED
 
+   Members:
+      * The members of "Object".
 
-Since
-~~~~~
-
-2.10
-
-
-"cmd-boxed" (Command)
----------------------
-
-If you're bored enough to read this, go see a video of boxed cats
-
-
-Arguments
-~~~~~~~~~
-
-The members of "Object"
-
-Features
-~~~~~~~~
-
-"cmd-feat1"
-   a feature
-
-"cmd-feat2"
-   another feature
-
-Example::
-
-   -> "this example"
-
-   <- ... has no title ...
-
-
-"EVT_BOXED" (Event)
--------------------
-
-
-Arguments
-~~~~~~~~~
-
-The members of "Object"
-
-Features
-~~~~~~~~
-
-"feat3"
-   a feature
+   Features:
+      * **feat3** -- a feature

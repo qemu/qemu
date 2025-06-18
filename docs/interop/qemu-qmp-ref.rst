@@ -7,5 +7,4 @@ QEMU QMP Reference Manual
    :local:
 
 .. qapi-doc:: qapi/qapi-schema.json
-   :transmogrify:
    :namespace: QMP

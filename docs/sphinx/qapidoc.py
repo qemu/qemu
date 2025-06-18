@@ -64,8 +64,6 @@ from sphinx.util import logging
 from sphinx.util.docutils import SphinxDirective, switch_source_input
 from sphinx.util.nodes import nested_parse_with_titles
 
-from qapidoc_legacy import QAPISchemaGenRSTVisitor  # type: ignore
-
 
 if TYPE_CHECKING:
     from typing import (
@@ -512,14 +510,8 @@ class QAPIDocDirective(NestedDirective):
     option_spec = {
         "qapifile": directives.unchanged_required,
         "namespace": directives.unchanged,
-        "transmogrify": directives.flag,
     }
     has_content = False
-
-    def new_serialno(self) -> str:
-        """Return a unique new ID string suitable for use as a node's ID"""
-        env = self.state.document.settings.env
-        return "qapidoc-%d" % env.new_serialno("qapidoc")
 
     def transmogrify(self, schema: QAPISchema) -> nodes.Element:
         logger.info("Transmogrifying QAPI to rST ...")
@@ -598,21 +590,10 @@ class QAPIDocDirective(NestedDirective):
                     outfile.write(f" {rcol}")
                 outfile.write("\n")
 
-    def legacy(self, schema: QAPISchema) -> nodes.Element:
-        vis = QAPISchemaGenRSTVisitor(self)
-        vis.visit_begin(schema)
-        for doc in schema.docs:
-            if doc.symbol:
-                vis.symbol(doc, schema.lookup_entity(doc.symbol))
-            else:
-                vis.freeform(doc)
-        return vis.get_document_node()  # type: ignore
-
     def run(self) -> Sequence[nodes.Node]:
         env = self.state.document.settings.env
         qapifile = env.config.qapidoc_srctree + "/" + self.arguments[0]
         qapidir = os.path.dirname(qapifile)
-        transmogrify = "transmogrify" in self.options
 
         try:
             schema = QAPISchema(qapifile)
@@ -625,11 +606,7 @@ class QAPIDocDirective(NestedDirective):
             # so they are displayed nicely to the user
             raise ExtensionError(str(err)) from err
 
-        if transmogrify:
-            contentnode = self.transmogrify(schema)
-        else:
-            contentnode = self.legacy(schema)
-
+        contentnode = self.transmogrify(schema)
         return contentnode.children
 
 
