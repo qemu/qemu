@@ -3,7 +3,9 @@
 #
 
 ##
-# = Remote desktop
+# **************
+# Remote desktop
+# **************
 ##
 
 { 'include': 'common.json' }
@@ -200,7 +202,8 @@
   'if': 'CONFIG_PIXMAN' }
 
 ##
-# == Spice
+# Spice
+# =====
 ##
 
 ##
@@ -461,7 +464,8 @@
   'if': 'CONFIG_SPICE' }
 
 ##
-# == VNC
+# VNC
+# ===
 ##
 
 ##
@@ -794,7 +798,9 @@
   'if': 'CONFIG_VNC' }
 
 ##
-# = Input
+# *****
+# Input
+# *****
 ##
 
 ##

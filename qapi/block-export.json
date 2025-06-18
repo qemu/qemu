@@ -2,7 +2,8 @@
 # vim: filetype=python
 
 ##
-# == Block device exports
+# Block device exports
+# ====================
 ##
 
 { 'include': 'sockets.json' }

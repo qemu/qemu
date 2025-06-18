@@ -3,7 +3,9 @@
 #
 
 ##
-# = Record/replay
+# *************
+# Record/replay
+# *************
 ##
 
 { 'include': 'common.json' }

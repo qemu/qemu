@@ -3,7 +3,9 @@
 #
 
 ##
-# = Migration
+# *********
+# Migration
+# *********
 ##
 
 { 'include': 'common.json' }

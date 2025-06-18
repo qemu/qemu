@@ -10,7 +10,9 @@
 { 'include': 'crypto.json' }
 
 ##
-# = QEMU Object Model (QOM)
+# ***********************
+# QEMU Object Model (QOM)
+# ***********************
 ##
 
 ##

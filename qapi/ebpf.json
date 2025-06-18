@@ -5,7 +5,9 @@
 # See the COPYING file in the top-level directory.
 
 ##
-# = eBPF Objects
+# ************
+# eBPF Objects
+# ************
 #
 # eBPF object is an ELF binary that contains the eBPF program and eBPF
 # map description(BTF).  Overall, eBPF object should contain the

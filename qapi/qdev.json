@@ -5,7 +5,9 @@
 # See the COPYING file in the top-level directory.
 
 ##
-# = Device infrastructure (qdev)
+# ****************************
+# Device infrastructure (qdev)
+# ****************************
 ##
 
 { 'include': 'qom.json' }

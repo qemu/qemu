@@ -2,13 +2,16 @@
 # vim: filetype=python
 
 ##
-# = Block devices
+# *************
+# Block devices
+# *************
 ##
 
 { 'include': 'block-core.json' }
 
 ##
-# == Additional block stuff (VM related)
+# Additional block stuff (VM related)
+# ===================================
 ##
 
 ##

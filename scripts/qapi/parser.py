@@ -597,22 +597,15 @@ class QAPISchemaParser:
             # Free-form documentation
             doc = QAPIDoc(info)
             doc.ensure_untagged_section(self.info)
-            first = True
             while line is not None:
                 if match := self._match_at_name_colon(line):
                     raise QAPIParseError(
                         self,
                         "'@%s:' not allowed in free-form documentation"
                         % match.group(1))
-                if line.startswith('='):
-                    if not first:
-                        raise QAPIParseError(
-                            self,
-                            "'=' heading must come first in a comment block")
                 doc.append_line(line)
                 self.accept(False)
                 line = self.get_doc_line()
-                first = False
 
         self.accept()
         doc.end()

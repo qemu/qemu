@@ -3,7 +3,9 @@
 #
 
 ##
-# = Character devices
+# *****************
+# Character devices
+# *****************
 ##
 
 { 'include': 'sockets.json' }

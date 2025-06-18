@@ -2,7 +2,8 @@
 # vim: filetype=python
 
 ##
-# == Block core (VM unrelated)
+# Block core (VM unrelated)
+# =========================
 ##
 
 { 'include': 'common.json' }

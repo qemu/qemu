@@ -3,7 +3,9 @@
 #
 
 ##
-# = Transactions
+# ************
+# Transactions
+# ************
 ##
 
 { 'include': 'block-core.json' }

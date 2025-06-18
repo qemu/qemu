@@ -55,13 +55,16 @@ event EVT_BOXED Object
     feature feat3
 doc freeform
     body=
-= Section
+*******
+Section
+*******
 doc freeform
     body=
 Just text, no heading.
 doc freeform
     body=
-== Subsection
+Subsection
+==========
 
 *with emphasis*
 @var {in braces}
@@ -155,7 +158,8 @@ description starts on the same line
 a feature
 doc freeform
     body=
-== Another subsection
+Another subsection
+==================
 doc symbol=cmd
     body=
 

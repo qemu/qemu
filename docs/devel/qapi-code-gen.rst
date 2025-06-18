@@ -876,25 +876,35 @@ structuring content.
 Headings and subheadings
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-A free-form documentation comment containing a line which starts with
-some ``=`` symbols and then a space defines a section heading::
+Free-form documentation does not start with ``@SYMBOL`` and can contain
+arbitrary rST markup. Headings can be marked up using the standard rST
+syntax::
 
     ##
-    # = This is a top level heading
+    # *************************
+    # This is a level 2 heading
+    # *************************
     #
     # This is a free-form comment which will go under the
     # top level heading.
     ##
 
     ##
-    # == This is a second level heading
+    # This is a third level heading
+    # ==============================
+    #
+    # Level 4
+    # _______
+    #
+    # Level 5
+    # ^^^^^^^
+    #
+    # Level 6
+    # """""""
     ##
 
-A heading line must be the first line of the documentation
-comment block.
-
-Section headings must always be correctly nested, so you can only
-define a third-level heading inside a second-level heading, and so on.
+Level 1 headings are reserved for use by the generated documentation
+page itself, leaving level 2 as the highest level that should be used.
 
 
 Documentation markup

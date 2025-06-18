@@ -14,7 +14,9 @@
 # storage daemon.
 
 ##
-# = Introduction
+# ************
+# Introduction
+# ************
 #
 # This manual describes the commands and events supported by the QEMU
 # storage daemon QMP.
@@ -51,7 +53,9 @@
 { 'include': '../../qapi/job.json' }
 
 ##
-# = Block devices
+# *************
+# Block devices
+# *************
 ##
 { 'include': '../../qapi/block-core.json' }
 { 'include': '../../qapi/block-export.json' }

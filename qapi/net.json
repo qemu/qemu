@@ -3,7 +3,9 @@
 #
 
 ##
-# = Net devices
+# ***********
+# Net devices
+# ***********
 ##
 
 { 'include': 'sockets.json' }

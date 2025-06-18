@@ -3,7 +3,9 @@
 #
 
 ##
-# = Miscellanea
+# ***********
+# Miscellanea
+# ***********
 ##
 
 { 'include': 'common.json' }
