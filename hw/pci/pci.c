@@ -984,14 +984,15 @@ static int pci_parse_devaddr(const char *addr, int *domp, int *busp,
 
     slot = val;
 
-    if (funcp != NULL) {
-        if (*e != '.')
+    if (funcp != NULL && *e != '\0') {
+        if (*e != '.') {
             return -1;
-
+        }
         p = e + 1;
         val = strtoul(p, &e, 16);
-        if (e == p)
+        if (e == p) {
             return -1;
+        }
 
         func = val;
     }
@@ -2054,13 +2055,15 @@ bool pci_init_nic_in_slot(PCIBus *rootbus, const char *model,
     int dom, busnr, devfn;
     PCIDevice *pci_dev;
     unsigned slot;
+    unsigned func;
+
     PCIBus *bus;
 
     if (!nd) {
         return false;
     }
 
-    if (!devaddr || pci_parse_devaddr(devaddr, &dom, &busnr, &slot, NULL) < 0) {
+    if (!devaddr || pci_parse_devaddr(devaddr, &dom, &busnr, &slot, &func) < 0) {
         error_report("Invalid PCI device address %s for device %s",
                      devaddr, model);
         exit(1);
@@ -2071,7 +2074,7 @@ bool pci_init_nic_in_slot(PCIBus *rootbus, const char *model,
         exit(1);
     }
 
-    devfn = PCI_DEVFN(slot, 0);
+    devfn = PCI_DEVFN(slot, func);
 
     bus = pci_find_bus_nr(rootbus, busnr);
     if (!bus) {
