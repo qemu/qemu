@@ -267,10 +267,14 @@ class Transmogrifier:
         self.add_field("return", typ, section.text, section.info)
 
     def visit_errors(self, section: QAPIDoc.Section) -> None:
-        # FIXME: the formatting for errors may be inconsistent and may
-        # or may not require different newline placement to ensure
-        # proper rendering as a nested list.
-        self.add_lines(f":error:\n{section.text}", section.info)
+        # If the section text does not start with a space, it means text
+        # began on the same line as the "Error:" string and we should
+        # not insert a newline in this case.
+        if section.text[0].isspace():
+            text = f":error:\n{section.text}"
+        else:
+            text = f":error: {section.text}"
+        self.add_lines(text, section.info)
 
     def preamble(self, ent: QAPISchemaDefinition) -> None:
         """
