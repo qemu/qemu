@@ -280,82 +280,44 @@ TRANS(FCMPU, do_helper_cmp, gen_helper_FCMPU);
 TRANS(FCMPO, do_helper_cmp, gen_helper_FCMPO);
 
 /***                         Floating-point move                           ***/
-/* fabs */
-/* XXX: beware that fabs never checks for NaNs nor update FPSCR */
-static void gen_fabs(DisasContext *ctx)
-{
-    TCGv_i64 t0;
-    TCGv_i64 t1;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-    get_fpr(t0, rB(ctx->opcode));
-    tcg_gen_andi_i64(t1, t0, ~(1ULL << 63));
-    set_fpr(rD(ctx->opcode), t1);
-    if (unlikely(Rc(ctx->opcode))) {
-        gen_set_cr1_from_fpscr(ctx);
-    }
-}
 
 /* fmr  - fmr. */
 /* XXX: beware that fmr never checks for NaNs nor update FPSCR */
-static void gen_fmr(DisasContext *ctx)
+static bool trans_FMR(DisasContext *ctx, arg_FMR *a)
 {
     TCGv_i64 t0;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
+    REQUIRE_INSNS_FLAGS(ctx, FLOAT);
+    REQUIRE_FPU(ctx);
     t0 = tcg_temp_new_i64();
-    get_fpr(t0, rB(ctx->opcode));
-    set_fpr(rD(ctx->opcode), t0);
-    if (unlikely(Rc(ctx->opcode))) {
+    get_fpr(t0, a->rb);
+    set_fpr(a->rt, t0);
+    if (unlikely(a->rc)) {
         gen_set_cr1_from_fpscr(ctx);
     }
+    return true;
 }
 
-/* fnabs */
-/* XXX: beware that fnabs never checks for NaNs nor update FPSCR */
-static void gen_fnabs(DisasContext *ctx)
+/* XXX: beware that f{neg, abs, nabs} never checks for NaNs nor update FPSCR */
+static bool do_move_b(DisasContext *ctx, arg_X_tb_rc *a, int64_t val,
+                      void (*tcg_op)(TCGv_i64, TCGv_i64, int64_t))
 {
-    TCGv_i64 t0;
-    TCGv_i64 t1;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
+    TCGv_i64 t0, t1;
+    REQUIRE_INSNS_FLAGS(ctx, FLOAT);
+    REQUIRE_FPU(ctx);
     t0 = tcg_temp_new_i64();
     t1 = tcg_temp_new_i64();
-    get_fpr(t0, rB(ctx->opcode));
-    tcg_gen_ori_i64(t1, t0, 1ULL << 63);
-    set_fpr(rD(ctx->opcode), t1);
-    if (unlikely(Rc(ctx->opcode))) {
+    get_fpr(t0, a->rb);
+    tcg_op(t1, t0, val);
+    set_fpr(a->rt, t1);
+    if (unlikely(a->rc)) {
         gen_set_cr1_from_fpscr(ctx);
     }
+    return true;
 }
 
-/* fneg */
-/* XXX: beware that fneg never checks for NaNs nor update FPSCR */
-static void gen_fneg(DisasContext *ctx)
-{
-    TCGv_i64 t0;
-    TCGv_i64 t1;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-    get_fpr(t0, rB(ctx->opcode));
-    tcg_gen_xori_i64(t1, t0, 1ULL << 63);
-    set_fpr(rD(ctx->opcode), t1);
-    if (unlikely(Rc(ctx->opcode))) {
-        gen_set_cr1_from_fpscr(ctx);
-    }
-}
+TRANS(FNEG, do_move_b, 1ULL << 63, tcg_gen_xori_i64);
+TRANS(FABS, do_move_b, ~(1ULL << 63), tcg_gen_andi_i64);
+TRANS(FNABS, do_move_b, 1ULL << 63, tcg_gen_ori_i64);
 
 /* fcpsgn: PowerPC 2.05 specification */
 /* XXX: beware that fcpsgn never checks for NaNs nor update FPSCR */
