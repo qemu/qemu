@@ -197,9 +197,8 @@ struct AspeedMachineState {
 #define FUJI_BMC_HW_STRAP2    0x00000000
 
 /* Bletchley hardware value */
-/* TODO: Leave same as EVB for now. */
-#define BLETCHLEY_BMC_HW_STRAP1 AST2600_EVB_HW_STRAP1
-#define BLETCHLEY_BMC_HW_STRAP2 AST2600_EVB_HW_STRAP2
+#define BLETCHLEY_BMC_HW_STRAP1 0x00002000
+#define BLETCHLEY_BMC_HW_STRAP2 0x00000801
 
 /* Qualcomm DC-SCM hardware value */
 #define QCOM_DC_SCM_V1_BMC_HW_STRAP1  0x00000000
