@@ -592,6 +592,11 @@ FCFIDS          111011 ..... ----- ..... 1101001110 .   @X_tb_rc
 FCFIDU          111111 ..... ----- ..... 1111001110 .   @X_tb_rc
 FCFIDUS         111011 ..... ----- ..... 1111001110 .   @X_tb_rc
 
+### Floating-Point Compare Instructions
+
+FCMPU           111111 ... -- ..... ..... 0000000000 -  @X_bf
+FCMPO           111111 ... -- ..... ..... 0000100000 -  @X_bf
+
 ### Floating-Point Select Instruction
 
 FSEL            111111 ..... ..... ..... ..... 10111 .  @A

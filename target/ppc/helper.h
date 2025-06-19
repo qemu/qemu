@@ -94,8 +94,8 @@ DEF_HELPER_2(fpscr_setbit, void, env, i32)
 DEF_HELPER_FLAGS_1(todouble, TCG_CALL_NO_RWG_SE, i64, i32)
 DEF_HELPER_FLAGS_1(tosingle, TCG_CALL_NO_RWG_SE, i32, i64)
 
-DEF_HELPER_4(fcmpo, void, env, i64, i64, i32)
-DEF_HELPER_4(fcmpu, void, env, i64, i64, i32)
+DEF_HELPER_4(FCMPO, void, env, i64, i64, i32)
+DEF_HELPER_4(FCMPU, void, env, i64, i64, i32)
 
 DEF_HELPER_2(FCTIW, i64, env, i64)
 DEF_HELPER_2(FCTIWU, i64, env, i64)

@@ -257,46 +257,27 @@ static bool trans_FTSQRT(DisasContext *ctx, arg_X_bf_b *a)
 }
 
 /***                         Floating-Point compare                        ***/
-
-/* fcmpo */
-static void gen_fcmpo(DisasContext *ctx)
+static bool do_helper_cmp(DisasContext *ctx, arg_X_bf *a,
+                          void (*helper)(TCGv_env, TCGv_i64, TCGv_i64,
+                                         TCGv_i32))
 {
     TCGv_i32 crf;
-    TCGv_i64 t0;
-    TCGv_i64 t1;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
+    TCGv_i64 t0, t1;
+    REQUIRE_INSNS_FLAGS(ctx, FLOAT);
+    REQUIRE_FPU(ctx);
     t0 = tcg_temp_new_i64();
     t1 = tcg_temp_new_i64();
     gen_reset_fpstatus();
-    crf = tcg_constant_i32(crfD(ctx->opcode));
-    get_fpr(t0, rA(ctx->opcode));
-    get_fpr(t1, rB(ctx->opcode));
-    gen_helper_fcmpo(tcg_env, t0, t1, crf);
+    crf = tcg_constant_i32(a->bf);
+    get_fpr(t0, a->ra);
+    get_fpr(t1, a->rb);
+    helper(tcg_env, t0, t1, crf);
     gen_helper_float_check_status(tcg_env);
+    return true;
 }
 
-/* fcmpu */
-static void gen_fcmpu(DisasContext *ctx)
-{
-    TCGv_i32 crf;
-    TCGv_i64 t0;
-    TCGv_i64 t1;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-    gen_reset_fpstatus();
-    crf = tcg_constant_i32(crfD(ctx->opcode));
-    get_fpr(t0, rA(ctx->opcode));
-    get_fpr(t1, rB(ctx->opcode));
-    gen_helper_fcmpu(tcg_env, t0, t1, crf);
-    gen_helper_float_check_status(tcg_env);
-}
+TRANS(FCMPU, do_helper_cmp, gen_helper_FCMPU);
+TRANS(FCMPO, do_helper_cmp, gen_helper_FCMPO);
 
 /***                         Floating-point move                           ***/
 /* fabs */
