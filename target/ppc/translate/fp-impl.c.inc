@@ -98,28 +98,26 @@ static bool do_helper_ac(DisasContext *ctx, arg_A_tac *a,
     return true;
 }
 
-#define GEN_FLOAT_B(name, op2, op3, set_fprf, type)                           \
-static void gen_f##name(DisasContext *ctx)                                    \
-{                                                                             \
-    TCGv_i64 t0;                                                              \
-    TCGv_i64 t1;                                                              \
-    if (unlikely(!ctx->fpu_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
-        return;                                                               \
-    }                                                                         \
-    t0 = tcg_temp_new_i64();                                                  \
-    t1 = tcg_temp_new_i64();                                                  \
-    gen_reset_fpstatus();                                                     \
-    get_fpr(t0, rB(ctx->opcode));                                             \
-    gen_helper_f##name(t1, tcg_env, t0);                                      \
-    set_fpr(rD(ctx->opcode), t1);                                             \
-    if (set_fprf) {                                                           \
-        gen_helper_compute_fprf_float64(tcg_env, t1);                         \
-    }                                                                         \
-    gen_helper_float_check_status(tcg_env);                                   \
-    if (unlikely(Rc(ctx->opcode) != 0)) {                                     \
-        gen_set_cr1_from_fpscr(ctx);                                          \
-    }                                                                         \
+static bool do_round_convert(DisasContext *ctx, arg_X_tb_rc *a,
+                             void (*helper)(TCGv_i64, TCGv_env, TCGv_i64),
+                             bool set_fprf)
+{
+    TCGv_i64 t0, t1;
+    REQUIRE_FPU(ctx);
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+    gen_reset_fpstatus();
+    get_fpr(t0, a->rb);
+    helper(t1, tcg_env, t0);
+    set_fpr(a->rt, t1);
+    if (set_fprf) {
+        gen_helper_compute_fprf_float64(tcg_env, t1);
+    }
+    gen_helper_float_check_status(tcg_env);
+    if (unlikely(a->rc)) {
+        gen_set_cr1_from_fpscr(ctx);
+    }
+    return true;
 }
 
 static bool do_helper_bs(DisasContext *ctx, arg_A_tb *a,
@@ -213,41 +211,26 @@ TRANS(FSQRT, do_helper_fsqrt, gen_helper_FSQRT);
 TRANS(FSQRTS, do_helper_fsqrt, gen_helper_FSQRTS);
 
 /***                     Floating-Point round & convert                    ***/
-/* fctiw */
-GEN_FLOAT_B(ctiw, 0x0E, 0x00, 0, PPC_FLOAT);
-/* fctiwu */
-GEN_FLOAT_B(ctiwu, 0x0E, 0x04, 0, PPC2_FP_CVT_ISA206);
-/* fctiwz */
-GEN_FLOAT_B(ctiwz, 0x0F, 0x00, 0, PPC_FLOAT);
-/* fctiwuz */
-GEN_FLOAT_B(ctiwuz, 0x0F, 0x04, 0, PPC2_FP_CVT_ISA206);
-/* frsp */
-GEN_FLOAT_B(rsp, 0x0C, 0x00, 1, PPC_FLOAT);
-/* fcfid */
-GEN_FLOAT_B(cfid, 0x0E, 0x1A, 1, PPC2_FP_CVT_S64);
-/* fcfids */
-GEN_FLOAT_B(cfids, 0x0E, 0x1A, 0, PPC2_FP_CVT_ISA206);
-/* fcfidu */
-GEN_FLOAT_B(cfidu, 0x0E, 0x1E, 0, PPC2_FP_CVT_ISA206);
-/* fcfidus */
-GEN_FLOAT_B(cfidus, 0x0E, 0x1E, 0, PPC2_FP_CVT_ISA206);
-/* fctid */
-GEN_FLOAT_B(ctid, 0x0E, 0x19, 0, PPC2_FP_CVT_S64);
-/* fctidu */
-GEN_FLOAT_B(ctidu, 0x0E, 0x1D, 0, PPC2_FP_CVT_ISA206);
-/* fctidz */
-GEN_FLOAT_B(ctidz, 0x0F, 0x19, 0, PPC2_FP_CVT_S64);
-/* fctidu */
-GEN_FLOAT_B(ctiduz, 0x0F, 0x1D, 0, PPC2_FP_CVT_ISA206);
+TRANS_FLAGS(FLOAT, FRSP, do_round_convert, gen_helper_FRSP, true);
+TRANS_FLAGS(FLOAT_EXT, FRIN, do_round_convert, gen_helper_FRIN, true);
+TRANS_FLAGS(FLOAT_EXT, FRIZ, do_round_convert, gen_helper_FRIZ, true);
+TRANS_FLAGS(FLOAT_EXT, FRIP, do_round_convert, gen_helper_FRIP, true);
+TRANS_FLAGS(FLOAT_EXT, FRIM, do_round_convert, gen_helper_FRIM, true);
 
-/* frin */
-GEN_FLOAT_B(rin, 0x08, 0x0C, 1, PPC_FLOAT_EXT);
-/* friz */
-GEN_FLOAT_B(riz, 0x08, 0x0D, 1, PPC_FLOAT_EXT);
-/* frip */
-GEN_FLOAT_B(rip, 0x08, 0x0E, 1, PPC_FLOAT_EXT);
-/* frim */
-GEN_FLOAT_B(rim, 0x08, 0x0F, 1, PPC_FLOAT_EXT);
+TRANS_FLAGS(FLOAT, FCTIW, do_round_convert, gen_helper_FCTIW, false);
+TRANS_FLAGS2(FP_CVT_ISA206, FCTIWU, do_round_convert, gen_helper_FCTIWU, false);
+TRANS_FLAGS(FLOAT, FCTIWZ, do_round_convert, gen_helper_FCTIWZ, false);
+TRANS_FLAGS2(FP_CVT_ISA206, FCTIWUZ, do_round_convert, gen_helper_FCTIWUZ, false);
+
+TRANS_FLAGS2(FP_CVT_S64, FCTID, do_round_convert, gen_helper_FCTID, false);
+TRANS_FLAGS2(FP_CVT_ISA206, FCTIDU, do_round_convert, gen_helper_FCTIDU, false);
+TRANS_FLAGS2(FP_CVT_S64, FCTIDZ, do_round_convert, gen_helper_FCTIDZ, false);
+TRANS_FLAGS2(FP_CVT_ISA206, FCTIDUZ, do_round_convert, gen_helper_FCTIDUZ, false);
+
+TRANS_FLAGS2(FP_CVT_S64, FCFID, do_round_convert, gen_helper_FCFID, true);
+TRANS_FLAGS2(FP_CVT_ISA206, FCFIDS, do_round_convert, gen_helper_FCFIDS, false);
+TRANS_FLAGS2(FP_CVT_ISA206, FCFIDU, do_round_convert, gen_helper_FCFIDU, false);
+TRANS_FLAGS2(FP_CVT_ISA206, FCFIDUS, do_round_convert, gen_helper_FCFIDUS, false);
 
 static bool trans_FTDIV(DisasContext *ctx, arg_X_bf *a)
 {
@@ -1050,8 +1033,6 @@ TRANS(STFDU, do_lsfp_D, true, true, false)
 TRANS(STFDX, do_lsfp_X, false, true, false)
 TRANS(STFDUX, do_lsfp_X, true, true, false)
 TRANS(PSTFD, do_lsfp_PLS_D, false, true, false)
-
-#undef GEN_FLOAT_B
 
 #undef GEN_LDF
 #undef GEN_LDUF
