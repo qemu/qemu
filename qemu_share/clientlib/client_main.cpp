@@ -17,12 +17,12 @@ int main() {
 
     std::cout << "\nClient: Writing value 0x" << std::hex << test_value 
                   << " to offset " << std::dec << test_offset << " in the shared window." << std::endl;
-    client.write_u64(test_offset, test_value);
+    client.client_write_u64(test_offset, test_value);
 
     std::cout << "Client: Reading back from the same offset..." << std::endl;
     // In a better test scenario, the server would modify this value
     // For now, I just read what I wrote as a quick sanity test
-    uint64_t read_value = client.read_u64(test_offset);
+    uint64_t read_value = client.client_read_u64(test_offset);
 
     std::cout << "Client: Read value 0x" << std::hex << read_value 
               << " from offset " << std::dec << test_offset << "." << std::endl;

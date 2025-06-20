@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 #include "../includes/ioctl_defs.h"
+#include "../includes/qemu_cxl_connector.hpp"
 
 namespace diancie {
 
@@ -34,7 +35,7 @@ public:
 
 using ClientId = std::string;
 
-class DiancieServer {
+class DiancieServer : protected QEMUCXLConnector {
 public:
   // Constructors
   DiancieServer() = delete;
@@ -54,51 +55,19 @@ public:
   void run_server_loop();
 
 private:
-  std::string device_path_;
-  int device_fd_ = -1;
-
-  // For logging purposes
   std::string service_name_;
   std::string instance_id_;
   
-  void *bar0_base_ = nullptr;
-  size_t bar0_size_ = 0;
-
-  void *bar1_base_ = nullptr;
-  size_t bar1_size_ = 0;
-  
-  // TODO: now i gotta map this
-  void *bar2_base_ = nullptr;
-  size_t bar2_size_ = 0;
-
-  int eventfd_notify_ = -1;
-  int eventfd_cmd_ready_ = -1;
-
   // Poll method to wait for incoming client connections
   Connection wait_for_new_client_notification(int timeout_ms);
   uint32_t get_command_status();
 
   std::vector<std::thread> clients_;
 
-  bool setup_eventfd(int& efd, unsigned int ioctl_cmd);
-  void cleanup_eventfd(int& efd);
-
-  static constexpr off_t BAR0_MMAP_OFFSET = 0 * 4096; // MMAP_OFFSET_PGOFF_BAR0
-  static constexpr off_t BAR1_MMAP_OFFSET = 1 * 4096; // MMAP_OFFSET_PGOFF_BAR1
-  static constexpr off_t BAR2_MMAP_OFFSET = 2 * 4096; // MMAP_OFFSET_PGOFF_BAR2
-  static constexpr size_t DEFAULT_BAR0_SIZE = 4096;
-  static constexpr size_t DEFAULT_BAR1_SIZE = 4096;
-  static constexpr size_t DEFAULT_BAR2_SIZE = 256 * 1024 * 1024;
-
-  bool wait_for_command_response(int timeout_ms);
-  uint32_t get_notification_status();
-  void clear_notification_status(uint32_t bits_to_clear);
-  bool send_command(const void* req, size_t size);
   // Called once in constructor
   bool register_service();
   // Called in destructor?
   void deregister_service();
-
 };
 
 }
