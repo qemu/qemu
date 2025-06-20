@@ -1,0 +1,53 @@
+name: QEMU CI Build
+
+on:
+  push:
+    branches: [ dev_10.0.2 ]
+  pull_request:
+    branches: [ dev_10.0.2 ]
+
+jobs:
+  build-qemu:
+    name: Build and Test QEMU (ARM + AArch64)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout QEMU Source
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y ninja-build build-essential libglib2.0-dev libpixman-1-dev \
+            libfdt-dev zlib1g-dev flex bison python3 python3-pip libncurses5-dev \
+            libslirp-dev ccache
+
+      - name: Configure QEMU for ARM and AArch64
+        run: |
+          ./configure \
+            --target-list=arm-softmmu,aarch64-softmmu \
+            --enable-debug --disable-strip --enable-plugins
+
+      - name: Build QEMU
+        run: |
+          make -j$(nproc)
+
+      - name: Verify QEMU builds
+        run: |
+          ./build/qemu-system-arm --version
+          ./build/qemu-system-aarch64 --version
+
+      - name: Run bare-metal binary on QEMU (versatilepb)
+        run: |
+          ./build/qemu-system-arm \
+            -M versatilepb \
+            -cpu arm926 \
+            -nographic \
+            -kernel ../qemu/examples/bare_metal_uart_versatilepb/main.bin \
+            -serial file:../qemu/bare_metal_uart_versatilepb/output.txt || true
+
+      - name: Upload UART output
+        uses: actions/upload-artifact@v4
+        with:
+          name: uart-output
+          path: ../qemu/bare_metal_uart_versatilepb/output.txt

@@ -415,8 +415,13 @@ static void pl011_write(void *opaque, hwaddr offset,
 {
     PL011State *s = (PL011State *)opaque;
     unsigned char ch;
+    if (offset == 0x00) {  // UARTDR
+        printf("TUKARAM");
+        fflush(stdout);
 
+    }
     trace_pl011_write(offset, value, pl011_regname(offset));
+    
 
     switch (offset >> 2) {
     case 0: /* UARTDR */
