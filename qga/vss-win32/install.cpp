@@ -385,7 +385,10 @@ out:
 STDAPI_(void) CALLBACK DLLCOMRegister(HWND, HINSTANCE, LPSTR, int);
 STDAPI_(void) CALLBACK DLLCOMRegister(HWND, HINSTANCE, LPSTR, int)
 {
-    COMRegister();
+    HRESULT hr = COMRegister();
+    if (FAILED(hr)) {
+        exit(hr);
+    }
 }
 
 STDAPI_(void) CALLBACK DLLCOMUnregister(HWND, HINSTANCE, LPSTR, int);
