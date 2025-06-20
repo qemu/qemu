@@ -13,6 +13,8 @@
 
 namespace diancie {
 
+
+
 QEMUCXLConnector::QEMUCXLConnector(const std::string &device_path)
   : device_path_(device_path)
 {

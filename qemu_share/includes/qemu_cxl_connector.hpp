@@ -3,15 +3,35 @@
 
 #include "a_cxl_connector.hpp"
 #include <string>
+#include <iostream>
 
 namespace diancie {
+
+/// Represents a connection in QEMU space.
+/// TODO: Might have to be ported around
+struct QEMUConnection : AbstractCXLConnection {
+public:
+  QEMUConnection(uint64_t mapped_base, uint32_t size, uint64_t channel_id)
+    : mapped_base_(mapped_base), mapped_size_(size), channel_id_(channel_id) {
+    std::cout << "QEMUConnection created with base: " << mapped_base_ 
+              << ", size: " << size 
+              << ", channel_id: " << channel_id << std::endl;
+  }
+  // Simple accessors - i am still unsure over interface details for these
+  uint64_t mapped_base_;
+  uint32_t mapped_size_;
+  uint64_t channel_id_;
+
+  uint64_t get_base() override { return mapped_base_; }
+  uint64_t get_size() override { return mapped_size_; }
+  uint64_t get_channel_id() override { return channel_id_; }
+};
+
 class QEMUCXLConnector : protected AbstractCXLConnector {
 public:
   QEMUCXLConnector(const std::string &device_path);
   ~QEMUCXLConnector();
 
-  void write_u64(uint64_t offset, uint64_t value);
-  uint64_t read_u64(uint64_t offset);
 private:
   std::string device_path_;
 
@@ -41,6 +61,7 @@ protected:
   // TODO: Make these private
   int eventfd_notify_ = -1;
   int eventfd_cmd_ready_ = -1;
+  QEMUConnection wait_for_new_client_notification(int timeout_ms);
 
   bool send_command(const void* req, size_t size);
   bool recv_response(void* req, size_t size);
@@ -50,7 +71,10 @@ protected:
   void clear_notification_status(uint32_t bits_to_clear);
   // In the impl now, both server/client must configure their QEMU device
   bool set_memory_window(uint64_t offset, uint64_t size);
+  
 
+  void write_u64(uint64_t offset, uint64_t value);
+  uint64_t read_u64(uint64_t offset);
 
 };
 

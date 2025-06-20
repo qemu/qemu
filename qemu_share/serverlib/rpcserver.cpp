@@ -1,4 +1,5 @@
 #include "rpcserver.hpp"
+#include "../includes/a_cxl_connector.hpp"
 #include "../includes/cxl_switch_ipc.h"
 #include "../includes/ioctl_defs.h"
 #include "../includes/qemu_cxl_connector.hpp"
@@ -17,14 +18,6 @@
 
 namespace diancie {
 
-// --- Connection ---
-Connection::Connection(uint64_t mapped_base, uint32_t size, uint64_t channel_id)
-    : mapped_base_(mapped_base), mapped_size_(size), channel_id_(channel_id) {
-  std::cout << "Connection created. channel_id_ = " << channel_id_ 
-            << ", mapped_base_ = " << mapped_base_ 
-            << ", size = " << mapped_size_ << std::endl;
-}
-
 // --- DiancieServer ---
 DiancieServer::DiancieServer(const std::string &device_path, const std::string& service_name, const std::string& instance_id)
     : QEMUCXLConnector(device_path), service_name_(service_name), instance_id_(instance_id) {
@@ -41,7 +34,6 @@ DiancieServer::~DiancieServer() {
   deregister_service();
   std::cout << "Diancie server resources cleaned up." << std::endl;
 }
-
 
 // TODO: this server should also register the actual function
 bool DiancieServer::register_service() {
@@ -88,7 +80,7 @@ void DiancieServer::deregister_service() {
 }
 
 
-Connection DiancieServer::wait_for_new_client_notification(int timeout_ms) {
+std::unique_ptr<AbstractCXLConnection> DiancieServer::wait_for_new_client_notification(int timeout_ms) {
   struct pollfd pfd;
   pfd.fd = eventfd_notify_;
   pfd.events = POLLIN;
@@ -122,7 +114,7 @@ Connection DiancieServer::wait_for_new_client_notification(int timeout_ms) {
                 << notify.client_instance_id << "'." << std::endl;
       clear_notification_status(NOTIF_STATUS_NEW_CLIENT);
       
-      return Connection(notify.channel_shm_offset, notify.channel_shm_size, notify.channel_id);
+      return std::make_unique<QEMUConnection>(notify.channel_shm_offset, notify.channel_shm_size, notify.channel_id);
     } else {
       std::cerr << "DiancieServer: No new client notification received." << std::endl;
       throw std::runtime_error("No new client notification");
@@ -134,7 +126,7 @@ Connection DiancieServer::wait_for_new_client_notification(int timeout_ms) {
 // Runs in a dedicated thread for each client connection
 // Poll request and do mapping
 // TODO: Figure out template metaprogramming to parse the struct
-void DiancieServer::service_client(Connection connection) {
+void DiancieServer::service_client(QEMUConnection connection) {
   std::cout << "Servicing client on channel id " << connection.channel_id_ 
             << " with base address " << connection.mapped_base_ 
             << " and size " << connection.mapped_size_ << std::endl;
@@ -188,7 +180,10 @@ void DiancieServer::run_server_loop() {
   while (running) {
     try {
       auto connection_info = wait_for_new_client_notification(-1);
-      clients_.emplace_back(&DiancieServer::service_client, this, connection_info);
+      if (auto qemu_conn = dynamic_cast<QEMUConnection*>(connection_info.get())) {
+        clients_.emplace_back(&DiancieServer::service_client, this, *qemu_conn);
+      }
+            
       num_clients++;
       if (num_clients == 5) {
         // Hacky sleep for 10 seconds to let client resolve

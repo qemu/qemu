@@ -5,6 +5,18 @@
 #include <stdint.h>
 namespace diancie {
 
+/// Represents an abstract CXL connection between a client and server.
+/// Intended for emulation and actual interfacing
+struct AbstractCXLConnection {
+public:
+  AbstractCXLConnection() = default;
+  ~AbstractCXLConnection() = default;
+
+  virtual uint64_t get_base() = 0;
+  virtual uint64_t get_size() = 0;
+  virtual uint64_t get_channel_id() = 0;
+};
+
 /// This abstract class is responsible for all low-level interactions with
 /// the underlying CXL Switch device. It will make it possible to easily
 /// (hopefully) transition between our current QEMU emulation for correctness

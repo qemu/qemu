@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 #include "../includes/ioctl_defs.h"
+#include "../includes/a_cxl_connector.hpp"
 #include "../includes/qemu_cxl_connector.hpp"
 
 namespace diancie {
@@ -25,13 +26,6 @@ struct QueueEntry {
   uint64_t queue_entry;
 };
 
-struct Connection {
-public:
-  Connection(uint64_t mapped_base, uint32_t size, uint64_t channel_id);
-  uint64_t mapped_base_;
-  uint32_t mapped_size_;
-  uint64_t channel_id_;
-};
 
 using ClientId = std::string;
 
@@ -51,15 +45,15 @@ public:
   DiancieServer& operator=(DiancieServer&&) = delete;
 
   void register_rpc_function();
-  void service_client(Connection connection);
+  void service_client(QEMUConnection connection);
   void run_server_loop();
 
 private:
   std::string service_name_;
   std::string instance_id_;
   
-  // Poll method to wait for incoming client connections
-  Connection wait_for_new_client_notification(int timeout_ms);
+  // Interface method to wait for incoming client connections
+  std::unique_ptr<AbstractCXLConnection> wait_for_new_client_notification(int timeout_ms);
   uint32_t get_command_status();
 
   std::vector<std::thread> clients_;
