@@ -70,7 +70,7 @@ protected:
   uint32_t get_notification_status();
   void clear_notification_status(uint32_t bits_to_clear);
   // In the impl now, both server/client must configure their QEMU device
-  bool set_memory_window(uint64_t offset, uint64_t size);
+  bool set_memory_window(uint64_t offset, uint64_t size, uint64_t channel_id);
   
 
   void write_u64(uint64_t offset, uint64_t value);

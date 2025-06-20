@@ -180,7 +180,11 @@ void DiancieServer::run_server_loop() {
   while (running) {
     try {
       auto connection_info = wait_for_new_client_notification(-1);
+      // Server now needs to set memory window too so that its QEMU device knows
+      // how to talk to memory. This breaks the abstraction barrier and so
+      // will be rewritten in the future.
       if (auto qemu_conn = dynamic_cast<QEMUConnection*>(connection_info.get())) {
+        set_memory_window(qemu_conn->get_base(), qemu_conn->get_size(), qemu_conn->get_channel_id());
         clients_.emplace_back(&DiancieServer::service_client, this, *qemu_conn);
       }
             

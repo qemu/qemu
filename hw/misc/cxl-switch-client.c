@@ -16,6 +16,7 @@
 #include "standard-headers/linux/pci_regs.h"
 #include "system/memory.h"
 #include "system/hostmem.h"
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -71,6 +72,23 @@ DECLARE_INSTANCE_CHECKER(CXLSwitchClientState, CXL_SWITCH_CLIENT, TYPE_PCI_CXL_S
 #define PCI_VENDOR_ID_QEMU_CXL_SWITCH 0x1AF4
 #define PCI_CXL_DEVICE_ID 0x1337
 
+/// -- Handling concurrent channels here ---
+
+// How many concurrent channels we can handle
+// Hardcoded for now - cos this is just a QEMU emulation anws
+#define MAX_CONCURRENT_CHANNELS 5
+
+// Keep track of address ranges to channel IDs
+// necessary for adding channel id to write_req
+// since the mem ioops cannot do that
+typedef struct {
+    uint64_t channel_base_offset;
+    uint64_t channel_size;
+    uint64_t channel_id;
+    bool is_active;
+} cxl_channel_map_t;
+
+
 struct CXLSwitchClientState {
     PCIDevice pdev;
 
@@ -120,12 +138,69 @@ struct CXLSwitchClientState {
     uint64_t bar2_data_window_offset;  // Offset in the global pool
     uint64_t bar2_data_window_size;    // Size that the window is configured
 
+    // Dirty hack to map channel_id
+    cxl_channel_map_t channel_map[MAX_CONCURRENT_CHANNELS];
+
     uint64_t total_pool_size;          // Total size of mem pool
 
     char *server_socket_path;  // QOM property
     int server_fd;
     QemuMutex lock; // Serialize access to server_fd from MMIO callbacks
 };
+
+bool register_new_channel(uint64_t offset, uint64_t size, uint64_t channel_id, CXLSwitchClientState *s);
+bool deregister_channel(uint64_t channel_id, CXLSwitchClientState *s);
+
+int get_channel_id_for_address(uint64_t address, CXLSwitchClientState *s);
+
+// Gotta deregister too somehow, shud be done in cleanup too
+bool register_new_channel(uint64_t offset, uint64_t size, uint64_t channel_id, CXLSwitchClientState *s)
+{
+    // Check if we can register a new channel
+    for (int i = 0; i < MAX_CONCURRENT_CHANNELS; i++) {
+        if (!s->channel_map[i].is_active) {
+            s->channel_map[i].channel_base_offset = offset;
+            s->channel_map[i].channel_size = size;
+            s->channel_map[i].channel_id = channel_id;
+            s->channel_map[i].is_active = true;
+            CXL_SWITCH_DPRINTF("Registered new channel mapping - ID: %lu, Offset: 0x%lx, Size: 0x%lx\n",
+                              channel_id, offset, size);
+            return true;
+        }
+    }
+    CXL_SWITCH_DPRINTF("No available slots for new channel.\n");
+    return false;
+}
+
+bool deregister_channel(uint64_t channel_id, CXLSwitchClientState *s)
+{
+    for (int i = 0; i < MAX_CONCURRENT_CHANNELS; i++) {
+        if (s->channel_map[i].is_active && s->channel_map[i].channel_id == channel_id) {
+            s->channel_map[i].is_active = false;
+            CXL_SWITCH_DPRINTF("Deregistered channel ID %lu\n", channel_id);
+            return true;
+        }
+    }
+    CXL_SWITCH_DPRINTF("Channel ID %lu not found for deregistration\n", channel_id);
+    return false;
+}
+
+
+int get_channel_id_for_address(uint64_t address, CXLSwitchClientState *s)
+{
+    for (int i = 0; i < MAX_CONCURRENT_CHANNELS; i++) {
+        if (s->channel_map[i].is_active &&
+            address >= s->channel_map[i].channel_base_offset &&
+            address < (s->channel_map[i].channel_base_offset + s->channel_map[i].channel_size)) {
+            CXL_SWITCH_DPRINTF("Found channel for address 0x%lx: Channel ID %lu\n",
+                              address, s->channel_map[i].channel_id);
+            return i;
+        }
+    }
+    CXL_SWITCH_DPRINTF("No channel found for address 0x%lx\n", address);
+    return -1;
+
+}
 
 // --- Forward declarations for MSI ---
 static void cxl_server_fd_read_handler(void *opaque);
@@ -330,6 +405,9 @@ static void bar1_control_write(void *opaque, hwaddr addr, uint64_t val, unsigned
                     break;
                 case CXL_MSG_TYPE_RPC_RELEASE_CHANNEL_REQ:
                     expected_server_resp_len = sizeof(cxl_ipc_rpc_release_channel_resp_t);
+                    // Cleanup mapping here too
+                    cxl_ipc_rpc_release_channel_req_t *rel_req = (cxl_ipc_rpc_release_channel_req_t *)s->bar0_mailbox;
+                    deregister_channel(rel_req->channel_id, s);
                     CXL_SWITCH_DPRINTF("Info: Handling RPC_RELEASE_CHANNEL request.\n");
                     ipc_ret = cxl_switch_client_ipc_request_response(s, s->bar0_mailbox, sizeof(cxl_ipc_rpc_release_channel_req_t), ipc_server_resp_payload, expected_server_resp_len);
                     break;
@@ -347,6 +425,7 @@ static void bar1_control_write(void *opaque, hwaddr addr, uint64_t val, unsigned
                         s->bar2_data_window_offset = set_window_req->offset;
                         s->bar2_data_window_size = set_window_req->size;
                         set_window_resp.status = CXL_IPC_STATUS_OK;
+                        register_new_channel(set_window_req->offset, set_window_req->size, set_window_req->channel_id, s);
                         CXL_SWITCH_DPRINTF("Info: BAR2 window set successfully. Offset=0x%"PRIx64", Size=0x%"PRIx64"\n",
                                         s->bar2_data_window_offset, s->bar2_data_window_size);
                     } else {
@@ -443,17 +522,25 @@ static uint64_t bar2_data_window_read(void *opaque, hwaddr addr, unsigned size)
         return data;
     }
 
+    int channel_map_idx = get_channel_id_for_address(addr, s);
+    if (channel_map_idx == -1) {
+        CXL_SWITCH_DPRINTF("Error: Channel mapping was not established.\n");
+        return data;
+    }
+
+    uint64_t channel_id = s->channel_map[channel_map_idx].channel_id;
+
     hwaddr addr_in_pool = s->bar2_data_window_offset + addr;
     cxl_ipc_read_req_t read_req = {
         .type = CXL_MSG_TYPE_READ_REQ,
         .addr = addr_in_pool,
         .size = (uint8_t) size,
+        .channel_id = channel_id,
     };
     cxl_ipc_read_resp_t read_resp;
 
-    CXL_SWITCH_DPRINTF("Info: Sending read request to server (offset=0x%"PRIx64", size=%u)\n",
-                  addr, size);
-    
+    CXL_SWITCH_DPRINTF("Info: Sending read request to server (offset=0x%"PRIx64", size=%u, channel id=%"PRIu64"\n", addr, size, channel_id);
+
     if (cxl_switch_client_ipc_request_response(s, &read_req, sizeof(read_req), &read_resp, sizeof(read_resp)) != 0) {
         CXL_SWITCH_DPRINTF("Error: IPC request failed.\n");
         return data;
@@ -490,12 +577,21 @@ static void bar2_data_window_write(void *opaque, hwaddr addr, uint64_t val, unsi
         return;
     }
 
+    int channel_map_idx = get_channel_id_for_address(addr, s);
+    if (channel_map_idx == -1) {
+        CXL_SWITCH_DPRINTF("Error: Channel mapping was not established.\n");
+        return;
+    }
+
+    uint64_t channel_id = s->channel_map[channel_map_idx].channel_id;
+
     hwaddr addr_in_pool = s->bar2_data_window_offset + addr;
     cxl_ipc_write_req_t write_req = {
         .type  = CXL_MSG_TYPE_WRITE_REQ,
         .addr  = addr_in_pool,
         .size  = (uint8_t) size,
-        .value = val
+        .value = val,
+        .channel_id = channel_id,
     };
     cxl_ipc_write_resp_t write_resp;
 

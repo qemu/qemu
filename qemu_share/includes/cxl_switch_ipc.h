@@ -199,7 +199,8 @@ typedef struct {
 typedef struct {
     uint8_t type; 
     uint64_t offset; 
-    uint64_t size; 
+    uint64_t size;
+    uint64_t channel_id; 
 } cxl_ipc_rpc_set_bar2_window_req_t;
 
 typedef struct {

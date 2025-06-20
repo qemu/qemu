@@ -31,7 +31,7 @@ protected:
   virtual bool send_command(const void* req, size_t size) = 0;
   virtual bool recv_response(void* resp, size_t size) = 0;
   // In the real deployment, must configure the window (if CXL: it wud be the logical view)
-  virtual bool set_memory_window(uint64_t offset, uint64_t size) = 0;
+  virtual bool set_memory_window(uint64_t offset, uint64_t size, uint64_t channel_id) = 0;
 };
 
 }; // namespace diancie

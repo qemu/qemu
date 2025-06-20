@@ -31,7 +31,7 @@ DiancieClient::DiancieClient(const std::string &device_path, const std::string &
   std::cout << "Channel id_ is " << channel_id_ << std::endl;
 
   // 5. Map mem window
-  if (!set_memory_window(channel_info->offset, channel_info->size)) {
+  if (!set_memory_window(channel_info->offset, channel_info->size, channel_info->channel_id)) {
     release_channel();
     throw std::runtime_error("Failed to set memory window for channel!");
   }

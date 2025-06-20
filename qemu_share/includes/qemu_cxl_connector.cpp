@@ -172,16 +172,18 @@ void QEMUCXLConnector::clear_notification_status(uint32_t bits_to_clear) {
   std::cout << "DiancieServer: Cleared notification status bits: 0x" << std::hex << bits_to_clear << std::dec << std::endl;
 }
 
-bool QEMUCXLConnector::set_memory_window(uint64_t offset, uint64_t size) {
+bool QEMUCXLConnector::set_memory_window(uint64_t offset, uint64_t size, uint64_t channel_id) {
   cxl_ipc_rpc_set_bar2_window_req_t req;
   std::memset(&req, 0, sizeof(req));
   req.type = CXL_MSG_TYPE_RPC_SET_BAR2_WINDOW_REQ;
   req.offset = offset;
   req.size = size;
+  req.channel_id = channel_id;
 
   std::cout << "QEMUCXLConnector: Sending memory window request "
             << "Offset: 0x" << std::hex << req.offset
-            << ", Size: 0x" << req.size << std::dec << std::endl;
+            << ", Size: 0x" << req.size << std::dec 
+            << ", Channel ID: " << channel_id << std::endl;
 
   if (send_command(&req, sizeof(req))) {
     cxl_ipc_rpc_set_bar2_window_resp_t resp;
