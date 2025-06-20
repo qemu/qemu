@@ -3,6 +3,7 @@
 #include "../includes/ioctl_defs.h"
 #include <cstdint>
 #include <cstring>
+#include <exception>
 #include <fcntl.h>
 #include <iostream>
 #include <memory>
@@ -16,29 +17,9 @@
 namespace diancie {
 
 // --- Connection ---
-Connection::Connection(int fd, uint64_t size)
-  : fd_(fd), mapped_size_(size) {
-  if (fd_ < 0 || mapped_size_ == 0) {
-    throw std::invalid_argument("Invalid file descriptor or size for Connection");
-  }
-  mapped_base_ = mmap(nullptr, mapped_size_, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0);
-  if (mapped_base_ == MAP_FAILED) {
-    close(fd_);
-    throw std::runtime_error("Failed to mmap connection base address: " + std::string(strerror(errno)));
-  }
-  std::cout << "Connection created. fd = " << fd_ 
-            << ", mapped_base_ = " << mapped_base_ 
-            << ", size = " << mapped_size_ << std::endl;
-}
-
-Connection::~Connection() {
-  if (mapped_base_ != nullptr && mapped_base_ != MAP_FAILED) {
-    munmap(mapped_base_, mapped_size_);
-  }
-  if (fd_ >= 0) {
-    close(fd_);
-  }
-  std::cout << "Connection resources cleaned up. fd = " << fd_ 
+Connection::Connection(uint64_t mapped_base, uint32_t size, uint64_t channel_id)
+    : mapped_base_(mapped_base), mapped_size_(size), channel_id_(channel_id) {
+  std::cout << "Connection created. channel_id_ = " << channel_id_ 
             << ", mapped_base_ = " << mapped_base_ 
             << ", size = " << mapped_size_ << std::endl;
 }
@@ -69,8 +50,20 @@ DiancieServer::DiancieServer(const std::string &device_path, const std::string& 
     throw std::runtime_error("Failed to mmap BAR1: " + device_path_);
   }
 
+  // TODO: Temporary workaround until I figure out how to expose CXL mem frfr
+  bar2_size_ = DEFAULT_BAR2_SIZE;
+  bar2_base_ = mmap(nullptr, bar2_size_, PROT_READ | PROT_WRITE, MAP_SHARED,
+                    device_fd_, BAR2_MMAP_OFFSET);
+  if (bar2_base_ == MAP_FAILED) {
+    munmap(bar1_base_, bar1_size_);
+    munmap(bar0_base_, bar0_size_);
+    close(device_fd_);
+    throw std::runtime_error("Failed to mmap BAR2: " + device_path_);
+  }
+
   // 3. Setup event fds
   if (!setup_eventfd(eventfd_notify_, CXL_SWITCH_IOCTL_SET_EVENTFD_NOTIFY)) {
+    munmap(bar2_base_, bar2_size_);
     munmap(bar1_base_, bar1_size_);
     munmap(bar0_base_, bar0_size_);
     close(device_fd_);
@@ -79,6 +72,7 @@ DiancieServer::DiancieServer(const std::string &device_path, const std::string& 
 
   if (!setup_eventfd(eventfd_cmd_ready_, CXL_SWITCH_IOCTL_SET_EVENTFD_CMD_READY)) {
     cleanup_eventfd(eventfd_notify_);
+    munmap(bar2_base_, bar2_size_);
     munmap(bar1_base_, bar1_size_);
     munmap(bar0_base_, bar0_size_);
     close(device_fd_);
@@ -87,12 +81,18 @@ DiancieServer::DiancieServer(const std::string &device_path, const std::string& 
 
   // 4. Register service
   if (!register_service()) {
+    cleanup_eventfd(eventfd_cmd_ready_);
+    cleanup_eventfd(eventfd_notify_);
+    munmap(bar2_base_, bar2_size_);
+    munmap(bar1_base_, bar1_size_);
+    munmap(bar0_base_, bar0_size_);
+    close(device_fd_);
     throw std::runtime_error("Failed to register service!");
   }
 
   std::cout << "Diancie server initialized. Device = " << device_path_
             << ", BAR0 mmapped at " << bar0_base_ << ", BAR1 mmapped at "
-            << bar1_base_ << ", notify_efd " << eventfd_notify_
+            << bar1_base_ << ", BAR2 mapped at " << bar2_base_ << ", notify_efd " << eventfd_notify_
             << ", cmd_ready_efd " << eventfd_cmd_ready_ << std::endl;
 }
 
@@ -141,6 +141,7 @@ void DiancieServer::cleanup_eventfd(int& efd_member) {
   }
 }
 
+// TODO: this server should also register the actual function
 bool DiancieServer::register_service() {
   cxl_ipc_rpc_register_service_req_t req;
   std::memset(&req, 0, sizeof(req));
@@ -226,7 +227,7 @@ bool DiancieServer::send_command(const void* req, size_t size) {
   return get_command_status() == CMD_STATUS_RESPONSE_READY;
 }
 
-cxl_ipc_rpc_new_client_notify_t DiancieServer::wait_for_new_client_notification(int timeout_ms) {
+Connection DiancieServer::wait_for_new_client_notification(int timeout_ms) {
   struct pollfd pfd;
   pfd.fd = eventfd_notify_;
   pfd.events = POLLIN;
@@ -259,7 +260,8 @@ cxl_ipc_rpc_new_client_notify_t DiancieServer::wait_for_new_client_notification(
                 << notify.service_name << "' from client '" 
                 << notify.client_instance_id << "'." << std::endl;
       clear_notification_status(NOTIF_STATUS_NEW_CLIENT);
-      return notify;
+      
+      return Connection(notify.channel_shm_offset, notify.channel_shm_size, notify.channel_id);
     } else {
       std::cerr << "DiancieServer: No new client notification received." << std::endl;
       throw std::runtime_error("No new client notification");
@@ -267,41 +269,6 @@ cxl_ipc_rpc_new_client_notify_t DiancieServer::wait_for_new_client_notification(
   }
   throw std::runtime_error("Poll indicated event but no POLLIN flag set!");
 }
-
-std::unique_ptr<Connection> DiancieServer::accept_connection(const cxl_ipc_rpc_new_client_notify_t& notif) {
-  cxl_channel_map_info_t map_info;
-  map_info.physical_offset = notif.channel_shm_offset;
-  map_info.size = notif.channel_shm_size;
-
-  std::cout << "DiancieServer: Accepting connection for service '" 
-            << notif.service_name << "' with instance ID '" 
-            << notif.client_instance_id << "'. Channel offset: 0x" 
-            << std::hex << map_info.physical_offset 
-            << ", size: 0x" << map_info.size << std::dec << std::endl;
-  // Use the factory IOCTL to request a new fd
-  if (ioctl(device_fd_, CXL_SWITCH_IOCTL_MAP_CHANNEL, &map_info) < 0) {
-    std::cerr << "DiancieServer: IOCTL failed to map channel: " << strerror(errno) << std::endl;
-    return nullptr;
-  }
-  // Return value is back inside the struct - hacky?
-  int new_channel_fd;
-  memcpy(&new_channel_fd, &map_info, sizeof(new_channel_fd));
-  std::cout << "DiancieServer: IOCTL returned new channel fd: " << new_channel_fd << std::endl;
-  if (new_channel_fd < 0) {
-    std::cerr << "DiancieServer: Failed to create channel, IOCTL returned error fd: " << new_channel_fd << std::endl;
-    return nullptr;
-  }
-
-  try {
-    return std::make_unique<Connection>(new_channel_fd, notif.channel_shm_size);
-  } catch (const std::exception& e) {
-    std::cerr << "DiancieServer: Failed to create Connection: " << e.what() << std::endl;
-    close(new_channel_fd);
-    return nullptr;
-  }
-}
-
-
 
 uint32_t DiancieServer::get_command_status() {
   volatile uint32_t* status_reg_ptr = static_cast<volatile uint32_t*>(
@@ -324,4 +291,81 @@ void DiancieServer::clear_notification_status(uint32_t bits_to_clear) {
   *status_reg_ptr = bits_to_clear;
   std::cout << "DiancieServer: Cleared notification status bits: 0x" << std::hex << bits_to_clear << std::dec << std::endl;
 }
+
+// Runs in a dedicated thread for each client connection
+// Poll request and do mapping
+// TODO: Figure out template metaprogramming to parse the struct
+void DiancieServer::service_client(Connection connection) {
+  std::cout << "Servicing client on channel id " << connection.channel_id_ 
+            << " with base address " << connection.mapped_base_ 
+            << " and size " << connection.mapped_size_ << std::endl;
+  // bool client_is_active = true;
+
+  // uint64_t bar2_addr = reinterpret_cast<uint64_t>(bar2_base_);
+  // std::cout << "BAR2 base addr is " << std::hex << bar2_addr << std::dec << std::endl;
+  // std::cout << "bar2 addr is " << std::hex << bar2_addr << std::dec << std::endl;
+  
+  // uint64_t act_addr = bar2_addr + connection.mapped_base_;
+  // std::cout << "act addr is " << std::hex << act_addr << std::dec << std::endl;
+
+  // volatile uint64_t* addr = reinterpret_cast<volatile uint64_t*>(act_addr);
+  //   // THIS IS THE CRITICAL CHANGE FOR PRINTING:
+  // std::cout << "Addr is " << std::hex << reinterpret_cast<uintptr_t>(addr) << std::dec
+  //           << " on channel id " << connection.channel_id_ << std::endl;
+
+  
+  volatile uint64_t* addr = static_cast<volatile uint64_t*>(static_cast<void*>(static_cast<char*>(bar2_base_) + connection.mapped_base_));
+  
+  std::cout << "Value is " << std::hex << *addr << std::dec << std::endl;
+
+  // // Add the offset to the BAR2 base pointer
+  // char* final_ptr = bar2_char_ptr + connection.mapped_base_;
+  // std::cout << "final_ptr is " << &final_ptr << std::endl;
+  // volatile uint64_t* addr = reinterpret_cast<volatile uint64_t*>(final_ptr);
+  
+  // // uint64_t bar_2_base_addr = reinterpret_cast<uint64_t>(bar2_base_);
+  // // std::cout << "bar 2 base addr is " << bar_2_char_ptr << "\n";
+  // // std::cout << "connection mapped base is " << connection.mapped_base_ << "\n";
+  // // uint64_t final_base_addr = bar_2_base_addr + connection.mapped_base_;
+  // // std::cout << "final base addr is " << final_base_addr << "\n";
+  // // volatile uint64_t* addr = reinterpret_cast<volatile uint64_t*>(static_cast<uintptr_t>(final_base_addr));
+  // std::cout << "Addr is " << addr << " on channel id " << connection.channel_id_ << std::endl;
+  // while (client_is_active) {
+  //   // TODO: Add parsing of struct
+  //   // For now, simple printing of value as from concurrent
+  //   uint64_t recv_value = 0;
+  //   std::cout << "Polling from addr " << std::hex << addr << std::dec 
+  //             << " on channel id " << connection.channel_id_ << std::endl;
+  //   while ((recv_value = addr[0]) == 0) {
+  //     usleep(10000000);
+  //   }
+  //   std::cout << "Read 0x" << std::hex << recv_value << std::dec 
+  //             << " from client on channel id " << connection.channel_id_ << std::endl;
+  // }
+}
+
+void DiancieServer::run_server_loop() {
+  // TODO: Max 5 for now. Handle properly later
+  int num_clients = 0;
+  bool running = true;
+  while (running) {
+    try {
+      auto connection_info = wait_for_new_client_notification(-1);
+      clients_.emplace_back(&DiancieServer::service_client, this, connection_info);
+      num_clients++;
+      if (num_clients == 5) {
+        // Hacky sleep for 10 seconds to let client resolve
+        // TODO: Proper handle later
+        usleep(10000000);
+        running = false;
+      }
+    } catch (const std::exception& e) {
+      std::cerr << "DiancieServer: " << e.what() << std::endl;
+    }
+  }
+  for (auto &t : clients_) {
+    t.join();
+  }
+}
+
 } // namespace diancie

@@ -4,6 +4,15 @@ NUM_REPLICAS=3
 
 mkdir -p "$REPLICA_DIR"
 
+echo "Removing existing replica files..."
+for i in $(seq 0 $((NUM_REPLICAS - 1))); do
+    replica_file="${REPLICA_DIR}/replica${i}.img"
+    if [ -f "$replica_file" ]; then
+        echo "Removing ${replica_file}..."
+        rm "$replica_file"
+    fi
+done
+
 echo "Creating/updating replica files in ${REPLICA_DIR}..."
 for i in $(seq 0 $((NUM_REPLICAS - 1))); do
   replica_file="${REPLICA_DIR}/replica${i}.img"

@@ -621,7 +621,7 @@ static void pci_cxl_switch_client_realize(PCIDevice *pdev, Error **errp)
     s->interrupt_status_reg = 0; // No interrupts pending
     memset(s->bar0_mailbox, 0, BAR0_MAILBOX_SIZE);
     s->bar2_data_window_offset = 0;
-    s->bar2_data_window_size = 0;
+    s->bar2_data_window_size = BAR2_DATA_SIZE;
     s->bar2_data_size = BAR2_DATA_SIZE; // Default size, can be overridden by QOM property
 
     qemu_mutex_init(&s->lock);

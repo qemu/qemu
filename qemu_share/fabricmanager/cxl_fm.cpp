@@ -233,18 +233,22 @@ void CXLFabricManager::handle_read_mem_req(int qemu_vm_fd, const cxl_ipc_read_re
       switch(req.size) {
       case 1:
         resp.value = *reinterpret_cast<uint8_t*>(tmp_buffer);
+        CXL_FM_LOG("Read 1 byte: " + std::to_string(resp.value));
         resp.status = CXL_IPC_STATUS_OK;
         break;
         case 2:
         resp.value = *reinterpret_cast<uint16_t*>(tmp_buffer);
+        CXL_FM_LOG("Read 2 bytes: " + std::to_string(resp.value));
         resp.status = CXL_IPC_STATUS_OK;
         break;
         case 4:
         resp.value = *reinterpret_cast<uint32_t*>(tmp_buffer);
+        CXL_FM_LOG("Read 4 bytes: " + std::to_string(resp.value));
         resp.status = CXL_IPC_STATUS_OK;
         break;
         case 8:
         resp.value = *reinterpret_cast<uint64_t*>(tmp_buffer);
+        CXL_FM_LOG("Read 8 bytes: " + std::to_string(resp.value));
         resp.status = CXL_IPC_STATUS_OK;
         break;
       default:

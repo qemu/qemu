@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <exception>
 #include <iostream>
+#include <unistd.h>
 
 int main() {
   const std::string device_path = "/dev/cxl_switch_client0";
@@ -25,7 +26,7 @@ int main() {
 
     std::cout << "Client: Read value 0x" << std::hex << read_value 
               << " from offset " << std::dec << test_offset << "." << std::endl;
-    
+    usleep(5000000);
     if (read_value == test_value) {
         std::cout << "Client: Read value matches written value. Test passed!" << std::endl;
     } else {

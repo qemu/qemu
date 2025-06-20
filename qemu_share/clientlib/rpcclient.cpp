@@ -84,7 +84,7 @@ DiancieClient::DiancieClient(const std::string &device_path, const std::string &
 
   std::cout << "DiancieClient initialized. Device = " << device_path_
             << ", BAR0 mmapped at " << bar0_base_ << ", BAR1 mmapped at "
-            << bar1_base_ << ", cmd_ready_efd " << eventfd_cmd_ready_ << std::endl;
+            << bar1_base_ << "BAR2 mmapped at " << bar2_base_ << ", cmd_ready_efd " << eventfd_cmd_ready_ << std::endl;
 }
 
 DiancieClient::~DiancieClient() {
@@ -194,6 +194,11 @@ bool DiancieClient::set_memory_window(uint64_t offset, uint64_t size) {
   req.type = CXL_MSG_TYPE_RPC_SET_BAR2_WINDOW_REQ;
   req.offset = offset;
   req.size = size;
+
+  std::cout << "Sending mem window request " 
+            << "Offset: 0x" << std::hex << req.offset 
+            << ", Size: 0x" << req.size << std::dec << std::endl;
+
 
   if (send_command(&req, sizeof(req))) {
     cxl_ipc_rpc_set_bar2_window_resp_t resp;
