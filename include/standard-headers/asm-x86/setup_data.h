@@ -13,7 +13,8 @@
 #define SETUP_CC_BLOB			7
 #define SETUP_IMA			8
 #define SETUP_RNG_SEED			9
-#define SETUP_ENUM_MAX			SETUP_RNG_SEED
+#define SETUP_KEXEC_KHO			10
+#define SETUP_ENUM_MAX			SETUP_KEXEC_KHO
 
 #define SETUP_INDIRECT			(1<<31)
 #define SETUP_TYPE_MAX			(SETUP_ENUM_MAX | SETUP_INDIRECT)
@@ -76,6 +77,16 @@ struct jailhouse_setup_data {
 struct ima_setup_data {
 	uint64_t addr;
 	uint64_t size;
+} QEMU_PACKED;
+
+/*
+ * Locations of kexec handover metadata
+ */
+struct kho_data {
+	uint64_t fdt_addr;
+	uint64_t fdt_size;
+	uint64_t scratch_addr;
+	uint64_t scratch_size;
 } QEMU_PACKED;
 
 #endif /* __ASSEMBLER__ */

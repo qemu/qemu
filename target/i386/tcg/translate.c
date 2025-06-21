@@ -2033,8 +2033,11 @@ static void gen_movl_seg(DisasContext *s, X86Seg seg_reg, TCGv src, bool inhibit
         tcg_gen_trunc_tl_i32(sel, src);
         gen_helper_load_seg(tcg_env, tcg_constant_i32(seg_reg), sel);
 
-        /* For move to DS/ES/SS, the addseg or ss32 flags may change.  */
-        if (CODE32(s) && seg_reg < R_FS) {
+        /*
+         * For moves to SS, the SS32 flag may change. For CODE32 only, changes
+         * to SS, DS and ES may change the ADDSEG flags.
+         */
+        if (seg_reg == R_SS || (CODE32(s) && seg_reg < R_FS)) {
             s->base.is_jmp = DISAS_EOB_NEXT;
         }
     } else {

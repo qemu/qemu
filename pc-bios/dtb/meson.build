@@ -9,7 +9,7 @@ dtc = find_program('dtc', required: false)
 if dtc.found()
   foreach out : dtbs
     f = fs.replace_suffix(out, '.dts')
-    custom_target(f,
+    custom_target(out,
         build_by_default: have_system,
         input: files(f),
         output: out,

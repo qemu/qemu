@@ -7349,9 +7349,6 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         if (threads_per_pkg > 1) {
             *ebx |= threads_per_pkg << 16;
         }
-        if (!cpu->enable_pmu) {
-            *ecx &= ~CPUID_EXT_PDCM;
-        }
         break;
     case 2:
         /* cache info: needed for Pentium Pro compatibility */
@@ -8339,6 +8336,13 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         if (!IS_INTEL_CPU(env) && !IS_ZHAOXIN_CPU(env)) {
             env->features[FEAT_8000_0001_ECX] |= CPUID_EXT3_CMP_LEG;
         }
+    }
+
+    if (!cpu->enable_pmu) {
+        mark_unavailable_features(cpu, FEAT_1_ECX,
+                                  env->user_features[FEAT_1_ECX] & CPUID_EXT_PDCM,
+                                  "This feature is not available due to PMU being disabled");
+        env->features[FEAT_1_ECX] &= ~CPUID_EXT_PDCM;
     }
 
     for (i = 0; i < ARRAY_SIZE(feature_dependencies); i++) {

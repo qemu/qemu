@@ -843,15 +843,12 @@ host_dsosuf = '.so'
 if host_os == 'windows'
   midl = find_program('midl', required: false)
   widl = find_program('widl', required: false)
-  pathcch = cc.find_library('pathcch')
-  synchronization = cc.find_library('Synchronization', required: false)
-  if not synchronization.found()
-    # The library name is lowercase on mingw
-    synchronization = cc.find_library('synchronization', required: true)
-  endif
 
-  socket = cc.find_library('ws2_32')
-  winmm = cc.find_library('winmm')
+  # MinGW uses lowercase for library names
+  pathcch = cc.find_library('pathcch', required: true)
+  synchronization = cc.find_library('synchronization', required: true)
+  socket = cc.find_library('ws2_32', required: true)
+  winmm = cc.find_library('winmm', required: true)
 
   win = import('windows')
   version_res = win.compile_resources('version.rc',
@@ -4203,10 +4200,11 @@ foreach target_base_arch, config_base_arch : config_base_arch_mak
 endforeach
 
 if have_rust
+  bindings_incdir = include_directories('.', 'include')
   # We would like to use --generate-cstr, but it is only available
   # starting with bindgen 0.66.0.  The oldest supported versions
   # is 0.60.x (Debian 12 has 0.60.1) which introduces --allowlist-file.
-  bindgen_args = [
+  bindgen_args_common = [
     '--disable-header-comment',
     '--raw-line', '// @generated',
     '--ctypes-prefix', 'std::os::raw',
@@ -4222,59 +4220,20 @@ if have_rust
     ]
   if not rustfmt.found()
     if bindgen.version().version_compare('<0.65.0')
-      bindgen_args += ['--no-rustfmt-bindings']
+      bindgen_args_common += ['--no-rustfmt-bindings']
     else
-      bindgen_args += ['--formatter', 'none']
+      bindgen_args_common += ['--formatter', 'none']
     endif
   endif
   if bindgen.version().version_compare('>=0.66.0')
-    bindgen_args += ['--rust-target', '1.59']
+    bindgen_args_common += ['--rust-target', '1.59']
   endif
   if bindgen.version().version_compare('<0.61.0')
     # default in 0.61+
-    bindgen_args += ['--size_t-is-usize']
+    bindgen_args_common += ['--size_t-is-usize']
   else
-    bindgen_args += ['--merge-extern-blocks']
+    bindgen_args_common += ['--merge-extern-blocks']
   endif
-  c_enums = [
-    'DeviceCategory',
-    'GpioPolarity',
-    'MachineInitPhase',
-    'MemoryDeviceInfoKind',
-    'MigrationPolicy',
-    'MigrationPriority',
-    'QEMUChrEvent',
-    'QEMUClockType',
-    'ResetType',
-    'device_endian',
-    'module_init_type',
-  ]
-  foreach enum : c_enums
-    bindgen_args += ['--rustified-enum', enum]
-  endforeach
-  c_bitfields = [
-    'ClockEvent',
-    'VMStateFlags',
-  ]
-  foreach enum : c_bitfields
-    bindgen_args += ['--bitfield-enum', enum]
-  endforeach
-
-  # TODO: Remove this comment when the clang/libclang mismatch issue is solved.
-  #
-  # Rust bindings generation with `bindgen` might fail in some cases where the
-  # detected `libclang` does not match the expected `clang` version/target. In
-  # this case you must pass the path to `clang` and `libclang` to your build
-  # command invocation using the environment variables CLANG_PATH and
-  # LIBCLANG_PATH
-  bindings_rs = rust.bindgen(
-    input: 'rust/wrapper.h',
-    dependencies: common_ss.all_dependencies(),
-    output: 'bindings.inc.rs',
-    include_directories: include_directories('.', 'include'),
-    bindgen_version: ['>=0.60.0'],
-    args: bindgen_args,
-    )
   subdir('rust')
 endif
 

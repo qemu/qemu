@@ -1071,6 +1071,11 @@
 #     e.g., specific to the workload rather than the run-time or OS
 #     (base64 encoded SHA384 digest).  Defaults to all zeros.
 #
+# @quote-generation-socket: socket address for Quote Generation
+#     Service (QGS).  QGS is a daemon running on the host.  Without
+#     it, the guest will not be able to get a TD quote for
+#     attestation.
+#
 # Since: 10.1
 ##
 { 'struct': 'TdxGuestProperties',
@@ -1078,7 +1083,8 @@
             '*sept-ve-disable': 'bool',
             '*mrconfigid': 'str',
             '*mrowner': 'str',
-            '*mrownerconfig': 'str' } }
+            '*mrownerconfig': 'str',
+            '*quote-generation-socket': 'SocketAddress' } }
 
 ##
 # @ThreadContextProperties:

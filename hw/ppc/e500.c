@@ -408,7 +408,7 @@ static int ppce500_load_device_tree(PPCE500MachineState *pms,
 
     if (dtb_file) {
         char *filename;
-        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, dtb_file);
+        filename = qemu_find_file(QEMU_FILE_TYPE_DTB, dtb_file);
         if (!filename) {
             goto out;
         }

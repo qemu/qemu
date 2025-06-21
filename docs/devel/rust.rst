@@ -162,6 +162,7 @@ module           status
 ``errno``        complete
 ``error``        stable
 ``irq``          complete
+``log``          proof of concept
 ``memory``       stable
 ``module``       complete
 ``qdev``         stable

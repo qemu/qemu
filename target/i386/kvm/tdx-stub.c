@@ -18,3 +18,11 @@ int tdx_handle_report_fatal_error(X86CPU *cpu, struct kvm_run *run)
 {
     return -EINVAL;
 }
+
+void tdx_handle_get_quote(X86CPU *cpu, struct kvm_run *run)
+{
+}
+
+void tdx_handle_get_tdvmcall_info(X86CPU *cpu, struct kvm_run *run)
+{
+}

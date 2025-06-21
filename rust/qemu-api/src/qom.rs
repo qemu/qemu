@@ -95,7 +95,8 @@
 use std::{
     ffi::{c_void, CStr},
     fmt,
-    mem::ManuallyDrop,
+    marker::PhantomData,
+    mem::{ManuallyDrop, MaybeUninit},
     ops::{Deref, DerefMut},
     ptr::NonNull,
 };
@@ -206,13 +207,190 @@ impl<T: fmt::Display + ObjectType> fmt::Display for ParentField<T> {
     }
 }
 
+/// This struct knows that the superclasses of the object have already been
+/// initialized.
+///
+/// The declaration of `ParentInit` is.. *"a kind of magic"*.  It uses a
+/// technique that is found in several crates, the main ones probably being
+/// `ghost-cell` (in fact it was introduced by the [`GhostCell` paper](https://plv.mpi-sws.org/rustbelt/ghostcell/))
+/// and `generativity`.
+///
+/// The `PhantomData` makes the `ParentInit` type *invariant* with respect to
+/// the lifetime argument `'init`.  This, together with the `for<'...>` in
+/// `[ParentInit::with]`, block any attempt of the compiler to be creative when
+/// operating on types of type `ParentInit` and to extend their lifetimes.  In
+/// particular, it ensures that the `ParentInit` cannot be made to outlive the
+/// `rust_instance_init()` function that creates it, and therefore that the
+/// `&'init T` reference is valid.
+///
+/// This implementation of the same concept, without the QOM baggage, can help
+/// understanding the effect:
+///
+/// ```
+/// use std::marker::PhantomData;
+///
+/// #[derive(PartialEq, Eq)]
+/// pub struct Jail<'closure, T: Copy>(&'closure T, PhantomData<fn(&'closure ()) -> &'closure ()>);
+///
+/// impl<'closure, T: Copy> Jail<'closure, T> {
+///     fn get(&self) -> T {
+///         *self.0
+///     }
+///
+///     #[inline]
+///     fn with<U>(v: T, f: impl for<'id> FnOnce(Jail<'id, T>) -> U) -> U {
+///         let parent_init = Jail(&v, PhantomData);
+///         f(parent_init)
+///     }
+/// }
+/// ```
+///
+/// It's impossible to escape the `Jail`; `token1` cannot be moved out of the
+/// closure:
+///
+/// ```ignore
+/// let x = 42;
+/// let escape = Jail::with(&x, |token1| {
+///     println!("{}", token1.get());
+///     // fails to compile...
+///     token1
+/// });
+/// // ... so you cannot do this:
+/// println!("{}", escape.get());
+/// ```
+///
+/// Likewise, in the QOM case the `ParentInit` cannot be moved out of
+/// `instance_init()`. Without this trick it would be possible to stash a
+/// `ParentInit` and use it later to access uninitialized memory.
+///
+/// Here is another example, showing how separately-created "identities" stay
+/// isolated:
+///
+/// ```ignore
+/// impl<'closure, T: Copy> Clone for Jail<'closure, T> {
+///     fn clone(&self) -> Jail<'closure, T> {
+///         Jail(self.0, PhantomData)
+///     }
+/// }
+///
+/// fn main() {
+///     Jail::with(42, |token1| {
+///         // this works and returns true: the clone has the same "identity"
+///         println!("{}", token1 == token1.clone());
+///         Jail::with(42, |token2| {
+///             // here the outer token remains accessible...
+///             println!("{}", token1.get());
+///             // ... but the two are separate: this fails to compile:
+///             println!("{}", token1 == token2);
+///         });
+///     });
+/// }
+/// ```
+pub struct ParentInit<'init, T>(
+    &'init mut MaybeUninit<T>,
+    PhantomData<fn(&'init ()) -> &'init ()>,
+);
+
+impl<'init, T> ParentInit<'init, T> {
+    #[inline]
+    pub fn with(obj: &'init mut MaybeUninit<T>, f: impl for<'id> FnOnce(ParentInit<'id, T>)) {
+        let parent_init = ParentInit(obj, PhantomData);
+        f(parent_init)
+    }
+}
+
+impl<T: ObjectType> ParentInit<'_, T> {
+    /// Return the receiver as a mutable raw pointer to Object.
+    ///
+    /// # Safety
+    ///
+    /// Fields beyond `Object` could be uninitialized and it's your
+    /// responsibility to avoid that they're used when the pointer is
+    /// dereferenced, either directly or through a cast.
+    pub fn as_object_mut_ptr(&self) -> *mut bindings::Object {
+        self.as_object_ptr().cast_mut()
+    }
+
+    /// Return the receiver as a mutable raw pointer to Object.
+    ///
+    /// # Safety
+    ///
+    /// Fields beyond `Object` could be uninitialized and it's your
+    /// responsibility to avoid that they're used when the pointer is
+    /// dereferenced, either directly or through a cast.
+    pub fn as_object_ptr(&self) -> *const bindings::Object {
+        self.0.as_ptr().cast()
+    }
+}
+
+impl<'a, T: ObjectImpl> ParentInit<'a, T> {
+    /// Convert from a derived type to one of its parent types, which
+    /// have already been initialized.
+    ///
+    /// # Safety
+    ///
+    /// Structurally this is always a safe operation; the [`IsA`] trait
+    /// provides static verification trait that `Self` dereferences to `U` or
+    /// a child of `U`, and only parent types of `T` are allowed.
+    ///
+    /// However, while the fields of the resulting reference are initialized,
+    /// calls might use uninitialized fields of the subclass.  It is your
+    /// responsibility to avoid this.
+    pub unsafe fn upcast<U: ObjectType>(&self) -> &'a U
+    where
+        T::ParentType: IsA<U>,
+    {
+        // SAFETY: soundness is declared via IsA<U>, which is an unsafe trait;
+        // the parent has been initialized before `instance_init `is called
+        unsafe { &*(self.0.as_ptr().cast::<U>()) }
+    }
+
+    /// Convert from a derived type to one of its parent types, which
+    /// have already been initialized.
+    ///
+    /// # Safety
+    ///
+    /// Structurally this is always a safe operation; the [`IsA`] trait
+    /// provides static verification trait that `Self` dereferences to `U` or
+    /// a child of `U`, and only parent types of `T` are allowed.
+    ///
+    /// However, while the fields of the resulting reference are initialized,
+    /// calls might use uninitialized fields of the subclass.  It is your
+    /// responsibility to avoid this.
+    pub unsafe fn upcast_mut<U: ObjectType>(&mut self) -> &'a mut U
+    where
+        T::ParentType: IsA<U>,
+    {
+        // SAFETY: soundness is declared via IsA<U>, which is an unsafe trait;
+        // the parent has been initialized before `instance_init `is called
+        unsafe { &mut *(self.0.as_mut_ptr().cast::<U>()) }
+    }
+}
+
+impl<T> Deref for ParentInit<'_, T> {
+    type Target = MaybeUninit<T>;
+
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+
+impl<T> DerefMut for ParentInit<'_, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0
+    }
+}
+
 unsafe extern "C" fn rust_instance_init<T: ObjectImpl>(obj: *mut bindings::Object) {
-    let mut state = NonNull::new(obj).unwrap().cast::<T>();
+    let mut state = NonNull::new(obj).unwrap().cast::<MaybeUninit<T>>();
+
     // SAFETY: obj is an instance of T, since rust_instance_init<T>
     // is called from QOM core as the instance_init function
     // for class T
     unsafe {
-        T::INSTANCE_INIT.unwrap()(state.as_mut());
+        ParentInit::with(state.as_mut(), |parent_init| {
+            T::INSTANCE_INIT.unwrap()(parent_init);
+        });
     }
 }
 
@@ -479,7 +657,7 @@ pub trait ObjectImpl: ObjectType + IsA<Object> {
     ///
     /// FIXME: The argument is not really a valid reference. `&mut
     /// MaybeUninit<Self>` would be a better description.
-    const INSTANCE_INIT: Option<unsafe fn(&mut Self)> = None;
+    const INSTANCE_INIT: Option<unsafe fn(ParentInit<Self>)> = None;
 
     /// Function that is called to finish initialization of an object, once
     /// `INSTANCE_INIT` functions have been called.

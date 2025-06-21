@@ -20,6 +20,8 @@ proc_macro2_rs_native = dependency('proc-macro2-1-rs', native: true)
 
 qemuutil_rs = qemuutil.partial_dependency(link_args: true, links: true)
 
+genrs = []
+
 subdir('qemu-api-macros')
 subdir('bits')
 subdir('qemu-api')
@@ -33,5 +35,5 @@ if cargo.found()
     command: [config_host['MESON'], 'devenv',
               '--workdir', '@CURRENT_SOURCE_DIR@',
               cargo, 'fmt'],
-    depends: bindings_rs)
+    depends: genrs)
 endif

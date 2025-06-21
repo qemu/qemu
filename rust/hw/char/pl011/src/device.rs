@@ -2,18 +2,21 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::{ffi::CStr, mem::size_of, ptr::addr_of_mut};
+use std::{ffi::CStr, mem::size_of};
 
 use qemu_api::{
     chardev::{CharBackend, Chardev, Event},
     impl_vmstate_forward,
     irq::{IRQState, InterruptSource},
+    log::Log,
+    log_mask_ln,
     memory::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder},
     prelude::*,
     qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
-    qom::{ObjectImpl, Owned, ParentField},
+    qom::{ObjectImpl, Owned, ParentField, ParentInit},
     static_assert,
     sysbus::{SysBusDevice, SysBusDeviceImpl},
+    uninit_field_mut,
     vmstate::VMStateDescription,
 };
 
@@ -163,7 +166,7 @@ impl PL011Impl for PL011State {
 impl ObjectImpl for PL011State {
     type ParentType = SysBusDevice;
 
-    const INSTANCE_INIT: Option<unsafe fn(&mut Self)> = Some(Self::init);
+    const INSTANCE_INIT: Option<unsafe fn(ParentInit<Self>)> = Some(Self::init);
     const INSTANCE_POST_INIT: Option<fn(&Self)> = Some(Self::post_init);
     const CLASS_INIT: fn(&mut Self::Class) = Self::Class::class_init::<Self>;
 }
@@ -275,8 +278,7 @@ impl PL011Registers {
             DMACR => {
                 self.dmacr = value;
                 if value & 3 > 0 {
-                    // qemu_log_mask(LOG_UNIMP, "pl011: DMA not implemented\n");
-                    eprintln!("pl011: DMA not implemented");
+                    log_mask_ln!(Log::Unimp, "pl011: DMA not implemented");
                 }
             }
         }
@@ -303,6 +305,12 @@ impl PL011Registers {
     }
 
     fn write_data_register(&mut self, value: u32) -> bool {
+        if !self.control.enable_uart() {
+            log_mask_ln!(Log::GuestError, "PL011 data written to disabled UART");
+        }
+        if !self.control.enable_transmit() {
+            log_mask_ln!(Log::GuestError, "PL011 data written to disabled TX UART");
+        }
         // interrupts always checked
         let _ = self.loopback_tx(value.into());
         self.int_level |= Interrupt::TX;
@@ -488,7 +496,7 @@ impl PL011State {
     /// `PL011State` type. It must not be called more than once on the same
     /// location/instance. All its fields are expected to hold uninitialized
     /// values with the sole exception of `parent_obj`.
-    unsafe fn init(&mut self) {
+    unsafe fn init(mut this: ParentInit<Self>) {
         static PL011_OPS: MemoryRegionOps<PL011State> = MemoryRegionOpsBuilder::<PL011State>::new()
             .read(&PL011State::read)
             .write(&PL011State::write)
@@ -496,28 +504,23 @@ impl PL011State {
             .impl_sizes(4, 4)
             .build();
 
-        // SAFETY:
-        //
-        // self and self.iomem are guaranteed to be valid at this point since callers
-        // must make sure the `self` reference is valid.
+        // SAFETY: this and this.iomem are guaranteed to be valid at this point
         MemoryRegion::init_io(
-            unsafe { &mut *addr_of_mut!(self.iomem) },
-            addr_of_mut!(*self),
+            &mut uninit_field_mut!(*this, iomem),
             &PL011_OPS,
             "pl011",
             0x1000,
         );
 
-        self.regs = Default::default();
+        uninit_field_mut!(*this, regs).write(Default::default());
 
-        // SAFETY:
-        //
-        // self.clock is not initialized at this point; but since `Owned<_>` is
-        // not Drop, we can overwrite the undefined value without side effects;
-        // it's not sound but, because for all PL011State instances are created
-        // by QOM code which calls this function to initialize the fields, at
-        // leastno code is able to access an invalid self.clock value.
-        self.clock = self.init_clock_in("clk", &Self::clock_update, ClockEvent::ClockUpdate);
+        let clock = DeviceState::init_clock_in(
+            &mut this,
+            "clk",
+            &Self::clock_update,
+            ClockEvent::ClockUpdate,
+        );
+        uninit_field_mut!(*this, clock).write(clock);
     }
 
     const fn clock_update(&self, _event: ClockEvent) {
@@ -538,7 +541,7 @@ impl PL011State {
                 u64::from(device_id[(offset - 0xfe0) >> 2])
             }
             Err(_) => {
-                // qemu_log_mask(LOG_GUEST_ERROR, "pl011_read: Bad offset 0x%x\n", (int)offset);
+                log_mask_ln!(Log::GuestError, "PL011State::read: Bad offset {offset}");
                 0
             }
             Ok(field) => {
@@ -570,7 +573,10 @@ impl PL011State {
                 .borrow_mut()
                 .write(field, value as u32, &self.char_backend);
         } else {
-            eprintln!("write bad offset {offset} value {value}");
+            log_mask_ln!(
+                Log::GuestError,
+                "PL011State::write: Bad offset {offset} value {value}"
+            );
         }
         if update_irq {
             self.update();

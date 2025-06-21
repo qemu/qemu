@@ -6170,6 +6170,21 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
             break;
         }
         break;
+    case KVM_EXIT_TDX:
+        /*
+         * run->tdx is already set up for the case where userspace
+         * does not handle the TDVMCALL.
+         */
+        switch (run->tdx.nr) {
+        case TDVMCALL_GET_QUOTE:
+            tdx_handle_get_quote(cpu, run);
+            break;
+        case TDVMCALL_GET_TD_VM_CALL_INFO:
+            tdx_handle_get_tdvmcall_info(cpu, run);
+            break;
+        }
+        ret = 0;
+        break;
     default:
         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
         ret = -1;

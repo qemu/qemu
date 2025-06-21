@@ -48,6 +48,8 @@ typedef enum memory_order {
 #endif /* __CLANG_STDATOMIC_H */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
+#include "qemu/log-for-trace.h"
 #include "qemu/module.h"
 #include "qemu-io.h"
 #include "system/system.h"
