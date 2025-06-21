@@ -13,5 +13,5 @@ void uart_puts(const char *s) {
 }
 
 void main(void) {
-    uart_puts("Hello, QEMU UART!\n");
+    uart_puts("Hello World\n");
 }

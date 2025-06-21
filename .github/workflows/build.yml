@@ -63,3 +63,13 @@ jobs:
         with:
           name: uart-output
           path: custom_example/uart/output.txt
+
+      - name: Validate UART Output
+        run: |
+          if grep -q "Hello World" custom_example/uart/output.txt; then
+            echo "✅ UART output verified."
+          else
+            echo "❌ Expected output not found!"
+            cat custom_example/uart/output.txt
+            exit 1
+          fi
