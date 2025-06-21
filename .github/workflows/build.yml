@@ -64,12 +64,22 @@ jobs:
           name: uart-output
           path: custom_example/uart/output.txt
 
+      on:
+        workflow_dispatch:
+          inputs:
+            expected_output:
+              description: "Expected UART string"
+              required: true
+
+
       - name: Validate UART Output
         run: |
-          if grep -q "Hello World" custom_example/uart/output.txt; then
-            echo "✅ UART output verified."
+          echo "Looking for expected string: ${{ github.event.inputs.expected_output }}"
+          cat custom_example/uart/output.txt
+          if grep -q "${{ github.event.inputs.expected_output }}" custom_example/uart/output.txt; then
+            echo "✅ Match found"
           else
-            echo "❌ Expected output not found!"
-            cat custom_example/uart/output.txt
+            echo "❌ No match"
             exit 1
           fi
+
