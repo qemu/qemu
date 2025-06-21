@@ -1,0 +1,61 @@
+name: QEMU Clean CI Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ dev_10.0.2 ]
+  pull_request:
+    branches: [ dev_10.0.2 ]
+
+jobs:
+  clean-build-qemu:
+    name: Clean Build QEMU and Run Baremetal Example
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y ninja-build build-essential libglib2.0-dev libpixman-1-dev \
+            libfdt-dev zlib1g-dev flex bison python3 python3-pip libncurses5-dev \
+            libslirp-dev ccache gcc-arm-none-eabi coreutils
+
+      - name: Clean Build Folder
+        run: |
+          rm -rf build/ custom_example/uart/*.elf custom_example/uart/*.bin custom_example/uart/output.txt
+
+      - name: Configure QEMU
+        run: |
+          ./configure \
+            --target-list=arm-softmmu,aarch64-softmmu \
+            --enable-debug --disable-strip --enable-plugins
+
+      - name: Build QEMU
+        run: make -j$(nproc)
+
+      - name: Show QEMU Version
+        run: |
+          ./build/qemu-system-arm --version
+          ./build/qemu-system-aarch64 --version
+
+      - name: Build Custom Baremetal Binary
+        run: |
+          arm-none-eabi-gcc -mcpu=arm926ej-s -nostdlib -T custom_example/uart/link.ld \
+            -o custom_example/uart/main.elf \
+            custom_example/uart/start.S custom_example/uart/main.c
+
+          arm-none-eabi-objcopy -O binary custom_example/uart/main.elf custom_example/uart/main.bin
+
+      - name: Run Baremetal Binary on QEMU
+        run: |
+          timeout 5s ./build/qemu-system-arm \
+            -M versatilepb \
+            -cpu arm926 \
+            -nographic \
+            -serial file:custom_example/uart/output.txt \
+            -kernel custom_example/uart/main.bin || true
+
+      - name: Upload UART Output
+        uses: actions/upload-artifact@v4
+        with:
+          name: uart-output
