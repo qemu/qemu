@@ -63,12 +63,6 @@ jobs:
             -serial file:custom_example/uart/output.txt \
             -kernel custom_example/uart/main.bin || true
 
-      - name: Upload UART Output
-        uses: actions/upload-artifact@v4
-        with:
-          name: uart-output
-          path: custom_example/uart/output.txt
-
       - name: Validate UART Output
         run: |
           echo "Looking for expected string: ${{ github.event.inputs.expected_output }}"
@@ -80,4 +74,8 @@ jobs:
             exit 1
           fi
 
-# trigger update
+      - name: Upload UART Output
+        uses: actions/upload-artifact@v4
+        with:
+          name: uart-output
+          path: custom_example/uart/output.txt
