@@ -1,7 +1,5 @@
 name: QEMU Clean CI Build
 
-name: QEMU Clean CI Build
-
 on:
   workflow_dispatch:
     inputs:
