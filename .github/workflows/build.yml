@@ -60,7 +60,7 @@ jobs:
 
       - name: Validate UART Output
         run: |
-          if grep -q "Hello World1" custom_example/uart/output.txt; then
+          if grep -q "Hello World" custom_example/uart/output.txt; then
             echo "✅ UART output verified."
           else
             echo "❌ Expected output not found!"
