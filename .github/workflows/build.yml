@@ -2,6 +2,14 @@ name: QEMU Clean CI Build
 
 on:
   workflow_dispatch:
+    inputs:
+      expected_output:
+        description: "Expected UART string"
+        required: true
+
+
+on:
+  workflow_dispatch:
   push:
     branches: [ CICD_testing ]
   pull_request:
@@ -63,14 +71,6 @@ jobs:
         with:
           name: uart-output
           path: custom_example/uart/output.txt
-
-      on:
-        workflow_dispatch:
-          inputs:
-            expected_output:
-              description: "Expected UART string"
-              required: true
-
 
       - name: Validate UART Output
         run: |
