@@ -73,3 +73,12 @@ jobs:
         with:
           name: uart-output
           path: custom_example/uart/output.txt
+
+      - name: Upload QEMU Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-binaries
+          path: |
+            build/qemu-system-arm
+            build/qemu-system-aarch64
+
