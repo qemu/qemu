@@ -62,3 +62,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: uart-output
+          path: custom_example/uart/output.txt
