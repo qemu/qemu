@@ -2,7 +2,7 @@
 
 img2="ubuntu-22.04-image1.img"
 user_data2="user-data1.img"
-REPLICA_SIZE="256M"
+REPLICA_SIZE="1024M"
 SERVER_SOCKET_PATH="/tmp/cxl_switch_server.sock"
 
 

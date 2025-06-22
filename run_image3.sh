@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-img1="ubuntu-22.04-image0.img"
-user_data1="user-data0.img"
+img1="ubuntu-22.04-image2.img"
+user_data1="user-data2.img"
 REPLICA_SIZE="1024M"
 SERVER_SOCKET_PATH="/tmp/cxl_switch_server.sock"
 
