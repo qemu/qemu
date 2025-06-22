@@ -40,7 +40,7 @@ subdir('macio')
 # ivshmem devices
 system_ss.add(when: 'CONFIG_IVSHMEM_DEVICE', if_true: files('ivshmem-pci.c'))
 system_ss.add(when: 'CONFIG_IVSHMEM_FLAT_DEVICE', if_true: files('ivshmem-flat.c'))
-system_ss.add(when: 'CONFIG_CXL_SWITCH', if_true: files('cxl-switch.c'))
+system_ss.add(when: 'CONFIG_CXL_SWITCH', if_true: files('cxl-switch-client.c'))
 
 system_ss.add(when: 'CONFIG_ALLWINNER_SRAMC', if_true: files('allwinner-sramc.c'))
 system_ss.add(when: 'CONFIG_ALLWINNER_A10_CCM', if_true: files('allwinner-a10-ccm.c'))

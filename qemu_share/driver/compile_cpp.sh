@@ -1,0 +1,1 @@
+g++ ooga.cpp -o ooga -Wall -Wextra -g -std=c++11

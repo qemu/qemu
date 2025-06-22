@@ -1,5 +1,43 @@
 # Log
 
+## 16 June
+
+Forgot to update.
+1st week of June was ACM SRC
+2nd week was mental health recovery week
+
+resuming work here
+
+The current workflow:
+
+1. Fabric manager
+2. Server
+3. Client
+
+Service registration is the current next step.
+
+We have vm1, vm2 which insmod the kernel module to interface with the device.
+The fabric manager shud be run first.
+
+After booting vm1 and vm2, run command
+`sudo mount -t 9p -o trans=virtio,version=9p2000.L shared /mnt/shared`
+to get access to shared folder. then cd inside and run tests
+
+```bash
+cd /mnt/shared
+cd /kernelmodule
+make
+sudo insmod cxl_switch_driver.ko
+```
+
+`make` in root folder to build cxl-switch-client.c which is qemu device
+`qemu_share` 
+
+- fm compile and run on host
+- compile kernel module and insmod to interface with device
+
+When dc, need to free the mem block again.
+
 ## 23 May
 
 Here is what has been achieved so far as of 23 May.
