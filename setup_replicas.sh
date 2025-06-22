@@ -1,5 +1,5 @@
 REPLICA_DIR="/home/jotham/qemu-cxl-shm"
-REPLICA_SIZE="512M"
+REPLICA_SIZE="1024M"
 NUM_REPLICAS=3
 
 mkdir -p "$REPLICA_DIR"

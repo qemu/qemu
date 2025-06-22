@@ -10,83 +10,112 @@ fi
 REPLICA_DIR="/home/jotham/qemu-cxl-shm"
 REPLICA_SIZE="256M"
 NUM_REPLICAS=3
+BASE_IMAGE="ubuntu-22.04-server-cloudimg-amd64.img"
+BASE_IMAGE_URL="https://cloud-images.ubuntu.com/releases/22.04/release/${BASE_IMAGE}"
 
-# --- Image 1 Setup ---
-img_base_name="ubuntu-22.04-server-cloudimg-amd64.img" # Base image for both
-img1="ubuntu-22.04-image0.img"
-user_data1="user-data0.img"
+download_base_image() {
+    local base_image="$1"
+    local url="$2"
+    
+    if [ ! -f "$base_image" ]; then
+        echo "Downloading base cloud image: ${base_image}..."
+        wget "$url"
+    fi
+}
 
-if [ ! -f "$img1" ]; then
-  if [ ! -f "$img_base_name" ]; then
-    echo "Downloading base cloud image: ${img_base_name}..."
-    wget "https://cloud-images.ubuntu.com/releases/22.04/release/${img_base_name}"
-  fi
-
-  echo "Creating image: ${img1} from base..."
-  cp "$img_base_name" "$img1"
-  echo "Resizing ${img1} (sparse)..."
-  qemu-img resize "$img1" +128G
-fi
-
-if [ ! -f "$user_data1" ]; then
-  echo "Creating user data for ${img1}..."
-  cat >user-data-config0.txt <<EOF
+setup_vm_image() {
+    local image_id="$1"
+    local password="$2"
+    local base_image="$3"
+    
+    local img_name="ubuntu-22.04-image${image_id}.img"
+    local user_data_name="user-data${image_id}.img"
+    local config_file="user-data-config${image_id}.txt"
+    
+    echo "=== Setting up Image ${image_id} ==="
+    
+    # Download base image if needed
+    download_base_image "$base_image" "$BASE_IMAGE_URL"
+    
+    # Create VM image
+    if [ ! -f "$img_name" ]; then
+        echo "Creating image: ${img_name} from base..."
+        cp "$base_image" "$img_name"
+        echo "Resizing ${img_name} (sparse)..."
+        qemu-img resize "$img_name" +128G
+    else
+        echo "Image ${img_name} already exists, skipping creation."
+    fi
+    
+    # Create user data image
+    if [ ! -f "$user_data_name" ]; then
+        echo "Creating user data for ${img_name}..."
+        cat > "$config_file" <<EOF
 #cloud-config
-password: asdfqwer
+password: ${password}
 chpasswd: { expire: False }
 ssh_pwauth: True
 EOF
-  cloud-localds "$user_data1" user-data-config0.txt
-  rm user-data-config0.txt # Clean up temporary config file
-fi
+        cloud-localds "$user_data_name" "$config_file"
+        rm "$config_file" # Clean up temporary config file
+        echo "User data ${user_data_name} created successfully."
+    else
+        echo "User data ${user_data_name} already exists, skipping creation."
+    fi
+    
+    echo "Image ${image_id} setup complete: ${img_name}, ${user_data_name}"
+    echo ""
+}
 
-# --- Image 2 Setup ---
-img2="ubuntu-22.04-image1.img"
-user_data2="user-data1.img"
+setup_replica_files() {
+    local replica_dir="$1"
+    local replica_size="$2"
+    local num_replicas="$3"
+    
+    echo "=== Setting up Replica Files ==="
+    
+    mkdir -p "$replica_dir"
+    
+    echo "Creating/updating replica files in ${replica_dir}..."
+    for i in $(seq 0 $((num_replicas - 1))); do
+        local replica_file="${replica_dir}/replica${i}.img"
+        local expected_size=$(numfmt --from=iec "$replica_size")
+        
+        if [ ! -f "$replica_file" ] || [ "$(stat -c%s "$replica_file" 2>/dev/null || echo 0)" != "$expected_size" ]; then
+            echo "Creating or resizing ${replica_file} to ${replica_size}..."
+            truncate -s "$replica_size" "$replica_file"
+            chmod 666 "$replica_file"
+        else
+            echo "${replica_file} already exists with correct size."
+        fi
+    done
+    
+    echo "Replica files setup complete."
+    echo ""
+}
 
-if [ ! -f "$img2" ]; then
-  if [ ! -f "$img_base_name" ]; then
-    echo "Downloading base cloud image: ${img_base_name}..."
-    wget "https://cloud-images.ubuntu.com/releases/22.04/release/${img_base_name}"
-  fi
-  echo "Creating image: ${img2} from base..."
-  cp "$img_base_name" "$img2"
-  echo "Resizing ${img2} (sparse)..."
-  qemu-img resize "$img2" +128G
-fi
+main() {
+    echo "Starting VM and replica setup..."
+    echo ""
+    
+    setup_vm_image "0" "asdfqwer" "$BASE_IMAGE"
+    setup_vm_image "1" "asdfqwer" "$BASE_IMAGE"
+    setup_vm_image "2" "asdfqwer" "$BASE_IMAGE"
+    
+    setup_replica_files "$REPLICA_DIR" "$REPLICA_SIZE" "$NUM_REPLICAS"
+    
+    echo "=== Setup Complete ==="
+    echo "Now have VM images:"
+    echo "  - ubuntu-22.04-image0.img with user-data0.img (password: asdfqwer)"
+    echo "  - ubuntu-22.04-image1.img with user-data1.img (password: asdfqwer)"
+    echo "  - ubuntu-22.04-image2.img with user-data2.img (password: asdfqwer)"
+    echo "And replica files in $REPLICA_DIR:"
+    for i in $(seq 0 $((NUM_REPLICAS - 1))); do
+        echo "  - ${REPLICA_DIR}/replica${i}.img (${REPLICA_SIZE})"
+    done
+    echo ""
+    echo "To mount shared folder in guest VM:"
+    echo "  sudo mount -t 9p -o trans=virtio,version=9p2000.L shared /mnt/shared"
+}
 
-if [ ! -f "$user_data2" ]; then
-  echo "Creating user data for ${img2}..."
-  cat >user-data-config1.txt <<EOF
-#cloud-config
-password: newpassword # Changed password for the second image
-chpasswd: { expire: False }
-ssh_pwauth: True
-EOF
-  cloud-localds "$user_data2" user-data-config1.txt
-  rm user-data-config1.txt # Clean up temporary config file
-fi
-
-
-# --- Replica Files Setup (Common for the CXL device example) ---
-# Ensure REPLICA_DIR exists
-mkdir -p "$REPLICA_DIR"
-
-echo "Creating/updating replica files in ${REPLICA_DIR}..."
-for i in $(seq 0 $((NUM_REPLICAS - 1))); do
-  replica_file="${REPLICA_DIR}/replica${i}.img"
-  if [ ! -f "$replica_file" ] || [ "$(stat -c%s "$replica_file")" != "$(numfmt --from=iec "$REPLICA_SIZE")" ]; then
-    echo "Creating or resizing ${replica_file} to ${REPLICA_SIZE}..."
-    truncate -s "$REPLICA_SIZE" "$replica_file"
-    chmod 666 "$replica_file"
-  else
-    echo "${replica_file} already exists with correct size."
-  fi
-done
-
-echo "Script complete. You now have images: $img1, $user_data1, $img2, $user_data2"
-echo "And replica files in $REPLICA_DIR"
-
-# Link: https://dev.to/franzwong/mount-share-folder-in-qemu-with-same-permission-as-host-2980
-# Mounting the shared folder in the guest, mkdir dir first in VM
-# sudo mount -t 9p -o trans=virtio,version=9p2000.L shared /mnt/shared
+main "$@"
