@@ -63,14 +63,19 @@ protected:
   int eventfd_cmd_ready_ = -1;
   QEMUConnection wait_for_new_client_notification(int timeout_ms);
 
-  bool send_command(const void* req, size_t size);
-  bool recv_response(void* req, size_t size);
-  bool wait_for_command_response(int timeout_ms);
+  std::optional<CXLEventData> wait_for_event(int timeout_ms) override;
+  std::optional<CXLEventData> check_for_new_client();
+  std::optional<CXLEventData> check_for_closed_channel();
+  std::optional<CXLEventData> check_for_disconnect();
+
+  bool send_command(const void* req, size_t size) override;
+  bool recv_response(void* req, size_t size) override;
+  bool wait_for_command_response(int timeout_ms) override;
   uint32_t get_command_status();
-  uint32_t get_notification_status();
+  uint32_t get_notification_status() override;
   void clear_notification_status(uint32_t bits_to_clear);
   // In the impl now, both server/client must configure their QEMU device
-  bool set_memory_window(uint64_t offset, uint64_t size, uint64_t channel_id);
+  bool set_memory_window(uint64_t offset, uint64_t size, uint64_t channel_id) override;
   
 
   void write_u64(uint64_t offset, uint64_t value);

@@ -28,6 +28,7 @@ struct QueueEntry {
 
 
 using ClientId = std::string;
+using ChannelId = uint64_t;
 
 class DiancieServer : protected QEMUCXLConnector {
 public:
@@ -51,13 +52,15 @@ public:
 private:
   std::string service_name_;
   std::string instance_id_;
+  std::unordered_map<uint64_t, std::thread> clients_;
   
-  // Interface method to wait for incoming client connections
-  std::unique_ptr<AbstractCXLConnection> wait_for_new_client_notification(int timeout_ms);
+private:
+  void handle_new_client(std::unique_ptr<AbstractCXLConnection> conn);
+  void handle_channel_close(uint64_t channel_id);
+  void handle_client_disconnect(uint64_t channel_id);
+  void service_client(std::unique_ptr<AbstractCXLConnection> conn);
+
   uint32_t get_command_status();
-
-  std::vector<std::thread> clients_;
-
   // Called once in constructor
   bool register_service();
   // Called in destructor?

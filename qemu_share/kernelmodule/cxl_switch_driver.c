@@ -47,11 +47,6 @@ MODULE_DESCRIPTION("CXL Switch driver");
 #define REG_INTERRUPT_MASK   0x0C
 #define REG_INTERRUPT_STATUS 0x10
 
-// Bits for REG_INTERRUPT_MASK and REG_INTERRUPT_STATUS (from QEMU device cxl-switch-client.c)
-#define IRQ_SOURCE_NEW_CLIENT_NOTIFY  (1 << 0)
-#define IRQ_SOURCE_CMD_RESPONSE_READY (1 << 1)
-#define ALL_INTERRUPT_SOURCES (IRQ_SOURCE_NEW_CLIENT_NOTIFY | IRQ_SOURCE_CMD_RESPONSE_READY)
-
 // Support just one device instance at a time
 #define MAX_DEVICES 1
 
@@ -406,6 +401,17 @@ static irqreturn_t cxl_switch_client_isr(int irq, void *dev_id) {
     handled_irqs |= IRQ_SOURCE_NEW_CLIENT_NOTIFY;
   }
 
+  if (active_interrupts & IRQ_SOURCE_CLOSE_CHANNEL_NOTIFY) {
+    pr_info("%s: Close channel notification received.\n", DRIVER_NAME);
+    if (dev->eventfd_notify_ctx) {
+      eventfd_signal(dev->eventfd_notify_ctx);
+      pr_info("%s: Signaled eventfd for new client notification.\n", DRIVER_NAME);
+    } else {
+      pr_info("%s: No eventfd context for new client notifications, skipping signal.\n", DRIVER_NAME);
+    }
+    handled_irqs |= IRQ_SOURCE_CLOSE_CHANNEL_NOTIFY;
+  }
+
   if (active_interrupts & IRQ_SOURCE_CMD_RESPONSE_READY) {
     pr_info("%s: Command response ready notification received.\n", DRIVER_NAME);
     if (dev->eventfd_cmd_ctx) {
@@ -583,7 +589,7 @@ static int cxl_switch_client_pci_probe(struct pci_dev *pdev, const struct pci_de
     //    Enable interrupts on the device by writing to its interrupt mask 
     //    register in BAR1
     if (dev->bar1_kva) {
-      iowrite32(ALL_INTERRUPT_SOURCES, dev->bar1_kva + REG_INTERRUPT_MASK);
+    iowrite32(ALL_INTERRUPT_SOURCES, dev->bar1_kva + REG_INTERRUPT_MASK);
       pr_info("%s: Enabled all interrupts for %s\n", DRIVER_NAME, pci_name(pdev));
     } else {
         pr_err("%s: BAR1 not mapped, cannot enable interrupts for %s\n", DRIVER_NAME, pci_name(pdev));

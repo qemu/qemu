@@ -1,7 +1,9 @@
+#include "a_cxl_connector.hpp"
 #include "qemu_cxl_connector.hpp"
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <sys/poll.h>
 #include <unistd.h>
@@ -70,10 +72,10 @@ QEMUCXLConnector::QEMUCXLConnector(const std::string &device_path)
     throw std::runtime_error("Failed to setup eventfd for command ready");
   }
 
-    std::cout << "QEMU CXL Connector initialized. Device = " << device_path_
-            << ", BAR0 mmapped at " << bar0_base_ << ", BAR1 mmapped at "
-            << bar1_base_ << ", BAR2 mapped at " << bar2_base_ << ", notify_efd " << eventfd_notify_
-            << ", cmd_ready_efd " << eventfd_cmd_ready_ << std::endl;
+  std::cout << "QEMU CXL Connector initialized. Device = " << device_path_
+          << ", BAR0 mmapped at " << bar0_base_ << ", BAR1 mmapped at "
+          << bar1_base_ << ", BAR2 mapped at " << bar2_base_ << ", notify_efd " << eventfd_notify_
+          << ", cmd_ready_efd " << eventfd_cmd_ready_ << std::endl;
 }
 
 QEMUCXLConnector::~QEMUCXLConnector() {
@@ -164,6 +166,8 @@ uint32_t QEMUCXLConnector::get_notification_status() {
   return *status_reg_ptr;
 }
 
+// This method clears the notif and also clears the interrupt status
+// as it writes to the bar1 register
 void QEMUCXLConnector::clear_notification_status(uint32_t bits_to_clear) {
   volatile uint32_t* status_reg_ptr = static_cast<volatile uint32_t*>(
     static_cast<void*>(static_cast<char*>(bar1_base_) + REG_NOTIF_STATUS)
@@ -214,6 +218,71 @@ uint64_t QEMUCXLConnector::read_u64(uint64_t offset) {
   }
   volatile uint64_t* addr = static_cast<volatile uint64_t*>(static_cast<void*>(static_cast<char*>(bar2_base_) + offset));
   return *addr;
+}
+
+std::optional<CXLEventData> QEMUCXLConnector::wait_for_event(int timeout_ms) {
+  struct pollfd pfds;
+
+  pfds.fd = eventfd_notify_;
+  pfds.events = POLLIN;
+
+  std::cout << "QEMUCXLConnector: Polling on notify_efd " << eventfd_notify_ << std::endl;
+
+  int ret = poll(&pfds, 1, timeout_ms);
+
+  if (ret < 0) {
+    std::cerr << "QEMUCXLConnector: Poll error: " << strerror(errno) << std::endl;
+    return std::nullopt;
+  } else if (ret == 0) {
+    std::cerr << "QEMUCXLConnector: Poll timeout after " << timeout_ms << " ms." << std::endl;
+    return std::nullopt;
+  } else if (pfds.revents & POLLIN) {
+    uint64_t event_count;
+    ssize_t read_bytes = read(eventfd_notify_, &event_count, sizeof(event_count));
+    if (read_bytes != sizeof(event_count)) {
+      std::cerr << "QEMUCXLConnector: Failed to read from eventfd: " << strerror(errno) << std::endl;
+      return std::nullopt;
+    }
+    std::cout << "QEMUCXLConnector: Eventfd read successfully, value = " << event_count << std::endl;
+
+    uint32_t irq_status = get_notification_status();
+    std::cout << "IRQ status: 0x" << std::hex << irq_status << std::dec << std::endl;
+
+    if (irq_status & IRQ_SOURCE_NEW_CLIENT_NOTIFY) {
+      return check_for_new_client();
+    } else if (irq_status & IRQ_SOURCE_CLOSE_CHANNEL_NOTIFY) {
+      return check_for_closed_channel();
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<CXLEventData> QEMUCXLConnector::check_for_new_client() {
+  cxl_ipc_rpc_new_client_notify_t notify;
+  recv_response(&notify, sizeof(notify));
+  clear_notification_status(NOTIF_STATUS_NEW_CLIENT);
+
+  CXLEventData event;
+  event.type = CXLEvent::NEW_CLIENT_CONNECTED;
+  event.connection = std::make_unique<QEMUConnection>(
+    notify.channel_shm_offset,
+    notify.channel_shm_size,
+    notify.channel_id
+  );
+
+  return event;
+}
+
+std::optional<CXLEventData> QEMUCXLConnector::check_for_closed_channel() {
+  cxl_ipc_rpc_close_channel_notify_t notify;
+  recv_response(&notify, sizeof(notify));
+  clear_notification_status(NOTIF_STATUS_CHANNEL_CLOSED);
+
+  CXLEventData event;
+  event.type = CXLEvent::CHANNEL_CLOSED;
+  event.channel_id = notify.channel_id;
+
+  return event;
 }
 
 };

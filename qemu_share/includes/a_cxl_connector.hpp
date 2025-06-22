@@ -2,7 +2,10 @@
 #define A_CXL_CONNECTOR_HPP
 
 #include <cstddef>
+#include <memory>
+#include <optional>
 #include <stdint.h>
+#include <string>
 namespace diancie {
 
 /// Represents an abstract CXL connection between a client and server.
@@ -17,6 +20,21 @@ public:
   virtual uint64_t get_channel_id() = 0;
 };
 
+enum class CXLEvent {
+  NEW_CLIENT_CONNECTED,
+  CLIENT_DISCONNECTED,
+  CHANNEL_CLOSED,
+  COMMAND_RECEIVED,
+  ERROR_OCURRED
+};
+
+struct CXLEventData {
+  CXLEvent type;
+  uint64_t channel_id;
+  std::unique_ptr<AbstractCXLConnection> connection;
+  std::string error_message;
+};
+
 /// This abstract class is responsible for all low-level interactions with
 /// the underlying CXL Switch device. It will make it possible to easily
 /// (hopefully) transition between our current QEMU emulation for correctness
@@ -26,6 +44,7 @@ public:
   AbstractCXLConnector() = default;
   virtual ~AbstractCXLConnector() = default;
 protected:
+  virtual std::optional<CXLEventData> wait_for_event(int timeout_ms) = 0;
   virtual bool wait_for_command_response(int timeout_ms) = 0;
   virtual uint32_t get_notification_status() = 0;
   virtual bool send_command(const void* req, size_t size) = 0;

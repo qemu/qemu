@@ -40,6 +40,10 @@ struct AllocatedRegionInfo {
   CXLMemDevice* backing_device;
   uint64_t offset;
   uint32_t size;
+
+  void free() {
+    this->backing_device->free(offset, size);
+  }
 };
 
 /**
@@ -120,8 +124,9 @@ private:
   void handle_qemu_disconnect(int qemu_vm_fd, int& max_fd);
 
   // Helper functions for cleaning up
-  void cleanup_channels_by_id(const std::vector<channel_id_t>& channels_to_clean);
+  void cleanup_fd_to_channel_ids(uint64_t channel_id, int qemu_vm_fd);
   void cleanup_services_by_fd(int fd);
+  bool release_channel(uint64_t channel_id, int qemu_vm_fd);
 };
 
 }

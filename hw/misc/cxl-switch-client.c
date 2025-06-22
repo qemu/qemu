@@ -61,10 +61,12 @@
 // Status values for REG_NOTIF_STATUS
 #define NOTIF_STATUS_NONE               0x00
 #define NOTIF_STATUS_NEW_CLIENT         0x01
+#define NOTIF_STATUS_CHANNEL_CLOSED     0x02
 
 // Bits for REG_INTERRUPT_MASK and REG_INTERRUPT_STATUS
-#define IRQ_SOURCE_NEW_CLIENT_NOTIFY  (1 << 0)
-#define IRQ_SOURCE_CMD_RESPONSE_READY (1 << 1)
+#define IRQ_SOURCE_NEW_CLIENT_NOTIFY    (1 << 0)
+#define IRQ_SOURCE_CLOSE_CHANNEL_NOTIFY (1 << 1)
+#define IRQ_SOURCE_CMD_RESPONSE_READY   (1 << 2)
 
 typedef struct CXLSwitchClientState CXLSwitchClientState;
 DECLARE_INSTANCE_CHECKER(CXLSwitchClientState, CXL_SWITCH_CLIENT, TYPE_PCI_CXL_SWITCH_CLIENT)
@@ -477,6 +479,11 @@ static void bar1_control_write(void *opaque, hwaddr addr, uint64_t val, unsigned
             // Clear the notify status
             s->interrupt_status_reg &= ~IRQ_SOURCE_NEW_CLIENT_NOTIFY; 
         }
+        if ((s->notif_status_reg & NOTIF_STATUS_CHANNEL_CLOSED) && (s->interrupt_status_reg & IRQ_SOURCE_CLOSE_CHANNEL_NOTIFY)) {
+            // Clear the notify status
+            s->interrupt_status_reg &= ~IRQ_SOURCE_CLOSE_CHANNEL_NOTIFY; 
+        }
+        
         s->notif_status_reg = NOTIF_STATUS_NONE;
         break;
     case REG_INTERRUPT_MASK:
@@ -688,6 +695,29 @@ static void cxl_server_fd_read_handler(void *opaque)
             s->server_fd = -1;
             goto end;
         }
+    } else if (msg_type_header == CXL_MSG_TYPE_RPC_CLOSE_CHANNEL_NOTIFY) {
+        // When the device receives this notif, it deactivates the channel from
+        // its own internal mapping and then notifies the actual server/client
+        // so that it too can remove any internal bookkeeping information.
+        cxl_ipc_rpc_close_channel_notify_t close_notify_payload;
+        n = recv(s->server_fd, &close_notify_payload, sizeof(close_notify_payload), MSG_WAITALL);
+        if (n == sizeof(close_notify_payload)) {
+            CXL_SWITCH_DPRINTF("Info: Received CLOSE_CHANNEL_NOTIFY for channel ID %lu.\n", close_notify_payload.channel_id);
+            // Copy to bar0 mailbox then set notification
+            memcpy(s->bar0_mailbox, &close_notify_payload, sizeof(close_notify_payload));
+            s->notif_status_reg = NOTIF_STATUS_CHANNEL_CLOSED;
+            s->interrupt_status_reg |= IRQ_SOURCE_CLOSE_CHANNEL_NOTIFY;
+            triggers_msi = true;
+            deregister_channel(close_notify_payload.channel_id, s);
+        } else {
+            CXL_SWITCH_DPRINTF("Error: Failed to read CLOSE_CHANNEL_NOTIFY payload. Expected %zu bytes, got %zd.\n", sizeof(close_notify_payload), n);
+            // Close the handler else there has been some srs issue
+            qemu_set_fd_handler(s->server_fd, NULL, NULL, NULL);
+            close(s->server_fd);
+            s->server_fd = -1;
+            goto end;
+        }
+    
     } else {
         CXL_SWITCH_DPRINTF("Error: Unexpected message type header 0x%02x from server.\n", msg_type_header);
         // Do not close handler, just log the error and drain the bit

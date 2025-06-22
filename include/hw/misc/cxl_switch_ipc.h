@@ -35,11 +35,12 @@ typedef enum {
     CXL_MSG_TYPE_RPC_RELEASE_CHANNEL_REQ = 0x24,
     CXL_MSG_TYPE_RPC_RELEASE_CHANNEL_RESP = 0x25,
     CXL_MSG_TYPE_RPC_NEW_CLIENT_NOTIFY = 0x26, // FM -> Server notif
-    CXL_MSG_TYPE_RPC_DEREGISTER_SERVICE_REQ = 0x27,
-    CXL_MSG_TYPE_RPC_DEREGISTER_SERVICE_RESP = 0x28,
+    CXL_MSG_TYPE_RPC_CLOSE_CHANNEL_NOTIFY = 0x27, // FM -> Server notif
+    CXL_MSG_TYPE_RPC_DEREGISTER_SERVICE_REQ = 0x28,
+    CXL_MSG_TYPE_RPC_DEREGISTER_SERVICE_RESP = 0x29,
     // Commands handled by QEMU device locally (to configure BAR2)
-    CXL_MSG_TYPE_RPC_SET_BAR2_WINDOW_REQ = 0x29,
-    CXL_MSG_TYPE_RPC_SET_BAR2_WINDOW_RESP = 0x30,
+    CXL_MSG_TYPE_RPC_SET_BAR2_WINDOW_REQ = 0x30,
+    CXL_MSG_TYPE_RPC_SET_BAR2_WINDOW_RESP = 0x31,
     // Generic error for mgmt
     CXL_MSG_TYPE_RPC_MGMT_ERROR_RESP = 0x3F,
 } cxl_ipc_rpc_mgmt_msg_type_t;
@@ -172,7 +173,7 @@ typedef struct {
     uint64_t channel_id;
 } cxl_ipc_rpc_request_channel_resp_t;
 
-// CXL_MSG_TAYPE_RPC_RELEASE_CHANNEL
+// CXL_MSG_TYPE_RPC_RELEASE_CHANNEL
 typedef struct {
     uint8_t type;
     uint64_t channel_id;
@@ -193,6 +194,13 @@ typedef struct {
     char client_instance_id[MAX_INSTANCE_ID_LEN];
     char service_name[MAX_SERVICE_NAME_LEN];
 } cxl_ipc_rpc_new_client_notify_t;
+
+// CXL_MSG_TYPE_RPC_CLOSE_CHANNEL_NOTIFY
+// A channel is forced to be closed due to other party
+typedef struct {
+    uint8_t type;
+    uint64_t channel_id;
+} cxl_ipc_rpc_close_channel_notify_t;
 
 // CXL_MSG_TYPE_RPC_CONFIG_BAR2_WINDOW_REQ
 // Guest lib <-> QEMU Device mailbox

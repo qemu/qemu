@@ -659,6 +659,75 @@ void CXLFabricManager::handle_deregister_rpc_service(int qemu_vm_fd, const cxl_i
   ::send(qemu_vm_fd, &resp, sizeof(resp), 0);
 }
 
+/**
+  Cleaning up
+
+  Server --> Connection <-- Client 1
+      |----> Connection <-- Client 2
+      |----> Connection <-- Client 3
+
+  Either server or client can request (via RPC) to release the channel (connection)
+  The other party also needs to be notified that the channel has been closed.
+  When a QEMU VM disconnects (either the client or the server), all connections
+  that the VM is involved in must also be closed.
+  
+  1. Client
+    - Disconnect
+    - Clean up: rpc release channel
+
+    Both scenarios will close the connection, and should inform the server.
+
+  2. Server
+    - Disconnect
+    - Clean up: release all channel
+    - RPC release channel
+
+    If the server disconnects, it should close all active connections the server
+    is in.
+    If the server releases a single channel, just notify one client to close.
+*/
+
+// channel_id: channel to release
+// qemu_vm_fd: fd of qemu vm that (requested or force) terminated the channel
+bool CXLFabricManager::release_channel(uint64_t channel_id, int qemu_vm_fd) {
+  if (active_rpc_connections_.count(channel_id) == 0) {
+    return false;
+  }
+  auto& conn = active_rpc_connections_.at(channel_id);
+  CXL_FM_LOG("Cleaning up channel " + std::to_string(channel_id) + 
+            " between client fd " + std::to_string(conn.client_fd) + 
+            " and server fd " + std::to_string(conn.server_fd));
+  // 1. This is one-sided IPC/RPC request, we need to tell the other party
+  //    as well. We cannot just delete the information on the FM end as the
+  //    other party might be a server who leaks the thread or a client who
+  //    keeps polling. 
+  // TODO: This differs from a server disconnect request, whereby one of the
+  //       goals is for server failure to be transparent.
+  int other_fd;
+  if (conn.client_fd == qemu_vm_fd) {
+    other_fd = conn.server_fd;
+  } else {
+    other_fd = conn.client_fd;
+  }
+  cxl_ipc_rpc_close_channel_notify_t notify_payload;
+  notify_payload.type = CXL_MSG_TYPE_RPC_CLOSE_CHANNEL_NOTIFY;
+  notify_payload.channel_id = channel_id;
+  ::send(other_fd, &notify_payload, sizeof(notify_payload), 0);
+  // 2. Free memory from devices
+  for (auto& region : conn.allocated_regions) {
+    region.free();
+  }
+  // 3. Remove channel from fd_to_channel_ids_map
+  cleanup_fd_to_channel_ids(channel_id, conn.server_fd);
+  cleanup_fd_to_channel_ids(channel_id, conn.client_fd);
+  // 4. Remove the connection object itself
+  active_rpc_connections_.erase(channel_id);
+  return true;
+}
+
+// RPC Handler for release channel
+// This is uni-directional from either client or server, hence we must inform
+// the other party to terminate the connection
 void CXLFabricManager::handle_rpc_release_channel_req(int qemu_vm_fd, const cxl_ipc_rpc_release_channel_req_t& req) {
     std::lock_guard<std::mutex> lock(state_mutex_);
     CXL_FM_LOG("Request from fd " + std::to_string(qemu_vm_fd) + " to release channel " + std::to_string(req.channel_id));
@@ -666,44 +735,19 @@ void CXLFabricManager::handle_rpc_release_channel_req(int qemu_vm_fd, const cxl_
     cxl_ipc_rpc_release_channel_resp_t resp;
     resp.type = CXL_MSG_TYPE_RPC_RELEASE_CHANNEL_RESP;
     resp.status = CXL_IPC_STATUS_ERROR_GENERIC;
-    
-    if (active_rpc_connections_.count(req.channel_id)) {
-        // clean up the specific channel requested.
-        cleanup_channels_by_id({req.channel_id});
-        resp.status = CXL_IPC_STATUS_OK;
+    if (release_channel(req.channel_id, qemu_vm_fd)) {
+      resp.status = CXL_IPC_STATUS_OK;
     }
+
     send(qemu_vm_fd, &resp, sizeof(resp), 0);
 }
 
-// Helper functions for cleaning up
-void CXLFabricManager::cleanup_channels_by_id(const std::vector<channel_id_t>& channels_to_clean) {
-    for (const auto& channel_id : channels_to_clean) {
-        if (active_rpc_connections_.count(channel_id)) {
-            auto& conn = active_rpc_connections_.at(channel_id);
-            CXL_FM_LOG("Cleaning up channel " + std::to_string(channel_id) + " between client fd " + std::to_string(conn.client_fd) + " and server fd " + std::to_string(conn.server_fd));
-
-            // 1. Free memory back to devices
-            for (const auto& region : conn.allocated_regions) {
-                region.backing_device->free(region.offset, region.size);
-            }
-
-            // 2. Remove channel from fd_to_channel_ids_ map for both client and server
-            auto client_it = fd_to_channel_ids_.find(conn.client_fd);
-            if (client_it != fd_to_channel_ids_.end()) {
-              auto& client_channel_ids = client_it->second;
-              client_channel_ids.erase(std::remove(client_channel_ids.begin(), client_channel_ids.end(), channel_id), client_channel_ids.end());
-            }
-
-            auto server_it = fd_to_channel_ids_.find(conn.server_fd);
-            if (server_it != fd_to_channel_ids_.end()) {
-              auto& server_channel_ids = server_it->second;
-              server_channel_ids.erase(std::remove(server_channel_ids.begin(), server_channel_ids.end(), channel_id), server_channel_ids.end());
-            }
-
-            // 3. Remove the connection object itself
-            active_rpc_connections_.erase(channel_id);
-        }
-    }
+void CXLFabricManager::cleanup_fd_to_channel_ids(uint64_t channel_id, int fd) {
+  auto it = fd_to_channel_ids_.find(fd);
+  if (it != fd_to_channel_ids_.end()) {
+    auto& channel_ids = it->second;
+    channel_ids.erase(std::remove(channel_ids.begin(), channel_ids.end(), channel_id), channel_ids.end());
+  }
 }
 
 void CXLFabricManager::cleanup_services_by_fd(int fd) {
@@ -788,18 +832,21 @@ void CXLFabricManager::run() {
 void CXLFabricManager::handle_qemu_disconnect(int qemu_vm_fd, int& max_fd) {
   std::lock_guard<std::mutex> lock{state_mutex_};
   CXL_FM_LOG("Client disconnected, fd: " + std::to_string(qemu_vm_fd));
-
+  // 1. Remove FD from service registry
   cleanup_services_by_fd(qemu_vm_fd);
-
+  // 2. Find all channels that QEMU VM FD was involved in. Terminate the 
+  //    connection for the other QEMU VM as well
   if (fd_to_channel_ids_.count(qemu_vm_fd) > 0) {
     CXL_FM_LOG("Found " + std::to_string(fd_to_channel_ids_[qemu_vm_fd].size()) + " channels associated with fd " + std::to_string(qemu_vm_fd) + ". Cleaning up all");
-    cleanup_channels_by_id(fd_to_channel_ids_.at(qemu_vm_fd));
+    for (const auto& channel_idx : fd_to_channel_ids_.at(qemu_vm_fd)) {
+      release_channel(channel_idx, qemu_vm_fd);
+    }  
     fd_to_channel_ids_.erase(qemu_vm_fd);
   }
-
+  // 3. Close socket FD and remove from active set
   close(qemu_vm_fd);
   FD_CLR(qemu_vm_fd, &active_fds_);
-  
+
   if (qemu_vm_fd == max_fd) {
     while (max_fd > main_listen_fd_ && FD_ISSET(max_fd, &active_fds_)) {
       max_fd--;

@@ -31,6 +31,12 @@ DiancieServer::DiancieServer(const std::string &device_path, const std::string& 
 
 DiancieServer::~DiancieServer() {
   std::cout << "Cleaning up Diancie server resources." << std::endl;
+  for (auto& [channel_id, thread] : clients_) {
+    if (thread.joinable()) {
+      thread.join();
+    }
+  }
+  clients_.clear();
   deregister_service();
   std::cout << "Diancie server resources cleaned up." << std::endl;
 }
@@ -79,57 +85,13 @@ void DiancieServer::deregister_service() {
   }
 }
 
-
-std::unique_ptr<AbstractCXLConnection> DiancieServer::wait_for_new_client_notification(int timeout_ms) {
-  struct pollfd pfd;
-  pfd.fd = eventfd_notify_;
-  pfd.events = POLLIN;
-  
-  std::cout << "DiancieServer: Polling on notify_efd " << eventfd_notify_ << std::endl;
-  int ret = poll(&pfd, 1, timeout_ms);
-
-  if (ret < 0) {
-    std::cerr << "DiancieServer: Poll error: " << strerror(errno) << std::endl;
-    throw std::runtime_error("Poll error");
-  } else if (ret == 0) {
-    std::cerr << "DiancieServer: Poll timeout after " << timeout_ms << " ms." << std::endl;
-    throw std::runtime_error("Poll timeout");
-  } else if (pfd.revents & POLLIN) {
-    uint64_t event_count;
-    ssize_t read_bytes = read(eventfd_notify_, &event_count, sizeof(event_count));
-    if (read_bytes != sizeof(event_count)) {
-      std::cerr << "DiancieServer: Failed to read from eventfd: " << strerror(errno) << std::endl;
-      throw std::runtime_error("Failed to read from eventfd");
-    }
-    std::cout << "DiancieServer: Eventfd read successfully, value = " << event_count << std::endl;
-
-    uint32_t notif_status = get_notification_status();
-    std::cout << "DiancieServer: Notification status after eventfd read: 0x" << std::hex << notif_status << std::dec << std::endl;
-
-    if (notif_status & NOTIF_STATUS_NEW_CLIENT) {
-      cxl_ipc_rpc_new_client_notify_t notify;
-      recv_response(&notify, sizeof(notify));
-      std::cout << "DiancieServer: Received NEW_CLIENT_NOTIFY for service '" 
-                << notify.service_name << "' from client '" 
-                << notify.client_instance_id << "'." << std::endl;
-      clear_notification_status(NOTIF_STATUS_NEW_CLIENT);
-      
-      return std::make_unique<QEMUConnection>(notify.channel_shm_offset, notify.channel_shm_size, notify.channel_id);
-    } else {
-      std::cerr << "DiancieServer: No new client notification received." << std::endl;
-      throw std::runtime_error("No new client notification");
-    }
-  }
-  throw std::runtime_error("Poll indicated event but no POLLIN flag set!");
-}
-
 // Runs in a dedicated thread for each client connection
 // Poll request and do mapping
 // TODO: Figure out template metaprogramming to parse the struct
-void DiancieServer::service_client(QEMUConnection connection) {
-  std::cout << "Servicing client on channel id " << connection.channel_id_ 
-            << " with base address " << connection.mapped_base_ 
-            << " and size " << connection.mapped_size_ << std::endl;
+void DiancieServer::service_client(std::unique_ptr<AbstractCXLConnection> connection) {
+  std::cout << "Servicing client on channel id " << connection->get_channel_id()
+            << " with base address " << connection->get_base()
+            << " and size " << connection->get_size() << std::endl;
   // bool client_is_active = true;
 
   // uint64_t bar2_addr = reinterpret_cast<uint64_t>(bar2_base_);
@@ -144,7 +106,7 @@ void DiancieServer::service_client(QEMUConnection connection) {
   // std::cout << "Addr is " << std::hex << reinterpret_cast<uintptr_t>(addr) << std::dec
   //           << " on channel id " << connection.channel_id_ << std::endl;
 
-  uint64_t value = read_u64(connection.mapped_base_);
+  uint64_t value = read_u64(connection->get_base());
   std::cout << "Value is " << std::hex << value << std::dec << std::endl;
 
   // // Add the offset to the BAR2 base pointer
@@ -173,34 +135,81 @@ void DiancieServer::service_client(QEMUConnection connection) {
   // }
 }
 
+void DiancieServer::handle_new_client(std::unique_ptr<AbstractCXLConnection> conn) {
+  set_memory_window(conn->get_base(), conn->get_size(), conn->get_channel_id());
+  uint64_t channel_id = conn->get_channel_id();
+  
+  std::cout << "New client connected with channel ID: " << conn->get_channel_id() 
+            << ", Base: " << conn->get_base() 
+            << ", Size: " << conn->get_size() << std::endl;
+
+  clients_[channel_id] = std::thread([this, conn = std::move(conn)]() mutable {
+    this->service_client(std::move(conn));
+  });
+}
+
+// At the moment, both channel close and client disconnect seem suspicously the same
+void DiancieServer::handle_channel_close(uint64_t channel_id) {
+  std::cout << "Channel with ID " << channel_id << " is being closed." << std::endl;
+
+  auto it = clients_.find(channel_id);
+  if (it != clients_.end()) {
+    if (it->second.joinable()) {
+      it->second.join();
+    }
+    clients_.erase(it);
+    std::cout << "Channel with ID " << channel_id << " closed successfully." << std::endl;
+  } else {
+    std::cerr << "Channel with ID " << channel_id << " not found." << std::endl;
+  }
+}
+
+void DiancieServer::handle_client_disconnect(uint64_t channel_id) {
+  std::cout << "Client with channel ID " << channel_id << " disconnected." << std::endl;
+  
+  auto it = clients_.find(channel_id);
+  if (it != clients_.end()) {
+    if (it->second.joinable()) {
+      it->second.join();
+    }
+    clients_.erase(it);
+  }
+}
+
 void DiancieServer::run_server_loop() {
-  // TODO: Max 5 for now. Handle properly later
-  int num_clients = 0;
   bool running = true;
   while (running) {
     try {
-      auto connection_info = wait_for_new_client_notification(-1);
-      // Server now needs to set memory window too so that its QEMU device knows
-      // how to talk to memory. This breaks the abstraction barrier and so
-      // will be rewritten in the future.
-      if (auto qemu_conn = dynamic_cast<QEMUConnection*>(connection_info.get())) {
-        set_memory_window(qemu_conn->get_base(), qemu_conn->get_size(), qemu_conn->get_channel_id());
-        clients_.emplace_back(&DiancieServer::service_client, this, *qemu_conn);
+      auto event_data = wait_for_event(1000);
+
+      if (!event_data) {
+        continue;
       }
-            
-      num_clients++;
-      if (num_clients == 5) {
-        // Hacky sleep for 10 seconds to let client resolve
-        // TODO: Proper handle later
-        usleep(10000000);
-        running = false;
+
+      switch (event_data->type) {
+      case CXLEvent::NEW_CLIENT_CONNECTED:
+        std::cout << "Received New client connected event from event loop" << std::endl;
+        handle_new_client(std::move(event_data->connection));
+        break;
+      case CXLEvent::CHANNEL_CLOSED:
+        std::cout << "Received Channel closed event from event loop" << std::endl;
+        handle_channel_close(event_data->channel_id);
+        break;
+      case CXLEvent::CLIENT_DISCONNECTED:
+        std::cout << "Received Client disconnected event from event loop" << std::endl;
+        handle_client_disconnect(event_data->channel_id);
+        break;
+      case CXLEvent::COMMAND_RECEIVED:
+        break;
+      case CXLEvent::ERROR_OCURRED:
+        break;
+      default:
+        std::cout << "DiancieServer: Unknown event type" << std::endl;
+        break;
       }
     } catch (const std::exception& e) {
       std::cerr << "DiancieServer: " << e.what() << std::endl;
     }
-  }
-  for (auto &t : clients_) {
-    t.join();
   }
 }
 
