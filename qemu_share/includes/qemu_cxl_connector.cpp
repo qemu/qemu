@@ -226,7 +226,7 @@ std::optional<CXLEventData> QEMUCXLConnector::wait_for_event(int timeout_ms) {
   pfds.fd = eventfd_notify_;
   pfds.events = POLLIN;
 
-  std::cout << "QEMUCXLConnector: Polling on notify_efd " << eventfd_notify_ << std::endl;
+  // std::cout << "QEMUCXLConnector: Polling on notify_efd " << eventfd_notify_ << std::endl;
 
   int ret = poll(&pfds, 1, timeout_ms);
 
@@ -234,7 +234,7 @@ std::optional<CXLEventData> QEMUCXLConnector::wait_for_event(int timeout_ms) {
     std::cerr << "QEMUCXLConnector: Poll error: " << strerror(errno) << std::endl;
     return std::nullopt;
   } else if (ret == 0) {
-    std::cerr << "QEMUCXLConnector: Poll timeout after " << timeout_ms << " ms." << std::endl;
+    // std::cerr << "QEMUCXLConnector: Poll timeout after " << timeout_ms << " ms." << std::endl;
     return std::nullopt;
   } else if (pfds.revents & POLLIN) {
     uint64_t event_count;
