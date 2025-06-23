@@ -710,7 +710,9 @@ static bool vfio_container_connect(VFIOGroup *group, AddressSpace *as,
     return true;
 
 fail:
-    vfio_listener_unregister(bcontainer);
+    if (new_container) {
+        vfio_listener_unregister(bcontainer);
+    }
 
     if (group_was_added) {
         vfio_container_group_del(container, group);
