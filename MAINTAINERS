@@ -459,6 +459,8 @@ F: target/ppc/kvm.c
 S390 KVM CPUs
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
+R: Eric Farman <farman@linux.ibm.com>
+R: Matthew Rosato <mjrosato@linux.ibm.com>
 S: Supported
 F: target/s390x/kvm/
 F: target/s390x/machine.c
@@ -1771,6 +1773,7 @@ S390 Virtio-ccw
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
 M: Eric Farman <farman@linux.ibm.com>
+R: Matthew Rosato <mjrosato@linux.ibm.com>
 S: Supported
 F: hw/s390x/
 F: include/hw/s390x/
@@ -1782,6 +1785,8 @@ L: qemu-s390x@nongnu.org
 S390-ccw boot
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
 M: Thomas Huth <thuth@redhat.com>
+R: Jared Rossi <jrossi@linux.ibm.com>
+R: Zhuoying Cai <zycai@linux.ibm.com>
 S: Supported
 F: hw/s390x/ipl.*
 F: pc-bios/s390-ccw/
@@ -1802,6 +1807,7 @@ S390 channel subsystem
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
 M: Eric Farman <farman@linux.ibm.com>
+R: Farhan Ali <alifm@linux.ibm.com>
 S: Supported
 F: hw/s390x/ccw-device.[ch]
 F: hw/s390x/css.c
@@ -1822,6 +1828,7 @@ L: qemu-s390x@nongnu.org
 S390 SCLP-backed devices
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
+R: Jason Herne <jjherne@linux.ibm.com>
 S: Supported
 F: include/hw/s390x/event-facility.h
 F: include/hw/s390x/sclp.h
@@ -2809,6 +2816,7 @@ F: include/hw/timer/mips_gictimer.h
 S390 3270 device
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
+R: Collin Walling <walling@linux.ibm.com>
 S: Odd fixes
 F: include/hw/s390x/3270-ccw.h
 F: hw/char/terminal3270.c
@@ -2818,6 +2826,7 @@ L: qemu-s390x@nongnu.org
 S390 diag 288 watchdog
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
+R: Collin Walling <walling@linux.ibm.com>
 S: Supported
 F: hw/watchdog/wdt_diag288.c
 F: include/hw/watchdog/wdt_diag288.h
@@ -2826,6 +2835,7 @@ L: qemu-s390x@nongnu.org
 S390 storage key device
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
+R: Jason Herne <jjherne@linux.ibm.com>
 S: Supported
 F: hw/s390x/storage-keys.h
 F: hw/s390x/s390-skeys*.c
@@ -2834,6 +2844,7 @@ L: qemu-s390x@nongnu.org
 S390 storage attribute device
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
+R: Jason Herne <jjherne@linux.ibm.com>
 S: Supported
 F: hw/s390x/storage-attributes.h
 F: hw/s390x/s390-stattrib*.c
@@ -2843,6 +2854,7 @@ S390 floating interrupt controller
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
 M: David Hildenbrand <david@redhat.com>
+R: Jason Herne <jjherne@linux.ibm.com>
 S: Supported
 F: hw/intc/s390_flic*.c
 F: include/hw/s390x/s390_flic.h
