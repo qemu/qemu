@@ -5802,6 +5802,24 @@ static RISCVException write_jvt(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+bool riscv_csr_is_fpu(int csrno)
+{
+    if (!csr_ops[csrno].predicate) {
+        return false;
+    }
+
+    return csr_ops[csrno].predicate == fs;
+}
+
+bool riscv_csr_is_vpu(int csrno)
+{
+    if (!csr_ops[csrno].predicate) {
+        return false;
+    }
+
+    return csr_ops[csrno].predicate == vs;
+}
+
 /*
  * Control and Status Register function table
  * riscv_csr_operations::predicate() must be provided for an implemented CSR
