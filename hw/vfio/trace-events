@@ -1,4 +1,6 @@
 # See docs/devel/tracing.rst for syntax documentation.
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 # pci.c
 vfio_intx_interrupt(const char *name, char line) " (%s) Pin %c"
