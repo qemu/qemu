@@ -594,6 +594,8 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         }
     }
     if (flags & CPU_DUMP_FPU) {
+        riscv_dump_csr(env, CSR_FFLAGS, f);
+        riscv_dump_csr(env, CSR_FRM, f);
         riscv_dump_csr(env, CSR_FCSR, f);
 
         for (i = 0; i < 32; i++) {
