@@ -10,6 +10,7 @@
 #include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/intc/loongarch_pch_pic.h"
+#include "system/kvm.h"
 #include "trace.h"
 #include "qapi/error.h"
 
@@ -47,6 +48,11 @@ static void pch_pic_irq_handler(void *opaque, int irq, int level)
 
     assert(irq < s->irq_num);
     trace_loongarch_pch_pic_irq_handler(irq, level);
+
+    if (kvm_irqchip_in_kernel()) {
+        kvm_set_irq(kvm_state, irq, !!level);
+        return;
+    }
 
     if (s->intedge & mask) {
         /* Edge triggered */
@@ -258,6 +264,10 @@ static void loongarch_pic_reset_hold(Object *obj, ResetType type)
     if (lpc->parent_phases.hold) {
         lpc->parent_phases.hold(obj, type);
     }
+
+    if (kvm_irqchip_in_kernel()) {
+        kvm_pic_put(obj, 0);
+    }
 }
 
 static void loongarch_pic_realize(DeviceState *dev, Error **errp)
@@ -275,22 +285,49 @@ static void loongarch_pic_realize(DeviceState *dev, Error **errp)
 
     qdev_init_gpio_out(dev, s->parent_irq, s->irq_num);
     qdev_init_gpio_in(dev, pch_pic_irq_handler, s->irq_num);
-    memory_region_init_io(&s->iomem, OBJECT(dev),
-                          &loongarch_pch_pic_ops,
-                          s, TYPE_LOONGARCH_PIC, VIRT_PCH_REG_SIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
+
+    if (kvm_irqchip_in_kernel()) {
+        kvm_pic_realize(dev, errp);
+    } else {
+        memory_region_init_io(&s->iomem, OBJECT(dev),
+                              &loongarch_pch_pic_ops,
+                              s, TYPE_LOONGARCH_PIC, VIRT_PCH_REG_SIZE);
+        sysbus_init_mmio(sbd, &s->iomem);
+    }
+}
+
+static int loongarch_pic_pre_save(LoongArchPICCommonState *opaque)
+{
+    if (kvm_irqchip_in_kernel()) {
+        return kvm_pic_get(opaque);
+    }
+
+    return 0;
+}
+
+static int loongarch_pic_post_load(LoongArchPICCommonState *opaque,
+                                   int version_id)
+{
+    if (kvm_irqchip_in_kernel()) {
+        return kvm_pic_put(opaque, version_id);
+    }
+
+    return 0;
 }
 
 static void loongarch_pic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     LoongarchPICClass *lpc = LOONGARCH_PIC_CLASS(klass);
+    LoongArchPICCommonClass *lpcc = LOONGARCH_PIC_COMMON_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     resettable_class_set_parent_phases(rc, NULL, loongarch_pic_reset_hold,
                                        NULL, &lpc->parent_phases);
     device_class_set_parent_realize(dc, loongarch_pic_realize,
                                     &lpc->parent_realize);
+    lpcc->pre_save = loongarch_pic_pre_save;
+    lpcc->post_load = loongarch_pic_post_load;
 }
 
 static const TypeInfo loongarch_pic_types[] = {

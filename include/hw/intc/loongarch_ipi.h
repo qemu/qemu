@@ -16,6 +16,7 @@ OBJECT_DECLARE_TYPE(LoongarchIPIState, LoongarchIPIClass, LOONGARCH_IPI)
 
 struct LoongarchIPIState {
     LoongsonIPICommonState parent_obj;
+    int  dev_fd;
 };
 
 struct LoongarchIPIClass {
@@ -23,5 +24,9 @@ struct LoongarchIPIClass {
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;
 };
+
+void kvm_ipi_realize(DeviceState *dev, Error **errp);
+int kvm_ipi_get(void *opaque);
+int kvm_ipi_put(void *opaque, int version_id);
 
 #endif

@@ -48,6 +48,8 @@ struct LoongsonIPICommonClass {
     AddressSpace *(*get_iocsr_as)(CPUState *cpu);
     int (*cpu_by_arch_id)(LoongsonIPICommonState *lics, int64_t id,
                           int *index, CPUState **pcs);
+    int (*pre_save)(void *opaque);
+    int (*post_load)(void *opaque, int version_id);
 };
 
 MemTxResult loongson_ipi_core_readl(void *opaque, hwaddr addr, uint64_t *data,

@@ -11,6 +11,7 @@
 #include "hw/irq.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
+#include "system/kvm.h"
 #include "trace.h"
 
 MemTxResult loongson_ipi_core_readl(void *opaque, hwaddr addr, uint64_t *data,
@@ -255,6 +256,10 @@ static void loongson_ipi_common_realize(DeviceState *dev, Error **errp)
     LoongsonIPICommonState *s = LOONGSON_IPI_COMMON(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
+    if (kvm_irqchip_in_kernel()) {
+        return;
+    }
+
     memory_region_init_io(&s->ipi_iocsr_mem, OBJECT(dev),
                           &loongson_ipi_iocsr_ops,
                           s, "loongson_ipi_iocsr", 0x48);
@@ -277,10 +282,38 @@ static void loongson_ipi_common_unrealize(DeviceState *dev)
     g_free(s->cpu);
 }
 
+static int loongson_ipi_common_pre_save(void *opaque)
+{
+    IPICore *ipicore = (IPICore *)opaque;
+    LoongsonIPICommonState *s = ipicore->ipi;
+    LoongsonIPICommonClass *licc = LOONGSON_IPI_COMMON_GET_CLASS(s);
+
+    if (licc->pre_save) {
+        return licc->pre_save(s);
+    }
+
+    return 0;
+}
+
+static int loongson_ipi_common_post_load(void *opaque, int version_id)
+{
+    IPICore *ipicore = (IPICore *)opaque;
+    LoongsonIPICommonState *s = ipicore->ipi;
+    LoongsonIPICommonClass *licc = LOONGSON_IPI_COMMON_GET_CLASS(s);
+
+    if (licc->post_load) {
+        return licc->post_load(s, version_id);
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_ipi_core = {
     .name = "ipi-single",
     .version_id = 2,
     .minimum_version_id = 2,
+    .pre_save  = loongson_ipi_common_pre_save,
+    .post_load = loongson_ipi_common_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(status, IPICore),
         VMSTATE_UINT32(en, IPICore),

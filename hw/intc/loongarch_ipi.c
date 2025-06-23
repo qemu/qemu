@@ -11,6 +11,7 @@
 #include "qapi/error.h"
 #include "hw/intc/loongarch_ipi.h"
 #include "hw/qdev-properties.h"
+#include "system/kvm.h"
 #include "target/loongarch/cpu.h"
 
 static AddressSpace *get_iocsr_as(CPUState *cpu)
@@ -91,6 +92,10 @@ static void loongarch_ipi_realize(DeviceState *dev, Error **errp)
         lics->cpu[i].ipi = lics;
         qdev_init_gpio_out(dev, &lics->cpu[i].irq, 1);
     }
+
+    if (kvm_irqchip_in_kernel()) {
+        kvm_ipi_realize(dev, errp);
+    }
 }
 
 static void loongarch_ipi_reset_hold(Object *obj, ResetType type)
@@ -116,6 +121,10 @@ static void loongarch_ipi_reset_hold(Object *obj, ResetType type)
         core->set = 0;
         core->clear = 0;
         memset(core->buf, 0, sizeof(core->buf));
+    }
+
+    if (kvm_irqchip_in_kernel()) {
+        kvm_ipi_put(obj, 0);
     }
 }
 
@@ -166,6 +175,24 @@ static void loongarch_ipi_cpu_unplug(HotplugHandler *hotplug_dev,
     core->cpu = NULL;
 }
 
+static int loongarch_ipi_pre_save(void *opaque)
+{
+    if (kvm_irqchip_in_kernel()) {
+        return kvm_ipi_get(opaque);
+    }
+
+    return 0;
+}
+
+static int loongarch_ipi_post_load(void *opaque, int version_id)
+{
+    if (kvm_irqchip_in_kernel()) {
+        return kvm_ipi_put(opaque, version_id);
+    }
+
+    return 0;
+}
+
 static void loongarch_ipi_class_init(ObjectClass *klass, const void *data)
 {
     LoongsonIPICommonClass *licc = LOONGSON_IPI_COMMON_CLASS(klass);
@@ -182,6 +209,8 @@ static void loongarch_ipi_class_init(ObjectClass *klass, const void *data)
     licc->cpu_by_arch_id = loongarch_cpu_by_arch_id;
     hc->plug = loongarch_ipi_cpu_plug;
     hc->unplug = loongarch_ipi_cpu_unplug;
+    licc->pre_save = loongarch_ipi_pre_save;
+    licc->post_load = loongarch_ipi_post_load;
 }
 
 static const TypeInfo loongarch_ipi_types[] = {

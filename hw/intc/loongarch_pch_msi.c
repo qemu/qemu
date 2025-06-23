@@ -13,6 +13,7 @@
 #include "hw/pci/msi.h"
 #include "hw/misc/unimp.h"
 #include "migration/vmstate.h"
+#include "system/kvm.h"
 #include "trace.h"
 
 static uint64_t loongarch_msi_mem_read(void *opaque, hwaddr addr, unsigned size)
@@ -25,6 +26,15 @@ static void loongarch_msi_mem_write(void *opaque, hwaddr addr,
 {
     LoongArchPCHMSI *s = (LoongArchPCHMSI *)opaque;
     int irq_num;
+
+    if (kvm_irqchip_in_kernel()) {
+        MSIMessage msg;
+
+        msg.address = addr;
+        msg.data = val;
+        kvm_irqchip_send_msi(kvm_state, msg);
+        return;
+    }
 
     /*
      * vector number is irq number from upper extioi intc
