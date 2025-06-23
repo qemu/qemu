@@ -992,12 +992,16 @@ static bool vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
     if (vbasedev->mdev) {
         error_setg(&vbasedev->cpr.mdev_blocker,
                    "CPR does not support vfio mdev %s", vbasedev->name);
-        migrate_add_blocker_modes(&vbasedev->cpr.mdev_blocker, &error_fatal,
-                                  MIG_MODE_CPR_TRANSFER, -1);
+        if (migrate_add_blocker_modes(&vbasedev->cpr.mdev_blocker, errp,
+                                      MIG_MODE_CPR_TRANSFER, -1) < 0) {
+            goto hiod_unref_exit;
+        }
     }
 
     return true;
 
+hiod_unref_exit:
+    object_unref(vbasedev->hiod);
 device_put_exit:
     vfio_device_put(vbasedev);
 group_put_exit:
