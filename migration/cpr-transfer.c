@@ -46,7 +46,8 @@ QEMUFile *cpr_transfer_input(MigrationChannel *channel, Error **errp)
     MigrationAddress *addr = channel->addr;
 
     if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET &&
-        addr->u.socket.type == SOCKET_ADDRESS_TYPE_UNIX) {
+        (addr->u.socket.type == SOCKET_ADDRESS_TYPE_UNIX ||
+            addr->u.socket.type == SOCKET_ADDRESS_TYPE_FD)) {
 
         g_autoptr(QIOChannelSocket) sioc = NULL;
         SocketAddress *saddr = &addr->u.socket;
@@ -60,7 +61,9 @@ QEMUFile *cpr_transfer_input(MigrationChannel *channel, Error **errp)
 
         sioc = qio_net_listener_wait_client(listener);
         ioc = QIO_CHANNEL(sioc);
-        trace_cpr_transfer_input(addr->u.socket.u.q_unix.path);
+        trace_cpr_transfer_input(
+            addr->u.socket.type == SOCKET_ADDRESS_TYPE_UNIX ?
+            addr->u.socket.u.q_unix.path : addr->u.socket.u.fd.str);
         qio_channel_set_name(ioc, "cpr-in");
         return qemu_file_new_input(ioc);
 
