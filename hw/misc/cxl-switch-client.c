@@ -27,7 +27,7 @@
 
 #include "hw/misc/cxl_switch_ipc.h"
 
-#define CXL_SWITCH_DEBUG 1
+#define CXL_SWITCH_DEBUG 0
 #define CXL_SWITCH_DPRINTF(fmt, ...)                       \
     do {                                                   \
         if (CXL_SWITCH_DEBUG) {                            \

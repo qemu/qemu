@@ -1,5 +1,14 @@
 # Log
 
+## TODO Plan
+
+- [ ] Replication test
+- [ ] WAL Log 
+
+segfault in server comes from join thread not cleaning up properly, low on prior
+
+bug (SIGILL) with double type params. ints work.
+
 ## 16 June
 
 Forgot to update.
