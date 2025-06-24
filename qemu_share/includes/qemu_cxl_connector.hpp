@@ -32,21 +32,22 @@ public:
   QEMUCXLConnector(const std::string &device_path);
   ~QEMUCXLConnector();
 
-private:
-  std::string device_path_;
+protected:
 
-  int device_fd_ = -1;
-  
   void *bar0_base_ = nullptr;
   size_t bar0_size_ = 0;
 
   void *bar1_base_ = nullptr;
   size_t bar1_size_ = 0;
   
-  // TODO: now i gotta map this
   void *bar2_base_ = nullptr;
   size_t bar2_size_ = 0;
 
+private:
+  std::string device_path_;
+
+  int device_fd_ = -1;
+  
   bool setup_eventfd(int& efd, unsigned int ioctl_cmd);
   void cleanup_eventfd(int& efd);
 
