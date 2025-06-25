@@ -2564,9 +2564,9 @@ static inline bool raw_check_linux_aio(BDRVRawState *s)
 }
 #endif
 
-static int coroutine_fn raw_co_prw(BlockDriverState *bs, int64_t *offset_ptr,
-                                   uint64_t bytes, QEMUIOVector *qiov, int type,
-                                   int flags)
+static int coroutine_fn GRAPH_RDLOCK
+raw_co_prw(BlockDriverState *bs, int64_t *offset_ptr, uint64_t bytes,
+           QEMUIOVector *qiov, int type, int flags)
 {
     BDRVRawState *s = bs->opaque;
     RawPosixAIOData acb;
@@ -2625,7 +2625,7 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, int64_t *offset_ptr,
     ret = raw_thread_pool_submit(handle_aiocb_rw, &acb);
     if (ret == 0 && (flags & BDRV_REQ_FUA)) {
         /* TODO Use pwritev2() instead if it's available */
-        ret = raw_co_flush_to_disk(bs);
+        ret = bdrv_co_flush(bs);
     }
     goto out; /* Avoid the compiler err of unused label */
 
@@ -2660,16 +2660,16 @@ out:
     return ret;
 }
 
-static int coroutine_fn raw_co_preadv(BlockDriverState *bs, int64_t offset,
-                                      int64_t bytes, QEMUIOVector *qiov,
-                                      BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+raw_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
+              QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     return raw_co_prw(bs, &offset, bytes, qiov, QEMU_AIO_READ, flags);
 }
 
-static int coroutine_fn raw_co_pwritev(BlockDriverState *bs, int64_t offset,
-                                       int64_t bytes, QEMUIOVector *qiov,
-                                       BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+raw_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
+               QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     return raw_co_prw(bs, &offset, bytes, qiov, QEMU_AIO_WRITE, flags);
 }
@@ -3606,10 +3606,11 @@ static int coroutine_fn raw_co_zone_mgmt(BlockDriverState *bs, BlockZoneOp op,
 #endif
 
 #if defined(CONFIG_BLKZONED)
-static int coroutine_fn raw_co_zone_append(BlockDriverState *bs,
-                                           int64_t *offset,
-                                           QEMUIOVector *qiov,
-                                           BdrvRequestFlags flags) {
+static int coroutine_fn GRAPH_RDLOCK
+raw_co_zone_append(BlockDriverState *bs,
+                   int64_t *offset,
+                   QEMUIOVector *qiov,
+                   BdrvRequestFlags flags) {
     assert(flags == 0);
     int64_t zone_size_mask = bs->bl.zone_size - 1;
     int64_t iov_len = 0;
