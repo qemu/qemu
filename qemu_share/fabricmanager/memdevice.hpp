@@ -102,6 +102,9 @@ private:
   uint8_t *mmap_addr_ = nullptr;
   uint64_t size_ = 0;
   cxl_ipc_status_t status_ = CXL_IPC_STATUS_OK;
+private:
+  void zero_memory_region(uint64_t offset, uint32_t size);
+
 };
 
 }
