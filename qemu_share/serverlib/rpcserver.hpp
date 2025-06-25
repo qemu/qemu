@@ -7,12 +7,14 @@
 #include "../includes/qemu_cxl_connector.hpp"
 #include "../includes/rpc_interface.hpp"
 #include <chrono>
+#include <csignal>
 #include <cstdint>
 #include <cstring>
 #include <exception>
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <signal.h>
 #include <stddef.h>
 #include <stdexcept>
 #include <string>
@@ -22,6 +24,18 @@
 #include <vector>
 
 namespace diancie {
+
+// Handle thread join segfault error without slowing down code path with unnecc
+// checking for closure at every mem access
+class SegfaultException : public std::runtime_error {
+public:
+  SegfaultException()
+      : std::runtime_error("SegfaultException") {}
+};
+
+static void segfault_handler(int sig) {
+  throw SegfaultException();
+}
 
 using ClientId = std::string;
 using ChannelId = uint64_t;
@@ -226,6 +240,9 @@ private:
   /// This is the function that is launched into its respective thread context
   /// TODO: Currently in failure-free domain.
   void service_client(std::unique_ptr<AbstractCXLConnection> connection) {
+    // Install signal handler to ignore segfault
+    signal(SIGSEGV, segfault_handler);
+    signal(SIGBUS, segfault_handler);
     std::cout << "Servicing client on channel id "
               << connection->get_channel_id() << " with base address "
               << connection->get_base() << " and size "
@@ -254,20 +271,22 @@ private:
       // Get offset and abs addr from curr queue entry
       uint64_t request_offset = client_queue[client_offset].get_address();
       uint64_t request_addr = request_offset + data_area;
-      std::cout << "Processing request at offset: " << std::hex
-                << request_offset << ", absolute address: " << request_addr
-                << std::dec << std::endl;
-      // Read function identifier
-      FunctionEnum *func_id_ptr =
-          reinterpret_cast<FunctionEnum *>(request_addr);
-      FunctionEnum func_id = *func_id_ptr;
-      std::cout << "Function ID: " << static_cast<uint32_t>(func_id)
-                << std::endl;
 
       try {
+
+        std::cout << "Processing request at offset: " << std::hex
+                  << request_offset << ", absolute address: " << request_addr
+                  << std::dec << std::endl;
+        // Read function identifier
+        volatile FunctionEnum *func_id_ptr =
+            reinterpret_cast<FunctionEnum *>(request_addr);
+        FunctionEnum func_id = *func_id_ptr;
+        std::cout << "Function ID: " << static_cast<uint32_t>(func_id)
+                  << std::endl;
+
         auto it = function_registry_.find(func_id);
         if (it == function_registry_.end()) {
-          throw std::runtime_error("Invalid function identifier");
+          throw std::invalid_argument("Invalid function identifier");
         }
 
         const FunctionInfo &func_info = it->second;
@@ -302,10 +321,14 @@ private:
         // Commits request
         server_queue[server_offset].set_flag(true);
 
-      } catch (const std::exception &e) {
-        std::cerr << "Error processing function ID "
-                  << static_cast<uint32_t>(func_id) << ": " << e.what()
-                  << std::endl;
+      } catch (const std::invalid_argument &e) {
+        std::cerr << "Thread loop: Invalid argument " << e.what() << std::endl;
+      } catch (const std::exception& e) {
+        std::cerr << "Thread loop: Encountered: " << e.what() << std::endl;
+        break;
+      } catch (...) {
+        std::cerr << "Unknown error " << std::endl;
+        break;
       }
 
       client_offset = (client_offset + 1) % DiancieHeap::NUM_QUEUE_ENTRIES;
@@ -313,6 +336,7 @@ private:
 
       std::cout << "Processing complete. " << std::endl;
     }
+    std::cout << "Thread handler closing." << std::endl;
   }
 
   void deregister_service() {
