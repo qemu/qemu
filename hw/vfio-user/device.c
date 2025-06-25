@@ -54,6 +54,24 @@ bool vfio_user_get_device_info(VFIOUserProxy *proxy,
     return true;
 }
 
+void vfio_user_device_reset(VFIOUserProxy *proxy)
+{
+    Error *local_err = NULL;
+    VFIOUserHdr hdr;
+
+    vfio_user_request_msg(&hdr, VFIO_USER_DEVICE_RESET, sizeof(hdr), 0);
+
+    if (!vfio_user_send_wait(proxy, &hdr, NULL, 0, &local_err)) {
+        error_prepend(&local_err, "%s: ", __func__);
+        error_report_err(local_err);
+        return;
+    }
+
+    if (hdr.flags & VFIO_USER_ERROR) {
+        error_printf("reset reply error %d\n", hdr.error_reply);
+    }
+}
+
 static int vfio_user_get_region_info(VFIOUserProxy *proxy,
                                      struct vfio_region_info *info,
                                      VFIOUserFDs *fds)
