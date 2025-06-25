@@ -12,6 +12,7 @@
 
 #include "hw/qdev-properties.h"
 #include "hw/vfio/pci.h"
+#include "hw/vfio-user/proxy.h"
 
 #define TYPE_VFIO_USER_PCI "vfio-user-pci"
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOUserPCIDevice, VFIO_USER_PCI)
@@ -54,6 +55,8 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
     VFIODevice *vbasedev = &vdev->vbasedev;
     const char *sock_name;
     AddressSpace *as;
+    SocketAddress addr;
+    VFIOUserProxy *proxy;
 
     if (!udev->socket) {
         error_setg(errp, "No socket specified");
@@ -68,6 +71,15 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
     sock_name = udev->socket->u.q_unix.path;
 
     vbasedev->name = g_strdup_printf("vfio-user:%s", sock_name);
+
+    memset(&addr, 0, sizeof(addr));
+    addr.type = SOCKET_ADDRESS_TYPE_UNIX;
+    addr.u.q_unix.path = (char *)sock_name;
+    proxy = vfio_user_connect_dev(&addr, errp);
+    if (!proxy) {
+        return;
+    }
+    vbasedev->proxy = proxy;
 
     /*
      * vfio-user devices are effectively mdevs (don't use a host iommu).
@@ -112,8 +124,13 @@ static void vfio_user_instance_init(Object *obj)
 static void vfio_user_instance_finalize(Object *obj)
 {
     VFIOPCIDevice *vdev = VFIO_PCI_BASE(obj);
+    VFIODevice *vbasedev = &vdev->vbasedev;
 
     vfio_pci_put_device(vdev);
+
+    if (vbasedev->proxy != NULL) {
+        vfio_user_disconnect(vbasedev->proxy);
+    }
 }
 
 static const Property vfio_user_pci_dev_properties[] = {
@@ -132,6 +149,11 @@ static void vfio_user_pci_set_socket(Object *obj, Visitor *v, const char *name,
 {
     VFIOUserPCIDevice *udev = VFIO_USER_PCI(obj);
     bool success;
+
+    if (udev->device.vbasedev.proxy) {
+        error_setg(errp, "Proxy is connected");
+        return;
+    }
 
     qapi_free_SocketAddress(udev->socket);
 
