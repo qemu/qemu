@@ -14,6 +14,6 @@ SERVER_SOCKET_PATH="/tmp/cxl_switch_server.sock"
     -nographic \
     -enable-kvm \
     -vga std \
-    -device virtio-net-pci,netdev=net0 -netdev user,id=net0 \
+    -device virtio-net-pci,netdev=net0 -netdev user,id=net0,hostfwd=tcp::2222-:22 \
     -device cxl-switch-client,id=cxlsw0,socket-path="${SERVER_SOCKET_PATH}" \
     -virtfs local,path=qemu_share,mount_tag=shared,security_model=mapped-xattr

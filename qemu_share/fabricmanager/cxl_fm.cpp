@@ -37,13 +37,13 @@
 
 namespace cxl_fm {
 
-#define CXL_FM_DEBUG 1
+#define CXL_FM_DEBUG 0
 #if CXL_FM_DEBUG
 #define CXL_FM_LOG(msg) do { std::cerr << "CXL FM: " << msg << std::endl; } while(0)
 #define CXL_FM_LOG_P(msg, val) do { std::cerr << "CXL FM: " << msg << val << std::endl; } while(0)
 #else
 #define CXL_FM_LOG(msg)
-#define CXL_CXL_FM_LOG_P(msg, val)
+#define CXL_FM_LOG_P(msg, val)
 #endif
 
 // --- Event management ---

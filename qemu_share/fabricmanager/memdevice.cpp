@@ -69,6 +69,9 @@ void CXLMemDevice::free(size_t offset, size_t size) {
     // We will find the first element whose offset is greater than the 
     // specified offset
     std::cout << "MemDevice freeing memory at offset " << offset << " and size " << size << std::endl;
+    // We also zero out the data first. This makes debugging easier. But might
+    // be removed subsequently.
+    zero_memory_region(offset, size);
     auto next_block_it = m_free_blocks_by_offset_.upper_bound(offset);
     auto prev_block_it = next_block_it;
     if (prev_block_it != m_free_blocks_by_offset_.begin()) {
@@ -148,6 +151,20 @@ void CXLMemDevice::read_data(uint64_t offset_in_mmap, void* data, uint32_t read_
 void CXLMemDevice::mark_unhealthy() {
   status_ = CXL_IPC_STATUS_ERROR_GENERIC;
 }
+
+void CXLMemDevice::zero_memory_region(uint64_t offset, uint32_t size) {
+  if (status_ != CXL_IPC_STATUS_OK || mmap_addr_ == nullptr) {
+    throw std::runtime_error("CXLMemDevice is not ready for zeroing memory");
+  }
+  if (offset + size > size_) {
+    throw std::out_of_range("CXLMemDevice zero out of bounds: " +
+                            std::to_string(offset + size) +
+                            " > " + std::to_string(size_));
+  }
+  std::memset(mmap_addr_ + offset, 0, size);
+}
+
+
 
 
 // --- Constructors ---
