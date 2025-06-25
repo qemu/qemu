@@ -5,9 +5,47 @@
 - [ ] Replication test
 - [ ] WAL Log 
 
-segfault in server comes from join thread not cleaning up properly, low on prior
+- [ ] (High prior but delayed) bug (SIGILL) with double type params. ints work.
 
-bug (SIGILL) with double type params. ints work.
+## Components in emulation
+
+- Userspace client/server
+- QEMU CXL Switch device
+- Kernel module to mmap/open device
+- Fabric Manager
+
+## How mmapping works?
+
+Userspace <-> Device <-> FM <-> Actual Mem Devices
+
+Each client shares a dedicated shm region with server.
+Server is one to many dedicated shm region.
+Client/server inherit (for now) QEMUCXLConnector.
+Client requests for a shared channel, server is connected to the same shared channel.
+
+The FM is in charge of allocating this shared channel, and tracking the channel id.
+This memory comes from actual mem devices.
+FM redirects read/writes (with tagged channel id) to actual mem devices.
+
+But the shared channel is only logical, both client/server need an actual
+mapping of the device's BAR2/3/4/5 to the logical memory so that mem ops can be
+tagged. For eg. server may tag bar2 with channel 0 and bar3 with channel 1, then
+each RPC server thread reads/writes to this respective bars0 for the server loop.
+This will allow true concurrent server without need for cache coherence since
+each client/server writes to a dedicated region, and exclusive access each time
+due to RPC logic.
+
+Ok, now we have logical understanding of why we need to do this, 
+we go thru the program flow.
+
+Client requests for shared channel using `DiancieClient::request_channel`
+Client uses `QEMUCXLConnector::set_memory_window` to ioctl to the actual kernel
+module to retrieve which BAR client can use. Client will then map the bar.
+
+Server receives shared channel. Server uses `QEMUCXLConnector::set_memory_window`
+to ioctl to actual kernel module to retrieve which BAR server can use. Server
+will map the bar. Server needs to service multiple clients, so must map to array.
+
 
 ## 16 June
 
