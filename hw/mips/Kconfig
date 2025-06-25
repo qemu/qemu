@@ -76,7 +76,7 @@ config LOONGSON3V
 
 config MIPS_CPS
     bool
-    select MIPS_ITU
+    select MIPS_ITU if TCG
 
 config MIPS_BOSTON
     bool

@@ -119,6 +119,7 @@ config STM32L4X5_RCC
 
 config MIPS_ITU
     bool
+    depends on TCG
 
 config MPS2_FPGAIO
     bool
