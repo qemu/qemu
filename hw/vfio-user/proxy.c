@@ -347,6 +347,10 @@ static int vfio_user_recv_one(VFIOUserProxy *proxy, Error **errp)
         *msg->hdr = hdr;
         data = (char *)msg->hdr + sizeof(hdr);
     } else {
+        if (hdr.size > proxy->max_xfer_size + sizeof(VFIOUserDMARW)) {
+            error_setg(errp, "vfio_user_recv request larger than max");
+            goto err;
+        }
         buf = g_malloc0(hdr.size);
         memcpy(buf, &hdr, sizeof(hdr));
         data = buf + sizeof(hdr);
@@ -702,6 +706,40 @@ bool vfio_user_send_wait(VFIOUserProxy *proxy, VFIOUserHdr *hdr,
     return ok;
 }
 
+/*
+ * async send - msg can be queued, but will be freed when sent
+ *
+ * Returns false on failure, in which case @errp will be populated.
+ *
+ * In either case, ownership of @hdr and @fds is taken, and the caller must
+ * *not* free them itself.
+ */
+static bool vfio_user_send_async(VFIOUserProxy *proxy, VFIOUserHdr *hdr,
+                                 VFIOUserFDs *fds, Error **errp)
+{
+    VFIOUserMsg *msg;
+
+    QEMU_LOCK_GUARD(&proxy->lock);
+
+    msg = vfio_user_getmsg(proxy, hdr, fds);
+    msg->id = hdr->id;
+    msg->rsize = 0;
+    msg->type = VFIO_MSG_ASYNC;
+
+    if (!(hdr->flags & (VFIO_USER_NO_REPLY | VFIO_USER_REPLY))) {
+        error_setg_errno(errp, EINVAL, "%s on sync message", __func__);
+        vfio_user_recycle(proxy, msg);
+        return false;
+    }
+
+    if (!vfio_user_send_queued(proxy, msg, errp)) {
+        vfio_user_recycle(proxy, msg);
+        return false;
+    }
+
+    return true;
+}
+
 void vfio_user_wait_reqs(VFIOUserProxy *proxy)
 {
     VFIOUserMsg *msg;
@@ -744,6 +782,65 @@ void vfio_user_wait_reqs(VFIOUserProxy *proxy)
     }
 
     qemu_mutex_unlock(&proxy->lock);
+}
+
+/*
+ * Reply to an incoming request.
+ */
+void vfio_user_send_reply(VFIOUserProxy *proxy, VFIOUserHdr *hdr, int size)
+{
+    Error *local_err = NULL;
+
+    if (size < sizeof(VFIOUserHdr)) {
+        error_printf("%s: size too small", __func__);
+        g_free(hdr);
+        return;
+    }
+
+    /*
+     * convert header to associated reply
+     */
+    hdr->flags = VFIO_USER_REPLY;
+    hdr->size = size;
+
+    if (!vfio_user_send_async(proxy, hdr, NULL, &local_err)) {
+        error_report_err(local_err);
+    }
+}
+
+/*
+ * Send an error reply to an incoming request.
+ */
+void vfio_user_send_error(VFIOUserProxy *proxy, VFIOUserHdr *hdr, int error)
+{
+    Error *local_err = NULL;
+
+    /*
+     * convert header to associated reply
+     */
+    hdr->flags = VFIO_USER_REPLY;
+    hdr->flags |= VFIO_USER_ERROR;
+    hdr->error_reply = error;
+    hdr->size = sizeof(*hdr);
+
+    if (!vfio_user_send_async(proxy, hdr, NULL, &local_err)) {
+        error_report_err(local_err);
+    }
+}
+
+/*
+ * Close FDs erroneously received in an incoming request.
+ */
+void vfio_user_putfds(VFIOUserMsg *msg)
+{
+    VFIOUserFDs *fds = msg->fds;
+    int i;
+
+    for (i = 0; i < fds->recv_fds; i++) {
+        close(fds->fds[i]);
+    }
+    g_free(fds);
+    msg->fds = NULL;
 }
 
 static QLIST_HEAD(, VFIOUserProxy) vfio_user_sockets =
