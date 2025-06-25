@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+config VFIO_USER
+    bool
+    default y
+    depends on VFIO_PCI
+

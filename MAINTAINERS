@@ -4253,6 +4253,14 @@ F: hw/remote/iommu.c
 F: include/hw/remote/iommu.h
 F: tests/functional/test_multiprocess.py
 
+VFIO-USER:
+M: John Levon <john.levon@nutanix.com>
+M: Thanos Makatos <thanos.makatos@nutanix.com>
+S: Supported
+F: hw/vfio-user/*
+F: include/hw/vfio-user/*
+F: subprojects/libvfio-user
+
 EBPF:
 M: Jason Wang <jasowang@redhat.com>
 R: Andrew Melnychenko <andrew@daynix.com>
