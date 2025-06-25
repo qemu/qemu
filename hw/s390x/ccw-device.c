@@ -57,7 +57,7 @@ static void ccw_device_set_loadparm(Object *obj, Visitor *v,
                                  Error **errp)
 {
     CcwDevice *dev = CCW_DEVICE(obj);
-    char *val;
+    g_autofree char *val = NULL;
     int index;
 
     index = object_property_get_int(obj, "bootindex", NULL);
