@@ -28,6 +28,7 @@
 #include "system/hvf.h"
 #include "hvf/hvf-i386.h"
 #include "kvm/kvm_i386.h"
+#include "kvm/tdx.h"
 #include "sev.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -8336,7 +8337,8 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         }
     }
 
-    if (!cpu->enable_pmu) {
+    /* PDCM is fixed1 bit for TDX */
+    if (!cpu->enable_pmu && !is_tdx_vm()) {
         mark_unavailable_features(cpu, FEAT_1_ECX,
                                   env->user_features[FEAT_1_ECX] & CPUID_EXT_PDCM,
                                   "This feature is not available due to PMU being disabled");
