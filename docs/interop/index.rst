@@ -25,6 +25,7 @@ are useful for making QEMU interoperate with other software.
    qemu-ga-ref
    qemu-qmp-ref
    qemu-storage-daemon-qmp-ref
+   vfio-user
    vhost-user
    vhost-user-gpu
    vhost-vdpa
