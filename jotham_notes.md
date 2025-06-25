@@ -35,17 +35,24 @@ This will allow true concurrent server without need for cache coherence since
 each client/server writes to a dedicated region, and exclusive access each time
 due to RPC logic.
 
+Writes/reads are sent to BAR, intercepted by Device driver, and tagged with 
+corresponding channel id based off device mapping. so device driver must be
+updated of bar->channel mapping and channel->bar mapping.
+
 Ok, now we have logical understanding of why we need to do this, 
 we go thru the program flow.
 
 Client requests for shared channel using `DiancieClient::request_channel`
-Client uses `QEMUCXLConnector::set_memory_window` to ioctl to the actual kernel
-module to retrieve which BAR client can use. Client will then map the bar.
+Client uses `QEMUCXLConnector::set_memory_window` to the QEMU device to retrieve 
+which BAR client can use. Client will then map the bar.
 
 Server receives shared channel. Server uses `QEMUCXLConnector::set_memory_window`
-to ioctl to actual kernel module to retrieve which BAR server can use. Server
+to the QEMU device to retrieve which BAR server can use. Server
 will map the bar. Server needs to service multiple clients, so must map to array.
 
+Ok, I just learnt that a PCIe device can only have 6 32 bit BARs at once, and 
+a 64 bit BAR (which is what we use for data) essentially uses 2 32 bit BARs at 
+once. The 32 bits of both BARs are combined to form top/bottom of the 64 bits.
 
 ## 16 June
 
