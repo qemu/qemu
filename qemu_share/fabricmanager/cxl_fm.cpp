@@ -104,7 +104,7 @@ void CXLFabricManager::handle_write_mem_req(int qemu_vm_fd, const cxl_ipc_write_
   }
 
   // TODO: Handle state migration
-  int num_successful_writes = 0;
+  size_t num_successful_writes = 0;
 
   for (auto& allocated_region : rpc_connection.allocated_regions) {
     CXLMemDevice* device = allocated_region.backing_device;
@@ -421,8 +421,12 @@ void CXLFabricManager::handle_rpc_request_channel_req(int qemu_client_fd, const 
   cxl_ipc_rpc_new_client_notify_t server_notify_payload;
   server_notify_payload.type = CXL_MSG_TYPE_RPC_NEW_CLIENT_NOTIFY;
   server_notify_payload.channel_id = assigned_channel_id;
-  strncpy(server_notify_payload.client_instance_id, client_id_str.c_str(), sizeof(server_notify_payload.client_instance_id));
-  strncpy(server_notify_payload.service_name, service_name_str.c_str(), sizeof(server_notify_payload.service_name));
+  snprintf(server_notify_payload.client_instance_id, 
+         sizeof(server_notify_payload.client_instance_id), 
+         "%s", client_id_str.c_str());
+  snprintf(server_notify_payload.service_name, 
+          sizeof(server_notify_payload.service_name),
+          "%s", service_name_str.c_str());
   server_notify_payload.channel_shm_size = requested_size;
   server_notify_payload.channel_shm_offset = 0;
 
@@ -511,6 +515,7 @@ void CXLFabricManager::handle_qemu_vm_message(int qemu_vm_fd) {
     } else {
       CXL_FM_LOG("RPC_DEREGISTER_SERVICE_REQ recv error, expected " + std::to_string(sizeof(rpc_deregister_req)) + " bytes, got " + std::to_string(n));
     }
+    break;
   case CXL_MSG_TYPE_RPC_REQUEST_CHANNEL_REQ:
     CXL_FM_LOG("Handling RPC_REQUEST_CHANNEL_REQ");
     cxl_ipc_rpc_request_channel_req_t rpc_request_channel_req;
@@ -543,9 +548,9 @@ void CXLFabricManager::handle_qemu_vm_message(int qemu_vm_fd) {
 }
 
 //  --- Admin handlers ---
-void CXLFabricManager::handle_admin_fail_memdev(int admin_client_fd, int memdev_index) {
+void CXLFabricManager::handle_admin_fail_memdev(int admin_client_fd, uint8_t memdev_index) {
   cxl_admin_fail_replica_resp_t resp;
-  if (memdev_index < 0 || memdev_index >= mem_devices_.size()) {
+  if (memdev_index >= mem_devices_.size()) {
     CXL_FM_LOG("Invalid memdev index: " + std::to_string(memdev_index) +
                ", valid range: [0, " + std::to_string(mem_devices_.size() - 1) + "]");
     resp.status = CXL_IPC_STATUS_ERROR_INVALID_REQ;

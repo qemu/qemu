@@ -114,7 +114,7 @@ private:
   void handle_rpc_release_channel_req(int qemu_client_fd, const cxl_ipc_rpc_release_channel_req_t& req);
 
   // Handler functions for admin requests
-  void handle_admin_fail_memdev(int admin_client_fd, int memdev_index);
+  void handle_admin_fail_memdev(int admin_client_fd, uint8_t memdev_index);
 
   // Handler functions for socket events
   void handle_new_qemu_vm_connection(int& max_fd);
