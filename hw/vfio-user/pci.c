@@ -23,6 +23,16 @@ struct VFIOUserPCIDevice {
 };
 
 /*
+ * Incoming request message callback.
+ *
+ * Runs off main loop, so BQL held.
+ */
+static void vfio_user_pci_process_req(void *opaque, VFIOUserMsg *msg)
+{
+
+}
+
+/*
  * Emulated devices don't use host hot reset
  */
 static void vfio_user_compute_needs_reset(VFIODevice *vbasedev)
@@ -80,6 +90,7 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
         return;
     }
     vbasedev->proxy = proxy;
+    vfio_user_set_handler(vbasedev, vfio_user_pci_process_req, vdev);
 
     /*
      * vfio-user devices are effectively mdevs (don't use a host iommu).
