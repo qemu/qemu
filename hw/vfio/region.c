@@ -273,10 +273,7 @@ int vfio_region_mmap(VFIORegion *region)
             goto no_mmap;
         }
 
-        /* Use the per-region fd if set, or the shared fd. */
-        fd = region->vbasedev->region_fds ?
-             region->vbasedev->region_fds[region->nr] :
-             region->vbasedev->fd,
+        fd = vfio_device_get_region_fd(region->vbasedev, region->nr);
 
         map_align = (void *)ROUND_UP((uintptr_t)map_base, (uintptr_t)align);
         munmap(map_base, map_align - map_base);

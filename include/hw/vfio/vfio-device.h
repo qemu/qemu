@@ -47,6 +47,7 @@ typedef struct VFIOMigration VFIOMigration;
 
 typedef struct IOMMUFDBackend IOMMUFDBackend;
 typedef struct VFIOIOASHwpt VFIOIOASHwpt;
+typedef struct VFIOUserProxy VFIOUserProxy;
 
 typedef struct VFIODevice {
     QLIST_ENTRY(VFIODevice) next;
@@ -88,6 +89,7 @@ typedef struct VFIODevice {
     struct vfio_region_info **reginfo;
     int *region_fds;
     VFIODeviceCPR cpr;
+    VFIOUserProxy *proxy;
 } VFIODevice;
 
 struct VFIODeviceOps {
@@ -240,6 +242,7 @@ struct VFIODeviceIOOps {
      * @off: offset within the region
      * @size: size in bytes to write
      * @data: buffer to write from
+     * @post: true if this is a posted write
      *
      * Returns number of bytes write on success or -errno.
      */
@@ -256,6 +259,18 @@ int vfio_device_get_region_info(VFIODevice *vbasedev, int index,
                                 struct vfio_region_info **info);
 int vfio_device_get_region_info_type(VFIODevice *vbasedev, uint32_t type,
                                      uint32_t subtype, struct vfio_region_info **info);
+
+/**
+ * Return the fd for mapping this region. This is either the device's fd (for
+ * e.g. kernel vfio), or a per-region fd (for vfio-user).
+ *
+ * @vbasedev: #VFIODevice to use
+ * @index: region index
+ *
+ * Returns the fd.
+ */
+int vfio_device_get_region_fd(VFIODevice *vbasedev, int index);
+
 bool vfio_device_has_region_cap(VFIODevice *vbasedev, int region, uint16_t cap_type);
 
 int vfio_device_get_irq_info(VFIODevice *vbasedev, int index,

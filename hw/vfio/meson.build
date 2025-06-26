@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 vfio_ss = ss.source_set()
 vfio_ss.add(files(
   'listener.c',

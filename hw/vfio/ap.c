@@ -52,6 +52,11 @@ static QTAILQ_HEAD(, APConfigChgEvent) cfg_chg_events =
 
 static QemuMutex cfg_chg_events_lock;
 
+static void __attribute__((constructor)) vfio_ap_global_init(void)
+{
+    qemu_mutex_init(&cfg_chg_events_lock);
+}
+
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOAPDevice, VFIO_AP_DEVICE)
 
 static void vfio_ap_compute_needs_reset(VFIODevice *vdev)
@@ -229,13 +234,6 @@ static void vfio_ap_realize(DeviceState *dev, Error **errp)
     Error *err = NULL;
     VFIOAPDevice *vapdev = VFIO_AP_DEVICE(dev);
     VFIODevice *vbasedev = &vapdev->vdev;
-
-    static bool lock_initialized;
-
-    if (!lock_initialized) {
-        qemu_mutex_init(&cfg_chg_events_lock);
-        lock_initialized = true;
-    }
 
     if (!vfio_device_get_name(vbasedev, errp)) {
         return;
