@@ -45,9 +45,7 @@ Person process_person(Person &person1, Person &person2) {
   return stats;
 }
 
-int struct_test()
-
-    int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
   try {
     const std::string device_path = "/dev/cxl_switch_client0";
     const std::string service_name = "TestService1";
@@ -62,7 +60,7 @@ int struct_test()
     server.register_rpc_function<TestServiceFunctions::MULTIPLY>(
         multiply_doubles_impl);
     server.register_rpc_function<TestServiceFunctions::PERSON>(process_person);
-    
+
     std::cout << "\n=== Registering Service ===" << std::endl;
     if (!server.register_service()) {
       std::cerr << "Failed to register service!" << std::endl;
