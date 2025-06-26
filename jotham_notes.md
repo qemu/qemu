@@ -7,6 +7,56 @@
 
 - [ ] (High prior but delayed) bug (SIGILL) with double type params. ints work.
 
+## Double param SIGILL
+
+Have finally figured out the bug.
+This simple program can reproduce the error (when ran on a QEMU VM)
+
+```C
+// Test program to verify 8-byte access:
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int main() {
+    int fd = open("/dev/cxl_switch_client0", O_RDWR);
+    
+    // Map BAR2
+    void* bar2_mapping = mmap(NULL, 268435456, PROT_READ | PROT_WRITE, 
+                             MAP_SHARED, fd, 2 * 4096);
+    if (bar2_mapping == MAP_FAILED) {
+        perror("mmap failed");
+        return 0;
+    }
+
+    double* double_ptr = (double*) bar2_mapping;
+    __sync_synchronize();
+    *double_ptr = 12.3;
+    __sync_synchronize();
+    // Read back
+    uint64_t readback = *aligned_ptr;
+    double readback_double = *double_ptr;
+    printf("Wrote double: %f, Read double: %f\n", 12.3, readback_double);
+    munmap(bar2_mapping, 4096);
+    close(fd);
+    return 0;
+}
+```
+
+When we operate on the bar2 region, we are really interacting with our device's 
+MMIO which triggers the memory operation callback functions in `cxl-switch-client`.
+Floating point operations are inherently not supported, and will trigger a SIGILL.
+So our compiler is thinking that a floating point operation such as `movd` will
+work well on this memory region, except it will crash. Cos that's really an MMIO
+region.
+
+To circumvent this within the realm of our emulation, we will use conditional
+compilation to either perform a memcpy for the assignment or a normal assignment
+depending on whether its a floating type or not. This prevents the compiler from
+using floating point instructions that would trigger a SIGILL.
+
 ## Components in emulation
 
 - Userspace client/server
