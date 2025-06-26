@@ -18,7 +18,7 @@ struct DiancieFunctionTraits;
     static constexpr auto function_id = enum_type::func_id;                    \
     static constexpr const char* name = #func_id;                                               \
   };                                                                           \
-  }
+}
 
 struct FunctionInfo {
   std::function<void(void *args_region, void *result_region)> handler;

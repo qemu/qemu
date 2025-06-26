@@ -155,8 +155,8 @@ public:
     *func_id_ptr = func_id;
     // Write arguments directly
     ArgsTuple args_tuple = std::make_tuple(std::forward<Args>(args)...);
-    mmio_write(reinterpret_cast<volatile ArgsTuple*>(args_region), args_tuple);
-    // *reinterpret_cast<ArgsTuple *>(args_region) = args_tuple;
+    // mmio_write(reinterpret_cast<volatile ArgsTuple*>(args_region), args_tuple);
+    *reinterpret_cast<ArgsTuple *>(args_region) = args_tuple;
 
     std::cout << "Memory layout:" << std::endl;
     std::cout << "  Function ID at: 0x" << std::hex << request_base << std::dec
@@ -191,9 +191,11 @@ public:
         (server_queue_offset_ + 1) % DiancieHeap::NUM_QUEUE_ENTRIES;
 
     if constexpr (!std::is_void_v<RetType>) {
-      // RetType *result_ptr = reinterpret_cast<RetType *>(result_region);
-      // return *result_ptr;
-      return mmio_read<RetType>(reinterpret_cast<volatile RetType*>(result_region));
+      RetType *result_ptr = reinterpret_cast<RetType *>(result_region);
+      std::cout << "Address of ret is " << result_ptr << std::endl;
+      return *result_ptr;
+      // RetType ret = mmio_read<RetType>(reinterpret_cast<volatile RetType*>(result_region));
+      // return ret;
     }
   }
 

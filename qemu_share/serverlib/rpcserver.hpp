@@ -82,12 +82,14 @@ public:
                                                   void *result) {
       try {
         ArgsTuple *args = reinterpret_cast<ArgsTuple *>(args_region);
+        std::cout << "Address of args is at " << &args << std::endl;
         if constexpr (std::is_void_v<RetType>) {
           std::apply(handler, *args);
         } else {
           RetType *result_ptr = reinterpret_cast<RetType *>(result);
-          RetType result_value = std::apply(handler, *args);
-          mmio_write(result_ptr, result_value);
+          *result_ptr = std::apply(handler, *args);
+          // RetType result_value = std::apply(handler, *args);
+          // mmio_write(result_ptr, result_value);
           std::cout << "Server has written result to result ptr" << std::endl;
         }
       } catch (const std::exception &e) {
