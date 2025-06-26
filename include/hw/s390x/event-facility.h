@@ -25,6 +25,7 @@
 #define SCLP_EVENT_MESSAGE                      0x02
 #define SCLP_EVENT_CONFIG_MGT_DATA              0x04
 #define SCLP_EVENT_PMSGCMD                      0x09
+#define SCLP_EVENT_CTRL_PGM_ID                  0x0b
 #define SCLP_EVENT_ASCII_CONSOLE_DATA           0x1a
 #define SCLP_EVENT_SIGNAL_QUIESCE               0x1d
 
@@ -35,6 +36,7 @@
 #define SCLP_EVENT_MASK_MSG             SCLP_EVMASK(SCLP_EVENT_MESSAGE)
 #define SCLP_EVENT_MASK_CONFIG_MGT_DATA SCLP_EVMASK(SCLP_EVENT_CONFIG_MGT_DATA)
 #define SCLP_EVENT_MASK_PMSGCMD         SCLP_EVMASK(SCLP_EVENT_PMSGCMD)
+#define SCLP_EVENT_MASK_CTRL_PGM_ID     SCLP_EVMASK(SCLP_EVENT_CTRL_PGM_ID)
 #define SCLP_EVENT_MASK_MSG_ASCII       SCLP_EVMASK(SCLP_EVENT_ASCII_CONSOLE_DATA)
 #define SCLP_EVENT_MASK_SIGNAL_QUIESCE  SCLP_EVMASK(SCLP_EVENT_SIGNAL_QUIESCE)
 
@@ -189,6 +191,21 @@ struct SCLPEventClass {
 
     /* can we handle this event type? */
     bool (*can_handle_event)(uint8_t type);
+};
+
+#define TYPE_SCLP_EVENT_CPI "sclpcpi"
+typedef struct SCLPEventCPIClass SCLPEventCPIClass;
+typedef struct SCLPEventCPI SCLPEventCPI;
+OBJECT_DECLARE_TYPE(SCLPEventCPI, SCLPEventCPIClass,
+                    SCLP_EVENT_CPI)
+
+struct SCLPEventCPI {
+    SCLPEvent event;
+    uint8_t system_type[8];
+    uint8_t system_name[8];
+    uint64_t system_level;
+    uint8_t sysplex_name[8];
+    uint64_t timestamp;
 };
 
 #define TYPE_SCLP_EVENT_FACILITY "s390-sclp-event-facility"
