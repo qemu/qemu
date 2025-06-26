@@ -17,6 +17,7 @@
 #include "../includes/ioctl_defs.h"
 #include "../includes/qemu_cxl_connector.hpp"
 #include "../includes/rpc_interface.hpp"
+#include "../includes/mmio.hpp"
 
 namespace diancie {
 
@@ -154,7 +155,8 @@ public:
     *func_id_ptr = func_id;
     // Write arguments directly
     ArgsTuple args_tuple = std::make_tuple(std::forward<Args>(args)...);
-    *reinterpret_cast<ArgsTuple *>(args_region) = args_tuple;
+    mmio_write(reinterpret_cast<volatile ArgsTuple*>(args_region), args_tuple);
+    // *reinterpret_cast<ArgsTuple *>(args_region) = args_tuple;
 
     std::cout << "Memory layout:" << std::endl;
     std::cout << "  Function ID at: 0x" << std::hex << request_base << std::dec
@@ -181,7 +183,7 @@ public:
 
     next_data_offset_ += total_size;
     // // Align to 8-byte boundary
-    // next_data_offset_ = (next_data_offset_ + 7) & ~7ULL;
+    next_data_offset_ = (next_data_offset_ + 7) & ~7ULL;
 
     client_queue_offset_ =
         (client_queue_offset_ + 1) % DiancieHeap::NUM_QUEUE_ENTRIES;
@@ -189,8 +191,9 @@ public:
         (server_queue_offset_ + 1) % DiancieHeap::NUM_QUEUE_ENTRIES;
 
     if constexpr (!std::is_void_v<RetType>) {
-      RetType *result_ptr = reinterpret_cast<RetType *>(result_region);
-      return *result_ptr;
+      // RetType *result_ptr = reinterpret_cast<RetType *>(result_region);
+      // return *result_ptr;
+      return mmio_read<RetType>(reinterpret_cast<volatile RetType*>(result_region));
     }
   }
 

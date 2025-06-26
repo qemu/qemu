@@ -6,6 +6,7 @@
 #include "../includes/ioctl_defs.h"
 #include "../includes/qemu_cxl_connector.hpp"
 #include "../includes/rpc_interface.hpp"
+#include "../includes/mmio.hpp"
 #include <chrono>
 #include <csignal>
 #include <cstdint>
@@ -85,7 +86,9 @@ public:
           std::apply(handler, *args);
         } else {
           RetType *result_ptr = reinterpret_cast<RetType *>(result);
-          *result_ptr = std::apply(handler, *args);
+          RetType result_value = std::apply(handler, *args);
+          mmio_write(result_ptr, result_value);
+          std::cout << "Server has written result to result ptr" << std::endl;
         }
       } catch (const std::exception &e) {
         std::cerr << "Error in " << Traits::name << ": " << e.what()
@@ -247,20 +250,20 @@ private:
               << connection->get_channel_id() << " with base address "
               << connection->get_base() << " and size "
               << connection->get_size() << std::endl;
-    uint64_t mapped_base =
+    volatile uint64_t mapped_base =
         reinterpret_cast<uint64_t>(bar2_base_) + connection->get_base();
     QueueEntry *server_queue = reinterpret_cast<QueueEntry *>(
         mapped_base + DiancieHeap::SERVER_QUEUE_OFFSET);
     QueueEntry *client_queue = reinterpret_cast<QueueEntry *>(
         mapped_base + DiancieHeap::CLIENT_QUEUE_OFFSET);
-    uint64_t data_area = mapped_base + DiancieHeap::DATA_AREA_OFFSET;
+    volatile uint64_t data_area = mapped_base + DiancieHeap::DATA_AREA_OFFSET;
     // TODO: Have to identify actual starting offsets, for now assume 0
     //       cos we are in failure-free domain rn.
     //       In the future, we shud enable transparent server takeover
     //       so another server can inherit the shm region and has to identify
     //       starting point.
-    uint64_t server_offset = 0;
-    uint64_t client_offset = 0;
+    volatile uint64_t server_offset = 0;
+    volatile uint64_t client_offset = 0;
     // Invariant: they only differ by 1 position at most. We assume a strict
     //            synchronous execution.
     while (true) {
