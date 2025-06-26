@@ -2,10 +2,19 @@
 
 ## TODO Plan
 
+- [ ] Implement retrying (for at least once)
 - [ ] Replication test
 - [ ] WAL Log 
 
 - [ ] (High prior but delayed) bug (SIGILL) with double type params. ints work.
+
+## Retrying
+
+Already have replication (not rigorously tested yet).
+Next step is to implement retrying.
+Server fail ==> simulated via QEMU termination.
+FD disconnect ==> FM check that client is still connected ==> find another server
+to handle client connection.
 
 ## Double param SIGILL
 
