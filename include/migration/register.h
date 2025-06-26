@@ -98,7 +98,7 @@ typedef struct SaveVMHandlers {
     int (*save_complete)(QEMUFile *f, void *opaque);
 
     /**
-     * @save_live_complete_precopy_thread (invoked in a separate thread)
+     * @save_complete_precopy_thread (invoked in a separate thread)
      *
      * Called at the end of a precopy phase from a separate worker thread
      * in configurations where multifd device state transfer is supported
@@ -107,14 +107,14 @@ typedef struct SaveVMHandlers {
      * When postcopy is enabled, devices that support postcopy will skip this
      * step.
      *
-     * @d: a #SaveLiveCompletePrecopyThreadData containing parameters that the
+     * @d: a #SaveCompletePrecopyThreadData containing parameters that the
      * handler may need, including this device section idstr and instance_id,
      * and opaque data pointer passed to register_savevm_live().
      * @errp: pointer to Error*, to store an error if it happens.
      *
      * Returns true to indicate success and false for errors.
      */
-    SaveLiveCompletePrecopyThreadHandler save_live_complete_precopy_thread;
+    SaveCompletePrecopyThreadHandler save_complete_precopy_thread;
 
     /* This runs both outside and inside the BQL.  */
 

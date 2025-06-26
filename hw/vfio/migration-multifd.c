@@ -583,7 +583,7 @@ vfio_save_complete_precopy_thread_config_state(VFIODevice *vbasedev,
 
 /*
  * This thread is spawned by the migration core directly via
- * .save_live_complete_precopy_thread SaveVMHandler.
+ * .save_complete_precopy_thread SaveVMHandler.
  *
  * It exits after either:
  * * completing saving the remaining device state and device config, OR:
@@ -592,7 +592,7 @@ vfio_save_complete_precopy_thread_config_state(VFIODevice *vbasedev,
  *   multifd_device_state_save_thread_should_exit() returning true.
  */
 bool
-vfio_multifd_save_complete_precopy_thread(SaveLiveCompletePrecopyThreadData *d,
+vfio_multifd_save_complete_precopy_thread(SaveCompletePrecopyThreadData *d,
                                           Error **errp)
 {
     VFIODevice *vbasedev = d->handler_opaque;

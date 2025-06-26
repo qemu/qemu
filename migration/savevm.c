@@ -1581,15 +1581,15 @@ int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy)
 
     if (multifd_device_state) {
         QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-            SaveLiveCompletePrecopyThreadHandler hdlr;
+            SaveCompletePrecopyThreadHandler hdlr;
 
             if (!se->ops || (in_postcopy && se->ops->has_postcopy &&
                              se->ops->has_postcopy(se->opaque)) ||
-                !se->ops->save_live_complete_precopy_thread) {
+                !se->ops->save_complete_precopy_thread) {
                 continue;
             }
 
-            hdlr = se->ops->save_live_complete_precopy_thread;
+            hdlr = se->ops->save_complete_precopy_thread;
             multifd_spawn_device_state_save_thread(hdlr,
                                                    se->idstr, se->instance_id,
                                                    se->opaque);

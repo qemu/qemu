@@ -835,7 +835,7 @@ static const SaveVMHandlers savevm_vfio_handlers = {
      */
     .load_state_buffer = vfio_multifd_load_state_buffer,
     .switchover_start = vfio_switchover_start,
-    .save_live_complete_precopy_thread = vfio_multifd_save_complete_precopy_thread,
+    .save_complete_precopy_thread = vfio_multifd_save_complete_precopy_thread,
 };
 
 /* ---------------------------------------------------------------------- */
