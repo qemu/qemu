@@ -6,7 +6,7 @@
 #include <optional>
 #include <string>
 #include "../includes/cxl_switch_ipc.h"
-
+#include <vector>
 namespace cxl_fm {
 /**
   Represents a CXL Memory Device. At the moment, it is really just a 
