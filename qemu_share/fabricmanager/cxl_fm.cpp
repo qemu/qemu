@@ -66,7 +66,7 @@ void CXLFabricManager::handle_write_mem_req(int qemu_vm_fd, const cxl_ipc_write_
   resp.type = CXL_MSG_TYPE_WRITE_RESP;
   resp.status = CXL_IPC_STATUS_ERROR_GENERIC;
 
-  CXL_FM_LOG("Received WRITE_REQ" 
+  CXL_FM_LOG("Received WRITE_REQ from qemu vm fd : " + std::to_string(qemu_vm_fd) +  
              ", channel_id: " + std::to_string(req.channel_id) + 
              ", addr: " + std::to_string(req.addr) +
              ", size: " + std::to_string(req.size) +
@@ -82,6 +82,7 @@ void CXLFabricManager::handle_write_mem_req(int qemu_vm_fd, const cxl_ipc_write_
     return;
   }
 
+  // Find the corresponding connection, terminating early if no connection
   auto it = active_rpc_connections_.find(req.channel_id);
   if (it == active_rpc_connections_.end()) {
     // If an RPCConnection is not found,
@@ -93,9 +94,8 @@ void CXLFabricManager::handle_write_mem_req(int qemu_vm_fd, const cxl_ipc_write_
     send(qemu_vm_fd, &resp, sizeof(resp), 0);
     return;
   }
-
+  // Check if the connection is faulty (somehow it does not have allocated regions)
   RPCConnection& rpc_connection = it->second;
-
   if (rpc_connection.allocated_regions.empty()) {
     CXL_FM_LOG("RPCConnection has no allocated regions, cannot handle write request.");
     resp.status = CXL_IPC_STATUS_ERROR_NO_HEALTHY_BACKEND;
@@ -121,6 +121,12 @@ void CXLFabricManager::handle_write_mem_req(int qemu_vm_fd, const cxl_ipc_write_
       //                         the CXLMemDevice
       // We handle the check within the write_data and catch any errors
       uint64_t actual_offset = req.addr + allocated_region.offset;
+
+      std::cout << "Writing at actual offset " << actual_offset 
+                << ", allocated region offset " << allocated_region.offset
+                << ", request offset " << req.addr
+                << " from QEMU VM FD " << qemu_vm_fd
+                << std::endl;
 
       CXL_FM_LOG("Writing to device: "
                  ", logical_addr: " + std::to_string(req.addr) +
@@ -168,10 +174,10 @@ void CXLFabricManager::handle_read_mem_req(int qemu_vm_fd, const cxl_ipc_read_re
   resp.status = CXL_IPC_STATUS_ERROR_GENERIC;
   resp.value = ~0ULL; // Default value in case of error
 
-  CXL_FM_LOG("Received READ_REQ" 
-             ", channel_id: " + std::to_string(req.channel_id) + 
-             ", addr: " + std::to_string(req.addr) +
-             ", size: " + std::to_string(req.size));
+  // CXL_FM_LOG("Received READ_REQ" 
+  //            ", channel_id: " + std::to_string(req.channel_id) + 
+  //            ", addr: " + std::to_string(req.addr) +
+  //            ", size: " + std::to_string(req.size));
   
   // Early terminate from a nonsensical request
   if ((req.addr + req.size) > config_.replica_mem_size) {
@@ -222,10 +228,10 @@ void CXLFabricManager::handle_read_mem_req(int qemu_vm_fd, const cxl_ipc_read_re
       uint8_t tmp_buffer[8];
       resp.value = 0; // init to all 0s to ensure upper bytes are zero-ed
       
-      CXL_FM_LOG("Attempting to read from device: "
-                 ", logical_addr: " + std::to_string(req.addr) +
-                 ", actual_offset_on_device: " + std::to_string(actual_offset) +
-                 ", size: " + std::to_string(req.size));
+      // CXL_FM_LOG("Attempting to read from device: "
+      //            ", logical_addr: " + std::to_string(req.addr) +
+      //            ", actual_offset_on_device: " + std::to_string(actual_offset) +
+      //            ", size: " + std::to_string(req.size));
       // Bounds check performed here
       device->read_data(actual_offset, tmp_buffer, req.size);
       // Copy data from tmp_buffer to resp.value, respecting the desired size
@@ -233,25 +239,26 @@ void CXLFabricManager::handle_read_mem_req(int qemu_vm_fd, const cxl_ipc_read_re
       switch(req.size) {
       case 1:
         resp.value = *reinterpret_cast<uint8_t*>(tmp_buffer);
-        CXL_FM_LOG("Read 1 byte: " + std::to_string(resp.value));
+        // CXL_FM_LOG("Read 1 byte: " + std::to_string(resp.value));
         resp.status = CXL_IPC_STATUS_OK;
         break;
-        case 2:
+      case 2:
         resp.value = *reinterpret_cast<uint16_t*>(tmp_buffer);
-        CXL_FM_LOG("Read 2 bytes: " + std::to_string(resp.value));
+        // CXL_FM_LOG("Read 2 bytes: " + std::to_string(resp.value));
         resp.status = CXL_IPC_STATUS_OK;
         break;
-        case 4:
+      case 4:
         resp.value = *reinterpret_cast<uint32_t*>(tmp_buffer);
-        CXL_FM_LOG("Read 4 bytes: " + std::to_string(resp.value));
+        // CXL_FM_LOG("Read 4 bytes: " + std::to_string(resp.value));
         resp.status = CXL_IPC_STATUS_OK;
         break;
-        case 8:
+      case 8:
         resp.value = *reinterpret_cast<uint64_t*>(tmp_buffer);
-        CXL_FM_LOG("Read 8 bytes: " + std::to_string(resp.value));
+        // CXL_FM_LOG("Read 8 bytes: " + std::to_string(resp.value));
         resp.status = CXL_IPC_STATUS_OK;
         break;
       default:
+        CXL_FM_LOG("Failed to read.");
         resp.status = CXL_IPC_STATUS_ERROR_INVALID_REQ;
         break;
       }
@@ -366,6 +373,10 @@ void CXLFabricManager::handle_rpc_request_channel_req(int qemu_client_fd, const 
       AllocatedRegionInfo ar;
       ar.offset = allocated_offset.value();
       ar.size = requested_size;
+      std::cout << "AR offset is " << ar.offset 
+                << ", size is " << ar.size
+                << ", backing device idx is " << i
+                << std::endl;
       ar.backing_device = &mem_devices_[i];
       allocated_regions.push_back(std::move(ar));
       num_allocated_replicas++;
@@ -463,7 +474,7 @@ void CXLFabricManager::handle_qemu_vm_message(int qemu_vm_fd) {
     return;
   }
 
-  CXL_FM_LOG("Received message type header: " + std::to_string(msg_type_header) + ", fd: " + std::to_string(qemu_vm_fd));
+  // CXL_FM_LOG("Received message type header: " + std::to_string(msg_type_header) + ", fd: " + std::to_string(qemu_vm_fd));
 
   switch(msg_type_header) {
   case CXL_MSG_TYPE_GET_MEM_SIZE_REQ:
@@ -477,7 +488,7 @@ void CXLFabricManager::handle_qemu_vm_message(int qemu_vm_fd) {
     }
     break;
   case CXL_MSG_TYPE_WRITE_REQ:
-    CXL_FM_LOG("Handling WRITE_REQ");
+    // CXL_FM_LOG("Handling WRITE_REQ");
     cxl_ipc_write_req_t write_req;
     n = ::recv(qemu_vm_fd, &write_req, sizeof(write_req), MSG_WAITALL);
     if (n == sizeof(write_req)) {
@@ -487,7 +498,7 @@ void CXLFabricManager::handle_qemu_vm_message(int qemu_vm_fd) {
     }
     break;
   case CXL_MSG_TYPE_READ_REQ:
-    CXL_FM_LOG("Handling READ_REQ");
+    // CXL_FM_LOG("Handling READ_REQ");
     cxl_ipc_read_req_t read_req;
     n = ::recv(qemu_vm_fd, &read_req, sizeof(read_req), MSG_WAITALL);
     if (n == sizeof(read_req)) {
