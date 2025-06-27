@@ -1361,6 +1361,12 @@ static bool ldff_trans(uint32_t vd, uint32_t rs1, uint32_t data,
     fn(dest, mask, base, tcg_env, desc);
 
     finalize_rvv_inst(s);
+
+    /* vector unit-stride fault-only-first load may modify vl CSR */
+    gen_update_pc(s, s->cur_insn_len);
+    lookup_and_goto_ptr(s);
+    s->base.is_jmp = DISAS_NORETURN;
+
     return true;
 }
 
