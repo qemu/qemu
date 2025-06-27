@@ -177,7 +177,7 @@ public:
     // Wait for server's response: This is blocking as we only adopt sync model
     while (server_queue_[server_queue_offset_].get_flag() == 0) {
       // TODO: Optimize polling
-      std::this_thread::sleep_for(std::chrono::microseconds(100));
+      std::this_thread::sleep_for(std::chrono::microseconds(100000));
     }
     std::cout << "Server processing complete" << std::endl;
 

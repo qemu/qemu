@@ -178,6 +178,7 @@ void CXLFabricManager::handle_read_mem_req(int qemu_vm_fd, const cxl_ipc_read_re
   //            ", channel_id: " + std::to_string(req.channel_id) + 
   //            ", addr: " + std::to_string(req.addr) +
   //            ", size: " + std::to_string(req.size));
+
   
   // Early terminate from a nonsensical request
   if ((req.addr + req.size) > config_.replica_mem_size) {
@@ -224,6 +225,13 @@ void CXLFabricManager::handle_read_mem_req(int qemu_vm_fd, const cxl_ipc_read_re
       //                         the CXLMemDevice
       // We handle the check within the read_data and catch any errors
       uint64_t actual_offset = req.addr + allocated_region.offset;
+
+
+      std::cout << "Reading at actual offset " << actual_offset 
+        << ", allocated region offset " << allocated_region.offset
+        << ", request offset " << req.addr
+        << " from QEMU VM FD " << qemu_vm_fd
+        << std::endl;
       // Temp buffer to hold data as max read is 8 bytes
       uint8_t tmp_buffer[8];
       resp.value = 0; // init to all 0s to ensure upper bytes are zero-ed

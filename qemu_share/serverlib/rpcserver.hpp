@@ -188,6 +188,9 @@ private:
   std::string service_name_;
   std::string instance_id_;
   std::unordered_map<uint64_t, std::thread> clients_;
+  // Map from channel id to MMIO region offset
+  // syncs with set_memory_window to register channel id properly
+  std::unordered_map<ChannelId, uint64_t> channel_offsets_;
   // Function and service registration
   uint64_t curr_function_identifier = 0;
   bool has_registered_service = false;
@@ -196,8 +199,26 @@ private:
   std::unordered_map<FunctionEnum, FunctionInfo> function_registry_;
 
 private:
+  // Assume each channel size is 256MB
+  static constexpr uint64_t CHANNEL_SIZE = 0x10000000;
+  // Dumb fast easy way to get next offset to test
+  uint64_t get_next_channel_offset() {
+    uint64_t next_offset = 0;
+    if (channel_offsets_.empty()) {
+      return next_offset;
+    }
+    for (const auto& [channel_id, offset] : channel_offsets_) {
+      if (offset >= next_offset) {
+        next_offset = offset + CHANNEL_SIZE;
+      }
+    }
+    return next_offset;
+  }
+
   void handle_new_client(std::unique_ptr<AbstractCXLConnection> conn) {
-    set_memory_window(conn->get_base(), conn->get_size(),
+    uint64_t mmio_offset = get_next_channel_offset();
+    channel_offsets_[conn->get_channel_id()] = mmio_offset;
+    set_memory_window(mmio_offset, conn->get_size(),
                       conn->get_channel_id());
     uint64_t channel_id = conn->get_channel_id();
 
@@ -206,8 +227,8 @@ private:
               << ", Size: " << conn->get_size() << std::endl;
 
     clients_[channel_id] =
-        std::thread([this, conn = std::move(conn)]() mutable {
-          this->service_client(std::move(conn));
+        std::thread([this, conn = std::move(conn), mmio_offset]() mutable {
+          this->service_client(std::move(conn), mmio_offset);
         });
   }
 
@@ -244,16 +265,16 @@ private:
 
   /// This is the function that is launched into its respective thread context
   /// TODO: Currently in failure-free domain.
-  void service_client(std::unique_ptr<AbstractCXLConnection> connection) {
+  void service_client(std::unique_ptr<AbstractCXLConnection> connection, uint64_t mmio_offset) {
     // Install signal handler to ignore segfault
     signal(SIGSEGV, segfault_handler);
     signal(SIGBUS, segfault_handler);
     std::cout << "Servicing client on channel id "
               << connection->get_channel_id() << " with base address "
-              << connection->get_base() << " and size "
+              << mmio_offset << " and size "
               << connection->get_size() << std::endl;
     volatile uint64_t mapped_base =
-        reinterpret_cast<uint64_t>(bar2_base_) + connection->get_base();
+        reinterpret_cast<uint64_t>(bar2_base_) + mmio_offset;
     QueueEntry *server_queue = reinterpret_cast<QueueEntry *>(
         mapped_base + DiancieHeap::SERVER_QUEUE_OFFSET);
     QueueEntry *client_queue = reinterpret_cast<QueueEntry *>(
@@ -271,7 +292,8 @@ private:
     while (true) {
       // TODO: Do optimized polling
       while (client_queue[client_offset].get_flag() == 0) {
-        std::this_thread::sleep_for(std::chrono::microseconds(100));
+        std::cout << "Server poll failed, sleeping." << std::endl;
+        std::this_thread::sleep_for(std::chrono::microseconds(100000));
       }
       // Get offset and abs addr from curr queue entry
       uint64_t request_offset = client_queue[client_offset].get_address();

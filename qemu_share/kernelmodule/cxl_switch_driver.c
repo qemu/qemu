@@ -310,7 +310,7 @@ static irqreturn_t cxl_switch_client_isr(int irq, void *dev_id) {
     pr_info("%s: Close channel notification received.\n", DRIVER_NAME);
     if (dev->eventfd_notify_ctx) {
       eventfd_signal(dev->eventfd_notify_ctx);
-      pr_info("%s: Signaled eventfd for new client notification.\n", DRIVER_NAME);
+      pr_info("%s: Signaled eventfd for close channel notification.\n", DRIVER_NAME);
     } else {
       pr_info("%s: No eventfd context for new client notifications, skipping signal.\n", DRIVER_NAME);
     }

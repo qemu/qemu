@@ -6,6 +6,7 @@
 #include <iostream>
 #include <random>
 #include <thread>
+#include <unistd.h>
 
 using namespace diancie;
 
@@ -17,7 +18,7 @@ void test_basic_arithmetic(DiancieClient<TestServiceFunctions>& client) {
     std::uniform_int_distribution<int> int_dist(1, 1000);
 
     try {
-        int num_add_iterations = 1;
+        int num_add_iterations = 10;
         for (int i = 0; i < num_add_iterations; ++i) {
             int a = int_dist(gen);
             int b = int_dist(gen);
@@ -27,9 +28,11 @@ void test_basic_arithmetic(DiancieClient<TestServiceFunctions>& client) {
             std::cout << " a " << a << " b " << b << std::endl;
             int result = client.call<TestServiceFunctions::ADD>(a, b);
             std::cout << "Client: " << a << " + " << b << " = " << result << std::endl;
+
             
             // Check if the result is as expected
             assert(result == expected_result);
+            sleep(1);
         }
 
         int num_multiply_iterations = 10;
@@ -43,6 +46,7 @@ void test_basic_arithmetic(DiancieClient<TestServiceFunctions>& client) {
             std::cout << "Client: " << a << " * " << b << " = " << result << std::endl;
 
             assert(result == expected_result);
+            sleep(1);
             
             // Check if the result is as expected with small error bound
             // assert(std::abs(result - expected_result) < 0.001);

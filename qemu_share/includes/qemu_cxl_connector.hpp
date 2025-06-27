@@ -56,7 +56,7 @@ private:
   static constexpr off_t BAR2_MMAP_OFFSET = 2 * 4096; // MMAP_OFFSET_PGOFF_BAR2
   static constexpr size_t DEFAULT_BAR0_SIZE = 4096;
   static constexpr size_t DEFAULT_BAR1_SIZE = 4096;
-  static constexpr size_t DEFAULT_BAR2_SIZE = 256 * 1024 * 1024;
+  static constexpr size_t DEFAULT_BAR2_SIZE = 1024 * 1024 * 1024;
 
 protected:
   // TODO: Make these private
