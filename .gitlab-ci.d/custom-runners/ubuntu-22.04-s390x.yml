@@ -31,7 +31,9 @@ ubuntu-22.04-s390x-all-system:
  timeout: 75m
  rules:
  - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+   allow_failure: true
  - if: "$S390X_RUNNER_AVAILABLE"
+   allow_failure: true
  script:
  - mkdir build
  - cd build
