@@ -132,7 +132,7 @@ public:
     constexpr size_t result_size =
         std::is_void_v<RetType> ? 0 : sizeof(RetType);
     const size_t total_size = fid_size + args_size + result_size;
-
+    // Client does not care about q_posns.
     uint64_t request_base = data_area_ + next_data_offset_;
     FunctionEnum *func_id_ptr = reinterpret_cast<FunctionEnum *>(request_base);
     void *args_region =

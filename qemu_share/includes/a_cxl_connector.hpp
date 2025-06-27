@@ -104,7 +104,8 @@ public:
 /// Each client/server that connects via the CXL connection maintains
 /// their own view of the DiancieHeap. The DiancieHeap is just a reinterpret_cast
 /// over the large memory region anyways ?
-/// TODO: Figure out how to let a server transparently take over?
+/// How does server transparently take over?
+/// Idea: Store the offsets for server/client queue at the beginning
 /// Idea: Enumerate the fixed offsets for server/client queue
 class DiancieHeap {
 private:
@@ -112,13 +113,17 @@ private:
 public:
   // Each queue entry is 64 bits, or 8 bytes.
   static constexpr int NUM_QUEUE_ENTRIES = 128;
-  static constexpr uint64_t CLIENT_QUEUE_OFFSET = 0;
+  // 64 bits can identify 2**64 queue entries
+  static constexpr uint64_t CLIENT_QUEUE_POSITION = 0; // Position for client queue
+  static constexpr uint64_t SERVER_QUEUE_POSITION = 8; // Position for server queue
+
+  static constexpr uint64_t CLIENT_QUEUE_OFFSET = 16; // after server queue
   static constexpr size_t   CLIENT_QUEUE_SIZE   = NUM_QUEUE_ENTRIES * 8;
 
-  static constexpr uint64_t SERVER_QUEUE_OFFSET = 0 + CLIENT_QUEUE_SIZE;
+  static constexpr uint64_t SERVER_QUEUE_OFFSET = 16 + CLIENT_QUEUE_SIZE;
   static constexpr uint64_t SERVER_QUEUE_SIZE   = NUM_QUEUE_ENTRIES * 8;
 
-  static constexpr uint64_t DATA_AREA_OFFSET    = 0 + CLIENT_QUEUE_SIZE + SERVER_QUEUE_SIZE;
+  static constexpr uint64_t DATA_AREA_OFFSET    = 16 + CLIENT_QUEUE_SIZE + SERVER_QUEUE_SIZE;
 
   size_t size;
   uint64_t DATA_AREA_SIZE    = size - CLIENT_QUEUE_SIZE + SERVER_QUEUE_SIZE;

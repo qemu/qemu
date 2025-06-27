@@ -275,20 +275,22 @@ private:
               << connection->get_size() << std::endl;
     volatile uint64_t mapped_base =
         reinterpret_cast<uint64_t>(bar2_base_) + mmio_offset;
+    volatile uint64_t* client_q_posn = reinterpret_cast<volatile uint64_t*>(mapped_base + DiancieHeap::CLIENT_QUEUE_POSITION);
+    volatile uint64_t* server_q_posn = reinterpret_cast<volatile uint64_t*>(mapped_base + DiancieHeap::SERVER_QUEUE_POSITION);
     QueueEntry *server_queue = reinterpret_cast<QueueEntry *>(
         mapped_base + DiancieHeap::SERVER_QUEUE_OFFSET);
     QueueEntry *client_queue = reinterpret_cast<QueueEntry *>(
         mapped_base + DiancieHeap::CLIENT_QUEUE_OFFSET);
     volatile uint64_t data_area = mapped_base + DiancieHeap::DATA_AREA_OFFSET;
-    // TODO: Have to identify actual starting offsets, for now assume 0
-    //       cos we are in failure-free domain rn.
-    //       In the future, we shud enable transparent server takeover
-    //       so another server can inherit the shm region and has to identify
-    //       starting point.
-    volatile uint64_t server_offset = 0;
-    volatile uint64_t client_offset = 0;
+    // When a server freshly picks up the service_client connection, whether brand
+    // new or recover, we read the q_posn from the shm region, which is updated
+    // by the server. The client always maintains a local copy.
+    volatile uint64_t server_offset = *server_q_posn;
+    volatile uint64_t client_offset = *client_q_posn;
     // Invariant: they only differ by 1 position at most. We assume a strict
     //            synchronous execution.
+    // TODO: How to handle wrap around? Not realistic to assume only 128 RPC
+    //       requests per connection.
     while (true) {
       // TODO: Do optimized polling
       while (client_queue[client_offset].get_flag() == 0) {
@@ -347,6 +349,21 @@ private:
         server_queue[server_offset].set_address(result_offset);
         // Commits request
         server_queue[server_offset].set_flag(true);
+        // After the server has committed its response, it is safe to update
+        // the server offset in the shm region.
+        // We only consider the server failure for a recovery: if the client fails
+        // we terminate the connection. So the client's server offset is local
+        // to its closure.
+        // Is it safe to update the client offset? Also yes. Cos we only consider
+        // server failure for recovery. If server failed and another took over,
+        // we want to look at the latest client request, which is what we wrote.
+        // The client offset is local as well.
+
+        client_offset = (client_offset + 1) % DiancieHeap::NUM_QUEUE_ENTRIES;
+        *client_q_posn = client_offset;
+        server_offset = (server_offset + 1) % DiancieHeap::NUM_QUEUE_ENTRIES;
+        *server_q_posn = server_offset;
+        std::cout << "Processing complete. " << std::endl;
 
       } catch (const std::invalid_argument &e) {
         std::cerr << "Thread loop: Invalid argument " << e.what() << std::endl;
@@ -358,10 +375,6 @@ private:
         break;
       }
 
-      client_offset = (client_offset + 1) % DiancieHeap::NUM_QUEUE_ENTRIES;
-      server_offset = (server_offset + 1) % DiancieHeap::NUM_QUEUE_ENTRIES;
-
-      std::cout << "Processing complete. " << std::endl;
     }
     std::cout << "Thread handler closing." << std::endl;
   }
