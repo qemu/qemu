@@ -16,14 +16,15 @@ struct VFIOContainer;
 struct VFIOContainerBase;
 struct VFIOGroup;
 
+typedef int (*dma_map_fn)(const struct VFIOContainerBase *bcontainer,
+                          hwaddr iova, ram_addr_t size, void *vaddr,
+                          bool readonly, MemoryRegion *mr);
+
 typedef struct VFIOContainerCPR {
     Error *blocker;
     bool vaddr_unmapped;
     NotifierWithReturn transfer_notifier;
     MemoryListener remap_listener;
-    int (*saved_dma_map)(const struct VFIOContainerBase *bcontainer,
-                         hwaddr iova, ram_addr_t size,
-                         void *vaddr, bool readonly, MemoryRegion *mr);
 } VFIOContainerCPR;
 
 typedef struct VFIODeviceCPR {
