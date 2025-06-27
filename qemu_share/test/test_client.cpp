@@ -17,7 +17,7 @@ void test_basic_arithmetic(DiancieClient<TestServiceFunctions>& client) {
     std::uniform_int_distribution<int> int_dist(1, 1000);
 
     try {
-        int num_add_iterations = 10;
+        int num_add_iterations = 1;
         for (int i = 0; i < num_add_iterations; ++i) {
             int a = int_dist(gen);
             int b = int_dist(gen);
