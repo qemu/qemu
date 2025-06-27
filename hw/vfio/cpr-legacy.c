@@ -180,9 +180,9 @@ bool vfio_legacy_cpr_register_container(VFIOContainer *container, Error **errp)
     vmstate_register(NULL, -1, &vfio_container_vmstate, container);
 
     /* During incoming CPR, divert calls to dma_map. */
+    VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
+    container->cpr.saved_dma_map = vioc->dma_map;
     if (cpr_is_incoming()) {
-        VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
-        container->cpr.saved_dma_map = vioc->dma_map;
         vioc->dma_map = vfio_legacy_cpr_dma_map;
     }
 
