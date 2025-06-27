@@ -6,6 +6,7 @@
 */
 
 #include <bits/types/struct_timeval.h>
+#include <cassert>
 #include <cerrno>
 #include <cstdint>
 #include <cstdlib>
@@ -37,7 +38,7 @@
 
 namespace cxl_fm {
 
-#define CXL_FM_DEBUG 0
+#define CXL_FM_DEBUG 1
 #if CXL_FM_DEBUG
 #define CXL_FM_LOG(msg) do { std::cerr << "CXL FM: " << msg << std::endl; } while(0)
 #define CXL_FM_LOG_P(msg, val) do { std::cerr << "CXL FM: " << msg << val << std::endl; } while(0)
@@ -122,11 +123,11 @@ void CXLFabricManager::handle_write_mem_req(int qemu_vm_fd, const cxl_ipc_write_
       // We handle the check within the write_data and catch any errors
       uint64_t actual_offset = req.addr + allocated_region.offset;
 
-      std::cout << "Writing at actual offset " << actual_offset 
-                << ", allocated region offset " << allocated_region.offset
-                << ", request offset " << req.addr
-                << " from QEMU VM FD " << qemu_vm_fd
-                << std::endl;
+      // std::cout << "Writing at actual offset " << actual_offset 
+      //           << ", allocated region offset " << allocated_region.offset
+      //           << ", request offset " << req.addr
+      //           << " from QEMU VM FD " << qemu_vm_fd
+      //           << std::endl;
 
       CXL_FM_LOG("Writing to device: "
                  ", logical_addr: " + std::to_string(req.addr) +
@@ -227,11 +228,11 @@ void CXLFabricManager::handle_read_mem_req(int qemu_vm_fd, const cxl_ipc_read_re
       uint64_t actual_offset = req.addr + allocated_region.offset;
 
 
-      std::cout << "Reading at actual offset " << actual_offset 
-        << ", allocated region offset " << allocated_region.offset
-        << ", request offset " << req.addr
-        << " from QEMU VM FD " << qemu_vm_fd
-        << std::endl;
+      // std::cout << "Reading at actual offset " << actual_offset 
+      //   << ", allocated region offset " << allocated_region.offset
+      //   << ", request offset " << req.addr
+      //   << " from QEMU VM FD " << qemu_vm_fd
+      //   << std::endl;
       // Temp buffer to hold data as max read is 8 bytes
       uint8_t tmp_buffer[8];
       resp.value = 0; // init to all 0s to ensure upper bytes are zero-ed
@@ -853,17 +854,67 @@ void CXLFabricManager::run() {
 }
 
 // Center point for cleanup?
+// Approach for retry: Check which VM that disconnected
+// Find session(s) it is in:
+// If client -> Terminate session, same as usual
+// If server -> Find another server to connect to session
 void CXLFabricManager::handle_qemu_disconnect(int qemu_vm_fd, int& max_fd) {
   std::lock_guard<std::mutex> lock{state_mutex_};
-  CXL_FM_LOG("Client disconnected, fd: " + std::to_string(qemu_vm_fd));
+  CXL_FM_LOG("QEMU VM disconnected, fd: " + std::to_string(qemu_vm_fd));
   // 1. Remove FD from service registry
   cleanup_services_by_fd(qemu_vm_fd);
-  // 2. Find all channels that QEMU VM FD was involved in. Terminate the 
-  //    connection for the other QEMU VM as well
+  // 2. Find all channels that QEMU VM FD was involved in.
   if (fd_to_channel_ids_.count(qemu_vm_fd) > 0) {
     CXL_FM_LOG("Found " + std::to_string(fd_to_channel_ids_[qemu_vm_fd].size()) + " channels associated with fd " + std::to_string(qemu_vm_fd) + ". Cleaning up all");
+    // For each active channel the VM was in, either terminate or find replacement
     for (const auto& channel_idx : fd_to_channel_ids_.at(qemu_vm_fd)) {
-      release_channel(channel_idx, qemu_vm_fd);
+      auto& conn = active_rpc_connections_.at(channel_idx);
+      if (conn.client_fd == qemu_vm_fd) {
+        // Is a client, terminate the connection
+        release_channel(channel_idx, qemu_vm_fd);
+      } else if (conn.server_fd == qemu_vm_fd) {
+        // Is a server, find another server that can provide the service
+        // Find the RPC service in the registry
+        auto service_it = service_registry_.find(conn.service_name);
+        if (service_it == service_registry_.end()) {
+          // Service never existed in the first place... logic error somewhere
+          assert(false);
+        }
+        // Find a server to service
+        if (!service_it->second.empty()) {
+          // We already removed the DC-ed VM from the service registry
+          // so for now: we pick the front. In future, we might be smarter bout it
+          RPCServerInstanceInfo chosen_server_info = service_it->second.front();
+          // We reuse the existing mem devices from the ongoing RPC connection
+          // We also reuse the existing channel id
+          // Update the conn's server FD (necc) and instance ID (for logging)
+          conn.server_fd = chosen_server_info.qemu_client_fd;
+          conn.server_instance_id = chosen_server_info.server_instance_id;
+          // Update bookkeeping information
+          fd_to_channel_ids_[chosen_server_info.qemu_client_fd].push_back(conn.channel_id);
+          // Send response to just (new) server
+          cxl_ipc_rpc_new_client_notify_t server_notify_payload;
+          server_notify_payload.type = CXL_MSG_TYPE_RPC_NEW_CLIENT_NOTIFY;
+          server_notify_payload.channel_id = conn.channel_id;
+          snprintf(server_notify_payload.client_instance_id, 
+          sizeof(server_notify_payload.client_instance_id), 
+          "%s", conn.client_instance_id.c_str());
+          snprintf(server_notify_payload.service_name, 
+            sizeof(server_notify_payload.service_name),
+            "%s", conn.service_name.c_str());
+          // TODO: Fix this hardcode later
+          server_notify_payload.channel_shm_size = 256 * 1024 * 1024;
+          // TODO: Once again dont think this matters
+          server_notify_payload.channel_shm_offset = 0;
+          ::send(conn.server_fd, &server_notify_payload, sizeof(server_notify_payload), 0);
+        } else {
+          // No more servers could provide this service, terminate the conn
+          release_channel(channel_idx, qemu_vm_fd);
+        }
+      } else {
+        // Neither: Something went wrong
+        assert(false);
+      }
     }  
     fd_to_channel_ids_.erase(qemu_vm_fd);
   }
