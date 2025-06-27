@@ -27,7 +27,7 @@
 
 #include "hw/misc/cxl_switch_ipc.h"
 
-#define CXL_SWITCH_DEBUG 0
+#define CXL_SWITCH_DEBUG 1
 #define CXL_SWITCH_DPRINTF(fmt, ...)                       \
     do {                                                   \
         if (CXL_SWITCH_DEBUG) {                            \
@@ -39,7 +39,7 @@
 // --- BAR Sizes and layout ---
 #define BAR0_MAILBOX_SIZE  0x1000    // 4KB for management mailbox
 #define BAR1_CONTROL_SIZE  0x1000    // 4KB for control registers
-#define BAR2_DATA_SIZE     (256 * MiB) // Default size
+#define BAR2_DATA_SIZE     (1024 * MiB) // Default size
 
 // BAR1 Control Registers
 #define REG_COMMAND_DOORBELL 0x00
@@ -424,8 +424,6 @@ static void bar1_control_write(void *opaque, hwaddr addr, uint64_t val, unsigned
                                     set_window_req->offset, set_window_req->size);
                     
                     if (set_window_req->size <= s->bar2_data_size && (set_window_req->offset + set_window_req->size) <= s->total_pool_size) {
-                        s->bar2_data_window_offset = set_window_req->offset;
-                        s->bar2_data_window_size = set_window_req->size;
                         set_window_resp.status = CXL_IPC_STATUS_OK;
                         register_new_channel(set_window_req->offset, set_window_req->size, set_window_req->channel_id, s);
                         CXL_SWITCH_DPRINTF("Info: BAR2 window set successfully. Offset=0x%"PRIx64", Size=0x%"PRIx64"\n",
@@ -515,6 +513,7 @@ static uint64_t bar2_data_window_read(void *opaque, hwaddr addr, unsigned size)
 
     if (s->bar2_data_window_size == 0) {
         CXL_SWITCH_DPRINTF("Error: BAR2 data window not configured.\n");
+        printf("Error: BAR2 data window not configured.\n");
         return data;
     }
 
@@ -536,11 +535,11 @@ static uint64_t bar2_data_window_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     uint64_t channel_id = s->channel_map[channel_map_idx].channel_id;
+    uint64_t actual_offset = addr - s->channel_map[channel_map_idx].channel_base_offset;
 
-    hwaddr addr_in_pool = s->bar2_data_window_offset + addr;
     cxl_ipc_read_req_t read_req = {
         .type = CXL_MSG_TYPE_READ_REQ,
-        .addr = addr_in_pool,
+        .addr = actual_offset,
         .size = (uint8_t) size,
         .channel_id = channel_id,
     };
@@ -591,11 +590,11 @@ static void bar2_data_window_write(void *opaque, hwaddr addr, uint64_t val, unsi
     }
 
     uint64_t channel_id = s->channel_map[channel_map_idx].channel_id;
+    uint64_t actual_offset = addr - s->channel_map[channel_map_idx].channel_base_offset;
 
-    hwaddr addr_in_pool = s->bar2_data_window_offset + addr;
     cxl_ipc_write_req_t write_req = {
         .type  = CXL_MSG_TYPE_WRITE_REQ,
-        .addr  = addr_in_pool,
+        .addr  = actual_offset,
         .size  = (uint8_t) size,
         .value = val,
         .channel_id = channel_id,

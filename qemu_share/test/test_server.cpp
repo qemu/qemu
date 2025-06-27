@@ -13,12 +13,14 @@ using namespace diancie;
 int add_numbers_impl(int &a, int &b) {
   std::cout << "Server: Adding " << a << " + " << b << " (zero-copy)"
             << std::endl;
+  std::cout << "a is at address " << &a << ", b is at address " << &b
+            << std::endl;
   int result = a + b;
   std::cout << "Server: Result = " << result << std::endl;
   return result;
 }
 
-int multiply_doubles_impl(int &a, int &b) {
+int multiply_impl(int &a, int &b) {
   std::cout << "Server: Multiplying " << a << " * " << b << " (zero-copy)"
             << std::endl;
   int result = a * b;
@@ -57,8 +59,7 @@ int main(int argc, char *argv[]) {
     std::cout << "\n=== Registering RPC Functions ===" << std::endl;
 
     server.register_rpc_function<TestServiceFunctions::ADD>(add_numbers_impl);
-    server.register_rpc_function<TestServiceFunctions::MULTIPLY>(
-        multiply_doubles_impl);
+    server.register_rpc_function<TestServiceFunctions::MULTIPLY>(multiply_impl);
     server.register_rpc_function<TestServiceFunctions::PERSON>(process_person);
 
     std::cout << "\n=== Registering Service ===" << std::endl;
