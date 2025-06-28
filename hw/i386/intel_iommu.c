@@ -4738,6 +4738,68 @@ static AddressSpace *vtd_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     return &vtd_as->as;
 }
 
+static IOMMUTLBEntry vtd_iommu_ats_do_translate(IOMMUMemoryRegion *iommu,
+                                                hwaddr addr,
+                                                IOMMUAccessFlags flags)
+{
+    IOMMUTLBEntry entry;
+    VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
+
+    if (vtd_is_interrupt_addr(addr)) {
+        vtd_report_ir_illegal_access(vtd_as, addr, flags & IOMMU_WO);
+        entry.target_as = &address_space_memory;
+        entry.iova = 0;
+        entry.translated_addr = 0;
+        entry.addr_mask = ~VTD_PAGE_MASK_4K;
+        entry.perm = IOMMU_NONE;
+        entry.pasid = PCI_NO_PASID;
+    } else {
+        entry = vtd_iommu_translate(iommu, addr, flags, 0);
+    }
+
+    return entry;
+}
+
+static ssize_t vtd_ats_request_translation(PCIBus *bus, void *opaque,
+                                           int devfn, uint32_t pasid,
+                                           bool priv_req, bool exec_req,
+                                           hwaddr addr, size_t length,
+                                           bool no_write, IOMMUTLBEntry *result,
+                                           size_t result_length,
+                                           uint32_t *err_count)
+{
+    IntelIOMMUState *s = opaque;
+    VTDAddressSpace *vtd_as;
+    IOMMUAccessFlags flags = IOMMU_ACCESS_FLAG_FULL(true, !no_write, exec_req,
+                                                    priv_req, false, false);
+    ssize_t res_index = 0;
+    hwaddr target_address = addr + length;
+    IOMMUTLBEntry entry;
+
+    vtd_as = vtd_find_add_as(s, bus, devfn, pasid);
+    *err_count = 0;
+
+    while ((addr < target_address) && (res_index < result_length)) {
+        entry = vtd_iommu_ats_do_translate(&vtd_as->iommu, addr, flags);
+        entry.perm &= ~IOMMU_GLOBAL; /* Spec 4.1.2: Global Mapping never set */
+
+        if ((entry.perm & flags) != flags) {
+            *err_count += 1; /* Less than expected */
+        }
+
+        result[res_index] = entry;
+        res_index += 1;
+        addr = (addr & (~entry.addr_mask)) + (entry.addr_mask + 1);
+    }
+
+    /* Buffer too small */
+    if (addr < target_address) {
+        return -ENOMEM;
+    }
+
+    return res_index;
+}
+
 static void vtd_init_iotlb_notifier(PCIBus *bus, void *opaque, int devfn,
                                     IOMMUNotifier *n, IOMMUNotify fn,
                                     void *user_opaque)
@@ -4787,6 +4849,7 @@ static PCIIOMMUOps vtd_iommu_ops = {
     .init_iotlb_notifier = vtd_init_iotlb_notifier,
     .register_iotlb_notifier = vtd_register_iotlb_notifier,
     .unregister_iotlb_notifier = vtd_unregister_iotlb_notifier,
+    .ats_request_translation = vtd_ats_request_translation,
 };
 
 static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
