@@ -2503,6 +2503,7 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
                         .translated_addr = 0,
                         .addr_mask = size - 1,
                         .perm = IOMMU_NONE,
+                        .pasid = vtd_as->pasid,
                     },
                 };
                 memory_region_notify_iommu(&vtd_as->iommu, 0, event);
@@ -3090,6 +3091,7 @@ static void do_invalidate_device_tlb(VTDAddressSpace *vtd_dev_as,
     event.entry.iova = addr;
     event.entry.perm = IOMMU_NONE;
     event.entry.translated_addr = 0;
+    event.entry.pasid = vtd_dev_as->pasid;
     memory_region_notify_iommu(&vtd_dev_as->iommu, 0, event);
 }
 
@@ -3672,6 +3674,7 @@ static IOMMUTLBEntry vtd_iommu_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
     IOMMUTLBEntry iotlb = {
         /* We'll fill in the rest later. */
         .target_as = &address_space_memory,
+        .pasid = vtd_as->pasid,
     };
     bool success;
 
