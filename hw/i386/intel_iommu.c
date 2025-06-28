@@ -4733,6 +4733,15 @@ static AddressSpace *vtd_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     return &vtd_as->as;
 }
 
+static void vtd_init_iotlb_notifier(PCIBus *bus, void *opaque, int devfn,
+                                    IOMMUNotifier *n, IOMMUNotify fn,
+                                    void *user_opaque)
+{
+    n->opaque = user_opaque;
+    iommu_notifier_init(n, fn, IOMMU_NOTIFIER_DEVIOTLB_EVENTS, 0,
+                        HWADDR_MAX, 0);
+}
+
 static void vtd_get_iotlb_info(void *opaque, uint8_t *addr_width,
                                uint32_t *min_page_size)
 {
@@ -4742,11 +4751,37 @@ static void vtd_get_iotlb_info(void *opaque, uint8_t *addr_width,
     *min_page_size = VTD_PAGE_SIZE;
 }
 
+static void vtd_register_iotlb_notifier(PCIBus *bus, void *opaque,
+                                        int devfn, uint32_t pasid,
+                                        IOMMUNotifier *n)
+{
+    IntelIOMMUState *s = opaque;
+    VTDAddressSpace *vtd_as;
+
+    vtd_as = vtd_find_add_as(s, bus, devfn, pasid);
+    memory_region_register_iommu_notifier(MEMORY_REGION(&vtd_as->iommu), n,
+                                          &error_fatal);
+}
+
+static void vtd_unregister_iotlb_notifier(PCIBus *bus, void *opaque,
+                                          int devfn, uint32_t pasid,
+                                          IOMMUNotifier *n)
+{
+    IntelIOMMUState *s = opaque;
+    VTDAddressSpace *vtd_as;
+
+    vtd_as = vtd_find_add_as(s, bus, devfn, pasid);
+    memory_region_unregister_iommu_notifier(MEMORY_REGION(&vtd_as->iommu), n);
+}
+
 static PCIIOMMUOps vtd_iommu_ops = {
     .get_address_space = vtd_host_dma_iommu,
     .set_iommu_device = vtd_dev_set_iommu_device,
     .unset_iommu_device = vtd_dev_unset_iommu_device,
     .get_iotlb_info = vtd_get_iotlb_info,
+    .init_iotlb_notifier = vtd_init_iotlb_notifier,
+    .register_iotlb_notifier = vtd_register_iotlb_notifier,
+    .unregister_iotlb_notifier = vtd_unregister_iotlb_notifier,
 };
 
 static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
