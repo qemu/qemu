@@ -4733,10 +4733,20 @@ static AddressSpace *vtd_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     return &vtd_as->as;
 }
 
+static void vtd_get_iotlb_info(void *opaque, uint8_t *addr_width,
+                               uint32_t *min_page_size)
+{
+    IntelIOMMUState *s = opaque;
+
+    *addr_width = s->aw_bits;
+    *min_page_size = VTD_PAGE_SIZE;
+}
+
 static PCIIOMMUOps vtd_iommu_ops = {
     .get_address_space = vtd_host_dma_iommu,
     .set_iommu_device = vtd_dev_set_iommu_device,
     .unset_iommu_device = vtd_dev_unset_iommu_device,
+    .get_iotlb_info = vtd_get_iotlb_info,
 };
 
 static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
