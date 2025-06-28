@@ -4590,7 +4590,7 @@ static void vtd_cap_init(IntelIOMMUState *s)
     }
 
     if (s->pasid) {
-        s->ecap |= VTD_ECAP_PASID;
+        s->ecap |= VTD_ECAP_PASID | VTD_ECAP_PSS;
     }
 }
 
