@@ -2678,6 +2678,36 @@ static inline int32_t x86_get_a20_mask(CPUX86State *env)
     }
 }
 
+static inline uint32_t x86_cpu_family(uint32_t eax)
+{
+    uint32_t family = (eax >> 8) & 0xf;
+
+    if (family == 0xf) {
+        family += (eax >> 20) & 0xff;
+    }
+
+    return family;
+}
+
+static inline uint32_t x86_cpu_model(uint32_t eax)
+{
+    uint32_t family, model;
+
+    family = x86_cpu_family(eax);
+    model = (eax >> 4) & 0xf;
+
+    if (family >= 0x6) {
+        model += ((eax >> 16) & 0xf) << 4;
+    }
+
+    return model;
+}
+
+static inline uint32_t x86_cpu_stepping(uint32_t eax)
+{
+    return eax & 0xf;
+}
+
 static inline bool cpu_has_vmx(CPUX86State *env)
 {
     return env->features[FEAT_1_ECX] & CPUID_EXT_VMX;

@@ -117,13 +117,13 @@ void host_cpu_vendor_fms(char *vendor, int *family, int *model, int *stepping)
 
     host_cpuid(0x1, 0, &eax, &ebx, &ecx, &edx);
     if (family) {
-        *family = ((eax >> 8) & 0x0F) + ((eax >> 20) & 0xFF);
+        *family = x86_cpu_family(eax);
     }
     if (model) {
-        *model = ((eax >> 4) & 0x0F) | ((eax & 0xF0000) >> 12);
+        *model = x86_cpu_model(eax);
     }
     if (stepping) {
-        *stepping = eax & 0x0F;
+        *stepping = x86_cpu_stepping(eax);
     }
 }
 
