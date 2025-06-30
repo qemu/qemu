@@ -73,7 +73,7 @@ static bool kvm_cpu_realizefn(CPUState *cs, Error **errp)
             if (env->features[FEAT_1_ECX] & CPUID_EXT_MONITOR) {
                 host_cpuid(5, 0, &cpu->mwait.eax, &cpu->mwait.ebx,
                            &cpu->mwait.ecx, &cpu->mwait.edx);
-	    }
+            }
         }
         if (cpu->ucode_rev == 0) {
             cpu->ucode_rev =
