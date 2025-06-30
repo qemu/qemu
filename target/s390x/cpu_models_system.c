@@ -252,6 +252,9 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
 
     s390_feat_bitmap_to_ascii(deprecated_feats,
                               &expansion_info->deprecated_props, list_add_feat);
+
+    expansion_info->has_deprecated_props = !!expansion_info->deprecated_props;
+
     return expansion_info;
 }
 
