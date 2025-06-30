@@ -11,4 +11,3 @@
     prep-perpatch-check-cmd = scripts/checkpatch.pl -q --terse --no-summary --mailback -
     searchmask = https://lore.kernel.org/qemu-devel/?x=m&t=1&q=%s
     linkmask = https://lore.kernel.org/qemu-devel/%s
-    linktrailermask = Message-ID: <%s>
