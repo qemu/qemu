@@ -6469,11 +6469,11 @@ static char *x86_cpuid_get_model_id(Object *obj, Error **errp)
     char *value;
     int i;
 
-    value = g_malloc(48 + 1);
-    for (i = 0; i < 48; i++) {
+    value = g_malloc(CPUID_MODEL_ID_SZ + 1);
+    for (i = 0; i < CPUID_MODEL_ID_SZ; i++) {
         value[i] = env->cpuid_model[i >> 2] >> (8 * (i & 3));
     }
-    value[48] = '\0';
+    value[CPUID_MODEL_ID_SZ] = '\0';
     return value;
 }
 
@@ -6488,7 +6488,7 @@ static void x86_cpuid_set_model_id(Object *obj, const char *model_id,
         model_id = "";
     }
     len = strlen(model_id);
-    memset(env->cpuid_model, 0, 48);
+    memset(env->cpuid_model, 0, CPUID_MODEL_ID_SZ);
     for (i = 0; i < 48; i++) {
         if (i >= len) {
             c = '\0';

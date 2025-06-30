@@ -80,7 +80,6 @@ bool host_cpu_realizefn(CPUState *cs, Error **errp)
     return true;
 }
 
-#define CPUID_MODEL_ID_SZ 48
 /**
  * cpu_x86_fill_model_id:
  * Get CPUID model ID string from host CPU.

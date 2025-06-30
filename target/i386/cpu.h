@@ -1159,7 +1159,8 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 /* PMM enabled */
 #define CPUID_C000_0001_EDX_PMM_EN             (1U << 13)
 
-#define CPUID_VENDOR_SZ      12
+#define CPUID_VENDOR_SZ     12
+#define CPUID_MODEL_ID_SZ   48
 
 #define CPUID_VENDOR_INTEL_1 0x756e6547 /* "Genu" */
 #define CPUID_VENDOR_INTEL_2 0x49656e69 /* "ineI" */
