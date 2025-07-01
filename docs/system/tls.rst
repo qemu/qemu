@@ -118,7 +118,6 @@ information for each server, and use it to issue server certificates.
    ip_address = 2620:0:cafe::87
    ip_address = 2001:24::92
    tls_www_server
-   encryption_key
    signing_key
    EOF
    # certtool --generate-privkey > server-hostNNN-key.pem
@@ -134,9 +133,8 @@ the subject alt name extension data. The ``tls_www_server`` keyword is
 the key purpose extension to indicate this certificate is intended for
 usage in a web server. Although QEMU network services are not in fact
 HTTP servers (except for VNC websockets), setting this key purpose is
-still recommended. The ``encryption_key`` and ``signing_key`` keyword is
-the key usage extension to indicate this certificate is intended for
-usage in the data session.
+still recommended. The ``signing_key`` keyword is the key usage extension
+to indicate this certificate is intended for usage in the data session.
 
 The ``server-hostNNN-key.pem`` and ``server-hostNNN-cert.pem`` files
 should now be securely copied to the server for which they were
@@ -171,7 +169,6 @@ certificates.
    organization = Name of your organization
    cn = hostNNN.foo.example.com
    tls_www_client
-   encryption_key
    signing_key
    EOF
    # certtool --generate-privkey > client-hostNNN-key.pem
@@ -187,9 +184,8 @@ the ``dns_name`` and ``ip_address`` fields are not included. The
 ``tls_www_client`` keyword is the key purpose extension to indicate this
 certificate is intended for usage in a web client. Although QEMU network
 clients are not in fact HTTP clients, setting this key purpose is still
-recommended. The ``encryption_key`` and ``signing_key`` keyword is the
-key usage extension to indicate this certificate is intended for usage
-in the data session.
+recommended. The ``signing_key`` keyword is the key usage extension to
+indicate this certificate is intended for usage in the data session.
 
 The ``client-hostNNN-key.pem`` and ``client-hostNNN-cert.pem`` files
 should now be securely copied to the client for which they were
@@ -222,7 +218,6 @@ client and server instructions in one.
    ip_address = 2001:24::92
    tls_www_server
    tls_www_client
-   encryption_key
    signing_key
    EOF
    # certtool --generate-privkey > both-hostNNN-key.pem
