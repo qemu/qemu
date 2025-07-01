@@ -161,6 +161,15 @@ void host_cpu_instance_init(X86CPU *cpu)
                             &error_abort);
 }
 
+bool is_host_cpu_intel(void)
+{
+    char vendor[CPUID_VENDOR_SZ + 1];
+
+    host_cpu_vendor_fms(vendor, NULL, NULL, NULL);
+
+    return g_str_equal(vendor, CPUID_VENDOR_INTEL);
+}
+
 static void host_cpu_class_init(ObjectClass *oc, const void *data)
 {
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
