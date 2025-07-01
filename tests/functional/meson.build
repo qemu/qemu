@@ -374,7 +374,7 @@ foreach speed : ['quick', 'thorough']
       target_tests = get_variable('tests_' + target_base + '_' + sysmode + '_' + speed, [])
     endif
 
-    test_deps = roms
+    test_deps = [roms, keymap_targets]
     test_env = environment()
     if have_tools
       test_env.set('QEMU_TEST_QEMU_IMG', meson.global_build_root() / 'qemu-img')
