@@ -14,6 +14,7 @@ typedef enum {
     HardwareInfoTypeUndefined  = 0,
     HardwareInfoTypeHostBridge = 1,
     HardwareInfoQemuUefiVars   = 2,
+    HardwareInfoVirtioMmioSvsm = 0x1000,
 } HARDWARE_INFO_TYPE;
 
 typedef struct {
