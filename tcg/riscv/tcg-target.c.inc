@@ -2502,7 +2502,7 @@ static void tgen_extract(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
         }
     }
     if (ofs + len == 32) {
-        tgen_shli(s, TCG_TYPE_I32, a0, a1, ofs);
+        tgen_shri(s, TCG_TYPE_I32, a0, a1, ofs);
         return;
     }
     if (len == 1) {
