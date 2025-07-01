@@ -18,9 +18,9 @@ from test_aarch64_sbsaref import fetch_firmware
 class Aarch64SbsarefFreeBSD(QemuSystemTest):
 
     ASSET_FREEBSD_ISO = Asset(
-        ('https://download.freebsd.org/releases/arm64/aarch64/ISO-IMAGES/'
-         '14.1/FreeBSD-14.1-RELEASE-arm64-aarch64-bootonly.iso'),
-        '44cdbae275ef1bb6dab1d5fbb59473d4f741e1c8ea8a80fd9e906b531d6ad461')
+        ('http://ftp-archive.freebsd.org/pub/FreeBSD-Archive/old-releases/arm64'
+         '/aarch64/ISO-IMAGES/14.1/FreeBSD-14.1-RELEASE-arm64-aarch64-bootonly.iso.xz'),
+        '7313a4495ffd71ab77b49b1e83f571521c32756e1d75bf48bd890e0ab0f75827')
 
     # This tests the whole boot chain from EFI to Userspace
     # We only boot a whole OS for the current top level CPU and GIC
@@ -29,7 +29,7 @@ class Aarch64SbsarefFreeBSD(QemuSystemTest):
         self.set_machine('sbsa-ref')
 
         fetch_firmware(self)
-        img_path = self.ASSET_FREEBSD_ISO.fetch()
+        img_path = self.uncompress(self.ASSET_FREEBSD_ISO)
 
         self.vm.set_console()
         self.vm.add_args(
