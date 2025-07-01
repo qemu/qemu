@@ -148,8 +148,7 @@ void test_tls_cleanup(const char *keyfile);
         .basicConstraintsIsCA = false,                                  \
         .keyUsageEnable = true,                                         \
         .keyUsageCritical = true,                                       \
-        .keyUsageValue =                                                \
-        GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,     \
+        .keyUsageValue = GNUTLS_KEY_DIGITAL_SIGNATURE,                  \
         .keyPurposeEnable = true,                                       \
         .keyPurposeCritical = true,                                     \
         .keyPurposeOID1 = GNUTLS_KP_TLS_WWW_CLIENT,                     \
@@ -168,8 +167,7 @@ void test_tls_cleanup(const char *keyfile);
         .basicConstraintsIsCA = false,                                  \
         .keyUsageEnable = true,                                         \
         .keyUsageCritical = true,                                       \
-        .keyUsageValue =                                                \
-        GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,     \
+        .keyUsageValue = GNUTLS_KEY_DIGITAL_SIGNATURE,                  \
         .keyPurposeEnable = true,                                       \
         .keyPurposeCritical = true,                                     \
         .keyPurposeOID1 = GNUTLS_KP_TLS_WWW_SERVER,                     \
