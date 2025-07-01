@@ -23,13 +23,19 @@ import textwrap
 from typing import Optional
 
 # pylint: disable=import-error
-from .accel import kvm_available, list_accel, tcg_available
+from .accel import (
+    hvf_available,
+    kvm_available,
+    list_accel,
+    tcg_available,
+)
 
 
 __all__ = (
     'VerboseProcessError',
     'add_visual_margin',
     'get_info_usernet_hostfwd_port',
+    'hvf_available',
     'kvm_available',
     'list_accel',
     'tcg_available',
