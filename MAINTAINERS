@@ -1007,7 +1007,7 @@ L: qemu-arm@nongnu.org
 S: Odd Fixes
 F: hw/*/stellaris*
 F: hw/display/ssd03*
-F: include/hw/input/gamepad.h
+F: include/hw/input/stellaris_gamepad.h
 F: include/hw/timer/stellaris-gptm.h
 F: docs/system/arm/stellaris.rst
 F: tests/functional/test_arm_stellaris.py
@@ -2173,7 +2173,7 @@ F: hw/net/
 F: include/hw/net/
 F: tests/qtest/virtio-net-test.c
 F: tests/functional/test_info_usernet.py
-F: docs/virtio-net-failover.rst
+F: docs/system/virtio-net-failover.rst
 T: git https://github.com/jasowang/qemu.git net
 
 Parallel NOR Flash devices
@@ -2224,7 +2224,6 @@ F: tests/qtest/sdhci-test.c
 USB
 S: Orphan
 F: hw/usb/*
-F: stubs/usb-dev-stub.c
 F: tests/qtest/usb-*-test.c
 F: docs/system/devices/usb.rst
 F: include/hw/usb.h
@@ -2477,9 +2476,8 @@ S: Supported
 F: hw/s390x/virtio-ccw-md.c
 F: hw/s390x/virtio-ccw-md.h
 F: hw/s390x/virtio-ccw-md-stubs.c
-F: hw/virtio/virtio-md-pci.c
+F: hw/virtio/virtio-md-*.c
 F: include/hw/virtio/virtio-md-pci.h
-F: stubs/virtio-md-pci.c
 
 virtio-mem
 M: David Hildenbrand <david@redhat.com>
@@ -3197,13 +3195,12 @@ M: David Hildenbrand <david@redhat.com>
 M: Igor Mammedov <imammedo@redhat.com>
 R: Xiao Guangrong <xiaoguangrong.eric@gmail.com>
 S: Supported
-F: hw/mem/memory-device.c
+F: hw/mem/memory-device*.c
 F: hw/mem/nvdimm.c
 F: hw/mem/pc-dimm.c
 F: include/hw/mem/memory-device.h
 F: include/hw/mem/nvdimm.h
 F: include/hw/mem/pc-dimm.h
-F: stubs/memory_device.c
 F: docs/nvdimm.txt
 
 SPICE
@@ -3244,9 +3241,9 @@ F: util/qemu-timer*.c
 F: system/vl.c
 F: system/main.c
 F: system/cpus.c
-F: system/cpu-throttle.c
 F: system/cpu-timers.c
 F: system/runstate*
+F: migration/cpu-throttle.c
 F: qapi/run-state.json
 
 Read, Copy, Update (RCU)
@@ -3265,7 +3262,7 @@ Human Monitor (HMP)
 M: Dr. David Alan Gilbert <dave@treblig.org>
 S: Maintained
 F: monitor/monitor-internal.h
-F: monitor/misc.c
+F: monitor/hmp-target.c
 F: monitor/monitor.c
 F: monitor/hmp*
 F: hmp.h
