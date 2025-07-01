@@ -1581,6 +1581,21 @@ static void pc_machine_set_smbios_ep(Object *obj, Visitor *v, const char *name,
     visit_type_SmbiosEntryPointType(v, name, &pcms->smbios_entry_point_type, errp);
 }
 
+static bool pc_machine_get_svsm_virtio_mmio(Object *obj, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    return pcms->svsm_virtio_mmio;
+}
+
+static void pc_machine_set_svsm_virtio_mmio(Object *obj, bool value,
+                                            Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    pcms->svsm_virtio_mmio = value;
+}
+
 static void pc_machine_get_max_ram_below_4g(Object *obj, Visitor *v,
                                             const char *name, void *opaque,
                                             Error **errp)
@@ -1841,7 +1856,8 @@ static void pc_machine_class_init(ObjectClass *oc, const void *data)
                                           "Set IGVM configuration");
 #endif
 
-
+    object_class_property_add_bool(oc, "x-svsm-virtio-mmio",
+        pc_machine_get_svsm_virtio_mmio, pc_machine_set_svsm_virtio_mmio);
 }
 
 static const TypeInfo pc_machine_info = {

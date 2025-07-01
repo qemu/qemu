@@ -61,7 +61,9 @@
 #include "hw/mem/nvdimm.h"
 #include "hw/uefi/var-service-api.h"
 #include "hw/i386/acpi-build.h"
+#include "hw/uefi/hardware-info.h"
 #include "target/i386/cpu.h"
+#include "exec/target_page.h"
 
 /* ICH9 AHCI has 6 ports */
 #define MAX_SATA_PORTS     6
@@ -338,6 +340,19 @@ static void pc_q35_init(MachineState *machine)
         }
     }
 #endif
+
+    if (pcms->svsm_virtio_mmio) {
+        for (int dev = 0; dev < 4; dev++) {
+            HARDWARE_INFO_SIMPLE_DEVICE hwinfo = {
+                .mmio_address = cpu_to_le64(0xfef00000 + dev * TARGET_PAGE_SIZE),
+            };
+            sysbus_create_simple("virtio-mmio", hwinfo.mmio_address,
+                                 /* no irq */ NULL);
+            hardware_info_register(HardwareInfoVirtioMmioSvsm,
+                                   &hwinfo, sizeof(hwinfo));
+        }
+    }
+
 }
 
 #define DEFINE_Q35_MACHINE(major, minor) \

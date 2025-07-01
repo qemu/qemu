@@ -51,6 +51,7 @@ typedef struct PCMachineState {
     bool i8042_enabled;
     bool default_bus_bypass_iommu;
     bool fd_bootchk;
+    bool svsm_virtio_mmio;
     uint64_t max_fw_size;
 
     /* ACPI Memory hotplug IO base address */
