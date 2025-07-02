@@ -344,6 +344,13 @@ they want to use and avoids confusion.  Existing users of the ``spike``
 machine must ensure that they're setting the ``spike`` machine in the
 command line (``-M spike``).
 
+Arm ``highbank`` and ``midway`` machines (since 10.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+There are no known users left for these machines (if you still use it,
+please write a mail to the qemu-devel mailing list). If you just want to
+boot a Cortex-A15 or Cortex-A9 Linux, use the ``virt`` machine instead.
+
 
 System emulator binaries
 ------------------------

@@ -357,6 +357,7 @@ static void highbank_class_init(ObjectClass *oc, const void *data)
     mc->max_cpus = 4;
     mc->ignore_memory_transaction_failures = true;
     mc->default_ram_id = "highbank.dram";
+    mc->deprecation_reason = "no known users left for this machine";
 }
 
 static const TypeInfo highbank_type = {
@@ -381,6 +382,7 @@ static void midway_class_init(ObjectClass *oc, const void *data)
     mc->max_cpus = 4;
     mc->ignore_memory_transaction_failures = true;
     mc->default_ram_id = "highbank.dram";
+    mc->deprecation_reason = "no known users left for this machine";
 }
 
 static const TypeInfo midway_type = {
