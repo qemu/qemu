@@ -617,7 +617,8 @@ void do_stop_interrupt(CPUS390XState *env)
         s390_store_status(cpu, S390_STORE_STATUS_DEF_ADDR, true);
     }
     env->sigp_order = 0;
-    if (s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu) == 0) {
+    s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
+    if (s390_count_running_cpus() == 0) {
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
     }
     env->pending_int &= ~INTERRUPT_STOP;

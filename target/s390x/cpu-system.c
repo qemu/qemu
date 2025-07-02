@@ -240,7 +240,7 @@ void s390_cpu_unhalt(S390CPU *cpu)
     }
 }
 
-unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
+void s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
  {
     trace_cpu_set_state(CPU(cpu)->cpu_index, cpu_state);
 
@@ -271,8 +271,6 @@ unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
         kvm_s390_set_cpu_state(cpu, cpu_state);
     }
     cpu->env.cpu_state = cpu_state;
-
-    return s390_count_running_cpus();
 }
 
 void s390_cmma_reset(void)
