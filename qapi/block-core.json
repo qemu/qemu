@@ -462,6 +462,19 @@
             'no-flush': 'bool' } }
 
 ##
+# @BlockdevChild:
+#
+# @child: The name of the child, for example 'file' or 'backing'.
+#
+# @node-name: The name of the child's block driver node.
+#
+# Since: 10.1
+##
+{ 'struct': 'BlockdevChild',
+  'data': { 'child': 'str',
+            'node-name': 'str' } }
+
+##
 # @BlockDeviceInfo:
 #
 # Information about the backing device for a block device.
@@ -485,6 +498,8 @@
 #
 # @backing_file_depth: number of files in the backing file chain
 #     (since: 1.2)
+#
+# @children: Information about child block nodes. (since: 10.1)
 #
 # @active: true if the backend is active; typical cases for inactive backends
 #     are on the migration source instance after migration completes and on the
@@ -560,6 +575,7 @@
 { 'struct': 'BlockDeviceInfo',
   'data': { 'file': 'str', '*node-name': 'str', 'ro': 'bool', 'drv': 'str',
             '*backing_file': 'str', 'backing_file_depth': 'int',
+            'children': ['BlockdevChild'],
             'active': 'bool', 'encrypted': 'bool',
             'detect_zeroes': 'BlockdevDetectZeroesOptions',
             'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',

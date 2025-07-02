@@ -41,6 +41,12 @@ Testing:
             },
             "iops_wr": 0,
             "ro": false,
+            "children": [
+                {
+                    "node-name": "disk0",
+                    "child": "file"
+                }
+            ],
             "node-name": "throttle0",
             "backing_file_depth": 1,
             "drv": "throttle",
@@ -69,6 +75,8 @@ Testing:
             },
             "iops_wr": 0,
             "ro": false,
+            "children": [
+            ],
             "node-name": "disk0",
             "backing_file_depth": 0,
             "drv": "null-co",
