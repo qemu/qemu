@@ -7,14 +7,98 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/vfio/vfio-cpr.h"
+#include "hw/vfio/vfio-device.h"
 #include "migration/blocker.h"
 #include "migration/cpr.h"
 #include "migration/migration.h"
 #include "migration/vmstate.h"
 #include "system/iommufd.h"
 #include "vfio-iommufd.h"
+#include "trace.h"
 
-const VMStateDescription vmstate_cpr_vfio_devices;  /* TBD in a later patch */
+typedef struct CprVFIODevice {
+    char *name;
+    unsigned int namelen;
+    uint32_t ioas_id;
+    int devid;
+    uint32_t hwpt_id;
+    QLIST_ENTRY(CprVFIODevice) next;
+} CprVFIODevice;
+
+static const VMStateDescription vmstate_cpr_vfio_device = {
+    .name = "cpr vfio device",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(namelen, CprVFIODevice),
+        VMSTATE_VBUFFER_ALLOC_UINT32(name, CprVFIODevice, 0, NULL, namelen),
+        VMSTATE_INT32(devid, CprVFIODevice),
+        VMSTATE_UINT32(ioas_id, CprVFIODevice),
+        VMSTATE_UINT32(hwpt_id, CprVFIODevice),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+const VMStateDescription vmstate_cpr_vfio_devices = {
+    .name = CPR_STATE "/vfio devices",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (const VMStateField[]){
+        VMSTATE_QLIST_V(vfio_devices, CprState, 1, vmstate_cpr_vfio_device,
+                        CprVFIODevice, next),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void vfio_cpr_save_device(VFIODevice *vbasedev)
+{
+    CprVFIODevice *elem = g_new0(CprVFIODevice, 1);
+
+    elem->name = g_strdup(vbasedev->name);
+    elem->namelen = strlen(vbasedev->name) + 1;
+    elem->ioas_id = vbasedev->cpr.ioas_id;
+    elem->devid = vbasedev->devid;
+    elem->hwpt_id = vbasedev->cpr.hwpt_id;
+    QLIST_INSERT_HEAD(&cpr_state.vfio_devices, elem, next);
+}
+
+static CprVFIODevice *find_device(const char *name)
+{
+    CprVFIODeviceList *head = &cpr_state.vfio_devices;
+    CprVFIODevice *elem;
+
+    QLIST_FOREACH(elem, head, next) {
+        if (!strcmp(elem->name, name)) {
+            return elem;
+        }
+    }
+    return NULL;
+}
+
+static void vfio_cpr_delete_device(const char *name)
+{
+    CprVFIODevice *elem = find_device(name);
+
+    if (elem) {
+        QLIST_REMOVE(elem, next);
+        g_free(elem->name);
+        g_free(elem);
+    }
+}
+
+static bool vfio_cpr_find_device(VFIODevice *vbasedev)
+{
+    CprVFIODevice *elem = find_device(vbasedev->name);
+
+    if (elem) {
+        vbasedev->cpr.ioas_id = elem->ioas_id;
+        vbasedev->devid = elem->devid;
+        vbasedev->cpr.hwpt_id = elem->hwpt_id;
+        trace_vfio_cpr_find_device(elem->ioas_id, elem->devid, elem->hwpt_id);
+        return true;
+    }
+    return false;
+}
 
 static bool vfio_cpr_supported(IOMMUFDBackend *be, Error **errp)
 {
@@ -81,8 +165,20 @@ void vfio_iommufd_cpr_unregister_container(VFIOIOMMUFDContainer *container)
 
 void vfio_iommufd_cpr_register_device(VFIODevice *vbasedev)
 {
+    if (!cpr_is_incoming()) {
+        vfio_cpr_save_device(vbasedev);
+    }
 }
 
 void vfio_iommufd_cpr_unregister_device(VFIODevice *vbasedev)
 {
+    vfio_cpr_delete_device(vbasedev->name);
+}
+
+void vfio_cpr_load_device(VFIODevice *vbasedev)
+{
+    if (cpr_is_incoming()) {
+        bool ret = vfio_cpr_find_device(vbasedev);
+        g_assert(ret);
+    }
 }

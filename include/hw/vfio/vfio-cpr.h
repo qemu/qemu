@@ -34,6 +34,8 @@ typedef struct VFIOContainerCPR {
 typedef struct VFIODeviceCPR {
     Error *mdev_blocker;
     Error *id_blocker;
+    uint32_t hwpt_id;
+    uint32_t ioas_id;
 } VFIODeviceCPR;
 
 bool vfio_legacy_cpr_register_container(struct VFIOContainer *container,
@@ -55,6 +57,7 @@ bool vfio_iommufd_cpr_register_iommufd(struct IOMMUFDBackend *be, Error **errp);
 void vfio_iommufd_cpr_unregister_iommufd(struct IOMMUFDBackend *be);
 void vfio_iommufd_cpr_register_device(struct VFIODevice *vbasedev);
 void vfio_iommufd_cpr_unregister_device(struct VFIODevice *vbasedev);
+void vfio_cpr_load_device(struct VFIODevice *vbasedev);
 
 int vfio_cpr_group_get_device_fd(int d, const char *name);
 

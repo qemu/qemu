@@ -197,6 +197,9 @@ iommufd_cdev_alloc_ioas(int iommufd, int ioas_id) " [iommufd=%d] new IOMMUFD con
 iommufd_cdev_device_info(char *name, int devfd, int num_irqs, int num_regions, int flags) " %s (%d) num_irqs=%d num_regions=%d flags=%d"
 iommufd_cdev_pci_hot_reset_dep_devices(int domain, int bus, int slot, int function, int dev_id) "\t%04x:%02x:%02x.%x devid %d"
 
+# cpr-iommufd.c
+vfio_cpr_find_device(uint32_t ioas_id, int devid, uint32_t hwpt_id) "ioas_id %u, devid %d, hwpt_id %u"
+
 # device.c
 vfio_device_get_region_info_type(const char *name, int index, uint32_t type, uint32_t subtype) "%s index %d, %08x/%08x"
 vfio_device_reset_handler(void) ""
