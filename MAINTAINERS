@@ -3383,7 +3383,7 @@ T: git https://repo.or.cz/qemu/armbru.git qapi-next
 
 QEMU Guest Agent
 M: Michael Roth <michael.roth@amd.com>
-M: Konstantin Kostiuk <kkostiuk@redhat.com>
+M: Kostiantyn Kostiuk <kkostiuk@redhat.com>
 S: Maintained
 F: qga/
 F: contrib/systemd/qemu-guest-agent.service
@@ -3394,7 +3394,7 @@ F: tests/*/test-qga*
 T: git https://github.com/mdroth/qemu.git qga
 
 QEMU Guest Agent Win32
-M: Konstantin Kostiuk <kkostiuk@redhat.com>
+M: Kostiantyn Kostiuk <kkostiuk@redhat.com>
 S: Maintained
 F: qga/*win32*
 F: qga/vss-win32/
