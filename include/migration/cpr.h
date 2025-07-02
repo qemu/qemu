@@ -9,11 +9,23 @@
 #define MIGRATION_CPR_H
 
 #include "qapi/qapi-types-migration.h"
+#include "qemu/queue.h"
 
 #define MIG_MODE_NONE           -1
 
 #define QEMU_CPR_FILE_MAGIC     0x51435052
 #define QEMU_CPR_FILE_VERSION   0x00000001
+#define CPR_STATE "CprState"
+
+typedef QLIST_HEAD(CprFdList, CprFd) CprFdList;
+typedef QLIST_HEAD(CprVFIODeviceList, CprVFIODevice) CprVFIODeviceList;
+
+typedef struct CprState {
+    CprFdList fds;
+    CprVFIODeviceList vfio_devices;
+} CprState;
+
+extern CprState cpr_state;
 
 void cpr_save_fd(const char *name, int id, int fd);
 void cpr_delete_fd(const char *name, int id);

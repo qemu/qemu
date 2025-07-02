@@ -14,6 +14,8 @@
 #include "system/iommufd.h"
 #include "vfio-iommufd.h"
 
+const VMStateDescription vmstate_cpr_vfio_devices;  /* TBD in a later patch */
+
 static bool vfio_cpr_supported(IOMMUFDBackend *be, Error **errp)
 {
     if (!iommufd_change_process_capable(be)) {
