@@ -190,3 +190,24 @@ const VMStateDescription vfio_cpr_pci_vmstate = {
         VMSTATE_END_OF_LIST()
     }
 };
+
+static NotifierWithReturn kvm_close_notifier;
+
+static int vfio_cpr_kvm_close_notifier(NotifierWithReturn *notifier,
+                                       MigrationEvent *e,
+                                       Error **errp)
+{
+    if (e->type == MIG_EVENT_PRECOPY_DONE) {
+        vfio_kvm_device_close();
+    }
+    return 0;
+}
+
+void vfio_cpr_add_kvm_notifier(void)
+{
+    if (!kvm_close_notifier.notify) {
+        migration_add_notifier_mode(&kvm_close_notifier,
+                                    vfio_cpr_kvm_close_notifier,
+                                    MIG_MODE_CPR_TRANSFER);
+    }
+}

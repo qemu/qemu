@@ -63,4 +63,6 @@ void vfio_cpr_delete_vector_fd(struct VFIOPCIDevice *vdev, const char *name,
 
 extern const VMStateDescription vfio_cpr_pci_vmstate;
 
+void vfio_cpr_add_kvm_notifier(void);
+
 #endif /* HW_VFIO_VFIO_CPR_H */
