@@ -37,3 +37,20 @@
 #     <- { "return": { "enabled": true, "present": true } }
 ##
 { 'command': 'query-kvm', 'returns': 'KvmInfo' }
+
+##
+# @x-accel-stats:
+#
+# Query accelerator statistics
+#
+# Features:
+#
+# @unstable: This command is meant for debugging.
+#
+# Returns: accelerator statistics
+#
+# Since: 10.1
+##
+{ 'command': 'x-accel-stats',
+  'returns': 'HumanReadableText',
+  'features': [ 'unstable' ] }
