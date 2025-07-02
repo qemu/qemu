@@ -433,12 +433,6 @@ static void gen_rebuild_hflags(DisasContext *s)
     gen_helper_rebuild_hflags_a64(tcg_env, tcg_constant_i32(s->current_el));
 }
 
-static void gen_exception_internal(int excp)
-{
-    assert(excp_is_internal(excp));
-    gen_helper_exception_internal(tcg_env, tcg_constant_i32(excp));
-}
-
 static void gen_exception_internal_insn(DisasContext *s, int excp)
 {
     gen_a64_update_pc(s, 0);
@@ -1815,6 +1809,10 @@ static bool trans_BLRAZ(DisasContext *s, arg_braz *a)
 static bool trans_RETA(DisasContext *s, arg_reta *a)
 {
     TCGv_i64 dst;
+
+    if (!dc_isar_feature(aa64_pauth, s)) {
+        return false;
+    }
 
     dst = auth_branch_target(s, cpu_reg(s, 30), cpu_X[31], !a->m);
     gen_a64_set_pc(s, dst);

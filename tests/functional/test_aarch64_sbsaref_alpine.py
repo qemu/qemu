@@ -26,8 +26,9 @@ class Aarch64SbsarefAlpine(QemuSystemTest):
     # We only boot a whole OS for the current top level CPU and GIC
     # Other test profiles should use more minimal boots
     def boot_alpine_linux(self, cpu=None):
-        fetch_firmware(self)
+        self.set_machine('sbsa-ref')
 
+        fetch_firmware(self)
         iso_path = self.ASSET_ALPINE_ISO.fetch()
 
         self.vm.set_console()

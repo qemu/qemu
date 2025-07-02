@@ -17,7 +17,7 @@ import time
 
 from qemu_test import LinuxKernelTest, Asset, exec_command_and_wait_for_pattern
 from qemu_test import BUILD_DIR
-from qemu.utils import kvm_available
+from qemu.utils import kvm_available, hvf_available
 
 
 class SMMU(LinuxKernelTest):
@@ -45,11 +45,17 @@ class SMMU(LinuxKernelTest):
         self.vm.add_args('-device', 'virtio-net,netdev=n1' + self.IOMMU_ADDON)
 
     def common_vm_setup(self, kernel, initrd, disk):
-        self.require_accelerator("kvm")
+        if hvf_available(self.qemu_bin):
+            accel = "hvf"
+        elif kvm_available(self.qemu_bin):
+            accel = "kvm"
+        else:
+            self.skipTest("Neither HVF nor KVM accelerator is available")
+        self.require_accelerator(accel)
         self.require_netdev('user')
         self.set_machine("virt")
         self.vm.add_args('-m', '1G')
-        self.vm.add_args("-accel", "kvm")
+        self.vm.add_args("-accel", accel)
         self.vm.add_args("-cpu", "host")
         self.vm.add_args("-machine", "iommu=smmuv3")
         self.vm.add_args("-d", "guest_errors")

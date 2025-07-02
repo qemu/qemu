@@ -26,8 +26,9 @@ class Aarch64SbsarefFreeBSD(QemuSystemTest):
     # We only boot a whole OS for the current top level CPU and GIC
     # Other test profiles should use more minimal boots
     def boot_freebsd14(self, cpu=None):
-        fetch_firmware(self)
+        self.set_machine('sbsa-ref')
 
+        fetch_firmware(self)
         img_path = self.ASSET_FREEBSD_ISO.fetch()
 
         self.vm.set_console()
