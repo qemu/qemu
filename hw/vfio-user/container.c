@@ -13,7 +13,6 @@
 #include "hw/vfio-user/container.h"
 #include "hw/vfio-user/device.h"
 #include "hw/vfio-user/trace.h"
-#include "hw/vfio/vfio-cpr.h"
 #include "hw/vfio/vfio-device.h"
 #include "hw/vfio/vfio-listener.h"
 #include "qapi/error.h"
@@ -225,14 +224,10 @@ vfio_user_container_connect(AddressSpace *as, VFIODevice *vbasedev,
 
     bcontainer = &container->bcontainer;
 
-    if (!vfio_cpr_register_container(bcontainer, errp)) {
-        goto free_container_exit;
-    }
-
     ret = ram_block_uncoordinated_discard_disable(true);
     if (ret) {
         error_setg_errno(errp, -ret, "Cannot set discarding of RAM broken");
-        goto unregister_container_exit;
+        goto free_container_exit;
     }
 
     vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
@@ -261,9 +256,6 @@ listener_release_exit:
 enable_discards_exit:
     ram_block_uncoordinated_discard_disable(false);
 
-unregister_container_exit:
-    vfio_cpr_unregister_container(bcontainer);
-
 free_container_exit:
     object_unref(container);
 
@@ -286,7 +278,6 @@ static void vfio_user_container_disconnect(VFIOUserContainer *container)
         vioc->release(bcontainer);
     }
 
-    vfio_cpr_unregister_container(bcontainer);
     object_unref(container);
 
     vfio_address_space_put(space);
