@@ -37,6 +37,7 @@
 { 'include': 'run-state.json' }
 { 'include': 'crypto.json' }
 { 'include': 'job.json' }
+{ 'include': 'accelerator.json' }
 { 'include': 'block.json' }
 { 'include': 'block-export.json' }
 { 'include': 'char.json' }

@@ -57,6 +57,7 @@ qapi_all_modules = [
 ]
 if have_system
   qapi_all_modules += [
+    'accelerator',
     'acpi',
     'audio',
     'cryptodev',
