@@ -30,6 +30,7 @@ typedef struct VFIOContainerCPR {
 
 typedef struct VFIODeviceCPR {
     Error *mdev_blocker;
+    Error *id_blocker;
 } VFIODeviceCPR;
 
 bool vfio_legacy_cpr_register_container(struct VFIOContainer *container,
