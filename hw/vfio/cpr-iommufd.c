@@ -166,12 +166,18 @@ void vfio_iommufd_cpr_unregister_container(VFIOIOMMUFDContainer *container)
 void vfio_iommufd_cpr_register_device(VFIODevice *vbasedev)
 {
     if (!cpr_is_incoming()) {
+        /*
+         * Beware fd may have already been saved by vfio_device_set_fd,
+         * so call resave to avoid a duplicate entry.
+         */
+        cpr_resave_fd(vbasedev->name, 0, vbasedev->fd);
         vfio_cpr_save_device(vbasedev);
     }
 }
 
 void vfio_iommufd_cpr_unregister_device(VFIODevice *vbasedev)
 {
+    cpr_delete_fd(vbasedev->name, 0);
     vfio_cpr_delete_device(vbasedev->name);
 }
 
@@ -180,5 +186,9 @@ void vfio_cpr_load_device(VFIODevice *vbasedev)
     if (cpr_is_incoming()) {
         bool ret = vfio_cpr_find_device(vbasedev);
         g_assert(ret);
+
+        if (vbasedev->fd < 0) {
+            vbasedev->fd = cpr_find_fd(vbasedev->name, 0);
+        }
     }
 }
