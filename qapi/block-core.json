@@ -573,7 +573,7 @@
 # Since: 0.14
 ##
 { 'struct': 'BlockDeviceInfo',
-  'data': { 'file': 'str', '*node-name': 'str', 'ro': 'bool', 'drv': 'str',
+  'data': { 'file': 'str', 'node-name': 'str', 'ro': 'bool', 'drv': 'str',
             '*backing_file': 'str', 'backing_file_depth': 'int',
             'children': ['BlockdevChild'],
             'active': 'bool', 'encrypted': 'bool',

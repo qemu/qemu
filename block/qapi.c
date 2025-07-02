@@ -75,9 +75,7 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
         .no_flush       = !!(bs->open_flags & BDRV_O_NO_FLUSH),
     };
 
-    if (bs->node_name[0]) {
-        info->node_name = g_strdup(bs->node_name);
-    }
+    info->node_name = g_strdup(bs->node_name);
 
     children_list_tail = &info->children;
     QLIST_FOREACH(child, &bs->children, next) {
