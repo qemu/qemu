@@ -15,7 +15,10 @@
 struct VFIOContainer;
 struct VFIOContainerBase;
 struct VFIOGroup;
+struct VFIODevice;
 struct VFIOPCIDevice;
+struct VFIOIOMMUFDContainer;
+struct IOMMUFDBackend;
 
 typedef int (*dma_map_fn)(const struct VFIOContainerBase *bcontainer,
                           hwaddr iova, ram_addr_t size, void *vaddr,
@@ -43,6 +46,15 @@ int vfio_cpr_reboot_notifier(NotifierWithReturn *notifier, MigrationEvent *e,
 bool vfio_cpr_register_container(struct VFIOContainerBase *bcontainer,
                                  Error **errp);
 void vfio_cpr_unregister_container(struct VFIOContainerBase *bcontainer);
+
+bool vfio_iommufd_cpr_register_container(struct VFIOIOMMUFDContainer *container,
+                                         Error **errp);
+void vfio_iommufd_cpr_unregister_container(
+    struct VFIOIOMMUFDContainer *container);
+bool vfio_iommufd_cpr_register_iommufd(struct IOMMUFDBackend *be, Error **errp);
+void vfio_iommufd_cpr_unregister_iommufd(struct IOMMUFDBackend *be);
+void vfio_iommufd_cpr_register_device(struct VFIODevice *vbasedev);
+void vfio_iommufd_cpr_unregister_device(struct VFIODevice *vbasedev);
 
 int vfio_cpr_group_get_device_fd(int d, const char *name);
 

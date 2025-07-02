@@ -32,6 +32,7 @@ struct IOMMUFDBackend {
     /*< protected >*/
     int fd;            /* /dev/iommu file descriptor */
     bool owned;        /* is the /dev/iommu opened internally */
+    Error *cpr_blocker;/* set if be does not support CPR */
     uint32_t users;
 
     /*< public >*/

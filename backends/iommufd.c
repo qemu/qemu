@@ -108,6 +108,13 @@ bool iommufd_backend_connect(IOMMUFDBackend *be, Error **errp)
         }
         be->fd = fd;
     }
+    if (!be->users && !vfio_iommufd_cpr_register_iommufd(be, errp)) {
+        if (be->owned) {
+            close(be->fd);
+            be->fd = -1;
+        }
+        return false;
+    }
     be->users++;
 
     trace_iommufd_backend_connect(be->fd, be->owned, be->users);
@@ -125,6 +132,9 @@ void iommufd_backend_disconnect(IOMMUFDBackend *be)
         be->fd = -1;
     }
 out:
+    if (!be->users) {
+        vfio_iommufd_cpr_unregister_iommufd(be);
+    }
     trace_iommufd_backend_disconnect(be->fd, be->users);
 }
 
