@@ -3,9 +3,9 @@ name: QEMU Clean CI Build
 on:
   workflow_dispatch:
   push:
-    branches: [ CICD_testing ]
+    branches: [ CI_CD_testing ]
   pull_request:
-    branches: [ CICD_testing ]
+    branches: [ CI_CD_testing ]
 
 jobs:
   clean-build-qemu:
@@ -25,13 +25,16 @@ jobs:
 
       - name: Clean Build Folder
         run: |
-          rm -rf custom_example/uart/*.elf custom_example/uart/*.bin custom_example/uart/output.txt
+          rm -rf build/ custom_example/*.elf custom_example/*.bin custom_example/output.txt
 
       - name: Configure QEMU
         run: |
           ./configure \
             --target-list=arm-softmmu,aarch64-softmmu \
             --enable-debug --disable-strip --enable-plugins
+
+      - name: Build QEMU
+        run: make -j$(nproc)
 
       - name: Show QEMU Version
         run: |
@@ -40,11 +43,11 @@ jobs:
 
       - name: Build Custom Baremetal Binary
         run: |
-          arm-none-eabi-gcc -mcpu=arm926ej-s -nostdlib -T custom_example/uart/link.ld \
-            -o custom_example/uart/main.elf \
-            custom_example/uart/start.S custom_example/uart/main.c
+          arm-none-eabi-gcc -mcpu=arm926ej-s -nostdlib -T custom_example/link.ld \
+            -o custom_example/main.elf \
+            custom_example/start.S custom_example/main.c
 
-          arm-none-eabi-objcopy -O binary custom_example/uart/main.elf custom_example/uart/main.bin
+          arm-none-eabi-objcopy -O binary custom_example/main.elf custom_example/main.bin
 
       - name: Run Baremetal Binary on QEMU
         run: |
@@ -52,8 +55,8 @@ jobs:
             -M versatilepb \
             -cpu arm926 \
             -nographic \
-            -serial file:custom_example/uart/output.txt \
-            -kernel custom_example/uart/main.bin || true
+            -serial file:custom_example/output.txt \
+            -kernel custom_example/main.bin || true
 
       - name: Validate UART Output
         run: |
@@ -69,7 +72,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: uart-output
-          path: custom_example/uart/output.txt
+          path: custom_example/output.txt
 
       - name: Upload example Binaries
         uses: actions/upload-artifact@v4
