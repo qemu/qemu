@@ -33,9 +33,6 @@ jobs:
             --target-list=arm-softmmu,aarch64-softmmu \
             --enable-debug --disable-strip --enable-plugins
 
-      - name: Build QEMU
-        run: make -j$(nproc)
-
       - name: Show QEMU Version
         run: |
           ./build/qemu-system-arm --version
