@@ -3,9 +3,9 @@ name: QEMU Clean CI Build
 on:
   workflow_dispatch:
   push:
-    branches: [ CI_CD_testing ]
+    branches: [ CICD_testing ]
   pull_request:
-    branches: [ CI_CD_testing ]
+    branches: [ CICD_testing ]
 
 jobs:
   clean-build-qemu:
