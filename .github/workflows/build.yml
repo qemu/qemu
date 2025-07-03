@@ -25,7 +25,7 @@ jobs:
 
       - name: Clean Build Folder
         run: |
-          rm -rf build/ custom_example/uart/*.elf custom_example/uart/*.bin custom_example/uart/output.txt
+          rm -rf custom_example/uart/*.elf custom_example/uart/*.bin custom_example/uart/output.txt
 
       - name: Configure QEMU
         run: |
@@ -71,11 +71,10 @@ jobs:
           name: uart-output
           path: custom_example/uart/output.txt
 
-      - name: Upload QEMU Binaries
+      - name: Upload example Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: qemu-binaries
+          name: examplebinaries
           path: |
-            build/qemu-system-arm
-            build/qemu-system-aarch64
+            custom_example/uart/main.bin
 
