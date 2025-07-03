@@ -592,6 +592,7 @@ static inline int riscv_has_ext(CPURISCVState *env, target_ulong ext)
 extern const char * const riscv_int_regnames[];
 extern const char * const riscv_int_regnamesh[];
 extern const char * const riscv_fpr_regnames[];
+extern const char * const riscv_rvv_regnames[];
 
 const char *riscv_cpu_get_trap_name(target_ulong cause, bool async);
 int riscv_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
