@@ -1256,14 +1256,21 @@ out_free:
     g_free(task);
 }
 
+#define SUPPORTED_TDVMCALLINFO_1_R11    (0)
+#define SUPPORTED_TDVMCALLINFO_1_R12    (0)
+
 void tdx_handle_get_tdvmcall_info(X86CPU *cpu, struct kvm_run *run)
 {
     if (run->tdx.get_tdvmcall_info.leaf != 1) {
         return;
     }
 
-    run->tdx.get_tdvmcall_info.r11 = 0;
-    run->tdx.get_tdvmcall_info.r12 = 0;
+    run->tdx.get_tdvmcall_info.r11 = (tdx_caps->user_tdvmcallinfo_1_r11 &
+                                      SUPPORTED_TDVMCALLINFO_1_R11) |
+                                      tdx_caps->kernel_tdvmcallinfo_1_r11;
+    run->tdx.get_tdvmcall_info.r12 = (tdx_caps->user_tdvmcallinfo_1_r12 &
+                                      SUPPORTED_TDVMCALLINFO_1_R12) |
+                                      tdx_caps->kernel_tdvmcallinfo_1_r12;
     run->tdx.get_tdvmcall_info.r13 = 0;
     run->tdx.get_tdvmcall_info.r14 = 0;
 
