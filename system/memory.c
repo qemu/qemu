@@ -29,6 +29,7 @@
 #include "system/runstate.h"
 #include "system/tcg.h"
 #include "qemu/accel.h"
+#include "accel/accel-ops.h"
 #include "hw/boards.h"
 #include "migration/vmstate.h"
 #include "system/address-spaces.h"

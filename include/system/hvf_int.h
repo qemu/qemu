@@ -14,6 +14,7 @@
 #include "qemu/queue.h"
 #include "exec/vaddr.h"
 #include "qom/object.h"
+#include "accel/accel-ops.h"
 
 #ifdef __aarch64__
 #include <Hypervisor/Hypervisor.h>
@@ -45,7 +46,7 @@ typedef struct hvf_vcpu_caps {
 } hvf_vcpu_caps;
 
 struct HVFState {
-    AccelState parent;
+    AccelState parent_obj;
 
     hvf_slot slots[32];
     int num_slots;

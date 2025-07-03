@@ -18,6 +18,7 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu/accel.h"
+#include "accel/accel-ops.h"
 #include "accel/accel-cpu-ops.h"
 #include "system/qtest.h"
 #include "system/cpus.h"
