@@ -200,6 +200,13 @@ static void dump_exec_info(GString *buf)
     tcg_dump_flush_info(buf);
 }
 
+void tcg_dump_stats(GString *buf)
+{
+    dump_accel_info(buf);
+    dump_exec_info(buf);
+    dump_drift_info(buf);
+}
+
 HumanReadableText *qmp_x_query_jit(Error **errp)
 {
     g_autoptr(GString) buf = g_string_new("");
@@ -209,9 +216,7 @@ HumanReadableText *qmp_x_query_jit(Error **errp)
         return NULL;
     }
 
-    dump_accel_info(buf);
-    dump_exec_info(buf);
-    dump_drift_info(buf);
+    tcg_dump_stats(buf);
 
     return human_readable_text_from_str(buf);
 }
