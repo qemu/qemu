@@ -35,8 +35,7 @@ jobs:
 
       - name: Show QEMU Version
         run: |
-          ./build/qemu-system-arm --version
-          ./build/qemu-system-aarch64 --version
+          custom_example/qemu-system-arm --version
 
       - name: Build Custom Baremetal Binary
         run: |
@@ -48,7 +47,7 @@ jobs:
 
       - name: Run Baremetal Binary on QEMU
         run: |
-          timeout 5s ./build/qemu-system-arm \
+          timeout 5s custom_example/qemu-system-arm \
             -M versatilepb \
             -cpu arm926 \
             -nographic \
