@@ -31,11 +31,14 @@ typedef struct IgvmCfgClass {
     /*
      * If an IGVM filename has been specified then process the IGVM file.
      * Performs a no-op if no filename has been specified.
+     * If onlyVpContext is true then only the IGVM_VHT_VP_CONTEXT entries
+     * in the IGVM file will be processed, allowing information about the
+     * CPU state to be determined before processing the entire file.
      *
      * Returns 0 for ok and -1 on error.
      */
     int (*process)(IgvmCfg *cfg, ConfidentialGuestSupport *cgs,
-                   Error **errp);
+                   bool onlyVpContext, Error **errp);
 
 } IgvmCfgClass;
 
