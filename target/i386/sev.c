@@ -50,6 +50,12 @@ OBJECT_DECLARE_TYPE(SevSnpGuestState, SevCommonStateClass, SEV_SNP_GUEST)
 /* hard code sha256 digest size */
 #define HASH_SIZE 32
 
+/* Convert between SEV-ES VMSA and SegmentCache flags/attributes */
+#define FLAGS_VMSA_TO_SEGCACHE(flags) \
+    ((((flags) & 0xff00) << 12) | (((flags) & 0xff) << 8))
+#define FLAGS_SEGCACHE_TO_VMSA(flags) \
+    ((((flags) & 0xff00) >> 8) | (((flags) & 0xf00000) >> 12))
+
 typedef struct QEMU_PACKED SevHashTableEntry {
     QemuUUID guid;
     uint16_t len;
@@ -89,6 +95,14 @@ typedef struct QEMU_PACKED SevHashTableDescriptor {
     uint32_t size;
 } SevHashTableDescriptor;
 
+typedef struct SevLaunchVmsa {
+    QTAILQ_ENTRY(SevLaunchVmsa) next;
+
+    uint16_t cpu_index;
+    uint64_t gpa;
+    struct sev_es_save_area vmsa;
+} SevLaunchVmsa;
+
 struct SevCommonState {
     X86ConfidentialGuest parent_obj;
 
@@ -107,9 +121,7 @@ struct SevCommonState {
     int sev_fd;
     SevState state;
 
-    uint32_t reset_cs;
-    uint32_t reset_ip;
-    bool reset_data_valid;
+    QTAILQ_HEAD(, SevLaunchVmsa) launch_vmsa;
 };
 
 struct SevCommonStateClass {
@@ -363,6 +375,172 @@ static struct RAMBlockNotifier sev_ram_notifier = {
     .ram_block_added = sev_ram_block_added,
     .ram_block_removed = sev_ram_block_removed,
 };
+
+static void sev_apply_cpu_context(CPUState *cpu)
+{
+    SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
+    X86CPU *x86;
+    CPUX86State *env;
+    struct SevLaunchVmsa *launch_vmsa;
+
+    /* See if an initial VMSA has been provided for this CPU */
+    QTAILQ_FOREACH(launch_vmsa, &sev_common->launch_vmsa, next)
+    {
+        if (cpu->cpu_index == launch_vmsa->cpu_index) {
+            x86 = X86_CPU(cpu);
+            env = &x86->env;
+
+            /*
+             * Ideally we would provide the VMSA directly to kvm which would
+             * ensure that the resulting initial VMSA measurement which is
+             * calculated during KVM_SEV_LAUNCH_UPDATE_VMSA is calculated from
+             * exactly what we provide here. Currently this is not possible so
+             * we need to copy the parts of the VMSA structure that we currently
+             * support into the CPU state.
+             */
+            cpu_load_efer(env, launch_vmsa->vmsa.efer);
+            cpu_x86_update_cr4(env, launch_vmsa->vmsa.cr4);
+            cpu_x86_update_cr0(env, launch_vmsa->vmsa.cr0);
+            cpu_x86_update_cr3(env, launch_vmsa->vmsa.cr3);
+            env->xcr0 = launch_vmsa->vmsa.xcr0;
+            env->pat = launch_vmsa->vmsa.g_pat;
+
+            cpu_x86_load_seg_cache(
+                env, R_CS, launch_vmsa->vmsa.cs.selector,
+                launch_vmsa->vmsa.cs.base, launch_vmsa->vmsa.cs.limit,
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.cs.attrib));
+            cpu_x86_load_seg_cache(
+                env, R_DS, launch_vmsa->vmsa.ds.selector,
+                launch_vmsa->vmsa.ds.base, launch_vmsa->vmsa.ds.limit,
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.ds.attrib));
+            cpu_x86_load_seg_cache(
+                env, R_ES, launch_vmsa->vmsa.es.selector,
+                launch_vmsa->vmsa.es.base, launch_vmsa->vmsa.es.limit,
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.es.attrib));
+            cpu_x86_load_seg_cache(
+                env, R_FS, launch_vmsa->vmsa.fs.selector,
+                launch_vmsa->vmsa.fs.base, launch_vmsa->vmsa.fs.limit,
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.fs.attrib));
+            cpu_x86_load_seg_cache(
+                env, R_GS, launch_vmsa->vmsa.gs.selector,
+                launch_vmsa->vmsa.gs.base, launch_vmsa->vmsa.gs.limit,
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.gs.attrib));
+            cpu_x86_load_seg_cache(
+                env, R_SS, launch_vmsa->vmsa.ss.selector,
+                launch_vmsa->vmsa.ss.base, launch_vmsa->vmsa.ss.limit,
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.ss.attrib));
+
+            env->gdt.base = launch_vmsa->vmsa.gdtr.base;
+            env->gdt.limit = launch_vmsa->vmsa.gdtr.limit;
+            env->gdt.flags =
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.gdtr.attrib);
+            env->idt.base = launch_vmsa->vmsa.idtr.base;
+            env->idt.limit = launch_vmsa->vmsa.idtr.limit;
+            env->idt.flags =
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.idtr.attrib);
+
+            cpu_x86_load_seg_cache(
+                env, R_LDTR, launch_vmsa->vmsa.ldtr.selector,
+                launch_vmsa->vmsa.ldtr.base, launch_vmsa->vmsa.ldtr.limit,
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.ldtr.attrib));
+            cpu_x86_load_seg_cache(
+                env, R_TR, launch_vmsa->vmsa.tr.selector,
+                launch_vmsa->vmsa.ldtr.base, launch_vmsa->vmsa.tr.limit,
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.tr.attrib));
+
+            env->dr[6] = launch_vmsa->vmsa.dr6;
+            env->dr[7] = launch_vmsa->vmsa.dr7;
+
+            env->regs[R_EAX] = launch_vmsa->vmsa.rax;
+            env->regs[R_ECX] = launch_vmsa->vmsa.rcx;
+            env->regs[R_EDX] = launch_vmsa->vmsa.rdx;
+            env->regs[R_EBX] = launch_vmsa->vmsa.rbx;
+            env->regs[R_ESP] = launch_vmsa->vmsa.rsp;
+            env->regs[R_EBP] = launch_vmsa->vmsa.rbp;
+            env->regs[R_ESI] = launch_vmsa->vmsa.rsi;
+            env->regs[R_EDI] = launch_vmsa->vmsa.rdi;
+#ifdef TARGET_X86_64
+            env->regs[R_R8] = launch_vmsa->vmsa.r8;
+            env->regs[R_R9] = launch_vmsa->vmsa.r9;
+            env->regs[R_R10] = launch_vmsa->vmsa.r10;
+            env->regs[R_R11] = launch_vmsa->vmsa.r11;
+            env->regs[R_R12] = launch_vmsa->vmsa.r12;
+            env->regs[R_R13] = launch_vmsa->vmsa.r13;
+            env->regs[R_R14] = launch_vmsa->vmsa.r14;
+            env->regs[R_R15] = launch_vmsa->vmsa.r15;
+#endif
+            env->eip = launch_vmsa->vmsa.rip;
+            env->eflags = launch_vmsa->vmsa.rflags;
+
+            cpu_set_fpuc(env, launch_vmsa->vmsa.x87_fcw);
+            env->mxcsr = launch_vmsa->vmsa.mxcsr;
+
+            break;
+        }
+    }
+}
+
+static int sev_set_cpu_context(uint16_t cpu_index, const void *ctx,
+                               uint32_t ctx_len, hwaddr gpa, Error **errp)
+{
+    SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
+    SevLaunchVmsa *launch_vmsa;
+    CPUState *cpu;
+    bool exists = false;
+
+    /*
+     * Setting the CPU context is only supported for SEV-ES and SEV-SNP. The
+     * context buffer will contain a sev_es_save_area from the Linux kernel
+     * which is defined by "Table B-4. VMSA Layout, State Save Area for SEV-ES"
+     * in the AMD64 APM, Volume 2.
+     */
+
+    if (!sev_es_enabled()) {
+        error_setg(errp, "SEV: unable to set CPU context: Not supported");
+        return -1;
+    }
+
+    if (ctx_len < sizeof(struct sev_es_save_area)) {
+        error_setg(errp, "SEV: unable to set CPU context: "
+                     "Invalid context provided");
+        return -1;
+    }
+
+    cpu = qemu_get_cpu(cpu_index);
+    if (!cpu) {
+        error_setg(errp, "SEV: unable to set CPU context for out of bounds "
+                     "CPU index %d", cpu_index);
+        return -1;
+    }
+
+    /*
+     * If the context of this VP has already been set then replace it with the
+     * new context.
+     */
+    QTAILQ_FOREACH(launch_vmsa, &sev_common->launch_vmsa, next)
+    {
+        if (cpu_index == launch_vmsa->cpu_index) {
+            launch_vmsa->gpa = gpa;
+            memcpy(&launch_vmsa->vmsa, ctx, sizeof(launch_vmsa->vmsa));
+            exists = true;
+            break;
+        }
+    }
+
+    if (!exists) {
+        /* New VP context */
+        launch_vmsa = g_new0(SevLaunchVmsa, 1);
+        memcpy(&launch_vmsa->vmsa, ctx, sizeof(launch_vmsa->vmsa));
+        launch_vmsa->cpu_index = cpu_index;
+        launch_vmsa->gpa = gpa;
+        QTAILQ_INSERT_TAIL(&sev_common->launch_vmsa, launch_vmsa, next);
+    }
+
+    /* Synchronise the VMSA with the current CPU state */
+    sev_apply_cpu_context(cpu);
+
+    return 0;
+}
 
 bool
 sev_enabled(void)
@@ -998,6 +1176,16 @@ static int
 sev_launch_update_vmsa(SevGuestState *sev_guest)
 {
     int ret, fw_error;
+    CPUState *cpu;
+
+    /*
+     * The initial CPU state is measured as part of KVM_SEV_LAUNCH_UPDATE_VMSA.
+     * Synchronise the CPU state to any provided launch VMSA structures.
+     */
+    CPU_FOREACH(cpu) {
+        sev_apply_cpu_context(cpu);
+    }
+
 
     ret = sev_ioctl(SEV_COMMON(sev_guest)->sev_fd, KVM_SEV_LAUNCH_UPDATE_VMSA,
                     NULL, &fw_error);
@@ -1780,40 +1968,109 @@ sev_es_find_reset_vector(void *flash_ptr, uint64_t flash_size,
     return sev_es_parse_reset_block(info, addr);
 }
 
+
+static void seg_to_vmsa(const SegmentCache *cpu_seg, struct vmcb_seg *vmsa_seg)
+{
+    vmsa_seg->selector = cpu_seg->selector;
+    vmsa_seg->base = cpu_seg->base;
+    vmsa_seg->limit = cpu_seg->limit;
+    vmsa_seg->attrib = FLAGS_SEGCACHE_TO_VMSA(cpu_seg->flags);
+}
+
+static void initialize_vmsa(const CPUState *cpu, struct sev_es_save_area *vmsa)
+{
+    const X86CPU *x86 = X86_CPU(cpu);
+    const CPUX86State *env = &x86->env;
+
+    /*
+     * Initialize the SEV-ES save area from the current state of
+     * the CPU. The entire state does not need to be copied, only the state
+     * that is copied back to the CPUState in sev_apply_cpu_context.
+     */
+    memset(vmsa, 0, sizeof(struct sev_es_save_area));
+    vmsa->efer = env->efer;
+    vmsa->cr0 = env->cr[0];
+    vmsa->cr3 = env->cr[3];
+    vmsa->cr4 = env->cr[4];
+    vmsa->xcr0 = env->xcr0;
+    vmsa->g_pat = env->pat;
+
+    seg_to_vmsa(&env->segs[R_CS], &vmsa->cs);
+    seg_to_vmsa(&env->segs[R_DS], &vmsa->ds);
+    seg_to_vmsa(&env->segs[R_ES], &vmsa->es);
+    seg_to_vmsa(&env->segs[R_FS], &vmsa->fs);
+    seg_to_vmsa(&env->segs[R_GS], &vmsa->gs);
+    seg_to_vmsa(&env->segs[R_SS], &vmsa->ss);
+
+    seg_to_vmsa(&env->gdt, &vmsa->gdtr);
+    seg_to_vmsa(&env->idt, &vmsa->idtr);
+    seg_to_vmsa(&env->ldt, &vmsa->ldtr);
+    seg_to_vmsa(&env->tr, &vmsa->tr);
+
+    vmsa->dr6 = env->dr[6];
+    vmsa->dr7 = env->dr[7];
+
+    vmsa->rax = env->regs[R_EAX];
+    vmsa->rcx = env->regs[R_ECX];
+    vmsa->rdx = env->regs[R_EDX];
+    vmsa->rbx = env->regs[R_EBX];
+    vmsa->rsp = env->regs[R_ESP];
+    vmsa->rbp = env->regs[R_EBP];
+    vmsa->rsi = env->regs[R_ESI];
+    vmsa->rdi = env->regs[R_EDI];
+
+#ifdef TARGET_X86_64
+    vmsa->r8 = env->regs[R_R8];
+    vmsa->r9 = env->regs[R_R9];
+    vmsa->r10 = env->regs[R_R10];
+    vmsa->r11 = env->regs[R_R11];
+    vmsa->r12 = env->regs[R_R12];
+    vmsa->r13 = env->regs[R_R13];
+    vmsa->r14 = env->regs[R_R14];
+    vmsa->r15 = env->regs[R_R15];
+#endif
+
+    vmsa->rip = env->eip;
+    vmsa->rflags = env->eflags;
+}
+
+static void sev_es_set_ap_context(uint32_t reset_addr)
+{
+    CPUState *cpu;
+    struct sev_es_save_area vmsa;
+    SegmentCache cs;
+
+    cs.selector = 0xf000;
+    cs.base = reset_addr & 0xffff0000;
+    cs.limit = 0xffff;
+    cs.flags = DESC_P_MASK | DESC_S_MASK | DESC_CS_MASK | DESC_R_MASK |
+               DESC_A_MASK;
+
+    CPU_FOREACH(cpu) {
+        if (cpu->cpu_index == 0) {
+            /* Do not update the BSP reset state */
+            continue;
+        }
+        initialize_vmsa(cpu, &vmsa);
+        seg_to_vmsa(&cs, &vmsa.cs);
+        vmsa.rip = reset_addr & 0x0000ffff;
+        sev_set_cpu_context(cpu->cpu_index, &vmsa,
+                            sizeof(struct sev_es_save_area),
+                            0, &error_fatal);
+    }
+}
+
 void sev_es_set_reset_vector(CPUState *cpu)
 {
-    X86CPU *x86;
-    CPUX86State *env;
-    ConfidentialGuestSupport *cgs = MACHINE(qdev_get_machine())->cgs;
-    SevCommonState *sev_common = SEV_COMMON(
-        object_dynamic_cast(OBJECT(cgs), TYPE_SEV_COMMON));
-
-    /* Only update if we have valid reset information */
-    if (!sev_common || !sev_common->reset_data_valid) {
-        return;
+    if (sev_enabled()) {
+        sev_apply_cpu_context(cpu);
     }
-
-    /* Do not update the BSP reset state */
-    if (cpu->cpu_index == 0) {
-        return;
-    }
-
-    x86 = X86_CPU(cpu);
-    env = &x86->env;
-
-    cpu_x86_load_seg_cache(env, R_CS, 0xf000, sev_common->reset_cs, 0xffff,
-                           DESC_P_MASK | DESC_S_MASK | DESC_CS_MASK |
-                           DESC_R_MASK | DESC_A_MASK);
-
-    env->eip = sev_common->reset_ip;
 }
 
 int sev_es_save_reset_vector(void *flash_ptr, uint64_t flash_size)
 {
-    CPUState *cpu;
     uint32_t addr;
     int ret;
-    SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
 
     if (!sev_es_enabled()) {
         return 0;
@@ -1826,14 +2083,12 @@ int sev_es_save_reset_vector(void *flash_ptr, uint64_t flash_size)
         return ret;
     }
 
+    /*
+     * The reset vector is saved into a CPU context for each AP but not for
+     * the BSP. This is applied during guest startup or when the CPU is reset.
+     */
     if (addr) {
-        sev_common->reset_cs = addr & 0xffff0000;
-        sev_common->reset_ip = addr & 0x0000ffff;
-        sev_common->reset_data_valid = true;
-
-        CPU_FOREACH(cpu) {
-            sev_es_set_reset_vector(cpu);
-        }
+        sev_es_set_ap_context(addr);
     }
 
     return 0;
@@ -2068,6 +2323,7 @@ sev_common_instance_init(Object *obj)
     object_property_add_uint32_ptr(obj, "reduced-phys-bits",
                                    &sev_common->reduced_phys_bits,
                                    OBJ_PROP_FLAG_READWRITE);
+    QTAILQ_INIT(&sev_common->launch_vmsa);
 }
 
 /* sev guest info common to sev/sev-es/sev-snp */
