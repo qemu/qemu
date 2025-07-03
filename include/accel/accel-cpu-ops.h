@@ -1,5 +1,5 @@
 /*
- * Accelerator OPS, used for cpus.c module
+ * Accelerator per-vCPU handlers
  *
  * Copyright 2021 SUSE LLC
  *
@@ -7,8 +7,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef ACCEL_OPS_H
-#define ACCEL_OPS_H
+#ifndef QEMU_ACCEL_CPU_OPS_H
+#define QEMU_ACCEL_CPU_OPS_H
 
 #include "qemu/accel.h"
 #include "exec/vaddr.h"
@@ -89,4 +89,4 @@ struct AccelOpsClass {
 
 void generic_handle_interrupt(CPUState *cpu, int mask);
 
-#endif /* ACCEL_OPS_H */
+#endif /* QEMU_ACCEL_CPU_OPS_H */
