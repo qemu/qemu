@@ -6,83 +6,79 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
     parse_macro_input, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Data,
-    DeriveInput, Field, Fields, FieldsUnnamed, Ident, Meta, Path, Token, Variant,
+    DeriveInput, Error, Field, Fields, FieldsUnnamed, Ident, Meta, Path, Token, Variant,
 };
-
-mod utils;
-use utils::MacroError;
-
 mod bits;
 use bits::BitsConstInternal;
 
 fn get_fields<'a>(
     input: &'a DeriveInput,
     msg: &str,
-) -> Result<&'a Punctuated<Field, Comma>, MacroError> {
+) -> Result<&'a Punctuated<Field, Comma>, Error> {
     let Data::Struct(ref s) = &input.data else {
-        return Err(MacroError::Message(
-            format!("Struct required for {msg}"),
+        return Err(Error::new(
             input.ident.span(),
+            format!("Struct required for {msg}"),
         ));
     };
     let Fields::Named(ref fs) = &s.fields else {
-        return Err(MacroError::Message(
-            format!("Named fields required for {msg}"),
+        return Err(Error::new(
             input.ident.span(),
+            format!("Named fields required for {msg}"),
         ));
     };
     Ok(&fs.named)
 }
 
-fn get_unnamed_field<'a>(input: &'a DeriveInput, msg: &str) -> Result<&'a Field, MacroError> {
+fn get_unnamed_field<'a>(input: &'a DeriveInput, msg: &str) -> Result<&'a Field, Error> {
     let Data::Struct(ref s) = &input.data else {
-        return Err(MacroError::Message(
-            format!("Struct required for {msg}"),
+        return Err(Error::new(
             input.ident.span(),
+            format!("Struct required for {msg}"),
         ));
     };
     let Fields::Unnamed(FieldsUnnamed { ref unnamed, .. }) = &s.fields else {
-        return Err(MacroError::Message(
-            format!("Tuple struct required for {msg}"),
+        return Err(Error::new(
             s.fields.span(),
+            format!("Tuple struct required for {msg}"),
         ));
     };
     if unnamed.len() != 1 {
-        return Err(MacroError::Message(
-            format!("A single field is required for {msg}"),
+        return Err(Error::new(
             s.fields.span(),
+            format!("A single field is required for {msg}"),
         ));
     }
     Ok(&unnamed[0])
 }
 
-fn is_c_repr(input: &DeriveInput, msg: &str) -> Result<(), MacroError> {
+fn is_c_repr(input: &DeriveInput, msg: &str) -> Result<(), Error> {
     let expected = parse_quote! { #[repr(C)] };
 
     if input.attrs.iter().any(|attr| attr == &expected) {
         Ok(())
     } else {
-        Err(MacroError::Message(
-            format!("#[repr(C)] required for {msg}"),
+        Err(Error::new(
             input.ident.span(),
+            format!("#[repr(C)] required for {msg}"),
         ))
     }
 }
 
-fn is_transparent_repr(input: &DeriveInput, msg: &str) -> Result<(), MacroError> {
+fn is_transparent_repr(input: &DeriveInput, msg: &str) -> Result<(), Error> {
     let expected = parse_quote! { #[repr(transparent)] };
 
     if input.attrs.iter().any(|attr| attr == &expected) {
         Ok(())
     } else {
-        Err(MacroError::Message(
-            format!("#[repr(transparent)] required for {msg}"),
+        Err(Error::new(
             input.ident.span(),
+            format!("#[repr(transparent)] required for {msg}"),
         ))
     }
 }
 
-fn derive_object_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream, MacroError> {
+fn derive_object_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream, Error> {
     is_c_repr(&input, "#[derive(Object)]")?;
 
     let name = &input.ident;
@@ -103,12 +99,13 @@ fn derive_object_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
 #[proc_macro_derive(Object)]
 pub fn derive_object(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    let expanded = derive_object_or_error(input).unwrap_or_else(Into::into);
 
-    TokenStream::from(expanded)
+    derive_object_or_error(input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
 
-fn derive_opaque_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream, MacroError> {
+fn derive_opaque_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream, Error> {
     is_transparent_repr(&input, "#[derive(Wrapper)]")?;
 
     let name = &input.ident;
@@ -149,13 +146,14 @@ fn derive_opaque_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
 #[proc_macro_derive(Wrapper)]
 pub fn derive_opaque(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    let expanded = derive_opaque_or_error(input).unwrap_or_else(Into::into);
 
-    TokenStream::from(expanded)
+    derive_opaque_or_error(input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
 
 #[allow(non_snake_case)]
-fn get_repr_uN(input: &DeriveInput, msg: &str) -> Result<Path, MacroError> {
+fn get_repr_uN(input: &DeriveInput, msg: &str) -> Result<Path, Error> {
     let repr = input.attrs.iter().find(|attr| attr.path().is_ident("repr"));
     if let Some(repr) = repr {
         let nested = repr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
@@ -170,23 +168,23 @@ fn get_repr_uN(input: &DeriveInput, msg: &str) -> Result<Path, MacroError> {
         }
     }
 
-    Err(MacroError::Message(
-        format!("#[repr(u8/u16/u32/u64) required for {msg}"),
+    Err(Error::new(
         input.ident.span(),
+        format!("#[repr(u8/u16/u32/u64) required for {msg}"),
     ))
 }
 
-fn get_variants(input: &DeriveInput) -> Result<&Punctuated<Variant, Comma>, MacroError> {
+fn get_variants(input: &DeriveInput) -> Result<&Punctuated<Variant, Comma>, Error> {
     let Data::Enum(ref e) = &input.data else {
-        return Err(MacroError::Message(
-            "Cannot derive TryInto for union or struct.".to_string(),
+        return Err(Error::new(
             input.ident.span(),
+            "Cannot derive TryInto for union or struct.",
         ));
     };
     if let Some(v) = e.variants.iter().find(|v| v.fields != Fields::Unit) {
-        return Err(MacroError::Message(
-            "Cannot derive TryInto for enum with non-unit variants.".to_string(),
+        return Err(Error::new(
             v.fields.span(),
+            "Cannot derive TryInto for enum with non-unit variants.",
         ));
     }
     Ok(&e.variants)
@@ -197,7 +195,7 @@ fn derive_tryinto_body(
     name: &Ident,
     variants: &Punctuated<Variant, Comma>,
     repr: &Path,
-) -> Result<proc_macro2::TokenStream, MacroError> {
+) -> Result<proc_macro2::TokenStream, Error> {
     let discriminants: Vec<&Ident> = variants.iter().map(|f| &f.ident).collect();
 
     Ok(quote! {
@@ -210,7 +208,7 @@ fn derive_tryinto_body(
 }
 
 #[rustfmt::skip::macros(quote)]
-fn derive_tryinto_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream, MacroError> {
+fn derive_tryinto_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream, Error> {
     let repr = get_repr_uN(&input, "#[derive(TryInto)]")?;
     let name = &input.ident;
     let body = derive_tryinto_body(name, get_variants(&input)?, &repr)?;
@@ -247,9 +245,10 @@ fn derive_tryinto_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStrea
 #[proc_macro_derive(TryInto)]
 pub fn derive_tryinto(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    let expanded = derive_tryinto_or_error(input).unwrap_or_else(Into::into);
 
-    TokenStream::from(expanded)
+    derive_tryinto_or_error(input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
 
 #[proc_macro]
@@ -257,6 +256,7 @@ pub fn bits_const_internal(ts: TokenStream) -> TokenStream {
     let ts = proc_macro2::TokenStream::from(ts);
     let mut it = ts.into_iter();
 
-    let expanded = BitsConstInternal::parse(&mut it).unwrap_or_else(Into::into);
-    TokenStream::from(expanded)
+    BitsConstInternal::parse(&mut it)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
