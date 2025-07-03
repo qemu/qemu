@@ -933,6 +933,19 @@
   'if': 'CONFIG_POSIX' }
 
 ##
+# @IgvmCfgProperties:
+#
+# Properties common to objects that handle IGVM files.
+#
+# @file: IGVM file to use to configure guest
+#
+# Since: 10.1
+##
+{ 'struct': 'IgvmCfgProperties',
+  'if': 'CONFIG_IGVM',
+  'data': { 'file': 'str' } }
+
+##
 # @SevCommonProperties:
 #
 # Properties common to objects that are derivatives of sev-common.
@@ -1142,6 +1155,8 @@
     'filter-redirector',
     'filter-replay',
     'filter-rewriter',
+    { 'name': 'igvm-cfg',
+      'if': 'CONFIG_IGVM' },
     'input-barrier',
     { 'name': 'input-linux',
       'if': 'CONFIG_LINUX' },
@@ -1218,6 +1233,8 @@
       'filter-redirector':          'FilterRedirectorProperties',
       'filter-replay':              'NetfilterProperties',
       'filter-rewriter':            'FilterRewriterProperties',
+      'igvm-cfg':                   { 'type': 'IgvmCfgProperties',
+                                      'if': 'CONFIG_IGVM' },
       'input-barrier':              'InputBarrierProperties',
       'input-linux':                { 'type': 'InputLinuxProperties',
                                       'if': 'CONFIG_LINUX' },
