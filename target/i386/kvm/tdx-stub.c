@@ -26,3 +26,7 @@ void tdx_handle_get_quote(X86CPU *cpu, struct kvm_run *run)
 void tdx_handle_get_tdvmcall_info(X86CPU *cpu, struct kvm_run *run)
 {
 }
+
+void tdx_handle_setup_event_notify_interrupt(X86CPU *cpu, struct kvm_run *run)
+{
+}

@@ -6182,6 +6182,9 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         case TDVMCALL_GET_TD_VM_CALL_INFO:
             tdx_handle_get_tdvmcall_info(cpu, run);
             break;
+        case TDVMCALL_SETUP_EVENT_NOTIFY_INTERRUPT:
+            tdx_handle_setup_event_notify_interrupt(cpu, run);
+            break;
         }
         ret = 0;
         break;
