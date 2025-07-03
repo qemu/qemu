@@ -158,6 +158,17 @@ static inline float16 check_nanbox_bf16(CPURISCVState *env, uint64_t f)
     }
 }
 
+static inline target_ulong get_xepc_mask(CPURISCVState *env)
+{
+    /* When IALIGN=32, both low bits must be zero.
+     * When IALIGN=16 (has C extension), only bit 0 must be zero. */
+    if (riscv_has_ext(env, RVC)) {
+        return ~(target_ulong)1;
+    } else {
+        return ~(target_ulong)3;
+    }
+}
+
 #ifndef CONFIG_USER_ONLY
 /* Our implementation of SysemuCPUOps::has_work */
 bool riscv_cpu_has_work(CPUState *cs);
