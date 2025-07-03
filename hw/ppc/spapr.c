@@ -577,7 +577,7 @@ static int spapr_dt_dynamic_memory(SpaprMachineState *spapr, void *fdt,
 
 /*
  * Adds ibm,dynamic-reconfiguration-memory node.
- * Refer to docs/specs/ppc-spapr-hotplug.txt for the documentation
+ * Refer to docs/specs/ppc-spapr-hotplug.rst for the documentation
  * of this device tree node.
  */
 static int spapr_dt_dynamic_reconfiguration_memory(SpaprMachineState *spapr,

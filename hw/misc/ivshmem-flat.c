@@ -362,7 +362,7 @@ static bool ivshmem_flat_connect_server(DeviceState *dev, Error **errp)
      *
      *  ivshmem_flat_recv_msg() calls return 'msg' and 'fd'.
      *
-     *  See ./docs/specs/ivshmem-spec.txt for details on the protocol.
+     *  See docs/specs/ivshmem-spec.rst for details on the protocol.
      */
 
     /* Step 0 */
