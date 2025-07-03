@@ -605,3 +605,24 @@
 { 'event': 'VFU_CLIENT_HANGUP',
   'data': { 'vfu-id': 'str', 'vfu-qom-path': 'str',
             'dev-id': 'str', 'dev-qom-path': 'str' } }
+
+##
+# @LED_CHANGE:
+#
+# Emitted when the LED state changes (e.g., for debug or virtual indicators).
+#
+# @value: New LED value as an integer
+#
+# Since: 10.0 (example version, update as needed)
+#
+# .. qmp-example::
+#
+#     <- { "event": "LED_CHANGE",
+#          "data": { "value": 1 },
+#          "timestamp": { "seconds": 1610000000, "microseconds": 123456 } }
+##
+{ 'event': 'LED_CHANGE', 'data': { 'value': 'int' } }
+
+
+
+

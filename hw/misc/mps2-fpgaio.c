@@ -27,10 +27,13 @@
 #include "hw/misc/led.h"
 #include "hw/qdev-properties.h"
 #include "qemu/timer.h"
+#include "qapi/qapi-events-misc.h"
 
-REG32(LED0, 0)
-REG32(DBGCTRL, 4)
-REG32(BUTTON, 8)
+
+
+REG32(LED0, 0x0)
+REG32(DBGCTRL, 0x4)
+REG32(BUTTON, 0x8)
 REG32(CLK1HZ, 0x10)
 REG32(CLK100HZ, 0x14)
 REG32(COUNTER, 0x18)
@@ -200,6 +203,7 @@ static void mps2_fpgaio_write(void *opaque, hwaddr offset, uint64_t value,
             for (i = 0; i < s->num_leds; i++) {
                 led_set_state(s->led[i], extract64(value, i, 1));
             }
+            qapi_event_send_led_change(s->led0);
         }
         break;
     case A_DBGCTRL:

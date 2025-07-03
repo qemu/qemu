@@ -50,6 +50,8 @@
 #include "hw/qdev-clock.h"
 #include "qobject/qlist.h"
 #include "qom/object.h"
+#include "qemu/log.h"
+
 
 typedef enum MPS2FPGAType {
     FPGA_AN385,
@@ -257,8 +259,8 @@ static void mps2_common_init(MachineState *machine)
      */
     create_unimplemented_device("CMSDK APB peripheral region @0x40000000",
                                 0x40000000, 0x00010000);
-    create_unimplemented_device("CMSDK AHB peripheral region @0x40010000",
-                                0x40010000, 0x00010000);
+    // create_unimplemented_device("CMSDK AHB peripheral region @0x40010000",
+    //                             0x40010000, 0x00010000);
     create_unimplemented_device("Extra peripheral region @0x40020000",
                                 0x40020000, 0x00010000);
 
@@ -438,23 +440,49 @@ static void mps2_common_init(MachineState *machine)
                                  qdev_get_gpio_in(orgate_dev, j));
         }
     }
-    for (i = 0; i < 4; i++) {
-        static const hwaddr i2cbase[] = {0x40022000,    /* Touch */
-                                         0x40023000,    /* Audio */
-                                         0x40029000,    /* Shield0 */
-                                         0x4002a000};   /* Shield1 */
-        DeviceState *dev;
+    static const hwaddr i2cbase[] = {
+	    0x40022000,    /* Touch */
+	    0x40023000,    /* Audio */
+	    0x40029000,    /* Shield0 */
+	    0x4002a000     /* Shield1 */
+	};
 
-        dev = sysbus_create_simple(TYPE_ARM_SBCON_I2C, i2cbase[i], NULL);
-        if (i < 2) {
-            /*
-             * internal-only bus: mark it full to avoid user-created
-             * i2c devices being plugged into it.
-             */
-            BusState *qbus = qdev_get_child_bus(dev, "i2c");
-            qbus_mark_full(qbus);
-        }
+	for (i = 0; i < 4; i++) {
+	    if (i != 2) {
+		DeviceState *dev = sysbus_create_simple(TYPE_ARM_SBCON_I2C, i2cbase[i], NULL);
+
+		if (i < 2) {
+		    /*
+		     * Internal-only bus: mark it full to avoid user-created
+		     * I2C devices being plugged into it.
+		     */
+		    BusState *qbus = qdev_get_child_bus(dev, "i2c");
+		    qbus_mark_full(qbus);
+		}
+	    } else {
+		DeviceState *i2c_dev = qdev_new("versatile_i2c");
+
+
+	    	sysbus_realize_and_unref(SYS_BUS_DEVICE(i2c_dev), &error_fatal);
+	     	sysbus_mmio_map(SYS_BUS_DEVICE(i2c_dev), 0, i2cbase[i]);
+
+	    	//Assign a name to the I2C bus so it can be used in -device tmp105
+	     	BusState *i2c_bus = qdev_get_child_bus(i2c_dev, "i2c");
+	     	i2c_bus->name = g_strdup("i2c2.i2c");
+	    }
+	}
+
+    {
+        DeviceState *gpio_dev;
+        SysBusDevice *s;
+
+        gpio_dev = qdev_new("mps2-fpgaio");
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(gpio_dev), &error_fatal);
+        s = SYS_BUS_DEVICE(gpio_dev);
+        sysbus_mmio_map(s, 0, 0x40028000);
+        qemu_log_mask(LOG_GUEST_ERROR, "Mapped mps2-fpgaio at 0x40028000\n");
     }
+
     create_unimplemented_device("i2s", 0x40024000, 0x400);
 
     /* In hardware this is a LAN9220; the LAN9118 is software compatible
