@@ -199,7 +199,7 @@ fn derive_tryinto_body(
     let discriminants: Vec<&Ident> = variants.iter().map(|f| &f.ident).collect();
 
     Ok(quote! {
-        #(const #discriminants: #repr = #name::#discriminants as #repr;)*;
+        #(const #discriminants: #repr = #name::#discriminants as #repr;)*
         match value {
             #(#discriminants => core::result::Result::Ok(#name::#discriminants),)*
             _ => core::result::Result::Err(value),
@@ -227,7 +227,7 @@ fn derive_tryinto_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStrea
                     #body
                 }) {
                     Ok(x) => x,
-                    Err(_) => panic!(#errmsg)
+                    Err(_) => panic!(#errmsg),
                 }
             }
         }
