@@ -4138,34 +4138,35 @@ uint32_t HELPER(sve_whilel)(void *vd, uint32_t count, uint32_t pred_desc)
     return pred_count_test(oprbits, count, false);
 }
 
-uint32_t HELPER(sve_whileg)(void *vd, uint32_t count, uint32_t pred_desc)
+/* D must be cleared on entry. */
+static void do_whileg(ARMPredicateReg *d, uint64_t esz_mask,
+                      uint32_t count, uint32_t oprbits)
 {
-    intptr_t oprsz = FIELD_EX32(pred_desc, PREDDESC, OPRSZ);
-    intptr_t esz = FIELD_EX32(pred_desc, PREDDESC, ESZ);
-    uint64_t esz_mask = pred_esz_masks[esz];
-    ARMPredicateReg *d = vd;
-    intptr_t i, invcount, oprbits = oprsz * 8;
-    uint64_t bits;
-
     tcg_debug_assert(count <= oprbits);
-
-    /* Begin with a zero predicate register.  */
-    memset(d, 0, sizeof(*d));
     if (count) {
-        /* Set all of the requested bits.  */
-        bits = esz_mask;
-        if (oprbits & 63) {
-            bits &= MAKE_64BIT_MASK(0, oprbits & 63);
-        }
+        uint32_t i, invcount = oprbits - count;
+        uint64_t bits = esz_mask & MAKE_64BIT_MASK(invcount & 63, 64);
 
-        invcount = oprbits - count;
-        for (i = (oprsz - 1) / 8; i > invcount / 64; --i) {
+        for (i = invcount / 64; i < oprbits / 64; ++i) {
             d->p[i] = bits;
             bits = esz_mask;
         }
-        d->p[i] = bits & MAKE_64BIT_MASK(invcount & 63, 64);
+        if (oprbits & 63) {
+            d->p[i] = bits & MAKE_64BIT_MASK(0, oprbits & 63);
+        }
     }
+}
 
+uint32_t HELPER(sve_whileg)(void *vd, uint32_t count, uint32_t pred_desc)
+{
+    uint32_t oprsz = FIELD_EX32(pred_desc, PREDDESC, OPRSZ);
+    uint32_t esz = FIELD_EX32(pred_desc, PREDDESC, ESZ);
+    uint32_t oprbits = oprsz * 8;
+    uint64_t esz_mask = pred_esz_masks[esz];
+    ARMPredicateReg *d = vd;
+
+    memset(d, 0, sizeof(*d));
+    do_whileg(d, esz_mask, count, oprbits);
     return pred_count_test(oprbits, count, true);
 }
 
