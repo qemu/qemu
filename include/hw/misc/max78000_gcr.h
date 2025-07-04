@@ -124,6 +124,7 @@ struct Max78000GcrState {
     DeviceState *uart1;
     DeviceState *uart2;
     DeviceState *trng;
+    DeviceState *aes;
 
 };
 

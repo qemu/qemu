@@ -15,6 +15,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/char/max78000_uart.h"
 #include "hw/misc/max78000_trng.h"
+#include "hw/misc/max78000_aes.h"
 #include "hw/misc/max78000_gcr.h"
 
 
@@ -161,6 +162,9 @@ static void max78000_gcr_write(void *opaque, hwaddr addr,
         if (val & TRNG_RESET) {
             device_cold_reset(s->trng);
         }
+        if (val & AES_RESET) {
+            device_cold_reset(s->aes);
+        }
         /* TODO: As other devices are implemented, add them here */
         break;
 
@@ -263,6 +267,8 @@ static const Property max78000_gcr_properties[] = {
                      TYPE_MAX78000_UART, DeviceState*),
     DEFINE_PROP_LINK("trng", Max78000GcrState, trng,
                         TYPE_MAX78000_TRNG, DeviceState*),
+    DEFINE_PROP_LINK("aes", Max78000GcrState, aes,
+                        TYPE_MAX78000_AES, DeviceState*),
 };
 
 static const MemoryRegionOps max78000_gcr_ops = {
