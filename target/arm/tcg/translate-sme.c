@@ -1642,3 +1642,34 @@ static gen_helper_gvec_3 * const uclamp_fns[] = {
     gen_helper_sme2_uclamp_d,
 };
 TRANS(UCLAMP, do_clamp, a, uclamp_fns)
+
+static bool trans_SEL(DisasContext *s, arg_SEL *a)
+{
+    typedef void sme_sel_fn(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i32, TCGv_i32);
+    static sme_sel_fn * const fns[4] = {
+        gen_helper_sme2_sel_b, gen_helper_sme2_sel_h,
+        gen_helper_sme2_sel_s, gen_helper_sme2_sel_d
+    };
+
+    if (!dc_isar_feature(aa64_sme2, s)) {
+        return false;
+    }
+    if (sme_sm_enabled_check(s)) {
+        int svl = streaming_vec_reg_size(s);
+        uint32_t desc = simd_desc(svl, svl, a->n);
+        TCGv_ptr t_d = tcg_temp_new_ptr();
+        TCGv_ptr t_n = tcg_temp_new_ptr();
+        TCGv_ptr t_m = tcg_temp_new_ptr();
+        TCGv_i32 png = tcg_temp_new_i32();
+
+        tcg_gen_addi_ptr(t_d, tcg_env, vec_full_reg_offset(s, a->zd));
+        tcg_gen_addi_ptr(t_n, tcg_env, vec_full_reg_offset(s, a->zn));
+        tcg_gen_addi_ptr(t_m, tcg_env, vec_full_reg_offset(s, a->zm));
+
+        tcg_gen_ld16u_i32(png, tcg_env, pred_full_reg_offset(s, a->pg)
+                          ^ (HOST_BIG_ENDIAN ? 6 : 0));
+
+        fns[a->esz](t_d, t_n, t_m, png, tcg_constant_i32(desc));
+    }
+    return true;
+}
