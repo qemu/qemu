@@ -582,6 +582,11 @@ TRANS_FEAT(FMOPA_d, aa64_sme_f64f64, do_outprod_fpst, a, MO_64, FPST_ZA,
            : !s->fpcr_ah ? gen_helper_sme_fmops_d
            : gen_helper_sme_ah_fmops_d)
 
+TRANS_FEAT(BFMOPA, aa64_sme_b16b16, do_outprod_fpst, a, MO_16, FPST_ZA,
+           !a->sub ? gen_helper_sme_bfmopa
+           : !s->fpcr_ah ? gen_helper_sme_bfmops
+           : gen_helper_sme_ah_bfmops)
+
 TRANS_FEAT(BFMOPA_w, aa64_sme, do_outprod_env, a, MO_32,
            !a->sub ? gen_helper_sme_bfmopa_w
            : !s->fpcr_ah ? gen_helper_sme_bfmops_w
