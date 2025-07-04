@@ -1636,3 +1636,25 @@ void HELPER(sme2_fcvtl)(void *vd, void *vs, float_status *fpst, uint32_t desc)
         d1[H4(i)] = v1;
     }
 }
+
+void HELPER(sme2_scvtf)(void *vd, void *vs, float_status *fpst, uint32_t desc)
+{
+    size_t i, n = simd_oprsz(desc) / 4;
+    int32_t *d = vd;
+    float32 *s = vs;
+
+    for (i = 0; i < n; ++i) {
+        d[i] = int32_to_float32(s[i], fpst);
+    }
+}
+
+void HELPER(sme2_ucvtf)(void *vd, void *vs, float_status *fpst, uint32_t desc)
+{
+    size_t i, n = simd_oprsz(desc) / 4;
+    uint32_t *d = vd;
+    float32 *s = vs;
+
+    for (i = 0; i < n; ++i) {
+        d[i] = uint32_to_float32(s[i], fpst);
+    }
+}
