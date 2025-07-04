@@ -195,7 +195,7 @@ static void cortex_m33_initfn(Object *obj)
     SET_IDREG(isar, ID_ISAR4, 0x01310132);
     SET_IDREG(isar, ID_ISAR5, 0x00000000);
     SET_IDREG(isar, ID_ISAR6, 0x00000000);
-    cpu->clidr = 0x00000000;
+    SET_IDREG(isar, CLIDR, 0x00000000);
     cpu->ctr = 0x8000c000;
 }
 
@@ -233,7 +233,7 @@ static void cortex_m55_initfn(Object *obj)
     SET_IDREG(isar, ID_ISAR4, 0x01310132);
     SET_IDREG(isar, ID_ISAR5, 0x00000000);
     SET_IDREG(isar, ID_ISAR6, 0x00000000);
-    cpu->clidr = 0x00000000; /* caches not implemented */
+    SET_IDREG(isar, CLIDR, 0x00000000); /* caches not implemented */
     cpu->ctr = 0x8303c003;
 }
 

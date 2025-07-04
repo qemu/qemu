@@ -683,7 +683,7 @@ static void aarch64_a57_initfn(Object *obj)
     cpu->isar.dbgdevid = 0x01110f13;
     cpu->isar.dbgdevid1 = 0x2;
     cpu->isar.reset_pmcr_el0 = 0x41013000;
-    cpu->clidr = 0x0a200023;
+    SET_IDREG(isar, CLIDR, 0x0a200023);
     /* 32KB L1 dcache */
     cpu->ccsidr[0] = make_ccsidr(CCSIDR_FORMAT_LEGACY, 4, 64, 32 * KiB, 7);
     /* 48KB L1 icache */
@@ -745,7 +745,7 @@ static void aarch64_a53_initfn(Object *obj)
     cpu->isar.dbgdevid = 0x00110f13;
     cpu->isar.dbgdevid1 = 0x1;
     cpu->isar.reset_pmcr_el0 = 0x41033000;
-    cpu->clidr = 0x0a200023;
+    SET_IDREG(isar, CLIDR, 0x0a200023);
     /* 32KB L1 dcache */
     cpu->ccsidr[0] = make_ccsidr(CCSIDR_FORMAT_LEGACY, 4, 64, 32 * KiB, 7);
     /* 32KB L1 icache */

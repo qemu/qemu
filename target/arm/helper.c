@@ -7889,7 +7889,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             .access = PL1_R, .type = ARM_CP_CONST,
             .accessfn = access_tid4,
             .fgt = FGT_CLIDR_EL1,
-            .resetvalue = cpu->clidr
+            .resetvalue = GET_IDREG(isar, CLIDR)
         };
         define_one_arm_cp_reg(cpu, &clidr);
         define_arm_cp_regs(cpu, v7_cp_reginfo);

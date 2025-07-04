@@ -1082,7 +1082,6 @@ struct ArchCPU {
     uint32_t reset_sctlr;
     uint64_t pmceid0;
     uint64_t pmceid1;
-    uint64_t clidr;
     uint64_t mp_affinity; /* MP ID without feature bits */
     /* The elements of this array are the CCSIDR values for each cache,
      * in the order L1DCache, L1ICache, L2DCache, L2ICache, etc.
@@ -2945,7 +2944,7 @@ static inline bool arm_v7m_csselr_razwi(ARMCPU *cpu)
     /* If all the CLIDR.Ctypem bits are 0 there are no caches, and
      * CSSELR is RAZ/WI.
      */
-    return (cpu->clidr & R_V7M_CLIDR_CTYPE_ALL_MASK) != 0;
+    return (GET_IDREG(&cpu->isar, CLIDR) & R_V7M_CLIDR_CTYPE_ALL_MASK) != 0;
 }
 
 static inline bool arm_sctlr_b(CPUARMState *env)

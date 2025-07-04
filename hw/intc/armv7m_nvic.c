@@ -1331,7 +1331,7 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
         }
         return GET_IDREG(&cpu->isar, ID_ISAR5);
     case 0xd78: /* CLIDR */
-        return cpu->clidr;
+        return GET_IDREG(&cpu->isar, CLIDR);
     case 0xd7c: /* CTR */
         return cpu->ctr;
     case 0xd80: /* CSSIDR */
