@@ -269,7 +269,7 @@ static bool trans_LDST1(DisasContext *s, arg_LDST1 *a)
     return true;
 }
 
-typedef void GenLdStR(DisasContext *, TCGv_ptr, int, int, int, int);
+typedef void GenLdStR(DisasContext *, TCGv_ptr, int, int, int, int, MemOp);
 
 static bool do_ldst_r(DisasContext *s, arg_ldstr *a, GenLdStR *fn)
 {
@@ -284,7 +284,8 @@ static bool do_ldst_r(DisasContext *s, arg_ldstr *a, GenLdStR *fn)
     /* ZA[n] equates to ZA0H.B[n]. */
     base = get_tile_rowcol(s, MO_8, a->rv, imm, false);
 
-    fn(s, base, 0, svl, a->rn, imm * svl);
+    fn(s, base, 0, svl, a->rn, imm * svl,
+       s->align_mem ? MO_ALIGN_16 : MO_UNALN);
     return true;
 }
 
