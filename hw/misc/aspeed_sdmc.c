@@ -570,6 +570,9 @@ static void aspeed_2700_sdmc_reset(DeviceState *dev)
     /* Set ram size bit and defaults values */
     s->regs[R_MAIN_CONF] = asc->compute_conf(s, 0);
 
+    /* Skipping dram init */
+    s->regs[R_MAIN_CONTROL] = BIT(16);
+
     if (s->unlocked) {
         s->regs[R_2700_PROT] = PROT_UNLOCKED;
     }

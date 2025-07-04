@@ -215,6 +215,7 @@ qtests_npcm8xx = \
 qtests_aspeed = \
   ['aspeed_gpio-test',
    'aspeed_hace-test',
+   'aspeed_scu-test',
    'aspeed_smc-test']
 qtests_aspeed64 = \
   ['ast2700-gpio-test',
