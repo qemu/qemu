@@ -4133,6 +4133,7 @@ uint32_t HELPER(sve_whilel)(void *vd, uint32_t count, uint32_t pred_desc)
     uint64_t esz_mask = pred_esz_masks[esz];
     ARMPredicateReg *d = vd;
 
+    count <<= esz;
     memset(d, 0, sizeof(*d));
     do_whilel(d, esz_mask, count, oprbits);
     return pred_count_test(oprbits, count, false);
@@ -4165,6 +4166,7 @@ uint32_t HELPER(sve_whileg)(void *vd, uint32_t count, uint32_t pred_desc)
     uint64_t esz_mask = pred_esz_masks[esz];
     ARMPredicateReg *d = vd;
 
+    count <<= esz;
     memset(d, 0, sizeof(*d));
     do_whileg(d, esz_mask, count, oprbits);
     return pred_count_test(oprbits, count, true);
