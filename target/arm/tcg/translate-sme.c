@@ -938,3 +938,27 @@ static bool do_bfdot_nx(DisasContext *s, arg_azx_n *a)
 }
 
 TRANS_FEAT(BFDOT_nx, aa64_sme2, do_bfdot_nx, a)
+
+static bool do_vdot(DisasContext *s, arg_azx_n *a, gen_helper_gvec_4_ptr *fn)
+{
+    if (sme_smza_enabled_check(s)) {
+        int svl = streaming_vec_reg_size(s);
+        int vstride = svl / 2;
+        TCGv_ptr t_za = get_zarray(s, a->rv, a->off, 2, 1);
+        TCGv_ptr t_zn = vec_full_reg_ptr(s, a->zn);
+        TCGv_ptr t_zm = vec_full_reg_ptr(s, a->zm);
+        TCGv_ptr t = tcg_temp_new_ptr();
+
+        for (int i = 0; i < 2; ++i) {
+            int o_za = i * vstride * sizeof(ARMVectorReg);
+            int desc = simd_desc(svl, svl, a->idx | (i << 2));
+
+            tcg_gen_addi_ptr(t, t_za, o_za);
+            fn(t, t_zn, t_zm, t, tcg_env, tcg_constant_i32(desc));
+        }
+    }
+    return true;
+}
+
+TRANS_FEAT(FVDOT, aa64_sme, do_vdot, a, gen_helper_sme2_fvdot_idx_h)
+TRANS_FEAT(BFVDOT, aa64_sme, do_vdot, a, gen_helper_sme2_bfvdot_idx)
