@@ -230,7 +230,8 @@ static uint64_t idregs_sysreg_to_kvm_reg(ARMSysRegs sysreg)
 }
 
 /* read a sysreg value and store it in the idregs */
-static int get_host_cpu_reg(int fd, ARMHostCPUFeatures *ahcf, ARMIDRegisterIdx index)
+static int get_host_cpu_reg(int fd, ARMHostCPUFeatures *ahcf,
+                            ARMIDRegisterIdx index)
 {
     uint64_t *reg;
     int ret;
