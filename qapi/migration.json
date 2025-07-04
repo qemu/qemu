@@ -620,8 +620,10 @@
 #
 # @cpr-transfer: This mode allows the user to transfer a guest to a
 #     new QEMU instance on the same host with minimal guest pause
-#     time by preserving guest RAM in place.  Devices and their pinned
-#     pages will also be preserved in a future QEMU release.
+#     time by preserving guest RAM in place.
+#
+#     Devices and their pinned pages are also preserved for VFIO and
+#     IOMMUFD. (since 10.1)
 #
 #     The user starts new QEMU on the same host as old QEMU, with
 #     command-line arguments to create the same machine, plus the

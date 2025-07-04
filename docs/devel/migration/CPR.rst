@@ -152,8 +152,7 @@ cpr-transfer mode
 This mode allows the user to transfer a guest to a new QEMU instance
 on the same host with minimal guest pause time, by preserving guest
 RAM in place, albeit with new virtual addresses in new QEMU.  Devices
-and their pinned memory pages will also be preserved in a future QEMU
-release.
+and their pinned memory pages are also preserved for VFIO and IOMMUFD.
 
 The user starts new QEMU on the same host as old QEMU, with command-
 line arguments to create the same machine, plus the ``-incoming``
@@ -322,6 +321,6 @@ Futures
 
 cpr-transfer mode is based on a capability to transfer open file
 descriptors from old to new QEMU.  In the future, descriptors for
-vfio, iommufd, vhost, and char devices could be transferred,
+vhost, and char devices could be transferred,
 preserving those devices and their kernel state without interruption,
 even if they do not explicitly support live migration.

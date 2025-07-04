@@ -29,6 +29,7 @@
 #include "hw/pci/pci_bridge.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
+#include "hw/vfio/vfio-cpr.h"
 #include "migration/vmstate.h"
 #include "migration/cpr.h"
 #include "qobject/qdict.h"
@@ -57,20 +58,33 @@ static void vfio_disable_interrupts(VFIOPCIDevice *vdev);
 static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
 static void vfio_msi_disable_common(VFIOPCIDevice *vdev);
 
+/* Create new or reuse existing eventfd */
 static bool vfio_notifier_init(VFIOPCIDevice *vdev, EventNotifier *e,
                                const char *name, int nr, Error **errp)
 {
-    int ret = event_notifier_init(e, 0);
+    int fd, ret;
 
+    fd = vfio_cpr_load_vector_fd(vdev, name, nr);
+    if (fd >= 0) {
+        event_notifier_init_fd(e, fd);
+        return true;
+    }
+
+    ret = event_notifier_init(e, 0);
     if (ret) {
         error_setg_errno(errp, -ret, "vfio_notifier_init %s failed", name);
+        return false;
     }
-    return !ret;
+
+    fd = event_notifier_get_fd(e);
+    vfio_cpr_save_vector_fd(vdev, name, nr, fd);
+    return true;
 }
 
 static void vfio_notifier_cleanup(VFIOPCIDevice *vdev, EventNotifier *e,
                                   const char *name, int nr)
 {
+    vfio_cpr_delete_vector_fd(vdev, name, nr);
     event_notifier_cleanup(e);
 }
 
@@ -196,6 +210,36 @@ fail:
 #endif
 }
 
+static bool vfio_cpr_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
+{
+#ifdef CONFIG_KVM
+    if (vdev->no_kvm_intx || !kvm_irqfds_enabled() ||
+        vdev->intx.route.mode != PCI_INTX_ENABLED ||
+        !kvm_resamplefds_enabled()) {
+        return true;
+    }
+
+    if (!vfio_notifier_init(vdev, &vdev->intx.unmask, "intx-unmask", 0, errp)) {
+        return false;
+    }
+
+    if (kvm_irqchip_add_irqfd_notifier_gsi(kvm_state,
+                                           &vdev->intx.interrupt,
+                                           &vdev->intx.unmask,
+                                           vdev->intx.route.irq)) {
+        error_setg_errno(errp, errno, "failed to setup resample irqfd");
+        vfio_notifier_cleanup(vdev, &vdev->intx.unmask, "intx-unmask", 0);
+        return false;
+    }
+
+    vdev->intx.kvm_accel = true;
+    trace_vfio_intx_enable_kvm(vdev->vbasedev.name);
+    return true;
+#else
+    return true;
+#endif
+}
+
 static void vfio_intx_disable_kvm(VFIOPCIDevice *vdev)
 {
 #ifdef CONFIG_KVM
@@ -291,7 +335,13 @@ static bool vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
         return true;
     }
 
-    vfio_disable_interrupts(vdev);
+    /*
+     * Do not alter interrupt state during vfio_realize and cpr load.
+     * The incoming state is cleared thereafter.
+     */
+    if (!cpr_is_incoming()) {
+        vfio_disable_interrupts(vdev);
+    }
 
     vdev->intx.pin = pin - 1; /* Pin A (1) -> irq[0] */
     pci_config_set_interrupt_pin(vdev->pdev.config, pin);
@@ -314,6 +364,14 @@ static bool vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
     fd = event_notifier_get_fd(&vdev->intx.interrupt);
     qemu_set_fd_handler(fd, vfio_intx_interrupt, NULL, vdev);
 
+
+    if (cpr_is_incoming()) {
+        if (!vfio_cpr_intx_enable_kvm(vdev, &err)) {
+            warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+        }
+        goto skip_signaling;
+    }
+
     if (!vfio_device_irq_set_signaling(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX, 0,
                                 VFIO_IRQ_SET_ACTION_TRIGGER, fd, errp)) {
         qemu_set_fd_handler(fd, NULL, NULL, vdev);
@@ -325,6 +383,7 @@ static bool vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
         warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }
 
+skip_signaling:
     vdev->interrupt = VFIO_INT_INTx;
 
     trace_vfio_intx_enable(vdev->vbasedev.name);
@@ -392,6 +451,14 @@ static void vfio_msi_interrupt(void *opaque)
     msg = get_msg(&vdev->pdev, nr);
     trace_vfio_msi_interrupt(vdev->vbasedev.name, nr, msg.address, msg.data);
     notify(&vdev->pdev, nr);
+}
+
+void vfio_pci_msi_set_handler(VFIOPCIDevice *vdev, int nr)
+{
+    VFIOMSIVector *vector = &vdev->msi_vectors[nr];
+    int fd = event_notifier_get_fd(&vector->interrupt);
+
+    qemu_set_fd_handler(fd, vfio_msi_interrupt, NULL, vector);
 }
 
 /*
@@ -656,6 +723,15 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
 static int vfio_msix_vector_use(PCIDevice *pdev,
                                 unsigned int nr, MSIMessage msg)
 {
+    /*
+     * Ignore the callback from msix_set_vector_notifiers during resume.
+     * The necessary subset of these actions is called from
+     * vfio_cpr_claim_vectors during post load.
+     */
+    if (cpr_is_incoming()) {
+        return 0;
+    }
+
     return vfio_msix_vector_do_use(pdev, nr, &msg, vfio_msi_interrupt);
 }
 
@@ -684,6 +760,12 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
             error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
         }
     }
+}
+
+void vfio_pci_msix_set_notifiers(VFIOPCIDevice *vdev)
+{
+    msix_set_vector_notifiers(&vdev->pdev, vfio_msix_vector_use,
+                              vfio_msix_vector_release, NULL);
 }
 
 void vfio_pci_prepare_kvm_msi_virq_batch(VFIOPCIDevice *vdev)
@@ -2914,7 +2996,7 @@ void vfio_pci_put_device(VFIOPCIDevice *vdev)
 
     vfio_device_detach(&vdev->vbasedev);
 
-    g_free(vdev->vbasedev.name);
+    vfio_device_free_name(&vdev->vbasedev);
     g_free(vdev->msix);
 }
 
@@ -2964,6 +3046,11 @@ void vfio_pci_register_err_notifier(VFIOPCIDevice *vdev)
 
     fd = event_notifier_get_fd(&vdev->err_notifier);
     qemu_set_fd_handler(fd, vfio_err_notifier_handler, NULL, vdev);
+
+    /* Do not alter irq_signaling during vfio_realize for cpr */
+    if (cpr_is_incoming()) {
+        return;
+    }
 
     if (!vfio_device_irq_set_signaling(&vdev->vbasedev, VFIO_PCI_ERR_IRQ_INDEX, 0,
                                        VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err)) {
@@ -3031,6 +3118,12 @@ void vfio_pci_register_req_notifier(VFIOPCIDevice *vdev)
 
     fd = event_notifier_get_fd(&vdev->req_notifier);
     qemu_set_fd_handler(fd, vfio_req_notifier_handler, NULL, vdev);
+
+    /* Do not alter irq_signaling during vfio_realize for cpr */
+    if (cpr_is_incoming()) {
+        vdev->req_enabled = true;
+        return;
+    }
 
     if (!vfio_device_irq_set_signaling(&vdev->vbasedev, VFIO_PCI_REQ_IRQ_INDEX, 0,
                                        VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err)) {
@@ -3189,7 +3282,13 @@ bool vfio_pci_interrupt_setup(VFIOPCIDevice *vdev, Error **errp)
                                              vfio_intx_routing_notifier);
         vdev->irqchip_change_notifier.notify = vfio_irqchip_change;
         kvm_irqchip_add_change_notifier(&vdev->irqchip_change_notifier);
-        if (!vfio_intx_enable(vdev, errp)) {
+
+        /*
+         * During CPR, do not call vfio_intx_enable at this time.  Instead,
+         * call it from vfio_pci_post_load after the intx routing data has
+         * been loaded from vmstate.
+         */
+        if (!cpr_is_incoming() && !vfio_intx_enable(vdev, errp)) {
             timer_free(vdev->intx.mmap_timer);
             pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
             kvm_irqchip_remove_change_notifier(&vdev->irqchip_change_notifier);

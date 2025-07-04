@@ -99,20 +99,21 @@ static int vfio_container_post_load(void *opaque, int version_id)
 {
     VFIOContainer *container = opaque;
     VFIOContainerBase *bcontainer = &container->bcontainer;
-    VFIOGroup *group;
+    VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
+    dma_map_fn saved_dma_map = vioc->dma_map;
     Error *local_err = NULL;
+
+    /* During incoming CPR, divert calls to dma_map. */
+    vioc->dma_map = vfio_legacy_cpr_dma_map;
 
     if (!vfio_listener_register(bcontainer, &local_err)) {
         error_report_err(local_err);
         return -1;
     }
 
-    QLIST_FOREACH(group, &container->group_list, container_next) {
-        VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
+    /* Restore original dma_map function */
+    vioc->dma_map = saved_dma_map;
 
-        /* Restore original dma_map function */
-        vioc->dma_map = container->cpr.saved_dma_map;
-    }
     return 0;
 }
 
@@ -148,6 +149,7 @@ static int vfio_cpr_fail_notifier(NotifierWithReturn *notifier,
          */
 
         VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
+        dma_map_fn saved_dma_map = vioc->dma_map;
         vioc->dma_map = vfio_legacy_cpr_dma_map;
 
         container->cpr.remap_listener = (MemoryListener) {
@@ -158,7 +160,7 @@ static int vfio_cpr_fail_notifier(NotifierWithReturn *notifier,
                                  bcontainer->space->as);
         memory_listener_unregister(&container->cpr.remap_listener);
         container->cpr.vaddr_unmapped = false;
-        vioc->dma_map = container->cpr.saved_dma_map;
+        vioc->dma_map = saved_dma_map;
     }
     return 0;
 }
@@ -177,14 +179,9 @@ bool vfio_legacy_cpr_register_container(VFIOContainer *container, Error **errp)
                                          MIG_MODE_CPR_TRANSFER, -1) == 0;
     }
 
-    vmstate_register(NULL, -1, &vfio_container_vmstate, container);
+    vfio_cpr_add_kvm_notifier();
 
-    /* During incoming CPR, divert calls to dma_map. */
-    if (cpr_is_incoming()) {
-        VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
-        container->cpr.saved_dma_map = vioc->dma_map;
-        vioc->dma_map = vfio_legacy_cpr_dma_map;
-    }
+    vmstate_register(NULL, -1, &vfio_container_vmstate, container);
 
     migration_add_notifier_mode(&container->cpr.transfer_notifier,
                                 vfio_cpr_fail_notifier,

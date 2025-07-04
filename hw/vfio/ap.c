@@ -265,7 +265,7 @@ static void vfio_ap_realize(DeviceState *dev, Error **errp)
 
 error:
     error_prepend(errp, VFIO_MSG_PREFIX, vbasedev->name);
-    g_free(vbasedev->name);
+    vfio_device_free_name(vbasedev);
 }
 
 static void vfio_ap_unrealize(DeviceState *dev)
@@ -275,7 +275,7 @@ static void vfio_ap_unrealize(DeviceState *dev)
     vfio_ap_unregister_irq_notifier(vapdev, VFIO_AP_REQ_IRQ_INDEX);
     vfio_ap_unregister_irq_notifier(vapdev, VFIO_AP_CFG_CHG_IRQ_INDEX);
     vfio_device_detach(&vapdev->vdev);
-    g_free(vapdev->vdev.name);
+    vfio_device_free_name(&vapdev->vdev);
 }
 
 static const Property vfio_ap_properties[] = {
