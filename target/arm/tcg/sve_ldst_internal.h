@@ -116,6 +116,31 @@ DO_ST_PRIM_2(sd, H1_8, uint64_t, uint32_t, stl)
 DO_LD_PRIM_2(dd, H1_8, uint64_t, uint64_t, ldq)
 DO_ST_PRIM_2(dd, H1_8, uint64_t, uint64_t, stq)
 
+#define DO_LD_PRIM_3(NAME, FUNC) \
+    static inline void sve_##NAME##_host(void *vd,                      \
+        intptr_t reg_off, void *host)                                   \
+    { sve_##FUNC##_host(vd, reg_off, host);                             \
+      *(uint64_t *)(vd + reg_off + 8) = 0; }                            \
+    static inline void sve_##NAME##_tlb(CPUARMState *env, void *vd,     \
+        intptr_t reg_off, target_ulong addr, uintptr_t ra)              \
+    { sve_##FUNC##_tlb(env, vd, reg_off, addr, ra);                     \
+      *(uint64_t *)(vd + reg_off + 8) = 0; }
+
+DO_LD_PRIM_3(ld1squ_be, ld1sdu_be)
+DO_LD_PRIM_3(ld1squ_le, ld1sdu_le)
+DO_LD_PRIM_3(ld1dqu_be, ld1dd_be)
+DO_LD_PRIM_3(ld1dqu_le, ld1dd_le)
+
+#define sve_st1sq_be_host  sve_st1sd_be_host
+#define sve_st1sq_le_host  sve_st1sd_le_host
+#define sve_st1sq_be_tlb   sve_st1sd_be_tlb
+#define sve_st1sq_le_tlb   sve_st1sd_le_tlb
+
+#define sve_st1dq_be_host  sve_st1dd_be_host
+#define sve_st1dq_le_host  sve_st1dd_le_host
+#define sve_st1dq_be_tlb   sve_st1dd_be_tlb
+#define sve_st1dq_le_tlb   sve_st1dd_le_tlb
+
 #undef DO_LD_TLB
 #undef DO_ST_TLB
 #undef DO_LD_HOST
@@ -123,6 +148,7 @@ DO_ST_PRIM_2(dd, H1_8, uint64_t, uint64_t, stq)
 #undef DO_ST_PRIM_1
 #undef DO_LD_PRIM_2
 #undef DO_ST_PRIM_2
+#undef DO_LD_PRIM_3
 
 /*
  * Resolve the guest virtual address to info->host and info->flags.
