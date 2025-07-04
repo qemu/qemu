@@ -229,6 +229,9 @@
 @rprr_load_dt   ....... dtype:4 rm:5 ... pg:3 rn:5 rd:5         &rprr_load
 @rpri_load_dt   ....... dtype:4 . imm:s4 ... pg:3 rn:5 rd:5     &rpri_load
 
+@rprr_load      ....... .... rm:5 ... pg:3 rn:5 rd:5            &rprr_load
+@rpri_load      ....... .... . imm:s4 ... pg:3 rn:5 rd:5        &rpri_load
+
 @rprr_load_msz  ....... .... rm:5 ... pg:3 rn:5 rd:5 \
                 &rprr_load dtype=%msz_dtype
 @rpri_load_msz  ....... .... . imm:s4 ... pg:3 rn:5 rd:5 \
@@ -1267,12 +1270,26 @@ LDNF1_zpri      1010010 .... 1.... 101 ... ..... .....    @rpri_load_dt nreg=0
 # SVE load multiple structures (scalar plus scalar)
 # LD2B, LD2H, LD2W, LD2D; etc.
 LD_zprr         1010010 .. nreg:2 ..... 110 ... ..... .....     @rprr_load_msz
+# LD[234]Q
+LD_zprr         1010010 01 01     ..... 100 ... ..... ..... \
+                @rprr_load dtype=18 nreg=1
+LD_zprr         1010010 10 01     ..... 100 ... ..... ..... \
+                @rprr_load dtype=18 nreg=2
+LD_zprr         1010010 11 01     ..... 100 ... ..... ..... \
+                @rprr_load dtype=18 nreg=3
 
 # SVE contiguous non-temporal load (scalar plus immediate)
 # LDNT1B, LDNT1H, LDNT1W, LDNT1D
 # SVE load multiple structures (scalar plus immediate)
 # LD2B, LD2H, LD2W, LD2D; etc.
 LD_zpri         1010010 .. nreg:2 0.... 111 ... ..... .....     @rpri_load_msz
+# LD[234]Q
+LD_zpri         1010010 01 001 .... 111 ... ..... .....         \
+                @rpri_load dtype=18 nreg=1
+LD_zpri         1010010 10 001 .... 111 ... ..... .....         \
+                @rpri_load dtype=18 nreg=2
+LD_zpri         1010010 11 001 .... 111 ... ..... .....         \
+                @rpri_load dtype=18 nreg=3
 
 # SVE load and broadcast quadword (scalar plus scalar)
 LD1RQ_zprr      1010010 .. 00 ..... 000 ... ..... ..... \
@@ -1383,11 +1400,25 @@ ST_zprr         1110010 11 10     ..... 010 ... ..... ..... \
 # SVE store multiple structures (scalar plus immediate)      (nreg != 0)
 ST_zpri         1110010 .. nreg:2 1.... 111 ... ..... ..... \
                 @rpri_store msz=%size_23 esz=%size_23
+# ST[234]Q
+ST_zpri         11100100 01 00 .... 000 ... ..... ..... \
+                @rpri_store msz=4 esz=4 nreg=1
+ST_zpri         11100100 10 00 .... 000 ... ..... ..... \
+                @rpri_store msz=4 esz=4 nreg=2
+ST_zpri         11100100 11 00 .... 000 ... ..... ..... \
+                @rpri_store msz=4 esz=4 nreg=3
 
 # SVE contiguous non-temporal store (scalar plus scalar)     (nreg == 0)
 # SVE store multiple structures (scalar plus scalar)         (nreg != 0)
 ST_zprr         1110010 .. nreg:2 ..... 011 ... ..... ..... \
                 @rprr_store msz=%size_23 esz=%size_23
+# ST[234]Q
+ST_zprr         11100100 01 1 ..... 000 ... ..... ..... \
+                @rprr_store msz=4 esz=4 nreg=1
+ST_zprr         11100100 10 1 ..... 000 ... ..... ..... \
+                @rprr_store msz=4 esz=4 nreg=2
+ST_zprr         11100100 11 1 ..... 000 ... ..... ..... \
+                @rprr_store msz=4 esz=4 nreg=3
 
 # SVE 32-bit scatter store (scalar plus 32-bit scaled offsets)
 # Require msz > 0 && msz <= esz.

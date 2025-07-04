@@ -6421,6 +6421,10 @@ DO_LDN_2(2, dd, MO_64)
 DO_LDN_2(3, dd, MO_64)
 DO_LDN_2(4, dd, MO_64)
 
+DO_LDN_2(2, qq, MO_128)
+DO_LDN_2(3, qq, MO_128)
+DO_LDN_2(4, qq, MO_128)
+
 #undef DO_LDN_1
 #undef DO_LDN_2
 
@@ -6986,6 +6990,10 @@ DO_STN_2(4, dd, MO_64, MO_64)
 
 DO_STN_2(1, sq, MO_128, MO_32)
 DO_STN_2(1, dq, MO_128, MO_64)
+
+DO_STN_2(2, qq, MO_128, MO_128)
+DO_STN_2(3, qq, MO_128, MO_128)
+DO_STN_2(4, qq, MO_128, MO_128)
 
 #undef DO_STN_1
 #undef DO_STN_2
