@@ -29,10 +29,6 @@ void kvm_flush_coalesced_mmio_buffer(void)
 {
 }
 
-void kvm_cpu_synchronize_state(CPUState *cpu)
-{
-}
-
 bool kvm_has_sync_mmu(void)
 {
     return false;
@@ -103,11 +99,6 @@ unsigned int kvm_get_max_memslots(void)
 unsigned int kvm_get_free_memslots(void)
 {
     return 0;
-}
-
-void kvm_init_cpu_signals(CPUState *cpu)
-{
-    abort();
 }
 
 bool kvm_arm_supports_user_irq(void)

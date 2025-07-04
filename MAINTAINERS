@@ -495,6 +495,7 @@ Guest CPU Cores (other accelerators)
 Overall
 M: Richard Henderson <richard.henderson@linaro.org>
 R: Paolo Bonzini <pbonzini@redhat.com>
+R: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Maintained
 F: include/exec/cpu*.h
 F: include/exec/target_long.h
@@ -503,6 +504,7 @@ F: include/system/accel-*.h
 F: include/system/cpus.h
 F: include/accel/accel-cpu*.h
 F: accel/accel-*.?
+F: accel/dummy-cpus.?
 F: accel/Makefile.objs
 F: accel/stubs/Makefile.objs
 F: cpu-common.c
@@ -540,6 +542,7 @@ WHPX CPUs
 M: Sunil Muthuswamy <sunilmut@microsoft.com>
 S: Supported
 F: target/i386/whpx/
+F: accel/stubs/whpx-stub.c
 F: include/system/whpx.h
 
 X86 Instruction Emulator
@@ -586,6 +589,7 @@ NetBSD Virtual Machine Monitor (NVMM) CPU support
 M: Reinoud Zandijk <reinoud@netbsd.org>
 S: Maintained
 F: include/system/nvmm.h
+F: accel/stubs/nvmm-stub.c
 F: target/i386/nvmm/
 
 Hosts
