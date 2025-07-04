@@ -526,7 +526,7 @@ static bool do_outprod_fpst(DisasContext *s, arg_op *a, MemOp esz,
                             gen_helper_gvec_5_ptr *fn)
 {
     int svl = streaming_vec_reg_size(s);
-    uint32_t desc = simd_desc(svl, svl, a->sub);
+    uint32_t desc = simd_desc(svl, svl, 0);
     TCGv_ptr za, zn, zm, pn, pm, fpst;
 
     if (!sme_smza_enabled_check(s)) {
@@ -548,7 +548,7 @@ static bool do_outprod_env(DisasContext *s, arg_op *a, MemOp esz,
                            gen_helper_gvec_5_ptr *fn)
 {
     int svl = streaming_vec_reg_size(s);
-    uint32_t desc = simd_desc(svl, svl, a->sub);
+    uint32_t desc = simd_desc(svl, svl, 0);
     TCGv_ptr za, zn, zm, pn, pm;
 
     if (!sme_smza_enabled_check(s)) {
@@ -565,14 +565,23 @@ static bool do_outprod_env(DisasContext *s, arg_op *a, MemOp esz,
     return true;
 }
 
-TRANS_FEAT(FMOPA_w_h, aa64_sme, do_outprod_env, a,
-           MO_32, gen_helper_sme_fmopa_w_h)
-TRANS_FEAT(FMOPA_s, aa64_sme, do_outprod_fpst, a,
-           MO_32, FPST_ZA, gen_helper_sme_fmopa_s)
-TRANS_FEAT(FMOPA_d, aa64_sme_f64f64, do_outprod_fpst, a,
-           MO_64, FPST_ZA, gen_helper_sme_fmopa_d)
+TRANS_FEAT(FMOPA_w_h, aa64_sme, do_outprod_env, a, MO_32,
+           !a->sub ? gen_helper_sme_fmopa_w_h
+           : !s->fpcr_ah ? gen_helper_sme_fmops_w_h
+           : gen_helper_sme_ah_fmops_w_h)
+TRANS_FEAT(FMOPA_s, aa64_sme, do_outprod_fpst, a, MO_32, FPST_ZA,
+           !a->sub ? gen_helper_sme_fmopa_s
+           : !s->fpcr_ah ? gen_helper_sme_fmops_s
+           : gen_helper_sme_ah_fmops_s)
+TRANS_FEAT(FMOPA_d, aa64_sme_f64f64, do_outprod_fpst, a, MO_64, FPST_ZA,
+           !a->sub ? gen_helper_sme_fmopa_d
+           : !s->fpcr_ah ? gen_helper_sme_fmops_d
+           : gen_helper_sme_ah_fmops_d)
 
-TRANS_FEAT(BFMOPA_w, aa64_sme, do_outprod_env, a, MO_32, gen_helper_sme_bfmopa_w)
+TRANS_FEAT(BFMOPA_w, aa64_sme, do_outprod_env, a, MO_32,
+           !a->sub ? gen_helper_sme_bfmopa_w
+           : !s->fpcr_ah ? gen_helper_sme_bfmops_w
+           : gen_helper_sme_ah_bfmops_w)
 
 TRANS_FEAT(SMOPA_s, aa64_sme, do_outprod, a, MO_32, gen_helper_sme_smopa_s)
 TRANS_FEAT(UMOPA_s, aa64_sme, do_outprod, a, MO_32, gen_helper_sme_umopa_s)
