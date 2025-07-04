@@ -11,6 +11,9 @@ use syn::{
 mod bits;
 use bits::BitsConstInternal;
 
+#[cfg(test)]
+mod tests;
+
 fn get_fields<'a>(
     input: &'a DeriveInput,
     msg: &str,

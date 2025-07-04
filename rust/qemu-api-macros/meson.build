@@ -17,3 +17,6 @@ _qemu_api_macros_rs = rust.proc_macro(
 qemu_api_macros = declare_dependency(
   link_with: _qemu_api_macros_rs,
 )
+
+rust.test('rust-qemu-api-macros-tests', _qemu_api_macros_rs,
+          suite: ['unit', 'rust'])
