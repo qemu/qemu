@@ -4576,7 +4576,7 @@ static inline float64 sve_f16_to_f64(float16 f, float_status *fpst)
     return ret;
 }
 
-static inline float16 sve_f32_to_f16(float32 f, float_status *fpst)
+float16 sve_f32_to_f16(float32 f, float_status *fpst)
 {
     bool save = get_flush_to_zero(fpst);
     float16 ret;

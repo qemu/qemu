@@ -306,4 +306,6 @@ static inline float64 float64_maybe_ah_chs(float64 a, bool fpcr_ah)
 bfloat16 helper_sme2_ah_fmax_b16(bfloat16 a, bfloat16 b, float_status *fpst);
 bfloat16 helper_sme2_ah_fmin_b16(bfloat16 a, bfloat16 b, float_status *fpst);
 
+float16 sve_f32_to_f16(float32 f, float_status *fpst);
+
 #endif /* TARGET_ARM_VEC_INTERNAL_H */
