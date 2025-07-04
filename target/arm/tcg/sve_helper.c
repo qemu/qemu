@@ -7586,6 +7586,499 @@ DO_ST1_ZPZ_D(dd_be, zd, MO_64)
 #undef DO_ST1_ZPZ_S
 #undef DO_ST1_ZPZ_D
 
+/*
+ * SVE2.1 consecutive register load/store
+ */
+
+static unsigned sve2p1_cont_ldst_elements(SVEContLdSt *info, vaddr addr,
+                                          uint32_t png, intptr_t reg_max,
+                                          int N, int v_esz)
+{
+    const int esize = 1 << v_esz;
+    intptr_t reg_off_first = -1, reg_off_last = -1, reg_off_split;
+    DecodeCounter p = decode_counter(png, reg_max, v_esz);
+    unsigned b_count = p.count << v_esz;
+    unsigned b_stride = 1 << (v_esz + p.lg2_stride);
+    intptr_t page_split;
+
+    /* Set all of the element indices to -1, and the TLB data to 0. */
+    memset(info, -1, offsetof(SVEContLdSt, page));
+    memset(info->page, 0, sizeof(info->page));
+
+    if (p.invert) {
+        if (b_count >= reg_max * N) {
+            return 0;
+        }
+        reg_off_first = b_count;
+        reg_off_last = reg_max * N - b_stride;
+    } else {
+        if (b_count == 0) {
+            return 0;
+        }
+        reg_off_first = 0;
+        reg_off_last = MIN(b_count - esize, reg_max * N - b_stride);
+    }
+
+    info->reg_off_first[0] = reg_off_first;
+    info->mem_off_first[0] = reg_off_first;
+
+    page_split = -(addr | TARGET_PAGE_MASK);
+    if (reg_off_last + esize <= page_split || reg_off_first >= page_split) {
+        /* The entire operation fits within a single page. */
+        info->reg_off_last[0] = reg_off_last;
+        return b_stride;
+    }
+
+    info->page_split = page_split;
+    reg_off_split = ROUND_DOWN(page_split, esize);
+
+    /*
+     * This is the last full element on the first page, but it is not
+     * necessarily active.  If there is no full element, i.e. the first
+     * active element is the one that's split, this value remains -1.
+     * It is useful as iteration bounds.
+     */
+    if (reg_off_split != 0) {
+        info->reg_off_last[0] = ROUND_DOWN(reg_off_split - esize, b_stride);
+    }
+
+    /* Determine if an unaligned element spans the pages.  */
+    if (page_split & (esize - 1)) {
+        /* It is helpful to know if the split element is active. */
+        if ((reg_off_split & (b_stride - 1)) == 0) {
+            info->reg_off_split = reg_off_split;
+            info->mem_off_split = reg_off_split;
+        }
+        reg_off_split += esize;
+    }
+
+    /*
+     * We do want the first active element on the second page, because
+     * this may affect the address reported in an exception.
+     */
+    reg_off_split = ROUND_UP(reg_off_split, b_stride);
+    if (reg_off_split <= reg_off_last) {
+        info->reg_off_first[1] = reg_off_split;
+        info->mem_off_first[1] = reg_off_split;
+        info->reg_off_last[1] = reg_off_last;
+    }
+    return b_stride;
+}
+
+static void sve2p1_cont_ldst_watchpoints(SVEContLdSt *info, CPUARMState *env,
+                                         target_ulong addr, unsigned estride,
+                                         int esize, int wp_access, uintptr_t ra)
+{
+#ifndef CONFIG_USER_ONLY
+    intptr_t count_off, count_last;
+    int flags0 = info->page[0].flags;
+    int flags1 = info->page[1].flags;
+
+    if (likely(!((flags0 | flags1) & TLB_WATCHPOINT))) {
+        return;
+    }
+
+    /* Indicate that watchpoints are handled. */
+    info->page[0].flags = flags0 & ~TLB_WATCHPOINT;
+    info->page[1].flags = flags1 & ~TLB_WATCHPOINT;
+
+    if (flags0 & TLB_WATCHPOINT) {
+        count_off = info->reg_off_first[0];
+        count_last = info->reg_off_split;
+        if (count_last < 0) {
+            count_last = info->reg_off_last[0];
+        }
+        do {
+            cpu_check_watchpoint(env_cpu(env), addr + count_off,
+                                 esize, info->page[0].attrs, wp_access, ra);
+            count_off += estride;
+        } while (count_off <= count_last);
+    }
+
+    count_off = info->reg_off_first[1];
+    if ((flags1 & TLB_WATCHPOINT) && count_off >= 0) {
+        count_last = info->reg_off_last[1];
+        do {
+            cpu_check_watchpoint(env_cpu(env), addr + count_off,
+                                 esize, info->page[1].attrs,
+                                 wp_access, ra);
+            count_off += estride;
+        } while (count_off <= count_last);
+    }
+#endif
+}
+
+static void sve2p1_cont_ldst_mte_check(SVEContLdSt *info, CPUARMState *env,
+                                       target_ulong addr, unsigned estride,
+                                       int esize, uint32_t mtedesc,
+                                       uintptr_t ra)
+{
+    intptr_t count_off, count_last;
+
+    /*
+     * TODO: estride is always a small power of two, <= 8.
+     * Manipulate the stride within the loops such that
+     *   - first iteration hits addr + off, as required,
+     *   - second iteration hits ALIGN_UP(addr, 16),
+     *   - other iterations advance addr by 16.
+     * This will minimize the probing to once per MTE granule.
+     */
+
+    /* Process the page only if MemAttr == Tagged. */
+    if (info->page[0].tagged) {
+        count_off = info->reg_off_first[0];
+        count_last = info->reg_off_split;
+        if (count_last < 0) {
+            count_last = info->reg_off_last[0];
+        }
+
+        do {
+            mte_check(env, mtedesc, addr + count_off, ra);
+            count_off += estride;
+        } while (count_off <= count_last);
+    }
+
+    count_off = info->reg_off_first[1];
+    if (count_off >= 0 && info->page[1].tagged) {
+        count_last = info->reg_off_last[1];
+        do {
+            mte_check(env, mtedesc, addr + count_off, ra);
+            count_off += estride;
+        } while (count_off <= count_last);
+    }
+}
+
+static inline QEMU_ALWAYS_INLINE
+void sve2p1_ld1_c(CPUARMState *env, ARMVectorReg *zd, const vaddr addr,
+                  uint32_t png, uint32_t desc,
+                  const uintptr_t ra, const MemOp esz,
+                  sve_ldst1_host_fn *host_fn,
+                  sve_ldst1_tlb_fn *tlb_fn)
+{
+    const unsigned N = (desc >> SIMD_DATA_SHIFT) & 1 ? 4 : 2;
+    const unsigned rstride = 1 << ((desc >> (SIMD_DATA_SHIFT + 1)) % 4);
+    uint32_t mtedesc = desc >> (SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
+    const intptr_t reg_max = simd_oprsz(desc);
+    const unsigned esize = 1 << esz;
+    intptr_t count_off, count_last;
+    intptr_t reg_off, reg_last, reg_n;
+    SVEContLdSt info;
+    unsigned estride, flags;
+    void *host;
+
+    estride = sve2p1_cont_ldst_elements(&info, addr, png, reg_max, N, esz);
+    if (estride == 0) {
+        /* The entire predicate was false; no load occurs.  */
+        for (unsigned n = 0; n < N; n++) {
+            memset(zd + n * rstride, 0, reg_max);
+        }
+        return;
+    }
+
+    /* Probe the page(s).  Exit with exception for any invalid page. */
+    sve_cont_ldst_pages(&info, FAULT_ALL, env, addr, MMU_DATA_LOAD, ra);
+
+    /* Handle watchpoints for all active elements. */
+    sve2p1_cont_ldst_watchpoints(&info, env, addr, estride,
+                                 esize, BP_MEM_READ, ra);
+
+    /*
+     * Handle mte checks for all active elements.
+     * Since TBI must be set for MTE, !mtedesc => !mte_active.
+     */
+    if (mtedesc) {
+        sve2p1_cont_ldst_mte_check(&info, env, estride, addr,
+                                   esize, mtedesc, ra);
+    }
+
+    flags = info.page[0].flags | info.page[1].flags;
+    if (unlikely(flags != 0)) {
+        /*
+         * At least one page includes MMIO.
+         * Any bus operation can fail with cpu_transaction_failed,
+         * which for ARM will raise SyncExternal.  Perform the load
+         * into scratch memory to preserve register state until the end.
+         */
+        ARMVectorReg scratch[4] = { };
+
+        count_off = info.reg_off_first[0];
+        count_last = info.reg_off_last[1];
+        if (count_last < 0) {
+            count_last = info.reg_off_split;
+            if (count_last < 0) {
+                count_last = info.reg_off_last[0];
+            }
+        }
+        reg_off = count_off % reg_max;
+        reg_n = count_off / reg_max;
+
+        do {
+            reg_last = MIN(count_last - count_off, reg_max - esize);
+            do {
+                tlb_fn(env, &scratch[reg_n], reg_off, addr + count_off, ra);
+                reg_off += estride;
+                count_off += estride;
+            } while (reg_off <= reg_last);
+            reg_off = 0;
+            reg_n++;
+        } while (count_off <= count_last);
+
+        for (unsigned n = 0; n < N; ++n) {
+            memcpy(&zd[n * rstride], &scratch[n], reg_max);
+        }
+        return;
+    }
+
+    /* The entire operation is in RAM, on valid pages. */
+
+    for (unsigned n = 0; n < N; ++n) {
+        memset(&zd[n * rstride], 0, reg_max);
+    }
+
+    count_off = info.reg_off_first[0];
+    count_last = info.reg_off_last[0];
+    reg_off = count_off % reg_max;
+    reg_n = count_off / reg_max;
+    host = info.page[0].host;
+
+    set_helper_retaddr(ra);
+
+    do {
+        reg_last = MIN(count_last - reg_n * reg_max, reg_max - esize);
+        do {
+            host_fn(&zd[reg_n * rstride], reg_off, host + count_off);
+            reg_off += estride;
+            count_off += estride;
+        } while (reg_off <= reg_last);
+        reg_off = 0;
+        reg_n++;
+    } while (count_off <= count_last);
+
+    clear_helper_retaddr();
+
+    /*
+     * Use the slow path to manage the cross-page misalignment.
+     * But we know this is RAM and cannot trap.
+     */
+    count_off = info.reg_off_split;
+    if (unlikely(count_off >= 0)) {
+        reg_off = count_off % reg_max;
+        reg_n = count_off / reg_max;
+        tlb_fn(env, &zd[reg_n * rstride], reg_off, addr + count_off, ra);
+    }
+
+    count_off = info.reg_off_first[1];
+    if (unlikely(count_off >= 0)) {
+        count_last = info.reg_off_last[1];
+        reg_off = count_off % reg_max;
+        reg_n = count_off / reg_max;
+        host = info.page[1].host;
+
+        set_helper_retaddr(ra);
+
+        do {
+            reg_last = MIN(count_last - reg_n * reg_max, reg_max - esize);
+            do {
+                host_fn(&zd[reg_n * rstride], reg_off, host + count_off);
+                reg_off += estride;
+                count_off += estride;
+            } while (reg_off <= reg_last);
+            reg_off = 0;
+            reg_n++;
+        } while (count_off <= count_last);
+
+        clear_helper_retaddr();
+    }
+}
+
+void HELPER(sve2p1_ld1bb_c)(CPUARMState *env, void *vd, target_ulong addr,
+                            uint32_t png, uint32_t desc)
+{
+    sve2p1_ld1_c(env, vd, addr, png, desc, GETPC(), MO_8,
+                 sve_ld1bb_host, sve_ld1bb_tlb);
+}
+
+#define DO_LD1_2(NAME, ESZ)                                             \
+void HELPER(sve2p1_##NAME##_le_c)(CPUARMState *env, void *vd,           \
+                                  target_ulong addr, uint32_t png,      \
+                                  uint32_t desc)                        \
+{                                                                       \
+    sve2p1_ld1_c(env, vd, addr, png, desc, GETPC(), ESZ,                \
+                 sve_##NAME##_le_host, sve_##NAME##_le_tlb);            \
+}                                                                       \
+void HELPER(sve2p1_##NAME##_be_c)(CPUARMState *env, void *vd,           \
+                                  target_ulong addr, uint32_t png,      \
+                                  uint32_t desc)                        \
+{                                                                       \
+    sve2p1_ld1_c(env, vd, addr, png, desc, GETPC(), ESZ,                \
+                 sve_##NAME##_be_host, sve_##NAME##_be_tlb);            \
+}
+
+DO_LD1_2(ld1hh, MO_16)
+DO_LD1_2(ld1ss, MO_32)
+DO_LD1_2(ld1dd, MO_64)
+
+#undef DO_LD1_2
+
+static inline QEMU_ALWAYS_INLINE
+void sve2p1_st1_c(CPUARMState *env, ARMVectorReg *zd, const vaddr addr,
+                  uint32_t png, uint32_t desc,
+                  const uintptr_t ra, const int esz,
+                  sve_ldst1_host_fn *host_fn,
+                  sve_ldst1_tlb_fn *tlb_fn)
+{
+    const unsigned N = (desc >> SIMD_DATA_SHIFT) & 1 ? 4 : 2;
+    const unsigned rstride = 1 << ((desc >> (SIMD_DATA_SHIFT + 1)) % 4);
+    uint32_t mtedesc = desc >> (SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
+    const intptr_t reg_max = simd_oprsz(desc);
+    const unsigned esize = 1 << esz;
+    intptr_t count_off, count_last;
+    intptr_t reg_off, reg_last, reg_n;
+    SVEContLdSt info;
+    unsigned estride, flags;
+    void *host;
+
+    estride = sve2p1_cont_ldst_elements(&info, addr, png, reg_max, N, esz);
+    if (estride == 0) {
+        /* The entire predicate was false; no store occurs.  */
+        return;
+    }
+
+    /* Probe the page(s).  Exit with exception for any invalid page. */
+    sve_cont_ldst_pages(&info, FAULT_ALL, env, addr, MMU_DATA_STORE, ra);
+
+    /* Handle watchpoints for all active elements. */
+    sve2p1_cont_ldst_watchpoints(&info, env, addr, estride,
+                                 esize, BP_MEM_WRITE, ra);
+
+    /*
+     * Handle mte checks for all active elements.
+     * Since TBI must be set for MTE, !mtedesc => !mte_active.
+     */
+    if (mtedesc) {
+        sve2p1_cont_ldst_mte_check(&info, env, estride, addr,
+                                   esize, mtedesc, ra);
+    }
+
+    flags = info.page[0].flags | info.page[1].flags;
+    if (unlikely(flags != 0)) {
+        /*
+         * At least one page includes MMIO.
+         * Any bus operation can fail with cpu_transaction_failed,
+         * which for ARM will raise SyncExternal.  Perform the load
+         * into scratch memory to preserve register state until the end.
+         */
+        count_off = info.reg_off_first[0];
+        count_last = info.reg_off_last[1];
+        if (count_last < 0) {
+            count_last = info.reg_off_split;
+            if (count_last < 0) {
+                count_last = info.reg_off_last[0];
+            }
+        }
+        reg_off = count_off % reg_max;
+        reg_n = count_off / reg_max;
+
+        do {
+            reg_last = MIN(count_last - count_off, reg_max - esize);
+            do {
+                tlb_fn(env, &zd[reg_n * rstride], reg_off, addr + count_off, ra);
+                reg_off += estride;
+                count_off += estride;
+            } while (reg_off <= reg_last);
+            reg_off = 0;
+            reg_n++;
+        } while (count_off <= count_last);
+        return;
+    }
+
+    /* The entire operation is in RAM, on valid pages. */
+
+    count_off = info.reg_off_first[0];
+    count_last = info.reg_off_last[0];
+    reg_off = count_off % reg_max;
+    reg_n = count_off / reg_max;
+    host = info.page[0].host;
+
+    set_helper_retaddr(ra);
+
+    do {
+        reg_last = MIN(count_last - reg_n * reg_max, reg_max - esize);
+        do {
+            host_fn(&zd[reg_n * rstride], reg_off, host + count_off);
+            reg_off += estride;
+            count_off += estride;
+        } while (reg_off <= reg_last);
+        reg_off = 0;
+        reg_n++;
+    } while (count_off <= count_last);
+
+    clear_helper_retaddr();
+
+    /*
+     * Use the slow path to manage the cross-page misalignment.
+     * But we know this is RAM and cannot trap.
+     */
+    count_off = info.reg_off_split;
+    if (unlikely(count_off >= 0)) {
+        reg_off = count_off % reg_max;
+        reg_n = count_off / reg_max;
+        tlb_fn(env, &zd[reg_n * rstride], reg_off, addr + count_off, ra);
+    }
+
+    count_off = info.reg_off_first[1];
+    if (unlikely(count_off >= 0)) {
+        count_last = info.reg_off_last[1];
+        reg_off = count_off % reg_max;
+        reg_n = count_off / reg_max;
+        host = info.page[1].host;
+
+        set_helper_retaddr(ra);
+
+        do {
+            reg_last = MIN(count_last - reg_n * reg_max, reg_max - esize);
+            do {
+                host_fn(&zd[reg_n * rstride], reg_off, host + count_off);
+                reg_off += estride;
+                count_off += estride;
+            } while (reg_off <= reg_last);
+            reg_off = 0;
+            reg_n++;
+        } while (count_off <= count_last);
+
+        clear_helper_retaddr();
+    }
+}
+
+void HELPER(sve2p1_st1bb_c)(CPUARMState *env, void *vd, target_ulong addr,
+                           uint32_t png, uint32_t desc)
+{
+    sve2p1_st1_c(env, vd, addr, png, desc, GETPC(), MO_8,
+                 sve_st1bb_host, sve_st1bb_tlb);
+}
+
+#define DO_ST1_2(NAME, ESZ)                                             \
+void HELPER(sve2p1_##NAME##_le_c)(CPUARMState *env, void *vd,           \
+                                  target_ulong addr, uint32_t png,      \
+                                  uint32_t desc)                        \
+{                                                                       \
+    sve2p1_st1_c(env, vd, addr, png, desc, GETPC(), ESZ,                \
+                 sve_##NAME##_le_host, sve_##NAME##_le_tlb);            \
+}                                                                       \
+void HELPER(sve2p1_##NAME##_be_c)(CPUARMState *env, void *vd,           \
+                                  target_ulong addr, uint32_t png,      \
+                                  uint32_t desc)                        \
+{                                                                       \
+    sve2p1_st1_c(env, vd, addr, png, desc, GETPC(), ESZ,                \
+                 sve_##NAME##_be_host, sve_##NAME##_be_tlb);            \
+}
+
+DO_ST1_2(st1hh, MO_16)
+DO_ST1_2(st1ss, MO_32)
+DO_ST1_2(st1dd, MO_64)
+
+#undef DO_ST1_2
+
 void HELPER(sve2_eor3)(void *vd, void *vn, void *vm, void *vk, uint32_t desc)
 {
     intptr_t i, opr_sz = simd_oprsz(desc) / 8;
