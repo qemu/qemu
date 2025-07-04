@@ -247,7 +247,8 @@ static bool do_mova_tile(DisasContext *s, arg_mova_p *a, bool to_vec)
 TRANS_FEAT(MOVA_tz, aa64_sme, do_mova_tile, a, false)
 TRANS_FEAT(MOVA_zt, aa64_sme, do_mova_tile, a, true)
 
-static bool do_mova_tile_n(DisasContext *s, arg_mova_t *a, int n, bool to_vec)
+static bool do_mova_tile_n(DisasContext *s, arg_mova_t *a, int n,
+                           bool to_vec, bool zero)
 {
     static gen_helper_gvec_2 * const cz_fns[] = {
         gen_helper_sme2_mova_cz_b, gen_helper_sme2_mova_cz_h,
@@ -256,6 +257,11 @@ static bool do_mova_tile_n(DisasContext *s, arg_mova_t *a, int n, bool to_vec)
     static gen_helper_gvec_2 * const zc_fns[] = {
         gen_helper_sme2_mova_zc_b, gen_helper_sme2_mova_zc_h,
         gen_helper_sme2_mova_zc_s, gen_helper_sme2_mova_zc_d,
+    };
+    static gen_helper_gvec_2 * const zc_z_fns[] = {
+        gen_helper_sme2p1_movaz_zc_b, gen_helper_sme2p1_movaz_zc_h,
+        gen_helper_sme2p1_movaz_zc_s, gen_helper_sme2p1_movaz_zc_d,
+        gen_helper_sme2p1_movaz_zc_q,
     };
     TCGv_ptr t_za;
     int svl, bytes_per_op = n << a->esz;
@@ -269,6 +275,8 @@ static bool do_mova_tile_n(DisasContext *s, arg_mova_t *a, int n, bool to_vec)
         unallocated_encoding(s);
         return true;
     }
+
+    assert(a->esz <= MO_64 + zero);
 
     if (!sme_smza_enabled_check(s)) {
         return true;
@@ -292,7 +300,9 @@ static bool do_mova_tile_n(DisasContext *s, arg_mova_t *a, int n, bool to_vec)
             TCGv_ptr t_zr = vec_full_reg_ptr(s, a->zr * n + i);
             t_za = get_tile_rowcol(s, a->esz, a->rs, a->za,
                                    a->off * n + i, 1, n, a->v);
-            if (to_vec) {
+            if (zero) {
+                zc_z_fns[a->esz](t_zr, t_za, t_desc);
+            } else if (to_vec) {
                 zc_fns[a->esz](t_zr, t_za, t_desc);
             } else {
                 cz_fns[a->esz](t_za, t_zr, t_desc);
@@ -305,6 +315,9 @@ static bool do_mova_tile_n(DisasContext *s, arg_mova_t *a, int n, bool to_vec)
                                    a->off * n + i, 1, n, a->v);
             if (to_vec) {
                 tcg_gen_gvec_mov_var(MO_8, tcg_env, o_zr, t_za, 0, svl, svl);
+                if (zero) {
+                    tcg_gen_gvec_dup_imm_var(MO_8, t_za, 0, svl, svl, 0);
+                }
             } else {
                 tcg_gen_gvec_mov_var(MO_8, t_za, 0, tcg_env, o_zr, svl, svl);
             }
@@ -313,12 +326,17 @@ static bool do_mova_tile_n(DisasContext *s, arg_mova_t *a, int n, bool to_vec)
     return true;
 }
 
-TRANS_FEAT(MOVA_tz2, aa64_sme2, do_mova_tile_n, a, 2, false)
-TRANS_FEAT(MOVA_tz4, aa64_sme2, do_mova_tile_n, a, 4, false)
-TRANS_FEAT(MOVA_zt2, aa64_sme2, do_mova_tile_n, a, 2, true)
-TRANS_FEAT(MOVA_zt4, aa64_sme2, do_mova_tile_n, a, 4, true)
+TRANS_FEAT(MOVA_tz2, aa64_sme2, do_mova_tile_n, a, 2, false, false)
+TRANS_FEAT(MOVA_tz4, aa64_sme2, do_mova_tile_n, a, 4, false, false)
+TRANS_FEAT(MOVA_zt2, aa64_sme2, do_mova_tile_n, a, 2, true, false)
+TRANS_FEAT(MOVA_zt4, aa64_sme2, do_mova_tile_n, a, 4, true, false)
 
-static bool do_mova_array_n(DisasContext *s, arg_mova_a *a, int n, bool to_vec)
+TRANS_FEAT(MOVAZ_zt, aa64_sme2p1, do_mova_tile_n, a, 1, true, true)
+TRANS_FEAT(MOVAZ_zt2, aa64_sme2p1, do_mova_tile_n, a, 2, true, true)
+TRANS_FEAT(MOVAZ_zt4, aa64_sme2p1, do_mova_tile_n, a, 4, true, true)
+
+static bool do_mova_array_n(DisasContext *s, arg_mova_a *a, int n,
+                            bool to_vec, bool zero)
 {
     TCGv_ptr t_za;
     int svl;
@@ -336,6 +354,9 @@ static bool do_mova_array_n(DisasContext *s, arg_mova_a *a, int n, bool to_vec)
 
         if (to_vec) {
             tcg_gen_gvec_mov_var(MO_8, tcg_env, o_zr, t_za, o_za, svl, svl);
+            if (zero) {
+                tcg_gen_gvec_dup_imm_var(MO_8, t_za, o_za, svl, svl, 0);
+            }
         } else {
             tcg_gen_gvec_mov_var(MO_8, t_za, o_za, tcg_env, o_zr, svl, svl);
         }
@@ -343,10 +364,13 @@ static bool do_mova_array_n(DisasContext *s, arg_mova_a *a, int n, bool to_vec)
     return true;
 }
 
-TRANS_FEAT(MOVA_az2, aa64_sme2, do_mova_array_n, a, 2, false)
-TRANS_FEAT(MOVA_az4, aa64_sme2, do_mova_array_n, a, 4, false)
-TRANS_FEAT(MOVA_za2, aa64_sme2, do_mova_array_n, a, 2, true)
-TRANS_FEAT(MOVA_za4, aa64_sme2, do_mova_array_n, a, 4, true)
+TRANS_FEAT(MOVA_az2, aa64_sme2, do_mova_array_n, a, 2, false, false)
+TRANS_FEAT(MOVA_az4, aa64_sme2, do_mova_array_n, a, 4, false, false)
+TRANS_FEAT(MOVA_za2, aa64_sme2, do_mova_array_n, a, 2, true, false)
+TRANS_FEAT(MOVA_za4, aa64_sme2, do_mova_array_n, a, 4, true, false)
+
+TRANS_FEAT(MOVAZ_za2, aa64_sme2p1, do_mova_array_n, a, 2, true, true)
+TRANS_FEAT(MOVAZ_za4, aa64_sme2p1, do_mova_array_n, a, 4, true, true)
 
 static bool do_movt(DisasContext *s, arg_MOVT_rzt *a,
                     void (*func)(TCGv_i64, TCGv_ptr, tcg_target_long))

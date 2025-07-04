@@ -100,6 +100,42 @@ MOVA_za2        11000000 00 00011 00 .. 010 00 off:3 zr:4 0  \
 MOVA_za4        11000000 00 00011 00 .. 011 00 off:3 zr:3 00 \
                 &mova_a rv=%mova_rv
 
+### SME Move and Zero
+
+MOVAZ_za2       11000000 00000110 0 .. 01010 off:3 zr:4 0    \
+                &mova_a rv=%mova_rv
+MOVAZ_za4       11000000 00000110 0 .. 01110 off:3 zr:3 00   \
+                &mova_a rv=%mova_rv
+
+MOVAZ_zt        11000000 00 00001 0 v:1 .. 0001 off:4 zr:5    \
+                &mova_t rs=%mova_rs esz=0 za=0
+MOVAZ_zt        11000000 01 00001 0 v:1 .. 0001 za:1 off:3 zr:5    \
+                &mova_t rs=%mova_rs esz=1
+MOVAZ_zt        11000000 10 00001 0 v:1 .. 0001 za:2 off:2 zr:5    \
+                &mova_t rs=%mova_rs esz=2
+MOVAZ_zt        11000000 11 00001 0 v:1 .. 0001 za:3 off:1 zr:5    \
+                &mova_t rs=%mova_rs esz=3
+MOVAZ_zt        11000000 11 00001 1 v:1 .. 0001 za:4 zr:5    \
+                &mova_t rs=%mova_rs esz=4 off=0
+
+MOVAZ_zt2       11000000 00 00011 0 v:1 .. 00010 off:3 zr:4 0 \
+                &mova_t rs=%mova_rs esz=0 za=0
+MOVAZ_zt2       11000000 01 00011 0 v:1 .. 00010 za:1 off:2 zr:4 0 \
+                &mova_t rs=%mova_rs esz=1
+MOVAZ_zt2       11000000 10 00011 0 v:1 .. 00010 za:2 off:1 zr:4 0 \
+                &mova_t rs=%mova_rs esz=2
+MOVAZ_zt2       11000000 11 00011 0 v:1 .. 00010 za:3 zr:4 0 \
+                &mova_t rs=%mova_rs esz=3 off=0
+
+MOVAZ_zt4       11000000 00 00011 0 v:1 .. 001100 off:2 zr:3 00 \
+                &mova_t rs=%mova_rs esz=0 za=0
+MOVAZ_zt4       11000000 01 00011 0 v:1 .. 001100 za:1 off:1 zr:3 00 \
+                &mova_t rs=%mova_rs esz=1
+MOVAZ_zt4       11000000 10 00011 0 v:1 .. 001100 za:2 zr:3 00 \
+                &mova_t rs=%mova_rs esz=2 off=0
+MOVAZ_zt4       11000000 11 00011 0 v:1 .. 00110 za:3 zr:3 00 \
+                &mova_t rs=%mova_rs esz=3 off=0
+
 ### SME Move into/from ZT0
 
 MOVT_rzt        1100 0000 0100 1100 0 off:3 00 11111 rt:5
