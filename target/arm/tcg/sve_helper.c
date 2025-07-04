@@ -3035,6 +3035,56 @@ void HELPER(sve_rev_d)(void *vd, void *vn, uint32_t desc)
     }
 }
 
+/*
+ * TODO: This could use half_shuffle64 and similar bit tricks to
+ * expand blocks of bits at once.
+ */
+#define DO_PMOV_PV(NAME, ESIZE)                                 \
+void HELPER(NAME)(void *vd, void *vs, uint32_t desc)            \
+{                                                               \
+    unsigned vl = simd_oprsz(desc);                             \
+    unsigned idx = simd_data(desc);                             \
+    unsigned elements = vl / ESIZE;                             \
+    ARMPredicateReg *d = vd;                                    \
+    ARMVectorReg *s = vs;                                       \
+    memset(d, 0, sizeof(*d));                                   \
+    for (unsigned e = 0; e < elements; ++e) {                   \
+        depositn(d->p, e * ESIZE, 1, extractn(s->d, elements * idx + e, 1)); \
+    }                                                           \
+}
+
+DO_PMOV_PV(pmov_pv_h, 2)
+DO_PMOV_PV(pmov_pv_s, 4)
+DO_PMOV_PV(pmov_pv_d, 8)
+
+#undef DO_PMOV_PV
+
+/*
+ * TODO: This could use half_unshuffle64 and similar bit tricks to
+ * compress blocks of bits at once.
+ */
+#define DO_PMOV_VP(NAME, ESIZE)                                 \
+void HELPER(NAME)(void *vd, void *vs, uint32_t desc)            \
+{                                                               \
+    unsigned vl = simd_oprsz(desc);                             \
+    unsigned idx = simd_data(desc);                             \
+    unsigned elements = vl / ESIZE;                             \
+    ARMVectorReg *d = vd;                                       \
+    ARMPredicateReg *s = vs;                                    \
+    if (idx == 0) {                                             \
+        memset(d, 0, vl);                                       \
+    }                                                           \
+    for (unsigned e = 0; e < elements; ++e) {                   \
+        depositn(d->d, elements * idx + e, 1, extractn(s->p, e * ESIZE, 1)); \
+    }                                                           \
+}
+
+DO_PMOV_VP(pmov_vp_h, 2)
+DO_PMOV_VP(pmov_vp_s, 4)
+DO_PMOV_VP(pmov_vp_d, 8)
+
+#undef DO_PMOV_VP
+
 typedef void tb_impl_fn(void *, void *, void *, void *, uintptr_t, bool);
 
 static inline void do_tbl1(void *vd, void *vn, void *vm, uint32_t desc,
