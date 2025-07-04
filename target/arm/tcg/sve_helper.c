@@ -3952,15 +3952,6 @@ static uint32_t compute_brks_m(uint64_t *d, uint64_t *n, uint64_t *g,
     return flags;
 }
 
-static uint32_t do_zero(ARMPredicateReg *d, intptr_t oprsz)
-{
-    /* It is quicker to zero the whole predicate than loop on OPRSZ.
-     * The compiler should turn this into 4 64-bit integer stores.
-     */
-    memset(d, 0, sizeof(ARMPredicateReg));
-    return PREDTEST_INIT;
-}
-
 void HELPER(sve_brkpa)(void *vd, void *vn, void *vm, void *vg,
                        uint32_t pred_desc)
 {
@@ -3968,7 +3959,7 @@ void HELPER(sve_brkpa)(void *vd, void *vn, void *vm, void *vg,
     if (last_active_pred(vn, vg, oprsz)) {
         compute_brk_z(vd, vm, vg, oprsz, true);
     } else {
-        do_zero(vd, oprsz);
+        memset(vd, 0, sizeof(ARMPredicateReg));
     }
 }
 
@@ -3979,7 +3970,8 @@ uint32_t HELPER(sve_brkpas)(void *vd, void *vn, void *vm, void *vg,
     if (last_active_pred(vn, vg, oprsz)) {
         return compute_brks_z(vd, vm, vg, oprsz, true);
     } else {
-        return do_zero(vd, oprsz);
+        memset(vd, 0, sizeof(ARMPredicateReg));
+        return PREDTEST_INIT;
     }
 }
 
@@ -3990,7 +3982,7 @@ void HELPER(sve_brkpb)(void *vd, void *vn, void *vm, void *vg,
     if (last_active_pred(vn, vg, oprsz)) {
         compute_brk_z(vd, vm, vg, oprsz, false);
     } else {
-        do_zero(vd, oprsz);
+        memset(vd, 0, sizeof(ARMPredicateReg));
     }
 }
 
@@ -4001,7 +3993,8 @@ uint32_t HELPER(sve_brkpbs)(void *vd, void *vn, void *vm, void *vg,
     if (last_active_pred(vn, vg, oprsz)) {
         return compute_brks_z(vd, vm, vg, oprsz, false);
     } else {
-        return do_zero(vd, oprsz);
+        memset(vd, 0, sizeof(ARMPredicateReg));
+        return PREDTEST_INIT;
     }
 }
 
@@ -4057,7 +4050,7 @@ void HELPER(sve_brkn)(void *vd, void *vn, void *vg, uint32_t pred_desc)
 {
     intptr_t oprsz = FIELD_EX32(pred_desc, PREDDESC, OPRSZ);
     if (!last_active_pred(vn, vg, oprsz)) {
-        do_zero(vd, oprsz);
+        memset(vd, 0, sizeof(ARMPredicateReg));
     }
 }
 
@@ -4079,7 +4072,8 @@ uint32_t HELPER(sve_brkns)(void *vd, void *vn, void *vg, uint32_t pred_desc)
         }
         return flags;
     }
-    return do_zero(vd, oprsz);
+    memset(vd, 0, sizeof(ARMPredicateReg));
+    return PREDTEST_INIT;
 }
 
 uint64_t HELPER(sve_cntp)(void *vn, void *vg, uint32_t pred_desc)
@@ -4124,7 +4118,7 @@ uint32_t HELPER(sve_whilel)(void *vd, uint32_t count, uint32_t pred_desc)
     tcg_debug_assert(count <= oprbits);
 
     /* Begin with a zero predicate register.  */
-    do_zero(d, oprsz);
+    memset(d, 0, sizeof(*d));
     if (count) {
         /* Set all of the requested bits.  */
         for (i = 0; i < count / 64; ++i) {
@@ -4150,7 +4144,7 @@ uint32_t HELPER(sve_whileg)(void *vd, uint32_t count, uint32_t pred_desc)
     tcg_debug_assert(count <= oprbits);
 
     /* Begin with a zero predicate register.  */
-    do_zero(d, oprsz);
+    memset(d, 0, sizeof(*d));
     if (count) {
         /* Set all of the requested bits.  */
         bits = esz_mask;
