@@ -428,8 +428,8 @@ static void aarch64_a64fx_initfn(Object *obj)
     SET_IDREG(isar, ID_AA64PFR1, 0x0000000000000000);
     SET_IDREG(isar, ID_AA64DFR0, 0x0000000010305408),
     SET_IDREG(isar, ID_AA64DFR1, 0x0000000000000000),
-    cpu->id_aa64afr0 = 0x0000000000000000;
-    cpu->id_aa64afr1 = 0x0000000000000000;
+    SET_IDREG(isar, ID_AA64AFR0, 0x0000000000000000);
+    SET_IDREG(isar, ID_AA64AFR1, 0x0000000000000000);
     SET_IDREG(isar, ID_AA64MMFR0, 0x0000000000001122);
     SET_IDREG(isar, ID_AA64MMFR1, 0x0000000011212100);
     SET_IDREG(isar, ID_AA64MMFR2, 0x0000000000001011);
@@ -676,8 +676,8 @@ static void aarch64_neoverse_v1_initfn(Object *obj)
     cpu->clidr = 0x82000023;
     cpu->ctr = 0xb444c004; /* With DIC and IDC set */
     cpu->dcz_blocksize = 4;
-    cpu->id_aa64afr0 = 0x00000000;
-    cpu->id_aa64afr1 = 0x00000000;
+    SET_IDREG(isar, ID_AA64AFR0, 0x00000000);
+    SET_IDREG(isar, ID_AA64AFR1, 0x00000000);
     SET_IDREG(isar, ID_AA64DFR0, 0x000001f210305519ull),
     SET_IDREG(isar, ID_AA64DFR1, 0x00000000),
     SET_IDREG(isar, ID_AA64ISAR0, 0x1011111110212120ull); /* with FEAT_RNG */
@@ -927,8 +927,8 @@ static void aarch64_a710_initfn(Object *obj)
     SET_IDREG(isar, ID_AA64ZFR0, 0x0000110100110021ull); /* with Crypto */
     SET_IDREG(isar, ID_AA64DFR0, 0x000011f010305619ull);
     SET_IDREG(isar, ID_AA64DFR1, 0);
-    cpu->id_aa64afr0       = 0;
-    cpu->id_aa64afr1       = 0;
+    SET_IDREG(isar, ID_AA64AFR0, 0);
+    SET_IDREG(isar, ID_AA64AFR1, 0);
     SET_IDREG(isar, ID_AA64ISAR0, 0x0221111110212120ull); /* with Crypto */
     SET_IDREG(isar, ID_AA64ISAR1, 0x0010111101211052ull);
     SET_IDREG(isar, ID_AA64MMFR0, 0x0000022200101122ull);
@@ -1029,8 +1029,8 @@ static void aarch64_neoverse_n2_initfn(Object *obj)
     SET_IDREG(isar, ID_AA64ZFR0, 0x0000110100110021ull); /* with Crypto */
     SET_IDREG(isar, ID_AA64DFR0, 0x000011f210305619ull);
     SET_IDREG(isar, ID_AA64DFR1, 0);
-    cpu->id_aa64afr0       = 0;
-    cpu->id_aa64afr1       = 0;
+    SET_IDREG(isar, ID_AA64AFR0, 0);
+    SET_IDREG(isar, ID_AA64AFR1, 0);
     SET_IDREG(isar, ID_AA64ISAR0, 0x1221111110212120ull); /* with Crypto and FEAT_RNG */
     SET_IDREG(isar, ID_AA64ISAR1, 0x0011111101211052ull);
     SET_IDREG(isar, ID_AA64MMFR0, 0x0000022200101125ull);
