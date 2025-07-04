@@ -663,7 +663,7 @@ static void aarch64_a57_initfn(Object *obj)
     SET_IDREG(isar, ID_PFR0, 0x00000131);
     SET_IDREG(isar, ID_PFR1, 0x00011011);
     SET_IDREG(isar, ID_DFR0, 0x03010066);
-    cpu->id_afr0 = 0x00000000;
+    SET_IDREG(isar, ID_AFR0, 0x00000000);
     SET_IDREG(isar, ID_MMFR0, 0x10101105);
     SET_IDREG(isar, ID_MMFR1, 0x40000000);
     SET_IDREG(isar, ID_MMFR2, 0x01260000);
@@ -725,7 +725,7 @@ static void aarch64_a53_initfn(Object *obj)
     SET_IDREG(isar, ID_PFR0, 0x00000131);
     SET_IDREG(isar, ID_PFR1, 0x00011011);
     SET_IDREG(isar, ID_DFR0, 0x03010066);
-    cpu->id_afr0 = 0x00000000;
+    SET_IDREG(isar, ID_AFR0, 0x00000000);
     SET_IDREG(isar, ID_MMFR0, 0x10101105);
     SET_IDREG(isar, ID_MMFR1, 0x40000000);
     SET_IDREG(isar, ID_MMFR2, 0x01260000);

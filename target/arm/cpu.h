@@ -1082,7 +1082,6 @@ struct ArchCPU {
     uint32_t reset_sctlr;
     uint64_t pmceid0;
     uint64_t pmceid1;
-    uint32_t id_afr0;
     uint64_t id_aa64afr0;
     uint64_t id_aa64afr1;
     uint64_t clidr;

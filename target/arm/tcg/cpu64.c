@@ -52,7 +52,7 @@ static void aarch64_a35_initfn(Object *obj)
     SET_IDREG(isar, ID_PFR0, 0x00000131);
     SET_IDREG(isar, ID_PFR1, 0x00011011);
     SET_IDREG(isar, ID_DFR0, 0x03010066);
-    cpu->id_afr0 = 0;
+    SET_IDREG(isar, ID_AFR0, 0);
     SET_IDREG(isar, ID_MMFR0, 0x10201105);
     SET_IDREG(isar, ID_MMFR1, 0x40000000);
     SET_IDREG(isar, ID_MMFR2, 0x01260000);
@@ -227,7 +227,7 @@ static void aarch64_a55_initfn(Object *obj)
     SET_IDREG(isar, ID_AA64MMFR2, 0x0000000000001011ull);
     SET_IDREG(isar, ID_AA64PFR0, 0x0000000010112222ull);
     SET_IDREG(isar, ID_AA64PFR1, 0x0000000000000010ull);
-    cpu->id_afr0       = 0x00000000;
+    SET_IDREG(isar, ID_AFR0, 0x00000000);
     SET_IDREG(isar, ID_DFR0, 0x04010088);
     SET_IDREG(isar, ID_ISAR0, 0x02101110);
     SET_IDREG(isar, ID_ISAR1, 0x13112111);
@@ -298,7 +298,7 @@ static void aarch64_a72_initfn(Object *obj)
     SET_IDREG(isar, ID_PFR0, 0x00000131);
     SET_IDREG(isar, ID_PFR1, 0x00011011);
     SET_IDREG(isar, ID_DFR0, 0x03010066);
-    cpu->id_afr0 = 0x00000000;
+    SET_IDREG(isar, ID_AFR0, 0x00000000);
     SET_IDREG(isar, ID_MMFR0, 0x10201105);
     SET_IDREG(isar, ID_MMFR1, 0x40000000);
     SET_IDREG(isar, ID_MMFR2, 0x01260000);
@@ -360,7 +360,7 @@ static void aarch64_a76_initfn(Object *obj)
     SET_IDREG(isar, ID_AA64MMFR2, 0x0000000000001011ull);
     SET_IDREG(isar, ID_AA64PFR0, 0x1100000010111112ull); /* GIC filled in later */
     SET_IDREG(isar, ID_AA64PFR1, 0x0000000000000010ull);
-    cpu->id_afr0       = 0x00000000;
+    SET_IDREG(isar, ID_AFR0, 0x00000000);
     SET_IDREG(isar, ID_DFR0, 0x04010088);
     SET_IDREG(isar, ID_ISAR0, 0x02101110);
     SET_IDREG(isar, ID_ISAR1, 0x13112111);
@@ -608,7 +608,7 @@ static void aarch64_neoverse_n1_initfn(Object *obj)
     SET_IDREG(isar, ID_AA64MMFR2, 0x0000000000001011ull);
     SET_IDREG(isar, ID_AA64PFR0, 0x1100000010111112ull); /* GIC filled in later */
     SET_IDREG(isar, ID_AA64PFR1, 0x0000000000000020ull);
-    cpu->id_afr0       = 0x00000000;
+    SET_IDREG(isar, ID_AFR0, 0x00000000);
     SET_IDREG(isar, ID_DFR0, 0x04010088);
     SET_IDREG(isar, ID_ISAR0, 0x02101110);
     SET_IDREG(isar, ID_ISAR1, 0x13112111);
@@ -687,7 +687,7 @@ static void aarch64_neoverse_v1_initfn(Object *obj)
     SET_IDREG(isar, ID_AA64MMFR2, 0x0220011102101011ull),
     SET_IDREG(isar, ID_AA64PFR0, 0x1101110120111112ull); /* GIC filled in later */
     SET_IDREG(isar, ID_AA64PFR1, 0x0000000000000020ull);
-    cpu->id_afr0       = 0x00000000;
+    SET_IDREG(isar, ID_AFR0, 0x00000000);
     SET_IDREG(isar, ID_DFR0, 0x15011099);
     SET_IDREG(isar, ID_ISAR0, 0x02101110);
     SET_IDREG(isar, ID_ISAR1, 0x13112111);
@@ -905,7 +905,7 @@ static void aarch64_a710_initfn(Object *obj)
     SET_IDREG(isar, ID_PFR0, 0x21110131);
     SET_IDREG(isar, ID_PFR1, 0x00010000); /* GIC filled in later */
     SET_IDREG(isar, ID_DFR0, 0x16011099);
-    cpu->id_afr0       = 0;
+    SET_IDREG(isar, ID_AFR0, 0);
     SET_IDREG(isar, ID_MMFR0, 0x10201105);
     SET_IDREG(isar, ID_MMFR1, 0x40000000);
     SET_IDREG(isar, ID_MMFR2, 0x01260000);
@@ -1007,7 +1007,7 @@ static void aarch64_neoverse_n2_initfn(Object *obj)
     SET_IDREG(isar, ID_PFR0, 0x21110131);
     SET_IDREG(isar, ID_PFR1, 0x00010000); /* GIC filled in later */
     SET_IDREG(isar, ID_DFR0, 0x16011099);
-    cpu->id_afr0       = 0;
+    SET_IDREG(isar, ID_AFR0, 0);
     SET_IDREG(isar, ID_MMFR0, 0x10201105);
     SET_IDREG(isar, ID_MMFR1, 0x40000000);
     SET_IDREG(isar, ID_MMFR2, 0x01260000);

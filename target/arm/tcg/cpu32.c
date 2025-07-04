@@ -225,7 +225,7 @@ static void arm1136_r2_initfn(Object *obj)
     SET_IDREG(isar, ID_PFR0, 0x111);
     SET_IDREG(isar, ID_PFR1, 0x1);
     SET_IDREG(isar, ID_DFR0, 0x2);
-    cpu->id_afr0 = 0x3;
+    SET_IDREG(isar, ID_AFR0, 0x3);
     SET_IDREG(isar, ID_MMFR0, 0x01130003);
     SET_IDREG(isar, ID_MMFR1, 0x10030302);
     SET_IDREG(isar, ID_MMFR2, 0x01222110);
@@ -257,7 +257,7 @@ static void arm1136_initfn(Object *obj)
     SET_IDREG(isar, ID_PFR0, 0x111);
     SET_IDREG(isar, ID_PFR1, 0x1);
     SET_IDREG(isar, ID_DFR0, 0x2);
-    cpu->id_afr0 = 0x3;
+    SET_IDREG(isar, ID_AFR0, 0x3);
     SET_IDREG(isar, ID_MMFR0, 0x01130003);
     SET_IDREG(isar, ID_MMFR1, 0x10030302);
     SET_IDREG(isar, ID_MMFR2, 0x01222110);
@@ -290,7 +290,7 @@ static void arm1176_initfn(Object *obj)
     SET_IDREG(isar, ID_PFR0, 0x111);
     SET_IDREG(isar, ID_PFR1, 0x11);
     SET_IDREG(isar, ID_DFR0, 0x33);
-    cpu->id_afr0 = 0;
+    SET_IDREG(isar, ID_AFR0, 0);
     SET_IDREG(isar, ID_MMFR0, 0x01130003);
     SET_IDREG(isar, ID_MMFR1, 0x10030302);
     SET_IDREG(isar, ID_MMFR2, 0x01222100);
@@ -320,7 +320,7 @@ static void arm11mpcore_initfn(Object *obj)
     SET_IDREG(isar, ID_PFR0, 0x111);
     SET_IDREG(isar, ID_PFR1, 0x1);
     SET_IDREG(isar, ID_DFR0, 0);
-    cpu->id_afr0 = 0x2;
+    SET_IDREG(isar, ID_AFR0, 0x2);
     SET_IDREG(isar, ID_MMFR0, 0x01100103);
     SET_IDREG(isar, ID_MMFR1, 0x10020302);
     SET_IDREG(isar, ID_MMFR2, 0x01222000);
@@ -360,7 +360,7 @@ static void cortex_a8_initfn(Object *obj)
     SET_IDREG(isar, ID_PFR0, 0x1031);
     SET_IDREG(isar, ID_PFR1, 0x11);
     SET_IDREG(isar, ID_DFR0, 0x400);
-    cpu->id_afr0 = 0;
+    SET_IDREG(isar, ID_AFR0, 0);
     SET_IDREG(isar, ID_MMFR0, 0x31100003);
     SET_IDREG(isar, ID_MMFR1, 0x20000000);
     SET_IDREG(isar, ID_MMFR2, 0x01202000);
@@ -436,7 +436,7 @@ static void cortex_a9_initfn(Object *obj)
     SET_IDREG(isar, ID_PFR0, 0x1031);
     SET_IDREG(isar, ID_PFR1, 0x11);
     SET_IDREG(isar, ID_DFR0, 0x000);
-    cpu->id_afr0 = 0;
+    SET_IDREG(isar, ID_AFR0, 0);
     SET_IDREG(isar, ID_MMFR0, 0x00100103);
     SET_IDREG(isar, ID_MMFR1, 0x20000000);
     SET_IDREG(isar, ID_MMFR2, 0x01230000);
@@ -502,7 +502,7 @@ static void cortex_a7_initfn(Object *obj)
     SET_IDREG(isar, ID_PFR0, 0x00001131);
     SET_IDREG(isar, ID_PFR1, 0x00011011);
     SET_IDREG(isar, ID_DFR0, 0x02010555);
-    cpu->id_afr0 = 0x00000000;
+    SET_IDREG(isar, ID_AFR0, 0x00000000);
     SET_IDREG(isar, ID_MMFR0, 0x10101105);
     SET_IDREG(isar, ID_MMFR1, 0x40000000);
     SET_IDREG(isar, ID_MMFR2, 0x01240000);
@@ -554,7 +554,7 @@ static void cortex_a15_initfn(Object *obj)
     SET_IDREG(isar, ID_PFR0, 0x00001131);
     SET_IDREG(isar, ID_PFR1, 0x00011011);
     SET_IDREG(isar, ID_DFR0, 0x02010555);
-    cpu->id_afr0 = 0x00000000;
+    SET_IDREG(isar, ID_AFR0, 0x00000000);
     SET_IDREG(isar, ID_MMFR0, 0x10201105);
     SET_IDREG(isar, ID_MMFR1, 0x20000000);
     SET_IDREG(isar, ID_MMFR2, 0x01240000);
@@ -598,7 +598,7 @@ static void cortex_r5_initfn(Object *obj)
     SET_IDREG(isar, ID_PFR0, 0x0131);
     SET_IDREG(isar, ID_PFR1, 0x001);
     SET_IDREG(isar, ID_DFR0, 0x010400);
-    cpu->id_afr0 = 0x0;
+    SET_IDREG(isar, ID_AFR0, 0x0);
     SET_IDREG(isar, ID_MMFR0, 0x0210030);
     SET_IDREG(isar, ID_MMFR1, 0x00000000);
     SET_IDREG(isar, ID_MMFR2, 0x01200000);
@@ -745,7 +745,7 @@ static void cortex_r52_initfn(Object *obj)
     SET_IDREG(isar, ID_PFR0, 0x00000131);
     SET_IDREG(isar, ID_PFR1, 0x10111001);
     SET_IDREG(isar, ID_DFR0, 0x03010006);
-    cpu->id_afr0 = 0x00000000;
+    SET_IDREG(isar, ID_AFR0, 0x00000000);
     SET_IDREG(isar, ID_MMFR0, 0x00211040);
     SET_IDREG(isar, ID_MMFR1, 0x40000000);
     SET_IDREG(isar, ID_MMFR2, 0x01200000);
@@ -977,7 +977,7 @@ static void arm_max_initfn(Object *obj)
     SET_IDREG(isar, ID_PFR0, 0x00000131);
     SET_IDREG(isar, ID_PFR1, 0x00011011);
     SET_IDREG(isar, ID_DFR0, 0x03010066);
-    cpu->id_afr0 = 0x00000000;
+    SET_IDREG(isar, ID_AFR0, 0x00000000);
     SET_IDREG(isar, ID_MMFR0, 0x10101105);
     SET_IDREG(isar, ID_MMFR1, 0x40000000);
     SET_IDREG(isar, ID_MMFR2, 0x01260000);
