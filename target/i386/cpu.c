@@ -6202,8 +6202,8 @@ static void max_x86_cpu_initfn(Object *obj)
     CPUX86State *env = &cpu->env;
 
     /*
-     * these defaults are used for TCG, other accelerators overwrite these
-     * values
+     * these defaults are used for TCG, other accelerators have overwritten
+     * these values
      */
     if (!env->cpuid_vendor1) {
         object_property_set_str(OBJECT(cpu), "vendor", CPUID_VENDOR_AMD,
@@ -9038,8 +9038,6 @@ static void x86_cpu_post_initfn(Object *obj)
         }
     }
 
-    accel_cpu_instance_init(CPU(obj));
-
 #ifndef CONFIG_USER_ONLY
     if (current_machine && current_machine->cgs) {
         x86_confidential_guest_cpu_instance_init(
@@ -9114,6 +9112,8 @@ static void x86_cpu_initfn(Object *obj)
     if (xcc->model) {
         x86_cpu_load_model(cpu, xcc->model);
     }
+
+    accel_cpu_instance_init(CPU(obj));
 }
 
 static int64_t x86_cpu_get_arch_id(CPUState *cs)
