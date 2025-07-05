@@ -61,13 +61,14 @@ static void hvf_cpu_xsave_init(void)
 static void hvf_cpu_instance_init(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
+    X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
 
     host_cpu_instance_init(cpu);
 
     /* Special cases not set in the X86CPUDefinition structs: */
     /* TODO: in-kernel irqchip for hvf */
 
-    if (cpu->max_features) {
+    if (xcc->max_features) {
         hvf_cpu_max_instance_init(cpu);
     }
 

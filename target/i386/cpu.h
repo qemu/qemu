@@ -2196,7 +2196,6 @@ struct ArchCPU {
     bool expose_tcg;
     bool migratable;
     bool migrate_smi_count;
-    bool max_features; /* Enable all supported features automatically */
     uint32_t apic_id;
 
     /* Enables publishing of TSC increment and Local APIC bus frequencies to
@@ -2349,6 +2348,7 @@ struct X86CPUClass {
      */
     const X86CPUModel *model;
 
+    bool max_features; /* Enable all supported features automatically */
     bool host_cpuid_required;
     int ordering;
     bool migration_safe;

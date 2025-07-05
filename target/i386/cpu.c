@@ -6187,6 +6187,7 @@ static void max_x86_cpu_class_init(ObjectClass *oc, const void *data)
 
     xcc->ordering = 9;
 
+    xcc->max_features = true;
     xcc->model_description =
         "Enables all features supported by the accelerator in the current host";
 
@@ -6201,7 +6202,6 @@ static void max_x86_cpu_initfn(Object *obj)
     /* We can't fill the features array here because we don't know yet if
      * "migratable" is true or false.
      */
-    cpu->max_features = true;
     object_property_set_bool(OBJECT(cpu), "pmu", true, &error_abort);
 
     /*
@@ -8282,6 +8282,7 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
  */
 void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
 {
+    X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
     CPUX86State *env = &cpu->env;
     FeatureWord w;
     int i;
@@ -8301,12 +8302,12 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         }
     }
 
-    /*TODO: Now cpu->max_features doesn't overwrite features
+    /* TODO: Now xcc->max_features doesn't overwrite features
      * set using QOM properties, and we can convert
      * plus_features & minus_features to global properties
      * inside x86_cpu_parse_featurestr() too.
      */
-    if (cpu->max_features) {
+    if (xcc->max_features) {
         for (w = 0; w < FEATURE_WORDS; w++) {
             /* Override only features that weren't set explicitly
              * by the user.
