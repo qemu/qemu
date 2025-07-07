@@ -1873,6 +1873,8 @@ void define_debug_regs(ARMCPU *cpu);
 void define_tlb_insn_regs(ARMCPU *cpu);
 /* Add the cpreg definitions for AT instructions */
 void define_at_insn_regs(ARMCPU *cpu);
+/* Add the cpreg definitions for PM cpregs */
+void define_pm_cpregs(ARMCPU *cpu);
 
 /* Effective value of MDCR_EL2 */
 static inline uint64_t arm_mdcr_el2_eff(CPUARMState *env)

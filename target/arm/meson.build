@@ -22,6 +22,7 @@ arm_user_ss.add(when: 'TARGET_AARCH64', if_false: files(
   'cpu32-stubs.c',
 ))
 arm_user_ss.add(files(
+  'cpregs-pmu.c',
   'debug_helper.c',
   'helper.c',
   'vfp_fpscr.c',
@@ -36,6 +37,7 @@ arm_common_system_ss.add(files(
   'arch_dump.c',
   'arm-powerctl.c',
   'cortex-regs.c',
+  'cpregs-pmu.c',
   'debug_helper.c',
   'helper.c',
   'machine.c',
