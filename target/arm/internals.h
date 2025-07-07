@@ -1871,6 +1871,8 @@ void define_debug_regs(ARMCPU *cpu);
 
 /* Add the cpreg definitions for TLBI instructions */
 void define_tlb_insn_regs(ARMCPU *cpu);
+/* Add the cpreg definitions for AT instructions */
+void define_at_insn_regs(ARMCPU *cpu);
 
 /* Effective value of MDCR_EL2 */
 static inline uint64_t arm_mdcr_el2_eff(CPUARMState *env)
@@ -1981,5 +1983,6 @@ void vfp_clear_float_status_exc_flags(CPUARMState *env);
  * specified by mask changing to the values in val.
  */
 void vfp_set_fpcr_to_host(CPUARMState *env, uint32_t val, uint32_t mask);
+bool arm_pan_enabled(CPUARMState *env);
 
 #endif
