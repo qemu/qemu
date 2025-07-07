@@ -827,7 +827,15 @@ static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
     }
 
     if (s->maint_irq) {
+        Error *kvm_nv_migration_blocker = NULL;
         int ret;
+
+        error_setg(&kvm_nv_migration_blocker,
+                   "Live migration disabled because KVM nested virt is enabled");
+        if (migrate_add_blocker(&kvm_nv_migration_blocker, errp)) {
+            error_free(kvm_nv_migration_blocker);
+            return;
+        }
 
         ret = kvm_device_check_attr(s->dev_fd,
                                     KVM_DEV_ARM_VGIC_GRP_MAINT_IRQ, 0);
