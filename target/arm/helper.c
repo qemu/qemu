@@ -7771,7 +7771,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
 
 #ifndef CONFIG_USER_ONLY
-    define_tlb_insn_regs(cpu);
+    if (tcg_enabled()) {
+        define_tlb_insn_regs(cpu);
+    }
 #endif
 
     if (arm_feature(env, ARM_FEATURE_V6)) {
