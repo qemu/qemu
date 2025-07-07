@@ -6663,7 +6663,7 @@ void aarch64_set_svcr(CPUARMState *env, uint64_t new, uint64_t mask)
      * when disabled either.
      */
     if (change & new & R_SVCR_ZA_MASK) {
-        memset(env->zarray, 0, sizeof(env->zarray));
+        memset(&env->za_state, 0, sizeof(env->za_state));
     }
 
     if (tcg_enabled()) {
@@ -6682,10 +6682,14 @@ static void smcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     int cur_el = arm_current_el(env);
     int old_len = sve_vqm1_for_el(env, cur_el);
+    uint64_t valid_mask = R_SMCR_LEN_MASK | R_SMCR_FA64_MASK;
     int new_len;
 
     QEMU_BUILD_BUG_ON(ARM_MAX_VQ > R_SMCR_LEN_MASK + 1);
-    value &= R_SMCR_LEN_MASK | R_SMCR_FA64_MASK;
+    if (cpu_isar_feature(aa64_sme2, env_archcpu(env))) {
+        valid_mask |= R_SMCR_EZT0_MASK;
+    }
+    value &= valid_mask;
     raw_write(env, ri, value);
 
     /*

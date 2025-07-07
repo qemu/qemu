@@ -229,13 +229,28 @@ NEON_GVEC_VOP2(gvec_srshl_h, int16_t)
 #undef NEON_FN
 
 #define NEON_FN(dest, src1, src2) \
+    (dest = do_sqrshl_bhs(src1, src2, 16, true, NULL))
+NEON_GVEC_VOP2(sme2_srshl_h, int16_t)
+#undef NEON_FN
+
+#define NEON_FN(dest, src1, src2) \
     (dest = do_sqrshl_bhs(src1, (int8_t)src2, 32, true, NULL))
 NEON_GVEC_VOP2(gvec_srshl_s, int32_t)
 #undef NEON_FN
 
 #define NEON_FN(dest, src1, src2) \
+    (dest = do_sqrshl_bhs(src1, src2, 32, true, NULL))
+NEON_GVEC_VOP2(sme2_srshl_s, int32_t)
+#undef NEON_FN
+
+#define NEON_FN(dest, src1, src2) \
     (dest = do_sqrshl_d(src1, (int8_t)src2, true, NULL))
 NEON_GVEC_VOP2(gvec_srshl_d, int64_t)
+#undef NEON_FN
+
+#define NEON_FN(dest, src1, src2) \
+    (dest = do_sqrshl_d(src1, src2, true, NULL))
+NEON_GVEC_VOP2(sme2_srshl_d, int64_t)
 #undef NEON_FN
 
 uint32_t HELPER(neon_rshl_s32)(uint32_t val, uint32_t shift)
@@ -261,13 +276,28 @@ NEON_GVEC_VOP2(gvec_urshl_h, uint16_t)
 #undef NEON_FN
 
 #define NEON_FN(dest, src1, src2) \
+    (dest = do_uqrshl_bhs(src1, (int16_t)src2, 16, true, NULL))
+NEON_GVEC_VOP2(sme2_urshl_h, uint16_t)
+#undef NEON_FN
+
+#define NEON_FN(dest, src1, src2) \
     (dest = do_uqrshl_bhs(src1, (int8_t)src2, 32, true, NULL))
 NEON_GVEC_VOP2(gvec_urshl_s, int32_t)
 #undef NEON_FN
 
 #define NEON_FN(dest, src1, src2) \
+    (dest = do_uqrshl_bhs(src1, src2, 32, true, NULL))
+NEON_GVEC_VOP2(sme2_urshl_s, int32_t)
+#undef NEON_FN
+
+#define NEON_FN(dest, src1, src2) \
     (dest = do_uqrshl_d(src1, (int8_t)src2, true, NULL))
 NEON_GVEC_VOP2(gvec_urshl_d, int64_t)
+#undef NEON_FN
+
+#define NEON_FN(dest, src1, src2) \
+    (dest = do_uqrshl_d(src1, src2, true, NULL))
+NEON_GVEC_VOP2(sme2_urshl_d, int64_t)
 #undef NEON_FN
 
 uint32_t HELPER(neon_rshl_u32)(uint32_t val, uint32_t shift)

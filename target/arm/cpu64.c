@@ -259,6 +259,13 @@ void arm_cpu_sve_finalize(ARMCPU *cpu, Error **errp)
     /* From now on sve_max_vq is the actual maximum supported length. */
     cpu->sve_max_vq = max_vq;
     cpu->sve_vq.map = vq_map;
+
+    /* FEAT_F64MM requires the existence of a 256-bit vector size. */
+    if (max_vq < 2) {
+        uint64_t t = GET_IDREG(&cpu->isar, ID_AA64ZFR0);
+        t = FIELD_DP64(t, ID_AA64ZFR0, F64MM, 0);
+        SET_IDREG(&cpu->isar, ID_AA64ZFR0, t);
+    }
 }
 
 /*
@@ -356,6 +363,7 @@ void arm_cpu_sme_finalize(ARMCPU *cpu, Error **errp)
     }
 
     cpu->sme_vq.map = vq_map;
+    cpu->sme_max_vq = 32 - clz32(vq_map);
 }
 
 static bool cpu_arm_get_sme(Object *obj, Error **errp)
