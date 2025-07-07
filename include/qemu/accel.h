@@ -46,6 +46,7 @@ typedef struct AccelClass {
 
     /* system related hooks */
     void (*setup_post)(AccelState *as);
+    void (*pre_resume_vm)(AccelState *as, bool step_pending);
     bool (*has_memory)(AccelState *accel, AddressSpace *as,
                        hwaddr start_addr, hwaddr size);
 
@@ -85,6 +86,8 @@ int accel_init_machine(AccelState *accel, MachineState *ms);
 
 /* Called just before os_setup_post (ie just before drop OS privs) */
 void accel_setup_post(MachineState *ms);
+
+void accel_pre_resume(MachineState *ms, bool step_pending);
 
 /**
  * accel_cpu_instance_init:
