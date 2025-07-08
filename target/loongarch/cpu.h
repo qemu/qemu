@@ -494,6 +494,4 @@ static inline void set_pc(CPULoongArchState *env, uint64_t value)
 
 #define CPU_RESOLVING_TYPE TYPE_LOONGARCH_CPU
 
-void loongarch_cpu_post_init(Object *obj);
-
 #endif /* LOONGARCH_CPU_H */
