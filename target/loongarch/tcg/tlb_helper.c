@@ -10,6 +10,7 @@
 #include "qemu/guest-random.h"
 
 #include "cpu.h"
+#include "cpu-mmu.h"
 #include "internals.h"
 #include "exec/helper-proto.h"
 #include "exec/cputlb.h"

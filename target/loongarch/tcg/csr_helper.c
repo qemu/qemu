@@ -16,6 +16,7 @@
 #include "accel/tcg/cpu-ldst.h"
 #include "hw/irq.h"
 #include "cpu-csr.h"
+#include "cpu-mmu.h"
 
 target_ulong helper_csrwr_stlbps(CPULoongArchState *env, target_ulong val)
 {

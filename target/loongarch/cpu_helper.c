@@ -13,6 +13,7 @@
 #include "exec/target_page.h"
 #include "internals.h"
 #include "cpu-csr.h"
+#include "cpu-mmu.h"
 #include "tcg/tcg_loongarch.h"
 
 void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,

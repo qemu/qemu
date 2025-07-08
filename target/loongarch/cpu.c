@@ -17,6 +17,7 @@
 #include "hw/qdev-properties.h"
 #include "exec/translation-block.h"
 #include "cpu.h"
+#include "cpu-mmu.h"
 #include "internals.h"
 #include "fpu/softfloat-helpers.h"
 #include "csr.h"
