@@ -6,9 +6,9 @@
 ##
 # @rtc-reset-reinjection:
 #
-# This command will reset the RTC interrupt reinjection backlog.  Can
-# be used if another mechanism to synchronize guest time is in effect,
-# for example QEMU guest agent's guest-set-time command.
+# Reset the RTC interrupt reinjection backlog.  Can be used if another
+# mechanism to synchronize guest time is in effect, for example QEMU
+# guest agent's guest-set-time command.
 #
 # Use of this command is only applicable for x86 machines with an RTC,
 # and on other machines will silently return without performing any
@@ -233,8 +233,7 @@
 ##
 # @sev-inject-launch-secret:
 #
-# This command injects a secret blob into memory of a SEV/SEV-ES
-# guest.
+# Inject a secret blob into a SEV/SEV-ES guest's memory.
 #
 # This is only valid on x86 machines configured with KVM and the
 # 'sev-guest' confidential virtualization object.  SEV-SNP guests do
@@ -272,7 +271,7 @@
 ##
 # @query-sev-attestation-report:
 #
-# This command is used to get the SEV attestation report.
+# Get the SEV attestation report.
 #
 # This is only valid on x86 machines configured with KVM and the
 # 'sev-guest' confidential virtualization object.  The attestation

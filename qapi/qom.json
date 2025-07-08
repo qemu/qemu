@@ -50,8 +50,7 @@
 ##
 # @qom-list:
 #
-# This command will list any properties of a object given a path in
-# the object model.
+# List properties of a object given a path in the object model.
 #
 # @path: the path within the object model.  See @qom-get for a
 #     description of this parameter.
@@ -78,8 +77,7 @@
 ##
 # @qom-get:
 #
-# This command will get a property from a object model path and return
-# the value.
+# Get a property value.
 #
 # @path: The path within the object model.  There are two forms of
 #     supported paths--absolute and partial paths.
@@ -130,7 +128,7 @@
 ##
 # @qom-set:
 #
-# This command will set a property from a object model path.
+# Set a property value.
 #
 # @path: see @qom-get for a description of this parameter
 #
@@ -173,7 +171,7 @@
 ##
 # @qom-list-types:
 #
-# This command will return a list of types given search parameters
+# Return a list of types given search parameters.
 #
 # @implements: if specified, only return types that implement this
 #     type name
