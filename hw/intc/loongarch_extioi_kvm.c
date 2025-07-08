@@ -6,7 +6,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/typedefs.h"
 #include "hw/intc/loongarch_extioi.h"
 #include "linux/kvm.h"
 #include "qapi/error.h"
