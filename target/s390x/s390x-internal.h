@@ -239,7 +239,7 @@ uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
 /* cpu.c */
 #ifndef CONFIG_USER_ONLY
 unsigned int s390_count_running_cpus(void);
-unsigned int s390_cpu_halt(S390CPU *cpu);
+void s390_cpu_halt(S390CPU *cpu);
 void s390_cpu_unhalt(S390CPU *cpu);
 void s390_cpu_system_init(Object *obj);
 bool s390_cpu_system_realize(DeviceState *dev, Error **errp);
