@@ -283,10 +283,9 @@
 # Returns: SevAttestationReport objects.
 #
 # Errors:
-#     - This will return an error if the attestation report is
-#       unavailable, either due to an invalid guest configuration
-#       or if the guest has not reached the required SEV state,
-#       GenericError
+#     - If the attestation report is unavailable, either due to an
+#       invalid guest configuration or because the guest has not
+#       reached the required SEV state, GenericError
 #
 # Since: 6.1
 #

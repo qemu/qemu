@@ -1261,7 +1261,7 @@
 # Create a QOM object.
 #
 # Errors:
-#     - Error if @qom-type is not a valid class name
+#     - If @qom-type is not a valid class name
 #
 # Since: 2.0
 #
@@ -1283,7 +1283,7 @@
 # @id: the name of the QOM object to remove
 #
 # Errors:
-#     - Error if @id is not a valid id for a QOM object
+#     - If @id is not a valid id for a QOM object
 #
 # Since: 2.0
 #
