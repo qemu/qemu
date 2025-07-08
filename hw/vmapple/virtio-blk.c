@@ -19,7 +19,6 @@
 #include "hw/vmapple/vmapple.h"
 #include "hw/virtio/virtio-blk.h"
 #include "hw/virtio/virtio-pci.h"
-#include "qemu/bswap.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"

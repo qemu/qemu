@@ -27,7 +27,6 @@
 #include "exec/helper-proto.h"
 #include "exec/tlb-flags.h"
 #include "exec/target_page.h"
-#include "exec/tswap.h"
 #include "fpu/softfloat.h"
 #include "tcg/tcg-gvec-desc.h"
 #include "internals.h"

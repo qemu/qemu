@@ -20,7 +20,6 @@
 #include "migration/vmstate.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pci_host.h"
-#include "qemu/bswap.h"
 #include "hw/pci-host/ppce500.h"
 #include "qom/object.h"
 

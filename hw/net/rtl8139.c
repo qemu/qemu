@@ -57,6 +57,7 @@
 #include "system/dma.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
+#include "qemu/bswap.h"
 #include "net/net.h"
 #include "net/eth.h"
 #include "system/system.h"
