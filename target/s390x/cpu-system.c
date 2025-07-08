@@ -196,7 +196,7 @@ static bool disabled_wait(CPUState *cpu)
                             (PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK));
 }
 
-static unsigned s390_count_running_cpus(void)
+unsigned s390_count_running_cpus(void)
 {
     CPUState *cpu;
     int nr_running = 0;
