@@ -13,7 +13,6 @@
 #include <linux/vfio.h>
 #endif
 
-#include "qemu/typedefs.h"
 #include "qemu/notify.h"
 
 /*
