@@ -12,6 +12,7 @@
 #include "qapi/qapi-commands-machine.h"
 #include "monitor/monitor.h"
 #include "system/tcg.h"
+#include "tcg/tcg.h"
 #include "internal-common.h"
 
 HumanReadableText *qmp_x_query_jit(Error **errp)

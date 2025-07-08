@@ -37,9 +37,8 @@ static void dump_drift_info(GString *buf)
     }
 }
 
-static void dump_accel_info(GString *buf)
+static void dump_accel_info(AccelState *accel, GString *buf)
 {
-    AccelState *accel = current_accel();
     bool one_insn_per_tb = object_property_get_bool(OBJECT(accel),
                                                     "one-insn-per-tb",
                                                     &error_fatal);
@@ -209,7 +208,7 @@ static void dump_exec_info(GString *buf)
 
 void tcg_dump_stats(GString *buf)
 {
-    dump_accel_info(buf);
+    dump_accel_info(current_accel(), buf);
     dump_exec_info(buf);
     dump_drift_info(buf);
 }
