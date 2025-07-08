@@ -358,12 +358,6 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         /* Sort the smmu idmap by input_base */
         g_array_sort(rc_smmu_idmaps, iort_idmap_compare);
 
-        /*
-         * Knowing the ID ranges from the RC to the SMMU, it's possible to
-         * determine the ID ranges from RC that are directed to the ITS.
-         */
-        create_rc_its_idmaps(rc_its_idmaps, rc_smmu_idmaps);
-
         nb_nodes = 2; /* RC and SMMUv3 */
         rc_mapping_count = rc_smmu_idmaps->len;
 
