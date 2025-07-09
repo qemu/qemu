@@ -87,6 +87,7 @@ int menu_get_zipl_boot_index(const char *menu_data);
 bool menu_is_enabled_zipl(void);
 int menu_get_enum_boot_index(bool *valid_entries);
 bool menu_is_enabled_enum(void);
+int menu_get_boot_index(bool *valid_entries);
 
 #define MAX_BOOT_ENTRIES  31
 

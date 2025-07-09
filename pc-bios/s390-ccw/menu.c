@@ -159,7 +159,7 @@ static void boot_menu_prompt(bool retry)
     }
 }
 
-static int get_boot_index(bool *valid_entries)
+int menu_get_boot_index(bool *valid_entries)
 {
     int boot_index;
     bool retry = false;
@@ -224,7 +224,7 @@ int menu_get_zipl_boot_index(const char *menu_data)
     }
 
     printf("\n");
-    return get_boot_index(valid_entries);
+    return menu_get_boot_index(valid_entries);
 }
 
 int menu_get_enum_boot_index(bool *valid_entries)
@@ -247,7 +247,7 @@ int menu_get_enum_boot_index(bool *valid_entries)
     }
 
     printf("\n");
-    return get_boot_index(valid_entries);
+    return menu_get_boot_index(valid_entries);
 }
 
 void menu_set_parms(uint8_t boot_menu_flag, uint32_t boot_menu_timeout)
