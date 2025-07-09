@@ -141,6 +141,7 @@ static int vhost_user_start(int queues, NetClientState *ncs[],
         options.max_tx_queue_size = VIRTQUEUE_MAX_SIZE;
         options.get_acked_features = vhost_user_get_acked_features;
         options.save_acked_features = vhost_user_save_acked_features;
+        options.is_vhost_user = true;
 
         net = vhost_net_init(&options);
         if (!net) {

@@ -246,6 +246,7 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
     net->feature_bits = options->feature_bits;
     net->save_acked_features = options->save_acked_features;
     net->max_tx_queue_size = options->max_tx_queue_size;
+    net->is_vhost_user = options->is_vhost_user;
 
     net->dev.max_queues = 1;
     net->dev.vqs = net->vqs;
@@ -440,7 +441,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
          * because vhost user doesn't interrupt masking/unmasking
          * properly.
          */
-        if (net->nc->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
+        if (net->is_vhost_user) {
             dev->use_guest_notifier_mask = false;
         }
      }

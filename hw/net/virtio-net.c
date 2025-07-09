@@ -691,12 +691,14 @@ default_value:
 static int peer_attach(VirtIONet *n, int index)
 {
     NetClientState *nc = qemu_get_subqueue(n->nic, index);
+    struct vhost_net *net;
 
     if (!nc->peer) {
         return 0;
     }
 
-    if (nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
+    net = get_vhost_net(nc->peer);
+    if (net && net->is_vhost_user) {
         vhost_net_set_vring_enable(nc->peer, 1);
     }
 
@@ -714,12 +716,14 @@ static int peer_attach(VirtIONet *n, int index)
 static int peer_detach(VirtIONet *n, int index)
 {
     NetClientState *nc = qemu_get_subqueue(n->nic, index);
+    struct vhost_net *net;
 
     if (!nc->peer) {
         return 0;
     }
 
-    if (nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
+    net = get_vhost_net(nc->peer);
+    if (net && net->is_vhost_user) {
         vhost_net_set_vring_enable(nc->peer, 0);
     }
 

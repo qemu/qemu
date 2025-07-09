@@ -747,6 +747,7 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
         options.get_acked_features = NULL;
         options.save_acked_features = NULL;
         options.max_tx_queue_size = 0;
+        options.is_vhost_user = false;
 
         s->vhost_net = vhost_net_init(&options);
         if (!s->vhost_net) {

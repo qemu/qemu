@@ -205,6 +205,7 @@ static int vhost_vdpa_add(NetClientState *ncs, void *be,
     options.get_acked_features = NULL;
     options.save_acked_features = NULL;
     options.max_tx_queue_size = VIRTQUEUE_MAX_SIZE;
+    options.is_vhost_user = false;
 
     net = vhost_net_init(&options);
     if (!net) {
