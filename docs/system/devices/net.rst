@@ -104,7 +104,7 @@ To use the passt backend interface
 
 There is no need to start the daemon as QEMU will do it for you.
 
-passt is started in the socket-based mode.
+By default, passt will be started in the socket-based mode.
 
 .. parsed-literal::
    |qemu_system| [...OPTIONS...] -nic passt
@@ -127,6 +127,16 @@ passt is started in the socket-based mode.
    (qemu) info network
    virtio0: index=0,type=nic,model=virtio-net-pci,macaddr=9a:2b:2c:2d:2e:2f
     \ netdev0: index=0,type=passt,stream,connected to pid 25428
+
+To use the vhost-based interface, add the ``vhost-user=on`` parameter and
+select the virtio-net device:
+
+.. parsed-literal::
+   |qemu_system| [...OPTIONS...] -nic passt,model=virtio,vhost-user=on
+
+   (qemu) info network
+   virtio-net-pci.0: index=0,type=nic,model=virtio-net-pci,macaddr=52:54:00:12:34:56
+    \ #net006: index=0,type=passt,vhost-user,connected to pid 25731
 
 To use socket based passt interface:
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

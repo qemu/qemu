@@ -2797,7 +2797,7 @@ DEFHEADING(Network options:)
 
 DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
 #ifdef CONFIG_PASST
-    "-netdev passt,id=str[,path=file][,quiet=on|off]\n"
+    "-netdev passt,id=str[,path=file][,quiet=on|off][,vhost-user=on|off]\n"
     "[,mtu=mtu][,address=addr][,netmask=mask][,mac=addr][,gateway=addr]\n"
     "          [,interface=name][,outbound=address][,outbound-if4=name]\n"
     "          [,outbound-if6=name][,dns=addr][,search=list][,fqdn=name]\n"
@@ -2811,6 +2811,8 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                if 'path' is not provided 'passt' will be started according to PATH\n"
     "                by default, informational message of passt are not displayed (quiet=on)\n"
     "                to display this message, use 'quiet=off'\n"
+    "                by default, passt will be started in socket-based mode, to enable vhost-mode,\n"
+    "                use 'vhost-user=on'\n"
     "                for details on other options, refer to passt(1)\n"
     "                'param' allows to pass any option defined by passt(1)\n"
 #endif
@@ -3066,6 +3068,12 @@ SRST
     ``quiet=on|off``
         By default, ``quiet=on`` to disable informational message from
         passt. ``quiet=on`` is passed as ``--quiet`` to passt.
+
+    ``vhost-user=on|off``
+        By default, ``vhost-user=off`` and QEMU uses the stream network
+        backend to communicate with passt. If ``vhost-user=on``, passt is
+        started with ``--vhost-user`` and QEMU uses the vhost-user network
+        backend to communicate with passt.
 
     ``@mtu``
         Assign MTU via DHCP/NDP

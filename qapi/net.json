@@ -121,6 +121,8 @@
 #
 # @quiet: don't print informational messages (default, passed as '--quiet')
 #
+# @vhost-user: enable vhost-user
+#
 # @mtu: assign MTU via DHCP/NDP
 #
 # @address: IPv4 or IPv6 address
@@ -189,6 +191,7 @@
   'data': {
     '*path':               'str',
     '*quiet':              'bool',
+    '*vhost-user':         'bool',
     '*mtu':                'int',
     '*address':            'str',
     '*netmask':            'str',
