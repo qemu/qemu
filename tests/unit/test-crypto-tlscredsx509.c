@@ -643,6 +643,15 @@ int main(int argc, char **argv)
                               certchain_with_invalid,
                               G_N_ELEMENTS(certchain_with_invalid));
 
+    gnutls_x509_crt_t certchain_incomplete[] = {
+        cacertrootreq.crt,
+        cacertlevel2areq.crt,
+    };
+
+    test_tls_write_cert_chain(WORKDIR "cacertchain-incomplete-ctx.pem",
+                              certchain_incomplete,
+                              G_N_ELEMENTS(certchain_incomplete));
+
     TLS_TEST_REG(chain1, true,
                  WORKDIR "cacertchain-ctx.pem",
                  servercertlevel3areq.filename, false);
@@ -652,6 +661,9 @@ int main(int argc, char **argv)
     TLS_TEST_REG(certchainwithexpiredcert, false,
                  WORKDIR "cacertchain-with-invalid-ctx.pem",
                  clientcertlevel2breq.filename, false);
+    TLS_TEST_REG(chainincomplete, true,
+                 WORKDIR "cacertchain-incomplete-ctx.pem",
+                 servercertlevel3areq.filename, true);
 
     /* Some missing certs - first two are fatal, the last
      * is ok

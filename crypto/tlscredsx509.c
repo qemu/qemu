@@ -326,11 +326,11 @@ qcrypto_tls_creds_check_authority_chain(QCryptoTLSCredsX509 *creds,
                                         Error **errp)
 {
     gnutls_x509_crt_t cert_to_check = cert;
-    bool checking_issuer = true;
     int retval = 0;
+    gnutls_datum_t dn = {};
 
-    while (checking_issuer) {
-        checking_issuer = false;
+    for (;;) {
+        gnutls_x509_crt_t cert_issuer = NULL;
 
         if (gnutls_x509_crt_check_issuer(cert_to_check,
                                          cert_to_check)) {
@@ -345,19 +345,30 @@ qcrypto_tls_creds_check_authority_chain(QCryptoTLSCredsX509 *creds,
         for (int i = 0; i < ncacerts; i++) {
             if (gnutls_x509_crt_check_issuer(cert_to_check,
                                              cacerts[i])) {
-                retval = qcrypto_tls_creds_check_cert(
-                    creds, cacerts[i], cacertFile,
-                    isServer, isCA, errp);
-                if (retval < 0) {
-                    return retval;
-                }
-                cert_to_check = cacerts[i];
-                checking_issuer = true;
+                cert_issuer = cacerts[i];
                 break;
             }
         }
+        if (!cert_issuer) {
+            break;
+        }
+
+        if (qcrypto_tls_creds_check_cert(creds, cert_issuer, cacertFile,
+                                         isServer, isCA, errp) < 0) {
+            return -1;
+        }
+
+        cert_to_check = cert_issuer;
     }
 
+    retval = gnutls_x509_crt_get_dn2(cert_to_check, &dn);
+    if (retval < 0) {
+        error_setg(errp, "Unable to fetch cert DN: %s",
+                   gnutls_strerror(retval));
+        return -1;
+    }
+    error_setg(errp, "Cert '%s' has no issuer in CA chain", dn.data);
+    g_free(dn.data);
     return -1;
 }
 
