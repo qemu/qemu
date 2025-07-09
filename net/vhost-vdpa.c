@@ -202,6 +202,7 @@ static int vhost_vdpa_add(NetClientState *ncs, void *be,
     options.busyloop_timeout = 0;
     options.nvqs = nvqs;
     options.feature_bits = vdpa_feature_bits;
+    options.get_acked_features = NULL;
 
     net = vhost_net_init(&options);
     if (!net) {

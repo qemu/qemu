@@ -288,9 +288,8 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
     }
 
     /* Set sane init value. Override when guest acks. */
-#ifdef CONFIG_VHOST_NET_USER
-    if (net->nc->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
-        features = vhost_user_get_acked_features(net->nc);
+    if (options->get_acked_features) {
+        features = options->get_acked_features(net->nc);
         if (~net->dev.features & features) {
             fprintf(stderr, "vhost lacks feature mask 0x%" PRIx64
                     " for backend\n",
@@ -298,7 +297,6 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
             goto fail;
         }
     }
-#endif
 
     vhost_net_ack_features(net, features);
 
