@@ -281,6 +281,7 @@ tests_rx_system_thorough = [
 
 tests_s390x_system_thorough = [
   's390x_ccw_virtio',
+  's390x_pxelinux',
   's390x_replay',
   's390x_topology',
   's390x_tuxrun',
