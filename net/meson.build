@@ -1,6 +1,7 @@
 system_ss.add(files(
   'announce.c',
   'checksum.c',
+  'dgram.c',
   'dump.c',
   'eth.c',
   'filter-buffer.c',
@@ -12,7 +13,7 @@ system_ss.add(files(
   'queue.c',
   'socket.c',
   'stream.c',
-  'dgram.c',
+  'stream_data.c',
   'util.c',
 ))
 
