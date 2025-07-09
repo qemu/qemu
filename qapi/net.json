@@ -113,6 +113,116 @@
     'str': 'str' } }
 
 ##
+# @NetDevPasstOptions:
+#
+# Unprivileged user-mode network connectivity using passt
+#
+# @path: Filename of the passt program to run (by default 'passt', and use PATH)
+#
+# @quiet: don't print informational messages (default, passed as '--quiet')
+#
+# @mtu: assign MTU via DHCP/NDP
+#
+# @address: IPv4 or IPv6 address
+#
+# @netmask: IPv4 mask
+#
+# @mac: source MAC address
+#
+# @gateway: IPv4 or IPv6 address as gateway
+#
+# @interface: interface for addresses and routes
+#
+# @outbound: bind to address as outbound source
+#
+# @outbound-if4: bind to outbound interface for IPv4
+#
+# @outbound-if6: bind to outbound interface for IPv6
+#
+# @dns: IPv4 or IPv6 address as DNS
+#
+# @search: search domains
+#
+# @fqdn: FQDN to configure client with
+#
+# @dhcp-dns: enable/disable DNS list in DHCP/DHCPv6/NDP
+#
+# @dhcp-search: enable/disable list in DHCP/DHCPv6/NDP
+#
+# @map-host-loopback: addresse to refer to host
+#
+# @map-guest-addr: addr to translate to guest's address
+#
+# @dns-forward: forward DNS queries sent to
+#
+# @dns-host: host nameserver to direct queries to
+#
+# @tcp: enable/disable TCP
+#
+# @udp: enable/disable UDP
+#
+# @icmp: enable/disable ICMP
+#
+# @dhcp: enable/disable DHCP
+#
+# @ndp: enable/disable NDP
+#
+# @dhcpv6: enable/disable DHCPv6
+#
+# @ra: enable/disable route advertisements
+#
+# @freebind: bind to any address for forwarding
+#
+# @ipv4: enable/disable IPv4
+#
+# @ipv6: enable/disable IPv6
+#
+# @tcp-ports: TCP ports to forward
+#
+# @udp-ports: UDP ports to forward
+#
+# @param: parameter to pass to passt command
+#
+# Since: 10.1
+##
+{ 'struct': 'NetDevPasstOptions',
+  'data': {
+    '*path':               'str',
+    '*quiet':              'bool',
+    '*mtu':                'int',
+    '*address':            'str',
+    '*netmask':            'str',
+    '*mac':                'str',
+    '*gateway':            'str',
+    '*interface':          'str',
+    '*outbound':           'str',
+    '*outbound-if4':       'str',
+    '*outbound-if6':       'str',
+    '*dns':                'str',
+    '*search':             ['String'],
+    '*fqdn':               'str',
+    '*dhcp-dns':           'bool',
+    '*dhcp-search':        'bool',
+    '*map-host-loopback':  'str',
+    '*map-guest-addr':     'str',
+    '*dns-forward':        'str',
+    '*dns-host':           'str',
+    '*tcp':                'bool',
+    '*udp':                'bool',
+    '*icmp':               'bool',
+    '*dhcp':               'bool',
+    '*ndp':                'bool',
+    '*dhcpv6':             'bool',
+    '*ra':                 'bool',
+    '*freebind':           'bool',
+    '*ipv4':               'bool',
+    '*ipv6':               'bool',
+    '*tcp-ports':          ['String'],
+    '*udp-ports':          ['String'],
+    '*param':             ['String'] },
+    'if': 'CONFIG_PASST' }
+
+##
 # @NetdevUserOptions:
 #
 # Use the user mode network stack which requires no administrator
@@ -729,12 +839,15 @@
 #
 # @af-xdp: since 8.2
 #
+# @passt: since 10.1
+#
 # Since: 2.7
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'stream',
             'dgram', 'vde', 'bridge', 'hubport', 'netmap', 'vhost-user',
             'vhost-vdpa',
+            { 'name': 'passt', 'if': 'CONFIG_PASST' },
             { 'name': 'af-xdp', 'if': 'CONFIG_AF_XDP' },
             { 'name': 'vmnet-host', 'if': 'CONFIG_VMNET' },
             { 'name': 'vmnet-shared', 'if': 'CONFIG_VMNET' },
@@ -756,6 +869,8 @@
   'discriminator': 'type',
   'data': {
     'nic':      'NetLegacyNicOptions',
+    'passt':    { 'type': 'NetDevPasstOptions',
+                  'if': 'CONFIG_PASST' },
     'user':     'NetdevUserOptions',
     'tap':      'NetdevTapOptions',
     'l2tpv3':   'NetdevL2TPv3Options',

@@ -85,12 +85,48 @@ passt doesn't require any capability or privilege. passt has
 better performance than ``-net user``, full IPv6 support and better security
 as it's a daemon that is not executed in QEMU context.
 
-passt can be connected to QEMU either by using a socket
-(``-netdev stream``) or using the vhost-user interface (``-netdev vhost-user``).
+passt_ can be used in the same way as the user backend (using ``-net passt``,
+``-netdev passt`` or ``-nic passt``) or it can be launched manually and
+connected to QEMU either by using a socket (``-netdev stream``) or by using
+the vhost-user interface (``-netdev vhost-user``).
+
+Using ``-netdev stream`` or ``-netdev vhost-user`` will allow the user to
+enable functionalities not available through the passt backend interface
+(like migration).
+
 See `passt(1)`_ for more details on passt.
 
 .. _passt: https://passt.top/
 .. _passt(1): https://passt.top/builds/latest/web/passt.1.html
+
+To use the passt backend interface
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+There is no need to start the daemon as QEMU will do it for you.
+
+passt is started in the socket-based mode.
+
+.. parsed-literal::
+   |qemu_system| [...OPTIONS...] -nic passt
+
+   (qemu) info network
+   e1000e.0: index=0,type=nic,model=e1000e,macaddr=52:54:00:12:34:56
+    \ #net071: index=0,type=passt,stream,connected to pid 24846
+
+.. parsed-literal::
+   |qemu_system| [...OPTIONS...] -net nic -net passt,tcp-ports=10001,udp-ports=10001
+
+   (qemu) info network
+   hub 0
+    \ hub0port1: #net136: index=0,type=passt,stream,connected to pid 25204
+    \ hub0port0: e1000e.0: index=0,type=nic,model=e1000e,macaddr=52:54:00:12:34:56
+
+.. parsed-literal::
+   |qemu_system| [...OPTIONS...] -netdev passt,id=netdev0 -device virtio-net,mac=9a:2b:2c:2d:2e:2f,id=virtio0,netdev=netdev0
+
+   (qemu) info network
+   virtio0: index=0,type=nic,model=virtio-net-pci,macaddr=9a:2b:2c:2d:2e:2f
+    \ netdev0: index=0,type=passt,stream,connected to pid 25428
 
 To use socket based passt interface:
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
