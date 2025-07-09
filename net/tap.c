@@ -329,6 +329,18 @@ int tap_get_fd(NetClientState *nc)
     return s->fd;
 }
 
+/*
+ * tap_get_vhost_net() can return NULL if a tap net-device backend is
+ * created with 'vhost=off' option, 'vhostforce=off' or no vhost or
+ * vhostforce or vhostfd options at all. Please see net_init_tap_one().
+ */
+static VHostNetState *tap_get_vhost_net(NetClientState *nc)
+{
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
+    assert(nc->info->type == NET_CLIENT_DRIVER_TAP);
+    return s->vhost_net;
+}
+
 /* fd support */
 
 static NetClientInfo net_tap_info = {
@@ -347,6 +359,7 @@ static NetClientInfo net_tap_info = {
     .set_vnet_le = tap_set_vnet_le,
     .set_vnet_be = tap_set_vnet_be,
     .set_steering_ebpf = tap_set_steering_ebpf,
+    .get_vhost_net = tap_get_vhost_net,
 };
 
 static TAPState *net_tap_fd_init(NetClientState *peer,
@@ -978,13 +991,6 @@ free_fail:
     }
 
     return 0;
-}
-
-VHostNetState *tap_get_vhost_net(NetClientState *nc)
-{
-    TAPState *s = DO_UPCAST(TAPState, nc, nc);
-    assert(nc->info->type == NET_CLIENT_DRIVER_TAP);
-    return s->vhost_net;
 }
 
 int tap_enable(NetClientState *nc)

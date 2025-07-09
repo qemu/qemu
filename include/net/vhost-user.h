@@ -12,7 +12,6 @@
 #define VHOST_USER_H
 
 struct vhost_net;
-struct vhost_net *vhost_user_get_vhost_net(NetClientState *nc);
 uint64_t vhost_user_get_acked_features(NetClientState *nc);
 void vhost_user_save_acked_features(NetClientState *nc);
 
