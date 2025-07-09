@@ -14,6 +14,4 @@
 
 #define TYPE_VHOST_VDPA "vhost-vdpa"
 
-extern const int vdpa_feature_bits[];
-
 #endif /* VHOST_VDPA_H */

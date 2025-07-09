@@ -12,6 +12,7 @@ typedef struct VhostNetOptions {
     NetClientState *net_backend;
     uint32_t busyloop_timeout;
     unsigned int nvqs;
+    const int *feature_bits;
     void *opaque;
 } VhostNetOptions;
 

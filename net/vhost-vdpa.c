@@ -55,7 +55,7 @@ typedef struct VhostVDPAState {
  * with the exception of VHOST_INVALID_FEATURE_BIT,
  * which should always be the last entry.
  */
-const int vdpa_feature_bits[] = {
+static const int vdpa_feature_bits[] = {
     VIRTIO_F_ANY_LAYOUT,
     VIRTIO_F_IOMMU_PLATFORM,
     VIRTIO_F_NOTIFY_ON_EMPTY,
@@ -201,6 +201,7 @@ static int vhost_vdpa_add(NetClientState *ncs, void *be,
     options.opaque      = be;
     options.busyloop_timeout = 0;
     options.nvqs = nvqs;
+    options.feature_bits = vdpa_feature_bits;
 
     net = vhost_net_init(&options);
     if (!net) {
