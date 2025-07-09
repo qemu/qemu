@@ -353,17 +353,15 @@ static int net_select_and_load_kernel(filename_ip_t *fn_ip,
     return load_kernel_with_initrd(fn_ip, &entries[selected]);
 }
 
-#define MAX_PXELINUX_ENTRIES 16
-
 static int net_try_pxelinux_cfg(filename_ip_t *fn_ip)
 {
-    struct pl_cfg_entry entries[MAX_PXELINUX_ENTRIES];
+    struct pl_cfg_entry entries[MAX_BOOT_ENTRIES];
     int num_ent, def_ent = 0;
 
     num_ent = pxelinux_load_parse_cfg(fn_ip, mac, get_uuid(),
                                       DEFAULT_TFTP_RETRIES,
                                       cfgbuf, sizeof(cfgbuf),
-                                      entries, MAX_PXELINUX_ENTRIES, &def_ent);
+                                      entries, MAX_BOOT_ENTRIES, &def_ent);
 
     return net_select_and_load_kernel(fn_ip, num_ent, def_ent, entries);
 }
@@ -446,11 +444,11 @@ static int net_try_direct_tftp_load(filename_ip_t *fn_ip)
          * a magic comment string.
          */
         if (!strncasecmp("# pxelinux", cfgbuf, 10)) {
-            struct pl_cfg_entry entries[MAX_PXELINUX_ENTRIES];
+            struct pl_cfg_entry entries[MAX_BOOT_ENTRIES];
             int num_ent, def_ent = 0;
 
             num_ent = pxelinux_parse_cfg(cfgbuf, sizeof(cfgbuf), entries,
-                                         MAX_PXELINUX_ENTRIES, &def_ent);
+                                         MAX_BOOT_ENTRIES, &def_ent);
             return net_select_and_load_kernel(fn_ip, num_ent, def_ent,
                                               entries);
         }
