@@ -19,7 +19,7 @@
 #include "tcg/tcg.h"
 #include "internal-common.h"
 #include "tb-context.h"
-
+#include <math.h>
 
 static void dump_drift_info(GString *buf)
 {
@@ -57,6 +57,7 @@ static void print_qht_statistics(struct qht_stats hst, GString *buf)
     uint32_t hgram_opts;
     size_t hgram_bins;
     char *hgram;
+    double avg;
 
     if (!hst.head_buckets) {
         return;
@@ -73,9 +74,13 @@ static void print_qht_statistics(struct qht_stats hst, GString *buf)
         hgram_opts |= QDIST_PR_NODECIMAL;
     }
     hgram = qdist_pr(&hst.occupancy, 10, hgram_opts);
-    g_string_append_printf(buf, "TB hash occupancy   %0.2f%% avg chain occ. "
-                           "Histogram: %s\n",
-                           qdist_avg(&hst.occupancy) * 100, hgram);
+    avg = qdist_avg(&hst.occupancy);
+    if (!isnan(avg)) {
+        g_string_append_printf(buf, "TB hash occupancy   "
+                                    "%0.2f%% avg chain occ. "
+                                    "Histogram: %s\n",
+                               avg * 100, hgram);
+    }
     g_free(hgram);
 
     hgram_opts = QDIST_PR_BORDER | QDIST_PR_LABELS;
@@ -87,9 +92,12 @@ static void print_qht_statistics(struct qht_stats hst, GString *buf)
         hgram_opts |= QDIST_PR_NODECIMAL | QDIST_PR_NOBINRANGE;
     }
     hgram = qdist_pr(&hst.chain, hgram_bins, hgram_opts);
-    g_string_append_printf(buf, "TB hash avg chain   %0.3f buckets. "
-                           "Histogram: %s\n",
-                           qdist_avg(&hst.chain), hgram);
+    avg = qdist_avg(&hst.chain);
+    if (!isnan(avg)) {
+        g_string_append_printf(buf, "TB hash avg chain   %0.3f buckets. "
+                                    "Histogram: %s\n",
+                               avg, hgram);
+    }
     g_free(hgram);
 }
 
