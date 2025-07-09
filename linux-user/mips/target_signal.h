@@ -64,7 +64,6 @@ typedef struct target_sigaltstack {
 #define TARGET_SA_NODEFER       0x40000000
 #define TARGET_SA_RESTART       0x10000000
 #define TARGET_SA_RESETHAND     0x80000000
-#define TARGET_SA_RESTORER      0x04000000      /* Only for O32 */
 
 #define TARGET_MINSIGSTKSZ    2048
 
