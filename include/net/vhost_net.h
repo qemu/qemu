@@ -16,6 +16,7 @@ typedef struct VhostNetOptions {
     uint32_t busyloop_timeout;
     unsigned int nvqs;
     const int *feature_bits;
+    int max_tx_queue_size;
     GetAckedFeatures *get_acked_features;
     SaveAcketFeatures *save_acked_features;
     void *opaque;

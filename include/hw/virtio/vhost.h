@@ -145,6 +145,7 @@ struct vhost_net {
     struct vhost_virtqueue vqs[2];
     int backend;
     const int *feature_bits;
+    int max_tx_queue_size;
     SaveAcketFeatures *save_acked_features;
     NetClientState *nc;
 };

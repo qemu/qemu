@@ -245,6 +245,7 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
     net->dev.nvqs = options->nvqs;
     net->feature_bits = options->feature_bits;
     net->save_acked_features = options->save_acked_features;
+    net->max_tx_queue_size = options->max_tx_queue_size;
 
     net->dev.max_queues = 1;
     net->dev.vqs = net->vqs;
