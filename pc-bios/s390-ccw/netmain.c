@@ -332,6 +332,28 @@ static int load_kernel_with_initrd(filename_ip_t *fn_ip,
     return rc;
 }
 
+static int net_boot_menu(int num_ent, int def_ent,
+                         struct pl_cfg_entry *entries)
+{
+    bool valid_entries[MAX_BOOT_ENTRIES] = { false };
+    int idx;
+
+    puts("\ns390-ccw pxelinux.cfg boot menu:\n");
+    printf(" [0] default (%d)\n", def_ent + 1);
+    valid_entries[0] = true;
+
+    for (idx = 1; idx <= num_ent; idx++) {
+        printf(" [%d] %s\n", idx, entries[idx - 1].label);
+        valid_entries[idx] = true;
+    }
+    putchar('\n');
+
+    idx = menu_get_boot_index(valid_entries);
+    putchar('\n');
+
+    return idx;
+}
+
 static int net_select_and_load_kernel(filename_ip_t *fn_ip,
                                       int num_ent, int selected,
                                       struct pl_cfg_entry *entries)
@@ -340,6 +362,10 @@ static int net_select_and_load_kernel(filename_ip_t *fn_ip,
 
     if (num_ent <= 0) {
         return -1;
+    }
+
+    if (menu_is_enabled_enum() && num_ent > 1) {
+        loadparm = net_boot_menu(num_ent, selected, entries);
     }
 
     IPL_assert(loadparm <= num_ent,
