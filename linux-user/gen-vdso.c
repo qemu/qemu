@@ -113,9 +113,16 @@ int main(int argc, char **argv)
      * We expect the vdso to be small, on the order of one page,
      * therefore we do not expect a partial read.
      */
-    fseek(inf, 0, SEEK_END);
+    if (fseek(inf, 0, SEEK_END) < 0) {
+        goto perror_inf;
+    }
     total_len = ftell(inf);
-    fseek(inf, 0, SEEK_SET);
+    if (total_len < 0) {
+        goto perror_inf;
+    }
+    if (fseek(inf, 0, SEEK_SET) < 0) {
+        goto perror_inf;
+    }
 
     buf = malloc(total_len);
     if (buf == NULL) {
