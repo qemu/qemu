@@ -46,7 +46,11 @@ int qcrypto_get_x509_cert_fingerprint(uint8_t *cert, size_t size,
         return -1;
     }
 
-    gnutls_x509_crt_init(&crt);
+    if (gnutls_x509_crt_init(&crt) < 0) {
+        error_setg(errp, "Unable to initialize certificate: %s",
+                   gnutls_strerror(ret));
+        return -1;
+    }
 
     if (gnutls_x509_crt_import(crt, &datum, GNUTLS_X509_FMT_PEM) != 0) {
         error_setg(errp, "Failed to import certificate");
