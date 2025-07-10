@@ -384,9 +384,9 @@ static uint64_t get_table_index(uint64_t iova, int8_t ett)
         return calc_sx(iova);
     case ZPCI_ETT_RT:
         return calc_rtx(iova);
+    default:
+        g_assert_not_reached();
     }
-
-    return -1;
 }
 
 static bool entry_isvalid(uint64_t entry, int8_t ett)
@@ -397,22 +397,24 @@ static bool entry_isvalid(uint64_t entry, int8_t ett)
     case ZPCI_ETT_ST:
     case ZPCI_ETT_RT:
         return rt_entry_isvalid(entry);
+    default:
+        g_assert_not_reached();
     }
-
-    return false;
 }
 
 /* Return true if address translation is done */
 static bool translate_iscomplete(uint64_t entry, int8_t ett)
 {
     switch (ett) {
-    case 0:
+    case ZPCI_ETT_ST:
         return (entry & ZPCI_TABLE_FC) ? true : false;
-    case 1:
+    case ZPCI_ETT_RT:
         return false;
+    case ZPCI_ETT_PT:
+        return true;
+    default:
+        g_assert_not_reached();
     }
-
-    return true;
 }
 
 static uint64_t get_frame_size(int8_t ett)
@@ -424,9 +426,9 @@ static uint64_t get_frame_size(int8_t ett)
         return 1ULL << 20;
     case ZPCI_ETT_RT:
         return 1ULL << 31;
+    default:
+        g_assert_not_reached();
     }
-
-    return 0;
 }
 
 static uint64_t get_next_table_origin(uint64_t entry, int8_t ett)
@@ -438,9 +440,9 @@ static uint64_t get_next_table_origin(uint64_t entry, int8_t ett)
         return get_st_pto(entry);
     case ZPCI_ETT_RT:
         return get_rt_sto(entry);
+    default:
+        g_assert_not_reached();
     }
-
-    return 0;
 }
 
 /**
