@@ -26,43 +26,48 @@ and standby devices are not plugged into the same PCIe slot.
 Usecase
 -------
 
-  Virtio-net standby allows easy migration while using a passed-through fast
-  networking device by falling back to a virtio-net device for the duration of
-  the migration. It is like a simple version of a bond, the difference is that it
-  requires no configuration in the guest. When a guest is live-migrated to
-  another host QEMU will unplug the primary device via the PCIe based hotplug
-  handler and traffic will go through the virtio-net device.  On the target
-  system the primary device will be automatically plugged back and the
-  net_failover module registers it again as the primary device.
+Virtio-net standby allows easy migration while using a passed-through
+fast networking device by falling back to a virtio-net device for the
+duration of the migration. It is like a simple version of a bond, the
+difference is that it requires no configuration in the guest. When a
+guest is live-migrated to another host QEMU will unplug the primary
+device via the PCIe based hotplug handler and traffic will go through
+the virtio-net device. On the target system the primary device will be
+automatically plugged back and the net_failover module registers it
+again as the primary device.
 
 Usage
 -----
 
-  The primary device can be hotplugged or be part of the startup configuration
+The primary device can be hotplugged or be part of the startup configuration
 
-  -device virtio-net-pci,netdev=hostnet1,id=net1,mac=52:54:00:6f:55:cc, \
-    bus=root2,failover=on
+.. code-block:: shell
 
-  With the parameter failover=on the VIRTIO_NET_F_STANDBY feature will be enabled.
+  -device virtio-net-pci,netdev=hostnet1,id=net1,mac=52:54:00:6f:55:cc,bus=root2,failover=on
+
+With the parameter ``failover=on`` the VIRTIO_NET_F_STANDBY feature will be enabled.
+
+.. code-block:: shell
 
   -device vfio-pci,host=5e:00.2,id=hostdev0,bus=root1,failover_pair_id=net1
 
-  failover_pair_id references the id of the virtio-net standby device. This
-  is only for pairing the devices within QEMU. The guest kernel module
-  net_failover will match devices with identical MAC addresses.
+``failover_pair_id`` references the id of the virtio-net standby device.
+This is only for pairing the devices within QEMU. The guest kernel
+module net_failover will match devices with identical MAC addresses.
 
 Hotplug
 -------
 
-  Both primary and standby device can be hotplugged via the QEMU monitor.  Note
-  that if the virtio-net device is plugged first a warning will be issued that it
-  couldn't find the primary device.
+Both primary and standby device can be hotplugged via the QEMU
+monitor. Note that if the virtio-net device is plugged first a warning
+will be issued that it couldn't find the primary device.
 
 Migration
 ---------
 
-  A new migration state wait-unplug was added for this feature. If failover primary
-  devices are present in the configuration, migration will go into this state.
-  It will wait until the device unplug is completed in the guest and then move into
-  active state. On the target system the primary devices will be automatically hotplugged
-  when the feature bit was negotiated for the virtio-net standby device.
+A new migration state wait-unplug was added for this feature. If
+failover primary devices are present in the configuration, migration
+will go into this state. It will wait until the device unplug is
+completed in the guest and then move into active state. On the target
+system the primary devices will be automatically hotplugged when the
+feature bit was negotiated for the virtio-net standby device.
