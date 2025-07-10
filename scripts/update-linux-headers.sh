@@ -156,11 +156,6 @@ EOF
         cp "$hdrdir/include/asm/unistd_32.h" "$output/linux-headers/asm-s390/"
         cp "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-s390/"
     fi
-    if [ $arch = arm ]; then
-        cp "$hdrdir/include/asm/unistd-eabi.h" "$output/linux-headers/asm-arm/"
-        cp "$hdrdir/include/asm/unistd-oabi.h" "$output/linux-headers/asm-arm/"
-        cp "$hdrdir/include/asm/unistd-common.h" "$output/linux-headers/asm-arm/"
-    fi
     if [ $arch = arm64 ]; then
         cp "$hdrdir/include/asm/sve_context.h" "$output/linux-headers/asm-arm64/"
         cp "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-arm64/"
