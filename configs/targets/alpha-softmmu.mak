@@ -1,2 +1,3 @@
 TARGET_ARCH=alpha
 TARGET_LONG_BITS=64
+TARGET_XML_FILES= gdb-xml/alpha-core.xml
