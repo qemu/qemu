@@ -124,6 +124,11 @@ int main(int argc, char **argv)
         goto perror_inf;
     }
 
+    if (total_len < EI_NIDENT) {
+        fprintf(stderr, "%s: file too small (truncated?)\n", inf_name);
+        return EXIT_FAILURE;
+    }
+
     buf = malloc(total_len);
     if (buf == NULL) {
         goto perror_inf;
