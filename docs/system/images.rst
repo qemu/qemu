@@ -30,7 +30,7 @@ Snapshot mode
 If you use the option ``-snapshot``, all disk images are considered as
 read only. When sectors in written, they are written in a temporary file
 created in ``/tmp``. You can however force the write back to the raw
-disk images by using the ``commit`` monitor command (or C-a s in the
+disk images by using the ``commit`` monitor command (or :kbd:`Ctrl+a s` in the
 serial console).
 
 .. _vm_005fsnapshots:
