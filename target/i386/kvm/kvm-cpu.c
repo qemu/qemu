@@ -111,6 +111,8 @@ static void kvm_cpu_max_instance_init(X86CPU *cpu)
 
     host_cpu_max_instance_init(cpu);
 
+    object_property_set_bool(OBJECT(cpu), "pmu", true, &error_abort);
+
     if (lmce_supported()) {
         object_property_set_bool(OBJECT(cpu), "lmce", true, &error_abort);
     }

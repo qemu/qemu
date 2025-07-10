@@ -6199,21 +6199,21 @@ static void max_x86_cpu_class_init(ObjectClass *oc, const void *data)
 static void max_x86_cpu_initfn(Object *obj)
 {
     X86CPU *cpu = X86_CPU(obj);
-
-    /* We can't fill the features array here because we don't know yet if
-     * "migratable" is true or false.
-     */
-    object_property_set_bool(OBJECT(cpu), "pmu", true, &error_abort);
+    CPUX86State *env = &cpu->env;
 
     /*
-     * these defaults are used for TCG and all other accelerators
-     * besides KVM and HVF, which overwrite these values
+     * these defaults are used for TCG, other accelerators overwrite these
+     * values
      */
-    object_property_set_str(OBJECT(cpu), "vendor", CPUID_VENDOR_AMD,
-                            &error_abort);
-    object_property_set_str(OBJECT(cpu), "model-id",
-                            "QEMU TCG CPU version " QEMU_HW_VERSION,
-                            &error_abort);
+    if (!env->cpuid_vendor1) {
+        object_property_set_str(OBJECT(cpu), "vendor", CPUID_VENDOR_AMD,
+                                &error_abort);
+    }
+    if (!env->cpuid_model[0]) {
+        object_property_set_str(OBJECT(cpu), "model-id",
+                                "QEMU TCG CPU version " QEMU_HW_VERSION,
+                                &error_abort);
+    }
 }
 
 static const TypeInfo max_x86_cpu_type_info = {
