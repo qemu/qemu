@@ -30,7 +30,7 @@ def extract_build_units(cc_path):
     return build_units
 
 
-def analyse_units(build_units):
+def analyse_units(build_units, top_n):
     """
     Analyse the build units and report stats and the top 10 rebuilds
     """
@@ -44,7 +44,7 @@ def analyse_units(build_units):
                                 reverse=True)
 
     print("Most rebuilt units:")
-    for unit, count in sorted_build_units[:20]:
+    for unit, count in sorted_build_units[:top_n]:
         print(f"  {unit} built {count} times")
 
     print("Least rebuilt units:")
@@ -57,12 +57,14 @@ if __name__ == "__main__":
         description="analyse number of build units in compile_commands.json")
     parser.add_argument("cc_path", type=Path, default=None,
                         help="Path to compile_commands.json")
+    parser.add_argument("-n", type=int, default=20,
+                        help="Dump the top <n> entries")
 
     args = parser.parse_args()
 
     if path.isfile(args.cc_path) and access(args.cc_path, R_OK):
         units = extract_build_units(args.cc_path)
-        analyse_units(units)
+        analyse_units(units, args.n)
         exit(0)
     else:
         print(f"{args.cc_path} doesn't exist or isn't readable")
