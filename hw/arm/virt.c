@@ -797,6 +797,13 @@ static void create_gic(VirtMachineState *vms, MemoryRegion *mem)
     default:
         g_assert_not_reached();
     }
+
+    if (kvm_enabled() && vms->virt &&
+        (revision != 3 || !kvm_irqchip_in_kernel())) {
+        error_report("KVM EL2 is only supported with in-kernel GICv3");
+        exit(1);
+    }
+
     vms->gic = qdev_new(gictype);
     qdev_prop_set_uint32(vms->gic, "revision", revision);
     qdev_prop_set_uint32(vms->gic, "num-cpu", smp_cpus);
@@ -2092,6 +2099,10 @@ static void virt_post_cpus_gic_realized(VirtMachineState *vms,
             memory_region_init_ram(pvtime, NULL, "pvtime", pvtime_size, NULL);
             memory_region_add_subregion(sysmem, pvtime_reg_base, pvtime);
         }
+        if (!aarch64 && vms->virt) {
+            error_report("KVM does not support EL2 on an AArch32 vCPU");
+            exit(1);
+        }
 
         CPU_FOREACH(cpu) {
             if (pmu) {
@@ -2237,7 +2248,13 @@ static void machvirt_init(MachineState *machine)
         exit(1);
     }
 
-    if (vms->virt && !tcg_enabled() && !qtest_enabled()) {
+    if (vms->virt && kvm_enabled() && !kvm_arm_el2_supported()) {
+        error_report("mach-virt: host kernel KVM does not support providing "
+                     "Virtualization extensions to the guest CPU");
+        exit(1);
+    }
+
+    if (vms->virt && !kvm_enabled() && !tcg_enabled() && !qtest_enabled()) {
         error_report("mach-virt: %s does not support providing "
                      "Virtualization extensions to the guest CPU",
                      current_accel_name());
