@@ -1321,7 +1321,8 @@ void tdx_handle_setup_event_notify_interrupt(X86CPU *cpu, struct kvm_run *run)
 }
 
 static void tdx_panicked_on_fatal_error(X86CPU *cpu, uint64_t error_code,
-                                        char *message, uint64_t gpa)
+                                        char *message, bool has_gpa,
+                                        uint64_t gpa)
 {
     GuestPanicInformation *panic_info;
 
@@ -1330,6 +1331,7 @@ static void tdx_panicked_on_fatal_error(X86CPU *cpu, uint64_t error_code,
     panic_info->u.tdx.error_code = (uint32_t) error_code;
     panic_info->u.tdx.message = message;
     panic_info->u.tdx.gpa = gpa;
+    panic_info->u.tdx.has_gpa = has_gpa;
 
     qemu_system_guest_panicked(panic_info);
 }
@@ -1349,6 +1351,7 @@ int tdx_handle_report_fatal_error(X86CPU *cpu, struct kvm_run *run)
     char *message = NULL;
     uint64_t *tmp;
     uint64_t gpa = -1ull;
+    bool has_gpa = false;
 
     if (error_code & 0xffff) {
         error_report("TDX: REPORT_FATAL_ERROR: invalid error code: 0x%"PRIx64,
@@ -1381,9 +1384,10 @@ int tdx_handle_report_fatal_error(X86CPU *cpu, struct kvm_run *run)
 
     if (error_code & TDX_REPORT_FATAL_ERROR_GPA_VALID) {
         gpa = run->system_event.data[R_R13];
+        has_gpa = true;
     }
 
-    tdx_panicked_on_fatal_error(cpu, error_code, message, gpa);
+    tdx_panicked_on_fatal_error(cpu, error_code, message, has_gpa, gpa);
 
     return -1;
 }
