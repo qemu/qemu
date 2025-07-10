@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "qemu/plugin.h"
+#include "accel/tcg/vcpu-state.h"
 #include "qemu.h"
 
 /*
