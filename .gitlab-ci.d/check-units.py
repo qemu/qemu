@@ -8,8 +8,10 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from os import access, R_OK, path
-from sys import argv, exit
+from sys import exit
 import json
+import argparse
+from pathlib import Path
 from collections import Counter
 
 
@@ -51,16 +53,17 @@ def analyse_units(build_units):
 
 
 if __name__ == "__main__":
-    if len(argv) != 2:
-        script_name = path.basename(argv[0])
-        print(f"Usage: {script_name} <path_to_compile_commands.json>")
-        exit(1)
+    parser = argparse.ArgumentParser(
+        description="analyse number of build units in compile_commands.json")
+    parser.add_argument("cc_path", type=Path, default=None,
+                        help="Path to compile_commands.json")
 
-    cc_path = argv[1]
-    if path.isfile(cc_path) and access(cc_path, R_OK):
-        units = extract_build_units(cc_path)
+    args = parser.parse_args()
+
+    if path.isfile(args.cc_path) and access(args.cc_path, R_OK):
+        units = extract_build_units(args.cc_path)
         analyse_units(units)
         exit(0)
     else:
-        print(f"{cc_path} doesn't exist or isn't readable")
+        print(f"{args.cc_path} doesn't exist or isn't readable")
         exit(1)
