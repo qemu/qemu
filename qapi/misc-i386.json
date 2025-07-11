@@ -163,7 +163,7 @@
 # 'sev-guest' confidential virtualization object.  The launch
 # measurement for SEV-SNP guests is only available within the guest.
 #
-# Returns: The @SevLaunchMeasureInfo for the guest
+# Returns: The guest's SEV guest launch measurement info
 #
 # Errors:
 #     - If the launch measurement is unavailable, either due to an

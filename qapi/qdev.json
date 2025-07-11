@@ -19,8 +19,7 @@
 #
 # @typename: the type name of a device
 #
-# Returns: a list of ObjectPropertyInfo describing a devices
-#     properties
+# Returns: a list describing a devices properties
 #
 # .. note:: Objects can create properties at runtime, for example to
 #    describe links between different devices and/or objects.  These

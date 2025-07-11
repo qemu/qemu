@@ -847,7 +847,7 @@
 #
 # @name: net client name
 #
-# Returns: list of @RxFilterInfo for all NICs (or for the given NIC).
+# Returns: list of info for all NICs (or for the given NIC).
 #
 # Errors:
 #     - if the given @name doesn't exist

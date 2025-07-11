@@ -822,7 +822,7 @@
 #
 # Return information about each active mouse device
 #
-# Returns: a list of @MouseInfo for each device
+# Returns: a list of info for each device
 #
 # Since: 0.14
 #

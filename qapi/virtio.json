@@ -201,7 +201,7 @@
 #
 # @unstable: This command is meant for debugging.
 #
-# Returns: VirtioStatus of the virtio device
+# Returns: Status of the virtio device
 #
 # Since: 7.2
 #
@@ -565,7 +565,7 @@
 #
 # @unstable: This command is meant for debugging.
 #
-# Returns: VirtQueueStatus of the VirtQueue
+# Returns: Status of the queue
 #
 # .. note:: last_avail_idx will not be displayed in the case where the
 #    selected VirtIODevice has a running vhost device and the
@@ -700,7 +700,7 @@
 #
 # @unstable: This command is meant for debugging.
 #
-# Returns: VirtVhostQueueStatus of the vhost_virtqueue
+# Returns: Status of the vhost_virtqueue
 #
 # Since: 7.2
 #

@@ -764,7 +764,7 @@
 #
 # Get a list of BlockInfo for all virtual block devices.
 #
-# Returns: a list of @BlockInfo describing each virtual block device.
+# Returns: a list describing each virtual block device.
 #     Filter nodes that were created implicitly are skipped over.
 #
 # Since: 0.14
@@ -1169,7 +1169,7 @@
 #     nodes that were created implicitly are skipped over in this
 #     mode.  (Since 2.3)
 #
-# Returns: A list of @BlockStats for each virtual block devices.
+# Returns: A list of statistics for each virtual block device.
 #
 # Since: 0.14
 #
@@ -1441,7 +1441,7 @@
 #
 # Return information about long-running block device operations.
 #
-# Returns: a list of @BlockJobInfo for each active block job
+# Returns: a list of job info for each active block job
 #
 # Since: 1.1
 ##

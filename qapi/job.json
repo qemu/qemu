@@ -297,7 +297,7 @@
 #
 # Return information about jobs.
 #
-# Returns: a list with a @JobInfo for each active job
+# Returns: a list with info for each active job
 #
 # Since: 3.0
 ##

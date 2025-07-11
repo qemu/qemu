@@ -55,8 +55,7 @@
 # @path: the path within the object model.  See @qom-get for a
 #     description of this parameter.
 #
-# Returns: a list of @ObjectPropertyInfo that describe the properties
-#     of the object.
+# Returns: a list that describe the properties of the object.
 #
 # Since: 1.2
 #
@@ -178,8 +177,7 @@
 #
 # @abstract: if true, include abstract types in the results
 #
-# Returns: a list of @ObjectTypeInfo or an empty list if no results
-#     are found
+# Returns: a list of types, or an empty list if no results are found
 #
 # Since: 1.1
 ##
@@ -199,7 +197,7 @@
 #    describe links between different devices and/or objects.  These
 #    properties are not included in the output of this command.
 #
-# Returns: a list of ObjectPropertyInfo describing object properties
+# Returns: a list describing object properties
 #
 # Since: 2.12
 ##

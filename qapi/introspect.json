@@ -36,10 +36,10 @@
 # string into a specific enum or from one specific type into an
 # alternate that includes the original type alongside something else.
 #
-# Returns: array of @SchemaInfo, where each element describes an
-#     entity in the ABI: command, event, type, ...
+# Returns: an array where each element describes an entity in the ABI:
+#     command, event, type, ...
 #
-#     The order of the various SchemaInfo is unspecified; however, all
+#     The order of the various elements is unspecified; however, all
 #     names are guaranteed to be unique (no name will be duplicated
 #     with different meta-types).
 #

@@ -148,7 +148,7 @@
 #
 # Query latest dump status.
 #
-# Returns: A @DumpStatus object showing the dump status.
+# Returns: An object showing the dump status.
 #
 # Since: 2.6
 #
@@ -199,8 +199,7 @@
 #
 # Return the available formats for dump-guest-memory
 #
-# Returns: A @DumpGuestMemoryCapability object listing available
-#     formats for dump-guest-memory
+# Returns: An object listing available formats for dump-guest-memory
 #
 # Since: 2.0
 #

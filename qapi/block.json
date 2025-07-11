@@ -89,7 +89,7 @@
 # Return a list of information about each persistent reservation
 # manager.
 #
-# Returns: a list of @PRManagerInfo for each persistent reservation
+# Returns: a list of manager info for each persistent reservation
 #     manager
 #
 # Since: 3.0

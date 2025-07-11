@@ -473,7 +473,7 @@
 ##
 # @query-block-exports:
 #
-# Returns: A list of BlockExportInfo describing all block exports
+# Returns: A list describing all block exports
 #
 # Since: 5.2
 ##

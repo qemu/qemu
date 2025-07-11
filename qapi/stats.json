@@ -188,7 +188,7 @@
 # The arguments are a StatsFilter and specify the provider and objects
 # to return statistics about.
 #
-# Returns: a list of StatsResult, one for each provider and object
+# Returns: a list of statistics, one for each provider and object
 #     (e.g., for each vCPU).
 #
 # Since: 7.1

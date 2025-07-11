@@ -95,8 +95,7 @@
 #
 # Return the current version of QEMU.
 #
-# Returns: A @VersionInfo object describing the current version of
-#     QEMU.
+# Returns: An object describing the current version of QEMU.
 #
 # Since: 0.14
 #
@@ -133,7 +132,7 @@
 #
 # Return a list of supported QMP commands by this server
 #
-# Returns: A list of @CommandInfo for all supported commands
+# Returns: A list of all supported commands
 #
 # Since: 0.14
 #
