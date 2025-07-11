@@ -132,8 +132,6 @@
 # @enabled field is set to 'false' and the state of all other fields
 # is unspecified.
 #
-# Returns: @SevInfo
-#
 # Since: 2.12
 #
 # .. qmp-example::
@@ -214,8 +212,6 @@
 #
 # This is only supported on AMD X86 platforms with KVM enabled.
 #
-# Returns: SevCapability objects.
-#
 # Errors:
 #     - If SEV is not available on the platform, GenericError
 #
@@ -280,8 +276,6 @@
 # @mnonce: a random 16 bytes value encoded in base64 (it will be
 #     included in report)
 #
-# Returns: SevAttestationReport objects.
-#
 # Errors:
 #     - If the attestation report is unavailable, either due to an
 #       invalid guest configuration or because the guest has not
@@ -343,8 +337,6 @@
 #
 # Return information about configured SGX capabilities of guest
 #
-# Returns: @SgxInfo
-#
 # Since: 6.2
 #
 # .. qmp-example::
@@ -361,8 +353,6 @@
 # @query-sgx-capabilities:
 #
 # Return information about SGX capabilities of host
-#
-# Returns: @SgxInfo
 #
 # Since: 6.2
 #

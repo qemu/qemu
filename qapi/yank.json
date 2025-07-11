@@ -104,7 +104,7 @@
 #
 # Query yank instances.  See @YankInstance for more information.
 #
-# Returns: list of @YankInstance
+# TODO: This line is a hack to separate the example from the body
 #
 # .. qmp-example::
 #

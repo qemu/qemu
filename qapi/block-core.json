@@ -1951,8 +1951,6 @@
 # @flat: Omit the nested data about backing image ("backing-image"
 #     key) if true.  Default is false (Since 5.0)
 #
-# Returns: the list of BlockDeviceInfo
-#
 # Since: 2.0
 #
 # .. qmp-example::
@@ -2464,9 +2462,6 @@
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns:
-#     BlockDirtyBitmapSha256
 #
 # Errors:
 #     - If @node is not a valid block device, DeviceNotFound
@@ -6202,9 +6197,6 @@
 # @id: optional the snapshot's ID to be deleted
 #
 # @name: optional the snapshot's name to be deleted
-#
-# Returns:
-#     SnapshotInfo
 #
 # Errors:
 #     - If @device is not a valid block device, GenericError

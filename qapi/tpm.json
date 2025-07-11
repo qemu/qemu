@@ -29,8 +29,6 @@
 #
 # Return a list of supported TPM models
 #
-# Returns: a list of TpmModel
-#
 # Since: 1.5
 #
 # .. qmp-example::
@@ -59,8 +57,6 @@
 # @query-tpm-types:
 #
 # Return a list of supported TPM types
-#
-# Returns: a list of TpmType
 #
 # Since: 1.5
 #

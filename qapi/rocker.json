@@ -30,8 +30,6 @@
 #
 # @name: switch name
 #
-# Returns: @Rocker information
-#
 # Since: 2.4
 #
 # .. qmp-example::
@@ -99,8 +97,6 @@
 # Return rocker switch port information.
 #
 # @name: port name
-#
-# Returns: a list of @RockerPort information
 #
 # Since: 2.4
 #

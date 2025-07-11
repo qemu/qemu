@@ -58,8 +58,6 @@
 #
 # Return the name information of a guest.
 #
-# Returns: @NameInfo of the guest
-#
 # Since: 0.14
 #
 # .. qmp-example::
@@ -334,9 +332,6 @@
 #
 # @opaque: A free-form string that can be used to describe the fd.
 #
-# Returns:
-#     @AddfdInfo
-#
 # Errors:
 #     - If file descriptor was not received, GenericError
 #     - If @fdset-id is a negative value, GenericError
@@ -416,8 +411,6 @@
 # @query-fdsets:
 #
 # Return information describing all fd sets.
-#
-# Returns: A list of @FdsetInfo
 #
 # Since: 1.2
 #
