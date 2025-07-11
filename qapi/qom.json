@@ -52,7 +52,7 @@
 #
 # List properties of a object given a path in the object model.
 #
-# @path: the path within the object model.  See @qom-get for a
+# @path: the path within the object model.  See `qom-get` for a
 #     description of this parameter.
 #
 # Returns: a list that describe the properties of the object.
@@ -129,12 +129,12 @@
 #
 # Set a property value.
 #
-# @path: see @qom-get for a description of this parameter
+# @path: see `qom-get` for a description of this parameter
 #
 # @property: the property name to set
 #
 # @value: a value who's type is appropriate for the property type.
-#     See @qom-get for a description of type mapping.
+#     See `qom-get` for a description of type mapping.
 #
 # Since: 1.2
 #
@@ -153,7 +153,7 @@
 ##
 # @ObjectTypeInfo:
 #
-# This structure describes a search result from @qom-list-types
+# This structure describes a search result from `qom-list-types`
 #
 # @name: the type name found in the search
 #
@@ -192,6 +192,7 @@
 # List properties associated with a QOM object.
 #
 # @typename: the type name of an object
+#
 #
 # .. note:: Objects can create properties at runtime, for example to
 #    describe links between different devices and/or objects.  These
@@ -787,7 +788,7 @@
 #
 # Properties for x-remote-object objects.
 #
-# @fd: file descriptor name previously passed via 'getfd' command
+# @fd: file descriptor name previously passed via `getfd` command
 #
 # @devid: the id of the device to be associated with the file
 #     descriptor
@@ -816,7 +817,7 @@
 #
 # Properties for iommufd objects.
 #
-# @fd: file descriptor name previously passed via 'getfd' command,
+# @fd: file descriptor name previously passed via `getfd` command,
 #     which represents a pre-opened /dev/iommu.  This allows the
 #     iommufd object to be shared across several subsystems (VFIO,
 #     VDPA, ...), and the file descriptor to be shared with other
