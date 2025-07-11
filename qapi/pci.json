@@ -85,7 +85,7 @@
 #
 # @bus: information about the bus the device resides on
 #
-# @devices: a list of @PciDeviceInfo for each device on this bridge
+# @devices: a list of `PciDeviceInfo` for each device on this bridge
 #
 # Since: 0.14
 ##
