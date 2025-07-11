@@ -41,7 +41,7 @@
 ##
 # @SetPasswordOptions:
 #
-# Options for set_password.
+# Options for `set_password`.
 #
 # @protocol:
 #     - 'vnc' to modify the VNC server password
@@ -65,7 +65,7 @@
 ##
 # @SetPasswordOptionsVnc:
 #
-# Options for set_password specific to the VNC protocol.
+# Options for `set_password` specific to the VNC protocol.
 #
 # @display: The id of the display where the password should be
 #     changed.  Defaults to the first.
@@ -96,7 +96,7 @@
 ##
 # @ExpirePasswordOptions:
 #
-# General options for expire_password.
+# General options for `expire_password`.
 #
 # @protocol:
 #     - 'vnc' to modify the VNC server expiration
@@ -126,7 +126,7 @@
 ##
 # @ExpirePasswordOptionsVnc:
 #
-# Options for expire_password specific to the VNC protocol.
+# Options for `expire_password` specific to the VNC protocol.
 #
 # @display: The id of the display where the expiration should be
 #     changed.  Defaults to the first.
@@ -185,7 +185,7 @@
 #     the head can only be specified in conjunction with the device
 #     ID.  (Since 2.12)
 #
-# @format: image format for screendump.  (default: ppm) (Since 7.1)
+# @format: image format for `screendump`.  (default: ppm) (Since 7.1)
 #
 # Since: 0.14
 #
@@ -313,7 +313,7 @@
 #     unknown if spice server doesn't provide this information.
 #     (since: 1.1)
 #
-# @channels: a list of @SpiceChannel for each active spice channel
+# @channels: a list of `SpiceChannel` for each active spice channel
 #
 # Since: 0.14
 ##
@@ -563,7 +563,7 @@
 #     - 'vencrypt+x509+sasl' if VEncrypt is used with x509 and SASL
 #       auth
 #
-# @clients: a list of @VncClientInfo of all currently connected
+# @clients: a list of `VncClientInfo` of all currently connected
 #     clients
 #
 # Since: 0.14
@@ -626,12 +626,12 @@
 #
 # @id: vnc server name.
 #
-# @server: A list of @VncBasincInfo describing all listening sockets.
+# @server: A list of `VncBasicInfo` describing all listening sockets.
 #     The list can be empty (in case the vnc server is disabled).  It
 #     also may have multiple entries: normal + websocket, possibly
 #     also ipv4 + ipv6 in the future.
 #
-# @clients: A list of @VncClientInfo of all currently connected
+# @clients: A list of `VncClientInfo` of all currently connected
 #     clients.  The list can be empty, for obvious reasons.
 #
 # @auth: The current authentication type used by the non-websockets
@@ -852,7 +852,7 @@
 #
 # An enumeration of key name.
 #
-# This is used by the @send-key command.
+# This is used by the `send-key` command.
 #
 # @unmapped: since 2.0
 #
@@ -1023,10 +1023,10 @@
 #
 # Send keys to guest.
 #
-# @keys: An array of @KeyValue elements.  All @KeyValues in this array
-#     are simultaneously sent to the guest.  A @KeyValue.number value
-#     is sent directly to the guest, while @KeyValue.qcode must be a
-#     valid @QKeyCode value
+# @keys: An array of `KeyValue` elements.  All @KeyValues in this array
+#     are simultaneously sent to the guest.  A `KeyValue`.number value
+#     is sent directly to the guest, while `KeyValue`.qcode must be a
+#     valid `QKeyCode` value
 #
 # @hold-time: time to delay key up events, milliseconds.  Defaults to
 #     100
@@ -1263,7 +1263,7 @@
 # @head: head to send event(s) to, in case the display device supports
 #     multiple scanouts.
 #
-# @events: List of InputEvent union.
+# @events: List of `InputEvent` union.
 #
 # Since: 2.6
 #
@@ -1367,7 +1367,7 @@
 #     first available node on the host.
 #
 # @p2p: Whether to use peer-to-peer connections (accepted through
-#     @add_client).
+#     `add_client`).
 #
 # @audiodev: Use the specified DBus audiodev to export audio.
 #
@@ -1526,7 +1526,7 @@
 #
 # Display (user interface) options.
 #
-# @type: Which DisplayType QEMU should use.
+# @type: Which `DisplayType` QEMU should use.
 #
 # @full-screen: Start user interface in fullscreen mode
 #     (default: off).
