@@ -5393,6 +5393,7 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                 .cache_info = &xeon_srf_cache_info,
                 .props = (PropValue[]) {
                     { "x-force-cpuid-0x1f", "on" },
+                    { /* end of list */ },
                 }
             },
             { /* end of list */ },
