@@ -6548,8 +6548,12 @@ static const X86CPUDefinition builtin_x86_defs[] = {
             },
             {
                 .version = 3,
-                .note = "with the cache model",
+                .note = "with the cache model and 0x1f leaf",
                 .cache_info = &yongfeng_cache_info,
+                .props = (PropValue[]) {
+                    { "x-force-cpuid-0x1f", "on" },
+                    { /* end of list */ },
+                }
             },
             { /* end of list */ }
         }
