@@ -65,6 +65,52 @@ class ObjectPropertyInfo:
         return self.type.startswith('link<')
 
 
+class ObjectPropertyValue:
+    """
+    Represents a property return from e.g. qom-tree-get
+    """
+    def __init__(self, name: str, type_: str, value: object):
+        self.name = name
+        self.type = type_
+        self.value = value
+
+    @classmethod
+    def make(cls, value: Dict[str, Any]) -> 'ObjectPropertyValue':
+        """
+        Build an ObjectPropertyValue from a Dict with an unknown shape.
+        """
+        assert value.keys() >= {'name', 'type'}
+        assert value.keys() <= {'name', 'type', 'value'}
+        return cls(value['name'], value['type'], value.get('value'))
+
+    @property
+    def child(self) -> bool:
+        """Is this property a child property?"""
+        return self.type.startswith('child<')
+
+
+class ObjectPropertiesValues:
+    """
+    Represents the return type from e.g. qom-list-get
+    """
+    # pylint: disable=too-few-public-methods
+
+    def __init__(self, properties: List[ObjectPropertyValue]) -> None:
+        self.properties = properties
+
+    @classmethod
+    def make(cls, value: Dict[str, Any]) -> 'ObjectPropertiesValues':
+        """
+        Build an ObjectPropertiesValues from a Dict with an unknown shape.
+        """
+        assert value.keys() == {'properties'}
+        props = [ObjectPropertyValue(item['name'],
+                                     item['type'],
+                                     item.get('value'))
+                 for item in value['properties']]
+        return cls(props)
+
+
 CommandT = TypeVar('CommandT', bound='QOMCommand')
 
 
@@ -144,6 +190,15 @@ class QOMCommand:
         # qom-list returns List[ObjectPropertyInfo]
         assert isinstance(rsp, list)
         return [ObjectPropertyInfo.make(x) for x in rsp]
+
+    def qom_list_get(self, paths: List[str]) -> List[ObjectPropertiesValues]:
+        """
+        :return: a strongly typed list from the 'qom-list-get' command.
+        """
+        rsp = self.qmp.cmd('qom-list-get', paths=paths)
+        # qom-list-get returns List[ObjectPropertiesValues]
+        assert isinstance(rsp, list)
+        return [ObjectPropertiesValues.make(x) for x in rsp]
 
     @classmethod
     def command_runner(
