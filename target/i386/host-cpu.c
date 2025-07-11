@@ -132,27 +132,27 @@ void host_cpu_instance_init(X86CPU *cpu)
 {
     X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
 
-    if (xcc->model) {
-        char vendor[CPUID_VENDOR_SZ + 1];
-
-        host_cpu_vendor_fms(vendor, NULL, NULL, NULL);
-        object_property_set_str(OBJECT(cpu), "vendor", vendor, &error_abort);
-    }
-}
-
-void host_cpu_max_instance_init(X86CPU *cpu)
-{
     char vendor[CPUID_VENDOR_SZ + 1] = { 0 };
     char model_id[CPUID_MODEL_ID_SZ + 1] = { 0 };
     int family, model, stepping;
 
+    /*
+     * setting vendor applies to both max/host and builtin_x86_defs CPU.
+     * FIXME: this probably should warn or should be skipped if vendors do
+     * not match, because family numbers are incompatible between Intel and AMD.
+     */
+    host_cpu_vendor_fms(vendor, &family, &model, &stepping);
+    object_property_set_str(OBJECT(cpu), "vendor", vendor, &error_abort);
+
+    if (!xcc->max_features) {
+        return;
+    }
+
+    host_cpu_fill_model_id(model_id);
+
     /* Use max host physical address bits if -cpu max option is applied */
     object_property_set_bool(OBJECT(cpu), "host-phys-bits", true, &error_abort);
 
-    host_cpu_vendor_fms(vendor, &family, &model, &stepping);
-    host_cpu_fill_model_id(model_id);
-
-    object_property_set_str(OBJECT(cpu), "vendor", vendor, &error_abort);
     object_property_set_int(OBJECT(cpu), "family", family, &error_abort);
     object_property_set_int(OBJECT(cpu), "model", model, &error_abort);
     object_property_set_int(OBJECT(cpu), "stepping", stepping,

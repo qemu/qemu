@@ -21,8 +21,6 @@ static void hvf_cpu_max_instance_init(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
 
-    host_cpu_max_instance_init(cpu);
-
     env->cpuid_min_level =
         hvf_get_supported_cpuid(0x0, 0, R_EAX);
     env->cpuid_min_xlevel =
