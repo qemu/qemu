@@ -787,11 +787,29 @@ coverity:
     # Always manual on forks even if $QEMU_CI == "2"
     - when: manual
 
-build-wasm:
+build-wasm32:
   extends: .wasm_build_job_template
   timeout: 2h
   needs:
-    job: wasm-emsdk-cross-container
+    job: wasm32-emsdk-cross-container
   variables:
     IMAGE: emsdk-wasm32-cross
-    CONFIGURE_ARGS: --static --disable-tools --enable-debug --enable-tcg-interpreter
+    CONFIGURE_ARGS: --static --cpu=wasm32 --disable-tools --enable-debug --enable-tcg-interpreter
+
+build-wasm-wasm64:
+  extends: .wasm_build_job_template
+  timeout: 2h
+  needs:
+    job: wasm64-emsdk-cross-container
+  variables:
+    IMAGE: emsdk-wasm64-cross
+    CONFIGURE_ARGS: --static --cpu=wasm64 --wasm64-memory64=1 --disable-tools --enable-debug --enable-tcg-interpreter
+
+build-wasm-wasm64l:
+  extends: .wasm_build_job_template
+  timeout: 2h
+  needs:
+    job: wasm64l-emsdk-cross-container
+  variables:
+    IMAGE: emsdk-wasm64l-cross
+    CONFIGURE_ARGS: --static --cpu=wasm64 --wasm64-memory64=2 --disable-tools --enable-debug --enable-tcg-interpreter
