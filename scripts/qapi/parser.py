@@ -804,6 +804,43 @@ class QAPIDoc:
                                % feature.name)
         self.features[feature.name].connect(feature)
 
+    def ensure_returns(self, info: QAPISourceInfo) -> None:
+
+        def _insert_near_kind(
+            kind: QAPIDoc.Kind,
+            new_sect: QAPIDoc.Section,
+            after: bool = False,
+        ) -> bool:
+            for idx, sect in enumerate(reversed(self.all_sections)):
+                if sect.kind == kind:
+                    pos = len(self.all_sections) - idx - 1
+                    if after:
+                        pos += 1
+                    self.all_sections.insert(pos, new_sect)
+                    return True
+            return False
+
+        if any(s.kind == QAPIDoc.Kind.RETURNS for s in self.all_sections):
+            return
+
+        # Stub "Returns" section for undocumented returns value
+        stub = QAPIDoc.Section(info, QAPIDoc.Kind.RETURNS)
+
+        if any(_insert_near_kind(kind, stub, after) for kind, after in (
+                # 1. If arguments, right after those.
+                (QAPIDoc.Kind.MEMBER, True),
+                # 2. Elif errors, right *before* those.
+                (QAPIDoc.Kind.ERRORS, False),
+                # 3. Elif features, right *before* those.
+                (QAPIDoc.Kind.FEATURE, False),
+        )):
+            return
+
+        # Otherwise, it should go right after the intro. The intro
+        # is always the first section and is always present (even
+        # when empty), so we can insert directly at index=1 blindly.
+        self.all_sections.insert(1, stub)
+
     def check_expr(self, expr: QAPIExpression) -> None:
         if 'command' in expr:
             if self.returns and 'returns' not in expr:
