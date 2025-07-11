@@ -275,6 +275,7 @@ static int esp_select(ESPState *s)
     if (!s->current_dev) {
         /* No such drive */
         s->rregs[ESP_RSTAT] = 0;
+        s->asc_mode = ESP_ASC_MODE_DIS;
         s->rregs[ESP_RINTR] = INTR_DC;
         esp_raise_irq(s);
         return -1;
@@ -284,6 +285,7 @@ static int esp_select(ESPState *s)
      * Note that we deliberately don't raise the IRQ here: this will be done
      * either in esp_transfer_data() or esp_command_complete()
      */
+    s->asc_mode = ESP_ASC_MODE_INI;
     return 0;
 }
 
@@ -308,6 +310,7 @@ static void do_command_phase(ESPState *s)
     if (!current_lun) {
         /* No such drive */
         s->rregs[ESP_RSTAT] = 0;
+        s->asc_mode = ESP_ASC_MODE_DIS;
         s->rregs[ESP_RINTR] = INTR_DC;
         s->rregs[ESP_RSEQ] = SEQ_0;
         esp_raise_irq(s);
@@ -1102,6 +1105,7 @@ void esp_hard_reset(ESPState *s)
     fifo8_reset(&s->cmdfifo);
     s->dma = 0;
     s->dma_cb = NULL;
+    s->asc_mode = ESP_ASC_MODE_DIS;
 
     s->rregs[ESP_CFG1] = 7;
 }
@@ -1170,6 +1174,7 @@ static void esp_run_cmd(ESPState *s)
         break;
     case CMD_MSGACC:
         trace_esp_mem_writeb_cmd_msgacc(cmd);
+        s->asc_mode = ESP_ASC_MODE_DIS;
         s->rregs[ESP_RINTR] |= INTR_DC;
         s->rregs[ESP_RSEQ] = 0;
         s->rregs[ESP_RFLAGS] = 0;
@@ -1337,6 +1342,14 @@ static bool esp_is_between_version_5_and_6(void *opaque, int version_id)
     return version_id >= 5 && version_id <= 6;
 }
 
+static bool esp_is_version_8(void *opaque, int version_id)
+{
+    ESPState *s = ESP(opaque);
+
+    version_id = MIN(version_id, s->mig_version_id);
+    return version_id >= 8;
+}
+
 int esp_pre_save(void *opaque)
 {
     ESPState *s = ESP(object_resolve_path_component(
@@ -1368,13 +1381,18 @@ static int esp_post_load(void *opaque, int version_id)
         }
     }
 
+    if (version_id < 8) {
+        /* Assume initiator mode to allow all commands to continue */
+        s->asc_mode = ESP_ASC_MODE_INI;
+    }
+
     s->mig_version_id = vmstate_esp.version_id;
     return 0;
 }
 
 const VMStateDescription vmstate_esp = {
     .name = "esp",
-    .version_id = 7,
+    .version_id = 8,
     .minimum_version_id = 3,
     .post_load = esp_post_load,
     .fields = (const VMStateField[]) {
@@ -1406,6 +1424,7 @@ const VMStateDescription vmstate_esp = {
                            esp_is_between_version_5_and_6),
         VMSTATE_UINT8_TEST(lun, ESPState, esp_is_version_6),
         VMSTATE_BOOL(drq_state, ESPState),
+        VMSTATE_UINT8_TEST(asc_mode, ESPState, esp_is_version_8),
         VMSTATE_END_OF_LIST()
     },
 };
