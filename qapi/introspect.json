@@ -18,11 +18,11 @@
 ##
 # @query-qmp-schema:
 #
-# Command query-qmp-schema exposes the QMP wire ABI as an array of
-# SchemaInfo.  This lets QMP clients figure out what commands and
+# Command `query-qmp-schema` exposes the QMP wire ABI as an array of
+# `SchemaInfo`.  This lets QMP clients figure out what commands and
 # events are available in this QEMU, and their parameters and results.
 #
-# However, the SchemaInfo can't reflect all the rules and restrictions
+# However, the `SchemaInfo` can't reflect all the rules and restrictions
 # that apply to QMP.  It's interface introspection (figuring out
 # what's there), not interface specification.  The specification is in
 # the QAPI schema.
@@ -56,7 +56,7 @@
 ##
 # @SchemaMetaType:
 #
-# This is a @SchemaInfo's meta type, i.e. the kind of entity it
+# This is a `SchemaInfo`'s meta type, i.e. the kind of entity it
 # describes.
 #
 # @builtin: a predefined type such as 'int' or 'bool'.
@@ -82,7 +82,7 @@
 ##
 # @SchemaInfo:
 #
-# @name: the entity's name, inherited from @base.  The SchemaInfo is
+# @name: the entity's name, inherited from @base.  The `SchemaInfo` is
 #     always referenced by this name.  Commands and events have the
 #     name defined in the QAPI schema.  Unlike command and event
 #     names, type names are not part of the wire ABI.  Consequently,
@@ -113,7 +113,7 @@
 ##
 # @SchemaInfoBuiltin:
 #
-# Additional SchemaInfo members for meta-type 'builtin'.
+# Additional `SchemaInfo` members for meta-type 'builtin'.
 #
 # @json-type: the JSON type used for this type on the wire.
 #
@@ -154,7 +154,7 @@
 ##
 # @SchemaInfoEnum:
 #
-# Additional SchemaInfo members for meta-type 'enum'.
+# Additional `SchemaInfo` members for meta-type 'enum'.
 #
 # @members: the enum type's members, in no particular order.
 #     (since 6.2)
@@ -194,7 +194,7 @@
 ##
 # @SchemaInfoArray:
 #
-# Additional SchemaInfo members for meta-type 'array'.
+# Additional `SchemaInfo` members for meta-type 'array'.
 #
 # @element-type: the array type's element type.
 #
@@ -208,7 +208,7 @@
 ##
 # @SchemaInfoObject:
 #
-# Additional SchemaInfo members for meta-type 'object'.
+# Additional `SchemaInfo` members for meta-type 'object'.
 #
 # @members: the object type's (non-variant) members, in no particular
 #     order.
@@ -273,7 +273,7 @@
 ##
 # @SchemaInfoAlternate:
 #
-# Additional SchemaInfo members for meta-type 'alternate'.
+# Additional `SchemaInfo` members for meta-type 'alternate'.
 #
 # @members: the alternate type's members, in no particular order.  The
 #     members' wire encoding is distinct, see
@@ -301,7 +301,7 @@
 ##
 # @SchemaInfoCommand:
 #
-# Additional SchemaInfo members for meta-type 'command'.
+# Additional `SchemaInfo` members for meta-type 'command'.
 #
 # @arg-type: the name of the object type that provides the command's
 #     parameters.
@@ -323,7 +323,7 @@
 ##
 # @SchemaInfoEvent:
 #
-# Additional SchemaInfo members for meta-type 'event'.
+# Additional `SchemaInfo` members for meta-type 'event'.
 #
 # @arg-type: the name of the object type that provides the event's
 #     parameters.

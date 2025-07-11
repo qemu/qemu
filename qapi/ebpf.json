@@ -34,7 +34,7 @@
 ##
 # @EbpfProgramID:
 #
-# The eBPF programs that can be gotten with request-ebpf.
+# The eBPF programs that can be gotten with `request-ebpf`.
 #
 # @rss: Receive side scaling, technology that allows steering traffic
 #     between queues by calculation hash.  Users may set up

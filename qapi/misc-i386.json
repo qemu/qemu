@@ -26,7 +26,7 @@
 ##
 # @SevState:
 #
-# An enumeration of SEV state information used during @query-sev.
+# An enumeration of SEV state information used during `query-sev`.
 #
 # @uninit: The guest is uninitialized.
 #

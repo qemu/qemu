@@ -13,7 +13,7 @@
 #
 # Enable QMP capabilities.
 #
-# @enable: An optional list of QMPCapability values to enable.  The
+# @enable: An optional list of `QMPCapability` values to enable.  The
 #     client must not enable any capability that is not mentioned in
 #     the QMP greeting message.  If the field is not provided, it
 #     means no QMP capabilities will be enabled.  (since 2.12)
