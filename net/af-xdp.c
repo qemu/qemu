@@ -49,7 +49,6 @@ typedef struct AFXDPState {
     char                 *buffer;
     struct xsk_umem      *umem;
 
-    uint32_t             n_queues;
     uint32_t             xdp_flags;
     bool                 inhibit;
 } AFXDPState;
@@ -274,14 +273,6 @@ static void af_xdp_cleanup(NetClientState *nc)
     s->umem = NULL;
     qemu_vfree(s->buffer);
     s->buffer = NULL;
-
-    /* Remove the program if it's the last open queue. */
-    if (!s->inhibit && nc->queue_index == s->n_queues - 1 && s->xdp_flags
-        && bpf_xdp_detach(s->ifindex, s->xdp_flags, NULL) != 0) {
-        fprintf(stderr,
-                "af-xdp: unable to remove XDP program from '%s', ifindex: %d\n",
-                s->ifname, s->ifindex);
-    }
 }
 
 static int af_xdp_umem_create(AFXDPState *s, int sock_fd, Error **errp)
@@ -490,12 +481,9 @@ int net_init_af_xdp(const Netdev *netdev,
 
         pstrcpy(s->ifname, sizeof(s->ifname), opts->ifname);
         s->ifindex = ifindex;
-        s->n_queues = queues;
 
         if (af_xdp_umem_create(s, sock_fds ? sock_fds[i] : -1, errp)
             || af_xdp_socket_create(s, opts, errp)) {
-            /* Make sure the XDP program will be removed. */
-            s->n_queues = i;
             error_propagate(errp, err);
             goto err;
         }
