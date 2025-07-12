@@ -72,44 +72,11 @@ class X86CPUModelAliases(QemuSystemTest):
         self.assertNotIn("EPYC-IBPB-v1", cpus,
                          "EPYC-IBPB shouldn't be versioned")
 
-    def test_4_0_alias_compatibility(self):
-        """
-        Check if pc-*-4.0 unversioned CPU model won't be reported as aliases
-        """
-        self.set_machine('pc-i440fx-4.0')
-        # pc-*-4.0 won't expose non-versioned CPU models as aliases
-        # We do this to help management software to keep compatibility
-        # with older QEMU versions that didn't have the versioned CPU model
-        self.vm.add_args('-S')
-        self.vm.launch()
-        cpus = dict((m['name'], m) for m in
-                    self.vm.cmd('query-cpu-definitions'))
-
-        self.assertFalse(cpus['Cascadelake-Server']['static'],
-                         'unversioned Cascadelake-Server CPU model must not be static')
-        self.assertNotIn('alias-of', cpus['Cascadelake-Server'],
-                         'Cascadelake-Server must not be an alias')
-        self.assertNotIn('alias-of', cpus['Cascadelake-Server-v1'],
-                         'Cascadelake-Server-v1 must not be an alias')
-
-        self.assertFalse(cpus['qemu64']['static'],
-                         'unversioned qemu64 CPU model must not be static')
-        self.assertNotIn('alias-of', cpus['qemu64'],
-                         'qemu64 must not be an alias')
-        self.assertNotIn('alias-of', cpus['qemu64-v1'],
-                         'qemu64-v1 must not be an alias')
-
-        self.validate_variant_aliases(cpus)
-
-        # On pc-*-4.0, no CPU model should be reported as an alias:
-        for name,c in cpus.items():
-            self.assertNotIn('alias-of', c, "%s shouldn't be an alias" % (name))
-
-    def test_4_1_alias(self):
+    def test_unversioned_alias(self):
         """
         Check if unversioned CPU model is an alias pointing to right version
         """
-        self.set_machine('pc-i440fx-4.1')
+        self.set_machine('pc')
         self.vm.add_args('-S')
         self.vm.launch()
 
@@ -133,7 +100,7 @@ class X86CPUModelAliases(QemuSystemTest):
 
         self.validate_variant_aliases(cpus)
 
-        # On pc-*-4.1, -noTSX and -IBRS models should be aliases:
+        # On recent PC machines, -noTSX and -IBRS models should be aliases:
         self.assertEqual(cpus["Haswell"].get('alias-of'),
                          "Haswell-v1",
                          "Haswell must be an alias")
@@ -247,8 +214,8 @@ class CascadelakeArchCapabilities(QemuSystemTest):
         cpu_path = self.vm.cmd('query-cpus-fast')[0].get('qom-path')
         return self.vm.cmd('qom-get', path=cpu_path, property=prop)
 
-    def test_4_1(self):
-        self.set_machine('pc-i440fx-4.1')
+    def test(self):
+        self.set_machine('pc')
         # machine-type only:
         self.vm.add_args('-S')
         self.set_vm_arg('-cpu',
@@ -256,80 +223,27 @@ class CascadelakeArchCapabilities(QemuSystemTest):
                         'enforce=off')
         self.vm.launch()
         self.assertFalse(self.get_cpu_prop('arch-capabilities'),
-                         'pc-i440fx-4.1 + Cascadelake-Server should not have arch-capabilities')
+                         'pc + Cascadelake-Server should not have arch-capabilities')
 
-    def test_4_0(self):
-        self.set_machine('pc-i440fx-4.0')
-        self.vm.add_args('-S')
-        self.set_vm_arg('-cpu',
-                        'Cascadelake-Server,x-force-features=on,check=off,'
-                        'enforce=off')
-        self.vm.launch()
-        self.assertFalse(self.get_cpu_prop('arch-capabilities'),
-                         'pc-i440fx-4.0 + Cascadelake-Server should not have arch-capabilities')
-
-    def test_set_4_0(self):
-        self.set_machine('pc-i440fx-4.0')
-        # command line must override machine-type if CPU model is not versioned:
-        self.vm.add_args('-S')
-        self.set_vm_arg('-cpu',
-                        'Cascadelake-Server,x-force-features=on,check=off,'
-                        'enforce=off,+arch-capabilities')
-        self.vm.launch()
-        self.assertTrue(self.get_cpu_prop('arch-capabilities'),
-                        'pc-i440fx-4.0 + Cascadelake-Server,+arch-capabilities should have arch-capabilities')
-
-    def test_unset_4_1(self):
-        self.set_machine('pc-i440fx-4.1')
+    def test_unset(self):
+        self.set_machine('pc')
         self.vm.add_args('-S')
         self.set_vm_arg('-cpu',
                         'Cascadelake-Server,x-force-features=on,check=off,'
                         'enforce=off,-arch-capabilities')
         self.vm.launch()
         self.assertFalse(self.get_cpu_prop('arch-capabilities'),
-                         'pc-i440fx-4.1 + Cascadelake-Server,-arch-capabilities should not have arch-capabilities')
+                         'pc + Cascadelake-Server,-arch-capabilities should not have arch-capabilities')
 
-    def test_v1_4_0(self):
-        self.set_machine('pc-i440fx-4.0')
-        # versioned CPU model overrides machine-type:
-        self.vm.add_args('-S')
-        self.set_vm_arg('-cpu',
-                        'Cascadelake-Server-v1,x-force-features=on,check=off,'
-                        'enforce=off')
-        self.vm.launch()
-        self.assertFalse(self.get_cpu_prop('arch-capabilities'),
-                         'pc-i440fx-4.0 + Cascadelake-Server-v1 should not have arch-capabilities')
-
-    def test_v2_4_0(self):
-        self.set_machine('pc-i440fx-4.0')
-        self.vm.add_args('-S')
-        self.set_vm_arg('-cpu',
-                        'Cascadelake-Server-v2,x-force-features=on,check=off,'
-                        'enforce=off')
-        self.vm.launch()
-        self.assertTrue(self.get_cpu_prop('arch-capabilities'),
-                        'pc-i440fx-4.0 + Cascadelake-Server-v2 should have arch-capabilities')
-
-    def test_v1_set_4_0(self):
-        self.set_machine('pc-i440fx-4.0')
-        # command line must override machine-type and versioned CPU model:
-        self.vm.add_args('-S')
-        self.set_vm_arg('-cpu',
-                        'Cascadelake-Server-v1,x-force-features=on,check=off,'
-                        'enforce=off,+arch-capabilities')
-        self.vm.launch()
-        self.assertTrue(self.get_cpu_prop('arch-capabilities'),
-                        'pc-i440fx-4.0 + Cascadelake-Server-v1,+arch-capabilities should have arch-capabilities')
-
-    def test_v2_unset_4_1(self):
-        self.set_machine('pc-i440fx-4.1')
+    def test_v2_unset(self):
+        self.set_machine('pc')
         self.vm.add_args('-S')
         self.set_vm_arg('-cpu',
                         'Cascadelake-Server-v2,x-force-features=on,check=off,'
                         'enforce=off,-arch-capabilities')
         self.vm.launch()
         self.assertFalse(self.get_cpu_prop('arch-capabilities'),
-                         'pc-i440fx-4.1 + Cascadelake-Server-v2,-arch-capabilities should not have arch-capabilities')
+                         'pc + Cascadelake-Server-v2,-arch-capabilities should not have arch-capabilities')
 
 if __name__ == '__main__':
     QemuSystemTest.main()
