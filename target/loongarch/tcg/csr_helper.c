@@ -29,7 +29,11 @@ target_ulong helper_csrwr_stlbps(CPULoongArchState *env, target_ulong val)
     if (!check_ps(env, tlb_ps)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "Attempted set ps %d\n", tlb_ps);
+    } else {
+        /* Only update PS field, reserved bit keeps zero */
+        env->CSR_STLBPS = FIELD_DP64(old_v, CSR_STLBPS, PS, tlb_ps);
     }
+
     return old_v;
 }
 
@@ -131,8 +135,8 @@ target_ulong helper_csrwr_pwcl(CPULoongArchState *env, target_ulong val)
     }
     if (!check_ps(env, ptbase)) {
          qemu_log_mask(LOG_GUEST_ERROR,
-                      "Attrmpted set ptbase 2^%d\n", ptbase);
+                      "Attempted set ptbase 2^%d\n", ptbase);
     }
-    env->CSR_PWCL =val;
+    env->CSR_PWCL = val;
     return old_v;
 }

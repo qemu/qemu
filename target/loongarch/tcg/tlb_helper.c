@@ -173,12 +173,6 @@ static void fill_tlb_entry(CPULoongArchState *env, int index)
         lo1 = env->CSR_TLBELO1;
     }
 
-    /*check csr_ps */
-    if (!check_ps(env, csr_ps)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "csr_ps %d is illegal\n", csr_ps);
-        return;
-    }
-
     /* Only MTLB has the ps fields */
     if (index >= LOONGARCH_STLB) {
         tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, PS, csr_ps);
@@ -340,23 +334,16 @@ void helper_tlbfill(CPULoongArchState *env)
 
     if (FIELD_EX64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR)) {
         entryhi = env->CSR_TLBREHI;
+        /* Validity of pagesize is checked in helper_ldpte() */
         pagesize = FIELD_EX64(env->CSR_TLBREHI, CSR_TLBREHI, PS);
     } else {
         entryhi = env->CSR_TLBEHI;
+        /* Validity of pagesize is checked in helper_tlbrd() */
         pagesize = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, PS);
     }
 
-    if (!check_ps(env, pagesize)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "pagesize %d is illegal\n", pagesize);
-        return;
-    }
-
+    /* Validity of stlb_ps is checked in helper_csrwr_stlbps() */
     stlb_ps = FIELD_EX64(env->CSR_STLBPS, CSR_STLBPS, PS);
-    if (!check_ps(env, stlb_ps)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "stlb_ps %d is illegal\n", stlb_ps);
-        return;
-    }
-
     if (pagesize == stlb_ps) {
         /* Only write into STLB bits [47:13] */
         address = entryhi & ~MAKE_64BIT_MASK(0, R_CSR_TLBEHI_64_VPPN_SHIFT);
@@ -611,10 +598,11 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
                   uint32_t mem_idx)
 {
     CPUState *cs = env_cpu(env);
-    target_ulong phys, tmp0, ptindex, ptoffset0, ptoffset1, ps, badv;
+    target_ulong phys, tmp0, ptindex, ptoffset0, ptoffset1, badv;
     uint64_t ptbase = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTBASE);
     uint64_t ptwidth = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTWIDTH);
     uint64_t dir_base, dir_width;
+    uint8_t  ps;
 
     /*
      * The parameter "base" has only two types,
@@ -650,6 +638,11 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
         tmp0 = base;
         if (odd) {
             tmp0 += MAKE_64BIT_MASK(ps, 1);
+        }
+
+        if (!check_ps(env, ps)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "Illegal huge pagesize %d\n", ps);
+            return;
         }
     } else {
         badv = env->CSR_TLBRBADV;

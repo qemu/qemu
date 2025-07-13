@@ -108,6 +108,13 @@ static void loongarch_extioi_common_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static void loongarch_extioi_common_unrealize(DeviceState *dev)
+{
+    LoongArchExtIOICommonState *s = LOONGARCH_EXTIOI_COMMON(dev);
+
+    g_free(s->cpu);
+}
+
 static void loongarch_extioi_common_reset_hold(Object *obj, ResetType type)
 {
     LoongArchExtIOICommonClass *lecc = LOONGARCH_EXTIOI_COMMON_GET_CLASS(obj);
@@ -221,6 +228,8 @@ static void loongarch_extioi_common_class_init(ObjectClass *klass,
 
     device_class_set_parent_realize(dc, loongarch_extioi_common_realize,
                                     &lecc->parent_realize);
+    device_class_set_parent_unrealize(dc, loongarch_extioi_common_unrealize,
+                                      &lecc->parent_unrealize);
     resettable_class_set_parent_phases(rc, NULL,
                                        loongarch_extioi_common_reset_hold,
                                        NULL, &lecc->parent_phases);
