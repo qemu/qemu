@@ -22,6 +22,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/intc/arm_gicv3_common.h"
+#include "hw/arm/virt.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "system/kvm.h"
@@ -823,6 +824,34 @@ static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
     if (s->dev_fd < 0) {
         error_setg_errno(errp, -s->dev_fd, "error creating in-kernel VGIC");
         return;
+    }
+
+    if (s->maint_irq) {
+        Error *kvm_nv_migration_blocker = NULL;
+        int ret;
+
+        error_setg(&kvm_nv_migration_blocker,
+                   "Live migration disabled because KVM nested virt is enabled");
+        if (migrate_add_blocker(&kvm_nv_migration_blocker, errp)) {
+            error_free(kvm_nv_migration_blocker);
+            return;
+        }
+
+        ret = kvm_device_check_attr(s->dev_fd,
+                                    KVM_DEV_ARM_VGIC_GRP_MAINT_IRQ, 0);
+        if (!ret) {
+            error_setg_errno(errp, errno,
+                             "VGICv3 setting maintenance IRQ is not "
+                             "supported by this host kernel");
+            return;
+        }
+
+        ret = kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_MAINT_IRQ, 0,
+                                &s->maint_irq, true, errp);
+        if (ret) {
+            error_setg_errno(errp, errno, "Failed to set VGIC maintenance IRQ");
+            return;
+       }
     }
 
     multiple_redist_region_allowed =

@@ -71,6 +71,7 @@ Board-specific documentation
 .. toctree::
    :maxdepth: 1
 
+   arm/max78000
    arm/integratorcp
    arm/mps2
    arm/musca

@@ -22,11 +22,6 @@ void raise_exception_ra(CPUARMState *env, uint32_t excp, uint32_t syndrome,
     g_assert_not_reached();
 }
 
-/* TLBI insns are only used by TCG, so we don't need to do anything for KVM */
-void define_tlb_insn_regs(ARMCPU *cpu)
-{
-}
-
 /* With KVM, we never use float_status, so these can be no-ops */
 void arm_set_default_fp_behaviours(float_status *s)
 {

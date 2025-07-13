@@ -628,7 +628,7 @@ DeviceState *qdev_device_add_from_qdict(const QDict *opts,
     DeviceClass *dc;
     const char *driver, *path;
     char *id;
-    DeviceState *dev = NULL;
+    DeviceState *dev;
     BusState *bus = NULL;
     QDict *properties;
 
@@ -717,10 +717,9 @@ DeviceState *qdev_device_add_from_qdict(const QDict *opts,
     return dev;
 
 err_del_dev:
-    if (dev) {
-        object_unparent(OBJECT(dev));
-        object_unref(OBJECT(dev));
-    }
+    object_unparent(OBJECT(dev));
+    object_unref(OBJECT(dev));
+
     return NULL;
 }
 

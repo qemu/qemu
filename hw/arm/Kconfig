@@ -95,6 +95,12 @@ config INTEGRATOR
     select PL181 # display
     select SMC91C111
 
+config MAX78000FTHR
+    bool
+    default y
+    depends on TCG && ARM
+    select MAX78000_SOC
+
 config MPS3R
     bool
     default y
@@ -356,6 +362,15 @@ config ALLWINNER_R40
     select USB_OHCI_SYSBUS
     select USB_EHCI_SYSBUS
     select SD
+
+config MAX78000_SOC
+    bool
+    select ARM_V7M
+    select MAX78000_ICC
+    select MAX78000_UART
+    select MAX78000_GCR
+    select MAX78000_TRNG
+    select MAX78000_AES
 
 config RASPI
     bool
