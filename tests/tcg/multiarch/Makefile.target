@@ -29,6 +29,7 @@ run-float_%: float_%
 	$(call run-test,$<, $(QEMU) $(QEMU_OPTS) $<)
 	$(call conditional-diff-out,$<,$(SRC_PATH)/tests/tcg/$(TARGET_NAME)/$<.ref)
 
+fnmsub: LDFLAGS+=-lm
 
 testthread: LDFLAGS+=-lpthread
 

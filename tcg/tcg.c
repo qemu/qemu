@@ -1331,8 +1331,9 @@ void *tcg_malloc_internal(TCGContext *s, int size)
         p = s->pool_current;
         if (!p) {
             p = s->pool_first;
-            if (!p)
+            if (!p) {
                 goto new_pool;
+            }
         } else {
             if (!p->next) {
             new_pool:
@@ -1351,8 +1352,8 @@ void *tcg_malloc_internal(TCGContext *s, int size)
         }
     }
     s->pool_current = p;
-    s->pool_cur = p->data + size;
-    s->pool_end = p->data + p->size;
+    s->pool_cur = (uintptr_t)p->data + size;
+    s->pool_end = (uintptr_t)p->data + p->size;
     return p->data;
 }
 
@@ -1364,7 +1365,7 @@ void tcg_pool_reset(TCGContext *s)
         g_free(p);
     }
     s->pool_first_large = NULL;
-    s->pool_cur = s->pool_end = NULL;
+    s->pool_cur = s->pool_end = 0;
     s->pool_current = NULL;
 }
 

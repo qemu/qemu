@@ -515,10 +515,6 @@ struct target_sigaction {
     abi_ulong       _sa_handler;
 #endif
     target_sigset_t sa_mask;
-#ifdef TARGET_ARCH_HAS_SA_RESTORER
-    /* ??? This is always present, but ignored unless O32.  */
-    abi_ulong sa_restorer;
-#endif
 };
 #else
 struct target_old_sigaction {
