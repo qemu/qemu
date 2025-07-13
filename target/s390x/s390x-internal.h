@@ -238,7 +238,8 @@ uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
 
 /* cpu.c */
 #ifndef CONFIG_USER_ONLY
-unsigned int s390_cpu_halt(S390CPU *cpu);
+unsigned int s390_count_running_cpus(void);
+void s390_cpu_halt(S390CPU *cpu);
 void s390_cpu_unhalt(S390CPU *cpu);
 void s390_cpu_system_init(Object *obj);
 bool s390_cpu_system_realize(DeviceState *dev, Error **errp);
@@ -246,16 +247,6 @@ void s390_cpu_finalize(Object *obj);
 void s390_cpu_system_class_init(CPUClass *cc);
 void s390_cpu_machine_reset_cb(void *opaque);
 bool s390_cpu_has_work(CPUState *cs);
-
-#else
-static inline unsigned int s390_cpu_halt(S390CPU *cpu)
-{
-    return 0;
-}
-
-static inline void s390_cpu_unhalt(S390CPU *cpu)
-{
-}
 #endif /* CONFIG_USER_ONLY */
 
 
