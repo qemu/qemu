@@ -131,7 +131,7 @@ bool multifd_device_state_supported(void)
 
 static void multifd_device_state_save_thread_data_free(void *opaque)
 {
-    SaveLiveCompletePrecopyThreadData *data = opaque;
+    SaveCompletePrecopyThreadData *data = opaque;
 
     g_clear_pointer(&data->idstr, g_free);
     g_free(data);
@@ -139,7 +139,7 @@ static void multifd_device_state_save_thread_data_free(void *opaque)
 
 static int multifd_device_state_save_thread(void *opaque)
 {
-    SaveLiveCompletePrecopyThreadData *data = opaque;
+    SaveCompletePrecopyThreadData *data = opaque;
     g_autoptr(Error) local_err = NULL;
 
     if (!data->hdlr(data, &local_err)) {
@@ -170,18 +170,18 @@ bool multifd_device_state_save_thread_should_exit(void)
 }
 
 void
-multifd_spawn_device_state_save_thread(SaveLiveCompletePrecopyThreadHandler hdlr,
+multifd_spawn_device_state_save_thread(SaveCompletePrecopyThreadHandler hdlr,
                                        char *idstr, uint32_t instance_id,
                                        void *opaque)
 {
-    SaveLiveCompletePrecopyThreadData *data;
+    SaveCompletePrecopyThreadData *data;
 
     assert(multifd_device_state_supported());
     assert(multifd_send_device_state);
 
     assert(!qatomic_read(&multifd_send_device_state->threads_abort));
 
-    data = g_new(SaveLiveCompletePrecopyThreadData, 1);
+    data = g_new(SaveCompletePrecopyThreadData, 1);
     data->hdlr = hdlr;
     data->idstr = g_strdup(idstr);
     data->instance_id = instance_id;

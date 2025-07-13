@@ -119,19 +119,19 @@ bool migrate_uri_parse(const char *uri, MigrationChannel **channel,
                        Error **errp);
 
 /* migration/multifd-device-state.c */
-typedef struct SaveLiveCompletePrecopyThreadData {
-    SaveLiveCompletePrecopyThreadHandler hdlr;
+typedef struct SaveCompletePrecopyThreadData {
+    SaveCompletePrecopyThreadHandler hdlr;
     char *idstr;
     uint32_t instance_id;
     void *handler_opaque;
-} SaveLiveCompletePrecopyThreadData;
+} SaveCompletePrecopyThreadData;
 
 bool multifd_queue_device_state(char *idstr, uint32_t instance_id,
                                 char *data, size_t len);
 bool multifd_device_state_supported(void);
 
 void
-multifd_spawn_device_state_save_thread(SaveLiveCompletePrecopyThreadHandler hdlr,
+multifd_spawn_device_state_save_thread(SaveCompletePrecopyThreadHandler hdlr,
                                        char *idstr, uint32_t instance_id,
                                        void *opaque);
 

@@ -236,6 +236,31 @@
 #     This is only present when the postcopy-blocktime migration
 #     capability is enabled.  (Since 3.0)
 #
+# @postcopy-latency: average remote page fault latency (in ns).  Note that
+#     this doesn't include all faults, but only the ones that require a
+#     remote page request.  So it should be always bigger than the real
+#     average page fault latency. This is only present when the
+#     postcopy-blocktime migration capability is enabled.  (Since 10.1)
+#
+# @postcopy-latency-dist: remote page fault latency distributions.  Each
+#     element of the array is the number of faults that fall into the
+#     bucket period.  For the N-th bucket (N>=0), the latency window is
+#     [2^Nus, 2^(N+1)us).  For example, the 8th element stores how many
+#     remote faults got resolved within [256us, 512us) window. This is only
+#     present when the postcopy-blocktime migration capability is enabled.
+#     (Since 10.1)
+#
+# @postcopy-vcpu-latency: average remote page fault latency per vCPU (in
+#     ns).  It has the same definition of @postcopy-latency, but instead
+#     this is the per-vCPU statistics.  This is only present when the
+#     postcopy-blocktime migration capability is enabled.  (Since 10.1)
+#
+# @postcopy-non-vcpu-latency: average remote page fault latency for all
+#     faults happend in non-vCPU threads (in ns).  It has the same
+#     definition of @postcopy-latency but this only provides statistics to
+#     non-vCPU faults.  This is only present when the postcopy-blocktime
+#     migration capability is enabled.  (Since 10.1)
+#
 # @socket-address: Only used for tcp, to know what the real port is
 #     (Since 4.0)
 #
@@ -260,6 +285,11 @@
 #     average memory load of the virtual CPU indirectly.  Note that
 #     zero means guest doesn't dirty memory.  (Since 8.1)
 #
+# Features:
+#
+# @unstable: Members @postcopy-latency, @postcopy-vcpu-latency,
+#     @postcopy-latency-dist, @postcopy-non-vcpu-latency are experimental.
+#
 # Since: 0.14
 ##
 { 'struct': 'MigrationInfo',
@@ -275,6 +305,14 @@
            '*blocked-reasons': ['str'],
            '*postcopy-blocktime': 'uint32',
            '*postcopy-vcpu-blocktime': ['uint32'],
+           '*postcopy-latency': {
+               'type': 'uint64', 'features': [ 'unstable' ] },
+           '*postcopy-latency-dist': {
+               'type': ['uint64'], 'features': [ 'unstable' ] },
+           '*postcopy-vcpu-latency': {
+               'type': ['uint64'], 'features': [ 'unstable' ] },
+           '*postcopy-non-vcpu-latency': {
+               'type': 'uint64', 'features': [ 'unstable' ] },
            '*socket-address': ['SocketAddress'],
            '*dirty-limit-throttle-time-per-round': 'uint64',
            '*dirty-limit-ring-full-time': 'uint64'} }

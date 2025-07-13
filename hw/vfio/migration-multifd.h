@@ -26,7 +26,7 @@ bool vfio_multifd_load_state_buffer(void *opaque, char *data, size_t data_size,
 void vfio_multifd_emit_dummy_eos(VFIODevice *vbasedev, QEMUFile *f);
 
 bool
-vfio_multifd_save_complete_precopy_thread(SaveLiveCompletePrecopyThreadData *d,
+vfio_multifd_save_complete_precopy_thread(SaveCompletePrecopyThreadData *d,
                                           Error **errp);
 
 int vfio_multifd_switchover_start(VFIODevice *vbasedev);
