@@ -349,11 +349,17 @@ static void encode_cache_cpuid4(CPUCacheInfo *cache,
     assert(cache->size == cache->line_size * cache->associativity *
                           cache->partitions * cache->sets);
 
+    /*
+     * The following fields have bit-width limitations, so consider the
+     * maximum values to avoid overflow:
+     * Bits 25-14: maximum 4095.
+     * Bits 31-26: maximum 63.
+     */
     *eax = CACHE_TYPE(cache->type) |
            CACHE_LEVEL(cache->level) |
            (cache->self_init ? CACHE_SELF_INIT_LEVEL : 0) |
-           (max_core_ids_in_package(topo_info) << 26) |
-           (max_thread_ids_for_cache(topo_info, cache->share_level) << 14);
+           (MIN(max_core_ids_in_package(topo_info), 63) << 26) |
+           (MIN(max_thread_ids_for_cache(topo_info, cache->share_level), 4095) << 14);
 
     assert(cache->line_size > 0);
     assert(cache->partitions > 0);
@@ -7930,13 +7936,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                 int host_vcpus_per_cache = 1 + ((*eax & 0x3FFC000) >> 14);
 
                 *eax &= ~0xFC000000;
-                *eax |= max_core_ids_in_package(topo_info) << 26;
+                *eax |= MIN(max_core_ids_in_package(topo_info), 63) << 26;
                 if (host_vcpus_per_cache > threads_per_pkg) {
                     *eax &= ~0x3FFC000;
 
                     /* Share the cache at package level. */
-                    *eax |= max_thread_ids_for_cache(topo_info,
-                                CPU_TOPOLOGY_LEVEL_SOCKET) << 14;
+                    *eax |= MIN(max_thread_ids_for_cache(topo_info,
+                                CPU_TOPOLOGY_LEVEL_SOCKET), 4095) << 14;
                 }
             }
         } else if (cpu->vendor_cpuid_only && IS_AMD_CPU(env)) {
