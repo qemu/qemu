@@ -2824,6 +2824,20 @@ static int vfio_pci_load_config(VFIODevice *vbasedev, QEMUFile *f)
     return ret;
 }
 
+void vfio_sub_page_bar_update_mappings(VFIOPCIDevice *vdev)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    int page_size = qemu_real_host_page_size();
+    int bar;
+
+    for (bar = 0; bar < PCI_ROM_SLOT; bar++) {
+        PCIIORegion *r = &pdev->io_regions[bar];
+        if (r->addr != PCI_BAR_UNMAPPED && r->size > 0 && r->size < page_size) {
+            vfio_sub_page_bar_update_mapping(pdev, bar);
+        }
+    }
+}
+
 static VFIODeviceOps vfio_pci_ops = {
     .vfio_compute_needs_reset = vfio_pci_compute_needs_reset,
     .vfio_hot_reset_multi = vfio_pci_hot_reset_multi,
