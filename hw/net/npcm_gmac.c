@@ -569,7 +569,7 @@ static void gmac_try_send_next_packet(NPCMGMACState *gmac)
         tx_buf_len = TX_DESC_TDES1_BFFR1_SZ_MASK(tx_desc.tdes1);
         buf = &tx_send_buffer[prev_buf_size];
 
-        if ((prev_buf_size + tx_buf_len) > sizeof(buf)) {
+        if ((prev_buf_size + tx_buf_len) > tx_buffer_size) {
             tx_buffer_size = prev_buf_size + tx_buf_len;
             tx_send_buffer = g_realloc(tx_send_buffer, tx_buffer_size);
             buf = &tx_send_buffer[prev_buf_size];
@@ -591,7 +591,7 @@ static void gmac_try_send_next_packet(NPCMGMACState *gmac)
             tx_buf_len = TX_DESC_TDES1_BFFR2_SZ_MASK(tx_desc.tdes1);
             buf = &tx_send_buffer[prev_buf_size];
 
-            if ((prev_buf_size + tx_buf_len) > sizeof(buf)) {
+            if ((prev_buf_size + tx_buf_len) > tx_buffer_size) {
                 tx_buffer_size = prev_buf_size + tx_buf_len;
                 tx_send_buffer = g_realloc(tx_send_buffer, tx_buffer_size);
                 buf = &tx_send_buffer[prev_buf_size];
