@@ -72,7 +72,7 @@ void gd_egl_draw(VirtualConsole *vc)
 #endif
     int ww, wh, pw, ph, gs;
 
-    if (!vc->gfx.gls) {
+    if (!vc->gfx.gls || !vc->gfx.ds) {
         return;
     }
 
@@ -112,9 +112,6 @@ void gd_egl_draw(VirtualConsole *vc)
         }
 #endif
     } else {
-        if (!vc->gfx.ds) {
-            return;
-        }
         eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
                        vc->gfx.esurface, vc->gfx.ectx);
 
