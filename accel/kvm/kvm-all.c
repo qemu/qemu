@@ -2606,8 +2606,7 @@ static int kvm_init(AccelState *as, MachineState *ms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     static const char upgrade_note[] =
-        "Please upgrade to at least kernel 2.6.29 or recent kvm-kmod\n"
-        "(see http://sourceforge.net/projects/kvm).\n";
+        "Please upgrade to at least kernel 4.5.\n";
     const struct {
         const char *name;
         int num;

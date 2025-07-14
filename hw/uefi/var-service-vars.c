@@ -12,7 +12,7 @@
 #include "hw/uefi/var-service-api.h"
 #include "hw/uefi/var-service-edk2.h"
 
-#include "trace/trace-hw_uefi.h"
+#include "trace.h"
 
 #define EFI_VARIABLE_ATTRIBUTE_SUPPORTED                                \
     (EFI_VARIABLE_NON_VOLATILE |                                        \

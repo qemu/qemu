@@ -8,7 +8,7 @@
 
 #include "hw/uefi/var-service.h"
 
-#include "trace/trace-hw_uefi.h"
+#include "trace.h"
 
 /* ------------------------------------------------------------------ */
 

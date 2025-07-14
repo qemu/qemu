@@ -76,7 +76,7 @@ The "io/trace.h" file must be created manually with an #include of the
 corresponding "trace/trace-<subdir>.h" file that will be generated in the
 builddir::
 
-  $ echo '#include "trace/trace-io.h"' >io/trace.h
+  $ (echo '/* SPDX-License-Identifier: GPL-2.0-or-later */' ; echo '#include "trace/trace-io.h"')  >io/trace.h
 
 While it is possible to include a trace.h file from outside a source file's own
 sub-directory, this is discouraged in general. It is strongly preferred that
