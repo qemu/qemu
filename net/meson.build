@@ -1,6 +1,7 @@
 system_ss.add(files(
   'announce.c',
   'checksum.c',
+  'dgram.c',
   'dump.c',
   'eth.c',
   'filter-buffer.c',
@@ -12,7 +13,7 @@ system_ss.add(files(
   'queue.c',
   'socket.c',
   'stream.c',
-  'dgram.c',
+  'stream_data.c',
   'util.c',
 ))
 
@@ -32,6 +33,9 @@ system_ss.add(when: 'CONFIG_TCG', if_true: files('filter-replay.c'))
 
 if have_l2tpv3
   system_ss.add(files('l2tpv3.c'))
+endif
+if enable_passt
+  system_ss.add(files('passt.c'))
 endif
 system_ss.add(when: slirp, if_true: files('slirp.c'))
 system_ss.add(when: vde, if_true: files('vde.c'))

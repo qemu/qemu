@@ -14,8 +14,4 @@
 
 #define TYPE_VHOST_VDPA "vhost-vdpa"
 
-struct vhost_net *vhost_vdpa_get_vhost_net(NetClientState *nc);
-
-extern const int vdpa_feature_bits[];
-
 #endif /* VHOST_VDPA_H */
