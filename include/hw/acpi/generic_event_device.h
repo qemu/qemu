@@ -69,7 +69,7 @@
 #define ACPI_POWER_BUTTON_DEVICE "PWRB"
 
 #define TYPE_ACPI_GED "acpi-ged"
-OBJECT_DECLARE_SIMPLE_TYPE(AcpiGedState, ACPI_GED)
+OBJECT_DECLARE_TYPE(AcpiGedState, AcpiGedClass, ACPI_GED)
 
 #define ACPI_GED_EVT_SEL_OFFSET    0x0
 #define ACPI_GED_EVT_SEL_LEN       0x4
@@ -102,12 +102,15 @@ OBJECT_DECLARE_SIMPLE_TYPE(AcpiGedState, ACPI_GED)
 #define ACPI_GED_PWR_DOWN_EVT      0x2
 #define ACPI_GED_NVDIMM_HOTPLUG_EVT 0x4
 #define ACPI_GED_CPU_HOTPLUG_EVT    0x8
+#define ACPI_GED_PCI_HOTPLUG_EVT    0x10
 
 typedef struct GEDState {
     MemoryRegion evt;
     MemoryRegion regs;
     uint32_t     sel;
 } GEDState;
+
+#define ACPI_PCIHP_REGION_NAME "pcihp container"
 
 struct AcpiGedState {
     SysBusDevice parent_obj;
@@ -116,11 +119,20 @@ struct AcpiGedState {
     CPUHotplugState cpuhp_state;
     MemoryRegion container_cpuhp;
     AcpiPciHpState pcihp_state;
+    MemoryRegion container_pcihp;
     GEDState ged_state;
     uint32_t ged_event_bitmap;
     qemu_irq irq;
     AcpiGhesState ghes_state;
 };
+
+typedef struct AcpiGedClass {
+    /* <private> */
+    SysBusDeviceClass parent_class;
+
+    /*< public >*/
+    ResettablePhases parent_phases;
+} AcpiGedClass;
 
 void build_ged_aml(Aml *table, const char* name, HotplugHandler *hotplug_dev,
                    uint32_t ged_irq, AmlRegionSpace rs, hwaddr ged_base);
