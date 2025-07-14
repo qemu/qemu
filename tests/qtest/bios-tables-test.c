@@ -2275,6 +2275,7 @@ static void test_acpi_aarch64_virt_viot(void)
     test_data data = {
         .machine = "virt",
         .arch = "aarch64",
+        .variant = ".viot",
         .tcg_only = true,
         .uefi_fl1 = "pc-bios/edk2-aarch64-code.fd",
         .uefi_fl2 = "pc-bios/edk2-arm-vars.fd",
