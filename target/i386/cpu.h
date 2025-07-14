@@ -1159,7 +1159,8 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 /* PMM enabled */
 #define CPUID_C000_0001_EDX_PMM_EN             (1U << 13)
 
-#define CPUID_VENDOR_SZ      12
+#define CPUID_VENDOR_SZ     12
+#define CPUID_MODEL_ID_SZ   48
 
 #define CPUID_VENDOR_INTEL_1 0x756e6547 /* "Genu" */
 #define CPUID_VENDOR_INTEL_2 0x49656e69 /* "ineI" */
@@ -2072,11 +2073,14 @@ typedef struct CPUArchState {
     /* Features that were explicitly enabled/disabled */
     FeatureWordArray user_features;
     uint32_t cpuid_model[12];
-    /* Cache information for CPUID.  When legacy-cache=on, the cache data
+    /*
+     * Cache information for CPUID.  When legacy-cache=on, the cache data
      * on each CPUID leaf will be different, because we keep compatibility
      * with old QEMU versions.
      */
-    CPUCaches cache_info_cpuid2, cache_info_cpuid4, cache_info_amd;
+    CPUCaches cache_info;
+    bool enable_legacy_cpuid2_cache;
+    bool enable_legacy_vendor_cache;
 
     /* MTRRs */
     uint64_t mtrr_fixed[11];
@@ -2196,7 +2200,6 @@ struct ArchCPU {
     bool expose_tcg;
     bool migratable;
     bool migrate_smi_count;
-    bool max_features; /* Enable all supported features automatically */
     uint32_t apic_id;
 
     /* Enables publishing of TSC increment and Local APIC bus frequencies to
@@ -2259,6 +2262,13 @@ struct ArchCPU {
      */
     bool legacy_cache;
 
+    /*
+     * Compatibility bits for old machine types.
+     * If true, use the same cache model in CPUID leaf 0x2
+     * and 0x4.
+     */
+    bool consistent_cache;
+
     /* Compatibility bits for old machine types.
      * If true decode the CPUID Function 0x8000001E_ECX to support multiple
      * nodes per processor
@@ -2274,8 +2284,17 @@ struct ArchCPU {
     /* Enable auto level-increase for all CPUID leaves */
     bool full_cpuid_auto_level;
 
-    /* Only advertise CPUID leaves defined by the vendor */
+    /*
+     * Compatibility bits for old machine types (PC machine v6.0 and older).
+     * Only advertise CPUID leaves defined by the vendor.
+     */
     bool vendor_cpuid_only;
+
+    /*
+     * Compatibility bits for old machine types (PC machine v10.0 and older).
+     * Only advertise CPUID leaves defined by the vendor.
+     */
+    bool vendor_cpuid_only_v2;
 
     /* Only advertise TOPOEXT features that AMD defines */
     bool amd_topoext_features_only;
@@ -2349,6 +2368,7 @@ struct X86CPUClass {
      */
     const X86CPUModel *model;
 
+    bool max_features; /* Enable all supported features automatically */
     bool host_cpuid_required;
     int ordering;
     bool migration_safe;
@@ -2417,7 +2437,14 @@ static inline void cpu_x86_load_seg_cache(CPUX86State *env,
     SegmentCache *sc;
     unsigned int new_hflags;
 
-    sc = &env->segs[seg_reg];
+    if (seg_reg == R_LDTR) {
+        sc = &env->ldt;
+    } else if (seg_reg == R_TR) {
+        sc = &env->tr;
+    } else {
+        sc = &env->segs[seg_reg];
+    }
+
     sc->selector = selector;
     sc->base = base;
     sc->limit = limit;
@@ -2668,6 +2695,36 @@ static inline int32_t x86_get_a20_mask(CPUX86State *env)
     } else {
         return env->a20_mask;
     }
+}
+
+static inline uint32_t x86_cpu_family(uint32_t eax)
+{
+    uint32_t family = (eax >> 8) & 0xf;
+
+    if (family == 0xf) {
+        family += (eax >> 20) & 0xff;
+    }
+
+    return family;
+}
+
+static inline uint32_t x86_cpu_model(uint32_t eax)
+{
+    uint32_t family, model;
+
+    family = x86_cpu_family(eax);
+    model = (eax >> 4) & 0xf;
+
+    if (family >= 0x6) {
+        model += ((eax >> 16) & 0xf) << 4;
+    }
+
+    return model;
+}
+
+static inline uint32_t x86_cpu_stepping(uint32_t eax)
+{
+    return eax & 0xf;
 }
 
 static inline bool cpu_has_vmx(CPUX86State *env)

@@ -351,7 +351,7 @@ Writing procedural macros
 '''''''''''''''''''''''''
 
 By conventions, procedural macros are split in two functions, one
-returning ``Result<proc_macro2::TokenStream, MacroError>`` with the body of
+returning ``Result<proc_macro2::TokenStream, syn::Error>`` with the body of
 the procedural macro, and the second returning ``proc_macro::TokenStream``
 which is the actual procedural macro.  The former's name is the same as
 the latter with the ``_or_error`` suffix.  The code for the latter is more
@@ -361,18 +361,19 @@ from the type after ``as`` in the invocation of ``parse_macro_input!``::
     #[proc_macro_derive(Object)]
     pub fn derive_object(input: TokenStream) -> TokenStream {
         let input = parse_macro_input!(input as DeriveInput);
-        let expanded = derive_object_or_error(input).unwrap_or_else(Into::into);
 
-        TokenStream::from(expanded)
+        derive_object_or_error(input)
+            .unwrap_or_else(syn::Error::into_compile_error)
+            .into()
     }
 
 The ``qemu_api_macros`` crate has utility functions to examine a
 ``DeriveInput`` and perform common checks (e.g. looking for a struct
-with named fields).  These functions return ``Result<..., MacroError>``
+with named fields).  These functions return ``Result<..., syn::Error>``
 and can be used easily in the procedural macro function::
 
     fn derive_object_or_error(input: DeriveInput) ->
-        Result<proc_macro2::TokenStream, MacroError>
+        Result<proc_macro2::TokenStream, Error>
     {
         is_c_repr(&input, "#[derive(Object)]")?;
 

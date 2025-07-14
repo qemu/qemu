@@ -9,12 +9,14 @@ use std::os::windows::fs::symlink_file;
 use std::{env, fs::remove_file, io::Result, path::Path};
 
 fn main() -> Result<()> {
-    // Placing bindings.inc.rs in the source directory is supported
-    // but not documented or encouraged.
-    let path = env::var("MESON_BUILD_ROOT")
-        .unwrap_or_else(|_| format!("{}/src", env!("CARGO_MANIFEST_DIR")));
+    let file = if let Ok(root) = env::var("MESON_BUILD_ROOT") {
+        format!("{root}/rust/qemu-api/bindings.inc.rs")
+    } else {
+        // Placing bindings.inc.rs in the source directory is supported
+        // but not documented or encouraged.
+        format!("{}/src/bindings.inc.rs", env!("CARGO_MANIFEST_DIR"))
+    };
 
-    let file = format!("{path}/rust/qemu-api/bindings.inc.rs");
     let file = Path::new(&file);
     if !Path::new(&file).exists() {
         panic!(concat!(

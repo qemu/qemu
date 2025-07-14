@@ -41,6 +41,7 @@ static void kvm_set_guest_phys_bits(CPUState *cs)
 static bool kvm_cpu_realizefn(CPUState *cs, Error **errp)
 {
     X86CPU *cpu = X86_CPU(cs);
+    X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
     CPUX86State *env = &cpu->env;
     bool ret;
 
@@ -63,7 +64,7 @@ static bool kvm_cpu_realizefn(CPUState *cs, Error **errp)
      *   check/update ucode_rev, phys_bits, guest_phys_bits, mwait
      *   cpu_common_realizefn() (via xcc->parent_realize)
      */
-    if (cpu->max_features) {
+    if (xcc->max_features) {
         if (enable_cpu_pm) {
             if (kvm_has_waitpkg()) {
                 env->features[FEAT_7_0_ECX] |= CPUID_7_0_ECX_WAITPKG;
@@ -72,7 +73,7 @@ static bool kvm_cpu_realizefn(CPUState *cs, Error **errp)
             if (env->features[FEAT_1_ECX] & CPUID_EXT_MONITOR) {
                 host_cpuid(5, 0, &cpu->mwait.eax, &cpu->mwait.ebx,
                            &cpu->mwait.ecx, &cpu->mwait.edx);
-	    }
+            }
         }
         if (cpu->ucode_rev == 0) {
             cpu->ucode_rev =
@@ -108,7 +109,7 @@ static void kvm_cpu_max_instance_init(X86CPU *cpu)
     CPUX86State *env = &cpu->env;
     KVMState *s = kvm_state;
 
-    host_cpu_max_instance_init(cpu);
+    object_property_set_bool(OBJECT(cpu), "pmu", true, &error_abort);
 
     if (lmce_supported()) {
         object_property_set_bool(OBJECT(cpu), "lmce", true, &error_abort);
@@ -216,7 +217,7 @@ static void kvm_cpu_instance_init(CPUState *cs)
         x86_cpu_apply_props(cpu, kvm_default_props);
     }
 
-    if (cpu->max_features) {
+    if (xcc->max_features) {
         kvm_cpu_max_instance_init(cpu);
     }
 

@@ -6,8 +6,7 @@
 use proc_macro2::{
     Delimiter, Group, Ident, Punct, Spacing, Span, TokenStream, TokenTree, TokenTree as TT,
 };
-
-use crate::utils::MacroError;
+use syn::Error;
 
 pub struct BitsConstInternal {
     typ: TokenTree,
@@ -36,27 +35,21 @@ impl BitsConstInternal {
         tok: TokenTree,
         it: &mut dyn Iterator<Item = TokenTree>,
         out: &mut TokenStream,
-    ) -> Result<Option<TokenTree>, MacroError> {
+    ) -> Result<Option<TokenTree>, Error> {
         let next = match tok {
             TT::Group(ref g) => {
                 if g.delimiter() != Delimiter::Parenthesis && g.delimiter() != Delimiter::None {
-                    return Err(MacroError::Message("expected parenthesis".into(), g.span()));
+                    return Err(Error::new(g.span(), "expected parenthesis"));
                 }
                 let mut stream = g.stream().into_iter();
                 let Some(first_tok) = stream.next() else {
-                    return Err(MacroError::Message(
-                        "expected operand, found ')'".into(),
-                        g.span(),
-                    ));
+                    return Err(Error::new(g.span(), "expected operand, found ')'"));
                 };
                 let mut output = TokenStream::new();
                 // start from the lowest precedence
                 let next = self.parse_or(first_tok, &mut stream, &mut output)?;
                 if let Some(tok) = next {
-                    return Err(MacroError::Message(
-                        format!("unexpected token {tok}"),
-                        tok.span(),
-                    ));
+                    return Err(Error::new(tok.span(), format!("unexpected token {tok}")));
                 }
                 out.extend(Some(paren(output)));
                 it.next()
@@ -74,20 +67,17 @@ impl BitsConstInternal {
             }
             TT::Punct(ref p) => {
                 if p.as_char() != '!' {
-                    return Err(MacroError::Message("expected operand".into(), p.span()));
+                    return Err(Error::new(p.span(), "expected operand"));
                 }
                 let Some(rhs_tok) = it.next() else {
-                    return Err(MacroError::Message(
-                        "expected operand at end of input".into(),
-                        p.span(),
-                    ));
+                    return Err(Error::new(p.span(), "expected operand at end of input"));
                 };
                 let next = self.parse_primary(rhs_tok, it, out)?;
                 out.extend([punct('.'), ident("invert"), paren(TokenStream::new())]);
                 next
             }
             _ => {
-                return Err(MacroError::Message("unexpected literal".into(), tok.span()));
+                return Err(Error::new(tok.span(), "unexpected literal"));
             }
         };
         Ok(next)
@@ -99,7 +89,7 @@ impl BitsConstInternal {
             TokenTree,
             &mut dyn Iterator<Item = TokenTree>,
             &mut TokenStream,
-        ) -> Result<Option<TokenTree>, MacroError>,
+        ) -> Result<Option<TokenTree>, Error>,
     >(
         &self,
         tok: TokenTree,
@@ -108,7 +98,7 @@ impl BitsConstInternal {
         ch: char,
         f: F,
         method: &'static str,
-    ) -> Result<Option<TokenTree>, MacroError> {
+    ) -> Result<Option<TokenTree>, Error> {
         let mut next = f(self, tok, it, out)?;
         while next.is_some() {
             let op = next.as_ref().unwrap();
@@ -118,10 +108,7 @@ impl BitsConstInternal {
             }
 
             let Some(rhs_tok) = it.next() else {
-                return Err(MacroError::Message(
-                    "expected operand at end of input".into(),
-                    p.span(),
-                ));
+                return Err(Error::new(p.span(), "expected operand at end of input"));
             };
             let mut rhs = TokenStream::new();
             next = f(self, rhs_tok, it, &mut rhs)?;
@@ -136,7 +123,7 @@ impl BitsConstInternal {
         tok: TokenTree,
         it: &mut dyn Iterator<Item = TokenTree>,
         out: &mut TokenStream,
-    ) -> Result<Option<TokenTree>, MacroError> {
+    ) -> Result<Option<TokenTree>, Error> {
         self.parse_binop(tok, it, out, '-', Self::parse_primary, "difference")
     }
 
@@ -146,7 +133,7 @@ impl BitsConstInternal {
         tok: TokenTree,
         it: &mut dyn Iterator<Item = TokenTree>,
         out: &mut TokenStream,
-    ) -> Result<Option<TokenTree>, MacroError> {
+    ) -> Result<Option<TokenTree>, Error> {
         self.parse_binop(tok, it, out, '&', Self::parse_sub, "intersection")
     }
 
@@ -156,7 +143,7 @@ impl BitsConstInternal {
         tok: TokenTree,
         it: &mut dyn Iterator<Item = TokenTree>,
         out: &mut TokenStream,
-    ) -> Result<Option<TokenTree>, MacroError> {
+    ) -> Result<Option<TokenTree>, Error> {
         self.parse_binop(tok, it, out, '^', Self::parse_and, "symmetric_difference")
     }
 
@@ -166,13 +153,13 @@ impl BitsConstInternal {
         tok: TokenTree,
         it: &mut dyn Iterator<Item = TokenTree>,
         out: &mut TokenStream,
-    ) -> Result<Option<TokenTree>, MacroError> {
+    ) -> Result<Option<TokenTree>, Error> {
         self.parse_binop(tok, it, out, '|', Self::parse_xor, "union")
     }
 
     pub fn parse(
         it: &mut dyn Iterator<Item = TokenTree>,
-    ) -> Result<proc_macro2::TokenStream, MacroError> {
+    ) -> Result<proc_macro2::TokenStream, Error> {
         let mut pos = Span::call_site();
         let mut typ = proc_macro2::TokenStream::new();
 
@@ -198,15 +185,15 @@ impl BitsConstInternal {
         };
 
         let Some(tok) = next else {
-            return Err(MacroError::Message(
-                "expected expression, do not call this macro directly".into(),
+            return Err(Error::new(
                 pos,
+                "expected expression, do not call this macro directly",
             ));
         };
         let TT::Group(ref _group) = tok else {
-            return Err(MacroError::Message(
-                "expected parenthesis, do not call this macro directly".into(),
+            return Err(Error::new(
                 tok.span(),
+                "expected parenthesis, do not call this macro directly",
             ));
         };
         let mut out = TokenStream::new();
@@ -219,10 +206,7 @@ impl BitsConstInternal {
         // A parenthesized expression is a single production of the grammar,
         // so the input must have reached the last token.
         if let Some(tok) = next {
-            return Err(MacroError::Message(
-                format!("unexpected token {tok}"),
-                tok.span(),
-            ));
+            return Err(Error::new(tok.span(), format!("unexpected token {tok}")));
         }
         Ok(out)
     }

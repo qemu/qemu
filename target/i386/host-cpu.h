@@ -17,4 +17,5 @@ bool host_cpu_realizefn(CPUState *cs, Error **errp);
 
 void host_cpu_vendor_fms(char *vendor, int *family, int *model, int *stepping);
 
+bool is_host_cpu_intel(void);
 #endif /* HOST_CPU_H */

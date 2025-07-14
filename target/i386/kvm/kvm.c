@@ -2259,7 +2259,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     cpuid_i = kvm_x86_build_cpuid(env, cpuid_data.entries, cpuid_i);
     cpuid_data.cpuid.nent = cpuid_i;
 
-    if (((env->cpuid_version >> 8)&0xF) >= 6
+    if (x86_cpu_family(env->cpuid_version) >= 6
         && (env->features[FEAT_1_EDX] & (CPUID_MCE | CPUID_MCA)) ==
            (CPUID_MCE | CPUID_MCA)) {
         uint64_t mcg_cap, unsupported_caps;
@@ -6181,6 +6181,9 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
             break;
         case TDVMCALL_GET_TD_VM_CALL_INFO:
             tdx_handle_get_tdvmcall_info(cpu, run);
+            break;
+        case TDVMCALL_SETUP_EVENT_NOTIFY_INTERRUPT:
+            tdx_handle_setup_event_notify_interrupt(cpu, run);
             break;
         }
         ret = 0;

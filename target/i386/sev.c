@@ -41,7 +41,9 @@
 #include "confidential-guest.h"
 #include "hw/i386/pc.h"
 #include "system/address-spaces.h"
+#include "hw/i386/e820_memory_layout.h"
 #include "qemu/queue.h"
+#include "qemu/cutils.h"
 
 OBJECT_DECLARE_TYPE(SevCommonState, SevCommonStateClass, SEV_COMMON)
 OBJECT_DECLARE_TYPE(SevGuestState, SevCommonStateClass, SEV_GUEST)
@@ -49,6 +51,15 @@ OBJECT_DECLARE_TYPE(SevSnpGuestState, SevCommonStateClass, SEV_SNP_GUEST)
 
 /* hard code sha256 digest size */
 #define HASH_SIZE 32
+
+/* Hard coded GPA that KVM uses for the VMSA */
+#define KVM_VMSA_GPA 0xFFFFFFFFF000
+
+/* Convert between SEV-ES VMSA and SegmentCache flags/attributes */
+#define FLAGS_VMSA_TO_SEGCACHE(flags) \
+    ((((flags) & 0xff00) << 12) | (((flags) & 0xff) << 8))
+#define FLAGS_SEGCACHE_TO_VMSA(flags) \
+    ((((flags) & 0xff00) >> 8) | (((flags) & 0xf00000) >> 12))
 
 typedef struct QEMU_PACKED SevHashTableEntry {
     QemuUUID guid;
@@ -89,6 +100,14 @@ typedef struct QEMU_PACKED SevHashTableDescriptor {
     uint32_t size;
 } SevHashTableDescriptor;
 
+typedef struct SevLaunchVmsa {
+    QTAILQ_ENTRY(SevLaunchVmsa) next;
+
+    uint16_t cpu_index;
+    uint64_t gpa;
+    struct sev_es_save_area vmsa;
+} SevLaunchVmsa;
+
 struct SevCommonState {
     X86ConfidentialGuest parent_obj;
 
@@ -99,6 +118,8 @@ struct SevCommonState {
     uint32_t cbitpos;
     uint32_t reduced_phys_bits;
     bool kernel_hashes;
+    uint64_t sev_features;
+    uint64_t supported_sev_features;
 
     /* runtime state */
     uint8_t api_major;
@@ -107,9 +128,7 @@ struct SevCommonState {
     int sev_fd;
     SevState state;
 
-    uint32_t reset_cs;
-    uint32_t reset_ip;
-    bool reset_data_valid;
+    QTAILQ_HEAD(, SevLaunchVmsa) launch_vmsa;
 };
 
 struct SevCommonStateClass {
@@ -122,7 +141,8 @@ struct SevCommonStateClass {
                                        Error **errp);
     int (*launch_start)(SevCommonState *sev_common);
     void (*launch_finish)(SevCommonState *sev_common);
-    int (*launch_update_data)(SevCommonState *sev_common, hwaddr gpa, uint8_t *ptr, size_t len);
+    int (*launch_update_data)(SevCommonState *sev_common, hwaddr gpa,
+                              uint8_t *ptr, size_t len, Error **errp);
     int (*kvm_init)(ConfidentialGuestSupport *cgs, Error **errp);
 };
 
@@ -362,6 +382,288 @@ static struct RAMBlockNotifier sev_ram_notifier = {
     .ram_block_added = sev_ram_block_added,
     .ram_block_removed = sev_ram_block_removed,
 };
+
+static void sev_apply_cpu_context(CPUState *cpu)
+{
+    SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
+    X86CPU *x86;
+    CPUX86State *env;
+    struct SevLaunchVmsa *launch_vmsa;
+
+    /* See if an initial VMSA has been provided for this CPU */
+    QTAILQ_FOREACH(launch_vmsa, &sev_common->launch_vmsa, next)
+    {
+        if (cpu->cpu_index == launch_vmsa->cpu_index) {
+            x86 = X86_CPU(cpu);
+            env = &x86->env;
+
+            /*
+             * Ideally we would provide the VMSA directly to kvm which would
+             * ensure that the resulting initial VMSA measurement which is
+             * calculated during KVM_SEV_LAUNCH_UPDATE_VMSA is calculated from
+             * exactly what we provide here. Currently this is not possible so
+             * we need to copy the parts of the VMSA structure that we currently
+             * support into the CPU state.
+             */
+            cpu_load_efer(env, launch_vmsa->vmsa.efer);
+            cpu_x86_update_cr4(env, launch_vmsa->vmsa.cr4);
+            cpu_x86_update_cr0(env, launch_vmsa->vmsa.cr0);
+            cpu_x86_update_cr3(env, launch_vmsa->vmsa.cr3);
+            env->xcr0 = launch_vmsa->vmsa.xcr0;
+            env->pat = launch_vmsa->vmsa.g_pat;
+
+            cpu_x86_load_seg_cache(
+                env, R_CS, launch_vmsa->vmsa.cs.selector,
+                launch_vmsa->vmsa.cs.base, launch_vmsa->vmsa.cs.limit,
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.cs.attrib));
+            cpu_x86_load_seg_cache(
+                env, R_DS, launch_vmsa->vmsa.ds.selector,
+                launch_vmsa->vmsa.ds.base, launch_vmsa->vmsa.ds.limit,
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.ds.attrib));
+            cpu_x86_load_seg_cache(
+                env, R_ES, launch_vmsa->vmsa.es.selector,
+                launch_vmsa->vmsa.es.base, launch_vmsa->vmsa.es.limit,
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.es.attrib));
+            cpu_x86_load_seg_cache(
+                env, R_FS, launch_vmsa->vmsa.fs.selector,
+                launch_vmsa->vmsa.fs.base, launch_vmsa->vmsa.fs.limit,
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.fs.attrib));
+            cpu_x86_load_seg_cache(
+                env, R_GS, launch_vmsa->vmsa.gs.selector,
+                launch_vmsa->vmsa.gs.base, launch_vmsa->vmsa.gs.limit,
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.gs.attrib));
+            cpu_x86_load_seg_cache(
+                env, R_SS, launch_vmsa->vmsa.ss.selector,
+                launch_vmsa->vmsa.ss.base, launch_vmsa->vmsa.ss.limit,
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.ss.attrib));
+
+            env->gdt.base = launch_vmsa->vmsa.gdtr.base;
+            env->gdt.limit = launch_vmsa->vmsa.gdtr.limit;
+            env->gdt.flags =
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.gdtr.attrib);
+            env->idt.base = launch_vmsa->vmsa.idtr.base;
+            env->idt.limit = launch_vmsa->vmsa.idtr.limit;
+            env->idt.flags =
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.idtr.attrib);
+
+            cpu_x86_load_seg_cache(
+                env, R_LDTR, launch_vmsa->vmsa.ldtr.selector,
+                launch_vmsa->vmsa.ldtr.base, launch_vmsa->vmsa.ldtr.limit,
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.ldtr.attrib));
+            cpu_x86_load_seg_cache(
+                env, R_TR, launch_vmsa->vmsa.tr.selector,
+                launch_vmsa->vmsa.ldtr.base, launch_vmsa->vmsa.tr.limit,
+                FLAGS_VMSA_TO_SEGCACHE(launch_vmsa->vmsa.tr.attrib));
+
+            env->dr[6] = launch_vmsa->vmsa.dr6;
+            env->dr[7] = launch_vmsa->vmsa.dr7;
+
+            env->regs[R_EAX] = launch_vmsa->vmsa.rax;
+            env->regs[R_ECX] = launch_vmsa->vmsa.rcx;
+            env->regs[R_EDX] = launch_vmsa->vmsa.rdx;
+            env->regs[R_EBX] = launch_vmsa->vmsa.rbx;
+            env->regs[R_ESP] = launch_vmsa->vmsa.rsp;
+            env->regs[R_EBP] = launch_vmsa->vmsa.rbp;
+            env->regs[R_ESI] = launch_vmsa->vmsa.rsi;
+            env->regs[R_EDI] = launch_vmsa->vmsa.rdi;
+#ifdef TARGET_X86_64
+            env->regs[R_R8] = launch_vmsa->vmsa.r8;
+            env->regs[R_R9] = launch_vmsa->vmsa.r9;
+            env->regs[R_R10] = launch_vmsa->vmsa.r10;
+            env->regs[R_R11] = launch_vmsa->vmsa.r11;
+            env->regs[R_R12] = launch_vmsa->vmsa.r12;
+            env->regs[R_R13] = launch_vmsa->vmsa.r13;
+            env->regs[R_R14] = launch_vmsa->vmsa.r14;
+            env->regs[R_R15] = launch_vmsa->vmsa.r15;
+#endif
+            env->eip = launch_vmsa->vmsa.rip;
+            env->eflags = launch_vmsa->vmsa.rflags;
+
+            cpu_set_fpuc(env, launch_vmsa->vmsa.x87_fcw);
+            env->mxcsr = launch_vmsa->vmsa.mxcsr;
+
+            break;
+        }
+    }
+}
+
+static int check_sev_features(SevCommonState *sev_common, uint64_t sev_features,
+                              Error **errp)
+{
+    /*
+     * Ensure SEV_FEATURES is configured for correct SEV hardware and that
+     * the requested features are supported. If SEV-SNP is enabled then
+     * that feature must be enabled, otherwise it must be cleared.
+     */
+    if (sev_snp_enabled() && !(sev_features & SVM_SEV_FEAT_SNP_ACTIVE)) {
+        error_setg(
+            errp,
+            "%s: SEV_SNP is enabled but is not enabled in VMSA sev_features",
+            __func__);
+        return -1;
+    } else if (!sev_snp_enabled() &&
+               (sev_features & SVM_SEV_FEAT_SNP_ACTIVE)) {
+        error_setg(
+            errp,
+            "%s: SEV_SNP is not enabled but is enabled in VMSA sev_features",
+            __func__);
+        return -1;
+    }
+    if (sev_features & ~sev_common->supported_sev_features) {
+        error_setg(errp,
+                   "%s: VMSA contains unsupported sev_features: %lX, "
+                   "supported features: %lX",
+                   __func__, sev_features, sev_common->supported_sev_features);
+        return -1;
+    }
+    return 0;
+}
+
+static int check_vmsa_supported(SevCommonState *sev_common, hwaddr gpa,
+                                const struct sev_es_save_area *vmsa,
+                                Error **errp)
+{
+    struct sev_es_save_area vmsa_check;
+
+    /*
+     * KVM always populates the VMSA at a fixed GPA which cannot be modified
+     * from userspace. Specifying a different GPA will not prevent the guest
+     * from starting but will cause the launch measurement to be different
+     * from expected. Therefore check that the provided GPA matches the KVM
+     * hardcoded value.
+     */
+    if (gpa != KVM_VMSA_GPA) {
+        error_setg(errp,
+                "%s: The VMSA GPA must be %lX but is specified as %lX",
+                __func__, KVM_VMSA_GPA, gpa);
+        return -1;
+    }
+
+    /*
+     * Clear all supported fields so we can then check the entire structure
+     * is zero.
+     */
+    memcpy(&vmsa_check, vmsa, sizeof(struct sev_es_save_area));
+    memset(&vmsa_check.es, 0, sizeof(vmsa_check.es));
+    memset(&vmsa_check.cs, 0, sizeof(vmsa_check.cs));
+    memset(&vmsa_check.ss, 0, sizeof(vmsa_check.ss));
+    memset(&vmsa_check.ds, 0, sizeof(vmsa_check.ds));
+    memset(&vmsa_check.fs, 0, sizeof(vmsa_check.fs));
+    memset(&vmsa_check.gs, 0, sizeof(vmsa_check.gs));
+    memset(&vmsa_check.gdtr, 0, sizeof(vmsa_check.gdtr));
+    memset(&vmsa_check.idtr, 0, sizeof(vmsa_check.idtr));
+    memset(&vmsa_check.ldtr, 0, sizeof(vmsa_check.ldtr));
+    memset(&vmsa_check.tr, 0, sizeof(vmsa_check.tr));
+    vmsa_check.efer = 0;
+    vmsa_check.cr0 = 0;
+    vmsa_check.cr3 = 0;
+    vmsa_check.cr4 = 0;
+    vmsa_check.xcr0 = 0;
+    vmsa_check.dr6 = 0;
+    vmsa_check.dr7 = 0;
+    vmsa_check.rax = 0;
+    vmsa_check.rcx = 0;
+    vmsa_check.rdx = 0;
+    vmsa_check.rbx = 0;
+    vmsa_check.rsp = 0;
+    vmsa_check.rbp = 0;
+    vmsa_check.rsi = 0;
+    vmsa_check.rdi = 0;
+    vmsa_check.r8 = 0;
+    vmsa_check.r9 = 0;
+    vmsa_check.r10 = 0;
+    vmsa_check.r11 = 0;
+    vmsa_check.r12 = 0;
+    vmsa_check.r13 = 0;
+    vmsa_check.r14 = 0;
+    vmsa_check.r15 = 0;
+    vmsa_check.rip = 0;
+    vmsa_check.rflags = 0;
+
+    vmsa_check.g_pat = 0;
+    vmsa_check.xcr0 = 0;
+
+    vmsa_check.x87_fcw = 0;
+    vmsa_check.mxcsr = 0;
+
+    if (check_sev_features(sev_common, vmsa_check.sev_features, errp) < 0) {
+        return -1;
+    }
+    vmsa_check.sev_features = 0;
+
+    if (!buffer_is_zero(&vmsa_check, sizeof(vmsa_check))) {
+        error_setg(errp,
+                "%s: The VMSA contains fields that are not "
+                "synchronized with KVM. Continuing would result in "
+                "either unpredictable guest behavior, or a "
+                "mismatched launch measurement.",
+                __func__);
+        return -1;
+    }
+    return 0;
+}
+
+static int sev_set_cpu_context(uint16_t cpu_index, const void *ctx,
+                               uint32_t ctx_len, hwaddr gpa, Error **errp)
+{
+    SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
+    SevLaunchVmsa *launch_vmsa;
+    CPUState *cpu;
+    bool exists = false;
+
+    /*
+     * Setting the CPU context is only supported for SEV-ES and SEV-SNP. The
+     * context buffer will contain a sev_es_save_area from the Linux kernel
+     * which is defined by "Table B-4. VMSA Layout, State Save Area for SEV-ES"
+     * in the AMD64 APM, Volume 2.
+     */
+
+    if (!sev_es_enabled()) {
+        error_setg(errp, "SEV: unable to set CPU context: Not supported");
+        return -1;
+    }
+
+    if (ctx_len < sizeof(struct sev_es_save_area)) {
+        error_setg(errp, "SEV: unable to set CPU context: "
+                     "Invalid context provided");
+        return -1;
+    }
+
+    cpu = qemu_get_cpu(cpu_index);
+    if (!cpu) {
+        error_setg(errp, "SEV: unable to set CPU context for out of bounds "
+                     "CPU index %d", cpu_index);
+        return -1;
+    }
+
+    /*
+     * If the context of this VP has already been set then replace it with the
+     * new context.
+     */
+    QTAILQ_FOREACH(launch_vmsa, &sev_common->launch_vmsa, next)
+    {
+        if (cpu_index == launch_vmsa->cpu_index) {
+            launch_vmsa->gpa = gpa;
+            memcpy(&launch_vmsa->vmsa, ctx, sizeof(launch_vmsa->vmsa));
+            exists = true;
+            break;
+        }
+    }
+
+    if (!exists) {
+        /* New VP context */
+        launch_vmsa = g_new0(SevLaunchVmsa, 1);
+        memcpy(&launch_vmsa->vmsa, ctx, sizeof(launch_vmsa->vmsa));
+        launch_vmsa->cpu_index = cpu_index;
+        launch_vmsa->gpa = gpa;
+        QTAILQ_INSERT_TAIL(&sev_common->launch_vmsa, launch_vmsa, next);
+    }
+
+    /* Synchronise the VMSA with the current CPU state */
+    sev_apply_cpu_context(cpu);
+
+    return 0;
+}
 
 bool
 sev_enabled(void)
@@ -970,9 +1272,8 @@ sev_snp_adjust_cpuid_features(X86ConfidentialGuest *cg, uint32_t feature, uint32
     return value;
 }
 
-static int
-sev_launch_update_data(SevCommonState *sev_common, hwaddr gpa,
-                       uint8_t *addr, size_t len)
+static int sev_launch_update_data(SevCommonState *sev_common, hwaddr gpa,
+                                  uint8_t *addr, size_t len, Error **errp)
 {
     int ret, fw_error;
     struct kvm_sev_launch_update_data update;
@@ -987,8 +1288,8 @@ sev_launch_update_data(SevCommonState *sev_common, hwaddr gpa,
     ret = sev_ioctl(sev_common->sev_fd, KVM_SEV_LAUNCH_UPDATE_DATA,
                     &update, &fw_error);
     if (ret) {
-        error_report("%s: LAUNCH_UPDATE ret=%d fw_error=%d '%s'",
-                __func__, ret, fw_error, fw_error_to_str(fw_error));
+        error_setg(errp, "%s: LAUNCH_UPDATE ret=%d fw_error=%d '%s'", __func__,
+                   ret, fw_error, fw_error_to_str(fw_error));
     }
 
     return ret;
@@ -998,6 +1299,16 @@ static int
 sev_launch_update_vmsa(SevGuestState *sev_guest)
 {
     int ret, fw_error;
+    CPUState *cpu;
+
+    /*
+     * The initial CPU state is measured as part of KVM_SEV_LAUNCH_UPDATE_VMSA.
+     * Synchronise the CPU state to any provided launch VMSA structures.
+     */
+    CPU_FOREACH(cpu) {
+        sev_apply_cpu_context(cpu);
+    }
+
 
     ret = sev_ioctl(SEV_COMMON(sev_guest)->sev_fd, KVM_SEV_LAUNCH_UPDATE_VMSA,
                     NULL, &fw_error);
@@ -1116,8 +1427,8 @@ sev_launch_finish(SevCommonState *sev_common)
     migrate_add_blocker(&sev_mig_blocker, &error_fatal);
 }
 
-static int
-snp_launch_update_data(uint64_t gpa, void *hva, size_t len, int type)
+static int snp_launch_update_data(uint64_t gpa, void *hva, size_t len,
+                                  int type, Error **errp)
 {
     SevLaunchUpdateData *data;
 
@@ -1132,23 +1443,21 @@ snp_launch_update_data(uint64_t gpa, void *hva, size_t len, int type)
     return 0;
 }
 
-static int
-sev_snp_launch_update_data(SevCommonState *sev_common, hwaddr gpa,
-                           uint8_t *ptr, size_t len)
+static int sev_snp_launch_update_data(SevCommonState *sev_common, hwaddr gpa,
+                                      uint8_t *ptr, size_t len, Error **errp)
 {
-       int ret = snp_launch_update_data(gpa, ptr, len,
-                                         KVM_SEV_SNP_PAGE_TYPE_NORMAL);
-       return ret;
+    return snp_launch_update_data(gpa, ptr, len,
+                                     KVM_SEV_SNP_PAGE_TYPE_NORMAL, errp);
 }
 
 static int
 sev_snp_cpuid_info_fill(SnpCpuidInfo *snp_cpuid_info,
-                        const KvmCpuidInfo *kvm_cpuid_info)
+                        const KvmCpuidInfo *kvm_cpuid_info, Error **errp)
 {
     size_t i;
 
     if (kvm_cpuid_info->cpuid.nent > SNP_CPUID_FUNCTION_MAXCOUNT) {
-        error_report("SEV-SNP: CPUID entry count (%d) exceeds max (%d)",
+        error_setg(errp, "SEV-SNP: CPUID entry count (%d) exceeds max (%d)",
                      kvm_cpuid_info->cpuid.nent, SNP_CPUID_FUNCTION_MAXCOUNT);
         return -1;
     }
@@ -1190,8 +1499,8 @@ sev_snp_cpuid_info_fill(SnpCpuidInfo *snp_cpuid_info,
     return 0;
 }
 
-static int
-snp_launch_update_cpuid(uint32_t cpuid_addr, void *hva, size_t cpuid_len)
+static int snp_launch_update_cpuid(uint32_t cpuid_addr, void *hva,
+                                   size_t cpuid_len, Error **errp)
 {
     KvmCpuidInfo kvm_cpuid_info = {0};
     SnpCpuidInfo snp_cpuid_info;
@@ -1208,26 +1517,25 @@ snp_launch_update_cpuid(uint32_t cpuid_addr, void *hva, size_t cpuid_len)
     } while (ret == -E2BIG);
 
     if (ret) {
-        error_report("SEV-SNP: unable to query CPUID values for CPU: '%s'",
-                     strerror(-ret));
-        return 1;
+        error_setg(errp, "SEV-SNP: unable to query CPUID values for CPU: '%s'",
+                   strerror(-ret));
+        return -1;
     }
 
-    ret = sev_snp_cpuid_info_fill(&snp_cpuid_info, &kvm_cpuid_info);
-    if (ret) {
-        error_report("SEV-SNP: failed to generate CPUID table information");
-        return 1;
+    ret = sev_snp_cpuid_info_fill(&snp_cpuid_info, &kvm_cpuid_info, errp);
+    if (ret < 0) {
+        return -1;
     }
 
     memcpy(hva, &snp_cpuid_info, sizeof(snp_cpuid_info));
 
     return snp_launch_update_data(cpuid_addr, hva, cpuid_len,
-                                  KVM_SEV_SNP_PAGE_TYPE_CPUID);
+                                  KVM_SEV_SNP_PAGE_TYPE_CPUID, errp);
 }
 
-static int
-snp_launch_update_kernel_hashes(SevSnpGuestState *sev_snp, uint32_t addr,
-                                void *hva, uint32_t len)
+static int snp_launch_update_kernel_hashes(SevSnpGuestState *sev_snp,
+                                           uint32_t addr, void *hva,
+                                           uint32_t len, Error **errp)
 {
     int type = KVM_SEV_SNP_PAGE_TYPE_ZERO;
     if (sev_snp->parent_obj.kernel_hashes) {
@@ -1239,7 +1547,7 @@ snp_launch_update_kernel_hashes(SevSnpGuestState *sev_snp, uint32_t addr,
                sizeof(*sev_snp->kernel_hashes_data));
         type = KVM_SEV_SNP_PAGE_TYPE_NORMAL;
     }
-    return snp_launch_update_data(addr, hva, len, type);
+    return snp_launch_update_data(addr, hva, len, type, errp);
 }
 
 static int
@@ -1277,12 +1585,14 @@ snp_populate_metadata_pages(SevSnpGuestState *sev_snp,
         }
 
         if (type == KVM_SEV_SNP_PAGE_TYPE_CPUID) {
-            ret = snp_launch_update_cpuid(desc->base, hva, desc->len);
+            ret = snp_launch_update_cpuid(desc->base, hva, desc->len,
+                                          &error_fatal);
         } else if (desc->type == SEV_DESC_TYPE_SNP_KERNEL_HASHES) {
             ret = snp_launch_update_kernel_hashes(sev_snp, desc->base, hva,
-                                                  desc->len);
+                                                  desc->len, &error_fatal);
         } else {
-            ret = snp_launch_update_data(desc->base, hva, desc->len, type);
+            ret = snp_launch_update_data(desc->base, hva, desc->len, type,
+                                         &error_fatal);
         }
 
         if (ret) {
@@ -1304,18 +1614,26 @@ sev_snp_launch_finish(SevCommonState *sev_common)
     struct kvm_sev_snp_launch_finish *finish = &sev_snp->kvm_finish_conf;
 
     /*
-     * To boot the SNP guest, the hypervisor is required to populate the CPUID
-     * and Secrets page before finalizing the launch flow. The location of
-     * the secrets and CPUID page is available through the OVMF metadata GUID.
+     * Populate all the metadata pages if not using an IGVM file. In the case
+     * where an IGVM file is provided it will be used to configure the metadata
+     * pages directly.
      */
-    metadata = pc_system_get_ovmf_sev_metadata_ptr();
-    if (metadata == NULL) {
-        error_report("%s: Failed to locate SEV metadata header", __func__);
-        exit(1);
-    }
+    if (!X86_MACHINE(qdev_get_machine())->igvm) {
+        /*
+         * To boot the SNP guest, the hypervisor is required to populate the
+         * CPUID and Secrets page before finalizing the launch flow. The
+         * location of the secrets and CPUID page is available through the
+         * OVMF metadata GUID.
+         */
+        metadata = pc_system_get_ovmf_sev_metadata_ptr();
+        if (metadata == NULL) {
+            error_report("%s: Failed to locate SEV metadata header", __func__);
+            exit(1);
+        }
 
-    /* Populate all the metadata pages */
-    snp_populate_metadata_pages(sev_snp, metadata);
+        /* Populate all the metadata pages */
+        snp_populate_metadata_pages(sev_snp, metadata);
+    }
 
     QTAILQ_FOREACH(data, &launch_update, next) {
         ret = sev_snp_launch_update(sev_snp, data);
@@ -1425,6 +1743,39 @@ static int sev_snp_kvm_type(X86ConfidentialGuest *cg)
     return KVM_X86_SNP_VM;
 }
 
+static int sev_init_supported_features(ConfidentialGuestSupport *cgs,
+                                       SevCommonState *sev_common, Error **errp)
+{
+    X86ConfidentialGuestClass *x86_klass =
+                               X86_CONFIDENTIAL_GUEST_GET_CLASS(cgs);
+    /*
+     * Older kernels do not support query or setting of sev_features. In this
+     * case the set of supported features must be zero to match the settings
+     * in the kernel.
+     */
+    if (x86_klass->kvm_type(X86_CONFIDENTIAL_GUEST(sev_common)) ==
+        KVM_X86_DEFAULT_VM) {
+        sev_common->supported_sev_features = 0;
+        return 0;
+    }
+
+    /* Query KVM for the supported set of sev_features */
+    struct kvm_device_attr attr = {
+        .group = KVM_X86_GRP_SEV,
+        .attr = KVM_X86_SEV_VMSA_FEATURES,
+        .addr = (unsigned long)&sev_common->supported_sev_features,
+    };
+    if (kvm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr) < 0) {
+        error_setg(errp, "%s: failed to query supported sev_features",
+                   __func__);
+        return -1;
+    }
+    if (sev_snp_enabled()) {
+        sev_common->supported_sev_features |= SVM_SEV_FEAT_SNP_ACTIVE;
+    }
+    return 0;
+}
+
 static int sev_common_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
 {
     char *devname;
@@ -1505,6 +1856,10 @@ static int sev_common_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
         }
     }
 
+    if (sev_init_supported_features(cgs, sev_common, errp) < 0) {
+        return -1;
+    }
+
     trace_kvm_sev_init();
     switch (x86_klass->kvm_type(X86_CONFIDENTIAL_GUEST(sev_common))) {
     case KVM_X86_DEFAULT_VM:
@@ -1516,6 +1871,40 @@ static int sev_common_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     case KVM_X86_SEV_ES_VM:
     case KVM_X86_SNP_VM: {
         struct kvm_sev_init args = { 0 };
+        MachineState *machine = MACHINE(qdev_get_machine());
+        X86MachineState *x86machine = X86_MACHINE(qdev_get_machine());
+
+        /*
+         * If configuration is provided via an IGVM file then the IGVM file
+         * might contain configuration of the initial vcpu context. For SEV
+         * the vcpu context includes the sev_features which should be applied
+         * to the vcpu.
+         *
+         * KVM does not synchronize sev_features from CPU state. Instead it
+         * requires sev_features to be provided as part of this initialization
+         * call which is subsequently automatically applied to the VMSA of
+         * each vcpu.
+         *
+         * The IGVM file is normally processed after initialization. Therefore
+         * we need to pre-process it here to extract sev_features in order to
+         * provide it to KVM_SEV_INIT2. Each cgs_* function that is called by
+         * the IGVM processor detects this pre-process by observing the state
+         * as SEV_STATE_UNINIT.
+         */
+        if (x86machine->igvm) {
+            if (IGVM_CFG_GET_CLASS(x86machine->igvm)
+                    ->process(x86machine->igvm, machine->cgs, true, errp) ==
+                -1) {
+                return -1;
+            }
+            /*
+             * KVM maintains a bitmask of allowed sev_features. This does not
+             * include SVM_SEV_FEAT_SNP_ACTIVE which is set accordingly by KVM
+             * itself. Therefore we need to clear this flag.
+             */
+            args.vmsa_features = sev_common->sev_features &
+                                 ~SVM_SEV_FEAT_SNP_ACTIVE;
+        }
 
         ret = sev_ioctl(sev_common->sev_fd, KVM_SEV_INIT2, &args, &fw_error);
         break;
@@ -1615,9 +2004,8 @@ sev_encrypt_flash(hwaddr gpa, uint8_t *ptr, uint64_t len, Error **errp)
     if (sev_check_state(sev_common, SEV_STATE_LAUNCH_UPDATE)) {
         int ret;
 
-        ret = klass->launch_update_data(sev_common, gpa, ptr, len);
+        ret = klass->launch_update_data(sev_common, gpa, ptr, len, errp);
         if (ret < 0) {
-            error_setg(errp, "SEV: Failed to encrypt pflash rom");
             return ret;
         }
     }
@@ -1782,40 +2170,109 @@ sev_es_find_reset_vector(void *flash_ptr, uint64_t flash_size,
     return sev_es_parse_reset_block(info, addr);
 }
 
+
+static void seg_to_vmsa(const SegmentCache *cpu_seg, struct vmcb_seg *vmsa_seg)
+{
+    vmsa_seg->selector = cpu_seg->selector;
+    vmsa_seg->base = cpu_seg->base;
+    vmsa_seg->limit = cpu_seg->limit;
+    vmsa_seg->attrib = FLAGS_SEGCACHE_TO_VMSA(cpu_seg->flags);
+}
+
+static void initialize_vmsa(const CPUState *cpu, struct sev_es_save_area *vmsa)
+{
+    const X86CPU *x86 = X86_CPU(cpu);
+    const CPUX86State *env = &x86->env;
+
+    /*
+     * Initialize the SEV-ES save area from the current state of
+     * the CPU. The entire state does not need to be copied, only the state
+     * that is copied back to the CPUState in sev_apply_cpu_context.
+     */
+    memset(vmsa, 0, sizeof(struct sev_es_save_area));
+    vmsa->efer = env->efer;
+    vmsa->cr0 = env->cr[0];
+    vmsa->cr3 = env->cr[3];
+    vmsa->cr4 = env->cr[4];
+    vmsa->xcr0 = env->xcr0;
+    vmsa->g_pat = env->pat;
+
+    seg_to_vmsa(&env->segs[R_CS], &vmsa->cs);
+    seg_to_vmsa(&env->segs[R_DS], &vmsa->ds);
+    seg_to_vmsa(&env->segs[R_ES], &vmsa->es);
+    seg_to_vmsa(&env->segs[R_FS], &vmsa->fs);
+    seg_to_vmsa(&env->segs[R_GS], &vmsa->gs);
+    seg_to_vmsa(&env->segs[R_SS], &vmsa->ss);
+
+    seg_to_vmsa(&env->gdt, &vmsa->gdtr);
+    seg_to_vmsa(&env->idt, &vmsa->idtr);
+    seg_to_vmsa(&env->ldt, &vmsa->ldtr);
+    seg_to_vmsa(&env->tr, &vmsa->tr);
+
+    vmsa->dr6 = env->dr[6];
+    vmsa->dr7 = env->dr[7];
+
+    vmsa->rax = env->regs[R_EAX];
+    vmsa->rcx = env->regs[R_ECX];
+    vmsa->rdx = env->regs[R_EDX];
+    vmsa->rbx = env->regs[R_EBX];
+    vmsa->rsp = env->regs[R_ESP];
+    vmsa->rbp = env->regs[R_EBP];
+    vmsa->rsi = env->regs[R_ESI];
+    vmsa->rdi = env->regs[R_EDI];
+
+#ifdef TARGET_X86_64
+    vmsa->r8 = env->regs[R_R8];
+    vmsa->r9 = env->regs[R_R9];
+    vmsa->r10 = env->regs[R_R10];
+    vmsa->r11 = env->regs[R_R11];
+    vmsa->r12 = env->regs[R_R12];
+    vmsa->r13 = env->regs[R_R13];
+    vmsa->r14 = env->regs[R_R14];
+    vmsa->r15 = env->regs[R_R15];
+#endif
+
+    vmsa->rip = env->eip;
+    vmsa->rflags = env->eflags;
+}
+
+static void sev_es_set_ap_context(uint32_t reset_addr)
+{
+    CPUState *cpu;
+    struct sev_es_save_area vmsa;
+    SegmentCache cs;
+
+    cs.selector = 0xf000;
+    cs.base = reset_addr & 0xffff0000;
+    cs.limit = 0xffff;
+    cs.flags = DESC_P_MASK | DESC_S_MASK | DESC_CS_MASK | DESC_R_MASK |
+               DESC_A_MASK;
+
+    CPU_FOREACH(cpu) {
+        if (cpu->cpu_index == 0) {
+            /* Do not update the BSP reset state */
+            continue;
+        }
+        initialize_vmsa(cpu, &vmsa);
+        seg_to_vmsa(&cs, &vmsa.cs);
+        vmsa.rip = reset_addr & 0x0000ffff;
+        sev_set_cpu_context(cpu->cpu_index, &vmsa,
+                            sizeof(struct sev_es_save_area),
+                            0, &error_fatal);
+    }
+}
+
 void sev_es_set_reset_vector(CPUState *cpu)
 {
-    X86CPU *x86;
-    CPUX86State *env;
-    ConfidentialGuestSupport *cgs = MACHINE(qdev_get_machine())->cgs;
-    SevCommonState *sev_common = SEV_COMMON(
-        object_dynamic_cast(OBJECT(cgs), TYPE_SEV_COMMON));
-
-    /* Only update if we have valid reset information */
-    if (!sev_common || !sev_common->reset_data_valid) {
-        return;
+    if (sev_enabled()) {
+        sev_apply_cpu_context(cpu);
     }
-
-    /* Do not update the BSP reset state */
-    if (cpu->cpu_index == 0) {
-        return;
-    }
-
-    x86 = X86_CPU(cpu);
-    env = &x86->env;
-
-    cpu_x86_load_seg_cache(env, R_CS, 0xf000, sev_common->reset_cs, 0xffff,
-                           DESC_P_MASK | DESC_S_MASK | DESC_CS_MASK |
-                           DESC_R_MASK | DESC_A_MASK);
-
-    env->eip = sev_common->reset_ip;
 }
 
 int sev_es_save_reset_vector(void *flash_ptr, uint64_t flash_size)
 {
-    CPUState *cpu;
     uint32_t addr;
     int ret;
-    SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
 
     if (!sev_es_enabled()) {
         return 0;
@@ -1828,14 +2285,12 @@ int sev_es_save_reset_vector(void *flash_ptr, uint64_t flash_size)
         return ret;
     }
 
+    /*
+     * The reset vector is saved into a CPU context for each AP but not for
+     * the BSP. This is applied during guest startup or when the CPU is reset.
+     */
     if (addr) {
-        sev_common->reset_cs = addr & 0xffff0000;
-        sev_common->reset_ip = addr & 0x0000ffff;
-        sev_common->reset_data_valid = true;
-
-        CPU_FOREACH(cpu) {
-            sev_es_set_reset_vector(cpu);
-        }
+        sev_es_set_ap_context(addr);
     }
 
     return 0;
@@ -2037,6 +2492,237 @@ static void sev_common_set_kernel_hashes(Object *obj, bool value, Error **errp)
     SEV_COMMON(obj)->kernel_hashes = value;
 }
 
+static bool cgs_check_support(ConfidentialGuestPlatformType platform,
+                             uint16_t platform_version, uint8_t highest_vtl,
+                             uint64_t shared_gpa_boundary)
+{
+    return (((platform == CGS_PLATFORM_SEV_SNP) && sev_snp_enabled()) ||
+            ((platform == CGS_PLATFORM_SEV_ES) && sev_es_enabled()) ||
+            ((platform == CGS_PLATFORM_SEV) && sev_enabled()));
+}
+
+static int cgs_set_guest_state(hwaddr gpa, uint8_t *ptr, uint64_t len,
+                               ConfidentialGuestPageType memory_type,
+                               uint16_t cpu_index, Error **errp)
+{
+    SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
+    SevCommonStateClass *klass = SEV_COMMON_GET_CLASS(sev_common);
+
+    if (sev_common->state == SEV_STATE_UNINIT) {
+        /* Pre-processing of IGVM file called from sev_common_kvm_init() */
+        if ((cpu_index == 0) && (memory_type == CGS_PAGE_TYPE_VMSA)) {
+            const struct sev_es_save_area *sa =
+                (const struct sev_es_save_area *)ptr;
+            if (len < sizeof(*sa)) {
+                error_setg(errp, "%s: invalid VMSA length encountered",
+                           __func__);
+                return -1;
+            }
+            if (check_sev_features(sev_common, sa->sev_features, errp) < 0) {
+                return -1;
+            }
+            sev_common->sev_features = sa->sev_features;
+        }
+        return 0;
+    }
+
+    if (!sev_enabled()) {
+        error_setg(errp, "%s: attempt to configure guest memory, but SEV "
+                     "is not enabled", __func__);
+        return -1;
+    }
+
+    switch (memory_type) {
+    case CGS_PAGE_TYPE_NORMAL:
+    case CGS_PAGE_TYPE_ZERO:
+        return klass->launch_update_data(sev_common, gpa, ptr, len, errp);
+
+    case CGS_PAGE_TYPE_VMSA:
+        if (!sev_es_enabled()) {
+            error_setg(errp,
+                       "%s: attempt to configure initial VMSA, but SEV-ES "
+                       "is not supported",
+                       __func__);
+            return -1;
+        }
+        if (check_vmsa_supported(sev_common, gpa,
+                                 (const struct sev_es_save_area *)ptr,
+                                 errp) < 0) {
+            return -1;
+        }
+        return sev_set_cpu_context(cpu_index, ptr, len, gpa, errp);
+
+    case CGS_PAGE_TYPE_UNMEASURED:
+        if (sev_snp_enabled()) {
+            return snp_launch_update_data(
+                gpa, ptr, len, KVM_SEV_SNP_PAGE_TYPE_UNMEASURED, errp);
+        }
+        /* No action required if not SEV-SNP */
+        return 0;
+
+    case CGS_PAGE_TYPE_SECRETS:
+        if (!sev_snp_enabled()) {
+            error_setg(errp,
+                       "%s: attempt to configure secrets page, but SEV-SNP "
+                       "is not supported",
+                       __func__);
+            return -1;
+        }
+        return snp_launch_update_data(gpa, ptr, len,
+                                      KVM_SEV_SNP_PAGE_TYPE_SECRETS, errp);
+
+    case CGS_PAGE_TYPE_REQUIRED_MEMORY:
+        if (kvm_convert_memory(gpa, len, true) < 0) {
+            error_setg(
+                errp,
+                "%s: failed to configure required memory. gpa: %lX, type: %d",
+                __func__, gpa, memory_type);
+            return -1;
+        }
+        return 0;
+
+    case CGS_PAGE_TYPE_CPUID:
+        if (!sev_snp_enabled()) {
+            error_setg(errp,
+                       "%s: attempt to configure CPUID page, but SEV-SNP "
+                       "is not supported",
+                       __func__);
+            return -1;
+        }
+        return snp_launch_update_cpuid(gpa, ptr, len, errp);
+    }
+    error_setg(errp, "%s: failed to update guest. gpa: %lX, type: %d", __func__,
+               gpa, memory_type);
+    return -1;
+}
+
+static int cgs_get_mem_map_entry(int index,
+                                 ConfidentialGuestMemoryMapEntry *entry,
+                                 Error **errp)
+{
+    struct e820_entry *table;
+    int num_entries;
+
+    SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
+    if (sev_common->state == SEV_STATE_UNINIT) {
+        /* Pre-processing of IGVM file called from sev_common_kvm_init() */
+        return 1;
+    }
+
+    num_entries = e820_get_table(&table);
+    if ((index < 0) || (index >= num_entries)) {
+        return 1;
+    }
+    entry->gpa = table[index].address;
+    entry->size = table[index].length;
+    switch (table[index].type) {
+    case E820_RAM:
+        entry->type = CGS_MEM_RAM;
+        break;
+    case E820_RESERVED:
+        entry->type = CGS_MEM_RESERVED;
+        break;
+    case E820_ACPI:
+        entry->type = CGS_MEM_ACPI;
+        break;
+    case E820_NVS:
+        entry->type = CGS_MEM_NVS;
+        break;
+    case E820_UNUSABLE:
+        entry->type = CGS_MEM_UNUSABLE;
+        break;
+    }
+    return 0;
+}
+
+static int cgs_set_guest_policy(ConfidentialGuestPolicyType policy_type,
+                                uint64_t policy, void *policy_data1,
+                                uint32_t policy_data1_size, void *policy_data2,
+                                uint32_t policy_data2_size, Error **errp)
+{
+    SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
+    if (sev_common->state == SEV_STATE_UNINIT) {
+        /* Pre-processing of IGVM file called from sev_common_kvm_init() */
+        return 0;
+    }
+
+    if (policy_type != GUEST_POLICY_SEV) {
+        error_setg(errp, "%s: Invalid guest policy type provided for SEV: %d",
+        __func__, policy_type);
+        return -1;
+    }
+    /*
+     * SEV-SNP handles policy differently. The policy flags are defined in
+     * kvm_start_conf.policy and an ID block and ID auth can be provided.
+     */
+    if (sev_snp_enabled()) {
+        SevSnpGuestState *sev_snp_guest =
+            SEV_SNP_GUEST(MACHINE(qdev_get_machine())->cgs);
+        struct kvm_sev_snp_launch_finish *finish =
+            &sev_snp_guest->kvm_finish_conf;
+
+        /*
+         * The policy consists of flags in 'policy' and optionally an ID block
+         * and ID auth in policy_data1 and policy_data2 respectively. The ID
+         * block and auth are optional so clear any previous ID block and auth
+         * and set them if provided, but always set the policy flags.
+         */
+        g_free(sev_snp_guest->id_block);
+        g_free((guchar *)finish->id_block_uaddr);
+        g_free(sev_snp_guest->id_auth);
+        g_free((guchar *)finish->id_auth_uaddr);
+        sev_snp_guest->id_block = NULL;
+        finish->id_block_uaddr = 0;
+        sev_snp_guest->id_auth = NULL;
+        finish->id_auth_uaddr = 0;
+
+        if (policy_data1_size > 0) {
+            struct sev_snp_id_authentication *id_auth =
+                (struct sev_snp_id_authentication *)policy_data2;
+
+            if (policy_data1_size != KVM_SEV_SNP_ID_BLOCK_SIZE) {
+                error_setg(errp, "%s: Invalid SEV-SNP ID block: incorrect size",
+                           __func__);
+                return -1;
+            }
+            if (policy_data2_size != KVM_SEV_SNP_ID_AUTH_SIZE) {
+                error_setg(errp,
+                           "%s: Invalid SEV-SNP ID auth block: incorrect size",
+                           __func__);
+                return -1;
+            }
+            assert(policy_data1 != NULL);
+            assert(policy_data2 != NULL);
+
+            finish->id_block_uaddr =
+                (__u64)g_memdup2(policy_data1, KVM_SEV_SNP_ID_BLOCK_SIZE);
+            finish->id_auth_uaddr =
+                (__u64)g_memdup2(policy_data2, KVM_SEV_SNP_ID_AUTH_SIZE);
+
+            /*
+             * Check if an author key has been provided and use that to flag
+             * whether the author key is enabled. The first of the author key
+             * must be non-zero to indicate the key type, which will currently
+             * always be 2.
+             */
+            sev_snp_guest->kvm_finish_conf.auth_key_en =
+                id_auth->author_key[0] ? 1 : 0;
+            finish->id_block_en = 1;
+        }
+        sev_snp_guest->kvm_start_conf.policy = policy;
+    } else {
+        SevGuestState *sev_guest = SEV_GUEST(MACHINE(qdev_get_machine())->cgs);
+        /* Only the policy flags are supported for SEV and SEV-ES */
+        if ((policy_data1_size > 0) || (policy_data2_size > 0) || !sev_guest) {
+            error_setg(errp, "%s: An ID block/ID auth block has been provided "
+                             "but SEV-SNP is not enabled", __func__);
+            return -1;
+        }
+        sev_guest->policy = policy;
+    }
+    return 0;
+}
+
 static void
 sev_common_class_init(ObjectClass *oc, const void *data)
 {
@@ -2060,6 +2746,8 @@ static void
 sev_common_instance_init(Object *obj)
 {
     SevCommonState *sev_common = SEV_COMMON(obj);
+    ConfidentialGuestSupportClass *cgs =
+        CONFIDENTIAL_GUEST_SUPPORT_GET_CLASS(obj);
 
     sev_common->kvm_type = -1;
 
@@ -2070,6 +2758,12 @@ sev_common_instance_init(Object *obj)
     object_property_add_uint32_ptr(obj, "reduced-phys-bits",
                                    &sev_common->reduced_phys_bits,
                                    OBJ_PROP_FLAG_READWRITE);
+    cgs->check_support = cgs_check_support;
+    cgs->set_guest_state = cgs_set_guest_state;
+    cgs->get_mem_map_entry = cgs_get_mem_map_entry;
+    cgs->set_guest_policy = cgs_set_guest_policy;
+
+    QTAILQ_INIT(&sev_common->launch_vmsa);
 }
 
 /* sev guest info common to sev/sev-es/sev-snp */

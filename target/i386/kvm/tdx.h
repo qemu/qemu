@@ -25,6 +25,7 @@ typedef struct TdxGuestClass {
 
 #define TDVMCALL_GET_TD_VM_CALL_INFO    0x10000
 #define TDVMCALL_GET_QUOTE		 0x10002
+#define TDVMCALL_SETUP_EVENT_NOTIFY_INTERRUPT   0x10004
 
 #define TDG_VP_VMCALL_SUCCESS           0x0000000000000000ULL
 #define TDG_VP_VMCALL_RETRY             0x0000000000000001ULL
@@ -32,7 +33,7 @@ typedef struct TdxGuestClass {
 #define TDG_VP_VMCALL_GPA_INUSE         0x8000000000000001ULL
 #define TDG_VP_VMCALL_ALIGN_ERROR       0x8000000000000002ULL
 
-#define TDG_VP_VMCALL_SUBFUNC_GET_QUOTE 0x0000000000000001ULL
+#define TDG_VP_VMCALL_SUBFUNC_SET_EVENT_NOTIFY_INTERRUPT BIT_ULL(1)
 
 enum TdxRamType {
     TDX_RAM_UNACCEPTED,
@@ -66,6 +67,9 @@ typedef struct TdxGuest {
     /* GetQuote */
     SocketAddress *qg_sock_addr;
     int num;
+
+    uint32_t event_notify_vector;
+    uint32_t event_notify_apicid;
 } TdxGuest;
 
 #ifdef CONFIG_TDX
@@ -80,5 +84,6 @@ int tdx_parse_tdvf(void *flash_ptr, int size);
 int tdx_handle_report_fatal_error(X86CPU *cpu, struct kvm_run *run);
 void tdx_handle_get_quote(X86CPU *cpu, struct kvm_run *run);
 void tdx_handle_get_tdvmcall_info(X86CPU *cpu, struct kvm_run *run);
+void tdx_handle_setup_event_notify_interrupt(X86CPU *cpu, struct kvm_run *run);
 
 #endif /* QEMU_I386_TDX_H */

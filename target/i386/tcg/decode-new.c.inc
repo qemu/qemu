@@ -2722,14 +2722,14 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
             if (decode.e.check & X86_CHECK_i64) {
                 goto illegal_op;
             }
-            if ((decode.e.check & X86_CHECK_i64_amd) && env->cpuid_vendor1 != CPUID_VENDOR_INTEL_1) {
+            if ((decode.e.check & X86_CHECK_i64_amd) && !IS_INTEL_CPU(env)) {
                 goto illegal_op;
             }
         } else {
             if (decode.e.check & X86_CHECK_o64) {
                 goto illegal_op;
             }
-            if ((decode.e.check & X86_CHECK_o64_intel) && env->cpuid_vendor1 == CPUID_VENDOR_INTEL_1) {
+            if ((decode.e.check & X86_CHECK_o64_intel) && IS_INTEL_CPU(env)) {
                 goto illegal_op;
             }
         }
