@@ -2828,6 +2828,7 @@ static bool vtd_process_wait_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
 {
     uint64_t mask[4] = {VTD_INV_DESC_WAIT_RSVD_LO, VTD_INV_DESC_WAIT_RSVD_HI,
                         VTD_INV_DESC_ALL_ONE, VTD_INV_DESC_ALL_ONE};
+    bool ret = true;
 
     if (!vtd_inv_desc_reserved_check(s, inv_desc, mask, false,
                                      __func__, "wait")) {
@@ -2839,8 +2840,6 @@ static bool vtd_process_wait_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
         uint32_t status_data = (uint32_t)(inv_desc->lo >>
                                VTD_INV_DESC_WAIT_DATA_SHIFT);
 
-        assert(!(inv_desc->lo & VTD_INV_DESC_WAIT_IF));
-
         /* FIXME: need to be masked with HAW? */
         dma_addr_t status_addr = inv_desc->hi;
         trace_vtd_inv_desc_wait_sw(status_addr, status_data);
@@ -2849,18 +2848,22 @@ static bool vtd_process_wait_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
                              &status_data, sizeof(status_data),
                              MEMTXATTRS_UNSPECIFIED)) {
             trace_vtd_inv_desc_wait_write_fail(inv_desc->hi, inv_desc->lo);
-            return false;
+            ret = false;
         }
-    } else if (inv_desc->lo & VTD_INV_DESC_WAIT_IF) {
+    }
+
+    if (inv_desc->lo & VTD_INV_DESC_WAIT_IF) {
         /* Interrupt flag */
         vtd_generate_completion_event(s);
-    } else {
+    }
+
+    if (!(inv_desc->lo & (VTD_INV_DESC_WAIT_IF | VTD_INV_DESC_WAIT_SW))) {
         error_report_once("%s: invalid wait desc: hi=%"PRIx64", lo=%"PRIx64
                           " (unknown type)", __func__, inv_desc->hi,
                           inv_desc->lo);
         return false;
     }
-    return true;
+    return ret;
 }
 
 static bool vtd_process_context_cache_desc(IntelIOMMUState *s,
