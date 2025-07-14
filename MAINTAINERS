@@ -2322,6 +2322,7 @@ F: include/*/vhost*
 F: subprojects/libvhost-user/
 F: block/export/vhost-user*
 F: util/vhost-user-server.c
+F: net/vhost*
 
 vhost-shadow-virtqueue
 R: Eugenio Pérez <eperezma@redhat.com>
