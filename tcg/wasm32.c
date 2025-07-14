@@ -49,7 +49,9 @@ __thread uintptr_t tci_tb_ptr;
 /* TBs executed more than this value will be compiled to wasm */
 #define INSTANTIATE_NUM 1500
 
-EM_JS(int, instantiate_wasm, (int wasm_begin,
+#define EM_JS_PRE(ret, name, args, body...) EM_JS(ret, name, args, body)
+
+EM_JS_PRE(int, instantiate_wasm, (int wasm_begin,
                               int wasm_size,
                               int import_vec_begin,
                               int import_vec_size),
@@ -60,9 +62,17 @@ EM_JS(int, instantiate_wasm, (int wasm_begin,
     helper.u = () => {
         return (Asyncify.state != Asyncify.State.Unwinding) ? 1 : 0;
     };
-    for (var i = 0; i < import_vec_size / 4; i++) {
-        helper[i] = wasmTable.get(
-            memory_v.getInt32(import_vec_begin + i * 4, true));
+    const entsize = TCG_TARGET_REG_BITS / 8;
+    for (var i = 0; i < import_vec_size / entsize; i++) {
+        const p = import_vec_begin + i * entsize;
+#if TCG_TARGET_REG_BITS == 32
+        const idx = memory_v.getInt32(p, true);
+#elif WASM64_MEMORY64 == 2
+        const idx = Number(memory_v.getBigInt64(p, true));
+#else
+        const idx = memory_v.getBigInt64(p, true);
+#endif
+        helper[i] = wasmTable.get(idx);
     }
     const mod = new WebAssembly.Module(new Uint8Array(wasm));
     const inst = new WebAssembly.Instance(mod, {
@@ -1001,7 +1011,7 @@ static void check_instance_garbage_collected(void)
     }
 }
 
-EM_JS(void, init_wasm32_js, (int instance_done_gc_ptr),
+EM_JS_PRE(void, init_wasm32_js, (void *instance_done_gc_ptr),
 {
     Module.__wasm32_tb = {
         inst_gc_registry: new FinalizationRegistry((i) => {
@@ -1039,7 +1049,7 @@ static void init_wasm32(void)
     ctx.stack = g_malloc(TCG_STATIC_CALL_ARGS_SIZE + TCG_STATIC_FRAME_SIZE);
     ctx.buf128 = g_malloc(16);
     ctx.tci_tb_ptr = (uint32_t *)&tci_tb_ptr;
-    init_wasm32_js((int)&instance_done_gc);
+    init_wasm32_js(&instance_done_gc);
 }
 
 __thread bool initdone;
@@ -1056,7 +1066,8 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, const void *v_tb_ptr)
         trysleep();
         struct wasmTBHeader *header = (struct wasmTBHeader *)ctx.tb_ptr;
         int32_t counter = get_counter_local(header);
-        uint32_t res;
+        uintptr_t res;
+        /* res = tcg_qemu_tb_exec_tci(env); */
         wasm_tb_func tb_func = get_instance_from_tb(ctx.tb_ptr);
         if (tb_func) {
             /*

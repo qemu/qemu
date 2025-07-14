@@ -393,6 +393,10 @@ elif host_os == 'windows'
   if compiler.get_id() == 'clang' and compiler.get_linker_id() != 'ld.lld'
     error('On windows, you need to use lld with clang - use msys2 clang64/clangarm64 env')
   endif
+elif host_os == 'emscripten'
+  if cpu == 'wasm64'
+    qemu_common_flags += ['-DWASM64_MEMORY64=' + get_option('wasm64_memory64')]
+  endif
 endif
 
 # Choose instruction set (currently x86-only)
@@ -934,6 +938,8 @@ if have_tcg
     tcg_arch = 'i386'
   elif host_arch == 'ppc64'
     tcg_arch = 'ppc'
+  elif host_arch == 'wasm32' or host_arch == 'wasm64'
+    tcg_arch = 'wasm32'
   endif
   add_project_arguments('-iquote', meson.current_source_dir() / 'tcg' / tcg_arch,
                         language: all_languages)

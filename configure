@@ -800,8 +800,6 @@ for opt do
   ;;
   --disable-rust) rust=disabled
   ;;
-  --wasm64-memory64=*)
-  ;;
   # everything else has the same name in configure and meson
   --*) meson_option_parse "$opt" "$optarg"
   ;;
@@ -927,8 +925,6 @@ Advanced options (experts only):
   --disable-containers     don't use containers for cross-building
   --container-engine=TYPE  which container engine to use [$container_engine]
   --gdb=GDB-path           gdb to use for gdbstub tests [$gdb_bin]
-  --wasm64-memory64        Used only for wasm64 build. Set -sMEMORY64 of
-                           Emscripten to 1(default) or 2 (choices: 1/2)
 EOF
   meson_options_help
 cat << EOF

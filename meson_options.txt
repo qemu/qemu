@@ -382,3 +382,6 @@ option('rust', type: 'feature', value: 'disabled',
        description: 'Rust support')
 option('strict_rust_lints', type: 'boolean', value: false,
        description: 'Enable stricter set of Rust warnings')
+
+option('wasm64_memory64', type: 'combo', choices: ['1', '2'],
+       description: 'set -sMEMORY64 of Emscripten to 1(default) or 2')

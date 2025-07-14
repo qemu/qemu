@@ -40,9 +40,9 @@ struct wasmContext {
 };
 
 /* Instantiated Wasm function of a TB */
-typedef int32_t (*wasm_tb_func)(struct wasmContext *);
+typedef uintptr_t (*wasm_tb_func)(struct wasmContext *);
 
-static inline int32_t call_wasm_tb(wasm_tb_func f, struct wasmContext *ctx)
+static inline uintptr_t call_wasm_tb(wasm_tb_func f, struct wasmContext *ctx)
 {
     ctx->do_init = 1; /* reset block index (rewinding will skip this) */
     return f(ctx);
@@ -90,9 +90,9 @@ struct wasmTBHeader {
     struct wasmInstanceInfo **info_ptr;
 };
 
-static inline uint32_t *get_tci_ptr(void *tb_ptr)
+static inline void *get_tci_ptr(void *tb_ptr)
 {
-    return (uint32_t *)(((struct wasmTBHeader *)tb_ptr)->tci_ptr);
+    return ((struct wasmTBHeader *)tb_ptr)->tci_ptr;
 }
 
 static inline int32_t get_counter(void *tb_ptr, int idx)
