@@ -516,7 +516,6 @@ static void gmac_try_send_next_packet(NPCMGMACState *gmac)
     uint32_t desc_addr;
     struct NPCMGMACTxDesc tx_desc;
     uint32_t tx_buf_addr, tx_buf_len;
-    uint16_t length = 0;
     uint8_t *buf = tx_send_buffer;
     uint32_t prev_buf_size = 0;
     int csum = 0;
@@ -583,7 +582,6 @@ static void gmac_try_send_next_packet(NPCMGMACState *gmac)
                         __func__, tx_buf_addr);
             return;
         }
-        length += tx_buf_len;
         prev_buf_size += tx_buf_len;
 
         /* If not chained we'll have a second buffer. */
@@ -606,15 +604,18 @@ static void gmac_try_send_next_packet(NPCMGMACState *gmac)
                               __func__, tx_buf_addr);
                 return;
             }
-            length += tx_buf_len;
             prev_buf_size += tx_buf_len;
         }
         if (tx_desc.tdes1 & TX_DESC_TDES1_LAST_SEG_MASK) {
+            /*
+             * This will truncate the packet at 64K.
+             * TODO: find out if this is the correct behaviour.
+             */
+            uint16_t length = prev_buf_size;
             net_checksum_calculate(tx_send_buffer, length, csum);
             qemu_send_packet(qemu_get_queue(gmac->nic), tx_send_buffer, length);
             trace_npcm_gmac_packet_sent(DEVICE(gmac)->canonical_path, length);
             buf = tx_send_buffer;
-            length = 0;
             prev_buf_size = 0;
         }
 
