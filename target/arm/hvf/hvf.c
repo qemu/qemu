@@ -1263,6 +1263,9 @@ static bool hvf_sysreg_read_cp(CPUState *cpu, uint32_t reg, uint64_t *val)
 
     ri = get_arm_cp_reginfo(arm_cpu->cp_regs, hvf_reg2cp_reg(reg));
     if (ri) {
+        if (!cp_access_ok(1, ri, true)) {
+            return false;
+        }
         if (ri->accessfn) {
             if (ri->accessfn(env, ri, true) != CP_ACCESS_OK) {
                 return false;
@@ -1543,6 +1546,9 @@ static bool hvf_sysreg_write_cp(CPUState *cpu, uint32_t reg, uint64_t val)
     ri = get_arm_cp_reginfo(arm_cpu->cp_regs, hvf_reg2cp_reg(reg));
 
     if (ri) {
+        if (!cp_access_ok(1, ri, false)) {
+            return false;
+        }
         if (ri->accessfn) {
             if (ri->accessfn(env, ri, false) != CP_ACCESS_OK) {
                 return false;
