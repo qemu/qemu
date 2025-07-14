@@ -7871,6 +7871,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
         *edx = env->features[FEAT_1_EDX];
         if (threads_per_pkg > 1) {
+            uint32_t num;
+
             /*
              * For CPUID.01H.EBX[Bits 23-16], AMD requires logical processor
              * count, but Intel needs maximum number of addressable IDs for
@@ -7878,10 +7880,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
              */
             if (cpu->vendor_cpuid_only_v2 &&
                 (IS_INTEL_CPU(env) || IS_ZHAOXIN_CPU(env))) {
-                *ebx |= 1 << apicid_pkg_offset(topo_info) << 16;
+                num = 1 << apicid_pkg_offset(topo_info);
             } else {
-                *ebx |= threads_per_pkg << 16;
+                num = threads_per_pkg;
             }
+
+            /* Fixup overflow: max value for bits 23-16 is 255. */
+            *ebx |= MIN(num, 255) << 16;
         }
         break;
     case 2: { /* cache info: needed for Pentium Pro compatibility */
