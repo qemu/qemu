@@ -1840,9 +1840,8 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
 
     queue_pairs = vhost_vdpa_get_max_queue_pairs(vdpa_device_fd, features,
                                                  &has_cvq, errp);
-    if (queue_pairs < 0) {
-        qemu_close(vdpa_device_fd);
-        return queue_pairs;
+    if (queue_pairs <= 0) {
+        goto err;
     }
 
     r = vhost_vdpa_get_iova_range(vdpa_device_fd, &iova_range);
