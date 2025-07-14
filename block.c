@@ -431,7 +431,7 @@ BlockDriverState *bdrv_new(void)
     bs->block_status_cache = g_new0(BdrvBlockStatusCache, 1);
 
     for (i = 0; i < bdrv_drain_all_count; i++) {
-        bdrv_drained_begin(bs);
+        bdrv_do_drained_begin_quiesce(bs, NULL);
     }
 
     QTAILQ_INSERT_TAIL(&all_bdrv_states, bs, bs_list);
