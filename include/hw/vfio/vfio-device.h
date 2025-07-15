@@ -67,6 +67,7 @@ typedef struct VFIODevice {
     bool ram_block_discard_allowed;
     OnOffAuto enable_migration;
     OnOffAuto migration_multifd_transfer;
+    OnOffAuto migration_load_config_after_iter;
     bool migration_events;
     bool use_region_fds;
     VFIODeviceOps *ops;
