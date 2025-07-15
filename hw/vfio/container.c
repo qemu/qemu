@@ -71,7 +71,7 @@ static int vfio_dma_unmap_bitmap(const VFIOContainer *container,
                                  hwaddr iova, ram_addr_t size,
                                  IOMMUTLBEntry *iotlb)
 {
-    const VFIOContainerBase *bcontainer = &container->bcontainer;
+    const VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
     struct vfio_iommu_type1_dma_unmap *unmap;
     struct vfio_bitmap *bitmap;
     VFIOBitmap vbmap;
@@ -124,8 +124,7 @@ static int vfio_legacy_dma_unmap_one(const VFIOContainerBase *bcontainer,
                                      hwaddr iova, ram_addr_t size,
                                      IOMMUTLBEntry *iotlb)
 {
-    const VFIOContainer *container = container_of(bcontainer, VFIOContainer,
-                                                  bcontainer);
+    const VFIOContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
     struct vfio_iommu_type1_dma_unmap unmap = {
         .argsz = sizeof(unmap),
         .flags = 0,
@@ -213,8 +212,7 @@ static int vfio_legacy_dma_map(const VFIOContainerBase *bcontainer, hwaddr iova,
                                ram_addr_t size, void *vaddr, bool readonly,
                                MemoryRegion *mr)
 {
-    const VFIOContainer *container = container_of(bcontainer, VFIOContainer,
-                                                  bcontainer);
+    const VFIOContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
     struct vfio_iommu_type1_dma_map map = {
         .argsz = sizeof(map),
         .flags = VFIO_DMA_MAP_FLAG_READ,
@@ -246,8 +244,7 @@ static int
 vfio_legacy_set_dirty_page_tracking(const VFIOContainerBase *bcontainer,
                                     bool start, Error **errp)
 {
-    const VFIOContainer *container = container_of(bcontainer, VFIOContainer,
-                                                  bcontainer);
+    const VFIOContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
     int ret;
     struct vfio_iommu_type1_dirty_bitmap dirty = {
         .argsz = sizeof(dirty),
@@ -272,8 +269,7 @@ vfio_legacy_set_dirty_page_tracking(const VFIOContainerBase *bcontainer,
 static int vfio_legacy_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
                       VFIOBitmap *vbmap, hwaddr iova, hwaddr size, Error **errp)
 {
-    const VFIOContainer *container = container_of(bcontainer, VFIOContainer,
-                                                  bcontainer);
+    const VFIOContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
     struct vfio_iommu_type1_dirty_bitmap *dbitmap;
     struct vfio_iommu_type1_dirty_bitmap_get *range;
     int ret;
@@ -495,7 +491,7 @@ static void vfio_get_iommu_info_migration(VFIOContainer *container,
 {
     struct vfio_info_cap_header *hdr;
     struct vfio_iommu_type1_info_cap_migration *cap_mig;
-    VFIOContainerBase *bcontainer = &container->bcontainer;
+    VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
 
     hdr = vfio_get_iommu_info_cap(info, VFIO_IOMMU_TYPE1_INFO_CAP_MIGRATION);
     if (!hdr) {
@@ -518,8 +514,7 @@ static void vfio_get_iommu_info_migration(VFIOContainer *container,
 
 static bool vfio_legacy_setup(VFIOContainerBase *bcontainer, Error **errp)
 {
-    VFIOContainer *container = container_of(bcontainer, VFIOContainer,
-                                            bcontainer);
+    VFIOContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
     g_autofree struct vfio_iommu_type1_info *info = NULL;
     int ret;
 
@@ -634,7 +629,7 @@ static bool vfio_container_connect(VFIOGroup *group, AddressSpace *as,
 
     if (!cpr_is_incoming()) {
         QLIST_FOREACH(bcontainer, &space->containers, next) {
-            container = container_of(bcontainer, VFIOContainer, bcontainer);
+            container = VFIO_IOMMU_LEGACY(bcontainer);
             if (!ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
                 return vfio_container_group_add(container, group, errp);
             }
@@ -652,7 +647,7 @@ static bool vfio_container_connect(VFIOGroup *group, AddressSpace *as,
          * create the container struct and group list.
          */
         QLIST_FOREACH(bcontainer, &space->containers, next) {
-            container = container_of(bcontainer, VFIOContainer, bcontainer);
+            container = VFIO_IOMMU_LEGACY(bcontainer);
 
             if (vfio_cpr_container_match(container, group, fd)) {
                 return vfio_container_group_add(container, group, errp);
@@ -672,7 +667,7 @@ static bool vfio_container_connect(VFIOGroup *group, AddressSpace *as,
         goto fail;
     }
     new_container = true;
-    bcontainer = &container->bcontainer;
+    bcontainer = VFIO_IOMMU(container);
 
     if (!vfio_legacy_cpr_register_container(container, errp)) {
         goto fail;
@@ -735,7 +730,7 @@ fail:
 static void vfio_container_disconnect(VFIOGroup *group)
 {
     VFIOContainer *container = group->container;
-    VFIOContainerBase *bcontainer = &container->bcontainer;
+    VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
     VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
 
     QLIST_REMOVE(group, container_next);
@@ -781,7 +776,7 @@ static VFIOGroup *vfio_group_get(int groupid, AddressSpace *as, Error **errp)
     QLIST_FOREACH(group, &vfio_group_list, next) {
         if (group->groupid == groupid) {
             /* Found it.  Now is it already in the right context? */
-            if (group->container->bcontainer.space->as == as) {
+            if (VFIO_IOMMU(group->container)->space->as == as) {
                 return group;
             } else {
                 error_setg(errp, "group %d used in multiple address spaces",
@@ -895,7 +890,7 @@ static bool vfio_device_get(VFIOGroup *group, const char *name,
         }
     }
 
-    vfio_device_prepare(vbasedev, &group->container->bcontainer, info);
+    vfio_device_prepare(vbasedev, VFIO_IOMMU(group->container), info);
 
     vbasedev->fd = fd;
     vbasedev->group = group;
