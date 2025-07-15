@@ -123,7 +123,7 @@ typedef struct VFIOMSIXInfo {
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOPCIDevice, VFIO_PCI_BASE)
 
 struct VFIOPCIDevice {
-    PCIDevice pdev;
+    PCIDevice parent_obj;
 
     VFIODevice vbasedev;
     VFIOINTx intx;
