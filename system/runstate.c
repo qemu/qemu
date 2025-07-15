@@ -306,18 +306,6 @@ struct VMChangeStateEntry {
 static QTAILQ_HEAD(, VMChangeStateEntry) vm_change_state_head =
     QTAILQ_HEAD_INITIALIZER(vm_change_state_head);
 
-/**
- * qemu_add_vm_change_state_handler_prio:
- * @cb: the callback to invoke
- * @opaque: user data passed to the callback
- * @priority: low priorities execute first when the vm runs and the reverse is
- *            true when the vm stops
- *
- * Register a callback function that is invoked when the vm starts or stops
- * running.
- *
- * Returns: an entry to be freed using qemu_del_vm_change_state_handler()
- */
 VMChangeStateEntry *qemu_add_vm_change_state_handler_prio(
         VMChangeStateHandler *cb, void *opaque, int priority)
 {
@@ -325,24 +313,6 @@ VMChangeStateEntry *qemu_add_vm_change_state_handler_prio(
                                                       opaque, priority);
 }
 
-/**
- * qemu_add_vm_change_state_handler_prio_full:
- * @cb: the main callback to invoke
- * @prepare_cb: a callback to invoke before the main callback
- * @cb_ret: the main callback to invoke with return value
- * @opaque: user data passed to the callbacks
- * @priority: low priorities execute first when the vm runs and the reverse is
- *            true when the vm stops
- *
- * Register a main callback function and an optional prepare callback function
- * that are invoked when the vm starts or stops running. The main callback and
- * the prepare callback are called in two separate phases: First all prepare
- * callbacks are called and only then all main callbacks are called. As its
- * name suggests, the prepare callback can be used to do some preparatory work
- * before invoking the main callback.
- *
- * Returns: an entry to be freed using qemu_del_vm_change_state_handler()
- */
 VMChangeStateEntry *
 qemu_add_vm_change_state_handler_prio_full(VMChangeStateHandler *cb,
                                            VMChangeStateHandler *prepare_cb,
