@@ -214,8 +214,9 @@ static void vfio_user_compute_needs_reset(VFIODevice *vbasedev)
 
 static Object *vfio_user_pci_get_object(VFIODevice *vbasedev)
 {
-    VFIOUserPCIDevice *vdev = container_of(vbasedev, VFIOUserPCIDevice,
-                                           device.vbasedev);
+    VFIOUserPCIDevice *vdev = VFIO_USER_PCI(container_of(vbasedev,
+                                                         VFIOPCIDevice,
+                                                         vbasedev));
 
     return OBJECT(vdev);
 }
@@ -420,7 +421,7 @@ static void vfio_user_pci_set_socket(Object *obj, Visitor *v, const char *name,
     VFIOUserPCIDevice *udev = VFIO_USER_PCI(obj);
     bool success;
 
-    if (udev->device.vbasedev.proxy) {
+    if (VFIO_PCI_BASE(udev)->vbasedev.proxy) {
         error_setg(errp, "Proxy is connected");
         return;
     }
