@@ -277,6 +277,7 @@ class BuiltinNBD(NBDBlockdevAddBase):
                      } }
         self.client_test(filename, flatten_sock_addr(address), 'nbd-export')
 
+        sockfd.close()
         self._server_down()
 
 
