@@ -21,6 +21,7 @@ import sys
 import argparse
 import shutil
 from pathlib import Path
+import warnings
 
 from findtests import TestFinder
 from testenv import TestEnv
@@ -137,6 +138,9 @@ def make_argparser() -> argparse.ArgumentParser:
 
 
 if __name__ == '__main__':
+    warnings.simplefilter("default")
+    os.environ["PYTHONWARNINGS"] = "default"
+
     args = make_argparser().parse_args()
 
     env = TestEnv(source_dir=args.source_dir,
