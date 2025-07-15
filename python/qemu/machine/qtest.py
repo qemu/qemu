@@ -177,6 +177,8 @@ class QEMUQtestMachine(QEMUMachine):
             self._qtest_sock_pair[0].close()
             self._qtest_sock_pair[1].close()
             self._qtest_sock_pair = None
+        if self._qtest is not None:
+            self._qtest.close()
         super()._post_shutdown()
 
     def qtest(self, cmd: str) -> str:
