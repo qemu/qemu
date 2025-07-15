@@ -64,8 +64,6 @@ static int vfio_user_dma_unmap(const VFIOContainerBase *bcontainer,
                               0, &local_err)) {
             error_report_err(local_err);
             ret = -EFAULT;
-        } else {
-            ret = 0;
         }
     } else {
         if (!vfio_user_send_wait(container->proxy, &msgp->hdr, NULL,
@@ -92,7 +90,7 @@ static int vfio_user_dma_map(const VFIOContainerBase *bcontainer, hwaddr iova,
                                                 bcontainer);
     int fd = memory_region_get_fd(mrp);
     Error *local_err = NULL;
-    int ret;
+    int ret = 0;
 
     VFIOUserFDs *fds = NULL;
     VFIOUserDMAMap *msgp = g_malloc0(sizeof(*msgp));
@@ -135,8 +133,6 @@ static int vfio_user_dma_map(const VFIOContainerBase *bcontainer, hwaddr iova,
                               0, &local_err)) {
             error_report_err(local_err);
             ret = -EFAULT;
-        } else {
-            ret = 0;
         }
     } else {
         VFIOUserFDs local_fds = { 1, 0, &fd };
