@@ -65,7 +65,7 @@ static void vfio_user_msix_setup(VFIOPCIDevice *vdev)
     vdev->msix->pba_region = pba_reg;
 
     vfio_reg = vdev->bars[vdev->msix->pba_bar].mr;
-    msix_reg = &vdev->pdev.msix_pba_mmio;
+    msix_reg = &PCI_DEVICE(vdev)->msix_pba_mmio;
     memory_region_init_io(pba_reg, OBJECT(vdev), &vfio_user_pba_ops, vdev,
                           "VFIO MSIX PBA", int128_get64(msix_reg->size));
     memory_region_add_subregion_overlap(vfio_reg, vdev->msix->pba_offset,
@@ -86,7 +86,7 @@ static void vfio_user_msix_teardown(VFIOPCIDevice *vdev)
 
 static void vfio_user_dma_read(VFIOPCIDevice *vdev, VFIOUserDMARW *msg)
 {
-    PCIDevice *pdev = &vdev->pdev;
+    PCIDevice *pdev = PCI_DEVICE(vdev);
     VFIOUserProxy *proxy = vdev->vbasedev.proxy;
     VFIOUserDMARW *res;
     MemTxResult r;
@@ -134,7 +134,7 @@ static void vfio_user_dma_read(VFIOPCIDevice *vdev, VFIOUserDMARW *msg)
 
 static void vfio_user_dma_write(VFIOPCIDevice *vdev, VFIOUserDMARW *msg)
 {
-    PCIDevice *pdev = &vdev->pdev;
+    PCIDevice *pdev = PCI_DEVICE(vdev);
     VFIOUserProxy *proxy = vdev->vbasedev.proxy;
     MemTxResult r;
 
