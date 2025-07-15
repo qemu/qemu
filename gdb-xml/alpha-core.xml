@@ -1,0 +1,136 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025 Free Software Foundation, Inc.
+
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.  -->
+
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.alpha.core">
+  <!-- IEEE rounding mode values -->
+  <enum id="dyn_rm_enum" size="8">
+    <!-- Chopped rounding mode -->
+    <evalue name="chop" value="0"/>
+    <!-- Minus infinity -->
+    <evalue name="-inf" value="1"/>
+    <!-- Normal rounding -->
+    <evalue name="norm" value="2"/>
+    <!-- Plus infinity -->
+    <evalue name="+inf" value="3"/>
+  </enum>
+
+  <!-- Floating-Point Control Register Flags -->
+  <flags id="fpcr_flags" size="8">
+    <!-- Denormal Operand Exception Disable -->
+    <field name="DNOD"   start="47" end="47"/>
+    <!-- Denormal Operands to Zero -->
+    <field name="DNZ"    start="48" end="48"/>
+    <!-- Invalid Operation Disable -->
+    <field name="INVD"   start="49" end="49"/>
+    <!-- Division by Zero Disable -->
+    <field name="DZED"   start="50" end="50"/>
+    <!-- Overflow Disable -->
+    <field name="OVFD"   start="51" end="51"/>
+    <!-- Invalid Operation -->
+    <field name="INV"    start="52" end="52"/>
+    <!-- Division by Zero -->
+    <field name="DZE"    start="53" end="53"/>
+    <!-- Overflow -->
+    <field name="OVF"    start="54" end="54"/>
+    <!-- Underflow -->
+    <field name="UNF"    start="55" end="55"/>
+    <!-- Inexact Result -->
+    <field name="INE"    start="56" end="56"/>
+    <!-- Integer Overflow -->
+    <field name="IOV"    start="57" end="57"/>
+    <!-- Dynamic Rounding Mode -->
+    <field name="DYN_RM" start="58" end="59" type="dyn_rm_enum"/>
+    <!-- Underflow to Zero -->
+    <field name="UNDZ"   start="60" end="60"/>
+    <!-- Underflow Disable -->
+    <field name="UNFD"   start="61" end="61"/>
+    <!-- Inexact Disable -->
+    <field name="INED"   start="62" end="62"/>
+    <!-- Summary Bit -->
+    <field name="SUM"    start="63" end="63"/>
+  </flags>
+
+  <!-- Integer Registers -->
+  <reg name="v0"   bitsize="64" type="int64"/>
+  <reg name="t0"   bitsize="64" type="int64"/>
+  <reg name="t1"   bitsize="64" type="int64"/>
+  <reg name="t2"   bitsize="64" type="int64"/>
+  <reg name="t3"   bitsize="64" type="int64"/>
+  <reg name="t4"   bitsize="64" type="int64"/>
+  <reg name="t5"   bitsize="64" type="int64"/>
+  <reg name="t6"   bitsize="64" type="int64"/>
+  <reg name="t7"   bitsize="64" type="int64"/>
+  <reg name="s0"   bitsize="64" type="int64"/>
+  <reg name="s1"   bitsize="64" type="int64"/>
+  <reg name="s2"   bitsize="64" type="int64"/>
+  <reg name="s3"   bitsize="64" type="int64"/>
+  <reg name="s4"   bitsize="64" type="int64"/>
+  <reg name="s5"   bitsize="64" type="int64"/>
+  <reg name="fp"   bitsize="64" type="int64"/>
+  <reg name="a0"   bitsize="64" type="int64"/>
+  <reg name="a1"   bitsize="64" type="int64"/>
+  <reg name="a2"   bitsize="64" type="int64"/>
+  <reg name="a3"   bitsize="64" type="int64"/>
+  <reg name="a4"   bitsize="64" type="int64"/>
+  <reg name="a5"   bitsize="64" type="int64"/>
+  <reg name="t8"   bitsize="64" type="int64"/>
+  <reg name="t9"   bitsize="64" type="int64"/>
+  <reg name="t10"  bitsize="64" type="int64"/>
+  <reg name="t11"  bitsize="64" type="int64"/>
+  <reg name="ra"   bitsize="64" type="int64"/>
+  <reg name="t12"  bitsize="64" type="int64"/>
+  <reg name="at"   bitsize="64" type="int64"/>
+  <reg name="gp"   bitsize="64" type="data_ptr"/>
+  <reg name="sp"   bitsize="64" type="data_ptr"/>
+  <reg name="zero" bitsize="64" type="int64" save-restore="no"/>
+
+  <!-- Floating-Point Registers -->
+  <reg name="f0"  bitsize="64" type="float" group="float"/>
+  <reg name="f1"  bitsize="64" type="float" group="float"/>
+  <reg name="f2"  bitsize="64" type="float" group="float"/>
+  <reg name="f3"  bitsize="64" type="float" group="float"/>
+  <reg name="f4"  bitsize="64" type="float" group="float"/>
+  <reg name="f5"  bitsize="64" type="float" group="float"/>
+  <reg name="f6"  bitsize="64" type="float" group="float"/>
+  <reg name="f7"  bitsize="64" type="float" group="float"/>
+  <reg name="f8"  bitsize="64" type="float" group="float"/>
+  <reg name="f9"  bitsize="64" type="float" group="float"/>
+  <reg name="f10" bitsize="64" type="float" group="float"/>
+  <reg name="f11" bitsize="64" type="float" group="float"/>
+  <reg name="f12" bitsize="64" type="float" group="float"/>
+  <reg name="f13" bitsize="64" type="float" group="float"/>
+  <reg name="f14" bitsize="64" type="float" group="float"/>
+  <reg name="f15" bitsize="64" type="float" group="float"/>
+  <reg name="f16" bitsize="64" type="float" group="float"/>
+  <reg name="f17" bitsize="64" type="float" group="float"/>
+  <reg name="f18" bitsize="64" type="float" group="float"/>
+  <reg name="f19" bitsize="64" type="float" group="float"/>
+  <reg name="f20" bitsize="64" type="float" group="float"/>
+  <reg name="f21" bitsize="64" type="float" group="float"/>
+  <reg name="f22" bitsize="64" type="float" group="float"/>
+  <reg name="f23" bitsize="64" type="float" group="float"/>
+  <reg name="f24" bitsize="64" type="float" group="float"/>
+  <reg name="f25" bitsize="64" type="float" group="float"/>
+  <reg name="f26" bitsize="64" type="float" group="float"/>
+  <reg name="f27" bitsize="64" type="float" group="float"/>
+  <reg name="f28" bitsize="64" type="float" group="float"/>
+  <reg name="f29" bitsize="64" type="float" group="float"/>
+  <reg name="f30" bitsize="64" type="float" group="float"/>
+
+  <!-- Floating-Point Control Register -->
+  <reg name="fpcr" bitsize="64" type="fpcr_flags" group="float"/>
+
+  <!-- Program Counter -->
+  <reg name="pc" bitsize="64" type="code_ptr"/>
+
+  <!-- Reserved Index for Former Virtual Register -->
+  <reg name="" bitsize="64" type="int64" save-restore="no"/>
+
+  <!-- PALcode Memory Slot -->
+  <reg name="unique" bitsize="64" type="int64" group="system"/>
+</feature>

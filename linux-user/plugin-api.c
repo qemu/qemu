@@ -12,4 +12,5 @@
 
 #include "qemu/osdep.h"
 #include "qemu.h"
+#include "loader.h"
 #include "common-user/plugin-api.c.inc"

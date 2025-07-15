@@ -8,8 +8,10 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from os import access, R_OK, path
-from sys import argv, exit
+from sys import exit
 import json
+import argparse
+from pathlib import Path
 from collections import Counter
 
 
@@ -28,7 +30,7 @@ def extract_build_units(cc_path):
     return build_units
 
 
-def analyse_units(build_units):
+def analyse_units(build_units, top_n):
     """
     Analyse the build units and report stats and the top 10 rebuilds
     """
@@ -42,7 +44,7 @@ def analyse_units(build_units):
                                 reverse=True)
 
     print("Most rebuilt units:")
-    for unit, count in sorted_build_units[:20]:
+    for unit, count in sorted_build_units[:top_n]:
         print(f"  {unit} built {count} times")
 
     print("Least rebuilt units:")
@@ -51,16 +53,19 @@ def analyse_units(build_units):
 
 
 if __name__ == "__main__":
-    if len(argv) != 2:
-        script_name = path.basename(argv[0])
-        print(f"Usage: {script_name} <path_to_compile_commands.json>")
-        exit(1)
+    parser = argparse.ArgumentParser(
+        description="analyse number of build units in compile_commands.json")
+    parser.add_argument("cc_path", type=Path, default=None,
+                        help="Path to compile_commands.json")
+    parser.add_argument("-n", type=int, default=20,
+                        help="Dump the top <n> entries")
 
-    cc_path = argv[1]
-    if path.isfile(cc_path) and access(cc_path, R_OK):
-        units = extract_build_units(cc_path)
-        analyse_units(units)
+    args = parser.parse_args()
+
+    if path.isfile(args.cc_path) and access(args.cc_path, R_OK):
+        units = extract_build_units(args.cc_path)
+        analyse_units(units, args.n)
         exit(0)
     else:
-        print(f"{cc_path} doesn't exist or isn't readable")
+        print(f"{args.cc_path} doesn't exist or isn't readable")
         exit(1)

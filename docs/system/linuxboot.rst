@@ -26,5 +26,5 @@ virtual serial port and the QEMU monitor to the console with the
    |qemu_system| -kernel bzImage -drive file=rootdisk.img,format=raw \
                     -append "root=/dev/sda console=ttyS0" -nographic
 
-Use Ctrl-a c to switch between the serial console and the monitor (see
+Use :kbd:`Ctrl+a c` to switch between the serial console and the monitor (see
 :ref:`GUI_keys`).
