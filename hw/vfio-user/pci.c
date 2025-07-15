@@ -20,7 +20,7 @@
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOUserPCIDevice, VFIO_USER_PCI)
 
 struct VFIOUserPCIDevice {
-    VFIOPCIDevice device;
+    VFIOPCIDevice parent_obj;
 
     SocketAddress *socket;
     bool send_queued;   /* all sends are queued */
