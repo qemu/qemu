@@ -76,6 +76,8 @@
 #
 # @cpu-index: index of the virtual CPU
 #
+# @qom-type: QOM type name of the CPU (since 10.1)
+#
 # @qom-path: path to the CPU object in the QOM tree
 #
 # @thread-id: ID of the underlying host thread
@@ -89,6 +91,7 @@
 ##
 { 'union'         : 'CpuInfoFast',
   'base'          : { 'cpu-index'    : 'int',
+                      'qom-type'     : 'str',
                       'qom-path'     : 'str',
                       'thread-id'    : 'int',
                       '*props'       : 'CpuInstanceProperties',
