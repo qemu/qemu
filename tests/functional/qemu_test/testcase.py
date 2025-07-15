@@ -232,6 +232,7 @@ class QemuBaseTest(unittest.TestCase):
             self.socketdir = None
         self.machinelog.removeHandler(self._log_fh)
         self.log.removeHandler(self._log_fh)
+        self._log_fh.close()
 
     def main():
         path = os.path.basename(sys.argv[0])[:-3]
@@ -399,4 +400,5 @@ class QemuSystemTest(QemuBaseTest):
         for vm in self._vms.values():
             vm.shutdown()
         logging.getLogger('console').removeHandler(self._console_log_fh)
+        self._console_log_fh.close()
         super().tearDown()
