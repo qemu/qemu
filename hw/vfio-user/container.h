@@ -14,7 +14,7 @@
 
 /* MMU container sub-class for vfio-user. */
 struct VFIOUserContainer {
-    VFIOContainerBase bcontainer;
+    VFIOContainerBase parent_obj;
 
     VFIOUserProxy *proxy;
 };
