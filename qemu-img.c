@@ -3453,41 +3453,53 @@ static int img_map(const img_cmd_t *ccmd, int argc, char **argv)
 
     fmt = NULL;
     for (;;) {
-        int option_index = 0;
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"format", required_argument, 0, 'f'},
-            {"output", required_argument, 0, OPTION_OUTPUT},
-            {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
-            {"force-share", no_argument, 0, 'U'},
             {"start-offset", required_argument, 0, 's'},
             {"max-length", required_argument, 0, 'l'},
+            {"force-share", no_argument, 0, 'U'},
+            {"output", required_argument, 0, OPTION_OUTPUT},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":f:s:l:hU",
-                        long_options, &option_index);
+        c = getopt_long(argc, argv, "hf:s:l:U",
+                        long_options, NULL);
         if (c == -1) {
             break;
         }
         switch (c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
+            cmd_help(ccmd, "[-f FMT | --image-opts]\n"
+"        [--start-offset OFFSET] [--max-length LENGTH]\n"
+"        [--output human|json] [-U] [--object OBJDEF] FILE\n"
+,
+"  -f, --format FMT\n"
+"     specify FILE image format explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE as an option string (key=value,..), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  -s, --start-offset OFFSET\n"
+"     start at the given OFFSET in the image, not at the beginning\n"
+"  -l, --max-length LENGTH\n"
+"     process at most LENGTH bytes instead of up to the end of the image\n"
+"  --output human|json\n"
+"     specify output format name (default: human)\n"
+"  -U, --force-share\n"
+"     open image in shared mode for concurrent access\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     the image file name, or option string (key=value,..)\n"
+"     with --image-opts, to operate on\n"
+);
             break;
         case 'f':
             fmt = optarg;
             break;
-        case 'U':
-            force_share = true;
-            break;
-        case OPTION_OUTPUT:
-            output_format = parse_output_format(argv[0], optarg);
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
             break;
         case 's':
             start_offset = cvtnum("start offset", optarg);
@@ -3501,12 +3513,17 @@ static int img_map(const img_cmd_t *ccmd, int argc, char **argv)
                 return 1;
             }
             break;
+        case OPTION_OUTPUT:
+            output_format = parse_output_format(argv[0], optarg);
+            break;
+        case 'U':
+            force_share = true;
+            break;
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
     if (optind != argc - 1) {
