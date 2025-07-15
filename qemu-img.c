@@ -2390,53 +2390,122 @@ static int img_convert(const img_cmd_t *ccmd, int argc, char **argv)
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"object", required_argument, 0, OPTION_OBJECT},
+            {"source-format", required_argument, 0, 'f'},
+            /*
+             * XXX: historic --image-opts acts on source file only,
+             * it seems better to have it affect both source and target,
+             * and have separate --source-image-opts for source,
+             * but this might break existing setups.
+             */
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
-            {"force-share", no_argument, 0, 'U'},
-            {"target-image-opts", no_argument, 0, OPTION_TARGET_IMAGE_OPTS},
-            {"salvage", no_argument, 0, OPTION_SALVAGE},
-            {"target-is-zero", no_argument, 0, OPTION_TARGET_IS_ZERO},
+            {"source-cache", required_argument, 0, 'T'},
+            {"snapshot", required_argument, 0, 'l'},
             {"bitmaps", no_argument, 0, OPTION_BITMAPS},
             {"skip-broken-bitmaps", no_argument, 0, OPTION_SKIP_BROKEN},
+            {"salvage", no_argument, 0, OPTION_SALVAGE},
+            {"target-format", required_argument, 0, 'O'},
+            {"target-image-opts", no_argument, 0, OPTION_TARGET_IMAGE_OPTS},
+            {"target-format-options", required_argument, 0, 'o'},
+            {"target-cache", required_argument, 0, 't'},
+            {"backing", required_argument, 0, 'b'},
+            {"backing-format", required_argument, 0, 'F'},
+            {"sparse-size", required_argument, 0, 'S'},
+            {"no-create", no_argument, 0, 'n'},
+            {"target-is-zero", no_argument, 0, OPTION_TARGET_IS_ZERO},
+            {"force-share", no_argument, 0, 'U'},
+            {"rate-limit", required_argument, 0, 'r'},
+            {"parallel", required_argument, 0, 'm'},
+            {"oob-writes", no_argument, 0, 'W'},
+            {"copy-range-offloading", no_argument, 0, 'C'},
+            {"progress", no_argument, 0, 'p'},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:O:B:CcF:o:l:S:pt:T:qnm:WUr:",
+        c = getopt_long(argc, argv, "hf:O:b:B:CcF:o:l:S:pt:T:nm:WUr:q",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
-        switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
+        switch (c) {
         case 'h':
-            help();
+            cmd_help(ccmd, "[-f SRC_FMT | --image-opts] [-T SRC_CACHE]\n"
+"        [-l SNAPSHOT] [--bitmaps [--skip-broken-bitmaps]] [--salvage]\n"
+"        [-O TGT_FMT | --target-image-opts] [-o TGT_FMT_OPTS] [-t TGT_CACHE]\n"
+"        [-b BACKING_FILE [-F BACKING_FMT]] [-S SPARSE_SIZE]\n"
+"        [-n] [--target-is-zero] [-c]\n"
+"        [-U] [-r RATE] [-m NUM_PARALLEL] [-W] [-C] [-p] [-q] [--object OBJDEF]\n"
+"        SRC_FILE [SRC_FILE2...] TGT_FILE\n"
+,
+"  -f, --source-format SRC_FMT\n"
+"     specify format of all SRC_FILEs explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat each SRC_FILE as an option string (key=value,...), not a file name\n"
+"     (incompatible with -f|--source-format)\n"
+"  -T, --source-cache SRC_CACHE\n"
+"     source image(s) cache mode (" BDRV_DEFAULT_CACHE ")\n"
+"  -l, --snapshot SNAPSHOT\n"
+"     specify source snapshot\n"
+"  --bitmaps\n"
+"     also copy any persistent bitmaps present in source\n"
+"  --skip-broken-bitmaps\n"
+"     skip (do not error out) any broken bitmaps\n"
+"  --salvage\n"
+"     ignore errors on input (convert unreadable areas to zeros)\n"
+"  -O, --target-format TGT_FMT\n"
+"     specify TGT_FILE image format (default: raw)\n"
+"  --target-image-opts\n"
+"     treat TGT_FILE as an option string (key=value,...), not a file name\n"
+"     (incompatible with -O|--target-format)\n"
+"  -o, --target-format-options TGT_FMT_OPTS\n"
+"     TGT_FMT-specific options\n"
+"  -t, --target-cache TGT_CACHE\n"
+"     cache mode when opening output image (default: unsafe)\n"
+"  -b, --backing BACKING_FILE (was -B in <= 10.0)\n"
+"     create target image to be a CoW on top of BACKING_FILE\n"
+"  -F, --backing-format BACKING_FMT\n" /* -B used for -b in <=10.0 */
+"     specify BACKING_FILE image format explicitly (default: probing is used)\n"
+"  -S, --sparse-size SPARSE_SIZE[bkKMGTPE]\n"
+"     specify number of consecutive zero bytes to treat as a gap on output\n"
+"     (rounded down to nearest 512 bytes), with optional multiplier suffix\n"
+"  -n, --no-create\n"
+"     omit target volume creation (e.g. on rbd)\n"
+"  --target-is-zero\n"
+"     indicates that the target volume is pre-zeroed\n"
+"  -c, --compress\n"
+"     create compressed output image (qcow and qcow2 formats only)\n"
+"  -U, --force-share\n"
+"     open images in shared mode for concurrent access\n"
+"  -r, --rate-limit RATE\n"
+"     I/O rate limit, in bytes per second\n"
+"  -m, --parallel NUM_PARALLEL\n"
+"     specify parallelism (default: 8)\n"
+"  -C, --copy-range-offloading\n"
+"     try to use copy offloading\n"
+"  -W, --oob-writes\n"
+"     enable out-of-order writes to improve performance\n"
+"  -p, --progress\n"
+"     display progress information\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  SRC_FILE...\n"
+"     one or more source image file names,\n"
+"     or option strings (key=value,..) with --source-image-opts\n"
+"  TGT_FILE\n"
+"     target (output) image file name,\n"
+"     or option string (key=value,..) with --target-image-opts\n"
+);
             break;
         case 'f':
             fmt = optarg;
             break;
-        case 'O':
-            out_fmt = optarg;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
             break;
-        case 'B':
-            out_baseimg = optarg;
-            break;
-        case 'C':
-            s.copy_range = true;
-            break;
-        case 'c':
-            s.compressed = true;
-            break;
-        case 'F':
-            backing_fmt = optarg;
-            break;
-        case 'o':
-            if (accumulate_options(&options, optarg) < 0) {
-                goto fail_getopt;
-            }
+        case 'T':
+            src_cache = optarg;
             break;
         case 'l':
             if (strstart(optarg, SNAPSHOT_OPT_BASE, NULL)) {
@@ -2450,6 +2519,36 @@ static int img_convert(const img_cmd_t *ccmd, int argc, char **argv)
             } else {
                 snapshot_name = optarg;
             }
+            break;
+        case OPTION_BITMAPS:
+            bitmaps = true;
+            break;
+        case OPTION_SKIP_BROKEN:
+            skip_broken = true;
+            break;
+        case OPTION_SALVAGE:
+            s.salvage = true;
+            break;
+         case 'O':
+            out_fmt = optarg;
+            break;
+        case OPTION_TARGET_IMAGE_OPTS:
+            tgt_image_opts = true;
+            break;
+        case 'o':
+            if (accumulate_options(&options, optarg) < 0) {
+                goto fail_getopt;
+            }
+            break;
+        case 't':
+            cache = optarg;
+            break;
+        case 'B': /* <=10.0 */
+        case 'b':
+            out_baseimg = optarg;
+            break;
+        case 'F': /* can't use -B as it used as -b in <=10.0 */
+            backing_fmt = optarg;
             break;
         case 'S':
         {
@@ -2471,20 +2570,28 @@ static int img_convert(const img_cmd_t *ccmd, int argc, char **argv)
             explict_min_sparse = true;
             break;
         }
-        case 'p':
-            progress = true;
-            break;
-        case 't':
-            cache = optarg;
-            break;
-        case 'T':
-            src_cache = optarg;
-            break;
-        case 'q':
-            s.quiet = true;
-            break;
         case 'n':
             skip_create = true;
+            break;
+        case OPTION_TARGET_IS_ZERO:
+            /*
+             * The user asserting that the target is blank has the
+             * same effect as the target driver supporting zero
+             * initialisation.
+             */
+            s.has_zero_init = true;
+            break;
+        case 'c':
+            s.compressed = true;
+            break;
+        case 'U':
+            force_share = true;
+            break;
+        case 'r':
+            rate_limit = cvtnum("rate limit", optarg);
+            if (rate_limit < 0) {
+                goto fail_getopt;
+            }
             break;
         case 'm':
             if (qemu_strtol(optarg, NULL, 0, &s.num_coroutines) ||
@@ -2497,41 +2604,20 @@ static int img_convert(const img_cmd_t *ccmd, int argc, char **argv)
         case 'W':
             s.wr_in_order = false;
             break;
-        case 'U':
-            force_share = true;
+        case 'C':
+            s.copy_range = true;
             break;
-        case 'r':
-            rate_limit = cvtnum("rate limit", optarg);
-            if (rate_limit < 0) {
-                goto fail_getopt;
-            }
+        case 'p':
+            progress = true;
+            break;
+        case 'q':
+            s.quiet = true;
             break;
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
-        case OPTION_SALVAGE:
-            s.salvage = true;
-            break;
-        case OPTION_TARGET_IMAGE_OPTS:
-            tgt_image_opts = true;
-            break;
-        case OPTION_TARGET_IS_ZERO:
-            /*
-             * The user asserting that the target is blank has the
-             * same effect as the target driver supporting zero
-             * initialisation.
-             */
-            s.has_zero_init = true;
-            break;
-        case OPTION_BITMAPS:
-            bitmaps = true;
-            break;
-        case OPTION_SKIP_BROKEN:
-            skip_broken = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
