@@ -567,25 +567,34 @@
 #     (default: 0).
 #
 # @inhibit: Don't load a default XDP program, use one already loaded
-#     to the interface (default: false).  Requires @sock-fds.
+#     to the interface (default: false).  Requires @sock-fds or @map-path.
 #
 # @sock-fds: A colon (:) separated list of file descriptors for
 #     already open but not bound AF_XDP sockets in the queue order.
 #     One fd per queue.  These descriptors should already be added
-#     into XDP socket map for corresponding queues.  Requires
-#     @inhibit.
+#     into XDP socket map for corresponding queues.  @sock-fds and
+#     @map-path are mutually exclusive.  Requires @inhibit.
+#
+# @map-path: The path to a pinned xsk map to push file descriptors
+#     for bound AF_XDP sockets into.  @map-path and @sock-fds are
+#     mutually exclusive.  Requires @inhibit.  (Since 10.1)
+#
+# @map-start-index: Use @map-path to insert xsk sockets starting from
+#     this index number (default: 0).  Requires @map-path.  (Since 10.1)
 #
 # Since: 8.2
 ##
 { 'struct': 'NetdevAFXDPOptions',
   'data': {
-    'ifname':       'str',
-    '*mode':        'AFXDPMode',
-    '*force-copy':  'bool',
-    '*queues':      'int',
-    '*start-queue': 'int',
-    '*inhibit':     'bool',
-    '*sock-fds':    'str' },
+    'ifname':           'str',
+    '*mode':            'AFXDPMode',
+    '*force-copy':      'bool',
+    '*queues':          'int',
+    '*start-queue':     'int',
+    '*inhibit':         'bool',
+    '*sock-fds':        'str',
+    '*map-path':        'str',
+    '*map-start-index': 'int32' },
   'if': 'CONFIG_AF_XDP' }
 
 ##
