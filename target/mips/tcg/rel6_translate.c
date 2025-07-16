@@ -23,7 +23,7 @@ bool trans_REMOVED(DisasContext *ctx, arg_REMOVED *a)
 
 static bool trans_LSA(DisasContext *ctx, arg_r *a)
 {
-    return gen_lsa(ctx, a->rd, a->rt, a->rs, a->sa);
+    return gen_lsa(ctx, a->rd, a->rt, a->rs, a->sa + 1);
 }
 
 static bool trans_DLSA(DisasContext *ctx, arg_r *a)
@@ -31,5 +31,17 @@ static bool trans_DLSA(DisasContext *ctx, arg_r *a)
     if (TARGET_LONG_BITS != 64) {
         return false;
     }
-    return gen_dlsa(ctx, a->rd, a->rt, a->rs, a->sa);
+    return gen_dlsa(ctx, a->rd, a->rt, a->rs, a->sa + 1);
+}
+
+static bool trans_CRC32(DisasContext *ctx, arg_special3_crc *a)
+{
+    if (unlikely(!ctx->crcp)
+        || unlikely((a->sz == 3) && (!(ctx->hflags & MIPS_HFLAG_64)))
+        || unlikely((a->c >= 2))) {
+        gen_reserved_instruction(ctx);
+        return true;
+    }
+    gen_crc32(ctx, a->rt, a->rs, a->rt, a->sz, a->c);
+    return true;
 }

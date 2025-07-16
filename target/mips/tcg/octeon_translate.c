@@ -174,3 +174,15 @@ static bool trans_SEQNEI(DisasContext *ctx, arg_SEQNEI *a)
     }
     return true;
 }
+
+static bool trans_lx(DisasContext *ctx, arg_lx *a, MemOp mop)
+{
+    gen_lx(ctx, a->rd, a->base, a->index, mop);
+
+    return true;
+}
+
+TRANS(LBUX, trans_lx, MO_UB);
+TRANS(LHX,  trans_lx, MO_SW);
+TRANS(LWX,  trans_lx, MO_SL);
+TRANS(LDX,  trans_lx, MO_UQ);

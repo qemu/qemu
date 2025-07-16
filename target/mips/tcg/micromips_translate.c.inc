@@ -1795,7 +1795,7 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
             return;
         case LSA:
             check_insn(ctx, ISA_MIPS_R6);
-            gen_lsa(ctx, rd, rt, rs, extract32(ctx->opcode, 9, 2));
+            gen_lsa(ctx, rd, rt, rs, extract32(ctx->opcode, 9, 2) + 1);
             break;
         case ALIGN:
             check_insn(ctx, ISA_MIPS_R6);

@@ -24,6 +24,8 @@
 #include "exec/helper-proto.h"
 #include "exec/memop.h"
 #include "fpu_helper.h"
+#include "qemu/crc32c.h"
+#include <zlib.h>
 
 static inline target_ulong bitswap(target_ulong v)
 {
@@ -140,6 +142,30 @@ target_ulong helper_rotx(target_ulong rs, uint32_t shift, uint32_t shiftx,
     }
 
     return (int64_t)(int32_t)(uint32_t)tmp5;
+}
+
+/* these crc32 functions are based on target/loongarch/tcg/op_helper.c */
+target_ulong helper_crc32(target_ulong val, target_ulong m, uint32_t sz)
+{
+    uint8_t buf[8];
+    target_ulong mask = ((sz * 8) == 64) ?
+                        (target_ulong) -1ULL :
+                        ((1ULL << (sz * 8)) - 1);
+
+    m &= mask;
+    stq_le_p(buf, m);
+    return (int32_t) (crc32(val ^ 0xffffffff, buf, sz) ^ 0xffffffff);
+}
+
+target_ulong helper_crc32c(target_ulong val, target_ulong m, uint32_t sz)
+{
+    uint8_t buf[8];
+    target_ulong mask = ((sz * 8) == 64) ?
+                        (target_ulong) -1ULL :
+                        ((1ULL << (sz * 8)) - 1);
+    m &= mask;
+    stq_le_p(buf, m);
+    return (int32_t) (crc32c(val, buf, sz) ^ 0xffffffff);
 }
 
 void helper_fork(target_ulong arg1, target_ulong arg2)

@@ -1,6 +1,7 @@
 # Octeon Architecture Module instruction set
 #
 # Copyright (C) 2022 Pavel Dovgalyuk
+# Copyright (C) 2024 Philippe Mathieu-Daudé
 #
 # SPDX-License-Identifier: LGPL-2.1-or-later
 #
@@ -39,3 +40,10 @@ CINS         011100 ..... ..... ..... ..... 11001 . @bitfield
 POP          011100 rs:5 00000 rd:5 00000 10110 dw:1
 SEQNE        011100 rs:5 rt:5 rd:5 00000 10101 ne:1
 SEQNEI       011100 rs:5 rt:5 imm:s10 10111 ne:1
+
+&lx          base index rd
+@lx          ...... base:5 index:5 rd:5 ...... ..... &lx
+LWX          011111 ..... ..... ..... 00000 001010 @lx
+LHX          011111 ..... ..... ..... 00100 001010 @lx
+LBUX         011111 ..... ..... ..... 00110 001010 @lx
+LDX          011111 ..... ..... ..... 01000 001010 @lx

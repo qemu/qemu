@@ -1957,6 +1957,17 @@ void gen_base_offset_addr(DisasContext *ctx, TCGv addr, int base, int offset)
     }
 }
 
+void gen_base_index_addr(DisasContext *ctx, TCGv addr, int base, int index)
+{
+    if (base == 0) {
+        gen_load_gpr(addr, index);
+    } else if (index == 0) {
+        gen_load_gpr(addr, base);
+    } else {
+        gen_op_addr_add(ctx, addr, cpu_gpr[base], cpu_gpr[index]);
+    }
+}
+
 static target_ulong pc_relative_pc(DisasContext *ctx)
 {
     target_ulong pc = ctx->base.pc_next;
@@ -2023,6 +2034,15 @@ static void gen_lxr(DisasContext *ctx, TCGv reg, TCGv addr,
     tcg_gen_shl_tl(t1, tcg_constant_tl(~1), t1);
     tcg_gen_and_tl(t1, reg, t1);
     tcg_gen_or_tl(reg, t0, t1);
+}
+
+void gen_lx(DisasContext *ctx, int rd, int base, int index, MemOp mop)
+{
+    TCGv t0 = tcg_temp_new();
+
+    gen_base_index_addr(ctx, t0, base, index);
+    tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, mo_endian(ctx) | mop);
+    gen_store_gpr(t0, rd);
 }
 
 /* Load */
@@ -10546,13 +10566,7 @@ static void gen_flt3_ldst(DisasContext *ctx, uint32_t opc,
 {
     TCGv t0 = tcg_temp_new();
 
-    if (base == 0) {
-        gen_load_gpr(t0, index);
-    } else if (index == 0) {
-        gen_load_gpr(t0, base);
-    } else {
-        gen_op_addr_add(ctx, t0, cpu_gpr[base], cpu_gpr[index]);
-    }
+    gen_base_index_addr(ctx, t0, base, index);
     /*
      * Don't do NOP if destination is zero: we must perform the actual
      * memory access.
@@ -11322,47 +11336,6 @@ enum {
 #include "nanomips_translate.c.inc"
 
 /* MIPSDSP functions. */
-
-/* Indexed load is not for DSP only */
-static void gen_mips_lx(DisasContext *ctx, uint32_t opc,
-                        int rd, int base, int offset)
-{
-    TCGv t0;
-
-    if (!(ctx->insn_flags & INSN_OCTEON)) {
-        check_dsp(ctx);
-    }
-    t0 = tcg_temp_new();
-
-    if (base == 0) {
-        gen_load_gpr(t0, offset);
-    } else if (offset == 0) {
-        gen_load_gpr(t0, base);
-    } else {
-        gen_op_addr_add(ctx, t0, cpu_gpr[base], cpu_gpr[offset]);
-    }
-
-    switch (opc) {
-    case OPC_LBUX:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_UB);
-        gen_store_gpr(t0, rd);
-        break;
-    case OPC_LHX:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, mo_endian(ctx) | MO_SW);
-        gen_store_gpr(t0, rd);
-        break;
-    case OPC_LWX:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, mo_endian(ctx) | MO_SL);
-        gen_store_gpr(t0, rd);
-        break;
-#if defined(TARGET_MIPS64)
-    case OPC_LDX:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, mo_endian(ctx) | MO_UQ);
-        gen_store_gpr(t0, rd);
-        break;
-#endif
-    }
-}
 
 static void gen_mipsdsp_arith(DisasContext *ctx, uint32_t op1, uint32_t op2,
                               int ret, int v1, int v2)
@@ -13449,6 +13422,29 @@ static void decode_opc_special2_legacy(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
+void gen_crc32(DisasContext *ctx, int rd, int rs, int rt, int sz,
+               int crc32c)
+{
+    TCGv t0;
+    TCGv t1;
+    TCGv_i32 tsz = tcg_constant_i32(1 << sz);
+    if (rd == 0) {
+        /* Treat as NOP. */
+        return;
+    }
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
+    gen_load_gpr(t0, rt);
+    gen_load_gpr(t1, rs);
+
+    if (crc32c) {
+        gen_helper_crc32c(cpu_gpr[rd], t0, t1, tsz);
+    } else {
+        gen_helper_crc32(cpu_gpr[rd], t0, t1, tsz);
+    }
+}
+
 static void decode_opc_special3_r6(CPUMIPSState *env, DisasContext *ctx)
 {
     int rs, rt, rd, sa;
@@ -13611,15 +13607,22 @@ static void decode_opc_special3_legacy(CPUMIPSState *env, DisasContext *ctx)
         }
         break;
     case OPC_LX_DSP:
+        check_dsp(ctx);
         op2 = MASK_LX(ctx->opcode);
         switch (op2) {
 #if defined(TARGET_MIPS64)
         case OPC_LDX:
+            gen_lx(ctx, rd, rs, rt, MO_UQ);
+            break;
 #endif
         case OPC_LBUX:
+            gen_lx(ctx, rd, rs, rt, MO_UB);
+            break;
         case OPC_LHX:
+            gen_lx(ctx, rd, rs, rt, MO_SW);
+            break;
         case OPC_LWX:
-            gen_mips_lx(ctx, op2, rd, rs, rt);
+            gen_lx(ctx, rd, rs, rt, MO_SL);
             break;
         default:            /* Invalid */
             MIPS_INVAL("MASK LX");
@@ -15095,6 +15098,7 @@ static void mips_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->abs2008 = (env->active_fpu.fcr31 >> FCR31_ABS2008) & 1;
     ctx->mi = (env->CP0_Config5 >> CP0C5_MI) & 1;
     ctx->gi = (env->CP0_Config5 >> CP0C5_GI) & 3;
+    ctx->crcp = (env->CP0_Config5 >> CP0C5_CRCP) & 1;
     restore_cpu_state(env, ctx);
 #ifdef CONFIG_USER_ONLY
         ctx->mem_idx = MIPS_HFLAG_UM;
