@@ -57,7 +57,7 @@ static const gchar *format_time_str(uint64_t us)
     const char *units[] = {"us", "ms", "sec"};
     int index = 0;
 
-    while (us > 1000 && index + 1 < ARRAY_SIZE(units)) {
+    while (us >= 1000 && index + 1 < ARRAY_SIZE(units)) {
         us /= 1000;
         index++;
     }
