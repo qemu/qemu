@@ -3,7 +3,9 @@
 #
 
 ##
-# = UEFI Variable Store
+# *******************
+# UEFI Variable Store
+# *******************
 #
 # The QEMU efi variable store implementation (hw/uefi/) uses this to
 # store non-volatile variables in json format on disk.

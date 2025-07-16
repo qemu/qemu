@@ -1,7 +1,9 @@
 # -*- Mode: Python -*-
 # vim: filetype=python
 ##
-# = Introduction
+# ************
+# Introduction
+# ************
 #
 # This manual describes the commands and events supported by the QEMU
 # Monitor Protocol (QMP).

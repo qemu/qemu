@@ -6,9 +6,9 @@
 ##
 # @rtc-reset-reinjection:
 #
-# This command will reset the RTC interrupt reinjection backlog.  Can
-# be used if another mechanism to synchronize guest time is in effect,
-# for example QEMU guest agent's guest-set-time command.
+# Reset the RTC interrupt reinjection backlog.  Can be used if another
+# mechanism to synchronize guest time is in effect, for example QEMU
+# guest agent's guest-set-time command.
 #
 # Use of this command is only applicable for x86 machines with an RTC,
 # and on other machines will silently return without performing any
@@ -26,7 +26,7 @@
 ##
 # @SevState:
 #
-# An enumeration of SEV state information used during @query-sev.
+# An enumeration of SEV state information used during `query-sev`.
 #
 # @uninit: The guest is uninitialized.
 #
@@ -132,8 +132,6 @@
 # @enabled field is set to 'false' and the state of all other fields
 # is unspecified.
 #
-# Returns: @SevInfo
-#
 # Since: 2.12
 #
 # .. qmp-example::
@@ -165,7 +163,7 @@
 # 'sev-guest' confidential virtualization object.  The launch
 # measurement for SEV-SNP guests is only available within the guest.
 #
-# Returns: The @SevLaunchMeasureInfo for the guest
+# Returns: The guest's SEV guest launch measurement info
 #
 # Errors:
 #     - If the launch measurement is unavailable, either due to an
@@ -214,8 +212,6 @@
 #
 # This is only supported on AMD X86 platforms with KVM enabled.
 #
-# Returns: SevCapability objects.
-#
 # Errors:
 #     - If SEV is not available on the platform, GenericError
 #
@@ -233,8 +229,7 @@
 ##
 # @sev-inject-launch-secret:
 #
-# This command injects a secret blob into memory of a SEV/SEV-ES
-# guest.
+# Inject a secret blob into a SEV/SEV-ES guest's memory.
 #
 # This is only valid on x86 machines configured with KVM and the
 # 'sev-guest' confidential virtualization object.  SEV-SNP guests do
@@ -272,7 +267,7 @@
 ##
 # @query-sev-attestation-report:
 #
-# This command is used to get the SEV attestation report.
+# Get the SEV attestation report.
 #
 # This is only valid on x86 machines configured with KVM and the
 # 'sev-guest' confidential virtualization object.  The attestation
@@ -281,13 +276,10 @@
 # @mnonce: a random 16 bytes value encoded in base64 (it will be
 #     included in report)
 #
-# Returns: SevAttestationReport objects.
-#
 # Errors:
-#     - This will return an error if the attestation report is
-#       unavailable, either due to an invalid guest configuration
-#       or if the guest has not reached the required SEV state,
-#       GenericError
+#     - If the attestation report is unavailable, either due to an
+#       invalid guest configuration or because the guest has not
+#       reached the required SEV state, GenericError
 #
 # Since: 6.1
 #
@@ -345,8 +337,6 @@
 #
 # Return information about configured SGX capabilities of guest
 #
-# Returns: @SgxInfo
-#
 # Since: 6.2
 #
 # .. qmp-example::
@@ -363,8 +353,6 @@
 # @query-sgx-capabilities:
 #
 # Return information about SGX capabilities of host
-#
-# Returns: @SgxInfo
 #
 # Since: 6.2
 #

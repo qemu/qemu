@@ -5,7 +5,9 @@
 # See the COPYING file in the top-level directory.
 
 ##
-# = eBPF Objects
+# ************
+# eBPF Objects
+# ************
 #
 # eBPF object is an ELF binary that contains the eBPF program and eBPF
 # map description(BTF).  Overall, eBPF object should contain the
@@ -32,7 +34,7 @@
 ##
 # @EbpfProgramID:
 #
-# The eBPF programs that can be gotten with request-ebpf.
+# The eBPF programs that can be gotten with `request-ebpf`.
 #
 # @rss: Receive side scaling, technology that allows steering traffic
 #     between queues by calculation hash.  Users may set up

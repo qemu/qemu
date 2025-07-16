@@ -3,7 +3,9 @@
 #
 
 ##
-# = Character devices
+# *****************
+# Character devices
+# *****************
 ##
 
 { 'include': 'sockets.json' }
@@ -35,8 +37,6 @@
 # @query-chardev:
 #
 # Return information about current character devices.
-#
-# Returns: a list of @ChardevInfo
 #
 # Since: 0.14
 #
@@ -81,8 +81,6 @@
 # @query-chardev-backends:
 #
 # Return information about character device backends.
-#
-# Returns: a list of @ChardevBackendInfo
 #
 # Since: 2.0
 #
@@ -772,8 +770,6 @@
 #
 # @backend: backend type and parameters
 #
-# Returns: ChardevReturn.
-#
 # Since: 1.4
 #
 # .. qmp-example::
@@ -811,8 +807,6 @@
 # @id: the chardev's ID, must exist
 #
 # @backend: new backend type and parameters
-#
-# Returns: ChardevReturn.
 #
 # Since: 2.10
 #

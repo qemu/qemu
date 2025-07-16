@@ -3,7 +3,9 @@
 #
 
 ##
-# = Cryptography
+# ************
+# Cryptography
+# ************
 ##
 
 ##
@@ -589,9 +591,9 @@
 #
 # Specific parameters for RSA algorithm.
 #
-# @hash-alg: QCryptoHashAlgo
+# @hash-alg: `QCryptoHashAlgo`
 #
-# @padding-alg: QCryptoRSAPaddingAlgo
+# @padding-alg: `QCryptoRSAPaddingAlgo`
 #
 # Since: 7.1
 ##

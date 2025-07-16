@@ -10,7 +10,9 @@
 { 'include': 'crypto.json' }
 
 ##
-# = QEMU Object Model (QOM)
+# ***********************
+# QEMU Object Model (QOM)
+# ***********************
 ##
 
 ##
@@ -48,14 +50,12 @@
 ##
 # @qom-list:
 #
-# This command will list any properties of a object given a path in
-# the object model.
+# List properties of a object given a path in the object model.
 #
-# @path: the path within the object model.  See @qom-get for a
+# @path: the path within the object model.  See `qom-get` for a
 #     description of this parameter.
 #
-# Returns: a list of @ObjectPropertyInfo that describe the properties
-#     of the object.
+# Returns: a list that describe the properties of the object.
 #
 # Since: 1.2
 #
@@ -76,8 +76,7 @@
 ##
 # @qom-get:
 #
-# This command will get a property from a object model path and return
-# the value.
+# Get a property value.
 #
 # @path: The path within the object model.  There are two forms of
 #     supported paths--absolute and partial paths.
@@ -128,14 +127,14 @@
 ##
 # @qom-set:
 #
-# This command will set a property from a object model path.
+# Set a property value.
 #
-# @path: see @qom-get for a description of this parameter
+# @path: see `qom-get` for a description of this parameter
 #
 # @property: the property name to set
 #
 # @value: a value who's type is appropriate for the property type.
-#     See @qom-get for a description of type mapping.
+#     See `qom-get` for a description of type mapping.
 #
 # Since: 1.2
 #
@@ -154,7 +153,7 @@
 ##
 # @ObjectTypeInfo:
 #
-# This structure describes a search result from @qom-list-types
+# This structure describes a search result from `qom-list-types`
 #
 # @name: the type name found in the search
 #
@@ -171,15 +170,14 @@
 ##
 # @qom-list-types:
 #
-# This command will return a list of types given search parameters
+# Return a list of types given search parameters.
 #
 # @implements: if specified, only return types that implement this
 #     type name
 #
 # @abstract: if true, include abstract types in the results
 #
-# Returns: a list of @ObjectTypeInfo or an empty list if no results
-#     are found
+# Returns: a list of types, or an empty list if no results are found
 #
 # Since: 1.1
 ##
@@ -195,11 +193,12 @@
 #
 # @typename: the type name of an object
 #
+#
 # .. note:: Objects can create properties at runtime, for example to
 #    describe links between different devices and/or objects.  These
 #    properties are not included in the output of this command.
 #
-# Returns: a list of ObjectPropertyInfo describing object properties
+# Returns: a list describing object properties
 #
 # Since: 2.12
 ##
@@ -789,7 +788,7 @@
 #
 # Properties for x-remote-object objects.
 #
-# @fd: file descriptor name previously passed via 'getfd' command
+# @fd: file descriptor name previously passed via `getfd` command
 #
 # @devid: the id of the device to be associated with the file
 #     descriptor
@@ -818,7 +817,7 @@
 #
 # Properties for iommufd objects.
 #
-# @fd: file descriptor name previously passed via 'getfd' command,
+# @fd: file descriptor name previously passed via `getfd` command,
 #     which represents a pre-opened /dev/iommu.  This allows the
 #     iommufd object to be shared across several subsystems (VFIO,
 #     VDPA, ...), and the file descriptor to be shared with other
@@ -1278,7 +1277,7 @@
 # Create a QOM object.
 #
 # Errors:
-#     - Error if @qom-type is not a valid class name
+#     - If @qom-type is not a valid class name
 #
 # Since: 2.0
 #
@@ -1300,7 +1299,7 @@
 # @id: the name of the QOM object to remove
 #
 # Errors:
-#     - Error if @id is not a valid id for a QOM object
+#     - If @id is not a valid id for a QOM object
 #
 # Since: 2.0
 #

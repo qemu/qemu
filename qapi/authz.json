@@ -2,7 +2,9 @@
 # vim: filetype=python
 
 ##
-# = User authorization
+# ******************
+# User authorization
+# ******************
 ##
 
 ##
@@ -75,7 +77,7 @@
 # Properties for authz-listfile objects.
 #
 # @filename: File name to load the configuration from.  The file must
-#     contain valid JSON for AuthZListProperties.
+#     contain valid JSON for `AuthZListProperties`.
 #
 # @refresh: If true, inotify is used to monitor the file,
 #     automatically reloading changes.  If an error occurs during

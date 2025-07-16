@@ -3,7 +3,9 @@
 #
 
 ##
-# = Virtio devices
+# **************
+# Virtio devices
+# **************
 ##
 
 ##
@@ -135,7 +137,7 @@
 # @num-vqs: VirtIODevice virtqueue count.  This is the number of
 #     active virtqueues being used by the VirtIODevice.
 #
-# @status: VirtIODevice configuration status (VirtioDeviceStatus)
+# @status: VirtIODevice configuration status (`VirtioDeviceStatus`)
 #
 # @isr: VirtIODevice ISR
 #
@@ -199,7 +201,7 @@
 #
 # @unstable: This command is meant for debugging.
 #
-# Returns: VirtioStatus of the virtio device
+# Returns: Status of the virtio device
 #
 # Since: 7.2
 #
@@ -563,7 +565,7 @@
 #
 # @unstable: This command is meant for debugging.
 #
-# Returns: VirtQueueStatus of the VirtQueue
+# Returns: Status of the queue
 #
 # .. note:: last_avail_idx will not be displayed in the case where the
 #    selected VirtIODevice has a running vhost device and the
@@ -577,7 +579,7 @@
 # .. qmp-example::
 #    :annotated:
 #
-#    Get VirtQueueStatus for virtio-vsock (vhost-vsock running)
+#    Get `VirtQueueStatus` for virtio-vsock (vhost-vsock running)
 #    ::
 #
 #     -> { "execute": "x-query-virtio-queue-status",
@@ -604,7 +606,7 @@
 # .. qmp-example::
 #    :annotated:
 #
-#    Get VirtQueueStatus for virtio-serial (no vhost)
+#    Get `VirtQueueStatus` for virtio-serial (no vhost)
 #    ::
 #
 #     -> { "execute": "x-query-virtio-queue-status",
@@ -698,7 +700,7 @@
 #
 # @unstable: This command is meant for debugging.
 #
-# Returns: VirtVhostQueueStatus of the vhost_virtqueue
+# Returns: Status of the vhost_virtqueue
 #
 # Since: 7.2
 #
@@ -816,7 +818,7 @@
 #
 # @index: Index of the element in the queue
 #
-# @descs: List of descriptors (VirtioRingDesc)
+# @descs: List of descriptors (`VirtioRingDesc`)
 #
 # @avail: VRingAvail info
 #
@@ -846,8 +848,6 @@
 # Features:
 #
 # @unstable: This command is meant for debugging.
-#
-# Returns: VirtioQueueElement information
 #
 # Since: 7.2
 #

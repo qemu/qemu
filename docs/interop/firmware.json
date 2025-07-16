@@ -11,7 +11,9 @@
 # later. See the COPYING file in the top-level directory.
 
 ##
-# = Firmware
+# ********
+# Firmware
+# ********
 ##
 
 { 'pragma': {

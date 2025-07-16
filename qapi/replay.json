@@ -3,7 +3,9 @@
 #
 
 ##
-# = Record/replay
+# *************
+# Record/replay
+# *************
 ##
 
 { 'include': 'common.json' }
@@ -47,8 +49,8 @@
 # @query-replay:
 #
 # Retrieve the record/replay information.  It includes current
-# instruction count which may be used for @replay-break and
-# @replay-seek commands.
+# instruction count which may be used for `replay-break` and
+# `replay-seek` commands.
 #
 # Returns: record/replay information.
 #
@@ -70,7 +72,7 @@
 # breakpoint.  When breakpoint is set, any prior one is removed.  The
 # breakpoint may be set only in replay mode and only "in the future",
 # i.e. at instruction counts greater than the current one.  The
-# current instruction count can be observed with @query-replay.
+# current instruction count can be observed with `query-replay`.
 #
 # @icount: instruction count to stop at
 #
@@ -86,7 +88,7 @@
 ##
 # @replay-delete-break:
 #
-# Remove replay breakpoint which was set with @replay-break.  The
+# Remove replay breakpoint which was set with `replay-break`.  The
 # command is ignored when there are no replay breakpoints.
 #
 # Since: 5.2
@@ -106,7 +108,7 @@
 # snapshot and replays the execution to find the desired instruction.
 # When there is no preceding snapshot or the execution is not
 # replayed, then the command fails.  Instruction count can be obtained
-# with the @query-replay command.
+# with the `query-replay` command.
 #
 # @icount: target instruction count
 #

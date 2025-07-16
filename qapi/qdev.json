@@ -5,7 +5,9 @@
 # See the COPYING file in the top-level directory.
 
 ##
-# = Device infrastructure (qdev)
+# ****************************
+# Device infrastructure (qdev)
+# ****************************
 ##
 
 { 'include': 'qom.json' }
@@ -17,8 +19,7 @@
 #
 # @typename: the type name of a device
 #
-# Returns: a list of ObjectPropertyInfo describing a devices
-#     properties
+# Returns: a list describing a devices properties
 #
 # .. note:: Objects can create properties at runtime, for example to
 #    describe links between different devices and/or objects.  These
@@ -96,10 +97,10 @@
 #    from the guest.  Hot removal is an operation that requires guest
 #    cooperation.  This command merely requests that the guest begin
 #    the hot removal process.  Completion of the device removal
-#    process is signaled with a DEVICE_DELETED event.  Guest reset
+#    process is signaled with a `DEVICE_DELETED` event.  Guest reset
 #    will automatically complete removal for all devices.  If a
 #    guest-side error in the hot removal process is detected, the
-#    device will not be removed and a DEVICE_UNPLUG_GUEST_ERROR event
+#    device will not be removed and a `DEVICE_UNPLUG_GUEST_ERROR` event
 #    is sent.  Some errors cannot be detected.
 #
 # Since: 0.14

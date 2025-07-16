@@ -2,7 +2,9 @@
 # vim: filetype=python
 
 ##
-# = Background jobs
+# ***************
+# Background jobs
+# ***************
 ##
 
 ##
@@ -10,26 +12,26 @@
 #
 # Type of a background job.
 #
-# @commit: block commit job type, see "block-commit"
+# @commit: block commit job type, see `block-commit`
 #
-# @stream: block stream job type, see "block-stream"
+# @stream: block stream job type, see `block-stream`
 #
-# @mirror: drive mirror job type, see "drive-mirror"
+# @mirror: drive mirror job type, see `drive-mirror`
 #
-# @backup: drive backup job type, see "drive-backup"
+# @backup: drive backup job type, see `drive-backup`
 #
-# @create: image creation job type, see "blockdev-create" (since 3.0)
+# @create: image creation job type, see `blockdev-create` (since 3.0)
 #
-# @amend: image options amend job type, see "x-blockdev-amend"
+# @amend: image options amend job type, see `x-blockdev-amend`
 #     (since 5.1)
 #
-# @snapshot-load: snapshot load job type, see "snapshot-load"
+# @snapshot-load: snapshot load job type, see `snapshot-load`
 #     (since 6.0)
 #
-# @snapshot-save: snapshot save job type, see "snapshot-save"
+# @snapshot-save: snapshot save job type, see `snapshot-save`
 #     (since 6.0)
 #
-# @snapshot-delete: snapshot delete job type, see "snapshot-delete"
+# @snapshot-delete: snapshot delete job type, see `snapshot-delete`
 #     (since 6.0)
 #
 # Since: 1.7
@@ -65,7 +67,7 @@
 #
 # @pending: The job has finished its work, but has finalization steps
 #     that it needs to make prior to completing.  These changes will
-#     require manual intervention via @job-finalize if auto-finalize
+#     require manual intervention via `job-finalize` if auto-finalize
 #     was set to false.  These pending changes may still fail.
 #
 # @aborting: The job is in the process of being aborted, and will
@@ -75,7 +77,7 @@
 #
 # @concluded: The job has finished all work.  If auto-dismiss was set
 #     to false, the job will remain in this state until it is
-#     dismissed via @job-dismiss.
+#     dismissed via `job-dismiss`.
 #
 # @null: The job is in the process of being dismantled.  This state
 #     should not ever be visible externally.
@@ -91,21 +93,21 @@
 #
 # Represents command verbs that can be applied to a job.
 #
-# @cancel: see @job-cancel
+# @cancel: see `job-cancel`
 #
-# @pause: see @job-pause
+# @pause: see `job-pause`
 #
-# @resume: see @job-resume
+# @resume: see `job-resume`
 #
-# @set-speed: see @block-job-set-speed
+# @set-speed: see `block-job-set-speed`
 #
-# @complete: see @job-complete
+# @complete: see `job-complete`
 #
-# @dismiss: see @job-dismiss
+# @dismiss: see `job-dismiss`
 #
-# @finalize: see @job-finalize
+# @finalize: see `job-finalize`
 #
-# @change: see @block-job-change (since 8.2)
+# @change: see `block-job-change` (since 8.2)
 #
 # Since: 2.12
 ##
@@ -138,7 +140,7 @@
 #
 # The job will pause as soon as possible, which means transitioning
 # into the PAUSED state if it was RUNNING, or into STANDBY if it was
-# READY.  The corresponding JOB_STATUS_CHANGE event will be emitted.
+# READY.  The corresponding `JOB_STATUS_CHANGE` event will be emitted.
 #
 # Cancelling a paused job automatically resumes it.
 #
@@ -173,7 +175,7 @@
 # cancellation.
 #
 # The job will cancel as soon as possible and then emit a
-# JOB_STATUS_CHANGE event.  Usually, the status will change to
+# `JOB_STATUS_CHANGE` event.  Usually, the status will change to
 # ABORTING, but it is possible that a job successfully completes (e.g.
 # because it was almost done and there was no opportunity to cancel
 # earlier than completing the job) and transitions to PENDING instead.
@@ -192,14 +194,14 @@
 #
 # This is supported only for drive mirroring, where it also switches
 # the device to write to the target path only.  Note that drive
-# mirroring includes drive-mirror, blockdev-mirror and block-commit
+# mirroring includes `drive-mirror`, `blockdev-mirror` and `block-commit`
 # job (only in case of "active commit", when the node being commited
 # is used by the guest).  The ability to complete is signaled with a
-# BLOCK_JOB_READY event.
+# `BLOCK_JOB_READY` event.
 #
 # This command completes an active background block operation
 # synchronously.  The ordering of this command's return with the
-# BLOCK_JOB_COMPLETED event is not defined.  Note that if an I/O error
+# `BLOCK_JOB_COMPLETED` event is not defined.  Note that if an I/O error
 # occurs during the processing of this command: 1) the command itself
 # will fail; 2) the error will be processed according to the
 # rerror/werror arguments that were specified when starting the
@@ -217,14 +219,14 @@
 # Deletes a job that is in the CONCLUDED state.  This command only
 # needs to be run explicitly for jobs that don't have automatic
 # dismiss enabled.  In turn, automatic dismiss may be enabled only
-# for jobs that have @auto-dismiss option, which are drive-backup,
-# blockdev-backup, drive-mirror, blockdev-mirror, block-commit and
-# block-stream.  @auto-dismiss is enabled by default for these
+# for jobs that have @auto-dismiss option, which are `drive-backup`,
+# `blockdev-backup`, `drive-mirror`, `blockdev-mirror`, `block-commit` and
+# `block-stream`.  @auto-dismiss is enabled by default for these
 # jobs.
 #
 # This command will refuse to operate on any job that has not yet
 # reached its terminal state, CONCLUDED.  For jobs that make use of
-# the JOB_READY event, job-cancel or job-complete will still need to
+# the JOB_READY event, `job-cancel` or `job-complete` will still need to
 # be used as appropriate.
 #
 # @id: The job identifier.
@@ -295,7 +297,7 @@
 #
 # Return information about jobs.
 #
-# Returns: a list with a @JobInfo for each active job
+# Returns: a list with info for each active job
 #
 # Since: 3.0
 ##

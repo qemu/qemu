@@ -7,7 +7,9 @@
 # See the COPYING file in the top-level directory.
 
 ##
-# = Tracing
+# *******
+# Tracing
+# *******
 ##
 
 ##
@@ -47,7 +49,7 @@
 #
 # @name: Event name pattern (case-sensitive glob).
 #
-# Returns: a list of @TraceEventInfo for the matching events
+# Returns: a list of info for the matching events
 #
 # Since: 2.2
 #

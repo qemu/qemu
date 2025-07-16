@@ -9,7 +9,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 ##
-# = Statistics
+# **********
+# Statistics
+# **********
 ##
 
 ##
@@ -87,7 +89,7 @@
 # @StatsRequest:
 #
 # Indicates a set of statistics that should be returned by
-# query-stats.
+# `query-stats`.
 #
 # @provider: provider for which to return statistics.
 #
@@ -112,7 +114,7 @@
 ##
 # @StatsFilter:
 #
-# The arguments to the query-stats command; specifies a target for
+# The arguments to the `query-stats` command; specifies a target for
 # which to request statistics and optionally the required subset of
 # information for that target.
 #
@@ -183,10 +185,10 @@
 # Return runtime-collected statistics for objects such as the VM or
 # its vCPUs.
 #
-# The arguments are a StatsFilter and specify the provider and objects
+# The arguments are a `StatsFilter` and specify the provider and objects
 # to return statistics about.
 #
-# Returns: a list of StatsResult, one for each provider and object
+# Returns: a list of statistics, one for each provider and object
 #     (e.g., for each vCPU).
 #
 # Since: 7.1
@@ -203,7 +205,7 @@
 #
 # @name: name of the statistic; each element of the schema is uniquely
 #     identified by a target, a provider (both available in
-#     @StatsSchema) and the name.
+#     `StatsSchema`) and the name.
 #
 # @type: kind of statistic.
 #

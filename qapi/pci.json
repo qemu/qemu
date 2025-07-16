@@ -6,7 +6,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 ##
-# = PCI
+# ***
+# PCI
+# ***
 ##
 
 ##
@@ -83,7 +85,7 @@
 #
 # @bus: information about the bus the device resides on
 #
-# @devices: a list of @PciDeviceInfo for each device on this bridge
+# @devices: a list of `PciDeviceInfo` for each device on this bridge
 #
 # Since: 0.14
 ##
@@ -175,7 +177,7 @@
 #
 # Return information about the PCI bus topology of the guest.
 #
-# Returns: a list of @PciInfo for each PCI bus.  Each bus is
+# Returns: a list of info for each PCI bus.  Each bus is
 #     represented by a json-object, which has a key with a json-array
 #     of all PCI devices attached to it.  Each device is represented
 #     by a json-object.

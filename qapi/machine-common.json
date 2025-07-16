@@ -5,7 +5,9 @@
 # See the COPYING file in the top-level directory.
 
 ##
-# = Common machine types
+# ********************
+# Common machine types
+# ********************
 ##
 
 ##
@@ -26,29 +28,29 @@
 #
 # @thread: thread level, which would also be called SMT level or
 #     logical processor level.  The @threads option in
-#     SMPConfiguration is used to configure the topology of this
+#     `SMPConfiguration` is used to configure the topology of this
 #     level.
 #
-# @core: core level.  The @cores option in SMPConfiguration is used
+# @core: core level.  The @cores option in `SMPConfiguration` is used
 #     to configure the topology of this level.
 #
-# @module: module level.  The @modules option in SMPConfiguration is
+# @module: module level.  The @modules option in `SMPConfiguration` is
 #     used to configure the topology of this level.
 #
-# @cluster: cluster level.  The @clusters option in SMPConfiguration
+# @cluster: cluster level.  The @clusters option in `SMPConfiguration`
 #     is used to configure the topology of this level.
 #
-# @die: die level.  The @dies option in SMPConfiguration is used to
+# @die: die level.  The @dies option in `SMPConfiguration` is used to
 #     configure the topology of this level.
 #
 # @socket: socket level, which would also be called package level.
-#     The @sockets option in SMPConfiguration is used to configure
+#     The @sockets option in `SMPConfiguration` is used to configure
 #     the topology of this level.
 #
-# @book: book level.  The @books option in SMPConfiguration is used
+# @book: book level.  The @books option in `SMPConfiguration` is used
 #     to configure the topology of this level.
 #
-# @drawer: drawer level.  The @drawers option in SMPConfiguration is
+# @drawer: drawer level.  The @drawers option in `SMPConfiguration` is
 #     used to configure the topology of this level.
 #
 # @default: default level.  Some architectures will have default
@@ -102,9 +104,9 @@
 ##
 # @SmpCachePropertiesWrapper:
 #
-# List wrapper of SmpCacheProperties.
+# List wrapper of `SmpCacheProperties`.
 #
-# @caches: the list of SmpCacheProperties.
+# @caches: the list of `SmpCacheProperties`.
 #
 # Since 9.2
 ##

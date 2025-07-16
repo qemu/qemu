@@ -2,13 +2,16 @@
 # vim: filetype=python
 
 ##
-# = Block devices
+# *************
+# Block devices
+# *************
 ##
 
 { 'include': 'block-core.json' }
 
 ##
-# == Additional block stuff (VM related)
+# Additional block stuff (VM related)
+# ===================================
 ##
 
 ##
@@ -86,7 +89,7 @@
 # Return a list of information about each persistent reservation
 # manager.
 #
-# Returns: a list of @PRManagerInfo for each persistent reservation
+# Returns: a list of manager info for each persistent reservation
 #     manager
 #
 # Since: 3.0
@@ -137,7 +140,7 @@
 #
 # If the tray was already open before, this will be a no-op.
 #
-# Once the tray opens, a DEVICE_TRAY_MOVED event is emitted.  There
+# Once the tray opens, a `DEVICE_TRAY_MOVED` event is emitted.  There
 # are cases in which no such event will be generated, these include:
 #
 # - if the guest has locked the tray, @force is false and the guest
@@ -296,7 +299,7 @@
 # @BlockdevChangeReadOnlyMode:
 #
 # Specifies the new read-only mode of a block device subject to the
-# @blockdev-change-medium command.
+# `blockdev-change-medium` command.
 #
 # @retain: Retains the current read-only mode
 #
@@ -314,9 +317,9 @@
 #
 # Changes the medium inserted into a block device by ejecting the
 # current medium and loading a new image file which is inserted as the
-# new medium (this command combines blockdev-open-tray,
-# blockdev-remove-medium, blockdev-insert-medium and
-# blockdev-close-tray).
+# new medium (this command combines `blockdev-open-tray`,
+# `blockdev-remove-medium`, `blockdev-insert-medium` and
+# `blockdev-close-tray`).
 #
 # @device: Block device name
 #
@@ -331,7 +334,7 @@
 #     to 'retain'
 #
 # @force: if false (the default), an eject request through
-#     blockdev-open-tray will be sent to the guest if it has locked
+#     `blockdev-open-tray` will be sent to the guest if it has locked
 #     the tray (and the tray will not be opened immediately); if true,
 #     the tray will be opened regardless of whether it is locked.
 #     (since 7.1)
@@ -519,7 +522,7 @@
 # @id: The name or QOM path of the guest device.
 #
 # @boundaries: list of interval boundary values (see description in
-#     BlockLatencyHistogramInfo definition).  If specified, all
+#     `BlockLatencyHistogramInfo` definition).  If specified, all
 #     latency histograms are removed, and empty ones created for all
 #     io types with intervals corresponding to @boundaries (except for
 #     io types, for which specific boundaries are set through the

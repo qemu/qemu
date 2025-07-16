@@ -2,7 +2,9 @@
 # vim: filetype=python
 
 ##
-# = Socket data types
+# *****************
+# Socket data types
+# *****************
 ##
 
 ##
@@ -209,14 +211,14 @@
     'unix': 'UnixSocketAddressWrapper',
     'vsock': 'VsockSocketAddressWrapper',
     'fd': 'FdSocketAddressWrapper' } }
-# Note: This type is deprecated in favor of SocketAddress.  The
-# difference between SocketAddressLegacy and SocketAddress is that the
+# Note: This type is deprecated in favor of `SocketAddress`.  The
+# difference between `SocketAddressLegacy` and `SocketAddress` is that the
 # latter has fewer ``{}`` on the wire.
 
 ##
 # @SocketAddressType:
 #
-# Available SocketAddress types
+# Available `SocketAddress` types
 #
 # @inet: Internet address
 #

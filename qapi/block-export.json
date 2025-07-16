@@ -2,7 +2,8 @@
 # vim: filetype=python
 
 ##
-# == Block device exports
+# Block device exports
+# ====================
 ##
 
 { 'include': 'sockets.json' }
@@ -37,9 +38,9 @@
 ##
 # @NbdServerOptions:
 #
-# Keep this type consistent with the NbdServerOptionsLegacy type.  The
-# only intended difference is using SocketAddress instead of
-# SocketAddressLegacy.
+# Keep this type consistent with the `NbdServerOptionsLegacy` type.  The
+# only intended difference is using `SocketAddress` instead of
+# `SocketAddressLegacy`.
 #
 # @addr: Address on which to listen (since 4.2).
 ##
@@ -50,9 +51,9 @@
 ##
 # @NbdServerOptionsLegacy:
 #
-# Keep this type consistent with the NbdServerOptions type.  The only
-# intended difference is using SocketAddressLegacy instead of
-# SocketAddress.
+# Keep this type consistent with the `NbdServerOptions` type.  The only
+# intended difference is using `SocketAddressLegacy` instead of
+# `SocketAddress`.
 #
 # @addr: Address on which to listen (since 1.3).
 ##
@@ -64,7 +65,7 @@
 # @nbd-server-start:
 #
 # Start an NBD server listening on the given host and port.  Block
-# devices can then be exported using @nbd-server-add.  The NBD server
+# devices can then be exported using `nbd-server-add`.  The NBD server
 # will present them as named exports; for example, another QEMU
 # instance could refer to them as "nbd:HOST:PORT:exportname=NAME".
 #
@@ -80,8 +81,8 @@
 ##
 # @BlockExportOptionsNbdBase:
 #
-# An NBD block export (common options shared between nbd-server-add
-# and the NBD branch of block-export-add).
+# An NBD block export (common options shared between `nbd-server-add`
+# and the NBD branch of `block-export-add`).
 #
 # @name: Export name.  If unspecified, the @device parameter is used
 #     as the export name.  (Since 2.12)
@@ -98,7 +99,7 @@
 # @BlockExportOptionsNbd:
 #
 # An NBD block export (distinct options used in the NBD branch of
-# block-export-add).
+# `block-export-add`).
 #
 # @bitmaps: Also export each of the named dirty bitmaps reachable from
 #     @device, so the NBD client can use NBD_OPT_SET_META_CONTEXT with
@@ -124,7 +125,7 @@
 # A vhost-user-blk block export.
 #
 # @addr: The vhost-user socket on which to listen.  Both 'unix' and
-#     'fd' SocketAddress types are supported.  Passed fds must be UNIX
+#     'fd' `SocketAddress` types are supported.  Passed fds must be UNIX
 #     domain sockets.
 #
 # @logical-block-size: Logical block size in bytes.  Defaults to 512
@@ -216,7 +217,7 @@
 ##
 # @NbdServerAddOptions:
 #
-# An NBD block export, per legacy nbd-server-add command.
+# An NBD block export, per legacy `nbd-server-add` command.
 #
 # @device: The device name or node name of the node to be exported
 #
@@ -245,7 +246,7 @@
 #
 # Features:
 #
-# @deprecated: This command is deprecated.  Use @block-export-add
+# @deprecated: This command is deprecated.  Use `block-export-add`
 #     instead.
 #
 # Errors:
@@ -288,12 +289,12 @@
 #
 # @name: Block export id.
 #
-# @mode: Mode of command operation.  See @BlockExportRemoveMode
+# @mode: Mode of command operation.  See `BlockExportRemoveMode`
 #     description.  Default is 'safe'.
 #
 # Features:
 #
-# @deprecated: This command is deprecated.  Use @block-export-del
+# @deprecated: This command is deprecated.  Use `block-export-del`
 #     instead.
 #
 # Errors:
@@ -312,7 +313,7 @@
 # @nbd-server-stop:
 #
 # Stop QEMU's embedded NBD server, and unregister all devices
-# previously added via @nbd-server-add.
+# previously added via `nbd-server-add`.
 #
 # Since: 1.3
 ##
@@ -421,7 +422,7 @@
 #
 # @id: Block export id.
 #
-# @mode: Mode of command operation.  See @BlockExportRemoveMode
+# @mode: Mode of command operation.  See `BlockExportRemoveMode`
 #     description.  Default is 'safe'.
 #
 # Errors:
@@ -459,7 +460,7 @@
 # @node-name: The node name of the block node that is exported
 #
 # @shutting-down: True if the export is shutting down (e.g. after a
-#     block-export-del command, but before the shutdown has completed)
+#     `block-export-del` command, but before the shutdown has completed)
 #
 # Since: 5.2
 ##
@@ -472,7 +473,7 @@
 ##
 # @query-block-exports:
 #
-# Returns: A list of BlockExportInfo describing all block exports
+# Returns: A list describing all block exports
 #
 # Since: 5.2
 ##

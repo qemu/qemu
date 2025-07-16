@@ -3,7 +3,9 @@
 #
 
 ##
-# = Migration
+# *********
+# Migration
+# *********
 ##
 
 { 'include': 'common.json' }
@@ -193,14 +195,14 @@
 #
 # Information about current migration process.
 #
-# @status: @MigrationStatus describing the current migration status.
+# @status: `MigrationStatus` describing the current migration status.
 #     If this field is not returned, no migration process has been
 #     initiated
 #
-# @ram: @MigrationStats containing detailed migration status, only
+# @ram: `MigrationStats` containing detailed migration status, only
 #     returned if status is 'active' or 'completed'(since 1.2)
 #
-# @xbzrle-cache: @XBZRLECacheStats containing detailed XBZRLE
+# @xbzrle-cache: `XBZRLECacheStats` containing detailed XBZRLE
 #     migration statistics, only returned if XBZRLE feature is on and
 #     status is 'active' or 'completed' (since 1.2)
 #
@@ -264,7 +266,7 @@
 # @socket-address: Only used for tcp, to know what the real port is
 #     (Since 4.0)
 #
-# @vfio: @VfioStats containing detailed VFIO devices migration
+# @vfio: `VfioStats` containing detailed VFIO devices migration
 #     statistics, only returned if VFIO device is present, migration
 #     is supported by all VFIO devices and status is 'active' or
 #     'completed' (since 5.2)
@@ -275,7 +277,7 @@
 #
 # @dirty-limit-throttle-time-per-round: Maximum throttle time (in
 #     microseconds) of virtual CPUs each dirty ring full round, which
-#     shows how MigrationCapability dirty-limit affects the guest
+#     shows how `MigrationCapability` dirty-limit affects the guest
 #     during live migration.  (Since 8.1)
 #
 # @dirty-limit-ring-full-time: Estimated average dirty ring full time
@@ -323,8 +325,6 @@
 # Return information about current migration process.  If migration
 # is active there will be another json-object with RAM migration
 # status.
-#
-# Returns: @MigrationInfo
 #
 # Since: 0.14
 #
@@ -575,8 +575,6 @@
 #
 # Return information about the current migration capabilities status
 #
-# Returns: @MigrationCapabilityStatus
-#
 # Since: 1.2
 #
 # .. qmp-example::
@@ -629,7 +627,7 @@
 #
 # @normal: the original form of migration.  (since 8.2)
 #
-# @cpr-reboot: The migrate command stops the VM and saves state to the
+# @cpr-reboot: The `migrate` command stops the VM and saves state to the
 #     URI.  After quitting QEMU, the user resumes by running QEMU
 #     -incoming.
 #
@@ -679,7 +677,7 @@
 #
 #     New QEMU reads the CPR channel before opening a monitor, hence
 #     the CPR channel cannot be specified in the list of channels for
-#     a migrate-incoming command.  It may only be specified on the
+#     a `migrate-incoming` command.  It may only be specified on the
 #     command line.
 #
 #     The main channel address cannot be a file type, and for an
@@ -690,10 +688,10 @@
 #     memory-backend-epc is not supported.  The VM must be started
 #     with the '-machine aux-ram-share=on' option.
 #
-#     When using -incoming defer, you must issue the migrate command
+#     When using -incoming defer, you must issue the `migrate` command
 #     to old QEMU before issuing any monitor commands to new QEMU.
 #     However, new QEMU does not open and read the migration stream
-#     until you issue the migrate incoming command.
+#     until you issue the `migrate-incoming` command.
 #
 #     (since 10.0)
 ##
@@ -915,11 +913,11 @@
 # @vcpu-dirty-limit: Dirtyrate limit (MB/s) during live migration.
 #     Defaults to 1.  (Since 8.1)
 #
-# @mode: Migration mode.  See description in @MigMode.  Default is
+# @mode: Migration mode.  See description in `MigMode`.  Default is
 #     'normal'.  (Since 8.2)
 #
 # @zero-page-detection: Whether and how to detect zero pages.
-#     See description in @ZeroPageDetection.  Default is 'multifd'.
+#     See description in `ZeroPageDetection`.  Default is 'multifd'.
 #     (since 9.0)
 #
 # @direct-io: Open migration files with O_DIRECT when possible.  This
@@ -1096,11 +1094,11 @@
 # @vcpu-dirty-limit: Dirtyrate limit (MB/s) during live migration.
 #     Defaults to 1.  (Since 8.1)
 #
-# @mode: Migration mode.  See description in @MigMode.  Default is
+# @mode: Migration mode.  See description in `MigMode`.  Default is
 #     'normal'.  (Since 8.2)
 #
 # @zero-page-detection: Whether and how to detect zero pages.
-#     See description in @ZeroPageDetection.  Default is 'multifd'.
+#     See description in `ZeroPageDetection`.  Default is 'multifd'.
 #     (since 9.0)
 #
 # @direct-io: Open migration files with O_DIRECT when possible.  This
@@ -1112,8 +1110,8 @@
 # @unstable: Members @x-checkpoint-delay and
 #     @x-vcpu-dirty-limit-period are experimental.
 #
-# TODO: either fuse back into MigrationParameters, or make
-#     MigrationParameters members mandatory
+# TODO: either fuse back into `MigrationParameters`, or make
+#     `MigrationParameters` members mandatory
 #
 # Since: 2.4
 ##
@@ -1306,11 +1304,11 @@
 # @vcpu-dirty-limit: Dirtyrate limit (MB/s) during live migration.
 #     Defaults to 1.  (Since 8.1)
 #
-# @mode: Migration mode.  See description in @MigMode.  Default is
+# @mode: Migration mode.  See description in `MigMode`.  Default is
 #     'normal'.  (Since 8.2)
 #
 # @zero-page-detection: Whether and how to detect zero pages.
-#     See description in @ZeroPageDetection.  Default is 'multifd'.
+#     See description in `ZeroPageDetection`.  Default is 'multifd'.
 #     (since 9.0)
 #
 # @direct-io: Open migration files with O_DIRECT when possible.  This
@@ -1362,8 +1360,6 @@
 #
 # Return information about the current migration parameters
 #
-# Returns: @MigrationParameters
-#
 # Since: 2.4
 #
 # .. qmp-example::
@@ -1402,7 +1398,7 @@
 #
 # Emitted when a migration event happens
 #
-# @status: @MigrationStatus describing the current migration status.
+# @status: `MigrationStatus` describing the current migration status.
 #
 # Since: 2.4
 #
@@ -1523,8 +1519,8 @@
 # The reason for a COLO exit.
 #
 # @none: failover has never happened.  This state does not occur in
-#     the COLO_EXIT event, and is only visible in the result of
-#     query-colo-status.
+#     the `COLO_EXIT` event, and is only visible in the result of
+#     `query-colo-status`.
 #
 # @request: COLO exit is due to an external request.
 #
@@ -1779,8 +1775,8 @@
 #     list connected to a destination interface endpoint.
 #
 # @exit-on-error: Exit on incoming migration failure.  Default true.
-#     When set to false, the failure triggers a MIGRATION event, and
-#     error details could be retrieved with query-migrate.
+#     When set to false, the failure triggers a :qapi:event:`MIGRATION`
+#     event, and error details could be retrieved with `query-migrate`.
 #     (since 9.1)
 #
 # Since: 2.3
@@ -1792,7 +1788,7 @@
 #        already exposed above libvirt.
 #
 #     2. QEMU must be started with -incoming defer to allow
-#        migrate-incoming to be used.
+#        `migrate-incoming` to be used.
 #
 #     3. The uri format is the same as for -incoming
 #
@@ -1845,7 +1841,7 @@
 # devices of the VM are not saved by this command.
 #
 # @filename: the file to save the state of the devices to as binary
-#     data.  See xen-save-devices-state.txt for a description of the
+#     data.  See `xen-save-devices-state`.txt for a description of the
 #     binary format.
 #
 # @live: Optional argument to ask QEMU to treat this command as part
@@ -1886,7 +1882,7 @@
 # devices of the VM are not loaded by this command.
 #
 # @filename: the file to load the state of the devices from as binary
-#     data.  See xen-save-devices-state.txt for a description of the
+#     data.  See `xen-save-devices-state`.txt for a description of the
 #     binary format.
 #
 # Since: 2.7
@@ -1926,7 +1922,7 @@
 ##
 # @ReplicationStatus:
 #
-# The result format for 'query-xen-replication-status'.
+# The result format for `query-xen-replication-status`.
 #
 # @error: true if an error happened, false if replication is normal.
 #
@@ -1944,7 +1940,7 @@
 #
 # Query replication status while the vm is running.
 #
-# Returns: A @ReplicationStatus object showing the status.
+# TODO: This line is a hack to separate the example from the body
 #
 # .. qmp-example::
 #
@@ -1975,7 +1971,7 @@
 ##
 # @COLOStatus:
 #
-# The result format for 'query-colo-status'.
+# The result format for `query-colo-status`.
 #
 # @mode: COLO running mode.  If COLO is running, this field will
 #     return 'primary' or 'secondary'.
@@ -1998,7 +1994,7 @@
 #
 # Query COLO status while the vm is running.
 #
-# Returns: A @COLOStatus object showing the status.
+# TODO: This line is a hack to separate the example from the body
 #
 # .. qmp-example::
 #
@@ -2099,7 +2095,7 @@
 # @DirtyRateMeasureMode:
 #
 # Method used to measure dirty page rate.  Differences between
-# available methods are explained in @calc-dirty-rate.
+# available methods are explained in `calc-dirty-rate`.
 #
 # @page-sampling: use page sampling
 #
@@ -2167,7 +2163,7 @@
 # @calc-dirty-rate:
 #
 # Start measuring dirty page rate of the VM.  Results can be retrieved
-# with @query-dirty-rate after measurements are completed.
+# with `query-dirty-rate` after measurements are completed.
 #
 # Dirty page rate is the number of pages changed in a given time
 # period expressed in MiB/s.  The following methods of calculation are
@@ -2240,7 +2236,7 @@
 ##
 # @query-dirty-rate:
 #
-# Query results of the most recent invocation of @calc-dirty-rate.
+# Query results of the most recent invocation of `calc-dirty-rate`.
 #
 # @calc-time-unit: time unit in which to report calculation time.
 #     By default it is reported in seconds.  (Since 8.2)
@@ -2290,7 +2286,7 @@
 #
 # Requires KVM with accelerator property "dirty-ring-size" set.  A
 # virtual CPU's dirty page rate is a measure of its memory load.  To
-# observe dirty page rates, use @calc-dirty-rate.
+# observe dirty page rates, use `calc-dirty-rate`.
 #
 # @cpu-index: index of a virtual CPU, default is all.
 #
@@ -2315,8 +2311,8 @@
 # Cancel the upper limit of dirty page rate for virtual CPUs.
 #
 # Cancel the dirty page limit for the vCPU which has been set with
-# set-vcpu-dirty-limit command.  Note that this command requires
-# support from dirty ring, same as the "set-vcpu-dirty-limit".
+# `set-vcpu-dirty-limit` command.  Note that this command requires
+# support from dirty ring, same as the `set-vcpu-dirty-limit`.
 #
 # @cpu-index: index of a virtual CPU, default is all.
 #
@@ -2372,8 +2368,6 @@
 # Features:
 #
 # @deprecated: This command is deprecated with no replacement yet.
-#
-# Returns: @MigrationThreadInfo
 #
 # Since: 7.2
 ##
@@ -2475,7 +2469,7 @@
 # time it takes to load the snapshot.
 #
 # It is strongly recommended that @devices contain all writable block
-# device nodes that can have changed since the original @snapshot-save
+# device nodes that can have changed since the original `snapshot-save`
 # command execution.
 #
 # .. qmp-example::

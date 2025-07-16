@@ -6,7 +6,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 ##
-# = ACPI
+# ****
+# ACPI
+# ****
 ##
 
 ##
@@ -106,7 +108,7 @@
 ##
 # @query-acpi-ospm-status:
 #
-# Return a list of ACPIOSTInfo for devices that support status
+# Return a list of `ACPIOSTInfo` for devices that support status
 # reporting via ACPI _OST method.
 #
 # Since: 2.1

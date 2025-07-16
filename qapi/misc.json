@@ -3,7 +3,9 @@
 #
 
 ##
-# = Miscellanea
+# ***********
+# Miscellanea
+# ***********
 ##
 
 { 'include': 'common.json' }
@@ -21,7 +23,7 @@
 #     "@dbus-display" or the name of a character device (e.g. from
 #     -chardev id=XXXX)
 #
-# @fdname: file descriptor name previously passed via 'getfd' command
+# @fdname: file descriptor name previously passed via `getfd` command
 #
 # @skipauth: whether to skip authentication.  Only applies to "vnc"
 #     and "spice" protocols
@@ -55,8 +57,6 @@
 # @query-name:
 #
 # Return the name information of a guest.
-#
-# Returns: @NameInfo of the guest
 #
 # Since: 0.14
 #
@@ -107,7 +107,7 @@
 #    declared using the ``-object iothread`` command-line option.  It
 #    is always the main thread of the process.
 #
-# Returns: a list of @IOThreadInfo for each iothread
+# Returns: a list of info for each iothread
 #
 # Since: 2.0
 #
@@ -228,7 +228,7 @@
 #    Known limitations:
 #
 #    * This command is stateless, this means that commands that depend
-#      on state information (such as getfd) might not work.
+#      on state information (such as `getfd`) might not work.
 #
 #    * Commands that prompt the user for data don't currently work.
 #
@@ -255,7 +255,7 @@
 # .. note:: If @fdname already exists, the file descriptor assigned to
 #    it will be closed and replaced by the received file descriptor.
 #
-#    The 'closefd' command can be used to explicitly close the file
+#    The `closefd` command can be used to explicitly close the file
 #    descriptor when it is no longer needed.
 #
 # .. qmp-example::
@@ -282,7 +282,7 @@
 # .. note:: If @fdname already exists, the file descriptor assigned to
 #    it will be closed and replaced by the received file descriptor.
 #
-#    The 'closefd' command can be used to explicitly close the file
+#    The `closefd` command can be used to explicitly close the file
 #    descriptor when it is no longer needed.
 #
 # .. qmp-example::
@@ -331,9 +331,6 @@
 # @fdset-id: The ID of the fd set to add the file descriptor to.
 #
 # @opaque: A free-form string that can be used to describe the fd.
-#
-# Returns:
-#     @AddfdInfo
 #
 # Errors:
 #     - If file descriptor was not received, GenericError
@@ -415,8 +412,6 @@
 #
 # Return information describing all fd sets.
 #
-# Returns: A list of @FdsetInfo
-#
 # Since: 1.2
 #
 # .. note:: The list of fd sets is shared by all monitor connections.
@@ -480,7 +475,7 @@
 #
 # @name: parameter name
 #
-# @type: parameter @CommandLineParameterType
+# @type: parameter `CommandLineParameterType`
 #
 # @help: human readable text string, not suitable for parsing.
 #
@@ -502,7 +497,7 @@
 #
 # @option: option name
 #
-# @parameters: an array of @CommandLineParameterInfo
+# @parameters: an array of `CommandLineParameterInfo`
 #
 # Since: 1.5
 ##
@@ -516,8 +511,7 @@
 #
 # @option: option name
 #
-# Returns: list of @CommandLineOptionInfo for all options (or for the
-#     given @option).
+# Returns: list of objects for all options (or for the given @option).
 #
 # Errors:
 #     - if the given @option doesn't exist

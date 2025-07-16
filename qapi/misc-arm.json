@@ -30,13 +30,11 @@
 ##
 # @query-gic-capabilities:
 #
-# It will return a list of GICCapability objects that describe its
+# It will return a list of `GICCapability` objects that describe its
 # capability bits.
 #
 # On non-ARM targets this command will report an error as the GIC
 # technology is not applicable.
-#
-# Returns: a list of GICCapability objects.
 #
 # Since: 2.6
 #

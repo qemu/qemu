@@ -5,5 +5,4 @@ QEMU Storage Daemon QMP Reference Manual
    :local:
 
 .. qapi-doc:: storage-daemon/qapi/qapi-schema.json
-   :transmogrify:
    :namespace: QSD

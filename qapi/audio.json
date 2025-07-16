@@ -7,7 +7,9 @@
 # See the COPYING file in the top-level directory.
 
 ##
-# = Audio
+# *****
+# Audio
+# *****
 ##
 
 ##
@@ -534,8 +536,6 @@
 # @query-audiodevs:
 #
 # Return information about audiodev configuration
-#
-# Returns: array of @Audiodev
 #
 # Since: 8.0
 ##

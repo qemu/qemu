@@ -5,7 +5,9 @@
 # See the COPYING file in the top-level directory.
 
 ##
-# = Cryptography devices
+# ********************
+# Cryptography devices
+# ********************
 ##
 
 ##
@@ -95,8 +97,6 @@
 # @query-cryptodev:
 #
 # Return information about current crypto devices.
-#
-# Returns: a list of @QCryptodevInfo
 #
 # Since: 8.0
 ##
