@@ -35,45 +35,45 @@ static const int bits_per_packed_pixel[] = {
 };
 
 
-static void vnc_zrle_start(VncState *vs)
+static void vnc_zrle_start(VncState *vs, VncZrle *zrle)
 {
-    buffer_reset(&vs->zrle->zrle);
+    buffer_reset(&zrle->zrle);
 
     /* make the output buffer be the zlib buffer, so we can compress it later */
-    vs->zrle->tmp = vs->output;
-    vs->output = vs->zrle->zrle;
+    zrle->tmp = vs->output;
+    vs->output = zrle->zrle;
 }
 
-static void vnc_zrle_stop(VncState *vs)
+static void vnc_zrle_stop(VncState *vs, VncZrle *zrle)
 {
     /* switch back to normal output/zlib buffers */
-    vs->zrle->zrle = vs->output;
-    vs->output = vs->zrle->tmp;
+    zrle->zrle = vs->output;
+    vs->output = zrle->tmp;
 }
 
-static void *zrle_convert_fb(VncState *vs, int x, int y, int w, int h,
-                             int bpp)
+static void *zrle_convert_fb(VncState *vs, VncZrle *zrle,
+                             int x, int y, int w, int h, int bpp)
 {
     Buffer tmp;
 
-    buffer_reset(&vs->zrle->fb);
-    buffer_reserve(&vs->zrle->fb, w * h * bpp + bpp);
+    buffer_reset(&zrle->fb);
+    buffer_reserve(&zrle->fb, w * h * bpp + bpp);
 
     tmp = vs->output;
-    vs->output = vs->zrle->fb;
+    vs->output = zrle->fb;
 
     vnc_raw_send_framebuffer_update(vs, x, y, w, h);
 
-    vs->zrle->fb = vs->output;
+    zrle->fb = vs->output;
     vs->output = tmp;
-    return vs->zrle->fb.buffer;
+    return zrle->fb.buffer;
 }
 
-static int zrle_compress_data(VncState *vs, int level)
+static int zrle_compress_data(VncState *vs, VncZrle *zrle, int level)
 {
-    z_streamp zstream = &vs->zrle->stream;
+    z_streamp zstream = &zrle->stream;
 
-    buffer_reset(&vs->zrle->zlib);
+    buffer_reset(&zrle->zlib);
 
     if (zstream->opaque != vs) {
         int err;
@@ -93,13 +93,13 @@ static int zrle_compress_data(VncState *vs, int level)
     }
 
     /* reserve memory in output buffer */
-    buffer_reserve(&vs->zrle->zlib, vs->zrle->zrle.offset + 64);
+    buffer_reserve(&zrle->zlib, zrle->zrle.offset + 64);
 
     /* set pointers */
-    zstream->next_in = vs->zrle->zrle.buffer;
-    zstream->avail_in = vs->zrle->zrle.offset;
-    zstream->next_out = vs->zrle->zlib.buffer;
-    zstream->avail_out = vs->zrle->zlib.capacity;
+    zstream->next_in = zrle->zrle.buffer;
+    zstream->avail_in = zrle->zrle.offset;
+    zstream->next_out = zrle->zlib.buffer;
+    zstream->avail_out = zrle->zlib.capacity;
     zstream->data_type = Z_BINARY;
 
     /* start encoding */
@@ -108,8 +108,8 @@ static int zrle_compress_data(VncState *vs, int level)
         return -1;
     }
 
-    vs->zrle->zlib.offset = vs->zrle->zlib.capacity - zstream->avail_out;
-    return vs->zrle->zlib.offset;
+    zrle->zlib.offset = zrle->zlib.capacity - zstream->avail_out;
+    return zrle->zlib.offset;
 }
 
 /* Try to work out whether to use RLE and/or a palette.  We do this by
@@ -252,21 +252,21 @@ static void zrle_write_u8(VncState *vs, uint8_t value)
 #undef ZRLE_COMPACT_PIXEL
 #undef ZRLE_BPP
 
-static int zrle_send_framebuffer_update(VncState *vs, int x, int y,
-                                        int w, int h)
+static int zrle_send_framebuffer_update(VncState *vs, VncWorker *worker,
+                                        int x, int y, int w, int h)
 {
     bool be = vs->client_endian == G_BIG_ENDIAN;
     size_t bytes;
     int zywrle_level;
 
-    if (vs->zrle->type == VNC_ENCODING_ZYWRLE) {
-        if (!vs->vd->lossy || vs->tight->quality == (uint8_t)-1
-            || vs->tight->quality == 9) {
+    if (worker->zrle.type == VNC_ENCODING_ZYWRLE) {
+        if (!vs->vd->lossy || worker->tight.quality == (uint8_t)-1
+            || worker->tight.quality == 9) {
             zywrle_level = 0;
-            vs->zrle->type = VNC_ENCODING_ZRLE;
-        } else if (vs->tight->quality < 3) {
+            worker->zrle.type = VNC_ENCODING_ZRLE;
+        } else if (worker->tight.quality < 3) {
             zywrle_level = 3;
-        } else if (vs->tight->quality < 6) {
+        } else if (worker->tight.quality < 6) {
             zywrle_level = 2;
         } else {
             zywrle_level = 1;
@@ -275,25 +275,25 @@ static int zrle_send_framebuffer_update(VncState *vs, int x, int y,
         zywrle_level = 0;
     }
 
-    vnc_zrle_start(vs);
+    vnc_zrle_start(vs, &worker->zrle);
 
     switch (vs->client_pf.bytes_per_pixel) {
     case 1:
-        zrle_encode_8ne(vs, x, y, w, h, zywrle_level);
+        zrle_encode_8ne(vs, &worker->zrle, x, y, w, h, zywrle_level);
         break;
 
     case 2:
         if (vs->client_pf.gmax > 0x1F) {
             if (be) {
-                zrle_encode_16be(vs, x, y, w, h, zywrle_level);
+                zrle_encode_16be(vs, &worker->zrle, x, y, w, h, zywrle_level);
             } else {
-                zrle_encode_16le(vs, x, y, w, h, zywrle_level);
+                zrle_encode_16le(vs, &worker->zrle, x, y, w, h, zywrle_level);
             }
         } else {
             if (be) {
-                zrle_encode_15be(vs, x, y, w, h, zywrle_level);
+                zrle_encode_15be(vs, &worker->zrle, x, y, w, h, zywrle_level);
             } else {
-                zrle_encode_15le(vs, x, y, w, h, zywrle_level);
+                zrle_encode_15le(vs, &worker->zrle, x, y, w, h, zywrle_level);
             }
         }
         break;
@@ -314,53 +314,55 @@ static int zrle_send_framebuffer_update(VncState *vs, int x, int y,
 
         if ((fits_in_ls3bytes && !be) || (fits_in_ms3bytes && be)) {
             if (be) {
-                zrle_encode_24abe(vs, x, y, w, h, zywrle_level);
+                zrle_encode_24abe(vs, &worker->zrle, x, y, w, h, zywrle_level);
             } else {
-                zrle_encode_24ale(vs, x, y, w, h, zywrle_level);
+                zrle_encode_24ale(vs, &worker->zrle, x, y, w, h, zywrle_level);
           }
         } else if ((fits_in_ls3bytes && be) || (fits_in_ms3bytes && !be)) {
             if (be) {
-                zrle_encode_24bbe(vs, x, y, w, h, zywrle_level);
+                zrle_encode_24bbe(vs, &worker->zrle, x, y, w, h, zywrle_level);
             } else {
-                zrle_encode_24ble(vs, x, y, w, h, zywrle_level);
+                zrle_encode_24ble(vs, &worker->zrle, x, y, w, h, zywrle_level);
             }
         } else {
             if (be) {
-                zrle_encode_32be(vs, x, y, w, h, zywrle_level);
+                zrle_encode_32be(vs, &worker->zrle, x, y, w, h, zywrle_level);
             } else {
-                zrle_encode_32le(vs, x, y, w, h, zywrle_level);
+                zrle_encode_32le(vs, &worker->zrle, x, y, w, h, zywrle_level);
             }
         }
     }
     break;
     }
 
-    vnc_zrle_stop(vs);
-    bytes = zrle_compress_data(vs, Z_DEFAULT_COMPRESSION);
-    vnc_framebuffer_update(vs, x, y, w, h, vs->zrle->type);
+    vnc_zrle_stop(vs, &worker->zrle);
+    bytes = zrle_compress_data(vs, &worker->zrle, Z_DEFAULT_COMPRESSION);
+    vnc_framebuffer_update(vs, x, y, w, h, worker->zrle.type);
     vnc_write_u32(vs, bytes);
-    vnc_write(vs, vs->zrle->zlib.buffer, vs->zrle->zlib.offset);
+    vnc_write(vs, worker->zrle.zlib.buffer, worker->zrle.zlib.offset);
     return 1;
 }
 
-int vnc_zrle_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
+int vnc_zrle_send_framebuffer_update(VncState *vs, VncWorker *worker,
+                                     int x, int y, int w, int h)
 {
-    vs->zrle->type = VNC_ENCODING_ZRLE;
-    return zrle_send_framebuffer_update(vs, x, y, w, h);
+    worker->zrle.type = VNC_ENCODING_ZRLE;
+    return zrle_send_framebuffer_update(vs, worker, x, y, w, h);
 }
 
-int vnc_zywrle_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
+int vnc_zywrle_send_framebuffer_update(VncState *vs, VncWorker *worker,
+                                       int x, int y, int w, int h)
 {
-    vs->zrle->type = VNC_ENCODING_ZYWRLE;
-    return zrle_send_framebuffer_update(vs, x, y, w, h);
+    worker->zrle.type = VNC_ENCODING_ZYWRLE;
+    return zrle_send_framebuffer_update(vs, worker, x, y, w, h);
 }
 
-void vnc_zrle_clear(VncState *vs)
+void vnc_zrle_clear(VncWorker *worker)
 {
-    if (vs->zrle->stream.opaque) {
-        deflateEnd(&vs->zrle->stream);
+    if (worker->zrle.stream.opaque) {
+        deflateEnd(&worker->zrle.stream);
     }
-    buffer_free(&vs->zrle->zrle);
-    buffer_free(&vs->zrle->fb);
-    buffer_free(&vs->zrle->zlib);
+    buffer_free(&worker->zrle.zrle);
+    buffer_free(&worker->zrle.fb);
+    buffer_free(&worker->zrle.zlib);
 }

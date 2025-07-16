@@ -62,16 +62,16 @@
 #define ZRLE_ENCODE_TILE     ZRLE_CONCAT2(zrle_encode_tile,  ZRLE_ENCODE_SUFFIX)
 #define ZRLE_WRITE_PALETTE   ZRLE_CONCAT2(zrle_write_palette,ZRLE_ENCODE_SUFFIX)
 
-static void ZRLE_ENCODE_TILE(VncState *vs, ZRLE_PIXEL *data, int w, int h,
-                             int zywrle_level);
+static void ZRLE_ENCODE_TILE(VncState *vs, VncZrle *zrle, ZRLE_PIXEL *data,
+                             int w, int h, int zywrle_level);
 
 #if ZRLE_BPP != 8
 #include "vnc-enc-zywrle-template.c"
 #endif
 
 
-static void ZRLE_ENCODE(VncState *vs, int x, int y, int w, int h,
-                        int zywrle_level)
+static void ZRLE_ENCODE(VncState *vs, VncZrle *zrle,
+                        int x, int y, int w, int h, int zywrle_level)
 {
     int ty;
 
@@ -87,16 +87,16 @@ static void ZRLE_ENCODE(VncState *vs, int x, int y, int w, int h,
 
             tw = MIN(VNC_ZRLE_TILE_WIDTH, x + w - tx);
 
-            buf = zrle_convert_fb(vs, tx, ty, tw, th, ZRLE_BPP);
-            ZRLE_ENCODE_TILE(vs, buf, tw, th, zywrle_level);
+            buf = zrle_convert_fb(vs, zrle, tx, ty, tw, th, ZRLE_BPP);
+            ZRLE_ENCODE_TILE(vs, zrle, buf, tw, th, zywrle_level);
         }
     }
 }
 
-static void ZRLE_ENCODE_TILE(VncState *vs, ZRLE_PIXEL *data, int w, int h,
-                             int zywrle_level)
+static void ZRLE_ENCODE_TILE(VncState *vs, VncZrle *zrle, ZRLE_PIXEL *data,
+                             int w, int h, int zywrle_level)
 {
-    VncPalette *palette = &vs->zrle->palette;
+    VncPalette *palette = &zrle->palette;
 
     int runs = 0;
     int single_pixels = 0;
@@ -236,7 +236,7 @@ static void ZRLE_ENCODE_TILE(VncState *vs, ZRLE_PIXEL *data, int w, int h,
 #if ZRLE_BPP != 8
         if (zywrle_level > 0 && !(zywrle_level & 0x80)) {
             ZYWRLE_ANALYZE(data, data, w, h, w, zywrle_level, vs->zywrle.buf);
-            ZRLE_ENCODE_TILE(vs, data, w, h, zywrle_level | 0x80);
+            ZRLE_ENCODE_TILE(vs, zrle, data, w, h, zywrle_level | 0x80);
         }
         else
 #endif

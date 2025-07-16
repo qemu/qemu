@@ -56,6 +56,8 @@ struct SpiceTimer {
     QEMUTimer *timer;
 };
 
+#define DEFAULT_MAX_REFRESH_RATE 30
+
 static SpiceTimer *timer_add(SpiceTimerFunc func, void *opaque)
 {
     SpiceTimer *timer;
@@ -489,6 +491,12 @@ static QemuOptsList qemu_spice_opts = {
             .name = "streaming-video",
             .type = QEMU_OPT_STRING,
         },{
+            .name = "video-codec",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "max-refresh-rate",
+            .type = QEMU_OPT_NUMBER,
+        },{
             .name = "agent-mouse",
             .type = QEMU_OPT_BOOL,
         },{
@@ -801,6 +809,13 @@ static void qemu_spice_init(void)
         spice_server_set_streaming_video(spice_server, SPICE_STREAM_VIDEO_OFF);
     }
 
+    spice_max_refresh_rate = qemu_opt_get_number(opts, "max-refresh-rate",
+                                                 DEFAULT_MAX_REFRESH_RATE);
+    if (spice_max_refresh_rate <= 0) {
+        error_report("max refresh rate/fps is invalid");
+        exit(1);
+    }
+
     spice_server_set_agent_mouse
         (spice_server, qemu_opt_get_bool(opts, "agent-mouse", 1));
     spice_server_set_playback_compression
@@ -836,9 +851,26 @@ static void qemu_spice_init(void)
 #ifdef HAVE_SPICE_GL
     if (qemu_opt_get_bool(opts, "gl", 0)) {
         if ((port != 0) || (tls_port != 0)) {
+#if SPICE_SERVER_VERSION >= 0x000f03 /* release 0.15.3 */
+            const char *video_codec = NULL;
+            g_autofree char *enc_codec = NULL;
+
+            spice_remote_client = 1;
+
+            video_codec = qemu_opt_get(opts, "video-codec");
+            if (video_codec) {
+                enc_codec = g_strconcat("gstreamer:", video_codec, NULL);
+            }
+            if (spice_server_set_video_codecs(spice_server,
+                                              enc_codec ?: "gstreamer:h264")) {
+                error_report("invalid video codec");
+                exit(1);
+            }
+#else
             error_report("SPICE GL support is local-only for now and "
                          "incompatible with -spice port/tls-port");
             exit(1);
+#endif
         }
         egl_init(qemu_opt_get(opts, "rendernode"), DISPLAY_GL_MODE_ON, &error_fatal);
         spice_opengl = 1;

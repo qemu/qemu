@@ -41,6 +41,7 @@ typedef struct VirtualGfxConsole {
     DisplaySurface *ds;
     pixman_image_t *convert;
     cairo_surface_t *surface;
+    double preferred_scale;
     double scale_x;
     double scale_y;
 #if defined(CONFIG_OPENGL)
@@ -140,6 +141,7 @@ struct GtkDisplayState {
     GdkCursor *null_cursor;
     Notifier mouse_mode_notifier;
     gboolean free_scale;
+    gboolean keep_aspect_ratio;
 
     bool external_pause_update;
 

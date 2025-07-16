@@ -946,29 +946,30 @@ int vnc_raw_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
     return 1;
 }
 
-int vnc_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
+int vnc_send_framebuffer_update(VncState *vs, VncWorker *worker,
+                                int x, int y, int w, int h)
 {
     int n = 0;
 
     switch(vs->vnc_encoding) {
         case VNC_ENCODING_ZLIB:
-            n = vnc_zlib_send_framebuffer_update(vs, x, y, w, h);
+            n = vnc_zlib_send_framebuffer_update(vs, worker, x, y, w, h);
             break;
         case VNC_ENCODING_HEXTILE:
             vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_HEXTILE);
             n = vnc_hextile_send_framebuffer_update(vs, x, y, w, h);
             break;
         case VNC_ENCODING_TIGHT:
-            n = vnc_tight_send_framebuffer_update(vs, x, y, w, h);
+            n = vnc_tight_send_framebuffer_update(vs, worker, x, y, w, h);
             break;
         case VNC_ENCODING_TIGHT_PNG:
-            n = vnc_tight_png_send_framebuffer_update(vs, x, y, w, h);
+            n = vnc_tight_png_send_framebuffer_update(vs, worker, x, y, w, h);
             break;
         case VNC_ENCODING_ZRLE:
-            n = vnc_zrle_send_framebuffer_update(vs, x, y, w, h);
+            n = vnc_zrle_send_framebuffer_update(vs, worker, x, y, w, h);
             break;
         case VNC_ENCODING_ZYWRLE:
-            n = vnc_zywrle_send_framebuffer_update(vs, x, y, w, h);
+            n = vnc_zywrle_send_framebuffer_update(vs, worker, x, y, w, h);
             break;
         default:
             vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_RAW);
@@ -1306,7 +1307,7 @@ static void vnc_disconnect_start(VncState *vs)
 
 void vnc_disconnect_finish(VncState *vs)
 {
-    int i;
+    VncConnection *vc = container_of(vs, VncConnection, vs);
 
     trace_vnc_client_disconnect_finish(vs, vs->ioc);
 
@@ -1320,9 +1321,9 @@ void vnc_disconnect_finish(VncState *vs)
 
     qapi_free_VncClientInfo(vs->info);
 
-    vnc_zlib_clear(vs);
-    vnc_tight_clear(vs);
-    vnc_zrle_clear(vs);
+    vnc_zlib_clear(&vc->worker);
+    vnc_tight_clear(&vc->worker);
+    vnc_zrle_clear(&vc->worker);
 
 #ifdef CONFIG_VNC_SASL
     vnc_sasl_client_cleanup(vs);
@@ -1350,19 +1351,12 @@ void vnc_disconnect_finish(VncState *vs)
     }
     buffer_free(&vs->jobs_buffer);
 
-    for (i = 0; i < VNC_STAT_ROWS; ++i) {
-        g_free(vs->lossy_rect[i]);
-    }
-    g_free(vs->lossy_rect);
-
     object_unref(OBJECT(vs->ioc));
     vs->ioc = NULL;
     object_unref(OBJECT(vs->sioc));
     vs->sioc = NULL;
     vs->magic = 0;
-    g_free(vs->zrle);
-    g_free(vs->tight);
-    g_free(vs);
+    g_free(vc);
 }
 
 size_t vnc_client_io_error(VncState *vs, ssize_t ret, Error *err)
@@ -2126,13 +2120,14 @@ static void send_xvp_message(VncState *vs, int code)
 
 static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
 {
+    VncConnection *vc = container_of(vs, VncConnection, vs);
     int i;
     unsigned int enc = 0;
 
     vs->features = 0;
     vs->vnc_encoding = 0;
-    vs->tight->compression = 9;
-    vs->tight->quality = -1; /* Lossless by default */
+    vc->worker.tight.compression = 9;
+    vc->worker.tight.quality = -1; /* Lossless by default */
     vs->absolute = -1;
 
     /*
@@ -2220,11 +2215,11 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             vnc_server_cut_text_caps(vs);
             break;
         case VNC_ENCODING_COMPRESSLEVEL0 ... VNC_ENCODING_COMPRESSLEVEL0 + 9:
-            vs->tight->compression = (enc & 0x0F);
+            vc->worker.tight.compression = (enc & 0x0F);
             break;
         case VNC_ENCODING_QUALITYLEVEL0 ... VNC_ENCODING_QUALITYLEVEL0 + 9:
             if (vs->vd->lossy) {
-                vs->tight->quality = (enc & 0x0F);
+                vc->worker.tight.quality = (enc & 0x0F);
             }
             break;
         default:
@@ -2953,7 +2948,7 @@ static VncRectStat *vnc_stat_rect(VncDisplay *vd, int x, int y)
     return &vs->stats[y / VNC_STAT_RECT][x / VNC_STAT_RECT];
 }
 
-void vnc_sent_lossy_rect(VncState *vs, int x, int y, int w, int h)
+void vnc_sent_lossy_rect(VncWorker *worker, int x, int y, int w, int h)
 {
     int i, j;
 
@@ -2964,7 +2959,7 @@ void vnc_sent_lossy_rect(VncState *vs, int x, int y, int w, int h)
 
     for (j = y; j <= h; j++) {
         for (i = x; i <= w; i++) {
-            vs->lossy_rect[j][i] = 1;
+            worker->lossy_rect[j][i] = 1;
         }
     }
 }
@@ -2980,6 +2975,7 @@ static int vnc_refresh_lossy_rect(VncDisplay *vd, int x, int y)
     x = QEMU_ALIGN_DOWN(x, VNC_STAT_RECT);
 
     QTAILQ_FOREACH(vs, &vd->clients, next) {
+        VncConnection *vc = container_of(vs, VncConnection, vs);
         int j;
 
         /* kernel send buffers are full -> refresh later */
@@ -2987,11 +2983,11 @@ static int vnc_refresh_lossy_rect(VncDisplay *vd, int x, int y)
             continue;
         }
 
-        if (!vs->lossy_rect[sty][stx]) {
+        if (!vc->worker.lossy_rect[sty][stx]) {
             continue;
         }
 
-        vs->lossy_rect[sty][stx] = 0;
+        vc->worker.lossy_rect[sty][stx] = 0;
         for (j = 0; j < VNC_STAT_RECT; ++j) {
             bitmap_set(vs->dirty[y + j],
                        x / VNC_DIRTY_PIXELS_PER_BIT,
@@ -3241,13 +3237,11 @@ static void vnc_refresh(DisplayChangeListener *dcl)
 static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
                         bool skipauth, bool websocket)
 {
-    VncState *vs = g_new0(VncState, 1);
+    VncConnection *vc = g_new0(VncConnection, 1);
+    VncState *vs = &vc->vs;
     bool first_client = QTAILQ_EMPTY(&vd->clients);
-    int i;
 
     trace_vnc_client_connect(vs, sioc);
-    vs->zrle = g_new0(VncZrle, 1);
-    vs->tight = g_new0(VncTight, 1);
     vs->magic = VNC_MAGIC;
     vs->sioc = sioc;
     object_ref(OBJECT(vs->sioc));
@@ -3255,23 +3249,23 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
     object_ref(OBJECT(vs->ioc));
     vs->vd = vd;
 
-    buffer_init(&vs->input,          "vnc-input/%p", sioc);
-    buffer_init(&vs->output,         "vnc-output/%p", sioc);
-    buffer_init(&vs->jobs_buffer,    "vnc-jobs_buffer/%p", sioc);
+    buffer_init(&vs->input,                 "vnc-input/%p", sioc);
+    buffer_init(&vs->output,                "vnc-output/%p", sioc);
+    buffer_init(&vs->jobs_buffer,           "vnc-jobs_buffer/%p", sioc);
 
-    buffer_init(&vs->tight->tight,    "vnc-tight/%p", sioc);
-    buffer_init(&vs->tight->zlib,     "vnc-tight-zlib/%p", sioc);
-    buffer_init(&vs->tight->gradient, "vnc-tight-gradient/%p", sioc);
+    buffer_init(&vc->worker.tight.tight,    "vnc-tight/%p", sioc);
+    buffer_init(&vc->worker.tight.zlib,     "vnc-tight-zlib/%p", sioc);
+    buffer_init(&vc->worker.tight.gradient, "vnc-tight-gradient/%p", sioc);
 #ifdef CONFIG_VNC_JPEG
-    buffer_init(&vs->tight->jpeg,     "vnc-tight-jpeg/%p", sioc);
+    buffer_init(&vc->worker.tight.jpeg,     "vnc-tight-jpeg/%p", sioc);
 #endif
 #ifdef CONFIG_PNG
-    buffer_init(&vs->tight->png,      "vnc-tight-png/%p", sioc);
+    buffer_init(&vc->worker.tight.png,      "vnc-tight-png/%p", sioc);
 #endif
-    buffer_init(&vs->zlib.zlib,      "vnc-zlib/%p", sioc);
-    buffer_init(&vs->zrle->zrle,      "vnc-zrle/%p", sioc);
-    buffer_init(&vs->zrle->fb,        "vnc-zrle-fb/%p", sioc);
-    buffer_init(&vs->zrle->zlib,      "vnc-zrle-zlib/%p", sioc);
+    buffer_init(&vc->worker.zlib.zlib,      "vnc-zlib/%p", sioc);
+    buffer_init(&vc->worker.zrle.zrle,      "vnc-zrle/%p", sioc);
+    buffer_init(&vc->worker.zrle.fb,        "vnc-zrle-fb/%p", sioc);
+    buffer_init(&vc->worker.zrle.zlib,      "vnc-zrle-zlib/%p", sioc);
 
     if (skipauth) {
         vs->auth = VNC_AUTH_NONE;
@@ -3287,11 +3281,6 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
     }
     VNC_DEBUG("Client sioc=%p ws=%d auth=%d subauth=%d\n",
               sioc, websocket, vs->auth, vs->subauth);
-
-    vs->lossy_rect = g_malloc0(VNC_STAT_ROWS * sizeof (*vs->lossy_rect));
-    for (i = 0; i < VNC_STAT_ROWS; ++i) {
-        vs->lossy_rect[i] = g_new0(uint8_t, VNC_STAT_COLS);
-    }
 
     VNC_DEBUG("New client on socket %p\n", vs->sioc);
     update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
