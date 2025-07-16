@@ -60,7 +60,7 @@ fn test_derive_device() {
                 migrate_clock: bool,
             }
         },
-        "unrecognized field `defalt`"
+        "Expected one of `default` or `rename`"
     );
     // Check that repeated attributes are not allowed:
     derive_compile_fail!(
@@ -73,7 +73,8 @@ fn test_derive_device() {
                 migrate_clock: bool,
             }
         },
-        "`rename` can only be used at most once"
+        "Duplicate argument",
+        "Already used here",
     );
     derive_compile_fail!(
         derive_device_or_error,
@@ -85,7 +86,8 @@ fn test_derive_device() {
                 migrate_clock: bool,
             }
         },
-        "`default` can only be used at most once"
+        "Duplicate argument",
+        "Already used here",
     );
     // Check that the field name is preserved when `rename` isn't used:
     derive_compile!(

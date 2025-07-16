@@ -15,6 +15,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c84fc003e338a6f69fbd4f7fe9f92b535ff13e9af8997f3b14b6ddff8b1df46d"
 
 [[package]]
+name = "attrs"
+version = "0.2.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a207d40f43de65285f3de0509bb6cb16bc46098864fce957122bbacce327e5f"
+dependencies = [
+ "proc-macro2",
+ "syn",
+]
+
+[[package]]
 name = "bilge"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -188,6 +198,7 @@ dependencies = [
 name = "qemu_macros"
 version = "0.1.0"
 dependencies = [
+ "attrs",
  "proc-macro2",
  "quote",
  "syn",
