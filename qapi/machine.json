@@ -78,6 +78,8 @@
 #
 # @cpu-index: index of the virtual CPU
 #
+# @qom-type: QOM type name of the CPU (since 10.1)
+#
 # @qom-path: path to the CPU object in the QOM tree
 #
 # @thread-id: ID of the underlying host thread
@@ -91,6 +93,7 @@
 ##
 { 'union'         : 'CpuInfoFast',
   'base'          : { 'cpu-index'    : 'int',
+                      'qom-type'     : 'str',
                       'qom-path'     : 'str',
                       'thread-id'    : 'int',
                       '*props'       : 'CpuInstanceProperties',
@@ -442,33 +445,6 @@
 #     <- { "return": {} }
 ##
 { 'command': 'inject-nmi' }
-
-##
-# @KvmInfo:
-#
-# Information about support for KVM acceleration
-#
-# @enabled: true if KVM acceleration is active
-#
-# @present: true if KVM acceleration is built into this executable
-#
-# Since: 0.14
-##
-{ 'struct': 'KvmInfo', 'data': {'enabled': 'bool', 'present': 'bool'} }
-
-##
-# @query-kvm:
-#
-# Return information about KVM acceleration
-#
-# Since: 0.14
-#
-# .. qmp-example::
-#
-#     -> { "execute": "query-kvm" }
-#     <- { "return": { "enabled": true, "present": true } }
-##
-{ 'command': 'query-kvm', 'returns': 'KvmInfo' }
 
 ##
 # @NumaOptionsType:

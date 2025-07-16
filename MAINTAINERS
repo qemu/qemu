@@ -502,13 +502,14 @@ F: include/exec/target_long.h
 F: include/qemu/accel.h
 F: include/system/accel-*.h
 F: include/system/cpus.h
-F: include/accel/accel-cpu*.h
+F: include/accel/accel-*.h
 F: accel/accel-*.?
 F: accel/dummy-cpus.?
 F: accel/Makefile.objs
 F: accel/stubs/Makefile.objs
 F: cpu-common.c
 F: cpu-target.c
+F: qapi/accelerator.json
 F: system/cpus.c
 
 Apple Silicon HVF CPUs

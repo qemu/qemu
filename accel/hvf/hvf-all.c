@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "accel/accel-ops.h"
 #include "system/address-spaces.h"
 #include "system/memory.h"
 #include "system/hvf.h"

@@ -18,6 +18,7 @@
 #include "monitor/monitor.h"
 #include "qapi/error.h"
 #include "qapi/qapi-builtin-visit.h"
+#include "qapi/qapi-commands-accelerator.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qobject/qdict.h"
 #include "qapi/string-output-visitor.h"
@@ -32,6 +33,7 @@ void hmp_info_cpus(Monitor *mon, const QDict *qdict)
     cpu_list = qmp_query_cpus_fast(NULL);
 
     for (cpu = cpu_list; cpu; cpu = cpu->next) {
+        g_autofree char *cpu_model = cpu_model_from_type(cpu->value->qom_type);
         int active = ' ';
 
         if (cpu->value->cpu_index == monitor_get_cpu_index(mon)) {
@@ -40,7 +42,8 @@ void hmp_info_cpus(Monitor *mon, const QDict *qdict)
 
         monitor_printf(mon, "%c CPU #%" PRId64 ":", active,
                        cpu->value->cpu_index);
-        monitor_printf(mon, " thread_id=%" PRId64 "\n", cpu->value->thread_id);
+        monitor_printf(mon, " thread_id=%" PRId64 " model=%s\n",
+                       cpu->value->thread_id, cpu_model);
     }
 
     qapi_free_CpuInfoFastList(cpu_list);

@@ -12,6 +12,7 @@
 #include "system/address-spaces.h"
 #include "system/ioport.h"
 #include "qemu/accel.h"
+#include "accel/accel-ops.h"
 #include "system/nvmm.h"
 #include "system/cpus.h"
 #include "system/runstate.h"

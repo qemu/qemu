@@ -10,7 +10,9 @@
 #include "qemu/osdep.h"
 #include "qemu/accel.h"
 #include "qemu/target-info.h"
+#include "accel/accel-ops.h"
 #include "accel/accel-cpu.h"
+#include "accel/accel-cpu-ops.h"
 #include "accel-internal.h"
 
 /* Lookup AccelClass from opt_name. Returns NULL if not found */

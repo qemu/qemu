@@ -302,8 +302,6 @@ static void *rr_cpu_thread_fn(void *arg)
         rr_deal_with_unplugged_cpus();
     }
 
-    rcu_unregister_thread();
-
     g_assert_not_reached();
 }
 

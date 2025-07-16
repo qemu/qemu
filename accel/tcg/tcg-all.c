@@ -39,6 +39,8 @@
 #ifndef CONFIG_USER_ONLY
 #include "hw/boards.h"
 #endif
+#include "accel/accel-ops.h"
+#include "accel/accel-cpu-ops.h"
 #include "accel/tcg/cpu-ops.h"
 #include "internal-common.h"
 
@@ -241,6 +243,7 @@ static void tcg_accel_class_init(ObjectClass *oc, const void *data)
     ac->init_machine = tcg_init_machine;
     ac->cpu_common_realize = tcg_exec_realizefn;
     ac->cpu_common_unrealize = tcg_exec_unrealizefn;
+    ac->get_stats = tcg_get_stats;
     ac->allowed = &tcg_allowed;
     ac->gdbstub_supported_sstep_flags = tcg_gdbstub_supported_sstep_flags;
 
