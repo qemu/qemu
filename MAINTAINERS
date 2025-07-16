@@ -4287,6 +4287,7 @@ F: tests/functional/test_multiprocess.py
 VFIO-USER:
 M: John Levon <john.levon@nutanix.com>
 M: Thanos Makatos <thanos.makatos@nutanix.com>
+M: Cédric Le Goater <clg@redhat.com>
 S: Supported
 F: docs/interop/vfio-user.rst
 F: docs/system/devices/vfio-user.rst

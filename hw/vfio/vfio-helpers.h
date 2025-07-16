@@ -32,4 +32,6 @@ struct vfio_device_info *vfio_get_device_info(int fd);
 int vfio_kvm_device_add_fd(int fd, Error **errp);
 int vfio_kvm_device_del_fd(int fd, Error **errp);
 
+bool vfio_arch_wants_loading_config_after_iter(void);
+
 #endif /* HW_VFIO_VFIO_HELPERS_H */
