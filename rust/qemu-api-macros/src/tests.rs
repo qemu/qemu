@@ -7,9 +7,9 @@ use quote::quote;
 use super::*;
 
 macro_rules! derive_compile_fail {
-    ($derive_fn:ident, $input:expr, $error_msg:expr) => {{
+    ($derive_fn:ident, $input:expr, $($error_msg:expr),+ $(,)?) => {{
         let input: proc_macro2::TokenStream = $input;
-        let error_msg: &str = $error_msg;
+        let error_msg = &[$( quote! { ::core::compile_error! { $error_msg } } ),*];
         let derive_fn: fn(input: syn::DeriveInput) -> Result<proc_macro2::TokenStream, syn::Error> =
             $derive_fn;
 
@@ -18,7 +18,7 @@ macro_rules! derive_compile_fail {
         let err = result.unwrap_err().into_compile_error();
         assert_eq!(
             err.to_string(),
-            quote! { ::core::compile_error! { #error_msg } }.to_string()
+            quote! { #(#error_msg)* }.to_string()
         );
     }};
 }
