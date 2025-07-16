@@ -58,7 +58,7 @@ $QEMU_IMG measure -f qcow2 # missing filename
 $QEMU_IMG measure -l snap1 # missing filename
 $QEMU_IMG measure -o , # invalid option list
 $QEMU_IMG measure -l snapshot.foo=bar # invalid snapshot option
-$QEMU_IMG measure --output foo # invalid output format
+$QEMU_IMG measure --output foo 2>&1 | _filter_qemu_img # invalid output format
 $QEMU_IMG measure --size -1 # invalid image size
 $QEMU_IMG measure -O foo "$TEST_IMG" # unknown image file format
 

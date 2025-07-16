@@ -248,7 +248,7 @@ struct BlockDriver {
     int GRAPH_UNLOCKED_PTR (*bdrv_open)(
         BlockDriverState *bs, QDict *options, int flags, Error **errp);
 
-    void (*bdrv_close)(BlockDriverState *bs);
+    void GRAPH_UNLOCKED_PTR (*bdrv_close)(BlockDriverState *bs);
 
     int coroutine_fn GRAPH_UNLOCKED_PTR (*bdrv_co_create)(
         BlockdevCreateOptions *opts, Error **errp);
@@ -1253,7 +1253,7 @@ struct BlockDriverState {
     /* do we need to tell the quest if we have a volatile write cache? */
     int enable_write_cache;
 
-    /* Accessed with atomic ops.  */
+    /* Accessed only in the main thread. */
     int quiesce_counter;
 
     unsigned int write_gen;               /* Current data generation */

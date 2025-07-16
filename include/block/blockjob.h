@@ -151,7 +151,7 @@ block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
  * Remove all BlockDriverStates from the list of nodes that are involved in the
  * job. This removes the blockers added with block_job_add_bdrv().
  */
-void block_job_remove_all_bdrv(BlockJob *job);
+void GRAPH_UNLOCKED block_job_remove_all_bdrv(BlockJob *job);
 
 /**
  * block_job_has_bdrv:

@@ -431,7 +431,7 @@ BlockDriverState *bdrv_new(void)
     bs->block_status_cache = g_new0(BdrvBlockStatusCache, 1);
 
     for (i = 0; i < bdrv_drain_all_count; i++) {
-        bdrv_drained_begin(bs);
+        bdrv_do_drained_begin_quiesce(bs, NULL);
     }
 
     QTAILQ_INSERT_TAIL(&all_bdrv_states, bs, bs_list);
@@ -1721,14 +1721,12 @@ bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv, const char *node_name,
 open_failed:
     bs->drv = NULL;
 
-    bdrv_drain_all_begin();
-    bdrv_graph_wrlock();
+    bdrv_graph_wrlock_drained();
     if (bs->file != NULL) {
         bdrv_unref_child(bs, bs->file);
         assert(!bs->file);
     }
     bdrv_graph_wrunlock();
-    bdrv_drain_all_end();
 
     g_free(bs->opaque);
     bs->opaque = NULL;
@@ -3572,9 +3570,8 @@ out:
  *
  * All block nodes must be drained.
  */
-int bdrv_set_backing_hd_drained(BlockDriverState *bs,
-                                BlockDriverState *backing_hd,
-                                Error **errp)
+int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
+                        Error **errp)
 {
     int ret;
     Transaction *tran = tran_new();
@@ -3593,21 +3590,6 @@ int bdrv_set_backing_hd_drained(BlockDriverState *bs,
     ret = bdrv_refresh_perms(bs, tran, errp);
 out:
     tran_finalize(tran, ret);
-    return ret;
-}
-
-int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
-                        Error **errp)
-{
-    int ret;
-    GLOBAL_STATE_CODE();
-
-    bdrv_drain_all_begin();
-    bdrv_graph_wrlock();
-    ret = bdrv_set_backing_hd_drained(bs, backing_hd, errp);
-    bdrv_graph_wrunlock();
-    bdrv_drain_all_end();
-
     return ret;
 }
 
@@ -3636,7 +3618,8 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
     Error *local_err = NULL;
 
     GLOBAL_STATE_CODE();
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+    bdrv_graph_rdlock_main_loop();
 
     if (bs->backing != NULL) {
         goto free_exit;
@@ -3717,7 +3700,11 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
 
     /* Hook up the backing file link; drop our reference, bs owns the
      * backing_hd reference now */
+    bdrv_graph_rdunlock_main_loop();
+    bdrv_graph_wrlock_drained();
     ret = bdrv_set_backing_hd(bs, backing_hd, errp);
+    bdrv_graph_wrunlock();
+    bdrv_graph_rdlock_main_loop();
     bdrv_unref(backing_hd);
 
     if (ret < 0) {
@@ -3729,6 +3716,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
 free_exit:
     g_free(backing_filename);
     qobject_unref(tmp_parent_options);
+    bdrv_graph_rdunlock_main_loop();
     return ret;
 }
 
@@ -3778,13 +3766,12 @@ done:
     return bs;
 }
 
-static BdrvChild *bdrv_open_child_common(const char *filename,
-                                         QDict *options, const char *bdref_key,
-                                         BlockDriverState *parent,
-                                         const BdrvChildClass *child_class,
-                                         BdrvChildRole child_role,
-                                         bool allow_none, bool parse_filename,
-                                         Error **errp)
+static BdrvChild * GRAPH_UNLOCKED
+bdrv_open_child_common(const char *filename, QDict *options,
+                       const char *bdref_key, BlockDriverState *parent,
+                       const BdrvChildClass *child_class,
+                       BdrvChildRole child_role, bool allow_none,
+                       bool parse_filename, Error **errp)
 {
     BlockDriverState *bs;
     BdrvChild *child;
@@ -3797,12 +3784,10 @@ static BdrvChild *bdrv_open_child_common(const char *filename,
         return NULL;
     }
 
-    bdrv_drain_all_begin();
-    bdrv_graph_wrlock();
+    bdrv_graph_wrlock_drained();
     child = bdrv_attach_child(parent, bs, bdref_key, child_class, child_role,
                               errp);
     bdrv_graph_wrunlock();
-    bdrv_drain_all_end();
 
     return child;
 }
@@ -5160,7 +5145,7 @@ static void GRAPH_UNLOCKED bdrv_reopen_abort(BDRVReopenState *reopen_state)
 }
 
 
-static void bdrv_close(BlockDriverState *bs)
+static void GRAPH_UNLOCKED bdrv_close(BlockDriverState *bs)
 {
     BdrvAioNotifier *ban, *ban_next;
     BdrvChild *child, *next;
@@ -5180,8 +5165,7 @@ static void bdrv_close(BlockDriverState *bs)
         bs->drv = NULL;
     }
 
-    bdrv_drain_all_begin();
-    bdrv_graph_wrlock();
+    bdrv_graph_wrlock_drained();
     QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
         bdrv_unref_child(bs, child);
     }
@@ -5189,7 +5173,6 @@ static void bdrv_close(BlockDriverState *bs)
     assert(!bs->backing);
     assert(!bs->file);
     bdrv_graph_wrunlock();
-    bdrv_drain_all_end();
 
     g_free(bs->opaque);
     bs->opaque = NULL;
@@ -5515,8 +5498,7 @@ int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
     assert(!bs_new->backing);
     bdrv_graph_rdunlock_main_loop();
 
-    bdrv_drain_all_begin();
-    bdrv_graph_wrlock();
+    bdrv_graph_wrlock_drained();
 
     child = bdrv_attach_child_noperm(bs_new, bs_top, "backing",
                                      &child_of_bds, bdrv_backing_role(bs_new),
@@ -5537,7 +5519,6 @@ out:
 
     bdrv_refresh_limits(bs_top, NULL, NULL);
     bdrv_graph_wrunlock();
-    bdrv_drain_all_end();
 
     return ret;
 }
@@ -7076,31 +7057,25 @@ bdrv_inactivate_recurse(BlockDriverState *bs, bool top_level)
     return 0;
 }
 
+/* All block nodes must be drained. */
 int bdrv_inactivate(BlockDriverState *bs, Error **errp)
 {
     int ret;
 
     GLOBAL_STATE_CODE();
 
-    bdrv_drain_all_begin();
-    bdrv_graph_rdlock_main_loop();
-
     if (bdrv_has_bds_parent(bs, true)) {
         error_setg(errp, "Node has active parent node");
-        ret = -EPERM;
-        goto out;
+        return -EPERM;
     }
 
     ret = bdrv_inactivate_recurse(bs, true);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to inactivate node");
-        goto out;
+        return ret;
     }
 
-out:
-    bdrv_graph_rdunlock_main_loop();
-    bdrv_drain_all_end();
-    return ret;
+    return 0;
 }
 
 int bdrv_inactivate_all(void)

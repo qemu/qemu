@@ -1,0 +1,11 @@
+{"return": "node0"}
+{"error": {"class": "GenericError", "desc": "Different aio context is not supported for new node"}}
+{"return": "node0"}
+{"return": "node1"}
+{"return": {}}
+{"return": "node3"}
+.
+----------------------------------------------------------------------
+Ran 1 tests
+
+OK

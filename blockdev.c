@@ -1421,7 +1421,7 @@ static void external_snapshot_action(TransactionAction *action,
     bdrv_graph_rdunlock_main_loop();
     /* Paired with .clean() */
     bdrv_drained_begin(state->old_bs);
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
+    bdrv_graph_rdlock_main_loop();
 
     /* Make sure the associated bs did not change with the drain. */
     check_bs = bdrv_lookup_bs(device, node_name, errp);
@@ -1430,18 +1430,18 @@ static void external_snapshot_action(TransactionAction *action,
             error_setg(errp, "Block node of device '%s' unexpectedly changed",
                        device);
         } /* else errp is already set */
-        return;
+        goto unlock;
     }
 
     if (!bdrv_is_inserted(state->old_bs)) {
         error_setg(errp, "Device '%s' has no medium",
                    bdrv_get_device_or_node_name(state->old_bs));
-        return;
+        goto unlock;
     }
 
     if (bdrv_op_is_blocked(state->old_bs,
                            BLOCK_OP_TYPE_EXTERNAL_SNAPSHOT, errp)) {
-        return;
+        goto unlock;
     }
 
     if (!bdrv_is_read_only(state->old_bs)) {
@@ -1449,7 +1449,7 @@ static void external_snapshot_action(TransactionAction *action,
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Write to node '%s' failed",
                              bdrv_get_device_or_node_name(state->old_bs));
-            return;
+            goto unlock;
         }
     }
 
@@ -1461,13 +1461,13 @@ static void external_snapshot_action(TransactionAction *action,
 
         if (node_name && !snapshot_node_name) {
             error_setg(errp, "New overlay node-name missing");
-            return;
+            goto unlock;
         }
 
         if (snapshot_node_name &&
             bdrv_lookup_bs(snapshot_node_name, snapshot_node_name, NULL)) {
             error_setg(errp, "New overlay node-name already in use");
-            return;
+            goto unlock;
         }
 
         flags = state->old_bs->open_flags;
@@ -1480,7 +1480,7 @@ static void external_snapshot_action(TransactionAction *action,
             int64_t size = bdrv_getlength(state->old_bs);
             if (size < 0) {
                 error_setg_errno(errp, -size, "bdrv_getlength failed");
-                return;
+                goto unlock;
             }
             bdrv_refresh_filename(state->old_bs);
 
@@ -1491,7 +1491,7 @@ static void external_snapshot_action(TransactionAction *action,
 
             if (local_err) {
                 error_propagate(errp, local_err);
-                return;
+                goto unlock;
             }
         }
 
@@ -1507,7 +1507,7 @@ static void external_snapshot_action(TransactionAction *action,
 
     /* We will manually add the backing_hd field to the bs later */
     if (!state->new_bs) {
-        return;
+        goto unlock;
     }
 
     /*
@@ -1518,22 +1518,22 @@ static void external_snapshot_action(TransactionAction *action,
     bdrv_get_cumulative_perm(state->new_bs, &perm, &shared);
     if (perm & BLK_PERM_CONSISTENT_READ) {
         error_setg(errp, "The overlay is already in use");
-        return;
+        goto unlock;
     }
 
     if (state->new_bs->drv->is_filter) {
         error_setg(errp, "Filters cannot be used as overlays");
-        return;
+        goto unlock;
     }
 
     if (bdrv_cow_child(state->new_bs)) {
         error_setg(errp, "The overlay already has a backing image");
-        return;
+        goto unlock;
     }
 
     if (!state->new_bs->drv->supports_backing) {
         error_setg(errp, "The overlay does not support backing images");
-        return;
+        goto unlock;
     }
 
     /*
@@ -1546,17 +1546,23 @@ static void external_snapshot_action(TransactionAction *action,
      * to keep this working.
      */
     if (bdrv_is_inactive(state->old_bs) && !bdrv_is_inactive(state->new_bs)) {
+        bdrv_graph_rdunlock_main_loop();
+        bdrv_drain_all_begin();
+        bdrv_graph_rdlock_main_loop();
         ret = bdrv_inactivate(state->new_bs, errp);
+        bdrv_drain_all_end();
         if (ret < 0) {
-            return;
+            goto unlock;
         }
     }
 
     ret = bdrv_append(state->new_bs, state->old_bs, errp);
     if (ret < 0) {
-        return;
+        goto unlock;
     }
     state->overlay_appended = true;
+unlock:
+    bdrv_graph_rdunlock_main_loop();
 }
 
 static void external_snapshot_commit(void *opaque)
@@ -1580,10 +1586,18 @@ static void external_snapshot_abort(void *opaque)
             AioContext *tmp_context;
             int ret;
 
+            bdrv_graph_wrlock_drained();
+
             aio_context = bdrv_get_aio_context(state->old_bs);
 
-            bdrv_ref(state->old_bs);   /* we can't let bdrv_set_backind_hd()
-                                          close state->old_bs; we need it */
+            /*
+             * Note that state->old_bs would not disappear during the
+             * write-locked section, because the unref from
+             * bdrv_set_backing_hd() only happens at the end of the write-locked
+             * section. However, just be explicit about keeping a reference and
+             * don't rely on that implicit detail.
+             */
+            bdrv_ref(state->old_bs);
             bdrv_set_backing_hd(state->new_bs, NULL, &error_abort);
 
             /*
@@ -1593,16 +1607,14 @@ static void external_snapshot_abort(void *opaque)
              */
             tmp_context = bdrv_get_aio_context(state->old_bs);
             if (aio_context != tmp_context) {
-                ret = bdrv_try_change_aio_context(state->old_bs,
-                                                  aio_context, NULL, NULL);
+                ret = bdrv_try_change_aio_context_locked(state->old_bs,
+                                                         aio_context, NULL,
+                                                         NULL);
                 assert(ret == 0);
             }
 
-            bdrv_drained_begin(state->new_bs);
-            bdrv_graph_wrlock();
             bdrv_replace_node(state->new_bs, state->old_bs, &error_abort);
             bdrv_graph_wrunlock();
-            bdrv_drained_end(state->new_bs);
 
             bdrv_unref(state->old_bs); /* bdrv_replace_node() ref'ed old_bs */
         }
@@ -1770,7 +1782,10 @@ static void drive_backup_action(DriveBackup *backup,
     }
 
     if (set_backing_hd) {
-        if (bdrv_set_backing_hd(target_bs, source, errp) < 0) {
+        bdrv_graph_wrlock_drained();
+        ret = bdrv_set_backing_hd(target_bs, source, errp);
+        bdrv_graph_wrunlock();
+        if (ret < 0) {
             goto unref;
         }
     }
@@ -3511,10 +3526,10 @@ void qmp_blockdev_del(const char *node_name, Error **errp)
 
 void qmp_blockdev_set_active(const char *node_name, bool active, Error **errp)
 {
+    BlockDriverState *bs;
     int ret;
 
     GLOBAL_STATE_CODE();
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!node_name) {
         if (active) {
@@ -3525,19 +3540,30 @@ void qmp_blockdev_set_active(const char *node_name, bool active, Error **errp)
                 error_setg_errno(errp, -ret, "Failed to inactivate all nodes");
             }
         }
-    } else {
-        BlockDriverState *bs = bdrv_find_node(node_name);
-        if (!bs) {
-            error_setg(errp, "Failed to find node with node-name='%s'",
-                       node_name);
-            return;
-        }
+        return;
+    }
 
-        if (active) {
-            bdrv_activate(bs, errp);
-        } else {
-            bdrv_inactivate(bs, errp);
-        }
+    if (!active) {
+        bdrv_drain_all_begin();
+    }
+    bdrv_graph_rdlock_main_loop();
+
+    bs = bdrv_find_node(node_name);
+    if (!bs) {
+        error_setg(errp, "Failed to find node with node-name='%s'",
+                   node_name);
+        goto unlock;
+    }
+    if (active) {
+        bdrv_activate(bs, errp);
+    } else {
+        bdrv_inactivate(bs, errp);
+    }
+
+unlock:
+    bdrv_graph_rdunlock_main_loop();
+    if (!active) {
+        bdrv_drain_all_end();
     }
 }
 
@@ -3561,8 +3587,7 @@ void qmp_x_blockdev_change(const char *parent, const char *child,
     BlockDriverState *parent_bs, *new_bs = NULL;
     BdrvChild *p_child;
 
-    bdrv_drain_all_begin();
-    bdrv_graph_wrlock();
+    bdrv_graph_wrlock_drained();
 
     parent_bs = bdrv_lookup_bs(parent, parent, errp);
     if (!parent_bs) {
@@ -3599,7 +3624,6 @@ void qmp_x_blockdev_change(const char *parent, const char *child,
 
 out:
     bdrv_graph_wrunlock();
-    bdrv_drain_all_end();
 }
 
 BlockJobInfoList *qmp_query_block_jobs(Error **errp)

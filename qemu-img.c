@@ -60,7 +60,8 @@
 
 typedef struct img_cmd_t {
     const char *name;
-    int (*handler)(int argc, char **argv);
+    int (*handler)(const struct img_cmd_t *ccmd, int argc, char **argv);
+    const char *description;
 } img_cmd_t;
 
 enum {
@@ -72,7 +73,6 @@ enum {
     OPTION_FLUSH_INTERVAL = 261,
     OPTION_NO_DRAIN = 262,
     OPTION_TARGET_IMAGE_OPTS = 263,
-    OPTION_SIZE = 264,
     OPTION_PREALLOCATION = 265,
     OPTION_SHRINK = 266,
     OPTION_SALVAGE = 267,
@@ -96,13 +96,15 @@ typedef enum OutputFormat {
 /* Default to cache=writeback as data integrity is not important for qemu-img */
 #define BDRV_DEFAULT_CACHE "writeback"
 
-static void format_print(void *opaque, const char *name)
+static G_NORETURN
+void tryhelp(const char *argv0)
 {
-    printf(" %s", name);
+    error_printf("Try '%s --help' for more information\n", argv0);
+    exit(EXIT_FAILURE);
 }
 
-static G_NORETURN G_GNUC_PRINTF(1, 2)
-void error_exit(const char *fmt, ...)
+static G_NORETURN G_GNUC_PRINTF(2, 3)
+void error_exit(const char *argv0, const char *fmt, ...)
 {
     va_list ap;
 
@@ -110,128 +112,43 @@ void error_exit(const char *fmt, ...)
     error_vreport(fmt, ap);
     va_end(ap);
 
-    error_printf("Try 'qemu-img --help' for more information\n");
-    exit(EXIT_FAILURE);
+    tryhelp(argv0);
 }
 
+/*
+ * Print --help output for a command and exit.
+ * @syntax and @description are multi-line with trailing EOL
+ * (to allow easy extending of the text)
+ * @syntax has each subsequent line indented by 8 chars.
+ * @description is indented by 2 chars for argument on each own line,
+ * and with 5 chars for argument description (like -h arg below).
+ */
 static G_NORETURN
-void missing_argument(const char *option)
+void cmd_help(const img_cmd_t *ccmd,
+              const char *syntax, const char *arguments)
 {
-    error_exit("missing argument for option '%s'", option);
-}
-
-static G_NORETURN
-void unrecognized_option(const char *option)
-{
-    error_exit("unrecognized option '%s'", option);
-}
-
-/* Please keep in synch with docs/tools/qemu-img.rst */
-static G_NORETURN
-void help(void)
-{
-    const char *help_msg =
-           QEMU_IMG_VERSION
-           "usage: qemu-img [standard options] command [command options]\n"
-           "QEMU disk image utility\n"
-           "\n"
-           "    '-h', '--help'       display this help and exit\n"
-           "    '-V', '--version'    output version information and exit\n"
-           "    '-T', '--trace'      [[enable=]<pattern>][,events=<file>][,file=<file>]\n"
-           "                         specify tracing options\n"
-           "\n"
-           "Command syntax:\n"
-#define DEF(option, callback, arg_string)        \
-           "  " arg_string "\n"
-#include "qemu-img-cmds.h"
-#undef DEF
-           "\n"
-           "Command parameters:\n"
-           "  'filename' is a disk image filename\n"
-           "  'objectdef' is a QEMU user creatable object definition. See the qemu(1)\n"
-           "    manual page for a description of the object properties. The most common\n"
-           "    object type is a 'secret', which is used to supply passwords and/or\n"
-           "    encryption keys.\n"
-           "  'fmt' is the disk image format. It is guessed automatically in most cases\n"
-           "  'cache' is the cache mode used to write the output disk image, the valid\n"
-           "    options are: 'none', 'writeback' (default, except for convert), 'writethrough',\n"
-           "    'directsync' and 'unsafe' (default for convert)\n"
-           "  'src_cache' is the cache mode used to read input disk images, the valid\n"
-           "    options are the same as for the 'cache' option\n"
-           "  'size' is the disk image size in bytes. Optional suffixes\n"
-           "    'k' or 'K' (kilobyte, 1024), 'M' (megabyte, 1024k), 'G' (gigabyte, 1024M),\n"
-           "    'T' (terabyte, 1024G), 'P' (petabyte, 1024T) and 'E' (exabyte, 1024P)  are\n"
-           "    supported. 'b' is ignored.\n"
-           "  'output_filename' is the destination disk image filename\n"
-           "  'output_fmt' is the destination format\n"
-           "  'options' is a comma separated list of format specific options in a\n"
-           "    name=value format. Use -o help for an overview of the options supported by\n"
-           "    the used format\n"
-           "  'snapshot_param' is param used for internal snapshot, format\n"
-           "    is 'snapshot.id=[ID],snapshot.name=[NAME]', or\n"
-           "    '[ID_OR_NAME]'\n"
-           "  '-c' indicates that target image must be compressed (qcow format only)\n"
-           "  '-u' allows unsafe backing chains. For rebasing, it is assumed that old and\n"
-           "       new backing file match exactly. The image doesn't need a working\n"
-           "       backing file before rebasing in this case (useful for renaming the\n"
-           "       backing file). For image creation, allow creating without attempting\n"
-           "       to open the backing file.\n"
-           "  '-h' with or without a command shows this help and lists the supported formats\n"
-           "  '-p' show progress of command (only certain commands)\n"
-           "  '-q' use Quiet mode - do not print any output (except errors)\n"
-           "  '-S' indicates the consecutive number of bytes (defaults to 4k) that must\n"
-           "       contain only zeros for qemu-img to create a sparse image during\n"
-           "       conversion. If the number of bytes is 0, the source will not be scanned for\n"
-           "       unallocated or zero sectors, and the destination image will always be\n"
-           "       fully allocated\n"
-           "  '--output' takes the format in which the output must be done (human or json)\n"
-           "  '-n' skips the target volume creation (useful if the volume is created\n"
-           "       prior to running qemu-img)\n"
-           "\n"
-           "Parameters to bitmap subcommand:\n"
-           "  'bitmap' is the name of the bitmap to manipulate, through one or more\n"
-           "       actions from '--add', '--remove', '--clear', '--enable', '--disable',\n"
-           "       or '--merge source'\n"
-           "  '-g granularity' sets the granularity for '--add' actions\n"
-           "  '-b source' and '-F src_fmt' tell '--merge' actions to find the source\n"
-           "       bitmaps from an alternative file\n"
-           "\n"
-           "Parameters to check subcommand:\n"
-           "  '-r' tries to repair any inconsistencies that are found during the check.\n"
-           "       '-r leaks' repairs only cluster leaks, whereas '-r all' fixes all\n"
-           "       kinds of errors, with a higher risk of choosing the wrong fix or\n"
-           "       hiding corruption that has already occurred.\n"
-           "\n"
-           "Parameters to convert subcommand:\n"
-           "  '--bitmaps' copies all top-level persistent bitmaps to destination\n"
-           "  '-m' specifies how many coroutines work in parallel during the convert\n"
-           "       process (defaults to 8)\n"
-           "  '-W' allow to write to the target out of order rather than sequential\n"
-           "\n"
-           "Parameters to snapshot subcommand:\n"
-           "  'snapshot' is the name of the snapshot to create, apply or delete\n"
-           "  '-a' applies a snapshot (revert disk to saved state)\n"
-           "  '-c' creates a snapshot\n"
-           "  '-d' deletes a snapshot\n"
-           "  '-l' lists all snapshots in the given image\n"
-           "\n"
-           "Parameters to compare subcommand:\n"
-           "  '-f' first image format\n"
-           "  '-F' second image format\n"
-           "  '-s' run in Strict mode - fail on different image size or sector allocation\n"
-           "\n"
-           "Parameters to dd subcommand:\n"
-           "  'bs=BYTES' read and write up to BYTES bytes at a time "
-           "(default: 512)\n"
-           "  'count=N' copy only N input blocks\n"
-           "  'if=FILE' read from FILE\n"
-           "  'of=FILE' write to FILE\n"
-           "  'skip=N' skip N bs-sized blocks at the start of input\n";
-
-    printf("%s\nSupported formats:", help_msg);
-    bdrv_iterate_format(format_print, NULL, false);
-    printf("\n\n" QEMU_HELP_BOTTOM "\n");
+    printf(
+"Usage:\n"
+"  %s %s %s\n"
+"%s.\n"
+"\n"
+"Arguments:\n"
+"  -h, --help\n"
+"     print this help and exit\n"
+"%s\n",
+           "qemu-img", ccmd->name, syntax, ccmd->description, arguments);
     exit(EXIT_SUCCESS);
+}
+
+static OutputFormat parse_output_format(const char *argv0, const char *arg)
+{
+    if (!strcmp(arg, "json")) {
+        return OFORMAT_JSON;
+    } else if (!strcmp(arg, "human")) {
+        return OFORMAT_HUMAN;
+    } else {
+        error_exit(argv0, "--output expects 'human' or 'json', not '%s'", arg);
+    }
 }
 
 /*
@@ -481,18 +398,16 @@ static int add_old_style_options(const char *fmt, QemuOpts *opts,
     return 0;
 }
 
-static int64_t cvtnum_full(const char *name, const char *value, int64_t min,
-                           int64_t max)
+static int64_t cvtnum_full(const char *name, const char *value,
+                           bool is_size, int64_t min, int64_t max)
 {
     int err;
     uint64_t res;
 
-    err = qemu_strtosz(value, NULL, &res);
+    err = is_size ? qemu_strtosz(value, NULL, &res) :
+                    qemu_strtou64(value, NULL, 0, &res);
     if (err < 0 && err != -ERANGE) {
-        error_report("Invalid %s specified. You may use "
-                     "k, M, G, T, P or E suffixes for", name);
-        error_report("kilobytes, megabytes, gigabytes, terabytes, "
-                     "petabytes and exabytes.");
+        error_report("Invalid %s specified: '%s'", name, value);
         return err;
     }
     if (err == -ERANGE || res > max || res < min) {
@@ -503,15 +418,15 @@ static int64_t cvtnum_full(const char *name, const char *value, int64_t min,
     return res;
 }
 
-static int64_t cvtnum(const char *name, const char *value)
+static int64_t cvtnum(const char *name, const char *value, bool is_size)
 {
-    return cvtnum_full(name, value, 0, INT64_MAX);
+    return cvtnum_full(name, value, is_size, 0, INT64_MAX);
 }
 
-static int img_create(int argc, char **argv)
+static int img_create(const img_cmd_t *ccmd, int argc, char **argv)
 {
     int c;
-    uint64_t img_size = -1;
+    int64_t img_size = -1;
     const char *fmt = "raw";
     const char *base_fmt = NULL;
     const char *filename;
@@ -524,29 +439,46 @@ static int img_create(int argc, char **argv)
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
+            {"format", required_argument, 0, 'f'},
+            {"options", required_argument, 0, 'o'},
+            {"backing", required_argument, 0, 'b'},
+            {"backing-format", required_argument, 0, 'B'}, /* was -F in 10.0 */
+            {"backing-unsafe", no_argument, 0, 'u'},
+            {"quiet", no_argument, 0, 'q'},
             {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":F:b:f:ho:qu",
+        c = getopt_long(argc, argv, "hf:o:b:F:B:uq",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
         switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
-            break;
-        case 'F':
-            base_fmt = optarg;
-            break;
-        case 'b':
-            base_filename = optarg;
+            cmd_help(ccmd, "[-f FMT] [-o FMT_OPTS]\n"
+"        [-b BACKING_FILE [-B BACKING_FMT]] [-u]\n"
+"        [-q] [--object OBJDEF] FILE [SIZE]\n"
+,
+"  -f, --format FMT\n"
+"     specifies the format of the new image (default: raw)\n"
+"  -o, --options FMT_OPTS\n"
+"     format-specific options (specify '-o help' for help)\n"
+"  -b, --backing BACKING_FILE\n"
+"     create target image to be a CoW on top of BACKING_FILE\n"
+"  -B, --backing-format BACKING_FMT (was -F in <= 10.0)\n"
+"     specifies the format of BACKING_FILE (default: probing is used)\n"
+"  -u, --backing-unsafe\n"
+"     do not fail if BACKING_FILE can not be read\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file to create (will be overritten if already exists)\n"
+"  SIZE[bKMGTPE]\n"
+"     image size with optional multiplier suffix (powers of 1024)\n"
+"     (required unless BACKING_FILE is specified)\n"
+);
             break;
         case 'f':
             fmt = optarg;
@@ -556,15 +488,24 @@ static int img_create(int argc, char **argv)
                 goto fail;
             }
             break;
-        case 'q':
-            quiet = true;
+        case 'b':
+            base_filename = optarg;
+            break;
+        case 'F': /* <=10.0 */
+        case 'B':
+            base_fmt = optarg;
             break;
         case 'u':
             flags |= BDRV_O_NO_BACKING;
             break;
+        case 'q':
+            quiet = true;
+            break;
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
@@ -576,22 +517,19 @@ static int img_create(int argc, char **argv)
     }
 
     if (optind >= argc) {
-        error_exit("Expecting image file name");
+        error_exit(argv[0], "Expecting image file name");
     }
     optind++;
 
     /* Get image size, if specified */
     if (optind < argc) {
-        int64_t sval;
-
-        sval = cvtnum("image size", argv[optind++]);
-        if (sval < 0) {
+        img_size = cvtnum("image size", argv[optind++], true);
+        if (img_size < 0) {
             goto fail;
         }
-        img_size = (uint64_t)sval;
     }
     if (optind != argc) {
-        error_exit("Unexpected argument: %s", argv[optind]);
+        error_exit(argv[0], "Unexpected argument: %s", argv[optind]);
     }
 
     bdrv_img_create(filename, fmt, base_filename, base_fmt,
@@ -716,11 +654,11 @@ static int collect_image_check(BlockDriverState *bs,
  *  3 - Check completed, image has leaked clusters, but is good otherwise
  * 63 - Checks are not supported by the image format
  */
-static int img_check(int argc, char **argv)
+static int img_check(const img_cmd_t *ccmd, int argc, char **argv)
 {
     int c, ret;
     OutputFormat output_format = OFORMAT_HUMAN;
-    const char *filename, *fmt, *output, *cache;
+    const char *filename, *fmt, *cache;
     BlockBackend *blk;
     BlockDriverState *bs;
     int fix = 0;
@@ -732,7 +670,6 @@ static int img_check(int argc, char **argv)
     bool force_share = false;
 
     fmt = NULL;
-    output = NULL;
     cache = BDRV_DEFAULT_CACHE;
 
     for(;;) {
@@ -740,30 +677,56 @@ static int img_check(int argc, char **argv)
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"format", required_argument, 0, 'f'},
-            {"repair", required_argument, 0, 'r'},
-            {"output", required_argument, 0, OPTION_OUTPUT},
-            {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"cache", required_argument, 0, 'T'},
+            {"repair", required_argument, 0, 'r'},
             {"force-share", no_argument, 0, 'U'},
+            {"output", required_argument, 0, OPTION_OUTPUT},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:r:T:qU",
+        c = getopt_long(argc, argv, "hf:T:r:Uq",
                         long_options, &option_index);
         if (c == -1) {
             break;
         }
         switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
+            cmd_help(ccmd, "[-f FMT | --image-opts] [-T CACHE_MODE] [-r leaks|all]\n"
+"        [-U] [--output human|json] [-q] [--object OBJDEF] FILE\n"
+,
+"  -f, --format FMT\n"
+"     specifies the format of the image explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE as an option string (key=value,..), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  -T, --cache CACHE_MODE\n" /* why not -t ? */
+"     cache mode (default: " BDRV_DEFAULT_CACHE ")\n"
+"  -r, --repair leaks|all\n"
+"     repair errors of the given category in the image (image will be\n"
+"     opened in read-write mode, incompatible with -U|--force-share)\n"
+"  -U, --force-share\n"
+"     open image in shared mode for concurrent access\n"
+"  --output human|json\n"
+"     output format (default: human)\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file, or an option string (key=value,..)\n"
+"     with --image-opts, to operate on\n"
+);
             break;
         case 'f':
             fmt = optarg;
+            break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        case 'T':
+            cache = optarg;
             break;
         case 'r':
             flags |= BDRV_O_RDWR;
@@ -773,43 +736,31 @@ static int img_check(int argc, char **argv)
             } else if (!strcmp(optarg, "all")) {
                 fix = BDRV_FIX_LEAKS | BDRV_FIX_ERRORS;
             } else {
-                error_exit("Unknown option value for -r "
-                           "(expecting 'leaks' or 'all'): %s", optarg);
+                error_exit(argv[0],
+                           "--repair (-r) expects 'leaks' or 'all', not '%s'",
+                           optarg);
             }
-            break;
-        case OPTION_OUTPUT:
-            output = optarg;
-            break;
-        case 'T':
-            cache = optarg;
-            break;
-        case 'q':
-            quiet = true;
             break;
         case 'U':
             force_share = true;
             break;
+        case OPTION_OUTPUT:
+            output_format = parse_output_format(argv[0], optarg);
+            break;
+        case 'q':
+            quiet = true;
+            break;
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
     if (optind != argc - 1) {
-        error_exit("Expecting one image file name");
+        error_exit(argv[0], "Expecting one image file name");
     }
     filename = argv[optind++];
-
-    if (output && !strcmp(output, "json")) {
-        output_format = OFORMAT_JSON;
-    } else if (output && !strcmp(output, "human")) {
-        output_format = OFORMAT_HUMAN;
-    } else if (output) {
-        error_report("--output must be used with human or json as argument.");
-        return 1;
-    }
 
     ret = bdrv_parse_cache_mode(cache, &flags, &writethrough);
     if (ret < 0) {
@@ -948,7 +899,7 @@ static void run_block_job(BlockJob *job, Error **errp)
     }
 }
 
-static int img_commit(int argc, char **argv)
+static int img_commit(const img_cmd_t *ccmd, int argc, char **argv)
 {
     int c, ret, flags;
     const char *filename, *fmt, *cache, *base;
@@ -968,38 +919,73 @@ static int img_commit(int argc, char **argv)
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"object", required_argument, 0, OPTION_OBJECT},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"cache", required_argument, 0, 't'},
+            {"drop", no_argument, 0, 'd'},
+            {"base", required_argument, 0, 'b'},
+            {"rate-limit", required_argument, 0, 'r'},
+            {"progress", no_argument, 0, 'p'},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":f:ht:b:dpqr:",
+        c = getopt_long(argc, argv, "hf:t:db:r:pq",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
         switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
+            cmd_help(ccmd, "[-f FMT | --image-opts] [-t CACHE_MODE] [-b BASE_IMG]\n"
+"        [-d] [-r RATE] [-q] [--object OBJDEF] FILE\n"
+,
+"  -f, --format FMT\n"
+"     specify FILE image format explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE as an option string (key=value,..), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  -t, --cache CACHE_MODE image cache mode (default: " BDRV_DEFAULT_CACHE ")\n"
+"  -d, --drop\n"
+"     skip emptying FILE on completion\n"
+"  -b, --base BASE_IMG\n"
+"     image in the backing chain to commit change to\n"
+"     (default: immediate backing file; implies --drop)\n"
+"  -r, --rate-limit RATE\n"
+"     I/O rate limit, in bytes per second\n"
+"  -p, --progress\n"
+"     display progress information\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file, or an option string (key=value,..)\n"
+"     with --image-opts, to operate on\n"
+);
             break;
         case 'f':
             fmt = optarg;
             break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
         case 't':
             cache = optarg;
+            break;
+        case 'd':
+            drop = true;
             break;
         case 'b':
             base = optarg;
             /* -b implies -d */
             drop = true;
             break;
-        case 'd':
-            drop = true;
+        case 'r':
+            rate_limit = cvtnum("rate limit", optarg, true);
+            if (rate_limit < 0) {
+                return 1;
+            }
             break;
         case 'p':
             progress = true;
@@ -1007,18 +993,11 @@ static int img_commit(int argc, char **argv)
         case 'q':
             quiet = true;
             break;
-        case 'r':
-            rate_limit = cvtnum("rate limit", optarg);
-            if (rate_limit < 0) {
-                return 1;
-            }
-            break;
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
@@ -1028,7 +1007,7 @@ static int img_commit(int argc, char **argv)
     }
 
     if (optind != argc - 1) {
-        error_exit("Expecting one image file name");
+        error_exit(argv[0], "Expecting one image file name");
     }
     filename = argv[optind++];
 
@@ -1355,7 +1334,7 @@ static int check_empty_sectors(BlockBackend *blk, int64_t offset,
  * 1 - Images differ
  * >1 - Error occurred
  */
-static int img_compare(int argc, char **argv)
+static int img_compare(const img_cmd_t *ccmd, int argc, char **argv)
 {
     const char *fmt1 = NULL, *fmt2 = NULL, *cache, *filename1, *filename2;
     BlockBackend *blk1, *blk2;
@@ -1380,25 +1359,51 @@ static int img_compare(int argc, char **argv)
     for (;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"object", required_argument, 0, OPTION_OBJECT},
+            {"a-format", required_argument, 0, 'f'},
+            {"b-format", required_argument, 0, 'F'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"strict", no_argument, 0, 's'},
+            {"cache", required_argument, 0, 'T'},
             {"force-share", no_argument, 0, 'U'},
+            {"progress", no_argument, 0, 'p'},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:F:T:pqsU",
+        c = getopt_long(argc, argv, "hf:F:sT:Upq",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
         switch (c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
+            cmd_help(ccmd,
+"[[-f FMT] [-F FMT] | --image-opts] [-s] [-T CACHE]\n"
+"        [-U] [-p] [-q] [--object OBJDEF] FILE1 FILE2\n"
+,
+"  -f, --a-format FMT\n"
+"     specify FILE1 image format explicitly (default: probing is used)\n"
+"  -F, --b-format FMT\n"
+"     specify FILE2 image format explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE1 and FILE2 as option strings (key=value,..), not file names\n"
+"     (incompatible with -f|--a-format and -F|--b-format)\n"
+"  -s, --strict\n"
+"     strict mode, also check if sizes are equal\n"
+"  -T, --cache CACHE_MODE\n"
+"     images caching mode (default: " BDRV_DEFAULT_CACHE ")\n"
+"  -U, --force-share\n"
+"     open images in shared mode for concurrent access\n"
+"  -p, --progress\n"
+"     display progress information\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE1, FILE2\n"
+"     names of the image files, or option strings (key=value,..)\n"
+"     with --image-opts, to compare\n"
+);
             break;
         case 'f':
             fmt1 = optarg;
@@ -1406,8 +1411,17 @@ static int img_compare(int argc, char **argv)
         case 'F':
             fmt2 = optarg;
             break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        case 's':
+            strict = true;
+            break;
         case 'T':
             cache = optarg;
+            break;
+        case 'U':
+            force_share = true;
             break;
         case 'p':
             progress = true;
@@ -1415,30 +1429,11 @@ static int img_compare(int argc, char **argv)
         case 'q':
             quiet = true;
             break;
-        case 's':
-            strict = true;
-            break;
-        case 'U':
-            force_share = true;
-            break;
         case OPTION_OBJECT:
-            {
-                Error *local_err = NULL;
-
-                if (!user_creatable_add_from_str(optarg, &local_err)) {
-                    if (local_err) {
-                        error_report_err(local_err);
-                        exit(2);
-                    } else {
-                        /* Help was printed */
-                        exit(EXIT_SUCCESS);
-                    }
-                }
-                break;
-            }
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
+            user_creatable_process_cmdline(optarg);
             break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
@@ -1449,7 +1444,7 @@ static int img_compare(int argc, char **argv)
 
 
     if (optind != argc - 2) {
-        error_exit("Expecting two image file names");
+        error_exit(argv[0], "Expecting two image file names");
     }
     filename1 = argv[optind++];
     filename2 = argv[optind++];
@@ -2231,7 +2226,7 @@ static void set_rate_limit(BlockBackend *blk, int64_t rate_limit)
     blk_set_io_limits(blk, &cfg);
 }
 
-static int img_convert(int argc, char **argv)
+static int img_convert(const img_cmd_t *ccmd, int argc, char **argv)
 {
     int c, bs_i, flags, src_flags = BDRV_O_NO_SHARE;
     const char *fmt = NULL, *out_fmt = NULL, *cache = "unsafe",
@@ -2267,53 +2262,122 @@ static int img_convert(int argc, char **argv)
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"object", required_argument, 0, OPTION_OBJECT},
+            {"source-format", required_argument, 0, 'f'},
+            /*
+             * XXX: historic --image-opts acts on source file only,
+             * it seems better to have it affect both source and target,
+             * and have separate --source-image-opts for source,
+             * but this might break existing setups.
+             */
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
-            {"force-share", no_argument, 0, 'U'},
-            {"target-image-opts", no_argument, 0, OPTION_TARGET_IMAGE_OPTS},
-            {"salvage", no_argument, 0, OPTION_SALVAGE},
-            {"target-is-zero", no_argument, 0, OPTION_TARGET_IS_ZERO},
+            {"source-cache", required_argument, 0, 'T'},
+            {"snapshot", required_argument, 0, 'l'},
             {"bitmaps", no_argument, 0, OPTION_BITMAPS},
             {"skip-broken-bitmaps", no_argument, 0, OPTION_SKIP_BROKEN},
+            {"salvage", no_argument, 0, OPTION_SALVAGE},
+            {"target-format", required_argument, 0, 'O'},
+            {"target-image-opts", no_argument, 0, OPTION_TARGET_IMAGE_OPTS},
+            {"target-format-options", required_argument, 0, 'o'},
+            {"target-cache", required_argument, 0, 't'},
+            {"backing", required_argument, 0, 'b'},
+            {"backing-format", required_argument, 0, 'F'},
+            {"sparse-size", required_argument, 0, 'S'},
+            {"no-create", no_argument, 0, 'n'},
+            {"target-is-zero", no_argument, 0, OPTION_TARGET_IS_ZERO},
+            {"force-share", no_argument, 0, 'U'},
+            {"rate-limit", required_argument, 0, 'r'},
+            {"parallel", required_argument, 0, 'm'},
+            {"oob-writes", no_argument, 0, 'W'},
+            {"copy-range-offloading", no_argument, 0, 'C'},
+            {"progress", no_argument, 0, 'p'},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:O:B:CcF:o:l:S:pt:T:qnm:WUr:",
+        c = getopt_long(argc, argv, "hf:O:b:B:CcF:o:l:S:pt:T:nm:WUr:q",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
-        switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
+        switch (c) {
         case 'h':
-            help();
+            cmd_help(ccmd, "[-f SRC_FMT | --image-opts] [-T SRC_CACHE]\n"
+"        [-l SNAPSHOT] [--bitmaps [--skip-broken-bitmaps]] [--salvage]\n"
+"        [-O TGT_FMT | --target-image-opts] [-o TGT_FMT_OPTS] [-t TGT_CACHE]\n"
+"        [-b BACKING_FILE [-F BACKING_FMT]] [-S SPARSE_SIZE]\n"
+"        [-n] [--target-is-zero] [-c]\n"
+"        [-U] [-r RATE] [-m NUM_PARALLEL] [-W] [-C] [-p] [-q] [--object OBJDEF]\n"
+"        SRC_FILE [SRC_FILE2...] TGT_FILE\n"
+,
+"  -f, --source-format SRC_FMT\n"
+"     specify format of all SRC_FILEs explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat each SRC_FILE as an option string (key=value,...), not a file name\n"
+"     (incompatible with -f|--source-format)\n"
+"  -T, --source-cache SRC_CACHE\n"
+"     source image(s) cache mode (" BDRV_DEFAULT_CACHE ")\n"
+"  -l, --snapshot SNAPSHOT\n"
+"     specify source snapshot\n"
+"  --bitmaps\n"
+"     also copy any persistent bitmaps present in source\n"
+"  --skip-broken-bitmaps\n"
+"     skip (do not error out) any broken bitmaps\n"
+"  --salvage\n"
+"     ignore errors on input (convert unreadable areas to zeros)\n"
+"  -O, --target-format TGT_FMT\n"
+"     specify TGT_FILE image format (default: raw)\n"
+"  --target-image-opts\n"
+"     treat TGT_FILE as an option string (key=value,...), not a file name\n"
+"     (incompatible with -O|--target-format)\n"
+"  -o, --target-format-options TGT_FMT_OPTS\n"
+"     TGT_FMT-specific options\n"
+"  -t, --target-cache TGT_CACHE\n"
+"     cache mode when opening output image (default: unsafe)\n"
+"  -b, --backing BACKING_FILE (was -B in <= 10.0)\n"
+"     create target image to be a CoW on top of BACKING_FILE\n"
+"  -F, --backing-format BACKING_FMT\n" /* -B used for -b in <=10.0 */
+"     specify BACKING_FILE image format explicitly (default: probing is used)\n"
+"  -S, --sparse-size SPARSE_SIZE[bkKMGTPE]\n"
+"     specify number of consecutive zero bytes to treat as a gap on output\n"
+"     (rounded down to nearest 512 bytes), with optional multiplier suffix\n"
+"  -n, --no-create\n"
+"     omit target volume creation (e.g. on rbd)\n"
+"  --target-is-zero\n"
+"     indicates that the target volume is pre-zeroed\n"
+"  -c, --compress\n"
+"     create compressed output image (qcow and qcow2 formats only)\n"
+"  -U, --force-share\n"
+"     open images in shared mode for concurrent access\n"
+"  -r, --rate-limit RATE\n"
+"     I/O rate limit, in bytes per second\n"
+"  -m, --parallel NUM_PARALLEL\n"
+"     specify parallelism (default: 8)\n"
+"  -C, --copy-range-offloading\n"
+"     try to use copy offloading\n"
+"  -W, --oob-writes\n"
+"     enable out-of-order writes to improve performance\n"
+"  -p, --progress\n"
+"     display progress information\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  SRC_FILE...\n"
+"     one or more source image file names,\n"
+"     or option strings (key=value,..) with --source-image-opts\n"
+"  TGT_FILE\n"
+"     target (output) image file name,\n"
+"     or option string (key=value,..) with --target-image-opts\n"
+);
             break;
         case 'f':
             fmt = optarg;
             break;
-        case 'O':
-            out_fmt = optarg;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
             break;
-        case 'B':
-            out_baseimg = optarg;
-            break;
-        case 'C':
-            s.copy_range = true;
-            break;
-        case 'c':
-            s.compressed = true;
-            break;
-        case 'F':
-            backing_fmt = optarg;
-            break;
-        case 'o':
-            if (accumulate_options(&options, optarg) < 0) {
-                goto fail_getopt;
-            }
+        case 'T':
+            src_cache = optarg;
             break;
         case 'l':
             if (strstart(optarg, SNAPSHOT_OPT_BASE, NULL)) {
@@ -2328,11 +2392,41 @@ static int img_convert(int argc, char **argv)
                 snapshot_name = optarg;
             }
             break;
+        case OPTION_BITMAPS:
+            bitmaps = true;
+            break;
+        case OPTION_SKIP_BROKEN:
+            skip_broken = true;
+            break;
+        case OPTION_SALVAGE:
+            s.salvage = true;
+            break;
+         case 'O':
+            out_fmt = optarg;
+            break;
+        case OPTION_TARGET_IMAGE_OPTS:
+            tgt_image_opts = true;
+            break;
+        case 'o':
+            if (accumulate_options(&options, optarg) < 0) {
+                goto fail_getopt;
+            }
+            break;
+        case 't':
+            cache = optarg;
+            break;
+        case 'B': /* <=10.0 */
+        case 'b':
+            out_baseimg = optarg;
+            break;
+        case 'F': /* can't use -B as it used as -b in <=10.0 */
+            backing_fmt = optarg;
+            break;
         case 'S':
         {
             int64_t sval;
 
-            sval = cvtnum("buffer size for sparse output", optarg);
+            sval = cvtnum("buffer size for sparse output", optarg, true);
             if (sval < 0) {
                 goto fail_getopt;
             } else if (!QEMU_IS_ALIGNED(sval, BDRV_SECTOR_SIZE) ||
@@ -2348,52 +2442,8 @@ static int img_convert(int argc, char **argv)
             explict_min_sparse = true;
             break;
         }
-        case 'p':
-            progress = true;
-            break;
-        case 't':
-            cache = optarg;
-            break;
-        case 'T':
-            src_cache = optarg;
-            break;
-        case 'q':
-            s.quiet = true;
-            break;
         case 'n':
             skip_create = true;
-            break;
-        case 'm':
-            if (qemu_strtol(optarg, NULL, 0, &s.num_coroutines) ||
-                s.num_coroutines < 1 || s.num_coroutines > MAX_COROUTINES) {
-                error_report("Invalid number of coroutines. Allowed number of"
-                             " coroutines is between 1 and %d", MAX_COROUTINES);
-                goto fail_getopt;
-            }
-            break;
-        case 'W':
-            s.wr_in_order = false;
-            break;
-        case 'U':
-            force_share = true;
-            break;
-        case 'r':
-            rate_limit = cvtnum("rate limit", optarg);
-            if (rate_limit < 0) {
-                goto fail_getopt;
-            }
-            break;
-        case OPTION_OBJECT:
-            user_creatable_process_cmdline(optarg);
-            break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
-        case OPTION_SALVAGE:
-            s.salvage = true;
-            break;
-        case OPTION_TARGET_IMAGE_OPTS:
-            tgt_image_opts = true;
             break;
         case OPTION_TARGET_IS_ZERO:
             /*
@@ -2403,12 +2453,42 @@ static int img_convert(int argc, char **argv)
              */
             s.has_zero_init = true;
             break;
-        case OPTION_BITMAPS:
-            bitmaps = true;
+        case 'c':
+            s.compressed = true;
             break;
-        case OPTION_SKIP_BROKEN:
-            skip_broken = true;
+        case 'U':
+            force_share = true;
             break;
+        case 'r':
+            rate_limit = cvtnum("rate limit", optarg, true);
+            if (rate_limit < 0) {
+                goto fail_getopt;
+            }
+            break;
+        case 'm':
+            s.num_coroutines = cvtnum_full("number of coroutines", optarg,
+                                           false, 1, MAX_COROUTINES);
+            if (s.num_coroutines < 0) {
+                goto fail_getopt;
+            }
+            break;
+        case 'W':
+            s.wr_in_order = false;
+            break;
+        case 'C':
+            s.copy_range = true;
+            break;
+        case 'p':
+            progress = true;
+            break;
+        case 'q':
+            s.quiet = true;
+            break;
+        case OPTION_OBJECT:
+            user_creatable_process_cmdline(optarg);
+            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
@@ -2999,78 +3079,81 @@ err:
     return NULL;
 }
 
-static int img_info(int argc, char **argv)
+static int img_info(const img_cmd_t *ccmd, int argc, char **argv)
 {
     int c;
     OutputFormat output_format = OFORMAT_HUMAN;
     bool chain = false;
-    const char *filename, *fmt, *output;
+    const char *filename, *fmt;
     BlockGraphInfoList *list;
     bool image_opts = false;
     bool force_share = false;
 
     fmt = NULL;
-    output = NULL;
     for(;;) {
-        int option_index = 0;
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"format", required_argument, 0, 'f'},
-            {"output", required_argument, 0, OPTION_OUTPUT},
-            {"backing-chain", no_argument, 0, OPTION_BACKING_CHAIN},
-            {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"backing-chain", no_argument, 0, OPTION_BACKING_CHAIN},
             {"force-share", no_argument, 0, 'U'},
+            {"output", required_argument, 0, OPTION_OUTPUT},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":f:hU",
-                        long_options, &option_index);
+        c = getopt_long(argc, argv, "hf:U", long_options, NULL);
         if (c == -1) {
             break;
         }
         switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
+            cmd_help(ccmd, "[-f FMT | --image-opts] [--backing-chain] [-U]\n"
+"        [--output human|json] [--object OBJDEF] FILE\n"
+,
+"  -f, --format FMT\n"
+"     specify FILE image format explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE as an option string (key=value,..), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  --backing-chain\n"
+"     display information about the backing chain for copy-on-write overlays\n"
+"  -U, --force-share\n"
+"     open image in shared mode for concurrent access\n"
+"  --output human|json\n"
+"     specify output format (default: human)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file, or option string (key=value,..)\n"
+"     with --image-opts, to operate on\n"
+);
             break;
         case 'f':
             fmt = optarg;
+            break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        case OPTION_BACKING_CHAIN:
+            chain = true;
             break;
         case 'U':
             force_share = true;
             break;
         case OPTION_OUTPUT:
-            output = optarg;
-            break;
-        case OPTION_BACKING_CHAIN:
-            chain = true;
+            output_format = parse_output_format(argv[0], optarg);
             break;
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
     if (optind != argc - 1) {
-        error_exit("Expecting one image file name");
+        error_exit(argv[0], "Expecting one image file name");
     }
     filename = argv[optind++];
-
-    if (output && !strcmp(output, "json")) {
-        output_format = OFORMAT_JSON;
-    } else if (output && !strcmp(output, "human")) {
-        output_format = OFORMAT_HUMAN;
-    } else if (output) {
-        error_report("--output must be used with human or json as argument.");
-        return 1;
-    }
 
     list = collect_image_info_list(image_opts, filename, fmt, chain,
                                    force_share);
@@ -3224,13 +3307,13 @@ static inline bool entry_mergeable(const MapEntry *curr, const MapEntry *next)
     return true;
 }
 
-static int img_map(int argc, char **argv)
+static int img_map(const img_cmd_t *ccmd, int argc, char **argv)
 {
     int c;
     OutputFormat output_format = OFORMAT_HUMAN;
     BlockBackend *blk;
     BlockDriverState *bs;
-    const char *filename, *fmt, *output;
+    const char *filename, *fmt;
     int64_t length;
     MapEntry curr = { .length = 0 }, next;
     int ret = 0;
@@ -3240,77 +3323,84 @@ static int img_map(int argc, char **argv)
     int64_t max_length = -1;
 
     fmt = NULL;
-    output = NULL;
     for (;;) {
-        int option_index = 0;
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"format", required_argument, 0, 'f'},
-            {"output", required_argument, 0, OPTION_OUTPUT},
-            {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
-            {"force-share", no_argument, 0, 'U'},
             {"start-offset", required_argument, 0, 's'},
             {"max-length", required_argument, 0, 'l'},
+            {"force-share", no_argument, 0, 'U'},
+            {"output", required_argument, 0, OPTION_OUTPUT},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":f:s:l:hU",
-                        long_options, &option_index);
+        c = getopt_long(argc, argv, "hf:s:l:U",
+                        long_options, NULL);
         if (c == -1) {
             break;
         }
         switch (c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
+            cmd_help(ccmd, "[-f FMT | --image-opts]\n"
+"        [--start-offset OFFSET] [--max-length LENGTH]\n"
+"        [--output human|json] [-U] [--object OBJDEF] FILE\n"
+,
+"  -f, --format FMT\n"
+"     specify FILE image format explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE as an option string (key=value,..), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  -s, --start-offset OFFSET\n"
+"     start at the given OFFSET in the image, not at the beginning\n"
+"  -l, --max-length LENGTH\n"
+"     process at most LENGTH bytes instead of up to the end of the image\n"
+"  --output human|json\n"
+"     specify output format name (default: human)\n"
+"  -U, --force-share\n"
+"     open image in shared mode for concurrent access\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     the image file name, or option string (key=value,..)\n"
+"     with --image-opts, to operate on\n"
+);
             break;
         case 'f':
             fmt = optarg;
             break;
-        case 'U':
-            force_share = true;
-            break;
-        case OPTION_OUTPUT:
-            output = optarg;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
             break;
         case 's':
-            start_offset = cvtnum("start offset", optarg);
+            start_offset = cvtnum("start offset", optarg, true);
             if (start_offset < 0) {
                 return 1;
             }
             break;
         case 'l':
-            max_length = cvtnum("max length", optarg);
+            max_length = cvtnum("max length", optarg, true);
             if (max_length < 0) {
                 return 1;
             }
             break;
+        case OPTION_OUTPUT:
+            output_format = parse_output_format(argv[0], optarg);
+            break;
+        case 'U':
+            force_share = true;
+            break;
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
     if (optind != argc - 1) {
-        error_exit("Expecting one image file name");
+        error_exit(argv[0], "Expecting one image file name");
     }
     filename = argv[optind];
-
-    if (output && !strcmp(output, "json")) {
-        output_format = OFORMAT_JSON;
-    } else if (output && !strcmp(output, "human")) {
-        output_format = OFORMAT_HUMAN;
-    } else if (output) {
-        error_report("--output must be used with human or json as argument.");
-        return 1;
-    }
 
     blk = img_open(image_opts, filename, fmt, 0, false, false, force_share);
     if (!blk) {
@@ -3368,18 +3458,19 @@ out:
     return ret < 0;
 }
 
-#define SNAPSHOT_LIST   1
-#define SNAPSHOT_CREATE 2
-#define SNAPSHOT_APPLY  3
-#define SNAPSHOT_DELETE 4
+/* the same as options */
+#define SNAPSHOT_LIST   'l'
+#define SNAPSHOT_CREATE 'c'
+#define SNAPSHOT_APPLY  'a'
+#define SNAPSHOT_DELETE 'd'
 
-static int img_snapshot(int argc, char **argv)
+static int img_snapshot(const img_cmd_t *ccmd, int argc, char **argv)
 {
     BlockBackend *blk;
     BlockDriverState *bs;
     QEMUSnapshotInfo sn;
-    char *filename, *snapshot_name = NULL;
-    int c, ret = 0, bdrv_oflags;
+    char *filename, *fmt = NULL, *snapshot_name = NULL;
+    int c, ret = 0;
     int action = 0;
     bool quiet = false;
     Error *err = NULL;
@@ -3387,86 +3478,100 @@ static int img_snapshot(int argc, char **argv)
     bool force_share = false;
     int64_t rt;
 
-    bdrv_oflags = BDRV_O_RDWR;
     /* Parse commandline parameters */
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"object", required_argument, 0, OPTION_OBJECT},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"list", no_argument, 0, SNAPSHOT_LIST},
+            {"apply", required_argument, 0, SNAPSHOT_APPLY},
+            {"create", required_argument, 0, SNAPSHOT_CREATE},
+            {"delete", required_argument, 0, SNAPSHOT_DELETE},
             {"force-share", no_argument, 0, 'U'},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":la:c:d:hqU",
+        c = getopt_long(argc, argv, "hf:la:c:d:Uq",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
         switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
-            return 0;
-        case 'l':
-            if (action) {
-                error_exit("Cannot mix '-l', '-a', '-c', '-d'");
-                return 0;
-            }
-            action = SNAPSHOT_LIST;
-            bdrv_oflags &= ~BDRV_O_RDWR; /* no need for RW */
+            cmd_help(ccmd, "[-f FMT | --image-opts] [-l | -a|-c|-d SNAPSHOT]\n"
+"        [-U] [-q] [--object OBJDEF] FILE\n"
+,
+"  -f, --format FMT\n"
+"     specify FILE format explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE as an option string (key=value,..), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  -l, --list\n"
+"     list snapshots in FILE (default action if no -l|-c|-a|-d is given)\n"
+"  -c, --create SNAPSHOT\n"
+"     create named snapshot\n"
+"  -a, --apply SNAPSHOT\n"
+"     apply named snapshot to the base\n"
+"  -d, --delete SNAPSHOT\n"
+"     delete named snapshot\n"
+"  (only one of -l|-c|-a|-d can be specified)\n"
+"  -U, --force-share\n"
+"     open image in shared mode for concurrent access\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file, or option string (key=value,..)\n"
+"     with --image-opts) to operate on\n"
+);
             break;
-        case 'a':
-            if (action) {
-                error_exit("Cannot mix '-l', '-a', '-c', '-d'");
-                return 0;
-            }
-            action = SNAPSHOT_APPLY;
-            snapshot_name = optarg;
-            break;
-        case 'c':
-            if (action) {
-                error_exit("Cannot mix '-l', '-a', '-c', '-d'");
-                return 0;
-            }
-            action = SNAPSHOT_CREATE;
-            snapshot_name = optarg;
-            break;
-        case 'd':
-            if (action) {
-                error_exit("Cannot mix '-l', '-a', '-c', '-d'");
-                return 0;
-            }
-            action = SNAPSHOT_DELETE;
-            snapshot_name = optarg;
-            break;
-        case 'q':
-            quiet = true;
-            break;
-        case 'U':
-            force_share = true;
-            break;
-        case OPTION_OBJECT:
-            user_creatable_process_cmdline(optarg);
+        case 'f':
+            fmt = optarg;
             break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
+        case SNAPSHOT_LIST:
+        case SNAPSHOT_APPLY:
+        case SNAPSHOT_CREATE:
+        case SNAPSHOT_DELETE:
+            if (action) {
+                error_exit(argv[0], "Cannot mix '-l', '-a', '-c', '-d'");
+                return 0;
+            }
+            action = c;
+            snapshot_name = optarg;
+            break;
+        case 'U':
+            force_share = true;
+            break;
+        case 'q':
+            quiet = true;
+            break;
+        case OPTION_OBJECT:
+            user_creatable_process_cmdline(optarg);
+            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
     if (optind != argc - 1) {
-        error_exit("Expecting one image file name");
+        error_exit(argv[0], "Expecting one image file name");
     }
     filename = argv[optind++];
 
+    if (!action) {
+        action = SNAPSHOT_LIST;
+    }
+
     /* Open the image */
-    blk = img_open(image_opts, filename, NULL, bdrv_oflags, false, quiet,
-                   force_share);
+    blk = img_open(image_opts, filename, fmt,
+                   action == SNAPSHOT_LIST ? 0 : BDRV_O_RDWR,
+                   false, quiet, force_share);
     if (!blk) {
         return 1;
     }
@@ -3533,7 +3638,7 @@ static int img_snapshot(int argc, char **argv)
     return 0;
 }
 
-static int img_rebase(int argc, char **argv)
+static int img_rebase(const img_cmd_t *ccmd, int argc, char **argv)
 {
     BlockBackend *blk = NULL, *blk_old_backing = NULL, *blk_new_backing = NULL;
     uint8_t *buf_old = NULL;
@@ -3564,44 +3669,88 @@ static int img_rebase(int argc, char **argv)
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"object", required_argument, 0, OPTION_OBJECT},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
-            {"force-share", no_argument, 0, 'U'},
+            {"cache", required_argument, 0, 't'},
             {"compress", no_argument, 0, 'c'},
+            {"backing", required_argument, 0, 'b'},
+            {"backing-format", required_argument, 0, 'B'},
+            {"backing-cache", required_argument, 0, 'T'},
+            {"backing-unsafe", no_argument, 0, 'u'},
+            {"force-share", no_argument, 0, 'U'},
+            {"progress", no_argument, 0, 'p'},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:F:b:upt:T:qUc",
+        c = getopt_long(argc, argv, "hf:t:cb:F:B:T:uUpq",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
-        switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
+        switch (c) {
         case 'h':
-            help();
+            cmd_help(ccmd, "[-f FMT | --image-opts] [-t CACHE]\n"
+"        [-b BACKING_FILE [-B BACKING_FMT] [-T BACKING_CACHE]] [-u]\n"
+"        [-c] [-U] [-p] [-q] [--object OBJDEF] FILE\n"
+,
+"  -f, --format FMT\n"
+"     specify FILE format explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE as an option string (key=value,..), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  -t, --cache CACHE\n"
+"     cache mode for FILE (default: " BDRV_DEFAULT_CACHE ")\n"
+"  -b, --backing BACKING_FILE|\"\"\n"
+"     rebase onto this file (specify empty name for no backing file)\n"
+"  -B, --backing-format BACKING_FMT (was -F in <=10.0)\n"
+"     specify format for BACKING_FILE explicitly (default: probing is used)\n"
+"  -T, --backing-cache CACHE\n"
+"     BACKING_FILE cache mode (default: " BDRV_DEFAULT_CACHE ")\n"
+"  -u, --backing-unsafe\n"
+"     do not fail if BACKING_FILE can not be read\n"
+"  -c, --compress\n"
+"     compress image (when image supports this)\n"
+"  -U, --force-share\n"
+"     open image in shared mode for concurrent access\n"
+"  -p, --progress\n"
+"     display progress information\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file, or option string (key=value,..)\n"
+"     with --image-opts, to operate on\n"
+);
             return 0;
         case 'f':
             fmt = optarg;
             break;
-        case 'F':
-            out_basefmt = optarg;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        case 't':
+            cache = optarg;
             break;
         case 'b':
             out_baseimg = optarg;
             break;
+        case 'F': /* <=10.0 */
+        case 'B':
+            out_basefmt = optarg;
+            break;
         case 'u':
             unsafe = 1;
             break;
+        case 'c':
+            compress = true;
+            break;
+        case 'U':
+            force_share = true;
+            break;
         case 'p':
             progress = 1;
-            break;
-        case 't':
-            cache = optarg;
             break;
         case 'T':
             src_cache = optarg;
@@ -3612,15 +3761,8 @@ static int img_rebase(int argc, char **argv)
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
-        case 'U':
-            force_share = true;
-            break;
-        case 'c':
-            compress = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
@@ -3629,10 +3771,11 @@ static int img_rebase(int argc, char **argv)
     }
 
     if (optind != argc - 1) {
-        error_exit("Expecting one image file name");
+        error_exit(argv[0], "Expecting one image file name");
     }
     if (!unsafe && !out_baseimg) {
-        error_exit("Must specify backing file (-b) or use unsafe mode (-u)");
+        error_exit(argv[0],
+                   "Must specify backing file (-b) or use unsafe mode (-u)");
     }
     filename = argv[optind++];
 
@@ -4026,11 +4169,11 @@ out:
     return 0;
 }
 
-static int img_resize(int argc, char **argv)
+static int img_resize(const img_cmd_t *ccmd, int argc, char **argv)
 {
     Error *err = NULL;
     int c, ret, relative;
-    const char *filename, *fmt, *size;
+    const char *filename = NULL, *fmt = NULL, *size = NULL;
     int64_t n, total_size, current_size;
     bool quiet = false;
     BlockBackend *blk = NULL;
@@ -4053,49 +4196,51 @@ static int img_resize(int argc, char **argv)
     bool image_opts = false;
     bool shrink = false;
 
-    /* Remove size from argv manually so that negative numbers are not treated
-     * as options by getopt. */
-    if (argc < 3) {
-        error_exit("Not enough arguments");
-        return 1;
-    }
-
-    size = argv[--argc];
-
     /* Parse getopt arguments */
-    fmt = NULL;
     for(;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"object", required_argument, 0, OPTION_OBJECT},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"preallocation", required_argument, 0, OPTION_PREALLOCATION},
             {"shrink", no_argument, 0, OPTION_SHRINK},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":f:hq",
+        c = getopt_long(argc, argv, "-hf:q",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
         switch(c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
-            break;
+            cmd_help(ccmd, "[-f FMT | --image-opts] [--preallocation PREALLOC] [--shrink]\n"
+"        [-q] [--object OBJDEF] FILE [+-]SIZE[bkKMGTPE]\n"
+,
+"  -f, --format FMT\n"
+"     specify FILE format explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE as an option string (key=value,...), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  --shrink\n"
+"     allow operation when the new size is smaller than the original\n"
+"  --preallocation PREALLOC\n"
+"     specify FMT-specific preallocation type for the new areas\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file, or option string (key=value,..)\n"
+"     with --image-opts, to operate on\n"
+"  [+-]SIZE[bkKMGTPE]\n"
+"     new image size or amount by which to shrink (-)/grow (+),\n"
+"     with optional multiplier suffix (powers of 1024, default is bytes)\n"
+);
+            return 0;
         case 'f':
             fmt = optarg;
-            break;
-        case 'q':
-            quiet = true;
-            break;
-        case OPTION_OBJECT:
-            user_creatable_process_cmdline(optarg);
             break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
@@ -4111,12 +4256,43 @@ static int img_resize(int argc, char **argv)
         case OPTION_SHRINK:
             shrink = true;
             break;
+        case 'q':
+            quiet = true;
+            break;
+        case OPTION_OBJECT:
+            user_creatable_process_cmdline(optarg);
+            break;
+        case 1: /* a non-optional argument */
+            if (!filename) {
+                filename = optarg;
+                /* see if we have -size (number) next to filename */
+                if (optind < argc) {
+                    size = argv[optind];
+                    if (size[0] == '-' && size[1] >= '0' && size[1] <= '9') {
+                        ++optind;
+                    } else {
+                        size = NULL;
+                    }
+                }
+            } else if (!size) {
+                size = optarg;
+            } else {
+                error_exit(argv[0], "Extra argument(s) in command line");
+            }
+            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
-    if (optind != argc - 1) {
-        error_exit("Expecting image file name and size");
+    if (!filename && optind < argc) {
+        filename = argv[optind++];
     }
-    filename = argv[optind++];
+    if (!size && optind < argc) {
+        size = argv[optind++];
+    }
+    if (!filename || !size || optind < argc) {
+        error_exit(argv[0], "Expecting image file name and size");
+    }
 
     /* Choose grow, shrink, or absolute resize mode */
     switch (size[0]) {
@@ -4239,7 +4415,7 @@ static int print_amend_option_help(const char *format)
     return 0;
 }
 
-static int img_amend(int argc, char **argv)
+static int img_amend(const img_cmd_t *ccmd, int argc, char **argv)
 {
     Error *err = NULL;
     int c, ret = 0;
@@ -4259,26 +4435,48 @@ static int img_amend(int argc, char **argv)
     for (;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"object", required_argument, 0, OPTION_OBJECT},
+            {"options", required_argument, 0, 'o'},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"cache", required_argument, 0, 't'},
             {"force", no_argument, 0, OPTION_FORCE},
+            {"progress", no_argument, 0, 'p'},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":ho:f:t:pq",
+        c = getopt_long(argc, argv, "ho:f:t:pq",
                         long_options, NULL);
         if (c == -1) {
             break;
         }
 
         switch (c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
+            cmd_help(ccmd, "-o FMT_OPTS [-f FMT | --image-opts]\n"
+"        [-t CACHE] [--force] [-p] [-q] [--object OBJDEF] FILE\n"
+,
+"  -o, --options FMT_OPTS\n"
+"     FMT-specfic format options (required)\n"
+"  -f, --format FMT\n"
+"     specify FILE format explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE as an option string (key=value,..), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  -t, --cache CACHE\n"
+"     cache mode for FILE (default: " BDRV_DEFAULT_CACHE ")\n"
+"  --force\n"
+"     allow certain unsafe operations\n"
+"  -p, --progres\n"
+"     show operation progress\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file, or option string (key=value,..)\n"
+"     with --image-opts, to operate on\n"
+);
             break;
         case 'o':
             if (accumulate_options(&options, optarg) < 0) {
@@ -4289,8 +4487,14 @@ static int img_amend(int argc, char **argv)
         case 'f':
             fmt = optarg;
             break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
         case 't':
             cache = optarg;
+            break;
+        case OPTION_FORCE:
+            force = true;
             break;
         case 'p':
             progress = true;
@@ -4301,17 +4505,13 @@ static int img_amend(int argc, char **argv)
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
-        case OPTION_FORCE:
-            force = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
     if (!options) {
-        error_exit("Must specify options (-o)");
+        error_exit(argv[0], "Must specify options (-o)");
     }
 
     if (quiet) {
@@ -4507,7 +4707,7 @@ static void bench_cb(void *opaque, int ret)
     }
 }
 
-static int img_bench(int argc, char **argv)
+static int img_bench(const img_cmd_t *ccmd, int argc, char **argv)
 {
     int c, ret = 0;
     const char *fmt = NULL, *filename;
@@ -4517,9 +4717,9 @@ static int img_bench(int argc, char **argv)
     int count = 75000;
     int depth = 64;
     int64_t offset = 0;
-    size_t bufsize = 4096;
+    ssize_t bufsize = 4096;
     int pattern = 0;
-    size_t step = 0;
+    ssize_t step = 0;
     int flush_interval = 0;
     bool drain_on_flush = true;
     int64_t image_size;
@@ -4535,53 +4735,105 @@ static int img_bench(int argc, char **argv)
     for (;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"flush-interval", required_argument, 0, OPTION_FLUSH_INTERVAL},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"cache", required_argument, 0, 't'},
+            {"count", required_argument, 0, 'c'},
+            {"depth", required_argument, 0, 'd'},
+            {"offset", required_argument, 0, 'o'},
+            {"buffer-size", required_argument, 0, 's'},
+            {"step-size", required_argument, 0, 'S'},
+            {"write", no_argument, 0, 'w'},
             {"pattern", required_argument, 0, OPTION_PATTERN},
+            {"flush-interval", required_argument, 0, OPTION_FLUSH_INTERVAL},
             {"no-drain", no_argument, 0, OPTION_NO_DRAIN},
+            {"aio", required_argument, 0, 'i'},
+            {"native", no_argument, 0, 'n'},
             {"force-share", no_argument, 0, 'U'},
+            {"quiet", no_argument, 0, 'q'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hc:d:f:ni:o:qs:S:t:wU", long_options,
-                        NULL);
+        c = getopt_long(argc, argv, "hf:t:c:d:o:s:S:wi:nUq",
+                        long_options, NULL);
         if (c == -1) {
             break;
         }
 
         switch (c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
+            cmd_help(ccmd, "[-f FMT | --image-opts] [-t CACHE]\n"
+"        [-c COUNT] [-d DEPTH] [-o OFFSET] [-s BUFFER_SIZE] [-S STEP_SIZE]\n"
+"        [-w [--pattern PATTERN] [--flush-interval INTERVAL [--no-drain]]]\n"
+"        [-i AIO] [-n] [-U] [-q] FILE\n"
+,
+"  -f, --format FMT\n"
+"     specify FILE format explicitly\n"
+"  --image-opts\n"
+"     indicates that FILE is a complete image specification\n"
+"     instead of a file name (incompatible with --format)\n"
+"  -t, --cache CACHE\n"
+"     cache mode for FILE (default: " BDRV_DEFAULT_CACHE ")\n"
+"  -c, --count COUNT\n"
+"     number of I/O requests to perform\n"
+"  -d, --depth DEPTH\n"
+"     number of requests to perform in parallel\n"
+"  -o, --offset OFFSET\n"
+"     start first request at this OFFSET\n"
+"  -s, --buffer-size BUFFER_SIZE[bkKMGTPE]\n"
+"     size of each I/O request, with optional multiplier suffix\n"
+"     (powers of 1024, default is 4K)\n"
+"  -S, --step-size STEP_SIZE[bkKMGTPE]\n"
+"     each next request offset increment, with optional multiplier suffix\n"
+"     (powers of 1024, default is the same as BUFFER_SIZE)\n"
+"  -w, --write\n"
+"     perform write test (default is read)\n"
+"  --pattern PATTERN\n"
+"     write this pattern byte instead of zero\n"
+"  --flush-interval FLUSH_INTERVAL\n"
+"     issue flush after this number of requests\n"
+"  --no-drain\n"
+"     do not wait when flushing pending requests\n"
+"  -i, --aio AIO\n"
+"     async-io backend (threads, native, io_uring)\n"
+"  -n, --native\n"
+"     use native AIO backend if possible\n"
+"  -U, --force-share\n"
+"     open images in shared mode for concurrent access\n"
+"  -q, --quiet\n"
+"     quiet mode (produce only error messages if any)\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file, or option string (key=value,..)\n"
+"     with --image-opts, to operate on\n"
+);
             break;
-        case 'c':
-        {
-            unsigned long res;
-
-            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > INT_MAX) {
-                error_report("Invalid request count specified");
-                return 1;
-            }
-            count = res;
-            break;
-        }
-        case 'd':
-        {
-            unsigned long res;
-
-            if (qemu_strtoul(optarg, NULL, 0, &res) <= 0 || res > INT_MAX) {
-                error_report("Invalid queue depth specified");
-                return 1;
-            }
-            depth = res;
-            break;
-        }
         case 'f':
             fmt = optarg;
+            break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        case 't':
+            ret = bdrv_parse_cache_mode(optarg, &flags, &writethrough);
+            if (ret < 0) {
+                error_report("Invalid cache mode");
+                ret = -1;
+                goto out;
+            }
+            break;
+        case 'c':
+            count = cvtnum_full("request count", optarg, false, 1, INT_MAX);
+            if (count < 0) {
+                return 1;
+            }
+            break;
+        case 'd':
+            depth = cvtnum_full("queue depth", optarg, false, 1, INT_MAX);
+            if (depth < 0) {
+                return 1;
+            }
             break;
         case 'n':
             flags |= BDRV_O_NATIVE_AIO;
@@ -4595,89 +4847,59 @@ static int img_bench(int argc, char **argv)
             }
             break;
         case 'o':
-        {
-            offset = cvtnum("offset", optarg);
+            offset = cvtnum("offset", optarg, true);
             if (offset < 0) {
                 return 1;
             }
             break;
-        }
-            break;
-        case 'q':
-            quiet = true;
-            break;
         case 's':
-        {
-            int64_t sval;
-
-            sval = cvtnum_full("buffer size", optarg, 0, INT_MAX);
-            if (sval < 0) {
+            bufsize = cvtnum_full("buffer size", optarg, true, 1, INT_MAX);
+            if (bufsize < 0) {
                 return 1;
             }
-
-            bufsize = sval;
             break;
-        }
         case 'S':
-        {
-            int64_t sval;
-
-            sval = cvtnum_full("step_size", optarg, 0, INT_MAX);
-            if (sval < 0) {
+            step = cvtnum_full("step size", optarg, true, 0, INT_MAX);
+            if (step < 0) {
                 return 1;
-            }
-
-            step = sval;
-            break;
-        }
-        case 't':
-            ret = bdrv_parse_cache_mode(optarg, &flags, &writethrough);
-            if (ret < 0) {
-                error_report("Invalid cache mode");
-                ret = -1;
-                goto out;
             }
             break;
         case 'w':
             flags |= BDRV_O_RDWR;
             is_write = true;
             break;
-        case 'U':
-            force_share = true;
-            break;
         case OPTION_PATTERN:
-        {
-            unsigned long res;
-
-            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > 0xff) {
-                error_report("Invalid pattern byte specified");
+            pattern = cvtnum_full("pattern byte", optarg, false, 0, 0xff);
+            if (pattern < 0) {
                 return 1;
             }
-            pattern = res;
             break;
-        }
         case OPTION_FLUSH_INTERVAL:
-        {
-            unsigned long res;
-
-            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > INT_MAX) {
-                error_report("Invalid flush interval specified");
+            flush_interval = cvtnum_full("flush interval", optarg,
+                                         false, 0, INT_MAX);
+            if (flush_interval < 0) {
                 return 1;
             }
-            flush_interval = res;
             break;
-        }
         case OPTION_NO_DRAIN:
             drain_on_flush = false;
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
+        case 'U':
+            force_share = true;
             break;
+        case 'q':
+            quiet = true;
+            break;
+        case OPTION_OBJECT:
+            user_creatable_process_cmdline(optarg);
+            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
     if (optind != argc - 1) {
-        error_exit("Expecting one image file name");
+        error_exit(argv[0], "Expecting one image file name");
     }
     filename = argv[argc - 1];
 
@@ -4777,7 +4999,7 @@ typedef struct ImgBitmapAction {
     QSIMPLEQ_ENTRY(ImgBitmapAction) next;
 } ImgBitmapAction;
 
-static int img_bitmap(int argc, char **argv)
+static int img_bitmap(const img_cmd_t *ccmd, int argc, char **argv)
 {
     Error *err = NULL;
     int c, ret = 1;
@@ -4799,54 +5021,81 @@ static int img_bitmap(int argc, char **argv)
     for (;;) {
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
-            {"object", required_argument, 0, OPTION_OBJECT},
+            {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"add", no_argument, 0, OPTION_ADD},
+            {"granularity", required_argument, 0, 'g'},
             {"remove", no_argument, 0, OPTION_REMOVE},
             {"clear", no_argument, 0, OPTION_CLEAR},
             {"enable", no_argument, 0, OPTION_ENABLE},
             {"disable", no_argument, 0, OPTION_DISABLE},
             {"merge", required_argument, 0, OPTION_MERGE},
-            {"granularity", required_argument, 0, 'g'},
             {"source-file", required_argument, 0, 'b'},
             {"source-format", required_argument, 0, 'F'},
+            {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":b:f:F:g:h", long_options, NULL);
+        c = getopt_long(argc, argv, "hf:g:b:F:",
+                        long_options, NULL);
         if (c == -1) {
             break;
         }
 
         switch (c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
         case 'h':
-            help();
-            break;
-        case 'b':
-            src_filename = optarg;
+            cmd_help(ccmd, "[-f FMT | --image-opts]\n"
+"        ( --add [-g SIZE] | --remove | --clear | --enable | --disable |\n"
+"          --merge SOURCE [-b SRC_FILE [-F SRC_FMT]] )..\n"
+"        [--object OBJDEF] FILE BITMAP\n"
+,
+"  -f, --format FMT\n"
+"     specify FILE format explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat FILE as an option string (key=value,..), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  --add\n"
+"     creates BITMAP in FILE, enables to record future edits\n"
+"  -g, --granularity SIZE[bKMGTPE]\n"
+"     sets non-default granularity for the bitmap being added,\n"
+"     with optional multiplier suffix (in powers of 1024)\n"
+"  --remove\n"
+"     removes BITMAP from FILE\n"
+"  --clear\n"
+"     clears BITMAP in FILE\n"
+"  --enable, --disable\n"
+"     starts and stops recording future edits to BITMAP in FILE\n"
+"  --merge SOURCE\n"
+"     merges contents of the SOURCE bitmap into BITMAP in FILE\n"
+"  -b, --source-file SRC_FILE\n"
+"     select alternative source file for --merge\n"
+"  -F, --source-format SRC_FMT\n"
+"     specify format for SRC_FILE explicitly\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  FILE\n"
+"     name of the image file, or option string (key=value,..)\n"
+"     with --image-opts, to operate on\n"
+"  BITMAP\n"
+"     name of the bitmap to add, remove, clear, enable, disable or merge to\n"
+);
             break;
         case 'f':
             fmt = optarg;
             break;
-        case 'F':
-            src_fmt = optarg;
-            break;
-        case 'g':
-            granularity = cvtnum("granularity", optarg);
-            if (granularity < 0) {
-                return 1;
-            }
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
             break;
         case OPTION_ADD:
             act = g_new0(ImgBitmapAction, 1);
             act->act = BITMAP_ADD;
             QSIMPLEQ_INSERT_TAIL(&actions, act, next);
             add = true;
+            break;
+        case 'g':
+            granularity = cvtnum("granularity", optarg, true);
+            if (granularity < 0) {
+                return 1;
+            }
             break;
         case OPTION_REMOVE:
             act = g_new0(ImgBitmapAction, 1);
@@ -4875,12 +5124,17 @@ static int img_bitmap(int argc, char **argv)
             QSIMPLEQ_INSERT_TAIL(&actions, act, next);
             merge = true;
             break;
+        case 'b':
+            src_filename = optarg;
+            break;
+        case 'F':
+            src_fmt = optarg;
+            break;
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
@@ -5023,7 +5277,7 @@ static int img_dd_bs(const char *arg,
 {
     int64_t res;
 
-    res = cvtnum_full("bs", arg, 1, INT_MAX);
+    res = cvtnum_full("bs", arg, true, 1, INT_MAX);
 
     if (res < 0) {
         return 1;
@@ -5037,7 +5291,7 @@ static int img_dd_count(const char *arg,
                         struct DdIo *in, struct DdIo *out,
                         struct DdInfo *dd)
 {
-    dd->count = cvtnum("count", arg);
+    dd->count = cvtnum("count", arg, true);
 
     if (dd->count < 0) {
         return 1;
@@ -5068,7 +5322,7 @@ static int img_dd_skip(const char *arg,
                        struct DdIo *in, struct DdIo *out,
                        struct DdInfo *dd)
 {
-    in->offset = cvtnum("skip", arg);
+    in->offset = cvtnum("skip", arg, true);
 
     if (in->offset < 0) {
         return 1;
@@ -5077,7 +5331,7 @@ static int img_dd_skip(const char *arg,
     return 0;
 }
 
-static int img_dd(int argc, char **argv)
+static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
 {
     int ret = 0;
     char *arg = NULL;
@@ -5121,31 +5375,54 @@ static int img_dd(int argc, char **argv)
     };
     const struct option long_options[] = {
         { "help", no_argument, 0, 'h'},
-        { "object", required_argument, 0, OPTION_OBJECT},
+        { "format", required_argument, 0, 'f'},
         { "image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+        { "output-format", required_argument, 0, 'O'},
         { "force-share", no_argument, 0, 'U'},
+        { "object", required_argument, 0, OPTION_OBJECT},
         { 0, 0, 0, 0 }
     };
 
-    while ((c = getopt_long(argc, argv, ":hf:O:U", long_options, NULL))) {
+    while ((c = getopt_long(argc, argv, "hf:O:U", long_options, NULL))) {
         if (c == EOF) {
             break;
         }
         switch (c) {
-        case 'O':
-            out_fmt = optarg;
+        case 'h':
+            cmd_help(ccmd, "[-f FMT|--image-opts] [-O OUTPUT_FMT] [-U]\n"
+"        [--object OBJDEF] [bs=BLOCK_SIZE] [count=BLOCKS] if=INPUT of=OUTPUT\n"
+,
+"  -f, --format FMT\n"
+"     specify format for INPUT explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     treat INPUT as an option string (key=value,..), not a file name\n"
+"     (incompatible with -f|--format)\n"
+"  -O, --output-format OUTPUT_FMT\n"
+"     format of the OUTPUT (default: raw)\n"
+"  -U, --force-share\n"
+"     open images in shared mode for concurrent access\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  bs=BLOCK_SIZE[bKMGTP]\n"
+"     size of the I/O block, with optional multiplier suffix (powers of 1024)\n"
+"     (default: 512)\n"
+"  count=COUNT\n"
+"     number of blocks to convert (default whole INPUT)\n"
+"  if=INPUT\n"
+"     name of the file, or option string (key=value,..)\n"
+"     with --image-opts, to use for input\n"
+"  of=OUTPUT\n"
+"     output file name to create (will be overridden if alrady exists)\n"
+);
             break;
         case 'f':
             fmt = optarg;
             break;
-        case ':':
-            missing_argument(argv[optind - 1]);
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
             break;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            break;
-        case 'h':
-            help();
+        case 'O':
+            out_fmt = optarg;
             break;
         case 'U':
             force_share = true;
@@ -5153,9 +5430,8 @@ static int img_dd(int argc, char **argv)
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
@@ -5345,17 +5621,8 @@ static void dump_json_block_measure_info(BlockMeasureInfo *info)
     g_string_free(str, true);
 }
 
-static int img_measure(int argc, char **argv)
+static int img_measure(const img_cmd_t *ccmd, int argc, char **argv)
 {
-    static const struct option long_options[] = {
-        {"help", no_argument, 0, 'h'},
-        {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
-        {"object", required_argument, 0, OPTION_OBJECT},
-        {"output", required_argument, 0, OPTION_OUTPUT},
-        {"size", required_argument, 0, OPTION_SIZE},
-        {"force-share", no_argument, 0, 'U'},
-        {0, 0, 0, 0}
-    };
     OutputFormat output_format = OFORMAT_HUMAN;
     BlockBackend *in_blk = NULL;
     BlockDriver *drv;
@@ -5370,29 +5637,67 @@ static int img_measure(int argc, char **argv)
     QemuOpts *sn_opts = NULL;
     QemuOptsList *create_opts = NULL;
     bool image_opts = false;
-    uint64_t img_size = UINT64_MAX;
+    int64_t img_size = -1;
     BlockMeasureInfo *info = NULL;
     Error *local_err = NULL;
     int ret = 1;
     int c;
 
-    while ((c = getopt_long(argc, argv, "hf:O:o:l:U",
+    static const struct option long_options[] = {
+        {"help", no_argument, 0, 'h'},
+        {"source-format", required_argument, 0, 'f'}, /* img_convert */
+        {"format", required_argument, 0, 'f'},
+        {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+        {"source-image-opts", no_argument, 0, OPTION_IMAGE_OPTS}, /* img_convert */
+        {"snapshot", required_argument, 0, 'l'},
+        {"target-format", required_argument, 0, 'O'},
+        {"target-format-options", required_argument, 0, 'o'}, /* img_convert */
+        {"options", required_argument, 0, 'o'},
+        {"force-share", no_argument, 0, 'U'},
+        {"output", required_argument, 0, OPTION_OUTPUT},
+        {"object", required_argument, 0, OPTION_OBJECT},
+        {"size", required_argument, 0, 's'},
+        {0, 0, 0, 0}
+    };
+
+    while ((c = getopt_long(argc, argv, "hf:l:O:o:Us:",
                             long_options, NULL)) != -1) {
         switch (c) {
-        case '?':
         case 'h':
-            help();
+            cmd_help(ccmd, "[-f FMT|--image-opts] [-l SNAPSHOT]\n"
+"       [-O TARGET_FMT] [-o TARGET_FMT_OPTS] [--output human|json]\n"
+"       [--object OBJDEF] (--size SIZE | FILE)\n"
+,
+"  -f, --format\n"
+"     specify format of FILE explicitly (default: probing is used)\n"
+"  --image-opts\n"
+"     indicates that FILE is a complete image specification\n"
+"     instead of a file name (incompatible with --format)\n"
+"  -l, --snapshot SNAPSHOT\n"
+"     use this snapshot in FILE as source\n"
+"  -O, --target-format TARGET_FMT\n"
+"     desired target/output image format (default: raw)\n"
+"  -o TARGET_FMT_OPTS\n"
+"     options specific to TARGET_FMT\n"
+"  --output human|json\n"
+"     output format (default: human)\n"
+"  -U, --force-share\n"
+"     open images in shared mode for concurrent access\n"
+"  --object OBJDEF\n"
+"     defines QEMU user-creatable object\n"
+"  -s, --size SIZE[bKMGTPE]\n"
+"     measure file size for given image size,\n"
+"     with optional multiplier suffix (powers of 1024)\n"
+"  FILE\n"
+"     measure file size required to convert from FILE (either a file name\n"
+"     or an option string (key=value,..) with --image-options)\n"
+);
             break;
         case 'f':
             fmt = optarg;
             break;
-        case 'O':
-            out_fmt = optarg;
-            break;
-        case 'o':
-            if (accumulate_options(&options, optarg) < 0) {
-                goto out;
-            }
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
             break;
         case 'l':
             if (strstart(optarg, SNAPSHOT_OPT_BASE, NULL)) {
@@ -5407,37 +5712,31 @@ static int img_measure(int argc, char **argv)
                 snapshot_name = optarg;
             }
             break;
+        case 'O':
+            out_fmt = optarg;
+            break;
+        case 'o':
+            if (accumulate_options(&options, optarg) < 0) {
+                goto out;
+            }
+            break;
         case 'U':
             force_share = true;
+            break;
+        case OPTION_OUTPUT:
+            output_format = parse_output_format(argv[0], optarg);
             break;
         case OPTION_OBJECT:
             user_creatable_process_cmdline(optarg);
             break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
-            break;
-        case OPTION_OUTPUT:
-            if (!strcmp(optarg, "json")) {
-                output_format = OFORMAT_JSON;
-            } else if (!strcmp(optarg, "human")) {
-                output_format = OFORMAT_HUMAN;
-            } else {
-                error_report("--output must be used with human or json "
-                             "as argument.");
+        case 's':
+            img_size = cvtnum("image size", optarg, true);
+            if (img_size < 0) {
                 goto out;
             }
             break;
-        case OPTION_SIZE:
-        {
-            int64_t sval;
-
-            sval = cvtnum("image size", optarg);
-            if (sval < 0) {
-                goto out;
-            }
-            img_size = (uint64_t)sval;
-        }
-        break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
@@ -5452,11 +5751,11 @@ static int img_measure(int argc, char **argv)
         error_report("--image-opts, -f, and -l require a filename argument.");
         goto out;
     }
-    if (filename && img_size != UINT64_MAX) {
+    if (filename && img_size != -1) {
         error_report("--size N cannot be used together with a filename.");
         goto out;
     }
-    if (!filename && img_size == UINT64_MAX) {
+    if (!filename && img_size == -1) {
         error_report("Either --size N or one filename must be specified.");
         goto out;
     }
@@ -5504,7 +5803,7 @@ static int img_measure(int argc, char **argv)
             goto out;
         }
     }
-    if (img_size != UINT64_MAX) {
+    if (img_size != -1) {
         qemu_opt_set_number(opts, BLOCK_OPT_SIZE, img_size, &error_abort);
     }
 
@@ -5538,12 +5837,48 @@ out:
 }
 
 static const img_cmd_t img_cmds[] = {
-#define DEF(option, callback, arg_string)        \
-    { option, callback },
-#include "qemu-img-cmds.h"
-#undef DEF
+    { "amend", img_amend,
+      "Update format-specific options of the image" },
+    { "bench", img_bench,
+      "Run a simple image benchmark" },
+    { "bitmap", img_bitmap,
+      "Perform modifications of the persistent bitmap in the image" },
+    { "check", img_check,
+      "Check basic image integrity" },
+    { "commit", img_commit,
+      "Commit image to its backing file" },
+    { "compare", img_compare,
+      "Check if two images have the same contents" },
+    { "convert", img_convert,
+      "Copy one or more images to another with optional format conversion" },
+    { "create", img_create,
+      "Create and format a new image file" },
+    { "dd", img_dd,
+      "Copy input to output with optional format conversion" },
+    { "info", img_info,
+      "Display information about the image" },
+    { "map", img_map,
+      "Dump image metadata" },
+    { "measure", img_measure,
+      "Calculate the file size required for a new image" },
+    { "rebase", img_rebase,
+      "Change the backing file of the image" },
+    { "resize", img_resize,
+      "Resize the image" },
+    { "snapshot", img_snapshot,
+      "List or manipulate snapshots in the image" },
     { NULL, NULL, },
 };
+
+static void format_print(void *opaque, const char *name)
+{
+    int *np = opaque;
+    if (*np + strlen(name) > 75) {
+        printf("\n ");
+        *np = 1;
+    }
+    *np += printf(" %s", name);
+}
 
 int main(int argc, char **argv)
 {
@@ -5572,23 +5907,39 @@ int main(int argc, char **argv)
 
     module_call_init(MODULE_INIT_QOM);
     bdrv_init();
-    if (argc < 2) {
-        error_exit("Not enough arguments");
-    }
 
     qemu_add_opts(&qemu_source_opts);
     qemu_add_opts(&qemu_trace_opts);
 
-    while ((c = getopt_long(argc, argv, "+:hVT:", long_options, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "+hVT:", long_options, NULL)) != -1) {
         switch (c) {
-        case ':':
-            missing_argument(argv[optind - 1]);
-            return 0;
-        case '?':
-            unrecognized_option(argv[optind - 1]);
-            return 0;
         case 'h':
-            help();
+            printf(
+QEMU_IMG_VERSION
+"QEMU disk image utility.  Usage:\n"
+"\n"
+"  qemu-img [standard options] COMMAND [--help | command options]\n"
+"\n"
+"Standard options:\n"
+"  -h, --help\n"
+"     display this help and exit\n"
+"  -V, --version\n"
+"     display version info and exit\n"
+"  -T,--trace TRACE\n"
+"     specify tracing options:\n"
+"        [[enable=]<pattern>][,events=<file>][,file=<file>]\n"
+"\n"
+"Recognized commands (run qemu-img COMMAND --help for command-specific help):\n\n");
+            for (cmd = img_cmds; cmd->name != NULL; cmd++) {
+                printf("  %s - %s\n", cmd->name, cmd->description);
+            }
+            printf("\nSupported image formats:\n");
+            c = 99; /* force a newline */
+            bdrv_iterate_format(format_print, &c, false);
+            if (c) {
+                printf("\n");
+            }
+            printf("\n" QEMU_HELP_BOTTOM "\n");
             return 0;
         case 'V':
             printf(QEMU_IMG_VERSION);
@@ -5596,18 +5947,16 @@ int main(int argc, char **argv)
         case 'T':
             trace_opt_parse(optarg);
             break;
+        default:
+            tryhelp(argv[0]);
         }
     }
 
-    cmdname = argv[optind];
-
-    /* reset getopt_long scanning */
-    argc -= optind;
-    if (argc < 1) {
-        return 0;
+    if (optind >= argc) {
+        error_exit(argv[0], "Not enough arguments");
     }
-    argv += optind;
-    qemu_reset_optind();
+
+    cmdname = argv[optind];
 
     if (!trace_init_backends()) {
         exit(1);
@@ -5618,10 +5967,16 @@ int main(int argc, char **argv)
     /* find the command */
     for (cmd = img_cmds; cmd->name != NULL; cmd++) {
         if (!strcmp(cmdname, cmd->name)) {
-            return cmd->handler(argc, argv);
+            g_autofree char *argv0 = g_strdup_printf("%s %s", argv[0], cmdname);
+            /* reset options and getopt processing (incl return order) */
+            argv += optind;
+            argc -= optind;
+            qemu_reset_optind();
+            argv[0] = argv0;
+            return cmd->handler(cmd, argc, argv);
         }
     }
 
     /* not found */
-    error_exit("Command not found: %s", cmdname);
+    error_exit(argv[0], "Command not found: %s", cmdname);
 }

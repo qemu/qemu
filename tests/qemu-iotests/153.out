@@ -120,16 +120,16 @@ _qemu_img_wrapper compare -U TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
 _qemu_img_wrapper map -U TEST_DIR/t.qcow2
 
 _qemu_img_wrapper amend -o size=32M -U TEST_DIR/t.qcow2
-qemu-img: unrecognized option '-U'
-Try 'qemu-img --help' for more information
+qemu-img amend: invalid option -- 'U'
+Try 'qemu-img amend --help' for more information
 
 _qemu_img_wrapper commit -U TEST_DIR/t.qcow2
-qemu-img: unrecognized option '-U'
-Try 'qemu-img --help' for more information
+qemu-img commit: invalid option -- 'U'
+Try 'qemu-img commit --help' for more information
 
 _qemu_img_wrapper resize -U TEST_DIR/t.qcow2 32M
-qemu-img: unrecognized option '-U'
-Try 'qemu-img --help' for more information
+qemu-img resize: invalid option -- 'U'
+Try 'qemu-img resize --help' for more information
 
 _qemu_img_wrapper rebase -U TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base -F qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
@@ -244,16 +244,16 @@ _qemu_img_wrapper compare -U TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
 _qemu_img_wrapper map -U TEST_DIR/t.qcow2
 
 _qemu_img_wrapper amend -o size=32M -U TEST_DIR/t.qcow2
-qemu-img: unrecognized option '-U'
-Try 'qemu-img --help' for more information
+qemu-img amend: invalid option -- 'U'
+Try 'qemu-img amend --help' for more information
 
 _qemu_img_wrapper commit -U TEST_DIR/t.qcow2
-qemu-img: unrecognized option '-U'
-Try 'qemu-img --help' for more information
+qemu-img commit: invalid option -- 'U'
+Try 'qemu-img commit --help' for more information
 
 _qemu_img_wrapper resize -U TEST_DIR/t.qcow2 32M
-qemu-img: unrecognized option '-U'
-Try 'qemu-img --help' for more information
+qemu-img resize: invalid option -- 'U'
+Try 'qemu-img resize --help' for more information
 
 _qemu_img_wrapper rebase -U TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base -F qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
@@ -349,16 +349,16 @@ _qemu_img_wrapper compare -U TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
 _qemu_img_wrapper map -U TEST_DIR/t.qcow2
 
 _qemu_img_wrapper amend -o size=32M -U TEST_DIR/t.qcow2
-qemu-img: unrecognized option '-U'
-Try 'qemu-img --help' for more information
+qemu-img amend: invalid option -- 'U'
+Try 'qemu-img amend --help' for more information
 
 _qemu_img_wrapper commit -U TEST_DIR/t.qcow2
-qemu-img: unrecognized option '-U'
-Try 'qemu-img --help' for more information
+qemu-img commit: invalid option -- 'U'
+Try 'qemu-img commit --help' for more information
 
 _qemu_img_wrapper resize -U TEST_DIR/t.qcow2 32M
-qemu-img: unrecognized option '-U'
-Try 'qemu-img --help' for more information
+qemu-img resize: invalid option -- 'U'
+Try 'qemu-img resize --help' for more information
 
 _qemu_img_wrapper rebase -U TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base -F qcow2
 

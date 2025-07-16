@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+# group: quick
+#
+# Test how changing the 'drive' property via 'qom-set' behaves.
+#
+# Copyright (C) Proxmox Server Solutions GmbH
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+from iotests import imgfmt, log, qemu_img_create, QMPTestCase
+
+image_size = 1 * 1024 * 1024
+images = [os.path.join(iotests.test_dir, f'{i}.img') for i in range(0, 4)]
+
+class TestQOMSetDrive(QMPTestCase):
+    def setUp(self) -> None:
+        for image in images:
+            qemu_img_create('-f', imgfmt, image, str(image_size))
+
+        self.vm = iotests.VM()
+        for i, image in enumerate(images):
+            self.vm.add_blockdev(self.vm.qmp_to_opts({
+                'driver': imgfmt,
+                'node-name': f'node{i}',
+                'file': {
+                    'driver': 'file',
+                    'filename': image,
+                }
+            }))
+        self.vm.add_object('iothread,id=iothread0')
+        self.vm.add_device('virtio-scsi,iothread=iothread0')
+        self.vm.add_device('scsi-hd,id=iot,drive=node0')
+        self.vm.add_device('virtio-scsi')
+        self.vm.add_device('scsi-hd,id=no-iot,drive=node1')
+        self.vm.launch()
+
+    def tearDown(self) -> None:
+        self.vm.shutdown()
+        for image in images:
+            os.remove(image)
+
+    def test_qom_set_drive(self) -> None:
+        log(self.vm.qmp('qom-get', path='/machine/peripheral/iot',
+                        property='drive'))
+        log(self.vm.qmp('qom-set', path='/machine/peripheral/iot',
+                        property='drive', value='node2'))
+        log(self.vm.qmp('qom-get', path='/machine/peripheral/iot',
+                        property='drive'))
+
+        log(self.vm.qmp('qom-get', path='/machine/peripheral/no-iot',
+                        property='drive'))
+        log(self.vm.qmp('qom-set', path='/machine/peripheral/no-iot',
+                        property='drive', value='node3'))
+        log(self.vm.qmp('qom-get', path='/machine/peripheral/no-iot',
+                        property='drive'))
+
+if __name__ == '__main__':
+    iotests.activate_logging()
+    # LUKS would require special key-secret handling in add_blockdevs()
+    iotests.main(supported_fmts=['generic'],
+                 unsupported_fmts=['luks'])

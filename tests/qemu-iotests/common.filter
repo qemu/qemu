@@ -86,6 +86,12 @@ _filter_qemu()
         -e $'s#\r##' # QEMU monitor uses \r\n line endings
 }
 
+# replace occurrences of QEMU_IMG_PROG with "qemu-img"
+_filter_qemu_img()
+{
+    sed -e "s#$QEMU_IMG_PROG#qemu-img#g"
+}
+
 # replace problematic QMP output like timestamps
 _filter_qmp()
 {

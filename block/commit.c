@@ -68,7 +68,7 @@ static int commit_prepare(Job *job)
                                   s->backing_mask_protocol);
 }
 
-static void commit_abort(Job *job)
+static void GRAPH_UNLOCKED commit_abort(Job *job)
 {
     CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
     BlockDriverState *top_bs = blk_bs(s->top);
@@ -392,8 +392,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
      * this is the responsibility of the interface (i.e. whoever calls
      * commit_start()).
      */
-    bdrv_drain_all_begin();
-    bdrv_graph_wrlock();
+    bdrv_graph_wrlock_drained();
     s->base_overlay = bdrv_find_overlay(top, base);
     assert(s->base_overlay);
 
@@ -425,21 +424,18 @@ void commit_start(const char *job_id, BlockDriverState *bs,
                                  iter_shared_perms, errp);
         if (ret < 0) {
             bdrv_graph_wrunlock();
-            bdrv_drain_all_end();
             goto fail;
         }
     }
 
     if (bdrv_freeze_backing_chain(commit_top_bs, base, errp) < 0) {
         bdrv_graph_wrunlock();
-        bdrv_drain_all_end();
         goto fail;
     }
     s->chain_frozen = true;
 
     ret = block_job_add_bdrv(&s->common, "base", base, 0, BLK_PERM_ALL, errp);
     bdrv_graph_wrunlock();
-    bdrv_drain_all_end();
 
     if (ret < 0) {
         goto fail;
@@ -518,28 +514,32 @@ int bdrv_commit(BlockDriverState *bs)
     Error *local_err = NULL;
 
     GLOBAL_STATE_CODE();
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     if (!drv)
         return -ENOMEDIUM;
 
+    bdrv_graph_rdlock_main_loop();
+
     backing_file_bs = bdrv_cow_bs(bs);
 
     if (!backing_file_bs) {
-        return -ENOTSUP;
+        ret = -ENOTSUP;
+        goto out;
     }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT_SOURCE, NULL) ||
         bdrv_op_is_blocked(backing_file_bs, BLOCK_OP_TYPE_COMMIT_TARGET, NULL))
     {
-        return -EBUSY;
+        ret = -EBUSY;
+        goto out;
     }
 
     ro = bdrv_is_read_only(backing_file_bs);
 
     if (ro) {
         if (bdrv_reopen_set_read_only(backing_file_bs, false, NULL)) {
-            return -EACCES;
+            ret = -EACCES;
+            goto out;
         }
     }
 
@@ -563,8 +563,14 @@ int bdrv_commit(BlockDriverState *bs)
         goto ro_cleanup;
     }
 
+    bdrv_graph_rdunlock_main_loop();
+
+    bdrv_graph_wrlock_drained();
     bdrv_set_backing_hd(commit_top_bs, backing_file_bs, &error_abort);
     bdrv_set_backing_hd(bs, commit_top_bs, &error_abort);
+    bdrv_graph_wrunlock();
+
+    bdrv_graph_rdlock_main_loop();
 
     ret = blk_insert_bs(backing, backing_file_bs, &local_err);
     if (ret < 0) {
@@ -639,9 +645,14 @@ int bdrv_commit(BlockDriverState *bs)
     ret = 0;
 ro_cleanup:
     blk_unref(backing);
+
+    bdrv_graph_rdunlock_main_loop();
+    bdrv_graph_wrlock_drained();
     if (bdrv_cow_bs(bs) != backing_file_bs) {
         bdrv_set_backing_hd(bs, backing_file_bs, &error_abort);
     }
+    bdrv_graph_wrunlock();
+    bdrv_graph_rdlock_main_loop();
     bdrv_unref(commit_top_bs);
     blk_unref(src);
 
@@ -649,6 +660,9 @@ ro_cleanup:
         /* ignoring error return here */
         bdrv_reopen_set_read_only(backing_file_bs, true, NULL);
     }
+
+out:
+    bdrv_graph_rdunlock_main_loop();
 
     return ret;
 }

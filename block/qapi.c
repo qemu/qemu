@@ -51,6 +51,8 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
     ImageInfo *backing_info;
     BlockDriverState *backing;
     BlockDeviceInfo *info;
+    BlockdevChildList **children_list_tail;
+    BdrvChild *child;
 
     if (!bs->drv) {
         error_setg(errp, "Block device %s is ejected", bs->node_name);
@@ -73,8 +75,14 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
         .no_flush       = !!(bs->open_flags & BDRV_O_NO_FLUSH),
     };
 
-    if (bs->node_name[0]) {
-        info->node_name = g_strdup(bs->node_name);
+    info->node_name = g_strdup(bs->node_name);
+
+    children_list_tail = &info->children;
+    QLIST_FOREACH(child, &bs->children, next) {
+        BlockdevChild *child_ref = g_new0(BlockdevChild, 1);
+        child_ref->child = g_strdup(child->name);
+        child_ref->node_name = g_strdup(child->bs->node_name);
+        QAPI_LIST_APPEND(children_list_tail, child_ref);
     }
 
     backing = bdrv_cow_bs(bs);

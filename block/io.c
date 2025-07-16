@@ -361,7 +361,7 @@ static void bdrv_do_drained_begin(BlockDriverState *bs, BdrvChild *parent,
     GLOBAL_STATE_CODE();
 
     /* Stop things in parent-to-child order */
-    if (qatomic_fetch_inc(&bs->quiesce_counter) == 0) {
+    if (bs->quiesce_counter++ == 0) {
         GRAPH_RDLOCK_GUARD_MAINLOOP();
         bdrv_parent_drained_begin(bs, parent);
         if (bs->drv && bs->drv->bdrv_drain_begin) {
@@ -401,8 +401,6 @@ bdrv_drained_begin(BlockDriverState *bs)
  */
 static void bdrv_do_drained_end(BlockDriverState *bs, BdrvChild *parent)
 {
-    int old_quiesce_counter;
-
     IO_OR_GS_CODE();
 
     if (qemu_in_coroutine()) {
@@ -415,8 +413,7 @@ static void bdrv_do_drained_end(BlockDriverState *bs, BdrvChild *parent)
     assert(bs->quiesce_counter > 0);
 
     /* Re-enable things in child-to-parent order */
-    old_quiesce_counter = qatomic_fetch_dec(&bs->quiesce_counter);
-    if (old_quiesce_counter == 1) {
+    if (--bs->quiesce_counter == 0) {
         GRAPH_RDLOCK_GUARD_MAINLOOP();
         if (bs->drv && bs->drv->bdrv_drain_end) {
             bs->drv->bdrv_drain_end(bs);

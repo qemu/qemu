@@ -63,7 +63,7 @@ _supported_proto file
 _run_cmd()
 {
     echo
-    (echo "$@"; "$@" 2>&1 1>/dev/null) | _filter_testdir
+    (echo "$@"; "$@" 2>&1 1>/dev/null) | _filter_testdir | _filter_qemu_img
 }
 
 _do_run_qemu()
