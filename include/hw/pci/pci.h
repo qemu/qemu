@@ -134,6 +134,15 @@ struct PCIHostDeviceAddress {
     unsigned int function;
 };
 
+/*
+ * Represents the Address Type (AT) field in a PCI request,
+ * see MemTxAttrs.address_type
+ */
+typedef enum PCIAddressType {
+    PCI_AT_UNTRANSLATED = 0, /* Default when no attribute is set */
+    PCI_AT_TRANSLATED = 1,
+} PCIAddressType;
+
 typedef void PCIConfigWriteFunc(PCIDevice *pci_dev,
                                 uint32_t address, uint32_t data, int len);
 typedef uint32_t PCIConfigReadFunc(PCIDevice *pci_dev,

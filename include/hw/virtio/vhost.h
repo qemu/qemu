@@ -243,6 +243,21 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings);
 int vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings);
 
 /**
+ * vhost_dev_force_stop() - force stop the vhost device
+ * @hdev: common vhost_dev structure
+ * @vdev: the VirtIODevice structure
+ * @vrings: true to have vrings disabled in this call
+ *
+ * Force stop the vhost device. After the device is stopped the notifiers
+ * can be disabled (@vhost_dev_disable_notifiers) and the device can
+ * be torn down (@vhost_dev_cleanup). Unlike @vhost_dev_stop, this doesn't
+ * attempt to flush in-flight backend requests by skipping GET_VRING_BASE
+ * entirely.
+ */
+int vhost_dev_force_stop(struct vhost_dev *hdev, VirtIODevice *vdev,
+                         bool vrings);
+
+/**
  * DOC: vhost device configuration handling
  *
  * The VirtIO device configuration space is used for rarely changing

@@ -22,8 +22,6 @@
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/nvram/fw_cfg.h"
 
-#include "qemu/bswap.h"
-
 /*
  * Linker/loader is a paravirtualized interface that passes commands to guest.
  * The commands can be used to request guest to

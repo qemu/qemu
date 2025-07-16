@@ -12,7 +12,7 @@
 # This work is licensed under the terms of the GNU GPLv2.
 # See the COPYING.LIB file in the top-level directory.
 
-qemu_arches="x86_64 aarch64 riscv64"
+qemu_arches="x86_64 aarch64 riscv64 loongarch64"
 
 if [ ! -e "tests/qtest/bios-tables-test" ]; then
     echo "Test: bios-tables-test is required! Run make check before this script."
@@ -37,7 +37,7 @@ if [ -z "$qemu_bins" ]; then
     echo "Only the following architectures are currently supported: $qemu_arches"
     echo "None of these configured!"
     echo "To fix, run configure \
-         --target-list=x86_64-softmmu,aarch64-softmmu,riscv64-softmmu"
+         --target-list=x86_64-softmmu,aarch64-softmmu,riscv64-softmmu,loongarch64-softmmu"
     exit 1;
 fi
 

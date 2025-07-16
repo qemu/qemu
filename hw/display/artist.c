@@ -12,6 +12,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/units.h"
+#include "qemu/bswap.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "hw/loader.h"

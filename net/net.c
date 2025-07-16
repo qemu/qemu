@@ -573,6 +573,15 @@ void qemu_set_vnet_hdr_len(NetClientState *nc, int len)
     nc->info->set_vnet_hdr_len(nc, len);
 }
 
+bool qemu_get_vnet_hash_supported_types(NetClientState *nc, uint32_t *types)
+{
+    if (!nc || !nc->info->get_vnet_hash_supported_types) {
+        return false;
+    }
+
+    return nc->info->get_vnet_hash_supported_types(nc, types);
+}
+
 int qemu_set_vnet_le(NetClientState *nc, bool is_le)
 {
 #if HOST_BIG_ENDIAN

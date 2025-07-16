@@ -13,7 +13,6 @@
 #include "hw/vfio/vfio-device.h"
 #include "migration/misc.h"
 #include "qapi/error.h"
-#include "qemu/bswap.h"
 #include "qemu/error-report.h"
 #include "qemu/lockable.h"
 #include "qemu/main-loop.h"

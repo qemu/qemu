@@ -17,6 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "qemu/bswap.h"
 #include "qapi/error.h"
 #include "qemu/config-file.h"
 #include "qemu/module.h"

@@ -577,6 +577,20 @@ static void machine_set_nvdimm(Object *obj, bool value, Error **errp)
     ms->nvdimms_state->is_enabled = value;
 }
 
+static bool machine_get_spcr(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return ms->acpi_spcr_enabled;
+}
+
+static void machine_set_spcr(Object *obj, bool value, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    ms->acpi_spcr_enabled = value;
+}
+
 static bool machine_get_hmat(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -1280,6 +1294,14 @@ static void machine_initfn(Object *obj)
                                         "ACPI Heterogeneous Memory Attribute "
                                         "Table (HMAT)");
     }
+
+    /* SPCR */
+    ms->acpi_spcr_enabled = true;
+    object_property_add_bool(obj, "spcr", machine_get_spcr, machine_set_spcr);
+    object_property_set_description(obj, "spcr",
+                                   "Set on/off to enable/disable "
+                                   "ACPI Serial Port Console Redirection "
+                                   "Table (spcr)");
 
     /* default to mc->default_cpus */
     ms->smp.cpus = mc->default_cpus;

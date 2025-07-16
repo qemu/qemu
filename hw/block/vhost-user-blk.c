@@ -210,6 +210,7 @@ static int vhost_user_blk_stop(VirtIODevice *vdev)
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int ret;
+    bool force_stop = false;
 
     if (!s->started_vu) {
         return 0;
@@ -220,7 +221,11 @@ static int vhost_user_blk_stop(VirtIODevice *vdev)
         return 0;
     }
 
-    ret = vhost_dev_stop(&s->dev, vdev, true);
+    force_stop = s->skip_get_vring_base_on_force_shutdown &&
+                 qemu_force_shutdown_requested();
+
+    ret = force_stop ? vhost_dev_force_stop(&s->dev, vdev, true) :
+                       vhost_dev_stop(&s->dev, vdev, true);
 
     if (k->set_guest_notifiers(qbus->parent, s->dev.nvqs, false) < 0) {
         error_report("vhost guest notifier cleanup failed: %d", ret);
@@ -584,6 +589,8 @@ static const Property vhost_user_blk_properties[] = {
                       VIRTIO_BLK_F_DISCARD, true),
     DEFINE_PROP_BIT64("write-zeroes", VHostUserBlk, parent_obj.host_features,
                       VIRTIO_BLK_F_WRITE_ZEROES, true),
+    DEFINE_PROP_BOOL("skip-get-vring-base-on-force-shutdown", VHostUserBlk,
+                     skip_get_vring_base_on_force_shutdown, false),
 };
 
 static void vhost_user_blk_class_init(ObjectClass *klass, const void *data)

@@ -160,7 +160,7 @@ void crs_replace_with_free_ranges(GPtrArray *ranges,
  */
 static void crs_range_merge(GPtrArray *range)
 {
-    GPtrArray *tmp = g_ptr_array_new_with_free_func(crs_range_free);
+    g_autoptr(GPtrArray) tmp = g_ptr_array_new_with_free_func(crs_range_free);
     CrsRangeEntry *entry;
     uint64_t range_base, range_limit;
     int i;
@@ -191,7 +191,6 @@ static void crs_range_merge(GPtrArray *range)
         entry = g_ptr_array_index(tmp, i);
         crs_range_insert(range, entry->base, entry->limit);
     }
-    g_ptr_array_free(tmp, true);
 }
 
 static void
@@ -2153,11 +2152,24 @@ void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
     int64_t socket_id = -1, cluster_id = -1, core_id = -1;
     uint32_t socket_offset = 0, cluster_offset = 0, core_offset = 0;
     uint32_t pptt_start = table_data->len;
+    uint32_t root_offset;
     int n;
     AcpiTable table = { .sig = "PPTT", .rev = 2,
                         .oem_id = oem_id, .oem_table_id = oem_table_id };
 
     acpi_table_begin(&table, table_data);
+
+    /*
+     * Build a root node for all the processor nodes. Otherwise when
+     * building a multi-socket system each socket tree is separated
+     * and will be hard for the OS like Linux to know whether the
+     * system is homogeneous.
+     */
+    root_offset = table_data->len - pptt_start;
+    build_processor_hierarchy_node(table_data,
+        (1 << 0) | /* Physical package */
+        (1 << 4), /* Identical Implementation */
+        0, 0, NULL, 0);
 
     /*
      * This works with the assumption that cpus[n].props.*_id has been
@@ -2173,8 +2185,9 @@ void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
             core_id = -1;
             socket_offset = table_data->len - pptt_start;
             build_processor_hierarchy_node(table_data,
-                (1 << 0), /* Physical package */
-                0, socket_id, NULL, 0);
+                (1 << 0) | /* Physical package */
+                (1 << 4), /* Identical Implementation */
+                root_offset, socket_id, NULL, 0);
         }
 
         if (mc->smp_props.clusters_supported && mc->smp_props.has_clusters) {
@@ -2184,7 +2197,8 @@ void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
                 core_id = -1;
                 cluster_offset = table_data->len - pptt_start;
                 build_processor_hierarchy_node(table_data,
-                    (0 << 0), /* Not a physical package */
+                    (0 << 0) | /* Not a physical package */
+                    (1 << 4), /* Identical Implementation */
                     socket_offset, cluster_id, NULL, 0);
             }
         } else {
@@ -2202,7 +2216,8 @@ void build_pptt(GArray *table_data, BIOSLinker *linker, MachineState *ms,
                 core_id = cpus->cpus[n].props.core_id;
                 core_offset = table_data->len - pptt_start;
                 build_processor_hierarchy_node(table_data,
-                    (0 << 0), /* Not a physical package */
+                    (0 << 0) | /* Not a physical package */
+                    (1 << 4), /* Identical Implementation */
                     cluster_offset, core_id, NULL, 0);
             }
 

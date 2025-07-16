@@ -158,7 +158,7 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
                  virtio_host_has_feature(vdev, VIRTIO_NET_F_RSS) ?
                  VIRTIO_NET_RSS_MAX_TABLE_LEN : 1);
     virtio_stl_p(vdev, &netcfg.supported_hash_types,
-                 VIRTIO_NET_RSS_SUPPORTED_HASHES);
+                 n->rss_data.supported_hash_types);
     memcpy(config, &netcfg, n->config_size);
 
     /*
@@ -756,79 +756,6 @@ static void virtio_net_set_queue_pairs(VirtIONet *n)
 
 static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue);
 
-static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features,
-                                        Error **errp)
-{
-    VirtIONet *n = VIRTIO_NET(vdev);
-    NetClientState *nc = qemu_get_queue(n->nic);
-
-    /* Firstly sync all virtio-net possible supported features */
-    features |= n->host_features;
-
-    virtio_add_feature(&features, VIRTIO_NET_F_MAC);
-
-    if (!peer_has_vnet_hdr(n)) {
-        virtio_clear_feature(&features, VIRTIO_NET_F_CSUM);
-        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_TSO4);
-        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_TSO6);
-        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_ECN);
-
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_CSUM);
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_TSO4);
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_TSO6);
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_ECN);
-
-        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_USO);
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_USO4);
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_USO6);
-
-        virtio_clear_feature(&features, VIRTIO_NET_F_HASH_REPORT);
-    }
-
-    if (!peer_has_vnet_hdr(n) || !peer_has_ufo(n)) {
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_UFO);
-        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_UFO);
-    }
-
-    if (!peer_has_uso(n)) {
-        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_USO);
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_USO4);
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_USO6);
-    }
-
-    if (!get_vhost_net(nc->peer)) {
-        return features;
-    }
-
-    if (!ebpf_rss_is_loaded(&n->ebpf_rss)) {
-        virtio_clear_feature(&features, VIRTIO_NET_F_RSS);
-    }
-    features = vhost_net_get_features(get_vhost_net(nc->peer), features);
-    vdev->backend_features = features;
-
-    if (n->mtu_bypass_backend &&
-            (n->host_features & 1ULL << VIRTIO_NET_F_MTU)) {
-        features |= (1ULL << VIRTIO_NET_F_MTU);
-    }
-
-    /*
-     * Since GUEST_ANNOUNCE is emulated the feature bit could be set without
-     * enabled. This happens in the vDPA case.
-     *
-     * Make sure the feature set is not incoherent, as the driver could refuse
-     * to start.
-     *
-     * TODO: QEMU is able to emulate a CVQ just for guest_announce purposes,
-     * helping guest to notify the new location with vDPA devices that does not
-     * support it.
-     */
-    if (!virtio_has_feature(vdev->backend_features, VIRTIO_NET_F_CTRL_VQ)) {
-        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_ANNOUNCE);
-    }
-
-    return features;
-}
-
 static uint64_t virtio_net_bad_features(VirtIODevice *vdev)
 {
     uint64_t features = 0;
@@ -1255,7 +1182,7 @@ static void rss_data_to_rss_config(struct VirtioNetRssData *data,
 {
     config->redirect = data->redirect;
     config->populate_hash = data->populate_hash;
-    config->hash_types = data->hash_types;
+    config->hash_types = data->runtime_hash_types;
     config->indirections_len = data->indirections_len;
     config->default_queue = data->default_queue;
 }
@@ -1290,6 +1217,10 @@ static void virtio_net_detach_ebpf_rss(VirtIONet *n)
 
 static void virtio_net_commit_rss_config(VirtIONet *n)
 {
+    if (n->rss_data.peer_hash_available) {
+        return;
+    }
+
     if (n->rss_data.enabled) {
         n->rss_data.enabled_software_rss = n->rss_data.populate_hash;
         if (n->rss_data.populate_hash) {
@@ -1304,7 +1235,7 @@ static void virtio_net_commit_rss_config(VirtIONet *n)
         }
 
         trace_virtio_net_rss_enable(n,
-                                    n->rss_data.hash_types,
+                                    n->rss_data.runtime_hash_types,
                                     n->rss_data.indirections_len,
                                     sizeof(n->rss_data.key));
     } else {
@@ -1415,7 +1346,7 @@ static uint16_t virtio_net_handle_rss(VirtIONet *n,
         err_value = (uint32_t)s;
         goto error;
     }
-    n->rss_data.hash_types = virtio_ldl_p(vdev, &cfg.hash_types);
+    n->rss_data.runtime_hash_types = virtio_ldl_p(vdev, &cfg.hash_types);
     n->rss_data.indirections_len =
         virtio_lduw_p(vdev, &cfg.indirection_table_mask);
     if (!do_rss) {
@@ -1478,12 +1409,12 @@ static uint16_t virtio_net_handle_rss(VirtIONet *n,
         err_value = temp.b;
         goto error;
     }
-    if (!temp.b && n->rss_data.hash_types) {
+    if (!temp.b && n->rss_data.runtime_hash_types) {
         err_msg = "No key provided";
         err_value = 0;
         goto error;
     }
-    if (!temp.b && !n->rss_data.hash_types) {
+    if (!temp.b && !n->rss_data.runtime_hash_types) {
         virtio_net_disable_rss(n);
         return queue_pairs;
     }
@@ -1885,7 +1816,7 @@ static int virtio_net_process_rss(NetClientState *nc, const uint8_t *buf,
     net_rx_pkt_set_protocols(pkt, &iov, 1, n->host_hdr_len);
     net_rx_pkt_get_protocols(pkt, &hasip4, &hasip6, &l4hdr_proto);
     net_hash_type = virtio_net_get_hash_type(hasip4, hasip6, l4hdr_proto,
-                                             n->rss_data.hash_types);
+                                             n->rss_data.runtime_hash_types);
     if (net_hash_type > NetPktRssIpV6UdpEx) {
         if (n->rss_data.populate_hash) {
             hdr->hash_value = VIRTIO_NET_HASH_REPORT_NONE;
@@ -3077,6 +3008,103 @@ static int virtio_net_pre_load_queues(VirtIODevice *vdev, uint32_t n)
     return 0;
 }
 
+static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features,
+                                        Error **errp)
+{
+    VirtIONet *n = VIRTIO_NET(vdev);
+    NetClientState *nc = qemu_get_queue(n->nic);
+    uint32_t supported_hash_types = n->rss_data.supported_hash_types;
+    uint32_t peer_hash_types = n->rss_data.peer_hash_types;
+    bool use_own_hash =
+        (supported_hash_types & VIRTIO_NET_RSS_SUPPORTED_HASHES) ==
+        supported_hash_types;
+    bool use_peer_hash =
+        n->rss_data.peer_hash_available &&
+        (supported_hash_types & peer_hash_types) == supported_hash_types;
+
+    /* Firstly sync all virtio-net possible supported features */
+    features |= n->host_features;
+
+    virtio_add_feature(&features, VIRTIO_NET_F_MAC);
+
+    if (!peer_has_vnet_hdr(n)) {
+        virtio_clear_feature(&features, VIRTIO_NET_F_CSUM);
+        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_TSO4);
+        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_TSO6);
+        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_ECN);
+
+        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_CSUM);
+        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_TSO4);
+        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_TSO6);
+        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_ECN);
+
+        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_USO);
+        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_USO4);
+        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_USO6);
+
+        virtio_clear_feature(&features, VIRTIO_NET_F_HASH_REPORT);
+    }
+
+    if (!peer_has_vnet_hdr(n) || !peer_has_ufo(n)) {
+        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_UFO);
+        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_UFO);
+    }
+
+    if (!peer_has_uso(n)) {
+        virtio_clear_feature(&features, VIRTIO_NET_F_HOST_USO);
+        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_USO4);
+        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_USO6);
+    }
+
+    if (!get_vhost_net(nc->peer)) {
+        if (!use_own_hash) {
+            virtio_clear_feature(&features, VIRTIO_NET_F_HASH_REPORT);
+            virtio_clear_feature(&features, VIRTIO_NET_F_RSS);
+        } else if (virtio_has_feature(features, VIRTIO_NET_F_RSS)) {
+            virtio_net_load_ebpf(n, errp);
+        }
+
+        return features;
+    }
+
+    if (!use_peer_hash) {
+        virtio_clear_feature(&features, VIRTIO_NET_F_HASH_REPORT);
+
+        if (!use_own_hash || !virtio_net_attach_ebpf_to_backend(n->nic, -1)) {
+            if (!virtio_net_load_ebpf(n, errp)) {
+                return features;
+            }
+
+            virtio_clear_feature(&features, VIRTIO_NET_F_RSS);
+        }
+    }
+
+    features = vhost_net_get_features(get_vhost_net(nc->peer), features);
+    vdev->backend_features = features;
+
+    if (n->mtu_bypass_backend &&
+            (n->host_features & 1ULL << VIRTIO_NET_F_MTU)) {
+        features |= (1ULL << VIRTIO_NET_F_MTU);
+    }
+
+    /*
+     * Since GUEST_ANNOUNCE is emulated the feature bit could be set without
+     * enabled. This happens in the vDPA case.
+     *
+     * Make sure the feature set is not incoherent, as the driver could refuse
+     * to start.
+     *
+     * TODO: QEMU is able to emulate a CVQ just for guest_announce purposes,
+     * helping guest to notify the new location with vDPA devices that does not
+     * support it.
+     */
+    if (!virtio_has_feature(vdev->backend_features, VIRTIO_NET_F_CTRL_VQ)) {
+        virtio_clear_feature(&features, VIRTIO_NET_F_GUEST_ANNOUNCE);
+    }
+
+    return features;
+}
+
 static int virtio_net_post_load_device(void *opaque, int version_id)
 {
     VirtIONet *n = opaque;
@@ -3315,6 +3343,17 @@ static const VMStateDescription vmstate_virtio_net_has_vnet = {
     },
 };
 
+static int virtio_net_rss_post_load(void *opaque, int version_id)
+{
+    VirtIONet *n = VIRTIO_NET(opaque);
+
+    if (version_id == 1) {
+        n->rss_data.supported_hash_types = VIRTIO_NET_RSS_SUPPORTED_HASHES;
+    }
+
+    return 0;
+}
+
 static bool virtio_net_rss_needed(void *opaque)
 {
     return VIRTIO_NET(opaque)->rss_data.enabled;
@@ -3322,14 +3361,16 @@ static bool virtio_net_rss_needed(void *opaque)
 
 static const VMStateDescription vmstate_virtio_net_rss = {
     .name      = "virtio-net-device/rss",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
+    .post_load = virtio_net_rss_post_load,
     .needed = virtio_net_rss_needed,
     .fields = (const VMStateField[]) {
         VMSTATE_BOOL(rss_data.enabled, VirtIONet),
         VMSTATE_BOOL(rss_data.redirect, VirtIONet),
         VMSTATE_BOOL(rss_data.populate_hash, VirtIONet),
-        VMSTATE_UINT32(rss_data.hash_types, VirtIONet),
+        VMSTATE_UINT32(rss_data.runtime_hash_types, VirtIONet),
+        VMSTATE_UINT32_V(rss_data.supported_hash_types, VirtIONet, 2),
         VMSTATE_UINT16(rss_data.indirections_len, VirtIONet),
         VMSTATE_UINT16(rss_data.default_queue, VirtIONet),
         VMSTATE_UINT8_ARRAY(rss_data.key, VirtIONet,
@@ -3916,8 +3957,17 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 
     net_rx_pkt_init(&n->rx_pkt);
 
-    if (virtio_has_feature(n->host_features, VIRTIO_NET_F_RSS)) {
-        virtio_net_load_ebpf(n, errp);
+    if (qemu_get_vnet_hash_supported_types(qemu_get_queue(n->nic)->peer,
+                                           &n->rss_data.peer_hash_types)) {
+        n->rss_data.peer_hash_available = true;
+        n->rss_data.supported_hash_types =
+            n->rss_data.specified_hash_types.on_bits |
+            (n->rss_data.specified_hash_types.auto_bits &
+             n->rss_data.peer_hash_types);
+    } else {
+        n->rss_data.supported_hash_types =
+            n->rss_data.specified_hash_types.on_bits |
+            n->rss_data.specified_hash_types.auto_bits;
     }
 }
 
@@ -4134,6 +4184,42 @@ static const Property virtio_net_properties[] = {
                       VIRTIO_NET_F_GUEST_USO6, true),
     DEFINE_PROP_BIT64("host_uso", VirtIONet, host_features,
                       VIRTIO_NET_F_HOST_USO, true),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("hash-ipv4", VirtIONet,
+                                  rss_data.specified_hash_types,
+                                  VIRTIO_NET_HASH_REPORT_IPv4 - 1,
+                                  ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("hash-tcp4", VirtIONet,
+                                  rss_data.specified_hash_types,
+                                  VIRTIO_NET_HASH_REPORT_TCPv4 - 1,
+                                  ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("hash-udp4", VirtIONet,
+                                  rss_data.specified_hash_types,
+                                  VIRTIO_NET_HASH_REPORT_UDPv4 - 1,
+                                  ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("hash-ipv6", VirtIONet,
+                                  rss_data.specified_hash_types,
+                                  VIRTIO_NET_HASH_REPORT_IPv6 - 1,
+                                  ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("hash-tcp6", VirtIONet,
+                                  rss_data.specified_hash_types,
+                                  VIRTIO_NET_HASH_REPORT_TCPv6 - 1,
+                                  ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("hash-udp6", VirtIONet,
+                                  rss_data.specified_hash_types,
+                                  VIRTIO_NET_HASH_REPORT_UDPv6 - 1,
+                                  ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("hash-ipv6ex", VirtIONet,
+                                  rss_data.specified_hash_types,
+                                  VIRTIO_NET_HASH_REPORT_IPv6_EX - 1,
+                                  ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("hash-tcp6ex", VirtIONet,
+                                  rss_data.specified_hash_types,
+                                  VIRTIO_NET_HASH_REPORT_TCPv6_EX - 1,
+                                  ON_OFF_AUTO_AUTO),
+    DEFINE_PROP_ON_OFF_AUTO_BIT64("hash-udp6ex", VirtIONet,
+                                  rss_data.specified_hash_types,
+                                  VIRTIO_NET_HASH_REPORT_UDPv6_EX - 1,
+                                  ON_OFF_AUTO_AUTO),
 };
 
 static void virtio_net_class_init(ObjectClass *klass, const void *data)

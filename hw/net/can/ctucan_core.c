@@ -28,7 +28,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "qemu/bswap.h"
 #include "qemu/bitops.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"

@@ -5,7 +5,6 @@
 #include "qemu/osdep.h"
 
 #include "cpu.h"
-#include "exec/tswap.h"
 
 void x86_cpu_xsave_all_areas(X86CPU *cpu, void *buf, uint32_t buflen)
 {

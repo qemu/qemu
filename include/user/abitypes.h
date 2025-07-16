@@ -6,7 +6,6 @@
 #endif
 
 #include "exec/cpu-defs.h"
-#include "exec/tswap.h"
 #include "user/tswap-target.h"
 
 #ifdef TARGET_ABI32

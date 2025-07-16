@@ -54,6 +54,9 @@ typedef struct MemTxAttrs {
      */
     unsigned int pid:8;
 
+    /* PCI - IOMMU operations, see PCIAddressType */
+    unsigned int address_type:1;
+
     /*
      * Bus masters which don't specify any attributes will get this
      * (via the MEMTXATTRS_UNSPECIFIED constant), so that we can

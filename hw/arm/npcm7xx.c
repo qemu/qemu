@@ -24,7 +24,7 @@
 #include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
-#include "qemu/bswap.h"
+#include "exec/tswap.h"
 #include "qemu/units.h"
 #include "system/system.h"
 #include "target/arm/cpu-qom.h"

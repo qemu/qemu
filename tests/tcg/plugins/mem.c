@@ -20,6 +20,7 @@
  * few things provided by compiler.h.
  */
 #include <compiler.h>
+#include <stdbool.h>
 #include <bswap.h>
 #include <qemu-plugin.h>
 

@@ -47,12 +47,6 @@ static struct vhost_log *vhost_log[VHOST_BACKEND_TYPE_MAX];
 static struct vhost_log *vhost_log_shm[VHOST_BACKEND_TYPE_MAX];
 static QLIST_HEAD(, vhost_dev) vhost_log_devs[VHOST_BACKEND_TYPE_MAX];
 
-/* Memslots used by backends that support private memslots (without an fd). */
-static unsigned int used_memslots;
-
-/* Memslots used by backends that only support shared memslots (with an fd). */
-static unsigned int used_shared_memslots;
-
 static QLIST_HEAD(, vhost_dev) vhost_devices =
     QLIST_HEAD_INITIALIZER(vhost_devices);
 
@@ -74,15 +68,15 @@ unsigned int vhost_get_free_memslots(void)
 
     QLIST_FOREACH(hdev, &vhost_devices, entry) {
         unsigned int r = hdev->vhost_ops->vhost_backend_memslots_limit(hdev);
-        unsigned int cur_free;
+        unsigned int cur_free = r - hdev->mem->nregions;
 
-        if (hdev->vhost_ops->vhost_backend_no_private_memslots &&
-            hdev->vhost_ops->vhost_backend_no_private_memslots(hdev)) {
-            cur_free = r - used_shared_memslots;
+        if (unlikely(r < hdev->mem->nregions)) {
+            warn_report_once("used (%u) vhost backend memory slots exceed"
+                             " the device limit (%u).", hdev->mem->nregions, r);
+            free = 0;
         } else {
-            cur_free = r - used_memslots;
+            free = MIN(free, cur_free);
         }
-        free = MIN(free, cur_free);
     }
     return free;
 }
@@ -665,13 +659,6 @@ static void vhost_commit(MemoryListener *listener)
                        dev->n_mem_sections * sizeof dev->mem->regions[0];
     dev->mem = g_realloc(dev->mem, regions_size);
     dev->mem->nregions = dev->n_mem_sections;
-
-    if (dev->vhost_ops->vhost_backend_no_private_memslots &&
-        dev->vhost_ops->vhost_backend_no_private_memslots(dev)) {
-        used_shared_memslots = dev->mem->nregions;
-    } else {
-        used_memslots = dev->mem->nregions;
-    }
 
     for (i = 0; i < dev->n_mem_sections; i++) {
         struct vhost_memory_region *cur_vmr = dev->mem->regions + i;
@@ -1367,25 +1354,30 @@ fail_alloc_desc:
     return r;
 }
 
-int vhost_virtqueue_stop(struct vhost_dev *dev,
-                         struct VirtIODevice *vdev,
-                         struct vhost_virtqueue *vq,
-                         unsigned idx)
+static int do_vhost_virtqueue_stop(struct vhost_dev *dev,
+                                   struct VirtIODevice *vdev,
+                                   struct vhost_virtqueue *vq,
+                                   unsigned idx, bool force)
 {
     int vhost_vq_index = dev->vhost_ops->vhost_get_vq_index(dev, idx);
     struct vhost_vring_state state = {
         .index = vhost_vq_index,
     };
-    int r;
+    int r = 0;
 
     if (virtio_queue_get_desc_addr(vdev, idx) == 0) {
         /* Don't stop the virtqueue which might have not been started */
         return 0;
     }
 
-    r = dev->vhost_ops->vhost_get_vring_base(dev, &state);
-    if (r < 0) {
-        VHOST_OPS_DEBUG(r, "vhost VQ %u ring restore failed: %d", idx, r);
+    if (!force) {
+        r = dev->vhost_ops->vhost_get_vring_base(dev, &state);
+        if (r < 0) {
+            VHOST_OPS_DEBUG(r, "vhost VQ %u ring restore failed: %d", idx, r);
+        }
+    }
+
+    if (r < 0 || force) {
         /* Connection to the backend is broken, so let's sync internal
          * last avail idx to the device used idx.
          */
@@ -1412,6 +1404,14 @@ int vhost_virtqueue_stop(struct vhost_dev *dev,
     vhost_memory_unmap(dev, vq->desc, virtio_queue_get_desc_size(vdev, idx),
                        0, virtio_queue_get_desc_size(vdev, idx));
     return r;
+}
+
+int vhost_virtqueue_stop(struct vhost_dev *dev,
+                         struct VirtIODevice *vdev,
+                         struct vhost_virtqueue *vq,
+                         unsigned idx)
+{
+    return do_vhost_virtqueue_stop(dev, vdev, vq, idx, false);
 }
 
 static int vhost_virtqueue_set_busyloop_timeout(struct vhost_dev *dev,
@@ -1619,15 +1619,11 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
 
     /*
-     * The listener we registered properly updated the corresponding counter.
-     * So we can trust that these values are accurate.
+     * The listener we registered properly setup the number of required
+     * memslots in vhost_commit().
      */
-    if (hdev->vhost_ops->vhost_backend_no_private_memslots &&
-        hdev->vhost_ops->vhost_backend_no_private_memslots(hdev)) {
-        used = used_shared_memslots;
-    } else {
-        used = used_memslots;
-    }
+    used = hdev->mem->nregions;
+
     /*
      * We assume that all reserved memslots actually require a real memslot
      * in our vhost backend. This might not be true, for example, if the
@@ -2136,7 +2132,8 @@ fail_features:
 }
 
 /* Host notifiers must be enabled at this point. */
-int vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings)
+static int do_vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev,
+                             bool vrings, bool force)
 {
     int i;
     int rc = 0;
@@ -2158,10 +2155,11 @@ int vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings)
         vhost_dev_set_vring_enable(hdev, false);
     }
     for (i = 0; i < hdev->nvqs; ++i) {
-        rc |= vhost_virtqueue_stop(hdev,
-                                   vdev,
-                                   hdev->vqs + i,
-                                   hdev->vq_index + i);
+        rc |= do_vhost_virtqueue_stop(hdev,
+                                      vdev,
+                                      hdev->vqs + i,
+                                      hdev->vq_index + i,
+                                      force);
     }
     if (hdev->vhost_ops->vhost_reset_status) {
         hdev->vhost_ops->vhost_reset_status(hdev);
@@ -2179,6 +2177,17 @@ int vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings)
     vdev->vhost_started = false;
     hdev->vdev = NULL;
     return rc;
+}
+
+int vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings)
+{
+    return do_vhost_dev_stop(hdev, vdev, vrings, false);
+}
+
+int vhost_dev_force_stop(struct vhost_dev *hdev, VirtIODevice *vdev,
+                         bool vrings)
+{
+    return do_vhost_dev_stop(hdev, vdev, vrings, true);
 }
 
 int vhost_net_set_backend(struct vhost_dev *hdev,

@@ -29,7 +29,6 @@
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
 #include "system/address-spaces.h"
-#include "exec/tswap.h"
 #include "system/dma.h"
 #include "system/runstate.h"
 #include "trace.h"

@@ -28,7 +28,6 @@
 #include "qapi/visitor.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
-#include "qemu/bswap.h"
 
 enum LSM303DLHCMagReg {
     LSM303DLHC_MAG_REG_CRA          = 0x00,

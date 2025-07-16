@@ -140,7 +140,7 @@ static void amdvi_writeq(AMDVIState *s, hwaddr addr, uint64_t val)
 {
     uint64_t romask = ldq_le_p(&s->romask[addr]);
     uint64_t w1cmask = ldq_le_p(&s->w1cmask[addr]);
-    uint32_t oldval = ldq_le_p(&s->mmior[addr]);
+    uint64_t oldval = ldq_le_p(&s->mmior[addr]);
     stq_le_p(&s->mmior[addr],
             ((oldval & romask) | (val & ~romask)) & ~(val & w1cmask));
 }
@@ -508,7 +508,7 @@ static void amdvi_inval_inttable(AMDVIState *s, uint64_t *cmd)
 static void iommu_inval_iotlb(AMDVIState *s, uint64_t *cmd)
 {
 
-    uint16_t devid = extract64(cmd[0], 0, 16);
+    uint16_t devid = cpu_to_le16(extract64(cmd[0], 0, 16));
     if (extract64(cmd[1], 1, 1) || extract64(cmd[1], 3, 1) ||
         extract64(cmd[1], 6, 6)) {
         amdvi_log_illegalcom_error(s, extract64(cmd[0], 60, 4),
@@ -521,7 +521,7 @@ static void iommu_inval_iotlb(AMDVIState *s, uint64_t *cmd)
                                     &devid);
     } else {
         amdvi_iotlb_remove_page(s, cpu_to_le64(extract64(cmd[1], 12, 52)) << 12,
-                                cpu_to_le16(extract64(cmd[1], 0, 16)));
+                                devid);
     }
     trace_amdvi_iotlb_inval();
 }
@@ -665,8 +665,8 @@ static inline void amdvi_handle_devtab_write(AMDVIState *s)
     uint64_t val = amdvi_readq(s, AMDVI_MMIO_DEVICE_TABLE);
     s->devtab = (val & AMDVI_MMIO_DEVTAB_BASE_MASK);
 
-    /* set device table length */
-    s->devtab_len = ((val & AMDVI_MMIO_DEVTAB_SIZE_MASK) + 1 *
+    /* set device table length (i.e. number of entries table can hold) */
+    s->devtab_len = (((val & AMDVI_MMIO_DEVTAB_SIZE_MASK) + 1) *
                     (AMDVI_MMIO_DEVTAB_SIZE_UNIT /
                      AMDVI_MMIO_DEVTAB_ENTRY_SIZE));
 }
@@ -848,9 +848,10 @@ static inline uint64_t amdvi_get_perms(uint64_t entry)
 static bool amdvi_validate_dte(AMDVIState *s, uint16_t devid,
                                uint64_t *dte)
 {
-    if ((dte[0] & AMDVI_DTE_LOWER_QUAD_RESERVED)
-        || (dte[1] & AMDVI_DTE_MIDDLE_QUAD_RESERVED)
-        || (dte[2] & AMDVI_DTE_UPPER_QUAD_RESERVED) || dte[3]) {
+    if ((dte[0] & AMDVI_DTE_QUAD0_RESERVED) ||
+        (dte[1] & AMDVI_DTE_QUAD1_RESERVED) ||
+        (dte[2] & AMDVI_DTE_QUAD2_RESERVED) ||
+        (dte[3] & AMDVI_DTE_QUAD3_RESERVED)) {
         amdvi_log_illegaldevtab_error(s, devid,
                                       s->devtab +
                                       devid * AMDVI_DEVTAB_ENTRY_SIZE, 0);
