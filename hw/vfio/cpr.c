@@ -200,3 +200,94 @@ void vfio_cpr_add_kvm_notifier(void)
                                     MIG_MODE_CPR_TRANSFER);
     }
 }
+
+static int set_irqfd_notifier_gsi(KVMState *s, EventNotifier *n,
+                                  EventNotifier *rn, int virq, bool enable)
+{
+    if (enable) {
+        return kvm_irqchip_add_irqfd_notifier_gsi(s, n, rn, virq);
+    } else {
+        return kvm_irqchip_remove_irqfd_notifier_gsi(s, n, virq);
+    }
+}
+
+static int vfio_cpr_set_msi_virq(VFIOPCIDevice *vdev, Error **errp, bool enable)
+{
+    const char *op = (enable ? "enable" : "disable");
+    PCIDevice *pdev = &vdev->pdev;
+    int i, nr_vectors, ret = 0;
+
+    if (msix_enabled(pdev)) {
+        nr_vectors = vdev->msix->entries;
+
+    } else if (msi_enabled(pdev)) {
+        nr_vectors = msi_nr_vectors_allocated(pdev);
+
+    } else if (vfio_pci_read_config(pdev, PCI_INTERRUPT_PIN, 1)) {
+        ret = set_irqfd_notifier_gsi(kvm_state, &vdev->intx.interrupt,
+                                     &vdev->intx.unmask, vdev->intx.route.irq,
+                                     enable);
+        if (ret) {
+            error_setg_errno(errp, -ret, "failed to %s INTx irq %d",
+                             op, vdev->intx.route.irq);
+            return ret;
+        }
+        vfio_pci_intx_set_handler(vdev, enable);
+        return ret;
+
+    } else {
+        return 0;
+    }
+
+    for (i = 0; i < nr_vectors; i++) {
+        VFIOMSIVector *vector = &vdev->msi_vectors[i];
+        if (vector->use) {
+            ret = set_irqfd_notifier_gsi(kvm_state, &vector->kvm_interrupt,
+                                         NULL, vector->virq, enable);
+            if (ret) {
+                error_setg_errno(errp, -ret,
+                                 "failed to %s msi vector %d virq %d",
+                                 op, i, vector->virq);
+                return ret;
+            }
+            vfio_pci_msi_set_handler(vdev, i, enable);
+        }
+    }
+
+    return ret;
+}
+
+/*
+ * When CPR starts, detach IRQs from the VFIO device so future interrupts
+ * are posted to kvm_interrupt, which is preserved in new QEMU.  Interrupts
+ * that were already posted to the old KVM instance, but not delivered to the
+ * VCPU, are recovered via KVM_GET_LAPIC and pushed to the new KVM instance
+ * in new QEMU.
+ *
+ * If CPR fails, reattach the IRQs.
+ */
+static int vfio_cpr_pci_notifier(NotifierWithReturn *notifier,
+                                 MigrationEvent *e, Error **errp)
+{
+    VFIOPCIDevice *vdev =
+        container_of(notifier, VFIOPCIDevice, cpr.transfer_notifier);
+
+    if (e->type == MIG_EVENT_PRECOPY_SETUP) {
+        return vfio_cpr_set_msi_virq(vdev, errp, false);
+    } else if (e->type == MIG_EVENT_PRECOPY_FAILED) {
+        return vfio_cpr_set_msi_virq(vdev, errp, true);
+    }
+    return 0;
+}
+
+void vfio_cpr_pci_register_device(VFIOPCIDevice *vdev)
+{
+    migration_add_notifier_mode(&vdev->cpr.transfer_notifier,
+                                vfio_cpr_pci_notifier,
+                                MIG_MODE_CPR_TRANSFER);
+}
+
+void vfio_cpr_pci_unregister_device(VFIOPCIDevice *vdev)
+{
+    migration_remove_notifier(&vdev->cpr.transfer_notifier);
+}
