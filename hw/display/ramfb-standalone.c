@@ -64,7 +64,7 @@ static const VMStateDescription ramfb_dev_vmstate = {
 static const Property ramfb_properties[] = {
     DEFINE_PROP_BOOL("x-migrate", RAMFBStandaloneState, migrate,  true),
     DEFINE_PROP_BOOL("use-legacy-x86-rom", RAMFBStandaloneState,
-                     use_legacy_x86_rom, true),
+                     use_legacy_x86_rom, false),
 };
 
 static void ramfb_class_initfn(ObjectClass *klass, const void *data)
