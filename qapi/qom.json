@@ -48,6 +48,34 @@
             '*default-value': 'any' } }
 
 ##
+# @ObjectPropertyValue:
+#
+# @name: the name of the property.
+#
+# @type: the type of the property, as described in `ObjectPropertyInfo`.
+#
+# @value: the value of the property.  Absent when the property cannot
+#     be read.
+#
+# Since 10.1
+##
+{ 'struct': 'ObjectPropertyValue',
+  'data': { 'name': 'str',
+            'type': 'str',
+            '*value': 'any' } }
+
+##
+# @ObjectPropertiesValues:
+#
+# @properties: a list of properties.
+#
+# Since 10.1
+##
+{ 'struct': 'ObjectPropertiesValues',
+  'data': { 'properties': [ 'ObjectPropertyValue' ] }}
+
+
+##
 # @qom-list:
 #
 # List properties of a object given a path in the object model.
@@ -122,6 +150,28 @@
 { 'command': 'qom-get',
   'data': { 'path': 'str', 'property': 'str' },
   'returns': 'any',
+  'allow-preconfig': true }
+
+##
+# @qom-list-get:
+#
+# List properties and their values for each object path in the input
+# list.
+#
+# @paths: The absolute or partial path for each object, as described
+#     in `qom-get`.
+#
+# Errors:
+#     - If any path is not valid or is ambiguous
+#
+# Returns: A list where each element is the result for the
+#     corresponding element of @paths.
+#
+# Since 10.1
+##
+{ 'command': 'qom-list-get',
+  'data': { 'paths': [ 'str' ] },
+  'returns': [ 'ObjectPropertiesValues' ],
   'allow-preconfig': true }
 
 ##

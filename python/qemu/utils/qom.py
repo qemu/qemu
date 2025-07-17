@@ -31,8 +31,7 @@ QOM commands:
 ##
 
 import argparse
-
-from qemu.qmp import ExecuteError
+from typing import List
 
 from .qom_common import QOMCommand
 
@@ -224,28 +223,34 @@ class QOMTree(QOMCommand):
         super().__init__(args)
         self.path = args.path
 
-    def _list_node(self, path: str) -> None:
-        print(path)
-        items = self.qom_list(path)
-        for item in items:
-            if item.child:
-                continue
-            try:
-                rsp = self.qmp.cmd('qom-get', path=path,
-                                   property=item.name)
-                print(f"  {item.name}: {rsp} ({item.type})")
-            except ExecuteError as err:
-                print(f"  {item.name}: <EXCEPTION: {err!s}> ({item.type})")
-        print('')
-        for item in items:
-            if not item.child:
-                continue
+    def _list_nodes(self, paths: List[str]) -> None:
+        all_paths_props = self.qom_list_get(paths)
+        i = 0
+
+        for props in all_paths_props:
+            path = paths[i]
+            i = i + 1
+            print(path)
             if path == '/':
                 path = ''
-            self._list_node(f"{path}/{item.name}")
+            newpaths = []
+
+            for item in props.properties:
+                if item.child:
+                    newpaths += [f"{path}/{item.name}"]
+                else:
+                    value = item.value
+                    if value is None:
+                        value = "<EXCEPTION: property could not be read>"
+                    print(f"  {item.name}: {value} ({item.type})")
+
+            print('')
+
+            if newpaths:
+                self._list_nodes(newpaths)
 
     def run(self) -> int:
-        self._list_node(self.path)
+        self._list_nodes([self.path])
         return 0
 
 
