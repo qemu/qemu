@@ -76,7 +76,8 @@ static inline void v9fs_string_init(V9fsString *str)
     str->size = 0;
 }
 void v9fs_string_free(V9fsString *str);
-void v9fs_string_sprintf(V9fsString *str, const char *fmt, ...);
+void G_GNUC_PRINTF(2, 3) v9fs_string_sprintf(V9fsString *str, const char *fmt,
+                                             ...);
 void v9fs_string_copy(V9fsString *lhs, V9fsString *rhs);
 
 #endif
