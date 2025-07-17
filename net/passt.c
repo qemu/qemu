@@ -397,7 +397,6 @@ err:
 static void passt_vhost_user_event(void *opaque, QEMUChrEvent event)
 {
     NetPasstState *s = opaque;
-    Error *err = NULL;
 
     switch (event) {
     case CHR_EVENT_OPENED:
@@ -427,10 +426,6 @@ static void passt_vhost_user_event(void *opaque, QEMUChrEvent event)
     case CHR_EVENT_MUX_OUT:
         /* Ignore */
         break;
-    }
-
-    if (err) {
-        error_report_err(err);
     }
 }
 
