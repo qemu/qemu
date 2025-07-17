@@ -9620,6 +9620,16 @@ static void x86_cpu_register_feature_bit_props(X86CPUClass *xcc,
 
 static void x86_cpu_post_initfn(Object *obj)
 {
+#ifndef CONFIG_USER_ONLY
+    if (current_machine && current_machine->cgs) {
+        x86_confidential_guest_cpu_instance_init(
+            X86_CONFIDENTIAL_GUEST(current_machine->cgs), (CPU(obj)));
+    }
+#endif
+}
+
+static void x86_cpu_init_xsave(void)
+{
     static bool first = true;
     uint64_t supported_xcr0;
     int i;
@@ -9639,13 +9649,6 @@ static void x86_cpu_post_initfn(Object *obj)
             }
         }
     }
-
-#ifndef CONFIG_USER_ONLY
-    if (current_machine && current_machine->cgs) {
-        x86_confidential_guest_cpu_instance_init(
-            X86_CONFIDENTIAL_GUEST(current_machine->cgs), (CPU(obj)));
-    }
-#endif
 }
 
 static void x86_cpu_init_default_topo(X86CPU *cpu)
@@ -9715,6 +9718,11 @@ static void x86_cpu_initfn(Object *obj)
         x86_cpu_load_model(cpu, xcc->model);
     }
 
+    /*
+     * accel's cpu_instance_init may have the xsave check,
+     * so x86_ext_save_areas[] must be initialized before this.
+     */
+    x86_cpu_init_xsave();
     accel_cpu_instance_init(CPU(obj));
 }
 
