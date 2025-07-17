@@ -8,7 +8,7 @@
 #
 # Reset the RTC interrupt reinjection backlog.  Can be used if another
 # mechanism to synchronize guest time is in effect, for example QEMU
-# guest agent's guest-set-time command.
+# guest agent's `guest-set-time` command.
 #
 # Use of this command is only applicable for x86 machines with an RTC,
 # and on other machines will silently return without performing any

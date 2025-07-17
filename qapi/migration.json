@@ -641,7 +641,7 @@
 #
 #     This mode supports VFIO devices provided the user first puts the
 #     guest in the suspended runstate, such as by issuing
-#     guest-suspend-ram to the QEMU guest agent.
+#     `guest-suspend-ram` to the QEMU guest agent.
 #
 #     Best performance is achieved when the memory backend is shared
 #     and the @x-ignore-shared migration capability is set, but this
@@ -1704,7 +1704,7 @@
 #
 # .. admonition:: Notes
 #
-#     1. The 'query-migrate' command should be used to check
+#     1. The `query-migrate` command should be used to check
 #        migration's progress and final result (this information is
 #        provided by the 'status' member).
 #
