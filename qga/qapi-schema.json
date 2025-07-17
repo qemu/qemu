@@ -202,8 +202,6 @@
 #
 # Get some information about the guest agent.
 #
-# Returns: @GuestAgentInfo
-#
 # Since: 0.15.0
 ##
 { 'command': 'guest-info',
@@ -285,8 +283,6 @@
 # @count: maximum number of bytes to read (default is 4KB, maximum is
 #     48MB)
 #
-# Returns: @GuestFileRead
-#
 # Since: 0.15.0
 ##
 { 'command': 'guest-file-read',
@@ -319,8 +315,6 @@
 #
 # @count: bytes to write (actual bytes, after base64-decode), default
 #     is all content in buf-b64 buffer after base64 decoding
-#
-# Returns: @GuestFileWrite
 #
 # Since: 0.15.0
 ##
@@ -387,8 +381,6 @@
 #
 # @whence: Symbolic or numeric code for interpreting offset
 #
-# Returns: @GuestFileSeek
-#
 # Since: 0.15.0
 ##
 { 'command': 'guest-file-seek',
@@ -427,9 +419,6 @@
 # @guest-fsfreeze-status:
 #
 # Get guest fsfreeze state.
-#
-# Returns: GuestFsfreezeStatus ("thawed", "frozen", etc., as defined
-#     below)
 #
 # .. note:: This may fail to properly report the current state as a
 #    result of some other guest processes having issued an fs
@@ -748,8 +737,6 @@
 # @guest-network-get-interfaces:
 #
 # Get list of guest IP addresses, MAC addresses and netmasks.
-#
-# Returns: List of GuestNetworkInterface
 #
 # Since: 1.1
 ##
@@ -1251,8 +1238,6 @@
 #
 # Get information relating to guest memory blocks.
 #
-# Returns: @GuestMemoryBlockInfo
-#
 # Since: 2.3
 ##
 { 'command': 'guest-get-memory-block-info',
@@ -1297,8 +1282,6 @@
 # exited.
 #
 # @pid: pid returned from guest-exec
-#
-# Returns: GuestExecStatus
 #
 # Since: 2.5
 ##
@@ -1458,8 +1441,6 @@
 #
 # Retrieves the timezone information from the guest.
 #
-# Returns: A GuestTimezone dictionary.
-#
 # Since: 2.10
 ##
 { 'command': 'guest-get-timezone',
@@ -1533,8 +1514,6 @@
 #
 # Retrieve guest operating system information
 #
-# Returns: @GuestOSInfo
-#
 # Since: 2.10
 ##
 { 'command': 'guest-get-osinfo',
@@ -1604,8 +1583,6 @@
 #
 # Retrieve information about device drivers in Windows guest
 #
-# Returns: @GuestDeviceInfo
-#
 # Since: 5.2
 ##
 { 'command': 'guest-get-devices',
@@ -1632,8 +1609,6 @@
 # systems (not implemented for other systems).
 #
 # @username: the user account to add the authorized keys
-#
-# Returns: @GuestAuthorizedKeys
 #
 # Since: 5.2
 ##
