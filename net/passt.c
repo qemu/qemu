@@ -375,7 +375,8 @@ static int passt_vhost_user_start(NetPasstState *s, VhostUserState *be)
     net = vhost_net_init(&options);
     if (!net) {
         error_report("failed to init passt vhost_net");
-        goto err;
+        passt_vhost_user_stop(s);
+        return -1;
     }
 
     if (s->vhost_net) {
@@ -385,13 +386,6 @@ static int passt_vhost_user_start(NetPasstState *s, VhostUserState *be)
     s->vhost_net = net;
 
     return 0;
-err:
-    if (net) {
-        vhost_net_cleanup(net);
-        g_free(net);
-    }
-    passt_vhost_user_stop(s);
-    return -1;
 }
 
 static void passt_vhost_user_event(void *opaque, QEMUChrEvent event)
