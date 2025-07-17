@@ -329,7 +329,6 @@ static void net_vhost_user_event(void *opaque, QEMUChrEvent event)
     NetClientState *ncs[MAX_QUEUE_NUM];
     NetVhostUserState *s;
     Chardev *chr;
-    Error *err = NULL;
     int queues;
 
     queues = qemu_find_net_clients_except(name, ncs,
@@ -374,10 +373,6 @@ static void net_vhost_user_event(void *opaque, QEMUChrEvent event)
     case CHR_EVENT_MUX_OUT:
         /* Ignore */
         break;
-    }
-
-    if (err) {
-        error_report_err(err);
     }
 }
 
