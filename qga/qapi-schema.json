@@ -1966,6 +1966,7 @@
 # @guest-network-get-route:
 #
 # Retrieve information about route of network.
+#
 # Returns: List of route info of guest.
 #
 # Since: 9.1
