@@ -65,7 +65,7 @@ directory should be your build folder. For example::
 
 The test framework will automatically purge any scratch files created during
 the tests. If needing to debug a failed test, it is possible to keep these
-files around on disk by setting ```QEMU_TEST_KEEP_SCRATCH=1``` as an env
+files around on disk by setting ``QEMU_TEST_KEEP_SCRATCH=1`` as an env
 variable.  Any preserved files will be deleted the next time the test is run
 without this variable set.
 
