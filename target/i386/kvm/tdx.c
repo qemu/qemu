@@ -1527,8 +1527,6 @@ static void tdx_guest_init(Object *obj)
                             tdx_guest_set_qgs,
                             NULL, NULL);
 
-    qemu_mutex_init(&tdx->lock);
-
     tdx->event_notify_vector = -1;
     tdx->event_notify_apicid = -1;
 }
