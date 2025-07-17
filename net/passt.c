@@ -124,7 +124,7 @@ static gboolean net_passt_send(QIOChannel *ioc, GIOCondition condition,
 {
     if (net_stream_data_send(ioc, condition, data) == G_SOURCE_REMOVE) {
         NetPasstState *s = DO_UPCAST(NetPasstState, data, data);
-        Error *error;
+        Error *error = NULL;
 
         /* we need to restart passt */
         kill(s->pid, SIGTERM);
