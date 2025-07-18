@@ -1345,7 +1345,7 @@ LD1_zprz        1100010 11 1. ..... 11. ... ..... ..... \
 
 # LD1Q
 LD1_zprz        1100 0100 000 rm:5 101 pg:3 rn:5 rd:5 \
-                &rprr_gather_load u=0 ff=0 xs=2 esz=4 msz=4 scale=0
+                &rprr_gather_load u=1 ff=0 xs=2 esz=4 msz=4 scale=0
 
 # SVE 64-bit gather load (vector plus immediate)
 LD1_zpiz        1100010 .. 01 ..... 1.. ... ..... ..... \
