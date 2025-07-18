@@ -166,6 +166,20 @@ void qcrypto_tls_session_free(QCryptoTLSSession *sess);
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(QCryptoTLSSession, qcrypto_tls_session_free)
 
 /**
+ * qcrypto_tls_session_require_thread_safety:
+ * @sess: the TLS session object
+ *
+ * Mark that this TLS session will require thread safety
+ * for concurrent I/O in both directions. This must be
+ * called before the handshake is performed.
+ *
+ * This will activate a workaround for GNUTLS thread
+ * safety issues, where appropriate for the negotiated
+ * TLS session parameters.
+ */
+void qcrypto_tls_session_require_thread_safety(QCryptoTLSSession *sess);
+
+/**
  * qcrypto_tls_session_check_credentials:
  * @sess: the TLS session object
  * @errp: pointer to a NULL-initialized error object
