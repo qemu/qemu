@@ -5099,6 +5099,75 @@ DO_ZPZ_FP(flogb_d, float64, H1_8, do_float64_logb_as_int)
 
 #undef DO_ZPZ_FP
 
+static void do_fmla_zpzzz_b16(void *vd, void *vn, void *vm, void *va, void *vg,
+                              float_status *status, uint32_t desc,
+                              uint16_t neg1, uint16_t neg3, int flags)
+{
+    intptr_t i = simd_oprsz(desc);
+    uint64_t *g = vg;
+
+    do {
+        uint64_t pg = g[(i - 1) >> 6];
+        do {
+            i -= 2;
+            if (likely((pg >> (i & 63)) & 1)) {
+                float16 e1, e2, e3, r;
+
+                e1 = *(uint16_t *)(vn + H1_2(i)) ^ neg1;
+                e2 = *(uint16_t *)(vm + H1_2(i));
+                e3 = *(uint16_t *)(va + H1_2(i)) ^ neg3;
+                r = bfloat16_muladd(e1, e2, e3, flags, status);
+                *(uint16_t *)(vd + H1_2(i)) = r;
+            }
+        } while (i & 63);
+    } while (i != 0);
+}
+
+void HELPER(sve_fmla_zpzzz_b16)(void *vd, void *vn, void *vm, void *va,
+                              void *vg, float_status *status, uint32_t desc)
+{
+    do_fmla_zpzzz_b16(vd, vn, vm, va, vg, status, desc, 0, 0, 0);
+}
+
+void HELPER(sve_fmls_zpzzz_b16)(void *vd, void *vn, void *vm, void *va,
+                              void *vg, float_status *status, uint32_t desc)
+{
+    do_fmla_zpzzz_b16(vd, vn, vm, va, vg, status, desc, 0x8000, 0, 0);
+}
+
+void HELPER(sve_fnmla_zpzzz_b16)(void *vd, void *vn, void *vm, void *va,
+                               void *vg, float_status *status, uint32_t desc)
+{
+    do_fmla_zpzzz_b16(vd, vn, vm, va, vg, status, desc, 0x8000, 0x8000, 0);
+}
+
+void HELPER(sve_fnmls_zpzzz_b16)(void *vd, void *vn, void *vm, void *va,
+                               void *vg, float_status *status, uint32_t desc)
+{
+    do_fmla_zpzzz_b16(vd, vn, vm, va, vg, status, desc, 0, 0x8000, 0);
+}
+
+void HELPER(sve_ah_fmls_zpzzz_b16)(void *vd, void *vn, void *vm, void *va,
+                              void *vg, float_status *status, uint32_t desc)
+{
+    do_fmla_zpzzz_b16(vd, vn, vm, va, vg, status, desc, 0, 0,
+                      float_muladd_negate_product);
+}
+
+void HELPER(sve_ah_fnmla_zpzzz_b16)(void *vd, void *vn, void *vm, void *va,
+                               void *vg, float_status *status, uint32_t desc)
+{
+    do_fmla_zpzzz_b16(vd, vn, vm, va, vg, status, desc, 0, 0,
+                      float_muladd_negate_product | float_muladd_negate_c);
+}
+
+void HELPER(sve_ah_fnmls_zpzzz_b16)(void *vd, void *vn, void *vm, void *va,
+                               void *vg, float_status *status, uint32_t desc)
+{
+    do_fmla_zpzzz_b16(vd, vn, vm, va, vg, status, desc, 0, 0,
+                      float_muladd_negate_c);
+}
+
 static void do_fmla_zpzzz_h(void *vd, void *vn, void *vm, void *va, void *vg,
                             float_status *status, uint32_t desc,
                             uint16_t neg1, uint16_t neg3, int flags)

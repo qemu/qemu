@@ -4368,19 +4368,28 @@ TRANS_FEAT(FCADD, aa64_sve, gen_gvec_fpst_zzzp, fcadd_fns[a->esz],
            a->rd, a->rn, a->rm, a->pg, a->rot | (s->fpcr_ah << 1),
            a->esz == MO_16 ? FPST_A64_F16 : FPST_A64)
 
+static bool do_fmla_zpzzz(DisasContext *s, arg_rprrr_esz *a,
+                          gen_helper_gvec_5_ptr *fn)
+{
+    /* These insns use MO_8 to encode BFloat16 */
+    if (a->esz == MO_8 && !dc_isar_feature(aa64_sve_b16b16, s)) {
+        return false;
+    }
+    return gen_gvec_fpst_zzzzp(s, fn, a->rd, a->rn, a->rm, a->ra, a->pg, 0,
+                               a->esz == MO_16 ? FPST_A64_F16 : FPST_A64);
+}
+
 #define DO_FMLA(NAME, name, ah_name)                                    \
     static gen_helper_gvec_5_ptr * const name##_fns[4] = {              \
-        NULL, gen_helper_sve_##name##_h,                                \
+        gen_helper_sve_##name##_b16, gen_helper_sve_##name##_h,         \
         gen_helper_sve_##name##_s, gen_helper_sve_##name##_d            \
     };                                                                  \
     static gen_helper_gvec_5_ptr * const name##_ah_fns[4] = {           \
-        NULL, gen_helper_sve_##ah_name##_h,                             \
+        gen_helper_sve_##ah_name##_b16, gen_helper_sve_##ah_name##_h,   \
         gen_helper_sve_##ah_name##_s, gen_helper_sve_##ah_name##_d      \
     };                                                                  \
-    TRANS_FEAT(NAME, aa64_sve, gen_gvec_fpst_zzzzp,                     \
-               s->fpcr_ah ? name##_ah_fns[a->esz] : name##_fns[a->esz], \
-               a->rd, a->rn, a->rm, a->ra, a->pg, 0,                    \
-               a->esz == MO_16 ? FPST_A64_F16 : FPST_A64)
+    TRANS_FEAT(NAME, aa64_sve, do_fmla_zpzzz, a,                        \
+               s->fpcr_ah ? name##_ah_fns[a->esz] : name##_fns[a->esz])
 
 /* We don't need an ah_fmla_zpzzz because fmla doesn't negate anything */
 DO_FMLA(FMLA_zpzzz, fmla_zpzzz, fmla_zpzzz)
