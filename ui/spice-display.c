@@ -1183,20 +1183,20 @@ static void qemu_spice_gl_release_dmabuf(DisplayChangeListener *dcl,
     egl_dmabuf_release_texture(dmabuf);
 }
 
-static bool spice_gl_blit_scanout_texture(SimpleSpiceDisplay *ssd,
-                                          egl_fb *scanout_tex_fb)
+static bool spice_gl_blit_scanout_texture(SimpleSpiceDisplay *ssd)
 {
     uint32_t offsets[DMABUF_MAX_PLANES], strides[DMABUF_MAX_PLANES];
     int fds[DMABUF_MAX_PLANES], num_planes, fourcc;
+    egl_fb scanout_tex_fb = {};
     uint64_t modifier;
     bool ret;
 
-    egl_fb_destroy(scanout_tex_fb);
-    egl_fb_setup_for_tex(scanout_tex_fb,
+    egl_fb_setup_for_tex(&scanout_tex_fb,
                          surface_width(ssd->ds), surface_height(ssd->ds),
                          ssd->ds->texture, false);
-    egl_fb_blit(scanout_tex_fb, &ssd->guest_fb, false);
+    egl_fb_blit(&scanout_tex_fb, &ssd->guest_fb, false);
     glFlush();
+    egl_fb_destroy(&scanout_tex_fb);
 
     if (!ssd->new_scanout_texture) {
         return true;
@@ -1330,9 +1330,7 @@ static void qemu_spice_gl_update(DisplayChangeListener *dcl,
     }
 
     if (spice_remote_client && ssd->blit_scanout_texture) {
-        egl_fb scanout_tex_fb;
-
-        ret = spice_gl_blit_scanout_texture(ssd, &scanout_tex_fb);
+        ret = spice_gl_blit_scanout_texture(ssd);
         if (!ret) {
             return;
         }
