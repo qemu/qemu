@@ -4484,33 +4484,35 @@ static TYPE FUNC##_reduce(TYPE *data, float_status *status, uintptr_t n) \
     }                                                                 \
 }                                                                     \
 uint64_t helper_sve_##NAME##v_##SUF(void *vn, void *vg,               \
-                                    float_status *s, uint32_t desc)   \
+                                    float_status *status, uint32_t desc) \
 {                                                                     \
     uintptr_t i, oprsz = simd_oprsz(desc), maxsz = simd_data(desc);   \
     TYPE data[sizeof(ARMVectorReg) / sizeof(TYPE)];                   \
+    TYPE ident = IDENT;                                               \
     for (i = 0; i < oprsz; ) {                                        \
         uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));               \
         do {                                                          \
             TYPE nn = *(TYPE *)(vn + H(i));                           \
-            *(TYPE *)((void *)data + i) = (pg & 1 ? nn : IDENT);      \
+            *(TYPE *)((void *)data + i) = (pg & 1 ? nn : ident);      \
             i += sizeof(TYPE), pg >>= sizeof(TYPE);                   \
         } while (i & 15);                                             \
     }                                                                 \
     for (; i < maxsz; i += sizeof(TYPE)) {                            \
-        *(TYPE *)((void *)data + i) = IDENT;                          \
+        *(TYPE *)((void *)data + i) = ident;                          \
     }                                                                 \
-    return FUNC##_reduce(data, s, maxsz / sizeof(TYPE));              \
+    return FUNC##_reduce(data, status, maxsz / sizeof(TYPE));         \
 }                                                                     \
 void helper_sve2p1_##NAME##qv_##SUF(void *vd, void *vn, void *vg,     \
                                     float_status *status, uint32_t desc) \
 {                                                                     \
     unsigned oprsz = simd_oprsz(desc), segments = oprsz / 16;         \
+    TYPE ident = IDENT;                                               \
     for (unsigned e = 0; e < 16; e += sizeof(TYPE)) {                 \
         TYPE data[ARM_MAX_VQ];                                        \
         for (unsigned s = 0; s < segments; s++) {                     \
             uint16_t pg = *(uint16_t *)(vg + H1_2(s * 2));            \
             TYPE nn = *(TYPE *)(vn + (s * 16 + H(e)));                \
-            data[s] = (pg >> e) & 1 ? nn : IDENT;                     \
+            data[s] = (pg >> e) & 1 ? nn : ident;                     \
         }                                                             \
         *(TYPE *)(vd + H(e)) = FUNC##_reduce(data, status, segments); \
     }                                                                 \
@@ -4521,14 +4523,17 @@ DO_REDUCE(fadd,h, float16, H1_2, float16_add, float16_zero)
 DO_REDUCE(fadd,s, float32, H1_4, float32_add, float32_zero)
 DO_REDUCE(fadd,d, float64, H1_8, float64_add, float64_zero)
 
-/* Identity is floatN_default_nan, without the function call.  */
-DO_REDUCE(fminnm,h, float16, H1_2, float16_minnum, 0x7E00)
-DO_REDUCE(fminnm,s, float32, H1_4, float32_minnum, 0x7FC00000)
-DO_REDUCE(fminnm,d, float64, H1_8, float64_minnum, 0x7FF8000000000000ULL)
+/*
+ * We can't avoid the function call for the default NaN value, because
+ * it changes when FPCR.AH is set.
+ */
+DO_REDUCE(fminnm,h, float16, H1_2, float16_minnum, float16_default_nan(status))
+DO_REDUCE(fminnm,s, float32, H1_4, float32_minnum, float32_default_nan(status))
+DO_REDUCE(fminnm,d, float64, H1_8, float64_minnum, float64_default_nan(status))
 
-DO_REDUCE(fmaxnm,h, float16, H1_2, float16_maxnum, 0x7E00)
-DO_REDUCE(fmaxnm,s, float32, H1_4, float32_maxnum, 0x7FC00000)
-DO_REDUCE(fmaxnm,d, float64, H1_8, float64_maxnum, 0x7FF8000000000000ULL)
+DO_REDUCE(fmaxnm,h, float16, H1_2, float16_maxnum, float16_default_nan(status))
+DO_REDUCE(fmaxnm,s, float32, H1_4, float32_maxnum, float32_default_nan(status))
+DO_REDUCE(fmaxnm,d, float64, H1_8, float64_maxnum, float64_default_nan(status))
 
 DO_REDUCE(fmin,h, float16, H1_2, float16_min, float16_infinity)
 DO_REDUCE(fmin,s, float32, H1_4, float32_min, float32_infinity)
