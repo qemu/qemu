@@ -1280,6 +1280,7 @@ endif
 
 enable_passt = get_option('passt') \
   .require(host_os == 'linux', error_message: 'passt is supported only on Linux') \
+  .require(gio.found(), error_message: 'passt requires gio') \
   .allowed()
 
 vde = not_found
