@@ -3883,24 +3883,31 @@ DO_SVE2_RRXR_ROT(CDOT_zzxw_d, gen_helper_sve2_cdot_idx_d)
  *** SVE Floating Point Multiply-Add Indexed Group
  */
 
+static bool do_fmla_zzxz(DisasContext *s, arg_rrxr_esz *a,
+                         gen_helper_gvec_4_ptr *fn)
+{
+    /* These insns use MO_8 to encode BFloat16 */
+    if (a->esz == MO_8 && !dc_isar_feature(aa64_sve_b16b16, s)) {
+        return false;
+    }
+    return gen_gvec_fpst_zzzz(s, fn, a->rd, a->rn, a->rm, a->ra, a->index,
+                              a->esz == MO_16 ? FPST_A64_F16 : FPST_A64);
+}
+
 static gen_helper_gvec_4_ptr * const fmla_idx_fns[4] = {
-    NULL,                       gen_helper_gvec_fmla_idx_h,
+    gen_helper_gvec_bfmla_idx, gen_helper_gvec_fmla_idx_h,
     gen_helper_gvec_fmla_idx_s, gen_helper_gvec_fmla_idx_d
 };
-TRANS_FEAT(FMLA_zzxz, aa64_sve, gen_gvec_fpst_zzzz,
-           fmla_idx_fns[a->esz], a->rd, a->rn, a->rm, a->ra, a->index,
-           a->esz == MO_16 ? FPST_A64_F16 : FPST_A64)
+TRANS_FEAT(FMLA_zzxz, aa64_sve, do_fmla_zzxz, a, fmla_idx_fns[a->esz])
 
 static gen_helper_gvec_4_ptr * const fmls_idx_fns[4][2] = {
-    { NULL, NULL },
+    { gen_helper_gvec_bfmls_idx, gen_helper_gvec_ah_bfmls_idx },
     { gen_helper_gvec_fmls_idx_h, gen_helper_gvec_ah_fmls_idx_h },
     { gen_helper_gvec_fmls_idx_s, gen_helper_gvec_ah_fmls_idx_s },
     { gen_helper_gvec_fmls_idx_d, gen_helper_gvec_ah_fmls_idx_d },
 };
-TRANS_FEAT(FMLS_zzxz, aa64_sve, gen_gvec_fpst_zzzz,
-           fmls_idx_fns[a->esz][s->fpcr_ah],
-           a->rd, a->rn, a->rm, a->ra, a->index,
-           a->esz == MO_16 ? FPST_A64_F16 : FPST_A64)
+TRANS_FEAT(FMLS_zzxz, aa64_sve, do_fmla_zzxz, a,
+           fmls_idx_fns[a->esz][s->fpcr_ah])
 
 /*
  *** SVE Floating Point Multiply Indexed Group
