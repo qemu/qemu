@@ -3907,7 +3907,7 @@ TRANS_FEAT(FMLS_zzxz, aa64_sve, gen_gvec_fpst_zzzz,
  */
 
 static gen_helper_gvec_3_ptr * const fmul_idx_fns[4] = {
-    NULL,                       gen_helper_gvec_fmul_idx_h,
+    gen_helper_gvec_fmul_idx_b16, gen_helper_gvec_fmul_idx_h,
     gen_helper_gvec_fmul_idx_s, gen_helper_gvec_fmul_idx_d,
 };
 TRANS_FEAT(FMUL_zzx, aa64_sve, gen_gvec_fpst_zzz,

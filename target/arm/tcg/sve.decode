@@ -1062,6 +1062,7 @@ FMLS_zzxz       01100100 11 1 ..... 000001 ..... .....  @rrxr_1 esz=3
 ### SVE FP Multiply Indexed Group
 
 # SVE floating-point multiply (indexed)
+FMUL_zzx        01100100 0. 1 ..... 001010 ..... .....   @rrx_3 esz=0
 FMUL_zzx        01100100 0. 1 ..... 001000 ..... .....   @rrx_3 esz=1
 FMUL_zzx        01100100 10 1 ..... 001000 ..... .....   @rrx_2 esz=2
 FMUL_zzx        01100100 11 1 ..... 001000 ..... .....   @rrx_1 esz=3
