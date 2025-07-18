@@ -190,6 +190,10 @@ static bool gen_gvec_fpst_zzz(DisasContext *s, gen_helper_gvec_3_ptr *fn,
 static bool gen_gvec_fpst_arg_zzz(DisasContext *s, gen_helper_gvec_3_ptr *fn,
                                   arg_rrr_esz *a, int data)
 {
+    /* These insns use MO_8 to encode BFloat16 */
+    if (a->esz == MO_8 && !dc_isar_feature(aa64_sve_b16b16, s)) {
+        return false;
+    }
     return gen_gvec_fpst_zzz(s, fn, a->rd, a->rn, a->rm, data,
                              a->esz == MO_16 ? FPST_A64_F16 : FPST_A64);
 }
@@ -4146,7 +4150,7 @@ static bool trans_FADDA(DisasContext *s, arg_rprr_esz *a)
 
 #define DO_FP3(NAME, name) \
     static gen_helper_gvec_3_ptr * const name##_fns[4] = {          \
-        NULL, gen_helper_gvec_##name##_h,                           \
+        gen_helper_gvec_##name##_b16, gen_helper_gvec_##name##_h,   \
         gen_helper_gvec_##name##_s, gen_helper_gvec_##name##_d      \
     };                                                              \
     TRANS_FEAT(NAME, aa64_sve, gen_gvec_fpst_arg_zzz, name##_fns[a->esz], a, 0)
