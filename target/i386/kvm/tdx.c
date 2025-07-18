@@ -1126,10 +1126,15 @@ int tdx_parse_tdvf(void *flash_ptr, int size)
     return tdvf_parse_metadata(&tdx_guest->tdvf, flash_ptr, size);
 }
 
-static void tdx_inject_interrupt(uint32_t apicid, uint32_t vector)
+static void tdx_inject_interrupt(TdxGuest *tdx)
 {
     int ret;
+    uint32_t apicid, vector;
 
+    qemu_mutex_lock(&tdx->lock);
+    vector = tdx->event_notify_vector;
+    apicid = tdx->event_notify_apicid;
+    qemu_mutex_unlock(&tdx->lock);
     if (vector < 32 || vector > 255) {
         return;
     }
@@ -1179,8 +1184,7 @@ static void tdx_get_quote_completion(TdxGenerateQuoteTask *task)
         error_report("TDX: get-quote: failed to update GetQuote header.");
     }
 
-    tdx_inject_interrupt(tdx_guest->event_notify_apicid,
-                         tdx_guest->event_notify_vector);
+    tdx_inject_interrupt(tdx);
 
     g_free(task->send_data);
     g_free(task->receive_buf);
@@ -1522,8 +1526,6 @@ static void tdx_guest_init(Object *obj)
                             tdx_guest_get_qgs,
                             tdx_guest_set_qgs,
                             NULL, NULL);
-
-    qemu_mutex_init(&tdx->lock);
 
     tdx->event_notify_vector = -1;
     tdx->event_notify_apicid = -1;

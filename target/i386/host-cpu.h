@@ -12,7 +12,6 @@
 
 uint32_t host_cpu_phys_bits(void);
 void host_cpu_instance_init(X86CPU *cpu);
-void host_cpu_max_instance_init(X86CPU *cpu);
 bool host_cpu_realizefn(CPUState *cs, Error **errp);
 
 void host_cpu_vendor_fms(char *vendor, int *family, int *model, int *stepping);
