@@ -101,12 +101,10 @@ static uint32_t pnv_xive2_block_id(PnvXive2 *xive)
 }
 
 /*
- * Remote access to controllers. HW uses MMIOs. For now, a simple scan
- * of the chips is good enough.
- *
- * TODO: Block scope support
+ * Remote access to INT controllers. HW uses MMIOs(?). For now, a simple
+ * scan of all the chips INT controller is good enough.
  */
-static PnvXive2 *pnv_xive2_get_remote(uint8_t blk)
+static PnvXive2 *pnv_xive2_get_remote(uint32_t vsd_type, hwaddr fwd_addr)
 {
     PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
     int i;
@@ -115,10 +113,23 @@ static PnvXive2 *pnv_xive2_get_remote(uint8_t blk)
         Pnv10Chip *chip10 = PNV10_CHIP(pnv->chips[i]);
         PnvXive2 *xive = &chip10->xive;
 
-        if (pnv_xive2_block_id(xive) == blk) {
+        /*
+         * Is this the XIVE matching the forwarded VSD address is for this
+         * VSD type
+         */
+        if ((vsd_type == VST_ESB   && fwd_addr == xive->esb_base) ||
+            (vsd_type == VST_END   && fwd_addr == xive->end_base)  ||
+            ((vsd_type == VST_NVP ||
+              vsd_type == VST_NVG) && fwd_addr == xive->nvpg_base) ||
+            (vsd_type == VST_NVC   && fwd_addr == xive->nvc_base)) {
             return xive;
         }
     }
+
+    qemu_log_mask(LOG_GUEST_ERROR,
+                 "XIVE: >>>>> %s vsd_type %u  fwd_addr 0x%"HWADDR_PRIx
+                  " NOT FOUND\n",
+                  __func__, vsd_type, fwd_addr);
     return NULL;
 }
 
@@ -251,8 +262,7 @@ static uint64_t pnv_xive2_vst_addr(PnvXive2 *xive, uint32_t type, uint8_t blk,
 
     /* Remote VST access */
     if (GETFIELD(VSD_MODE, vsd) == VSD_MODE_FORWARD) {
-        xive = pnv_xive2_get_remote(blk);
-
+        xive = pnv_xive2_get_remote(type, (vsd & VSD_ADDRESS_MASK));
         return xive ? pnv_xive2_vst_addr(xive, type, blk, idx) : 0;
     }
 
@@ -595,19 +605,27 @@ static uint32_t pnv_xive2_get_config(Xive2Router *xrtr)
 {
     PnvXive2 *xive = PNV_XIVE2(xrtr);
     uint32_t cfg = 0;
+    uint64_t reg = xive->cq_regs[CQ_XIVE_CFG >> 3];
 
-    if (xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_GEN1_TIMA_OS) {
+    if (reg & CQ_XIVE_CFG_GEN1_TIMA_OS) {
         cfg |= XIVE2_GEN1_TIMA_OS;
     }
 
-    if (xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_EN_VP_SAVE_RESTORE) {
+    if (reg & CQ_XIVE_CFG_EN_VP_SAVE_RESTORE) {
         cfg |= XIVE2_VP_SAVE_RESTORE;
     }
 
-    if (GETFIELD(CQ_XIVE_CFG_HYP_HARD_RANGE,
-              xive->cq_regs[CQ_XIVE_CFG >> 3]) == CQ_XIVE_CFG_THREADID_8BITS) {
+    if (GETFIELD(CQ_XIVE_CFG_HYP_HARD_RANGE, reg) ==
+                      CQ_XIVE_CFG_THREADID_8BITS) {
         cfg |= XIVE2_THREADID_8BITS;
     }
+
+    if (reg & CQ_XIVE_CFG_EN_VP_GRP_PRIORITY) {
+        cfg |= XIVE2_EN_VP_GRP_PRIORITY;
+    }
+
+    cfg = SETFIELD(XIVE2_VP_INT_PRIO, cfg,
+                   GETFIELD(CQ_XIVE_CFG_VP_INT_PRIO, reg));
 
     return cfg;
 }
@@ -622,24 +640,28 @@ static bool pnv_xive2_is_cpu_enabled(PnvXive2 *xive, PowerPCCPU *cpu)
     return xive->tctxt_regs[reg >> 3] & PPC_BIT(bit);
 }
 
-static int pnv_xive2_match_nvt(XivePresenter *xptr, uint8_t format,
-                               uint8_t nvt_blk, uint32_t nvt_idx,
-                               bool crowd, bool cam_ignore, uint8_t priority,
-                               uint32_t logic_serv, XiveTCTXMatch *match)
+static bool pnv_xive2_match_nvt(XivePresenter *xptr, uint8_t format,
+                                uint8_t nvt_blk, uint32_t nvt_idx,
+                                bool crowd, bool cam_ignore, uint8_t priority,
+                                uint32_t logic_serv, XiveTCTXMatch *match)
 {
     PnvXive2 *xive = PNV_XIVE2(xptr);
     PnvChip *chip = xive->chip;
-    int count = 0;
     int i, j;
     bool gen1_tima_os =
         xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_GEN1_TIMA_OS;
+    static int next_start_core;
+    static int next_start_thread;
+    int start_core = next_start_core;
+    int start_thread = next_start_thread;
 
     for (i = 0; i < chip->nr_cores; i++) {
-        PnvCore *pc = chip->cores[i];
+        PnvCore *pc = chip->cores[(i + start_core) % chip->nr_cores];
         CPUCore *cc = CPU_CORE(pc);
 
         for (j = 0; j < cc->nr_threads; j++) {
-            PowerPCCPU *cpu = pc->threads[j];
+            /* Start search for match with different thread each call */
+            PowerPCCPU *cpu = pc->threads[(j + start_thread) % cc->nr_threads];
             XiveTCTX *tctx;
             int ring;
 
@@ -669,7 +691,8 @@ static int pnv_xive2_match_nvt(XivePresenter *xptr, uint8_t format,
                                   "thread context NVT %x/%x\n",
                                   nvt_blk, nvt_idx);
                     /* Should set a FIR if we ever model it */
-                    return -1;
+                    match->count++;
+                    continue;
                 }
                 /*
                  * For a group notification, we need to know if the
@@ -684,14 +707,23 @@ static int pnv_xive2_match_nvt(XivePresenter *xptr, uint8_t format,
                     if (!match->tctx) {
                         match->ring = ring;
                         match->tctx = tctx;
+
+                        next_start_thread = j + start_thread + 1;
+                        if (next_start_thread >= cc->nr_threads) {
+                            next_start_thread = 0;
+                            next_start_core = i + start_core + 1;
+                            if (next_start_core >= chip->nr_cores) {
+                                next_start_core = 0;
+                            }
+                        }
                     }
-                    count++;
+                    match->count++;
                 }
             }
         }
     }
 
-    return count;
+    return !!match->count;
 }
 
 static uint32_t pnv_xive2_presenter_get_config(XivePresenter *xptr)
@@ -1173,7 +1205,8 @@ static void pnv_xive2_ic_cq_write(void *opaque, hwaddr offset,
     case CQ_FIRMASK_OR: /* FIR error reporting */
         break;
     default:
-        xive2_error(xive, "CQ: invalid write 0x%"HWADDR_PRIx, offset);
+        xive2_error(xive, "CQ: invalid write 0x%"HWADDR_PRIx" value 0x%"PRIx64,
+                    offset, val);
         return;
     }
 
@@ -1304,7 +1337,6 @@ static uint64_t pnv_xive2_ic_vc_read(void *opaque, hwaddr offset,
     case VC_ENDC_WATCH2_SPEC:
     case VC_ENDC_WATCH3_SPEC:
         watch_engine = (offset - VC_ENDC_WATCH0_SPEC) >> 6;
-        xive->vc_regs[reg] &= ~(VC_ENDC_WATCH_FULL | VC_ENDC_WATCH_CONFLICT);
         pnv_xive2_endc_cache_watch_release(xive, watch_engine);
         val = xive->vc_regs[reg];
         break;
@@ -1315,10 +1347,11 @@ static uint64_t pnv_xive2_ic_vc_read(void *opaque, hwaddr offset,
     case VC_ENDC_WATCH3_DATA0:
         /*
          * Load DATA registers from cache with data requested by the
-         * SPEC register
+         * SPEC register.  Clear gen_flipped bit in word 1.
          */
         watch_engine = (offset - VC_ENDC_WATCH0_DATA0) >> 6;
         pnv_xive2_end_cache_load(xive, watch_engine);
+        xive->vc_regs[reg] &= ~(uint64_t)END2_W1_GEN_FLIPPED;
         val = xive->vc_regs[reg];
         break;
 
@@ -1386,7 +1419,14 @@ static void pnv_xive2_ic_vc_write(void *opaque, hwaddr offset,
     /*
      * ESB cache updates (not modeled)
      */
-    /* case VC_ESBC_FLUSH_CTRL: */
+    case VC_ESBC_FLUSH_CTRL:
+        if (val & VC_ESBC_FLUSH_CTRL_WANT_CACHE_DISABLE) {
+            xive2_error(xive, "VC: unsupported write @0x%"HWADDR_PRIx
+                        " value 0x%"PRIx64" bit[2] poll_want_cache_disable",
+                        offset, val);
+            return;
+        }
+        break;
     case VC_ESBC_FLUSH_POLL:
         xive->vc_regs[VC_ESBC_FLUSH_CTRL >> 3] |= VC_ESBC_FLUSH_CTRL_POLL_VALID;
         /* ESB update */
@@ -1402,7 +1442,14 @@ static void pnv_xive2_ic_vc_write(void *opaque, hwaddr offset,
     /*
      * EAS cache updates (not modeled)
      */
-    /* case VC_EASC_FLUSH_CTRL: */
+    case VC_EASC_FLUSH_CTRL:
+        if (val & VC_EASC_FLUSH_CTRL_WANT_CACHE_DISABLE) {
+            xive2_error(xive, "VC: unsupported write @0x%"HWADDR_PRIx
+                        " value 0x%"PRIx64" bit[2] poll_want_cache_disable",
+                        offset, val);
+            return;
+        }
+        break;
     case VC_EASC_FLUSH_POLL:
         xive->vc_regs[VC_EASC_FLUSH_CTRL >> 3] |= VC_EASC_FLUSH_CTRL_POLL_VALID;
         /* EAS update */
@@ -1441,7 +1488,14 @@ static void pnv_xive2_ic_vc_write(void *opaque, hwaddr offset,
         break;
 
 
-    /* case VC_ENDC_FLUSH_CTRL: */
+    case VC_ENDC_FLUSH_CTRL:
+        if (val & VC_ENDC_FLUSH_CTRL_WANT_CACHE_DISABLE) {
+            xive2_error(xive, "VC: unsupported write @0x%"HWADDR_PRIx
+                        " value 0x%"PRIx64" bit[2] poll_want_cache_disable",
+                        offset, val);
+            return;
+        }
+        break;
     case VC_ENDC_FLUSH_POLL:
         xive->vc_regs[VC_ENDC_FLUSH_CTRL >> 3] |= VC_ENDC_FLUSH_CTRL_POLL_VALID;
         break;
@@ -1470,7 +1524,8 @@ static void pnv_xive2_ic_vc_write(void *opaque, hwaddr offset,
         break;
 
     default:
-        xive2_error(xive, "VC: invalid write @%"HWADDR_PRIx, offset);
+        xive2_error(xive, "VC: invalid write @0x%"HWADDR_PRIx" value 0x%"PRIx64,
+                    offset, val);
         return;
     }
 
@@ -1661,7 +1716,14 @@ static void pnv_xive2_ic_pc_write(void *opaque, hwaddr offset,
         pnv_xive2_nxc_update(xive, watch_engine);
         break;
 
-   /* case PC_NXC_FLUSH_CTRL: */
+    case PC_NXC_FLUSH_CTRL:
+        if (val & PC_NXC_FLUSH_CTRL_WANT_CACHE_DISABLE) {
+            xive2_error(xive, "VC: unsupported write @0x%"HWADDR_PRIx
+                        " value 0x%"PRIx64" bit[2] poll_want_cache_disable",
+                        offset, val);
+            return;
+        }
+        break;
     case PC_NXC_FLUSH_POLL:
         xive->pc_regs[PC_NXC_FLUSH_CTRL >> 3] |= PC_NXC_FLUSH_CTRL_POLL_VALID;
         break;
@@ -1678,7 +1740,8 @@ static void pnv_xive2_ic_pc_write(void *opaque, hwaddr offset,
         break;
 
     default:
-        xive2_error(xive, "PC: invalid write @%"HWADDR_PRIx, offset);
+        xive2_error(xive, "PC: invalid write @0x%"HWADDR_PRIx" value 0x%"PRIx64,
+                    offset, val);
         return;
     }
 
@@ -1765,7 +1828,8 @@ static void pnv_xive2_ic_tctxt_write(void *opaque, hwaddr offset,
         xive->tctxt_regs[reg] = val;
         break;
     default:
-        xive2_error(xive, "TCTXT: invalid write @%"HWADDR_PRIx, offset);
+        xive2_error(xive, "TCTXT: invalid write @0x%"HWADDR_PRIx
+                    " data 0x%"PRIx64, offset, val);
         return;
     }
 }
@@ -1836,7 +1900,8 @@ static void pnv_xive2_xscom_write(void *opaque, hwaddr offset,
         pnv_xive2_ic_tctxt_write(opaque, mmio_offset, val, size);
         break;
     default:
-        xive2_error(xive, "XSCOM: invalid write @%"HWADDR_PRIx, offset);
+        xive2_error(xive, "XSCOM: invalid write @%"HWADDR_PRIx
+                    " value 0x%"PRIx64, offset, val);
     }
 }
 
@@ -1904,7 +1969,8 @@ static void pnv_xive2_ic_notify_write(void *opaque, hwaddr offset,
         break;
 
     default:
-        xive2_error(xive, "NOTIFY: invalid write @%"HWADDR_PRIx, offset);
+        xive2_error(xive, "NOTIFY: invalid write @%"HWADDR_PRIx
+                    " value 0x%"PRIx64, offset, val);
     }
 }
 
@@ -1946,7 +2012,8 @@ static void pnv_xive2_ic_lsi_write(void *opaque, hwaddr offset,
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
 
-    xive2_error(xive, "LSI: invalid write @%"HWADDR_PRIx, offset);
+    xive2_error(xive, "LSI: invalid write @%"HWADDR_PRIx" value 0x%"PRIx64,
+                offset, val);
 }
 
 static const MemoryRegionOps pnv_xive2_ic_lsi_ops = {
@@ -2049,7 +2116,8 @@ static void pnv_xive2_ic_sync_write(void *opaque, hwaddr offset,
         inject_type = PNV_XIVE2_QUEUE_NXC_ST_RMT_CI;
         break;
     default:
-        xive2_error(xive, "SYNC: invalid write @%"HWADDR_PRIx, offset);
+        xive2_error(xive, "SYNC: invalid write @%"HWADDR_PRIx" value 0x%"PRIx64,
+                    offset, val);
         return;
     }
 

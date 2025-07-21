@@ -39,15 +39,18 @@
 
 typedef struct Xive2Eas {
         uint64_t       w;
-#define EAS2_VALID                 PPC_BIT(0)
-#define EAS2_END_BLOCK             PPC_BITMASK(4, 7) /* Destination EQ block# */
-#define EAS2_END_INDEX             PPC_BITMASK(8, 31) /* Destination EQ index */
-#define EAS2_MASKED                PPC_BIT(32) /* Masked                 */
-#define EAS2_END_DATA              PPC_BITMASK(33, 63) /* written to the EQ */
+#define EAS2_VALID         PPC_BIT(0)
+#define EAS2_QOS           PPC_BIT(1, 2)       /* Quality of Service(unimp) */
+#define EAS2_RESUME        PPC_BIT(3)          /* END Resume(unimp) */
+#define EAS2_END_BLOCK     PPC_BITMASK(4, 7)   /* Destination EQ block# */
+#define EAS2_END_INDEX     PPC_BITMASK(8, 31)  /* Destination EQ index */
+#define EAS2_MASKED        PPC_BIT(32)         /* Masked */
+#define EAS2_END_DATA      PPC_BITMASK(33, 63) /* written to the EQ */
 } Xive2Eas;
 
 #define xive2_eas_is_valid(eas)   (be64_to_cpu((eas)->w) & EAS2_VALID)
 #define xive2_eas_is_masked(eas)  (be64_to_cpu((eas)->w) & EAS2_MASKED)
+#define xive2_eas_is_resume(eas)  (be64_to_cpu((eas)->w) & EAS2_RESUME)
 
 void xive2_eas_pic_print_info(Xive2Eas *eas, uint32_t lisn, GString *buf);
 
@@ -87,6 +90,7 @@ typedef struct Xive2End {
 #define END2_W2_EQ_ADDR_HI         PPC_BITMASK32(8, 31)
         uint32_t       w3;
 #define END2_W3_EQ_ADDR_LO         PPC_BITMASK32(0, 24)
+#define END2_W3_CL                 PPC_BIT32(27)
 #define END2_W3_QSIZE              PPC_BITMASK32(28, 31)
         uint32_t       w4;
 #define END2_W4_END_BLOCK          PPC_BITMASK32(4, 7)
@@ -154,6 +158,7 @@ typedef struct Xive2Nvp {
 #define NVP2_W0_L                  PPC_BIT32(8)
 #define NVP2_W0_G                  PPC_BIT32(9)
 #define NVP2_W0_T                  PPC_BIT32(10)
+#define NVP2_W0_P                  PPC_BIT32(11)
 #define NVP2_W0_ESC_END            PPC_BIT32(25) /* 'N' bit 0:ESB  1:END */
 #define NVP2_W0_PGOFIRST           PPC_BITMASK32(26, 31)
         uint32_t       w1;
@@ -205,9 +210,9 @@ static inline uint32_t xive2_nvp_idx(uint32_t cam_line)
     return cam_line & ((1 << XIVE2_NVP_SHIFT) - 1);
 }
 
-static inline uint32_t xive2_nvp_blk(uint32_t cam_line)
+static inline uint8_t xive2_nvp_blk(uint32_t cam_line)
 {
-    return (cam_line >> XIVE2_NVP_SHIFT) & 0xf;
+    return (uint8_t)((cam_line >> XIVE2_NVP_SHIFT) & 0xf);
 }
 
 void xive2_nvp_pic_print_info(Xive2Nvp *nvp, uint32_t nvp_idx, GString *buf);
@@ -220,6 +225,9 @@ typedef struct Xive2Nvgc {
 #define NVGC2_W0_VALID             PPC_BIT32(0)
 #define NVGC2_W0_PGONEXT           PPC_BITMASK32(26, 31)
         uint32_t        w1;
+#define NVGC2_W1_PSIZE             PPC_BITMASK32(0, 1)
+#define NVGC2_W1_END_BLK           PPC_BITMASK32(4, 7)
+#define NVGC2_W1_END_IDX           PPC_BITMASK32(8, 31)
         uint32_t        w2;
         uint32_t        w3;
         uint32_t        w4;

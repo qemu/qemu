@@ -25,6 +25,58 @@
 /*
  * XIVE Thread Interrupt Management context
  */
+bool xive_ring_valid(XiveTCTX *tctx, uint8_t ring)
+{
+    uint8_t cur_ring;
+
+    for (cur_ring = ring; cur_ring <= TM_QW3_HV_PHYS;
+         cur_ring += XIVE_TM_RING_SIZE) {
+        if (!(tctx->regs[cur_ring + TM_WORD2] & 0x80)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool xive_nsr_indicates_exception(uint8_t ring, uint8_t nsr)
+{
+    switch (ring) {
+    case TM_QW1_OS:
+        return !!(nsr & TM_QW1_NSR_EO);
+    case TM_QW2_HV_POOL:
+    case TM_QW3_HV_PHYS:
+        return !!(nsr & TM_QW3_NSR_HE);
+    default:
+        g_assert_not_reached();
+    }
+}
+
+bool xive_nsr_indicates_group_exception(uint8_t ring, uint8_t nsr)
+{
+    if ((nsr & TM_NSR_GRP_LVL) > 0) {
+        g_assert(xive_nsr_indicates_exception(ring, nsr));
+        return true;
+    }
+    return false;
+}
+
+uint8_t xive_nsr_exception_ring(uint8_t ring, uint8_t nsr)
+{
+    /* NSR determines if pool/phys ring is for phys or pool interrupt */
+    if ((ring == TM_QW3_HV_PHYS) || (ring == TM_QW2_HV_POOL)) {
+        uint8_t he = (nsr & TM_QW3_NSR_HE) >> 6;
+
+        if (he == TM_QW3_NSR_HE_PHYS) {
+            return TM_QW3_HV_PHYS;
+        } else if (he == TM_QW3_NSR_HE_POOL) {
+            return TM_QW2_HV_POOL;
+        } else {
+            /* Don't support LSI mode */
+            g_assert_not_reached();
+        }
+    }
+    return ring;
+}
 
 static qemu_irq xive_tctx_output(XiveTCTX *tctx, uint8_t ring)
 {
@@ -41,74 +93,83 @@ static qemu_irq xive_tctx_output(XiveTCTX *tctx, uint8_t ring)
         }
 }
 
-static uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t ring)
+/*
+ * interrupt is accepted on the presentation ring, for PHYS ring the NSR
+ * directs it to the PHYS or POOL rings.
+ */
+uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t sig_ring)
 {
-    uint8_t *regs = &tctx->regs[ring];
-    uint8_t nsr = regs[TM_NSR];
+    uint8_t *sig_regs = &tctx->regs[sig_ring];
+    uint8_t nsr = sig_regs[TM_NSR];
 
-    qemu_irq_lower(xive_tctx_output(tctx, ring));
+    g_assert(sig_ring == TM_QW1_OS || sig_ring == TM_QW3_HV_PHYS);
 
-    if (regs[TM_NSR] != 0) {
-        uint8_t cppr = regs[TM_PIPR];
-        uint8_t alt_ring;
-        uint8_t *alt_regs;
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_NSR] == 0);
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_PIPR] == 0);
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_CPPR] == 0);
 
-        /* POOL interrupt uses IPB in QW2, POOL ring */
-        if ((ring == TM_QW3_HV_PHYS) && (nsr & (TM_QW3_NSR_HE_POOL << 6))) {
-            alt_ring = TM_QW2_HV_POOL;
-        } else {
-            alt_ring = ring;
-        }
-        alt_regs = &tctx->regs[alt_ring];
+    if (xive_nsr_indicates_exception(sig_ring, nsr)) {
+        uint8_t cppr = sig_regs[TM_PIPR];
+        uint8_t ring;
+        uint8_t *regs;
 
-        regs[TM_CPPR] = cppr;
+        ring = xive_nsr_exception_ring(sig_ring, nsr);
+        regs = &tctx->regs[ring];
+
+        sig_regs[TM_CPPR] = cppr;
 
         /*
          * If the interrupt was for a specific VP, reset the pending
          * buffer bit, otherwise clear the logical server indicator
          */
-        if (regs[TM_NSR] & TM_NSR_GRP_LVL) {
-            regs[TM_NSR] &= ~TM_NSR_GRP_LVL;
-        } else {
-            alt_regs[TM_IPB] &= ~xive_priority_to_ipb(cppr);
+        if (!xive_nsr_indicates_group_exception(sig_ring, nsr)) {
+            regs[TM_IPB] &= ~xive_priority_to_ipb(cppr);
         }
 
-        /* Drop the exception bit and any group/crowd */
-        regs[TM_NSR] = 0;
+        /* Clear the exception from NSR */
+        sig_regs[TM_NSR] = 0;
+        qemu_irq_lower(xive_tctx_output(tctx, sig_ring));
 
-        trace_xive_tctx_accept(tctx->cs->cpu_index, alt_ring,
-                               alt_regs[TM_IPB], regs[TM_PIPR],
-                               regs[TM_CPPR], regs[TM_NSR]);
+        trace_xive_tctx_accept(tctx->cs->cpu_index, ring,
+                               regs[TM_IPB], sig_regs[TM_PIPR],
+                               sig_regs[TM_CPPR], sig_regs[TM_NSR]);
     }
 
-    return ((uint64_t)nsr << 8) | regs[TM_CPPR];
+    return ((uint64_t)nsr << 8) | sig_regs[TM_CPPR];
 }
 
-void xive_tctx_notify(XiveTCTX *tctx, uint8_t ring, uint8_t group_level)
+/* Change PIPR and calculate NSR and irq based on PIPR, CPPR, group */
+void xive_tctx_pipr_set(XiveTCTX *tctx, uint8_t ring, uint8_t pipr,
+                        uint8_t group_level)
 {
-    /* HV_POOL ring uses HV_PHYS NSR, CPPR and PIPR registers */
-    uint8_t alt_ring = (ring == TM_QW2_HV_POOL) ? TM_QW3_HV_PHYS : ring;
-    uint8_t *alt_regs = &tctx->regs[alt_ring];
+    uint8_t *sig_regs = xive_tctx_signal_regs(tctx, ring);
     uint8_t *regs = &tctx->regs[ring];
 
-    if (alt_regs[TM_PIPR] < alt_regs[TM_CPPR]) {
+    g_assert(!xive_nsr_indicates_group_exception(ring, sig_regs[TM_NSR]));
+
+    sig_regs[TM_PIPR] = pipr;
+
+    if (pipr < sig_regs[TM_CPPR]) {
         switch (ring) {
         case TM_QW1_OS:
-            regs[TM_NSR] = TM_QW1_NSR_EO | (group_level & 0x3F);
+            sig_regs[TM_NSR] = TM_QW1_NSR_EO | (group_level & 0x3F);
             break;
         case TM_QW2_HV_POOL:
-            alt_regs[TM_NSR] = (TM_QW3_NSR_HE_POOL << 6) | (group_level & 0x3F);
+            sig_regs[TM_NSR] = (TM_QW3_NSR_HE_POOL << 6) | (group_level & 0x3F);
             break;
         case TM_QW3_HV_PHYS:
-            regs[TM_NSR] = (TM_QW3_NSR_HE_PHYS << 6) | (group_level & 0x3F);
+            sig_regs[TM_NSR] = (TM_QW3_NSR_HE_PHYS << 6) | (group_level & 0x3F);
             break;
         default:
             g_assert_not_reached();
         }
         trace_xive_tctx_notify(tctx->cs->cpu_index, ring,
-                               regs[TM_IPB], alt_regs[TM_PIPR],
-                               alt_regs[TM_CPPR], alt_regs[TM_NSR]);
+                               regs[TM_IPB], pipr,
+                               sig_regs[TM_CPPR], sig_regs[TM_NSR]);
         qemu_irq_raise(xive_tctx_output(tctx, ring));
+    } else {
+        sig_regs[TM_NSR] = 0;
+        qemu_irq_lower(xive_tctx_output(tctx, ring));
     }
 }
 
@@ -124,25 +185,32 @@ void xive_tctx_reset_signal(XiveTCTX *tctx, uint8_t ring)
 
 static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
 {
-    uint8_t *regs = &tctx->regs[ring];
+    uint8_t *sig_regs = &tctx->regs[ring];
     uint8_t pipr_min;
     uint8_t ring_min;
 
+    g_assert(ring == TM_QW1_OS || ring == TM_QW3_HV_PHYS);
+
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_NSR] == 0);
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_PIPR] == 0);
+    g_assert(tctx->regs[TM_QW2_HV_POOL + TM_CPPR] == 0);
+
+    /* XXX: should show pool IPB for PHYS ring */
     trace_xive_tctx_set_cppr(tctx->cs->cpu_index, ring,
-                             regs[TM_IPB], regs[TM_PIPR],
-                             cppr, regs[TM_NSR]);
+                             sig_regs[TM_IPB], sig_regs[TM_PIPR],
+                             cppr, sig_regs[TM_NSR]);
 
     if (cppr > XIVE_PRIORITY_MAX) {
         cppr = 0xff;
     }
 
-    tctx->regs[ring + TM_CPPR] = cppr;
+    sig_regs[TM_CPPR] = cppr;
 
     /*
      * Recompute the PIPR based on local pending interrupts.  The PHYS
      * ring must take the minimum of both the PHYS and POOL PIPR values.
      */
-    pipr_min = xive_ipb_to_pipr(regs[TM_IPB]);
+    pipr_min = xive_ipb_to_pipr(sig_regs[TM_IPB]);
     ring_min = ring;
 
     /* PHYS updates also depend on POOL values */
@@ -151,7 +219,6 @@ static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
 
         /* POOL values only matter if POOL ctx is valid */
         if (pool_regs[TM_WORD2] & 0x80) {
-
             uint8_t pool_pipr = xive_ipb_to_pipr(pool_regs[TM_IPB]);
 
             /*
@@ -165,30 +232,39 @@ static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
         }
     }
 
-    regs[TM_PIPR] = pipr_min;
-
-    /* CPPR has changed, check if we need to raise a pending exception */
-    xive_tctx_notify(tctx, ring_min, 0);
+    /* CPPR has changed, this may present or preclude a pending exception */
+    xive_tctx_pipr_set(tctx, ring_min, pipr_min, 0);
 }
 
-void xive_tctx_pipr_update(XiveTCTX *tctx, uint8_t ring, uint8_t priority,
-                           uint8_t group_level)
- {
-    /* HV_POOL ring uses HV_PHYS NSR, CPPR and PIPR registers */
-    uint8_t alt_ring = (ring == TM_QW2_HV_POOL) ? TM_QW3_HV_PHYS : ring;
-    uint8_t *alt_regs = &tctx->regs[alt_ring];
+static void xive_tctx_pipr_recompute_from_ipb(XiveTCTX *tctx, uint8_t ring)
+{
+    uint8_t *sig_regs = xive_tctx_signal_regs(tctx, ring);
     uint8_t *regs = &tctx->regs[ring];
 
+    /* Does not support a presented group interrupt */
+    g_assert(!xive_nsr_indicates_group_exception(ring, sig_regs[TM_NSR]));
+
+    xive_tctx_pipr_set(tctx, ring, xive_ipb_to_pipr(regs[TM_IPB]), 0);
+}
+
+void xive_tctx_pipr_present(XiveTCTX *tctx, uint8_t ring, uint8_t priority,
+                            uint8_t group_level)
+{
+    uint8_t *sig_regs = xive_tctx_signal_regs(tctx, ring);
+    uint8_t *regs = &tctx->regs[ring];
+    uint8_t pipr = xive_priority_to_pipr(priority);
+
     if (group_level == 0) {
-        /* VP-specific */
         regs[TM_IPB] |= xive_priority_to_ipb(priority);
-        alt_regs[TM_PIPR] = xive_ipb_to_pipr(regs[TM_IPB]);
-    } else {
-        /* VP-group */
-        alt_regs[TM_PIPR] = xive_priority_to_pipr(priority);
+        if (pipr >= sig_regs[TM_PIPR]) {
+            /* VP interrupts can come here with lower priority than PIPR */
+            return;
+        }
     }
-    xive_tctx_notify(tctx, ring, group_level);
- }
+    g_assert(pipr <= xive_ipb_to_pipr(regs[TM_IPB]));
+    g_assert(pipr < sig_regs[TM_PIPR]);
+    xive_tctx_pipr_set(tctx, ring, pipr, group_level);
+}
 
 /*
  * XIVE Thread Interrupt Management Area (TIMA)
@@ -206,25 +282,78 @@ static uint64_t xive_tm_ack_hv_reg(XivePresenter *xptr, XiveTCTX *tctx,
     return xive_tctx_accept(tctx, TM_QW3_HV_PHYS);
 }
 
+static void xive_pool_cam_decode(uint32_t cam, uint8_t *nvt_blk,
+                                 uint32_t *nvt_idx, bool *vp)
+{
+    if (nvt_blk) {
+        *nvt_blk = xive_nvt_blk(cam);
+    }
+    if (nvt_idx) {
+        *nvt_idx = xive_nvt_idx(cam);
+    }
+    if (vp) {
+        *vp = !!(cam & TM_QW2W2_VP);
+    }
+}
+
+static uint32_t xive_tctx_get_pool_cam(XiveTCTX *tctx, uint8_t *nvt_blk,
+                                       uint32_t *nvt_idx, bool *vp)
+{
+    uint32_t qw2w2 = xive_tctx_word2(&tctx->regs[TM_QW2_HV_POOL]);
+    uint32_t cam = be32_to_cpu(qw2w2);
+
+    xive_pool_cam_decode(cam, nvt_blk, nvt_idx, vp);
+    return qw2w2;
+}
+
+static void xive_tctx_set_pool_cam(XiveTCTX *tctx, uint32_t qw2w2)
+{
+    memcpy(&tctx->regs[TM_QW2_HV_POOL + TM_WORD2], &qw2w2, 4);
+}
+
 static uint64_t xive_tm_pull_pool_ctx(XivePresenter *xptr, XiveTCTX *tctx,
                                       hwaddr offset, unsigned size)
 {
-    uint32_t qw2w2_prev = xive_tctx_word2(&tctx->regs[TM_QW2_HV_POOL]);
     uint32_t qw2w2;
+    uint32_t qw2w2_new;
+    uint8_t nvt_blk;
+    uint32_t nvt_idx;
+    bool vp;
 
-    qw2w2 = xive_set_field32(TM_QW2W2_VP, qw2w2_prev, 0);
-    memcpy(&tctx->regs[TM_QW2_HV_POOL + TM_WORD2], &qw2w2, 4);
+    qw2w2 = xive_tctx_get_pool_cam(tctx, &nvt_blk, &nvt_idx, &vp);
+
+    if (!vp) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: pull invalid POOL NVT %x/%x !?\n",
+                      nvt_blk, nvt_idx);
+    }
+
+    /* Invalidate CAM line */
+    qw2w2_new = xive_set_field32(TM_QW2W2_VP, qw2w2, 0);
+    xive_tctx_set_pool_cam(tctx, qw2w2_new);
+
+    xive_tctx_reset_signal(tctx, TM_QW1_OS);
+    xive_tctx_reset_signal(tctx, TM_QW2_HV_POOL);
+    /* Re-check phys for interrupts if pool was disabled */
+    xive_tctx_pipr_recompute_from_ipb(tctx, TM_QW3_HV_PHYS);
+
     return qw2w2;
 }
 
 static uint64_t xive_tm_pull_phys_ctx(XivePresenter *xptr, XiveTCTX *tctx,
                                       hwaddr offset, unsigned size)
 {
-    uint8_t qw3b8_prev = tctx->regs[TM_QW3_HV_PHYS + TM_WORD2];
-    uint8_t qw3b8;
+    uint8_t qw3b8 = tctx->regs[TM_QW3_HV_PHYS + TM_WORD2];
+    uint8_t qw3b8_new;
 
-    qw3b8 = qw3b8_prev & ~TM_QW3B8_VT;
-    tctx->regs[TM_QW3_HV_PHYS + TM_WORD2] = qw3b8;
+    qw3b8 = tctx->regs[TM_QW3_HV_PHYS + TM_WORD2];
+    if (!(qw3b8 & TM_QW3B8_VT)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: pulling invalid PHYS thread!?\n");
+    }
+    qw3b8_new = qw3b8 & ~TM_QW3B8_VT;
+    tctx->regs[TM_QW3_HV_PHYS + TM_WORD2] = qw3b8_new;
+
+    xive_tctx_reset_signal(tctx, TM_QW1_OS);
+    xive_tctx_reset_signal(tctx, TM_QW3_HV_PHYS);
     return qw3b8;
 }
 
@@ -255,14 +384,14 @@ static uint64_t xive_tm_vt_poll(XivePresenter *xptr, XiveTCTX *tctx,
 
 static const uint8_t xive_tm_hw_view[] = {
     3, 0, 0, 0,   0, 0, 0, 0,   3, 3, 3, 3,   0, 0, 0, 0, /* QW-0 User */
-    3, 3, 3, 3,   3, 3, 0, 2,   3, 3, 3, 3,   0, 0, 0, 0, /* QW-1 OS   */
+    3, 3, 3, 3,   3, 3, 0, 2,   3, 3, 3, 3,   0, 0, 0, 3, /* QW-1 OS   */
     0, 0, 3, 3,   0, 3, 3, 0,   3, 3, 3, 3,   0, 0, 0, 0, /* QW-2 POOL */
     3, 3, 3, 3,   0, 3, 0, 2,   3, 0, 0, 3,   3, 3, 3, 0, /* QW-3 PHYS */
 };
 
 static const uint8_t xive_tm_hv_view[] = {
     3, 0, 0, 0,   0, 0, 0, 0,   3, 3, 3, 3,   0, 0, 0, 0, /* QW-0 User */
-    3, 3, 3, 3,   3, 3, 0, 2,   3, 3, 3, 3,   0, 0, 0, 0, /* QW-1 OS   */
+    3, 3, 3, 3,   3, 3, 0, 2,   3, 3, 3, 3,   0, 0, 0, 3, /* QW-1 OS   */
     0, 0, 3, 3,   0, 3, 3, 0,   0, 3, 3, 3,   0, 0, 0, 0, /* QW-2 POOL */
     3, 3, 3, 3,   0, 3, 0, 2,   3, 0, 0, 3,   0, 0, 0, 0, /* QW-3 PHYS */
 };
@@ -326,7 +455,7 @@ static void xive_tm_raw_write(XiveTCTX *tctx, hwaddr offset, uint64_t value,
      */
     if (size < 4 || !mask || ring_offset == TM_QW0_USER) {
         qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid write access at TIMA @%"
-                      HWADDR_PRIx"\n", offset);
+                      HWADDR_PRIx" size %d\n", offset, size);
         return;
     }
 
@@ -357,7 +486,7 @@ static uint64_t xive_tm_raw_read(XiveTCTX *tctx, hwaddr offset, unsigned size)
      */
     if (size < 4 || !mask || ring_offset == TM_QW0_USER) {
         qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid read access at TIMA @%"
-                      HWADDR_PRIx"\n", offset);
+                      HWADDR_PRIx" size %d\n", offset, size);
         return -1;
     }
 
@@ -403,6 +532,12 @@ static void xive_tm_set_os_lgs(XivePresenter *xptr, XiveTCTX *tctx,
     xive_tctx_set_lgs(tctx, TM_QW1_OS, value & 0xff);
 }
 
+static void xive_tm_set_pool_lgs(XivePresenter *xptr, XiveTCTX *tctx,
+                          hwaddr offset, uint64_t value, unsigned size)
+{
+    xive_tctx_set_lgs(tctx, TM_QW2_HV_POOL, value & 0xff);
+}
+
 /*
  * Adjust the PIPR to allow a CPU to process event queues of other
  * priorities during one physical interrupt cycle.
@@ -410,7 +545,12 @@ static void xive_tm_set_os_lgs(XivePresenter *xptr, XiveTCTX *tctx,
 static void xive_tm_set_os_pending(XivePresenter *xptr, XiveTCTX *tctx,
                                    hwaddr offset, uint64_t value, unsigned size)
 {
-    xive_tctx_pipr_update(tctx, TM_QW1_OS, value & 0xff, 0);
+    uint8_t ring = TM_QW1_OS;
+    uint8_t *regs = &tctx->regs[ring];
+
+    /* XXX: how should this work exactly? */
+    regs[TM_IPB] |= xive_priority_to_ipb(value & 0xff);
+    xive_tctx_pipr_recompute_from_ipb(tctx, ring);
 }
 
 static void xive_os_cam_decode(uint32_t cam, uint8_t *nvt_blk,
@@ -454,7 +594,7 @@ static uint64_t xive_tm_pull_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
     qw1w2 = xive_tctx_get_os_cam(tctx, &nvt_blk, &nvt_idx, &vo);
 
     if (!vo) {
-        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: pulling invalid NVT %x/%x !?\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: pull invalid OS NVT %x/%x !?\n",
                       nvt_blk, nvt_idx);
     }
 
@@ -466,7 +606,7 @@ static uint64_t xive_tm_pull_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
     return qw1w2;
 }
 
-static void xive_tctx_need_resend(XiveRouter *xrtr, XiveTCTX *tctx,
+static void xive_tctx_restore_nvp(XiveRouter *xrtr, XiveTCTX *tctx,
                                   uint8_t nvt_blk, uint32_t nvt_idx)
 {
     XiveNVT nvt;
@@ -492,16 +632,6 @@ static void xive_tctx_need_resend(XiveRouter *xrtr, XiveTCTX *tctx,
         uint8_t *regs = &tctx->regs[TM_QW1_OS];
         regs[TM_IPB] |= ipb;
     }
-
-    /*
-     * Always call xive_tctx_pipr_update(). Even if there were no
-     * escalation triggered, there could be a pending interrupt which
-     * was saved when the context was pulled and that we need to take
-     * into account by recalculating the PIPR (which is not
-     * saved/restored).
-     * It will also raise the External interrupt signal if needed.
-     */
-    xive_tctx_pipr_update(tctx, TM_QW1_OS, 0xFF, 0); /* fxb */
 }
 
 /*
@@ -523,7 +653,17 @@ static void xive_tm_push_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
 
     /* Check the interrupt pending bits */
     if (vo) {
-        xive_tctx_need_resend(XIVE_ROUTER(xptr), tctx, nvt_blk, nvt_idx);
+        xive_tctx_restore_nvp(XIVE_ROUTER(xptr), tctx, nvt_blk, nvt_idx);
+
+        /*
+         * Always call xive_tctx_recompute_from_ipb(). Even if there were no
+         * escalation triggered, there could be a pending interrupt which
+         * was saved when the context was pulled and that we need to take
+         * into account by recalculating the PIPR (which is not
+         * saved/restored).
+         * It will also raise the External interrupt signal if needed.
+         */
+        xive_tctx_pipr_recompute_from_ipb(tctx, TM_QW1_OS); /* fxb */
     }
 }
 
@@ -542,6 +682,8 @@ typedef struct XiveTmOp {
     uint8_t  page_offset;
     uint32_t op_offset;
     unsigned size;
+    bool     hw_ok;
+    bool     sw_ok;
     void     (*write_handler)(XivePresenter *xptr, XiveTCTX *tctx,
                               hwaddr offset,
                               uint64_t value, unsigned size);
@@ -554,34 +696,34 @@ static const XiveTmOp xive_tm_operations[] = {
      * MMIOs below 2K : raw values and special operations without side
      * effects
      */
-    { XIVE_TM_OS_PAGE, TM_QW1_OS + TM_CPPR,       1, xive_tm_set_os_cppr,
-                                                     NULL },
-    { XIVE_TM_HV_PAGE, TM_QW1_OS + TM_WORD2,      4, xive_tm_push_os_ctx,
-                                                     NULL },
-    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_CPPR,  1, xive_tm_set_hv_cppr,
-                                                     NULL },
-    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_WORD2, 1, xive_tm_vt_push,
-                                                     NULL },
-    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_WORD2, 1, NULL,
-                                                     xive_tm_vt_poll },
+    { XIVE_TM_OS_PAGE, TM_QW1_OS + TM_CPPR,       1, true, true,
+      xive_tm_set_os_cppr, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW1_OS + TM_WORD2,      4, true, true,
+      xive_tm_push_os_ctx, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_CPPR,  1, true, true,
+      xive_tm_set_hv_cppr, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_WORD2, 1, false, true,
+      xive_tm_vt_push, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_WORD2, 1, true, true,
+      NULL, xive_tm_vt_poll },
 
     /* MMIOs above 2K : special operations with side effects */
-    { XIVE_TM_OS_PAGE, TM_SPC_ACK_OS_REG,         2, NULL,
-                                                     xive_tm_ack_os_reg },
-    { XIVE_TM_OS_PAGE, TM_SPC_SET_OS_PENDING,     1, xive_tm_set_os_pending,
-                                                     NULL },
-    { XIVE_TM_HV_PAGE, TM_SPC_PULL_OS_CTX,        4, NULL,
-                                                     xive_tm_pull_os_ctx },
-    { XIVE_TM_HV_PAGE, TM_SPC_PULL_OS_CTX,        8, NULL,
-                                                     xive_tm_pull_os_ctx },
-    { XIVE_TM_HV_PAGE, TM_SPC_ACK_HV_REG,         2, NULL,
-                                                     xive_tm_ack_hv_reg },
-    { XIVE_TM_HV_PAGE, TM_SPC_PULL_POOL_CTX,      4, NULL,
-                                                     xive_tm_pull_pool_ctx },
-    { XIVE_TM_HV_PAGE, TM_SPC_PULL_POOL_CTX,      8, NULL,
-                                                     xive_tm_pull_pool_ctx },
-    { XIVE_TM_HV_PAGE, TM_SPC_PULL_PHYS_CTX,      1, NULL,
-                                                     xive_tm_pull_phys_ctx },
+    { XIVE_TM_OS_PAGE, TM_SPC_ACK_OS_REG,         2, true, false,
+      NULL, xive_tm_ack_os_reg },
+    { XIVE_TM_OS_PAGE, TM_SPC_SET_OS_PENDING,     1, true, false,
+      xive_tm_set_os_pending, NULL },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_OS_CTX,        4, true, false,
+      NULL, xive_tm_pull_os_ctx },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_OS_CTX,        8, true, false,
+      NULL, xive_tm_pull_os_ctx },
+    { XIVE_TM_HV_PAGE, TM_SPC_ACK_HV_REG,         2, true, false,
+      NULL, xive_tm_ack_hv_reg },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_POOL_CTX,      4, true, false,
+      NULL, xive_tm_pull_pool_ctx },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_POOL_CTX,      8, true, false,
+      NULL, xive_tm_pull_pool_ctx },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_PHYS_CTX,      1, true, false,
+      NULL, xive_tm_pull_phys_ctx },
 };
 
 static const XiveTmOp xive2_tm_operations[] = {
@@ -589,50 +731,58 @@ static const XiveTmOp xive2_tm_operations[] = {
      * MMIOs below 2K : raw values and special operations without side
      * effects
      */
-    { XIVE_TM_OS_PAGE, TM_QW1_OS + TM_CPPR,       1, xive2_tm_set_os_cppr,
-                                                     NULL },
-    { XIVE_TM_HV_PAGE, TM_QW1_OS + TM_WORD2,      4, xive2_tm_push_os_ctx,
-                                                     NULL },
-    { XIVE_TM_HV_PAGE, TM_QW1_OS + TM_WORD2,      8, xive2_tm_push_os_ctx,
-                                                     NULL },
-    { XIVE_TM_OS_PAGE, TM_QW1_OS + TM_LGS,        1, xive_tm_set_os_lgs,
-                                                     NULL },
-    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_CPPR,  1, xive2_tm_set_hv_cppr,
-                                                     NULL },
-    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_WORD2, 1, xive_tm_vt_push,
-                                                     NULL },
-    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_WORD2, 1, NULL,
-                                                     xive_tm_vt_poll },
-    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_T,     1, xive2_tm_set_hv_target,
-                                                     NULL },
+    { XIVE_TM_OS_PAGE, TM_QW1_OS + TM_CPPR,       1, true, true,
+      xive2_tm_set_os_cppr, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW1_OS + TM_WORD2,      4, true, true,
+      xive2_tm_push_os_ctx, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW1_OS + TM_WORD2,      8, true, true,
+      xive2_tm_push_os_ctx, NULL },
+    { XIVE_TM_OS_PAGE, TM_QW1_OS + TM_LGS,        1, true, true,
+      xive_tm_set_os_lgs, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW2_HV_POOL + TM_WORD2, 4, true, true,
+      xive2_tm_push_pool_ctx, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW2_HV_POOL + TM_WORD2, 8, true, true,
+      xive2_tm_push_pool_ctx, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW2_HV_POOL + TM_LGS,   1, true, true,
+      xive_tm_set_pool_lgs, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_CPPR,  1, true, true,
+      xive2_tm_set_hv_cppr, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_WORD2, 1, false, true,
+      xive2_tm_push_phys_ctx, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_WORD2, 1, true, true,
+      NULL, xive_tm_vt_poll },
+    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_T,     1, true, true,
+      xive2_tm_set_hv_target, NULL },
 
     /* MMIOs above 2K : special operations with side effects */
-    { XIVE_TM_OS_PAGE, TM_SPC_ACK_OS_REG,         2, NULL,
-                                                     xive_tm_ack_os_reg },
-    { XIVE_TM_OS_PAGE, TM_SPC_SET_OS_PENDING,     1, xive_tm_set_os_pending,
-                                                     NULL },
-    { XIVE_TM_HV_PAGE, TM_SPC_PULL_OS_CTX_G2,     4, NULL,
-                                                     xive2_tm_pull_os_ctx },
-    { XIVE_TM_HV_PAGE, TM_SPC_PULL_OS_CTX,        4, NULL,
-                                                     xive2_tm_pull_os_ctx },
-    { XIVE_TM_HV_PAGE, TM_SPC_PULL_OS_CTX,        8, NULL,
-                                                     xive2_tm_pull_os_ctx },
-    { XIVE_TM_HV_PAGE, TM_SPC_ACK_HV_REG,         2, NULL,
-                                                     xive_tm_ack_hv_reg },
-    { XIVE_TM_HV_PAGE, TM_SPC_PULL_POOL_CTX_G2,   4, NULL,
-                                                     xive_tm_pull_pool_ctx },
-    { XIVE_TM_HV_PAGE, TM_SPC_PULL_POOL_CTX,      4, NULL,
-                                                     xive_tm_pull_pool_ctx },
-    { XIVE_TM_HV_PAGE, TM_SPC_PULL_POOL_CTX,      8, NULL,
-                                                     xive_tm_pull_pool_ctx },
-    { XIVE_TM_HV_PAGE, TM_SPC_PULL_OS_CTX_OL,     1, xive2_tm_pull_os_ctx_ol,
-                                                     NULL },
-    { XIVE_TM_HV_PAGE, TM_SPC_PULL_PHYS_CTX_G2,   4, NULL,
-                                                     xive_tm_pull_phys_ctx },
-    { XIVE_TM_HV_PAGE, TM_SPC_PULL_PHYS_CTX,      1, NULL,
-                                                     xive_tm_pull_phys_ctx },
-    { XIVE_TM_HV_PAGE, TM_SPC_PULL_PHYS_CTX_OL,   1, xive2_tm_pull_phys_ctx_ol,
-                                                     NULL },
+    { XIVE_TM_OS_PAGE, TM_SPC_ACK_OS_REG,         2, true, false,
+      NULL, xive_tm_ack_os_reg },
+    { XIVE_TM_OS_PAGE, TM_SPC_SET_OS_PENDING,     1, true, false,
+      xive2_tm_set_os_pending, NULL },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_OS_CTX_G2,     4, true, false,
+      NULL, xive2_tm_pull_os_ctx },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_OS_CTX,        4, true, false,
+      NULL, xive2_tm_pull_os_ctx },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_OS_CTX,        8, true, false,
+      NULL, xive2_tm_pull_os_ctx },
+    { XIVE_TM_HV_PAGE, TM_SPC_ACK_HV_REG,         2, true, false,
+      NULL, xive_tm_ack_hv_reg },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_POOL_CTX_G2,   4, true, false,
+      NULL, xive2_tm_pull_pool_ctx },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_POOL_CTX,      4, true, false,
+      NULL, xive2_tm_pull_pool_ctx },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_POOL_CTX,      8, true, false,
+      NULL, xive2_tm_pull_pool_ctx },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_OS_CTX_OL,     1, true, false,
+      xive2_tm_pull_os_ctx_ol, NULL },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_PHYS_CTX_G2,   4, true, false,
+      NULL, xive2_tm_pull_phys_ctx },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_PHYS_CTX,      1, true, false,
+      NULL, xive2_tm_pull_phys_ctx },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_PHYS_CTX_OL,   1, true, false,
+      xive2_tm_pull_phys_ctx_ol, NULL },
+    { XIVE_TM_OS_PAGE, TM_SPC_ACK_OS_EL,          1, true, false,
+      xive2_tm_ack_os_el, NULL },
 };
 
 static const XiveTmOp *xive_tm_find_op(XivePresenter *xptr, hwaddr offset,
@@ -674,21 +824,31 @@ void xive_tctx_tm_write(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
                         uint64_t value, unsigned size)
 {
     const XiveTmOp *xto;
+    uint8_t ring = offset & TM_RING_OFFSET;
+    bool is_valid = xive_ring_valid(tctx, ring);
+    bool hw_owned = is_valid;
 
     trace_xive_tctx_tm_write(tctx->cs->cpu_index, offset, size, value);
 
     /*
-     * TODO: check V bit in Q[0-3]W2
-     */
-
-    /*
      * First, check for special operations in the 2K region
      */
+    xto = xive_tm_find_op(tctx->xptr, offset, size, true);
+    if (xto) {
+        if (hw_owned && !xto->hw_ok) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: undefined write to HW TIMA "
+                          "@%"HWADDR_PRIx" size %d\n", offset, size);
+        }
+        if (!hw_owned && !xto->sw_ok) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: undefined write to SW TIMA "
+                          "@%"HWADDR_PRIx" size %d\n", offset, size);
+        }
+    }
+
     if (offset & TM_SPECIAL_OP) {
-        xto = xive_tm_find_op(tctx->xptr, offset, size, true);
         if (!xto) {
             qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid write access at TIMA "
-                          "@%"HWADDR_PRIx"\n", offset);
+                          "@%"HWADDR_PRIx" size %d\n", offset, size);
         } else {
             xto->write_handler(xptr, tctx, offset, value, size);
         }
@@ -698,7 +858,6 @@ void xive_tctx_tm_write(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
     /*
      * Then, for special operations in the region below 2K.
      */
-    xto = xive_tm_find_op(tctx->xptr, offset, size, true);
     if (xto) {
         xto->write_handler(xptr, tctx, offset, value, size);
         return;
@@ -707,6 +866,11 @@ void xive_tctx_tm_write(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
     /*
      * Finish with raw access to the register values
      */
+    if (hw_owned) {
+        /* Store context operations are dangerous when context is valid */
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: undefined write to HW TIMA "
+                      "@%"HWADDR_PRIx" size %d\n", offset, size);
+    }
     xive_tm_raw_write(tctx, offset, value, size);
 }
 
@@ -714,20 +878,30 @@ uint64_t xive_tctx_tm_read(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
                            unsigned size)
 {
     const XiveTmOp *xto;
+    uint8_t ring = offset & TM_RING_OFFSET;
+    bool is_valid = xive_ring_valid(tctx, ring);
+    bool hw_owned = is_valid;
     uint64_t ret;
 
-    /*
-     * TODO: check V bit in Q[0-3]W2
-     */
+    xto = xive_tm_find_op(tctx->xptr, offset, size, false);
+    if (xto) {
+        if (hw_owned && !xto->hw_ok) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: undefined read to HW TIMA "
+                          "@%"HWADDR_PRIx" size %d\n", offset, size);
+        }
+        if (!hw_owned && !xto->sw_ok) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: undefined read to SW TIMA "
+                          "@%"HWADDR_PRIx" size %d\n", offset, size);
+        }
+    }
 
     /*
      * First, check for special operations in the 2K region
      */
     if (offset & TM_SPECIAL_OP) {
-        xto = xive_tm_find_op(tctx->xptr, offset, size, false);
         if (!xto) {
             qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid read access to TIMA"
-                          "@%"HWADDR_PRIx"\n", offset);
+                          "@%"HWADDR_PRIx" size %d\n", offset, size);
             return -1;
         }
         ret = xto->read_handler(xptr, tctx, offset, size);
@@ -737,7 +911,6 @@ uint64_t xive_tctx_tm_read(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
     /*
      * Then, for special operations in the region below 2K.
      */
-    xto = xive_tm_find_op(tctx->xptr, offset, size, false);
     if (xto) {
         ret = xto->read_handler(xptr, tctx, offset, size);
         goto out;
@@ -1191,6 +1364,7 @@ static uint64_t xive_source_esb_read(void *opaque, hwaddr addr, unsigned size)
 
         /* Forward the source event notification for routing */
         if (ret) {
+            trace_xive_source_notify(srcno);
             xive_source_notify(xsrc, srcno);
         }
         break;
@@ -1286,6 +1460,8 @@ out:
     /* Forward the source event notification for routing */
     if (notify) {
         xive_source_notify(xsrc, srcno);
+    } else {
+        trace_xive_source_blocked(srcno);
     }
 }
 
@@ -1672,8 +1848,8 @@ uint32_t xive_get_vpgroup_size(uint32_t nvp_index)
     return 1U << (first_zero + 1);
 }
 
-static uint8_t xive_get_group_level(bool crowd, bool ignore,
-                                    uint32_t nvp_blk, uint32_t nvp_index)
+uint8_t xive_get_group_level(bool crowd, bool ignore,
+                             uint32_t nvp_blk, uint32_t nvp_index)
 {
     int first_zero;
     uint8_t level;
@@ -1791,15 +1967,14 @@ int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
  * This is our simple Xive Presenter Engine model. It is merged in the
  * Router as it does not require an extra object.
  */
-bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
+bool xive_presenter_match(XiveFabric *xfb, uint8_t format,
                            uint8_t nvt_blk, uint32_t nvt_idx,
                            bool crowd, bool cam_ignore, uint8_t priority,
-                           uint32_t logic_serv, bool *precluded)
+                           uint32_t logic_serv, XiveTCTXMatch *match)
 {
     XiveFabricClass *xfc = XIVE_FABRIC_GET_CLASS(xfb);
-    XiveTCTXMatch match = { .tctx = NULL, .ring = 0, .precluded = false };
-    uint8_t group_level;
-    int count;
+
+    memset(match, 0, sizeof(*match));
 
     /*
      * Ask the machine to scan the interrupt controllers for a match.
@@ -1824,22 +1999,8 @@ bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
      * a new command to the presenters (the equivalent of the "assign"
      * power bus command in the documented full notify sequence.
      */
-    count = xfc->match_nvt(xfb, format, nvt_blk, nvt_idx, crowd, cam_ignore,
-                           priority, logic_serv, &match);
-    if (count < 0) {
-        return false;
-    }
-
-    /* handle CPU exception delivery */
-    if (count) {
-        group_level = xive_get_group_level(crowd, cam_ignore, nvt_blk, nvt_idx);
-        trace_xive_presenter_notify(nvt_blk, nvt_idx, match.ring, group_level);
-        xive_tctx_pipr_update(match.tctx, match.ring, priority, group_level);
-    } else {
-        *precluded = match.precluded;
-    }
-
-    return !!count;
+    return xfc->match_nvt(xfb, format, nvt_blk, nvt_idx, crowd, cam_ignore,
+                          priority, logic_serv, match);
 }
 
 /*
@@ -1876,7 +2037,7 @@ void xive_router_end_notify(XiveRouter *xrtr, XiveEAS *eas)
     uint8_t nvt_blk;
     uint32_t nvt_idx;
     XiveNVT nvt;
-    bool found, precluded;
+    XiveTCTXMatch match;
 
     uint8_t end_blk = xive_get_field64(EAS_END_BLOCK, eas->w);
     uint32_t end_idx = xive_get_field64(EAS_END_INDEX, eas->w);
@@ -1956,16 +2117,16 @@ void xive_router_end_notify(XiveRouter *xrtr, XiveEAS *eas)
         return;
     }
 
-    found = xive_presenter_notify(xrtr->xfb, format, nvt_blk, nvt_idx,
-                          false /* crowd */,
-                          xive_get_field32(END_W7_F0_IGNORE, end.w7),
-                          priority,
-                          xive_get_field32(END_W7_F1_LOG_SERVER_ID, end.w7),
-                          &precluded);
-    /* we don't support VP-group notification on P9, so precluded is not used */
     /* TODO: Auto EOI. */
-
-    if (found) {
+    /* we don't support VP-group notification on P9, so precluded is not used */
+    if (xive_presenter_match(xrtr->xfb, format, nvt_blk, nvt_idx,
+                             false /* crowd */,
+                             xive_get_field32(END_W7_F0_IGNORE, end.w7),
+                             priority,
+                             xive_get_field32(END_W7_F1_LOG_SERVER_ID, end.w7),
+                             &match)) {
+        trace_xive_presenter_notify(nvt_blk, nvt_idx, match.ring, 0);
+        xive_tctx_pipr_present(match.tctx, match.ring, priority, 0);
         return;
     }
 
