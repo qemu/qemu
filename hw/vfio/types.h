@@ -1,0 +1,21 @@
+/*
+ * VFIO types definition
+ *
+ * Copyright Red Hat, Inc. 2025
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#ifndef HW_VFIO_VFIO_TYPES_H
+#define HW_VFIO_VFIO_TYPES_H
+
+/*
+ * TYPE_VFIO_PCI_BASE is an abstract type used to share code
+ * between VFIO implementations that use a kernel driver
+ * with those that use user sockets.
+ */
+#define TYPE_VFIO_PCI_BASE "vfio-pci-base"
+
+#define TYPE_VFIO_PCI "vfio-pci"
+/* TYPE_VFIO_PCI shares struct VFIOPCIDevice. */
+
+#endif /* HW_VFIO_VFIO_TYPES_H */

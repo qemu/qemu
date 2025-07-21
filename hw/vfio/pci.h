@@ -14,6 +14,7 @@
 
 #include "system/memory.h"
 #include "hw/pci/pci_device.h"
+#include "hw/vfio/types.h"
 #include "hw/vfio/vfio-device.h"
 #include "hw/vfio/vfio-region.h"
 #include "qemu/event_notifier.h"
@@ -119,16 +120,7 @@ typedef struct VFIOMSIXInfo {
     MemoryRegion *pba_region;
 } VFIOMSIXInfo;
 
-/*
- * TYPE_VFIO_PCI_BASE is an abstract type used to share code
- * between VFIO implementations that use a kernel driver
- * with those that use user sockets.
- */
-#define TYPE_VFIO_PCI_BASE "vfio-pci-base"
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOPCIDevice, VFIO_PCI_BASE)
-
-#define TYPE_VFIO_PCI "vfio-pci"
-/* TYPE_VFIO_PCI shares struct VFIOPCIDevice. */
 
 struct VFIOPCIDevice {
     PCIDevice pdev;
@@ -189,6 +181,7 @@ struct VFIOPCIDevice {
     bool no_kvm_ioeventfd;
     bool no_vfio_ioeventfd;
     bool enable_ramfb;
+    bool use_legacy_x86_rom;
     OnOffAuto ramfb_migrate;
     bool defer_kvm_irq_routing;
     bool clear_parent_atomics_on_exit;
