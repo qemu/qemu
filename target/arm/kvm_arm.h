@@ -161,6 +161,14 @@ void kvm_arm_add_vcpu_properties(ARMCPU *cpu);
  */
 void kvm_arm_steal_time_finalize(ARMCPU *cpu, Error **errp);
 
+/*
+ * These "is some KVM subfeature enabled?" functions may be called
+ * when KVM support is not present, including in the user-mode
+ * emulators. The kvm-stub.c file is only built into the system
+ * emulators, so for user-mode emulation we provide "always false"
+ * stubs here.
+ */
+#ifndef CONFIG_USER_ONLY
 /**
  * kvm_arm_aarch32_supported:
  *
@@ -197,6 +205,33 @@ bool kvm_arm_mte_supported(void);
  * Returns true if KVM can enable EL2 and false otherwise.
  */
 bool kvm_arm_el2_supported(void);
+#else
+
+static inline bool kvm_arm_aarch32_supported(void)
+{
+    return false;
+}
+
+static inline bool kvm_arm_pmu_supported(void)
+{
+    return false;
+}
+
+static inline bool kvm_arm_sve_supported(void)
+{
+    return false;
+}
+
+static inline bool kvm_arm_mte_supported(void)
+{
+    return false;
+}
+
+static inline bool kvm_arm_el2_supported(void)
+{
+    return false;
+}
+#endif
 
 /**
  * kvm_arm_get_max_vm_ipa_size:
