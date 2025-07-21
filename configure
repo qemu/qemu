@@ -453,7 +453,6 @@ case "$cpu" in
   armv*b|armv*l|arm)
     cpu=arm
     host_arch=arm
-    linux_arch=arm
     ;;
 
   i386|i486|i586|i686)

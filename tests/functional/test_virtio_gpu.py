@@ -108,6 +108,7 @@ class VirtioGPUx86(QemuSystemTest):
             shell=False,
             close_fds=False,
         )
+        self._vug_log_file.close()
 
         self.vm.set_console()
         self.vm.add_args("-cpu", "host")
@@ -135,6 +136,7 @@ class VirtioGPUx86(QemuSystemTest):
                                           "features: +virgl +edid")
         self.vm.shutdown()
         qemu_sock.close()
+        vug_sock.close()
         vugp.terminate()
         vugp.wait()
 

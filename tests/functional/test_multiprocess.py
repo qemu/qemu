@@ -83,6 +83,9 @@ class Multiprocess(QemuSystemTest):
                                           'cat /sys/bus/pci/devices/*/uevent',
                                           'PCI_ID=1000:0012')
 
+        proxy_sock.close()
+        remote_sock.close()
+
     def test_multiprocess(self):
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE
         if self.arch == 'x86_64':
