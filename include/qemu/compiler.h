@@ -182,19 +182,6 @@
 #define QEMU_DISABLE_CFI
 #endif
 
-/*
- * Apple clang version 14 has a bug in its __builtin_subcll(); define
- * BUILTIN_SUBCLL_BROKEN for the offending versions so we can avoid it.
- * When a version of Apple clang which has this bug fixed is released
- * we can add an upper bound to this check.
- * See https://gitlab.com/qemu-project/qemu/-/issues/1631
- * and https://gitlab.com/qemu-project/qemu/-/issues/1659 for details.
- * The bug never made it into any upstream LLVM releases, only Apple ones.
- */
-#if defined(__apple_build_version__) && __clang_major__ >= 14
-#define BUILTIN_SUBCLL_BROKEN
-#endif
-
 #if __has_attribute(annotate)
 #define QEMU_ANNOTATE(x) __attribute__((annotate(x)))
 #else
