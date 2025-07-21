@@ -479,6 +479,11 @@ static void process_msg_shmem(IVShmemState *s, int fd, Error **errp)
     struct stat buf;
     size_t size;
 
+    if (fd < 0) {
+        error_setg(errp, "server didn't provide fd with shared memory message");
+        return;
+    }
+
     if (s->ivshmem_bar2) {
         error_setg(errp, "server sent unexpected shared memory message");
         close(fd);
@@ -553,7 +558,9 @@ static void process_msg(IVShmemState *s, int64_t msg, int fd, Error **errp)
 
     if (msg < -1 || msg > IVSHMEM_MAX_PEERS) {
         error_setg(errp, "server sent invalid message %" PRId64, msg);
-        close(fd);
+        if (fd >= 0) {
+            close(fd);
+        }
         return;
     }
 

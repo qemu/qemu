@@ -1052,9 +1052,11 @@ FCMLA_zzxz      01100100 11 1 index:1 rm:4 0001 rot:2 rn:5 rd:5 \
 ### SVE FP Multiply-Add Indexed Group
 
 # SVE floating-point multiply-add (indexed)
+FMLA_zzxz       01100100 0. 1 ..... 000010 ..... .....  @rrxr_3 esz=0
 FMLA_zzxz       01100100 0. 1 ..... 000000 ..... .....  @rrxr_3 esz=1
 FMLA_zzxz       01100100 10 1 ..... 000000 ..... .....  @rrxr_2 esz=2
 FMLA_zzxz       01100100 11 1 ..... 000000 ..... .....  @rrxr_1 esz=3
+FMLS_zzxz       01100100 0. 1 ..... 000011 ..... .....  @rrxr_3 esz=0
 FMLS_zzxz       01100100 0. 1 ..... 000001 ..... .....  @rrxr_3 esz=1
 FMLS_zzxz       01100100 10 1 ..... 000001 ..... .....  @rrxr_2 esz=2
 FMLS_zzxz       01100100 11 1 ..... 000001 ..... .....  @rrxr_1 esz=3
@@ -1062,6 +1064,7 @@ FMLS_zzxz       01100100 11 1 ..... 000001 ..... .....  @rrxr_1 esz=3
 ### SVE FP Multiply Indexed Group
 
 # SVE floating-point multiply (indexed)
+FMUL_zzx        01100100 0. 1 ..... 001010 ..... .....   @rrx_3 esz=0
 FMUL_zzx        01100100 0. 1 ..... 001000 ..... .....   @rrx_3 esz=1
 FMUL_zzx        01100100 10 1 ..... 001000 ..... .....   @rrx_2 esz=2
 FMUL_zzx        01100100 11 1 ..... 001000 ..... .....   @rrx_1 esz=3
@@ -1342,7 +1345,7 @@ LD1_zprz        1100010 11 1. ..... 11. ... ..... ..... \
 
 # LD1Q
 LD1_zprz        1100 0100 000 rm:5 101 pg:3 rn:5 rd:5 \
-                &rprr_gather_load u=0 ff=0 xs=2 esz=4 msz=4 scale=0
+                &rprr_gather_load u=1 ff=0 xs=2 esz=4 msz=4 scale=0
 
 # SVE 64-bit gather load (vector plus immediate)
 LD1_zpiz        1100010 .. 01 ..... 1.. ... ..... ..... \
