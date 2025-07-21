@@ -145,9 +145,27 @@ void qemu_log_unlock(FILE *logfile)
 
 void qemu_log(const char *fmt, ...)
 {
-    FILE *f = qemu_log_trylock();
+    FILE *f;
+    g_autofree const char *timestr = NULL;
+
+    /*
+     * Prepare the timestamp *outside* the logging
+     * lock so it better reflects when the message
+     * was emitted if we are delayed acquiring the
+     * mutex
+     */
+    if (message_with_timestamp) {
+        g_autoptr(GDateTime) dt = g_date_time_new_now_utc();
+        timestr = g_date_time_format_iso8601(dt);
+    }
+
+    f = qemu_log_trylock();
     if (f) {
         va_list ap;
+
+        if (timestr) {
+            fprintf(f, "%s ", timestr);
+        }
 
         va_start(ap, fmt);
         vfprintf(f, fmt, ap);
