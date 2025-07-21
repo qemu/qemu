@@ -103,7 +103,10 @@ static void net_passt_cleanup(NetClientState *nc)
 #endif
 
     kill(s->pid, SIGTERM);
-    g_remove(s->pidfile);
+    if (g_remove(s->pidfile) != 0) {
+        warn_report("Failed to remove passt pidfile %s: %s",
+                    s->pidfile, strerror(errno));
+    }
     g_free(s->pidfile);
     g_ptr_array_free(s->args, TRUE);
 }
@@ -121,7 +124,7 @@ static gboolean net_passt_send(QIOChannel *ioc, GIOCondition condition,
 {
     if (net_stream_data_send(ioc, condition, data) == G_SOURCE_REMOVE) {
         NetPasstState *s = DO_UPCAST(NetPasstState, data, data);
-        Error *error;
+        Error *error = NULL;
 
         /* we need to restart passt */
         kill(s->pid, SIGTERM);
@@ -375,7 +378,8 @@ static int passt_vhost_user_start(NetPasstState *s, VhostUserState *be)
     net = vhost_net_init(&options);
     if (!net) {
         error_report("failed to init passt vhost_net");
-        goto err;
+        passt_vhost_user_stop(s);
+        return -1;
     }
 
     if (s->vhost_net) {
@@ -385,19 +389,11 @@ static int passt_vhost_user_start(NetPasstState *s, VhostUserState *be)
     s->vhost_net = net;
 
     return 0;
-err:
-    if (net) {
-        vhost_net_cleanup(net);
-        g_free(net);
-    }
-    passt_vhost_user_stop(s);
-    return -1;
 }
 
 static void passt_vhost_user_event(void *opaque, QEMUChrEvent event)
 {
     NetPasstState *s = opaque;
-    Error *err = NULL;
 
     switch (event) {
     case CHR_EVENT_OPENED:
@@ -427,10 +423,6 @@ static void passt_vhost_user_event(void *opaque, QEMUChrEvent event)
     case CHR_EVENT_MUX_OUT:
         /* Ignore */
         break;
-    }
-
-    if (err) {
-        error_report_err(err);
     }
 }
 

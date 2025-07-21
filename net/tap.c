@@ -190,6 +190,11 @@ static void tap_send(void *opaque)
             break;
         }
 
+        if (s->host_vnet_hdr_len && size <= s->host_vnet_hdr_len) {
+            /* Invalid packet */
+            break;
+        }
+
         if (s->host_vnet_hdr_len && !s->using_vnet_hdr) {
             buf  += s->host_vnet_hdr_len;
             size -= s->host_vnet_hdr_len;
@@ -890,8 +895,8 @@ int net_init_tap(const Netdev *netdev, const char *name,
                 goto free_fail;
             }
 
-            ret = g_unix_set_fd_nonblocking(fd, true, NULL);
-            if (!ret) {
+            if (!g_unix_set_fd_nonblocking(fd, true, NULL)) {
+                ret = -1;
                 error_setg_errno(errp, errno, "%s: Can't use file descriptor %d",
                                  name, fd);
                 goto free_fail;

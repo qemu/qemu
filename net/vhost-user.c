@@ -298,7 +298,6 @@ static void chr_closed_bh(void *opaque)
     const char *name = opaque;
     NetClientState *ncs[MAX_QUEUE_NUM];
     NetVhostUserState *s;
-    Error *err = NULL;
     int queues, i;
 
     queues = qemu_find_net_clients_except(name, ncs,
@@ -317,9 +316,6 @@ static void chr_closed_bh(void *opaque)
     qemu_chr_fe_set_handlers(&s->chr, NULL, NULL, net_vhost_user_event,
                              NULL, opaque, NULL, true);
 
-    if (err) {
-        error_report_err(err);
-    }
     qapi_event_send_netdev_vhost_user_disconnected(name);
 }
 
@@ -329,7 +325,6 @@ static void net_vhost_user_event(void *opaque, QEMUChrEvent event)
     NetClientState *ncs[MAX_QUEUE_NUM];
     NetVhostUserState *s;
     Chardev *chr;
-    Error *err = NULL;
     int queues;
 
     queues = qemu_find_net_clients_except(name, ncs,
@@ -374,10 +369,6 @@ static void net_vhost_user_event(void *opaque, QEMUChrEvent event)
     case CHR_EVENT_MUX_OUT:
         /* Ignore */
         break;
-    }
-
-    if (err) {
-        error_report_err(err);
     }
 }
 
