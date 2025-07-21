@@ -79,6 +79,12 @@ static void max78000_aes_do_crypto(Max78000AesState *s)
         keydata += 8;
     }
 
+    /*
+     * The MAX78000 AES engine stores an internal key, which it uses only
+     * for decryption. This results in the slighly odd looking pairs of
+     * set_encrypt and set_decrypt calls below; s->internal_key is
+     * being stored for later use in both cases.
+     */
     AES_KEY key;
     if ((s->ctrl & TYPE) == 0) {
         AES_set_encrypt_key(keydata, keylen, &key);
