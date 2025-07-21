@@ -2005,7 +2005,7 @@ int hvf_vcpu_exec(CPUState *cpu)
         uint32_t cm = (syndrome >> 8) & 0x1;
         uint64_t val = 0;
 
-        trace_hvf_data_abort(env->pc, hvf_exit->exception.virtual_address,
+        trace_hvf_data_abort(hvf_exit->exception.virtual_address,
                              hvf_exit->exception.physical_address, isv,
                              iswrite, s1ptw, len, srt);
 
