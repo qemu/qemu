@@ -219,7 +219,7 @@ class Event(object):
                       r"(?:(?:(?P<fmt_trans>\".+),)?\s*(?P<fmt>\".+))?"
                       r"\s*")
 
-    _VALID_PROPS = set(["disable", "vcpu"])
+    _VALID_PROPS = set(["disable"])
 
     def __init__(self, name, props, fmt, args, lineno, filename, orig=None,
                  event_trans=None, event_exec=None):
