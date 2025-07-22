@@ -127,6 +127,14 @@ Rust build dependencies
   (or newer) package.  The path to ``rustc`` and ``rustdoc`` must be
   provided manually to the configure script.
 
+  Some distros prefer to avoid vendored crate sources, and instead use
+  local sources from e.g. ``/usr/share/cargo/registry``.  QEMU includes a
+  script, ``scripts/get-wraps-from-cargo-registry.py``, that automatically
+  performs this task.  The script is meant to be invoked after unpacking
+  the QEMU tarball.  QEMU also includes ``rust/Cargo.toml`` and
+  ``rust/Cargo.lock`` files that can be used to compute QEMU's build
+  dependencies, e.g. using ``cargo2rpm -p rust/Cargo.toml buildrequires``.
+
 Optional build dependencies
   Build components whose absence does not affect the ability to build QEMU
   may not be available in distros, or may be too old for our requirements.
