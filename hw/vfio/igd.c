@@ -113,6 +113,7 @@ static int igd_gen(VFIOPCIDevice *vdev)
 #define IGD_BDSM 0x5c /* Base Data of Stolen Memory */
 #define IGD_BDSM_GEN11 0xc0 /* Base Data of Stolen Memory of gen 11 and later */
 
+#define IGD_GMCH_VGA_DISABLE        BIT(1)
 #define IGD_GMCH_GEN6_GMS_SHIFT     3       /* SNB_GMCH in i915 */
 #define IGD_GMCH_GEN6_GMS_MASK      0x1f
 #define IGD_GMCH_GEN8_GMS_SHIFT     8       /* BDW_GMCH in i915 */
@@ -533,12 +534,14 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
     /*
      * For backward compatibility, enable legacy mode when
      * - Device geneation is 6 to 9 (including both)
+     * - IGD claims VGA cycles on host
      * - Machine type is i440fx (pc_piix)
      * - IGD device is at guest BDF 00:02.0
      * - Not manually disabled by x-igd-legacy-mode=off
      */
     if ((vdev->igd_legacy_mode != ON_OFF_AUTO_OFF) &&
         (gen >= 6 && gen <= 9) &&
+        !(gmch & IGD_GMCH_VGA_DISABLE) &&
         !strcmp(MACHINE_GET_CLASS(qdev_get_machine())->family, "pc_piix") &&
         (&vdev->pdev == pci_find_device(pci_device_root_bus(&vdev->pdev),
         0, PCI_DEVFN(0x2, 0)))) {
@@ -568,12 +571,10 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
         }
 
         /*
-         * If IGD VGA Disable is clear (expected) and VGA is not already
-         * enabled, try to enable it. Probably shouldn't be using legacy mode
-         * without VGA, but also no point in us enabling VGA if disabled in
-         * hardware.
+         * If VGA is not already enabled, try to enable it. We shouldn't be
+         * using legacy mode without VGA.
          */
-        if (!(gmch & 0x2) && !vdev->vga && !vfio_populate_vga(vdev, &err)) {
+        if (!vdev->vga && !vfio_populate_vga(vdev, &err)) {
             error_setg(&err, "Unable to enable VGA access");
             goto error;
         }
