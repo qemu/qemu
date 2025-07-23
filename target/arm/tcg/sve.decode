@@ -1343,9 +1343,9 @@ LD1_zprz        1100010 10 1. ..... 1.. ... ..... ..... \
 LD1_zprz        1100010 11 1. ..... 11. ... ..... ..... \
                 @rprr_g_load_sc esz=3 msz=3 u=1
 
-# LD1Q
-LD1_zprz        1100 0100 000 rm:5 101 pg:3 rn:5 rd:5 \
-                &rprr_gather_load u=1 ff=0 xs=2 esz=4 msz=4 scale=0
+# LD1Q. Note that this is subtly different from LD1_zprz because
+# it is vector + scalar, not scalar + vector.
+LD1Q            1100 0100 000 rm:5 101 pg:3 rn:5 rd:5
 
 # SVE 64-bit gather load (vector plus immediate)
 LD1_zpiz        1100010 .. 01 ..... 1.. ... ..... ..... \
@@ -1450,9 +1450,9 @@ ST1_zprz        1110010 .. 01 ..... 101 ... ..... ..... \
 ST1_zprz        1110010 .. 00 ..... 101 ... ..... ..... \
                 @rprr_scatter_store xs=2 esz=3 scale=0
 
-# ST1Q
-ST1_zprz        1110 0100 001 rm:5 001 pg:3 rn:5 rd:5 \
-                &rprr_scatter_store xs=2 msz=4 esz=4 scale=0
+# ST1Q. Note that this is subtly different from ST1_zprz because
+# it is vector + scalar, not scalar + vector.
+ST1Q            1110 0100 001 rm:5 001 pg:3 rn:5 rd:5
 
 # SVE 64-bit scatter store (vector plus immediate)
 ST1_zpiz        1110010 .. 10 ..... 101 ... ..... ..... \

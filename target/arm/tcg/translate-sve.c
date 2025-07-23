@@ -6179,9 +6179,7 @@ static bool trans_LD1_zprz(DisasContext *s, arg_LD1_zprz *a)
     bool be = s->be_data == MO_BE;
     bool mte = s->mte_active[0];
 
-    if (a->esz < MO_128
-        ? !dc_isar_feature(aa64_sve, s)
-        : !dc_isar_feature(aa64_sve2p1, s)) {
+    if (!dc_isar_feature(aa64_sve, s)) {
         return false;
     }
     s->is_nonstreaming = true;
@@ -6196,10 +6194,6 @@ static bool trans_LD1_zprz(DisasContext *s, arg_LD1_zprz *a)
     case MO_64:
         fn = gather_load_fn64[mte][be][a->ff][a->xs][a->u][a->msz];
         break;
-    case MO_128:
-        assert(!a->ff && a->u && a->xs == 2 && a->msz == MO_128);
-        fn = gather_load_fn128[mte][be];
-        break;
     default:
         g_assert_not_reached();
     }
@@ -6207,6 +6201,32 @@ static bool trans_LD1_zprz(DisasContext *s, arg_LD1_zprz *a)
 
     do_mem_zpz(s, a->rd, a->pg, a->rm, a->scale * a->msz,
                cpu_reg_sp(s, a->rn), a->msz, false, fn);
+    return true;
+}
+
+static bool trans_LD1Q(DisasContext *s, arg_LD1Q *a)
+{
+    gen_helper_gvec_mem_scatter *fn = NULL;
+    bool be = s->be_data == MO_BE;
+    bool mte = s->mte_active[0];
+
+    if (!dc_isar_feature(aa64_sve2p1, s)) {
+        return false;
+    }
+    s->is_nonstreaming = true;
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    fn = gather_load_fn128[mte][be];
+    assert(fn != NULL);
+
+    /*
+     * Unlike LD1_zprz, a->rm is the scalar register and it can be XZR, not XSP.
+     * a->rn is the vector register.
+     */
+    do_mem_zpz(s, a->rd, a->pg, a->rn, 0,
+               cpu_reg(s, a->rm), MO_128, false, fn);
     return true;
 }
 
@@ -6386,9 +6406,7 @@ static bool trans_ST1_zprz(DisasContext *s, arg_ST1_zprz *a)
     if (a->esz < a->msz || (a->msz == 0 && a->scale)) {
         return false;
     }
-    if (a->esz < MO_128
-        ? !dc_isar_feature(aa64_sve, s)
-        : !dc_isar_feature(aa64_sve2p1, s)) {
+    if (!dc_isar_feature(aa64_sve, s)) {
         return false;
     }
     s->is_nonstreaming = true;
@@ -6402,15 +6420,34 @@ static bool trans_ST1_zprz(DisasContext *s, arg_ST1_zprz *a)
     case MO_64:
         fn = scatter_store_fn64[mte][be][a->xs][a->msz];
         break;
-    case MO_128:
-        assert(a->xs == 2 && a->msz == MO_128);
-        fn = scatter_store_fn128[mte][be];
-        break;
     default:
         g_assert_not_reached();
     }
     do_mem_zpz(s, a->rd, a->pg, a->rm, a->scale * a->msz,
                cpu_reg_sp(s, a->rn), a->msz, true, fn);
+    return true;
+}
+
+static bool trans_ST1Q(DisasContext *s, arg_ST1Q *a)
+{
+    gen_helper_gvec_mem_scatter *fn;
+    bool be = s->be_data == MO_BE;
+    bool mte = s->mte_active[0];
+
+    if (!dc_isar_feature(aa64_sve2p1, s)) {
+        return false;
+    }
+    s->is_nonstreaming = true;
+    if (!sve_access_check(s)) {
+        return true;
+    }
+    fn = scatter_store_fn128[mte][be];
+    /*
+     * Unlike ST1_zprz, a->rm is the scalar register, and it
+     * can be XZR, not XSP. a->rn is the vector register.
+     */
+    do_mem_zpz(s, a->rd, a->pg, a->rn, 0,
+               cpu_reg(s, a->rm), MO_128, true, fn);
     return true;
 }
 
