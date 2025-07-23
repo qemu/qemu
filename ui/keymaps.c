@@ -86,19 +86,25 @@ static int parse_keyboard_layout(kbd_layout_t *k,
                                  const name2keysym_t *table,
                                  const char *language, Error **errp)
 {
+    g_autofree char *filename = NULL;
     int ret;
     FILE *f;
-    char * filename;
     char line[1024];
     char keyname[64];
     int len;
 
     filename = qemu_find_file(QEMU_FILE_TYPE_KEYMAP, language);
+    if (!filename) {
+        error_setg(errp, "could not find keymap file for language '%s'",
+                   language);
+        return -1;
+    }
+
     trace_keymap_parse(filename);
-    f = filename ? fopen(filename, "r") : NULL;
-    g_free(filename);
+
+    f = fopen(filename, "r");
     if (!f) {
-        error_setg(errp, "could not read keymap file: '%s'", language);
+        error_setg_file_open(errp, errno, filename);
         return -1;
     }
 
