@@ -7219,6 +7219,20 @@ void HELPER(sve_ld##MEM##_##OFS##_mte)(CPUARMState *env, void *vd, void *vg, \
                   off_##OFS##_d, sve_ld1##MEM##_host, sve_ld1##MEM##_tlb);   \
 }
 
+#define DO_LD1_ZPZ_Q(MEM, OFS, MSZ)                                          \
+void HELPER(sve_ld##MEM##_##OFS)(CPUARMState *env, void *vd, void *vg,       \
+                                 void *vm, target_ulong base, uint64_t desc) \
+{                                                                            \
+    sve_ld1_z(env, vd, vg, vm, base, desc, GETPC(), 0, 16, 1 << MSZ,         \
+              off_##OFS##_d, sve_ld1##MEM##_host, sve_ld1##MEM##_tlb);       \
+}                                                                            \
+void HELPER(sve_ld##MEM##_##OFS##_mte)(CPUARMState *env, void *vd, void *vg, \
+    void *vm, target_ulong base, uint64_t desc)                              \
+{                                                                            \
+    sve_ld1_z_mte(env, vd, vg, vm, base, desc, GETPC(), 16, 1 << MSZ,        \
+                  off_##OFS##_d, sve_ld1##MEM##_host, sve_ld1##MEM##_tlb);   \
+}
+
 DO_LD1_ZPZ_S(bsu, zsu, MO_8)
 DO_LD1_ZPZ_S(bsu, zss, MO_8)
 DO_LD1_ZPZ_D(bdu, zsu, MO_8)
@@ -7283,8 +7297,8 @@ DO_LD1_ZPZ_D(dd_be, zsu, MO_64)
 DO_LD1_ZPZ_D(dd_be, zss, MO_64)
 DO_LD1_ZPZ_D(dd_be, zd, MO_64)
 
-DO_LD1_ZPZ_D(qq_le, zd, MO_128)
-DO_LD1_ZPZ_D(qq_be, zd, MO_128)
+DO_LD1_ZPZ_Q(qq_le, zd, MO_128)
+DO_LD1_ZPZ_Q(qq_be, zd, MO_128)
 
 #undef DO_LD1_ZPZ_S
 #undef DO_LD1_ZPZ_D
@@ -7632,6 +7646,20 @@ void HELPER(sve_st##MEM##_##OFS##_mte)(CPUARMState *env, void *vd, void *vg, \
                   off_##OFS##_d, sve_st1##MEM##_host, sve_st1##MEM##_tlb); \
 }
 
+#define DO_ST1_ZPZ_Q(MEM, OFS, MSZ)                                     \
+void HELPER(sve_st##MEM##_##OFS)(CPUARMState *env, void *vd, void *vg,  \
+                                 void *vm, target_ulong base, uint64_t desc) \
+{                                                                       \
+    sve_st1_z(env, vd, vg, vm, base, desc, GETPC(), 0, 16, 1 << MSZ,    \
+              off_##OFS##_d, sve_st1##MEM##_host, sve_st1##MEM##_tlb);  \
+}                                                                       \
+void HELPER(sve_st##MEM##_##OFS##_mte)(CPUARMState *env, void *vd, void *vg, \
+    void *vm, target_ulong base, uint64_t desc)                         \
+{                                                                       \
+    sve_st1_z_mte(env, vd, vg, vm, base, desc, GETPC(), 16, 1 << MSZ,   \
+                  off_##OFS##_d, sve_st1##MEM##_host, sve_st1##MEM##_tlb); \
+}
+
 DO_ST1_ZPZ_S(bs, zsu, MO_8)
 DO_ST1_ZPZ_S(hs_le, zsu, MO_16)
 DO_ST1_ZPZ_S(hs_be, zsu, MO_16)
@@ -7668,8 +7696,8 @@ DO_ST1_ZPZ_D(sd_be, zd, MO_32)
 DO_ST1_ZPZ_D(dd_le, zd, MO_64)
 DO_ST1_ZPZ_D(dd_be, zd, MO_64)
 
-DO_ST1_ZPZ_D(qq_le, zd, MO_128)
-DO_ST1_ZPZ_D(qq_be, zd, MO_128)
+DO_ST1_ZPZ_Q(qq_le, zd, MO_128)
+DO_ST1_ZPZ_Q(qq_be, zd, MO_128)
 
 #undef DO_ST1_ZPZ_S
 #undef DO_ST1_ZPZ_D
