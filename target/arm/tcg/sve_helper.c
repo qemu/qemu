@@ -6439,8 +6439,8 @@ DO_LD1_2(ld1sds, MO_64, MO_32)
 
 DO_LD1_2(ld1dd,  MO_64, MO_64)
 
-DO_LD1_2(ld1squ, MO_32, MO_128)
-DO_LD1_2(ld1dqu, MO_64, MO_128)
+DO_LD1_2(ld1squ, MO_128, MO_32)
+DO_LD1_2(ld1dqu, MO_128, MO_64)
 
 #undef DO_LD1_1
 #undef DO_LD1_2
