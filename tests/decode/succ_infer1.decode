@@ -1,0 +1,4 @@
+&rprr_load      rd pg rn rm dtype nreg
+@rprr_load      .... .... ... rm:5 ... pg:3 rn:5 rd:5            &rprr_load
+
+LD1Q            1100 0100 000 rm:5 101 pg:3 rn:5 rd:5

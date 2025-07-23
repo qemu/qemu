@@ -1016,9 +1016,12 @@ def infer_format(arg, fieldmask, flds, width):
         else:
             var_flds[n] = c
 
+    if not arg:
+        arg = infer_argument_set(flds)
+
     # Look for an existing format with the same argument set and fields
     for fmt in formats.values():
-        if arg and fmt.base != arg:
+        if fmt.base != arg:
             continue
         if fieldmask != fmt.fieldmask:
             continue
@@ -1029,8 +1032,6 @@ def infer_format(arg, fieldmask, flds, width):
         return (fmt, const_flds)
 
     name = decode_function + '_Fmt_' + str(len(formats))
-    if not arg:
-        arg = infer_argument_set(flds)
 
     fmt = Format(name, 0, arg, 0, 0, 0, fieldmask, var_flds, width)
     formats[name] = fmt

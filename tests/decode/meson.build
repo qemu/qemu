@@ -41,6 +41,7 @@ succ_tests = [
     'succ_argset_type1.decode',
     'succ_function.decode',
     'succ_ident1.decode',
+    'succ_infer1.decode',
     'succ_named_field.decode',
     'succ_pattern_group_nest1.decode',
     'succ_pattern_group_nest2.decode',
