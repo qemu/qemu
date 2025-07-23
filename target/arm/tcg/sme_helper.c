@@ -691,28 +691,28 @@ void sme_ld1_mte(CPUARMState *env, void *za, uint64_t *vg,
 
 #define DO_LD(L, END, ESZ)                                                 \
 void HELPER(sme_ld1##L##END##_h)(CPUARMState *env, void *za, void *vg,     \
-                                 target_ulong addr, uint32_t desc)         \
+                                 target_ulong addr, uint64_t desc)         \
 {                                                                          \
     sme_ld1(env, za, vg, addr, desc, GETPC(), ESZ, 0, false,               \
             sve_ld1##L##L##END##_host, sve_ld1##L##L##END##_tlb,           \
             clear_horizontal, copy_horizontal);                            \
 }                                                                          \
 void HELPER(sme_ld1##L##END##_v)(CPUARMState *env, void *za, void *vg,     \
-                                 target_ulong addr, uint32_t desc)         \
+                                 target_ulong addr, uint64_t desc)         \
 {                                                                          \
     sme_ld1(env, za, vg, addr, desc, GETPC(), ESZ, 0, true,                \
             sme_ld1##L##END##_v_host, sme_ld1##L##END##_v_tlb,             \
             clear_vertical_##L, copy_vertical_##L);                        \
 }                                                                          \
 void HELPER(sme_ld1##L##END##_h_mte)(CPUARMState *env, void *za, void *vg, \
-                                     target_ulong addr, uint32_t desc)     \
+                                     target_ulong addr, uint64_t desc)     \
 {                                                                          \
     sme_ld1_mte(env, za, vg, addr, desc, GETPC(), ESZ, false,              \
                 sve_ld1##L##L##END##_host, sve_ld1##L##L##END##_tlb,       \
                 clear_horizontal, copy_horizontal);                        \
 }                                                                          \
 void HELPER(sme_ld1##L##END##_v_mte)(CPUARMState *env, void *za, void *vg, \
-                                     target_ulong addr, uint32_t desc)     \
+                                     target_ulong addr, uint64_t desc)     \
 {                                                                          \
     sme_ld1_mte(env, za, vg, addr, desc, GETPC(), ESZ, true,               \
                 sme_ld1##L##END##_v_host, sme_ld1##L##END##_v_tlb,         \
@@ -876,25 +876,25 @@ void sme_st1_mte(CPUARMState *env, void *za, uint64_t *vg, target_ulong addr,
 
 #define DO_ST(L, END, ESZ)                                                 \
 void HELPER(sme_st1##L##END##_h)(CPUARMState *env, void *za, void *vg,     \
-                                 target_ulong addr, uint32_t desc)         \
+                                 target_ulong addr, uint64_t desc)         \
 {                                                                          \
     sme_st1(env, za, vg, addr, desc, GETPC(), ESZ, 0, false,               \
             sve_st1##L##L##END##_host, sve_st1##L##L##END##_tlb);          \
 }                                                                          \
 void HELPER(sme_st1##L##END##_v)(CPUARMState *env, void *za, void *vg,     \
-                                 target_ulong addr, uint32_t desc)         \
+                                 target_ulong addr, uint64_t desc)         \
 {                                                                          \
     sme_st1(env, za, vg, addr, desc, GETPC(), ESZ, 0, true,                \
             sme_st1##L##END##_v_host, sme_st1##L##END##_v_tlb);            \
 }                                                                          \
 void HELPER(sme_st1##L##END##_h_mte)(CPUARMState *env, void *za, void *vg, \
-                                     target_ulong addr, uint32_t desc)     \
+                                     target_ulong addr, uint64_t desc)     \
 {                                                                          \
     sme_st1_mte(env, za, vg, addr, desc, GETPC(), ESZ, false,              \
                 sve_st1##L##L##END##_host, sve_st1##L##L##END##_tlb);      \
 }                                                                          \
 void HELPER(sme_st1##L##END##_v_mte)(CPUARMState *env, void *za, void *vg, \
-                                     target_ulong addr, uint32_t desc)     \
+                                     target_ulong addr, uint64_t desc)     \
 {                                                                          \
     sme_st1_mte(env, za, vg, addr, desc, GETPC(), ESZ, true,               \
                 sme_st1##L##END##_v_host, sme_st1##L##END##_v_tlb);        \

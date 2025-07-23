@@ -31,9 +31,9 @@ typedef void gen_helper_gvec_flags_3(TCGv_i32, TCGv_ptr, TCGv_ptr,
 typedef void gen_helper_gvec_flags_4(TCGv_i32, TCGv_ptr, TCGv_ptr,
                                      TCGv_ptr, TCGv_ptr, TCGv_i32);
 
-typedef void gen_helper_gvec_mem(TCGv_env, TCGv_ptr, TCGv_i64, TCGv_i32);
+typedef void gen_helper_gvec_mem(TCGv_env, TCGv_ptr, TCGv_i64, TCGv_i64);
 typedef void gen_helper_gvec_mem_scatter(TCGv_env, TCGv_ptr, TCGv_ptr,
-                                         TCGv_ptr, TCGv_i64, TCGv_i32);
+                                         TCGv_ptr, TCGv_i64, TCGv_i64);
 
 /*
  * Helpers for extracting complex instruction fields.
@@ -4883,11 +4883,11 @@ static const uint8_t dtype_esz[19] = {
     4, 4, 4,
 };
 
-uint32_t make_svemte_desc(DisasContext *s, unsigned vsz, uint32_t nregs,
+uint64_t make_svemte_desc(DisasContext *s, unsigned vsz, uint32_t nregs,
                           uint32_t msz, bool is_write, uint32_t data)
 {
     uint32_t sizem1;
-    uint32_t desc = 0;
+    uint64_t desc = 0;
 
     /* Assert all of the data fits, with or without MTE enabled. */
     assert(nregs >= 1 && nregs <= 4);
@@ -4911,7 +4911,7 @@ static void do_mem_zpa(DisasContext *s, int zt, int pg, TCGv_i64 addr,
                        gen_helper_gvec_mem *fn)
 {
     TCGv_ptr t_pg;
-    uint32_t desc;
+    uint64_t desc;
 
     if (!s->mte_active[0]) {
         addr = clean_data_tbi(s, addr);
@@ -4927,7 +4927,7 @@ static void do_mem_zpa(DisasContext *s, int zt, int pg, TCGv_i64 addr,
     t_pg = tcg_temp_new_ptr();
 
     tcg_gen_addi_ptr(t_pg, tcg_env, pred_full_reg_offset(s, pg));
-    fn(tcg_env, t_pg, addr, tcg_constant_i32(desc));
+    fn(tcg_env, t_pg, addr, tcg_constant_i64(desc));
 }
 
 /* Indexed by [mte][be][dtype][nreg] */
@@ -5379,7 +5379,7 @@ static void do_ldrq(DisasContext *s, int zt, int pg, TCGv_i64 addr, int dtype)
     unsigned vsz = vec_full_reg_size(s);
     TCGv_ptr t_pg;
     int poff;
-    uint32_t desc;
+    uint64_t desc;
 
     /* Load the first quadword using the normal predicated load helpers.  */
     if (!s->mte_active[0]) {
@@ -5410,7 +5410,7 @@ static void do_ldrq(DisasContext *s, int zt, int pg, TCGv_i64 addr, int dtype)
     gen_helper_gvec_mem *fn
         = ldr_fns[s->mte_active[0]][s->be_data == MO_BE][dtype][0];
     desc = make_svemte_desc(s, 16, 1, dtype_msz(dtype), false, zt);
-    fn(tcg_env, t_pg, addr, tcg_constant_i32(desc));
+    fn(tcg_env, t_pg, addr, tcg_constant_i64(desc));
 
     /* Replicate that first quadword.  */
     if (vsz > 16) {
@@ -5453,7 +5453,7 @@ static void do_ldro(DisasContext *s, int zt, int pg, TCGv_i64 addr, int dtype)
     unsigned vsz_r32;
     TCGv_ptr t_pg;
     int poff, doff;
-    uint32_t desc;
+    uint64_t desc;
 
     if (vsz < 32) {
         /*
@@ -5494,7 +5494,7 @@ static void do_ldro(DisasContext *s, int zt, int pg, TCGv_i64 addr, int dtype)
     gen_helper_gvec_mem *fn
         = ldr_fns[s->mte_active[0]][s->be_data == MO_BE][dtype][0];
     desc = make_svemte_desc(s, 32, 1, dtype_msz(dtype), false, zt);
-    fn(tcg_env, t_pg, addr, tcg_constant_i32(desc));
+    fn(tcg_env, t_pg, addr, tcg_constant_i64(desc));
 
     /*
      * Replicate that first octaword.
@@ -5828,14 +5828,14 @@ static void do_mem_zpz(DisasContext *s, int zt, int pg, int zm,
     TCGv_ptr t_zm = tcg_temp_new_ptr();
     TCGv_ptr t_pg = tcg_temp_new_ptr();
     TCGv_ptr t_zt = tcg_temp_new_ptr();
-    uint32_t desc;
+    uint64_t desc;
 
     tcg_gen_addi_ptr(t_pg, tcg_env, pred_full_reg_offset(s, pg));
     tcg_gen_addi_ptr(t_zm, tcg_env, vec_full_reg_offset(s, zm));
     tcg_gen_addi_ptr(t_zt, tcg_env, vec_full_reg_offset(s, zt));
 
     desc = make_svemte_desc(s, vec_full_reg_size(s), 1, msz, is_write, scale);
-    fn(tcg_env, t_zt, t_pg, t_zm, scalar, tcg_constant_i32(desc));
+    fn(tcg_env, t_zt, t_pg, t_zm, scalar, tcg_constant_i64(desc));
 }
 
 /* Indexed by [mte][be][ff][xs][u][msz].  */
@@ -8079,7 +8079,7 @@ static bool gen_ldst_c(DisasContext *s, TCGv_i64 addr, int zd, int png,
                        MemOp esz, bool is_write, int n, bool strided)
 {
     typedef void ldst_c_fn(TCGv_env, TCGv_ptr, TCGv_i64,
-                           TCGv_i32, TCGv_i32);
+                           TCGv_i32, TCGv_i64);
     static ldst_c_fn * const f_ldst[2][2][4] = {
         { { gen_helper_sve2p1_ld1bb_c,
             gen_helper_sve2p1_ld1hh_le_c,
@@ -8100,9 +8100,10 @@ static bool gen_ldst_c(DisasContext *s, TCGv_i64 addr, int zd, int png,
             gen_helper_sve2p1_st1dd_be_c, } }
     };
 
-    TCGv_i32 t_png, t_desc;
+    TCGv_i32 t_png;
+    TCGv_i64 t_desc;
     TCGv_ptr t_zd;
-    uint32_t desc, lg2_rstride = 0;
+    uint64_t desc, lg2_rstride = 0;
     bool be = s->be_data == MO_BE;
 
     assert(n == 2 || n == 4);
@@ -8132,7 +8133,7 @@ static bool gen_ldst_c(DisasContext *s, TCGv_i64 addr, int zd, int png,
     desc = n == 2 ? 0 : 1;
     desc = desc | (lg2_rstride << 1);
     desc = make_svemte_desc(s, vec_full_reg_size(s), 1, esz, is_write, desc);
-    t_desc = tcg_constant_i32(desc);
+    t_desc = tcg_constant_i64(desc);
 
     t_png = tcg_temp_new_i32();
     tcg_gen_ld16u_i32(t_png, tcg_env,
