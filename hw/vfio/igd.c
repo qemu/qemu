@@ -574,9 +574,13 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
          * If VGA is not already enabled, try to enable it. We shouldn't be
          * using legacy mode without VGA.
          */
-        if (!vdev->vga && !vfio_populate_vga(vdev, &err)) {
-            error_setg(&err, "Unable to enable VGA access");
-            goto error;
+        if (!vdev->vga) {
+            if (vfio_populate_vga(vdev, &err)) {
+                vfio_pci_config_register_vga(vdev);
+            } else {
+                error_setg(&err, "Unable to enable VGA access");
+                goto error;
+            }
         }
 
         /* Enable OpRegion and LPC bridge quirk */

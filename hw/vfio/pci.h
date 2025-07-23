@@ -253,6 +253,7 @@ extern const VMStateDescription vfio_display_vmstate;
 
 void vfio_pci_bars_exit(VFIOPCIDevice *vdev);
 bool vfio_pci_add_capabilities(VFIOPCIDevice *vdev, Error **errp);
+void vfio_pci_config_register_vga(VFIOPCIDevice *vdev);
 bool vfio_pci_config_setup(VFIOPCIDevice *vdev, Error **errp);
 bool vfio_pci_interrupt_setup(VFIOPCIDevice *vdev, Error **errp);
 void vfio_pci_intx_eoi(VFIODevice *vbasedev);
