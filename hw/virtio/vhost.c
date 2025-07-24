@@ -1110,7 +1110,8 @@ static bool vhost_log_global_start(MemoryListener *listener, Error **errp)
 
     r = vhost_migration_log(listener, true);
     if (r < 0) {
-        abort();
+        error_setg_errno(errp, -r, "vhost: Failed to start logging");
+        return false;
     }
     return true;
 }
