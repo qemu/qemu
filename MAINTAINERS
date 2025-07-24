@@ -1550,6 +1550,7 @@ F: tests/functional/test_ppc_40p.py
 
 sPAPR (pseries)
 M: Nicholas Piggin <npiggin@gmail.com>
+M: Harsh Prateek Bora <harshpb@linux.ibm.com>
 R: Daniel Henrique Barboza <danielhb413@gmail.com>
 R: Harsh Prateek Bora <harshpb@linux.ibm.com>
 L: qemu-ppc@nongnu.org
