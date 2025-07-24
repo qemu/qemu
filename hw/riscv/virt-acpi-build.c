@@ -270,11 +270,8 @@ spcr_setup(GArray *table_data, BIOSLinker *linker, RISCVVirtState *s)
 #define RHCT_NODE_ARRAY_OFFSET 56
 
 /*
- * ACPI spec, Revision 6.5+
- * 5.2.36 RISC-V Hart Capabilities Table (RHCT)
- * REF: https://github.com/riscv-non-isa/riscv-acpi/issues/16
- *      https://drive.google.com/file/d/1nP3nFiH4jkPMp6COOxP6123DCZKR-tia/view
- *      https://drive.google.com/file/d/1sKbOa8m1UZw1JkquZYe3F1zQBN1xXsaf/view
+ * ACPI spec, Revision 6.6
+ * 5.2.37 RISC-V Hart Capabilities Table (RHCT)
  */
 static void build_rhct(GArray *table_data,
                        BIOSLinker *linker,
@@ -421,7 +418,10 @@ static void build_rhct(GArray *table_data,
     acpi_table_end(linker, &table);
 }
 
-/* FADT */
+/*
+ * ACPI spec, Revision 6.6
+ * 5.2.9 Fixed ACPI Description Table (MADT)
+ */
 static void build_fadt_rev6(GArray *table_data,
                             BIOSLinker *linker,
                             RISCVVirtState *s,
@@ -429,7 +429,7 @@ static void build_fadt_rev6(GArray *table_data,
 {
     AcpiFadtData fadt = {
         .rev = 6,
-        .minor_ver = 5,
+        .minor_ver = 6,
         .flags = 1 << ACPI_FADT_F_HW_REDUCED_ACPI,
         .xdsdt_tbl_offset = &dsdt_tbl_offset,
     };
@@ -508,11 +508,8 @@ static void build_dsdt(GArray *table_data,
 }
 
 /*
- * ACPI spec, Revision 6.5+
+ * ACPI spec, Revision 6.6
  * 5.2.12 Multiple APIC Description Table (MADT)
- * REF: https://github.com/riscv-non-isa/riscv-acpi/issues/15
- *      https://drive.google.com/file/d/1R6k4MshhN3WTT-hwqAquu5nX6xSEqK2l/view
- *      https://drive.google.com/file/d/1oMGPyOD58JaPgMl1pKasT-VKsIKia7zR/view
  */
 static void build_madt(GArray *table_data,
                        BIOSLinker *linker,
@@ -537,7 +534,7 @@ static void build_madt(GArray *table_data,
 
     hart_index_bits = imsic_num_bits(imsic_max_hart_per_socket);
 
-    AcpiTable table = { .sig = "APIC", .rev = 6, .oem_id = s->oem_id,
+    AcpiTable table = { .sig = "APIC", .rev = 7, .oem_id = s->oem_id,
                         .oem_table_id = s->oem_table_id };
 
     acpi_table_begin(&table, table_data);
@@ -812,10 +809,8 @@ static void build_rimt(GArray *table_data, BIOSLinker *linker,
 }
 
 /*
- * ACPI spec, Revision 6.5+
+ * ACPI spec, Revision 6.6
  * 5.2.16 System Resource Affinity Table (SRAT)
- * REF: https://github.com/riscv-non-isa/riscv-acpi/issues/25
- *      https://drive.google.com/file/d/1YTdDx2IPm5IeZjAW932EYU-tUtgS08tX/view
  */
 static void
 build_srat(GArray *table_data, BIOSLinker *linker, RISCVVirtState *vms)
