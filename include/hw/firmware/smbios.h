@@ -22,7 +22,7 @@ extern GArray *usr_blobs_sizes;
 
 typedef struct {
     const char *vendor, *version, *date;
-    bool have_major_minor, uefi;
+    bool have_major_minor, uefi, vm;
     uint8_t major, minor;
 } smbios_type0_t;
 extern smbios_type0_t smbios_type0;
