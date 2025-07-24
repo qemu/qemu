@@ -165,13 +165,11 @@ static bool ram_is_cpr_compatible(RAMBlock *rb);
  * CPUAddressSpace: all the information a CPU needs about an AddressSpace
  * @cpu: the CPU whose AddressSpace this is
  * @as: the AddressSpace itself
- * @memory_dispatch: its dispatch pointer (cached, RCU protected)
  * @tcg_as_listener: listener for tracking changes to the AddressSpace
  */
 typedef struct CPUAddressSpace {
     CPUState *cpu;
     AddressSpace *as;
-    struct AddressSpaceDispatch *memory_dispatch;
     MemoryListener tcg_as_listener;
 } CPUAddressSpace;
 
@@ -692,7 +690,7 @@ address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr orig_addr,
     IOMMUTLBEntry iotlb;
     int iommu_idx;
     hwaddr addr = orig_addr;
-    AddressSpaceDispatch *d = cpu->cpu_ases[asidx].memory_dispatch;
+    AddressSpaceDispatch *d = address_space_to_dispatch(cpu->cpu_ases[asidx].as);
 
     for (;;) {
         section = address_space_translate_internal(d, addr, &addr, plen, false);
@@ -753,7 +751,7 @@ MemoryRegionSection *iotlb_to_section(CPUState *cpu,
 {
     int asidx = cpu_asidx_from_attrs(cpu, attrs);
     CPUAddressSpace *cpuas = &cpu->cpu_ases[asidx];
-    AddressSpaceDispatch *d = cpuas->memory_dispatch;
+    AddressSpaceDispatch *d = address_space_to_dispatch(cpuas->as);
     int section_index = index & ~TARGET_PAGE_MASK;
     MemoryRegionSection *ret;
 
@@ -2780,9 +2778,6 @@ static void tcg_log_global_after_sync(MemoryListener *listener)
 
 static void tcg_commit_cpu(CPUState *cpu, run_on_cpu_data data)
 {
-    CPUAddressSpace *cpuas = data.host_ptr;
-
-    cpuas->memory_dispatch = address_space_to_dispatch(cpuas->as);
     tlb_flush(cpu);
 }
 
@@ -2798,11 +2793,7 @@ static void tcg_commit(MemoryListener *listener)
     cpu = cpuas->cpu;
 
     /*
-     * Defer changes to as->memory_dispatch until the cpu is quiescent.
-     * Otherwise we race between (1) other cpu threads and (2) ongoing
-     * i/o for the current cpu thread, with data cached by mmu_lookup().
-     *
-     * In addition, queueing the work function will kick the cpu back to
+     * Queueing the work function will kick the cpu back to
      * the main loop, which will end the RCU critical section and reclaim
      * the memory data structures.
      *
