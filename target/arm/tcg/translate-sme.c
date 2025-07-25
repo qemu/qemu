@@ -387,7 +387,7 @@ TRANS_FEAT(MOVT_ztr, aa64_sme2, do_movt, a, tcg_gen_st_i64)
 
 static bool trans_LDST1(DisasContext *s, arg_LDST1 *a)
 {
-    typedef void GenLdSt1(TCGv_env, TCGv_ptr, TCGv_ptr, TCGv, TCGv_i32);
+    typedef void GenLdSt1(TCGv_env, TCGv_ptr, TCGv_ptr, TCGv, TCGv_i64);
 
     /*
      * Indexed by [esz][be][v][mte][st], which is (except for load/store)
@@ -415,7 +415,7 @@ static bool trans_LDST1(DisasContext *s, arg_LDST1 *a)
 
     TCGv_ptr t_za, t_pg;
     TCGv_i64 addr;
-    uint32_t desc;
+    uint64_t desc;
     bool be = s->be_data == MO_BE;
     bool mte = s->mte_active[0];
 
@@ -440,7 +440,7 @@ static bool trans_LDST1(DisasContext *s, arg_LDST1 *a)
     desc = make_svemte_desc(s, streaming_vec_reg_size(s), 1, a->esz, a->st, 0);
 
     fns[a->esz][be][a->v][mte][a->st](tcg_env, t_za, t_pg, addr,
-                                      tcg_constant_i32(desc));
+                                      tcg_constant_i64(desc));
     return true;
 }
 

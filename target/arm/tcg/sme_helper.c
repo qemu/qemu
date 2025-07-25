@@ -666,18 +666,15 @@ void sme_ld1(CPUARMState *env, void *za, uint64_t *vg,
 
 static inline QEMU_ALWAYS_INLINE
 void sme_ld1_mte(CPUARMState *env, void *za, uint64_t *vg,
-                 target_ulong addr, uint32_t desc, uintptr_t ra,
+                 target_ulong addr, uint64_t desc, uintptr_t ra,
                  const int esz, bool vertical,
                  sve_ldst1_host_fn *host_fn,
                  sve_ldst1_tlb_fn *tlb_fn,
                  ClearFn *clr_fn,
                  CopyFn *cpy_fn)
 {
-    uint32_t mtedesc = desc >> (SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
+    uint32_t mtedesc = desc >> 32;
     int bit55 = extract64(addr, 55, 1);
-
-    /* Remove mtedesc from the normal sve descriptor. */
-    desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
 
     /* Perform gross MTE suppression early. */
     if (!tbi_check(mtedesc, bit55) ||
@@ -691,28 +688,28 @@ void sme_ld1_mte(CPUARMState *env, void *za, uint64_t *vg,
 
 #define DO_LD(L, END, ESZ)                                                 \
 void HELPER(sme_ld1##L##END##_h)(CPUARMState *env, void *za, void *vg,     \
-                                 target_ulong addr, uint32_t desc)         \
+                                 target_ulong addr, uint64_t desc)         \
 {                                                                          \
     sme_ld1(env, za, vg, addr, desc, GETPC(), ESZ, 0, false,               \
             sve_ld1##L##L##END##_host, sve_ld1##L##L##END##_tlb,           \
             clear_horizontal, copy_horizontal);                            \
 }                                                                          \
 void HELPER(sme_ld1##L##END##_v)(CPUARMState *env, void *za, void *vg,     \
-                                 target_ulong addr, uint32_t desc)         \
+                                 target_ulong addr, uint64_t desc)         \
 {                                                                          \
     sme_ld1(env, za, vg, addr, desc, GETPC(), ESZ, 0, true,                \
             sme_ld1##L##END##_v_host, sme_ld1##L##END##_v_tlb,             \
             clear_vertical_##L, copy_vertical_##L);                        \
 }                                                                          \
 void HELPER(sme_ld1##L##END##_h_mte)(CPUARMState *env, void *za, void *vg, \
-                                     target_ulong addr, uint32_t desc)     \
+                                     target_ulong addr, uint64_t desc)     \
 {                                                                          \
     sme_ld1_mte(env, za, vg, addr, desc, GETPC(), ESZ, false,              \
                 sve_ld1##L##L##END##_host, sve_ld1##L##L##END##_tlb,       \
                 clear_horizontal, copy_horizontal);                        \
 }                                                                          \
 void HELPER(sme_ld1##L##END##_v_mte)(CPUARMState *env, void *za, void *vg, \
-                                     target_ulong addr, uint32_t desc)     \
+                                     target_ulong addr, uint64_t desc)     \
 {                                                                          \
     sme_ld1_mte(env, za, vg, addr, desc, GETPC(), ESZ, true,               \
                 sme_ld1##L##END##_v_host, sme_ld1##L##END##_v_tlb,         \
@@ -854,15 +851,12 @@ void sme_st1(CPUARMState *env, void *za, uint64_t *vg,
 
 static inline QEMU_ALWAYS_INLINE
 void sme_st1_mte(CPUARMState *env, void *za, uint64_t *vg, target_ulong addr,
-                 uint32_t desc, uintptr_t ra, int esz, bool vertical,
+                 uint64_t desc, uintptr_t ra, int esz, bool vertical,
                  sve_ldst1_host_fn *host_fn,
                  sve_ldst1_tlb_fn *tlb_fn)
 {
-    uint32_t mtedesc = desc >> (SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
+    uint32_t mtedesc = desc >> 32;
     int bit55 = extract64(addr, 55, 1);
-
-    /* Remove mtedesc from the normal sve descriptor. */
-    desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
 
     /* Perform gross MTE suppression early. */
     if (!tbi_check(mtedesc, bit55) ||
@@ -876,25 +870,25 @@ void sme_st1_mte(CPUARMState *env, void *za, uint64_t *vg, target_ulong addr,
 
 #define DO_ST(L, END, ESZ)                                                 \
 void HELPER(sme_st1##L##END##_h)(CPUARMState *env, void *za, void *vg,     \
-                                 target_ulong addr, uint32_t desc)         \
+                                 target_ulong addr, uint64_t desc)         \
 {                                                                          \
     sme_st1(env, za, vg, addr, desc, GETPC(), ESZ, 0, false,               \
             sve_st1##L##L##END##_host, sve_st1##L##L##END##_tlb);          \
 }                                                                          \
 void HELPER(sme_st1##L##END##_v)(CPUARMState *env, void *za, void *vg,     \
-                                 target_ulong addr, uint32_t desc)         \
+                                 target_ulong addr, uint64_t desc)         \
 {                                                                          \
     sme_st1(env, za, vg, addr, desc, GETPC(), ESZ, 0, true,                \
             sme_st1##L##END##_v_host, sme_st1##L##END##_v_tlb);            \
 }                                                                          \
 void HELPER(sme_st1##L##END##_h_mte)(CPUARMState *env, void *za, void *vg, \
-                                     target_ulong addr, uint32_t desc)     \
+                                     target_ulong addr, uint64_t desc)     \
 {                                                                          \
     sme_st1_mte(env, za, vg, addr, desc, GETPC(), ESZ, false,              \
                 sve_st1##L##L##END##_host, sve_st1##L##L##END##_tlb);      \
 }                                                                          \
 void HELPER(sme_st1##L##END##_v_mte)(CPUARMState *env, void *za, void *vg, \
-                                     target_ulong addr, uint32_t desc)     \
+                                     target_ulong addr, uint64_t desc)     \
 {                                                                          \
     sme_st1_mte(env, za, vg, addr, desc, GETPC(), ESZ, true,               \
                 sme_st1##L##END##_v_host, sme_st1##L##END##_v_tlb);        \
