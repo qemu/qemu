@@ -521,10 +521,12 @@ static void gen_3dnow(DisasContext *s, X86DecodedInsn *decode)
 
     gen_helper_enter_mmx(tcg_env);
     if (fn == FN_3DNOW_MOVE) {
-       tcg_gen_ld_i64(s->tmp1_i64, tcg_env, decode->op[1].offset);
-       tcg_gen_st_i64(s->tmp1_i64, tcg_env, decode->op[0].offset);
+        TCGv_i64 t = tcg_temp_new_i64();
+
+        tcg_gen_ld_i64(t, tcg_env, decode->op[1].offset);
+        tcg_gen_st_i64(t, tcg_env, decode->op[0].offset);
     } else {
-       fn(tcg_env, OP_PTR0, OP_PTR1);
+        fn(tcg_env, OP_PTR0, OP_PTR1);
     }
 }
 
@@ -2596,10 +2598,11 @@ static void gen_MOVQ(DisasContext *s, X86DecodedInsn *decode)
 {
     int vec_len = vector_len(s, decode);
     int lo_ofs = vector_elem_offset(&decode->op[0], MO_64, 0);
+    TCGv_i64 t = tcg_temp_new_i64();
 
-    tcg_gen_ld_i64(s->tmp1_i64, tcg_env, decode->op[2].offset);
+    tcg_gen_ld_i64(t, tcg_env, decode->op[2].offset);
     if (decode->op[0].has_ea) {
-        tcg_gen_qemu_st_i64(s->tmp1_i64, s->A0, s->mem_index, MO_LEUQ);
+        tcg_gen_qemu_st_i64(t, s->A0, s->mem_index, MO_LEUQ);
     } else {
         /*
          * tcg_gen_gvec_dup_i64(MO_64, op0.offset, 8, vec_len, s->tmp1_64) would
@@ -2610,7 +2613,7 @@ static void gen_MOVQ(DisasContext *s, X86DecodedInsn *decode)
          * it disqualifies using oprsz < maxsz to emulate VEX128.
          */
         tcg_gen_gvec_dup_imm(MO_64, decode->op[0].offset, vec_len, vec_len, 0);
-        tcg_gen_st_i64(s->tmp1_i64, tcg_env, lo_ofs);
+        tcg_gen_st_i64(t, tcg_env, lo_ofs);
     }
 }
 
@@ -4505,10 +4508,12 @@ static void gen_VMASKMOVPS_st(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_VMOVHPx_ld(DisasContext *s, X86DecodedInsn *decode)
 {
+    TCGv_i64 t = tcg_temp_new_i64();
+
     gen_ldq_env_A0(s, decode->op[0].offset + offsetof(XMMReg, XMM_Q(1)));
     if (decode->op[0].offset != decode->op[1].offset) {
-        tcg_gen_ld_i64(s->tmp1_i64, tcg_env, decode->op[1].offset + offsetof(XMMReg, XMM_Q(0)));
-        tcg_gen_st_i64(s->tmp1_i64, tcg_env, decode->op[0].offset + offsetof(XMMReg, XMM_Q(0)));
+        tcg_gen_ld_i64(t, tcg_env, decode->op[1].offset + offsetof(XMMReg, XMM_Q(0)));
+        tcg_gen_st_i64(t, tcg_env, decode->op[0].offset + offsetof(XMMReg, XMM_Q(0)));
     }
 }
 
@@ -4519,33 +4524,39 @@ static void gen_VMOVHPx_st(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_VMOVHPx(DisasContext *s, X86DecodedInsn *decode)
 {
+    TCGv_i64 t = tcg_temp_new_i64();
+
     if (decode->op[0].offset != decode->op[2].offset) {
-        tcg_gen_ld_i64(s->tmp1_i64, tcg_env, decode->op[2].offset + offsetof(XMMReg, XMM_Q(1)));
-        tcg_gen_st_i64(s->tmp1_i64, tcg_env, decode->op[0].offset + offsetof(XMMReg, XMM_Q(1)));
+        tcg_gen_ld_i64(t, tcg_env, decode->op[2].offset + offsetof(XMMReg, XMM_Q(1)));
+        tcg_gen_st_i64(t, tcg_env, decode->op[0].offset + offsetof(XMMReg, XMM_Q(1)));
     }
     if (decode->op[0].offset != decode->op[1].offset) {
-        tcg_gen_ld_i64(s->tmp1_i64, tcg_env, decode->op[1].offset + offsetof(XMMReg, XMM_Q(0)));
-        tcg_gen_st_i64(s->tmp1_i64, tcg_env, decode->op[0].offset + offsetof(XMMReg, XMM_Q(0)));
+        tcg_gen_ld_i64(t, tcg_env, decode->op[1].offset + offsetof(XMMReg, XMM_Q(0)));
+        tcg_gen_st_i64(t, tcg_env, decode->op[0].offset + offsetof(XMMReg, XMM_Q(0)));
     }
 }
 
 static void gen_VMOVHLPS(DisasContext *s, X86DecodedInsn *decode)
 {
-    tcg_gen_ld_i64(s->tmp1_i64, tcg_env, decode->op[2].offset + offsetof(XMMReg, XMM_Q(1)));
-    tcg_gen_st_i64(s->tmp1_i64, tcg_env, decode->op[0].offset + offsetof(XMMReg, XMM_Q(0)));
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_ld_i64(t, tcg_env, decode->op[2].offset + offsetof(XMMReg, XMM_Q(1)));
+    tcg_gen_st_i64(t, tcg_env, decode->op[0].offset + offsetof(XMMReg, XMM_Q(0)));
     if (decode->op[0].offset != decode->op[1].offset) {
-        tcg_gen_ld_i64(s->tmp1_i64, tcg_env, decode->op[1].offset + offsetof(XMMReg, XMM_Q(1)));
-        tcg_gen_st_i64(s->tmp1_i64, tcg_env, decode->op[0].offset + offsetof(XMMReg, XMM_Q(1)));
+        tcg_gen_ld_i64(t, tcg_env, decode->op[1].offset + offsetof(XMMReg, XMM_Q(1)));
+        tcg_gen_st_i64(t, tcg_env, decode->op[0].offset + offsetof(XMMReg, XMM_Q(1)));
     }
 }
 
 static void gen_VMOVLHPS(DisasContext *s, X86DecodedInsn *decode)
 {
-    tcg_gen_ld_i64(s->tmp1_i64, tcg_env, decode->op[2].offset);
-    tcg_gen_st_i64(s->tmp1_i64, tcg_env, decode->op[0].offset + offsetof(XMMReg, XMM_Q(1)));
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_ld_i64(t, tcg_env, decode->op[2].offset);
+    tcg_gen_st_i64(t, tcg_env, decode->op[0].offset + offsetof(XMMReg, XMM_Q(1)));
     if (decode->op[0].offset != decode->op[1].offset) {
-        tcg_gen_ld_i64(s->tmp1_i64, tcg_env, decode->op[1].offset + offsetof(XMMReg, XMM_Q(0)));
-        tcg_gen_st_i64(s->tmp1_i64, tcg_env, decode->op[0].offset + offsetof(XMMReg, XMM_Q(0)));
+        tcg_gen_ld_i64(t, tcg_env, decode->op[1].offset + offsetof(XMMReg, XMM_Q(0)));
+        tcg_gen_st_i64(t, tcg_env, decode->op[0].offset + offsetof(XMMReg, XMM_Q(0)));
     }
 }
 
@@ -4557,34 +4568,39 @@ static void gen_VMOVLHPS(DisasContext *s, X86DecodedInsn *decode)
 static void gen_VMOVLPx(DisasContext *s, X86DecodedInsn *decode)
 {
     int vec_len = vector_len(s, decode);
+    TCGv_i64 t = tcg_temp_new_i64();
 
-    tcg_gen_ld_i64(s->tmp1_i64, tcg_env, decode->op[2].offset + offsetof(XMMReg, XMM_Q(0)));
+    tcg_gen_ld_i64(t, tcg_env, decode->op[2].offset + offsetof(XMMReg, XMM_Q(0)));
     tcg_gen_gvec_mov(MO_64, decode->op[0].offset, decode->op[1].offset, vec_len, vec_len);
-    tcg_gen_st_i64(s->tmp1_i64, tcg_env, decode->op[0].offset + offsetof(XMMReg, XMM_Q(0)));
+    tcg_gen_st_i64(t, tcg_env, decode->op[0].offset + offsetof(XMMReg, XMM_Q(0)));
 }
 
 static void gen_VMOVLPx_ld(DisasContext *s, X86DecodedInsn *decode)
 {
     int vec_len = vector_len(s, decode);
+    TCGv_i64 t = tcg_temp_new_i64();
 
-    tcg_gen_qemu_ld_i64(s->tmp1_i64, s->A0, s->mem_index, MO_LEUQ);
+    tcg_gen_qemu_ld_i64(t, s->A0, s->mem_index, MO_LEUQ);
     tcg_gen_gvec_mov(MO_64, decode->op[0].offset, decode->op[1].offset, vec_len, vec_len);
-    tcg_gen_st_i64(s->tmp1_i64, OP_PTR0, offsetof(ZMMReg, ZMM_Q(0)));
+    tcg_gen_st_i64(t, OP_PTR0, offsetof(ZMMReg, ZMM_Q(0)));
 }
 
 static void gen_VMOVLPx_st(DisasContext *s, X86DecodedInsn *decode)
 {
-    tcg_gen_ld_i64(s->tmp1_i64, OP_PTR2, offsetof(ZMMReg, ZMM_Q(0)));
-    tcg_gen_qemu_st_i64(s->tmp1_i64, s->A0, s->mem_index, MO_LEUQ);
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_ld_i64(t, OP_PTR2, offsetof(ZMMReg, ZMM_Q(0)));
+    tcg_gen_qemu_st_i64(t, s->A0, s->mem_index, MO_LEUQ);
 }
 
 static void gen_VMOVSD_ld(DisasContext *s, X86DecodedInsn *decode)
 {
     TCGv_i64 zero = tcg_constant_i64(0);
+    TCGv_i64 t = tcg_temp_new_i64();
 
-    tcg_gen_qemu_ld_i64(s->tmp1_i64, s->A0, s->mem_index, MO_LEUQ);
+    tcg_gen_qemu_ld_i64(t, s->A0, s->mem_index, MO_LEUQ);
     tcg_gen_st_i64(zero, OP_PTR0, offsetof(ZMMReg, ZMM_Q(1)));
-    tcg_gen_st_i64(s->tmp1_i64, OP_PTR0, offsetof(ZMMReg, ZMM_Q(0)));
+    tcg_gen_st_i64(t, OP_PTR0, offsetof(ZMMReg, ZMM_Q(0)));
 }
 
 static void gen_VMOVSS(DisasContext *s, X86DecodedInsn *decode)
