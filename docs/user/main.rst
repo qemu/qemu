@@ -17,28 +17,34 @@ Features
 
 QEMU user space emulation has the following notable features:
 
-**System call translation:**
-   QEMU includes a generic system call translator. This means that the
-   parameters of the system calls can be converted to fix endianness and
-   32/64-bit mismatches between hosts and targets. IOCTLs can be
-   converted too.
+System call translation
+~~~~~~~~~~~~~~~~~~~~~~~
 
-**POSIX signal handling:**
-   QEMU can redirect to the running program all signals coming from the
-   host (such as ``SIGALRM``), as well as synthesize signals from
-   virtual CPU exceptions (for example ``SIGFPE`` when the program
-   executes a division by zero).
+QEMU includes a generic system call translator. This means that the
+parameters of the system calls can be converted to fix endianness
+and 32/64-bit mismatches between hosts and targets. IOCTLs can be
+converted too.
 
-   QEMU relies on the host kernel to emulate most signal system calls,
-   for example to emulate the signal mask. On Linux, QEMU supports both
-   normal and real-time signals.
+POSIX signal handling
+~~~~~~~~~~~~~~~~~~~~~
 
-**Threading:**
-   On Linux, QEMU can emulate the ``clone`` syscall and create a real
-   host thread (with a separate virtual CPU) for each emulated thread.
-   Note that not all targets currently emulate atomic operations
-   correctly. x86 and Arm use a global lock in order to preserve their
-   semantics.
+QEMU can redirect to the running program all signals coming from the
+host (such as ``SIGALRM``), as well as synthesize signals from
+virtual CPU exceptions (for example ``SIGFPE`` when the program
+executes a division by zero).
+
+QEMU relies on the host kernel to emulate most signal system calls,
+for example to emulate the signal mask. On Linux, QEMU supports both
+normal and real-time signals.
+
+Threading
+~~~~~~~~~
+
+On Linux, QEMU can emulate the ``clone`` syscall and create a real
+host thread (with a separate virtual CPU) for each emulated thread.
+Note that not all targets currently emulate atomic operations
+correctly. x86 and Arm use a global lock in order to preserve their
+semantics.
 
 QEMU was conceived so that ultimately it can emulate itself. Although it
 is not very useful, it is an important test to show the power of the
