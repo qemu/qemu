@@ -90,6 +90,10 @@ void migration_tls_channel_process_incoming(MigrationState *s,
 
     trace_migration_tls_incoming_handshake_start();
     qio_channel_set_name(QIO_CHANNEL(tioc), "migration-tls-incoming");
+    if (migrate_postcopy_ram() || migrate_return_path()) {
+        qio_channel_set_feature(QIO_CHANNEL(tioc),
+                                QIO_CHANNEL_FEATURE_CONCURRENT_IO);
+    }
     qio_channel_tls_handshake(tioc,
                               migration_tls_incoming_handshake,
                               NULL,
@@ -149,6 +153,11 @@ void migration_tls_channel_connect(MigrationState *s,
     s->hostname = g_strdup(hostname);
     trace_migration_tls_outgoing_handshake_start(hostname);
     qio_channel_set_name(QIO_CHANNEL(tioc), "migration-tls-outgoing");
+
+    if (migrate_postcopy_ram() || migrate_return_path()) {
+        qio_channel_set_feature(QIO_CHANNEL(tioc),
+                                QIO_CHANNEL_FEATURE_CONCURRENT_IO);
+    }
     qio_channel_tls_handshake(tioc,
                               migration_tls_outgoing_handshake,
                               s,
