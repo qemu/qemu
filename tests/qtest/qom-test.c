@@ -215,10 +215,6 @@ static void test_machine(gconstpointer data)
     test_list_get(qts, paths);
     test_list_get_value(qts);
 
-    response = qtest_qmp(qts, "{ 'execute': 'quit' }");
-    g_assert(qdict_haskey(response, "return"));
-    qobject_unref(response);
-
     qtest_quit(qts);
     g_free((void *)machine);
 }
