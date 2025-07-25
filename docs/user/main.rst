@@ -46,9 +46,15 @@ Threading
 
 On Linux, QEMU can emulate the ``clone`` syscall and create a real
 host thread (with a separate virtual CPU) for each emulated thread.
-Note that not all targets currently emulate atomic operations
-correctly. x86 and Arm use a global lock in order to preserve their
-semantics.
+However as QEMU relies on the system libc to call ``clone`` on its
+behalf we limit the flags accepted to those it uses. Specifically this
+means flags affecting namespaces (e.g. container runtimes) are not
+supported. QEMU user-mode processes can still be run inside containers
+though.
+
+While QEMU does its best to emulate atomic operations properly
+differences between the host and guest memory models can cause issues
+for software that makes assumptions about the memory model.
 
 QEMU was conceived so that ultimately it can emulate itself. Although it
 is not very useful, it is an important test to show the power of the
