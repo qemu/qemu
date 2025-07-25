@@ -211,7 +211,7 @@ static void test_machine(gconstpointer data)
 
     test_properties(qts, "/machine", true);
 
-    qlist_append_str(paths, "/machine");
+    qlist_append_str(paths, "/");
     test_list_get(qts, paths);
     test_list_get_value(qts);
 
