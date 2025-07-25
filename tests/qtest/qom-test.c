@@ -180,7 +180,7 @@ static void test_properties(QTestState *qts, const char *path, bool recurse)
         links = g_slist_delete_link(links, links);
     }
     while (children) {
-        test_properties(qts, children->data, true);
+        test_properties(qts, children->data, g_test_slow());
         g_free(children->data);
         children = g_slist_delete_link(children, children);
     }
