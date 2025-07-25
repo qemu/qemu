@@ -249,7 +249,7 @@ class QemuBaseTest(unittest.TestCase):
         tr = pycotap.TAPTestRunner(message_log = pycotap.LogMode.LogToError,
                                    test_output_log = pycotap.LogMode.LogToError)
         res = unittest.main(module = None, testRunner = tr, exit = False,
-                            argv=["__dummy__", path])
+                            argv=[sys.argv[0], path] + sys.argv[1:])
         for (test, message) in res.result.errors + res.result.failures:
 
             if hasattr(test, "log_filename"):
