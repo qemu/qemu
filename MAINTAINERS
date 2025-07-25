@@ -3454,6 +3454,7 @@ F: qom/
 F: tests/unit/check-qom-interface.c
 F: tests/unit/check-qom-proplist.c
 F: tests/unit/test-qdev-global-props.c
+F: tests/qtest/qom-test.c
 
 QOM boilerplate conversion script
 M: Eduardo Habkost <eduardo@habkost.net>
