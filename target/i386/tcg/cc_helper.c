@@ -84,6 +84,9 @@ target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1,
         return src1;
     case CC_OP_POPCNT:
         return dst ? 0 : CC_Z;
+    case CC_OP_SBB_SELF:
+	/* dst is either all zeros (--Z-P-) or all ones (-S-APC) */
+        return (dst & (CC_Z|CC_A|CC_C|CC_S)) ^ (CC_P | CC_Z);
 
     case CC_OP_MULB:
         return compute_all_mulb(dst, src1);
@@ -245,6 +248,9 @@ target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1,
     case CC_OP_MULL:
     case CC_OP_MULQ:
         return src1 != 0;
+
+    case CC_OP_SBB_SELF:
+        return dst & 1;
 
     case CC_OP_ADCX:
     case CC_OP_ADCOX:

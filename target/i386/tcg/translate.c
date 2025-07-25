@@ -304,6 +304,7 @@ static const uint8_t cc_op_live_[] = {
     [CC_OP_ADOX] = USES_CC_SRC | USES_CC_SRC2,
     [CC_OP_ADCOX] = USES_CC_DST | USES_CC_SRC | USES_CC_SRC2,
     [CC_OP_POPCNT] = USES_CC_DST,
+    [CC_OP_SBB_SELF] = USES_CC_DST,
 };
 
 static uint8_t cc_op_live(CCOp op)
@@ -938,6 +939,9 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
         size = cc_op_size(s->cc_op);
         return gen_prepare_val_nz(cpu_cc_src, size, false);
 
+    case CC_OP_SBB_SELF:
+        return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_dst };
+
     case CC_OP_ADCX:
     case CC_OP_ADCOX:
         return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_dst,
@@ -999,6 +1003,7 @@ static CCPrepare gen_prepare_eflags_o(DisasContext *s, TCGv reg)
     case CC_OP_ADCOX:
         return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src2,
                              .no_setcond = true };
+    case CC_OP_SBB_SELF:
     case CC_OP_LOGICB ... CC_OP_LOGICQ:
     case CC_OP_POPCNT:
         return (CCPrepare) { .cond = TCG_COND_NEVER };
@@ -1077,6 +1082,14 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
             goto slow_jcc;
         }
         break;
+
+    case CC_OP_SBB_SELF:
+        /* checking for nonzero is usually the most efficient */
+        if (jcc_op == JCC_L || jcc_op == JCC_B || jcc_op == JCC_S) {
+            jcc_op = JCC_Z;
+            inv = !inv;
+        }
+        goto slow_jcc;
 
     case CC_OP_LOGICB ... CC_OP_LOGICQ:
         /* Mostly used for test+jump */

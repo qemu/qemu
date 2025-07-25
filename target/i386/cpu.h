@@ -1565,7 +1565,18 @@ typedef enum {
     CC_OP_POPCNTL__,
     CC_OP_POPCNTQ__,
     CC_OP_POPCNT = sizeof(target_ulong) == 8 ? CC_OP_POPCNTQ__ : CC_OP_POPCNTL__,
-#define CC_OP_LAST_BWLQ CC_OP_POPCNTQ__
+
+    /*
+     * Note that only CC_OP_SBB_SELF (i.e. the one with MO_TL size)
+     * is used or implemented, because the translator sign-extends
+     * the -1 or 0 value that is written in CC_DST.
+     */
+    CC_OP_SBB_SELFB__, /* S/Z/C/A via CC_DST, O clear, P set.  */
+    CC_OP_SBB_SELFW__,
+    CC_OP_SBB_SELFL__,
+    CC_OP_SBB_SELFQ__,
+    CC_OP_SBB_SELF = sizeof(target_ulong) == 8 ? CC_OP_SBB_SELFQ__ : CC_OP_SBB_SELFL__,
+#define CC_OP_LAST_BWLQ CC_OP_SBB_SELFQ__
 
     CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
 } CCOp;
