@@ -155,6 +155,12 @@ VPATH+=$(PLUGIN_LIB)
 # For example, libpatch.so only needs to run against the arch-specific patch
 # target test, so we explicitly run it in the arch-specific Makefile.
 DISABLE_PLUGINS=libpatch.so
+
+# Likewise don't bother with the syscall plugin for softmmu
+ifneq ($(filter %-softmmu, $(TARGET)),)
+DISABLE_PLUGINS += libsyscall.so
+endif
+
 PLUGINS=$(filter-out $(DISABLE_PLUGINS), \
 	$(patsubst %.c, lib%.so, $(notdir $(wildcard $(PLUGIN_SRC)/*.c))))
 
