@@ -6,6 +6,11 @@
 # architecture to add to the test dependencies and deal with the
 # complications of building.
 #
+# To support the multiarch guests the target arch needs to provide a
+# boot.S that jumps to main and provides a __sys_outc functions.
+# Remember to update MULTIARCH_SOFTMMU_TARGETS in the tcg test
+# Makefile.target when this is done.
+#
 
 MULTIARCH_SRC=$(SRC_PATH)/tests/tcg/multiarch
 MULTIARCH_SYSTEM_SRC=$(MULTIARCH_SRC)/system
