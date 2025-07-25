@@ -173,14 +173,25 @@ PLUGINS=$(filter-out $(DISABLE_PLUGINS), \
 # We need to ensure expand the run-plugin-TEST-with-PLUGIN
 # pre-requistes manually here as we can't use stems to handle it. We
 # only expand MULTIARCH_TESTS which are common on most of our targets
-# to avoid an exponential explosion as new tests are added. We also
-# add some special helpers the run-plugin- rules can use below.
+# and rotate the plugins so we don't grow too out of control as new
+# tests are added. Plugins that need to run with a specific test
+# should ensure they add their combination to EXTRA_RUNS.
 
 ifneq ($(MULTIARCH_TESTS),)
-$(foreach p,$(PLUGINS), \
-	$(foreach t,$(MULTIARCH_TESTS),\
-		$(eval run-plugin-$(t)-with-$(p): $t $p) \
-		$(eval RUN_TESTS+=run-plugin-$(t)-with-$(p))))
+
+NUM_PLUGINS := $(words $(PLUGINS))
+NUM_TESTS := $(words $(MULTIARCH_TESTS))
+
+define mod_plus_one
+  $(shell $(PYTHON) -c "print( ($(1) % $(2)) + 1 )")
+endef
+
+$(foreach _idx, $(shell seq 1 $(NUM_TESTS)), \
+	$(eval _test := $(word $(_idx), $(MULTIARCH_TESTS))) \
+	$(eval _plugin := $(word $(call mod_plus_one, $(_idx), $(NUM_PLUGINS)), $(PLUGINS))) \
+	$(eval run-plugin-$(_test)-with-$(_plugin): $(_test) $(_plugin)) \
+	$(eval RUN_TESTS+=run-plugin-$(_test)-with-$(_plugin)))
+
 endif # MULTIARCH_TESTS
 endif # CONFIG_PLUGIN
 
