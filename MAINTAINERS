@@ -295,7 +295,7 @@ F: tests/tcg/openrisc/
 
 PowerPC TCG CPUs
 M: Nicholas Piggin <npiggin@gmail.com>
-M: Daniel Henrique Barboza <danielhb413@gmail.com>
+R: Chinmay Rath <rathc@linux.ibm.com>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: target/ppc/
@@ -452,7 +452,7 @@ F: target/mips/system/
 
 PPC KVM CPUs
 M: Nicholas Piggin <npiggin@gmail.com>
-R: Daniel Henrique Barboza <danielhb413@gmail.com>
+R: Harsh Prateek Bora <harshpb@linux.ibm.com>
 S: Odd Fixes
 F: target/ppc/kvm.c
 
@@ -1550,7 +1550,7 @@ F: tests/functional/test_ppc_40p.py
 
 sPAPR (pseries)
 M: Nicholas Piggin <npiggin@gmail.com>
-R: Daniel Henrique Barboza <danielhb413@gmail.com>
+M: Harsh Prateek Bora <harshpb@linux.ibm.com>
 R: Harsh Prateek Bora <harshpb@linux.ibm.com>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
@@ -1575,7 +1575,7 @@ F: tests/functional/test_ppc64_tuxrun.py
 
 PowerNV (Non-Virtualized)
 M: Nicholas Piggin <npiggin@gmail.com>
-R: Frédéric Barrat <fbarrat@linux.ibm.com>
+R: Aditya Gupta <adityag@linux.ibm.com>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: docs/system/ppc/powernv.rst
@@ -2776,7 +2776,7 @@ F: tests/qtest/fw_cfg-test.c
 T: git https://github.com/philmd/qemu.git fw_cfg-next
 
 XIVE
-R: Frédéric Barrat <fbarrat@linux.ibm.com>
+R: Gautam Menghani <gautam@linux.ibm.com>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/*/*xive*
