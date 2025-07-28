@@ -9,3 +9,8 @@ const char *get_elf_cpu_model(uint32_t eflags)
 {
     return "max";
 }
+
+abi_ulong get_elf_hwcap(CPUState *cs)
+{
+    return cpu_env(cs)->features[FEAT_1_EDX];
+}

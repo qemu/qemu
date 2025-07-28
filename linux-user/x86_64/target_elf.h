@@ -8,4 +8,6 @@
 #ifndef X86_64_TARGET_ELF_H
 #define X86_64_TARGET_ELF_H
 
+#define HAVE_ELF_HWCAP          1
+
 #endif

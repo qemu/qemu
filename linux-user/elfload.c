@@ -148,14 +148,7 @@ typedef abi_int         target_pid_t;
 
 #ifdef TARGET_I386
 
-#define ELF_HWCAP get_elf_hwcap()
-
-static uint32_t get_elf_hwcap(void)
-{
-    X86CPU *cpu = X86_CPU(thread_cpu);
-
-    return cpu->env.features[FEAT_1_EDX];
-}
+#define ELF_HWCAP get_elf_hwcap(thread_cpu)
 
 #ifdef TARGET_X86_64
 #define ELF_CLASS      ELFCLASS64

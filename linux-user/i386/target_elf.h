@@ -8,4 +8,6 @@
 #ifndef I386_TARGET_ELF_H
 #define I386_TARGET_ELF_H
 
+#define HAVE_ELF_HWCAP          1
+
 #endif
