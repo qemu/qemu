@@ -149,11 +149,11 @@ typedef abi_int         target_pid_t;
 
 #ifdef TARGET_I386
 
+#define ELF_PLATFORM get_elf_platform(thread_cpu)
+
 #ifdef TARGET_X86_64
 #define ELF_CLASS      ELFCLASS64
 #define ELF_ARCH       EM_X86_64
-
-#define ELF_PLATFORM   "x86_64"
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
@@ -237,21 +237,7 @@ static bool init_guest_commpage(void)
 #define ELF_CLASS       ELFCLASS32
 #define ELF_ARCH        EM_386
 
-#define ELF_PLATFORM get_elf_platform()
 #define EXSTACK_DEFAULT true
-
-static const char *get_elf_platform(void)
-{
-    static char elf_platform[] = "i386";
-    int family = object_property_get_int(OBJECT(thread_cpu), "family", NULL);
-    if (family > 6) {
-        family = 6;
-    }
-    if (family >= 3) {
-        elf_platform[1] = '0' + family;
-    }
-    return elf_platform;
-}
 
 static inline void init_thread(struct target_pt_regs *regs,
                                struct image_info *infop)
