@@ -8,4 +8,6 @@
 #ifndef RISCV_TARGET_ELF_H
 #define RISCV_TARGET_ELF_H
 
+#define HAVE_ELF_HWCAP          1
+
 #endif
