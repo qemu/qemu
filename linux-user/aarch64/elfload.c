@@ -342,3 +342,8 @@ const char *elf_hwcap2_str(uint32_t bit)
 
     return bit < ARRAY_SIZE(hwcap_str) ? hwcap_str[bit] : NULL;
 }
+
+const char *get_elf_platform(CPUState *cs)
+{
+    return TARGET_BIG_ENDIAN ? "aarch64_be" : "aarch64";
+}

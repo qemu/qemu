@@ -10,5 +10,6 @@
 
 #define HAVE_ELF_HWCAP          1
 #define HAVE_ELF_HWCAP2         1
+#define HAVE_ELF_PLATFORM       1
 
 #endif

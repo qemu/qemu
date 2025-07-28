@@ -105,8 +105,6 @@ abi_ulong get_elf_hwcap(CPUState *cs);
 abi_ulong get_elf_hwcap2(CPUState *cs);
 const char *elf_hwcap_str(uint32_t bit);
 const char *elf_hwcap2_str(uint32_t bit);
-#if defined(TARGET_I386)
 const char *get_elf_platform(CPUState *cs);
-#endif
 
 #endif /* LINUX_USER_LOADER_H */
