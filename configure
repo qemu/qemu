@@ -1800,6 +1800,7 @@ echo "SRC_PATH=$source_path" >> tests/tcg/$config_host_mak
 if test "$plugins" = "yes" ; then
     echo "CONFIG_PLUGIN=y" >> tests/tcg/$config_host_mak
 fi
+echo "PYTHON=$python" >> tests/tcg/$config_host_mak
 
 tcg_tests_targets=
 for target in $target_list; do

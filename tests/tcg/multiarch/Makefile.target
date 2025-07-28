@@ -189,6 +189,10 @@ run-plugin-semiconsole-with-%:
 TESTS += semihosting semiconsole
 endif
 
+test-plugin-mem-access: CFLAGS+=-pthread -O0
+test-plugin-mem-access: LDFLAGS+=-pthread -O0
+
+ifeq ($(CONFIG_PLUGIN),y)
 # Test plugin memory access instrumentation
 run-plugin-test-plugin-mem-access-with-libmem.so: \
 	PLUGIN_ARGS=$(COMMA)print-accesses=true
@@ -197,8 +201,8 @@ run-plugin-test-plugin-mem-access-with-libmem.so: \
 	$(SRC_PATH)/tests/tcg/multiarch/check-plugin-output.sh \
 	$(QEMU) $<
 
-test-plugin-mem-access: CFLAGS+=-pthread -O0
-test-plugin-mem-access: LDFLAGS+=-pthread -O0
+EXTRA_RUNS += run-plugin-test-plugin-mem-access-with-libmem.so
+endif
 
 # Update TESTS
 TESTS += $(MULTIARCH_TESTS)
