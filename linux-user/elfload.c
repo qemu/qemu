@@ -3619,7 +3619,10 @@ static int elf_core_dump(int signr, const CPUArchState *env)
 }
 #endif /* USE_ELF_CORE_DUMP */
 
-void do_init_thread(struct target_pt_regs *regs, struct image_info *infop)
+void do_init_main_thread(CPUState *cs, struct image_info *infop)
 {
-    init_thread(regs, infop);
+    target_pt_regs regs = { };
+
+    init_thread(&regs, infop);
+    target_cpu_copy_regs(cpu_env(cs), &regs);
 }

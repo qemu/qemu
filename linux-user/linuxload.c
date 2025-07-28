@@ -139,8 +139,7 @@ abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
 }
 
 int loader_exec(int fdexec, const char *filename, char **argv, char **envp,
-                struct target_pt_regs *regs, struct image_info *infop,
-                struct linux_binprm *bprm)
+                struct image_info *infop, struct linux_binprm *bprm)
 {
     int retval;
 
@@ -175,8 +174,7 @@ int loader_exec(int fdexec, const char *filename, char **argv, char **envp,
         return retval;
     }
 
-    /* Success.  Initialize important registers. */
-    do_init_thread(regs, infop);
+    /* Success. */
     return 0;
 }
 
