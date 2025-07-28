@@ -123,23 +123,21 @@ fn derive_opaque_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
     let field = &get_unnamed_field(&input, "#[derive(Wrapper)]")?;
     let typ = &field.ty;
 
-    // TODO: how to add "::qemu_api"?  For now, this is only used in the
-    // qemu_api crate so it's not a problem.
     Ok(quote! {
-        unsafe impl crate::cell::Wrapper for #name {
-            type Wrapped = <#typ as crate::cell::Wrapper>::Wrapped;
+        unsafe impl ::qemu_api::cell::Wrapper for #name {
+            type Wrapped = <#typ as ::qemu_api::cell::Wrapper>::Wrapped;
         }
         impl #name {
-            pub unsafe fn from_raw<'a>(ptr: *mut <Self as crate::cell::Wrapper>::Wrapped) -> &'a Self {
+            pub unsafe fn from_raw<'a>(ptr: *mut <Self as ::qemu_api::cell::Wrapper>::Wrapped) -> &'a Self {
                 let ptr = ::std::ptr::NonNull::new(ptr).unwrap().cast::<Self>();
                 unsafe { ptr.as_ref() }
             }
 
-            pub const fn as_mut_ptr(&self) -> *mut <Self as crate::cell::Wrapper>::Wrapped {
+            pub const fn as_mut_ptr(&self) -> *mut <Self as ::qemu_api::cell::Wrapper>::Wrapped {
                 self.0.as_mut_ptr()
             }
 
-            pub const fn as_ptr(&self) -> *const <Self as crate::cell::Wrapper>::Wrapped {
+            pub const fn as_ptr(&self) -> *const <Self as ::qemu_api::cell::Wrapper>::Wrapped {
                 self.0.as_ptr()
             }
 
@@ -147,7 +145,7 @@ fn derive_opaque_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
                 self.0.as_void_ptr()
             }
 
-            pub const fn raw_get(slot: *mut Self) -> *mut <Self as crate::cell::Wrapper>::Wrapped {
+            pub const fn raw_get(slot: *mut Self) -> *mut <Self as ::qemu_api::cell::Wrapper>::Wrapped {
                 slot.cast()
             }
         }
