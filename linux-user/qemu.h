@@ -361,5 +361,6 @@ CPUArchState *cpu_copy(CPUArchState *env);
 
 typedef struct target_pt_regs target_pt_regs;
 void target_cpu_copy_regs(CPUArchState *env, target_pt_regs *regs);
+void init_main_thread(CPUState *cs, struct image_info *info);
 
 #endif /* QEMU_H */

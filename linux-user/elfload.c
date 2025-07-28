@@ -149,16 +149,11 @@ typedef abi_int         target_pid_t;
 
 #ifdef TARGET_I386
 
+#define HAVE_INIT_MAIN_THREAD
+
 #ifdef TARGET_X86_64
 #define ELF_CLASS      ELFCLASS64
 #define ELF_ARCH       EM_X86_64
-
-static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
-{
-    regs->rax = 0;
-    regs->rsp = infop->start_stack;
-    regs->rip = infop->entry;
-}
 
 #define ELF_NREG    27
 typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
@@ -236,22 +231,6 @@ static bool init_guest_commpage(void)
 #define ELF_ARCH        EM_386
 
 #define EXSTACK_DEFAULT true
-
-static inline void init_thread(struct target_pt_regs *regs,
-                               struct image_info *infop)
-{
-    regs->esp = infop->start_stack;
-    regs->eip = infop->entry;
-
-    /* SVR4/i386 ABI (pages 3-31, 3-32) says that when the program
-       starts %edx contains a pointer to a function which might be
-       registered using `atexit'.  This provides a mean for the
-       dynamic linker to call DT_FINI functions for shared libraries
-       that have been loaded before the code runs.
-
-       A value of 0 tells we have no such handler.  */
-    regs->edx = 0;
-}
 
 #define ELF_NREG    17
 typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
@@ -3621,8 +3600,12 @@ static int elf_core_dump(int signr, const CPUArchState *env)
 
 void do_init_main_thread(CPUState *cs, struct image_info *infop)
 {
+#ifdef HAVE_INIT_MAIN_THREAD
+    init_main_thread(cs, infop);
+#else
     target_pt_regs regs = { };
 
     init_thread(&regs, infop);
     target_cpu_copy_regs(cpu_env(cs), &regs);
+#endif
 }
