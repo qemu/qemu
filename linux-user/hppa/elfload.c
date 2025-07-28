@@ -9,3 +9,8 @@ const char *get_elf_cpu_model(uint32_t eflags)
 {
     return "hppa";
 }
+
+const char *get_elf_platform(CPUState *cs)
+{
+    return "PARISC";
+}

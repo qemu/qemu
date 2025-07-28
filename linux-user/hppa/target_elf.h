@@ -8,4 +8,6 @@
 #ifndef HPPA_TARGET_ELF_H
 #define HPPA_TARGET_ELF_H
 
+#define HAVE_ELF_PLATFORM       1
+
 #endif
