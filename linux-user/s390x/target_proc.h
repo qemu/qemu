@@ -48,7 +48,7 @@ static void show_cpu_summary(CPUArchState *cpu_env, int fd)
 {
     S390CPUModel *model = env_archcpu(cpu_env)->model;
     int num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
-    uint32_t elf_hwcap = get_elf_hwcap();
+    uint32_t elf_hwcap = get_elf_hwcap(env_cpu(cpu_env));
     const char *hwcap_str;
     int i;
 

@@ -8,4 +8,6 @@
 #ifndef S390X_TARGET_ELF_H
 #define S390X_TARGET_ELF_H
 
+#define HAVE_ELF_HWCAP          1
+
 #endif
