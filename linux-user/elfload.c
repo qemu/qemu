@@ -438,16 +438,8 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 # define ELF_ARCH   EM_SPARCV9
 #endif
 
-static inline void init_thread(struct target_pt_regs *regs,
-                               struct image_info *infop)
-{
-    /* Note that target_cpu_copy_regs does not read psr/tstate. */
-    regs->pc = infop->entry;
-    regs->npc = regs->pc + 4;
-    regs->y = 0;
-    regs->u_regs[14] = (infop->start_stack - 16 * sizeof(abi_ulong)
-                        - TARGET_STACK_BIAS);
-}
+#define HAVE_INIT_MAIN_THREAD
+
 #endif /* TARGET_SPARC */
 
 #ifdef TARGET_PPC
