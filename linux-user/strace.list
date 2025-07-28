@@ -1716,3 +1716,6 @@
 { TARGET_NR_clock_gettime64, "clock_gettime64" , NULL, print_clock_gettime64,
                            print_syscall_ret_clock_gettime64 },
 #endif
+#ifdef TARGET_NR_riscv_hwprobe
+{ TARGET_NR_riscv_hwprobe, "riscv_hwprobe" , "%s(%p,%d,%d,%d,%d,%d)", NULL, NULL },
+#endif
