@@ -665,7 +665,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE        4096
 
-#define ELF_PLATFORM "loongarch"
+#define ELF_PLATFORM get_elf_platform(thread_cpu)
 
 #endif /* TARGET_LOONGARCH64 */
 

@@ -56,3 +56,8 @@ abi_ulong get_elf_hwcap(CPUState *cs)
 
     return hwcaps;
 }
+
+const char *get_elf_platform(CPUState *cs)
+{
+    return "loongarch";
+}
