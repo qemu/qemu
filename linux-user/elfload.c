@@ -293,46 +293,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *en
 #define ELF_CLASS       ELFCLASS32
 #define EXSTACK_DEFAULT true
 
-static inline void init_thread(struct target_pt_regs *regs,
-                               struct image_info *infop)
-{
-    abi_long stack = infop->start_stack;
-    memset(regs, 0, sizeof(*regs));
-
-    regs->uregs[16] = ARM_CPU_MODE_USR;
-    if (infop->entry & 1) {
-        regs->uregs[16] |= CPSR_T;
-    }
-    regs->uregs[15] = infop->entry & 0xfffffffe;
-    regs->uregs[13] = infop->start_stack;
-    /* FIXME - what to for failure of get_user()? */
-    get_user_ual(regs->uregs[2], stack + 8); /* envp */
-    get_user_ual(regs->uregs[1], stack + 4); /* envp */
-    /* XXX: it seems that r0 is zeroed after ! */
-    regs->uregs[0] = 0;
-    /* For uClinux PIC binaries.  */
-    /* XXX: Linux does this only on ARM with no MMU (do we care ?) */
-    regs->uregs[10] = infop->start_data;
-
-    /* Support ARM FDPIC.  */
-    if (info_is_fdpic(infop)) {
-        /* As described in the ABI document, r7 points to the loadmap info
-         * prepared by the kernel. If an interpreter is needed, r8 points
-         * to the interpreter loadmap and r9 points to the interpreter
-         * PT_DYNAMIC info. If no interpreter is needed, r8 is zero, and
-         * r9 points to the main program PT_DYNAMIC info.
-         */
-        regs->uregs[7] = infop->loadmap_addr;
-        if (infop->interpreter_loadmap_addr) {
-            /* Executable is dynamically loaded.  */
-            regs->uregs[8] = infop->interpreter_loadmap_addr;
-            regs->uregs[9] = infop->interpreter_pt_dynamic_addr;
-        } else {
-            regs->uregs[8] = 0;
-            regs->uregs[9] = infop->pt_dynamic_addr;
-        }
-    }
-}
+#define HAVE_INIT_MAIN_THREAD
 
 #define ELF_NREG    18
 typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
