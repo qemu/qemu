@@ -9,5 +9,6 @@
 #define MIPS_TARGET_ELF_H
 
 #define HAVE_ELF_HWCAP          1
+#define HAVE_ELF_BASE_PLATFORM  1
 
 #endif

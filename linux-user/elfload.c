@@ -679,37 +679,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #define elf_check_abi(x) (!((x) & EF_MIPS_ABI2))
 #endif
 
-#define ELF_BASE_PLATFORM get_elf_base_platform()
-
-#define MATCH_PLATFORM_INSN(_flags, _base_platform)      \
-    do { if ((cpu->env.insn_flags & (_flags)) == _flags) \
-    { return _base_platform; } } while (0)
-
-static const char *get_elf_base_platform(void)
-{
-    MIPSCPU *cpu = MIPS_CPU(thread_cpu);
-
-    /* 64 bit ISAs goes first */
-    MATCH_PLATFORM_INSN(CPU_MIPS64R6, "mips64r6");
-    MATCH_PLATFORM_INSN(CPU_MIPS64R5, "mips64r5");
-    MATCH_PLATFORM_INSN(CPU_MIPS64R2, "mips64r2");
-    MATCH_PLATFORM_INSN(CPU_MIPS64R1, "mips64");
-    MATCH_PLATFORM_INSN(CPU_MIPS5, "mips5");
-    MATCH_PLATFORM_INSN(CPU_MIPS4, "mips4");
-    MATCH_PLATFORM_INSN(CPU_MIPS3, "mips3");
-
-    /* 32 bit ISAs */
-    MATCH_PLATFORM_INSN(CPU_MIPS32R6, "mips32r6");
-    MATCH_PLATFORM_INSN(CPU_MIPS32R5, "mips32r5");
-    MATCH_PLATFORM_INSN(CPU_MIPS32R2, "mips32r2");
-    MATCH_PLATFORM_INSN(CPU_MIPS32R1, "mips32");
-    MATCH_PLATFORM_INSN(CPU_MIPS2, "mips2");
-
-    /* Fallback */
-    return "mips";
-}
-#undef MATCH_PLATFORM_INSN
-
 static inline void init_thread(struct target_pt_regs *regs,
                                struct image_info *infop)
 {
@@ -1169,10 +1138,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 
 #endif /* TARGET_HEXAGON */
 
-#ifndef ELF_BASE_PLATFORM
-#define ELF_BASE_PLATFORM (NULL)
-#endif
-
 #ifndef ELF_MACHINE
 #define ELF_MACHINE ELF_ARCH
 #endif
@@ -1218,6 +1183,9 @@ abi_ulong get_elf_hwcap2(CPUState *cs) { g_assert_not_reached(); }
 #endif
 #ifndef HAVE_ELF_PLATFORM
 const char *get_elf_platform(CPUState *cs) { return NULL; }
+#endif
+#ifndef HAVE_ELF_BASE_PLATFORM
+const char *get_elf_base_platform(CPUState *cs) { return NULL; }
 #endif
 
 #include "elf.h"
@@ -1673,7 +1641,7 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     }
 
     u_base_platform = 0;
-    k_base_platform = ELF_BASE_PLATFORM;
+    k_base_platform = get_elf_base_platform(thread_cpu);
     if (k_base_platform) {
         size_t len = strlen(k_base_platform) + 1;
         if (STACK_GROWS_DOWN) {
