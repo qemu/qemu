@@ -485,22 +485,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
         NEW_AUX_ENT(AT_UCACHEBSIZE, 0);                 \
     } while (0)
 
-static inline void init_thread(struct target_pt_regs *_regs, struct image_info *infop)
-{
-    _regs->gpr[1] = infop->start_stack;
-#if defined(TARGET_PPC64)
-    if (get_ppc64_abi(infop) < 2) {
-        uint64_t val;
-        get_user_u64(val, infop->entry + 8);
-        _regs->gpr[2] = val + infop->load_bias;
-        get_user_u64(val, infop->entry);
-        infop->entry = val + infop->load_bias;
-    } else {
-        _regs->gpr[12] = infop->entry;  /* r12 set to global entry address */
-    }
-#endif
-    _regs->nip = infop->entry;
-}
+#define HAVE_INIT_MAIN_THREAD
 
 /* See linux kernel: arch/powerpc/include/asm/elf.h.  */
 #define ELF_NREG 48
