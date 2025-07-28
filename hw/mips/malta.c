@@ -1191,7 +1191,7 @@ void mips_malta_init(MachineState *machine)
          * In little endian mode the 32bit words in the bios are swapped,
          * a neat trick which allows bi-endian firmware.
          */
-        if (!TARGET_BIG_ENDIAN) {
+        if (!TARGET_BIG_ENDIAN && bios_size > 0) {
             uint32_t *end, *addr;
             const size_t swapsize = MIN(bios_size, 0x3e0000);
             addr = rom_ptr(FLASH_ADDRESS, swapsize);
