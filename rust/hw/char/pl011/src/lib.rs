@@ -13,7 +13,6 @@
 //! the [`registers`] module for register types.
 
 mod device;
-mod device_class;
 mod registers;
 
 pub use device::pl011_create;
