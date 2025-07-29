@@ -433,39 +433,6 @@ static const VdsoImageInfo *vdso_image_info(uint32_t elf_flags)
 #define ELF_CLASS ELFCLASS32
 #define ELF_ARCH  EM_SH
 
-/* See linux kernel: arch/sh/include/asm/elf.h.  */
-#define ELF_NREG 23
-typedef struct target_elf_gregset_t {
-    target_elf_greg_t regs[ELF_NREG];
-} target_elf_gregset_t;
-
-/* See linux kernel: arch/sh/include/asm/ptrace.h.  */
-enum {
-    TARGET_REG_PC = 16,
-    TARGET_REG_PR = 17,
-    TARGET_REG_SR = 18,
-    TARGET_REG_GBR = 19,
-    TARGET_REG_MACH = 20,
-    TARGET_REG_MACL = 21,
-    TARGET_REG_SYSCALL = 22
-};
-
-void elf_core_copy_regs(target_elf_gregset_t *r, const CPUSH4State *env)
-{
-    for (int i = 0; i < 16; i++) {
-        r->regs[i] = tswapreg(env->gregs[i]);
-    }
-
-    r->regs[TARGET_REG_PC] = tswapreg(env->pc);
-    r->regs[TARGET_REG_PR] = tswapreg(env->pr);
-    r->regs[TARGET_REG_SR] = tswapreg(env->sr);
-    r->regs[TARGET_REG_GBR] = tswapreg(env->gbr);
-    r->regs[TARGET_REG_MACH] = tswapreg(env->mach);
-    r->regs[TARGET_REG_MACL] = tswapreg(env->macl);
-    r->regs[TARGET_REG_SYSCALL] = 0; /* FIXME */
-}
-
-#define HAVE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE        4096
 
 #endif
