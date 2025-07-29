@@ -10,5 +10,18 @@
 
 #define HAVE_ELF_HWCAP          1
 #define HAVE_ELF_BASE_PLATFORM  1
+#define HAVE_ELF_CORE_DUMP      1
+
+#ifdef TARGET_ABI_MIPSN32
+typedef abi_ullong target_elf_greg_t;
+#else
+typedef abi_ulong target_elf_greg_t;
+#endif
+
+/* See linux kernel: arch/mips/include/asm/elf.h.  */
+#define ELF_NREG                45
+typedef struct target_elf_gregset_t {
+    target_elf_greg_t regs[ELF_NREG];
+} target_elf_gregset_t;
 
 #endif
