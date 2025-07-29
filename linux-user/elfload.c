@@ -130,20 +130,6 @@ typedef abi_uint        target_gid_t;
 #endif
 typedef abi_int         target_pid_t;
 
-#ifdef TARGET_RISCV
-
-#define ELF_ARCH  EM_RISCV
-
-#ifdef TARGET_RISCV32
-#define ELF_CLASS ELFCLASS32
-#define VDSO_HEADER "vdso-32.c.inc"
-#else
-#define ELF_CLASS ELFCLASS64
-#define VDSO_HEADER "vdso-64.c.inc"
-#endif
-
-#endif /* TARGET_RISCV */
-
 #ifdef TARGET_HPPA
 
 #define ELF_CLASS       ELFCLASS32
