@@ -10,4 +10,6 @@
 
 #define HAVE_ELF_PLATFORM       1
 
+#define LO_COMMPAGE             0
+
 #endif
