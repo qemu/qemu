@@ -4,6 +4,7 @@
 #include "qemu.h"
 #include "loader.h"
 #include "target/arm/cpu-features.h"
+#include "target_elf.h"
 
 
 const char *get_elf_cpu_model(uint32_t eflags)
@@ -198,4 +199,15 @@ const char *get_elf_platform(CPUState *cs)
     }
 
 #undef END
+}
+
+#define tswapreg(ptr)   tswapal(ptr)
+
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUARMState *env)
+{
+    for (int i = 0; i < 16; ++i) {
+        r->regs[i] = tswapreg(env->regs[i]);
+    }
+    r->regs[16] = tswapreg(cpsr_read((CPUARMState *)env));
+    r->regs[17] = tswapreg(env->regs[0]); /* XXX */
 }

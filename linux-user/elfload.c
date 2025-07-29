@@ -218,21 +218,6 @@ static bool init_guest_commpage(void)
 #define ELF_CLASS       ELFCLASS32
 #define EXSTACK_DEFAULT true
 
-#define ELF_NREG    18
-typedef struct target_elf_gregset_t {
-    target_elf_greg_t regs[ELF_NREG];
-} target_elf_gregset_t;
-
-void elf_core_copy_regs(target_elf_gregset_t *r, const CPUARMState *env)
-{
-    for (int i = 0; i < 16; ++i) {
-        r->regs[i] = tswapreg(env->regs[i]);
-    }
-    r->regs[16] = tswapreg(cpsr_read((CPUARMState *)env));
-    r->regs[17] = tswapreg(env->regs[0]); /* XXX */
-}
-
-#define HAVE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE       4096
 
 /* The commpage only exists for 32 bit kernels */
