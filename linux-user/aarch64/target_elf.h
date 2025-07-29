@@ -17,6 +17,7 @@
 #define HAVE_ELF_HWCAP2         1
 #define HAVE_ELF_PLATFORM       1
 #define HAVE_ELF_CORE_DUMP      1
+#define HAVE_ELF_GNU_PROPERTY   1
 
 /*
  * See linux kernel: arch/arm64/include/asm/elf.h, where

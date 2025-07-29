@@ -122,4 +122,9 @@ typedef struct {
 /* Note that both Elf32_Word and Elf64_Word are uint32_t. */
 const VdsoImageInfo *get_vdso_image_info(uint32_t elf_flags);
 
+bool arch_parse_elf_property(uint32_t pr_type, uint32_t pr_datasz,
+                             const uint32_t *data,
+                             struct image_info *info,
+                             Error **errp);
+
 #endif /* LINUX_USER_LOADER_H */
