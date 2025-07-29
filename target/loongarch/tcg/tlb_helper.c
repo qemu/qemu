@@ -663,24 +663,16 @@ static TLBRet loongarch_map_tlb_entry(CPULoongArchState *env,
     return loongarch_check_pte(env, context, access_type, mmu_idx);
 }
 
-TLBRet loongarch_get_addr_from_tlb(CPULoongArchState *env, hwaddr *physical,
-                                   int *prot, vaddr address,
+TLBRet loongarch_get_addr_from_tlb(CPULoongArchState *env,
+                                   MMUContext *context,
                                    MMUAccessType access_type, int mmu_idx)
 {
     int index, match;
-    MMUContext context;
-    TLBRet ret;
 
-    context.addr = address;
-    match = loongarch_tlb_search(env, address, &index);
+    match = loongarch_tlb_search(env, context->addr, &index);
     if (match) {
-        ret = loongarch_map_tlb_entry(env, &context, access_type, index,
-                                      mmu_idx);
-        if (ret == TLBRET_MATCH) {
-            *physical = context.physical;
-            *prot = context.prot;
-        }
-        return ret;
+        return loongarch_map_tlb_entry(env, context, access_type, index,
+                                       mmu_idx);
     }
 
     return TLBRET_NOMATCH;

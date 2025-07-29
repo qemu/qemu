@@ -173,9 +173,12 @@ static TLBRet loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
 
     context.addr = address;
     if (tcg_enabled()) {
-        ret = loongarch_get_addr_from_tlb(env, physical, prot, address,
-                                          access_type, mmu_idx);
+        ret = loongarch_get_addr_from_tlb(env, &context, access_type, mmu_idx);
         if (ret != TLBRET_NOMATCH) {
+            if (ret == TLBRET_MATCH) {
+                *physical = context.physical;
+                *prot = context.prot;
+            }
             return ret;
         }
     }
