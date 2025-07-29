@@ -110,11 +110,6 @@ int info_is_fdpic(struct image_info *info)
 #define MAP_DENYWRITE 0
 #endif
 
-/* should probably go in elf.h */
-#ifndef ELIBBAD
-#define ELIBBAD 80
-#endif
-
 #if TARGET_BIG_ENDIAN
 #define ELF_DATA        ELFDATA2MSB
 #else
