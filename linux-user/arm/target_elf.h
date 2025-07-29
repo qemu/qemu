@@ -14,6 +14,7 @@
 #define HAVE_ELF_HWCAP2         1
 #define HAVE_ELF_PLATFORM       1
 #define HAVE_ELF_CORE_DUMP      1
+#define HAVE_VDSO_IMAGE_INFO    1
 
 #define HI_COMMPAGE             ((intptr_t)0xffff0f00u)
 

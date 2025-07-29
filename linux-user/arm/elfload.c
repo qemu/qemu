@@ -7,6 +7,7 @@
 #include "target_elf.h"
 #include "target/arm/cpu-features.h"
 #include "target_elf.h"
+#include "elf.h"
 
 
 const char *get_elf_cpu_model(uint32_t eflags)
@@ -254,4 +255,23 @@ void elf_core_copy_regs(target_elf_gregset_t *r, const CPUARMState *env)
     }
     r->pt.cpsr = tswapal(cpsr_read((CPUARMState *)env));
     r->pt.orig_r0 = tswapal(env->regs[0]); /* FIXME */
+}
+
+#if TARGET_BIG_ENDIAN
+# include "vdso-be8.c.inc"
+# include "vdso-be32.c.inc"
+#else
+# include "vdso-le.c.inc"
+#endif
+
+const VdsoImageInfo *get_vdso_image_info(uint32_t elf_flags)
+{
+#if TARGET_BIG_ENDIAN
+    return (EF_ARM_EABI_VERSION(elf_flags) >= EF_ARM_EABI_VER4
+            && (elf_flags & EF_ARM_BE8)
+            ? &vdso_be8_image_info
+            : &vdso_be32_image_info);
+#else
+    return &vdso_image_info;
+#endif
 }
