@@ -130,45 +130,6 @@ typedef abi_uint        target_gid_t;
 #endif
 typedef abi_int         target_pid_t;
 
-#ifdef TARGET_I386
-
-#ifdef TARGET_X86_64
-#define ELF_CLASS      ELFCLASS64
-#define ELF_ARCH       EM_X86_64
-
-#else
-
-/*
- * This is used to ensure we don't load something for the wrong architecture.
- */
-#define elf_check_arch(x) ( ((x) == EM_386) || ((x) == EM_486) )
-
-/*
- * These are used to set parameters in the core dumps.
- */
-#define ELF_CLASS       ELFCLASS32
-#define ELF_ARCH        EM_386
-
-#define EXSTACK_DEFAULT true
-
-/*
- * i386 is the only target which supplies AT_SYSINFO for the vdso.
- * All others only supply AT_SYSINFO_EHDR.
- */
-#define DLINFO_ARCH_ITEMS (vdso_info != NULL)
-#define ARCH_DLINFO                                     \
-    do {                                                \
-        if (vdso_info) {                                \
-            NEW_AUX_ENT(AT_SYSINFO, vdso_info->entry);  \
-        }                                               \
-    } while (0)
-
-#endif /* TARGET_X86_64 */
-
-#define VDSO_HEADER "vdso.c.inc"
-
-#endif /* TARGET_I386 */
-
 #ifdef TARGET_ARM
 
 #ifndef TARGET_AARCH64
