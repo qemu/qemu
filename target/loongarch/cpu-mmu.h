@@ -19,7 +19,17 @@ typedef enum TLBRet {
     TLBRET_PE,
 } TLBRet;
 
+typedef struct MMUContext {
+    vaddr         addr;
+    uint64_t      pte;
+    hwaddr        physical;
+    int           ps;  /* page size shift */
+    int           prot;
+} MMUContext;
+
 bool check_ps(CPULoongArchState *ent, uint8_t ps);
+TLBRet loongarch_check_pte(CPULoongArchState *env, MMUContext *context,
+                           MMUAccessType access_type, int mmu_idx);
 TLBRet get_physical_address(CPULoongArchState *env, hwaddr *physical,
                             int *prot, vaddr address,
                             MMUAccessType access_type, int mmu_idx,
