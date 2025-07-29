@@ -98,6 +98,9 @@ abi_long memcpy_to_target(abi_ulong dest, const void *src,
 
 extern unsigned long guest_stack_size;
 
+/* Note that Elf32 and Elf64 use uint32_t for e_flags. */
+const char *get_elf_cpu_model(uint32_t eflags);
+
 #if defined(TARGET_S390X) || defined(TARGET_AARCH64) || defined(TARGET_ARM)
 uint32_t get_elf_hwcap(void);
 const char *elf_hwcap_str(uint32_t bit);

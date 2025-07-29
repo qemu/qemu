@@ -49,7 +49,6 @@
 #include "qemu/guest-random.h"
 #include "elf.h"
 #include "trace/control.h"
-#include "target_elf.h"
 #include "user/cpu_loop.h"
 #include "crypto/init.h"
 #include "fd-trans.h"
@@ -809,7 +808,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (cpu_model == NULL) {
-        cpu_model = cpu_get_model(get_elf_eflags(execfd));
+        cpu_model = get_elf_cpu_model(get_elf_eflags(execfd));
     }
     cpu_type = parse_cpu_option(cpu_model);
 

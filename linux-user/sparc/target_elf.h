@@ -7,12 +7,5 @@
 
 #ifndef SPARC_TARGET_ELF_H
 #define SPARC_TARGET_ELF_H
-static inline const char *cpu_get_model(uint32_t eflags)
-{
-#ifdef TARGET_SPARC64
-    return "TI UltraSparc II";
-#else
-    return "Fujitsu MB86904";
-#endif
-}
+
 #endif
