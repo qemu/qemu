@@ -10,6 +10,10 @@
 
 #include "target_ptrace.h"
 
+#define ELF_ARCH                EM_ARM
+#define ELF_CLASS               ELFCLASS32
+#define EXSTACK_DEFAULT         true
+
 #define HAVE_ELF_HWCAP          1
 #define HAVE_ELF_HWCAP2         1
 #define HAVE_ELF_PLATFORM       1
