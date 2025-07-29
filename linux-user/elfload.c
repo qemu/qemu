@@ -149,8 +149,6 @@ typedef abi_int         target_pid_t;
 
 #ifdef TARGET_I386
 
-#define HAVE_INIT_MAIN_THREAD
-
 #ifdef TARGET_X86_64
 #define ELF_CLASS      ELFCLASS64
 #define ELF_ARCH       EM_X86_64
@@ -293,8 +291,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *en
 #define ELF_CLASS       ELFCLASS32
 #define EXSTACK_DEFAULT true
 
-#define HAVE_INIT_MAIN_THREAD
-
 #define ELF_NREG    18
 typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
 
@@ -395,8 +391,6 @@ static const VdsoImageInfo *vdso_image_info(uint32_t elf_flags)
 #define ELF_ARCH        EM_AARCH64
 #define ELF_CLASS       ELFCLASS64
 
-#define HAVE_INIT_MAIN_THREAD
-
 #define ELF_NREG    34
 typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
 
@@ -437,8 +431,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 # define ELF_CLASS  ELFCLASS64
 # define ELF_ARCH   EM_SPARCV9
 #endif
-
-#define HAVE_INIT_MAIN_THREAD
 
 #endif /* TARGET_SPARC */
 
@@ -484,8 +476,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
         NEW_AUX_ENT(AT_ICACHEBSIZE, cpu->env.icache_line_size); \
         NEW_AUX_ENT(AT_UCACHEBSIZE, 0);                 \
     } while (0)
-
-#define HAVE_INIT_MAIN_THREAD
 
 /* See linux kernel: arch/powerpc/include/asm/elf.h.  */
 #define ELF_NREG 48
@@ -533,8 +523,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUPPCState *en
 
 #define VDSO_HEADER "vdso.c.inc"
 
-#define HAVE_INIT_MAIN_THREAD
-
 /* See linux kernel: arch/loongarch/include/asm/elf.h */
 #define ELF_NREG 45
 typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
@@ -580,8 +568,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #else
 #define elf_check_abi(x) (!((x) & EF_MIPS_ABI2))
 #endif
-
-#define HAVE_INIT_MAIN_THREAD
 
 /* See linux kernel: arch/mips/include/asm/elf.h.  */
 #define ELF_NREG 45
@@ -640,8 +626,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMIPSState *e
 #define ELF_CLASS   ELFCLASS32
 #define ELF_ARCH    EM_MICROBLAZE
 
-#define HAVE_INIT_MAIN_THREAD
-
 #define ELF_EXEC_PAGESIZE        4096
 
 #define USE_ELF_CORE_DUMP
@@ -673,8 +657,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMBState *env
 #define ELF_CLASS ELFCLASS32
 #define ELF_DATA  ELFDATA2MSB
 
-#define HAVE_INIT_MAIN_THREAD
-
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE 8192
 
@@ -700,8 +682,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 
 #define ELF_CLASS ELFCLASS32
 #define ELF_ARCH  EM_SH
-
-#define HAVE_INIT_MAIN_THREAD
 
 /* See linux kernel: arch/sh/include/asm/elf.h.  */
 #define ELF_NREG 23
@@ -746,8 +726,6 @@ static inline void elf_core_copy_regs(target_elf_gregset_t *regs,
 #define ELF_CLASS       ELFCLASS32
 #define ELF_ARCH        EM_68K
 
-#define HAVE_INIT_MAIN_THREAD
-
 /* See linux kernel: arch/m68k/include/asm/elf.h.  */
 #define ELF_NREG 20
 typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
@@ -786,8 +764,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUM68KState *e
 #define ELF_CLASS      ELFCLASS64
 #define ELF_ARCH       EM_ALPHA
 
-#define HAVE_INIT_MAIN_THREAD
-
 #define ELF_EXEC_PAGESIZE        8192
 
 #endif /* TARGET_ALPHA */
@@ -797,8 +773,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUM68KState *e
 #define ELF_CLASS	ELFCLASS64
 #define ELF_DATA	ELFDATA2MSB
 #define ELF_ARCH	EM_S390
-
-#define HAVE_INIT_MAIN_THREAD
 
 /* See linux kernel: arch/s390/include/uapi/asm/ptrace.h (s390_regs).  */
 #define ELF_NREG 27
@@ -849,8 +823,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #define VDSO_HEADER "vdso-64.c.inc"
 #endif
 
-#define HAVE_INIT_MAIN_THREAD
-
 #define ELF_EXEC_PAGESIZE 4096
 
 #endif /* TARGET_RISCV */
@@ -863,8 +835,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #define STACK_ALIGNMENT  64
 
 #define VDSO_HEADER "vdso.c.inc"
-
-#define HAVE_INIT_MAIN_THREAD
 
 #define LO_COMMPAGE  0
 
@@ -904,8 +874,6 @@ static bool init_guest_commpage(void)
 
 #define ELF_CLASS       ELFCLASS32
 #define ELF_ARCH        EM_XTENSA
-
-#define HAVE_INIT_MAIN_THREAD
 
 /* See linux kernel: arch/xtensa/include/asm/elf.h.  */
 #define ELF_NREG 128
@@ -953,8 +921,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 
 #define ELF_CLASS       ELFCLASS32
 #define ELF_ARCH        EM_HEXAGON
-
-#define HAVE_INIT_MAIN_THREAD
 
 #endif /* TARGET_HEXAGON */
 
@@ -3438,15 +3404,3 @@ static int elf_core_dump(int signr, const CPUArchState *env)
     return ret;
 }
 #endif /* USE_ELF_CORE_DUMP */
-
-void do_init_main_thread(CPUState *cs, struct image_info *infop)
-{
-#ifdef HAVE_INIT_MAIN_THREAD
-    init_main_thread(cs, infop);
-#else
-    target_pt_regs regs = { };
-
-    init_thread(&regs, infop);
-    target_cpu_copy_regs(cpu_env(cs), &regs);
-#endif
-}
