@@ -15,6 +15,8 @@
 #define HAVE_ELF_PLATFORM       1
 #define HAVE_ELF_CORE_DUMP      1
 
+#define HI_COMMPAGE             ((intptr_t)0xffff0f00u)
+
 /*
  * See linux kernel: arch/arm/include/asm/elf.h, where
  * elf_gregset_t is mapped to struct pt_regs via sizeof.

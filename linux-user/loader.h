@@ -105,7 +105,7 @@ const char *elf_hwcap_str(uint32_t bit);
 const char *elf_hwcap2_str(uint32_t bit);
 const char *get_elf_platform(CPUState *cs);
 const char *get_elf_base_platform(CPUState *cs);
-#if defined(TARGET_X86_64)
+#if defined(TARGET_X86_64) || defined(TARGET_ARM)
 bool init_guest_commpage(void);
 #endif
 
