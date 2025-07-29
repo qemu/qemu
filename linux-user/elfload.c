@@ -130,21 +130,6 @@ typedef abi_uint        target_gid_t;
 #endif
 typedef abi_int         target_pid_t;
 
-#ifdef TARGET_SPARC
-
-#ifndef TARGET_SPARC64
-# define ELF_CLASS  ELFCLASS32
-# define ELF_ARCH   EM_SPARC
-#elif defined(TARGET_ABI32)
-# define ELF_CLASS  ELFCLASS32
-# define elf_check_arch(x) ((x) == EM_SPARC32PLUS || (x) == EM_SPARC)
-#else
-# define ELF_CLASS  ELFCLASS64
-# define ELF_ARCH   EM_SPARCV9
-#endif
-
-#endif /* TARGET_SPARC */
-
 #ifdef TARGET_PPC
 
 #define ELF_MACHINE    PPC_ELF_MACHINE
