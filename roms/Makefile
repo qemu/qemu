@@ -193,12 +193,12 @@ qboot:
 	cp qboot/build/bios.bin ../pc-bios/qboot.rom
 
 npcm7xx_bootrom:
-	$(MAKE) -C vbootrom CROSS_COMPILE=$(arm_cross_prefix)
-	cp vbootrom/npcm7xx_bootrom.bin ../pc-bios/npcm7xx_bootrom.bin
+	$(MAKE) -C vbootrom/npcm7xx CROSS_COMPILE=$(arm_cross_prefix)
+	cp vbootrom/npcm7xx/npcm7xx_bootrom.bin ../pc-bios/npcm7xx_bootrom.bin
 
 npcm8xx_bootrom:
-	$(MAKE) -C vbootrom CROSS_COMPILE=$(aarch64_cross_prefix)
-	cp vbootrom/npcm8xx_bootrom.bin ../pc-bios/npcm8xx_bootrom.bin
+	$(MAKE) -C vbootrom/npcm8xx CROSS_COMPILE=$(aarch64_cross_prefix)
+	cp vbootrom/npcm8xx/npcm8xx_bootrom.bin ../pc-bios/npcm8xx_bootrom.bin
 
 hppa-firmware:
 	$(MAKE) -C seabios-hppa parisc
