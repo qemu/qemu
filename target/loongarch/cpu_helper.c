@@ -163,22 +163,16 @@ static TLBRet loongarch_page_table_walker(CPULoongArchState *env,
     return loongarch_check_pte(env, context, access_type, mmu_idx);
 }
 
-static TLBRet loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
-                                    int *prot, vaddr address,
+static TLBRet loongarch_map_address(CPULoongArchState *env,
+                                    MMUContext *context,
                                     MMUAccessType access_type, int mmu_idx,
                                     int is_debug)
 {
     TLBRet ret;
-    MMUContext context;
 
-    context.addr = address;
     if (tcg_enabled()) {
-        ret = loongarch_get_addr_from_tlb(env, &context, access_type, mmu_idx);
+        ret = loongarch_get_addr_from_tlb(env, context, access_type, mmu_idx);
         if (ret != TLBRET_NOMATCH) {
-            if (ret == TLBRET_MATCH) {
-                *physical = context.physical;
-                *prot = context.prot;
-            }
             return ret;
         }
     }
@@ -189,13 +183,7 @@ static TLBRet loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
          * legal mapping, even if the mapping is not yet in TLB. return 0 if
          * there is a valid map, else none zero.
          */
-        ret = loongarch_page_table_walker(env, &context, access_type, mmu_idx);
-        if (ret == TLBRET_MATCH) {
-            *physical = context.physical;
-            *prot = context.prot;
-        }
-
-        return ret;
+        return loongarch_page_table_walker(env, context, access_type, mmu_idx);
     }
 
     return TLBRET_NOMATCH;
@@ -223,6 +211,8 @@ TLBRet get_physical_address(CPULoongArchState *env, hwaddr *physical,
     int64_t addr_high;
     uint8_t da = FIELD_EX64(env->CSR_CRMD, CSR_CRMD, DA);
     uint8_t pg = FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PG);
+    MMUContext context;
+    TLBRet ret;
 
     /* Check PG and DA */
     if (da & !pg) {
@@ -258,8 +248,14 @@ TLBRet get_physical_address(CPULoongArchState *env, hwaddr *physical,
     }
 
     /* Mapped address */
-    return loongarch_map_address(env, physical, prot, address,
-                                 access_type, mmu_idx, is_debug);
+    context.addr = address;
+    ret = loongarch_map_address(env, &context,
+                                access_type, mmu_idx, is_debug);
+    if (ret == TLBRET_MATCH) {
+        *physical = context.physical;
+        *prot = context.prot;
+    }
+    return ret;
 }
 
 hwaddr loongarch_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
