@@ -9,7 +9,7 @@
 #define HPPA_TARGET_ELF_H
 
 #define ELF_CLASS               ELFCLASS32
-#define ELF_ARCH                EM_PARISC
+#define ELF_MACHINE             EM_PARISC
 
 #define HAVE_ELF_PLATFORM       1
 

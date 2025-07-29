@@ -19,6 +19,6 @@
 #define HEXAGON_TARGET_ELF_H
 
 #define ELF_CLASS               ELFCLASS32
-#define ELF_ARCH                EM_HEXAGON
+#define ELF_MACHINE             EM_HEXAGON
 
 #endif

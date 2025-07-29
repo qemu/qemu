@@ -13,13 +13,11 @@
 #define ELF_MACHINE             PPC_ELF_MACHINE
 
 #ifdef TARGET_PPC64
-# define elf_check_arch(x)      ((x) == EM_PPC64)
 # define ELF_CLASS              ELFCLASS64
 #else
 # define ELF_CLASS              ELFCLASS32
 # define EXSTACK_DEFAULT        true
 #endif
-#define ELF_ARCH                EM_PPC
 
 #define HAVE_ELF_HWCAP          1
 #define HAVE_ELF_HWCAP2         1

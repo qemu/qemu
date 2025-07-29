@@ -11,7 +11,7 @@
 #include "target_ptrace.h"
 
 #define ELF_CLASS               ELFCLASS32
-#define ELF_ARCH                EM_MICROBLAZE
+#define ELF_MACHINE             EM_MICROBLAZE
 
 #define elf_check_arch(x)   ((x) == EM_MICROBLAZE || (x) == EM_MICROBLAZE_OLD)
 

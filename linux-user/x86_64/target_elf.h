@@ -11,7 +11,7 @@
 #include "target_ptrace.h"
 
 #define ELF_CLASS               ELFCLASS64
-#define ELF_ARCH                EM_X86_64
+#define ELF_MACHINE             EM_X86_64
 #define VDSO_HEADER             "vdso.c.inc"
 
 #define HAVE_ELF_HWCAP          1

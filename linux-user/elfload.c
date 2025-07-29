@@ -130,12 +130,8 @@ typedef abi_uint        target_gid_t;
 #endif
 typedef abi_int         target_pid_t;
 
-#ifndef ELF_MACHINE
-#define ELF_MACHINE ELF_ARCH
-#endif
-
 #ifndef elf_check_arch
-#define elf_check_arch(x) ((x) == ELF_ARCH)
+#define elf_check_arch(x) ((x) == ELF_MACHINE)
 #endif
 
 #ifndef elf_check_abi

@@ -11,7 +11,7 @@
 #include "target_ptrace.h"
 
 #define ELF_CLASS               ELFCLASS64
-#define ELF_ARCH                EM_MIPS
+#define ELF_MACHINE             EM_MIPS
 #define EXSTACK_DEFAULT         true
 
 #ifdef TARGET_ABI_MIPSN32

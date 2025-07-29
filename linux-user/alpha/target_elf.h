@@ -9,6 +9,6 @@
 #define ALPHA_TARGET_ELF_H
 
 #define ELF_CLASS               ELFCLASS64
-#define ELF_ARCH                EM_ALPHA
+#define ELF_MACHINE             EM_ALPHA
 
 #endif

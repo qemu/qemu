@@ -8,7 +8,7 @@
 #ifndef RISCV_TARGET_ELF_H
 #define RISCV_TARGET_ELF_H
 
-#define ELF_ARCH                EM_RISCV
+#define ELF_MACHINE             EM_RISCV
 
 #ifdef TARGET_RISCV32
 #define ELF_CLASS               ELFCLASS32

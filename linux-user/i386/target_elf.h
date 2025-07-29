@@ -11,7 +11,7 @@
 #include "target_ptrace.h"
 
 #define ELF_CLASS               ELFCLASS32
-#define ELF_ARCH                EM_386
+#define ELF_MACHINE             EM_386
 #define EXSTACK_DEFAULT         true
 #define VDSO_HEADER             "vdso.c.inc"
 

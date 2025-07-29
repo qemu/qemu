@@ -10,7 +10,7 @@
 
 #include "target_ptrace.h"
 
-#define ELF_ARCH                EM_AARCH64
+#define ELF_MACHINE             EM_AARCH64
 #define ELF_CLASS               ELFCLASS64
 
 #define HAVE_ELF_HWCAP          1
