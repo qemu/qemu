@@ -864,18 +864,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 
 #define VDSO_HEADER "vdso.c.inc"
 
-static inline void init_thread(struct target_pt_regs *regs,
-                               struct image_info *infop)
-{
-    regs->iaoq[0] = infop->entry | PRIV_USER;
-    regs->iaoq[1] = regs->iaoq[0] + 4;
-    regs->gr[23] = 0;
-    regs->gr[24] = infop->argv;
-    regs->gr[25] = infop->argc;
-    /* The top-of-stack contains a linkage buffer.  */
-    regs->gr[30] = infop->start_stack + 64;
-    regs->gr[31] = infop->entry;
-}
+#define HAVE_INIT_MAIN_THREAD
 
 #define LO_COMMPAGE  0
 
