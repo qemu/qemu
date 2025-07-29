@@ -387,8 +387,6 @@ static void kvm_arm_gicv3_put(GICv3State *s)
         reg = c->level;
         kvm_gic_line_level_access(s, 0, ncpu, &reg, true);
 
-        reg = ~0;
-        kvm_gicr_access(s, GICR_ICPENDR0, ncpu, &reg, true);
         reg = c->gicr_ipendr0;
         kvm_gicr_access(s, GICR_ISPENDR0, ncpu, &reg, true);
 
@@ -445,7 +443,7 @@ static void kvm_arm_gicv3_put(GICv3State *s)
     kvm_gic_put_line_level_bmp(s, s->level);
 
     /* s->pending bitmap -> GICD_ISPENDRn */
-    kvm_dist_putbmp(s, GICD_ISPENDR, GICD_ICPENDR, s->pending);
+    kvm_dist_putbmp(s, GICD_ISPENDR, 0, s->pending);
 
     /* s->active bitmap -> GICD_ISACTIVERn */
     kvm_dist_putbmp(s, GICD_ISACTIVER, GICD_ICACTIVER, s->active);
