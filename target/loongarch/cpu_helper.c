@@ -46,7 +46,7 @@ void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
 
 static TLBRet loongarch_page_table_walker(CPULoongArchState *env,
                                           hwaddr *physical,
-                                          int *prot, target_ulong address)
+                                          int *prot, vaddr address)
 {
     CPUState *cs = env_cpu(env);
     target_ulong index, phys;
@@ -121,7 +121,7 @@ static TLBRet loongarch_page_table_walker(CPULoongArchState *env,
 }
 
 static TLBRet loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
-                                    int *prot, target_ulong address,
+                                    int *prot, vaddr address,
                                     MMUAccessType access_type, int mmu_idx,
                                     int is_debug)
 {
@@ -147,8 +147,7 @@ static TLBRet loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
     return TLBRET_NOMATCH;
 }
 
-static hwaddr dmw_va2pa(CPULoongArchState *env, target_ulong va,
-                        target_ulong dmw)
+static hwaddr dmw_va2pa(CPULoongArchState *env, vaddr va, target_ulong dmw)
 {
     if (is_la64(env)) {
         return va & TARGET_VIRT_MASK;
@@ -160,7 +159,7 @@ static hwaddr dmw_va2pa(CPULoongArchState *env, target_ulong va,
 }
 
 TLBRet get_physical_address(CPULoongArchState *env, hwaddr *physical,
-                            int *prot, target_ulong address,
+                            int *prot, vaddr address,
                             MMUAccessType access_type, int mmu_idx,
                             int is_debug)
 {

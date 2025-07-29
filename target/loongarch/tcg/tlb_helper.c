@@ -29,7 +29,7 @@ bool check_ps(CPULoongArchState *env, uint8_t tlb_ps)
     return BIT_ULL(tlb_ps) & (env->CSR_PRCFG2);
 }
 
-static void raise_mmu_exception(CPULoongArchState *env, target_ulong address,
+static void raise_mmu_exception(CPULoongArchState *env, vaddr address,
                                 MMUAccessType access_type, TLBRet tlb_error)
 {
     CPUState *cs = env_cpu(env);
@@ -198,7 +198,7 @@ static uint32_t get_random_tlb(uint32_t low, uint32_t high)
  * field in tlb entry contains bit[47:13], so need adjust.
  * virt_vpn = vaddr[47:13]
  */
-static bool loongarch_tlb_search(CPULoongArchState *env, target_ulong vaddr,
+static bool loongarch_tlb_search(CPULoongArchState *env, vaddr vaddr,
                                  int *index)
 {
     LoongArchTLB *tlb;
@@ -649,8 +649,9 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
 }
 
 static TLBRet loongarch_map_tlb_entry(CPULoongArchState *env, hwaddr *physical,
-                                      int *prot, target_ulong address,
-                                      int access_type, int index, int mmu_idx)
+                                      int *prot, vaddr address,
+                                      int access_type, int index,
+                                      int mmu_idx)
 {
     LoongArchTLB *tlb = &env->tlb[index];
     uint64_t plv = mmu_idx;
@@ -714,7 +715,7 @@ static TLBRet loongarch_map_tlb_entry(CPULoongArchState *env, hwaddr *physical,
 }
 
 TLBRet loongarch_get_addr_from_tlb(CPULoongArchState *env, hwaddr *physical,
-                                   int *prot, target_ulong address,
+                                   int *prot, vaddr address,
                                    MMUAccessType access_type, int mmu_idx)
 {
     int index, match;

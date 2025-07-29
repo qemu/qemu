@@ -21,7 +21,7 @@ typedef enum TLBRet {
 
 bool check_ps(CPULoongArchState *ent, uint8_t ps);
 TLBRet get_physical_address(CPULoongArchState *env, hwaddr *physical,
-                            int *prot, target_ulong address,
+                            int *prot, vaddr address,
                             MMUAccessType access_type, int mmu_idx,
                             int is_debug);
 void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
