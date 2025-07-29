@@ -734,22 +734,24 @@ static size_t sd_response_size(SDState *sd, sd_rsp_type_t rtype)
     switch (rtype) {
     case sd_r1:
     case sd_r1b:
-        return 4;
+        return sd_is_spi(sd) ? 1 : 4;
 
     case sd_r2_i:
     case sd_r2_s:
+        assert(!sd_is_spi(sd));
         return 16;
 
     case sd_r3:
     case sd_r7:
-        return 4;
+        return sd_is_spi(sd) ? 5 : 4;
 
     case sd_r6:
+        assert(!sd_is_spi(sd));
         return 4;
 
     case sd_r0:
     case sd_illegal:
-        return 0;
+        return sd_is_spi(sd) ? 1 : 0;
 
     default:
         g_assert_not_reached();
@@ -758,7 +760,19 @@ static size_t sd_response_size(SDState *sd, sd_rsp_type_t rtype)
 
 static void sd_response_r1_make(SDState *sd, uint8_t *response)
 {
-    stl_be_p(response, sd->card_status);
+    if (sd_is_spi(sd)) {
+        response[0] = sd->state == sd_idle_state
+                   && !FIELD_EX32(sd->ocr, OCR, CARD_POWER_UP);
+        response[0] |= FIELD_EX32(sd->card_status, CSR, ERASE_RESET) << 1;
+        response[0] |= FIELD_EX32(sd->card_status, CSR, ILLEGAL_COMMAND) << 2;
+        response[0] |= FIELD_EX32(sd->card_status, CSR, COM_CRC_ERROR) << 3;
+        response[0] |= FIELD_EX32(sd->card_status, CSR, ERASE_SEQ_ERROR) << 4;
+        response[0] |= FIELD_EX32(sd->card_status, CSR, ADDRESS_ERROR) << 5;
+        response[0] |= FIELD_EX32(sd->card_status, CSR, BLOCK_LEN_ERROR) << 6;
+        response[0] |= 0 << 7;
+    } else {
+        stl_be_p(response, sd->card_status);
+    }
 
     /* Clear the "clear on read" status bits */
     sd->card_status &= ~CARD_STATUS_C;
@@ -766,6 +780,11 @@ static void sd_response_r1_make(SDState *sd, uint8_t *response)
 
 static void sd_response_r3_make(SDState *sd, uint8_t *response)
 {
+    if (sd_is_spi(sd)) {
+        /* Prepend R1 */
+        sd_response_r1_make(sd, response);
+        response++;
+    }
     stl_be_p(response, sd->ocr & ACMD41_R3_MASK);
 }
 
@@ -783,6 +802,11 @@ static void sd_response_r6_make(SDState *sd, uint8_t *response)
 
 static void sd_response_r7_make(SDState *sd, uint8_t *response)
 {
+    if (sd_is_spi(sd)) {
+        /* Prepend R1 */
+        sd_response_r1_make(sd, response);
+        response++;
+    }
     stl_be_p(response, sd->vhs);
 }
 
