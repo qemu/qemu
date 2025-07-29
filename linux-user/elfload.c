@@ -130,13 +130,6 @@ typedef abi_uint        target_gid_t;
 #endif
 typedef abi_int         target_pid_t;
 
-#ifdef TARGET_ALPHA
-
-#define ELF_CLASS      ELFCLASS64
-#define ELF_ARCH       EM_ALPHA
-
-#endif /* TARGET_ALPHA */
-
 #ifdef TARGET_S390X
 
 #define ELF_CLASS	ELFCLASS64
