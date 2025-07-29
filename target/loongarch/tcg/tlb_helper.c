@@ -650,7 +650,7 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
 
 static TLBRet loongarch_map_tlb_entry(CPULoongArchState *env, hwaddr *physical,
                                       int *prot, vaddr address,
-                                      int access_type, int index,
+                                      MMUAccessType access_type, int index,
                                       int mmu_idx)
 {
     LoongArchTLB *tlb = &env->tlb[index];
