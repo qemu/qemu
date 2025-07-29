@@ -44,8 +44,9 @@ void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
     }
 }
 
-static int loongarch_page_table_walker(CPULoongArchState *env, hwaddr *physical,
-                                 int *prot, target_ulong address)
+static TLBRet loongarch_page_table_walker(CPULoongArchState *env,
+                                          hwaddr *physical,
+                                          int *prot, target_ulong address)
 {
     CPUState *cs = env_cpu(env);
     target_ulong index, phys;
@@ -116,15 +117,15 @@ static int loongarch_page_table_walker(CPULoongArchState *env, hwaddr *physical,
     /* mask other attribute bits */
     *physical = base & TARGET_PAGE_MASK;
 
-    return 0;
+    return TLBRET_MATCH;
 }
 
-static int loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
-                                 int *prot, target_ulong address,
-                                 MMUAccessType access_type, int mmu_idx,
-                                 int is_debug)
+static TLBRet loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
+                                    int *prot, target_ulong address,
+                                    MMUAccessType access_type, int mmu_idx,
+                                    int is_debug)
 {
-    int ret;
+    TLBRet ret;
 
     if (tcg_enabled()) {
         ret = loongarch_get_addr_from_tlb(env, physical, prot, address,
@@ -158,9 +159,10 @@ static hwaddr dmw_va2pa(CPULoongArchState *env, target_ulong va,
     }
 }
 
-int get_physical_address(CPULoongArchState *env, hwaddr *physical,
-                         int *prot, target_ulong address,
-                         MMUAccessType access_type, int mmu_idx, int is_debug)
+TLBRet get_physical_address(CPULoongArchState *env, hwaddr *physical,
+                            int *prot, target_ulong address,
+                            MMUAccessType access_type, int mmu_idx,
+                            int is_debug)
 {
     int user_mode = mmu_idx == MMU_USER_IDX;
     int kernel_mode = mmu_idx == MMU_KERNEL_IDX;
@@ -214,7 +216,7 @@ hwaddr loongarch_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     int prot;
 
     if (get_physical_address(env, &phys_addr, &prot, addr, MMU_DATA_LOAD,
-                             cpu_mmu_index(cs, false), 1) != 0) {
+                             cpu_mmu_index(cs, false), 1) != TLBRET_MATCH) {
         return -1;
     }
     return phys_addr;

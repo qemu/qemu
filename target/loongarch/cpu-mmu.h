@@ -8,21 +8,22 @@
 #ifndef LOONGARCH_CPU_MMU_H
 #define LOONGARCH_CPU_MMU_H
 
-enum {
-    TLBRET_MATCH = 0,
-    TLBRET_BADADDR = 1,
-    TLBRET_NOMATCH = 2,
-    TLBRET_INVALID = 3,
-    TLBRET_DIRTY = 4,
-    TLBRET_RI = 5,
-    TLBRET_XI = 6,
-    TLBRET_PE = 7,
-};
+typedef enum TLBRet {
+    TLBRET_MATCH,
+    TLBRET_BADADDR,
+    TLBRET_NOMATCH,
+    TLBRET_INVALID,
+    TLBRET_DIRTY,
+    TLBRET_RI,
+    TLBRET_XI,
+    TLBRET_PE,
+} TLBRet;
 
 bool check_ps(CPULoongArchState *ent, uint8_t ps);
-int get_physical_address(CPULoongArchState *env, hwaddr *physical,
-                         int *prot, target_ulong address,
-                         MMUAccessType access_type, int mmu_idx, int is_debug);
+TLBRet get_physical_address(CPULoongArchState *env, hwaddr *physical,
+                            int *prot, target_ulong address,
+                            MMUAccessType access_type, int mmu_idx,
+                            int is_debug);
 void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
                                uint64_t *dir_width, target_ulong level);
 hwaddr loongarch_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);

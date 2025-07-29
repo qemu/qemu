@@ -30,7 +30,7 @@ bool check_ps(CPULoongArchState *env, uint8_t tlb_ps)
 }
 
 static void raise_mmu_exception(CPULoongArchState *env, target_ulong address,
-                                MMUAccessType access_type, int tlb_error)
+                                MMUAccessType access_type, TLBRet tlb_error)
 {
     CPUState *cs = env_cpu(env);
 
@@ -517,7 +517,7 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     CPULoongArchState *env = cpu_env(cs);
     hwaddr physical;
     int prot;
-    int ret;
+    TLBRet ret;
 
     /* Data access */
     ret = get_physical_address(env, &physical, &prot, address,
@@ -648,9 +648,9 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
     env->CSR_TLBREHI = FIELD_DP64(env->CSR_TLBREHI, CSR_TLBREHI, PS, ps);
 }
 
-static int loongarch_map_tlb_entry(CPULoongArchState *env, hwaddr *physical,
-                                   int *prot, target_ulong address,
-                                   int access_type, int index, int mmu_idx)
+static TLBRet loongarch_map_tlb_entry(CPULoongArchState *env, hwaddr *physical,
+                                      int *prot, target_ulong address,
+                                      int access_type, int index, int mmu_idx)
 {
     LoongArchTLB *tlb = &env->tlb[index];
     uint64_t plv = mmu_idx;
@@ -713,9 +713,9 @@ static int loongarch_map_tlb_entry(CPULoongArchState *env, hwaddr *physical,
     return TLBRET_MATCH;
 }
 
-int loongarch_get_addr_from_tlb(CPULoongArchState *env, hwaddr *physical,
-                                int *prot, target_ulong address,
-                                MMUAccessType access_type, int mmu_idx)
+TLBRet loongarch_get_addr_from_tlb(CPULoongArchState *env, hwaddr *physical,
+                                   int *prot, target_ulong address,
+                                   MMUAccessType access_type, int mmu_idx)
 {
     int index, match;
 
