@@ -1115,7 +1115,7 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
 #define HI_COMMPAGE 0
 #define LO_COMMPAGE -1
 #ifndef HAVE_GUEST_COMMPAGE
-#define init_guest_commpage() true
+bool init_guest_commpage(void) { return true; }
 #endif
 #endif
 
