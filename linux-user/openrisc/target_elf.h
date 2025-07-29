@@ -10,6 +10,9 @@
 
 #include "target_ptrace.h"
 
+#define ELF_ARCH                EM_OPENRISC
+#define ELF_CLASS               ELFCLASS32
+
 #define HAVE_ELF_CORE_DUMP      1
 
 /*
