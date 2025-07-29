@@ -3,6 +3,7 @@
 #include "qemu/osdep.h"
 #include "qemu.h"
 #include "loader.h"
+#include "target_elf.h"
 
 
 const char *get_elf_cpu_model(uint32_t eflags)
@@ -60,4 +61,24 @@ abi_ulong get_elf_hwcap(CPUState *cs)
 const char *get_elf_platform(CPUState *cs)
 {
     return "loongarch";
+}
+
+#define tswapreg(ptr)   tswapal(ptr)
+
+enum {
+    TARGET_EF_R0 = 0,
+    TARGET_EF_CSR_ERA = TARGET_EF_R0 + 33,
+    TARGET_EF_CSR_BADV = TARGET_EF_R0 + 34,
+};
+
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPULoongArchState *env)
+{
+    r->regs[TARGET_EF_R0] = 0;
+
+    for (int i = 1; i < ARRAY_SIZE(env->gpr); i++) {
+        r->regs[TARGET_EF_R0 + i] = tswapreg(env->gpr[i]);
+    }
+
+    r->regs[TARGET_EF_CSR_ERA] = tswapreg(env->pc);
+    r->regs[TARGET_EF_CSR_BADV] = tswapreg(env->CSR_BADV);
 }

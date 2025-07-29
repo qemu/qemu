@@ -383,31 +383,6 @@ static const VdsoImageInfo *vdso_image_info(uint32_t elf_flags)
 
 #define VDSO_HEADER "vdso.c.inc"
 
-/* See linux kernel: arch/loongarch/include/asm/elf.h */
-#define ELF_NREG 45
-typedef struct target_elf_gregset_t {
-    target_elf_greg_t regs[ELF_NREG];
-} target_elf_gregset_t;
-
-enum {
-    TARGET_EF_R0 = 0,
-    TARGET_EF_CSR_ERA = TARGET_EF_R0 + 33,
-    TARGET_EF_CSR_BADV = TARGET_EF_R0 + 34,
-};
-
-void elf_core_copy_regs(target_elf_gregset_t *r, const CPULoongArchState *env)
-{
-    r->regs[TARGET_EF_R0] = 0;
-
-    for (int i = 1; i < ARRAY_SIZE(env->gpr); i++) {
-        r->regs[TARGET_EF_R0 + i] = tswapreg(env->gpr[i]);
-    }
-
-    r->regs[TARGET_EF_CSR_ERA] = tswapreg(env->pc);
-    r->regs[TARGET_EF_CSR_BADV] = tswapreg(env->CSR_BADV);
-}
-
-#define HAVE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE        4096
 
 #endif /* TARGET_LOONGARCH64 */
