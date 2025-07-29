@@ -648,28 +648,19 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
     env->CSR_TLBREHI = FIELD_DP64(env->CSR_TLBREHI, CSR_TLBREHI, PS, ps);
 }
 
-static TLBRet loongarch_map_tlb_entry(CPULoongArchState *env, hwaddr *physical,
-                                      int *prot, vaddr address,
+static TLBRet loongarch_map_tlb_entry(CPULoongArchState *env,
+                                      MMUContext *context,
                                       MMUAccessType access_type, int index,
                                       int mmu_idx)
 {
     LoongArchTLB *tlb = &env->tlb[index];
     uint8_t tlb_ps, n;
-    MMUContext context;
-    TLBRet ret;
 
     tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
-    n = (address >> tlb_ps) & 0x1;/* Odd or even */
-    context.pte = n ? tlb->tlb_entry1 : tlb->tlb_entry0;
-    context.addr = address;
-    context.ps = tlb_ps;
-    ret = loongarch_check_pte(env, &context, access_type, mmu_idx);
-    if (ret == TLBRET_MATCH) {
-        *physical = context.physical;
-        *prot = context.prot;
-     }
-
-    return ret;
+    n = (context->addr >> tlb_ps) & 0x1;/* Odd or even */
+    context->pte = n ? tlb->tlb_entry1 : tlb->tlb_entry0;
+    context->ps = tlb_ps;
+    return loongarch_check_pte(env, context, access_type, mmu_idx);
 }
 
 TLBRet loongarch_get_addr_from_tlb(CPULoongArchState *env, hwaddr *physical,
@@ -677,11 +668,19 @@ TLBRet loongarch_get_addr_from_tlb(CPULoongArchState *env, hwaddr *physical,
                                    MMUAccessType access_type, int mmu_idx)
 {
     int index, match;
+    MMUContext context;
+    TLBRet ret;
 
+    context.addr = address;
     match = loongarch_tlb_search(env, address, &index);
     if (match) {
-        return loongarch_map_tlb_entry(env, physical, prot,
-                                       address, access_type, index, mmu_idx);
+        ret = loongarch_map_tlb_entry(env, &context, access_type, index,
+                                      mmu_idx);
+        if (ret == TLBRET_MATCH) {
+            *physical = context.physical;
+            *prot = context.prot;
+        }
+        return ret;
     }
 
     return TLBRET_NOMATCH;
