@@ -200,8 +200,7 @@ static hwaddr dmw_va2pa(CPULoongArchState *env, vaddr va, target_ulong dmw)
     }
 }
 
-TLBRet get_physical_address(CPULoongArchState *env, hwaddr *physical,
-                            int *prot, vaddr address,
+TLBRet get_physical_address(CPULoongArchState *env, MMUContext *context,
                             MMUAccessType access_type, int mmu_idx,
                             int is_debug)
 {
@@ -211,13 +210,13 @@ TLBRet get_physical_address(CPULoongArchState *env, hwaddr *physical,
     int64_t addr_high;
     uint8_t da = FIELD_EX64(env->CSR_CRMD, CSR_CRMD, DA);
     uint8_t pg = FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PG);
-    MMUContext context;
-    TLBRet ret;
+    vaddr address;
 
     /* Check PG and DA */
+    address = context->addr;
     if (da & !pg) {
-        *physical = address & TARGET_PHYS_MASK;
-        *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        context->physical = address & TARGET_PHYS_MASK;
+        context->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         return TLBRET_MATCH;
     }
 
@@ -235,8 +234,8 @@ TLBRet get_physical_address(CPULoongArchState *env, hwaddr *physical,
             base_c = FIELD_EX64(env->CSR_DMW[i], CSR_DMW_32, VSEG);
         }
         if ((plv & env->CSR_DMW[i]) && (base_c == base_v)) {
-            *physical = dmw_va2pa(env, address, env->CSR_DMW[i]);
-            *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+            context->physical = dmw_va2pa(env, address, env->CSR_DMW[i]);
+            context->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
             return TLBRET_MATCH;
         }
     }
@@ -248,25 +247,18 @@ TLBRet get_physical_address(CPULoongArchState *env, hwaddr *physical,
     }
 
     /* Mapped address */
-    context.addr = address;
-    ret = loongarch_map_address(env, &context,
-                                access_type, mmu_idx, is_debug);
-    if (ret == TLBRET_MATCH) {
-        *physical = context.physical;
-        *prot = context.prot;
-    }
-    return ret;
+    return loongarch_map_address(env, context, access_type, mmu_idx, is_debug);
 }
 
 hwaddr loongarch_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
     CPULoongArchState *env = cpu_env(cs);
-    hwaddr phys_addr;
-    int prot;
+    MMUContext context;
 
-    if (get_physical_address(env, &phys_addr, &prot, addr, MMU_DATA_LOAD,
+    context.addr = addr;
+    if (get_physical_address(env, &context, MMU_DATA_LOAD,
                              cpu_mmu_index(cs, false), 1) != TLBRET_MATCH) {
         return -1;
     }
-    return phys_addr;
+    return context.physical;
 }

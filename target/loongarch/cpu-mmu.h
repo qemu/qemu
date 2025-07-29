@@ -30,8 +30,7 @@ typedef struct MMUContext {
 bool check_ps(CPULoongArchState *ent, uint8_t ps);
 TLBRet loongarch_check_pte(CPULoongArchState *env, MMUContext *context,
                            MMUAccessType access_type, int mmu_idx);
-TLBRet get_physical_address(CPULoongArchState *env, hwaddr *physical,
-                            int *prot, vaddr address,
+TLBRet get_physical_address(CPULoongArchState *env, MMUContext *context,
                             MMUAccessType access_type, int mmu_idx,
                             int is_debug);
 void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
