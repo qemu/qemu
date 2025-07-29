@@ -8,8 +8,14 @@
 #ifndef HPPA_TARGET_ELF_H
 #define HPPA_TARGET_ELF_H
 
+#define ELF_CLASS               ELFCLASS32
+#define ELF_ARCH                EM_PARISC
+
 #define HAVE_ELF_PLATFORM       1
 
 #define LO_COMMPAGE             0
+#define STACK_GROWS_DOWN        0
+#define STACK_ALIGNMENT         64
+#define VDSO_HEADER             "vdso.c.inc"
 
 #endif
