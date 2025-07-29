@@ -130,13 +130,6 @@ typedef abi_uint        target_gid_t;
 #endif
 typedef abi_int         target_pid_t;
 
-#ifdef TARGET_HEXAGON
-
-#define ELF_CLASS       ELFCLASS32
-#define ELF_ARCH        EM_HEXAGON
-
-#endif /* TARGET_HEXAGON */
-
 #ifndef ELF_MACHINE
 #define ELF_MACHINE ELF_ARCH
 #endif
