@@ -442,37 +442,6 @@ static const VdsoImageInfo *vdso_image_info(uint32_t elf_flags)
 #define ELF_CLASS       ELFCLASS32
 #define ELF_ARCH        EM_68K
 
-/* See linux kernel: arch/m68k/include/asm/elf.h.  */
-#define ELF_NREG 20
-typedef struct target_elf_gregset_t {
-    target_elf_greg_t regs[ELF_NREG];
-} target_elf_gregset_t;
-
-void elf_core_copy_regs(target_elf_gregset_t *r, const CPUM68KState *env)
-{
-    r->regs[0] = tswapreg(env->dregs[1]);
-    r->regs[1] = tswapreg(env->dregs[2]);
-    r->regs[2] = tswapreg(env->dregs[3]);
-    r->regs[3] = tswapreg(env->dregs[4]);
-    r->regs[4] = tswapreg(env->dregs[5]);
-    r->regs[5] = tswapreg(env->dregs[6]);
-    r->regs[6] = tswapreg(env->dregs[7]);
-    r->regs[7] = tswapreg(env->aregs[0]);
-    r->regs[8] = tswapreg(env->aregs[1]);
-    r->regs[9] = tswapreg(env->aregs[2]);
-    r->regs[10] = tswapreg(env->aregs[3]);
-    r->regs[11] = tswapreg(env->aregs[4]);
-    r->regs[12] = tswapreg(env->aregs[5]);
-    r->regs[13] = tswapreg(env->aregs[6]);
-    r->regs[14] = tswapreg(env->dregs[0]);
-    r->regs[15] = tswapreg(env->aregs[7]);
-    r->regs[16] = tswapreg(env->dregs[0]); /* FIXME: orig_d0 */
-    r->regs[17] = tswapreg(env->sr);
-    r->regs[18] = tswapreg(env->pc);
-    r->regs[19] = 0;  /* FIXME: regs->format | regs->vector */
-}
-
-#define HAVE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE       8192
 
 #endif
