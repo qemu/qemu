@@ -283,8 +283,7 @@ static void xenfb_mouse_event(DeviceState *dev, QemuConsole *src,
                 scale = surface_height(surface) - 1;
                 break;
             default:
-                scale = 0x8000;
-                break;
+                g_assert_not_reached();
             }
             xenfb->axis[move->axis] = move->value * scale / 0x7fff;
         }
