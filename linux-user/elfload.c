@@ -130,8 +130,8 @@ typedef abi_uint        target_gid_t;
 #endif
 typedef abi_int         target_pid_t;
 
-#ifndef elf_check_arch
-#define elf_check_arch(x) ((x) == ELF_MACHINE)
+#ifndef elf_check_machine
+#define elf_check_machine(x) ((x) == ELF_MACHINE)
 #endif
 
 #ifndef elf_check_abi
@@ -346,7 +346,7 @@ static bool elf_check_ident(struct elfhdr *ehdr)
    This has to wait until after bswapping the header.  */
 static bool elf_check_ehdr(struct elfhdr *ehdr)
 {
-    return (elf_check_arch(ehdr->e_machine)
+    return (elf_check_machine(ehdr->e_machine)
             && elf_check_abi(ehdr->e_flags)
             && ehdr->e_ehsize == sizeof(struct elfhdr)
             && ehdr->e_phentsize == sizeof(struct elf_phdr)

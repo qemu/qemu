@@ -30,7 +30,7 @@ typedef struct target_elf_gregset_t {
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
-#define elf_check_arch(x)       ((x) == EM_386 || (x) == EM_486)
+#define elf_check_machine(x)    ((x) == EM_386 || (x) == EM_486)
 
 /*
  * i386 is the only target which supplies AT_SYSINFO for the vdso.

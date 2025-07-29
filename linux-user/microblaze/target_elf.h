@@ -13,7 +13,7 @@
 #define ELF_CLASS               ELFCLASS32
 #define ELF_MACHINE             EM_MICROBLAZE
 
-#define elf_check_arch(x)   ((x) == EM_MICROBLAZE || (x) == EM_MICROBLAZE_OLD)
+#define elf_check_machine(x) ((x) == EM_MICROBLAZE || (x) == EM_MICROBLAZE_OLD)
 
 #define HAVE_ELF_CORE_DUMP      1
 
