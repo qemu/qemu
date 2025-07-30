@@ -31,6 +31,7 @@ system_ss.add(files(
   'multifd-zero-page.c',
   'options.c',
   'postcopy-ram.c',
+  'ram.c',
   'savevm.c',
   'socket.c',
   'tls.c',
@@ -50,5 +51,4 @@ system_ss.add(when: uadk, if_true: files('multifd-uadk.c'))
 system_ss.add(when: qatzip, if_true: files('multifd-qatzip.c'))
 
 specific_ss.add(when: 'CONFIG_SYSTEM_ONLY',
-                if_true: files('ram.c',
-                               'vfio.c'))
+                if_true: files('vfio.c'))
