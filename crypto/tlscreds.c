@@ -283,6 +283,21 @@ char *qcrypto_tls_creds_get_priority(QCryptoTLSCreds *creds)
 }
 
 
+bool qcrypto_tls_creds_reload(QCryptoTLSCreds *creds,
+                              Error **errp)
+{
+    QCryptoTLSCredsClass *credscls = QCRYPTO_TLS_CREDS_GET_CLASS(creds);
+
+    if (credscls->reload) {
+        return credscls->reload(creds, errp);
+    }
+
+    error_setg(errp, "%s does not support reloading credentials",
+               object_get_typename(OBJECT(creds)));
+    return false;
+}
+
+
 static const TypeInfo qcrypto_tls_creds_info = {
     .parent = TYPE_OBJECT,
     .name = TYPE_QCRYPTO_TLS_CREDS,

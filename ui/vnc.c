@@ -578,7 +578,6 @@ VncInfo2List *qmp_query_vnc_servers(Error **errp)
 bool vnc_display_reload_certs(const char *id, Error **errp)
 {
     VncDisplay *vd = vnc_display_find(id);
-    QCryptoTLSCredsClass *creds = NULL;
 
     if (!vd) {
         error_setg(errp, "Can not find vnc display");
@@ -590,13 +589,7 @@ bool vnc_display_reload_certs(const char *id, Error **errp)
         return false;
     }
 
-    creds = QCRYPTO_TLS_CREDS_GET_CLASS(OBJECT(vd->tlscreds));
-    if (creds->reload == NULL) {
-        error_setg(errp, "%s doesn't support to reload TLS credential",
-                   object_get_typename(OBJECT(vd->tlscreds)));
-        return false;
-    }
-    if (!creds->reload(vd->tlscreds, errp)) {
+    if (!qcrypto_tls_creds_reload(vd->tlscreds, errp)) {
         return false;
     }
 

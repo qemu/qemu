@@ -77,4 +77,17 @@ bool qcrypto_tls_creds_check_endpoint(QCryptoTLSCreds *creds,
  */
 char *qcrypto_tls_creds_get_priority(QCryptoTLSCreds *creds);
 
+
+/**
+ * qcrypto_tls_creds_reload:
+ * @creds: pointer to a TLS credentials object
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Request a reload of the TLS credentials, if supported
+ *
+ * Returns: true on success, false on error or if not supported
+ */
+bool qcrypto_tls_creds_reload(QCryptoTLSCreds *creds,
+                              Error **errp);
+
 #endif /* QCRYPTO_TLSCREDS_H */
