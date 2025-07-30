@@ -793,9 +793,6 @@ void cpu_address_space_init(CPUState *cpu, int asidx,
         cpu->as = as;
     }
 
-    /* KVM cannot currently support multiple address spaces. */
-    assert(asidx == 0 || !kvm_enabled());
-
     if (!cpu->cpu_ases) {
         cpu->cpu_ases = g_new0(CPUAddressSpace, cpu->num_ases);
         cpu->cpu_ases_count = cpu->num_ases;
@@ -818,8 +815,6 @@ void cpu_address_space_destroy(CPUState *cpu, int asidx)
 
     assert(cpu->cpu_ases);
     assert(asidx >= 0 && asidx < cpu->num_ases);
-    /* KVM cannot currently support multiple address spaces. */
-    assert(asidx == 0 || !kvm_enabled());
 
     cpuas = &cpu->cpu_ases[asidx];
     if (tcg_enabled()) {
