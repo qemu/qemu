@@ -3876,7 +3876,8 @@ if have_block
 endif
 
 common_ss.add(files('cpu-common.c'))
-specific_ss.add(files('cpu-target.c'))
+user_ss.add(files('cpu-target.c'))
+system_ss.add(files('cpu-target.c'))
 
 subdir('system')
 

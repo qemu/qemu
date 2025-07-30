@@ -18,7 +18,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
 #include "accel/accel-cpu-ops.h"
 #include "system/cpus.h"
 #include "exec/cpu-common.h"
@@ -26,10 +25,6 @@
 #include "exec/log.h"
 #include "hw/core/cpu.h"
 #include "trace/trace-root.h"
-
-/* Validate correct placement of CPUArchState. */
-QEMU_BUILD_BUG_ON(offsetof(ArchCPU, parent_obj) != 0);
-QEMU_BUILD_BUG_ON(offsetof(ArchCPU, env) != sizeof(CPUState));
 
 /* enable or disable single step mode. EXCP_DEBUG is returned by the
    CPU loop after each instruction */
