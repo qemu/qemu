@@ -336,8 +336,11 @@ void helper_tlbwr(CPULoongArchState *env)
 void helper_tlbfill(CPULoongArchState *env)
 {
     uint64_t address, entryhi;
-    int index, set, stlb_idx;
+    int index, set, i, stlb_idx;
     uint16_t pagesize, stlb_ps;
+    uint16_t asid, tlb_asid;
+    LoongArchTLB *tlb;
+    uint8_t tlb_e;
 
     if (FIELD_EX64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR)) {
         entryhi = env->CSR_TLBREHI;
@@ -351,20 +354,52 @@ void helper_tlbfill(CPULoongArchState *env)
 
     /* Validity of stlb_ps is checked in helper_csrwr_stlbps() */
     stlb_ps = FIELD_EX64(env->CSR_STLBPS, CSR_STLBPS, PS);
+    asid = FIELD_EX64(env->CSR_ASID, CSR_ASID, ASID);
     if (pagesize == stlb_ps) {
         /* Only write into STLB bits [47:13] */
         address = entryhi & ~MAKE_64BIT_MASK(0, R_CSR_TLBEHI_64_VPPN_SHIFT);
-
-        /* Choose one set ramdomly */
-        set = get_random_tlb(0, 7);
-
-        /* Index in one set */
+        set = -1;
         stlb_idx = (address >> (stlb_ps + 1)) & 0xff; /* [0,255] */
+        for (i = 0; i < 8; ++i) {
+            tlb = &env->tlb[i * 256 + stlb_idx];
+            tlb_e = FIELD_EX64(tlb->tlb_misc, TLB_MISC, E);
+            if (!tlb_e) {
+                set = i;
+                break;
+            }
 
+            tlb_asid = FIELD_EX64(tlb->tlb_misc, TLB_MISC, ASID);
+            if (asid != tlb_asid) {
+                set = i;
+            }
+        }
+
+        /* Choose one set randomly */
+        if (set < 0) {
+            set = get_random_tlb(0, 7);
+        }
         index = set * 256 + stlb_idx;
     } else {
         /* Only write into MTLB */
-        index = get_random_tlb(LOONGARCH_STLB, LOONGARCH_TLB_MAX - 1);
+        index = -1;
+        for (i = LOONGARCH_STLB; i < LOONGARCH_TLB_MAX; i++) {
+            tlb = &env->tlb[i];
+            tlb_e = FIELD_EX64(tlb->tlb_misc, TLB_MISC, E);
+
+            if (!tlb_e) {
+                index = i;
+                break;
+            }
+
+            tlb_asid = FIELD_EX64(tlb->tlb_misc, TLB_MISC, ASID);
+            if (asid != tlb_asid) {
+                index = i;
+            }
+        }
+
+        if (index < 0) {
+            index = get_random_tlb(LOONGARCH_STLB, LOONGARCH_TLB_MAX - 1);
+        }
     }
 
     invalidate_tlb(env, index);
