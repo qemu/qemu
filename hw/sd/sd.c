@@ -147,7 +147,6 @@ struct SDState {
 
     /* Runtime changeables */
 
-    uint32_t mode;    /* current card mode, one of SDCardModes */
     int32_t state;    /* current card state, one of SDCardStates */
     uint32_t vhs;
     bool wp_switch;
@@ -315,27 +314,24 @@ static void sd_set_voltage(SDState *sd, uint16_t millivolts)
     }
 }
 
-static void sd_set_mode(SDState *sd)
+static enum SDCardModes sd_mode(SDState *sd)
 {
     switch (sd->state) {
     case sd_inactive_state:
-        sd->mode = sd_inactive;
-        break;
-
+        return sd_inactive;
     case sd_idle_state:
     case sd_ready_state:
     case sd_identification_state:
-        sd->mode = sd_card_identification_mode;
-        break;
-
+        return sd_card_identification_mode;
     case sd_standby_state:
     case sd_transfer_state:
     case sd_sendingdata_state:
     case sd_receivingdata_state:
     case sd_programming_state:
     case sd_disconnect_state:
-        sd->mode = sd_data_transfer_mode;
-        break;
+        return sd_data_transfer_mode;
+    default:
+        g_assert_not_reached();
     }
 }
 
@@ -1025,7 +1021,7 @@ static const VMStateDescription sd_vmstate = {
     .minimum_version_id = 2,
     .pre_load = sd_vmstate_pre_load,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(mode, SDState),
+        VMSTATE_UNUSED(4),
         VMSTATE_INT32(state, SDState),
         VMSTATE_UINT8_ARRAY(cid, SDState, 16),
         VMSTATE_UINT8_ARRAY(csd, SDState, 16),
@@ -1325,7 +1321,7 @@ static sd_rsp_type_t sd_invalid_state_for_cmd(SDState *sd, SDRequest req)
 static sd_rsp_type_t sd_invalid_mode_for_cmd(SDState *sd, SDRequest req)
 {
     qemu_log_mask(LOG_GUEST_ERROR, "%s: CMD%i in a wrong mode: %s (spec %s)\n",
-                  sd->proto->name, req.cmd, sd_mode_name(sd->mode),
+                  sd->proto->name, req.cmd, sd_mode_name(sd_mode(sd)),
                   sd_version_str(sd->spec_version));
 
     return sd_illegal;
@@ -1485,7 +1481,7 @@ static sd_rsp_type_t emmc_cmd_sleep_awake(SDState *sd, SDRequest req)
 /* CMD6 */
 static sd_rsp_type_t sd_cmd_SWITCH_FUNCTION(SDState *sd, SDRequest req)
 {
-    if (sd->mode != sd_data_transfer_mode) {
+    if (sd_mode(sd) != sd_data_transfer_mode) {
         return sd_invalid_mode_for_cmd(sd, req);
     }
     if (sd_is_spi(sd)) {
@@ -1658,7 +1654,7 @@ static sd_rsp_type_t sd_cmd_STOP_TRANSMISSION(SDState *sd, SDRequest req)
 /* CMD13 */
 static sd_rsp_type_t sd_cmd_SEND_STATUS(SDState *sd, SDRequest req)
 {
-    if (sd->mode != sd_data_transfer_mode) {
+    if (sd_mode(sd) != sd_data_transfer_mode) {
         return sd_invalid_mode_for_cmd(sd, req);
     }
 
@@ -1684,7 +1680,7 @@ static sd_rsp_type_t sd_cmd_SEND_STATUS(SDState *sd, SDRequest req)
 /* CMD15 */
 static sd_rsp_type_t sd_cmd_GO_INACTIVE_STATE(SDState *sd, SDRequest req)
 {
-    if (sd->mode != sd_data_transfer_mode) {
+    if (sd_mode(sd) != sd_data_transfer_mode) {
         return sd_invalid_mode_for_cmd(sd, req);
     }
     switch (sd->state) {
@@ -2090,7 +2086,9 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
     if (req.cmd != 55 || sd->expecting_acmd) {
         trace_sdcard_normal_command(sd->proto->name,
                                     sd->last_cmd_name, req.cmd,
-                                    req.arg, sd_state_name(sd->state));
+                                    req.arg,
+                                    sd_mode_name(sd_mode(sd)),
+                                    sd_state_name(sd->state));
     }
 
     /* Not interpreting this as an app command */
@@ -2176,7 +2174,9 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
 {
     sd->last_cmd_name = sd_acmd_name(sd, req.cmd);
     trace_sdcard_app_command(sd->proto->name, sd->last_cmd_name,
-                             req.cmd, req.arg, sd_state_name(sd->state));
+                             req.cmd, req.arg,
+                             sd_mode_name(sd_mode(sd)),
+                             sd_state_name(sd->state));
     sd->card_status |= APP_CMD;
 
     if (sd->proto->acmd[req.cmd].handler) {
@@ -2276,7 +2276,6 @@ static size_t sd_do_command(SDState *sd, SDRequest *req,
     }
 
     last_state = sd->state;
-    sd_set_mode(sd);
 
     if (sd->expecting_acmd) {
         sd->expecting_acmd = false;
