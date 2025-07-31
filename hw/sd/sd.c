@@ -2166,8 +2166,9 @@ static bool cmd_valid_while_locked(SDState *sd, unsigned cmd)
     return cmd_class == 0 || cmd_class == 7;
 }
 
-static int sd_do_command(SDState *sd, SDRequest *req,
-                         uint8_t *response) {
+static size_t sd_do_command(SDState *sd, SDRequest *req,
+                            uint8_t *response, size_t respsz)
+{
     int last_state;
     sd_rsp_type_t rtype;
     int rsplen;
@@ -2231,6 +2232,7 @@ static int sd_do_command(SDState *sd, SDRequest *req,
 
 send_response:
     rsplen = sd_response_size(sd, rtype);
+    assert(rsplen <= respsz);
 
     switch (rtype) {
     case sd_r1:

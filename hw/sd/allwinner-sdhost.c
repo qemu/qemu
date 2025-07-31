@@ -233,7 +233,7 @@ static void allwinner_sdhost_send_command(AwSdHostState *s)
 {
     SDRequest request;
     uint8_t resp[16];
-    int rlen;
+    size_t rlen;
 
     /* Auto clear load flag */
     s->command &= ~SD_CMDR_LOAD;
@@ -246,10 +246,7 @@ static void allwinner_sdhost_send_command(AwSdHostState *s)
         request.arg = s->command_arg;
 
         /* Send request to SD bus */
-        rlen = sdbus_do_command(&s->sdbus, &request, resp);
-        if (rlen < 0) {
-            goto error;
-        }
+        rlen = sdbus_do_command(&s->sdbus, &request, resp, sizeof(resp));
 
         /* If the command has a response, store it in the response registers */
         if ((s->command & SD_CMDR_RESPONSE)) {
