@@ -100,7 +100,6 @@ qcrypto_tls_creds_get_path(QCryptoTLSCreds *creds,
                            char **cred,
                            Error **errp)
 {
-    struct stat sb;
     int ret = -1;
 
     if (!creds->dir) {
@@ -114,7 +113,7 @@ qcrypto_tls_creds_get_path(QCryptoTLSCreds *creds,
 
     *cred = g_strdup_printf("%s/%s", creds->dir, filename);
 
-    if (stat(*cred, &sb) < 0) {
+    if (access(*cred, R_OK) < 0) {
         if (errno == ENOENT && !required) {
             ret = 0;
         } else {
