@@ -123,8 +123,13 @@ static void amdvi_writew(AMDVIState *s, hwaddr addr, uint16_t val)
     uint16_t romask = lduw_le_p(&s->romask[addr]);
     uint16_t w1cmask = lduw_le_p(&s->w1cmask[addr]);
     uint16_t oldval = lduw_le_p(&s->mmior[addr]);
+
+    uint16_t oldval_preserved = oldval & (romask | w1cmask);
+    uint16_t newval_write = val & ~romask;
+    uint16_t newval_w1c_set = val & w1cmask;
+
     stw_le_p(&s->mmior[addr],
-            ((oldval & romask) | (val & ~romask)) & ~(val & w1cmask));
+             (oldval_preserved | newval_write) & ~newval_w1c_set);
 }
 
 static void amdvi_writel(AMDVIState *s, hwaddr addr, uint32_t val)
@@ -132,8 +137,13 @@ static void amdvi_writel(AMDVIState *s, hwaddr addr, uint32_t val)
     uint32_t romask = ldl_le_p(&s->romask[addr]);
     uint32_t w1cmask = ldl_le_p(&s->w1cmask[addr]);
     uint32_t oldval = ldl_le_p(&s->mmior[addr]);
+
+    uint32_t oldval_preserved = oldval & (romask | w1cmask);
+    uint32_t newval_write = val & ~romask;
+    uint32_t newval_w1c_set = val & w1cmask;
+
     stl_le_p(&s->mmior[addr],
-            ((oldval & romask) | (val & ~romask)) & ~(val & w1cmask));
+             (oldval_preserved | newval_write) & ~newval_w1c_set);
 }
 
 static void amdvi_writeq(AMDVIState *s, hwaddr addr, uint64_t val)
@@ -141,8 +151,13 @@ static void amdvi_writeq(AMDVIState *s, hwaddr addr, uint64_t val)
     uint64_t romask = ldq_le_p(&s->romask[addr]);
     uint64_t w1cmask = ldq_le_p(&s->w1cmask[addr]);
     uint64_t oldval = ldq_le_p(&s->mmior[addr]);
+
+    uint64_t oldval_preserved = oldval & (romask | w1cmask);
+    uint64_t newval_write = val & ~romask;
+    uint64_t newval_w1c_set = val & w1cmask;
+
     stq_le_p(&s->mmior[addr],
-            ((oldval & romask) | (val & ~romask)) & ~(val & w1cmask));
+             (oldval_preserved | newval_write) & ~newval_w1c_set);
 }
 
 /* OR a 64-bit register with a 64-bit value */
