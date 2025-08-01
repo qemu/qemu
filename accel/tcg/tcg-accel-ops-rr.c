@@ -242,10 +242,17 @@ static void *rr_cpu_thread_fn(void *arg)
             cpu = first_cpu;
         }
 
-        while (cpu && cpu_work_list_empty(cpu) && !cpu->exit_request) {
-            /* Store rr_current_cpu before evaluating cpu_can_run().  */
+        while (cpu && cpu_work_list_empty(cpu)) {
+            /*
+             * Store rr_current_cpu before evaluating cpu->exit_request.
+             * Pairs with rr_kick_next_cpu().
+             */
             qatomic_set_mb(&rr_current_cpu, cpu);
 
+            /* Pairs with store-release in cpu_exit.  */
+            if (qatomic_load_acquire(&cpu->exit_request)) {
+                break;
+            }
             current_cpu = cpu;
 
             qemu_clock_enable(QEMU_CLOCK_VIRTUAL,

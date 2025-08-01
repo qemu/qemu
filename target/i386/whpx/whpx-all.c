@@ -1714,7 +1714,8 @@ static int whpx_vcpu_run(CPUState *cpu)
         if (exclusive_step_mode == WHPX_STEP_NONE) {
             whpx_vcpu_pre_run(cpu);
 
-            if (qatomic_read(&cpu->exit_request)) {
+            /* Corresponding store-release is in cpu_exit. */
+            if (qatomic_load_acquire(&cpu->exit_request)) {
                 whpx_vcpu_kick(cpu);
             }
         }

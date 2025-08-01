@@ -743,7 +743,8 @@ nvmm_vcpu_loop(CPUState *cpu)
 
         nvmm_vcpu_pre_run(cpu);
 
-        if (qatomic_read(&cpu->exit_request)) {
+        /* Corresponding store-release is in cpu_exit. */
+        if (qatomic_load_acquire(&cpu->exit_request)) {
 #if NVMM_USER_VERSION >= 2
             nvmm_vcpu_stop(vcpu);
 #else
@@ -751,8 +752,6 @@ nvmm_vcpu_loop(CPUState *cpu)
 #endif
         }
 
-        /* Read exit_request before the kernel reads the immediate exit flag */
-        smp_rmb();
         ret = nvmm_vcpu_run(mach, vcpu);
         if (ret == -1) {
             error_report("NVMM: Failed to exec a virtual processor,"
