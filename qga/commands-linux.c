@@ -1400,20 +1400,22 @@ static bool linux_sys_state_supports_mode(SuspendMode mode, Error **errp)
 
 static void linux_sys_state_suspend(SuspendMode mode, Error **errp)
 {
-    g_autoptr(GError) local_gerr = NULL;
     const char *sysfile_strs[3] = {"disk", "mem", NULL};
     const char *sysfile_str = sysfile_strs[mode];
+    int fd;
 
     if (!sysfile_str) {
         error_setg(errp, "unknown guest suspend mode");
         return;
     }
 
-    if (!g_file_set_contents(LINUX_SYS_STATE_FILE, sysfile_str,
-                             -1, &local_gerr)) {
-        error_setg(errp, "suspend: cannot write to '%s': %s",
-                   LINUX_SYS_STATE_FILE, local_gerr->message);
-        return;
+    fd = open(LINUX_SYS_STATE_FILE, O_WRONLY);
+    if (fd < 0 || write(fd, sysfile_str, strlen(sysfile_str)) < 0) {
+        error_setg(errp, "suspend: cannot write to '%s': %m",
+                   LINUX_SYS_STATE_FILE);
+    }
+    if (fd >= 0) {
+        close(fd);
     }
 }
 
