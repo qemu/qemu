@@ -28,6 +28,7 @@
 #include "qemu/lockable.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "target_elf.h"
 #include "target_signal.h"
 #include "tcg/debuginfo.h"
 
@@ -147,8 +148,6 @@ typedef abi_uint        target_gid_t;
 typedef abi_int         target_pid_t;
 
 #ifdef TARGET_I386
-
-#define ELF_HWCAP get_elf_hwcap(thread_cpu)
 
 #ifdef TARGET_X86_64
 #define ELF_CLASS      ELFCLASS64
@@ -449,7 +448,6 @@ static bool init_guest_commpage(void)
     return true;
 }
 
-#define ELF_HWCAP get_elf_hwcap(thread_cpu)
 #define ELF_HWCAP2 get_elf_hwcap2(thread_cpu)
 
 #define ELF_PLATFORM get_elf_platform()
@@ -539,7 +537,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE       4096
 
-#define ELF_HWCAP   get_elf_hwcap(thread_cpu)
 #define ELF_HWCAP2  get_elf_hwcap2(thread_cpu)
 
 #if TARGET_BIG_ENDIAN
@@ -564,8 +561,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 # define ELF_CLASS  ELFCLASS64
 # define ELF_ARCH   EM_SPARCV9
 #endif
-
-#define ELF_HWCAP get_elf_hwcap(thread_cpu)
 
 static inline void init_thread(struct target_pt_regs *regs,
                                struct image_info *infop)
@@ -598,7 +593,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 
 #define ELF_ARCH        EM_PPC
 
-#define ELF_HWCAP get_elf_hwcap(thread_cpu)
 #define ELF_HWCAP2 get_elf_hwcap2(thread_cpu)
 
 /*
@@ -725,8 +719,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE        4096
 
-#define ELF_HWCAP get_elf_hwcap(thread_cpu)
-
 #define ELF_PLATFORM "loongarch"
 
 #endif /* TARGET_LOONGARCH64 */
@@ -834,8 +826,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMIPSState *e
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE        4096
 
-#define ELF_HWCAP get_elf_hwcap(thread_cpu)
-
 #endif /* TARGET_MIPS */
 
 #ifdef TARGET_MICROBLAZE
@@ -909,7 +899,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
     (*regs)[32] = tswapreg(env->pc);
     (*regs)[33] = tswapreg(cpu_get_sr(env));
 }
-#define ELF_HWCAP 0
+
 #define ELF_PLATFORM NULL
 
 #endif /* TARGET_OPENRISC */
@@ -962,8 +952,6 @@ static inline void elf_core_copy_regs(target_elf_gregset_t *regs,
 
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE        4096
-
-#define ELF_HWCAP get_elf_hwcap(thread_cpu)
 
 #endif
 
@@ -1039,8 +1027,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 #define ELF_DATA	ELFDATA2MSB
 #define ELF_ARCH	EM_S390
 
-#define ELF_HWCAP get_elf_hwcap(thread_cpu)
-
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
     regs->psw.addr = infop->entry;
@@ -1098,8 +1084,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #define ELF_CLASS ELFCLASS64
 #define VDSO_HEADER "vdso-64.c.inc"
 #endif
-
-#define ELF_HWCAP get_elf_hwcap(thread_cpu)
 
 static inline void init_thread(struct target_pt_regs *regs,
                                struct image_info *infop)
@@ -1268,10 +1252,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 #define elf_check_abi(x) (1)
 #endif
 
-#ifndef ELF_HWCAP
-#define ELF_HWCAP 0
-#endif
-
 #ifndef STACK_GROWS_DOWN
 #define STACK_GROWS_DOWN 1
 #endif
@@ -1289,6 +1269,15 @@ static inline void init_thread(struct target_pt_regs *regs,
 
 #ifndef EXSTACK_DEFAULT
 #define EXSTACK_DEFAULT false
+#endif
+
+/*
+ * Provide fallback definitions that the target may omit.
+ * One way or another, we'll get a link error if the setting of
+ * HAVE_* doesn't match the implementation.
+ */
+#ifndef HAVE_ELF_HWCAP
+abi_ulong get_elf_hwcap(CPUState *cs) { return 0; }
 #endif
 
 #include "elf.h"
@@ -1868,7 +1857,7 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     NEW_AUX_ENT(AT_EUID, (abi_ulong) geteuid());
     NEW_AUX_ENT(AT_GID, (abi_ulong) getgid());
     NEW_AUX_ENT(AT_EGID, (abi_ulong) getegid());
-    NEW_AUX_ENT(AT_HWCAP, (abi_ulong) ELF_HWCAP);
+    NEW_AUX_ENT(AT_HWCAP, get_elf_hwcap(thread_cpu));
     NEW_AUX_ENT(AT_CLKTCK, (abi_ulong) sysconf(_SC_CLK_TCK));
     NEW_AUX_ENT(AT_RANDOM, (abi_ulong) u_rand_bytes);
     NEW_AUX_ENT(AT_SECURE, (abi_ulong) qemu_getauxval(AT_SECURE));
