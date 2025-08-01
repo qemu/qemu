@@ -160,10 +160,10 @@ static void amdvi_writeq(AMDVIState *s, hwaddr addr, uint64_t val)
              (oldval_preserved | newval_write) & ~newval_w1c_set);
 }
 
-/* OR a 64-bit register with a 64-bit value */
+/* AND a 64-bit register with a 64-bit value */
 static bool amdvi_test_mask(AMDVIState *s, hwaddr addr, uint64_t val)
 {
-    return amdvi_readq(s, addr) | val;
+    return amdvi_readq(s, addr) & val;
 }
 
 /* OR a 64-bit register with a 64-bit value storing result in the register */
@@ -192,19 +192,31 @@ static void amdvi_generate_msi_interrupt(AMDVIState *s)
     }
 }
 
+static uint32_t get_next_eventlog_entry(AMDVIState *s)
+{
+    uint32_t evtlog_size = s->evtlog_len * AMDVI_EVENT_LEN;
+    return (s->evtlog_tail + AMDVI_EVENT_LEN) % evtlog_size;
+}
+
 static void amdvi_log_event(AMDVIState *s, uint64_t *evt)
 {
+    uint32_t evtlog_tail_next;
+
     /* event logging not enabled */
     if (!s->evtlog_enabled || amdvi_test_mask(s, AMDVI_MMIO_STATUS,
         AMDVI_MMIO_STATUS_EVT_OVF)) {
         return;
     }
 
+    evtlog_tail_next = get_next_eventlog_entry(s);
+
     /* event log buffer full */
-    if (s->evtlog_tail >= s->evtlog_len) {
-        amdvi_assign_orq(s, AMDVI_MMIO_STATUS, AMDVI_MMIO_STATUS_EVT_OVF);
-        /* generate interrupt */
-        amdvi_generate_msi_interrupt(s);
+    if (evtlog_tail_next == s->evtlog_head) {
+        /* generate overflow interrupt */
+        if (s->evtlog_intr) {
+            amdvi_assign_orq(s, AMDVI_MMIO_STATUS, AMDVI_MMIO_STATUS_EVT_OVF);
+            amdvi_generate_msi_interrupt(s);
+        }
         return;
     }
 
@@ -213,9 +225,13 @@ static void amdvi_log_event(AMDVIState *s, uint64_t *evt)
         trace_amdvi_evntlog_fail(s->evtlog, s->evtlog_tail);
     }
 
-    s->evtlog_tail += AMDVI_EVENT_LEN;
-    amdvi_assign_orq(s, AMDVI_MMIO_STATUS, AMDVI_MMIO_STATUS_COMP_INT);
-    amdvi_generate_msi_interrupt(s);
+    s->evtlog_tail = evtlog_tail_next;
+    amdvi_writeq_raw(s, AMDVI_MMIO_EVENT_TAIL, s->evtlog_tail);
+
+    if (s->evtlog_intr) {
+        amdvi_assign_orq(s, AMDVI_MMIO_STATUS, AMDVI_MMIO_STATUS_EVENT_INT);
+        amdvi_generate_msi_interrupt(s);
+    }
 }
 
 static void amdvi_setevent_bits(uint64_t *buffer, uint64_t value, int start,
@@ -731,9 +747,19 @@ static inline void amdvi_handle_excllim_write(AMDVIState *s)
 static inline void amdvi_handle_evtbase_write(AMDVIState *s)
 {
     uint64_t val = amdvi_readq(s, AMDVI_MMIO_EVENT_BASE);
+
+    if (amdvi_readq(s, AMDVI_MMIO_STATUS) & AMDVI_MMIO_STATUS_EVENT_INT)
+        /* Do not reset if eventlog interrupt bit is set*/
+        return;
+
     s->evtlog = val & AMDVI_MMIO_EVTLOG_BASE_MASK;
     s->evtlog_len = 1UL << (amdvi_readq(s, AMDVI_MMIO_EVTLOG_SIZE_BYTE)
                     & AMDVI_MMIO_EVTLOG_SIZE_MASK);
+
+    /* clear tail and head pointer to 0 when event base is updated */
+    s->evtlog_tail = s->evtlog_head = 0;
+    amdvi_writeq_raw(s, AMDVI_MMIO_EVENT_HEAD, s->evtlog_head);
+    amdvi_writeq_raw(s, AMDVI_MMIO_EVENT_TAIL, s->evtlog_tail);
 }
 
 static inline void amdvi_handle_evttail_write(AMDVIState *s)
