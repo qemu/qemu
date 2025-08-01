@@ -646,7 +646,6 @@ static void amdvi_handle_control_write(AMDVIState *s)
     unsigned long control = amdvi_readq(s, AMDVI_MMIO_CONTROL);
     s->enabled = !!(control & AMDVI_MMIO_CONTROL_AMDVIEN);
 
-    s->ats_enabled = !!(control & AMDVI_MMIO_CONTROL_HTTUNEN);
     s->evtlog_enabled = s->enabled && !!(control &
                         AMDVI_MMIO_CONTROL_EVENTLOGEN);
 
@@ -1555,7 +1554,6 @@ static void amdvi_init(AMDVIState *s)
     s->excl_allow = false;
     s->mmio_enabled = false;
     s->enabled = false;
-    s->ats_enabled = false;
     s->cmdbuf_enabled = false;
 
     /* reset MMIO */
@@ -1626,7 +1624,8 @@ static const VMStateDescription vmstate_amdvi_sysbus_migratable = {
       /* Updated in  amdvi_handle_control_write() */
       VMSTATE_BOOL(enabled, AMDVIState),
       VMSTATE_BOOL(ga_enabled, AMDVIState),
-      VMSTATE_BOOL(ats_enabled, AMDVIState),
+      /* bool ats_enabled is obsolete */
+      VMSTATE_UNUSED(1), /* was ats_enabled */
       VMSTATE_BOOL(cmdbuf_enabled, AMDVIState),
       VMSTATE_BOOL(completion_wait_intr, AMDVIState),
       VMSTATE_BOOL(evtlog_enabled, AMDVIState),
