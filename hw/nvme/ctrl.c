@@ -8339,6 +8339,11 @@ static bool nvme_check_params(NvmeCtrl *n, Error **errp)
         host_memory_backend_set_mapped(n->pmr.dev, true);
     }
 
+    if (!n->params.mdts || ((1 << n->params.mdts) + 1) > IOV_MAX) {
+        error_setg(errp, "mdts exceeds IOV_MAX");
+        return false;
+    }
+
     if (n->params.zasl > n->params.mdts) {
         error_setg(errp, "zoned.zasl (Zone Append Size Limit) must be less "
                    "than or equal to mdts (Maximum Data Transfer Size)");
