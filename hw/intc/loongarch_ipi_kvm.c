@@ -23,36 +23,41 @@ static void kvm_ipi_access_regs(void *opaque, bool write)
     LoongarchIPIState *lis = LOONGARCH_IPI(opaque);
     IPICore *core;
     uint64_t attr;
-    int cpu, fd = lis->dev_fd;
+    int i, cpu_index, fd = lis->dev_fd;
 
     if (fd == 0) {
         return;
     }
 
-    for (cpu = 0; cpu < ipi->num_cpu; cpu++) {
-        core = &ipi->cpu[cpu];
-        attr = (cpu << 16) | CORE_STATUS_OFF;
+    for (i = 0; i < ipi->num_cpu; i++) {
+        core = &ipi->cpu[i];
+        if (core->cpu == NULL) {
+            continue;
+        }
+        cpu_index = i;
+
+        attr = (cpu_index << 16) | CORE_STATUS_OFF;
         kvm_ipi_access_reg(fd, attr, &core->status, write);
 
-        attr = (cpu << 16) | CORE_EN_OFF;
+        attr = (cpu_index << 16) | CORE_EN_OFF;
         kvm_ipi_access_reg(fd, attr, &core->en, write);
 
-        attr = (cpu << 16) | CORE_SET_OFF;
+        attr = (cpu_index << 16) | CORE_SET_OFF;
         kvm_ipi_access_reg(fd, attr, &core->set, write);
 
-        attr = (cpu << 16) | CORE_CLEAR_OFF;
+        attr = (cpu_index << 16) | CORE_CLEAR_OFF;
         kvm_ipi_access_reg(fd, attr, &core->clear, write);
 
-        attr = (cpu << 16) | CORE_BUF_20;
+        attr = (cpu_index << 16) | CORE_BUF_20;
         kvm_ipi_access_reg(fd, attr, &core->buf[0], write);
 
-        attr = (cpu << 16) | CORE_BUF_28;
+        attr = (cpu_index << 16) | CORE_BUF_28;
         kvm_ipi_access_reg(fd, attr, &core->buf[2], write);
 
-        attr = (cpu << 16) | CORE_BUF_30;
+        attr = (cpu_index << 16) | CORE_BUF_30;
         kvm_ipi_access_reg(fd, attr, &core->buf[4], write);
 
-        attr = (cpu << 16) | CORE_BUF_38;
+        attr = (cpu_index << 16) | CORE_BUF_38;
         kvm_ipi_access_reg(fd, attr, &core->buf[6], write);
     }
 }

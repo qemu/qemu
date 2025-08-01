@@ -196,8 +196,8 @@ int get_physical_address(CPULoongArchState *env, hwaddr *physical,
     }
 
     /* Check valid extension */
-    addr_high = sextract64(address, TARGET_VIRT_ADDR_SPACE_BITS, 16);
-    if (!(addr_high == 0 || addr_high == -1)) {
+    addr_high = (int64_t)address >> (TARGET_VIRT_ADDR_SPACE_BITS - 1);
+    if (!(addr_high == 0 || addr_high == -1ULL)) {
         return TLBRET_BADADDR;
     }
 
