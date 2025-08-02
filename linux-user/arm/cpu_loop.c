@@ -492,10 +492,6 @@ void init_main_thread(CPUState *cs, struct image_info *info)
     env->regs[15] = entry & 0xfffffffe;
     env->regs[13] = stack;
 
-    /* FIXME - what to for failure of get_user()? */
-    get_user_ual(env->regs[2], stack + 8); /* envp */
-    get_user_ual(env->regs[1], stack + 4); /* envp */
-
     /*
      * Per the SVR4 ABI, r0 contains a pointer to a function to be
      * registered with atexit.  A value of 0 means we have no such handler.
