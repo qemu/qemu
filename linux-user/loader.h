@@ -106,4 +106,7 @@ const char *elf_hwcap2_str(uint32_t bit);
 const char *get_elf_platform(CPUState *cs);
 const char *get_elf_base_platform(CPUState *cs);
 
+struct target_elf_gregset_t;
+void elf_core_copy_regs(struct target_elf_gregset_t *, const CPUArchState *);
+
 #endif /* LINUX_USER_LOADER_H */

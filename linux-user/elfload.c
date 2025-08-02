@@ -165,7 +165,7 @@ typedef struct target_elf_gregset_t {
  *
  * See linux kernel: arch/x86/include/asm/elf.h
  */
-static void elf_core_copy_regs(target_elf_gregset_t *r, const CPUX86State *env)
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUX86State *env)
 {
     r->regs[0] = tswapreg(env->regs[15]);
     r->regs[1] = tswapreg(env->regs[14]);
@@ -244,7 +244,7 @@ typedef struct target_elf_gregset_t {
  *
  * See linux kernel: arch/x86/include/asm/elf.h
  */
-static void elf_core_copy_regs(target_elf_gregset_t *r, const CPUX86State *env)
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUX86State *env)
 {
     r->regs[0] = tswapreg(env->regs[R_EBX]);
     r->regs[1] = tswapreg(env->regs[R_ECX]);
@@ -300,7 +300,7 @@ typedef struct target_elf_gregset_t {
     target_elf_greg_t regs[ELF_NREG];
 } target_elf_gregset_t;
 
-static void elf_core_copy_regs(target_elf_gregset_t *r, const CPUARMState *env)
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUARMState *env)
 {
     for (int i = 0; i < 16; ++i) {
         r->regs[i] = tswapreg(env->regs[i]);
@@ -388,7 +388,7 @@ typedef struct target_elf_gregset_t {
     target_elf_greg_t regs[ELF_NREG];
 } target_elf_gregset_t;
 
-static void elf_core_copy_regs(target_elf_gregset_t *r, const CPUARMState *env)
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUARMState *env)
 {
     for (int i = 0; i < 32; i++) {
         r->regs[i] = tswapreg(env->xregs[i]);
@@ -474,7 +474,7 @@ typedef struct target_elf_gregset_t {
     target_elf_greg_t regs[ELF_NREG];
 } target_elf_gregset_t;
 
-static void elf_core_copy_regs(target_elf_gregset_t *r, const CPUPPCState *env)
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUPPCState *env)
 {
     int i;
     target_ulong ccr = 0;
@@ -528,8 +528,7 @@ enum {
     TARGET_EF_CSR_BADV = TARGET_EF_R0 + 34,
 };
 
-static void elf_core_copy_regs(target_elf_gregset_t *r,
-                               const CPULoongArchState *env)
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPULoongArchState *env)
 {
     r->regs[TARGET_EF_R0] = 0;
 
@@ -586,7 +585,7 @@ enum {
 };
 
 /* See linux kernel: arch/mips/kernel/process.c:elf_dump_regs.  */
-static void elf_core_copy_regs(target_elf_gregset_t *r, const CPUMIPSState *env)
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUMIPSState *env)
 {
     int i;
 
@@ -628,7 +627,7 @@ typedef struct target_elf_gregset_t {
 } target_elf_gregset_t;
 
 /* See linux kernel: arch/mips/kernel/process.c:elf_dump_regs.  */
-static void elf_core_copy_regs(target_elf_gregset_t *r, const CPUMBState *env)
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUMBState *env)
 {
     for (int i = 0; i < 32; i++) {
         r->regs[i] = tswapreg(env->regs[i]);
@@ -659,8 +658,7 @@ typedef struct target_elf_gregset_t {
     target_elf_greg_t regs[ELF_NREG];
 } target_elf_gregset_t;
 
-static void elf_core_copy_regs(target_elf_gregset_t *r,
-                               const CPUOpenRISCState *env)
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUOpenRISCState *env)
 {
     for (int i = 0; i < 32; i++) {
         r->regs[i] = tswapreg(cpu_get_gpr(env, i));
@@ -693,7 +691,7 @@ enum {
     TARGET_REG_SYSCALL = 22
 };
 
-static void elf_core_copy_regs(target_elf_gregset_t *r, const CPUSH4State *env)
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUSH4State *env)
 {
     for (int i = 0; i < 16; i++) {
         r->regs[i] = tswapreg(env->gregs[i]);
@@ -724,7 +722,7 @@ typedef struct target_elf_gregset_t {
     target_elf_greg_t regs[ELF_NREG];
 } target_elf_gregset_t;
 
-static void elf_core_copy_regs(target_elf_gregset_t *r, const CPUM68KState *env)
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUM68KState *env)
 {
     r->regs[0] = tswapreg(env->dregs[1]);
     r->regs[1] = tswapreg(env->dregs[2]);
@@ -782,8 +780,7 @@ enum {
     TARGET_REG_ORIG_R2 = 26,
 };
 
-static void elf_core_copy_regs(target_elf_gregset_t *r,
-                               const CPUS390XState *env)
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUS390XState *env)
 {
     int i;
     uint32_t *aregs;
@@ -890,8 +887,7 @@ enum {
     TARGET_REG_AR0 = 64,
 };
 
-static void elf_core_copy_regs(target_elf_gregset_t *r,
-                               const CPUXtensaState *env)
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUXtensaState *env)
 {
     unsigned i;
 
@@ -2865,8 +2861,7 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
  * Last step is to implement target specific function that copies registers
  * from given cpu into just specified register set.  Prototype is:
  *
- * static void elf_core_copy_regs(taret_elf_gregset_t *regs,
- *                                const CPUArchState *env);
+ * void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUArchState *env);
  *
  * Parameters:
  *     regs - copy register values into here (allocated and zeroed by caller)
