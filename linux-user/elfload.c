@@ -305,7 +305,6 @@ typedef abi_int         target_pid_t;
 
 #define ELF_ARCH EM_OPENRISC
 #define ELF_CLASS ELFCLASS32
-#define ELF_DATA  ELFDATA2MSB
 
 #endif /* TARGET_OPENRISC */
 
@@ -333,7 +332,6 @@ typedef abi_int         target_pid_t;
 #ifdef TARGET_S390X
 
 #define ELF_CLASS	ELFCLASS64
-#define ELF_DATA	ELFDATA2MSB
 #define ELF_ARCH	EM_S390
 
 #define VDSO_HEADER "vdso.c.inc"
