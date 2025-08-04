@@ -1067,11 +1067,6 @@ static const ARMCPRegInfo v7_pm_reginfo[] = {
       .fgt = FGT_PMSELR_EL0,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pmselr),
       .writefn = pmselr_write, .raw_writefn = raw_write, },
-    { .name = "PMCCNTR", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 0,
-      .access = PL0_RW, .resetvalue = 0, .type = ARM_CP_ALIAS | ARM_CP_IO,
-      .fgt = FGT_PMCCNTR_EL0,
-      .readfn = pmccntr_read, .writefn = pmccntr_write32,
-      .accessfn = pmreg_access_ccntr },
     { .name = "PMCCNTR_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 9, .crm = 13, .opc2 = 0,
       .access = PL0_RW, .accessfn = pmreg_access_ccntr,
@@ -1211,6 +1206,23 @@ void define_pm_cpregs(ARMCPU *cpu)
         define_one_arm_cp_reg(cpu, &pmcr);
         define_one_arm_cp_reg(cpu, &pmcr64);
         define_arm_cp_regs(cpu, v7_pm_reginfo);
+        /*
+         * 32-bit AArch32 PMCCNTR. We don't expose this to GDB if the
+         * new-in-v8 PMUv3 64-bit AArch32 PMCCNTR register is implemented
+         * (as that will provide the GDB user's view of "PMCCNTR").
+         */
+        ARMCPRegInfo pmccntr = {
+            .name = "PMCCNTR",
+            .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 0,
+            .access = PL0_RW, .accessfn = pmreg_access_ccntr,
+            .resetvalue = 0, .type = ARM_CP_ALIAS | ARM_CP_IO,
+            .fgt = FGT_PMCCNTR_EL0,
+            .readfn = pmccntr_read, .writefn = pmccntr_write32,
+        };
+        if (arm_feature(env, ARM_FEATURE_V8)) {
+            pmccntr.type |= ARM_CP_NO_GDB;
+        }
+        define_one_arm_cp_reg(cpu, &pmccntr);
 
         for (unsigned i = 0, pmcrn = pmu_num_counters(env); i < pmcrn; i++) {
             g_autofree char *pmevcntr_name = g_strdup_printf("PMEVCNTR%d", i);
@@ -1276,6 +1288,13 @@ void define_pm_cpregs(ARMCPU *cpu)
               .access = PL0_R, .accessfn = pmreg_access, .type = ARM_CP_CONST,
               .fgt = FGT_PMCEIDN_EL0,
               .resetvalue = cpu->pmceid1 },
+            /* AArch32 64-bit PMCCNTR view: added in PMUv3 with Armv8 */
+            { .name = "PMCCNTR", .state = ARM_CP_STATE_AA32,
+              .cp = 15, .crm = 9, .opc1 = 0,
+              .access = PL0_RW, .accessfn = pmreg_access_ccntr, .resetvalue = 0,
+              .type = ARM_CP_ALIAS | ARM_CP_IO | ARM_CP_64BIT,
+              .fgt = FGT_PMCCNTR_EL0, .readfn = pmccntr_read,
+              .writefn = pmccntr_write,  },
         };
         define_arm_cp_regs(cpu, v8_pm_reginfo);
     }

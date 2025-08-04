@@ -940,6 +940,13 @@ static void dbgclaimclr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     env->cp15.dbgclaim &= ~(value & 0xFF);
 }
 
+static CPAccessResult access_bogus(CPUARMState *env, const ARMCPRegInfo *ri,
+                                   bool isread)
+{
+    /* Always UNDEF, as if this cpreg didn't exist */
+    return CP_ACCESS_UNDEFINED;
+}
+
 static const ARMCPRegInfo debug_cp_reginfo[] = {
     /*
      * DBGDRAR, DBGDSAR: always RAZ since we don't implement memory mapped
@@ -1002,6 +1009,28 @@ static const ARMCPRegInfo debug_cp_reginfo[] = {
       .opc0 = 2, .opc1 = 3, .crn = 0, .crm = 4, .opc2 = 0,
       .access = PL0_RW, .accessfn = access_tdcc,
       .type = ARM_CP_CONST, .resetvalue = 0 },
+    /*
+     * This is not a real AArch32 register. We used to incorrectly expose
+     * this due to a QEMU bug; to avoid breaking migration compatibility we
+     * need to continue to provide it so that we don't fail the inbound
+     * migration when it tells us about a sysreg that we don't have.
+     * We set an always-fails .accessfn, which means that the guest doesn't
+     * actually see this register (it will always UNDEF, identically to if
+     * there were no cpreg definition for it other than that we won't print
+     * a LOG_UNIMP message about it), and we set the ARM_CP_NO_GDB flag so the
+     * gdbstub won't see it either.
+     * (We can't just set .access = 0, because add_cpreg_to_hashtable()
+     * helpfully ignores cpregs which aren't accessible to the highest
+     * implemented EL.)
+     *
+     * TODO: implement a system for being able to describe "this register
+     * can be ignored if it appears in the inbound stream"; then we can
+     * remove this temporary hack.
+     */
+    { .name = "BOGUS_DBGDTR_EL0", .state = ARM_CP_STATE_AA32,
+      .cp = 14, .opc1 = 3, .crn = 0, .crm = 5, .opc2 = 0,
+      .access = PL0_RW, .accessfn = access_bogus,
+      .type = ARM_CP_CONST | ARM_CP_NO_GDB, .resetvalue = 0 },
     /*
      * OSECCR_EL1 provides a mechanism for an operating system
      * to access the contents of EDECCR. EDECCR is not implemented though,
