@@ -1857,7 +1857,8 @@ static void aspeed_1030_fmc_class_init(ObjectClass *klass, const void *data)
     asc->resets            = aspeed_1030_fmc_resets;
     asc->flash_window_base = 0x80000000;
     asc->flash_window_size = 0x10000000;
-    asc->features          = ASPEED_SMC_FEATURE_DMA;
+    asc->features          = ASPEED_SMC_FEATURE_DMA |
+                             ASPEED_SMC_FEATURE_WDT_CONTROL;
     asc->dma_flash_mask    = 0x0FFFFFFC;
     asc->dma_dram_mask     = 0x000BFFFC;
     asc->dma_start_length  = 1;
