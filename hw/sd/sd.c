@@ -729,6 +729,33 @@ static int sd_req_crc_validate(SDRequest *req)
     return sd_crc7(buffer, 5) != req->crc;  /* TODO */
 }
 
+static size_t sd_response_size(SDState *sd, sd_rsp_type_t rtype)
+{
+    switch (rtype) {
+    case sd_r1:
+    case sd_r1b:
+        return 4;
+
+    case sd_r2_i:
+    case sd_r2_s:
+        return 16;
+
+    case sd_r3:
+    case sd_r7:
+        return 4;
+
+    case sd_r6:
+        return 4;
+
+    case sd_r0:
+    case sd_illegal:
+        return 0;
+
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static void sd_response_r1_make(SDState *sd, uint8_t *response)
 {
     stl_be_p(response, sd->card_status);
@@ -2203,36 +2230,32 @@ static int sd_do_command(SDState *sd, SDRequest *req,
     }
 
 send_response:
+    rsplen = sd_response_size(sd, rtype);
+
     switch (rtype) {
     case sd_r1:
     case sd_r1b:
         sd_response_r1_make(sd, response);
-        rsplen = 4;
         break;
 
     case sd_r2_i:
         memcpy(response, sd->cid, sizeof(sd->cid));
-        rsplen = 16;
         break;
 
     case sd_r2_s:
         memcpy(response, sd->csd, sizeof(sd->csd));
-        rsplen = 16;
         break;
 
     case sd_r3:
         sd_response_r3_make(sd, response);
-        rsplen = 4;
         break;
 
     case sd_r6:
         sd_response_r6_make(sd, response);
-        rsplen = 4;
         break;
 
     case sd_r7:
         sd_response_r7_make(sd, response);
-        rsplen = 4;
         break;
 
     case sd_r0:
@@ -2244,7 +2267,6 @@ send_response:
         sd->data_offset = 0;
         /* fall-through */
     case sd_illegal:
-        rsplen = 0;
         break;
     default:
         g_assert_not_reached();
