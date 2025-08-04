@@ -58,7 +58,8 @@ weekly-container-builds:
     - tricore-debian-cross-container
     - xtensa-debian-cross-container
     - win64-fedora-cross-container
-    - wasm-emsdk-cross-container
+    - wasm32-emsdk-cross-container
+    - wasm64-emsdk-cross-container
     # containers
     - amd64-alpine-container
     - amd64-debian-container
