@@ -62,9 +62,7 @@ RUN if dpkg-architecture -e amd64; then \
   export AVAILABLE_COMPILERS="${AVAILABLE_COMPILERS} gcc-powerpc64-linux-gnu libc6-dev-ppc64-cross"; \
   export AVAILABLE_COMPILERS="${AVAILABLE_COMPILERS} gcc-sparc64-linux-gnu libc6-dev-sparc64-cross"; \
   fi && \
-  echo "compilers: ${AVAILABLE_COMPILERS}"
-
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+  DEBIAN_FRONTEND=noninteractive eatmydata \
         apt install -y --no-install-recommends \
         ${AVAILABLE_COMPILERS} && \
         dpkg-query --showformat '${Package}_${Version}_${Architecture}\n' --show > /packages.txt
