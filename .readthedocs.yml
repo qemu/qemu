@@ -21,5 +21,3 @@ python:
   install:
     - requirements: docs/requirements.txt
 
-# We want all the document formats
-formats: all
