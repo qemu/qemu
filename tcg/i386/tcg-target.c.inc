@@ -451,6 +451,7 @@ static bool tcg_target_const_match(int64_t val, int ct,
 #define OPC_VPBROADCASTW (0x79 | P_EXT38 | P_DATA16)
 #define OPC_VPBROADCASTD (0x58 | P_EXT38 | P_DATA16)
 #define OPC_VPBROADCASTQ (0x59 | P_EXT38 | P_DATA16)
+#define OPC_VGF2P8AFFINEQB (0xce | P_EXT3A | P_DATA16 | P_VEXW)
 #define OPC_VPMOVM2B    (0x28 | P_EXT38 | P_SIMDF3 | P_EVEX)
 #define OPC_VPMOVM2W    (0x28 | P_EXT38 | P_SIMDF3 | P_VEXW | P_EVEX)
 #define OPC_VPMOVM2D    (0x38 | P_EXT38 | P_SIMDF3 | P_EVEX)
@@ -4084,6 +4085,10 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         insn = vpshldi_insn[vece];
         sub = args[3];
         goto gen_simd_imm8;
+    case INDEX_op_x86_vgf2p8affineqb_vec:
+        insn = OPC_VGF2P8AFFINEQB;
+        sub = args[3];
+        goto gen_simd_imm8;
 
     case INDEX_op_not_vec:
         insn = OPC_VPTERNLOGQ;
@@ -4188,6 +4193,7 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_x86_punpckl_vec:
     case INDEX_op_x86_punpckh_vec:
     case INDEX_op_x86_vpshldi_vec:
+    case INDEX_op_x86_vgf2p8affineqb_vec:
 #if TCG_TARGET_REG_BITS == 32
     case INDEX_op_dup2_vec:
 #endif
