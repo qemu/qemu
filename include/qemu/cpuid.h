@@ -68,6 +68,9 @@
 #ifndef bit_AVX512VBMI2
 #define bit_AVX512VBMI2 (1 << 6)
 #endif
+#ifndef bit_GFNI
+#define bit_GFNI        (1 << 8)
+#endif
 
 /* Leaf 0x80000001, %ecx */
 #ifndef bit_LZCNT

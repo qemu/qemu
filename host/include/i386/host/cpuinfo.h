@@ -27,6 +27,7 @@
 #define CPUINFO_ATOMIC_VMOVDQU  (1u << 17)
 #define CPUINFO_AES             (1u << 18)
 #define CPUINFO_PCLMUL          (1u << 19)
+#define CPUINFO_GFNI            (1u << 20)
 
 /* Initialized with a constructor. */
 extern unsigned cpuinfo;
