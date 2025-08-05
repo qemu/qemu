@@ -7885,8 +7885,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
              * count, but Intel needs maximum number of addressable IDs for
              * logical processors per package.
              */
-            if (cpu->vendor_cpuid_only_v2 &&
-                (IS_INTEL_CPU(env) || IS_ZHAOXIN_CPU(env))) {
+            if ((IS_INTEL_CPU(env) || IS_ZHAOXIN_CPU(env))) {
                 num = 1 << apicid_pkg_offset(topo_info);
             } else {
                 num = threads_per_pkg;
