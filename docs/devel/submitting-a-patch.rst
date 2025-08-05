@@ -235,6 +235,38 @@ to another list.) ``git send-email`` (`step-by-step setup guide
 works best for delivering the patch without mangling it, but
 attachments can be used as a last resort on a first-time submission.
 
+.. _use_b4:
+
+Use B4
+~~~~~~
+
+The `b4`_ tool, used for Linux kernel development, can also be used for QEMU
+development. It is packaged in most distros and PyPi. The QEMU source tree
+includes a ``b4`` project configuration file at the root: ``.b4-config``.
+
+Example workflow to prepare a patch series:
+
+1. Start with a clean checkout of the ``master`` branch.
+2. Create a new series with a topical branch name using ``b4 prep -n descriptive-name``.
+   ``b4`` will create a ``b4/descriptive-name`` branch and switch to it.
+3. Commit your changes, following this page's guidelines about proper commit messages etc.
+4. Write a descriptive cover letter with ``b4 prep --edit-cover``.
+5. Add maintainer and reviewer CCs with ``b4 prep --auto-to-cc``. You can make
+   changes to Cc: and To: recipients by editing the cover letter.
+6. Run patch checks with ``b4 prep --check``.
+7. Optionally review the patches with ``b4 send --dry-run`` which will print the
+   raw patches in standard output.
+
+To send the patches, you can:
+
+- Setup ``git-send-email`` and use ``b4 send``, or
+- Export the patches to files using ``b4 send -o OUTPUT_DIR`` and send them manually.
+
+For more details, consult the `b4 documentation`_.
+
+.. _b4 documentation: https://b4.docs.kernel.org/
+.. _b4: https://github.com/mricon/b4/
+
 .. _use_git_publish:
 
 Use git-publish
@@ -418,7 +450,7 @@ Retrieve an existing series
 ---------------------------
 
 If you want to apply an existing series on top of your tree, you can simply use
-`b4 <https://github.com/mricon/b4>`__.
+`b4`_.
 
 ::
 
@@ -533,7 +565,11 @@ summary belongs. The `git-publish
 <https://github.com/stefanha/git-publish>`__ script can help with
 tracking a good summary across versions. Also, the `git-backport-diff
 <https://github.com/codyprime/git-scripts>`__ script can help focus
-reviewers on what changed between revisions.
+reviewers on what changed between revisions. The ``b4`` tool automatically
+generates a version history section in the cover letter, including links to the
+previous versions on `Lore`_.
+
+.. _Lore: https://lore.kernel.org/
 
 .. _tips_and_tricks:
 

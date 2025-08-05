@@ -62,17 +62,15 @@ meson subprojects download $SUBPROJECTS
 (cd roms/skiboot && ./make_version.sh > .version)
 # Fetch edk2 submodule's submodules, since it won't have access to them via
 # the tarball later.
-#
-# A more uniform way to handle this sort of situation would be nice, but we
-# don't necessarily have much control over how a submodule handles its
-# submodule dependencies, so we continue to handle these on a case-by-case
-# basis for now.
-(cd roms/edk2 && \
-    git submodule update --init --depth 1 -- \
-        ArmPkg/Library/ArmSoftFloatLib/berkeley-softfloat-3 \
-        BaseTools/Source/C/BrotliCompress/brotli \
-        CryptoPkg/Library/OpensslLib/openssl \
-        MdeModulePkg/Library/BrotliCustomDecompressLib/brotli)
+
+# As recommended by the EDK2 readme, we don't use --recursive here.
+# EDK2 won't use any code or feature from a submodule of a submodule,
+# so we don't need to add them to the tarball.
+# Although we don't necessarily need all of the submodules that EDK2
+# has, we clone them all, to avoid running into problems where EDK2
+# adds a new submodule or changes its use of an existing one and
+# the sources we ship in the tarball then fail to build.
+(cd roms/edk2 && git submodule update --init --depth 1)
 popd
 
 exclude=(--exclude=.git)
