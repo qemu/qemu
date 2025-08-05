@@ -3901,6 +3901,9 @@ static void vfio_pci_nohotplug_dev_class_init(ObjectClass *klass,
                                           "x-ramfb-migrate",
                                           "Override default migration support for ramfb support "
                                           "(DEBUG)");
+    object_class_property_set_description(klass, /* 10.1 */
+                                          "use-legacy-x86-rom",
+                                          "Controls loading of a legacy VGA BIOS ROM");
 }
 
 static const TypeInfo vfio_pci_nohotplug_dev_info = {
