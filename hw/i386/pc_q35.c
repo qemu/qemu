@@ -374,12 +374,21 @@ static void pc_q35_machine_options(MachineClass *m)
                      pc_q35_compat_defaults, pc_q35_compat_defaults_len);
 }
 
-static void pc_q35_machine_10_1_options(MachineClass *m)
+static void pc_q35_machine_10_2_options(MachineClass *m)
 {
     pc_q35_machine_options(m);
 }
 
-DEFINE_Q35_MACHINE_AS_LATEST(10, 1);
+DEFINE_Q35_MACHINE_AS_LATEST(10, 2);
+
+static void pc_q35_machine_10_1_options(MachineClass *m)
+{
+    pc_q35_machine_10_2_options(m);
+    compat_props_add(m->compat_props, hw_compat_10_1, hw_compat_10_1_len);
+    compat_props_add(m->compat_props, pc_compat_10_1, pc_compat_10_1_len);
+}
+
+DEFINE_Q35_MACHINE(10, 1);
 
 static void pc_q35_machine_10_0_options(MachineClass *m)
 {
