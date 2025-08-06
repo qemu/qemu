@@ -6835,8 +6835,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
         *edx = env->features[FEAT_1_EDX];
         if (threads_per_pkg > 1) {
-            /* Fixup overflow: max value for bits 23-16 is 255. */
-            *ebx |= MIN(threads_per_pkg, 255) << 16;
+            *ebx |= threads_per_pkg << 16;
         }
         if (!cpu->enable_pmu) {
             *ecx &= ~CPUID_EXT_PDCM;
