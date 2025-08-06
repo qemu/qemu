@@ -174,8 +174,6 @@ option('libcbor', type : 'feature', value : 'auto',
        description: 'libcbor support')
 option('gnutls', type : 'feature', value : 'auto',
        description: 'GNUTLS cryptography support')
-option('gnutls-bug1717-workaround', type: 'feature', value : 'auto',
-       description: 'GNUTLS workaround for https://gitlab.com/gnutls/gnutls/-/issues/1717')
 option('nettle', type : 'feature', value : 'auto',
        description: 'nettle cryptography support')
 option('gcrypt', type : 'feature', value : 'auto',
