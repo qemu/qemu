@@ -26,7 +26,11 @@
 #    define ENOATTR ENODATA
 #  endif
 #  ifndef CONFIG_WIN32
-#    include <sys/xattr.h>
+#    ifdef CONFIG_FREEBSD
+#      include <sys/extattr.h>
+#    else
+#      include <sys/xattr.h>
+#    endif
 #  endif
 #endif
 
