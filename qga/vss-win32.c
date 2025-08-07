@@ -157,6 +157,8 @@ void qga_vss_fsfreeze(int *nr_volume, bool freeze,
         .errp = errp,
     };
 
+    *nr_volume = 0;
+
     g_assert(errp);             /* requester.cpp requires it */
     func = (QGAVSSRequesterFunc)GetProcAddress(provider_lib, func_name);
     if (!func) {
