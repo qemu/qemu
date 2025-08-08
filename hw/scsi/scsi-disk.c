@@ -19,6 +19,7 @@
  * the host adapter emulator.
  */
 
+#include "USER_OVERRIDES.h"
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
@@ -2561,7 +2562,7 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
         s->version = g_strdup(qemu_hw_version());
     }
     if (!s->vendor) {
-        s->vendor = g_strdup("QEMU");
+        s->vendor = g_strdup(SCSI_DISK_VENDOR);
     }
     if (s->serial && strlen(s->serial) > MAX_SERIAL_LEN) {
         error_setg(errp, "The serial number can't be longer than %d characters",
@@ -2625,7 +2626,7 @@ static void scsi_hd_realize(SCSIDevice *dev, Error **errp)
     s->qdev.blocksize = s->qdev.conf.logical_block_size;
     s->qdev.type = TYPE_DISK;
     if (!s->product) {
-        s->product = g_strdup("QEMU HARDDISK");
+        s->product = g_strdup(SCSI_HARDDISK_PRODUCT);
     }
     scsi_realize(&s->qdev, errp);
 }
@@ -2652,7 +2653,7 @@ static void scsi_cd_realize(SCSIDevice *dev, Error **errp)
     s->qdev.type = TYPE_ROM;
     s->features |= 1 << SCSI_DISK_F_REMOVABLE;
     if (!s->product) {
-        s->product = g_strdup("QEMU CD-ROM");
+        s->product = g_strdup(SCSI_CDROM_PRODUCT);
     }
     scsi_realize(&s->qdev, errp);
 }

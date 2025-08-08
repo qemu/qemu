@@ -22,6 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include "USER_OVERRIDES.h"
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "block/block-io.h"
@@ -32,7 +33,7 @@
 
 /**************************************************************/
 
-#define HEADER_MAGIC "Bochs Virtual HD Image"
+#define HEADER_MAGIC BLOCK_BOCHS_HEADER_MAGIC
 #define HEADER_VERSION 0x00020000
 #define HEADER_V1 0x00010000
 #define HEADER_SIZE 512

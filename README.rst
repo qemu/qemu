@@ -1,3 +1,48 @@
+====
+Whanos' Dumb QEMU Fork
+====
+
+# What is this repo for?
+
+For those trying to make an incredibly undetectable QEMU VM. This repo aims to help with that by slightly simplifying this bit.
+
+# How to use this repo
+
+Open the `USER_OVERRIDES.h` file in your preferred text editor. You will find there a series of preprocessor defines that will override the QEMU defaults.
+You should try to use sensible options. Look up what actual hardware data looks like, and try to keep it in a similar format to that. Or don't. I'm not going to judge if you set everything to "weed".
+
+
+# How To Build It
+
+1) Clone the repo:
+`git clone --recurse-submodules https://github.com/Whanos/wabo-qemu`
+
+2) Make sure you switch to the stable-9.2 branch.
+`git switch stable-9.2`
+
+3) cd out of the qemu repo and make a new folder to store your built files. Then cd back into it.
+`cd ../`
+`mkdir qemu-builder`
+`cd qemu-builder`
+
+4) Run the configuration script.
+`../wabo-qemu/configure --disable-werror --enable-gnutls --enable-docs --enable-gtk --enable-vnc --enable-vnc-sasl --enable-curl --enable-kvm  --enable-linux-aio --enable-cap-ng --enable-vhost-net --enable-vhost-crypto --enable-spice --enable-usb-redir --enable-lzo --enable-snappy --enable-bzip2 --enable-coroutine-pool --enable-replication --enable-tools`
+
+5) Build it.
+`make -j$(nproc)`
+
+# How to use your newly built qemu in your virt-manager configuration
+
+1) Open the XML tab of your desired VM.
+1a) Enable XML editing if you haven't already. Edit -> Preferences -> Enable XML editing .
+
+2) Find your emulator line. By default it looks something like this: `<emulator>/usr/bin/qemu-system-x86_64</emulator>`
+
+3) Change the path so that it points to your newly built `qemu-system-x86_64` binary.
+
+
+(Original QEMU README below)
+
 ===========
 QEMU README
 ===========

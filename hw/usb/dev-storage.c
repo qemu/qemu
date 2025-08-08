@@ -7,6 +7,7 @@
  * This code is licensed under the LGPL.
  */
 
+#include "USER_OVERRIDES.h"
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -47,12 +48,12 @@ enum {
 };
 
 static const USBDescStrings desc_strings = {
-    [STR_MANUFACTURER] = "QEMU",
-    [STR_PRODUCT]      = "QEMU USB HARDDRIVE",
-    [STR_SERIALNUMBER] = "1",
-    [STR_CONFIG_FULL]  = "Full speed config (usb 1.1)",
-    [STR_CONFIG_HIGH]  = "High speed config (usb 2.0)",
-    [STR_CONFIG_SUPER] = "Super speed config (usb 3.0)",
+    [STR_MANUFACTURER] = USB_STORAGE_MANUFACTURER,
+    [STR_PRODUCT]      = USB_STORAGE_PRODUCT,
+    [STR_SERIALNUMBER] = USB_STORAGE_SERIALNUMBER,
+    [STR_CONFIG_FULL]  = USB_STORAGE_CONFIG_FULL,
+    [STR_CONFIG_HIGH]  = USB_STORAGE_CONFIG_HIGH,
+    [STR_CONFIG_SUPER] = USB_STORAGE_CONFIG_SUPER,
 };
 
 static const USBDescIface desc_iface_full = {
@@ -164,8 +165,8 @@ static const USBDescDevice desc_device_super = {
 
 static const USBDesc desc = {
     .id = {
-        .idVendor          = 0x46f4, /* CRC16() of "QEMU" */
-        .idProduct         = 0x0001,
+        .idVendor          = USB_STORAGE_VENDOR_ID, /* CRC16() of "QEMU" */
+        .idProduct         = USB_STORAGE_PRODUCT_ID,
         .bcdDevice         = 0,
         .iManufacturer     = STR_MANUFACTURER,
         .iProduct          = STR_PRODUCT,
@@ -591,7 +592,7 @@ static void usb_msd_class_initfn_common(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->product_desc   = "QEMU USB MSD";
+    uc->product_desc   = USB_STORAGE_PRODUCT_DESCRIPTION;
     uc->usb_desc       = &desc;
     uc->cancel_packet  = usb_msd_cancel_io;
     uc->handle_attach  = usb_desc_attach;

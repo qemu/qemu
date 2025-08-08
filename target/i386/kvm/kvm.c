@@ -12,6 +12,7 @@
  *
  */
 
+#include "USER_OVERRIDES.h"
 #include "qemu/osdep.h"
 #include "qapi/qapi-events-run-state.h"
 #include "qapi/error.h"
@@ -457,7 +458,9 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         /* We can set the hypervisor flag, even if KVM does not return it on
          * GET_SUPPORTED_CPUID
          */
-        ret |= CPUID_EXT_HYPERVISOR;
+        if (KVM_SET_HYPERVISOR_FLAG) {
+            ret |= CPUID_EXT_HYPERVISOR;
+        }
         /* tsc-deadline flag is not returned by GET_SUPPORTED_CPUID, but it
          * can be enabled if the kernel has KVM_CAP_TSC_DEADLINE_TIMER,
          * and the irqchip is in the kernel.
@@ -2209,18 +2212,20 @@ int kvm_arch_init_vcpu(CPUState *cs)
         abort();
 #endif
     } else if (cpu->expose_kvm) {
-        memcpy(signature, "KVMKVMKVM\0\0\0", 12);
-        c = &cpuid_data.entries[cpuid_i++];
-        c->function = KVM_CPUID_SIGNATURE | kvm_base;
-        c->eax = KVM_CPUID_FEATURES | kvm_base;
-        c->ebx = signature[0];
-        c->ecx = signature[1];
-        c->edx = signature[2];
+      if (KVM_EXPOSE_HYPERVISOR_STRING) {
+          memcpy(signature, "KVMKVMKVM\0\0\0", 12);
+          c = &cpuid_data.entries[cpuid_i++];
+          c->function = KVM_CPUID_SIGNATURE | kvm_base;
+          c->eax = KVM_CPUID_FEATURES | kvm_base;
+          c->ebx = signature[0];
+          c->ecx = signature[1];
+          c->edx = signature[2];
 
-        c = &cpuid_data.entries[cpuid_i++];
-        c->function = KVM_CPUID_FEATURES | kvm_base;
-        c->eax = env->features[FEAT_KVM];
-        c->edx = env->features[FEAT_KVM_HINTS];
+          c = &cpuid_data.entries[cpuid_i++];
+          c->function = KVM_CPUID_FEATURES | kvm_base;
+          c->eax = env->features[FEAT_KVM];
+          c->edx = env->features[FEAT_KVM_HINTS];
+      }
     }
 
     if (cpu->kvm_pv_enforce_cpuid) {

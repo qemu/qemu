@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 
+#include "USER_OVERRIDES.h"
 #include "qemu/osdep.h"
 #include "ui/console.h"
 #include "hw/usb.h"
@@ -63,17 +64,17 @@ enum {
 };
 
 static const USBDescStrings desc_strings = {
-    [STR_MANUFACTURER]     = "QEMU",
-    [STR_PRODUCT_MOUSE]    = "QEMU USB Mouse",
-    [STR_PRODUCT_TABLET]   = "QEMU USB Tablet",
-    [STR_PRODUCT_KEYBOARD] = "QEMU USB Keyboard",
+    [STR_MANUFACTURER]     = USB_HID_DEVICE_MANUFACTURER,
+    [STR_PRODUCT_MOUSE]    = USB_HID_DEVICE_MOUSE,
+    [STR_PRODUCT_TABLET]   = USB_HID_DEVICE_TABLET,
+    [STR_PRODUCT_KEYBOARD] = USB_HID_DEVICE_KEYBOARD,
     [STR_SERIAL_COMPAT]    = "42",
     [STR_CONFIG_MOUSE]     = "HID Mouse",
     [STR_CONFIG_TABLET]    = "HID Tablet",
     [STR_CONFIG_KEYBOARD]  = "HID Keyboard",
-    [STR_SERIAL_MOUSE]     = "89126",
-    [STR_SERIAL_TABLET]    = "28754",
-    [STR_SERIAL_KEYBOARD]  = "68284",
+    [STR_SERIAL_MOUSE]     = USB_HID_DEVICE_SERIAL_MOUSE,
+    [STR_SERIAL_TABLET]    = USB_HID_DEVICE_SERIAL_TABLET,
+    [STR_SERIAL_KEYBOARD]  = USB_HID_DEVICE_SERIAL_KEYBOARD,
 };
 
 static const USBDescIface desc_iface_mouse = {
@@ -368,8 +369,8 @@ static const USBDescMSOS desc_msos_suspend = {
 
 static const USBDesc desc_mouse = {
     .id = {
-        .idVendor          = 0x0627,
-        .idProduct         = 0x0001,
+        .idVendor          = USB_HID_DEVICE_VENDOR_ID_MOUSE,
+        .idProduct         = USB_HID_DEVICE_PRODUCT_ID_MOUSE,
         .bcdDevice         = 0,
         .iManufacturer     = STR_MANUFACTURER,
         .iProduct          = STR_PRODUCT_MOUSE,
@@ -382,8 +383,8 @@ static const USBDesc desc_mouse = {
 
 static const USBDesc desc_mouse2 = {
     .id = {
-        .idVendor          = 0x0627,
-        .idProduct         = 0x0001,
+        .idVendor          = USB_HID_DEVICE_VENDOR_ID_MOUSE,
+        .idProduct         = USB_HID_DEVICE_PRODUCT_ID_MOUSE,
         .bcdDevice         = 0,
         .iManufacturer     = STR_MANUFACTURER,
         .iProduct          = STR_PRODUCT_MOUSE,
@@ -397,8 +398,8 @@ static const USBDesc desc_mouse2 = {
 
 static const USBDesc desc_tablet = {
     .id = {
-        .idVendor          = 0x0627,
-        .idProduct         = 0x0001,
+        .idVendor          = USB_HID_DEVICE_VENDOR_ID_TABLET,
+        .idProduct         = USB_HID_DEVICE_PRODUCT_ID_TABLET,
         .bcdDevice         = 0,
         .iManufacturer     = STR_MANUFACTURER,
         .iProduct          = STR_PRODUCT_TABLET,
@@ -411,8 +412,8 @@ static const USBDesc desc_tablet = {
 
 static const USBDesc desc_tablet2 = {
     .id = {
-        .idVendor          = 0x0627,
-        .idProduct         = 0x0001,
+        .idVendor          = USB_HID_DEVICE_VENDOR_ID_TABLET,
+        .idProduct         = USB_HID_DEVICE_PRODUCT_ID_TABLET,
         .bcdDevice         = 0,
         .iManufacturer     = STR_MANUFACTURER,
         .iProduct          = STR_PRODUCT_TABLET,
@@ -426,8 +427,8 @@ static const USBDesc desc_tablet2 = {
 
 static const USBDesc desc_keyboard = {
     .id = {
-        .idVendor          = 0x0627,
-        .idProduct         = 0x0001,
+        .idVendor          = USB_HID_DEVICE_VENDOR_ID_KEYBOARD,
+        .idProduct         = USB_HID_DEVICE_PRODUCT_ID_KEYBOARD,
         .bcdDevice         = 0,
         .iManufacturer     = STR_MANUFACTURER,
         .iProduct          = STR_PRODUCT_KEYBOARD,
@@ -440,8 +441,8 @@ static const USBDesc desc_keyboard = {
 
 static const USBDesc desc_keyboard2 = {
     .id = {
-        .idVendor          = 0x0627,
-        .idProduct         = 0x0001,
+        .idVendor          = USB_HID_DEVICE_VENDOR_ID_KEYBOARD,
+        .idProduct         = USB_HID_DEVICE_PRODUCT_ID_KEYBOARD,
         .bcdDevice         = 0,
         .iManufacturer     = STR_MANUFACTURER,
         .iProduct          = STR_PRODUCT_KEYBOARD,
@@ -806,7 +807,7 @@ static void usb_tablet_class_initfn(ObjectClass *klass, void *data)
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->realize        = usb_tablet_realize;
-    uc->product_desc   = "QEMU USB Tablet";
+    uc->product_desc   = USB_HID_DEVICE_TABLET;
     dc->vmsd = &vmstate_usb_ptr;
     device_class_set_props(dc, usb_tablet_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
@@ -829,7 +830,7 @@ static void usb_mouse_class_initfn(ObjectClass *klass, void *data)
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->realize        = usb_mouse_realize;
-    uc->product_desc   = "QEMU USB Mouse";
+    uc->product_desc   = USB_HID_DEVICE_MOUSE;
     dc->vmsd = &vmstate_usb_ptr;
     device_class_set_props(dc, usb_mouse_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
@@ -853,7 +854,7 @@ static void usb_keyboard_class_initfn(ObjectClass *klass, void *data)
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->realize        = usb_keyboard_realize;
-    uc->product_desc   = "QEMU USB Keyboard";
+    uc->product_desc   = USB_HID_DEVICE_KEYBOARD;
     dc->vmsd = &vmstate_usb_kbd;
     device_class_set_props(dc, usb_keyboard_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);

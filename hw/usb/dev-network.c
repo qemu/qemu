@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 
+#include "USER_OVERRIDES.h"
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
@@ -43,13 +44,13 @@
 /* Thanks to NetChip Technologies for donating this product ID.
  * It's for devices with only CDC Ethernet configurations.
  */
-#define CDC_VENDOR_NUM          0x0525  /* NetChip */
-#define CDC_PRODUCT_NUM         0xa4a1  /* Linux-USB Ethernet Gadget */
+#define CDC_VENDOR_NUM          USB_NET_CDC_VENDOR_NUM  /* NetChip */
+#define CDC_PRODUCT_NUM         USB_NET_CDC_PRODUCT_NUM  /* Linux-USB Ethernet Gadget */
 /* For hardware that can talk RNDIS and either of the above protocols,
  * use this ID ... the windows INF files will know it.
  */
-#define RNDIS_VENDOR_NUM        0x0525  /* NetChip */
-#define RNDIS_PRODUCT_NUM       0xa4a2  /* Ethernet/RNDIS Gadget */
+#define RNDIS_VENDOR_NUM        USB_NET_RNDIS_VENDOR_NUM  /* NetChip */
+#define RNDIS_PRODUCT_NUM       USB_NET_RNDIS_PRODUCT_NUM  /* Ethernet/RNDIS Gadget */
 
 enum usbstring_idx {
     STRING_MANUFACTURER         = 1,
@@ -99,16 +100,16 @@ enum usbstring_idx {
 #define ETH_FRAME_LEN                   1514 /* Max. octets in frame sans FCS */
 
 static const USBDescStrings usb_net_stringtable = {
-    [STRING_MANUFACTURER]       = "QEMU",
-    [STRING_PRODUCT]            = "RNDIS/QEMU USB Network Device",
-    [STRING_ETHADDR]            = "400102030405",
-    [STRING_DATA]               = "QEMU USB Net Data Interface",
-    [STRING_CONTROL]            = "QEMU USB Net Control Interface",
-    [STRING_RNDIS_CONTROL]      = "QEMU USB Net RNDIS Control Interface",
-    [STRING_CDC]                = "QEMU USB Net CDC",
-    [STRING_SUBSET]             = "QEMU USB Net Subset",
-    [STRING_RNDIS]              = "QEMU USB Net RNDIS",
-    [STRING_SERIALNUMBER]       = "1",
+    [STRING_MANUFACTURER]       = USB_NET_MANUFACTURER,
+    [STRING_PRODUCT]            = USB_NET_PRODUCT,
+    [STRING_ETHADDR]            = USB_NET_ETHERNET_ADDRESS,
+    [STRING_DATA]               = USB_NET_DATA_INTEFACE,
+    [STRING_CONTROL]            = USB_NET_CONTROL_INTERFACE,
+    [STRING_RNDIS_CONTROL]      = USB_NET_RNDIS_CONTROL_INTERFACE,
+    [STRING_CDC]                = USB_NET_CDC,
+    [STRING_SUBSET]             = USB_NET_SUBSET,
+    [STRING_RNDIS]              = USB_NET_RNDIS,
+    [STRING_SERIALNUMBER]       = USB_NET_SERIALNUMBER,
 };
 
 static const USBDescIface desc_iface_rndis[] = {
@@ -717,7 +718,7 @@ static int ndis_query(USBNetState *s, uint32_t oid,
 
     /* mandatory */
     case OID_GEN_VENDOR_DESCRIPTION:
-        pstrcpy((char *)outbuf, outlen, "QEMU USB RNDIS Net");
+        pstrcpy((char *)outbuf, outlen, USB_NET_OID_VENDOR_DESCRIPTION);
         return strlen((char *)outbuf) + 1;
 
     case OID_GEN_VENDOR_DRIVER_VERSION:
@@ -1418,7 +1419,7 @@ static void usb_net_class_initfn(ObjectClass *klass, void *data)
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->realize        = usb_net_realize;
-    uc->product_desc   = "QEMU USB Network Interface";
+    uc->product_desc   = USB_NET_PRODUCT_DESCRIPTION;
     uc->usb_desc       = &desc_net;
     uc->handle_reset   = usb_net_handle_reset;
     uc->handle_control = usb_net_handle_control;

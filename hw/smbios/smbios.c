@@ -15,6 +15,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+#include "USER_OVERRIDES.h"
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
@@ -573,7 +574,12 @@ static void smbios_build_type_0_table(void)
 
     t->bios_characteristics = cpu_to_le64(0x08); /* Not supported */
     t->bios_characteristics_extension_bytes[0] = 0;
-    t->bios_characteristics_extension_bytes[1] = 0x14; /* TCD/SVVP | VM */
+    if (SMBIOS_SET_BIOS_EXTENSIONS_VM_BIT) {
+        t->bios_characteristics_extension_bytes[1] = 0x14; /* TCD/SVVP | VM */
+    }
+    else {
+        t->bios_characteristics_extension_bytes[1] = 0x08;
+    }
     if (smbios_type0.uefi) {
         t->bios_characteristics_extension_bytes[1] |= 0x08; /* |= UEFI */
     }

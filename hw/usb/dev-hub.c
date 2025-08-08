@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include "USER_OVERRIDES.h"
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
@@ -104,9 +105,9 @@ enum {
 };
 
 static const USBDescStrings desc_strings = {
-    [STR_MANUFACTURER] = "QEMU",
-    [STR_PRODUCT]      = "QEMU USB Hub",
-    [STR_SERIALNUMBER] = "314159",
+    [STR_MANUFACTURER] = USB_HUB_MANUFACTURER,
+    [STR_PRODUCT]      = USB_HUB_PRODUCT,
+    [STR_SERIALNUMBER] = USB_HUB_SERIALNUMBER,
 };
 
 static const USBDescIface desc_iface_hub = {
@@ -142,8 +143,8 @@ static const USBDescDevice desc_device_hub = {
 
 static const USBDesc desc_hub = {
     .id = {
-        .idVendor          = 0x0409,
-        .idProduct         = 0x55aa,
+        .idVendor          = USB_HUB_VENDOR_ID,
+        .idProduct         = USB_HUB_PRODUCT_ID,
         .bcdDevice         = 0x0101,
         .iManufacturer     = STR_MANUFACTURER,
         .iProduct          = STR_PRODUCT,
@@ -677,7 +678,7 @@ static void usb_hub_class_initfn(ObjectClass *klass, void *data)
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->realize        = usb_hub_realize;
-    uc->product_desc   = "QEMU USB Hub";
+    uc->product_desc   = USB_HUB_PRODUCT;
     uc->usb_desc       = &desc_hub;
     uc->find_device    = usb_hub_find_device;
     uc->handle_reset   = usb_hub_handle_reset;

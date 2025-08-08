@@ -28,7 +28,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
+#include "USER_OVERRIDES.h"
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "hw/qdev-properties.h"
@@ -73,9 +73,9 @@ enum usb_audio_strings {
 };
 
 static const USBDescStrings usb_audio_stringtable = {
-    [STRING_MANUFACTURER]       = "QEMU",
-    [STRING_PRODUCT]            = "QEMU USB Audio",
-    [STRING_SERIALNUMBER]       = "1",
+    [STRING_MANUFACTURER]       = USB_AUDIO_DEVICE_MANUFACTURER,
+    [STRING_PRODUCT]            = USB_AUDIO_DEVICE_PRODUCT,
+    [STRING_SERIALNUMBER]       = USB_AUDIO_DEVICE_SERIALNUMBER,
     [STRING_CONFIG]             = "Audio Configuration",
     [STRING_USBAUDIO_CONTROL]   = "Audio Device",
     [STRING_INPUT_TERMINAL]     = "Audio Output Pipe",
@@ -1006,7 +1006,7 @@ static void usb_audio_class_init(ObjectClass *klass, void *data)
     dc->vmsd          = &vmstate_usb_audio;
     device_class_set_props(dc, usb_audio_properties);
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
-    k->product_desc   = "QEMU USB Audio Interface";
+    k->product_desc   = USB_AUDIO_DEVICE_INTERFACE;
     k->realize        = usb_audio_realize;
     k->handle_reset   = usb_audio_handle_reset;
     k->handle_control = usb_audio_handle_control;

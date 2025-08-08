@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 
+#include "USER_OVERRIDES.h"
 #include "qemu/osdep.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
@@ -49,19 +50,19 @@
 static const int smart_attributes[][12] = {
     /* id,  flags, hflags, val, wrst, raw (6 bytes), threshold */
     /* raw read error rate*/
-    { 0x01, 0x03, 0x00, 0x64, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06},
+    IDE_SMART_DATA_READ_ERROR_READ,
     /* spin up */
-    { 0x03, 0x03, 0x00, 0x64, 0x64, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    IDE_SMART_DATA_SPINUP,
     /* start stop count */
-    { 0x04, 0x02, 0x00, 0x64, 0x64, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14},
+    IDE_SMART_DATA_STARTSTOP_COUNT,
     /* remapped sectors */
-    { 0x05, 0x03, 0x00, 0x64, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x24},
+    IDE_SMART_DATA_REMAPPED_SECTORS_COUNT,
     /* power on hours */
-    { 0x09, 0x03, 0x00, 0x64, 0x64, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    IDE_SMART_DATA_POWERONHOURS_COUNT,
     /* power cycle count */
-    { 0x0c, 0x03, 0x00, 0x64, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    IDE_SMART_DATA_POWERCYCLE_COUNT,
     /* airflow-temperature-celsius */
-    { 190,  0x03, 0x00, 0x45, 0x45, 0x1f, 0x00, 0x1f, 0x1f, 0x00, 0x00, 0x32},
+    IDE_SMART_DATA_TEMPERATURE,
 };
 
 const char *IDE_DMA_CMD_lookup[IDE_DMA__COUNT] = {
@@ -2640,20 +2641,20 @@ int ide_init_drive(IDEState *s, IDEDevice *dev, IDEDriveKind kind, Error **errp)
         pstrcpy(s->drive_serial_str, sizeof(s->drive_serial_str), dev->serial);
     } else {
         snprintf(s->drive_serial_str, sizeof(s->drive_serial_str),
-                 "QM%05d", s->drive_serial);
+                 IDE_SERIALNUMBER_FORMAT_STRING, s->drive_serial);
     }
     if (dev->model) {
         pstrcpy(s->drive_model_str, sizeof(s->drive_model_str), dev->model);
     } else {
         switch (kind) {
         case IDE_CD:
-            strcpy(s->drive_model_str, "QEMU DVD-ROM");
+            strcpy(s->drive_model_str, IDE_DVD_ROM_PRODUCT);
             break;
         case IDE_CFATA:
-            strcpy(s->drive_model_str, "QEMU MICRODRIVE");
+            strcpy(s->drive_model_str, IDE_MICRODRIVE_PRODUCT);
             break;
         default:
-            strcpy(s->drive_model_str, "QEMU HARDDISK");
+            strcpy(s->drive_model_str, IDE_HARDDISK_PRODUCT);
             break;
         }
     }
