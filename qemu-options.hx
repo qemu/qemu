@@ -3324,8 +3324,8 @@ SRST
 
         Note that a SAMBA server must be installed on the host OS.
 
-    ``hostfwd=[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport``
-        Redirect incoming TCP or UDP connections to the host port
+    ``hostfwd=[tcp|udp|unix]:[[hostaddr]:hostport|hostpath]-[guestaddr]:guestport``
+        Redirect incoming TCP, UDP or UNIX connections to the host port
         hostport to the guest IP address guestaddr on guest port
         guestport. If guestaddr is not specified, its value is x.x.x.15
         (default first address given by the built-in DHCP server). By
@@ -3354,6 +3354,13 @@ SRST
 
         Then when you use on the host ``telnet localhost 5555``, you
         connect to the guest telnet server.
+
+        To redirect host unix socket /tmp/vm to guest tcp socket 23 use
+        following:
+
+        .. parsed-literal::
+            # on the host
+            |qemu_system| -nic user,hostfwd=unix:/tmp/vm-:23
 
     ``guestfwd=[tcp]:server:port-dev``; \ ``guestfwd=[tcp]:server:port-cmd:command``
         Forward guest TCP connections to the IP address server on port

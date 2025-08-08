@@ -281,7 +281,7 @@
 #
 # @smbserver: IP address of the built-in SMB server
 #
-# @hostfwd: redirect incoming TCP or UDP host connections to guest
+# @hostfwd: redirect incoming TCP, UDP or UNIX host connections to guest
 #     endpoints
 #
 # @guestfwd: forward guest TCP connections
