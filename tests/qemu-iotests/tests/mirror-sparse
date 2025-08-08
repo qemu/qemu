@@ -40,7 +40,7 @@ cd ..
 _supported_fmt qcow2 raw  # Format of the source. dst is always raw file
 _supported_proto file
 _supported_os Linux
-_supported_cache_modes none directsync
+_require_o_direct
 _require_disk_usage
 
 echo
