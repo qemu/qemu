@@ -1489,10 +1489,10 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
     if (cpu_test_interrupt(cpu, CPU_INTERRUPT_INIT | CPU_INTERRUPT_TPR)) {
         if (cpu_test_interrupt(cpu, CPU_INTERRUPT_INIT) &&
             !(env->hflags & HF_SMM_MASK)) {
-            cpu->exit_request = 1;
+            qatomic_set(&cpu->exit_request, true);
         }
         if (cpu_test_interrupt(cpu, CPU_INTERRUPT_TPR)) {
-            cpu->exit_request = 1;
+            qatomic_set(&cpu->exit_request, true);
         }
     }
 
@@ -1539,7 +1539,7 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
     if (tpr != vcpu->tpr) {
         vcpu->tpr = tpr;
         reg_values[reg_count].Reg64 = tpr;
-        cpu->exit_request = 1;
+        qatomic_set(&cpu->exit_request, true);
         reg_names[reg_count] = WHvX64RegisterCr8;
         reg_count += 1;
     }

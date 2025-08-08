@@ -212,7 +212,7 @@ static void *rr_cpu_thread_fn(void *arg)
     cpu = first_cpu;
 
     /* process any pending work */
-    cpu->exit_request = 1;
+    qatomic_set(&cpu->exit_request, true);
 
     while (1) {
         /* Only used for icount_enabled() */
@@ -293,7 +293,7 @@ static void *rr_cpu_thread_fn(void *arg)
         /* Does not need a memory barrier because a spurious wakeup is okay.  */
         qatomic_set(&rr_current_cpu, NULL);
 
-        if (cpu && cpu->exit_request) {
+        if (cpu && qatomic_read(&cpu->exit_request)) {
             qatomic_set_mb(&cpu->exit_request, 0);
         }
 

@@ -414,7 +414,7 @@ nvmm_vcpu_pre_run(CPUState *cpu)
      * or commit pending TPR access.
      */
     if (cpu_test_interrupt(cpu, CPU_INTERRUPT_INIT | CPU_INTERRUPT_TPR)) {
-        cpu->exit_request = 1;
+        qatomic_set(&cpu->exit_request, true);
     }
 
     if (!has_event && cpu_test_interrupt(cpu, CPU_INTERRUPT_NMI)) {

@@ -85,7 +85,7 @@ static void *mttcg_cpu_thread_fn(void *arg)
     qemu_guest_random_seed_thread_part2(cpu->random_seed);
 
     /* process any pending work */
-    cpu->exit_request = 1;
+    qatomic_set(&cpu->exit_request, true);
 
     do {
         if (cpu_can_run(cpu)) {

@@ -77,7 +77,7 @@ static void nvmm_start_vcpu_thread(CPUState *cpu)
  */
 static void nvmm_kick_vcpu_thread(CPUState *cpu)
 {
-    cpu->exit_request = 1;
+    qatomic_set(&cpu->exit_request, true);
     cpus_kick_thread(cpu);
 }
 

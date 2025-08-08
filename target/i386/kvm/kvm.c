@@ -5486,10 +5486,10 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
     if (cpu_test_interrupt(cpu, CPU_INTERRUPT_INIT | CPU_INTERRUPT_TPR)) {
         if (cpu_test_interrupt(cpu, CPU_INTERRUPT_INIT) &&
             !(env->hflags & HF_SMM_MASK)) {
-            qatomic_set(&cpu->exit_request, 1);
+            qatomic_set(&cpu->exit_request, true);
         }
         if (cpu_test_interrupt(cpu, CPU_INTERRUPT_TPR)) {
-            qatomic_set(&cpu->exit_request, 1);
+            qatomic_set(&cpu->exit_request, true);
         }
     }
 
@@ -5604,7 +5604,7 @@ int kvm_arch_process_async_events(CPUState *cs)
         if (env->exception_nr == EXCP08_DBLE) {
             /* this means triple fault */
             qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
-            cs->exit_request = 1;
+            qatomic_set(&cs->exit_request, true);
             return 0;
         }
         kvm_queue_exception(env, EXCP12_MCHK, 0, 0);

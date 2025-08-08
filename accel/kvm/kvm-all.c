@@ -3730,7 +3730,7 @@ int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
     have_sigbus_pending = true;
     pending_sigbus_addr = addr;
     pending_sigbus_code = code;
-    qatomic_set(&cpu->exit_request, 1);
+    qatomic_set(&cpu->exit_request, true);
     return 0;
 #else
     return 1;
