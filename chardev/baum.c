@@ -94,7 +94,7 @@ struct BaumChardev {
     Chardev parent;
 
     brlapi_handle_t *brlapi;
-    int brlapi_fd;
+    brlapi_fileDescriptor brlapi_fd;
     unsigned int x, y;
     bool deferred_init;
 
@@ -654,7 +654,7 @@ static void baum_chr_open(Chardev *chr,
     baum->brlapi = handle;
 
     baum->brlapi_fd = brlapi__openConnection(handle, NULL, NULL);
-    if (baum->brlapi_fd == -1) {
+    if (baum->brlapi_fd == BRLAPI_INVALID_FILE_DESCRIPTOR) {
         error_setg(errp, "brlapi__openConnection: %s",
                    brlapi_strerror(brlapi_error_location()));
         g_free(handle);
@@ -665,6 +665,10 @@ static void baum_chr_open(Chardev *chr,
 
     baum->cellCount_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, baum_cellCount_timer_cb, baum);
 
+    /*
+     * On Windows, brlapi_fd is a pointer, which is being used here
+     * as an integer, but in practice it seems to work
+     */
     qemu_set_fd_handler(baum->brlapi_fd, baum_chr_read, NULL, baum);
 }
 
