@@ -172,7 +172,7 @@ static GString *uefi_vars_to_json(uefi_vars_state *uv)
 void uefi_vars_json_init(uefi_vars_state *uv, Error **errp)
 {
     if (uv->jsonfile) {
-        uv->jsonfd = qemu_create(uv->jsonfile, O_RDWR, 0666, errp);
+        uv->jsonfd = qemu_create(uv->jsonfile, O_RDWR | O_BINARY, 0666, errp);
     }
 }
 
