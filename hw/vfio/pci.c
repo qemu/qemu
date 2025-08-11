@@ -413,6 +413,14 @@ bool vfio_pci_intx_enable(VFIOPCIDevice *vdev, Error **errp)
     return vfio_intx_enable(vdev, errp);
 }
 
+void vfio_pci_intx_set_handler(VFIOPCIDevice *vdev, bool enable)
+{
+    int fd = event_notifier_get_fd(&vdev->intx.interrupt);
+    IOHandler *handler = (enable ? vfio_intx_interrupt : NULL);
+
+    qemu_set_fd_handler(fd, handler, NULL, vdev);
+}
+
 /*
  * MSI/X
  */
@@ -451,12 +459,13 @@ static void vfio_msi_interrupt(void *opaque)
     notify(&vdev->pdev, nr);
 }
 
-void vfio_pci_msi_set_handler(VFIOPCIDevice *vdev, int nr)
+void vfio_pci_msi_set_handler(VFIOPCIDevice *vdev, int nr, bool enable)
 {
     VFIOMSIVector *vector = &vdev->msi_vectors[nr];
     int fd = event_notifier_get_fd(&vector->interrupt);
+    IOHandler *handler = (enable ? vfio_msi_interrupt : NULL);
 
-    qemu_set_fd_handler(fd, vfio_msi_interrupt, NULL, vector);
+    qemu_set_fd_handler(fd, handler, NULL, vector);
 }
 
 /*
@@ -2992,6 +3001,7 @@ void vfio_pci_put_device(VFIOPCIDevice *vdev)
 {
     vfio_display_finalize(vdev);
     vfio_bars_finalize(vdev);
+    vfio_cpr_pci_unregister_device(vdev);
     g_free(vdev->emulated_config_bits);
     g_free(vdev->rom);
     /*
@@ -3471,6 +3481,7 @@ static void vfio_pci_realize(PCIDevice *pdev, Error **errp)
     vfio_pci_register_err_notifier(vdev);
     vfio_pci_register_req_notifier(vdev);
     vfio_setup_resetfn_quirk(vdev);
+    vfio_cpr_pci_register_device(vdev);
 
     return;
 
@@ -3890,6 +3901,9 @@ static void vfio_pci_nohotplug_dev_class_init(ObjectClass *klass,
                                           "x-ramfb-migrate",
                                           "Override default migration support for ramfb support "
                                           "(DEBUG)");
+    object_class_property_set_description(klass, /* 10.1 */
+                                          "use-legacy-x86-rom",
+                                          "Controls loading of a legacy VGA BIOS ROM");
 }
 
 static const TypeInfo vfio_pci_nohotplug_dev_info = {

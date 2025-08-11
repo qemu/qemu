@@ -38,6 +38,10 @@ typedef struct VFIODeviceCPR {
     uint32_t ioas_id;
 } VFIODeviceCPR;
 
+typedef struct VFIOPCICPR {
+    NotifierWithReturn transfer_notifier;
+} VFIOPCICPR;
+
 bool vfio_legacy_cpr_register_container(struct VFIOContainer *container,
                                         Error **errp);
 void vfio_legacy_cpr_unregister_container(struct VFIOContainer *container);
@@ -77,5 +81,7 @@ extern const VMStateDescription vfio_cpr_pci_vmstate;
 extern const VMStateDescription vmstate_cpr_vfio_devices;
 
 void vfio_cpr_add_kvm_notifier(void);
+void vfio_cpr_pci_register_device(struct VFIOPCIDevice *vdev);
+void vfio_cpr_pci_unregister_device(struct VFIOPCIDevice *vdev);
 
 #endif /* HW_VFIO_VFIO_CPR_H */
