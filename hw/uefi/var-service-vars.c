@@ -357,6 +357,9 @@ uefi_vars_mm_get_next_variable(uefi_vars_state *uv, mm_header *mhdr,
     if (uefi_strlen(name, nv->name_size) == 0) {
         /* empty string -> first */
         var = QTAILQ_FIRST(&uv->variables);
+        while (var && !check_access(uv, var)) {
+            var = QTAILQ_NEXT(var, next);
+        }
         if (!var) {
             return uefi_vars_mm_error(mhdr, mvar, EFI_NOT_FOUND);
         }
