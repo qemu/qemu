@@ -40,6 +40,7 @@
 #include "exec/replay-core.h"
 #include "system/tcg.h"
 #include "exec/helper-proto-common.h"
+#include "tcg-accel-ops.h"
 #include "tb-jmp-cache.h"
 #include "tb-hash.h"
 #include "tb-context.h"
@@ -746,6 +747,11 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
 #endif
 
     return false;
+}
+
+void tcg_kick_vcpu_thread(CPUState *cpu)
+{
+    cpu_exit(cpu);
 }
 
 static inline bool icount_exit_request(CPUState *cpu)

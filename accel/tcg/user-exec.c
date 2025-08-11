@@ -38,6 +38,7 @@
 #include "qemu/int128.h"
 #include "trace.h"
 #include "tcg/tcg-ldst.h"
+#include "tcg-accel-ops.h"
 #include "backend-ldst.h"
 #include "internal-common.h"
 #include "tb-internal.h"
@@ -45,6 +46,11 @@
 __thread uintptr_t helper_retaddr;
 
 //#define DEBUG_SIGNAL
+
+void qemu_cpu_kick(CPUState *cpu)
+{
+    tcg_kick_vcpu_thread(cpu);
+}
 
 /*
  * Adjust the pc to pass to cpu_restore_state; return the memop type.
