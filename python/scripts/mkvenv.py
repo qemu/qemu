@@ -84,6 +84,7 @@ from typing import (
     Sequence,
     Tuple,
     Union,
+    cast,
 )
 import venv
 
@@ -94,16 +95,38 @@ import venv
 HAVE_DISTLIB = True
 try:
     import distlib.scripts
-    import distlib.version
 except ImportError:
     try:
         # Reach into pip's cookie jar.  pylint and flake8 don't understand
         # that these imports will be used via distlib.xxx.
         from pip._vendor import distlib
         import pip._vendor.distlib.scripts  # noqa, pylint: disable=unused-import
-        import pip._vendor.distlib.version  # noqa, pylint: disable=unused-import
     except ImportError:
         HAVE_DISTLIB = False
+
+# pip 25.2 does not vendor distlib.version, but it uses vendored
+# packaging.version
+HAVE_DISTLIB_VERSION = True
+try:
+    import distlib.version  # pylint: disable=ungrouped-imports
+except ImportError:
+    try:
+        # pylint: disable=unused-import,ungrouped-imports
+        import pip._vendor.distlib.version  # noqa
+    except ImportError:
+        HAVE_DISTLIB_VERSION = False
+
+HAVE_PACKAGING_VERSION = True
+try:
+    # Do not bother importing non-vendored packaging, because it is not
+    # in stdlib.
+    from pip._vendor import packaging
+    # pylint: disable=unused-import
+    import pip._vendor.packaging.requirements  # noqa
+    import pip._vendor.packaging.version  # noqa
+except ImportError:
+    HAVE_PACKAGING_VERSION = False
+
 
 # Try to load tomllib, with a fallback to tomli.
 # HAVE_TOMLLIB is checked below, just-in-time, so that mkvenv does not fail
@@ -131,6 +154,39 @@ def inside_a_venv() -> bool:
 
 class Ouch(RuntimeError):
     """An Exception class we can't confuse with a builtin."""
+
+
+class Matcher:
+    """Compatibility appliance for version/requirement string parsing."""
+    def __init__(self, name_and_constraint: str):
+        """Create a matcher from a requirement-like string."""
+        if HAVE_DISTLIB_VERSION:
+            self._m = distlib.version.LegacyMatcher(name_and_constraint)
+        elif HAVE_PACKAGING_VERSION:
+            self._m = packaging.requirements.Requirement(name_and_constraint)
+        else:
+            raise Ouch("found neither distlib.version nor packaging.version")
+        self.name = self._m.name
+
+    def match(self, version_str: str) -> bool:
+        """Return True if `version` satisfies the stored constraint."""
+        if HAVE_DISTLIB_VERSION:
+            return cast(
+                bool,
+                self._m.match(distlib.version.LegacyVersion(version_str))
+            )
+
+        assert HAVE_PACKAGING_VERSION
+        return cast(
+            bool,
+            self._m.specifier.contains(
+                packaging.version.Version(version_str), prereleases=True
+            )
+        )
+
+    def __repr__(self) -> str:
+        """Stable debug representation delegated to the backend."""
+        return repr(self._m)
 
 
 class QemuEnvBuilder(venv.EnvBuilder):
@@ -669,7 +725,7 @@ def _do_ensure(
     canary = None
     for name, info in group.items():
         constraint = _make_version_constraint(info, False)
-        matcher = distlib.version.LegacyMatcher(name + constraint)
+        matcher = Matcher(name + constraint)
         print(f"mkvenv: checking for {matcher}", file=sys.stderr)
 
         dist: Optional[Distribution] = None
@@ -683,7 +739,7 @@ def _do_ensure(
             # Always pass installed package to pip, so that they can be
             # updated if the requested version changes
             or not _is_system_package(dist)
-            or not matcher.match(distlib.version.LegacyVersion(dist.version))
+            or not matcher.match(dist.version)
         ):
             absent.append(name + _make_version_constraint(info, True))
             if len(absent) == 1:
