@@ -15,12 +15,12 @@ from qemu_test import BUILD_DIR
 class HotplugPCI(LinuxKernelTest):
 
     ASSET_KERNEL = Asset(
-        ('https://ftp.debian.org/debian/dists/stable/main/installer-arm64/'
+        ('https://ftp.debian.org/debian/dists/bookworm/main/installer-arm64/'
          '20230607+deb12u11/images/netboot/debian-installer/arm64/linux'),
          'd92a60392ce1e379ca198a1a820899f8f0d39a62d047c41ab79492f81541a9d9')
 
     ASSET_INITRD = Asset(
-        ('https://ftp.debian.org/debian/dists/stable/main/installer-arm64/'
+        ('https://ftp.debian.org/debian/dists/bookworm/main/installer-arm64/'
          '20230607+deb12u11/images/netboot/debian-installer/arm64/initrd.gz'),
          '9f817f76951f3237bca8216bee35267bfb826815687f4b2fcdd5e6c2a917790c')
 
