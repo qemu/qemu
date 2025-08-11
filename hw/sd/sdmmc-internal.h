@@ -118,9 +118,31 @@ DECLARE_OBJ_CHECKERS(SDState, SDCardClass, SDMMC_COMMON, TYPE_SDMMC_COMMON)
 #define EXT_CSD_PART_CONFIG_ACC_DEFAULT         (0x0)
 #define EXT_CSD_PART_CONFIG_ACC_BOOT1           (0x1)
 #define EXT_CSD_PART_CONFIG_ACC_BOOT2           (0x2)
+#define EXT_CSD_PART_CONFIG_ACC_RPMB            (0x3)
 
 #define EXT_CSD_PART_CONFIG_EN_MASK             (0x7 << 3)
 #define EXT_CSD_PART_CONFIG_EN_BOOT0            (0x1 << 3)
 #define EXT_CSD_PART_CONFIG_EN_USER             (0x7 << 3)
+
+#define RPMB_REQ_PROGRAM_AUTH_KEY       (1)
+#define RPMB_REQ_READ_WRITE_COUNTER     (2)
+#define RPMB_REQ_AUTH_DATA_WRITE        (3)
+#define RPMB_REQ_AUTH_DATA_READ         (4)
+#define RPMB_REQ_READ_RESULT            (5)
+#define RPMB_REQ_AUTH_CONFIG_WRITE      (6)
+#define RPMB_REQ_AUTH_CONFIG_READ       (7)
+
+#define RPMB_RESP(__req__)              ((__req__) << 8)
+
+#define RPMB_RESULT_OK                  (0)
+#define RPMB_RESULT_GENERAL_FAILURE     (1)
+#define RPMB_RESULT_AUTH_FAILURE        (2)
+#define RPMB_RESULT_COUNTER_FAILURE     (3)
+#define RPMB_RESULT_ADDRESS_FAILURE     (4)
+#define RPMB_RESULT_WRITE_FAILURE       (5)
+#define RPMB_RESULT_READ_FAILURE        (6)
+#define RPMB_RESULT_NO_AUTH_KEY         (7)
+
+#define RPMB_RESULT_COUTER_EXPIRED      (0x80)
 
 #endif
