@@ -147,6 +147,9 @@ tcg
 system
   ~ .*/qemu(/system/.*|/accel/.*)
 
+plugins
+  ~ .*/qemu(/contrib|/tests/tcg)?/plugins/.*
+
 (headers)
   ~ .*/qemu(/include/.*)
 
