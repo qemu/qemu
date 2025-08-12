@@ -15,9 +15,13 @@
 #include "hw/misc/aspeed_sbc.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
+#include "trace.h"
 
 #define R_PROT          (0x000 / 4)
+#define R_CMD           (0x004 / 4)
+#define R_ADDR          (0x010 / 4)
 #define R_STATUS        (0x014 / 4)
+#define R_CAMP1         (0x020 / 4)
 #define R_QSR           (0x040 / 4)
 
 /* R_STATUS */
@@ -41,6 +45,11 @@
 #define QSR_RSA_MASK           (0x3 << 12)
 #define QSR_HASH_MASK          (0x3 << 10)
 
+#define OTP_MEMORY_SIZE 0x4000
+/* OTP command */
+#define SBC_OTP_CMD_READ 0x23b1e361
+#define SBC_OTP_CMD_PROG 0x23b1e364
+
 static uint64_t aspeed_sbc_read(void *opaque, hwaddr addr, unsigned int size)
 {
     AspeedSBCState *s = ASPEED_SBC(opaque);
@@ -55,6 +64,84 @@ static uint64_t aspeed_sbc_read(void *opaque, hwaddr addr, unsigned int size)
     }
 
     return s->regs[addr];
+}
+
+static bool aspeed_sbc_otp_read(AspeedSBCState *s,
+                                   uint32_t otp_addr)
+{
+    MemTxResult ret;
+    AspeedOTPState *otp = &s->otp;
+    uint32_t value, otp_offset;
+
+    otp_offset = otp_addr << 2;
+    ret = address_space_read(&otp->as, otp_offset, MEMTXATTRS_UNSPECIFIED,
+                             &value, sizeof(value));
+    if (ret != MEMTX_OK) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "Failed to read OTP memory, addr = %x\n",
+                      otp_addr);
+        return false;
+    }
+    s->regs[R_CAMP1] = value;
+    trace_aspeed_sbc_otp_read(otp_addr, value);
+
+    return true;
+}
+
+static bool aspeed_sbc_otp_prog(AspeedSBCState *s,
+                                   uint32_t otp_addr)
+{
+    MemTxResult ret;
+    AspeedOTPState *otp = &s->otp;
+    uint32_t value = s->regs[R_CAMP1];
+
+    ret = address_space_write(&otp->as, otp_addr, MEMTXATTRS_UNSPECIFIED,
+                        &value, sizeof(value));
+    if (ret != MEMTX_OK) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "Failed to write OTP memory, addr = %x\n",
+                      otp_addr);
+        return false;
+    }
+
+    trace_aspeed_sbc_otp_prog(otp_addr, value);
+
+    return true;
+}
+
+static void aspeed_sbc_handle_command(void *opaque, uint32_t cmd)
+{
+    AspeedSBCState *s = ASPEED_SBC(opaque);
+    AspeedSBCClass *sc = ASPEED_SBC_GET_CLASS(opaque);
+    bool ret = false;
+    uint32_t otp_addr;
+
+    if (!sc->has_otp) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: OTP memory is not supported\n",
+                      __func__);
+        return;
+    }
+
+    s->regs[R_STATUS] &= ~(OTP_MEM_IDLE | OTP_IDLE);
+    otp_addr = s->regs[R_ADDR];
+
+    switch (cmd) {
+    case SBC_OTP_CMD_READ:
+        ret = aspeed_sbc_otp_read(s, otp_addr);
+        break;
+    case SBC_OTP_CMD_PROG:
+        ret = aspeed_sbc_otp_prog(s, otp_addr);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Unknown command 0x%x\n",
+                      __func__, cmd);
+        break;
+    }
+
+    trace_aspeed_sbc_handle_cmd(cmd, otp_addr, ret);
+    s->regs[R_STATUS] |= (OTP_MEM_IDLE | OTP_IDLE);
 }
 
 static void aspeed_sbc_write(void *opaque, hwaddr addr, uint64_t data,
@@ -77,6 +164,9 @@ static void aspeed_sbc_write(void *opaque, hwaddr addr, uint64_t data,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: write to read only register 0x%" HWADDR_PRIx "\n",
                       __func__, addr << 2);
+        return;
+    case R_CMD:
+        aspeed_sbc_handle_command(opaque, data);
         return;
     default:
         break;
@@ -115,10 +205,30 @@ static void aspeed_sbc_reset(DeviceState *dev)
     s->regs[R_QSR] = s->signing_settings;
 }
 
+static void aspeed_sbc_instance_init(Object *obj)
+{
+    AspeedSBCClass *sc = ASPEED_SBC_GET_CLASS(obj);
+    AspeedSBCState *s = ASPEED_SBC(obj);
+
+    if (sc->has_otp) {
+        object_initialize_child(OBJECT(s), "otp", &s->otp,
+                                TYPE_ASPEED_OTP);
+    }
+}
+
 static void aspeed_sbc_realize(DeviceState *dev, Error **errp)
 {
     AspeedSBCState *s = ASPEED_SBC(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    AspeedSBCClass *sc = ASPEED_SBC_GET_CLASS(dev);
+
+    if (sc->has_otp) {
+        object_property_set_int(OBJECT(&s->otp), "size",
+                                OTP_MEMORY_SIZE, &error_abort);
+        if (!qdev_realize(DEVICE(&s->otp), NULL, errp)) {
+            return;
+        }
+    }
 
     memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_sbc_ops, s,
             TYPE_ASPEED_SBC, 0x1000);
@@ -155,6 +265,7 @@ static const TypeInfo aspeed_sbc_info = {
     .name = TYPE_ASPEED_SBC,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedSBCState),
+    .instance_init = aspeed_sbc_instance_init,
     .class_init = aspeed_sbc_class_init,
     .class_size = sizeof(AspeedSBCClass)
 };
