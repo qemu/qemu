@@ -35,13 +35,25 @@ static bool aspeed_otp_init_storage(AspeedOTPState *s, Error **errp)
 {
     uint32_t *p;
     int i, num;
+    uint64_t perm;
 
+    if (s->blk) {
+        perm = BLK_PERM_CONSISTENT_READ |
+               (blk_supports_write_perm(s->blk) ? BLK_PERM_WRITE : 0);
+        if (blk_set_perm(s->blk, perm, BLK_PERM_ALL, errp) < 0) {
+            return false;
+        }
+        if (blk_pread(s->blk, 0, s->size, s->storage, 0) < 0) {
+            error_setg(errp, "Failed to read the initial flash content");
+            return false;
+        }
+    } else {
         num = s->size / sizeof(uint32_t);
         p = (uint32_t *)s->storage;
         for (i = 0; i < num; i++) {
             p[i] = (i % 2 == 0) ? 0x00000000 : 0xFFFFFFFF;
         }
-
+    }
     return true;
 }
 
@@ -75,6 +87,7 @@ static void aspeed_otp_realize(DeviceState *dev, Error **errp)
 
 static const Property aspeed_otp_properties[] = {
     DEFINE_PROP_UINT64("size", AspeedOTPState, size, 0),
+    DEFINE_PROP_DRIVE("drive", AspeedOTPState, blk),
 };
 
 static void aspeed_otp_class_init(ObjectClass *klass, const void *data)
