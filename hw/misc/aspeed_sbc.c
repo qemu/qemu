@@ -49,10 +49,17 @@
 #define OTP_MEMORY_SIZE 0x4000
 /* OTP command */
 #define SBC_OTP_CMD_READ 0x23b1e361
+#define SBC_OTP_CMD_WRITE 0x23b1e362
 #define SBC_OTP_CMD_PROG 0x23b1e364
 
 #define OTP_DATA_DWORD_COUNT        (0x800)
 #define OTP_TOTAL_DWORD_COUNT       (0x1000)
+
+/* Voltage mode */
+#define MODE_REGISTER               (0x1000)
+#define MODE_REGISTER_A             (0x3000)
+#define MODE_REGISTER_B             (0x5000)
+
 static uint64_t aspeed_sbc_read(void *opaque, hwaddr addr, unsigned int size)
 {
     AspeedSBCState *s = ASPEED_SBC(opaque);
@@ -115,6 +122,37 @@ static bool aspeed_sbc_otp_read(AspeedSBCState *s,
     return true;
 }
 
+static bool mode_handler(uint32_t otp_addr)
+{
+    switch (otp_addr) {
+    case MODE_REGISTER:
+    case MODE_REGISTER_A:
+    case MODE_REGISTER_B:
+        /* HW behavior, do nothing here */
+        return true;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "Unsupported address 0x%x\n",
+                      otp_addr);
+        return false;
+    }
+}
+
+static bool aspeed_sbc_otp_write(AspeedSBCState *s,
+                                    uint32_t otp_addr)
+{
+    if (otp_addr == 0) {
+        trace_aspeed_sbc_ignore_cmd(otp_addr);
+        return true;
+    } else {
+        if (mode_handler(otp_addr) == false) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static bool aspeed_sbc_otp_prog(AspeedSBCState *s,
                                    uint32_t otp_addr)
 {
@@ -156,6 +194,9 @@ static void aspeed_sbc_handle_command(void *opaque, uint32_t cmd)
     switch (cmd) {
     case SBC_OTP_CMD_READ:
         ret = aspeed_sbc_otp_read(s, otp_addr);
+        break;
+    case SBC_OTP_CMD_WRITE:
+        ret = aspeed_sbc_otp_write(s, otp_addr);
         break;
     case SBC_OTP_CMD_PROG:
         ret = aspeed_sbc_otp_prog(s, otp_addr);
