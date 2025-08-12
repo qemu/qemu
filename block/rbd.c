@@ -99,6 +99,14 @@ typedef struct BDRVRBDState {
     char *namespace;
     uint64_t image_size;
     uint64_t object_size;
+
+    /*
+     * If @bs->encrypted is true, this is the encryption format actually loaded
+     * at the librbd level. If it is false, it is the result of probing.
+     * RBD_IMAGE_ENCRYPTION_FORMAT__MAX means that encryption is not enabled and
+     * probing didn't find any known encryption header either.
+     */
+    RbdImageEncryptionFormat encryption_format;
 } BDRVRBDState;
 
 typedef struct RBDTask {
@@ -470,10 +478,12 @@ static int qemu_rbd_encryption_format(rbd_image_t image,
     return 0;
 }
 
-static int qemu_rbd_encryption_load(rbd_image_t image,
+static int qemu_rbd_encryption_load(BlockDriverState *bs,
+                                    rbd_image_t image,
                                     RbdEncryptionOptions *encrypt,
                                     Error **errp)
 {
+    BDRVRBDState *s = bs->opaque;
     int r = 0;
     g_autofree char *passphrase = NULL;
     rbd_encryption_luks1_format_options_t luks_opts;
@@ -544,15 +554,19 @@ static int qemu_rbd_encryption_load(rbd_image_t image,
         error_setg_errno(errp, -r, "encryption load fail");
         return r;
     }
+    bs->encrypted = true;
+    s->encryption_format = encrypt->format;
 
     return 0;
 }
 
 #ifdef LIBRBD_SUPPORTS_ENCRYPTION_LOAD2
-static int qemu_rbd_encryption_load2(rbd_image_t image,
+static int qemu_rbd_encryption_load2(BlockDriverState *bs,
+                                     rbd_image_t image,
                                      RbdEncryptionOptions *encrypt,
                                      Error **errp)
 {
+    BDRVRBDState *s = bs->opaque;
     int r = 0;
     int encrypt_count = 1;
     int i;
@@ -638,6 +652,8 @@ static int qemu_rbd_encryption_load2(rbd_image_t image,
         error_setg_errno(errp, -r, "layered encryption load fail");
         goto exit;
     }
+    bs->encrypted = true;
+    s->encryption_format = encrypt->format;
 
 exit:
     for (i = 0; i < encrypt_count; ++i) {
@@ -670,6 +686,45 @@ exit:
 }
 #endif
 #endif
+
+/*
+ * For an image without encryption enabled on the rbd layer, probe the start of
+ * the image if it could be opened as an encrypted image so that we can display
+ * it when the user queries the node (most importantly in qemu-img).
+ *
+ * If the guest writes an encryption header to its disk after this probing, this
+ * won't be reflected when queried, but that's okay. There is no reason why the
+ * user should want to apply encryption at the rbd level while the image is
+ * still in use. This is just guest data.
+ */
+static void qemu_rbd_encryption_probe(BlockDriverState *bs)
+{
+    BDRVRBDState *s = bs->opaque;
+    char buf[RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN] = {0};
+    int r;
+
+    assert(s->encryption_format == RBD_IMAGE_ENCRYPTION_FORMAT__MAX);
+
+    r = rbd_read(s->image, 0,
+                 RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN, buf);
+    if (r < RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN) {
+        return;
+    }
+
+    if (memcmp(buf, rbd_luks_header_verification,
+               RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN) == 0) {
+        s->encryption_format = RBD_IMAGE_ENCRYPTION_FORMAT_LUKS;
+    } else if (memcmp(buf, rbd_luks2_header_verification,
+               RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN) == 0) {
+        s->encryption_format = RBD_IMAGE_ENCRYPTION_FORMAT_LUKS2;
+    } else if (memcmp(buf, rbd_layered_luks_header_verification,
+               RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN) == 0) {
+        s->encryption_format = RBD_IMAGE_ENCRYPTION_FORMAT_LUKS;
+    } else if (memcmp(buf, rbd_layered_luks2_header_verification,
+               RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN) == 0) {
+        s->encryption_format = RBD_IMAGE_ENCRYPTION_FORMAT_LUKS2;
+    }
+}
 
 /* FIXME Deprecate and remove keypairs or make it available in QMP. */
 static int qemu_rbd_do_create(BlockdevCreateOptions *options,
@@ -1133,17 +1188,18 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         goto failed_open;
     }
 
+    s->encryption_format = RBD_IMAGE_ENCRYPTION_FORMAT__MAX;
     if (opts->encrypt) {
 #ifdef LIBRBD_SUPPORTS_ENCRYPTION
         if (opts->encrypt->parent) {
 #ifdef LIBRBD_SUPPORTS_ENCRYPTION_LOAD2
-            r = qemu_rbd_encryption_load2(s->image, opts->encrypt, errp);
+            r = qemu_rbd_encryption_load2(bs, s->image, opts->encrypt, errp);
 #else
             r = -ENOTSUP;
             error_setg(errp, "RBD library does not support layered encryption");
 #endif
         } else {
-            r = qemu_rbd_encryption_load(s->image, opts->encrypt, errp);
+            r = qemu_rbd_encryption_load(bs, s->image, opts->encrypt, errp);
         }
         if (r < 0) {
             goto failed_post_open;
@@ -1153,6 +1209,8 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         error_setg(errp, "RBD library does not support image encryption");
         goto failed_post_open;
 #endif
+    } else {
+        qemu_rbd_encryption_probe(bs);
     }
 
     r = rbd_stat(s->image, &info, sizeof(info));
@@ -1412,17 +1470,6 @@ static ImageInfoSpecific *qemu_rbd_get_specific_info(BlockDriverState *bs,
 {
     BDRVRBDState *s = bs->opaque;
     ImageInfoSpecific *spec_info;
-    char buf[RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN] = {0};
-    int r;
-
-    if (s->image_size >= RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN) {
-        r = rbd_read(s->image, 0,
-                     RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN, buf);
-        if (r < 0) {
-            error_setg_errno(errp, -r, "cannot read image start for probe");
-            return NULL;
-        }
-    }
 
     spec_info = g_new(ImageInfoSpecific, 1);
     *spec_info = (ImageInfoSpecific){
@@ -1430,28 +1477,13 @@ static ImageInfoSpecific *qemu_rbd_get_specific_info(BlockDriverState *bs,
         .u.rbd.data = g_new0(ImageInfoSpecificRbd, 1),
     };
 
-    if (memcmp(buf, rbd_luks_header_verification,
-               RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN) == 0) {
-        spec_info->u.rbd.data->encryption_format =
-                RBD_IMAGE_ENCRYPTION_FORMAT_LUKS;
-        spec_info->u.rbd.data->has_encryption_format = true;
-    } else if (memcmp(buf, rbd_luks2_header_verification,
-               RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN) == 0) {
-        spec_info->u.rbd.data->encryption_format =
-                RBD_IMAGE_ENCRYPTION_FORMAT_LUKS2;
-        spec_info->u.rbd.data->has_encryption_format = true;
-    } else if (memcmp(buf, rbd_layered_luks_header_verification,
-               RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN) == 0) {
-        spec_info->u.rbd.data->encryption_format =
-                RBD_IMAGE_ENCRYPTION_FORMAT_LUKS;
-        spec_info->u.rbd.data->has_encryption_format = true;
-    } else if (memcmp(buf, rbd_layered_luks2_header_verification,
-               RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN) == 0) {
-        spec_info->u.rbd.data->encryption_format =
-                RBD_IMAGE_ENCRYPTION_FORMAT_LUKS2;
-        spec_info->u.rbd.data->has_encryption_format = true;
+    if (s->encryption_format == RBD_IMAGE_ENCRYPTION_FORMAT__MAX) {
+        assert(!bs->encrypted);
     } else {
-        spec_info->u.rbd.data->has_encryption_format = false;
+        ImageInfoSpecificRbd *rbd_info = spec_info->u.rbd.data;
+
+        rbd_info->has_encryption_format = true;
+        rbd_info->encryption_format = s->encryption_format;
     }
 
     return spec_info;

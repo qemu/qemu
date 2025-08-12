@@ -1186,10 +1186,12 @@ fi
 meson_version=$($meson --version)
 if test "$rust" != disabled && ! version_ge "$meson_version" 1.8.1; then
   if test "$rust" = enabled; then
-    error_exit "Rust support needs Meson 1.8.1 or newer"
+    $mkvenv ensuregroup --dir "${source_path}/python/wheels" \
+         ${source_path}/pythondeps.toml meson-rust || exit 1
+  else
+    echo "Rust needs Meson 1.8.1, disabling" 2>&1
+    rust=disabled
   fi
-  echo "Rust needs Meson 1.8.1, disabling" 2>&1
-  rust=disabled
 fi
 if test "$rust" != disabled && has "$rustc" && $rustc -vV > "${TMPDIR1}/${TMPB}.out"; then
   rust_host_triple=$(sed -n 's/^host: //p' "${TMPDIR1}/${TMPB}.out")

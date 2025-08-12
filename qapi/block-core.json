@@ -159,7 +159,14 @@
 ##
 # @ImageInfoSpecificRbd:
 #
-# @encryption-format: Image encryption format
+# @encryption-format: Image encryption format. If encryption is enabled for the
+#     image (see encrypted in BlockNodeInfo), this is the actual format in which the
+#     image is accessed. If encryption is not enabled, this is the result of
+#     probing when the image was opened, to give a suggestion which encryption
+#     format could be enabled. Note that probing results can be changed by the
+#     guest by writing a (possibly partial) encryption format header to the
+#     image, so don't treat this information as trusted if the guest is not
+#     trusted.
 #
 # Since: 6.1
 ##
