@@ -22,6 +22,7 @@
 #define R_ADDR          (0x010 / 4)
 #define R_STATUS        (0x014 / 4)
 #define R_CAMP1         (0x020 / 4)
+#define R_CAMP2         (0x024 / 4)
 #define R_QSR           (0x040 / 4)
 
 /* R_STATUS */
@@ -50,6 +51,8 @@
 #define SBC_OTP_CMD_READ 0x23b1e361
 #define SBC_OTP_CMD_PROG 0x23b1e364
 
+#define OTP_DATA_DWORD_COUNT        (0x800)
+#define OTP_TOTAL_DWORD_COUNT       (0x1000)
 static uint64_t aspeed_sbc_read(void *opaque, hwaddr addr, unsigned int size)
 {
     AspeedSBCState *s = ASPEED_SBC(opaque);
@@ -72,6 +75,16 @@ static bool aspeed_sbc_otp_read(AspeedSBCState *s,
     MemTxResult ret;
     AspeedOTPState *otp = &s->otp;
     uint32_t value, otp_offset;
+    bool is_data = false;
+
+    if (otp_addr < OTP_DATA_DWORD_COUNT) {
+        is_data = true;
+    } else if (otp_addr >= OTP_TOTAL_DWORD_COUNT) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "Invalid OTP addr 0x%x\n",
+                      otp_addr);
+        return false;
+    }
 
     otp_offset = otp_addr << 2;
     ret = address_space_read(&otp->as, otp_offset, MEMTXATTRS_UNSPECIFIED,
@@ -84,6 +97,20 @@ static bool aspeed_sbc_otp_read(AspeedSBCState *s,
     }
     s->regs[R_CAMP1] = value;
     trace_aspeed_sbc_otp_read(otp_addr, value);
+
+    if (is_data) {
+        ret = address_space_read(&otp->as, otp_offset + 4,
+                                 MEMTXATTRS_UNSPECIFIED,
+                                 &value, sizeof(value));
+        if (ret != MEMTX_OK) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "Failed to read OTP memory, addr = %x\n",
+                          otp_addr);
+            return false;
+        }
+        s->regs[R_CAMP2] = value;
+        trace_aspeed_sbc_otp_read(otp_addr + 1, value);
+    }
 
     return true;
 }
