@@ -357,6 +357,9 @@ uefi_vars_mm_get_next_variable(uefi_vars_state *uv, mm_header *mhdr,
     if (uefi_strlen(name, nv->name_size) == 0) {
         /* empty string -> first */
         var = QTAILQ_FIRST(&uv->variables);
+        while (var && !check_access(uv, var)) {
+            var = QTAILQ_NEXT(var, next);
+        }
         if (!var) {
             return uefi_vars_mm_error(mhdr, mvar, EFI_NOT_FOUND);
         }
@@ -702,12 +705,14 @@ uint32_t uefi_vars_mm_vars_proto(uefi_vars_state *uv)
     case SMM_VARIABLE_FUNCTION_READY_TO_BOOT:
         trace_uefi_event("ready-to-boot");
         uv->ready_to_boot = true;
+        mvar->status = EFI_SUCCESS;
         length = 0;
         break;
 
     case SMM_VARIABLE_FUNCTION_EXIT_BOOT_SERVICE:
         trace_uefi_event("exit-boot-service");
         uv->exit_boot_service = true;
+        mvar->status = EFI_SUCCESS;
         length = 0;
         break;
 
