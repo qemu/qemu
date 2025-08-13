@@ -203,6 +203,11 @@ static inline bool vfio_is_vga(VFIOPCIDevice *vdev)
     return (vdev->class_code >> 8) == PCI_CLASS_DISPLAY_VGA;
 }
 
+static inline bool vfio_is_base_display(VFIOPCIDevice *vdev)
+{
+    return (vdev->class_code >> 16) == PCI_BASE_CLASS_DISPLAY;
+}
+
 /* MSI/MSI-X/INTx */
 void vfio_pci_vector_init(VFIOPCIDevice *vdev, int nr);
 void vfio_pci_add_kvm_msi_virq(VFIOPCIDevice *vdev, VFIOMSIVector *vector,
