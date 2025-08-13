@@ -574,6 +574,9 @@ void vfio_container_region_add(VFIOContainerBase *bcontainer,
             vfio_ram_discard_register_listener(bcontainer, section);
         } else if (!vfio_cpr_ram_discard_register_listener(bcontainer,
                                                            section)) {
+            error_setg(&err,
+                       "vfio_cpr_ram_discard_register_listener for %s failed",
+                       memory_region_name(section->mr));
             goto fail;
         }
         return;
