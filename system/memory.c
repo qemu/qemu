@@ -2546,6 +2546,21 @@ void memory_region_clear_flush_coalesced(MemoryRegion *mr)
     }
 }
 
+void memory_region_enable_lockless_io(MemoryRegion *mr)
+{
+    mr->lockless_io = true;
+    /*
+     * reentrancy_guard has per device scope, that when enabled
+     * will effectively prevent concurrent access to device's IO
+     * MemoryRegion(s) by not calling accessor callback.
+     *
+     * Turn it off for lock-less IO enabled devices, to allow
+     * concurrent IO.
+     * TODO: remove this when reentrancy_guard becomes per transaction.
+     */
+    mr->disable_reentrancy_guard = true;
+}
+
 void memory_region_add_eventfd(MemoryRegion *mr,
                                hwaddr addr,
                                unsigned size,
