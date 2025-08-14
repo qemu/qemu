@@ -907,6 +907,7 @@ class KernelDoc:
             (r"^__always_inline +", "", 0),
             (r"^noinline +", "", 0),
             (r"^__FORTIFY_INLINE +", "", 0),
+            (r"QEMU_[A-Z_]+ +", "", 0),
             (r"__init +", "", 0),
             (r"__init_or_module +", "", 0),
             (r"__deprecated +", "", 0),
