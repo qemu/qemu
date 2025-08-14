@@ -56,6 +56,13 @@ typedef int64_t  Elf64_Sxword;
 #define EF_MIPS_ARCH_32R6     0x90000000      /* MIPS32r6 code.  */
 #define EF_MIPS_ARCH_64R6     0xa0000000      /* MIPS64r6 code.  */
 
+/* MIPS Architectural Extensions. */
+#define EF_MIPS_ARCH_ASE      0x0f000000
+
+#define EF_MIPS_ARCH_ASE_MICROMIPS 0x02000000
+#define EF_MIPS_ARCH_ASE_M16  0x04000000
+#define EF_MIPS_ARCH_ASE_MDMX 0x08000000
+
 /* The ABI of a file. */
 #define EF_MIPS_ABI_O32       0x00001000      /* O32 ABI.  */
 #define EF_MIPS_ABI_O64       0x00002000      /* O32 extended for 64 bit.  */
