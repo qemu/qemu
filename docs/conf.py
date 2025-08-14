@@ -341,7 +341,9 @@ man_make_section_directory = False
 # We use paths starting from qemu_docdir here so that you can run
 # sphinx-build from anywhere and the kerneldoc extension can still
 # find everything.
-kerneldoc_bin = ['perl', os.path.join(qemu_docdir, '../scripts/kernel-doc')]
+# Since kernel-doc is now a Python script, we should run it with whatever
+# Python this sphinx is using (rather than letting it find one via env)
+kerneldoc_bin = [sys.executable, os.path.join(qemu_docdir, '../scripts/kernel-doc.py')]
 kerneldoc_srctree = os.path.join(qemu_docdir, '..')
 hxtool_srctree = os.path.join(qemu_docdir, '..')
 qapidoc_srctree = os.path.join(qemu_docdir, '..')
