@@ -782,13 +782,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
     assert(!cpu_test_interrupt(cpu, ~0));
 #else
     if (unlikely(cpu_test_interrupt(cpu, ~0))) {
-        int interrupt_request;
         bql_lock();
-        interrupt_request = cpu->interrupt_request;
-        if (unlikely(cpu->singlestep_enabled & SSTEP_NOIRQ)) {
-            /* Mask out external interrupts for this step. */
-            interrupt_request &= ~CPU_INTERRUPT_SSTEP_MASK;
-        }
         if (cpu_test_interrupt(cpu, CPU_INTERRUPT_DEBUG)) {
             cpu->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
             cpu->exception_index = EXCP_DEBUG;
@@ -806,12 +800,18 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
             return true;
         } else {
             const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
+            int interrupt_request = cpu->interrupt_request;
 
             if (cpu_test_interrupt(cpu, CPU_INTERRUPT_RESET)) {
                 replay_interrupt();
                 tcg_ops->cpu_exec_reset(cpu);
                 bql_unlock();
                 return true;
+            }
+
+            if (unlikely(cpu->singlestep_enabled & SSTEP_NOIRQ)) {
+                /* Mask out external interrupts for this step. */
+                interrupt_request &= ~CPU_INTERRUPT_SSTEP_MASK;
             }
 
             /*
@@ -838,9 +838,6 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
                 cpu->exception_index = -1;
                 *last_tb = NULL;
             }
-            /* The target hook may have updated the 'cpu->interrupt_request';
-             * reload the 'interrupt_request' value */
-            interrupt_request = cpu->interrupt_request;
         }
         if (cpu_test_interrupt(cpu, CPU_INTERRUPT_EXITTB)) {
             cpu->interrupt_request &= ~CPU_INTERRUPT_EXITTB;
