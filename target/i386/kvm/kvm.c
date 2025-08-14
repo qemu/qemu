@@ -5478,9 +5478,6 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
         }
     }
 
-    if (!kvm_pic_in_kernel()) {
-        bql_lock();
-    }
 
     /* Force the VCPU out of its inner loop to process any INIT requests
      * or (for userspace APIC, but it is cheap to combine the checks here)
@@ -5489,10 +5486,10 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
     if (cpu_test_interrupt(cpu, CPU_INTERRUPT_INIT | CPU_INTERRUPT_TPR)) {
         if (cpu_test_interrupt(cpu, CPU_INTERRUPT_INIT) &&
             !(env->hflags & HF_SMM_MASK)) {
-            cpu->exit_request = 1;
+            qatomic_set(&cpu->exit_request, 1);
         }
         if (cpu_test_interrupt(cpu, CPU_INTERRUPT_TPR)) {
-            cpu->exit_request = 1;
+            qatomic_set(&cpu->exit_request, 1);
         }
     }
 
@@ -5502,6 +5499,8 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
             cpu_test_interrupt(cpu, CPU_INTERRUPT_HARD) &&
             (env->eflags & IF_MASK)) {
             int irq;
+
+            bql_lock();
 
             cpu->interrupt_request &= ~CPU_INTERRUPT_HARD;
             irq = cpu_get_pic_interrupt(env);
@@ -5517,6 +5516,7 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
                             strerror(-ret));
                 }
             }
+            bql_unlock();
         }
 
         /* If we have an interrupt but the guest is not ready to receive an
@@ -5531,8 +5531,6 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
 
         DPRINTF("setting tpr\n");
         run->cr8 = cpu_get_apic_tpr(x86_cpu->apic_state);
-
-        bql_unlock();
     }
 }
 
