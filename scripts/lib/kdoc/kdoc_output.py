@@ -38,12 +38,12 @@ type_fp_param = KernRe(r"\@(\w+)\(\)", cache=False)
 type_fp_param2 = KernRe(r"\@(\w+->\S+)\(\)", cache=False)
 
 type_env = KernRe(r"(\$\w+)", cache=False)
-type_enum = KernRe(r"\&(enum\s*([_\w]+))", cache=False)
-type_struct = KernRe(r"\&(struct\s*([_\w]+))", cache=False)
-type_typedef = KernRe(r"\&(typedef\s*([_\w]+))", cache=False)
-type_union = KernRe(r"\&(union\s*([_\w]+))", cache=False)
-type_member = KernRe(r"\&([_\w]+)(\.|->)([_\w]+)", cache=False)
-type_fallback = KernRe(r"\&([_\w]+)", cache=False)
+type_enum = KernRe(r"#(enum\s*([_\w]+))", cache=False)
+type_struct = KernRe(r"#(struct\s*([_\w]+))", cache=False)
+type_typedef = KernRe(r"#(([A-Z][_\w]*))", cache=False)
+type_union = KernRe(r"#(union\s*([_\w]+))", cache=False)
+type_member = KernRe(r"#([_\w]+)(\.|->)([_\w]+)", cache=False)
+type_fallback = KernRe(r"((?!))", cache=False) # this never matches
 type_member_func = type_member + KernRe(r"\(\)", cache=False)
 
 
