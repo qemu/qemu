@@ -431,6 +431,16 @@ static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
     addr &= ~4;
 
     QEMU_LOCK_GUARD(&s->lock);
+    if (addr == HPET_COUNTER) {
+        if (hpet_enabled(s)) {
+            cur_tick = hpet_get_ticks(s);
+        } else {
+            cur_tick = s->hpet_counter;
+        }
+        trace_hpet_ram_read_reading_counter(addr & 4, cur_tick);
+        return cur_tick >> shift;
+    }
+
     /*address range of all global regs*/
     if (addr <= 0xff) {
         switch (addr) {
@@ -438,14 +448,6 @@ static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
             return s->capability >> shift;
         case HPET_CFG:
             return s->config >> shift;
-        case HPET_COUNTER:
-            if (hpet_enabled(s)) {
-                cur_tick = hpet_get_ticks(s);
-            } else {
-                cur_tick = s->hpet_counter;
-            }
-            trace_hpet_ram_read_reading_counter(addr & 4, cur_tick);
-            return cur_tick >> shift;
         case HPET_STATUS:
             return s->isr >> shift;
         default:
