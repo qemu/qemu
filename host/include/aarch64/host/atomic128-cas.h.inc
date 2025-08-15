@@ -38,6 +38,63 @@ static inline Int128 atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new)
     return int128_make128(oldl, oldh);
 }
 
+static inline Int128 atomic16_xchg(Int128 *ptr, Int128 new)
+{
+    uint64_t newl = int128_getlo(new), newh = int128_gethi(new);
+    uint64_t oldl, oldh;
+    uint32_t tmp;
+
+    asm("0: ldaxp %[oldl], %[oldh], %[mem]\n\t"
+        "stlxp %w[tmp], %[newl], %[newh], %[mem]\n\t"
+        "cbnz %w[tmp], 0b"
+        : [mem] "+m"(*ptr), [tmp] "=&r"(tmp),
+          [oldl] "=&r"(oldl), [oldh] "=&r"(oldh)
+        : [newl] "r"(newl), [newh] "r"(newh)
+        : "memory");
+
+    return int128_make128(oldl, oldh);
+}
+
+static inline Int128 atomic16_fetch_and(Int128 *ptr, Int128 new)
+{
+    uint64_t newl = int128_getlo(new), newh = int128_gethi(new);
+    uint64_t oldl, oldh, tmpl, tmph;
+    uint32_t tmp;
+
+    asm("0: ldaxp %[oldl], %[oldh], %[mem]\n\t"
+        "and %[tmpl], %[oldl], %[newl]\n\t"
+        "and %[tmph], %[oldh], %[newh]\n\t"
+        "stlxp %w[tmp], %[tmpl], %[tmph], %[mem]\n\t"
+        "cbnz %w[tmp], 0b"
+        : [mem] "+m"(*ptr), [tmp] "=&r"(tmp),
+          [oldl] "=&r"(oldl), [oldh] "=&r"(oldh)
+        : [newl] "r"(newl), [newh] "r"(newh),
+          [tmpl] "r"(tmpl), [tmph] "r"(tmph)
+        : "memory");
+
+    return int128_make128(oldl, oldh);
+}
+
+static inline Int128 atomic16_fetch_or(Int128 *ptr, Int128 new)
+{
+    uint64_t newl = int128_getlo(new), newh = int128_gethi(new);
+    uint64_t oldl, oldh, tmpl, tmph;
+    uint32_t tmp;
+
+    asm("0: ldaxp %[oldl], %[oldh], %[mem]\n\t"
+        "orr %[tmpl], %[oldl], %[newl]\n\t"
+        "orr %[tmph], %[oldh], %[newh]\n\t"
+        "stlxp %w[tmp], %[tmpl], %[tmph], %[mem]\n\t"
+        "cbnz %w[tmp], 0b"
+        : [mem] "+m"(*ptr), [tmp] "=&r"(tmp),
+          [oldl] "=&r"(oldl), [oldh] "=&r"(oldh)
+        : [newl] "r"(newl), [newh] "r"(newh),
+          [tmpl] "r"(tmpl), [tmph] "r"(tmph)
+        : "memory");
+
+    return int128_make128(oldl, oldh);
+}
+
 # define CONFIG_CMPXCHG128 1
 # define HAVE_CMPXCHG128 1
 #endif
