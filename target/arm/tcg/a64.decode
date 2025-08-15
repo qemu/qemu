@@ -546,6 +546,13 @@ SWP             .. 111 0 00 . . 1 ..... 1000 00 ..... ..... @atomic
 
 LDAPR           sz:2 111 0 00 1 0 1 11111 1100 00 rn:5 rt:5
 
+# Atomic 128-bit memory operations
+&atomic128      rn rt rt2 a r
+@atomic128      ........ a:1 r:1 . rt2:5 ...... rn:5 rt:5   &atomic128
+LDCLRP          00011001 .   .   1 ..... 000100 ..... ..... @atomic128
+LDSETP          00011001 .   .   1 ..... 001100 ..... ..... @atomic128
+SWPP            00011001 .   .   1 ..... 100000 ..... ..... @atomic128
+
 # Load/store register (pointer authentication)
 
 # LDRA immediate is 10 bits signed and scaled, but the bits aren't all contiguous

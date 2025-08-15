@@ -411,6 +411,11 @@ static inline bool isar_feature_aa64_lse(const ARMISARegisters *id)
     return FIELD_EX64_IDREG(id, ID_AA64ISAR0, ATOMIC) >= 2;
 }
 
+static inline bool isar_feature_aa64_lse128(const ARMISARegisters *id)
+{
+    return FIELD_EX64_IDREG(id, ID_AA64ISAR0, ATOMIC) >= 3;
+}
+
 static inline bool isar_feature_aa64_rdm(const ARMISARegisters *id)
 {
     return FIELD_EX64_IDREG(id, ID_AA64ISAR0, RDM) != 0;
