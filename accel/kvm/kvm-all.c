@@ -4277,6 +4277,7 @@ static void kvm_accel_instance_init(Object *obj)
     s->xen_evtchn_max_pirq = 256;
     s->device = NULL;
     s->msr_energy.enable = false;
+    s->honor_guest_pat = ON_OFF_AUTO_OFF;
 }
 
 /**

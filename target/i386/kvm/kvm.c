@@ -3595,8 +3595,30 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     if (first) {
         kvm_vmfd_add_change_notifier(&kvm_vmfd_change_notifier);
     }
-    first = false;
 
+    /*
+     * Most x86 CPUs in current use have self-snoop, so honoring guest PAT is
+     * preferable.  As well, the bochs video driver bug which motivated making
+     * this a default-enabled quirk in KVM was fixed long ago.
+     */
+    if (s->honor_guest_pat != ON_OFF_AUTO_OFF) {
+        ret = kvm_check_extension(s, KVM_CAP_DISABLE_QUIRKS2);
+        if (ret & KVM_X86_QUIRK_IGNORE_GUEST_PAT) {
+            ret = kvm_vm_enable_cap(s, KVM_CAP_DISABLE_QUIRKS2, 0,
+                                    KVM_X86_QUIRK_IGNORE_GUEST_PAT);
+            if (ret < 0) {
+                error_report("failed to disable KVM_X86_QUIRK_IGNORE_GUEST_PAT");
+                return ret;
+            }
+        } else {
+            if (s->honor_guest_pat == ON_OFF_AUTO_ON) {
+                error_report("KVM does not support disabling ignore-guest-PAT quirk");
+                return -EINVAL;
+            }
+        }
+    }
+
+    first = false;
     return 0;
 }
 
@@ -7053,6 +7075,24 @@ static void kvm_arch_set_xen_evtchn_max_pirq(Object *obj, Visitor *v,
     s->xen_evtchn_max_pirq = value;
 }
 
+static int kvm_arch_get_honor_guest_pat(Object *obj, Error **errp)
+{
+    KVMState *s = KVM_STATE(obj);
+    return s->honor_guest_pat;
+}
+
+static void kvm_arch_set_honor_guest_pat(Object *obj, int value, Error **errp)
+{
+    KVMState *s = KVM_STATE(obj);
+
+    if (s->fd != -1) {
+        error_setg(errp, "Cannot set properties after the accelerator has been initialized");
+        return;
+    }
+
+    s->honor_guest_pat = value;
+}
+
 void kvm_arch_accel_class_init(ObjectClass *oc)
 {
     object_class_property_add_enum(oc, "notify-vmexit", "NotifyVMexitOption",
@@ -7092,6 +7132,14 @@ void kvm_arch_accel_class_init(ObjectClass *oc)
                               NULL, NULL);
     object_class_property_set_description(oc, "xen-evtchn-max-pirq",
                                           "Maximum number of Xen PIRQs");
+
+    object_class_property_add_enum(oc, "honor-guest-pat", "OnOffAuto",
+                                   &OnOffAuto_lookup,
+                                   kvm_arch_get_honor_guest_pat,
+                                   kvm_arch_set_honor_guest_pat);
+    object_class_property_set_description(oc, "honor-guest-pat",
+                                          "Disable KVM quirk that ignores guest PAT "
+                                          "memory type settings (default: auto)");
 }
 
 void kvm_set_max_apic_id(uint32_t max_apic_id)
