@@ -122,5 +122,14 @@ GEN_ATOMIC_HELPERS(umax_fetch)
 
 GEN_ATOMIC_HELPERS(xchg)
 
+#if HAVE_CMPXCHG128
+ATOMIC_HELPER(xchgo_be, Int128)
+ATOMIC_HELPER(xchgo_le, Int128)
+ATOMIC_HELPER(fetch_ando_be, Int128)
+ATOMIC_HELPER(fetch_ando_le, Int128)
+ATOMIC_HELPER(fetch_oro_be, Int128)
+ATOMIC_HELPER(fetch_oro_le, Int128)
+#endif
+
 #undef ATOMIC_HELPER
 #undef GEN_ATOMIC_HELPERS

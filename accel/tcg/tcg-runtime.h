@@ -63,6 +63,18 @@ DEF_HELPER_FLAGS_5(atomic_cmpxchgo_be, TCG_CALL_NO_WG,
                    i128, env, i64, i128, i128, i32)
 DEF_HELPER_FLAGS_5(atomic_cmpxchgo_le, TCG_CALL_NO_WG,
                    i128, env, i64, i128, i128, i32)
+DEF_HELPER_FLAGS_4(atomic_xchgo_be, TCG_CALL_NO_WG,
+                   i128, env, i64, i128, i32)
+DEF_HELPER_FLAGS_4(atomic_xchgo_le, TCG_CALL_NO_WG,
+                   i128, env, i64, i128, i32)
+DEF_HELPER_FLAGS_4(atomic_fetch_ando_be, TCG_CALL_NO_WG,
+                   i128, env, i64, i128, i32)
+DEF_HELPER_FLAGS_4(atomic_fetch_ando_le, TCG_CALL_NO_WG,
+                   i128, env, i64, i128, i32)
+DEF_HELPER_FLAGS_4(atomic_fetch_oro_be, TCG_CALL_NO_WG,
+                   i128, env, i64, i128, i32)
+DEF_HELPER_FLAGS_4(atomic_fetch_oro_le, TCG_CALL_NO_WG,
+                   i128, env, i64, i128, i32)
 #endif
 
 DEF_HELPER_FLAGS_5(nonatomic_cmpxchgo, TCG_CALL_NO_WG,
