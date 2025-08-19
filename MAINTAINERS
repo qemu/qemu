@@ -1457,7 +1457,7 @@ S: Maintained
 F: docs/system/openrisc/or1k-sim.rst
 F: hw/intc/ompic.c
 F: hw/openrisc/openrisc_sim.c
-F: tests/functional/test_or1k_sim.py
+F: tests/functional/or1k/test_sim.py
 
 PowerPC Machines
 ----------------

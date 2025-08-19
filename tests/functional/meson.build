@@ -23,6 +23,7 @@ subdir('mips')
 subdir('mipsel')
 subdir('mips64')
 subdir('mips64el')
+subdir('or1k')
 
 test_ppc_timeouts = {
   'ppc_40p' : 240,
@@ -68,11 +69,6 @@ tests_generic_linuxuser = [
 ]
 
 tests_generic_bsduser = [
-]
-
-tests_or1k_system_thorough = [
-  'or1k_replay',
-  'or1k_sim',
 ]
 
 tests_ppc_system_quick = [
