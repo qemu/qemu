@@ -17,6 +17,8 @@ subdir('hppa')
 subdir('i386')
 subdir('loongarch64')
 subdir('m68k')
+subdir('microblaze')
+subdir('microblazeel')
 
 test_mips_timeouts = {
   'mips_malta' : 480,
@@ -80,15 +82,6 @@ tests_generic_linuxuser = [
 ]
 
 tests_generic_bsduser = [
-]
-
-tests_microblaze_system_thorough = [
-  'microblaze_replay',
-  'microblaze_s3adsp1800'
-]
-
-tests_microblazeel_system_thorough = [
-  'microblazeel_s3adsp1800'
 ]
 
 tests_mips_system_thorough = [
