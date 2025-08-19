@@ -36,18 +36,7 @@ subdir('sparc')
 subdir('sparc64')
 subdir('x86_64')
 subdir('xtensa')
-
-tests_generic_system = [
-  'empty_cpu_model',
-  'info_usernet',
-  'version',
-]
-
-tests_generic_linuxuser = [
-]
-
-tests_generic_bsduser = [
-]
+subdir('generic')
 
 precache_all = []
 foreach speed : ['quick', 'thorough']
@@ -90,9 +79,7 @@ foreach speed : ['quick', 'thorough']
 
     foreach test : target_tests
       testname = '@0@-@1@'.format(target_base, test)
-      if fs.exists('test_' + test + '.py')
-        testfile = 'test_' + test + '.py'
-      elif fs.exists('generic' / 'test_' + test + '.py')
+      if fs.exists('generic' / 'test_' + test + '.py')
         testfile = 'generic' / 'test_' + test + '.py'
       else
         testfile = target_base / 'test_' + test + '.py'

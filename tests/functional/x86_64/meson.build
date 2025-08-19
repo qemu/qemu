@@ -16,7 +16,6 @@ tests_x86_64_system_quick = [
   'migration',
   'pc_cpu_hotplug_props',
   'virtio_version',
-  'vnc',
   'memlock',
 ]
 
