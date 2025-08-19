@@ -1594,13 +1594,12 @@ sub push_parameter($$$$$) {
 
 	if ($type eq "" && $param =~ /\.\.\.$/)
 	{
-	    if (!$param =~ /\w\.\.\.$/) {
-	      # handles unnamed variable parameters
-	      $param = "...";
-	    }
-	    elsif ($param =~ /\w\.\.\.$/) {
+	    if ($param =~ /\w\.\.\.$/) {
 	      # for named variable parameters of the form `x...`, remove the dots
 	      $param =~ s/\.\.\.$//;
+	    } else {
+	      # handles unnamed variable parameters
+	      $param = "...";
 	    }
 	    if (!defined $parameterdescs{$param} || $parameterdescs{$param} eq "") {
 		$parameterdescs{$param} = "variable arguments";
