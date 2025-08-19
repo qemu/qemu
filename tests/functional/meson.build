@@ -24,19 +24,8 @@ subdir('mipsel')
 subdir('mips64')
 subdir('mips64el')
 subdir('or1k')
-
-test_ppc_timeouts = {
-  'ppc_40p' : 240,
-}
-
-test_ppc64_timeouts = {
-  'ppc64_hv' : 1000,
-  'ppc64_powernv' : 480,
-  'ppc64_pseries' : 480,
-  'ppc64_replay' : 210,
-  'ppc64_tuxrun' : 420,
-  'ppc64_mac99' : 120,
-}
+subdir('ppc')
+subdir('ppc64')
 
 test_riscv64_timeouts = {
   'riscv64_tuxrun' : 120,
@@ -69,38 +58,6 @@ tests_generic_linuxuser = [
 ]
 
 tests_generic_bsduser = [
-]
-
-tests_ppc_system_quick = [
-  'ppc_migration',
-  'ppc_74xx',
-]
-
-tests_ppc_system_thorough = [
-  'ppc_40p',
-  'ppc_amiga',
-  'ppc_bamboo',
-  'ppc_mac',
-  'ppc_mpc8544ds',
-  'ppc_replay',
-  'ppc_sam460ex',
-  'ppc_tuxrun',
-  'ppc_virtex_ml507',
-]
-
-tests_ppc64_system_quick = [
-  'ppc64_migration',
-]
-
-tests_ppc64_system_thorough = [
-  'ppc64_e500',
-  'ppc64_hv',
-  'ppc64_powernv',
-  'ppc64_pseries',
-  'ppc64_replay',
-  'ppc64_reverse_debug',
-  'ppc64_tuxrun',
-  'ppc64_mac99',
 ]
 
 tests_riscv32_system_quick = [

@@ -310,7 +310,7 @@ F: configs/devices/ppc*
 F: docs/system/ppc/embedded.rst
 F: docs/system/target-ppc.rst
 F: tests/tcg/ppc*/*
-F: tests/functional/test_ppc_74xx.py
+F: tests/functional/ppc/test_74xx.py
 
 RISC-V TCG CPUs
 M: Palmer Dabbelt <palmer@dabbelt.com>
@@ -1466,7 +1466,7 @@ L: qemu-ppc@nongnu.org
 S: Orphan
 F: hw/ppc/ppc440_bamboo.c
 F: hw/pci-host/ppc4xx_pci.c
-F: tests/functional/test_ppc_bamboo.py
+F: tests/functional/ppc/test_bamboo.py
 
 e500
 M: Bernhard Beschow <shentey@gmail.com>
@@ -1484,8 +1484,8 @@ F: pc-bios/u-boot.e500
 F: hw/intc/openpic_kvm.c
 F: include/hw/ppc/openpic_kvm.h
 F: docs/system/ppc/ppce500.rst
-F: tests/functional/test_ppc64_e500.py
-F: tests/functional/test_ppc_tuxrun.py
+F: tests/functional/ppc64/test_e500.py
+F: tests/functional/ppc/test_tuxrun.py
 
 mpc8544ds
 M: Bernhard Beschow <shentey@gmail.com>
@@ -1493,7 +1493,7 @@ L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/mpc8544ds.c
 F: hw/ppc/mpc8544_guts.c
-F: tests/functional/test_ppc_mpc8544ds.py
+F: tests/functional/ppc/test_mpc8544ds.py
 
 New World (mac99)
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
@@ -1515,8 +1515,8 @@ F: include/hw/ppc/mac_dbdma.h
 F: include/hw/pci-host/uninorth.h
 F: include/hw/input/adb*
 F: pc-bios/qemu_vga.ndrv
-F: tests/functional/test_ppc_mac.py
-F: tests/functional/test_ppc64_mac99.py
+F: tests/functional/ppc/test_mac.py
+F: tests/functional/ppc64/test_mac99.py
 
 Old World (g3beige)
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
@@ -1532,7 +1532,7 @@ F: include/hw/intc/heathrow_pic.h
 F: include/hw/input/adb*
 F: include/hw/pci-host/grackle.h
 F: pc-bios/qemu_vga.ndrv
-F: tests/functional/test_ppc_mac.py
+F: tests/functional/ppc/test_mac.py
 
 PReP
 M: Hervé Poussineau <hpoussin@reactos.org>
@@ -1549,7 +1549,7 @@ F: hw/dma/i82374.c
 F: hw/rtc/m48t59-isa.c
 F: include/hw/isa/pc87312.h
 F: include/hw/rtc/m48t59.h
-F: tests/functional/test_ppc_40p.py
+F: tests/functional/ppc/test_40p.py
 
 sPAPR (pseries)
 M: Nicholas Piggin <npiggin@gmail.com>
@@ -1572,9 +1572,9 @@ F: tests/qtest/spapr*
 F: tests/qtest/libqos/*spapr*
 F: tests/qtest/rtas*
 F: tests/qtest/libqos/rtas*
-F: tests/functional/test_ppc64_pseries.py
-F: tests/functional/test_ppc64_hv.py
-F: tests/functional/test_ppc64_tuxrun.py
+F: tests/functional/ppc64/test_pseries.py
+F: tests/functional/ppc64/test_hv.py
+F: tests/functional/ppc64/test_tuxrun.py
 
 PowerNV (Non-Virtualized)
 M: Nicholas Piggin <npiggin@gmail.com>
@@ -1593,7 +1593,7 @@ F: include/hw/ssi/pnv_spi*
 F: pc-bios/skiboot.lid
 F: pc-bios/pnv-pnor.bin
 F: tests/qtest/pnv*
-F: tests/functional/test_ppc64_powernv.py
+F: tests/functional/ppc64/test_powernv.py
 
 pca955x
 M: Glenn Miles <milesg@linux.ibm.com>
@@ -1608,7 +1608,7 @@ M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/virtex_ml507.c
-F: tests/functional/test_ppc_virtex_ml507.py
+F: tests/functional/ppc/test_virtex_ml507.py
 
 sam460ex
 M: BALATON Zoltan <balaton@eik.bme.hu>
@@ -1624,7 +1624,7 @@ F: pc-bios/dtb/canyonlands.dt[sb]
 F: pc-bios/u-boot-sam460ex-20100605.bin
 F: roms/u-boot-sam460ex
 F: docs/system/ppc/amigang.rst
-F: tests/functional/test_ppc_sam460ex.py
+F: tests/functional/ppc/test_sam460ex.py
 
 pegasos2
 M: BALATON Zoltan <balaton@eik.bme.hu>
@@ -1642,7 +1642,7 @@ S: Maintained
 F: hw/ppc/amigaone.c
 F: hw/pci-host/articia.c
 F: include/hw/pci-host/articia.h
-F: tests/functional/test_ppc_amiga.py
+F: tests/functional/ppc/test_amiga.py
 
 Virtual Open Firmware (VOF)
 M: Alexey Kardashevskiy <aik@ozlabs.ru>
