@@ -14,6 +14,7 @@ subdir('alpha')
 subdir('arm')
 subdir('avr')
 subdir('hppa')
+subdir('i386')
 
 test_mips_timeouts = {
   'mips_malta' : 480,
@@ -77,15 +78,6 @@ tests_generic_linuxuser = [
 ]
 
 tests_generic_bsduser = [
-]
-
-tests_i386_system_quick = [
-  'i386_migration',
-]
-
-tests_i386_system_thorough = [
-  'i386_replay',
-  'i386_tuxrun',
 ]
 
 tests_loongarch64_system_thorough = [

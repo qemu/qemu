@@ -146,6 +146,7 @@ F: target/i386/*.[ch]
 F: target/i386/Kconfig
 F: target/i386/meson.build
 F: tools/i386/
+F: tests/functional/i386/
 
 Guest CPU cores (TCG)
 ---------------------
@@ -1891,7 +1892,7 @@ F: hw/isa/apm.c
 F: include/hw/isa/apm.h
 F: tests/unit/test-x86-topo.c
 F: tests/qtest/test-x86-cpuid-compat.c
-F: tests/functional/test_i386_tuxrun.py
+F: tests/functional/i386/test_tuxrun.py
 F: tests/functional/test_linux_initrd.py
 F: tests/functional/test_mem_addr_space.py
 F: tests/functional/test_pc_cpu_hotplug_props.py
