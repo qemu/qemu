@@ -80,7 +80,7 @@ tests_generic_bsduser = [
 ]
 
 tests_aarch64_system_quick = [
-  'migration',
+  'aarch64_migration',
 ]
 
 tests_aarch64_system_thorough = [
@@ -110,7 +110,7 @@ tests_aarch64_system_thorough = [
 ]
 
 tests_alpha_system_quick = [
-  'migration',
+  'alpha_migration',
 ]
 
 tests_alpha_system_thorough = [
@@ -119,7 +119,7 @@ tests_alpha_system_thorough = [
 ]
 
 tests_arm_system_quick = [
-  'migration',
+  'arm_migration',
 ]
 
 tests_arm_system_thorough = [
@@ -168,7 +168,7 @@ tests_hppa_system_quick = [
 ]
 
 tests_i386_system_quick = [
-  'migration',
+  'i386_migration',
 ]
 
 tests_i386_system_thorough = [
@@ -228,7 +228,7 @@ tests_or1k_system_thorough = [
 ]
 
 tests_ppc_system_quick = [
-  'migration',
+  'ppc_migration',
   'ppc_74xx',
 ]
 
@@ -245,7 +245,7 @@ tests_ppc_system_thorough = [
 ]
 
 tests_ppc64_system_quick = [
-  'migration',
+  'ppc64_migration',
 ]
 
 tests_ppc64_system_thorough = [
@@ -260,7 +260,7 @@ tests_ppc64_system_thorough = [
 ]
 
 tests_riscv32_system_quick = [
-  'migration',
+  'riscv32_migration',
   'riscv_opensbi',
 ]
 
@@ -269,7 +269,7 @@ tests_riscv32_system_thorough = [
 ]
 
 tests_riscv64_system_quick = [
-  'migration',
+  'riscv64_migration',
   'riscv_opensbi',
 ]
 
@@ -300,7 +300,7 @@ tests_sh4eb_system_thorough = [
 ]
 
 tests_sparc_system_quick = [
-  'migration',
+  'sparc_migration',
 ]
 
 tests_sparc_system_thorough = [
@@ -309,7 +309,7 @@ tests_sparc_system_thorough = [
 ]
 
 tests_sparc64_system_quick = [
-  'migration',
+  'sparc64_migration',
 ]
 
 tests_sparc64_system_thorough = [
@@ -320,7 +320,7 @@ tests_sparc64_system_thorough = [
 tests_x86_64_system_quick = [
   'cpu_queries',
   'mem_addr_space',
-  'migration',
+  'x86_64_migration',
   'pc_cpu_hotplug_props',
   'virtio_version',
   'x86_cpu_model_versions',
