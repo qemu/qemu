@@ -26,10 +26,8 @@ subdir('mips64el')
 subdir('or1k')
 subdir('ppc')
 subdir('ppc64')
-
-test_riscv64_timeouts = {
-  'riscv64_tuxrun' : 120,
-}
+subdir('riscv32')
+subdir('riscv64')
 
 test_s390x_timeouts = {
   's390x_ccw_virtio' : 420,
@@ -58,25 +56,6 @@ tests_generic_linuxuser = [
 ]
 
 tests_generic_bsduser = [
-]
-
-tests_riscv32_system_quick = [
-  'riscv32_migration',
-  'riscv_opensbi',
-]
-
-tests_riscv32_system_thorough = [
-  'riscv32_tuxrun',
-]
-
-tests_riscv64_system_quick = [
-  'riscv64_migration',
-  'riscv_opensbi',
-]
-
-tests_riscv64_system_thorough = [
-  'riscv64_sifive_u',
-  'riscv64_tuxrun',
 ]
 
 tests_rx_system_thorough = [
