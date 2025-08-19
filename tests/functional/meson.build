@@ -13,6 +13,7 @@ subdir('aarch64')
 subdir('alpha')
 subdir('arm')
 subdir('avr')
+subdir('hppa')
 
 test_mips_timeouts = {
   'mips_malta' : 480,
@@ -76,10 +77,6 @@ tests_generic_linuxuser = [
 ]
 
 tests_generic_bsduser = [
-]
-
-tests_hppa_system_quick = [
-  'hppa_seabios',
 ]
 
 tests_i386_system_quick = [
