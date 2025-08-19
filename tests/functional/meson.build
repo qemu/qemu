@@ -35,6 +35,7 @@ subdir('sh4eb')
 subdir('sparc')
 subdir('sparc64')
 subdir('x86_64')
+subdir('xtensa')
 
 tests_generic_system = [
   'empty_cpu_model',
@@ -46,11 +47,6 @@ tests_generic_linuxuser = [
 ]
 
 tests_generic_bsduser = [
-]
-
-tests_xtensa_system_thorough = [
-  'xtensa_lx60',
-  'xtensa_replay',
 ]
 
 precache_all = []
