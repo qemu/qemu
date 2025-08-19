@@ -3604,7 +3604,8 @@ F: include/migration/
 F: include/qemu/userfaultfd.h
 F: migration/
 F: scripts/vmstate-static-checker.py
-F: tests/functional/*migration.py
+F: tests/functional/migration.py
+F: tests/functional/*/*migration.py
 F: tests/vmstate-static-checker-data/
 F: tests/qtest/migration/
 F: tests/qtest/migration-*
@@ -3773,8 +3774,10 @@ F: include/system/replay.h
 F: docs/devel/replay.rst
 F: docs/system/replay.rst
 F: stubs/replay.c
-F: tests/functional/*reverse_debug*.py
-F: tests/functional/*replay*.py
+F: tests/functional/replay_kernel.py
+F: tests/functional/reverse_debugging.py
+F: tests/functional/*/*replay*.py
+F: tests/functional/*/*reverse_debug*.py
 F: qapi/replay.json
 
 IOVA Tree
@@ -4293,7 +4296,8 @@ F: hw/remote/vfio-user-obj.c
 F: include/hw/remote/vfio-user-obj.h
 F: hw/remote/iommu.c
 F: include/hw/remote/iommu.h
-F: tests/functional/*multiprocess.py
+F: tests/functional/multiprocess.py
+F: tests/functional/*/*multiprocess.py
 
 VFIO-USER:
 M: John Levon <john.levon@nutanix.com>
