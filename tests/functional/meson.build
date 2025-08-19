@@ -12,6 +12,7 @@ endif
 subdir('aarch64')
 subdir('alpha')
 subdir('arm')
+subdir('avr')
 
 test_mips_timeouts = {
   'mips_malta' : 480,
@@ -75,11 +76,6 @@ tests_generic_linuxuser = [
 ]
 
 tests_generic_bsduser = [
-]
-
-tests_avr_system_thorough = [
-  'avr_mega2560',
-  'avr_uno',
 ]
 
 tests_hppa_system_quick = [
