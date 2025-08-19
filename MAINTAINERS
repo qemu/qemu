@@ -4286,7 +4286,7 @@ F: hw/remote/vfio-user-obj.c
 F: include/hw/remote/vfio-user-obj.h
 F: hw/remote/iommu.c
 F: include/hw/remote/iommu.h
-F: tests/functional/test_multiprocess.py
+F: tests/functional/*multiprocess.py
 
 VFIO-USER:
 M: John Levon <john.levon@nutanix.com>

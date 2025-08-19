@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Test for multiprocess qemu
 #
@@ -9,32 +9,12 @@
 import os
 import socket
 
-from qemu_test import QemuSystemTest, Asset, wait_for_console_pattern
+from qemu_test import QemuSystemTest, wait_for_console_pattern
 from qemu_test import exec_command, exec_command_and_wait_for_pattern
 
 class Multiprocess(QemuSystemTest):
 
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
-
-    ASSET_KERNEL_X86 = Asset(
-        ('https://archives.fedoraproject.org/pub/archive/fedora/linux'
-         '/releases/31/Everything/x86_64/os/images/pxeboot/vmlinuz'),
-        'd4738d03dbbe083ca610d0821d0a8f1488bebbdccef54ce33e3adb35fda00129')
-
-    ASSET_INITRD_X86 = Asset(
-        ('https://archives.fedoraproject.org/pub/archive/fedora/linux'
-         '/releases/31/Everything/x86_64/os/images/pxeboot/initrd.img'),
-        '3b6cb5c91a14c42e2f61520f1689264d865e772a1f0069e660a800d31dd61fb9')
-
-    ASSET_KERNEL_AARCH64 = Asset(
-        ('https://archives.fedoraproject.org/pub/archive/fedora/linux'
-         '/releases/31/Everything/aarch64/os/images/pxeboot/vmlinuz'),
-        '3ae07fcafbfc8e4abeb693035a74fe10698faae15e9ccd48882a9167800c1527')
-
-    ASSET_INITRD_AARCH64 = Asset(
-        ('https://archives.fedoraproject.org/pub/archive/fedora/linux'
-         '/releases/31/Everything/aarch64/os/images/pxeboot/initrd.img'),
-        '9fd230cab10b1dafea41cf00150e6669d37051fad133bd618d2130284e16d526')
 
     def do_test(self, kernel_asset, initrd_asset,
                 kernel_command_line, machine_type):
@@ -85,19 +65,3 @@ class Multiprocess(QemuSystemTest):
 
         proxy_sock.close()
         remote_sock.close()
-
-    def test_multiprocess(self):
-        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE
-        if self.arch == 'x86_64':
-            kernel_command_line += 'console=ttyS0 rdinit=/bin/bash'
-            self.do_test(self.ASSET_KERNEL_X86, self.ASSET_INITRD_X86,
-                         kernel_command_line, 'pc')
-        elif self.arch == 'aarch64':
-            kernel_command_line += 'rdinit=/bin/bash console=ttyAMA0'
-            self.do_test(self.ASSET_KERNEL_AARCH64, self.ASSET_INITRD_AARCH64,
-                         kernel_command_line, 'virt,gic-version=3')
-        else:
-            assert False
-
-if __name__ == '__main__':
-    QemuSystemTest.main()

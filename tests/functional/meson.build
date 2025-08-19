@@ -90,6 +90,7 @@ tests_aarch64_system_thorough = [
   'aarch64_hotplug_pci',
   'aarch64_imx8mp_evk',
   'aarch64_kvm',
+  'aarch64_multiprocess',
   'aarch64_raspi3',
   'aarch64_raspi4',
   'aarch64_replay',
@@ -106,7 +107,6 @@ tests_aarch64_system_thorough = [
   'aarch64_virt_gpu',
   'aarch64_xen',
   'aarch64_xlnx_versal',
-  'multiprocess',
 ]
 
 tests_alpha_system_quick = [
@@ -332,7 +332,7 @@ tests_x86_64_system_thorough = [
   'acpi_bits',
   'intel_iommu',
   'linux_initrd',
-  'multiprocess',
+  'x86_64_multiprocess',
   'netdev_ethtool',
   'virtio_balloon',
   'virtio_gpu',
