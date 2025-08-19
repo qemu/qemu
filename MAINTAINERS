@@ -1406,8 +1406,8 @@ F: hw/acpi/piix4.c
 F: hw/mips/malta.c
 F: hw/pci-host/gt64120.c
 F: include/hw/southbridge/piix.h
-F: tests/functional/test_mips*_malta.py
-F: tests/functional/test_mips*_tuxrun.py
+F: tests/functional/mips*/test_malta.py
+F: tests/functional/mips*/test_tuxrun.py
 
 Mipssim
 R: Aleksandar Rikalo <arikalo@gmail.com>
@@ -1423,7 +1423,7 @@ S: Odd Fixes
 F: hw/mips/fuloong2e.c
 F: hw/pci-host/bonito.c
 F: include/hw/pci-host/bonito.h
-F: tests/functional/test_mips64el_fuloong2e.py
+F: tests/functional/mips64el/test_fuloong2e.py
 
 Loongson-3 virtual platforms
 M: Huacai Chen <chenhuacai@kernel.org>
@@ -1438,7 +1438,7 @@ F: hw/mips/loongson3_virt.c
 F: include/hw/intc/loongson_ipi_common.h
 F: include/hw/intc/loongson_ipi.h
 F: include/hw/intc/loongson_liointc.h
-F: tests/functional/test_mips64el_loongson3v.py
+F: tests/functional/mips64el/test_loongson3v.py
 
 Boston
 M: Paul Burton <paulburton@kernel.org>

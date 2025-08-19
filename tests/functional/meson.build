@@ -19,24 +19,10 @@ subdir('loongarch64')
 subdir('m68k')
 subdir('microblaze')
 subdir('microblazeel')
-
-test_mips_timeouts = {
-  'mips_malta' : 480,
-}
-
-test_mipsel_timeouts = {
-  'mipsel_malta' : 420,
-  'mipsel_replay' : 480,
-}
-
-test_mips64_timeouts = {
-  'mips64_malta' : 240,
-}
-
-test_mips64el_timeouts = {
-  'mips64el_malta' : 420,
-  'mips64el_replay' : 180,
-}
+subdir('mips')
+subdir('mipsel')
+subdir('mips64')
+subdir('mips64el')
 
 test_ppc_timeouts = {
   'ppc_40p' : 240,
@@ -82,31 +68,6 @@ tests_generic_linuxuser = [
 ]
 
 tests_generic_bsduser = [
-]
-
-tests_mips_system_thorough = [
-  'mips_malta',
-  'mips_replay',
-  'mips_tuxrun',
-]
-
-tests_mipsel_system_thorough = [
-  'mipsel_malta',
-  'mipsel_replay',
-  'mipsel_tuxrun',
-]
-
-tests_mips64_system_thorough = [
-  'mips64_malta',
-  'mips64_tuxrun',
-]
-
-tests_mips64el_system_thorough = [
-  'mips64el_fuloong2e',
-  'mips64el_loongson3v',
-  'mips64el_malta',
-  'mips64el_replay',
-  'mips64el_tuxrun',
 ]
 
 tests_or1k_system_thorough = [

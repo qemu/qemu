@@ -16,7 +16,7 @@ from qemu_test import LinuxKernelTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
 from qemu_test import skipIfMissingImports, skipFlakyTest, skipUntrustedTest
 
-from test_mips_malta import mips_check_wheezy
+from mips.test_malta import mips_check_wheezy
 
 
 class MaltaMachineConsole(LinuxKernelTest):
@@ -191,7 +191,7 @@ class MaltaMachineFramebuffer(LinuxKernelTest):
         self.do_test_i6400_framebuffer_logo(8)
 
 
-from test_mipsel_malta import MaltaMachineYAMON
+from mipsel.test_malta import MaltaMachineYAMON
 
 if __name__ == '__main__':
     LinuxKernelTest.main()
