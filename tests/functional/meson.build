@@ -32,6 +32,8 @@ subdir('rx')
 subdir('s390x')
 subdir('sh4')
 subdir('sh4eb')
+subdir('sparc')
+subdir('sparc64')
 
 test_x86_64_timeouts = {
   'acpi_bits' : 420,
@@ -52,24 +54,6 @@ tests_generic_linuxuser = [
 ]
 
 tests_generic_bsduser = [
-]
-
-tests_sparc_system_quick = [
-  'sparc_migration',
-]
-
-tests_sparc_system_thorough = [
-  'sparc_replay',
-  'sparc_sun4m',
-]
-
-tests_sparc64_system_quick = [
-  'sparc64_migration',
-]
-
-tests_sparc64_system_thorough = [
-  'sparc64_sun4u',
-  'sparc64_tuxrun',
 ]
 
 tests_x86_64_system_quick = [
