@@ -11,27 +11,7 @@ endif
 
 subdir('aarch64')
 subdir('alpha')
-
-test_arm_timeouts = {
-  'arm_aspeed_palmetto' : 120,
-  'arm_aspeed_romulus' : 120,
-  'arm_aspeed_witherspoon' : 120,
-  'arm_aspeed_ast2500' : 720,
-  'arm_aspeed_ast2600' : 1200,
-  'arm_aspeed_bletchley' : 480,
-  'arm_aspeed_catalina' : 480,
-  'arm_aspeed_gb200nvl_bmc' : 480,
-  'arm_aspeed_rainier' : 480,
-  'arm_bpim2u' : 500,
-  'arm_collie' : 180,
-  'arm_cubieboard' : 360,
-  'arm_orangepi' : 540,
-  'arm_quanta_gsj' : 240,
-  'arm_raspi2' : 120,
-  'arm_replay' : 240,
-  'arm_tuxrun' : 240,
-  'arm_sx1' : 360,
-}
+subdir('arm')
 
 test_mips_timeouts = {
   'mips_malta' : 480,
@@ -95,46 +75,6 @@ tests_generic_linuxuser = [
 ]
 
 tests_generic_bsduser = [
-]
-
-tests_arm_system_quick = [
-  'arm_migration',
-]
-
-tests_arm_system_thorough = [
-  'arm_aspeed_ast1030',
-  'arm_aspeed_palmetto',
-  'arm_aspeed_romulus',
-  'arm_aspeed_witherspoon',
-  'arm_aspeed_ast2500',
-  'arm_aspeed_ast2600',
-  'arm_aspeed_bletchley',
-  'arm_aspeed_catalina',
-  'arm_aspeed_gb200nvl_bmc',
-  'arm_aspeed_rainier',
-  'arm_bpim2u',
-  'arm_canona1100',
-  'arm_collie',
-  'arm_cubieboard',
-  'arm_emcraft_sf2',
-  'arm_integratorcp',
-  'arm_max78000fthr',
-  'arm_microbit',
-  'arm_orangepi',
-  'arm_quanta_gsj',
-  'arm_raspi2',
-  'arm_realview',
-  'arm_replay',
-  'arm_smdkc210',
-  'arm_stellaris',
-  'arm_sx1',
-  'arm_vexpress',
-  'arm_virt',
-  'arm_tuxrun',
-]
-
-tests_arm_linuxuser_thorough = [
-  'arm_bflt',
 ]
 
 tests_avr_system_thorough = [

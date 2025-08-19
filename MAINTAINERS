@@ -444,6 +444,7 @@ M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: target/arm/kvm.c
+F: tests/functional/aarch64/test_kvm.py
 
 MIPS KVM CPUs
 M: Huacai Chen <chenhuacai@kernel.org>
@@ -673,7 +674,7 @@ F: include/hw/*/allwinner*
 F: hw/arm/cubieboard.c
 F: docs/system/arm/cubieboard.rst
 F: hw/misc/axp209.c
-F: tests/functional/test_arm_cubieboard.py
+F: tests/functional/arm/test_cubieboard.py
 
 Allwinner-h3
 M: Niek Linnenbank <nieklinnenbank@gmail.com>
@@ -683,7 +684,7 @@ F: hw/*/allwinner-h3*
 F: include/hw/*/allwinner-h3*
 F: hw/arm/orangepi.c
 F: docs/system/arm/orangepi.rst
-F: tests/functional/test_arm_orangepi.py
+F: tests/functional/arm/test_orangepi.py
 
 ARM PrimeCell and CMSDK devices
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -753,7 +754,7 @@ F: docs/system/arm/bananapi_m2u.rst
 F: hw/*/allwinner-r40*.c
 F: hw/arm/bananapi_m2u.c
 F: include/hw/*/allwinner-r40*.h
-F: tests/functional/test_arm_bpim2u.py
+F: tests/functional/arm/test_bpim2u.py
 
 B-L475E-IOT01A IoT Node
 M: Samuel Tardieu <sam@rfc1149.net>
@@ -771,7 +772,7 @@ S: Odd Fixes
 F: hw/*/exynos*
 F: include/hw/*/exynos*
 F: docs/system/arm/exynos.rst
-F: tests/functional/test_arm_smdkc210.py
+F: tests/functional/arm/test_smdkc210.py
 
 Calxeda Highbank
 M: Rob Herring <robh@kernel.org>
@@ -790,7 +791,7 @@ S: Odd Fixes
 F: include/hw/arm/digic.h
 F: hw/*/digic*
 F: include/hw/*/digic*
-F: tests/functional/test_arm_canona1100.py
+F: tests/functional/arm/test_canona1100.py
 F: docs/system/arm/digic.rst
 
 Goldfish RTC
@@ -833,7 +834,7 @@ S: Odd Fixes
 F: hw/arm/integratorcp.c
 F: hw/misc/arm_integrator_debug.c
 F: include/hw/misc/arm_integrator_debug.h
-F: tests/functional/test_arm_integratorcp.py
+F: tests/functional/arm/test_integratorcp.py
 F: docs/system/arm/integratorcp.rst
 
 MCIMX6UL EVK / i.MX6ul
@@ -939,7 +940,7 @@ F: pc-bios/npcm7xx_bootrom.bin
 F: pc-bios/npcm8xx_bootrom.bin
 F: roms/vbootrom
 F: docs/system/arm/nuvoton.rst
-F: tests/functional/test_arm_quanta_gsj.py
+F: tests/functional/arm/test_quanta_gsj.py
 
 Raspberry Pi
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -952,7 +953,7 @@ F: hw/*/bcm283*
 F: include/hw/arm/rasp*
 F: include/hw/*/bcm283*
 F: docs/system/arm/raspi.rst
-F: tests/functional/test_arm_raspi2.py
+F: tests/functional/arm/test_raspi2.py
 F: tests/functional/aarch64/test_raspi*.py
 
 Real View
@@ -964,7 +965,7 @@ F: hw/cpu/realview_mpcore.c
 F: hw/intc/realview_gic.c
 F: include/hw/intc/realview_gic.h
 F: docs/system/arm/realview.rst
-F: tests/functional/test_arm_realview.py
+F: tests/functional/arm/test_realview.py
 
 SABRELITE / i.MX6
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -1004,7 +1005,7 @@ F: hw/arm/strongarm*
 F: hw/gpio/zaurus.c
 F: include/hw/arm/sharpsl.h
 F: docs/system/arm/collie.rst
-F: tests/functional/test_arm_collie.py
+F: tests/functional/arm/test_collie.py
 
 Stellaris
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -1015,7 +1016,7 @@ F: hw/display/ssd03*
 F: include/hw/input/stellaris_gamepad.h
 F: include/hw/timer/stellaris-gptm.h
 F: docs/system/arm/stellaris.rst
-F: tests/functional/test_arm_stellaris.py
+F: tests/functional/arm/test_stellaris.py
 
 STM32L4x5 SoC Family
 M: Samuel Tardieu <sam@rfc1149.net>
@@ -1044,7 +1045,7 @@ S: Odd Fixes
 F: hw/arm/vexpress.c
 F: hw/display/sii9022.c
 F: docs/system/arm/vexpress.rst
-F: tests/functional/test_arm_vexpress.py
+F: tests/functional/arm/test_vexpress.py
 
 Versatile PB
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -1065,8 +1066,8 @@ F: include/hw/arm/virt.h
 F: docs/system/arm/virt.rst
 F: tests/functional/aarch64/test_*virt*.py
 F: tests/functional/aarch64/test_tuxrun.py
-F: tests/functional/test_arm_tuxrun.py
-F: tests/functional/test_arm_virt.py
+F: tests/functional/arm/test_tuxrun.py
+F: tests/functional/arm/test_virt.py
 
 Xilinx Zynq
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
@@ -1187,7 +1188,7 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/msf2-som.c
 F: docs/system/arm/emcraft-sf2.rst
-F: tests/functional/test_arm_emcraft_sf2.py
+F: tests/functional/arm/test_emcraft_sf2.py
 
 ASPEED BMCs
 M: Cédric Le Goater <clg@kaod.org>
@@ -1205,6 +1206,7 @@ F: hw/net/ftgmac100.c
 F: include/hw/net/ftgmac100.h
 F: docs/system/arm/aspeed.rst
 F: docs/system/arm/fby35.rst
+F: tests/functional/*/*aspeed*
 F: tests/*/*aspeed*
 F: tests/*/*ast2700*
 F: hw/arm/fby35.c
@@ -1220,7 +1222,7 @@ F: hw/*/microbit*.c
 F: include/hw/*/nrf51*.h
 F: include/hw/*/microbit*.h
 F: tests/qtest/microbit-test.c
-F: tests/functional/test_arm_microbit.py
+F: tests/functional/arm/test_microbit.py
 F: docs/system/arm/nrf.rst
 
 ARM PL011 Rust device
@@ -2077,7 +2079,7 @@ S: Odd Fixes
 F: hw/*/omap*
 F: include/hw/arm/omap.h
 F: docs/system/arm/sx1.rst
-F: tests/functional/test_arm_sx1.py
+F: tests/functional/arm/test_sx1.py
 
 IPack
 M: Alberto Garcia <berto@igalia.com>
@@ -3914,7 +3916,7 @@ F: configs/targets/*linux-user.mak
 F: scripts/qemu-binfmt-conf.sh
 F: scripts/update-syscalltbl.sh
 F: scripts/update-mips-syscall-args.sh
-F: tests/functional/test_arm_bflt.py
+F: tests/functional/arm/test_bflt.py
 
 Tiny Code Generator (TCG)
 -------------------------
