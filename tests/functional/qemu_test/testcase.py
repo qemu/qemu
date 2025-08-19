@@ -235,6 +235,7 @@ class QemuBaseTest(unittest.TestCase):
         self.log.removeHandler(self._log_fh)
         self._log_fh.close()
 
+    @staticmethod
     def main():
         warnings.simplefilter("default")
         os.environ["PYTHONWARNINGS"] = "default"
