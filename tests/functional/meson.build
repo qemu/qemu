@@ -28,6 +28,7 @@ subdir('ppc')
 subdir('ppc64')
 subdir('riscv32')
 subdir('riscv64')
+subdir('rx')
 
 test_s390x_timeouts = {
   's390x_ccw_virtio' : 420,
@@ -56,10 +57,6 @@ tests_generic_linuxuser = [
 ]
 
 tests_generic_bsduser = [
-]
-
-tests_rx_system_thorough = [
-  'rx_gdbsim',
 ]
 
 tests_s390x_system_thorough = [
