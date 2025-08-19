@@ -212,7 +212,7 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/smmu*
 F: include/hw/arm/smmu*
-F: tests/functional/test_aarch64_smmu.py
+F: tests/functional/aarch64/test_smmu.py
 
 AVR TCG CPUs
 M: Michael Rolnik <mrolnik@gmail.com>
@@ -874,7 +874,7 @@ F: include/hw/arm/fsl-imx8mp.h
 F: include/hw/misc/imx8mp_*.h
 F: include/hw/pci-host/fsl_imx8m_phy.h
 F: docs/system/arm/imx8mp-evk.rst
-F: tests/functional/test_aarch64_imx8mp_evk.py
+F: tests/functional/aarch64/test_imx8mp_evk.py
 F: tests/qtest/rs5c372-test.c
 
 MPS2 / MPS3
@@ -952,8 +952,7 @@ F: include/hw/arm/rasp*
 F: include/hw/*/bcm283*
 F: docs/system/arm/raspi.rst
 F: tests/functional/test_arm_raspi2.py
-F: tests/functional/test_aarch64_raspi3.py
-F: tests/functional/test_aarch64_raspi4.py
+F: tests/functional/aarch64/test_raspi*.py
 
 Real View
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -993,7 +992,7 @@ F: hw/misc/sbsa_ec.c
 F: hw/watchdog/sbsa_gwdt.c
 F: include/hw/watchdog/sbsa_gwdt.h
 F: docs/system/arm/sbsa.rst
-F: tests/functional/test_aarch64_*sbsaref*.py
+F: tests/functional/aarch64/test_*sbsaref*.py
 
 Sharp SL-5500 (Collie) PDA
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -1063,8 +1062,8 @@ S: Maintained
 F: hw/arm/virt*
 F: include/hw/arm/virt.h
 F: docs/system/arm/virt.rst
-F: tests/functional/test_aarch64_*virt*.py
-F: tests/functional/test_aarch64_tuxrun.py
+F: tests/functional/aarch64/test_*virt*.py
+F: tests/functional/aarch64/test_tuxrun.py
 F: tests/functional/test_arm_tuxrun.py
 F: tests/functional/test_arm_virt.py
 
@@ -1096,7 +1095,7 @@ F: hw/display/dpcd.c
 F: include/hw/display/dpcd.h
 F: docs/system/arm/xlnx-versal-virt.rst
 F: docs/system/arm/xlnx-zcu102.rst
-F: tests/functional/test_aarch64_xlnx_versal.py
+F: tests/functional/aarch64/test_xlnx_versal.py
 
 Xilinx Versal OSPI
 M: Francisco Iglesias <francisco.iglesias@amd.com>
@@ -2109,7 +2108,7 @@ ARM PCI Hotplug
 M: Gustavo Romero <gustavo.romero@linaro.org>
 L: qemu-arm@nongnu.org
 S: Supported
-F: tests/functional/test_aarch64_hotplug_pci.py
+F: tests/functional/aarch64/test_hotplug_pci.py
 
 ACPI/SMBIOS
 M: Michael S. Tsirkin <mst@redhat.com>
@@ -2263,6 +2262,7 @@ F: util/vfio-helpers.c
 F: include/hw/vfio/
 F: docs/devel/migration/vfio.rst
 F: qapi/vfio.json
+F: tests/functional/aarch64/test_device_passthrough.py
 
 vfio-igd
 M: Alex Williamson <alex.williamson@redhat.com>
@@ -2638,7 +2638,7 @@ M: Alex Bennée <alex.bennee@linaro.org>
 S: Maintained
 F: hw/core/guest-loader.c
 F: docs/system/guest-loader.rst
-F: tests/functional/test_aarch64_xen.py
+F: tests/functional/aarch64/test_xen.py
 
 Intel Hexadecimal Object File Loader
 M: Su Hang <suhang16@mails.ucas.ac.cn>
@@ -2707,7 +2707,7 @@ F: hw/display/virtio-gpu*
 F: hw/display/virtio-vga.*
 F: include/hw/virtio/virtio-gpu.h
 F: docs/system/devices/virtio-gpu.rst
-F: tests/functional/test_aarch64_virt_gpu.py
+F: tests/functional/aarch64/test_virt_gpu.py
 
 vhost-user-blk
 M: Raphael Norwitz <raphael@enfabrica.net>
@@ -3933,7 +3933,7 @@ S: Maintained
 F: docs/devel/tcg-plugins.rst
 F: plugins/
 F: tests/tcg/plugins/
-F: tests/functional/test_aarch64_tcg_plugins.py
+F: tests/functional/aarch64/test_tcg_plugins.py
 F: contrib/plugins/
 F: scripts/qemu-plugin-symbols.py
 

@@ -9,23 +9,7 @@ if get_option('tcg_interpreter')
   subdir_done()
 endif
 
-# Timeouts for individual tests that can be slow e.g. with debugging enabled
-test_aarch64_timeouts = {
-  'aarch64_aspeed_ast2700' : 600,
-  'aarch64_aspeed_ast2700fc' : 600,
-  'aarch64_device_passthrough' : 720,
-  'aarch64_imx8mp_evk' : 240,
-  'aarch64_raspi4' : 480,
-  'aarch64_reverse_debug' : 180,
-  'aarch64_rme_virt' : 1200,
-  'aarch64_rme_sbsaref' : 1200,
-  'aarch64_sbsaref_alpine' : 1200,
-  'aarch64_sbsaref_freebsd' : 720,
-  'aarch64_smmu' : 720,
-  'aarch64_tuxrun' : 240,
-  'aarch64_virt' : 360,
-  'aarch64_virt_gpu' : 480,
-}
+subdir('aarch64')
 
 test_arm_timeouts = {
   'arm_aspeed_palmetto' : 120,
@@ -110,36 +94,6 @@ tests_generic_linuxuser = [
 ]
 
 tests_generic_bsduser = [
-]
-
-tests_aarch64_system_quick = [
-  'aarch64_migration',
-]
-
-tests_aarch64_system_thorough = [
-  'aarch64_aspeed_ast2700',
-  'aarch64_aspeed_ast2700fc',
-  'aarch64_device_passthrough',
-  'aarch64_hotplug_pci',
-  'aarch64_imx8mp_evk',
-  'aarch64_kvm',
-  'aarch64_multiprocess',
-  'aarch64_raspi3',
-  'aarch64_raspi4',
-  'aarch64_replay',
-  'aarch64_reverse_debug',
-  'aarch64_rme_virt',
-  'aarch64_rme_sbsaref',
-  'aarch64_sbsaref',
-  'aarch64_sbsaref_alpine',
-  'aarch64_sbsaref_freebsd',
-  'aarch64_smmu',
-  'aarch64_tcg_plugins',
-  'aarch64_tuxrun',
-  'aarch64_virt',
-  'aarch64_virt_gpu',
-  'aarch64_xen',
-  'aarch64_xlnx_versal',
 ]
 
 tests_alpha_system_quick = [
