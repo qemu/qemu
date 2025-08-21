@@ -54,6 +54,7 @@ void qemu_cpu_kick(CPUState *cpu)
 
 void qemu_process_cpu_events(CPUState *cpu)
 {
+    qatomic_set(&cpu->exit_request, false);
     process_queued_cpu_work(cpu);
 }
 

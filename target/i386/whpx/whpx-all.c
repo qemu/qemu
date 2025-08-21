@@ -2050,8 +2050,6 @@ static int whpx_vcpu_run(CPUState *cpu)
         whpx_last_vcpu_stopping(cpu);
     }
 
-    qatomic_set(&cpu->exit_request, false);
-
     return ret < 0;
 }
 

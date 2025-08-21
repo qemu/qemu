@@ -293,8 +293,13 @@ static void *rr_cpu_thread_fn(void *arg)
         /* Does not need a memory barrier because a spurious wakeup is okay.  */
         qatomic_set(&rr_current_cpu, NULL);
 
-        if (cpu && qatomic_read(&cpu->exit_request)) {
-            qatomic_set_mb(&cpu->exit_request, 0);
+        if (cpu) {
+            /*
+             * This could even reset exit_request for all CPUs, but in practice
+             * races between CPU exits and changes to "cpu" are so rare that
+             * there's no advantage in doing so.
+             */
+            qatomic_set(&cpu->exit_request, false);
         }
 
         if (icount_enabled() && all_cpu_threads_idle()) {

@@ -817,8 +817,6 @@ nvmm_vcpu_loop(CPUState *cpu)
     cpu_exec_end(cpu);
     bql_lock();
 
-    qatomic_set(&cpu->exit_request, false);
-
     return ret < 0;
 }
 
