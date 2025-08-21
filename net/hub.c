@@ -34,6 +34,7 @@ typedef struct NetHubPort {
     QLIST_ENTRY(NetHubPort) next;
     NetHub *hub;
     int id;
+    bool listed;
 } NetHubPort;
 
 struct NetHub {
@@ -129,7 +130,10 @@ static void net_hub_port_cleanup(NetClientState *nc)
 {
     NetHubPort *port = DO_UPCAST(NetHubPort, nc, nc);
 
-    QLIST_REMOVE(port, next);
+    if (port->listed) {
+        QLIST_REMOVE(port, next);
+        port->listed = false;
+    }
 }
 
 static NetClientInfo net_hub_port_info = {
@@ -159,8 +163,10 @@ static NetHubPort *net_hub_port_new(NetHub *hub, const char *name,
     port = DO_UPCAST(NetHubPort, nc, nc);
     port->id = id;
     port->hub = hub;
+    port->listed = false;
 
     QLIST_INSERT_HEAD(&hub->ports, port, next);
+    port->listed = true;
 
     return port;
 }
