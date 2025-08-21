@@ -180,7 +180,8 @@ static void multi_serial_init(Object *o)
     size_t i, nports = multi_serial_get_port_count(PCI_DEVICE_GET_CLASS(dev));
 
     for (i = 0; i < nports; i++) {
-        qemu_init_irq(&pms->irqs[i], multi_serial_irq_mux, pms, i);
+        qemu_init_irq_child(o, "irq[*]", &pms->irqs[i],
+                            multi_serial_irq_mux, pms, i);
         object_initialize_child(o, "serial[*]", &pms->state[i], TYPE_SERIAL);
     }
 }
