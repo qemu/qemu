@@ -142,11 +142,11 @@ static bool arm_cpu_has_work(CPUState *cs)
     ARMCPU *cpu = ARM_CPU(cs);
 
     return (cpu->power_state != PSCI_OFF)
-        && cs->interrupt_request &
-        (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD
-         | CPU_INTERRUPT_NMI | CPU_INTERRUPT_VINMI | CPU_INTERRUPT_VFNMI
-         | CPU_INTERRUPT_VFIQ | CPU_INTERRUPT_VIRQ | CPU_INTERRUPT_VSERR
-         | CPU_INTERRUPT_EXITTB);
+        && cpu_test_interrupt(cs,
+               CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD
+               | CPU_INTERRUPT_NMI | CPU_INTERRUPT_VINMI | CPU_INTERRUPT_VFNMI
+               | CPU_INTERRUPT_VFIQ | CPU_INTERRUPT_VIRQ | CPU_INTERRUPT_VSERR
+               | CPU_INTERRUPT_EXITTB);
 }
 #endif /* !CONFIG_USER_ONLY */
 
@@ -958,7 +958,7 @@ void arm_cpu_update_virq(ARMCPU *cpu)
         !(arm_hcrx_el2_eff(env) & HCRX_VINMI)) ||
         (env->irq_line_state & CPU_INTERRUPT_VIRQ);
 
-    if (new_state != ((cs->interrupt_request & CPU_INTERRUPT_VIRQ) != 0)) {
+    if (new_state != cpu_test_interrupt(cs, CPU_INTERRUPT_VIRQ)) {
         if (new_state) {
             cpu_interrupt(cs, CPU_INTERRUPT_VIRQ);
         } else {
@@ -980,7 +980,7 @@ void arm_cpu_update_vfiq(ARMCPU *cpu)
         !(arm_hcrx_el2_eff(env) & HCRX_VFNMI)) ||
         (env->irq_line_state & CPU_INTERRUPT_VFIQ);
 
-    if (new_state != ((cs->interrupt_request & CPU_INTERRUPT_VFIQ) != 0)) {
+    if (new_state != cpu_test_interrupt(cs, CPU_INTERRUPT_VFIQ)) {
         if (new_state) {
             cpu_interrupt(cs, CPU_INTERRUPT_VFIQ);
         } else {
@@ -1002,7 +1002,7 @@ void arm_cpu_update_vinmi(ARMCPU *cpu)
                       (arm_hcrx_el2_eff(env) & HCRX_VINMI)) ||
         (env->irq_line_state & CPU_INTERRUPT_VINMI);
 
-    if (new_state != ((cs->interrupt_request & CPU_INTERRUPT_VINMI) != 0)) {
+    if (new_state != cpu_test_interrupt(cs, CPU_INTERRUPT_VINMI)) {
         if (new_state) {
             cpu_interrupt(cs, CPU_INTERRUPT_VINMI);
         } else {
@@ -1022,7 +1022,7 @@ void arm_cpu_update_vfnmi(ARMCPU *cpu)
     bool new_state = (arm_hcr_el2_eff(env) & HCR_VF) &&
                       (arm_hcrx_el2_eff(env) & HCRX_VFNMI);
 
-    if (new_state != ((cs->interrupt_request & CPU_INTERRUPT_VFNMI) != 0)) {
+    if (new_state != cpu_test_interrupt(cs, CPU_INTERRUPT_VFNMI)) {
         if (new_state) {
             cpu_interrupt(cs, CPU_INTERRUPT_VFNMI);
         } else {
@@ -1041,7 +1041,7 @@ void arm_cpu_update_vserr(ARMCPU *cpu)
 
     bool new_state = env->cp15.hcr_el2 & HCR_VSE;
 
-    if (new_state != ((cs->interrupt_request & CPU_INTERRUPT_VSERR) != 0)) {
+    if (new_state != cpu_test_interrupt(cs, CPU_INTERRUPT_VSERR)) {
         if (new_state) {
             cpu_interrupt(cs, CPU_INTERRUPT_VSERR);
         } else {

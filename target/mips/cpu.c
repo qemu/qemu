@@ -145,7 +145,7 @@ static bool mips_cpu_has_work(CPUState *cs)
      * check for interrupts that can be taken. For pre-release 6 CPUs,
      * check for CP0 Config7 'Wait IE ignore' bit.
      */
-    if ((cs->interrupt_request & CPU_INTERRUPT_HARD) &&
+    if (cpu_test_interrupt(cs, CPU_INTERRUPT_HARD) &&
         cpu_mips_hw_interrupts_pending(env)) {
         if (cpu_mips_hw_interrupts_enabled(env) ||
             (env->CP0_Config7 & (1 << CP0C7_WII)) ||
@@ -160,7 +160,7 @@ static bool mips_cpu_has_work(CPUState *cs)
          * The QEMU model will issue an _WAKE request whenever the CPUs
          * should be woken up.
          */
-        if (cs->interrupt_request & CPU_INTERRUPT_WAKE) {
+        if (cpu_test_interrupt(cs, CPU_INTERRUPT_WAKE)) {
             has_work = true;
         }
 
@@ -170,7 +170,7 @@ static bool mips_cpu_has_work(CPUState *cs)
     }
     /* MIPS Release 6 has the ability to halt the CPU.  */
     if (env->CP0_Config5 & (1 << CP0C5_VP)) {
-        if (cs->interrupt_request & CPU_INTERRUPT_WAKE) {
+        if (cpu_test_interrupt(cs, CPU_INTERRUPT_WAKE)) {
             has_work = true;
         }
         if (!mips_vp_active(env)) {
