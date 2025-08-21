@@ -247,6 +247,12 @@ static void max78000_uart_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 }
 
+static void max78000_uart_finalize(Object *obj)
+{
+    Max78000UartState *s = MAX78000_UART(obj);
+    fifo8_destroy(&s->rx_fifo);
+}
+
 static void max78000_uart_realize(DeviceState *dev, Error **errp)
 {
     Max78000UartState *s = MAX78000_UART(dev);
@@ -274,6 +280,7 @@ static const TypeInfo max78000_uart_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Max78000UartState),
     .instance_init = max78000_uart_init,
+    .instance_finalize = max78000_uart_finalize,
     .class_init    = max78000_uart_class_init,
 };
 
