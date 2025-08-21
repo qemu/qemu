@@ -158,8 +158,11 @@ ioeventfd) can be changed during the region lifecycle.  They take effect
 as soon as the region is made visible.  This can be immediately, later,
 or never.
 
-Destruction of a memory region happens automatically when the owner
-object dies.
+Destruction of a memory region happens automatically when the owner object
+dies.  When there are multiple memory regions under the same owner object,
+the memory API will guarantee all memory regions will be properly detached
+and finalized one by one.  The order in which memory regions will be
+finalized is not guaranteed.
 
 If however the memory region is part of a dynamically allocated data
 structure, you should call object_unparent() to destroy the memory region
