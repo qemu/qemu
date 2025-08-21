@@ -59,7 +59,7 @@ struct STM32F205State {
     STM32F2XXADCState adc[STM_NUM_ADCS];
     STM32F2XXSPIState spi[STM_NUM_SPIS];
 
-    OrIRQState *adc_irqs;
+    OrIRQState adc_irqs;
 
     MemoryRegion sram;
     MemoryRegion flash;
