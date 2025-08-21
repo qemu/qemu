@@ -1879,7 +1879,8 @@
 ##
 # @GuestNetworkRoute:
 #
-# Route information, currently, only linux supported.
+# Route information.  Supported on Linux (since 9.1) and Windows
+# (since 10.3).
 #
 # @iface: The destination network or host's egress network interface
 #     in the routing table
@@ -1916,7 +1917,7 @@
 #
 # @version: IP version (4 or 6)
 #
-# Since: 9.1
+# Since: 9.1 (Linux only); 10.3 (Windows)
 ##
 { 'struct': 'GuestNetworkRoute',
   'data': {'iface': 'str',
@@ -1936,7 +1937,7 @@
            '*nexthop': 'str',
            'version': 'int'
            },
-  'if': 'CONFIG_LINUX' }
+  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN32'] } }
 
 ##
 # @guest-network-get-route:
@@ -1945,9 +1946,9 @@
 #
 # Returns: List of route info of guest.
 #
-# Since: 9.1
+# Since: 9.1 (Linux only); 10.3 (Windows)
 ##
 { 'command': 'guest-network-get-route',
   'returns': ['GuestNetworkRoute'],
-  'if': 'CONFIG_LINUX'
+  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN32'] }
 }

@@ -2592,3 +2592,175 @@ GuestLoadAverage *qmp_guest_get_load(Error **errp)
     ret->load15m = load_avg_15m;
     return ret;
 }
+
+/* Helper function to get interface name with fallbacks */
+static char *get_interface_name(const MIB_IPFORWARD_ROW2 *row,
+                                IP_ADAPTER_ADDRESSES *adptr_addrs)
+{
+    IP_ADAPTER_ADDRESSES *adapter;
+    char *iface_name = NULL;
+
+    if (adptr_addrs) {
+        for (adapter = adptr_addrs; adapter; adapter = adapter->Next) {
+            if (adapter->Luid.Value == row->InterfaceLuid.Value) {
+                iface_name = guest_wctomb_dup(adapter->FriendlyName);
+                break;
+            }
+        }
+    }
+
+    if (!iface_name) {
+        iface_name = g_strdup_printf("if%lu", row->InterfaceIndex);
+    }
+
+    return iface_name;
+}
+
+/* Helper function to fill IPv4 route information */
+static void fill_ipv4_route_info(GuestNetworkRoute *route,
+                                 const MIB_IPFORWARD_ROW2 *row)
+{
+    struct sockaddr_in *addr_in;
+    char addr_str[INET_ADDRSTRLEN];
+
+    addr_in = (struct sockaddr_in *)&row->DestinationPrefix.Prefix;
+    if (inet_ntop(AF_INET, &addr_in->sin_addr, addr_str, INET_ADDRSTRLEN)) {
+        route->destination = g_strdup(addr_str);
+    } else {
+        route->destination = g_strdup("0.0.0.0");
+    }
+
+    if (row->DestinationPrefix.PrefixLength == 0) {
+        route->mask = g_strdup("0.0.0.0");
+    } else {
+        uint32_t mask = htonl(0xFFFFFFFF << (32 -
+                               row->DestinationPrefix.PrefixLength));
+        struct in_addr mask_addr = { .s_addr = mask };
+        route->mask = g_strdup(inet_ntoa(mask_addr));
+    }
+
+    addr_in = (struct sockaddr_in *)&row->NextHop;
+    if (inet_ntop(AF_INET, &addr_in->sin_addr, addr_str, INET_ADDRSTRLEN)) {
+        route->gateway = g_strdup(addr_str);
+    } else {
+        route->gateway = g_strdup("0.0.0.0");
+    }
+
+    route->version = 4;
+}
+
+/* Helper function to fill IPv6 route information */
+static void fill_ipv6_route_info(GuestNetworkRoute *route,
+                                 const MIB_IPFORWARD_ROW2 *row)
+{
+    struct sockaddr_in6 *addr_in6;
+    char addr_str[INET6_ADDRSTRLEN];
+
+    addr_in6 = (struct sockaddr_in6 *)&row->DestinationPrefix.Prefix;
+    if (inet_ntop(AF_INET6, &addr_in6->sin6_addr, addr_str, INET6_ADDRSTRLEN)) {
+        route->destination = g_strdup(addr_str);
+    } else {
+        route->destination = g_strdup("::");
+    }
+
+    addr_in6 = (struct sockaddr_in6 *)&row->NextHop;
+    if (inet_ntop(AF_INET6, &addr_in6->sin6_addr, addr_str, INET6_ADDRSTRLEN)) {
+        route->nexthop = g_strdup(addr_str);
+    } else {
+        route->nexthop = g_strdup("::");
+    }
+
+    route->desprefixlen = g_strdup_printf("%u",
+                                          row->DestinationPrefix.PrefixLength);
+    route->version = 6;
+}
+
+GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
+{
+    GuestNetworkRouteList *head = NULL, **tail = &head;
+    PMIB_IPFORWARD_TABLE2 pIpForwardTable2;
+    DWORD dwRetVal = 0;
+    DWORD i;
+    PMIB_IPFORWARD_ROW2 row;
+    GuestNetworkRoute *route;
+    IP_ADAPTER_ADDRESSES *adptr_addrs;
+    MIB_IPINTERFACE_ROW ipifrow;
+    MIB_IF_ROW2 ifrow2;
+    Error *local_err = NULL;
+    GHashTable *interface_metric_cache;
+
+    dwRetVal = GetIpForwardTable2(AF_UNSPEC, &pIpForwardTable2);
+    if (dwRetVal != NO_ERROR) {
+        error_setg_win32(errp, dwRetVal, "failed to get IP routes");
+        return NULL;
+    }
+
+    interface_metric_cache = g_hash_table_new_full(g_str_hash, g_str_equal,
+                                                   g_free, NULL);
+    adptr_addrs = guest_get_adapters_addresses(&local_err);
+    if (local_err) {
+        error_free(local_err);
+        adptr_addrs = NULL;
+    }
+
+    for (i = 0; i < pIpForwardTable2->NumEntries; i++) {
+        row = &pIpForwardTable2->Table[i];
+
+        if (row->DestinationPrefix.Prefix.si_family == AF_INET) {
+            route = g_new0(GuestNetworkRoute, 1);
+            fill_ipv4_route_info(route, row);
+        } else if (row->DestinationPrefix.Prefix.si_family == AF_INET6) {
+            route = g_new0(GuestNetworkRoute, 1);
+            fill_ipv6_route_info(route, row);
+        } else {
+            continue;
+        }
+
+        route->iface = get_interface_name(row, adptr_addrs);
+
+        /*
+         * Get interface metric for combined route metric calculation.
+         * Windows calculates effective route metric as route + interface metric.
+         * This matches the values displayed by Windows 'route print' command.
+         * See: 
+         * https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_ipforward_row2
+         */
+        gchar *luid_key = g_strdup_printf("%" G_GUINT64_FORMAT,
+                                          row->InterfaceLuid.Value);
+        gpointer cached_metric = g_hash_table_lookup(interface_metric_cache,
+                                                     luid_key);
+
+        if (cached_metric) {
+            route->metric = (int)row->Metric + GPOINTER_TO_INT(cached_metric);
+            g_free(luid_key);
+        } else {
+            memset(&ipifrow, 0, sizeof(ipifrow));
+            InitializeIpInterfaceEntry(&ipifrow);
+            ipifrow.InterfaceLuid = row->InterfaceLuid;
+            ipifrow.Family = row->DestinationPrefix.Prefix.si_family;
+            if (GetIpInterfaceEntry(&ipifrow) == NO_ERROR) {
+                g_hash_table_insert(interface_metric_cache, luid_key,
+                                   GINT_TO_POINTER(ipifrow.Metric));
+                route->metric = (int)row->Metric + (int)ipifrow.Metric;
+            } else {
+                route->metric = (int)row->Metric;
+                g_free(luid_key);
+            }
+        }
+
+        memset(&ifrow2, 0, sizeof(ifrow2));
+        ifrow2.InterfaceLuid = row->InterfaceLuid;
+        if (GetIfEntry2(&ifrow2) == NO_ERROR) {
+            route->has_mtu = true;
+            route->mtu = (int)ifrow2.Mtu;
+        }
+
+        QAPI_LIST_APPEND(tail, route);
+        route = NULL;
+    }
+
+    FreeMibTable(pIpForwardTable2);
+    g_free(adptr_addrs);
+    g_hash_table_destroy(interface_metric_cache);
+    return head;
+}
