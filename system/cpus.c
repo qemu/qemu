@@ -480,10 +480,10 @@ void qemu_process_cpu_events(CPUState *cpu)
 
 void cpus_kick_thread(CPUState *cpu)
 {
-    if (cpu->thread_kicked) {
+    if (qatomic_read(&cpu->thread_kicked)) {
         return;
     }
-    cpu->thread_kicked = true;
+    qatomic_set(&cpu->thread_kicked, true);
 
 #ifndef _WIN32
     int err = pthread_kill(cpu->thread->thread, SIG_IPI);
