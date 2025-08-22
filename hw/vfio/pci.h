@@ -226,6 +226,18 @@ void vfio_pci_write_config(PCIDevice *pdev,
 uint64_t vfio_vga_read(void *opaque, hwaddr addr, unsigned size);
 void vfio_vga_write(void *opaque, hwaddr addr, uint64_t data, unsigned size);
 
+/**
+ * vfio_pci_from_vfio_device: Transform from VFIODevice to
+ * VFIOPCIDevice
+ *
+ * This function checks if the given @vbasedev is a VFIO PCI device.
+ * If it is, it returns the containing VFIOPCIDevice.
+ *
+ * @vbasedev: The VFIODevice to transform
+ *
+ * Return: The VFIOPCIDevice on success, NULL on failure.
+ */
+VFIOPCIDevice *vfio_pci_from_vfio_device(VFIODevice *vbasedev);
 void vfio_sub_page_bar_update_mappings(VFIOPCIDevice *vdev);
 bool vfio_opt_rom_in_denylist(VFIOPCIDevice *vdev);
 bool vfio_config_quirk_setup(VFIOPCIDevice *vdev, Error **errp);

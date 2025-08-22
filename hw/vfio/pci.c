@@ -2833,6 +2833,15 @@ static int vfio_pci_load_config(VFIODevice *vbasedev, QEMUFile *f)
     return ret;
 }
 
+/* Transform from VFIODevice to VFIOPCIDevice. Return NULL if fails. */
+VFIOPCIDevice *vfio_pci_from_vfio_device(VFIODevice *vbasedev)
+{
+    if (vbasedev && vbasedev->type == VFIO_DEVICE_TYPE_PCI) {
+        return container_of(vbasedev, VFIOPCIDevice, vbasedev);
+    }
+    return NULL;
+}
+
 void vfio_sub_page_bar_update_mappings(VFIOPCIDevice *vdev)
 {
     PCIDevice *pdev = &vdev->pdev;
