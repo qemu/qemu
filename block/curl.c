@@ -162,12 +162,8 @@ static int curl_timer_cb(CURLM *multi, long timeout_ms, void *opaque)
 static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
                         void *userp, void *sp)
 {
-    BDRVCURLState *s;
-    CURLState *state = NULL;
+    BDRVCURLState *s = userp;
     CURLSocket *socket;
-
-    curl_easy_getinfo(curl, CURLINFO_PRIVATE, (char **)&state);
-    s = state->s;
 
     socket = g_hash_table_lookup(s->sockets, GINT_TO_POINTER(fd));
     if (!socket) {
@@ -605,6 +601,7 @@ static void curl_attach_aio_context(BlockDriverState *bs,
     assert(!s->multi);
     s->multi = curl_multi_init();
     s->aio_context = new_context;
+    curl_multi_setopt(s->multi, CURLMOPT_SOCKETDATA, s);
     curl_multi_setopt(s->multi, CURLMOPT_SOCKETFUNCTION, curl_sock_cb);
     curl_multi_setopt(s->multi, CURLMOPT_TIMERDATA, s);
     curl_multi_setopt(s->multi, CURLMOPT_TIMERFUNCTION, curl_timer_cb);
