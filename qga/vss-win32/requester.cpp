@@ -347,7 +347,12 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
         goto out;
     }
 
-    assert(pCreateVssBackupComponents != NULL);
+    if (!pCreateVssBackupComponents) {
+        err_set(errset, (HRESULT)ERROR_PROC_NOT_FOUND,
+                "CreateVssBackupComponents proc address absent. Did you call requester_init()?");
+        goto out;
+    }
+
     hr = pCreateVssBackupComponents(&vss_ctx.pVssbc);
     if (FAILED(hr)) {
         err_set(errset, hr, "failed to create VSS backup components");
@@ -579,8 +584,16 @@ void requester_thaw(int *num_vols, void *mountpints, ErrorSet *errset)
     /* Tell the provider that the snapshot is finished. */
     SetEvent(vss_ctx.hEventThaw);
 
-    assert(vss_ctx.pVssbc);
-    assert(vss_ctx.pAsyncSnapshot);
+    if (!vss_ctx.pVssbc) {
+        err_set(errset, (HRESULT)VSS_E_BAD_STATE,
+                "CreateVssBackupComponents is missing. Did you freeze the volumes?");
+        return;
+    }
+    if (!vss_ctx.pAsyncSnapshot) {
+        err_set(errset, (HRESULT)VSS_E_BAD_STATE,
+                "AsyncSnapshot set is missing. Did you freeze the volumes?");
+        return;
+    }
 
     HRESULT hr = WaitForAsync(vss_ctx.pAsyncSnapshot);
     switch (hr) {
