@@ -516,7 +516,7 @@ static int curl_init_state(BDRVCURLState *s, CURLState *state)
                              CURLOPT_REDIR_PROTOCOLS_STR, PROTOCOLS)) {
             goto err;
         }
-#elif LIBCURL_VERSION_NUM >= 0x071304
+#else
         if (curl_easy_setopt(state->curl, CURLOPT_PROTOCOLS, PROTOCOLS) ||
             curl_easy_setopt(state->curl, CURLOPT_REDIR_PROTOCOLS, PROTOCOLS)) {
             goto err;
@@ -821,22 +821,11 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
 #endif
-    /* Prior CURL 7.19.4 return value of 0 could mean that the file size is not
-     * know or the size is zero. From 7.19.4 CURL returns -1 if size is not
-     * known and zero if it is really zero-length file. */
-#if LIBCURL_VERSION_NUM >= 0x071304
     if (cl < 0) {
         pstrcpy(state->errmsg, CURL_ERROR_SIZE,
                 "Server didn't report file size.");
         goto out;
     }
-#else
-    if (cl <= 0) {
-        pstrcpy(state->errmsg, CURL_ERROR_SIZE,
-                "Unknown file size or zero-length file.");
-        goto out;
-    }
-#endif
 
     s->len = cl;
 
