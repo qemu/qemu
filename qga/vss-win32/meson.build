@@ -13,13 +13,11 @@ qga_vss = shared_module(
   link_args: link_args,
   vs_module_defs: 'qga-vss.def',
   dependencies: [
-    glib,
     socket,
     cc.find_library('ole32'),
     cc.find_library('oleaut32'),
     cc.find_library('shlwapi'),
-    cc.find_library('uuid'),
-    cc.find_library('intl')
+    cc.find_library('uuid')
   ]
 )
 
