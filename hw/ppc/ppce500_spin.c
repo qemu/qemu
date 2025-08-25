@@ -99,8 +99,7 @@ static void spin_kick(CPUState *cs, run_on_cpu_data data)
 
     cs->halted = 0;
     cs->exception_index = -1;
-    cs->stopped = false;
-    qemu_cpu_kick(cs);
+    cpu_resume(cs);
 }
 
 static void spin_write(void *opaque, hwaddr addr, uint64_t value,
