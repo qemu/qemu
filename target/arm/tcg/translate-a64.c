@@ -8308,6 +8308,37 @@ static void gen_cls32(TCGv_i64 tcg_rd, TCGv_i64 tcg_rn)
 TRANS(CLZ, gen_rr, a->rd, a->rn, a->sf ? gen_clz64 : gen_clz32)
 TRANS(CLS, gen_rr, a->rd, a->rn, a->sf ? tcg_gen_clrsb_i64 : gen_cls32)
 
+static void gen_ctz32(TCGv_i64 tcg_rd, TCGv_i64 tcg_rn)
+{
+    TCGv_i32 t32 = tcg_temp_new_i32();
+
+    tcg_gen_extrl_i64_i32(t32, tcg_rn);
+    tcg_gen_ctzi_i32(t32, t32, 32);
+    tcg_gen_extu_i32_i64(tcg_rd, t32);
+}
+
+static void gen_ctz64(TCGv_i64 tcg_rd, TCGv_i64 tcg_rn)
+{
+    tcg_gen_ctzi_i64(tcg_rd, tcg_rn, 64);
+}
+
+static void gen_cnt32(TCGv_i64 tcg_rd, TCGv_i64 tcg_rn)
+{
+    gen_wrap2_i32(tcg_rd, tcg_rn, tcg_gen_ctpop_i32);
+}
+
+static void gen_abs32(TCGv_i64 tcg_rd, TCGv_i64 tcg_rn)
+{
+    gen_wrap2_i32(tcg_rd, tcg_rn, tcg_gen_abs_i32);
+}
+
+TRANS_FEAT(CTZ, aa64_cssc, gen_rr, a->rd, a->rn,
+           a->sf ? gen_ctz64 : gen_ctz32)
+TRANS_FEAT(CNT, aa64_cssc, gen_rr, a->rd, a->rn,
+           a->sf ? tcg_gen_ctpop_i64 : gen_cnt32)
+TRANS_FEAT(ABS, aa64_cssc, gen_rr, a->rd, a->rn,
+           a->sf ? tcg_gen_abs_i64 : gen_abs32)
+
 static bool gen_pacaut(DisasContext *s, arg_pacaut *a, NeonGenTwo64OpEnvFn fn)
 {
     TCGv_i64 tcg_rd, tcg_rn;
