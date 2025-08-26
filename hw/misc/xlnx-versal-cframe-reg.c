@@ -693,6 +693,14 @@ static void cframe_reg_init(Object *obj)
     fifo32_create(&s->new_f_data, FRAME_NUM_WORDS);
 }
 
+static void cframe_reg_finalize(Object *obj)
+{
+    XlnxVersalCFrameReg *s = XLNX_VERSAL_CFRAME_REG(obj);
+
+    fifo32_destroy(&s->new_f_data);
+    g_tree_destroy(s->cframes);
+}
+
 static const VMStateDescription vmstate_cframe = {
     .name = "cframe",
     .version_id = 1,
@@ -833,6 +841,7 @@ static const TypeInfo cframe_reg_info = {
     .instance_size = sizeof(XlnxVersalCFrameReg),
     .class_init    = cframe_reg_class_init,
     .instance_init = cframe_reg_init,
+    .instance_finalize = cframe_reg_finalize,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_XLNX_CFI_IF },
         { }
