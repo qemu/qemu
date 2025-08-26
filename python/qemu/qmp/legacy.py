@@ -293,8 +293,8 @@ class QEMUMonitorProtocol:
         """
         Set the timeout for QMP RPC execution.
 
-        This timeout affects the `cmd`, `cmd_obj`, and `command` methods.
-        The `accept`, `pull_event` and `get_event` methods have their
+        This timeout affects the `cmd`, `cmd_obj`, and `cmd_raw` methods.
+        The `accept`, `pull_event` and `get_events` methods have their
         own configurable timeouts.
 
         :param timeout:

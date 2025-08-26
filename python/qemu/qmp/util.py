@@ -49,7 +49,7 @@ def get_or_create_event_loop() -> asyncio.AbstractEventLoop:
 
 async def flush(writer: asyncio.StreamWriter) -> None:
     """
-    Utility function to ensure a StreamWriter is *fully* drained.
+    Utility function to ensure an `asyncio.StreamWriter` is *fully* drained.
 
     `asyncio.StreamWriter.drain` only promises we will return to below
     the "high-water mark". This function ensures we flush the entire
@@ -89,7 +89,7 @@ def bottom_half(func: T) -> T:
 
     These methods do not, in general, have the ability to directly
     report information to a caller’s context and will usually be
-    collected as a Task result instead.
+    collected as an `asyncio.Task` result instead.
 
     They must not call upper-half functions directly.
     """
@@ -105,8 +105,11 @@ def exception_summary(exc: BaseException) -> str:
     """
     Return a summary string of an arbitrary exception.
 
-    It will be of the form "ExceptionType: Error Message", if the error
+    It will be of the form "ExceptionType: Error Message" if the error
     string is non-empty, and just "ExceptionType" otherwise.
+
+    This code is based on CPython's implementation of
+    `traceback.TracebackException.format_exception_only`.
     """
     name = type(exc).__qualname__
     smod = type(exc).__module__

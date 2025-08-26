@@ -28,7 +28,8 @@ class Message(MutableMapping[str, object]):
     be instantiated from either another mapping (like a `dict`), or from
     raw `bytes` that still need to be deserialized.
 
-    Once instantiated, it may be treated like any other MutableMapping::
+    Once instantiated, it may be treated like any other
+    :py:obj:`~collections.abc.MutableMapping`::
 
         >>> msg = Message(b'{"hello": "world"}')
         >>> assert msg['hello'] == 'world'
@@ -50,12 +51,19 @@ class Message(MutableMapping[str, object]):
        >>> dict(msg)
        {'hello': 'world'}
 
+    Or pretty-printed::
+
+       >>> print(str(msg))
+       {
+         "hello": "world"
+       }
 
     :param value: Initial value, if any.
     :param eager:
         When `True`, attempt to serialize or deserialize the initial value
         immediately, so that conversion exceptions are raised during
         the call to ``__init__()``.
+
     """
     # pylint: disable=too-many-ancestors
 

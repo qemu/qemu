@@ -79,6 +79,12 @@ class ConnectError(QMPError):
     This Exception always wraps a "root cause" exception that can be
     interrogated for additional information.
 
+    For example, when connecting to a non-existent socket::
+
+        await qmp.connect('not_found.sock')
+        # ConnectError: Failed to establish connection:
+        #               [Errno 2] No such file or directory
+
     :param error_message: Human-readable string describing the error.
     :param exc: The root-cause exception.
     """
@@ -102,8 +108,8 @@ class StateError(QMPError):
     An API command (connect, execute, etc) was issued at an inappropriate time.
 
     This error is raised when a command like
-    :py:meth:`~AsyncProtocol.connect()` is issued at an inappropriate
-    time.
+    :py:meth:`~AsyncProtocol.connect()` is called when the client is
+    already connected.
 
     :param error_message: Human-readable string describing the state violation.
     :param state: The actual `Runstate` seen at the time of the violation.
@@ -298,7 +304,7 @@ class AsyncProtocol(Generic[T]):
     @upper_half
     async def runstate_changed(self) -> Runstate:
         """
-        Wait for the `runstate` to change, then return that runstate.
+        Wait for the `runstate` to change, then return that `Runstate`.
         """
         await self._runstate_event.wait()
         return self.runstate
@@ -312,9 +318,9 @@ class AsyncProtocol(Generic[T]):
         """
         Accept a connection and begin processing message queues.
 
-        If this call fails, `runstate` is guaranteed to be set back to `IDLE`.
-        This method is precisely equivalent to calling `start_server()`
-        followed by `accept()`.
+        If this call fails, `runstate` is guaranteed to be set back to
+        `IDLE`.  This method is precisely equivalent to calling
+        `start_server()` followed by :py:meth:`~AsyncProtocol.accept()`.
 
         :param address:
             Address to listen on; UNIX socket path or TCP address/port.
@@ -327,7 +333,8 @@ class AsyncProtocol(Generic[T]):
             This exception will wrap a more concrete one. In most cases,
             the wrapped exception will be `OSError` or `EOFError`. If a
             protocol-level failure occurs while establishing a new
-            session, the wrapped error may also be an `QMPError`.
+            session, the wrapped error may also be a `QMPError`.
+
         """
         await self.start_server(address, ssl)
         await self.accept()
@@ -343,8 +350,8 @@ class AsyncProtocol(Generic[T]):
         This method starts listening for an incoming connection, but
         does not block waiting for a peer. This call will return
         immediately after binding and listening on a socket. A later
-        call to `accept()` must be made in order to finalize the
-        incoming connection.
+        call to :py:meth:`~AsyncProtocol.accept()` must be made in order
+        to finalize the incoming connection.
 
         :param address:
             Address to listen on; UNIX socket path or TCP address/port.
@@ -367,10 +374,12 @@ class AsyncProtocol(Generic[T]):
         """
         Accept an incoming connection and begin processing message queues.
 
-        If this call fails, `runstate` is guaranteed to be set back to `IDLE`.
+        Used after a previous call to `start_server()` to accept an
+        incoming connection. If this call fails, `runstate` is
+        guaranteed to be set back to `IDLE`.
 
         :raise StateError: When the `Runstate` is not `CONNECTING`.
-        :raise QMPError: When `start_server()` was not called yet.
+        :raise QMPError: When `start_server()` was not called first.
         :raise ConnectError:
             When a connection or session cannot be established.
 
@@ -423,7 +432,11 @@ class AsyncProtocol(Generic[T]):
         If there was an exception that caused the reader/writers to
         terminate prematurely, it will be raised here.
 
-        :raise Exception: When the reader or writer terminate unexpectedly.
+        :raise Exception:
+            When the reader or writer terminate unexpectedly. You can
+            expect to see `EOFError` if the server hangs up, or
+            `OSError` for connection-related issues. If there was a QMP
+            protocol-level problem, `ProtocolError` will be seen.
         """
         self.logger.debug("disconnect() called.")
         self._schedule_disconnect()
