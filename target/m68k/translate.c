@@ -45,7 +45,6 @@
 #undef DEFO64
 
 static TCGv_i32 cpu_halted;
-static TCGv_i32 cpu_exception_index;
 
 static char cpu_reg_names[2 * 8 * 3 + 5 * 4];
 static TCGv cpu_dregs[8];
@@ -81,11 +80,6 @@ void m68k_tcg_init(void)
     cpu_halted = tcg_global_mem_new_i32(tcg_env,
                                         -offsetof(M68kCPU, env) +
                                         offsetof(CPUState, halted), "HALTED");
-    cpu_exception_index = tcg_global_mem_new_i32(tcg_env,
-                                                 -offsetof(M68kCPU, env) +
-                                                 offsetof(CPUState, exception_index),
-                                                 "EXCEPTION");
-
     p = cpu_reg_names;
     for (i = 0; i < 8; i++) {
         sprintf(p, "D%d", i);
