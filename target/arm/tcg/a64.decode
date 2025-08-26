@@ -156,6 +156,16 @@ MOVZ            . 10 100101 .. ................ .....   @movw_32
 MOVK            . 11 100101 .. ................ .....   @movw_64
 MOVK            . 11 100101 .. ................ .....   @movw_32
 
+# Min/Max (immediate)
+
+@minmaxi_s      sf:1 .. ........... imm:s8 rn:5 rd:5    &rri_sf
+@minmaxi_u      sf:1 .. ........... imm:8  rn:5 rd:5    &rri_sf
+
+SMAX_i          . 00 1000111 0000 ........ ..... .....  @minmaxi_s
+SMIN_i          . 00 1000111 0010 ........ ..... .....  @minmaxi_s
+UMAX_i          . 00 1000111 0001 ........ ..... .....  @minmaxi_u
+UMIN_i          . 00 1000111 0011 ........ ..... .....  @minmaxi_u
+
 # Bitfield
 
 &bitfield       rd rn sf immr imms

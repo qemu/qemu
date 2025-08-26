@@ -4553,6 +4553,50 @@ TRANS(ADDS_i, gen_rri, a, 0, 1, a->sf ? gen_add64_CC : gen_add32_CC)
 TRANS(SUBS_i, gen_rri, a, 0, 1, a->sf ? gen_sub64_CC : gen_sub32_CC)
 
 /*
+ * Min/Max (immediate)
+ */
+
+static void gen_wrap3_i32(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m, NeonGenTwoOpFn fn)
+{
+    TCGv_i32 t1 = tcg_temp_new_i32();
+    TCGv_i32 t2 = tcg_temp_new_i32();
+
+    tcg_gen_extrl_i64_i32(t1, n);
+    tcg_gen_extrl_i64_i32(t2, m);
+    fn(t1, t1, t2);
+    tcg_gen_extu_i32_i64(d, t1);
+}
+
+static void gen_smax32_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)
+{
+    gen_wrap3_i32(d, n, m, tcg_gen_smax_i32);
+}
+
+static void gen_smin32_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)
+{
+    gen_wrap3_i32(d, n, m, tcg_gen_smin_i32);
+}
+
+static void gen_umax32_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)
+{
+    gen_wrap3_i32(d, n, m, tcg_gen_umax_i32);
+}
+
+static void gen_umin32_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)
+{
+    gen_wrap3_i32(d, n, m, tcg_gen_umin_i32);
+}
+
+TRANS_FEAT(SMAX_i, aa64_cssc, gen_rri, a, 0, 0,
+           a->sf ? tcg_gen_smax_i64 : gen_smax32_i64)
+TRANS_FEAT(SMIN_i, aa64_cssc, gen_rri, a, 0, 0,
+           a->sf ? tcg_gen_smin_i64 : gen_smin32_i64)
+TRANS_FEAT(UMAX_i, aa64_cssc, gen_rri, a, 0, 0,
+           a->sf ? tcg_gen_umax_i64 : gen_umax32_i64)
+TRANS_FEAT(UMIN_i, aa64_cssc, gen_rri, a, 0, 0,
+           a->sf ? tcg_gen_umin_i64 : gen_umin32_i64)
+
+/*
  * Add/subtract (immediate, with tags)
  */
 
