@@ -1719,3 +1719,6 @@
 #ifdef TARGET_NR_riscv_hwprobe
 { TARGET_NR_riscv_hwprobe, "riscv_hwprobe" , "%s(%p,%d,%d,%d,%d,%d)", NULL, NULL },
 #endif
+#ifdef TARGET_NR_rseq
+{ TARGET_NR_rseq, "rseq" , "%s(%p,%u,%d,%#x)", NULL, NULL },
+#endif
