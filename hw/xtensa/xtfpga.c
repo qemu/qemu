@@ -268,7 +268,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
         /* Need MMU initialized prior to ELF loading,
          * so that ELF gets loaded into virtual addresses
          */
-        cpu_reset(CPU(cpu));
+        reset_mmu(cenv);
     }
     if (smp_cpus > 1) {
         extints = xtensa_mx_pic_get_extints(mx_pic);
