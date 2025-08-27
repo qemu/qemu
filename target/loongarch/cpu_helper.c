@@ -134,10 +134,13 @@ static TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
         /* get next level page directory */
         index = (address >> dir_base) & ((1 << dir_width) - 1);
         phys = base | index << 3;
-        base = ldq_phys(cs->as, phys) & TARGET_PHYS_MASK;
+        base = ldq_phys(cs->as, phys);
         if (FIELD_EX64(base, TLBENTRY, HUGE)) {
             /* base is a huge pte */
             break;
+        } else {
+            /* Discard high bits with page directory table */
+            base &= TARGET_PHYS_MASK;
         }
     }
 
