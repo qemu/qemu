@@ -124,7 +124,7 @@ static TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
     }
     base &= TARGET_PHYS_MASK;
 
-    for (level = 4; level > 0; level--) {
+    for (level = 4; level >= 0; level--) {
         get_dir_base_width(env, &dir_base, &dir_width, level);
 
         if (dir_width == 0) {
@@ -135,17 +135,19 @@ static TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
         index = (address >> dir_base) & ((1 << dir_width) - 1);
         phys = base | index << 3;
         base = ldq_phys(cs->as, phys);
-        if (FIELD_EX64(base, TLBENTRY, HUGE)) {
-            /* base is a huge pte */
-            break;
-        } else {
-            /* Discard high bits with page directory table */
-            base &= TARGET_PHYS_MASK;
+        if (level) {
+            if (FIELD_EX64(base, TLBENTRY, HUGE)) {
+                /* base is a huge pte */
+                break;
+            } else {
+                /* Discard high bits with page directory table */
+                base &= TARGET_PHYS_MASK;
+            }
         }
     }
 
     /* pte */
-    if (FIELD_EX64(base, TLBENTRY, HUGE)) {
+    if (level > 0) {
         /* Huge Page. base is pte */
         base = FIELD_DP64(base, TLBENTRY, LEVEL, 0);
         base = FIELD_DP64(base, TLBENTRY, HUGE, 0);
@@ -153,12 +155,6 @@ static TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
             base = FIELD_DP64(base, TLBENTRY, HGLOBAL, 0);
             base = FIELD_DP64(base, TLBENTRY, G, 1);
         }
-    } else {
-        /* Normal Page. base points to pte */
-        get_dir_base_width(env, &dir_base, &dir_width, 0);
-        index = (address >> dir_base) & ((1 << dir_width) - 1);
-        phys = base | index << 3;
-        base = ldq_phys(cs->as, phys);
     }
 
     context->ps = dir_base;
