@@ -281,7 +281,7 @@ void elf_core_copy_regs(target_elf_gregset_t *r, const CPUX86State *env)
 
 #define VDSO_HEADER "vdso.c.inc"
 
-#define USE_ELF_CORE_DUMP
+#define HAVE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE       4096
 
 #endif /* TARGET_I386 */
@@ -309,7 +309,7 @@ void elf_core_copy_regs(target_elf_gregset_t *r, const CPUARMState *env)
     r->regs[17] = tswapreg(env->regs[0]); /* XXX */
 }
 
-#define USE_ELF_CORE_DUMP
+#define HAVE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE       4096
 
 /* The commpage only exists for 32 bit kernels */
@@ -397,7 +397,7 @@ void elf_core_copy_regs(target_elf_gregset_t *r, const CPUARMState *env)
     r->regs[33] = tswapreg(pstate_read((CPUARMState *)env));
 }
 
-#define USE_ELF_CORE_DUMP
+#define HAVE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE       4096
 
 #if TARGET_BIG_ENDIAN
@@ -493,7 +493,7 @@ void elf_core_copy_regs(target_elf_gregset_t *r, const CPUPPCState *env)
     r->regs[38] = tswapreg(ccr);
 }
 
-#define USE_ELF_CORE_DUMP
+#define HAVE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE       4096
 
 #ifndef TARGET_PPC64
@@ -540,7 +540,7 @@ void elf_core_copy_regs(target_elf_gregset_t *r, const CPULoongArchState *env)
     r->regs[TARGET_EF_CSR_BADV] = tswapreg(env->CSR_BADV);
 }
 
-#define USE_ELF_CORE_DUMP
+#define HAVE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE        4096
 
 #endif /* TARGET_LOONGARCH64 */
@@ -606,7 +606,7 @@ void elf_core_copy_regs(target_elf_gregset_t *r, const CPUMIPSState *env)
     r->regs[TARGET_EF_CP0_CAUSE] = tswapreg(env->CP0_Cause);
 }
 
-#define USE_ELF_CORE_DUMP
+#define HAVE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE        4096
 
 #endif /* TARGET_MIPS */
@@ -620,7 +620,7 @@ void elf_core_copy_regs(target_elf_gregset_t *r, const CPUMIPSState *env)
 
 #define ELF_EXEC_PAGESIZE        4096
 
-#define USE_ELF_CORE_DUMP
+#define HAVE_ELF_CORE_DUMP
 #define ELF_NREG 38
 typedef struct target_elf_gregset_t {
     target_elf_greg_t regs[ELF_NREG];
@@ -649,7 +649,7 @@ void elf_core_copy_regs(target_elf_gregset_t *r, const CPUMBState *env)
 #define ELF_CLASS ELFCLASS32
 #define ELF_DATA  ELFDATA2MSB
 
-#define USE_ELF_CORE_DUMP
+#define HAVE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE 8192
 
 /* See linux kernel arch/openrisc/include/asm/elf.h.  */
@@ -706,7 +706,7 @@ void elf_core_copy_regs(target_elf_gregset_t *r, const CPUSH4State *env)
     r->regs[TARGET_REG_SYSCALL] = 0; /* FIXME */
 }
 
-#define USE_ELF_CORE_DUMP
+#define HAVE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE        4096
 
 #endif
@@ -746,7 +746,7 @@ void elf_core_copy_regs(target_elf_gregset_t *r, const CPUM68KState *env)
     r->regs[19] = 0;  /* FIXME: regs->format | regs->vector */
 }
 
-#define USE_ELF_CORE_DUMP
+#define HAVE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE       8192
 
 #endif
@@ -797,7 +797,7 @@ void elf_core_copy_regs(target_elf_gregset_t *r, const CPUS390XState *env)
     r->regs[TARGET_REG_ORIG_R2] = 0;
 }
 
-#define USE_ELF_CORE_DUMP
+#define HAVE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE 4096
 
 #define VDSO_HEADER "vdso.c.inc"
@@ -906,7 +906,7 @@ void elf_core_copy_regs(target_elf_gregset_t *r, const CPUXtensaState *env)
     }
 }
 
-#define USE_ELF_CORE_DUMP
+#define HAVE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE       4096
 
 #endif /* TARGET_XTENSA */
@@ -1115,9 +1115,9 @@ static void bswap_mips_abiflags(Mips_elf_abiflags_v0 *abiflags)
 }
 #endif
 
-#ifdef USE_ELF_CORE_DUMP
+#ifdef HAVE_ELF_CORE_DUMP
 static int elf_core_dump(int, const CPUArchState *);
-#endif /* USE_ELF_CORE_DUMP */
+#endif /* HAVE_ELF_CORE_DUMP */
 static void load_symbols(struct elfhdr *hdr, const ImageSource *src,
                          abi_ulong load_bias);
 
@@ -2827,14 +2827,14 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
         g_free(elf_interpreter);
     }
 
-#ifdef USE_ELF_CORE_DUMP
+#ifdef HAVE_ELF_CORE_DUMP
     bprm->core_dump = &elf_core_dump;
 #endif
 
     return 0;
 }
 
-#ifdef USE_ELF_CORE_DUMP
+#ifdef HAVE_ELF_CORE_DUMP
 
 /*
  * Definitions to generate Intel SVR4-like core files.
@@ -2850,10 +2850,10 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
  * Core dump code is copied from linux kernel (fs/binfmt_elf.c).
  *
  * Porting ELF coredump for target is (quite) simple process.  First you
- * define USE_ELF_CORE_DUMP in target ELF code (where init_thread() for
+ * define HAVE_ELF_CORE_DUMP in target ELF code (where init_thread() for
  * the target resides):
  *
- * #define USE_ELF_CORE_DUMP
+ * #define HAVE_ELF_CORE_DUMP
  *
  * Next you define type of register set used for dumping:
  * typedef struct target_elf_gregset_t { ... } target_elf_gregset_t;
@@ -3392,4 +3392,4 @@ static int elf_core_dump(int signr, const CPUArchState *env)
     }
     return ret;
 }
-#endif /* USE_ELF_CORE_DUMP */
+#endif /* HAVE_ELF_CORE_DUMP */
