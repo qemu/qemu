@@ -7,8 +7,7 @@
 
 #ifndef HPPA_TARGET_ELF_H
 #define HPPA_TARGET_ELF_H
-static inline const char *cpu_get_model(uint32_t eflags)
-{
-    return "hppa";
-}
+
+#define HAVE_ELF_PLATFORM       1
+
 #endif

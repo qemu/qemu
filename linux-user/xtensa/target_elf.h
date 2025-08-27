@@ -8,9 +8,4 @@
 #ifndef XTENSA_TARGET_ELF_H
 #define XTENSA_TARGET_ELF_H
 
-static inline const char *cpu_get_model(uint32_t eflags)
-{
-    return XTENSA_DEFAULT_CPU_MODEL;
-}
-
 #endif

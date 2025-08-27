@@ -7,12 +7,8 @@
 
 #ifndef PPC_TARGET_ELF_H
 #define PPC_TARGET_ELF_H
-static inline const char *cpu_get_model(uint32_t eflags)
-{
-#ifdef TARGET_PPC64
-    return "POWER9";
-#else
-    return "750";
-#endif
-}
+
+#define HAVE_ELF_HWCAP          1
+#define HAVE_ELF_HWCAP2         1
+
 #endif

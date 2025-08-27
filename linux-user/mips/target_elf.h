@@ -7,14 +7,8 @@
 
 #ifndef MIPS_TARGET_ELF_H
 #define MIPS_TARGET_ELF_H
-static inline const char *cpu_get_model(uint32_t eflags)
-{
-    if ((eflags & EF_MIPS_ARCH) == EF_MIPS_ARCH_32R6) {
-        return "mips32r6-generic";
-    }
-    if (eflags & EF_MIPS_NAN2008) {
-        return "P5600";
-    }
-    return "24Kf";
-}
+
+#define HAVE_ELF_HWCAP          1
+#define HAVE_ELF_BASE_PLATFORM  1
+
 #endif

@@ -7,8 +7,9 @@
 
 #ifndef AARCH64_TARGET_ELF_H
 #define AARCH64_TARGET_ELF_H
-static inline const char *cpu_get_model(uint32_t eflags)
-{
-    return "any";
-}
+
+#define HAVE_ELF_HWCAP          1
+#define HAVE_ELF_HWCAP2         1
+#define HAVE_ELF_PLATFORM       1
+
 #endif

@@ -7,8 +7,8 @@
 
 #ifndef I386_TARGET_ELF_H
 #define I386_TARGET_ELF_H
-static inline const char *cpu_get_model(uint32_t eflags)
-{
-    return "max";
-}
+
+#define HAVE_ELF_HWCAP          1
+#define HAVE_ELF_PLATFORM       1
+
 #endif
