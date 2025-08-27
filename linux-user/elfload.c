@@ -2859,12 +2859,8 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
  *
  * #define USE_ELF_CORE_DUMP
  *
- * Next you define type of register set used for dumping.  ELF specification
- * says that it needs to be array of elf_greg_t that has size of ELF_NREG.
- *
- * typedef <target_regtype> target_elf_greg_t;
- * #define ELF_NREG <number of registers>
- * typedef taret_elf_greg_t target_elf_gregset_t[ELF_NREG];
+ * Next you define type of register set used for dumping:
+ * typedef struct target_elf_gregset_t { ... } target_elf_gregset_t;
  *
  * Last step is to implement target specific function that copies registers
  * from given cpu into just specified register set.  Prototype is:
