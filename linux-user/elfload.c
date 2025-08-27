@@ -678,7 +678,9 @@ static void elf_core_copy_regs(target_elf_gregset_t *r,
 
 /* See linux kernel: arch/sh/include/asm/elf.h.  */
 #define ELF_NREG 23
-typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
+typedef struct target_elf_gregset_t {
+    target_elf_greg_t regs[ELF_NREG];
+} target_elf_gregset_t;
 
 /* See linux kernel: arch/sh/include/asm/ptrace.h.  */
 enum {
@@ -691,22 +693,19 @@ enum {
     TARGET_REG_SYSCALL = 22
 };
 
-static inline void elf_core_copy_regs(target_elf_gregset_t *regs,
-                                      const CPUSH4State *env)
+static void elf_core_copy_regs(target_elf_gregset_t *r, const CPUSH4State *env)
 {
-    int i;
-
-    for (i = 0; i < 16; i++) {
-        (*regs)[i] = tswapreg(env->gregs[i]);
+    for (int i = 0; i < 16; i++) {
+        r->regs[i] = tswapreg(env->gregs[i]);
     }
 
-    (*regs)[TARGET_REG_PC] = tswapreg(env->pc);
-    (*regs)[TARGET_REG_PR] = tswapreg(env->pr);
-    (*regs)[TARGET_REG_SR] = tswapreg(env->sr);
-    (*regs)[TARGET_REG_GBR] = tswapreg(env->gbr);
-    (*regs)[TARGET_REG_MACH] = tswapreg(env->mach);
-    (*regs)[TARGET_REG_MACL] = tswapreg(env->macl);
-    (*regs)[TARGET_REG_SYSCALL] = 0; /* FIXME */
+    r->regs[TARGET_REG_PC] = tswapreg(env->pc);
+    r->regs[TARGET_REG_PR] = tswapreg(env->pr);
+    r->regs[TARGET_REG_SR] = tswapreg(env->sr);
+    r->regs[TARGET_REG_GBR] = tswapreg(env->gbr);
+    r->regs[TARGET_REG_MACH] = tswapreg(env->mach);
+    r->regs[TARGET_REG_MACL] = tswapreg(env->macl);
+    r->regs[TARGET_REG_SYSCALL] = 0; /* FIXME */
 }
 
 #define USE_ELF_CORE_DUMP
