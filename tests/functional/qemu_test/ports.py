@@ -23,8 +23,9 @@ class Ports():
     PORTS_END = PORTS_START + PORTS_RANGE_SIZE
 
     def __enter__(self):
-        lock_file = os.path.join(BUILD_DIR, "tests", "functional", "port_lock")
-        self.lock_fh = os.open(lock_file, os.O_CREAT)
+        lock_file = os.path.join(BUILD_DIR, "tests", "functional",
+                                 f".port_lock.{self.PORTS_START}")
+        self.lock_fh = os.open(lock_file, os.O_CREAT, mode=0o666)
         fcntl.flock(self.lock_fh, fcntl.LOCK_EX)
         return self
 

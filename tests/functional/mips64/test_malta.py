@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from qemu_test import LinuxKernelTest, Asset
-from test_mips_malta import mips_check_wheezy
+from mips.test_malta import mips_check_wheezy
 
 
 class MaltaMachineConsole(LinuxKernelTest):

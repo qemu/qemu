@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
-# Migration test
+# Migration test base class
 #
 # Copyright (c) 2019 Red Hat, Inc.
 #
@@ -14,7 +14,7 @@
 import tempfile
 import time
 
-from qemu_test import QemuSystemTest, skipIfMissingCommands
+from qemu_test import QemuSystemTest, which
 from qemu_test.ports import Ports
 
 
@@ -41,24 +41,7 @@ class MigrationTest(QemuSystemTest):
         self.assertEqual(dst_vm.cmd('query-status')['status'], 'running')
         self.assertEqual(src_vm.cmd('query-status')['status'],'postmigrate')
 
-    def select_machine(self):
-        target_machine = {
-            'aarch64': 'quanta-gsj',
-            'alpha': 'clipper',
-            'arm': 'npcm750-evb',
-            'i386': 'isapc',
-            'ppc': 'sam460ex',
-            'ppc64': 'mac99',
-            'riscv32': 'spike',
-            'riscv64': 'virt',
-            'sparc': 'SS-4',
-            'sparc64': 'sun4u',
-            'x86_64': 'microvm',
-        }
-        self.set_machine(target_machine[self.arch])
-
     def do_migrate(self, dest_uri, src_uri=None):
-        self.select_machine()
         dest_vm = self.get_vm('-incoming', dest_uri, name="dest-qemu")
         dest_vm.add_args('-nodefaults')
         dest_vm.launch()
@@ -76,23 +59,21 @@ class MigrationTest(QemuSystemTest):
             self.skipTest('Failed to find a free port')
         return port
 
-    def test_migration_with_tcp_localhost(self):
+    def migration_with_tcp_localhost(self):
         with Ports() as ports:
             dest_uri = 'tcp:localhost:%u' % self._get_free_port(ports)
             self.do_migrate(dest_uri)
 
-    def test_migration_with_unix(self):
+    def migration_with_unix(self):
         with tempfile.TemporaryDirectory(prefix='socket_') as socket_path:
             dest_uri = 'unix:%s/qemu-test.sock' % socket_path
             self.do_migrate(dest_uri)
 
-    @skipIfMissingCommands('ncat')
-    def test_migration_with_exec(self):
+    def migration_with_exec(self):
+        if not which('ncat'):
+            self.skipTest('ncat is not available')
         with Ports() as ports:
             free_port = self._get_free_port(ports)
             dest_uri = 'exec:ncat -l localhost %u' % free_port
             src_uri = 'exec:ncat localhost %u' % free_port
             self.do_migrate(dest_uri, src_uri)
-
-if __name__ == '__main__':
-    QemuSystemTest.main()

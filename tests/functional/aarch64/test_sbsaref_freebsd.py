@@ -12,7 +12,7 @@
 
 from qemu_test import QemuSystemTest, Asset, skipSlowTest
 from qemu_test import wait_for_console_pattern
-from test_aarch64_sbsaref import fetch_firmware
+from test_sbsaref import fetch_firmware
 
 
 class Aarch64SbsarefFreeBSD(QemuSystemTest):
