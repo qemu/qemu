@@ -564,7 +564,9 @@ static void elf_core_copy_regs(target_elf_gregset_t *r,
 
 /* See linux kernel: arch/mips/include/asm/elf.h.  */
 #define ELF_NREG 45
-typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
+typedef struct target_elf_gregset_t {
+    target_elf_greg_t regs[ELF_NREG];
+} target_elf_gregset_t;
 
 /* See linux kernel: arch/mips/include/asm/reg.h.  */
 enum {
@@ -584,27 +586,25 @@ enum {
 };
 
 /* See linux kernel: arch/mips/kernel/process.c:elf_dump_regs.  */
-static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMIPSState *env)
+static void elf_core_copy_regs(target_elf_gregset_t *r, const CPUMIPSState *env)
 {
     int i;
 
-    for (i = 0; i < TARGET_EF_R0; i++) {
-        (*regs)[i] = 0;
+    for (i = 0; i <= TARGET_EF_R0; i++) {
+        r->regs[i] = 0;
     }
-    (*regs)[TARGET_EF_R0] = 0;
-
     for (i = 1; i < ARRAY_SIZE(env->active_tc.gpr); i++) {
-        (*regs)[TARGET_EF_R0 + i] = tswapreg(env->active_tc.gpr[i]);
+        r->regs[TARGET_EF_R0 + i] = tswapreg(env->active_tc.gpr[i]);
     }
 
-    (*regs)[TARGET_EF_R26] = 0;
-    (*regs)[TARGET_EF_R27] = 0;
-    (*regs)[TARGET_EF_LO] = tswapreg(env->active_tc.LO[0]);
-    (*regs)[TARGET_EF_HI] = tswapreg(env->active_tc.HI[0]);
-    (*regs)[TARGET_EF_CP0_EPC] = tswapreg(env->active_tc.PC);
-    (*regs)[TARGET_EF_CP0_BADVADDR] = tswapreg(env->CP0_BadVAddr);
-    (*regs)[TARGET_EF_CP0_STATUS] = tswapreg(env->CP0_Status);
-    (*regs)[TARGET_EF_CP0_CAUSE] = tswapreg(env->CP0_Cause);
+    r->regs[TARGET_EF_R26] = 0;
+    r->regs[TARGET_EF_R27] = 0;
+    r->regs[TARGET_EF_LO] = tswapreg(env->active_tc.LO[0]);
+    r->regs[TARGET_EF_HI] = tswapreg(env->active_tc.HI[0]);
+    r->regs[TARGET_EF_CP0_EPC] = tswapreg(env->active_tc.PC);
+    r->regs[TARGET_EF_CP0_BADVADDR] = tswapreg(env->CP0_BadVAddr);
+    r->regs[TARGET_EF_CP0_STATUS] = tswapreg(env->CP0_Status);
+    r->regs[TARGET_EF_CP0_CAUSE] = tswapreg(env->CP0_Cause);
 }
 
 #define USE_ELF_CORE_DUMP
