@@ -32,6 +32,10 @@ pub mod uninit;
 pub mod vmstate;
 pub mod zeroable;
 
+// Allow proc-macros to refer to `::qemu_api` inside the `qemu_api` crate (this
+// crate).
+extern crate self as qemu_api;
+
 use std::{
     alloc::{GlobalAlloc, Layout},
     ffi::c_void,
