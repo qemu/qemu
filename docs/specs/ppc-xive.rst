@@ -157,7 +157,7 @@ Interrupt flow from an O/S perspective
 
 After an event data has been enqueued in the O/S Event Queue, the IVPE
 raises the bit corresponding to the priority of the pending interrupt
-in the register IBP (Interrupt Pending Buffer) to indicate that an
+in the register IPB (Interrupt Pending Buffer) to indicate that an
 event is pending in one of the 8 priority queues. The Pending
 Interrupt Priority Register (PIPR) is also updated using the IPB. This
 register represent the priority of the most favored pending
