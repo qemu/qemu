@@ -623,23 +623,23 @@ static void elf_core_copy_regs(target_elf_gregset_t *r, const CPUMIPSState *env)
 
 #define USE_ELF_CORE_DUMP
 #define ELF_NREG 38
-typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
+typedef struct target_elf_gregset_t {
+    target_elf_greg_t regs[ELF_NREG];
+} target_elf_gregset_t;
 
 /* See linux kernel: arch/mips/kernel/process.c:elf_dump_regs.  */
-static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMBState *env)
+static void elf_core_copy_regs(target_elf_gregset_t *r, const CPUMBState *env)
 {
-    int i, pos = 0;
-
-    for (i = 0; i < 32; i++) {
-        (*regs)[pos++] = tswapreg(env->regs[i]);
+    for (int i = 0; i < 32; i++) {
+        r->regs[i] = tswapreg(env->regs[i]);
     }
 
-    (*regs)[pos++] = tswapreg(env->pc);
-    (*regs)[pos++] = tswapreg(mb_cpu_read_msr(env));
-    (*regs)[pos++] = 0;
-    (*regs)[pos++] = tswapreg(env->ear);
-    (*regs)[pos++] = 0;
-    (*regs)[pos++] = tswapreg(env->esr);
+    r->regs[32] = tswapreg(env->pc);
+    r->regs[33] = tswapreg(mb_cpu_read_msr(env));
+    r->regs[34] = 0;
+    r->regs[35] = tswapreg(env->ear);
+    r->regs[36] = 0;
+    r->regs[37] = tswapreg(env->esr);
 }
 
 #endif /* TARGET_MICROBLAZE */
