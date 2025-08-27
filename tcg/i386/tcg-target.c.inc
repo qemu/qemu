@@ -4357,6 +4357,12 @@ static void expand_vec_sari(TCGType type, unsigned vece,
 {
     TCGv_vec t1, t2;
 
+    if (imm >= (8 << vece) - 1) {
+        tcg_gen_cmp_vec(TCG_COND_LT, vece, v0, v1,
+                        tcg_constant_vec(type, MO_64, 0));
+        return;
+    }
+
     switch (vece) {
     case MO_8:
         /* Unpack to 16-bit, shift, and repack.  */
