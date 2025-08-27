@@ -135,10 +135,15 @@ static void cpu_common_reset_hold(Object *obj, ResetType type)
 static void cpu_common_reset_exit(Object *obj, ResetType type)
 {
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        CPUState *cpu = CPU(obj);
+        FILE *f = qemu_log_trylock();
 
-        qemu_log("CPU Reset (CPU %d)\n", cpu->cpu_index);
-        log_cpu_state(cpu, cpu->cc->reset_dump_flags);
+        if (f) {
+            CPUState *cpu = CPU(obj);
+
+            fprintf(f, "CPU Reset (CPU %d)\n", cpu->cpu_index);
+            cpu_dump_state(cpu, f, cpu->cc->reset_dump_flags);
+            qemu_log_unlock(f);
+        }
     }
 }
 
