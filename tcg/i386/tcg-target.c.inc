@@ -4399,8 +4399,8 @@ static void expand_vec_sari(TCGType type, unsigned vece,
             /* Otherwise we will need to use a compare vs 0 to produce
              * the sign-extend, shift and merge.
              */
-            tcg_gen_cmp_vec(TCG_COND_GT, MO_64, t1,
-                            tcg_constant_vec(type, MO_64, 0), v1);
+            tcg_gen_cmp_vec(TCG_COND_LT, MO_64, t1, v1,
+                            tcg_constant_vec(type, MO_64, 0));
             tcg_gen_shri_vec(MO_64, v0, v1, imm);
             tcg_gen_shli_vec(MO_64, t1, t1, 64 - imm);
             tcg_gen_or_vec(MO_64, v0, v0, t1);
