@@ -1126,8 +1126,7 @@ static DisasJumpType gen_call_pal(DisasContext *ctx, int palcode)
             break;
         case 0x3C:
             /* WHAMI */
-            tcg_gen_ld32s_i64(ctx->ir[IR_V0], tcg_env,
-                -offsetof(AlphaCPU, env) + offsetof(CPUState, cpu_index));
+            gen_helper_whami(ctx->ir[IR_V0], tcg_env);
             break;
 
         case 0x3E:

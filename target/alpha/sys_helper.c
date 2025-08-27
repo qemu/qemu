@@ -67,3 +67,8 @@ void helper_set_alarm(CPUAlphaState *env, uint64_t expire)
         timer_del(cpu->alarm_timer);
     }
 }
+
+uint64_t HELPER(whami)(CPUAlphaState *env)
+{
+    return env_cpu(env)->cpu_index;
+}
