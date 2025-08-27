@@ -61,6 +61,32 @@ static inline bool pte_write(CPULoongArchState *env, uint64_t entry)
     return !!writable;
 }
 
+/*
+ * The folloing functions should be called with PTW enable checked
+ * With hardware PTW enabled
+ *   Bit D will be set by hardware with write access
+ *   Bit A will be set by hardware with read/intruction fetch access
+ */
+static inline uint64_t pte_mkaccess(uint64_t entry)
+{
+    return FIELD_DP64(entry, TLBENTRY, V, 1);
+}
+
+static inline uint64_t pte_mkdirty(uint64_t entry)
+{
+    return FIELD_DP64(entry, TLBENTRY, D, 1);
+}
+
+static inline bool pte_access(uint64_t entry)
+{
+    return !!FIELD_EX64(entry, TLBENTRY, V);
+}
+
+static inline bool pte_dirty(uint64_t entry)
+{
+    return !!FIELD_EX64(entry, TLBENTRY, D);
+}
+
 bool check_ps(CPULoongArchState *ent, uint8_t ps);
 TLBRet loongarch_check_pte(CPULoongArchState *env, MMUContext *context,
                            MMUAccessType access_type, int mmu_idx);
