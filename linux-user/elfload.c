@@ -153,49 +153,6 @@ typedef abi_int         target_pid_t;
 #define ELF_CLASS      ELFCLASS64
 #define ELF_ARCH       EM_X86_64
 
-#define ELF_NREG    27
-typedef struct target_elf_gregset_t {
-    target_elf_greg_t regs[ELF_NREG];
-} target_elf_gregset_t;
-
-/*
- * Note that ELF_NREG should be 29 as there should be place for
- * TRAPNO and ERR "registers" as well but linux doesn't dump
- * those.
- *
- * See linux kernel: arch/x86/include/asm/elf.h
- */
-void elf_core_copy_regs(target_elf_gregset_t *r, const CPUX86State *env)
-{
-    r->regs[0] = tswapreg(env->regs[15]);
-    r->regs[1] = tswapreg(env->regs[14]);
-    r->regs[2] = tswapreg(env->regs[13]);
-    r->regs[3] = tswapreg(env->regs[12]);
-    r->regs[4] = tswapreg(env->regs[R_EBP]);
-    r->regs[5] = tswapreg(env->regs[R_EBX]);
-    r->regs[6] = tswapreg(env->regs[11]);
-    r->regs[7] = tswapreg(env->regs[10]);
-    r->regs[8] = tswapreg(env->regs[9]);
-    r->regs[9] = tswapreg(env->regs[8]);
-    r->regs[10] = tswapreg(env->regs[R_EAX]);
-    r->regs[11] = tswapreg(env->regs[R_ECX]);
-    r->regs[12] = tswapreg(env->regs[R_EDX]);
-    r->regs[13] = tswapreg(env->regs[R_ESI]);
-    r->regs[14] = tswapreg(env->regs[R_EDI]);
-    r->regs[15] = tswapreg(get_task_state(env_cpu_const(env))->orig_ax);
-    r->regs[16] = tswapreg(env->eip);
-    r->regs[17] = tswapreg(env->segs[R_CS].selector & 0xffff);
-    r->regs[18] = tswapreg(env->eflags);
-    r->regs[19] = tswapreg(env->regs[R_ESP]);
-    r->regs[20] = tswapreg(env->segs[R_SS].selector & 0xffff);
-    r->regs[21] = tswapreg(env->segs[R_FS].selector & 0xffff);
-    r->regs[22] = tswapreg(env->segs[R_GS].selector & 0xffff);
-    r->regs[23] = tswapreg(env->segs[R_DS].selector & 0xffff);
-    r->regs[24] = tswapreg(env->segs[R_ES].selector & 0xffff);
-    r->regs[25] = tswapreg(env->segs[R_FS].selector & 0xffff);
-    r->regs[26] = tswapreg(env->segs[R_GS].selector & 0xffff);
-}
-
 #if ULONG_MAX > UINT32_MAX
 #define INIT_GUEST_COMMPAGE
 static bool init_guest_commpage(void)
@@ -232,39 +189,6 @@ static bool init_guest_commpage(void)
 
 #define EXSTACK_DEFAULT true
 
-#define ELF_NREG    17
-typedef struct target_elf_gregset_t {
-    target_elf_greg_t regs[ELF_NREG];
-} target_elf_gregset_t;
-
-/*
- * Note that ELF_NREG should be 19 as there should be place for
- * TRAPNO and ERR "registers" as well but linux doesn't dump
- * those.
- *
- * See linux kernel: arch/x86/include/asm/elf.h
- */
-void elf_core_copy_regs(target_elf_gregset_t *r, const CPUX86State *env)
-{
-    r->regs[0] = tswapreg(env->regs[R_EBX]);
-    r->regs[1] = tswapreg(env->regs[R_ECX]);
-    r->regs[2] = tswapreg(env->regs[R_EDX]);
-    r->regs[3] = tswapreg(env->regs[R_ESI]);
-    r->regs[4] = tswapreg(env->regs[R_EDI]);
-    r->regs[5] = tswapreg(env->regs[R_EBP]);
-    r->regs[6] = tswapreg(env->regs[R_EAX]);
-    r->regs[7] = tswapreg(env->segs[R_DS].selector & 0xffff);
-    r->regs[8] = tswapreg(env->segs[R_ES].selector & 0xffff);
-    r->regs[9] = tswapreg(env->segs[R_FS].selector & 0xffff);
-    r->regs[10] = tswapreg(env->segs[R_GS].selector & 0xffff);
-    r->regs[11] = tswapreg(get_task_state(env_cpu_const(env))->orig_ax);
-    r->regs[12] = tswapreg(env->eip);
-    r->regs[13] = tswapreg(env->segs[R_CS].selector & 0xffff);
-    r->regs[14] = tswapreg(env->eflags);
-    r->regs[15] = tswapreg(env->regs[R_ESP]);
-    r->regs[16] = tswapreg(env->segs[R_SS].selector & 0xffff);
-}
-
 /*
  * i386 is the only target which supplies AT_SYSINFO for the vdso.
  * All others only supply AT_SYSINFO_EHDR.
@@ -281,7 +205,6 @@ void elf_core_copy_regs(target_elf_gregset_t *r, const CPUX86State *env)
 
 #define VDSO_HEADER "vdso.c.inc"
 
-#define HAVE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE       4096
 
 #endif /* TARGET_I386 */
