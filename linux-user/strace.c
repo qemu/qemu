@@ -586,23 +586,27 @@ print_socket_protocol(int domain, int type, int protocol)
         return;
     }
 
-    switch (protocol) {
-    case IPPROTO_IP:
-        qemu_log("IPPROTO_IP");
-        break;
-    case IPPROTO_TCP:
-        qemu_log("IPPROTO_TCP");
-        break;
-    case IPPROTO_UDP:
-        qemu_log("IPPROTO_UDP");
-        break;
-    case IPPROTO_RAW:
-        qemu_log("IPPROTO_RAW");
-        break;
-    default:
-        qemu_log("%d", protocol);
-        break;
+    if (domain == AF_INET || domain == AF_INET6) {
+        switch (protocol) {
+        case IPPROTO_IP:
+            qemu_log("IPPROTO_IP");
+            break;
+        case IPPROTO_TCP:
+            qemu_log("IPPROTO_TCP");
+            break;
+        case IPPROTO_UDP:
+            qemu_log("IPPROTO_UDP");
+            break;
+        case IPPROTO_RAW:
+            qemu_log("IPPROTO_RAW");
+            break;
+        default:
+            qemu_log("%d", protocol);
+            break;
+        }
+        return;
     }
+    qemu_log("%d", protocol);
 }
 
 
