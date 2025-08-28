@@ -26,6 +26,7 @@
 
 #include "qemu/osdep.h"
 #include "net/net.h"
+#include "net/clients.h"
 #include "clients.h"
 #include "qemu/option.h"
 #include "qemu/error-report.h"
@@ -34,7 +35,6 @@
 #include <ZeroTierOne.h>
 #include <unistd.h>
 #include <glib/gstdio.h>
-#include "qemu/main-loop.h"
 
 #define ZEROTIER_DEFAULT_PORT 9993
 #define ZEROTIER_MTU 2800
@@ -134,16 +134,17 @@ static void zerotier_virtual_network_frame(
     /* Log ARP with more detail */
     if (etherType == 0x0806 && len >= 14) {
         /* Extract ARP details from payload */
+        const uint8_t *arp_data = (const uint8_t *)data;
         if (len >= 28) {
-            uint16_t arp_op = (data[6] << 8) | data[7]; /* ARP operation in payload */
-            uint32_t sender_ip = (data[14] << 24) | (data[15] << 16) | (data[16] << 8) | data[17];
-            uint32_t target_ip = (data[24] << 24) | (data[25] << 16) | (data[26] << 8) | data[27];
+            uint16_t arp_op = (arp_data[6] << 8) | arp_data[7]; /* ARP operation in payload */
+            uint32_t sender_ip = (arp_data[14] << 24) | (arp_data[15] << 16) | (arp_data[16] << 8) | arp_data[17];
+            uint32_t target_ip = (arp_data[24] << 24) | (arp_data[25] << 16) | (arp_data[26] << 8) | arp_data[27];
             
             info_report("ZeroTier: RX ARP %s: %02x:%02x:%02x:%02x:%02x:%02x (%d.%d.%d.%d) -> %02x:%02x:%02x:%02x:%02x:%02x (%d.%d.%d.%d)",
                         arp_op == 1 ? "REQUEST" : arp_op == 2 ? "REPLY" : "OTHER",
-                        data[8], data[9], data[10], data[11], data[12], data[13],
+                        arp_data[8], arp_data[9], arp_data[10], arp_data[11], arp_data[12], arp_data[13],
                         (sender_ip >> 24) & 0xff, (sender_ip >> 16) & 0xff, (sender_ip >> 8) & 0xff, sender_ip & 0xff,
-                        data[18], data[19], data[20], data[21], data[22], data[23],
+                        arp_data[18], arp_data[19], arp_data[20], arp_data[21], arp_data[22], arp_data[23],
                         (target_ip >> 24) & 0xff, (target_ip >> 16) & 0xff, (target_ip >> 8) & 0xff, target_ip & 0xff);
         } else {
             info_report("ZeroTier: RX ARP from %02x:%02x:%02x:%02x:%02x:%02x to %02x:%02x:%02x:%02x:%02x:%02x",
@@ -430,19 +431,49 @@ static void zerotier_udp_read(void *opaque)
     socklen_t from_len;
     ssize_t received;
     int packets_processed = 0;
+    static int total_packets = 0;
+    static int batch_count = 0;
     
-    /* Process all available packets when socket becomes readable */
-    while (packets_processed < 16) { /* Process burst of packets */
+    /* Process larger batches to reduce syscall overhead and packet loss */
+    while (packets_processed < 64) { /* Doubled batch size */
         from_len = sizeof(from_addr);
-        received = recvfrom(s->udp_sock, buffer, sizeof(buffer), MSG_DONTWAIT,
+        received = recvfrom(s->udp_sock, buffer, sizeof(buffer), MSG_DONTWAIT | MSG_TRUNC,
                            (struct sockaddr*)&from_addr, &from_len);
         if (received > 0) {
+            if (received > sizeof(buffer)) {
+                /* Packet was truncated - log warning but continue */
+                warn_report("ZeroTier: Packet truncated (size %zd > buffer %zu)", 
+                           received, sizeof(buffer));
+                continue;
+            }
             ZT_Node_processWirePacket(s->zt_node, NULL, now, -1, &from_addr,
                                     buffer, received, &nextDeadline);
             packets_processed++;
+            total_packets++;
+        } else if (received == 0) {
+            /* Connection closed - shouldn't happen with UDP but handle it */
+            break;
         } else {
-            break; /* No more packets available */
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                break; /* No more packets available */
+            } else {
+                /* Socket error - might indicate packet loss or other issues */
+                break;
+            }
         }
+    }
+    
+    batch_count++;
+    /* Log statistics every 1000 batches for debugging */
+    if (batch_count % 1000 == 0) {
+        info_report("ZeroTier: Processed %d packets in %d batches (avg %.1f/batch)", 
+                   total_packets, batch_count, (double)total_packets / batch_count);
+    }
+    
+    /* If we processed the max, there might be more - reschedule immediately */
+    if (packets_processed >= 64) {
+        /* Use immediate rescheduling to continue processing without delay */
+        qemu_set_fd_handler(s->udp_sock, zerotier_udp_read, NULL, s);
     }
 }
 
@@ -660,6 +691,15 @@ static int net_zerotier_init(NetClientState *peer, const char *model,
         
         int opt = 1;
         setsockopt(s->udp_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+        
+        /* Increase UDP socket buffer sizes to reduce packet loss */
+        int buf_size = 2 * 1024 * 1024; /* 2MB buffer */
+        if (setsockopt(s->udp_sock, SOL_SOCKET, SO_RCVBUF, &buf_size, sizeof(buf_size)) < 0) {
+            warn_report("ZeroTier: Failed to set UDP receive buffer size");
+        }
+        if (setsockopt(s->udp_sock, SOL_SOCKET, SO_SNDBUF, &buf_size, sizeof(buf_size)) < 0) {
+            warn_report("ZeroTier: Failed to set UDP send buffer size");
+        }
         
         /* Try to bind to specified port, fall back to dynamic port */
         bind_addr.sin_port = htons(s->port);
