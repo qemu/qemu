@@ -1,0 +1,4 @@
+usr/bin/qemu-img*
+usr/bin/qemu-io*
+usr/bin/qemu-nbd*
+usr/share/doc/qemu-zerotier-utils/

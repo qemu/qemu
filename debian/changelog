@@ -1,0 +1,11 @@
+qemu-zerotier (10.1.50-1) unstable; urgency=medium
+
+  * Initial release with ZeroTier network backend support
+  * Add Layer 2 ZeroTier virtual network integration
+  * High-performance event-driven packet processing (800+ Mbps)
+  * Automatic MAC address assignment from ZeroTier networks
+  * Persistent ZeroTier identity and credentials storage
+  * Support for x86_64 and aarch64 architectures
+  * Based on QEMU 10.1.50 with ZeroTier network backend patches
+
+ -- DatanoiseTV <noreply@datanoise.tv>  Wed, 28 Aug 2024 16:52:00 +0000

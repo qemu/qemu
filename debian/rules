@@ -1,0 +1,67 @@
+#!/usr/bin/make -f
+
+# Enable hardening
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+# Disable parallel builds if needed
+#export DEB_BUILD_OPTIONS=nocheck
+
+# ZeroTier library path
+ZEROTIER_LIB = third_party/zerotier/libzerotier.a
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	# Build ZeroTier static library first
+	if [ ! -f $(ZEROTIER_LIB) ]; then \
+		echo "Building ZeroTier static library..."; \
+		cd third_party && \
+		git clone https://github.com/zerotier/ZeroTierOne.git zerotier-src && \
+		cd zerotier-src && \
+		make -j$(shell nproc) one && \
+		mkdir -p ../zerotier && \
+		ar rcs ../zerotier/libzerotier.a node/*.o controller/*.o service/*.o ext/miniupnpc/*.o osdep/*.o; \
+	fi
+	
+	# Configure QEMU with ZeroTier support
+	mkdir -p build
+	cd build && \
+	../configure \
+		--prefix=/usr \
+		--sysconfdir=/etc \
+		--localstatedir=/var \
+		--libexecdir=/usr/lib/qemu \
+		--enable-system \
+		--target-list=x86_64-softmmu,aarch64-softmmu \
+		--enable-slirp \
+		--enable-gtk \
+		--enable-spice \
+		--enable-usb-redir \
+		--enable-libssh \
+		--enable-pie \
+		--disable-user \
+		--disable-linux-user \
+		--disable-bsd-user \
+		--disable-guest-agent
+
+override_dh_auto_build:
+	cd build && $(MAKE) V=1
+
+override_dh_auto_install:
+	cd build && $(MAKE) DESTDIR=$(CURDIR)/debian/tmp install
+	
+	# Install ZeroTier-specific files
+	install -d $(CURDIR)/debian/tmp/usr/share/doc/qemu-system-zerotier
+	install -m644 README.rst $(CURDIR)/debian/tmp/usr/share/doc/qemu-system-zerotier/
+	
+	# Create utility package structure
+	install -d $(CURDIR)/debian/qemu-zerotier-utils/usr/bin
+	install -d $(CURDIR)/debian/qemu-zerotier-utils/usr/share/doc/qemu-zerotier-utils
+
+override_dh_strip:
+	dh_strip --dbgsym-migration='qemu-system-zerotier-dbg (<< 10.1.50-1~)'
+
+override_dh_auto_clean:
+	rm -rf build
+	dh_auto_clean

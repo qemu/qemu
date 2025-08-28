@@ -1,0 +1,16 @@
+#!/bin/bash
+set -e
+
+case "$1" in
+    remove|purge)
+        # On purge, remove ZeroTier storage directory
+        if [ "$1" = "purge" ]; then
+            echo "Removing ZeroTier storage directory..."
+            rm -rf /var/lib/qemu-zerotier
+        fi
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

@@ -1,0 +1,5 @@
+usr/bin/qemu-system-x86_64*
+usr/bin/qemu-system-aarch64*
+usr/share/qemu/
+usr/libexec/qemu/
+usr/share/doc/qemu-system-zerotier/

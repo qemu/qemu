@@ -1,0 +1,37 @@
+#!/bin/bash
+set -e
+
+case "$1" in
+    configure)
+        # Create ZeroTier storage directory
+        mkdir -p /var/lib/qemu-zerotier
+        chmod 755 /var/lib/qemu-zerotier
+        
+        # Create group for qemu if it doesn't exist
+        if ! getent group qemu > /dev/null 2>&1; then
+            addgroup --system qemu
+        fi
+        
+        # Set up permissions for ZeroTier storage
+        chown root:qemu /var/lib/qemu-zerotier
+        
+        echo "QEMU ZeroTier network backend installed successfully!"
+        echo ""
+        echo "Usage example:"
+        echo "qemu-system-x86_64 \\"
+        echo "  -netdev zerotier,id=zt0,network=YOUR_NETWORK_ID,storage=/var/lib/qemu-zerotier \\"
+        echo "  -device virtio-net,netdev=zt0 \\"
+        echo "  -m 1G -cdrom your-iso.iso"
+        echo ""
+        echo "Make sure to:"
+        echo "1. Replace YOUR_NETWORK_ID with your actual ZeroTier network ID"
+        echo "2. Enable 'Allow Ethernet Bridging' in ZeroTier Central"
+        echo "3. Authorize the node in ZeroTier Central (for private networks)"
+        echo ""
+        echo "Documentation: /usr/share/doc/qemu-system-zerotier/"
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

@@ -1,0 +1,66 @@
+Source: qemu-zerotier
+Section: misc
+Priority: optional
+Maintainer: DatanoiseTV <noreply@datanoise.tv>
+Build-Depends: debhelper-compat (= 13),
+               meson (>= 0.63.0),
+               ninja-build,
+               pkg-config,
+               python3,
+               python3-sphinx,
+               python3-sphinx-rtd-theme,
+               libaio-dev [linux-any],
+               libbz2-dev,
+               libcap-dev [linux-any],
+               libcap-ng-dev [linux-any],
+               libcurl4-gnutls-dev,
+               libfdt-dev,
+               libgbm-dev [linux-any],
+               libglib2.0-dev,
+               libgnutls28-dev,
+               libibverbs-dev [linux-any],
+               libjpeg-dev,
+               libnuma-dev [linux-any],
+               libpixman-1-dev,
+               libpng-dev,
+               libsasl2-dev,
+               libsdl2-dev [!hurd-any],
+               libslirp-dev (>= 4.1.0),
+               libspice-protocol-dev,
+               libspice-server-dev,
+               libssh-dev,
+               libudev-dev [linux-any],
+               libusb-1.0-0-dev [linux-any],
+               libusbredirparser-dev [linux-any],
+               libzstd-dev,
+               zlib1g-dev,
+               libgtk-3-dev,
+               libvte-2.91-dev
+Standards-Version: 4.6.0
+Homepage: https://github.com/DatanoiseTV/qemu
+Vcs-Git: https://github.com/DatanoiseTV/qemu.git
+Vcs-Browser: https://github.com/DatanoiseTV/qemu
+
+Package: qemu-system-zerotier
+Architecture: amd64 arm64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Recommends: qemu-utils
+Description: QEMU system emulator with ZeroTier network backend support
+ QEMU is a generic machine emulator and virtualizer. This package contains
+ the system emulator binaries with ZeroTier network backend support.
+ .
+ The ZeroTier network backend allows VMs to join ZeroTier virtual networks
+ directly without requiring ZeroTier to be installed on the host system.
+ Features:
+  * Direct Layer 2 Ethernet integration with ZeroTier networks
+  * Event-driven packet processing for high performance (800+ Mbps throughput)
+  * Persistent ZeroTier identity and network credentials
+  * Automatic MAC address assignment from ZeroTier
+  * Low latency (1-7ms typical)
+
+Package: qemu-zerotier-utils
+Architecture: amd64 arm64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: QEMU ZeroTier utilities
+ Utilities for the QEMU ZeroTier network backend, including configuration
+ tools and network management scripts.
