@@ -349,13 +349,12 @@ const char *get_elf_platform(CPUState *cs)
     return TARGET_BIG_ENDIAN ? "aarch64_be" : "aarch64";
 }
 
-#define tswapreg(ptr)   tswapal(ptr)
-
 void elf_core_copy_regs(target_elf_gregset_t *r, const CPUARMState *env)
 {
-    for (int i = 0; i < 32; i++) {
-        r->regs[i] = tswapreg(env->xregs[i]);
+    for (int i = 0; i < 31; i++) {
+        r->pt.regs[i] = tswap64(env->xregs[i]);
     }
-    r->regs[32] = tswapreg(env->pc);
-    r->regs[33] = tswapreg(pstate_read((CPUARMState *)env));
+    r->pt.sp = tswap64(env->xregs[31]);
+    r->pt.pc = tswap64(env->pc);
+    r->pt.pstate = tswap64(pstate_read((CPUARMState *)env));
 }
