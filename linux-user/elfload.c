@@ -130,14 +130,6 @@ int info_is_fdpic(struct image_info *info)
 #define ELF_DATA        ELFDATA2LSB
 #endif
 
-#ifdef TARGET_ABI_MIPSN32
-typedef abi_ullong      target_elf_greg_t;
-#define tswapreg(ptr)   tswap64(ptr)
-#else
-typedef abi_ulong       target_elf_greg_t;
-#define tswapreg(ptr)   tswapal(ptr)
-#endif
-
 #ifdef USE_UID16
 typedef abi_ushort      target_uid_t;
 typedef abi_ushort      target_gid_t;
