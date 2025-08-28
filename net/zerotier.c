@@ -32,6 +32,8 @@
 #include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include <ZeroTierOne.h>
+#include <unistd.h>
+#include <glib/gstdio.h>
 
 #define ZEROTIER_DEFAULT_PORT 9993
 #define ZEROTIER_MTU 2800
@@ -46,11 +48,12 @@ typedef struct ZeroTierState {
     bool network_ready;
     QEMUTimer *timer;
     uint8_t mac[6];        /* ZeroTier assigned MAC */
-    uint8_t vm_mac[6];      /* VM's MAC address */
     int udp_sock;
+    bool mac_provided;      /* MAC has been provided to peer */
 } ZeroTierState;
 
 static ZeroTierState *global_zt_state = NULL;
+static uint8_t zerotier_suggested_mac[6] = {0};  /* MAC for NIC to use */
 
 static void zerotier_poll(void *opaque);
 
@@ -120,24 +123,19 @@ static void zerotier_virtual_network_frame(
         return;
     }
     
-    /* Check if this frame is for us - accept broadcast, multicast, ZeroTier MAC, or VM MAC */
-    uint64_t our_zt_mac = mac_to_uint64(s->mac);
-    uint64_t our_vm_mac = mac_to_uint64(s->vm_mac);
+    /* Check if this frame is for us - accept broadcast, multicast, or our ZeroTier MAC */
+    uint64_t our_mac = mac_to_uint64(s->mac);
     bool is_broadcast = (destMac == 0xFFFFFFFFFFFF);
     bool is_multicast = ((destMac >> 40) & 0x01) != 0;
-    bool is_for_zt = (destMac == our_zt_mac);
-    bool is_for_vm = (destMac == our_vm_mac);
-    bool is_for_us = is_for_zt || is_for_vm;
+    bool is_for_us = (destMac == our_mac);
     
-    /* Log only ARP and new connections to reduce noise */
-    if (etherType == 0x0806 || (is_for_vm && etherType != 0x0800)) {
-        info_report("ZeroTier: RX %s from %02x:%02x:%02x:%02x:%02x:%02x to %02x:%02x:%02x:%02x:%02x:%02x, len %u",
-                    etherType == 0x0806 ? "ARP" : "frame",
+    /* Log only ARP to reduce noise */
+    if (etherType == 0x0806) {
+        info_report("ZeroTier: RX ARP from %02x:%02x:%02x:%02x:%02x:%02x to %02x:%02x:%02x:%02x:%02x:%02x",
                     (unsigned int)((sourceMac >> 40) & 0xff), (unsigned int)((sourceMac >> 32) & 0xff), (unsigned int)((sourceMac >> 24) & 0xff),
                     (unsigned int)((sourceMac >> 16) & 0xff), (unsigned int)((sourceMac >> 8) & 0xff), (unsigned int)(sourceMac & 0xff),
                     (unsigned int)((destMac >> 40) & 0xff), (unsigned int)((destMac >> 32) & 0xff), (unsigned int)((destMac >> 24) & 0xff),
-                    (unsigned int)((destMac >> 16) & 0xff), (unsigned int)((destMac >> 8) & 0xff), (unsigned int)(destMac & 0xff),
-                    len);
+                    (unsigned int)((destMac >> 16) & 0xff), (unsigned int)((destMac >> 8) & 0xff), (unsigned int)(destMac & 0xff));
     }
     
     /* Only forward frames that are for us, broadcast, or multicast */
@@ -152,20 +150,14 @@ static void zerotier_virtual_network_frame(
     }
     
     /* Construct Ethernet frame for VM */
-    /* For unicast to us (either ZeroTier MAC or VM MAC), use VM's MAC as destination */
-    /* For broadcast/multicast, keep original destination */
-    if ((is_for_zt || is_for_vm) && !is_broadcast && !is_multicast) {
-        /* Use VM's MAC address as destination */
-        memcpy(ethernet_frame, s->vm_mac, 6);
-    } else {
-        /* Keep original destination (broadcast/multicast) */
-        ethernet_frame[0] = (destMac >> 40) & 0xff;
-        ethernet_frame[1] = (destMac >> 32) & 0xff;
-        ethernet_frame[2] = (destMac >> 24) & 0xff;
-        ethernet_frame[3] = (destMac >> 16) & 0xff;
-        ethernet_frame[4] = (destMac >> 8) & 0xff;
-        ethernet_frame[5] = destMac & 0xff;
-    }
+    /* No MAC translation needed - VM uses ZeroTier MAC */
+    /* Destination MAC */
+    ethernet_frame[0] = (destMac >> 40) & 0xff;
+    ethernet_frame[1] = (destMac >> 32) & 0xff;
+    ethernet_frame[2] = (destMac >> 24) & 0xff;
+    ethernet_frame[3] = (destMac >> 16) & 0xff;
+    ethernet_frame[4] = (destMac >> 8) & 0xff;
+    ethernet_frame[5] = destMac & 0xff;
     
     /* Source MAC (6 bytes) - keep original from ZeroTier network */
     ethernet_frame[6] = (sourceMac >> 40) & 0xff;
@@ -182,10 +174,13 @@ static void zerotier_virtual_network_frame(
     /* Payload */
     memcpy(&ethernet_frame[14], data, len);
     
-    /* Send to QEMU network stack */
+    /* Send to QEMU network stack - retry if queue is full */
     ssize_t sent = qemu_send_packet(&s->nc, ethernet_frame, len + 14);
-    if (sent != (ssize_t)(len + 14)) {
-        warn_report("ZeroTier: Failed to deliver full packet to VM! (%zd/%u bytes)", sent, len + 14);
+    if (sent == 0) {
+        /* Queue is full, try later via can_receive callback */
+        /* For now, silently drop - the sender will retry */
+    } else if (sent < 0) {
+        warn_report("ZeroTier: Error delivering packet to VM!");
     }
 }
 
@@ -225,6 +220,9 @@ static int zerotier_virtual_network_config(
                 
                 info_report("ZeroTier: MAC address updated: %02x:%02x:%02x:%02x:%02x:%02x",
                           s->mac[0], s->mac[1], s->mac[2], s->mac[3], s->mac[4], s->mac[5]);
+                
+                /* Store MAC globally for NIC device to use */
+                memcpy(zerotier_suggested_mac, s->mac, 6);
             }
             break;
             
@@ -265,15 +263,80 @@ static void zerotier_event_callback(
 /* ZeroTier state management functions */
 static int zerotier_state_get(ZT_Node *node, void *uptr, void *tptr, enum ZT_StateObjectType type, const uint64_t objid[2], void *data, unsigned int maxlen)
 {
-    /* Simple file-based state storage */
-    /* This could be enhanced with proper state management */
-    return 0; /* Not found */
+    ZeroTierState *s = (ZeroTierState *)uptr;
+    char filename[512];
+    FILE *f;
+    size_t read_len;
+    
+    if (!s || !s->storage_path) {
+        return -1;
+    }
+    
+    /* Create filename based on object type and ID */
+    if (type == ZT_STATE_OBJECT_IDENTITY_SECRET) {
+        snprintf(filename, sizeof(filename), "%s/identity.secret", s->storage_path);
+    } else if (type == ZT_STATE_OBJECT_IDENTITY_PUBLIC) {
+        snprintf(filename, sizeof(filename), "%s/identity.public", s->storage_path);
+    } else if (type == ZT_STATE_OBJECT_NETWORK_CONFIG) {
+        snprintf(filename, sizeof(filename), "%s/networks.d/%016llx.conf",
+                 s->storage_path, (unsigned long long)objid[0]);
+    } else {
+        snprintf(filename, sizeof(filename), "%s/object_%d_%016llx_%016llx.dat",
+                 s->storage_path, type, (unsigned long long)objid[0], (unsigned long long)objid[1]);
+    }
+    
+    f = fopen(filename, "rb");
+    if (!f) {
+        return -1; /* Not found */
+    }
+    
+    read_len = fread(data, 1, maxlen, f);
+    fclose(f);
+    
+    info_report("ZeroTier: Loaded %s (%zu bytes)", filename, read_len);
+    return read_len;
 }
 
 static void zerotier_state_put(ZT_Node *node, void *uptr, void *tptr, enum ZT_StateObjectType type, const uint64_t objid[2], const void *data, int len)
 {
-    /* Simple file-based state storage */
-    /* This could be enhanced with proper state management */
+    ZeroTierState *s = (ZeroTierState *)uptr;
+    char filename[512];
+    char dirname[512];
+    FILE *f;
+    
+    if (!s || !s->storage_path) {
+        return;
+    }
+    
+    /* Create filename based on object type and ID */
+    if (type == ZT_STATE_OBJECT_IDENTITY_SECRET) {
+        snprintf(filename, sizeof(filename), "%s/identity.secret", s->storage_path);
+    } else if (type == ZT_STATE_OBJECT_IDENTITY_PUBLIC) {
+        snprintf(filename, sizeof(filename), "%s/identity.public", s->storage_path);
+    } else if (type == ZT_STATE_OBJECT_NETWORK_CONFIG) {
+        snprintf(dirname, sizeof(dirname), "%s/networks.d", s->storage_path);
+        g_mkdir_with_parents(dirname, 0700);
+        snprintf(filename, sizeof(filename), "%s/%016llx.conf",
+                 dirname, (unsigned long long)objid[0]);
+    } else {
+        snprintf(filename, sizeof(filename), "%s/object_%d_%016llx_%016llx.dat",
+                 s->storage_path, type, (unsigned long long)objid[0], (unsigned long long)objid[1]);
+    }
+    
+    if (len < 0) {
+        /* Delete object */
+        unlink(filename);
+        return;
+    }
+    
+    f = fopen(filename, "wb");
+    if (f) {
+        fwrite(data, 1, len, f);
+        fclose(f);
+        info_report("ZeroTier: Saved %s (%d bytes)", filename, len);
+    } else {
+        warn_report("ZeroTier: Failed to save %s", filename);
+    }
 }
 
 
@@ -292,24 +355,15 @@ static ssize_t zerotier_receive(NetClientState *nc, const uint8_t *buf, size_t s
     uint64_t destMac = mac_to_uint64(&buf[0]);
     uint16_t etherType = (buf[12] << 8) | buf[13];
     
-    /* Save the VM's MAC address on first packet */
-    if (s->vm_mac[0] == 0 && s->vm_mac[1] == 0) {
-        memcpy(s->vm_mac, &buf[6], 6);
-        info_report("ZeroTier: Detected VM MAC: %02x:%02x:%02x:%02x:%02x:%02x",
-                    s->vm_mac[0], s->vm_mac[1], s->vm_mac[2],
-                    s->vm_mac[3], s->vm_mac[4], s->vm_mac[5]);
-    }
+    /* The VM should be using our ZeroTier MAC, no translation needed */
+    uint64_t sourceMac = mac_to_uint64(&buf[6]);
+    uint64_t zt_sourceMac = sourceMac; /* Pass through - VM should have ZT MAC */
     
-    /* Use ZeroTier's assigned MAC as source when sending to ZeroTier network */
-    uint64_t zt_sourceMac = mac_to_uint64(s->mac);  /* Use ZeroTier's MAC */
-    
-    /* Debug outgoing packets - reduce noise for working ping */
-    if (etherType == 0x0806) { /* Only log ARP for now */
-        info_report("ZeroTier: TX ARP from VM %02x:%02x:%02x:%02x:%02x:%02x to %02x:%02x:%02x:%02x:%02x:%02x",
+    /* Debug outgoing ARP packets */
+    if (etherType == 0x0806) {
+        info_report("ZeroTier: TX ARP from %02x:%02x:%02x:%02x:%02x:%02x to %02x:%02x:%02x:%02x:%02x:%02x",
                     buf[6], buf[7], buf[8], buf[9], buf[10], buf[11],
                     buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
-        info_report("ZeroTier: Using ZT MAC %02x:%02x:%02x:%02x:%02x:%02x as source",
-                    s->mac[0], s->mac[1], s->mac[2], s->mac[3], s->mac[4], s->mac[5]);
     }
     
     /* Send frame via ZeroTier with translated source MAC */
@@ -389,10 +443,18 @@ static void zerotier_cleanup(NetClientState *nc)
     g_free(s->storage_path);
 }
 
+
+static bool zerotier_can_receive(NetClientState *nc)
+{
+    /* Always ready to receive from VM */
+    return true;
+}
+
 static NetClientInfo net_zerotier_info = {
     .type = NET_CLIENT_DRIVER_ZEROTIER,
     .size = sizeof(ZeroTierState),
     .receive = zerotier_receive,
+    .can_receive = zerotier_can_receive,
     .cleanup = zerotier_cleanup,
 };
 
@@ -430,12 +492,26 @@ static int net_zerotier_init(NetClientState *peer, const char *model,
     
     s->network_id = network_id;
     s->port = port ? port : ZEROTIER_DEFAULT_PORT;
-    s->storage_path = g_strdup(storage ? storage : "/tmp/qemu-zerotier");
+    /* Use proper storage path for persistent credentials */
+    if (storage) {
+        s->storage_path = g_strdup(storage);
+    } else {
+        /* Default to user's home directory */
+        const char *home = getenv("HOME");
+        if (home) {
+            s->storage_path = g_strdup_printf("%s/.qemu-zerotier", home);
+        } else {
+            s->storage_path = g_strdup("/tmp/qemu-zerotier");
+        }
+    }
+    
+    /* Create storage directory if it doesn't exist */
+    g_mkdir_with_parents(s->storage_path, 0700);
     s->connected = false;
     s->network_ready = false;
     s->zt_node = NULL;
     s->udp_sock = -1;
-    memset(s->vm_mac, 0, 6);  /* Will be detected from first packet */
+    s->mac_provided = false;
     
     global_zt_state = s;
     
@@ -454,11 +530,14 @@ static int net_zerotier_init(NetClientState *peer, const char *model,
     /* Create ZeroTier node */
     info_report("ZeroTier: Starting node, storage: %s", s->storage_path);
     
+    /* Pass storage path context to callbacks via uptr */
     enum ZT_ResultCode result = ZT_Node_new(&s->zt_node, s, NULL, &callbacks, qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
     if (result != ZT_RESULT_OK || !s->zt_node) {
         error_setg(errp, "Failed to create ZeroTier node: %d", result);
         goto error;
     }
+    
+    info_report("ZeroTier: Node initialized, checking for existing identity...");
     
     /* Join the network */
     info_report("ZeroTier: Joining network %016llx", (unsigned long long)network_id);
@@ -468,15 +547,45 @@ static int net_zerotier_init(NetClientState *peer, const char *model,
         goto error;
     }
     
-    /* Generate initial MAC address (will be updated when network comes up) */
-    s->mac[0] = 0x02; /* Locally administered */
-    s->mac[1] = 0x00;
-    s->mac[2] = 0x00;
-    s->mac[3] = (network_id >> 16) & 0xff;
-    s->mac[4] = (network_id >> 8) & 0xff;
-    s->mac[5] = network_id & 0xff;
+    /* Wait for network to come up and MAC to be assigned */
+    info_report("ZeroTier: Waiting for network configuration...");
+    int wait_cycles = 0;
+    while (!s->network_ready && wait_cycles < 100) { /* 10 second timeout */
+        int64_t now = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+        volatile int64_t nextDeadline = 0;
+        ZT_Node_processBackgroundTasks(s->zt_node, NULL, now, &nextDeadline);
+        
+        /* Process any incoming packets */
+        if (s->udp_sock >= 0) {
+            struct sockaddr_storage from_addr;
+            socklen_t from_len = sizeof(from_addr);
+            uint8_t buffer[2048];
+            ssize_t received = recvfrom(s->udp_sock, buffer, sizeof(buffer), MSG_DONTWAIT,
+                                       (struct sockaddr*)&from_addr, &from_len);
+            if (received > 0) {
+                ZT_Node_processWirePacket(s->zt_node, NULL, now, -1, &from_addr,
+                                         buffer, received, &nextDeadline);
+            }
+        }
+        
+        if (!s->network_ready) {
+            usleep(100000); /* Sleep 100ms between checks */
+            wait_cycles++;
+        }
+    }
     
+    if (!s->network_ready) {
+        error_setg(errp, "Timeout waiting for ZeroTier network configuration");
+        goto error;
+    }
+    
+    /* MAC address has been set by ZeroTier network config callback */
     qemu_format_nic_info_str(nc, s->mac);
+    
+    /* Store MAC globally for NIC device to use */
+    memcpy(zerotier_suggested_mac, s->mac, 6);
+    info_report("ZeroTier: Ready with MAC %02x:%02x:%02x:%02x:%02x:%02x (NIC should use this)",
+                s->mac[0], s->mac[1], s->mac[2], s->mac[3], s->mac[4], s->mac[5]);
     
     s->connected = true;
     
@@ -527,6 +636,17 @@ error:
     global_zt_state = NULL;
     qemu_del_net_client(nc);
     return -1;
+}
+
+/* Export function to get suggested MAC for NIC device */
+bool net_zerotier_get_mac(uint8_t *mac)
+{
+    if (zerotier_suggested_mac[0] || zerotier_suggested_mac[1] || zerotier_suggested_mac[2] ||
+        zerotier_suggested_mac[3] || zerotier_suggested_mac[4] || zerotier_suggested_mac[5]) {
+        memcpy(mac, zerotier_suggested_mac, 6);
+        return true;
+    }
+    return false;
 }
 
 int net_init_zerotier(const Netdev *netdev, const char *name,
