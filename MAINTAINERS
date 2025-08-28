@@ -1411,11 +1411,6 @@ F: include/hw/southbridge/piix.h
 F: tests/functional/mips*/test_malta.py
 F: tests/functional/mips*/test_tuxrun.py
 
-Mipssim
-R: Aleksandar Rikalo <arikalo@gmail.com>
-S: Orphan
-F: hw/net/mipsnet.c
-
 Fuloong 2E
 M: Huacai Chen <chenhuacai@kernel.org>
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
