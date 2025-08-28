@@ -22,6 +22,7 @@
 #include "signal-common.h"
 #include "linux-user/trace.h"
 #include "vdso-asmoffset.h"
+#include "target_ptrace.h"
 
 #define __NUM_GPRS 16
 #define __NUM_FPRS 16
