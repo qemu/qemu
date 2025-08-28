@@ -169,13 +169,16 @@ static void zerotier_virtual_network_frame(
     /* Payload */
     memcpy(&ethernet_frame[14], data, len);
     
-    /* Send to QEMU network stack - retry if queue is full */
-    ssize_t sent = qemu_send_packet(&s->nc, ethernet_frame, len + 14);
+    /* Send to QEMU network stack using async mechanism like TAP driver */
+    ssize_t sent = qemu_send_packet_async(&s->nc, ethernet_frame, len + 14, NULL);
     if (sent == 0) {
-        /* Queue is full, try later via can_receive callback */
-        /* For now, silently drop - the sender will retry */
+        /* 
+         * Queue is full - packet will be queued and sent later.
+         * QEMU's queue system handles this automatically.
+         * No need to warn as this is normal flow control.
+         */
     } else if (sent < 0) {
-        warn_report("ZeroTier: Error delivering packet to VM!");
+        /* Error occurred - but don't spam logs in production */
     }
 }
 
@@ -386,7 +389,7 @@ static ssize_t zerotier_receive(NetClientState *nc, const uint8_t *buf, size_t s
     return size;
 }
 
-/* Event-driven UDP packet handler */
+/* Event-driven UDP packet handler following QEMU TAP driver patterns */
 static void zerotier_udp_read(void *opaque)
 {
     ZeroTierState *s = opaque;
@@ -398,14 +401,18 @@ static void zerotier_udp_read(void *opaque)
     ssize_t received;
     int packets_processed = 0;
     
-    /* Process larger batches to reduce syscall overhead and packet loss */
-    while (packets_processed < 64) { /* Doubled batch size */
+    /* 
+     * Process packets in batches like TAP driver (50 packets max).
+     * This prevents BQL stalling while maintaining good throughput.
+     * Based on net/tap.c tap_send() function.
+     */
+    while (packets_processed < 50) { /* Match TAP driver batch size */
         from_len = sizeof(from_addr);
         received = recvfrom(s->udp_sock, buffer, sizeof(buffer), MSG_DONTWAIT | MSG_TRUNC,
                            (struct sockaddr*)&from_addr, &from_len);
         if (received > 0) {
             if (received > sizeof(buffer)) {
-                /* Packet was truncated - silently continue to avoid log spam */
+                /* Packet was truncated - silently continue */
                 continue;
             }
             ZT_Node_processWirePacket(s->zt_node, NULL, now, -1, &from_addr,
@@ -418,16 +425,20 @@ static void zerotier_udp_read(void *opaque)
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 break; /* No more packets available */
             } else {
-                /* Socket error - silently break to avoid log spam */
+                /* Socket error - break without logging */
                 break;
             }
         }
     }
     
-    /* If we processed the max, there might be more - reschedule immediately */
-    if (packets_processed >= 64) {
-        /* Use immediate rescheduling to continue processing without delay */
-        qemu_set_fd_handler(s->udp_sock, zerotier_udp_read, NULL, s);
+    /*
+     * If we processed the maximum batch, there might be more packets.
+     * Let the event loop run other tasks before processing more packets.
+     * This prevents monopolizing the BQL like the TAP driver does.
+     */
+    if (packets_processed >= 50) {
+        /* Event handler will be called again if more data arrives */
+        return;
     }
 }
 
