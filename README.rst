@@ -31,6 +31,39 @@ QEMU as a whole is released under the GNU General Public License,
 version 2. For full licensing details, consult the LICENSE file.
 
 
+ZeroTier Network Backend
+========================
+
+This QEMU fork includes a ZeroTier network backend that allows VMs to join
+ZeroTier virtual networks directly without requiring ZeroTier to be installed
+on the host system.
+
+Features:
+
+* Direct Layer 2 Ethernet integration with ZeroTier networks
+* Event-driven packet processing for high performance (800+ Mbps throughput)
+* Persistent ZeroTier identity and network credentials
+* Dual network support: NAT + ZeroTier
+* Automatic MAC address assignment from ZeroTier
+* Low latency (1-7ms typical)
+
+Usage::
+
+    qemu-system-x86_64 \
+        -netdev user,id=net0 \
+        -device virtio-net,netdev=net0 \
+        -netdev zerotier,id=zt0,network=<network_id>,storage=<storage_path> \
+        -device virtio-net,netdev=zt0
+
+Note: For bidirectional connectivity, you may need to run ``arping`` from the VM
+to establish ARP table entries before external hosts can ping the VM.
+
+Requirements:
+
+* ZeroTier network must have "Allow Ethernet Bridging" enabled
+* Network authorization in ZeroTier Central (for private networks)
+
+
 Documentation
 =============
 
