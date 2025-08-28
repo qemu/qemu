@@ -8,22 +8,18 @@
 #ifndef I386_TARGET_ELF_H
 #define I386_TARGET_ELF_H
 
+#include "target_ptrace.h"
+
 #define HAVE_ELF_HWCAP          1
 #define HAVE_ELF_PLATFORM       1
 #define HAVE_ELF_CORE_DUMP      1
 
 /*
- * Note that ELF_NREG should be 19 as there should be place for
- * TRAPNO and ERR "registers" as well but linux doesn't dump those.
- *
- * See linux kernel: arch/x86/include/asm/elf.h
+ * See linux kernel: arch/x86/include/asm/elf.h, where elf_gregset_t
+ * is mapped to struct user_regs_struct via sizeof.
  */
-#define ELF_NREG                17
-
-typedef abi_ulong target_elf_greg_t;
-
 typedef struct target_elf_gregset_t {
-    target_elf_greg_t regs[ELF_NREG];
+    struct target_user_regs_struct pt;
 } target_elf_gregset_t;
 
 #endif
