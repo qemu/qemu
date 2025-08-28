@@ -201,13 +201,11 @@ const char *get_elf_platform(CPUState *cs)
 #undef END
 }
 
-#define tswapreg(ptr)   tswapal(ptr)
-
 void elf_core_copy_regs(target_elf_gregset_t *r, const CPUARMState *env)
 {
     for (int i = 0; i < 16; ++i) {
-        r->regs[i] = tswapreg(env->regs[i]);
+        r->pt.regs[i] = tswapal(env->regs[i]);
     }
-    r->regs[16] = tswapreg(cpsr_read((CPUARMState *)env));
-    r->regs[17] = tswapreg(env->regs[0]); /* XXX */
+    r->pt.cpsr = tswapal(cpsr_read((CPUARMState *)env));
+    r->pt.orig_r0 = tswapal(env->regs[0]); /* FIXME */
 }
