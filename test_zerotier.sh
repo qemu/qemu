@@ -6,6 +6,7 @@
 QEMU_X86_64="./build/qemu-system-x86_64-unsigned"
 QEMU_AARCH64="./build/qemu-system-aarch64-unsigned"
 ALPINE_ISO="/Users/syso/Downloads/alpine-extended-3.22.1-x86_64.iso"
+ALPINE_DISK="./alpine.qcow2"
 ZEROTIER_NETWORK="bb720a5aae484765"
 # Use persistent storage in home directory
 ZT_STORAGE_DIR="${HOME}/.qemu-zerotier-test"
@@ -39,6 +40,7 @@ echo ""
 echo "VM Configuration:"
 echo "- Memory: 1GB"
 echo "- CPU: 2 cores"
+echo "- Disk: ${ALPINE_DISK} (8GB)"
 echo "- eth0: NAT (internet access)"
 echo "- eth1: ZeroTier network $ZEROTIER_NETWORK"
 echo "- Boot: Alpine Linux Live ISO"
@@ -47,7 +49,8 @@ echo "Once Alpine boots, you can:"
 echo "1. Check network interfaces with 'ip addr' (eth0=NAT, eth1=ZeroTier)"
 echo "2. Configure eth0 for internet: 'udhcpc -i eth0'"
 echo "3. Configure eth1 for ZeroTier (should get IP automatically)"
-echo "4. Test connectivity with ping"
+echo "4. Install Alpine to disk: 'setup-alpine' (use /dev/vda as disk)"
+echo "5. Test connectivity with ping"
 echo ""
 echo "Press Ctrl+Alt+G to release mouse capture"
 echo "Press Ctrl+Alt+Q to quit QEMU"
@@ -62,7 +65,9 @@ echo ""
     -cpu qemu64 \
     -smp 2 \
     -m 1G \
+    -drive file="$ALPINE_DISK",format=qcow2,if=virtio \
     -cdrom "$ALPINE_ISO" \
+    -boot order=cd \
     -netdev user,id=net0 \
     -device virtio-net,netdev=net0,mac=52:54:00:12:34:56 \
     -netdev zerotier,id=zt0,network="$ZEROTIER_NETWORK",storage="$ZT_STORAGE_DIR" \

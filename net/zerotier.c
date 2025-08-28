@@ -34,6 +34,7 @@
 #include <ZeroTierOne.h>
 #include <unistd.h>
 #include <glib/gstdio.h>
+#include "qemu/main-loop.h"
 
 #define ZEROTIER_DEFAULT_PORT 9993
 #define ZEROTIER_MTU 2800
@@ -50,12 +51,13 @@ typedef struct ZeroTierState {
     uint8_t mac[6];        /* ZeroTier assigned MAC */
     int udp_sock;
     bool mac_provided;      /* MAC has been provided to peer */
+    bool initial_save_done; /* Reduce save spam */
+    IOHandler *udp_read_handler; /* Event-driven UDP handler */
 } ZeroTierState;
 
 static ZeroTierState *global_zt_state = NULL;
 static uint8_t zerotier_suggested_mac[6] = {0};  /* MAC for NIC to use */
 
-static void zerotier_poll(void *opaque);
 
 /* Convert MAC address to uint64_t */
 static uint64_t mac_to_uint64(const uint8_t *mac)
@@ -129,13 +131,27 @@ static void zerotier_virtual_network_frame(
     bool is_multicast = ((destMac >> 40) & 0x01) != 0;
     bool is_for_us = (destMac == our_mac);
     
-    /* Log only ARP to reduce noise */
-    if (etherType == 0x0806) {
-        info_report("ZeroTier: RX ARP from %02x:%02x:%02x:%02x:%02x:%02x to %02x:%02x:%02x:%02x:%02x:%02x",
-                    (unsigned int)((sourceMac >> 40) & 0xff), (unsigned int)((sourceMac >> 32) & 0xff), (unsigned int)((sourceMac >> 24) & 0xff),
-                    (unsigned int)((sourceMac >> 16) & 0xff), (unsigned int)((sourceMac >> 8) & 0xff), (unsigned int)(sourceMac & 0xff),
-                    (unsigned int)((destMac >> 40) & 0xff), (unsigned int)((destMac >> 32) & 0xff), (unsigned int)((destMac >> 24) & 0xff),
-                    (unsigned int)((destMac >> 16) & 0xff), (unsigned int)((destMac >> 8) & 0xff), (unsigned int)(destMac & 0xff));
+    /* Log ARP with more detail */
+    if (etherType == 0x0806 && len >= 14) {
+        /* Extract ARP details from payload */
+        if (len >= 28) {
+            uint16_t arp_op = (data[6] << 8) | data[7]; /* ARP operation in payload */
+            uint32_t sender_ip = (data[14] << 24) | (data[15] << 16) | (data[16] << 8) | data[17];
+            uint32_t target_ip = (data[24] << 24) | (data[25] << 16) | (data[26] << 8) | data[27];
+            
+            info_report("ZeroTier: RX ARP %s: %02x:%02x:%02x:%02x:%02x:%02x (%d.%d.%d.%d) -> %02x:%02x:%02x:%02x:%02x:%02x (%d.%d.%d.%d)",
+                        arp_op == 1 ? "REQUEST" : arp_op == 2 ? "REPLY" : "OTHER",
+                        data[8], data[9], data[10], data[11], data[12], data[13],
+                        (sender_ip >> 24) & 0xff, (sender_ip >> 16) & 0xff, (sender_ip >> 8) & 0xff, sender_ip & 0xff,
+                        data[18], data[19], data[20], data[21], data[22], data[23],
+                        (target_ip >> 24) & 0xff, (target_ip >> 16) & 0xff, (target_ip >> 8) & 0xff, target_ip & 0xff);
+        } else {
+            info_report("ZeroTier: RX ARP from %02x:%02x:%02x:%02x:%02x:%02x to %02x:%02x:%02x:%02x:%02x:%02x",
+                        (unsigned int)((sourceMac >> 40) & 0xff), (unsigned int)((sourceMac >> 32) & 0xff), (unsigned int)((sourceMac >> 24) & 0xff),
+                        (unsigned int)((sourceMac >> 16) & 0xff), (unsigned int)((sourceMac >> 8) & 0xff), (unsigned int)(sourceMac & 0xff),
+                        (unsigned int)((destMac >> 40) & 0xff), (unsigned int)((destMac >> 32) & 0xff), (unsigned int)((destMac >> 24) & 0xff),
+                        (unsigned int)((destMac >> 16) & 0xff), (unsigned int)((destMac >> 8) & 0xff), (unsigned int)(destMac & 0xff));
+        }
     }
     
     /* Only forward frames that are for us, broadcast, or multicast */
@@ -293,7 +309,10 @@ static int zerotier_state_get(ZT_Node *node, void *uptr, void *tptr, enum ZT_Sta
     read_len = fread(data, 1, maxlen, f);
     fclose(f);
     
-    info_report("ZeroTier: Loaded %s (%zu bytes)", filename, read_len);
+    /* Only log initial loads to reduce noise */
+    if (!s->initial_save_done) {
+        info_report("ZeroTier: Loaded %s (%zu bytes)", filename, read_len);
+    }
     return read_len;
 }
 
@@ -333,7 +352,13 @@ static void zerotier_state_put(ZT_Node *node, void *uptr, void *tptr, enum ZT_St
     if (f) {
         fwrite(data, 1, len, f);
         fclose(f);
-        info_report("ZeroTier: Saved %s (%d bytes)", filename, len);
+        
+        /* Only log initial saves and important files to reduce noise */
+        if (!s->initial_save_done || 
+            type == ZT_STATE_OBJECT_IDENTITY_SECRET ||
+            type == ZT_STATE_OBJECT_IDENTITY_PUBLIC) {
+            info_report("ZeroTier: Saved %s (%d bytes)", filename, len);
+        }
     } else {
         warn_report("ZeroTier: Failed to save %s", filename);
     }
@@ -359,11 +384,18 @@ static ssize_t zerotier_receive(NetClientState *nc, const uint8_t *buf, size_t s
     uint64_t sourceMac = mac_to_uint64(&buf[6]);
     uint64_t zt_sourceMac = sourceMac; /* Pass through - VM should have ZT MAC */
     
-    /* Debug outgoing ARP packets */
-    if (etherType == 0x0806) {
-        info_report("ZeroTier: TX ARP from %02x:%02x:%02x:%02x:%02x:%02x to %02x:%02x:%02x:%02x:%02x:%02x",
-                    buf[6], buf[7], buf[8], buf[9], buf[10], buf[11],
-                    buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+    /* Debug outgoing ARP packets with more detail */
+    if (etherType == 0x0806 && size >= 28) {
+        uint16_t arp_op = (buf[20] << 8) | buf[21]; /* ARP operation */
+        uint32_t sender_ip = (buf[28] << 24) | (buf[29] << 16) | (buf[30] << 8) | buf[31];
+        uint32_t target_ip = (buf[38] << 24) | (buf[39] << 16) | (buf[40] << 8) | buf[41];
+        
+        info_report("ZeroTier: TX ARP %s: %02x:%02x:%02x:%02x:%02x:%02x (%d.%d.%d.%d) -> %02x:%02x:%02x:%02x:%02x:%02x (%d.%d.%d.%d)",
+                    arp_op == 1 ? "REQUEST" : arp_op == 2 ? "REPLY" : "OTHER",
+                    buf[22], buf[23], buf[24], buf[25], buf[26], buf[27],
+                    (sender_ip >> 24) & 0xff, (sender_ip >> 16) & 0xff, (sender_ip >> 8) & 0xff, sender_ip & 0xff,
+                    buf[32], buf[33], buf[34], buf[35], buf[36], buf[37],
+                    (target_ip >> 24) & 0xff, (target_ip >> 16) & 0xff, (target_ip >> 8) & 0xff, target_ip & 0xff);
     }
     
     /* Send frame via ZeroTier with translated source MAC */
@@ -387,7 +419,8 @@ static ssize_t zerotier_receive(NetClientState *nc, const uint8_t *buf, size_t s
     return size;
 }
 
-static void zerotier_poll(void *opaque)
+/* Event-driven UDP packet handler */
+static void zerotier_udp_read(void *opaque)
 {
     ZeroTierState *s = opaque;
     int64_t now = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
@@ -396,24 +429,35 @@ static void zerotier_poll(void *opaque)
     struct sockaddr_storage from_addr;
     socklen_t from_len;
     ssize_t received;
+    int packets_processed = 0;
     
-    /* Check for incoming UDP packets */
-    if (s->udp_sock >= 0) {
+    /* Process all available packets when socket becomes readable */
+    while (packets_processed < 16) { /* Process burst of packets */
         from_len = sizeof(from_addr);
-        received = recvfrom(s->udp_sock, buffer, sizeof(buffer), MSG_DONTWAIT, 
+        received = recvfrom(s->udp_sock, buffer, sizeof(buffer), MSG_DONTWAIT,
                            (struct sockaddr*)&from_addr, &from_len);
         if (received > 0) {
-            /* Process incoming ZeroTier protocol packet */
-            ZT_Node_processWirePacket(s->zt_node, NULL, now, -1, &from_addr, 
+            ZT_Node_processWirePacket(s->zt_node, NULL, now, -1, &from_addr,
                                     buffer, received, &nextDeadline);
+            packets_processed++;
+        } else {
+            break; /* No more packets available */
         }
     }
+}
+
+/* Background task timer (less frequent) */
+static void zerotier_background_tasks(void *opaque)
+{
+    ZeroTierState *s = opaque;
+    int64_t now = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    volatile int64_t nextDeadline = 0;
     
     /* Perform ZeroTier background tasks */
     ZT_Node_processBackgroundTasks(s->zt_node, NULL, now, &nextDeadline);
     
-    /* Reschedule */
-    timer_mod(s->timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 50);
+    /* Reschedule background tasks every 100ms */
+    timer_mod(s->timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 100);
 }
 
 static void zerotier_cleanup(NetClientState *nc)
@@ -427,6 +471,7 @@ static void zerotier_cleanup(NetClientState *nc)
     }
     
     if (s->udp_sock >= 0) {
+        qemu_set_fd_handler(s->udp_sock, NULL, NULL, NULL);
         close(s->udp_sock);
         s->udp_sock = -1;
     }
@@ -512,6 +557,7 @@ static int net_zerotier_init(NetClientState *peer, const char *model,
     s->zt_node = NULL;
     s->udp_sock = -1;
     s->mac_provided = false;
+    s->initial_save_done = false;
     
     global_zt_state = s;
     
@@ -550,21 +596,27 @@ static int net_zerotier_init(NetClientState *peer, const char *model,
     /* Wait for network to come up and MAC to be assigned */
     info_report("ZeroTier: Waiting for network configuration...");
     int wait_cycles = 0;
-    while (!s->network_ready && wait_cycles < 100) { /* 10 second timeout */
+    while (!s->network_ready && wait_cycles < 50) { /* 5 second timeout - faster */
         int64_t now = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
         volatile int64_t nextDeadline = 0;
+        
+        /* Process background tasks */
         ZT_Node_processBackgroundTasks(s->zt_node, NULL, now, &nextDeadline);
         
-        /* Process any incoming packets */
+        /* Process incoming packets - reasonable batch size */
         if (s->udp_sock >= 0) {
-            struct sockaddr_storage from_addr;
-            socklen_t from_len = sizeof(from_addr);
-            uint8_t buffer[2048];
-            ssize_t received = recvfrom(s->udp_sock, buffer, sizeof(buffer), MSG_DONTWAIT,
-                                       (struct sockaddr*)&from_addr, &from_len);
-            if (received > 0) {
-                ZT_Node_processWirePacket(s->zt_node, NULL, now, -1, &from_addr,
-                                         buffer, received, &nextDeadline);
+            for (int i = 0; i < 5; i++) {
+                struct sockaddr_storage from_addr;
+                socklen_t from_len = sizeof(from_addr);
+                uint8_t buffer[2048];
+                ssize_t received = recvfrom(s->udp_sock, buffer, sizeof(buffer), MSG_DONTWAIT,
+                                           (struct sockaddr*)&from_addr, &from_len);
+                if (received > 0) {
+                    ZT_Node_processWirePacket(s->zt_node, NULL, now, -1, &from_addr,
+                                             buffer, received, &nextDeadline);
+                } else {
+                    break; /* No more packets */
+                }
             }
         }
         
@@ -575,8 +627,15 @@ static int net_zerotier_init(NetClientState *peer, const char *model,
     }
     
     if (!s->network_ready) {
-        error_setg(errp, "Timeout waiting for ZeroTier network configuration");
-        goto error;
+        warn_report("ZeroTier: Network not ready after 5 seconds - continuing anyway");
+        /* Don't fail - ZeroTier might come up later */
+        /* Generate a temporary MAC based on network ID */
+        s->mac[0] = 0x02; /* Locally administered */
+        s->mac[1] = 0x00;
+        s->mac[2] = 0x00;
+        s->mac[3] = (network_id >> 16) & 0xff;
+        s->mac[4] = (network_id >> 8) & 0xff;
+        s->mac[5] = network_id & 0xff;
     }
     
     /* MAC address has been set by ZeroTier network config callback */
@@ -586,6 +645,9 @@ static int net_zerotier_init(NetClientState *peer, const char *model,
     memcpy(zerotier_suggested_mac, s->mac, 6);
     info_report("ZeroTier: Ready with MAC %02x:%02x:%02x:%02x:%02x:%02x (NIC should use this)",
                 s->mac[0], s->mac[1], s->mac[2], s->mac[3], s->mac[4], s->mac[5]);
+    
+    /* Mark initial save phase as done to reduce logging noise */
+    s->initial_save_done = true;
     
     s->connected = true;
     
@@ -620,8 +682,13 @@ static int net_zerotier_init(NetClientState *peer, const char *model,
         }
     }
     
-    /* Set up polling timer */
-    s->timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, zerotier_poll, s);
+    /* Set up event-driven UDP handling */
+    if (s->udp_sock >= 0) {
+        qemu_set_fd_handler(s->udp_sock, zerotier_udp_read, NULL, s);
+    }
+    
+    /* Set up background task timer (less frequent) */
+    s->timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, zerotier_background_tasks, s);
     timer_mod(s->timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 100);
     
     info_report("ZeroTier: Initialized for network %016llx", 

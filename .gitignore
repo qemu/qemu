@@ -23,3 +23,9 @@ GTAGS
 TODO.md
 STRUCTURE.md
 CLAUDE.md
+
+# ZeroTier test files
+test_zerotier.sh
+*.qcow2
+*.img
+*.iso
