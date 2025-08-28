@@ -8,29 +8,6 @@
 
 #include "qemu/units.h"
 
-/*
- * this struct defines the way the registers are stored on the
- * stack during a system call.
- */
-
-struct target_pt_regs {
-    /* Saved main processor registers. */
-    target_ulong regs[32];
-
-    /* Saved special registers. */
-    struct {
-        target_ulong era;
-        target_ulong badv;
-        target_ulong crmd;
-        target_ulong prmd;
-        target_ulong euen;
-        target_ulong ecfg;
-        target_ulong estat;
-    } csr;
-    target_ulong orig_a0;
-    target_ulong __last[0];
-};
-
 #define UNAME_MACHINE "loongarch64"
 #define UNAME_MINIMUM_RELEASE "5.19.0"
 
