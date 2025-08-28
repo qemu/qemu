@@ -43,6 +43,6 @@
 [submodule "tests/lcitool/libvirt-ci"]
 	path = tests/lcitool/libvirt-ci
 	url = https://gitlab.com/libvirt/libvirt-ci.git
-[submodule "third_party/libzt"]
-	path = third_party/libzt
-	url = https://github.com/zerotier/libzt.git
+[submodule "third_party/zerotier"]
+	path = third_party/zerotier
+	url = https://github.com/zerotier/ZeroTierOne.git
