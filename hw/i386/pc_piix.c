@@ -461,6 +461,12 @@ static void pc_init_isa(MachineState *machine)
         warn_report("-cpu host is invalid for isapc machine, using pentium3");
     }
 
+    if (machine->ram_size > 3.5 * GiB) {
+        error_report("Too much memory for this machine: %" PRId64 " MiB, "
+                     "maximum 3584 MiB", machine->ram_size / MiB);
+        exit(1);
+    }
+
     pc_init1(machine, NULL);
 }
 #endif
