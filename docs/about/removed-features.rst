@@ -560,6 +560,18 @@ the options along with the machine models they were intended for.
 
 Use ``-run-with user=..`` instead.
 
+``-old-param`` option for booting Arm kernels via param_struct (removed in 10.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``-old-param`` command line option was specific to Arm targets:
+it was used when directly booting a guest kernel to pass it the
+command line and other information via the old ``param_struct`` ABI,
+rather than the newer ATAGS or DTB mechanisms. This option was only
+ever needed to support ancient kernels on some old board types
+like the ``akita`` or ``terrier``; it has been deprecated in the
+kernel since 2001. None of the board types QEMU supports need
+``param_struct`` support, so this option has been removed.
+
 
 User-mode emulator command line arguments
 -----------------------------------------

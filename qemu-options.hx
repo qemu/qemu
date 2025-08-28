@@ -5347,13 +5347,6 @@ SRST
         specified, the former is passed to semihosting as it always
         takes precedence.
 ERST
-DEF("old-param", 0, QEMU_OPTION_old_param,
-    "-old-param      old param mode\n", QEMU_ARCH_ARM)
-SRST
-``-old-param``
-    Old param mode (ARM only).
-ERST
-
 DEF("sandbox", HAS_ARG, QEMU_OPTION_sandbox, \
     "-sandbox on[,obsolete=allow|deny][,elevateprivileges=allow|deny|children]\n" \
     "          [,spawn=allow|deny][,resourcecontrol=allow|deny]\n" \
