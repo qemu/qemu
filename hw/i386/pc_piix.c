@@ -471,14 +471,6 @@ static void pc_init_isa(MachineState *machine)
 #endif
 
 #ifdef CONFIG_XEN
-static void pc_xen_hvm_init_pci(MachineState *machine)
-{
-    const char *pci_type = xen_igd_gfx_pt_enabled() ?
-                TYPE_IGD_PASSTHROUGH_I440FX_PCI_DEVICE : TYPE_I440FX_PCI_DEVICE;
-
-    pc_init1(machine, pci_type);
-}
-
 static void pc_xen_hvm_init(MachineState *machine)
 {
     PCMachineState *pcms = PC_MACHINE(machine);
@@ -488,7 +480,10 @@ static void pc_xen_hvm_init(MachineState *machine)
         exit(1);
     }
 
-    pc_xen_hvm_init_pci(machine);
+    pc_init1(machine, xen_igd_gfx_pt_enabled()
+                      ? TYPE_IGD_PASSTHROUGH_I440FX_PCI_DEVICE
+                      : TYPE_I440FX_PCI_DEVICE);
+
     xen_igd_reserve_slot(pcms->pcibus);
     pci_create_simple(pcms->pcibus, -1, "xen-platform");
 }
