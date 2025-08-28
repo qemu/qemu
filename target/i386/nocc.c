@@ -230,7 +230,7 @@ static int no_cc_get_mem_map_entry(int index,
 }
 
 static void
-no_cc_class_init(ObjectClass *oc, void *data)
+no_cc_class_init(ObjectClass *oc, const void *data)
 {
     ConfidentialGuestSupportClass *cgsc =
         CONFIDENTIAL_GUEST_SUPPORT_CLASS(oc);
