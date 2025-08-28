@@ -1138,6 +1138,20 @@ reason the maintainers strongly suspected no one actually used it.
 QEMU Nios II architecture was orphan; Intel has EOL'ed the Nios II
 processor IP (see `Intel discontinuance notification`_).
 
+iwMMXt emulation and the ``pxa`` CPUs (removed in 10.2)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``pxa`` CPU family (``pxa250``, ``pxa255``, ``pxa260``,
+``pxa261``, ``pxa262``, ``pxa270-a0``, ``pxa270-a1``, ``pxa270``,
+``pxa270-b0``, ``pxa270-b1``, ``pxa270-c0``, ``pxa270-c5``) were
+not available in system emulation, because all the machine types which
+used these CPUs were removed in the QEMU 9.2 release. We don't
+believe that anybody was using the iwMMXt emulation (which you
+would have to explicitly enable on the command line), and we did
+not have any tests to validate it or any real hardware or similar
+known-good implementation to test against. These CPUs have
+therefore been removed in linux-user mode as well.
+
 TCG introspection features
 --------------------------
 
