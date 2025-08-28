@@ -20,3 +20,6 @@ GTAGS
 *.swp
 *.patch
 *.gcov
+TODO.md
+STRUCTURE.md
+CLAUDE.md

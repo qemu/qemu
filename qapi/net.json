@@ -480,6 +480,25 @@
     '*mode':  'uint16' } }
 
 ##
+# @NetdevZeroTierOptions:
+#
+# Connect to a ZeroTier network using userland networking.
+#
+# @network: ZeroTier network ID (16 hex characters)
+#
+# @port: Local ZeroTier service port (default: 9994)
+#
+# @storage: Storage path for ZeroTier identity and network data
+#
+# Since: 10.2
+##
+{ 'struct': 'NetdevZeroTierOptions',
+  'data': {
+    'network': 'str',
+    '*port':   'uint16',
+    '*storage': 'str' } }
+
+##
 # @NetdevBridgeOptions:
 #
 # Connect a host TAP network interface to a host bridge device.
@@ -861,6 +880,7 @@
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'stream',
             'dgram', 'vde', 'bridge', 'hubport', 'netmap', 'vhost-user',
             'vhost-vdpa',
+            { 'name': 'zerotier', 'if': 'CONFIG_ZEROTIER' },
             { 'name': 'passt', 'if': 'CONFIG_PASST' },
             { 'name': 'af-xdp', 'if': 'CONFIG_AF_XDP' },
             { 'name': 'vmnet-host', 'if': 'CONFIG_VMNET' },
@@ -892,6 +912,8 @@
     'stream':   'NetdevStreamOptions',
     'dgram':    'NetdevDgramOptions',
     'vde':      'NetdevVdeOptions',
+    'zerotier': { 'type': 'NetdevZeroTierOptions',
+                  'if': 'CONFIG_ZEROTIER' },
     'bridge':   'NetdevBridgeOptions',
     'hubport':  'NetdevHubPortOptions',
     'netmap':   'NetdevNetmapOptions',

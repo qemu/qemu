@@ -1311,6 +1311,31 @@ if vde.found() and not cc.links('''
   endif
 endif
 
+zerotier = not_found
+if not get_option('zerotier').auto() or have_system
+  libzt_path = meson.current_source_dir() / 'third_party' / 'libzt'
+  libzt_cache = libzt_path / 'cache' / 'macos-arm64-host-release' / 'lib'
+  if fs.exists(libzt_path / 'include' / 'ZeroTierSockets.h')
+    zerotier_inc = include_directories('third_party/libzt/include')
+    zerotier = declare_dependency(
+      include_directories: zerotier_inc,
+      link_args: [
+        libzt_cache / 'libztcore.a',
+        libzt_cache / 'liblwip_pic.a',
+        libzt_cache / 'libminiupnpc_pic.a',
+        libzt_cache / 'libnatpmp_pic.a',
+        '-framework', 'Security',
+        '-framework', 'Foundation'
+      ],
+      dependencies: []
+    )
+  else
+    if get_option('zerotier').enabled()
+      error('libzt not found in third_party/libzt')
+    endif
+  endif
+endif
+
 pulse = not_found
 if not get_option('pa').auto() or (host_os == 'linux' and have_system)
   pulse = dependency('libpulse', required: get_option('pa'),
@@ -2569,6 +2594,7 @@ config_host_data.set('CONFIG_TPM', have_tpm)
 config_host_data.set('CONFIG_TSAN', get_option('tsan'))
 config_host_data.set('CONFIG_USB_LIBUSB', libusb.found())
 config_host_data.set('CONFIG_VDE', vde.found())
+config_host_data.set('CONFIG_ZEROTIER', zerotier.found())
 config_host_data.set('CONFIG_VHOST', have_vhost)
 config_host_data.set('CONFIG_VHOST_NET', have_vhost_net)
 config_host_data.set('CONFIG_VHOST_NET_USER', have_vhost_net_user)
@@ -4956,6 +4982,7 @@ summary_info += {'AF_XDP support':    libxdp}
 summary_info += {'passt support':     enable_passt}
 summary_info += {'slirp support':     slirp}
 summary_info += {'vde support':       vde}
+summary_info += {'zerotier support':  zerotier}
 summary_info += {'netmap support':    have_netmap}
 summary_info += {'l2tpv3 support':    have_l2tpv3}
 summary(summary_info, bool_yn: true, section: 'Network backends')

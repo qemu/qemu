@@ -240,6 +240,8 @@ option('passt', type: 'feature', value: 'auto',
        description: 'passt network backend support')
 option('vde', type : 'feature', value : 'auto',
        description: 'vde network backend support')
+option('zerotier', type : 'feature', value : 'auto',
+       description: 'ZeroTier network backend support')
 option('vmnet', type : 'feature', value : 'auto',
        description: 'vmnet.framework network backend support')
 option('virglrenderer', type : 'feature', value : 'auto',

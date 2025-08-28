@@ -63,6 +63,11 @@ int net_init_vde(const Netdev *netdev, const char *name,
                  NetClientState *peer, Error **errp);
 #endif
 
+#ifdef CONFIG_ZEROTIER
+int net_init_zerotier(const Netdev *netdev, const char *name,
+                      NetClientState *peer, Error **errp);
+#endif
+
 #ifdef CONFIG_NETMAP
 int net_init_netmap(const Netdev *netdev, const char *name,
                     NetClientState *peer, Error **errp);
