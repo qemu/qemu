@@ -131,23 +131,16 @@ abi_ulong get_elf_hwcap2(CPUState *cs)
     return features;
 }
 
-#define tswapreg(ptr)   tswapal(ptr)
-
 void elf_core_copy_regs(target_elf_gregset_t *r, const CPUPPCState *env)
 {
-    int i;
-    target_ulong ccr = 0;
-
-    for (i = 0; i < ARRAY_SIZE(env->gpr); i++) {
-        r->regs[i] = tswapreg(env->gpr[i]);
+    for (int i = 0; i < ARRAY_SIZE(env->gpr); i++) {
+        r->pt.gpr[i] = tswapal(env->gpr[i]);
     }
 
-    r->regs[32] = tswapreg(env->nip);
-    r->regs[33] = tswapreg(env->msr);
-    r->regs[35] = tswapreg(env->ctr);
-    r->regs[36] = tswapreg(env->lr);
-    r->regs[37] = tswapreg(cpu_read_xer(env));
-
-    ccr = ppc_get_cr(env);
-    r->regs[38] = tswapreg(ccr);
+    r->pt.nip = tswapal(env->nip);
+    r->pt.msr = tswapal(env->msr);
+    r->pt.ctr = tswapal(env->ctr);
+    r->pt.link = tswapal(env->lr);
+    r->pt.xer = tswapal(cpu_read_xer(env));
+    r->pt.ccr = tswapal(ppc_get_cr(env));
 }
