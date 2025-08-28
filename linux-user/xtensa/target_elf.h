@@ -8,14 +8,16 @@
 #ifndef XTENSA_TARGET_ELF_H
 #define XTENSA_TARGET_ELF_H
 
+#include "target_ptrace.h"
+
 #define HAVE_ELF_CORE_DUMP      1
 
-typedef abi_ulong target_elf_greg_t;
-
-/* See linux kernel: arch/xtensa/include/asm/elf.h.  */
-#define ELF_NREG                128
+/*
+ * See linux kernel: arch/xtensa/include/asm/elf.h, where elf_gregset_t
+ * is mapped to struct user_pt_regs via typedef and sizeof.
+ */
 typedef struct target_elf_gregset_t {
-    target_elf_greg_t regs[ELF_NREG];
+    struct target_user_pt_regs pt;
 } target_elf_gregset_t;
 
 #endif
