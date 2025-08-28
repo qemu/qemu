@@ -3,6 +3,34 @@
 # QEMU ZeroTier Debian Package Build Script
 set -e
 
+# Parse command line arguments
+INSTALL_DEPS=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --install-deps)
+            INSTALL_DEPS=true
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: $0 [--install-deps]"
+            echo ""
+            echo "Options:"
+            echo "  --install-deps  Install build dependencies via apt-get"
+            echo "  -h, --help      Show this help message"
+            echo ""
+            echo "Note: Dependencies are not installed by default."
+            echo "Run with --install-deps if you need to install them."
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use -h or --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 echo "Building QEMU ZeroTier Debian Package"
 echo "===================================="
 
@@ -17,8 +45,8 @@ if [ "$CURRENT_BRANCH" != "zerotier-network-backend" ]; then
     fi
 fi
 
-# Install build dependencies (if on Debian/Ubuntu)
-if command -v apt-get &> /dev/null; then
+# Install build dependencies (only if requested)
+if [ "$INSTALL_DEPS" = true ] && command -v apt-get &> /dev/null; then
     echo "Installing build dependencies..."
     sudo apt-get update
     sudo apt-get install -y \
@@ -60,6 +88,8 @@ if command -v apt-get &> /dev/null; then
         zlib1g-dev \
         libgtk-3-dev \
         libvte-2.91-dev
+elif [ "$INSTALL_DEPS" = false ]; then
+    echo "Skipping dependency installation (use --install-deps to install)"
 fi
 
 # Ensure ZeroTier static library exists
@@ -69,30 +99,107 @@ if [ ! -f "third_party/zerotier/libzerotier.a" ]; then
     mkdir -p third_party
     cd third_party
     
-    if [ ! -d "zerotier-src" ]; then
-        git clone https://github.com/zerotier/ZeroTierOne.git zerotier-src
-    fi
+    # Clean up any failed previous attempts
+    rm -rf zerotier-src zerotier
     
+    echo "Cloning ZeroTier source..."
+    git clone https://github.com/zerotier/ZeroTierOne.git zerotier-src
     cd zerotier-src
-    make clean || true
+    
+    echo "Building ZeroTier..."
+    make clean 2>/dev/null || true
     make -j$(nproc) one
     
-    mkdir -p ../zerotier/include ../zerotier/node ../zerotier/osdep
+    if [ ! -f "one" ]; then
+        echo "Error: ZeroTier 'one' binary not built successfully"
+        exit 1
+    fi
     
-    # Copy headers
-    cp -r include/* ../zerotier/include/
-    cp node/ZeroTierOne.h ../zerotier/include/
+    # Create target directories
+    mkdir -p ../zerotier/{include,node,osdep}
     
-    # Create static library
-    ar rcs ../zerotier/libzerotier.a \
-        node/*.o \
-        controller/*.o \
-        service/*.o \
-        ext/miniupnpc/*.o \
-        osdep/*.o
+    # Copy headers - check for different possible locations
+    if [ -d "include" ]; then
+        echo "Copying headers from include/..."
+        cp -r include/* ../zerotier/include/ 2>/dev/null || true
+    fi
+    
+    # Copy main header file - try different locations
+    if [ -f "node/ZeroTierOne.h" ]; then
+        echo "Found ZeroTierOne.h in node/"
+        cp node/ZeroTierOne.h ../zerotier/include/
+    elif [ -f "include/ZeroTierOne.h" ]; then
+        echo "Found ZeroTierOne.h in include/"
+        cp include/ZeroTierOne.h ../zerotier/include/
+    else
+        echo "Error: Cannot find ZeroTierOne.h header file"
+        echo "Available files in node/:"
+        ls -la node/ | head -10
+        echo "Available files in include/:"
+        ls -la include/ 2>/dev/null | head -10 || echo "No include directory"
+        exit 1
+    fi
+    
+    # Create static library from object files
+    echo "Creating static library..."
+    OBJECT_FILES=""
+    
+    # Collect object files from different directories
+    for dir in node controller service osdep; do
+        if [ -d "$dir" ]; then
+            OBJ_FILES=$(find "$dir" -name "*.o" 2>/dev/null || true)
+            if [ -n "$OBJ_FILES" ]; then
+                OBJECT_FILES="$OBJECT_FILES $OBJ_FILES"
+                echo "Found $(echo $OBJ_FILES | wc -w) object files in $dir/"
+            fi
+        fi
+    done
+    
+    # Add external library objects
+    for extdir in ext/miniupnpc ext/libnatpmp ext/http-parser; do
+        if [ -d "$extdir" ]; then
+            EXT_OBJ_FILES=$(find "$extdir" -name "*.o" 2>/dev/null || true)
+            if [ -n "$EXT_OBJ_FILES" ]; then
+                OBJECT_FILES="$OBJECT_FILES $EXT_OBJ_FILES"
+                echo "Found $(echo $EXT_OBJ_FILES | wc -w) object files in $extdir/"
+            fi
+        fi
+    done
+    
+    # Add any rustybits static library if it exists
+    if [ -f "rustybits/target/release/libzeroidc.a" ]; then
+        echo "Found rustybits library, extracting objects..."
+        mkdir -p ../zerotier/rust-objs
+        cd ../zerotier/rust-objs
+        ar x ../../zerotier-src/rustybits/target/release/libzeroidc.a
+        RUST_OBJS=$(find . -name "*.o" 2>/dev/null || true)
+        if [ -n "$RUST_OBJS" ]; then
+            OBJECT_FILES="$OBJECT_FILES $RUST_OBJS"
+        fi
+        cd ../../zerotier-src
+    fi
+    
+    if [ -z "$OBJECT_FILES" ]; then
+        echo "Error: No object files found for static library creation"
+        echo "Build may have failed. Checking for 'one' binary..."
+        ls -la one 2>/dev/null || echo "No 'one' binary found"
+        exit 1
+    fi
+    
+    echo "Creating static library with $(echo $OBJECT_FILES | wc -w) object files..."
+    ar rcs ../zerotier/libzerotier.a $OBJECT_FILES
+    
+    if [ ! -f "../zerotier/libzerotier.a" ]; then
+        echo "Error: Failed to create static library"
+        exit 1
+    fi
+    
+    LIBSIZE=$(stat -f%z "../zerotier/libzerotier.a" 2>/dev/null || stat -c%s "../zerotier/libzerotier.a" 2>/dev/null || echo "unknown")
+    echo "ZeroTier static library created successfully (size: ${LIBSIZE} bytes)"
     
     cd ../..
-    echo "ZeroTier static library built successfully"
+else
+    echo "ZeroTier static library already exists"
 fi
 
 # Clean previous builds

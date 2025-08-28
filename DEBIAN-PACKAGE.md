@@ -5,13 +5,18 @@ This document explains how to build and install the QEMU ZeroTier network backen
 ## Quick Start
 
 ```bash
-# Build the package
+# Build the package (dependencies NOT installed automatically)
 ./build-deb.sh
+
+# Or install dependencies first, then build
+./build-deb.sh --install-deps
 
 # Install the package
 sudo dpkg -i ../qemu-system-zerotier_*.deb
 sudo apt-get install -f  # Fix dependencies if needed
 ```
+
+**Note:** Build dependencies are NOT installed automatically. Use `--install-deps` flag if needed.
 
 ## Package Contents
 

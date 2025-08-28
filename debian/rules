@@ -16,12 +16,19 @@ override_dh_auto_configure:
 	# Build ZeroTier static library first
 	if [ ! -f $(ZEROTIER_LIB) ]; then \
 		echo "Building ZeroTier static library..."; \
+		mkdir -p third_party && \
 		cd third_party && \
+		rm -rf zerotier-src zerotier && \
 		git clone https://github.com/zerotier/ZeroTierOne.git zerotier-src && \
 		cd zerotier-src && \
+		make clean || true && \
 		make -j$(shell nproc) one && \
-		mkdir -p ../zerotier && \
-		ar rcs ../zerotier/libzerotier.a node/*.o controller/*.o service/*.o ext/miniupnpc/*.o osdep/*.o; \
+		mkdir -p ../zerotier/include && \
+		if [ -f node/ZeroTierOne.h ]; then cp node/ZeroTierOne.h ../zerotier/include/; \
+		elif [ -f include/ZeroTierOne.h ]; then cp include/ZeroTierOne.h ../zerotier/include/; \
+		else echo "Error: Cannot find ZeroTierOne.h"; exit 1; fi && \
+		if [ -d include ]; then cp -r include/* ../zerotier/include/ 2>/dev/null || true; fi && \
+		find node controller service osdep ext/miniupnpc ext/libnatpmp ext/http-parser -name "*.o" 2>/dev/null | xargs ar rcs ../zerotier/libzerotier.a; \
 	fi
 	
 	# Configure QEMU with ZeroTier support
@@ -64,4 +71,5 @@ override_dh_strip:
 
 override_dh_auto_clean:
 	rm -rf build
+	rm -rf third_party/zerotier-src third_party/zerotier
 	dh_auto_clean
