@@ -18,11 +18,6 @@
 #ifndef HEXAGON_TARGET_SYSCALL_H
 #define HEXAGON_TARGET_SYSCALL_H
 
-struct target_pt_regs {
-    abi_long sepc;
-    abi_long sp;
-};
-
 #define UNAME_MACHINE "hexagon"
 #define UNAME_MINIMUM_RELEASE "4.15.0"
 
