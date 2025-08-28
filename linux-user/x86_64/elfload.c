@@ -44,8 +44,8 @@ void elf_core_copy_regs(target_elf_gregset_t *r, const CPUX86State *env)
     r->pt.flags = tswapal(env->eflags);
     r->pt.sp = tswapal(env->regs[R_ESP]);
     r->pt.ss = tswapal(env->segs[R_SS].selector & 0xffff);
-    r->pt.fs_base = tswapal(env->segs[R_FS].selector & 0xffff);
-    r->pt.gs_base = tswapal(env->segs[R_GS].selector & 0xffff);
+    r->pt.fs_base = tswapal(env->segs[R_FS].base);
+    r->pt.gs_base = tswapal(env->segs[R_GS].base);
     r->pt.ds = tswapal(env->segs[R_DS].selector & 0xffff);
     r->pt.es = tswapal(env->segs[R_ES].selector & 0xffff);
     r->pt.fs = tswapal(env->segs[R_FS].selector & 0xffff);
