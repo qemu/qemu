@@ -697,14 +697,6 @@ typedef struct CPUArchState {
      */
     uint64_t exclusive_high;
 
-    /* iwMMXt coprocessor state.  */
-    struct {
-        uint64_t regs[16];
-        uint64_t val;
-
-        uint32_t cregs[16];
-    } iwmmxt;
-
     struct {
         ARMPACKey apia;
         ARMPACKey apib;
@@ -1863,16 +1855,6 @@ enum arm_cpu_mode {
 /* QEMU-internal value meaning "FPSCR, but we care only about NZCV" */
 #define QEMU_VFP_FPSCR_NZCV 0xffff
 
-/* iwMMXt coprocessor control registers.  */
-#define ARM_IWMMXT_wCID  0
-#define ARM_IWMMXT_wCon  1
-#define ARM_IWMMXT_wCSSF 2
-#define ARM_IWMMXT_wCASF 3
-#define ARM_IWMMXT_wCGR0 8
-#define ARM_IWMMXT_wCGR1 9
-#define ARM_IWMMXT_wCGR2 10
-#define ARM_IWMMXT_wCGR3 11
-
 /* V7M CCR bits */
 FIELD(V7M_CCR, NONBASETHRDENA, 0, 1)
 FIELD(V7M_CCR, USERSETMPEND, 1, 1)
@@ -2442,7 +2424,6 @@ QEMU_BUILD_BUG_ON(ARRAY_SIZE(((ARMCPU *)0)->ccsidr) <= R_V7M_CSSELR_INDEX_MASK);
  */
 enum arm_features {
     ARM_FEATURE_AUXCR,  /* ARM1026 Auxiliary control register.  */
-    ARM_FEATURE_IWMMXT, /* Intel iwMMXt extension.  */
     ARM_FEATURE_V6,
     ARM_FEATURE_V6K,
     ARM_FEATURE_V7,

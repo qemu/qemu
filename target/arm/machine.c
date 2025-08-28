@@ -221,26 +221,6 @@ static const VMStateDescription vmstate_vfp = {
     }
 };
 
-static bool iwmmxt_needed(void *opaque)
-{
-    ARMCPU *cpu = opaque;
-    CPUARMState *env = &cpu->env;
-
-    return arm_feature(env, ARM_FEATURE_IWMMXT);
-}
-
-static const VMStateDescription vmstate_iwmmxt = {
-    .name = "cpu/iwmmxt",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .needed = iwmmxt_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64_ARRAY(env.iwmmxt.regs, ARMCPU, 16),
-        VMSTATE_UINT32_ARRAY(env.iwmmxt.cregs, ARMCPU, 16),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
 /* The expression ARM_MAX_VQ - 2 is 0 for pure AArch32 build,
  * and ARMPredicateReg is actively empty.  This triggers errors
  * in the expansion of the VMSTATE macros.
@@ -1102,7 +1082,6 @@ const VMStateDescription vmstate_arm_cpu = {
     },
     .subsections = (const VMStateDescription * const []) {
         &vmstate_vfp,
-        &vmstate_iwmmxt,
         &vmstate_m,
         &vmstate_thumb2ee,
         /* pmsav7_rnr must come before pmsav7 so that we have the
