@@ -110,8 +110,15 @@ if [ ! -f "third_party/zerotier/libzerotier.a" ]; then
     make clean 2>/dev/null || true
     make -j$(nproc) one
     
-    if [ ! -f "one" ]; then
-        echo "Error: ZeroTier 'one' binary not built successfully"
+    # Check for either 'one' or 'zerotier-one' binary
+    if [ -f "zerotier-one" ]; then
+        echo "ZeroTier binary 'zerotier-one' built successfully"
+    elif [ -f "one" ]; then
+        echo "ZeroTier binary 'one' built successfully"
+    else
+        echo "Error: ZeroTier binary not built successfully"
+        echo "Expected 'one' or 'zerotier-one' but found:"
+        ls -la | grep -E "(one|zerotier)" || echo "No matching binaries found"
         exit 1
     fi
     
@@ -181,8 +188,8 @@ if [ ! -f "third_party/zerotier/libzerotier.a" ]; then
     
     if [ -z "$OBJECT_FILES" ]; then
         echo "Error: No object files found for static library creation"
-        echo "Build may have failed. Checking for 'one' binary..."
-        ls -la one 2>/dev/null || echo "No 'one' binary found"
+        echo "Build may have failed. Checking for ZeroTier binaries..."
+        ls -la | grep -E "(one|zerotier)" || echo "No ZeroTier binaries found"
         exit 1
     fi
     

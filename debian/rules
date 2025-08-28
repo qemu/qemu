@@ -23,6 +23,7 @@ override_dh_auto_configure:
 		cd zerotier-src && \
 		make clean || true && \
 		make -j$(shell nproc) one && \
+		test -f zerotier-one -o -f one && \
 		mkdir -p ../zerotier/include && \
 		if [ -f node/ZeroTierOne.h ]; then cp node/ZeroTierOne.h ../zerotier/include/; \
 		elif [ -f include/ZeroTierOne.h ]; then cp include/ZeroTierOne.h ../zerotier/include/; \
