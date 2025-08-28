@@ -1107,6 +1107,11 @@ were added for little endian CPUs. Big endian support was never tested
 and likely never worked. Starting with QEMU v10.1, the machines are now
 only available as little-endian machines.
 
+Mips ``mipssim`` machine (removed in 10.2)
+''''''''''''''''''''''''''''''''''''''''''
+
+Linux dropped support for this virtual machine type in kernel v3.7, and
+there was also no binary available online to use with that board.
 
 linux-user mode CPUs
 --------------------

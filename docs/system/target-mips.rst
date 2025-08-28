@@ -12,8 +12,6 @@ machine types are emulated:
 
 -  An ACER Pica \"pica61\". This machine needs the 64-bit emulator.
 
--  MIPS emulator pseudo board \"mipssim\"
-
 -  A MIPS Magnum R4000 machine \"magnum\". This machine needs the
    64-bit emulator.
 
@@ -79,15 +77,6 @@ The Loongson-3 virtual platform emulation supports:
 -  GPEX and virtio as peripheral devices
 
 -  Both KVM and TCG supported
-
-The mipssim pseudo board emulation provides an environment similar to
-what the proprietary MIPS emulator uses for running Linux. It supports:
-
--  A range of MIPS CPUs, default is the 24Kf
-
--  PC style serial port
-
--  MIPSnet network emulation
 
 .. include:: cpu-models-mips.rst.inc
 

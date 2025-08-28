@@ -13,13 +13,6 @@ config MALTA
     select SERIAL_MM
     select SMBUS_EEPROM
 
-config MIPSSIM
-    bool
-    default y
-    depends on MIPS
-    select SERIAL_MM
-    select MIPSNET
-
 config JAZZ
     bool
     default y

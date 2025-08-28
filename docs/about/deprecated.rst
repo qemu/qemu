@@ -313,18 +313,6 @@ and serves as the initial engineering sample rather than a production version.
 A newer revision, A1, is now supported, and the ``ast2700a1-evb`` should
 replace the older A0 version.
 
-Mips ``mipssim`` machine (since 10.0)
-'''''''''''''''''''''''''''''''''''''
-
-Linux dropped support for this virtual machine type in kernel v3.7, and
-there does not seem to be anybody around who is still using this board
-in QEMU: Most former MIPS-related people are working on other architectures
-in their everyday job nowadays, and we are also not aware of anybody still
-using old binaries with this board (i.e. there is also no binary available
-online to check that this board did not completely bitrot yet). It is
-recommended to use another MIPS machine for future MIPS code development
-instead.
-
 RISC-V default machine option (since 10.0)
 ''''''''''''''''''''''''''''''''''''''''''
 
