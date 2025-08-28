@@ -21,6 +21,7 @@
 #include "user-internals.h"
 #include "signal-common.h"
 #include "linux-user/trace.h"
+#include "target_ptrace.h"
 
 struct target_sigcontext {
     struct target_pt_regs regs;  /* needs to be first */
