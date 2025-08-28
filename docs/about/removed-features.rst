@@ -571,6 +571,14 @@ The ``-singlestep`` option has been given a name that better reflects
 what it actually does. For both linux-user and bsd-user, use the
 ``-one-insn-per-tb`` option instead.
 
+``-p`` (removed in 10.2)
+''''''''''''''''''''''''
+
+The ``-p`` option pretends to control the host page size.  However,
+it is not possible to change the host page size; we stopped trying
+to do anything with the option except print a warning from 9.0,
+and now the option is removed entirely.
+
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------

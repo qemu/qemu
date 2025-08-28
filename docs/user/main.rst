@@ -262,9 +262,6 @@ Debug options:
    Activate logging of the specified items (use '-d help' for a list of
    log items)
 
-``-p pagesize``
-   Act as if the host page size was 'pagesize' bytes
-
 ``-one-insn-per-tb``
    Run the emulation with one guest instruction per translation block.
    This slows down emulation a lot, but can be useful in some situations,

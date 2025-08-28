@@ -81,16 +81,6 @@ kernel since 2001. None of the board types QEMU supports need
 ``param_struct`` support, so this option has been deprecated and will
 be removed in a future QEMU version.
 
-User-mode emulator command line arguments
------------------------------------------
-
-``-p`` (since 9.0)
-''''''''''''''''''
-
-The ``-p`` option pretends to control the host page size.  However,
-it is not possible to change the host page size, and using the
-option only causes failures.
-
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
