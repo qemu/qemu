@@ -131,29 +131,7 @@ static void zerotier_virtual_network_frame(
     bool is_multicast = ((destMac >> 40) & 0x01) != 0;
     bool is_for_us = (destMac == our_mac);
     
-    /* Log ARP with more detail */
-    if (etherType == 0x0806 && len >= 14) {
-        /* Extract ARP details from payload */
-        const uint8_t *arp_data = (const uint8_t *)data;
-        if (len >= 28) {
-            uint16_t arp_op = (arp_data[6] << 8) | arp_data[7]; /* ARP operation in payload */
-            uint32_t sender_ip = (arp_data[14] << 24) | (arp_data[15] << 16) | (arp_data[16] << 8) | arp_data[17];
-            uint32_t target_ip = (arp_data[24] << 24) | (arp_data[25] << 16) | (arp_data[26] << 8) | arp_data[27];
-            
-            info_report("ZeroTier: RX ARP %s: %02x:%02x:%02x:%02x:%02x:%02x (%d.%d.%d.%d) -> %02x:%02x:%02x:%02x:%02x:%02x (%d.%d.%d.%d)",
-                        arp_op == 1 ? "REQUEST" : arp_op == 2 ? "REPLY" : "OTHER",
-                        arp_data[8], arp_data[9], arp_data[10], arp_data[11], arp_data[12], arp_data[13],
-                        (sender_ip >> 24) & 0xff, (sender_ip >> 16) & 0xff, (sender_ip >> 8) & 0xff, sender_ip & 0xff,
-                        arp_data[18], arp_data[19], arp_data[20], arp_data[21], arp_data[22], arp_data[23],
-                        (target_ip >> 24) & 0xff, (target_ip >> 16) & 0xff, (target_ip >> 8) & 0xff, target_ip & 0xff);
-        } else {
-            info_report("ZeroTier: RX ARP from %02x:%02x:%02x:%02x:%02x:%02x to %02x:%02x:%02x:%02x:%02x:%02x",
-                        (unsigned int)((sourceMac >> 40) & 0xff), (unsigned int)((sourceMac >> 32) & 0xff), (unsigned int)((sourceMac >> 24) & 0xff),
-                        (unsigned int)((sourceMac >> 16) & 0xff), (unsigned int)((sourceMac >> 8) & 0xff), (unsigned int)(sourceMac & 0xff),
-                        (unsigned int)((destMac >> 40) & 0xff), (unsigned int)((destMac >> 32) & 0xff), (unsigned int)((destMac >> 24) & 0xff),
-                        (unsigned int)((destMac >> 16) & 0xff), (unsigned int)((destMac >> 8) & 0xff), (unsigned int)(destMac & 0xff));
-        }
-    }
+    /* Process ARP silently for better performance */
     
     /* Only forward frames that are for us, broadcast, or multicast */
     if (!is_broadcast && !is_multicast && !is_for_us) {
@@ -385,19 +363,7 @@ static ssize_t zerotier_receive(NetClientState *nc, const uint8_t *buf, size_t s
     uint64_t sourceMac = mac_to_uint64(&buf[6]);
     uint64_t zt_sourceMac = sourceMac; /* Pass through - VM should have ZT MAC */
     
-    /* Debug outgoing ARP packets with more detail */
-    if (etherType == 0x0806 && size >= 28) {
-        uint16_t arp_op = (buf[20] << 8) | buf[21]; /* ARP operation */
-        uint32_t sender_ip = (buf[28] << 24) | (buf[29] << 16) | (buf[30] << 8) | buf[31];
-        uint32_t target_ip = (buf[38] << 24) | (buf[39] << 16) | (buf[40] << 8) | buf[41];
-        
-        info_report("ZeroTier: TX ARP %s: %02x:%02x:%02x:%02x:%02x:%02x (%d.%d.%d.%d) -> %02x:%02x:%02x:%02x:%02x:%02x (%d.%d.%d.%d)",
-                    arp_op == 1 ? "REQUEST" : arp_op == 2 ? "REPLY" : "OTHER",
-                    buf[22], buf[23], buf[24], buf[25], buf[26], buf[27],
-                    (sender_ip >> 24) & 0xff, (sender_ip >> 16) & 0xff, (sender_ip >> 8) & 0xff, sender_ip & 0xff,
-                    buf[32], buf[33], buf[34], buf[35], buf[36], buf[37],
-                    (target_ip >> 24) & 0xff, (target_ip >> 16) & 0xff, (target_ip >> 8) & 0xff, target_ip & 0xff);
-    }
+    /* Process ARP silently for optimal performance */
     
     /* Send frame via ZeroTier with translated source MAC */
     enum ZT_ResultCode result = ZT_Node_processVirtualNetworkFrame(
@@ -431,8 +397,6 @@ static void zerotier_udp_read(void *opaque)
     socklen_t from_len;
     ssize_t received;
     int packets_processed = 0;
-    static int total_packets = 0;
-    static int batch_count = 0;
     
     /* Process larger batches to reduce syscall overhead and packet loss */
     while (packets_processed < 64) { /* Doubled batch size */
@@ -441,15 +405,12 @@ static void zerotier_udp_read(void *opaque)
                            (struct sockaddr*)&from_addr, &from_len);
         if (received > 0) {
             if (received > sizeof(buffer)) {
-                /* Packet was truncated - log warning but continue */
-                warn_report("ZeroTier: Packet truncated (size %zd > buffer %zu)", 
-                           received, sizeof(buffer));
+                /* Packet was truncated - silently continue to avoid log spam */
                 continue;
             }
             ZT_Node_processWirePacket(s->zt_node, NULL, now, -1, &from_addr,
                                     buffer, received, &nextDeadline);
             packets_processed++;
-            total_packets++;
         } else if (received == 0) {
             /* Connection closed - shouldn't happen with UDP but handle it */
             break;
@@ -457,17 +418,10 @@ static void zerotier_udp_read(void *opaque)
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 break; /* No more packets available */
             } else {
-                /* Socket error - might indicate packet loss or other issues */
+                /* Socket error - silently break to avoid log spam */
                 break;
             }
         }
-    }
-    
-    batch_count++;
-    /* Log statistics every 1000 batches for debugging */
-    if (batch_count % 1000 == 0) {
-        info_report("ZeroTier: Processed %d packets in %d batches (avg %.1f/batch)", 
-                   total_packets, batch_count, (double)total_packets / batch_count);
     }
     
     /* If we processed the max, there might be more - reschedule immediately */
