@@ -52,6 +52,11 @@ void qemu_cpu_kick(CPUState *cpu)
     tcg_kick_vcpu_thread(cpu);
 }
 
+void qemu_process_cpu_events(CPUState *cpu)
+{
+    process_queued_cpu_work(cpu);
+}
+
 /*
  * Adjust the pc to pass to cpu_restore_state; return the memop type.
  */
