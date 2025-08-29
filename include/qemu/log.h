@@ -71,6 +71,13 @@ bool qemu_log_separate(void);
 FILE *qemu_log_trylock(void) G_GNUC_WARN_UNUSED_RESULT;
 
 /**
+ * As qemu_log_trylock(), but will also print the message
+ * context, if any is configured and this caused the
+ * acquisition of the FILE lock
+ */
+FILE *qemu_log_trylock_with_context(void) G_GNUC_WARN_UNUSED_RESULT;
+
+/**
  * Releases the lock on the log output, previously
  * acquired by qemu_log_trylock().
  */

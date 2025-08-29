@@ -127,13 +127,39 @@ static FILE *qemu_log_trylock_with_err(Error **errp)
     return logfile;
 }
 
+/*
+ * Zero if there's been no opening qemu_log_trylock call,
+ * indicating the need for message context to be emitted
+ *
+ * Non-zero if we're in the middle of printing a message,
+ * possibly over multiple lines and must skip further
+ * message context
+ */
+static __thread unsigned int log_depth;
+
 FILE *qemu_log_trylock(void)
 {
-    return qemu_log_trylock_with_err(NULL);
+    FILE *f = qemu_log_trylock_with_err(NULL);
+    log_depth++;
+    return f;
+}
+
+FILE *qemu_log_trylock_with_context(void)
+{
+    FILE *f = qemu_log_trylock();
+    if (f && log_depth == 1 && message_with_timestamp) {
+        g_autofree const char *timestr = NULL;
+        g_autoptr(GDateTime) dt = g_date_time_new_now_utc();
+        timestr = g_date_time_format_iso8601(dt);
+        fprintf(f, "%s ", timestr);
+    }
+    return f;
 }
 
 void qemu_log_unlock(FILE *logfile)
 {
+    assert(log_depth);
+    log_depth--;
     if (logfile) {
         fflush(logfile);
         qemu_funlockfile(logfile);
@@ -145,28 +171,9 @@ void qemu_log_unlock(FILE *logfile)
 
 void qemu_log(const char *fmt, ...)
 {
-    FILE *f;
-    g_autofree const char *timestr = NULL;
-
-    /*
-     * Prepare the timestamp *outside* the logging
-     * lock so it better reflects when the message
-     * was emitted if we are delayed acquiring the
-     * mutex
-     */
-    if (message_with_timestamp) {
-        g_autoptr(GDateTime) dt = g_date_time_new_now_utc();
-        timestr = g_date_time_format_iso8601(dt);
-    }
-
-    f = qemu_log_trylock();
+    FILE *f = qemu_log_trylock_with_context();
     if (f) {
         va_list ap;
-
-        if (timestr) {
-            fprintf(f, "%s ", timestr);
-        }
-
         va_start(ap, fmt);
         vfprintf(f, fmt, ap);
         va_end(ap);
