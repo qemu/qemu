@@ -173,7 +173,7 @@ class Asset:
                 continue
             except Exception as e:
                 tmp_cache_file.unlink()
-                raise AssetError(self, "Unable to download: " % e)
+                raise AssetError(self, "Unable to download: %s" % e)
 
         if not os.path.exists(tmp_cache_file):
             raise AssetError(self, "Download retries exceeded", transient=True)
