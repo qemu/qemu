@@ -257,8 +257,7 @@ int64_t cpus_get_elapsed_ticks(void)
 void cpu_set_interrupt(CPUState *cpu, int mask)
 {
     /* Pairs with cpu_test_interrupt(). */
-    qatomic_store_release(&cpu->interrupt_request,
-        cpu->interrupt_request | mask);
+    qatomic_or(&cpu->interrupt_request, mask);
 }
 
 void generic_handle_interrupt(CPUState *cpu, int mask)
