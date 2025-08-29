@@ -829,7 +829,8 @@ bool qemu_cpu_is_self(CPUState *cpu);
  * qemu_cpu_kick:
  * @cpu: The vCPU to kick.
  *
- * Kicks @cpu's thread.
+ * Kicks @cpu's thread to exit the accelerator.  For accelerators that
+ * can do that, the target vCPU thread will try not to take the BQL.
  */
 void qemu_cpu_kick(CPUState *cpu);
 
