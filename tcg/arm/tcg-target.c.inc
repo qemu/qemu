@@ -975,7 +975,8 @@ static void tgen_deposit(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
                          TCGReg a2, unsigned ofs, unsigned len)
 {
     /* bfi/bfc */
-    tcg_out32(s, 0x07c00010 | (COND_AL << 28) | (a0 << 12) | a1
+    tcg_debug_assert(a0 == a1);
+    tcg_out32(s, 0x07c00010 | (COND_AL << 28) | (a0 << 12) | a2
               | (ofs << 7) | ((ofs + len - 1) << 16));
 }
 
