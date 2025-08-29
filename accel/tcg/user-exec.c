@@ -48,9 +48,7 @@ __thread uintptr_t helper_retaddr;
 
 void cpu_interrupt(CPUState *cpu, int mask)
 {
-    g_assert(bql_locked());
-    cpu->interrupt_request |= mask;
-    qatomic_set(&cpu->neg.icount_decr.u16.high, -1);
+    g_assert_not_reached();
 }
 
 /*

@@ -778,6 +778,9 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
      */
     qatomic_set_mb(&cpu->neg.icount_decr.u16.high, 0);
 
+#ifdef CONFIG_USER_ONLY
+    g_assert(!qatomic_read(&cpu->interrupt_request));
+#else
     if (unlikely(qatomic_read(&cpu->interrupt_request))) {
         int interrupt_request;
         bql_lock();
@@ -792,7 +795,6 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
             bql_unlock();
             return true;
         }
-#if !defined(CONFIG_USER_ONLY)
         if (replay_mode == REPLAY_MODE_PLAY && !replay_has_interrupt()) {
             /* Do nothing */
         } else if (interrupt_request & CPU_INTERRUPT_HALT) {
@@ -840,7 +842,6 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
              * reload the 'interrupt_request' value */
             interrupt_request = cpu->interrupt_request;
         }
-#endif /* !CONFIG_USER_ONLY */
         if (interrupt_request & CPU_INTERRUPT_EXITTB) {
             cpu->interrupt_request &= ~CPU_INTERRUPT_EXITTB;
             /* ensure that no TB jump will be modified as
@@ -851,6 +852,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
         /* If we exit via cpu_loop_exit/longjmp it is reset in cpu_exec */
         bql_unlock();
     }
+#endif /* !CONFIG_USER_ONLY */
 
     /* Finally, check if we need to exit to the main loop.  */
     if (unlikely(qatomic_read(&cpu->exit_request)) || icount_exit_request(cpu)) {
