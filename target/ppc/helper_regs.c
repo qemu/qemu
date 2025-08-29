@@ -274,6 +274,7 @@ TCGTBCPUState ppc_get_tb_cpu_state(CPUState *cs)
     return (TCGTBCPUState){ .pc = env->nip, .flags = hflags_current };
 }
 
+#ifndef CONFIG_USER_ONLY
 void cpu_interrupt_exittb(CPUState *cs)
 {
     /*
@@ -285,6 +286,7 @@ void cpu_interrupt_exittb(CPUState *cs)
         cpu_interrupt(cs, CPU_INTERRUPT_EXITTB);
     }
 }
+#endif
 
 int hreg_store_msr(CPUPPCState *env, target_ulong value, int alter_hv)
 {
