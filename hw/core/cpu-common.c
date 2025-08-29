@@ -119,11 +119,6 @@ static void cpu_common_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cpu = CPU(obj);
 
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", cpu->cpu_index);
-        log_cpu_state(cpu, cpu->cc->reset_dump_flags);
-    }
-
     cpu->interrupt_request = 0;
     cpu->halted = cpu->start_powered_off;
     cpu->mem_io_pc = 0;
@@ -135,6 +130,21 @@ static void cpu_common_reset_hold(Object *obj, ResetType type)
     cpu->cflags_next_tb = -1;
 
     cpu_exec_reset_hold(cpu);
+}
+
+static void cpu_common_reset_exit(Object *obj, ResetType type)
+{
+    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
+        FILE *f = qemu_log_trylock();
+
+        if (f) {
+            CPUState *cpu = CPU(obj);
+
+            fprintf(f, "CPU Reset (CPU %d)\n", cpu->cpu_index);
+            cpu_dump_state(cpu, f, cpu->cc->reset_dump_flags);
+            qemu_log_unlock(f);
+        }
+    }
 }
 
 ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model)
@@ -380,6 +390,7 @@ static void cpu_common_class_init(ObjectClass *klass, const void *data)
     dc->realize = cpu_common_realizefn;
     dc->unrealize = cpu_common_unrealizefn;
     rc->phases.hold = cpu_common_reset_hold;
+    rc->phases.exit = cpu_common_reset_exit;
     cpu_class_init_props(dc);
     /*
      * Reason: CPUs still need special care by board code: wiring up

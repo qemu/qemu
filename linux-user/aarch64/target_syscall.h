@@ -1,13 +1,6 @@
 #ifndef AARCH64_TARGET_SYSCALL_H
 #define AARCH64_TARGET_SYSCALL_H
 
-struct target_pt_regs {
-    uint64_t        regs[31];
-    uint64_t        sp;
-    uint64_t        pc;
-    uint64_t        pstate;
-};
-
 #if TARGET_BIG_ENDIAN
 #define UNAME_MACHINE "aarch64_be"
 #else

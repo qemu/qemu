@@ -8,4 +8,7 @@
 #ifndef ALPHA_TARGET_ELF_H
 #define ALPHA_TARGET_ELF_H
 
+#define ELF_CLASS               ELFCLASS64
+#define ELF_MACHINE             EM_ALPHA
+
 #endif

@@ -499,116 +499,118 @@ print_socket_type(int type)
 static void
 print_socket_protocol(int domain, int type, int protocol)
 {
-    if (domain == AF_PACKET ||
-        (domain == AF_INET && type == TARGET_SOCK_PACKET)) {
-        switch (protocol) {
-        case 0x0003:
-            qemu_log("ETH_P_ALL");
-            break;
-        default:
-            qemu_log("%d", protocol);
-        }
-        return;
-    }
+    const char *name = NULL;
 
-    if (domain == PF_NETLINK) {
+    switch (domain) {
+    case AF_PACKET:
+        switch (protocol) {
+        case 3:
+            name = "ETH_P_ALL";
+            break;
+        }
+        break;
+
+    case PF_NETLINK:
         switch (protocol) {
         case NETLINK_ROUTE:
-            qemu_log("NETLINK_ROUTE");
+            name = "NETLINK_ROUTE";
             break;
         case NETLINK_UNUSED:
-            qemu_log("NETLINK_UNUSED");
+            name = "NETLINK_UNUSED";
             break;
         case NETLINK_USERSOCK:
-            qemu_log("NETLINK_USERSOCK");
+            name = "NETLINK_USERSOCK";
             break;
         case NETLINK_FIREWALL:
-            qemu_log("NETLINK_FIREWALL");
+            name = "NETLINK_FIREWALL";
             break;
         case NETLINK_SOCK_DIAG:
-            qemu_log("NETLINK_SOCK_DIAG");
+            name = "NETLINK_SOCK_DIAG";
             break;
         case NETLINK_NFLOG:
-            qemu_log("NETLINK_NFLOG");
+            name = "NETLINK_NFLOG";
             break;
         case NETLINK_XFRM:
-            qemu_log("NETLINK_XFRM");
+            name = "NETLINK_XFRM";
             break;
         case NETLINK_SELINUX:
-            qemu_log("NETLINK_SELINUX");
+            name = "NETLINK_SELINUX";
             break;
         case NETLINK_ISCSI:
-            qemu_log("NETLINK_ISCSI");
+            name = "NETLINK_ISCSI";
             break;
         case NETLINK_AUDIT:
-            qemu_log("NETLINK_AUDIT");
+            name = "NETLINK_AUDIT";
             break;
         case NETLINK_FIB_LOOKUP:
-            qemu_log("NETLINK_FIB_LOOKUP");
+            name = "NETLINK_FIB_LOOKUP";
             break;
         case NETLINK_CONNECTOR:
-            qemu_log("NETLINK_CONNECTOR");
+            name = "NETLINK_CONNECTOR";
             break;
         case NETLINK_NETFILTER:
-            qemu_log("NETLINK_NETFILTER");
+            name = "NETLINK_NETFILTER";
             break;
         case NETLINK_IP6_FW:
-            qemu_log("NETLINK_IP6_FW");
+            name = "NETLINK_IP6_FW";
             break;
         case NETLINK_DNRTMSG:
-            qemu_log("NETLINK_DNRTMSG");
+            name = "NETLINK_DNRTMSG";
             break;
         case NETLINK_KOBJECT_UEVENT:
-            qemu_log("NETLINK_KOBJECT_UEVENT");
+            name = "NETLINK_KOBJECT_UEVENT";
             break;
         case NETLINK_GENERIC:
-            qemu_log("NETLINK_GENERIC");
+            name = "NETLINK_GENERIC";
             break;
         case NETLINK_SCSITRANSPORT:
-            qemu_log("NETLINK_SCSITRANSPORT");
+            name = "NETLINK_SCSITRANSPORT";
             break;
         case NETLINK_ECRYPTFS:
-            qemu_log("NETLINK_ECRYPTFS");
+            name = "NETLINK_ECRYPTFS";
             break;
         case NETLINK_RDMA:
-            qemu_log("NETLINK_RDMA");
+            name = "NETLINK_RDMA";
             break;
         case NETLINK_CRYPTO:
-            qemu_log("NETLINK_CRYPTO");
+            name = "NETLINK_CRYPTO";
             break;
         case NETLINK_SMC:
-            qemu_log("NETLINK_SMC");
-            break;
-        default:
-            qemu_log("%d", protocol);
+            name = "NETLINK_SMC";
             break;
         }
-        return;
-    }
+        break;
 
-    if (domain == AF_INET || domain == AF_INET6) {
+    case AF_INET:
+    case AF_INET6:
         switch (protocol) {
+        case 3:
+            if (domain == AF_INET && type == TARGET_SOCK_PACKET) {
+                name = "ETH_P_ALL";
+            }
+            break;
         case IPPROTO_IP:
-            qemu_log("IPPROTO_IP");
+            name = "IPPROTO_IP";
             break;
         case IPPROTO_TCP:
-            qemu_log("IPPROTO_TCP");
+            name = "IPPROTO_TCP";
             break;
         case IPPROTO_UDP:
-            qemu_log("IPPROTO_UDP");
+            name = "IPPROTO_UDP";
             break;
         case IPPROTO_RAW:
-            qemu_log("IPPROTO_RAW");
-            break;
-        default:
-            qemu_log("%d", protocol);
+            name = "IPPROTO_RAW";
             break;
         }
-        return;
+        break;
     }
-    qemu_log("%d", protocol);
-}
 
+    if (name) {
+        qemu_log("%s", name);
+    } else {
+        qemu_log("%d", protocol);
+    }
+}
 
 #ifdef TARGET_NR__newselect
 static void

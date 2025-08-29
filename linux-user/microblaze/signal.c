@@ -21,6 +21,7 @@
 #include "user-internals.h"
 #include "signal-common.h"
 #include "linux-user/trace.h"
+#include "target_ptrace.h"
 
 struct target_sigcontext {
     struct target_pt_regs regs;  /* needs to be first */
@@ -50,75 +51,17 @@ struct target_rt_sigframe {
 
 static void setup_sigcontext(struct target_sigcontext *sc, CPUMBState *env)
 {
-    __put_user(env->regs[0], &sc->regs.r0);
-    __put_user(env->regs[1], &sc->regs.r1);
-    __put_user(env->regs[2], &sc->regs.r2);
-    __put_user(env->regs[3], &sc->regs.r3);
-    __put_user(env->regs[4], &sc->regs.r4);
-    __put_user(env->regs[5], &sc->regs.r5);
-    __put_user(env->regs[6], &sc->regs.r6);
-    __put_user(env->regs[7], &sc->regs.r7);
-    __put_user(env->regs[8], &sc->regs.r8);
-    __put_user(env->regs[9], &sc->regs.r9);
-    __put_user(env->regs[10], &sc->regs.r10);
-    __put_user(env->regs[11], &sc->regs.r11);
-    __put_user(env->regs[12], &sc->regs.r12);
-    __put_user(env->regs[13], &sc->regs.r13);
-    __put_user(env->regs[14], &sc->regs.r14);
-    __put_user(env->regs[15], &sc->regs.r15);
-    __put_user(env->regs[16], &sc->regs.r16);
-    __put_user(env->regs[17], &sc->regs.r17);
-    __put_user(env->regs[18], &sc->regs.r18);
-    __put_user(env->regs[19], &sc->regs.r19);
-    __put_user(env->regs[20], &sc->regs.r20);
-    __put_user(env->regs[21], &sc->regs.r21);
-    __put_user(env->regs[22], &sc->regs.r22);
-    __put_user(env->regs[23], &sc->regs.r23);
-    __put_user(env->regs[24], &sc->regs.r24);
-    __put_user(env->regs[25], &sc->regs.r25);
-    __put_user(env->regs[26], &sc->regs.r26);
-    __put_user(env->regs[27], &sc->regs.r27);
-    __put_user(env->regs[28], &sc->regs.r28);
-    __put_user(env->regs[29], &sc->regs.r29);
-    __put_user(env->regs[30], &sc->regs.r30);
-    __put_user(env->regs[31], &sc->regs.r31);
+    for (int i = 0; i < 32; ++i) {
+        __put_user(env->regs[i], &sc->regs.r[i]);
+    }
     __put_user(env->pc, &sc->regs.pc);
 }
 
 static void restore_sigcontext(struct target_sigcontext *sc, CPUMBState *env)
 {
-    __get_user(env->regs[0], &sc->regs.r0);
-    __get_user(env->regs[1], &sc->regs.r1);
-    __get_user(env->regs[2], &sc->regs.r2);
-    __get_user(env->regs[3], &sc->regs.r3);
-    __get_user(env->regs[4], &sc->regs.r4);
-    __get_user(env->regs[5], &sc->regs.r5);
-    __get_user(env->regs[6], &sc->regs.r6);
-    __get_user(env->regs[7], &sc->regs.r7);
-    __get_user(env->regs[8], &sc->regs.r8);
-    __get_user(env->regs[9], &sc->regs.r9);
-    __get_user(env->regs[10], &sc->regs.r10);
-    __get_user(env->regs[11], &sc->regs.r11);
-    __get_user(env->regs[12], &sc->regs.r12);
-    __get_user(env->regs[13], &sc->regs.r13);
-    __get_user(env->regs[14], &sc->regs.r14);
-    __get_user(env->regs[15], &sc->regs.r15);
-    __get_user(env->regs[16], &sc->regs.r16);
-    __get_user(env->regs[17], &sc->regs.r17);
-    __get_user(env->regs[18], &sc->regs.r18);
-    __get_user(env->regs[19], &sc->regs.r19);
-    __get_user(env->regs[20], &sc->regs.r20);
-    __get_user(env->regs[21], &sc->regs.r21);
-    __get_user(env->regs[22], &sc->regs.r22);
-    __get_user(env->regs[23], &sc->regs.r23);
-    __get_user(env->regs[24], &sc->regs.r24);
-    __get_user(env->regs[25], &sc->regs.r25);
-    __get_user(env->regs[26], &sc->regs.r26);
-    __get_user(env->regs[27], &sc->regs.r27);
-    __get_user(env->regs[28], &sc->regs.r28);
-    __get_user(env->regs[29], &sc->regs.r29);
-    __get_user(env->regs[30], &sc->regs.r30);
-    __get_user(env->regs[31], &sc->regs.r31);
+    for (int i = 0; i < 32; ++i) {
+        __get_user(env->regs[i], &sc->regs.r[i]);
+    }
     __get_user(env->pc, &sc->regs.pc);
 }
 

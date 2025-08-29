@@ -3,6 +3,7 @@
 #include "qemu/osdep.h"
 #include "qemu.h"
 #include "loader.h"
+#include "target_elf.h"
 
 
 const char *get_elf_cpu_model(uint32_t eflags)
@@ -128,4 +129,18 @@ abi_ulong get_elf_hwcap2(CPUState *cs)
 #undef GET_FEATURE2
 
     return features;
+}
+
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUPPCState *env)
+{
+    for (int i = 0; i < ARRAY_SIZE(env->gpr); i++) {
+        r->pt.gpr[i] = tswapal(env->gpr[i]);
+    }
+
+    r->pt.nip = tswapal(env->nip);
+    r->pt.msr = tswapal(env->msr);
+    r->pt.ctr = tswapal(env->ctr);
+    r->pt.link = tswapal(env->lr);
+    r->pt.xer = tswapal(cpu_read_xer(env));
+    r->pt.ccr = tswapal(ppc_get_cr(env));
 }

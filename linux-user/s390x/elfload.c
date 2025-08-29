@@ -4,6 +4,7 @@
 #include "qemu.h"
 #include "loader.h"
 #include "elf.h"
+#include "target_elf.h"
 
 
 const char *get_elf_cpu_model(uint32_t eflags)
@@ -65,4 +66,17 @@ const char *elf_hwcap_str(uint32_t bit)
     };
 
     return bit < ARRAY_SIZE(hwcap_str) ? hwcap_str[bit] : NULL;
+}
+
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUS390XState *env)
+{
+    r->pt.psw.mask = tswapal(env->psw.mask);
+    r->pt.psw.addr = tswapal(env->psw.addr);
+    for (int i = 0; i < 16; i++) {
+        r->pt.gprs[i] = tswapal(env->regs[i]);
+    }
+    for (int i = 0; i < 16; i++) {
+        r->pt.acrs[i] = tswap32(env->aregs[i]);
+    }
+    r->pt.orig_gpr2 = 0;
 }

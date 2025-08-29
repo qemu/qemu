@@ -20,34 +20,6 @@
 #ifndef PPC_TARGET_SYSCALL_H
 #define PPC_TARGET_SYSCALL_H
 
-/* XXX: ABSOLUTELY BUGGY:
- * for now, this is quite just a cut-and-paste from i386 target...
- */
-
-/* default linux values for the selectors */
-#define __USER_DS	(1)
-
-struct target_pt_regs {
-	abi_ulong gpr[32];
-	abi_ulong nip;
-	abi_ulong msr;
-	abi_ulong orig_gpr3;	/* Used for restarting system calls */
-	abi_ulong ctr;
-	abi_ulong link;
-	abi_ulong xer;
-	abi_ulong ccr;
-#if defined(TARGET_PPC64)
-        abi_ulong softe;
-#else
-	abi_ulong mq;		/* 601 only (not used at present) */
-#endif
-					/* Used on APUS to hold IPL value. */
-	abi_ulong trap;		/* Reason for being here */
-	abi_ulong dar;		/* Fault registers */
-	abi_ulong dsisr;
-	abi_ulong result; 		/* Result of a system call */
-};
-
 /* ioctls */
 struct target_revectored_struct {
 	abi_ulong __map[8];			/* 256 bits */

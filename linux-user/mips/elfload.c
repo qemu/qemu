@@ -4,6 +4,7 @@
 #include "qemu.h"
 #include "loader.h"
 #include "elf.h"
+#include "target_elf.h"
 
 
 const char *get_elf_cpu_model(uint32_t eflags)
@@ -122,3 +123,20 @@ const char *get_elf_base_platform(CPUState *cs)
 }
 
 #undef MATCH_PLATFORM_INSN
+
+/* See linux kernel: arch/mips/kernel/process.c:elf_dump_regs.  */
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUMIPSState *env)
+{
+    for (int i = 1; i < ARRAY_SIZE(env->active_tc.gpr); i++) {
+        r->pt.regs[i] = tswapl(env->active_tc.gpr[i]);
+    }
+
+    r->pt.regs[26] = 0;
+    r->pt.regs[27] = 0;
+    r->pt.lo = tswapl(env->active_tc.LO[0]);
+    r->pt.hi = tswapl(env->active_tc.HI[0]);
+    r->pt.cp0_epc = tswapl(env->active_tc.PC);
+    r->pt.cp0_badvaddr = tswapl(env->CP0_BadVAddr);
+    r->pt.cp0_status = tswapl(env->CP0_Status);
+    r->pt.cp0_cause = tswapl(env->CP0_Cause);
+}
