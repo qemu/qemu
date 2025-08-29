@@ -784,7 +784,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
     if (unlikely(cpu_test_interrupt(cpu, ~0))) {
         bql_lock();
         if (cpu_test_interrupt(cpu, CPU_INTERRUPT_DEBUG)) {
-            cpu->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
+            cpu_reset_interrupt(cpu, CPU_INTERRUPT_DEBUG);
             cpu->exception_index = EXCP_DEBUG;
             bql_unlock();
             return true;
@@ -793,7 +793,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
             /* Do nothing */
         } else if (cpu_test_interrupt(cpu, CPU_INTERRUPT_HALT)) {
             replay_interrupt();
-            cpu->interrupt_request &= ~CPU_INTERRUPT_HALT;
+            cpu_reset_interrupt(cpu, CPU_INTERRUPT_HALT);
             cpu->halted = 1;
             cpu->exception_index = EXCP_HLT;
             bql_unlock();
@@ -840,7 +840,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
             }
         }
         if (cpu_test_interrupt(cpu, CPU_INTERRUPT_EXITTB)) {
-            cpu->interrupt_request &= ~CPU_INTERRUPT_EXITTB;
+            cpu_reset_interrupt(cpu, CPU_INTERRUPT_EXITTB);
             /* ensure that no TB jump will be modified as
                the program flow was changed */
             *last_tb = NULL;

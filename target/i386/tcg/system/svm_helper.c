@@ -824,7 +824,7 @@ void do_vmexit(CPUX86State *env)
     env->intercept_exceptions = 0;
 
     /* Clears the V_IRQ and V_INTR_MASKING bits inside the processor. */
-    cs->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
+    cpu_reset_interrupt(cs, CPU_INTERRUPT_VIRQ);
     env->int_ctl = 0;
 
     /* Clears the TSC_OFFSET inside the processor. */

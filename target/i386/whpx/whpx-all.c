@@ -1471,14 +1471,14 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
     if (!vcpu->interruption_pending &&
         cpu_test_interrupt(cpu, CPU_INTERRUPT_NMI | CPU_INTERRUPT_SMI)) {
         if (cpu_test_interrupt(cpu, CPU_INTERRUPT_NMI)) {
-            cpu->interrupt_request &= ~CPU_INTERRUPT_NMI;
+            cpu_reset_interrupt(cpu, CPU_INTERRUPT_NMI);
             vcpu->interruptable = false;
             new_int.InterruptionType = WHvX64PendingNmi;
             new_int.InterruptionPending = 1;
             new_int.InterruptionVector = 2;
         }
         if (cpu_test_interrupt(cpu, CPU_INTERRUPT_SMI)) {
-            cpu->interrupt_request &= ~CPU_INTERRUPT_SMI;
+            cpu_reset_interrupt(cpu, CPU_INTERRUPT_SMI);
         }
     }
 
@@ -1502,7 +1502,7 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
             vcpu->interruptable && (env->eflags & IF_MASK)) {
             assert(!new_int.InterruptionPending);
             if (cpu_test_interrupt(cpu, CPU_INTERRUPT_HARD)) {
-                cpu->interrupt_request &= ~CPU_INTERRUPT_HARD;
+                cpu_reset_interrupt(cpu, CPU_INTERRUPT_HARD);
                 irq = cpu_get_pic_interrupt(env);
                 if (irq >= 0) {
                     new_int.InterruptionType = WHvX64PendingInterrupt;
@@ -1520,7 +1520,7 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
         }
     } else if (vcpu->ready_for_pic_interrupt &&
                cpu_test_interrupt(cpu, CPU_INTERRUPT_HARD)) {
-        cpu->interrupt_request &= ~CPU_INTERRUPT_HARD;
+        cpu_reset_interrupt(cpu, CPU_INTERRUPT_HARD);
         irq = cpu_get_pic_interrupt(env);
         if (irq >= 0) {
             reg_names[reg_count] = WHvRegisterPendingEvent;
@@ -1607,7 +1607,7 @@ static void whpx_vcpu_process_async_events(CPUState *cpu)
     }
 
     if (cpu_test_interrupt(cpu, CPU_INTERRUPT_POLL)) {
-        cpu->interrupt_request &= ~CPU_INTERRUPT_POLL;
+        cpu_reset_interrupt(cpu, CPU_INTERRUPT_POLL);
         apic_poll_irq(x86_cpu->apic_state);
     }
 
@@ -1623,7 +1623,7 @@ static void whpx_vcpu_process_async_events(CPUState *cpu)
     }
 
     if (cpu_test_interrupt(cpu, CPU_INTERRUPT_TPR)) {
-        cpu->interrupt_request &= ~CPU_INTERRUPT_TPR;
+        cpu_reset_interrupt(cpu, CPU_INTERRUPT_TPR);
         whpx_cpu_synchronize_state(cpu);
         apic_handle_tpr_access_report(x86_cpu->apic_state, env->eip,
                                       env->tpr_access_type);
