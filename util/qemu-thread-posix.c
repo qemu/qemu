@@ -18,9 +18,40 @@
 #include "qemu/tsan.h"
 #include "qemu/bitmap.h"
 
-#ifdef CONFIG_PTHREAD_SET_NAME_NP
+#if defined(CONFIG_PTHREAD_SET_NAME_NP) || defined(CONFIG_PTHREAD_GET_NAME_NP)
 #include <pthread_np.h>
 #endif
+
+/*
+ * This is not defined on Linux, but the man page indicates
+ * the buffer must be at least 16 bytes, including the NUL
+ * terminator
+ */
+#ifndef PTHREAD_MAX_NAMELEN_NP
+#define PTHREAD_MAX_NAMELEN_NP 16
+#endif
+
+static __thread char namebuf[PTHREAD_MAX_NAMELEN_NP];
+
+static void __attribute__((__constructor__(QEMU_CONSTRUCTOR_EARLY)))
+qemu_thread_init(void)
+{
+    /*
+     * Initialize the main thread name. We must not use
+     * qemu_thread_setname(), since on some platforms (at least Linux)
+     * this can change the process name that is reported by tools like
+     * 'ps'.
+     *
+     * This workaround suffices to ensure QEMU log/error messages
+     * get the main thread name, but at the cost of external tools
+     * like GDB not seeing it.
+     *
+     * NB using a constructor instead of static initializing namebuf,
+     * to ensure it only initializes the thread-local in the main
+     * thread
+     */
+    g_strlcpy(namebuf, "main", sizeof(namebuf));
+}
 
 static void error_exit(int err, const char *msg)
 {
@@ -525,4 +556,24 @@ void *qemu_thread_join(QemuThread *thread)
         error_exit(err, __func__);
     }
     return ret;
+}
+
+const char *qemu_thread_get_name(void)
+{
+    int rv;
+    if (namebuf[0] != '\0') {
+        return namebuf;
+    }
+
+# if defined(CONFIG_PTHREAD_GETNAME_NP)
+    rv = pthread_getname_np(pthread_self(), namebuf, sizeof(namebuf));
+# elif defined(CONFIG_PTHREAD_GET_NAME_NP)
+    rv = pthread_get_name_np(pthread_self(), namebuf, sizeof(namebuf));
+# else
+    rv = -1;
+# endif
+    if (rv != 0) {
+        g_strlcpy(namebuf, "unnamed", G_N_ELEMENTS(namebuf));
+    }
+    return namebuf;
 }
