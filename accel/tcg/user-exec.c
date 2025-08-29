@@ -46,11 +46,6 @@ __thread uintptr_t helper_retaddr;
 
 //#define DEBUG_SIGNAL
 
-void cpu_interrupt(CPUState *cpu, int mask)
-{
-    g_assert_not_reached();
-}
-
 /*
  * Adjust the pc to pass to cpu_restore_state; return the memop type.
  */
