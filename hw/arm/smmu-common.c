@@ -961,7 +961,12 @@ static void smmu_base_realize(DeviceState *dev, Error **errp)
                 goto out_err;
             }
         }
-        pci_setup_iommu(pci_bus, &smmu_ops, s);
+
+        if (s->smmu_per_bus) {
+            pci_setup_iommu_per_bus(pci_bus, &smmu_ops, s);
+        } else {
+            pci_setup_iommu(pci_bus, &smmu_ops, s);
+        }
         return;
     }
 out_err:
@@ -986,6 +991,7 @@ static void smmu_base_reset_exit(Object *obj, ResetType type)
 
 static const Property smmu_dev_properties[] = {
     DEFINE_PROP_UINT8("bus_num", SMMUState, bus_num, 0),
+    DEFINE_PROP_BOOL("smmu_per_bus", SMMUState, smmu_per_bus, false),
     DEFINE_PROP_LINK("primary-bus", SMMUState, primary_bus,
                      TYPE_PCI_BUS, PCIBus *),
 };
