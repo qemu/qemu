@@ -22,8 +22,6 @@ typedef HRESULT (WINAPI *pSetThreadDescription) (HANDLE hThread,
 static pSetThreadDescription SetThreadDescriptionFunc;
 static HMODULE kernel32_module;
 
-static void set_thread_description(const char *name);
-
 static bool load_set_thread_description(void)
 {
     static gsize _init_once = 0;
@@ -270,7 +268,7 @@ static unsigned __stdcall win32_start_routine(void *arg)
     void *thread_arg = data->arg;
 
     if (data->name) {
-        set_thread_description(data->name);
+        qemu_thread_set_name(data->name);
         g_clear_pointer(&data->name, g_free);
     }
     qemu_thread_data = data;
@@ -323,7 +321,7 @@ void *qemu_thread_join(QemuThread *thread)
     return ret;
 }
 
-static void set_thread_description(const char *name)
+void qemu_thread_set_name(const char *name)
 {
     g_autofree wchar_t *namew = NULL;
 
