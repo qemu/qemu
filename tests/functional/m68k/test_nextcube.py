@@ -44,7 +44,8 @@ class NextCubeMachine(QemuSystemTest):
         self.check_bootrom_framebuffer(screenshot_path)
 
         from PIL import Image
-        width, height = Image.open(screenshot_path).size
+        with Image.open(screenshot_path) as image:
+                width, height = image.size
         self.assertEqual(width, 1120)
         self.assertEqual(height, 832)
 
