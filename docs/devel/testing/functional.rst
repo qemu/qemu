@@ -312,6 +312,9 @@ The cache is populated in the ``~/.cache/qemu/download`` directory by
 default, but the location can be changed by setting the
 ``QEMU_TEST_CACHE_DIR`` environment variable.
 
+To force the test suite to re-download the cache, even if still valid,
+set the ``QEMU_TEST_REFRESH_CACHE`` environment variable.
+
 Skipping tests
 --------------
 

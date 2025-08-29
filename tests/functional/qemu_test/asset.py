@@ -72,6 +72,10 @@ class Asset:
         return self.hash == hl.hexdigest()
 
     def valid(self):
+        if os.getenv("QEMU_TEST_REFRESH_CACHE", None) is not None:
+            self.log.info("Force refresh of asset %s", self.url)
+            return False
+
         return self.cache_file.exists() and self._check(self.cache_file)
 
     def fetchable(self):
