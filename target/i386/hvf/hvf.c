@@ -773,9 +773,9 @@ int hvf_vcpu_exec(CPUState *cpu)
         switch (exit_reason) {
         case EXIT_REASON_HLT: {
             macvm_set_rip(cpu, rip + ins_len);
-            if (!((cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
+            if (!(cpu_test_interrupt(cpu, CPU_INTERRUPT_HARD) &&
                 (env->eflags & IF_MASK))
-                && !(cpu->interrupt_request & CPU_INTERRUPT_NMI) &&
+                && !cpu_test_interrupt(cpu, CPU_INTERRUPT_NMI) &&
                 !(idtvec_info & VMCS_IDT_VEC_VALID)) {
                 cpu->halted = 1;
                 ret = EXCP_HLT;

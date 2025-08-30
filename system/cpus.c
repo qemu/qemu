@@ -254,9 +254,16 @@ int64_t cpus_get_elapsed_ticks(void)
     return cpu_get_ticks();
 }
 
+void cpu_set_interrupt(CPUState *cpu, int mask)
+{
+    /* Pairs with cpu_test_interrupt(). */
+    qatomic_store_release(&cpu->interrupt_request,
+        cpu->interrupt_request | mask);
+}
+
 void generic_handle_interrupt(CPUState *cpu, int mask)
 {
-    cpu->interrupt_request |= mask;
+    cpu_set_interrupt(cpu, mask);
 
     if (!qemu_cpu_is_self(cpu)) {
         qemu_cpu_kick(cpu);

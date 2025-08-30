@@ -839,40 +839,40 @@ static uint64_t isr_read(CPUARMState *env, const ARMCPRegInfo *ri)
     uint64_t ret = 0;
 
     if (hcr_el2 & HCR_IMO) {
-        if (cs->interrupt_request & CPU_INTERRUPT_VIRQ) {
+        if (cpu_test_interrupt(cs, CPU_INTERRUPT_VIRQ)) {
             ret |= CPSR_I;
         }
-        if (cs->interrupt_request & CPU_INTERRUPT_VINMI) {
+        if (cpu_test_interrupt(cs, CPU_INTERRUPT_VINMI)) {
             ret |= ISR_IS;
             ret |= CPSR_I;
         }
     } else {
-        if (cs->interrupt_request & CPU_INTERRUPT_HARD) {
+        if (cpu_test_interrupt(cs, CPU_INTERRUPT_HARD)) {
             ret |= CPSR_I;
         }
 
-        if (cs->interrupt_request & CPU_INTERRUPT_NMI) {
+        if (cpu_test_interrupt(cs, CPU_INTERRUPT_NMI)) {
             ret |= ISR_IS;
             ret |= CPSR_I;
         }
     }
 
     if (hcr_el2 & HCR_FMO) {
-        if (cs->interrupt_request & CPU_INTERRUPT_VFIQ) {
+        if (cpu_test_interrupt(cs, CPU_INTERRUPT_VFIQ)) {
             ret |= CPSR_F;
         }
-        if (cs->interrupt_request & CPU_INTERRUPT_VFNMI) {
+        if (cpu_test_interrupt(cs, CPU_INTERRUPT_VFNMI)) {
             ret |= ISR_FS;
             ret |= CPSR_F;
         }
     } else {
-        if (cs->interrupt_request & CPU_INTERRUPT_FIQ) {
+        if (cpu_test_interrupt(cs, CPU_INTERRUPT_FIQ)) {
             ret |= CPSR_F;
         }
     }
 
     if (hcr_el2 & HCR_AMO) {
-        if (cs->interrupt_request & CPU_INTERRUPT_VSERR) {
+        if (cpu_test_interrupt(cs, CPU_INTERRUPT_VSERR)) {
             ret |= CPSR_A;
         }
     }
@@ -9301,7 +9301,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
     arm_call_el_change_hook(cpu);
 
     if (!kvm_enabled()) {
-        cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
+        cpu_set_interrupt(cs, CPU_INTERRUPT_EXITTB);
     }
 }
 #endif /* !CONFIG_USER_ONLY */

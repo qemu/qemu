@@ -376,7 +376,7 @@ static bool loongarch_cpu_has_work(CPUState *cs)
 {
     bool has_work = false;
 
-    if ((cs->interrupt_request & CPU_INTERRUPT_HARD) &&
+    if (cpu_test_interrupt(cs, CPU_INTERRUPT_HARD) &&
         cpu_loongarch_hw_interrupts_pending(cpu_env(cs))) {
         has_work = true;
     }

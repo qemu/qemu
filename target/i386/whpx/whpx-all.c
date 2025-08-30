@@ -1436,9 +1436,9 @@ static int whpx_handle_halt(CPUState *cpu)
     int ret = 0;
 
     bql_lock();
-    if (!((cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
+    if (!(cpu_test_interrupt(cpu, CPU_INTERRUPT_HARD) &&
           (cpu_env(cpu)->eflags & IF_MASK)) &&
-        !(cpu->interrupt_request & CPU_INTERRUPT_NMI)) {
+        !cpu_test_interrupt(cpu, CPU_INTERRUPT_NMI)) {
         cpu->exception_index = EXCP_HLT;
         cpu->halted = true;
         ret = 1;
@@ -1469,15 +1469,15 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
 
     /* Inject NMI */
     if (!vcpu->interruption_pending &&
-        cpu->interrupt_request & (CPU_INTERRUPT_NMI | CPU_INTERRUPT_SMI)) {
-        if (cpu->interrupt_request & CPU_INTERRUPT_NMI) {
+        cpu_test_interrupt(cpu, CPU_INTERRUPT_NMI | CPU_INTERRUPT_SMI)) {
+        if (cpu_test_interrupt(cpu, CPU_INTERRUPT_NMI)) {
             cpu->interrupt_request &= ~CPU_INTERRUPT_NMI;
             vcpu->interruptable = false;
             new_int.InterruptionType = WHvX64PendingNmi;
             new_int.InterruptionPending = 1;
             new_int.InterruptionVector = 2;
         }
-        if (cpu->interrupt_request & CPU_INTERRUPT_SMI) {
+        if (cpu_test_interrupt(cpu, CPU_INTERRUPT_SMI)) {
             cpu->interrupt_request &= ~CPU_INTERRUPT_SMI;
         }
     }
@@ -1486,12 +1486,12 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
      * Force the VCPU out of its inner loop to process any INIT requests or
      * commit pending TPR access.
      */
-    if (cpu->interrupt_request & (CPU_INTERRUPT_INIT | CPU_INTERRUPT_TPR)) {
-        if ((cpu->interrupt_request & CPU_INTERRUPT_INIT) &&
+    if (cpu_test_interrupt(cpu, CPU_INTERRUPT_INIT | CPU_INTERRUPT_TPR)) {
+        if (cpu_test_interrupt(cpu, CPU_INTERRUPT_INIT) &&
             !(env->hflags & HF_SMM_MASK)) {
             cpu->exit_request = 1;
         }
-        if (cpu->interrupt_request & CPU_INTERRUPT_TPR) {
+        if (cpu_test_interrupt(cpu, CPU_INTERRUPT_TPR)) {
             cpu->exit_request = 1;
         }
     }
@@ -1501,7 +1501,7 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
         if (!vcpu->interruption_pending &&
             vcpu->interruptable && (env->eflags & IF_MASK)) {
             assert(!new_int.InterruptionPending);
-            if (cpu->interrupt_request & CPU_INTERRUPT_HARD) {
+            if (cpu_test_interrupt(cpu, CPU_INTERRUPT_HARD)) {
                 cpu->interrupt_request &= ~CPU_INTERRUPT_HARD;
                 irq = cpu_get_pic_interrupt(env);
                 if (irq >= 0) {
@@ -1519,7 +1519,7 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
             reg_count += 1;
         }
     } else if (vcpu->ready_for_pic_interrupt &&
-               (cpu->interrupt_request & CPU_INTERRUPT_HARD)) {
+               cpu_test_interrupt(cpu, CPU_INTERRUPT_HARD)) {
         cpu->interrupt_request &= ~CPU_INTERRUPT_HARD;
         irq = cpu_get_pic_interrupt(env);
         if (irq >= 0) {
@@ -1546,7 +1546,7 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
 
     /* Update the state of the interrupt delivery notification */
     if (!vcpu->window_registered &&
-        cpu->interrupt_request & CPU_INTERRUPT_HARD) {
+        cpu_test_interrupt(cpu, CPU_INTERRUPT_HARD)) {
         reg_values[reg_count].DeliverabilityNotifications =
             (WHV_X64_DELIVERABILITY_NOTIFICATIONS_REGISTER) {
                 .InterruptNotification = 1
@@ -1599,30 +1599,30 @@ static void whpx_vcpu_process_async_events(CPUState *cpu)
     CPUX86State *env = &x86_cpu->env;
     AccelCPUState *vcpu = cpu->accel;
 
-    if ((cpu->interrupt_request & CPU_INTERRUPT_INIT) &&
+    if (cpu_test_interrupt(cpu, CPU_INTERRUPT_INIT) &&
         !(env->hflags & HF_SMM_MASK)) {
         whpx_cpu_synchronize_state(cpu);
         do_cpu_init(x86_cpu);
         vcpu->interruptable = true;
     }
 
-    if (cpu->interrupt_request & CPU_INTERRUPT_POLL) {
+    if (cpu_test_interrupt(cpu, CPU_INTERRUPT_POLL)) {
         cpu->interrupt_request &= ~CPU_INTERRUPT_POLL;
         apic_poll_irq(x86_cpu->apic_state);
     }
 
-    if (((cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
+    if ((cpu_test_interrupt(cpu, CPU_INTERRUPT_HARD) &&
          (env->eflags & IF_MASK)) ||
-        (cpu->interrupt_request & CPU_INTERRUPT_NMI)) {
+        cpu_test_interrupt(cpu, CPU_INTERRUPT_NMI)) {
         cpu->halted = false;
     }
 
-    if (cpu->interrupt_request & CPU_INTERRUPT_SIPI) {
+    if (cpu_test_interrupt(cpu, CPU_INTERRUPT_SIPI)) {
         whpx_cpu_synchronize_state(cpu);
         do_cpu_sipi(x86_cpu);
     }
 
-    if (cpu->interrupt_request & CPU_INTERRUPT_TPR) {
+    if (cpu_test_interrupt(cpu, CPU_INTERRUPT_TPR)) {
         cpu->interrupt_request &= ~CPU_INTERRUPT_TPR;
         whpx_cpu_synchronize_state(cpu);
         apic_handle_tpr_access_report(x86_cpu->apic_state, env->eip,
