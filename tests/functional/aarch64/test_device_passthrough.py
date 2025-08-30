@@ -9,7 +9,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
+from os.path import join
 
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import exec_command, wait_for_console_pattern
@@ -77,15 +77,16 @@ echo device_passthrough_test_ok
 
 class Aarch64DevicePassthrough(QemuSystemTest):
 
-    # https://github.com/pbo-linaro/qemu-linux-stack
+    # https://github.com/pbo-linaro/qemu-linux-stack/tree/device_passthrough
+    # $ ./build.sh && ./archive_artifacts.sh out.tar.xz
     #
     # Linux kernel is compiled with defconfig +
     # IOMMUFD + VFIO_DEVICE_CDEV + ARM_SMMU_V3_IOMMUFD
     # https://docs.kernel.org/driver-api/vfio.html#vfio-device-cde
     ASSET_DEVICE_PASSTHROUGH_STACK = Asset(
-        ('https://fileserver.linaro.org/s/fx5DXxBYme8dw2G/'
-         'download/device_passthrough.tar.xz'),
-         '812750b664d61c2986f2b149939ae28cafbd60d53e9c7e4b16e97143845e196d')
+        ('https://github.com/pbo-linaro/qemu-linux-stack/'
+         'releases/download/build/device_passthrough-c3fb84a.tar.xz'),
+         '15ac2b02bed0c0ea8e3e007de0bcfdaf6fd51c1ba98213f841dc7d01d6f72f04')
 
     # This tests the device passthrough implementation, by booting a VM
     # supporting it with two nvme disks attached, and launching a nested VM
@@ -96,16 +97,16 @@ class Aarch64DevicePassthrough(QemuSystemTest):
 
         self.vm.set_console()
 
-        stack_path_tar_gz = self.ASSET_DEVICE_PASSTHROUGH_STACK.fetch()
-        self.archive_extract(stack_path_tar_gz, format="tar")
+        stack_path_tar = self.ASSET_DEVICE_PASSTHROUGH_STACK.fetch()
+        self.archive_extract(stack_path_tar, format="tar")
 
         stack = self.scratch_file('out')
-        kernel = os.path.join(stack, 'Image.gz')
-        rootfs_host = os.path.join(stack, 'host.ext4')
-        disk_vfio = os.path.join(stack, 'disk_vfio')
-        disk_iommufd = os.path.join(stack, 'disk_iommufd')
-        guest_cmd = os.path.join(stack, 'guest.sh')
-        nested_guest_cmd = os.path.join(stack, 'nested_guest.sh')
+        kernel = join(stack, 'Image.gz')
+        rootfs_host = join(stack, 'host.ext4')
+        disk_vfio = join(stack, 'disk_vfio')
+        disk_iommufd = join(stack, 'disk_iommufd')
+        guest_cmd = join(stack, 'guest.sh')
+        nested_guest_cmd = join(stack, 'nested_guest.sh')
         # we generate two random disks
         with open(disk_vfio, "wb") as d: d.write(randbytes(512))
         with open(disk_iommufd, "wb") as d: d.write(randbytes(1024))

@@ -156,6 +156,16 @@ MOVZ            . 10 100101 .. ................ .....   @movw_32
 MOVK            . 11 100101 .. ................ .....   @movw_64
 MOVK            . 11 100101 .. ................ .....   @movw_32
 
+# Min/Max (immediate)
+
+@minmaxi_s      sf:1 .. ........... imm:s8 rn:5 rd:5    &rri_sf
+@minmaxi_u      sf:1 .. ........... imm:8  rn:5 rd:5    &rri_sf
+
+SMAX_i          . 00 1000111 0000 ........ ..... .....  @minmaxi_s
+SMIN_i          . 00 1000111 0010 ........ ..... .....  @minmaxi_s
+UMAX_i          . 00 1000111 0001 ........ ..... .....  @minmaxi_u
+UMIN_i          . 00 1000111 0011 ........ ..... .....  @minmaxi_u
+
 # Bitfield
 
 &bitfield       rd rn sf immr imms
@@ -536,6 +546,13 @@ SWP             .. 111 0 00 . . 1 ..... 1000 00 ..... ..... @atomic
 
 LDAPR           sz:2 111 0 00 1 0 1 11111 1100 00 rn:5 rt:5
 
+# Atomic 128-bit memory operations
+&atomic128      rn rt rt2 a r
+@atomic128      ........ a:1 r:1 . rt2:5 ...... rn:5 rt:5   &atomic128
+LDCLRP          00011001 .   .   1 ..... 000100 ..... ..... @atomic128
+LDSETP          00011001 .   .   1 ..... 001100 ..... ..... @atomic128
+SWPP            00011001 .   .   1 ..... 100000 ..... ..... @atomic128
+
 # Load/store register (pointer authentication)
 
 # LDRA immediate is 10 bits signed and scaled, but the bits aren't all contiguous
@@ -698,6 +715,11 @@ GMI             1 00 11010110 ..... 000101 ..... .....  @rrr
 
 PACGA           1 00 11010110 ..... 001100 ..... .....  @rrr
 
+SMAX            . 00 11010110 ..... 011000 ..... .....  @rrr_sf
+SMIN            . 00 11010110 ..... 011010 ..... .....  @rrr_sf
+UMAX            . 00 11010110 ..... 011001 ..... .....  @rrr_sf
+UMIN            . 00 11010110 ..... 011011 ..... .....  @rrr_sf
+
 # Data Processing (1-source)
 
 @rr             . .......... ..... ...... rn:5 rd:5     &rr
@@ -710,6 +732,10 @@ REV64           1 10 11010110 00000 000011 ..... .....  @rr
 
 CLZ             . 10 11010110 00000 000100 ..... .....  @rr_sf
 CLS             . 10 11010110 00000 000101 ..... .....  @rr_sf
+
+CTZ             . 10 11010110 00000 000110 ..... .....  @rr_sf
+CNT             . 10 11010110 00000 000111 ..... .....  @rr_sf
+ABS             . 10 11010110 00000 001000 ..... .....  @rr_sf
 
 &pacaut         rd rn z
 @pacaut         . .. ........ ..... .. z:1 ... rn:5 rd:5  &pacaut

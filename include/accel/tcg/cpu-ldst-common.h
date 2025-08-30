@@ -100,15 +100,22 @@ GEN_ATOMIC_HELPER_ALL(umax_fetch)
 
 GEN_ATOMIC_HELPER_ALL(xchg)
 
-#undef GEN_ATOMIC_HELPER_ALL
-#undef GEN_ATOMIC_HELPER
-
 Int128 cpu_atomic_cmpxchgo_le_mmu(CPUArchState *env, vaddr addr,
                                   Int128 cmpv, Int128 newv,
                                   MemOpIdx oi, uintptr_t retaddr);
 Int128 cpu_atomic_cmpxchgo_be_mmu(CPUArchState *env, vaddr addr,
                                   Int128 cmpv, Int128 newv,
                                   MemOpIdx oi, uintptr_t retaddr);
+
+GEN_ATOMIC_HELPER(xchg, Int128, o_le)
+GEN_ATOMIC_HELPER(xchg, Int128, o_be)
+GEN_ATOMIC_HELPER(fetch_and, Int128, o_le)
+GEN_ATOMIC_HELPER(fetch_and, Int128, o_be)
+GEN_ATOMIC_HELPER(fetch_or, Int128, o_le)
+GEN_ATOMIC_HELPER(fetch_or, Int128, o_be)
+
+#undef GEN_ATOMIC_HELPER_ALL
+#undef GEN_ATOMIC_HELPER
 
 uint8_t cpu_ldb_code_mmu(CPUArchState *env, vaddr addr,
                          MemOpIdx oi, uintptr_t ra);

@@ -55,7 +55,7 @@ indent_size = 4
 emacs_mode = perl
 
 # but user kernel "style" for imported scripts
-[scripts/{kernel-doc,get_maintainer.pl,checkpatch.pl}]
+[scripts/{get_maintainer.pl,checkpatch.pl}]
 indent_style = tab
 indent_size = 8
 emacs_mode = perl

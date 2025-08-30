@@ -10,21 +10,23 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
+from os.path import join
+import shutil
 
 from qemu_test import QemuSystemTest, Asset, wait_for_console_pattern
 from qemu_test import exec_command_and_wait_for_pattern
-from test_rme_virt import test_realms_guest
 
 
 class Aarch64RMESbsaRefMachine(QemuSystemTest):
 
-    # Stack is built with OP-TEE build environment from those instructions:
+    # Stack is inspired from:
     # https://linaro.atlassian.net/wiki/spaces/QEMU/pages/29051027459/
-    # https://github.com/pbo-linaro/qemu-rme-stack
+    # https://github.com/pbo-linaro/qemu-linux-stack/tree/rme_sbsa_release
+    # ./build.sh && ./archive_artifacts.sh out.tar.xz
     ASSET_RME_STACK_SBSA = Asset(
-        ('https://fileserver.linaro.org/s/KJyeBxL82mz2r7F/'
-         'download/rme-stack-op-tee-4.2.0-cca-v4-sbsa.tar.gz'),
-         'dd9ab28ec869bdf3b5376116cb3689103b43433fd5c4bca0f4a8d8b3c104999e')
+        ('https://github.com/pbo-linaro/qemu-linux-stack/'
+         'releases/download/build/rme_sbsa_release-a7f02cf.tar.xz'),
+         '27d8400b11befb828d6db0cab97e7ae102d0992c928d3dfbf38b24b6cf6c324c')
 
     # This tests the FEAT_RME cpu implementation, by booting a VM supporting it,
     # and launching a nested VM using it.
@@ -35,35 +37,41 @@ class Aarch64RMESbsaRefMachine(QemuSystemTest):
 
         self.vm.set_console()
 
-        stack_path_tar_gz = self.ASSET_RME_STACK_SBSA.fetch()
-        self.archive_extract(stack_path_tar_gz, format="tar")
+        stack_path_tar = self.ASSET_RME_STACK_SBSA.fetch()
+        self.archive_extract(stack_path_tar, format="tar")
 
-        rme_stack = self.scratch_file('rme-stack-op-tee-4.2.0-cca-v4-sbsa')
-        pflash0 = os.path.join(rme_stack, 'images', 'SBSA_FLASH0.fd')
-        pflash1 = os.path.join(rme_stack, 'images', 'SBSA_FLASH1.fd')
-        virtual = os.path.join(rme_stack, 'images', 'disks', 'virtual')
-        drive = os.path.join(rme_stack, 'out-br', 'images', 'rootfs.ext4')
+        rme_stack = self.scratch_file('.')
+        pflash0 = join(rme_stack, 'out', 'SBSA_FLASH0.fd')
+        pflash1 = join(rme_stack, 'out', 'SBSA_FLASH1.fd')
+        rootfs = join(rme_stack, 'out', 'host.ext4')
 
-        self.vm.add_args('-cpu', 'max,x-rme=on,pauth-impdef=on')
+        efi = join(rme_stack, 'out', 'EFI')
+        os.makedirs(efi, exist_ok=True)
+        shutil.copyfile(join(rme_stack, 'out', 'Image'), join(efi, 'Image'))
+        with open(join(efi, 'startup.nsh'), 'w') as startup:
+            startup.write('fs0:Image nokaslr root=/dev/vda rw init=/init --'
+                          ' /host/out/lkvm run --realm'
+                          ' -m 256m'
+                          ' --restricted_mem'
+                          ' --kernel /host/out/Image'
+                          ' --disk /host/out/guest.ext4'
+                          ' --params "root=/dev/vda rw init=/init"')
+
+        self.vm.add_args('-cpu', 'max,x-rme=on')
+        self.vm.add_args('-smp', '2')
         self.vm.add_args('-m', '2G')
         self.vm.add_args('-M', 'sbsa-ref')
         self.vm.add_args('-drive', f'file={pflash0},format=raw,if=pflash')
         self.vm.add_args('-drive', f'file={pflash1},format=raw,if=pflash')
-        self.vm.add_args('-drive', f'file=fat:rw:{virtual},format=raw')
-        self.vm.add_args('-drive', f'format=raw,if=none,file={drive},id=hd0')
-        self.vm.add_args('-device', 'virtio-blk-pci,drive=hd0')
-        self.vm.add_args('-device', 'virtio-9p-pci,fsdev=shr0,mount_tag=shr0')
-        self.vm.add_args('-fsdev', f'local,security_model=none,path={rme_stack},id=shr0')
-        self.vm.add_args('-device', 'virtio-net-pci,netdev=net0')
-        self.vm.add_args('-netdev', 'user,id=net0')
-
+        self.vm.add_args('-drive', f'file=fat:rw:{efi},format=raw')
+        self.vm.add_args('-drive', f'format=raw,file={rootfs},if=virtio')
+        self.vm.add_args('-virtfs',
+                         f'local,path={rme_stack}/,mount_tag=host,'
+                         'security_model=mapped,readonly=off')
         self.vm.launch()
-        # Wait for host VM boot to complete.
-        wait_for_console_pattern(self, 'Welcome to Buildroot',
-                                 failure_message='Synchronous Exception at')
-        exec_command_and_wait_for_pattern(self, 'root', '#')
-
-        test_realms_guest(self)
+        # Wait for host and guest VM boot to complete.
+        wait_for_console_pattern(self, 'root@guest',
+                                 failure_message='Kernel panic')
 
 if __name__ == '__main__':
     QemuSystemTest.main()
