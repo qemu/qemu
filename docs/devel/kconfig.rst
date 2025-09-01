@@ -59,7 +59,6 @@ stanza like the following::
       config ARM_VIRT
          bool
          imply PCI_DEVICES
-         imply VFIO_AMD_XGBE
          imply VFIO_XGMAC
          select A15MPCORE
          select ACPI

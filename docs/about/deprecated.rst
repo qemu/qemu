@@ -498,12 +498,6 @@ The vfio-calxeda-xgmac device allows to assign a host Calxeda Highbank
 string) to a guest. Calxeda HW has been ewasted now and there is no point
 keeping that device.
 
-``-device vfio-amd-xgbe`` (since 10.0)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The vfio-amd-xgbe device allows to assign a host AMD 10GbE controller
-to a guest ("amd,xgbe-seattle-v1a" compatibility string). AMD "Seattle"
-is not supported anymore and there is no point keeping that device.
-
 ``-device vfio-platform`` (since 10.0)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The vfio-platform device allows to assign a host platform device

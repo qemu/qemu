@@ -28,11 +28,6 @@ config VFIO_XGMAC
     default y
     depends on VFIO_PLATFORM
 
-config VFIO_AMD_XGBE
-    bool
-    default y
-    depends on VFIO_PLATFORM
-
 config VFIO_AP
     bool
     default y
