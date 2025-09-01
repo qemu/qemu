@@ -13,6 +13,7 @@
 #include "exec/target_page.h"
 #include "internals.h"
 #include "cpu-csr.h"
+#include "cpu-mmu.h"
 #include "tcg/tcg_loongarch.h"
 
 void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
@@ -43,15 +44,79 @@ void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
     }
 }
 
-static int loongarch_page_table_walker(CPULoongArchState *env, hwaddr *physical,
-                                 int *prot, target_ulong address)
+TLBRet loongarch_check_pte(CPULoongArchState *env, MMUContext *context,
+                           MMUAccessType access_type, int mmu_idx)
+{
+    uint64_t plv = mmu_idx;
+    uint64_t tlb_entry, tlb_ppn;
+    uint8_t tlb_ps, tlb_v, tlb_d, tlb_plv, tlb_nx, tlb_nr, tlb_rplv;
+
+    tlb_entry = context->pte;
+    tlb_ps = context->ps;
+    tlb_v = FIELD_EX64(tlb_entry, TLBENTRY, V);
+    tlb_d = FIELD_EX64(tlb_entry, TLBENTRY, D);
+    tlb_plv = FIELD_EX64(tlb_entry, TLBENTRY, PLV);
+    if (is_la64(env)) {
+        tlb_ppn = FIELD_EX64(tlb_entry, TLBENTRY_64, PPN);
+        tlb_nx = FIELD_EX64(tlb_entry, TLBENTRY_64, NX);
+        tlb_nr = FIELD_EX64(tlb_entry, TLBENTRY_64, NR);
+        tlb_rplv = FIELD_EX64(tlb_entry, TLBENTRY_64, RPLV);
+    } else {
+        tlb_ppn = FIELD_EX64(tlb_entry, TLBENTRY_32, PPN);
+        tlb_nx = 0;
+        tlb_nr = 0;
+        tlb_rplv = 0;
+    }
+
+    /* Remove sw bit between bit12 -- bit PS*/
+    tlb_ppn = tlb_ppn & ~(((0x1UL << (tlb_ps - 12)) - 1));
+
+    /* Check access rights */
+    if (!tlb_v) {
+        return TLBRET_INVALID;
+    }
+
+    if (access_type == MMU_INST_FETCH && tlb_nx) {
+        return TLBRET_XI;
+    }
+
+    if (access_type == MMU_DATA_LOAD && tlb_nr) {
+        return TLBRET_RI;
+    }
+
+    if (((tlb_rplv == 0) && (plv > tlb_plv)) ||
+        ((tlb_rplv == 1) && (plv != tlb_plv))) {
+        return TLBRET_PE;
+    }
+
+    if ((access_type == MMU_DATA_STORE) && !tlb_d) {
+        return TLBRET_DIRTY;
+    }
+
+    context->physical = (tlb_ppn << R_TLBENTRY_64_PPN_SHIFT) |
+                        (context->addr & MAKE_64BIT_MASK(0, tlb_ps));
+    context->prot = PAGE_READ;
+    if (tlb_d) {
+        context->prot |= PAGE_WRITE;
+    }
+    if (!tlb_nx) {
+        context->prot |= PAGE_EXEC;
+    }
+    return TLBRET_MATCH;
+}
+
+static TLBRet loongarch_page_table_walker(CPULoongArchState *env,
+                                          MMUContext *context,
+                                          int access_type, int mmu_idx)
 {
     CPUState *cs = env_cpu(env);
     target_ulong index, phys;
     uint64_t dir_base, dir_width;
     uint64_t base;
     int level;
+    vaddr address;
 
+    address = context->addr;
     if ((address >> 63) & 0x1) {
         base = env->CSR_PGDH;
     } else {
@@ -93,41 +158,20 @@ static int loongarch_page_table_walker(CPULoongArchState *env, hwaddr *physical,
         base = ldq_phys(cs->as, phys);
     }
 
-    /* TODO: check plv and other bits? */
-
-    /* base is pte, in normal pte format */
-    if (!FIELD_EX64(base, TLBENTRY, V)) {
-        return TLBRET_NOMATCH;
-    }
-
-    if (!FIELD_EX64(base, TLBENTRY, D)) {
-        *prot = PAGE_READ;
-    } else {
-        *prot = PAGE_READ | PAGE_WRITE;
-    }
-
-    /* get TARGET_PAGE_SIZE aligned physical address */
-    base += (address & TARGET_PHYS_MASK) & ((1 << dir_base) - 1);
-    /* mask RPLV, NX, NR bits */
-    base = FIELD_DP64(base, TLBENTRY_64, RPLV, 0);
-    base = FIELD_DP64(base, TLBENTRY_64, NX, 0);
-    base = FIELD_DP64(base, TLBENTRY_64, NR, 0);
-    /* mask other attribute bits */
-    *physical = base & TARGET_PAGE_MASK;
-
-    return 0;
+    context->ps = dir_base;
+    context->pte = base;
+    return loongarch_check_pte(env, context, access_type, mmu_idx);
 }
 
-static int loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
-                                 int *prot, target_ulong address,
-                                 MMUAccessType access_type, int mmu_idx,
-                                 int is_debug)
+static TLBRet loongarch_map_address(CPULoongArchState *env,
+                                    MMUContext *context,
+                                    MMUAccessType access_type, int mmu_idx,
+                                    int is_debug)
 {
-    int ret;
+    TLBRet ret;
 
     if (tcg_enabled()) {
-        ret = loongarch_get_addr_from_tlb(env, physical, prot, address,
-                                          access_type, mmu_idx);
+        ret = loongarch_get_addr_from_tlb(env, context, access_type, mmu_idx);
         if (ret != TLBRET_NOMATCH) {
             return ret;
         }
@@ -139,14 +183,13 @@ static int loongarch_map_address(CPULoongArchState *env, hwaddr *physical,
          * legal mapping, even if the mapping is not yet in TLB. return 0 if
          * there is a valid map, else none zero.
          */
-        return loongarch_page_table_walker(env, physical, prot, address);
+        return loongarch_page_table_walker(env, context, access_type, mmu_idx);
     }
 
     return TLBRET_NOMATCH;
 }
 
-static hwaddr dmw_va2pa(CPULoongArchState *env, target_ulong va,
-                        target_ulong dmw)
+static hwaddr dmw_va2pa(CPULoongArchState *env, vaddr va, target_ulong dmw)
 {
     if (is_la64(env)) {
         return va & TARGET_VIRT_MASK;
@@ -157,9 +200,9 @@ static hwaddr dmw_va2pa(CPULoongArchState *env, target_ulong va,
     }
 }
 
-int get_physical_address(CPULoongArchState *env, hwaddr *physical,
-                         int *prot, target_ulong address,
-                         MMUAccessType access_type, int mmu_idx, int is_debug)
+TLBRet get_physical_address(CPULoongArchState *env, MMUContext *context,
+                            MMUAccessType access_type, int mmu_idx,
+                            int is_debug)
 {
     int user_mode = mmu_idx == MMU_USER_IDX;
     int kernel_mode = mmu_idx == MMU_KERNEL_IDX;
@@ -167,11 +210,13 @@ int get_physical_address(CPULoongArchState *env, hwaddr *physical,
     int64_t addr_high;
     uint8_t da = FIELD_EX64(env->CSR_CRMD, CSR_CRMD, DA);
     uint8_t pg = FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PG);
+    vaddr address;
 
     /* Check PG and DA */
+    address = context->addr;
     if (da & !pg) {
-        *physical = address & TARGET_PHYS_MASK;
-        *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        context->physical = address & TARGET_PHYS_MASK;
+        context->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         return TLBRET_MATCH;
     }
 
@@ -189,8 +234,8 @@ int get_physical_address(CPULoongArchState *env, hwaddr *physical,
             base_c = FIELD_EX64(env->CSR_DMW[i], CSR_DMW_32, VSEG);
         }
         if ((plv & env->CSR_DMW[i]) && (base_c == base_v)) {
-            *physical = dmw_va2pa(env, address, env->CSR_DMW[i]);
-            *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+            context->physical = dmw_va2pa(env, address, env->CSR_DMW[i]);
+            context->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
             return TLBRET_MATCH;
         }
     }
@@ -202,19 +247,18 @@ int get_physical_address(CPULoongArchState *env, hwaddr *physical,
     }
 
     /* Mapped address */
-    return loongarch_map_address(env, physical, prot, address,
-                                 access_type, mmu_idx, is_debug);
+    return loongarch_map_address(env, context, access_type, mmu_idx, is_debug);
 }
 
 hwaddr loongarch_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
     CPULoongArchState *env = cpu_env(cs);
-    hwaddr phys_addr;
-    int prot;
+    MMUContext context;
 
-    if (get_physical_address(env, &phys_addr, &prot, addr, MMU_DATA_LOAD,
-                             cpu_mmu_index(cs, false), 1) != 0) {
+    context.addr = addr;
+    if (get_physical_address(env, &context, MMU_DATA_LOAD,
+                             cpu_mmu_index(cs, false), 1) != TLBRET_MATCH) {
         return -1;
     }
-    return phys_addr;
+    return context.physical;
 }

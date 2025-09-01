@@ -494,15 +494,4 @@ static inline void set_pc(CPULoongArchState *env, uint64_t value)
 
 #define CPU_RESOLVING_TYPE TYPE_LOONGARCH_CPU
 
-void loongarch_cpu_post_init(Object *obj);
-
-#ifdef CONFIG_KVM
-void kvm_loongarch_cpu_post_init(LoongArchCPU *cpu);
-#else
-static inline void kvm_loongarch_cpu_post_init(LoongArchCPU *cpu)
-{
-}
-#endif
-void kvm_loongarch_init_irq_routing(void);
-
 #endif /* LOONGARCH_CPU_H */
