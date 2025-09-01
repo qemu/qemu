@@ -549,7 +549,7 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
     unsigned int i;
     hwaddr mem_base, mem_len;
     char **node_path;
-    g_autofree MemoryDeviceInfoList *md_list = NULL;
+    g_autoptr(MemoryDeviceInfoList) md_list = NULL;
     Error *err = NULL;
 
     if (binfo->dtb_filename) {
