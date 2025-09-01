@@ -833,14 +833,14 @@ static uint32_t sd_blk_len(SDState *sd)
 
 /*
  * This requires a disk image that has two boot partitions inserted at the
- * beginning of it. The size of the boot partitions is the "boot-size"
- * property.
+ * beginning of it, followed by an RPMB partition. The size of the boot
+ * partitions is the "boot-partition-size" property.
  */
-static uint32_t sd_bootpart_offset(SDState *sd)
+static uint32_t sd_part_offset(SDState *sd)
 {
     unsigned partition_access;
 
-    if (!sd->boot_part_size || !sd_is_emmc(sd)) {
+    if (!sd_is_emmc(sd)) {
         return 0;
     }
 
@@ -849,9 +849,9 @@ static uint32_t sd_bootpart_offset(SDState *sd)
     switch (partition_access) {
     case EXT_CSD_PART_CONFIG_ACC_DEFAULT:
         return sd->boot_part_size * 2;
-    case EXT_CSD_PART_CONFIG_ACC_BOOT0:
+    case EXT_CSD_PART_CONFIG_ACC_BOOT1:
         return 0;
-    case EXT_CSD_PART_CONFIG_ACC_BOOT0 + 1:
+    case EXT_CSD_PART_CONFIG_ACC_BOOT2:
         return sd->boot_part_size * 1;
     default:
          g_assert_not_reached();
@@ -1052,7 +1052,7 @@ static const VMStateDescription sd_vmstate = {
 static void sd_blk_read(SDState *sd, uint64_t addr, uint32_t len)
 {
     trace_sdcard_read_block(addr, len);
-    addr += sd_bootpart_offset(sd);
+    addr += sd_part_offset(sd);
     if (!sd->blk || blk_pread(sd->blk, addr, len, sd->data, 0) < 0) {
         fprintf(stderr, "sd_blk_read: read error on host side\n");
     }
@@ -1061,7 +1061,7 @@ static void sd_blk_read(SDState *sd, uint64_t addr, uint32_t len)
 static void sd_blk_write(SDState *sd, uint64_t addr, uint32_t len)
 {
     trace_sdcard_write_block(addr, len);
-    addr += sd_bootpart_offset(sd);
+    addr += sd_part_offset(sd);
     if (!sd->blk || blk_pwrite(sd->blk, addr, len, sd->data, 0) < 0) {
         fprintf(stderr, "sd_blk_write: write error on host side\n");
     }
