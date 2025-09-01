@@ -5,7 +5,6 @@ config ARM_VIRT
     depends on TCG || KVM || HVF
     imply PCI_DEVICES
     imply TEST_DEVICES
-    imply VFIO_PLATFORM
     imply TPM_TIS_SYSBUS
     imply TPM_TIS_I2C
     imply NVDIMM

@@ -127,17 +127,6 @@ vfio_region_unmap(const char *name, unsigned long offset, unsigned long end) "Re
 vfio_region_sparse_mmap_header(const char *name, int index, int nr_areas) "Device %s region %d: %d sparse mmap entries"
 vfio_region_sparse_mmap_entry(int i, unsigned long start, unsigned long end) "sparse entry %d [0x%lx - 0x%lx]"
 
-# platform.c
-vfio_platform_realize(char *name, char *compat) "vfio device %s, compat = %s"
-vfio_platform_eoi(int pin, int fd) "EOI IRQ pin %d (fd=%d)"
-vfio_platform_intp_mmap_enable(int pin) "IRQ #%d still active, stay in slow path"
-vfio_platform_intp_interrupt(int pin, int fd) "Inject IRQ #%d (fd = %d)"
-vfio_platform_intp_inject_pending_lockheld(int pin, int fd) "Inject pending IRQ #%d (fd = %d)"
-vfio_platform_populate_interrupts(int pin, int count, int flags) "- IRQ index %d: count %d, flags=0x%x"
-vfio_intp_interrupt_set_pending(int index) "irq %d is set PENDING"
-vfio_platform_start_level_irqfd_injection(int index, int fd, int resamplefd) "IRQ index=%d, fd = %d, resamplefd = %d"
-vfio_platform_start_edge_irqfd_injection(int index, int fd) "IRQ index=%d, fd = %d"
-
 # spapr.c
 vfio_prereg_listener_region_add_skip(uint64_t start, uint64_t end) "0x%"PRIx64" - 0x%"PRIx64
 vfio_prereg_listener_region_del_skip(uint64_t start, uint64_t end) "0x%"PRIx64" - 0x%"PRIx64

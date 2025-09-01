@@ -488,18 +488,6 @@ Stream ``reconnect`` (since 9.2)
 The ``reconnect`` option only allows specifying second granularity timeouts,
 which is not enough for all types of use cases, use ``reconnect-ms`` instead.
 
-VFIO device options
-'''''''''''''''''''
-
-``-device vfio-platform`` (since 10.0)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The vfio-platform device allows to assign a host platform device
-to a guest in a generic manner. Integrating a new device into
-the vfio-platform infrastructure requires some adaptation at
-both kernel and qemu level. No such attempt has been done for years
-and the conclusion is that vfio-platform has not got any traction.
-PCIe passthrough shall be the mainline solution.
-
 CPU device properties
 '''''''''''''''''''''
 

@@ -17,12 +17,6 @@ config VFIO_CCW
     select VFIO
     depends on LINUX && S390_CCW_VIRTIO
 
-config VFIO_PLATFORM
-    bool
-    default y
-    select VFIO
-    depends on LINUX && PLATFORM_BUS
-
 config VFIO_AP
     bool
     default y
