@@ -242,17 +242,6 @@ void pcie_sriov_pf_init_vf_bar(PCIDevice *dev, int region_num,
     dev->exp.sriov_pf.vf_bar_type[region_num] = type;
 }
 
-void pcie_sriov_vf_register_bar(PCIDevice *dev, int region_num,
-                                MemoryRegion *memory)
-{
-    uint8_t type;
-
-    assert(dev->exp.sriov_vf.pf);
-    type = dev->exp.sriov_vf.pf->exp.sriov_pf.vf_bar_type[region_num];
-
-    return pci_register_bar(dev, region_num, type, memory);
-}
-
 static gint compare_vf_devfns(gconstpointer a, gconstpointer b)
 {
     return (*(PCIDevice **)a)->devfn - (*(PCIDevice **)b)->devfn;
