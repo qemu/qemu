@@ -18,13 +18,13 @@ struct VHostUserDevicePCI {
     VHostUserBase vub;
 };
 
-#define TYPE_VHOST_USER_DEVICE_PCI "vhost-user-device-pci-base"
+#define TYPE_VHOST_USER_TEST_DEVICE_PCI "vhost-user-test-device-pci-base"
 
-OBJECT_DECLARE_SIMPLE_TYPE(VHostUserDevicePCI, VHOST_USER_DEVICE_PCI)
+OBJECT_DECLARE_SIMPLE_TYPE(VHostUserDevicePCI, VHOST_USER_TEST_DEVICE_PCI)
 
 static void vhost_user_device_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
-    VHostUserDevicePCI *dev = VHOST_USER_DEVICE_PCI(vpci_dev);
+    VHostUserDevicePCI *dev = VHOST_USER_TEST_DEVICE_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vub);
 
     vpci_dev->nvectors = 1;
@@ -38,9 +38,6 @@ static void vhost_user_device_pci_class_init(ObjectClass *klass,
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
 
-    /* Reason: stop users confusing themselves */
-    dc->user_creatable = false;
-
     k->realize = vhost_user_device_pci_realize;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
@@ -51,15 +48,15 @@ static void vhost_user_device_pci_class_init(ObjectClass *klass,
 
 static void vhost_user_device_pci_instance_init(Object *obj)
 {
-    VHostUserDevicePCI *dev = VHOST_USER_DEVICE_PCI(obj);
+    VHostUserDevicePCI *dev = VHOST_USER_TEST_DEVICE_PCI(obj);
 
     virtio_instance_init_common(obj, &dev->vub, sizeof(dev->vub),
-                                TYPE_VHOST_USER_DEVICE);
+                                TYPE_VHOST_USER_TEST_DEVICE);
 }
 
 static const VirtioPCIDeviceTypeInfo vhost_user_device_pci_info = {
-    .base_name = TYPE_VHOST_USER_DEVICE_PCI,
-    .non_transitional_name = "vhost-user-device-pci",
+    .base_name = TYPE_VHOST_USER_TEST_DEVICE_PCI,
+    .non_transitional_name = "vhost-user-test-device-pci",
     .instance_size = sizeof(VHostUserDevicePCI),
     .instance_init = vhost_user_device_pci_instance_init,
     .class_init = vhost_user_device_pci_class_init,
