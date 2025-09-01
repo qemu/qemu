@@ -110,6 +110,7 @@ struct VTDAddressSpace {
     QLIST_ENTRY(VTDAddressSpace) next;
     /* Superset of notifier flags that this address space has */
     IOMMUNotifierFlag notifier_flags;
+    IOMMUPRINotifier *pri_notifier;
     /*
      * @iova_tree traces mapped IOVA ranges.
      *

@@ -45,6 +45,8 @@
     ((ce)->val[1] & VTD_SM_CONTEXT_ENTRY_RID2PASID_MASK)
 #define VTD_CE_GET_PASID_DIR_TABLE(ce) \
     ((ce)->val[0] & VTD_PASID_DIR_BASE_ADDR_MASK)
+#define VTD_CE_GET_PRE(ce) \
+    ((ce)->val[0] & VTD_SM_CONTEXT_ENTRY_PRE)
 
 /* pe operations */
 #define VTD_PE_GET_TYPE(pe) ((pe)->val[0] & VTD_SM_PASID_ENTRY_PGTT)
@@ -1838,6 +1840,7 @@ static const bool vtd_qualified_faults[] = {
     [VTD_FR_FS_NON_CANONICAL] = true,
     [VTD_FR_FS_PAGING_ENTRY_US] = true,
     [VTD_FR_SM_WRITE] = true,
+    [VTD_FR_SM_PRE_ABS] = true,
     [VTD_FR_SM_INTERRUPT_ADDR] = true,
     [VTD_FR_FS_BIT_UPDATE_FAILED] = true,
     [VTD_FR_MAX] = false,
@@ -3152,6 +3155,59 @@ static bool vtd_process_device_piotlb_desc(IntelIOMMUState *s,
     return true;
 }
 
+static bool vtd_process_page_group_response_desc(IntelIOMMUState *s,
+                                                 VTDInvDesc *inv_desc)
+{
+    VTDAddressSpace *vtd_dev_as;
+    bool pasid_present;
+    uint8_t response_code;
+    uint16_t rid;
+    uint32_t pasid;
+    uint16_t prgi;
+    IOMMUPRIResponse response;
+
+    if ((inv_desc->lo & VTD_INV_DESC_PGRESP_RSVD_LO) ||
+        (inv_desc->hi & VTD_INV_DESC_PGRESP_RSVD_HI)) {
+        error_report_once("%s: invalid page group response desc: hi=%"PRIx64
+                            ", lo=%"PRIx64" (reserved nonzero)", __func__,
+                            inv_desc->hi, inv_desc->lo);
+        return false;
+    }
+
+    pasid_present = VTD_INV_DESC_PGRESP_PP(inv_desc->lo);
+    response_code = VTD_INV_DESC_PGRESP_RC(inv_desc->lo);
+    rid = VTD_INV_DESC_PGRESP_RID(inv_desc->lo);
+    pasid = VTD_INV_DESC_PGRESP_PASID(inv_desc->lo);
+    prgi = VTD_INV_DESC_PGRESP_PRGI(inv_desc->hi);
+
+    if (!pasid_present) {
+        error_report_once("Page group response without PASID is"
+                          "not supported yet");
+        return false;
+    }
+
+    vtd_dev_as = vtd_get_as_by_sid_and_pasid(s, rid, pasid);
+    if (!vtd_dev_as) {
+        return true;
+    }
+
+    response.prgi = prgi;
+
+    if (response_code == 0x0u) {
+        response.response_code = IOMMU_PRI_RESP_SUCCESS;
+    } else if (response_code == 0x1u) {
+        response.response_code = IOMMU_PRI_RESP_INVALID_REQUEST;
+    } else {
+        response.response_code = IOMMU_PRI_RESP_FAILURE;
+    }
+
+    if (vtd_dev_as->pri_notifier) {
+        vtd_dev_as->pri_notifier->notify(vtd_dev_as->pri_notifier, &response);
+    }
+
+    return true;
+}
+
 static bool vtd_process_device_iotlb_desc(IntelIOMMUState *s,
                                           VTDInvDesc *inv_desc)
 {
@@ -3248,6 +3304,13 @@ static bool vtd_process_inv_desc(IntelIOMMUState *s)
     case VTD_INV_DESC_DEVICE:
         trace_vtd_inv_desc("device", inv_desc.hi, inv_desc.lo);
         if (!vtd_process_device_iotlb_desc(s, &inv_desc)) {
+            return false;
+        }
+        break;
+
+    case VTD_INV_DESC_PGRESP:
+        trace_vtd_inv_desc("page group response", inv_desc.hi, inv_desc.lo);
+        if (!vtd_process_page_group_response_desc(s, &inv_desc)) {
             return false;
         }
         break;
@@ -4864,6 +4927,194 @@ static ssize_t vtd_ats_request_translation(PCIBus *bus, void *opaque,
     return res_index;
 }
 
+/* 11.4.11.3 : The number of entries in the page request queue is 2^(PQS + 7) */
+static inline uint64_t vtd_prq_size(IntelIOMMUState *s)
+{
+    return 1ULL << ((vtd_get_quad(s, DMAR_PQA_REG) & VTD_PQA_SIZE) + 7);
+}
+
+/**
+ * Return true if the bit is accessible and correctly set, false otherwise
+ */
+static bool vtd_check_pre_bit(VTDAddressSpace *vtd_as, hwaddr addr,
+                              uint16_t sid, bool is_write)
+{
+    int ret;
+    IntelIOMMUState *s = vtd_as->iommu_state;
+    uint8_t bus_n = pci_bus_num(vtd_as->bus);
+    VTDContextEntry ce;
+    bool is_fpd_set = false;
+
+    ret = vtd_dev_to_context_entry(s, bus_n, vtd_as->devfn, &ce);
+
+    if (ret) {
+        goto error_report;
+    }
+
+    if (!VTD_CE_GET_PRE(&ce)) {
+        ret = -VTD_FR_SM_PRE_ABS;
+        goto error_get_fpd_and_report;
+    }
+
+    return true;
+
+error_get_fpd_and_report:
+    /* Try to get fpd (may not work but we are already on an error path) */
+    is_fpd_set = ce.lo & VTD_CONTEXT_ENTRY_FPD;
+    vtd_ce_get_pasid_fpd(s, &ce, &is_fpd_set, vtd_as->pasid);
+error_report:
+    vtd_report_fault(s, -ret, is_fpd_set, sid, addr, is_write,
+                     vtd_as->pasid != PCI_NO_PASID, vtd_as->pasid);
+    return false;
+}
+
+/* Logic described in section 7.5 */
+static void vtd_generate_page_request_event(IntelIOMMUState *s,
+                                            uint32_t old_pr_status)
+{
+    uint32_t current_pectl = vtd_get_long(s, DMAR_PECTL_REG);
+    /*
+     * Hardware evaluates PPR and PRO fields in the Page Request Status Register
+     * and if any of them is set, Page Request Event is not generated
+     */
+    if (old_pr_status & (VTD_PR_STATUS_PRO | VTD_PR_STATUS_PPR)) {
+        return;
+    }
+
+    vtd_set_clear_mask_long(s, DMAR_PECTL_REG, 0, VTD_PR_PECTL_IP);
+    if (!(current_pectl & VTD_PR_PECTL_IM)) {
+        vtd_set_clear_mask_long(s, DMAR_PECTL_REG, VTD_PR_PECTL_IP, 0);
+        vtd_generate_interrupt(s, DMAR_PEADDR_REG, DMAR_PEDATA_REG);
+    }
+}
+
+/* When calling this function, we known that we are in scalable mode */
+static int vtd_pri_perform_implicit_invalidation(VTDAddressSpace *vtd_as,
+                                                 hwaddr addr)
+{
+    IntelIOMMUState *s = vtd_as->iommu_state;
+    VTDContextEntry ce;
+    VTDPASIDEntry pe;
+    uint16_t pgtt;
+    uint16_t domain_id;
+    int ret = vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
+                                       vtd_as->devfn, &ce);
+    if (ret) {
+        return -EINVAL;
+    }
+    ret = vtd_ce_get_rid2pasid_entry(s, &ce, &pe, vtd_as->pasid);
+    if (ret) {
+        return -EINVAL;
+    }
+    pgtt = VTD_PE_GET_TYPE(&pe);
+    domain_id = VTD_SM_PASID_ENTRY_DID(pe.val[1]);
+    ret = 0;
+    switch (pgtt) {
+    case VTD_SM_PASID_ENTRY_FLT:
+        vtd_piotlb_page_invalidate(s, domain_id, vtd_as->pasid, addr, 0);
+        break;
+    /* Room for other pgtt values */
+    default:
+        error_report_once("Translation type not supported yet : %d", pgtt);
+        ret = -EINVAL;
+        break;
+    }
+
+    return ret;
+}
+
+/* Page Request Descriptor : 7.4.1.1 */
+static int vtd_pri_request_page(PCIBus *bus, void *opaque, int devfn,
+                                uint32_t pasid, bool priv_req, bool exec_req,
+                                hwaddr addr, bool lpig, uint16_t prgi,
+                                bool is_read, bool is_write)
+{
+    IntelIOMMUState *s = opaque;
+    VTDAddressSpace *vtd_as;
+
+    vtd_as = vtd_find_add_as(s, bus, devfn, pasid);
+
+    uint64_t queue_addr_reg = vtd_get_quad(s, DMAR_PQA_REG);
+    uint64_t queue_tail_offset_reg = vtd_get_quad(s, DMAR_PQT_REG);
+    uint64_t new_queue_tail_offset = (
+                                (queue_tail_offset_reg + VTD_PQA_ENTRY_SIZE) %
+                                (vtd_prq_size(s) * VTD_PQA_ENTRY_SIZE));
+    uint64_t queue_head_offset_reg = vtd_get_quad(s, DMAR_PQH_REG);
+    hwaddr queue_tail = (queue_addr_reg & VTD_PQA_ADDR) + queue_tail_offset_reg;
+    uint32_t old_pr_status = vtd_get_long(s, DMAR_PRS_REG);
+    uint16_t sid = PCI_BUILD_BDF(pci_bus_num(vtd_as->bus), vtd_as->devfn);
+    VTDPRDesc desc;
+
+    if (!(s->ecap & VTD_ECAP_PRS)) {
+        return -EPERM;
+    }
+
+    /*
+     * No need to check if scalable mode is enabled as we already known that
+     * VTD_ECAP_PRS is set (see vtd_decide_config)
+     */
+
+    /* We do not support PRI without PASID */
+    if (vtd_as->pasid == PCI_NO_PASID) {
+        return -EPERM;
+    }
+    if (exec_req && !is_read) {
+        return -EINVAL;
+    }
+
+    /* Check PRE bit in the scalable mode context entry */
+    if (!vtd_check_pre_bit(vtd_as, addr, sid, is_write)) {
+        return -EPERM;
+    }
+
+    if (old_pr_status & VTD_PR_STATUS_PRO) {
+        /*
+         * No action is taken by hardware to report a fault
+         * or generate an event
+         */
+        return -ENOSPC;
+    }
+
+    /* Check for overflow */
+    if (new_queue_tail_offset == queue_head_offset_reg) {
+        vtd_set_clear_mask_long(s, DMAR_PRS_REG, 0, VTD_PR_STATUS_PRO);
+        vtd_generate_page_request_event(s, old_pr_status);
+        return -ENOSPC;
+    }
+
+    if (vtd_pri_perform_implicit_invalidation(vtd_as, addr)) {
+        return -EINVAL;
+    }
+
+    desc.lo = VTD_PRD_TYPE | VTD_PRD_PP(true) | VTD_PRD_RID(sid) |
+              VTD_PRD_PASID(vtd_as->pasid) | VTD_PRD_PMR(priv_req);
+    desc.hi = VTD_PRD_RDR(is_read) | VTD_PRD_WRR(is_write) |
+              VTD_PRD_LPIG(lpig) | VTD_PRD_PRGI(prgi) | VTD_PRD_ADDR(addr);
+
+    desc.lo = cpu_to_le64(desc.lo);
+    desc.hi = cpu_to_le64(desc.hi);
+    if (dma_memory_write(&address_space_memory, queue_tail, &desc, sizeof(desc),
+                         MEMTXATTRS_UNSPECIFIED)) {
+        error_report_once("IO error, the PQ tail cannot be updated");
+        return -EIO;
+    }
+
+    /* increment the tail register and set the pending request bit */
+    vtd_set_quad(s, DMAR_PQT_REG, new_queue_tail_offset);
+    /*
+     * read status again so that the kernel does not miss a request.
+     * in some cases, we can trigger an unecessary interrupt but this strategy
+     * drastically improves performance as we don't need to take a lock.
+     */
+    old_pr_status = vtd_get_long(s, DMAR_PRS_REG);
+    if (!(old_pr_status & VTD_PR_STATUS_PPR)) {
+        vtd_set_clear_mask_long(s, DMAR_PRS_REG, 0, VTD_PR_STATUS_PPR);
+        vtd_generate_page_request_event(s, old_pr_status);
+    }
+
+    return 0;
+}
+
 static void vtd_init_iotlb_notifier(PCIBus *bus, void *opaque, int devfn,
                                     IOMMUNotifier *n, IOMMUNotify fn,
                                     void *user_opaque)
@@ -4905,6 +5156,26 @@ static void vtd_unregister_iotlb_notifier(PCIBus *bus, void *opaque,
     memory_region_unregister_iommu_notifier(MEMORY_REGION(&vtd_as->iommu), n);
 }
 
+static void vtd_pri_register_notifier(PCIBus *bus, void *opaque, int devfn,
+                               uint32_t pasid, IOMMUPRINotifier *notifier)
+{
+    IntelIOMMUState *s = opaque;
+    VTDAddressSpace *vtd_as;
+
+    vtd_as = vtd_find_add_as(s, bus, devfn, pasid);
+    vtd_as->pri_notifier = notifier;
+}
+
+static void vtd_pri_unregister_notifier(PCIBus *bus, void *opaque,
+                                        int devfn, uint32_t pasid)
+{
+    IntelIOMMUState *s = opaque;
+    VTDAddressSpace *vtd_as;
+
+    vtd_as = vtd_find_add_as(s, bus, devfn, pasid);
+    vtd_as->pri_notifier = NULL;
+}
+
 static PCIIOMMUOps vtd_iommu_ops = {
     .get_address_space = vtd_host_dma_iommu,
     .set_iommu_device = vtd_dev_set_iommu_device,
@@ -4914,6 +5185,9 @@ static PCIIOMMUOps vtd_iommu_ops = {
     .register_iotlb_notifier = vtd_register_iotlb_notifier,
     .unregister_iotlb_notifier = vtd_unregister_iotlb_notifier,
     .ats_request_translation = vtd_ats_request_translation,
+    .pri_register_notifier = vtd_pri_register_notifier,
+    .pri_unregister_notifier = vtd_pri_unregister_notifier,
+    .pri_request_page = vtd_pri_request_page,
 };
 
 static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
