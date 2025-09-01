@@ -153,20 +153,17 @@ static const int aspeed_soc_ast2700a1_irqmap[] = {
     [ASPEED_DEV_SDHCI]     = 197,
 };
 
-/* GICINT 128 */
 /* GICINT 192 */
-static const int ast2700_gic128_gic192_intcmap[] = {
+static const int ast2700_gic192_intcmap[] = {
     [ASPEED_DEV_LPC]       = 0,
     [ASPEED_DEV_IBT]       = 2,
     [ASPEED_DEV_KCS]       = 4,
 };
 
-/* GICINT 129 */
 /* GICINT 193 */
 
-/* GICINT 130 */
 /* GICINT 194 */
-static const int ast2700_gic130_gic194_intcmap[] = {
+static const int ast2700_gic194_intcmap[] = {
     [ASPEED_DEV_I2C]        = 0,
     [ASPEED_DEV_ADC]        = 16,
     [ASPEED_DEV_GPIO]       = 18,
@@ -174,18 +171,16 @@ static const int ast2700_gic130_gic194_intcmap[] = {
     [ASPEED_DEV_SGPIOM1]    = 24,
 };
 
-/* GICINT 131 */
 /* GICINT 195 */
-static const int ast2700_gic131_gic195_intcmap[] = {
+static const int ast2700_gic195_intcmap[] = {
     [ASPEED_DEV_I3C]       = 0,
     [ASPEED_DEV_WDT]       = 16,
     [ASPEED_DEV_FMC]       = 25,
     [ASPEED_DEV_PWM]       = 29,
 };
 
-/* GICINT 132 */
 /* GICINT 196 */
-static const int ast2700_gic132_gic196_intcmap[] = {
+static const int ast2700_gic196_intcmap[] = {
     [ASPEED_DEV_ETH1]      = 0,
     [ASPEED_DEV_ETH2]      = 1,
     [ASPEED_DEV_ETH3]      = 2,
@@ -206,14 +201,12 @@ static const int ast2700_gic132_gic196_intcmap[] = {
     [ASPEED_DEV_PCIE2]     = 31,
 };
 
-/* GICINT 133 */
 /* GICINT 197 */
-static const int ast2700_gic133_gic197_intcmap[] = {
+static const int ast2700_gic197_intcmap[] = {
     [ASPEED_DEV_SDHCI]     = 1,
     [ASPEED_DEV_PECI]      = 4,
 };
 
-/* GICINT 128 ~ 136 */
 /* GICINT 192 ~ 201 */
 struct gic_intc_irq_info {
     int irq;
@@ -223,25 +216,16 @@ struct gic_intc_irq_info {
 };
 
 static const struct gic_intc_irq_info ast2700_gic_intcmap[] = {
-    {192, 1, 0, ast2700_gic128_gic192_intcmap},
+    {192, 1, 0, ast2700_gic192_intcmap},
     {193, 1, 1, NULL},
-    {194, 1, 2, ast2700_gic130_gic194_intcmap},
-    {195, 1, 3, ast2700_gic131_gic195_intcmap},
-    {196, 1, 4, ast2700_gic132_gic196_intcmap},
-    {197, 1, 5, ast2700_gic133_gic197_intcmap},
+    {194, 1, 2, ast2700_gic194_intcmap},
+    {195, 1, 3, ast2700_gic195_intcmap},
+    {196, 1, 4, ast2700_gic196_intcmap},
+    {197, 1, 5, ast2700_gic197_intcmap},
     {198, 1, 6, NULL},
     {199, 1, 7, NULL},
     {200, 1, 8, NULL},
     {201, 1, 9, NULL},
-    {128, 0, 1, ast2700_gic128_gic192_intcmap},
-    {129, 0, 2, NULL},
-    {130, 0, 3, ast2700_gic130_gic194_intcmap},
-    {131, 0, 4, ast2700_gic131_gic195_intcmap},
-    {132, 0, 5, ast2700_gic132_gic196_intcmap},
-    {133, 0, 6, ast2700_gic133_gic197_intcmap},
-    {134, 0, 7, NULL},
-    {135, 0, 8, NULL},
-    {136, 0, 9, NULL},
 };
 
 static qemu_irq aspeed_soc_ast2700_get_irq(AspeedSoCState *s, int dev)
@@ -285,8 +269,7 @@ static qemu_irq aspeed_soc_ast2700_get_irq_index(AspeedSoCState *s, int dev,
     }
 
     /*
-     * Invalid OR gate index, device IRQ should be between 128 to 136
-     * and 192 to 201.
+     * Invalid OR gate index, device IRQ should be between 192 to 201.
      */
     g_assert_not_reached();
 }
@@ -701,7 +684,6 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
     }
 
     /* INTC -> GIC192 - GIC201 */
-    /* INTC -> GIC128 - GIC136 */
     for (i = 0; i < ic->num_outpins; i++) {
         sysbus_connect_irq(SYS_BUS_DEVICE(&a->intc[0]), i,
                            qdev_get_gpio_in(DEVICE(&a->gic),
@@ -901,13 +883,6 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
         /*
          * The AST2700 I2C controller has one source INTC per bus.
          *
-         * For AST2700 A0:
-         * I2C bus interrupts are connected to the OR gate from bit 0 to bit
-         * 15, and the OR gate output pin is connected to the input pin of
-         * GICINT130 of INTC (CPU Die). Then, the output pin is connected to
-         * the GIC.
-         *
-         * For AST2700 A1:
          * I2C bus interrupts are connected to the OR gate from bit 0 to bit
          * 15, and the OR gate output pin is connected to the input pin of
          * GICINT194 of INTCIO (IO Die). Then, the output pin is connected

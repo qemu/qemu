@@ -21,24 +21,6 @@
  * because its memory region is start at 0x1000
  *
  */
-REG32(GICINT128_EN,         0x000)
-REG32(GICINT128_STATUS,     0x004)
-REG32(GICINT129_EN,         0x100)
-REG32(GICINT129_STATUS,     0x104)
-REG32(GICINT130_EN,         0x200)
-REG32(GICINT130_STATUS,     0x204)
-REG32(GICINT131_EN,         0x300)
-REG32(GICINT131_STATUS,     0x304)
-REG32(GICINT132_EN,         0x400)
-REG32(GICINT132_STATUS,     0x404)
-REG32(GICINT133_EN,         0x500)
-REG32(GICINT133_STATUS,     0x504)
-REG32(GICINT134_EN,         0x600)
-REG32(GICINT134_STATUS,     0x604)
-REG32(GICINT135_EN,         0x700)
-REG32(GICINT135_STATUS,     0x704)
-REG32(GICINT136_EN,         0x800)
-REG32(GICINT136_STATUS,     0x804)
 REG32(GICINT192_201_EN,         0xB00)
 REG32(GICINT192_201_STATUS,     0xB04)
 
@@ -507,28 +489,8 @@ static void aspeed_intc_write(void *opaque, hwaddr offset, uint64_t data,
     trace_aspeed_intc_write(name, offset, size, data);
 
     switch (reg) {
-    case R_GICINT128_EN:
-    case R_GICINT129_EN:
-    case R_GICINT130_EN:
-    case R_GICINT131_EN:
-    case R_GICINT132_EN:
-    case R_GICINT133_EN:
-    case R_GICINT134_EN:
-    case R_GICINT135_EN:
-    case R_GICINT136_EN:
     case R_GICINT192_201_EN:
         aspeed_intc_enable_handler(s, offset, data);
-        break;
-    case R_GICINT128_STATUS:
-    case R_GICINT129_STATUS:
-    case R_GICINT130_STATUS:
-    case R_GICINT131_STATUS:
-    case R_GICINT132_STATUS:
-    case R_GICINT133_STATUS:
-    case R_GICINT134_STATUS:
-    case R_GICINT135_STATUS:
-    case R_GICINT136_STATUS:
-        aspeed_intc_status_handler(s, offset, data);
         break;
     case R_GICINT192_201_STATUS:
         aspeed_intc_status_handler_multi_outpins(s, offset, data);
@@ -891,15 +853,6 @@ static const TypeInfo aspeed_intc_info = {
 
 static AspeedINTCIRQ aspeed_2700_intc_irqs[ASPEED_INTC_MAX_INPINS] = {
     {0, 0, 10, R_GICINT192_201_EN, R_GICINT192_201_STATUS},
-    {1, 10, 1, R_GICINT128_EN, R_GICINT128_STATUS},
-    {2, 11, 1, R_GICINT129_EN, R_GICINT129_STATUS},
-    {3, 12, 1, R_GICINT130_EN, R_GICINT130_STATUS},
-    {4, 13, 1, R_GICINT131_EN, R_GICINT131_STATUS},
-    {5, 14, 1, R_GICINT132_EN, R_GICINT132_STATUS},
-    {6, 15, 1, R_GICINT133_EN, R_GICINT133_STATUS},
-    {7, 16, 1, R_GICINT134_EN, R_GICINT134_STATUS},
-    {8, 17, 1, R_GICINT135_EN, R_GICINT135_STATUS},
-    {9, 18, 1, R_GICINT136_EN, R_GICINT136_STATUS},
 };
 
 static void aspeed_2700_intc_class_init(ObjectClass *klass, const void *data)
@@ -909,8 +862,8 @@ static void aspeed_2700_intc_class_init(ObjectClass *klass, const void *data)
 
     dc->desc = "ASPEED 2700 INTC Controller";
     aic->num_lines = 32;
-    aic->num_inpins = 10;
-    aic->num_outpins = 19;
+    aic->num_inpins = 1;
+    aic->num_outpins = 10;
     aic->mem_size = 0x4000;
     aic->nr_regs = 0xB08 >> 2;
     aic->reg_offset = 0x1000;
