@@ -3386,6 +3386,27 @@ static void vtd_handle_iectl_write(IntelIOMMUState *s)
     }
 }
 
+static void vtd_handle_prs_write(IntelIOMMUState *s)
+{
+    uint32_t prs = vtd_get_long_raw(s, DMAR_PRS_REG);
+    if (!(prs & VTD_PR_STATUS_PPR) && !(prs & VTD_PR_STATUS_PRO)) {
+        vtd_set_clear_mask_long(s, DMAR_PECTL_REG, VTD_PR_PECTL_IP, 0);
+    }
+}
+
+static void vtd_handle_pectl_write(IntelIOMMUState *s)
+{
+    uint32_t pectl = vtd_get_long_raw(s, DMAR_PECTL_REG);
+    if ((pectl & VTD_PR_PECTL_IP) && !(pectl & VTD_PR_PECTL_IM)) {
+        /*
+         * If IP field was 1 when software clears the IM field,
+         * the  interrupt is generated along with clearing the IP field.
+         */
+        vtd_set_clear_mask_long(s, DMAR_PECTL_REG, VTD_PR_PECTL_IP, 0);
+        vtd_generate_interrupt(s, DMAR_PEADDR_REG, DMAR_PEDATA_REG);
+    }
+}
+
 static uint64_t vtd_mem_read(void *opaque, hwaddr addr, unsigned size)
 {
     IntelIOMMUState *s = opaque;
@@ -3426,6 +3447,11 @@ static uint64_t vtd_mem_read(void *opaque, hwaddr addr, unsigned size)
     case DMAR_IQA_REG_HI:
         assert(size == 4);
         val = s->iq >> 32;
+        break;
+
+    case DMAR_PEUADDR_REG:
+        assert(size == 4);
+        val = vtd_get_long_raw(s, DMAR_PEUADDR_REG);
         break;
 
     default:
@@ -3489,6 +3515,11 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
         assert(size == 4);
         vtd_set_long(s, addr, val);
         vtd_handle_iotlb_write(s);
+        break;
+
+    case DMAR_PEUADDR_REG:
+        assert(size == 4);
+        vtd_set_long(s, addr, val);
         break;
 
     /* Invalidate Address Register, 64-bit */
@@ -3669,6 +3700,18 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
     case DMAR_IRTA_REG_HI:
         assert(size == 4);
         vtd_set_long(s, addr, val);
+        break;
+
+    case DMAR_PRS_REG:
+        assert(size == 4);
+        vtd_set_long(s, addr, val);
+        vtd_handle_prs_write(s);
+        break;
+
+    case DMAR_PECTL_REG:
+        assert(size == 4);
+        vtd_set_long(s, addr, val);
+        vtd_handle_pectl_write(s);
         break;
 
     default:
@@ -4722,6 +4765,18 @@ static void vtd_init(IntelIOMMUState *s)
      * Interrupt remapping registers.
      */
     vtd_define_quad(s, DMAR_IRTA_REG, 0, 0xfffffffffffff80fULL, 0);
+
+    /* Page request registers */
+    if (s->ecap & VTD_ECAP_PRS) {
+        vtd_define_quad(s, DMAR_PQH_REG, 0, 0x7ffe0ULL, 0);
+        vtd_define_quad(s, DMAR_PQT_REG, 0, 0x7ffe0ULL, 0);
+        vtd_define_quad(s, DMAR_PQA_REG, 0, 0xfffffffffffff007ULL, 0);
+        vtd_define_long(s, DMAR_PRS_REG, 0, 0, 0x3UL);
+        vtd_define_long(s, DMAR_PECTL_REG, 0, 0x80000000UL, 0);
+        vtd_define_long(s, DMAR_PEDATA_REG, 0, 0xffffUL, 0);
+        vtd_define_long(s, DMAR_PEADDR_REG, 0, 0xfffffffcUL, 0);
+        vtd_define_long(s, DMAR_PEUADDR_REG, 0, 0xffffffffUL, 0);
+    }
 }
 
 /* Should not reset address_spaces when reset because devices will still use
