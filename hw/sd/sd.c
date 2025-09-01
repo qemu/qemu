@@ -2810,6 +2810,15 @@ static void sd_realize(DeviceState *dev, Error **errp)
         }
         blk_set_dev_ops(sd->blk, &sd_block_ops, sd);
     }
+    if (sd->boot_part_size % (128 * KiB) ||
+        sd->boot_part_size > 255 * 128 * KiB) {
+        g_autofree char *size_str = size_to_str(sd->boot_part_size);
+
+        error_setg(errp, "Invalid boot partition size: %s", size_str);
+        error_append_hint(errp,
+                          "The boot partition size must be multiples of 128K"
+                          "and not larger than 32640K.\n");
+    }
 }
 
 static void emmc_realize(DeviceState *dev, Error **errp)
