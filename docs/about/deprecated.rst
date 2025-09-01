@@ -491,13 +491,6 @@ which is not enough for all types of use cases, use ``reconnect-ms`` instead.
 VFIO device options
 '''''''''''''''''''
 
-``-device vfio-calxeda-xgmac`` (since 10.0)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The vfio-calxeda-xgmac device allows to assign a host Calxeda Highbank
-10Gb XGMAC Ethernet controller device ("calxeda,hb-xgmac" compatibility
-string) to a guest. Calxeda HW has been ewasted now and there is no point
-keeping that device.
-
 ``-device vfio-platform`` (since 10.0)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The vfio-platform device allows to assign a host platform device

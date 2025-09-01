@@ -23,11 +23,6 @@ config VFIO_PLATFORM
     select VFIO
     depends on LINUX && PLATFORM_BUS
 
-config VFIO_XGMAC
-    bool
-    default y
-    depends on VFIO_PLATFORM
-
 config VFIO_AP
     bool
     default y

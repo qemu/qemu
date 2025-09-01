@@ -32,9 +32,6 @@
 #include "system/device_tree.h"
 #include "system/tpm.h"
 #include "hw/platform-bus.h"
-#include "hw/vfio/vfio-platform.h"
-#include "hw/vfio/vfio-calxeda-xgmac.h"
-#include "hw/vfio/vfio-region.h"
 #include "hw/display/ramfb.h"
 #include "hw/uefi/var-service-api.h"
 #include "hw/arm/fdt.h"
@@ -64,67 +61,6 @@ typedef struct HostProperty {
     const char *name;
     bool optional;
 } HostProperty;
-
-#ifdef CONFIG_LINUX
-
-/* Device Specific Code */
-
-/**
- * add_calxeda_midway_xgmac_fdt_node
- *
- * Generates a simple node with following properties:
- * compatible string, regs, interrupts, dma-coherent
- */
-static int add_calxeda_midway_xgmac_fdt_node(SysBusDevice *sbdev, void *opaque)
-{
-    PlatformBusFDTData *data = opaque;
-    PlatformBusDevice *pbus = data->pbus;
-    void *fdt = data->fdt;
-    const char *parent_node = data->pbus_node_name;
-    int compat_str_len, i;
-    char *nodename;
-    uint32_t *irq_attr, *reg_attr;
-    uint64_t mmio_base, irq_number;
-    VFIOPlatformDevice *vdev = VFIO_PLATFORM_DEVICE(sbdev);
-    VFIODevice *vbasedev = &vdev->vbasedev;
-
-    mmio_base = platform_bus_get_mmio_addr(pbus, sbdev, 0);
-    nodename = g_strdup_printf("%s/%s@%" PRIx64, parent_node,
-                               vbasedev->name, mmio_base);
-    qemu_fdt_add_subnode(fdt, nodename);
-
-    compat_str_len = strlen(vdev->compat) + 1;
-    qemu_fdt_setprop(fdt, nodename, "compatible",
-                          vdev->compat, compat_str_len);
-
-    qemu_fdt_setprop(fdt, nodename, "dma-coherent", "", 0);
-
-    reg_attr = g_new(uint32_t, vbasedev->num_regions * 2);
-    for (i = 0; i < vbasedev->num_regions; i++) {
-        mmio_base = platform_bus_get_mmio_addr(pbus, sbdev, i);
-        reg_attr[2 * i] = cpu_to_be32(mmio_base);
-        reg_attr[2 * i + 1] = cpu_to_be32(
-                                memory_region_size(vdev->regions[i]->mem));
-    }
-    qemu_fdt_setprop(fdt, nodename, "reg", reg_attr,
-                     vbasedev->num_regions * 2 * sizeof(uint32_t));
-
-    irq_attr = g_new(uint32_t, vbasedev->num_irqs * 3);
-    for (i = 0; i < vbasedev->num_irqs; i++) {
-        irq_number = platform_bus_get_irqn(pbus, sbdev , i)
-                         + data->irq_start;
-        irq_attr[3 * i] = cpu_to_be32(GIC_FDT_IRQ_TYPE_SPI);
-        irq_attr[3 * i + 1] = cpu_to_be32(irq_number);
-        irq_attr[3 * i + 2] = cpu_to_be32(GIC_FDT_IRQ_FLAGS_LEVEL_HI);
-    }
-    qemu_fdt_setprop(fdt, nodename, "interrupts",
-                     irq_attr, vbasedev->num_irqs * 3 * sizeof(uint32_t));
-    g_free(irq_attr);
-    g_free(reg_attr);
-    g_free(nodename);
-    return 0;
-}
-#endif /* CONFIG_LINUX */
 
 #ifdef CONFIG_TPM
 /*
@@ -196,9 +132,6 @@ static bool type_match(SysBusDevice *sbdev, const BindingEntry *entry)
 
 /* list of supported dynamic sysbus bindings */
 static const BindingEntry bindings[] = {
-#ifdef CONFIG_LINUX
-    TYPE_BINDING(TYPE_VFIO_CALXEDA_XGMAC, add_calxeda_midway_xgmac_fdt_node),
-#endif
 #ifdef CONFIG_TPM
     TYPE_BINDING(TYPE_TPM_TIS_SYSBUS, add_tpm_tis_fdt_node),
 #endif
