@@ -885,7 +885,7 @@ VFIOUserProxy *vfio_user_connect_dev(SocketAddress *addr, Error **errp)
 
     sioc = qio_channel_socket_new();
     ioc = QIO_CHANNEL(sioc);
-    if (qio_channel_socket_connect_sync(sioc, addr, errp)) {
+    if (qio_channel_socket_connect_sync(sioc, addr, errp) < 0) {
         object_unref(OBJECT(ioc));
         return NULL;
     }
