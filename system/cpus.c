@@ -450,7 +450,7 @@ static void qemu_cpu_stop(CPUState *cpu, bool exit)
     qemu_cond_broadcast(&qemu_pause_cond);
 }
 
-void qemu_wait_io_event_common(CPUState *cpu)
+void qemu_process_cpu_events_common(CPUState *cpu)
 {
     qatomic_set_mb(&cpu->thread_kicked, false);
     if (cpu->stop) {
@@ -459,7 +459,7 @@ void qemu_wait_io_event_common(CPUState *cpu)
     process_queued_cpu_work(cpu);
 }
 
-void qemu_wait_io_event(CPUState *cpu)
+void qemu_process_cpu_events(CPUState *cpu)
 {
     bool slept = false;
 
@@ -474,7 +474,7 @@ void qemu_wait_io_event(CPUState *cpu)
         qemu_plugin_vcpu_resume_cb(cpu);
     }
 
-    qemu_wait_io_event_common(cpu);
+    qemu_process_cpu_events_common(cpu);
 }
 
 void cpus_kick_thread(CPUState *cpu)

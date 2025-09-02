@@ -117,7 +117,7 @@ static void rr_wait_io_event(void)
     rr_start_kick_timer();
 
     CPU_FOREACH(cpu) {
-        qemu_wait_io_event_common(cpu);
+        qemu_process_cpu_events_common(cpu);
     }
 }
 
@@ -203,7 +203,7 @@ static void *rr_cpu_thread_fn(void *arg)
         /* process any pending work */
         CPU_FOREACH(cpu) {
             current_cpu = cpu;
-            qemu_wait_io_event_common(cpu);
+            qemu_process_cpu_events_common(cpu);
         }
     }
 

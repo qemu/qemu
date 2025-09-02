@@ -422,7 +422,7 @@ struct qemu_work_item;
  * valid under cpu_list_lock.
  * @created: Indicates whether the CPU thread has been successfully created.
  * @halt_cond: condition variable sleeping threads can wait on.
- * @exit_request: Another thread requests the CPU to call qemu_wait_io_event().
+ * @exit_request: Another thread requests the CPU to call qemu_process_cpu_events().
  *   Should be read only by CPU thread with load-acquire, to synchronize with
  *   other threads' store-release operation.
  *

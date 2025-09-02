@@ -113,7 +113,7 @@ static void *mttcg_cpu_thread_fn(void *arg)
             }
         }
 
-        qemu_wait_io_event(cpu);
+        qemu_process_cpu_events(cpu);
     } while (!cpu->unplug || cpu_can_run(cpu));
 
     tcg_cpu_destroy(cpu);

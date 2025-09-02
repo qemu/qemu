@@ -137,7 +137,7 @@ static void queue_work_on_cpu(CPUState *cpu, struct qemu_work_item *wi)
     wi->done = false;
     qemu_mutex_unlock(&cpu->work_mutex);
 
-    /* exit the inner loop and reach qemu_wait_io_event_common().  */
+    /* exit the inner loop and reach qemu_process_cpu_events_common().  */
     cpu_exit(cpu);
 }
 

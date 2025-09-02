@@ -53,7 +53,7 @@ static void *kvm_vcpu_thread_fn(void *arg)
                 cpu_handle_guest_debug(cpu);
             }
         }
-        qemu_wait_io_event(cpu);
+        qemu_process_cpu_events(cpu);
     } while (!cpu->unplug || cpu_can_run(cpu));
 
     kvm_destroy_vcpu(cpu);

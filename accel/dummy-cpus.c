@@ -57,7 +57,7 @@ static void *dummy_cpu_thread_fn(void *arg)
         qemu_sem_wait(&cpu->sem);
 #endif
         bql_lock();
-        qemu_wait_io_event(cpu);
+        qemu_process_cpu_events(cpu);
     } while (!cpu->unplug);
 
     bql_unlock();
