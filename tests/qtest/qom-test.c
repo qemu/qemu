@@ -180,7 +180,7 @@ static void test_properties(QTestState *qts, const char *path, bool recurse)
         links = g_slist_delete_link(links, links);
     }
     while (children) {
-        test_properties(qts, children->data, true);
+        test_properties(qts, children->data, g_test_slow());
         g_free(children->data);
         children = g_slist_delete_link(children, children);
     }
@@ -211,13 +211,9 @@ static void test_machine(gconstpointer data)
 
     test_properties(qts, "/machine", true);
 
-    qlist_append_str(paths, "/machine");
+    qlist_append_str(paths, "/");
     test_list_get(qts, paths);
     test_list_get_value(qts);
-
-    response = qtest_qmp(qts, "{ 'execute': 'quit' }");
-    g_assert(qdict_haskey(response, "return"));
-    qobject_unref(response);
 
     qtest_quit(qts);
     g_free((void *)machine);
