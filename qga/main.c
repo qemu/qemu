@@ -1512,8 +1512,12 @@ static GAState *initialize_agent(GAConfig *config, int socket_activation)
 
     if (!channel_init(s, s->config->method, s->config->channel_path,
                       s->socket_activation ? FIRST_SOCKET_ACTIVATION_FD : -1)) {
-        g_critical("failed to initialize guest agent channel");
-        return NULL;
+        if (s->config->retry_path) {
+            g_info("failed to initialize guest agent channel, will retry");
+        } else {
+            g_critical("failed to initialize guest agent channel");
+            return NULL;
+        }
     }
 
     if (config->daemonize) {
@@ -1563,7 +1567,7 @@ static void cleanup_agent(GAState *s)
 static int run_agent_once(GAState *s)
 {
     if (!s->channel &&
-        channel_init(s, s->config->method, s->config->channel_path,
+        !channel_init(s, s->config->method, s->config->channel_path,
                      s->socket_activation ? FIRST_SOCKET_ACTIVATION_FD : -1)) {
         g_critical("failed to initialize guest agent channel");
         return EXIT_FAILURE;
