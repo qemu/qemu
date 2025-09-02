@@ -71,7 +71,7 @@ The QEMU source code is maintained under the GIT version control system.
 
 .. code-block:: shell
 
-   git clone https://gitlab.com/qemu-project/qemu.git
+   git clone https://gitlab.com/qemu/qemu.git
 
 When submitting patches, one common approach is to use 'git
 format-patch' and/or 'git send-email' to format & send the mail to the
@@ -91,7 +91,7 @@ The QEMU website is also maintained under source control.
 
 .. code-block:: shell
 
-  git clone https://gitlab.com/qemu-project/qemu-web.git
+  git clone https://gitlab.com/qemu/qemu-web.git
 
 * `<https://www.qemu.org/2017/02/04/the-new-qemu-website-is-up/>`_
 
@@ -135,7 +135,7 @@ The QEMU project uses GitLab issues to track bugs. Bugs
 found when running code built from QEMU git or upstream released sources
 should be reported via:
 
-* `<https://gitlab.com/qemu-project/qemu/-/issues>`_
+* `<https://gitlab.com/qemu/qemu/-/issues>`_
 
 If using QEMU via an operating system vendor pre-built binary package, it
 is preferable to report bugs to the vendor's own bug tracker first. If
