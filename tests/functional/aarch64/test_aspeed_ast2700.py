@@ -115,8 +115,8 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.do_test_aarch64_aspeed_sdk_start(
                 self.scratch_file(name, 'image-bmc'))
 
-    def test_aarch64_ast2700_evb_sdk_v09_06(self):
-        self.set_machine('ast2700-evb')
+    def test_aarch64_ast2700a0_evb_sdk_v09_06(self):
+        self.set_machine('ast2700a0-evb')
 
         self.archive_extract(self.ASSET_SDK_V906_AST2700)
         self.start_ast2700_test('ast2700-a0-default')
