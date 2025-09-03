@@ -9023,6 +9023,29 @@ static int do_getdents64(abi_long dirfd, abi_long arg2, abi_long count)
 #define     RISCV_HWPROBE_EXT_ZTSO          (1ULL << 33)
 #define     RISCV_HWPROBE_EXT_ZACAS         (1ULL << 34)
 #define     RISCV_HWPROBE_EXT_ZICOND        (1ULL << 35)
+#define     RISCV_HWPROBE_EXT_ZIHINTPAUSE   (1ULL << 36)
+#define     RISCV_HWPROBE_EXT_ZVE32X        (1ULL << 37)
+#define     RISCV_HWPROBE_EXT_ZVE32F        (1ULL << 38)
+#define     RISCV_HWPROBE_EXT_ZVE64X        (1ULL << 39)
+#define     RISCV_HWPROBE_EXT_ZVE64F        (1ULL << 40)
+#define     RISCV_HWPROBE_EXT_ZVE64D        (1ULL << 41)
+#define     RISCV_HWPROBE_EXT_ZIMOP         (1ULL << 42)
+#define     RISCV_HWPROBE_EXT_ZCA           (1ULL << 43)
+#define     RISCV_HWPROBE_EXT_ZCB           (1ULL << 44)
+#define     RISCV_HWPROBE_EXT_ZCD           (1ULL << 45)
+#define     RISCV_HWPROBE_EXT_ZCF           (1ULL << 46)
+#define     RISCV_HWPROBE_EXT_ZCMOP         (1ULL << 47)
+#define     RISCV_HWPROBE_EXT_ZAWRS         (1ULL << 48)
+#define     RISCV_HWPROBE_EXT_SUPM          (1ULL << 49)
+#define     RISCV_HWPROBE_EXT_ZICNTR        (1ULL << 50)
+#define     RISCV_HWPROBE_EXT_ZIHPM         (1ULL << 51)
+#define     RISCV_HWPROBE_EXT_ZFBFMIN       (1ULL << 52)
+#define     RISCV_HWPROBE_EXT_ZVFBFMIN      (1ULL << 53)
+#define     RISCV_HWPROBE_EXT_ZVFBFWMA      (1ULL << 54)
+#define     RISCV_HWPROBE_EXT_ZICBOM        (1ULL << 55)
+#define     RISCV_HWPROBE_EXT_ZAAMO         (1ULL << 56)
+#define     RISCV_HWPROBE_EXT_ZALRSC        (1ULL << 57)
+#define     RISCV_HWPROBE_EXT_ZABHA         (1ULL << 58)
 
 #define RISCV_HWPROBE_KEY_CPUPERF_0     5
 #define     RISCV_HWPROBE_MISALIGNED_UNKNOWN     (0 << 0)
@@ -9033,6 +9056,22 @@ static int do_getdents64(abi_long dirfd, abi_long arg2, abi_long count)
 #define     RISCV_HWPROBE_MISALIGNED_MASK        (7 << 0)
 
 #define RISCV_HWPROBE_KEY_ZICBOZ_BLOCK_SIZE 6
+#define RISCV_HWPROBE_KEY_HIGHEST_VIRT_ADDRESS 7
+#define RISCV_HWPROBE_KEY_TIME_CSR_FREQ 8
+#define RISCV_HWPROBE_KEY_MISALIGNED_SCALAR_PERF        9
+#define     RISCV_HWPROBE_MISALIGNED_SCALAR_UNKNOWN     0
+#define     RISCV_HWPROBE_MISALIGNED_SCALAR_EMULATED    1
+#define     RISCV_HWPROBE_MISALIGNED_SCALAR_SLOW        2
+#define     RISCV_HWPROBE_MISALIGNED_SCALAR_FAST        3
+#define     RISCV_HWPROBE_MISALIGNED_SCALAR_UNSUPPORTED 4
+#define RISCV_HWPROBE_KEY_MISALIGNED_VECTOR_PERF 10
+#define     RISCV_HWPROBE_MISALIGNED_VECTOR_UNKNOWN     0
+#define     RISCV_HWPROBE_MISALIGNED_VECTOR_SLOW        2
+#define     RISCV_HWPROBE_MISALIGNED_VECTOR_FAST        3
+#define     RISCV_HWPROBE_MISALIGNED_VECTOR_UNSUPPORTED 4
+#define RISCV_HWPROBE_KEY_VENDOR_EXT_THEAD_0     11
+#define RISCV_HWPROBE_KEY_ZICBOM_BLOCK_SIZE      12
+#define RISCV_HWPROBE_KEY_VENDOR_EXT_SIFIVE_0    13
 
 struct riscv_hwprobe {
     abi_llong  key;
@@ -9141,6 +9180,52 @@ static void risc_hwprobe_fill_pairs(CPURISCVState *env,
                      RISCV_HWPROBE_EXT_ZACAS : 0;
             value |= cfg->ext_zicond ?
                      RISCV_HWPROBE_EXT_ZICOND : 0;
+            value |= cfg->ext_zihintpause ?
+                     RISCV_HWPROBE_EXT_ZIHINTPAUSE : 0;
+            value |= cfg->ext_zve32x ?
+                     RISCV_HWPROBE_EXT_ZVE32X : 0;
+            value |= cfg->ext_zve32f ?
+                     RISCV_HWPROBE_EXT_ZVE32F : 0;
+            value |= cfg->ext_zve64x ?
+                     RISCV_HWPROBE_EXT_ZVE64X : 0;
+            value |= cfg->ext_zve64f ?
+                     RISCV_HWPROBE_EXT_ZVE64F : 0;
+            value |= cfg->ext_zve64d ?
+                     RISCV_HWPROBE_EXT_ZVE64D : 0;
+            value |= cfg->ext_zimop ?
+                     RISCV_HWPROBE_EXT_ZIMOP : 0;
+            value |= cfg->ext_zca ?
+                     RISCV_HWPROBE_EXT_ZCA : 0;
+            value |= cfg->ext_zcb ?
+                     RISCV_HWPROBE_EXT_ZCB : 0;
+            value |= cfg->ext_zcd ?
+                     RISCV_HWPROBE_EXT_ZCD : 0;
+            value |= cfg->ext_zcf ?
+                     RISCV_HWPROBE_EXT_ZCF : 0;
+            value |= cfg->ext_zcmop ?
+                     RISCV_HWPROBE_EXT_ZCMOP : 0;
+            value |= cfg->ext_zawrs ?
+                     RISCV_HWPROBE_EXT_ZAWRS : 0;
+            value |= cfg->ext_supm ?
+                     RISCV_HWPROBE_EXT_SUPM : 0;
+            value |= cfg->ext_zicntr ?
+                     RISCV_HWPROBE_EXT_ZICNTR : 0;
+            value |= cfg->ext_zihpm ?
+                     RISCV_HWPROBE_EXT_ZIHPM : 0;
+            value |= cfg->ext_zfbfmin ?
+                     RISCV_HWPROBE_EXT_ZFBFMIN : 0;
+            value |= cfg->ext_zvfbfmin ?
+                     RISCV_HWPROBE_EXT_ZVFBFMIN : 0;
+            value |= cfg->ext_zvfbfwma ?
+                     RISCV_HWPROBE_EXT_ZVFBFWMA : 0;
+            value |= cfg->ext_zicbom ?
+                     RISCV_HWPROBE_EXT_ZICBOM : 0;
+            value |= cfg->ext_zaamo ?
+                     RISCV_HWPROBE_EXT_ZAAMO : 0;
+            value |= cfg->ext_zalrsc ?
+                     RISCV_HWPROBE_EXT_ZALRSC : 0;
+            value |= cfg->ext_zabha ?
+                     RISCV_HWPROBE_EXT_ZABHA : 0;
             __put_user(value, &pair->value);
             break;
         case RISCV_HWPROBE_KEY_CPUPERF_0:
@@ -9148,6 +9233,10 @@ static void risc_hwprobe_fill_pairs(CPURISCVState *env,
             break;
         case RISCV_HWPROBE_KEY_ZICBOZ_BLOCK_SIZE:
             value = cfg->ext_zicboz ? cfg->cboz_blocksize : 0;
+            __put_user(value, &pair->value);
+            break;
+        case RISCV_HWPROBE_KEY_ZICBOM_BLOCK_SIZE:
+            value = cfg->ext_zicbom ? cfg->cbom_blocksize : 0;
             __put_user(value, &pair->value);
             break;
         default:
