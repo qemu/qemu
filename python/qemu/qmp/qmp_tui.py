@@ -51,7 +51,7 @@ from .legacy import QEMUMonitorProtocol, QMPBadPortError
 from .message import DeserializationError, Message, UnexpectedTypeError
 from .protocol import ConnectError, Runstate
 from .qmp_client import ExecInterruptedError, QMPClient
-from .util import pretty_traceback
+from .util import get_or_create_event_loop, pretty_traceback
 
 
 # The name of the signal that is used to update the history list
@@ -387,13 +387,7 @@ class App(QMPClient):
         """
         screen = urwid.raw_display.Screen()
         screen.set_terminal_properties(256)
-
-        try:
-            self.aloop = asyncio.get_running_loop()
-        except RuntimeError:
-            # No running asyncio event loop. Create one if necessary.
-            self.aloop = asyncio.get_event_loop_policy().get_event_loop()
-
+        self.aloop = get_or_create_event_loop()
         self.aloop.set_debug(debug)
 
         # Gracefully handle SIGTERM and SIGINT signals
