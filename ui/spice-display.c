@@ -980,7 +980,9 @@ static void spice_server_gl_scanout(QXLInstance *qxl,
     spice_qxl_gl_scanout2(qxl, fd, width, height, offset, stride,
                           num_planes, format, modifier, y_0_top);
 #else
-    if (num_planes <= 1) {
+    if (fd == NULL) {
+        spice_qxl_gl_scanout(qxl, -1, 0, 0, 0, 0, false);
+    } else if (num_planes <= 1) {
         spice_qxl_gl_scanout(qxl, fd[0], width, height, stride[0], format, y_0_top);
     } else {
         error_report("SPICE server does not support multi plane GL scanout");
