@@ -313,18 +313,6 @@ and serves as the initial engineering sample rather than a production version.
 A newer revision, A1, is now supported, and the ``ast2700a1-evb`` should
 replace the older A0 version.
 
-Mips ``mipssim`` machine (since 10.0)
-'''''''''''''''''''''''''''''''''''''
-
-Linux dropped support for this virtual machine type in kernel v3.7, and
-there does not seem to be anybody around who is still using this board
-in QEMU: Most former MIPS-related people are working on other architectures
-in their everyday job nowadays, and we are also not aware of anybody still
-using old binaries with this board (i.e. there is also no binary available
-online to check that this board did not completely bitrot yet). It is
-recommended to use another MIPS machine for future MIPS code development
-instead.
-
 RISC-V default machine option (since 10.0)
 ''''''''''''''''''''''''''''''''''''''''''
 
@@ -433,12 +421,6 @@ recommending to switch to their stable counterparts:
 - "Zve32f" should be replaced with "zve32f"
 - "Zve64f" should be replaced with "zve64f"
 - "Zve64d" should be replaced with "zve64d"
-
-``-device sd-card,spec_version=1`` (since 9.1)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-SD physical layer specification v2.00 supersedes the v1.10 one.
-v2.00 is the default since QEMU 3.0.0.
 
 Block device options
 ''''''''''''''''''''

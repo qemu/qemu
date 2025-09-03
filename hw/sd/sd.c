@@ -195,7 +195,6 @@ static bool sd_is_emmc(SDState *sd)
 static const char *sd_version_str(enum SDPhySpecificationVersion version)
 {
     static const char *sdphy_version[] = {
-        [SD_PHY_SPECv1_10_VERS]     = "v1.10",
         [SD_PHY_SPECv2_00_VERS]     = "v2.00",
         [SD_PHY_SPECv3_01_VERS]     = "v3.01",
     };
@@ -407,11 +406,7 @@ static void sd_set_ocr(SDState *sd)
 static void sd_set_scr(SDState *sd)
 {
     sd->scr[0] = 0 << 4;        /* SCR structure version 1.0 */
-    if (sd->spec_version == SD_PHY_SPECv1_10_VERS) {
-        sd->scr[0] |= 1;        /* Spec Version 1.10 */
-    } else {
-        sd->scr[0] |= 2;        /* Spec Version 2.00 or Version 3.0X */
-    }
+    sd->scr[0] |= 2;            /* Spec Version 2.00 or Version 3.0X */
     sd->scr[1] = (2 << 4)       /* SDSC Card (Security Version 1.01) */
                  | 0b0101;      /* 1-bit or 4-bit width bus modes */
     sd->scr[2] = 0x00;          /* Extended Security is not supported. */
@@ -838,14 +833,14 @@ static uint32_t sd_blk_len(SDState *sd)
 
 /*
  * This requires a disk image that has two boot partitions inserted at the
- * beginning of it. The size of the boot partitions is the "boot-size"
- * property.
+ * beginning of it, followed by an RPMB partition. The size of the boot
+ * partitions is the "boot-partition-size" property.
  */
-static uint32_t sd_bootpart_offset(SDState *sd)
+static uint32_t sd_part_offset(SDState *sd)
 {
     unsigned partition_access;
 
-    if (!sd->boot_part_size || !sd_is_emmc(sd)) {
+    if (!sd_is_emmc(sd)) {
         return 0;
     }
 
@@ -854,9 +849,9 @@ static uint32_t sd_bootpart_offset(SDState *sd)
     switch (partition_access) {
     case EXT_CSD_PART_CONFIG_ACC_DEFAULT:
         return sd->boot_part_size * 2;
-    case EXT_CSD_PART_CONFIG_ACC_BOOT0:
+    case EXT_CSD_PART_CONFIG_ACC_BOOT1:
         return 0;
-    case EXT_CSD_PART_CONFIG_ACC_BOOT0 + 1:
+    case EXT_CSD_PART_CONFIG_ACC_BOOT2:
         return sd->boot_part_size * 1;
     default:
          g_assert_not_reached();
@@ -1057,7 +1052,7 @@ static const VMStateDescription sd_vmstate = {
 static void sd_blk_read(SDState *sd, uint64_t addr, uint32_t len)
 {
     trace_sdcard_read_block(addr, len);
-    addr += sd_bootpart_offset(sd);
+    addr += sd_part_offset(sd);
     if (!sd->blk || blk_pread(sd->blk, addr, len, sd->data, 0) < 0) {
         fprintf(stderr, "sd_blk_read: read error on host side\n");
     }
@@ -1066,7 +1061,7 @@ static void sd_blk_read(SDState *sd, uint64_t addr, uint32_t len)
 static void sd_blk_write(SDState *sd, uint64_t addr, uint32_t len)
 {
     trace_sdcard_write_block(addr, len);
-    addr += sd_bootpart_offset(sd);
+    addr += sd_part_offset(sd);
     if (!sd->blk || blk_pwrite(sd->blk, addr, len, sd->data, 0) < 0) {
         fprintf(stderr, "sd_blk_write: write error on host side\n");
     }
@@ -1555,9 +1550,6 @@ static sd_rsp_type_t sd_cmd_DE_SELECT_CARD(SDState *sd, SDRequest req)
 /* CMD8 */
 static sd_rsp_type_t sd_cmd_SEND_IF_COND(SDState *sd, SDRequest req)
 {
-    if (sd->spec_version < SD_PHY_SPECv2_00_VERS) {
-        return sd_cmd_illegal(sd, req);
-    }
     if (sd->state != sd_idle_state) {
         return sd_invalid_state_for_cmd(sd, req);
     }
@@ -2773,7 +2765,7 @@ static void sd_realize(DeviceState *dev, Error **errp)
     int ret;
 
     switch (sd->spec_version) {
-    case SD_PHY_SPECv1_10_VERS
+    case SD_PHY_SPECv2_00_VERS
      ... SD_PHY_SPECv3_01_VERS:
         break;
     default:
@@ -2817,6 +2809,15 @@ static void sd_realize(DeviceState *dev, Error **errp)
             return;
         }
         blk_set_dev_ops(sd->blk, &sd_block_ops, sd);
+    }
+    if (sd->boot_part_size % (128 * KiB) ||
+        sd->boot_part_size > 255 * 128 * KiB) {
+        g_autofree char *size_str = size_to_str(sd->boot_part_size);
+
+        error_setg(errp, "Invalid boot partition size: %s", size_str);
+        error_append_hint(errp,
+                          "The boot partition size must be multiples of 128K"
+                          "and not larger than 32640K.\n");
     }
 }
 

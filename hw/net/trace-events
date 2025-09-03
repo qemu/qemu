@@ -20,13 +20,6 @@ lan9118_phy_reset(void) ""
 lance_mem_readw(uint64_t addr, uint32_t ret) "addr=0x%"PRIx64"val=0x%04x"
 lance_mem_writew(uint64_t addr, uint32_t val) "addr=0x%"PRIx64"val=0x%04x"
 
-# mipsnet.c
-mipsnet_send(uint32_t size) "sending len=%u"
-mipsnet_receive(uint32_t size) "receiving len=%u"
-mipsnet_read(uint64_t addr, uint32_t val) "read addr=0x%" PRIx64 " val=0x%x"
-mipsnet_write(uint64_t addr, uint64_t val) "write addr=0x%" PRIx64 " val=0x%" PRIx64
-mipsnet_irq(uint32_t isr, uint32_t intctl) "set irq to %d (0x%02x)"
-
 # ne2000.c
 ne2000_read(uint64_t addr, uint64_t val) "read addr=0x%" PRIx64 " val=0x%" PRIx64
 ne2000_write(uint64_t addr, uint64_t val) "write addr=0x%" PRIx64 " val=0x%" PRIx64

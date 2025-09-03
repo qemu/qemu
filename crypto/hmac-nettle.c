@@ -164,7 +164,9 @@ qcrypto_nettle_hmac_bytesv(QCryptoHmac *hmac,
         }
     }
 
-    if (*resultlen == 0) {
+    if (resultlen == NULL) {
+        return 0;
+    } else if (*resultlen == 0) {
         *resultlen = qcrypto_hmac_alg_map[hmac->alg].len;
         *result = g_new0(uint8_t, *resultlen);
     } else if (*resultlen != qcrypto_hmac_alg_map[hmac->alg].len) {

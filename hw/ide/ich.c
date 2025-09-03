@@ -114,7 +114,8 @@ static void pci_ich9_ahci_init(Object *obj)
 {
     AHCIPCIState *d = ICH9_AHCI(obj);
 
-    qemu_init_irq(&d->irq, pci_ich9_ahci_update_irq, d, 0);
+    qemu_init_irq_child(obj, "update-irq", &d->irq,
+                        pci_ich9_ahci_update_irq, d, 0);
     ahci_init(&d->ahci, DEVICE(obj));
     d->ahci.irq = &d->irq;
 }

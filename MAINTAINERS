@@ -1411,12 +1411,6 @@ F: include/hw/southbridge/piix.h
 F: tests/functional/mips*/test_malta.py
 F: tests/functional/mips*/test_tuxrun.py
 
-Mipssim
-R: Aleksandar Rikalo <arikalo@gmail.com>
-S: Orphan
-F: hw/mips/mipssim.c
-F: hw/net/mipsnet.c
-
 Fuloong 2E
 M: Huacai Chen <chenhuacai@kernel.org>
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
@@ -2268,6 +2262,7 @@ F: util/vfio-helpers.c
 F: include/hw/vfio/
 F: docs/devel/migration/vfio.rst
 F: qapi/vfio.json
+F: migration/vfio-stub.c
 F: tests/functional/aarch64/test_device_passthrough.py
 
 vfio-igd

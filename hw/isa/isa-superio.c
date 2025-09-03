@@ -15,6 +15,7 @@
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "system/blockdev.h"
+#include "system/system.h"
 #include "chardev/char.h"
 #include "hw/char/parallel.h"
 #include "hw/block/fdc.h"

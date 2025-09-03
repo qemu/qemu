@@ -8,13 +8,8 @@
 #include "qemu/osdep.h"
 #include "qapi/qapi-types-migration.h"
 #include "migration.h"
-#include CONFIG_DEVICES
-
-#ifdef CONFIG_VFIO
 #include "hw/vfio/vfio-migration.h"
-#endif
 
-#ifdef CONFIG_VFIO
 void migration_populate_vfio_info(MigrationInfo *info)
 {
     if (vfio_migration_active()) {
@@ -27,12 +22,3 @@ void migration_reset_vfio_bytes_transferred(void)
 {
     vfio_migration_reset_bytes_transferred();
 }
-#else
-void migration_populate_vfio_info(MigrationInfo *info)
-{
-}
-
-void migration_reset_vfio_bytes_transferred(void)
-{
-}
-#endif

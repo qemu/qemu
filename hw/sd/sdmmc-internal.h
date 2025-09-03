@@ -116,7 +116,8 @@ DECLARE_OBJ_CHECKERS(SDState, SDCardClass, SDMMC_COMMON, TYPE_SDMMC_COMMON)
 
 #define EXT_CSD_PART_CONFIG_ACC_MASK            (0x7)
 #define EXT_CSD_PART_CONFIG_ACC_DEFAULT         (0x0)
-#define EXT_CSD_PART_CONFIG_ACC_BOOT0           (0x1)
+#define EXT_CSD_PART_CONFIG_ACC_BOOT1           (0x1)
+#define EXT_CSD_PART_CONFIG_ACC_BOOT2           (0x2)
 
 #define EXT_CSD_PART_CONFIG_EN_MASK             (0x7 << 3)
 #define EXT_CSD_PART_CONFIG_EN_BOOT0            (0x1 << 3)

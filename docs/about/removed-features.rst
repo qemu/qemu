@@ -730,8 +730,8 @@ Use ``multifd-channels`` instead.
 
 Use ``multifd-compression`` instead.
 
-Incorrectly typed ``device_add`` arguments (since 9.2)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Incorrectly typed ``device_add`` arguments (removed in 9.2)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Due to shortcomings in the internal implementation of ``device_add``,
 QEMU used to incorrectly accept certain invalid arguments. Any object
@@ -1107,6 +1107,11 @@ were added for little endian CPUs. Big endian support was never tested
 and likely never worked. Starting with QEMU v10.1, the machines are now
 only available as little-endian machines.
 
+Mips ``mipssim`` machine (removed in 10.2)
+''''''''''''''''''''''''''''''''''''''''''
+
+Linux dropped support for this virtual machine type in kernel v3.7, and
+there was also no binary available online to use with that board.
 
 linux-user mode CPUs
 --------------------
@@ -1185,6 +1190,11 @@ by using ``-machine graphics=off``.
 ''''''''''''''''''''''''''''''''''''''''''''''''''
 
 The 'pvrdma' device and the whole RDMA subsystem have been removed.
+
+``-device sd-card,spec_version=1`` (since 10.2)
+'''''''''''''''''''''''''''''''''''''''''''''''
+
+SD physical layer specification v2.00 supersedes the v1.10 one.
 
 Related binaries
 ----------------
