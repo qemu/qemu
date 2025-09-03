@@ -162,12 +162,8 @@ static int curl_timer_cb(CURLM *multi, long timeout_ms, void *opaque)
 static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
                         void *userp, void *sp)
 {
-    BDRVCURLState *s;
-    CURLState *state = NULL;
+    BDRVCURLState *s = userp;
     CURLSocket *socket;
-
-    curl_easy_getinfo(curl, CURLINFO_PRIVATE, (char **)&state);
-    s = state->s;
 
     socket = g_hash_table_lookup(s->sockets, GINT_TO_POINTER(fd));
     if (!socket) {
@@ -520,7 +516,7 @@ static int curl_init_state(BDRVCURLState *s, CURLState *state)
                              CURLOPT_REDIR_PROTOCOLS_STR, PROTOCOLS)) {
             goto err;
         }
-#elif LIBCURL_VERSION_NUM >= 0x071304
+#else
         if (curl_easy_setopt(state->curl, CURLOPT_PROTOCOLS, PROTOCOLS) ||
             curl_easy_setopt(state->curl, CURLOPT_REDIR_PROTOCOLS, PROTOCOLS)) {
             goto err;
@@ -605,6 +601,7 @@ static void curl_attach_aio_context(BlockDriverState *bs,
     assert(!s->multi);
     s->multi = curl_multi_init();
     s->aio_context = new_context;
+    curl_multi_setopt(s->multi, CURLMOPT_SOCKETDATA, s);
     curl_multi_setopt(s->multi, CURLMOPT_SOCKETFUNCTION, curl_sock_cb);
     curl_multi_setopt(s->multi, CURLMOPT_TIMERDATA, s);
     curl_multi_setopt(s->multi, CURLMOPT_TIMERFUNCTION, curl_timer_cb);
@@ -824,22 +821,11 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
 #endif
-    /* Prior CURL 7.19.4 return value of 0 could mean that the file size is not
-     * know or the size is zero. From 7.19.4 CURL returns -1 if size is not
-     * known and zero if it is really zero-length file. */
-#if LIBCURL_VERSION_NUM >= 0x071304
     if (cl < 0) {
         pstrcpy(state->errmsg, CURL_ERROR_SIZE,
                 "Server didn't report file size.");
         goto out;
     }
-#else
-    if (cl <= 0) {
-        pstrcpy(state->errmsg, CURL_ERROR_SIZE,
-                "Unknown file size or zero-length file.");
-        goto out;
-    }
-#endif
 
     s->len = cl;
 
