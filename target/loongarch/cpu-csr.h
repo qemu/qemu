@@ -106,6 +106,7 @@ FIELD(CSR_PWCH, DIR4_WIDTH, 18, 6)
 
 #define LOONGARCH_CSR_STLBPS         0x1e /* Stlb page size */
 FIELD(CSR_STLBPS, PS, 0, 5)
+FIELD(CSR_STLBPS, RESERVE, 5, 27)
 
 #define LOONGARCH_CSR_RVACFG         0x1f /* Reduced virtual address config */
 FIELD(CSR_RVACFG, RBITS, 0, 4)
