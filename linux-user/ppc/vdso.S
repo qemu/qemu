@@ -220,6 +220,7 @@ endf	__kernel_sync_dicache
 
 	nop
 
+sigreturn_region_start:
 __kernel_sigtramp_rt:
 	raw_syscall __NR_rt_sigreturn
 endf	__kernel_sigtramp_rt
@@ -235,5 +236,6 @@ __kernel_sigtramp32:
 	raw_syscall __NR_sigreturn
 endf	__kernel_sigtramp32
 #endif
+sigreturn_region_end:
 
 	.cfi_endproc

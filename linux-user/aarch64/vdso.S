@@ -71,5 +71,7 @@ vdso_syscall __kernel_clock_getres, __NR_clock_getres
 __kernel_rt_sigreturn:
 	/* No BTI C insn here -- we arrive via RET. */
 	mov	x8, #__NR_rt_sigreturn
+sigreturn_region_start:
 	svc	#0
+sigreturn_region_end:
 endf	__kernel_rt_sigreturn

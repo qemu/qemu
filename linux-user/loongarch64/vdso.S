@@ -125,6 +125,8 @@ vdso_syscall __vdso_getcpu, __NR_getcpu
 
 __vdso_rt_sigreturn:
 	li.w	$a7, __NR_rt_sigreturn
+sigreturn_region_start:
 	syscall	0
+sigreturn_region_end:
 	.cfi_endproc
 endf __vdso_rt_sigreturn

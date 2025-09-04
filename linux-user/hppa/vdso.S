@@ -156,8 +156,10 @@
 __kernel_sigtramp_rt:
 	ldi	0, %r25
 	ldi	__NR_rt_sigreturn, %r20
+sigreturn_region_start:
 	be,l	0x100(%sr2, %r0), %sr0, %r31
 	nop
+sigreturn_region_end:
 
 	.cfi_endproc
 	.size	__kernel_sigtramp_rt, . - __kernel_sigtramp_rt

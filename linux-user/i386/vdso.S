@@ -114,6 +114,7 @@ vdso_syscall3 __vdso_getcpu, __NR_gettimeofday
  */
 	nop
 
+sigreturn_region_start:
 __kernel_sigreturn:
 	popl	%eax	/* pop sig */
 	.cfi_adjust_cfa_offset -4
@@ -128,6 +129,7 @@ __kernel_rt_sigreturn:
 	movl	$__NR_rt_sigreturn, %eax
 	int	$0x80
 endf	__kernel_rt_sigreturn
+sigreturn_region_end:
 
 	.cfi_endproc
 

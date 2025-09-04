@@ -52,6 +52,7 @@ vdso_syscall __kernel_getcpu, __NR_getcpu
  * by all users.  Without it we get the fallback signal frame handling.
  */
 
+sigreturn_region_start:
 __kernel_sigreturn:
 	raw_syscall __NR_sigreturn
 endf	__kernel_sigreturn
@@ -59,3 +60,4 @@ endf	__kernel_sigreturn
 __kernel_rt_sigreturn:
 	raw_syscall __NR_rt_sigreturn
 endf	__kernel_rt_sigreturn
+sigreturn_region_end:
