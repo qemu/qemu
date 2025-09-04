@@ -559,31 +559,16 @@ void helper_invtlb_page_asid(CPULoongArchState *env, target_ulong info,
 void helper_invtlb_page_asid_or_g(CPULoongArchState *env,
                                   target_ulong info, target_ulong addr)
 {
-    uint16_t asid = info & 0x3ff;
+    int asid = info & 0x3ff;
+    LoongArchTLB *tlb;
+    tlb_match func;
 
-    for (int i = 0; i < LOONGARCH_TLB_MAX; i++) {
-        LoongArchTLB *tlb = &env->tlb[i];
-        uint8_t tlb_g = FIELD_EX64(tlb->tlb_entry0, TLBENTRY, G);
-        uint16_t tlb_asid = FIELD_EX64(tlb->tlb_misc, TLB_MISC, ASID);
-        uint64_t vpn, tlb_vppn;
-        uint8_t tlb_ps, compare_shift;
-        uint8_t tlb_e = FIELD_EX64(tlb->tlb_misc, TLB_MISC, E);
-
-        if (!tlb_e) {
-            continue;
-        }
-
-        tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
-        tlb_vppn = FIELD_EX64(tlb->tlb_misc, TLB_MISC, VPPN);
-        vpn = (addr & TARGET_VIRT_MASK) >> (tlb_ps + 1);
-        compare_shift = tlb_ps + 1 - R_TLB_MISC_VPPN_SHIFT;
-
-        if ((tlb_g || (tlb_asid == asid)) &&
-            (vpn == (tlb_vppn >> compare_shift))) {
-            tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
-        }
+    func = tlb_match_any;
+    tlb = loongarch_tlb_search_cb(env, addr, asid, func);
+    if (tlb) {
+        tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
+        tlb_flush(env_cpu(env));
     }
-    tlb_flush(env_cpu(env));
 }
 
 bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
