@@ -203,8 +203,9 @@ static uint32_t get_random_tlb(uint32_t low, uint32_t high)
  * field in tlb entry contains bit[47:13], so need adjust.
  * virt_vpn = vaddr[47:13]
  */
-static bool loongarch_tlb_search_cb(CPULoongArchState *env, vaddr vaddr,
-                                    int *index, int csr_asid, tlb_match func)
+static LoongArchTLB *loongarch_tlb_search_cb(CPULoongArchState *env,
+                                             vaddr vaddr, int csr_asid,
+                                             tlb_match func)
 {
     LoongArchTLB *tlb;
     uint16_t tlb_asid, stlb_idx;
@@ -229,8 +230,7 @@ static bool loongarch_tlb_search_cb(CPULoongArchState *env, vaddr vaddr,
 
             if (func(tlb_g, csr_asid, tlb_asid) &&
                 (vpn == (tlb_vppn >> compare_shift))) {
-                *index = i * 256 + stlb_idx;
-                return true;
+                return tlb;
             }
         }
     }
@@ -248,12 +248,11 @@ static bool loongarch_tlb_search_cb(CPULoongArchState *env, vaddr vaddr,
             vpn = (vaddr & TARGET_VIRT_MASK) >> (tlb_ps + 1);
             if (func(tlb_g, csr_asid, tlb_asid) &&
                 (vpn == (tlb_vppn >> compare_shift))) {
-                *index = i;
-                return true;
+                return tlb;
             }
         }
     }
-    return false;
+    return NULL;
 }
 
 static bool loongarch_tlb_search(CPULoongArchState *env, vaddr vaddr,
@@ -261,10 +260,17 @@ static bool loongarch_tlb_search(CPULoongArchState *env, vaddr vaddr,
 {
     int csr_asid;
     tlb_match func;
+    LoongArchTLB *tlb;
 
     func = tlb_match_any;
     csr_asid = FIELD_EX64(env->CSR_ASID, CSR_ASID, ASID);
-    return loongarch_tlb_search_cb(env, vaddr, index, csr_asid, func);
+    tlb = loongarch_tlb_search_cb(env, vaddr, csr_asid, func);
+    if (tlb) {
+        *index = tlb - env->tlb;
+        return true;
+    }
+
+    return false;
 }
 
 void helper_tlbsrch(CPULoongArchState *env)
