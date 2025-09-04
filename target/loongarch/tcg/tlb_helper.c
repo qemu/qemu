@@ -541,8 +541,7 @@ void helper_invtlb_page_asid(CPULoongArchState *env, target_ulong info,
     func = tlb_match_asid;
     tlb = loongarch_tlb_search_cb(env, addr, asid, func);
     if (tlb) {
-        tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
-        tlb_flush(env_cpu(env));
+        invalidate_tlb(env, tlb - env->tlb);
     }
 }
 
