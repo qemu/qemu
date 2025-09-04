@@ -54,6 +54,10 @@ class AST2x00MachineSDK(QemuSystemTest):
             'https://github.com/AspeedTech-BMC/openbmc/releases/download/v09.06/ast2700-default-obmc.tar.gz',
             'f1d53e0be8a404ecce3e105f72bc50fa4e090ad13160ffa91b10a6e0233a9dc6')
 
+    ASSET_SDK_V907_AST2700A1_VBOOROM = Asset(
+            'https://github.com/AspeedTech-BMC/openbmc/releases/download/v09.07/ast2700-default-obmc.tar.gz',
+            '6e9e0c4b13e0f26040eca3f4a7f17cf09fc0f5c37c820500ff79370cc3c44add')
+
     def do_ast2700_i2c_test(self):
         exec_command_and_wait_for_pattern(self,
             'echo lm75 0x4d > /sys/class/i2c-dev/i2c-1/device/new_device ',
@@ -127,10 +131,10 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.verify_openbmc_boot_and_login('ast2700-default')
         self.do_ast2700_i2c_test()
 
-    def test_aarch64_ast2700a1_evb_sdk_vbootrom_v09_06(self):
+    def test_aarch64_ast2700a1_evb_sdk_vbootrom_v09_07(self):
         self.set_machine('ast2700a1-evb')
 
-        self.archive_extract(self.ASSET_SDK_V906_AST2700A1)
+        self.archive_extract(self.ASSET_SDK_V907_AST2700A1_VBOOROM)
         self.start_ast2700_test_vbootrom('ast2700-default')
         self.verify_vbootrom_firmware_flow()
         self.verify_openbmc_boot_and_login('ast2700-default')
