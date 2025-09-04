@@ -1974,6 +1974,8 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
 
         setup_sigtramp(tramp_page);
         target_mprotect(tramp_page, TARGET_PAGE_SIZE, PROT_READ | PROT_EXEC);
+        vdso_sigreturn_region_start = tramp_page;
+        vdso_sigreturn_region_end = tramp_page + TARGET_PAGE_SIZE;
     }
 
     bprm->p = create_elf_tables(bprm->p, bprm->argc, bprm->envc, &ehdr, info,
