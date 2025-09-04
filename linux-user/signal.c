@@ -50,6 +50,8 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
 /* Fallback addresses into sigtramp page. */
 abi_ulong default_sigreturn;
 abi_ulong default_rt_sigreturn;
+abi_ulong vdso_sigreturn_region_start;
+abi_ulong vdso_sigreturn_region_end;
 
 /*
  * System includes define _NSIG as SIGRTMAX + 1, but qemu (like the kernel)

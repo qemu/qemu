@@ -84,9 +84,12 @@ static void elfN(search_symtab)(ElfN(Shdr) *shdr, unsigned sym_idx,
 
         if (sigreturn_sym && strcmp(sigreturn_sym, name) == 0) {
             sigreturn_addr = sym.st_value;
-        }
-        if (rt_sigreturn_sym && strcmp(rt_sigreturn_sym, name) == 0) {
+        } else if (rt_sigreturn_sym && strcmp(rt_sigreturn_sym, name) == 0) {
             rt_sigreturn_addr = sym.st_value;
+        } else if (strcmp("sigreturn_region_start", name) == 0) {
+            sigreturn_region_start_addr = sym.st_value;
+        } else if (strcmp("sigreturn_region_end", name) == 0) {
+            sigreturn_region_end_addr = sym.st_value;
         }
     }
 }

@@ -1659,6 +1659,11 @@ static void load_elf_vdso(struct image_info *info, const VdsoImageInfo *vdso)
     if (vdso->rt_sigreturn_ofs) {
         default_rt_sigreturn = load_addr + vdso->rt_sigreturn_ofs;
     }
+    if (vdso->sigreturn_region_start_ofs) {
+        vdso_sigreturn_region_start =
+            load_addr + vdso->sigreturn_region_start_ofs;
+        vdso_sigreturn_region_end = load_addr + vdso->sigreturn_region_end_ofs;
+    }
 
     /* Remove write from VDSO segment. */
     target_mprotect(info->start_data, info->end_data - info->start_data,
