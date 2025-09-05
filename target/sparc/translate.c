@@ -2487,7 +2487,7 @@ static int extract_qfpreg(DisasContext *dc, int x)
 
 #define TRANS(NAME, AVAIL, FUNC, ...) \
     static bool trans_##NAME(DisasContext *dc, arg_##NAME *a) \
-    { return avail_##AVAIL(dc) && FUNC(dc, __VA_ARGS__); }
+    { return avail_##AVAIL(dc) && FUNC(dc, ## __VA_ARGS__); }
 
 #define avail_ALL(C)      true
 #ifdef TARGET_SPARC64
