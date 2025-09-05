@@ -18,13 +18,11 @@
 #include "gdbstub/syscalls.h"
 #include "gdbstub/commands.h"
 #include "exec/hwaddr.h"
-#include "exec/tb-flush.h"
 #include "accel/accel-ops.h"
 #include "accel/accel-cpu-ops.h"
 #include "system/cpus.h"
 #include "system/runstate.h"
 #include "system/replay.h"
-#include "system/tcg.h"
 #include "hw/core/cpu.h"
 #include "hw/cpu/cluster.h"
 #include "hw/boards.h"
@@ -173,9 +171,6 @@ static void gdb_vm_state_change(void *opaque, bool running, RunState state)
             goto send_packet;
         } else {
             trace_gdbstub_hit_break();
-        }
-        if (tcg_enabled()) {
-            tb_flush(cpu);
         }
         ret = GDB_SIGNAL_TRAP;
         break;
