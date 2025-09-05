@@ -2526,6 +2526,32 @@ static int extract_qfpreg(DisasContext *dc, int x)
 # define avail_VIS4(C)    false
 #endif
 
+/*
+ * We decoded bit 13 as imm, and bits [12:0] as rs2_or_imm.
+ * For v9, if !imm, then the unused bits [12:5] must be zero.
+ * For v7 and v8, the unused bits are ignored; clear them here.
+ */
+static bool check_rs2(DisasContext *dc, int *rs2)
+{
+    if (unlikely(*rs2 & ~0x1f)) {
+        if (avail_64(dc)) {
+            return false;
+        }
+        *rs2 &= 0x1f;
+    }
+    return true;
+}
+
+static bool check_r_r_ri(DisasContext *dc, arg_r_r_ri *a)
+{
+    return a->imm || check_rs2(dc, &a->rs2_or_imm);
+}
+
+static bool check_r_r_ri_cc(DisasContext *dc, arg_r_r_ri_cc *a)
+{
+    return a->imm || check_rs2(dc, &a->rs2_or_imm);
+}
+
 /* Default case for non jump instructions. */
 static bool advance_pc(DisasContext *dc)
 {
@@ -3249,8 +3275,7 @@ static bool do_wr_special(DisasContext *dc, arg_r_r_ri *a, bool priv,
 {
     TCGv src;
 
-    /* For simplicity, we under-decoded the rs2 form. */
-    if (!a->imm && (a->rs2_or_imm & ~0x1f)) {
+    if (!check_r_r_ri(dc, a)) {
         return false;
     }
     if (!priv) {
@@ -3693,8 +3718,7 @@ static bool do_arith_int(DisasContext *dc, arg_r_r_ri_cc *a,
 {
     TCGv dst, src1;
 
-    /* For simplicity, we under-decoded the rs2 form. */
-    if (!a->imm && a->rs2_or_imm & ~0x1f) {
+    if (!check_r_r_ri_cc(dc, a)) {
         return false;
     }
 
@@ -3778,11 +3802,11 @@ static bool trans_OR(DisasContext *dc, arg_r_r_ri_cc *a)
 {
     /* OR with %g0 is the canonical alias for MOV. */
     if (!a->cc && a->rs1 == 0) {
+        if (!check_r_r_ri_cc(dc, a)) {
+            return false;
+        }
         if (a->imm || a->rs2_or_imm == 0) {
             gen_store_gpr(dc, a->rd, tcg_constant_tl(a->rs2_or_imm));
-        } else if (a->rs2_or_imm & ~0x1f) {
-            /* For simplicity, we under-decoded the rs2 form. */
-            return false;
         } else {
             gen_store_gpr(dc, a->rd, cpu_regs[a->rs2_or_imm]);
         }
@@ -3799,8 +3823,7 @@ static bool trans_UDIV(DisasContext *dc, arg_r_r_ri *a)
     if (!avail_DIV(dc)) {
         return false;
     }
-    /* For simplicity, we under-decoded the rs2 form. */
-    if (!a->imm && a->rs2_or_imm & ~0x1f) {
+    if (!check_r_r_ri(dc, a)) {
         return false;
     }
 
@@ -3851,8 +3874,7 @@ static bool trans_UDIVX(DisasContext *dc, arg_r_r_ri *a)
     if (!avail_64(dc)) {
         return false;
     }
-    /* For simplicity, we under-decoded the rs2 form. */
-    if (!a->imm && a->rs2_or_imm & ~0x1f) {
+    if (!check_r_r_ri(dc, a)) {
         return false;
     }
 
@@ -3889,8 +3911,7 @@ static bool trans_SDIVX(DisasContext *dc, arg_r_r_ri *a)
     if (!avail_64(dc)) {
         return false;
     }
-    /* For simplicity, we under-decoded the rs2 form. */
-    if (!a->imm && a->rs2_or_imm & ~0x1f) {
+    if (!check_r_r_ri(dc, a)) {
         return false;
     }
 
@@ -4186,8 +4207,7 @@ TRANS(SRA_i, ALL, do_shift_i, a, false, false)
 
 static TCGv gen_rs2_or_imm(DisasContext *dc, bool imm, int rs2_or_imm)
 {
-    /* For simplicity, we under-decoded the rs2 form. */
-    if (!imm && rs2_or_imm & ~0x1f) {
+    if (!imm && !check_rs2(dc, &rs2_or_imm)) {
         return NULL;
     }
     if (imm || rs2_or_imm == 0) {
@@ -4250,8 +4270,7 @@ static bool do_add_special(DisasContext *dc, arg_r_r_ri *a,
 {
     TCGv src1, sum;
 
-    /* For simplicity, we under-decoded the rs2 form. */
-    if (!a->imm && a->rs2_or_imm & ~0x1f) {
+    if (!check_r_r_ri(dc, a)) {
         return false;
     }
 
@@ -4369,8 +4388,7 @@ static TCGv gen_ldst_addr(DisasContext *dc, int rs1, bool imm, int rs2_or_imm)
 {
     TCGv addr, tmp = NULL;
 
-    /* For simplicity, we under-decoded the rs2 form. */
-    if (!imm && rs2_or_imm & ~0x1f) {
+    if (!imm && !check_rs2(dc, &rs2_or_imm)) {
         return NULL;
     }
 
