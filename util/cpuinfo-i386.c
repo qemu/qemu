@@ -50,6 +50,7 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
             if ((bv & 6) == 6) {
                 info |= CPUINFO_AVX1;
                 info |= (b7 & bit_AVX2 ? CPUINFO_AVX2 : 0);
+                info |= (c7 & bit_GFNI ? CPUINFO_GFNI : 0);
 
                 if ((bv & 0xe0) == 0xe0) {
                     info |= (b7 & bit_AVX512F ? CPUINFO_AVX512F : 0);

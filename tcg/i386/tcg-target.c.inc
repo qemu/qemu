@@ -451,6 +451,7 @@ static bool tcg_target_const_match(int64_t val, int ct,
 #define OPC_VPBROADCASTW (0x79 | P_EXT38 | P_DATA16)
 #define OPC_VPBROADCASTD (0x58 | P_EXT38 | P_DATA16)
 #define OPC_VPBROADCASTQ (0x59 | P_EXT38 | P_DATA16)
+#define OPC_VGF2P8AFFINEQB (0xce | P_EXT3A | P_DATA16 | P_VEXW)
 #define OPC_VPMOVM2B    (0x28 | P_EXT38 | P_SIMDF3 | P_EVEX)
 #define OPC_VPMOVM2W    (0x28 | P_EXT38 | P_SIMDF3 | P_VEXW | P_EVEX)
 #define OPC_VPMOVM2D    (0x38 | P_EXT38 | P_SIMDF3 | P_EVEX)
@@ -4084,6 +4085,10 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         insn = vpshldi_insn[vece];
         sub = args[3];
         goto gen_simd_imm8;
+    case INDEX_op_x86_vgf2p8affineqb_vec:
+        insn = OPC_VGF2P8AFFINEQB;
+        sub = args[3];
+        goto gen_simd_imm8;
 
     case INDEX_op_not_vec:
         insn = OPC_VPTERNLOGQ;
@@ -4188,6 +4193,7 @@ tcg_target_op_def(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_x86_punpckl_vec:
     case INDEX_op_x86_punpckh_vec:
     case INDEX_op_x86_vpshldi_vec:
+    case INDEX_op_x86_vgf2p8affineqb_vec:
 #if TCG_TARGET_REG_BITS == 32
     case INDEX_op_dup2_vec:
 #endif
@@ -4336,12 +4342,46 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     }
 }
 
+static void gen_vgf2p8affineqb0(TCGType type, TCGv_vec v0,
+                                TCGv_vec v1, uint64_t matrix)
+{
+    vec_gen_4(INDEX_op_x86_vgf2p8affineqb_vec, type, MO_8,
+              tcgv_vec_arg(v0), tcgv_vec_arg(v1),
+              tcgv_vec_arg(tcg_constant_vec(type, MO_64, matrix)), 0);
+}
+
 static void expand_vec_shi(TCGType type, unsigned vece, bool right,
                            TCGv_vec v0, TCGv_vec v1, TCGArg imm)
 {
+    static const uint64_t gf2_shi[2][8] = {
+        /* left shift */
+        { 0,
+          0x0001020408102040ull,
+          0x0000010204081020ull,
+          0x0000000102040810ull,
+          0x0000000001020408ull,
+          0x0000000000010204ull,
+          0x0000000000000102ull,
+          0x0000000000000001ull },
+        /* right shift */
+        { 0,
+          0x0204081020408000ull,
+          0x0408102040800000ull,
+          0x0810204080000000ull,
+          0x1020408000000000ull,
+          0x2040800000000000ull,
+          0x4080000000000000ull,
+          0x8000000000000000ull }
+    };
     uint8_t mask;
 
     tcg_debug_assert(vece == MO_8);
+
+    if (cpuinfo & CPUINFO_GFNI) {
+        gen_vgf2p8affineqb0(type, v0, v1, gf2_shi[right][imm]);
+        return;
+    }
+
     if (right) {
         mask = 0xff >> imm;
         tcg_gen_shri_vec(MO_16, v0, v1, imm);
@@ -4355,10 +4395,31 @@ static void expand_vec_shi(TCGType type, unsigned vece, bool right,
 static void expand_vec_sari(TCGType type, unsigned vece,
                             TCGv_vec v0, TCGv_vec v1, TCGArg imm)
 {
+    static const uint64_t gf2_sar[8] = {
+        0,
+        0x0204081020408080ull,
+        0x0408102040808080ull,
+        0x0810204080808080ull,
+        0x1020408080808080ull,
+        0x2040808080808080ull,
+        0x4080808080808080ull,
+        0x8080808080808080ull,
+    };
     TCGv_vec t1, t2;
+
+    if (imm >= (8 << vece) - 1) {
+        tcg_gen_cmp_vec(TCG_COND_LT, vece, v0, v1,
+                        tcg_constant_vec(type, MO_64, 0));
+        return;
+    }
 
     switch (vece) {
     case MO_8:
+        if (cpuinfo & CPUINFO_GFNI) {
+            gen_vgf2p8affineqb0(type, v0, v1, gf2_sar[imm]);
+            break;
+        }
+
         /* Unpack to 16-bit, shift, and repack.  */
         t1 = tcg_temp_new_vec(type);
         t2 = tcg_temp_new_vec(type);
@@ -4393,8 +4454,8 @@ static void expand_vec_sari(TCGType type, unsigned vece,
             /* Otherwise we will need to use a compare vs 0 to produce
              * the sign-extend, shift and merge.
              */
-            tcg_gen_cmp_vec(TCG_COND_GT, MO_64, t1,
-                            tcg_constant_vec(type, MO_64, 0), v1);
+            tcg_gen_cmp_vec(TCG_COND_LT, MO_64, t1, v1,
+                            tcg_constant_vec(type, MO_64, 0));
             tcg_gen_shri_vec(MO_64, v0, v1, imm);
             tcg_gen_shli_vec(MO_64, t1, t1, 64 - imm);
             tcg_gen_or_vec(MO_64, v0, v0, t1);
@@ -4410,12 +4471,30 @@ static void expand_vec_sari(TCGType type, unsigned vece,
 static void expand_vec_rotli(TCGType type, unsigned vece,
                              TCGv_vec v0, TCGv_vec v1, TCGArg imm)
 {
+    static const uint64_t gf2_rol[8] = {
+        0,
+        0x8001020408102040ull,
+        0x4080010204081020ull,
+        0x2040800102040810ull,
+        0x1020408001020408ull,
+        0x0810204080010204ull,
+        0x0408102040800102ull,
+        0x0204081020408001ull,
+    };
     TCGv_vec t;
 
-    if (vece != MO_8 && have_avx512vbmi2) {
-        vec_gen_4(INDEX_op_x86_vpshldi_vec, type, vece,
-                  tcgv_vec_arg(v0), tcgv_vec_arg(v1), tcgv_vec_arg(v1), imm);
-        return;
+    if (vece == MO_8) {
+        if (cpuinfo & CPUINFO_GFNI) {
+            gen_vgf2p8affineqb0(type, v0, v1, gf2_rol[imm]);
+            return;
+        }
+    } else {
+        if (have_avx512vbmi2) {
+            vec_gen_4(INDEX_op_x86_vpshldi_vec, type, vece,
+                      tcgv_vec_arg(v0), tcgv_vec_arg(v1),
+                      tcgv_vec_arg(v1), imm);
+            return;
+        }
     }
 
     t = tcg_temp_new_vec(type);
