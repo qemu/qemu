@@ -353,17 +353,8 @@ static int64_t load_kernel_info(struct loongarch_boot_info *info)
 static void reset_load_elf(void *opaque)
 {
     LoongArchCPU *cpu = opaque;
-    CPULoongArchState *env = &cpu->env;
 
     cpu_reset(CPU(cpu));
-    if (env->load_elf) {
-        if (cpu == LOONGARCH_CPU(first_cpu)) {
-            env->gpr[4] = env->boot_info->a0;
-            env->gpr[5] = env->boot_info->a1;
-            env->gpr[6] = env->boot_info->a2;
-        }
-        cpu_set_pc(CPU(cpu), env->elf_address);
-    }
 }
 
 static void fw_cfg_add_kernel_info(struct loongarch_boot_info *info,
@@ -415,8 +406,6 @@ static void loongarch_direct_kernel_boot(MachineState *ms,
 {
     void *p, *bp;
     int64_t kernel_addr = VIRT_FLASH0_BASE;
-    LoongArchCPU *lacpu;
-    CPUState *cs;
     uint64_t *data;
 
     if (info->kernel_filename) {
@@ -442,17 +431,6 @@ static void loongarch_direct_kernel_boot(MachineState *ms,
     *(data - 2) = cpu_to_le64(info->a2);
     *(data - 1) = cpu_to_le64(kernel_addr);
     rom_add_blob_fixed("boot_code", boot_code, VIRT_FLASH0_SIZE, VIRT_FLASH0_BASE);
-
-    CPU_FOREACH(cs) {
-        lacpu = LOONGARCH_CPU(cs);
-        lacpu->env.load_elf = true;
-        if (cs == first_cpu) {
-            lacpu->env.elf_address = kernel_addr;
-        } else {
-            lacpu->env.elf_address = VIRT_FLASH0_BASE;
-        }
-        lacpu->env.boot_info = info;
-    }
 
     g_free(boot_code);
     g_free(bp);
