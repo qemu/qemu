@@ -8,7 +8,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/error-report.h"
-#include "exec/tb-flush.h"
+#include "exec/translation-block.h"
 #include "exec/target_page.h"
 #include "helper_regs.h"
 #include "hw/ppc/ppc.h"
@@ -301,7 +301,7 @@ static target_ulong h_page_init(PowerPCCPU *cpu, SpaprMachineState *spapr,
         if (kvm_enabled()) {
             kvmppc_icbi_range(cpu, pdst, len);
         } else if (tcg_enabled()) {
-            tb_flush(CPU(cpu));
+            tb_invalidate_phys_range(CPU(cpu), dst, dst + len - 1);
         } else {
             g_assert_not_reached();
         }
