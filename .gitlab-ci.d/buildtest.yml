@@ -39,9 +39,9 @@ build-system-ubuntu:
     job: amd64-ubuntu2204-container
   variables:
     IMAGE: ubuntu2204
-    CONFIGURE_ARGS: --enable-docs --enable-rust
+    CONFIGURE_ARGS: --enable-docs
     TARGETS: alpha-softmmu microblazeel-softmmu mips64el-softmmu
-    MAKE_CHECK_ARGS: check-build check-doc
+    MAKE_CHECK_ARGS: check-build
 
 check-system-ubuntu:
   extends: .native_test_job_template
