@@ -1,26 +1,30 @@
-_qemu_api_cfg = run_command(rustc_args,
-  '--config-headers', config_host_h, '--features', files('Cargo.toml'),
-  capture: true, check: true).stdout().strip().splitlines()
-
+_hwcore_bindgen_args = []
 c_enums = [
-  'MemoryDeviceInfoKind',
+  'DeviceCategory',
+  'GpioPolarity',
+  'MachineInitPhase',
+  'ResetType',
 ]
-_qemu_api_bindgen_args = []
 foreach enum : c_enums
-  _qemu_api_bindgen_args += ['--rustified-enum', enum]
+  _hwcore_bindgen_args += ['--rustified-enum', enum]
 endforeach
 
 blocked_type = [
   'Chardev',
   'Error',
-  'MemTxAttrs',
-  'MemoryRegion',
   'ObjectClass',
+  'MemoryRegion',
   'VMStateDescription',
-  'device_endian',
 ]
 foreach type: blocked_type
-  _qemu_api_bindgen_args += ['--blocklist-type', type]
+  _hwcore_bindgen_args += ['--blocklist-type', type]
+endforeach
+
+c_bitfields = [
+  'ClockEvent',
+]
+foreach enum : c_bitfields
+  _hwcore_bindgen_args += ['--bitfield-enum', enum]
 endforeach
 
 # TODO: Remove this comment when the clang/libclang mismatch issue is solved.
@@ -30,43 +34,44 @@ endforeach
 # this case you must pass the path to `clang` and `libclang` to your build
 # command invocation using the environment variables CLANG_PATH and
 # LIBCLANG_PATH
-_qemu_api_bindings_inc_rs = rust.bindgen(
+_hwcore_bindings_inc_rs = rust.bindgen(
   input: 'wrapper.h',
   dependencies: common_ss.all_dependencies(),
   output: 'bindings.inc.rs',
   include_directories: bindings_incdir,
   bindgen_version: ['>=0.60.0'],
-  args: bindgen_args_common + _qemu_api_bindgen_args,
-  )
+  args: bindgen_args_common + _hwcore_bindgen_args,
+)
 
-_qemu_api_rs = static_library(
-  'qemu_api',
+_hwcore_rs = static_library(
+  'hwcore',
   structured_sources(
     [
       'src/lib.rs',
       'src/bindings.rs',
-      'src/prelude.rs',
+      'src/irq.rs',
+      'src/qdev.rs',
+      'src/sysbus.rs',
     ],
-    {'.' : _qemu_api_bindings_inc_rs},
+    {'.': _hwcore_bindings_inc_rs}
   ),
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
-  rust_args: _qemu_api_cfg,
-  dependencies: [anyhow_rs, bql_rs, chardev_rs, common_rs, foreign_rs, hwcore_rs, libc_rs, migration_rs, qemu_api_macros,
-                 qom_rs, system_rs, util_rs, hwcore],
+  link_with: [_bql_rs, _chardev_rs, _migration_rs, _qom_rs, _system_rs, _util_rs],
+  dependencies: [qemu_api_macros, common_rs],
 )
 
-qemu_api_rs = declare_dependency(link_with: [_qemu_api_rs],
-  dependencies: [qemu_api_macros, qom, hwcore, chardev, migration])
+hwcore_rs = declare_dependency(link_with: [_hwcore_rs],
+  dependencies: [qom_rs, hwcore])
 
-test('rust-qemu-api-integration',
+test('rust-hwcore-rs-integration',
     executable(
-        'rust-qemu-api-integration',
-        files('tests/vmstate_tests.rs'),
+        'rust-hwcore-rs-integration',
+        files('tests/tests.rs'),
         override_options: ['rust_std=2021', 'build.rust_std=2021'],
         rust_args: ['--test'],
         install: false,
-        dependencies: [bql_rs, common_rs, util_rs, migration_rs, qom_rs, qemu_api_rs]),
+        dependencies: [common_rs, hwcore_rs, bql_rs, migration_rs, qemu_api_macros, util_rs]),
     args: [
         '--test', '--test-threads', '1',
         '--format', 'pretty',

@@ -3518,6 +3518,7 @@ S: Maintained
 F: rust/bql/
 F: rust/chardev/
 F: rust/common/
+F: rust/hw/core/
 F: rust/migration/
 F: rust/qemu-api
 F: rust/qemu-api-macros

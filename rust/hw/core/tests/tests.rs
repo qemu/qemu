@@ -5,15 +5,10 @@
 use std::{ffi::CStr, ptr::addr_of};
 
 use bql::BqlCell;
+use hwcore::{DeviceImpl, DeviceState, ResettablePhasesImpl, SysBusDevice};
 use migration::{VMStateDescription, VMStateDescriptionBuilder};
-use qemu_api::{
-    qdev::{DeviceImpl, DeviceState, ResettablePhasesImpl},
-    sysbus::SysBusDevice,
-};
 use qom::{prelude::*, ObjectImpl, ParentField};
 use util::bindings::{module_call_init, module_init_type};
-
-mod vmstate_tests;
 
 // Test that macros can compile.
 pub const VMSTATE: VMStateDescription<DummyState> = VMStateDescriptionBuilder::<DummyState>::new()

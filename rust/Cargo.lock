@@ -91,8 +91,23 @@ version = "0.1.0"
 dependencies = [
  "bql",
  "common",
+ "hwcore",
  "migration",
  "qemu_api",
+ "qemu_api_macros",
+ "qom",
+ "system",
+ "util",
+]
+
+[[package]]
+name = "hwcore"
+version = "0.1.0"
+dependencies = [
+ "bql",
+ "chardev",
+ "common",
+ "migration",
  "qemu_api_macros",
  "qom",
  "system",
@@ -133,6 +148,7 @@ dependencies = [
  "bql",
  "chardev",
  "common",
+ "hwcore",
  "migration",
  "qemu_api",
  "qemu_api_macros",
@@ -180,6 +196,7 @@ dependencies = [
  "bql",
  "chardev",
  "common",
+ "hwcore",
  "migration",
  "qemu_api_macros",
  "qom",

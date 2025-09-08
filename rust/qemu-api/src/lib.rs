@@ -13,10 +13,6 @@ pub mod bindings;
 #[rustfmt::skip]
 pub mod prelude;
 
-pub mod irq;
-pub mod qdev;
-pub mod sysbus;
-
 // Allow proc-macros to refer to `::qemu_api` inside the `qemu_api` crate (this
 // crate).
 extern crate self as qemu_api;

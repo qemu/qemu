@@ -7,15 +7,13 @@ use std::{ffi::CStr, mem::size_of};
 use bql::BqlRefCell;
 use chardev::{CharBackend, Chardev, Event};
 use common::{static_assert, uninit_field_mut};
+use hwcore::{
+    Clock, ClockEvent, DeviceImpl, DeviceMethods, DeviceState, IRQState, InterruptSource,
+    ResetType, ResettablePhasesImpl, SysBusDevice, SysBusDeviceImpl, SysBusDeviceMethods,
+};
 use migration::{
     self, impl_vmstate_forward, impl_vmstate_struct, vmstate_fields, vmstate_of,
     vmstate_subsections, vmstate_unused, VMStateDescription, VMStateDescriptionBuilder,
-};
-use qemu_api::{
-    irq::{IRQState, InterruptSource},
-    prelude::*,
-    qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, ResetType, ResettablePhasesImpl},
-    sysbus::{SysBusDevice, SysBusDeviceImpl},
 };
 use qom::{prelude::*, ObjectImpl, Owned, ParentField, ParentInit};
 use system::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder};

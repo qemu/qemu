@@ -272,24 +272,24 @@ fn derive_device_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
             },
         )?;
         let field_ty = field.ty.clone();
-        let qdev_prop = quote! { <#field_ty as ::qemu_api::qdev::QDevProp>::VALUE };
+        let qdev_prop = quote! { <#field_ty as ::hwcore::QDevProp>::VALUE };
         let set_default = defval.is_some();
         let defval = defval.unwrap_or(syn::Expr::Verbatim(quote! { 0 }));
         properties_expanded.push(quote! {
-            ::qemu_api::bindings::Property {
+            ::hwcore::bindings::Property {
                 name: ::std::ffi::CStr::as_ptr(#prop_name),
                 info: #qdev_prop ,
                 offset: ::core::mem::offset_of!(#name, #field_name) as isize,
                 set_default: #set_default,
-                defval: ::qemu_api::bindings::Property__bindgen_ty_1 { u: #defval as u64 },
+                defval: ::hwcore::bindings::Property__bindgen_ty_1 { u: #defval as u64 },
                 ..::common::Zeroable::ZERO
             }
         });
     }
 
     Ok(quote_spanned! {input.span() =>
-        unsafe impl ::qemu_api::qdev::DevicePropertiesImpl for #name {
-            const PROPERTIES: &'static [::qemu_api::bindings::Property] = &[
+        unsafe impl ::hwcore::DevicePropertiesImpl for #name {
+            const PROPERTIES: &'static [::hwcore::bindings::Property] = &[
                 #(#properties_expanded),*
             ];
         }

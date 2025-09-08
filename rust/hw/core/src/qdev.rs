@@ -9,13 +9,13 @@ use std::{
     ptr::NonNull,
 };
 
-pub use bindings::{ClockEvent, DeviceClass, Property, ResetType};
 use chardev::Chardev;
 use common::{callbacks::FnCall, Opaque};
 use migration::{impl_vmstate_c_struct, VMStateDescription};
 use qom::{prelude::*, ObjectClass, ObjectImpl, Owned, ParentInit};
 use util::{Error, Result};
 
+pub use crate::bindings::{ClockEvent, DeviceClass, Property, ResetType};
 use crate::{
     bindings::{self, qdev_init_gpio_in, qdev_init_gpio_out, ResettableClass},
     irq::InterruptSource,

@@ -19,6 +19,7 @@ qom = { path = "../../../qom" }
 system = { path = "../../../system" }
 qemu_api = { path = "../../../qemu-api" }
 qemu_api_macros = { path = "../../../qemu-api-macros" }
+hwcore = { path = "../../../hw/core" }
 
 [lints]
 workspace = true

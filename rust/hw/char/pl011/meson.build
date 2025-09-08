@@ -16,6 +16,7 @@ _libpl011_rs = static_library(
     qom_rs,
     chardev_rs,
     system_rs,
+    hwcore_rs,
   ],
 )
 

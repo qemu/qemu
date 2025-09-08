@@ -18,12 +18,11 @@
     clippy::too_many_arguments
 )]
 
-//! `bindgen`-generated declarations.
-
 use chardev::bindings::Chardev;
+use common::Zeroable;
 use migration::bindings::VMStateDescription;
 use qom::bindings::ObjectClass;
-use system::bindings::{device_endian, MemTxAttrs, MemoryRegion};
+use system::bindings::MemoryRegion;
 use util::bindings::Error;
 
 #[cfg(MESON)]
@@ -31,3 +30,12 @@ include!("bindings.inc.rs");
 
 #[cfg(not(MESON))]
 include!(concat!(env!("OUT_DIR"), "/bindings.inc.rs"));
+
+unsafe impl Send for Property {}
+unsafe impl Sync for Property {}
+
+unsafe impl Send for TypeInfo {}
+unsafe impl Sync for TypeInfo {}
+
+unsafe impl Zeroable for Property__bindgen_ty_1 {}
+unsafe impl Zeroable for Property {}
