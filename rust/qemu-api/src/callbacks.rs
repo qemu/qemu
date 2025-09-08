@@ -113,31 +113,6 @@ use std::{mem, ptr::NonNull};
 /// This is always true for zero-capture closures and function pointers, as long
 /// as the code is able to name the function in the first place.
 pub unsafe trait FnCall<Args, R = ()>: 'static + Sync + Sized {
-    /// Referring to this internal constant asserts that the `Self` type is
-    /// zero-sized.  Can be replaced by an inline const expression in
-    /// Rust 1.79.0+.
-    const ASSERT_ZERO_SIZED: () = { assert!(mem::size_of::<Self>() == 0) };
-
-    /// Referring to this constant asserts that the `Self` type is an actual
-    /// function type, which can be used to catch incorrect use of `()`
-    /// at compile time.
-    ///
-    /// # Examples
-    ///
-    /// ```compile_fail
-    /// # use qemu_api::callbacks::FnCall;
-    /// fn call_it<F: for<'a> FnCall<(&'a str,), String>>(_f: &F, s: &str) -> String {
-    ///     let _: () = F::ASSERT_IS_SOME;
-    ///     F::call((s,))
-    /// }
-    ///
-    /// let s: String = call_it((), "hello world"); // does not compile
-    /// ```
-    ///
-    /// Note that this can be more simply `const { assert!(F::IS_SOME) }` in
-    /// Rust 1.79.0 or newer.
-    const ASSERT_IS_SOME: () = { assert!(Self::IS_SOME) };
-
     /// `true` if `Self` is an actual function type and not `()`.
     ///
     /// # Examples
@@ -195,7 +170,7 @@ macro_rules! impl_call {
 
             #[inline(always)]
             fn call(a: ($($args,)*)) -> R {
-                let _: () = Self::ASSERT_ZERO_SIZED;
+                const { assert!(mem::size_of::<Self>() == 0) };
 
                 // SAFETY: the safety of this method is the condition for implementing
                 // `FnCall`.  As to the `NonNull` idiom to create a zero-sized type,

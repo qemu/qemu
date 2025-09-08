@@ -138,7 +138,7 @@ impl CharBackend {
             F::call((owner, event))
         }
 
-        let _: () = CanReceiveFn::ASSERT_IS_SOME;
+        const { assert!(CanReceiveFn::IS_SOME) };
         let receive_cb: Option<unsafe extern "C" fn(*mut c_void, *const u8, c_int)> =
             if ReceiveFn::is_some() {
                 Some(rust_receive_cb::<T, ReceiveFn>)

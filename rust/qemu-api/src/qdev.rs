@@ -373,7 +373,7 @@ where
             }
         }
 
-        let _: () = F::ASSERT_IS_SOME;
+        const { assert!(F::IS_SOME) };
         unsafe extern "C" fn rust_irq_handler<T, F: for<'a> FnCall<(&'a T, u32, u32)>>(
             opaque: *mut c_void,
             line: c_int,

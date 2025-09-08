@@ -79,9 +79,6 @@ QEMU supports rustc version 1.83.0 and newer.  The following features
 from relatively new versions of Rust are not used for historical reasons;
 patches are welcome:
 
-* inline const expression (stable in 1.79.0), currently worked around with
-  associated constants in the ``FnCall`` trait.
-
 * associated constants are still explicitly marked ``'static`` (`changed in
   1.81.0`__)
 
@@ -97,9 +94,9 @@ patches are welcome:
   before QEMU can use them.  For now, there is special code in
   ``util/error.c`` to support non-NUL-terminated file names.
 
-* associated const equality would be nice to have for some users of
-  ``callbacks::FnCall``, but is still experimental.  ``ASSERT_IS_SOME``
-  replaces it.
+Associated const equality would be nice to have for some users of
+``callbacks::FnCall``, but is still experimental.  Const assertions
+are used instead.
 
 __ https://github.com/rust-lang/rust/pull/125258
 

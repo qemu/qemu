@@ -56,7 +56,7 @@ impl Timer {
     ) where
         F: for<'a> FnCall<(&'a T,)>,
     {
-        let _: () = F::ASSERT_IS_SOME;
+        const { assert!(F::IS_SOME) };
 
         /// timer expiration callback
         unsafe extern "C" fn rust_timer_handler<T, F: for<'a> FnCall<(&'a T,)>>(

@@ -457,7 +457,7 @@ macro_rules! vmstate_exist_fn {
         const fn test_cb_builder__<T, F: for<'a> $crate::callbacks::FnCall<(&'a T, u8), bool>>(
             _phantom: ::core::marker::PhantomData<F>,
         ) -> $crate::vmstate::VMSFieldExistCb {
-            let _: () = F::ASSERT_IS_SOME;
+            const { assert!(F::IS_SOME) };
             $crate::vmstate::rust_vms_test_field_exists::<T, F>
         }
 
