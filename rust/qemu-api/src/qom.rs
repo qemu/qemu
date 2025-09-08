@@ -105,12 +105,9 @@ pub use bindings::ObjectClass;
 use common::Opaque;
 use migration::impl_vmstate_pointer;
 
-use crate::{
-    bindings::{
-        self, object_class_dynamic_cast, object_dynamic_cast, object_get_class,
-        object_get_typename, object_new, object_ref, object_unref, TypeInfo,
-    },
-    cell::bql_locked,
+use crate::bindings::{
+    self, object_class_dynamic_cast, object_dynamic_cast, object_get_class, object_get_typename,
+    object_new, object_ref, object_unref, TypeInfo,
 };
 
 /// A safe wrapper around [`bindings::Object`].
@@ -873,7 +870,7 @@ impl<T: ObjectType> ObjectDeref for Owned<T> {}
 
 impl<T: ObjectType> Drop for Owned<T> {
     fn drop(&mut self) {
-        assert!(bql_locked());
+        assert!(bql::is_locked());
         // SAFETY: creation method is unsafe, and whoever calls it has
         // responsibility that the pointer is valid, and remains valid
         // throughout the lifetime of the `Owned<T>` and its clones.
@@ -897,7 +894,7 @@ impl<T: IsA<Object>> fmt::Debug for Owned<T> {
 pub trait ObjectClassMethods: IsA<Object> {
     /// Return a new reference counted instance of this class
     fn new() -> Owned<Self> {
-        assert!(bql_locked());
+        assert!(bql::is_locked());
         // SAFETY: the object created by object_new is allocated on
         // the heap and has a reference count of 1
         unsafe {

@@ -135,8 +135,8 @@ pub const fn vmstate_varray_flag<T: VMState>(_: PhantomData<T>) -> VMStateFlags 
 /// [`impl_vmstate_bitsized`](crate::impl_vmstate_bitsized), and
 /// [`impl_vmstate_struct`](crate::impl_vmstate_struct) help with this.
 ///
-/// [`BqlCell`]: ../../qemu_api/cell/struct.BqlCell.html
-/// [`BqlRefCell`]: ../../qemu_api/cell/struct.BqlRefCell.html
+/// [`BqlCell`]: ../../bql/cell/struct.BqlCell.html
+/// [`BqlRefCell`]: ../../bql/cell/struct.BqlRefCell.html
 /// [`Owned`]: ../../qemu_api/qom/struct.Owned.html
 #[macro_export]
 macro_rules! vmstate_of {

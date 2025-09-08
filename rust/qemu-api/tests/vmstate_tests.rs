@@ -9,6 +9,7 @@ use std::{
     slice,
 };
 
+use bql::BqlCell;
 use common::Opaque;
 use migration::{
     bindings::{
@@ -19,7 +20,6 @@ use migration::{
     vmstate::{VMStateDescription, VMStateDescriptionBuilder, VMStateField},
     vmstate_fields, vmstate_of, vmstate_unused, vmstate_validate,
 };
-use qemu_api::cell::BqlCell;
 
 const FOO_ARRAY_MAX: usize = 3;
 

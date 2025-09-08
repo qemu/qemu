@@ -2,10 +2,6 @@ _qemu_api_cfg = run_command(rustc_args,
   '--config-headers', config_host_h, '--features', files('Cargo.toml'),
   capture: true, check: true).stdout().strip().splitlines()
 
-if get_option('debug_mutex')
-  _qemu_api_cfg += ['--cfg', 'feature="debug_cell"']
-endif
-
 c_enums = [
   'DeviceCategory',
   'GpioPolarity',
@@ -51,7 +47,6 @@ _qemu_api_rs = static_library(
     [
       'src/lib.rs',
       'src/bindings.rs',
-      'src/cell.rs',
       'src/chardev.rs',
       'src/irq.rs',
       'src/memory.rs',
@@ -65,21 +60,12 @@ _qemu_api_rs = static_library(
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   rust_args: _qemu_api_cfg,
-  dependencies: [anyhow_rs, common_rs, foreign_rs, libc_rs, migration_rs, qemu_api_macros,
+  dependencies: [anyhow_rs, bql_rs, common_rs, foreign_rs, libc_rs, migration_rs, qemu_api_macros,
                  util_rs, qom, hwcore, chardev],
 )
 
 qemu_api_rs = declare_dependency(link_with: [_qemu_api_rs],
   dependencies: [qemu_api_macros, qom, hwcore, chardev, migration])
-
-# Doctests are essentially integration tests, so they need the same dependencies.
-# Note that running them requires the object files for C code, so place them
-# in a separate suite that is run by the "build" CI jobs rather than "check".
-rust.doctest('rust-qemu-api-doctests',
-     _qemu_api_rs,
-     protocol: 'rust',
-     dependencies: [qemu_api_rs],
-     suite: ['doc', 'rust'])
 
 test('rust-qemu-api-integration',
     executable(
@@ -88,7 +74,7 @@ test('rust-qemu-api-integration',
         override_options: ['rust_std=2021', 'build.rust_std=2021'],
         rust_args: ['--test'],
         install: false,
-        dependencies: [common_rs, util_rs, migration_rs, qemu_api_rs]),
+        dependencies: [bql_rs, common_rs, util_rs, migration_rs, qemu_api_rs]),
     args: [
         '--test', '--test-threads', '1',
         '--format', 'pretty',

@@ -16,7 +16,6 @@ use util::{Error, Result};
 
 use crate::{
     bindings::{self, qdev_init_gpio_in, qdev_init_gpio_out, ResettableClass},
-    cell::bql_locked,
     chardev::Chardev,
     irq::InterruptSource,
     prelude::*,
@@ -322,7 +321,7 @@ impl DeviceState {
             cb: Option<unsafe extern "C" fn(*mut c_void, ClockEvent)>,
             events: ClockEvent,
         ) -> Owned<Clock> {
-            assert!(bql_locked());
+            assert!(bql::is_locked());
 
             // SAFETY: the clock is heap allocated, but qdev_init_clock_in()
             // does not gift the reference to its caller; so use Owned::from to
@@ -393,7 +392,7 @@ where
     Self::Target: IsA<DeviceState>,
 {
     fn prop_set_chr(&self, propname: &str, chr: &Owned<Chardev>) {
-        assert!(bql_locked());
+        assert!(bql::is_locked());
         let c_propname = CString::new(propname).unwrap();
         let chr: &Chardev = chr;
         unsafe {

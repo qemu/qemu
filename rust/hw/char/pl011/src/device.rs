@@ -4,6 +4,7 @@
 
 use std::{ffi::CStr, mem::size_of};
 
+use bql::BqlRefCell;
 use common::{static_assert, uninit_field_mut};
 use migration::{
     self, impl_vmstate_forward, impl_vmstate_struct, vmstate_fields, vmstate_of,

@@ -69,8 +69,8 @@
 //! and only at FFI boundaries. For QEMU-specific types that need interior
 //! mutability, prefer [`BqlCell`] or [`BqlRefCell`].
 //!
-//! [`BqlCell`]: ../../qemu_api/cell/struct.BqlCell.html
-//! [`BqlRefCell`]: ../../qemu_api/cell/struct.BqlRefCell.html
+//! [`BqlCell`]: ../../bql/cell/struct.BqlCell.html
+//! [`BqlRefCell`]: ../../bql/cell/struct.BqlRefCell.html
 use std::{cell::UnsafeCell, fmt, marker::PhantomPinned, mem::MaybeUninit, ptr::NonNull};
 
 /// Stores an opaque value that is shared with C code.

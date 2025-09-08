@@ -4,9 +4,6 @@
 
 //! Commonly used traits and types for QEMU.
 
-pub use crate::cell::BqlCell;
-pub use crate::cell::BqlRefCell;
-
 pub use crate::qdev::DeviceMethods;
 
 pub use crate::qom::InterfaceType;

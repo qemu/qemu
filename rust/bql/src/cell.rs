@@ -75,9 +75,10 @@
 //!
 //! ### Example
 //!
-//! ```
+//! ```ignore
+//! # use bql::BqlRefCell;
 //! # use qemu_api::prelude::*;
-//! # use qemu_api::{cell::BqlRefCell, irq::InterruptSource, irq::IRQState};
+//! # use qemu_api::{irq::InterruptSource, irq::IRQState};
 //! # use qemu_api::{sysbus::SysBusDevice, qom::Owned, qom::ParentField};
 //! # const N_GPIOS: usize = 8;
 //! # struct PL061Registers { /* ... */ }
@@ -141,7 +142,6 @@
 //! Multiple immutable borrows are allowed via [`borrow`](BqlRefCell::borrow),
 //! or a single mutable borrow via [`borrow_mut`](BqlRefCell::borrow_mut).  The
 //! thread will panic if these rules are violated or if the BQL is not held.
-
 use std::{
     cell::{Cell, UnsafeCell},
     cmp::Ordering,
@@ -153,30 +153,6 @@ use std::{
 };
 
 use migration::impl_vmstate_transparent;
-
-use crate::bindings;
-
-/// An internal function that is used by doctests.
-pub fn bql_start_test() {
-    // SAFETY: integration tests are run with --test-threads=1, while
-    // unit tests and doctests are not multithreaded and do not have
-    // any BQL-protected data.  Just set bql_locked to true.
-    unsafe {
-        bindings::rust_bql_mock_lock();
-    }
-}
-
-pub fn bql_locked() -> bool {
-    // SAFETY: the function does nothing but return a thread-local bool
-    unsafe { bindings::bql_locked() }
-}
-
-fn bql_block_unlock(increase: bool) {
-    // SAFETY: this only adjusts a counter
-    unsafe {
-        bindings::bql_block_unlock(increase);
-    }
-}
 
 /// A mutable memory location that is protected by the Big QEMU Lock.
 ///
@@ -256,8 +232,8 @@ impl<T> BqlCell<T> {
     /// # Examples
     ///
     /// ```
-    /// use qemu_api::cell::BqlCell;
-    /// # qemu_api::cell::bql_start_test();
+    /// use bql::BqlCell;
+    /// # bql::start_test();
     ///
     /// let c = BqlCell::new(5);
     /// ```
@@ -273,8 +249,8 @@ impl<T> BqlCell<T> {
     /// # Examples
     ///
     /// ```
-    /// use qemu_api::cell::BqlCell;
-    /// # qemu_api::cell::bql_start_test();
+    /// use bql::BqlCell;
+    /// # bql::start_test();
     ///
     /// let c = BqlCell::new(5);
     ///
@@ -291,8 +267,8 @@ impl<T> BqlCell<T> {
     /// # Examples
     ///
     /// ```
-    /// use qemu_api::cell::BqlCell;
-    /// # qemu_api::cell::bql_start_test();
+    /// use bql::BqlCell;
+    /// # bql::start_test();
     ///
     /// let cell = BqlCell::new(5);
     /// assert_eq!(cell.get(), 5);
@@ -301,7 +277,7 @@ impl<T> BqlCell<T> {
     /// ```
     #[inline]
     pub fn replace(&self, val: T) -> T {
-        assert!(bql_locked());
+        assert!(crate::is_locked());
         // SAFETY: This can cause data races if called from multiple threads,
         // but it won't happen as long as C code accesses the value
         // under BQL protection only.
@@ -313,8 +289,8 @@ impl<T> BqlCell<T> {
     /// # Examples
     ///
     /// ```
-    /// use qemu_api::cell::BqlCell;
-    /// # qemu_api::cell::bql_start_test();
+    /// use bql::BqlCell;
+    /// # bql::start_test();
     ///
     /// let c = BqlCell::new(5);
     /// let five = c.into_inner();
@@ -322,7 +298,7 @@ impl<T> BqlCell<T> {
     /// assert_eq!(five, 5);
     /// ```
     pub fn into_inner(self) -> T {
-        assert!(bql_locked());
+        assert!(crate::is_locked());
         self.value.into_inner()
     }
 }
@@ -333,8 +309,8 @@ impl<T: Copy> BqlCell<T> {
     /// # Examples
     ///
     /// ```
-    /// use qemu_api::cell::BqlCell;
-    /// # qemu_api::cell::bql_start_test();
+    /// use bql::BqlCell;
+    /// # bql::start_test();
     ///
     /// let c = BqlCell::new(5);
     ///
@@ -342,7 +318,7 @@ impl<T: Copy> BqlCell<T> {
     /// ```
     #[inline]
     pub fn get(&self) -> T {
-        assert!(bql_locked());
+        assert!(crate::is_locked());
         // SAFETY: This can cause data races if called from multiple threads,
         // but it won't happen as long as C code accesses the value
         // under BQL protection only.
@@ -356,8 +332,8 @@ impl<T> BqlCell<T> {
     /// # Examples
     ///
     /// ```
-    /// use qemu_api::cell::BqlCell;
-    /// # qemu_api::cell::bql_start_test();
+    /// use bql::BqlCell;
+    /// # bql::start_test();
     ///
     /// let c = BqlCell::new(5);
     ///
@@ -375,8 +351,8 @@ impl<T: Default> BqlCell<T> {
     /// # Examples
     ///
     /// ```
-    /// use qemu_api::cell::BqlCell;
-    /// # qemu_api::cell::bql_start_test();
+    /// use bql::BqlCell;
+    /// # bql::start_test();
     ///
     /// let c = BqlCell::new(5);
     /// let five = c.take();
@@ -447,7 +423,7 @@ impl<T> BqlRefCell<T> {
     /// # Examples
     ///
     /// ```
-    /// use qemu_api::cell::BqlRefCell;
+    /// use bql::BqlRefCell;
     ///
     /// let c = BqlRefCell::new(5);
     /// ```
@@ -506,8 +482,8 @@ impl<T> BqlRefCell<T> {
     /// # Examples
     ///
     /// ```
-    /// use qemu_api::cell::BqlRefCell;
-    /// # qemu_api::cell::bql_start_test();
+    /// use bql::BqlRefCell;
+    /// # bql::start_test();
     ///
     /// let c = BqlRefCell::new(5);
     ///
@@ -518,8 +494,8 @@ impl<T> BqlRefCell<T> {
     /// An example of panic:
     ///
     /// ```should_panic
-    /// use qemu_api::cell::BqlRefCell;
-    /// # qemu_api::cell::bql_start_test();
+    /// use bql::BqlRefCell;
+    /// # bql::start_test();
     ///
     /// let c = BqlRefCell::new(5);
     ///
@@ -536,7 +512,7 @@ impl<T> BqlRefCell<T> {
                 self.borrowed_at.set(Some(std::panic::Location::caller()));
             }
 
-            bql_block_unlock(true);
+            crate::block_unlock(true);
 
             // SAFETY: `BorrowRef` ensures that there is only immutable access
             // to the value while borrowed.
@@ -560,8 +536,8 @@ impl<T> BqlRefCell<T> {
     /// # Examples
     ///
     /// ```
-    /// use qemu_api::cell::BqlRefCell;
-    /// # qemu_api::cell::bql_start_test();
+    /// use bql::BqlRefCell;
+    /// # bql::start_test();
     ///
     /// let c = BqlRefCell::new("hello".to_owned());
     ///
@@ -573,8 +549,8 @@ impl<T> BqlRefCell<T> {
     /// An example of panic:
     ///
     /// ```should_panic
-    /// use qemu_api::cell::BqlRefCell;
-    /// # qemu_api::cell::bql_start_test();
+    /// use bql::BqlRefCell;
+    /// # bql::start_test();
     ///
     /// let c = BqlRefCell::new(5);
     /// let m = c.borrow();
@@ -591,7 +567,7 @@ impl<T> BqlRefCell<T> {
             }
 
             // SAFETY: this only adjusts a counter
-            bql_block_unlock(true);
+            crate::block_unlock(true);
 
             // SAFETY: `BorrowRefMut` guarantees unique access.
             let value = unsafe { NonNull::new_unchecked(self.value.get()) };
@@ -610,7 +586,7 @@ impl<T> BqlRefCell<T> {
     /// # Examples
     ///
     /// ```
-    /// use qemu_api::cell::BqlRefCell;
+    /// use bql::BqlRefCell;
     ///
     /// let c = BqlRefCell::new(5);
     ///
@@ -737,7 +713,7 @@ impl Drop for BorrowRef<'_> {
         let borrow = self.borrow.get();
         debug_assert!(is_reading(borrow));
         self.borrow.set(borrow - 1);
-        bql_block_unlock(false)
+        crate::block_unlock(false)
     }
 }
 
@@ -827,7 +803,7 @@ impl Drop for BorrowRefMut<'_> {
         let borrow = self.borrow.get();
         debug_assert!(is_writing(borrow));
         self.borrow.set(borrow + 1);
-        bql_block_unlock(false)
+        crate::block_unlock(false)
     }
 }
 

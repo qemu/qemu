@@ -11,7 +11,6 @@ use common::Opaque;
 
 use crate::{
     bindings,
-    cell::bql_locked,
     irq::{IRQState, InterruptSource},
     memory::MemoryRegion,
     prelude::*,
@@ -56,7 +55,7 @@ where
     /// region with a number that corresponds to the order of calls to
     /// `init_mmio`.
     fn init_mmio(&self, iomem: &MemoryRegion) {
-        assert!(bql_locked());
+        assert!(bql::is_locked());
         unsafe {
             bindings::sysbus_init_mmio(self.upcast().as_mut_ptr(), iomem.as_mut_ptr());
         }
@@ -67,7 +66,7 @@ where
     /// whoever creates the sysbus device will refer to the interrupts with
     /// a number that corresponds to the order of calls to `init_irq`.
     fn init_irq(&self, irq: &InterruptSource) {
-        assert!(bql_locked());
+        assert!(bql::is_locked());
         unsafe {
             bindings::sysbus_init_irq(self.upcast().as_mut_ptr(), irq.as_ptr());
         }
@@ -75,7 +74,7 @@ where
 
     // TODO: do we want a type like GuestAddress here?
     fn mmio_addr(&self, id: u32) -> Option<u64> {
-        assert!(bql_locked());
+        assert!(bql::is_locked());
         // SAFETY: the BQL ensures that no one else writes to sbd.mmio[], and
         // the SysBusDevice must be initialized to get an IsA<SysBusDevice>.
         let sbd = unsafe { *self.upcast().as_ptr() };
@@ -89,7 +88,7 @@ where
 
     // TODO: do we want a type like GuestAddress here?
     fn mmio_map(&self, id: u32, addr: u64) {
-        assert!(bql_locked());
+        assert!(bql::is_locked());
         let id: i32 = id.try_into().unwrap();
         unsafe {
             bindings::sysbus_mmio_map(self.upcast().as_mut_ptr(), id, addr);
@@ -100,7 +99,7 @@ where
     // object_property_set_link) adds a reference to the IRQState,
     // which can prolong its life
     fn connect_irq(&self, id: u32, irq: &Owned<IRQState>) {
-        assert!(bql_locked());
+        assert!(bql::is_locked());
         let id: i32 = id.try_into().unwrap();
         let irq: &IRQState = irq;
         unsafe {
@@ -110,7 +109,7 @@ where
 
     fn sysbus_realize(&self) {
         // TODO: return an Error
-        assert!(bql_locked());
+        assert!(bql::is_locked());
         unsafe {
             bindings::sysbus_realize(
                 self.upcast().as_mut_ptr(),

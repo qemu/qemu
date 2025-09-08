@@ -18,13 +18,10 @@ use std::{
     slice,
 };
 
+use bql::{BqlRefCell, BqlRefMut};
 use common::{callbacks::FnCall, errno, Opaque};
 
-use crate::{
-    bindings,
-    cell::{BqlRefCell, BqlRefMut},
-    prelude::*,
-};
+use crate::{bindings, prelude::*};
 
 /// A safe wrapper around [`bindings::Chardev`].
 #[repr(transparent)]
@@ -44,13 +41,15 @@ pub struct CharBackend {
     _pin: PhantomPinned,
 }
 
-impl Write for BqlRefMut<'_, bindings::CharBackend> {
+pub struct CharBackendMut<'a>(BqlRefMut<'a, bindings::CharBackend>);
+
+impl Write for CharBackendMut<'_> {
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
 
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let chr: &mut bindings::CharBackend = self;
+        let chr: &mut bindings::CharBackend = &mut self.0;
 
         let len = buf.len().try_into().unwrap();
         let r = unsafe { bindings::qemu_chr_fe_write(addr_of_mut!(*chr), buf.as_ptr(), len) };
@@ -58,7 +57,7 @@ impl Write for BqlRefMut<'_, bindings::CharBackend> {
     }
 
     fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
-        let chr: &mut bindings::CharBackend = self;
+        let chr: &mut bindings::CharBackend = &mut self.0;
 
         let len = buf.len().try_into().unwrap();
         let r = unsafe { bindings::qemu_chr_fe_write_all(addr_of_mut!(*chr), buf.as_ptr(), len) };
@@ -198,7 +197,7 @@ impl CharBackend {
     /// the big QEMU lock while the character device is borrowed, as
     /// that might cause C code to write to the character device.
     pub fn borrow_mut(&self) -> impl Write + '_ {
-        self.inner.borrow_mut()
+        CharBackendMut(self.inner.borrow_mut())
     }
 
     /// Send a continuous stream of zero bits on the line if `enabled` is

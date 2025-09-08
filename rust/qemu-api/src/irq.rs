@@ -10,6 +10,7 @@ use std::{
     ptr,
 };
 
+use bql::BqlCell;
 use common::Opaque;
 
 use crate::{

@@ -27,6 +27,7 @@ subdir('qemu-api-macros')
 subdir('bits')
 subdir('util')
 subdir('migration')
+subdir('bql')
 subdir('qemu-api')
 
 subdir('hw')
