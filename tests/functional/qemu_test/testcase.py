@@ -251,13 +251,14 @@ class QemuBaseTest(unittest.TestCase):
                                    test_output_log = pycotap.LogMode.LogToError)
         res = unittest.main(module = None, testRunner = tr, exit = False,
                             argv=[sys.argv[0], path] + sys.argv[1:])
+        failed = {}
         for (test, message) in res.result.errors + res.result.failures:
-
-            if hasattr(test, "log_filename"):
+            if hasattr(test, "log_filename") and not test.id() in failed:
                 print('More information on ' + test.id() + ' could be found here:'
                       '\n %s' % test.log_filename, file=sys.stderr)
                 if hasattr(test, 'console_log_name'):
                     print(' %s' % test.console_log_name, file=sys.stderr)
+                failed[test.id()] = True
         sys.exit(not res.result.wasSuccessful())
 
 
