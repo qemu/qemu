@@ -88,7 +88,7 @@
     when: always
     expire_in: 7 days
     paths:
-      - build/meson-logs/testlog.txt
+      - build/meson-logs
     reports:
       junit: build/meson-logs/testlog.junit.xml
 
@@ -104,7 +104,7 @@
     when: always
     expire_in: 7 days
     paths:
-      - build/meson-logs/testlog.txt
+      - build/meson-logs
       - build/tests/functional/*/*/*.log
     reports:
       junit: build/meson-logs/testlog.junit.xml
