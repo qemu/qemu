@@ -101,8 +101,67 @@ unsafe extern "C" fn rust_resettable_exit_fn<T: ResettablePhasesImpl>(
     T::EXIT.unwrap()(unsafe { state.as_ref() }, typ);
 }
 
+/// Helper trait to return pointer to a [`bindings::PropertyInfo`] for a type.
+///
+/// This trait is used by [`qemu_api_macros::Device`] derive macro.
+///
+/// Base types that already have `qdev_prop_*` globals in the QEMU API should
+/// use those values as exported by the [`bindings`] module, instead of
+/// redefining them.
+///
+/// # Safety
+///
+/// This trait is marked as `unsafe` because currently having a `const` refer to
+/// an `extern static` as a reference instead of a raw pointer results in this
+/// compiler error:
+///
+/// ```text
+/// constructing invalid value: encountered reference to `extern` static in `const`
+/// ```
+///
+/// This is because the compiler generally might dereference a normal reference
+/// during const evaluation, but not in this case (if it did, it'd need to
+/// dereference the raw pointer so this would fail to compile).
+///
+/// It is the implementer's responsibility to provide a valid
+/// [`bindings::PropertyInfo`] pointer for the trait implementation to be safe.
+pub unsafe trait QDevProp {
+    const VALUE: *const bindings::PropertyInfo;
+}
+
+/// Use [`bindings::qdev_prop_bool`] for `bool`.
+unsafe impl QDevProp for bool {
+    const VALUE: *const bindings::PropertyInfo = unsafe { &bindings::qdev_prop_bool };
+}
+
+/// Use [`bindings::qdev_prop_uint64`] for `u64`.
+unsafe impl QDevProp for u64 {
+    const VALUE: *const bindings::PropertyInfo = unsafe { &bindings::qdev_prop_uint64 };
+}
+
+/// Use [`bindings::qdev_prop_chr`] for [`crate::chardev::CharBackend`].
+unsafe impl QDevProp for crate::chardev::CharBackend {
+    const VALUE: *const bindings::PropertyInfo = unsafe { &bindings::qdev_prop_chr };
+}
+
+/// Trait to define device properties.
+///
+/// # Safety
+///
+/// Caller is responsible for the validity of properties array.
+pub unsafe trait DevicePropertiesImpl {
+    /// An array providing the properties that the user can set on the
+    /// device.  Not a `const` because referencing statics in constants
+    /// is unstable until Rust 1.83.0.
+    fn properties() -> &'static [Property] {
+        &[]
+    }
+}
+
 /// Trait providing the contents of [`DeviceClass`].
-pub trait DeviceImpl: ObjectImpl + ResettablePhasesImpl + IsA<DeviceState> {
+pub trait DeviceImpl:
+    ObjectImpl + ResettablePhasesImpl + DevicePropertiesImpl + IsA<DeviceState>
+{
     /// _Realization_ is the second stage of device creation. It contains
     /// all operations that depend on device properties and can fail (note:
     /// this is not yet supported for Rust devices).
@@ -110,13 +169,6 @@ pub trait DeviceImpl: ObjectImpl + ResettablePhasesImpl + IsA<DeviceState> {
     /// If not `None`, the parent class's `realize` method is overridden
     /// with the function pointed to by `REALIZE`.
     const REALIZE: Option<fn(&Self) -> Result<()>> = None;
-
-    /// An array providing the properties that the user can set on the
-    /// device.  Not a `const` because referencing statics in constants
-    /// is unstable until Rust 1.83.0.
-    fn properties() -> &'static [Property] {
-        &[]
-    }
 
     /// A `VMStateDescription` providing the migration format for the device
     /// Not a `const` because referencing statics in constants is unstable
@@ -175,7 +227,7 @@ impl DeviceClass {
         if let Some(vmsd) = <T as DeviceImpl>::vmsd() {
             self.vmsd = vmsd;
         }
-        let prop = <T as DeviceImpl>::properties();
+        let prop = <T as DevicePropertiesImpl>::properties();
         if !prop.is_empty() {
             unsafe {
                 bindings::device_class_set_props_n(self, prop.as_ptr(), prop.len());

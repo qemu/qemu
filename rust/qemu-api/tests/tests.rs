@@ -5,11 +5,10 @@
 use std::{ffi::CStr, ptr::addr_of};
 
 use qemu_api::{
-    bindings::{module_call_init, module_init_type, qdev_prop_bool},
+    bindings::{module_call_init, module_init_type},
     cell::{self, BqlCell},
-    declare_properties, define_property,
     prelude::*,
-    qdev::{DeviceImpl, DeviceState, Property, ResettablePhasesImpl},
+    qdev::{DeviceImpl, DeviceState, ResettablePhasesImpl},
     qom::{ObjectImpl, ParentField},
     sysbus::SysBusDevice,
     vmstate::VMStateDescription,
@@ -26,9 +25,10 @@ pub static VMSTATE: VMStateDescription = VMStateDescription {
 };
 
 #[repr(C)]
-#[derive(qemu_api_macros::Object)]
+#[derive(qemu_api_macros::Object, qemu_api_macros::Device)]
 pub struct DummyState {
     parent: ParentField<DeviceState>,
+    #[property(rename = "migrate-clk", default = true)]
     migrate_clock: bool,
 }
 
@@ -42,17 +42,6 @@ impl DummyClass {
     pub fn class_init<T: DeviceImpl>(self: &mut DummyClass) {
         self.parent_class.class_init::<T>();
     }
-}
-
-declare_properties! {
-    DUMMY_PROPERTIES,
-        define_property!(
-            c"migrate-clk",
-            DummyState,
-            migrate_clock,
-            unsafe { &qdev_prop_bool },
-            bool
-        ),
 }
 
 unsafe impl ObjectType for DummyState {
@@ -69,16 +58,13 @@ impl ObjectImpl for DummyState {
 impl ResettablePhasesImpl for DummyState {}
 
 impl DeviceImpl for DummyState {
-    fn properties() -> &'static [Property] {
-        &DUMMY_PROPERTIES
-    }
     fn vmsd() -> Option<&'static VMStateDescription> {
         Some(&VMSTATE)
     }
 }
 
 #[repr(C)]
-#[derive(qemu_api_macros::Object)]
+#[derive(qemu_api_macros::Object, qemu_api_macros::Device)]
 pub struct DummyChildState {
     parent: ParentField<DummyState>,
 }

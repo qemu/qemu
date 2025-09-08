@@ -37,6 +37,117 @@ macro_rules! derive_compile {
 }
 
 #[test]
+fn test_derive_device() {
+    // Check that repr(C) is used
+    derive_compile_fail!(
+        derive_device_or_error,
+        quote! {
+            #[derive(Device)]
+            struct Foo {
+                _unused: [u8; 0],
+            }
+        },
+        "#[repr(C)] required for #[derive(Device)]"
+    );
+    // Check that invalid/misspelled attributes raise an error
+    derive_compile_fail!(
+        derive_device_or_error,
+        quote! {
+            #[repr(C)]
+            #[derive(Device)]
+            struct DummyState {
+                #[property(defalt = true)]
+                migrate_clock: bool,
+            }
+        },
+        "unrecognized field `defalt`"
+    );
+    // Check that repeated attributes are not allowed:
+    derive_compile_fail!(
+        derive_device_or_error,
+        quote! {
+            #[repr(C)]
+            #[derive(Device)]
+            struct DummyState {
+                #[property(rename = "migrate-clk", rename = "migrate-clk", default = true)]
+                migrate_clock: bool,
+            }
+        },
+        "`rename` can only be used at most once"
+    );
+    derive_compile_fail!(
+        derive_device_or_error,
+        quote! {
+            #[repr(C)]
+            #[derive(Device)]
+            struct DummyState {
+                #[property(default = true, default = true)]
+                migrate_clock: bool,
+            }
+        },
+        "`default` can only be used at most once"
+    );
+    // Check that the field name is preserved when `rename` isn't used:
+    derive_compile!(
+        derive_device_or_error,
+        quote! {
+            #[repr(C)]
+            #[derive(Device)]
+            pub struct DummyState {
+                parent: ParentField<DeviceState>,
+                #[property(default = true)]
+                migrate_clock: bool,
+            }
+        },
+        quote! {
+            unsafe impl ::qemu_api::qdev::DevicePropertiesImpl for DummyState {
+                fn properties() -> &'static [::qemu_api::bindings::Property] {
+                    static PROPERTIES: &[::qemu_api::bindings::Property] =
+                        &[::qemu_api::bindings::Property {
+                            name: ::std::ffi::CStr::as_ptr(c"migrate_clock"),
+                            info: <bool as ::qemu_api::qdev::QDevProp>::VALUE,
+                            offset: ::core::mem::offset_of!(DummyState, migrate_clock) as isize,
+                            set_default: true,
+                            defval: ::qemu_api::bindings::Property__bindgen_ty_1 { u: true as u64 },
+                            ..::qemu_api::zeroable::Zeroable::ZERO
+                        }];
+                    PROPERTIES
+                }
+            }
+        }
+    );
+    // Check that `rename` value is used for the property name when used:
+    derive_compile!(
+        derive_device_or_error,
+        quote! {
+            #[repr(C)]
+            #[derive(Device)]
+            pub struct DummyState {
+                parent: ParentField<DeviceState>,
+                #[property(rename = "migrate-clk", default = true)]
+                migrate_clock: bool,
+            }
+        },
+        quote! {
+            unsafe impl ::qemu_api::qdev::DevicePropertiesImpl for DummyState {
+                fn properties() -> &'static [::qemu_api::bindings::Property] {
+                    static PROPERTIES: &[::qemu_api::bindings::Property] =
+                        &[::qemu_api::bindings::Property {
+                            name: ::std::ffi::CStr::as_ptr(c"migrate-clk"),
+                            info: <bool as ::qemu_api::qdev::QDevProp>::VALUE,
+                            offset: ::core::mem::offset_of!(DummyState, migrate_clock) as isize,
+                            set_default: true,
+                            defval: ::qemu_api::bindings::Property__bindgen_ty_1 { u: true as u64 },
+                            ..::qemu_api::zeroable::Zeroable::ZERO
+                        }];
+                    PROPERTIES
+                }
+            }
+        }
+    );
+}
+
+#[test]
 fn test_derive_object() {
     derive_compile_fail!(
         derive_object_or_error,

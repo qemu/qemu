@@ -3,10 +3,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use proc_macro::TokenStream;
-use quote::quote;
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
-    parse_macro_input, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Data,
-    DeriveInput, Error, Field, Fields, FieldsUnnamed, Ident, Meta, Path, Token, Variant,
+    parse::Parse, parse_macro_input, parse_quote, punctuated::Punctuated, spanned::Spanned,
+    token::Comma, Data, DeriveInput, Error, Field, Fields, FieldsUnnamed, Ident, Meta, Path, Token,
+    Variant,
 };
 mod bits;
 use bits::BitsConstInternal;
@@ -147,6 +148,151 @@ fn derive_opaque_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
 
             pub const fn raw_get(slot: *mut Self) -> *mut <Self as ::qemu_api::cell::Wrapper>::Wrapped {
                 slot.cast()
+            }
+        }
+    })
+}
+
+#[derive(Debug)]
+enum DevicePropertyName {
+    CStr(syn::LitCStr),
+    Str(syn::LitStr),
+}
+
+#[derive(Debug)]
+struct DeviceProperty {
+    rename: Option<DevicePropertyName>,
+    defval: Option<syn::Expr>,
+}
+
+impl Parse for DeviceProperty {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let _: syn::Token![#] = input.parse()?;
+        let bracketed;
+        _ = syn::bracketed!(bracketed in input);
+        let attribute = bracketed.parse::<syn::Ident>()?;
+        debug_assert_eq!(&attribute.to_string(), "property");
+        let mut retval = Self {
+            rename: None,
+            defval: None,
+        };
+        let content;
+        _ = syn::parenthesized!(content in bracketed);
+        while !content.is_empty() {
+            let value: syn::Ident = content.parse()?;
+            if value == "rename" {
+                let _: syn::Token![=] = content.parse()?;
+                if retval.rename.is_some() {
+                    return Err(syn::Error::new(
+                        value.span(),
+                        "`rename` can only be used at most once",
+                    ));
+                }
+                if content.peek(syn::LitStr) {
+                    retval.rename = Some(DevicePropertyName::Str(content.parse::<syn::LitStr>()?));
+                } else {
+                    retval.rename =
+                        Some(DevicePropertyName::CStr(content.parse::<syn::LitCStr>()?));
+                }
+            } else if value == "default" {
+                let _: syn::Token![=] = content.parse()?;
+                if retval.defval.is_some() {
+                    return Err(syn::Error::new(
+                        value.span(),
+                        "`default` can only be used at most once",
+                    ));
+                }
+                retval.defval = Some(content.parse()?);
+            } else {
+                return Err(syn::Error::new(
+                    value.span(),
+                    format!("unrecognized field `{value}`"),
+                ));
+            }
+
+            if !content.is_empty() {
+                let _: syn::Token![,] = content.parse()?;
+            }
+        }
+        Ok(retval)
+    }
+}
+
+#[proc_macro_derive(Device, attributes(property))]
+pub fn derive_device(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    derive_device_or_error(input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+fn derive_device_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream, Error> {
+    is_c_repr(&input, "#[derive(Device)]")?;
+    let properties: Vec<(syn::Field, DeviceProperty)> = get_fields(&input, "#[derive(Device)]")?
+        .iter()
+        .flat_map(|f| {
+            f.attrs
+                .iter()
+                .filter(|a| a.path().is_ident("property"))
+                .map(|a| Ok((f.clone(), syn::parse2(a.to_token_stream())?)))
+        })
+        .collect::<Result<Vec<_>, Error>>()?;
+    let name = &input.ident;
+    let mut properties_expanded = vec![];
+
+    for (field, prop) in properties {
+        let DeviceProperty { rename, defval } = prop;
+        let field_name = field.ident.unwrap();
+        macro_rules! str_to_c_str {
+            ($value:expr, $span:expr) => {{
+                let (value, span) = ($value, $span);
+                let cstr = std::ffi::CString::new(value.as_str()).map_err(|err| {
+                    Error::new(
+                        span,
+                        format!(
+                            "Property name `{value}` cannot be represented as a C string: {err}"
+                        ),
+                    )
+                })?;
+                let cstr_lit = syn::LitCStr::new(&cstr, span);
+                Ok(quote! { #cstr_lit })
+            }};
+        }
+
+        let prop_name = rename.map_or_else(
+            || str_to_c_str!(field_name.to_string(), field_name.span()),
+            |rename| -> Result<proc_macro2::TokenStream, Error> {
+                match rename {
+                    DevicePropertyName::CStr(cstr_lit) => Ok(quote! { #cstr_lit }),
+                    DevicePropertyName::Str(str_lit) => {
+                        str_to_c_str!(str_lit.value(), str_lit.span())
+                    }
+                }
+            },
+        )?;
+        let field_ty = field.ty.clone();
+        let qdev_prop = quote! { <#field_ty as ::qemu_api::qdev::QDevProp>::VALUE };
+        let set_default = defval.is_some();
+        let defval = defval.unwrap_or(syn::Expr::Verbatim(quote! { 0 }));
+        properties_expanded.push(quote! {
+            ::qemu_api::bindings::Property {
+                name: ::std::ffi::CStr::as_ptr(#prop_name),
+                info: #qdev_prop ,
+                offset: ::core::mem::offset_of!(#name, #field_name) as isize,
+                set_default: #set_default,
+                defval: ::qemu_api::bindings::Property__bindgen_ty_1 { u: #defval as u64 },
+                ..::qemu_api::zeroable::Zeroable::ZERO
+            }
+        });
+    }
+
+    Ok(quote_spanned! {input.span() =>
+        unsafe impl ::qemu_api::qdev::DevicePropertiesImpl for #name {
+            fn properties() -> &'static [::qemu_api::bindings::Property] {
+                static PROPERTIES: &[::qemu_api::bindings::Property] = &[#(#properties_expanded),*];
+
+                PROPERTIES
             }
         }
     })

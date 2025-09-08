@@ -1031,11 +1031,15 @@ static VMSTATE_HPET: VMStateDescription = VMStateDescription {
     ..Zeroable::ZERO
 };
 
-impl DeviceImpl for HPETState {
+// SAFETY: HPET_PROPERTIES is a valid Property array constructed with the
+// qemu_api::declare_properties macro.
+unsafe impl qemu_api::qdev::DevicePropertiesImpl for HPETState {
     fn properties() -> &'static [Property] {
         &HPET_PROPERTIES
     }
+}
 
+impl DeviceImpl for HPETState {
     fn vmsd() -> Option<&'static VMStateDescription> {
         Some(&VMSTATE_HPET)
     }
