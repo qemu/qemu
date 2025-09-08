@@ -9,11 +9,11 @@ use std::{
     marker::PhantomData,
 };
 
-pub use bindings::{hwaddr, MemTxAttrs};
 use common::{callbacks::FnCall, uninit::MaybeUninitField, zeroable::Zeroable, Opaque};
 use qom::prelude::*;
 
 use crate::bindings::{self, device_endian, memory_region_init_io};
+pub use crate::bindings::{hwaddr, MemTxAttrs};
 
 pub struct MemoryRegionOps<T>(
     bindings::MemoryRegionOps,

@@ -13,12 +13,12 @@ use migration::{
 };
 use qemu_api::{
     irq::{IRQState, InterruptSource},
-    memory::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder},
     prelude::*,
     qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, ResetType, ResettablePhasesImpl},
     sysbus::{SysBusDevice, SysBusDeviceImpl},
 };
 use qom::{prelude::*, ObjectImpl, Owned, ParentField, ParentInit};
+use system::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder};
 use util::{log::Log, log_mask_ln};
 
 use crate::registers::{self, Interrupt, RegisterOffset};

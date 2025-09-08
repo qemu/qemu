@@ -9,11 +9,11 @@ use std::{ffi::CStr, ptr::addr_of_mut};
 pub use bindings::SysBusDeviceClass;
 use common::Opaque;
 use qom::{prelude::*, Owned};
+use system::MemoryRegion;
 
 use crate::{
     bindings,
     irq::{IRQState, InterruptSource},
-    memory::MemoryRegion,
     qdev::{DeviceImpl, DeviceState},
 };
 

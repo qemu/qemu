@@ -77,9 +77,8 @@
 //!
 //! ```ignore
 //! # use bql::BqlRefCell;
-//! # use qemu_api::prelude::*;
-//! # use qemu_api::{irq::InterruptSource, irq::IRQState};
-//! # use qemu_api::{sysbus::SysBusDevice, qom::Owned, qom::ParentField};
+//! # use qom::{Owned, ParentField};
+//! # use system::{InterruptSource, IRQState, SysBusDevice};
 //! # const N_GPIOS: usize = 8;
 //! # struct PL061Registers { /* ... */ }
 //! # unsafe impl ObjectType for PL061State {

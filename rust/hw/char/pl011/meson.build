@@ -15,6 +15,7 @@ _libpl011_rs = static_library(
     qemu_api_macros,
     qom_rs,
     chardev_rs,
+    system_rs,
   ],
 )
 

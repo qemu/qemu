@@ -3523,6 +3523,7 @@ F: rust/qemu-api
 F: rust/qemu-api-macros
 F: rust/qom/
 F: rust/rustfmt.toml
+F: rust/system/
 F: rust/util/
 F: scripts/get-wraps-from-cargo-registry.py
 

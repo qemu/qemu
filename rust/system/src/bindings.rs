@@ -18,14 +18,7 @@
     clippy::too_many_arguments
 )]
 
-//! `bindgen`-generated declarations.
-
-use chardev::bindings::Chardev;
 use common::Zeroable;
-use migration::bindings::VMStateDescription;
-use qom::bindings::ObjectClass;
-use system::bindings::{device_endian, MemTxAttrs, MemoryRegion};
-use util::bindings::Error;
 
 #[cfg(MESON)]
 include!("bindings.inc.rs");
@@ -33,11 +26,16 @@ include!("bindings.inc.rs");
 #[cfg(not(MESON))]
 include!(concat!(env!("OUT_DIR"), "/bindings.inc.rs"));
 
-unsafe impl Send for Property {}
-unsafe impl Sync for Property {}
+// SAFETY: these are constants and vtables; the Send and Sync requirements
+// are deferred to the unsafe callbacks that they contain
+unsafe impl Send for MemoryRegionOps {}
+unsafe impl Sync for MemoryRegionOps {}
 
-unsafe impl Send for TypeInfo {}
-unsafe impl Sync for TypeInfo {}
+// SAFETY: this is a pure data struct
+unsafe impl Send for CoalescedMemoryRange {}
+unsafe impl Sync for CoalescedMemoryRange {}
 
-unsafe impl Zeroable for crate::bindings::Property__bindgen_ty_1 {}
-unsafe impl Zeroable for crate::bindings::Property {}
+unsafe impl Zeroable for MemoryRegionOps__bindgen_ty_1 {}
+unsafe impl Zeroable for MemoryRegionOps__bindgen_ty_2 {}
+unsafe impl Zeroable for MemoryRegionOps {}
+unsafe impl Zeroable for MemTxAttrs {}

@@ -95,6 +95,7 @@ dependencies = [
  "qemu_api",
  "qemu_api_macros",
  "qom",
+ "system",
  "util",
 ]
 
@@ -136,6 +137,7 @@ dependencies = [
  "qemu_api",
  "qemu_api_macros",
  "qom",
+ "system",
  "util",
 ]
 
@@ -181,6 +183,7 @@ dependencies = [
  "migration",
  "qemu_api_macros",
  "qom",
+ "system",
  "util",
 ]
 
@@ -222,6 +225,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "system"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "qemu_api_macros",
+ "qom",
+ "util",
 ]
 
 [[package]]

@@ -8,6 +8,7 @@ members = [
     "qemu-api-macros",
     "qemu-api",
     "qom",
+    "system",
     "hw/char/pl011",
     "hw/timer/hpet",
     "util",

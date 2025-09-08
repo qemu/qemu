@@ -11,6 +11,7 @@ _libhpet_rs = static_library(
     bql_rs,
     qemu_api_macros,
     qom_rs,
+    system_rs,
   ],
 )
 

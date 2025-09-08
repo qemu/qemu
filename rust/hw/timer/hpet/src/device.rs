@@ -17,19 +17,17 @@ use migration::{
     VMStateDescription, VMStateDescriptionBuilder,
 };
 use qemu_api::{
-    bindings::{
-        address_space_memory, address_space_stl_le, qdev_prop_bit, qdev_prop_bool,
-        qdev_prop_uint32, qdev_prop_usize,
-    },
+    bindings::{qdev_prop_bit, qdev_prop_bool, qdev_prop_uint32, qdev_prop_usize},
     irq::InterruptSource,
-    memory::{
-        hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder, MEMTXATTRS_UNSPECIFIED,
-    },
     prelude::*,
     qdev::{DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
     sysbus::{SysBusDevice, SysBusDeviceImpl},
 };
 use qom::{prelude::*, ObjectImpl, ParentField, ParentInit};
+use system::{
+    bindings::{address_space_memory, address_space_stl_le, hwaddr},
+    MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder, MEMTXATTRS_UNSPECIFIED,
+};
 use util::timer::{Timer, CLOCK_VIRTUAL, NANOSECONDS_PER_SECOND};
 
 use crate::fw_cfg::HPETFwConfig;
