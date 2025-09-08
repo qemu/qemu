@@ -380,13 +380,16 @@ macro_rules! bits {
     };
 
     { $type:ty: $expr:expr } => {
-        ::qemu_macros::bits_const_internal! { $type @ ($expr) }
+        $crate::bits_const_internal! { $type @ ($expr) }
     };
 
     { $type:ty as $int_type:ty: $expr:expr } => {
-        (::qemu_macros::bits_const_internal! { $type @ ($expr) }.into_bits()) as $int_type
+        ($crate::bits_const_internal! { $type @ ($expr) }.into_bits()) as $int_type
     };
 }
+
+#[doc(hidden)]
+pub use qemu_macros::bits_const_internal;
 
 #[cfg(test)]
 mod test {
