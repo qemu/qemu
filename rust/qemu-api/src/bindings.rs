@@ -20,6 +20,7 @@
 
 //! `bindgen`-generated declarations.
 
+use chardev::bindings::Chardev;
 use common::Zeroable;
 use migration::bindings::VMStateDescription;
 use qom::bindings::ObjectClass;
@@ -30,13 +31,6 @@ include!("bindings.inc.rs");
 
 #[cfg(not(MESON))]
 include!(concat!(env!("OUT_DIR"), "/bindings.inc.rs"));
-
-// SAFETY: these are implemented in C; the bindings need to assert that the
-// BQL is taken, either directly or via `BqlCell` and `BqlRefCell`.
-// When bindings for character devices are introduced, this can be
-// moved to the Opaque<> wrapper in src/chardev.rs.
-unsafe impl Send for CharBackend {}
-unsafe impl Sync for CharBackend {}
 
 // SAFETY: this is a pure data struct
 unsafe impl Send for CoalescedMemoryRange {}
@@ -59,4 +53,3 @@ unsafe impl Zeroable for crate::bindings::MemoryRegionOps__bindgen_ty_1 {}
 unsafe impl Zeroable for crate::bindings::MemoryRegionOps__bindgen_ty_2 {}
 unsafe impl Zeroable for crate::bindings::MemoryRegionOps {}
 unsafe impl Zeroable for crate::bindings::MemTxAttrs {}
-unsafe impl Zeroable for crate::bindings::CharBackend {}

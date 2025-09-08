@@ -29,6 +29,7 @@ subdir('util')
 subdir('migration')
 subdir('bql')
 subdir('qom')
+subdir('chardev')
 subdir('qemu-api')
 
 subdir('hw')

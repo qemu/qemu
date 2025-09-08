@@ -10,6 +10,7 @@ use std::{
 };
 
 pub use bindings::{ClockEvent, DeviceClass, Property, ResetType};
+use chardev::Chardev;
 use common::{callbacks::FnCall, Opaque};
 use migration::{impl_vmstate_c_struct, VMStateDescription};
 use qom::{prelude::*, ObjectClass, ObjectImpl, Owned, ParentInit};
@@ -17,7 +18,6 @@ use util::{Error, Result};
 
 use crate::{
     bindings::{self, qdev_init_gpio_in, qdev_init_gpio_out, ResettableClass},
-    chardev::Chardev,
     irq::InterruptSource,
 };
 
@@ -137,8 +137,8 @@ unsafe impl QDevProp for u64 {
     const VALUE: *const bindings::PropertyInfo = unsafe { &bindings::qdev_prop_uint64 };
 }
 
-/// Use [`bindings::qdev_prop_chr`] for [`crate::chardev::CharBackend`].
-unsafe impl QDevProp for crate::chardev::CharBackend {
+/// Use [`bindings::qdev_prop_chr`] for [`chardev::CharBackend`].
+unsafe impl QDevProp for chardev::CharBackend {
     const VALUE: *const bindings::PropertyInfo = unsafe { &bindings::qdev_prop_chr };
 }
 

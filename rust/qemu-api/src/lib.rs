@@ -13,7 +13,6 @@ pub mod bindings;
 #[rustfmt::skip]
 pub mod prelude;
 
-pub mod chardev;
 pub mod irq;
 pub mod memory;
 pub mod qdev;

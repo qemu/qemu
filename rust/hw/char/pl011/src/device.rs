@@ -5,13 +5,13 @@
 use std::{ffi::CStr, mem::size_of};
 
 use bql::BqlRefCell;
+use chardev::{CharBackend, Chardev, Event};
 use common::{static_assert, uninit_field_mut};
 use migration::{
     self, impl_vmstate_forward, impl_vmstate_struct, vmstate_fields, vmstate_of,
     vmstate_subsections, vmstate_unused, VMStateDescription, VMStateDescriptionBuilder,
 };
 use qemu_api::{
-    chardev::{CharBackend, Chardev, Event},
     irq::{IRQState, InterruptSource},
     memory::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder},
     prelude::*,

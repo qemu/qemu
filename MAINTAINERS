@@ -3516,6 +3516,7 @@ Rust
 M: Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 S: Maintained
 F: rust/bql/
+F: rust/chardev/
 F: rust/common/
 F: rust/migration/
 F: rust/qemu-api
