@@ -109,6 +109,7 @@ use crate::{
         object_get_typename, object_new, object_ref, object_unref, TypeInfo,
     },
     cell::{bql_locked, Opaque},
+    impl_vmstate_pointer,
 };
 
 /// A safe wrapper around [`bindings::Object`].
@@ -948,3 +949,5 @@ where
 
 impl<T> ObjectClassMethods for T where T: IsA<Object> {}
 impl<R: ObjectDeref> ObjectMethods for R where R::Target: IsA<Object> {}
+
+impl_vmstate_pointer!(Owned<T> where T: VMState + ObjectType);
