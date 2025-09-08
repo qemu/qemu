@@ -173,7 +173,7 @@ pub trait DeviceImpl:
     /// A `VMStateDescription` providing the migration format for the device
     /// Not a `const` because referencing statics in constants is unstable
     /// until Rust 1.83.0.
-    fn vmsd() -> Option<&'static VMStateDescription> {
+    fn vmsd() -> Option<VMStateDescription<Self>> {
         None
     }
 }
@@ -225,7 +225,9 @@ impl DeviceClass {
             self.realize = Some(rust_realize_fn::<T>);
         }
         if let Some(vmsd) = <T as DeviceImpl>::vmsd() {
-            self.vmsd = vmsd;
+            // Give a 'static lifetime to the return value of vmsd().
+            // Temporary until vmsd() can be changed into a const.
+            self.vmsd = Box::leak(Box::new(vmsd.get()));
         }
         let prop = <T as DevicePropertiesImpl>::properties();
         if !prop.is_empty() {

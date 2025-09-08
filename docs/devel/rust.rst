@@ -162,7 +162,7 @@ module           status
 ``qom``          stable
 ``sysbus``       stable
 ``timer``        stable
-``vmstate``      proof of concept
+``vmstate``      stable
 ``zeroable``     stable
 ================ ======================
 

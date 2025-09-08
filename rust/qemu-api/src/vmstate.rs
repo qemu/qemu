@@ -24,12 +24,24 @@
 //!   `include/migration/vmstate.h`. These are not type-safe and only provide
 //!   functionality that is missing from `vmstate_of!`.
 
-use core::{marker::PhantomData, mem, ptr::NonNull};
-use std::ffi::{c_int, c_void};
+pub use std::convert::Infallible;
+use std::{
+    error::Error,
+    ffi::{c_int, c_void, CStr},
+    fmt, io,
+    marker::PhantomData,
+    mem,
+    ptr::NonNull,
+};
 
-pub use crate::bindings::{VMStateDescription, VMStateField};
+pub use crate::bindings::{MigrationPriority, VMStateField};
 use crate::{
-    bindings::VMStateFlags, callbacks::FnCall, prelude::*, qom::Owned, zeroable::Zeroable,
+    bindings::{self, VMStateFlags},
+    callbacks::FnCall,
+    errno::{into_neg_errno, Errno},
+    prelude::*,
+    qom::Owned,
+    zeroable::Zeroable,
 };
 
 /// This macro is used to call a function with a generic argument bound
@@ -440,7 +452,7 @@ pub extern "C" fn rust_vms_test_field_exists<T, F: for<'a> FnCall<(&'a T, u8), b
     opaque: *mut c_void,
     version_id: c_int,
 ) -> bool {
-    // SAFETY: the opaque was passed as a reference to `T`.
+    // SAFETY: assumes vmstate_struct! is used correctly
     let owner: &T = unsafe { &*(opaque.cast::<T>()) };
     let version: u8 = version_id.try_into().unwrap();
     F::call((owner, version))
@@ -490,7 +502,7 @@ macro_rules! vmstate_struct {
             },
             size: ::core::mem::size_of::<$type>(),
             flags: $crate::bindings::VMStateFlags::VMS_STRUCT,
-            vmsd: $vmsd,
+            vmsd: $vmsd.as_ref(),
             $(field_exists: $crate::vmstate_exist_fn!($struct_name, $test_fn),)?
             ..$crate::zeroable::Zeroable::ZERO
          } $(.with_varray_flag_unchecked(
@@ -594,11 +606,225 @@ macro_rules! vmstate_subsections {
     ($($subsection:expr),*$(,)*) => {{
         static _SUBSECTIONS: $crate::vmstate::VMStateSubsectionsWrapper = $crate::vmstate::VMStateSubsectionsWrapper(&[
             $({
-                static _SUBSECTION: $crate::bindings::VMStateDescription = $subsection;
+                static _SUBSECTION: $crate::bindings::VMStateDescription = $subsection.get();
                 ::core::ptr::addr_of!(_SUBSECTION)
             }),*,
             ::core::ptr::null()
         ]);
-        _SUBSECTIONS.0.as_ptr()
+        &_SUBSECTIONS
     }}
+}
+
+pub struct VMStateDescription<T>(bindings::VMStateDescription, PhantomData<fn(&T)>);
+
+// SAFETY: When a *const T is passed to the callbacks, the call itself
+// is done in a thread-safe manner.  The invocation is okay as long as
+// T itself is `Sync`.
+unsafe impl<T: Sync> Sync for VMStateDescription<T> {}
+
+#[derive(Clone)]
+pub struct VMStateDescriptionBuilder<T>(bindings::VMStateDescription, PhantomData<fn(&T)>);
+
+#[derive(Debug)]
+pub struct InvalidError;
+
+impl Error for InvalidError {}
+
+impl std::fmt::Display for InvalidError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "invalid migration data")
+    }
+}
+
+impl From<InvalidError> for Errno {
+    fn from(_value: InvalidError) -> Errno {
+        io::ErrorKind::InvalidInput.into()
+    }
+}
+
+unsafe extern "C" fn vmstate_no_version_cb<
+    T,
+    F: for<'a> FnCall<(&'a T,), Result<(), impl Into<Errno>>>,
+>(
+    opaque: *mut c_void,
+) -> c_int {
+    // SAFETY: assumes vmstate_struct! is used correctly
+    let result = F::call((unsafe { &*(opaque.cast::<T>()) },));
+    into_neg_errno(result)
+}
+
+unsafe extern "C" fn vmstate_post_load_cb<
+    T,
+    F: for<'a> FnCall<(&'a T, u8), Result<(), impl Into<Errno>>>,
+>(
+    opaque: *mut c_void,
+    version_id: c_int,
+) -> c_int {
+    // SAFETY: assumes vmstate_struct! is used correctly
+    let owner: &T = unsafe { &*(opaque.cast::<T>()) };
+    let version: u8 = version_id.try_into().unwrap();
+    let result = F::call((owner, version));
+    into_neg_errno(result)
+}
+
+unsafe extern "C" fn vmstate_needed_cb<T, F: for<'a> FnCall<(&'a T,), bool>>(
+    opaque: *mut c_void,
+) -> bool {
+    // SAFETY: assumes vmstate_struct! is used correctly
+    F::call((unsafe { &*(opaque.cast::<T>()) },))
+}
+
+unsafe extern "C" fn vmstate_dev_unplug_pending_cb<T, F: for<'a> FnCall<(&'a T,), bool>>(
+    opaque: *mut c_void,
+) -> bool {
+    // SAFETY: assumes vmstate_struct! is used correctly
+    F::call((unsafe { &*(opaque.cast::<T>()) },))
+}
+
+impl<T> VMStateDescriptionBuilder<T> {
+    #[must_use]
+    pub const fn name(mut self, name_str: &CStr) -> Self {
+        self.0.name = ::std::ffi::CStr::as_ptr(name_str);
+        self
+    }
+
+    #[must_use]
+    pub const fn unmigratable(mut self) -> Self {
+        self.0.unmigratable = true;
+        self
+    }
+
+    #[must_use]
+    pub const fn early_setup(mut self) -> Self {
+        self.0.early_setup = true;
+        self
+    }
+
+    #[must_use]
+    pub const fn version_id(mut self, version: u8) -> Self {
+        self.0.version_id = version as c_int;
+        self
+    }
+
+    #[must_use]
+    pub const fn minimum_version_id(mut self, min_version: u8) -> Self {
+        self.0.minimum_version_id = min_version as c_int;
+        self
+    }
+
+    #[must_use]
+    pub const fn priority(mut self, priority: MigrationPriority) -> Self {
+        self.0.priority = priority;
+        self
+    }
+
+    #[must_use]
+    pub const fn pre_load<F: for<'a> FnCall<(&'a T,), Result<(), impl Into<Errno>>>>(
+        mut self,
+        _f: &F,
+    ) -> Self {
+        self.0.pre_load = if F::IS_SOME {
+            Some(vmstate_no_version_cb::<T, F>)
+        } else {
+            None
+        };
+        self
+    }
+
+    #[must_use]
+    pub const fn post_load<F: for<'a> FnCall<(&'a T, u8), Result<(), impl Into<Errno>>>>(
+        mut self,
+        _f: &F,
+    ) -> Self {
+        self.0.post_load = if F::IS_SOME {
+            Some(vmstate_post_load_cb::<T, F>)
+        } else {
+            None
+        };
+        self
+    }
+
+    #[must_use]
+    pub const fn pre_save<F: for<'a> FnCall<(&'a T,), Result<(), impl Into<Errno>>>>(
+        mut self,
+        _f: &F,
+    ) -> Self {
+        self.0.pre_save = if F::IS_SOME {
+            Some(vmstate_no_version_cb::<T, F>)
+        } else {
+            None
+        };
+        self
+    }
+
+    #[must_use]
+    pub const fn post_save<F: for<'a> FnCall<(&'a T,), Result<(), impl Into<Errno>>>>(
+        mut self,
+        _f: &F,
+    ) -> Self {
+        self.0.post_save = if F::IS_SOME {
+            Some(vmstate_no_version_cb::<T, F>)
+        } else {
+            None
+        };
+        self
+    }
+
+    #[must_use]
+    pub const fn needed<F: for<'a> FnCall<(&'a T,), bool>>(mut self, _f: &F) -> Self {
+        self.0.needed = if F::IS_SOME {
+            Some(vmstate_needed_cb::<T, F>)
+        } else {
+            None
+        };
+        self
+    }
+
+    #[must_use]
+    pub const fn unplug_pending<F: for<'a> FnCall<(&'a T,), bool>>(mut self, _f: &F) -> Self {
+        self.0.dev_unplug_pending = if F::IS_SOME {
+            Some(vmstate_dev_unplug_pending_cb::<T, F>)
+        } else {
+            None
+        };
+        self
+    }
+
+    #[must_use]
+    pub const fn fields(mut self, fields: *const VMStateField) -> Self {
+        self.0.fields = fields;
+        self
+    }
+
+    #[must_use]
+    pub const fn subsections(mut self, subs: &'static VMStateSubsectionsWrapper) -> Self {
+        self.0.subsections = subs.0.as_ptr();
+        self
+    }
+
+    #[must_use]
+    pub const fn build(self) -> VMStateDescription<T> {
+        VMStateDescription::<T>(self.0, PhantomData)
+    }
+
+    #[must_use]
+    pub const fn new() -> Self {
+        Self(bindings::VMStateDescription::ZERO, PhantomData)
+    }
+}
+
+impl<T> Default for VMStateDescriptionBuilder<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> VMStateDescription<T> {
+    pub const fn get(&self) -> bindings::VMStateDescription {
+        self.0
+    }
+
+    pub const fn as_ref(&self) -> &bindings::VMStateDescription {
+        &self.0
+    }
 }

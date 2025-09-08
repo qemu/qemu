@@ -16,9 +16,8 @@ use qemu_api::{
     },
     cell::{BqlCell, Opaque},
     impl_vmstate_forward,
-    vmstate::{VMStateDescription, VMStateField},
+    vmstate::{VMStateDescription, VMStateDescriptionBuilder, VMStateField},
     vmstate_fields, vmstate_of, vmstate_struct, vmstate_unused, vmstate_validate,
-    zeroable::Zeroable,
 };
 
 const FOO_ARRAY_MAX: usize = 3;
@@ -41,22 +40,22 @@ struct FooA {
     elem: i8,
 }
 
-static VMSTATE_FOOA: VMStateDescription = VMStateDescription {
-    name: c"foo_a".as_ptr(),
-    version_id: 1,
-    minimum_version_id: 1,
-    fields: vmstate_fields! {
+static VMSTATE_FOOA: VMStateDescription<FooA> = VMStateDescriptionBuilder::<FooA>::new()
+    .name(c"foo_a")
+    .version_id(1)
+    .minimum_version_id(1)
+    .fields(vmstate_fields! {
         vmstate_of!(FooA, elem),
         vmstate_unused!(size_of::<i64>()),
         vmstate_of!(FooA, arr[0 .. num]).with_version_id(0),
         vmstate_of!(FooA, arr_mul[0 .. num_mul * 16]),
-    },
-    ..Zeroable::ZERO
-};
+    })
+    .build();
 
 #[test]
 fn test_vmstate_uint16() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOA.fields, 5) };
+    let foo_fields: &[VMStateField] =
+        unsafe { slice::from_raw_parts(VMSTATE_FOOA.as_ref().fields, 5) };
 
     // 1st VMStateField ("elem") in VMSTATE_FOOA (corresponding to VMSTATE_UINT16)
     assert_eq!(
@@ -76,7 +75,8 @@ fn test_vmstate_uint16() {
 
 #[test]
 fn test_vmstate_unused() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOA.fields, 5) };
+    let foo_fields: &[VMStateField] =
+        unsafe { slice::from_raw_parts(VMSTATE_FOOA.as_ref().fields, 5) };
 
     // 2nd VMStateField ("unused") in VMSTATE_FOOA (corresponding to VMSTATE_UNUSED)
     assert_eq!(
@@ -96,7 +96,8 @@ fn test_vmstate_unused() {
 
 #[test]
 fn test_vmstate_varray_uint16_unsafe() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOA.fields, 5) };
+    let foo_fields: &[VMStateField] =
+        unsafe { slice::from_raw_parts(VMSTATE_FOOA.as_ref().fields, 5) };
 
     // 3rd VMStateField ("arr") in VMSTATE_FOOA (corresponding to
     // VMSTATE_VARRAY_UINT16_UNSAFE)
@@ -117,7 +118,8 @@ fn test_vmstate_varray_uint16_unsafe() {
 
 #[test]
 fn test_vmstate_varray_multiply() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOA.fields, 5) };
+    let foo_fields: &[VMStateField] =
+        unsafe { slice::from_raw_parts(VMSTATE_FOOA.as_ref().fields, 5) };
 
     // 4th VMStateField ("arr_mul") in VMSTATE_FOOA (corresponding to
     // VMSTATE_VARRAY_MULTIPLY)
@@ -171,24 +173,25 @@ fn validate_foob(_state: &FooB, _version_id: u8) -> bool {
     true
 }
 
-static VMSTATE_FOOB: VMStateDescription = VMStateDescription {
-    name: c"foo_b".as_ptr(),
-    version_id: 2,
-    minimum_version_id: 1,
-    fields: vmstate_fields! {
-        vmstate_of!(FooB, val).with_version_id(2),
-        vmstate_of!(FooB, wrap),
-        vmstate_struct!(FooB, arr_a[0 .. num_a], &VMSTATE_FOOA, FooA).with_version_id(1),
-        vmstate_struct!(FooB, arr_a_mul[0 .. num_a_mul * 32], &VMSTATE_FOOA, FooA).with_version_id(2),
-        vmstate_of!(FooB, arr_i64),
-        vmstate_struct!(FooB, arr_a_wrap[0 .. num_a_wrap], &VMSTATE_FOOA, FooA, validate_foob),
-    },
-    ..Zeroable::ZERO
-};
+static VMSTATE_FOOB: VMStateDescription<FooB> =
+    VMStateDescriptionBuilder::<FooB>::new()
+        .name(c"foo_b")
+        .version_id(2)
+        .minimum_version_id(1)
+        .fields(vmstate_fields! {
+            vmstate_of!(FooB, val).with_version_id(2),
+            vmstate_of!(FooB, wrap),
+            vmstate_struct!(FooB, arr_a[0 .. num_a], &VMSTATE_FOOA, FooA).with_version_id(1),
+            vmstate_struct!(FooB, arr_a_mul[0 .. num_a_mul * 32], &VMSTATE_FOOA, FooA).with_version_id(2),
+            vmstate_of!(FooB, arr_i64),
+            vmstate_struct!(FooB, arr_a_wrap[0 .. num_a_wrap], &VMSTATE_FOOA, FooA, validate_foob),
+        })
+        .build();
 
 #[test]
 fn test_vmstate_bool_v() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOB.fields, 7) };
+    let foo_fields: &[VMStateField] =
+        unsafe { slice::from_raw_parts(VMSTATE_FOOB.as_ref().fields, 7) };
 
     // 1st VMStateField ("val") in VMSTATE_FOOB (corresponding to VMSTATE_BOOL_V)
     assert_eq!(
@@ -208,7 +211,8 @@ fn test_vmstate_bool_v() {
 
 #[test]
 fn test_vmstate_uint64() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOB.fields, 7) };
+    let foo_fields: &[VMStateField] =
+        unsafe { slice::from_raw_parts(VMSTATE_FOOB.as_ref().fields, 7) };
 
     // 2nd VMStateField ("wrap") in VMSTATE_FOOB (corresponding to VMSTATE_U64)
     assert_eq!(
@@ -228,7 +232,8 @@ fn test_vmstate_uint64() {
 
 #[test]
 fn test_vmstate_struct_varray_uint8() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOB.fields, 7) };
+    let foo_fields: &[VMStateField] =
+        unsafe { slice::from_raw_parts(VMSTATE_FOOB.as_ref().fields, 7) };
 
     // 3rd VMStateField ("arr_a") in VMSTATE_FOOB (corresponding to
     // VMSTATE_STRUCT_VARRAY_UINT8)
@@ -246,13 +251,14 @@ fn test_vmstate_struct_varray_uint8() {
         foo_fields[2].flags.0,
         VMStateFlags::VMS_STRUCT.0 | VMStateFlags::VMS_VARRAY_UINT8.0
     );
-    assert_eq!(foo_fields[2].vmsd, &VMSTATE_FOOA);
+    assert_eq!(foo_fields[2].vmsd, VMSTATE_FOOA.as_ref());
     assert!(foo_fields[2].field_exists.is_none());
 }
 
 #[test]
 fn test_vmstate_struct_varray_uint32_multiply() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOB.fields, 7) };
+    let foo_fields: &[VMStateField] =
+        unsafe { slice::from_raw_parts(VMSTATE_FOOB.as_ref().fields, 7) };
 
     // 4th VMStateField ("arr_a_mul") in VMSTATE_FOOB (corresponding to
     // (no C version) MULTIPLY variant of VMSTATE_STRUCT_VARRAY_UINT32)
@@ -272,13 +278,14 @@ fn test_vmstate_struct_varray_uint32_multiply() {
             | VMStateFlags::VMS_VARRAY_UINT32.0
             | VMStateFlags::VMS_MULTIPLY_ELEMENTS.0
     );
-    assert_eq!(foo_fields[3].vmsd, &VMSTATE_FOOA);
+    assert_eq!(foo_fields[3].vmsd, VMSTATE_FOOA.as_ref());
     assert!(foo_fields[3].field_exists.is_none());
 }
 
 #[test]
 fn test_vmstate_macro_array() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOB.fields, 7) };
+    let foo_fields: &[VMStateField] =
+        unsafe { slice::from_raw_parts(VMSTATE_FOOB.as_ref().fields, 7) };
 
     // 5th VMStateField ("arr_i64") in VMSTATE_FOOB (corresponding to
     // VMSTATE_ARRAY)
@@ -299,7 +306,8 @@ fn test_vmstate_macro_array() {
 
 #[test]
 fn test_vmstate_struct_varray_uint8_wrapper() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOB.fields, 7) };
+    let foo_fields: &[VMStateField] =
+        unsafe { slice::from_raw_parts(VMSTATE_FOOB.as_ref().fields, 7) };
     let mut foo_b: FooB = Default::default();
     let foo_b_p = std::ptr::addr_of_mut!(foo_b).cast::<c_void>();
 
@@ -335,26 +343,28 @@ struct FooC {
     arr_ptr_wrap: FooCWrapper,
 }
 
-static VMSTATE_FOOC: VMStateDescription = VMStateDescription {
-    name: c"foo_c".as_ptr(),
-    version_id: 3,
-    minimum_version_id: 1,
-    fields: vmstate_fields! {
+unsafe impl Sync for FooC {}
+
+static VMSTATE_FOOC: VMStateDescription<FooC> = VMStateDescriptionBuilder::<FooC>::new()
+    .name(c"foo_c")
+    .version_id(3)
+    .minimum_version_id(1)
+    .fields(vmstate_fields! {
         vmstate_of!(FooC, ptr).with_version_id(2),
         // FIXME: Currently vmstate_struct doesn't support the pointer to structure.
         // VMSTATE_STRUCT_POINTER: vmstate_struct!(FooC, ptr_a, VMSTATE_FOOA, NonNull<FooA>)
         vmstate_unused!(size_of::<NonNull<FooA>>()),
         vmstate_of!(FooC, arr_ptr),
         vmstate_of!(FooC, arr_ptr_wrap),
-    },
-    ..Zeroable::ZERO
-};
+    })
+    .build();
 
 const PTR_SIZE: usize = size_of::<*mut ()>();
 
 #[test]
 fn test_vmstate_pointer() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOC.fields, 6) };
+    let foo_fields: &[VMStateField] =
+        unsafe { slice::from_raw_parts(VMSTATE_FOOC.as_ref().fields, 6) };
 
     // 1st VMStateField ("ptr") in VMSTATE_FOOC (corresponding to VMSTATE_POINTER)
     assert_eq!(
@@ -377,7 +387,8 @@ fn test_vmstate_pointer() {
 
 #[test]
 fn test_vmstate_macro_array_of_pointer() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOC.fields, 6) };
+    let foo_fields: &[VMStateField] =
+        unsafe { slice::from_raw_parts(VMSTATE_FOOC.as_ref().fields, 6) };
 
     // 3rd VMStateField ("arr_ptr") in VMSTATE_FOOC (corresponding to
     // VMSTATE_ARRAY_OF_POINTER)
@@ -401,7 +412,8 @@ fn test_vmstate_macro_array_of_pointer() {
 
 #[test]
 fn test_vmstate_macro_array_of_pointer_wrapped() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOC.fields, 6) };
+    let foo_fields: &[VMStateField] =
+        unsafe { slice::from_raw_parts(VMSTATE_FOOC.as_ref().fields, 6) };
 
     // 4th VMStateField ("arr_ptr_wrap") in VMSTATE_FOOC (corresponding to
     // VMSTATE_ARRAY_OF_POINTER)
@@ -450,21 +462,21 @@ fn validate_food_2(_state: &FooD, _version_id: u8) -> bool {
     true
 }
 
-static VMSTATE_FOOD: VMStateDescription = VMStateDescription {
-    name: c"foo_d".as_ptr(),
-    version_id: 3,
-    minimum_version_id: 1,
-    fields: vmstate_fields! {
+static VMSTATE_FOOD: VMStateDescription<FooD> = VMStateDescriptionBuilder::<FooD>::new()
+    .name(c"foo_d")
+    .version_id(3)
+    .minimum_version_id(1)
+    .fields(vmstate_fields! {
         vmstate_validate!(FooD, c"foo_d_0", FooD::validate_food_0),
         vmstate_validate!(FooD, c"foo_d_1", FooD::validate_food_1),
         vmstate_validate!(FooD, c"foo_d_2", validate_food_2),
-    },
-    ..Zeroable::ZERO
-};
+    })
+    .build();
 
 #[test]
 fn test_vmstate_validate() {
-    let foo_fields: &[VMStateField] = unsafe { slice::from_raw_parts(VMSTATE_FOOD.fields, 4) };
+    let foo_fields: &[VMStateField] =
+        unsafe { slice::from_raw_parts(VMSTATE_FOOD.as_ref().fields, 4) };
     let mut foo_d = FooD;
     let foo_d_p = std::ptr::addr_of_mut!(foo_d).cast::<c_void>();
 

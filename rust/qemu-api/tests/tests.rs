@@ -11,18 +11,16 @@ use qemu_api::{
     qdev::{DeviceImpl, DeviceState, ResettablePhasesImpl},
     qom::{ObjectImpl, ParentField},
     sysbus::SysBusDevice,
-    vmstate::VMStateDescription,
-    zeroable::Zeroable,
+    vmstate::{VMStateDescription, VMStateDescriptionBuilder},
 };
 
 mod vmstate_tests;
 
 // Test that macros can compile.
-pub static VMSTATE: VMStateDescription = VMStateDescription {
-    name: c"name".as_ptr(),
-    unmigratable: true,
-    ..Zeroable::ZERO
-};
+pub const VMSTATE: VMStateDescription<DummyState> = VMStateDescriptionBuilder::<DummyState>::new()
+    .name(c"name")
+    .unmigratable()
+    .build();
 
 #[repr(C)]
 #[derive(qemu_api_macros::Object, qemu_api_macros::Device)]
@@ -58,8 +56,8 @@ impl ObjectImpl for DummyState {
 impl ResettablePhasesImpl for DummyState {}
 
 impl DeviceImpl for DummyState {
-    fn vmsd() -> Option<&'static VMStateDescription> {
-        Some(&VMSTATE)
+    fn vmsd() -> Option<VMStateDescription<Self>> {
+        Some(VMSTATE)
     }
 }
 

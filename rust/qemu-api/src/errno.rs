@@ -7,7 +7,10 @@
 //! convention.  This module provides functions to portably convert an integer
 //! into an [`io::Result`] and back.
 
-use std::{convert::TryFrom, io, io::ErrorKind};
+use std::{
+    convert::{self, TryFrom},
+    io::{self, ErrorKind},
+};
 
 /// An `errno` value that can be converted into an [`io::Error`]
 pub struct Errno(pub u16);
@@ -96,6 +99,12 @@ impl From<io::Error> for Errno {
             }
         }
         value.kind().into()
+    }
+}
+
+impl From<convert::Infallible> for Errno {
+    fn from(_value: convert::Infallible) -> Errno {
+        panic!("unreachable")
     }
 }
 
