@@ -54,7 +54,7 @@ def _console_read_line_until_match(test, vm, success, failure):
     done = False
     while True:
         c = vm.console_socket.recv(1)
-        if c is None:
+        if not c:
             done = True
             test.fail(
                 f"EOF in console, expected '{success}'")
