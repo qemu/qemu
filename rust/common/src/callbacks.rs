@@ -55,7 +55,7 @@ use std::{mem, ptr::NonNull};
 /// # Examples
 ///
 /// ```
-/// # use qemu_api::callbacks::FnCall;
+/// # use common::callbacks::FnCall;
 /// fn call_it<F: for<'a> FnCall<(&'a str,), String>>(_f: &F, s: &str) -> String {
 ///     F::call((s,))
 /// }
@@ -71,7 +71,7 @@ use std::{mem, ptr::NonNull};
 /// Attempting to pass a non-zero-sized closure causes a compile-time failure:
 ///
 /// ```compile_fail
-/// # use qemu_api::callbacks::FnCall;
+/// # use common::callbacks::FnCall;
 /// # fn call_it<'a, F: FnCall<(&'a str,), String>>(_f: &F, s: &'a str) -> String {
 /// #     F::call((s,))
 /// # }
@@ -82,7 +82,7 @@ use std::{mem, ptr::NonNull};
 /// `()` can be used to indicate "no function":
 ///
 /// ```
-/// # use qemu_api::callbacks::FnCall;
+/// # use common::callbacks::FnCall;
 /// fn optional<F: for<'a> FnCall<(&'a str,), String>>(_f: &F, s: &str) -> Option<String> {
 ///     if F::IS_SOME {
 ///         Some(F::call((s,)))
@@ -97,7 +97,7 @@ use std::{mem, ptr::NonNull};
 /// Invoking `F::call` will then be a run-time error.
 ///
 /// ```should_panic
-/// # use qemu_api::callbacks::FnCall;
+/// # use common::callbacks::FnCall;
 /// # fn call_it<F: for<'a> FnCall<(&'a str,), String>>(_f: &F, s: &str) -> String {
 /// #     F::call((s,))
 /// # }
@@ -120,7 +120,7 @@ pub unsafe trait FnCall<Args, R = ()>: 'static + Sync + Sized {
     /// You can use `IS_SOME` to catch this at compile time:
     ///
     /// ```compile_fail
-    /// # use qemu_api::callbacks::FnCall;
+    /// # use common::callbacks::FnCall;
     /// fn call_it<F: for<'a> FnCall<(&'a str,), String>>(_f: &F, s: &str) -> String {
     ///     const { assert!(F::IS_SOME) }
     ///     F::call((s,))

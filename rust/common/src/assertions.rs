@@ -8,7 +8,7 @@
 //! types match the expectations of C code.
 //!
 //! Documentation is hidden because it only exposes macros, which
-//! are exported directly from `qemu_api`.
+//! are exported directly from `common`.
 
 // Based on https://stackoverflow.com/questions/64251852/x/70978292#70978292
 // (stackoverflow answers are released under MIT license).
@@ -27,7 +27,7 @@ impl<T> EqType for T {
 /// # Examples
 ///
 /// ```
-/// # use qemu_api::assert_same_type;
+/// # use common::assert_same_type;
 /// # use std::ops::Deref;
 /// assert_same_type!(u32, u32);
 /// assert_same_type!(<Box<u32> as Deref>::Target, u32);
@@ -36,7 +36,7 @@ impl<T> EqType for T {
 /// Different types will cause a compile failure
 ///
 /// ```compile_fail
-/// # use qemu_api::assert_same_type;
+/// # use common::assert_same_type;
 /// assert_same_type!(&Box<u32>, &u32);
 /// ```
 #[macro_export]
@@ -61,7 +61,7 @@ macro_rules! assert_same_type {
 /// # Examples
 ///
 /// ```
-/// # use qemu_api::assert_field_type;
+/// # use common::assert_field_type;
 /// pub struct A {
 ///     field1: u32,
 /// }
@@ -72,7 +72,7 @@ macro_rules! assert_same_type {
 /// Different types will cause a compile failure
 ///
 /// ```compile_fail
-/// # use qemu_api::assert_field_type;
+/// # use common::assert_field_type;
 /// # pub struct A { field1: u32 }
 /// assert_field_type!(A, field1, i32);
 /// ```
@@ -103,7 +103,7 @@ macro_rules! assert_field_type {
 /// # Examples
 ///
 /// ```
-/// # use qemu_api::assert_match;
+/// # use common::assert_match;
 /// // JoinHandle does not implement `Eq`, therefore the result
 /// // does not either.
 /// let result: Result<std::thread::JoinHandle<()>, u32> = Err(42);
@@ -132,12 +132,12 @@ macro_rules! assert_match {
 /// # Examples
 ///
 /// ```
-/// # use qemu_api::static_assert;
+/// # use common::static_assert;
 /// static_assert!("abc".len() == 3);
 /// ```
 ///
 /// ```compile_fail
-/// # use qemu_api::static_assert;
+/// # use common::static_assert;
 /// static_assert!("abc".len() == 2); // does not compile
 /// ```
 #[macro_export]

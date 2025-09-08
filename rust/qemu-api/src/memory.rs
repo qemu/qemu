@@ -10,14 +10,11 @@ use std::{
 };
 
 pub use bindings::{hwaddr, MemTxAttrs};
+use common::{callbacks::FnCall, uninit::MaybeUninitField, zeroable::Zeroable, Opaque};
 
 use crate::{
     bindings::{self, device_endian, memory_region_init_io},
-    callbacks::FnCall,
-    cell::Opaque,
     prelude::*,
-    uninit::MaybeUninitField,
-    zeroable::Zeroable,
 };
 
 pub struct MemoryRegionOps<T>(

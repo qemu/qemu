@@ -10,6 +10,7 @@ use std::{
     slice::from_ref,
 };
 
+use common::{bitops::IntegerExt, uninit_field_mut};
 use qemu_api::{
     bindings::{
         address_space_memory, address_space_stl_le, qdev_prop_bit, qdev_prop_bool,
@@ -27,7 +28,6 @@ use qemu_api::{
     qom_isa,
     sysbus::{SysBusDevice, SysBusDeviceImpl},
     timer::{Timer, CLOCK_VIRTUAL, NANOSECONDS_PER_SECOND},
-    uninit_field_mut,
     vmstate::{self, VMStateDescription, VMStateDescriptionBuilder},
     vmstate_fields, vmstate_of, vmstate_subsections, vmstate_validate,
 };

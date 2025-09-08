@@ -7,10 +7,11 @@
 use std::{ffi::CStr, ptr::addr_of_mut};
 
 pub use bindings::SysBusDeviceClass;
+use common::Opaque;
 
 use crate::{
     bindings,
-    cell::{bql_locked, Opaque},
+    cell::bql_locked,
     irq::{IRQState, InterruptSource},
     memory::MemoryRegion,
     prelude::*,

@@ -63,7 +63,7 @@ impl<'a, T, U> DerefMut for MaybeUninitField<'a, T, U> {
 /// }
 ///
 /// # use std::mem::MaybeUninit;
-/// # use qemu_api::{assert_match, uninit_field_mut};
+/// # use common::{assert_match, uninit_field_mut};
 ///
 /// let mut s: MaybeUninit<S> = MaybeUninit::zeroed();
 /// uninit_field_mut!(s, x).write(5);

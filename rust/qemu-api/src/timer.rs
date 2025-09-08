@@ -7,10 +7,10 @@ use std::{
     pin::Pin,
 };
 
-use crate::{
-    bindings::{self, qemu_clock_get_ns, timer_del, timer_init_full, timer_mod, QEMUClockType},
-    callbacks::FnCall,
-    cell::Opaque,
+use common::{callbacks::FnCall, Opaque};
+
+use crate::bindings::{
+    self, qemu_clock_get_ns, timer_del, timer_init_full, timer_mod, QEMUClockType,
 };
 
 /// A safe wrapper around [`bindings::QEMUTimer`].

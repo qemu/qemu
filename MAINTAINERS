@@ -3515,6 +3515,7 @@ F: include/hw/registerfields.h
 Rust
 M: Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 S: Maintained
+F: rust/common/
 F: rust/qemu-api
 F: rust/qemu-api-macros
 F: rust/rustfmt.toml

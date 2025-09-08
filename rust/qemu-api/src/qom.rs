@@ -102,13 +102,14 @@ use std::{
 };
 
 pub use bindings::ObjectClass;
+use common::Opaque;
 
 use crate::{
     bindings::{
         self, object_class_dynamic_cast, object_dynamic_cast, object_get_class,
         object_get_typename, object_new, object_ref, object_unref, TypeInfo,
     },
-    cell::{bql_locked, Opaque},
+    cell::bql_locked,
     impl_vmstate_pointer,
 };
 

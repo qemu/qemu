@@ -4,6 +4,7 @@
 
 use std::{ffi::CStr, mem::size_of};
 
+use common::{static_assert, uninit_field_mut};
 use qemu_api::{
     chardev::{CharBackend, Chardev, Event},
     impl_vmstate_forward, impl_vmstate_struct,
@@ -14,9 +15,7 @@ use qemu_api::{
     prelude::*,
     qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, ResetType, ResettablePhasesImpl},
     qom::{ObjectImpl, Owned, ParentField, ParentInit},
-    static_assert,
     sysbus::{SysBusDevice, SysBusDeviceImpl},
-    uninit_field_mut,
     vmstate::{self, VMStateDescription, VMStateDescriptionBuilder},
     vmstate_fields, vmstate_of, vmstate_subsections, vmstate_unused,
 };

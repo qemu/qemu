@@ -316,10 +316,11 @@ mod tests {
     use std::ffi::CStr;
 
     use anyhow::anyhow;
+    use common::assert_match;
     use foreign::OwnedPointer;
 
     use super::*;
-    use crate::{assert_match, bindings};
+    use crate::bindings;
 
     #[track_caller]
     fn error_for_test(msg: &CStr) -> OwnedPointer<Error> {

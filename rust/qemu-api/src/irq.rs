@@ -10,9 +10,10 @@ use std::{
     ptr,
 };
 
+use common::Opaque;
+
 use crate::{
     bindings::{self, qemu_set_irq},
-    cell::Opaque,
     prelude::*,
     qom::ObjectClass,
 };

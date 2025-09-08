@@ -4,7 +4,8 @@
 
 use std::ptr::addr_of_mut;
 
-use qemu_api::{cell::bql_locked, zeroable::Zeroable};
+use common::Zeroable;
+use qemu_api::cell::bql_locked;
 
 /// Each `HPETState` represents a Event Timer Block. The v1 spec supports
 /// up to 8 blocks. QEMU only uses 1 block (in PC machine).

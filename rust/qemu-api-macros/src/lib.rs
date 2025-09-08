@@ -97,7 +97,7 @@ fn derive_object_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
         .ident;
 
     Ok(quote! {
-        ::qemu_api::assert_field_type!(#name, #parent,
+        ::common::assert_field_type!(#name, #parent,
             ::qemu_api::qom::ParentField<<#name as ::qemu_api::qom::ObjectImpl>::ParentType>);
 
         ::qemu_api::module_init! {
@@ -125,20 +125,20 @@ fn derive_opaque_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
     let typ = &field.ty;
 
     Ok(quote! {
-        unsafe impl ::qemu_api::cell::Wrapper for #name {
-            type Wrapped = <#typ as ::qemu_api::cell::Wrapper>::Wrapped;
+        unsafe impl ::common::opaque::Wrapper for #name {
+            type Wrapped = <#typ as ::common::opaque::Wrapper>::Wrapped;
         }
         impl #name {
-            pub unsafe fn from_raw<'a>(ptr: *mut <Self as ::qemu_api::cell::Wrapper>::Wrapped) -> &'a Self {
+            pub unsafe fn from_raw<'a>(ptr: *mut <Self as ::common::opaque::Wrapper>::Wrapped) -> &'a Self {
                 let ptr = ::std::ptr::NonNull::new(ptr).unwrap().cast::<Self>();
                 unsafe { ptr.as_ref() }
             }
 
-            pub const fn as_mut_ptr(&self) -> *mut <Self as ::qemu_api::cell::Wrapper>::Wrapped {
+            pub const fn as_mut_ptr(&self) -> *mut <Self as ::common::opaque::Wrapper>::Wrapped {
                 self.0.as_mut_ptr()
             }
 
-            pub const fn as_ptr(&self) -> *const <Self as ::qemu_api::cell::Wrapper>::Wrapped {
+            pub const fn as_ptr(&self) -> *const <Self as ::common::opaque::Wrapper>::Wrapped {
                 self.0.as_ptr()
             }
 
@@ -146,7 +146,7 @@ fn derive_opaque_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
                 self.0.as_void_ptr()
             }
 
-            pub const fn raw_get(slot: *mut Self) -> *mut <Self as ::qemu_api::cell::Wrapper>::Wrapped {
+            pub const fn raw_get(slot: *mut Self) -> *mut <Self as ::common::opaque::Wrapper>::Wrapped {
                 slot.cast()
             }
         }
@@ -282,7 +282,7 @@ fn derive_device_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
                 offset: ::core::mem::offset_of!(#name, #field_name) as isize,
                 set_default: #set_default,
                 defval: ::qemu_api::bindings::Property__bindgen_ty_1 { u: #defval as u64 },
-                ..::qemu_api::zeroable::Zeroable::ZERO
+                ..::common::Zeroable::ZERO
             }
         });
     }

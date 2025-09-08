@@ -108,7 +108,7 @@ fn test_derive_device() {
                         offset: ::core::mem::offset_of!(DummyState, migrate_clock) as isize,
                         set_default: true,
                         defval: ::qemu_api::bindings::Property__bindgen_ty_1 { u: true as u64 },
-                        ..::qemu_api::zeroable::Zeroable::ZERO
+                        ..::common::Zeroable::ZERO
                     }
                 ];
             }
@@ -135,7 +135,7 @@ fn test_derive_device() {
                         offset: ::core::mem::offset_of!(DummyState, migrate_clock) as isize,
                         set_default: true,
                         defval: ::qemu_api::bindings::Property__bindgen_ty_1 { u: true as u64 },
-                        ..::qemu_api::zeroable::Zeroable::ZERO
+                        ..::common::Zeroable::ZERO
                     }
                 ];
             }
@@ -165,7 +165,7 @@ fn test_derive_object() {
             }
         },
         quote! {
-            ::qemu_api::assert_field_type!(
+            ::common::assert_field_type!(
                 Foo,
                 _unused,
                 ::qemu_api::qom::ParentField<<Foo as ::qemu_api::qom::ObjectImpl>::ParentType>

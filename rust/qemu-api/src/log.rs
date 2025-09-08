@@ -8,7 +8,9 @@ use std::{
     ptr::NonNull,
 };
 
-use crate::{bindings, errno};
+use common::errno;
+
+use crate::bindings;
 
 #[repr(u32)]
 /// Represents specific error categories within QEMU's logging system.
