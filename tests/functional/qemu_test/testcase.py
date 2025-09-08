@@ -404,7 +404,10 @@ class QemuSystemTest(QemuBaseTest):
 
     def tearDown(self):
         for vm in self._vms.values():
-            vm.shutdown()
+            try:
+                vm.shutdown()
+            except Exception as ex:
+                self.log.error("Failed to teardown VM: %s" % ex)
         logging.getLogger('console').removeHandler(self._console_log_fh)
         self._console_log_fh.close()
         super().tearDown()
