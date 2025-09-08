@@ -20,6 +20,7 @@ common = { path = "../../../common" }
 util = { path = "../../../util" }
 bql = { path = "../../../bql" }
 migration = { path = "../../../migration" }
+qom = { path = "../../../qom" }
 qemu_api = { path = "../../../qemu-api" }
 qemu_api_macros = { path = "../../../qemu-api-macros" }
 

@@ -22,9 +22,15 @@ foreach enum : c_bitfields
   _qemu_api_bindgen_args += ['--bitfield-enum', enum]
 endforeach
 
-_qemu_api_bindgen_args += ['--blocklist-type', 'VMStateDescription']
+blocked_type = [
+  'ObjectClass',
+  'VMStateDescription',
+  'Error',
+]
+foreach type: blocked_type
+  _qemu_api_bindgen_args += ['--blocklist-type', type]
+endforeach
 
-_qemu_api_bindgen_args += ['--blocklist-type', 'Error']
 # TODO: Remove this comment when the clang/libclang mismatch issue is solved.
 #
 # Rust bindings generation with `bindgen` might fail in some cases where the
@@ -52,7 +58,6 @@ _qemu_api_rs = static_library(
       'src/memory.rs',
       'src/prelude.rs',
       'src/qdev.rs',
-      'src/qom.rs',
       'src/sysbus.rs',
     ],
     {'.' : _qemu_api_bindings_inc_rs},
@@ -61,7 +66,7 @@ _qemu_api_rs = static_library(
   rust_abi: 'rust',
   rust_args: _qemu_api_cfg,
   dependencies: [anyhow_rs, bql_rs, common_rs, foreign_rs, libc_rs, migration_rs, qemu_api_macros,
-                 util_rs, qom, hwcore, chardev],
+                 qom_rs, util_rs, hwcore, chardev],
 )
 
 qemu_api_rs = declare_dependency(link_with: [_qemu_api_rs],
@@ -74,7 +79,7 @@ test('rust-qemu-api-integration',
         override_options: ['rust_std=2021', 'build.rust_std=2021'],
         rust_args: ['--test'],
         install: false,
-        dependencies: [bql_rs, common_rs, util_rs, migration_rs, qemu_api_rs]),
+        dependencies: [bql_rs, common_rs, util_rs, migration_rs, qom_rs, qemu_api_rs]),
     args: [
         '--test', '--test-threads', '1',
         '--format', 'pretty',

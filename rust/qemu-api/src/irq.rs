@@ -12,12 +12,9 @@ use std::{
 
 use bql::BqlCell;
 use common::Opaque;
+use qom::{prelude::*, ObjectClass};
 
-use crate::{
-    bindings::{self, qemu_set_irq},
-    prelude::*,
-    qom::ObjectClass,
-};
+use crate::bindings::{self, qemu_set_irq};
 
 /// An opaque wrapper around [`bindings::IRQState`].
 #[repr(transparent)]
@@ -36,7 +33,7 @@ pub struct IRQState(Opaque<bindings::IRQState>);
 ///
 /// Interrupts are implemented as a pointer to the interrupt "sink", which has
 /// type [`IRQState`].  A device exposes its source as a QOM link property using
-/// a function such as [`SysBusDeviceMethods::init_irq`], and
+/// a function such as [`crate::sysbus::SysBusDeviceMethods::init_irq`], and
 /// initially leaves the pointer to a NULL value, representing an unconnected
 /// interrupt. To connect it, whoever creates the device fills the pointer with
 /// the sink's `IRQState *`, for example using `sysbus_connect_irq`.  Because
@@ -114,4 +111,5 @@ unsafe impl ObjectType for IRQState {
     const TYPE_NAME: &'static CStr =
         unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_IRQ) };
 }
+
 qom_isa!(IRQState: Object);

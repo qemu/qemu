@@ -101,7 +101,6 @@ use std::{
     ptr::NonNull,
 };
 
-pub use bindings::ObjectClass;
 use common::Opaque;
 use migration::impl_vmstate_pointer;
 
@@ -109,6 +108,7 @@ use crate::bindings::{
     self, object_class_dynamic_cast, object_dynamic_cast, object_get_class, object_get_typename,
     object_new, object_ref, object_unref, TypeInfo,
 };
+pub use crate::bindings::{type_register_static, ObjectClass};
 
 /// A safe wrapper around [`bindings::Object`].
 #[repr(transparent)]
@@ -146,7 +146,7 @@ macro_rules! qom_isa {
         $(
             // SAFETY: it is the caller responsibility to have $parent as the
             // first field
-            unsafe impl $crate::qom::IsA<$parent> for $struct {}
+            unsafe impl $crate::IsA<$parent> for $struct {}
 
             impl AsRef<$parent> for $struct {
                 fn as_ref(&self) -> &$parent {

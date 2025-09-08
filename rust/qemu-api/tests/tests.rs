@@ -7,11 +7,10 @@ use std::{ffi::CStr, ptr::addr_of};
 use bql::BqlCell;
 use migration::{VMStateDescription, VMStateDescriptionBuilder};
 use qemu_api::{
-    prelude::*,
     qdev::{DeviceImpl, DeviceState, ResettablePhasesImpl},
-    qom::{ObjectImpl, ParentField},
     sysbus::SysBusDevice,
 };
+use qom::{prelude::*, ObjectImpl, ParentField};
 use util::bindings::{module_call_init, module_init_type};
 
 mod vmstate_tests;

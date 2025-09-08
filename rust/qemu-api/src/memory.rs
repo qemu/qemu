@@ -11,11 +11,9 @@ use std::{
 
 pub use bindings::{hwaddr, MemTxAttrs};
 use common::{callbacks::FnCall, uninit::MaybeUninitField, zeroable::Zeroable, Opaque};
+use qom::prelude::*;
 
-use crate::{
-    bindings::{self, device_endian, memory_region_init_io},
-    prelude::*,
-};
+use crate::bindings::{self, device_endian, memory_region_init_io};
 
 pub struct MemoryRegionOps<T>(
     bindings::MemoryRegionOps,
@@ -186,6 +184,7 @@ unsafe impl ObjectType for MemoryRegion {
     const TYPE_NAME: &'static CStr =
         unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_MEMORY_REGION) };
 }
+
 qom_isa!(MemoryRegion: Object);
 
 /// A special `MemTxAttrs` constant, used to indicate that no memory

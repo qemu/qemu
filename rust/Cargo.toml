@@ -7,6 +7,7 @@ members = [
     "migration",
     "qemu-api-macros",
     "qemu-api",
+    "qom",
     "hw/char/pl011",
     "hw/timer/hpet",
     "util",

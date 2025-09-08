@@ -168,11 +168,11 @@ fn test_derive_object() {
             ::common::assert_field_type!(
                 Foo,
                 _unused,
-                ::qemu_api::qom::ParentField<<Foo as ::qemu_api::qom::ObjectImpl>::ParentType>
+                ::qom::ParentField<<Foo as ::qom::ObjectImpl>::ParentType>
             );
             ::util::module_init! {
                 MODULE_INIT_QOM => unsafe {
-                    ::qemu_api::bindings::type_register_static(&<Foo as ::qemu_api::qom::ObjectImpl>::TYPE_INFO);
+                    ::qom::type_register_static(&<Foo as ::qom::ObjectImpl>::TYPE_INFO);
                 }
             }
         }

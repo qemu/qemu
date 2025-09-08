@@ -13,6 +13,7 @@ _libpl011_rs = static_library(
     migration_rs,
     bql_rs,
     qemu_api_macros,
+    qom_rs,
   ],
 )
 

@@ -27,10 +27,9 @@ use qemu_api::{
     },
     prelude::*,
     qdev::{DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
-    qom::{ObjectImpl, ObjectType, ParentField, ParentInit},
-    qom_isa,
     sysbus::{SysBusDevice, SysBusDeviceImpl},
 };
+use qom::{prelude::*, ObjectImpl, ParentField, ParentInit};
 use util::timer::{Timer, CLOCK_VIRTUAL, NANOSECONDS_PER_SECOND};
 
 use crate::fw_cfg::HPETFwConfig;

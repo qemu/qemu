@@ -28,6 +28,7 @@ subdir('bits')
 subdir('util')
 subdir('migration')
 subdir('bql')
+subdir('qom')
 subdir('qemu-api')
 
 subdir('hw')

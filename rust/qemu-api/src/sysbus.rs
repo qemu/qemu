@@ -8,14 +8,13 @@ use std::{ffi::CStr, ptr::addr_of_mut};
 
 pub use bindings::SysBusDeviceClass;
 use common::Opaque;
+use qom::{prelude::*, Owned};
 
 use crate::{
     bindings,
     irq::{IRQState, InterruptSource},
     memory::MemoryRegion,
-    prelude::*,
     qdev::{DeviceImpl, DeviceState},
-    qom::Owned,
 };
 
 /// A safe wrapper around [`bindings::SysBusDevice`].
@@ -31,6 +30,7 @@ unsafe impl ObjectType for SysBusDevice {
     const TYPE_NAME: &'static CStr =
         unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_SYS_BUS_DEVICE) };
 }
+
 qom_isa!(SysBusDevice: DeviceState, Object);
 
 // TODO: add virtual methods

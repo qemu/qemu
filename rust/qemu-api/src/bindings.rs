@@ -22,6 +22,7 @@
 
 use common::Zeroable;
 use migration::bindings::VMStateDescription;
+use qom::bindings::ObjectClass;
 use util::bindings::Error;
 
 #[cfg(MESON)]
