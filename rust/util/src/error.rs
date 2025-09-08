@@ -19,7 +19,7 @@
 //!
 //! This module is most commonly used at the boundary between C and Rust code;
 //! other code will usually access it through the
-//! [`qemu_api::Result`](crate::Result) type alias, and will use the
+//! [`utils::Result`](crate::Result) type alias, and will use the
 //! [`std::error::Error`] interface to let C errors participate in Rust's error
 //! handling functionality.
 //!
@@ -30,7 +30,7 @@
 //! type up to C code, or from a combination of the two.
 //!
 //! The third case, corresponding to [`Error::with_error`], is the only one that
-//! requires mentioning [`qemu_api::Error`](crate::Error) explicitly.  Similar
+//! requires mentioning [`utils::Error`](crate::Error) explicitly.  Similar
 //! to how QEMU's C code handles errno values, the string and the
 //! `anyhow::Error` object will be concatenated with `:` as the separator.
 
@@ -320,7 +320,6 @@ mod tests {
     use foreign::OwnedPointer;
 
     use super::*;
-    use crate::bindings;
 
     #[track_caller]
     fn error_for_test(msg: &CStr) -> OwnedPointer<Error> {

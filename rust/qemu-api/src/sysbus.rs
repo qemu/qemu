@@ -114,7 +114,7 @@ where
         unsafe {
             bindings::sysbus_realize(
                 self.upcast().as_mut_ptr(),
-                addr_of_mut!(bindings::error_fatal),
+                addr_of_mut!(util::bindings::error_fatal),
             );
         }
     }

@@ -6,6 +6,7 @@ _libhpet_rs = static_library(
   dependencies: [
     common_rs,
     qemu_api_rs,
+    util_rs,
     qemu_api_macros,
   ],
 )

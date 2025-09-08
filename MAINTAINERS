@@ -3519,6 +3519,7 @@ F: rust/common/
 F: rust/qemu-api
 F: rust/qemu-api-macros
 F: rust/rustfmt.toml
+F: rust/util/
 F: scripts/get-wraps-from-cargo-registry.py
 
 Rust-related patches CC here

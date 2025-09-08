@@ -25,6 +25,7 @@ genrs = []
 subdir('common')
 subdir('qemu-api-macros')
 subdir('bits')
+subdir('util')
 subdir('qemu-api')
 
 subdir('hw')

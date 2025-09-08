@@ -1,12 +1,11 @@
 [package]
-name = "qemu_api"
+name = "util"
 version = "0.1.0"
-authors = ["Manos Pitsidianakis <manos.pitsidianakis@linaro.org>"]
-description = "Rust bindings for QEMU"
-readme = "README.md"
+description = "Rust bindings for QEMU/util"
 resolver = "2"
 publish = false
 
+authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
 license.workspace = true
@@ -14,13 +13,11 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+anyhow = { workspace = true }
+foreign = { workspace = true }
+libc = { workspace = true }
 common = { path = "../common" }
-util = { path = "../util" }
 qemu_api_macros = { path = "../qemu-api-macros" }
-
-[features]
-default = ["debug_cell"]
-debug_cell = []
 
 [lints]
 workspace = true

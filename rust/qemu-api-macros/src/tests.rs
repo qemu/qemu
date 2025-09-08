@@ -170,7 +170,7 @@ fn test_derive_object() {
                 _unused,
                 ::qemu_api::qom::ParentField<<Foo as ::qemu_api::qom::ObjectImpl>::ParentType>
             );
-            ::qemu_api::module_init! {
+            ::util::module_init! {
                 MODULE_INIT_QOM => unsafe {
                     ::qemu_api::bindings::type_register_static(&<Foo as ::qemu_api::qom::ObjectImpl>::TYPE_INFO);
                 }

@@ -14,10 +14,8 @@ c_enums = [
   'MigrationPolicy',
   'MigrationPriority',
   'QEMUChrEvent',
-  'QEMUClockType',
   'ResetType',
   'device_endian',
-  'module_init_type',
 ]
 _qemu_api_bindgen_args = []
 foreach enum : c_enums
@@ -31,6 +29,7 @@ foreach enum : c_bitfields
   _qemu_api_bindgen_args += ['--bitfield-enum', enum]
 endforeach
 
+_qemu_api_bindgen_args += ['--blocklist-type', 'Error']
 # TODO: Remove this comment when the clang/libclang mismatch issue is solved.
 #
 # Rust bindings generation with `bindgen` might fail in some cases where the
@@ -55,16 +54,12 @@ _qemu_api_rs = static_library(
       'src/bindings.rs',
       'src/cell.rs',
       'src/chardev.rs',
-      'src/error.rs',
       'src/irq.rs',
-      'src/log.rs',
       'src/memory.rs',
-      'src/module.rs',
       'src/prelude.rs',
       'src/qdev.rs',
       'src/qom.rs',
       'src/sysbus.rs',
-      'src/timer.rs',
       'src/vmstate.rs',
     ],
     {'.' : _qemu_api_bindings_inc_rs},
@@ -72,12 +67,9 @@ _qemu_api_rs = static_library(
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   rust_args: _qemu_api_cfg,
-  dependencies: [anyhow_rs, common_rs, foreign_rs, libc_rs, qemu_api_macros, qemuutil_rs,
+  dependencies: [anyhow_rs, common_rs, foreign_rs, libc_rs, qemu_api_macros, util_rs,
                  qom, hwcore, chardev, migration],
 )
-
-rust.test('rust-qemu-api-tests', _qemu_api_rs,
-          suite: ['unit', 'rust'])
 
 qemu_api_rs = declare_dependency(link_with: [_qemu_api_rs],
   dependencies: [qemu_api_macros, qom, hwcore, chardev, migration])
@@ -98,7 +90,7 @@ test('rust-qemu-api-integration',
         override_options: ['rust_std=2021', 'build.rust_std=2021'],
         rust_args: ['--test'],
         install: false,
-        dependencies: [common_rs, qemu_api_rs]),
+        dependencies: [common_rs, util_rs, qemu_api_rs]),
     args: [
         '--test', '--test-threads', '1',
         '--format', 'pretty',

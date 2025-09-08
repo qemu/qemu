@@ -21,6 +21,7 @@
 //! `bindgen`-generated declarations.
 
 use common::Zeroable;
+use util::bindings::Error;
 
 #[cfg(MESON)]
 include!("bindings.inc.rs");

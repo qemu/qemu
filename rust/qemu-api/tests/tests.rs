@@ -5,7 +5,6 @@
 use std::{ffi::CStr, ptr::addr_of};
 
 use qemu_api::{
-    bindings::{module_call_init, module_init_type},
     cell::{self, BqlCell},
     prelude::*,
     qdev::{DeviceImpl, DeviceState, ResettablePhasesImpl},
@@ -13,6 +12,7 @@ use qemu_api::{
     sysbus::SysBusDevice,
     vmstate::{VMStateDescription, VMStateDescriptionBuilder},
 };
+use util::bindings::{module_call_init, module_init_type};
 
 mod vmstate_tests;
 

@@ -100,7 +100,7 @@ fn derive_object_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
         ::common::assert_field_type!(#name, #parent,
             ::qemu_api::qom::ParentField<<#name as ::qemu_api::qom::ObjectImpl>::ParentType>);
 
-        ::qemu_api::module_init! {
+        ::util::module_init! {
             MODULE_INIT_QOM => unsafe {
                 ::qemu_api::bindings::type_register_static(&<#name as ::qemu_api::qom::ObjectImpl>::TYPE_INFO);
             }

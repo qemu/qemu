@@ -36,7 +36,7 @@ macro_rules! module_init {
 
     // shortcut because it's quite common that $body needs unsafe {}
     ($type:ident => unsafe $body:block) => {
-        $crate::module_init! {
+        ::util::module_init! {
             $type => { unsafe { $body } }
         }
     };

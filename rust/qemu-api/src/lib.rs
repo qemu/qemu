@@ -15,19 +15,13 @@ pub mod prelude;
 
 pub mod cell;
 pub mod chardev;
-pub mod error;
 pub mod irq;
-pub mod log;
 pub mod memory;
-pub mod module;
 pub mod qdev;
 pub mod qom;
 pub mod sysbus;
-pub mod timer;
 pub mod vmstate;
 
 // Allow proc-macros to refer to `::qemu_api` inside the `qemu_api` crate (this
 // crate).
 extern crate self as qemu_api;
-
-pub use error::{Error, Result};

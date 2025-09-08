@@ -49,7 +49,7 @@ impl LogGuard {
     /// # Examples
     ///
     /// ```
-    /// # use qemu_api::log::LogGuard;
+    /// # use util::log::LogGuard;
     /// # use std::io::Write;
     /// if let Some(mut log) = LogGuard::new() {
     ///     writeln!(log, "test");
@@ -116,7 +116,7 @@ impl Drop for LogGuard {
 /// # Example
 ///
 /// ```
-/// use qemu_api::{log::Log, log_mask_ln};
+/// use util::{log::Log, log_mask_ln};
 ///
 /// let error_address = 0xbad;
 /// log_mask_ln!(Log::GuestError, "Address 0x{error_address:x} out of range");
@@ -126,7 +126,7 @@ impl Drop for LogGuard {
 /// trailing `,`:
 ///
 /// ```
-/// use qemu_api::{log::Log, log_mask_ln};
+/// use util::{log::Log, log_mask_ln};
 ///
 /// let error_address = 0xbad;
 /// log_mask_ln!(
@@ -139,12 +139,12 @@ impl Drop for LogGuard {
 macro_rules! log_mask_ln {
     ($mask:expr, $fmt:tt $($args:tt)*) => {{
         // Type assertion to enforce type `Log` for $mask
-        let _: Log = $mask;
+        let _: $crate::log::Log = $mask;
 
         if unsafe {
-            (::qemu_api::bindings::qemu_loglevel & ($mask as std::os::raw::c_int)) != 0
+            ($crate::bindings::qemu_loglevel & ($mask as std::os::raw::c_int)) != 0
         } {
-            _ = ::qemu_api::log::LogGuard::log_fmt(
+            _ = $crate::log::LogGuard::log_fmt(
                 format_args!("{}\n", format_args!($fmt $($args)*)));
         }
     }};
