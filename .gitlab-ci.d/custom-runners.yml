@@ -26,7 +26,7 @@
       - build/build.ninja
       - build/meson-logs
     reports:
-      junit: build/meson-logs/testlog.junit.xml
+      junit: build/meson-logs/*.junit.xml
 
 include:
   - local: '/.gitlab-ci.d/custom-runners/ubuntu-22.04-s390x.yml'

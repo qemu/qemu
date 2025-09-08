@@ -90,7 +90,7 @@
     paths:
       - build/meson-logs
     reports:
-      junit: build/meson-logs/testlog.junit.xml
+      junit: build/meson-logs/*.junit.xml
 
 .functional_test_job_template:
   extends: .common_test_job_template
@@ -107,7 +107,7 @@
       - build/meson-logs
       - build/tests/functional/*/*/*.log
     reports:
-      junit: build/meson-logs/testlog.junit.xml
+      junit: build/meson-logs/*.junit.xml
   before_script:
     - export QEMU_TEST_ALLOW_UNTRUSTED_CODE=1
     - export QEMU_TEST_CACHE_DIR=${CI_PROJECT_DIR}/functional-cache
