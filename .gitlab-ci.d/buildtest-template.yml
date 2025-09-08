@@ -83,6 +83,10 @@
 
 .native_test_job_template:
   extends: .common_test_job_template
+  before_script:
+    # Prevent logs from the build job that run earlier
+    # from being duplicated in the test job artifacts
+    - rm -f build/meson-logs/*
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     when: always
@@ -111,6 +115,9 @@
   before_script:
     - export QEMU_TEST_ALLOW_UNTRUSTED_CODE=1
     - export QEMU_TEST_CACHE_DIR=${CI_PROJECT_DIR}/functional-cache
+    # Prevent logs from the build job that run earlier
+    # from being duplicated in the test job artifacts
+    - rm -f build/meson-logs/*
   after_script:
     - cd build
     - du -chs ${CI_PROJECT_DIR}/*-cache
