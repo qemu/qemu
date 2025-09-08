@@ -42,6 +42,7 @@
 #include "xen-emu.h"
 #include "hyperv.h"
 #include "hyperv-proto.h"
+#include "migration/migration.h"
 
 #include "gdbstub/enums.h"
 #include "qemu/host-utils.h"
@@ -438,6 +439,7 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
     uint32_t ret = 0;
     uint32_t cpuid_1_edx, unused;
     uint64_t bitmask;
+    MigrationState *ms = migrate_get_current();
 
     cpuid = get_supported_cpuid(s);
 
@@ -508,7 +510,8 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
          * mcahines at all, do not show the fake ARCH_CAPABILITIES MSR that
          * KVM sets up.
          */
-        if (!has_msr_arch_capabs || !(edx & CPUID_7_0_EDX_ARCH_CAPABILITIES)) {
+        if (!has_msr_arch_capabs
+            || (!(edx & CPUID_7_0_EDX_ARCH_CAPABILITIES) && (!ms->arch_cap_always_on))) {
             ret &= ~CPUID_7_0_EDX_ARCH_CAPABILITIES;
         }
     } else if (function == 7 && index == 1 && reg == R_EAX) {

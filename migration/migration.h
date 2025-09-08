@@ -510,6 +510,18 @@ struct MigrationState {
     bool rdma_migration;
 
     GSource *hup_source;
+
+    /*
+     * This variable allows to keep the backward compatibility with QEMU (<10.1)
+     * on the arch-capabilities detection.
+     * With the commit d3a2413 (since 10.1), the arch-capabilities feature is gated
+     * with the CPUID bit (CPUID_7_0_EDX_ARCH_CAPABILITIES) instead of being always
+     * enabled when user requests for it. this new behavior breaks migration of VMs
+     * created and run with older QEMU on machines without IA32_ARCH_CAPABILITIES MSR,
+     * those VMs might have arch-capabilities enabled and break when migrating
+     * to a host with QEMU 10.1 with error : missing feature arch-capabilities
+     */
+    bool arch_cap_always_on:
 };
 
 void migrate_set_state(MigrationStatus *state, MigrationStatus old_state,

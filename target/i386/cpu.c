@@ -7538,7 +7538,6 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w)
         }
 #endif
         break;
-
     default:
         break;
     }
