@@ -21,7 +21,6 @@ libc = { workspace = true }
 
 [features]
 default = ["debug_cell"]
-allocator = []
 debug_cell = []
 
 [lints]
