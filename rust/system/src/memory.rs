@@ -136,11 +136,6 @@ unsafe impl Send for MemoryRegion {}
 unsafe impl Sync for MemoryRegion {}
 
 impl MemoryRegion {
-    // inline to ensure that it is not included in tests, which only
-    // link to hwcore and qom.  FIXME: inlining is actually the opposite
-    // of what we want, since this is the type-erased version of the
-    // init_io function below.  Look into splitting the qemu_api crate.
-    #[inline(always)]
     unsafe fn do_init_io(
         slot: *mut bindings::MemoryRegion,
         owner: *mut bindings::Object,
