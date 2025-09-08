@@ -205,6 +205,10 @@ class QemuBaseTest(unittest.TestCase):
         self.outputdir = self.build_file('tests', 'functional',
                                          self.arch, self.id())
         self.workdir = os.path.join(self.outputdir, 'scratch')
+        if os.path.exists(self.workdir):
+            # Purge as safety net in case of unclean termination of
+            # previous test, or use of QEMU_TEST_KEEP_SCRATCH
+            shutil.rmtree(self.workdir)
         os.makedirs(self.workdir, exist_ok=True)
 
         self.log_filename = self.log_file('base.log')
