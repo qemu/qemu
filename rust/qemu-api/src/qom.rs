@@ -307,7 +307,7 @@ impl<T: ObjectType> ParentInit<'_, T> {
     /// Fields beyond `Object` could be uninitialized and it's your
     /// responsibility to avoid that they're used when the pointer is
     /// dereferenced, either directly or through a cast.
-    pub fn as_object_mut_ptr(&self) -> *mut bindings::Object {
+    pub const fn as_object_mut_ptr(&self) -> *mut bindings::Object {
         self.as_object_ptr().cast_mut()
     }
 
@@ -318,7 +318,7 @@ impl<T: ObjectType> ParentInit<'_, T> {
     /// Fields beyond `Object` could be uninitialized and it's your
     /// responsibility to avoid that they're used when the pointer is
     /// dereferenced, either directly or through a cast.
-    pub fn as_object_ptr(&self) -> *const bindings::Object {
+    pub const fn as_object_ptr(&self) -> *const bindings::Object {
         self.0.as_ptr().cast()
     }
 }
@@ -336,7 +336,7 @@ impl<'a, T: ObjectImpl> ParentInit<'a, T> {
     /// However, while the fields of the resulting reference are initialized,
     /// calls might use uninitialized fields of the subclass.  It is your
     /// responsibility to avoid this.
-    pub unsafe fn upcast<U: ObjectType>(&self) -> &'a U
+    pub const unsafe fn upcast<U: ObjectType>(&self) -> &'a U
     where
         T::ParentType: IsA<U>,
     {

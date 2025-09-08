@@ -81,8 +81,8 @@ macro_rules! assert_field_type {
     (@internal $param_name:ident, $ti:ty, $t:ty, $($field:tt)*) => {
         const _: () = {
             #[allow(unused)]
-            fn assert_field_type($param_name: &$t) {
-                fn types_must_be_equal<T, U>(_: &T)
+            const fn assert_field_type($param_name: &$t) {
+                const fn types_must_be_equal<T, U>(_: &T)
                 where
                     T: $crate::assertions::EqType<Itself = U>,
                 {

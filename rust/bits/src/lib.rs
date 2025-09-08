@@ -165,19 +165,19 @@ macro_rules! bits {
 
             #[allow(dead_code)]
             #[inline(always)]
-            pub fn set(&mut self, rhs: Self) {
+            pub const fn set(&mut self, rhs: Self) {
                 self.0 |= rhs.0;
             }
 
             #[allow(dead_code)]
             #[inline(always)]
-            pub fn clear(&mut self, rhs: Self) {
+            pub const fn clear(&mut self, rhs: Self) {
                 self.0 &= !rhs.0;
             }
 
             #[allow(dead_code)]
             #[inline(always)]
-            pub fn toggle(&mut self, rhs: Self) {
+            pub const fn toggle(&mut self, rhs: Self) {
                 self.0 ^= rhs.0;
             }
 

@@ -12,7 +12,7 @@ pub struct MaybeUninitField<'a, T, U> {
 
 impl<'a, T, U> MaybeUninitField<'a, T, U> {
     #[doc(hidden)]
-    pub fn new(parent: &'a mut MaybeUninit<T>, child: *mut U) -> Self {
+    pub const fn new(parent: &'a mut MaybeUninit<T>, child: *mut U) -> Self {
         MaybeUninitField { parent, child }
     }
 
@@ -21,7 +21,7 @@ impl<'a, T, U> MaybeUninitField<'a, T, U> {
     /// Because the `MaybeUninitField` remembers the containing object,
     /// it is possible to use it in foreign APIs that initialize the
     /// child.
-    pub fn parent(f: &Self) -> *const T {
+    pub const fn parent(f: &Self) -> *const T {
         f.parent.as_ptr()
     }
 
@@ -30,7 +30,7 @@ impl<'a, T, U> MaybeUninitField<'a, T, U> {
     /// Because the `MaybeUninitField` remembers the containing object,
     /// it is possible to use it in foreign APIs that initialize the
     /// child.
-    pub fn parent_mut(f: &mut Self) -> *mut T {
+    pub const fn parent_mut(f: &mut Self) -> *mut T {
         f.parent.as_mut_ptr()
     }
 }

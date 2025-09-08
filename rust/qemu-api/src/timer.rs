@@ -39,7 +39,7 @@ impl Timer {
     ///
     /// The timer must be initialized before it is armed with
     /// [`modify`](Self::modify).
-    pub unsafe fn new() -> Self {
+    pub const unsafe fn new() -> Self {
         // SAFETY: requirements relayed to callers of Timer::new
         Self(unsafe { Opaque::zeroed() })
     }

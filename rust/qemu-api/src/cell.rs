@@ -980,8 +980,7 @@ impl<T> Opaque<T> {
     /// but the functions containing the dereference are usually safe.  The
     /// value returned from `uninit()` must be initialized and pinned before
     /// calling them.
-    #[allow(clippy::missing_const_for_fn)]
-    pub unsafe fn uninit() -> Self {
+    pub const unsafe fn uninit() -> Self {
         Self {
             value: UnsafeCell::new(MaybeUninit::uninit()),
             _pin: PhantomPinned,
@@ -997,8 +996,7 @@ impl<T> Opaque<T> {
     /// but the functions containing the dereference are usually safe.  The
     /// value returned from `uninit()` must be pinned (and possibly initialized)
     /// before calling them.
-    #[allow(clippy::missing_const_for_fn)]
-    pub unsafe fn zeroed() -> Self {
+    pub const unsafe fn zeroed() -> Self {
         Self {
             value: UnsafeCell::new(MaybeUninit::zeroed()),
             _pin: PhantomPinned,
