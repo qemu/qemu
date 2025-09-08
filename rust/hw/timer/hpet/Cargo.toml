@@ -13,6 +13,7 @@ rust-version.workspace = true
 [dependencies]
 common = { path = "../../../common" }
 util = { path = "../../../util" }
+migration = { path = "../../../migration" }
 qemu_api = { path = "../../../qemu-api" }
 qemu_api_macros = { path = "../../../qemu-api-macros" }
 

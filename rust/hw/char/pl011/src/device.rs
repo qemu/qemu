@@ -5,17 +5,18 @@
 use std::{ffi::CStr, mem::size_of};
 
 use common::{static_assert, uninit_field_mut};
+use migration::{
+    self, impl_vmstate_forward, impl_vmstate_struct, vmstate_fields, vmstate_of,
+    vmstate_subsections, vmstate_unused, VMStateDescription, VMStateDescriptionBuilder,
+};
 use qemu_api::{
     chardev::{CharBackend, Chardev, Event},
-    impl_vmstate_forward, impl_vmstate_struct,
     irq::{IRQState, InterruptSource},
     memory::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder},
     prelude::*,
     qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, ResetType, ResettablePhasesImpl},
     qom::{ObjectImpl, Owned, ParentField, ParentInit},
     sysbus::{SysBusDevice, SysBusDeviceImpl},
-    vmstate::{self, VMStateDescription, VMStateDescriptionBuilder},
-    vmstate_fields, vmstate_of, vmstate_subsections, vmstate_unused,
 };
 use util::{log::Log, log_mask_ln};
 
@@ -458,10 +459,10 @@ impl PL011Registers {
         false
     }
 
-    pub fn post_load(&mut self) -> Result<(), vmstate::InvalidError> {
+    pub fn post_load(&mut self) -> Result<(), migration::InvalidError> {
         /* Sanity-check input state */
         if self.read_pos >= self.read_fifo.len() || self.read_count > self.read_fifo.len() {
-            return Err(vmstate::InvalidError);
+            return Err(migration::InvalidError);
         }
 
         if !self.fifo_enabled() && self.read_count > 0 && self.read_pos > 0 {
@@ -640,7 +641,7 @@ impl PL011State {
         }
     }
 
-    pub fn post_load(&self, _version_id: u8) -> Result<(), vmstate::InvalidError> {
+    pub fn post_load(&self, _version_id: u8) -> Result<(), migration::InvalidError> {
         self.regs.borrow_mut().post_load()
     }
 }

@@ -11,13 +11,16 @@ use std::{
 };
 
 use common::{bitops::IntegerExt, uninit_field_mut};
+use migration::{
+    self, impl_vmstate_struct, vmstate_fields, vmstate_of, vmstate_subsections, vmstate_validate,
+    VMStateDescription, VMStateDescriptionBuilder,
+};
 use qemu_api::{
     bindings::{
         address_space_memory, address_space_stl_le, qdev_prop_bit, qdev_prop_bool,
         qdev_prop_uint32, qdev_prop_usize,
     },
     cell::{BqlCell, BqlRefCell},
-    impl_vmstate_struct,
     irq::InterruptSource,
     memory::{
         hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder, MEMTXATTRS_UNSPECIFIED,
@@ -27,8 +30,6 @@ use qemu_api::{
     qom::{ObjectImpl, ObjectType, ParentField, ParentInit},
     qom_isa,
     sysbus::{SysBusDevice, SysBusDeviceImpl},
-    vmstate::{self, VMStateDescription, VMStateDescriptionBuilder},
-    vmstate_fields, vmstate_of, vmstate_subsections, vmstate_validate,
 };
 use util::timer::{Timer, CLOCK_VIRTUAL, NANOSECONDS_PER_SECOND};
 
@@ -845,7 +846,7 @@ impl HPETState {
         }
     }
 
-    fn pre_save(&self) -> Result<(), vmstate::Infallible> {
+    fn pre_save(&self) -> Result<(), migration::Infallible> {
         if self.is_hpet_enabled() {
             self.counter.set(self.get_ticks());
         }
@@ -859,7 +860,7 @@ impl HPETState {
         Ok(())
     }
 
-    fn post_load(&self, _version_id: u8) -> Result<(), vmstate::Infallible> {
+    fn post_load(&self, _version_id: u8) -> Result<(), migration::Infallible> {
         for timer in self.timers.iter().take(self.num_timers) {
             let mut t = timer.borrow_mut();
 

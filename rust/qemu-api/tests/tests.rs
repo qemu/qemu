@@ -4,13 +4,13 @@
 
 use std::{ffi::CStr, ptr::addr_of};
 
+use migration::{VMStateDescription, VMStateDescriptionBuilder};
 use qemu_api::{
     cell::{self, BqlCell},
     prelude::*,
     qdev::{DeviceImpl, DeviceState, ResettablePhasesImpl},
     qom::{ObjectImpl, ParentField},
     sysbus::SysBusDevice,
-    vmstate::{VMStateDescription, VMStateDescriptionBuilder},
 };
 use util::bindings::{module_call_init, module_init_type};
 

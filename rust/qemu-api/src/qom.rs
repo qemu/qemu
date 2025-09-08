@@ -103,6 +103,7 @@ use std::{
 
 pub use bindings::ObjectClass;
 use common::Opaque;
+use migration::impl_vmstate_pointer;
 
 use crate::{
     bindings::{
@@ -110,7 +111,6 @@ use crate::{
         object_get_typename, object_new, object_ref, object_unref, TypeInfo,
     },
     cell::bql_locked,
-    impl_vmstate_pointer,
 };
 
 /// A safe wrapper around [`bindings::Object`].

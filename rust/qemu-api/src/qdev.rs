@@ -11,17 +11,16 @@ use std::{
 
 pub use bindings::{ClockEvent, DeviceClass, Property, ResetType};
 use common::{callbacks::FnCall, Opaque};
+use migration::{impl_vmstate_c_struct, VMStateDescription};
 use util::{Error, Result};
 
 use crate::{
     bindings::{self, qdev_init_gpio_in, qdev_init_gpio_out, ResettableClass},
     cell::bql_locked,
     chardev::Chardev,
-    impl_vmstate_c_struct,
     irq::InterruptSource,
     prelude::*,
     qom::{ObjectClass, ObjectImpl, Owned, ParentInit},
-    vmstate::VMStateDescription,
 };
 
 /// A safe wrapper around [`bindings::Clock`].

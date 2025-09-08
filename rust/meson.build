@@ -26,6 +26,7 @@ subdir('common')
 subdir('qemu-api-macros')
 subdir('bits')
 subdir('util')
+subdir('migration')
 subdir('qemu-api')
 
 subdir('hw')

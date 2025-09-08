@@ -20,7 +20,6 @@ pub mod memory;
 pub mod qdev;
 pub mod qom;
 pub mod sysbus;
-pub mod vmstate;
 
 // Allow proc-macros to refer to `::qemu_api` inside the `qemu_api` crate (this
 // crate).

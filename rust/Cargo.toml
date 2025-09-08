@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "bits",
     "common",
+    "migration",
     "qemu-api-macros",
     "qemu-api",
     "hw/char/pl011",

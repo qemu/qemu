@@ -1,12 +1,11 @@
 [package]
-name = "qemu_api"
+name = "migration"
 version = "0.1.0"
-authors = ["Manos Pitsidianakis <manos.pitsidianakis@linaro.org>"]
-description = "Rust bindings for QEMU"
-readme = "README.md"
+description = "Rust bindings for QEMU/migration"
 resolver = "2"
 publish = false
 
+authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
 license.workspace = true
@@ -15,13 +14,8 @@ rust-version.workspace = true
 
 [dependencies]
 common = { path = "../common" }
-migration = { path = "../migration" }
 util = { path = "../util" }
 qemu_api_macros = { path = "../qemu-api-macros" }
-
-[features]
-default = ["debug_cell"]
-debug_cell = []
 
 [lints]
 workspace = true

@@ -21,6 +21,7 @@
 //! `bindgen`-generated declarations.
 
 use common::Zeroable;
+use migration::bindings::VMStateDescription;
 use util::bindings::Error;
 
 #[cfg(MESON)]
@@ -51,28 +52,8 @@ unsafe impl Sync for Property {}
 unsafe impl Send for TypeInfo {}
 unsafe impl Sync for TypeInfo {}
 
-unsafe impl Send for VMStateDescription {}
-unsafe impl Sync for VMStateDescription {}
-
-unsafe impl Send for VMStateField {}
-unsafe impl Sync for VMStateField {}
-
-unsafe impl Send for VMStateInfo {}
-unsafe impl Sync for VMStateInfo {}
-
-// bindgen does not derive Default here
-#[allow(clippy::derivable_impls)]
-impl Default for crate::bindings::VMStateFlags {
-    fn default() -> Self {
-        Self(0)
-    }
-}
-
 unsafe impl Zeroable for crate::bindings::Property__bindgen_ty_1 {}
 unsafe impl Zeroable for crate::bindings::Property {}
-unsafe impl Zeroable for crate::bindings::VMStateFlags {}
-unsafe impl Zeroable for crate::bindings::VMStateField {}
-unsafe impl Zeroable for crate::bindings::VMStateDescription {}
 unsafe impl Zeroable for crate::bindings::MemoryRegionOps__bindgen_ty_1 {}
 unsafe impl Zeroable for crate::bindings::MemoryRegionOps__bindgen_ty_2 {}
 unsafe impl Zeroable for crate::bindings::MemoryRegionOps {}

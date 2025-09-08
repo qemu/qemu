@@ -11,8 +11,6 @@ c_enums = [
   'GpioPolarity',
   'MachineInitPhase',
   'MemoryDeviceInfoKind',
-  'MigrationPolicy',
-  'MigrationPriority',
   'QEMUChrEvent',
   'ResetType',
   'device_endian',
@@ -23,11 +21,12 @@ foreach enum : c_enums
 endforeach
 c_bitfields = [
   'ClockEvent',
-  'VMStateFlags',
 ]
 foreach enum : c_bitfields
   _qemu_api_bindgen_args += ['--bitfield-enum', enum]
 endforeach
+
+_qemu_api_bindgen_args += ['--blocklist-type', 'VMStateDescription']
 
 _qemu_api_bindgen_args += ['--blocklist-type', 'Error']
 # TODO: Remove this comment when the clang/libclang mismatch issue is solved.
@@ -60,15 +59,14 @@ _qemu_api_rs = static_library(
       'src/qdev.rs',
       'src/qom.rs',
       'src/sysbus.rs',
-      'src/vmstate.rs',
     ],
     {'.' : _qemu_api_bindings_inc_rs},
   ),
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   rust_args: _qemu_api_cfg,
-  dependencies: [anyhow_rs, common_rs, foreign_rs, libc_rs, qemu_api_macros, util_rs,
-                 qom, hwcore, chardev, migration],
+  dependencies: [anyhow_rs, common_rs, foreign_rs, libc_rs, migration_rs, qemu_api_macros,
+                 util_rs, qom, hwcore, chardev],
 )
 
 qemu_api_rs = declare_dependency(link_with: [_qemu_api_rs],
@@ -90,7 +88,7 @@ test('rust-qemu-api-integration',
         override_options: ['rust_std=2021', 'build.rust_std=2021'],
         rust_args: ['--test'],
         install: false,
-        dependencies: [common_rs, util_rs, qemu_api_rs]),
+        dependencies: [common_rs, util_rs, migration_rs, qemu_api_rs]),
     args: [
         '--test', '--test-threads', '1',
         '--format', 'pretty',

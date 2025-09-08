@@ -71,6 +71,7 @@ name = "hpet"
 version = "0.1.0"
 dependencies = [
  "common",
+ "migration",
  "qemu_api",
  "qemu_api_macros",
  "util",
@@ -92,6 +93,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "18d287de67fe55fd7e1581fe933d965a5a9477b38e949cfa9f8574ef01506398"
 
 [[package]]
+name = "migration"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "qemu_api_macros",
+ "util",
+]
+
+[[package]]
 name = "pl011"
 version = "0.1.0"
 dependencies = [
@@ -99,6 +109,7 @@ dependencies = [
  "bilge-impl",
  "bits",
  "common",
+ "migration",
  "qemu_api",
  "qemu_api_macros",
  "util",
@@ -141,6 +152,7 @@ name = "qemu_api"
 version = "0.1.0"
 dependencies = [
  "common",
+ "migration",
  "qemu_api_macros",
  "util",
 ]

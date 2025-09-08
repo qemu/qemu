@@ -152,7 +152,9 @@ use std::{
     ptr::NonNull,
 };
 
-use crate::{bindings, impl_vmstate_transparent};
+use migration::impl_vmstate_transparent;
+
+use crate::bindings;
 
 /// An internal function that is used by doctests.
 pub fn bql_start_test() {
