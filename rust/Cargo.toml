@@ -13,7 +13,7 @@ edition = "2021"
 homepage = "https://www.qemu.org"
 license = "GPL-2.0-or-later"
 repository = "https://gitlab.com/qemu-project/qemu/"
-rust-version = "1.77.0"
+rust-version = "1.83.0"
 
 [workspace.dependencies]
 anyhow = "~1.0"
