@@ -221,7 +221,7 @@ use std::{
     ptr::NonNull,
 };
 
-use crate::bindings;
+use crate::{bindings, impl_vmstate_transparent};
 
 /// An internal function that is used by doctests.
 pub fn bql_start_test() {
@@ -455,6 +455,8 @@ impl<T: Default> BqlCell<T> {
         self.replace(Default::default())
     }
 }
+
+impl_vmstate_transparent!(crate::cell::BqlCell<T> where T: VMState);
 
 /// A mutable memory location with dynamically checked borrow rules,
 /// protected by the Big QEMU Lock.
@@ -763,6 +765,8 @@ impl<T> From<T> for BqlRefCell<T> {
         BqlRefCell::new(t)
     }
 }
+
+impl_vmstate_transparent!(crate::cell::BqlRefCell<T> where T: VMState);
 
 struct BorrowRef<'b> {
     borrow: &'b Cell<BorrowFlag>,
