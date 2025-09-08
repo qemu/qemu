@@ -130,7 +130,7 @@ pub struct PL011State {
 // structs, so the size of the Rust version must not be any larger
 // than the size of the C one. If this assert triggers you need to
 // expand the padding_for_rust[] array in the C PL011State struct.
-static_assert!(size_of::<PL011State>() <= size_of::<qemu_api::bindings::PL011State>());
+static_assert!(size_of::<PL011State>() <= size_of::<crate::bindings::PL011State>());
 
 qom_isa!(PL011State : SysBusDevice, DeviceState, Object);
 
