@@ -151,11 +151,8 @@ unsafe impl QDevProp for crate::chardev::CharBackend {
 /// Caller is responsible for the validity of properties array.
 pub unsafe trait DevicePropertiesImpl {
     /// An array providing the properties that the user can set on the
-    /// device.  Not a `const` because referencing statics in constants
-    /// is unstable until Rust 1.83.0.
-    fn properties() -> &'static [Property] {
-        &[]
-    }
+    /// device.
+    const PROPERTIES: &'static [Property] = &[];
 }
 
 /// Trait providing the contents of [`DeviceClass`].
@@ -173,9 +170,7 @@ pub trait DeviceImpl:
     /// A `VMStateDescription` providing the migration format for the device
     /// Not a `const` because referencing statics in constants is unstable
     /// until Rust 1.83.0.
-    fn vmsd() -> Option<VMStateDescription<Self>> {
-        None
-    }
+    const VMSTATE: Option<VMStateDescription<Self>> = None;
 }
 
 /// # Safety
@@ -224,12 +219,10 @@ impl DeviceClass {
         if <T as DeviceImpl>::REALIZE.is_some() {
             self.realize = Some(rust_realize_fn::<T>);
         }
-        if let Some(vmsd) = <T as DeviceImpl>::vmsd() {
-            // Give a 'static lifetime to the return value of vmsd().
-            // Temporary until vmsd() can be changed into a const.
-            self.vmsd = Box::leak(Box::new(vmsd.get()));
+        if let Some(ref vmsd) = <T as DeviceImpl>::VMSTATE {
+            self.vmsd = vmsd.as_ref();
         }
-        let prop = <T as DevicePropertiesImpl>::properties();
+        let prop = <T as DevicePropertiesImpl>::PROPERTIES;
         if !prop.is_empty() {
             unsafe {
                 bindings::device_class_set_props_n(self, prop.as_ptr(), prop.len());

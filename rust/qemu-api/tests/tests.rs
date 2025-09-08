@@ -56,9 +56,7 @@ impl ObjectImpl for DummyState {
 impl ResettablePhasesImpl for DummyState {}
 
 impl DeviceImpl for DummyState {
-    fn vmsd() -> Option<VMStateDescription<Self>> {
-        Some(VMSTATE)
-    }
+    const VMSTATE: Option<VMStateDescription<Self>> = Some(VMSTATE);
 }
 
 #[repr(C)]

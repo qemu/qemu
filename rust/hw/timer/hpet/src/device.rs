@@ -1008,16 +1008,11 @@ const VMSTATE_HPET: VMStateDescription<HPETState> =
 // SAFETY: HPET_PROPERTIES is a valid Property array constructed with the
 // qemu_api::declare_properties macro.
 unsafe impl qemu_api::qdev::DevicePropertiesImpl for HPETState {
-    fn properties() -> &'static [Property] {
-        &HPET_PROPERTIES
-    }
+    const PROPERTIES: &'static [Property] = &HPET_PROPERTIES;
 }
 
 impl DeviceImpl for HPETState {
-    fn vmsd() -> Option<VMStateDescription<Self>> {
-        Some(VMSTATE_HPET)
-    }
-
+    const VMSTATE: Option<VMStateDescription<Self>> = Some(VMSTATE_HPET);
     const REALIZE: Option<fn(&Self) -> qemu_api::Result<()>> = Some(Self::realize);
 }
 

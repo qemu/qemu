@@ -289,11 +289,9 @@ fn derive_device_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
 
     Ok(quote_spanned! {input.span() =>
         unsafe impl ::qemu_api::qdev::DevicePropertiesImpl for #name {
-            fn properties() -> &'static [::qemu_api::bindings::Property] {
-                static PROPERTIES: &[::qemu_api::bindings::Property] = &[#(#properties_expanded),*];
-
-                PROPERTIES
-            }
+            const PROPERTIES: &'static [::qemu_api::bindings::Property] = &[
+                #(#properties_expanded),*
+            ];
         }
     })
 }

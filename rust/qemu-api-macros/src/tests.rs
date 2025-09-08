@@ -101,18 +101,16 @@ fn test_derive_device() {
         },
         quote! {
             unsafe impl ::qemu_api::qdev::DevicePropertiesImpl for DummyState {
-                fn properties() -> &'static [::qemu_api::bindings::Property] {
-                    static PROPERTIES: &[::qemu_api::bindings::Property] =
-                        &[::qemu_api::bindings::Property {
-                            name: ::std::ffi::CStr::as_ptr(c"migrate_clock"),
-                            info: <bool as ::qemu_api::qdev::QDevProp>::VALUE,
-                            offset: ::core::mem::offset_of!(DummyState, migrate_clock) as isize,
-                            set_default: true,
-                            defval: ::qemu_api::bindings::Property__bindgen_ty_1 { u: true as u64 },
-                            ..::qemu_api::zeroable::Zeroable::ZERO
-                        }];
-                    PROPERTIES
-                }
+                const PROPERTIES: &'static [::qemu_api::bindings::Property] = &[
+                    ::qemu_api::bindings::Property {
+                        name: ::std::ffi::CStr::as_ptr(c"migrate_clock"),
+                        info: <bool as ::qemu_api::qdev::QDevProp>::VALUE,
+                        offset: ::core::mem::offset_of!(DummyState, migrate_clock) as isize,
+                        set_default: true,
+                        defval: ::qemu_api::bindings::Property__bindgen_ty_1 { u: true as u64 },
+                        ..::qemu_api::zeroable::Zeroable::ZERO
+                    }
+                ];
             }
         }
     );
@@ -130,18 +128,16 @@ fn test_derive_device() {
         },
         quote! {
             unsafe impl ::qemu_api::qdev::DevicePropertiesImpl for DummyState {
-                fn properties() -> &'static [::qemu_api::bindings::Property] {
-                    static PROPERTIES: &[::qemu_api::bindings::Property] =
-                        &[::qemu_api::bindings::Property {
-                            name: ::std::ffi::CStr::as_ptr(c"migrate-clk"),
-                            info: <bool as ::qemu_api::qdev::QDevProp>::VALUE,
-                            offset: ::core::mem::offset_of!(DummyState, migrate_clock) as isize,
-                            set_default: true,
-                            defval: ::qemu_api::bindings::Property__bindgen_ty_1 { u: true as u64 },
-                            ..::qemu_api::zeroable::Zeroable::ZERO
-                        }];
-                    PROPERTIES
-                }
+                const PROPERTIES: &'static [::qemu_api::bindings::Property] = &[
+                    ::qemu_api::bindings::Property {
+                        name: ::std::ffi::CStr::as_ptr(c"migrate-clk"),
+                        info: <bool as ::qemu_api::qdev::QDevProp>::VALUE,
+                        offset: ::core::mem::offset_of!(DummyState, migrate_clock) as isize,
+                        set_default: true,
+                        defval: ::qemu_api::bindings::Property__bindgen_ty_1 { u: true as u64 },
+                        ..::qemu_api::zeroable::Zeroable::ZERO
+                    }
+                ];
             }
         }
     );

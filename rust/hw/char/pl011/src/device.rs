@@ -172,9 +172,7 @@ impl ObjectImpl for PL011State {
 }
 
 impl DeviceImpl for PL011State {
-    fn vmsd() -> Option<VMStateDescription<Self>> {
-        Some(VMSTATE_PL011)
-    }
+    const VMSTATE: Option<VMStateDescription<Self>> = Some(VMSTATE_PL011);
     const REALIZE: Option<fn(&Self) -> qemu_api::Result<()>> = Some(Self::realize);
 }
 
