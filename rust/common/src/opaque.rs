@@ -192,7 +192,7 @@ impl<T: Default> Opaque<T> {
 
 /// Annotates [`Self`] as a transparent wrapper for another type.
 ///
-/// Usually defined via the [`qemu_macros::Wrapper`] derive macro.
+/// Usually defined via the [`crate::Wrapper`] derive macro.
 ///
 /// # Examples
 ///
@@ -227,8 +227,6 @@ impl<T: Default> Opaque<T> {
 /// ```
 ///
 /// They are not defined here to allow them to be `const`.
-///
-/// [`qemu_macros::Wrapper`]: ../../qemu_macros/derive.Wrapper.html
 pub unsafe trait Wrapper {
     type Wrapped;
 }

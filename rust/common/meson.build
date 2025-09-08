@@ -19,7 +19,7 @@ _common_rs = static_library(
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   rust_args: _common_cfg,
-  dependencies: [libc_rs],
+  dependencies: [libc_rs, qemu_macros],
 )
 
 common_rs = declare_dependency(link_with: [_common_rs])

@@ -35,7 +35,6 @@ _libpl011_rs = static_library(
     util_rs,
     migration_rs,
     bql_rs,
-    qemu_macros,
     qom_rs,
     chardev_rs,
     system_rs,

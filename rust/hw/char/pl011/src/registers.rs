@@ -16,7 +16,7 @@ use migration::{impl_vmstate_bitsized, impl_vmstate_forward};
 #[doc(alias = "offset")]
 #[allow(non_camel_case_types)]
 #[repr(u64)]
-#[derive(Debug, Eq, PartialEq, qemu_macros::TryInto)]
+#[derive(Debug, Eq, PartialEq, common::TryInto)]
 pub enum RegisterOffset {
     /// Data Register
     ///

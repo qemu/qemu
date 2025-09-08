@@ -129,7 +129,7 @@ impl<T> Default for MemoryRegionOpsBuilder<T> {
 
 /// A safe wrapper around [`bindings::MemoryRegion`].
 #[repr(transparent)]
-#[derive(qemu_macros::Wrapper)]
+#[derive(common::Wrapper)]
 pub struct MemoryRegion(Opaque<bindings::MemoryRegion>);
 
 unsafe impl Send for MemoryRegion {}

@@ -58,7 +58,6 @@ dependencies = [
  "bql",
  "common",
  "migration",
- "qemu_macros",
  "qom",
  "util",
 ]
@@ -68,6 +67,7 @@ name = "common"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "qemu_macros",
 ]
 
 [[package]]
@@ -93,7 +93,6 @@ dependencies = [
  "common",
  "hwcore",
  "migration",
- "qemu_macros",
  "qom",
  "system",
  "util",
@@ -133,7 +132,6 @@ name = "migration"
 version = "0.1.0"
 dependencies = [
  "common",
- "qemu_macros",
  "util",
 ]
 
@@ -149,7 +147,6 @@ dependencies = [
  "common",
  "hwcore",
  "migration",
- "qemu_macros",
  "qom",
  "system",
  "util",
@@ -232,7 +229,6 @@ name = "system"
 version = "0.1.0"
 dependencies = [
  "common",
- "qemu_macros",
  "qom",
  "util",
 ]
@@ -246,7 +242,6 @@ dependencies = [
  "common",
  "hwcore",
  "migration",
- "qemu_macros",
  "qom",
  "system",
  "util",
@@ -266,7 +261,6 @@ dependencies = [
  "common",
  "foreign",
  "libc",
- "qemu_macros",
 ]
 
 [[package]]

@@ -39,4 +39,4 @@ _system_rs = static_library(
 )
 
 system_rs = declare_dependency(link_with: [_system_rs],
-  dependencies: [qemu_macros, hwcore])
+  dependencies: [hwcore])

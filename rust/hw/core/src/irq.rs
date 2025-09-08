@@ -18,7 +18,7 @@ use crate::bindings::{self, qemu_set_irq};
 
 /// An opaque wrapper around [`bindings::IRQState`].
 #[repr(transparent)]
-#[derive(Debug, qemu_macros::Wrapper)]
+#[derive(Debug, common::Wrapper)]
 pub struct IRQState(Opaque<bindings::IRQState>);
 
 /// Interrupt sources are used by devices to pass changes to a value (typically

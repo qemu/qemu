@@ -13,6 +13,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+qemu_macros = { path = "../../qemu-macros" }
 common = { path = "../../common" }
 bql = { path = "../../bql" }
 qom = { path = "../../qom" }
@@ -20,7 +21,6 @@ chardev = { path = "../../chardev" }
 migration = { path = "../../migration" }
 system = { path = "../../system" }
 util = { path = "../../util" }
-qemu_macros = { path = "../../qemu-macros" }
 
 [lints]
 workspace = true

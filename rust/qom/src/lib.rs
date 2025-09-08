@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+pub use qemu_macros::Object;
+
 pub mod bindings;
 
 // preserve one-item-per-"use" syntax, it is clearer

@@ -17,7 +17,6 @@ anyhow = { workspace = true }
 foreign = { workspace = true }
 libc = { workspace = true }
 common = { path = "../common" }
-qemu_macros = { path = "../qemu-macros" }
 
 [lints]
 workspace = true

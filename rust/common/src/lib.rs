@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+pub use qemu_macros::{TryInto, Wrapper};
+
 pub mod assertions;
 
 pub mod bitops;

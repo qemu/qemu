@@ -20,8 +20,9 @@ proc_macro2_rs_native = dependency('proc-macro2-1-rs', native: true)
 
 genrs = []
 
-subdir('common')
 subdir('qemu-macros')
+
+subdir('common')
 subdir('bits')
 subdir('util')
 subdir('migration')
