@@ -1,5 +1,5 @@
-_qemu_api_macros_rs = rust.proc_macro(
-  'qemu_api_macros',
+_qemu_macros_rs = rust.proc_macro(
+  'qemu_macros',
   files('src/lib.rs'),
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_args: [
@@ -14,9 +14,9 @@ _qemu_api_macros_rs = rust.proc_macro(
   ],
 )
 
-qemu_api_macros = declare_dependency(
-  link_with: _qemu_api_macros_rs,
+qemu_macros = declare_dependency(
+  link_with: _qemu_macros_rs,
 )
 
-rust.test('rust-qemu-api-macros-tests', _qemu_api_macros_rs,
+rust.test('rust-qemu-macros-tests', _qemu_macros_rs,
           suite: ['unit', 'rust'])

@@ -25,7 +25,7 @@ chardev = { path = "../../../chardev" }
 system = { path = "../../../system" }
 hwcore = { path = "../../../hw/core" }
 qemu_api = { path = "../../../qemu-api" }
-qemu_api_macros = { path = "../../../qemu-api-macros" }
+qemu_macros = { path = "../../../qemu-macros" }
 
 [lints]
 workspace = true

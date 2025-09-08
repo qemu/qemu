@@ -41,7 +41,7 @@ dependencies = [
 name = "bits"
 version = "0.1.0"
 dependencies = [
- "qemu_api_macros",
+ "qemu_macros",
 ]
 
 [[package]]
@@ -58,7 +58,7 @@ dependencies = [
  "bql",
  "common",
  "migration",
- "qemu_api_macros",
+ "qemu_macros",
  "qom",
  "util",
 ]
@@ -94,7 +94,7 @@ dependencies = [
  "hwcore",
  "migration",
  "qemu_api",
- "qemu_api_macros",
+ "qemu_macros",
  "qom",
  "system",
  "util",
@@ -108,7 +108,7 @@ dependencies = [
  "chardev",
  "common",
  "migration",
- "qemu_api_macros",
+ "qemu_macros",
  "qom",
  "system",
  "util",
@@ -134,7 +134,7 @@ name = "migration"
 version = "0.1.0"
 dependencies = [
  "common",
- "qemu_api_macros",
+ "qemu_macros",
  "util",
 ]
 
@@ -151,7 +151,7 @@ dependencies = [
  "hwcore",
  "migration",
  "qemu_api",
- "qemu_api_macros",
+ "qemu_macros",
  "qom",
  "system",
  "util",
@@ -198,14 +198,14 @@ dependencies = [
  "common",
  "hwcore",
  "migration",
- "qemu_api_macros",
+ "qemu_macros",
  "qom",
  "system",
  "util",
 ]
 
 [[package]]
-name = "qemu_api_macros"
+name = "qemu_macros"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
@@ -220,7 +220,7 @@ dependencies = [
  "bql",
  "common",
  "migration",
- "qemu_api_macros",
+ "qemu_macros",
  "util",
 ]
 
@@ -249,7 +249,7 @@ name = "system"
 version = "0.1.0"
 dependencies = [
  "common",
- "qemu_api_macros",
+ "qemu_macros",
  "qom",
  "util",
 ]
@@ -268,7 +268,7 @@ dependencies = [
  "common",
  "foreign",
  "libc",
- "qemu_api_macros",
+ "qemu_macros",
 ]
 
 [[package]]

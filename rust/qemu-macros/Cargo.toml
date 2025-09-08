@@ -1,5 +1,5 @@
 [package]
-name = "qemu_api_macros"
+name = "qemu_macros"
 version = "0.1.0"
 authors = ["Manos Pitsidianakis <manos.pitsidianakis@linaro.org>"]
 description = "Rust bindings for QEMU - Utility macros"

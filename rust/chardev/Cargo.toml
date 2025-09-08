@@ -18,7 +18,7 @@ bql = { path = "../bql" }
 migration = { path = "../migration" }
 qom = { path = "../qom" }
 util = { path = "../util" }
-qemu_api_macros = { path = "../qemu-api-macros" }
+qemu_macros = { path = "../qemu-macros" }
 
 [lints]
 workspace = true

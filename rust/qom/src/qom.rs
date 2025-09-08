@@ -112,7 +112,7 @@ pub use crate::bindings::{type_register_static, ObjectClass};
 
 /// A safe wrapper around [`bindings::Object`].
 #[repr(transparent)]
-#[derive(Debug, qemu_api_macros::Wrapper)]
+#[derive(Debug, qemu_macros::Wrapper)]
 pub struct Object(Opaque<bindings::Object>);
 
 unsafe impl Send for Object {}
@@ -173,7 +173,7 @@ macro_rules! qom_isa {
 ///
 /// ```ignore
 /// #[repr(C)]
-/// #[derive(qemu_api_macros::Object)]
+/// #[derive(qemu_macros::Object)]
 /// pub struct MyDevice {
 ///     parent: ParentField<DeviceState>,
 ///     ...

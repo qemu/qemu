@@ -3,7 +3,7 @@ _bits_rs = static_library(
   'src/lib.rs',
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
-  dependencies: [qemu_api_macros],
+  dependencies: [qemu_macros],
 )
 
 bits_rs = declare_dependency(link_with: _bits_rs)

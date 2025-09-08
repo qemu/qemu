@@ -20,9 +20,9 @@ hwcore = { path = "../hw/core" }
 migration = { path = "../migration" }
 util = { path = "../util" }
 bql = { path = "../bql" }
+qemu_macros = { path = "../qemu-macros" }
 qom = { path = "../qom" }
 system = { path = "../system" }
-qemu_api_macros = { path = "../qemu-api-macros" }
 
 [lints]
 workspace = true

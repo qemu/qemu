@@ -58,7 +58,7 @@ _hwcore_rs = static_library(
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   link_with: [_bql_rs, _chardev_rs, _migration_rs, _qom_rs, _system_rs, _util_rs],
-  dependencies: [qemu_api_macros, common_rs],
+  dependencies: [qemu_macros, common_rs],
 )
 
 hwcore_rs = declare_dependency(link_with: [_hwcore_rs],
@@ -71,7 +71,7 @@ test('rust-hwcore-rs-integration',
         override_options: ['rust_std=2021', 'build.rust_std=2021'],
         rust_args: ['--test'],
         install: false,
-        dependencies: [common_rs, hwcore_rs, bql_rs, migration_rs, qemu_api_macros, util_rs]),
+        dependencies: [common_rs, hwcore_rs, bql_rs, migration_rs, qemu_macros, util_rs]),
     args: [
         '--test', '--test-threads', '1',
         '--format', 'pretty',

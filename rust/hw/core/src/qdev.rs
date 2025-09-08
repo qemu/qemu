@@ -23,7 +23,7 @@ use crate::{
 
 /// A safe wrapper around [`bindings::Clock`].
 #[repr(transparent)]
-#[derive(Debug, qemu_api_macros::Wrapper)]
+#[derive(Debug, qemu_macros::Wrapper)]
 pub struct Clock(Opaque<bindings::Clock>);
 
 unsafe impl Send for Clock {}
@@ -31,7 +31,7 @@ unsafe impl Sync for Clock {}
 
 /// A safe wrapper around [`bindings::DeviceState`].
 #[repr(transparent)]
-#[derive(Debug, qemu_api_macros::Wrapper)]
+#[derive(Debug, qemu_macros::Wrapper)]
 pub struct DeviceState(Opaque<bindings::DeviceState>);
 
 unsafe impl Send for DeviceState {}
@@ -101,7 +101,7 @@ unsafe extern "C" fn rust_resettable_exit_fn<T: ResettablePhasesImpl>(
 
 /// Helper trait to return pointer to a [`bindings::PropertyInfo`] for a type.
 ///
-/// This trait is used by [`qemu_api_macros::Device`] derive macro.
+/// This trait is used by [`qemu_macros::Device`] derive macro.
 ///
 /// Base types that already have `qdev_prop_*` globals in the QEMU API should
 /// use those values as exported by the [`bindings`] module, instead of

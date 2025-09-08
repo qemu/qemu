@@ -380,11 +380,11 @@ macro_rules! bits {
     };
 
     { $type:ty: $expr:expr } => {
-        ::qemu_api_macros::bits_const_internal! { $type @ ($expr) }
+        ::qemu_macros::bits_const_internal! { $type @ ($expr) }
     };
 
     { $type:ty as $int_type:ty: $expr:expr } => {
-        (::qemu_api_macros::bits_const_internal! { $type @ ($expr) }.into_bits()) as $int_type
+        (::qemu_macros::bits_const_internal! { $type @ ($expr) }.into_bits()) as $int_type
     };
 }
 

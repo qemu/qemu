@@ -3521,7 +3521,7 @@ F: rust/common/
 F: rust/hw/core/
 F: rust/migration/
 F: rust/qemu-api
-F: rust/qemu-api-macros
+F: rust/qemu-macros/
 F: rust/qom/
 F: rust/rustfmt.toml
 F: rust/system/

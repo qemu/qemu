@@ -15,7 +15,7 @@ rust-version.workspace = true
 [dependencies]
 common = { path = "../common" }
 util = { path = "../util" }
-qemu_api_macros = { path = "../qemu-api-macros" }
+qemu_macros = { path = "../qemu-macros" }
 
 [lints]
 workspace = true

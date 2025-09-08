@@ -20,7 +20,7 @@ chardev = { path = "../../chardev" }
 migration = { path = "../../migration" }
 system = { path = "../../system" }
 util = { path = "../../util" }
-qemu_api_macros = { path = "../../qemu-api-macros" }
+qemu_macros = { path = "../../qemu-macros" }
 
 [lints]
 workspace = true

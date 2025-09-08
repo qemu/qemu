@@ -35,8 +35,8 @@ _system_rs = static_library(
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   link_with: [_bql_rs, _migration_rs, _qom_rs, _util_rs],
-  dependencies: [common_rs, qemu_api_macros],
+  dependencies: [common_rs, qemu_macros],
 )
 
 system_rs = declare_dependency(link_with: [_system_rs],
-  dependencies: [qemu_api_macros, hwcore])
+  dependencies: [qemu_macros, hwcore])

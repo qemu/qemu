@@ -23,7 +23,7 @@ qemuutil_rs = qemuutil.partial_dependency(link_args: true, links: true)
 genrs = []
 
 subdir('common')
-subdir('qemu-api-macros')
+subdir('qemu-macros')
 subdir('bits')
 subdir('util')
 subdir('migration')

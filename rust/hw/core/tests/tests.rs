@@ -17,7 +17,7 @@ pub const VMSTATE: VMStateDescription<DummyState> = VMStateDescriptionBuilder::<
     .build();
 
 #[repr(C)]
-#[derive(qemu_api_macros::Object, qemu_api_macros::Device)]
+#[derive(qemu_macros::Object, qemu_macros::Device)]
 pub struct DummyState {
     parent: ParentField<DeviceState>,
     #[property(rename = "migrate-clk", default = true)]
@@ -54,7 +54,7 @@ impl DeviceImpl for DummyState {
 }
 
 #[repr(C)]
-#[derive(qemu_api_macros::Object, qemu_api_macros::Device)]
+#[derive(qemu_macros::Object, qemu_macros::Device)]
 pub struct DummyChildState {
     parent: ParentField<DummyState>,
 }

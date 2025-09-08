@@ -5,7 +5,7 @@ members = [
     "bql",
     "common",
     "migration",
-    "qemu-api-macros",
+    "qemu-macros",
     "qemu-api",
     "qom",
     "system",

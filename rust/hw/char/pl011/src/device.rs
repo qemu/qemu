@@ -97,7 +97,7 @@ pub struct PL011Registers {
 }
 
 #[repr(C)]
-#[derive(qemu_api_macros::Object, qemu_api_macros::Device)]
+#[derive(qemu_macros::Object, qemu_macros::Device)]
 /// PL011 Device Model in QEMU
 pub struct PL011State {
     pub parent_obj: ParentField<SysBusDevice>,
@@ -683,7 +683,7 @@ pub unsafe extern "C" fn pl011_create(
 }
 
 #[repr(C)]
-#[derive(qemu_api_macros::Object, qemu_api_macros::Device)]
+#[derive(qemu_macros::Object, qemu_macros::Device)]
 /// PL011 Luminary device model.
 pub struct PL011Luminary {
     parent_obj: ParentField<PL011State>,
