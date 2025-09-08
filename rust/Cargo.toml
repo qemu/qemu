@@ -13,6 +13,7 @@ edition = "2021"
 homepage = "https://www.qemu.org"
 license = "GPL-2.0-or-later"
 repository = "https://gitlab.com/qemu-project/qemu/"
+# don't forget to update docs/devel/rust.rst msrv
 rust-version = "1.83.0"
 
 [workspace.dependencies]

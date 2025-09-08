@@ -1,4 +1,4 @@
-.. |msrv| replace:: 1.63.0
+.. |msrv| replace:: 1.83.0
 
 Rust in QEMU
 ============
