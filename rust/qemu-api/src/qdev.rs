@@ -17,6 +17,7 @@ use crate::{
     cell::{bql_locked, Opaque},
     chardev::Chardev,
     error::{Error, Result},
+    impl_vmstate_c_struct,
     irq::InterruptSource,
     prelude::*,
     qom::{ObjectClass, ObjectImpl, Owned, ParentInit},
@@ -455,3 +456,5 @@ unsafe impl ObjectType for Clock {
         unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_CLOCK) };
 }
 qom_isa!(Clock: Object);
+
+impl_vmstate_c_struct!(Clock, bindings::vmstate_clock);

@@ -41,7 +41,6 @@ use crate::{
     callbacks::FnCall,
     errno::{into_neg_errno, Errno},
     prelude::*,
-    qdev,
     qom::Owned,
     zeroable::Zeroable,
 };
@@ -318,20 +317,19 @@ impl_vmstate_scalar!(vmstate_info_uint32, u32, VMS_VARRAY_UINT32);
 impl_vmstate_scalar!(vmstate_info_uint64, u64);
 impl_vmstate_scalar!(vmstate_info_timer, crate::timer::Timer);
 
+#[macro_export]
 macro_rules! impl_vmstate_c_struct {
     ($type:ty, $vmsd:expr) => {
         unsafe impl VMState for $type {
-            const BASE: VMStateField = $crate::bindings::VMStateField {
-                vmsd: addr_of!($vmsd),
-                size: mem::size_of::<$type>(),
-                flags: VMStateFlags::VMS_STRUCT,
-                ..Zeroable::ZERO
+            const BASE: $crate::bindings::VMStateField = $crate::bindings::VMStateField {
+                vmsd: ::std::ptr::addr_of!($vmsd),
+                size: ::std::mem::size_of::<$type>(),
+                flags: $crate::bindings::VMStateFlags::VMS_STRUCT,
+                ..$crate::zeroable::Zeroable::ZERO
             };
         }
     };
 }
-
-impl_vmstate_c_struct!(qdev::Clock, bindings::vmstate_clock);
 
 // Pointer types using the underlying type's VMState plus VMS_POINTER
 // Note that references are not supported, though references to cells
