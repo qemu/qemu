@@ -95,10 +95,6 @@ macro_rules! assert_field_type {
     ($t:ty, $i:tt, $ti:ty) => {
         $crate::assert_field_type!(@internal v, $ti, $t, v.$i);
     };
-
-    ($t:ty, $i:tt, $ti:ty, num = $num:ident) => {
-        $crate::assert_field_type!(@internal v, $ti, $t, v.$i[0]);
-    };
 }
 
 /// Assert that an expression matches a pattern.  This can also be

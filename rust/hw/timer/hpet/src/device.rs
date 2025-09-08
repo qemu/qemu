@@ -16,6 +16,7 @@ use qemu_api::{
         qdev_prop_uint32, qdev_prop_usize,
     },
     cell::{BqlCell, BqlRefCell},
+    impl_vmstate_struct,
     irq::InterruptSource,
     memory::{
         hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder, MEMTXATTRS_UNSPECIFIED,
@@ -28,7 +29,7 @@ use qemu_api::{
     timer::{Timer, CLOCK_VIRTUAL, NANOSECONDS_PER_SECOND},
     uninit_field_mut,
     vmstate::{self, VMStateDescription, VMStateDescriptionBuilder},
-    vmstate_fields, vmstate_of, vmstate_struct, vmstate_subsections, vmstate_validate,
+    vmstate_fields, vmstate_of, vmstate_subsections, vmstate_validate,
 };
 
 use crate::fw_cfg::HPETFwConfig;
@@ -964,7 +965,7 @@ static VMSTATE_HPET_OFFSET: VMStateDescription<HPETState> =
         })
         .build();
 
-static VMSTATE_HPET_TIMER: VMStateDescription<HPETTimer> =
+const VMSTATE_HPET_TIMER: VMStateDescription<HPETTimer> =
     VMStateDescriptionBuilder::<HPETTimer>::new()
         .name(c"hpet_timer")
         .version_id(1)
@@ -979,6 +980,7 @@ static VMSTATE_HPET_TIMER: VMStateDescription<HPETTimer> =
             vmstate_of!(HPETTimer, qemu_timer),
         })
         .build();
+impl_vmstate_struct!(HPETTimer, VMSTATE_HPET_TIMER);
 
 const VALIDATE_TIMERS_NAME: &CStr = c"num_timers must match";
 
@@ -995,7 +997,7 @@ const VMSTATE_HPET: VMStateDescription<HPETState> =
             vmstate_of!(HPETState, counter),
             vmstate_of!(HPETState, num_timers_save),
             vmstate_validate!(HPETState, VALIDATE_TIMERS_NAME, HPETState::validate_num_timers),
-            vmstate_struct!(HPETState, timers[0 .. num_timers_save], &VMSTATE_HPET_TIMER, BqlRefCell<HPETTimer>, HPETState::validate_num_timers).with_version_id(0),
+            vmstate_of!(HPETState, timers[0 .. num_timers_save], HPETState::validate_num_timers).with_version_id(0),
         })
         .subsections(vmstate_subsections!(
             VMSTATE_HPET_RTC_IRQ_LEVEL,

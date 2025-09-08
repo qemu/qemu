@@ -15,9 +15,9 @@ use qemu_api::{
         vmstate_info_uint64, vmstate_info_uint8, vmstate_info_unused_buffer, VMStateFlags,
     },
     cell::{BqlCell, Opaque},
-    impl_vmstate_forward,
+    impl_vmstate_forward, impl_vmstate_struct,
     vmstate::{VMStateDescription, VMStateDescriptionBuilder, VMStateField},
-    vmstate_fields, vmstate_of, vmstate_struct, vmstate_unused, vmstate_validate,
+    vmstate_fields, vmstate_of, vmstate_unused, vmstate_validate,
 };
 
 const FOO_ARRAY_MAX: usize = 3;
@@ -51,6 +51,8 @@ static VMSTATE_FOOA: VMStateDescription<FooA> = VMStateDescriptionBuilder::<FooA
         vmstate_of!(FooA, arr_mul[0 .. num_mul * 16]),
     })
     .build();
+
+impl_vmstate_struct!(FooA, VMSTATE_FOOA);
 
 #[test]
 fn test_vmstate_uint16() {
@@ -173,20 +175,19 @@ fn validate_foob(_state: &FooB, _version_id: u8) -> bool {
     true
 }
 
-static VMSTATE_FOOB: VMStateDescription<FooB> =
-    VMStateDescriptionBuilder::<FooB>::new()
-        .name(c"foo_b")
-        .version_id(2)
-        .minimum_version_id(1)
-        .fields(vmstate_fields! {
-            vmstate_of!(FooB, val).with_version_id(2),
-            vmstate_of!(FooB, wrap),
-            vmstate_struct!(FooB, arr_a[0 .. num_a], &VMSTATE_FOOA, FooA).with_version_id(1),
-            vmstate_struct!(FooB, arr_a_mul[0 .. num_a_mul * 32], &VMSTATE_FOOA, FooA).with_version_id(2),
-            vmstate_of!(FooB, arr_i64),
-            vmstate_struct!(FooB, arr_a_wrap[0 .. num_a_wrap], &VMSTATE_FOOA, FooA, validate_foob),
-        })
-        .build();
+static VMSTATE_FOOB: VMStateDescription<FooB> = VMStateDescriptionBuilder::<FooB>::new()
+    .name(c"foo_b")
+    .version_id(2)
+    .minimum_version_id(1)
+    .fields(vmstate_fields! {
+        vmstate_of!(FooB, val).with_version_id(2),
+        vmstate_of!(FooB, wrap),
+        vmstate_of!(FooB, arr_a[0 .. num_a]).with_version_id(1),
+        vmstate_of!(FooB, arr_a_mul[0 .. num_a_mul * 32]).with_version_id(2),
+        vmstate_of!(FooB, arr_i64),
+        vmstate_of!(FooB, arr_a_wrap[0 .. num_a_wrap], validate_foob),
+    })
+    .build();
 
 #[test]
 fn test_vmstate_bool_v() {
@@ -351,9 +352,7 @@ static VMSTATE_FOOC: VMStateDescription<FooC> = VMStateDescriptionBuilder::<FooC
     .minimum_version_id(1)
     .fields(vmstate_fields! {
         vmstate_of!(FooC, ptr).with_version_id(2),
-        // FIXME: Currently vmstate_struct doesn't support the pointer to structure.
-        // VMSTATE_STRUCT_POINTER: vmstate_struct!(FooC, ptr_a, VMSTATE_FOOA, NonNull<FooA>)
-        vmstate_unused!(size_of::<NonNull<FooA>>()),
+        vmstate_of!(FooC, ptr_a),
         vmstate_of!(FooC, arr_ptr),
         vmstate_of!(FooC, arr_ptr_wrap),
     })
@@ -383,6 +382,31 @@ fn test_vmstate_pointer() {
     );
     assert!(foo_fields[0].vmsd.is_null());
     assert!(foo_fields[0].field_exists.is_none());
+}
+
+#[test]
+fn test_vmstate_struct_pointer() {
+    let foo_fields: &[VMStateField] =
+        unsafe { slice::from_raw_parts(VMSTATE_FOOC.as_ref().fields, 6) };
+
+    // 2st VMStateField ("ptr_a") in VMSTATE_FOOC (corresponding to
+    // VMSTATE_STRUCT_POINTER)
+    assert_eq!(
+        unsafe { CStr::from_ptr(foo_fields[1].name) }.to_bytes_with_nul(),
+        b"ptr_a\0"
+    );
+    assert_eq!(foo_fields[1].offset, PTR_SIZE);
+    assert_eq!(foo_fields[1].num_offset, 0);
+    assert_eq!(foo_fields[1].vmsd, VMSTATE_FOOA.as_ref());
+    assert_eq!(foo_fields[1].version_id, 0);
+    assert_eq!(foo_fields[1].size, size_of::<FooA>());
+    assert_eq!(foo_fields[1].num, 0);
+    assert_eq!(
+        foo_fields[1].flags.0,
+        VMStateFlags::VMS_STRUCT.0 | VMStateFlags::VMS_POINTER.0
+    );
+    assert!(foo_fields[1].info.is_null());
+    assert!(foo_fields[1].field_exists.is_none());
 }
 
 #[test]
@@ -444,8 +468,7 @@ fn test_vmstate_macro_array_of_pointer_wrapped() {
 //   * VMSTATE_FOOD:
 //     - VMSTATE_VALIDATE
 
-// Add more member fields when vmstate_of/vmstate_struct support "test"
-// parameter.
+// Add more member fields when vmstate_of support "test" parameter.
 struct FooD;
 
 impl FooD {

@@ -84,11 +84,6 @@ patches are welcome:
 
 * ``&raw`` (stable in 1.82.0).
 
-* referencing statics in constants (stable in 1.83.0).  For now use a const
-  function; this is an important limitation for QEMU's migration stream
-  architecture (VMState).  Right now, VMState lacks type safety because
-  it is hard to place the ``VMStateField`` definitions in traits.
-
 * NUL-terminated file names with ``#[track_caller]`` are scheduled for
   inclusion as ``#![feature(location_file_nul)]``, but it will be a while
   before QEMU can use them.  For now, there is special code in

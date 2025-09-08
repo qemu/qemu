@@ -2,14 +2,11 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::{
-    ffi::CStr,
-    mem::size_of
-};
+use std::{ffi::CStr, mem::size_of};
 
 use qemu_api::{
     chardev::{CharBackend, Chardev, Event},
-    impl_vmstate_forward,
+    impl_vmstate_forward, impl_vmstate_struct,
     irq::{IRQState, InterruptSource},
     log::Log,
     log_mask_ln,
@@ -21,7 +18,7 @@ use qemu_api::{
     sysbus::{SysBusDevice, SysBusDeviceImpl},
     uninit_field_mut,
     vmstate::{self, VMStateDescription, VMStateDescriptionBuilder},
-    vmstate_clock, vmstate_fields, vmstate_of, vmstate_struct, vmstate_subsections, vmstate_unused,
+    vmstate_fields, vmstate_of, vmstate_subsections, vmstate_unused,
 };
 
 use crate::registers::{self, Interrupt, RegisterOffset};
@@ -725,11 +722,12 @@ static VMSTATE_PL011_CLOCK: VMStateDescription<PL011State> =
         .minimum_version_id(1)
         .needed(&PL011State::clock_needed)
         .fields(vmstate_fields! {
-             vmstate_clock!(PL011State, clock),
+             vmstate_of!(PL011State, clock),
         })
         .build();
 
-static VMSTATE_PL011_REGS: VMStateDescription<PL011Registers> =
+impl_vmstate_struct!(
+    PL011Registers,
     VMStateDescriptionBuilder::<PL011Registers>::new()
         .name(c"pl011/regs")
         .version_id(2)
@@ -751,7 +749,8 @@ static VMSTATE_PL011_REGS: VMStateDescription<PL011Registers> =
             vmstate_of!(PL011Registers, read_count),
             vmstate_of!(PL011Registers, read_trigger),
         })
-        .build();
+        .build()
+);
 
 pub const VMSTATE_PL011: VMStateDescription<PL011State> =
     VMStateDescriptionBuilder::<PL011State>::new()
@@ -761,7 +760,7 @@ pub const VMSTATE_PL011: VMStateDescription<PL011State> =
         .post_load(&PL011State::post_load)
         .fields(vmstate_fields! {
             vmstate_unused!(core::mem::size_of::<u32>()),
-            vmstate_struct!(PL011State, regs, &VMSTATE_PL011_REGS, BqlRefCell<PL011Registers>),
+            vmstate_of!(PL011State, regs),
         })
         .subsections(vmstate_subsections! {
              VMSTATE_PL011_CLOCK

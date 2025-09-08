@@ -11,10 +11,11 @@
 //!   migration format for a struct.  This is based on the [`VMState`] trait,
 //!   which is defined by all migratable types.
 //!
-//! * [`impl_vmstate_forward`](crate::impl_vmstate_forward) and
-//!   [`impl_vmstate_bitsized`](crate::impl_vmstate_bitsized), which help with
-//!   the definition of the [`VMState`] trait (respectively for transparent
-//!   structs and for `bilge`-defined types)
+//! * [`impl_vmstate_forward`](crate::impl_vmstate_forward),
+//!   [`impl_vmstate_bitsized`](crate::impl_vmstate_bitsized), and
+//!   [`impl_vmstate_struct`](crate::impl_vmstate_struct), which help with the
+//!   definition of the [`VMState`] trait (respectively for transparent structs,
+//!   nested structs and `bilge`-defined types)
 //!
 //! * helper macros to declare a device model state struct, in particular
 //!   [`vmstate_subsections`](crate::vmstate_subsections) and
@@ -31,7 +32,7 @@ use std::{
     fmt, io,
     marker::PhantomData,
     mem,
-    ptr::NonNull,
+    ptr::{addr_of, NonNull},
 };
 
 pub use crate::bindings::{MigrationPriority, VMStateField};
@@ -40,6 +41,7 @@ use crate::{
     callbacks::FnCall,
     errno::{into_neg_errno, Errno},
     prelude::*,
+    qdev,
     qom::Owned,
     zeroable::Zeroable,
 };
@@ -81,70 +83,6 @@ macro_rules! call_func_with_field {
     };
 }
 
-/// Workaround for lack of `const_refs_static`: references to global variables
-/// can be included in a `static`, but not in a `const`; unfortunately, this
-/// is exactly what would go in the `VMStateField`'s `info` member.
-///
-/// This enum contains the contents of the `VMStateField`'s `info` member,
-/// but as an `enum` instead of a pointer.
-#[allow(non_camel_case_types)]
-pub enum VMStateFieldType {
-    null,
-    vmstate_info_bool,
-    vmstate_info_int8,
-    vmstate_info_int16,
-    vmstate_info_int32,
-    vmstate_info_int64,
-    vmstate_info_uint8,
-    vmstate_info_uint16,
-    vmstate_info_uint32,
-    vmstate_info_uint64,
-    vmstate_info_timer,
-}
-
-/// Workaround for lack of `const_refs_static`.  Converts a `VMStateFieldType`
-/// to a `*const VMStateInfo`, for inclusion in a `VMStateField`.
-#[macro_export]
-macro_rules! info_enum_to_ref {
-    ($e:expr) => {
-        unsafe {
-            match $e {
-                $crate::vmstate::VMStateFieldType::null => ::core::ptr::null(),
-                $crate::vmstate::VMStateFieldType::vmstate_info_bool => {
-                    ::core::ptr::addr_of!($crate::bindings::vmstate_info_bool)
-                }
-                $crate::vmstate::VMStateFieldType::vmstate_info_int8 => {
-                    ::core::ptr::addr_of!($crate::bindings::vmstate_info_int8)
-                }
-                $crate::vmstate::VMStateFieldType::vmstate_info_int16 => {
-                    ::core::ptr::addr_of!($crate::bindings::vmstate_info_int16)
-                }
-                $crate::vmstate::VMStateFieldType::vmstate_info_int32 => {
-                    ::core::ptr::addr_of!($crate::bindings::vmstate_info_int32)
-                }
-                $crate::vmstate::VMStateFieldType::vmstate_info_int64 => {
-                    ::core::ptr::addr_of!($crate::bindings::vmstate_info_int64)
-                }
-                $crate::vmstate::VMStateFieldType::vmstate_info_uint8 => {
-                    ::core::ptr::addr_of!($crate::bindings::vmstate_info_uint8)
-                }
-                $crate::vmstate::VMStateFieldType::vmstate_info_uint16 => {
-                    ::core::ptr::addr_of!($crate::bindings::vmstate_info_uint16)
-                }
-                $crate::vmstate::VMStateFieldType::vmstate_info_uint32 => {
-                    ::core::ptr::addr_of!($crate::bindings::vmstate_info_uint32)
-                }
-                $crate::vmstate::VMStateFieldType::vmstate_info_uint64 => {
-                    ::core::ptr::addr_of!($crate::bindings::vmstate_info_uint64)
-                }
-                $crate::vmstate::VMStateFieldType::vmstate_info_timer => {
-                    ::core::ptr::addr_of!($crate::bindings::vmstate_info_timer)
-                }
-            }
-        }
-    };
-}
-
 /// A trait for types that can be included in a device's migration stream.  It
 /// provides the base contents of a `VMStateField` (minus the name and offset).
 ///
@@ -155,12 +93,6 @@ macro_rules! info_enum_to_ref {
 /// to implement it except via macros that do it for you, such as
 /// `impl_vmstate_bitsized!`.
 pub unsafe trait VMState {
-    /// The `info` member of a `VMStateField` is a pointer and as such cannot
-    /// yet be included in the [`BASE`](VMState::BASE) associated constant;
-    /// this is only allowed by Rust 1.83.0 and newer.  For now, include the
-    /// member as an enum which is stored in a separate constant.
-    const SCALAR_TYPE: VMStateFieldType = VMStateFieldType::null;
-
     /// The base contents of a `VMStateField` (minus the name and offset) for
     /// the type that is implementing the trait.
     const BASE: VMStateField;
@@ -173,12 +105,6 @@ pub unsafe trait VMState {
     const VARRAY_FLAG: VMStateFlags = {
         panic!("invalid type for variable-sized array");
     };
-}
-
-/// Internal utility function to retrieve a type's `VMStateFieldType`;
-/// used by [`vmstate_of!`](crate::vmstate_of).
-pub const fn vmstate_scalar_type<T: VMState>(_: PhantomData<T>) -> VMStateFieldType {
-    T::SCALAR_TYPE
 }
 
 /// Internal utility function to retrieve a type's `VMStateField`;
@@ -207,9 +133,9 @@ pub const fn vmstate_varray_flag<T: VMState>(_: PhantomData<T>) -> VMStateFlags 
 /// * an array of any of the above
 ///
 /// In order to support other types, the trait `VMState` must be implemented
-/// for them.  The macros
-/// [`impl_vmstate_bitsized!`](crate::impl_vmstate_bitsized)
-/// and [`impl_vmstate_forward!`](crate::impl_vmstate_forward) help with this.
+/// for them.  The macros [`impl_vmstate_forward`](crate::impl_vmstate_forward),
+/// [`impl_vmstate_bitsized`](crate::impl_vmstate_bitsized), and
+/// [`impl_vmstate_struct`](crate::impl_vmstate_struct) help with this.
 #[macro_export]
 macro_rules! vmstate_of {
     ($struct_name:ty, $field_name:ident $([0 .. $num:ident $(* $factor:expr)?])? $(, $test_fn:expr)? $(,)?) => {
@@ -222,11 +148,6 @@ macro_rules! vmstate_of {
             $(field_exists: $crate::vmstate_exist_fn!($struct_name, $test_fn),)?
             // The calls to `call_func_with_field!` are the magic that
             // computes most of the VMStateField from the type of the field.
-            info: $crate::info_enum_to_ref!($crate::call_func_with_field!(
-                $crate::vmstate::vmstate_scalar_type,
-                $struct_name,
-                $field_name
-            )),
             ..$crate::call_func_with_field!(
                 $crate::vmstate::vmstate_base,
                 $struct_name,
@@ -327,8 +248,6 @@ macro_rules! impl_vmstate_forward {
     // the first field of the tuple
     ($tuple:ty) => {
         unsafe impl $crate::vmstate::VMState for $tuple {
-            const SCALAR_TYPE: $crate::vmstate::VMStateFieldType =
-                $crate::call_func_with_field!($crate::vmstate::vmstate_scalar_type, $tuple, 0);
             const BASE: $crate::bindings::VMStateField =
                 $crate::call_func_with_field!($crate::vmstate::vmstate_base, $tuple, 0);
         }
@@ -340,7 +259,6 @@ macro_rules! impl_vmstate_forward {
 macro_rules! impl_vmstate_transparent {
     ($type:ty where $base:tt: VMState $($where:tt)*) => {
         unsafe impl<$base> VMState for $type where $base: VMState $($where)* {
-            const SCALAR_TYPE: VMStateFieldType = <$base as VMState>::SCALAR_TYPE;
             const BASE: VMStateField = VMStateField {
                 size: mem::size_of::<$type>(),
                 ..<$base as VMState>::BASE
@@ -361,10 +279,6 @@ impl_vmstate_transparent!(crate::cell::Opaque<T> where T: VMState);
 macro_rules! impl_vmstate_bitsized {
     ($type:ty) => {
         unsafe impl $crate::vmstate::VMState for $type {
-            const SCALAR_TYPE: $crate::vmstate::VMStateFieldType =
-                                        <<<$type as ::bilge::prelude::Bitsized>::ArbitraryInt
-                                          as ::bilge::prelude::Number>::UnderlyingType
-                                         as $crate::vmstate::VMState>::SCALAR_TYPE;
             const BASE: $crate::bindings::VMStateField =
                                         <<<$type as ::bilge::prelude::Bitsized>::ArbitraryInt
                                           as ::bilge::prelude::Number>::UnderlyingType
@@ -382,8 +296,8 @@ macro_rules! impl_vmstate_bitsized {
 macro_rules! impl_vmstate_scalar {
     ($info:ident, $type:ty$(, $varray_flag:ident)?) => {
         unsafe impl VMState for $type {
-            const SCALAR_TYPE: VMStateFieldType = VMStateFieldType::$info;
             const BASE: VMStateField = VMStateField {
+                info: addr_of!(bindings::$info),
                 size: mem::size_of::<$type>(),
                 flags: VMStateFlags::VMS_SINGLE,
                 ..Zeroable::ZERO
@@ -404,6 +318,21 @@ impl_vmstate_scalar!(vmstate_info_uint32, u32, VMS_VARRAY_UINT32);
 impl_vmstate_scalar!(vmstate_info_uint64, u64);
 impl_vmstate_scalar!(vmstate_info_timer, crate::timer::Timer);
 
+macro_rules! impl_vmstate_c_struct {
+    ($type:ty, $vmsd:expr) => {
+        unsafe impl VMState for $type {
+            const BASE: VMStateField = $crate::bindings::VMStateField {
+                vmsd: addr_of!($vmsd),
+                size: mem::size_of::<$type>(),
+                flags: VMStateFlags::VMS_STRUCT,
+                ..Zeroable::ZERO
+            };
+        }
+    };
+}
+
+impl_vmstate_c_struct!(qdev::Clock, bindings::vmstate_clock);
+
 // Pointer types using the underlying type's VMState plus VMS_POINTER
 // Note that references are not supported, though references to cells
 // could be allowed.
@@ -411,7 +340,6 @@ impl_vmstate_scalar!(vmstate_info_timer, crate::timer::Timer);
 macro_rules! impl_vmstate_pointer {
     ($type:ty where $base:tt: VMState $($where:tt)*) => {
         unsafe impl<$base> VMState for $type where $base: VMState $($where)* {
-            const SCALAR_TYPE: VMStateFieldType = <T as VMState>::SCALAR_TYPE;
             const BASE: VMStateField = <$base as VMState>::BASE.with_pointer_flag();
         }
     };
@@ -430,7 +358,6 @@ impl_vmstate_pointer!(Owned<T> where T: VMState + ObjectType);
 // VMS_ARRAY/VMS_ARRAY_OF_POINTER
 
 unsafe impl<T: VMState, const N: usize> VMState for [T; N] {
-    const SCALAR_TYPE: VMStateFieldType = <T as VMState>::SCALAR_TYPE;
     const BASE: VMStateField = <T as VMState>::BASE.with_array_flag(N);
 }
 
@@ -452,7 +379,7 @@ pub extern "C" fn rust_vms_test_field_exists<T, F: for<'a> FnCall<(&'a T, u8), b
     opaque: *mut c_void,
     version_id: c_int,
 ) -> bool {
-    // SAFETY: assumes vmstate_struct! is used correctly
+    // SAFETY: the function is used in T's implementation of VMState
     let owner: &T = unsafe { &*(opaque.cast::<T>()) };
     let version: u8 = version_id.try_into().unwrap();
     F::call((owner, version))
@@ -477,76 +404,6 @@ macro_rules! vmstate_exist_fn {
             ::core::marker::PhantomData
         }
         Some(test_cb_builder__::<$struct_name, _>(phantom__(&$test_fn)))
-    }};
-}
-
-// FIXME: including the `vmsd` field in a `const` is not possible without
-// the const_refs_static feature (stabilized in Rust 1.83.0).  Without it,
-// it is not possible to use VMS_STRUCT in a transparent manner using
-// `vmstate_of!`.  While VMSTATE_CLOCK can at least try to be type-safe,
-// VMSTATE_STRUCT includes $type only for documentation purposes; it
-// is checked against $field_name and $struct_name, but not against $vmsd
-// which is what really would matter.
-#[doc(alias = "VMSTATE_STRUCT")]
-#[macro_export]
-macro_rules! vmstate_struct {
-    ($struct_name:ty, $field_name:ident $([0 .. $num:ident $(* $factor:expr)?])?, $vmsd:expr, $type:ty $(, $test_fn:expr)? $(,)?) => {
-        $crate::bindings::VMStateField {
-            name: ::core::concat!(::core::stringify!($field_name), "\0")
-                .as_bytes()
-                .as_ptr() as *const ::std::os::raw::c_char,
-            $(num_offset: ::std::mem::offset_of!($struct_name, $num),)?
-            offset: {
-                $crate::assert_field_type!($struct_name, $field_name, $type $(, num = $num)?);
-                ::std::mem::offset_of!($struct_name, $field_name)
-            },
-            size: ::core::mem::size_of::<$type>(),
-            flags: $crate::bindings::VMStateFlags::VMS_STRUCT,
-            vmsd: $vmsd.as_ref(),
-            $(field_exists: $crate::vmstate_exist_fn!($struct_name, $test_fn),)?
-            ..$crate::zeroable::Zeroable::ZERO
-         } $(.with_varray_flag_unchecked(
-                  $crate::call_func_with_field!(
-                      $crate::vmstate::vmstate_varray_flag,
-                      $struct_name,
-                      $num
-                  )
-              )
-           $(.with_varray_multiply($factor))?)?
-    };
-}
-
-#[doc(alias = "VMSTATE_CLOCK")]
-#[macro_export]
-macro_rules! vmstate_clock {
-    ($struct_name:ty, $field_name:ident $([0 .. $num:ident $(* $factor:expr)?])?) => {{
-        $crate::bindings::VMStateField {
-            name: ::core::concat!(::core::stringify!($field_name), "\0")
-                .as_bytes()
-                .as_ptr() as *const ::std::os::raw::c_char,
-            offset: {
-                $crate::assert_field_type!(
-                    $struct_name,
-                    $field_name,
-                    $crate::qom::Owned<$crate::qdev::Clock> $(, num = $num)?
-                );
-                ::std::mem::offset_of!($struct_name, $field_name)
-            },
-            size: ::core::mem::size_of::<*const $crate::qdev::Clock>(),
-            flags: $crate::bindings::VMStateFlags(
-                $crate::bindings::VMStateFlags::VMS_STRUCT.0
-                    | $crate::bindings::VMStateFlags::VMS_POINTER.0,
-            ),
-            vmsd: unsafe { ::core::ptr::addr_of!($crate::bindings::vmstate_clock) },
-            ..$crate::zeroable::Zeroable::ZERO
-         } $(.with_varray_flag_unchecked(
-                  $crate::call_func_with_field!(
-                      $crate::vmstate::vmstate_varray_flag,
-                      $struct_name,
-                      $num
-                  )
-              )
-           $(.with_varray_multiply($factor))?)?
     }};
 }
 
@@ -580,6 +437,30 @@ macro_rules! vmstate_validate {
             ),
             num: 0, // 0 elements: no data, only run test_fn callback
             ..$crate::zeroable::Zeroable::ZERO
+        }
+    };
+}
+
+/// Helper macro to allow using a struct in [`vmstate_of!`]
+///
+/// # Safety
+///
+/// The [`VMStateDescription`] constant `$vmsd` must be an accurate
+/// description of the struct.
+#[macro_export]
+macro_rules! impl_vmstate_struct {
+    ($type:ty, $vmsd:expr) => {
+        unsafe impl $crate::vmstate::VMState for $type {
+            const BASE: $crate::bindings::VMStateField = {
+                static VMSD: &$crate::bindings::VMStateDescription = $vmsd.as_ref();
+
+                $crate::bindings::VMStateField {
+                    vmsd: ::core::ptr::addr_of!(*VMSD),
+                    size: ::core::mem::size_of::<$type>(),
+                    flags: $crate::bindings::VMStateFlags::VMS_STRUCT,
+                    ..$crate::zeroable::Zeroable::ZERO
+                }
+            };
         }
     };
 }
@@ -648,7 +529,7 @@ unsafe extern "C" fn vmstate_no_version_cb<
 >(
     opaque: *mut c_void,
 ) -> c_int {
-    // SAFETY: assumes vmstate_struct! is used correctly
+    // SAFETY: the function is used in T's implementation of VMState
     let result = F::call((unsafe { &*(opaque.cast::<T>()) },));
     into_neg_errno(result)
 }
@@ -660,7 +541,7 @@ unsafe extern "C" fn vmstate_post_load_cb<
     opaque: *mut c_void,
     version_id: c_int,
 ) -> c_int {
-    // SAFETY: assumes vmstate_struct! is used correctly
+    // SAFETY: the function is used in T's implementation of VMState
     let owner: &T = unsafe { &*(opaque.cast::<T>()) };
     let version: u8 = version_id.try_into().unwrap();
     let result = F::call((owner, version));
@@ -670,14 +551,14 @@ unsafe extern "C" fn vmstate_post_load_cb<
 unsafe extern "C" fn vmstate_needed_cb<T, F: for<'a> FnCall<(&'a T,), bool>>(
     opaque: *mut c_void,
 ) -> bool {
-    // SAFETY: assumes vmstate_struct! is used correctly
+    // SAFETY: the function is used in T's implementation of VMState
     F::call((unsafe { &*(opaque.cast::<T>()) },))
 }
 
 unsafe extern "C" fn vmstate_dev_unplug_pending_cb<T, F: for<'a> FnCall<(&'a T,), bool>>(
     opaque: *mut c_void,
 ) -> bool {
-    // SAFETY: assumes vmstate_struct! is used correctly
+    // SAFETY: the function is used in T's implementation of VMState
     F::call((unsafe { &*(opaque.cast::<T>()) },))
 }
 
