@@ -6,13 +6,13 @@ members = [
     "common",
     "migration",
     "qemu-macros",
-    "qemu-api",
     "qom",
     "system",
     "hw/core",
     "hw/char/pl011",
     "hw/timer/hpet",
     "util",
+    "tests",
 ]
 
 [workspace.package]
