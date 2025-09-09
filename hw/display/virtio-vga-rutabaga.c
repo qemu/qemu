@@ -41,7 +41,7 @@ module_kconfig(VIRTIO_VGA);
 static void virtio_vga_register_types(void)
 {
     if (have_vga) {
-        virtio_pci_types_register(&virtio_vga_rutabaga_info);
+        virtio_pci_types_register_insecure(&virtio_vga_rutabaga_info);
     }
 }
 
