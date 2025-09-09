@@ -29,8 +29,15 @@ class NextCubeMachine(QemuSystemTest):
         self.vm.launch()
 
         self.log.info('VM launched, waiting for display')
-        # TODO: wait for the 'displaysurface_create 1120x832' trace-event.
-        time.sleep(2)
+        # Wait for the FPU test to finish, then the display is available, too:
+        while True:
+            res = self.vm.cmd('human-monitor-command',
+                              command_line='info registers')
+            if ("F0 = 400e 8400000000000000" in res and
+                "F1 = 400e 83ff000000000000" in res and
+                "F2 = 400e 83ff000000000000" in res):
+                break
+            time.sleep(0.1)
 
         res = self.vm.cmd('human-monitor-command',
                           command_line='screendump %s' % screenshot_path)
@@ -56,10 +63,10 @@ class NextCubeMachine(QemuSystemTest):
         self.check_bootrom_framebuffer(screenshot_path)
         lines = tesseract_ocr(screenshot_path)
         text = '\n'.join(lines)
+        self.assertIn('Backplane slot', text)
+        self.assertIn('Ethernet address', text)
         self.assertIn('Testing the FPU', text)
-        self.assertIn('System test failed. Error code', text)
-        self.assertIn('Boot command', text)
-        self.assertIn('Next>', text)
+
 
 if __name__ == '__main__':
     QemuSystemTest.main()
