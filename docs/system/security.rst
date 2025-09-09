@@ -158,6 +158,42 @@ an issue as a normal bug.
   usually not justify handling as security bugs, nor assignment
   of CVEs. They will be fixed as routine bugs when time allows.
 
+Security status reporting
+'''''''''''''''''''''''''
+
+The QEMU project annotates types to explicitly state whether they are
+considered to provide a security boundary or not. For machine, accelerator
+and device types, only those annotated with the "secure" flag will be
+eligible for CVE assignment. Annotations will be extended to other backend
+and object types over time, to make their security status explicit.
+
+It is possible to control or identify the usage of types that do not offer
+an explicit security boundary using the ``insecure-types`` parameter to the
+``-compat`` argument, which accepts three values:
+
+ * accept: usage of any type will be permitted. This is the current
+   and historical default behaviour
+ * warn: usage of types not explicitly declared secure will result
+   in a warning message, but still be permitted.
+ * reject: usage of types not explicitly declared secure will result
+   in an error message, and will not be permitted.
+
+The compatibility policy will be honoured both at initial startup of
+QEMU and during any runtime alterations made with monitor commands.
+
+The status of any type class can be queried at runtime using the
+``qom-list-types`` command, whose returned information will flag any
+types declared as secure. The ``query-machines`` command will also
+reflect this same information for machine types.
+
+Machine type, accelerator and device security status can be queried
+using ``-machine help``, ``-accel help`` and ``-device help`` command
+line options respectively.
+
+Setting the ``.secure`` field to ``true`` in the ``TypeInfo``
+instance for an Object class, declares that the type aims to provide
+a security boundary.
+
 Architecture
 ------------
 
