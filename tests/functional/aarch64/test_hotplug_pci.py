@@ -15,14 +15,14 @@ from qemu_test import BUILD_DIR
 class HotplugPCI(LinuxKernelTest):
 
     ASSET_KERNEL = Asset(
-        ('https://ftp.debian.org/debian/dists/bookworm/main/installer-arm64/'
-         '20230607+deb12u11/images/netboot/debian-installer/arm64/linux'),
-         'd92a60392ce1e379ca198a1a820899f8f0d39a62d047c41ab79492f81541a9d9')
+        ('https://ftp.debian.org/debian/dists/trixie/main/installer-arm64/'
+         '20250803/images/netboot/debian-installer/arm64/linux'),
+         '93a6e4f9627d759375d28f863437a86a0659e125792a435f8e526dda006b7d5e')
 
     ASSET_INITRD = Asset(
-        ('https://ftp.debian.org/debian/dists/bookworm/main/installer-arm64/'
-         '20230607+deb12u11/images/netboot/debian-installer/arm64/initrd.gz'),
-         '9f817f76951f3237bca8216bee35267bfb826815687f4b2fcdd5e6c2a917790c')
+        ('https://ftp.debian.org/debian/dists/trixie/main/installer-arm64/'
+         '20250803/images/netboot/debian-installer/arm64/initrd.gz'),
+         'f6c78af7078ca67638ef3a50c926cd3c1485673243f8b37952e6bd854d6ba007')
 
     def test_hotplug_pci(self):
 
