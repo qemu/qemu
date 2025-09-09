@@ -2412,6 +2412,11 @@ static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
         }
         goto bad;
     }
+
+    if (!object_class_check_security(OBJECT_CLASS(ac), errp)) {
+        goto bad;
+    }
+
     accel = ACCEL(object_new_with_class(OBJECT_CLASS(ac)));
     object_apply_compat_props(OBJECT(accel));
     qemu_opt_foreach(opts, accelerator_set_property,
