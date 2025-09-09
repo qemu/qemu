@@ -2201,10 +2201,17 @@ static void qemu_create_machine_containers(Object *machine)
     }
 }
 
-static void qemu_create_machine(QDict *qdict)
+static bool qemu_create_machine(QDict *qdict)
 {
+    Error *local_err = NULL;
     MachineClass *machine_class = select_machine(qdict, &error_fatal);
     object_set_machine_compat_props(machine_class->compat_props);
+
+    if (!object_class_check_security(OBJECT_CLASS(machine_class),
+                                     &local_err)) {
+        error_report_err(local_err);
+        return false;
+    }
 
     current_machine = MACHINE(object_new_with_class(OBJECT_CLASS(machine_class)));
     object_property_add_child(object_get_root(), "machine",
@@ -2237,6 +2244,8 @@ static void qemu_create_machine(QDict *qdict)
                                      false, &error_abort);
         qobject_unref(default_opts);
     }
+
+    return true;
 }
 
 static int global_init_func(void *opaque, QemuOpts *opts, Error **errp)
@@ -3790,7 +3799,9 @@ void qemu_init(int argc, char **argv)
     /* Transfer QemuOpts options into machine options */
     parse_memory_options();
 
-    qemu_create_machine(machine_opts_dict);
+    if (!qemu_create_machine(machine_opts_dict)) {
+        exit(1);
+    }
 
     /*
      * Load incoming CPR state before any devices are created, because it
