@@ -3451,7 +3451,10 @@ void qemu_init(int argc, char **argv)
                             g_str_has_suffix(typename, ACCEL_CLASS_SUFFIX)) {
                             gchar **optname = g_strsplit(typename,
                                                          ACCEL_CLASS_SUFFIX, 0);
-                            printf("%s\n", optname[0]);
+                            printf("%s%s\n", optname[0],
+                                   object_class_is_secure(
+                                       OBJECT_CLASS(el->data)) ?
+                                   " (secure)" : "");
                             g_strfreev(optname);
                         }
                         g_free(typename);
