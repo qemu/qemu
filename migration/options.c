@@ -206,6 +206,9 @@ const Property migration_properties[] = {
 
     DEFINE_PROP_BOOL("arch-cap-always-on", MigrationState,
                      arch_cap_always_on, false),
+
+    DEFINE_PROP_BOOL("pdcm-on-even-without-pmu", MigrationState,
+                     pdcm_on_even_without_pmu, false),
 };
 const size_t migration_properties_count = ARRAY_SIZE(migration_properties);
 

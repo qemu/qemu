@@ -46,6 +46,7 @@ GlobalProperty hw_compat_10_0[] = {
     { "ramfb", "use-legacy-x86-rom", "true"},
     { "vfio-pci-nohotplug", "use-legacy-x86-rom", "true" },
     { "migration", "arch-cap-always-on", "true" },
+    { "migration", "pdcm-on-even-without-pmu", "true" },
 };
 const size_t hw_compat_10_0_len = G_N_ELEMENTS(hw_compat_10_0);
 

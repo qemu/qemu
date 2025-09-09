@@ -51,6 +51,8 @@
 #include "disas/capstone.h"
 #include "cpu-internal.h"
 
+#include "migration/migration.h"
+
 static void x86_cpu_realizefn(DeviceState *dev, Error **errp);
 static void x86_cpu_get_supported_cpuid(uint32_t func, uint32_t index,
                                         uint32_t *eax, uint32_t *ebx,
@@ -8891,6 +8893,7 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
     FeatureWord w;
     int i;
     GList *l;
+    MigrationState *ms = migrate_get_current();
 
     for (l = plus_features; l; l = l->next) {
         const char *prop = l->data;
@@ -8944,7 +8947,7 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
     }
 
     /* PDCM is fixed1 bit for TDX */
-    if (!cpu->enable_pmu && !is_tdx_vm()) {
+    if (!cpu->enable_pmu && !is_tdx_vm() && !ms->pdcm_on_even_without_pmu) {
         env->features[FEAT_1_ECX] &= ~CPUID_EXT_PDCM;
     }
 

@@ -522,6 +522,8 @@ struct MigrationState {
      * to a host with QEMU 10.1 with error : missing feature arch-capabilities
      */
     bool arch_cap_always_on:
+
+    bool pdcm_on_even_without_pmu;
 };
 
 void migrate_set_state(MigrationStatus *state, MigrationStatus old_state,
