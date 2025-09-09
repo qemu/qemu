@@ -792,6 +792,7 @@ static const TypeInfo xen_i8259_type_infos[] = {
         .name = TYPE_XEN_I8259_PIC,
         .parent = TYPE_DEVICE,
         .instance_init = xen_i8259_pic_init,
+        .secure = true,
     },
 };
 
