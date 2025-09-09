@@ -11,7 +11,27 @@
 
 #include "exec/cpu-common.h"
 
-#define MAX_PACKET_LENGTH 4096
+/*
+ * Most "large" transfers (e.g. memory reads, feature XML
+ * transfer) have mechanisms in the gdb protocol for splitting
+ * them. However, register values in particular cannot currently
+ * be split. This packet size must therefore be at least big enough
+ * for the worst-case register size. Currently that is Arm SME
+ * ZA storage with a 256x256 byte value. We also must account
+ * for the conversion from raw data to hex in gdb_memtohex(),
+ * which writes 2 * size bytes, and for other protocol overhead
+ * including command, register number and checksum which add
+ * another 4 bytes of overhead. However, to be consistent with
+ * the changes made in gdbserver to address this same requirement,
+ * we add a total of 32 bytes to account for protocol overhead
+ * (unclear why specifically 32 bytes), bringing the value of
+ * MAX_PACKET_LENGTH to 2 * 256 * 256 + 32 = 131104.
+ *
+ * The commit making this change for gdbserver can be found here:
+ * https://sourceware.org/git/?p=binutils-gdb.git;a=commit;h=
+ * b816042e88583f280ad186ff124ab84d31fb592b
+ */
+#define MAX_PACKET_LENGTH 131104
 
 /*
  * Shared structures and definitions
