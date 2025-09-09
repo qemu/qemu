@@ -24,6 +24,11 @@ bool compat_policy_input_ok(uint64_t features,
                             const char *kind, const char *name,
                             Error **errp);
 
+bool compat_policy_check_security(const CompatPolicy *policy,
+                                  const char *typename,
+                                  bool is_secure,
+                                  Error **errp);
+
 /*
  * Create a QObject input visitor for @obj for use with QMP
  *
