@@ -1586,9 +1586,10 @@ static void machine_help_func(const QDict *qdict)
         if (mc->alias) {
             printf("%-20s %s (alias of %s)\n", mc->alias, mc->desc, mc->name);
         }
-        printf("%-20s %s%s%s\n", mc->name, mc->desc,
+        printf("%-20s %s%s%s%s\n", mc->name, mc->desc,
                mc->is_default ? " (default)" : "",
-               mc->deprecation_reason ? " (deprecated)" : "");
+               mc->deprecation_reason ? " (deprecated)" : "",
+               object_class_is_secure(OBJECT_CLASS(mc)) ? " (secure)" : "");
     }
 }
 
