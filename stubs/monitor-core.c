@@ -7,6 +7,11 @@ Monitor *monitor_cur(void)
     return NULL;
 }
 
+bool monitor_cur_is_qmp(void)
+{
+    return false;
+}
+
 Monitor *monitor_set_cur(Coroutine *co, Monitor *mon)
 {
     return NULL;

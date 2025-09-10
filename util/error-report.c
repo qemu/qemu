@@ -226,6 +226,14 @@ static void vreport(report_type type, const char *fmt, va_list ap)
     Monitor *cur = monitor_cur();
     gchar *timestr;
 
+    /*
+     * When current monitor is QMP, messages must go to stderr
+     * and have prefixes added
+     */
+    if (monitor_cur_is_qmp()) {
+        cur = NULL;
+    }
+
     if (message_with_timestamp && !cur) {
         timestr = real_time_iso8601();
         fprintf(stderr, "%s ", timestr);
