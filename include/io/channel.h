@@ -118,6 +118,15 @@ struct QIOChannelClass {
                          size_t nfds,
                          int flags,
                          Error **errp);
+
+    /*
+     * The io_readv handler must guarantee that all
+     * incoming fds are set BLOCKING (unless
+     * QIO_CHANNEL_READ_FLAG_FD_PRESERVE_BLOCKING flag is set) and
+     * CLOEXEC (if available).
+     * @fds and @nfds are set only on success path, and untouched
+     * in case of errors.
+     */
     ssize_t (*io_readv)(QIOChannel *ioc,
                         const struct iovec *iov,
                         size_t niov,
@@ -125,6 +134,7 @@ struct QIOChannelClass {
                         size_t *nfds,
                         int flags,
                         Error **errp);
+
     int (*io_close)(QIOChannel *ioc,
                     Error **errp);
     GSource * (*io_create_watch)(QIOChannel *ioc,
@@ -235,6 +245,13 @@ void qio_channel_set_name(QIOChannel *ioc,
  * was allocated. It is the callers responsibility
  * to call close() on each file descriptor and to
  * call g_free() on the array pointer in @fds.
+ * @fds allocated and set (and @nfds is set too)
+ * _only_ on success path. These parameters are
+ * untouched in case of errors.
+ * qio_channel_readv_full() guarantees that all
+ * incoming fds are set BLOCKING (unless
+ * QIO_CHANNEL_READ_FLAG_FD_PRESERVE_BLOCKING flag
+ * is set) and CLOEXEC (if available).
  *
  * It is an error to pass a non-NULL @fds parameter
  * unless qio_channel_has_feature() returns a true
