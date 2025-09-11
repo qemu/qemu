@@ -33,8 +33,9 @@ typedef struct VFIOAddressSpace {
 /*
  * This is the base object for vfio container backends
  */
-typedef struct VFIOContainerBase {
-    Object parent;
+struct VFIOContainerBase {
+    Object parent_obj;
+
     VFIOAddressSpace *space;
     MemoryListener listener;
     Error *error;
@@ -51,7 +52,10 @@ typedef struct VFIOContainerBase {
     QLIST_HEAD(, VFIODevice) device_list;
     GList *iova_ranges;
     NotifierWithReturn cpr_reboot_notifier;
-} VFIOContainerBase;
+};
+
+#define TYPE_VFIO_IOMMU "vfio-iommu"
+OBJECT_DECLARE_TYPE(VFIOContainerBase, VFIOIOMMUClass, VFIO_IOMMU)
 
 typedef struct VFIOGuestIOMMU {
     VFIOContainerBase *bcontainer;
@@ -105,13 +109,10 @@ vfio_container_get_page_size_mask(const VFIOContainerBase *bcontainer)
     return bcontainer->pgsizes;
 }
 
-#define TYPE_VFIO_IOMMU "vfio-iommu"
 #define TYPE_VFIO_IOMMU_LEGACY TYPE_VFIO_IOMMU "-legacy"
 #define TYPE_VFIO_IOMMU_SPAPR TYPE_VFIO_IOMMU "-spapr"
 #define TYPE_VFIO_IOMMU_IOMMUFD TYPE_VFIO_IOMMU "-iommufd"
 #define TYPE_VFIO_IOMMU_USER TYPE_VFIO_IOMMU "-user"
-
-OBJECT_DECLARE_TYPE(VFIOContainerBase, VFIOIOMMUClass, VFIO_IOMMU)
 
 struct VFIOIOMMUClass {
     ObjectClass parent_class;

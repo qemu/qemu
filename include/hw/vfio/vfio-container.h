@@ -25,13 +25,14 @@ typedef struct VFIOGroup {
     bool ram_block_discard_allowed;
 } VFIOGroup;
 
-typedef struct VFIOContainer {
-    VFIOContainerBase bcontainer;
+struct VFIOContainer {
+    VFIOContainerBase parent_obj;
+
     int fd; /* /dev/vfio/vfio, empowered by the attached groups */
     unsigned iommu_type;
     QLIST_HEAD(, VFIOGroup) group_list;
     VFIOContainerCPR cpr;
-} VFIOContainer;
+};
 
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOContainer, VFIO_IOMMU_LEGACY);
 

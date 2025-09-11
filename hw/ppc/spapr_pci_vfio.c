@@ -106,7 +106,7 @@ static VFIOContainer *vfio_eeh_as_container(AddressSpace *as)
 
 out:
     vfio_address_space_put(space);
-    return container_of(bcontainer, VFIOContainer, bcontainer);
+    return VFIO_IOMMU_LEGACY(bcontainer);
 }
 
 static bool vfio_eeh_as_ok(AddressSpace *as)

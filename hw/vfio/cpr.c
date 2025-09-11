@@ -56,7 +56,7 @@ static void vfio_cpr_claim_vectors(VFIOPCIDevice *vdev, int nr_vectors,
 {
     int i, fd;
     bool pending = false;
-    PCIDevice *pdev = &vdev->pdev;
+    PCIDevice *pdev = PCI_DEVICE(vdev);
 
     vdev->nr_vectors = nr_vectors;
     vdev->msi_vectors = g_new0(VFIOMSIVector, nr_vectors);
@@ -99,7 +99,7 @@ static void vfio_cpr_claim_vectors(VFIOPCIDevice *vdev, int nr_vectors,
 static int vfio_cpr_pci_pre_load(void *opaque)
 {
     VFIOPCIDevice *vdev = opaque;
-    PCIDevice *pdev = &vdev->pdev;
+    PCIDevice *pdev = PCI_DEVICE(vdev);
     int size = MIN(pci_config_size(pdev), vdev->config_size);
     int i;
 
@@ -113,7 +113,7 @@ static int vfio_cpr_pci_pre_load(void *opaque)
 static int vfio_cpr_pci_post_load(void *opaque, int version_id)
 {
     VFIOPCIDevice *vdev = opaque;
-    PCIDevice *pdev = &vdev->pdev;
+    PCIDevice *pdev = PCI_DEVICE(vdev);
     int nr_vectors;
 
     vfio_sub_page_bar_update_mappings(vdev);
@@ -173,8 +173,8 @@ const VMStateDescription vfio_cpr_pci_vmstate = {
     .post_load = vfio_cpr_pci_post_load,
     .needed = cpr_incoming_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(pdev, VFIOPCIDevice),
-        VMSTATE_MSIX_TEST(pdev, VFIOPCIDevice, pci_msix_present),
+        VMSTATE_PCI_DEVICE(parent_obj, VFIOPCIDevice),
+        VMSTATE_MSIX_TEST(parent_obj, VFIOPCIDevice, pci_msix_present),
         VMSTATE_VFIO_INTX(intx, VFIOPCIDevice),
         VMSTATE_END_OF_LIST()
     }
@@ -214,7 +214,7 @@ static int set_irqfd_notifier_gsi(KVMState *s, EventNotifier *n,
 static int vfio_cpr_set_msi_virq(VFIOPCIDevice *vdev, Error **errp, bool enable)
 {
     const char *op = (enable ? "enable" : "disable");
-    PCIDevice *pdev = &vdev->pdev;
+    PCIDevice *pdev = PCI_DEVICE(vdev);
     int i, nr_vectors, ret = 0;
 
     if (msix_enabled(pdev)) {

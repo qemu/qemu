@@ -13,10 +13,11 @@
 #include "hw/vfio-user/proxy.h"
 
 /* MMU container sub-class for vfio-user. */
-typedef struct VFIOUserContainer {
-    VFIOContainerBase bcontainer;
+struct VFIOUserContainer {
+    VFIOContainerBase parent_obj;
+
     VFIOUserProxy *proxy;
-} VFIOUserContainer;
+};
 
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOUserContainer, VFIO_IOMMU_USER);
 

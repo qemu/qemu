@@ -200,7 +200,7 @@ static bool vfio_pci_igd_opregion_detect(VFIOPCIDevice *vdev,
     }
 
     /* Hotplugging is not supported for opregion access */
-    if (vdev->pdev.qdev.hotplugged) {
+    if (DEVICE(vdev)->hotplugged) {
         warn_report("IGD device detected, but OpRegion is not supported "
                     "on hotplugged device.");
         return false;
@@ -260,11 +260,12 @@ static int vfio_pci_igd_copy(VFIOPCIDevice *vdev, PCIDevice *pdev,
 static int vfio_pci_igd_host_init(VFIOPCIDevice *vdev,
                                   struct vfio_region_info *info)
 {
+    PCIDevice *pdev = PCI_DEVICE(vdev);
     PCIBus *bus;
     PCIDevice *host_bridge;
     int ret;
 
-    bus = pci_device_root_bus(&vdev->pdev);
+    bus = pci_device_root_bus(pdev);
     host_bridge = pci_find_device(bus, 0, PCI_DEVFN(0, 0));
 
     if (!host_bridge) {
@@ -327,13 +328,14 @@ type_init(vfio_pci_igd_register_types)
 static int vfio_pci_igd_lpc_init(VFIOPCIDevice *vdev,
                                  struct vfio_region_info *info)
 {
+    PCIDevice *pdev = PCI_DEVICE(vdev);
     PCIDevice *lpc_bridge;
     int ret;
 
-    lpc_bridge = pci_find_device(pci_device_root_bus(&vdev->pdev),
+    lpc_bridge = pci_find_device(pci_device_root_bus(pdev),
                                  0, PCI_DEVFN(0x1f, 0));
     if (!lpc_bridge) {
-        lpc_bridge = pci_create_simple(pci_device_root_bus(&vdev->pdev),
+        lpc_bridge = pci_create_simple(pci_device_root_bus(pdev),
                                  PCI_DEVFN(0x1f, 0), "vfio-pci-igd-lpc-bridge");
     }
 
@@ -350,13 +352,14 @@ static bool vfio_pci_igd_setup_lpc_bridge(VFIOPCIDevice *vdev, Error **errp)
 {
     struct vfio_region_info *host = NULL;
     struct vfio_region_info *lpc = NULL;
+    PCIDevice *pdev = PCI_DEVICE(vdev);
     PCIDevice *lpc_bridge;
     int ret;
 
     /*
      * Copying IDs or creating new devices are not supported on hotplug
      */
-    if (vdev->pdev.qdev.hotplugged) {
+    if (DEVICE(vdev)->hotplugged) {
         error_setg(errp, "IGD LPC is not supported on hotplugged device");
         return false;
     }
@@ -366,7 +369,7 @@ static bool vfio_pci_igd_setup_lpc_bridge(VFIOPCIDevice *vdev, Error **errp)
      * can stuff host values into, so if there's already one there and it's not
      * one we can hack on, this quirk is no-go.  Sorry Q35.
      */
-    lpc_bridge = pci_find_device(pci_device_root_bus(&vdev->pdev),
+    lpc_bridge = pci_find_device(pci_device_root_bus(pdev),
                                  0, PCI_DEVFN(0x1f, 0));
     if (lpc_bridge && !object_dynamic_cast(OBJECT(lpc_bridge),
                                            "vfio-pci-igd-lpc-bridge")) {
@@ -460,7 +463,7 @@ void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
     int gen;
 
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
-        !vfio_is_vga(vdev) || nr != 0) {
+        !vfio_is_base_display(vdev) || nr != 0) {
         return;
     }
 
@@ -510,6 +513,7 @@ void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
 static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
 {
     struct vfio_region_info *opregion = NULL;
+    PCIDevice *pdev = PCI_DEVICE(vdev);
     int ret, gen;
     uint64_t gms_size = 0;
     uint64_t *bdsm_size;
@@ -518,7 +522,7 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
     Error *err = NULL;
 
     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
-        !vfio_is_vga(vdev)) {
+        !vfio_is_base_display(vdev)) {
         return true;
     }
 
@@ -529,21 +533,22 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
     info_report("OpRegion detected on Intel display %x.", vdev->device_id);
 
     gen = igd_gen(vdev);
-    gmch = vfio_pci_read_config(&vdev->pdev, IGD_GMCH, 4);
+    gmch = vfio_pci_read_config(pdev, IGD_GMCH, 4);
 
     /*
      * For backward compatibility, enable legacy mode when
      * - Device geneation is 6 to 9 (including both)
-     * - IGD claims VGA cycles on host
+     * - IGD exposes itself as VGA controller and claims VGA cycles on host
      * - Machine type is i440fx (pc_piix)
      * - IGD device is at guest BDF 00:02.0
      * - Not manually disabled by x-igd-legacy-mode=off
      */
     if ((vdev->igd_legacy_mode != ON_OFF_AUTO_OFF) &&
+        vfio_is_vga(vdev) &&
         (gen >= 6 && gen <= 9) &&
         !(gmch & IGD_GMCH_VGA_DISABLE) &&
         !strcmp(MACHINE_GET_CLASS(qdev_get_machine())->family, "pc_piix") &&
-        (&vdev->pdev == pci_find_device(pci_device_root_bus(&vdev->pdev),
+        (pdev == pci_find_device(pci_device_root_bus(pdev),
         0, PCI_DEVFN(0x2, 0)))) {
         /*
          * IGD legacy mode requires:
@@ -565,7 +570,7 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
          */
         ret = vfio_device_get_region_info(&vdev->vbasedev,
                                           VFIO_PCI_ROM_REGION_INDEX, &rom);
-        if ((ret || !rom->size) && !vdev->pdev.romfile) {
+        if ((ret || !rom->size) && !pdev->romfile) {
             error_setg(&err, "Device has no ROM");
             goto error;
         }
@@ -610,8 +615,8 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
      * ASLS (OpRegion address) is read-only, emulated
      * It contains HPA, guest firmware need to reprogram it with GPA.
      */
-    pci_set_long(vdev->pdev.config + IGD_ASLS, 0);
-    pci_set_long(vdev->pdev.wmask + IGD_ASLS, ~0);
+    pci_set_long(pdev->config + IGD_ASLS, 0);
+    pci_set_long(pdev->wmask + IGD_ASLS, ~0);
     pci_set_long(vdev->emulated_config_bits + IGD_ASLS, ~0);
 
     /*
@@ -625,8 +630,8 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
         }
 
         /* GMCH is read-only, emulated */
-        pci_set_long(vdev->pdev.config + IGD_GMCH, gmch);
-        pci_set_long(vdev->pdev.wmask + IGD_GMCH, 0);
+        pci_set_long(pdev->config + IGD_GMCH, gmch);
+        pci_set_long(pdev->wmask + IGD_GMCH, 0);
         pci_set_long(vdev->emulated_config_bits + IGD_GMCH, ~0);
     }
 
@@ -635,12 +640,12 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
 
         /* BDSM is read-write, emulated. BIOS needs to be able to write it */
         if (gen < 11) {
-            pci_set_long(vdev->pdev.config + IGD_BDSM, 0);
-            pci_set_long(vdev->pdev.wmask + IGD_BDSM, ~0);
+            pci_set_long(pdev->config + IGD_BDSM, 0);
+            pci_set_long(pdev->wmask + IGD_BDSM, ~0);
             pci_set_long(vdev->emulated_config_bits + IGD_BDSM, ~0);
         } else {
-            pci_set_quad(vdev->pdev.config + IGD_BDSM_GEN11, 0);
-            pci_set_quad(vdev->pdev.wmask + IGD_BDSM_GEN11, ~0);
+            pci_set_quad(pdev->config + IGD_BDSM_GEN11, 0);
+            pci_set_quad(pdev->wmask + IGD_BDSM_GEN11, ~0);
             pci_set_quad(vdev->emulated_config_bits + IGD_BDSM_GEN11, ~0);
         }
     }

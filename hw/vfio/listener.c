@@ -250,8 +250,9 @@ static int vfio_ram_discard_notify_populate(RamDiscardListener *rdl,
     return 0;
 }
 
-static void vfio_ram_discard_register_listener(VFIOContainerBase *bcontainer,
-                                               MemoryRegionSection *section)
+static bool vfio_ram_discard_register_listener(VFIOContainerBase *bcontainer,
+                                               MemoryRegionSection *section,
+                                               Error **errp)
 {
     RamDiscardManager *rdm = memory_region_get_ram_discard_manager(section->mr);
     int target_page_size = qemu_target_page_size();
@@ -316,13 +317,15 @@ static void vfio_ram_discard_register_listener(VFIOContainerBase *bcontainer,
 
         if (vrdl_mappings + max_memslots - vrdl_count >
             bcontainer->dma_max_mappings) {
-            warn_report("%s: possibly running out of DMA mappings. E.g., try"
+            error_setg(errp, "%s: possibly running out of DMA mappings. E.g., try"
                         " increasing the 'block-size' of virtio-mem devies."
                         " Maximum possible DMA mappings: %d, Maximum possible"
                         " memslots: %d", __func__, bcontainer->dma_max_mappings,
                         max_memslots);
+            return false;
         }
     }
+    return true;
 }
 
 static void vfio_ram_discard_unregister_listener(VFIOContainerBase *bcontainer,
@@ -450,7 +453,7 @@ static void vfio_device_error_append(VFIODevice *vbasedev, Error **errp)
      * MMIO region mapping failures are not fatal but in this case PCI
      * peer-to-peer transactions are broken.
      */
-    if (vbasedev && vbasedev->type == VFIO_DEVICE_TYPE_PCI) {
+    if (vfio_pci_from_vfio_device(vbasedev)) {
         error_append_hint(errp, "%s: PCI peer-to-peer transactions "
                           "on BARs are not supported.\n", vbasedev->name);
     }
@@ -571,9 +574,14 @@ void vfio_container_region_add(VFIOContainerBase *bcontainer,
      */
     if (memory_region_has_ram_discard_manager(section->mr)) {
         if (!cpr_remap) {
-            vfio_ram_discard_register_listener(bcontainer, section);
+            if (!vfio_ram_discard_register_listener(bcontainer, section, &err)) {
+                goto fail;
+            }
         } else if (!vfio_cpr_ram_discard_register_listener(bcontainer,
                                                            section)) {
+            error_setg(&err,
+                       "vfio_cpr_ram_discard_register_listener for %s failed",
+                       memory_region_name(section->mr));
             goto fail;
         }
         return;
@@ -751,7 +759,7 @@ static bool vfio_section_is_vfio_pci(MemoryRegionSection *section,
     owner = memory_region_owner(section->mr);
 
     QLIST_FOREACH(vbasedev, &bcontainer->device_list, container_next) {
-        if (vbasedev->type != VFIO_DEVICE_TYPE_PCI) {
+        if (!vfio_pci_from_vfio_device(vbasedev)) {
             continue;
         }
         pcidev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
