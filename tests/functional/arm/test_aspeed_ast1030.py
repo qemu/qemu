@@ -12,17 +12,17 @@ from qemu_test import exec_command_and_wait_for_pattern
 
 class AST1030Machine(LinuxKernelTest):
 
-    ASSET_ZEPHYR_3_00 = Asset(
+    ASSET_ZEPHYR_3_02 = Asset(
         ('https://github.com/AspeedTech-BMC'
-         '/zephyr/releases/download/v00.03.00/ast1030-evb-demo.zip'),
-        '37fe3ecd4a1b9d620971a15b96492a81093435396eeac69b6f3e384262ff555f')
+         '/zephyr/releases/download/v00.03.02/ast1030-evb-demo.zip'),
+        '1ec83caab3ddd5d09481772801be7210e222cb015ce22ec6fffb8a76956dcd4f')
 
-    def test_ast1030_zephyros_3_00(self):
+    def test_ast1030_zephyros_3_02(self):
         self.set_machine('ast1030-evb')
 
-        kernel_name = "ast1030-evb-demo/zephyr.elf"
+        kernel_name = "ast1030-evb-demo-3/zephyr.elf"
         kernel_file = self.archive_extract(
-            self.ASSET_ZEPHYR_3_00, member=kernel_name)
+            self.ASSET_ZEPHYR_3_02, member=kernel_name)
 
         self.vm.set_console()
         self.vm.add_args('-kernel', kernel_file, '-nographic')

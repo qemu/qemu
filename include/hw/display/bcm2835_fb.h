@@ -13,7 +13,6 @@
 #define BCM2835_FB_H
 
 #include "hw/sysbus.h"
-#include "ui/console.h"
 #include "qom/object.h"
 
 #define UPPER_RAM_BASE 0x40000000

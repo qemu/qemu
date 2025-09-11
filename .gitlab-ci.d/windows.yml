@@ -24,9 +24,9 @@ msys2-64bit:
     name: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     expire_in: 7 days
     paths:
-      - build/meson-logs/testlog.txt
+      - build/meson-logs
     reports:
-      junit: "build/meson-logs/testlog.junit.xml"
+      junit: build/meson-logs/*.junit.xml
   before_script:
   - Write-Output "Acquiring msys2.exe installer at $(Get-Date -Format u)"
   - If ( !(Test-Path -Path msys64\var\cache ) ) {
