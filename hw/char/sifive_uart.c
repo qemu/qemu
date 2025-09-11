@@ -28,12 +28,6 @@
 
 #define TX_INTERRUPT_TRIGGER_DELAY_NS 100
 
-/*
- * Not yet implemented:
- *
- * Transmit FIFO using "qemu/fifo8.h"
- */
-
 /* Returns the state of the IP (interrupt pending) register */
 static uint32_t sifive_uart_ip(SiFiveUARTState *s)
 {
