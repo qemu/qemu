@@ -1,4 +1,3 @@
-from __future__ import print_function
 #
 # A very simple smoke test for debugging the SHA1 userspace test on
 # each target.

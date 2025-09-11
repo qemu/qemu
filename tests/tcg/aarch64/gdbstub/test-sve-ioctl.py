@@ -1,4 +1,3 @@
-from __future__ import print_function
 #
 # Test the SVE ZReg reports the right amount of data. It uses the
 # sve-ioctl test and examines the register data each time the

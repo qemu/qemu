@@ -1,7 +1,6 @@
 """Helper functions for gdbstub testing
 
 """
-from __future__ import print_function
 import argparse
 import gdb
 import os
