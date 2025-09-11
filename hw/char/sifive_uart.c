@@ -122,7 +122,9 @@ static void sifive_uart_write_tx_fifo(SiFiveUARTState *s, const uint8_t *buf,
         qemu_log_mask(LOG_GUEST_ERROR, "sifive_uart: TX FIFO overflow");
     }
 
-    fifo8_push_all(&s->tx_fifo, buf, size);
+    if (size > 0) {
+        fifo8_push_all(&s->tx_fifo, buf, size);
+    }
 
     if (fifo8_is_full(&s->tx_fifo)) {
         s->txfifo |= SIFIVE_UART_TXFIFO_FULL;
