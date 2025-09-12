@@ -3613,6 +3613,7 @@ F: migration/
 F: scripts/vmstate-static-checker.py
 F: tests/functional/migration.py
 F: tests/functional/*/*migration.py
+F: tests/functional/x86_64/test_bad_vmstate.py
 F: tests/data/vmstate-static-checker/
 F: tests/qtest/migration/
 F: tests/qtest/migration-*
