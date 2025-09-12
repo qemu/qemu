@@ -1,0 +1,1068 @@
+{
+  "vmschkmachine": {
+    "Name": "pseries-7.2"
+  },
+  "spapr-nvram": {
+    "Name": "spapr-nvram",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "spapr_nvram",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "size",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "buf",
+          "version_id": 1,
+          "field_exists": false,
+          "size": 0
+        }
+      ]
+    }
+  },
+  "xive-source": {
+    "Name": "xive-source",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "xive-source",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "nr_irqs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "status",
+          "version_id": 1,
+          "field_exists": false,
+          "size": 0
+        }
+      ]
+    }
+  },
+  "xive-tctx": {
+    "Name": "xive-tctx",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "xive-tctx",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "regs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 64
+        }
+      ]
+    }
+  },
+  "pci-host-bridge": {
+    "Name": "pci-host-bridge",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "PCIHost",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "config_reg",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ]
+    }
+  },
+  "ics-spapr": {
+    "Name": "ics-spapr",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "ics",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "nr_irqs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "irqs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8,
+          "Description": {
+            "name": "ics/irq",
+            "version_id": 2,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "server",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "priority",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "saved_priority",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "status",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "flags",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "scsi-cd": {
+    "Name": "scsi-cd",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "scsi-disk",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "qdev",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 608,
+          "Description": {
+            "name": "SCSIDevice",
+            "version_id": 1,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "unit_attention.key",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "unit_attention.asc",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "unit_attention.ascq",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "sense_is_ua",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "sense",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "sense_len",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "requests",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 0
+              }
+            ],
+            "Subsections": [
+              {
+                "name": "SCSIDevice/sense",
+                "version_id": 1,
+                "minimum_version_id": 1,
+                "Fields": [
+                  {
+                    "field": "sense",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 1
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "field": "media_changed",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "media_event",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "eject_request",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "tray_open",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "tray_locked",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        }
+      ]
+    }
+  },
+  "spapr-xive": {
+    "Name": "spapr-xive",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "spapr-xive",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "nr_irqs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "eat",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8,
+          "Description": {
+            "name": "spapr-xive/eas",
+            "version_id": 1,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "w",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              }
+            ]
+          }
+        },
+        {
+          "field": "endt",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 32,
+          "Description": {
+            "name": "spapr-xive/end",
+            "version_id": 1,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "w0",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "w1",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "w2",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "w3",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "w4",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "w5",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "w6",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "w7",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "scsi-hd": {
+    "Name": "scsi-hd",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "scsi-disk",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "qdev",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 608,
+          "Description": {
+            "name": "SCSIDevice",
+            "version_id": 1,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "unit_attention.key",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "unit_attention.asc",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "unit_attention.ascq",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "sense_is_ua",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "sense",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "sense_len",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "requests",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 0
+              }
+            ],
+            "Subsections": [
+              {
+                "name": "SCSIDevice/sense",
+                "version_id": 1,
+                "minimum_version_id": 1,
+                "Fields": [
+                  {
+                    "field": "sense",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 1
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "field": "media_changed",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "media_event",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "eject_request",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "tray_open",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "tray_locked",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        }
+      ]
+    }
+  },
+  "fw_cfg_mem": {
+    "Name": "fw_cfg_mem",
+    "version_id": 2,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "fw_cfg",
+      "version_id": 2,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "cur_entry",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 0,
+          "field_exists": true,
+          "size": 4
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 2,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "fw_cfg/dma",
+          "version_id": 0,
+          "minimum_version_id": 0,
+          "Fields": [
+            {
+              "field": "dma_addr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        },
+        {
+          "name": "fw_cfg/acpi_mr",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "table_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "linker_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "rsdp_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "spapr-vty": {
+    "Name": "spapr-vty",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "spapr_vty",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "sdev",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 848,
+          "Description": {
+            "name": "spapr_vio",
+            "version_id": 1,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "reg",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "irq",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "signal_state",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "crq.qladdr",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "crq.qsize",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "crq.qnext",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              }
+            ]
+          }
+        },
+        {
+          "field": "in",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "out",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "buf",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 16
+        }
+      ]
+    }
+  },
+  "spapr-wdt": {
+    "Name": "spapr-wdt",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "spapr_watchdog",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "timer",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 48
+        },
+        {
+          "field": "action",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "leave_others",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        }
+      ]
+    }
+  },
+  "fw_cfg_io": {
+    "Name": "fw_cfg_io",
+    "version_id": 2,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "fw_cfg",
+      "version_id": 2,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "cur_entry",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 0,
+          "field_exists": true,
+          "size": 4
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 2,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "fw_cfg/dma",
+          "version_id": 0,
+          "minimum_version_id": 0,
+          "Fields": [
+            {
+              "field": "dma_addr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        },
+        {
+          "name": "fw_cfg/acpi_mr",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "table_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "linker_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "rsdp_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "spapr-vscsi": {
+    "Name": "spapr-vscsi",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "spapr_vscsi",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "vdev",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 848,
+          "Description": {
+            "name": "spapr_vio",
+            "version_id": 1,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "reg",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "irq",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "signal_state",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "crq.qladdr",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "crq.qsize",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "crq.qnext",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "spapr-rtc": {
+    "Name": "spapr-rtc",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "spapr/rtc",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "ns_offset",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        }
+      ]
+    }
+  },
+  "spapr-vlan": {
+    "Name": "spapr-vlan",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "spapr_llan",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "sdev",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 848,
+          "Description": {
+            "name": "spapr_vio",
+            "version_id": 1,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "reg",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "irq",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "signal_state",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "crq.qladdr",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "crq.qsize",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "crq.qnext",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              }
+            ]
+          }
+        },
+        {
+          "field": "isopen",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "buf_list",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        },
+        {
+          "field": "add_buf_ptr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "use_buf_ptr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "rx_bufs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "rxq_ptr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "spapr_llan/rx_pools",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "rx_pool",
+              "version_id": 1,
+              "field_exists": false,
+              "size": 8,
+              "Description": {
+                "name": "spapr_llan/rx_buffer_pool",
+                "version_id": 1,
+                "minimum_version_id": 1,
+                "Fields": [
+                  {
+                    "field": "bufsize",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 4
+                  },
+                  {
+                    "field": "count",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 4
+                  },
+                  {
+                    "field": "bds",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 8
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "fw_cfg": {
+    "Name": "fw_cfg",
+    "version_id": 2,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "fw_cfg",
+      "version_id": 2,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "cur_entry",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 0,
+          "field_exists": true,
+          "size": 4
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 2,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "fw_cfg/dma",
+          "version_id": 0,
+          "minimum_version_id": 0,
+          "Fields": [
+            {
+              "field": "dma_addr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        },
+        {
+          "name": "fw_cfg/acpi_mr",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "table_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "linker_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "rsdp_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "ics": {
+    "Name": "ics",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "ics",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "nr_irqs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "irqs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8,
+          "Description": {
+            "name": "ics/irq",
+            "version_id": 2,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "server",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "priority",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "saved_priority",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "status",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "flags",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
