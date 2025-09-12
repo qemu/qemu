@@ -14,10 +14,11 @@ tests_x86_64_system_quick = [
   'cpu_model_versions',
   'cpu_queries',
   'mem_addr_space',
+  'memlock',
   'migration',
   'pc_cpu_hotplug_props',
   'virtio_version',
-  'memlock',
+  'vmstate',
 ]
 
 tests_x86_64_system_thorough = [

@@ -19,6 +19,7 @@ test_aarch64_timeouts = {
 
 tests_aarch64_system_quick = [
   'migration',
+  'vmstate',
 ]
 
 tests_aarch64_system_thorough = [

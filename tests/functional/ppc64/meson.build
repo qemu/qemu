@@ -11,6 +11,7 @@ test_ppc64_timeouts = {
 
 tests_ppc64_system_quick = [
   'migration',
+  'vmstate',
 ]
 
 tests_ppc64_system_thorough = [
