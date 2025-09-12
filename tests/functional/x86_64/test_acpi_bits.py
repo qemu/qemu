@@ -121,10 +121,10 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
         self._debugcon_log = 'debugcon-log.txt'
 
     def _print_log(self, log):
-        self.logger.info('\nlogs from biosbits follows:')
-        self.logger.info('==========================================\n')
-        self.logger.info(log)
-        self.logger.info('==========================================\n')
+        self.log.info('\nlogs from biosbits follows:')
+        self.log.info('==========================================\n')
+        self.log.info(log)
+        self.log.info('==========================================\n')
 
     def copy_bits_config(self):
         """ copies the bios bits config file into bits.
@@ -138,8 +138,8 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
         self.assertTrue(os.path.exists(bits_config_file))
         self.assertTrue(os.path.exists(target_config_dir))
         shutil.copy2(bits_config_file, target_config_dir)
-        self.logger.info('copied config file %s to %s',
-                         bits_config_file, target_config_dir)
+        self.log.info('copied config file %s to %s',
+                      bits_config_file, target_config_dir)
 
     def copy_test_scripts(self):
         """copies the python test scripts into bits. """
@@ -163,8 +163,8 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
                 newfilename = os.path.splitext(filename)[0] + '.py'
                 shutil.copy2(os.path.join(bits_test_dir, filename),
                              os.path.join(target_test_dir, newfilename))
-                self.logger.info('copied test file %s to %s',
-                                 filename, target_test_dir)
+                self.log.info('copied test file %s to %s',
+                              filename, target_test_dir)
 
                 # now remove the pyc test file if it exists, otherwise the
                 # changes in the python test script won't be executed.
@@ -172,9 +172,9 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
                 if os.access(os.path.join(target_test_dir, testfile_pyc),
                              os.F_OK):
                     os.remove(os.path.join(target_test_dir, testfile_pyc))
-                    self.logger.info('removed compiled file %s',
-                                     os.path.join(target_test_dir,
-                                     testfile_pyc))
+                    self.log.info('removed compiled file %s',
+                                  os.path.join(target_test_dir,
+                                               testfile_pyc))
 
     def fix_mkrescue(self, mkrescue):
         """ grub-mkrescue is a bash script with two variables, 'prefix' and
@@ -216,7 +216,7 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
 
         self.fix_mkrescue(mkrescue_script)
 
-        self.logger.info('using grub-mkrescue for generating biosbits iso ...')
+        self.log.info('using grub-mkrescue for generating biosbits iso ...')
 
         try:
             if os.getenv('V') or os.getenv('BITS_DEBUG'):
@@ -225,7 +225,7 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
                                       stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT,
                                       check=True)
-                self.logger.info("grub-mkrescue output %s" % proc.stdout)
+                self.log.info("grub-mkrescue output %s" % proc.stdout)
             else:
                 subprocess.check_call([mkrescue_script, '-o',
                                       iso_file, bits_dir],
@@ -238,11 +238,10 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
 
         self.assertTrue(os.access(iso_file, os.R_OK))
 
-        self.logger.info('iso file %s successfully generated.', iso_file)
+        self.log.info('iso file %s successfully generated.', iso_file)
 
     def setUp(self): # pylint: disable=arguments-differ
         super().setUp()
-        self.logger = self.log
 
         prebuiltDir = self.scratch_file('prebuilt')
         if not os.path.isdir(prebuiltDir):
@@ -333,7 +332,7 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
         # in batch mode and then automatically initiate a vm shutdown.
         self._vm.event_wait('SHUTDOWN', timeout=BITS_TIMEOUT)
         self._vm.wait(timeout=None)
-        self.logger.debug("Checking console output ...")
+        self.log.debug("Checking console output ...")
         self.parse_log()
 
 if __name__ == '__main__':

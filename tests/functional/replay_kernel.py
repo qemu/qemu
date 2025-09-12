@@ -32,15 +32,14 @@ class ReplayKernelBase(LinuxKernelTest):
         # icount requires TCG to be available
         self.require_accelerator('tcg')
 
-        logger = logging.getLogger('replay')
         start_time = time.time()
         vm = self.get_vm(name='recording' if record else 'replay')
         vm.set_console()
         if record:
-            logger.info('recording the execution...')
+            self.log.info('recording the execution...')
             mode = 'record'
         else:
-            logger.info('replaying the execution...')
+            self.log.info('replaying the execution...')
             mode = 'replay'
         vm.add_args('-icount', 'shift=%s,rr=%s,rrfile=%s' %
                     (shift, mode, replay_path),
@@ -54,15 +53,15 @@ class ReplayKernelBase(LinuxKernelTest):
         self.wait_for_console_pattern(console_pattern, vm)
         if record:
             vm.shutdown()
-            logger.info('finished the recording with log size %s bytes'
+            self.log.info('finished the recording with log size %s bytes'
                         % os.path.getsize(replay_path))
             self.run_replay_dump(replay_path)
-            logger.info('successfully tested replay-dump.py')
+            self.log.info('successfully tested replay-dump.py')
         else:
             vm.wait()
-            logger.info('successfully finished the replay')
+            self.log.info('successfully finished the replay')
         elapsed = time.time() - start_time
-        logger.info('elapsed time %.2f sec' % elapsed)
+        self.log.info('elapsed time %.2f sec' % elapsed)
         return elapsed
 
     def run_replay_dump(self, replay_path):
@@ -80,5 +79,4 @@ class ReplayKernelBase(LinuxKernelTest):
                          True, shift, args, replay_path)
         t2 = self.run_vm(kernel_path, kernel_command_line, console_pattern,
                          False, shift, args, replay_path)
-        logger = logging.getLogger('replay')
-        logger.info('replay overhead {:.2%}'.format(t2 / t1 - 1))
+        self.log.info('replay overhead {:.2%}'.format(t2 / t1 - 1))

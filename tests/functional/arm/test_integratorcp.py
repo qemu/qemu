@@ -77,7 +77,6 @@ class IntegratorMachine(QemuSystemTest):
                           command_line='screendump %s' % screendump_path)
         if 'unknown command' in res:
             self.skipTest('screendump not available')
-        logger = logging.getLogger('framebuffer')
 
         cpu_count = 1
         match_threshold = 0.92
@@ -88,7 +87,7 @@ class IntegratorMachine(QemuSystemTest):
         loc = np.where(result >= match_threshold)
         tux_count = 0
         for tux_count, pt in enumerate(zip(*loc[::-1]), start=1):
-            logger.debug('found Tux at position [x, y] = %s', pt)
+            self.log.debug('found Tux at position [x, y] = %s', pt)
         self.assertGreaterEqual(tux_count, cpu_count)
 
 if __name__ == '__main__':

@@ -159,7 +159,6 @@ class MaltaMachineFramebuffer(LinuxKernelTest):
                           command_line='screendump %s' % screendump_path)
         if 'unknown command' in res:
             self.skipTest('screendump not available')
-        logger = logging.getLogger('framebuffer')
 
         match_threshold = 0.95
         screendump_bgr = cv2.imread(screendump_path, cv2.IMREAD_COLOR)
@@ -171,7 +170,7 @@ class MaltaMachineFramebuffer(LinuxKernelTest):
         h, w = tuxlogo_bgr.shape[:2]
         debug_png = os.getenv('QEMU_TEST_CV2_SCREENDUMP_PNG_PATH')
         for tuxlogo_count, pt in enumerate(zip(*loc[::-1]), start=1):
-            logger.debug('found Tux at position (x, y) = %s', pt)
+            self.log.debug('found Tux at position (x, y) = %s', pt)
             cv2.rectangle(screendump_bgr, pt,
                           (pt[0] + w, pt[1] + h), (0, 0, 255), 2)
         if debug_png:
