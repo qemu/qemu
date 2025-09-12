@@ -91,7 +91,6 @@ struct USBHostDevice {
     uint32_t                         iso_urb_frames;
     uint32_t                         options;
     uint32_t                         loglevel;
-    bool                             needs_autoscan;
     bool                             allow_one_guest_reset;
     bool                             allow_all_guest_resets;
     bool                             suppress_remote_wake;
@@ -1214,7 +1213,6 @@ static void usb_host_realize(USBDevice *udev, Error **errp)
 #if LIBUSB_API_VERSION >= 0x01000107 && !defined(CONFIG_WIN32)
     if (s->hostdevice) {
         int fd;
-        s->needs_autoscan = false;
         fd = qemu_open(s->hostdevice, O_RDWR, errp);
         if (fd < 0) {
             return;
@@ -1230,7 +1228,6 @@ static void usb_host_realize(USBDevice *udev, Error **errp)
         !s->match.vendor_id &&
         !s->match.product_id &&
         !s->match.port) {
-        s->needs_autoscan = false;
         ldev = usb_host_find_ref(s->match.bus_num,
                                  s->match.addr);
         if (!ldev) {
@@ -1245,14 +1242,13 @@ static void usb_host_realize(USBDevice *udev, Error **errp)
                        s->match.bus_num, s->match.addr);
             return;
         }
-    } else {
-        s->needs_autoscan = true;
-        QTAILQ_INSERT_TAIL(&hostdevs, s, next);
-        usb_host_auto_check(NULL);
     }
 
     s->exit.notify = usb_host_exit_notifier;
     qemu_add_exit_notifier(&s->exit);
+
+    QTAILQ_INSERT_TAIL(&hostdevs, s, next);
+    usb_host_auto_check(NULL);
 }
 
 static void usb_host_instance_init(Object *obj)
@@ -1270,9 +1266,7 @@ static void usb_host_unrealize(USBDevice *udev)
     USBHostDevice *s = USB_HOST_DEVICE(udev);
 
     qemu_remove_exit_notifier(&s->exit);
-    if (s->needs_autoscan) {
-        QTAILQ_REMOVE(&hostdevs, s, next);
-    }
+    QTAILQ_REMOVE(&hostdevs, s, next);
     usb_host_close(s);
 }
 
