@@ -62,7 +62,8 @@ foreach format, speed: qemu_iotests_formats
     endforeach
   endif
 
-  suites = []
+  # Every format gets put in the format specific suite
+  suites = ['block-' + format + '-optional']
   # Any format tagged quick or slow also gets added to slow
   # otherwise its tagged thorough
   if speed != 'thorough'
