@@ -396,7 +396,7 @@ static void gen_mcrfs(DisasContext *ctx)
     tcg_gen_extu_tl_i64(tnew_fpscr, cpu_fpscr);
     /* Only the exception bits (including FX) should be cleared if read */
     tcg_gen_andi_i64(tnew_fpscr, tnew_fpscr,
-                     ~((0xF << shift) & FP_EX_CLEAR_BITS));
+                     ~(MAKE_64BIT_MASK(shift, 4) & FP_EX_CLEAR_BITS));
     /* FEX and VX need to be updated, so don't set fpscr directly */
     tmask = tcg_constant_i32(1 << nibble);
     gen_helper_store_fpscr(tcg_env, tnew_fpscr, tmask);
