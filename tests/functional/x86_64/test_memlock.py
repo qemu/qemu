@@ -37,7 +37,8 @@ class MemlockTest(QemuSystemTest):
 
         status = self.get_process_status_values(self.vm.get_pid())
 
-        self.assertTrue(status['VmLck'] == 0)
+        # libgcrypt may mlock a few pages
+        self.assertTrue(status['VmLck'] < 32)
 
     def test_memlock_on(self):
         self.common_vm_setup_with_memlock('on')
