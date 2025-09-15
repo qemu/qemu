@@ -155,6 +155,7 @@ module                     status
 ``hwcore::irq``            complete
 ``hwcore::qdev``           stable
 ``hwcore::sysbus``         stable
+``migration::migratable``  proof of concept
 ``migration::vmstate``     stable
 ``qom``                    stable
 ``system::memory``         stable

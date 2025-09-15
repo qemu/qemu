@@ -2,5 +2,8 @@
 
 pub mod bindings;
 
+pub mod migratable;
+pub use migratable::*;
+
 pub mod vmstate;
 pub use vmstate::*;
