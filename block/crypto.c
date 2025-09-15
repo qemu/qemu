@@ -835,7 +835,7 @@ block_crypto_co_create_opts_luks(BlockDriver *drv, const char *filename,
     }
 
     /* Create protocol layer */
-    ret = bdrv_co_create_file(filename, opts, errp);
+    ret = bdrv_co_create_file(filename, opts, true, errp);
     if (ret < 0) {
         goto fail;
     }

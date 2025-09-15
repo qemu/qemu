@@ -463,7 +463,7 @@ static int coroutine_fn GRAPH_UNLOCKED
 raw_co_create_opts(BlockDriver *drv, const char *filename,
                    QemuOpts *opts, Error **errp)
 {
-    return bdrv_co_create_file(filename, opts, errp);
+    return bdrv_co_create_file(filename, opts, true, errp);
 }
 
 static int raw_open(BlockDriverState *bs, QDict *options, int flags,
