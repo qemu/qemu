@@ -478,6 +478,7 @@ int hid_keyboard_write(HIDState *hs, uint8_t *buf, int len)
             ledstate |= QEMU_CAPS_LOCK_LED;
         }
         kbd_put_ledstate(ledstate);
+        return 1;
     }
     return 0;
 }
