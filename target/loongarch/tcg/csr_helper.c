@@ -73,6 +73,27 @@ target_ulong helper_csrrd_tval(CPULoongArchState *env)
     return cpu_loongarch_get_constant_timer_ticks(cpu);
 }
 
+target_ulong helper_csrrd_msgir(CPULoongArchState *env)
+{
+    int irq, new;
+
+    irq = find_first_bit((unsigned long *)env->CSR_MSGIS, 256);
+    if (irq < 256) {
+        clear_bit(irq, (unsigned long *)env->CSR_MSGIS);
+        new = find_first_bit((unsigned long *)env->CSR_MSGIS, 256);
+        if (new < 256) {
+            return irq;
+        }
+
+        env->CSR_ESTAT = FIELD_DP64(env->CSR_ESTAT, CSR_ESTAT, MSGINT, 0);
+    } else {
+        /* bit 31 set 1 for no invalid irq */
+        irq = BIT(31);
+    }
+
+    return irq;
+}
+
 target_ulong helper_csrwr_estat(CPULoongArchState *env, target_ulong val)
 {
     int64_t old_v = env->CSR_ESTAT;
