@@ -53,6 +53,26 @@ static enum hv_register_name STANDARD_REGISTER_NAMES[18] = {
     HV_X64_REGISTER_RFLAGS,
 };
 
+static enum hv_register_name SPECIAL_REGISTER_NAMES[17] = {
+    HV_X64_REGISTER_CS,
+    HV_X64_REGISTER_DS,
+    HV_X64_REGISTER_ES,
+    HV_X64_REGISTER_FS,
+    HV_X64_REGISTER_GS,
+    HV_X64_REGISTER_SS,
+    HV_X64_REGISTER_TR,
+    HV_X64_REGISTER_LDTR,
+    HV_X64_REGISTER_GDTR,
+    HV_X64_REGISTER_IDTR,
+    HV_X64_REGISTER_CR0,
+    HV_X64_REGISTER_CR2,
+    HV_X64_REGISTER_CR3,
+    HV_X64_REGISTER_CR4,
+    HV_X64_REGISTER_CR8,
+    HV_X64_REGISTER_EFER,
+    HV_X64_REGISTER_APIC_BASE,
+};
+
 int mshv_set_generic_regs(const CPUState *cpu, const hv_register_assoc *assocs,
                           size_t n_regs)
 {
@@ -255,6 +275,84 @@ int mshv_get_standard_regs(CPUState *cpu)
     return 0;
 }
 
+static inline void populate_segment_reg(const hv_x64_segment_register *hv_seg,
+                                        SegmentCache *seg)
+{
+    memset(seg, 0, sizeof(SegmentCache));
+
+    seg->base = hv_seg->base;
+    seg->limit = hv_seg->limit;
+    seg->selector = hv_seg->selector;
+
+    seg->flags = (hv_seg->segment_type << DESC_TYPE_SHIFT)
+                 | (hv_seg->present * DESC_P_MASK)
+                 | (hv_seg->descriptor_privilege_level << DESC_DPL_SHIFT)
+                 | (hv_seg->_default << DESC_B_SHIFT)
+                 | (hv_seg->non_system_segment * DESC_S_MASK)
+                 | (hv_seg->_long << DESC_L_SHIFT)
+                 | (hv_seg->granularity * DESC_G_MASK)
+                 | (hv_seg->available * DESC_AVL_MASK);
+
+}
+
+static inline void populate_table_reg(const hv_x64_table_register *hv_seg,
+                                      SegmentCache *tbl)
+{
+    memset(tbl, 0, sizeof(SegmentCache));
+
+    tbl->base = hv_seg->base;
+    tbl->limit = hv_seg->limit;
+}
+
+static void populate_special_regs(const hv_register_assoc *assocs,
+                                  X86CPU *x86cpu)
+{
+    CPUX86State *env = &x86cpu->env;
+
+    populate_segment_reg(&assocs[0].value.segment, &env->segs[R_CS]);
+    populate_segment_reg(&assocs[1].value.segment, &env->segs[R_DS]);
+    populate_segment_reg(&assocs[2].value.segment, &env->segs[R_ES]);
+    populate_segment_reg(&assocs[3].value.segment, &env->segs[R_FS]);
+    populate_segment_reg(&assocs[4].value.segment, &env->segs[R_GS]);
+    populate_segment_reg(&assocs[5].value.segment, &env->segs[R_SS]);
+
+    populate_segment_reg(&assocs[6].value.segment, &env->tr);
+    populate_segment_reg(&assocs[7].value.segment, &env->ldt);
+
+    populate_table_reg(&assocs[8].value.table, &env->gdt);
+    populate_table_reg(&assocs[9].value.table, &env->idt);
+
+    env->cr[0] = assocs[10].value.reg64;
+    env->cr[2] = assocs[11].value.reg64;
+    env->cr[3] = assocs[12].value.reg64;
+    env->cr[4] = assocs[13].value.reg64;
+
+    cpu_set_apic_tpr(x86cpu->apic_state, assocs[14].value.reg64);
+    env->efer = assocs[15].value.reg64;
+    cpu_set_apic_base(x86cpu->apic_state, assocs[16].value.reg64);
+}
+
+
+int mshv_get_special_regs(CPUState *cpu)
+{
+    struct hv_register_assoc assocs[ARRAY_SIZE(SPECIAL_REGISTER_NAMES)];
+    int ret;
+    X86CPU *x86cpu = X86_CPU(cpu);
+    size_t n_regs = ARRAY_SIZE(SPECIAL_REGISTER_NAMES);
+
+    for (size_t i = 0; i < n_regs; i++) {
+        assocs[i].name = SPECIAL_REGISTER_NAMES[i];
+    }
+    ret = get_generic_regs(cpu, assocs, n_regs);
+    if (ret < 0) {
+        error_report("failed to get special registers");
+        return -errno;
+    }
+
+    populate_special_regs(assocs, x86cpu);
+    return 0;
+}
+
 int mshv_load_regs(CPUState *cpu)
 {
     int ret;
@@ -262,6 +360,12 @@ int mshv_load_regs(CPUState *cpu)
     ret = mshv_get_standard_regs(cpu);
     if (ret < 0) {
         error_report("Failed to load standard registers");
+        return -1;
+    }
+
+    ret = mshv_get_special_regs(cpu);
+    if (ret < 0) {
+        error_report("Failed to load special registers");
         return -1;
     }
 
