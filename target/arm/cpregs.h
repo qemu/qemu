@@ -175,15 +175,15 @@ enum {
  * add a bit to distinguish between secure and non-secure cpregs in the
  * hashtable.
  */
-#define CP_REG_NS_SHIFT 29
-#define CP_REG_NS_MASK (1 << CP_REG_NS_SHIFT)
+#define CP_REG_AA32_NS_SHIFT     29
+#define CP_REG_AA32_NS_MASK      (1 << CP_REG_AA32_NS_SHIFT)
 
 /* Distinguish 32-bit and 64-bit views of AArch32 system registers. */
 #define CP_REG_AA32_64BIT_SHIFT  15
 #define CP_REG_AA32_64BIT_MASK   (1 << CP_REG_AA32_64BIT_SHIFT)
 
 #define ENCODE_CP_REG(cp, is64, ns, crn, crm, opc1, opc2)   \
-    (((ns) << CP_REG_NS_SHIFT) |                            \
+    (((ns) << CP_REG_AA32_NS_SHIFT) |                       \
      ((is64) << CP_REG_AA32_64BIT_SHIFT) |                  \
      ((cp) << 16) | ((crn) << 11) | ((crm) << 7) | ((opc1) << 3) | (opc2))
 
@@ -214,7 +214,7 @@ static inline uint32_t kvm_to_cpreg_id(uint64_t kvmid)
          * KVM is always non-secure so add the NS flag on AArch32 register
          * entries.
          */
-         cpregid |= 1 << CP_REG_NS_SHIFT;
+         cpregid |= CP_REG_AA32_NS_MASK;
     }
     return cpregid;
 }
