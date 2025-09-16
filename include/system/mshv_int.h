@@ -38,4 +38,8 @@ struct MshvState {
     MshvAddressSpace *as;
 };
 
+/* memory */
+void mshv_set_phys_mem(MshvMemoryListener *mml, MemoryRegionSection *section,
+                       bool add);
+
 #endif
