@@ -15,6 +15,7 @@ config LOONGARCH_VIRT
     select LOONGARCH_PCH_PIC
     select LOONGARCH_PCH_MSI
     select LOONGARCH_EXTIOI
+    select LOONGARCH_DINTC
     select LS7A_RTC
     select SMBIOS
     select ACPI_CPU_HOTPLUG
