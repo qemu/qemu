@@ -403,7 +403,7 @@ struct hvf_sreg_match {
     uint32_t cp_idx;
 };
 
-#define DEF_SYSREG(HVF_ID, crn, crm, op0, op1, op2) \
+#define DEF_SYSREG(HVF_ID, op0, op1, crn, crm, op2) \
     { HVF_ID, HVF_SYSREG(crn, crm, op0, op1, op2) },
 
 static struct hvf_sreg_match hvf_sreg_match[] = {
