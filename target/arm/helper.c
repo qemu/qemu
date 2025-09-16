@@ -671,7 +671,7 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
      */
     { .name = "WFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0, },
-    { .name = "CPACR", .state = ARM_CP_STATE_BOTH, .opc0 = 3,
+    { .name = "CPACR_EL1", .state = ARM_CP_STATE_BOTH, .opc0 = 3,
       .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 2, .accessfn = cpacr_access,
       .fgt = FGT_CPACR_EL1,
       .nv2_redirect_offset = 0x100 | NV2_REDIR_NV1,
@@ -2018,7 +2018,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
       .resetfn = arm_gt_cntfrq_reset,
     },
     /* overall control: mostly access permissions */
-    { .name = "CNTKCTL", .state = ARM_CP_STATE_BOTH,
+    { .name = "CNTKCTL_EL1", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 0, .crn = 14, .crm = 1, .opc2 = 0,
       .access = PL1_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c14_cntkctl),
@@ -3048,8 +3048,8 @@ static uint64_t mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 }
 
 static const ARMCPRegInfo lpae_cp_reginfo[] = {
-    /* NOP AMAIR0/1 */
-    { .name = "AMAIR0", .state = ARM_CP_STATE_BOTH,
+    /* AMAIR0 is mapped to AMAIR_EL1[31:0] */
+    { .name = "AMAIR_EL1", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .crn = 10, .crm = 3, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .fgt = FGT_AMAIR_EL1,
@@ -4430,11 +4430,11 @@ static void define_arm_vh_e2h_redirects_aliases(ARMCPU *cpu)
 
     static const struct E2HAlias aliases[] = {
         { K(3, 0,  1, 0, 0), K(3, 4,  1, 0, 0), K(3, 5, 1, 0, 0),
-          "SCTLR", "SCTLR_EL2", "SCTLR_EL12" },
+          "SCTLR_EL1", "SCTLR_EL2", "SCTLR_EL12" },
         { K(3, 0,  1, 0, 3), K(3, 4,  1, 0, 3), K(3, 5, 1, 0, 3),
           "SCTLR2_EL1", "SCTLR2_EL2", "SCTLR2_EL12", isar_feature_aa64_sctlr2 },
         { K(3, 0,  1, 0, 2), K(3, 4,  1, 1, 2), K(3, 5, 1, 0, 2),
-          "CPACR", "CPTR_EL2", "CPACR_EL12" },
+          "CPACR_EL1", "CPTR_EL2", "CPACR_EL12" },
         { K(3, 0,  2, 0, 0), K(3, 4,  2, 0, 0), K(3, 5, 2, 0, 0),
           "TTBR0_EL1", "TTBR0_EL2", "TTBR0_EL12" },
         { K(3, 0,  2, 0, 1), K(3, 4,  2, 0, 1), K(3, 5, 2, 0, 1),
@@ -4458,13 +4458,13 @@ static void define_arm_vh_e2h_redirects_aliases(ARMCPU *cpu)
         { K(3, 0, 10, 2, 0), K(3, 4, 10, 2, 0), K(3, 5, 10, 2, 0),
           "MAIR_EL1", "MAIR_EL2", "MAIR_EL12" },
         { K(3, 0, 10, 3, 0), K(3, 4, 10, 3, 0), K(3, 5, 10, 3, 0),
-          "AMAIR0", "AMAIR_EL2", "AMAIR_EL12" },
+          "AMAIR_EL1", "AMAIR_EL2", "AMAIR_EL12" },
         { K(3, 0, 12, 0, 0), K(3, 4, 12, 0, 0), K(3, 5, 12, 0, 0),
-          "VBAR", "VBAR_EL2", "VBAR_EL12" },
+          "VBAR_EL1", "VBAR_EL2", "VBAR_EL12" },
         { K(3, 0, 13, 0, 1), K(3, 4, 13, 0, 1), K(3, 5, 13, 0, 1),
           "CONTEXTIDR_EL1", "CONTEXTIDR_EL2", "CONTEXTIDR_EL12" },
         { K(3, 0, 14, 1, 0), K(3, 4, 14, 1, 0), K(3, 5, 14, 1, 0),
-          "CNTKCTL", "CNTHCTL_EL2", "CNTKCTL_EL12" },
+          "CNTKCTL_EL1", "CNTHCTL_EL2", "CNTKCTL_EL12" },
 
         { K(3, 0,  1, 2, 0), K(3, 4,  1, 2, 0), K(3, 5, 1, 2, 0),
           "ZCR_EL1", "ZCR_EL2", "ZCR_EL12", isar_feature_aa64_sve },
@@ -7098,7 +7098,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
 
     if (arm_feature(env, ARM_FEATURE_VBAR)) {
         static const ARMCPRegInfo vbar_cp_reginfo[] = {
-            { .name = "VBAR", .state = ARM_CP_STATE_BOTH,
+            { .name = "VBAR_EL1", .state = ARM_CP_STATE_BOTH,
               .opc0 = 3, .crn = 12, .crm = 0, .opc1 = 0, .opc2 = 0,
               .access = PL1_RW, .writefn = vbar_write,
               .accessfn = access_nv1,
@@ -7114,7 +7114,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     /* Generic registers whose values depend on the implementation */
     {
         ARMCPRegInfo sctlr = {
-            .name = "SCTLR", .state = ARM_CP_STATE_BOTH,
+            .name = "SCTLR_EL1", .state = ARM_CP_STATE_BOTH,
             .opc0 = 3, .opc1 = 0, .crn = 1, .crm = 0, .opc2 = 0,
             .access = PL1_RW, .accessfn = access_tvm_trvm,
             .fgt = FGT_SCTLR_EL1,
