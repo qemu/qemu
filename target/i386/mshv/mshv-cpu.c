@@ -30,6 +30,8 @@
 #include "trace-accel_mshv.h"
 #include "trace.h"
 
+#include <sys/ioctl.h>
+
 int mshv_store_regs(CPUState *cpu)
 {
     error_report("unimplemented");
@@ -62,20 +64,29 @@ int mshv_run_vcpu(int vm_fd, CPUState *cpu, hv_message *msg, MshvVmExit *exit)
 
 void mshv_remove_vcpu(int vm_fd, int cpu_fd)
 {
-    error_report("unimplemented");
-    abort();
+    close(cpu_fd);
 }
+
 
 int mshv_create_vcpu(int vm_fd, uint8_t vp_index, int *cpu_fd)
 {
-    error_report("unimplemented");
-    abort();
+    int ret;
+    struct mshv_create_vp vp_arg = {
+        .vp_index = vp_index,
+    };
+    ret = ioctl(vm_fd, MSHV_CREATE_VP, &vp_arg);
+    if (ret < 0) {
+        error_report("failed to create mshv vcpu: %s", strerror(errno));
+        return -1;
+    }
+
+    *cpu_fd = ret;
+
+    return 0;
 }
 
 void mshv_init_mmio_emu(void)
 {
-    error_report("unimplemented");
-    abort();
 }
 
 void mshv_arch_init_vcpu(CPUState *cpu)
