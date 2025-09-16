@@ -4417,42 +4417,6 @@ static CPAccessResult access_el1nvvct(CPUARMState *env, const ARMCPRegInfo *ri,
     return e2h_access(env, ri, isread);
 }
 
-static uint64_t el2_e2h_e12_read(CPUARMState *env, const ARMCPRegInfo *ri)
-{
-    /* Pass the EL1 register accessor its ri, not the EL12 alias ri */
-    return ri->orig_readfn(env, ri->opaque);
-}
-
-static void el2_e2h_e12_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                              uint64_t value)
-{
-    /* Pass the EL1 register accessor its ri, not the EL12 alias ri */
-    return ri->orig_writefn(env, ri->opaque, value);
-}
-
-static CPAccessResult el2_e2h_e12_access(CPUARMState *env,
-                                         const ARMCPRegInfo *ri,
-                                         bool isread)
-{
-    if (arm_current_el(env) == 1) {
-        /*
-         * This must be a FEAT_NV access (will either trap or redirect
-         * to memory). None of the registers with _EL12 aliases want to
-         * apply their trap controls for this kind of access, so don't
-         * call the orig_accessfn or do the "UNDEF when E2H is 0" check.
-         */
-        return CP_ACCESS_OK;
-    }
-    /* FOO_EL12 aliases only exist when E2H is 1; otherwise they UNDEF */
-    if (!(arm_hcr_el2_eff(env) & HCR_E2H)) {
-        return CP_ACCESS_UNDEFINED;
-    }
-    if (ri->orig_accessfn) {
-        return ri->orig_accessfn(env, ri->opaque, isread);
-    }
-    return CP_ACCESS_OK;
-}
-
 static void define_arm_vh_e2h_redirects_aliases(ARMCPU *cpu)
 {
     struct E2HAlias {
@@ -4541,9 +4505,6 @@ static void define_arm_vh_e2h_redirects_aliases(ARMCPU *cpu)
         g_assert(strcmp(src_reg->name, a->src_name) == 0);
         g_assert(strcmp(dst_reg->name, a->dst_name) == 0);
 
-        /* None of the core system registers use opaque; we will.  */
-        g_assert(src_reg->opaque == NULL);
-
         /* Create alias before redirection so we dup the right data. */
         new_reg = g_memdup(src_reg, sizeof(ARMCPRegInfo));
 
@@ -4562,19 +4523,11 @@ static void define_arm_vh_e2h_redirects_aliases(ARMCPU *cpu)
             >> CP_REG_ARM64_SYSREG_OP1_SHIFT;
         new_reg->opc2 = (a->new_key & CP_REG_ARM64_SYSREG_OP2_MASK)
             >> CP_REG_ARM64_SYSREG_OP2_SHIFT;
-        new_reg->opaque = src_reg;
-        new_reg->orig_readfn = src_reg->readfn ?: raw_read;
-        new_reg->orig_writefn = src_reg->writefn ?: raw_write;
-        new_reg->orig_accessfn = src_reg->accessfn;
-        if (!new_reg->raw_readfn) {
-            new_reg->raw_readfn = raw_read;
-        }
-        if (!new_reg->raw_writefn) {
-            new_reg->raw_writefn = raw_write;
-        }
-        new_reg->readfn = el2_e2h_e12_read;
-        new_reg->writefn = el2_e2h_e12_write;
-        new_reg->accessfn = el2_e2h_e12_access;
+        new_reg->vhe_redir_to_el01 = a->src_key;
+        new_reg->readfn = NULL;
+        new_reg->writefn = NULL;
+        new_reg->accessfn = NULL;
+        new_reg->fieldoffset = 0;
 
         /*
          * If the _EL1 register is redirected to memory by FEAT_NV2,

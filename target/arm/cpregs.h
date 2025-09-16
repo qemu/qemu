@@ -942,8 +942,12 @@ struct ARMCPRegInfo {
      */
     uint32_t vhe_redir_to_el2;
 
-    /* This is used only by VHE. */
-    void *opaque;
+    /*
+     * With VHE, with E2H, at EL2+, access to this EL02/EL12 reg
+     * redirects to the EL0/EL1 reg with the specified key.
+     */
+    uint32_t vhe_redir_to_el01;
+
     /*
      * Value of this register, if it is ARM_CP_CONST. Otherwise, if
      * fieldoffset is non-zero, the reset value of the register.
@@ -1011,20 +1015,6 @@ struct ARMCPRegInfo {
      * fieldoffset is 0 then no reset will be done.
      */
     CPResetFn *resetfn;
-
-    /*
-     * "Original" readfn, writefn, accessfn.
-     * For ARMv8.1-VHE register aliases, we overwrite the read/write
-     * accessor functions of various EL1/EL0 to perform the runtime
-     * check for which sysreg should actually be modified, and then
-     * forwards the operation.  Before overwriting the accessors,
-     * the original function is copied here, so that accesses that
-     * really do go to the EL1/EL0 version proceed normally.
-     * (The corresponding EL2 register is linked via opaque.)
-     */
-    CPReadFn *orig_readfn;
-    CPWriteFn *orig_writefn;
-    CPAccessFn *orig_accessfn;
 };
 
 void define_one_arm_cp_reg(ARMCPU *cpu, const ARMCPRegInfo *regs);

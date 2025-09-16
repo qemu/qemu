@@ -2580,6 +2580,18 @@ static void handle_sys(DisasContext *s, bool isread,
          */
         key = ri->vhe_redir_to_el2;
         ri = redirect_cpreg(s, key, isread);
+    } else if (ri->vhe_redir_to_el01 && s->current_el >= 2) {
+        /*
+         * This is one of the FOO_EL12 or FOO_EL02 registers.
+         * With !E2H, they all UNDEF.
+         * With E2H, from EL2 or EL3, they redirect to FOO_EL1/FOO_EL0.
+         */
+        if (!s->e2h) {
+            gen_sysreg_undef(s, isread, op0, op1, op2, crn, crm, rt);
+            return;
+        }
+        key = ri->vhe_redir_to_el01;
+        ri = redirect_cpreg(s, key, isread);
     }
 
     if (ri->accessfn || (ri->fgt && s->fgt_active)) {
