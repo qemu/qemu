@@ -425,7 +425,7 @@ static int qio_channel_tls_set_blocking(QIOChannel *ioc,
 {
     QIOChannelTLS *tioc = QIO_CHANNEL_TLS(ioc);
 
-    return qio_channel_set_blocking(tioc->master, enabled, errp);
+    return qio_channel_set_blocking(tioc->master, enabled, errp) ? 0 : -1;
 }
 
 static void qio_channel_tls_set_delay(QIOChannel *ioc,

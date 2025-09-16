@@ -336,6 +336,7 @@ static void vu_accept(QIONetListener *listener, QIOChannelSocket *sioc,
                       gpointer opaque)
 {
     VuServer *server = opaque;
+    Error *local_err = NULL;
 
     if (server->sioc) {
         warn_report("Only one vhost-user client is allowed to "
@@ -368,7 +369,11 @@ static void vu_accept(QIONetListener *listener, QIOChannelSocket *sioc,
     object_ref(OBJECT(server->ioc));
 
     /* TODO vu_message_write() spins if non-blocking! */
-    qio_channel_set_blocking(server->ioc, false, NULL);
+    if (!qio_channel_set_blocking(server->ioc, false, &local_err)) {
+        error_report_err(local_err);
+        vu_deinit(&server->vu_dev);
+        return;
+    }
 
     qio_channel_set_follow_coroutine_ctx(server->ioc, true);
 

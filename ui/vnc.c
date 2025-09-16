@@ -3337,7 +3337,7 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
 
     VNC_DEBUG("New client on socket %p\n", vs->sioc);
     update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
-    qio_channel_set_blocking(vs->ioc, false, NULL);
+    qio_channel_set_blocking(vs->ioc, false, &error_abort);
     if (vs->ioc_tag) {
         g_source_remove(vs->ioc_tag);
     }

@@ -531,9 +531,9 @@ int coroutine_mixed_fn qio_channel_write_all(QIOChannel *ioc,
  * return QIO_CHANNEL_ERR_BLOCK if they would otherwise
  * block on I/O
  */
-int qio_channel_set_blocking(QIOChannel *ioc,
-                             bool enabled,
-                             Error **errp);
+bool qio_channel_set_blocking(QIOChannel *ioc,
+                              bool enabled,
+                              Error **errp);
 
 /**
  * qio_channel_set_follow_coroutine_ctx:
