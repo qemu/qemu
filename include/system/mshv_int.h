@@ -16,6 +16,8 @@
 
 #define MSHV_MSR_ENTRIES_COUNT 64
 
+#define MSHV_MAX_MEM_SLOTS 32
+
 typedef struct hyperv_message hv_message;
 
 struct AccelCPUState {
@@ -33,6 +35,12 @@ typedef struct MshvAddressSpace {
     AddressSpace *as;
 } MshvAddressSpace;
 
+typedef struct MshvMemorySlotManager {
+    size_t n_slots;
+    GList *slots;
+    QemuMutex mutex;
+} MshvMemorySlotManager;
+
 struct MshvState {
     AccelState parent_obj;
     int vm;
@@ -41,6 +49,7 @@ struct MshvState {
     int nr_as;
     MshvAddressSpace *as;
     int fd;
+    MshvMemorySlotManager msm;
 };
 
 typedef struct MshvMsiControl {
@@ -71,6 +80,12 @@ typedef enum MshvVmExit {
     MshvVmExitSpecial  = 2,
 } MshvVmExit;
 
+typedef enum MshvRemapResult {
+    MshvRemapOk = 0,
+    MshvRemapNoMapping = 1,
+    MshvRemapNoOverlap = 2,
+} MshvRemapResult;
+
 void mshv_init_mmio_emu(void);
 int mshv_create_vcpu(int vm_fd, uint8_t vp_index, int *cpu_fd);
 void mshv_remove_vcpu(int vm_fd, int cpu_fd);
@@ -94,19 +109,22 @@ int mshv_hvcall(int fd, const struct mshv_root_hvcall *args);
 #endif
 
 /* memory */
-typedef struct MshvMemoryRegion {
+typedef struct MshvMemorySlot {
     uint64_t guest_phys_addr;
     uint64_t memory_size;
     uint64_t userspace_addr;
     bool readonly;
-} MshvMemoryRegion;
+    bool mapped;
+} MshvMemorySlot;
 
+MshvRemapResult mshv_remap_overlap_region(int vm_fd, uint64_t gpa);
 int mshv_guest_mem_read(uint64_t gpa, uint8_t *data, uintptr_t size,
                         bool is_secure_mode, bool instruction_fetch);
 int mshv_guest_mem_write(uint64_t gpa, const uint8_t *data, uintptr_t size,
                          bool is_secure_mode);
 void mshv_set_phys_mem(MshvMemoryListener *mml, MemoryRegionSection *section,
                        bool add);
+void mshv_init_memory_slot_manager(MshvState *mshv_state);
 
 /* msr */
 typedef struct MshvMsrEntry {

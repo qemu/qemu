@@ -437,6 +437,8 @@ static int mshv_init(AccelState *as, MachineState *ms)
 
     mshv_init_msicontrol();
 
+    mshv_init_memory_slot_manager(s);
+
     ret = create_vm(mshv_fd, &vm_fd);
     if (ret < 0) {
         close(mshv_fd);
