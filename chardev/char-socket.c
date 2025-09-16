@@ -307,20 +307,6 @@ static ssize_t tcp_chr_recv(Chardev *chr, char *buf, size_t len)
         s->read_msgfds_num = msgfds_num;
     }
 
-    for (i = 0; i < s->read_msgfds_num; i++) {
-        int fd = s->read_msgfds[i];
-        if (fd < 0) {
-            continue;
-        }
-
-        /* O_NONBLOCK is preserved across SCM_RIGHTS so reset it */
-        qemu_socket_set_block(fd);
-
-#ifndef MSG_CMSG_CLOEXEC
-        qemu_set_cloexec(fd);
-#endif
-    }
-
     if (ret == QIO_CHANNEL_ERR_BLOCK) {
         errno = EAGAIN;
         ret = -1;
