@@ -48,7 +48,7 @@ yet, so sometimes the source code is all you have.
 * `accel <https://gitlab.com/qemu-project/qemu/-/tree/master/accel>`_:
   Infrastructure and architecture agnostic code related to the various
   `accelerators <Accelerators>` supported by QEMU
-  (TCG, KVM, hvf, whpx, xen, nvmm).
+  (TCG, KVM, hvf, whpx, xen, nvmm, mshv).
   Contains interfaces for operations that will be implemented per
   `target <https://gitlab.com/qemu-project/qemu/-/tree/master/target>`_.
 * `audio <https://gitlab.com/qemu-project/qemu/-/tree/master/audio>`_:
