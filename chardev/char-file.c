@@ -92,7 +92,11 @@ static void qmp_chardev_open_file(Chardev *chr,
         }
     }
 
-    qemu_chr_open_fd(chr, in, out);
+    if (!qemu_chr_open_fd(chr, in, out, errp)) {
+        qemu_close(out);
+        qemu_close(in);
+        return;
+    }
 #endif
 }
 

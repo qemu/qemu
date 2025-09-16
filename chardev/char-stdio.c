@@ -110,13 +110,16 @@ static void qemu_chr_open_stdio(Chardev *chr,
     if (!qemu_set_blocking(0, false, errp)) {
         return;
     }
+
+    if (!qemu_chr_open_fd(chr, 0, 1, errp)) {
+        return;
+    }
+
     atexit(term_exit);
 
     memset(&act, 0, sizeof(act));
     act.sa_handler = term_stdio_handler;
     sigaction(SIGCONT, &act, NULL);
-
-    qemu_chr_open_fd(chr, 0, 1);
 
     stdio_allow_signal = !opts->has_signal || opts->signal;
     qemu_chr_set_echo_stdio(chr, false);
