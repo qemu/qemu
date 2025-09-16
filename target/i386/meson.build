@@ -13,6 +13,7 @@ i386_ss.add(when: 'CONFIG_KVM', if_true: files('host-cpu.c'))
 i386_ss.add(when: 'CONFIG_HVF', if_true: files('host-cpu.c'))
 i386_ss.add(when: 'CONFIG_WHPX', if_true: files('host-cpu.c'))
 i386_ss.add(when: 'CONFIG_NVMM', if_true: files('host-cpu.c'))
+i386_ss.add(when: 'CONFIG_MSHV', if_true: files('host-cpu.c'))
 
 i386_system_ss = ss.source_set()
 i386_system_ss.add(files(
@@ -34,6 +35,7 @@ subdir('nvmm')
 subdir('hvf')
 subdir('tcg')
 subdir('emulate')
+subdir('mshv')
 
 target_arch += {'i386': i386_ss}
 target_system_arch += {'i386': i386_system_ss}
