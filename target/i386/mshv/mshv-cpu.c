@@ -403,6 +403,206 @@ int mshv_load_regs(CPUState *cpu)
     return 0;
 }
 
+static void add_cpuid_entry(GList *cpuid_entries,
+                            uint32_t function, uint32_t index,
+                            uint32_t eax, uint32_t ebx,
+                            uint32_t ecx, uint32_t edx)
+{
+    struct hv_cpuid_entry *entry;
+
+    entry = g_malloc0(sizeof(struct hv_cpuid_entry));
+    entry->function = function;
+    entry->index = index;
+    entry->eax = eax;
+    entry->ebx = ebx;
+    entry->ecx = ecx;
+    entry->edx = edx;
+
+    cpuid_entries = g_list_append(cpuid_entries, entry);
+}
+
+static void collect_cpuid_entries(const CPUState *cpu, GList *cpuid_entries)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+    uint32_t eax, ebx, ecx, edx;
+    uint32_t leaf, subleaf;
+    size_t max_leaf = 0x1F;
+    size_t max_subleaf = 0x20;
+
+    uint32_t leaves_with_subleaves[] = {0x4, 0x7, 0xD, 0xF, 0x10};
+    int n_subleaf_leaves = ARRAY_SIZE(leaves_with_subleaves);
+
+    /* Regular leaves without subleaves */
+    for (leaf = 0; leaf <= max_leaf; leaf++) {
+        bool has_subleaves = false;
+        for (int i = 0; i < n_subleaf_leaves; i++) {
+            if (leaf == leaves_with_subleaves[i]) {
+                has_subleaves = true;
+                break;
+            }
+        }
+
+        if (!has_subleaves) {
+            cpu_x86_cpuid(env, leaf, 0, &eax, &ebx, &ecx, &edx);
+            if (eax == 0 && ebx == 0 && ecx == 0 && edx == 0) {
+                /* all zeroes indicates no more leaves */
+                continue;
+            }
+
+            add_cpuid_entry(cpuid_entries, leaf, 0, eax, ebx, ecx, edx);
+            continue;
+        }
+
+        subleaf = 0;
+        while (subleaf < max_subleaf) {
+            cpu_x86_cpuid(env, leaf, subleaf, &eax, &ebx, &ecx, &edx);
+
+            if (eax == 0 && ebx == 0 && ecx == 0 && edx == 0) {
+                /* all zeroes indicates no more leaves */
+                break;
+            }
+            add_cpuid_entry(cpuid_entries, leaf, 0, eax, ebx, ecx, edx);
+            subleaf++;
+        }
+    }
+}
+
+static int register_intercept_result_cpuid_entry(const CPUState *cpu,
+                                                 uint8_t subleaf_specific,
+                                                 uint8_t always_override,
+                                                 struct hv_cpuid_entry *entry)
+{
+    int ret;
+    int vp_index = cpu->cpu_index;
+    int cpu_fd = mshv_vcpufd(cpu);
+
+    struct hv_register_x64_cpuid_result_parameters cpuid_params = {
+        .input.eax = entry->function,
+        .input.ecx = entry->index,
+        .input.subleaf_specific = subleaf_specific,
+        .input.always_override = always_override,
+        .input.padding = 0,
+        /*
+         * With regard to masks - these are to specify bits to be overwritten
+         * The current CpuidEntry structure wouldn't allow to carry the masks
+         * in addition to the actual register values. For this reason, the
+         * masks are set to the exact values of the corresponding register bits
+         * to be registered for an overwrite. To view resulting values the
+         * hypervisor would return, HvCallGetVpCpuidValues hypercall can be
+         * used.
+         */
+        .result.eax = entry->eax,
+        .result.eax_mask = entry->eax,
+        .result.ebx = entry->ebx,
+        .result.ebx_mask = entry->ebx,
+        .result.ecx = entry->ecx,
+        .result.ecx_mask = entry->ecx,
+        .result.edx = entry->edx,
+        .result.edx_mask = entry->edx,
+    };
+    union hv_register_intercept_result_parameters parameters = {
+        .cpuid = cpuid_params,
+    };
+
+    hv_input_register_intercept_result in = {0};
+    in.vp_index = vp_index;
+    in.intercept_type = HV_INTERCEPT_TYPE_X64_CPUID;
+    in.parameters = parameters;
+
+    struct mshv_root_hvcall args = {0};
+    args.code   = HVCALL_REGISTER_INTERCEPT_RESULT;
+    args.in_sz  = sizeof(in);
+    args.in_ptr = (uint64_t)&in;
+
+    ret = mshv_hvcall(cpu_fd, &args);
+    if (ret < 0) {
+        error_report("failed to register intercept result for cpuid");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int register_intercept_result_cpuid(const CPUState *cpu,
+                                           struct hv_cpuid *cpuid)
+{
+    int ret = 0, entry_ret;
+    struct hv_cpuid_entry *entry;
+    uint8_t subleaf_specific, always_override;
+
+    for (size_t i = 0; i < cpuid->nent; i++) {
+        entry = &cpuid->entries[i];
+
+        /* set defaults */
+        subleaf_specific = 0;
+        always_override = 1;
+
+        /* Intel */
+        /* 0xb - Extended Topology Enumeration Leaf */
+        /* 0x1f - V2 Extended Topology Enumeration Leaf */
+        /* AMD */
+        /* 0x8000_001e - Processor Topology Information */
+        /* 0x8000_0026 - Extended CPU Topology */
+        if (entry->function == 0xb
+            || entry->function == 0x1f
+            || entry->function == 0x8000001e
+            || entry->function == 0x80000026) {
+            subleaf_specific = 1;
+            always_override = 1;
+        } else if (entry->function == 0x00000001
+            || entry->function == 0x80000000
+            || entry->function == 0x80000001
+            || entry->function == 0x80000008) {
+            subleaf_specific = 0;
+            always_override = 1;
+        }
+
+        entry_ret = register_intercept_result_cpuid_entry(cpu, subleaf_specific,
+                                                          always_override,
+                                                          entry);
+        if ((entry_ret < 0) && (ret == 0)) {
+            ret = entry_ret;
+        }
+    }
+
+    return ret;
+}
+
+static int set_cpuid2(const CPUState *cpu)
+{
+    int ret;
+    size_t n_entries, cpuid_size;
+    struct hv_cpuid *cpuid;
+    struct hv_cpuid_entry *entry;
+    GList *entries = NULL;
+
+    collect_cpuid_entries(cpu, entries);
+    n_entries = g_list_length(entries);
+
+    cpuid_size = sizeof(struct hv_cpuid)
+        + n_entries * sizeof(struct hv_cpuid_entry);
+
+    cpuid = g_malloc0(cpuid_size);
+    cpuid->nent = n_entries;
+    cpuid->padding = 0;
+
+    for (size_t i = 0; i < n_entries; i++) {
+        entry = g_list_nth_data(entries, i);
+        cpuid->entries[i] = *entry;
+        g_free(entry);
+    }
+    g_list_free(entries);
+
+    ret = register_intercept_result_cpuid(cpu, cpuid);
+    g_free(cpuid);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return 0;
+}
+
 static inline void populate_hv_segment_reg(SegmentCache *seg,
                                            hv_x64_segment_register *hv_reg)
 {
@@ -684,6 +884,12 @@ int mshv_configure_vcpu(const CPUState *cpu, const struct MshvFPU *fpu,
 {
     int ret;
     int cpu_fd = mshv_vcpufd(cpu);
+
+    ret = set_cpuid2(cpu);
+    if (ret < 0) {
+        error_report("failed to set cpuid");
+        return -1;
+    }
 
     ret = set_cpu_state(cpu, fpu, xcr0);
     if (ret < 0) {
