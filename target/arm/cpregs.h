@@ -943,8 +943,10 @@ struct ARMCPRegInfo {
     uint32_t vhe_redir_to_el2;
 
     /*
-     * With VHE, with E2H, at EL2+, access to this EL02/EL12 reg
-     * redirects to the EL0/EL1 reg with the specified key.
+     * For VHE.  Before registration, this field holds the key for an
+     * EL02/EL12 reg to be created to point back to this EL0/EL1 reg.
+     * After registration, this field is set only on the EL02/EL12 reg
+     * and points back to the EL02/EL12 reg for redirection with E2H.
      */
     uint32_t vhe_redir_to_el01;
 
