@@ -294,7 +294,12 @@ static ssize_t tcp_chr_recv(Chardev *chr, char *buf, size_t len)
     }
 
     if (msgfds_num) {
-        /* close and clean read_msgfds */
+        /*
+         * Close and clean previous read_msgfds, they are obsolete at
+         * this point, regardless result of new call to
+         * qio_channel_readv_full().
+         */
+
         for (i = 0; i < s->read_msgfds_num; i++) {
             close(s->read_msgfds[i]);
         }
