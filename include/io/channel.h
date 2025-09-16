@@ -124,8 +124,8 @@ struct QIOChannelClass {
      * incoming fds are set BLOCKING (unless
      * QIO_CHANNEL_READ_FLAG_FD_PRESERVE_BLOCKING flag is set) and
      * CLOEXEC (if available).
-     * @fds and @nfds are set only on success path, and untouched
-     * in case of errors.
+     * @fds and @nfds are set only on success path. Still, setting
+     * @fds and @nfds to zero is acceptable on failure path.
      */
     ssize_t (*io_readv)(QIOChannel *ioc,
                         const struct iovec *iov,
@@ -246,8 +246,8 @@ void qio_channel_set_name(QIOChannel *ioc,
  * to call close() on each file descriptor and to
  * call g_free() on the array pointer in @fds.
  * @fds allocated and set (and @nfds is set too)
- * _only_ on success path. These parameters are
- * untouched in case of errors.
+ * _only_ on success path. Still, @fds and @nfds
+ * may be set to zero on failure path.
  * qio_channel_readv_full() guarantees that all
  * incoming fds are set BLOCKING (unless
  * QIO_CHANNEL_READ_FLAG_FD_PRESERVE_BLOCKING flag

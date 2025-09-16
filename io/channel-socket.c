@@ -464,8 +464,7 @@ static void qio_channel_socket_finalize(Object *obj)
 
 #ifndef WIN32
 static void qio_channel_socket_copy_fds(struct msghdr *msg,
-                                        int **fds, size_t *nfds,
-                                        bool preserve_blocking)
+                                        int **fds, size_t *nfds)
 {
     struct cmsghdr *cmsg;
 
@@ -473,7 +472,7 @@ static void qio_channel_socket_copy_fds(struct msghdr *msg,
     *fds = NULL;
 
     for (cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
-        int fd_size, i;
+        int fd_size;
         int gotfds;
 
         if (cmsg->cmsg_len < CMSG_LEN(sizeof(int)) ||
@@ -491,24 +490,53 @@ static void qio_channel_socket_copy_fds(struct msghdr *msg,
         gotfds = fd_size / sizeof(int);
         *fds = g_renew(int, *fds, *nfds + gotfds);
         memcpy(*fds + *nfds, CMSG_DATA(cmsg), fd_size);
-
-        for (i = 0; i < gotfds; i++) {
-            int fd = (*fds)[*nfds + i];
-            if (fd < 0) {
-                continue;
-            }
-
-            if (!preserve_blocking) {
-                /* O_NONBLOCK is preserved across SCM_RIGHTS so reset it */
-                qemu_socket_set_block(fd);
-            }
-
-#ifndef MSG_CMSG_CLOEXEC
-            qemu_set_cloexec(fd);
-#endif
-        }
         *nfds += gotfds;
     }
+}
+
+static bool qio_channel_handle_fds(int *fds, size_t nfds,
+                                   bool preserve_blocking, Error **errp)
+{
+    int *end = fds + nfds, *fd;
+
+#ifdef MSG_CMSG_CLOEXEC
+    if (preserve_blocking) {
+        /* Nothing to do */
+        return true;
+    }
+#endif
+
+    for (fd = fds; fd != end; fd++) {
+        if (*fd < 0) {
+            continue;
+        }
+
+        if (!preserve_blocking) {
+            /* O_NONBLOCK is preserved across SCM_RIGHTS so reset it */
+            if (!qemu_set_blocking(*fd, true, errp)) {
+                return false;
+            }
+        }
+
+#ifndef MSG_CMSG_CLOEXEC
+        qemu_set_cloexec(*fd);
+#endif
+    }
+
+    return true;
+}
+
+static void qio_channel_cleanup_fds(int **fds, size_t *nfds)
+{
+    for (size_t i = 0; i < *nfds; i++) {
+        if ((*fds)[i] < 0) {
+            continue;
+        }
+        close((*fds)[i]);
+    }
+
+    g_clear_pointer(fds, g_free);
+    *nfds = 0;
 }
 
 
@@ -559,9 +587,16 @@ static ssize_t qio_channel_socket_readv(QIOChannel *ioc,
     }
 
     if (fds && nfds) {
-        qio_channel_socket_copy_fds(
-            &msg, fds, nfds,
-            flags & QIO_CHANNEL_READ_FLAG_FD_PRESERVE_BLOCKING);
+        bool preserve_blocking =
+            flags & QIO_CHANNEL_READ_FLAG_FD_PRESERVE_BLOCKING;
+
+        qio_channel_socket_copy_fds(&msg, fds, nfds);
+
+        if (!qio_channel_handle_fds(*fds, *nfds,
+                                    preserve_blocking, errp)) {
+            qio_channel_cleanup_fds(fds, nfds);
+            return -1;
+        }
     }
 
     return ret;
