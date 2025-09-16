@@ -1,11 +1,12 @@
 #!/bin/sh
 
-# This script is executed when a guest agent receives fsfreeze-freeze and
-# fsfreeze-thaw command, if it is specified in --fsfreeze-hook (-F)
-# option of qemu-ga or placed in default path (/etc/qemu/fsfreeze-hook).
-# When the agent receives fsfreeze-freeze request, this script is issued with
-# "freeze" argument before the filesystem is frozen. And for fsfreeze-thaw
-# request, it is issued with "thaw" argument after filesystem is thawed.
+# This script is executed when the guest agent receives fsfreeze-freeze and
+# fsfreeze-thaw commands, provided that the --fsfreeze-hook (-F) option of
+# qemu-ga is specified and the script is placed in /etc/qemu/fsfreeze-hook or in
+# the path specified together with -F. When the agent receives fsfreeze-freeze
+# requests, this script is called with "freeze" as its argument before the
+# filesystem is frozen. And for fsfreeze-thaw requests, it is called with "thaw"
+# as its argument after the filesystem is thawed.
 
 LOGFILE=/var/log/qga-fsfreeze-hook.log
 FSFREEZE_D=$(dirname -- "$0")/fsfreeze-hook.d
