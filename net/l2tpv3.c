@@ -648,6 +648,9 @@ int net_init_l2tpv3(const Netdev *netdev,
         error_setg(errp, "could not bind socket err=%i", errno);
         goto outerr;
     }
+    if (!qemu_set_blocking(fd, false, errp)) {
+        goto outerr;
+    }
 
     freeaddrinfo(result);
 
@@ -708,8 +711,6 @@ int net_init_l2tpv3(const Netdev *netdev,
     s->msgvec = build_l2tpv3_vector(s, MAX_L2TPV3_MSGCNT);
     s->vec = g_new(struct iovec, MAX_L2TPV3_IOVCNT);
     s->header_buf = g_malloc(s->header_size);
-
-    qemu_socket_set_nonblock(fd);
 
     s->fd = fd;
     s->counter = 0;
