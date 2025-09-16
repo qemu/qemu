@@ -23,6 +23,7 @@
 #define IOCSRF_DVFSV1           7
 #define IOCSRF_GMOD             9
 #define IOCSRF_VM               11
+#define IOCSRF_DMSI             15
 
 #define VERSION_REG             0x0
 #define FEATURE_REG             0x8
@@ -31,6 +32,7 @@
 #define MISC_FUNC_REG           0x420
 #define IOCSRM_EXTIOI_EN        48
 #define IOCSRM_EXTIOI_INT_ENCODE 49
+#define IOCSRM_DMSI_EN          51
 
 #define LOONGARCH_MAX_CPUS      256
 
@@ -69,6 +71,7 @@ struct LoongArchVirtMachineState {
     Notifier     powerdown_notifier;
     OnOffAuto    acpi;
     OnOffAuto    veiointc;
+    OnOffAuto    dmsi;
     char         *oem_id;
     char         *oem_table_id;
     DeviceState  *acpi_ged;
@@ -84,12 +87,23 @@ struct LoongArchVirtMachineState {
     DeviceState *extioi;
     struct memmap_entry *memmap_table;
     unsigned int memmap_entries;
+    uint64_t misc_feature;
+    uint64_t misc_status;
 };
 
 #define TYPE_LOONGARCH_VIRT_MACHINE  MACHINE_TYPE_NAME("virt")
 OBJECT_DECLARE_SIMPLE_TYPE(LoongArchVirtMachineState, LOONGARCH_VIRT_MACHINE)
 void virt_acpi_setup(LoongArchVirtMachineState *lvms);
 void virt_fdt_setup(LoongArchVirtMachineState *lvms);
+
+static inline bool virt_has_dmsi(LoongArchVirtMachineState *lvms)
+{
+    if (!(lvms->misc_feature & BIT(IOCSRF_DMSI))) {
+        return false;
+    }
+
+    return true;
+}
 
 static inline bool virt_is_veiointc_enabled(LoongArchVirtMachineState *lvms)
 {
