@@ -2095,7 +2095,7 @@ static void *postcopy_ram_listen_thread(void *opaque)
      * Because we're a thread and not a coroutine we can't yield
      * in qemu_file, and thus we must be blocking now.
      */
-    qemu_file_set_blocking(f, true);
+    qemu_file_set_blocking(f, true, &error_fatal);
 
     /* TODO: sanity check that only postcopiable data will be loaded here */
     load_res = qemu_loadvm_state_main(f, mis);
@@ -2108,7 +2108,7 @@ static void *postcopy_ram_listen_thread(void *opaque)
     f = mis->from_src_file;
 
     /* And non-blocking again so we don't block in any cleanup */
-    qemu_file_set_blocking(f, false);
+    qemu_file_set_blocking(f, false, &error_fatal);
 
     trace_postcopy_ram_listen_thread_exit();
     if (load_res < 0) {
