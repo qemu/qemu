@@ -163,6 +163,21 @@ void hmp_info_kvm(Monitor *mon, const QDict *qdict)
     qapi_free_KvmInfo(info);
 }
 
+void hmp_info_mshv(Monitor *mon, const QDict *qdict)
+{
+    MshvInfo *info;
+
+    info = qmp_query_mshv(NULL);
+    monitor_printf(mon, "mshv support: ");
+    if (info->present) {
+        monitor_printf(mon, "%s\n", info->enabled ? "enabled" : "disabled");
+    } else {
+        monitor_printf(mon, "not compiled\n");
+    }
+
+    qapi_free_MshvInfo(info);
+}
+
 void hmp_info_uuid(Monitor *mon, const QDict *qdict)
 {
     UuidInfo *info;

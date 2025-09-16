@@ -54,3 +54,32 @@
 { 'command': 'x-accel-stats',
   'returns': 'HumanReadableText',
   'features': [ 'unstable' ] }
+
+##
+# @MshvInfo:
+#
+# Information about support for MSHV acceleration
+#
+# @enabled: true if MSHV acceleration is active
+#
+# @present: true if MSHV acceleration is built into this executable
+#
+# Since: 10.2.0
+##
+{ 'struct': 'MshvInfo', 'data': {'enabled': 'bool', 'present': 'bool'} }
+
+##
+# @query-mshv:
+#
+# Return information about MSHV acceleration
+#
+# Returns: @MshvInfo
+#
+# Since: 10.0.92
+#
+# .. qmp-example::
+#
+#     -> { "execute": "query-mshv" }
+#     <- { "return": { "enabled": true, "present": true } }
+##
+{ 'command': 'query-mshv', 'returns': 'MshvInfo' }
