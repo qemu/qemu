@@ -16,6 +16,14 @@
 #include "migration/vmstate.h"
 #include "trace.h"
 #include "hw/qdev-properties.h"
+#include "target/loongarch/cpu.h"
+#include "qemu/error-report.h"
+#include "system/hw_accel.h"
+
+/* msg addr field */
+FIELD(MSG_ADDR, IRQ_NUM, 4, 8)
+FIELD(MSG_ADDR, CPU_NUM, 12, 8)
+FIELD(MSG_ADDR, FIX, 28, 12)
 
 static uint64_t loongarch_dintc_mem_read(void *opaque,
                                         hwaddr addr, unsigned size)
@@ -23,12 +31,32 @@ static uint64_t loongarch_dintc_mem_read(void *opaque,
     return 0;
 }
 
+static void do_set_vcpu_dintc_irq(CPUState *cs, run_on_cpu_data data)
+{
+    int irq = data.host_int;
+    CPULoongArchState *env;
+
+    env = &LOONGARCH_CPU(cs)->env;
+    cpu_synchronize_state(cs);
+    set_bit(irq, (unsigned long *)&env->CSR_MSGIS);
+}
+
 static void loongarch_dintc_mem_write(void *opaque, hwaddr addr,
                                      uint64_t val, unsigned size)
 {
-    return;
-}
+    int irq_num, cpu_num = 0;
+    LoongArchDINTCState *s = LOONGARCH_DINTC(opaque);
+    uint64_t msg_addr = addr + VIRT_DINTC_BASE;
+    CPUState *cs;
 
+    cpu_num = FIELD_EX64(msg_addr, MSG_ADDR, CPU_NUM);
+    cs = cpu_by_arch_id(cpu_num);
+    irq_num = FIELD_EX64(msg_addr, MSG_ADDR, IRQ_NUM);
+
+    async_run_on_cpu(cs, do_set_vcpu_dintc_irq,
+                         RUN_ON_CPU_HOST_INT(irq_num));
+    qemu_set_irq(s->cpu[cpu_num].parent_irq, 1);
+}
 
 static const MemoryRegionOps loongarch_dintc_ops = {
     .read = loongarch_dintc_mem_read,
