@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu/iov.h"
 #include "qemu/sockets.h"
 
@@ -186,7 +187,7 @@ static void test_io(void)
 
        close(sv[0]);
        FD_SET(sv[1], &fds);
-       g_unix_set_fd_nonblocking(sv[1], true, NULL);
+       qemu_set_blocking(sv[1], false, &error_abort);
        r = g_test_rand_int_range(sz / 2, sz);
        setsockopt(sv[1], SOL_SOCKET, SO_SNDBUF, &r, sizeof(r));
 
@@ -222,7 +223,7 @@ static void test_io(void)
 
        close(sv[1]);
        FD_SET(sv[0], &fds);
-       g_unix_set_fd_nonblocking(sv[0], true, NULL);
+       qemu_set_blocking(sv[0], false, &error_abort);
        r = g_test_rand_int_range(sz / 2, sz);
        setsockopt(sv[0], SOL_SOCKET, SO_RCVBUF, &r, sizeof(r));
        usleep(500000);

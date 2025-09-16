@@ -98,7 +98,12 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
             return -1;
         }
     }
-    g_unix_set_fd_nonblocking(fd, true, NULL);
+
+    if (!qemu_set_blocking(fd, false, errp)) {
+        close(fd);
+        return -1;
+    }
+
     return fd;
 }
 
@@ -189,7 +194,10 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
         goto error;
     }
 
-    g_unix_set_fd_nonblocking(fd, true, NULL);
+    if (!qemu_set_blocking(fd, false, errp)) {
+        goto error;
+    }
+
     return fd;
 
 error:

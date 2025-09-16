@@ -503,9 +503,8 @@ int64_t qmp_guest_file_open(const char *path, const char *mode,
     /* set fd non-blocking to avoid common use cases (like reading from a
      * named pipe) from hanging the agent
      */
-    if (!g_unix_set_fd_nonblocking(fileno(fh), true, NULL)) {
+    if (!qemu_set_blocking(fileno(fh), false, errp)) {
         fclose(fh);
-        error_setg_errno(errp, errno, "Failed to set FD nonblocking");
         return -1;
     }
 
