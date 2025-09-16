@@ -51,6 +51,15 @@ int compare_u64(const void *a, const void *b)
     return 0;
 }
 
+/*
+ * Macros which are lvalues for the field in CPUARMState for the
+ * ARMCPRegInfo *ri.
+ */
+#define CPREG_FIELD32(env, ri) \
+    (*(uint32_t *)((char *)(env) + (ri)->fieldoffset))
+#define CPREG_FIELD64(env, ri) \
+    (*(uint64_t *)((char *)(env) + (ri)->fieldoffset))
+
 uint64_t raw_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     assert(ri->fieldoffset);
@@ -70,6 +79,9 @@ void raw_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
         CPREG_FIELD32(env, ri) = value;
     }
 }
+
+#undef CPREG_FIELD32
+#undef CPREG_FIELD64
 
 static void *raw_ptr(CPUARMState *env, const ARMCPRegInfo *ri)
 {
