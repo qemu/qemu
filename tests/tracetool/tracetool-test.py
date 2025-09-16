@@ -6,6 +6,7 @@ from pathlib import Path
 from shutil import copyfile
 from subprocess import check_call
 import sys
+import tempfile
 
 
 def get_formats(backend):
@@ -99,7 +100,8 @@ if __name__ == "__main__":
         print("syntax: {argv0} TRACE-TOOL BACKEND SRC-DIR BUILD-DIR", file=sys.stderr)
         sys.exit(1)
 
-    fail = test_tracetool(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
-    if fail:
-        sys.exit(1)
+    with tempfile.TemporaryDirectory(prefix=sys.argv[4]) as tmpdir:
+        fail = test_tracetool(sys.argv[1], sys.argv[2], sys.argv[3], tmpdir)
+        if fail:
+            sys.exit(1)
     sys.exit(0)
