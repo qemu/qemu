@@ -41,7 +41,7 @@ extern bool mshv_allowed;
 #define mshv_msi_via_irqfd_enabled() mshv_enabled()
 #else /* CONFIG_MSHV_IS_POSSIBLE */
 #define mshv_enabled() false
-#define mshv_msi_via_irqfd_enabled() false
+#define mshv_msi_via_irqfd_enabled() mshv_enabled()
 #endif
 
 typedef struct MshvState MshvState;
