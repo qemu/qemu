@@ -3562,6 +3562,7 @@ F: scripts/tracetool/
 F: scripts/qemu-trace-stap*
 F: docs/tools/qemu-trace-stap.rst
 F: docs/devel/tracing.rst
+F: tests/tracetool/
 T: git https://github.com/stefanha/qemu.git tracing
 
 Simpletrace

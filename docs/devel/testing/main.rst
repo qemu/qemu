@@ -178,6 +178,34 @@ parser (either fixing a bug or extending/modifying the syntax). To do this:
 
   ``qapi-schema += foo.json``
 
+.. _tracetool-tests:
+
+Tracetool tests
+~~~~~~~~~~~~~~~
+
+The tracetool tests validate the generated source files used for defining
+probes for various tracing backends and source formats. The test operates
+by running the tracetool program against a sample trace-events file, and
+comparing the generated output against known good reference output. The
+tests can be run with:
+
+.. code::
+
+  make check-tracetool
+
+The reference output is stored in files under tests/tracetool, and when
+the tracetool backend/format output is intentionally changed, the reference
+files need to be updated. This can be automated by setting the
+QEMU_TEST_REGENERATE=1 environment variable:
+
+.. code::
+
+   QEMU_TEST_REGENERATE=1 make check-tracetool
+
+The resulting changes must be reviewed by the author to ensure they match
+the intended results, before adding the updated reference output to the
+same commit that alters the generator code.
+
 check-block
 ~~~~~~~~~~~
 
