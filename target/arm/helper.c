@@ -4503,7 +4503,7 @@ static void define_arm_vh_e2h_redirects_aliases(ARMCPU *cpu)
     };
 
 #define K(op0, op1, crn, crm, op2) \
-    ENCODE_AA64_CP_REG(CP_REG_ARM64_SYSREG_CP, crn, crm, op0, op1, op2)
+    ENCODE_AA64_CP_REG(crn, crm, op0, op1, op2)
 
     static const struct E2HAlias aliases[] = {
         { K(3, 0,  1, 0, 0), K(3, 4,  1, 0, 0), K(3, 5, 1, 0, 0),
@@ -7396,10 +7396,9 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
          * in their AArch64 view (the .cp value may be non-zero for the
          * benefit of the AArch32 view).
          */
-        if (cp == 0 || r->state == ARM_CP_STATE_BOTH) {
-            cp = CP_REG_ARM64_SYSREG_CP;
-        }
-        key = ENCODE_AA64_CP_REG(cp, r->crn, crm, r->opc0, opc1, opc2);
+        assert(cp == 0 || r->state == ARM_CP_STATE_BOTH);
+        cp = 0;
+        key = ENCODE_AA64_CP_REG(r->crn, crm, r->opc0, opc1, opc2);
         break;
     default:
         g_assert_not_reached();
@@ -7624,7 +7623,7 @@ void define_one_arm_cp_reg(ARMCPU *cpu, const ARMCPRegInfo *r)
         }
         break;
     case ARM_CP_STATE_AA64:
-        assert(r->cp == 0 || r->cp == CP_REG_ARM64_SYSREG_CP);
+        assert(r->cp == 0);
         break;
     default:
         g_assert_not_reached();
