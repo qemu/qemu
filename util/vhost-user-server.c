@@ -62,7 +62,7 @@ static void vmsg_close_fds(VhostUserMsg *vmsg)
     }
 }
 
-static void vmsg_unblock_fds(VhostUserMsg *vmsg)
+static bool vmsg_unblock_fds(VhostUserMsg *vmsg, Error **errp)
 {
     int i;
 
@@ -74,13 +74,16 @@ static void vmsg_unblock_fds(VhostUserMsg *vmsg)
      */
     if (vmsg->request == VHOST_USER_ADD_MEM_REG ||
         vmsg->request == VHOST_USER_SET_MEM_TABLE) {
-        return;
+        return true;
     }
 
     for (i = 0; i < vmsg->fd_num; i++) {
-        /* TODO: handle error more gracefully than aborting */
-        qemu_set_blocking(vmsg->fds[i], false, &error_abort);
+        if (!qemu_set_blocking(vmsg->fds[i], false, errp)) {
+            return false;
+        }
     }
+
+    return true;
 }
 
 static void panic_cb(VuDev *vu_dev, const char *buf)
@@ -123,7 +126,6 @@ vu_message_read(VuDev *vu_dev, int conn_fd, VhostUserMsg *vmsg)
 
     vmsg->fd_num = 0;
     if (!ioc) {
-        error_report_err(local_err);
         goto fail;
     }
 
@@ -177,7 +179,10 @@ vu_message_read(VuDev *vu_dev, int conn_fd, VhostUserMsg *vmsg)
     } while (read_bytes != VHOST_USER_HDR_SIZE);
 
     /* qio_channel_readv_full will make socket fds blocking, unblock them */
-    vmsg_unblock_fds(vmsg);
+    if (!vmsg_unblock_fds(vmsg, &local_err)) {
+        error_report_err(local_err);
+        goto fail;
+    }
     if (vmsg->size > sizeof(vmsg->payload)) {
         error_report("Error: too big message request: %d, "
                      "size: vmsg->size: %u, "
