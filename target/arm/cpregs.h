@@ -936,6 +936,12 @@ struct ARMCPRegInfo {
      */
     uint32_t nv2_redirect_offset;
 
+    /*
+     * With VHE, with E2H, at EL2, access to this EL0/EL1 reg redirects
+     * to the EL2 reg with the specified key.
+     */
+    uint32_t vhe_redir_to_el2;
+
     /* This is used only by VHE. */
     void *opaque;
     /*

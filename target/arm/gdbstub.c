@@ -249,6 +249,11 @@ static int arm_gdb_get_sysreg(CPUState *cs, GByteArray *buf, int reg)
     if (ri) {
         switch (cpreg_field_type(ri)) {
         case MO_64:
+            if (ri->vhe_redir_to_el2 &&
+                (arm_hcr_el2_eff(env) & HCR_E2H) &&
+                arm_current_el(env) == 2) {
+                ri = get_arm_cp_reginfo(cpu->cp_regs, ri->vhe_redir_to_el2);
+            }
             return gdb_get_reg64(buf, (uint64_t)read_raw_cp_reg(env, ri));
         case MO_32:
             return gdb_get_reg32(buf, (uint32_t)read_raw_cp_reg(env, ri));

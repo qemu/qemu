@@ -2573,6 +2573,15 @@ static void handle_sys(DisasContext *s, bool isread,
         }
     }
 
+    if (ri->vhe_redir_to_el2 && s->current_el == 2 && s->e2h) {
+        /*
+         * This one of the FOO_EL1 registers which redirect to FOO_EL2
+         * from EL2 when HCR_EL2.E2H is set.
+         */
+        key = ri->vhe_redir_to_el2;
+        ri = redirect_cpreg(s, key, isread);
+    }
+
     if (ri->accessfn || (ri->fgt && s->fgt_active)) {
         /* Emit code to perform further access permissions checks at
          * runtime; this may result in an exception.

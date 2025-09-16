@@ -4417,47 +4417,6 @@ static CPAccessResult access_el1nvvct(CPUARMState *env, const ARMCPRegInfo *ri,
     return e2h_access(env, ri, isread);
 }
 
-/* Test if system register redirection is to occur in the current state.  */
-static bool redirect_for_e2h(CPUARMState *env)
-{
-    return arm_current_el(env) == 2 && (arm_hcr_el2_eff(env) & HCR_E2H);
-}
-
-static uint64_t el2_e2h_read(CPUARMState *env, const ARMCPRegInfo *ri)
-{
-    CPReadFn *readfn;
-
-    if (redirect_for_e2h(env)) {
-        /* Switch to the saved EL2 version of the register.  */
-        ri = ri->opaque;
-        readfn = ri->readfn;
-    } else {
-        readfn = ri->orig_readfn;
-    }
-    if (readfn == NULL) {
-        readfn = raw_read;
-    }
-    return readfn(env, ri);
-}
-
-static void el2_e2h_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                          uint64_t value)
-{
-    CPWriteFn *writefn;
-
-    if (redirect_for_e2h(env)) {
-        /* Switch to the saved EL2 version of the register.  */
-        ri = ri->opaque;
-        writefn = ri->writefn;
-    } else {
-        writefn = ri->orig_writefn;
-    }
-    if (writefn == NULL) {
-        writefn = raw_write;
-    }
-    writefn(env, ri, value);
-}
-
 static uint64_t el2_e2h_e12_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     /* Pass the EL1 register accessor its ri, not the EL12 alias ri */
@@ -4632,17 +4591,7 @@ static void define_arm_vh_e2h_redirects_aliases(ARMCPU *cpu)
                                  (gpointer)(uintptr_t)a->new_key, new_reg);
         g_assert(ok);
 
-        src_reg->opaque = dst_reg;
-        src_reg->orig_readfn = src_reg->readfn ?: raw_read;
-        src_reg->orig_writefn = src_reg->writefn ?: raw_write;
-        if (!src_reg->raw_readfn) {
-            src_reg->raw_readfn = raw_read;
-        }
-        if (!src_reg->raw_writefn) {
-            src_reg->raw_writefn = raw_write;
-        }
-        src_reg->readfn = el2_e2h_read;
-        src_reg->writefn = el2_e2h_write;
+        src_reg->vhe_redir_to_el2 = a->dst_key;
     }
 }
 #endif
