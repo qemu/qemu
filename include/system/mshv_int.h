@@ -49,6 +49,20 @@ typedef struct MshvMsiControl {
 #define mshv_vcpufd(cpu) (cpu->accel->cpufd)
 
 /* cpu */
+typedef struct MshvFPU {
+    uint8_t fpr[8][16];
+    uint16_t fcw;
+    uint16_t fsw;
+    uint8_t ftwx;
+    uint8_t pad1;
+    uint16_t last_opcode;
+    uint64_t last_ip;
+    uint64_t last_dp;
+    uint8_t xmm[16][16];
+    uint32_t mxcsr;
+    uint32_t pad2;
+} MshvFPU;
+
 typedef enum MshvVmExit {
     MshvVmExitIgnore   = 0,
     MshvVmExitShutdown = 1,
@@ -58,6 +72,7 @@ typedef enum MshvVmExit {
 void mshv_init_mmio_emu(void);
 int mshv_create_vcpu(int vm_fd, uint8_t vp_index, int *cpu_fd);
 void mshv_remove_vcpu(int vm_fd, int cpu_fd);
+int mshv_configure_vcpu(const CPUState *cpu, const MshvFPU *fpu, uint64_t xcr0);
 int mshv_get_standard_regs(CPUState *cpu);
 int mshv_get_special_regs(CPUState *cpu);
 int mshv_run_vcpu(int vm_fd, CPUState *cpu, hv_message *msg, MshvVmExit *exit);
