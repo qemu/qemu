@@ -38,7 +38,12 @@ static const MemoryRegionOps loongarch_dintc_ops = {
 
 static void loongarch_dintc_realize(DeviceState *dev, Error **errp)
 {
+    LoongArchDINTCState *s = LOONGARCH_DINTC(dev);
     LoongArchDINTCClass *lac = LOONGARCH_DINTC_GET_CLASS(dev);
+    MachineState *machine = MACHINE(qdev_get_machine());
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    const CPUArchIdList  *id_list;
+    int i;
 
     Error *local_err = NULL;
     lac->parent_realize(dev, &local_err);
@@ -47,12 +52,28 @@ static void loongarch_dintc_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    assert(mc->possible_cpu_arch_ids);
+    id_list = mc->possible_cpu_arch_ids(machine);
+    s->num_cpu = id_list->len;
+    s->cpu = g_new(DINTCCore, s->num_cpu);
+    if (s->cpu == NULL) {
+        error_setg(errp, "Memory allocation for DINTCCore fail");
+        return;
+    }
+
+    for (i = 0; i < s->num_cpu; i++) {
+        s->cpu[i].arch_id = id_list->cpus[i].arch_id;
+        s->cpu[i].cpu = CPU(id_list->cpus[i].cpu);
+        qdev_init_gpio_out(dev, &s->cpu[i].parent_irq, 1);
+    }
+
     return;
 }
 
 static void loongarch_dintc_unrealize(DeviceState *dev)
 {
-    return;
+    LoongArchDINTCState *s = LOONGARCH_DINTC(dev);
+    g_free(s->cpu);
 }
 
 static void loongarch_dintc_init(Object *obj)
