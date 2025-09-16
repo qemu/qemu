@@ -25,31 +25,17 @@ extern uint16_t _TRACE_TEST_WIBBLE_DSTATE;
     tracepoint_enabled(qemu, test_blah) || \
     false)
 
-static inline void _nocheck__trace_test_blah(void *context, const char *filename)
-{
-    tracepoint(qemu, test_blah, context, filename);
-}
-
 static inline void trace_test_blah(void *context, const char *filename)
 {
-    if (true) {
-        _nocheck__trace_test_blah(context, filename);
-    }
+    tracepoint(qemu, test_blah, context, filename);
 }
 
 #define TRACE_TEST_WIBBLE_BACKEND_DSTATE() ( \
     tracepoint_enabled(qemu, test_wibble) || \
     false)
 
-static inline void _nocheck__trace_test_wibble(void *context, int value)
-{
-    tracepoint(qemu, test_wibble, context, value);
-}
-
 static inline void trace_test_wibble(void *context, int value)
 {
-    if (true) {
-        _nocheck__trace_test_wibble(context, value);
-    }
+    tracepoint(qemu, test_wibble, context, value);
 }
 #endif /* TRACE_TESTSUITE_GENERATED_TRACERS_H */

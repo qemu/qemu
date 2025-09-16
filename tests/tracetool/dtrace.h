@@ -29,31 +29,17 @@ extern uint16_t _TRACE_TEST_WIBBLE_DSTATE;
     QEMU_TEST_BLAH_ENABLED() || \
     false)
 
-static inline void _nocheck__trace_test_blah(void *context, const char *filename)
-{
-    QEMU_TEST_BLAH(context, filename);
-}
-
 static inline void trace_test_blah(void *context, const char *filename)
 {
-    if (true) {
-        _nocheck__trace_test_blah(context, filename);
-    }
+    QEMU_TEST_BLAH(context, filename);
 }
 
 #define TRACE_TEST_WIBBLE_BACKEND_DSTATE() ( \
     QEMU_TEST_WIBBLE_ENABLED() || \
     false)
 
-static inline void _nocheck__trace_test_wibble(void *context, int value)
-{
-    QEMU_TEST_WIBBLE(context, value);
-}
-
 static inline void trace_test_wibble(void *context, int value)
 {
-    if (true) {
-        _nocheck__trace_test_wibble(context, value);
-    }
+    QEMU_TEST_WIBBLE(context, value);
 }
 #endif /* TRACE_TESTSUITE_GENERATED_TRACERS_H */
