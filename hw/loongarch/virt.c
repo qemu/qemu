@@ -564,6 +564,10 @@ static MemTxResult virt_iocsr_misc_write(void *opaque, hwaddr addr,
             return MEMTX_OK;
         }
 
+        if (virt_has_dmsi(lvms) && val & BIT_ULL(IOCSRM_DMSI_EN)) {
+            lvms->misc_status |= BIT_ULL(IOCSRM_DMSI_EN);
+        }
+
         features = address_space_ldl(&lvms->as_iocsr,
                                      EXTIOI_VIRT_BASE + EXTIOI_VIRT_CONFIG,
                                      attrs, NULL);
@@ -599,6 +603,9 @@ static MemTxResult virt_iocsr_misc_read(void *opaque, hwaddr addr,
         break;
     case FEATURE_REG:
         ret = BIT(IOCSRF_MSI) | BIT(IOCSRF_EXTIOI) | BIT(IOCSRF_CSRIPI);
+        if (virt_has_dmsi(lvms)) {
+            ret |= BIT(IOCSRF_DMSI);
+        }
         if (kvm_enabled()) {
             ret |= BIT(IOCSRF_VM);
         }
@@ -627,6 +634,10 @@ static MemTxResult virt_iocsr_misc_read(void *opaque, hwaddr addr,
         }
         if (features & BIT(EXTIOI_ENABLE_INT_ENCODE)) {
             ret |= BIT_ULL(IOCSRM_EXTIOI_INT_ENCODE);
+        }
+        if (virt_has_dmsi(lvms) &&
+            (lvms->misc_status & BIT_ULL(IOCSRM_DMSI_EN))) {
+            ret |= BIT_ULL(IOCSRM_DMSI_EN);
         }
         break;
     default:
