@@ -89,6 +89,7 @@ struct LoongArchVirtMachineState {
     unsigned int memmap_entries;
     uint64_t misc_feature;
     uint64_t misc_status;
+    DeviceState *dintc;
 };
 
 #define TYPE_LOONGARCH_VIRT_MACHINE  MACHINE_TYPE_NAME("virt")

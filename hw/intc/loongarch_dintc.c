@@ -17,6 +17,24 @@
 #include "trace.h"
 #include "hw/qdev-properties.h"
 
+static uint64_t loongarch_dintc_mem_read(void *opaque,
+                                        hwaddr addr, unsigned size)
+{
+    return 0;
+}
+
+static void loongarch_dintc_mem_write(void *opaque, hwaddr addr,
+                                     uint64_t val, unsigned size)
+{
+    return;
+}
+
+
+static const MemoryRegionOps loongarch_dintc_ops = {
+    .read = loongarch_dintc_mem_read,
+    .write = loongarch_dintc_mem_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
 
 static void loongarch_dintc_realize(DeviceState *dev, Error **errp)
 {
@@ -39,6 +57,12 @@ static void loongarch_dintc_unrealize(DeviceState *dev)
 
 static void loongarch_dintc_init(Object *obj)
 {
+    LoongArchDINTCState *s = LOONGARCH_DINTC(obj);
+    SysBusDevice *shd = SYS_BUS_DEVICE(obj);
+    memory_region_init_io(&s->dintc_mmio, OBJECT(s), &loongarch_dintc_ops,
+                          s, TYPE_LOONGARCH_DINTC, VIRT_DINTC_SIZE);
+    sysbus_init_mmio(shd, &s->dintc_mmio);
+    msi_nonbroken = true;
     return;
 }
 

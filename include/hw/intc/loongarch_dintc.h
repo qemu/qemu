@@ -23,6 +23,7 @@ typedef struct DINTCCore {
 
 struct LoongArchDINTCState {
     SysBusDevice parent_obj;
+    MemoryRegion dintc_mmio;
     DINTCCore *cpu;
     uint32_t num_cpu;
 };
