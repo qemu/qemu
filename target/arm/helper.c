@@ -63,20 +63,28 @@ int compare_u64(const void *a, const void *b)
 uint64_t raw_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     assert(ri->fieldoffset);
-    if (cpreg_field_is_64bit(ri)) {
+    switch (cpreg_field_type(ri)) {
+    case MO_64:
         return CPREG_FIELD64(env, ri);
-    } else {
+    case MO_32:
         return CPREG_FIELD32(env, ri);
+    default:
+        g_assert_not_reached();
     }
 }
 
 void raw_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     assert(ri->fieldoffset);
-    if (cpreg_field_is_64bit(ri)) {
+    switch (cpreg_field_type(ri)) {
+    case MO_64:
         CPREG_FIELD64(env, ri) = value;
-    } else {
+        break;
+    case MO_32:
         CPREG_FIELD32(env, ri) = value;
+        break;
+    default:
+        g_assert_not_reached();
     }
 }
 
@@ -2754,7 +2762,7 @@ static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value)
 {
     /* If the ASID changes (with a 64-bit write), we must flush the TLB.  */
-    if (cpreg_field_is_64bit(ri) &&
+    if (cpreg_field_type(ri) == MO_64 &&
         extract64(raw_read(env, ri) ^ value, 48, 16) != 0) {
         ARMCPU *cpu = env_archcpu(env);
         tlb_flush(CPU(cpu));

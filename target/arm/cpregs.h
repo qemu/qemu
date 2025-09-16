@@ -22,6 +22,7 @@
 #define TARGET_ARM_CPREGS_H
 
 #include "hw/registerfields.h"
+#include "exec/memop.h"
 #include "target/arm/kvm-consts.h"
 #include "cpu.h"
 
@@ -1078,12 +1079,13 @@ void raw_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value);
 void arm_cp_reset_ignore(CPUARMState *env, const ARMCPRegInfo *ri);
 
 /*
- * Return true if this reginfo struct's field in the cpu state struct
- * is 64 bits wide.
+ * Return MO_32 if the field in CPUARMState is uint32_t or
+ * MO_64 if the field in CPUARMState is uint64_t.
  */
-static inline bool cpreg_field_is_64bit(const ARMCPRegInfo *ri)
+static inline MemOp cpreg_field_type(const ARMCPRegInfo *ri)
 {
-    return (ri->state == ARM_CP_STATE_AA64) || (ri->type & ARM_CP_64BIT);
+    return (ri->state == ARM_CP_STATE_AA64 || (ri->type & ARM_CP_64BIT)
+            ? MO_64 : MO_32);
 }
 
 static inline bool cp_access_ok(int current_el,
