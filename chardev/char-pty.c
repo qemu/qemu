@@ -350,6 +350,7 @@ static void char_pty_open(Chardev *chr,
 
     close(slave_fd);
     if (!qemu_set_blocking(master_fd, false, errp)) {
+        close(master_fd);
         return;
     }
 

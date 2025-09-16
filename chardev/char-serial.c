@@ -272,6 +272,7 @@ static void qmp_chardev_open_serial(Chardev *chr,
         return;
     }
     if (!qemu_set_blocking(fd, false, errp)) {
+        close(fd);
         return;
     }
     tty_serial_init(fd, 115200, 'N', 8, 1);
