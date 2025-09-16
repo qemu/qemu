@@ -7355,12 +7355,11 @@ void register_cp_regs_for_features(ARMCPU *cpu)
 }
 
 /*
- * Private utility function for define_one_arm_cp_reg_with_opaque():
+ * Private utility function for define_one_arm_cp_reg():
  * add a single reginfo struct to the hash table.
  */
 static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
-                                   void *opaque, CPState state,
-                                   CPSecureState secstate,
+                                   CPState state, CPSecureState secstate,
                                    int crm, int opc1, int opc2,
                                    const char *name)
 {
@@ -7448,9 +7447,6 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
     r2->opc2 = opc2;
     r2->state = state;
     r2->secure = secstate;
-    if (opaque) {
-        r2->opaque = opaque;
-    }
 
     if (make_const) {
         /* This should not have been a very special register to begin. */
@@ -7555,8 +7551,7 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
 }
 
 
-void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
-                                       const ARMCPRegInfo *r, void *opaque)
+void define_one_arm_cp_reg(ARMCPU *cpu, const ARMCPRegInfo *r)
 {
     /*
      * Define implementations of coprocessor registers.
@@ -7715,7 +7710,7 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
                         if (nxs_ri.fgt) {
                             nxs_ri.fgt |= R_FGT_NXS_MASK;
                         }
-                        add_cpreg_to_hashtable(cpu, &nxs_ri, opaque, state,
+                        add_cpreg_to_hashtable(cpu, &nxs_ri, state,
                                                ARM_CP_SECSTATE_NS,
                                                crm, opc1, opc2, name);
                     }
@@ -7729,17 +7724,17 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
                         switch (r->secure) {
                         case ARM_CP_SECSTATE_S:
                         case ARM_CP_SECSTATE_NS:
-                            add_cpreg_to_hashtable(cpu, r, opaque, state,
+                            add_cpreg_to_hashtable(cpu, r, state,
                                                    r->secure, crm, opc1, opc2,
                                                    r->name);
                             break;
                         case ARM_CP_SECSTATE_BOTH:
                             name = g_strdup_printf("%s_S", r->name);
-                            add_cpreg_to_hashtable(cpu, r, opaque, state,
+                            add_cpreg_to_hashtable(cpu, r, state,
                                                    ARM_CP_SECSTATE_S,
                                                    crm, opc1, opc2, name);
                             g_free(name);
-                            add_cpreg_to_hashtable(cpu, r, opaque, state,
+                            add_cpreg_to_hashtable(cpu, r, state,
                                                    ARM_CP_SECSTATE_NS,
                                                    crm, opc1, opc2, r->name);
                             break;
@@ -7751,7 +7746,7 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
                          * AArch64 registers get mapped to non-secure instance
                          * of AArch32
                          */
-                        add_cpreg_to_hashtable(cpu, r, opaque, state,
+                        add_cpreg_to_hashtable(cpu, r, state,
                                                ARM_CP_SECSTATE_NS,
                                                crm, opc1, opc2, r->name);
                     }
@@ -7762,12 +7757,10 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
 }
 
 /* Define a whole list of registers */
-void define_arm_cp_regs_with_opaque_len(ARMCPU *cpu, const ARMCPRegInfo *regs,
-                                        void *opaque, size_t len)
+void define_arm_cp_regs_len(ARMCPU *cpu, const ARMCPRegInfo *regs, size_t len)
 {
-    size_t i;
-    for (i = 0; i < len; ++i) {
-        define_one_arm_cp_reg_with_opaque(cpu, regs + i, opaque);
+    for (size_t i = 0; i < len; ++i) {
+        define_one_arm_cp_reg(cpu, regs + i);
     }
 }
 

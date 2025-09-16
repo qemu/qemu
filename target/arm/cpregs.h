@@ -931,11 +931,7 @@ struct ARMCPRegInfo {
      */
     uint32_t nv2_redirect_offset;
 
-    /*
-     * The opaque pointer passed to define_arm_cp_regs_with_opaque() when
-     * this register was defined: can be used to hand data through to the
-     * register read/write functions, since they are passed the ARMCPRegInfo*.
-     */
+    /* This is used only by VHE. */
     void *opaque;
     /*
      * Value of this register, if it is ARM_CP_CONST. Otherwise, if
@@ -1029,26 +1025,14 @@ struct ARMCPRegInfo {
 #define CPREG_FIELD64(env, ri) \
     (*(uint64_t *)((char *)(env) + (ri)->fieldoffset))
 
-void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu, const ARMCPRegInfo *reg,
-                                       void *opaque);
+void define_one_arm_cp_reg(ARMCPU *cpu, const ARMCPRegInfo *regs);
+void define_arm_cp_regs_len(ARMCPU *cpu, const ARMCPRegInfo *regs, size_t len);
 
-static inline void define_one_arm_cp_reg(ARMCPU *cpu, const ARMCPRegInfo *regs)
-{
-    define_one_arm_cp_reg_with_opaque(cpu, regs, NULL);
-}
-
-void define_arm_cp_regs_with_opaque_len(ARMCPU *cpu, const ARMCPRegInfo *regs,
-                                        void *opaque, size_t len);
-
-#define define_arm_cp_regs_with_opaque(CPU, REGS, OPAQUE)               \
-    do {                                                                \
-        QEMU_BUILD_BUG_ON(ARRAY_SIZE(REGS) == 0);                       \
-        define_arm_cp_regs_with_opaque_len(CPU, REGS, OPAQUE,           \
-                                           ARRAY_SIZE(REGS));           \
+#define define_arm_cp_regs(CPU, REGS)                           \
+    do {                                                        \
+        QEMU_BUILD_BUG_ON(ARRAY_SIZE(REGS) == 0);               \
+        define_arm_cp_regs_len(CPU, REGS, ARRAY_SIZE(REGS));    \
     } while (0)
-
-#define define_arm_cp_regs(CPU, REGS) \
-    define_arm_cp_regs_with_opaque(CPU, REGS, NULL)
 
 const ARMCPRegInfo *get_arm_cp_reginfo(GHashTable *cpregs, uint32_t encoded_cp);
 
@@ -1168,7 +1152,7 @@ static inline bool arm_cpreg_traps_in_nv(const ARMCPRegInfo *ri)
      * means that the right set of registers is exactly those where
      * the opc1 field is 4 or 5. (You can see this also in the assert
      * we do that the opc1 field and the permissions mask line up in
-     * define_one_arm_cp_reg_with_opaque().)
+     * define_one_arm_cp_reg().)
      * Checking the opc1 field is easier for us and avoids the problem
      * that we do not consistently use the right architectural names
      * for all sysregs, since we treat the name field as largely for debug.
