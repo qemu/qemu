@@ -178,6 +178,18 @@ parser (either fixing a bug or extending/modifying the syntax). To do this:
 
   ``qapi-schema += foo.json``
 
+The reference output can be automatically updated to match the latest QAPI
+code generator by running the tests with the QEMU_TEST_REGENERATE environment
+variable set.
+
+.. code::
+
+   QEMU_TEST_REGENERATE=1 make check-qapi-schema
+
+The resulting changes must be reviewed by the author to ensure they match
+the intended results before adding the updated reference output to the
+same commit that alters the generator code.
+
 .. _tracetool-tests:
 
 Tracetool tests
