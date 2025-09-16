@@ -7448,19 +7448,11 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, ARMCPRegInfo *r,
     }
 
     /*
-     * By convention, for wildcarded registers only the first
-     * entry is used for migration; the others are marked as
-     * ALIAS so we don't try to transfer the register
-     * multiple times. Special registers (ie NOP/WFI) are
-     * never migratable and not even raw-accessible.
+     * Special registers (ie NOP/WFI) are never migratable and
+     * are not even raw-accessible.
      */
     if (r->type & ARM_CP_SPECIAL_MASK) {
         r->type |= ARM_CP_NO_RAW;
-    }
-    if (((r->crm == CP_ANY) && crm != 0) ||
-        ((r->opc1 == CP_ANY) && opc1 != 0) ||
-        ((r->opc2 == CP_ANY) && opc2 != 0)) {
-        r->type |= ARM_CP_ALIAS | ARM_CP_NO_GDB;
     }
 
     /*
@@ -7764,6 +7756,16 @@ void define_one_arm_cp_reg(ARMCPU *cpu, const ARMCPRegInfo *r)
             for (int opc2 = opc2min; opc2 <= opc2max; opc2++) {
                 ARMCPRegInfo *r2 = alloc_cpreg(r, NULL);
                 ARMCPRegInfo *r3;
+
+                /*
+                 * By convention, for wildcarded registers only the first
+                 * entry is used for migration; the others are marked as
+                 * ALIAS so we don't try to transfer the register
+                 * multiple times.
+                 */
+                if (crm != crmmin || opc1 != opc1min || opc2 != opc2min) {
+                    r2->type |= ARM_CP_ALIAS | ARM_CP_NO_GDB;
+                }
 
                 switch (r->state) {
                 case ARM_CP_STATE_AA32:
