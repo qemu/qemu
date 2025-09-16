@@ -39,7 +39,8 @@ from .qmp_client import ExecInterruptedError, ExecuteError, QMPClient
 logging.getLogger('qemu.qmp').addHandler(logging.NullHandler())
 
 
-# The order of these fields impact the Sphinx documentation order.
+# IMPORTANT: When modifying this list, update the Sphinx overview docs.
+# Anything visible in the qemu.qmp namespace should be on the overview page.
 __all__ = (
     # Classes, most to least important
     'QMPClient',

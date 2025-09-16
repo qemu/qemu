@@ -12,7 +12,14 @@ EventListener Tutorial
 ----------------------
 
 In all of the following examples, we assume that we have a `QMPClient`
-instantiated named ``qmp`` that is already connected.
+instantiated named ``qmp`` that is already connected. For example:
+
+.. code:: python
+
+   from qemu.qmp import QMPClient
+
+   qmp = QMPClient('example-vm')
+   await qmp.connect('127.0.0.1', 1234)
 
 
 `listener()` context blocks with one name
@@ -87,7 +94,9 @@ This is analogous to the following code:
            event = listener.get()
            print(f"Event arrived: {event['event']}")
 
-This event stream will never end, so these blocks will never terminate.
+This event stream will never end, so these blocks will never
+terminate. Even if the QMP connection errors out prematurely, this
+listener will go silent without raising an error.
 
 
 Using asyncio.Task to concurrently retrieve events
@@ -227,15 +236,19 @@ Clearing listeners
 .. code:: python
 
    await qmp.execute('stop')
-   qmp.events.clear()
+   discarded = qmp.events.clear()
    await qmp.execute('cont')
    event = await qmp.events.get()
    assert event['event'] == 'RESUME'
+   assert discarded[0]['event'] == 'STOP'
 
 `EventListener` objects are FIFO queues. If events are not consumed,
 they will remain in the queue until they are witnessed or discarded via
 `clear()`. FIFO queues will be drained automatically upon leaving a
 context block, or when calling `remove_listener()`.
+
+Any events removed from the queue in this fashion will be returned by
+the clear call.
 
 
 Accessing listener history
@@ -350,6 +363,12 @@ While `listener()` is only capable of creating a single listener,
                break
 
 
+Note that in the above example, we explicitly wait on jobA to conclude
+first, and then wait for jobB to do the same. All we have guaranteed is
+that the code that waits for jobA will not accidentally consume the
+event intended for the jobB waiter.
+
+
 Extending the `EventListener` class
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -407,13 +426,13 @@ Experimental Interfaces & Design Issues
 These interfaces are not ones I am sure I will keep or otherwise modify
 heavily.
 
-qmp.listener()’s type signature
+qmp.listen()’s type signature
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`listener()` does not return anything, because it was assumed the caller
+`listen()` does not return anything, because it was assumed the caller
 already had a handle to the listener. However, for
-``qmp.listener(EventListener())`` forms, the caller will not have saved
-a handle to the listener.
+``qmp.listen(EventListener())`` forms, the caller will not have saved a
+handle to the listener.
 
 Because this function can accept *many* listeners, I found it hard to
 accurately type in a way where it could be used in both “one” or “many”
@@ -496,6 +515,21 @@ class EventListener:
 
         #: Optional, secondary event filter.
         self.event_filter: Optional[EventFilter] = event_filter
+
+    def __repr__(self) -> str:
+        args: List[str] = []
+        if self.names:
+            args.append(f"names={self.names!r}")
+        if self.event_filter:
+            args.append(f"event_filter={self.event_filter!r}")
+
+        if self._queue.qsize():
+            state = f"<pending={self._queue.qsize()}>"
+        else:
+            state = ''
+
+        argstr = ", ".join(args)
+        return f"{type(self).__name__}{state}({argstr})"
 
     @property
     def history(self) -> Tuple[Message, ...]:
@@ -618,7 +652,7 @@ class Events:
     def __init__(self) -> None:
         self._listeners: List[EventListener] = []
 
-        #: Default, all-events `EventListener`.
+        #: Default, all-events `EventListener`. See `qmp.events` for more info.
         self.events: EventListener = EventListener()
         self.register_listener(self.events)
 

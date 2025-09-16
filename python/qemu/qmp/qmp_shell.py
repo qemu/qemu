@@ -10,9 +10,15 @@
 #
 
 """
-Low-level QEMU shell on top of QMP.
+qmp-shell - An interactive QEMU shell powered by QMP
 
-usage: qmp-shell [-h] [-H] [-N] [-v] [-p] qmp_server
+qmp-shell offers a simple shell with a convenient shorthand syntax as an
+alternative to typing JSON by hand. This syntax is not standardized and
+is not meant to be used as a scriptable interface. This shorthand *may*
+change incompatibly in the future, and it is strongly encouraged to use
+the QMP library to provide API-stable scripting when needed.
+
+usage: qmp-shell [-h] [-H] [-v] [-p] [-l LOGFILE] [-N] qmp_server
 
 positional arguments:
   qmp_server            < UNIX socket path | TCP address:port >
@@ -20,41 +26,52 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   -H, --hmp             Use HMP interface
-  -N, --skip-negotiation
-                        Skip negotiate (for qemu-ga)
   -v, --verbose         Verbose (echo commands sent and received)
   -p, --pretty          Pretty-print JSON
+  -l LOGFILE, --logfile LOGFILE
+                        Save log of all QMP messages to PATH
+  -N, --skip-negotiation
+                        Skip negotiate (for qemu-ga)
 
+Usage
+-----
 
-Start QEMU with:
+First, start QEMU with::
 
-# qemu [...] -qmp unix:./qmp-sock,server
+    > qemu [...] -qmp unix:./qmp-sock,server=on[,wait=off]
 
-Run the shell:
+Then run the shell, passing the address of the socket::
 
-$ qmp-shell ./qmp-sock
+    > qmp-shell ./qmp-sock
 
-Commands have the following format:
+Syntax
+------
 
-   < command-name > [ arg-name1=arg1 ] ... [ arg-nameN=argN ]
+Commands have the following format::
 
-For example:
+    < command-name > [ arg-name1=arg1 ] ... [ arg-nameN=argN ]
 
-(QEMU) device_add driver=e1000 id=net1
-{'return': {}}
-(QEMU)
+For example, to add a network device::
 
-key=value pairs also support Python or JSON object literal subset notations,
-without spaces. Dictionaries/objects {} are supported as are arrays [].
+    (QEMU) device_add driver=e1000 id=net1
+    {'return': {}}
+    (QEMU)
 
-   example-command arg-name1={'key':'value','obj'={'prop':"value"}}
+key=value pairs support either Python or JSON object literal notations,
+**without spaces**. Dictionaries/objects ``{}`` are supported, as are
+arrays ``[]``::
 
-Both JSON and Python formatting should work, including both styles of
-string literal quotes. Both paradigms of literal values should work,
-including null/true/false for JSON and None/True/False for Python.
+    example-command arg-name1={'key':'value','obj'={'prop':"value"}}
 
+Either JSON or Python formatting for compound values works, including
+both styles of string literal quotes (either single or double
+quotes). Both paradigms of literal values are accepted, including
+``null/true/false`` for JSON and ``None/True/False`` for Python.
 
-Transactions have the following multi-line format:
+Transactions
+------------
+
+Transactions have the following multi-line format::
 
    transaction(
    action-name1 [ arg-name1=arg1 ] ... [arg-nameN=argN ]
@@ -62,11 +79,11 @@ Transactions have the following multi-line format:
    action-nameN [ arg-name1=arg1 ] ... [arg-nameN=argN ]
    )
 
-One line transactions are also supported:
+One line transactions are also supported::
 
    transaction( action-name1 ... )
 
-For example:
+For example::
 
     (QEMU) transaction(
     TRANS> block-dirty-bitmap-add node=drive0 name=bitmap1
@@ -75,9 +92,35 @@ For example:
     {"return": {}}
     (QEMU)
 
-Use the -v and -p options to activate the verbose and pretty-print options,
-which will echo back the properly formatted JSON-compliant QMP that is being
-sent to QEMU, which is useful for debugging and documentation generation.
+Commands
+--------
+
+Autocomplete of command names using <tab> is supported. Pressing <tab>
+at a blank CLI prompt will show you a list of all available commands
+that the connected QEMU instance supports.
+
+For documentation on QMP commands and their arguments, please see
+`qmp ref`.
+
+Events
+------
+
+qmp-shell will display events received from the server, but this version
+does not do so asynchronously. To check for new events from the server,
+press <enter> on a blank line::
+
+    (QEMU) ⏎
+    {'timestamp': {'seconds': 1660071944, 'microseconds': 184667},
+     'event': 'STOP'}
+
+Display options
+---------------
+
+Use the -v and -p options to activate the verbose and pretty-print
+options, which will echo back the properly formatted JSON-compliant QMP
+that is being sent to QEMU. This is useful for debugging to see the
+wire-level QMP data being exchanged, and generating output for use in
+writing documentation for QEMU.
 """
 
 import argparse
@@ -514,21 +557,29 @@ def die(msg: str) -> NoReturn:
     sys.exit(1)
 
 
-def main() -> None:
-    """
-    qmp-shell entry point: parse command line arguments and start the REPL.
-    """
+def common_parser() -> argparse.ArgumentParser:
+    """Build common parsing options used by qmp-shell and qmp-shell-wrap."""
     parser = argparse.ArgumentParser()
     parser.add_argument('-H', '--hmp', action='store_true',
                         help='Use HMP interface')
-    parser.add_argument('-N', '--skip-negotiation', action='store_true',
-                        help='Skip negotiate (for qemu-ga)')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Verbose (echo commands sent and received)')
     parser.add_argument('-p', '--pretty', action='store_true',
                         help='Pretty-print JSON')
     parser.add_argument('-l', '--logfile',
                         help='Save log of all QMP messages to PATH')
+    # NOTE: When changing arguments, update both this module docstring
+    # and the manpage synopsis in docs/man/qmp_shell.rst.
+    return parser
+
+
+def main() -> None:
+    """
+    qmp-shell entry point: parse command line arguments and start the REPL.
+    """
+    parser = common_parser()
+    parser.add_argument('-N', '--skip-negotiation', action='store_true',
+                        help='Skip negotiate (for qemu-ga)')
 
     default_server = os.environ.get('QMP_SOCKET')
     parser.add_argument('qmp_server', action='store',
@@ -561,19 +612,37 @@ def main() -> None:
 
 def main_wrap() -> None:
     """
-    qmp-shell-wrap entry point: parse command line arguments and
-    start the REPL.
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-H', '--hmp', action='store_true',
-                        help='Use HMP interface')
-    parser.add_argument('-v', '--verbose', action='store_true',
-                        help='Verbose (echo commands sent and received)')
-    parser.add_argument('-p', '--pretty', action='store_true',
-                        help='Pretty-print JSON')
-    parser.add_argument('-l', '--logfile',
-                        help='Save log of all QMP messages to PATH')
+    qmp-shell-wrap - QEMU + qmp-shell launcher utility
 
+    Launch QEMU and connect to it with `qmp-shell` in a single command.
+    CLI arguments will be forwarded to qemu, with additional arguments
+    added to allow `qmp-shell` to then connect to the recently launched
+    QEMU instance.
+
+    usage: qmp-shell-wrap [-h] [-H] [-v] [-p] [-l LOGFILE] ...
+
+    positional arguments:
+      command               QEMU command line to invoke
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      -H, --hmp             Use HMP interface
+      -v, --verbose         Verbose (echo commands sent and received)
+      -p, --pretty          Pretty-print JSON
+      -l LOGFILE, --logfile LOGFILE
+                            Save log of all QMP messages to PATH
+
+    Usage
+    -----
+
+    Prepend "qmp-shell-wrap" to your usual QEMU command line::
+
+        > qmp-shell-wrap qemu-system-x86_64 -M q35 -m 4096 -display none
+        Welcome to the QMP low-level shell!
+        Connected
+        (QEMU)
+    """
+    parser = common_parser()
     parser.add_argument('command', nargs=argparse.REMAINDER,
                         help='QEMU command line to invoke')
 
@@ -610,6 +679,8 @@ def main_wrap() -> None:
 
                 for _ in qemu.repl():
                     pass
+    except FileNotFoundError:
+        sys.stderr.write(f"ERROR: QEMU executable '{cmd[0]}' not found.\n")
     finally:
         os.unlink(sockpath)
 

@@ -54,7 +54,7 @@ class Model:
 
 class Greeting(Model):
     """
-    Defined in qmp-spec.rst, section "Server Greeting".
+    Defined in `interop/qmp-spec`, "Server Greeting" section.
 
     :param raw: The raw Greeting object.
     :raise KeyError: If any required fields are absent.
@@ -82,7 +82,7 @@ class Greeting(Model):
 
 class QMPGreeting(Model):
     """
-    Defined in qmp-spec.rst, section "Server Greeting".
+    Defined in `interop/qmp-spec`, "Server Greeting" section.
 
     :param raw: The raw QMPGreeting object.
     :raise KeyError: If any required fields are absent.
@@ -104,7 +104,7 @@ class QMPGreeting(Model):
 
 class ErrorResponse(Model):
     """
-    Defined in qmp-spec.rst, section "Error".
+    Defined in `interop/qmp-spec`, "Error" section.
 
     :param raw: The raw ErrorResponse object.
     :raise KeyError: If any required fields are absent.
@@ -126,7 +126,7 @@ class ErrorResponse(Model):
 
 class ErrorInfo(Model):
     """
-    Defined in qmp-spec.rst, section "Error".
+    Defined in `interop/qmp-spec`, "Error" section.
 
     :param raw: The raw ErrorInfo object.
     :raise KeyError: If any required fields are absent.

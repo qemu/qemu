@@ -41,7 +41,7 @@ class _WrappedProtocolError(ProtocolError):
     :param exc: The root-cause exception.
     """
     def __init__(self, error_message: str, exc: Exception):
-        super().__init__(error_message)
+        super().__init__(error_message, exc)
         self.exc = exc
 
     def __str__(self) -> str:
@@ -70,21 +70,38 @@ class ExecuteError(QMPError):
     """
     Exception raised by `QMPClient.execute()` on RPC failure.
 
+    This exception is raised when the server received, interpreted, and
+    replied to a command successfully; but the command itself returned a
+    failure status.
+
+    For example::
+
+        await qmp.execute('block-dirty-bitmap-add',
+                          {'node': 'foo', 'name': 'my_bitmap'})
+        # qemu.qmp.qmp_client.ExecuteError:
+        #     Cannot find device='foo' nor node-name='foo'
+
     :param error_response: The RPC error response object.
     :param sent: The sent RPC message that caused the failure.
     :param received: The raw RPC error reply received.
     """
     def __init__(self, error_response: ErrorResponse,
                  sent: Message, received: Message):
-        super().__init__(error_response.error.desc)
+        super().__init__(error_response, sent, received)
         #: The sent `Message` that caused the failure
         self.sent: Message = sent
         #: The received `Message` that indicated failure
         self.received: Message = received
         #: The parsed error response
         self.error: ErrorResponse = error_response
-        #: The QMP error class
-        self.error_class: str = error_response.error.class_
+
+    @property
+    def error_class(self) -> str:
+        """The QMP error class"""
+        return self.error.error.class_
+
+    def __str__(self) -> str:
+        return self.error.error.desc
 
 
 class ExecInterruptedError(QMPError):
@@ -93,9 +110,22 @@ class ExecInterruptedError(QMPError):
 
     This error is raised when an `execute()` statement could not be
     completed.  This can occur because the connection itself was
-    terminated before a reply was received.
+    terminated before a reply was received. The true cause of the
+    interruption will be available via `disconnect()`.
 
-    The true cause of the interruption will be available via `disconnect()`.
+    The QMP protocol does not make it possible to know if a command
+    succeeded or failed after such an event; the client will need to
+    query the server to determine the state of the server on a
+    case-by-case basis.
+
+    For example, ECONNRESET might look like this::
+
+        try:
+            await qmp.execute('query-block')
+            # ExecInterruptedError: Disconnected
+        except ExecInterruptedError:
+            await qmp.disconnect()
+            # ConnectionResetError: [Errno 104] Connection reset by peer
     """
 
 
@@ -110,8 +140,8 @@ class _MsgProtocolError(ProtocolError):
     :param error_message: Human-readable string describing the error.
     :param msg: The QMP `Message` that caused the error.
     """
-    def __init__(self, error_message: str, msg: Message):
-        super().__init__(error_message)
+    def __init__(self, error_message: str, msg: Message, *args: object):
+        super().__init__(error_message, msg, *args)
         #: The received `Message` that caused the error.
         self.msg: Message = msg
 
@@ -150,30 +180,44 @@ class BadReplyError(_MsgProtocolError):
     :param sent: The message that was sent that prompted the error.
     """
     def __init__(self, error_message: str, msg: Message, sent: Message):
-        super().__init__(error_message, msg)
+        super().__init__(error_message, msg, sent)
         #: The sent `Message` that caused the failure
         self.sent = sent
 
 
 class QMPClient(AsyncProtocol[Message], Events):
-    """
-    Implements a QMP client connection.
+    """Implements a QMP client connection.
 
-    QMP can be used to establish a connection as either the transport
-    client or server, though this class always acts as the QMP client.
+    `QMPClient` can be used to either connect or listen to a QMP server,
+    but always acts as the QMP client.
 
-    :param name: Optional nickname for the connection, used for logging.
+    :param name:
+        Optional nickname for the connection, used to differentiate
+        instances when logging.
+
+    :param readbuflen:
+        The maximum buffer length for reads and writes to and from the QMP
+        server, in bytes. Default is 10MB. If `QMPClient` is used to
+        connect to a guest agent to transfer files via ``guest-file-read``/
+        ``guest-file-write``, increasing this value may be required.
 
     Basic script-style usage looks like this::
 
-      qmp = QMPClient('my_virtual_machine_name')
-      await qmp.connect(('127.0.0.1', 1234))
-      ...
-      res = await qmp.execute('block-query')
-      ...
-      await qmp.disconnect()
+      import asyncio
+      from qemu.qmp import QMPClient
 
-    Basic async client-style usage looks like this::
+      async def main():
+          qmp = QMPClient('my_virtual_machine_name')
+          await qmp.connect(('127.0.0.1', 1234))
+          ...
+          res = await qmp.execute('query-block')
+          ...
+          await qmp.disconnect()
+
+      asyncio.run(main())
+
+    A more advanced example that starts to take advantage of asyncio
+    might look like this::
 
       class Client:
           def __init__(self, name: str):
@@ -193,25 +237,32 @@ class QMPClient(AsyncProtocol[Message], Events):
               await self.disconnect()
 
     See `qmp.events` for more detail on event handling patterns.
+
     """
     #: Logger object used for debugging messages.
     logger = logging.getLogger(__name__)
 
-    # Read buffer limit; 10MB like libvirt default
-    _limit = 10 * 1024 * 1024
+    # Read buffer default limit; 10MB like libvirt default
+    _readbuflen = 10 * 1024 * 1024
 
     # Type alias for pending execute() result items
     _PendingT = Union[Message, ExecInterruptedError]
 
-    def __init__(self, name: Optional[str] = None) -> None:
-        super().__init__(name)
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        readbuflen: int = _readbuflen
+    ) -> None:
+        super().__init__(name, readbuflen)
         Events.__init__(self)
 
         #: Whether or not to await a greeting after establishing a connection.
+        #: Defaults to True; QGA servers expect this to be False.
         self.await_greeting: bool = True
 
-        #: Whether or not to perform capabilities negotiation upon connection.
-        #: Implies `await_greeting`.
+        #: Whether or not to perform capabilities negotiation upon
+        #: connection. Implies `await_greeting`. Defaults to True; QGA
+        #: servers expect this to be False.
         self.negotiate: bool = True
 
         # Cached Greeting, if one was awaited.
@@ -228,7 +279,13 @@ class QMPClient(AsyncProtocol[Message], Events):
 
     @property
     def greeting(self) -> Optional[Greeting]:
-        """The `Greeting` from the QMP server, if any."""
+        """
+        The `Greeting` from the QMP server, if any.
+
+        Defaults to ``None``, and will be set after a greeting is
+        received during the connection process. It is reset at the start
+        of each connection attempt.
+        """
         return self._greeting
 
     @upper_half
@@ -369,7 +426,7 @@ class QMPClient(AsyncProtocol[Message], Events):
             # This is very likely a server parsing error.
             # It doesn't inherently belong to any pending execution.
             # Instead of performing clever recovery, just terminate.
-            # See "NOTE" in qmp-spec.rst, section "Error".
+            # See "NOTE" in interop/qmp-spec, "Error" section.
             raise ServerParseError(
                 ("Server sent an error response without an ID, "
                  "but there are no ID-less executions pending. "
@@ -377,7 +434,7 @@ class QMPClient(AsyncProtocol[Message], Events):
                 msg
             )
 
-        # qmp-spec.rst, section "Commands Responses":
+        # qmp-spec.rst, "Commands Responses" section:
         # 'Clients should drop all the responses
         # that have an unknown "id" field.'
         self.logger.log(
@@ -550,7 +607,7 @@ class QMPClient(AsyncProtocol[Message], Events):
     @require(Runstate.RUNNING)
     async def execute_msg(self, msg: Message) -> object:
         """
-        Execute a QMP command and return its value.
+        Execute a QMP command on the server and return its value.
 
         :param msg: The QMP `Message` to execute.
 
@@ -562,7 +619,9 @@ class QMPClient(AsyncProtocol[Message], Events):
             If the QMP `Message` does not have either the 'execute' or
             'exec-oob' fields set.
         :raise ExecuteError: When the server returns an error response.
-        :raise ExecInterruptedError: if the connection was terminated early.
+        :raise ExecInterruptedError:
+            If the connection was disrupted before
+            receiving a reply from the server.
         """
         if not ('execute' in msg or 'exec-oob' in msg):
             raise ValueError("Requires 'execute' or 'exec-oob' message")
@@ -601,9 +660,11 @@ class QMPClient(AsyncProtocol[Message], Events):
 
         :param cmd: QMP command name.
         :param arguments: Arguments (if any). Must be JSON-serializable.
-        :param oob: If `True`, execute "out of band".
+        :param oob:
+            If `True`, execute "out of band". See `interop/qmp-spec`
+            section "Out-of-band execution".
 
-        :return: An executable QMP `Message`.
+        :return: A QMP `Message` that can be executed with `execute_msg()`.
         """
         msg = Message({'exec-oob' if oob else 'execute': cmd})
         if arguments is not None:
@@ -615,18 +676,22 @@ class QMPClient(AsyncProtocol[Message], Events):
                       arguments: Optional[Mapping[str, object]] = None,
                       oob: bool = False) -> object:
         """
-        Execute a QMP command and return its value.
+        Execute a QMP command on the server and return its value.
 
         :param cmd: QMP command name.
         :param arguments: Arguments (if any). Must be JSON-serializable.
-        :param oob: If `True`, execute "out of band".
+        :param oob:
+            If `True`, execute "out of band". See `interop/qmp-spec`
+            section "Out-of-band execution".
 
         :return:
             The command execution return value from the server. The type of
             object returned depends on the command that was issued,
             though most in QEMU return a `dict`.
         :raise ExecuteError: When the server returns an error response.
-        :raise ExecInterruptedError: if the connection was terminated early.
+        :raise ExecInterruptedError:
+            If the connection was disrupted before
+            receiving a reply from the server.
         """
         msg = self.make_execute_msg(cmd, arguments, oob=oob)
         return await self.execute_msg(msg)
@@ -634,8 +699,20 @@ class QMPClient(AsyncProtocol[Message], Events):
     @upper_half
     @require(Runstate.RUNNING)
     def send_fd_scm(self, fd: int) -> None:
-        """
-        Send a file descriptor to the remote via SCM_RIGHTS.
+        """Send a file descriptor to the remote via SCM_RIGHTS.
+
+        This method does not close the file descriptor.
+
+        :param fd: The file descriptor to send to QEMU.
+
+        This is an advanced feature of QEMU where file descriptors can
+        be passed from client to server. This is usually used as a
+        security measure to isolate the QEMU process from being able to
+        open its own files. See the QMP commands ``getfd`` and
+        ``add-fd`` for more information.
+
+        See `socket.socket.sendmsg` for more information on the Python
+        implementation for sending file descriptors over a UNIX socket.
         """
         assert self._writer is not None
         sock = self._writer.transport.get_extra_info('socket')
