@@ -115,14 +115,81 @@ static void loongarch_dintc_init(Object *obj)
     return;
 }
 
+static DINTCCore *loongarch_dintc_get_cpu(LoongArchDINTCState *s,
+                                        DeviceState *dev)
+{
+    CPUClass *k = CPU_GET_CLASS(dev);
+    uint64_t arch_id = k->get_arch_id(CPU(dev));
+    int i;
+
+    for (i = 0; i < s->num_cpu; i++) {
+        if (s->cpu[i].arch_id == arch_id) {
+            return &s->cpu[i];
+        }
+    }
+
+    return NULL;
+}
+
+static void loongarch_dintc_cpu_plug(HotplugHandler *hotplug_dev,
+                                   DeviceState *dev, Error **errp)
+{
+    LoongArchDINTCState *s = LOONGARCH_DINTC(hotplug_dev);
+    Object *obj = OBJECT(dev);
+    DINTCCore *core;
+    int index;
+
+    if (!object_dynamic_cast(obj, TYPE_LOONGARCH_CPU)) {
+        warn_report("LoongArch DINTC: Invalid %s device type",
+                                       object_get_typename(obj));
+        return;
+    }
+    core = loongarch_dintc_get_cpu(s, dev);
+    if (!core) {
+        return;
+    }
+
+    core->cpu = CPU(dev);
+    index = core - s->cpu;
+
+    /* connect dintc msg irq to cpu irq */
+    qdev_connect_gpio_out(DEVICE(s), index, qdev_get_gpio_in(dev, INT_DMSI));
+    return;
+}
+
+static void loongarch_dintc_cpu_unplug(HotplugHandler *hotplug_dev,
+                                     DeviceState *dev, Error **errp)
+{
+    LoongArchDINTCState *s = LOONGARCH_DINTC(hotplug_dev);
+    Object *obj = OBJECT(dev);
+    DINTCCore *core;
+
+    if (!object_dynamic_cast(obj, TYPE_LOONGARCH_CPU)) {
+        warn_report("LoongArch DINTC: Invalid %s device type",
+                                       object_get_typename(obj));
+        return;
+    }
+
+    core = loongarch_dintc_get_cpu(s, dev);
+
+    if (!core) {
+        return;
+    }
+
+    core->cpu = NULL;
+}
+
 static void loongarch_dintc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
     LoongArchDINTCClass *lac = LOONGARCH_DINTC_CLASS(klass);
 
     dc->unrealize = loongarch_dintc_unrealize;
     device_class_set_parent_realize(dc, loongarch_dintc_realize,
                                     &lac->parent_realize);
+    hc->plug = loongarch_dintc_cpu_plug;
+    hc->unplug = loongarch_dintc_cpu_unplug;
 }
 
 static const TypeInfo loongarch_dintc_info = {
@@ -131,6 +198,10 @@ static const TypeInfo loongarch_dintc_info = {
     .instance_size = sizeof(LoongArchDINTCState),
     .instance_init = loongarch_dintc_init,
     .class_init    = loongarch_dintc_class_init,
+    .interfaces    = (const InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    },
 };
 
 static void loongarch_dintc_register_types(void)
