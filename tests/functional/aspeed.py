@@ -61,3 +61,11 @@ class AspeedTest(LinuxKernelTest):
         self.wait_for_console_pattern('U-Boot 2019.04')
         self.wait_for_console_pattern('## Loading kernel from FIT Image')
         self.wait_for_console_pattern('Starting kernel ...')
+
+    def generate_otpmem_image(self):
+        path = self.scratch_file("otpmem.img")
+        pattern = b'\x00\x00\x00\x00\xff\xff\xff\xff' * (16 * 1024 // 8)
+        with open(path, "wb") as f:
+            f.write(pattern)
+        return path
+
