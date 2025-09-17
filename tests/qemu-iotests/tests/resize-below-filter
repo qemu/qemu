@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+# group: rw quick
+#
+# Test what happens when a node below filter nodes is resized.
+#
+# Copyright (C) Proxmox Server Solutions GmbH
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+import os
+import iotests
+from iotests import imgfmt, qemu_img_create, QMPTestCase
+
+image_size = 1 * 1024 * 1024
+image = os.path.join(iotests.test_dir, 'test.img')
+
+class TestResizeBelowFilter(QMPTestCase):
+    def setUp(self) -> None:
+        qemu_img_create('-f', imgfmt, image, str(image_size))
+
+        self.vm = iotests.VM()
+        self.vm.add_blockdev(self.vm.qmp_to_opts({
+            'driver': imgfmt,
+            'node-name': 'node0',
+            'file': {
+                'driver': 'file',
+                'filename': image,
+            }
+        }))
+        self.vm.add_blockdev(self.vm.qmp_to_opts({
+            'driver': 'compress',
+            'node-name': 'comp0',
+            'file': 'node0',
+        }))
+        self.vm.add_object('throttle-group,id=thrgr0')
+        self.vm.add_blockdev(self.vm.qmp_to_opts({
+            'driver': 'throttle',
+            'node-name': 'thr0',
+            'throttle-group': 'thrgr0',
+            'file': 'comp0',
+        }))
+        self.vm.add_object('throttle-group,id=thrgr1')
+        self.vm.add_blockdev(self.vm.qmp_to_opts({
+            'driver': 'throttle',
+            'node-name': 'thr1',
+            'throttle-group': 'thrgr1',
+            'file': 'node0',
+        }))
+        self.vm.launch()
+
+    def tearDown(self) -> None:
+        self.vm.shutdown()
+        os.remove(image)
+
+    def assert_size(self, size: int) -> None:
+        nodes = self.vm.qmp('query-named-block-nodes', flat=True)['return']
+        self.assertEqual(len(nodes), 5)
+        for node in nodes:
+            if node['drv'] == 'file':
+                continue
+            self.assertEqual(node['image']['virtual-size'], size)
+
+    def test_resize_below_filter(self) -> None:
+        self.assert_size(image_size)
+        self.vm.qmp('block_resize', node_name='thr0', size=2*image_size)
+        self.assert_size(2*image_size)
+        self.vm.qmp('block_resize', node_name='comp0', size=3*image_size)
+        self.assert_size(3*image_size)
+        self.vm.qmp('block_resize', node_name='node0', size=4*image_size)
+        self.assert_size(4*image_size)
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2'], supported_protocols=['file'])
