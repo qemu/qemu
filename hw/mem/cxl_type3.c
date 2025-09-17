@@ -964,6 +964,32 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
         ct3d->ecs_attrs.fru_attrs[count].ecs_flags = 0;
     }
 
+    /* Set default values for soft-PPR attributes */
+    ct3d->soft_ppr_attrs = (CXLMemSoftPPRReadAttrs) {
+        .max_maint_latency = 0x5, /* 100 ms */
+        .op_caps = 0, /* require host involvement */
+        .op_mode = 0,
+        .maint_op_class = CXL_MEMDEV_MAINT_CLASS_PPR,
+        .maint_op_subclass = CXL_MEMDEV_MAINT_SUBCLASS_SPPR,
+        .sppr_flags = CXL_MEMDEV_SPPR_DPA_SUPPORT_FLAG |
+                      CXL_MEMDEV_SPPR_MEM_SPARING_EV_REC_CAP_FLAG,
+        .restriction_flags = 0,
+        .sppr_op_mode = CXL_MEMDEV_SPPR_OP_MODE_MEM_SPARING_EV_REC_EN
+    };
+
+    /* Set default value for hard-PPR attributes */
+    ct3d->hard_ppr_attrs = (CXLMemHardPPRReadAttrs) {
+        .max_maint_latency = 0x5, /* 100 ms */
+        .op_caps = 0, /* require host involvement */
+        .op_mode = 0,
+        .maint_op_class = CXL_MEMDEV_MAINT_CLASS_PPR,
+        .maint_op_subclass = CXL_MEMDEV_MAINT_SUBCLASS_HPPR,
+        .hppr_flags = CXL_MEMDEV_HPPR_DPA_SUPPORT_FLAG |
+                      CXL_MEMDEV_HPPR_MEM_SPARING_EV_REC_CAP_FLAG,
+        .restriction_flags = 0,
+        .hppr_op_mode = CXL_MEMDEV_HPPR_OP_MODE_MEM_SPARING_EV_REC_EN
+    };
+
     return;
 
 err_release_cdat:
@@ -1667,6 +1693,75 @@ static int ct3d_qmp_cxl_event_log_enc(CxlEventLog log)
         return -EINVAL;
     }
 }
+
+static void cxl_maintenance_insert(CXLType3Dev *ct3d, uint64_t dpa,
+                                   bool has_channel, uint8_t channel,
+                                   bool has_rank, uint8_t rank,
+                                   bool has_nibble_mask, uint32_t nibble_mask,
+                                   bool has_bank_group, uint8_t bank_group,
+                                   bool has_bank, uint8_t bank,
+                                   bool has_row, uint32_t row,
+                                   bool has_column, uint16_t column,
+                                   const char *component_id,
+                                   bool has_comp_id_pldm, bool is_comp_id_pldm,
+                                   bool has_sub_channel, uint8_t sub_channel)
+{
+    CXLMaintenance *ent, *m;
+
+    QLIST_FOREACH(ent, &ct3d->maint_list, node) {
+        if (dpa == ent->dpa) {
+            return;
+        }
+    }
+    m = g_new0(CXLMaintenance, 1);
+    memset(m, 0, sizeof(*m));
+    m->dpa = dpa;
+    m->validity_flags = 0;
+
+    if (has_channel) {
+        m->channel = channel;
+        m->validity_flags |= CXL_MSER_VALID_CHANNEL;
+    }
+    if (has_rank) {
+        m->rank = rank;
+        m->validity_flags |= CXL_MSER_VALID_RANK;
+    }
+    if (has_nibble_mask) {
+        m->nibble_mask = nibble_mask;
+        m->validity_flags |= CXL_MSER_VALID_NIB_MASK;
+    }
+    if (has_bank_group) {
+        m->bank_group = bank_group;
+        m->validity_flags |= CXL_MSER_VALID_BANK_GROUP;
+    }
+    if (has_bank) {
+        m->bank = bank;
+        m->validity_flags |= CXL_MSER_VALID_BANK;
+    }
+    if (has_row) {
+        m->row = row;
+        m->validity_flags |= CXL_MSER_VALID_ROW;
+    }
+    if (has_column) {
+        m->column = column;
+        m->validity_flags |= CXL_MSER_VALID_COLUMN;
+    }
+    if (has_sub_channel) {
+        m->sub_channel = sub_channel;
+        m->validity_flags |= CXL_MSER_VALID_SUB_CHANNEL;
+    }
+    if (component_id) {
+        strncpy((char *)m->component_id, component_id,
+                sizeof(m->component_id) - 1);
+        m->validity_flags |= CXL_MSER_VALID_COMP_ID;
+        if (has_comp_id_pldm && is_comp_id_pldm) {
+            m->validity_flags |= CXL_MSER_VALID_COMP_ID_FORMAT;
+        }
+    }
+
+    QLIST_INSERT_HEAD(&ct3d->maint_list, m, node);
+}
+
 /* Component ID is device specific.  Define this as a string. */
 void qmp_cxl_inject_general_media_event(const char *path, CxlEventLog log,
                                         uint32_t flags, bool has_maint_op_class,
@@ -1713,6 +1808,11 @@ void qmp_cxl_inject_general_media_event(const char *path, CxlEventLog log,
     rc = ct3d_qmp_cxl_event_log_enc(log);
     if (rc < 0) {
         error_setg(errp, "Unhandled error log type");
+        return;
+    }
+    if (rc == CXL_EVENT_TYPE_INFO &&
+        (flags & CXL_EVENT_REC_FLAGS_MAINT_NEEDED)) {
+        error_setg(errp, "Informational event cannot require maintenance");
         return;
     }
     enc_log = rc;
@@ -1772,6 +1872,15 @@ void qmp_cxl_inject_general_media_event(const char *path, CxlEventLog log,
 
     if (cxl_event_insert(cxlds, enc_log, (CXLEventRecordRaw *)&gem)) {
         cxl_event_irq_assert(ct3d);
+    }
+
+    if (flags & CXL_EVENT_REC_FLAGS_MAINT_NEEDED) {
+        cxl_maintenance_insert(ct3d, dpa, has_channel, channel,
+                               has_rank, rank,
+                               0, 0, 0, 0, 0, 0, 0, 0,
+                               0, 0, component_id,
+                               has_comp_id_pldm, is_comp_id_pldm,
+                               0, 0);
     }
 }
 
@@ -1840,6 +1949,11 @@ void qmp_cxl_inject_dram_event(const char *path, CxlEventLog log,
     rc = ct3d_qmp_cxl_event_log_enc(log);
     if (rc < 0) {
         error_setg(errp, "Unhandled error log type");
+        return;
+    }
+    if (rc == CXL_EVENT_TYPE_INFO &&
+        (flags & CXL_EVENT_REC_FLAGS_MAINT_NEEDED)) {
+        error_setg(errp, "Informational event cannot require maintenance");
         return;
     }
     enc_log = rc;
@@ -1934,6 +2048,17 @@ void qmp_cxl_inject_dram_event(const char *path, CxlEventLog log,
 
     if (cxl_event_insert(cxlds, enc_log, (CXLEventRecordRaw *)&dram)) {
         cxl_event_irq_assert(ct3d);
+    }
+
+    if (flags & CXL_EVENT_REC_FLAGS_MAINT_NEEDED) {
+        cxl_maintenance_insert(ct3d, dpa, has_channel, channel,
+                               has_rank, rank,
+                               has_nibble_mask, nibble_mask,
+                               has_bank_group, bank_group,
+                               has_bank, bank, has_row, row,
+                               has_column, column, component_id,
+                               has_comp_id_pldm, is_comp_id_pldm,
+                               has_sub_channel, sub_channel);
     }
 }
 
