@@ -1023,7 +1023,7 @@ struct BdrvChildClass {
     /*
      * Notifies the parent that the child was resized.
      */
-    void (*resize)(BdrvChild *child);
+    void GRAPH_RDLOCK_PTR (*resize)(BdrvChild *child);
 
     /*
      * Returns a name that is supposedly more useful for human users than the
