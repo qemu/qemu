@@ -1020,6 +1020,9 @@ struct BdrvChildClass {
      * the I/O API.
      */
 
+    /*
+     * Notifies the parent that the child was resized.
+     */
     void (*resize)(BdrvChild *child);
 
     /*
