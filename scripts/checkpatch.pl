@@ -1368,6 +1368,9 @@ sub checkspdx {
     $expr =~ s/^\s*//g;
     $expr =~ s/\s*$//g;
 
+    # Cull C comment end
+    $expr =~ s/\*\/.*//;
+
     my @bits = split / +/, $expr;
 
     my $prefer = "GPL-2.0-or-later";

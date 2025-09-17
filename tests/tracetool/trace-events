@@ -1,0 +1,5 @@
+# See docs/devel/tracing.rst for syntax documentation.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+test_blah(void *context, const char *filename) "Blah context=%p filename=%s"
+test_wibble(void *context, int value) "Wibble context=%p value=%d"
