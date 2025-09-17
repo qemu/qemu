@@ -1,7 +1,6 @@
 """Test that gdbstub has access to proc mappings.
 
 This runs as a sourced script (via -x, via run-test.py)."""
-from __future__ import print_function
 import gdb
 from test_gdbstub import gdb_exit, main, report
 

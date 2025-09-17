@@ -68,19 +68,6 @@ configurations (e.g. -smp drawers=1,books=1,clusters=1 for x86 PC machine) is
 marked deprecated since 9.0, users have to ensure that all the topology members
 described with -smp are supported by the target machine.
 
-``-old-param`` option for booting Arm kernels via param_struct (since 10.0)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``-old-param`` command line option is specific to Arm targets:
-it is used when directly booting a guest kernel to pass it the
-command line and other information via the old ``param_struct`` ABI,
-rather than the newer ATAGS or DTB mechanisms. This option was only
-ever needed to support ancient kernels on some old board types
-like the ``akita`` or ``terrier``; it has been deprecated in the
-kernel since 2001. None of the board types QEMU supports need
-``param_struct`` support, so this option has been deprecated and will
-be removed in a future QEMU version.
-
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
@@ -235,27 +222,6 @@ anomalies in things like memory instrumentation.
 Keeping 32-bit host support alive is a substantial burden for the
 QEMU project.  Thus QEMU will in future drop the support for all
 32-bit host systems.
-
-linux-user mode CPUs
---------------------
-
-iwMMXt emulation and the ``pxa`` CPUs (since 10.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``pxa`` CPU family (``pxa250``, ``pxa255``, ``pxa260``,
-``pxa261``, ``pxa262``, ``pxa270-a0``, ``pxa270-a1``, ``pxa270``,
-``pxa270-b0``, ``pxa270-b1``, ``pxa270-c0``, ``pxa270-c5``) are no
-longer used in system emulation, because all the machine types which
-used these CPUs were removed in the QEMU 9.2 release. These CPUs can
-now only be used in linux-user mode, and to do that you would have to
-explicitly select one of these CPUs with the ``-cpu`` command line
-option or the ``QEMU_CPU`` environment variable.
-
-We don't believe that anybody is using the iwMMXt emulation, and we do
-not have any tests to validate it or any real hardware or similar
-known-good implementation to test against. GCC is in the process of
-dropping their support for iwMMXt codegen. These CPU types are
-therefore deprecated in QEMU, and will be removed in a future release.
 
 System emulator CPUs
 --------------------

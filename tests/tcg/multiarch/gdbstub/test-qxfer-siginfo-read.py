@@ -1,4 +1,3 @@
-from __future__ import print_function
 #
 # Test gdbstub Xfer:siginfo:read stub.
 #

@@ -624,16 +624,9 @@ TCGTBCPUState arm_get_tb_cpu_state(CPUState *cs)
                 DP_TBFLAG_M32(flags, MVE_NO_PRED, 1);
             }
         } else {
-            /*
-             * Note that XSCALE_CPAR shares bits with VECSTRIDE.
-             * Note that VECLEN+VECSTRIDE are RES0 for M-profile.
-             */
-            if (arm_feature(env, ARM_FEATURE_XSCALE)) {
-                DP_TBFLAG_A32(flags, XSCALE_CPAR, env->cp15.c15_cpar);
-            } else {
-                DP_TBFLAG_A32(flags, VECLEN, env->vfp.vec_len);
-                DP_TBFLAG_A32(flags, VECSTRIDE, env->vfp.vec_stride);
-            }
+            /* Note that VECLEN+VECSTRIDE are RES0 for M-profile. */
+            DP_TBFLAG_A32(flags, VECLEN, env->vfp.vec_len);
+            DP_TBFLAG_A32(flags, VECSTRIDE, env->vfp.vec_stride);
             if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30)) {
                 DP_TBFLAG_A32(flags, VFPEN, 1);
             }

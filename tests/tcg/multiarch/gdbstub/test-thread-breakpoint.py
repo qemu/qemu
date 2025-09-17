@@ -1,4 +1,3 @@
-from __future__ import print_function
 #
 # Test auxiliary vector is loaded via gdbstub
 #

@@ -1,4 +1,3 @@
-from __future__ import print_function
 #
 # Test GDB memory-tag commands that exercise the stubs for the qIsAddressTagged,
 # qMemTag, and QMemTag packets, which are used for manipulating allocation tags.

@@ -1,4 +1,3 @@
-from __future__ import print_function
 
 #
 # Test that signals and debugging mix well together on s390x.

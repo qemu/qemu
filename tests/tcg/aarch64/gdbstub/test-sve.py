@@ -1,4 +1,3 @@
-from __future__ import print_function
 #
 # Test the SVE registers are visible and changeable via gdbstub
 #

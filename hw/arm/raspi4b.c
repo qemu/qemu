@@ -36,9 +36,8 @@ struct Raspi4bMachineState {
  * (see https://datasheets.raspberrypi.com/bcm2711/bcm2711-peripherals.pdf
  * 1.2 Address Map)
  */
-static int raspi_add_memory_node(void *fdt, hwaddr mem_base, hwaddr mem_len)
+static void raspi_add_memory_node(void *fdt, hwaddr mem_base, hwaddr mem_len)
 {
-    int ret;
     uint32_t acells, scells;
     char *nodename = g_strdup_printf("/memory@%" PRIx64, mem_base);
 
@@ -46,19 +45,16 @@ static int raspi_add_memory_node(void *fdt, hwaddr mem_base, hwaddr mem_len)
                                    NULL, &error_fatal);
     scells = qemu_fdt_getprop_cell(fdt, "/", "#size-cells",
                                    NULL, &error_fatal);
-    if (acells == 0 || scells == 0) {
-        fprintf(stderr, "dtb file invalid (#address-cells or #size-cells 0)\n");
-        ret = -1;
-    } else {
-        qemu_fdt_add_subnode(fdt, nodename);
-        qemu_fdt_setprop_string(fdt, nodename, "device_type", "memory");
-        ret = qemu_fdt_setprop_sized_cells(fdt, nodename, "reg",
-                                           acells, mem_base,
-                                           scells, mem_len);
-    }
+    /* validated by arm_load_dtb */
+    g_assert(acells && scells);
+
+    qemu_fdt_add_subnode(fdt, nodename);
+    qemu_fdt_setprop_string(fdt, nodename, "device_type", "memory");
+    qemu_fdt_setprop_sized_cells(fdt, nodename, "reg",
+                                        acells, mem_base,
+                                        scells, mem_len);
 
     g_free(nodename);
-    return ret;
 }
 
 static void raspi4_modify_dtb(const struct arm_boot_info *info, void *fdt)

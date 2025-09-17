@@ -161,6 +161,7 @@ struct SMMUState {
     QLIST_HEAD(, SMMUDevice) devices_with_notifiers;
     uint8_t bus_num;
     PCIBus *primary_bus;
+    bool smmu_per_bus; /* SMMU is specific to the primary_bus */
 };
 
 struct SMMUBaseClass {
