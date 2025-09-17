@@ -412,19 +412,30 @@ macro_rules! vmstate_exist_fn {
     }};
 }
 
+/// Add a terminator to the fields in the arguments, and return
+/// a reference to the resulting array of values.
+#[macro_export]
+macro_rules! vmstate_fields_ref {
+    ($($field:expr),*$(,)*) => {
+        &[
+            $($field),*,
+            $crate::bindings::VMStateField {
+                flags: $crate::bindings::VMStateFlags::VMS_END,
+                ..::common::zeroable::Zeroable::ZERO
+            }
+        ]
+    }
+}
+
 /// Helper macro to declare a list of
 /// ([`VMStateField`](`crate::bindings::VMStateField`)) into a static and return
 /// a pointer to the array of values it created.
 #[macro_export]
 macro_rules! vmstate_fields {
     ($($field:expr),*$(,)*) => {{
-        static _FIELDS: &[$crate::bindings::VMStateField] = &[
+        static _FIELDS: &[$crate::bindings::VMStateField] = $crate::vmstate_fields_ref!(
             $($field),*,
-            $crate::bindings::VMStateField {
-                flags: $crate::bindings::VMStateFlags::VMS_END,
-                ..::common::zeroable::Zeroable::ZERO
-            }
-        ];
+        );
         _FIELDS
     }}
 }
