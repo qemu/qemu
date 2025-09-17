@@ -223,6 +223,11 @@ typedef enum CXLDCEventType {
  * CXL r3.2 section Table 8-60: Memory Sparing Event Record
  * All fields little endian.
  */
+
+#define CXL_MSER_FLAGS_QUERY_RESOURCES BIT(0)
+#define CXL_MSER_FLAGS_HARD_SPARING BIT(1)
+#define CXL_MSER_FLAGS_DEV_INITIATED BIT(2)
+
 #define CXL_MSER_VALID_CHANNEL BIT(0)
 #define CXL_MSER_VALID_RANK BIT(1)
 #define CXL_MSER_VALID_NIB_MASK BIT(2)
