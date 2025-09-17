@@ -580,6 +580,23 @@ impl<T> BqlRefCell<T> {
         }
     }
 
+    /// Returns a mutable reference to the underlying data in this cell,
+    /// while the owner already has a mutable reference to the cell.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bql::BqlRefCell;
+    ///
+    /// let mut c = BqlRefCell::new(5);
+    ///
+    /// *c.get_mut() = 10;
+    /// ```
+    #[inline]
+    pub const fn get_mut(&mut self) -> &mut T {
+        self.value.get_mut()
+    }
+
     /// Returns a raw pointer to the underlying data in this cell.
     ///
     /// # Examples
