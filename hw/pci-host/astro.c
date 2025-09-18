@@ -424,22 +424,23 @@ static void elroy_reset(DeviceState *dev)
     }
 }
 
-static void elroy_pcihost_init(Object *obj)
+static void elroy_pcihost_realize(DeviceState *dev, Error **errp)
 {
-    ElroyState *s = ELROY_PCI_HOST_BRIDGE(obj);
-    PCIHostState *phb = PCI_HOST_BRIDGE(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    ElroyState *s = ELROY_PCI_HOST_BRIDGE(dev);
+    PCIHostState *phb = PCI_HOST_BRIDGE(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    Object *obj = OBJECT(s);
 
     /* Elroy config access from CPU.  */
-    memory_region_init_io(&s->this_mem, OBJECT(s), &elroy_chip_ops,
+    memory_region_init_io(&s->this_mem, obj, &elroy_chip_ops,
                           s, "elroy", 0x2000);
 
     /* Elroy PCI config. */
-    memory_region_init_io(&phb->conf_mem, OBJECT(phb),
-                          &elroy_config_addr_ops, DEVICE(s),
+    memory_region_init_io(&phb->conf_mem, obj,
+                          &elroy_config_addr_ops, dev,
                           "pci-conf-idx", 8);
-    memory_region_init_io(&phb->data_mem, OBJECT(phb),
-                          &elroy_config_data_ops, DEVICE(s),
+    memory_region_init_io(&phb->data_mem, obj,
+                          &elroy_config_data_ops, dev,
                           "pci-conf-data", 8);
     memory_region_add_subregion(&s->this_mem, 0x40,
                                 &phb->conf_mem);
@@ -447,8 +448,8 @@ static void elroy_pcihost_init(Object *obj)
                                 &phb->data_mem);
 
     /* Elroy PCI bus memory.  */
-    memory_region_init(&s->pci_mmio, OBJECT(s), "pci-mmio", UINT64_MAX);
-    memory_region_init_io(&s->pci_io, OBJECT(s), &unassigned_io_ops, obj,
+    memory_region_init(&s->pci_mmio, obj, "pci-mmio", UINT64_MAX);
+    memory_region_init_io(&s->pci_io, obj, &unassigned_io_ops, obj,
                             "pci-isa-mmio",
                             ((uint32_t) IOS_DIST_BASE_SIZE) / ROPES_PER_IOC);
 
@@ -459,7 +460,7 @@ static void elroy_pcihost_init(Object *obj)
 
     sysbus_init_mmio(sbd, &s->this_mem);
 
-    qdev_init_gpio_in(DEVICE(obj), elroy_set_irq, ELROY_IRQS);
+    qdev_init_gpio_in(dev, elroy_set_irq, ELROY_IRQS);
 }
 
 static const VMStateDescription vmstate_elroy = {
@@ -487,6 +488,7 @@ static void elroy_pcihost_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     device_class_set_legacy_reset(dc, elroy_reset);
+    dc->realize = elroy_pcihost_realize;
     dc->vmsd = &vmstate_elroy;
     dc->user_creatable = false;
 }
@@ -494,7 +496,6 @@ static void elroy_pcihost_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo elroy_pcihost_info = {
     .name          = TYPE_ELROY_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_init = elroy_pcihost_init,
     .instance_size = sizeof(ElroyState),
     .class_init    = elroy_pcihost_class_init,
 };
