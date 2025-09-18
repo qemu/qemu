@@ -387,11 +387,7 @@ typedef struct CPUArchState {
 #endif
 
     AddressSpace *address_space_iocsr;
-    bool load_elf;
-    uint64_t elf_address;
     uint32_t mp_state;
-
-    struct loongarch_boot_info *boot_info;
 #endif
 } CPULoongArchState;
 

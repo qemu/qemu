@@ -1014,6 +1014,7 @@ static void virt_cpu_unplug(HotplugHandler *hotplug_dev,
     /* Notify acpi ged CPU removed */
     hotplug_handler_unplug(HOTPLUG_HANDLER(lvms->acpi_ged), dev, &error_abort);
 
+    qemu_unregister_resettable(OBJECT(dev));
     cpu_slot = virt_find_cpu_slot(MACHINE(lvms), cpu->phy_id);
     cpu_slot->cpu = NULL;
 }
@@ -1038,6 +1039,7 @@ static void virt_cpu_plug(HotplugHandler *hotplug_dev,
                              &error_abort);
     }
 
+    qemu_register_resettable(OBJECT(dev));
     cpu_slot = virt_find_cpu_slot(MACHINE(lvms), cpu->phy_id);
     cpu_slot->cpu = CPU(dev);
 }
