@@ -19,6 +19,7 @@
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "trace.h"
+#include "qapi/error.h"
 
 /* bool */
 
@@ -543,13 +544,17 @@ static int get_tmp(QEMUFile *f, void *pv, size_t size,
                    const VMStateField *field)
 {
     int ret;
+    Error *local_err = NULL;
     const VMStateDescription *vmsd = field->vmsd;
     int version_id = field->version_id;
     void *tmp = g_malloc(size);
 
     /* Writes the parent field which is at the start of the tmp */
     *(void **)tmp = pv;
-    ret = vmstate_load_state(f, vmsd, tmp, version_id);
+    ret = vmstate_load_state(f, vmsd, tmp, version_id, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+    }
     g_free(tmp);
     return ret;
 }
@@ -626,6 +631,7 @@ static int get_qtailq(QEMUFile *f, void *pv, size_t unused_size,
                       const VMStateField *field)
 {
     int ret = 0;
+    Error *local_err = NULL;
     const VMStateDescription *vmsd = field->vmsd;
     /* size of a QTAILQ element */
     size_t size = field->size;
@@ -649,8 +655,9 @@ static int get_qtailq(QEMUFile *f, void *pv, size_t unused_size,
 
     while (qemu_get_byte(f)) {
         elm = g_malloc(size);
-        ret = vmstate_load_state(f, vmsd, elm, version_id);
+        ret = vmstate_load_state(f, vmsd, elm, version_id, &local_err);
         if (ret) {
+            error_report_err(local_err);
             return ret;
         }
         QTAILQ_RAW_INSERT_TAIL(pv, elm, entry_offset);
@@ -772,6 +779,7 @@ static int get_gtree(QEMUFile *f, void *pv, size_t unused_size,
     GTree *tree = *pval;
     void *key, *val;
     int ret = 0;
+    Error *local_err = NULL;
 
     /* in case of direct key, the key vmsd can be {}, ie. check fields */
     if (!direct_key && version_id > key_vmsd->version_id) {
@@ -803,18 +811,16 @@ static int get_gtree(QEMUFile *f, void *pv, size_t unused_size,
             key = (void *)(uintptr_t)qemu_get_be64(f);
         } else {
             key = g_malloc0(key_size);
-            ret = vmstate_load_state(f, key_vmsd, key, version_id);
+            ret = vmstate_load_state(f, key_vmsd, key, version_id, &local_err);
             if (ret) {
-                error_report("%s : failed to load %s (%d)",
-                             field->name, key_vmsd->name, ret);
+                error_report_err(local_err);
                 goto key_error;
             }
         }
         val = g_malloc0(val_size);
-        ret = vmstate_load_state(f, val_vmsd, val, version_id);
+        ret = vmstate_load_state(f, val_vmsd, val, version_id, &local_err);
         if (ret) {
-            error_report("%s : failed to load %s (%d)",
-                         field->name, val_vmsd->name, ret);
+            error_report_err(local_err);
             goto val_error;
         }
         g_tree_insert(tree, key, val);
@@ -872,6 +878,7 @@ static int get_qlist(QEMUFile *f, void *pv, size_t unused_size,
                      const VMStateField *field)
 {
     int ret = 0;
+    Error *local_err = NULL;
     const VMStateDescription *vmsd = field->vmsd;
     /* size of a QLIST element */
     size_t size = field->size;
@@ -892,10 +899,9 @@ static int get_qlist(QEMUFile *f, void *pv, size_t unused_size,
 
     while (qemu_get_byte(f)) {
         elm = g_malloc(size);
-        ret = vmstate_load_state(f, vmsd, elm, version_id);
+        ret = vmstate_load_state(f, vmsd, elm, version_id, &local_err);
         if (ret) {
-            error_report("%s: failed to load %s (%d)", field->name,
-                         vmsd->name, ret);
+            error_report_err(local_err);
             g_free(elm);
             return ret;
         }
