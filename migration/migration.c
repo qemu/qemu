@@ -1712,7 +1712,8 @@ int migration_call_notifiers(MigrationState *s, MigrationEventType type,
 
 bool migration_has_failed(MigrationState *s)
 {
-    return (s->state == MIGRATION_STATUS_CANCELLED ||
+    return (s->state == MIGRATION_STATUS_CANCELLING ||
+            s->state == MIGRATION_STATUS_CANCELLED ||
             s->state == MIGRATION_STATUS_FAILED);
 }
 
