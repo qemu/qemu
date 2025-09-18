@@ -552,7 +552,6 @@ ssize_t
 qcrypto_tls_session_read(QCryptoTLSSession *session,
                          char *buf,
                          size_t len,
-                         bool gracefulTermination,
                          Error **errp)
 {
     ssize_t ret;
@@ -570,9 +569,8 @@ qcrypto_tls_session_read(QCryptoTLSSession *session,
     if (ret < 0) {
         if (ret == GNUTLS_E_AGAIN) {
             return QCRYPTO_TLS_SESSION_ERR_BLOCK;
-        } else if ((ret == GNUTLS_E_PREMATURE_TERMINATION) &&
-                   gracefulTermination){
-            return 0;
+        } else if (ret == GNUTLS_E_PREMATURE_TERMINATION) {
+            return QCRYPTO_TLS_SESSION_PREMATURE_TERMINATION;
         } else {
             if (session->rerr) {
                 error_propagate(errp, session->rerr);
@@ -789,7 +787,6 @@ ssize_t
 qcrypto_tls_session_read(QCryptoTLSSession *sess,
                          char *buf,
                          size_t len,
-                         bool gracefulTermination,
                          Error **errp)
 {
     error_setg(errp, "TLS requires GNUTLS support");
