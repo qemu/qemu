@@ -179,6 +179,13 @@ class Asset:
                                self.url, e.reason)
                 raise AssetError(self, "Unable to download: URL error %s" %
                                  e.reason, transient=True)
+            except ConnectionError as e:
+                # A socket connection failure, such as dropped conn
+                # or refused conn
+                tmp_cache_file.unlink()
+                self.log.error("Unable to download %s: Connection error %s",
+                               self.url, e)
+                continue
             except Exception as e:
                 tmp_cache_file.unlink()
                 raise AssetError(self, "Unable to download: %s" % e)
