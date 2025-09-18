@@ -414,12 +414,12 @@ nvmm_vcpu_pre_run(CPUState *cpu)
      * or commit pending TPR access.
      */
     if (cpu_test_interrupt(cpu, CPU_INTERRUPT_INIT | CPU_INTERRUPT_TPR)) {
-        cpu->exit_request = 1;
+        qatomic_set(&cpu->exit_request, true);
     }
 
     if (!has_event && cpu_test_interrupt(cpu, CPU_INTERRUPT_NMI)) {
         if (nvmm_can_take_nmi(cpu)) {
-            cpu->interrupt_request &= ~CPU_INTERRUPT_NMI;
+            cpu_reset_interrupt(cpu, CPU_INTERRUPT_NMI);
             event->type = NVMM_VCPU_EVENT_INTR;
             event->vector = 2;
             has_event = true;
@@ -428,7 +428,7 @@ nvmm_vcpu_pre_run(CPUState *cpu)
 
     if (!has_event && cpu_test_interrupt(cpu, CPU_INTERRUPT_HARD)) {
         if (nvmm_can_take_int(cpu)) {
-            cpu->interrupt_request &= ~CPU_INTERRUPT_HARD;
+            cpu_reset_interrupt(cpu, CPU_INTERRUPT_HARD);
             event->type = NVMM_VCPU_EVENT_INTR;
             event->vector = cpu_get_pic_interrupt(env);
             has_event = true;
@@ -437,7 +437,7 @@ nvmm_vcpu_pre_run(CPUState *cpu)
 
     /* Don't want SMIs. */
     if (cpu_test_interrupt(cpu, CPU_INTERRUPT_SMI)) {
-        cpu->interrupt_request &= ~CPU_INTERRUPT_SMI;
+        cpu_reset_interrupt(cpu, CPU_INTERRUPT_SMI);
     }
 
     if (sync_tpr) {
@@ -697,7 +697,7 @@ nvmm_vcpu_loop(CPUState *cpu)
         /* set int/nmi windows back to the reset state */
     }
     if (cpu_test_interrupt(cpu, CPU_INTERRUPT_POLL)) {
-        cpu->interrupt_request &= ~CPU_INTERRUPT_POLL;
+        cpu_reset_interrupt(cpu, CPU_INTERRUPT_POLL);
         apic_poll_irq(x86_cpu->apic_state);
     }
     if ((cpu_test_interrupt(cpu, CPU_INTERRUPT_HARD) &&
@@ -710,7 +710,7 @@ nvmm_vcpu_loop(CPUState *cpu)
         do_cpu_sipi(x86_cpu);
     }
     if (cpu_test_interrupt(cpu, CPU_INTERRUPT_TPR)) {
-        cpu->interrupt_request &= ~CPU_INTERRUPT_TPR;
+        cpu_reset_interrupt(cpu, CPU_INTERRUPT_TPR);
         nvmm_cpu_synchronize_state(cpu);
         apic_handle_tpr_access_report(x86_cpu->apic_state, env->eip,
             env->tpr_access_type);
@@ -743,7 +743,8 @@ nvmm_vcpu_loop(CPUState *cpu)
 
         nvmm_vcpu_pre_run(cpu);
 
-        if (qatomic_read(&cpu->exit_request)) {
+        /* Corresponding store-release is in cpu_exit. */
+        if (qatomic_load_acquire(&cpu->exit_request)) {
 #if NVMM_USER_VERSION >= 2
             nvmm_vcpu_stop(vcpu);
 #else
@@ -751,8 +752,6 @@ nvmm_vcpu_loop(CPUState *cpu)
 #endif
         }
 
-        /* Read exit_request before the kernel reads the immediate exit flag */
-        smp_rmb();
         ret = nvmm_vcpu_run(mach, vcpu);
         if (ret == -1) {
             error_report("NVMM: Failed to exec a virtual processor,"
@@ -817,8 +816,6 @@ nvmm_vcpu_loop(CPUState *cpu)
 
     cpu_exec_end(cpu);
     bql_lock();
-
-    qatomic_set(&cpu->exit_request, false);
 
     return ret < 0;
 }

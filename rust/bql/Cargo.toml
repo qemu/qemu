@@ -1,0 +1,23 @@
+[package]
+name = "bql"
+version = "0.1.0"
+description = "Rust bindings for QEMU/BQL"
+resolver = "2"
+publish = false
+
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+migration = { path = "../migration" }
+
+[features]
+default = ["debug_cell"]
+debug_cell = []
+
+[lints]
+workspace = true

@@ -11,8 +11,13 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-qemu_api = { path = "../../../qemu-api" }
-qemu_api_macros = { path = "../../../qemu-api-macros" }
+common = { path = "../../../common" }
+util = { path = "../../../util" }
+migration = { path = "../../../migration" }
+bql = { path = "../../../bql" }
+qom = { path = "../../../qom" }
+system = { path = "../../../system" }
+hwcore = { path = "../../../hw/core" }
 
 [lints]
 workspace = true

@@ -1,0 +1,23 @@
+[package]
+name = "chardev"
+version = "0.1.0"
+description = "Rust bindings for QEMU/chardev"
+resolver = "2"
+publish = false
+
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+common = { path = "../common" }
+bql = { path = "../bql" }
+migration = { path = "../migration" }
+qom = { path = "../qom" }
+util = { path = "../util" }
+
+[lints]
+workspace = true

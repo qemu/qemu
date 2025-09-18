@@ -1,0 +1,26 @@
+[package]
+name = "hwcore"
+version = "0.1.0"
+description = "Rust bindings for QEMU/hwcore"
+resolver = "2"
+publish = false
+
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+qemu_macros = { path = "../../qemu-macros" }
+common = { path = "../../common" }
+bql = { path = "../../bql" }
+qom = { path = "../../qom" }
+chardev = { path = "../../chardev" }
+migration = { path = "../../migration" }
+system = { path = "../../system" }
+util = { path = "../../util" }
+
+[lints]
+workspace = true

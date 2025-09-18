@@ -38,6 +38,7 @@
 #include "qemu/int128.h"
 #include "trace.h"
 #include "tcg/tcg-ldst.h"
+#include "tcg-accel-ops.h"
 #include "backend-ldst.h"
 #include "internal-common.h"
 #include "tb-internal.h"
@@ -46,9 +47,15 @@ __thread uintptr_t helper_retaddr;
 
 //#define DEBUG_SIGNAL
 
-void cpu_interrupt(CPUState *cpu, int mask)
+void qemu_cpu_kick(CPUState *cpu)
 {
-    g_assert_not_reached();
+    tcg_kick_vcpu_thread(cpu);
+}
+
+void qemu_process_cpu_events(CPUState *cpu)
+{
+    qatomic_set(&cpu->exit_request, false);
+    process_queued_cpu_work(cpu);
 }
 
 /*

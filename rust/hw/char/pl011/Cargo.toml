@@ -16,8 +16,14 @@ rust-version.workspace = true
 bilge = { version = "0.2.0" }
 bilge-impl = { version = "0.2.0" }
 bits = { path = "../../../bits" }
-qemu_api = { path = "../../../qemu-api" }
-qemu_api_macros = { path = "../../../qemu-api-macros" }
+common = { path = "../../../common" }
+util = { path = "../../../util" }
+bql = { path = "../../../bql" }
+migration = { path = "../../../migration" }
+qom = { path = "../../../qom" }
+chardev = { path = "../../../chardev" }
+system = { path = "../../../system" }
+hwcore = { path = "../../../hw/core" }
 
 [lints]
 workspace = true

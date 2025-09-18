@@ -3515,9 +3515,17 @@ F: include/hw/registerfields.h
 Rust
 M: Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 S: Maintained
-F: rust/qemu-api
-F: rust/qemu-api-macros
+F: rust/bql/
+F: rust/chardev/
+F: rust/common/
+F: rust/hw/core/
+F: rust/migration/
+F: rust/qemu-macros/
+F: rust/qom/
 F: rust/rustfmt.toml
+F: rust/system/
+F: rust/tests/
+F: rust/util/
 F: scripts/get-wraps-from-cargo-registry.py
 
 Rust-related patches CC here

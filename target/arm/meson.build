@@ -26,6 +26,7 @@ arm_user_ss.add(files(
   'debug_helper.c',
   'helper.c',
   'vfp_fpscr.c',
+  'el2-stubs.c',
 ))
 
 arm_common_system_ss.add(files('cpu.c'))
@@ -38,6 +39,7 @@ arm_common_system_ss.add(files(
   'arm-powerctl.c',
   'cortex-regs.c',
   'cpregs-pmu.c',
+  'cpu-irq.c',
   'debug_helper.c',
   'helper.c',
   'machine.c',

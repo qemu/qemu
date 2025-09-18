@@ -397,7 +397,7 @@ bool hvf_inject_interrupts(CPUState *cs)
 
     if (cpu_test_interrupt(cs, CPU_INTERRUPT_NMI)) {
         if (!(env->hflags2 & HF2_NMI_MASK) && !(info & VMCS_INTR_VALID)) {
-            cs->interrupt_request &= ~CPU_INTERRUPT_NMI;
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_NMI);
             info = VMCS_INTR_VALID | VMCS_INTR_T_NMI | EXCP02_NMI;
             wvmcs(cs->accel->fd, VMCS_ENTRY_INTR_INFO, info);
         } else {
@@ -409,7 +409,7 @@ bool hvf_inject_interrupts(CPUState *cs)
         cpu_test_interrupt(cs, CPU_INTERRUPT_HARD) &&
         (env->eflags & IF_MASK) && !(info & VMCS_INTR_VALID)) {
         int line = cpu_get_pic_interrupt(env);
-        cs->interrupt_request &= ~CPU_INTERRUPT_HARD;
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
         if (line >= 0) {
             wvmcs(cs->accel->fd, VMCS_ENTRY_INTR_INFO, line |
                   VMCS_INTR_VALID | VMCS_INTR_T_HWINTR);
@@ -437,7 +437,7 @@ int hvf_process_events(CPUState *cs)
     }
 
     if (cpu_test_interrupt(cs, CPU_INTERRUPT_POLL)) {
-        cs->interrupt_request &= ~CPU_INTERRUPT_POLL;
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_POLL);
         apic_poll_irq(cpu->apic_state);
     }
     if ((cpu_test_interrupt(cs, CPU_INTERRUPT_HARD) &&
@@ -450,7 +450,7 @@ int hvf_process_events(CPUState *cs)
         do_cpu_sipi(cpu);
     }
     if (cpu_test_interrupt(cs, CPU_INTERRUPT_TPR)) {
-        cs->interrupt_request &= ~CPU_INTERRUPT_TPR;
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_TPR);
         cpu_synchronize_state(cs);
         apic_handle_tpr_access_report(cpu->apic_state, env->eip,
                                       env->tpr_access_type);

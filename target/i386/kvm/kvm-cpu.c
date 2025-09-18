@@ -13,6 +13,7 @@
 #include "qapi/error.h"
 #include "system/system.h"
 #include "hw/boards.h"
+#include "hw/i386/x86.h"
 
 #include "kvm_i386.h"
 #include "accel/accel-cpu-target.h"
@@ -90,6 +91,15 @@ static bool kvm_cpu_realizefn(CPUState *cs, Error **errp)
         cpu->guest_phys_bits == -1) {
         kvm_set_guest_phys_bits(cs);
     }
+
+    /*
+     * When SMM is enabled, there is 2 address spaces. Otherwise only 1.
+     *
+     * Only initialize address space 0 here, the second one for SMM is
+     * initialized at register_smram_listener() after machine init done.
+     */
+    cs->num_ases = x86_machine_is_smm_enabled(X86_MACHINE(current_machine)) ? 2 : 1;
+    cpu_address_space_init(cs, X86ASIdx_MEM, "cpu-memory", cs->memory);
 
     return true;
 }

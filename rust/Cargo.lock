@@ -41,7 +41,33 @@ dependencies = [
 name = "bits"
 version = "0.1.0"
 dependencies = [
- "qemu_api_macros",
+ "qemu_macros",
+]
+
+[[package]]
+name = "bql"
+version = "0.1.0"
+dependencies = [
+ "migration",
+]
+
+[[package]]
+name = "chardev"
+version = "0.1.0"
+dependencies = [
+ "bql",
+ "common",
+ "migration",
+ "qom",
+ "util",
+]
+
+[[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "qemu_macros",
 ]
 
 [[package]]
@@ -63,8 +89,27 @@ dependencies = [
 name = "hpet"
 version = "0.1.0"
 dependencies = [
- "qemu_api",
- "qemu_api_macros",
+ "bql",
+ "common",
+ "hwcore",
+ "migration",
+ "qom",
+ "system",
+ "util",
+]
+
+[[package]]
+name = "hwcore"
+version = "0.1.0"
+dependencies = [
+ "bql",
+ "chardev",
+ "common",
+ "migration",
+ "qemu_macros",
+ "qom",
+ "system",
+ "util",
 ]
 
 [[package]]
@@ -83,14 +128,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "18d287de67fe55fd7e1581fe933d965a5a9477b38e949cfa9f8574ef01506398"
 
 [[package]]
+name = "migration"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "util",
+]
+
+[[package]]
 name = "pl011"
 version = "0.1.0"
 dependencies = [
  "bilge",
  "bilge-impl",
  "bits",
- "qemu_api",
- "qemu_api_macros",
+ "bql",
+ "chardev",
+ "common",
+ "hwcore",
+ "migration",
+ "qom",
+ "system",
+ "util",
 ]
 
 [[package]]
@@ -126,22 +185,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "qemu_api"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "foreign",
- "libc",
- "qemu_api_macros",
-]
-
-[[package]]
-name = "qemu_api_macros"
+name = "qemu_macros"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "qom"
+version = "0.1.0"
+dependencies = [
+ "bql",
+ "common",
+ "migration",
+ "qemu_macros",
+ "util",
 ]
 
 [[package]]
@@ -165,10 +225,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "system"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "qom",
+ "util",
+]
+
+[[package]]
+name = "tests"
+version = "0.1.0"
+dependencies = [
+ "bql",
+ "chardev",
+ "common",
+ "hwcore",
+ "migration",
+ "qom",
+ "system",
+ "util",
+]
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
+
+[[package]]
+name = "util"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "common",
+ "foreign",
+ "libc",
+]
 
 [[package]]
 name = "version_check"

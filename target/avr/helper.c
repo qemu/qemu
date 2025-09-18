@@ -47,7 +47,7 @@ bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
             cs->exception_index = EXCP_RESET;
             avr_cpu_do_interrupt(cs);
 
-            cs->interrupt_request &= ~CPU_INTERRUPT_RESET;
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_RESET);
             return true;
         }
     }
@@ -59,7 +59,7 @@ bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 
             env->intsrc &= env->intsrc - 1; /* clear the interrupt */
             if (!env->intsrc) {
-                cs->interrupt_request &= ~CPU_INTERRUPT_HARD;
+                cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
             }
             return true;
         }

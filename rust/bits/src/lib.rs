@@ -165,19 +165,19 @@ macro_rules! bits {
 
             #[allow(dead_code)]
             #[inline(always)]
-            pub fn set(&mut self, rhs: Self) {
+            pub const fn set(&mut self, rhs: Self) {
                 self.0 |= rhs.0;
             }
 
             #[allow(dead_code)]
             #[inline(always)]
-            pub fn clear(&mut self, rhs: Self) {
+            pub const fn clear(&mut self, rhs: Self) {
                 self.0 &= !rhs.0;
             }
 
             #[allow(dead_code)]
             #[inline(always)]
-            pub fn toggle(&mut self, rhs: Self) {
+            pub const fn toggle(&mut self, rhs: Self) {
                 self.0 ^= rhs.0;
             }
 
@@ -380,13 +380,16 @@ macro_rules! bits {
     };
 
     { $type:ty: $expr:expr } => {
-        ::qemu_api_macros::bits_const_internal! { $type @ ($expr) }
+        $crate::bits_const_internal! { $type @ ($expr) }
     };
 
     { $type:ty as $int_type:ty: $expr:expr } => {
-        (::qemu_api_macros::bits_const_internal! { $type @ ($expr) }.into_bits()) as $int_type
+        ($crate::bits_const_internal! { $type @ ($expr) }.into_bits()) as $int_type
     };
 }
+
+#[doc(hidden)]
+pub use qemu_macros::bits_const_internal;
 
 #[cfg(test)]
 mod test {

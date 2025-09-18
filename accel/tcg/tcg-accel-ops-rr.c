@@ -43,7 +43,7 @@ void rr_kick_vcpu_thread(CPUState *unused)
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
-        cpu_exit(cpu);
+        tcg_kick_vcpu_thread(cpu);
     };
 }
 
@@ -117,7 +117,7 @@ static void rr_wait_io_event(void)
     rr_start_kick_timer();
 
     CPU_FOREACH(cpu) {
-        qemu_wait_io_event_common(cpu);
+        qemu_process_cpu_events_common(cpu);
     }
 }
 
@@ -203,7 +203,7 @@ static void *rr_cpu_thread_fn(void *arg)
         /* process any pending work */
         CPU_FOREACH(cpu) {
             current_cpu = cpu;
-            qemu_wait_io_event_common(cpu);
+            qemu_process_cpu_events_common(cpu);
         }
     }
 
@@ -211,12 +211,29 @@ static void *rr_cpu_thread_fn(void *arg)
 
     cpu = first_cpu;
 
-    /* process any pending work */
-    cpu->exit_request = 1;
-
     while (1) {
         /* Only used for icount_enabled() */
         int64_t cpu_budget = 0;
+
+        if (cpu) {
+            /*
+             * This could even reset exit_request for all CPUs, but in practice
+             * races between CPU exits and changes to "cpu" are so rare that
+             * there's no advantage in doing so.
+             */
+            qatomic_set(&cpu->exit_request, false);
+        }
+
+        if (icount_enabled() && all_cpu_threads_idle()) {
+            /*
+             * When all cpus are sleeping (e.g in WFI), to avoid a deadlock
+             * in the main_loop, wake it up in order to start the warp timer.
+             */
+            qemu_notify_event();
+        }
+
+        rr_wait_io_event();
+        rr_deal_with_unplugged_cpus();
 
         bql_unlock();
         replay_mutex_lock();
@@ -242,10 +259,17 @@ static void *rr_cpu_thread_fn(void *arg)
             cpu = first_cpu;
         }
 
-        while (cpu && cpu_work_list_empty(cpu) && !cpu->exit_request) {
-            /* Store rr_current_cpu before evaluating cpu_can_run().  */
+        while (cpu && cpu_work_list_empty(cpu)) {
+            /*
+             * Store rr_current_cpu before evaluating cpu->exit_request.
+             * Pairs with rr_kick_next_cpu().
+             */
             qatomic_set_mb(&rr_current_cpu, cpu);
 
+            /* Pairs with store-release in cpu_exit.  */
+            if (qatomic_load_acquire(&cpu->exit_request)) {
+                break;
+            }
             current_cpu = cpu;
 
             qemu_clock_enable(QEMU_CLOCK_VIRTUAL,
@@ -285,21 +309,6 @@ static void *rr_cpu_thread_fn(void *arg)
 
         /* Does not need a memory barrier because a spurious wakeup is okay.  */
         qatomic_set(&rr_current_cpu, NULL);
-
-        if (cpu && cpu->exit_request) {
-            qatomic_set_mb(&cpu->exit_request, 0);
-        }
-
-        if (icount_enabled() && all_cpu_threads_idle()) {
-            /*
-             * When all cpus are sleeping (e.g in WFI), to avoid a deadlock
-             * in the main_loop, wake it up in order to start the warp timer.
-             */
-            qemu_notify_event();
-        }
-
-        rr_wait_io_event();
-        rr_deal_with_unplugged_cpus();
     }
 
     g_assert_not_reached();

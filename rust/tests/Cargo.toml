@@ -1,0 +1,26 @@
+[package]
+name = "tests"
+version = "0.1.0"
+description = "Rust integration tests for QEMU"
+resolver = "2"
+publish = false
+
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+common = { path = "../common" }
+chardev = { path = "../chardev" }
+hwcore = { path = "../hw/core" }
+migration = { path = "../migration" }
+util = { path = "../util" }
+bql = { path = "../bql" }
+qom = { path = "../qom" }
+system = { path = "../system" }
+
+[lints]
+workspace = true

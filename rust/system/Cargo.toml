@@ -1,0 +1,21 @@
+[package]
+name = "system"
+version = "0.1.0"
+description = "Rust bindings for QEMU/system"
+resolver = "2"
+publish = false
+
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+common = { path = "../common" }
+qom = { path = "../qom" }
+util = { path = "../util" }
+
+[lints]
+workspace = true
