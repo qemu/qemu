@@ -1,6 +1,6 @@
 # Python library testing environment
 
-FROM fedora:latest
+FROM fedora:37
 MAINTAINER John Snow <jsnow@redhat.com>
 
 # Please keep this list sorted alphabetically
