@@ -40,47 +40,41 @@
 #include "qom/object.h"
 #include "trace.h"
 
-static const uint8_t pl061_id[12] =
-  { 0x00, 0x00, 0x00, 0x00, 0x61, 0x10, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1 };
-static const uint8_t pl061_id_luminary[12] =
-  { 0x00, 0x00, 0x00, 0x00, 0x61, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1 };
-
 #define TYPE_PL061 "pl061"
 OBJECT_DECLARE_SIMPLE_TYPE(PL061State, PL061)
 
 #define N_GPIOS 8
+enum Pin {
+    PIN0 = 0,
+    PIN1 = 1,
+    PIN2 = 2,
+    PIN3 = 3,
+    PIN4 = 4,
+    PIN5 = 5,
+    PIN6 = 6,
+    PIN7 = 7,
+};
 
 struct PL061State {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
-    uint32_t locked;
-    uint32_t data;
-    uint32_t old_out_data;
-    uint32_t old_in_data;
-    uint32_t dir;
-    uint32_t isense;
-    uint32_t ibe;
-    uint32_t iev;
-    uint32_t im;
-    uint32_t istate;
-    uint32_t afsel;
-    uint32_t dr2r;
-    uint32_t dr4r;
-    uint32_t dr8r;
-    uint32_t odr;
-    uint32_t pur;
-    uint32_t pdr;
-    uint32_t slr;
-    uint32_t den;
-    uint32_t cr;
-    uint32_t amsel;
-    qemu_irq irq;
-    qemu_irq out[N_GPIOS];
-    const unsigned char *id;
-    /* Properties, for non-Luminary PL061 */
-    uint32_t pullups;
-    uint32_t pulldowns;
+    uint8_t state;
+    uint8_t dirs;
+    uint8_t sense;
+    uint8_t bothEdge;
+    uint8_t eventTriggers;
+    uint8_t interrupts;
+    uint8_t interruptMask;
+    uint8_t controlMode;
+    struct {
+        qemu_irq irq;
+        qemu_irq out[N_GPIOS];
+    };
+    struct {
+        uint8_t pullups;
+        uint8_t pulldowns;
+    };
 };
 
 static const VMStateDescription vmstate_pl061 = {
@@ -88,135 +82,244 @@ static const VMStateDescription vmstate_pl061 = {
     .version_id = 4,
     .minimum_version_id = 4,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(locked, PL061State),
-        VMSTATE_UINT32(data, PL061State),
-        VMSTATE_UINT32(old_out_data, PL061State),
-        VMSTATE_UINT32(old_in_data, PL061State),
-        VMSTATE_UINT32(dir, PL061State),
-        VMSTATE_UINT32(isense, PL061State),
-        VMSTATE_UINT32(ibe, PL061State),
-        VMSTATE_UINT32(iev, PL061State),
-        VMSTATE_UINT32(im, PL061State),
-        VMSTATE_UINT32(istate, PL061State),
-        VMSTATE_UINT32(afsel, PL061State),
-        VMSTATE_UINT32(dr2r, PL061State),
-        VMSTATE_UINT32(dr4r, PL061State),
-        VMSTATE_UINT32(dr8r, PL061State),
-        VMSTATE_UINT32(odr, PL061State),
-        VMSTATE_UINT32(pur, PL061State),
-        VMSTATE_UINT32(pdr, PL061State),
-        VMSTATE_UINT32(slr, PL061State),
-        VMSTATE_UINT32(den, PL061State),
-        VMSTATE_UINT32(cr, PL061State),
-        VMSTATE_UINT32_V(amsel, PL061State, 2),
+        VMSTATE_UINT8(state, PL061State),
+        VMSTATE_UINT8(dirs, PL061State),
+        VMSTATE_UINT8(sense, PL061State),
+        VMSTATE_UINT8(bothEdge, PL061State),
+        VMSTATE_UINT8(eventTriggers, PL061State),
+        VMSTATE_UINT8(interrupts, PL061State),
+        VMSTATE_UINT8(interruptMask, PL061State),
+        VMSTATE_UINT8(controlMode, PL061State),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static uint8_t pl061_floating(PL061State *s)
-{
-    /*
-     * Return mask of bits which correspond to pins configured as inputs
-     * and which are floating (neither pulled up to 1 nor down to 0).
-     */
-    uint8_t floating;
-
-    if (s->id == pl061_id_luminary) {
-        /*
-         * If both PUR and PDR bits are clear, there is neither a pullup
-         * nor a pulldown in place, and the output truly floats.
-         */
-        floating = ~(s->pur | s->pdr);
-    } else {
-        floating = ~(s->pullups | s->pulldowns);
+static void change_input_pin(PL061State *s, uint8_t pin, uint8_t value) {
+    uint16_t pinMask = 0x1;
+    pinMask <<= pin;
+    uint16_t oldValue = 0x0;
+    if ((s->state & pinMask) == pinMask) {
+        oldValue = 0x1;
     }
-    return floating & ~s->dir;
+
+    if ((s->dirs & pinMask) == pinMask) {
+        return;
+    }
+
+    if (value == 0x0) {
+        s->state &= ~(1 << pin);
+    } else {
+        s->state |= (1 << pin);
+    }
+
+    if ((s->sense & pinMask) == pinMask) {
+        uint16_t level = s->eventTriggers;
+        level &= pinMask;
+        level >>= pin;
+        if (level == value) {
+            s->interrupts |= (1 << pin);
+        } else {
+            s->interrupts &= ~(1 << pin);
+        }
+
+        return;
+    }
+
+    if ((s->interrupts & pinMask) == pinMask) {
+        return;
+    }
+
+    uint16_t diff = value;
+    diff ^= oldValue;
+    if (diff == 0x0) {
+        return;
+    }
+
+    if ((s->bothEdge & pinMask) == pinMask) {
+        s->interrupts |= (1 << pin);
+    }
+
+    if ((s->eventTriggers & pinMask) == pinMask) {
+        diff &= value;
+    } else {
+        diff &= oldValue;
+    }
+
+    if (diff == 0x1) {
+        s->interrupts |= (1 << pin);
+    }
+
 }
 
-static uint8_t pl061_pullups(PL061State *s)
-{
-    /*
-     * Return mask of bits which correspond to pins configured as inputs
-     * and which are pulled up to 1.
-     */
-    uint8_t pullups;
-
-    if (s->id == pl061_id_luminary) {
-        /*
-         * The Luminary variant of the PL061 has an extra registers which
-         * the guest can use to configure whether lines should be pullup
-         * or pulldown.
-         */
-        pullups = s->pur;
-    } else {
-        pullups = s->pullups;
-    }
-    return pullups & ~s->dir;
+static inline uint8_t get_mask(enum Pin pin) {
+    return 1 << pin;
 }
 
-static void pl061_update(PL061State *s)
-{
-    uint8_t changed;
-    uint8_t mask;
-    uint8_t out;
-    int i;
-    uint8_t pullups = pl061_pullups(s);
-    uint8_t floating = pl061_floating(s);
+static int is_input(PL061State *s, enum Pin pin) {
+    uint8_t mask = get_mask(pin);
+    return (s->dirs & mask) == 0;
+}
 
-    trace_pl061_update(DEVICE(s)->canonical_path, s->dir, s->data,
-                       pullups, floating);
+static int is_output(PL061State *s, enum Pin pin) {
+    return !is_input(s, pin);
+}
 
-    /*
-     * Pins configured as output are driven from the data register;
-     * otherwise if they're pulled up they're 1, and if they're floating
-     * then we give them the same value they had previously, so we don't
-     * report any change to the other end.
-     */
-    out = (s->data & s->dir) | pullups | (s->old_out_data & floating);
-    changed = s->old_out_data ^ out;
-    if (changed) {
-        s->old_out_data = out;
-        for (i = 0; i < N_GPIOS; i++) {
-            mask = 1 << i;
-            if (changed & mask) {
-                int level = (out & mask) != 0;
-                trace_pl061_set_output(DEVICE(s)->canonical_path, i, level);
-                qemu_set_irq(s->out[i], level);
-            }
+static void set_output_pin(PL061State *s,  enum Pin pin, int level) {
+    trace_pl061_set_output(DEVICE(s)->canonical_path, pin, level);
+    qemu_set_irq(s->out[pin], level);
+}
+
+static int get_pin_level(PL061State *s, enum Pin pin) {
+    uint8_t mask = get_mask(pin);
+    return (s->state & mask) != 0;
+}
+
+static void pl061_update(PL061State *s) {
+    for (int pin = PIN0; pin <= PIN7; pin++)
+    {
+        int level = get_pin_level(s, pin);
+        if (is_output(s, pin)) {
+            set_output_pin(s, pin, level);
+        } else {
+            trace_pl061_input_change(DEVICE(s)->canonical_path, pin, level);
+            change_input_pin(s, pin, level);
         }
     }
+    qemu_set_irq(s->irq, (s->interrupts & s->interruptMask) != 0);
+}
 
-    /* Inputs */
-    changed = (s->old_in_data ^ s->data) & ~s->dir;
-    if (changed) {
-        s->old_in_data = s->data;
-        for (i = 0; i < N_GPIOS; i++) {
-            mask = 1 << i;
-            if (changed & mask) {
-                trace_pl061_input_change(DEVICE(s)->canonical_path, i,
-                                         (s->data & mask) != 0);
 
-                if (!(s->isense & mask)) {
-                    /* Edge interrupt */
-                    if (s->ibe & mask) {
-                        /* Any edge triggers the interrupt */
-                        s->istate |= mask;
-                    } else {
-                        /* Edge is selected by IEV */
-                        s->istate |= ~(s->data ^ s->iev) & mask;
-                    }
-                }
-            }
-        }
-    }
+static uint64_t readGPIOAFSEL(PL061State *s) {
+    return s->controlMode;
+}
 
-    /* Level interrupt */
-    s->istate |= ~(s->data ^ s->iev) & s->isense;
 
-    trace_pl061_update_istate(DEVICE(s)->canonical_path,
-                              s->istate, s->im, (s->istate & s->im) != 0);
+static uint64_t readGPIOCellID0(PL061State *s) {
+    return 0xd;
+}
 
-    qemu_set_irq(s->irq, (s->istate & s->im) != 0);
+
+static uint64_t readGPIOCellID1(PL061State *s) {
+    return 0xf0;
+}
+
+
+static uint64_t readGPIOCellID2(PL061State *s) {
+    return 0x5;
+}
+
+
+static uint64_t readGPIOCellID3(PL061State *s) {
+    return 0xb1;
+}
+
+
+static uint64_t readGPIODATA(PL061State *s, uint8_t mask) {
+    mask &= s->state;
+    return mask;
+}
+
+
+static uint64_t readGPIODIR(PL061State *s) {
+    return s->dirs;
+}
+
+
+static uint64_t readGPIOIBE(PL061State *s) {
+    return s->bothEdge;
+}
+
+
+static uint64_t readGPIOIE(PL061State *s) {
+    return s->interruptMask;
+}
+
+
+static uint64_t readGPIOIEV(PL061State *s) {
+    return s->eventTriggers;
+}
+
+
+static uint64_t readGPIOIS(PL061State *s) {
+    return s->sense;
+}
+
+
+static uint64_t readGPIOMIS(PL061State *s) {
+    uint16_t tmp = s->interrupts;
+    tmp &= s->interruptMask;
+    return tmp;
+}
+
+
+static uint64_t readGPIOPeriphID0(PL061State *s) {
+    return 0x61;
+}
+
+
+static uint64_t readGPIOPeriphID1(PL061State *s) {
+    return 0x10;
+}
+
+
+static uint64_t readGPIOPeriphID2(PL061State *s) {
+    return 0x4;
+}
+
+
+static uint64_t readGPIOPeriphID3(PL061State *s) {
+    return 0x0;
+}
+
+
+static uint64_t readGPIORIS(PL061State *s) {
+    return s->interrupts;
+}
+
+
+static void writeGPIOAFSEL(PL061State *s, uint64_t value) {
+    s->controlMode = value;
+}
+
+
+static void writeGPIODATA(PL061State *s, uint8_t mask, uint8_t value) {
+    mask &= s->dirs;
+    value &= mask;
+    mask = ~mask;
+    s->state &= mask;
+    s->state |= value;
+}
+
+
+static void writeGPIODIR(PL061State *s, uint64_t value) {
+    s->dirs = value;
+}
+
+
+static void writeGPIOIBE(PL061State *s, uint64_t value) {
+    s->bothEdge = value;
+}
+
+
+static void writeGPIOIC(PL061State *s, uint64_t value) {
+    value = ~value;
+    s->interrupts &= value;
+    value = ~value;
+}
+
+
+static void writeGPIOIE(PL061State *s, uint64_t value) {
+    s->interruptMask = value;
+}
+
+
+static void writeGPIOIEV(PL061State *s, uint64_t value) {
+    s->eventTriggers = value;
+}
+
+
+static void writeGPIOIS(PL061State *s, uint64_t value) {
+    s->sense = value;
 }
 
 static uint64_t pl061_read(void *opaque, hwaddr offset,
@@ -224,106 +327,62 @@ static uint64_t pl061_read(void *opaque, hwaddr offset,
 {
     PL061State *s = (PL061State *)opaque;
     uint64_t r = 0;
+    uint8_t mask = 0;
 
     switch (offset) {
-    case 0x0 ... 0x3ff: /* Data */
-        r = s->data & (offset >> 2);
+    case 0x0 ... 0x3fC: /* Data */
+        mask = (uint8_t)((offset & 0x3FC) >> 2);
+        r = readGPIODATA(s, mask);
         break;
     case 0x400: /* Direction */
-        r = s->dir;
+        r = readGPIODIR(s);
         break;
     case 0x404: /* Interrupt sense */
-        r = s->isense;
+        r = readGPIOIS(s);
         break;
     case 0x408: /* Interrupt both edges */
-        r = s->ibe;
+        r = readGPIOIBE(s);
         break;
     case 0x40c: /* Interrupt event */
-        r = s->iev;
+        r = readGPIOIEV(s);
         break;
     case 0x410: /* Interrupt mask */
-        r = s->im;
+        r = readGPIOIE(s);
         break;
     case 0x414: /* Raw interrupt status */
-        r = s->istate;
+        r = readGPIORIS(s);
         break;
     case 0x418: /* Masked interrupt status */
-        r = s->istate & s->im;
+        r = readGPIOMIS(s);
         break;
     case 0x420: /* Alternate function select */
-        r = s->afsel;
+        r = readGPIOAFSEL(s);
         break;
-    case 0x500: /* 2mA drive */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        r = s->dr2r;
+    case 0xFE0:
+        r = readGPIOPeriphID0(s);
         break;
-    case 0x504: /* 4mA drive */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        r = s->dr4r;
+    case 0xFE4:
+        r = readGPIOPeriphID1(s);
         break;
-    case 0x508: /* 8mA drive */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        r = s->dr8r;
+    case 0xFE8:
+        r = readGPIOPeriphID2(s);
         break;
-    case 0x50c: /* Open drain */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        r = s->odr;
+    case 0xFEC:
+        r = readGPIOPeriphID3(s);
         break;
-    case 0x510: /* Pull-up */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        r = s->pur;
+    case 0xFF0:
+        r = readGPIOCellID0(s);
         break;
-    case 0x514: /* Pull-down */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        r = s->pdr;
+    case 0xFF4:
+        r = readGPIOCellID1(s);
         break;
-    case 0x518: /* Slew rate control */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        r = s->slr;
+    case 0xFF8:
+        r = readGPIOCellID2(s);
         break;
-    case 0x51c: /* Digital enable */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        r = s->den;
-        break;
-    case 0x520: /* Lock */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        r = s->locked;
-        break;
-    case 0x524: /* Commit */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        r = s->cr;
-        break;
-    case 0x528: /* Analog mode select */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        r = s->amsel;
-        break;
-    case 0xfd0 ... 0xfff: /* ID registers */
-        r = s->id[(offset - 0xfd0) >> 2];
+    case 0xFFC:
+        r = readGPIOCellID3(s);
         break;
     default:
-    bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "pl061_read: Bad offset %x\n", (int)offset);
         break;
@@ -343,101 +402,31 @@ static void pl061_write(void *opaque, hwaddr offset,
 
     switch (offset) {
     case 0 ... 0x3ff:
-        mask = (offset >> 2) & s->dir;
-        s->data = (s->data & ~mask) | (value & mask);
-        pl061_update(s);
+        mask = (uint8_t)((offset & 0x3FC) >> 2);
+        writeGPIODATA(s, mask, value);
         return;
     case 0x400: /* Direction */
-        s->dir = value & 0xff;
+        writeGPIODIR(s, value);
         break;
     case 0x404: /* Interrupt sense */
-        s->isense = value & 0xff;
+        writeGPIOIS(s, value);
         break;
     case 0x408: /* Interrupt both edges */
-        s->ibe = value & 0xff;
+        writeGPIOIBE(s, value);
         break;
     case 0x40c: /* Interrupt event */
-        s->iev = value & 0xff;
+        writeGPIOIEV(s, value);
         break;
     case 0x410: /* Interrupt mask */
-        s->im = value & 0xff;
+        writeGPIOIE(s, value);
         break;
     case 0x41c: /* Interrupt clear */
-        s->istate &= ~value;
+        writeGPIOIC(s, value);
         break;
     case 0x420: /* Alternate function select */
-        mask = s->cr;
-        s->afsel = (s->afsel & ~mask) | (value & mask);
-        break;
-    case 0x500: /* 2mA drive */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        s->dr2r = value & 0xff;
-        break;
-    case 0x504: /* 4mA drive */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        s->dr4r = value & 0xff;
-        break;
-    case 0x508: /* 8mA drive */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        s->dr8r = value & 0xff;
-        break;
-    case 0x50c: /* Open drain */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        s->odr = value & 0xff;
-        break;
-    case 0x510: /* Pull-up */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        s->pur = value & 0xff;
-        break;
-    case 0x514: /* Pull-down */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        s->pdr = value & 0xff;
-        break;
-    case 0x518: /* Slew rate control */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        s->slr = value & 0xff;
-        break;
-    case 0x51c: /* Digital enable */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        s->den = value & 0xff;
-        break;
-    case 0x520: /* Lock */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        s->locked = (value != 0xacce551);
-        break;
-    case 0x524: /* Commit */
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        if (!s->locked)
-            s->cr = value & 0xff;
-        break;
-    case 0x528:
-        if (s->id != pl061_id_luminary) {
-            goto bad_offset;
-        }
-        s->amsel = value & 0xff;
+        writeGPIOAFSEL(s, value);
         break;
     default:
-    bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "pl061_write: Bad offset %x\n", (int)offset);
         return;
@@ -451,69 +440,33 @@ static void pl061_enter_reset(Object *obj, ResetType type)
     PL061State *s = PL061(obj);
 
     trace_pl061_reset(DEVICE(s)->canonical_path);
-
-    /* reset values from PL061 TRM, Stellaris LM3S5P31 & LM3S8962 Data Sheet */
-
-    /*
-     * FIXME: For the LM3S6965, not all of the PL061 instances have the
-     * same reset values for GPIOPUR, GPIOAFSEL and GPIODEN, so in theory
-     * we should allow the board to configure these via properties.
-     * In practice, we don't wire anything up to the affected GPIO lines
-     * (PB7, PC0, PC1, PC2, PC3 -- they're used for JTAG), so we can
-     * get away with this inaccuracy.
-     */
-    s->data = 0;
-    s->old_in_data = 0;
-    s->dir = 0;
-    s->isense = 0;
-    s->ibe = 0;
-    s->iev = 0;
-    s->im = 0;
-    s->istate = 0;
-    s->afsel = 0;
-    s->dr2r = 0xff;
-    s->dr4r = 0;
-    s->dr8r = 0;
-    s->odr = 0;
-    s->pur = 0;
-    s->pdr = 0;
-    s->slr = 0;
-    s->den = 0;
-    s->locked = 1;
-    s->cr = 0xff;
-    s->amsel = 0;
+    s->state = 0;
+    s->dirs = 0;
+    s->sense = 0;
+    s->bothEdge = 0;
+    s->eventTriggers = 0;
+    s->interrupts = 0;
+    s->interruptMask = 0;
+    s->controlMode = 0;
 }
 
 static void pl061_hold_reset(Object *obj, ResetType type)
 {
     PL061State *s = PL061(obj);
-    int i, level;
-    uint8_t floating = pl061_floating(s);
-    uint8_t pullups = pl061_pullups(s);
+    uint8_t level = 0;
 
-    for (i = 0; i < N_GPIOS; i++) {
-        if (extract32(floating, i, 1)) {
-            continue;
-        }
-        level = extract32(pullups, i, 1);
-        trace_pl061_set_output(DEVICE(s)->canonical_path, i, level);
-        qemu_set_irq(s->out[i], level);
+    // on RESET, all pins become input
+    for (int pin = 0; pin <= PIN7 ; pin++) {
+        trace_pl061_set_output(DEVICE(s)->canonical_path, pin, level);
+        
     }
-    s->old_out_data = pullups;
 }
 
-static void pl061_set_irq(void * opaque, int irq, int level)
+static void pl061_set_irq(void * opaque, int pin, int level)
 {
     PL061State *s = (PL061State *)opaque;
-    uint8_t mask;
-
-    mask = 1 << irq;
-    if ((s->dir & mask) == 0) {
-        s->data &= ~mask;
-        if (level)
-            s->data |= mask;
-        pl061_update(s);
-    }
+    change_input_pin(s, pin, level);
+    pl061_update(s);
 }
 
 static const MemoryRegionOps pl061_ops = {
@@ -522,20 +475,11 @@ static const MemoryRegionOps pl061_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void pl061_luminary_init(Object *obj)
-{
-    PL061State *s = PL061(obj);
-
-    s->id = pl061_id_luminary;
-}
-
 static void pl061_init(Object *obj)
 {
     PL061State *s = PL061(obj);
     DeviceState *dev = DEVICE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-
-    s->id = pl061_id;
 
     memory_region_init_io(&s->iomem, obj, &pl061_ops, s, "pl061", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
@@ -546,25 +490,13 @@ static void pl061_init(Object *obj)
 
 static void pl061_realize(DeviceState *dev, Error **errp)
 {
-    PL061State *s = PL061(dev);
-
-    if (s->pullups > 0xff) {
-        error_setg(errp, "pullups property must be between 0 and 0xff");
-        return;
-    }
-    if (s->pulldowns > 0xff) {
-        error_setg(errp, "pulldowns property must be between 0 and 0xff");
-        return;
-    }
-    if (s->pullups & s->pulldowns) {
-        error_setg(errp, "no bit may be set both in pullups and pulldowns");
-        return;
-    }
+    // reset to known state
+    pl061_enter_reset(dev);
 }
 
 static Property pl061_props[] = {
-    DEFINE_PROP_UINT32("pullups", PL061State, pullups, 0xff),
-    DEFINE_PROP_UINT32("pulldowns", PL061State, pulldowns, 0x0),
+    DEFINE_PROP_UINT8("pullups", PL061State, pullups, 0xff),
+    DEFINE_PROP_UINT8("pulldowns", PL061State, pulldowns, 0x0),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -588,16 +520,9 @@ static const TypeInfo pl061_info = {
     .class_init    = pl061_class_init,
 };
 
-static const TypeInfo pl061_luminary_info = {
-    .name          = "pl061_luminary",
-    .parent        = TYPE_PL061,
-    .instance_init = pl061_luminary_init,
-};
-
 static void pl061_register_types(void)
 {
     type_register_static(&pl061_info);
-    type_register_static(&pl061_luminary_info);
 }
 
 type_init(pl061_register_types)
