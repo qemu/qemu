@@ -35,6 +35,8 @@ typedef struct AspeedPCIECfgTxDesc {
 typedef struct AspeedPCIERcRegs {
     uint32_t int_en_reg;
     uint32_t int_sts_reg;
+    uint32_t msi_sts0_reg;
+    uint32_t msi_sts1_reg;
 } AspeedPCIERcRegs;
 
 typedef struct AspeedPCIERegMap {
@@ -61,11 +63,18 @@ OBJECT_DECLARE_SIMPLE_TYPE(AspeedPCIERcState, ASPEED_PCIE_RC);
 struct AspeedPCIERcState {
     PCIExpressHost parent_obj;
 
+    MemoryRegion iommu_root;
+    AddressSpace iommu_as;
+    MemoryRegion dram_alias;
+    MemoryRegion *dram_mr;
     MemoryRegion mmio_window;
+    MemoryRegion msi_window;
     MemoryRegion io_window;
     MemoryRegion mmio;
     MemoryRegion io;
 
+    uint64_t dram_base;
+    uint32_t msi_addr;
     uint32_t rp_addr;
     uint32_t bus_nr;
     char name[16];
@@ -97,6 +106,7 @@ struct AspeedPCIECfgClass {
     const AspeedPCIERegMap *reg_map;
     const MemoryRegionOps *reg_ops;
 
+    uint32_t rc_msi_addr;
     uint32_t rc_rp_addr;
     uint64_t rc_bus_nr;
     uint64_t nr_regs;
