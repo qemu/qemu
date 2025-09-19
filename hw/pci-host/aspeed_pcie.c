@@ -338,6 +338,11 @@ static const TypeInfo aspeed_pcie_rc_info = {
  * - Registers 0x00 - 0x7F are shared by both PCIe0 (rc_l) and PCIe1 (rc_h).
  * - Registers 0x80 - 0xBF are specific to PCIe0.
  * - Registers 0xC0 - 0xFF are specific to PCIe1.
+ *
+ * On the AST2700:
+ * - The register range 0x00 - 0xFF is assigned to a single PCIe configuration.
+ * - There are three PCIe Root Complexes (RCs), each with its own dedicated H2X
+ *   register set of size 0x100 (covering offsets 0x00 to 0xFF).
  */
 
 /* AST2600 */
@@ -367,6 +372,31 @@ REG32(H2X_RC_H_MSI_EN1,     0xE4)
 REG32(H2X_RC_H_MSI_STS0,    0xE8)
 REG32(H2X_RC_H_MSI_STS1,    0xEC)
 
+/* AST2700 */
+REG32(H2X_CFGE_INT_STS,         0x08)
+    FIELD(H2X_CFGE_INT_STS, TX_IDEL, 0, 1)
+    FIELD(H2X_CFGE_INT_STS, RX_BUSY, 1, 1)
+REG32(H2X_CFGI_TLP,         0x20)
+    FIELD(H2X_CFGI_TLP, ADDR, 0, 16)
+    FIELD(H2X_CFGI_TLP, BEN, 16, 4)
+    FIELD(H2X_CFGI_TLP, WR, 20, 1)
+REG32(H2X_CFGI_WDATA,       0x24)
+REG32(H2X_CFGI_CTRL,        0x28)
+    FIELD(H2X_CFGI_CTRL, FIRE, 0, 1)
+REG32(H2X_CFGI_RDATA,       0x2C)
+REG32(H2X_CFGE_TLP1,        0x30)
+REG32(H2X_CFGE_TLPN,        0x34)
+REG32(H2X_CFGE_CTRL,        0x38)
+    FIELD(H2X_CFGE_CTRL, FIRE, 0, 1)
+REG32(H2X_CFGE_RDATA,       0x3C)
+REG32(H2X_INT_EN,          0x40)
+REG32(H2X_INT_STS,         0x48)
+    FIELD(H2X_INT_STS, INTX, 0, 4)
+REG32(H2X_MSI_EN0,          0x50)
+REG32(H2X_MSI_EN1,          0x54)
+REG32(H2X_MSI_STS0,         0x58)
+REG32(H2X_MSI_STS1,         0x5C)
+
 #define TLP_FMTTYPE_CFGRD0  0x04 /* Configuration Read  Type 0 */
 #define TLP_FMTTYPE_CFGWR0  0x44 /* Configuration Write Type 0 */
 #define TLP_FMTTYPE_CFGRD1  0x05 /* Configuration Read  Type 1 */
@@ -381,6 +411,15 @@ static const AspeedPCIERegMap aspeed_regmap = {
         .int_sts_reg    = R_H2X_RC_H_INT_STS,
         .msi_sts0_reg   = R_H2X_RC_H_MSI_STS0,
         .msi_sts1_reg   = R_H2X_RC_H_MSI_STS1,
+    },
+};
+
+static const AspeedPCIERegMap aspeed_2700_regmap = {
+    .rc = {
+        .int_en_reg     = R_H2X_INT_EN,
+        .int_sts_reg    = R_H2X_INT_STS,
+        .msi_sts0_reg   = R_H2X_MSI_STS0,
+        .msi_sts1_reg   = R_H2X_MSI_STS1,
     },
 };
 
@@ -606,6 +645,8 @@ static void aspeed_pcie_cfg_reset(DeviceState *dev)
     AspeedPCIECfgClass *apc = ASPEED_PCIE_CFG_GET_CLASS(s);
 
     memset(s->regs, 0, apc->nr_regs << 2);
+    memset(s->tlpn_fifo, 0, sizeof(s->tlpn_fifo));
+    s->tlpn_idx = 0;
 }
 
 static void aspeed_pcie_cfg_realize(DeviceState *dev, Error **errp)
@@ -678,6 +719,122 @@ static const TypeInfo aspeed_pcie_cfg_info = {
     .instance_size = sizeof(AspeedPCIECfgState),
     .class_init = aspeed_pcie_cfg_class_init,
     .class_size = sizeof(AspeedPCIECfgClass),
+};
+
+static void aspeed_2700_pcie_cfg_write(void *opaque, hwaddr addr,
+                                       uint64_t data, unsigned int size)
+{
+    AspeedPCIECfgState *s = ASPEED_PCIE_CFG(opaque);
+    AspeedPCIECfgTxDesc desc;
+    uint32_t reg = addr >> 2;
+
+    trace_aspeed_pcie_cfg_write(s->id, addr, data);
+
+    switch (reg) {
+    case R_H2X_CFGE_INT_STS:
+        if (data & R_H2X_CFGE_INT_STS_TX_IDEL_MASK) {
+            s->regs[R_H2X_CFGE_INT_STS] &= ~R_H2X_CFGE_INT_STS_TX_IDEL_MASK;
+        }
+
+        if (data & R_H2X_CFGE_INT_STS_RX_BUSY_MASK) {
+            s->regs[R_H2X_CFGE_INT_STS] &= ~R_H2X_CFGE_INT_STS_RX_BUSY_MASK;
+        }
+        break;
+    case R_H2X_CFGI_CTRL:
+        if (data & R_H2X_CFGI_CTRL_FIRE_MASK) {
+            /*
+             * Internal access to bridge
+             * Type and BDF are 0
+             */
+            desc.desc0 = 0x04000001 |
+                (ARRAY_FIELD_EX32(s->regs, H2X_CFGI_TLP, WR) << 30);
+            desc.desc1 = 0x00401000 |
+                ARRAY_FIELD_EX32(s->regs, H2X_CFGI_TLP, BEN);
+            desc.desc2 = 0x00000000 |
+                ARRAY_FIELD_EX32(s->regs, H2X_CFGI_TLP, ADDR);
+            desc.wdata = s->regs[R_H2X_CFGI_WDATA];
+            desc.rdata_reg = R_H2X_CFGI_RDATA;
+            aspeed_pcie_cfg_readwrite(s, &desc);
+        }
+        break;
+    case R_H2X_CFGE_TLPN:
+        s->tlpn_fifo[s->tlpn_idx] = data;
+        s->tlpn_idx = (s->tlpn_idx + 1) % ARRAY_SIZE(s->tlpn_fifo);
+        break;
+    case R_H2X_CFGE_CTRL:
+        if (data & R_H2X_CFGE_CTRL_FIRE_MASK) {
+            desc.desc0 = s->regs[R_H2X_CFGE_TLP1];
+            desc.desc1 = s->tlpn_fifo[0];
+            desc.desc2 = s->tlpn_fifo[1];
+            desc.wdata = s->tlpn_fifo[2];
+            desc.rdata_reg = R_H2X_CFGE_RDATA;
+            aspeed_pcie_cfg_readwrite(s, &desc);
+            s->regs[R_H2X_CFGE_INT_STS] |= R_H2X_CFGE_INT_STS_TX_IDEL_MASK;
+            s->regs[R_H2X_CFGE_INT_STS] |= R_H2X_CFGE_INT_STS_RX_BUSY_MASK;
+            s->tlpn_idx = 0;
+        }
+        break;
+
+    case R_H2X_INT_STS:
+        s->regs[reg] &= ~data | R_H2X_INT_STS_INTX_MASK;
+        break;
+    /*
+     * These status registers are used for notify sources ISR are executed.
+     * If one source ISR is executed, it will clear one bit.
+     * If it clear all bits, it means to initialize this register status
+     * rather than sources ISR are executed.
+     */
+    case R_H2X_MSI_STS0:
+    case R_H2X_MSI_STS1:
+        if (data == 0) {
+            return ;
+        }
+
+        s->regs[reg] &= ~data;
+        if (data == 0xffffffff) {
+            return;
+        }
+
+        if (!s->regs[R_H2X_MSI_STS0] &&
+            !s->regs[R_H2X_MSI_STS1]) {
+            trace_aspeed_pcie_rc_msi_clear_irq(s->id, 0);
+            qemu_set_irq(s->rc.irq, 0);
+        }
+        break;
+    default:
+        s->regs[reg] = data;
+        break;
+    }
+}
+
+static const MemoryRegionOps aspeed_2700_pcie_cfg_ops = {
+    .read = aspeed_pcie_cfg_read,
+    .write = aspeed_2700_pcie_cfg_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
+};
+
+static void aspeed_2700_pcie_cfg_class_init(ObjectClass *klass,
+                                            const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedPCIECfgClass *apc = ASPEED_PCIE_CFG_CLASS(klass);
+
+    dc->desc = "ASPEED 2700 PCIe Config";
+    apc->reg_ops = &aspeed_2700_pcie_cfg_ops;
+    apc->reg_map = &aspeed_2700_regmap;
+    apc->nr_regs = 0x100 >> 2;
+    apc->rc_msi_addr = 0x000000F0;
+    apc->rc_bus_nr = 0;
+}
+
+static const TypeInfo aspeed_2700_pcie_cfg_info = {
+    .name = TYPE_ASPEED_2700_PCIE_CFG,
+    .parent = TYPE_ASPEED_PCIE_CFG,
+    .class_init = aspeed_2700_pcie_cfg_class_init,
 };
 
 /*
@@ -847,6 +1004,7 @@ static void aspeed_pcie_register_types(void)
     type_register_static(&aspeed_pcie_root_device_info);
     type_register_static(&aspeed_pcie_root_port_info);
     type_register_static(&aspeed_pcie_cfg_info);
+    type_register_static(&aspeed_2700_pcie_cfg_info);
     type_register_static(&aspeed_pcie_phy_info);
     type_register_static(&aspeed_2700_pcie_phy_info);
 }
