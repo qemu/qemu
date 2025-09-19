@@ -21,6 +21,7 @@
 #include "hw/registerfields.h"
 #include "hw/irq.h"
 #include "hw/pci/pci_host.h"
+#include "hw/pci/pcie_port.h"
 #include "hw/pci-host/aspeed_pcie.h"
 #include "hw/pci/msi.h"
 #include "trace.h"
@@ -61,6 +62,32 @@ static const TypeInfo aspeed_pcie_root_device_info = {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },
+};
+
+/*
+ * PCIe Root Port
+ */
+
+static void aspeed_pcie_root_port_class_init(ObjectClass *klass,
+                                             const void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIERootPortClass *rpc = PCIE_ROOT_PORT_CLASS(klass);
+
+    dc->desc = "ASPEED PCIe Root Port";
+    k->vendor_id = PCI_VENDOR_ID_ASPEED;
+    k->device_id = 0x1150;
+    dc->user_creatable = true;
+
+    rpc->aer_offset = 0x100;
+}
+
+static const TypeInfo aspeed_pcie_root_port_info = {
+    .name = TYPE_ASPEED_PCIE_ROOT_PORT,
+    .parent = TYPE_PCIE_ROOT_PORT,
+    .instance_size = sizeof(AspeedPCIERootPortState),
+    .class_init = aspeed_pcie_root_port_class_init,
 };
 
 /*
@@ -144,6 +171,13 @@ static void aspeed_pcie_rc_realize(DeviceState *dev, Error **errp)
             return;
         }
     }
+
+    /* setup root port */
+    qdev_prop_set_int32(DEVICE(&rc->root_port), "addr", rc->rp_addr);
+    qdev_prop_set_uint16(DEVICE(&rc->root_port), "chassis", cfg->id);
+    if (!qdev_realize(DEVICE(&rc->root_port), BUS(pci->bus), errp)) {
+        return;
+    }
 }
 
 static const char *aspeed_pcie_rc_root_bus_path(PCIHostState *host_bridge,
@@ -158,9 +192,19 @@ static const char *aspeed_pcie_rc_root_bus_path(PCIHostState *host_bridge,
     return rc->name;
 }
 
+static void aspeed_pcie_rc_instance_init(Object *obj)
+{
+    AspeedPCIERcState *rc = ASPEED_PCIE_RC(obj);
+    AspeedPCIERootPortState *root_port = &rc->root_port;
+
+    object_initialize_child(obj, "root_port", root_port,
+                            TYPE_ASPEED_PCIE_ROOT_PORT);
+}
+
 static const Property aspeed_pcie_rc_props[] = {
     DEFINE_PROP_UINT32("bus-nr", AspeedPCIERcState, bus_nr, 0),
     DEFINE_PROP_BOOL("has-rd", AspeedPCIERcState, has_rd, 0),
+    DEFINE_PROP_UINT32("rp-addr", AspeedPCIERcState, rp_addr, 0),
 };
 
 static void aspeed_pcie_rc_class_init(ObjectClass *klass, const void *data)
@@ -183,6 +227,7 @@ static const TypeInfo aspeed_pcie_rc_info = {
     .name = TYPE_ASPEED_PCIE_RC,
     .parent = TYPE_PCIE_HOST_BRIDGE,
     .instance_size = sizeof(AspeedPCIERcState),
+    .instance_init = aspeed_pcie_rc_instance_init,
     .class_init = aspeed_pcie_rc_class_init,
 };
 
@@ -455,6 +500,9 @@ static void aspeed_pcie_cfg_realize(DeviceState *dev, Error **errp)
     object_property_set_bool(OBJECT(&s->rc), "has-rd",
                             apc->rc_has_rd,
                             &error_abort);
+    object_property_set_int(OBJECT(&s->rc), "rp-addr",
+                            apc->rc_rp_addr,
+                            &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->rc), errp)) {
         return;
     }
@@ -488,6 +536,7 @@ static void aspeed_pcie_cfg_class_init(ObjectClass *klass, const void *data)
     apc->nr_regs = 0x100 >> 2;
     apc->rc_bus_nr = 0x80;
     apc->rc_has_rd = true;
+    apc->rc_rp_addr = PCI_DEVFN(8, 0);
 }
 
 static const TypeInfo aspeed_pcie_cfg_info = {
@@ -626,6 +675,7 @@ static void aspeed_pcie_register_types(void)
 {
     type_register_static(&aspeed_pcie_rc_info);
     type_register_static(&aspeed_pcie_root_device_info);
+    type_register_static(&aspeed_pcie_root_port_info);
     type_register_static(&aspeed_pcie_cfg_info);
     type_register_static(&aspeed_pcie_phy_info);
 }

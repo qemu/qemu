@@ -20,6 +20,7 @@
 #include "hw/sysbus.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pcie_host.h"
+#include "hw/pci/pcie_port.h"
 #include "qom/object.h"
 
 typedef struct AspeedPCIECfgTxDesc {
@@ -40,6 +41,13 @@ typedef struct AspeedPCIERegMap {
     AspeedPCIERcRegs rc;
 } AspeedPCIERegMap;
 
+#define TYPE_ASPEED_PCIE_ROOT_PORT "aspeed.pcie-root-port"
+OBJECT_DECLARE_SIMPLE_TYPE(AspeedPCIERootPortState, ASPEED_PCIE_ROOT_PORT)
+
+typedef struct AspeedPCIERootPortState {
+    PCIESlot parent_obj;
+} AspeedPCIERootPortState;
+
 #define TYPE_ASPEED_PCIE_ROOT_DEVICE "aspeed.pcie-root-device"
 OBJECT_DECLARE_SIMPLE_TYPE(AspeedPCIERootDeviceState, ASPEED_PCIE_ROOT_DEVICE);
 
@@ -58,12 +66,14 @@ struct AspeedPCIERcState {
     MemoryRegion mmio;
     MemoryRegion io;
 
+    uint32_t rp_addr;
     uint32_t bus_nr;
     char name[16];
     bool has_rd;
     qemu_irq irq;
 
     AspeedPCIERootDeviceState root_device;
+    AspeedPCIERootPortState root_port;
 };
 
 /* Bridge between AHB bus and PCIe RC. */
@@ -87,6 +97,7 @@ struct AspeedPCIECfgClass {
     const AspeedPCIERegMap *reg_map;
     const MemoryRegionOps *reg_ops;
 
+    uint32_t rc_rp_addr;
     uint64_t rc_bus_nr;
     uint64_t nr_regs;
     bool rc_has_rd;
