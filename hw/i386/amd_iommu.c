@@ -528,7 +528,7 @@ static inline uint64_t amdvi_get_pte_entry(AMDVIState *s, uint64_t pte_addr,
                         &pte, sizeof(pte), MEMTXATTRS_UNSPECIFIED)) {
         trace_amdvi_get_pte_hwerror(pte_addr);
         amdvi_log_pagetab_error(s, devid, pte_addr, 0);
-        pte = 0;
+        pte = (uint64_t)-1;
         return pte;
     }
 
@@ -1081,7 +1081,7 @@ static void amdvi_page_walk(AMDVIAddressSpace *as, uint64_t *dte,
             /* add offset and load pte */
             pte_addr += ((addr >> (3 + 9 * level)) & 0x1FF) << 3;
             pte = amdvi_get_pte_entry(as->iommu_state, pte_addr, as->devfn);
-            if (!pte) {
+            if (!pte || (pte == (uint64_t)-1)) {
                 return;
             }
             oldlevel = level;
