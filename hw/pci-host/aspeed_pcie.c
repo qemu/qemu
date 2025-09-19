@@ -696,6 +696,12 @@ REG32(PEHR_PROTECT,     0x7C)
 REG32(PEHR_LINK,        0xC0)
     FIELD(PEHR_LINK, STS, 5, 1)
 
+/* AST2700 */
+REG32(PEHR_2700_LINK_GEN2,  0x344)
+    FIELD(PEHR_2700_LINK_GEN2, STS, 18, 1)
+REG32(PEHR_2700_LINK_GEN4,  0x358)
+    FIELD(PEHR_2700_LINK_GEN4, STS, 8, 1)
+
 #define ASPEED_PCIE_PHY_UNLOCK  0xA8
 
 static uint64_t aspeed_pcie_phy_read(void *opaque, hwaddr addr,
@@ -803,6 +809,38 @@ static const TypeInfo aspeed_pcie_phy_info = {
     .class_size = sizeof(AspeedPCIEPhyClass),
 };
 
+static void aspeed_2700_pcie_phy_reset(DeviceState *dev)
+{
+    AspeedPCIEPhyState *s = ASPEED_PCIE_PHY(dev);
+    AspeedPCIEPhyClass *apc = ASPEED_PCIE_PHY_GET_CLASS(s);
+
+    memset(s->regs, 0, apc->nr_regs << 2);
+
+    s->regs[R_PEHR_ID] =
+        (0x1150 << R_PEHR_ID_DEV_SHIFT) | PCI_VENDOR_ID_ASPEED;
+    s->regs[R_PEHR_CLASS_CODE] = 0x06040011;
+    s->regs[R_PEHR_2700_LINK_GEN2] = R_PEHR_2700_LINK_GEN2_STS_MASK;
+    s->regs[R_PEHR_2700_LINK_GEN4] = R_PEHR_2700_LINK_GEN4_STS_MASK;
+}
+
+static void aspeed_2700_pcie_phy_class_init(ObjectClass *klass,
+                                            const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedPCIEPhyClass *apc = ASPEED_PCIE_PHY_CLASS(klass);
+
+    dc->desc = "ASPEED AST2700 PCIe Phy";
+    device_class_set_legacy_reset(dc, aspeed_2700_pcie_phy_reset);
+
+    apc->nr_regs = 0x800 >> 2;
+}
+
+static const TypeInfo aspeed_2700_pcie_phy_info = {
+    .name       = TYPE_ASPEED_2700_PCIE_PHY,
+    .parent     = TYPE_ASPEED_PCIE_PHY,
+    .class_init = aspeed_2700_pcie_phy_class_init,
+};
+
 static void aspeed_pcie_register_types(void)
 {
     type_register_static(&aspeed_pcie_rc_info);
@@ -810,6 +848,7 @@ static void aspeed_pcie_register_types(void)
     type_register_static(&aspeed_pcie_root_port_info);
     type_register_static(&aspeed_pcie_cfg_info);
     type_register_static(&aspeed_pcie_phy_info);
+    type_register_static(&aspeed_2700_pcie_phy_info);
 }
 
 type_init(aspeed_pcie_register_types);

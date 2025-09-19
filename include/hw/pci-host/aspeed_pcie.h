@@ -114,6 +114,7 @@ struct AspeedPCIECfgClass {
 };
 
 #define TYPE_ASPEED_PCIE_PHY "aspeed.pcie-phy"
+#define TYPE_ASPEED_2700_PCIE_PHY TYPE_ASPEED_PCIE_PHY "-ast2700"
 OBJECT_DECLARE_TYPE(AspeedPCIEPhyState, AspeedPCIEPhyClass, ASPEED_PCIE_PHY);
 
 struct AspeedPCIEPhyState {
