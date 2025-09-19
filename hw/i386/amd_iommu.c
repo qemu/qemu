@@ -1032,18 +1032,136 @@ static void amdvi_reset_address_translation_all(AMDVIState *s)
     }
 }
 
+static void enable_dma_mode(AMDVIAddressSpace *as, bool inval_current)
+{
+    /*
+     * When enabling DMA mode for the purpose of isolating guest devices on
+     * a failure to retrieve or invalid DTE, all existing mappings must be
+     * dropped.
+     */
+    if (inval_current) {
+        IOMMUNotifier *n;
+        IOMMU_NOTIFIER_FOREACH(n, &as->iommu) {
+            amdvi_address_space_unmap(as, n);
+        }
+    }
+
+    if (as->addr_translation) {
+        return;
+    }
+
+    /* Installing DTE enabling translation, activate region */
+    as->addr_translation = true;
+    amdvi_switch_address_space(as);
+    /* Sync shadow page tables */
+    amdvi_address_space_sync(as);
+}
+
+/*
+ * If paging was previously in use in the address space
+ * - invalidate all existing mappings
+ * - switch to no_dma memory region
+ */
+static void enable_nodma_mode(AMDVIAddressSpace *as)
+{
+    IOMMUNotifier *n;
+
+    if (!as->addr_translation) {
+        /* passthrough is already active, nothing to do */
+        return;
+    }
+
+    as->addr_translation = false;
+    IOMMU_NOTIFIER_FOREACH(n, &as->iommu) {
+        /* Drop all mappings for the address space */
+        amdvi_address_space_unmap(as, n);
+    }
+    amdvi_switch_address_space(as);
+}
+
+/*
+ * A guest driver must issue the INVALIDATE_DEVTAB_ENTRY command to the IOMMU
+ * after changing a Device Table entry. We can use this fact to detect when a
+ * Device Table entry is created for a device attached to a paging domain and
+ * enable the corresponding IOMMU memory region to allow for DMA translation if
+ * appropriate.
+ */
+static void amdvi_update_addr_translation_mode(AMDVIState *s, uint16_t devid)
+{
+    uint8_t bus_num, devfn, dte_mode;
+    AMDVIAddressSpace *as;
+    uint64_t dte[4] = { 0 };
+    int ret;
+
+    /*
+     * Convert the devid encoded in the command to a bus and devfn in
+     * order to retrieve the corresponding address space.
+     */
+    bus_num = PCI_BUS_NUM(devid);
+    devfn = devid & 0xff;
+
+    /*
+     * The main buffer of size (AMDVIAddressSpace *) * (PCI_BUS_MAX) has already
+     * been allocated within AMDVIState, but must be careful to not access
+     * unallocated devfn.
+     */
+    if (!s->address_spaces[bus_num] || !s->address_spaces[bus_num][devfn]) {
+        return;
+    }
+    as = s->address_spaces[bus_num][devfn];
+
+    ret = amdvi_as_to_dte(as, dte);
+
+    if (!ret) {
+        dte_mode = (dte[0] >> AMDVI_DEV_MODE_RSHIFT) & AMDVI_DEV_MODE_MASK;
+    }
+
+    switch (ret) {
+    case 0:
+        /* DTE was successfully retrieved */
+        if (!dte_mode) {
+            enable_nodma_mode(as); /* DTE[V]=1 && DTE[Mode]=0 => passthrough */
+        } else {
+            enable_dma_mode(as, false); /* Enable DMA translation */
+        }
+        break;
+    case -AMDVI_FR_DTE_V:
+        /* DTE[V]=0, address is passed untranslated */
+        enable_nodma_mode(as);
+        break;
+    case -AMDVI_FR_DTE_RTR_ERR:
+    case -AMDVI_FR_DTE_TV:
+        /*
+         * Enforce isolation by using DMA in rare scenarios where the DTE cannot
+         * be retrieved or DTE[TV]=0. Existing mappings are dropped.
+         */
+        enable_dma_mode(as, true);
+        break;
+    }
+}
+
 /* log error without aborting since linux seems to be using reserved bits */
 static void amdvi_inval_devtab_entry(AMDVIState *s, uint64_t *cmd)
 {
     uint16_t devid = cpu_to_le16((uint16_t)extract64(cmd[0], 0, 16));
 
+    trace_amdvi_devtab_inval(PCI_BUS_NUM(devid), PCI_SLOT(devid),
+                             PCI_FUNC(devid));
+
     /* This command should invalidate internal caches of which there isn't */
     if (extract64(cmd[0], 16, 44) || cmd[1]) {
         amdvi_log_illegalcom_error(s, extract64(cmd[0], 60, 4),
                                    s->cmdbuf + s->cmdbuf_head);
+        return;
     }
-    trace_amdvi_devtab_inval(PCI_BUS_NUM(devid), PCI_SLOT(devid),
-                             PCI_FUNC(devid));
+
+    /*
+     * When DMA remapping capability is enabled, check if updated DTE is setup
+     * for paging or not, and configure the corresponding memory regions.
+     */
+    if (s->dma_remap) {
+        amdvi_update_addr_translation_mode(s, devid);
+    }
 }
 
 static void amdvi_complete_ppr(AMDVIState *s, uint64_t *cmd)
