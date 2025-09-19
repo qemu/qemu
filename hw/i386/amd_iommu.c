@@ -438,6 +438,92 @@ static void amdvi_completion_wait(AMDVIState *s, uint64_t *cmd)
     trace_amdvi_completion_wait(addr, data);
 }
 
+static inline uint64_t amdvi_get_perms(uint64_t entry)
+{
+    return (entry & (AMDVI_DEV_PERM_READ | AMDVI_DEV_PERM_WRITE)) >>
+           AMDVI_DEV_PERM_SHIFT;
+}
+
+/* validate that reserved bits are honoured */
+static bool amdvi_validate_dte(AMDVIState *s, uint16_t devid,
+                               uint64_t *dte)
+{
+    if ((dte[0] & AMDVI_DTE_QUAD0_RESERVED) ||
+        (dte[1] & AMDVI_DTE_QUAD1_RESERVED) ||
+        (dte[2] & AMDVI_DTE_QUAD2_RESERVED) ||
+        (dte[3] & AMDVI_DTE_QUAD3_RESERVED)) {
+        amdvi_log_illegaldevtab_error(s, devid,
+                                      s->devtab +
+                                      devid * AMDVI_DEVTAB_ENTRY_SIZE, 0);
+        return false;
+    }
+
+    return true;
+}
+
+/* get a device table entry given the devid */
+static bool amdvi_get_dte(AMDVIState *s, int devid, uint64_t *entry)
+{
+    uint32_t offset = devid * AMDVI_DEVTAB_ENTRY_SIZE;
+
+    if (dma_memory_read(&address_space_memory, s->devtab + offset, entry,
+                        AMDVI_DEVTAB_ENTRY_SIZE, MEMTXATTRS_UNSPECIFIED)) {
+        trace_amdvi_dte_get_fail(s->devtab, offset);
+        /* log error accessing dte */
+        amdvi_log_devtab_error(s, devid, s->devtab + offset, 0);
+        return false;
+    }
+
+    *entry = le64_to_cpu(*entry);
+    if (!amdvi_validate_dte(s, devid, entry)) {
+        trace_amdvi_invalid_dte(entry[0]);
+        return false;
+    }
+
+    return true;
+}
+
+/* get pte translation mode */
+static inline uint8_t get_pte_translation_mode(uint64_t pte)
+{
+    return (pte >> AMDVI_DEV_MODE_RSHIFT) & AMDVI_DEV_MODE_MASK;
+}
+
+static inline uint64_t pte_override_page_mask(uint64_t pte)
+{
+    uint8_t page_mask = 13;
+    uint64_t addr = (pte & AMDVI_DEV_PT_ROOT_MASK) >> 12;
+    /* find the first zero bit */
+    while (addr & 1) {
+        page_mask++;
+        addr = addr >> 1;
+    }
+
+    return ~((1ULL << page_mask) - 1);
+}
+
+static inline uint64_t pte_get_page_mask(uint64_t oldlevel)
+{
+    return ~((1UL << ((oldlevel * 9) + 3)) - 1);
+}
+
+static inline uint64_t amdvi_get_pte_entry(AMDVIState *s, uint64_t pte_addr,
+                                          uint16_t devid)
+{
+    uint64_t pte;
+
+    if (dma_memory_read(&address_space_memory, pte_addr,
+                        &pte, sizeof(pte), MEMTXATTRS_UNSPECIFIED)) {
+        trace_amdvi_get_pte_hwerror(pte_addr);
+        amdvi_log_pagetab_error(s, devid, pte_addr, 0);
+        pte = 0;
+        return pte;
+    }
+
+    pte = le64_to_cpu(pte);
+    return pte;
+}
+
 /* log error without aborting since linux seems to be using reserved bits */
 static void amdvi_inval_devtab_entry(AMDVIState *s, uint64_t *cmd)
 {
@@ -892,92 +978,6 @@ static void amdvi_mmio_write(void *opaque, hwaddr addr, uint64_t val,
         amdvi_mmio_reg_write(s, size, val, addr);
         break;
     }
-}
-
-static inline uint64_t amdvi_get_perms(uint64_t entry)
-{
-    return (entry & (AMDVI_DEV_PERM_READ | AMDVI_DEV_PERM_WRITE)) >>
-           AMDVI_DEV_PERM_SHIFT;
-}
-
-/* validate that reserved bits are honoured */
-static bool amdvi_validate_dte(AMDVIState *s, uint16_t devid,
-                               uint64_t *dte)
-{
-    if ((dte[0] & AMDVI_DTE_QUAD0_RESERVED) ||
-        (dte[1] & AMDVI_DTE_QUAD1_RESERVED) ||
-        (dte[2] & AMDVI_DTE_QUAD2_RESERVED) ||
-        (dte[3] & AMDVI_DTE_QUAD3_RESERVED)) {
-        amdvi_log_illegaldevtab_error(s, devid,
-                                      s->devtab +
-                                      devid * AMDVI_DEVTAB_ENTRY_SIZE, 0);
-        return false;
-    }
-
-    return true;
-}
-
-/* get a device table entry given the devid */
-static bool amdvi_get_dte(AMDVIState *s, int devid, uint64_t *entry)
-{
-    uint32_t offset = devid * AMDVI_DEVTAB_ENTRY_SIZE;
-
-    if (dma_memory_read(&address_space_memory, s->devtab + offset, entry,
-                        AMDVI_DEVTAB_ENTRY_SIZE, MEMTXATTRS_UNSPECIFIED)) {
-        trace_amdvi_dte_get_fail(s->devtab, offset);
-        /* log error accessing dte */
-        amdvi_log_devtab_error(s, devid, s->devtab + offset, 0);
-        return false;
-    }
-
-    *entry = le64_to_cpu(*entry);
-    if (!amdvi_validate_dte(s, devid, entry)) {
-        trace_amdvi_invalid_dte(entry[0]);
-        return false;
-    }
-
-    return true;
-}
-
-/* get pte translation mode */
-static inline uint8_t get_pte_translation_mode(uint64_t pte)
-{
-    return (pte >> AMDVI_DEV_MODE_RSHIFT) & AMDVI_DEV_MODE_MASK;
-}
-
-static inline uint64_t pte_override_page_mask(uint64_t pte)
-{
-    uint8_t page_mask = 13;
-    uint64_t addr = (pte & AMDVI_DEV_PT_ROOT_MASK) >> 12;
-    /* find the first zero bit */
-    while (addr & 1) {
-        page_mask++;
-        addr = addr >> 1;
-    }
-
-    return ~((1ULL << page_mask) - 1);
-}
-
-static inline uint64_t pte_get_page_mask(uint64_t oldlevel)
-{
-    return ~((1UL << ((oldlevel * 9) + 3)) - 1);
-}
-
-static inline uint64_t amdvi_get_pte_entry(AMDVIState *s, uint64_t pte_addr,
-                                          uint16_t devid)
-{
-    uint64_t pte;
-
-    if (dma_memory_read(&address_space_memory, pte_addr,
-                        &pte, sizeof(pte), MEMTXATTRS_UNSPECIFIED)) {
-        trace_amdvi_get_pte_hwerror(pte_addr);
-        amdvi_log_pagetab_error(s, devid, pte_addr, 0);
-        pte = 0;
-        return pte;
-    }
-
-    pte = le64_to_cpu(pte);
-    return pte;
 }
 
 static void amdvi_page_walk(AMDVIAddressSpace *as, uint64_t *dte,
