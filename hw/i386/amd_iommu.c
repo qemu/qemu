@@ -33,6 +33,7 @@
 #include "hw/i386/apic-msidef.h"
 #include "hw/qdev-properties.h"
 #include "kvm/kvm_i386.h"
+#include "qemu/iova-tree.h"
 
 /* used AMD-Vi MMIO registers */
 const char *amdvi_mmio_low[] = {
@@ -71,6 +72,8 @@ struct AMDVIAddressSpace {
     IOMMUNotifierFlag notifier_flags;
     /* entry in list of Address spaces with registered notifiers */
     QLIST_ENTRY(AMDVIAddressSpace) next;
+    /* Record DMA translation ranges */
+    IOVATree *iova_tree;
 };
 
 /* AMDVI cache entry */
@@ -686,6 +689,75 @@ static uint64_t fetch_pte(AMDVIAddressSpace *as, hwaddr address, uint64_t dte,
 }
 
 /*
+ * Invoke notifiers registered for the address space. Update record of mapped
+ * ranges in IOVA Tree.
+ */
+static void amdvi_notify_iommu(AMDVIAddressSpace *as, IOMMUTLBEvent *event)
+{
+    IOMMUTLBEntry *entry = &event->entry;
+
+    DMAMap target = {
+        .iova = entry->iova,
+        .size = entry->addr_mask,
+        .translated_addr = entry->translated_addr,
+        .perm = entry->perm,
+    };
+
+    /*
+     * Search the IOVA Tree for an existing translation for the target, and skip
+     * the notification if the mapping is already recorded.
+     * When the guest uses large pages, comparing against the record makes it
+     * possible to determine the size of the original MAP and adjust the UNMAP
+     * request to match it. This avoids failed checks against the mappings kept
+     * by the VFIO kernel driver.
+     */
+    const DMAMap *mapped = iova_tree_find(as->iova_tree, &target);
+
+    if (event->type == IOMMU_NOTIFIER_UNMAP) {
+        if (!mapped) {
+            /* No record exists of this mapping, nothing to do */
+            return;
+        }
+        /*
+         * Adjust the size based on the original record. This is essential to
+         * determine when large/contiguous pages are used, since the guest has
+         * already cleared the PTE (erasing the pagesize encoded on it) before
+         * issuing the invalidation command.
+         */
+        if (mapped->size != target.size) {
+            assert(mapped->size > target.size);
+            target.size = mapped->size;
+            /* Adjust event to invoke notifier with correct range */
+            entry->addr_mask = mapped->size;
+        }
+        iova_tree_remove(as->iova_tree, target);
+    } else { /* IOMMU_NOTIFIER_MAP */
+        if (mapped) {
+            /*
+             * If a mapping is present and matches the request, skip the
+             * notification.
+             */
+            if (!memcmp(mapped, &target, sizeof(DMAMap))) {
+                return;
+            } else {
+                /*
+                 * This should never happen unless a buggy guest OS omits or
+                 * sends incorrect invalidation(s). Report an error in the event
+                 * it does happen.
+                 */
+                error_report("Found conflicting translation. This could be due "
+                             "to an incorrect or missing invalidation command");
+            }
+        }
+        /* Record the new mapping */
+        iova_tree_insert(as->iova_tree, &target);
+    }
+
+    /* Invoke the notifiers registered for this address space */
+    memory_region_notify_iommu(&as->iommu, 0, *event);
+}
+
+/*
  * Walk the guest page table for an IOVA and range and signal the registered
  * notifiers to sync the shadow page tables in the host.
  * Must be called with a valid DTE for DMA remapping i.e. V=1,TV=1
@@ -696,7 +768,7 @@ static void amdvi_sync_shadow_page_table_range(AMDVIAddressSpace *as,
 {
     IOMMUTLBEvent event;
 
-    hwaddr iova_next, page_mask, pagesize;
+    hwaddr page_mask, pagesize;
     hwaddr iova = addr;
     hwaddr end = iova + size - 1;
 
@@ -719,7 +791,6 @@ static void amdvi_sync_shadow_page_table_range(AMDVIAddressSpace *as,
         /* PTE has been validated for major errors and pagesize is set */
         assert(pagesize);
         page_mask = ~(pagesize - 1);
-        iova_next = (iova & page_mask) + pagesize;
 
         if (ret == -AMDVI_FR_PT_ENTRY_INV) {
             /*
@@ -752,15 +823,26 @@ static void amdvi_sync_shadow_page_table_range(AMDVIAddressSpace *as,
             event.type = IOMMU_NOTIFIER_MAP;
         }
 
-        /* Invoke the notifiers registered for this address space */
-        memory_region_notify_iommu(&as->iommu, 0, event);
+        /*
+         * The following call might need to adjust event.entry.size in cases
+         * where the guest unmapped a series of large pages.
+         */
+        amdvi_notify_iommu(as, &event);
+        /*
+         * In the special scenario where the guest is unmapping a large page,
+         * addr_mask has been adjusted before sending the notification. Update
+         * pagesize accordingly in order to correctly compute the next IOVA.
+         */
+        pagesize = event.entry.addr_mask + 1;
 
 next:
+        iova &= ~(pagesize - 1);
+
         /* Check for 64-bit overflow and terminate walk in such cases */
-        if (iova_next < iova) {
+        if ((iova + pagesize) < iova) {
             break;
         } else {
-            iova = iova_next;
+            iova += pagesize;
         }
     }
 }
@@ -1845,6 +1927,7 @@ static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
         iommu_as[devfn]->devfn = (uint8_t)devfn;
         iommu_as[devfn]->iommu_state = s;
         iommu_as[devfn]->notifier_flags = IOMMU_NOTIFIER_NONE;
+        iommu_as[devfn]->iova_tree = iova_tree_new();
 
         amdvi_dev_as = iommu_as[devfn];
 
