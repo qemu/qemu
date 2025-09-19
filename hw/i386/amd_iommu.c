@@ -990,7 +990,9 @@ static void amdvi_iommu_address_space_sync_all(AMDVIState *s)
  */
 static void amdvi_switch_address_space(AMDVIAddressSpace *amdvi_as)
 {
-    if (amdvi_as->addr_translation) {
+    AMDVIState *s = amdvi_as->iommu_state;
+
+    if (s->dma_remap && amdvi_as->addr_translation) {
         /* Enabling DMA region */
         memory_region_set_enabled(&amdvi_as->iommu_nodma, false);
         memory_region_set_enabled(MEMORY_REGION(&amdvi_as->iommu), true);
@@ -2193,12 +2195,19 @@ static int amdvi_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
     AMDVIAddressSpace *as = container_of(iommu, AMDVIAddressSpace, iommu);
     AMDVIState *s = as->iommu_state;
 
-    if (new & IOMMU_NOTIFIER_MAP) {
-        error_setg(errp,
-                   "device %02x.%02x.%x requires iommu notifier which is not "
-                   "currently supported", as->bus_num, PCI_SLOT(as->devfn),
-                   PCI_FUNC(as->devfn));
-        return -EINVAL;
+    /*
+     * Accurate synchronization of the vIOMMU page tables required to support
+     * MAP notifiers is provided by the dma-remap feature. In addition, this
+     * also requires that the vIOMMU presents the NpCache capability, so a guest
+     * driver issues invalidations for both map() and unmap() operations. The
+     * capability is already set by default as part of AMDVI_CAPAB_FEATURES and
+     * written to the configuration in amdvi_pci_realize().
+     */
+    if (!s->dma_remap && (new & IOMMU_NOTIFIER_MAP)) {
+        error_setg_errno(errp, ENOTSUP,
+            "device %02x.%02x.%x requires dma-remap=1",
+            as->bus_num, PCI_SLOT(as->devfn), PCI_FUNC(as->devfn));
+        return -ENOTSUP;
     }
 
     /*
@@ -2423,6 +2432,7 @@ static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
 static const Property amdvi_properties[] = {
     DEFINE_PROP_BOOL("xtsup", AMDVIState, xtsup, false),
     DEFINE_PROP_STRING("pci-id", AMDVIState, pci_id),
+    DEFINE_PROP_BOOL("dma-remap", AMDVIState, dma_remap, false),
 };
 
 static const VMStateDescription vmstate_amdvi_sysbus = {
