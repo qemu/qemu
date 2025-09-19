@@ -67,11 +67,18 @@ static int block_crypto_read_func(QCryptoBlock *block,
     BlockCrypto *crypto = bs->opaque;
     ssize_t ret;
 
-    GLOBAL_STATE_CODE();
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
+    if (qemu_in_coroutine()) {
+        GRAPH_RDLOCK_GUARD();
 
-    ret = bdrv_pread(crypto->header ? crypto->header : bs->file,
-                     offset, buflen, buf, 0);
+        ret = bdrv_co_pread(crypto->header ? crypto->header : bs->file,
+                            offset, buflen, buf, 0);
+    } else {
+        GLOBAL_STATE_CODE();
+        GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+        ret = bdrv_pread(crypto->header ? crypto->header : bs->file,
+                         offset, buflen, buf, 0);
+    }
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not read encryption header");
         return ret;
@@ -90,11 +97,18 @@ static int block_crypto_write_func(QCryptoBlock *block,
     BlockCrypto *crypto = bs->opaque;
     ssize_t ret;
 
-    GLOBAL_STATE_CODE();
-    GRAPH_RDLOCK_GUARD_MAINLOOP();
+    if (qemu_in_coroutine()) {
+        GRAPH_RDLOCK_GUARD();
 
-    ret = bdrv_pwrite(crypto->header ? crypto->header : bs->file,
-                      offset, buflen, buf, 0);
+        ret = bdrv_co_pwrite(crypto->header ? crypto->header : bs->file,
+                             offset, buflen, buf, 0);
+    } else {
+        GLOBAL_STATE_CODE();
+        GRAPH_RDLOCK_GUARD_MAINLOOP();
+
+        ret = bdrv_pwrite(crypto->header ? crypto->header : bs->file,
+                          offset, buflen, buf, 0);
+    }
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not write encryption header");
         return ret;
