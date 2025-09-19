@@ -22,6 +22,65 @@
 #include "hw/pci/pcie_host.h"
 #include "qom/object.h"
 
+typedef struct AspeedPCIECfgTxDesc {
+    uint32_t desc0;
+    uint32_t desc1;
+    uint32_t desc2;
+    uint32_t desc3;
+    uint32_t wdata;
+    uint32_t rdata_reg;
+} AspeedPCIECfgTxDesc;
+
+typedef struct AspeedPCIERcRegs {
+    uint32_t int_en_reg;
+    uint32_t int_sts_reg;
+} AspeedPCIERcRegs;
+
+typedef struct AspeedPCIERegMap {
+    AspeedPCIERcRegs rc;
+} AspeedPCIERegMap;
+
+#define TYPE_ASPEED_PCIE_RC "aspeed.pcie-rc"
+OBJECT_DECLARE_SIMPLE_TYPE(AspeedPCIERcState, ASPEED_PCIE_RC);
+
+struct AspeedPCIERcState {
+    PCIExpressHost parent_obj;
+
+    MemoryRegion mmio_window;
+    MemoryRegion io_window;
+    MemoryRegion mmio;
+    MemoryRegion io;
+
+    uint32_t bus_nr;
+    char name[16];
+    qemu_irq irq;
+};
+
+/* Bridge between AHB bus and PCIe RC. */
+#define TYPE_ASPEED_PCIE_CFG "aspeed.pcie-cfg"
+OBJECT_DECLARE_TYPE(AspeedPCIECfgState, AspeedPCIECfgClass, ASPEED_PCIE_CFG);
+
+struct AspeedPCIECfgState {
+    SysBusDevice parent_obj;
+
+    MemoryRegion mmio;
+    uint32_t *regs;
+    uint32_t id;
+
+    const AspeedPCIERcRegs *rc_regs;
+    AspeedPCIERcState rc;
+};
+
+struct AspeedPCIECfgClass {
+    SysBusDeviceClass parent_class;
+
+    const AspeedPCIERegMap *reg_map;
+    const MemoryRegionOps *reg_ops;
+
+    uint64_t rc_bus_nr;
+    uint64_t nr_regs;
+};
+
 #define TYPE_ASPEED_PCIE_PHY "aspeed.pcie-phy"
 OBJECT_DECLARE_TYPE(AspeedPCIEPhyState, AspeedPCIEPhyClass, ASPEED_PCIE_PHY);
 
