@@ -26,6 +26,44 @@
 #include "trace.h"
 
 /*
+ * PCIe Root Device
+ * This device exists only on AST2600.
+ */
+
+static void aspeed_pcie_root_device_class_init(ObjectClass *klass,
+                                               const void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->desc = "ASPEED PCIe Root Device";
+    k->vendor_id = PCI_VENDOR_ID_ASPEED;
+    k->device_id = 0x2600;
+    k->class_id = PCI_CLASS_BRIDGE_HOST;
+    k->subsystem_vendor_id = k->vendor_id;
+    k->subsystem_id = k->device_id;
+    k->revision = 0;
+
+    /*
+     * PCI-facing part of the host bridge,
+     * not usable without the host-facing part
+     */
+    dc->user_creatable = false;
+}
+
+static const TypeInfo aspeed_pcie_root_device_info = {
+    .name = TYPE_ASPEED_PCIE_ROOT_DEVICE,
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(AspeedPCIERootDeviceState),
+    .class_init = aspeed_pcie_root_device_class_init,
+    .interfaces = (const InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
+};
+
+/*
  * PCIe Root Complex (RC)
  */
 
@@ -94,6 +132,18 @@ static void aspeed_pcie_rc_realize(DeviceState *dev, Error **errp)
                                      aspeed_pcie_rc_map_irq, rc, &rc->mmio,
                                      &rc->io, 0, 4, TYPE_PCIE_BUS);
     pci->bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+
+    /* setup root device */
+    if (rc->has_rd) {
+        object_initialize_child(OBJECT(rc), "root_device", &rc->root_device,
+                                TYPE_ASPEED_PCIE_ROOT_DEVICE);
+        qdev_prop_set_int32(DEVICE(&rc->root_device), "addr",
+                            PCI_DEVFN(0, 0));
+        qdev_prop_set_bit(DEVICE(&rc->root_device), "multifunction", false);
+        if (!qdev_realize(DEVICE(&rc->root_device), BUS(pci->bus), errp)) {
+            return;
+        }
+    }
 }
 
 static const char *aspeed_pcie_rc_root_bus_path(PCIHostState *host_bridge,
@@ -110,6 +160,7 @@ static const char *aspeed_pcie_rc_root_bus_path(PCIHostState *host_bridge,
 
 static const Property aspeed_pcie_rc_props[] = {
     DEFINE_PROP_UINT32("bus-nr", AspeedPCIERcState, bus_nr, 0),
+    DEFINE_PROP_BOOL("has-rd", AspeedPCIERcState, has_rd, 0),
 };
 
 static void aspeed_pcie_rc_class_init(ObjectClass *klass, const void *data)
@@ -401,6 +452,9 @@ static void aspeed_pcie_cfg_realize(DeviceState *dev, Error **errp)
     object_property_set_int(OBJECT(&s->rc), "bus-nr",
                             apc->rc_bus_nr,
                             &error_abort);
+    object_property_set_bool(OBJECT(&s->rc), "has-rd",
+                            apc->rc_has_rd,
+                            &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->rc), errp)) {
         return;
     }
@@ -433,6 +487,7 @@ static void aspeed_pcie_cfg_class_init(ObjectClass *klass, const void *data)
     apc->reg_map = &aspeed_regmap;
     apc->nr_regs = 0x100 >> 2;
     apc->rc_bus_nr = 0x80;
+    apc->rc_has_rd = true;
 }
 
 static const TypeInfo aspeed_pcie_cfg_info = {
@@ -570,6 +625,7 @@ static const TypeInfo aspeed_pcie_phy_info = {
 static void aspeed_pcie_register_types(void)
 {
     type_register_static(&aspeed_pcie_rc_info);
+    type_register_static(&aspeed_pcie_root_device_info);
     type_register_static(&aspeed_pcie_cfg_info);
     type_register_static(&aspeed_pcie_phy_info);
 }

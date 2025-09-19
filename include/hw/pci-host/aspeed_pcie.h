@@ -40,6 +40,13 @@ typedef struct AspeedPCIERegMap {
     AspeedPCIERcRegs rc;
 } AspeedPCIERegMap;
 
+#define TYPE_ASPEED_PCIE_ROOT_DEVICE "aspeed.pcie-root-device"
+OBJECT_DECLARE_SIMPLE_TYPE(AspeedPCIERootDeviceState, ASPEED_PCIE_ROOT_DEVICE);
+
+struct AspeedPCIERootDeviceState {
+    PCIBridge parent_obj;
+};
+
 #define TYPE_ASPEED_PCIE_RC "aspeed.pcie-rc"
 OBJECT_DECLARE_SIMPLE_TYPE(AspeedPCIERcState, ASPEED_PCIE_RC);
 
@@ -53,7 +60,10 @@ struct AspeedPCIERcState {
 
     uint32_t bus_nr;
     char name[16];
+    bool has_rd;
     qemu_irq irq;
+
+    AspeedPCIERootDeviceState root_device;
 };
 
 /* Bridge between AHB bus and PCIe RC. */
@@ -79,6 +89,7 @@ struct AspeedPCIECfgClass {
 
     uint64_t rc_bus_nr;
     uint64_t nr_regs;
+    bool rc_has_rd;
 };
 
 #define TYPE_ASPEED_PCIE_PHY "aspeed.pcie-phy"
