@@ -1001,6 +1001,35 @@ static void amdvi_switch_address_space(AMDVIAddressSpace *amdvi_as)
     }
 }
 
+/*
+ * For all existing address spaces managed by the IOMMU, enable/disable the
+ * corresponding memory regions to reset the address translation mode and
+ * use passthrough by default.
+ */
+static void amdvi_reset_address_translation_all(AMDVIState *s)
+{
+    AMDVIAddressSpace **iommu_as;
+
+    for (int bus_num = 0; bus_num < PCI_BUS_MAX; bus_num++) {
+
+        /* Nothing to do if there are no devices on the current bus */
+        if (!s->address_spaces[bus_num]) {
+            continue;
+        }
+        iommu_as = s->address_spaces[bus_num];
+
+        for (int devfn = 0; devfn < PCI_DEVFN_MAX; devfn++) {
+
+            if (!iommu_as[devfn]) {
+                continue;
+            }
+            /* Use passthrough as default mode after reset */
+            iommu_as[devfn]->addr_translation = false;
+            amdvi_switch_address_space(iommu_as[devfn]);
+        }
+    }
+}
+
 /* log error without aborting since linux seems to be using reserved bits */
 static void amdvi_inval_devtab_entry(AMDVIState *s, uint64_t *cmd)
 {
@@ -2263,6 +2292,7 @@ static void amdvi_sysbus_reset(DeviceState *dev)
 
     /* Discard all mappings on device reset */
     amdvi_address_space_unmap_all(s);
+    amdvi_reset_address_translation_all(s);
 }
 
 static const VMStateDescription vmstate_amdvi_sysbus_migratable = {
