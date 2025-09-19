@@ -47,6 +47,5 @@ bql_rs = declare_dependency(link_with: [_bql_rs],
 # in a separate suite that is run by the "build" CI jobs rather than "check".
 rust.doctest('rust-bql-rs-doctests',
      _bql_rs,
-     protocol: 'rust',
      dependencies: bql_rs,
      suite: ['doc', 'rust'])

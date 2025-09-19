@@ -32,6 +32,5 @@ rust.test('rust-common-tests', _common_rs,
 # in a separate suite that is run by the "build" CI jobs rather than "check".
 rust.doctest('rust-common-doctests',
      _common_rs,
-     protocol: 'rust',
      dependencies: common_rs,
      suite: ['doc', 'rust'])
