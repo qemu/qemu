@@ -918,6 +918,29 @@ static void amdvi_address_space_unmap_all(AMDVIState *s)
     }
 }
 
+/*
+ * For every translation present in the IOMMU, construct IOMMUTLBEntry data
+ * and pass it as parameter to notifier callback.
+ */
+static void amdvi_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
+{
+    AMDVIAddressSpace *as = container_of(iommu_mr, AMDVIAddressSpace, iommu);
+    uint64_t dte[4] = { 0 };
+
+    if (!(n->notifier_flags & IOMMU_NOTIFIER_MAP)) {
+        return;
+    }
+
+    if (amdvi_as_to_dte(as, dte)) {
+        return;
+    }
+
+    /* Dropping all mappings for the address space. Also clears the IOVA tree */
+    amdvi_address_space_unmap(as, n);
+
+    amdvi_sync_shadow_page_table_range(as, &dte[0], 0, UINT64_MAX, false);
+}
+
 /* log error without aborting since linux seems to be using reserved bits */
 static void amdvi_inval_devtab_entry(AMDVIState *s, uint64_t *cmd)
 {
@@ -2364,6 +2387,7 @@ static void amdvi_iommu_memory_region_class_init(ObjectClass *klass,
 
     imrc->translate = amdvi_translate;
     imrc->notify_flag_changed = amdvi_iommu_notify_flag_changed;
+    imrc->replay = amdvi_iommu_replay;
 }
 
 static const TypeInfo amdvi_iommu_memory_region_info = {
