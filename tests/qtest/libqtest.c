@@ -1630,7 +1630,8 @@ static void qtest_free_machine_list(struct MachInfo *machines)
 static struct MachInfo *qtest_get_machines(const char *var)
 {
     static struct MachInfo *machines;
-    static char *qemu_var;
+    static char *qemu_bin;
+    const char *new_qemu_bin;
     QDict *response, *minfo;
     QList *list;
     const QListEntry *p;
@@ -1639,9 +1640,10 @@ static struct MachInfo *qtest_get_machines(const char *var)
     QTestState *qts;
     int idx;
 
-    if (g_strcmp0(qemu_var, var)) {
-        g_free(qemu_var);
-        qemu_var = g_strdup(var);
+    new_qemu_bin = qtest_qemu_binary(var);
+    if (g_strcmp0(qemu_bin, new_qemu_bin)) {
+        g_free(qemu_bin);
+        qemu_bin = g_strdup(new_qemu_bin);
 
         /* new qemu, clear the cache */
         qtest_free_machine_list(machines);
@@ -1654,7 +1656,7 @@ static struct MachInfo *qtest_get_machines(const char *var)
 
     silence_spawn_log = !g_test_verbose();
 
-    qts = qtest_init_ext(qemu_var, "-machine none", NULL, true);
+    qts = qtest_init_ext(var, "-machine none", NULL, true);
     response = qtest_qmp(qts, "{ 'execute': 'query-machines' }");
     g_assert(response);
     list = qdict_get_qlist(response, "return");
