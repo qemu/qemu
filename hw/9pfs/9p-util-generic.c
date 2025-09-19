@@ -2,7 +2,6 @@
 
 #include "qemu/osdep.h"
 #include "9p-util.h"
-#include <glib/gstrfuncs.h>
 
 char *qemu_open_flags_tostr(int flags)
 {
