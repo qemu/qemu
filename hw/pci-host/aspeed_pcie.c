@@ -829,6 +829,8 @@ static void aspeed_2700_pcie_cfg_class_init(ObjectClass *klass,
     apc->nr_regs = 0x100 >> 2;
     apc->rc_msi_addr = 0x000000F0;
     apc->rc_bus_nr = 0;
+    apc->rc_has_rd = false;
+    apc->rc_rp_addr = PCI_DEVFN(0, 0);
 }
 
 static const TypeInfo aspeed_2700_pcie_cfg_info = {
