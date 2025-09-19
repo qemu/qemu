@@ -54,7 +54,7 @@ directory:
 
 .. code-block:: shell
 
-  meson test qtest-x86_64/qos-test
+  pyvenv/bin/meson test qtest-x86_64/qos-test
 
 ethtool can test register accesses, interrupts, etc. It is automated as an
 functional test and can be run from the build directory with the following
