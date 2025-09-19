@@ -186,6 +186,7 @@ struct AspeedSoCClass {
     uint32_t silicon_rev;
     uint64_t sram_size;
     uint64_t secsram_size;
+    int pcie_num;
     int spis_num;
     int ehcis_num;
     int wdts_num;
