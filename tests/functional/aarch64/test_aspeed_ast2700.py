@@ -69,6 +69,16 @@ class AST2x00MachineSDK(QemuSystemTest):
         exec_command_and_wait_for_pattern(self,
             'cat /sys/bus/i2c/devices/1-004d/hwmon/hwmon*/temp1_input', '18000')
 
+    def do_ast2700_pcie_test(self):
+        exec_command_and_wait_for_pattern(self,
+            'lspci -s 0002:00:00.0',
+            '0002:00:00.0 PCI bridge: '
+            'ASPEED Technology, Inc. AST1150 PCI-to-PCI Bridge')
+        exec_command_and_wait_for_pattern(self,
+            'lspci -s 0002:01:00.0',
+            '0002:01:00.0 Ethernet controller: '
+            'Intel Corporation 82574L Gigabit Network Connection')
+
     def start_ast2700_test(self, name):
         num_cpu = 4
         uboot_size = os.path.getsize(self.scratch_file(name,
@@ -125,20 +135,31 @@ class AST2x00MachineSDK(QemuSystemTest):
 
     def test_aarch64_ast2700a1_evb_sdk_v09_06(self):
         self.set_machine('ast2700a1-evb')
+        self.require_netdev('user')
 
         self.archive_extract(self.ASSET_SDK_V906_AST2700A1)
+        self.vm.add_args('-device', 'e1000e,netdev=net1,bus=pcie.2')
+        self.vm.add_args('-netdev', 'user,id=net1')
         self.start_ast2700_test('ast2700-default')
         self.verify_openbmc_boot_and_login('ast2700-default')
         self.do_ast2700_i2c_test()
+        self.do_ast2700_pcie_test()
 
     def test_aarch64_ast2700a1_evb_sdk_vbootrom_v09_07(self):
         self.set_machine('ast2700a1-evb')
+        self.require_netdev('user')
 
         self.archive_extract(self.ASSET_SDK_V907_AST2700A1_VBOOROM)
+        self.vm.add_args('-device', 'e1000e,netdev=net1,bus=pcie.2')
+        self.vm.add_args('-netdev', 'user,id=net1')
         self.start_ast2700_test_vbootrom('ast2700-default')
         self.verify_vbootrom_firmware_flow()
         self.verify_openbmc_boot_and_login('ast2700-default')
         self.do_ast2700_i2c_test()
+        self.do_ast2700_pcie_test()
+        exec_command_and_wait_for_pattern(self,
+            'ip addr show dev eth2',
+            'inet 10.0.2.15/24')
 
 if __name__ == '__main__':
     QemuSystemTest.main()
