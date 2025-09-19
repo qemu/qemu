@@ -513,24 +513,6 @@ static inline uint8_t get_pte_translation_mode(uint64_t pte)
     return (pte >> AMDVI_DEV_MODE_RSHIFT) & AMDVI_DEV_MODE_MASK;
 }
 
-static inline uint64_t pte_override_page_mask(uint64_t pte)
-{
-    uint8_t page_mask = 13;
-    uint64_t addr = (pte & AMDVI_DEV_PT_ROOT_MASK) >> 12;
-    /* find the first zero bit */
-    while (addr & 1) {
-        page_mask++;
-        addr = addr >> 1;
-    }
-
-    return ~((1ULL << page_mask) - 1);
-}
-
-static inline uint64_t pte_get_page_mask(uint64_t oldlevel)
-{
-    return ~((1UL << ((oldlevel * 9) + 3)) - 1);
-}
-
 static inline uint64_t amdvi_get_pte_entry(AMDVIState *s, uint64_t pte_addr,
                                           uint16_t devid)
 {
@@ -1718,11 +1700,13 @@ static void amdvi_page_walk(AMDVIAddressSpace *as, uint64_t *dte,
                             IOMMUTLBEntry *ret, unsigned perms,
                             hwaddr addr)
 {
-    unsigned level, present, pte_perms, oldlevel;
-    uint64_t pte = dte[0], pte_addr, page_mask;
+    hwaddr page_mask, pagesize = 0;
+    uint8_t mode;
+    uint64_t pte;
+    int fetch_ret;
 
     /* make sure the DTE has TV = 1 */
-    if (!(pte & AMDVI_DEV_TRANSLATION_VALID)) {
+    if (!(dte[0] & AMDVI_DEV_TRANSLATION_VALID)) {
         /*
          * A DTE with V=1, TV=0 does not have a valid Page Table Root Pointer.
          * An IOMMU processing a request that requires a table walk terminates
@@ -1733,41 +1717,34 @@ static void amdvi_page_walk(AMDVIAddressSpace *as, uint64_t *dte,
         return;
     }
 
-    level = get_pte_translation_mode(pte);
-    if (level >= 7) {
-        trace_amdvi_mode_invalid(level, addr);
+    mode = get_pte_translation_mode(dte[0]);
+    if (mode >= 7) {
+        trace_amdvi_mode_invalid(mode, addr);
         return;
     }
-    if (level == 0) {
+    if (mode == 0) {
         goto no_remap;
     }
 
-    /* we are at the leaf page table or page table encodes a huge page */
-    do {
-        pte_perms = amdvi_get_perms(pte);
-        present = pte & 1;
-        if (!present || perms != (perms & pte_perms)) {
-            amdvi_page_fault(as->iommu_state, as->devfn, addr, perms);
-            trace_amdvi_page_fault(addr);
-            return;
-        }
-        /* go to the next lower level */
-        pte_addr = pte & AMDVI_DEV_PT_ROOT_MASK;
-        /* add offset and load pte */
-        pte_addr += ((addr >> (3 + 9 * level)) & 0x1FF) << 3;
-        pte = amdvi_get_pte_entry(as->iommu_state, pte_addr, as->devfn);
-        if (!pte) {
-            return;
-        }
-        oldlevel = level;
-        level = get_pte_translation_mode(pte);
-    } while (level > 0 && level < 7);
+    /* Attempt to fetch the PTE to determine if a valid mapping exists */
+    fetch_ret = fetch_pte(as, addr, dte[0], &pte, &pagesize);
 
-    if (level == 0x7) {
-        page_mask = pte_override_page_mask(pte);
-    } else {
-        page_mask = pte_get_page_mask(oldlevel);
+    /*
+     * If walking the page table results in an error of any type, returns an
+     * empty PTE i.e. no mapping, or the permissions do not match, return since
+     * there is no translation available.
+     */
+    if (fetch_ret < 0 || !IOMMU_PTE_PRESENT(pte) ||
+        perms != (perms & amdvi_get_perms(pte))) {
+
+        amdvi_page_fault(as->iommu_state, as->devfn, addr, perms);
+        trace_amdvi_page_fault(addr);
+        return;
     }
+
+    /* A valid PTE and page size has been retrieved */
+    assert(pagesize);
+    page_mask = ~(pagesize - 1);
 
     /* get access permissions from pte */
     ret->iova = addr & page_mask;
@@ -1780,7 +1757,7 @@ no_remap:
     ret->iova = addr & AMDVI_PAGE_MASK_4K;
     ret->translated_addr = addr & AMDVI_PAGE_MASK_4K;
     ret->addr_mask = ~AMDVI_PAGE_MASK_4K;
-    ret->perm = amdvi_get_perms(pte);
+    ret->perm = amdvi_get_perms(dte[0]);
 }
 
 static void amdvi_do_translate(AMDVIAddressSpace *as, hwaddr addr,
