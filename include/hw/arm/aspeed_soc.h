@@ -62,6 +62,7 @@ struct AspeedSoCState {
     MemoryRegion spi_boot_container;
     MemoryRegion spi_boot;
     MemoryRegion vbootrom;
+    MemoryRegion pcie_mmio_alias[ASPEED_PCIE_NUM];
     AddressSpace dram_as;
     AspeedRtcState rtc;
     AspeedTimerCtrlState timerctrl;
