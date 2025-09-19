@@ -206,14 +206,16 @@ int qmp_chardev_open_file_source(char *src, int flags, Error **errp)
 }
 
 /* open a character device to a unix fd */
-void qemu_chr_open_fd(Chardev *chr,
-                      int fd_in, int fd_out)
+bool qemu_chr_open_fd(Chardev *chr,
+                      int fd_in, int fd_out, Error **errp)
 {
     FDChardev *s = FD_CHARDEV(chr);
     g_autofree char *name = NULL;
 
-    if (fd_out >= 0 && !g_unix_set_fd_nonblocking(fd_out, true, NULL)) {
-        assert(!"Failed to set FD nonblocking");
+    if (fd_out >= 0) {
+        if (!qemu_set_blocking(fd_out, false, errp)) {
+            return false;
+        }
     }
 
     if (fd_out == fd_in && fd_in >= 0) {
@@ -221,7 +223,7 @@ void qemu_chr_open_fd(Chardev *chr,
         name = g_strdup_printf("chardev-file-%s", chr->label);
         qio_channel_set_name(QIO_CHANNEL(s->ioc_in), name);
         s->ioc_out = QIO_CHANNEL(object_ref(s->ioc_in));
-        return;
+        return true;
     }
 
     if (fd_in >= 0) {
@@ -236,6 +238,8 @@ void qemu_chr_open_fd(Chardev *chr,
         name = g_strdup_printf("chardev-file-out-%s", chr->label);
         qio_channel_set_name(QIO_CHANNEL(s->ioc_out), name);
     }
+
+    return true;
 }
 
 static void char_fd_class_init(ObjectClass *oc, const void *data)

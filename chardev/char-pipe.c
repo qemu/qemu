@@ -150,7 +150,14 @@ static void qemu_chr_open_pipe(Chardev *chr,
             return;
         }
     }
-    qemu_chr_open_fd(chr, fd_in, fd_out);
+
+    if (!qemu_chr_open_fd(chr, fd_in, fd_out, errp)) {
+        close(fd_in);
+        if (fd_out != fd_in) {
+            close(fd_out);
+        }
+        return;
+    }
 }
 
 #endif /* !_WIN32 */

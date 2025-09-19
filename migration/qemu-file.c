@@ -340,7 +340,8 @@ static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
 
     do {
         struct iovec iov = { f->buf + pending, IO_BUF_SIZE - pending };
-        len = qio_channel_readv_full(f->ioc, &iov, 1, pfds, pnfd, 0,
+        len = qio_channel_readv_full(f->ioc, &iov, 1, pfds, pnfd,
+                                     QIO_CHANNEL_READ_FLAG_FD_PRESERVE_BLOCKING,
                                      &local_error);
         if (len == QIO_CHANNEL_ERR_BLOCK) {
             if (qemu_in_coroutine()) {
@@ -887,9 +888,9 @@ void qemu_put_counted_string(QEMUFile *f, const char *str)
  *       both directions, and thus changing the blocking on the main
  *       QEMUFile can also affect the return path.
  */
-void qemu_file_set_blocking(QEMUFile *f, bool block)
+bool qemu_file_set_blocking(QEMUFile *f, bool block, Error **errp)
 {
-    qio_channel_set_blocking(f->ioc, block, NULL);
+    return qio_channel_set_blocking(f->ioc, block, errp);
 }
 
 /*

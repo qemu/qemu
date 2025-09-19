@@ -1411,7 +1411,9 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
         ....options sent, ending in NBD_OPT_EXPORT_NAME or NBD_OPT_GO....
      */
 
-    qio_channel_set_blocking(client->ioc, false, NULL);
+    if (!qio_channel_set_blocking(client->ioc, false, errp)) {
+        return -EINVAL;
+    }
     qio_channel_set_follow_coroutine_ctx(client->ioc, true);
 
     trace_nbd_negotiate_begin();

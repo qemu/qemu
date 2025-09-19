@@ -1909,7 +1909,7 @@ void postcopy_preempt_new_channel(MigrationIncomingState *mis, QEMUFile *file)
      * The new loading channel has its own threads, so it needs to be
      * blocked too.  It's by default true, just be explicit.
      */
-    qemu_file_set_blocking(file, true);
+    qemu_file_set_blocking(file, true, &error_abort);
     mis->postcopy_qemufile_dst = file;
     qemu_sem_post(&mis->postcopy_qemufile_dst_done);
     trace_postcopy_preempt_new_channel();

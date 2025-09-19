@@ -107,7 +107,11 @@ static void remote_object_machine_done(Notifier *notifier, void *data)
         error_report_err(err);
         return;
     }
-    qio_channel_set_blocking(ioc, false, NULL);
+    if (!qio_channel_set_blocking(ioc, false, &err)) {
+        error_report_err(err);
+        object_unref(OBJECT(ioc));
+        return;
+    }
 
     o->dev = dev;
 

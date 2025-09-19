@@ -177,25 +177,22 @@ static int socket_error(void)
     }
 }
 
-void qemu_socket_set_block(int fd)
+bool qemu_set_blocking(int fd, bool block, Error **errp)
 {
-    unsigned long opt = 0;
-    qemu_socket_unselect(fd, NULL);
-    ioctlsocket(fd, FIONBIO, &opt);
-}
+    unsigned long opt = block ? 0 : 1;
 
-int qemu_socket_try_set_nonblock(int fd)
-{
-    unsigned long opt = 1;
-    if (ioctlsocket(fd, FIONBIO, &opt) != NO_ERROR) {
-        return -socket_error();
+    if (block) {
+        qemu_socket_unselect(fd, NULL);
     }
-    return 0;
-}
 
-void qemu_socket_set_nonblock(int fd)
-{
-    (void)qemu_socket_try_set_nonblock(fd);
+    if (ioctlsocket(fd, FIONBIO, &opt) != NO_ERROR) {
+        error_setg_errno(errp, socket_error(),
+                         "Can't set file descriptor %d %s", fd,
+                         block ? "blocking" : "non-blocking");
+        return false;
+    }
+
+    return true;
 }
 
 int socket_set_fast_reuse(int fd)

@@ -85,7 +85,7 @@ Responsible Disclosure, Reporting Security Issues
 -------------------------------------------------
 W: https://wiki.qemu.org/SecurityProcess
 M: Michael S. Tsirkin <mst@redhat.com>
-L: secalert@redhat.com
+L: qemu-security@nongnu.org
 
 Trivial patches
 ---------------

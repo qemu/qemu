@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "io-channel-helpers.h"
+#include "qapi/error.h"
 #include "qemu/iov.h"
 
 struct QIOChannelTest {
@@ -109,8 +110,8 @@ void qio_channel_test_run_threads(QIOChannelTest *test,
     test->src = src;
     test->dst = dst;
 
-    qio_channel_set_blocking(test->dst, blocking, NULL);
-    qio_channel_set_blocking(test->src, blocking, NULL);
+    qio_channel_set_blocking(test->dst, blocking, &error_abort);
+    qio_channel_set_blocking(test->src, blocking, &error_abort);
 
     reader = g_thread_new("reader",
                           test_io_thread_reader,

@@ -277,9 +277,12 @@ static int qio_channel_command_set_blocking(QIOChannel *ioc,
     cioc->blocking = enabled;
 #else
 
-    if ((cioc->writefd >= 0 && !g_unix_set_fd_nonblocking(cioc->writefd, !enabled, NULL)) ||
-        (cioc->readfd >= 0 && !g_unix_set_fd_nonblocking(cioc->readfd, !enabled, NULL))) {
-        error_setg_errno(errp, errno, "Failed to set FD nonblocking");
+    if (cioc->writefd >= 0 &&
+        !qemu_set_blocking(cioc->writefd, enabled, errp)) {
+        return -1;
+    }
+    if (cioc->readfd >= 0 &&
+        !qemu_set_blocking(cioc->readfd, enabled, errp)) {
         return -1;
     }
 #endif

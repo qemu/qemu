@@ -349,8 +349,8 @@ static void char_pty_open(Chardev *chr,
     }
 
     close(slave_fd);
-    if (!g_unix_set_fd_nonblocking(master_fd, true, NULL)) {
-        error_setg_errno(errp, errno, "Failed to set FD nonblocking");
+    if (!qemu_set_blocking(master_fd, false, errp)) {
+        close(master_fd);
         return;
     }
 

@@ -6,6 +6,7 @@
  * top-level directory.
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu/host-utils.h"
 #include "qemu/sockets.h"
 
@@ -135,6 +136,7 @@ ivshmem_server_handle_new_conn(IvshmemServer *server)
     socklen_t unaddr_len;
     int newfd;
     unsigned i;
+    Error *local_err = NULL;
 
     /* accept the incoming connection */
     unaddr_len = sizeof(unaddr);
@@ -146,8 +148,13 @@ ivshmem_server_handle_new_conn(IvshmemServer *server)
         return -1;
     }
 
-    qemu_socket_set_nonblock(newfd);
     IVSHMEM_SERVER_DEBUG(server, "accept()=%d\n", newfd);
+
+    if (!qemu_set_blocking(newfd, false, &local_err)) {
+        error_report_err(local_err);
+        close(newfd);
+        return -1;
+    }
 
     /* allocate new structure for this peer */
     peer = g_malloc0(sizeof(*peer));

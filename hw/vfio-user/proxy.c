@@ -886,10 +886,11 @@ VFIOUserProxy *vfio_user_connect_dev(SocketAddress *addr, Error **errp)
     sioc = qio_channel_socket_new();
     ioc = QIO_CHANNEL(sioc);
     if (qio_channel_socket_connect_sync(sioc, addr, errp) < 0) {
-        object_unref(OBJECT(ioc));
-        return NULL;
+        goto fail;
     }
-    qio_channel_set_blocking(ioc, false, NULL);
+    if (!qio_channel_set_blocking(ioc, false, errp)) {
+        goto fail;
+    }
 
     proxy = g_malloc0(sizeof(VFIOUserProxy));
     proxy->sockname = g_strdup_printf("unix:%s", sockname);
@@ -923,6 +924,10 @@ VFIOUserProxy *vfio_user_connect_dev(SocketAddress *addr, Error **errp)
     QLIST_INSERT_HEAD(&vfio_user_sockets, proxy, next);
 
     return proxy;
+
+fail:
+    object_unref(OBJECT(ioc));
+    return NULL;
 }
 
 void vfio_user_set_handler(VFIODevice *vbasedev,

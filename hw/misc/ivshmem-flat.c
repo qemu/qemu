@@ -154,7 +154,8 @@ static void ivshmem_flat_add_vector(IvshmemFTState *s, IvshmemPeer *peer,
      * peer.
      */
     peer->vector[peer->vector_counter].id = peer->vector_counter;
-    g_unix_set_fd_nonblocking(vector_fd, true, NULL);
+    /* WARNING: qemu_socket_set_nonblock() return code ignored */
+    qemu_set_blocking(vector_fd, false, &error_warn);
     event_notifier_init_fd(&peer->vector[peer->vector_counter].event_notifier,
                            vector_fd);
 

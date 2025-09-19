@@ -250,21 +250,19 @@ void qemu_anon_ram_free(void *ptr, size_t size)
 #endif
 }
 
-void qemu_socket_set_block(int fd)
+bool qemu_set_blocking(int fd, bool block, Error **errp)
 {
-    g_unix_set_fd_nonblocking(fd, false, NULL);
-}
+    g_autoptr(GError) err = NULL;
 
-int qemu_socket_try_set_nonblock(int fd)
-{
-    return g_unix_set_fd_nonblocking(fd, true, NULL) ? 0 : -errno;
-}
+    if (!g_unix_set_fd_nonblocking(fd, !block, &err)) {
+        error_setg_errno(errp, errno,
+                         "Can't set file descriptor %d %s: %s", fd,
+                         block ? "blocking" : "non-blocking",
+                         err->message);
+        return false;
+    }
 
-void qemu_socket_set_nonblock(int fd)
-{
-    int f;
-    f = qemu_socket_try_set_nonblock(fd);
-    assert(f == 0);
+    return true;
 }
 
 int socket_set_fast_reuse(int fd)

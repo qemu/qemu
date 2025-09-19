@@ -330,7 +330,6 @@ static int chr_can_read(void *opaque)
 
 static void chr_read(void *opaque, const uint8_t *buf, int size)
 {
-    g_autoptr(GError) err = NULL;
     TestServer *s = opaque;
     CharBackend *chr = &s->chr;
     VhostUserMsg msg;
@@ -471,8 +470,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
          * The receive function forces it to be blocking,
          * so revert it back to non-blocking.
          */
-        g_unix_set_fd_nonblocking(fd, true, &err);
-        g_assert_no_error(err);
+        qemu_set_blocking(fd, false, &error_abort);
         break;
 
     case VHOST_USER_SET_LOG_BASE:

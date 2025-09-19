@@ -294,7 +294,12 @@ static ssize_t tcp_chr_recv(Chardev *chr, char *buf, size_t len)
     }
 
     if (msgfds_num) {
-        /* close and clean read_msgfds */
+        /*
+         * Close and clean previous read_msgfds, they are obsolete at
+         * this point, regardless result of new call to
+         * qio_channel_readv_full().
+         */
+
         for (i = 0; i < s->read_msgfds_num; i++) {
             close(s->read_msgfds[i]);
         }
@@ -305,20 +310,6 @@ static ssize_t tcp_chr_recv(Chardev *chr, char *buf, size_t len)
 
         s->read_msgfds = msgfds;
         s->read_msgfds_num = msgfds_num;
-    }
-
-    for (i = 0; i < s->read_msgfds_num; i++) {
-        int fd = s->read_msgfds[i];
-        if (fd < 0) {
-            continue;
-        }
-
-        /* O_NONBLOCK is preserved across SCM_RIGHTS so reset it */
-        qemu_socket_set_block(fd);
-
-#ifndef MSG_CMSG_CLOEXEC
-        qemu_set_cloexec(fd);
-#endif
     }
 
     if (ret == QIO_CHANNEL_ERR_BLOCK) {
@@ -539,16 +530,24 @@ static int tcp_chr_sync_read(Chardev *chr, const uint8_t *buf, int len)
     SocketChardev *s = SOCKET_CHARDEV(chr);
     int size;
     int saved_errno;
+    Error *local_err = NULL;
 
     if (s->state != TCP_CHARDEV_STATE_CONNECTED) {
         return 0;
     }
 
-    qio_channel_set_blocking(s->ioc, true, NULL);
+    if (!qio_channel_set_blocking(s->ioc, true, &local_err)) {
+        error_report_err(local_err);
+        return -1;
+    }
     size = tcp_chr_recv(chr, (void *) buf, len);
     saved_errno = errno;
     if (s->state != TCP_CHARDEV_STATE_DISCONNECTED) {
-        qio_channel_set_blocking(s->ioc, false, NULL);
+        if (!qio_channel_set_blocking(s->ioc, false, &local_err)) {
+            error_report_err(local_err);
+            /* failed to recover non-blocking state */
+            tcp_chr_disconnect(chr);
+        }
     }
     if (size == 0) {
         /* connection closed */
@@ -893,8 +892,14 @@ static void tcp_chr_set_client_ioc_name(Chardev *chr,
 static int tcp_chr_new_client(Chardev *chr, QIOChannelSocket *sioc)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
+    Error *local_err = NULL;
 
     if (s->state != TCP_CHARDEV_STATE_CONNECTING) {
+        return -1;
+    }
+
+    if (!qio_channel_set_blocking(QIO_CHANNEL(sioc), false, &local_err)) {
+        error_report_err(local_err);
         return -1;
     }
 
@@ -902,8 +907,6 @@ static int tcp_chr_new_client(Chardev *chr, QIOChannelSocket *sioc)
     object_ref(OBJECT(sioc));
     s->sioc = sioc;
     object_ref(OBJECT(sioc));
-
-    qio_channel_set_blocking(s->ioc, false, NULL);
 
     if (s->do_nodelay) {
         qio_channel_set_delay(s->ioc, false);

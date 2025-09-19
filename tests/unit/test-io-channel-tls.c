@@ -184,8 +184,8 @@ static void test_io_channel_tls(const void *opaque)
      * thread, so we need these non-blocking to avoid deadlock
      * of ourselves
      */
-    qio_channel_set_blocking(QIO_CHANNEL(clientChanSock), false, NULL);
-    qio_channel_set_blocking(QIO_CHANNEL(serverChanSock), false, NULL);
+    qio_channel_set_blocking(QIO_CHANNEL(clientChanSock), false, &error_abort);
+    qio_channel_set_blocking(QIO_CHANNEL(serverChanSock), false, &error_abort);
 
     /* Now the real part of the test, setup the sessions */
     clientChanTLS = qio_channel_tls_new_client(
