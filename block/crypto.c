@@ -792,7 +792,7 @@ block_crypto_co_create_opts_luks(BlockDriver *drv, const char *filename,
     char *buf = NULL;
     int64_t size;
     bool detached_hdr =
-        qemu_opt_get_bool(opts, "detached-header", false);
+        qemu_opt_get_bool_del(opts, "detached-header", false);
     unsigned int cflags = 0;
     int ret;
     Error *local_err = NULL;
