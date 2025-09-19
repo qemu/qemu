@@ -46,6 +46,10 @@ config PCI_I440FX
     select PCI
     select PAM
 
+config PCI_EXPRESS_ASPEED
+    bool
+    select PCI_EXPRESS
+
 config PCI_EXPRESS_Q35
     bool
     select PCI_EXPRESS
