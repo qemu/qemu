@@ -107,6 +107,9 @@ uint64_t amdvi_extended_feature_register(AMDVIState *s)
     if (s->xtsup) {
         feature |= AMDVI_FEATURE_XT;
     }
+    if (!s->iommu.dma_translation) {
+        feature |= AMDVI_HATS_MODE_RESERVED;
+    }
 
     return feature;
 }
@@ -472,10 +475,26 @@ static inline uint64_t amdvi_get_perms(uint64_t entry)
 static bool amdvi_validate_dte(AMDVIState *s, uint16_t devid,
                                uint64_t *dte)
 {
+
+    uint64_t root;
+
     if ((dte[0] & AMDVI_DTE_QUAD0_RESERVED) ||
         (dte[1] & AMDVI_DTE_QUAD1_RESERVED) ||
         (dte[2] & AMDVI_DTE_QUAD2_RESERVED) ||
         (dte[3] & AMDVI_DTE_QUAD3_RESERVED)) {
+        amdvi_log_illegaldevtab_error(s, devid,
+                                      s->devtab +
+                                      devid * AMDVI_DEVTAB_ENTRY_SIZE, 0);
+        return false;
+    }
+
+    /*
+     * 1 = Host Address Translation is not supported. Value in MMIO Offset
+     * 0030h[HATS] is not meaningful. A non-zero host page table root pointer
+     * in the DTE would result in an ILLEGAL_DEV_TABLE_ENTRY event.
+     */
+    root = (dte[0] & AMDVI_DEV_PT_ROOT_MASK) >> 12;
+    if (root && !s->iommu.dma_translation) {
         amdvi_log_illegaldevtab_error(s, devid,
                                       s->devtab +
                                       devid * AMDVI_DEVTAB_ENTRY_SIZE, 0);
