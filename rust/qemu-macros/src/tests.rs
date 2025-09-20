@@ -60,7 +60,7 @@ fn test_derive_device() {
                 migrate_clock: bool,
             }
         },
-        "Expected one of `default` or `rename`"
+        "Expected one of `bit`, `default` or `rename`"
     );
     // Check that repeated attributes are not allowed:
     derive_compile_fail!(
@@ -106,8 +106,9 @@ fn test_derive_device() {
                 const PROPERTIES: &'static [::hwcore::bindings::Property] = &[
                     ::hwcore::bindings::Property {
                         name: ::std::ffi::CStr::as_ptr(c"migrate_clock"),
-                        info: <bool as ::hwcore::QDevProp>::VALUE,
+                        info: <bool as ::hwcore::QDevProp>::BASE_INFO,
                         offset: ::core::mem::offset_of!(DummyState, migrate_clock) as isize,
+                        bitnr: 0,
                         set_default: true,
                         defval: ::hwcore::bindings::Property__bindgen_ty_1 { u: true as u64 },
                         ..::common::Zeroable::ZERO
@@ -133,8 +134,9 @@ fn test_derive_device() {
                 const PROPERTIES: &'static [::hwcore::bindings::Property] = &[
                     ::hwcore::bindings::Property {
                         name: ::std::ffi::CStr::as_ptr(c"migrate-clk"),
-                        info: <bool as ::hwcore::QDevProp>::VALUE,
+                        info: <bool as ::hwcore::QDevProp>::BASE_INFO,
                         offset: ::core::mem::offset_of!(DummyState, migrate_clock) as isize,
+                        bitnr: 0,
                         set_default: true,
                         defval: ::hwcore::bindings::Property__bindgen_ty_1 { u: true as u64 },
                         ..::common::Zeroable::ZERO

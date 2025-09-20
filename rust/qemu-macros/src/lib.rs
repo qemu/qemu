@@ -179,6 +179,7 @@ impl Parse for DevicePropertyName {
 #[derive(Default, Debug)]
 struct DeviceProperty {
     rename: Option<DevicePropertyName>,
+    bitnr: Option<syn::Expr>,
     defval: Option<syn::Expr>,
 }
 
@@ -187,6 +188,7 @@ impl DeviceProperty {
         use attrs::{set, with, Attrs};
         let mut parser = Attrs::new();
         parser.once("rename", with::eq(set::parse(&mut self.rename)));
+        parser.once("bit", with::eq(set::parse(&mut self.bitnr)));
         parser.once("default", with::eq(set::parse(&mut self.defval)));
         a.parse_args_with(&mut parser)
     }
@@ -222,7 +224,11 @@ fn derive_device_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
     let mut properties_expanded = vec![];
 
     for (field, prop) in properties {
-        let DeviceProperty { rename, defval } = prop;
+        let DeviceProperty {
+            rename,
+            bitnr,
+            defval,
+        } = prop;
         let field_name = field.ident.unwrap();
         macro_rules! str_to_c_str {
             ($value:expr, $span:expr) => {{
@@ -252,14 +258,20 @@ fn derive_device_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
             },
         )?;
         let field_ty = field.ty.clone();
-        let qdev_prop = quote! { <#field_ty as ::hwcore::QDevProp>::VALUE };
+        let qdev_prop = if bitnr.is_none() {
+            quote! { <#field_ty as ::hwcore::QDevProp>::BASE_INFO }
+        } else {
+            quote! { <#field_ty as ::hwcore::QDevProp>::BIT_INFO }
+        };
+        let bitnr = bitnr.unwrap_or(syn::Expr::Verbatim(quote! { 0 }));
         let set_default = defval.is_some();
         let defval = defval.unwrap_or(syn::Expr::Verbatim(quote! { 0 }));
         properties_expanded.push(quote! {
             ::hwcore::bindings::Property {
                 name: ::std::ffi::CStr::as_ptr(#prop_name),
-                info: #qdev_prop ,
+                info: #qdev_prop,
                 offset: ::core::mem::offset_of!(#name, #field_name) as isize,
+                bitnr: #bitnr,
                 set_default: #set_default,
                 defval: ::hwcore::bindings::Property__bindgen_ty_1 { u: #defval as u64 },
                 ..::common::Zeroable::ZERO

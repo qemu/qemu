@@ -109,8 +109,8 @@ unsafe extern "C" fn rust_resettable_exit_fn<T: ResettablePhasesImpl>(
 ///
 /// # Safety
 ///
-/// This trait is marked as `unsafe` because `VALUE` must be a valid raw
-/// reference to a [`bindings::PropertyInfo`].
+/// This trait is marked as `unsafe` because `BASE_INFO` and `BIT_INFO` must be
+/// valid raw references to [`bindings::PropertyInfo`].
 ///
 /// Note we could not use a regular reference:
 ///
@@ -131,14 +131,19 @@ unsafe extern "C" fn rust_resettable_exit_fn<T: ResettablePhasesImpl>(
 /// It is the implementer's responsibility to provide a valid
 /// [`bindings::PropertyInfo`] pointer for the trait implementation to be safe.
 pub unsafe trait QDevProp {
-    const VALUE: *const bindings::PropertyInfo;
+    const BASE_INFO: *const bindings::PropertyInfo;
+    const BIT_INFO: *const bindings::PropertyInfo = {
+        panic!("invalid type for bit property");
+    };
 }
 
 macro_rules! impl_qdev_prop {
-    ($type:ty,$info:ident) => {
+    ($type:ty,$info:ident$(, $bit_info:ident)?) => {
         unsafe impl $crate::qdev::QDevProp for $type {
-            const VALUE: *const $crate::bindings::PropertyInfo =
+            const BASE_INFO: *const $crate::bindings::PropertyInfo =
                 addr_of!($crate::bindings::$info);
+            $(const BIT_INFO: *const $crate::bindings::PropertyInfo =
+                addr_of!($crate::bindings::$bit_info);)?
         }
     };
 }
@@ -146,8 +151,8 @@ macro_rules! impl_qdev_prop {
 impl_qdev_prop!(bool, qdev_prop_bool);
 impl_qdev_prop!(u8, qdev_prop_uint8);
 impl_qdev_prop!(u16, qdev_prop_uint16);
-impl_qdev_prop!(u32, qdev_prop_uint32);
-impl_qdev_prop!(u64, qdev_prop_uint64);
+impl_qdev_prop!(u32, qdev_prop_uint32, qdev_prop_bit);
+impl_qdev_prop!(u64, qdev_prop_uint64, qdev_prop_bit64);
 impl_qdev_prop!(usize, qdev_prop_usize);
 impl_qdev_prop!(i32, qdev_prop_int32);
 impl_qdev_prop!(i64, qdev_prop_int64);
