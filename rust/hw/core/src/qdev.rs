@@ -6,7 +6,7 @@
 
 use std::{
     ffi::{c_int, c_void, CStr, CString},
-    ptr::NonNull,
+    ptr::{addr_of, NonNull},
 };
 
 use chardev::Chardev;
@@ -129,17 +129,17 @@ pub unsafe trait QDevProp {
 
 /// Use [`bindings::qdev_prop_bool`] for `bool`.
 unsafe impl QDevProp for bool {
-    const VALUE: *const bindings::PropertyInfo = unsafe { &bindings::qdev_prop_bool };
+    const VALUE: *const bindings::PropertyInfo = addr_of!(bindings::qdev_prop_bool);
 }
 
 /// Use [`bindings::qdev_prop_uint64`] for `u64`.
 unsafe impl QDevProp for u64 {
-    const VALUE: *const bindings::PropertyInfo = unsafe { &bindings::qdev_prop_uint64 };
+    const VALUE: *const bindings::PropertyInfo = addr_of!(bindings::qdev_prop_uint64);
 }
 
 /// Use [`bindings::qdev_prop_chr`] for [`chardev::CharBackend`].
 unsafe impl QDevProp for chardev::CharBackend {
-    const VALUE: *const bindings::PropertyInfo = unsafe { &bindings::qdev_prop_chr };
+    const VALUE: *const bindings::PropertyInfo = addr_of!(bindings::qdev_prop_chr);
 }
 
 /// Trait to define device properties.
