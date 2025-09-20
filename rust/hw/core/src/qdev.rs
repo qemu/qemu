@@ -248,59 +248,6 @@ impl DeviceClass {
     }
 }
 
-#[macro_export]
-macro_rules! define_property {
-    ($name:expr, $state:ty, $field:ident, $prop:expr, $type:ty, bit = $bitnr:expr, default = $defval:expr$(,)*) => {
-        $crate::bindings::Property {
-            // use associated function syntax for type checking
-            name: ::std::ffi::CStr::as_ptr($name),
-            info: $prop,
-            offset: ::std::mem::offset_of!($state, $field) as isize,
-            bitnr: $bitnr,
-            set_default: true,
-            defval: $crate::bindings::Property__bindgen_ty_1 { u: $defval as u64 },
-            ..::common::zeroable::Zeroable::ZERO
-        }
-    };
-    ($name:expr, $state:ty, $field:ident, $prop:expr, $type:ty, default = $defval:expr$(,)*) => {
-        $crate::bindings::Property {
-            // use associated function syntax for type checking
-            name: ::std::ffi::CStr::as_ptr($name),
-            info: $prop,
-            offset: ::std::mem::offset_of!($state, $field) as isize,
-            set_default: true,
-            defval: $crate::bindings::Property__bindgen_ty_1 { u: $defval as u64 },
-            ..::common::zeroable::Zeroable::ZERO
-        }
-    };
-    ($name:expr, $state:ty, $field:ident, $prop:expr, $type:ty$(,)*) => {
-        $crate::bindings::Property {
-            // use associated function syntax for type checking
-            name: ::std::ffi::CStr::as_ptr($name),
-            info: $prop,
-            offset: ::std::mem::offset_of!($state, $field) as isize,
-            set_default: false,
-            ..::common::zeroable::Zeroable::ZERO
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! declare_properties {
-    ($ident:ident, $($prop:expr),*$(,)*) => {
-        pub static $ident: [$crate::bindings::Property; {
-            let mut len = 0;
-            $({
-                _ = stringify!($prop);
-                len += 1;
-            })*
-            len
-        }] = [
-            $($prop),*,
-        ];
-    };
-}
-
 unsafe impl ObjectType for DeviceState {
     type Class = DeviceClass;
     const TYPE_NAME: &'static CStr =
