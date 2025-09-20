@@ -21,3 +21,6 @@
 /quote-1.0.36
 /syn-2.0.66
 /unicode-ident-1.0.12
+
+# Workaround for Meson v1.9.0 https://github.com/mesonbuild/meson/issues/14948
+/.wraplock
