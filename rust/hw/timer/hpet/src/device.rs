@@ -909,7 +909,7 @@ declare_properties! {
         HPETState,
         num_timers,
         unsafe { &qdev_prop_usize },
-        u8,
+        usize,
         default = HPET_MIN_TIMERS
     ),
     define_property!(
