@@ -242,8 +242,8 @@ fn derive_device_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
 
         let prop_name = rename.map_or_else(
             || str_to_c_str!(field_name.to_string(), field_name.span()),
-            |rename| -> Result<proc_macro2::TokenStream, Error> {
-                match rename {
+            |prop_rename| -> Result<proc_macro2::TokenStream, Error> {
+                match prop_rename {
                     DevicePropertyName::CStr(cstr_lit) => Ok(quote! { #cstr_lit }),
                     DevicePropertyName::Str(str_lit) => {
                         str_to_c_str!(str_lit.value(), str_lit.span())
