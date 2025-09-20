@@ -134,20 +134,24 @@ pub unsafe trait QDevProp {
     const VALUE: *const bindings::PropertyInfo;
 }
 
-/// Use [`bindings::qdev_prop_bool`] for `bool`.
-unsafe impl QDevProp for bool {
-    const VALUE: *const bindings::PropertyInfo = addr_of!(bindings::qdev_prop_bool);
+macro_rules! impl_qdev_prop {
+    ($type:ty,$info:ident) => {
+        unsafe impl $crate::qdev::QDevProp for $type {
+            const VALUE: *const $crate::bindings::PropertyInfo =
+                addr_of!($crate::bindings::$info);
+        }
+    };
 }
 
-/// Use [`bindings::qdev_prop_uint64`] for `u64`.
-unsafe impl QDevProp for u64 {
-    const VALUE: *const bindings::PropertyInfo = addr_of!(bindings::qdev_prop_uint64);
-}
-
-/// Use [`bindings::qdev_prop_chr`] for [`chardev::CharBackend`].
-unsafe impl QDevProp for chardev::CharBackend {
-    const VALUE: *const bindings::PropertyInfo = addr_of!(bindings::qdev_prop_chr);
-}
+impl_qdev_prop!(bool, qdev_prop_bool);
+impl_qdev_prop!(u8, qdev_prop_uint8);
+impl_qdev_prop!(u16, qdev_prop_uint16);
+impl_qdev_prop!(u32, qdev_prop_uint32);
+impl_qdev_prop!(u64, qdev_prop_uint64);
+impl_qdev_prop!(usize, qdev_prop_usize);
+impl_qdev_prop!(i32, qdev_prop_int32);
+impl_qdev_prop!(i64, qdev_prop_int64);
+impl_qdev_prop!(chardev::CharBackend, qdev_prop_chr);
 
 /// Trait to define device properties.
 ///
