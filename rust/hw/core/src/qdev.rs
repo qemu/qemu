@@ -109,9 +109,16 @@ unsafe extern "C" fn rust_resettable_exit_fn<T: ResettablePhasesImpl>(
 ///
 /// # Safety
 ///
-/// This trait is marked as `unsafe` because currently having a `const` refer to
-/// an `extern static` as a reference instead of a raw pointer results in this
-/// compiler error:
+/// This trait is marked as `unsafe` because `VALUE` must be a valid raw
+/// reference to a [`bindings::PropertyInfo`].
+///
+/// Note we could not use a regular reference:
+///
+/// ```text
+/// const VALUE: &bindings::PropertyInfo = ...
+/// ```
+///
+/// because this results in the following compiler error:
 ///
 /// ```text
 /// constructing invalid value: encountered reference to `extern` static in `const`
@@ -119,7 +126,7 @@ unsafe extern "C" fn rust_resettable_exit_fn<T: ResettablePhasesImpl>(
 ///
 /// This is because the compiler generally might dereference a normal reference
 /// during const evaluation, but not in this case (if it did, it'd need to
-/// dereference the raw pointer so this would fail to compile).
+/// dereference the raw pointer so using a `*const` would also fail to compile).
 ///
 /// It is the implementer's responsibility to provide a valid
 /// [`bindings::PropertyInfo`] pointer for the trait implementation to be safe.
