@@ -556,6 +556,14 @@ struct ArchCPU {
 
 typedef struct RISCVCSR RISCVCSR;
 
+
+// 该结构体通常作为 CPU 型号的静态描述模板，供 QEMU 初始化具体 CPU 实例时参考。
+// 例如，misa_mxl_max 决定了该 CPU 最大支持多少位的指令集（RV32/RV64），misa_ext 决定了支持哪些标准扩展。
+// profile 可用于描述该 CPU 遵循的 RISC-V profile（如嵌入式、通用等）。
+// cfg 结构体则包含了更细致的扩展开关和参数。
+// bare 字段用于区分是否为裸机环境（无操作系统支持）。
+// custom_csrs 用于扩展自定义的 CSR 寄存器。
+
 typedef struct RISCVCPUDef {
     RISCVMXL misa_mxl_max;  /* max mxl for this cpu */
     RISCVCPUProfile *profile;

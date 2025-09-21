@@ -3036,6 +3036,14 @@ static const TypeInfo riscv_cpu_type_infos[] = {
         .misa_mxl_max = MXL_RV32,
         .misa_ext = RVE
     ),
+    DEFINE_RISCV_CPU(TYPE_RISCV_CPU_NUCLEI_N600, TYPE_RISCV_BARE_CPU,
+        .misa_mxl_max = MXL_RV32,
+        .misa_ext = RVI | RVM | RVA | RVC | RVF | RVD | RVU,
+        .priv_spec = PRIV_VERSION_1_10_0,
+        .cfg.mmu = false,
+        .cfg.pmp = true,
+        .cfg.max_satp_mode = VM_1_10_MBARE
+    ),
 #endif
 
 #if (defined(TARGET_RISCV64) && !defined(CONFIG_USER_ONLY))
