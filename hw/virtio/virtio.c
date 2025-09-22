@@ -31,6 +31,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-access.h"
 #include "system/dma.h"
+#include "system/iothread.h"
 #include "system/runstate.h"
 #include "virtio-qmp.h"
 
@@ -2654,16 +2655,8 @@ static void virtio_notify_irqfd_deferred_fn(void *opaque)
     event_notifier_set(notifier);
 }
 
-void virtio_notify_irqfd(VirtIODevice *vdev, VirtQueue *vq)
+static void virtio_irq(VirtQueue *vq)
 {
-    WITH_RCU_READ_LOCK_GUARD() {
-        if (!virtio_should_notify(vdev, vq)) {
-            return;
-        }
-    }
-
-    trace_virtio_notify_irqfd(vdev, vq);
-
     /*
      * virtio spec 1.0 says ISR bit 0 should be ignored with MSI, but
      * windows drivers included in virtio-win 1.8.0 (circa 2015) are
@@ -2680,13 +2673,18 @@ void virtio_notify_irqfd(VirtIODevice *vdev, VirtQueue *vq)
      * to an atomic operation.
      */
     virtio_set_isr(vq->vdev, 0x1);
-    defer_call(virtio_notify_irqfd_deferred_fn, &vq->guest_notifier);
-}
 
-static void virtio_irq(VirtQueue *vq)
-{
-    virtio_set_isr(vq->vdev, 0x1);
-    virtio_notify_vector(vq->vdev, vq->vector);
+    /*
+     * The interrupt code path requires the Big QEMU Lock (BQL), so use the
+     * notifier instead when in an IOThread. This assumes that device models
+     * have already called ->set_guest_notifiers() sometime before calling this
+     * function.
+     */
+    if (qemu_in_iothread()) {
+        defer_call(virtio_notify_irqfd_deferred_fn, &vq->guest_notifier);
+    } else {
+        virtio_notify_vector(vq->vdev, vq->vector);
+    }
 }
 
 void virtio_notify(VirtIODevice *vdev, VirtQueue *vq)

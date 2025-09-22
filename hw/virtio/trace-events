@@ -75,7 +75,6 @@ virtqueue_flush(void *vq, unsigned int count) "vq %p count %u"
 virtqueue_pop(void *vq, void *elem, unsigned int in_num, unsigned int out_num) "vq %p elem %p in_num %u out_num %u"
 virtio_queue_notify(void *vdev, int n, void *vq) "vdev %p n %d vq %p"
 virtio_notify_irqfd_deferred_fn(void *vdev, void *vq) "vdev %p vq %p"
-virtio_notify_irqfd(void *vdev, void *vq) "vdev %p vq %p"
 virtio_notify(void *vdev, void *vq) "vdev %p vq %p"
 virtio_set_status(void *vdev, uint8_t val) "vdev %p val %u"
 
