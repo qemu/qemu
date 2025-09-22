@@ -341,3 +341,9 @@ or more general revisions. This can be done by contacting the qemu-devel
 mailing list with details of a proposed tool, model, usage scenario, etc.
 that is beneficial to QEMU, while still mitigating issues around compliance
 with the DCO.  After discussion, any exception will be listed below.
+
+Exceptions do not remove the need for authors to comply with all other
+requirements for contribution.  In particular, the "Signed-off-by"
+label in a patch submission is a statement that the author takes
+responsibility for the entire contents of the patch, including any parts
+that were generated or assisted by AI tools or other tools.
