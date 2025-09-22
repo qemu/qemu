@@ -12,6 +12,15 @@
 #include <qemu-plugin.h>
 #include <glib.h>
 #include <stdio.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <time.h>
+#include <unistd.h>
+
+#define MiB     (INT64_C(1) << 20)
+#define NANOSECONDS_PER_SECOND 1000000000LL
+#define TRACE_FLUSH_SIZE (32 * MiB)
+#define TRACE_ID_SCALE 100
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
@@ -24,6 +33,13 @@ typedef struct {
     uint64_t frame_pointer;
 } CallstackEntry;
 
+typedef struct {
+    GArray *t;
+    GString *path;
+    GString *name;
+    uint32_t id;
+} Trace;
+
 typedef struct Cpu Cpu;
 
 typedef struct {
@@ -34,6 +50,7 @@ typedef struct {
 } CpuOps;
 
 typedef struct Cpu {
+    Trace *trace;
     Callstack *cs;
     GByteArray *buf;
     CpuOps ops;
@@ -44,8 +61,40 @@ typedef struct {
     struct qemu_plugin_register *reg_fp;
 } Aarch64Cpu;
 
+typedef struct {
+    uint64_t timestamp;
+    uint64_t data;
+} UftraceEntry;
+
+typedef enum {
+    UFTRACE_ENTRY,
+    UFTRACE_EXIT,
+    UFTRACE_LOST,
+    UFTRACE_EVENT,
+} UftraceRecordType;
+
 static struct qemu_plugin_scoreboard *score;
 static CpuOps arch_ops;
+
+static uint64_t gettime_ns(void)
+{
+#ifdef _WIN32
+    /*
+     * On Windows, timespec_get is available only with UCRT, but not with
+     * MinGW64 environment. Simplify by using only gettimeofday on this
+     * platform. This may result in a precision loss.
+     */
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    uint64_t now_ns = tv.tv_sec * NANOSECONDS_PER_SECOND + tv.tv_usec * 1000;
+#else
+    /* We need nanosecond precision for short lived functions. */
+    struct timespec ts;
+    timespec_get(&ts, TIME_UTC);
+    uint64_t now_ns = ts.tv_sec * NANOSECONDS_PER_SECOND + ts.tv_nsec;
+#endif
+    return now_ns;
+}
 
 static Callstack *callstack_new(void)
 {
@@ -110,6 +159,86 @@ static CallstackEntry callstack_pop(Callstack *cs)
     CallstackEntry e = callstack_top(cs);
     g_array_set_size(cs->s, callstack_depth(cs) - 1);
     return e;
+}
+
+static Trace *trace_new(uint32_t id, GString *name)
+{
+    Trace *t = g_new0(Trace, 1);
+    t->t = g_array_new(false, false, sizeof(UftraceEntry));
+    t->path = g_string_new(NULL);
+    g_string_append_printf(t->path, "./uftrace.data/%"PRIu32".dat", id);
+    t->name = g_string_new(name->str);
+    t->id = id;
+    return t;
+}
+
+static void trace_free(Trace *t)
+{
+    g_assert(t->t->len == 0);
+    g_array_free(t->t, true);
+    t->t = NULL;
+    g_string_free(t->path, true);
+    t->path = NULL;
+    g_string_free(t->name, true);
+    t->name = NULL;
+    g_free(t);
+}
+
+static void trace_flush(Trace *t, bool append)
+{
+    int create_dir = g_mkdir_with_parents("./uftrace.data",
+                                          S_IRWXU | S_IRWXG | S_IRWXO);
+    g_assert(create_dir == 0);
+    FILE *dat = fopen(t->path->str, append ? "a" : "w");
+    g_assert(dat);
+    GArray *data = t->t;
+    if (data->len) {
+        size_t wrote = fwrite(data->data, sizeof(UftraceEntry), data->len, dat);
+        g_assert(wrote == data->len);
+    }
+    fclose(dat);
+    g_array_set_size(data, 0);
+}
+
+static void trace_add_entry(Trace *t, uint64_t timestamp, uint64_t pc,
+                            size_t depth, UftraceRecordType type)
+{
+    /* https://github.com/namhyung/uftrace/blob/v0.18/libmcount/record.c#L909 */
+    const uint64_t record_magic = 0x5;
+    uint64_t data = type | (record_magic << 3);
+    data += depth << 6;
+    data += pc << 16;
+    UftraceEntry e = {.timestamp = timestamp, .data = data};
+    g_array_append_val(t->t, e);
+    if (t->t->len * sizeof(UftraceEntry) > TRACE_FLUSH_SIZE) {
+        trace_flush(t, true);
+    }
+}
+
+static void trace_enter_function(Trace *t, uint64_t timestamp,
+                                 uint64_t pc, size_t depth)
+{
+    trace_add_entry(t, timestamp, pc, depth, UFTRACE_ENTRY);
+}
+
+static void trace_exit_function(Trace *t, uint64_t timestamp,
+                                uint64_t pc, size_t depth)
+{
+    trace_add_entry(t, timestamp, pc, depth, UFTRACE_EXIT);
+}
+
+static void trace_enter_stack(Trace *t, Callstack *cs, uint64_t timestamp)
+{
+    for (size_t depth = 1; depth <= callstack_depth(cs); ++depth) {
+        trace_enter_function(t, timestamp, callstack_at(cs, depth)->pc, depth);
+    }
+}
+
+static void trace_exit_stack(Trace *t, Callstack *cs, uint64_t timestamp)
+{
+    for (size_t depth = callstack_depth(cs); depth > 0; --depth) {
+        trace_exit_function(t, timestamp, callstack_at(cs, depth)->pc, depth);
+    }
 }
 
 static uint64_t cpu_read_register64(Cpu *cpu, struct qemu_plugin_register *reg)
@@ -223,7 +352,9 @@ static void track_callstack(unsigned int cpu_index, void *udata)
 {
     uint64_t pc = (uintptr_t) udata;
     Cpu *cpu = qemu_plugin_scoreboard_find(score, cpu_index);
+    uint64_t timestamp = gettime_ns();
     Callstack *cs = cpu->cs;
+    Trace *t = cpu->trace;
 
     uint64_t fp = cpu->ops.get_frame_pointer(cpu);
     if (!fp && callstack_empty(cs)) {
@@ -232,6 +363,7 @@ static void track_callstack(unsigned int cpu_index, void *udata)
          * long as a proper call does not happen.
          */
         callstack_push(cs, (CallstackEntry){.frame_pointer = fp, .pc = pc});
+        trace_enter_function(t, timestamp, pc, callstack_depth(cs));
         return;
     }
 
@@ -244,7 +376,8 @@ static void track_callstack(unsigned int cpu_index, void *udata)
     CallstackEntry caller = callstack_caller(cs);
     if (fp == caller.frame_pointer) {
         /* return */
-        callstack_pop(cs);
+        CallstackEntry e = callstack_pop(cs);
+        trace_exit_function(t, timestamp, e.pc, callstack_depth(cs));
         return;
     }
 
@@ -252,12 +385,16 @@ static void track_callstack(unsigned int cpu_index, void *udata)
     if (caller_fp == top.frame_pointer) {
         /* call */
         callstack_push(cs, (CallstackEntry){.frame_pointer = fp, .pc = pc});
+        trace_enter_function(t, timestamp, pc, callstack_depth(cs));
         return;
     }
 
     /* discontinuity, exit current stack and unwind new one */
+    trace_exit_stack(t, cs, timestamp);
     callstack_clear(cs);
+
     cpu_unwind_stack(cpu, fp, pc);
+    trace_enter_stack(t, cs, timestamp);
 }
 
 static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
@@ -297,6 +434,16 @@ static void vcpu_init(qemu_plugin_id_t id, unsigned int vcpu_index)
     cpu->ops.init(cpu);
     cpu->buf = g_byte_array_new();
 
+    g_assert(vcpu_index < UINT32_MAX / TRACE_ID_SCALE);
+    /* trace_id is: cpu_number * TRACE_ID_SCALE */
+    uint32_t trace_id = (vcpu_index + 1) * TRACE_ID_SCALE;
+
+    g_autoptr(GString) trace_name = g_string_new(NULL);
+    g_string_append_printf(trace_name, "cpu%u", vcpu_index);
+    cpu->trace = trace_new(trace_id, trace_name);
+    /* create/truncate trace file */
+    trace_flush(cpu->trace, false);
+
     cpu->cs = callstack_new();
 }
 
@@ -305,6 +452,7 @@ static void vcpu_end(unsigned int vcpu_index)
     Cpu *cpu = qemu_plugin_scoreboard_find(score, vcpu_index);
     g_byte_array_free(cpu->buf, true);
 
+    trace_free(cpu->trace);
     callstack_free(cpu->cs);
     memset(cpu, 0, sizeof(Cpu));
 }
@@ -312,6 +460,8 @@ static void vcpu_end(unsigned int vcpu_index)
 static void at_exit(qemu_plugin_id_t id, void *data)
 {
     for (size_t i = 0; i < qemu_plugin_num_vcpus(); ++i) {
+        Cpu *cpu = qemu_plugin_scoreboard_find(score, i);
+        trace_flush(cpu->trace, true);
         vcpu_end(i);
     }
 
