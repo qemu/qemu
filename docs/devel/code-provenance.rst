@@ -285,14 +285,18 @@ Such tools are acceptable to use, provided there is clearly defined copyright
 and licensing for their output. Note in particular the caveats applying to AI
 content generators below.
 
-Use of AI content generators
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Use of AI-generated content
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 TL;DR:
 
   **Current QEMU project policy is to DECLINE any contributions which are
   believed to include or derive from AI generated content. This includes
   ChatGPT, Claude, Copilot, Llama and similar tools.**
+
+  **This policy does not apply to other uses of AI, such as researching APIs
+  or algorithms, static analysis, or debugging, provided their output is not
+  included in contributions.**
 
 The increasing prevalence of AI-assisted software development results in a
 number of difficult legal questions and risks for software projects, including
@@ -321,10 +325,6 @@ not willing or able to accept the legal risks of non-compliance.
 The QEMU project thus requires that contributors refrain from using AI content
 generators on patches intended to be submitted to the project, and will
 decline any contribution if use of AI is either known or suspected.
-
-This policy does not apply to other uses of AI, such as researching APIs or
-algorithms, static analysis, or debugging, provided their output is not to be
-included in contributions.
 
 Examples of tools impacted by this policy includes GitHub's CoPilot, OpenAI's
 ChatGPT, Anthropic's Claude, and Meta's Code Llama, and code/content
