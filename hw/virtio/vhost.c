@@ -1846,7 +1846,7 @@ void vhost_config_mask(struct vhost_dev *hdev, VirtIODevice *vdev, bool mask)
     int r;
     EventNotifier *notifier =
         &hdev->vqs[VHOST_QUEUE_NUM_CONFIG_INR].masked_config_notifier;
-    EventNotifier *config_notifier = &vdev->config_notifier;
+    EventNotifier *config_notifier = virtio_config_get_guest_notifier(vdev);
     assert(hdev->vhost_ops);
 
     if ((hdev->started == false) ||
@@ -1877,13 +1877,15 @@ static void vhost_stop_config_intr(struct vhost_dev *dev)
 static void vhost_start_config_intr(struct vhost_dev *dev)
 {
     int r;
+    EventNotifier *config_notifier =
+        virtio_config_get_guest_notifier(dev->vdev);
 
     assert(dev->vhost_ops);
-    int fd = event_notifier_get_fd(&dev->vdev->config_notifier);
+    int fd = event_notifier_get_fd(config_notifier);
     if (dev->vhost_ops->vhost_set_config_call) {
         r = dev->vhost_ops->vhost_set_config_call(dev, fd);
         if (!r) {
-            event_notifier_set(&dev->vdev->config_notifier);
+            event_notifier_set(config_notifier);
         }
     }
 }
@@ -2167,12 +2169,13 @@ static int do_vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev,
 {
     int i;
     int rc = 0;
+    EventNotifier *config_notifier = virtio_config_get_guest_notifier(vdev);
 
     /* should only be called after backend is connected */
     assert(hdev->vhost_ops);
     event_notifier_test_and_clear(
         &hdev->vqs[VHOST_QUEUE_NUM_CONFIG_INR].masked_config_notifier);
-    event_notifier_test_and_clear(&vdev->config_notifier);
+    event_notifier_test_and_clear(config_notifier);
     event_notifier_cleanup(
         &hdev->vqs[VHOST_QUEUE_NUM_CONFIG_INR].masked_config_notifier);
 
