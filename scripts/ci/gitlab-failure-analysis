@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+#
+# A script to analyse failures in the gitlab pipelines. It requires an
+# API key from gitlab with the following permissions:
+#  - api
+#  - read_repository
+#  - read_user
+#
+
+import argparse
+import gitlab
+import os
+
+#
+# Arguments
+#
+class NoneForEmptyStringAction(argparse.Action):
+    def __call__(self, parser, namespace, value, option_string=None):
+        if value == '':
+            setattr(namespace, self.dest, None)
+        else:
+            setattr(namespace, self.dest, value)
+
+
+parser = argparse.ArgumentParser(description="Analyse failed GitLab CI runs.")
+
+parser.add_argument("--gitlab",
+                    default="https://gitlab.com",
+                    help="GitLab instance URL (default: https://gitlab.com).")
+parser.add_argument("--id", default=11167699,
+                    type=int,
+                    help="GitLab project id (default: 11167699 for qemu-project/qemu)")
+parser.add_argument("--token",
+                    default=os.getenv("GITLAB_TOKEN"),
+                    help="Your personal access token with 'api' scope.")
+parser.add_argument("--branch",
+                    type=str,
+                    default="staging",
+                    action=NoneForEmptyStringAction,
+                    help="The name of the branch (default: 'staging')")
+parser.add_argument("--status",
+                    type=str,
+                    action=NoneForEmptyStringAction,
+                    default="failed",
+                    help="Filter by branch status (default: 'failed')")
+parser.add_argument("--count", type=int,
+                    default=3,
+                    help="The number of failed runs to fetch.")
+parser.add_argument("--skip-jobs",
+                    default=False,
+                    action='store_true',
+                    help="Skip dumping the job info")
+parser.add_argument("--pipeline", type=int,
+                    nargs="+",
+                    default=None,
+                    help="Explicit pipeline ID(s) to fetch.")
+
+
+if __name__ == "__main__":
+    args = parser.parse_args()
+
+    gl = gitlab.Gitlab(url=args.gitlab, private_token=args.token)
+    project = gl.projects.get(args.id)
+
+
+    pipelines_to_process = []
+
+    # Use explicit pipeline IDs if provided, otherwise fetch a list
+    if args.pipeline:
+        args.count = len(args.pipeline)
+        for p_id in args.pipeline:
+            pipelines_to_process.append(project.pipelines.get(p_id))
+    else:
+        # Use an iterator to fetch the pipelines
+        pipe_iter = project.pipelines.list(iterator=True,
+                                           status=args.status,
+                                           ref=args.branch)
+        # Check each failed pipeline
+        pipelines_to_process = [next(pipe_iter) for _ in range(args.count)]
+
+    # Check each pipeline
+    for p in pipelines_to_process:
+
+        jobs = p.jobs.list(get_all=True)
+        failed_jobs = [j for j in jobs if j.status == "failed"]
+        skipped_jobs = [j for j in jobs if j.status == "skipped"]
+        manual_jobs = [j for j in jobs if j.status == "manual"]
+
+        trs = p.test_report_summary.get()
+        total = trs.total["count"]
+        skipped = trs.total["skipped"]
+        failed = trs.total["failed"]
+
+        print(f"{p.status} pipeline {p.id}, total jobs {len(jobs)}, "
+              f"skipped {len(skipped_jobs)}, "
+              f"failed {len(failed_jobs)}, ",
+              f"{total} tests, "
+              f"{skipped} skipped tests, "
+              f"{failed} failed tests")
+
+        if not args.skip_jobs:
+            for j in failed_jobs:
+                print(f"  Failed job {j.id}, {j.name}, {j.web_url}")
+
+        # It seems we can only extract failing tests from the full
+        # test report, maybe there is some way to filter it.
+
+        if failed > 0:
+            ftr = p.test_report.get()
+            failed_suites = [s for s in ftr.test_suites if
+                             s["failed_count"] > 0]
+            for fs in failed_suites:
+                name = fs["name"]
+                tests = fs["test_cases"]
+                failed_tests = [t for t in tests if t["status"] == 'failed']
+                for t in failed_tests:
+                    print(f"  Failed test {t["classname"]}, {name}, {t["name"]}")
