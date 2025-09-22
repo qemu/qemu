@@ -331,8 +331,13 @@ ChatGPT, Anthropic's Claude, and Meta's Code Llama, and code/content
 generation agents which are built on top of such tools.
 
 This policy may evolve as AI tools mature and the legal situation is
-clarifed. In the meanwhile, requests for exceptions to this policy will be
-evaluated by the QEMU project on a case by case basis. To be granted an
-exception, a contributor will need to demonstrate clarity of the license and
-copyright status for the tool's output in relation to its training model and
-code, to the satisfaction of the project maintainers.
+clarified.
+
+Exceptions
+^^^^^^^^^^
+
+The QEMU project welcomes discussion on any exceptions to this policy,
+or more general revisions. This can be done by contacting the qemu-devel
+mailing list with details of a proposed tool, model, usage scenario, etc.
+that is beneficial to QEMU, while still mitigating issues around compliance
+with the DCO.  After discussion, any exception will be listed below.
