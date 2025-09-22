@@ -132,6 +132,11 @@ static void ich9_cc_init(ICH9LPCState *lpc)
 static void ich9_cc_reset(ICH9LPCState *lpc)
 {
     uint8_t *c = lpc->chip_config;
+    uint32_t gcs = ICH9_CC_GCS_DEFAULT;
+
+    if (lpc->pin_strap.spkr_hi) {
+        gcs |= ICH9_CC_GCS_NO_REBOOT;
+    }
 
     memset(lpc->chip_config, 0, sizeof(lpc->chip_config));
 
@@ -142,7 +147,7 @@ static void ich9_cc_reset(ICH9LPCState *lpc)
     pci_set_long(c + ICH9_CC_D27IR, ICH9_CC_DIR_DEFAULT);
     pci_set_long(c + ICH9_CC_D26IR, ICH9_CC_DIR_DEFAULT);
     pci_set_long(c + ICH9_CC_D25IR, ICH9_CC_DIR_DEFAULT);
-    pci_set_long(c + ICH9_CC_GCS, ICH9_CC_GCS_DEFAULT);
+    pci_set_long(c + ICH9_CC_GCS, gcs);
 
     ich9_cc_update(lpc);
 }
