@@ -3186,63 +3186,33 @@ void cpu_physical_memory_rw(hwaddr addr, void *buf,
                      buf, len, is_write);
 }
 
-enum write_rom_type {
-    WRITE_DATA,
-    FLUSH_CACHE,
-};
-
-static inline MemTxResult address_space_write_rom_internal(AddressSpace *as,
-                                                           hwaddr addr,
-                                                           MemTxAttrs attrs,
-                                                           const void *ptr,
-                                                           hwaddr len,
-                                                           enum write_rom_type type)
-{
-    hwaddr l;
-    uint8_t *ram_ptr;
-    hwaddr addr1;
-    MemoryRegion *mr;
-    const uint8_t *buf = ptr;
-
-    RCU_READ_LOCK_GUARD();
-    while (len > 0) {
-        l = len;
-        mr = address_space_translate(as, addr, &addr1, &l, true, attrs);
-
-        if (!memory_region_supports_direct_access(mr)) {
-            l = memory_access_size(mr, l, addr1);
-        } else {
-            /* ROM/RAM case */
-            ram_ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
-            switch (type) {
-            case WRITE_DATA:
-                memcpy(ram_ptr, buf, l);
-                invalidate_and_set_dirty(mr, addr1, l);
-                break;
-            case FLUSH_CACHE:
-                flush_idcache_range((uintptr_t)ram_ptr, (uintptr_t)ram_ptr, l);
-                break;
-            }
-        }
-        len -= l;
-        addr += l;
-        if (buf) {
-            buf += l;
-        }
-    }
-    return MEMTX_OK;
-}
-
 /* used for ROM loading : can write in RAM and ROM */
 MemTxResult address_space_write_rom(AddressSpace *as, hwaddr addr,
                                     MemTxAttrs attrs,
                                     const void *buf, hwaddr len)
 {
-    return address_space_write_rom_internal(as, addr, attrs,
-                                            buf, len, WRITE_DATA);
+    RCU_READ_LOCK_GUARD();
+    while (len > 0) {
+        hwaddr addr1, l = len;
+        MemoryRegion *mr = address_space_translate(as, addr, &addr1, &l,
+                                                   true, attrs);
+
+        if (!memory_region_supports_direct_access(mr)) {
+            l = memory_access_size(mr, l, addr1);
+        } else {
+            /* ROM/RAM case */
+            void *ram_ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+            memcpy(ram_ptr, buf, l);
+            invalidate_and_set_dirty(mr, addr1, l);
+        }
+        len -= l;
+        addr += l;
+        buf += l;
+    }
+    return MEMTX_OK;
 }
 
-void cpu_flush_icache_range(hwaddr start, hwaddr len)
+void cpu_flush_icache_range(hwaddr addr, hwaddr len)
 {
     /*
      * This function should do the same thing as an icache flush that was
@@ -3254,9 +3224,23 @@ void cpu_flush_icache_range(hwaddr start, hwaddr len)
         return;
     }
 
-    address_space_write_rom_internal(&address_space_memory,
-                                     start, MEMTXATTRS_UNSPECIFIED,
-                                     NULL, len, FLUSH_CACHE);
+    RCU_READ_LOCK_GUARD();
+    while (len > 0) {
+        hwaddr addr1, l = len;
+        MemoryRegion *mr = address_space_translate(&address_space_memory,
+                                                   addr, &addr1, &l, true,
+                                                   MEMTXATTRS_UNSPECIFIED);
+
+        if (!memory_region_supports_direct_access(mr)) {
+            l = memory_access_size(mr, l, addr1);
+        } else {
+            /* ROM/RAM case */
+            void *ram_ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+            flush_idcache_range((uintptr_t)ram_ptr, (uintptr_t)ram_ptr, l);
+        }
+        len -= l;
+        addr += l;
+    }
 }
 
 /*
