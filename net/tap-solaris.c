@@ -227,6 +227,11 @@ int tap_probe_has_uso(int fd)
     return 0;
 }
 
+bool tap_probe_has_tunnel(int fd)
+{
+    return false;
+}
+
 void tap_fd_set_vnet_hdr_len(int fd, int len)
 {
 }
