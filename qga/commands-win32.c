@@ -1164,15 +1164,15 @@ static GuestFilesystemInfo *build_guest_fsinfo(char *guid, Error **errp)
         fs->mountpoint = g_strdup("System Reserved");
     } else {
         fs->mountpoint = g_strndup(mnt_point, len);
-        if (GetDiskFreeSpaceEx(fs->mountpoint,
-                               (PULARGE_INTEGER) & i64FreeBytesToCaller,
-                               (PULARGE_INTEGER) & i64TotalBytes,
-                               (PULARGE_INTEGER) & i64FreeBytes)) {
-            fs->used_bytes = i64TotalBytes - i64FreeBytes;
-            fs->total_bytes = i64TotalBytes;
-            fs->has_total_bytes = true;
-            fs->has_used_bytes = true;
-        }
+    }
+    if (GetDiskFreeSpaceEx(fs->name,
+                            (PULARGE_INTEGER) & i64FreeBytesToCaller,
+                            (PULARGE_INTEGER) & i64TotalBytes,
+                            (PULARGE_INTEGER) & i64FreeBytes)) {
+        fs->used_bytes = i64TotalBytes - i64FreeBytes;
+        fs->total_bytes = i64TotalBytes;
+        fs->has_total_bytes = true;
+        fs->has_used_bytes = true;
     }
     wcstombs(fs_name, wfs_name, sizeof(wfs_name));
     fs->type = g_strdup(fs_name);
