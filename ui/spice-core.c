@@ -128,11 +128,13 @@ static void watch_update_mask(SpiceWatch *watch, int event_mask)
 static SpiceWatch *watch_add(int fd, int event_mask, SpiceWatchFunc func, void *opaque)
 {
     SpiceWatch *watch;
-
 #ifdef WIN32
+    g_autofree char *msg = NULL;
+
     fd = _open_osfhandle(fd, _O_BINARY);
     if (fd < 0) {
-        error_setg_win32(&error_warn, WSAGetLastError(), "Couldn't associate a FD with the SOCKET");
+        msg = g_win32_error_message(WSAGetLastError());
+        warn_report("Couldn't associate a FD with the SOCKET: %s", msg);
         return NULL;
     }
 #endif
