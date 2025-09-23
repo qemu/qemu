@@ -182,7 +182,7 @@ bool qemu_set_blocking(int fd, bool block, Error **errp)
     unsigned long opt = block ? 0 : 1;
 
     if (block) {
-        qemu_socket_unselect(fd, NULL);
+        qemu_socket_unselect(fd, &error_warn);
     }
 
     if (ioctlsocket(fd, FIONBIO, &opt) != NO_ERROR) {
@@ -292,10 +292,6 @@ bool qemu_socket_select(int sockfd, WSAEVENT hEventObject,
                         long lNetworkEvents, Error **errp)
 {
     SOCKET s = _get_osfhandle(sockfd);
-
-    if (errp == NULL) {
-        errp = &error_warn;
-    }
 
     if (s == INVALID_SOCKET) {
         error_setg(errp, "invalid socket fd=%d", sockfd);
