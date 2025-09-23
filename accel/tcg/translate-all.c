@@ -289,6 +289,10 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
     tb = tcg_tb_alloc(tcg_ctx);
     if (unlikely(!tb)) {
         /* flush must be done */
+        if (cpu_in_serial_context(cpu)) {
+            tb_flush__exclusive_or_serial();
+            goto buffer_overflow;
+        }
         queue_tb_flush(cpu);
         mmap_unlock();
         /* Make the execution loop process the flush as soon as possible.  */
