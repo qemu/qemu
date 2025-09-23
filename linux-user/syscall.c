@@ -27,8 +27,6 @@
 #include "target_mman.h"
 #include "exec/page-protection.h"
 #include "exec/mmap-lock.h"
-#include "exec/tb-flush.h"
-#include "exec/translation-block.h"
 #include <elf.h>
 #include <endian.h>
 #include <grp.h>
@@ -6667,10 +6665,7 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
          * generate code for parallel execution and flush old translations.
          * Do this now so that the copy gets CF_PARALLEL too.
          */
-        if (!tcg_cflags_has(cpu, CF_PARALLEL)) {
-            tcg_cflags_set(cpu, CF_PARALLEL);
-            tb_flush(cpu);
-        }
+        begin_parallel_context(cpu);
 
         /* we create a new CPU instance. */
         new_env = cpu_copy(env);

@@ -20,6 +20,8 @@
 
 #include "user/thunk.h"
 #include "qemu/log.h"
+#include "exec/tb-flush.h"
+#include "exec/translation-block.h"
 
 extern char *exec_path;
 void init_task_state(TaskState *ts);
@@ -171,6 +173,20 @@ static inline int regpairs_aligned(CPUArchState *cpu_env, int num) { return 0; }
  * code: the exit code
  */
 void preexit_cleanup(CPUArchState *env, int code);
+
+/**
+ * begin_parallel_context
+ * @cs: the CPU context
+ *
+ * Called when starting the second vcpu, or joining shared memory.
+ */
+static inline void begin_parallel_context(CPUState *cs)
+{
+    if (!tcg_cflags_has(cs, CF_PARALLEL)) {
+        tb_flush__exclusive_or_serial();
+        tcg_cflags_set(cs, CF_PARALLEL);
+    }
+}
 
 /*
  * Include target-specific struct and function definitions;
