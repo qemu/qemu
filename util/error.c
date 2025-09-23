@@ -19,7 +19,6 @@
 
 Error *error_abort;
 Error *error_fatal;
-Error *error_warn;
 
 static void error_handle(Error **errp, Error *err)
 {
@@ -41,9 +40,7 @@ static void error_handle(Error **errp, Error *err)
         error_report_err(err);
         exit(1);
     }
-    if (errp == &error_warn) {
-        warn_report_err(err);
-    } else if (errp && !*errp) {
+    if (errp && !*errp) {
         *errp = err;
     } else {
         error_free(err);

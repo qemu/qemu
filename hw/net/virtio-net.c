@@ -1289,6 +1289,8 @@ exit:
 
 static bool virtio_net_load_ebpf(VirtIONet *n, Error **errp)
 {
+    Error *err = NULL;
+
     if (!virtio_net_attach_ebpf_to_backend(n->nic, -1)) {
         return true;
     }
@@ -1306,7 +1308,11 @@ static bool virtio_net_load_ebpf(VirtIONet *n, Error **errp)
         return virtio_net_load_ebpf_fds(n, errp);
     }
 
-    ebpf_rss_load(&n->ebpf_rss, &error_warn);
+    ebpf_rss_load(&n->ebpf_rss, &err);
+    /* Beware, ebpf_rss_load() can return false with @err unset */
+    if (err) {
+        warn_report_err(err);
+    }
     return true;
 }
 

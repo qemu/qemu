@@ -121,7 +121,7 @@ void aio_set_fd_handler(AioContext *ctx,
 
         QLIST_INSERT_HEAD_RCU(&ctx->aio_handlers, node, node);
         event = event_notifier_get_handle(&ctx->notifier);
-        qemu_socket_select(fd, event, bitmask, &error_warn);
+        qemu_socket_select_nofail(fd, event, bitmask);
     }
     if (old_node) {
         aio_remove_fd_handler(ctx, old_node);
