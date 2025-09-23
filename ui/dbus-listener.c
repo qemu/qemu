@@ -221,17 +221,20 @@ static void dbus_update_gl_cb(GObject *source_object,
 #ifdef CONFIG_GBM
     success = qemu_dbus_display1_listener_call_update_dmabuf_finish(
         ddl->proxy, res, &err);
+    if (!success) {
+        error_report("Failed to call update: %s", err->message);
+    }
 #endif
 
 #ifdef WIN32
     success = qemu_dbus_display1_listener_win32_d3d11_call_update_texture2d_finish(
         ddl->d3d11_proxy, res, &err);
-    d3d_texture2d_acquire0(ddl->d3d_texture, &error_warn);
-#endif
-
     if (!success) {
         error_report("Failed to call update: %s", err->message);
     }
+
+    d3d_texture2d_acquire0(ddl->d3d_texture, &error_warn);
+#endif
 
     graphic_hw_gl_block(ddl->dcl.con, false);
     g_object_unref(ddl);
