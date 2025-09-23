@@ -288,7 +288,10 @@ qemu_pixman_shareable_free(qemu_pixman_shareable handle,
                            void *ptr, size_t size)
 {
 #ifdef WIN32
-    qemu_win32_map_free(ptr, handle, &error_warn);
+    Error *err = NULL;
+
+    qemu_win32_map_free(ptr, handle, &err);
+    error_report_err(err);
 #else
     qemu_memfd_free(ptr, size, handle);
 #endif
