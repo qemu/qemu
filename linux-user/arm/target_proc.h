@@ -6,6 +6,8 @@
 #ifndef ARM_TARGET_PROC_H
 #define ARM_TARGET_PROC_H
 
+#include "target/arm/cpu-features.h" /* for MIDR_EL1 field definitions */
+
 static int open_cpuinfo(CPUArchState *cpu_env, int fd)
 {
     ARMCPU *cpu = env_archcpu(cpu_env);
