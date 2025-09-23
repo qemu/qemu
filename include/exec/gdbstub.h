@@ -55,9 +55,6 @@ void gdb_unregister_coprocessor_all(CPUState *cpu);
  * system emulation you can use a full chardev spec for your gdbserver
  * port.
  *
- * The error handle should be either &error_fatal (for start-up) or
- * &error_warn (for QMP/HMP initiated sessions).
- *
  * Returns true when server successfully started.
  */
 bool gdbserver_start(const char *port_or_device, Error **errp);
