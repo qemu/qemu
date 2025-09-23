@@ -25,7 +25,7 @@
 #include "exec/helper-gen.h"
 
 #include "exec/translator.h"
-#include "accel/tcg/cpu-ldst.h"
+#include "exec/cpu_ldst.h"
 #include "exec/translation-block.h"
 #include "exec/log.h"
 #include "semihosting/semihost.h"
