@@ -7539,6 +7539,20 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w)
 #endif
         break;
 
+    case FEAT_7_0_EDX:
+        /*
+         * Windows does not like ARCH_CAPABILITIES on AMD machines at all.
+         * Do not show the fake ARCH_CAPABILITIES MSR that KVM sets up,
+         * except if needed for migration.
+         *
+         * When arch_cap_always_on is removed, this tweak can move to
+         * kvm_arch_get_supported_cpuid.
+         */
+        if (cpu && IS_AMD_CPU(&cpu->env) && !cpu->arch_cap_always_on) {
+            unavail = CPUID_7_0_EDX_ARCH_CAPABILITIES;
+        }
+        break;
+
     default:
         break;
     }
@@ -10004,6 +10018,9 @@ static const Property x86_cpu_properties[] = {
                      true),
     DEFINE_PROP_BOOL("x-l1-cache-per-thread", X86CPU, l1_cache_per_core, true),
     DEFINE_PROP_BOOL("x-force-cpuid-0x1f", X86CPU, force_cpuid_0x1f, false),
+
+    DEFINE_PROP_BOOL("x-arch-cap-always-on", X86CPU,
+                     arch_cap_always_on, false),
 };
 
 #ifndef CONFIG_USER_ONLY

@@ -2314,6 +2314,12 @@ struct ArchCPU {
     /* Forcefully disable KVM PV features not exposed in guest CPUIDs */
     bool kvm_pv_enforce_cpuid;
 
+    /*
+     * Expose arch-capabilities unconditionally even on AMD models, for backwards
+     * compatibility with QEMU <10.1.
+     */
+    bool arch_cap_always_on;
+
     /* Number of physical address bits supported */
     uint32_t phys_bits;
 
