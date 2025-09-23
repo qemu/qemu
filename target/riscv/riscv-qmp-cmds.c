@@ -342,7 +342,7 @@ int target_get_monitor_def(CPUState *cs, const char *name, uint64_t *pval)
     }
 
     if (reg_is_vreg(name)) {
-        if (!riscv_has_ext(env, RVV)) {
+        if (!riscv_cpu_cfg(env)->ext_zve32x) {
             return -EINVAL;
         }
 
