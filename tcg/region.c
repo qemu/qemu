@@ -832,13 +832,16 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_threads)
             } else {
 #ifdef CONFIG_POSIX
                 rc = mprotect(start, end - start, need_prot);
+                if (rc) {
+                    error_report("mprotect of jit buffer: %s",
+                                 strerror(errno));
+                }
 #else
                 g_assert_not_reached();
 #endif
             }
             if (rc) {
-                error_setg_errno(&error_fatal, errno,
-                                 "mprotect of jit buffer");
+                exit(1);
             }
         }
         if (have_prot != 0) {
