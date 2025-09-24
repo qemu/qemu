@@ -8,7 +8,7 @@ ARG PIXMAN_VERSION=0.44.2
 ARG FFI_VERSION=v3.4.7
 ARG MESON_VERSION=1.5.0
 
-FROM emscripten/emsdk:$EMSDK_VERSION_QEMU AS build-base
+FROM docker.io/emscripten/emsdk:$EMSDK_VERSION_QEMU AS build-base
 ARG MESON_VERSION
 ENV TARGET=/builddeps/target
 ENV CPATH="$TARGET/include"
