@@ -1350,7 +1350,13 @@ if get_option('spice') \
 endif
 spice_headers = spice.partial_dependency(compile_args: true, includes: true)
 
-rt = cc.find_library('rt', required: false)
+rt = not_found
+if host_os != 'windows'
+  have_shm_open = cc.has_function('shm_open')
+  if not have_shm_open
+    rt = cc.find_library('rt', required: true)
+  endif
+endif
 
 libiscsi = not_found
 if not get_option('libiscsi').auto() or have_block
@@ -3812,14 +3818,10 @@ util_ss = util_ss.apply({})
 libqemuutil = static_library('qemuutil',
                              build_by_default: false,
                              sources: util_ss.sources() + stub_ss.sources() + genh,
-                             dependencies: [util_ss.dependencies(), libm, threads, glib, socket, malloc])
-qemuutil_deps = [event_loop_base]
-if host_os != 'windows'
-  qemuutil_deps += [rt]
-endif
+                             dependencies: [util_ss.dependencies(), libm, threads, glib, socket, malloc, rt])
 qemuutil = declare_dependency(link_with: libqemuutil,
                               sources: genh + version_res,
-                              dependencies: qemuutil_deps)
+                              dependencies: [event_loop_base])
 
 if have_system or have_user
   decodetree = generator(find_program('scripts/decodetree.py'),
