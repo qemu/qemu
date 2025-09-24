@@ -48,8 +48,6 @@ struct DisasContext {
 
 #ifdef CONFIG_USER_ONLY
     MemOp unalign;
-#else
-    uint64_t palbr;
 #endif
     uint32_t tbflags;
     int mem_idx;
@@ -1155,7 +1153,6 @@ static DisasJumpType gen_call_pal(DisasContext *ctx, int palcode)
 #else
     {
         TCGv tmp = tcg_temp_new();
-        uint64_t entry;
 
         gen_pc_disp(ctx, tmp, 0);
         if (ctx->tbflags & ENV_FLAG_PAL_MODE) {
@@ -1165,12 +1162,11 @@ static DisasJumpType gen_call_pal(DisasContext *ctx, int palcode)
         }
         tcg_gen_st_i64(tmp, tcg_env, offsetof(CPUAlphaState, exc_addr));
 
-        entry = ctx->palbr;
-        entry += (palcode & 0x80
-                  ? 0x2000 + (palcode - 0x80) * 64
-                  : 0x1000 + palcode * 64);
-
-        tcg_gen_movi_i64(cpu_pc, entry);
+        tcg_gen_ld_i64(cpu_pc, tcg_env, offsetof(CPUAlphaState, palbr));
+        tcg_gen_addi_i64(cpu_pc, cpu_pc,
+                         palcode & 0x80
+                         ? 0x2000 + (palcode - 0x80) * 64
+                         : 0x1000 + palcode * 64);
         return DISAS_PC_UPDATED;
     }
 #endif
@@ -1292,11 +1288,7 @@ static DisasJumpType gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
     case 7:
         /* PALBR */
         tcg_gen_st_i64(vb, tcg_env, offsetof(CPUAlphaState, palbr));
-        /* Changing the PAL base register implies un-chaining all of the TBs
-           that ended with a CALL_PAL.  Since the base register usually only
-           changes during boot, flushing everything works well.  */
-        gen_helper_tb_flush(tcg_env);
-        return DISAS_PC_STALE;
+        break;
 
     case 32 ... 39:
         /* Accessing the "non-shadow" general registers.  */
@@ -2874,7 +2866,6 @@ static void alpha_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
     ctx->ir = cpu_std_ir;
     ctx->unalign = (ctx->tbflags & TB_FLAG_UNALIGN ? MO_UNALN : MO_ALIGN);
 #else
-    ctx->palbr = env->palbr;
     ctx->ir = (ctx->tbflags & ENV_FLAG_PAL_MODE ? cpu_pal_ir : cpu_std_ir);
 #endif
 

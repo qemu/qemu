@@ -690,6 +690,12 @@ typedef struct target_siginfo {
 #define TARGET_TRAP_UNK         (5)     /* undiagnosed trap */
 
 /*
+ * SIGSYS si_codes
+ */
+#define TARGET_SYS_SECCOMP       (1)  /* seccomp triggered */
+#define TARGET_SYS_USER_DISPATCH (2)  /* syscall user dispatch triggered */
+
+/*
  * SIGEMT si_codes
  */
 #define TARGET_EMT_TAGOVF      1       /* tag overflow */

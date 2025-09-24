@@ -117,6 +117,8 @@ typedef struct {
     unsigned reloc_count;
     unsigned sigreturn_ofs;
     unsigned rt_sigreturn_ofs;
+    unsigned sigreturn_region_start_ofs;
+    unsigned sigreturn_region_end_ofs;
 } VdsoImageInfo;
 
 /* Note that both Elf32_Word and Elf64_Word are uint32_t. */

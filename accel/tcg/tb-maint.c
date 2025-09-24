@@ -36,6 +36,9 @@
 #include "internal-common.h"
 #ifdef CONFIG_USER_ONLY
 #include "user/page-protection.h"
+#define runstate_is_running()  true
+#else
+#include "system/runstate.h"
 #endif
 
 
@@ -88,7 +91,10 @@ static IntervalTreeRoot tb_root;
 
 static void tb_remove_all(void)
 {
-    assert_memory_lock();
+    /*
+     * Only called from tb_flush__exclusive_or_serial, where we have already
+     * asserted that we're in an exclusive state.
+     */
     memset(&tb_root, 0, sizeof(tb_root));
 }
 
@@ -756,17 +762,19 @@ static void tb_remove(TranslationBlock *tb)
 }
 #endif /* CONFIG_USER_ONLY */
 
-/* flush all the translation blocks */
-static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
+/*
+ * Flush all the translation blocks.
+ * Must be called from a context in which no cpus are running,
+ * e.g. start_exclusive() or vm_stop().
+ */
+void tb_flush__exclusive_or_serial(void)
 {
-    bool did_flush = false;
+    CPUState *cpu;
 
-    mmap_lock();
-    /* If it is already been done on request of another CPU, just retry. */
-    if (tb_ctx.tb_flush_count != tb_flush_count.host_int) {
-        goto done;
-    }
-    did_flush = true;
+    assert(tcg_enabled());
+    /* Note that cpu_in_serial_context checks cpu_in_exclusive_context. */
+    assert(!runstate_is_running() ||
+           (current_cpu && cpu_in_serial_context(current_cpu)));
 
     CPU_FOREACH(cpu) {
         tcg_flush_jmp_cache(cpu);
@@ -778,25 +786,23 @@ static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
     tcg_region_reset_all();
     /* XXX: flush processor icache at this point if cache flush is expensive */
     qatomic_inc(&tb_ctx.tb_flush_count);
+    qemu_plugin_flush_cb();
+}
 
-done:
-    mmap_unlock();
-    if (did_flush) {
-        qemu_plugin_flush_cb();
+static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
+{
+    /* If it is already been done on request of another CPU, just retry. */
+    if (tb_ctx.tb_flush_count == tb_flush_count.host_int) {
+        tb_flush__exclusive_or_serial();
     }
 }
 
-void tb_flush(CPUState *cpu)
+void queue_tb_flush(CPUState *cs)
 {
     if (tcg_enabled()) {
         unsigned tb_flush_count = qatomic_read(&tb_ctx.tb_flush_count);
-
-        if (cpu_in_serial_context(cpu)) {
-            do_tb_flush(cpu, RUN_ON_CPU_HOST_INT(tb_flush_count));
-        } else {
-            async_safe_run_on_cpu(cpu, do_tb_flush,
-                                  RUN_ON_CPU_HOST_INT(tb_flush_count));
-        }
+        async_safe_run_on_cpu(cs, do_tb_flush,
+                              RUN_ON_CPU_HOST_INT(tb_flush_count));
     }
 }
 
@@ -836,6 +842,14 @@ static inline void tb_remove_from_jmp_list(TranslationBlock *orig, int n_orig)
      * We first acquired the lock, and since the destination pointer matches,
      * we know for sure that @orig is in the jmp list.
      */
+    if (dest == orig) {
+        /*
+         * In the case of a TB that links to itself, removing the entry
+         * from the list means that it won't be present later during
+         * tb_jmp_unlink -- unlink now.
+         */
+        tb_reset_jump(orig, n_orig);
+    }
     pprev = &dest->jmp_list_head;
     TB_FOR_EACH_JMP(dest, tb, n) {
         if (tb == orig && n == n_orig) {
@@ -1154,7 +1168,6 @@ tb_invalidate_phys_page_range__locked(CPUState *cpu,
         page_collection_unlock(pages);
         /* Force execution of one insn next time.  */
         cpu->cflags_next_tb = 1 | CF_NOIRQ | curr_cflags(cpu);
-        mmap_unlock();
         cpu_loop_exit_noexc(cpu);
     }
 }

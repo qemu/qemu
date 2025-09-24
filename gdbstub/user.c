@@ -15,7 +15,6 @@
 #include "qemu/sockets.h"
 #include "qapi/error.h"
 #include "exec/hwaddr.h"
-#include "exec/tb-flush.h"
 #include "exec/gdbstub.h"
 #include "gdbstub/commands.h"
 #include "gdbstub/syscalls.h"
@@ -220,7 +219,6 @@ int gdb_handlesig(CPUState *cpu, int sig, const char *reason, void *siginfo,
 
     /* disable single step if it was enabled */
     cpu_single_step(cpu, 0);
-    tb_flush(cpu);
 
     if (sig != 0) {
         gdb_set_stop_cpu(cpu);
@@ -539,7 +537,6 @@ static void disable_gdbstub(CPUState *thread_cpu)
         /* no cpu_watchpoint_remove_all for user-mode */
         cpu_single_step(cpu, 0);
     }
-    tb_flush(thread_cpu);
 }
 
 void gdbserver_fork_end(CPUState *cpu, pid_t pid)

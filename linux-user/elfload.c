@@ -1659,6 +1659,11 @@ static void load_elf_vdso(struct image_info *info, const VdsoImageInfo *vdso)
     if (vdso->rt_sigreturn_ofs) {
         default_rt_sigreturn = load_addr + vdso->rt_sigreturn_ofs;
     }
+    if (vdso->sigreturn_region_start_ofs) {
+        vdso_sigreturn_region_start =
+            load_addr + vdso->sigreturn_region_start_ofs;
+        vdso_sigreturn_region_end = load_addr + vdso->sigreturn_region_end_ofs;
+    }
 
     /* Remove write from VDSO segment. */
     target_mprotect(info->start_data, info->end_data - info->start_data,
@@ -1969,6 +1974,8 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
 
         setup_sigtramp(tramp_page);
         target_mprotect(tramp_page, TARGET_PAGE_SIZE, PROT_READ | PROT_EXEC);
+        vdso_sigreturn_region_start = tramp_page;
+        vdso_sigreturn_region_end = tramp_page + TARGET_PAGE_SIZE;
     }
 
     bprm->p = create_elf_tables(bprm->p, bprm->argc, bprm->envc, &ehdr, info,

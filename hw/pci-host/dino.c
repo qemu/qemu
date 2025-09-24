@@ -413,6 +413,47 @@ static void dino_pcihost_reset(DeviceState *dev)
 static void dino_pcihost_realize(DeviceState *dev, Error **errp)
 {
     DinoState *s = DINO_PCI_HOST_BRIDGE(dev);
+    PCIHostState *phb = PCI_HOST_BRIDGE(dev);
+
+    /* Dino PCI access from main memory.  */
+    memory_region_init_io(&s->this_mem, OBJECT(s), &dino_chip_ops,
+                          s, "dino", 4096);
+
+    /* Dino PCI config. */
+    memory_region_init_io(&phb->conf_mem, OBJECT(phb),
+                          &dino_config_addr_ops, DEVICE(s),
+                          "pci-conf-idx", 4);
+    memory_region_init_io(&phb->data_mem, OBJECT(phb),
+                          &dino_config_data_ops, DEVICE(s),
+                          "pci-conf-data", 4);
+    memory_region_add_subregion(&s->this_mem, DINO_PCI_CONFIG_ADDR,
+                                &phb->conf_mem);
+    memory_region_add_subregion(&s->this_mem, DINO_CONFIG_DATA,
+                                &phb->data_mem);
+
+    /* Dino PCI bus memory.  */
+    memory_region_init(&s->pci_mem, OBJECT(s), "pci-memory", 4 * GiB);
+
+    phb->bus = pci_register_root_bus(DEVICE(s), "pci",
+                                     dino_set_irq, dino_pci_map_irq, s,
+                                     &s->pci_mem, get_system_io(),
+                                     PCI_DEVFN(0, 0), 32, TYPE_PCI_BUS);
+
+    /* Set up windows into PCI bus memory.  */
+    for (int i = 1; i < 31; i++) {
+        uint32_t addr = 0xf0000000 + i * DINO_MEM_CHUNK_SIZE;
+        char *name = g_strdup_printf("PCI Outbound Window %d", i);
+        memory_region_init_alias(&s->pci_mem_alias[i], OBJECT(s),
+                                 name, &s->pci_mem, addr,
+                                 DINO_MEM_CHUNK_SIZE);
+        g_free(name);
+    }
+
+    pci_setup_iommu(phb->bus, &dino_iommu_ops, s);
+
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->this_mem);
+
+    qdev_init_gpio_in(dev, dino_set_irq, DINO_IRQS);
 
     /* Set up PCI view of memory: Bus master address space.  */
     memory_region_init(&s->bm, OBJECT(s), "bm-dino", 4 * GiB);
@@ -444,54 +485,6 @@ static void dino_pcihost_unrealize(DeviceState *dev)
     address_space_destroy(&s->bm_as);
 }
 
-static void dino_pcihost_init(Object *obj)
-{
-    DinoState *s = DINO_PCI_HOST_BRIDGE(obj);
-    PCIHostState *phb = PCI_HOST_BRIDGE(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    int i;
-
-    /* Dino PCI access from main memory.  */
-    memory_region_init_io(&s->this_mem, OBJECT(s), &dino_chip_ops,
-                          s, "dino", 4096);
-
-    /* Dino PCI config. */
-    memory_region_init_io(&phb->conf_mem, OBJECT(phb),
-                          &dino_config_addr_ops, DEVICE(s),
-                          "pci-conf-idx", 4);
-    memory_region_init_io(&phb->data_mem, OBJECT(phb),
-                          &dino_config_data_ops, DEVICE(s),
-                          "pci-conf-data", 4);
-    memory_region_add_subregion(&s->this_mem, DINO_PCI_CONFIG_ADDR,
-                                &phb->conf_mem);
-    memory_region_add_subregion(&s->this_mem, DINO_CONFIG_DATA,
-                                &phb->data_mem);
-
-    /* Dino PCI bus memory.  */
-    memory_region_init(&s->pci_mem, OBJECT(s), "pci-memory", 4 * GiB);
-
-    phb->bus = pci_register_root_bus(DEVICE(s), "pci",
-                                     dino_set_irq, dino_pci_map_irq, s,
-                                     &s->pci_mem, get_system_io(),
-                                     PCI_DEVFN(0, 0), 32, TYPE_PCI_BUS);
-
-    /* Set up windows into PCI bus memory.  */
-    for (i = 1; i < 31; i++) {
-        uint32_t addr = 0xf0000000 + i * DINO_MEM_CHUNK_SIZE;
-        char *name = g_strdup_printf("PCI Outbound Window %d", i);
-        memory_region_init_alias(&s->pci_mem_alias[i], OBJECT(s),
-                                 name, &s->pci_mem, addr,
-                                 DINO_MEM_CHUNK_SIZE);
-        g_free(name);
-    }
-
-    pci_setup_iommu(phb->bus, &dino_iommu_ops, s);
-
-    sysbus_init_mmio(sbd, &s->this_mem);
-
-    qdev_init_gpio_in(DEVICE(obj), dino_set_irq, DINO_IRQS);
-}
-
 static const Property dino_pcihost_properties[] = {
     DEFINE_PROP_LINK("memory-as", DinoState, memory_as, TYPE_MEMORY_REGION,
                      MemoryRegion *),
@@ -511,7 +504,6 @@ static void dino_pcihost_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo dino_pcihost_info = {
     .name          = TYPE_DINO_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_init = dino_pcihost_init,
     .instance_size = sizeof(DinoState),
     .class_init    = dino_pcihost_class_init,
 };

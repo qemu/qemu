@@ -36,6 +36,8 @@ static const char *rt_sigreturn_sym;
 
 static unsigned sigreturn_addr;
 static unsigned rt_sigreturn_addr;
+static unsigned sigreturn_region_start_addr;
+static unsigned sigreturn_region_end_addr;
 
 #define N 32
 #define elfN(x)  elf32_##x
@@ -215,6 +217,10 @@ int main(int argc, char **argv)
     fprintf(outf, "    .reloc_count = ARRAY_SIZE(%s_relocs),\n", prefix);
     fprintf(outf, "    .sigreturn_ofs = 0x%x,\n", sigreturn_addr);
     fprintf(outf, "    .rt_sigreturn_ofs = 0x%x,\n", rt_sigreturn_addr);
+    fprintf(outf, "    .sigreturn_region_start_ofs = 0x%x,\n",
+            sigreturn_region_start_addr);
+    fprintf(outf, "    .sigreturn_region_end_ofs = 0x%x,\n",
+            sigreturn_region_end_addr);
     fprintf(outf, "};\n");
 
     ret = EXIT_SUCCESS;

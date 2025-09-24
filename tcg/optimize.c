@@ -1568,9 +1568,10 @@ static bool fold_bitsel_vec(OptContext *ctx, TCGOp *op)
             return fold_and(ctx, op);
         }
         if (fv == -1 && TCG_TARGET_HAS_orc_vec) {
+            TCGArg ta = op->args[2];
             op->opc = INDEX_op_orc_vec;
             op->args[2] = op->args[1];
-            op->args[1] = op->args[3];
+            op->args[1] = ta;
             return fold_orc(ctx, op);
         }
     }

@@ -181,7 +181,9 @@ endf __vdso_flush_icache
 	nop
 
 __vdso_rt_sigreturn:
+sigreturn_region_start:
 	raw_syscall __NR_rt_sigreturn
+sigreturn_region_end:
 endf __vdso_rt_sigreturn
 
 	.cfi_endproc

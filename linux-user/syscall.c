@@ -27,8 +27,6 @@
 #include "target_mman.h"
 #include "exec/page-protection.h"
 #include "exec/mmap-lock.h"
-#include "exec/tb-flush.h"
-#include "exec/translation-block.h"
 #include <elf.h>
 #include <endian.h>
 #include <grp.h>
@@ -6344,6 +6342,10 @@ abi_long do_arch_prctl(CPUX86State *env, int code, abi_ulong addr)
 #endif
 #ifndef PR_SET_SYSCALL_USER_DISPATCH
 # define PR_SET_SYSCALL_USER_DISPATCH 59
+# define PR_SYS_DISPATCH_OFF 0
+# define PR_SYS_DISPATCH_ON 1
+# define SYSCALL_DISPATCH_FILTER_ALLOW 0
+# define SYSCALL_DISPATCH_FILTER_BLOCK 1
 #endif
 #ifndef PR_SME_SET_VL
 # define PR_SME_SET_VL  63
@@ -6397,6 +6399,36 @@ static abi_long do_prctl_inval1(CPUArchState *env, abi_long arg2)
 #ifndef do_prctl_sme_set_vl
 #define do_prctl_sme_set_vl do_prctl_inval1
 #endif
+
+static abi_long do_prctl_syscall_user_dispatch(CPUArchState *env,
+                                               abi_ulong arg2, abi_ulong arg3,
+                                               abi_ulong arg4, abi_ulong arg5)
+{
+    CPUState *cpu = env_cpu(env);
+    TaskState *ts = get_task_state(cpu);
+
+    switch (arg2) {
+    case PR_SYS_DISPATCH_OFF:
+        if (arg3 || arg4 || arg5) {
+            return -TARGET_EINVAL;
+        }
+        ts->sys_dispatch_len = -1;
+        return 0;
+    case PR_SYS_DISPATCH_ON:
+        if (arg3 && arg3 + arg4 <= arg3) {
+            return -TARGET_EINVAL;
+        }
+        if (arg5 && !access_ok(cpu, VERIFY_READ, arg5, 1)) {
+            return -TARGET_EFAULT;
+        }
+        ts->sys_dispatch = arg3;
+        ts->sys_dispatch_len = arg4;
+        ts->sys_dispatch_selector = arg5;
+        return 0;
+    default:
+        return -TARGET_EINVAL;
+    }
+}
 
 static abi_long do_prctl(CPUArchState *env, abi_long option, abi_long arg2,
                          abi_long arg3, abi_long arg4, abi_long arg5)
@@ -6473,6 +6505,9 @@ static abi_long do_prctl(CPUArchState *env, abi_long option, abi_long arg2,
     case PR_SET_UNALIGN:
         return do_prctl_set_unalign(env, arg2);
 
+    case PR_SET_SYSCALL_USER_DISPATCH:
+        return do_prctl_syscall_user_dispatch(env, arg2, arg3, arg4, arg5);
+
     case PR_CAP_AMBIENT:
     case PR_CAPBSET_READ:
     case PR_CAPBSET_DROP:
@@ -6527,7 +6562,6 @@ static abi_long do_prctl(CPUArchState *env, abi_long option, abi_long arg2,
     case PR_SET_MM:
     case PR_GET_SECCOMP:
     case PR_SET_SECCOMP:
-    case PR_SET_SYSCALL_USER_DISPATCH:
     case PR_GET_THP_DISABLE:
     case PR_SET_THP_DISABLE:
     case PR_GET_TSC:
@@ -6631,10 +6665,7 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
          * generate code for parallel execution and flush old translations.
          * Do this now so that the copy gets CF_PARALLEL too.
          */
-        if (!tcg_cflags_has(cpu, CF_PARALLEL)) {
-            tcg_cflags_set(cpu, CF_PARALLEL);
-            tb_flush(cpu);
-        }
+        begin_parallel_context(cpu);
 
         /* we create a new CPU instance. */
         new_env = cpu_copy(env);
@@ -13897,12 +13928,46 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
     return ret;
 }
 
+static bool sys_dispatch(CPUState *cpu, TaskState *ts)
+{
+    abi_ptr pc;
+
+    if (likely(ts->sys_dispatch_len == -1)) {
+        return false;
+    }
+
+    pc = cpu->cc->get_pc(cpu);
+    if (likely(pc - ts->sys_dispatch < ts->sys_dispatch_len)) {
+        return false;
+    }
+    if (unlikely(is_vdso_sigreturn(pc))) {
+        return false;
+    }
+    if (likely(ts->sys_dispatch_selector)) {
+        uint8_t sb;
+        if (get_user_u8(sb, ts->sys_dispatch_selector)) {
+            force_sig(TARGET_SIGSEGV);
+            return true;
+        }
+        if (likely(sb == SYSCALL_DISPATCH_FILTER_ALLOW)) {
+            return false;
+        }
+        if (unlikely(sb != SYSCALL_DISPATCH_FILTER_BLOCK)) {
+            force_sig(TARGET_SIGSYS);
+            return true;
+        }
+    }
+    force_sig_fault(TARGET_SIGSYS, TARGET_SYS_USER_DISPATCH, pc);
+    return true;
+}
+
 abi_long do_syscall(CPUArchState *cpu_env, int num, abi_long arg1,
                     abi_long arg2, abi_long arg3, abi_long arg4,
                     abi_long arg5, abi_long arg6, abi_long arg7,
                     abi_long arg8)
 {
     CPUState *cpu = env_cpu(cpu_env);
+    TaskState *ts = get_task_state(cpu);
     abi_long ret;
 
 #ifdef DEBUG_ERESTARTSYS
@@ -13918,6 +13983,10 @@ abi_long do_syscall(CPUArchState *cpu_env, int num, abi_long arg1,
         }
     }
 #endif
+
+    if (sys_dispatch(cpu, ts)) {
+        return -QEMU_ESIGRETURN;
+    }
 
     record_syscall_start(cpu, num, arg1,
                          arg2, arg3, arg4, arg5, arg6, arg7, arg8);

@@ -25,6 +25,13 @@
 /* Fallback addresses into sigtramp page. */
 extern abi_ulong default_sigreturn;
 extern abi_ulong default_rt_sigreturn;
+extern abi_ulong vdso_sigreturn_region_start;
+extern abi_ulong vdso_sigreturn_region_end;
+
+static inline bool is_vdso_sigreturn(abi_ulong pc)
+{
+    return pc >= vdso_sigreturn_region_start && pc < vdso_sigreturn_region_end;
+}
 
 void setup_sigtramp(abi_ulong tramp_page);
 

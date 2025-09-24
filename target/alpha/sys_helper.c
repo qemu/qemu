@@ -20,7 +20,6 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/cputlb.h"
-#include "exec/tb-flush.h"
 #include "exec/helper-proto.h"
 #include "system/runstate.h"
 #include "system/system.h"
@@ -36,11 +35,6 @@ void helper_tbia(CPUAlphaState *env)
 void helper_tbis(CPUAlphaState *env, uint64_t p)
 {
     tlb_flush_page(env_cpu(env), p);
-}
-
-void helper_tb_flush(CPUAlphaState *env)
-{
-    tb_flush(env_cpu(env));
 }
 
 void helper_halt(uint64_t restart)

@@ -102,8 +102,8 @@ static TCGv_i32 gen_cpu_index(void)
     /*
      * Optimize when we run with a single vcpu. All values using cpu_index,
      * including scoreboard index, will be optimized out.
-     * User-mode calls tb_flush when setting this flag. In system-mode, all
-     * vcpus are created before generating code.
+     * User-mode flushes all TBs when setting this flag.
+     * In system-mode, all vcpus are created before generating code.
      */
     if (!tcg_cflags_has(current_cpu, CF_PARALLEL)) {
         return tcg_constant_i32(current_cpu->cpu_index);

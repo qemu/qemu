@@ -140,6 +140,7 @@ SYSCALL __vdso_gettimeofday, __NR_gettimeofday
 
 	.balign	16
 sigreturn_codes:
+sigreturn_region_start:
 	/* [EO]ABI sigreturn */
 	slot	0
 	raw_syscall __NR_sigreturn
@@ -172,3 +173,4 @@ sigreturn_codes:
 
 	.balign	16
 endf sigreturn_codes
+sigreturn_region_end:

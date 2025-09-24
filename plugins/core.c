@@ -248,7 +248,7 @@ static void plugin_grow_scoreboards__locked(CPUState *cpu)
         }
         plugin.scoreboard_alloc_size = scoreboard_size;
         /* force all tb to be flushed, as scoreboard pointers were changed. */
-        tb_flush(cpu);
+        tb_flush__exclusive_or_serial();
     }
     end_exclusive();
 }
@@ -684,8 +684,6 @@ void qemu_plugin_user_exit(void)
      * with the one in fork_start(). That is:
      * - start_exclusive(), which acquires qemu_cpu_list_lock,
      *   must be called before acquiring plugin.lock.
-     * - tb_flush(), which acquires mmap_lock(), must be called
-     *   while plugin.lock is not held.
      */
     start_exclusive();
 
@@ -705,7 +703,7 @@ void qemu_plugin_user_exit(void)
     }
     qemu_rec_mutex_unlock(&plugin.lock);
 
-    tb_flush(current_cpu);
+    tb_flush__exclusive_or_serial();
     end_exclusive();
 
     /* now it's safe to handle the exit case */
