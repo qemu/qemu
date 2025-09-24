@@ -1168,7 +1168,6 @@ tb_invalidate_phys_page_range__locked(CPUState *cpu,
         page_collection_unlock(pages);
         /* Force execution of one insn next time.  */
         cpu->cflags_next_tb = 1 | CF_NOIRQ | curr_cflags(cpu);
-        mmap_unlock();
         cpu_loop_exit_noexc(cpu);
     }
 }
