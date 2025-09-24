@@ -50,7 +50,7 @@ configure_qemu()
     echo "Configure options:"
     echo $config_opts
     $QEMU_SRC/configure $config_opts || \
-        { cat config.log >&2 && test_fail "Failed to run 'configure'"; }
+        { cat config.log >&2 ; cat meson-logs/meson-log.txt >&2 ; test_fail "Failed to run 'configure'"; }
 }
 
 build_qemu()
