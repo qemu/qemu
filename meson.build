@@ -4256,6 +4256,10 @@ if have_rust
   else
     bindgen_args_common += ['--merge-extern-blocks']
   endif
+  bindgen_c_args = []
+  if host_arch == 'wasm32'
+    bindgen_c_args += ['-fvisibility=default']
+  endif
   subdir('rust')
 endif
 

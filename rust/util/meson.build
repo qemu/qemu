@@ -22,6 +22,7 @@ _util_bindings_inc_rs = rust.bindgen(
   include_directories: bindings_incdir,
   bindgen_version: ['>=0.60.0'],
   args: bindgen_args_common + _util_bindgen_args,
+  c_args: bindgen_c_args,
 )
 
 _util_rs = static_library(

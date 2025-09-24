@@ -21,6 +21,7 @@ _bql_bindings_inc_rs = rust.bindgen(
   include_directories: bindings_incdir,
   bindgen_version: ['>=0.60.0'],
   args: bindgen_args_common,
+  c_args: bindgen_c_args,
 )
 
 _bql_rs = static_library(
