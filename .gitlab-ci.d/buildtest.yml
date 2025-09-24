@@ -36,7 +36,7 @@ build-system-ubuntu:
     - .native_build_job_template
     - .native_build_artifact_template
   needs:
-    job: amd64-ubuntu2204-container
+    - job: amd64-ubuntu2204-container
   variables:
     IMAGE: ubuntu2204
     CONFIGURE_ARGS: --enable-docs
@@ -66,7 +66,7 @@ build-system-debian:
     - .native_build_job_template
     - .native_build_artifact_template
   needs:
-    job: amd64-debian-container
+    - job: amd64-debian-container
   variables:
     IMAGE: debian
     CONFIGURE_ARGS: --with-coroutine=sigaltstack --enable-rust
@@ -109,7 +109,7 @@ build-system-fedora:
     - .native_build_job_template
     - .native_build_artifact_template
   needs:
-    job: amd64-fedora-container
+    - job: amd64-fedora-container
   variables:
     IMAGE: fedora
     CONFIGURE_ARGS: --disable-gcrypt --enable-nettle --enable-docs --enable-crypto-afalg --enable-rust
@@ -122,7 +122,7 @@ build-system-fedora-rust-nightly:
     - .native_build_job_template
     - .native_build_artifact_template
   needs:
-    job: amd64-fedora-rust-nightly-container
+    - job: amd64-fedora-rust-nightly-container
   variables:
     IMAGE: fedora-rust-nightly
     CONFIGURE_ARGS: --disable-docs --enable-rust --enable-strict-rust-lints
@@ -167,7 +167,7 @@ build-system-centos:
     - .native_build_job_template
     - .native_build_artifact_template
   needs:
-    job: amd64-centos9-container
+    - job: amd64-centos9-container
   variables:
     IMAGE: centos9
     CONFIGURE_ARGS: --disable-nettle --enable-gcrypt --enable-vfio-user-server
@@ -189,7 +189,7 @@ build-previous-qemu:
       - build-previous/tests/qtest/migration-test
       - build-previous/scripts
   needs:
-    job: amd64-opensuse-leap-container
+    - job: amd64-opensuse-leap-container
   variables:
     IMAGE: opensuse-leap
     TARGETS: x86_64-softmmu aarch64-softmmu
@@ -274,7 +274,7 @@ build-system-opensuse:
     - .native_build_job_template
     - .native_build_artifact_template
   needs:
-    job: amd64-opensuse-leap-container
+    - job: amd64-opensuse-leap-container
   variables:
     IMAGE: opensuse-leap
     TARGETS: s390x-softmmu x86_64-softmmu aarch64-softmmu
@@ -308,7 +308,7 @@ build-system-flaky:
     - .native_build_job_template
     - .native_build_artifact_template
   needs:
-    job: amd64-debian-container
+    - job: amd64-debian-container
   variables:
     IMAGE: debian
     QEMU_JOB_OPTIONAL: 1
@@ -338,7 +338,7 @@ functional-system-flaky:
 build-tcg-disabled:
   extends: .native_build_job_template
   needs:
-    job: amd64-centos9-container
+    - job: amd64-centos9-container
   variables:
     IMAGE: centos9
   script:
@@ -364,7 +364,7 @@ build-tcg-disabled:
 build-user:
   extends: .native_build_job_template
   needs:
-    job: amd64-debian-user-cross-container
+    - job: amd64-debian-user-cross-container
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-tools --disable-system
@@ -374,7 +374,7 @@ build-user:
 build-user-static:
   extends: .native_build_job_template
   needs:
-    job: amd64-debian-user-cross-container
+    - job: amd64-debian-user-cross-container
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-tools --disable-system --static
@@ -385,7 +385,7 @@ build-user-static:
 build-legacy:
   extends: .native_build_job_template
   needs:
-    job: amd64-debian-legacy-cross-container
+    - job: amd64-debian-legacy-cross-container
   variables:
     IMAGE: debian-legacy-test-cross
     TARGETS: alpha-linux-user alpha-softmmu sh4-linux-user
@@ -395,7 +395,7 @@ build-legacy:
 build-user-hexagon:
   extends: .native_build_job_template
   needs:
-    job: hexagon-cross-container
+    - job: hexagon-cross-container
   variables:
     IMAGE: debian-hexagon-cross
     TARGETS: hexagon-linux-user
@@ -408,7 +408,7 @@ build-user-hexagon:
 build-some-softmmu:
   extends: .native_build_job_template
   needs:
-    job: amd64-debian-user-cross-container
+    - job: amd64-debian-user-cross-container
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-tools --enable-debug
@@ -419,7 +419,7 @@ build-some-softmmu:
 build-loongarch64:
   extends: .native_build_job_template
   needs:
-    job: loongarch-debian-cross-container
+    - job: loongarch-debian-cross-container
   variables:
     IMAGE: debian-loongarch-cross
     CONFIGURE_ARGS: --disable-tools --enable-debug
@@ -430,7 +430,7 @@ build-loongarch64:
 build-tricore-softmmu:
   extends: .native_build_job_template
   needs:
-    job: tricore-debian-cross-container
+    - job: tricore-debian-cross-container
   variables:
     IMAGE: debian-tricore-cross
     CONFIGURE_ARGS: --disable-tools --disable-fdt --enable-debug
@@ -440,7 +440,7 @@ build-tricore-softmmu:
 clang-system:
   extends: .native_build_job_template
   needs:
-    job: amd64-fedora-container
+    - job: amd64-fedora-container
   variables:
     IMAGE: fedora
     CONFIGURE_ARGS: --cc=clang --cxx=clang++ --enable-ubsan
@@ -451,7 +451,7 @@ clang-system:
 clang-user:
   extends: .native_build_job_template
   needs:
-    job: amd64-debian-user-cross-container
+    - job: amd64-debian-user-cross-container
   timeout: 70m
   variables:
     IMAGE: debian-all-test-cross
@@ -582,7 +582,7 @@ functional-cfi-x86_64:
 tsan-build:
   extends: .native_build_job_template
   needs:
-    job: amd64-ubuntu2204-container
+    - job: amd64-ubuntu2204-container
   variables:
     IMAGE: ubuntu2204
     CONFIGURE_ARGS: --enable-tsan --cc=clang --cxx=clang++
@@ -596,7 +596,7 @@ tsan-build:
 gcov:
   extends: .native_build_job_template
   needs:
-    job: amd64-ubuntu2204-container
+    - job: amd64-ubuntu2204-container
   timeout: 80m
   variables:
     IMAGE: ubuntu2204
@@ -623,7 +623,7 @@ gcov:
 build-oss-fuzz:
   extends: .native_build_job_template
   needs:
-    job: amd64-fedora-container
+    - job: amd64-fedora-container
   variables:
     IMAGE: fedora
   script:
@@ -645,7 +645,7 @@ build-oss-fuzz:
 build-tci:
   extends: .native_build_job_template
   needs:
-    job: amd64-debian-user-cross-container
+    - job: amd64-debian-user-cross-container
   variables:
     IMAGE: debian-all-test-cross
   script:
@@ -670,7 +670,7 @@ build-tci:
 build-without-defaults:
   extends: .native_build_job_template
   needs:
-    job: amd64-centos9-container
+    - job: amd64-centos9-container
   variables:
     IMAGE: centos9
     CONFIGURE_ARGS:
@@ -688,7 +688,7 @@ build-libvhost-user:
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/fedora:$QEMU_CI_CONTAINER_TAG
   needs:
-    job: amd64-fedora-container
+    - job: amd64-fedora-container
   script:
     - mkdir subprojects/libvhost-user/build
     - cd subprojects/libvhost-user/build
@@ -702,9 +702,9 @@ build-tools-and-docs-debian:
     - .native_build_job_template
     - .native_build_artifact_template
   needs:
-    job: amd64-debian-container
-    # when running on 'master' we use pre-existing container
-    optional: true
+    - job: amd64-debian-container
+      # when running on 'master' we use pre-existing container
+      optional: true
   variables:
     IMAGE: debian
     MAKE_CHECK_ARGS: check-unit ctags TAGS cscope
@@ -791,7 +791,7 @@ build-wasm:
   extends: .wasm_build_job_template
   timeout: 2h
   needs:
-    job: wasm-emsdk-cross-container
+    - job: wasm-emsdk-cross-container
   variables:
     IMAGE: emsdk-wasm32-cross
     CONFIGURE_ARGS: --static --disable-tools --enable-debug --enable-tcg-interpreter
