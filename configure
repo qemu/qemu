@@ -1878,6 +1878,13 @@ if test "$skip_meson" = no; then
       eval "c=\$devices_${a}"
       echo "${a}-softmmu = '$c'" >> $cross
   done
+  if test "$rust" != disabled; then
+      if test "$cross_compile" = "yes"; then
+          . "$source_path/scripts/rust-to-clang-target.sh"
+          clang_target=$(rust_to_clang_target "$rust_target_triple")
+          echo "bindgen_clang_arguments = [$(meson_quote --target="$clang_target")]" >> $cross
+      fi
+  fi
 
   echo "[built-in options]" >> $cross
   echo "c_args = [$(meson_quote $CFLAGS $EXTRA_CFLAGS)]" >> $cross
