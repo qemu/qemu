@@ -770,21 +770,11 @@
 #
 # @server: create server socket (default: false)
 #
-# @reconnect: For a client socket, if a socket is disconnected, then
-#     attempt a reconnect after the given number of seconds.  Setting
-#     this to zero disables this function.  (default: 0) (since 8.0)
-#
 # @reconnect-ms: For a client socket, if a socket is disconnected, then
 #     attempt a reconnect after the given number of milliseconds.  Setting
-#     this to zero disables this function.  This member is mutually
-#     exclusive with @reconnect.  (default: 0) (Since: 9.2)
+#     this to zero disables this function.  (default: 0) (Since: 9.2)
 #
 # Only `SocketAddress` types 'unix', 'inet' and 'fd' are supported.
-#
-# Features:
-#
-# @deprecated: Member @reconnect is deprecated.  Use @reconnect-ms
-#     instead.
 #
 # Since: 7.2
 ##
@@ -792,7 +782,6 @@
   'data': {
     'addr':   'SocketAddress',
     '*server': 'bool',
-    '*reconnect': { 'type': 'int', 'features': [ 'deprecated' ] },
     '*reconnect-ms': 'int' } }
 
 ##

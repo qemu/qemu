@@ -469,15 +469,6 @@ Backend ``memory`` (since 9.0)
 ``memory`` is a deprecated synonym for ``ringbuf``.
 
 
-Net device options
-''''''''''''''''''
-
-Stream ``reconnect`` (since 9.2)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The ``reconnect`` option only allows specifying second granularity timeouts,
-which is not enough for all types of use cases, use ``reconnect-ms`` instead.
-
 CPU device properties
 '''''''''''''''''''''
 
