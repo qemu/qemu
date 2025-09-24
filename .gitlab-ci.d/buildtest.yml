@@ -479,7 +479,7 @@ build-cfi-aarch64:
     LD_JOBS: 1
     AR: llvm-ar
     IMAGE: fedora
-    CONFIGURE_ARGS: --cc=clang --cxx=clang++ --enable-cfi --enable-cfi-debug
+    CONFIGURE_ARGS: --cc=clang --cxx=clang++ --enable-cfi
       --enable-safe-stack --disable-slirp
     TARGETS: aarch64-softmmu
     MAKE_CHECK_ARGS: check-build
@@ -517,7 +517,7 @@ build-cfi-ppc64-s390x:
     LD_JOBS: 1
     AR: llvm-ar
     IMAGE: fedora
-    CONFIGURE_ARGS: --cc=clang --cxx=clang++ --enable-cfi --enable-cfi-debug
+    CONFIGURE_ARGS: --cc=clang --cxx=clang++ --enable-cfi
       --enable-safe-stack --disable-slirp
     TARGETS: ppc64-softmmu s390x-softmmu
     MAKE_CHECK_ARGS: check-build
@@ -555,7 +555,7 @@ build-cfi-x86_64:
     LD_JOBS: 1
     AR: llvm-ar
     IMAGE: fedora
-    CONFIGURE_ARGS: --cc=clang --cxx=clang++ --enable-cfi --enable-cfi-debug
+    CONFIGURE_ARGS: --cc=clang --cxx=clang++ --enable-cfi
       --enable-safe-stack --disable-slirp
     TARGETS: x86_64-softmmu
     MAKE_CHECK_ARGS: check-build
