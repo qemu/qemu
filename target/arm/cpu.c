@@ -52,6 +52,8 @@
 #include "target/arm/cpu-qom.h"
 #include "target/arm/gtimer.h"
 
+#include "trace.h"
+
 static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -573,6 +575,8 @@ void arm_emulate_firmware_reset(CPUState *cpustate, int target_el)
     CPUARMState *env = &cpu->env;
     bool have_el3 = arm_feature(env, ARM_FEATURE_EL3);
     bool have_el2 = arm_feature(env, ARM_FEATURE_EL2);
+
+    trace_arm_emulate_firmware_reset(arm_cpu_mp_affinity(cpu), target_el);
 
     /*
      * Check we have the EL we're aiming for. If that is the
