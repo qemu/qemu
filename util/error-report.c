@@ -233,6 +233,9 @@ static void vreport(report_type type, const char *fmt, va_list ap)
     if (monitor_cur_is_qmp()) {
         cur = NULL;
     }
+    if (!cur) {
+        qemu_flockfile(stderr);
+    }
 
     if (message_with_timestamp && !cur) {
         timestr = real_time_iso8601();
@@ -260,6 +263,10 @@ static void vreport(report_type type, const char *fmt, va_list ap)
 
     error_vprintf_mon(cur, fmt, ap);
     error_printf_mon(cur, "\n");
+
+    if (!cur) {
+        qemu_funlockfile(stderr);
+    }
 }
 
 /*
