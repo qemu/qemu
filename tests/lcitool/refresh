@@ -63,7 +63,8 @@ add_user_mapping = [
     "  id ${USER} 2>/dev/null || useradd -u ${UID} -U ${USER}; fi\n"
 ]
 
-def generate_dockerfile(host, target, project="qemu", cross=None, trailer=None):
+def generate_dockerfile(host, target, project="qemu", cross=None, trailer=None,
+                        enable_rust=True):
     filename = Path(src_dir, "tests", "docker", "dockerfiles", host + ".docker")
     cmd = lcitool_cmd + ["dockerfile"]
     if cross is not None:
@@ -75,6 +76,8 @@ def generate_dockerfile(host, target, project="qemu", cross=None, trailer=None):
     else:
         trailer = "\n".join(add_user_mapping)
 
+    if enable_rust:
+        trailer += "\nENV ENABLE_RUST 1\n"
     generate(filename, cmd, trailer)
 
 
@@ -180,7 +183,9 @@ try:
     generate_dockerfile("fedora", "fedora-41")
     generate_dockerfile("opensuse-leap", "opensuse-leap-15")
     generate_dockerfile("ubuntu2204", "ubuntu-2204",
-                        trailer="".join(ubuntu2204_rust_extras))
+                        trailer="".join(ubuntu2204_rust_extras),
+                        # https://bugs.launchpad.net/ubuntu/+source/rustc-1.83/+bug/2120318
+                        enable_rust=False)
 
     #
     # Non-fatal Rust-enabled build
@@ -248,7 +253,10 @@ try:
                         project='qemu,qemu-win-installer',
                         cross="mingw64",
                         trailer=cross_build("x86_64-w64-mingw32-",
-                                            "x86_64-softmmu"))
+                                            "x86_64-softmmu"),
+                        # linking with rust is buggy:
+                        # https://github.com/mesonbuild/meson/pull/14991
+                        enable_rust=False)
 
     #
     # Cirrus packages lists for GitLab
