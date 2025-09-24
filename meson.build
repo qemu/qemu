@@ -4239,6 +4239,7 @@ if have_rust
     '--no-prepend-enum-name',
     '--allowlist-file', meson.project_source_root() + '/include/.*',
     '--allowlist-file', meson.project_build_root() + '/.*',
+    '--blocklist-file', glib_pc.get_variable('includedir') + '/glib-2.0/.*',
     ]
   if not rustfmt.found()
     if bindgen.version().version_compare('<0.65.0')

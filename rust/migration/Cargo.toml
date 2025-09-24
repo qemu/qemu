@@ -15,6 +15,7 @@ rust-version.workspace = true
 [dependencies]
 common = { path = "../common" }
 util = { path = "../util" }
+glib-sys.workspace = true
 
 [lints]
 workspace = true

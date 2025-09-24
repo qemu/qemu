@@ -33,6 +33,7 @@ _libpl011_rs = static_library(
     bilge_impl_rs,
     bits_rs,
     common_rs,
+    glib_sys_rs,
     util_rs,
     migration_rs,
     bql_rs,

@@ -29,7 +29,7 @@ _qom_rs = static_library(
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   link_with: [_bql_rs, _migration_rs],
-  dependencies: [common_rs, qemu_macros],
+  dependencies: [common_rs, glib_sys_rs, qemu_macros],
 )
 
 qom_rs = declare_dependency(link_with: [_qom_rs], dependencies: [qemu_macros, qom])

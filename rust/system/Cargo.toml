@@ -16,6 +16,7 @@ rust-version.workspace = true
 common = { path = "../common" }
 qom = { path = "../qom" }
 util = { path = "../util" }
+glib-sys.workspace = true
 
 [lints]
 workspace = true

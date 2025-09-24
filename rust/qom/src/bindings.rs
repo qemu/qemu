@@ -18,6 +18,8 @@
     clippy::too_many_arguments
 )]
 
+use glib_sys::{GHashTable, GHashTableIter, GList, GPtrArray, GQueue, GSList};
+
 #[cfg(MESON)]
 include!("bindings.inc.rs");
 

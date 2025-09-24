@@ -20,6 +20,9 @@
 
 use chardev::bindings::Chardev;
 use common::Zeroable;
+use glib_sys::{
+    GArray, GByteArray, GHashTable, GHashTableIter, GList, GPtrArray, GQueue, GSList, GString,
+};
 use migration::bindings::VMStateDescription;
 use qom::bindings::ObjectClass;
 use system::bindings::MemoryRegion;
