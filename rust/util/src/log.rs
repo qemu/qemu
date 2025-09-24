@@ -135,6 +135,12 @@ impl Drop for LogGuard {
 ///     error_address,
 /// );
 /// ```
+///
+/// The `log_mask_ln` macro must only be used for emitting complete
+/// log messages. Where it is required to incrementally output string
+/// fragments to construct a complete message, `LogGuard::new()` must
+/// be directly used in combination with `writeln()` to avoid output
+/// races with other QEMU threads.
 #[macro_export]
 macro_rules! log_mask_ln {
     ($mask:expr, $fmt:tt $($args:tt)*) => {{
