@@ -1958,7 +1958,7 @@ if test "$skip_meson" = no; then
     echo "[binaries]" >> $native
     echo "c = [$(meson_quote $host_cc)]" >> $native
     if test "$rust" != disabled; then
-      echo "rust = [$(meson_quote $rustc)]" >> $cross
+      echo "rust = [$(meson_quote $rustc)]" >> $native
     fi
     mv $native config-meson.native
     meson_option_add --native-file
