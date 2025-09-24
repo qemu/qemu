@@ -72,8 +72,6 @@ class Aarch64VirtMachine(QemuSystemTest):
         self.set_machine('virt')
         self.require_accelerator("tcg")
 
-        logger = logging.getLogger('aarch64_virt')
-
         kernel_path = self.ASSET_KERNEL.fetch()
 
         self.vm.set_console()
@@ -91,7 +89,7 @@ class Aarch64VirtMachine(QemuSystemTest):
                          'rng-random,id=rng0,filename=/dev/urandom')
 
         # Also add a scratch block device
-        logger.info('creating scratch qcow2 image')
+        self.log.info('creating scratch qcow2 image')
         image_path = self.scratch_file('scratch.qcow2')
         qemu_img = get_qemu_img(self)
         check_call([qemu_img, 'create', '-f', 'qcow2', image_path, '8M'],

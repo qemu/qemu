@@ -1,0 +1,2571 @@
+{
+  "vmschkmachine": {
+    "Name": "virt-7.2"
+  },
+  "gpex-pcihost": {
+    "Name": "gpex-pcihost",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "PCIHost",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "config_reg",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ]
+    }
+  },
+  "arm_gic": {
+    "Name": "arm_gic",
+    "version_id": 12,
+    "minimum_version_id": 12,
+    "Description": {
+      "name": "arm_gic",
+      "version_id": 12,
+      "minimum_version_id": 12,
+      "Fields": [
+        {
+          "field": "ctlr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "cpu_ctlr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "irq_state",
+          "version_id": 1,
+          "field_exists": false,
+          "size": 7,
+          "Description": {
+            "name": "arm_gic_irq_state",
+            "version_id": 1,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "enabled",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "pending",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "active",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "level",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "model",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "edge_trigger",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "group",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              }
+            ]
+          }
+        },
+        {
+          "field": "irq_target",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "priority1",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "priority2",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "sgi_pending",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "priority_mask",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "running_priority",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "current_pending",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "bpr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "abpr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "apr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "nsapr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "arm_gic_virt_state",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "h_hcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "h_misr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "h_lr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "h_apr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "cpu_ctlr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "priority_mask",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 2
+            },
+            {
+              "field": "running_priority",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 2
+            },
+            {
+              "field": "current_pending",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 2
+            },
+            {
+              "field": "bpr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 1
+            },
+            {
+              "field": "abpr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "arm-gicv3-its-common": {
+    "Name": "arm-gicv3-its-common",
+    "version_id": 0,
+    "minimum_version_id": 0,
+    "Description": {
+      "name": "arm_gicv3_its",
+      "version_id": 0,
+      "minimum_version_id": 0,
+      "Fields": [
+        {
+          "field": "ctlr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "iidr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "cbaser",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        },
+        {
+          "field": "cwriter",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        },
+        {
+          "field": "creadr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        },
+        {
+          "field": "baser",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        }
+      ]
+    }
+  },
+  "arm-gicv3-common": {
+    "Name": "arm-gicv3-common",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "arm_gicv3",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "gicd_ctlr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "gicd_statusr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "group",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "grpmod",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "enabled",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "pending",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "active",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "level",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "edge_trigger",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "gicd_ipriority",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "gicd_irouter",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        },
+        {
+          "field": "gicd_nsacr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "cpu",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 664,
+          "Description": {
+            "name": "arm_gicv3_cpu",
+            "version_id": 1,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "level",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "gicr_ctlr",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "gicr_statusr",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "gicr_waker",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "gicr_propbaser",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "gicr_pendbaser",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "gicr_igroupr0",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "gicr_ienabler0",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "gicr_ipendr0",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "gicr_iactiver0",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "edge_trigger",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "gicr_igrpmodr0",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "gicr_nsacr",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "gicr_ipriorityr",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "icc_ctlr_el1",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "icc_pmr_el1",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "icc_bpr",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "icc_apr",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "icc_igrpen",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "icc_ctlr_el3",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              }
+            ],
+            "Subsections": [
+              {
+                "name": "arm_gicv3_cpu/virt",
+                "version_id": 1,
+                "minimum_version_id": 1,
+                "Fields": [
+                  {
+                    "field": "ich_apr",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 8
+                  },
+                  {
+                    "field": "ich_hcr_el2",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 8
+                  },
+                  {
+                    "field": "ich_lr_el2",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 8
+                  },
+                  {
+                    "field": "ich_vmcr_el2",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 8
+                  }
+                ]
+              },
+              {
+                "name": "arm_gicv3_cpu/sre_el1",
+                "version_id": 1,
+                "minimum_version_id": 1,
+                "Fields": [
+                  {
+                    "field": "icc_sre_el1",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 8
+                  }
+                ]
+              },
+              {
+                "name": "arm_gicv3_cpu/gicv4",
+                "version_id": 1,
+                "minimum_version_id": 1,
+                "Fields": [
+                  {
+                    "field": "gicr_vpropbaser",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 8
+                  },
+                  {
+                    "field": "gicr_vpendbaser",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 8
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "arm_gicv3/gicd_no_migration_shift_bug",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "gicd_no_migration_shift_bug",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "fw_cfg": {
+    "Name": "fw_cfg",
+    "version_id": 2,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "fw_cfg",
+      "version_id": 2,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "cur_entry",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 0,
+          "field_exists": true,
+          "size": 4
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 2,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "fw_cfg/dma",
+          "version_id": 0,
+          "minimum_version_id": 0,
+          "Fields": [
+            {
+              "field": "dma_addr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        },
+        {
+          "name": "fw_cfg/acpi_mr",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "table_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "linker_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "rsdp_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "cfi.pflash01": {
+    "Name": "cfi.pflash01",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "pflash_cfi01",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "wcycle",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "cmd",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "status",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "counter",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "pflash_cfi01_blk_write",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "blk_bytes",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 0
+            },
+            {
+              "field": "blk_offset",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "pl061_luminary": {
+    "Name": "pl061_luminary",
+    "version_id": 4,
+    "minimum_version_id": 4,
+    "Description": {
+      "name": "pl061",
+      "version_id": 4,
+      "minimum_version_id": 4,
+      "Fields": [
+        {
+          "field": "locked",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "data",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "old_out_data",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "old_in_data",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "dir",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "isense",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "ibe",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "iev",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "im",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "istate",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "afsel",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "dr2r",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "dr4r",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "dr8r",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "odr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "pur",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "pdr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "slr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "den",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "cr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "amsel",
+          "version_id": 2,
+          "field_exists": false,
+          "size": 4
+        }
+      ]
+    }
+  },
+  "pl011_luminary": {
+    "Name": "pl011_luminary",
+    "version_id": 2,
+    "minimum_version_id": 2,
+    "Description": {
+      "name": "pl011",
+      "version_id": 2,
+      "minimum_version_id": 2,
+      "Fields": [
+        {
+          "field": "readbuff",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "flags",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "lcr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "rsr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "cr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "dmacr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "int_enabled",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "int_level",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "read_fifo",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "ilpr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "ibrd",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "fbrd",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "ifl",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "read_pos",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "read_count",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "read_trigger",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "pl011/clock",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "clk",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8,
+              "Description": {
+                "name": "clock",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "period",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 8
+                  }
+                ],
+                "Subsections": [
+                  {
+                    "name": "clock/muldiv",
+                    "version_id": 1,
+                    "minimum_version_id": 1,
+                    "Fields": [
+                      {
+                        "field": "multiplier",
+                        "version_id": 0,
+                        "field_exists": false,
+                        "size": 4
+                      },
+                      {
+                        "field": "divider",
+                        "version_id": 0,
+                        "field_exists": false,
+                        "size": 4
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "pl061": {
+    "Name": "pl061",
+    "version_id": 4,
+    "minimum_version_id": 4,
+    "Description": {
+      "name": "pl061",
+      "version_id": 4,
+      "minimum_version_id": 4,
+      "Fields": [
+        {
+          "field": "locked",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "data",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "old_out_data",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "old_in_data",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "dir",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "isense",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "ibe",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "iev",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "im",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "istate",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "afsel",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "dr2r",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "dr4r",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "dr8r",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "odr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "pur",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "pdr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "slr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "den",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "cr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "amsel",
+          "version_id": 2,
+          "field_exists": false,
+          "size": 4
+        }
+      ]
+    }
+  },
+  "vmcoreinfo": {
+    "Name": "vmcoreinfo",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "vmcoreinfo",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "has_vmcoreinfo",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "vmcoreinfo.host_format",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "vmcoreinfo.guest_format",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "vmcoreinfo.size",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "vmcoreinfo.paddr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        }
+      ]
+    }
+  },
+  "arm_gic_common": {
+    "Name": "arm_gic_common",
+    "version_id": 12,
+    "minimum_version_id": 12,
+    "Description": {
+      "name": "arm_gic",
+      "version_id": 12,
+      "minimum_version_id": 12,
+      "Fields": [
+        {
+          "field": "ctlr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "cpu_ctlr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "irq_state",
+          "version_id": 1,
+          "field_exists": false,
+          "size": 7,
+          "Description": {
+            "name": "arm_gic_irq_state",
+            "version_id": 1,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "enabled",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "pending",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "active",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "level",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "model",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "edge_trigger",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "group",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              }
+            ]
+          }
+        },
+        {
+          "field": "irq_target",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "priority1",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "priority2",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "sgi_pending",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "priority_mask",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "running_priority",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "current_pending",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "bpr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "abpr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "apr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "nsapr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "arm_gic_virt_state",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "h_hcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "h_misr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "h_lr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "h_apr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "cpu_ctlr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "priority_mask",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 2
+            },
+            {
+              "field": "running_priority",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 2
+            },
+            {
+              "field": "current_pending",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 2
+            },
+            {
+              "field": "bpr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 1
+            },
+            {
+              "field": "abpr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "arm-smmuv3": {
+    "Name": "arm-smmuv3",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "smmuv3",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "features",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "sid_size",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "sid_split",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "cr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "cr0ack",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "statusr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "irq_ctrl",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "gerror",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "gerrorn",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "gerror_irq_cfg0",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        },
+        {
+          "field": "gerror_irq_cfg1",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "gerror_irq_cfg2",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "strtab_base",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        },
+        {
+          "field": "strtab_base_cfg",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "eventq_irq_cfg0",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        },
+        {
+          "field": "eventq_irq_cfg1",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "eventq_irq_cfg2",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "cmdq",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 24,
+          "Description": {
+            "name": "smmuv3_queue",
+            "version_id": 1,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "base",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "prod",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "cons",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "log2size",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              }
+            ]
+          }
+        },
+        {
+          "field": "eventq",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 24,
+          "Description": {
+            "name": "smmuv3_queue",
+            "version_id": 1,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "base",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "prod",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "cons",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "log2size",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "pl011": {
+    "Name": "pl011",
+    "version_id": 2,
+    "minimum_version_id": 2,
+    "Description": {
+      "name": "pl011",
+      "version_id": 2,
+      "minimum_version_id": 2,
+      "Fields": [
+        {
+          "field": "readbuff",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "flags",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "lcr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "rsr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "cr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "dmacr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "int_enabled",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "int_level",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "read_fifo",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "ilpr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "ibrd",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "fbrd",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "ifl",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "read_pos",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "read_count",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "read_trigger",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "pl011/clock",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "clk",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8,
+              "Description": {
+                "name": "clock",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "period",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 8
+                  }
+                ],
+                "Subsections": [
+                  {
+                    "name": "clock/muldiv",
+                    "version_id": 1,
+                    "minimum_version_id": 1,
+                    "Fields": [
+                      {
+                        "field": "multiplier",
+                        "version_id": 0,
+                        "field_exists": false,
+                        "size": 4
+                      },
+                      {
+                        "field": "divider",
+                        "version_id": 0,
+                        "field_exists": false,
+                        "size": 4
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "armv7m": {
+    "Name": "armv7m",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "armv7m",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "refclk",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8,
+          "Description": {
+            "name": "clock",
+            "version_id": 0,
+            "minimum_version_id": 0,
+            "Fields": [
+              {
+                "field": "period",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              }
+            ],
+            "Subsections": [
+              {
+                "name": "clock/muldiv",
+                "version_id": 1,
+                "minimum_version_id": 1,
+                "Fields": [
+                  {
+                    "field": "multiplier",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 4
+                  },
+                  {
+                    "field": "divider",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 4
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "field": "cpuclk",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8,
+          "Description": {
+            "name": "clock",
+            "version_id": 0,
+            "minimum_version_id": 0,
+            "Fields": [
+              {
+                "field": "period",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              }
+            ],
+            "Subsections": [
+              {
+                "name": "clock/muldiv",
+                "version_id": 1,
+                "minimum_version_id": 1,
+                "Fields": [
+                  {
+                    "field": "multiplier",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 4
+                  },
+                  {
+                    "field": "divider",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 4
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "fw_cfg_mem": {
+    "Name": "fw_cfg_mem",
+    "version_id": 2,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "fw_cfg",
+      "version_id": 2,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "cur_entry",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 0,
+          "field_exists": true,
+          "size": 4
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 2,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "fw_cfg/dma",
+          "version_id": 0,
+          "minimum_version_id": 0,
+          "Fields": [
+            {
+              "field": "dma_addr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        },
+        {
+          "name": "fw_cfg/acpi_mr",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "table_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "linker_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "rsdp_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "pl031": {
+    "Name": "pl031",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "pl031",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "tick_offset_vmstate",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "mr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "lr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "cr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "im",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "is",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "pl031/tick-offset",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "tick_offset",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "fw_cfg_io": {
+    "Name": "fw_cfg_io",
+    "version_id": 2,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "fw_cfg",
+      "version_id": 2,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "cur_entry",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 0,
+          "field_exists": true,
+          "size": 4
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 2,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "fw_cfg/dma",
+          "version_id": 0,
+          "minimum_version_id": 0,
+          "Fields": [
+            {
+              "field": "dma_addr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        },
+        {
+          "name": "fw_cfg/acpi_mr",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "table_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "linker_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "rsdp_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "virtio-serial-device": {
+    "Name": "virtio-serial-device",
+    "version_id": 3,
+    "minimum_version_id": 3,
+    "Description": {
+      "name": "virtio-console",
+      "version_id": 3,
+      "minimum_version_id": 3,
+      "Fields": [
+        {
+          "field": "virtio",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 0
+        }
+      ]
+    }
+  },
+  "acpi-ged": {
+    "Name": "acpi-ged",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "acpi-ged",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "ged_state",
+          "version_id": 1,
+          "field_exists": false,
+          "size": 560,
+          "Description": {
+            "name": "acpi-ged-state",
+            "version_id": 1,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "sel",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              }
+            ]
+          }
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "acpi-ged/memhp",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "memhp_state",
+              "version_id": 1,
+              "field_exists": false,
+              "size": 304,
+              "Description": {
+                "name": "memory hotplug state",
+                "version_id": 1,
+                "minimum_version_id": 1,
+                "Fields": [
+                  {
+                    "field": "selector",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 4
+                  },
+                  {
+                    "field": "devs",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 24,
+                    "Description": {
+                      "name": "memory hotplug device state",
+                      "version_id": 1,
+                      "minimum_version_id": 1,
+                      "Fields": [
+                        {
+                          "field": "is_enabled",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 1
+                        },
+                        {
+                          "field": "is_inserting",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 1
+                        },
+                        {
+                          "field": "ost_event",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 4
+                        },
+                        {
+                          "field": "ost_status",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 4
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "acpi-ged/ghes",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "ghes_state",
+              "version_id": 1,
+              "field_exists": false,
+              "size": 16,
+              "Description": {
+                "name": "acpi-ghes",
+                "version_id": 1,
+                "minimum_version_id": 1,
+                "Fields": [
+                  {
+                    "field": "ghes_addr_le",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 8
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "pcie-host-bridge": {
+    "Name": "pcie-host-bridge",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "PCIHost",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "config_reg",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ]
+    }
+  },
+  "gpio-key": {
+    "Name": "gpio-key",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "gpio-key",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "timer",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        }
+      ]
+    }
+  },
+  "armv7m_nvic": {
+    "Name": "armv7m_nvic",
+    "version_id": 4,
+    "minimum_version_id": 4,
+    "Description": {
+      "name": "armv7m_nvic",
+      "version_id": 4,
+      "minimum_version_id": 4,
+      "Fields": [
+        {
+          "field": "vectors",
+          "version_id": 1,
+          "field_exists": false,
+          "size": 6,
+          "Description": {
+            "name": "armv7m_nvic_info",
+            "version_id": 1,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "prio",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 2
+              },
+              {
+                "field": "enabled",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "pending",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "active",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "level",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              }
+            ]
+          }
+        },
+        {
+          "field": "prigroup[M_REG_NS]",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "armv7m_nvic/m-security",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "sec_vectors",
+              "version_id": 1,
+              "field_exists": false,
+              "size": 6,
+              "Description": {
+                "name": "armv7m_nvic_info",
+                "version_id": 1,
+                "minimum_version_id": 1,
+                "Fields": [
+                  {
+                    "field": "prio",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 2
+                  },
+                  {
+                    "field": "enabled",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 1
+                  },
+                  {
+                    "field": "pending",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 1
+                  },
+                  {
+                    "field": "active",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 1
+                  },
+                  {
+                    "field": "level",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 1
+                  }
+                ]
+              }
+            },
+            {
+              "field": "prigroup[M_REG_S]",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "itns",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "pci-host-bridge": {
+    "Name": "pci-host-bridge",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "PCIHost",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "config_reg",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ]
+    }
+  },
+  "gpex-root": {
+    "Name": "gpex-root",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "gpex_root",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "parent_obj",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2608,
+          "Description": {
+            "name": "PCIDevice",
+            "version_id": 2,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "version_id",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "config",
+                "version_id": 0,
+                "field_exists": true,
+                "size": 256
+              },
+              {
+                "field": "config",
+                "version_id": 0,
+                "field_exists": true,
+                "size": 4096
+              },
+              {
+                "field": "irq_state",
+                "version_id": 2,
+                "field_exists": false,
+                "size": 16
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "armv7m_systick": {
+    "Name": "armv7m_systick",
+    "version_id": 3,
+    "minimum_version_id": 3,
+    "Description": {
+      "name": "armv7m_systick",
+      "version_id": 3,
+      "minimum_version_id": 3,
+      "Fields": [
+        {
+          "field": "refclk",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8,
+          "Description": {
+            "name": "clock",
+            "version_id": 0,
+            "minimum_version_id": 0,
+            "Fields": [
+              {
+                "field": "period",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              }
+            ],
+            "Subsections": [
+              {
+                "name": "clock/muldiv",
+                "version_id": 1,
+                "minimum_version_id": 1,
+                "Fields": [
+                  {
+                    "field": "multiplier",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 4
+                  },
+                  {
+                    "field": "divider",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 4
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "field": "cpuclk",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8,
+          "Description": {
+            "name": "clock",
+            "version_id": 0,
+            "minimum_version_id": 0,
+            "Fields": [
+              {
+                "field": "period",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              }
+            ],
+            "Subsections": [
+              {
+                "name": "clock/muldiv",
+                "version_id": 1,
+                "minimum_version_id": 1,
+                "Fields": [
+                  {
+                    "field": "multiplier",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 4
+                  },
+                  {
+                    "field": "divider",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 4
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "field": "control",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "tick",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        },
+        {
+          "field": "ptimer",
+          "version_id": 1,
+          "field_exists": false,
+          "size": 8,
+          "Description": {
+            "name": "ptimer",
+            "version_id": 1,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "enabled",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "limit",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "delta",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "period_frac",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "period",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "last_event",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "next_event",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              },
+              {
+                "field": "timer",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 8
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,475 @@
+{
+  "vmschkmachine": {
+    "Name": "s390-ccw-virtio-7.2"
+  },
+  "sclpquiesce": {
+    "Name": "sclpquiesce",
+    "version_id": 0,
+    "minimum_version_id": 0,
+    "Description": {
+      "name": "sclpquiesce",
+      "version_id": 0,
+      "minimum_version_id": 0,
+      "Fields": [
+        {
+          "field": "event_pending",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        }
+      ]
+    }
+  },
+  "s390-sclp-event-facility": {
+    "Name": "s390-sclp-event-facility",
+    "version_id": 0,
+    "minimum_version_id": 0,
+    "Description": {
+      "name": "vmstate-event-facility",
+      "version_id": 0,
+      "minimum_version_id": 0,
+      "Fields": [
+        {
+          "field": "receive_mask_pieces[1]",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "vmstate-event-facility/mask64",
+          "version_id": 0,
+          "minimum_version_id": 0,
+          "Fields": [
+            {
+              "field": "receive_mask_pieces[0]",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "vmstate-event-facility/mask_length",
+          "version_id": 0,
+          "minimum_version_id": 0,
+          "Fields": [
+            {
+              "field": "mask_length",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 2
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "zpci": {
+    "Name": "zpci",
+    "version_id": 0,
+    "minimum_version_id": 0,
+    "Description": {
+      "name": "zpci",
+      "version_id": 0,
+      "minimum_version_id": 0
+    }
+  },
+  "sclpconsole": {
+    "Name": "sclpconsole",
+    "version_id": 0,
+    "minimum_version_id": 0,
+    "Description": {
+      "name": "sclpconsole",
+      "version_id": 0,
+      "minimum_version_id": 0,
+      "Fields": [
+        {
+          "field": "event.event_pending",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "iov",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "iov_sclp",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "iov_bs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "iov_data_len",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "iov_sclp_rest",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ]
+    }
+  },
+  "virtio-serial-device": {
+    "Name": "virtio-serial-device",
+    "version_id": 3,
+    "minimum_version_id": 3,
+    "Description": {
+      "name": "virtio-console",
+      "version_id": 3,
+      "minimum_version_id": 3,
+      "Fields": [
+        {
+          "field": "virtio",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 0
+        }
+      ]
+    }
+  },
+  "sclplmconsole": {
+    "Name": "sclplmconsole",
+    "version_id": 0,
+    "minimum_version_id": 0,
+    "Description": {
+      "name": "sclplmconsole",
+      "version_id": 0,
+      "minimum_version_id": 0,
+      "Fields": [
+        {
+          "field": "event.event_pending",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "write_errors",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "length",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "buf",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        }
+      ]
+    }
+  },
+  "s390-pcihost": {
+    "Name": "s390-pcihost",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "PCIHost",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "config_reg",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ]
+    }
+  },
+  "s390-flic-qemu": {
+    "Name": "s390-flic-qemu",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "qemu-s390-flic",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "simm",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "nimm",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        }
+      ]
+    }
+  },
+  "fw_cfg_io": {
+    "Name": "fw_cfg_io",
+    "version_id": 2,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "fw_cfg",
+      "version_id": 2,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "cur_entry",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 0,
+          "field_exists": true,
+          "size": 4
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 2,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "fw_cfg/dma",
+          "version_id": 0,
+          "minimum_version_id": 0,
+          "Fields": [
+            {
+              "field": "dma_addr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        },
+        {
+          "name": "fw_cfg/acpi_mr",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "table_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "linker_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "rsdp_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "s390-ipl": {
+    "Name": "s390-ipl",
+    "version_id": 0,
+    "minimum_version_id": 0,
+    "Description": {
+      "name": "ipl",
+      "version_id": 0,
+      "minimum_version_id": 0,
+      "Fields": [
+        {
+          "field": "compat_start_addr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        },
+        {
+          "field": "compat_bios_start_addr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        },
+        {
+          "field": "iplb",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4096,
+          "Description": {
+            "name": "ipl/iplb",
+            "version_id": 0,
+            "minimum_version_id": 0,
+            "Fields": [
+              {
+                "field": "reserved1",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              },
+              {
+                "field": "devno",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 2
+              },
+              {
+                "field": "reserved2",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 1
+              }
+            ],
+            "Subsections": [
+              {
+                "name": "ipl/iplb_extended",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "reserved_ext",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 1
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "field": "iplb_valid",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "cssid",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "ssid",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "devno",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        }
+      ]
+    }
+  },
+  "pci-host-bridge": {
+    "Name": "pci-host-bridge",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "PCIHost",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "config_reg",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ]
+    }
+  },
+  "fw_cfg_mem": {
+    "Name": "fw_cfg_mem",
+    "version_id": 2,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "fw_cfg",
+      "version_id": 2,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "cur_entry",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 0,
+          "field_exists": true,
+          "size": 4
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 2,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "fw_cfg/dma",
+          "version_id": 0,
+          "minimum_version_id": 0,
+          "Fields": [
+            {
+              "field": "dma_addr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        },
+        {
+          "name": "fw_cfg/acpi_mr",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "table_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "linker_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "rsdp_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

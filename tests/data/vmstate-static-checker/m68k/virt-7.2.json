@@ -1,0 +1,2936 @@
+{
+  "vmschkmachine": {
+    "Name": "virt-7.2"
+  },
+  "m68020-m68k-cpu": {
+    "Name": "m68020-m68k-cpu",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "cpu",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "env.dregs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.aregs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pc",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.sr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.current_sp",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.sp",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_op",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_x",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_n",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_v",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_c",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_z",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pending_vector",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pending_level",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "cpu/fpu",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.fpcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.fpsr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.fregs",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 16,
+              "Description": {
+                "name": "freg",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "tmp",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 24,
+                    "Description": {
+                      "name": "freg_tmp",
+                      "version_id": 0,
+                      "minimum_version_id": 0,
+                      "Fields": [
+                        {
+                          "field": "tmp_mant",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 8
+                        },
+                        {
+                          "field": "tmp_exp",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 2
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "field": "env.fp_result",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 16,
+              "Description": {
+                "name": "freg",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "tmp",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 24,
+                    "Description": {
+                      "name": "freg_tmp",
+                      "version_id": 0,
+                      "minimum_version_id": 0,
+                      "Fields": [
+                        {
+                          "field": "tmp_mant",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 8
+                        },
+                        {
+                          "field": "tmp_exp",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 2
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "cpu/cf_spregs",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.macc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "env.macsr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mac_mask",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.rambar0",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mbar",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "cpu/68040_mmu",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.mmu.ar",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.ssw",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.tcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 2
+            },
+            {
+              "field": "env.mmu.urp",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.srp",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.fault",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 1
+            },
+            {
+              "field": "env.mmu.ttr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.mmusr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "cpu/68040_spregs",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.vbr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.cacr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.sfc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.dfc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "m68030-m68k-cpu": {
+    "Name": "m68030-m68k-cpu",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "cpu",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "env.dregs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.aregs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pc",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.sr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.current_sp",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.sp",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_op",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_x",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_n",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_v",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_c",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_z",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pending_vector",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pending_level",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "cpu/fpu",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.fpcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.fpsr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.fregs",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 16,
+              "Description": {
+                "name": "freg",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "tmp",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 24,
+                    "Description": {
+                      "name": "freg_tmp",
+                      "version_id": 0,
+                      "minimum_version_id": 0,
+                      "Fields": [
+                        {
+                          "field": "tmp_mant",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 8
+                        },
+                        {
+                          "field": "tmp_exp",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 2
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "field": "env.fp_result",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 16,
+              "Description": {
+                "name": "freg",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "tmp",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 24,
+                    "Description": {
+                      "name": "freg_tmp",
+                      "version_id": 0,
+                      "minimum_version_id": 0,
+                      "Fields": [
+                        {
+                          "field": "tmp_mant",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 8
+                        },
+                        {
+                          "field": "tmp_exp",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 2
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "cpu/cf_spregs",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.macc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "env.macsr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mac_mask",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.rambar0",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mbar",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "cpu/68040_mmu",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.mmu.ar",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.ssw",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.tcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 2
+            },
+            {
+              "field": "env.mmu.urp",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.srp",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.fault",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 1
+            },
+            {
+              "field": "env.mmu.ttr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.mmusr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "cpu/68040_spregs",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.vbr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.cacr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.sfc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.dfc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "fw_cfg": {
+    "Name": "fw_cfg",
+    "version_id": 2,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "fw_cfg",
+      "version_id": 2,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "cur_entry",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 0,
+          "field_exists": true,
+          "size": 4
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 2,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "fw_cfg/dma",
+          "version_id": 0,
+          "minimum_version_id": 0,
+          "Fields": [
+            {
+              "field": "dma_addr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        },
+        {
+          "name": "fw_cfg/acpi_mr",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "table_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "linker_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "rsdp_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "m68k-irq-controller": {
+    "Name": "m68k-irq-controller",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "m68k-irqc",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "ipr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        }
+      ]
+    }
+  },
+  "virt-ctrl": {
+    "Name": "virt-ctrl",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "virt-ctrl",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "irq_enabled",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ]
+    }
+  },
+  "m68040-m68k-cpu": {
+    "Name": "m68040-m68k-cpu",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "cpu",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "env.dregs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.aregs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pc",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.sr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.current_sp",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.sp",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_op",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_x",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_n",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_v",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_c",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_z",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pending_vector",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pending_level",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "cpu/fpu",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.fpcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.fpsr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.fregs",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 16,
+              "Description": {
+                "name": "freg",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "tmp",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 24,
+                    "Description": {
+                      "name": "freg_tmp",
+                      "version_id": 0,
+                      "minimum_version_id": 0,
+                      "Fields": [
+                        {
+                          "field": "tmp_mant",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 8
+                        },
+                        {
+                          "field": "tmp_exp",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 2
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "field": "env.fp_result",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 16,
+              "Description": {
+                "name": "freg",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "tmp",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 24,
+                    "Description": {
+                      "name": "freg_tmp",
+                      "version_id": 0,
+                      "minimum_version_id": 0,
+                      "Fields": [
+                        {
+                          "field": "tmp_mant",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 8
+                        },
+                        {
+                          "field": "tmp_exp",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 2
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "cpu/cf_spregs",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.macc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "env.macsr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mac_mask",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.rambar0",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mbar",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "cpu/68040_mmu",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.mmu.ar",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.ssw",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.tcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 2
+            },
+            {
+              "field": "env.mmu.urp",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.srp",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.fault",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 1
+            },
+            {
+              "field": "env.mmu.ttr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.mmusr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "cpu/68040_spregs",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.vbr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.cacr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.sfc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.dfc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "goldfish_pic": {
+    "Name": "goldfish_pic",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "goldfish_pic",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "pending",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "enabled",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ]
+    }
+  },
+  "goldfish_tty": {
+    "Name": "goldfish_tty",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "goldfish_tty",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "data_len",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "data_ptr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        },
+        {
+          "field": "int_enabled",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 1
+        },
+        {
+          "field": "rx_fifo",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 24,
+          "Description": {
+            "name": "Fifo8",
+            "version_id": 1,
+            "minimum_version_id": 1,
+            "Fields": [
+              {
+                "field": "data",
+                "version_id": 1,
+                "field_exists": false,
+                "size": 0
+              },
+              {
+                "field": "head",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              },
+              {
+                "field": "num",
+                "version_id": 0,
+                "field_exists": false,
+                "size": 4
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "m68000-m68k-cpu": {
+    "Name": "m68000-m68k-cpu",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "cpu",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "env.dregs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.aregs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pc",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.sr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.current_sp",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.sp",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_op",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_x",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_n",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_v",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_c",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_z",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pending_vector",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pending_level",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "cpu/fpu",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.fpcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.fpsr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.fregs",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 16,
+              "Description": {
+                "name": "freg",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "tmp",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 24,
+                    "Description": {
+                      "name": "freg_tmp",
+                      "version_id": 0,
+                      "minimum_version_id": 0,
+                      "Fields": [
+                        {
+                          "field": "tmp_mant",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 8
+                        },
+                        {
+                          "field": "tmp_exp",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 2
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "field": "env.fp_result",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 16,
+              "Description": {
+                "name": "freg",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "tmp",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 24,
+                    "Description": {
+                      "name": "freg_tmp",
+                      "version_id": 0,
+                      "minimum_version_id": 0,
+                      "Fields": [
+                        {
+                          "field": "tmp_mant",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 8
+                        },
+                        {
+                          "field": "tmp_exp",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 2
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "cpu/cf_spregs",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.macc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "env.macsr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mac_mask",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.rambar0",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mbar",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "cpu/68040_mmu",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.mmu.ar",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.ssw",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.tcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 2
+            },
+            {
+              "field": "env.mmu.urp",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.srp",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.fault",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 1
+            },
+            {
+              "field": "env.mmu.ttr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.mmusr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "cpu/68040_spregs",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.vbr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.cacr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.sfc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.dfc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "m68010-m68k-cpu": {
+    "Name": "m68010-m68k-cpu",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "cpu",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "env.dregs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.aregs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pc",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.sr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.current_sp",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.sp",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_op",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_x",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_n",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_v",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_c",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_z",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pending_vector",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pending_level",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "cpu/fpu",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.fpcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.fpsr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.fregs",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 16,
+              "Description": {
+                "name": "freg",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "tmp",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 24,
+                    "Description": {
+                      "name": "freg_tmp",
+                      "version_id": 0,
+                      "minimum_version_id": 0,
+                      "Fields": [
+                        {
+                          "field": "tmp_mant",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 8
+                        },
+                        {
+                          "field": "tmp_exp",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 2
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "field": "env.fp_result",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 16,
+              "Description": {
+                "name": "freg",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "tmp",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 24,
+                    "Description": {
+                      "name": "freg_tmp",
+                      "version_id": 0,
+                      "minimum_version_id": 0,
+                      "Fields": [
+                        {
+                          "field": "tmp_mant",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 8
+                        },
+                        {
+                          "field": "tmp_exp",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 2
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "cpu/cf_spregs",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.macc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "env.macsr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mac_mask",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.rambar0",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mbar",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "cpu/68040_mmu",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.mmu.ar",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.ssw",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.tcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 2
+            },
+            {
+              "field": "env.mmu.urp",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.srp",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.fault",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 1
+            },
+            {
+              "field": "env.mmu.ttr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.mmusr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "cpu/68040_spregs",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.vbr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.cacr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.sfc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.dfc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "m68060-m68k-cpu": {
+    "Name": "m68060-m68k-cpu",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "cpu",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "env.dregs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.aregs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pc",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.sr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.current_sp",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.sp",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_op",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_x",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_n",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_v",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_c",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_z",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pending_vector",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pending_level",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "cpu/fpu",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.fpcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.fpsr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.fregs",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 16,
+              "Description": {
+                "name": "freg",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "tmp",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 24,
+                    "Description": {
+                      "name": "freg_tmp",
+                      "version_id": 0,
+                      "minimum_version_id": 0,
+                      "Fields": [
+                        {
+                          "field": "tmp_mant",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 8
+                        },
+                        {
+                          "field": "tmp_exp",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 2
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "field": "env.fp_result",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 16,
+              "Description": {
+                "name": "freg",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "tmp",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 24,
+                    "Description": {
+                      "name": "freg_tmp",
+                      "version_id": 0,
+                      "minimum_version_id": 0,
+                      "Fields": [
+                        {
+                          "field": "tmp_mant",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 8
+                        },
+                        {
+                          "field": "tmp_exp",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 2
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "cpu/cf_spregs",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.macc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "env.macsr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mac_mask",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.rambar0",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mbar",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "cpu/68040_mmu",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.mmu.ar",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.ssw",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.tcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 2
+            },
+            {
+              "field": "env.mmu.urp",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.srp",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.fault",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 1
+            },
+            {
+              "field": "env.mmu.ttr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.mmusr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "cpu/68040_spregs",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.vbr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.cacr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.sfc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.dfc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "fw_cfg_mem": {
+    "Name": "fw_cfg_mem",
+    "version_id": 2,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "fw_cfg",
+      "version_id": 2,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "cur_entry",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 0,
+          "field_exists": true,
+          "size": 4
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 2,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "fw_cfg/dma",
+          "version_id": 0,
+          "minimum_version_id": 0,
+          "Fields": [
+            {
+              "field": "dma_addr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        },
+        {
+          "name": "fw_cfg/acpi_mr",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "table_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "linker_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "rsdp_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "any-m68k-cpu": {
+    "Name": "any-m68k-cpu",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "cpu",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "env.dregs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.aregs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pc",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.sr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.current_sp",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.sp",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_op",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_x",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_n",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_v",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_c",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_z",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pending_vector",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pending_level",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "cpu/fpu",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.fpcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.fpsr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.fregs",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 16,
+              "Description": {
+                "name": "freg",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "tmp",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 24,
+                    "Description": {
+                      "name": "freg_tmp",
+                      "version_id": 0,
+                      "minimum_version_id": 0,
+                      "Fields": [
+                        {
+                          "field": "tmp_mant",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 8
+                        },
+                        {
+                          "field": "tmp_exp",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 2
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "field": "env.fp_result",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 16,
+              "Description": {
+                "name": "freg",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "tmp",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 24,
+                    "Description": {
+                      "name": "freg_tmp",
+                      "version_id": 0,
+                      "minimum_version_id": 0,
+                      "Fields": [
+                        {
+                          "field": "tmp_mant",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 8
+                        },
+                        {
+                          "field": "tmp_exp",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 2
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "cpu/cf_spregs",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.macc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "env.macsr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mac_mask",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.rambar0",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mbar",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "cpu/68040_mmu",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.mmu.ar",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.ssw",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.tcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 2
+            },
+            {
+              "field": "env.mmu.urp",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.srp",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.fault",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 1
+            },
+            {
+              "field": "env.mmu.ttr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.mmusr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "cpu/68040_spregs",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.vbr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.cacr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.sfc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.dfc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "fw_cfg_io": {
+    "Name": "fw_cfg_io",
+    "version_id": 2,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "fw_cfg",
+      "version_id": 2,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "cur_entry",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 2
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 0,
+          "field_exists": true,
+          "size": 4
+        },
+        {
+          "field": "cur_offset",
+          "version_id": 2,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "fw_cfg/dma",
+          "version_id": 0,
+          "minimum_version_id": 0,
+          "Fields": [
+            {
+              "field": "dma_addr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        },
+        {
+          "name": "fw_cfg/acpi_mr",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "table_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "linker_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "rsdp_mr_size",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "virtio-serial-device": {
+    "Name": "virtio-serial-device",
+    "version_id": 3,
+    "minimum_version_id": 3,
+    "Description": {
+      "name": "virtio-console",
+      "version_id": 3,
+      "minimum_version_id": 3,
+      "Fields": [
+        {
+          "field": "virtio",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 0
+        }
+      ]
+    }
+  },
+  "goldfish_rtc": {
+    "Name": "goldfish_rtc",
+    "version_id": 3,
+    "minimum_version_id": 0,
+    "Description": {
+      "name": "goldfish_rtc",
+      "version_id": 3,
+      "minimum_version_id": 0,
+      "Fields": [
+        {
+          "field": "tick_offset_vmstate",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        },
+        {
+          "field": "alarm_next",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 8
+        },
+        {
+          "field": "alarm_running",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "irq_pending",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "irq_enabled",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "time_high",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "tick_offset",
+          "version_id": 3,
+          "field_exists": false,
+          "size": 8
+        }
+      ]
+    }
+  },
+  "m68k-cpu": {
+    "Name": "m68k-cpu",
+    "version_id": 1,
+    "minimum_version_id": 1,
+    "Description": {
+      "name": "cpu",
+      "version_id": 1,
+      "minimum_version_id": 1,
+      "Fields": [
+        {
+          "field": "env.dregs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.aregs",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pc",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.sr",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.current_sp",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.sp",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_op",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_x",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_n",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_v",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_c",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.cc_z",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pending_vector",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        },
+        {
+          "field": "env.pending_level",
+          "version_id": 0,
+          "field_exists": false,
+          "size": 4
+        }
+      ],
+      "Subsections": [
+        {
+          "name": "cpu/fpu",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.fpcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.fpsr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.fregs",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 16,
+              "Description": {
+                "name": "freg",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "tmp",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 24,
+                    "Description": {
+                      "name": "freg_tmp",
+                      "version_id": 0,
+                      "minimum_version_id": 0,
+                      "Fields": [
+                        {
+                          "field": "tmp_mant",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 8
+                        },
+                        {
+                          "field": "tmp_exp",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 2
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "field": "env.fp_result",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 16,
+              "Description": {
+                "name": "freg",
+                "version_id": 0,
+                "minimum_version_id": 0,
+                "Fields": [
+                  {
+                    "field": "tmp",
+                    "version_id": 0,
+                    "field_exists": false,
+                    "size": 24,
+                    "Description": {
+                      "name": "freg_tmp",
+                      "version_id": 0,
+                      "minimum_version_id": 0,
+                      "Fields": [
+                        {
+                          "field": "tmp_mant",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 8
+                        },
+                        {
+                          "field": "tmp_exp",
+                          "version_id": 0,
+                          "field_exists": false,
+                          "size": 2
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "cpu/cf_spregs",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.macc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 8
+            },
+            {
+              "field": "env.macsr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mac_mask",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.rambar0",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mbar",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "cpu/68040_mmu",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.mmu.ar",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.ssw",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.tcr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 2
+            },
+            {
+              "field": "env.mmu.urp",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.srp",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.fault",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 1
+            },
+            {
+              "field": "env.mmu.ttr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.mmu.mmusr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        },
+        {
+          "name": "cpu/68040_spregs",
+          "version_id": 1,
+          "minimum_version_id": 1,
+          "Fields": [
+            {
+              "field": "env.vbr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.cacr",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.sfc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            },
+            {
+              "field": "env.dfc",
+              "version_id": 0,
+              "field_exists": false,
+              "size": 4
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

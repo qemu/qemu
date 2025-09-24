@@ -113,6 +113,9 @@ check-functional:
 	@$(NINJA) precache-functional
 	@QEMU_TEST_NO_DOWNLOAD=1 $(MAKE) SPEED=thorough check-func check-func-quick
 
+.PHONY: check-func check-func-quick
+check-func check-func-quick:
+
 # Consolidated targets
 
 .PHONY: check check-clean

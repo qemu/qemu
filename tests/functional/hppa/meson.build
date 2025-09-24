@@ -3,3 +3,7 @@
 tests_hppa_system_quick = [
   'seabios',
 ]
+
+tests_hppa_system_thorough = [
+  'cdboot',
+]
