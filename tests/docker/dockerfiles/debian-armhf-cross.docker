@@ -1,10 +1,10 @@
 # THIS FILE WAS AUTO-GENERATED
 #
-#  $ lcitool dockerfile --layers all --cross-arch armv7l debian-12 qemu
+#  $ lcitool dockerfile --layers all --cross-arch armv7l debian-13 qemu
 #
 # https://gitlab.com/libvirt/libvirt-ci
 
-FROM docker.io/library/debian:12-slim
+FROM docker.io/library/debian:13-slim
 
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update && \
@@ -48,11 +48,12 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       python3-setuptools \
                       python3-sphinx \
                       python3-sphinx-rtd-theme \
+                      python3-tomli \
                       python3-venv \
                       python3-wheel \
                       python3-yaml \
                       rpm2cpio \
-                      rustc-web \
+                      rustc \
                       sed \
                       socat \
                       sparse \
@@ -85,7 +86,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     eatmydata apt-get install --no-install-recommends -y \
                       gcc-arm-linux-gnueabihf \
                       libaio-dev:armhf \
-                      libasan6:armhf \
+                      libasan8:armhf \
                       libasound2-dev:armhf \
                       libattr1-dev:armhf \
                       libbpf-dev:armhf \
@@ -107,7 +108,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libgbm-dev:armhf \
                       libgcrypt20-dev:armhf \
                       libglib2.0-dev:armhf \
-                      libglusterfs-dev:armhf \
                       libgnutls28-dev:armhf \
                       libgtk-3-dev:armhf \
                       libgtk-vnc-2.0-dev:armhf \
@@ -127,7 +127,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libpixman-1-dev:armhf \
                       libpng-dev:armhf \
                       libpulse-dev:armhf \
-                      librbd-dev:armhf \
                       librdmacm-dev:armhf \
                       libsasl2-dev:armhf \
                       libsdl2-dev:armhf \
@@ -152,7 +151,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libvirglrenderer-dev:armhf \
                       libvte-2.91-dev:armhf \
                       libxdp-dev:armhf \
-                      libxen-dev:armhf \
                       libzstd-dev:armhf \
                       nettle-dev:armhf \
                       systemtap-sdt-dev:armhf \

@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTO-GENERATED
 #
-#  $ lcitool dockerfile --layers all --cross-arch riscv64 debian-13 qemu-minimal
+#  $ lcitool dockerfile --layers all --cross-arch riscv64 debian-13 qemu
 #
 # https://gitlab.com/libvirt/libvirt-ci
 
@@ -13,25 +13,57 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     eatmydata apt-get install --no-install-recommends -y \
                       bash \
                       bc \
+                      bindgen \
                       bison \
+                      bsdextrautils \
+                      bzip2 \
                       ca-certificates \
                       ccache \
+                      dbus \
+                      debianutils \
+                      diffutils \
+                      exuberant-ctags \
                       findutils \
                       flex \
                       gcc \
+                      gcovr \
+                      gettext \
                       git \
+                      hostname \
+                      libclang-rt-dev \
                       libglib2.0-dev \
+                      llvm \
                       locales \
                       make \
+                      mtools \
+                      ncat \
                       ninja-build \
+                      openssh-client \
                       pkgconf \
                       python3 \
+                      python3-numpy \
+                      python3-opencv \
+                      python3-pillow \
                       python3-pip \
                       python3-setuptools \
+                      python3-sphinx \
+                      python3-sphinx-rtd-theme \
+                      python3-tomli \
                       python3-venv \
                       python3-wheel \
+                      python3-yaml \
+                      rpm2cpio \
+                      rustc \
                       sed \
-                      tar && \
+                      socat \
+                      sparse \
+                      swtpm \
+                      tar \
+                      tesseract-ocr \
+                      tesseract-ocr-eng \
+                      vulkan-tools \
+                      xorriso \
+                      zstd && \
     eatmydata apt-get autoremove -y && \
     eatmydata apt-get autoclean -y && \
     sed -Ei 's,^# (en_US\.UTF-8 .*)$,\1,' /etc/locale.gen && \
@@ -56,11 +88,78 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     eatmydata apt-get install --no-install-recommends -y dpkg-dev && \
     eatmydata apt-get install --no-install-recommends -y \
                       gcc-riscv64-linux-gnu \
+                      libaio-dev:riscv64 \
+                      libasan8:riscv64 \
+                      libasound2-dev:riscv64 \
+                      libattr1-dev:riscv64 \
+                      libbpf-dev:riscv64 \
+                      libbrlapi-dev:riscv64 \
+                      libbz2-dev:riscv64 \
                       libc6-dev:riscv64 \
+                      libcacard-dev:riscv64 \
+                      libcap-ng-dev:riscv64 \
+                      libcapstone-dev:riscv64 \
+                      libcbor-dev:riscv64 \
+                      libcmocka-dev:riscv64 \
+                      libcurl4-gnutls-dev:riscv64 \
+                      libdaxctl-dev:riscv64 \
+                      libdrm-dev:riscv64 \
+                      libepoxy-dev:riscv64 \
                       libfdt-dev:riscv64 \
                       libffi-dev:riscv64 \
+                      libfuse3-dev:riscv64 \
+                      libgbm-dev:riscv64 \
+                      libgcrypt20-dev:riscv64 \
                       libglib2.0-dev:riscv64 \
-                      libpixman-1-dev:riscv64 && \
+                      libglusterfs-dev:riscv64 \
+                      libgnutls28-dev:riscv64 \
+                      libgtk-3-dev:riscv64 \
+                      libgtk-vnc-2.0-dev:riscv64 \
+                      libibverbs-dev:riscv64 \
+                      libiscsi-dev:riscv64 \
+                      libjemalloc-dev:riscv64 \
+                      libjpeg62-turbo-dev:riscv64 \
+                      libjson-c-dev:riscv64 \
+                      liblttng-ust-dev:riscv64 \
+                      liblzo2-dev:riscv64 \
+                      libncursesw5-dev:riscv64 \
+                      libnfs-dev:riscv64 \
+                      libnuma-dev:riscv64 \
+                      libpam0g-dev:riscv64 \
+                      libpcre2-dev:riscv64 \
+                      libpipewire-0.3-dev:riscv64 \
+                      libpixman-1-dev:riscv64 \
+                      libpng-dev:riscv64 \
+                      libpulse-dev:riscv64 \
+                      librbd-dev:riscv64 \
+                      librdmacm-dev:riscv64 \
+                      libsasl2-dev:riscv64 \
+                      libsdl2-dev:riscv64 \
+                      libsdl2-image-dev:riscv64 \
+                      libseccomp-dev:riscv64 \
+                      libselinux1-dev:riscv64 \
+                      libslirp-dev:riscv64 \
+                      libsnappy-dev:riscv64 \
+                      libsndio-dev:riscv64 \
+                      libspice-protocol-dev:riscv64 \
+                      libspice-server-dev:riscv64 \
+                      libssh-dev:riscv64 \
+                      libstd-rust-dev:riscv64 \
+                      libsystemd-dev:riscv64 \
+                      libtasn1-6-dev:riscv64 \
+                      libubsan1:riscv64 \
+                      libudev-dev:riscv64 \
+                      liburing-dev:riscv64 \
+                      libusb-1.0-0-dev:riscv64 \
+                      libusbredirhost-dev:riscv64 \
+                      libvdeplug-dev:riscv64 \
+                      libvirglrenderer-dev:riscv64 \
+                      libvte-2.91-dev:riscv64 \
+                      libxdp-dev:riscv64 \
+                      libzstd-dev:riscv64 \
+                      nettle-dev:riscv64 \
+                      systemtap-sdt-dev:riscv64 \
+                      zlib1g-dev:riscv64 && \
     eatmydata apt-get autoremove -y && \
     eatmydata apt-get autoclean -y && \
     mkdir -p /usr/local/share/meson/cross && \
@@ -82,6 +181,7 @@ endian = 'little'\n" > /usr/local/share/meson/cross/riscv64-linux-gnu && \
 
 ENV ABI "riscv64-linux-gnu"
 ENV MESON_OPTS "--cross-file=riscv64-linux-gnu"
+ENV RUST_TARGET "riscv64gc-unknown-linux-gnu"
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=riscv64-linux-gnu-
 ENV DEF_TARGET_LIST riscv64-softmmu,riscv64-linux-user
 # As a final step configure the user (if env is defined)
