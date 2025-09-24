@@ -141,6 +141,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libspice-protocol-dev:amd64 \
                       libspice-server-dev:amd64 \
                       libssh-dev:amd64 \
+                      libstd-rust-dev:amd64 \
                       libsystemd-dev:amd64 \
                       libtasn1-6-dev:amd64 \
                       libubsan1:amd64 \

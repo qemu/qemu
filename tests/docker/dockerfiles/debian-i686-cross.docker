@@ -140,6 +140,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libspice-protocol-dev:i386 \
                       libspice-server-dev:i386 \
                       libssh-dev:i386 \
+                      libstd-rust-dev:i386 \
                       libsystemd-dev:i386 \
                       libtasn1-6-dev:i386 \
                       libubsan1:i386 \

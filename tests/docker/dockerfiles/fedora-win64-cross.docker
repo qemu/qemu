@@ -100,7 +100,8 @@ RUN nosync dnf install -y \
                mingw64-libtasn1 \
                mingw64-nettle \
                mingw64-pixman \
-               mingw64-pkg-config && \
+               mingw64-pkg-config \
+               rust-std-static-x86_64-pc-windows-gnu && \
     nosync dnf clean all -y && \
     rpm -qa | sort > /packages.txt && \
     mkdir -p /usr/libexec/ccache-wrappers && \

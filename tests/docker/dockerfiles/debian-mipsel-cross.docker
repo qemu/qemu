@@ -139,6 +139,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libspice-protocol-dev:mipsel \
                       libspice-server-dev:mipsel \
                       libssh-dev:mipsel \
+                      libstd-rust-dev:mipsel \
                       libsystemd-dev:mipsel \
                       libtasn1-6-dev:mipsel \
                       libudev-dev:mipsel \

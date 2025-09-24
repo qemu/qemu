@@ -105,6 +105,7 @@ RUN dnf distro-sync -y && \
         python3-tomli \
         rdma-core-devel \
         rust \
+        rust-std-static \
         sed \
         snappy-devel \
         socat \

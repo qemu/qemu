@@ -139,6 +139,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libsndio-dev:s390x \
                       libspice-protocol-dev:s390x \
                       libssh-dev:s390x \
+                      libstd-rust-dev:s390x \
                       libsystemd-dev:s390x \
                       libtasn1-6-dev:s390x \
                       libubsan1:s390x \

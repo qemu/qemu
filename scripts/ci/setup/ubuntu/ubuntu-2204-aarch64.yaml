@@ -81,6 +81,7 @@ packages:
   - libspice-protocol-dev
   - libspice-server-dev
   - libssh-dev
+  - libstd-rust-dev
   - libsystemd-dev
   - libtasn1-6-dev
   - libubsan1

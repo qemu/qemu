@@ -104,6 +104,7 @@ packages:
  - python3-venv
  - rpm2cpio
  - rust
+ - rust-std
  - sdl2
  - sdl2-image
  - sed

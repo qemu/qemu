@@ -117,6 +117,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                python3-wheel \
                rdma-core-devel \
                rust \
+               rust-std-static \
                sed \
                snappy-devel \
                socat \
