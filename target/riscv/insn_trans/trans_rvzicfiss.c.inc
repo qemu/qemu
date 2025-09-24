@@ -91,7 +91,11 @@ static bool trans_ssamoswap_w(DisasContext *ctx, arg_amoswap_w *a)
     }
 
     if (!ctx->bcfi_enabled) {
+#ifndef CONFIG_USER_ONLY
+        gen_helper_ssamoswap_disabled(tcg_env);
+#else
         return false;
+#endif
     }
 
     TCGv dest = dest_gpr(ctx, a->rd);
@@ -116,7 +120,11 @@ static bool trans_ssamoswap_d(DisasContext *ctx, arg_amoswap_w *a)
     }
 
     if (!ctx->bcfi_enabled) {
+#ifndef CONFIG_USER_ONLY
+        gen_helper_ssamoswap_disabled(tcg_env);
+#else
         return false;
+#endif
     }
 
     TCGv dest = dest_gpr(ctx, a->rd);
