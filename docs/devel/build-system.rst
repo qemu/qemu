@@ -450,7 +450,7 @@ are run with ``make bench``.  Meson test suites such as ``unit`` can be ran
 with ``make check-unit``, and ``make check-tcg`` builds and runs "non-Meson"
 tests for all targets.
 
-If desired, it is also possible to use ``ninja`` and ``meson test``,
+If desired, it is also possible to use ``ninja`` and ``pyvenv/bin/meson test``,
 respectively to build emulators and run tests defined in meson.build.
 The main difference is that ``make`` needs the ``-jN`` flag in order to
 enable parallel builds or tests.

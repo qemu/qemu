@@ -3,10 +3,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 use proc_macro::TokenStream;
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned};
 use syn::{
-    parse::Parse, parse_macro_input, parse_quote, punctuated::Punctuated, spanned::Spanned,
-    token::Comma, Data, DeriveInput, Error, Field, Fields, FieldsUnnamed, Ident, Meta, Path, Token,
+    parse::{Parse, ParseStream},
+    parse_macro_input, parse_quote,
+    punctuated::Punctuated,
+    spanned::Spanned,
+    token::Comma,
+    Attribute, Data, DeriveInput, Error, Field, Fields, FieldsUnnamed, Ident, Meta, Path, Token,
     Variant,
 };
 mod bits;
@@ -159,61 +163,39 @@ enum DevicePropertyName {
     Str(syn::LitStr),
 }
 
-#[derive(Debug)]
+impl Parse for DevicePropertyName {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let lo = input.lookahead1();
+        if lo.peek(syn::LitStr) {
+            Ok(Self::Str(input.parse()?))
+        } else if lo.peek(syn::LitCStr) {
+            Ok(Self::CStr(input.parse()?))
+        } else {
+            Err(lo.error())
+        }
+    }
+}
+
+#[derive(Default, Debug)]
 struct DeviceProperty {
     rename: Option<DevicePropertyName>,
+    bitnr: Option<syn::Expr>,
     defval: Option<syn::Expr>,
 }
 
-impl Parse for DeviceProperty {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let _: syn::Token![#] = input.parse()?;
-        let bracketed;
-        _ = syn::bracketed!(bracketed in input);
-        let attribute = bracketed.parse::<syn::Ident>()?;
-        debug_assert_eq!(&attribute.to_string(), "property");
-        let mut retval = Self {
-            rename: None,
-            defval: None,
-        };
-        let content;
-        _ = syn::parenthesized!(content in bracketed);
-        while !content.is_empty() {
-            let value: syn::Ident = content.parse()?;
-            if value == "rename" {
-                let _: syn::Token![=] = content.parse()?;
-                if retval.rename.is_some() {
-                    return Err(syn::Error::new(
-                        value.span(),
-                        "`rename` can only be used at most once",
-                    ));
-                }
-                if content.peek(syn::LitStr) {
-                    retval.rename = Some(DevicePropertyName::Str(content.parse::<syn::LitStr>()?));
-                } else {
-                    retval.rename =
-                        Some(DevicePropertyName::CStr(content.parse::<syn::LitCStr>()?));
-                }
-            } else if value == "default" {
-                let _: syn::Token![=] = content.parse()?;
-                if retval.defval.is_some() {
-                    return Err(syn::Error::new(
-                        value.span(),
-                        "`default` can only be used at most once",
-                    ));
-                }
-                retval.defval = Some(content.parse()?);
-            } else {
-                return Err(syn::Error::new(
-                    value.span(),
-                    format!("unrecognized field `{value}`"),
-                ));
-            }
+impl DeviceProperty {
+    fn parse_from(&mut self, a: &Attribute) -> syn::Result<()> {
+        use attrs::{set, with, Attrs};
+        let mut parser = Attrs::new();
+        parser.once("rename", with::eq(set::parse(&mut self.rename)));
+        parser.once("bit", with::eq(set::parse(&mut self.bitnr)));
+        parser.once("default", with::eq(set::parse(&mut self.defval)));
+        a.parse_args_with(&mut parser)
+    }
 
-            if !content.is_empty() {
-                let _: syn::Token![,] = content.parse()?;
-            }
-        }
+    fn parse(a: &Attribute) -> syn::Result<Self> {
+        let mut retval = Self::default();
+        retval.parse_from(a)?;
         Ok(retval)
     }
 }
@@ -235,14 +217,18 @@ fn derive_device_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
             f.attrs
                 .iter()
                 .filter(|a| a.path().is_ident("property"))
-                .map(|a| Ok((f.clone(), syn::parse2(a.to_token_stream())?)))
+                .map(|a| Ok((f.clone(), DeviceProperty::parse(a)?)))
         })
         .collect::<Result<Vec<_>, Error>>()?;
     let name = &input.ident;
     let mut properties_expanded = vec![];
 
     for (field, prop) in properties {
-        let DeviceProperty { rename, defval } = prop;
+        let DeviceProperty {
+            rename,
+            bitnr,
+            defval,
+        } = prop;
         let field_name = field.ident.unwrap();
         macro_rules! str_to_c_str {
             ($value:expr, $span:expr) => {{
@@ -262,8 +248,8 @@ fn derive_device_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
 
         let prop_name = rename.map_or_else(
             || str_to_c_str!(field_name.to_string(), field_name.span()),
-            |rename| -> Result<proc_macro2::TokenStream, Error> {
-                match rename {
+            |prop_rename| -> Result<proc_macro2::TokenStream, Error> {
+                match prop_rename {
                     DevicePropertyName::CStr(cstr_lit) => Ok(quote! { #cstr_lit }),
                     DevicePropertyName::Str(str_lit) => {
                         str_to_c_str!(str_lit.value(), str_lit.span())
@@ -272,14 +258,20 @@ fn derive_device_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
             },
         )?;
         let field_ty = field.ty.clone();
-        let qdev_prop = quote! { <#field_ty as ::hwcore::QDevProp>::VALUE };
+        let qdev_prop = if bitnr.is_none() {
+            quote! { <#field_ty as ::hwcore::QDevProp>::BASE_INFO }
+        } else {
+            quote! { <#field_ty as ::hwcore::QDevProp>::BIT_INFO }
+        };
+        let bitnr = bitnr.unwrap_or(syn::Expr::Verbatim(quote! { 0 }));
         let set_default = defval.is_some();
         let defval = defval.unwrap_or(syn::Expr::Verbatim(quote! { 0 }));
         properties_expanded.push(quote! {
             ::hwcore::bindings::Property {
                 name: ::std::ffi::CStr::as_ptr(#prop_name),
-                info: #qdev_prop ,
+                info: #qdev_prop,
                 offset: ::core::mem::offset_of!(#name, #field_name) as isize,
+                bitnr: #bitnr,
                 set_default: #set_default,
                 defval: ::hwcore::bindings::Property__bindgen_ty_1 { u: #defval as u64 },
                 ..::common::Zeroable::ZERO

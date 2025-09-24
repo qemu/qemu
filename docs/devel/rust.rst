@@ -66,7 +66,7 @@ __ https://mesonbuild.com/Commands.html#devenv
 As shown above, you can use the ``--tests`` option as usual to operate on test
 code.  Note however that you cannot *build* or run tests via ``cargo``, because
 they need support C code from QEMU that Cargo does not know about.  Tests can
-be run via ``meson test`` or ``make``::
+be run via Meson (``pyvenv/bin/meson test``) or ``make``::
 
    make check-rust
 

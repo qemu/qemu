@@ -365,11 +365,8 @@ void vfio_region_finalize(VFIORegion *region)
     for (i = 0; i < region->nr_mmaps; i++) {
         if (region->mmaps[i].mmap) {
             munmap(region->mmaps[i].mmap, region->mmaps[i].size);
-            object_unparent(OBJECT(&region->mmaps[i].mem));
         }
     }
-
-    object_unparent(OBJECT(region->mem));
 
     g_free(region->mem);
     g_free(region->mmaps);

@@ -16,6 +16,7 @@ rust-version.workspace = true
 proc-macro = true
 
 [dependencies]
+attrs = "0.2.9"
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "2", features = ["extra-traits"] }

@@ -60,7 +60,7 @@ fn test_derive_device() {
                 migrate_clock: bool,
             }
         },
-        "unrecognized field `defalt`"
+        "Expected one of `bit`, `default` or `rename`"
     );
     // Check that repeated attributes are not allowed:
     derive_compile_fail!(
@@ -73,7 +73,8 @@ fn test_derive_device() {
                 migrate_clock: bool,
             }
         },
-        "`rename` can only be used at most once"
+        "Duplicate argument",
+        "Already used here",
     );
     derive_compile_fail!(
         derive_device_or_error,
@@ -85,7 +86,21 @@ fn test_derive_device() {
                 migrate_clock: bool,
             }
         },
-        "`default` can only be used at most once"
+        "Duplicate argument",
+        "Already used here",
+    );
+    derive_compile_fail!(
+        derive_device_or_error,
+        quote! {
+            #[repr(C)]
+            #[derive(Device)]
+            struct DummyState {
+                #[property(bit = 0, bit = 1)]
+                flags: u32,
+            }
+        },
+        "Duplicate argument",
+        "Already used here",
     );
     // Check that the field name is preserved when `rename` isn't used:
     derive_compile!(
@@ -104,8 +119,9 @@ fn test_derive_device() {
                 const PROPERTIES: &'static [::hwcore::bindings::Property] = &[
                     ::hwcore::bindings::Property {
                         name: ::std::ffi::CStr::as_ptr(c"migrate_clock"),
-                        info: <bool as ::hwcore::QDevProp>::VALUE,
+                        info: <bool as ::hwcore::QDevProp>::BASE_INFO,
                         offset: ::core::mem::offset_of!(DummyState, migrate_clock) as isize,
+                        bitnr: 0,
                         set_default: true,
                         defval: ::hwcore::bindings::Property__bindgen_ty_1 { u: true as u64 },
                         ..::common::Zeroable::ZERO
@@ -131,10 +147,97 @@ fn test_derive_device() {
                 const PROPERTIES: &'static [::hwcore::bindings::Property] = &[
                     ::hwcore::bindings::Property {
                         name: ::std::ffi::CStr::as_ptr(c"migrate-clk"),
-                        info: <bool as ::hwcore::QDevProp>::VALUE,
+                        info: <bool as ::hwcore::QDevProp>::BASE_INFO,
                         offset: ::core::mem::offset_of!(DummyState, migrate_clock) as isize,
+                        bitnr: 0,
                         set_default: true,
                         defval: ::hwcore::bindings::Property__bindgen_ty_1 { u: true as u64 },
+                        ..::common::Zeroable::ZERO
+                    }
+                ];
+            }
+        }
+    );
+    // Check that `bit` value is used for the bit property without default
+    // value (note: though C macro (e.g., DEFINE_PROP_BIT) always requires
+    // default value, Rust side allows to default this field to "0"):
+    derive_compile!(
+        derive_device_or_error,
+        quote! {
+            #[repr(C)]
+            #[derive(Device)]
+            pub struct DummyState {
+                parent: ParentField<DeviceState>,
+                #[property(bit = 3)]
+                flags: u32,
+            }
+        },
+        quote! {
+            unsafe impl ::hwcore::DevicePropertiesImpl for DummyState {
+                const PROPERTIES: &'static [::hwcore::bindings::Property] = &[
+                    ::hwcore::bindings::Property {
+                        name: ::std::ffi::CStr::as_ptr(c"flags"),
+                        info: <u32 as ::hwcore::QDevProp>::BIT_INFO,
+                        offset: ::core::mem::offset_of!(DummyState, flags) as isize,
+                        bitnr: 3,
+                        set_default: false,
+                        defval: ::hwcore::bindings::Property__bindgen_ty_1 { u: 0 as u64 },
+                        ..::common::Zeroable::ZERO
+                    }
+                ];
+            }
+        }
+    );
+    // Check that `bit` value is used for the bit property when used:
+    derive_compile!(
+        derive_device_or_error,
+        quote! {
+            #[repr(C)]
+            #[derive(Device)]
+            pub struct DummyState {
+                parent: ParentField<DeviceState>,
+                #[property(bit = 3, default = true)]
+                flags: u32,
+            }
+        },
+        quote! {
+            unsafe impl ::hwcore::DevicePropertiesImpl for DummyState {
+                const PROPERTIES: &'static [::hwcore::bindings::Property] = &[
+                    ::hwcore::bindings::Property {
+                        name: ::std::ffi::CStr::as_ptr(c"flags"),
+                        info: <u32 as ::hwcore::QDevProp>::BIT_INFO,
+                        offset: ::core::mem::offset_of!(DummyState, flags) as isize,
+                        bitnr: 3,
+                        set_default: true,
+                        defval: ::hwcore::bindings::Property__bindgen_ty_1 { u: true as u64 },
+                        ..::common::Zeroable::ZERO
+                    }
+                ];
+            }
+        }
+    );
+    // Check that `bit` value is used for the bit property with rename when used:
+    derive_compile!(
+        derive_device_or_error,
+        quote! {
+            #[repr(C)]
+            #[derive(Device)]
+            pub struct DummyState {
+                parent: ParentField<DeviceState>,
+                #[property(rename = "msi", bit = 3, default = false)]
+                flags: u64,
+            }
+        },
+        quote! {
+            unsafe impl ::hwcore::DevicePropertiesImpl for DummyState {
+                const PROPERTIES: &'static [::hwcore::bindings::Property] = &[
+                    ::hwcore::bindings::Property {
+                        name: ::std::ffi::CStr::as_ptr(c"msi"),
+                        info: <u64 as ::hwcore::QDevProp>::BIT_INFO,
+                        offset: ::core::mem::offset_of!(DummyState, flags) as isize,
+                        bitnr: 3,
+                        set_default: true,
+                        defval: ::hwcore::bindings::Property__bindgen_ty_1 { u: false as u64 },
                         ..::common::Zeroable::ZERO
                     }
                 ];

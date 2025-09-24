@@ -13,9 +13,8 @@ use std::{
 use bql::{BqlCell, BqlRefCell};
 use common::{bitops::IntegerExt, uninit_field_mut};
 use hwcore::{
-    bindings::{qdev_prop_bit, qdev_prop_bool, qdev_prop_uint32, qdev_prop_usize},
-    declare_properties, define_property, DeviceImpl, DeviceMethods, DeviceState, InterruptSource,
-    Property, ResetType, ResettablePhasesImpl, SysBusDevice, SysBusDeviceImpl, SysBusDeviceMethods,
+    DeviceImpl, DeviceMethods, DeviceState, InterruptSource, ResetType, ResettablePhasesImpl,
+    SysBusDevice, SysBusDeviceImpl, SysBusDeviceMethods,
 };
 use migration::{
     self, impl_vmstate_struct, vmstate_fields, vmstate_of, vmstate_subsections, vmstate_validate,
@@ -520,7 +519,7 @@ impl HPETTimer {
 
 /// HPET Event Timer Block Abstraction
 #[repr(C)]
-#[derive(qom::Object)]
+#[derive(qom::Object, hwcore::Device)]
 pub struct HPETState {
     parent_obj: ParentField<SysBusDevice>,
     iomem: MemoryRegion,
@@ -540,10 +539,12 @@ pub struct HPETState {
     // Internal state
     /// Capabilities that QEMU HPET supports.
     /// bit 0: MSI (or FSB) support.
+    #[property(rename = "msi", bit = HPET_FLAG_MSI_SUPPORT_SHIFT as u8, default = false)]
     flags: u32,
 
     /// Offset of main counter relative to qemu clock.
     hpet_offset: BqlCell<u64>,
+    #[property(rename = "hpet-offset-saved", default = true)]
     hpet_offset_saved: bool,
 
     irqs: [InterruptSource; HPET_NUM_IRQ_ROUTES],
@@ -555,11 +556,13 @@ pub struct HPETState {
     /// the timers' interrupt can be routed, and is encoded in the
     /// bits 32:64 of timer N's config register:
     #[doc(alias = "intcap")]
+    #[property(rename = "hpet-intcap", default = 0)]
     int_route_cap: u32,
 
     /// HPET timer array managed by this timer block.
     #[doc(alias = "timer")]
     timers: [BqlRefCell<HPETTimer>; HPET_MAX_TIMERS],
+    #[property(rename = "timers", default = HPET_MIN_TIMERS)]
     num_timers: usize,
     num_timers_save: BqlCell<u8>,
 
@@ -901,44 +904,6 @@ impl ObjectImpl for HPETState {
     const CLASS_INIT: fn(&mut Self::Class) = Self::Class::class_init::<Self>;
 }
 
-// TODO: Make these properties user-configurable!
-declare_properties! {
-    HPET_PROPERTIES,
-    define_property!(
-        c"timers",
-        HPETState,
-        num_timers,
-        unsafe { &qdev_prop_usize },
-        u8,
-        default = HPET_MIN_TIMERS
-    ),
-    define_property!(
-        c"msi",
-        HPETState,
-        flags,
-        unsafe { &qdev_prop_bit },
-        u32,
-        bit = HPET_FLAG_MSI_SUPPORT_SHIFT as u8,
-        default = false,
-    ),
-    define_property!(
-        c"hpet-intcap",
-        HPETState,
-        int_route_cap,
-        unsafe { &qdev_prop_uint32 },
-        u32,
-        default = 0
-    ),
-    define_property!(
-        c"hpet-offset-saved",
-        HPETState,
-        hpet_offset_saved,
-        unsafe { &qdev_prop_bool },
-        bool,
-        default = true
-    ),
-}
-
 static VMSTATE_HPET_RTC_IRQ_LEVEL: VMStateDescription<HPETState> =
     VMStateDescriptionBuilder::<HPETState>::new()
         .name(c"hpet/rtc_irq_level")
@@ -1000,12 +965,6 @@ const VMSTATE_HPET: VMStateDescription<HPETState> =
             VMSTATE_HPET_OFFSET,
         ))
         .build();
-
-// SAFETY: HPET_PROPERTIES is a valid Property array constructed with the
-// hwcore::declare_properties macro.
-unsafe impl hwcore::DevicePropertiesImpl for HPETState {
-    const PROPERTIES: &'static [Property] = &HPET_PROPERTIES;
-}
 
 impl DeviceImpl for HPETState {
     const VMSTATE: Option<VMStateDescription<Self>> = Some(VMSTATE_HPET);

@@ -6,7 +6,7 @@
 
 use std::{
     ffi::{c_int, c_void, CStr, CString},
-    ptr::NonNull,
+    ptr::{addr_of, NonNull},
 };
 
 use chardev::Chardev;
@@ -109,9 +109,16 @@ unsafe extern "C" fn rust_resettable_exit_fn<T: ResettablePhasesImpl>(
 ///
 /// # Safety
 ///
-/// This trait is marked as `unsafe` because currently having a `const` refer to
-/// an `extern static` as a reference instead of a raw pointer results in this
-/// compiler error:
+/// This trait is marked as `unsafe` because `BASE_INFO` and `BIT_INFO` must be
+/// valid raw references to [`bindings::PropertyInfo`].
+///
+/// Note we could not use a regular reference:
+///
+/// ```text
+/// const VALUE: &bindings::PropertyInfo = ...
+/// ```
+///
+/// because this results in the following compiler error:
 ///
 /// ```text
 /// constructing invalid value: encountered reference to `extern` static in `const`
@@ -119,28 +126,37 @@ unsafe extern "C" fn rust_resettable_exit_fn<T: ResettablePhasesImpl>(
 ///
 /// This is because the compiler generally might dereference a normal reference
 /// during const evaluation, but not in this case (if it did, it'd need to
-/// dereference the raw pointer so this would fail to compile).
+/// dereference the raw pointer so using a `*const` would also fail to compile).
 ///
 /// It is the implementer's responsibility to provide a valid
 /// [`bindings::PropertyInfo`] pointer for the trait implementation to be safe.
 pub unsafe trait QDevProp {
-    const VALUE: *const bindings::PropertyInfo;
+    const BASE_INFO: *const bindings::PropertyInfo;
+    const BIT_INFO: *const bindings::PropertyInfo = {
+        panic!("invalid type for bit property");
+    };
 }
 
-/// Use [`bindings::qdev_prop_bool`] for `bool`.
-unsafe impl QDevProp for bool {
-    const VALUE: *const bindings::PropertyInfo = unsafe { &bindings::qdev_prop_bool };
+macro_rules! impl_qdev_prop {
+    ($type:ty,$info:ident$(, $bit_info:ident)?) => {
+        unsafe impl $crate::qdev::QDevProp for $type {
+            const BASE_INFO: *const $crate::bindings::PropertyInfo =
+                addr_of!($crate::bindings::$info);
+            $(const BIT_INFO: *const $crate::bindings::PropertyInfo =
+                addr_of!($crate::bindings::$bit_info);)?
+        }
+    };
 }
 
-/// Use [`bindings::qdev_prop_uint64`] for `u64`.
-unsafe impl QDevProp for u64 {
-    const VALUE: *const bindings::PropertyInfo = unsafe { &bindings::qdev_prop_uint64 };
-}
-
-/// Use [`bindings::qdev_prop_chr`] for [`chardev::CharBackend`].
-unsafe impl QDevProp for chardev::CharBackend {
-    const VALUE: *const bindings::PropertyInfo = unsafe { &bindings::qdev_prop_chr };
-}
+impl_qdev_prop!(bool, qdev_prop_bool);
+impl_qdev_prop!(u8, qdev_prop_uint8);
+impl_qdev_prop!(u16, qdev_prop_uint16);
+impl_qdev_prop!(u32, qdev_prop_uint32, qdev_prop_bit);
+impl_qdev_prop!(u64, qdev_prop_uint64, qdev_prop_bit64);
+impl_qdev_prop!(usize, qdev_prop_usize);
+impl_qdev_prop!(i32, qdev_prop_int32);
+impl_qdev_prop!(i64, qdev_prop_int64);
+impl_qdev_prop!(chardev::CharBackend, qdev_prop_chr);
 
 /// Trait to define device properties.
 ///
@@ -230,59 +246,6 @@ impl DeviceClass {
         ResettableClass::cast::<DeviceState>(self).class_init::<T>();
         self.parent_class.class_init::<T>();
     }
-}
-
-#[macro_export]
-macro_rules! define_property {
-    ($name:expr, $state:ty, $field:ident, $prop:expr, $type:ty, bit = $bitnr:expr, default = $defval:expr$(,)*) => {
-        $crate::bindings::Property {
-            // use associated function syntax for type checking
-            name: ::std::ffi::CStr::as_ptr($name),
-            info: $prop,
-            offset: ::std::mem::offset_of!($state, $field) as isize,
-            bitnr: $bitnr,
-            set_default: true,
-            defval: $crate::bindings::Property__bindgen_ty_1 { u: $defval as u64 },
-            ..::common::zeroable::Zeroable::ZERO
-        }
-    };
-    ($name:expr, $state:ty, $field:ident, $prop:expr, $type:ty, default = $defval:expr$(,)*) => {
-        $crate::bindings::Property {
-            // use associated function syntax for type checking
-            name: ::std::ffi::CStr::as_ptr($name),
-            info: $prop,
-            offset: ::std::mem::offset_of!($state, $field) as isize,
-            set_default: true,
-            defval: $crate::bindings::Property__bindgen_ty_1 { u: $defval as u64 },
-            ..::common::zeroable::Zeroable::ZERO
-        }
-    };
-    ($name:expr, $state:ty, $field:ident, $prop:expr, $type:ty$(,)*) => {
-        $crate::bindings::Property {
-            // use associated function syntax for type checking
-            name: ::std::ffi::CStr::as_ptr($name),
-            info: $prop,
-            offset: ::std::mem::offset_of!($state, $field) as isize,
-            set_default: false,
-            ..::common::zeroable::Zeroable::ZERO
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! declare_properties {
-    ($ident:ident, $($prop:expr),*$(,)*) => {
-        pub static $ident: [$crate::bindings::Property; {
-            let mut len = 0;
-            $({
-                _ = stringify!($prop);
-                len += 1;
-            })*
-            len
-        }] = [
-            $($prop),*,
-        ];
-    };
 }
 
 unsafe impl ObjectType for DeviceState {

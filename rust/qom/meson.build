@@ -38,6 +38,5 @@ qom_rs = declare_dependency(link_with: [_qom_rs], dependencies: [qemu_macros, qo
 # in a separate suite that is run by the "build" CI jobs rather than "check".
 rust.doctest('rust-qom-rs-doctests',
      _qom_rs,
-     protocol: 'rust',
      dependencies: qom_rs,
      suite: ['doc', 'rust'])

@@ -8,6 +8,7 @@ _qemu_macros_rs = rust.proc_macro(
     '--cfg', 'feature="proc-macro"',
   ],
   dependencies: [
+    attrs_rs_native,
     proc_macro2_rs_native,
     quote_rs_native,
     syn_rs_native,

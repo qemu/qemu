@@ -35,7 +35,7 @@ impl<'a, T, U> MaybeUninitField<'a, T, U> {
     }
 }
 
-impl<'a, T, U> Deref for MaybeUninitField<'a, T, U> {
+impl<T, U> Deref for MaybeUninitField<'_, T, U> {
     type Target = MaybeUninit<U>;
 
     fn deref(&self) -> &MaybeUninit<U> {
@@ -46,7 +46,7 @@ impl<'a, T, U> Deref for MaybeUninitField<'a, T, U> {
     }
 }
 
-impl<'a, T, U> DerefMut for MaybeUninitField<'a, T, U> {
+impl<T, U> DerefMut for MaybeUninitField<'_, T, U> {
     fn deref_mut(&mut self) -> &mut MaybeUninit<U> {
         // SAFETY: self.child was obtained by dereferencing a valid mutable
         // reference; the content of the memory may be invalid or uninitialized

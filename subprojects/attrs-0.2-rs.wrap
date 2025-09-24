@@ -1,0 +1,7 @@
+[wrap-file]
+directory = attrs-0.2.9
+source_url = https://crates.io/api/v1/crates/attrs/0.2.9/download
+source_filename = attrs-0.2.9.tar.gz
+source_hash = 2a207d40f43de65285f3de0509bb6cb16bc46098864fce957122bbacce327e5f
+#method = cargo
+patch_directory = attrs-0.2-rs

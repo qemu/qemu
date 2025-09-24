@@ -48,6 +48,5 @@ migration_rs = declare_dependency(link_with: [_migration_rs],
 # in a separate suite that is run by the "build" CI jobs rather than "check".
 rust.doctest('rust-migration-rs-doctests',
      _migration_rs,
-     protocol: 'rust',
      dependencies: migration_rs,
      suite: ['doc', 'rust'])
