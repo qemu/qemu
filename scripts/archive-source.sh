@@ -77,7 +77,7 @@ function subproject_dir() {
 git archive --format tar "$(tree_ish)" > "$tar_file"
 test $? -ne 0 && error "failed to archive qemu"
 
-meson subprojects download $subprojects
+meson subprojects download $subprojects >/dev/null
 test $? -ne 0 && error "failed to download subprojects $subprojects"
 
 for sp in $subprojects; do
