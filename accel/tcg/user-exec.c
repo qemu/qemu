@@ -269,48 +269,6 @@ static void pageflags_create(vaddr start, vaddr last, int flags)
     interval_tree_insert(&p->itree, &pageflags_root);
 }
 
-/* A subroutine of page_set_flags: remove everything in [start,last]. */
-static bool pageflags_unset(vaddr start, vaddr last)
-{
-    bool inval_tb = false;
-
-    while (true) {
-        PageFlagsNode *p = pageflags_find(start, last);
-        vaddr p_last;
-
-        if (!p) {
-            break;
-        }
-
-        if (p->flags & PAGE_EXEC) {
-            inval_tb = true;
-        }
-
-        interval_tree_remove(&p->itree, &pageflags_root);
-        p_last = p->itree.last;
-
-        if (p->itree.start < start) {
-            /* Truncate the node from the end, or split out the middle. */
-            p->itree.last = start - 1;
-            interval_tree_insert(&p->itree, &pageflags_root);
-            if (last < p_last) {
-                pageflags_create(last + 1, p_last, p->flags);
-                break;
-            }
-        } else if (p_last <= last) {
-            /* Range completely covers node -- remove it. */
-            g_free_rcu(p, rcu);
-        } else {
-            /* Truncate the node from the start. */
-            p->itree.start = last + 1;
-            interval_tree_insert(&p->itree, &pageflags_root);
-            break;
-        }
-    }
-
-    return inval_tb;
-}
-
 /*
  * A subroutine of page_set_flags: nothing overlaps [start,last],
  * but check adjacent mappings and maybe merge into a single range.
@@ -356,15 +314,6 @@ static void pageflags_create_merge(vaddr start, vaddr last, int flags)
     }
 }
 
-/*
- * Allow the target to decide if PAGE_TARGET_[12] may be reset.
- * By default, they are not kept.
- */
-#ifndef PAGE_TARGET_STICKY
-#define PAGE_TARGET_STICKY  0
-#endif
-#define PAGE_STICKY  (PAGE_ANON | PAGE_PASSTHROUGH | PAGE_TARGET_STICKY)
-
 /* A subroutine of page_set_flags: add flags to [start,last]. */
 static bool pageflags_set_clear(vaddr start, vaddr last,
                                 int set_flags, int clear_flags)
@@ -377,7 +326,7 @@ static bool pageflags_set_clear(vaddr start, vaddr last,
  restart:
     p = pageflags_find(start, last);
     if (!p) {
-        if (set_flags) {
+        if (set_flags & PAGE_VALID) {
             pageflags_create_merge(start, last, set_flags);
         }
         goto done;
@@ -391,11 +340,12 @@ static bool pageflags_set_clear(vaddr start, vaddr last,
 
     /*
      * Need to flush if an overlapping executable region
-     * removes exec, or adds write.
+     * removes exec, adds write, or is a new mapping.
      */
     if ((p_flags & PAGE_EXEC)
         && (!(merge_flags & PAGE_EXEC)
-            || (merge_flags & ~p_flags & PAGE_WRITE))) {
+            || (merge_flags & ~p_flags & PAGE_WRITE)
+            || (clear_flags & PAGE_VALID))) {
         inval_tb = true;
     }
 
@@ -404,7 +354,7 @@ static bool pageflags_set_clear(vaddr start, vaddr last,
      * attempting to merge with adjacent regions.
      */
     if (start == p_start && last == p_last) {
-        if (merge_flags) {
+        if (merge_flags & PAGE_VALID) {
             p->flags = merge_flags;
         } else {
             interval_tree_remove(&p->itree, &pageflags_root);
@@ -424,12 +374,12 @@ static bool pageflags_set_clear(vaddr start, vaddr last,
             interval_tree_insert(&p->itree, &pageflags_root);
 
             if (last < p_last) {
-                if (merge_flags) {
+                if (merge_flags & PAGE_VALID) {
                     pageflags_create(start, last, merge_flags);
                 }
                 pageflags_create(last + 1, p_last, p_flags);
             } else {
-                if (merge_flags) {
+                if (merge_flags & PAGE_VALID) {
                     pageflags_create(start, p_last, merge_flags);
                 }
                 if (p_last < last) {
@@ -438,18 +388,18 @@ static bool pageflags_set_clear(vaddr start, vaddr last,
                 }
             }
         } else {
-            if (start < p_start && set_flags) {
+            if (start < p_start && (set_flags & PAGE_VALID)) {
                 pageflags_create(start, p_start - 1, set_flags);
             }
             if (last < p_last) {
                 interval_tree_remove(&p->itree, &pageflags_root);
                 p->itree.start = last + 1;
                 interval_tree_insert(&p->itree, &pageflags_root);
-                if (merge_flags) {
+                if (merge_flags & PAGE_VALID) {
                     pageflags_create(start, last, merge_flags);
                 }
             } else {
-                if (merge_flags) {
+                if (merge_flags & PAGE_VALID) {
                     p->flags = merge_flags;
                 } else {
                     interval_tree_remove(&p->itree, &pageflags_root);
@@ -497,7 +447,7 @@ static bool pageflags_set_clear(vaddr start, vaddr last,
         g_free_rcu(p, rcu);
         goto restart;
     }
-    if (set_flags) {
+    if (set_flags & PAGE_VALID) {
         pageflags_create(start, last, set_flags);
     }
 
@@ -505,42 +455,36 @@ static bool pageflags_set_clear(vaddr start, vaddr last,
     return inval_tb;
 }
 
-void page_set_flags(vaddr start, vaddr last, int flags)
+void page_set_flags(vaddr start, vaddr last, int set_flags, int clear_flags)
 {
-    bool reset = false;
-    bool inval_tb = false;
-
-    /* This function should never be called with addresses outside the
-       guest address space.  If this assert fires, it probably indicates
-       a missing call to h2g_valid.  */
+    /*
+     * This function should never be called with addresses outside the
+     * guest address space.  If this assert fires, it probably indicates
+     * a missing call to h2g_valid.
+     */
     assert(start <= last);
     assert(last <= guest_addr_max);
-    /* Only set PAGE_ANON with new mappings. */
-    assert(!(flags & PAGE_ANON) || (flags & PAGE_RESET));
     assert_memory_lock();
 
     start &= TARGET_PAGE_MASK;
     last |= ~TARGET_PAGE_MASK;
 
-    if (!(flags & PAGE_VALID)) {
-        flags = 0;
-    } else {
-        reset = flags & PAGE_RESET;
-        flags &= ~PAGE_RESET;
-        if (flags & PAGE_WRITE) {
-            flags |= PAGE_WRITE_ORG;
-        }
+    if (set_flags & PAGE_WRITE) {
+        set_flags |= PAGE_WRITE_ORG;
+    }
+    if (clear_flags & PAGE_WRITE) {
+        clear_flags |= PAGE_WRITE_ORG;
     }
 
-    if (!flags || reset) {
+    if (clear_flags & PAGE_VALID) {
         page_reset_target_data(start, last);
-        inval_tb |= pageflags_unset(start, last);
+        clear_flags = -1;
+    } else {
+        /* Only set PAGE_ANON with new mappings. */
+        assert(!(set_flags & PAGE_ANON));
     }
-    if (flags) {
-        inval_tb |= pageflags_set_clear(start, last, flags,
-                                        ~(reset ? 0 : PAGE_STICKY));
-    }
-    if (inval_tb) {
+
+    if (pageflags_set_clear(start, last, set_flags, clear_flags)) {
         tb_invalidate_phys_range(NULL, start, last);
     }
 }

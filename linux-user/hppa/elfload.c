@@ -42,6 +42,6 @@ bool init_guest_commpage(void)
      * Special case the entry points during translation (see do_page_zero).
      */
     page_set_flags(LO_COMMPAGE, LO_COMMPAGE | ~TARGET_PAGE_MASK,
-                   PAGE_EXEC | PAGE_VALID);
+                   PAGE_EXEC | PAGE_VALID, PAGE_VALID);
     return true;
 }

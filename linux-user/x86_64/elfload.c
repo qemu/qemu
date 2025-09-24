@@ -37,7 +37,7 @@ bool init_guest_commpage(void)
     }
     page_set_flags(TARGET_VSYSCALL_PAGE,
                    TARGET_VSYSCALL_PAGE | ~TARGET_PAGE_MASK,
-                   PAGE_EXEC | PAGE_VALID);
+                   PAGE_EXEC | PAGE_VALID, PAGE_VALID);
     return true;
 }
 
