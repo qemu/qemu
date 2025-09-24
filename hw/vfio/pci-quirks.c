@@ -1159,15 +1159,12 @@ void vfio_vga_quirk_exit(VFIOPCIDevice *vdev)
 
 void vfio_vga_quirk_finalize(VFIOPCIDevice *vdev)
 {
-    int i, j;
+    int i;
 
     for (i = 0; i < ARRAY_SIZE(vdev->vga->region); i++) {
         while (!QLIST_EMPTY(&vdev->vga->region[i].quirks)) {
             VFIOQuirk *quirk = QLIST_FIRST(&vdev->vga->region[i].quirks);
             QLIST_REMOVE(quirk, next);
-            for (j = 0; j < quirk->nr_mem; j++) {
-                object_unparent(OBJECT(&quirk->mem[j]));
-            }
             g_free(quirk->mem);
             g_free(quirk->data);
             g_free(quirk);
@@ -1207,14 +1204,10 @@ void vfio_bar_quirk_exit(VFIOPCIDevice *vdev, int nr)
 void vfio_bar_quirk_finalize(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];
-    int i;
 
     while (!QLIST_EMPTY(&bar->quirks)) {
         VFIOQuirk *quirk = QLIST_FIRST(&bar->quirks);
         QLIST_REMOVE(quirk, next);
-        for (i = 0; i < quirk->nr_mem; i++) {
-            object_unparent(OBJECT(&quirk->mem[i]));
-        }
         g_free(quirk->mem);
         g_free(quirk->data);
         g_free(quirk);
