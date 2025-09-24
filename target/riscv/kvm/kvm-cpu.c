@@ -1588,7 +1588,7 @@ static void kvm_riscv_handle_sbi_dbcn(CPUState *cs, struct kvm_run *run)
          * Handle the case where a 32 bit CPU is running in a
          * 64 bit addressing env.
          */
-        if (riscv_cpu_mxl(&cpu->env) == MXL_RV32) {
+        if (riscv_cpu_is_32bit(cpu)) {
             addr |= (uint64_t)run->riscv_sbi.args[2] << 32;
         }
 
