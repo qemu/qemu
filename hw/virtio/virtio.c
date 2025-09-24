@@ -257,7 +257,10 @@ void virtio_init_region_cache(VirtIODevice *vdev, int n)
     len = address_space_cache_init(&new->desc, vdev->dma_as,
                                    addr, size, packed);
     if (len < size) {
-        virtio_error(vdev, "Cannot map desc");
+        virtio_error(vdev,
+                "Failed to map descriptor ring for device %s: "
+                "invalid guest physical address or corrupted queue setup",
+                qdev_get_printable_name(DEVICE(vdev)));
         goto err_desc;
     }
 
@@ -265,7 +268,10 @@ void virtio_init_region_cache(VirtIODevice *vdev, int n)
     len = address_space_cache_init(&new->used, vdev->dma_as,
                                    vq->vring.used, size, true);
     if (len < size) {
-        virtio_error(vdev, "Cannot map used");
+        virtio_error(vdev,
+                "Failed to map used ring for device %s: "
+                "possible guest misconfiguration or insufficient memory",
+                qdev_get_printable_name(DEVICE(vdev)));
         goto err_used;
     }
 
@@ -273,7 +279,10 @@ void virtio_init_region_cache(VirtIODevice *vdev, int n)
     len = address_space_cache_init(&new->avail, vdev->dma_as,
                                    vq->vring.avail, size, false);
     if (len < size) {
-        virtio_error(vdev, "Cannot map avail");
+        virtio_error(vdev,
+                "Failed to map avalaible ring for device %s: "
+                "possible queue misconfiguration or overlapping memory region",
+                qdev_get_printable_name(DEVICE(vdev)));
         goto err_avail;
     }
 

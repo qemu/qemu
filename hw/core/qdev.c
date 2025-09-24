@@ -411,6 +411,35 @@ char *qdev_get_dev_path(DeviceState *dev)
     return NULL;
 }
 
+const char *qdev_get_printable_name(DeviceState *vdev)
+{
+    /*
+     * Return device ID if explicity set
+     * (e.g. -device virtio-blk-pci,id=foo)
+     * This allows users to correlate errors with their custom device
+     * names.
+     */
+    if (vdev->id) {
+        return vdev->id;
+    }
+    /*
+     * Fall back to the canonical QOM device path (eg. ID for PCI
+     * devices).
+     * This ensures the device is still uniquely and meaningfully
+     * identified.
+     */
+    const char *path = qdev_get_dev_path(vdev);
+    if (path) {
+        return path;
+    }
+
+    /*
+     * Final fallback: if all else fails, return a placeholder string.
+     * This ensures the error message always contains a valid string.
+     */
+    return "<unknown device>";
+}
+
 void qdev_add_unplug_blocker(DeviceState *dev, Error *reason)
 {
     dev->unplug_blockers = g_slist_prepend(dev->unplug_blockers, reason);
