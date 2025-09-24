@@ -46,6 +46,8 @@ vma-pthread: LDFLAGS+=-pthread
 sigreturn-sigmask: CFLAGS+=-pthread
 sigreturn-sigmask: LDFLAGS+=-pthread
 
+tb-link: LDFLAGS+=-lpthread
+
 # GCC versions 12/13/14/15 at least incorrectly complain about
 # "'SHA1Transform' reading 64 bytes from a region of size 0"; see the gcc bug
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=106709
