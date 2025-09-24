@@ -40,7 +40,9 @@ class FreeBSDVM(basevm.BaseVM):
         tar -xf /dev/vtbd1;
         cd ../build;
         ../src/configure --extra-ldflags=-L/usr/local/lib \
-                         --extra-cflags=-I/usr/local/include {configure_opts};
+                         --extra-cflags=-I/usr/local/include \
+                         --enable-rust \
+                         {configure_opts};
         gmake --output-sync -j{jobs} {target} {verbose};
     """
 
