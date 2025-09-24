@@ -4,7 +4,7 @@
 #
 # https://gitlab.com/libvirt/libvirt-ci
 
-FROM docker.io/library/debian:trixie-slim
+FROM docker.io/library/debian:13-slim
 
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update && \
@@ -23,11 +23,13 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libglib2.0-dev \
                       locales \
                       make \
-                      meson \
                       ninja-build \
                       pkgconf \
                       python3 \
+                      python3-pip \
+                      python3-setuptools \
                       python3-venv \
+                      python3-wheel \
                       sed \
                       tar && \
     eatmydata apt-get autoremove -y && \
@@ -35,6 +37,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     sed -Ei 's,^# (en_US\.UTF-8 .*)$,\1,' /etc/locale.gen && \
     dpkg-reconfigure locales && \
     rm -f /usr/lib*/python3*/EXTERNALLY-MANAGED
+
+RUN /usr/bin/pip3 install meson==1.8.1
 
 ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
 ENV LANG "en_US.UTF-8"

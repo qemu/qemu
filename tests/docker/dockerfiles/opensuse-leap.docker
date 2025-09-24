@@ -89,7 +89,7 @@ RUN zypper update -y && \
            ninja \
            openssh \
            pam-devel \
-           pcre-devel-static \
+           pcre2-devel-static \
            pipewire-devel \
            pkgconfig \
            python311 \
@@ -132,7 +132,7 @@ RUN zypper update -y && \
 
 RUN /usr/bin/pip3.11 install \
                      PyYAML \
-                     meson==1.5.0 \
+                     meson==1.8.1 \
                      pillow \
                      sphinx \
                      sphinx-rtd-theme

@@ -78,7 +78,7 @@ RUN apk update && \
         nmap-ncat \
         numactl-dev \
         openssh-client \
-        pcre-dev \
+        pcre2-dev \
         pipewire-dev \
         pixman-dev \
         pkgconf \

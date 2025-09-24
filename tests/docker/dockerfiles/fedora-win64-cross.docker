@@ -1,10 +1,10 @@
 # THIS FILE WAS AUTO-GENERATED
 #
-#  $ lcitool dockerfile --layers all --cross-arch mingw64 fedora-40 qemu,qemu-win-installer
+#  $ lcitool dockerfile --layers all --cross-arch mingw64 fedora-41 qemu,qemu-win-installer
 #
 # https://gitlab.com/libvirt/libvirt-ci
 
-FROM registry.fedoraproject.org/fedora:40
+FROM registry.fedoraproject.org/fedora:41
 
 RUN dnf install -y nosync && \
     printf '#!/bin/sh\n\
@@ -38,7 +38,6 @@ exec "$@"\n' > /usr/bin/nosync && \
                hostname \
                llvm \
                make \
-               meson \
                mtools \
                ninja-build \
                nmap-ncat \
@@ -49,9 +48,10 @@ exec "$@"\n' > /usr/bin/nosync && \
                python3-opencv \
                python3-pillow \
                python3-pip \
+               python3-setuptools \
                python3-sphinx \
                python3-sphinx_rtd_theme \
-               python3-zombie-imp \
+               python3-wheel \
                rust \
                sed \
                socat \
@@ -68,6 +68,8 @@ exec "$@"\n' > /usr/bin/nosync && \
     nosync dnf autoremove -y && \
     nosync dnf clean all -y && \
     rm -f /usr/lib*/python3*/EXTERNALLY-MANAGED
+
+RUN /usr/bin/pip3 install meson==1.8.1
 
 ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
 ENV LANG "en_US.UTF-8"
@@ -90,6 +92,7 @@ RUN nosync dnf install -y \
                mingw64-gtk-vnc2 \
                mingw64-gtk3 \
                mingw64-libepoxy \
+               mingw64-libfdt \
                mingw64-libgcrypt \
                mingw64-libjpeg-turbo \
                mingw64-libpng \

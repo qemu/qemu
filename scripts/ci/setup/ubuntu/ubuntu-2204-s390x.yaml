@@ -93,7 +93,6 @@ packages:
   - llvm
   - locales
   - make
-  - meson
   - mtools
   - multipath-tools
   - ncat
@@ -106,10 +105,12 @@ packages:
   - python3-opencv
   - python3-pillow
   - python3-pip
+  - python3-setuptools
   - python3-sphinx
   - python3-sphinx-rtd-theme
   - python3-tomli
   - python3-venv
+  - python3-wheel
   - python3-yaml
   - rpm2cpio
   - rustc-1.77
