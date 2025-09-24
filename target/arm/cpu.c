@@ -227,6 +227,8 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
     ARMCPUClass *acc = ARM_CPU_GET_CLASS(obj);
     CPUARMState *env = &cpu->env;
 
+    trace_arm_cpu_reset(arm_cpu_mp_affinity(cpu));
+
     if (acc->parent_phases.hold) {
         acc->parent_phases.hold(obj, type);
     }
