@@ -97,6 +97,11 @@ def generate_yaml(os, target, arch, trailer=None):
     generate(filename, cmd, trailer)
 
 
+alpine_extras = [
+    "# https://gitlab.alpinelinux.org/alpine/aports/-/issues/17463\n",
+    "RUN apk add clang19-libclang\n",
+]
+
 # Netmap still needs to be manually built as it is yet to be packaged
 # into a distro. We also add cscope and gtags which are used in the CI
 # test
@@ -167,7 +172,8 @@ try:
     #
     # Standard native builds
     #
-    generate_dockerfile("alpine", "alpine-321")
+    generate_dockerfile("alpine", "alpine-321",
+                        trailer="".join(alpine_extras))
     generate_dockerfile("centos9", "centos-stream-9")
     generate_dockerfile("debian", "debian-12",
                         trailer="".join(debian12_extras))
