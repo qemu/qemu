@@ -1296,9 +1296,9 @@ static bool qmp_chardev_validate_socket(ChardevSocket *sock,
     /* Validate any options which have a dependency on address type */
     switch (addr->type) {
     case SOCKET_ADDRESS_TYPE_FD:
-        if (sock->has_reconnect) {
+        if (sock->has_reconnect_ms) {
             error_setg(errp,
-                       "'reconnect' option is incompatible with "
+                       "'reconnect-ms' option is incompatible with "
                        "'fd' address type");
             return false;
         }
@@ -1342,9 +1342,9 @@ static bool qmp_chardev_validate_socket(ChardevSocket *sock,
 
     /* Validate any options which have a dependency on client vs server */
     if (!sock->has_server || sock->server) {
-        if (sock->has_reconnect) {
+        if (sock->has_reconnect_ms) {
             error_setg(errp,
-                       "'reconnect' option is incompatible with "
+                       "'reconnect-ms' option is incompatible with "
                        "socket in server listen mode");
             return false;
         }
@@ -1359,12 +1359,6 @@ static bool qmp_chardev_validate_socket(ChardevSocket *sock,
                        "socket in client connect mode");
             return false;
         }
-    }
-
-    if (sock->has_reconnect_ms && sock->has_reconnect) {
-        error_setg(errp,
-            "'reconnect' and 'reconnect-ms' are mutually exclusive");
-        return false;
     }
 
     return true;
@@ -1384,7 +1378,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
     bool is_tn3270      = sock->has_tn3270  ? sock->tn3270  : false;
     bool is_waitconnect = sock->has_wait    ? sock->wait    : false;
     bool is_websock     = sock->has_websocket ? sock->websocket : false;
-    int64_t reconnect_ms = 0;
+    int64_t reconnect_ms = sock->has_reconnect_ms ? sock->reconnect_ms : 0;
     SocketAddress *addr;
 
     s->is_listen = is_listen;
@@ -1456,12 +1450,6 @@ static void qmp_chardev_open_socket(Chardev *chr,
             return;
         }
     } else {
-        if (sock->has_reconnect) {
-            reconnect_ms = sock->reconnect * 1000ULL;
-        } else if (sock->has_reconnect_ms) {
-            reconnect_ms = sock->reconnect_ms;
-        }
-
         if (qmp_chardev_open_socket_client(chr, reconnect_ms, errp) < 0) {
             return;
         }
@@ -1526,8 +1514,6 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
      */
     sock->has_wait = qemu_opt_find(opts, "wait") || sock->server;
     sock->wait = qemu_opt_get_bool(opts, "wait", true);
-    sock->has_reconnect = qemu_opt_find(opts, "reconnect");
-    sock->reconnect = qemu_opt_get_number(opts, "reconnect", 0);
     sock->has_reconnect_ms = qemu_opt_find(opts, "reconnect-ms");
     sock->reconnect_ms = qemu_opt_get_number(opts, "reconnect-ms", 0);
 
