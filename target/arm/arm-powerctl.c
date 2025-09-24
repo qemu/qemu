@@ -17,23 +17,11 @@
 #include "qemu/main-loop.h"
 #include "system/tcg.h"
 #include "target/arm/multiprocessing.h"
-
-#ifndef DEBUG_ARM_POWERCTL
-#define DEBUG_ARM_POWERCTL 0
-#endif
-
-#define DPRINTF(fmt, args...) \
-    do { \
-        if (DEBUG_ARM_POWERCTL) { \
-            fprintf(stderr, "[ARM]%s: " fmt , __func__, ##args); \
-        } \
-    } while (0)
+#include "trace.h"
 
 CPUState *arm_get_cpu_by_id(uint64_t id)
 {
     CPUState *cpu;
-
-    DPRINTF("cpu %" PRId64 "\n", id);
 
     CPU_FOREACH(cpu) {
         ARMCPU *armcpu = ARM_CPU(cpu);
@@ -102,9 +90,9 @@ int arm_set_cpu_on(uint64_t cpuid, uint64_t entry, uint64_t context_id,
 
     assert(bql_locked());
 
-    DPRINTF("cpu %" PRId64 " (EL %d, %s) @ 0x%" PRIx64 " with R0 = 0x%" PRIx64
-            "\n", cpuid, target_el, target_aa64 ? "aarch64" : "aarch32", entry,
-            context_id);
+    trace_arm_powerctl_set_cpu_on(cpuid, target_el,
+                                  target_aa64 ? "aarch64" : "aarch32",
+                                  entry, context_id);
 
     /* requested EL level need to be in the 1 to 3 range */
     assert((target_el > 0) && (target_el < 4));
@@ -208,6 +196,8 @@ int arm_set_cpu_on_and_reset(uint64_t cpuid)
 
     assert(bql_locked());
 
+    trace_arm_powerctl_set_cpu_on_and_reset(cpuid);
+
     /* Retrieve the cpu we are powering up */
     target_cpu_state = arm_get_cpu_by_id(cpuid);
     if (!target_cpu_state) {
@@ -261,7 +251,7 @@ int arm_set_cpu_off(uint64_t cpuid)
 
     assert(bql_locked());
 
-    DPRINTF("cpu %" PRId64 "\n", cpuid);
+    trace_arm_powerctl_set_cpu_off(cpuid);
 
     /* change to the cpu we are powering up */
     target_cpu_state = arm_get_cpu_by_id(cpuid);
@@ -297,7 +287,7 @@ int arm_reset_cpu(uint64_t cpuid)
 
     assert(bql_locked());
 
-    DPRINTF("cpu %" PRId64 "\n", cpuid);
+    trace_arm_powerctl_set_cpu_off(cpuid);
 
     /* change to the cpu we are resetting */
     target_cpu_state = arm_get_cpu_by_id(cpuid);
