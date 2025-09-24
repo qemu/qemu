@@ -50,7 +50,7 @@ configure_qemu()
     echo "Configure options:"
     echo $config_opts
     $QEMU_SRC/configure $config_opts || \
-        { cat config.log && test_fail "Failed to run 'configure'"; }
+        { cat config.log >&2 && test_fail "Failed to run 'configure'"; }
 }
 
 build_qemu()
@@ -73,7 +73,7 @@ check_qemu()
 
 test_fail()
 {
-    echo "$@"
+    echo "$@" >&2
     exit 1
 }
 
