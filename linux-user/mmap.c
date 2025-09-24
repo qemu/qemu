@@ -1248,6 +1248,12 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
      */
     mmap_lock();
     switch (advice) {
+    case MADV_DONTDUMP:
+        page_set_flags(start, start + len - 1, PAGE_DONTDUMP, 0);
+        break;
+    case MADV_DODUMP:
+        page_set_flags(start, start + len - 1, 0, PAGE_DONTDUMP);
+        break;
     case MADV_WIPEONFORK:
     case MADV_KEEPONFORK:
         ret = -EINVAL;

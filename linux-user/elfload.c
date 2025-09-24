@@ -2127,8 +2127,8 @@ static void bswap_note(struct elf_note *en)
  */
 static size_t vma_dump_size(vaddr start, vaddr end, int flags)
 {
-    /* The area must be readable. */
-    if (!(flags & PAGE_READ)) {
+    /* The area must be readable and dumpable. */
+    if (!(flags & PAGE_READ) || (flags & PAGE_DONTDUMP)) {
         return 0;
     }
 
