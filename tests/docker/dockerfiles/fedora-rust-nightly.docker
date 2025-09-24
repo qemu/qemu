@@ -32,6 +32,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                capstone-devel \
                ccache \
                clang \
+               compiler-rt \
                ctags \
                cyrus-sasl-devel \
                daxctl-devel \

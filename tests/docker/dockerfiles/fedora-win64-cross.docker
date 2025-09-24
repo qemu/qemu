@@ -25,6 +25,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                bzip2 \
                ca-certificates \
                ccache \
+               compiler-rt \
                ctags \
                dbus-daemon \
                diffutils \

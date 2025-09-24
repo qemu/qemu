@@ -44,6 +44,7 @@ packages:
  - libcacard
  - libcap-ng
  - libcbor
+ - libclang-rt
  - libcurl
  - libdrm
  - libepoxy
