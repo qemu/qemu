@@ -425,7 +425,7 @@ macro_rules! vmstate_fields {
                 ..::common::zeroable::Zeroable::ZERO
             }
         ];
-        _FIELDS.as_ptr()
+        _FIELDS
     }}
 }
 
@@ -677,8 +677,11 @@ impl<T> VMStateDescriptionBuilder<T> {
     }
 
     #[must_use]
-    pub const fn fields(mut self, fields: *const VMStateField) -> Self {
-        self.0.fields = fields;
+    pub const fn fields(mut self, fields: &'static [VMStateField]) -> Self {
+        if fields[fields.len() - 1].flags.0 != VMStateFlags::VMS_END.0 {
+            panic!("fields are not terminated, use vmstate_fields!");
+        }
+        self.0.fields = fields.as_ptr();
         self
     }
 
