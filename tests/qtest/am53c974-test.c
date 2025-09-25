@@ -109,6 +109,44 @@ static void test_cmdfifo_overflow2_ok(void)
     qtest_quit(s);
 }
 
+/* Reported as https://issues.oss-fuzz.com/issues/439878564 */
+static void test_cmdfifo_overflow3_ok(void)
+{
+    QTestState *s = qtest_init(
+        "-device am53c974,id=scsi -device scsi-hd,drive=disk0 "
+        "-drive id=disk0,if=none,file=null-co://,format=raw -nodefaults");
+    qtest_outl(s, 0xcf8, 0x80001010);
+    qtest_outl(s, 0xcfc, 0xc000);
+    qtest_outl(s, 0xcf8, 0x80001004);
+    qtest_outw(s, 0xcfc, 0x01);
+    qtest_outb(s, 0xc00c, 0x43);
+    qtest_outl(s, 0xc00b, 0x9100);
+    qtest_outl(s, 0xc009, 0x02000000);
+    qtest_outl(s, 0xc000, 0x0b);
+    qtest_outl(s, 0xc00b, 0x00);
+    qtest_outl(s, 0xc00b, 0x00);
+    qtest_outl(s, 0xc00b, 0xc200);
+    qtest_outl(s, 0xc00b, 0x1000);
+    qtest_outl(s, 0xc00b, 0x9000);
+    qtest_outb(s, 0xc008, 0x00);
+    qtest_outb(s, 0xc008, 0x00);
+    qtest_outl(s, 0xc03f, 0x0300);
+    qtest_outl(s, 0xc00b, 0x00);
+    qtest_outw(s, 0xc00b, 0x4200);
+    qtest_outl(s, 0xc00b, 0x00);
+    qtest_outw(s, 0xc00b, 0x1200);
+    qtest_outl(s, 0xc00b, 0x00);
+    qtest_outb(s, 0xc00c, 0x43);
+    qtest_outl(s, 0xc00b, 0x00);
+    qtest_outl(s, 0xc00b, 0x00);
+    qtest_outl(s, 0xc007, 0x00);
+    qtest_outl(s, 0xc007, 0x00);
+    qtest_outl(s, 0xc007, 0x00);
+    qtest_outl(s, 0xc00b, 0x1000);
+    qtest_outl(s, 0xc007, 0x00);
+    qtest_quit(s);
+}
+
 /* Reported as crash_0900379669 */
 static void test_fifo_pop_buf(void)
 {
@@ -266,6 +304,8 @@ int main(int argc, char **argv)
                        test_cmdfifo_overflow_ok);
         qtest_add_func("am53c974/test_cmdfifo_overflow2_ok",
                        test_cmdfifo_overflow2_ok);
+        qtest_add_func("am53c974/test_cmdfifo_overflow3_ok",
+                       test_cmdfifo_overflow3_ok);
         qtest_add_func("am53c974/test_fifo_pop_buf",
                        test_fifo_pop_buf);
         qtest_add_func("am53c974/test_target_selected_ok",
