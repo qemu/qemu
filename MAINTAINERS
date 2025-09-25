@@ -222,6 +222,7 @@ S: Maintained
 F: hw/arm/smmu*
 F: include/hw/arm/smmu*
 F: tests/functional/aarch64/test_smmu.py
+F: tests/qtest/iommu-smmuv3-test.c
 
 AVR TCG CPUs
 M: Michael Rolnik <mrolnik@gmail.com>
