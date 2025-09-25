@@ -12,7 +12,7 @@
 #include "migration/misc.h"
 #include "system/memory.h"
 
-struct VFIOContainer;
+struct VFIOLegacyContainer;
 struct VFIOContainerBase;
 struct VFIOGroup;
 struct VFIODevice;
@@ -42,9 +42,10 @@ typedef struct VFIOPCICPR {
     NotifierWithReturn transfer_notifier;
 } VFIOPCICPR;
 
-bool vfio_legacy_cpr_register_container(struct VFIOContainer *container,
+bool vfio_legacy_cpr_register_container(struct VFIOLegacyContainer *container,
                                         Error **errp);
-void vfio_legacy_cpr_unregister_container(struct VFIOContainer *container);
+void vfio_legacy_cpr_unregister_container(
+    struct VFIOLegacyContainer *container);
 
 int vfio_cpr_reboot_notifier(NotifierWithReturn *notifier, MigrationEvent *e,
                              Error **errp);
@@ -61,7 +62,7 @@ void vfio_cpr_load_device(struct VFIODevice *vbasedev);
 
 int vfio_cpr_group_get_device_fd(int d, const char *name);
 
-bool vfio_cpr_container_match(struct VFIOContainer *container,
+bool vfio_cpr_container_match(struct VFIOLegacyContainer *container,
                               struct VFIOGroup *group, int fd);
 
 void vfio_cpr_giommu_remap(struct VFIOContainerBase *bcontainer,

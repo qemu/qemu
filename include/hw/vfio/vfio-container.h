@@ -12,20 +12,20 @@
 #include "hw/vfio/vfio-container-base.h"
 #include "hw/vfio/vfio-cpr.h"
 
-typedef struct VFIOContainer VFIOContainer;
+typedef struct VFIOLegacyContainer VFIOLegacyContainer;
 typedef struct VFIODevice VFIODevice;
 
 typedef struct VFIOGroup {
     int fd;
     int groupid;
-    VFIOContainer *container;
+    VFIOLegacyContainer *container;
     QLIST_HEAD(, VFIODevice) device_list;
     QLIST_ENTRY(VFIOGroup) next;
     QLIST_ENTRY(VFIOGroup) container_next;
     bool ram_block_discard_allowed;
 } VFIOGroup;
 
-struct VFIOContainer {
+struct VFIOLegacyContainer {
     VFIOContainerBase parent_obj;
 
     int fd; /* /dev/vfio/vfio, empowered by the attached groups */
@@ -34,6 +34,6 @@ struct VFIOContainer {
     VFIOContainerCPR cpr;
 };
 
-OBJECT_DECLARE_SIMPLE_TYPE(VFIOContainer, VFIO_IOMMU_LEGACY);
+OBJECT_DECLARE_SIMPLE_TYPE(VFIOLegacyContainer, VFIO_IOMMU_LEGACY);
 
 #endif /* HW_VFIO_CONTAINER_H */
