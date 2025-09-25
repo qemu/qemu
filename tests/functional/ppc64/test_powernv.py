@@ -116,5 +116,9 @@ class powernvMachine(LinuxKernelTest):
         self.set_machine('powernv10')
         self.do_test_ppc64_powernv('P10')
 
+    def test_powernv11(self):
+        self.set_machine('powernv11')
+        self.do_test_ppc64_powernv('Power11')
+
 if __name__ == '__main__':
     LinuxKernelTest.main()
