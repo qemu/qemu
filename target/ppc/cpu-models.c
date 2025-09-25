@@ -116,6 +116,13 @@
                 NULL)
     POWERPC_DEF("x2vp20",        CPU_POWERPC_X2VP20,                 405,
                 NULL)
+    /* PPE42 Embedded Controllers                                            */
+    POWERPC_DEF("PPE42",         CPU_POWERPC_PPE42,                  ppe42,
+                "Generic PPE 42")
+    POWERPC_DEF("PPE42X",        CPU_POWERPC_PPE42X,                 ppe42x,
+                "Generic PPE 42X")
+    POWERPC_DEF("PPE42XM",       CPU_POWERPC_PPE42XM,                ppe42xm,
+                "Generic PPE 42XM")
     /* PowerPC 440 family                                                    */
 #if defined(TODO_USER_ONLY)
     POWERPC_DEF("440",           CPU_POWERPC_440,                    440GP,
