@@ -44,6 +44,11 @@ config POWERNV
     select SSI_M25P80
     select PNV_SPI
 
+config PPC405
+    bool
+    default y
+    depends on PPC
+
 config PPC440
     bool
     default y
