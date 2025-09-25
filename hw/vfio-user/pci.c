@@ -234,9 +234,10 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
 {
     ERRP_GUARD();
     VFIOUserPCIDevice *udev = VFIO_USER_PCI(pdev);
-    VFIOPCIDevice *vdev = VFIO_PCI_BASE(pdev);
+    VFIOPCIDevice *vdev = VFIO_PCI_DEVICE(pdev);
     VFIODevice *vbasedev = &vdev->vbasedev;
     const char *sock_name;
+
     AddressSpace *as;
     SocketAddress addr;
     VFIOUserProxy *proxy;
@@ -346,7 +347,7 @@ error:
 static void vfio_user_instance_init(Object *obj)
 {
     PCIDevice *pci_dev = PCI_DEVICE(obj);
-    VFIOPCIDevice *vdev = VFIO_PCI_BASE(obj);
+    VFIOPCIDevice *vdev = VFIO_PCI_DEVICE(obj);
     VFIODevice *vbasedev = &vdev->vbasedev;
 
     device_add_bootindex_property(obj, &vdev->bootindex,
@@ -371,7 +372,7 @@ static void vfio_user_instance_init(Object *obj)
 
 static void vfio_user_instance_finalize(Object *obj)
 {
-    VFIOPCIDevice *vdev = VFIO_PCI_BASE(obj);
+    VFIOPCIDevice *vdev = VFIO_PCI_DEVICE(obj);
     VFIODevice *vbasedev = &vdev->vbasedev;
 
     if (vdev->msix != NULL) {
@@ -387,7 +388,7 @@ static void vfio_user_instance_finalize(Object *obj)
 
 static void vfio_user_pci_reset(DeviceState *dev)
 {
-    VFIOPCIDevice *vdev = VFIO_PCI_BASE(dev);
+    VFIOPCIDevice *vdev = VFIO_PCI_DEVICE(dev);
     VFIODevice *vbasedev = &vdev->vbasedev;
 
     vfio_pci_pre_reset(vdev);
@@ -421,7 +422,7 @@ static void vfio_user_pci_set_socket(Object *obj, Visitor *v, const char *name,
     VFIOUserPCIDevice *udev = VFIO_USER_PCI(obj);
     bool success;
 
-    if (VFIO_PCI_BASE(udev)->vbasedev.proxy) {
+    if (VFIO_PCI_DEVICE(udev)->vbasedev.proxy) {
         error_setg(errp, "Proxy is connected");
         return;
     }
@@ -464,7 +465,7 @@ static void vfio_user_pci_dev_class_init(ObjectClass *klass, const void *data)
 
 static const TypeInfo vfio_user_pci_dev_info = {
     .name = TYPE_VFIO_USER_PCI,
-    .parent = TYPE_VFIO_PCI_BASE,
+    .parent = TYPE_VFIO_PCI_DEVICE,
     .instance_size = sizeof(VFIOUserPCIDevice),
     .class_init = vfio_user_pci_dev_class_init,
     .instance_init = vfio_user_instance_init,
