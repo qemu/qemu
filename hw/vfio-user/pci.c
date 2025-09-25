@@ -344,7 +344,7 @@ error:
     vfio_pci_put_device(vdev);
 }
 
-static void vfio_user_instance_init(Object *obj)
+static void vfio_user_pci_init(Object *obj)
 {
     PCIDevice *pci_dev = PCI_DEVICE(obj);
     VFIOPCIDevice *vdev = VFIO_PCI_DEVICE(obj);
@@ -468,7 +468,7 @@ static const TypeInfo vfio_user_pci_dev_info = {
     .parent = TYPE_VFIO_PCI_DEVICE,
     .instance_size = sizeof(VFIOUserPCIDevice),
     .class_init = vfio_user_pci_class_init,
-    .instance_init = vfio_user_instance_init,
+    .instance_init = vfio_user_pci_init,
     .instance_finalize = vfio_user_instance_finalize,
 };
 
