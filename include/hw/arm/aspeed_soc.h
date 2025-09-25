@@ -314,6 +314,8 @@ void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
                                unsigned int count, int unit0);
 void aspeed_write_boot_rom(BlockBackend *blk, hwaddr addr, size_t rom_size,
                            Error **errp);
+void aspeed_install_boot_rom(AspeedSoCState *soc, BlockBackend *blk,
+                             MemoryRegion *boot_rom, uint64_t rom_size);
 
 static inline int aspeed_uart_index(int uart_dev)
 {

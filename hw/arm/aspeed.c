@@ -263,24 +263,6 @@ static void aspeed_reset_secondary(ARMCPU *cpu,
     cpu_set_pc(cs, info->smp_loader_start);
 }
 
-/*
- * Create a ROM and copy the flash contents at the expected address
- * (0x0). Boots faster than execute-in-place.
- */
-static void aspeed_install_boot_rom(AspeedMachineState *bmc, BlockBackend *blk,
-                                    uint64_t rom_size)
-{
-    AspeedSoCState *soc = bmc->soc;
-    AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(soc);
-
-    memory_region_init_rom(&bmc->boot_rom, NULL, "aspeed.boot_rom", rom_size,
-                           &error_abort);
-    memory_region_add_subregion_overlap(&soc->spi_boot_container, 0,
-                                        &bmc->boot_rom, 1);
-    aspeed_write_boot_rom(blk, sc->memmap[ASPEED_DEV_SPI_BOOT], rom_size,
-                          &error_abort);
-}
-
 #define VBOOTROM_FILE_NAME  "ast27x0_bootrom.bin"
 
 /*
@@ -460,9 +442,10 @@ static void aspeed_machine_init(MachineState *machine)
 
         if (fmc0 && !boot_emmc) {
             uint64_t rom_size = memory_region_size(&bmc->soc->spi_boot);
-            aspeed_install_boot_rom(bmc, fmc0, rom_size);
+            aspeed_install_boot_rom(bmc->soc, fmc0, &bmc->boot_rom, rom_size);
         } else if (emmc0) {
-            aspeed_install_boot_rom(bmc, blk_by_legacy_dinfo(emmc0), 64 * KiB);
+            aspeed_install_boot_rom(bmc->soc, blk_by_legacy_dinfo(emmc0),
+                                    &bmc->boot_rom, 64 * KiB);
         }
     }
 
