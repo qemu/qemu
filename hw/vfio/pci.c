@@ -3668,7 +3668,7 @@ static void vfio_pci_device_class_init(ObjectClass *klass, const void *data)
     pdc->config_write = vfio_pci_write_config;
 }
 
-static const TypeInfo vfio_pci_base_dev_info = {
+static const TypeInfo vfio_pci_device_info = {
     .name = TYPE_VFIO_PCI_DEVICE,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VFIOPCIDevice),
@@ -3969,7 +3969,7 @@ static void register_vfio_pci_dev_type(void)
     vfio_pci_migration_multifd_transfer_prop = qdev_prop_on_off_auto;
     vfio_pci_migration_multifd_transfer_prop.realized_set_allowed = true;
 
-    type_register_static(&vfio_pci_base_dev_info);
+    type_register_static(&vfio_pci_device_info);
     type_register_static(&vfio_pci_info);
     type_register_static(&vfio_pci_nohotplug_dev_info);
 }
