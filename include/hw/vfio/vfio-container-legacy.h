@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef HW_VFIO_CONTAINER_H
-#define HW_VFIO_CONTAINER_H
+#ifndef HW_VFIO_CONTAINER_LEGACY_H
+#define HW_VFIO_CONTAINER_LEGACY_H
 
 #include "hw/vfio/vfio-container-base.h"
 #include "hw/vfio/vfio-cpr.h"
@@ -36,4 +36,4 @@ struct VFIOLegacyContainer {
 
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOLegacyContainer, VFIO_IOMMU_LEGACY);
 
-#endif /* HW_VFIO_CONTAINER_H */
+#endif /* HW_VFIO_CONTAINER_LEGACY_H */

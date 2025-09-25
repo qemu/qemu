@@ -7,7 +7,7 @@
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
 #include "qemu/osdep.h"
-#include "hw/vfio/vfio-container.h"
+#include "hw/vfio/vfio-container-legacy.h"
 #include "hw/vfio/vfio-device.h"
 #include "hw/vfio/vfio-listener.h"
 #include "migration/blocker.h"

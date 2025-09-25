@@ -34,7 +34,7 @@
 #include "migration/cpr.h"
 #include "migration/blocker.h"
 #include "pci.h"
-#include "hw/vfio/vfio-container.h"
+#include "hw/vfio/vfio-container-legacy.h"
 #include "vfio-helpers.h"
 #include "vfio-listener.h"
 
