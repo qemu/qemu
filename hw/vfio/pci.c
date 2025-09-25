@@ -3928,7 +3928,7 @@ static const Property vfio_pci_nohotplug_properties[] = {
                             ON_OFF_AUTO_AUTO),
 };
 
-static void vfio_pci_nohotplug_dev_class_init(ObjectClass *klass,
+static void vfio_pci_nohotplug_class_init(ObjectClass *klass,
                                               const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -3953,7 +3953,7 @@ static const TypeInfo vfio_pci_nohotplug_dev_info = {
     .name = TYPE_VFIO_PCI_NOHOTPLUG,
     .parent = TYPE_VFIO_PCI,
     .instance_size = sizeof(VFIOPCIDevice),
-    .class_init = vfio_pci_nohotplug_dev_class_init,
+    .class_init = vfio_pci_nohotplug_class_init,
 };
 
 static void register_vfio_pci_dev_type(void)
