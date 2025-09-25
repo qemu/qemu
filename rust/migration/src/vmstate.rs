@@ -675,6 +675,9 @@ impl<T> VMStateDescriptionBuilder<T> {
 
     #[must_use]
     pub const fn subsections(mut self, subs: &'static VMStateSubsections) -> Self {
+        if subs[subs.len() - 1].is_some() {
+            panic!("subsections are not terminated, use vmstate_subsections!");
+        }
         let subs: *const Option<&bindings::VMStateDescription> = subs.as_ptr();
         self.0.subsections = subs.cast::<*const bindings::VMStateDescription>();
         self
