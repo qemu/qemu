@@ -446,7 +446,7 @@ static void vfio_user_pci_set_socket(Object *obj, Visitor *v, const char *name,
     }
 }
 
-static void vfio_user_pci_dev_class_init(ObjectClass *klass, const void *data)
+static void vfio_user_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pdc = PCI_DEVICE_CLASS(klass);
@@ -467,7 +467,7 @@ static const TypeInfo vfio_user_pci_dev_info = {
     .name = TYPE_VFIO_USER_PCI,
     .parent = TYPE_VFIO_PCI_DEVICE,
     .instance_size = sizeof(VFIOUserPCIDevice),
-    .class_init = vfio_user_pci_dev_class_init,
+    .class_init = vfio_user_pci_class_init,
     .instance_init = vfio_user_instance_init,
     .instance_finalize = vfio_user_instance_finalize,
 };
