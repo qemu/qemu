@@ -400,7 +400,7 @@ static void vfio_user_pci_reset(DeviceState *dev)
     vfio_pci_post_reset(vdev);
 }
 
-static const Property vfio_user_pci_dev_properties[] = {
+static const Property vfio_user_pci_properties[] = {
     DEFINE_PROP_UINT32("x-pci-vendor-id", VFIOPCIDevice,
                        vendor_id, PCI_ANY_ID),
     DEFINE_PROP_UINT32("x-pci-device-id", VFIOPCIDevice,
@@ -452,7 +452,7 @@ static void vfio_user_pci_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *pdc = PCI_DEVICE_CLASS(klass);
 
     device_class_set_legacy_reset(dc, vfio_user_pci_reset);
-    device_class_set_props(dc, vfio_user_pci_dev_properties);
+    device_class_set_props(dc, vfio_user_pci_properties);
 
     object_class_property_add(klass, "socket", "SocketAddress", NULL,
                               vfio_user_pci_set_socket, NULL, NULL);
