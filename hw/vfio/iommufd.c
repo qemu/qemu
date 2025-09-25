@@ -38,8 +38,7 @@ static int iommufd_cdev_map(const VFIOContainer *bcontainer, hwaddr iova,
                             ram_addr_t size, void *vaddr, bool readonly,
                             MemoryRegion *mr)
 {
-    const VFIOIOMMUFDContainer *container =
-        container_of(bcontainer, VFIOIOMMUFDContainer, bcontainer);
+    const VFIOIOMMUFDContainer *container = VFIO_IOMMU_IOMMUFD(bcontainer);
 
     return iommufd_backend_map_dma(container->be,
                                    container->ioas_id,
@@ -50,8 +49,7 @@ static int iommufd_cdev_map_file(const VFIOContainer *bcontainer,
                                  hwaddr iova, ram_addr_t size,
                                  int fd, unsigned long start, bool readonly)
 {
-    const VFIOIOMMUFDContainer *container =
-        container_of(bcontainer, VFIOIOMMUFDContainer, bcontainer);
+    const VFIOIOMMUFDContainer *container = VFIO_IOMMU_IOMMUFD(bcontainer);
 
     return iommufd_backend_map_file_dma(container->be,
                                         container->ioas_id,
@@ -62,8 +60,7 @@ static int iommufd_cdev_unmap(const VFIOContainer *bcontainer,
                               hwaddr iova, ram_addr_t size,
                               IOMMUTLBEntry *iotlb, bool unmap_all)
 {
-    const VFIOIOMMUFDContainer *container =
-        container_of(bcontainer, VFIOIOMMUFDContainer, bcontainer);
+    const VFIOIOMMUFDContainer *container = VFIO_IOMMU_IOMMUFD(bcontainer);
 
     /* unmap in halves */
     if (unmap_all) {
@@ -162,8 +159,7 @@ static bool iommufd_hwpt_dirty_tracking(VFIOIOASHwpt *hwpt)
 static int iommufd_set_dirty_page_tracking(const VFIOContainer *bcontainer,
                                            bool start, Error **errp)
 {
-    const VFIOIOMMUFDContainer *container =
-        container_of(bcontainer, VFIOIOMMUFDContainer, bcontainer);
+    const VFIOIOMMUFDContainer *container = VFIO_IOMMU_IOMMUFD(bcontainer);
     VFIOIOASHwpt *hwpt;
 
     QLIST_FOREACH(hwpt, &container->hwpt_list, next) {
@@ -194,9 +190,7 @@ static int iommufd_query_dirty_bitmap(const VFIOContainer *bcontainer,
                                       VFIOBitmap *vbmap, hwaddr iova,
                                       hwaddr size, Error **errp)
 {
-    VFIOIOMMUFDContainer *container = container_of(bcontainer,
-                                                   VFIOIOMMUFDContainer,
-                                                   bcontainer);
+    VFIOIOMMUFDContainer *container = VFIO_IOMMU_IOMMUFD(bcontainer);
     unsigned long page_size = qemu_real_host_page_size();
     VFIOIOASHwpt *hwpt;
 
@@ -324,6 +318,7 @@ static bool iommufd_cdev_autodomains_get(VFIODevice *vbasedev,
 {
     ERRP_GUARD();
     IOMMUFDBackend *iommufd = vbasedev->iommufd;
+    VFIOContainer *bcontainer = VFIO_IOMMU(container);
     uint32_t type, flags = 0;
     uint64_t hw_caps;
     VFIOIOASHwpt *hwpt;
@@ -408,9 +403,9 @@ skip_alloc:
     vbasedev->iommu_dirty_tracking = iommufd_hwpt_dirty_tracking(hwpt);
     QLIST_INSERT_HEAD(&hwpt->device_list, vbasedev, hwpt_next);
     QLIST_INSERT_HEAD(&container->hwpt_list, hwpt, next);
-    container->bcontainer.dirty_pages_supported |=
+    bcontainer->dirty_pages_supported |=
                                 vbasedev->iommu_dirty_tracking;
-    if (container->bcontainer.dirty_pages_supported &&
+    if (bcontainer->dirty_pages_supported &&
         !vbasedev->iommu_dirty_tracking) {
         warn_report("IOMMU instance for device %s doesn't support dirty tracking",
                     vbasedev->name);
@@ -464,7 +459,7 @@ static void iommufd_cdev_detach_container(VFIODevice *vbasedev,
 
 static void iommufd_cdev_container_destroy(VFIOIOMMUFDContainer *container)
 {
-    VFIOContainer *bcontainer = &container->bcontainer;
+    VFIOContainer *bcontainer = VFIO_IOMMU(container);
 
     if (!QLIST_EMPTY(&bcontainer->device_list)) {
         return;
@@ -486,7 +481,7 @@ static int iommufd_cdev_ram_block_discard_disable(bool state)
 static bool iommufd_cdev_get_info_iova_range(VFIOIOMMUFDContainer *container,
                                              uint32_t ioas_id, Error **errp)
 {
-    VFIOContainer *bcontainer = &container->bcontainer;
+    VFIOContainer *bcontainer = VFIO_IOMMU(container);
     g_autofree struct iommu_ioas_iova_ranges *info = NULL;
     struct iommu_iova_range *iova_ranges;
     int sz, fd = container->be->fd;
@@ -559,7 +554,7 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
 
     /* try to attach to an existing container in this space */
     QLIST_FOREACH(bcontainer, &space->containers, next) {
-        container = container_of(bcontainer, VFIOIOMMUFDContainer, bcontainer);
+        container = VFIO_IOMMU_IOMMUFD(bcontainer);
         if (VFIO_IOMMU_GET_CLASS(bcontainer) != iommufd_vioc ||
             vbasedev->iommufd != container->be) {
             continue;
@@ -609,7 +604,7 @@ skip_ioas_alloc:
     QLIST_INIT(&container->hwpt_list);
     vbasedev->cpr.ioas_id = ioas_id;
 
-    bcontainer = &container->bcontainer;
+    bcontainer = VFIO_IOMMU(container);
     vfio_address_space_insert(space, bcontainer);
 
     if (!iommufd_cdev_attach_container(vbasedev, container, errp)) {
@@ -689,9 +684,8 @@ static void iommufd_cdev_detach(VFIODevice *vbasedev)
 {
     VFIOContainer *bcontainer = vbasedev->bcontainer;
     VFIOAddressSpace *space = bcontainer->space;
-    VFIOIOMMUFDContainer *container = container_of(bcontainer,
-                                                   VFIOIOMMUFDContainer,
-                                                   bcontainer);
+    VFIOIOMMUFDContainer *container = VFIO_IOMMU_IOMMUFD(bcontainer);
+
     vfio_device_unprepare(vbasedev);
 
     if (!vbasedev->ram_block_discard_allowed) {
