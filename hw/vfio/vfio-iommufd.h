@@ -22,12 +22,13 @@ typedef struct VFIOIOASHwpt {
 
 typedef struct IOMMUFDBackend IOMMUFDBackend;
 
-typedef struct VFIOIOMMUFDContainer {
-    VFIOContainer bcontainer;
+struct VFIOIOMMUFDContainer {
+    VFIOContainer parent_obj;
+
     IOMMUFDBackend *be;
     uint32_t ioas_id;
     QLIST_HEAD(, VFIOIOASHwpt) hwpt_list;
-} VFIOIOMMUFDContainer;
+};
 
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOIOMMUFDContainer, VFIO_IOMMU_IOMMUFD);
 
