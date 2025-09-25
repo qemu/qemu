@@ -263,35 +263,6 @@ static void aspeed_reset_secondary(ARMCPU *cpu,
     cpu_set_pc(cs, info->smp_loader_start);
 }
 
-static void write_boot_rom(BlockBackend *blk, hwaddr addr, size_t rom_size,
-                           Error **errp)
-{
-    g_autofree void *storage = NULL;
-    int64_t size;
-
-    /*
-     * The block backend size should have already been 'validated' by
-     * the creation of the m25p80 object.
-     */
-    size = blk_getlength(blk);
-    if (size <= 0) {
-        error_setg(errp, "failed to get flash size");
-        return;
-    }
-
-    if (rom_size > size) {
-        rom_size = size;
-    }
-
-    storage = g_malloc0(rom_size);
-    if (blk_pread(blk, 0, rom_size, storage, 0) < 0) {
-        error_setg(errp, "failed to read the initial flash content");
-        return;
-    }
-
-    rom_add_blob_fixed("aspeed.boot_rom", storage, rom_size, addr);
-}
-
 /*
  * Create a ROM and copy the flash contents at the expected address
  * (0x0). Boots faster than execute-in-place.
@@ -306,8 +277,8 @@ static void aspeed_install_boot_rom(AspeedMachineState *bmc, BlockBackend *blk,
                            &error_abort);
     memory_region_add_subregion_overlap(&soc->spi_boot_container, 0,
                                         &bmc->boot_rom, 1);
-    write_boot_rom(blk, sc->memmap[ASPEED_DEV_SPI_BOOT],
-                   rom_size, &error_abort);
+    aspeed_write_boot_rom(blk, sc->memmap[ASPEED_DEV_SPI_BOOT], rom_size,
+                          &error_abort);
 }
 
 #define VBOOTROM_FILE_NAME  "ast27x0_bootrom.bin"

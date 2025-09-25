@@ -17,6 +17,8 @@
 #include "hw/arm/aspeed_soc.h"
 #include "hw/char/serial-mm.h"
 #include "system/blockdev.h"
+#include "system/block-backend.h"
+#include "hw/loader.h"
 
 
 const char *aspeed_soc_cpu_type(AspeedSoCClass *sc)
@@ -145,6 +147,35 @@ void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
         qdev_prop_set_uint8(dev, "cs", i);
         qdev_realize_and_unref(dev, BUS(s->spi), &error_fatal);
     }
+}
+
+void aspeed_write_boot_rom(BlockBackend *blk, hwaddr addr, size_t rom_size,
+                           Error **errp)
+{
+    g_autofree void *storage = NULL;
+    int64_t size;
+
+    /*
+     * The block backend size should have already been 'validated' by
+     * the creation of the m25p80 object.
+     */
+    size = blk_getlength(blk);
+    if (size <= 0) {
+        error_setg(errp, "failed to get flash size");
+        return;
+    }
+
+    if (rom_size > size) {
+        rom_size = size;
+    }
+
+    storage = g_malloc0(rom_size);
+    if (blk_pread(blk, 0, rom_size, storage, 0) < 0) {
+        error_setg(errp, "failed to read the initial flash content");
+        return;
+    }
+
+    rom_add_blob_fixed("aspeed.boot_rom", storage, rom_size, addr);
 }
 
 static void aspeed_soc_realize(DeviceState *dev, Error **errp)

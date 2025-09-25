@@ -312,6 +312,8 @@ void aspeed_mmio_map_unimplemented(AspeedSoCState *s, SysBusDevice *dev,
                                    uint64_t size);
 void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
                                unsigned int count, int unit0);
+void aspeed_write_boot_rom(BlockBackend *blk, hwaddr addr, size_t rom_size,
+                           Error **errp);
 
 static inline int aspeed_uart_index(int uart_dev)
 {
