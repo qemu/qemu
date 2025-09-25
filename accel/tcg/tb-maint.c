@@ -40,7 +40,7 @@
 #else
 #include "system/runstate.h"
 #endif
-
+#include "trace.h"
 
 /* List iterators for lists of tagged pointers in TranslationBlock. */
 #define TB_FOR_EACH_TAGGED(head, tb, n, field)                          \
@@ -771,6 +771,7 @@ void tb_flush__exclusive_or_serial(void)
 {
     CPUState *cpu;
 
+    trace_tb_flush();
     assert(tcg_enabled());
     /* Note that cpu_in_serial_context checks cpu_in_exclusive_context. */
     assert(!runstate_is_running() ||
