@@ -74,19 +74,12 @@ static void ast2700fc_ca35_init(MachineState *machine)
                                 AST2700FC_BMC_RAM_SIZE, &error_abort)) {
         return;
     }
-    if (!object_property_set_link(OBJECT(&s->ca35), "memory",
-                                  OBJECT(&s->ca35_memory),
-                                  &error_abort)) {
-        return;
-    };
-    if (!object_property_set_link(OBJECT(&s->ca35), "dram",
-                                  OBJECT(&s->ca35_dram), &error_abort)) {
-        return;
-    }
-    if (!object_property_set_int(OBJECT(&s->ca35), "ram-size",
-                                 AST2700FC_BMC_RAM_SIZE, &error_abort)) {
-        return;
-    }
+    object_property_set_link(OBJECT(&s->ca35), "memory",
+                             OBJECT(&s->ca35_memory), &error_abort);
+    object_property_set_link(OBJECT(&s->ca35), "dram", OBJECT(&s->ca35_dram),
+                             &error_abort);
+    object_property_set_int(OBJECT(&s->ca35), "ram-size",
+                            AST2700FC_BMC_RAM_SIZE, &error_abort);
 
     for (int i = 0; i < sc->macs_num; i++) {
         if (!qemu_configure_nic_device(DEVICE(&soc->ftgmac100[i]),
@@ -94,14 +87,10 @@ static void ast2700fc_ca35_init(MachineState *machine)
             break;
         }
     }
-    if (!object_property_set_int(OBJECT(&s->ca35), "hw-strap1",
-                                 AST2700FC_HW_STRAP1, &error_abort)) {
-        return;
-    }
-    if (!object_property_set_int(OBJECT(&s->ca35), "hw-strap2",
-                                 AST2700FC_HW_STRAP2, &error_abort)) {
-        return;
-    }
+    object_property_set_int(OBJECT(&s->ca35), "hw-strap1",
+                            AST2700FC_HW_STRAP1, &error_abort);
+    object_property_set_int(OBJECT(&s->ca35), "hw-strap2",
+                            AST2700FC_HW_STRAP2, &error_abort);
     aspeed_soc_uart_set_chr(soc, ASPEED_DEV_UART12, serial_hd(0));
     if (!qdev_realize(DEVICE(&s->ca35), NULL, &error_abort)) {
         return;
@@ -133,10 +122,8 @@ static void ast2700fc_ssp_init(MachineState *machine)
                        UINT64_MAX);
 
     qdev_connect_clock_in(DEVICE(&s->ssp), "sysclk", s->ssp_sysclk);
-    if (!object_property_set_link(OBJECT(&s->ssp), "memory",
-                                  OBJECT(&s->ssp_memory), &error_abort)) {
-        return;
-    }
+    object_property_set_link(OBJECT(&s->ssp), "memory",
+                             OBJECT(&s->ssp_memory), &error_abort);
 
     soc = ASPEED_SOC(&s->ssp);
     aspeed_soc_uart_set_chr(soc, ASPEED_DEV_UART4, serial_hd(1));
@@ -157,10 +144,8 @@ static void ast2700fc_tsp_init(MachineState *machine)
                        UINT64_MAX);
 
     qdev_connect_clock_in(DEVICE(&s->tsp), "sysclk", s->tsp_sysclk);
-    if (!object_property_set_link(OBJECT(&s->tsp), "memory",
-                                  OBJECT(&s->tsp_memory), &error_abort)) {
-        return;
-    }
+    object_property_set_link(OBJECT(&s->tsp), "memory",
+                             OBJECT(&s->tsp_memory), &error_abort);
 
     soc = ASPEED_SOC(&s->tsp);
     aspeed_soc_uart_set_chr(soc, ASPEED_DEV_UART7, serial_hd(2));
