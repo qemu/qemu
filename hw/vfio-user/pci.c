@@ -370,7 +370,7 @@ static void vfio_user_pci_init(Object *obj)
     pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
 }
 
-static void vfio_user_instance_finalize(Object *obj)
+static void vfio_user_pci_finalize(Object *obj)
 {
     VFIOPCIDevice *vdev = VFIO_PCI_DEVICE(obj);
     VFIODevice *vbasedev = &vdev->vbasedev;
@@ -469,7 +469,7 @@ static const TypeInfo vfio_user_pci_dev_info = {
     .instance_size = sizeof(VFIOUserPCIDevice),
     .class_init = vfio_user_pci_class_init,
     .instance_init = vfio_user_pci_init,
-    .instance_finalize = vfio_user_instance_finalize,
+    .instance_finalize = vfio_user_pci_finalize,
 };
 
 static void register_vfio_user_dev_type(void)
