@@ -9,7 +9,7 @@
 #ifndef HW_VFIO_VFIO_IOMMUFD_H
 #define HW_VFIO_VFIO_IOMMUFD_H
 
-#include "hw/vfio/vfio-container-base.h"
+#include "hw/vfio/vfio-container.h"
 
 typedef struct VFIODevice VFIODevice;
 

@@ -10,8 +10,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef HW_VFIO_VFIO_CONTAINER_BASE_H
-#define HW_VFIO_VFIO_CONTAINER_BASE_H
+#ifndef HW_VFIO_VFIO_CONTAINER_H
+#define HW_VFIO_VFIO_CONTAINER_H
 
 #include "system/memory.h"
 
@@ -276,4 +276,4 @@ VFIORamDiscardListener *vfio_find_ram_discard_listener(
 void vfio_container_region_add(VFIOContainer *bcontainer,
                                MemoryRegionSection *section, bool cpr_remap);
 
-#endif /* HW_VFIO_VFIO_CONTAINER_BASE_H */
+#endif /* HW_VFIO_VFIO_CONTAINER_H */

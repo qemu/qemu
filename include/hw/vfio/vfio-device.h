@@ -27,7 +27,7 @@
 #include <linux/vfio.h>
 #endif
 #include "system/system.h"
-#include "hw/vfio/vfio-container-base.h"
+#include "hw/vfio/vfio-container.h"
 #include "hw/vfio/vfio-cpr.h"
 #include "system/host_iommu_device.h"
 #include "system/iommufd.h"
