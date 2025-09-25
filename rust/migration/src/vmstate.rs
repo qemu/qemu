@@ -470,33 +470,21 @@ macro_rules! impl_vmstate_struct {
     };
 }
 
-/// A transparent wrapper type for the `subsections` field of
-/// [`VMStateDescription`].
-///
-/// This is necessary to be able to declare subsection descriptions as statics,
-/// because the only way to implement `Sync` for a foreign type (and `*const`
-/// pointers are foreign types in Rust) is to create a wrapper struct and
-/// `unsafe impl Sync` for it.
-///
-/// This struct is used in the
-/// [`vm_state_subsections`](crate::vmstate_subsections) macro implementation.
-#[repr(transparent)]
-pub struct VMStateSubsectionsWrapper(pub &'static [*const crate::bindings::VMStateDescription]);
-
-unsafe impl Sync for VMStateSubsectionsWrapper {}
+/// The type returned by [`vmstate_subsections!`](crate::vmstate_subsections).
+pub type VMStateSubsections = &'static [Option<&'static crate::bindings::VMStateDescription>];
 
 /// Helper macro to declare a list of subsections ([`VMStateDescription`])
 /// into a static and return a pointer to the array of pointers it created.
 #[macro_export]
 macro_rules! vmstate_subsections {
     ($($subsection:expr),*$(,)*) => {{
-        static _SUBSECTIONS: $crate::vmstate::VMStateSubsectionsWrapper = $crate::vmstate::VMStateSubsectionsWrapper(&[
+        static _SUBSECTIONS: $crate::vmstate::VMStateSubsections = &[
             $({
                 static _SUBSECTION: $crate::bindings::VMStateDescription = $subsection.get();
-                ::core::ptr::addr_of!(_SUBSECTION)
+                Some(&_SUBSECTION)
             }),*,
-            ::core::ptr::null()
-        ]);
+            None,
+        ];
         &_SUBSECTIONS
     }}
 }
@@ -686,8 +674,9 @@ impl<T> VMStateDescriptionBuilder<T> {
     }
 
     #[must_use]
-    pub const fn subsections(mut self, subs: &'static VMStateSubsectionsWrapper) -> Self {
-        self.0.subsections = subs.0.as_ptr();
+    pub const fn subsections(mut self, subs: &'static VMStateSubsections) -> Self {
+        let subs: *const Option<&bindings::VMStateDescription> = subs.as_ptr();
+        self.0.subsections = subs.cast::<*const bindings::VMStateDescription>();
         self
     }
 
