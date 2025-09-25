@@ -25,8 +25,8 @@ static const VMStateInfo vmstate_fpcr = {
 };
 
 static const VMStateField vmstate_env_fields[] = {
-    VMSTATE_UINTTL_ARRAY(ir, CPUAlphaState, 31),
-    VMSTATE_UINTTL_ARRAY(fir, CPUAlphaState, 31),
+    VMSTATE_UINT64_ARRAY(ir, CPUAlphaState, 31),
+    VMSTATE_UINT64_ARRAY(fir, CPUAlphaState, 31),
     /* Save the architecture value of the fpcr, not the internally
        expanded version.  Since this architecture value does not
        exist in memory to be stored, this requires a but of hoop
@@ -41,27 +41,27 @@ static const VMStateField vmstate_env_fields[] = {
         .flags = VMS_SINGLE,
         .offset = 0
     },
-    VMSTATE_UINTTL(pc, CPUAlphaState),
-    VMSTATE_UINTTL(unique, CPUAlphaState),
-    VMSTATE_UINTTL(lock_addr, CPUAlphaState),
-    VMSTATE_UINTTL(lock_value, CPUAlphaState),
+    VMSTATE_UINT64(pc, CPUAlphaState),
+    VMSTATE_UINT64(unique, CPUAlphaState),
+    VMSTATE_UINT64(lock_addr, CPUAlphaState),
+    VMSTATE_UINT64(lock_value, CPUAlphaState),
 
     VMSTATE_UINT32(flags, CPUAlphaState),
     VMSTATE_UINT32(pcc_ofs, CPUAlphaState),
 
-    VMSTATE_UINTTL(trap_arg0, CPUAlphaState),
-    VMSTATE_UINTTL(trap_arg1, CPUAlphaState),
-    VMSTATE_UINTTL(trap_arg2, CPUAlphaState),
+    VMSTATE_UINT64(trap_arg0, CPUAlphaState),
+    VMSTATE_UINT64(trap_arg1, CPUAlphaState),
+    VMSTATE_UINT64(trap_arg2, CPUAlphaState),
 
-    VMSTATE_UINTTL(exc_addr, CPUAlphaState),
-    VMSTATE_UINTTL(palbr, CPUAlphaState),
-    VMSTATE_UINTTL(ptbr, CPUAlphaState),
-    VMSTATE_UINTTL(vptptr, CPUAlphaState),
-    VMSTATE_UINTTL(sysval, CPUAlphaState),
-    VMSTATE_UINTTL(usp, CPUAlphaState),
+    VMSTATE_UINT64(exc_addr, CPUAlphaState),
+    VMSTATE_UINT64(palbr, CPUAlphaState),
+    VMSTATE_UINT64(ptbr, CPUAlphaState),
+    VMSTATE_UINT64(vptptr, CPUAlphaState),
+    VMSTATE_UINT64(sysval, CPUAlphaState),
+    VMSTATE_UINT64(usp, CPUAlphaState),
 
-    VMSTATE_UINTTL_ARRAY(shadow, CPUAlphaState, 8),
-    VMSTATE_UINTTL_ARRAY(scratch, CPUAlphaState, 24),
+    VMSTATE_UINT64_ARRAY(shadow, CPUAlphaState, 8),
+    VMSTATE_UINT64_ARRAY(scratch, CPUAlphaState, 24),
 
     VMSTATE_END_OF_LIST()
 };
