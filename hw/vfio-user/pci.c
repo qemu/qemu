@@ -463,7 +463,7 @@ static void vfio_user_pci_class_init(ObjectClass *klass, const void *data)
     pdc->realize = vfio_user_pci_realize;
 }
 
-static const TypeInfo vfio_user_pci_dev_info = {
+static const TypeInfo vfio_user_pci_info = {
     .name = TYPE_VFIO_USER_PCI,
     .parent = TYPE_VFIO_PCI_DEVICE,
     .instance_size = sizeof(VFIOUserPCIDevice),
@@ -474,7 +474,7 @@ static const TypeInfo vfio_user_pci_dev_info = {
 
 static void register_vfio_user_dev_type(void)
 {
-    type_register_static(&vfio_user_pci_dev_info);
+    type_register_static(&vfio_user_pci_info);
 }
 
- type_init(register_vfio_user_dev_type)
+type_init(register_vfio_user_dev_type)
