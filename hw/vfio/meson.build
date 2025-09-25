@@ -3,7 +3,7 @@
 vfio_ss = ss.source_set()
 vfio_ss.add(files(
   'listener.c',
-  'container-base.c',
+  'container.c',
   'container-legacy.c',
   'helpers.c',
 ))
