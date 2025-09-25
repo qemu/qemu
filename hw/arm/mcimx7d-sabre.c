@@ -86,5 +86,5 @@ static void mcimx7d_sabre_machine_init(MachineClass *mc)
 }
 
 DEFINE_MACHINE_EXTENDED("mcimx7d-sabre", MACHINE, Mcimx7dSabreMachineState,
-                        mcimx7d_sabre_machine_init, false,
+                        mcimx7d_sabre_machine_init, false, false,
                         NULL)
