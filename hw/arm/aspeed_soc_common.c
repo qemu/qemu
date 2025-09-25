@@ -16,6 +16,7 @@
 #include "hw/misc/unimp.h"
 #include "hw/arm/aspeed_soc.h"
 #include "hw/char/serial-mm.h"
+#include "system/blockdev.h"
 
 
 const char *aspeed_soc_cpu_type(AspeedSoCClass *sc)
@@ -122,6 +123,28 @@ void aspeed_mmio_map_unimplemented(AspeedSoCState *s, SysBusDevice *dev,
 
     memory_region_add_subregion_overlap(s->memory, addr,
                                         sysbus_mmio_get_region(dev, 0), -1000);
+}
+
+void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
+                               unsigned int count, int unit0)
+{
+    int i;
+
+    if (!flashtype) {
+        return;
+    }
+
+    for (i = 0; i < count; ++i) {
+        DriveInfo *dinfo = drive_get(IF_MTD, 0, unit0 + i);
+        DeviceState *dev;
+
+        dev = qdev_new(flashtype);
+        if (dinfo) {
+            qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo));
+        }
+        qdev_prop_set_uint8(dev, "cs", i);
+        qdev_realize_and_unref(dev, BUS(s->spi), &error_fatal);
+    }
 }
 
 static void aspeed_soc_realize(DeviceState *dev, Error **errp)
