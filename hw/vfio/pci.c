@@ -3912,7 +3912,7 @@ static void vfio_pci_class_init(ObjectClass *klass, const void *data)
                                           "multifd channels");
 }
 
-static const TypeInfo vfio_pci_dev_info = {
+static const TypeInfo vfio_pci_info = {
     .name = TYPE_VFIO_PCI,
     .parent = TYPE_VFIO_PCI_BASE,
     .class_init = vfio_pci_class_init,
@@ -3970,7 +3970,7 @@ static void register_vfio_pci_dev_type(void)
     vfio_pci_migration_multifd_transfer_prop.realized_set_allowed = true;
 
     type_register_static(&vfio_pci_base_dev_info);
-    type_register_static(&vfio_pci_dev_info);
+    type_register_static(&vfio_pci_info);
     type_register_static(&vfio_pci_nohotplug_dev_info);
 }
 
