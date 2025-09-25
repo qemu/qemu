@@ -18,8 +18,8 @@
  *  Copyright (C) 2008, IBM, Muli Ben-Yehuda (muli@il.ibm.com)
  */
 
-#ifndef HW_VFIO_VFIO_COMMON_H
-#define HW_VFIO_VFIO_COMMON_H
+#ifndef HW_VFIO_VFIO_DEVICE_H
+#define HW_VFIO_VFIO_DEVICE_H
 
 #include "system/memory.h"
 #include "qemu/queue.h"
@@ -288,4 +288,4 @@ void vfio_device_init(VFIODevice *vbasedev, int type, VFIODeviceOps *ops,
 int vfio_device_get_aw_bits(VFIODevice *vdev);
 
 void vfio_kvm_device_close(void);
-#endif /* HW_VFIO_VFIO_COMMON_H */
+#endif /* HW_VFIO_VFIO_DEVICE_H */
