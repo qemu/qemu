@@ -976,6 +976,7 @@ static void pnv_chip_power11_pic_print_info(PnvChip *chip, GString *buf)
 {
     Pnv11Chip *chip11 = PNV11_CHIP(chip);
 
+    pnv_xive2_pic_print_info(&chip11->xive, buf);
     pnv_psi_pic_print_info(&chip11->psi, buf);
 }
 
@@ -1489,6 +1490,50 @@ static void pnv_chip_power10_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
 static void *pnv_chip_power10_intc_get(PnvChip *chip)
 {
     return &PNV10_CHIP(chip)->xive;
+}
+
+static void pnv_chip_power11_intc_create(PnvChip *chip, PowerPCCPU *cpu,
+                                        Error **errp)
+{
+    Pnv11Chip *chip11 = PNV11_CHIP(chip);
+    Error *local_err = NULL;
+    Object *obj;
+    PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
+
+    /*
+     * The core creates its interrupt presenter but the XIVE2 interrupt
+     * controller object is initialized afterwards. Hopefully, it's
+     * only used at runtime.
+     */
+    obj = xive_tctx_create(OBJECT(cpu), XIVE_PRESENTER(&chip11->xive),
+                           &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    pnv_cpu->intc = obj;
+}
+
+static void pnv_chip_power11_intc_reset(PnvChip *chip, PowerPCCPU *cpu)
+{
+    PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
+
+    xive_tctx_reset(XIVE_TCTX(pnv_cpu->intc));
+}
+
+static void pnv_chip_power11_intc_destroy(PnvChip *chip, PowerPCCPU *cpu)
+{
+    PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
+
+    xive_tctx_destroy(XIVE_TCTX(pnv_cpu->intc));
+    pnv_cpu->intc = NULL;
+}
+
+static void pnv_chip_power11_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
+                                             GString *buf)
+{
+    xive_tctx_pic_print_info(XIVE_TCTX(pnv_cpu_state(cpu)->intc), buf);
 }
 
 static void *pnv_chip_power11_intc_get(PnvChip *chip)
@@ -2443,6 +2488,10 @@ static void pnv_chip_power11_instance_init(Object *obj)
     object_initialize_child(obj, "occ",  &chip11->occ, TYPE_PNV10_OCC);
     object_initialize_child(obj, "sbe",  &chip11->sbe, TYPE_PNV10_SBE);
     object_initialize_child(obj, "homer", &chip11->homer, TYPE_PNV10_HOMER);
+
+    object_initialize_child(obj, "xive", &chip11->xive, TYPE_PNV_XIVE2);
+    object_property_add_alias(obj, "xive-fabric", OBJECT(&chip11->xive),
+                              "xive-fabric");
     object_initialize_child(obj, "n1-chiplet", &chip11->n1_chiplet,
                             TYPE_PNV_N1_CHIPLET);
 
@@ -2518,7 +2567,26 @@ static void pnv_chip_power11_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    /* WIP: XIVE added in future patch */
+    /* XIVE2 interrupt controller */
+    object_property_set_int(OBJECT(&chip11->xive), "ic-bar",
+                            PNV11_XIVE2_IC_BASE(chip), &error_fatal);
+    object_property_set_int(OBJECT(&chip11->xive), "esb-bar",
+                            PNV11_XIVE2_ESB_BASE(chip), &error_fatal);
+    object_property_set_int(OBJECT(&chip11->xive), "end-bar",
+                            PNV11_XIVE2_END_BASE(chip), &error_fatal);
+    object_property_set_int(OBJECT(&chip11->xive), "nvpg-bar",
+                            PNV11_XIVE2_NVPG_BASE(chip), &error_fatal);
+    object_property_set_int(OBJECT(&chip11->xive), "nvc-bar",
+                            PNV11_XIVE2_NVC_BASE(chip), &error_fatal);
+    object_property_set_int(OBJECT(&chip11->xive), "tm-bar",
+                            PNV11_XIVE2_TM_BASE(chip), &error_fatal);
+    object_property_set_link(OBJECT(&chip11->xive), "chip", OBJECT(chip),
+                             &error_abort);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&chip11->xive), errp)) {
+        return;
+    }
+    pnv_xscom_add_subregion(chip, PNV11_XSCOM_XIVE2_BASE,
+                            &chip11->xive.xscom_regs);
 
     /* Processor Service Interface (PSI) Host Bridge */
     object_property_set_int(OBJECT(&chip11->psi), "bar",
@@ -2720,6 +2788,10 @@ static void pnv_chip_power11_class_init(ObjectClass *klass, const void *data)
     k->chip_cfam_id = 0x220da04980000000ull; /* P11 DD2.0 (with NX) */
     k->cores_mask = POWER11_CORE_MASK;
     k->get_pir_tir = pnv_get_pir_tir_p10;
+    k->intc_create = pnv_chip_power11_intc_create;
+    k->intc_reset = pnv_chip_power11_intc_reset;
+    k->intc_destroy = pnv_chip_power11_intc_destroy;
+    k->intc_print_info = pnv_chip_power11_intc_print_info;
     k->intc_get = pnv_chip_power11_intc_get;
     k->isa_create = pnv_chip_power11_isa_create;
     k->dt_populate = pnv_chip_power11_dt_populate;
@@ -3073,6 +3145,45 @@ static int pnv10_xive_broadcast(XiveFabric *xfb,
     return 0;
 }
 
+static bool pnv11_xive_match_nvt(XiveFabric *xfb, uint8_t format,
+                                 uint8_t nvt_blk, uint32_t nvt_idx,
+                                 bool crowd, bool cam_ignore, uint8_t priority,
+                                 uint32_t logic_serv,
+                                 XiveTCTXMatch *match)
+{
+    PnvMachineState *pnv = PNV_MACHINE(xfb);
+    int i;
+
+    for (i = 0; i < pnv->num_chips; i++) {
+        Pnv11Chip *chip11 = PNV11_CHIP(pnv->chips[i]);
+        XivePresenter *xptr = XIVE_PRESENTER(&chip11->xive);
+        XivePresenterClass *xpc = XIVE_PRESENTER_GET_CLASS(xptr);
+
+        xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, crowd,
+                       cam_ignore, priority, logic_serv, match);
+    }
+
+    return !!match->count;
+}
+
+static int pnv11_xive_broadcast(XiveFabric *xfb,
+                                uint8_t nvt_blk, uint32_t nvt_idx,
+                                bool crowd, bool cam_ignore,
+                                uint8_t priority)
+{
+    PnvMachineState *pnv = PNV_MACHINE(xfb);
+    int i;
+
+    for (i = 0; i < pnv->num_chips; i++) {
+        Pnv11Chip *chip11 = PNV11_CHIP(pnv->chips[i]);
+        XivePresenter *xptr = XIVE_PRESENTER(&chip11->xive);
+        XivePresenterClass *xpc = XIVE_PRESENTER_GET_CLASS(xptr);
+
+        xpc->broadcast(xptr, nvt_blk, nvt_idx, crowd, cam_ignore, priority);
+    }
+    return 0;
+}
+
 static bool pnv_machine_get_big_core(Object *obj, Error **errp)
 {
     PnvMachineState *pnv = PNV_MACHINE(obj);
@@ -3251,6 +3362,7 @@ static void pnv_machine_power11_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     PnvMachineClass *pmc = PNV_MACHINE_CLASS(oc);
+    XiveFabricClass *xfc = XIVE_FABRIC_CLASS(oc);
     static const char compat[] = "qemu,powernv11\0ibm,powernv";
 
     pmc->compat = compat;
@@ -3259,6 +3371,9 @@ static void pnv_machine_power11_class_init(ObjectClass *oc, const void *data)
     pmc->has_lpar_per_thread = true;
     pmc->quirk_tb_big_core = true;
     pmc->dt_power_mgt = pnv_dt_power_mgt;
+
+    xfc->match_nvt = pnv11_xive_match_nvt;
+    xfc->broadcast = pnv11_xive_broadcast;
 
     mc->desc = "IBM PowerNV (Non-Virtualized) Power11";
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power11_v2.0");
@@ -3393,6 +3508,10 @@ static const TypeInfo types[] = {
         .name          = MACHINE_TYPE_NAME("powernv11"),
         .parent        = TYPE_PNV_MACHINE,
         .class_init    = pnv_machine_power11_class_init,
+        .interfaces = (InterfaceInfo[]) {
+            { TYPE_XIVE_FABRIC },
+            { },
+        },
     },
     {
         .name          = MACHINE_TYPE_NAME("powernv10-rainier"),
