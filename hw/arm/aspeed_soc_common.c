@@ -19,6 +19,7 @@
 #include "system/blockdev.h"
 #include "system/block-backend.h"
 #include "hw/loader.h"
+#include "qemu/datadir.h"
 
 
 const char *aspeed_soc_cpu_type(AspeedSoCClass *sc)
@@ -193,6 +194,30 @@ void aspeed_install_boot_rom(AspeedSoCState *soc, BlockBackend *blk,
                                         boot_rom, 1);
     aspeed_write_boot_rom(blk, sc->memmap[ASPEED_DEV_SPI_BOOT], rom_size,
                           &error_abort);
+}
+
+/*
+ * This function locates the vbootrom image file specified via the command line
+ * using the -bios option. It loads the specified image into the vbootrom
+ * memory region and handles errors if the file cannot be found or loaded.
+ */
+void aspeed_load_vbootrom(AspeedSoCState *soc, const char *bios_name,
+                          Error **errp)
+{
+    g_autofree char *filename = NULL;
+    int ret;
+
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (!filename) {
+        error_setg(errp, "Could not find vbootrom image '%s'", bios_name);
+        return;
+    }
+
+    ret = load_image_mr(filename, &soc->vbootrom);
+    if (ret < 0) {
+        error_setg(errp, "Failed to load vbootrom image '%s'", bios_name);
+        return;
+    }
 }
 
 static void aspeed_soc_realize(DeviceState *dev, Error **errp)

@@ -26,9 +26,7 @@
 #include "hw/qdev-properties.h"
 #include "system/block-backend.h"
 #include "system/reset.h"
-#include "hw/loader.h"
 #include "qemu/error-report.h"
-#include "qemu/datadir.h"
 #include "qemu/units.h"
 #include "hw/qdev-clock.h"
 #include "system/system.h"
@@ -263,33 +261,6 @@ static void aspeed_reset_secondary(ARMCPU *cpu,
     cpu_set_pc(cs, info->smp_loader_start);
 }
 
-#define VBOOTROM_FILE_NAME  "ast27x0_bootrom.bin"
-
-/*
- * This function locates the vbootrom image file specified via the command line
- * using the -bios option. It loads the specified image into the vbootrom
- * memory region and handles errors if the file cannot be found or loaded.
- */
-static void aspeed_load_vbootrom(AspeedMachineState *bmc, const char *bios_name,
-                                 Error **errp)
-{
-    g_autofree char *filename = NULL;
-    AspeedSoCState *soc = bmc->soc;
-    int ret;
-
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-    if (!filename) {
-        error_setg(errp, "Could not find vbootrom image '%s'", bios_name);
-        return;
-    }
-
-    ret = load_image_mr(filename, &soc->vbootrom);
-    if (ret < 0) {
-        error_setg(errp, "Failed to load vbootrom image '%s'", bios_name);
-        return;
-    }
-}
-
 static void sdhci_attach_drive(SDHCIState *sdhci, DriveInfo *dinfo, bool emmc,
                                bool boot_emmc)
 {
@@ -451,7 +422,7 @@ static void aspeed_machine_init(MachineState *machine)
 
     if (amc->vbootrom) {
         bios_name = machine->firmware ?: VBOOTROM_FILE_NAME;
-        aspeed_load_vbootrom(bmc, bios_name, &error_abort);
+        aspeed_load_vbootrom(bmc->soc, bios_name, &error_abort);
     }
 
     arm_load_kernel(ARM_CPU(first_cpu), machine, &aspeed_board_binfo);

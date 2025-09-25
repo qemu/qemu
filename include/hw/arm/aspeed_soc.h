@@ -43,6 +43,8 @@
 #include "hw/char/serial-mm.h"
 #include "hw/intc/arm_gicv3.h"
 
+#define VBOOTROM_FILE_NAME  "ast27x0_bootrom.bin"
+
 #define ASPEED_SPIS_NUM  3
 #define ASPEED_EHCIS_NUM 4
 #define ASPEED_WDTS_NUM  8
@@ -316,6 +318,8 @@ void aspeed_write_boot_rom(BlockBackend *blk, hwaddr addr, size_t rom_size,
                            Error **errp);
 void aspeed_install_boot_rom(AspeedSoCState *soc, BlockBackend *blk,
                              MemoryRegion *boot_rom, uint64_t rom_size);
+void aspeed_load_vbootrom(AspeedSoCState *soc, const char *bios_name,
+                          Error **errp);
 
 static inline int aspeed_uart_index(int uart_dev)
 {
