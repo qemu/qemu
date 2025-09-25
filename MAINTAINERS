@@ -1535,6 +1535,7 @@ M: Glenn Miles <milesg@linux.ibm.com>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/ppe42_machine.c
+F: tests/functional/ppc/test_ppe42.py
 
 PReP
 M: Hervé Poussineau <hpoussin@reactos.org>
