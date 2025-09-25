@@ -23,7 +23,7 @@ typedef struct VFIOIOASHwpt {
 typedef struct IOMMUFDBackend IOMMUFDBackend;
 
 typedef struct VFIOIOMMUFDContainer {
-    VFIOContainerBase bcontainer;
+    VFIOContainer bcontainer;
     IOMMUFDBackend *be;
     uint32_t ioas_id;
     QLIST_HEAD(, VFIOIOASHwpt) hwpt_list;

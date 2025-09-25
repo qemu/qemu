@@ -460,7 +460,7 @@ void vfio_device_detach(VFIODevice *vbasedev)
     VFIO_IOMMU_GET_CLASS(vbasedev->bcontainer)->detach_device(vbasedev);
 }
 
-void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainerBase *bcontainer,
+void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainer *bcontainer,
                          struct vfio_device_info *info)
 {
     int i;

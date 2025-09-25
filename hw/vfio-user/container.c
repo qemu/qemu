@@ -22,14 +22,14 @@
  * will fire during memory update transactions.  These depend on BQL being held,
  * so do any resulting map/demap ops async while keeping BQL.
  */
-static void vfio_user_listener_begin(VFIOContainerBase *bcontainer)
+static void vfio_user_listener_begin(VFIOContainer *bcontainer)
 {
     VFIOUserContainer *container = VFIO_IOMMU_USER(bcontainer);
 
     container->proxy->async_ops = true;
 }
 
-static void vfio_user_listener_commit(VFIOContainerBase *bcontainer)
+static void vfio_user_listener_commit(VFIOContainer *bcontainer)
 {
     VFIOUserContainer *container = VFIO_IOMMU_USER(bcontainer);
 
@@ -38,7 +38,7 @@ static void vfio_user_listener_commit(VFIOContainerBase *bcontainer)
     vfio_user_wait_reqs(container->proxy);
 }
 
-static int vfio_user_dma_unmap(const VFIOContainerBase *bcontainer,
+static int vfio_user_dma_unmap(const VFIOContainer *bcontainer,
                                hwaddr iova, ram_addr_t size,
                                IOMMUTLBEntry *iotlb, bool unmap_all)
 {
@@ -80,7 +80,7 @@ static int vfio_user_dma_unmap(const VFIOContainerBase *bcontainer,
     return ret;
 }
 
-static int vfio_user_dma_map(const VFIOContainerBase *bcontainer, hwaddr iova,
+static int vfio_user_dma_map(const VFIOContainer *bcontainer, hwaddr iova,
                              ram_addr_t size, void *vaddr, bool readonly,
                              MemoryRegion *mrp)
 {
@@ -154,14 +154,14 @@ static int vfio_user_dma_map(const VFIOContainerBase *bcontainer, hwaddr iova,
 }
 
 static int
-vfio_user_set_dirty_page_tracking(const VFIOContainerBase *bcontainer,
+vfio_user_set_dirty_page_tracking(const VFIOContainer *bcontainer,
                                     bool start, Error **errp)
 {
     error_setg_errno(errp, ENOTSUP, "Not supported");
     return -ENOTSUP;
 }
 
-static int vfio_user_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
+static int vfio_user_query_dirty_bitmap(const VFIOContainer *bcontainer,
                                          VFIOBitmap *vbmap, hwaddr iova,
                                          hwaddr size, Error **errp)
 {
@@ -169,7 +169,7 @@ static int vfio_user_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
     return -ENOTSUP;
 }
 
-static bool vfio_user_setup(VFIOContainerBase *bcontainer, Error **errp)
+static bool vfio_user_setup(VFIOContainer *bcontainer, Error **errp)
 {
     VFIOUserContainer *container = VFIO_IOMMU_USER(bcontainer);
 
@@ -202,7 +202,7 @@ static VFIOUserContainer *
 vfio_user_container_connect(AddressSpace *as, VFIODevice *vbasedev,
                             Error **errp)
 {
-    VFIOContainerBase *bcontainer;
+    VFIOContainer *bcontainer;
     VFIOUserContainer *container;
     VFIOAddressSpace *space;
     VFIOIOMMUClass *vioc;
@@ -260,7 +260,7 @@ put_space_exit:
 
 static void vfio_user_container_disconnect(VFIOUserContainer *container)
 {
-    VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
+    VFIOContainer *bcontainer = VFIO_IOMMU(container);
     VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
     VFIOAddressSpace *space = bcontainer->space;
 

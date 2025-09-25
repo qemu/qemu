@@ -72,7 +72,7 @@ static int vfio_dma_unmap_bitmap(const VFIOLegacyContainer *container,
                                  hwaddr iova, ram_addr_t size,
                                  IOMMUTLBEntry *iotlb)
 {
-    const VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
+    const VFIOContainer *bcontainer = VFIO_IOMMU(container);
     struct vfio_iommu_type1_dma_unmap *unmap;
     struct vfio_bitmap *bitmap;
     VFIOBitmap vbmap;
@@ -121,7 +121,7 @@ unmap_exit:
     return ret;
 }
 
-static int vfio_legacy_dma_unmap_one(const VFIOContainerBase *bcontainer,
+static int vfio_legacy_dma_unmap_one(const VFIOContainer *bcontainer,
                                      hwaddr iova, ram_addr_t size,
                                      IOMMUTLBEntry *iotlb)
 {
@@ -184,7 +184,7 @@ static int vfio_legacy_dma_unmap_one(const VFIOContainerBase *bcontainer,
 /*
  * DMA - Mapping and unmapping for the "type1" IOMMU interface used on x86
  */
-static int vfio_legacy_dma_unmap(const VFIOContainerBase *bcontainer,
+static int vfio_legacy_dma_unmap(const VFIOContainer *bcontainer,
                                  hwaddr iova, ram_addr_t size,
                                  IOMMUTLBEntry *iotlb, bool unmap_all)
 {
@@ -209,7 +209,7 @@ static int vfio_legacy_dma_unmap(const VFIOContainerBase *bcontainer,
     return ret;
 }
 
-static int vfio_legacy_dma_map(const VFIOContainerBase *bcontainer, hwaddr iova,
+static int vfio_legacy_dma_map(const VFIOContainer *bcontainer, hwaddr iova,
                                ram_addr_t size, void *vaddr, bool readonly,
                                MemoryRegion *mr)
 {
@@ -242,7 +242,7 @@ static int vfio_legacy_dma_map(const VFIOContainerBase *bcontainer, hwaddr iova,
 }
 
 static int
-vfio_legacy_set_dirty_page_tracking(const VFIOContainerBase *bcontainer,
+vfio_legacy_set_dirty_page_tracking(const VFIOContainer *bcontainer,
                                     bool start, Error **errp)
 {
     const VFIOLegacyContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
@@ -267,7 +267,7 @@ vfio_legacy_set_dirty_page_tracking(const VFIOContainerBase *bcontainer,
     return ret;
 }
 
-static int vfio_legacy_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
+static int vfio_legacy_query_dirty_bitmap(const VFIOContainer *bcontainer,
                       VFIOBitmap *vbmap, hwaddr iova, hwaddr size, Error **errp)
 {
     const VFIOLegacyContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
@@ -307,7 +307,7 @@ static int vfio_legacy_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
 }
 
 static bool vfio_get_info_iova_range(struct vfio_iommu_type1_info *info,
-                                     VFIOContainerBase *bcontainer)
+                                     VFIOContainer *bcontainer)
 {
     struct vfio_info_cap_header *hdr;
     struct vfio_iommu_type1_info_cap_iova_range *cap;
@@ -492,7 +492,7 @@ static void vfio_get_iommu_info_migration(VFIOLegacyContainer *container,
 {
     struct vfio_info_cap_header *hdr;
     struct vfio_iommu_type1_info_cap_migration *cap_mig;
-    VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
+    VFIOContainer *bcontainer = VFIO_IOMMU(container);
 
     hdr = vfio_get_iommu_info_cap(info, VFIO_IOMMU_TYPE1_INFO_CAP_MIGRATION);
     if (!hdr) {
@@ -513,7 +513,7 @@ static void vfio_get_iommu_info_migration(VFIOLegacyContainer *container,
     }
 }
 
-static bool vfio_legacy_setup(VFIOContainerBase *bcontainer, Error **errp)
+static bool vfio_legacy_setup(VFIOContainer *bcontainer, Error **errp)
 {
     VFIOLegacyContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
     g_autofree struct vfio_iommu_type1_info *info = NULL;
@@ -619,7 +619,7 @@ static bool vfio_container_connect(VFIOGroup *group, AddressSpace *as,
                                    Error **errp)
 {
     VFIOLegacyContainer *container;
-    VFIOContainerBase *bcontainer;
+    VFIOContainer *bcontainer;
     int ret, fd = -1;
     VFIOAddressSpace *space;
     VFIOIOMMUClass *vioc = NULL;
@@ -732,7 +732,7 @@ fail:
 static void vfio_container_disconnect(VFIOGroup *group)
 {
     VFIOLegacyContainer *container = group->container;
-    VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
+    VFIOContainer *bcontainer = VFIO_IOMMU(container);
     VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
 
     QLIST_REMOVE(group, container_next);

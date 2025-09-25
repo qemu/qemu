@@ -62,7 +62,7 @@ static void vfio_prereg_listener_region_add(MemoryListener *listener,
     VFIOSpaprContainer *scontainer = container_of(listener, VFIOSpaprContainer,
                                                   prereg_listener);
     VFIOLegacyContainer *container = &scontainer->container;
-    VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
+    VFIOContainer *bcontainer = VFIO_IOMMU(container);
     const hwaddr gpa = section->offset_within_address_space;
     hwaddr end;
     int ret;
@@ -244,7 +244,7 @@ static bool vfio_spapr_create_window(VFIOLegacyContainer *container,
                                     hwaddr *pgsize, Error **errp)
 {
     int ret = 0;
-    VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
+    VFIOContainer *bcontainer = VFIO_IOMMU(container);
     VFIOSpaprContainer *scontainer = container_of(container, VFIOSpaprContainer,
                                                   container);
     IOMMUMemoryRegion *iommu_mr = IOMMU_MEMORY_REGION(section->mr);
@@ -348,7 +348,7 @@ static bool vfio_spapr_create_window(VFIOLegacyContainer *container,
 }
 
 static bool
-vfio_spapr_container_add_section_window(VFIOContainerBase *bcontainer,
+vfio_spapr_container_add_section_window(VFIOContainer *bcontainer,
                                         MemoryRegionSection *section,
                                         Error **errp)
 {
@@ -439,7 +439,7 @@ vfio_spapr_container_add_section_window(VFIOContainerBase *bcontainer,
 }
 
 static void
-vfio_spapr_container_del_section_window(VFIOContainerBase *bcontainer,
+vfio_spapr_container_del_section_window(VFIOContainer *bcontainer,
                                         MemoryRegionSection *section)
 {
     VFIOLegacyContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
@@ -461,7 +461,7 @@ vfio_spapr_container_del_section_window(VFIOContainerBase *bcontainer,
     }
 }
 
-static void vfio_spapr_container_release(VFIOContainerBase *bcontainer)
+static void vfio_spapr_container_release(VFIOContainer *bcontainer)
 {
     VFIOLegacyContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
     VFIOSpaprContainer *scontainer = container_of(container, VFIOSpaprContainer,
@@ -478,7 +478,7 @@ static void vfio_spapr_container_release(VFIOContainerBase *bcontainer)
     }
 }
 
-static bool vfio_spapr_container_setup(VFIOContainerBase *bcontainer,
+static bool vfio_spapr_container_setup(VFIOContainer *bcontainer,
                                        Error **errp)
 {
     VFIOLegacyContainer *container = VFIO_IOMMU_LEGACY(bcontainer);

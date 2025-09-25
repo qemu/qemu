@@ -38,7 +38,7 @@ static bool vfio_dma_unmap_vaddr_all(VFIOLegacyContainer *container,
  * Set the new @vaddr for any mappings registered during cpr load.
  * The incoming state is cleared thereafter.
  */
-static int vfio_legacy_cpr_dma_map(const VFIOContainerBase *bcontainer,
+static int vfio_legacy_cpr_dma_map(const VFIOContainer *bcontainer,
                                    hwaddr iova, ram_addr_t size, void *vaddr,
                                    bool readonly, MemoryRegion *mr)
 {
@@ -100,7 +100,7 @@ static int vfio_container_pre_save(void *opaque)
 static int vfio_container_post_load(void *opaque, int version_id)
 {
     VFIOLegacyContainer *container = opaque;
-    VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
+    VFIOContainer *bcontainer = VFIO_IOMMU(container);
     VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
     dma_map_fn saved_dma_map = vioc->dma_map;
     Error *local_err = NULL;
@@ -137,7 +137,7 @@ static int vfio_cpr_fail_notifier(NotifierWithReturn *notifier,
 {
     VFIOLegacyContainer *container =
         container_of(notifier, VFIOLegacyContainer, cpr.transfer_notifier);
-    VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
+    VFIOContainer *bcontainer = VFIO_IOMMU(container);
 
     if (e->type != MIG_EVENT_PRECOPY_FAILED) {
         return 0;
@@ -170,7 +170,7 @@ static int vfio_cpr_fail_notifier(NotifierWithReturn *notifier,
 bool vfio_legacy_cpr_register_container(VFIOLegacyContainer *container,
                                         Error **errp)
 {
-    VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
+    VFIOContainer *bcontainer = VFIO_IOMMU(container);
     Error **cpr_blocker = &container->cpr.blocker;
 
     migration_add_notifier_mode(&bcontainer->cpr_reboot_notifier,
@@ -194,7 +194,7 @@ bool vfio_legacy_cpr_register_container(VFIOLegacyContainer *container,
 
 void vfio_legacy_cpr_unregister_container(VFIOLegacyContainer *container)
 {
-    VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
+    VFIOContainer *bcontainer = VFIO_IOMMU(container);
 
     migration_remove_notifier(&bcontainer->cpr_reboot_notifier);
     migrate_del_blocker(&container->cpr.blocker);
@@ -210,7 +210,7 @@ void vfio_legacy_cpr_unregister_container(VFIOLegacyContainer *container)
  * The giommu already exists.  Find it and replay it, which calls
  * vfio_legacy_cpr_dma_map further down the stack.
  */
-void vfio_cpr_giommu_remap(VFIOContainerBase *bcontainer,
+void vfio_cpr_giommu_remap(VFIOContainer *bcontainer,
                            MemoryRegionSection *section)
 {
     VFIOGuestIOMMU *giommu = NULL;
@@ -235,7 +235,7 @@ void vfio_cpr_giommu_remap(VFIOContainerBase *bcontainer,
  * The ram discard listener already exists.  Call its populate function
  * directly, which calls vfio_legacy_cpr_dma_map.
  */
-bool vfio_cpr_ram_discard_register_listener(VFIOContainerBase *bcontainer,
+bool vfio_cpr_ram_discard_register_listener(VFIOContainer *bcontainer,
                                             MemoryRegionSection *section)
 {
     VFIORamDiscardListener *vrdl =

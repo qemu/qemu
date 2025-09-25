@@ -54,7 +54,7 @@ typedef struct VFIODevice {
     QLIST_ENTRY(VFIODevice) container_next;
     QLIST_ENTRY(VFIODevice) global_next;
     struct VFIOGroup *group;
-    VFIOContainerBase *bcontainer;
+    VFIOContainer *bcontainer;
     char *sysfsdev;
     char *name;
     DeviceState *dev;
@@ -252,7 +252,7 @@ struct VFIODeviceIOOps {
                         void *data, bool post);
 };
 
-void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainerBase *bcontainer,
+void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainer *bcontainer,
                          struct vfio_device_info *info);
 
 void vfio_device_unprepare(VFIODevice *vbasedev);

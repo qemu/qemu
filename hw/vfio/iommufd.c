@@ -34,7 +34,7 @@
 #define TYPE_HOST_IOMMU_DEVICE_IOMMUFD_VFIO             \
             TYPE_HOST_IOMMU_DEVICE_IOMMUFD "-vfio"
 
-static int iommufd_cdev_map(const VFIOContainerBase *bcontainer, hwaddr iova,
+static int iommufd_cdev_map(const VFIOContainer *bcontainer, hwaddr iova,
                             ram_addr_t size, void *vaddr, bool readonly,
                             MemoryRegion *mr)
 {
@@ -46,7 +46,7 @@ static int iommufd_cdev_map(const VFIOContainerBase *bcontainer, hwaddr iova,
                                    iova, size, vaddr, readonly);
 }
 
-static int iommufd_cdev_map_file(const VFIOContainerBase *bcontainer,
+static int iommufd_cdev_map_file(const VFIOContainer *bcontainer,
                                  hwaddr iova, ram_addr_t size,
                                  int fd, unsigned long start, bool readonly)
 {
@@ -58,7 +58,7 @@ static int iommufd_cdev_map_file(const VFIOContainerBase *bcontainer,
                                         iova, size, fd, start, readonly);
 }
 
-static int iommufd_cdev_unmap(const VFIOContainerBase *bcontainer,
+static int iommufd_cdev_unmap(const VFIOContainer *bcontainer,
                               hwaddr iova, ram_addr_t size,
                               IOMMUTLBEntry *iotlb, bool unmap_all)
 {
@@ -159,7 +159,7 @@ static bool iommufd_hwpt_dirty_tracking(VFIOIOASHwpt *hwpt)
     return hwpt && hwpt->hwpt_flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
 }
 
-static int iommufd_set_dirty_page_tracking(const VFIOContainerBase *bcontainer,
+static int iommufd_set_dirty_page_tracking(const VFIOContainer *bcontainer,
                                            bool start, Error **errp)
 {
     const VFIOIOMMUFDContainer *container =
@@ -190,7 +190,7 @@ err:
     return -EINVAL;
 }
 
-static int iommufd_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
+static int iommufd_query_dirty_bitmap(const VFIOContainer *bcontainer,
                                       VFIOBitmap *vbmap, hwaddr iova,
                                       hwaddr size, Error **errp)
 {
@@ -464,7 +464,7 @@ static void iommufd_cdev_detach_container(VFIODevice *vbasedev,
 
 static void iommufd_cdev_container_destroy(VFIOIOMMUFDContainer *container)
 {
-    VFIOContainerBase *bcontainer = &container->bcontainer;
+    VFIOContainer *bcontainer = &container->bcontainer;
 
     if (!QLIST_EMPTY(&bcontainer->device_list)) {
         return;
@@ -486,7 +486,7 @@ static int iommufd_cdev_ram_block_discard_disable(bool state)
 static bool iommufd_cdev_get_info_iova_range(VFIOIOMMUFDContainer *container,
                                              uint32_t ioas_id, Error **errp)
 {
-    VFIOContainerBase *bcontainer = &container->bcontainer;
+    VFIOContainer *bcontainer = &container->bcontainer;
     g_autofree struct iommu_ioas_iova_ranges *info = NULL;
     struct iommu_iova_range *iova_ranges;
     int sz, fd = container->be->fd;
@@ -528,7 +528,7 @@ error:
 static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
                                 AddressSpace *as, Error **errp)
 {
-    VFIOContainerBase *bcontainer;
+    VFIOContainer *bcontainer;
     VFIOIOMMUFDContainer *container;
     VFIOAddressSpace *space;
     struct vfio_device_info dev_info = { .argsz = sizeof(dev_info) };
@@ -687,7 +687,7 @@ err_connect_bind:
 
 static void iommufd_cdev_detach(VFIODevice *vbasedev)
 {
-    VFIOContainerBase *bcontainer = vbasedev->bcontainer;
+    VFIOContainer *bcontainer = vbasedev->bcontainer;
     VFIOAddressSpace *space = bcontainer->space;
     VFIOIOMMUFDContainer *container = container_of(bcontainer,
                                                    VFIOIOMMUFDContainer,

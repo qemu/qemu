@@ -26,14 +26,14 @@ typedef struct {
 
 typedef struct VFIOAddressSpace {
     AddressSpace *as;
-    QLIST_HEAD(, VFIOContainerBase) containers;
+    QLIST_HEAD(, VFIOContainer) containers;
     QLIST_ENTRY(VFIOAddressSpace) list;
 } VFIOAddressSpace;
 
 /*
  * This is the base object for vfio container backends
  */
-struct VFIOContainerBase {
+struct VFIOContainer {
     Object parent_obj;
 
     VFIOAddressSpace *space;
@@ -48,17 +48,17 @@ struct VFIOContainerBase {
     bool dirty_pages_started; /* Protected by BQL */
     QLIST_HEAD(, VFIOGuestIOMMU) giommu_list;
     QLIST_HEAD(, VFIORamDiscardListener) vrdl_list;
-    QLIST_ENTRY(VFIOContainerBase) next;
+    QLIST_ENTRY(VFIOContainer) next;
     QLIST_HEAD(, VFIODevice) device_list;
     GList *iova_ranges;
     NotifierWithReturn cpr_reboot_notifier;
 };
 
 #define TYPE_VFIO_IOMMU "vfio-iommu"
-OBJECT_DECLARE_TYPE(VFIOContainerBase, VFIOIOMMUClass, VFIO_IOMMU)
+OBJECT_DECLARE_TYPE(VFIOContainer, VFIOIOMMUClass, VFIO_IOMMU)
 
 typedef struct VFIOGuestIOMMU {
-    VFIOContainerBase *bcontainer;
+    VFIOContainer *bcontainer;
     IOMMUMemoryRegion *iommu_mr;
     hwaddr iommu_offset;
     IOMMUNotifier n;
@@ -66,7 +66,7 @@ typedef struct VFIOGuestIOMMU {
 } VFIOGuestIOMMU;
 
 typedef struct VFIORamDiscardListener {
-    VFIOContainerBase *bcontainer;
+    VFIOContainer *bcontainer;
     MemoryRegion *mr;
     hwaddr offset_within_address_space;
     hwaddr size;
@@ -78,32 +78,32 @@ typedef struct VFIORamDiscardListener {
 VFIOAddressSpace *vfio_address_space_get(AddressSpace *as);
 void vfio_address_space_put(VFIOAddressSpace *space);
 void vfio_address_space_insert(VFIOAddressSpace *space,
-                               VFIOContainerBase *bcontainer);
+                               VFIOContainer *bcontainer);
 
-int vfio_container_dma_map(VFIOContainerBase *bcontainer,
+int vfio_container_dma_map(VFIOContainer *bcontainer,
                            hwaddr iova, ram_addr_t size,
                            void *vaddr, bool readonly, MemoryRegion *mr);
-int vfio_container_dma_unmap(VFIOContainerBase *bcontainer,
+int vfio_container_dma_unmap(VFIOContainer *bcontainer,
                              hwaddr iova, ram_addr_t size,
                              IOMMUTLBEntry *iotlb, bool unmap_all);
-bool vfio_container_add_section_window(VFIOContainerBase *bcontainer,
+bool vfio_container_add_section_window(VFIOContainer *bcontainer,
                                        MemoryRegionSection *section,
                                        Error **errp);
-void vfio_container_del_section_window(VFIOContainerBase *bcontainer,
+void vfio_container_del_section_window(VFIOContainer *bcontainer,
                                        MemoryRegionSection *section);
-int vfio_container_set_dirty_page_tracking(VFIOContainerBase *bcontainer,
+int vfio_container_set_dirty_page_tracking(VFIOContainer *bcontainer,
                                            bool start, Error **errp);
 bool vfio_container_dirty_tracking_is_started(
-    const VFIOContainerBase *bcontainer);
+    const VFIOContainer *bcontainer);
 bool vfio_container_devices_dirty_tracking_is_supported(
-    const VFIOContainerBase *bcontainer);
-int vfio_container_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
+    const VFIOContainer *bcontainer);
+int vfio_container_query_dirty_bitmap(const VFIOContainer *bcontainer,
     uint64_t iova, uint64_t size, ram_addr_t ram_addr, Error **errp);
 
-GList *vfio_container_get_iova_ranges(const VFIOContainerBase *bcontainer);
+GList *vfio_container_get_iova_ranges(const VFIOContainer *bcontainer);
 
 static inline uint64_t
-vfio_container_get_page_size_mask(const VFIOContainerBase *bcontainer)
+vfio_container_get_page_size_mask(const VFIOContainer *bcontainer)
 {
     assert(bcontainer);
     return bcontainer->pgsizes;
@@ -123,12 +123,12 @@ struct VFIOIOMMUClass {
      * Perform basic setup of the container, including configuring IOMMU
      * capabilities, IOVA ranges, supported page sizes, etc.
      *
-     * @bcontainer: #VFIOContainerBase
+     * @bcontainer: #VFIOContainer
      * @errp: pointer to Error*, to store an error if it happens.
      *
      * Returns true to indicate success and false for error.
      */
-    bool (*setup)(VFIOContainerBase *bcontainer, Error **errp);
+    bool (*setup)(VFIOContainer *bcontainer, Error **errp);
 
     /**
      * @listener_begin
@@ -136,9 +136,9 @@ struct VFIOIOMMUClass {
      * Called at the beginning of an address space update transaction.
      * See #MemoryListener.
      *
-     * @bcontainer: #VFIOContainerBase
+     * @bcontainer: #VFIOContainer
      */
-    void (*listener_begin)(VFIOContainerBase *bcontainer);
+    void (*listener_begin)(VFIOContainer *bcontainer);
 
     /**
      * @listener_commit
@@ -146,9 +146,9 @@ struct VFIOIOMMUClass {
      * Called at the end of an address space update transaction,
      * See #MemoryListener.
      *
-     * @bcontainer: #VFIOContainerBase
+     * @bcontainer: #VFIOContainer
      */
-    void (*listener_commit)(VFIOContainerBase *bcontainer);
+    void (*listener_commit)(VFIOContainer *bcontainer);
 
     /**
      * @dma_map
@@ -156,7 +156,7 @@ struct VFIOIOMMUClass {
      * Map an address range into the container. Note that the memory region is
      * referenced within an RCU read lock region across this call.
      *
-     * @bcontainer: #VFIOContainerBase to use
+     * @bcontainer: #VFIOContainer to use
      * @iova: start address to map
      * @size: size of the range to map
      * @vaddr: process virtual address of mapping
@@ -165,7 +165,7 @@ struct VFIOIOMMUClass {
      *
      * Returns 0 to indicate success and -errno otherwise.
      */
-    int (*dma_map)(const VFIOContainerBase *bcontainer,
+    int (*dma_map)(const VFIOContainer *bcontainer,
                    hwaddr iova, ram_addr_t size,
                    void *vaddr, bool readonly, MemoryRegion *mr);
     /**
@@ -173,14 +173,14 @@ struct VFIOIOMMUClass {
      *
      * Map a file range for the container.
      *
-     * @bcontainer: #VFIOContainerBase to use for map
+     * @bcontainer: #VFIOContainer to use for map
      * @iova: start address to map
      * @size: size of the range to map
      * @fd: descriptor of the file to map
      * @start: starting file offset of the range to map
      * @readonly: map read only if true
      */
-    int (*dma_map_file)(const VFIOContainerBase *bcontainer,
+    int (*dma_map_file)(const VFIOContainer *bcontainer,
                         hwaddr iova, ram_addr_t size,
                         int fd, unsigned long start, bool readonly);
     /**
@@ -188,7 +188,7 @@ struct VFIOIOMMUClass {
      *
      * Unmap an address range from the container.
      *
-     * @bcontainer: #VFIOContainerBase to use for unmap
+     * @bcontainer: #VFIOContainer to use for unmap
      * @iova: start address to unmap
      * @size: size of the range to unmap
      * @iotlb: The IOMMU TLB mapping entry (or NULL)
@@ -196,7 +196,7 @@ struct VFIOIOMMUClass {
      *
      * Returns 0 to indicate success and -errno otherwise.
      */
-    int (*dma_unmap)(const VFIOContainerBase *bcontainer,
+    int (*dma_unmap)(const VFIOContainer *bcontainer,
                      hwaddr iova, ram_addr_t size,
                      IOMMUTLBEntry *iotlb, bool unmap_all);
 
@@ -234,21 +234,21 @@ struct VFIOIOMMUClass {
      *
      * Start or stop dirty pages tracking on VFIO container
      *
-     * @bcontainer: #VFIOContainerBase on which to de/activate dirty
+     * @bcontainer: #VFIOContainer on which to de/activate dirty
      *              page tracking
      * @start: indicates whether to start or stop dirty pages tracking
      * @errp: pointer to Error*, to store an error if it happens.
      *
      * Returns zero to indicate success and negative for error.
      */
-    int (*set_dirty_page_tracking)(const VFIOContainerBase *bcontainer,
+    int (*set_dirty_page_tracking)(const VFIOContainer *bcontainer,
                                    bool start, Error **errp);
     /**
      * @query_dirty_bitmap
      *
      * Get bitmap of dirty pages from container
      *
-     * @bcontainer: #VFIOContainerBase from which to get dirty pages
+     * @bcontainer: #VFIOContainer from which to get dirty pages
      * @vbmap: #VFIOBitmap internal bitmap structure
      * @iova: iova base address
      * @size: size of iova range
@@ -256,24 +256,24 @@ struct VFIOIOMMUClass {
      *
      * Returns zero to indicate success and negative for error.
      */
-    int (*query_dirty_bitmap)(const VFIOContainerBase *bcontainer,
+    int (*query_dirty_bitmap)(const VFIOContainer *bcontainer,
                 VFIOBitmap *vbmap, hwaddr iova, hwaddr size, Error **errp);
     /* PCI specific */
     int (*pci_hot_reset)(VFIODevice *vbasedev, bool single);
 
     /* SPAPR specific */
-    bool (*add_window)(VFIOContainerBase *bcontainer,
+    bool (*add_window)(VFIOContainer *bcontainer,
                        MemoryRegionSection *section,
                        Error **errp);
-    void (*del_window)(VFIOContainerBase *bcontainer,
+    void (*del_window)(VFIOContainer *bcontainer,
                        MemoryRegionSection *section);
-    void (*release)(VFIOContainerBase *bcontainer);
+    void (*release)(VFIOContainer *bcontainer);
 };
 
 VFIORamDiscardListener *vfio_find_ram_discard_listener(
-    VFIOContainerBase *bcontainer, MemoryRegionSection *section);
+    VFIOContainer *bcontainer, MemoryRegionSection *section);
 
-void vfio_container_region_add(VFIOContainerBase *bcontainer,
+void vfio_container_region_add(VFIOContainer *bcontainer,
                                MemoryRegionSection *section, bool cpr_remap);
 
 #endif /* HW_VFIO_VFIO_CONTAINER_BASE_H */

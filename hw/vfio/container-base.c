@@ -67,13 +67,13 @@ void vfio_address_space_put(VFIOAddressSpace *space)
 }
 
 void vfio_address_space_insert(VFIOAddressSpace *space,
-                               VFIOContainerBase *bcontainer)
+                               VFIOContainer *bcontainer)
 {
     QLIST_INSERT_HEAD(&space->containers, bcontainer, next);
     bcontainer->space = space;
 }
 
-int vfio_container_dma_map(VFIOContainerBase *bcontainer,
+int vfio_container_dma_map(VFIOContainer *bcontainer,
                            hwaddr iova, ram_addr_t size,
                            void *vaddr, bool readonly, MemoryRegion *mr)
 {
@@ -92,7 +92,7 @@ int vfio_container_dma_map(VFIOContainerBase *bcontainer,
     return vioc->dma_map(bcontainer, iova, size, vaddr, readonly, mr);
 }
 
-int vfio_container_dma_unmap(VFIOContainerBase *bcontainer,
+int vfio_container_dma_unmap(VFIOContainer *bcontainer,
                              hwaddr iova, ram_addr_t size,
                              IOMMUTLBEntry *iotlb, bool unmap_all)
 {
@@ -102,7 +102,7 @@ int vfio_container_dma_unmap(VFIOContainerBase *bcontainer,
     return vioc->dma_unmap(bcontainer, iova, size, iotlb, unmap_all);
 }
 
-bool vfio_container_add_section_window(VFIOContainerBase *bcontainer,
+bool vfio_container_add_section_window(VFIOContainer *bcontainer,
                                        MemoryRegionSection *section,
                                        Error **errp)
 {
@@ -115,7 +115,7 @@ bool vfio_container_add_section_window(VFIOContainerBase *bcontainer,
     return vioc->add_window(bcontainer, section, errp);
 }
 
-void vfio_container_del_section_window(VFIOContainerBase *bcontainer,
+void vfio_container_del_section_window(VFIOContainer *bcontainer,
                                        MemoryRegionSection *section)
 {
     VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
@@ -127,7 +127,7 @@ void vfio_container_del_section_window(VFIOContainerBase *bcontainer,
     return vioc->del_window(bcontainer, section);
 }
 
-int vfio_container_set_dirty_page_tracking(VFIOContainerBase *bcontainer,
+int vfio_container_set_dirty_page_tracking(VFIOContainer *bcontainer,
                                            bool start, Error **errp)
 {
     VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
@@ -151,7 +151,7 @@ int vfio_container_set_dirty_page_tracking(VFIOContainerBase *bcontainer,
 }
 
 static bool vfio_container_devices_dirty_tracking_is_started(
-    const VFIOContainerBase *bcontainer)
+    const VFIOContainer *bcontainer)
 {
     VFIODevice *vbasedev;
 
@@ -165,14 +165,14 @@ static bool vfio_container_devices_dirty_tracking_is_started(
 }
 
 bool vfio_container_dirty_tracking_is_started(
-    const VFIOContainerBase *bcontainer)
+    const VFIOContainer *bcontainer)
 {
     return vfio_container_devices_dirty_tracking_is_started(bcontainer) ||
            bcontainer->dirty_pages_started;
 }
 
 bool vfio_container_devices_dirty_tracking_is_supported(
-    const VFIOContainerBase *bcontainer)
+    const VFIOContainer *bcontainer)
 {
     VFIODevice *vbasedev;
 
@@ -210,8 +210,9 @@ static int vfio_device_dma_logging_report(VFIODevice *vbasedev, hwaddr iova,
     return vbasedev->io_ops->device_feature(vbasedev, feature);
 }
 
-static int vfio_container_iommu_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
-                   VFIOBitmap *vbmap, hwaddr iova, hwaddr size, Error **errp)
+static int vfio_container_iommu_query_dirty_bitmap(
+    const VFIOContainer *bcontainer, VFIOBitmap *vbmap, hwaddr iova,
+    hwaddr size, Error **errp)
 {
     VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
 
@@ -220,8 +221,9 @@ static int vfio_container_iommu_query_dirty_bitmap(const VFIOContainerBase *bcon
                                                errp);
 }
 
-static int vfio_container_devices_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
-                 VFIOBitmap *vbmap, hwaddr iova, hwaddr size, Error **errp)
+static int vfio_container_devices_query_dirty_bitmap(
+    const VFIOContainer *bcontainer, VFIOBitmap *vbmap, hwaddr iova,
+    hwaddr size, Error **errp)
 {
     VFIODevice *vbasedev;
     int ret;
@@ -242,8 +244,9 @@ static int vfio_container_devices_query_dirty_bitmap(const VFIOContainerBase *bc
     return 0;
 }
 
-int vfio_container_query_dirty_bitmap(const VFIOContainerBase *bcontainer, uint64_t iova,
-                          uint64_t size, ram_addr_t ram_addr, Error **errp)
+int vfio_container_query_dirty_bitmap(const VFIOContainer *bcontainer,
+                                      uint64_t iova, uint64_t size,
+                                      ram_addr_t ram_addr, Error **errp)
 {
     bool all_device_dirty_tracking =
         vfio_container_devices_dirty_tracking_is_supported(bcontainer);
@@ -297,7 +300,7 @@ static gpointer copy_iova_range(gconstpointer src, gpointer data)
      return dest;
 }
 
-GList *vfio_container_get_iova_ranges(const VFIOContainerBase *bcontainer)
+GList *vfio_container_get_iova_ranges(const VFIOContainer *bcontainer)
 {
     assert(bcontainer);
     return g_list_copy_deep(bcontainer->iova_ranges, copy_iova_range, NULL);
@@ -305,7 +308,7 @@ GList *vfio_container_get_iova_ranges(const VFIOContainerBase *bcontainer)
 
 static void vfio_container_instance_finalize(Object *obj)
 {
-    VFIOContainerBase *bcontainer = VFIO_IOMMU(obj);
+    VFIOContainer *bcontainer = VFIO_IOMMU(obj);
     VFIOGuestIOMMU *giommu, *tmp;
 
     QLIST_SAFE_REMOVE(bcontainer, next);
@@ -322,7 +325,7 @@ static void vfio_container_instance_finalize(Object *obj)
 
 static void vfio_container_instance_init(Object *obj)
 {
-    VFIOContainerBase *bcontainer = VFIO_IOMMU(obj);
+    VFIOContainer *bcontainer = VFIO_IOMMU(obj);
 
     bcontainer->error = NULL;
     bcontainer->dirty_pages_supported = false;
@@ -338,7 +341,7 @@ static const TypeInfo types[] = {
         .parent = TYPE_OBJECT,
         .instance_init = vfio_container_instance_init,
         .instance_finalize = vfio_container_instance_finalize,
-        .instance_size = sizeof(VFIOContainerBase),
+        .instance_size = sizeof(VFIOContainer),
         .class_size = sizeof(VFIOIOMMUClass),
         .abstract = true,
     },

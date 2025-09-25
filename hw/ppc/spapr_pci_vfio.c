@@ -86,7 +86,7 @@ static int vfio_eeh_container_op(VFIOLegacyContainer *container, uint32_t op)
 static VFIOLegacyContainer *vfio_eeh_as_container(AddressSpace *as)
 {
     VFIOAddressSpace *space = vfio_address_space_get(as);
-    VFIOContainerBase *bcontainer = NULL;
+    VFIOContainer *bcontainer = NULL;
 
     if (QLIST_EMPTY(&space->containers)) {
         /* No containers to act on */

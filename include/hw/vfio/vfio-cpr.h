@@ -13,14 +13,14 @@
 #include "system/memory.h"
 
 struct VFIOLegacyContainer;
-struct VFIOContainerBase;
+struct VFIOContainer;
 struct VFIOGroup;
 struct VFIODevice;
 struct VFIOPCIDevice;
 struct VFIOIOMMUFDContainer;
 struct IOMMUFDBackend;
 
-typedef int (*dma_map_fn)(const struct VFIOContainerBase *bcontainer,
+typedef int (*dma_map_fn)(const struct VFIOContainer *bcontainer,
                           hwaddr iova, ram_addr_t size, void *vaddr,
                           bool readonly, MemoryRegion *mr);
 
@@ -65,11 +65,11 @@ int vfio_cpr_group_get_device_fd(int d, const char *name);
 bool vfio_cpr_container_match(struct VFIOLegacyContainer *container,
                               struct VFIOGroup *group, int fd);
 
-void vfio_cpr_giommu_remap(struct VFIOContainerBase *bcontainer,
+void vfio_cpr_giommu_remap(struct VFIOContainer *bcontainer,
                            MemoryRegionSection *section);
 
 bool vfio_cpr_ram_discard_register_listener(
-    struct VFIOContainerBase *bcontainer, MemoryRegionSection *section);
+    struct VFIOContainer *bcontainer, MemoryRegionSection *section);
 
 void vfio_cpr_save_vector_fd(struct VFIOPCIDevice *vdev, const char *name,
                              int nr, int fd);
