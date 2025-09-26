@@ -338,6 +338,12 @@ static int vhost_vdpa_device_set_status(VirtIODevice *vdev, uint8_t status)
     return 0;
 }
 
+static struct vhost_dev *vhost_vdpa_device_get_vhost(VirtIODevice *vdev)
+{
+    VhostVdpaDevice *s = VHOST_VDPA_DEVICE(vdev);
+    return &s->dev;
+}
+
 static const Property vhost_vdpa_device_properties[] = {
     DEFINE_PROP_STRING("vhostdev", VhostVdpaDevice, vhostdev),
     DEFINE_PROP_UINT16("queue-size", VhostVdpaDevice, queue_size, 0),
@@ -369,6 +375,7 @@ static void vhost_vdpa_device_class_init(ObjectClass *klass, const void *data)
     vdc->set_config = vhost_vdpa_device_set_config;
     vdc->get_features = vhost_vdpa_device_get_features;
     vdc->set_status = vhost_vdpa_device_set_status;
+    vdc->get_vhost = vhost_vdpa_device_get_vhost;
 }
 
 static void vhost_vdpa_device_instance_init(Object *obj)
