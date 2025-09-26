@@ -387,7 +387,25 @@ static bool granule_protection_check(CPUARMState *env, uint64_t paddress,
     l0gptsz = 30 + FIELD_EX64(gpccr, GPCCR, L0GPTSZ);
 
     /*
-     * GPC Priority 2: Secure, Realm or Root address exceeds PPS.
+     * GPC Priority 2: Access to Secure, NonSecure or Realm is prevented
+     * by one of the GPCCR_EL3 address space disable bits (R_TCWMD).
+     * All of these bits are checked vs aa64_rme_gpc2 in gpccr_write.
+     */
+    {
+        static const uint8_t disable_masks[4] = {
+            [ARMSS_Secure] = R_GPCCR_SPAD_MASK,
+            [ARMSS_NonSecure] = R_GPCCR_NSPAD_MASK,
+            [ARMSS_Root] = 0,
+            [ARMSS_Realm] = R_GPCCR_RLPAD_MASK,
+        };
+
+        if (gpccr & disable_masks[pspace]) {
+            goto fault_fail;
+        }
+    }
+
+    /*
+     * GPC Priority 3: Secure, Realm or Root address exceeds PPS.
      * R_CPDSB: A NonSecure physical address input exceeding PPS
      * does not experience any fault.
      */
@@ -398,7 +416,7 @@ static bool granule_protection_check(CPUARMState *env, uint64_t paddress,
         goto fault_size;
     }
 
-    /* GPC Priority 3: the base address of GPTBR_EL3 exceeds PPS. */
+    /* GPC Priority 4: the base address of GPTBR_EL3 exceeds PPS. */
     tableaddr = env->cp15.gptbr_el3 << 12;
     if (tableaddr & ~pps_mask) {
         goto fault_size;
@@ -502,6 +520,7 @@ static bool granule_protection_check(CPUARMState *env, uint64_t paddress,
         goto fault_walk; /* reserved */
     }
 
+ fault_fail:
     fi->gpcf = GPCF_Fail;
     goto fault_common;
  fault_eabt:
