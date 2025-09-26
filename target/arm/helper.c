@@ -4933,6 +4933,11 @@ static void gpccr_write(CPUARMState *env, const ARMCPRegInfo *ri,
         R_GPCCR_ORGN_MASK | R_GPCCR_SH_MASK | R_GPCCR_PGS_MASK |
         R_GPCCR_GPC_MASK | R_GPCCR_GPCP_MASK;
 
+    if (cpu_isar_feature(aa64_rme_gpc2, env_archcpu(env))) {
+        rw_mask |= R_GPCCR_APPSAA_MASK | R_GPCCR_NSO_MASK |
+                   R_GPCCR_SPAD_MASK | R_GPCCR_NSPAD_MASK | R_GPCCR_RLPAD_MASK;
+    }
+
     env->cp15.gpccr_el3 = (value & rw_mask) | (env->cp15.gpccr_el3 & ~rw_mask);
 }
 
