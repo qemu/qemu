@@ -49,10 +49,6 @@ struct Versal {
     } noc;
 
     struct {
-        MemoryRegion mr_ocm;
-    } lpd;
-
-    struct {
         uint32_t clk_25mhz;
         uint32_t clk_125mhz;
         uint32_t gic;
