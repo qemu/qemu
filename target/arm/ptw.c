@@ -36,8 +36,6 @@ typedef struct S1Translate {
     /*
      * in_space: the security space for this walk. This plus
      * the in_mmu_idx specify the architectural translation regime.
-     * If a Secure ptw is "downgraded" to NonSecure by an NSTable bit,
-     * this field is updated accordingly.
      *
      * Note that the security space for the in_ptw_idx may be different
      * from that for the in_mmu_idx. We do not need to explicitly track
@@ -52,6 +50,11 @@ typedef struct S1Translate {
      *    value being Stage2 vs Stage2_S distinguishes those.
      */
     ARMSecuritySpace in_space;
+    /*
+     * Like in_space, except this may be "downgraded" to NonSecure
+     * by an NSTable bit.
+     */
+    ARMSecuritySpace cur_space;
     /*
      * in_debug: is this a QEMU debug access (gdbstub, etc)? Debug
      * accesses will not update the guest page table access flags
@@ -587,7 +590,8 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
          * From gdbstub, do not use softmmu so that we don't modify the
          * state of the cpu at all, including softmmu tlb contents.
          */
-        ARMSecuritySpace s2_space = S2_security_space(ptw->in_space, s2_mmu_idx);
+        ARMSecuritySpace s2_space
+            = S2_security_space(ptw->cur_space, s2_mmu_idx);
         S1Translate s2ptw = {
             .in_mmu_idx = s2_mmu_idx,
             .in_ptw_idx = ptw_idx_for_stage_2(env, s2_mmu_idx),
@@ -630,7 +634,7 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
     }
 
     if (regime_is_stage2(s2_mmu_idx)) {
-        uint64_t hcr = arm_hcr_el2_eff_secstate(env, ptw->in_space);
+        uint64_t hcr = arm_hcr_el2_eff_secstate(env, ptw->cur_space);
 
         if ((hcr & HCR_PTW) && S2_attrs_are_device(hcr, pte_attrs)) {
             /*
@@ -641,7 +645,7 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
             fi->s2addr = addr;
             fi->stage2 = true;
             fi->s1ptw = true;
-            fi->s1ns = fault_s1ns(ptw->in_space, s2_mmu_idx);
+            fi->s1ns = fault_s1ns(ptw->cur_space, s2_mmu_idx);
             return false;
         }
     }
@@ -657,7 +661,7 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
     fi->s2addr = addr;
     fi->stage2 = regime_is_stage2(s2_mmu_idx);
     fi->s1ptw = fi->stage2;
-    fi->s1ns = fault_s1ns(ptw->in_space, s2_mmu_idx);
+    fi->s1ns = fault_s1ns(ptw->cur_space, s2_mmu_idx);
     return false;
 }
 
@@ -844,7 +848,7 @@ static uint64_t arm_casq_ptw(CPUARMState *env, uint64_t old_val,
             fi->s2addr = ptw->out_virt;
             fi->stage2 = true;
             fi->s1ptw = true;
-            fi->s1ns = fault_s1ns(ptw->in_space, ptw->in_ptw_idx);
+            fi->s1ns = fault_s1ns(ptw->cur_space, ptw->in_ptw_idx);
             return 0;
         }
 
@@ -1224,7 +1228,7 @@ static bool get_phys_addr_v6(CPUARMState *env, S1Translate *ptw,
             g_assert_not_reached();
         }
     }
-    out_space = ptw->in_space;
+    out_space = ptw->cur_space;
     if (ns) {
         /*
          * The NS bit will (as required by the architecture) have no effect if
@@ -1254,7 +1258,7 @@ static bool get_phys_addr_v6(CPUARMState *env, S1Translate *ptw,
         }
 
         result->f.prot = get_S1prot(env, mmu_idx, false, user_rw, prot_rw,
-                                    xn, pxn, result->f.attrs.space, out_space);
+                                    xn, pxn, ptw->in_space, out_space);
         if (ptw->in_prot_check & ~result->f.prot) {
             /* Access permission fault.  */
             fi->type = ARMFault_Permission;
@@ -1857,7 +1861,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
      * NonSecure.  With RME, the EL3 translation regime does not change
      * from Root to NonSecure.
      */
-    if (ptw->in_space == ARMSS_Secure
+    if (ptw->cur_space == ARMSS_Secure
         && !regime_is_stage2(mmu_idx)
         && extract32(tableattrs, 4, 1)) {
         /*
@@ -1867,7 +1871,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
         QEMU_BUILD_BUG_ON(ARMMMUIdx_Phys_S + 1 != ARMMMUIdx_Phys_NS);
         QEMU_BUILD_BUG_ON(ARMMMUIdx_Stage2_S + 1 != ARMMMUIdx_Stage2);
         ptw->in_ptw_idx += 1;
-        ptw->in_space = ARMSS_NonSecure;
+        ptw->cur_space = ARMSS_NonSecure;
     }
 
     if (!S1_ptw_translate(env, ptw, descaddr, fi)) {
@@ -1991,7 +1995,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
     }
 
     ap = extract32(attrs, 6, 2);
-    out_space = ptw->in_space;
+    out_space = ptw->cur_space;
     if (regime_is_stage2(mmu_idx)) {
         /*
          * R_GYNXY: For stage2 in Realm security state, bit 55 is NS.
@@ -2089,12 +2093,8 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
 
         user_rw = simple_ap_to_rw_prot_is_user(ap, true);
         prot_rw = simple_ap_to_rw_prot_is_user(ap, false);
-        /*
-         * Note that we modified ptw->in_space earlier for NSTable, but
-         * result->f.attrs retains a copy of the original security space.
-         */
         result->f.prot = get_S1prot(env, mmu_idx, aarch64, user_rw, prot_rw,
-                                    xn, pxn, result->f.attrs.space, out_space);
+                                    xn, pxn, ptw->in_space, out_space);
 
         /* Index into MAIR registers for cache attributes */
         attrindx = extract32(attrs, 2, 3);
@@ -2192,7 +2192,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
         fi->level = level;
         fi->stage2 = regime_is_stage2(mmu_idx);
     }
-    fi->s1ns = fault_s1ns(ptw->in_space, mmu_idx);
+    fi->s1ns = fault_s1ns(ptw->cur_space, mmu_idx);
     return true;
 }
 
@@ -3413,6 +3413,7 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
      * cannot upgrade a NonSecure translation regime's attributes
      * to Secure or Realm.
      */
+    ptw->cur_space = ptw->in_space;
     result->f.attrs.space = ptw->in_space;
     result->f.attrs.secure = arm_space_is_secure(ptw->in_space);
 
