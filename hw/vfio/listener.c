@@ -52,7 +52,7 @@
  */
 
 
-static bool vfio_log_sync_needed(const VFIOContainerBase *bcontainer)
+static bool vfio_log_sync_needed(const VFIOContainer *bcontainer)
 {
     VFIODevice *vbasedev;
 
@@ -125,7 +125,7 @@ static MemoryRegion *vfio_translate_iotlb(IOMMUTLBEntry *iotlb, hwaddr *xlat_p,
 static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
 {
     VFIOGuestIOMMU *giommu = container_of(n, VFIOGuestIOMMU, n);
-    VFIOContainerBase *bcontainer = giommu->bcontainer;
+    VFIOContainer *bcontainer = giommu->bcontainer;
     hwaddr iova = iotlb->iova + giommu->iommu_offset;
     MemoryRegion *mr;
     hwaddr xlat;
@@ -202,7 +202,7 @@ static void vfio_ram_discard_notify_discard(RamDiscardListener *rdl,
 {
     VFIORamDiscardListener *vrdl = container_of(rdl, VFIORamDiscardListener,
                                                 listener);
-    VFIOContainerBase *bcontainer = vrdl->bcontainer;
+    VFIOContainer *bcontainer = vrdl->bcontainer;
     const hwaddr size = int128_get64(section->size);
     const hwaddr iova = section->offset_within_address_space;
     int ret;
@@ -220,7 +220,7 @@ static int vfio_ram_discard_notify_populate(RamDiscardListener *rdl,
 {
     VFIORamDiscardListener *vrdl = container_of(rdl, VFIORamDiscardListener,
                                                 listener);
-    VFIOContainerBase *bcontainer = vrdl->bcontainer;
+    VFIOContainer *bcontainer = vrdl->bcontainer;
     const hwaddr end = section->offset_within_region +
                        int128_get64(section->size);
     hwaddr start, next, iova;
@@ -250,7 +250,7 @@ static int vfio_ram_discard_notify_populate(RamDiscardListener *rdl,
     return 0;
 }
 
-static bool vfio_ram_discard_register_listener(VFIOContainerBase *bcontainer,
+static bool vfio_ram_discard_register_listener(VFIOContainer *bcontainer,
                                                MemoryRegionSection *section,
                                                Error **errp)
 {
@@ -328,7 +328,7 @@ static bool vfio_ram_discard_register_listener(VFIOContainerBase *bcontainer,
     return true;
 }
 
-static void vfio_ram_discard_unregister_listener(VFIOContainerBase *bcontainer,
+static void vfio_ram_discard_unregister_listener(VFIOContainer *bcontainer,
                                                  MemoryRegionSection *section)
 {
     RamDiscardManager *rdm = memory_region_get_ram_discard_manager(section->mr);
@@ -396,7 +396,7 @@ static bool vfio_listener_valid_section(MemoryRegionSection *section,
     return true;
 }
 
-static bool vfio_get_section_iova_range(VFIOContainerBase *bcontainer,
+static bool vfio_get_section_iova_range(VFIOContainer *bcontainer,
                                         MemoryRegionSection *section,
                                         hwaddr *out_iova, hwaddr *out_end,
                                         Int128 *out_llend)
@@ -423,9 +423,9 @@ static bool vfio_get_section_iova_range(VFIOContainerBase *bcontainer,
 
 static void vfio_listener_begin(MemoryListener *listener)
 {
-    VFIOContainerBase *bcontainer = container_of(listener, VFIOContainerBase,
-                                                 listener);
-    void (*listener_begin)(VFIOContainerBase *bcontainer);
+    VFIOContainer *bcontainer = container_of(listener, VFIOContainer,
+                                             listener);
+    void (*listener_begin)(VFIOContainer *bcontainer);
 
     listener_begin = VFIO_IOMMU_GET_CLASS(bcontainer)->listener_begin;
 
@@ -436,9 +436,9 @@ static void vfio_listener_begin(MemoryListener *listener)
 
 static void vfio_listener_commit(MemoryListener *listener)
 {
-    VFIOContainerBase *bcontainer = container_of(listener, VFIOContainerBase,
-                                                 listener);
-    void (*listener_commit)(VFIOContainerBase *bcontainer);
+    VFIOContainer *bcontainer = container_of(listener, VFIOContainer,
+                                             listener);
+    void (*listener_commit)(VFIOContainer *bcontainer);
 
     listener_commit = VFIO_IOMMU_GET_CLASS(bcontainer)->listener_commit;
 
@@ -460,7 +460,7 @@ static void vfio_device_error_append(VFIODevice *vbasedev, Error **errp)
 }
 
 VFIORamDiscardListener *vfio_find_ram_discard_listener(
-    VFIOContainerBase *bcontainer, MemoryRegionSection *section)
+    VFIOContainer *bcontainer, MemoryRegionSection *section)
 {
     VFIORamDiscardListener *vrdl = NULL;
 
@@ -482,12 +482,12 @@ VFIORamDiscardListener *vfio_find_ram_discard_listener(
 static void vfio_listener_region_add(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
-    VFIOContainerBase *bcontainer = container_of(listener, VFIOContainerBase,
-                                                 listener);
+    VFIOContainer *bcontainer = container_of(listener, VFIOContainer,
+                                             listener);
     vfio_container_region_add(bcontainer, section, false);
 }
 
-void vfio_container_region_add(VFIOContainerBase *bcontainer,
+void vfio_container_region_add(VFIOContainer *bcontainer,
                                MemoryRegionSection *section,
                                bool cpr_remap)
 {
@@ -656,8 +656,8 @@ fail:
 static void vfio_listener_region_del(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
-    VFIOContainerBase *bcontainer = container_of(listener, VFIOContainerBase,
-                                                 listener);
+    VFIOContainer *bcontainer = container_of(listener, VFIOContainer,
+                                             listener);
     hwaddr iova, end;
     Int128 llend, llsize;
     int ret;
@@ -744,13 +744,13 @@ typedef struct VFIODirtyRanges {
 } VFIODirtyRanges;
 
 typedef struct VFIODirtyRangesListener {
-    VFIOContainerBase *bcontainer;
+    VFIOContainer *bcontainer;
     VFIODirtyRanges ranges;
     MemoryListener listener;
 } VFIODirtyRangesListener;
 
 static bool vfio_section_is_vfio_pci(MemoryRegionSection *section,
-                                     VFIOContainerBase *bcontainer)
+                                     VFIOContainer *bcontainer)
 {
     VFIOPCIDevice *pcidev;
     VFIODevice *vbasedev;
@@ -835,7 +835,7 @@ static const MemoryListener vfio_dirty_tracking_listener = {
     .region_add = vfio_dirty_tracking_update,
 };
 
-static void vfio_dirty_tracking_init(VFIOContainerBase *bcontainer,
+static void vfio_dirty_tracking_init(VFIOContainer *bcontainer,
                                      VFIODirtyRanges *ranges)
 {
     VFIODirtyRangesListener dirty;
@@ -860,7 +860,7 @@ static void vfio_dirty_tracking_init(VFIOContainerBase *bcontainer,
     memory_listener_unregister(&dirty.listener);
 }
 
-static void vfio_devices_dma_logging_stop(VFIOContainerBase *bcontainer)
+static void vfio_devices_dma_logging_stop(VFIOContainer *bcontainer)
 {
     uint64_t buf[DIV_ROUND_UP(sizeof(struct vfio_device_feature),
                               sizeof(uint64_t))] = {};
@@ -889,7 +889,7 @@ static void vfio_devices_dma_logging_stop(VFIOContainerBase *bcontainer)
 }
 
 static struct vfio_device_feature *
-vfio_device_feature_dma_logging_start_create(VFIOContainerBase *bcontainer,
+vfio_device_feature_dma_logging_start_create(VFIOContainer *bcontainer,
                                              VFIODirtyRanges *tracking)
 {
     struct vfio_device_feature *feature;
@@ -962,7 +962,7 @@ static void vfio_device_feature_dma_logging_start_destroy(
     g_free(feature);
 }
 
-static bool vfio_devices_dma_logging_start(VFIOContainerBase *bcontainer,
+static bool vfio_devices_dma_logging_start(VFIOContainer *bcontainer,
                                           Error **errp)
 {
     struct vfio_device_feature *feature;
@@ -1006,8 +1006,8 @@ static bool vfio_listener_log_global_start(MemoryListener *listener,
                                            Error **errp)
 {
     ERRP_GUARD();
-    VFIOContainerBase *bcontainer = container_of(listener, VFIOContainerBase,
-                                                 listener);
+    VFIOContainer *bcontainer = container_of(listener, VFIOContainer,
+                                             listener);
     bool ret;
 
     if (vfio_container_devices_dirty_tracking_is_supported(bcontainer)) {
@@ -1024,8 +1024,8 @@ static bool vfio_listener_log_global_start(MemoryListener *listener,
 
 static void vfio_listener_log_global_stop(MemoryListener *listener)
 {
-    VFIOContainerBase *bcontainer = container_of(listener, VFIOContainerBase,
-                                                 listener);
+    VFIOContainer *bcontainer = container_of(listener, VFIOContainer,
+                                             listener);
     Error *local_err = NULL;
     int ret = 0;
 
@@ -1057,7 +1057,7 @@ static void vfio_iommu_map_dirty_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
     vfio_giommu_dirty_notifier *gdn = container_of(n,
                                                 vfio_giommu_dirty_notifier, n);
     VFIOGuestIOMMU *giommu = gdn->giommu;
-    VFIOContainerBase *bcontainer = giommu->bcontainer;
+    VFIOContainer *bcontainer = giommu->bcontainer;
     hwaddr iova = iotlb->iova + giommu->iommu_offset;
     ram_addr_t translated_addr;
     Error *local_err = NULL;
@@ -1127,7 +1127,7 @@ static int vfio_ram_discard_query_dirty_bitmap(MemoryRegionSection *section,
 }
 
 static int
-vfio_sync_ram_discard_listener_dirty_bitmap(VFIOContainerBase *bcontainer,
+vfio_sync_ram_discard_listener_dirty_bitmap(VFIOContainer *bcontainer,
                                             MemoryRegionSection *section)
 {
     RamDiscardManager *rdm = memory_region_get_ram_discard_manager(section->mr);
@@ -1143,7 +1143,7 @@ vfio_sync_ram_discard_listener_dirty_bitmap(VFIOContainerBase *bcontainer,
                                                 &vrdl);
 }
 
-static int vfio_sync_iommu_dirty_bitmap(VFIOContainerBase *bcontainer,
+static int vfio_sync_iommu_dirty_bitmap(VFIOContainer *bcontainer,
                                         MemoryRegionSection *section)
 {
     VFIOGuestIOMMU *giommu;
@@ -1180,7 +1180,7 @@ static int vfio_sync_iommu_dirty_bitmap(VFIOContainerBase *bcontainer,
     return 0;
 }
 
-static int vfio_sync_dirty_bitmap(VFIOContainerBase *bcontainer,
+static int vfio_sync_dirty_bitmap(VFIOContainer *bcontainer,
                                   MemoryRegionSection *section, Error **errp)
 {
     ram_addr_t ram_addr;
@@ -1209,8 +1209,8 @@ static int vfio_sync_dirty_bitmap(VFIOContainerBase *bcontainer,
 static void vfio_listener_log_sync(MemoryListener *listener,
         MemoryRegionSection *section)
 {
-    VFIOContainerBase *bcontainer = container_of(listener, VFIOContainerBase,
-                                                 listener);
+    VFIOContainer *bcontainer = container_of(listener, VFIOContainer,
+                                             listener);
     int ret;
     Error *local_err = NULL;
 
@@ -1241,7 +1241,7 @@ static const MemoryListener vfio_memory_listener = {
     .log_sync = vfio_listener_log_sync,
 };
 
-bool vfio_listener_register(VFIOContainerBase *bcontainer, Error **errp)
+bool vfio_listener_register(VFIOContainer *bcontainer, Error **errp)
 {
     bcontainer->listener = vfio_memory_listener;
     memory_listener_register(&bcontainer->listener, bcontainer->space->as);
@@ -1255,7 +1255,7 @@ bool vfio_listener_register(VFIOContainerBase *bcontainer, Error **errp)
     return true;
 }
 
-void vfio_listener_unregister(VFIOContainerBase *bcontainer)
+void vfio_listener_unregister(VFIOContainer *bcontainer)
 {
     memory_listener_unregister(&bcontainer->listener);
 }

@@ -9,7 +9,7 @@
 #ifndef HW_VFIO_VFIO_LISTENER_H
 #define HW_VFIO_VFIO_LISTENER_H
 
-bool vfio_listener_register(VFIOContainerBase *bcontainer, Error **errp);
-void vfio_listener_unregister(VFIOContainerBase *bcontainer);
+bool vfio_listener_register(VFIOContainer *bcontainer, Error **errp);
+void vfio_listener_unregister(VFIOContainer *bcontainer);
 
 #endif /* HW_VFIO_VFIO_LISTENER_H */

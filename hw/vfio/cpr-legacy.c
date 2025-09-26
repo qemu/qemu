@@ -7,7 +7,7 @@
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
 #include "qemu/osdep.h"
-#include "hw/vfio/vfio-container.h"
+#include "hw/vfio/vfio-container-legacy.h"
 #include "hw/vfio/vfio-device.h"
 #include "hw/vfio/vfio-listener.h"
 #include "migration/blocker.h"
@@ -17,7 +17,8 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 
-static bool vfio_dma_unmap_vaddr_all(VFIOContainer *container, Error **errp)
+static bool vfio_dma_unmap_vaddr_all(VFIOLegacyContainer *container,
+                                     Error **errp)
 {
     struct vfio_iommu_type1_dma_unmap unmap = {
         .argsz = sizeof(unmap),
@@ -37,11 +38,11 @@ static bool vfio_dma_unmap_vaddr_all(VFIOContainer *container, Error **errp)
  * Set the new @vaddr for any mappings registered during cpr load.
  * The incoming state is cleared thereafter.
  */
-static int vfio_legacy_cpr_dma_map(const VFIOContainerBase *bcontainer,
+static int vfio_legacy_cpr_dma_map(const VFIOContainer *bcontainer,
                                    hwaddr iova, ram_addr_t size, void *vaddr,
                                    bool readonly, MemoryRegion *mr)
 {
-    const VFIOContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
+    const VFIOLegacyContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
 
     struct vfio_iommu_type1_dma_map map = {
         .argsz = sizeof(map),
@@ -63,12 +64,13 @@ static int vfio_legacy_cpr_dma_map(const VFIOContainerBase *bcontainer,
 static void vfio_region_remap(MemoryListener *listener,
                               MemoryRegionSection *section)
 {
-    VFIOContainer *container = container_of(listener, VFIOContainer,
-                                            cpr.remap_listener);
+    VFIOLegacyContainer *container = container_of(listener,
+                                                  VFIOLegacyContainer,
+                                                  cpr.remap_listener);
     vfio_container_region_add(VFIO_IOMMU(container), section, true);
 }
 
-static bool vfio_cpr_supported(VFIOContainer *container, Error **errp)
+static bool vfio_cpr_supported(VFIOLegacyContainer *container, Error **errp)
 {
     if (!ioctl(container->fd, VFIO_CHECK_EXTENSION, VFIO_UPDATE_VADDR)) {
         error_setg(errp, "VFIO container does not support VFIO_UPDATE_VADDR");
@@ -85,7 +87,7 @@ static bool vfio_cpr_supported(VFIOContainer *container, Error **errp)
 
 static int vfio_container_pre_save(void *opaque)
 {
-    VFIOContainer *container = opaque;
+    VFIOLegacyContainer *container = opaque;
     Error *local_err = NULL;
 
     if (!vfio_dma_unmap_vaddr_all(container, &local_err)) {
@@ -97,8 +99,8 @@ static int vfio_container_pre_save(void *opaque)
 
 static int vfio_container_post_load(void *opaque, int version_id)
 {
-    VFIOContainer *container = opaque;
-    VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
+    VFIOLegacyContainer *container = opaque;
+    VFIOContainer *bcontainer = VFIO_IOMMU(container);
     VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
     dma_map_fn saved_dma_map = vioc->dma_map;
     Error *local_err = NULL;
@@ -133,9 +135,9 @@ static const VMStateDescription vfio_container_vmstate = {
 static int vfio_cpr_fail_notifier(NotifierWithReturn *notifier,
                                   MigrationEvent *e, Error **errp)
 {
-    VFIOContainer *container =
-        container_of(notifier, VFIOContainer, cpr.transfer_notifier);
-    VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
+    VFIOLegacyContainer *container =
+        container_of(notifier, VFIOLegacyContainer, cpr.transfer_notifier);
+    VFIOContainer *bcontainer = VFIO_IOMMU(container);
 
     if (e->type != MIG_EVENT_PRECOPY_FAILED) {
         return 0;
@@ -165,9 +167,10 @@ static int vfio_cpr_fail_notifier(NotifierWithReturn *notifier,
     return 0;
 }
 
-bool vfio_legacy_cpr_register_container(VFIOContainer *container, Error **errp)
+bool vfio_legacy_cpr_register_container(VFIOLegacyContainer *container,
+                                        Error **errp)
 {
-    VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
+    VFIOContainer *bcontainer = VFIO_IOMMU(container);
     Error **cpr_blocker = &container->cpr.blocker;
 
     migration_add_notifier_mode(&bcontainer->cpr_reboot_notifier,
@@ -189,9 +192,9 @@ bool vfio_legacy_cpr_register_container(VFIOContainer *container, Error **errp)
     return true;
 }
 
-void vfio_legacy_cpr_unregister_container(VFIOContainer *container)
+void vfio_legacy_cpr_unregister_container(VFIOLegacyContainer *container)
 {
-    VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
+    VFIOContainer *bcontainer = VFIO_IOMMU(container);
 
     migration_remove_notifier(&bcontainer->cpr_reboot_notifier);
     migrate_del_blocker(&container->cpr.blocker);
@@ -207,7 +210,7 @@ void vfio_legacy_cpr_unregister_container(VFIOContainer *container)
  * The giommu already exists.  Find it and replay it, which calls
  * vfio_legacy_cpr_dma_map further down the stack.
  */
-void vfio_cpr_giommu_remap(VFIOContainerBase *bcontainer,
+void vfio_cpr_giommu_remap(VFIOContainer *bcontainer,
                            MemoryRegionSection *section)
 {
     VFIOGuestIOMMU *giommu = NULL;
@@ -232,7 +235,7 @@ void vfio_cpr_giommu_remap(VFIOContainerBase *bcontainer,
  * The ram discard listener already exists.  Call its populate function
  * directly, which calls vfio_legacy_cpr_dma_map.
  */
-bool vfio_cpr_ram_discard_register_listener(VFIOContainerBase *bcontainer,
+bool vfio_cpr_ram_discard_register_listener(VFIOContainer *bcontainer,
                                             MemoryRegionSection *section)
 {
     VFIORamDiscardListener *vrdl =
@@ -263,7 +266,7 @@ static bool same_device(int fd1, int fd2)
     return !fstat(fd1, &st1) && !fstat(fd2, &st2) && st1.st_dev == st2.st_dev;
 }
 
-bool vfio_cpr_container_match(VFIOContainer *container, VFIOGroup *group,
+bool vfio_cpr_container_match(VFIOLegacyContainer *container, VFIOGroup *group,
                               int fd)
 {
     if (container->fd == fd) {

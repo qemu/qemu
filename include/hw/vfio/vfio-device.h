@@ -18,8 +18,8 @@
  *  Copyright (C) 2008, IBM, Muli Ben-Yehuda (muli@il.ibm.com)
  */
 
-#ifndef HW_VFIO_VFIO_COMMON_H
-#define HW_VFIO_VFIO_COMMON_H
+#ifndef HW_VFIO_VFIO_DEVICE_H
+#define HW_VFIO_VFIO_DEVICE_H
 
 #include "system/memory.h"
 #include "qemu/queue.h"
@@ -27,7 +27,7 @@
 #include <linux/vfio.h>
 #endif
 #include "system/system.h"
-#include "hw/vfio/vfio-container-base.h"
+#include "hw/vfio/vfio-container.h"
 #include "hw/vfio/vfio-cpr.h"
 #include "system/host_iommu_device.h"
 #include "system/iommufd.h"
@@ -54,7 +54,7 @@ typedef struct VFIODevice {
     QLIST_ENTRY(VFIODevice) container_next;
     QLIST_ENTRY(VFIODevice) global_next;
     struct VFIOGroup *group;
-    VFIOContainerBase *bcontainer;
+    VFIOContainer *bcontainer;
     char *sysfsdev;
     char *name;
     DeviceState *dev;
@@ -252,7 +252,7 @@ struct VFIODeviceIOOps {
                         void *data, bool post);
 };
 
-void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainerBase *bcontainer,
+void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainer *bcontainer,
                          struct vfio_device_info *info);
 
 void vfio_device_unprepare(VFIODevice *vbasedev);
@@ -288,4 +288,4 @@ void vfio_device_init(VFIODevice *vbasedev, int type, VFIODeviceOps *ops,
 int vfio_device_get_aw_bits(VFIODevice *vdev);
 
 void vfio_kvm_device_close(void);
-#endif /* HW_VFIO_VFIO_COMMON_H */
+#endif /* HW_VFIO_VFIO_DEVICE_H */

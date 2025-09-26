@@ -9,12 +9,12 @@
 
 #include "qemu/osdep.h"
 
-#include "hw/vfio/vfio-container-base.h"
+#include "hw/vfio/vfio-container.h"
 #include "hw/vfio-user/proxy.h"
 
 /* MMU container sub-class for vfio-user. */
 struct VFIOUserContainer {
-    VFIOContainerBase parent_obj;
+    VFIOContainer parent_obj;
 
     VFIOUserProxy *proxy;
 };

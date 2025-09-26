@@ -9,7 +9,7 @@
 #ifndef HW_VFIO_VFIO_IOMMUFD_H
 #define HW_VFIO_VFIO_IOMMUFD_H
 
-#include "hw/vfio/vfio-container-base.h"
+#include "hw/vfio/vfio-container.h"
 
 typedef struct VFIODevice VFIODevice;
 
@@ -22,12 +22,13 @@ typedef struct VFIOIOASHwpt {
 
 typedef struct IOMMUFDBackend IOMMUFDBackend;
 
-typedef struct VFIOIOMMUFDContainer {
-    VFIOContainerBase bcontainer;
+struct VFIOIOMMUFDContainer {
+    VFIOContainer parent_obj;
+
     IOMMUFDBackend *be;
     uint32_t ioas_id;
     QLIST_HEAD(, VFIOIOASHwpt) hwpt_list;
-} VFIOIOMMUFDContainer;
+};
 
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOIOMMUFDContainer, VFIO_IOMMU_IOMMUFD);
 
