@@ -295,6 +295,7 @@ static const TypeInfo virtconsole_info = {
     .name          = "virtconsole",
     .parent        = TYPE_VIRTIO_CONSOLE_SERIAL_PORT,
     .class_init    = virtconsole_class_init,
+    .secure        = true,
 };
 
 static const Property virtserialport_properties[] = {
@@ -320,6 +321,7 @@ static const TypeInfo virtserialport_info = {
     .parent        = TYPE_VIRTIO_SERIAL_PORT,
     .instance_size = sizeof(VirtConsole),
     .class_init    = virtserialport_class_init,
+    .secure        = true,
 };
 
 static void virtconsole_register_types(void)

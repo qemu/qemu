@@ -315,6 +315,7 @@ static const TypeInfo virtio_keyboard_info = {
     .parent        = TYPE_VIRTIO_INPUT_HID,
     .instance_size = sizeof(VirtIOInputHID),
     .instance_init = virtio_keyboard_init,
+    .secure        = true,
 };
 
 /* ----------------------------------------------------------------- */
@@ -369,6 +370,7 @@ static const TypeInfo virtio_mouse_info = {
     .parent        = TYPE_VIRTIO_INPUT_HID,
     .instance_size = sizeof(VirtIOInputHID),
     .instance_init = virtio_mouse_init,
+    .secure        = true,
 };
 
 /* ----------------------------------------------------------------- */
@@ -442,6 +444,7 @@ static const TypeInfo virtio_tablet_info = {
     .parent        = TYPE_VIRTIO_INPUT_HID,
     .instance_size = sizeof(VirtIOInputHID),
     .instance_init = virtio_tablet_init,
+    .secure        = true,
 };
 
 /* ----------------------------------------------------------------- */
@@ -527,6 +530,7 @@ static const TypeInfo virtio_multitouch_info = {
     .parent        = TYPE_VIRTIO_INPUT_HID,
     .instance_size = sizeof(VirtIOInputHID),
     .instance_init = virtio_multitouch_init,
+    .secure        = true,
 };
 
 /* ----------------------------------------------------------------- */

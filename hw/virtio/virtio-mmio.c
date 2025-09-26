@@ -779,6 +779,7 @@ static const TypeInfo virtio_mmio_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(VirtIOMMIOProxy),
     .class_init    = virtio_mmio_class_init,
+    .secure        = true,
 };
 
 /* virtio-mmio-bus. */
@@ -848,6 +849,7 @@ static const TypeInfo virtio_mmio_bus_info = {
     .parent        = TYPE_VIRTIO_BUS,
     .instance_size = sizeof(VirtioBusState),
     .class_init    = virtio_mmio_bus_class_init,
+    .secure        = true,
 };
 
 static void virtio_mmio_register_types(void)

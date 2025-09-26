@@ -196,6 +196,7 @@ static const TypeInfo virtio_pmem_info = {
     .class_size    = sizeof(VirtIOPMEMClass),
     .class_init    = virtio_pmem_class_init,
     .instance_size = sizeof(VirtIOPMEM),
+    .secure        = true,
 };
 
 static void virtio_register_types(void)

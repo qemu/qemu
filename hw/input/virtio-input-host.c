@@ -248,6 +248,7 @@ static const TypeInfo virtio_input_host_info = {
     .instance_size = sizeof(VirtIOInputHost),
     .instance_init = virtio_input_host_init,
     .class_init    = virtio_input_host_class_init,
+    .secure        = true,
 };
 
 /* ----------------------------------------------------------------- */

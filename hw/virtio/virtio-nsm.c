@@ -1727,6 +1727,7 @@ static const TypeInfo virtio_nsm_info = {
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIONSM),
     .class_init = virtio_nsm_class_init,
+    .secure = true,
 };
 
 static void virtio_register_types(void)

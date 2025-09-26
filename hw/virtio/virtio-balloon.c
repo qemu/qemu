@@ -1077,6 +1077,7 @@ static const TypeInfo virtio_balloon_info = {
     .instance_size = sizeof(VirtIOBalloon),
     .instance_init = virtio_balloon_instance_init,
     .class_init = virtio_balloon_class_init,
+    .secure = true,
 };
 
 static void virtio_register_types(void)
