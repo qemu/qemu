@@ -408,9 +408,10 @@ static bool granule_protection_check(CPUARMState *env, uint64_t paddress,
      * GPC Priority 3: Secure, Realm or Root address exceeds PPS.
      * R_CPDSB: A NonSecure physical address input exceeding PPS
      * does not experience any fault.
+     * R_PBPSH: Other address spaces have fault suppressed by APPSAA.
      */
     if (paddress & ~pps_mask) {
-        if (pspace == ARMSS_NonSecure) {
+        if (pspace == ARMSS_NonSecure || FIELD_EX64(gpccr, GPCCR, APPSAA)) {
             return true;
         }
         goto fault_fail;
