@@ -163,6 +163,7 @@ static const TypeInfo gen_pcie_upstream_port_info = {
     .parent        = TYPE_PCIE_PORT,
     .instance_size = sizeof(GenPCIEUpstreamPort),
     .class_init    = gen_pcie_upstream_port_class_init,
+    .secure        = true,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
         { }
