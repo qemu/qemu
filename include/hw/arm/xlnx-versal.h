@@ -19,7 +19,6 @@
 #include "hw/intc/arm_gicv3.h"
 #include "hw/rtc/xlnx-zynqmp-rtc.h"
 #include "qom/object.h"
-#include "hw/usb/xlnx-usb-subsystem.h"
 #include "hw/nvram/xlnx-bbram.h"
 #include "hw/nvram/xlnx-versal-efuse.h"
 #include "hw/ssi/xlnx-versal-ospi.h"
@@ -73,10 +72,6 @@ struct Versal {
 
     struct {
         MemoryRegion mr_ocm;
-
-        struct {
-            VersalUsb2 usb;
-        } iou;
 
         /* Real-time Processing Unit.  */
         struct {
