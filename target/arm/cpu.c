@@ -52,6 +52,8 @@
 #include "target/arm/cpu-qom.h"
 #include "target/arm/gtimer.h"
 
+#include "trace.h"
+
 static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -192,14 +194,8 @@ static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
      * This is basically only used for fields in non-core coprocessors
      * (like the pxa2xx ones).
      */
-    if (!ri->fieldoffset) {
-        return;
-    }
-
-    if (cpreg_field_is_64bit(ri)) {
-        CPREG_FIELD64(&cpu->env, ri) = ri->resetvalue;
-    } else {
-        CPREG_FIELD32(&cpu->env, ri) = ri->resetvalue;
+    if (ri->fieldoffset) {
+        raw_write(&cpu->env, ri, ri->resetvalue);
     }
 }
 
@@ -230,6 +226,8 @@ static void arm_cpu_reset_hold(Object *obj, ResetType type)
     ARMCPU *cpu = ARM_CPU(cs);
     ARMCPUClass *acc = ARM_CPU_GET_CLASS(obj);
     CPUARMState *env = &cpu->env;
+
+    trace_arm_cpu_reset(arm_cpu_mp_affinity(cpu));
 
     if (acc->parent_phases.hold) {
         acc->parent_phases.hold(obj, type);
@@ -579,6 +577,8 @@ void arm_emulate_firmware_reset(CPUState *cpustate, int target_el)
     CPUARMState *env = &cpu->env;
     bool have_el3 = arm_feature(env, ARM_FEATURE_EL3);
     bool have_el2 = arm_feature(env, ARM_FEATURE_EL2);
+
+    trace_arm_emulate_firmware_reset(arm_cpu_mp_affinity(cpu), target_el);
 
     /*
      * Check we have the EL we're aiming for. If that is the
