@@ -478,10 +478,14 @@ static bool granule_protection_check(CPUARMState *env, uint64_t paddress,
         break;
     case 0b1111: /* all access */
         return true;
-    case 0b1000:
-    case 0b1001:
-    case 0b1010:
-    case 0b1011:
+    case 0b1000: /* secure */
+        if (!cpu_isar_feature(aa64_sel2, cpu)) {
+            goto fault_walk;
+        }
+        /* fall through */
+    case 0b1001: /* non-secure */
+    case 0b1010: /* root */
+    case 0b1011: /* realm */
         if (pspace == (gpi & 3)) {
             return true;
         }
