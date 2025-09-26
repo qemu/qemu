@@ -318,6 +318,7 @@ static bool regime_translation_disabled(CPUARMState *env, ARMMMUIdx mmu_idx,
 
 static bool granule_protection_check(CPUARMState *env, uint64_t paddress,
                                      ARMSecuritySpace pspace,
+                                     ARMSecuritySpace ss,
                                      ARMMMUFaultInfo *fi)
 {
     MemTxAttrs attrs = {
@@ -490,6 +491,13 @@ static bool granule_protection_check(CPUARMState *env, uint64_t paddress,
             return true;
         }
         break;
+    case 0b1101: /* non-secure only */
+        /* aa64_rme_gpc2 was checked in gpccr_write */
+        if (FIELD_EX64(gpccr, GPCCR, NSO)) {
+            return (pspace == ARMSS_NonSecure &&
+                    (ss == ARMSS_NonSecure || ss == ARMSS_Root));
+        }
+        goto fault_walk;
     default:
         goto fault_walk; /* reserved */
     }
@@ -3553,7 +3561,7 @@ static bool get_phys_addr_gpc(CPUARMState *env, S1Translate *ptw,
         return true;
     }
     if (!granule_protection_check(env, result->f.phys_addr,
-                                  result->f.attrs.space, fi)) {
+                                  result->f.attrs.space, ptw->in_space, fi)) {
         fi->type = ARMFault_GPCFOnOutput;
         return true;
     }
