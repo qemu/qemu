@@ -137,7 +137,13 @@ struct Versal {
     } pmc;
 
     struct {
+        uint32_t clk_25mhz;
+        uint32_t clk_125mhz;
+    } phandle;
+
+    struct {
         MemoryRegion *mr_ddr;
+        void *fdt;
     } cfg;
 };
 
@@ -146,6 +152,12 @@ struct VersalClass {
 
     VersalVersion version;
 };
+
+static inline void versal_set_fdt(Versal *s, void *fdt)
+{
+    g_assert(!qdev_is_realized(DEVICE(s)));
+    s->cfg.fdt = fdt;
+}
 
 /* Memory-map and IRQ definitions. Copied a subset from
  * auto-generated files.  */
