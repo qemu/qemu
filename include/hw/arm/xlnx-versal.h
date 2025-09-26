@@ -44,11 +44,6 @@ struct Versal {
     MemoryRegion mr_ps;
 
     struct {
-        /* 4 ranges to access DDR.  */
-        MemoryRegion mr_ddr_ranges[4];
-    } noc;
-
-    struct {
         uint32_t clk_25mhz;
         uint32_t clk_125mhz;
         uint32_t gic;
@@ -72,6 +67,8 @@ static inline void versal_set_fdt(Versal *s, void *fdt)
     g_assert(!qdev_is_realized(DEVICE(s)));
     s->cfg.fdt = fdt;
 }
+
+void versal_fdt_add_memory_nodes(Versal *s, uint64_t ram_size);
 
 DeviceState *versal_get_boot_cpu(Versal *s);
 void versal_sdhci_plug_card(Versal *s, int sd_idx, BlockBackend *blk);
