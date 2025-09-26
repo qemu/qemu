@@ -66,6 +66,7 @@ static const TypeInfo virtio_ccw_rng = {
     .instance_size = sizeof(VirtIORNGCcw),
     .instance_init = virtio_ccw_rng_instance_init,
     .class_init    = virtio_ccw_rng_class_init,
+    .secure        = true,
 };
 
 static void virtio_ccw_rng_register(void)

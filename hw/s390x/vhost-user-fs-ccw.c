@@ -64,6 +64,7 @@ static const TypeInfo vhost_user_fs_ccw = {
     .instance_size = sizeof(VHostUserFSCcw),
     .instance_init = vhost_user_fs_ccw_instance_init,
     .class_init    = vhost_user_fs_ccw_class_init,
+    .secure        = true,
 };
 
 static void vhost_user_fs_ccw_register(void)

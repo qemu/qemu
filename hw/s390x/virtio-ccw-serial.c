@@ -76,6 +76,7 @@ static const TypeInfo virtio_ccw_serial = {
     .instance_size = sizeof(VirtioSerialCcw),
     .instance_init = virtio_ccw_serial_instance_init,
     .class_init    = virtio_ccw_serial_class_init,
+    .secure        = true,
 };
 
 static void virtio_ccw_serial_register(void)

@@ -69,6 +69,7 @@ static const TypeInfo virtio_ccw_balloon = {
     .instance_size = sizeof(VirtIOBalloonCcw),
     .instance_init = virtio_ccw_balloon_instance_init,
     .class_init    = virtio_ccw_balloon_class_init,
+    .secure        = true,
 };
 
 static void virtio_ccw_balloon_register(void)

@@ -67,6 +67,7 @@ static const TypeInfo virtio_ccw_blk = {
     .instance_size = sizeof(VirtIOBlkCcw),
     .instance_init = virtio_ccw_blk_instance_init,
     .class_init    = virtio_ccw_blk_class_init,
+    .secure        = true,
 };
 
 static void virtio_ccw_blk_register(void)
