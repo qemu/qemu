@@ -110,6 +110,7 @@ static const TypeInfo igd_passthrough_i440fx_info = {
     .parent        = TYPE_I440FX_PCI_DEVICE,
     .instance_size = sizeof(PCII440FXState),
     .class_init    = igd_passthrough_i440fx_class_init,
+    .secure        = true,
 };
 
 static void igd_pt_i440fx_register_types(void)
