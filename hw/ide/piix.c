@@ -198,6 +198,7 @@ static const TypeInfo piix3_ide_info = {
     .name          = TYPE_PIIX3_IDE,
     .parent        = TYPE_PCI_IDE,
     .class_init    = piix3_ide_class_init,
+    .secure        = true,
 };
 
 /* NOTE: for the PIIX4, the IRQs and IOports are hardcoded */
@@ -221,6 +222,7 @@ static const TypeInfo piix4_ide_info = {
     .name          = TYPE_PIIX4_IDE,
     .parent        = TYPE_PCI_IDE,
     .class_init    = piix4_ide_class_init,
+    .secure        = true,
 };
 
 static void piix_ide_register_types(void)
