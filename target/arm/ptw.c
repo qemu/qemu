@@ -413,7 +413,7 @@ static bool granule_protection_check(CPUARMState *env, uint64_t paddress,
         if (pspace == ARMSS_NonSecure) {
             return true;
         }
-        goto fault_size;
+        goto fault_fail;
     }
 
     /* GPC Priority 4: the base address of GPTBR_EL3 exceeds PPS. */
