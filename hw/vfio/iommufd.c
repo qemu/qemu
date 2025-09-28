@@ -602,7 +602,6 @@ skip_ioas_alloc:
     container->be = vbasedev->iommufd;
     container->ioas_id = ioas_id;
     QLIST_INIT(&container->hwpt_list);
-    vbasedev->cpr.ioas_id = ioas_id;
 
     bcontainer = VFIO_IOMMU(container);
     vfio_address_space_insert(space, bcontainer);
@@ -636,6 +635,8 @@ skip_ioas_alloc:
     bcontainer->initialized = true;
 
 found_container:
+    vbasedev->cpr.ioas_id = container->ioas_id;
+
     ret = ioctl(devfd, VFIO_DEVICE_GET_INFO, &dev_info);
     if (ret) {
         error_setg_errno(errp, errno, "error getting device info");
