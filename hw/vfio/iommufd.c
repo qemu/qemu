@@ -560,10 +560,9 @@ static bool iommufd_cdev_attach(const char *name, VFIODevice *vbasedev,
             continue;
         }
 
-        if (!cpr_is_incoming()) {
+        if (!cpr_is_incoming() ||
+            (vbasedev->cpr.ioas_id == container->ioas_id)) {
             res = iommufd_cdev_attach_container(vbasedev, container, &err);
-        } else if (vbasedev->cpr.ioas_id == container->ioas_id) {
-            res = true;
         } else {
             continue;
         }
