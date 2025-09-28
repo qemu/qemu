@@ -83,6 +83,7 @@ void loongarch_csr_translate_init(void)
     SET_CSR_FUNC(TCFG,  NULL, gen_helper_csrwr_tcfg);
     SET_CSR_FUNC(TVAL,  gen_helper_csrrd_tval, NULL);
     SET_CSR_FUNC(TICLR, NULL, gen_helper_csrwr_ticlr);
+    SET_CSR_FUNC(MSGIR, gen_helper_csrrd_msgir, NULL);
 }
 #undef SET_CSR_FUNC
 

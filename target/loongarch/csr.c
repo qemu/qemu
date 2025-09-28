@@ -97,6 +97,11 @@ static CSRInfo csr_info[] = {
     CSR_OFF(DBG),
     CSR_OFF(DERA),
     CSR_OFF(DSAVE),
+    CSR_OFF_ARRAY(MSGIS, 0),
+    CSR_OFF_ARRAY(MSGIS, 1),
+    CSR_OFF_ARRAY(MSGIS, 2),
+    CSR_OFF_ARRAY(MSGIS, 3),
+    CSR_OFF(MSGIR),
 };
 
 CSRInfo *get_csr(unsigned int csr_num)
