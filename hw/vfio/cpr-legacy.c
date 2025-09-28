@@ -228,22 +228,32 @@ void vfio_cpr_giommu_remap(VFIOContainer *bcontainer,
     memory_region_iommu_replay(giommu->iommu_mr, &giommu->n);
 }
 
+static int vfio_cpr_rdm_remap(MemoryRegionSection *section, void *opaque)
+{
+    RamDiscardListener *rdl = opaque;
+
+    return rdl->notify_populate(rdl, section);
+}
+
 /*
  * In old QEMU, VFIO_DMA_UNMAP_FLAG_VADDR may fail on some mapping after
  * succeeding for others, so the latter have lost their vaddr.  Call this
- * to restore vaddr for a section with a RamDiscardManager.
+ * to restore vaddr for populated parts in a section with a RamDiscardManager.
  *
- * The ram discard listener already exists.  Call its populate function
+ * The ram discard listener already exists.  Call its replay_populated function
  * directly, which calls vfio_legacy_cpr_dma_map.
  */
-bool vfio_cpr_ram_discard_register_listener(VFIOContainer *bcontainer,
-                                            MemoryRegionSection *section)
+bool vfio_cpr_ram_discard_replay_populated(VFIOContainer *bcontainer,
+                                           MemoryRegionSection *section)
 {
+    RamDiscardManager *rdm = memory_region_get_ram_discard_manager(section->mr);
     VFIORamDiscardListener *vrdl =
         vfio_find_ram_discard_listener(bcontainer, section);
 
     g_assert(vrdl);
-    return vrdl->listener.notify_populate(&vrdl->listener, section) == 0;
+    return ram_discard_manager_replay_populated(rdm, section,
+                                                vfio_cpr_rdm_remap,
+                                                &vrdl->listener) == 0;
 }
 
 int vfio_cpr_group_get_device_fd(int d, const char *name)
