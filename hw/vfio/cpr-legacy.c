@@ -52,8 +52,6 @@ static int vfio_legacy_cpr_dma_map(const VFIOContainer *bcontainer,
         .size = size,
     };
 
-    g_assert(cpr_is_incoming());
-
     if (ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map)) {
         return -errno;
     }
