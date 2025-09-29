@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 """
 Generate .stp file that outputs simpletrace binary traces (DTrace with SystemTAP only).
 """
