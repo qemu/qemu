@@ -87,13 +87,6 @@ struct vtd_iotlb_key {
 static void vtd_address_space_refresh_all(IntelIOMMUState *s);
 static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n);
 
-static void vtd_panic_require_caching_mode(void)
-{
-    error_report("We need to set caching-mode=on for intel-iommu to enable "
-                 "device assignment with IOMMU protection.");
-    exit(1);
-}
-
 static void vtd_define_quad(IntelIOMMUState *s, hwaddr addr, uint64_t val,
                             uint64_t wmask, uint64_t w1cmask)
 {
@@ -4489,6 +4482,12 @@ static bool vtd_dev_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
 
     assert(hiod);
 
+    if (!s->caching_mode) {
+        error_setg(errp, "Device assignment is not allowed without enabling "
+                   "caching-mode=on for Intel IOMMU.");
+        return false;
+    }
+
     vtd_iommu_lock(s);
 
     if (g_hash_table_lookup(s->vtd_host_iommu_dev, &key)) {
@@ -5244,32 +5243,6 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
     return true;
 }
 
-static int vtd_machine_done_notify_one(Object *child, void *unused)
-{
-    IntelIOMMUState *iommu = INTEL_IOMMU_DEVICE(x86_iommu_get_default());
-
-    /*
-     * We hard-coded here because vfio-pci is the only special case
-     * here.  Let's be more elegant in the future when we can, but so
-     * far there seems to be no better way.
-     */
-    if (object_dynamic_cast(child, "vfio-pci") && !iommu->caching_mode) {
-        vtd_panic_require_caching_mode();
-    }
-
-    return 0;
-}
-
-static void vtd_machine_done_hook(Notifier *notifier, void *unused)
-{
-    object_child_foreach_recursive(object_get_root(),
-                                   vtd_machine_done_notify_one, NULL);
-}
-
-static Notifier vtd_machine_done_notify = {
-    .notify = vtd_machine_done_hook,
-};
-
 static void vtd_realize(DeviceState *dev, Error **errp)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
@@ -5324,7 +5297,6 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     pci_setup_iommu(bus, &vtd_iommu_ops, dev);
     /* Pseudo address space under root PCI bus. */
     x86ms->ioapic_as = vtd_host_dma_iommu(bus, s, Q35_PSEUDO_DEVFN_IOAPIC);
-    qemu_add_machine_init_done_notifier(&vtd_machine_done_notify);
 }
 
 static void vtd_class_init(ObjectClass *klass, const void *data)
