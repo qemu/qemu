@@ -26,9 +26,7 @@
 #include "hw/qdev-properties.h"
 #include "system/block-backend.h"
 #include "system/reset.h"
-#include "hw/loader.h"
 #include "qemu/error-report.h"
-#include "qemu/datadir.h"
 #include "qemu/units.h"
 #include "hw/qdev-clock.h"
 #include "system/system.h"
@@ -263,102 +261,6 @@ static void aspeed_reset_secondary(ARMCPU *cpu,
     cpu_set_pc(cs, info->smp_loader_start);
 }
 
-static void write_boot_rom(BlockBackend *blk, hwaddr addr, size_t rom_size,
-                           Error **errp)
-{
-    g_autofree void *storage = NULL;
-    int64_t size;
-
-    /*
-     * The block backend size should have already been 'validated' by
-     * the creation of the m25p80 object.
-     */
-    size = blk_getlength(blk);
-    if (size <= 0) {
-        error_setg(errp, "failed to get flash size");
-        return;
-    }
-
-    if (rom_size > size) {
-        rom_size = size;
-    }
-
-    storage = g_malloc0(rom_size);
-    if (blk_pread(blk, 0, rom_size, storage, 0) < 0) {
-        error_setg(errp, "failed to read the initial flash content");
-        return;
-    }
-
-    rom_add_blob_fixed("aspeed.boot_rom", storage, rom_size, addr);
-}
-
-/*
- * Create a ROM and copy the flash contents at the expected address
- * (0x0). Boots faster than execute-in-place.
- */
-static void aspeed_install_boot_rom(AspeedMachineState *bmc, BlockBackend *blk,
-                                    uint64_t rom_size)
-{
-    AspeedSoCState *soc = bmc->soc;
-    AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(soc);
-
-    memory_region_init_rom(&bmc->boot_rom, NULL, "aspeed.boot_rom", rom_size,
-                           &error_abort);
-    memory_region_add_subregion_overlap(&soc->spi_boot_container, 0,
-                                        &bmc->boot_rom, 1);
-    write_boot_rom(blk, sc->memmap[ASPEED_DEV_SPI_BOOT],
-                   rom_size, &error_abort);
-}
-
-#define VBOOTROM_FILE_NAME  "ast27x0_bootrom.bin"
-
-/*
- * This function locates the vbootrom image file specified via the command line
- * using the -bios option. It loads the specified image into the vbootrom
- * memory region and handles errors if the file cannot be found or loaded.
- */
-static void aspeed_load_vbootrom(AspeedMachineState *bmc, const char *bios_name,
-                                 Error **errp)
-{
-    g_autofree char *filename = NULL;
-    AspeedSoCState *soc = bmc->soc;
-    int ret;
-
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-    if (!filename) {
-        error_setg(errp, "Could not find vbootrom image '%s'", bios_name);
-        return;
-    }
-
-    ret = load_image_mr(filename, &soc->vbootrom);
-    if (ret < 0) {
-        error_setg(errp, "Failed to load vbootrom image '%s'", bios_name);
-        return;
-    }
-}
-
-void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
-                                      unsigned int count, int unit0)
-{
-    int i;
-
-    if (!flashtype) {
-        return;
-    }
-
-    for (i = 0; i < count; ++i) {
-        DriveInfo *dinfo = drive_get(IF_MTD, 0, unit0 + i);
-        DeviceState *dev;
-
-        dev = qdev_new(flashtype);
-        if (dinfo) {
-            qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo));
-        }
-        qdev_prop_set_uint8(dev, "cs", i);
-        qdev_realize_and_unref(dev, BUS(s->spi), &error_fatal);
-    }
-}
-
 static void sdhci_attach_drive(SDHCIState *sdhci, DriveInfo *dinfo, bool emmc,
                                bool boot_emmc)
 {
@@ -511,15 +413,16 @@ static void aspeed_machine_init(MachineState *machine)
 
         if (fmc0 && !boot_emmc) {
             uint64_t rom_size = memory_region_size(&bmc->soc->spi_boot);
-            aspeed_install_boot_rom(bmc, fmc0, rom_size);
+            aspeed_install_boot_rom(bmc->soc, fmc0, &bmc->boot_rom, rom_size);
         } else if (emmc0) {
-            aspeed_install_boot_rom(bmc, blk_by_legacy_dinfo(emmc0), 64 * KiB);
+            aspeed_install_boot_rom(bmc->soc, blk_by_legacy_dinfo(emmc0),
+                                    &bmc->boot_rom, 64 * KiB);
         }
     }
 
     if (amc->vbootrom) {
         bios_name = machine->firmware ?: VBOOTROM_FILE_NAME;
-        aspeed_load_vbootrom(bmc, bios_name, &error_abort);
+        aspeed_load_vbootrom(bmc->soc, bios_name, &error_abort);
     }
 
     arm_load_kernel(ARM_CPU(first_cpu), machine, &aspeed_board_binfo);
@@ -1995,7 +1898,6 @@ static void aspeed_machine_ast2700a0_evb_class_init(ObjectClass *oc,
     MachineClass *mc = MACHINE_CLASS(oc);
     AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
 
-    mc->alias = "ast2700-evb";
     mc->desc = "Aspeed AST2700 A0 EVB (Cortex-A35)";
     amc->soc_name  = "ast2700-a0";
     amc->hw_strap1 = AST2700_EVB_HW_STRAP1;
@@ -2018,6 +1920,7 @@ static void aspeed_machine_ast2700a1_evb_class_init(ObjectClass *oc,
     MachineClass *mc = MACHINE_CLASS(oc);
     AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
 
+    mc->alias = "ast2700-evb";
     mc->desc = "Aspeed AST2700 A1 EVB (Cortex-A35)";
     amc->soc_name  = "ast2700-a1";
     amc->hw_strap1 = AST2700_EVB_HW_STRAP1;

@@ -243,6 +243,37 @@ under Linux), use :
 
   -M ast2500-evb,bmc-console=uart3
 
+OTP Option
+^^^^^^^^^^
+
+Both the AST2600 and AST1030 chips use the same One Time Programmable
+(OTP) memory module, which is utilized for configuration, key storage,
+and storing user-programmable data. This OTP memory module is managed
+by the Secure Boot Controller (SBC). The following options can be
+specified or omitted based on your needs.
+
+  * When the options are specified, the pre-generated configuration
+    file will be used as the OTP memory storage.
+
+  * When the options are omitted, an internal memory buffer will be
+    used to store the OTP memory data.
+
+.. code-block:: bash
+
+  -blockdev driver=file,filename=otpmem.img,node-name=otp \
+  -global aspeed-otp.drive=otp \
+
+The following bash command can be used to generate a default
+configuration file for OTP memory:
+
+.. code-block:: bash
+
+  if [ ! -f otpmem.img ]; then
+    for i in $(seq 1 2048); do
+      printf '\x00\x00\x00\x00\xff\xff\xff\xff'
+    done > otpmem.img
+  fi
+
 Aspeed 2700 family boards (``ast2700-evb``)
 ==================================================================
 
