@@ -45,7 +45,7 @@ static const struct TypeExcp excp_names[] = {
     {EXCP_HLT, "EXCP_HLT"},
 };
 
-const char *loongarch_exception_name(int32_t exception)
+static const char *loongarch_exception_name(int32_t exception)
 {
     int i;
 
