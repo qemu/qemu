@@ -15,6 +15,7 @@ tests_ppc_system_thorough = [
   'bamboo',
   'mac',
   'mpc8544ds',
+  'ppe42',
   'replay',
   'sam460ex',
   'tuxrun',

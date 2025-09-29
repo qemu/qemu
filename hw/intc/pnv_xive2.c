@@ -110,8 +110,8 @@ static PnvXive2 *pnv_xive2_get_remote(uint32_t vsd_type, hwaddr fwd_addr)
     int i;
 
     for (i = 0; i < pnv->num_chips; i++) {
-        Pnv10Chip *chip10 = PNV10_CHIP(pnv->chips[i]);
-        PnvXive2 *xive = &chip10->xive;
+        PnvChipClass *k = PNV_CHIP_GET_CLASS(pnv->chips[i]);
+        PnvXive2 *xive = PNV_XIVE2(k->intc_get(pnv->chips[i]));
 
         /*
          * Is this the XIVE matching the forwarded VSD address is for this

@@ -562,14 +562,14 @@ uint64_t helper_##op(CPUPPCState *env, float64 arg)                    \
     return ret;                                                        \
 }
 
-FPU_FCTI(fctiw, int32, 0x80000000U)
-FPU_FCTI(fctiwz, int32_round_to_zero, 0x80000000U)
-FPU_FCTI(fctiwu, uint32, 0x00000000U)
-FPU_FCTI(fctiwuz, uint32_round_to_zero, 0x00000000U)
-FPU_FCTI(fctid, int64, 0x8000000000000000ULL)
-FPU_FCTI(fctidz, int64_round_to_zero, 0x8000000000000000ULL)
-FPU_FCTI(fctidu, uint64, 0x0000000000000000ULL)
-FPU_FCTI(fctiduz, uint64_round_to_zero, 0x0000000000000000ULL)
+FPU_FCTI(FCTIW, int32, 0x80000000U)
+FPU_FCTI(FCTIWZ, int32_round_to_zero, 0x80000000U)
+FPU_FCTI(FCTIWU, uint32, 0x00000000U)
+FPU_FCTI(FCTIWUZ, uint32_round_to_zero, 0x00000000U)
+FPU_FCTI(FCTID, int64, 0x8000000000000000ULL)
+FPU_FCTI(FCTIDZ, int64_round_to_zero, 0x8000000000000000ULL)
+FPU_FCTI(FCTIDU, uint64, 0x0000000000000000ULL)
+FPU_FCTI(FCTIDUZ, uint64_round_to_zero, 0x0000000000000000ULL)
 
 #define FPU_FCFI(op, cvtr, is_single)                      \
 uint64_t helper_##op(CPUPPCState *env, uint64_t arg)       \
@@ -586,10 +586,10 @@ uint64_t helper_##op(CPUPPCState *env, uint64_t arg)       \
     return farg.ll;                                        \
 }
 
-FPU_FCFI(fcfid, int64_to_float64, 0)
-FPU_FCFI(fcfids, int64_to_float32, 1)
-FPU_FCFI(fcfidu, uint64_to_float64, 0)
-FPU_FCFI(fcfidus, uint64_to_float32, 1)
+FPU_FCFI(FCFID, int64_to_float64, 0)
+FPU_FCFI(FCFIDS, int64_to_float32, 1)
+FPU_FCFI(FCFIDU, uint64_to_float64, 0)
+FPU_FCFI(FCFIDUS, uint64_to_float32, 1)
 
 static uint64_t do_fri(CPUPPCState *env, uint64_t arg,
                        FloatRoundMode rounding_mode)
@@ -613,22 +613,22 @@ static uint64_t do_fri(CPUPPCState *env, uint64_t arg,
     return arg;
 }
 
-uint64_t helper_frin(CPUPPCState *env, uint64_t arg)
+uint64_t helper_FRIN(CPUPPCState *env, uint64_t arg)
 {
     return do_fri(env, arg, float_round_ties_away);
 }
 
-uint64_t helper_friz(CPUPPCState *env, uint64_t arg)
+uint64_t helper_FRIZ(CPUPPCState *env, uint64_t arg)
 {
     return do_fri(env, arg, float_round_to_zero);
 }
 
-uint64_t helper_frip(CPUPPCState *env, uint64_t arg)
+uint64_t helper_FRIP(CPUPPCState *env, uint64_t arg)
 {
     return do_fri(env, arg, float_round_up);
 }
 
-uint64_t helper_frim(CPUPPCState *env, uint64_t arg)
+uint64_t helper_FRIM(CPUPPCState *env, uint64_t arg)
 {
     return do_fri(env, arg, float_round_down);
 }
@@ -697,7 +697,7 @@ static uint64_t do_frsp(CPUPPCState *env, uint64_t arg, uintptr_t retaddr)
     return helper_todouble(f32);
 }
 
-uint64_t helper_frsp(CPUPPCState *env, uint64_t arg)
+uint64_t helper_FRSP(CPUPPCState *env, uint64_t arg)
 {
     return do_frsp(env, arg, GETPC());
 }
@@ -871,7 +871,7 @@ uint32_t helper_FTSQRT(uint64_t frb)
     return 0x8 | (fg_flag ? 4 : 0) | (fe_flag ? 2 : 0);
 }
 
-void helper_fcmpu(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
+void helper_FCMPU(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
                   uint32_t crfD)
 {
     CPU_DoubleU farg1, farg2;
@@ -902,7 +902,7 @@ void helper_fcmpu(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
     }
 }
 
-void helper_fcmpo(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
+void helper_FCMPO(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
                   uint32_t crfD)
 {
     CPU_DoubleU farg1, farg2;
