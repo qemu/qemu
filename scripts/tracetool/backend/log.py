@@ -12,7 +12,7 @@ __maintainer__ = "Stefan Hajnoczi"
 __email__      = "stefanha@redhat.com"
 
 
-from tracetool import out
+from tracetool import out, expand_format_string
 
 
 PUBLIC = True
@@ -44,3 +44,11 @@ def generate_h(event, group):
 def generate_h_backend_dstate(event, group):
     out('    trace_event_get_state_dynamic_by_id(%(event_id)s) || \\',
         event_id="TRACE_" + event.name.upper())
+
+def generate_rs(event, group):
+    out('        let format_string = c"%(fmt)s\\n";',
+        '        if (unsafe { bindings::qemu_loglevel } & bindings::LOG_TRACE) != 0 {',
+        '            unsafe { bindings::qemu_log(format_string.as_ptr() as *const c_char, %(args)s);}',
+        '        }',
+        fmt=expand_format_string(event.fmt, event.name + " "),
+        args=event.args.rust_call_varargs())
