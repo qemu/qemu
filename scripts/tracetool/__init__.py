@@ -15,7 +15,6 @@ __email__      = "stefanha@redhat.com"
 import os
 import re
 import sys
-import weakref
 from pathlib import PurePath
 
 import tracetool.backend
@@ -122,10 +121,6 @@ class Arguments:
             else:
                 self._args.append(arg)
 
-    def copy(self):
-        """Create a new copy."""
-        return Arguments(list(self._args))
-
     @staticmethod
     def build(arg_str):
         """Build and Arguments instance from an argument string.
@@ -222,13 +217,12 @@ class Event(object):
                       r"(?P<name>\w+)"
                       r"\((?P<args>[^)]*)\)"
                       r"\s*"
-                      r"(?:(?:(?P<fmt_trans>\".+),)?\s*(?P<fmt>\".+))?"
+                      r"(?P<fmt>\".+)?"
                       r"\s*")
 
     _VALID_PROPS = set(["disable"])
 
-    def __init__(self, name, props, fmt, args, lineno, filename, orig=None,
-                 event_trans=None, event_exec=None):
+    def __init__(self, name, props, fmt, args, lineno, filename):
         """
         Parameters
         ----------
@@ -236,20 +230,14 @@ class Event(object):
             Event name.
         props : list of str
             Property names.
-        fmt : str, list of str
-            Event printing format string(s).
+        fmt : str
+            Event printing format string.
         args : Arguments
             Event arguments.
         lineno : int
             The line number in the input file.
         filename : str
             The path to the input file.
-        orig : Event or None
-            Original Event before transformation/generation.
-        event_trans : Event or None
-            Generated translation-time event ("tcg" property).
-        event_exec : Event or None
-            Generated execution-time event ("tcg" property).
 
         """
         self.name = name
@@ -258,29 +246,16 @@ class Event(object):
         self.args = args
         self.lineno = int(lineno)
         self.filename = str(filename)
-        self.event_trans = event_trans
-        self.event_exec = event_exec
 
         if len(args) > 10:
             raise ValueError("Event '%s' has more than maximum permitted "
                              "argument count" % name)
 
-        if orig is None:
-            self.original = weakref.ref(self)
-        else:
-            self.original = orig
-
         unknown_props = set(self.properties) - self._VALID_PROPS
         if len(unknown_props) > 0:
             raise ValueError("Unknown properties: %s"
                              % ", ".join(unknown_props))
-        assert isinstance(self.fmt, str) or len(self.fmt) == 2
 
-    def copy(self):
-        """Create a new copy."""
-        return Event(self.name, list(self.properties), self.fmt,
-                     self.args.copy(), self.lineno, self.filename,
-                     self, self.event_trans, self.event_exec)
 
     @staticmethod
     def build(line_str, lineno, filename):
@@ -302,8 +277,7 @@ class Event(object):
         name = groups["name"]
         props = groups["props"].split()
         fmt = groups["fmt"]
-        fmt_trans = groups["fmt_trans"]
-        if fmt.find("%m") != -1 or fmt_trans.find("%m") != -1:
+        if fmt.find("%m") != -1:
             raise ValueError("Event format '%m' is forbidden, pass the error "
                              "as an explicit trace argument")
         if fmt.endswith(r'\n"'):
@@ -312,29 +286,22 @@ class Event(object):
         if '\\n' in fmt:
             raise ValueError("Event format must not use new line character")
 
-        if len(fmt_trans) > 0:
-            fmt = [fmt_trans, fmt]
         args = Arguments.build(groups["args"])
 
         return Event(name, props, fmt, args, lineno, posix_relpath(filename))
 
     def __repr__(self):
         """Evaluable string representation for this object."""
-        if isinstance(self.fmt, str):
-            fmt = self.fmt
-        else:
-            fmt = "%s, %s" % (self.fmt[0], self.fmt[1])
         return "Event('%s %s(%s) %s')" % (" ".join(self.properties),
                                           self.name,
                                           self.args,
-                                          fmt)
+                                          self.fmt)
     # Star matching on PRI is dangerous as one might have multiple
     # arguments with that format, hence the non-greedy version of it.
     _FMT = re.compile(r"(%[\d\.]*\w+|%.*?PRI\S+)")
 
     def formats(self):
         """List conversion specifiers in the argument print format string."""
-        assert not isinstance(self.fmt, list)
         return self._FMT.findall(self.fmt)
 
     QEMU_TRACE               = "trace_%(name)s"

@@ -18,8 +18,6 @@ from tracetool.backend.dtrace import binary, probeprefix
 from tracetool.backend.simple import is_string
 from tracetool.format.stap import stap_escape
 
-def global_var_name(name):
-    return probeprefix().replace(".", "_") + "_" + name
 
 STATE_SKIP = 0
 STATE_LITERAL = 1

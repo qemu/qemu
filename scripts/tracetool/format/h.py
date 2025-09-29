@@ -40,11 +40,6 @@ def generate(events, backend, group):
             enabled = 0
         else:
             enabled = 1
-        if "tcg-exec" in e.properties:
-            # a single define for the two "sub-events"
-            out('#define TRACE_%(name)s_ENABLED %(enabled)d',
-                name=e.original.name.upper(),
-                enabled=enabled)
         out('#define TRACE_%s_ENABLED %d' % (e.name.upper(), enabled))
 
     backend.generate_begin(events, group)
