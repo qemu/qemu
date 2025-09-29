@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 LTTng User Space Tracing backend.
 """

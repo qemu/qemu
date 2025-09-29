@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # QAPI schema internal representation
 #
 # Copyright (c) 2015-2019 Red Hat Inc.

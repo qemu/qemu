@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """
 This takes a crashing qtest trace and tries to remove superfluous operations

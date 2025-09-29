@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 Generate .stp file that outputs simpletrace binary traces (DTrace with SystemTAP only).
 """

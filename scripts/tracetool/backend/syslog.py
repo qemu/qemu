@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 Syslog built-in backend.
 """
