@@ -11,6 +11,7 @@ members = [
     "hw/core",
     "hw/char/pl011",
     "hw/timer/hpet",
+    "trace",
     "util",
     "tests",
 ]

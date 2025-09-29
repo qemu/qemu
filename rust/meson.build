@@ -34,7 +34,7 @@ subdir('system')
 subdir('chardev')
 subdir('hw/core')
 subdir('tests')
-
+subdir('trace')
 subdir('hw')
 
 cargo = find_program('cargo', required: false)
