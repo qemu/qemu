@@ -55,7 +55,6 @@ def generate(events, backend, group):
 
         out('    false)')
 
-        # tracer without checks
         out('',
             'static inline void %(api)s(%(args)s)',
             '{',
@@ -63,10 +62,16 @@ def generate(events, backend, group):
             args=e.args)
 
         if "disable" not in e.properties:
-            backend.generate(e, group)
+            backend.generate(e, group, check_trace_event_get_state=False)
 
+            if backend.check_trace_event_get_state:
+                event_id = 'TRACE_' + e.name.upper()
+                cond = "trace_event_get_state(%s)" % event_id
+                out('    if (%(cond)s) {',
+                        cond=cond)
+                backend.generate(e, group, check_trace_event_get_state=True)
+                out('    }')
         out('}')
-
 
     backend.generate_end(events, group)
 
