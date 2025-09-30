@@ -191,18 +191,17 @@ static void sptw_prepare_context(CPULoongArchState *env, MMUContext *context)
     context->pte_buddy[1] = lo1;
 }
 
-static void fill_tlb_entry(CPULoongArchState *env, LoongArchTLB *tlb)
+static void fill_tlb_entry(CPULoongArchState *env, LoongArchTLB *tlb,
+                           MMUContext *context)
 {
     uint64_t lo0, lo1, csr_vppn;
     uint16_t csr_asid;
     uint8_t csr_ps;
-    MMUContext context;
 
-    sptw_prepare_context(env, &context);
-    csr_vppn = context.addr >> R_TLB_MISC_VPPN_SHIFT;
-    csr_ps   = context.ps;
-    lo0      = context.pte_buddy[0];
-    lo1      = context.pte_buddy[1];
+    csr_vppn = context->addr >> R_TLB_MISC_VPPN_SHIFT;
+    csr_ps   = context->ps;
+    lo0      = context->pte_buddy[0];
+    lo1      = context->pte_buddy[1];
 
     /* Store page size in field PS */
     tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, PS, csr_ps);
@@ -356,6 +355,7 @@ void helper_tlbwr(CPULoongArchState *env)
     int index = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, INDEX);
     LoongArchTLB *old, new = {};
     bool skip_inv = false, tlb_v0, tlb_v1;
+    MMUContext context;
 
     old = env->tlb + index;
     if (FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, NE)) {
@@ -363,7 +363,8 @@ void helper_tlbwr(CPULoongArchState *env)
         return;
     }
 
-    fill_tlb_entry(env, &new);
+    sptw_prepare_context(env, &context);
+    fill_tlb_entry(env, &new, &context);
     /* Check whether ASID/VPPN is the same */
     if (old->tlb_misc == new.tlb_misc) {
         /* Check whether both even/odd pages is the same or invalid */
@@ -451,6 +452,7 @@ void helper_tlbfill(CPULoongArchState *env)
 {
     vaddr entryhi;
     int index, pagesize;
+    MMUContext context;
 
     if (FIELD_EX64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR)) {
         entryhi = env->CSR_TLBREHI;
@@ -462,9 +464,10 @@ void helper_tlbfill(CPULoongArchState *env)
         pagesize = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, PS);
     }
 
+    sptw_prepare_context(env, &context);
     index = get_tlb_random_index(env, entryhi, pagesize);
     invalidate_tlb(env, index);
-    fill_tlb_entry(env, env->tlb + index);
+    fill_tlb_entry(env, env->tlb + index, &context);
 }
 
 void helper_tlbclr(CPULoongArchState *env)
