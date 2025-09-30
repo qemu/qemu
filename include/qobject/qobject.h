@@ -32,6 +32,7 @@
 #ifndef QOBJECT_H
 #define QOBJECT_H
 
+#include "qemu/atomic.h"
 #include "qapi/qapi-builtin-types.h"
 
 /* Not for use outside include/qobject/ */
@@ -73,7 +74,7 @@ QEMU_BUILD_BUG_MSG(QTYPE__MAX != 7,
 static inline void qobject_ref_impl(QObject *obj)
 {
     if (obj) {
-        obj->base.refcnt++;
+        qatomic_inc(&obj->base.refcnt);
     }
 }
 
@@ -95,7 +96,7 @@ void qobject_destroy(QObject *obj);
 static inline void qobject_unref_impl(QObject *obj)
 {
     assert(!obj || obj->base.refcnt);
-    if (obj && --obj->base.refcnt == 0) {
+    if (obj && qatomic_fetch_dec(&obj->base.refcnt) == 1) {
         qobject_destroy(obj);
     }
 }
