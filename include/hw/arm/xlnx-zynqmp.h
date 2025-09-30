@@ -67,6 +67,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(XlnxZynqMPState, XLNX_ZYNQMP)
 #define XLNX_ZYNQMP_OCM_RAM_SIZE 0x10000
 
 #define XLNX_ZYNQMP_GIC_REGIONS 6
+#define XLNX_ZYNQMP_GIC_NUM_SPI_INTR 160
 
 /*
  * ZynqMP maps the ARM GIC regions (GICC, GICD ...) at consecutive 64k offsets
