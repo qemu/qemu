@@ -44,6 +44,7 @@ packages:
  - libcacard
  - libcap-ng
  - libcbor
+ - libclang-rt
  - libcurl
  - libdrm
  - libepoxy
@@ -91,7 +92,6 @@ packages:
  - pkg-config
  - pulseaudio
  - python3
- - python3-imp
  - python3-numpy
  - python3-opencv
  - python3-pillow
@@ -104,6 +104,7 @@ packages:
  - python3-venv
  - rpm2cpio
  - rust
+ - rust-std
  - sdl2
  - sdl2-image
  - sed

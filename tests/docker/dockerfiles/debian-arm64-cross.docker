@@ -1,10 +1,10 @@
 # THIS FILE WAS AUTO-GENERATED
 #
-#  $ lcitool dockerfile --layers all --cross-arch aarch64 debian-12 qemu
+#  $ lcitool dockerfile --layers all --cross-arch aarch64 debian-13 qemu
 #
 # https://gitlab.com/libvirt/libvirt-ci
 
-FROM docker.io/library/debian:12-slim
+FROM docker.io/library/debian:13-slim
 
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update && \
@@ -30,11 +30,11 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       gettext \
                       git \
                       hostname \
+                      libclang-rt-dev \
                       libglib2.0-dev \
                       llvm \
                       locales \
                       make \
-                      meson \
                       mtools \
                       ncat \
                       ninja-build \
@@ -45,12 +45,15 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       python3-opencv \
                       python3-pillow \
                       python3-pip \
+                      python3-setuptools \
                       python3-sphinx \
                       python3-sphinx-rtd-theme \
+                      python3-tomli \
                       python3-venv \
+                      python3-wheel \
                       python3-yaml \
                       rpm2cpio \
-                      rustc-web \
+                      rustc \
                       sed \
                       socat \
                       sparse \
@@ -67,6 +70,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     dpkg-reconfigure locales && \
     rm -f /usr/lib*/python3*/EXTERNALLY-MANAGED
 
+RUN /usr/bin/pip3 install meson==1.8.1
+
 ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
 ENV LANG "en_US.UTF-8"
 ENV MAKE "/usr/bin/make"
@@ -81,7 +86,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     eatmydata apt-get install --no-install-recommends -y \
                       gcc-aarch64-linux-gnu \
                       libaio-dev:arm64 \
-                      libasan6:arm64 \
+                      libasan8:arm64 \
                       libasound2-dev:arm64 \
                       libattr1-dev:arm64 \
                       libbpf-dev:arm64 \
@@ -136,6 +141,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libspice-protocol-dev:arm64 \
                       libspice-server-dev:arm64 \
                       libssh-dev:arm64 \
+                      libstd-rust-dev:arm64 \
                       libsystemd-dev:arm64 \
                       libtasn1-6-dev:arm64 \
                       libubsan1:arm64 \
@@ -181,3 +187,5 @@ ARG USER
 ARG UID
 RUN if [ "${USER}" ]; then \
   id ${USER} 2>/dev/null || useradd -u ${UID} -U ${USER}; fi
+
+ENV ENABLE_RUST 1

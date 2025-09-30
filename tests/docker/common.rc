@@ -21,6 +21,14 @@ else
     DEF_TARGET_LIST=${DEF_TARGET_LIST:-"x86_64-softmmu,aarch64-softmmu"}
 fi
 
+enable_rust=""
+if [ "$ENABLE_RUST" = "1" ]; then
+  enable_rust="--enable-rust"
+  if [ -n "$RUST_TARGET" ]; then
+    enable_rust="$enable_rust --rust-target-triple=$RUST_TARGET"
+  fi
+fi
+
 requires_binary()
 {
     found=0
@@ -46,11 +54,12 @@ configure_qemu()
                  ${TARGET_LIST:+--target-list=${TARGET_LIST}} \
                  --prefix=$INSTALL_DIR \
                  $QEMU_CONFIGURE_OPTS $EXTRA_CONFIGURE_OPTS \
+                 $enable_rust \
                  $@"
     echo "Configure options:"
     echo $config_opts
     $QEMU_SRC/configure $config_opts || \
-        { cat config.log && test_fail "Failed to run 'configure'"; }
+        { cat config.log >&2 ; cat meson-logs/meson-log.txt >&2 ; test_fail "Failed to run 'configure'"; }
 }
 
 build_qemu()
@@ -73,7 +82,7 @@ check_qemu()
 
 test_fail()
 {
-    echo "$@"
+    echo "$@" >&2
     exit 1
 }
 

@@ -4,28 +4,28 @@ include:
 cross-armhf-user:
   extends: .cross_user_build_job
   needs:
-    job: armhf-debian-cross-container
+    - job: armhf-debian-cross-container
   variables:
     IMAGE: debian-armhf-cross
 
 cross-arm64-system:
   extends: .cross_system_build_job
   needs:
-    job: arm64-debian-cross-container
+    - job: arm64-debian-cross-container
   variables:
     IMAGE: debian-arm64-cross
 
 cross-arm64-user:
   extends: .cross_user_build_job
   needs:
-    job: arm64-debian-cross-container
+    - job: arm64-debian-cross-container
   variables:
     IMAGE: debian-arm64-cross
 
 cross-arm64-kvm-only:
   extends: .cross_accel_build_job
   needs:
-    job: arm64-debian-cross-container
+    - job: arm64-debian-cross-container
   variables:
     IMAGE: debian-arm64-cross
     EXTRA_CONFIGURE_OPTS: --disable-tcg --without-default-features
@@ -35,7 +35,7 @@ cross-i686-system:
     - .cross_system_build_job
     - .cross_test_artifacts
   needs:
-    job: i686-debian-cross-container
+    - job: i686-debian-cross-container
   variables:
     IMAGE: debian-i686-cross
     EXTRA_CONFIGURE_OPTS: --disable-kvm
@@ -46,7 +46,7 @@ cross-i686-user:
     - .cross_user_build_job
     - .cross_test_artifacts
   needs:
-    job: i686-debian-cross-container
+    - job: i686-debian-cross-container
   variables:
     IMAGE: debian-i686-cross
     MAKE_CHECK_ARGS: check
@@ -57,7 +57,7 @@ cross-i686-tci:
     - .cross_test_artifacts
   timeout: 60m
   needs:
-    job: i686-debian-cross-container
+    - job: i686-debian-cross-container
   variables:
     IMAGE: debian-i686-cross
     ACCEL: tcg-interpreter
@@ -71,49 +71,49 @@ cross-i686-tci:
 cross-mipsel-system:
   extends: .cross_system_build_job
   needs:
-    job: mipsel-debian-cross-container
+    - job: mipsel-debian-cross-container
   variables:
     IMAGE: debian-mipsel-cross
 
 cross-mipsel-user:
   extends: .cross_user_build_job
   needs:
-    job: mipsel-debian-cross-container
+    - job: mipsel-debian-cross-container
   variables:
     IMAGE: debian-mipsel-cross
 
 cross-mips64el-system:
   extends: .cross_system_build_job
   needs:
-    job: mips64el-debian-cross-container
+    - job: mips64el-debian-cross-container
   variables:
     IMAGE: debian-mips64el-cross
 
 cross-mips64el-user:
   extends: .cross_user_build_job
   needs:
-    job: mips64el-debian-cross-container
+    - job: mips64el-debian-cross-container
   variables:
     IMAGE: debian-mips64el-cross
 
 cross-ppc64el-system:
   extends: .cross_system_build_job
   needs:
-    job: ppc64el-debian-cross-container
+    - job: ppc64el-debian-cross-container
   variables:
     IMAGE: debian-ppc64el-cross
 
 cross-ppc64el-user:
   extends: .cross_user_build_job
   needs:
-    job: ppc64el-debian-cross-container
+    - job: ppc64el-debian-cross-container
   variables:
     IMAGE: debian-ppc64el-cross
 
 cross-ppc64el-kvm-only:
   extends: .cross_accel_build_job
   needs:
-    job: ppc64el-debian-cross-container
+    - job: ppc64el-debian-cross-container
   variables:
     IMAGE: debian-ppc64el-cross
     EXTRA_CONFIGURE_OPTS: --disable-tcg --without-default-devices
@@ -121,35 +121,35 @@ cross-ppc64el-kvm-only:
 cross-riscv64-system:
   extends: .cross_system_build_job
   needs:
-    job: riscv64-debian-cross-container
+    - job: riscv64-debian-cross-container
   variables:
     IMAGE: debian-riscv64-cross
 
 cross-riscv64-user:
   extends: .cross_user_build_job
   needs:
-    job: riscv64-debian-cross-container
+    - job: riscv64-debian-cross-container
   variables:
     IMAGE: debian-riscv64-cross
 
 cross-s390x-system:
   extends: .cross_system_build_job
   needs:
-    job: s390x-debian-cross-container
+    - job: s390x-debian-cross-container
   variables:
     IMAGE: debian-s390x-cross
 
 cross-s390x-user:
   extends: .cross_user_build_job
   needs:
-    job: s390x-debian-cross-container
+    - job: s390x-debian-cross-container
   variables:
     IMAGE: debian-s390x-cross
 
 cross-s390x-kvm-only:
   extends: .cross_accel_build_job
   needs:
-    job: s390x-debian-cross-container
+    - job: s390x-debian-cross-container
   variables:
     IMAGE: debian-s390x-cross
     EXTRA_CONFIGURE_OPTS: --disable-tcg --enable-trace-backends=ftrace
@@ -157,7 +157,7 @@ cross-s390x-kvm-only:
 cross-mips64el-kvm-only:
   extends: .cross_accel_build_job
   needs:
-    job: mips64el-debian-cross-container
+    - job: mips64el-debian-cross-container
   variables:
     IMAGE: debian-mips64el-cross
     EXTRA_CONFIGURE_OPTS: --disable-tcg --target-list=mips64el-softmmu
@@ -165,7 +165,7 @@ cross-mips64el-kvm-only:
 cross-win64-system:
   extends: .cross_system_build_job
   needs:
-    job: win64-fedora-cross-container
+    - job: win64-fedora-cross-container
   variables:
     IMAGE: fedora-win64-cross
     EXTRA_CONFIGURE_OPTS: --enable-fdt=internal --disable-plugins
@@ -181,7 +181,7 @@ cross-win64-system:
 cross-amd64-xen-only:
   extends: .cross_accel_build_job
   needs:
-    job: amd64-debian-cross-container
+    - job: amd64-debian-cross-container
   variables:
     IMAGE: debian-amd64-cross
     ACCEL: xen
@@ -190,7 +190,7 @@ cross-amd64-xen-only:
 cross-arm64-xen-only:
   extends: .cross_accel_build_job
   needs:
-    job: arm64-debian-cross-container
+    - job: arm64-debian-cross-container
   variables:
     IMAGE: debian-arm64-cross
     ACCEL: xen

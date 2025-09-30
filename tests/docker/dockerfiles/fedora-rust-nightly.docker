@@ -1,10 +1,10 @@
 # THIS FILE WAS AUTO-GENERATED
 #
-#  $ lcitool dockerfile --layers all fedora-40 qemu
+#  $ lcitool dockerfile --layers all fedora-41 qemu
 #
 # https://gitlab.com/libvirt/libvirt-ci
 
-FROM registry.fedoraproject.org/fedora:40
+FROM registry.fedoraproject.org/fedora:41
 
 RUN dnf install -y nosync && \
     printf '#!/bin/sh\n\
@@ -32,6 +32,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                capstone-devel \
                ccache \
                clang \
+               compiler-rt \
                ctags \
                cyrus-sasl-devel \
                daxctl-devel \
@@ -91,7 +92,6 @@ exec "$@"\n' > /usr/bin/nosync && \
                lzo-devel \
                make \
                mesa-libgbm-devel \
-               meson \
                mtools \
                ncurses-devel \
                nettle-devel \
@@ -100,7 +100,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                numactl-devel \
                openssh-clients \
                pam-devel \
-               pcre-static \
+               pcre2-static \
                pipewire-devel \
                pixman-devel \
                pkgconfig \
@@ -111,11 +111,13 @@ exec "$@"\n' > /usr/bin/nosync && \
                python3-opencv \
                python3-pillow \
                python3-pip \
+               python3-setuptools \
                python3-sphinx \
                python3-sphinx_rtd_theme \
-               python3-zombie-imp \
+               python3-wheel \
                rdma-core-devel \
                rust \
+               rust-std-static \
                sed \
                snappy-devel \
                socat \
@@ -124,7 +126,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                spice-server-devel \
                swtpm \
                systemd-devel \
-               systemtap-sdt-devel \
+               systemtap-sdt-dtrace \
                tar \
                tesseract \
                tesseract-langpack-eng \
@@ -147,6 +149,8 @@ exec "$@"\n' > /usr/bin/nosync && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/cc && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/clang && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/gcc
+
+RUN /usr/bin/pip3 install meson==1.8.1
 
 ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
 ENV LANG "en_US.UTF-8"
@@ -181,3 +185,5 @@ ARG USER
 ARG UID
 RUN if [ "${USER}" ]; then \
   id ${USER} 2>/dev/null || useradd -u ${UID} -U ${USER}; fi
+
+ENV ENABLE_RUST 1

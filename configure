@@ -1000,7 +1000,19 @@ $mkvenv ensuregroup --dir "${source_path}/python/wheels" \
 # We ignore PATH completely here: we want to use the venv's Meson
 # *exclusively*.
 
-meson="$(cd pyvenv/bin; pwd)/meson"
+# for msys2
+get_pwd() {
+    if pwd -W >/dev/null 2>&1; then
+        pwd -W
+    else
+        pwd
+    fi
+}
+
+meson="$(cd pyvenv/bin; get_pwd)/meson"
+if [ -f "$meson$EXESUF" ]; then
+  meson="$meson$EXESUF"
+fi
 
 # Conditionally ensure Sphinx is installed.
 
@@ -1878,6 +1890,13 @@ if test "$skip_meson" = no; then
       eval "c=\$devices_${a}"
       echo "${a}-softmmu = '$c'" >> $cross
   done
+  if test "$rust" != disabled; then
+      if test "$cross_compile" = "yes"; then
+          . "$source_path/scripts/rust-to-clang-target.sh"
+          clang_target=$(rust_to_clang_target "$rust_target_triple")
+          echo "bindgen_clang_arguments = [$(meson_quote --target="$clang_target")]" >> $cross
+      fi
+  fi
 
   echo "[built-in options]" >> $cross
   echo "c_args = [$(meson_quote $CFLAGS $EXTRA_CFLAGS)]" >> $cross
@@ -1958,7 +1977,7 @@ if test "$skip_meson" = no; then
     echo "[binaries]" >> $native
     echo "c = [$(meson_quote $host_cc)]" >> $native
     if test "$rust" != disabled; then
-      echo "rust = [$(meson_quote $rustc)]" >> $cross
+      echo "rust = [$(meson_quote $rustc)]" >> $native
     fi
     mv $native config-meson.native
     meson_option_add --native-file
