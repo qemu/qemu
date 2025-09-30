@@ -50,7 +50,9 @@ int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
-    qtest_add_func("/cpu/csr", run_test_csr);
+    if (qtest_has_machine("virt")) {
+        qtest_add_func("/cpu/csr", run_test_csr);
+    }
 
     return g_test_run();
 }
