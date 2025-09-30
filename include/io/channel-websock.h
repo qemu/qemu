@@ -61,7 +61,8 @@ struct QIOChannelWebsock {
     size_t payload_remain;
     size_t pong_remain;
     QIOChannelWebsockMask mask;
-    guint io_tag;
+    guint hs_io_tag; /* tracking handshake task */
+    guint io_tag; /* tracking watch task */
     Error *io_err;
     gboolean io_eof;
     uint8_t opcode;
