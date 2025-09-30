@@ -97,7 +97,10 @@ static void test_mode_transfer_common(bool incoming_defer)
         .start_hook = test_mode_transfer_start,
     };
 
-    test_precopy_common(&args);
+    if (test_precopy_common(&args) < 0) {
+        close(cpr_sockfd);
+        unlink(cpr_path);
+    }
 }
 
 static void test_mode_transfer(void)

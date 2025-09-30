@@ -736,7 +736,7 @@ void test_postcopy_recovery_common(MigrateCommon *args)
     migrate_postcopy_complete(from, to, args);
 }
 
-void test_precopy_common(MigrateCommon *args)
+int test_precopy_common(MigrateCommon *args)
 {
     QTestState *from, *to;
     void *data_hook = NULL;
@@ -746,7 +746,7 @@ void test_precopy_common(MigrateCommon *args)
     g_assert(!args->cpr_channel || args->connect_channels);
 
     if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
-        return;
+        return -1;
     }
 
     if (args->start_hook) {
@@ -869,6 +869,8 @@ finish:
     }
 
     migrate_end(from, to, args->result == MIG_TEST_SUCCEED);
+
+    return 0;
 }
 
 static void file_dirty_offset_region(void)
