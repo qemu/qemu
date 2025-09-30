@@ -6,21 +6,21 @@
 /keycodemapdb
 /libvfio-user
 /slirp
-/anyhow-1.0.98
-/arbitrary-int-1.2.7
-/attrs-0.2.9
-/bilge-0.2.0
-/bilge-impl-0.2.0
-/either-1.12.0
-/foreign-0.3.1
-/itertools-0.11.0
-/libc-0.2.162
-/proc-macro-error-1.0.4
-/proc-macro-error-attr-1.0.4
-/proc-macro2-1.0.95
-/quote-1.0.36
-/syn-2.0.66
-/unicode-ident-1.0.12
+/anyhow-*
+/arbitrary-int-*
+/attrs-*
+/bilge-*
+/bilge-impl-*
+/either-*
+/foreign-*
+/itertools-*
+/libc-*
+/proc-macro-error-*
+/proc-macro-error-attr-*
+/proc-macro*
+/quote-*
+/syn-*
+/unicode-ident-*
 
 # Workaround for Meson v1.9.0 https://github.com/mesonbuild/meson/issues/14948
 /.wraplock
