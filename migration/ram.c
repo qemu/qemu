@@ -977,7 +977,7 @@ static uint64_t physical_memory_sync_dirty_bitmap(RAMBlock *rb,
             }
         }
         if (num_dirty) {
-            cpu_physical_memory_dirty_bits_cleared(start, length);
+            physical_memory_dirty_bits_cleared(start, length);
         }
 
         if (rb->clear_bmap) {
@@ -996,7 +996,7 @@ static uint64_t physical_memory_sync_dirty_bitmap(RAMBlock *rb,
         ram_addr_t offset = rb->offset;
 
         for (addr = 0; addr < length; addr += TARGET_PAGE_SIZE) {
-            if (cpu_physical_memory_test_and_clear_dirty(
+            if (physical_memory_test_and_clear_dirty(
                         start + addr + offset,
                         TARGET_PAGE_SIZE,
                         DIRTY_MEMORY_MIGRATION)) {
