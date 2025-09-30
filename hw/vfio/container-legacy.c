@@ -69,7 +69,7 @@ static int vfio_ram_block_discard_disable(VFIOLegacyContainer *container,
 }
 
 static int vfio_dma_unmap_bitmap(const VFIOLegacyContainer *container,
-                                 hwaddr iova, ram_addr_t size,
+                                 hwaddr iova, uint64_t size,
                                  IOMMUTLBEntry *iotlb)
 {
     const VFIOContainer *bcontainer = VFIO_IOMMU(container);
@@ -122,7 +122,7 @@ unmap_exit:
 }
 
 static int vfio_legacy_dma_unmap_one(const VFIOContainer *bcontainer,
-                                     hwaddr iova, ram_addr_t size,
+                                     hwaddr iova, uint64_t size,
                                      IOMMUTLBEntry *iotlb)
 {
     const VFIOLegacyContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
@@ -167,7 +167,7 @@ static int vfio_legacy_dma_unmap_one(const VFIOContainer *bcontainer,
  * DMA - Mapping and unmapping for the "type1" IOMMU interface used on x86
  */
 static int vfio_legacy_dma_unmap(const VFIOContainer *bcontainer,
-                                 hwaddr iova, ram_addr_t size,
+                                 hwaddr iova, uint64_t size,
                                  IOMMUTLBEntry *iotlb, bool unmap_all)
 {
     int ret;
@@ -192,7 +192,7 @@ static int vfio_legacy_dma_unmap(const VFIOContainer *bcontainer,
 }
 
 static int vfio_legacy_dma_map(const VFIOContainer *bcontainer, hwaddr iova,
-                               ram_addr_t size, void *vaddr, bool readonly,
+                               uint64_t size, void *vaddr, bool readonly,
                                MemoryRegion *mr)
 {
     const VFIOLegacyContainer *container = VFIO_IOMMU_LEGACY(bcontainer);

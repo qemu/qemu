@@ -39,7 +39,7 @@ static bool vfio_dma_unmap_vaddr_all(VFIOLegacyContainer *container,
  * The incoming state is cleared thereafter.
  */
 static int vfio_legacy_cpr_dma_map(const VFIOContainer *bcontainer,
-                                   hwaddr iova, ram_addr_t size, void *vaddr,
+                                   hwaddr iova, uint64_t size, void *vaddr,
                                    bool readonly, MemoryRegion *mr)
 {
     const VFIOLegacyContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
