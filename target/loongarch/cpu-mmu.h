@@ -25,6 +25,8 @@ typedef struct MMUContext {
     hwaddr        physical;
     int           ps;  /* page size shift */
     int           prot;
+    int           tlb_index;
+    int           mmu_index;
     uint64_t      pte_buddy[2];
 } MMUContext;
 
