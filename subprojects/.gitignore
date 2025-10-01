@@ -13,6 +13,7 @@
 /bilge-impl-*
 /either-*
 /foreign-*
+/glib-sys-*
 /itertools-*
 /libc-*
 /proc-macro-error-*
