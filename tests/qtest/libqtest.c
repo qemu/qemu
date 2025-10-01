@@ -615,6 +615,25 @@ QTestState *qtest_init_ext(const char *var, const char *extra_args,
     return s;
 }
 
+static QTestState *qtest_attach_qemu(const char *qemu_bin,
+                                     const char *extra_args,
+                                     void *opaque)
+{
+    int pid = *(int *)opaque;
+    return qtest_create_test_state(pid);
+}
+
+QTestState *qtest_init_after_exec(QTestState *qts)
+{
+    void *opaque = (void *)&qts->qemu_pid;
+    QTestState *s;
+
+    s = qtest_init_internal(NULL, NULL, true, qtest_attach_qemu, opaque);
+    qts->qemu_pid = -1;
+    qtest_qmp_handshake(s, NULL);
+    return s;
+}
+
 QTestState *qtest_init(const char *extra_args)
 {
     return qtest_init_ext(NULL, extra_args, NULL, true);

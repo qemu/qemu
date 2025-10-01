@@ -57,6 +57,14 @@ QTestState *qtest_vinitf(const char *fmt, va_list ap) G_GNUC_PRINTF(1, 0);
 const char *qtest_qemu_binary(const char *var);
 
 /**
+ * qtest_init_after_exec:
+ * @qts: the previous QEMU state
+ *
+ * Return a test state representing new QEMU after @qts exec's it.
+ */
+QTestState *qtest_init_after_exec(QTestState *qts);
+
+/**
  * qtest_qemu_args:
  * @extra_args: Other arguments to pass to QEMU.
  *
