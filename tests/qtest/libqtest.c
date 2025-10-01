@@ -409,20 +409,12 @@ static pid_t qtest_create_process(char *cmd)
 }
 #endif /* _WIN32 */
 
-static QTestState *G_GNUC_PRINTF(2, 3) qtest_spawn_qemu(const char *qemu_bin,
-                                                        const char *fmt, ...)
+static QTestState *qtest_spawn_qemu(const char *qemu_bin, const char *args)
 {
-    va_list ap;
     QTestState *s = g_new0(QTestState, 1);
-    const char *trace = g_getenv("QTEST_TRACE");
-    g_autofree char *tracearg = trace ?
-        g_strdup_printf("-trace %s ", trace) : g_strdup("");
     g_autoptr(GString) command = g_string_new("");
 
-    va_start(ap, fmt);
-    g_string_append_printf(command, CMD_EXEC "%s %s", qemu_bin, tracearg);
-    g_string_append_vprintf(command, fmt, ap);
-    va_end(ap);
+    g_string_printf(command, CMD_EXEC "%s %s", qemu_bin, args);
 
     qtest_add_abrt_handler(kill_qemu_hook_func, s);
 
@@ -466,6 +458,33 @@ static char *qtest_socket_path(const char *suffix)
     return g_strdup_printf("%s/qtest-%d.%s", g_get_tmp_dir(), getpid(), suffix);
 }
 
+gchar *qtest_qemu_args(const char *extra_args)
+{
+    g_autofree gchar *socket_path = qtest_socket_path("sock");
+    g_autofree gchar *qmp_socket_path = qtest_socket_path("qmp");
+    const char *trace = g_getenv("QTEST_TRACE");
+    g_autofree char *tracearg = trace ? g_strdup_printf("-trace %s ", trace) :
+                                        g_strdup("");
+    gchar *args = g_strdup_printf(
+                      "%s"
+                      "-qtest unix:%s "
+                      "-qtest-log %s "
+                      "-chardev socket,path=%s,id=char0 "
+                      "-mon chardev=char0,mode=control "
+                      "-display none "
+                      "-audio none "
+                      "%s"
+                      " -accel qtest",
+
+                      tracearg,
+                      socket_path,
+                      getenv("QTEST_LOG") ? DEV_STDERR : DEV_NULL,
+                      qmp_socket_path,
+                      extra_args ?: "");
+
+    return args;
+}
+
 static QTestState *qtest_init_internal(const char *qemu_bin,
                                        const char *extra_args,
                                        bool do_connect)
@@ -474,6 +493,7 @@ static QTestState *qtest_init_internal(const char *qemu_bin,
     int sock, qmpsock, i;
     g_autofree gchar *socket_path = qtest_socket_path("sock");
     g_autofree gchar *qmp_socket_path = qtest_socket_path("qmp");
+    g_autofree gchar *args = qtest_qemu_args(extra_args);
 
     /*
      * It's possible that if an earlier test run crashed it might
@@ -488,19 +508,7 @@ static QTestState *qtest_init_internal(const char *qemu_bin,
     sock = init_socket(socket_path);
     qmpsock = init_socket(qmp_socket_path);
 
-    s = qtest_spawn_qemu(qemu_bin,
-                         "-qtest unix:%s "
-                         "-qtest-log %s "
-                         "-chardev socket,path=%s,id=char0 "
-                         "-mon chardev=char0,mode=control "
-                         "-display none "
-                         "-audio none "
-                         "%s"
-                         " -accel qtest",
-                         socket_path,
-                         getenv("QTEST_LOG") ? DEV_STDERR : DEV_NULL,
-                         qmp_socket_path,
-                         extra_args ?: "");
+    s = qtest_spawn_qemu(qemu_bin, args);
 
     qtest_client_set_rx_handler(s, qtest_client_socket_recv_line);
     qtest_client_set_tx_handler(s, qtest_client_socket_send);
