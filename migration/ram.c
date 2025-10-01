@@ -3630,7 +3630,6 @@ static inline void *colo_cache_from_block_offset(RAMBlock *block,
  * determined to be zero, then zap it.
  *
  * @host: host address for the zero page
- * @ch: what the page is filled from.  We only support zero
  * @size: size of the zero page
  */
 void ram_handle_zero(void *host, uint64_t size)
