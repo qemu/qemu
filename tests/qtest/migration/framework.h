@@ -103,6 +103,8 @@ typedef struct {
      */
     bool hide_stderr;
     bool use_shmem;
+    /* only launch the source process */
+    bool only_source;
     /* only launch the target process */
     bool only_target;
     /* Use dirty ring if true; dirty logging otherwise */

@@ -234,7 +234,7 @@ static void migrate_start_set_capabilities(QTestState *from, QTestState *to,
      * to mimic as closer as that.
      */
     migrate_set_capability(from, "events", true);
-    if (!args->defer_target_connect) {
+    if (!args->defer_target_connect && to) {
         migrate_set_capability(to, "events", true);
     }
 
@@ -246,8 +246,10 @@ static void migrate_start_set_capabilities(QTestState *from, QTestState *to,
     if (args->caps[MIGRATION_CAPABILITY_MULTIFD]) {
         migrate_set_parameter_int(from, "multifd-channels",
                                   MULTIFD_TEST_CHANNELS);
-        migrate_set_parameter_int(to, "multifd-channels",
-                                  MULTIFD_TEST_CHANNELS);
+        if (to) {
+            migrate_set_parameter_int(to, "multifd-channels",
+                                      MULTIFD_TEST_CHANNELS);
+        }
     }
 
     return;
@@ -410,11 +412,13 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
                                  shmem_opts ? shmem_opts : "",
                                  args->opts_target ? args->opts_target : "",
                                  ignore_stderr);
-    *to = qtest_init_ext(QEMU_ENV_DST, cmd_target, capabilities,
-                         !args->defer_target_connect);
-    qtest_qmp_set_event_callback(*to,
-                                 migrate_watch_for_events,
-                                 &dst_state);
+    if (!args->only_source) {
+        *to = qtest_init_ext(QEMU_ENV_DST, cmd_target, capabilities,
+                             !args->defer_target_connect);
+        qtest_qmp_set_event_callback(*to,
+                                     migrate_watch_for_events,
+                                     &dst_state);
+    }
 
     /*
      * Remove shmem file immediately to avoid memory leak in test failed case.
@@ -424,7 +428,9 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
         unlink(shmem_path);
     }
 
-    migrate_start_set_capabilities(*from, *to, args);
+    migrate_start_set_capabilities(*from,
+                                   args->only_source ? NULL : *to,
+                                   args);
 
     return 0;
 }
