@@ -14,6 +14,8 @@ def get_formats(backend):
         "c",
         "h",
     ]
+    if backend in {"ftrace", "log", "simple", "syslog"}:
+        formats += ["rs"]
     if backend == "dtrace":
         formats += [
             "d",

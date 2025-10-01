@@ -159,6 +159,7 @@ dependencies = [
  "migration",
  "qom",
  "system",
+ "trace",
  "util",
 ]
 
@@ -256,6 +257,13 @@ dependencies = [
  "qom",
  "system",
  "util",
+]
+
+[[package]]
+name = "trace"
+version = "0.1.0"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

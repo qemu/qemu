@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # QEMU documentation build configuration file, created by
 # sphinx-quickstart on Thu Jan 31 16:40:14 2019.
 #

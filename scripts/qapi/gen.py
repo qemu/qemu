@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # QAPI code generation
 #
 # Copyright (c) 2015-2019 Red Hat Inc.

@@ -142,7 +142,7 @@ macro_rules! log_mask_ln {
         let _: $crate::log::Log = $mask;
 
         if unsafe {
-            ($crate::bindings::qemu_loglevel & ($mask as std::os::raw::c_int)) != 0
+            ($crate::bindings::qemu_loglevel & ($mask as std::os::raw::c_uint)) != 0
         } {
             _ = $crate::log::LogGuard::log_fmt(
                 format_args!("{}\n", format_args!($fmt $($args)*)));

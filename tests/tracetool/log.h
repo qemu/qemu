@@ -21,10 +21,12 @@ extern uint16_t _TRACE_TEST_WIBBLE_DSTATE;
 
 static inline void trace_test_blah(void *context, const char *filename)
 {
-    if (trace_event_get_state(TRACE_TEST_BLAH) && qemu_loglevel_mask(LOG_TRACE)) {
+    if (trace_event_get_state(TRACE_TEST_BLAH)) {
+        if (qemu_loglevel_mask(LOG_TRACE)) {
 #line 4 "trace-events"
-        qemu_log("test_blah " "Blah context=%p filename=%s" "\n", context, filename);
-#line 28 "log.h"
+            qemu_log("test_blah " "Blah context=%p filename=%s" "\n", context, filename);
+#line 29 "log.h"
+        }
     }
 }
 
@@ -34,10 +36,12 @@ static inline void trace_test_blah(void *context, const char *filename)
 
 static inline void trace_test_wibble(void *context, int value)
 {
-    if (trace_event_get_state(TRACE_TEST_WIBBLE) && qemu_loglevel_mask(LOG_TRACE)) {
+    if (trace_event_get_state(TRACE_TEST_WIBBLE)) {
+        if (qemu_loglevel_mask(LOG_TRACE)) {
 #line 5 "trace-events"
-        qemu_log("test_wibble " "Wibble context=%p value=%d" "\n", context, value);
-#line 41 "log.h"
+            qemu_log("test_wibble " "Wibble context=%p value=%d" "\n", context, value);
+#line 44 "log.h"
+        }
     }
 }
 #endif /* TRACE_TESTSUITE_GENERATED_TRACERS_H */

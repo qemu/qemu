@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright IBM, Corp. 2011
 # Copyright (c) 2013-2021 Red Hat Inc.
 #
