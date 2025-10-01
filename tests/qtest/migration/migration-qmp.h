@@ -34,6 +34,8 @@ void read_blocktime(QTestState *who);
 void wait_for_migration_pass(QTestState *who, QTestMigrationState *src_state);
 void migrate_set_parameter_str(QTestState *who, const char *parameter,
                                const char *value);
+void migrate_set_parameter_strv(QTestState *who, const char *parameter,
+                                char **strv);
 void migrate_set_parameter_bool(QTestState *who, const char *parameter,
                                 int value);
 void migrate_ensure_non_converge(QTestState *who);
