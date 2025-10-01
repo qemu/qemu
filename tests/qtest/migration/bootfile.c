@@ -68,3 +68,8 @@ char *bootfile_create(const char *arch, const char *dir, bool suspend_me)
 
     return bootpath;
 }
+
+char *bootfile_get(void)
+{
+    return bootpath;
+}

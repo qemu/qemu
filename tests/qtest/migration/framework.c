@@ -1007,6 +1007,11 @@ QTestMigrationState *get_src(void)
     return &src_state;
 }
 
+QTestMigrationState *get_dst(void)
+{
+    return &dst_state;
+}
+
 MigrationTestEnv *migration_get_env(void)
 {
     static MigrationTestEnv *env;
