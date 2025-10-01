@@ -72,6 +72,7 @@ static void cxl_fixed_memory_window_config(CXLFixedMemoryWindowOptions *object,
 
 static int cxl_fmws_link(Object *obj, void *opaque)
 {
+    Error **errp = opaque;
     struct CXLFixedWindow *fw;
     int i;
 
@@ -87,9 +88,9 @@ static int cxl_fmws_link(Object *obj, void *opaque)
         o = object_resolve_path_type(fw->targets[i], TYPE_PXB_CXL_DEV,
                                      &ambig);
         if (!o) {
-            error_setg(&error_fatal, "Could not resolve CXLFM target %s",
+            error_setg(errp, "Could not resolve CXLFM target %s",
                        fw->targets[i]);
-            return 1;
+            return -1;
         }
         fw->target_hbs[i] = PXB_CXL_DEV(o);
     }
@@ -99,7 +100,7 @@ static int cxl_fmws_link(Object *obj, void *opaque)
 void cxl_fmws_link_targets(Error **errp)
 {
     /* Order doesn't matter for this, so no need to build list */
-    object_child_foreach_recursive(object_get_root(), cxl_fmws_link, NULL);
+    object_child_foreach_recursive(object_get_root(), cxl_fmws_link, errp);
 }
 
 static bool cxl_hdm_find_target(uint32_t *cache_mem, hwaddr addr,

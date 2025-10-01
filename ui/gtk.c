@@ -1181,6 +1181,7 @@ static gboolean gd_touch_event(GtkWidget *widget, GdkEventTouch *touch,
                                void *opaque)
 {
     VirtualConsole *vc = opaque;
+    Error *err = NULL;
     uint64_t num_slot = GPOINTER_TO_UINT(touch->sequence);
     int type = -1;
 
@@ -1203,7 +1204,10 @@ static gboolean gd_touch_event(GtkWidget *widget, GdkEventTouch *touch,
     console_handle_touch_event(vc->gfx.dcl.con, touch_slots,
                                num_slot, surface_width(vc->gfx.ds),
                                surface_height(vc->gfx.ds), touch->x,
-                               touch->y, type, &error_warn);
+                               touch->y, type, &err);
+    if (err) {
+        warn_report_err(err);
+    }
     return TRUE;
 }
 

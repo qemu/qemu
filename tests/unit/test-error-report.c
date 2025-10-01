@@ -104,22 +104,6 @@ test_error_report_timestamp(void)
 ");
 }
 
-static void
-test_error_warn(void)
-{
-    if (g_test_subprocess()) {
-        error_setg(&error_warn, "Testing &error_warn");
-        return;
-    }
-
-    g_test_trap_subprocess(NULL, 0, 0);
-    g_test_trap_assert_passed();
-    g_test_trap_assert_stderr("\
-test-error-report: warning: Testing &error_warn*\
-");
-}
-
-
 int
 main(int argc, char *argv[])
 {
@@ -133,7 +117,6 @@ main(int argc, char *argv[])
     g_test_add_func("/error-report/glog", test_error_report_glog);
     g_test_add_func("/error-report/once", test_error_report_once);
     g_test_add_func("/error-report/timestamp", test_error_report_timestamp);
-    g_test_add_func("/error-report/warn", test_error_warn);
 
     return g_test_run();
 }

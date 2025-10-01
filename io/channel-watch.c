@@ -281,9 +281,9 @@ GSource *qio_channel_create_socket_watch(QIOChannel *ioc,
     GSource *source;
     QIOChannelSocketSource *ssource;
 
-    qemu_socket_select(sockfd, ioc->event,
-                       FD_READ | FD_ACCEPT | FD_CLOSE |
-                       FD_CONNECT | FD_WRITE | FD_OOB, NULL);
+    qemu_socket_select_nofail(sockfd, ioc->event,
+                              FD_READ | FD_ACCEPT | FD_CLOSE |
+                              FD_CONNECT | FD_WRITE | FD_OOB);
 
     source = g_source_new(&qio_channel_socket_source_funcs,
                           sizeof(QIOChannelSocketSource));

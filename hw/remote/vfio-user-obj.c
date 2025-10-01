@@ -75,12 +75,17 @@ OBJECT_DECLARE_TYPE(VfuObject, VfuObjectClass, VFU_OBJECT)
  */
 #define VFU_OBJECT_ERROR(o, fmt, ...)                                     \
     {                                                                     \
+        error_report((fmt), ## __VA_ARGS__);                              \
         if (vfu_object_auto_shutdown()) {                                 \
-            error_setg(&error_abort, (fmt), ## __VA_ARGS__);              \
-        } else {                                                          \
-            error_report((fmt), ## __VA_ARGS__);                          \
+            /*                                                            \
+             * FIXME This looks inappropriate.  The error is serious      \
+             * enough programming error to warrant aborting the process   \
+             * when auto-shutdown is enabled, yet harmless enough to      \
+             * permit carrying on when it's disabled.  Makes no sense.    \
+             */                                                           \
+            abort();                                                      \
         }                                                                 \
-    }                                                                     \
+    }
 
 struct VfuObjectClass {
     ObjectClass parent_class;
