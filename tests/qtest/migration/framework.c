@@ -255,6 +255,11 @@ static void migrate_start_set_capabilities(QTestState *from, QTestState *to,
     return;
 }
 
+static char *test_shmem_path(void)
+{
+    return g_strdup_printf("/dev/shm/qemu-%d", getpid());
+}
+
 int migrate_start(QTestState **from, QTestState **to, const char *uri,
                   MigrateStart *args)
 {
@@ -342,7 +347,7 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
     }
 
     if (args->use_shmem) {
-        shmem_path = g_strdup_printf("/dev/shm/qemu-%d", getpid());
+        shmem_path = test_shmem_path();
         shmem_opts = g_strdup_printf(
             "-object memory-backend-file,id=mem0,size=%s"
             ",mem-path=%s,share=on -numa node,memdev=mem0",
