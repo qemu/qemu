@@ -1,13 +1,13 @@
-# All ubuntu-22.04 jobs should run successfully in an environment
+# All ubuntu-24.04 jobs should run successfully in an environment
 # setup by the scripts/ci/setup/ubuntu/build-environment.yml task
-# "Install basic packages to build QEMU on Ubuntu 22.04"
+# "Install basic packages to build QEMU on Ubuntu 24.04"
 
-ubuntu-22.04-aarch32-all:
+ubuntu-24.04-aarch32-all:
  extends: .custom_runner_template
  needs: []
  stage: build
  tags:
- - ubuntu_22.04
+ - ubuntu_24.04
  - aarch32
  rules:
  - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
