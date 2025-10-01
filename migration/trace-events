@@ -354,6 +354,7 @@ cpr_state_save(const char *mode) "%s mode"
 cpr_state_load(const char *mode) "%s mode"
 cpr_transfer_input(const char *path) "%s"
 cpr_transfer_output(const char *path) "%s"
+cpr_exec(void) ""
 
 # block-dirty-bitmap.c
 send_bitmap_header_enter(void) ""
