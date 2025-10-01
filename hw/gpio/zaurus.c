@@ -18,7 +18,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/irq.h"
-#include "hw/arm/sharpsl.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
@@ -265,44 +264,3 @@ static void scoop_register_types(void)
 }
 
 type_init(scoop_register_types)
-
-/* Write the bootloader parameters memory area.  */
-
-#define MAGIC_CHG(a, b, c, d)   ((d << 24) | (c << 16) | (b << 8) | a)
-
-static struct QEMU_PACKED sl_param_info {
-    uint32_t comadj_keyword;
-    int32_t comadj;
-
-    uint32_t uuid_keyword;
-    char uuid[16];
-
-    uint32_t touch_keyword;
-    int32_t touch_xp;
-    int32_t touch_yp;
-    int32_t touch_xd;
-    int32_t touch_yd;
-
-    uint32_t adadj_keyword;
-    int32_t adadj;
-
-    uint32_t phad_keyword;
-    int32_t phadadj;
-} zaurus_bootparam = {
-    .comadj_keyword     = MAGIC_CHG('C', 'M', 'A', 'D'),
-    .comadj             = 125,
-    .uuid_keyword       = MAGIC_CHG('U', 'U', 'I', 'D'),
-    .uuid               = { -1 },
-    .touch_keyword      = MAGIC_CHG('T', 'U', 'C', 'H'),
-    .touch_xp           = -1,
-    .adadj_keyword      = MAGIC_CHG('B', 'V', 'A', 'D'),
-    .adadj              = -1,
-    .phad_keyword       = MAGIC_CHG('P', 'H', 'A', 'D'),
-    .phadadj            = 0x01,
-};
-
-void sl_bootparam_write(hwaddr ptr)
-{
-    cpu_physical_memory_write(ptr, &zaurus_bootparam,
-                              sizeof(struct sl_param_info));
-}
