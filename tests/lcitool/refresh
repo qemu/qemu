@@ -270,8 +270,8 @@ try:
     #
     # Ansible package lists
     #
-    generate_yaml("ubuntu", "ubuntu-2204", "aarch64")
-    generate_yaml("ubuntu", "ubuntu-2204", "s390x")
+    generate_yaml("ubuntu", "ubuntu-2404", "aarch64")
+    generate_yaml("ubuntu", "ubuntu-2404", "s390x")
 
 
     sys.exit(0)

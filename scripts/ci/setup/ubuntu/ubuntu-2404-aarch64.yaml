@@ -1,12 +1,13 @@
 # THIS FILE WAS AUTO-GENERATED
 #
-#  $ lcitool variables --host-arch aarch64 ubuntu-2204 qemu
+#  $ lcitool variables --host-arch aarch64 ubuntu-2404 qemu
 #
 # https://gitlab.com/libvirt/libvirt-ci
 
 packages:
   - bash
   - bc
+  - bindgen
   - bison
   - bsdextrautils
   - bzip2
@@ -92,6 +93,7 @@ packages:
   - libvdeplug-dev
   - libvirglrenderer-dev
   - libvte-2.91-dev
+  - libxdp-dev
   - libxen-dev
   - libzstd-dev
   - llvm
