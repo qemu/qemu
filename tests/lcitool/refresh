@@ -216,8 +216,6 @@ try:
     generate_dockerfile("debian-i686-cross", "debian-13",
                         cross="i686",
                         trailer=cross_build("i686-linux-gnu-",
-                                            "x86_64-softmmu,"
-                                            "x86_64-linux-user,"
                                             "i386-softmmu,i386-linux-user"))
 
     # mips no longer supported in debian-13
