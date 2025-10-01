@@ -5,7 +5,7 @@ CPR is the umbrella name for a set of migration modes in which the
 VM is migrated to a new QEMU instance on the same host.  It is
 intended for use when the goal is to update host software components
 that run the VM, such as QEMU or even the host kernel.  At this time,
-the cpr-reboot and cpr-transfer modes are available.
+the cpr-reboot, cpr-transfer, and cpr-exec modes are available.
 
 Because QEMU is restarted on the same host, with access to the same
 local devices, CPR is allowed in certain cases where normal migration
@@ -324,3 +324,113 @@ descriptors from old to new QEMU.  In the future, descriptors for
 vhost, and char devices could be transferred,
 preserving those devices and their kernel state without interruption,
 even if they do not explicitly support live migration.
+
+cpr-exec mode
+-------------
+
+In this mode, QEMU stops the VM, writes VM state to the migration
+URI, and directly exec's a new version of QEMU on the same host,
+replacing the original process while retaining its PID.  Guest RAM is
+preserved in place, albeit with new virtual addresses.  The user
+completes the migration by specifying the ``-incoming`` option, and
+by issuing the ``migrate-incoming`` command if necessary; see details
+below.
+
+This mode supports VFIO/IOMMUFD devices by preserving device
+descriptors and hence kernel state across the exec, even for devices
+that do not support live migration.
+
+Because the old and new QEMU instances are not active concurrently,
+the URI cannot be a type that streams data from one instance to the
+other.
+
+This mode does not require a channel of type ``cpr``.  The information
+that is passed over that channel for cpr-transfer mode is instead
+serialized to a memfd, the number of the fd is saved in the
+QEMU_CPR_EXEC_STATE environment variable during the exec of new QEMU.
+and new QEMU mmaps the memfd.
+
+Usage
+^^^^^
+
+Arguments for the new QEMU process are taken from the
+@cpr-exec-command parameter.  The first argument should be the
+path of a new QEMU binary, or a prefix command that exec's the
+new QEMU binary, and the arguments should include the ''-incoming''
+option.
+
+Memory backend objects must have the ``share=on`` attribute.
+The VM must be started with the ``-machine aux-ram-share=on`` option.
+
+Outgoing:
+  * Set the migration mode parameter to ``cpr-exec``.
+  * Set the ``cpr-exec-command`` parameter.
+  * Issue the ``migrate`` command.  It is recommended that the URI be
+    a ``file`` type, but one can use other types such as ``exec``,
+    provided the command captures all the data from the outgoing side,
+    and provides all the data to the incoming side.
+
+Incoming:
+  * You do not need to explicitly start new QEMU.  It is started as
+    a side effect of the migrate command above.
+  * If the VM was running when the outgoing ``migrate`` command was
+    issued, then QEMU automatically resumes VM execution.
+
+Example 1: incoming URI
+^^^^^^^^^^^^^^^^^^^^^^^
+
+In these examples, we simply restart the same version of QEMU, but in
+a real scenario one would set a new QEMU binary path in
+cpr-exec-command.
+
+::
+
+  # qemu-kvm -monitor stdio
+  -object memory-backend-memfd,id=ram0,size=4G
+  -machine memory-backend=ram0
+  -machine aux-ram-share=on
+  ...
+
+  QEMU 10.2.50 monitor - type 'help' for more information
+  (qemu) info status
+  VM status: running
+  (qemu) migrate_set_parameter mode cpr-exec
+  (qemu) migrate_set_parameter cpr-exec-command qemu-kvm ... -incoming file:vm.state
+  (qemu) migrate -d file:vm.state
+  (qemu) QEMU 10.2.50 monitor - type 'help' for more information
+  (qemu) info status
+  VM status: running
+
+Example 2: incoming defer
+^^^^^^^^^^^^^^^^^^^^^^^^^
+::
+
+  # qemu-kvm -monitor stdio
+  -object memory-backend-memfd,id=ram0,size=4G
+  -machine memory-backend=ram0
+  -machine aux-ram-share=on
+  ...
+
+  QEMU 10.2.50 monitor - type 'help' for more information
+  (qemu) info status
+  VM status: running
+  (qemu) migrate_set_parameter mode cpr-exec
+  (qemu) migrate_set_parameter cpr-exec-command qemu-kvm ... -incoming defer
+  (qemu) migrate -d file:vm.state
+  (qemu) QEMU 10.2.50 monitor - type 'help' for more information
+  (qemu) info status
+  status: paused (inmigrate)
+  (qemu) migrate_incoming file:vm.state
+  (qemu) info status
+  VM status: running
+
+Caveats
+^^^^^^^
+
+cpr-exec mode may not be used with postcopy, background-snapshot,
+or COLO.
+
+cpr-exec mode requires permission to use the exec system call, which
+is denied by certain sandbox options, such as spawn.
+
+The guest pause time increases for large guest RAM backed by small pages.
