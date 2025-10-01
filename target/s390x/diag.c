@@ -79,7 +79,8 @@ static void s390_ipl_read(CPUS390XState *env, uint64_t addr,
     if (s390_is_pv()) {
         s390_cpu_pv_mem_read(env_archcpu(env), 0, iplb, size);
     } else {
-        cpu_physical_memory_read(addr, iplb, size);
+        address_space_read(cpu_get_address_space(env_cpu(env), 0), addr,
+                           MEMTXATTRS_UNSPECIFIED, iplb, size);
     }
 }
 
@@ -89,7 +90,8 @@ static void s390_ipl_write(CPUS390XState *env, uint64_t addr,
     if (s390_is_pv()) {
         s390_cpu_pv_mem_write(env_archcpu(env), 0, iplb, size);
     } else {
-        cpu_physical_memory_write(addr, iplb, size);
+        address_space_write(cpu_get_address_space(env_cpu(env), 0), addr,
+                            MEMTXATTRS_UNSPECIFIED, iplb, size);
     }
 }
 
