@@ -48,6 +48,15 @@ QTestState *qtest_initf(const char *fmt, ...) G_GNUC_PRINTF(1, 2);
 QTestState *qtest_vinitf(const char *fmt, va_list ap) G_GNUC_PRINTF(1, 0);
 
 /**
+ * qtest_qemu_binary:
+ * @var: environment variable name
+ *
+ * Look up @var and return its value as the qemu binary path.
+ * If @var is NULL, look up  the default var name.
+ */
+const char *qtest_qemu_binary(const char *var);
+
+/**
  * qtest_init:
  * @extra_args: other arguments to pass to QEMU.  CAUTION: these
  * arguments are subject to word splitting and shell evaluation.

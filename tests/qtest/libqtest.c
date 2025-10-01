@@ -357,7 +357,7 @@ void qtest_remove_abrt_handler(void *data)
     }
 }
 
-static const char *qtest_qemu_binary(const char *var)
+const char *qtest_qemu_binary(const char *var)
 {
     const char *qemu_bin;
 
