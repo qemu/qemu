@@ -418,7 +418,8 @@ static QTestState *qtest_create_test_state(int pid)
     return s;
 }
 
-static QTestState *qtest_spawn_qemu(const char *qemu_bin, const char *args)
+static QTestState *qtest_spawn_qemu(const char *qemu_bin, const char *args,
+                                    void *opaque)
 {
     int pid;
     g_autoptr(GString) command = g_string_new("");
@@ -492,9 +493,15 @@ gchar *qtest_qemu_args(const char *extra_args)
     return args;
 }
 
+typedef QTestState *(*qtest_qemu_spawn_func)(const char *qemu_bin,
+                                             const char *extra_args,
+                                             void *opaque);
+
 static QTestState *qtest_init_internal(const char *qemu_bin,
                                        const char *extra_args,
-                                       bool do_connect)
+                                       bool do_connect,
+                                       qtest_qemu_spawn_func spawn,
+                                       void *opaque)
 {
     QTestState *s;
     int sock, qmpsock, i;
@@ -515,7 +522,7 @@ static QTestState *qtest_init_internal(const char *qemu_bin,
     sock = init_socket(socket_path);
     qmpsock = init_socket(qmp_socket_path);
 
-    s = qtest_spawn_qemu(qemu_bin, args);
+    s = spawn(qemu_bin, args, opaque);
 
     qtest_client_set_rx_handler(s, qtest_client_socket_recv_line);
     qtest_client_set_tx_handler(s, qtest_client_socket_send);
@@ -570,7 +577,8 @@ void qtest_connect(QTestState *s)
 
 QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
 {
-    return qtest_init_internal(qtest_qemu_binary(NULL), extra_args, true);
+    return qtest_init_internal(qtest_qemu_binary(NULL), extra_args, true,
+                               qtest_spawn_qemu, NULL);
 }
 
 void qtest_qmp_handshake(QTestState *s, QList *capabilities)
@@ -593,7 +601,7 @@ QTestState *qtest_init_ext(const char *var, const char *extra_args,
                            QList *capabilities, bool do_connect)
 {
     QTestState *s = qtest_init_internal(qtest_qemu_binary(var), extra_args,
-                                        do_connect);
+                                        do_connect, qtest_spawn_qemu, NULL);
 
     if (do_connect) {
         qtest_qmp_handshake(s, capabilities);
