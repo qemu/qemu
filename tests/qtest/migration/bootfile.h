@@ -35,5 +35,6 @@
 
 void bootfile_delete(void);
 char *bootfile_create(const char *arch, const char *dir, bool suspend_me);
+char *bootfile_get(void);
 
 #endif /* BOOTFILE_H */

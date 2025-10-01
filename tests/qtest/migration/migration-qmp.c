@@ -442,6 +442,22 @@ void migrate_set_parameter_str(QTestState *who, const char *parameter,
     migrate_check_parameter_str(who, parameter, value);
 }
 
+void migrate_set_parameter_strv(QTestState *who, const char *parameter,
+                                char **strv)
+{
+    g_autofree char *args = g_strjoinv("\",\"", strv);
+    g_autoptr(GString) value = g_string_new("");
+    g_autofree char *command = NULL;
+
+    g_string_printf(value, "\"%s\"", args);
+
+    command = g_strdup_printf("{ 'execute': 'migrate-set-parameters',"
+                              "'arguments': { %%s: [ %s ]}}",
+                              value->str);
+
+    qtest_qmp_assert_success(who, command, parameter);
+}
+
 static long long migrate_get_parameter_bool(QTestState *who,
                                             const char *parameter)
 {

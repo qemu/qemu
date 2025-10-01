@@ -2864,7 +2864,7 @@ int main(int argc, char *argv[])
                            test_acpi_riscv64_virt_tcg_acpi_spcr);
         }
     } else if (strcmp(arch, "loongarch64") == 0) {
-        if (has_tcg) {
+        if (has_tcg && qtest_has_machine("virt")) {
             qtest_add_func("acpi/virt", test_acpi_loongarch64_virt);
             qtest_add_func("acpi/virt/topology",
                            test_acpi_loongarch64_virt_topology);

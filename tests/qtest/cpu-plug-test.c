@@ -190,7 +190,7 @@ int main(int argc, char **argv)
         qtest_cb_for_every_machine(add_pseries_test_case, g_test_quick());
     } else if (g_str_equal(arch, "s390x")) {
         qtest_cb_for_every_machine(add_s390x_test_case, g_test_quick());
-    } else if (g_str_equal(arch, "loongarch64")) {
+    } else if (g_str_equal(arch, "loongarch64") && qtest_has_machine("virt")) {
         add_loongarch_test_case("virt");
     }
 
