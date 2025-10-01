@@ -409,22 +409,29 @@ static pid_t qtest_create_process(char *cmd)
 }
 #endif /* _WIN32 */
 
-static QTestState *qtest_spawn_qemu(const char *qemu_bin, const char *args)
+static QTestState *qtest_create_test_state(int pid)
 {
     QTestState *s = g_new0(QTestState, 1);
+
+    s->qemu_pid = pid;
+    qtest_add_abrt_handler(kill_qemu_hook_func, s);
+    return s;
+}
+
+static QTestState *qtest_spawn_qemu(const char *qemu_bin, const char *args)
+{
+    int pid;
     g_autoptr(GString) command = g_string_new("");
 
     g_string_printf(command, CMD_EXEC "%s %s", qemu_bin, args);
-
-    qtest_add_abrt_handler(kill_qemu_hook_func, s);
 
     if (!silence_spawn_log) {
         g_test_message("starting QEMU: %s", command->str);
     }
 
 #ifndef _WIN32
-    s->qemu_pid = fork();
-    if (s->qemu_pid == 0) {
+    pid = fork();
+    if (pid == 0) {
 #ifdef __linux__
         /*
          * Although we register a ABRT handler to kill off QEMU
@@ -447,10 +454,10 @@ static QTestState *qtest_spawn_qemu(const char *qemu_bin, const char *args)
         exit(1);
     }
 #else
-    s->qemu_pid = qtest_create_process(command->str);
+    pid = qtest_create_process(command->str);
 #endif /* _WIN32 */
 
-    return s;
+    return qtest_create_test_state(pid);
 }
 
 static char *qtest_socket_path(const char *suffix)
