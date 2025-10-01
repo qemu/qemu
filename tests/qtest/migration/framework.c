@@ -260,13 +260,12 @@ static char *test_shmem_path(void)
     return g_strdup_printf("/dev/shm/qemu-%d", getpid());
 }
 
-int migrate_start(QTestState **from, QTestState **to, const char *uri,
-                  MigrateStart *args)
+int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
 {
     /* options for source and target */
     g_autofree gchar *arch_opts = NULL;
-    g_autofree gchar *cmd_source = NULL;
-    g_autofree gchar *cmd_target = NULL;
+    gchar *cmd_source = NULL;
+    gchar *cmd_target = NULL;
     const gchar *ignore_stderr;
     g_autofree char *shmem_opts = NULL;
     g_autofree char *shmem_path = NULL;
@@ -275,22 +274,9 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
     const char *memory_size;
     const char *machine_alias, *machine_opts = "";
     g_autofree char *machine = NULL;
-    const char *bootpath;
-    g_autoptr(QList) capabilities = migrate_start_get_qmp_capabilities(args);
+    const char *bootpath = bootfile_get();
     g_autofree char *memory_backend = NULL;
     const char *events;
-
-    if (args->use_shmem) {
-        if (!g_file_test("/dev/shm", G_FILE_TEST_IS_DIR)) {
-            g_test_skip("/dev/shm is not supported");
-            return -1;
-        }
-    }
-
-    dst_state = (QTestMigrationState) { };
-    src_state = (QTestMigrationState) { };
-    bootpath = bootfile_create(arch, tmpfs, args->suspend_me);
-    src_state.suspend_me = args->suspend_me;
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         memory_size = "150M";
@@ -388,12 +374,6 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
                                  shmem_opts ? shmem_opts : "",
                                  args->opts_source ? args->opts_source : "",
                                  ignore_stderr);
-    if (!args->only_target) {
-        *from = qtest_init_ext(QEMU_ENV_SRC, cmd_source, capabilities, true);
-        qtest_qmp_set_event_callback(*from,
-                                     migrate_watch_for_events,
-                                     &src_state);
-    }
 
     /*
      * If the monitor connection is deferred, enable events on the command line
@@ -417,6 +397,42 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
                                  shmem_opts ? shmem_opts : "",
                                  args->opts_target ? args->opts_target : "",
                                  ignore_stderr);
+
+    *from = cmd_source;
+    *to = cmd_target;
+    return 0;
+}
+
+int migrate_start(QTestState **from, QTestState **to, const char *uri,
+                  MigrateStart *args)
+{
+    g_autofree gchar *cmd_source = NULL;
+    g_autofree gchar *cmd_target = NULL;
+    g_autoptr(QList) capabilities = migrate_start_get_qmp_capabilities(args);
+
+    if (args->use_shmem) {
+        if (!g_file_test("/dev/shm", G_FILE_TEST_IS_DIR)) {
+            g_test_skip("/dev/shm is not supported");
+            return -1;
+        }
+    }
+
+    dst_state = (QTestMigrationState) { };
+    src_state = (QTestMigrationState) { };
+    bootfile_create(qtest_get_arch(), tmpfs, args->suspend_me);
+    src_state.suspend_me = args->suspend_me;
+
+    if (migrate_args(&cmd_source, &cmd_target, uri, args)) {
+        return -1;
+    }
+
+    if (!args->only_target) {
+        *from = qtest_init_ext(QEMU_ENV_SRC, cmd_source, capabilities, true);
+        qtest_qmp_set_event_callback(*from,
+                                     migrate_watch_for_events,
+                                     &src_state);
+    }
+
     if (!args->only_source) {
         *to = qtest_init_ext(QEMU_ENV_DST, cmd_target, capabilities,
                              !args->defer_target_connect);
@@ -430,6 +446,7 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
      * It's valid because QEMU has already opened this file
      */
     if (args->use_shmem) {
+        g_autofree char *shmem_path = test_shmem_path();
         unlink(shmem_path);
     }
 
