@@ -192,7 +192,7 @@ static void leon3_cache_control_int(CPUSPARCState *env)
 
 static void leon3_irq_ack(CPUSPARCState *env, int intno)
 {
-    CPUState *cpu = CPU(env_cpu(env));
+    CPUState *cpu = env_cpu(env);
     grlib_irqmp_ack(env->irq_manager, cpu->cpu_index, intno);
 }
 
