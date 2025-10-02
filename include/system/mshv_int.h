@@ -14,6 +14,8 @@
 #ifndef QEMU_MSHV_INT_H
 #define QEMU_MSHV_INT_H
 
+#define MSHV_MSR_ENTRIES_COUNT 64
+
 typedef struct hyperv_message hv_message;
 
 struct AccelCPUState {
@@ -101,6 +103,21 @@ typedef struct MshvMemoryRegion {
 
 void mshv_set_phys_mem(MshvMemoryListener *mml, MemoryRegionSection *section,
                        bool add);
+
+/* msr */
+typedef struct MshvMsrEntry {
+  uint32_t index;
+  uint32_t reserved;
+  uint64_t data;
+} MshvMsrEntry;
+
+typedef struct MshvMsrEntries {
+    MshvMsrEntry entries[MSHV_MSR_ENTRIES_COUNT];
+    uint32_t nmsrs;
+} MshvMsrEntries;
+
+int mshv_configure_msr(const CPUState *cpu, const MshvMsrEntry *msrs,
+                       size_t n_msrs);
 
 /* interrupt */
 void mshv_init_msicontrol(void);

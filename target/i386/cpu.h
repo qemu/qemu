@@ -435,9 +435,11 @@ typedef enum X86Seg {
 #define MSR_SMI_COUNT                   0x34
 #define MSR_CORE_THREAD_COUNT           0x35
 #define MSR_MTRRcap                     0xfe
+#define MSR_MTRR_MEM_TYPE_WB            0x06
 #define MSR_MTRRcap_VCNT                8
 #define MSR_MTRRcap_FIXRANGE_SUPPORT    (1 << 8)
 #define MSR_MTRRcap_WC_SUPPORTED        (1 << 10)
+#define MSR_MTRR_ENABLE                 (1 << 11)
 
 #define MSR_IA32_SYSENTER_CS            0x174
 #define MSR_IA32_SYSENTER_ESP           0x175
