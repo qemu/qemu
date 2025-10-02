@@ -172,6 +172,46 @@ static void sigp_store_status_at_address(CPUState *cs, run_on_cpu_data arg)
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
+typedef struct SigpAdtlSaveArea {
+    uint64_t    vregs[32][2];                     /* 0x0000 */
+    uint8_t     pad_0x0200[0x0400 - 0x0200];      /* 0x0200 */
+    uint64_t    gscb[4];                          /* 0x0400 */
+    uint8_t     pad_0x0420[0x1000 - 0x0420];      /* 0x0420 */
+} SigpAdtlSaveArea;
+QEMU_BUILD_BUG_ON(sizeof(SigpAdtlSaveArea) != 4096);
+
+#define ADTL_GS_MIN_SIZE 2048 /* minimal size of adtl save area for GS */
+static int s390_store_adtl_status(S390CPU *cpu, hwaddr addr, hwaddr len)
+{
+    SigpAdtlSaveArea *sa;
+    hwaddr save = len;
+    int i;
+
+    sa = cpu_physical_memory_map(addr, &save, true);
+    if (!sa) {
+        return -EFAULT;
+    }
+    if (save != len) {
+        cpu_physical_memory_unmap(sa, len, 1, 0);
+        return -EFAULT;
+    }
+
+    if (s390_has_feat(S390_FEAT_VECTOR)) {
+        for (i = 0; i < 32; i++) {
+            sa->vregs[i][0] = cpu_to_be64(cpu->env.vregs[i][0]);
+            sa->vregs[i][1] = cpu_to_be64(cpu->env.vregs[i][1]);
+        }
+    }
+    if (s390_has_feat(S390_FEAT_GUARDED_STORAGE) && len >= ADTL_GS_MIN_SIZE) {
+        for (i = 0; i < 4; i++) {
+            sa->gscb[i] = cpu_to_be64(cpu->env.gscb[i]);
+        }
+    }
+
+    cpu_physical_memory_unmap(sa, len, 1, len);
+    return 0;
+}
+
 #define ADTL_SAVE_LC_MASK  0xfUL
 static void sigp_store_adtl_status(CPUState *cs, run_on_cpu_data arg)
 {
