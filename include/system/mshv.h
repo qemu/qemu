@@ -14,8 +14,17 @@
 #ifndef QEMU_MSHV_H
 #define QEMU_MSHV_H
 
+#include "qemu/osdep.h"
+#include "qemu/accel.h"
+#include "hw/hyperv/hyperv-proto.h"
+#include "hw/hyperv/hvhdk.h"
+#include "qapi/qapi-types-common.h"
+#include "system/memory.h"
+#include "accel/accel-ops.h"
+
 #ifdef COMPILING_PER_TARGET
 #ifdef CONFIG_MSHV
+#include <linux/mshv.h>
 #define CONFIG_MSHV_IS_POSSIBLE
 #endif
 #else
@@ -29,6 +38,9 @@ extern bool mshv_allowed;
 #define mshv_enabled() false
 #endif
 #define mshv_msi_via_irqfd_enabled() false
+
+typedef struct MshvState MshvState;
+extern MshvState *mshv_state;
 
 /* interrupt */
 int mshv_irqchip_add_msi_route(int vector, PCIDevice *dev);
