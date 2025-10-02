@@ -285,7 +285,7 @@ static void do_program_interrupt(CPUS390XState *env)
     addr = be64_to_cpu(lowcore->program_new_psw.addr);
     lowcore->per_breaking_event_addr = cpu_to_be64(env->gbea);
 
-    cpu_unmap_lowcore(lowcore);
+    cpu_unmap_lowcore(env, lowcore);
 
     s390_cpu_set_psw(env, mask, addr);
 }
@@ -304,7 +304,7 @@ static void do_svc_interrupt(CPUS390XState *env)
     mask = be64_to_cpu(lowcore->svc_new_psw.mask);
     addr = be64_to_cpu(lowcore->svc_new_psw.addr);
 
-    cpu_unmap_lowcore(lowcore);
+    cpu_unmap_lowcore(env, lowcore);
 
     s390_cpu_set_psw(env, mask, addr);
 
@@ -378,7 +378,7 @@ static void do_ext_interrupt(CPUS390XState *env)
     lowcore->external_old_psw.mask = cpu_to_be64(s390_cpu_get_psw_mask(env));
     lowcore->external_old_psw.addr = cpu_to_be64(env->psw.addr);
 
-    cpu_unmap_lowcore(lowcore);
+    cpu_unmap_lowcore(env, lowcore);
 
     s390_cpu_set_psw(env, mask, addr);
 }
@@ -405,7 +405,7 @@ static void do_io_interrupt(CPUS390XState *env)
     mask = be64_to_cpu(lowcore->io_new_psw.mask);
     addr = be64_to_cpu(lowcore->io_new_psw.addr);
 
-    cpu_unmap_lowcore(lowcore);
+    cpu_unmap_lowcore(env, lowcore);
     g_free(io);
 
     s390_cpu_set_psw(env, mask, addr);
@@ -491,7 +491,7 @@ static void do_mchk_interrupt(CPUS390XState *env)
     mask = be64_to_cpu(lowcore->mcck_new_psw.mask);
     addr = be64_to_cpu(lowcore->mcck_new_psw.addr);
 
-    cpu_unmap_lowcore(lowcore);
+    cpu_unmap_lowcore(env, lowcore);
 
     s390_cpu_set_psw(env, mask, addr);
 }

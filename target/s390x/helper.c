@@ -117,7 +117,7 @@ LowCore *cpu_map_lowcore(CPUS390XState *env)
     return lowcore;
 }
 
-void cpu_unmap_lowcore(LowCore *lowcore)
+void cpu_unmap_lowcore(CPUS390XState *env, LowCore *lowcore)
 {
     cpu_physical_memory_unmap(lowcore, sizeof(LowCore), 1, sizeof(LowCore));
 }
@@ -134,7 +134,7 @@ void do_restart_interrupt(CPUS390XState *env)
     mask = be64_to_cpu(lowcore->restart_new_psw.mask);
     addr = be64_to_cpu(lowcore->restart_new_psw.addr);
 
-    cpu_unmap_lowcore(lowcore);
+    cpu_unmap_lowcore(env, lowcore);
     env->pending_int &= ~INTERRUPT_RESTART;
 
     s390_cpu_set_psw(env, mask, addr);
