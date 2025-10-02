@@ -30,6 +30,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "qemu/timer.h"
 #include "system/address-spaces.h"
+#include "system/memory.h"
 #include "hw/s390x/ioinst.h"
 #include "hw/s390x/s390_flic.h"
 #include "hw/boards.h"
@@ -418,16 +419,18 @@ QEMU_BUILD_BUG_ON(sizeof(MchkExtSaveArea) != 1024);
 
 static int mchk_store_vregs(CPUS390XState *env, uint64_t mcesao)
 {
+    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+    AddressSpace *as = env_cpu(env)->as;
     hwaddr len = sizeof(MchkExtSaveArea);
     MchkExtSaveArea *sa;
     int i;
 
-    sa = cpu_physical_memory_map(mcesao, &len, true);
+    sa = address_space_map(as, mcesao, &len, true, attrs);
     if (!sa) {
         return -EFAULT;
     }
     if (len != sizeof(MchkExtSaveArea)) {
-        cpu_physical_memory_unmap(sa, len, 1, 0);
+        address_space_unmap(as, sa, len, true, 0);
         return -EFAULT;
     }
 
@@ -436,7 +439,7 @@ static int mchk_store_vregs(CPUS390XState *env, uint64_t mcesao)
         sa->vregs[i][1] = cpu_to_be64(env->vregs[i][1]);
     }
 
-    cpu_physical_memory_unmap(sa, len, 1, len);
+    address_space_unmap(as, sa, len, true, len);
     return 0;
 }
 
