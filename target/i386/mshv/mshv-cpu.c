@@ -34,6 +34,10 @@
 
 #include <sys/ioctl.h>
 
+#define MAX_REGISTER_COUNT (MAX_CONST(ARRAY_SIZE(STANDARD_REGISTER_NAMES), \
+                            MAX_CONST(ARRAY_SIZE(SPECIAL_REGISTER_NAMES), \
+                                      ARRAY_SIZE(FPU_REGISTER_NAMES))))
+
 static enum hv_register_name STANDARD_REGISTER_NAMES[18] = {
     HV_X64_REGISTER_RAX,
     HV_X64_REGISTER_RBX,
@@ -151,7 +155,7 @@ int mshv_set_generic_regs(const CPUState *cpu, const hv_register_assoc *assocs,
     int cpu_fd = mshv_vcpufd(cpu);
     int vp_index = cpu->cpu_index;
     size_t in_sz, assocs_sz;
-    hv_input_set_vp_registers *in;
+    hv_input_set_vp_registers *in = cpu->accel->hvcall_args.input_page;
     struct mshv_root_hvcall args = {0};
     int ret;
 
@@ -160,7 +164,7 @@ int mshv_set_generic_regs(const CPUState *cpu, const hv_register_assoc *assocs,
     in_sz = sizeof(hv_input_set_vp_registers) + assocs_sz;
 
     /* fill the input struct */
-    in = g_malloc0(in_sz);
+    memset(in, 0, sizeof(hv_input_set_vp_registers));
     in->vp_index = vp_index;
     memcpy(in->elements, assocs, assocs_sz);
 
@@ -172,7 +176,6 @@ int mshv_set_generic_regs(const CPUState *cpu, const hv_register_assoc *assocs,
 
     /* perform the call */
     ret = mshv_hvcall(cpu_fd, &args);
-    g_free(in);
     if (ret < 0) {
         error_report("Failed to set registers");
         return -1;
@@ -193,8 +196,8 @@ static int get_generic_regs(CPUState *cpu, hv_register_assoc *assocs,
 {
     int cpu_fd = mshv_vcpufd(cpu);
     int vp_index = cpu->cpu_index;
-    hv_input_get_vp_registers *in;
-    hv_register_value *values;
+    hv_input_get_vp_registers *in = cpu->accel->hvcall_args.input_page;
+    hv_register_value *values = cpu->accel->hvcall_args.output_page;
     size_t in_sz, names_sz, values_sz;
     int i, ret;
     struct mshv_root_hvcall args = {0};
@@ -204,15 +207,14 @@ static int get_generic_regs(CPUState *cpu, hv_register_assoc *assocs,
     in_sz = sizeof(hv_input_get_vp_registers) + names_sz;
 
     /* fill the input struct */
-    in = g_malloc0(in_sz);
+    memset(in, 0, sizeof(hv_input_get_vp_registers));
     in->vp_index = vp_index;
     for (i = 0; i < n_regs; i++) {
         in->names[i] = assocs[i].name;
     }
 
-    /* allocate value output buffer */
+    /* determine size of value output buffer */
     values_sz = n_regs * sizeof(union hv_register_value);
-    values = g_malloc0(values_sz);
 
     /* create the hvcall envelope */
     args.code = HVCALL_GET_VP_REGISTERS;
@@ -224,16 +226,13 @@ static int get_generic_regs(CPUState *cpu, hv_register_assoc *assocs,
 
     /* perform the call */
     ret = mshv_hvcall(cpu_fd, &args);
-    g_free(in);
     if (ret < 0) {
-        g_free(values);
         error_report("Failed to retrieve registers");
         return -1;
     }
 
     /* assert we got all registers */
     if (args.reps != n_regs) {
-        g_free(values);
         error_report("Failed to retrieve registers: expected %zu elements"
                      ", got %u", n_regs, args.reps);
         return -1;
@@ -243,7 +242,6 @@ static int get_generic_regs(CPUState *cpu, hv_register_assoc *assocs,
     for (i = 0; i < n_regs; i++) {
         assocs[i].value = values[i];
     }
-    g_free(values);
 
     return 0;
 }
@@ -1696,6 +1694,19 @@ void mshv_arch_init_vcpu(CPUState *cpu)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
+    AccelCPUState *state = cpu->accel;
+    size_t page = HV_HYP_PAGE_SIZE;
+    void *mem = qemu_memalign(page, 2 * page);
+
+    /* sanity check, to make sure we don't overflow the page */
+    QEMU_BUILD_BUG_ON((MAX_REGISTER_COUNT
+                      * sizeof(hv_register_assoc)
+                      + sizeof(hv_input_get_vp_registers)
+                      > HV_HYP_PAGE_SIZE));
+
+    state->hvcall_args.base = mem;
+    state->hvcall_args.input_page = mem;
+    state->hvcall_args.output_page = (uint8_t *)mem + page;
 
     env->emu_mmio_buf = g_new(char, 4096);
 }
@@ -1704,7 +1715,10 @@ void mshv_arch_destroy_vcpu(CPUState *cpu)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
+    AccelCPUState *state = cpu->accel;
 
+    g_free(state->hvcall_args.base);
+    state->hvcall_args = (MshvHvCallArgs){0};
     g_clear_pointer(&env->emu_mmio_buf, g_free);
 }
 

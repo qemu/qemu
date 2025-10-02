@@ -20,9 +20,16 @@
 
 typedef struct hyperv_message hv_message;
 
+typedef struct MshvHvCallArgs {
+    void *base;
+    void *input_page;
+    void *output_page;
+} MshvHvCallArgs;
+
 struct AccelCPUState {
     int cpufd;
     bool dirty;
+    MshvHvCallArgs hvcall_args;
 };
 
 typedef struct MshvMemoryListener {
