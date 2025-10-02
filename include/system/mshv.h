@@ -18,6 +18,7 @@
 #include "qemu/accel.h"
 #include "hw/hyperv/hyperv-proto.h"
 #include "hw/hyperv/hvhdk.h"
+#include "hw/hyperv/hvgdk_mini.h"
 #include "qapi/qapi-types-common.h"
 #include "system/memory.h"
 #include "accel/accel-ops.h"
