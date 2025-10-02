@@ -323,8 +323,6 @@ void s390x_cpu_timer(void *opaque);
 void s390_handle_wait(S390CPU *cpu);
 hwaddr s390_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 hwaddr s390_cpu_get_phys_addr_debug(CPUState *cpu, vaddr addr);
-#define S390_STORE_STATUS_DEF_ADDR offsetof(LowCore, floating_pt_save_area)
-int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch);
 LowCore *cpu_map_lowcore(CPUS390XState *env);
 void cpu_unmap_lowcore(CPUS390XState *env, LowCore *lowcore);
 #endif /* CONFIG_USER_ONLY */

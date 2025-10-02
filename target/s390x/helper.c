@@ -24,7 +24,6 @@
 #include "gdbstub/helpers.h"
 #include "qemu/timer.h"
 #include "hw/s390x/ioinst.h"
-#include "target/s390x/kvm/pv.h"
 #include "system/hw_accel.h"
 #include "system/memory.h"
 #include "system/runstate.h"
@@ -181,70 +180,4 @@ void s390_cpu_recompute_watchpoints(CPUState *cs)
                               env->cregs[11] - env->cregs[10] + 1,
                               wp_flags, NULL);
     }
-}
-
-typedef struct SigpSaveArea {
-    uint64_t    fprs[16];                       /* 0x0000 */
-    uint64_t    grs[16];                        /* 0x0080 */
-    PSW         psw;                            /* 0x0100 */
-    uint8_t     pad_0x0110[0x0118 - 0x0110];    /* 0x0110 */
-    uint32_t    prefix;                         /* 0x0118 */
-    uint32_t    fpc;                            /* 0x011c */
-    uint8_t     pad_0x0120[0x0124 - 0x0120];    /* 0x0120 */
-    uint32_t    todpr;                          /* 0x0124 */
-    uint64_t    cputm;                          /* 0x0128 */
-    uint64_t    ckc;                            /* 0x0130 */
-    uint8_t     pad_0x0138[0x0140 - 0x0138];    /* 0x0138 */
-    uint32_t    ars[16];                        /* 0x0140 */
-    uint64_t    crs[16];                        /* 0x0384 */
-} SigpSaveArea;
-QEMU_BUILD_BUG_ON(sizeof(SigpSaveArea) != 512);
-
-int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
-{
-    static const uint8_t ar_id = 1;
-    SigpSaveArea *sa;
-    hwaddr len = sizeof(*sa);
-    int i;
-
-    /* For PVMs storing will occur when this cpu enters SIE again */
-    if (s390_is_pv()) {
-        return 0;
-    }
-
-    sa = cpu_physical_memory_map(addr, &len, true);
-    if (!sa) {
-        return -EFAULT;
-    }
-    if (len != sizeof(*sa)) {
-        cpu_physical_memory_unmap(sa, len, 1, 0);
-        return -EFAULT;
-    }
-
-    if (store_arch) {
-        cpu_physical_memory_write(offsetof(LowCore, ar_access_id), &ar_id, 1);
-    }
-    for (i = 0; i < 16; ++i) {
-        sa->fprs[i] = cpu_to_be64(*get_freg(&cpu->env, i));
-    }
-    for (i = 0; i < 16; ++i) {
-        sa->grs[i] = cpu_to_be64(cpu->env.regs[i]);
-    }
-    sa->psw.addr = cpu_to_be64(cpu->env.psw.addr);
-    sa->psw.mask = cpu_to_be64(s390_cpu_get_psw_mask(&cpu->env));
-    sa->prefix = cpu_to_be32(cpu->env.psa);
-    sa->fpc = cpu_to_be32(cpu->env.fpc);
-    sa->todpr = cpu_to_be32(cpu->env.todpr);
-    sa->cputm = cpu_to_be64(cpu->env.cputm);
-    sa->ckc = cpu_to_be64(cpu->env.ckc >> 8);
-    for (i = 0; i < 16; ++i) {
-        sa->ars[i] = cpu_to_be32(cpu->env.aregs[i]);
-    }
-    for (i = 0; i < 16; ++i) {
-        sa->crs[i] = cpu_to_be64(cpu->env.cregs[i]);
-    }
-
-    cpu_physical_memory_unmap(sa, len, 1, len);
-
-    return 0;
 }
