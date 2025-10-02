@@ -36,10 +36,35 @@ struct MshvState {
     /* number of listeners */
     int nr_as;
     MshvAddressSpace *as;
+    int fd;
 };
 
+typedef struct MshvMsiControl {
+    bool updated;
+    GHashTable *gsi_routes;
+} MshvMsiControl;
+
+void mshv_arch_amend_proc_features(
+    union hv_partition_synthetic_processor_features *features);
+int mshv_arch_post_init_vm(int vm_fd);
+
+#if defined COMPILING_PER_TARGET && defined CONFIG_MSHV_IS_POSSIBLE
+int mshv_hvcall(int fd, const struct mshv_root_hvcall *args);
+#endif
+
 /* memory */
+typedef struct MshvMemoryRegion {
+    uint64_t guest_phys_addr;
+    uint64_t memory_size;
+    uint64_t userspace_addr;
+    bool readonly;
+} MshvMemoryRegion;
+
 void mshv_set_phys_mem(MshvMemoryListener *mml, MemoryRegionSection *section,
                        bool add);
+
+/* interrupt */
+void mshv_init_msicontrol(void);
+int mshv_reserve_ioapic_msi_routes(int vm_fd);
 
 #endif

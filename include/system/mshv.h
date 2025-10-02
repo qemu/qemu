@@ -31,18 +31,27 @@
 #define CONFIG_MSHV_IS_POSSIBLE
 #endif
 
+#define MSHV_MAX_MSI_ROUTES 4096
+
+#define MSHV_PAGE_SHIFT 12
+
 #ifdef CONFIG_MSHV_IS_POSSIBLE
 extern bool mshv_allowed;
 #define mshv_enabled() (mshv_allowed)
+#define mshv_msi_via_irqfd_enabled() mshv_enabled()
 #else /* CONFIG_MSHV_IS_POSSIBLE */
 #define mshv_enabled() false
-#endif
 #define mshv_msi_via_irqfd_enabled() false
+#endif
 
 typedef struct MshvState MshvState;
 extern MshvState *mshv_state;
 
 /* interrupt */
+int mshv_request_interrupt(MshvState *mshv_state, uint32_t interrupt_type, uint32_t vector,
+                           uint32_t vp_index, bool logical_destination_mode,
+                           bool level_triggered);
+
 int mshv_irqchip_add_msi_route(int vector, PCIDevice *dev);
 int mshv_irqchip_update_msi_route(int virq, MSIMessage msg, PCIDevice *dev);
 void mshv_irqchip_commit_routes(void);
