@@ -13,6 +13,7 @@
 #include "s390x-internal.h"
 #include "hw/boards.h"
 #include "system/hw_accel.h"
+#include "system/memory.h"
 #include "system/runstate.h"
 #include "system/address-spaces.h"
 #include "exec/cputlb.h"
@@ -147,7 +148,8 @@ QEMU_BUILD_BUG_ON(sizeof(SigpSaveArea) != 512);
 #define S390_STORE_STATUS_DEF_ADDR offsetof(LowCore, floating_pt_save_area)
 static int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
 {
-    static const uint8_t ar_id = 1;
+    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+    AddressSpace *as = CPU(cpu)->as;
     SigpSaveArea *sa;
     hwaddr len = sizeof(*sa);
     int i;
@@ -157,17 +159,21 @@ static int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
         return 0;
     }
 
-    sa = cpu_physical_memory_map(addr, &len, true);
+    sa = address_space_map(as, addr, &len, true, attrs);
     if (!sa) {
         return -EFAULT;
     }
     if (len != sizeof(*sa)) {
-        cpu_physical_memory_unmap(sa, len, 1, 0);
+        address_space_unmap(as, sa, len, true, 0);
         return -EFAULT;
     }
 
     if (store_arch) {
-        cpu_physical_memory_write(offsetof(LowCore, ar_access_id), &ar_id, 1);
+        static const uint8_t ar_id = 1;
+
+        address_space_stb(as, offsetof(LowCore, ar_access_id),
+                          ar_id, attrs, NULL);
+
     }
     for (i = 0; i < 16; ++i) {
         sa->fprs[i] = cpu_to_be64(*get_freg(&cpu->env, i));
@@ -189,7 +195,7 @@ static int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
         sa->crs[i] = cpu_to_be64(cpu->env.cregs[i]);
     }
 
-    cpu_physical_memory_unmap(sa, len, 1, len);
+    address_space_unmap(as, sa, len, true, len);
 
     return 0;
 }
@@ -251,16 +257,18 @@ QEMU_BUILD_BUG_ON(sizeof(SigpAdtlSaveArea) != 4096);
 #define ADTL_GS_MIN_SIZE 2048 /* minimal size of adtl save area for GS */
 static int s390_store_adtl_status(S390CPU *cpu, hwaddr addr, hwaddr len)
 {
+    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+    AddressSpace *as = CPU(cpu)->as;
     SigpAdtlSaveArea *sa;
     hwaddr save = len;
     int i;
 
-    sa = cpu_physical_memory_map(addr, &save, true);
+    sa = address_space_map(as, addr, &save, true, attrs);
     if (!sa) {
         return -EFAULT;
     }
     if (save != len) {
-        cpu_physical_memory_unmap(sa, len, 1, 0);
+        address_space_unmap(as, sa, len, true, 0);
         return -EFAULT;
     }
 
@@ -276,7 +284,8 @@ static int s390_store_adtl_status(S390CPU *cpu, hwaddr addr, hwaddr len)
         }
     }
 
-    cpu_physical_memory_unmap(sa, len, 1, len);
+    address_space_unmap(as, sa, len, true, len);
+
     return 0;
 }
 
