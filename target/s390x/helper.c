@@ -26,6 +26,7 @@
 #include "hw/s390x/ioinst.h"
 #include "target/s390x/kvm/pv.h"
 #include "system/hw_accel.h"
+#include "system/memory.h"
 #include "system/runstate.h"
 #include "exec/target_page.h"
 #include "exec/watchpoint.h"
@@ -107,11 +108,13 @@ LowCore *cpu_map_lowcore(CPUS390XState *env)
 {
     LowCore *lowcore;
     hwaddr len = sizeof(LowCore);
+    CPUState *cs = env_cpu(env);
+    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
 
-    lowcore = cpu_physical_memory_map(env->psa, &len, true);
+    lowcore = address_space_map(cs->as, env->psa, &len, true, attrs);
 
     if (len < sizeof(LowCore)) {
-        cpu_abort(env_cpu(env), "Could not map lowcore\n");
+        cpu_abort(cs, "Could not map lowcore\n");
     }
 
     return lowcore;
@@ -119,7 +122,9 @@ LowCore *cpu_map_lowcore(CPUS390XState *env)
 
 void cpu_unmap_lowcore(CPUS390XState *env, LowCore *lowcore)
 {
-    cpu_physical_memory_unmap(lowcore, sizeof(LowCore), 1, sizeof(LowCore));
+    AddressSpace *as = env_cpu(env)->as;
+
+    address_space_unmap(as, lowcore, sizeof(LowCore), true, sizeof(LowCore));
 }
 
 void do_restart_interrupt(CPUS390XState *env)
