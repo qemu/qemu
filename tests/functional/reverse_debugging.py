@@ -1,19 +1,23 @@
-# Reverse debugging test
-#
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
+# Reverse debugging test
+#
 # Copyright (c) 2020 ISP RAS
+# Copyright (c) 2025 Linaro Limited
 #
 # Author:
 #  Pavel Dovgalyuk <Pavel.Dovgalyuk@ispras.ru>
+#  Gustavo Romero <gustavo.romero@linaro.org> (Run without Avocado)
 #
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
-import os
+
 import logging
+import os
 from subprocess import check_output
 
-from qemu_test import LinuxKernelTest, get_qemu_img
+from qemu_test import LinuxKernelTest, get_qemu_img, GDB, \
+    skipIfMissingEnv, skipIfMissingImports
 from qemu_test.ports import Ports
 
 
@@ -29,9 +33,7 @@ class ReverseDebugging(LinuxKernelTest):
     that the execution is stopped at the last of them.
     """
 
-    timeout = 10
     STEPS = 10
-    endian_is_le = True
 
     def run_vm(self, record, shift, args, replay_path, image_path, port):
         logger = logging.getLogger('replay')
@@ -54,47 +56,17 @@ class ReverseDebugging(LinuxKernelTest):
         return vm
 
     @staticmethod
-    def get_reg_le(g, reg):
-        res = g.cmd(b'p%x' % reg)
-        num = 0
-        for i in range(len(res))[-2::-2]:
-            num = 0x100 * num + int(res[i:i + 2], 16)
-        return num
-
-    @staticmethod
-    def get_reg_be(g, reg):
-        res = g.cmd(b'p%x' % reg)
-        return int(res, 16)
-
-    def get_reg(self, g, reg):
-        # value may be encoded in BE or LE order
-        if self.endian_is_le:
-            return self.get_reg_le(g, reg)
-        else:
-            return self.get_reg_be(g, reg)
-
-    def get_pc(self, g):
-        return self.get_reg(g, self.REG_PC)
-
-    def check_pc(self, g, addr):
-        pc = self.get_pc(g)
-        if pc != addr:
-            self.fail('Invalid PC (read %x instead of %x)' % (pc, addr))
-
-    @staticmethod
-    def gdb_step(g):
-        g.cmd(b's', b'T05thread:01;')
-
-    @staticmethod
-    def gdb_bstep(g):
-        g.cmd(b'bs', b'T05thread:01;')
+    def get_pc(gdb: GDB):
+        return gdb.cli("print $pc").get_addr()
 
     @staticmethod
     def vm_get_icount(vm):
         return vm.qmp('query-replay')['return']['icount']
 
-    def reverse_debugging(self, shift=7, args=None):
-        from avocado.utils import gdb
+    @skipIfMissingImports("pygdbmi") # Required by GDB class
+    @skipIfMissingEnv("QEMU_TEST_GDB")
+    def reverse_debugging(self, gdb_arch, shift=7, args=None):
+        from qemu_test import GDB
 
         logger = logging.getLogger('replay')
 
@@ -124,68 +96,107 @@ class ReverseDebugging(LinuxKernelTest):
         with Ports() as ports:
             port = ports.find_free_port()
             vm = self.run_vm(False, shift, args, replay_path, image_path, port)
-        logger.info('connecting to gdbstub')
-        g = gdb.GDBRemote('127.0.0.1', port, False, False)
-        g.connect()
-        r = g.cmd(b'qSupported')
-        if b'qXfer:features:read+' in r:
-            g.cmd(b'qXfer:features:read:target.xml:0,ffb')
-        if b'ReverseStep+' not in r:
+
+        try:
+            logger.info('Connecting to gdbstub...')
+            self.reverse_debugging_run(vm, port, gdb_arch, last_icount)
+            logger.info('Test passed.')
+        except GDB.TimeoutError:
+            # Convert a GDB timeout exception into a unittest failure exception.
+            raise self.failureException("Timeout while connecting to or "
+                                        "communicating with gdbstub...") from None
+        except Exception:
+            # Re-throw exceptions from unittest, like the ones caused by fail(),
+            # skipTest(), etc.
+            raise
+
+    def reverse_debugging_run(self, vm, port, gdb_arch, last_icount):
+        logger = logging.getLogger('replay')
+
+        gdb_cmd = os.getenv('QEMU_TEST_GDB')
+        gdb = GDB(gdb_cmd)
+
+        r = gdb.cli("set architecture").get_log()
+        if gdb_arch not in r:
+            self.skipTest(f"GDB does not support arch '{gdb_arch}'")
+
+        gdb.cli("set debug remote 1")
+
+        c = gdb.cli(f"target remote localhost:{port}").get_console()
+        if not f"Remote debugging using localhost:{port}" in c:
+            self.fail("Could not connect to gdbstub!")
+
+        # Remote debug messages are in 'log' payloads.
+        r = gdb.get_log()
+        if 'ReverseStep+' not in r:
             self.fail('Reverse step is not supported by QEMU')
-        if b'ReverseContinue+' not in r:
+        if 'ReverseContinue+' not in r:
             self.fail('Reverse continue is not supported by QEMU')
+
+        gdb.cli("set debug remote 0")
 
         logger.info('stepping forward')
         steps = []
         # record first instruction addresses
         for _ in range(self.STEPS):
-            pc = self.get_pc(g)
+            pc = self.get_pc(gdb)
             logger.info('saving position %x' % pc)
             steps.append(pc)
-            self.gdb_step(g)
+            gdb.cli("stepi")
 
         # visit the recorded instruction in reverse order
         logger.info('stepping backward')
         for addr in steps[::-1]:
-            self.gdb_bstep(g)
-            self.check_pc(g, addr)
             logger.info('found position %x' % addr)
+            gdb.cli("reverse-stepi")
+            pc = self.get_pc(gdb)
+            if pc != addr:
+                logger.info('Invalid PC (read %x instead of %x)' % (pc, addr))
+                self.fail('Reverse stepping failed!')
 
         # visit the recorded instruction in forward order
         logger.info('stepping forward')
         for addr in steps:
-            self.check_pc(g, addr)
-            self.gdb_step(g)
             logger.info('found position %x' % addr)
+            pc = self.get_pc(gdb)
+            if pc != addr:
+                logger.info('Invalid PC (read %x instead of %x)' % (pc, addr))
+                self.fail('Forward stepping failed!')
+            gdb.cli("stepi")
 
         # set breakpoints for the instructions just stepped over
         logger.info('setting breakpoints')
         for addr in steps:
-            # hardware breakpoint at addr with len=1
-            g.cmd(b'Z1,%x,1' % addr, b'OK')
+            gdb.cli(f"break *{hex(addr)}")
 
         # this may hit a breakpoint if first instructions are executed
         # again
         logger.info('continuing execution')
         vm.qmp('replay-break', icount=last_icount - 1)
         # continue - will return after pausing
-        # This could stop at the end and get a T02 return, or by
-        # re-executing one of the breakpoints and get a T05 return.
-        g.cmd(b'c')
+        # This can stop at the end of the replay-break and gdb gets a SIGINT,
+        # or by re-executing one of the breakpoints and gdb stops at a
+        # breakpoint.
+        gdb.cli("continue")
+
         if self.vm_get_icount(vm) == last_icount - 1:
             logger.info('reached the end (icount %s)' % (last_icount - 1))
         else:
             logger.info('hit a breakpoint again at %x (icount %s)' %
-                        (self.get_pc(g), self.vm_get_icount(vm)))
+                        (self.get_pc(gdb), self.vm_get_icount(vm)))
 
         logger.info('running reverse continue to reach %x' % steps[-1])
         # reverse continue - will return after stopping at the breakpoint
-        g.cmd(b'bc', b'T05thread:01;')
+        gdb.cli("reverse-continue")
 
         # assume that none of the first instructions is executed again
         # breaking the order of the breakpoints
-        self.check_pc(g, steps[-1])
+        pc = self.get_pc(gdb)
+        if pc != steps[-1]:
+            self.fail("'reverse-continue' did not hit the first PC in reverse order!")
+
         logger.info('successfully reached %x' % steps[-1])
 
         logger.info('exiting gdb and qemu')
+        gdb.exit()
         vm.shutdown()
