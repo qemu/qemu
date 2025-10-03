@@ -135,8 +135,6 @@ static int hvf_init_vcpu(CPUState *cpu)
     sigaction(SIG_IPI, &sigact, NULL);
 
 #ifdef __aarch64__
-    pthread_sigmask(SIG_BLOCK, NULL, &cpu->accel->unblock_ipi_mask);
-    sigdelset(&cpu->accel->unblock_ipi_mask, SIG_IPI);
     cpu->accel->guest_debug_enabled = false;
 
     r = hv_vcpu_create(&cpu->accel->fd,
