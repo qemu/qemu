@@ -97,9 +97,9 @@ class AST2600Machine(AspeedTest):
 
         self.do_test_arm_aspeed_buildroot_poweroff()
 
-    ASSET_SDK_V907_AST2600 = Asset(
-        'https://github.com/AspeedTech-BMC/openbmc/releases/download/v09.07/ast2600-default-obmc.tar.gz',
-        'cb6c08595bcbba1672ce716b068ba4e48eda1ed9abe78a07b30392ba2278feba')
+    ASSET_SDK_V908_AST2600 = Asset(
+        'https://github.com/AspeedTech-BMC/openbmc/releases/download/v09.08/ast2600-default-obmc.tar.gz',
+        'a0414f14ad696550efe083c2156dbeda855c08cc9ae7f40fe1b41bf292295f82')
 
     def do_ast2600_pcie_test(self):
         exec_command_and_wait_for_pattern(self,
@@ -122,7 +122,7 @@ class AST2600Machine(AspeedTest):
         self.set_machine('ast2600-evb')
         self.require_netdev('user')
 
-        self.archive_extract(self.ASSET_SDK_V907_AST2600)
+        self.archive_extract(self.ASSET_SDK_V908_AST2600)
 
         self.vm.add_args('-device',
             'tmp105,bus=aspeed.i2c.bus.5,address=0x4d,id=tmp-test')
@@ -160,7 +160,7 @@ class AST2600Machine(AspeedTest):
     def test_arm_ast2600_otp_blockdev_device(self):
         self.vm.set_machine("ast2600-evb")
 
-        image_path = self.archive_extract(self.ASSET_SDK_V907_AST2600)
+        image_path = self.archive_extract(self.ASSET_SDK_V908_AST2600)
         otp_img = self.generate_otpmem_image()
 
         self.vm.set_console()
