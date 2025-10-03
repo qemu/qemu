@@ -18,3 +18,4 @@ from .decorators import skipIfMissingCommands, skipIfNotMachine, \
     skipIfMissingImports, skipIfOperatingSystem, skipLockedMemoryTest
 from .archive import archive_extract
 from .uncompress import uncompress
+from .gdb import GDB
