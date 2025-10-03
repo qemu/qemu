@@ -74,6 +74,9 @@ class AST2x00MachineSDK(QemuSystemTest):
             'lspci -s 0002:01:00.0',
             '0002:01:00.0 Ethernet controller: '
             'Intel Corporation 82574L Gigabit Network Connection')
+        exec_command_and_wait_for_pattern(self,
+            'ip addr show dev eth2',
+            'inet 10.0.2.15/24')
 
     def start_ast2700_test(self, name):
         num_cpu = 4
@@ -153,9 +156,6 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.verify_openbmc_boot_and_login('ast2700-default')
         self.do_ast2700_i2c_test()
         self.do_ast2700_pcie_test()
-        exec_command_and_wait_for_pattern(self,
-            'ip addr show dev eth2',
-            'inet 10.0.2.15/24')
 
 if __name__ == '__main__':
     QemuSystemTest.main()
