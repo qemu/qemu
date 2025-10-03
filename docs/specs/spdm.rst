@@ -98,7 +98,7 @@ Then you can add this to your QEMU command line:
 .. code-block:: shell
 
     -drive file=blknvme,if=none,id=mynvme,format=raw \
-        -device nvme,drive=mynvme,serial=deadbeef,spdm_port=2323
+        -device nvme,drive=mynvme,serial=deadbeef,spdm_port=2323,spdm_trans=doe
 
 At which point QEMU will try to connect to the SPDM server.
 
@@ -113,7 +113,13 @@ of the default. So the entire QEMU command might look like this
         -append "root=/dev/vda console=ttyS0" \
         -net none -nographic \
         -drive file=blknvme,if=none,id=mynvme,format=raw \
-        -device nvme,drive=mynvme,serial=deadbeef,spdm_port=2323
+        -device nvme,drive=mynvme,serial=deadbeef,spdm_port=2323,spdm_trans=doe
+
+The ``spdm_trans`` argument defines the underlying transport type that is
+emulated by QEMU. For an PCIe NVMe controller, both "doe" and "nvme" are
+supported. Where, "doe" does SPDM transport over the PCIe extended capability
+Data Object Exchange (DOE), and "nvme" uses the NVMe Admin Security
+Send/Receive commands to implement the SPDM transport.
 
 .. _DMTF:
    https://www.dmtf.org/standards/SPDM
