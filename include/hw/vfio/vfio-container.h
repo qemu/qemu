@@ -81,10 +81,10 @@ void vfio_address_space_insert(VFIOAddressSpace *space,
                                VFIOContainer *bcontainer);
 
 int vfio_container_dma_map(VFIOContainer *bcontainer,
-                           hwaddr iova, ram_addr_t size,
+                           hwaddr iova, uint64_t size,
                            void *vaddr, bool readonly, MemoryRegion *mr);
 int vfio_container_dma_unmap(VFIOContainer *bcontainer,
-                             hwaddr iova, ram_addr_t size,
+                             hwaddr iova, uint64_t size,
                              IOMMUTLBEntry *iotlb, bool unmap_all);
 bool vfio_container_add_section_window(VFIOContainer *bcontainer,
                                        MemoryRegionSection *section,
@@ -98,7 +98,8 @@ bool vfio_container_dirty_tracking_is_started(
 bool vfio_container_devices_dirty_tracking_is_supported(
     const VFIOContainer *bcontainer);
 int vfio_container_query_dirty_bitmap(const VFIOContainer *bcontainer,
-    uint64_t iova, uint64_t size, ram_addr_t ram_addr, Error **errp);
+                                      uint64_t iova, uint64_t size,
+                                      hwaddr translated_addr, Error **errp);
 
 GList *vfio_container_get_iova_ranges(const VFIOContainer *bcontainer);
 
@@ -166,7 +167,7 @@ struct VFIOIOMMUClass {
      * Returns 0 to indicate success and -errno otherwise.
      */
     int (*dma_map)(const VFIOContainer *bcontainer,
-                   hwaddr iova, ram_addr_t size,
+                   hwaddr iova, uint64_t size,
                    void *vaddr, bool readonly, MemoryRegion *mr);
     /**
      * @dma_map_file
@@ -181,7 +182,7 @@ struct VFIOIOMMUClass {
      * @readonly: map read only if true
      */
     int (*dma_map_file)(const VFIOContainer *bcontainer,
-                        hwaddr iova, ram_addr_t size,
+                        hwaddr iova, uint64_t size,
                         int fd, unsigned long start, bool readonly);
     /**
      * @dma_unmap
@@ -197,7 +198,7 @@ struct VFIOIOMMUClass {
      * Returns 0 to indicate success and -errno otherwise.
      */
     int (*dma_unmap)(const VFIOContainer *bcontainer,
-                     hwaddr iova, ram_addr_t size,
+                     hwaddr iova, uint64_t size,
                      IOMMUTLBEntry *iotlb, bool unmap_all);
 
 

@@ -39,7 +39,7 @@ static void vfio_user_listener_commit(VFIOContainer *bcontainer)
 }
 
 static int vfio_user_dma_unmap(const VFIOContainer *bcontainer,
-                               hwaddr iova, ram_addr_t size,
+                               hwaddr iova, uint64_t size,
                                IOMMUTLBEntry *iotlb, bool unmap_all)
 {
     VFIOUserContainer *container = VFIO_IOMMU_USER(bcontainer);
@@ -81,7 +81,7 @@ static int vfio_user_dma_unmap(const VFIOContainer *bcontainer,
 }
 
 static int vfio_user_dma_map(const VFIOContainer *bcontainer, hwaddr iova,
-                             ram_addr_t size, void *vaddr, bool readonly,
+                             uint64_t size, void *vaddr, bool readonly,
                              MemoryRegion *mrp)
 {
     VFIOUserContainer *container = VFIO_IOMMU_USER(bcontainer);

@@ -1059,7 +1059,7 @@ static void vfio_iommu_map_dirty_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
     VFIOGuestIOMMU *giommu = gdn->giommu;
     VFIOContainer *bcontainer = giommu->bcontainer;
     hwaddr iova = iotlb->iova + giommu->iommu_offset;
-    ram_addr_t translated_addr;
+    hwaddr translated_addr;
     Error *local_err = NULL;
     int ret = -EINVAL;
     MemoryRegion *mr;
@@ -1108,8 +1108,8 @@ static int vfio_ram_discard_query_dirty_bitmap(MemoryRegionSection *section,
 {
     const hwaddr size = int128_get64(section->size);
     const hwaddr iova = section->offset_within_address_space;
-    const ram_addr_t ram_addr = memory_region_get_ram_addr(section->mr) +
-                                section->offset_within_region;
+    const hwaddr translated_addr = memory_region_get_ram_addr(section->mr) +
+                                   section->offset_within_region;
     VFIORamDiscardListener *vrdl = opaque;
     Error *local_err = NULL;
     int ret;
@@ -1118,8 +1118,8 @@ static int vfio_ram_discard_query_dirty_bitmap(MemoryRegionSection *section,
      * Sync the whole mapped region (spanning multiple individual mappings)
      * in one go.
      */
-    ret = vfio_container_query_dirty_bitmap(vrdl->bcontainer, iova, size, ram_addr,
-                                &local_err);
+    ret = vfio_container_query_dirty_bitmap(vrdl->bcontainer, iova, size,
+                                            translated_addr, &local_err);
     if (ret) {
         error_report_err(local_err);
     }
@@ -1183,7 +1183,7 @@ static int vfio_sync_iommu_dirty_bitmap(VFIOContainer *bcontainer,
 static int vfio_sync_dirty_bitmap(VFIOContainer *bcontainer,
                                   MemoryRegionSection *section, Error **errp)
 {
-    ram_addr_t ram_addr;
+    hwaddr translated_addr;
 
     if (memory_region_is_iommu(section->mr)) {
         return vfio_sync_iommu_dirty_bitmap(bcontainer, section);
@@ -1198,12 +1198,12 @@ static int vfio_sync_dirty_bitmap(VFIOContainer *bcontainer,
         return ret;
     }
 
-    ram_addr = memory_region_get_ram_addr(section->mr) +
-               section->offset_within_region;
+    translated_addr = memory_region_get_ram_addr(section->mr) +
+                      section->offset_within_region;
 
     return vfio_container_query_dirty_bitmap(bcontainer,
                    REAL_HOST_PAGE_ALIGN(section->offset_within_address_space),
-                                 int128_get64(section->size), ram_addr, errp);
+                   int128_get64(section->size), translated_addr, errp);
 }
 
 static void vfio_listener_log_sync(MemoryListener *listener,
