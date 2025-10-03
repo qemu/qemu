@@ -249,8 +249,11 @@ bool blkconf_apply_backend_options(BlockConf *conf, bool readonly,
     blk_set_enable_write_cache(blk, wce);
     blk_set_on_error(blk, rerror, werror);
 
-    block_acct_setup(blk_get_stats(blk), conf->account_invalid,
-                     conf->account_failed);
+    if (!block_acct_setup(blk_get_stats(blk), conf->account_invalid,
+                          conf->account_failed, conf->stats_intervals,
+                          conf->num_stats_intervals, errp)) {
+        return false;
+    }
     return true;
 }
 

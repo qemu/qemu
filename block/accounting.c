@@ -28,6 +28,7 @@
 #include "block/block_int.h"
 #include "qemu/timer.h"
 #include "system/qtest.h"
+#include "qapi/error.h"
 
 static QEMUClockType clock_type = QEMU_CLOCK_REALTIME;
 static const int qtest_latency_ns = NANOSECONDS_PER_SECOND / 1000;
@@ -56,13 +57,25 @@ static bool bool_from_onoffauto(OnOffAuto val, bool def)
     }
 }
 
-void block_acct_setup(BlockAcctStats *stats, enum OnOffAuto account_invalid,
-                      enum OnOffAuto account_failed)
+bool block_acct_setup(BlockAcctStats *stats, enum OnOffAuto account_invalid,
+                      enum OnOffAuto account_failed, uint32_t *stats_intervals,
+                      uint32_t num_stats_intervals, Error **errp)
 {
     stats->account_invalid = bool_from_onoffauto(account_invalid,
                                                  stats->account_invalid);
     stats->account_failed = bool_from_onoffauto(account_failed,
                                                 stats->account_failed);
+    if (stats_intervals) {
+        for (int i = 0; i < num_stats_intervals; i++) {
+            if (stats_intervals[i] <= 0) {
+                error_setg(errp, "Invalid interval length: %u", stats_intervals[i]);
+                return false;
+            }
+            block_acct_add_interval(stats, stats_intervals[i]);
+        }
+        g_free(stats_intervals);
+    }
+    return true;
 }
 
 void block_acct_cleanup(BlockAcctStats *stats)
