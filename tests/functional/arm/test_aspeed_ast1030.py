@@ -13,17 +13,17 @@ from qemu_test import exec_command_and_wait_for_pattern
 
 class AST1030Machine(AspeedTest):
 
-    ASSET_ZEPHYR_3_02 = Asset(
+    ASSET_ZEPHYR_3_03 = Asset(
         ('https://github.com/AspeedTech-BMC'
-         '/zephyr/releases/download/v00.03.02/ast1030-evb-demo.zip'),
-        '1ec83caab3ddd5d09481772801be7210e222cb015ce22ec6fffb8a76956dcd4f')
+         '/zephyr/releases/download/v00.03.03/ast1030-evb-demo.zip'),
+         '27cd73cdee6374bceb4ee58b3ace87989fa3f0684f4e612510804b588b24d4e0')
 
-    def test_arm_ast1030_zephyros_3_02(self):
+    def test_arm_ast1030_zephyros_3_03(self):
         self.set_machine('ast1030-evb')
 
-        kernel_name = "ast1030-evb-demo-3/zephyr.elf"
+        kernel_name = "ast1030-evb-demo/zephyr.elf"
         kernel_file = self.archive_extract(
-            self.ASSET_ZEPHYR_3_02, member=kernel_name)
+            self.ASSET_ZEPHYR_3_03, member=kernel_name)
 
         self.vm.set_console()
         self.vm.add_args('-kernel', kernel_file, '-nographic')
@@ -72,8 +72,9 @@ class AST1030Machine(AspeedTest):
     def test_arm_ast1030_otp_blockdev_device(self):
         self.vm.set_machine("ast1030-evb")
 
-        kernel_name = "ast1030-evb-demo-3/zephyr.elf"
-        kernel_file = self.archive_extract(self.ASSET_ZEPHYR_3_02, member=kernel_name)
+        kernel_name = "ast1030-evb-demo/zephyr.elf"
+        kernel_file = self.archive_extract(self.ASSET_ZEPHYR_3_03,
+                                           member=kernel_name)
         otp_img = self.generate_otpmem_image()
 
         self.vm.set_console()
