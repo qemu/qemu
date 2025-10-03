@@ -203,6 +203,8 @@ static RISCVException cfi_ss(CPURISCVState *env, int csrno)
 #if !defined(CONFIG_USER_ONLY)
         if (env->debugger) {
             return RISCV_EXCP_NONE;
+        } else if (env->virt_enabled) {
+            return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
         }
 #endif
         return RISCV_EXCP_ILLEGAL_INST;
@@ -2003,7 +2005,8 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
     if (riscv_has_ext(env, RVF)) {
         mask |= MSTATUS_FS;
     }
-    if (riscv_has_ext(env, RVV)) {
+
+    if (riscv_cpu_cfg(env)->ext_zve32x) {
         mask |= MSTATUS_VS;
     }
 

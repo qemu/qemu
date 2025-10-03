@@ -30,15 +30,15 @@ This will add a RISC-V IOMMU PCI device in the board following any additional
 PCI parameters (like PCI bus address).  The behavior of the RISC-V IOMMU is
 defined by the spec but its operation is OS dependent.
 
-As of this writing the existing Linux kernel support `linux-v8`_, not yet merged,
-does not have support for features like VFIO passthrough.  The IOMMU emulation
-was tested using a public Ventana Micro Systems kernel repository in
-`ventana-linux`_.  This kernel is based on `linux-v8`_ with additional patches that
-enable features like KVM VFIO passthrough with irqbypass.  Until the kernel support
-is feature complete feel free to use the kernel available in the Ventana Micro Systems
-mirror.
+Linux kernel iommu support was merged in v6.13. QEMU IOMMU emulation can be
+used with mainline kernels for simple IOMMU PCIe support.
 
-The current Linux kernel support will use the IOMMU device to create IOMMU groups
+As of v6.17, it does not have support for features like VFIO passthrough.
+There is a `VFIO`_ RFC series that is not yet merged. The public Ventana Micro
+Systems kernel repository in `ventana-linux`_ can be used for testing the VFIO
+functions.
+
+The v6.13+ Linux kernel support uses the IOMMU device to create IOMMU groups
 with any eligible cards available in the system, regardless of factors such as the
 order in which the devices are added in the command line.
 
@@ -49,7 +49,7 @@ IOMMU kernel driver behaves:
 
   $ qemu-system-riscv64 \
         -M virt,aia=aplic-imsic,aia-guests=5 \
-        -device riscv-iommu-pci,addr=1.0,vendor-id=0x1efd,device-id=0xedf1 \
+        -device riscv-iommu-pci,addr=1.0 \
         -device e1000e,netdev=net1 -netdev user,id=net1,net=192.168.0.0/24 \
         -device e1000e,netdev=net2 -netdev user,id=net2,net=192.168.200.0/24 \
         (...)
@@ -58,20 +58,10 @@ IOMMU kernel driver behaves:
         -M virt,aia=aplic-imsic,aia-guests=5 \
         -device e1000e,netdev=net1 -netdev user,id=net1,net=192.168.0.0/24 \
         -device e1000e,netdev=net2 -netdev user,id=net2,net=192.168.200.0/24 \
-        -device riscv-iommu-pci,addr=1.0,vendor-id=0x1efd,device-id=0xedf1 \
+        -device riscv-iommu-pci,addr=3.0 \
         (...)
 
 Both will create iommu groups for the two e1000e cards.
-
-Another thing to notice on `linux-v8`_ and `ventana-linux`_ is that the kernel driver
-considers an IOMMU identified as a Rivos device, i.e. it uses Rivos vendor ID.  To
-use the riscv-iommu-pci device with the existing kernel support we need to emulate
-a Rivos PCI IOMMU by setting 'vendor-id' and 'device-id':
-
-.. code-block:: bash
-
-  $ qemu-system-riscv64 -M virt	\
-     -device riscv-iommu-pci,vendor-id=0x1efd,device-id=0xedf1 (...)
 
 Several options are available to control the capabilities of the device, namely:
 
@@ -84,6 +74,7 @@ Several options are available to control the capabilities of the device, namely:
 - "g-stage": enable g-stage support
 - "hpm-counters": number of hardware performance counters available. Maximum value is 31.
   Default value is 31. Use 0 (zero) to disable HPM support
+- "vendor-id"/"device-id": pci device ID. Defaults to 1b36:0014 (Redhat)
 
 riscv-iommu-sys device
 ----------------------
@@ -111,6 +102,6 @@ riscv-iommu options:
 
 .. _iommu1.0.0: https://github.com/riscv-non-isa/riscv-iommu/releases/download/v1.0.0/riscv-iommu.pdf
 
-.. _linux-v8: https://lore.kernel.org/linux-riscv/cover.1718388908.git.tjeznach@rivosinc.com/
+.. _VFIO: https://lore.kernel.org/linux-riscv/20241114161845.502027-17-ajones@ventanamicro.com/
 
 .. _ventana-linux: https://github.com/ventanamicro/linux/tree/dev-upstream

@@ -5198,11 +5198,11 @@ GEN_VEXT_VSLIE1UP(16, H2)
 GEN_VEXT_VSLIE1UP(32, H4)
 GEN_VEXT_VSLIE1UP(64, H8)
 
-#define GEN_VEXT_VSLIDE1UP_VX(NAME, BITWIDTH)                     \
-void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2, \
-                  CPURISCVState *env, uint32_t desc)              \
-{                                                                 \
-    vslide1up_##BITWIDTH(vd, v0, s1, vs2, env, desc);             \
+#define GEN_VEXT_VSLIDE1UP_VX(NAME, BITWIDTH)                   \
+void HELPER(NAME)(void *vd, void *v0, uint64_t s1, void *vs2,   \
+                  CPURISCVState *env, uint32_t desc)            \
+{                                                               \
+    vslide1up_##BITWIDTH(vd, v0, s1, vs2, env, desc);           \
 }
 
 /* vslide1up.vx vd, vs2, rs1, vm # vd[0]=x[rs1], vd[i+1] = vs2[i] */
@@ -5249,11 +5249,11 @@ GEN_VEXT_VSLIDE1DOWN(16, H2)
 GEN_VEXT_VSLIDE1DOWN(32, H4)
 GEN_VEXT_VSLIDE1DOWN(64, H8)
 
-#define GEN_VEXT_VSLIDE1DOWN_VX(NAME, BITWIDTH)                   \
-void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2, \
-                  CPURISCVState *env, uint32_t desc)              \
-{                                                                 \
-    vslide1down_##BITWIDTH(vd, v0, s1, vs2, env, desc);           \
+#define GEN_VEXT_VSLIDE1DOWN_VX(NAME, BITWIDTH)                 \
+void HELPER(NAME)(void *vd, void *v0, uint64_t s1, void *vs2,   \
+                  CPURISCVState *env, uint32_t desc)            \
+{                                                               \
+    vslide1down_##BITWIDTH(vd, v0, s1, vs2, env, desc);         \
 }
 
 /* vslide1down.vx vd, vs2, rs1, vm # vd[i] = vs2[i+1], vd[vl-1]=x[rs1] */

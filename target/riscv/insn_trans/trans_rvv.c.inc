@@ -3561,7 +3561,6 @@ static bool slideup_check(DisasContext *s, arg_rmrr *a)
 }
 
 GEN_OPIVX_TRANS(vslideup_vx, slideup_check)
-GEN_OPIVX_TRANS(vslide1up_vx, slideup_check)
 GEN_OPIVI_TRANS(vslideup_vi, IMM_ZX, vslideup_vx, slideup_check)
 
 static bool slidedown_check(DisasContext *s, arg_rmrr *a)
@@ -3572,8 +3571,55 @@ static bool slidedown_check(DisasContext *s, arg_rmrr *a)
 }
 
 GEN_OPIVX_TRANS(vslidedown_vx, slidedown_check)
-GEN_OPIVX_TRANS(vslide1down_vx, slidedown_check)
 GEN_OPIVI_TRANS(vslidedown_vi, IMM_ZX, vslidedown_vx, slidedown_check)
+
+typedef void gen_helper_vslide1_vx(TCGv_ptr, TCGv_ptr, TCGv_i64, TCGv_ptr,
+                                TCGv_env, TCGv_i32);
+
+#define GEN_OPIVX_VSLIDE1_TRANS(NAME, CHECK)                            \
+static bool trans_##NAME(DisasContext *s, arg_rmrr *a)                  \
+{                                                                       \
+    if (CHECK(s, a)) {                                                  \
+        static gen_helper_vslide1_vx * const fns[4] = {                 \
+            gen_helper_##NAME##_b, gen_helper_##NAME##_h,               \
+            gen_helper_##NAME##_w, gen_helper_##NAME##_d,               \
+        };                                                              \
+                                                                        \
+        TCGv_ptr dest, src2, mask;                                      \
+        TCGv_i64 src1;                                                  \
+        TCGv_i32 desc;                                                  \
+        uint32_t data = 0;                                              \
+                                                                        \
+        dest = tcg_temp_new_ptr();                                      \
+        mask = tcg_temp_new_ptr();                                      \
+        src2 = tcg_temp_new_ptr();                                      \
+        src1 = tcg_temp_new_i64();                                      \
+                                                                        \
+        data = FIELD_DP32(data, VDATA, VM, a->vm);                      \
+        data = FIELD_DP32(data, VDATA, LMUL, s->lmul);                  \
+        data = FIELD_DP32(data, VDATA, VTA, s->vta);                    \
+        data = FIELD_DP32(data, VDATA, VTA_ALL_1S, s->cfg_vta_all_1s);  \
+        data = FIELD_DP32(data, VDATA, VMA, s->vma);                    \
+        desc = tcg_constant_i32(simd_desc(s->cfg_ptr->vlenb,            \
+                                s->cfg_ptr->vlenb, data));              \
+                                                                        \
+        tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, a->rd));            \
+        tcg_gen_addi_ptr(src2, tcg_env, vreg_ofs(s, a->rs2));           \
+        tcg_gen_addi_ptr(mask, tcg_env, vreg_ofs(s, 0));                \
+        tcg_gen_ext_tl_i64(src1, get_gpr(s, a->rs1, EXT_SIGN));         \
+                                                                        \
+        fns[s->sew](dest, mask, src1, src2, tcg_env, desc);             \
+                                                                        \
+        tcg_gen_movi_tl(cpu_vstart, 0);                                 \
+        finalize_rvv_inst(s);                                           \
+                                                                        \
+        return true;                                                    \
+    }                                                                   \
+    return false;                                                       \
+}
+
+GEN_OPIVX_VSLIDE1_TRANS(vslide1up_vx, slideup_check)
+GEN_OPIVX_VSLIDE1_TRANS(vslide1down_vx, slidedown_check)
 
 /* Vector Floating-Point Slide Instructions */
 static bool fslideup_check(DisasContext *s, arg_rmrr *a)
