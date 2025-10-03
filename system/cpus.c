@@ -621,6 +621,7 @@ void cpu_pause(CPUState *cpu)
 
 void cpu_resume(CPUState *cpu)
 {
+    cpu->exception_index = -1;
     cpu->stop = false;
     cpu->stopped = false;
     qemu_cpu_kick(cpu);
