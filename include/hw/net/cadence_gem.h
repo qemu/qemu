@@ -81,6 +81,9 @@ struct CadenceGEMState {
 
     uint8_t phy_loop; /* Are we in phy loopback? */
 
+    bool phy_connected; /* true if connected */
+    struct CadenceGEMState *phy_consumer;
+
     /* The current DMA descriptor pointers */
     uint32_t rx_desc_addr[MAX_PRIORITY_QUEUES];
     uint32_t tx_desc_addr[MAX_PRIORITY_QUEUES];
