@@ -4,7 +4,7 @@
 # The eventual goal would be to fix these warnings.
 
 # TSan is not happy about setting/getting of dirty bits,
-# for example, cpu_physical_memory_set_dirty_range,
-# and cpu_physical_memory_get_dirty.
+# for example, physical_memory_set_dirty_range,
+# and physical_memory_get_dirty.
 src:bitops.c
 src:bitmap.c
