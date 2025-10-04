@@ -125,7 +125,6 @@ static QEMUFile *qemu_file_new_impl(QIOChannel *ioc, bool is_writable)
 
 /*
  * Result: QEMUFile* for a 'return path' for comms in the opposite direction
- *         NULL if not available
  */
 QEMUFile *qemu_file_get_return_path(QEMUFile *f)
 {
@@ -349,17 +348,13 @@ static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
             } else {
                 qio_channel_wait(f->ioc, G_IO_IN);
             }
-        } else if (len < 0) {
-            len = -EIO;
         }
     } while (len == QIO_CHANNEL_ERR_BLOCK);
 
     if (len > 0) {
         f->buf_size += len;
-    } else if (len == 0) {
-        qemu_file_set_error_obj(f, -EIO, local_error);
     } else {
-        qemu_file_set_error_obj(f, len, local_error);
+        qemu_file_set_error_obj(f, -EIO, local_error);
     }
 
     for (int i = 0; i < nfd; i++) {

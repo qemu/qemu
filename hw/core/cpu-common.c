@@ -294,6 +294,7 @@ void cpu_exec_unrealizefn(CPUState *cpu)
      * accel_cpu_common_unrealize, which may free fields using call_rcu.
      */
     accel_cpu_common_unrealize(cpu);
+    cpu_destroy_address_spaces(cpu);
 }
 
 static void cpu_common_initfn(Object *obj)
