@@ -144,6 +144,11 @@ enum {
      * identically to the normal one, other than FGT trapping handling.)
      */
     ARM_CP_ADD_TLBI_NXS          = 1 << 21,
+    /*
+     * Flag: even though this sysreg has opc1 == 4 or 5, it
+     * should not trap to EL2 when HCR_EL2.NV is set.
+     */
+    ARM_CP_NV_NO_TRAP            = 1 << 22,
 };
 
 /*
@@ -1178,12 +1183,17 @@ static inline bool arm_cpreg_traps_in_nv(const ARMCPRegInfo *ri)
      * fragile to future new sysregs, but this seems the least likely
      * to break.
      *
-     * In particular, note that the released sysreg XML defines that
-     * the FEAT_MEC sysregs and instructions do not follow this FEAT_NV
-     * trapping rule, so we will need to add an ARM_CP_* flag to indicate
-     * "register does not trap on NV" to handle those if/when we implement
-     * FEAT_MEC.
+     * In particular, note that the FEAT_MEC sysregs and instructions
+     * are exceptions to this trapping rule, so they are marked as
+     * ARM_CP_NV_NO_TRAP to indicate that they should not be trapped
+     * to EL2. (They are an exception because the FEAT_MEC sysregs UNDEF
+     * unless in Realm, and Realm is not expected to be virtualized.)
      */
+
+    if (ri->type & ARM_CP_NV_NO_TRAP) {
+        return false;
+    }
+
     return ri->opc1 == 4 || ri->opc1 == 5;
 }
 
