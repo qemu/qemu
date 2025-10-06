@@ -79,7 +79,7 @@ those sockets. To allow ping for GID 100 (usually users group)::
 
 When using the built-in TFTP server, the router is also the TFTP server.
 
-When using the ``'-netdev user,hostfwd=...'`` option, TCP or UDP
+When using the ``'-netdev user,hostfwd=...'`` option, TCP, UDP or UNIX
 connections can be redirected from the host to the guest. It allows for
 example to redirect X11, telnet or SSH connections.
 
