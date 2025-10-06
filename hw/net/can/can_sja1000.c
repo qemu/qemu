@@ -842,7 +842,6 @@ ssize_t can_sja_receive(CanBusClientState *client, const qemu_can_frame *frames,
         s->status_pel |= 0x01; /* Set the Receive Buffer Status. DS-p23 */
         s->interrupt_pel |= 0x01;
         s->status_pel &= ~(1 << 4);
-        s->status_pel |= (1 << 0);
         can_sja_update_pel_irq(s);
     } else { /* BasicCAN mode */
 

@@ -34,7 +34,7 @@ configures the shared buffer location and size, and traps to the host
 to process the requests.
 
 The ``uefi-vars`` device implements the UEFI virtual device.  It comes
-in ``uefi-vars-x86`` and ``uefi-vars-sysbus`` flavours.  The device
+in ``uefi-vars-x64`` and ``uefi-vars-sysbus`` flavours.  The device
 reimplements the handlers needed, specifically
 ``EfiSmmVariableProtocol`` and ``VarCheckPolicyLibMmiHandler``.  It
 also consumes events (``EfiEndOfDxeEventGroup``,
@@ -57,7 +57,7 @@ usage on x86_64
 .. code::
 
    qemu-system-x86_64 \
-      -device uefi-vars-x86,jsonfile=/path/to/vars.json
+      -device uefi-vars-x64,jsonfile=/path/to/vars.json
 
 usage on aarch64
 ----------------

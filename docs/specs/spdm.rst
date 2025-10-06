@@ -102,7 +102,7 @@ Then you can add this to your QEMU command line:
 
 At which point QEMU will try to connect to the SPDM server.
 
-Note that if using x64-64 you will want to use the q35 machine instead
+Note that if using x86_64 you will want to use the q35 machine instead
 of the default. So the entire QEMU command might look like this
 
 .. code-block:: shell
