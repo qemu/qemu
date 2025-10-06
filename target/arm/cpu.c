@@ -652,6 +652,9 @@ void arm_emulate_firmware_reset(CPUState *cpustate, int target_el)
                 cpu_isar_feature(aa64_s2pie, cpu)) {
                 env->cp15.scr_el3 |= SCR_PIEN;
             }
+            if (cpu_isar_feature(aa64_mec, cpu)) {
+                env->cp15.scr_el3 |= SCR_MECEN;
+            }
         }
 
         if (target_el == 2) {
