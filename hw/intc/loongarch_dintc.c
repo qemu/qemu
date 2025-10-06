@@ -197,6 +197,7 @@ static const TypeInfo loongarch_dintc_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LoongArchDINTCState),
     .instance_init = loongarch_dintc_init,
+    .class_size    = sizeof(LoongArchDINTCClass),
     .class_init    = loongarch_dintc_class_init,
     .interfaces    = (const InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
