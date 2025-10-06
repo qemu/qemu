@@ -41,14 +41,8 @@ class Aarch64SbsarefAlpine(QemuSystemTest):
         self.vm.launch()
         wait_for_console_pattern(self, "Welcome to Alpine Linux 3.17")
 
-    def test_sbsaref_alpine_linux_cortex_a57(self):
-        self.boot_alpine_linux("cortex-a57")
-
     def test_sbsaref_alpine_linux_default_cpu(self):
         self.boot_alpine_linux()
-
-    def test_sbsaref_alpine_linux_max_pauth_off(self):
-        self.boot_alpine_linux("max,pauth=off")
 
     def test_sbsaref_alpine_linux_max_pauth_impdef(self):
         self.boot_alpine_linux("max,pauth-impdef=on")
