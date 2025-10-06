@@ -569,8 +569,6 @@ qcrypto_tls_session_read(QCryptoTLSSession *session,
     if (ret < 0) {
         if (ret == GNUTLS_E_AGAIN) {
             return QCRYPTO_TLS_SESSION_ERR_BLOCK;
-        } else if (ret == GNUTLS_E_PREMATURE_TERMINATION) {
-            return QCRYPTO_TLS_SESSION_PREMATURE_TERMINATION;
         } else {
             if (session->rerr) {
                 error_propagate(errp, session->rerr);
@@ -580,7 +578,11 @@ qcrypto_tls_session_read(QCryptoTLSSession *session,
                            "Cannot read from TLS channel: %s",
                            gnutls_strerror(ret));
             }
-            return -1;
+            if (ret == GNUTLS_E_PREMATURE_TERMINATION) {
+                return QCRYPTO_TLS_SESSION_PREMATURE_TERMINATION;
+            } else {
+                return -1;
+            }
         }
     }
 
