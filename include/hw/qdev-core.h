@@ -1064,6 +1064,7 @@ bool qdev_set_parent_bus(DeviceState *dev, BusState *bus, Error **errp);
 extern bool qdev_hot_removed;
 
 char *qdev_get_dev_path(DeviceState *dev);
+const char *qdev_get_printable_name(DeviceState *dev);
 
 void qbus_set_hotplug_handler(BusState *bus, Object *handler);
 void qbus_set_bus_hotplug_handler(BusState *bus);

@@ -2044,13 +2044,9 @@ void memory_region_notify_iommu_one(IOMMUNotifier *notifier,
         return;
     }
 
-    if (notifier->notifier_flags & IOMMU_NOTIFIER_DEVIOTLB_UNMAP) {
-        /* Crop (iova, addr_mask) to range */
-        tmp.iova = MAX(tmp.iova, notifier->start);
-        tmp.addr_mask = MIN(entry_end, notifier->end) - tmp.iova;
-    } else {
-        assert(entry->iova >= notifier->start && entry_end <= notifier->end);
-    }
+    /* Crop (iova, addr_mask) to range */
+    tmp.iova = MAX(tmp.iova, notifier->start);
+    tmp.addr_mask = MIN(entry_end, notifier->end) - tmp.iova;
 
     if (event->type & notifier->notifier_flags) {
         notifier->notify(notifier, &tmp);

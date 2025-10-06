@@ -247,6 +247,7 @@
 #              },
 #              "host-features": {
 #                  "unknown-dev-features": 1073741824,
+#                  "unknown-dev-features2": 0,
 #                  "dev-features": [],
 #                  "transports": [
 #                      "VIRTIO_RING_F_EVENT_IDX: Used & avail. event fields enabled",
@@ -490,14 +491,18 @@
 #     unique features)
 #
 # @unknown-dev-features: Virtio device features bitmap that have not
-#     been decoded
+#     been decoded (bits 0-63)
+#
+# @unknown-dev-features2: Virtio device features bitmap that have not
+#     been decoded (bits 64-127) (since 10.2)
 #
 # Since: 7.2
 ##
 { 'struct': 'VirtioDeviceFeatures',
   'data': { 'transports': [ 'str' ],
             '*dev-features': [ 'str' ],
-            '*unknown-dev-features': 'uint64' } }
+            '*unknown-dev-features': 'uint64',
+            '*unknown-dev-features2': 'uint64' } }
 
 ##
 # @VirtQueueStatus:

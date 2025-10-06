@@ -126,3 +126,8 @@ config VHOST_USER_SCMI
     bool
     default y
     depends on VIRTIO && VHOST_USER && ARM
+
+config VHOST_USER_TEST
+    bool
+    default y
+    depends on VIRTIO && VHOST_USER

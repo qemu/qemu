@@ -33,6 +33,7 @@
 #include "hw/i386/apic-msidef.h"
 #include "hw/qdev-properties.h"
 #include "kvm/kvm_i386.h"
+#include "qemu/iova-tree.h"
 
 /* used AMD-Vi MMIO registers */
 const char *amdvi_mmio_low[] = {
@@ -66,6 +67,15 @@ struct AMDVIAddressSpace {
     MemoryRegion iommu_nodma;   /* Alias of shared nodma memory region  */
     MemoryRegion iommu_ir;      /* Device's interrupt remapping region  */
     AddressSpace as;            /* device's corresponding address space */
+
+    /* DMA address translation support */
+    IOMMUNotifierFlag notifier_flags;
+    /* entry in list of Address spaces with registered notifiers */
+    QLIST_ENTRY(AMDVIAddressSpace) next;
+    /* Record DMA translation ranges */
+    IOVATree *iova_tree;
+    /* DMA address translation active */
+    bool addr_translation;
 };
 
 /* AMDVI cache entry */
@@ -77,11 +87,28 @@ typedef struct AMDVIIOTLBEntry {
     uint64_t page_mask;         /* physical page size  */
 } AMDVIIOTLBEntry;
 
+/*
+ * These 'fault' reasons have an overloaded meaning since they are not only
+ * intended for describing reasons that generate an IO_PAGE_FAULT as per the AMD
+ * IOMMU specification, but are also used to signal internal errors in the
+ * emulation code.
+ */
+typedef enum AMDVIFaultReason {
+    AMDVI_FR_DTE_RTR_ERR = 1,   /* Failure to retrieve DTE */
+    AMDVI_FR_DTE_V,             /* DTE[V] = 0 */
+    AMDVI_FR_DTE_TV,            /* DTE[TV] = 0 */
+    AMDVI_FR_PT_ROOT_INV,       /* Page Table Root ptr invalid */
+    AMDVI_FR_PT_ENTRY_INV,      /* Failure to read PTE from guest memory */
+} AMDVIFaultReason;
+
 uint64_t amdvi_extended_feature_register(AMDVIState *s)
 {
     uint64_t feature = AMDVI_DEFAULT_EXT_FEATURES;
     if (s->xtsup) {
         feature |= AMDVI_FEATURE_XT;
+    }
+    if (!s->iommu.dma_translation) {
+        feature |= AMDVI_HATS_MODE_RESERVED;
     }
 
     return feature;
@@ -438,18 +465,704 @@ static void amdvi_completion_wait(AMDVIState *s, uint64_t *cmd)
     trace_amdvi_completion_wait(addr, data);
 }
 
+static inline uint64_t amdvi_get_perms(uint64_t entry)
+{
+    return (entry & (AMDVI_DEV_PERM_READ | AMDVI_DEV_PERM_WRITE)) >>
+           AMDVI_DEV_PERM_SHIFT;
+}
+
+/* validate that reserved bits are honoured */
+static bool amdvi_validate_dte(AMDVIState *s, uint16_t devid,
+                               uint64_t *dte)
+{
+
+    uint64_t root;
+
+    if ((dte[0] & AMDVI_DTE_QUAD0_RESERVED) ||
+        (dte[1] & AMDVI_DTE_QUAD1_RESERVED) ||
+        (dte[2] & AMDVI_DTE_QUAD2_RESERVED) ||
+        (dte[3] & AMDVI_DTE_QUAD3_RESERVED)) {
+        amdvi_log_illegaldevtab_error(s, devid,
+                                      s->devtab +
+                                      devid * AMDVI_DEVTAB_ENTRY_SIZE, 0);
+        return false;
+    }
+
+    /*
+     * 1 = Host Address Translation is not supported. Value in MMIO Offset
+     * 0030h[HATS] is not meaningful. A non-zero host page table root pointer
+     * in the DTE would result in an ILLEGAL_DEV_TABLE_ENTRY event.
+     */
+    root = (dte[0] & AMDVI_DEV_PT_ROOT_MASK) >> 12;
+    if (root && !s->iommu.dma_translation) {
+        amdvi_log_illegaldevtab_error(s, devid,
+                                      s->devtab +
+                                      devid * AMDVI_DEVTAB_ENTRY_SIZE, 0);
+        return false;
+    }
+
+    return true;
+}
+
+/* get a device table entry given the devid */
+static bool amdvi_get_dte(AMDVIState *s, int devid, uint64_t *entry)
+{
+    uint32_t offset = devid * AMDVI_DEVTAB_ENTRY_SIZE;
+
+    if (dma_memory_read(&address_space_memory, s->devtab + offset, entry,
+                        AMDVI_DEVTAB_ENTRY_SIZE, MEMTXATTRS_UNSPECIFIED)) {
+        trace_amdvi_dte_get_fail(s->devtab, offset);
+        /* log error accessing dte */
+        amdvi_log_devtab_error(s, devid, s->devtab + offset, 0);
+        return false;
+    }
+
+    *entry = le64_to_cpu(*entry);
+    if (!amdvi_validate_dte(s, devid, entry)) {
+        trace_amdvi_invalid_dte(entry[0]);
+        return false;
+    }
+
+    return true;
+}
+
+/* get pte translation mode */
+static inline uint8_t get_pte_translation_mode(uint64_t pte)
+{
+    return (pte >> AMDVI_DEV_MODE_RSHIFT) & AMDVI_DEV_MODE_MASK;
+}
+
+static inline uint64_t amdvi_get_pte_entry(AMDVIState *s, uint64_t pte_addr,
+                                          uint16_t devid)
+{
+    uint64_t pte;
+
+    if (dma_memory_read(&address_space_memory, pte_addr,
+                        &pte, sizeof(pte), MEMTXATTRS_UNSPECIFIED)) {
+        trace_amdvi_get_pte_hwerror(pte_addr);
+        amdvi_log_pagetab_error(s, devid, pte_addr, 0);
+        pte = (uint64_t)-1;
+        return pte;
+    }
+
+    pte = le64_to_cpu(pte);
+    return pte;
+}
+
+static int amdvi_as_to_dte(AMDVIAddressSpace *as, uint64_t *dte)
+{
+    uint16_t devid = PCI_BUILD_BDF(as->bus_num, as->devfn);
+    AMDVIState *s = as->iommu_state;
+
+    if (!amdvi_get_dte(s, devid, dte)) {
+        /* Unable to retrieve DTE for devid */
+        return -AMDVI_FR_DTE_RTR_ERR;
+    }
+
+    if (!(dte[0] & AMDVI_DEV_VALID)) {
+        /* DTE[V] not set, address is passed untranslated for devid */
+        return -AMDVI_FR_DTE_V;
+    }
+
+    if (!(dte[0] & AMDVI_DEV_TRANSLATION_VALID)) {
+        /* DTE[TV] not set, host page table not valid for devid */
+        return -AMDVI_FR_DTE_TV;
+    }
+    return 0;
+}
+
+/*
+ * For a PTE encoding a large page, return the page size it encodes as described
+ * by the AMD IOMMU Specification Table 14: Example Page Size Encodings.
+ * No need to adjust the value of the PTE to point to the first PTE in the large
+ * page since the encoding guarantees all "base" PTEs in the large page are the
+ * same.
+ */
+static uint64_t large_pte_page_size(uint64_t pte)
+{
+    assert(PTE_NEXT_LEVEL(pte) == 7);
+
+    /* Determine size of the large/contiguous page encoded in the PTE */
+    return PTE_LARGE_PAGE_SIZE(pte);
+}
+
+/*
+ * Helper function to fetch a PTE using AMD v1 pgtable format.
+ * On successful page walk, returns 0 and pte parameter points to a valid PTE.
+ * On failure, returns:
+ * -AMDVI_FR_PT_ROOT_INV: A page walk is not possible due to conditions like DTE
+ *      with invalid permissions, Page Table Root can not be read from DTE, or a
+ *      larger IOVA than supported by page table level encoded in DTE[Mode].
+ * -AMDVI_FR_PT_ENTRY_INV: A PTE could not be read from guest memory during a
+ *      page table walk. This means that the DTE has valid data, but one of the
+ *      lower level entries in the Page Table could not be read.
+ */
+static uint64_t fetch_pte(AMDVIAddressSpace *as, hwaddr address, uint64_t dte,
+                          uint64_t *pte, hwaddr *page_size)
+{
+    IOMMUAccessFlags perms = amdvi_get_perms(dte);
+
+    uint8_t level, mode;
+    uint64_t pte_addr;
+
+    *pte = dte;
+    *page_size = 0;
+
+    if (perms == IOMMU_NONE) {
+        return -AMDVI_FR_PT_ROOT_INV;
+    }
+
+    /*
+     * The Linux kernel driver initializes the default mode to 3, corresponding
+     * to a 39-bit GPA space, where each entry in the pagetable translates to a
+     * 1GB (2^30) page size.
+     */
+    level = mode = get_pte_translation_mode(dte);
+    assert(mode > 0 && mode < 7);
+
+    /*
+     * If IOVA is larger than the max supported by the current pgtable level,
+     * there is nothing to do.
+     */
+    if (address > PT_LEVEL_MAX_ADDR(mode - 1)) {
+        /* IOVA too large for the current DTE */
+        return -AMDVI_FR_PT_ROOT_INV;
+    }
+
+    do {
+        level -= 1;
+
+        /* Update the page_size */
+        *page_size = PTE_LEVEL_PAGE_SIZE(level);
+
+        /* Permission bits are ANDed at every level, including the DTE */
+        perms &= amdvi_get_perms(*pte);
+        if (perms == IOMMU_NONE) {
+            return 0;
+        }
+
+        /* Not Present */
+        if (!IOMMU_PTE_PRESENT(*pte)) {
+            return 0;
+        }
+
+        /* Large or Leaf PTE found */
+        if (PTE_NEXT_LEVEL(*pte) == 7 || PTE_NEXT_LEVEL(*pte) == 0) {
+            /* Leaf PTE found */
+            break;
+        }
+
+        /*
+         * Index the pgtable using the IOVA bits corresponding to current level
+         * and walk down to the lower level.
+         */
+        pte_addr = NEXT_PTE_ADDR(*pte, level, address);
+        *pte = amdvi_get_pte_entry(as->iommu_state, pte_addr, as->devfn);
+
+        if (*pte == (uint64_t)-1) {
+            /*
+             * A returned PTE of -1 indicates a failure to read the page table
+             * entry from guest memory.
+             */
+            if (level == mode - 1) {
+                /* Failure to retrieve the Page Table from Root Pointer */
+                *page_size = 0;
+                return -AMDVI_FR_PT_ROOT_INV;
+            } else {
+                /* Failure to read PTE. Page walk skips a page_size chunk */
+                return -AMDVI_FR_PT_ENTRY_INV;
+            }
+        }
+    } while (level > 0);
+
+    assert(PTE_NEXT_LEVEL(*pte) == 0 || PTE_NEXT_LEVEL(*pte) == 7 ||
+           level == 0);
+    /*
+     * Page walk ends when Next Level field on PTE shows that either a leaf PTE
+     * or a series of large PTEs have been reached. In the latter case, even if
+     * the range starts in the middle of a contiguous page, the returned PTE
+     * must be the first PTE of the series.
+     */
+    if (PTE_NEXT_LEVEL(*pte) == 7) {
+        /* Update page_size with the large PTE page size */
+        *page_size = large_pte_page_size(*pte);
+    }
+
+    return 0;
+}
+
+/*
+ * Invoke notifiers registered for the address space. Update record of mapped
+ * ranges in IOVA Tree.
+ */
+static void amdvi_notify_iommu(AMDVIAddressSpace *as, IOMMUTLBEvent *event)
+{
+    IOMMUTLBEntry *entry = &event->entry;
+
+    DMAMap target = {
+        .iova = entry->iova,
+        .size = entry->addr_mask,
+        .translated_addr = entry->translated_addr,
+        .perm = entry->perm,
+    };
+
+    /*
+     * Search the IOVA Tree for an existing translation for the target, and skip
+     * the notification if the mapping is already recorded.
+     * When the guest uses large pages, comparing against the record makes it
+     * possible to determine the size of the original MAP and adjust the UNMAP
+     * request to match it. This avoids failed checks against the mappings kept
+     * by the VFIO kernel driver.
+     */
+    const DMAMap *mapped = iova_tree_find(as->iova_tree, &target);
+
+    if (event->type == IOMMU_NOTIFIER_UNMAP) {
+        if (!mapped) {
+            /* No record exists of this mapping, nothing to do */
+            return;
+        }
+        /*
+         * Adjust the size based on the original record. This is essential to
+         * determine when large/contiguous pages are used, since the guest has
+         * already cleared the PTE (erasing the pagesize encoded on it) before
+         * issuing the invalidation command.
+         */
+        if (mapped->size != target.size) {
+            assert(mapped->size > target.size);
+            target.size = mapped->size;
+            /* Adjust event to invoke notifier with correct range */
+            entry->addr_mask = mapped->size;
+        }
+        iova_tree_remove(as->iova_tree, target);
+    } else { /* IOMMU_NOTIFIER_MAP */
+        if (mapped) {
+            /*
+             * If a mapping is present and matches the request, skip the
+             * notification.
+             */
+            if (!memcmp(mapped, &target, sizeof(DMAMap))) {
+                return;
+            } else {
+                /*
+                 * This should never happen unless a buggy guest OS omits or
+                 * sends incorrect invalidation(s). Report an error in the event
+                 * it does happen.
+                 */
+                error_report("Found conflicting translation. This could be due "
+                             "to an incorrect or missing invalidation command");
+            }
+        }
+        /* Record the new mapping */
+        iova_tree_insert(as->iova_tree, &target);
+    }
+
+    /* Invoke the notifiers registered for this address space */
+    memory_region_notify_iommu(&as->iommu, 0, *event);
+}
+
+/*
+ * Walk the guest page table for an IOVA and range and signal the registered
+ * notifiers to sync the shadow page tables in the host.
+ * Must be called with a valid DTE for DMA remapping i.e. V=1,TV=1
+ */
+static void amdvi_sync_shadow_page_table_range(AMDVIAddressSpace *as,
+                                               uint64_t *dte, hwaddr addr,
+                                               uint64_t size, bool send_unmap)
+{
+    IOMMUTLBEvent event;
+
+    hwaddr page_mask, pagesize;
+    hwaddr iova = addr;
+    hwaddr end = iova + size - 1;
+
+    uint64_t pte;
+    int ret;
+
+    while (iova < end) {
+
+        ret = fetch_pte(as, iova, dte[0], &pte, &pagesize);
+
+        if (ret == -AMDVI_FR_PT_ROOT_INV) {
+            /*
+             * Invalid conditions such as the IOVA being larger than supported
+             * by current page table mode as configured in the DTE, or a failure
+             * to fetch the Page Table from the Page Table Root Pointer in DTE.
+             */
+            assert(pagesize == 0);
+            return;
+        }
+        /* PTE has been validated for major errors and pagesize is set */
+        assert(pagesize);
+        page_mask = ~(pagesize - 1);
+
+        if (ret == -AMDVI_FR_PT_ENTRY_INV) {
+            /*
+             * Failure to read PTE from memory, the pagesize matches the current
+             * level. Unable to determine the region type, so a safe strategy is
+             * to skip the range and continue the page walk.
+             */
+            goto next;
+        }
+
+        event.entry.target_as = &address_space_memory;
+        event.entry.iova = iova & page_mask;
+        /* translated_addr is irrelevant for the unmap case */
+        event.entry.translated_addr = (pte & AMDVI_DEV_PT_ROOT_MASK) &
+                                      page_mask;
+        event.entry.addr_mask = ~page_mask;
+        event.entry.perm = amdvi_get_perms(pte);
+
+        /*
+         * In cases where the leaf PTE is not found, or it has invalid
+         * permissions, an UNMAP type notification is sent, but only if the
+         * caller requested it.
+         */
+        if (!IOMMU_PTE_PRESENT(pte) || (event.entry.perm == IOMMU_NONE)) {
+            if (!send_unmap) {
+                goto next;
+            }
+            event.type = IOMMU_NOTIFIER_UNMAP;
+        } else {
+            event.type = IOMMU_NOTIFIER_MAP;
+        }
+
+        /*
+         * The following call might need to adjust event.entry.size in cases
+         * where the guest unmapped a series of large pages.
+         */
+        amdvi_notify_iommu(as, &event);
+        /*
+         * In the special scenario where the guest is unmapping a large page,
+         * addr_mask has been adjusted before sending the notification. Update
+         * pagesize accordingly in order to correctly compute the next IOVA.
+         */
+        pagesize = event.entry.addr_mask + 1;
+
+next:
+        iova &= ~(pagesize - 1);
+
+        /* Check for 64-bit overflow and terminate walk in such cases */
+        if ((iova + pagesize) < iova) {
+            break;
+        } else {
+            iova += pagesize;
+        }
+    }
+}
+
+/*
+ * Unmap entire range that the notifier registered for i.e. the full AS.
+ *
+ * This is seemingly technically equivalent to directly calling
+ * memory_region_unmap_iommu_notifier_range(), but it allows to check for
+ * notifier boundaries and issue notifications with ranges within those bounds.
+ */
+static void amdvi_address_space_unmap(AMDVIAddressSpace *as, IOMMUNotifier *n)
+{
+
+    hwaddr start = n->start;
+    hwaddr end = n->end;
+    hwaddr remain;
+    DMAMap map;
+
+    assert(start <= end);
+    remain = end - start + 1;
+
+    /*
+     * Divide the notifier range into chunks that are aligned and do not exceed
+     * the notifier boundaries.
+     */
+    while (remain >= AMDVI_PAGE_SIZE) {
+
+        IOMMUTLBEvent event;
+
+        uint64_t mask = dma_aligned_pow2_mask(start, end, 64);
+
+        event.type = IOMMU_NOTIFIER_UNMAP;
+
+        IOMMUTLBEntry entry = {
+            .target_as = &address_space_memory,
+            .iova = start,
+            .translated_addr = 0,   /* irrelevant for unmap case */
+            .addr_mask = mask,
+            .perm = IOMMU_NONE,
+        };
+        event.entry = entry;
+
+        /* Call notifier registered for updates on this address space */
+        memory_region_notify_iommu_one(n, &event);
+
+        start += mask + 1;
+        remain -= mask + 1;
+    }
+
+    assert(!remain);
+
+    map.iova = n->start;
+    map.size = n->end - n->start;
+
+    iova_tree_remove(as->iova_tree, map);
+}
+
+/*
+ * For all the address spaces with notifiers registered, unmap the entire range
+ * the notifier registered for i.e. clear all the address spaces managed by the
+ * IOMMU.
+ */
+static void amdvi_address_space_unmap_all(AMDVIState *s)
+{
+    AMDVIAddressSpace *as;
+    IOMMUNotifier *n;
+
+    QLIST_FOREACH(as, &s->amdvi_as_with_notifiers, next) {
+        IOMMU_NOTIFIER_FOREACH(n, &as->iommu) {
+            amdvi_address_space_unmap(as, n);
+        }
+    }
+}
+
+/*
+ * For every translation present in the IOMMU, construct IOMMUTLBEntry data
+ * and pass it as parameter to notifier callback.
+ */
+static void amdvi_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
+{
+    AMDVIAddressSpace *as = container_of(iommu_mr, AMDVIAddressSpace, iommu);
+    uint64_t dte[4] = { 0 };
+
+    if (!(n->notifier_flags & IOMMU_NOTIFIER_MAP)) {
+        return;
+    }
+
+    if (amdvi_as_to_dte(as, dte)) {
+        return;
+    }
+
+    /* Dropping all mappings for the address space. Also clears the IOVA tree */
+    amdvi_address_space_unmap(as, n);
+
+    amdvi_sync_shadow_page_table_range(as, &dte[0], 0, UINT64_MAX, false);
+}
+
+static void amdvi_address_space_sync(AMDVIAddressSpace *as)
+{
+    IOMMUNotifier *n;
+    uint64_t dte[4] = { 0 };
+
+    /* If only UNMAP notifiers are registered, drop all existing mappings */
+    if (!(as->notifier_flags & IOMMU_NOTIFIER_MAP)) {
+        IOMMU_NOTIFIER_FOREACH(n, &as->iommu) {
+            /*
+             * Directly calling memory_region_unmap_iommu_notifier_range() does
+             * not guarantee that the addr_mask eventually passed as parameter
+             * to the notifier is valid. Use amdvi_address_space_unmap() which
+             * ensures the notifier range is divided into properly aligned
+             * regions, and issues notifications for each one.
+             */
+            amdvi_address_space_unmap(as, n);
+        }
+        return;
+    }
+
+    if (amdvi_as_to_dte(as, dte)) {
+        return;
+    }
+
+    amdvi_sync_shadow_page_table_range(as, &dte[0], 0, UINT64_MAX, true);
+}
+
+/*
+ * This differs from the replay() method in that it issues both MAP and UNMAP
+ * notifications since it is called after global invalidation events in order to
+ * re-sync all address spaces.
+ */
+static void amdvi_iommu_address_space_sync_all(AMDVIState *s)
+{
+    AMDVIAddressSpace *as;
+
+    QLIST_FOREACH(as, &s->amdvi_as_with_notifiers, next) {
+        amdvi_address_space_sync(as);
+    }
+}
+
+/*
+ * Toggle between address translation and passthrough modes by enabling the
+ * corresponding memory regions.
+ */
+static void amdvi_switch_address_space(AMDVIAddressSpace *amdvi_as)
+{
+    AMDVIState *s = amdvi_as->iommu_state;
+
+    if (s->dma_remap && amdvi_as->addr_translation) {
+        /* Enabling DMA region */
+        memory_region_set_enabled(&amdvi_as->iommu_nodma, false);
+        memory_region_set_enabled(MEMORY_REGION(&amdvi_as->iommu), true);
+    } else {
+        /* Disabling DMA region, using passthrough */
+        memory_region_set_enabled(MEMORY_REGION(&amdvi_as->iommu), false);
+        memory_region_set_enabled(&amdvi_as->iommu_nodma, true);
+    }
+}
+
+/*
+ * For all existing address spaces managed by the IOMMU, enable/disable the
+ * corresponding memory regions to reset the address translation mode and
+ * use passthrough by default.
+ */
+static void amdvi_reset_address_translation_all(AMDVIState *s)
+{
+    AMDVIAddressSpace **iommu_as;
+
+    for (int bus_num = 0; bus_num < PCI_BUS_MAX; bus_num++) {
+
+        /* Nothing to do if there are no devices on the current bus */
+        if (!s->address_spaces[bus_num]) {
+            continue;
+        }
+        iommu_as = s->address_spaces[bus_num];
+
+        for (int devfn = 0; devfn < PCI_DEVFN_MAX; devfn++) {
+
+            if (!iommu_as[devfn]) {
+                continue;
+            }
+            /* Use passthrough as default mode after reset */
+            iommu_as[devfn]->addr_translation = false;
+            amdvi_switch_address_space(iommu_as[devfn]);
+        }
+    }
+}
+
+static void enable_dma_mode(AMDVIAddressSpace *as, bool inval_current)
+{
+    /*
+     * When enabling DMA mode for the purpose of isolating guest devices on
+     * a failure to retrieve or invalid DTE, all existing mappings must be
+     * dropped.
+     */
+    if (inval_current) {
+        IOMMUNotifier *n;
+        IOMMU_NOTIFIER_FOREACH(n, &as->iommu) {
+            amdvi_address_space_unmap(as, n);
+        }
+    }
+
+    if (as->addr_translation) {
+        return;
+    }
+
+    /* Installing DTE enabling translation, activate region */
+    as->addr_translation = true;
+    amdvi_switch_address_space(as);
+    /* Sync shadow page tables */
+    amdvi_address_space_sync(as);
+}
+
+/*
+ * If paging was previously in use in the address space
+ * - invalidate all existing mappings
+ * - switch to no_dma memory region
+ */
+static void enable_nodma_mode(AMDVIAddressSpace *as)
+{
+    IOMMUNotifier *n;
+
+    if (!as->addr_translation) {
+        /* passthrough is already active, nothing to do */
+        return;
+    }
+
+    as->addr_translation = false;
+    IOMMU_NOTIFIER_FOREACH(n, &as->iommu) {
+        /* Drop all mappings for the address space */
+        amdvi_address_space_unmap(as, n);
+    }
+    amdvi_switch_address_space(as);
+}
+
+/*
+ * A guest driver must issue the INVALIDATE_DEVTAB_ENTRY command to the IOMMU
+ * after changing a Device Table entry. We can use this fact to detect when a
+ * Device Table entry is created for a device attached to a paging domain and
+ * enable the corresponding IOMMU memory region to allow for DMA translation if
+ * appropriate.
+ */
+static void amdvi_update_addr_translation_mode(AMDVIState *s, uint16_t devid)
+{
+    uint8_t bus_num, devfn, dte_mode;
+    AMDVIAddressSpace *as;
+    uint64_t dte[4] = { 0 };
+    int ret;
+
+    /*
+     * Convert the devid encoded in the command to a bus and devfn in
+     * order to retrieve the corresponding address space.
+     */
+    bus_num = PCI_BUS_NUM(devid);
+    devfn = devid & 0xff;
+
+    /*
+     * The main buffer of size (AMDVIAddressSpace *) * (PCI_BUS_MAX) has already
+     * been allocated within AMDVIState, but must be careful to not access
+     * unallocated devfn.
+     */
+    if (!s->address_spaces[bus_num] || !s->address_spaces[bus_num][devfn]) {
+        return;
+    }
+    as = s->address_spaces[bus_num][devfn];
+
+    ret = amdvi_as_to_dte(as, dte);
+
+    if (!ret) {
+        dte_mode = (dte[0] >> AMDVI_DEV_MODE_RSHIFT) & AMDVI_DEV_MODE_MASK;
+    }
+
+    switch (ret) {
+    case 0:
+        /* DTE was successfully retrieved */
+        if (!dte_mode) {
+            enable_nodma_mode(as); /* DTE[V]=1 && DTE[Mode]=0 => passthrough */
+        } else {
+            enable_dma_mode(as, false); /* Enable DMA translation */
+        }
+        break;
+    case -AMDVI_FR_DTE_V:
+        /* DTE[V]=0, address is passed untranslated */
+        enable_nodma_mode(as);
+        break;
+    case -AMDVI_FR_DTE_RTR_ERR:
+    case -AMDVI_FR_DTE_TV:
+        /*
+         * Enforce isolation by using DMA in rare scenarios where the DTE cannot
+         * be retrieved or DTE[TV]=0. Existing mappings are dropped.
+         */
+        enable_dma_mode(as, true);
+        break;
+    }
+}
+
 /* log error without aborting since linux seems to be using reserved bits */
 static void amdvi_inval_devtab_entry(AMDVIState *s, uint64_t *cmd)
 {
     uint16_t devid = cpu_to_le16((uint16_t)extract64(cmd[0], 0, 16));
 
+    trace_amdvi_devtab_inval(PCI_BUS_NUM(devid), PCI_SLOT(devid),
+                             PCI_FUNC(devid));
+
     /* This command should invalidate internal caches of which there isn't */
     if (extract64(cmd[0], 16, 44) || cmd[1]) {
         amdvi_log_illegalcom_error(s, extract64(cmd[0], 60, 4),
                                    s->cmdbuf + s->cmdbuf_head);
+        return;
     }
-    trace_amdvi_devtab_inval(PCI_BUS_NUM(devid), PCI_SLOT(devid),
-                             PCI_FUNC(devid));
+
+    /*
+     * When DMA remapping capability is enabled, check if updated DTE is setup
+     * for paging or not, and configure the corresponding memory regions.
+     */
+    if (s->dma_remap) {
+        amdvi_update_addr_translation_mode(s, devid);
+    }
 }
 
 static void amdvi_complete_ppr(AMDVIState *s, uint64_t *cmd)
@@ -480,6 +1193,13 @@ static void amdvi_inval_all(AMDVIState *s, uint64_t *cmd)
     amdvi_intremap_inval_notify_all(s, true, 0, 0);
 
     amdvi_iotlb_reset(s);
+
+    /*
+     * Fully replay the address space i.e. send both UNMAP and MAP events in
+     * order to synchronize guest and host IO page tables tables.
+     */
+    amdvi_iommu_address_space_sync_all(s);
+
     trace_amdvi_all_inval();
 }
 
@@ -491,10 +1211,109 @@ static gboolean amdvi_iotlb_remove_by_domid(gpointer key, gpointer value,
     return entry->domid == domid;
 }
 
+/*
+ * Helper to decode the size of the range to invalidate encoded in the
+ * INVALIDATE_IOMMU_PAGES Command format.
+ * The size of the region to invalidate depends on the S bit and address.
+ * S bit value:
+ * 0 :  Invalidation size is 4 Kbytes.
+ * 1 :  Invalidation size is determined by first zero bit in the address
+ *      starting from Address[12].
+ *
+ * In the AMD IOMMU Linux driver, an invalidation command with address
+ * ((1 << 63) - 1) is sent when intending to clear the entire cache.
+ * However, Table 14: Example Page Size Encodings shows that an address of
+ * ((1ULL << 51) - 1) encodes the entire cache, so effectively any address with
+ * first zero at bit 51 or larger is a request to invalidate the entire address
+ * space.
+ */
+static uint64_t amdvi_decode_invalidation_size(hwaddr addr, uint16_t flags)
+{
+    uint64_t size = AMDVI_PAGE_SIZE;
+    uint8_t fzbit = 0;
+
+    if (flags & AMDVI_CMD_INVAL_IOMMU_PAGES_S) {
+        fzbit = cto64(addr | 0xFFF);
+
+        if (fzbit >= 51) {
+            size = AMDVI_INV_ALL_PAGES;
+        } else {
+            size = 1ULL << (fzbit + 1);
+        }
+    }
+    return size;
+}
+
+/*
+ * Synchronize the guest page tables with the shadow page tables kept in the
+ * host for the specified range.
+ * The invalidation command issued by the guest and intercepted by the VMM
+ * does not specify a device, but a domain, since all devices in the same domain
+ * share the same page tables. However, vIOMMU emulation creates separate
+ * address spaces per device, so it is necessary to traverse the list of all of
+ * address spaces (i.e. devices) that have notifiers registered in order to
+ * propagate the changes to the host page tables.
+ * We cannot return early from this function once a matching domain has been
+ * identified and its page tables synced (based on the fact that all devices in
+ * the same domain share the page tables). The reason is that different devices
+ * (i.e. address spaces) could have different notifiers registered, and by
+ * skipping address spaces that appear later on the amdvi_as_with_notifiers list
+ * their notifiers (which could differ from the ones registered for the first
+ * device/address space) would not be invoked.
+ */
+static void amdvi_sync_domain(AMDVIState *s, uint16_t domid, uint64_t addr,
+                              uint16_t flags)
+{
+    AMDVIAddressSpace *as;
+
+    uint64_t size = amdvi_decode_invalidation_size(addr, flags);
+
+    if (size == AMDVI_INV_ALL_PAGES) {
+        addr = 0;       /* Set start address to 0 and invalidate entire AS */
+    } else {
+        addr &= ~(size - 1);
+    }
+
+    /*
+     * Call notifiers that have registered for each address space matching the
+     * domain ID, in order to sync the guest pagetable state with the host.
+     */
+    QLIST_FOREACH(as, &s->amdvi_as_with_notifiers, next) {
+
+        uint64_t dte[4] = { 0 };
+
+        /*
+         * Retrieve the Device Table entry for the devid corresponding to the
+         * current address space, and verify the DomainID matches i.e. the page
+         * tables to be synced belong to devices in the domain.
+         */
+        if (amdvi_as_to_dte(as, dte)) {
+            continue;
+        }
+
+        /* Only need to sync the Page Tables for a matching domain */
+        if (domid != (dte[1] & AMDVI_DEV_DOMID_ID_MASK)) {
+            continue;
+        }
+
+        /*
+         * We have determined that there is a valid Device Table Entry for a
+         * device matching the DomainID in the INV_IOMMU_PAGES command issued by
+         * the guest. Walk the guest page table to sync shadow page table.
+         */
+        if (as->notifier_flags & IOMMU_NOTIFIER_MAP) {
+            /* Sync guest IOMMU mappings with host */
+            amdvi_sync_shadow_page_table_range(as, &dte[0], addr, size, true);
+        }
+    }
+}
+
 /* we don't have devid - we can't remove pages by address */
 static void amdvi_inval_pages(AMDVIState *s, uint64_t *cmd)
 {
     uint16_t domid = cpu_to_le16((uint16_t)extract64(cmd[0], 32, 16));
+    uint64_t addr = cpu_to_le64(extract64(cmd[1], 12, 52)) << 12;
+    uint16_t flags = cpu_to_le16((uint16_t)extract64(cmd[1], 0, 3));
 
     if (extract64(cmd[0], 20, 12) || extract64(cmd[0], 48, 12) ||
         extract64(cmd[1], 3, 9)) {
@@ -504,6 +1323,8 @@ static void amdvi_inval_pages(AMDVIState *s, uint64_t *cmd)
 
     g_hash_table_foreach_remove(s->iotlb, amdvi_iotlb_remove_by_domid,
                                 &domid);
+
+    amdvi_sync_domain(s, domid, addr, flags);
     trace_amdvi_pages_inval(domid);
 }
 
@@ -894,150 +1715,68 @@ static void amdvi_mmio_write(void *opaque, hwaddr addr, uint64_t val,
     }
 }
 
-static inline uint64_t amdvi_get_perms(uint64_t entry)
-{
-    return (entry & (AMDVI_DEV_PERM_READ | AMDVI_DEV_PERM_WRITE)) >>
-           AMDVI_DEV_PERM_SHIFT;
-}
-
-/* validate that reserved bits are honoured */
-static bool amdvi_validate_dte(AMDVIState *s, uint16_t devid,
-                               uint64_t *dte)
-{
-    if ((dte[0] & AMDVI_DTE_QUAD0_RESERVED) ||
-        (dte[1] & AMDVI_DTE_QUAD1_RESERVED) ||
-        (dte[2] & AMDVI_DTE_QUAD2_RESERVED) ||
-        (dte[3] & AMDVI_DTE_QUAD3_RESERVED)) {
-        amdvi_log_illegaldevtab_error(s, devid,
-                                      s->devtab +
-                                      devid * AMDVI_DEVTAB_ENTRY_SIZE, 0);
-        return false;
-    }
-
-    return true;
-}
-
-/* get a device table entry given the devid */
-static bool amdvi_get_dte(AMDVIState *s, int devid, uint64_t *entry)
-{
-    uint32_t offset = devid * AMDVI_DEVTAB_ENTRY_SIZE;
-
-    if (dma_memory_read(&address_space_memory, s->devtab + offset, entry,
-                        AMDVI_DEVTAB_ENTRY_SIZE, MEMTXATTRS_UNSPECIFIED)) {
-        trace_amdvi_dte_get_fail(s->devtab, offset);
-        /* log error accessing dte */
-        amdvi_log_devtab_error(s, devid, s->devtab + offset, 0);
-        return false;
-    }
-
-    *entry = le64_to_cpu(*entry);
-    if (!amdvi_validate_dte(s, devid, entry)) {
-        trace_amdvi_invalid_dte(entry[0]);
-        return false;
-    }
-
-    return true;
-}
-
-/* get pte translation mode */
-static inline uint8_t get_pte_translation_mode(uint64_t pte)
-{
-    return (pte >> AMDVI_DEV_MODE_RSHIFT) & AMDVI_DEV_MODE_MASK;
-}
-
-static inline uint64_t pte_override_page_mask(uint64_t pte)
-{
-    uint8_t page_mask = 13;
-    uint64_t addr = (pte & AMDVI_DEV_PT_ROOT_MASK) >> 12;
-    /* find the first zero bit */
-    while (addr & 1) {
-        page_mask++;
-        addr = addr >> 1;
-    }
-
-    return ~((1ULL << page_mask) - 1);
-}
-
-static inline uint64_t pte_get_page_mask(uint64_t oldlevel)
-{
-    return ~((1UL << ((oldlevel * 9) + 3)) - 1);
-}
-
-static inline uint64_t amdvi_get_pte_entry(AMDVIState *s, uint64_t pte_addr,
-                                          uint16_t devid)
-{
-    uint64_t pte;
-
-    if (dma_memory_read(&address_space_memory, pte_addr,
-                        &pte, sizeof(pte), MEMTXATTRS_UNSPECIFIED)) {
-        trace_amdvi_get_pte_hwerror(pte_addr);
-        amdvi_log_pagetab_error(s, devid, pte_addr, 0);
-        pte = 0;
-        return pte;
-    }
-
-    pte = le64_to_cpu(pte);
-    return pte;
-}
-
 static void amdvi_page_walk(AMDVIAddressSpace *as, uint64_t *dte,
                             IOMMUTLBEntry *ret, unsigned perms,
                             hwaddr addr)
 {
-    unsigned level, present, pte_perms, oldlevel;
-    uint64_t pte = dte[0], pte_addr, page_mask;
+    hwaddr page_mask, pagesize = 0;
+    uint8_t mode;
+    uint64_t pte;
+    int fetch_ret;
 
     /* make sure the DTE has TV = 1 */
-    if (pte & AMDVI_DEV_TRANSLATION_VALID) {
-        level = get_pte_translation_mode(pte);
-        if (level >= 7) {
-            trace_amdvi_mode_invalid(level, addr);
-            return;
-        }
-        if (level == 0) {
-            goto no_remap;
-        }
-
-        /* we are at the leaf page table or page table encodes a huge page */
-        do {
-            pte_perms = amdvi_get_perms(pte);
-            present = pte & 1;
-            if (!present || perms != (perms & pte_perms)) {
-                amdvi_page_fault(as->iommu_state, as->devfn, addr, perms);
-                trace_amdvi_page_fault(addr);
-                return;
-            }
-
-            /* go to the next lower level */
-            pte_addr = pte & AMDVI_DEV_PT_ROOT_MASK;
-            /* add offset and load pte */
-            pte_addr += ((addr >> (3 + 9 * level)) & 0x1FF) << 3;
-            pte = amdvi_get_pte_entry(as->iommu_state, pte_addr, as->devfn);
-            if (!pte) {
-                return;
-            }
-            oldlevel = level;
-            level = get_pte_translation_mode(pte);
-        } while (level > 0 && level < 7);
-
-        if (level == 0x7) {
-            page_mask = pte_override_page_mask(pte);
-        } else {
-            page_mask = pte_get_page_mask(oldlevel);
-        }
-
-        /* get access permissions from pte */
-        ret->iova = addr & page_mask;
-        ret->translated_addr = (pte & AMDVI_DEV_PT_ROOT_MASK) & page_mask;
-        ret->addr_mask = ~page_mask;
-        ret->perm = amdvi_get_perms(pte);
+    if (!(dte[0] & AMDVI_DEV_TRANSLATION_VALID)) {
+        /*
+         * A DTE with V=1, TV=0 does not have a valid Page Table Root Pointer.
+         * An IOMMU processing a request that requires a table walk terminates
+         * the walk when it encounters this condition. Do the same and return
+         * instead of assuming that the address is forwarded without translation
+         * i.e. the passthrough case, as it is done for the case where DTE[V]=0.
+         */
         return;
     }
+
+    mode = get_pte_translation_mode(dte[0]);
+    if (mode >= 7) {
+        trace_amdvi_mode_invalid(mode, addr);
+        return;
+    }
+    if (mode == 0) {
+        goto no_remap;
+    }
+
+    /* Attempt to fetch the PTE to determine if a valid mapping exists */
+    fetch_ret = fetch_pte(as, addr, dte[0], &pte, &pagesize);
+
+    /*
+     * If walking the page table results in an error of any type, returns an
+     * empty PTE i.e. no mapping, or the permissions do not match, return since
+     * there is no translation available.
+     */
+    if (fetch_ret < 0 || !IOMMU_PTE_PRESENT(pte) ||
+        perms != (perms & amdvi_get_perms(pte))) {
+
+        amdvi_page_fault(as->iommu_state, as->devfn, addr, perms);
+        trace_amdvi_page_fault(addr);
+        return;
+    }
+
+    /* A valid PTE and page size has been retrieved */
+    assert(pagesize);
+    page_mask = ~(pagesize - 1);
+
+    /* get access permissions from pte */
+    ret->iova = addr & page_mask;
+    ret->translated_addr = (pte & AMDVI_DEV_PT_ROOT_MASK) & page_mask;
+    ret->addr_mask = ~page_mask;
+    ret->perm = amdvi_get_perms(pte);
+    return;
+
 no_remap:
     ret->iova = addr & AMDVI_PAGE_MASK_4K;
     ret->translated_addr = addr & AMDVI_PAGE_MASK_4K;
     ret->addr_mask = ~AMDVI_PAGE_MASK_4K;
-    ret->perm = amdvi_get_perms(pte);
+    ret->perm = amdvi_get_perms(dte[0]);
 }
 
 static void amdvi_do_translate(AMDVIAddressSpace *as, hwaddr addr,
@@ -1047,6 +1786,7 @@ static void amdvi_do_translate(AMDVIAddressSpace *as, hwaddr addr,
     uint16_t devid = PCI_BUILD_BDF(as->bus_num, as->devfn);
     AMDVIIOTLBEntry *iotlb_entry = amdvi_iotlb_lookup(s, addr, devid);
     uint64_t entry[4];
+    int dte_ret;
 
     if (iotlb_entry) {
         trace_amdvi_iotlb_hit(PCI_BUS_NUM(devid), PCI_SLOT(devid),
@@ -1058,13 +1798,14 @@ static void amdvi_do_translate(AMDVIAddressSpace *as, hwaddr addr,
         return;
     }
 
-    if (!amdvi_get_dte(s, devid, entry)) {
-        return;
-    }
+    dte_ret = amdvi_as_to_dte(as, entry);
 
-    /* devices with V = 0 are not translated */
-    if (!(entry[0] & AMDVI_DEV_VALID)) {
-        goto out;
+    if (dte_ret < 0) {
+        if (dte_ret == -AMDVI_FR_DTE_V) {
+            /* DTE[V]=0, address is passed untranslated */
+            goto out;
+        }
+        return;
     }
 
     amdvi_page_walk(as, entry, ret,
@@ -1500,6 +2241,9 @@ static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
         iommu_as[devfn]->bus_num = (uint8_t)bus_num;
         iommu_as[devfn]->devfn = (uint8_t)devfn;
         iommu_as[devfn]->iommu_state = s;
+        iommu_as[devfn]->notifier_flags = IOMMU_NOTIFIER_NONE;
+        iommu_as[devfn]->iova_tree = iova_tree_new();
+        iommu_as[devfn]->addr_translation = false;
 
         amdvi_dev_as = iommu_as[devfn];
 
@@ -1542,8 +2286,7 @@ static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
                                             AMDVI_INT_ADDR_FIRST,
                                             &amdvi_dev_as->iommu_ir, 1);
 
-        memory_region_set_enabled(&amdvi_dev_as->iommu_nodma, false);
-        memory_region_set_enabled(MEMORY_REGION(&amdvi_dev_as->iommu), true);
+        amdvi_switch_address_space(amdvi_dev_as);
     }
     return &iommu_as[devfn]->as;
 }
@@ -1573,14 +2316,35 @@ static int amdvi_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
                                            Error **errp)
 {
     AMDVIAddressSpace *as = container_of(iommu, AMDVIAddressSpace, iommu);
+    AMDVIState *s = as->iommu_state;
 
-    if (new & IOMMU_NOTIFIER_MAP) {
-        error_setg(errp,
-                   "device %02x.%02x.%x requires iommu notifier which is not "
-                   "currently supported", as->bus_num, PCI_SLOT(as->devfn),
-                   PCI_FUNC(as->devfn));
-        return -EINVAL;
+    /*
+     * Accurate synchronization of the vIOMMU page tables required to support
+     * MAP notifiers is provided by the dma-remap feature. In addition, this
+     * also requires that the vIOMMU presents the NpCache capability, so a guest
+     * driver issues invalidations for both map() and unmap() operations. The
+     * capability is already set by default as part of AMDVI_CAPAB_FEATURES and
+     * written to the configuration in amdvi_pci_realize().
+     */
+    if (!s->dma_remap && (new & IOMMU_NOTIFIER_MAP)) {
+        error_setg_errno(errp, ENOTSUP,
+            "device %02x.%02x.%x requires dma-remap=1",
+            as->bus_num, PCI_SLOT(as->devfn), PCI_FUNC(as->devfn));
+        return -ENOTSUP;
     }
+
+    /*
+     * Update notifier flags for address space and the list of address spaces
+     * with registered notifiers.
+     */
+    as->notifier_flags = new;
+
+    if (old == IOMMU_NOTIFIER_NONE) {
+        QLIST_INSERT_HEAD(&s->amdvi_as_with_notifiers, as, next);
+    } else if (new == IOMMU_NOTIFIER_NONE) {
+        QLIST_REMOVE(as, next);
+    }
+
     return 0;
 }
 
@@ -1657,6 +2421,10 @@ static void amdvi_sysbus_reset(DeviceState *dev)
 
     msi_reset(&s->pci->dev);
     amdvi_init(s);
+
+    /* Discard all mappings on device reset */
+    amdvi_address_space_unmap_all(s);
+    amdvi_reset_address_translation_all(s);
 }
 
 static const VMStateDescription vmstate_amdvi_sysbus_migratable = {
@@ -1787,6 +2555,7 @@ static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
 static const Property amdvi_properties[] = {
     DEFINE_PROP_BOOL("xtsup", AMDVIState, xtsup, false),
     DEFINE_PROP_STRING("pci-id", AMDVIState, pci_id),
+    DEFINE_PROP_BOOL("dma-remap", AMDVIState, dma_remap, false),
 };
 
 static const VMStateDescription vmstate_amdvi_sysbus = {
@@ -1848,6 +2617,7 @@ static void amdvi_iommu_memory_region_class_init(ObjectClass *klass,
 
     imrc->translate = amdvi_translate;
     imrc->notify_flag_changed = amdvi_iommu_notify_flag_changed;
+    imrc->replay = amdvi_iommu_replay;
 }
 
 static const TypeInfo amdvi_iommu_memory_region_info = {

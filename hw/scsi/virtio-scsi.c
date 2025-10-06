@@ -116,11 +116,7 @@ static void virtio_scsi_complete_req(VirtIOSCSIReq *req, QemuMutex *vq_lock)
     }
 
     virtqueue_push(vq, &req->elem, req->qsgl.size + req->resp_iov.size);
-    if (s->dataplane_started && !s->dataplane_fenced) {
-        virtio_notify_irqfd(vdev, vq);
-    } else {
-        virtio_notify(vdev, vq);
-    }
+    virtio_notify(vdev, vq);
 
     if (vq_lock) {
         qemu_mutex_unlock(vq_lock);

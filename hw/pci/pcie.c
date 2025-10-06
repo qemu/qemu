@@ -1266,6 +1266,14 @@ void pcie_pri_init(PCIDevice *dev, uint16_t offset, uint32_t outstanding_pr_cap,
     dev->exp.pri_cap = offset;
 }
 
+uint32_t pcie_pri_get_req_alloc(const PCIDevice *dev)
+{
+    if (!pcie_pri_enabled(dev)) {
+        return 0;
+    }
+    return pci_get_long(dev->config + dev->exp.pri_cap + PCI_PRI_ALLOC_REQ);
+}
+
 bool pcie_pri_enabled(const PCIDevice *dev)
 {
     if (!pci_is_express(dev) || !dev->exp.pri_cap) {

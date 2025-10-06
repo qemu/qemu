@@ -325,6 +325,20 @@ static const qmp_virtio_feature_map_t virtio_net_feature_map[] = {
     FEATURE_ENTRY(VHOST_USER_F_PROTOCOL_FEATURES, \
             "VHOST_USER_F_PROTOCOL_FEATURES: Vhost-user protocol features "
             "negotiation supported"),
+    FEATURE_ENTRY(VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO, \
+            "VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO: Driver can receive GSO over "
+            "UDP tunnel packets"),
+    FEATURE_ENTRY(VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO_CSUM, \
+            "VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO: Driver can receive GSO over "
+            "UDP tunnel packets requiring checksum offload for the outer "
+            "header"),
+    FEATURE_ENTRY(VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO, \
+            "VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO: Device can receive GSO over "
+            "UDP tunnel packets"),
+    FEATURE_ENTRY(VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO_CSUM, \
+            "VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO_CSUM: Device can receive GSO over "
+            "UDP tunnel packets requiring checksum offload for the outer "
+            "header"),
     { -1, "" }
 };
 #endif
@@ -510,6 +524,24 @@ static const qmp_virtio_feature_map_t virtio_gpio_feature_map[] = {
         list;                                            \
     })
 
+#define CONVERT_FEATURES_EX(type, map, bitmap)           \
+    ({                                                   \
+        type *list = NULL;                               \
+        type *node;                                      \
+        for (i = 0; map[i].virtio_bit != -1; i++) {      \
+            bit = map[i].virtio_bit;                     \
+            if (!virtio_has_feature_ex(bitmap, bit)) {   \
+                continue;                                \
+            }                                            \
+            node = g_new0(type, 1);                      \
+            node->value = g_strdup(map[i].feature_desc); \
+            node->next = list;                           \
+            list = node;                                 \
+            virtio_clear_feature_ex(bitmap, bit);        \
+        }                                                \
+        list;                                            \
+    })
+
 VirtioDeviceStatus *qmp_decode_status(uint8_t bitmap)
 {
     VirtioDeviceStatus *status;
@@ -545,109 +577,112 @@ VhostDeviceProtocols *qmp_decode_protocols(uint64_t bitmap)
     return vhu_protocols;
 }
 
-VirtioDeviceFeatures *qmp_decode_features(uint16_t device_id, uint64_t bitmap)
+VirtioDeviceFeatures *qmp_decode_features(uint16_t device_id,
+                                          const uint64_t *bmap)
 {
+    uint64_t bitmap[VIRTIO_FEATURES_NU64S];
     VirtioDeviceFeatures *features;
     uint64_t bit;
     int i;
 
+    virtio_features_copy(bitmap, bmap);
     features = g_new0(VirtioDeviceFeatures, 1);
     features->has_dev_features = true;
 
     /* transport features */
-    features->transports = CONVERT_FEATURES(strList, virtio_transport_map, 0,
-                                            bitmap);
+    features->transports = CONVERT_FEATURES_EX(strList, virtio_transport_map,
+                                               bitmap);
 
     /* device features */
     switch (device_id) {
 #ifdef CONFIG_VIRTIO_SERIAL
     case VIRTIO_ID_CONSOLE:
         features->dev_features =
-            CONVERT_FEATURES(strList, virtio_serial_feature_map, 0, bitmap);
+            CONVERT_FEATURES_EX(strList, virtio_serial_feature_map, bitmap);
         break;
 #endif
 #ifdef CONFIG_VIRTIO_BLK
     case VIRTIO_ID_BLOCK:
         features->dev_features =
-            CONVERT_FEATURES(strList, virtio_blk_feature_map, 0, bitmap);
+            CONVERT_FEATURES_EX(strList, virtio_blk_feature_map, bitmap);
         break;
 #endif
 #ifdef CONFIG_VIRTIO_GPU
     case VIRTIO_ID_GPU:
         features->dev_features =
-            CONVERT_FEATURES(strList, virtio_gpu_feature_map, 0, bitmap);
+            CONVERT_FEATURES_EX(strList, virtio_gpu_feature_map, bitmap);
         break;
 #endif
 #ifdef CONFIG_VIRTIO_NET
     case VIRTIO_ID_NET:
         features->dev_features =
-            CONVERT_FEATURES(strList, virtio_net_feature_map, 0, bitmap);
+            CONVERT_FEATURES_EX(strList, virtio_net_feature_map, bitmap);
         break;
 #endif
 #ifdef CONFIG_VIRTIO_SCSI
     case VIRTIO_ID_SCSI:
         features->dev_features =
-            CONVERT_FEATURES(strList, virtio_scsi_feature_map, 0, bitmap);
+            CONVERT_FEATURES_EX(strList, virtio_scsi_feature_map, bitmap);
         break;
 #endif
 #ifdef CONFIG_VIRTIO_BALLOON
     case VIRTIO_ID_BALLOON:
         features->dev_features =
-            CONVERT_FEATURES(strList, virtio_balloon_feature_map, 0, bitmap);
+            CONVERT_FEATURES_EX(strList, virtio_balloon_feature_map, bitmap);
         break;
 #endif
 #ifdef CONFIG_VIRTIO_IOMMU
     case VIRTIO_ID_IOMMU:
         features->dev_features =
-            CONVERT_FEATURES(strList, virtio_iommu_feature_map, 0, bitmap);
+            CONVERT_FEATURES_EX(strList, virtio_iommu_feature_map, bitmap);
         break;
 #endif
 #ifdef CONFIG_VIRTIO_INPUT
     case VIRTIO_ID_INPUT:
         features->dev_features =
-            CONVERT_FEATURES(strList, virtio_input_feature_map, 0, bitmap);
+            CONVERT_FEATURES_EX(strList, virtio_input_feature_map, bitmap);
         break;
 #endif
 #ifdef CONFIG_VHOST_USER_FS
     case VIRTIO_ID_FS:
         features->dev_features =
-            CONVERT_FEATURES(strList, virtio_fs_feature_map, 0, bitmap);
+            CONVERT_FEATURES_EX(strList, virtio_fs_feature_map, bitmap);
         break;
 #endif
 #ifdef CONFIG_VHOST_VSOCK
     case VIRTIO_ID_VSOCK:
         features->dev_features =
-            CONVERT_FEATURES(strList, virtio_vsock_feature_map, 0, bitmap);
+            CONVERT_FEATURES_EX(strList, virtio_vsock_feature_map, bitmap);
         break;
 #endif
 #ifdef CONFIG_VIRTIO_CRYPTO
     case VIRTIO_ID_CRYPTO:
         features->dev_features =
-            CONVERT_FEATURES(strList, virtio_crypto_feature_map, 0, bitmap);
+            CONVERT_FEATURES_EX(strList, virtio_crypto_feature_map, bitmap);
         break;
 #endif
 #ifdef CONFIG_VIRTIO_MEM
     case VIRTIO_ID_MEM:
         features->dev_features =
-            CONVERT_FEATURES(strList, virtio_mem_feature_map, 0, bitmap);
+            CONVERT_FEATURES_EX(strList, virtio_mem_feature_map, bitmap);
         break;
 #endif
 #ifdef CONFIG_VIRTIO_I2C_ADAPTER
     case VIRTIO_ID_I2C_ADAPTER:
         features->dev_features =
-            CONVERT_FEATURES(strList, virtio_i2c_feature_map, 0, bitmap);
+            CONVERT_FEATURES_EX(strList, virtio_i2c_feature_map, bitmap);
         break;
 #endif
 #ifdef CONFIG_VIRTIO_RNG
     case VIRTIO_ID_RNG:
         features->dev_features =
-            CONVERT_FEATURES(strList, virtio_rng_feature_map, 0, bitmap);
+            CONVERT_FEATURES_EX(strList, virtio_rng_feature_map, bitmap);
         break;
 #endif
 #ifdef CONFIG_VHOST_USER_GPIO
     case VIRTIO_ID_GPIO:
         features->dev_features =
-            CONVERT_FEATURES(strList, virtio_gpio_feature_map, 0, bitmap);
+            CONVERT_FEATURES_EX(strList, virtio_gpio_feature_map, bitmap);
         break;
 #endif
     /* No features */
@@ -680,10 +715,9 @@ VirtioDeviceFeatures *qmp_decode_features(uint16_t device_id, uint64_t bitmap)
         g_assert_not_reached();
     }
 
-    features->has_unknown_dev_features = bitmap != 0;
-    if (features->has_unknown_dev_features) {
-        features->unknown_dev_features = bitmap;
-    }
+    features->has_unknown_dev_features = !virtio_features_empty(bitmap);
+    features->unknown_dev_features = bitmap[0];
+    features->unknown_dev_features2 = bitmap[1];
 
     return features;
 }
@@ -743,11 +777,11 @@ VirtioStatus *qmp_x_query_virtio_status(const char *path, Error **errp)
     status->device_id = vdev->device_id;
     status->vhost_started = vdev->vhost_started;
     status->guest_features = qmp_decode_features(vdev->device_id,
-                                                 vdev->guest_features);
+                                                 vdev->guest_features_ex);
     status->host_features = qmp_decode_features(vdev->device_id,
-                                                vdev->host_features);
+                                                vdev->host_features_ex);
     status->backend_features = qmp_decode_features(vdev->device_id,
-                                                   vdev->backend_features);
+                                                 vdev->backend_features_ex);
 
     switch (vdev->device_endian) {
     case VIRTIO_DEVICE_ENDIAN_LITTLE:
@@ -785,11 +819,12 @@ VirtioStatus *qmp_x_query_virtio_status(const char *path, Error **errp)
         status->vhost_dev->nvqs = hdev->nvqs;
         status->vhost_dev->vq_index = hdev->vq_index;
         status->vhost_dev->features =
-            qmp_decode_features(vdev->device_id, hdev->features);
+            qmp_decode_features(vdev->device_id, hdev->features_ex);
         status->vhost_dev->acked_features =
-            qmp_decode_features(vdev->device_id, hdev->acked_features);
+            qmp_decode_features(vdev->device_id, hdev->acked_features_ex);
         status->vhost_dev->backend_features =
-            qmp_decode_features(vdev->device_id, hdev->backend_features);
+            qmp_decode_features(vdev->device_id, hdev->backend_features_ex);
+
         status->vhost_dev->protocol_features =
             qmp_decode_protocols(hdev->protocol_features);
         status->vhost_dev->max_queues = hdev->max_queues;

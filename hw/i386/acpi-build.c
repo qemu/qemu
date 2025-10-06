@@ -1863,7 +1863,11 @@ build_amd_iommu(GArray *table_data, BIOSLinker *linker, const char *oem_id,
     /* IOMMU info */
     build_append_int_noprefix(table_data, 0, 2);
     /* IOMMU Attributes */
-    build_append_int_noprefix(table_data, 0, 4);
+    if (!s->iommu.dma_translation) {
+        build_append_int_noprefix(table_data, (1UL << 0) /* HATDis */, 4);
+    } else {
+        build_append_int_noprefix(table_data, 0, 4);
+    }
     /* EFR Register Image */
     build_append_int_noprefix(table_data,
                               amdvi_extended_feature_register(s),

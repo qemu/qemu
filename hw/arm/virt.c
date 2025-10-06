@@ -693,7 +693,7 @@ static inline DeviceState *create_acpi_ged(VirtMachineState *vms)
     MachineState *ms = MACHINE(vms);
     SysBusDevice *sbdev;
     int irq = vms->irqmap[VIRT_ACPI_GED];
-    uint32_t event = ACPI_GED_PWR_DOWN_EVT;
+    uint32_t event = ACPI_GED_PWR_DOWN_EVT | ACPI_GED_ERROR_EVT;
     bool acpi_pcihp;
 
     if (ms->ram_slots) {
@@ -1048,6 +1048,20 @@ static void virt_powerdown_req(Notifier *n, void *opaque)
         /* use gpio Pin for power button event */
         qemu_set_irq(qdev_get_gpio_in(gpio_key_dev, 0), 1);
     }
+}
+
+static void virt_generic_error_req(Notifier *n, void *opaque)
+{
+    uint16_t *source_id = opaque;
+
+    /* Currently, only QMP source ID is async */
+    if (*source_id != ACPI_HEST_SRC_ID_QMP) {
+        return;
+    }
+
+    VirtMachineState *s = container_of(n, VirtMachineState, generic_error_notifier);
+
+    acpi_send_event(s->acpi_dev, ACPI_GENERIC_ERROR);
 }
 
 static void create_gpio_keys(char *fdt, DeviceState *pl061_dev,
@@ -2500,6 +2514,9 @@ static void machvirt_init(MachineState *machine)
 
     if (has_ged && aarch64 && firmware_loaded && virt_is_acpi_enabled(vms)) {
         vms->acpi_dev = create_acpi_ged(vms);
+        vms->generic_error_notifier.notify = virt_generic_error_req;
+        notifier_list_add(&acpi_generic_error_notifiers,
+                          &vms->generic_error_notifier);
     } else {
         create_gpio_devices(vms, VIRT_GPIO, sysmem);
     }
@@ -3520,6 +3537,7 @@ DEFINE_VIRT_MACHINE_AS_LATEST(10, 2)
 static void virt_machine_10_1_options(MachineClass *mc)
 {
     virt_machine_10_2_options(mc);
+    mc->smbios_memory_device_size = 2047 * TiB;
     compat_props_add(mc->compat_props, hw_compat_10_1, hw_compat_10_1_len);
 }
 DEFINE_VIRT_MACHINE(10, 1)

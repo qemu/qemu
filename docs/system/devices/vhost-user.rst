@@ -62,26 +62,20 @@ platform details for what sort of virtio bus to use.
 The referenced *daemons* are not exhaustive, any conforming backend
 implementing the device and using the vhost-user protocol should work.
 
-vhost-user-device
-^^^^^^^^^^^^^^^^^
+vhost-user-test-device
+^^^^^^^^^^^^^^^^^^^^^^
 
-The vhost-user-device is a generic development device intended for
-expert use while developing new backends. The user needs to specify
-all the required parameters including:
+The vhost-user-test-device is a generic development device intended
+for expert use while developing new backends. The user needs to
+specify all the required parameters including:
 
   - Device ``virtio-id``
   - The ``num_vqs`` it needs and their ``vq_size``
   - The ``config_size`` if needed
 
 .. note::
-  To prevent user confusion you cannot currently instantiate
-  vhost-user-device without first patching out::
-
-    /* Reason: stop inexperienced users confusing themselves */
-    dc->user_creatable = false;
-
-  in ``vhost-user-device.c`` and ``vhost-user-device-pci.c`` file and
-  rebuilding.
+  While this is a useful device for development it is not recommended
+  for production use.
 
 vhost-user daemon
 =================

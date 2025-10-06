@@ -44,6 +44,6 @@ struct VHostUserBaseClass {
 };
 
 
-#define TYPE_VHOST_USER_DEVICE "vhost-user-device"
+#define TYPE_VHOST_USER_TEST_DEVICE "vhost-user-test-device"
 
 #endif /* QEMU_VHOST_USER_BASE_H */

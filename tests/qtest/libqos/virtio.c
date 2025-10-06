@@ -265,8 +265,9 @@ void qvring_init(QTestState *qts, const QGuestAllocator *alloc, QVirtQueue *vq,
 
     /* vq->avail->flags */
     qvirtio_writew(vq->vdev, qts, vq->avail, 0);
-    /* vq->avail->idx */
-    qvirtio_writew(vq->vdev, qts, vq->avail + 2, 0);
+
+    qvirtqueue_set_avail_idx(qts, vq->vdev, vq, 0);
+
     /* vq->avail->used_event */
     qvirtio_writew(vq->vdev, qts, vq->avail + 4 + (2 * vq->size), 0);
 
@@ -388,6 +389,13 @@ uint32_t qvirtqueue_add_indirect(QTestState *qts, QVirtQueue *vq,
     return vq->free_head++; /* Return and increase, in this order */
 }
 
+void qvirtqueue_set_avail_idx(QTestState *qts, QVirtioDevice *d,
+                              QVirtQueue *vq, uint16_t idx)
+{
+    /* vq->avail->idx */
+    qvirtio_writew(d, qts, vq->avail + 2, idx);
+}
+
 void qvirtqueue_kick(QTestState *qts, QVirtioDevice *d, QVirtQueue *vq,
                      uint32_t free_head)
 {
@@ -400,8 +408,8 @@ void qvirtqueue_kick(QTestState *qts, QVirtioDevice *d, QVirtQueue *vq,
 
     /* vq->avail->ring[idx % vq->size] */
     qvirtio_writew(d, qts, vq->avail + 4 + (2 * (idx % vq->size)), free_head);
-    /* vq->avail->idx */
-    qvirtio_writew(d, qts, vq->avail + 2, idx + 1);
+
+    qvirtqueue_set_avail_idx(qts, d, vq, idx + 1);
 
     /* Must read after idx is updated */
     flags = qvirtio_readw(d, qts, vq->used);

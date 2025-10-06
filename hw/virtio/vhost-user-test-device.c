@@ -1,5 +1,5 @@
 /*
- * Generic vhost-user-device implementation for any vhost-user-backend
+ * Generic vhost-user-test-device implementation for any vhost-user-backend
  *
  * This is a concrete implementation of vhost-user-base which can be
  * configured via properties. It is useful for development and
@@ -25,7 +25,7 @@
  */
 
 static const VMStateDescription vud_vmstate = {
-    .name = "vhost-user-device",
+    .name = "vhost-user-test-device",
     .unmigratable = 1,
 };
 
@@ -41,16 +41,13 @@ static void vud_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    /* Reason: stop inexperienced users confusing themselves */
-    dc->user_creatable = false;
-
     device_class_set_props(dc, vud_properties);
     dc->vmsd = &vud_vmstate;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo vud_info = {
-    .name = TYPE_VHOST_USER_DEVICE,
+    .name = TYPE_VHOST_USER_TEST_DEVICE,
     .parent = TYPE_VHOST_USER_BASE,
     .class_init = vud_class_init,
 };

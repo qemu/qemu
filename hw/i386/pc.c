@@ -837,6 +837,7 @@ void pc_memory_init(PCMachineState *pcms,
     hwaddr maxphysaddr, maxusedaddr;
     hwaddr cxl_base, cxl_resv_end = 0;
     X86CPU *cpu = X86_CPU(first_cpu);
+    uint64_t res_mem_end;
 
     assert(machine->ram_size == x86ms->below_4g_mem_size +
                                 x86ms->above_4g_mem_size);
@@ -978,16 +979,17 @@ void pc_memory_init(PCMachineState *pcms,
 
     rom_set_fw(fw_cfg);
 
-    if (machine->device_memory) {
-        uint64_t *val = g_malloc(sizeof(*val));
-        uint64_t res_mem_end;
+    if (pcms->cxl_devices_state.is_enabled) {
+        res_mem_end = cxl_resv_end;
+    } else if (machine->device_memory) {
+        res_mem_end = machine->device_memory->base
+                      + memory_region_size(&machine->device_memory->mr);
+    } else {
+        res_mem_end = 0;
+    }
 
-        if (pcms->cxl_devices_state.is_enabled) {
-            res_mem_end = cxl_resv_end;
-        } else {
-            res_mem_end = machine->device_memory->base
-                          + memory_region_size(&machine->device_memory->mr);
-        }
+    if (res_mem_end) {
+        uint64_t *val = g_malloc(sizeof(*val));
         *val = cpu_to_le64(ROUND_UP(res_mem_end, 1 * GiB));
         fw_cfg_add_file(fw_cfg, "etc/reserved-memory-end", val, sizeof(*val));
     }
@@ -1720,25 +1722,6 @@ static void pc_machine_wakeup(MachineState *machine)
     cpu_synchronize_all_post_reset();
 }
 
-static bool pc_hotplug_allowed(MachineState *ms, DeviceState *dev, Error **errp)
-{
-    X86IOMMUState *iommu = x86_iommu_get_default();
-    IntelIOMMUState *intel_iommu;
-
-    if (iommu &&
-        object_dynamic_cast((Object *)iommu, TYPE_INTEL_IOMMU_DEVICE) &&
-        object_dynamic_cast((Object *)dev, "vfio-pci")) {
-        intel_iommu = INTEL_IOMMU_DEVICE(iommu);
-        if (!intel_iommu->caching_mode) {
-            error_setg(errp, "Device assignment is not allowed without "
-                       "enabling caching-mode=on for Intel IOMMU.");
-            return false;
-        }
-    }
-
-    return true;
-}
-
 static void pc_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1758,7 +1741,6 @@ static void pc_machine_class_init(ObjectClass *oc, const void *data)
     x86mc->apic_xrupt_override = true;
     assert(!mc->get_hotplug_handler);
     mc->get_hotplug_handler = pc_get_hotplug_handler;
-    mc->hotplug_allowed = pc_hotplug_allowed;
     mc->auto_enable_numa_with_memhp = true;
     mc->auto_enable_numa_with_memdev = true;
     mc->has_hotpluggable_cpus = true;

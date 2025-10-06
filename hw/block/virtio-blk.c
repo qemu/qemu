@@ -62,11 +62,7 @@ void virtio_blk_req_complete(VirtIOBlockReq *req, unsigned char status)
     iov_discard_undo(&req->inhdr_undo);
     iov_discard_undo(&req->outhdr_undo);
     virtqueue_push(req->vq, &req->elem, req->in_len);
-    if (qemu_in_iothread()) {
-        virtio_notify_irqfd(vdev, req->vq);
-    } else {
-        virtio_notify(vdev, req->vq);
-    }
+    virtio_notify(vdev, req->vq);
 }
 
 static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,

@@ -1492,9 +1492,6 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
                         : pci_get_bus(pci_dev)->address_space_mem;
 
     if (pci_is_vf(pci_dev)) {
-        PCIDevice *pf = pci_dev->exp.sriov_vf.pf;
-        assert(!pf || type == pf->exp.sriov_pf.vf_bar_type[region_num]);
-
         r->addr = pci_bar_address(pci_dev, region_num, r->type, r->size);
         if (r->addr != PCI_BAR_UNMAPPED) {
             memory_region_add_subregion_overlap(r->address_space,
@@ -2968,7 +2965,7 @@ int pci_iommu_init_iotlb_notifier(PCIDevice *dev, IOMMUNotifier *n,
     PCIBus *iommu_bus;
     int devfn;
 
-    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    pci_device_get_iommu_bus_devfn(dev, &iommu_bus, &bus, &devfn);
     if (iommu_bus && iommu_bus->iommu_ops->init_iotlb_notifier) {
         iommu_bus->iommu_ops->init_iotlb_notifier(bus, iommu_bus->iommu_opaque,
                                                   devfn, n, fn, opaque);
@@ -3026,7 +3023,7 @@ int pci_pri_request_page(PCIDevice *dev, uint32_t pasid, bool priv_req,
         return -EPERM;
     }
 
-    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    pci_device_get_iommu_bus_devfn(dev, &iommu_bus, &bus, &devfn);
     if (iommu_bus && iommu_bus->iommu_ops->pri_request_page) {
         return iommu_bus->iommu_ops->pri_request_page(bus,
                                                      iommu_bus->iommu_opaque,
@@ -3050,7 +3047,7 @@ int pci_pri_register_notifier(PCIDevice *dev, uint32_t pasid,
         return -EPERM;
     }
 
-    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    pci_device_get_iommu_bus_devfn(dev, &iommu_bus, &bus, &devfn);
     if (iommu_bus && iommu_bus->iommu_ops->pri_register_notifier) {
         iommu_bus->iommu_ops->pri_register_notifier(bus,
                                                     iommu_bus->iommu_opaque,
@@ -3067,7 +3064,7 @@ void pci_pri_unregister_notifier(PCIDevice *dev, uint32_t pasid)
     PCIBus *iommu_bus;
     int devfn;
 
-    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    pci_device_get_iommu_bus_devfn(dev, &iommu_bus, &bus, &devfn);
     if (iommu_bus && iommu_bus->iommu_ops->pri_unregister_notifier) {
         iommu_bus->iommu_ops->pri_unregister_notifier(bus,
                                                       iommu_bus->iommu_opaque,
@@ -3099,7 +3096,7 @@ ssize_t pci_ats_request_translation(PCIDevice *dev, uint32_t pasid,
         return -EPERM;
     }
 
-    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    pci_device_get_iommu_bus_devfn(dev, &iommu_bus, &bus, &devfn);
     if (iommu_bus && iommu_bus->iommu_ops->ats_request_translation) {
         return iommu_bus->iommu_ops->ats_request_translation(bus,
                                                      iommu_bus->iommu_opaque,
@@ -3123,7 +3120,7 @@ int pci_iommu_register_iotlb_notifier(PCIDevice *dev, uint32_t pasid,
         return -EPERM;
     }
 
-    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    pci_device_get_iommu_bus_devfn(dev, &iommu_bus, &bus, &devfn);
     if (iommu_bus && iommu_bus->iommu_ops->register_iotlb_notifier) {
         iommu_bus->iommu_ops->register_iotlb_notifier(bus,
                                            iommu_bus->iommu_opaque, devfn,
@@ -3145,7 +3142,7 @@ int pci_iommu_unregister_iotlb_notifier(PCIDevice *dev, uint32_t pasid,
         return -EPERM;
     }
 
-    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    pci_device_get_iommu_bus_devfn(dev, &iommu_bus, &bus, &devfn);
     if (iommu_bus && iommu_bus->iommu_ops->unregister_iotlb_notifier) {
         iommu_bus->iommu_ops->unregister_iotlb_notifier(bus,
                                                         iommu_bus->iommu_opaque,
@@ -3159,11 +3156,9 @@ int pci_iommu_unregister_iotlb_notifier(PCIDevice *dev, uint32_t pasid,
 int pci_iommu_get_iotlb_info(PCIDevice *dev, uint8_t *addr_width,
                              uint32_t *min_page_size)
 {
-    PCIBus *bus;
     PCIBus *iommu_bus;
-    int devfn;
 
-    pci_device_get_iommu_bus_devfn(dev, &bus, &iommu_bus, &devfn);
+    pci_device_get_iommu_bus_devfn(dev, &iommu_bus, NULL, NULL);
     if (iommu_bus && iommu_bus->iommu_ops->get_iotlb_info) {
         iommu_bus->iommu_ops->get_iotlb_info(iommu_bus->iommu_opaque,
                                              addr_width, min_page_size);
