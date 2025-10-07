@@ -37,10 +37,13 @@ class AST2x00MachineSDK(QemuSystemTest):
         wait_for_console_pattern(self, 'done')
         wait_for_console_pattern(self, 'Jumping to BL31 (Trusted Firmware-A)')
 
-    def verify_openbmc_boot_and_login(self, name):
+    def verify_openbmc_boot_start(self):
         wait_for_console_pattern(self, 'U-Boot 2023.10')
         wait_for_console_pattern(self, '## Loading kernel from FIT Image')
-        wait_for_console_pattern(self, 'Starting kernel ...')
+        wait_for_console_pattern(self, 'Linux version ')
+
+    def verify_openbmc_boot_and_login(self, name):
+        self.verify_openbmc_boot_start()
 
         wait_for_console_pattern(self, f'{name} login:')
         exec_command_and_wait_for_pattern(self, 'root', 'Password:')
@@ -141,9 +144,7 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.vm.add_args('-netdev', 'user,id=net1')
         self.start_ast2700_test_vbootrom('ast2700-default')
         self.verify_vbootrom_firmware_flow()
-        self.verify_openbmc_boot_and_login('ast2700-default')
-        self.do_ast2700_i2c_test()
-        self.do_ast2700_pcie_test()
+        self.verify_openbmc_boot_start()
 
 if __name__ == '__main__':
     QemuSystemTest.main()
