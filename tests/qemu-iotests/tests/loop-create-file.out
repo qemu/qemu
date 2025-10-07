@@ -1,0 +1,8 @@
+QA output created by loop-create-file
+
+=== Create image on a 4 KB sector size loop device ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+Formatting 'LOOPDEV', fmt=raw size=1048576
+
+*** done
