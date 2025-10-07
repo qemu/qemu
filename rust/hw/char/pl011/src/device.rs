@@ -17,7 +17,7 @@ use migration::{
 };
 use qom::{prelude::*, ObjectImpl, Owned, ParentField, ParentInit};
 use system::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder};
-use util::{log::Log, log_mask_ln};
+use util::{log::Log, log_mask_ln, ResultExt};
 
 use crate::registers::{self, Interrupt, RegisterOffset};
 
@@ -697,7 +697,7 @@ pub unsafe extern "C" fn pl011_create(
         let chr = unsafe { Owned::<Chardev>::from(&*chr) };
         dev.prop_set_chr("chardev", &chr);
     }
-    dev.sysbus_realize();
+    dev.sysbus_realize().unwrap_fatal();
     dev.mmio_map(0, addr);
     dev.connect_irq(0, &irq);
 

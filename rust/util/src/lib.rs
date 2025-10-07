@@ -6,4 +6,4 @@ pub mod log;
 pub mod module;
 pub mod timer;
 
-pub use error::{Error, Result};
+pub use error::{Error, Result, ResultExt};

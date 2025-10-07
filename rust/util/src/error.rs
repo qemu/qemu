@@ -38,7 +38,8 @@ use std::{
     ffi::{c_char, c_int, c_void, CStr},
     fmt::{self, Display},
     ops::Deref,
-    panic, ptr,
+    panic,
+    ptr::{self, addr_of_mut},
 };
 
 use foreign::{prelude::*, OwnedPointer};
@@ -228,6 +229,34 @@ impl Error {
             (result, None) => Ok(result),
             (_, Some(err)) => Err(err),
         }
+    }
+}
+
+/// Extension trait for `std::result::Result`, providing extra
+/// methods when the error type can be converted into a QEMU
+/// Error.
+pub trait ResultExt {
+    /// The success type `T` in `Result<T, E>`.
+    type OkType;
+
+    /// Report a fatal error and exit QEMU, or return the success value.
+    /// Note that, unlike [`unwrap()`](std::result::Result::unwrap), this
+    /// is not an abort and can be used for user errors.
+    fn unwrap_fatal(self) -> Self::OkType;
+}
+
+impl<T, E> ResultExt for std::result::Result<T, E>
+where
+    Error: From<E>,
+{
+    type OkType = T;
+
+    fn unwrap_fatal(self) -> T {
+        // SAFETY: errp is valid
+        self.map_err(|err| unsafe {
+            Error::from(err).propagate(addr_of_mut!(bindings::error_fatal))
+        })
+        .unwrap()
     }
 }
 
