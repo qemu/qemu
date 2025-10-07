@@ -445,10 +445,37 @@ INITIALIZE_MIGRATE_CAPS_SET(check_caps_background_snapshot,
     MIGRATION_CAPABILITY_VALIDATE_UUID,
     MIGRATION_CAPABILITY_ZERO_COPY_SEND);
 
+/* Snapshot compatibility check list */
+static const
+INITIALIZE_MIGRATE_CAPS_SET(check_caps_savevm,
+                            MIGRATION_CAPABILITY_MULTIFD,
+                            MIGRATION_CAPABILITY_MAPPED_RAM,
+);
+
 static bool migrate_incoming_started(void)
 {
     return !!migration_incoming_get_current()->transport_data;
 }
+
+bool migrate_can_snapshot(Error **errp)
+{
+    MigrationState *s = migrate_get_current();
+    int i;
+
+    for (i = 0; i < check_caps_savevm.size; i++) {
+        int incomp_cap = check_caps_savevm.caps[i];
+
+        if (s->capabilities[incomp_cap]) {
+            error_setg(errp,
+                       "Snapshots are not compatible with %s",
+                       MigrationCapability_str(incomp_cap));
+            return false;
+        }
+    }
+
+    return true;
+}
+
 
 bool migrate_rdma_caps_check(bool *caps, Error **errp)
 {
