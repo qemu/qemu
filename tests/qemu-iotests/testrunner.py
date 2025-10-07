@@ -174,7 +174,7 @@ class TestRunner(contextlib.AbstractContextManager['TestRunner']):
             elif status == 'fail':
                 print(f'not ok {self.env.imgfmt} {test}')
             elif status == 'not run':
-                print(f'ok {self.env.imgfmt} {test} # SKIP')
+                print(f'ok {self.env.imgfmt} {test} # SKIP {description}')
             return
 
         if lasttime:
