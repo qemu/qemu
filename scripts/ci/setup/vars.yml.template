@@ -6,5 +6,6 @@ ansible_to_gitlab_arch:
   x86_64: amd64
   aarch64: arm64
   s390x: s390x
-# A unique token made available by GitLab to your project for registering runners
-gitlab_runner_registration_token: PLEASE_PROVIDE_A_VALID_TOKEN
+# A unique token made obtained from GitLab for each runner
+# see: https://gitlab.com/PROJECT/REPO/-/runners/new
+gitlab_runner_authentication_token: PLEASE_PROVIDE_A_VALID_TOKEN

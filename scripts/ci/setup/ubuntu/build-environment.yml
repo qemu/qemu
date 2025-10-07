@@ -35,19 +35,19 @@
     # the package lists are updated by "make lcitool-refresh"
     - name: Include package lists based on OS and architecture
       include_vars:
-        file: "ubuntu-2204-{{ ansible_facts['architecture'] }}.yaml"
+        file: "ubuntu-2404-{{ ansible_facts['architecture'] }}.yaml"
       when:
         - ansible_facts['distribution'] == 'Ubuntu'
-        - ansible_facts['distribution_version'] == '22.04'
+        - ansible_facts['distribution_version'] == '24.04'
 
-    - name: Install packages for QEMU on Ubuntu 22.04
+    - name: Install packages for QEMU on Ubuntu 24.04
       package:
         name: "{{ packages }}"
       when:
         - ansible_facts['distribution'] == 'Ubuntu'
-        - ansible_facts['distribution_version'] == '22.04'
+        - ansible_facts['distribution_version'] == '24.04'
 
-    - name: Install armhf cross-compile packages to build QEMU on AArch64 Ubuntu 22.04
+    - name: Install armhf cross-compile packages to build QEMU on AArch64 Ubuntu 24.04
       package:
         name:
           - binutils-arm-linux-gnueabihf
@@ -62,6 +62,6 @@
           - zlib1g-dev:armhf
       when:
         - ansible_facts['distribution'] == 'Ubuntu'
-        - ansible_facts['distribution_version'] == '22.04'
+        - ansible_facts['distribution_version'] == '24.04'
         - ansible_facts['architecture'] == 'aarch64'
 
