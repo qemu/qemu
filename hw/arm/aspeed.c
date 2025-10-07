@@ -1626,6 +1626,7 @@ static void aspeed_machine_fp5280g2_class_init(ObjectClass *oc,
     AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
 
     mc->desc       = "Inspur FP5280G2 BMC (ARM1176)";
+    mc->deprecation_reason = "use 'ast2500-evb' instead";
     amc->soc_name  = "ast2500-a1";
     amc->hw_strap1 = FP5280G2_BMC_HW_STRAP1;
     amc->fmc_model = "n25q512a";
