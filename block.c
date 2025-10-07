@@ -606,12 +606,13 @@ create_file_fallback_zero_first_sector(BlockBackend *blk,
                                        int64_t current_size,
                                        Error **errp)
 {
+    uint32_t alignment = blk_get_pwrite_zeroes_alignment(blk);
     int64_t bytes_to_clear;
     int ret;
 
     GLOBAL_STATE_CODE();
 
-    bytes_to_clear = MIN(current_size, BDRV_SECTOR_SIZE);
+    bytes_to_clear = MIN(current_size, MAX(BDRV_SECTOR_SIZE, alignment));
     if (bytes_to_clear) {
         ret = blk_co_pwrite_zeroes(blk, 0, bytes_to_clear, BDRV_REQ_MAY_UNMAP);
         if (ret < 0) {
