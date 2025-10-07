@@ -296,7 +296,7 @@ enum {
     NBD_CMD_BLOCK_STATUS = 7,
 };
 
-#define NBD_DEFAULT_PORT	10809
+#define NBD_DEFAULT_PORT 10809
 
 /* Maximum size of a single READ/WRITE data buffer */
 #define NBD_MAX_BUFFER_SIZE (32 * 1024 * 1024)

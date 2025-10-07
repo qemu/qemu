@@ -133,7 +133,7 @@
 #define FTYPE_FILE   0
 #define FTYPE_CD     1
 
-#define MAX_BLOCKSIZE	4096
+#define MAX_BLOCKSIZE 4096
 
 /* Posix file locking bytes. Libvirt takes byte 0, we start from higher bytes,
  * leaving a few more bytes for its future use. */
@@ -4562,20 +4562,20 @@ static void coroutine_fn cdrom_co_lock_medium(BlockDriverState *bs, bool locked)
 }
 
 static BlockDriver bdrv_host_cdrom = {
-    .format_name        = "host_cdrom",
-    .protocol_name      = "host_cdrom",
-    .instance_size      = sizeof(BDRVRawState),
-    .bdrv_needs_filename = true,
-    .bdrv_probe_device	= cdrom_probe_device,
-    .bdrv_parse_filename = cdrom_parse_filename,
-    .bdrv_open          = cdrom_open,
-    .bdrv_close         = raw_close,
-    .bdrv_reopen_prepare = raw_reopen_prepare,
-    .bdrv_reopen_commit  = raw_reopen_commit,
-    .bdrv_reopen_abort   = raw_reopen_abort,
-    .bdrv_co_create_opts = bdrv_co_create_opts_simple,
-    .create_opts         = &bdrv_create_opts_simple,
-    .mutable_opts        = mutable_opts,
+    .format_name            = "host_cdrom",
+    .protocol_name          = "host_cdrom",
+    .instance_size          = sizeof(BDRVRawState),
+    .bdrv_needs_filename    = true,
+    .bdrv_probe_device      = cdrom_probe_device,
+    .bdrv_parse_filename    = cdrom_parse_filename,
+    .bdrv_open              = cdrom_open,
+    .bdrv_close             = raw_close,
+    .bdrv_reopen_prepare    = raw_reopen_prepare,
+    .bdrv_reopen_commit     = raw_reopen_commit,
+    .bdrv_reopen_abort      = raw_reopen_abort,
+    .bdrv_co_create_opts    = bdrv_co_create_opts_simple,
+    .create_opts            = &bdrv_create_opts_simple,
+    .mutable_opts           = mutable_opts,
     .bdrv_co_invalidate_cache = raw_co_invalidate_cache,
 
     .bdrv_co_preadv         = raw_co_preadv,
@@ -4688,20 +4688,20 @@ static void coroutine_fn cdrom_co_lock_medium(BlockDriverState *bs, bool locked)
 }
 
 static BlockDriver bdrv_host_cdrom = {
-    .format_name        = "host_cdrom",
-    .protocol_name      = "host_cdrom",
-    .instance_size      = sizeof(BDRVRawState),
-    .bdrv_needs_filename = true,
-    .bdrv_probe_device	= cdrom_probe_device,
-    .bdrv_parse_filename = cdrom_parse_filename,
-    .bdrv_open          = cdrom_open,
-    .bdrv_close         = raw_close,
-    .bdrv_reopen_prepare = raw_reopen_prepare,
-    .bdrv_reopen_commit  = raw_reopen_commit,
-    .bdrv_reopen_abort   = raw_reopen_abort,
-    .bdrv_co_create_opts = bdrv_co_create_opts_simple,
-    .create_opts         = &bdrv_create_opts_simple,
-    .mutable_opts       = mutable_opts,
+    .format_name            = "host_cdrom",
+    .protocol_name          = "host_cdrom",
+    .instance_size          = sizeof(BDRVRawState),
+    .bdrv_needs_filename    = true,
+    .bdrv_probe_device      = cdrom_probe_device,
+    .bdrv_parse_filename    = cdrom_parse_filename,
+    .bdrv_open              = cdrom_open,
+    .bdrv_close             = raw_close,
+    .bdrv_reopen_prepare    = raw_reopen_prepare,
+    .bdrv_reopen_commit     = raw_reopen_commit,
+    .bdrv_reopen_abort      = raw_reopen_abort,
+    .bdrv_co_create_opts    = bdrv_co_create_opts_simple,
+    .create_opts            = &bdrv_create_opts_simple,
+    .mutable_opts           = mutable_opts,
 
     .bdrv_co_preadv         = raw_co_preadv,
     .bdrv_co_pwritev        = raw_co_pwritev,
