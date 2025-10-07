@@ -1926,6 +1926,7 @@ static void aspeed_machine_qcom_dc_scm_v1_class_init(ObjectClass *oc,
     AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
 
     mc->desc       = "Qualcomm DC-SCM V1 BMC (Cortex A7)";
+    mc->deprecation_reason = "use 'ast2600-evb' instead";
     amc->soc_name  = "ast2600-a3";
     amc->hw_strap1 = QCOM_DC_SCM_V1_BMC_HW_STRAP1;
     amc->hw_strap2 = QCOM_DC_SCM_V1_BMC_HW_STRAP2;
@@ -1945,6 +1946,7 @@ static void aspeed_machine_qcom_firework_class_init(ObjectClass *oc,
     AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
 
     mc->desc       = "Qualcomm DC-SCM V1/Firework BMC (Cortex A7)";
+    mc->deprecation_reason = "use 'ast2600-evb' instead";
     amc->soc_name  = "ast2600-a3";
     amc->hw_strap1 = QCOM_DC_SCM_V1_BMC_HW_STRAP1;
     amc->hw_strap2 = QCOM_DC_SCM_V1_BMC_HW_STRAP2;
