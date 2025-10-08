@@ -34,6 +34,7 @@
 #include "system/memory.h"
 #include "syndrome.h"
 #include "cpu-features.h"
+#include "mmuidx-internal.h"
 
 /* register banks for CPU modes */
 #define BANK_USRSYS 0
@@ -983,8 +984,6 @@ static inline ARMMMUIdx core_to_aa64_mmu_idx(int mmu_idx)
     /* AArch64 is always a-profile. */
     return mmu_idx | ARM_MMU_IDX_A;
 }
-
-int arm_mmu_idx_to_el(ARMMMUIdx mmu_idx);
 
 /* Return the MMU index for a v7M CPU in the specified security state */
 ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env, bool secstate);
