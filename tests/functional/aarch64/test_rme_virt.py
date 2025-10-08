@@ -23,8 +23,8 @@ class Aarch64RMEVirtMachine(QemuSystemTest):
     # ./build.sh && ./archive_artifacts.sh out.tar.xz
     ASSET_RME_STACK_VIRT = Asset(
         ('https://github.com/pbo-linaro/qemu-linux-stack/'
-         'releases/download/build/rme_release-86101e5.tar.xz'),
-         'e42fef8439badb52a071ac446fc33cff4cb7d61314c7a28fdbe61a11e1faad3a')
+         'releases/download/build/rme_release-56bc99e.tar.xz'),
+         '0e3dc6b8a4b828dbae09c951a40dcb710eded084b32432b50c69cf4173ffa4be')
 
     # This tests the FEAT_RME cpu implementation, by booting a VM supporting it,
     # and launching a nested VM using it.
