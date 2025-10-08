@@ -51,7 +51,7 @@ typedef struct DisasContext {
     uint32_t avr;
 
     /* If not -1, jmp_pc contains this value and so is a direct jump.  */
-    target_ulong jmp_pc_imm;
+    vaddr jmp_pc_imm;
 
     /* The temporary corresponding to register 0 for this compilation.  */
     TCGv R0;
@@ -580,7 +580,7 @@ static bool trans_l_muldu(DisasContext *dc, arg_ab *a)
 
 static bool trans_l_j(DisasContext *dc, arg_l_j *a)
 {
-    target_ulong tmp_pc = dc->base.pc_next + a->n * 4;
+    vaddr tmp_pc = dc->base.pc_next + a->n * 4;
 
     tcg_gen_movi_tl(jmp_pc, tmp_pc);
     dc->jmp_pc_imm = tmp_pc;
@@ -590,8 +590,8 @@ static bool trans_l_j(DisasContext *dc, arg_l_j *a)
 
 static bool trans_l_jal(DisasContext *dc, arg_l_jal *a)
 {
-    target_ulong tmp_pc = dc->base.pc_next + a->n * 4;
-    target_ulong ret_pc = dc->base.pc_next + 8;
+    vaddr tmp_pc = dc->base.pc_next + a->n * 4;
+    vaddr ret_pc = dc->base.pc_next + 8;
 
     tcg_gen_movi_tl(cpu_regs[9], ret_pc);
     /* Optimize jal being used to load the PC for PIC.  */
@@ -605,7 +605,7 @@ static bool trans_l_jal(DisasContext *dc, arg_l_jal *a)
 
 static void do_bf(DisasContext *dc, arg_l_bf *a, TCGCond cond)
 {
-    target_ulong tmp_pc = dc->base.pc_next + a->n * 4;
+    vaddr tmp_pc = dc->base.pc_next + a->n * 4;
     TCGv t_next = tcg_constant_tl(dc->base.pc_next + 8);
     TCGv t_true = tcg_constant_tl(tmp_pc);
 
@@ -1586,7 +1586,7 @@ static void openrisc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 static void openrisc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    target_ulong jmp_dest;
+    vaddr jmp_dest;
 
     /* If we have already exited the TB, nothing following has effect.  */
     if (dc->base.is_jmp == DISAS_NORETURN) {
