@@ -21,16 +21,16 @@
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
 #include "hw/pci/msi.h"
+#include "monitor/qdev.h"
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "qemu/error-report.h"
 #include "hw/audio/model.h"
 #include "intel-hda.h"
 #include "migration/vmstate.h"
 #include "intel-hda-defs.h"
-#include "system/dma.h"
+#include "qobject/qdict.h"
 #include "qapi/error.h"
 #include "qom/object.h"
 
@@ -1305,15 +1305,19 @@ static const TypeInfo hda_codec_device_type_info = {
  */
 static int intel_hda_and_codec_init(PCIBus *bus, const char *audiodev)
 {
-    DeviceState *controller;
+    g_autoptr(QDict) props = qdict_new();
+    DeviceState *intel_hda, *codec;
     BusState *hdabus;
-    DeviceState *codec;
 
-    controller = DEVICE(pci_create_simple(bus, -1, "intel-hda"));
-    hdabus = QLIST_FIRST(&controller->child_bus);
+    qdict_put_str(props, "driver", "intel-hda");
+    intel_hda = qdev_device_add_from_qdict(props, false, &error_fatal);
+    hdabus = QLIST_FIRST(&intel_hda->child_bus);
+
     codec = qdev_new("hda-duplex");
     qdev_prop_set_string(codec, "audiodev", audiodev);
     qdev_realize_and_unref(codec, hdabus, &error_fatal);
+    object_unref(intel_hda);
+
     return 0;
 }
 
