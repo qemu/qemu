@@ -1166,7 +1166,7 @@ static void xtensa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
     CPUXtensaState *env = cpu_env(cpu);
-    target_ulong page_start;
+    vaddr page_start;
 
     /* These two conditions only apply to the first insn in the TB,
        but this is the first TranslateOps hook that allows exiting.  */
