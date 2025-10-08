@@ -288,6 +288,7 @@ uint8_t *spd_data_generate(enum sdram_type type, ram_addr_t ram_size)
     spd[33] = 8;    /* addr/cmd hold time */
     spd[34] = 20;   /* data input setup time */
     spd[35] = 8;    /* data input hold time */
+    spd[36] = (type == DDR2 ? 13 << 2 : 0); /* min. write recovery time */
 
     /* checksum */
     for (i = 0; i < 63; i++) {
