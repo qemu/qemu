@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/audio/soundhw.h"
+#include "hw/audio/model.h"
 #include "audio/audio.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
@@ -1470,8 +1470,7 @@ static const TypeInfo sb16_info = {
 static void sb16_register_types (void)
 {
     type_register_static (&sb16_info);
-    deprecated_register_soundhw("sb16", "Creative Sound Blaster 16",
-                                1, TYPE_SB16);
+    audio_register_model("sb16", "Creative Sound Blaster 16", 1, TYPE_SB16);
 }
 
 type_init (sb16_register_types)

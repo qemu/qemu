@@ -11,7 +11,7 @@
 #include "qemu/osdep.h"
 #include "qom/object.h"
 #include "qapi/error.h"
-#include "hw/audio/soundhw.h"
+#include "hw/audio/model.h"
 #include "hw/virtio/virtio-pci.h"
 #include "hw/audio/virtio-snd.h"
 
@@ -88,7 +88,7 @@ static int virtio_snd_pci_init(PCIBus *bus, const char *audiodev)
 static void virtio_snd_pci_register(void)
 {
     virtio_pci_types_register(&virtio_snd_pci_info);
-    pci_register_soundhw("virtio", "Virtio Sound", virtio_snd_pci_init);
+    audio_register_model_with_cb("virtio", "Virtio Sound", virtio_snd_pci_init);
 }
 
 type_init(virtio_snd_pci_register);

@@ -26,7 +26,7 @@
 #define VERBOSE_ES1370 0
 
 #include "qemu/osdep.h"
-#include "hw/audio/soundhw.h"
+#include "hw/audio/model.h"
 #include "audio/audio.h"
 #include "hw/pci/pci_device.h"
 #include "migration/vmstate.h"
@@ -905,8 +905,7 @@ static const TypeInfo es1370_info = {
 static void es1370_register_types (void)
 {
     type_register_static (&es1370_info);
-    deprecated_register_soundhw("es1370", "ENSONIQ AudioPCI ES1370",
-                                0, TYPE_ES1370);
+    audio_register_model("es1370", "ENSONIQ AudioPCI ES1370", 0, TYPE_ES1370);
 }
 
 type_init (es1370_register_types)

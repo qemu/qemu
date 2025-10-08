@@ -86,7 +86,7 @@
 #include "migration/snapshot.h"
 #include "system/tpm.h"
 #include "system/dma.h"
-#include "hw/audio/soundhw.h"
+#include "hw/audio/model.h"
 #include "audio/audio.h"
 #include "system/cpus.h"
 #include "system/cpu-timers.h"
@@ -2732,7 +2732,7 @@ static void qemu_create_cli_devices(void)
 {
     DeviceOption *opt;
 
-    soundhw_init();
+    audio_model_init();
 
     qemu_opts_foreach(qemu_find_opts("fw_cfg"),
                       parse_fw_cfg, fw_cfg_find(), &error_fatal);
@@ -3088,7 +3088,7 @@ void qemu_init(int argc, char **argv)
                 visit_free(v);
                 if (model) {
                     audio_add_audiodev(dev);
-                    select_soundhw(model, dev->id);
+                    audio_set_model(model, dev->id);
                     g_free(model);
                 } else {
                     audio_add_default_audiodev(dev, &error_fatal);

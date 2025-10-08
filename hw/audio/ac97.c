@@ -18,7 +18,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/audio/soundhw.h"
+#include "hw/audio/model.h"
 #include "audio/audio.h"
 #include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"
@@ -1362,8 +1362,7 @@ static const TypeInfo ac97_info = {
 static void ac97_register_types(void)
 {
     type_register_static(&ac97_info);
-    deprecated_register_soundhw("ac97", "Intel 82801AA AC97 Audio",
-                                0, TYPE_AC97);
+    audio_register_model("ac97", "Intel 82801AA AC97 Audio", 0, TYPE_AC97);
 }
 
 type_init(ac97_register_types)

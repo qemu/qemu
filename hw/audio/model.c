@@ -32,9 +32,9 @@
 #include "hw/qdev-properties.h"
 #include "hw/isa/isa.h"
 #include "hw/pci/pci.h"
-#include "hw/audio/soundhw.h"
+#include "hw/audio/model.h"
 
-struct soundhw {
+struct audio_model {
     const char *name;
     const char *descr;
     const char *typename;
@@ -42,38 +42,38 @@ struct soundhw {
     int (*init_pci) (PCIBus *bus, const char *audiodev);
 };
 
-static struct soundhw soundhw[9];
-static int soundhw_count;
+static struct audio_model audio_models[9];
+static int audio_models_count;
 
-void pci_register_soundhw(const char *name, const char *descr,
-                          int (*init_pci)(PCIBus *bus, const char *audiodev))
+void audio_register_model_with_cb(const char *name, const char *descr,
+                                  int (*init_pci)(PCIBus *bus, const char *audiodev))
 {
-    assert(soundhw_count < ARRAY_SIZE(soundhw) - 1);
-    soundhw[soundhw_count].name = name;
-    soundhw[soundhw_count].descr = descr;
-    soundhw[soundhw_count].isa = 0;
-    soundhw[soundhw_count].init_pci = init_pci;
-    soundhw_count++;
+    assert(audio_models_count < ARRAY_SIZE(audio_models) - 1);
+    audio_models[audio_models_count].name = name;
+    audio_models[audio_models_count].descr = descr;
+    audio_models[audio_models_count].isa = 0;
+    audio_models[audio_models_count].init_pci = init_pci;
+    audio_models_count++;
 }
 
-void deprecated_register_soundhw(const char *name, const char *descr,
-                                 int isa, const char *typename)
+void audio_register_model(const char *name, const char *descr,
+                          int isa, const char *typename)
 {
-    assert(soundhw_count < ARRAY_SIZE(soundhw) - 1);
-    soundhw[soundhw_count].name = name;
-    soundhw[soundhw_count].descr = descr;
-    soundhw[soundhw_count].isa = isa;
-    soundhw[soundhw_count].typename = typename;
-    soundhw_count++;
+    assert(audio_models_count < ARRAY_SIZE(audio_models) - 1);
+    audio_models[audio_models_count].name = name;
+    audio_models[audio_models_count].descr = descr;
+    audio_models[audio_models_count].isa = isa;
+    audio_models[audio_models_count].typename = typename;
+    audio_models_count++;
 }
 
 void audio_print_available_models(void)
 {
-    struct soundhw *c;
+    struct audio_model *c;
 
-    if (soundhw_count) {
+    if (audio_models_count) {
         printf("Valid audio device model names:\n");
-        for (c = soundhw; c->name; ++c) {
+        for (c = audio_models; c->name; ++c) {
             printf("%-11s %s\n", c->name, c->descr);
         }
     } else {
@@ -82,19 +82,19 @@ void audio_print_available_models(void)
     }
 }
 
-static struct soundhw *selected = NULL;
+static struct audio_model *selected;
 static const char *audiodev_id;
 
-void select_soundhw(const char *name, const char *audiodev)
+void audio_set_model(const char *name, const char *audiodev)
 {
-    struct soundhw *c;
+    struct audio_model *c;
 
     if (selected) {
         error_report("only one -audio option is allowed");
         exit(1);
     }
 
-    for (c = soundhw; c->name; ++c) {
+    for (c = audio_models; c->name; ++c) {
         if (g_str_equal(c->name, name)) {
             selected = c;
             audiodev_id = audiodev;
@@ -109,9 +109,9 @@ void select_soundhw(const char *name, const char *audiodev)
     }
 }
 
-void soundhw_init(void)
+void audio_model_init(void)
 {
-    struct soundhw *c = selected;
+    struct audio_model *c = selected;
 
     if (!c) {
         return;
