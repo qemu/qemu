@@ -45,7 +45,7 @@ void HELPER(mtspr)(CPUOpenRISCState *env, target_ulong spr, target_ulong rb)
     OpenRISCCPU *cpu = env_archcpu(env);
 #ifndef CONFIG_USER_ONLY
     CPUState *cs = env_cpu(env);
-    target_ulong mr;
+    uint32_t mr;
     int idx;
 #endif
 
