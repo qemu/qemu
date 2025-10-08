@@ -231,11 +231,11 @@ static int itlb_replacement(CPUSH4State * env)
 /* Find the corresponding entry in the right TLB
    Return entry, MMU_DTLB_MISS or MMU_DTLB_MULTIPLE
 */
-static int find_tlb_entry(CPUSH4State * env, target_ulong address,
+static int find_tlb_entry(CPUSH4State *env, vaddr address,
                           tlb_t * entries, uint8_t nbtlb, int use_asid)
 {
     int match = MMU_DTLB_MISS;
-    uint32_t start, end;
+    vaddr start, end;
     uint8_t asid;
     int i;
 
@@ -291,7 +291,7 @@ static int copy_utlb_entry_itlb(CPUSH4State *env, int utlb)
 /* Find itlb entry
    Return entry, MMU_ITLB_MISS, MMU_ITLB_MULTIPLE or MMU_DTLB_MULTIPLE
 */
-static int find_itlb_entry(CPUSH4State * env, target_ulong address,
+static int find_itlb_entry(CPUSH4State *env, vaddr address,
                            int use_asid)
 {
     int e;
@@ -309,7 +309,7 @@ static int find_itlb_entry(CPUSH4State * env, target_ulong address,
 
 /* Find utlb entry
    Return entry, MMU_DTLB_MISS, MMU_DTLB_MULTIPLE */
-static int find_utlb_entry(CPUSH4State * env, target_ulong address, int use_asid)
+static int find_utlb_entry(CPUSH4State *env, vaddr address, int use_asid)
 {
     /* per utlb access */
     increment_urc(env);
@@ -326,7 +326,7 @@ static int find_utlb_entry(CPUSH4State * env, target_ulong address, int use_asid
    MMU_IADDR_ERROR, MMU_DADDR_ERROR_READ, MMU_DADDR_ERROR_WRITE.
 */
 static int get_mmu_address(CPUSH4State *env, hwaddr *physical,
-                           int *prot, target_ulong address,
+                           int *prot, vaddr address,
                            MMUAccessType access_type)
 {
     int use_asid, n;
@@ -393,7 +393,7 @@ static int get_mmu_address(CPUSH4State *env, hwaddr *physical,
 }
 
 static int get_physical_address(CPUSH4State *env, hwaddr* physical,
-                                int *prot, target_ulong address,
+                                int *prot, vaddr address,
                                 MMUAccessType access_type)
 {
     /* P1, P2 and P4 areas do not use translation */
