@@ -6851,6 +6851,9 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             /* Fixup overflow: max value for bits 23-16 is 255. */
             *ebx |= MIN(num, 255) << 16;
         }
+        if (!cpu->enable_pmu) {
+            *ecx &= ~CPUID_EXT_PDCM;
+        }
         break;
     case 2:
         /* cache info: needed for Pentium Pro compatibility */
@@ -7838,10 +7841,6 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         if (!IS_INTEL_CPU(env) && !IS_ZHAOXIN_CPU(env)) {
             env->features[FEAT_8000_0001_ECX] |= CPUID_EXT3_CMP_LEG;
         }
-    }
-
-    if (!cpu->enable_pmu) {
-        env->features[FEAT_1_ECX] &= ~CPUID_EXT_PDCM;
     }
 
     for (i = 0; i < ARRAY_SIZE(feature_dependencies); i++) {
