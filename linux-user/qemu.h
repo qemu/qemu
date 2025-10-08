@@ -122,6 +122,11 @@ struct TaskState {
 #ifdef TARGET_M68K
     abi_ulong tp_value;
 #endif
+#if defined(TARGET_AARCH64)
+    vaddr gcs_base;
+    abi_ulong gcs_size;
+    abi_ulong gcs_el0_locked;
+#endif
     int used; /* non zero if used */
     struct image_info *info;
     struct linux_binprm *bprm;
