@@ -606,7 +606,7 @@ DO_TYPEBI(xori, false, tcg_gen_xori_i32)
 
 static TCGv compute_ldst_addr_typea(DisasContext *dc, int ra, int rb)
 {
-    TCGv ret;
+    TCGv_i32 ret;
 
     /* If any of the regs is r0, set t to the value of the other reg.  */
     if (ra && rb) {
@@ -628,7 +628,7 @@ static TCGv compute_ldst_addr_typea(DisasContext *dc, int ra, int rb)
 
 static TCGv compute_ldst_addr_typeb(DisasContext *dc, int ra, int imm)
 {
-    TCGv ret;
+    TCGv_i32 ret;
 
     /* If any of the regs is r0, set t to the value of the other reg.  */
     if (ra && imm) {

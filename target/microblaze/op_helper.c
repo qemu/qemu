@@ -365,13 +365,13 @@ uint32_t helper_pcmpbf(uint32_t a, uint32_t b)
     return 0;
 }
 
-void helper_stackprot(CPUMBState *env, target_ulong addr)
+void helper_stackprot(CPUMBState *env, uint32_t addr)
 {
     if (addr < env->slr || addr > env->shr) {
         CPUState *cs = env_cpu(env);
 
         qemu_log_mask(CPU_LOG_INT, "Stack protector violation at "
-                      TARGET_FMT_lx " %x %x\n",
+                                   "0x%x 0x%x 0x%x\n",
                       addr, env->slr, env->shr);
 
         env->ear = addr;
