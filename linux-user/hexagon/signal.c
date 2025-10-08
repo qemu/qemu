@@ -24,14 +24,7 @@
 #include "linux-user/trace.h"
 
 struct target_user_regs_struct {
-    abi_ulong r0,  r1,  r2,  r3;
-    abi_ulong r4,  r5,  r6,  r7;
-    abi_ulong r8,  r9, r10, r11;
-    abi_ulong r12, r13, r14, r15;
-    abi_ulong r16, r17, r18, r19;
-    abi_ulong r20, r21, r22, r23;
-    abi_ulong r24, r25, r26, r27;
-    abi_ulong r28, r29, r30, r31;
+    abi_ulong gpr[32];
     abi_ulong sa0;
     abi_ulong lc0;
     abi_ulong sa1;
@@ -87,38 +80,9 @@ static void setup_sigcontext(struct target_sigcontext *sc, CPUHexagonState *env)
 {
     abi_ulong preds = 0;
 
-    __put_user(env->gpr[HEX_REG_R00], &sc->sc_regs.r0);
-    __put_user(env->gpr[HEX_REG_R01], &sc->sc_regs.r1);
-    __put_user(env->gpr[HEX_REG_R02], &sc->sc_regs.r2);
-    __put_user(env->gpr[HEX_REG_R03], &sc->sc_regs.r3);
-    __put_user(env->gpr[HEX_REG_R04], &sc->sc_regs.r4);
-    __put_user(env->gpr[HEX_REG_R05], &sc->sc_regs.r5);
-    __put_user(env->gpr[HEX_REG_R06], &sc->sc_regs.r6);
-    __put_user(env->gpr[HEX_REG_R07], &sc->sc_regs.r7);
-    __put_user(env->gpr[HEX_REG_R08], &sc->sc_regs.r8);
-    __put_user(env->gpr[HEX_REG_R09], &sc->sc_regs.r9);
-    __put_user(env->gpr[HEX_REG_R10], &sc->sc_regs.r10);
-    __put_user(env->gpr[HEX_REG_R11], &sc->sc_regs.r11);
-    __put_user(env->gpr[HEX_REG_R12], &sc->sc_regs.r12);
-    __put_user(env->gpr[HEX_REG_R13], &sc->sc_regs.r13);
-    __put_user(env->gpr[HEX_REG_R14], &sc->sc_regs.r14);
-    __put_user(env->gpr[HEX_REG_R15], &sc->sc_regs.r15);
-    __put_user(env->gpr[HEX_REG_R16], &sc->sc_regs.r16);
-    __put_user(env->gpr[HEX_REG_R17], &sc->sc_regs.r17);
-    __put_user(env->gpr[HEX_REG_R18], &sc->sc_regs.r18);
-    __put_user(env->gpr[HEX_REG_R19], &sc->sc_regs.r19);
-    __put_user(env->gpr[HEX_REG_R20], &sc->sc_regs.r20);
-    __put_user(env->gpr[HEX_REG_R21], &sc->sc_regs.r21);
-    __put_user(env->gpr[HEX_REG_R22], &sc->sc_regs.r22);
-    __put_user(env->gpr[HEX_REG_R23], &sc->sc_regs.r23);
-    __put_user(env->gpr[HEX_REG_R24], &sc->sc_regs.r24);
-    __put_user(env->gpr[HEX_REG_R25], &sc->sc_regs.r25);
-    __put_user(env->gpr[HEX_REG_R26], &sc->sc_regs.r26);
-    __put_user(env->gpr[HEX_REG_R27], &sc->sc_regs.r27);
-    __put_user(env->gpr[HEX_REG_R28], &sc->sc_regs.r28);
-    __put_user(env->gpr[HEX_REG_R29], &sc->sc_regs.r29);
-    __put_user(env->gpr[HEX_REG_R30], &sc->sc_regs.r30);
-    __put_user(env->gpr[HEX_REG_R31], &sc->sc_regs.r31);
+    for (int i = 0; i < 32; i++) {
+        __put_user(env->gpr[HEX_REG_R00 + i], &sc->sc_regs.gpr[i]);
+    }
     __put_user(env->gpr[HEX_REG_SA0], &sc->sc_regs.sa0);
     __put_user(env->gpr[HEX_REG_LC0], &sc->sc_regs.lc0);
     __put_user(env->gpr[HEX_REG_SA1], &sc->sc_regs.sa1);
@@ -213,38 +177,9 @@ static void restore_sigcontext(CPUHexagonState *env,
 {
     abi_ulong preds;
 
-    __get_user(env->gpr[HEX_REG_R00], &sc->sc_regs.r0);
-    __get_user(env->gpr[HEX_REG_R01], &sc->sc_regs.r1);
-    __get_user(env->gpr[HEX_REG_R02], &sc->sc_regs.r2);
-    __get_user(env->gpr[HEX_REG_R03], &sc->sc_regs.r3);
-    __get_user(env->gpr[HEX_REG_R04], &sc->sc_regs.r4);
-    __get_user(env->gpr[HEX_REG_R05], &sc->sc_regs.r5);
-    __get_user(env->gpr[HEX_REG_R06], &sc->sc_regs.r6);
-    __get_user(env->gpr[HEX_REG_R07], &sc->sc_regs.r7);
-    __get_user(env->gpr[HEX_REG_R08], &sc->sc_regs.r8);
-    __get_user(env->gpr[HEX_REG_R09], &sc->sc_regs.r9);
-    __get_user(env->gpr[HEX_REG_R10], &sc->sc_regs.r10);
-    __get_user(env->gpr[HEX_REG_R11], &sc->sc_regs.r11);
-    __get_user(env->gpr[HEX_REG_R12], &sc->sc_regs.r12);
-    __get_user(env->gpr[HEX_REG_R13], &sc->sc_regs.r13);
-    __get_user(env->gpr[HEX_REG_R14], &sc->sc_regs.r14);
-    __get_user(env->gpr[HEX_REG_R15], &sc->sc_regs.r15);
-    __get_user(env->gpr[HEX_REG_R16], &sc->sc_regs.r16);
-    __get_user(env->gpr[HEX_REG_R17], &sc->sc_regs.r17);
-    __get_user(env->gpr[HEX_REG_R18], &sc->sc_regs.r18);
-    __get_user(env->gpr[HEX_REG_R19], &sc->sc_regs.r19);
-    __get_user(env->gpr[HEX_REG_R20], &sc->sc_regs.r20);
-    __get_user(env->gpr[HEX_REG_R21], &sc->sc_regs.r21);
-    __get_user(env->gpr[HEX_REG_R22], &sc->sc_regs.r22);
-    __get_user(env->gpr[HEX_REG_R23], &sc->sc_regs.r23);
-    __get_user(env->gpr[HEX_REG_R24], &sc->sc_regs.r24);
-    __get_user(env->gpr[HEX_REG_R25], &sc->sc_regs.r25);
-    __get_user(env->gpr[HEX_REG_R26], &sc->sc_regs.r26);
-    __get_user(env->gpr[HEX_REG_R27], &sc->sc_regs.r27);
-    __get_user(env->gpr[HEX_REG_R28], &sc->sc_regs.r28);
-    __get_user(env->gpr[HEX_REG_R29], &sc->sc_regs.r29);
-    __get_user(env->gpr[HEX_REG_R30], &sc->sc_regs.r30);
-    __get_user(env->gpr[HEX_REG_R31], &sc->sc_regs.r31);
+    for (int i = 0; i < 32; i++) {
+        __get_user(env->gpr[HEX_REG_R00 + i], &sc->sc_regs.gpr[i]);
+    }
     __get_user(env->gpr[HEX_REG_SA0], &sc->sc_regs.sa0);
     __get_user(env->gpr[HEX_REG_LC0], &sc->sc_regs.lc0);
     __get_user(env->gpr[HEX_REG_SA1], &sc->sc_regs.sa1);
