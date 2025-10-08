@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "hw/qdev-core.h"
+#include "monitor/qdev.h"
 #include "qemu/option.h"
 #include "qemu/help_option.h"
 #include "qemu/error-report.h"
@@ -110,33 +112,19 @@ void select_soundhw(const char *name, const char *audiodev)
 void soundhw_init(void)
 {
     struct soundhw *c = selected;
-    ISABus *isa_bus = (ISABus *) object_resolve_path_type("", TYPE_ISA_BUS, NULL);
-    PCIBus *pci_bus = (PCIBus *) object_resolve_path_type("", TYPE_PCI_BUS, NULL);
-    BusState *bus;
 
     if (!c) {
         return;
     }
-    if (c->isa) {
-        if (!isa_bus) {
-            error_report("ISA bus not available for %s", c->name);
-            exit(1);
-        }
-        bus = BUS(isa_bus);
-    } else {
-        if (!pci_bus) {
-            error_report("PCI bus not available for %s", c->name);
-            exit(1);
-        }
-        bus = BUS(pci_bus);
-    }
 
     if (c->typename) {
         DeviceState *dev = qdev_new(c->typename);
+        BusState *bus = qdev_find_default_bus(DEVICE_GET_CLASS(dev), &error_fatal);
         qdev_prop_set_string(dev, "audiodev", audiodev_id);
         qdev_realize_and_unref(dev, bus, &error_fatal);
     } else {
         assert(!c->isa);
+        PCIBus *pci_bus = (PCIBus *) object_resolve_path_type("", TYPE_PCI_BUS, NULL);
         c->init_pci(pci_bus, audiodev_id);
     }
 }
