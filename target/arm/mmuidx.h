@@ -58,24 +58,31 @@
  *     already heavyweight.
  *  8. we cannot fold together Stage 2 Secure and Stage 2 NonSecure,
  *     because both are in use simultaneously for Secure EL2.
+ *  9. we need separate indexes for handling AccessType_GCS.
  *
  * This gives us the following list of cases:
  *
  * EL0 EL1&0 stage 1+2 (aka NS PL0 PL1&0 stage 1+2)
+ * EL0 EL1&0 stage 1+2 +GCS
  * EL1 EL1&0 stage 1+2 (aka NS PL1 PL1&0 stage 1+2)
  * EL1 EL1&0 stage 1+2 +PAN (aka NS PL1 P1&0 stage 1+2 +PAN)
+ * EL1 EL1&0 stage 1+2 +GCS
  * EL0 EL2&0
+ * EL0 EL2&0 +GCS
  * EL2 EL2&0
  * EL2 EL2&0 +PAN
+ * EL2 EL2&0 +GCS
  * EL2 (aka NS PL2)
+ * EL2 +GCS
  * EL3 (aka AArch32 S PL1 PL1&0)
+ * EL3 +GCS
  * AArch32 S PL0 PL1&0 (we call this EL30_0)
  * AArch32 S PL1 PL1&0 +PAN (we call this EL30_3_PAN)
  * Stage2 Secure
  * Stage2 NonSecure
  * plus one TLB per Physical address space: S, NS, Realm, Root
  *
- * for a total of 16 different mmu_idx.
+ * for a total of 22 different mmu_idx.
  *
  * R profile CPUs have an MPU, but can use the same set of MMU indexes
  * as A profile. They only need to distinguish EL0 and EL1 (and
@@ -114,9 +121,9 @@
  * For M profile we arrange them to have a bit for priv, a bit for negpri
  * and a bit for secure.
  */
-#define ARM_MMU_IDX_A     0x10  /* A profile */
-#define ARM_MMU_IDX_NOTLB 0x20  /* does not have a TLB */
-#define ARM_MMU_IDX_M     0x40  /* M profile */
+#define ARM_MMU_IDX_A     0x20  /* A profile */
+#define ARM_MMU_IDX_NOTLB 0x40  /* does not have a TLB */
+#define ARM_MMU_IDX_M     0x80  /* M profile */
 
 /* Meanings of the bits for M profile mmu idx values */
 #define ARM_MMU_IDX_M_PRIV   0x1
@@ -125,22 +132,32 @@
 
 #define ARM_MMU_IDX_TYPE_MASK \
     (ARM_MMU_IDX_A | ARM_MMU_IDX_M | ARM_MMU_IDX_NOTLB)
-#define ARM_MMU_IDX_COREIDX_MASK 0xf
+#define ARM_MMU_IDX_COREIDX_MASK 0x1f
 
 typedef enum ARMMMUIdx {
     /*
      * A-profile.
      */
-    ARMMMUIdx_E10_0     = 0 | ARM_MMU_IDX_A,
-    ARMMMUIdx_E20_0     = 1 | ARM_MMU_IDX_A,
-    ARMMMUIdx_E10_1     = 2 | ARM_MMU_IDX_A,
-    ARMMMUIdx_E20_2     = 3 | ARM_MMU_IDX_A,
-    ARMMMUIdx_E10_1_PAN = 4 | ARM_MMU_IDX_A,
-    ARMMMUIdx_E20_2_PAN = 5 | ARM_MMU_IDX_A,
-    ARMMMUIdx_E2        = 6 | ARM_MMU_IDX_A,
-    ARMMMUIdx_E3        = 7 | ARM_MMU_IDX_A,
-    ARMMMUIdx_E30_0     = 8 | ARM_MMU_IDX_A,
-    ARMMMUIdx_E30_3_PAN = 9 | ARM_MMU_IDX_A,
+
+    ARMMMUIdx_E10_0      = 0 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E10_0_GCS  = 1 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E10_1      = 2 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E10_1_PAN  = 3 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E10_1_GCS  = 4 | ARM_MMU_IDX_A,
+
+    ARMMMUIdx_E20_0      = 5 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E20_0_GCS  = 6 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E20_2      = 7 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E20_2_PAN  = 8 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E20_2_GCS  = 9 | ARM_MMU_IDX_A,
+
+    ARMMMUIdx_E2         = 10 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E2_GCS     = 11 | ARM_MMU_IDX_A,
+
+    ARMMMUIdx_E3         = 12 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E3_GCS     = 13 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E30_0      = 14 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E30_3_PAN  = 15 | ARM_MMU_IDX_A,
 
     /*
      * Used for second stage of an S12 page table walk, or for descriptor
@@ -148,14 +165,14 @@ typedef enum ARMMMUIdx {
      * are in use simultaneously for SecureEL2: the security state for
      * the S2 ptw is selected by the NS bit from the S1 ptw.
      */
-    ARMMMUIdx_Stage2_S  = 10 | ARM_MMU_IDX_A,
-    ARMMMUIdx_Stage2    = 11 | ARM_MMU_IDX_A,
+    ARMMMUIdx_Stage2_S   = 16 | ARM_MMU_IDX_A,
+    ARMMMUIdx_Stage2     = 17 | ARM_MMU_IDX_A,
 
     /* TLBs with 1-1 mapping to the physical address spaces. */
-    ARMMMUIdx_Phys_S     = 12 | ARM_MMU_IDX_A,
-    ARMMMUIdx_Phys_NS    = 13 | ARM_MMU_IDX_A,
-    ARMMMUIdx_Phys_Root  = 14 | ARM_MMU_IDX_A,
-    ARMMMUIdx_Phys_Realm = 15 | ARM_MMU_IDX_A,
+    ARMMMUIdx_Phys_S     = 18 | ARM_MMU_IDX_A,
+    ARMMMUIdx_Phys_NS    = 19 | ARM_MMU_IDX_A,
+    ARMMMUIdx_Phys_Root  = 20 | ARM_MMU_IDX_A,
+    ARMMMUIdx_Phys_Realm = 21 | ARM_MMU_IDX_A,
 
     /*
      * These are not allocated TLBs and are used only for AT system
@@ -164,6 +181,8 @@ typedef enum ARMMMUIdx {
     ARMMMUIdx_Stage1_E0 = 0 | ARM_MMU_IDX_NOTLB,
     ARMMMUIdx_Stage1_E1 = 1 | ARM_MMU_IDX_NOTLB,
     ARMMMUIdx_Stage1_E1_PAN = 2 | ARM_MMU_IDX_NOTLB,
+    ARMMMUIdx_Stage1_E0_GCS = 3 | ARM_MMU_IDX_NOTLB,
+    ARMMMUIdx_Stage1_E1_GCS = 4 | ARM_MMU_IDX_NOTLB,
 
     /*
      * M-profile.
@@ -187,13 +206,19 @@ typedef enum ARMMMUIdx {
 
 typedef enum ARMMMUIdxBit {
     TO_CORE_BIT(E10_0),
-    TO_CORE_BIT(E20_0),
+    TO_CORE_BIT(E10_0_GCS),
     TO_CORE_BIT(E10_1),
     TO_CORE_BIT(E10_1_PAN),
-    TO_CORE_BIT(E2),
+    TO_CORE_BIT(E10_1_GCS),
+    TO_CORE_BIT(E20_0),
+    TO_CORE_BIT(E20_0_GCS),
     TO_CORE_BIT(E20_2),
     TO_CORE_BIT(E20_2_PAN),
+    TO_CORE_BIT(E20_2_GCS),
+    TO_CORE_BIT(E2),
+    TO_CORE_BIT(E2_GCS),
     TO_CORE_BIT(E3),
+    TO_CORE_BIT(E3_GCS),
     TO_CORE_BIT(E30_0),
     TO_CORE_BIT(E30_3_PAN),
     TO_CORE_BIT(Stage2),

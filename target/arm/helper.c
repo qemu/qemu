@@ -420,7 +420,9 @@ int alle1_tlbmask(CPUARMState *env)
      */
     return (ARMMMUIdxBit_E10_1 |
             ARMMMUIdxBit_E10_1_PAN |
+            ARMMMUIdxBit_E10_1_GCS |
             ARMMMUIdxBit_E10_0 |
+            ARMMMUIdxBit_E10_0_GCS |
             ARMMMUIdxBit_Stage2 |
             ARMMMUIdxBit_Stage2_S);
 }
@@ -808,12 +810,17 @@ static void scr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
      */
     if (changed & (SCR_NS | SCR_NSE)) {
         tlb_flush_by_mmuidx(env_cpu(env), (ARMMMUIdxBit_E10_0 |
+                                           ARMMMUIdxBit_E10_0_GCS |
                                            ARMMMUIdxBit_E20_0 |
+                                           ARMMMUIdxBit_E20_0_GCS |
                                            ARMMMUIdxBit_E10_1 |
-                                           ARMMMUIdxBit_E20_2 |
                                            ARMMMUIdxBit_E10_1_PAN |
+                                           ARMMMUIdxBit_E10_1_GCS |
+                                           ARMMMUIdxBit_E20_2 |
                                            ARMMMUIdxBit_E20_2_PAN |
-                                           ARMMMUIdxBit_E2));
+                                           ARMMMUIdxBit_E20_2_GCS |
+                                           ARMMMUIdxBit_E2 |
+                                           ARMMMUIdxBit_E2_GCS));
     }
 }
 
@@ -2787,7 +2794,9 @@ static void vmsa_tcr_ttbr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
         (arm_hcr_el2_eff(env) & HCR_E2H)) {
         uint16_t mask = ARMMMUIdxBit_E20_2 |
                         ARMMMUIdxBit_E20_2_PAN |
-                        ARMMMUIdxBit_E20_0;
+                        ARMMMUIdxBit_E20_2_GCS |
+                        ARMMMUIdxBit_E20_0 |
+                        ARMMMUIdxBit_E20_0_GCS;
         tlb_flush_by_mmuidx(env_cpu(env), mask);
     }
     raw_write(env, ri, value);

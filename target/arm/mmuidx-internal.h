@@ -20,6 +20,7 @@ FIELD(MMUIDXINFO, PAN, 7, 1)
 FIELD(MMUIDXINFO, USER, 8, 1)
 FIELD(MMUIDXINFO, STAGE1, 9, 1)
 FIELD(MMUIDXINFO, STAGE2, 10, 1)
+FIELD(MMUIDXINFO, GCS, 11, 1)
 
 extern const uint32_t arm_mmuidx_table[ARM_MMU_IDX_M + 8];
 
@@ -90,6 +91,13 @@ static inline bool regime_is_stage2(ARMMMUIdx idx)
 {
     tcg_debug_assert(arm_mmuidx_is_valid(idx));
     return FIELD_EX32(arm_mmuidx_table[idx], MMUIDXINFO, STAGE2);
+}
+
+/* Return true if this mmu index implies AccessType_GCS. */
+static inline bool regime_is_gcs(ARMMMUIdx idx)
+{
+    tcg_debug_assert(arm_mmuidx_is_valid(idx));
+    return FIELD_EX32(arm_mmuidx_table[idx], MMUIDXINFO, GCS);
 }
 
 #endif /* TARGET_ARM_MMUIDX_INTERNAL_H */
