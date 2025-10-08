@@ -36,6 +36,13 @@
 #include "net/net.h"
 #include "qemu/log.h"
 
+#define TYPE_HPPA_COMMON_MACHINE  MACHINE_TYPE_NAME("hppa-common")
+OBJECT_DECLARE_SIMPLE_TYPE(HppaMachineState, HPPA_COMMON_MACHINE)
+
+struct HppaMachineState {
+    MachineState parent_obj;
+};
+
 #define MIN_SEABIOS_HPPA_VERSION 12 /* require at least this fw version */
 
 #define HPA_POWER_BUTTON        (FIRMWARE_END - 0x10)
@@ -683,6 +690,22 @@ static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
+static void hppa_machine_common_class_init(ObjectClass *oc, const void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    NMIClass *nc = NMI_CLASS(oc);
+
+    mc->reset = hppa_machine_reset;
+    mc->block_default_type = IF_SCSI;
+    mc->default_cpus = 1;
+    mc->max_cpus = HPPA_MAX_CPUS;
+    mc->default_boot_order = "cd";
+    mc->default_ram_id = "ram";
+    mc->default_nic = "tulip";
+
+    nc->nmi_monitor_handler = hppa_nmi;
+}
+
 static void HP_B160L_machine_init_class_init(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
@@ -690,23 +713,13 @@ static void HP_B160L_machine_init_class_init(ObjectClass *oc, const void *data)
         NULL
     };
     MachineClass *mc = MACHINE_CLASS(oc);
-    NMIClass *nc = NMI_CLASS(oc);
 
     mc->desc = "HP B160L workstation";
     mc->default_cpu_type = TYPE_HPPA_CPU;
     mc->valid_cpu_types = valid_cpu_types;
     mc->init = machine_HP_B160L_init;
-    mc->reset = hppa_machine_reset;
-    mc->block_default_type = IF_SCSI;
-    mc->max_cpus = HPPA_MAX_CPUS;
-    mc->default_cpus = 1;
     mc->is_default = true;
     mc->default_ram_size = 512 * MiB;
-    mc->default_boot_order = "cd";
-    mc->default_ram_id = "ram";
-    mc->default_nic = "tulip";
-
-    nc->nmi_monitor_handler = hppa_nmi;
 }
 
 static void HP_C3700_machine_init_class_init(ObjectClass *oc, const void *data)
@@ -716,42 +729,34 @@ static void HP_C3700_machine_init_class_init(ObjectClass *oc, const void *data)
         NULL
     };
     MachineClass *mc = MACHINE_CLASS(oc);
-    NMIClass *nc = NMI_CLASS(oc);
 
     mc->desc = "HP C3700 workstation";
     mc->default_cpu_type = TYPE_HPPA64_CPU;
     mc->valid_cpu_types = valid_cpu_types;
     mc->init = machine_HP_C3700_init;
-    mc->reset = hppa_machine_reset;
-    mc->block_default_type = IF_SCSI;
     mc->max_cpus = HPPA_MAX_CPUS;
-    mc->default_cpus = 1;
-    mc->is_default = false;
     mc->default_ram_size = 1024 * MiB;
-    mc->default_boot_order = "cd";
-    mc->default_ram_id = "ram";
-    mc->default_nic = "tulip";
-
-    nc->nmi_monitor_handler = hppa_nmi;
 }
 
 static const TypeInfo hppa_machine_types[] = {
     {
-        .name = MACHINE_TYPE_NAME("B160L"),
-        .parent = TYPE_MACHINE,
-        .class_init = HP_B160L_machine_init_class_init,
+        .name           = TYPE_HPPA_COMMON_MACHINE,
+        .parent         = TYPE_MACHINE,
+        .instance_size  = sizeof(HppaMachineState),
+        .class_init     = hppa_machine_common_class_init,
+        .abstract       = true,
         .interfaces = (const InterfaceInfo[]) {
             { TYPE_NMI },
             { }
         },
     }, {
+        .name = MACHINE_TYPE_NAME("B160L"),
+        .parent = TYPE_HPPA_COMMON_MACHINE,
+        .class_init = HP_B160L_machine_init_class_init,
+    }, {
         .name = MACHINE_TYPE_NAME("C3700"),
-        .parent = TYPE_MACHINE,
+        .parent = TYPE_HPPA_COMMON_MACHINE,
         .class_init = HP_C3700_machine_init_class_init,
-        .interfaces = (const InterfaceInfo[]) {
-            { TYPE_NMI },
-            { }
-        },
     },
 };
 
