@@ -621,6 +621,25 @@ const char *qdev_set_id(DeviceState *dev, char *id, Error **errp)
     return prop->name;
 }
 
+BusState *qdev_find_default_bus(DeviceClass *dc, Error **errp)
+{
+    BusState *bus = NULL;
+
+    assert(dc->bus_type != NULL);
+    bus = qbus_find_recursive(sysbus_get_default(), NULL, dc->bus_type);
+    if (!bus) {
+        error_setg(errp, "No '%s' bus found for device '%s'",
+                   dc->bus_type, object_class_get_name(OBJECT_CLASS(dc)));
+        return NULL;
+    }
+    if (qbus_is_full(bus)) {
+        error_setg(errp, "A '%s' bus was found but is full", dc->bus_type);
+        return NULL;
+    }
+
+    return bus;
+}
+
 DeviceState *qdev_device_add_from_qdict(const QDict *opts,
                                         bool from_json, Error **errp)
 {
@@ -657,10 +676,8 @@ DeviceState *qdev_device_add_from_qdict(const QDict *opts,
             return NULL;
         }
     } else if (dc->bus_type != NULL) {
-        bus = qbus_find_recursive(sysbus_get_default(), NULL, dc->bus_type);
-        if (!bus || qbus_is_full(bus)) {
-            error_setg(errp, "No '%s' bus found for device '%s'",
-                       dc->bus_type, driver);
+        bus = qdev_find_default_bus(dc, errp);
+        if (!bus) {
             return NULL;
         }
     }
