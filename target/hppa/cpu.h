@@ -320,8 +320,8 @@ void hppa_translate_code(CPUState *cs, TranslationBlock *tb,
 
 #define CPU_RESOLVING_TYPE TYPE_HPPA_CPU
 
-static inline target_ulong hppa_form_gva_mask(uint64_t gva_offset_mask,
-                                        uint64_t spc, target_ulong off)
+static inline vaddr hppa_form_gva_mask(uint64_t gva_offset_mask,
+                                       uint64_t spc, target_ulong off)
 {
 #ifdef CONFIG_USER_ONLY
     return off & gva_offset_mask;
@@ -330,8 +330,8 @@ static inline target_ulong hppa_form_gva_mask(uint64_t gva_offset_mask,
 #endif
 }
 
-static inline target_ulong hppa_form_gva(CPUHPPAState *env, uint64_t spc,
-                                         target_ulong off)
+static inline vaddr hppa_form_gva(CPUHPPAState *env, uint64_t spc,
+                                  target_ulong off)
 {
     return hppa_form_gva_mask(env->gva_offset_mask, spc, off);
 }
