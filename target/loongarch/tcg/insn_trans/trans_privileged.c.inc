@@ -380,7 +380,7 @@ static bool trans_lddir(DisasContext *ctx, arg_lddir *a)
     if (check_plv(ctx)) {
         return false;
     }
-    gen_helper_lddir(dest, tcg_env, src, tcg_constant_tl(a->imm), mem_idx);
+    gen_helper_lddir(dest, tcg_env, src, tcg_constant_i32(a->imm), mem_idx);
     return true;
 }
 
