@@ -325,7 +325,7 @@ static int find_utlb_entry(CPUSH4State * env, target_ulong address, int use_asid
    MMU_ITLB_MULTIPLE, MMU_ITLB_VIOLATION,
    MMU_IADDR_ERROR, MMU_DADDR_ERROR_READ, MMU_DADDR_ERROR_WRITE.
 */
-static int get_mmu_address(CPUSH4State * env, target_ulong * physical,
+static int get_mmu_address(CPUSH4State *env, hwaddr *physical,
                            int *prot, target_ulong address,
                            MMUAccessType access_type)
 {
@@ -392,7 +392,7 @@ static int get_mmu_address(CPUSH4State * env, target_ulong * physical,
     return n;
 }
 
-static int get_physical_address(CPUSH4State * env, target_ulong * physical,
+static int get_physical_address(CPUSH4State *env, hwaddr* physical,
                                 int *prot, target_ulong address,
                                 MMUAccessType access_type)
 {
@@ -433,7 +433,7 @@ static int get_physical_address(CPUSH4State * env, target_ulong * physical,
 
 hwaddr superh_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
-    target_ulong physical;
+    hwaddr physical;
     int prot;
 
     if (get_physical_address(cpu_env(cs), &physical, &prot, addr, MMU_DATA_LOAD)
@@ -800,7 +800,7 @@ bool superh_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     CPUSH4State *env = cpu_env(cs);
     int ret;
 
-    target_ulong physical;
+    hwaddr physical;
     int prot;
 
     ret = get_physical_address(env, &physical, &prot, address, access_type);
