@@ -277,7 +277,7 @@ void cpu_sh4_write_mmaped_utlb_data(CPUSH4State *s, hwaddr addr,
                                     uint32_t mem_value);
 #endif
 
-int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr);
+int cpu_sh4_is_cached(CPUSH4State *env, uint32_t addr);
 
 void cpu_load_tlb(CPUSH4State * env);
 

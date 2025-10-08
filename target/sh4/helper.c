@@ -47,7 +47,7 @@
 
 #if defined(CONFIG_USER_ONLY)
 
-int cpu_sh4_is_cached(CPUSH4State *env, target_ulong addr)
+int cpu_sh4_is_cached(CPUSH4State *env, uint32_t addr)
 {
     /* For user mode, only U0 area is cacheable. */
     return !(addr & 0x80000000);
@@ -735,7 +735,7 @@ void cpu_sh4_write_mmaped_utlb_data(CPUSH4State *s, hwaddr addr,
     }
 }
 
-int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr)
+int cpu_sh4_is_cached(CPUSH4State *env, uint32_t addr)
 {
     int n;
     int use_asid = !(env->mmucr & MMUCR_SV) || !(env->sr & (1u << SR_MD));
