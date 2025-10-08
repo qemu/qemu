@@ -187,7 +187,7 @@ typedef struct HPPATLBEntry {
         struct HPPATLBEntry *unused_next;
     };
 
-    target_ulong pa;
+    hwaddr pa;
 
     unsigned entry_valid : 1;
 
