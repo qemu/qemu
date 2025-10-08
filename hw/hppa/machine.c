@@ -709,16 +709,6 @@ static void HP_B160L_machine_init_class_init(ObjectClass *oc, const void *data)
     nc->nmi_monitor_handler = hppa_nmi;
 }
 
-static const TypeInfo HP_B160L_machine_init_typeinfo = {
-    .name = MACHINE_TYPE_NAME("B160L"),
-    .parent = TYPE_MACHINE,
-    .class_init = HP_B160L_machine_init_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_NMI },
-        { }
-    },
-};
-
 static void HP_C3700_machine_init_class_init(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
@@ -745,20 +735,24 @@ static void HP_C3700_machine_init_class_init(ObjectClass *oc, const void *data)
     nc->nmi_monitor_handler = hppa_nmi;
 }
 
-static const TypeInfo HP_C3700_machine_init_typeinfo = {
-    .name = MACHINE_TYPE_NAME("C3700"),
-    .parent = TYPE_MACHINE,
-    .class_init = HP_C3700_machine_init_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_NMI },
-        { }
+static const TypeInfo hppa_machine_types[] = {
+    {
+        .name = MACHINE_TYPE_NAME("B160L"),
+        .parent = TYPE_MACHINE,
+        .class_init = HP_B160L_machine_init_class_init,
+        .interfaces = (const InterfaceInfo[]) {
+            { TYPE_NMI },
+            { }
+        },
+    }, {
+        .name = MACHINE_TYPE_NAME("C3700"),
+        .parent = TYPE_MACHINE,
+        .class_init = HP_C3700_machine_init_class_init,
+        .interfaces = (const InterfaceInfo[]) {
+            { TYPE_NMI },
+            { }
+        },
     },
 };
 
-static void hppa_machine_init_register_types(void)
-{
-    type_register_static(&HP_B160L_machine_init_typeinfo);
-    type_register_static(&HP_C3700_machine_init_typeinfo);
-}
-
-type_init(hppa_machine_init_register_types)
+DEFINE_TYPES(hppa_machine_types)
