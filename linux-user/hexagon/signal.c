@@ -24,30 +24,30 @@
 #include "linux-user/trace.h"
 
 struct target_user_regs_struct {
-    target_ulong r0,  r1,  r2,  r3;
-    target_ulong r4,  r5,  r6,  r7;
-    target_ulong r8,  r9, r10, r11;
-    target_ulong r12, r13, r14, r15;
-    target_ulong r16, r17, r18, r19;
-    target_ulong r20, r21, r22, r23;
-    target_ulong r24, r25, r26, r27;
-    target_ulong r28, r29, r30, r31;
-    target_ulong sa0;
-    target_ulong lc0;
-    target_ulong sa1;
-    target_ulong lc1;
-    target_ulong m0;
-    target_ulong m1;
-    target_ulong usr;
-    target_ulong p3_0;
-    target_ulong gp;
-    target_ulong ugp;
-    target_ulong pc;
-    target_ulong cause;
-    target_ulong badva;
-    target_ulong cs0;
-    target_ulong cs1;
-    target_ulong pad1; /* pad to 48 words */
+    abi_ulong r0,  r1,  r2,  r3;
+    abi_ulong r4,  r5,  r6,  r7;
+    abi_ulong r8,  r9, r10, r11;
+    abi_ulong r12, r13, r14, r15;
+    abi_ulong r16, r17, r18, r19;
+    abi_ulong r20, r21, r22, r23;
+    abi_ulong r24, r25, r26, r27;
+    abi_ulong r28, r29, r30, r31;
+    abi_ulong sa0;
+    abi_ulong lc0;
+    abi_ulong sa1;
+    abi_ulong lc1;
+    abi_ulong m0;
+    abi_ulong m1;
+    abi_ulong usr;
+    abi_ulong p3_0;
+    abi_ulong gp;
+    abi_ulong ugp;
+    abi_ulong pc;
+    abi_ulong cause;
+    abi_ulong badva;
+    abi_ulong cs0;
+    abi_ulong cs1;
+    abi_ulong pad1; /* pad to 48 words */
 };
 
 QEMU_BUILD_BUG_ON(sizeof(struct target_user_regs_struct) != 48 * 4);
@@ -85,7 +85,7 @@ static abi_ulong get_sigframe(struct target_sigaction *ka,
 
 static void setup_sigcontext(struct target_sigcontext *sc, CPUHexagonState *env)
 {
-    target_ulong preds = 0;
+    abi_ulong preds = 0;
 
     __put_user(env->gpr[HEX_REG_R00], &sc->sc_regs.r0);
     __put_user(env->gpr[HEX_REG_R01], &sc->sc_regs.r1);
@@ -211,7 +211,7 @@ badframe:
 static void restore_sigcontext(CPUHexagonState *env,
                                struct target_sigcontext *sc)
 {
-    target_ulong preds;
+    abi_ulong preds;
 
     __get_user(env->gpr[HEX_REG_R00], &sc->sc_regs.r0);
     __get_user(env->gpr[HEX_REG_R01], &sc->sc_regs.r1);
