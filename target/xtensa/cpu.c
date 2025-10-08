@@ -59,13 +59,13 @@ static TCGTBCPUState xtensa_get_tb_cpu_state(CPUState *cs)
 {
     CPUXtensaState *env = cpu_env(cs);
     uint32_t flags = 0;
-    target_ulong cs_base = 0;
+    uint64_t cs_base = 0;
 
     flags |= xtensa_get_ring(env);
     if (env->sregs[PS] & PS_EXCM) {
         flags |= XTENSA_TBFLAG_EXCM;
     } else if (xtensa_option_enabled(env->config, XTENSA_OPTION_LOOP)) {
-        target_ulong lend_dist =
+        uint64_t lend_dist =
             env->sregs[LEND] - (env->pc & -(1u << TARGET_PAGE_BITS));
 
         /*
@@ -83,7 +83,7 @@ static TCGTBCPUState xtensa_get_tb_cpu_state(CPUState *cs)
          * for the TB that contains this instruction.
          */
         if (lend_dist < (1u << TARGET_PAGE_BITS) + env->config->max_insn_size) {
-            target_ulong lbeg_off = env->sregs[LEND] - env->sregs[LBEG];
+            uint64_t lbeg_off = env->sregs[LEND] - env->sregs[LBEG];
 
             cs_base = lend_dist;
             if (lbeg_off < 256) {
