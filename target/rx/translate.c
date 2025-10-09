@@ -74,7 +74,7 @@ static TCGv_i64 cpu_acc;
 
 static inline MemOp mo_endian(DisasContext *dc)
 {
-    return MO_TE;
+    return MO_LE;
 }
 
 /* decoder helper */
