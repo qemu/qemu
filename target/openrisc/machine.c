@@ -72,14 +72,14 @@ static const VMStateDescription vmstate_env = {
     .version_id = 6,
     .minimum_version_id = 6,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINTTL_2DARRAY(shadow_gpr, CPUOpenRISCState, 16, 32),
-        VMSTATE_UINTTL(pc, CPUOpenRISCState),
-        VMSTATE_UINTTL(ppc, CPUOpenRISCState),
-        VMSTATE_UINTTL(jmp_pc, CPUOpenRISCState),
-        VMSTATE_UINTTL(lock_addr, CPUOpenRISCState),
-        VMSTATE_UINTTL(lock_value, CPUOpenRISCState),
-        VMSTATE_UINTTL(epcr, CPUOpenRISCState),
-        VMSTATE_UINTTL(eear, CPUOpenRISCState),
+        VMSTATE_UINT32_2DARRAY(shadow_gpr, CPUOpenRISCState, 16, 32),
+        VMSTATE_UINT32(pc, CPUOpenRISCState),
+        VMSTATE_UINT32(ppc, CPUOpenRISCState),
+        VMSTATE_UINT32(jmp_pc, CPUOpenRISCState),
+        VMSTATE_UINT32(lock_addr, CPUOpenRISCState),
+        VMSTATE_UINT32(lock_value, CPUOpenRISCState),
+        VMSTATE_UINT32(epcr, CPUOpenRISCState),
+        VMSTATE_UINT32(eear, CPUOpenRISCState),
 
         /* Save the architecture value of the SR, not the internally
            expanded version.  Since this architecture value does not

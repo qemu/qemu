@@ -146,10 +146,10 @@ uint32_t helper_float_madd_s(CPUOpenRISCState *env, uint32_t a,
 
 
 #define FLOAT_CMP(name, impl)                                             \
-target_ulong helper_float_ ## name ## _d(CPUOpenRISCState *env,           \
+uint32_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
                                          uint64_t fdt0, uint64_t fdt1)    \
 { return float64_ ## impl(fdt0, fdt1, &env->fp_status); }                 \
-target_ulong helper_float_ ## name ## _s(CPUOpenRISCState *env,           \
+uint32_t helper_float_ ## name ## _s(CPUOpenRISCState *env,               \
                                          uint32_t fdt0, uint32_t fdt1)    \
 { return float32_ ## impl(fdt0, fdt1, &env->fp_status); }
 
@@ -160,13 +160,13 @@ FLOAT_CMP(un, unordered_quiet)
 #undef FLOAT_CMP
 
 #define FLOAT_UCMP(name, expr) \
-target_ulong helper_float_ ## name ## _d(CPUOpenRISCState *env,           \
+uint32_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
                                          uint64_t fdt0, uint64_t fdt1)    \
 {                                                                         \
     FloatRelation r = float64_compare_quiet(fdt0, fdt1, &env->fp_status); \
     return expr;                                                          \
 }                                                                         \
-target_ulong helper_float_ ## name ## _s(CPUOpenRISCState *env,           \
+uint32_t helper_float_ ## name ## _s(CPUOpenRISCState *env,               \
                                          uint32_t fdt0, uint32_t fdt1)    \
 {                                                                         \
     FloatRelation r = float32_compare_quiet(fdt0, fdt1, &env->fp_status); \
