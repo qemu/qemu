@@ -715,6 +715,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
         bool unmap_all = false;
 
         if (int128_eq(llsize, int128_2_64())) {
+            assert(!iova);
             unmap_all = true;
             llsize = int128_zero();
         }
