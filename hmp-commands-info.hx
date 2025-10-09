@@ -308,6 +308,19 @@ SRST
 ERST
 
     {
+        .name       = "mshv",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show MSHV information",
+        .cmd        = hmp_info_mshv,
+    },
+
+SRST
+  ``info mshv``
+    Show MSHV information.
+ERST
+
+    {
         .name       = "numa",
         .args_type  = "",
         .params     = "",

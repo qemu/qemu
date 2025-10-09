@@ -20,6 +20,11 @@
 
 //! `bindgen`-generated declarations.
 
+use glib_sys::{
+    gboolean, guint, GArray, GByteArray, GHashTable, GHashTableIter, GIOCondition, GList,
+    GMainContext, GPollFD, GPtrArray, GQueue, GSList, GSource, GSourceFunc, GString,
+};
+
 #[cfg(MESON)]
 include!("bindings.inc.rs");
 

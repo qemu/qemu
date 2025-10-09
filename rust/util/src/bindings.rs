@@ -18,6 +18,8 @@
     clippy::too_many_arguments
 )]
 
+use glib_sys::{guint, GList, GPollFD, GQueue, GSList, GString};
+
 #[cfg(MESON)]
 include!("bindings.inc.rs");
 

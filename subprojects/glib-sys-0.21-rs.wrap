@@ -1,0 +1,7 @@
+[wrap-file]
+directory = glib-sys-0.21.2
+source_url = https://crates.io/api/v1/crates/glib-sys/0.21.2/download
+source_filename = glib-sys-0.21.2.tar.gz
+source_hash = d09d3d0fddf7239521674e57b0465dfbd844632fec54f059f7f56112e3f927e1
+#method = cargo
+patch_directory = glib-sys-0.21-rs

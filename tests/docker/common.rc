@@ -53,8 +53,8 @@ configure_qemu()
     config_opts="--enable-werror \
                  ${TARGET_LIST:+--target-list=${TARGET_LIST}} \
                  --prefix=$INSTALL_DIR \
-                 $QEMU_CONFIGURE_OPTS $EXTRA_CONFIGURE_OPTS \
                  $enable_rust \
+                 $QEMU_CONFIGURE_OPTS $EXTRA_CONFIGURE_OPTS \
                  $@"
     echo "Configure options:"
     echo $config_opts

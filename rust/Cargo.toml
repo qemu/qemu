@@ -29,6 +29,7 @@ authors = ["The QEMU Project Developers <qemu-devel@nongnu.org>"]
 anyhow = "~1.0"
 foreign = "~0.3.1"
 libc = "0.2.162"
+glib-sys = { version = "0.21.2", features = ["v2_66"] }
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "deny", check-cfg = ['cfg(MESON)'] }

@@ -36,6 +36,7 @@ subprojects=(
   bilge-impl-0.2-rs
   either-1-rs
   foreign-0.3-rs
+  glib-sys-0.21-rs
   itertools-0.11-rs
   keycodemapdb
   libc-0.2-rs

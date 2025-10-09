@@ -38,7 +38,7 @@ _migration_rs = static_library(
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
   link_with: [_util_rs],
-  dependencies: [common_rs],
+  dependencies: [common_rs, glib_sys_rs],
 )
 
 migration_rs = declare_dependency(link_with: [_migration_rs],
