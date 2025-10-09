@@ -255,6 +255,7 @@ pub enum Mode {
 
 #[bitsize(2)]
 #[derive(Clone, Copy, Debug, Eq, FromBits, PartialEq)]
+#[allow(clippy::enum_variant_names)]
 /// `WLEN` Word length, field of [Line Control register](LineControl).
 ///
 /// These bits indicate the number of data bits transmitted or received in a
