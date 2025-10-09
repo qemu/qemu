@@ -1894,7 +1894,7 @@ static bool trans_ITOF(DisasContext *ctx, arg_ITOF * a)
     return true;
 }
 
-static void rx_bsetm(TCGv mem, TCGv mask)
+static void rx_bsetm(DisasContext *ctx, TCGv mem, TCGv mask)
 {
     TCGv val;
     val = tcg_temp_new();
@@ -1903,7 +1903,7 @@ static void rx_bsetm(TCGv mem, TCGv mask)
     rx_gen_st(MO_8, val, mem);
 }
 
-static void rx_bclrm(TCGv mem, TCGv mask)
+static void rx_bclrm(DisasContext *ctx, TCGv mem, TCGv mask)
 {
     TCGv val;
     val = tcg_temp_new();
@@ -1912,7 +1912,7 @@ static void rx_bclrm(TCGv mem, TCGv mask)
     rx_gen_st(MO_8, val, mem);
 }
 
-static void rx_btstm(TCGv mem, TCGv mask)
+static void rx_btstm(DisasContext *ctx, TCGv mem, TCGv mask)
 {
     TCGv val;
     val = tcg_temp_new();
@@ -1922,7 +1922,7 @@ static void rx_btstm(TCGv mem, TCGv mask)
     tcg_gen_mov_i32(cpu_psw_z, cpu_psw_c);
 }
 
-static void rx_bnotm(TCGv mem, TCGv mask)
+static void rx_bnotm(DisasContext *ctx, TCGv mem, TCGv mask)
 {
     TCGv val;
     val = tcg_temp_new();
@@ -1931,17 +1931,17 @@ static void rx_bnotm(TCGv mem, TCGv mask)
     rx_gen_st(MO_8, val, mem);
 }
 
-static void rx_bsetr(TCGv reg, TCGv mask)
+static void rx_bsetr(DisasContext *ctx, TCGv reg, TCGv mask)
 {
     tcg_gen_or_i32(reg, reg, mask);
 }
 
-static void rx_bclrr(TCGv reg, TCGv mask)
+static void rx_bclrr(DisasContext *ctx, TCGv reg, TCGv mask)
 {
     tcg_gen_andc_i32(reg, reg, mask);
 }
 
-static inline void rx_btstr(TCGv reg, TCGv mask)
+static inline void rx_btstr(DisasContext *ctx, TCGv reg, TCGv mask)
 {
     TCGv t0;
     t0 = tcg_temp_new();
@@ -1950,7 +1950,7 @@ static inline void rx_btstr(TCGv reg, TCGv mask)
     tcg_gen_mov_i32(cpu_psw_z, cpu_psw_c);
 }
 
-static inline void rx_bnotr(TCGv reg, TCGv mask)
+static inline void rx_bnotr(DisasContext *ctx, TCGv reg, TCGv mask)
 {
     tcg_gen_xor_i32(reg, reg, mask);
 }
@@ -1963,7 +1963,7 @@ static inline void rx_bnotr(TCGv reg, TCGv mask)
         mem = tcg_temp_new();                                           \
         mask = tcg_constant_i32(1 << a->imm);                           \
         addr = rx_index_addr(ctx, mem, a->ld, MO_8, a->rs);             \
-        cat3(rx_, op, m)(addr, mask);                                   \
+        cat3(rx_, op, m)(ctx, addr, mask);                              \
         return true;                                                    \
     }                                                                   \
     static bool cat3(trans_, name, _ir)(DisasContext *ctx,              \
@@ -1971,7 +1971,7 @@ static inline void rx_bnotr(TCGv reg, TCGv mask)
     {                                                                   \
         TCGv mask;                                                      \
         mask = tcg_constant_i32(1 << a->imm);                           \
-        cat3(rx_, op, r)(cpu_regs[a->rd], mask);                        \
+        cat3(rx_, op, r)(ctx, cpu_regs[a->rd], mask);                   \
         return true;                                                    \
     }                                                                   \
     static bool cat3(trans_, name, _rr)(DisasContext *ctx,              \
@@ -1982,7 +1982,7 @@ static inline void rx_bnotr(TCGv reg, TCGv mask)
         b = tcg_temp_new();                                             \
         tcg_gen_andi_i32(b, cpu_regs[a->rs], 31);                       \
         tcg_gen_shl_i32(mask, tcg_constant_i32(1), b);                  \
-        cat3(rx_, op, r)(cpu_regs[a->rd], mask);                        \
+        cat3(rx_, op, r)(ctx, cpu_regs[a->rd], mask);                   \
         return true;                                                    \
     }                                                                   \
     static bool cat3(trans_, name, _rm)(DisasContext *ctx,              \
@@ -1995,7 +1995,7 @@ static inline void rx_bnotr(TCGv reg, TCGv mask)
         tcg_gen_shl_i32(mask, tcg_constant_i32(1), b);                  \
         mem = tcg_temp_new();                                           \
         addr = rx_index_addr(ctx, mem, a->ld, MO_8, a->rs);             \
-        cat3(rx_, op, m)(addr, mask);                                   \
+        cat3(rx_, op, m)(ctx, addr, mask);                              \
         return true;                                                    \
     }
 
