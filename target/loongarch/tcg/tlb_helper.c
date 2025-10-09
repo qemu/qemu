@@ -371,7 +371,7 @@ void helper_tlbfill(CPULoongArchState *env)
     uint16_t pagesize, stlb_ps;
     uint16_t asid, tlb_asid;
     LoongArchTLB *tlb;
-    uint8_t tlb_e;
+    uint8_t tlb_e, tlb_g;
 
     if (FIELD_EX64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR)) {
         entryhi = env->CSR_TLBREHI;
@@ -400,7 +400,8 @@ void helper_tlbfill(CPULoongArchState *env)
             }
 
             tlb_asid = FIELD_EX64(tlb->tlb_misc, TLB_MISC, ASID);
-            if (asid != tlb_asid) {
+            tlb_g = FIELD_EX64(tlb->tlb_entry0, TLBENTRY, G);
+            if (tlb_g == 0 && asid != tlb_asid) {
                 set = i;
             }
         }
@@ -423,7 +424,8 @@ void helper_tlbfill(CPULoongArchState *env)
             }
 
             tlb_asid = FIELD_EX64(tlb->tlb_misc, TLB_MISC, ASID);
-            if (asid != tlb_asid) {
+            tlb_g = FIELD_EX64(tlb->tlb_entry0, TLBENTRY, G);
+            if (tlb_g == 0 && asid != tlb_asid) {
                 index = i;
             }
         }
