@@ -1739,7 +1739,7 @@ static bool do_store(DisasContext *ctx, unsigned rt, unsigned rb,
                      int modify, MemOp mop)
 {
     nullify_over(ctx);
-    do_store_64(ctx, load_gpr(ctx, rt), rb, 0, 0, disp, sp, modify, mop);
+    do_store_64(ctx, load_gpr(ctx, rt), rb, 0, 0, disp, sp, modify, MO_TE | mop);
     return nullify_end(ctx);
 }
 
@@ -3313,7 +3313,7 @@ static bool trans_st(DisasContext *ctx, arg_ldst *a)
     if (!ctx->is_pa20 && a->size > MO_32) {
         return gen_illegal(ctx);
     }
-    return do_store(ctx, a->t, a->b, a->disp, a->sp, a->m, a->size | MO_TE);
+    return do_store(ctx, a->t, a->b, a->disp, a->sp, a->m, a->size);
 }
 
 static bool trans_ldc(DisasContext *ctx, arg_ldst *a)
