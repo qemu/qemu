@@ -298,19 +298,8 @@ static void gen_muld(DisasContext *dc, TCGv srca, TCGv srcb)
 
     tcg_gen_ext_tl_i64(t1, srca);
     tcg_gen_ext_tl_i64(t2, srcb);
-    if (TARGET_LONG_BITS == 32) {
-        tcg_gen_mul_i64(cpu_mac, t1, t2);
-        tcg_gen_movi_tl(cpu_sr_ov, 0);
-    } else {
-        TCGv_i64 high = tcg_temp_new_i64();
-
-        tcg_gen_muls2_i64(cpu_mac, high, t1, t2);
-        tcg_gen_sari_i64(t1, cpu_mac, 63);
-        tcg_gen_negsetcond_i64(TCG_COND_NE, t1, t1, high);
-        tcg_gen_trunc_i64_tl(cpu_sr_ov, t1);
-
-        gen_ove_ov(dc);
-    }
+    tcg_gen_mul_i64(cpu_mac, t1, t2);
+    tcg_gen_movi_tl(cpu_sr_ov, 0);
 }
 
 static void gen_muldu(DisasContext *dc, TCGv srca, TCGv srcb)
@@ -320,18 +309,8 @@ static void gen_muldu(DisasContext *dc, TCGv srca, TCGv srcb)
 
     tcg_gen_extu_tl_i64(t1, srca);
     tcg_gen_extu_tl_i64(t2, srcb);
-    if (TARGET_LONG_BITS == 32) {
-        tcg_gen_mul_i64(cpu_mac, t1, t2);
-        tcg_gen_movi_tl(cpu_sr_cy, 0);
-    } else {
-        TCGv_i64 high = tcg_temp_new_i64();
-
-        tcg_gen_mulu2_i64(cpu_mac, high, t1, t2);
-        tcg_gen_setcondi_i64(TCG_COND_NE, high, high, 0);
-        tcg_gen_trunc_i64_tl(cpu_sr_cy, high);
-
-        gen_ove_cy(dc);
-    }
+    tcg_gen_mul_i64(cpu_mac, t1, t2);
+    tcg_gen_movi_tl(cpu_sr_cy, 0);
 }
 
 static void gen_mac(DisasContext *dc, TCGv srca, TCGv srcb)
@@ -349,11 +328,7 @@ static void gen_mac(DisasContext *dc, TCGv srca, TCGv srcb)
     tcg_gen_xor_i64(t1, t1, cpu_mac);
     tcg_gen_andc_i64(t1, t1, t2);
 
-#if TARGET_LONG_BITS == 32
     tcg_gen_extrh_i64_i32(cpu_sr_ov, t1);
-#else
-    tcg_gen_mov_i64(cpu_sr_ov, t1);
-#endif
 
     gen_ove_ov(dc);
 }
