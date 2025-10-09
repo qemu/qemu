@@ -62,21 +62,8 @@ static int iommufd_cdev_unmap(const VFIOContainer *bcontainer,
 {
     const VFIOIOMMUFDContainer *container = VFIO_IOMMU_IOMMUFD(bcontainer);
 
-    /* unmap in halves */
     if (unmap_all) {
-        Int128 llsize = int128_rshift(int128_2_64(), 1);
-        int ret;
-
-        ret = iommufd_backend_unmap_dma(container->be, container->ioas_id,
-                                        0, int128_get64(llsize));
-
-        if (ret == 0) {
-            ret = iommufd_backend_unmap_dma(container->be, container->ioas_id,
-                                            int128_get64(llsize),
-                                            int128_get64(llsize));
-        }
-
-        return ret;
+        size = UINT64_MAX;
     }
 
     /* TODO: Handle dma_unmap_bitmap with iotlb args (migration) */
