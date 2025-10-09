@@ -7,6 +7,7 @@ loongarch_ss.add([zlib, gen])
 loongarch_ss.add(files(
   'fpu_helper.c',
   'op_helper.c',
+  'tcg_cpu.c',
   'translate.c',
   'vec_helper.c',
 ))

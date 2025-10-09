@@ -9,6 +9,7 @@
 #include "cpu.h"
 #include "cpu-mmu.h"
 
+extern const TCGCPUOps loongarch_tcg_ops;
 void loongarch_csr_translate_init(void);
 
 bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
