@@ -26,16 +26,10 @@
 
 /* used for function call generation */
 #define TCG_TARGET_STACK_ALIGN        16
-#if _MIPS_SIM == _ABIO32
-# define TCG_TARGET_CALL_STACK_OFFSET 16
-# define TCG_TARGET_CALL_ARG_I64      TCG_CALL_ARG_EVEN
-# define TCG_TARGET_CALL_RET_I128     TCG_CALL_RET_BY_REF
-#else
-# define TCG_TARGET_CALL_STACK_OFFSET 0
-# define TCG_TARGET_CALL_ARG_I64      TCG_CALL_ARG_NORMAL
-# define TCG_TARGET_CALL_RET_I128     TCG_CALL_RET_NORMAL
-#endif
+#define TCG_TARGET_CALL_STACK_OFFSET  0
 #define TCG_TARGET_CALL_ARG_I32       TCG_CALL_ARG_NORMAL
+#define TCG_TARGET_CALL_ARG_I64       TCG_CALL_ARG_NORMAL
+#define TCG_TARGET_CALL_RET_I128      TCG_CALL_RET_NORMAL
 #define TCG_TARGET_CALL_ARG_I128      TCG_CALL_ARG_EVEN
 
 #if TCG_TARGET_REG_BITS == 32
@@ -135,12 +129,10 @@ static const TCGReg tcg_target_call_iarg_regs[] = {
     TCG_REG_A1,
     TCG_REG_A2,
     TCG_REG_A3,
-#if _MIPS_SIM == _ABIN32 || _MIPS_SIM == _ABI64
     TCG_REG_T0,
     TCG_REG_T1,
     TCG_REG_T2,
     TCG_REG_T3,
-#endif
 };
 
 static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
@@ -1053,17 +1045,11 @@ static void tcg_out_call_int(TCGContext *s, const tcg_insn_unit *arg, bool tail)
      * Note that __mips_abicalls requires the called function's address
      * to be loaded into $25 (t9), even if a direct branch is in range.
      *
-     * For n64, always drop the pointer into the constant pool.
-     * We can re-use helper addresses often and do not want any
-     * of the longer sequences tcg_out_movi may try.
+     * We can re-use helper addresses often; always drop the pointer
+     * into the constant pool.
      */
-    if (sizeof(uintptr_t) == 8) {
-        tcg_out_movi_pool(s, TCG_REG_T9, (uintptr_t)arg, TCG_REG_TB);
-    } else {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_T9, (uintptr_t)arg);
-    }
+    tcg_out_movi_pool(s, TCG_REG_T9, (uintptr_t)arg, TCG_REG_TB);
 
-    /* But do try a direct branch, allowing the cpu better insn prefetch.  */
     if (tail) {
         if (!tcg_out_opc_jmp(s, OPC_J, arg)) {
             tcg_out_opc_reg(s, OPC_JR, 0, TCG_REG_T9, 0);
