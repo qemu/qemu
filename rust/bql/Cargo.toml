@@ -13,7 +13,6 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-migration = { path = "../migration" }
 glib-sys.workspace = true
 
 [features]

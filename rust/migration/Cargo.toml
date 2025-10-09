@@ -13,6 +13,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+bql = { path = "../bql" }
 common = { path = "../common" }
 util = { path = "../util" }
 glib-sys.workspace = true

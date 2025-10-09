@@ -276,6 +276,8 @@ macro_rules! impl_vmstate_transparent {
     };
 }
 
+impl_vmstate_transparent!(bql::BqlCell<T> where T: VMState);
+impl_vmstate_transparent!(bql::BqlRefCell<T> where T: VMState);
 impl_vmstate_transparent!(std::cell::Cell<T> where T: VMState);
 impl_vmstate_transparent!(std::cell::UnsafeCell<T> where T: VMState);
 impl_vmstate_transparent!(std::pin::Pin<T> where T: VMState);

@@ -151,8 +151,6 @@ use std::{
     ptr::NonNull,
 };
 
-use migration::impl_vmstate_transparent;
-
 /// A mutable memory location that is protected by the Big QEMU Lock.
 ///
 /// # Memory layout
@@ -363,8 +361,6 @@ impl<T: Default> BqlCell<T> {
         self.replace(Default::default())
     }
 }
-
-impl_vmstate_transparent!(crate::cell::BqlCell<T> where T: VMState);
 
 /// A mutable memory location with dynamically checked borrow rules,
 /// protected by the Big QEMU Lock.
@@ -690,8 +686,6 @@ impl<T> From<T> for BqlRefCell<T> {
         BqlRefCell::new(t)
     }
 }
-
-impl_vmstate_transparent!(crate::cell::BqlRefCell<T> where T: VMState);
 
 struct BorrowRef<'b> {
     borrow: &'b Cell<BorrowFlag>,

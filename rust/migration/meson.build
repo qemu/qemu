@@ -37,12 +37,12 @@ _migration_rs = static_library(
   ),
   override_options: ['rust_std=2021', 'build.rust_std=2021'],
   rust_abi: 'rust',
-  link_with: [_util_rs],
+  link_with: [_util_rs, _bql_rs],
   dependencies: [common_rs, glib_sys_rs],
 )
 
 migration_rs = declare_dependency(link_with: [_migration_rs],
-  dependencies: [migration, qemuutil])
+  dependencies: [bql_rs, migration, qemuutil])
 
 # Doctests are essentially integration tests, so they need the same dependencies.
 # Note that running them requires the object files for C code, so place them
