@@ -72,6 +72,11 @@ static TCGv_i64 cpu_acc;
 
 #define cpu_sp cpu_regs[0]
 
+static inline MemOp mo_endian(DisasContext *dc)
+{
+    return MO_TE;
+}
+
 /* decoder helper */
 static uint32_t decode_load_bytes(DisasContext *ctx, uint32_t insn,
                                   int i, int n)
@@ -163,19 +168,19 @@ static void gen_goto_tb(DisasContext *dc, unsigned tb_slot_idx, vaddr dest)
 /* generic load wrapper */
 static inline void rx_gen_ld(DisasContext *ctx, MemOp size, TCGv reg, TCGv mem)
 {
-    tcg_gen_qemu_ld_i32(reg, mem, 0, size | MO_SIGN | MO_TE);
+    tcg_gen_qemu_ld_i32(reg, mem, 0, size | MO_SIGN | mo_endian(ctx));
 }
 
 /* unsigned load wrapper */
 static inline void rx_gen_ldu(DisasContext *ctx, MemOp size, TCGv reg, TCGv mem)
 {
-    tcg_gen_qemu_ld_i32(reg, mem, 0, size | MO_TE);
+    tcg_gen_qemu_ld_i32(reg, mem, 0, size | mo_endian(ctx));
 }
 
 /* generic store wrapper */
 static inline void rx_gen_st(DisasContext *ctx, MemOp size, TCGv reg, TCGv mem)
 {
-    tcg_gen_qemu_st_i32(reg, mem, 0, size | MO_TE);
+    tcg_gen_qemu_st_i32(reg, mem, 0, size | mo_endian(ctx));
 }
 
 /* [ri, rb] */
@@ -226,7 +231,7 @@ static inline TCGv rx_load_source(DisasContext *ctx, TCGv mem,
     if (ld < 3) {
         mop = mi_to_mop(mi);
         addr = rx_index_addr(ctx, mem, ld, mop & MO_SIZE, rs);
-        tcg_gen_qemu_ld_i32(mem, addr, 0, mop | MO_TE);
+        tcg_gen_qemu_ld_i32(mem, addr, 0, mop | mo_endian(ctx));
         return mem;
     } else {
         return cpu_regs[rs];
