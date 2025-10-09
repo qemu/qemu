@@ -161,19 +161,19 @@ static void gen_goto_tb(DisasContext *dc, unsigned tb_slot_idx, vaddr dest)
 }
 
 /* generic load wrapper */
-static inline void rx_gen_ld(unsigned int size, TCGv reg, TCGv mem)
+static inline void rx_gen_ld(MemOp size, TCGv reg, TCGv mem)
 {
     tcg_gen_qemu_ld_i32(reg, mem, 0, size | MO_SIGN | MO_TE);
 }
 
 /* unsigned load wrapper */
-static inline void rx_gen_ldu(unsigned int size, TCGv reg, TCGv mem)
+static inline void rx_gen_ldu(MemOp size, TCGv reg, TCGv mem)
 {
     tcg_gen_qemu_ld_i32(reg, mem, 0, size | MO_TE);
 }
 
 /* generic store wrapper */
-static inline void rx_gen_st(unsigned int size, TCGv reg, TCGv mem)
+static inline void rx_gen_st(MemOp size, TCGv reg, TCGv mem)
 {
     tcg_gen_qemu_st_i32(reg, mem, 0, size | MO_TE);
 }
