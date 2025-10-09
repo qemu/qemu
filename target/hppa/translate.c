@@ -1676,7 +1676,7 @@ static bool do_load(DisasContext *ctx, unsigned rt, unsigned rb,
         /* Make sure if RT == RB, we see the result of the load.  */
         dest = tcg_temp_new_i64();
     }
-    do_load_64(ctx, dest, rb, rx, scale, disp, sp, modify, mop);
+    do_load_64(ctx, dest, rb, rx, scale, disp, sp, modify, MO_TE | mop);
     save_gpr(ctx, rt, dest);
 
     return nullify_end(ctx);
@@ -3302,7 +3302,7 @@ static bool trans_ld(DisasContext *ctx, arg_ldst *a)
         return gen_illegal(ctx);
     }
     return do_load(ctx, a->t, a->b, a->x, a->scale ? a->size : 0,
-                   a->disp, a->sp, a->m, a->size | MO_TE);
+                   a->disp, a->sp, a->m, a->size);
 }
 
 static bool trans_st(DisasContext *ctx, arg_ldst *a)
