@@ -404,8 +404,6 @@ elif check_define _ARCH_PPC ; then
 elif check_define __mips__ ; then
   if check_define __mips64 ; then
     cpu="mips64"
-  else
-    cpu="mips"
   fi
 elif check_define __s390__ ; then
   if check_define __s390x__ ; then
@@ -470,11 +468,6 @@ case "$cpu" in
 
   mips64*|mipsisa64*)
     cpu=mips64
-    host_arch=mips
-    linux_arch=mips
-    ;;
-  mips*)
-    cpu=mips
     host_arch=mips
     linux_arch=mips
     ;;
