@@ -15,6 +15,7 @@ system_ss.add(files(
   'datadir.c',
   'dirtylimit.c',
   'dma-helpers.c',
+  'exit-with-parent.c',
   'globals.c',
   'ioport.c',
   'ram-block-attributes.c',
