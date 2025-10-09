@@ -20,7 +20,7 @@ Presuming a suitable ``vfio-user`` server has opened a socket at
 
 .. code-block:: console
 
--device '{"driver": "vfio-user-pci","socket": {"path": "/tmp/vfio-user.sock", "type": "unix"}}'
+  --device '{"driver": "vfio-user-pci","socket": {"path": "/tmp/vfio-user.sock", "type": "unix"}}'
 
 See `libvfio-user <https://github.com/nutanix/libvfio-user/>`_ for further
 information.
