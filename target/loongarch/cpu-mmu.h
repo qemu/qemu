@@ -27,6 +27,37 @@ typedef struct MMUContext {
     int           prot;
 } MMUContext;
 
+static inline bool cpu_has_ptw(CPULoongArchState *env)
+{
+    return !!FIELD_EX64(env->CSR_PWCH, CSR_PWCH, HPTW_EN);
+}
+
+static inline bool pte_present(CPULoongArchState *env, uint64_t entry)
+{
+    uint8_t present;
+
+    if (cpu_has_ptw(env)) {
+        present = FIELD_EX64(entry, TLBENTRY, P);
+    } else {
+        present = FIELD_EX64(entry, TLBENTRY, V);
+    }
+
+    return !!present;
+}
+
+static inline bool pte_write(CPULoongArchState *env, uint64_t entry)
+{
+    uint8_t writable;
+
+    if (cpu_has_ptw(env)) {
+        writable = FIELD_EX64(entry, TLBENTRY, W);
+    } else {
+        writable = FIELD_EX64(entry, TLBENTRY, D);
+    }
+
+    return !!writable;
+}
+
 bool check_ps(CPULoongArchState *ent, uint8_t ps);
 TLBRet loongarch_check_pte(CPULoongArchState *env, MMUContext *context,
                            MMUAccessType access_type, int mmu_idx);
