@@ -166,37 +166,34 @@ static void gen_goto_tb(DisasContext *dc, unsigned tb_slot_idx, vaddr dest)
 }
 
 /* generic load wrapper */
-static inline void rx_gen_ld(DisasContext *ctx, MemOp size,
-                             TCGv_i32 reg, TCGv_i32 mem)
+static void rx_gen_ld(DisasContext *ctx, MemOp size, TCGv_i32 reg, TCGv_i32 mem)
 {
     tcg_gen_qemu_ld_i32(reg, mem, 0, size | MO_SIGN | mo_endian(ctx));
 }
 
 /* unsigned load wrapper */
-static inline void rx_gen_ldu(DisasContext *ctx, MemOp size,
-                              TCGv_i32 reg, TCGv_i32 mem)
+static void rx_gen_ldu(DisasContext *ctx, MemOp size, TCGv_i32 reg, TCGv_i32 mem)
 {
     tcg_gen_qemu_ld_i32(reg, mem, 0, size | mo_endian(ctx));
 }
 
 /* generic store wrapper */
-static inline void rx_gen_st(DisasContext *ctx, MemOp size,
-                             TCGv_i32 reg, TCGv_i32 mem)
+static void rx_gen_st(DisasContext *ctx, MemOp size, TCGv_i32 reg, TCGv_i32 mem)
 {
     tcg_gen_qemu_st_i32(reg, mem, 0, size | mo_endian(ctx));
 }
 
 /* [ri, rb] */
-static inline void rx_gen_regindex(DisasContext *ctx, TCGv_i32 mem,
-                                   int size, int ri, int rb)
+static void rx_gen_regindex(DisasContext *ctx, TCGv_i32 mem,
+                            int size, int ri, int rb)
 {
     tcg_gen_shli_i32(mem, cpu_regs[ri], size);
     tcg_gen_add_i32(mem, mem, cpu_regs[rb]);
 }
 
 /* dsp[reg] */
-static inline TCGv_i32 rx_index_addr(DisasContext *ctx, TCGv_i32 mem,
-                                 int ld, int size, int reg)
+static TCGv_i32 rx_index_addr(DisasContext *ctx, TCGv_i32 mem,
+                              int ld, int size, int reg)
 {
     uint32_t dsp;
 
@@ -226,8 +223,8 @@ static inline MemOp mi_to_mop(unsigned mi)
 }
 
 /* load source operand */
-static inline TCGv_i32 rx_load_source(DisasContext *ctx, TCGv_i32 mem,
-                                  int ld, int mi, int rs)
+static TCGv_i32 rx_load_source(DisasContext *ctx, TCGv_i32 mem,
+                               int ld, int mi, int rs)
 {
     TCGv_i32 addr;
     MemOp mop;
@@ -732,7 +729,7 @@ static bool trans_XCHG_mr(DisasContext *ctx, arg_XCHG_mr *a)
     return true;
 }
 
-static inline void stcond(TCGCond cond, int rd, int imm)
+static void stcond(TCGCond cond, int rd, int imm)
 {
     TCGv_i32 z;
     TCGv_i32 _imm;
@@ -810,24 +807,24 @@ static bool trans_RTSD_irr(DisasContext *ctx, arg_RTSD_irr *a)
 typedef void (*op2fn)(TCGv_i32 ret, TCGv_i32 arg1);
 typedef void (*op3fn)(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2);
 
-static inline void rx_gen_op_rr(op2fn opr, int dst, int src)
+static void rx_gen_op_rr(op2fn opr, int dst, int src)
 {
     opr(cpu_regs[dst], cpu_regs[src]);
 }
 
-static inline void rx_gen_op_rrr(op3fn opr, int dst, int src, int src2)
+static void rx_gen_op_rrr(op3fn opr, int dst, int src, int src2)
 {
     opr(cpu_regs[dst], cpu_regs[src], cpu_regs[src2]);
 }
 
-static inline void rx_gen_op_irr(op3fn opr, int dst, int src, uint32_t src2)
+static void rx_gen_op_irr(op3fn opr, int dst, int src, uint32_t src2)
 {
     TCGv_i32 imm = tcg_constant_i32(src2);
     opr(cpu_regs[dst], cpu_regs[src], imm);
 }
 
-static inline void rx_gen_op_mr(op3fn opr, DisasContext *ctx,
-                                int dst, int src, int ld, int mi)
+static void rx_gen_op_mr(op3fn opr, DisasContext *ctx,
+                         int dst, int src, int ld, int mi)
 {
     TCGv_i32 val, mem;
     mem = tcg_temp_new_i32();
@@ -1342,8 +1339,8 @@ static bool trans_SHLL_rr(DisasContext *ctx, arg_SHLL_rr *a)
     return true;
 }
 
-static inline void shiftr_imm(uint32_t rd, uint32_t rs, uint32_t imm,
-                              unsigned int alith)
+static void shiftr_imm(uint32_t rd, uint32_t rs, uint32_t imm,
+                       unsigned int alith)
 {
     static void (* const gen_sXri[])(TCGv_i32 ret, TCGv_i32 arg1, int arg2) = {
         tcg_gen_shri_i32, tcg_gen_sari_i32,
@@ -1362,7 +1359,7 @@ static inline void shiftr_imm(uint32_t rd, uint32_t rs, uint32_t imm,
     tcg_gen_mov_i32(cpu_psw_s, cpu_regs[rd]);
 }
 
-static inline void shiftr_reg(uint32_t rd, uint32_t rs, unsigned int alith)
+static void shiftr_reg(uint32_t rd, uint32_t rs, unsigned int alith)
 {
     TCGLabel *noshift, *done;
     TCGv_i32 count;
@@ -1456,7 +1453,7 @@ static bool trans_RORC(DisasContext *ctx, arg_RORC *a)
 
 enum {ROTR = 0, ROTL = 1};
 enum {ROT_IMM = 0, ROT_REG = 1};
-static inline void rx_rot(int ir, int dir, int rd, int src)
+static void rx_rot(int ir, int dir, int rd, int src)
 {
     switch (dir) {
     case ROTL:
@@ -1591,7 +1588,7 @@ static bool trans_BRA_l(DisasContext *ctx, arg_BRA_l *a)
     return true;
 }
 
-static inline void rx_save_pc(DisasContext *ctx)
+static void rx_save_pc(DisasContext *ctx)
 {
     TCGv_i32 pc = tcg_constant_i32(ctx->base.pc_next);
     push(ctx, pc);
@@ -1950,7 +1947,7 @@ static void rx_bclrr(DisasContext *ctx, TCGv_i32 reg, TCGv_i32 mask)
     tcg_gen_andc_i32(reg, reg, mask);
 }
 
-static inline void rx_btstr(DisasContext *ctx, TCGv_i32 reg, TCGv_i32 mask)
+static void rx_btstr(DisasContext *ctx, TCGv_i32 reg, TCGv_i32 mask)
 {
     TCGv_i32 t0;
     t0 = tcg_temp_new_i32();
@@ -1959,7 +1956,7 @@ static inline void rx_btstr(DisasContext *ctx, TCGv_i32 reg, TCGv_i32 mask)
     tcg_gen_mov_i32(cpu_psw_z, cpu_psw_c);
 }
 
-static inline void rx_bnotr(DisasContext *ctx, TCGv_i32 reg, TCGv_i32 mask)
+static void rx_bnotr(DisasContext *ctx, TCGv_i32 reg, TCGv_i32 mask)
 {
     tcg_gen_xor_i32(reg, reg, mask);
 }
@@ -2013,7 +2010,7 @@ BITOP(BCLR, bclr)
 BITOP(BTST, btst)
 BITOP(BNOT, bnot)
 
-static inline void bmcnd_op(TCGv_i32 val, TCGCond cond, int pos)
+static void bmcnd_op(TCGv_i32 val, TCGCond cond, int pos)
 {
     TCGv_i32 bit;
     DisasCompare dc;
@@ -2054,7 +2051,7 @@ enum {
     PSW_U = 9,
 };
 
-static inline void clrsetpsw(DisasContext *ctx, int cb, int val)
+static void clrsetpsw(DisasContext *ctx, int cb, int val)
 {
     if (cb < 8) {
         switch (cb) {
