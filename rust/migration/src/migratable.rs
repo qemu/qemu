@@ -79,6 +79,10 @@ use crate::{
 /// # dev2.restore_migrated_state_mut(*mig, 1).unwrap();
 /// # assert_eq!(dev2, dev);
 /// ```
+///
+/// More commonly, the trait is derived through the
+/// [`derive(ToMigrationState)`](qemu_macros::ToMigrationState) procedural
+/// macro.
 pub trait ToMigrationState {
     /// The type used to represent the migrated state.
     type Migrated: Default + VMState;
@@ -309,13 +313,17 @@ impl<T: ToMigrationState> ToMigrationStateShared for BqlRefCell<T> {
 /// It manages the lifecycle of migration state and provides automatic
 /// conversion between runtime and migration representations.
 ///
-/// ```ignore
+/// ```
 /// # use std::sync::Mutex;
-/// # use migration::Migratable;
+/// # use migration::{Migratable, ToMigrationState, VMState, VMStateField};
 ///
+/// #[derive(ToMigrationState)]
 /// pub struct DeviceRegs {
 ///     status: u32,
 /// }
+/// # unsafe impl VMState for DeviceRegsMigration {
+/// #     const BASE: VMStateField = ::common::Zeroable::ZERO;
+/// # }
 ///
 /// pub struct SomeDevice {
 ///     // ...

@@ -15,6 +15,7 @@ rust-version.workspace = true
 [dependencies]
 bql = { path = "../bql" }
 common = { path = "../common" }
+qemu_macros = { path = "../qemu-macros" }
 util = { path = "../util" }
 glib-sys.workspace = true
 

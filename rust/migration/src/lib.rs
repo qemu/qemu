@@ -2,6 +2,8 @@
 
 pub mod bindings;
 
+pub use qemu_macros::ToMigrationState;
+
 pub mod migratable;
 pub use migratable::*;
 

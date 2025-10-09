@@ -200,6 +200,7 @@ dependencies = [
  "bql",
  "common",
  "glib-sys",
+ "qemu_macros",
  "util",
 ]
 

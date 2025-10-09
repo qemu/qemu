@@ -13,8 +13,12 @@ use syn::{
     Attribute, Data, DeriveInput, Error, Field, Fields, FieldsUnnamed, Ident, Meta, Path, Token,
     Variant,
 };
+
 mod bits;
 use bits::BitsConstInternal;
+
+mod migration_state;
+use migration_state::MigrationStateDerive;
 
 #[cfg(test)]
 mod tests;
@@ -411,4 +415,88 @@ pub fn bits_const_internal(ts: TokenStream) -> TokenStream {
         }
     }
     .into()
+}
+
+/// Derive macro for generating migration state structures and trait
+/// implementations.
+///
+/// This macro generates a migration state struct and implements the
+/// `ToMigrationState` trait for the annotated struct, enabling state
+/// serialization and restoration.  Note that defining a `VMStateDescription`
+/// for the migration state struct is left to the user.
+///
+/// # Container attributes
+///
+/// The following attributes can be applied to the struct:
+///
+/// - `#[migration_state(rename = CustomName)]` - Customizes the name of the
+///   generated migration struct. By default, the generated struct is named
+///   `{OriginalName}Migration`.
+///
+/// # Field attributes
+///
+/// The following attributes can be applied to individual fields:
+///
+/// - `#[migration_state(omit)]` - Excludes the field from the migration state
+///   entirely.
+///
+/// - `#[migration_state(into(Type))]` - Converts the field using `.into()`
+///   during both serialization and restoration.
+///
+/// - `#[migration_state(try_into(Type))]` - Converts the field using
+///   `.try_into()` during both serialization and restoration. Returns
+///   `InvalidError` on conversion failure.
+///
+/// - `#[migration_state(clone)]` - Clones the field value.
+///
+/// Fields without any attributes use `ToMigrationState` recursively; note that
+/// this is a simple copy for types that implement `Copy`.
+///
+/// # Attribute compatibility
+///
+/// - `omit` cannot be used with any other attributes
+/// - only one of `into(Type)`, `try_into(Type)` can be used, but they can be
+///   coupled with `clone`.
+///
+/// # Examples
+///
+/// Basic usage:
+/// ```ignore
+/// #[derive(ToMigrationState)]
+/// struct MyStruct {
+///     field1: u32,
+///     field2: Timer,
+/// }
+/// ```
+///
+/// With attributes:
+/// ```ignore
+/// #[derive(ToMigrationState)]
+/// #[migration_state(rename = CustomMigration)]
+/// struct MyStruct {
+///     #[migration_state(omit)]
+///     runtime_field: u32,
+///
+///     #[migration_state(clone)]
+///     shared_data: String,
+///
+///     #[migration_state(into(Cow<'static, str>), clone)]
+///     converted_field: String,
+///
+///     #[migration_state(try_into(i8))]
+///     fallible_field: u32,
+///
+///     // Default: use ToMigrationState trait recursively
+///     nested_field: NestedStruct,
+///
+///     // Primitive types have a default implementation of ToMigrationState
+///     simple_field: u32,
+/// }
+/// ```
+#[proc_macro_derive(ToMigrationState, attributes(migration_state))]
+pub fn derive_to_migration_state(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    MigrationStateDerive::expand(input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
