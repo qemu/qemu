@@ -161,19 +161,19 @@ static void gen_goto_tb(DisasContext *dc, unsigned tb_slot_idx, vaddr dest)
 }
 
 /* generic load wrapper */
-static inline void rx_gen_ld(MemOp size, TCGv reg, TCGv mem)
+static inline void rx_gen_ld(DisasContext *ctx, MemOp size, TCGv reg, TCGv mem)
 {
     tcg_gen_qemu_ld_i32(reg, mem, 0, size | MO_SIGN | MO_TE);
 }
 
 /* unsigned load wrapper */
-static inline void rx_gen_ldu(MemOp size, TCGv reg, TCGv mem)
+static inline void rx_gen_ldu(DisasContext *ctx, MemOp size, TCGv reg, TCGv mem)
 {
     tcg_gen_qemu_ld_i32(reg, mem, 0, size | MO_TE);
 }
 
 /* generic store wrapper */
-static inline void rx_gen_st(MemOp size, TCGv reg, TCGv mem)
+static inline void rx_gen_st(DisasContext *ctx, MemOp size, TCGv reg, TCGv mem)
 {
     tcg_gen_qemu_st_i32(reg, mem, 0, size | MO_TE);
 }
@@ -417,12 +417,12 @@ static void move_to_cr(DisasContext *ctx, TCGv val, int cr)
 static void push(DisasContext *ctx, TCGv val)
 {
     tcg_gen_subi_i32(cpu_sp, cpu_sp, 4);
-    rx_gen_st(MO_32, val, cpu_sp);
+    rx_gen_st(ctx, MO_32, val, cpu_sp);
 }
 
 static void pop(DisasContext *ctx, TCGv ret)
 {
-    rx_gen_ld(MO_32, ret, cpu_sp);
+    rx_gen_ld(ctx, MO_32, ret, cpu_sp);
     tcg_gen_addi_i32(cpu_sp, cpu_sp, 4);
 }
 
@@ -432,7 +432,7 @@ static bool trans_MOV_rm(DisasContext *ctx, arg_MOV_rm *a)
     TCGv mem;
     mem = tcg_temp_new();
     tcg_gen_addi_i32(mem, cpu_regs[a->rd], a->dsp << a->sz);
-    rx_gen_st(a->sz, cpu_regs[a->rs], mem);
+    rx_gen_st(ctx, a->sz, cpu_regs[a->rs], mem);
     return true;
 }
 
@@ -442,7 +442,7 @@ static bool trans_MOV_mr(DisasContext *ctx, arg_MOV_mr *a)
     TCGv mem;
     mem = tcg_temp_new();
     tcg_gen_addi_i32(mem, cpu_regs[a->rs], a->dsp << a->sz);
-    rx_gen_ld(a->sz, cpu_regs[a->rd], mem);
+    rx_gen_ld(ctx, a->sz, cpu_regs[a->rd], mem);
     return true;
 }
 
@@ -463,7 +463,7 @@ static bool trans_MOV_im(DisasContext *ctx, arg_MOV_im *a)
     imm = tcg_constant_i32(a->imm);
     mem = tcg_temp_new();
     tcg_gen_addi_i32(mem, cpu_regs[a->rd], a->dsp << a->sz);
-    rx_gen_st(a->sz, imm, mem);
+    rx_gen_st(ctx, a->sz, imm, mem);
     return true;
 }
 
@@ -473,7 +473,7 @@ static bool trans_MOV_ar(DisasContext *ctx, arg_MOV_ar *a)
     TCGv mem;
     mem = tcg_temp_new();
     rx_gen_regindex(ctx, mem, a->sz, a->ri, a->rb);
-    rx_gen_ld(a->sz, cpu_regs[a->rd], mem);
+    rx_gen_ld(ctx, a->sz, cpu_regs[a->rd], mem);
     return true;
 }
 
@@ -483,7 +483,7 @@ static bool trans_MOV_ra(DisasContext *ctx, arg_MOV_ra *a)
     TCGv mem;
     mem = tcg_temp_new();
     rx_gen_regindex(ctx, mem, a->sz, a->ri, a->rb);
-    rx_gen_st(a->sz, cpu_regs[a->rs], mem);
+    rx_gen_st(ctx, a->sz, cpu_regs[a->rs], mem);
     return true;
 }
 
@@ -505,18 +505,18 @@ static bool trans_MOV_mm(DisasContext *ctx, arg_MOV_mm *a)
     if (a->lds == 3) {
         /* mov.<bwl> rs,dsp[rd] */
         addr = rx_index_addr(ctx, mem, a->ldd, a->sz, a->rs);
-        rx_gen_st(a->sz, cpu_regs[a->rd], addr);
+        rx_gen_st(ctx, a->sz, cpu_regs[a->rd], addr);
     } else if (a->ldd == 3) {
         /* mov.<bwl> dsp[rs],rd */
         addr = rx_index_addr(ctx, mem, a->lds, a->sz, a->rs);
-        rx_gen_ld(a->sz, cpu_regs[a->rd], addr);
+        rx_gen_ld(ctx, a->sz, cpu_regs[a->rd], addr);
     } else {
         /* mov.<bwl> dsp[rs],dsp[rd] */
         tmp = tcg_temp_new();
         addr = rx_index_addr(ctx, mem, a->lds, a->sz, a->rs);
-        rx_gen_ld(a->sz, tmp, addr);
+        rx_gen_ld(ctx, a->sz, tmp, addr);
         addr = rx_index_addr(ctx, mem, a->ldd, a->sz, a->rd);
-        rx_gen_st(a->sz, tmp, addr);
+        rx_gen_st(ctx, a->sz, tmp, addr);
     }
     return true;
 }
@@ -531,7 +531,7 @@ static bool trans_MOV_rp(DisasContext *ctx, arg_MOV_rp *a)
     if (a->ad == 1) {
         tcg_gen_subi_i32(cpu_regs[a->rd], cpu_regs[a->rd], 1 << a->sz);
     }
-    rx_gen_st(a->sz, val, cpu_regs[a->rd]);
+    rx_gen_st(ctx, a->sz, val, cpu_regs[a->rd]);
     if (a->ad == 0) {
         tcg_gen_addi_i32(cpu_regs[a->rd], cpu_regs[a->rd], 1 << a->sz);
     }
@@ -547,7 +547,7 @@ static bool trans_MOV_pr(DisasContext *ctx, arg_MOV_pr *a)
     if (a->ad == 1) {
         tcg_gen_subi_i32(cpu_regs[a->rd], cpu_regs[a->rd], 1 << a->sz);
     }
-    rx_gen_ld(a->sz, val, cpu_regs[a->rd]);
+    rx_gen_ld(ctx, a->sz, val, cpu_regs[a->rd]);
     if (a->ad == 0) {
         tcg_gen_addi_i32(cpu_regs[a->rd], cpu_regs[a->rd], 1 << a->sz);
     }
@@ -562,7 +562,7 @@ static bool trans_MOVU_mr(DisasContext *ctx, arg_MOVU_mr *a)
     TCGv mem;
     mem = tcg_temp_new();
     tcg_gen_addi_i32(mem, cpu_regs[a->rs], a->dsp << a->sz);
-    rx_gen_ldu(a->sz, cpu_regs[a->rd], mem);
+    rx_gen_ldu(ctx, a->sz, cpu_regs[a->rd], mem);
     return true;
 }
 
@@ -579,7 +579,7 @@ static bool trans_MOVU_ar(DisasContext *ctx, arg_MOVU_ar *a)
     TCGv mem;
     mem = tcg_temp_new();
     rx_gen_regindex(ctx, mem, a->sz, a->ri, a->rb);
-    rx_gen_ldu(a->sz, cpu_regs[a->rd], mem);
+    rx_gen_ldu(ctx, a->sz, cpu_regs[a->rd], mem);
     return true;
 }
 
@@ -592,7 +592,7 @@ static bool trans_MOVU_pr(DisasContext *ctx, arg_MOVU_pr *a)
     if (a->ad == 1) {
         tcg_gen_subi_i32(cpu_regs[a->rd], cpu_regs[a->rd], 1 << a->sz);
     }
-    rx_gen_ldu(a->sz, val, cpu_regs[a->rd]);
+    rx_gen_ldu(ctx, a->sz, val, cpu_regs[a->rd]);
     if (a->ad == 0) {
         tcg_gen_addi_i32(cpu_regs[a->rd], cpu_regs[a->rd], 1 << a->sz);
     }
@@ -647,7 +647,7 @@ static bool trans_PUSH_r(DisasContext *ctx, arg_PUSH_r *a)
     val = tcg_temp_new();
     tcg_gen_mov_i32(val, cpu_regs[a->rs]);
     tcg_gen_subi_i32(cpu_sp, cpu_sp, 4);
-    rx_gen_st(a->sz, val, cpu_sp);
+    rx_gen_st(ctx, a->sz, val, cpu_sp);
     return true;
 }
 
@@ -658,9 +658,9 @@ static bool trans_PUSH_m(DisasContext *ctx, arg_PUSH_m *a)
     mem = tcg_temp_new();
     val = tcg_temp_new();
     addr = rx_index_addr(ctx, mem, a->ld, a->sz, a->rs);
-    rx_gen_ld(a->sz, val, addr);
+    rx_gen_ld(ctx, a->sz, val, addr);
     tcg_gen_subi_i32(cpu_sp, cpu_sp, 4);
-    rx_gen_st(a->sz, val, cpu_sp);
+    rx_gen_st(ctx, a->sz, val, cpu_sp);
     return true;
 }
 
@@ -761,7 +761,7 @@ static bool trans_SCCnd(DisasContext *ctx, arg_SCCnd *a)
         mem = tcg_temp_new();
         tcg_gen_setcondi_i32(dc.cond, val, dc.value, 0);
         addr = rx_index_addr(ctx, mem, a->sz, a->ld, a->rd);
-        rx_gen_st(a->sz, val, addr);
+        rx_gen_st(ctx, a->sz, val, addr);
     } else {
         tcg_gen_setcondi_i32(dc.cond, cpu_regs[a->rd], dc.value, 0);
     }
@@ -1898,25 +1898,25 @@ static void rx_bsetm(DisasContext *ctx, TCGv mem, TCGv mask)
 {
     TCGv val;
     val = tcg_temp_new();
-    rx_gen_ld(MO_8, val, mem);
+    rx_gen_ld(ctx, MO_8, val, mem);
     tcg_gen_or_i32(val, val, mask);
-    rx_gen_st(MO_8, val, mem);
+    rx_gen_st(ctx, MO_8, val, mem);
 }
 
 static void rx_bclrm(DisasContext *ctx, TCGv mem, TCGv mask)
 {
     TCGv val;
     val = tcg_temp_new();
-    rx_gen_ld(MO_8, val, mem);
+    rx_gen_ld(ctx, MO_8, val, mem);
     tcg_gen_andc_i32(val, val, mask);
-    rx_gen_st(MO_8, val, mem);
+    rx_gen_st(ctx, MO_8, val, mem);
 }
 
 static void rx_btstm(DisasContext *ctx, TCGv mem, TCGv mask)
 {
     TCGv val;
     val = tcg_temp_new();
-    rx_gen_ld(MO_8, val, mem);
+    rx_gen_ld(ctx, MO_8, val, mem);
     tcg_gen_and_i32(val, val, mask);
     tcg_gen_setcondi_i32(TCG_COND_NE, cpu_psw_c, val, 0);
     tcg_gen_mov_i32(cpu_psw_z, cpu_psw_c);
@@ -1926,9 +1926,9 @@ static void rx_bnotm(DisasContext *ctx, TCGv mem, TCGv mask)
 {
     TCGv val;
     val = tcg_temp_new();
-    rx_gen_ld(MO_8, val, mem);
+    rx_gen_ld(ctx, MO_8, val, mem);
     tcg_gen_xor_i32(val, val, mask);
-    rx_gen_st(MO_8, val, mem);
+    rx_gen_st(ctx, MO_8, val, mem);
 }
 
 static void rx_bsetr(DisasContext *ctx, TCGv reg, TCGv mask)
@@ -2023,9 +2023,9 @@ static bool trans_BMCnd_im(DisasContext *ctx, arg_BMCnd_im *a)
     val = tcg_temp_new();
     mem = tcg_temp_new();
     addr = rx_index_addr(ctx, mem, a->ld, MO_8, a->rd);
-    rx_gen_ld(MO_8, val, addr);
+    rx_gen_ld(ctx, MO_8, val, addr);
     bmcnd_op(val, a->cd, a->imm);
-    rx_gen_st(MO_8, val, addr);
+    rx_gen_st(ctx, MO_8, val, addr);
     return true;
 }
 
