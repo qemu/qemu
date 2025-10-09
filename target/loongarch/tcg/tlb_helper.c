@@ -350,21 +350,14 @@ void helper_tlbrd(CPULoongArchState *env)
     }
 }
 
-void helper_tlbwr(CPULoongArchState *env)
+static void update_tlb_index(CPULoongArchState *env, MMUContext *context,
+                             int index)
 {
-    int index = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, INDEX);
     LoongArchTLB *old, new = {};
     bool skip_inv = false, tlb_v0, tlb_v1;
-    MMUContext context;
 
     old = env->tlb + index;
-    if (FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, NE)) {
-        invalidate_tlb(env, index);
-        return;
-    }
-
-    sptw_prepare_context(env, &context);
-    fill_tlb_entry(env, &new, &context);
+    fill_tlb_entry(env, &new, context);
     /* Check whether ASID/VPPN is the same */
     if (old->tlb_misc == new.tlb_misc) {
         /* Check whether both even/odd pages is the same or invalid */
@@ -382,6 +375,20 @@ void helper_tlbwr(CPULoongArchState *env)
     }
 
     *old = new;
+}
+
+void helper_tlbwr(CPULoongArchState *env)
+{
+    int index = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, INDEX);
+    MMUContext context;
+
+    if (FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, NE)) {
+        invalidate_tlb(env, index);
+        return;
+    }
+
+    sptw_prepare_context(env, &context);
+    update_tlb_index(env, &context, index);
 }
 
 static int get_tlb_random_index(CPULoongArchState *env, vaddr addr,
