@@ -414,13 +414,13 @@ static void move_to_cr(DisasContext *ctx, TCGv val, int cr)
     }
 }
 
-static void push(TCGv val)
+static void push(DisasContext *ctx, TCGv val)
 {
     tcg_gen_subi_i32(cpu_sp, cpu_sp, 4);
     rx_gen_st(MO_32, val, cpu_sp);
 }
 
-static void pop(TCGv ret)
+static void pop(DisasContext *ctx, TCGv ret)
 {
     rx_gen_ld(MO_32, ret, cpu_sp);
     tcg_gen_addi_i32(cpu_sp, cpu_sp, 4);
@@ -619,7 +619,7 @@ static bool trans_POPC(DisasContext *ctx, arg_POPC *a)
 {
     TCGv val;
     val = tcg_temp_new();
-    pop(val);
+    pop(ctx, val);
     move_to_cr(ctx, val, a->cr);
     return true;
 }
@@ -634,7 +634,7 @@ static bool trans_POPM(DisasContext *ctx, arg_POPM *a)
     }
     r = a->rd;
     while (r <= a->rd2 && r < 16) {
-        pop(cpu_regs[r++]);
+        pop(ctx, cpu_regs[r++]);
     }
     return true;
 }
@@ -670,7 +670,7 @@ static bool trans_PUSHC(DisasContext *ctx, arg_PUSHC *a)
     TCGv val;
     val = tcg_temp_new();
     move_from_cr(ctx, val, a->cr, ctx->pc);
-    push(val);
+    push(ctx, val);
     return true;
 }
 
@@ -685,7 +685,7 @@ static bool trans_PUSHM(DisasContext *ctx, arg_PUSHM *a)
     }
     r = a->rs2;
     while (r >= a->rs && r >= 0) {
-        push(cpu_regs[r--]);
+        push(ctx, cpu_regs[r--]);
     }
     return true;
 }
@@ -772,7 +772,7 @@ static bool trans_SCCnd(DisasContext *ctx, arg_SCCnd *a)
 static bool trans_RTSD_i(DisasContext *ctx, arg_RTSD_i *a)
 {
     tcg_gen_addi_i32(cpu_sp, cpu_sp, a->imm  << 2);
-    pop(cpu_pc);
+    pop(ctx, cpu_pc);
     ctx->base.is_jmp = DISAS_JUMP;
     return true;
 }
@@ -792,9 +792,9 @@ static bool trans_RTSD_irr(DisasContext *ctx, arg_RTSD_irr *a)
     tcg_gen_addi_i32(cpu_sp, cpu_sp, adj << 2);
     dst = a->rd;
     while (dst <= a->rd2 && dst < 16) {
-        pop(cpu_regs[dst++]);
+        pop(ctx, cpu_regs[dst++]);
     }
-    pop(cpu_pc);
+    pop(ctx, cpu_pc);
     ctx->base.is_jmp = DISAS_JUMP;
     return true;
 }
@@ -1585,7 +1585,7 @@ static bool trans_BRA_l(DisasContext *ctx, arg_BRA_l *a)
 static inline void rx_save_pc(DisasContext *ctx)
 {
     TCGv pc = tcg_constant_i32(ctx->base.pc_next);
-    push(pc);
+    push(ctx, pc);
 }
 
 /* jmp rs */
@@ -1626,7 +1626,7 @@ static bool trans_BSR_l(DisasContext *ctx, arg_BSR_l *a)
 /* rts */
 static bool trans_RTS(DisasContext *ctx, arg_RTS *a)
 {
-    pop(cpu_pc);
+    pop(ctx, cpu_pc);
     ctx->base.is_jmp = DISAS_JUMP;
     return true;
 }
@@ -2154,8 +2154,8 @@ static bool trans_RTE(DisasContext *ctx, arg_RTE *a)
     TCGv psw;
     if (is_privileged(ctx, 1)) {
         psw = tcg_temp_new();
-        pop(cpu_pc);
-        pop(psw);
+        pop(ctx, cpu_pc);
+        pop(ctx, psw);
         gen_helper_set_psw_rte(tcg_env, psw);
         ctx->base.is_jmp = DISAS_EXIT;
     }
