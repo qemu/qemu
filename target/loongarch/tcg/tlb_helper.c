@@ -627,6 +627,31 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     context.addr = address;
     context.tlb_index = -1;
     ret = get_physical_address(env, &context, access_type, mmu_idx, 0);
+    if (ret == TLBRET_MATCH && context.mmu_index != MMU_DA_IDX
+        && cpu_has_ptw(env)) {
+        bool need_update = true;
+
+        if (access_type == MMU_DATA_STORE && pte_dirty(context.pte)) {
+            need_update = false;
+        } else if (access_type != MMU_DATA_STORE && pte_access(context.pte)) {
+            need_update = false;
+
+            /*
+             * FIXME: should context.prot be set without PAGE_WRITE with
+             * pte_write(context.pte) && !pte_dirty(context.pte)??
+             *
+             * Otherwise there will be no loongarch_cpu_tlb_fill() function call
+             * for MMU_DATA_STORE access_type in future since QEMU TLB with
+             * prot PAGE_WRITE is added already
+             */
+        }
+
+        if (need_update) {
+            /* Need update bit A/D in PTE entry, take PTW again */
+            ret = TLBRET_NOMATCH;
+        }
+    }
+
     if (ret != TLBRET_MATCH && cpu_has_ptw(env)) {
         /* Take HW PTW if TLB missed or bit P is zero */
         if (ret == TLBRET_NOMATCH || ret == TLBRET_INVALID) {
