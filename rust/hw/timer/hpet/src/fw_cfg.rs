@@ -5,6 +5,7 @@
 use std::ptr::addr_of_mut;
 
 use common::Zeroable;
+use util::{self, ensure};
 
 /// Each `HPETState` represents a Event Timer Block. The v1 spec supports
 /// up to 8 blocks. QEMU only uses 1 block (in PC machine).
@@ -36,7 +37,7 @@ pub static mut hpet_fw_cfg: HPETFwConfig = HPETFwConfig {
 };
 
 impl HPETFwConfig {
-    pub(crate) fn assign_hpet_id() -> Result<usize, &'static str> {
+    pub(crate) fn assign_hpet_id() -> util::Result<usize> {
         assert!(bql::is_locked());
         // SAFETY: all accesses go through these methods, which guarantee
         // that the accesses are protected by the BQL.
@@ -47,9 +48,7 @@ impl HPETFwConfig {
             fw_cfg.count = 0;
         }
 
-        if fw_cfg.count == 8 {
-            Err("Only 8 instances of HPET are allowed")?;
-        }
+        ensure!(fw_cfg.count != 8, "Only 8 instances of HPET are allowed");
 
         let id: usize = fw_cfg.count.into();
         fw_cfg.count += 1;

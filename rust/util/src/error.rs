@@ -86,6 +86,19 @@ impl Display for Error {
     }
 }
 
+impl From<Cow<'static, str>> for Error {
+    #[track_caller]
+    fn from(msg: Cow<'static, str>) -> Self {
+        let location = panic::Location::caller();
+        Error {
+            msg: Some(msg),
+            cause: None,
+            file: location.file(),
+            line: location.line(),
+        }
+    }
+}
+
 impl From<String> for Error {
     #[track_caller]
     fn from(msg: String) -> Self {
@@ -126,6 +139,17 @@ impl From<anyhow::Error> for Error {
 }
 
 impl Error {
+    #[track_caller]
+    #[doc(hidden)]
+    pub fn format(args: fmt::Arguments) -> Self {
+        if let Some(msg) = args.as_str() {
+            Self::from(msg)
+        } else {
+            let msg = fmt::format(args);
+            Self::from(msg)
+        }
+    }
+
     /// Create a new error, prepending `msg` to the
     /// description of `cause`
     #[track_caller]
@@ -309,6 +333,53 @@ impl FromForeign for Error {
             }
         }
     }
+}
+
+/// Ensure that a condition is true, returning an error if it is false.
+///
+/// This macro is similar to [`anyhow::ensure`] but returns a QEMU [`Result`].
+/// If the condition evaluates to `false`, the macro returns early with an error
+/// constructed from the provided message.
+///
+/// # Examples
+///
+/// ```
+/// # use util::{ensure, Result};
+/// # fn check_positive(x: i32) -> Result<()> {
+/// ensure!(x > 0, "value must be positive");
+/// #   Ok(())
+/// # }
+/// ```
+///
+/// ```
+/// # use util::{ensure, Result};
+/// # const MIN: i32 = 123;
+/// # const MAX: i32 = 456;
+/// # fn check_range(x: i32) -> Result<()> {
+/// ensure!(
+///     x >= MIN && x <= MAX,
+///     "{} not between {} and {}",
+///     x,
+///     MIN,
+///     MAX
+/// );
+/// #   Ok(())
+/// # }
+/// ```
+#[macro_export]
+macro_rules! ensure {
+    ($cond:expr, $fmt:literal, $($arg:tt)*) => {
+        if !$cond {
+            let e = $crate::Error::format(format_args!($fmt, $($arg)*));
+            return $crate::Result::Err(e);
+        }
+    };
+    ($cond:expr, $err:expr $(,)?) => {
+        if !$cond {
+            let s = ::std::borrow::Cow::<'static, str>::from($err);
+            return $crate::Result::Err(s.into());
+        }
+    };
 }
 
 #[cfg(test)]
