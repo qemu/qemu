@@ -225,7 +225,6 @@ class Asset:
         log.addHandler(handler)
         for name, asset in vars(test.__class__).items():
             if name.startswith("ASSET_") and type(asset) == Asset:
-                log.info("Attempting to cache '%s'" % asset)
                 try:
                     asset.fetch()
                 except AssetError as e:

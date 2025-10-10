@@ -14,12 +14,19 @@
 
 #include "hw/s390x/s390-pci-bus.h"
 #include "hw/s390x/s390-pci-inst.h"
+#include "system/kvm.h"
 
 #ifdef CONFIG_KVM
+static inline void s390_pcihost_kvm_realize(void)
+{
+    kvm_msi_via_irqfd_allowed = kvm_irqfds_enabled();
+}
+
 bool s390_pci_kvm_interp_allowed(void);
 int s390_pci_kvm_aif_enable(S390PCIBusDevice *pbdev, ZpciFib *fib, bool assist);
 int s390_pci_kvm_aif_disable(S390PCIBusDevice *pbdev);
 #else
+static inline void s390_pcihost_kvm_realize(void) {}
 static inline bool s390_pci_kvm_interp_allowed(void)
 {
     return false;

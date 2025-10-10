@@ -13,12 +13,14 @@
 #include "s390x-internal.h"
 #include "hw/boards.h"
 #include "system/hw_accel.h"
+#include "system/memory.h"
 #include "system/runstate.h"
 #include "system/address-spaces.h"
 #include "exec/cputlb.h"
 #include "system/tcg.h"
 #include "trace.h"
 #include "qapi/qapi-types-machine.h"
+#include "target/s390x/kvm/pv.h"
 
 QemuMutex qemu_sigp_mutex;
 
@@ -126,6 +128,78 @@ static void sigp_stop(CPUState *cs, run_on_cpu_data arg)
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
 
+typedef struct SigpSaveArea {
+    uint64_t    fprs[16];                       /* 0x0000 */
+    uint64_t    grs[16];                        /* 0x0080 */
+    PSW         psw;                            /* 0x0100 */
+    uint8_t     pad_0x0110[0x0118 - 0x0110];    /* 0x0110 */
+    uint32_t    prefix;                         /* 0x0118 */
+    uint32_t    fpc;                            /* 0x011c */
+    uint8_t     pad_0x0120[0x0124 - 0x0120];    /* 0x0120 */
+    uint32_t    todpr;                          /* 0x0124 */
+    uint64_t    cputm;                          /* 0x0128 */
+    uint64_t    ckc;                            /* 0x0130 */
+    uint8_t     pad_0x0138[0x0140 - 0x0138];    /* 0x0138 */
+    uint32_t    ars[16];                        /* 0x0140 */
+    uint64_t    crs[16];                        /* 0x0384 */
+} SigpSaveArea;
+QEMU_BUILD_BUG_ON(sizeof(SigpSaveArea) != 512);
+
+#define S390_STORE_STATUS_DEF_ADDR offsetof(LowCore, floating_pt_save_area)
+static int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
+{
+    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+    AddressSpace *as = CPU(cpu)->as;
+    SigpSaveArea *sa;
+    hwaddr len = sizeof(*sa);
+    int i;
+
+    /* For PVMs storing will occur when this cpu enters SIE again */
+    if (s390_is_pv()) {
+        return 0;
+    }
+
+    sa = address_space_map(as, addr, &len, true, attrs);
+    if (!sa) {
+        return -EFAULT;
+    }
+    if (len != sizeof(*sa)) {
+        address_space_unmap(as, sa, len, true, 0);
+        return -EFAULT;
+    }
+
+    if (store_arch) {
+        static const uint8_t ar_id = 1;
+
+        address_space_stb(as, offsetof(LowCore, ar_access_id),
+                          ar_id, attrs, NULL);
+
+    }
+    for (i = 0; i < 16; ++i) {
+        sa->fprs[i] = cpu_to_be64(*get_freg(&cpu->env, i));
+    }
+    for (i = 0; i < 16; ++i) {
+        sa->grs[i] = cpu_to_be64(cpu->env.regs[i]);
+    }
+    sa->psw.addr = cpu_to_be64(cpu->env.psw.addr);
+    sa->psw.mask = cpu_to_be64(s390_cpu_get_psw_mask(&cpu->env));
+    sa->prefix = cpu_to_be32(cpu->env.psa);
+    sa->fpc = cpu_to_be32(cpu->env.fpc);
+    sa->todpr = cpu_to_be32(cpu->env.todpr);
+    sa->cputm = cpu_to_be64(cpu->env.cputm);
+    sa->ckc = cpu_to_be64(cpu->env.ckc >> 8);
+    for (i = 0; i < 16; ++i) {
+        sa->ars[i] = cpu_to_be32(cpu->env.aregs[i]);
+    }
+    for (i = 0; i < 16; ++i) {
+        sa->crs[i] = cpu_to_be64(cpu->env.cregs[i]);
+    }
+
+    address_space_unmap(as, sa, len, true, len);
+
+    return 0;
+}
+
 static void sigp_stop_and_store_status(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
@@ -170,6 +244,49 @@ static void sigp_store_status_at_address(CPUState *cs, run_on_cpu_data arg)
         return;
     }
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+}
+
+typedef struct SigpAdtlSaveArea {
+    uint64_t    vregs[32][2];                     /* 0x0000 */
+    uint8_t     pad_0x0200[0x0400 - 0x0200];      /* 0x0200 */
+    uint64_t    gscb[4];                          /* 0x0400 */
+    uint8_t     pad_0x0420[0x1000 - 0x0420];      /* 0x0420 */
+} SigpAdtlSaveArea;
+QEMU_BUILD_BUG_ON(sizeof(SigpAdtlSaveArea) != 4096);
+
+#define ADTL_GS_MIN_SIZE 2048 /* minimal size of adtl save area for GS */
+static int s390_store_adtl_status(S390CPU *cpu, hwaddr addr, hwaddr len)
+{
+    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+    AddressSpace *as = CPU(cpu)->as;
+    SigpAdtlSaveArea *sa;
+    hwaddr save = len;
+    int i;
+
+    sa = address_space_map(as, addr, &save, true, attrs);
+    if (!sa) {
+        return -EFAULT;
+    }
+    if (save != len) {
+        address_space_unmap(as, sa, len, true, 0);
+        return -EFAULT;
+    }
+
+    if (s390_has_feat(S390_FEAT_VECTOR)) {
+        for (i = 0; i < 32; i++) {
+            sa->vregs[i][0] = cpu_to_be64(cpu->env.vregs[i][0]);
+            sa->vregs[i][1] = cpu_to_be64(cpu->env.vregs[i][1]);
+        }
+    }
+    if (s390_has_feat(S390_FEAT_GUARDED_STORAGE) && len >= ADTL_GS_MIN_SIZE) {
+        for (i = 0; i < 4; i++) {
+            sa->gscb[i] = cpu_to_be64(cpu->env.gscb[i]);
+        }
+    }
+
+    address_space_unmap(as, sa, len, true, len);
+
+    return 0;
 }
 
 #define ADTL_SAVE_LC_MASK  0xfUL
