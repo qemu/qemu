@@ -30,6 +30,7 @@ qio_channel_block_new(BlockDriverState *bs)
     QIOChannelBlock *ioc;
 
     ioc = QIO_CHANNEL_BLOCK(object_new(TYPE_QIO_CHANNEL_BLOCK));
+    qio_channel_set_feature(QIO_CHANNEL(ioc), QIO_CHANNEL_FEATURE_SEEKABLE);
 
     bdrv_ref(bs);
     ioc->bs = bs;
@@ -96,6 +97,47 @@ qio_channel_block_writev(QIOChannel *ioc,
     return qiov.size;
 }
 
+static ssize_t
+qio_channel_block_preadv(QIOChannel *ioc,
+                         const struct iovec *iov,
+                         size_t niov,
+                         off_t offset,
+                         Error **errp)
+{
+    QIOChannelBlock *bioc = QIO_CHANNEL_BLOCK(ioc);
+    QEMUIOVector qiov;
+    int ret;
+
+    qemu_iovec_init_external(&qiov, (struct iovec *)iov, niov);
+    ret = bdrv_readv_vmstate(bioc->bs, &qiov, offset);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "bdrv_readv_vmstate failed");
+        return -1;
+    }
+
+    return qiov.size;
+}
+
+static ssize_t
+qio_channel_block_pwritev(QIOChannel *ioc,
+                          const struct iovec *iov,
+                          size_t niov,
+                          off_t offset,
+                          Error **errp)
+{
+    QIOChannelBlock *bioc = QIO_CHANNEL_BLOCK(ioc);
+    QEMUIOVector qiov;
+    int ret;
+
+    qemu_iovec_init_external(&qiov, (struct iovec *)iov, niov);
+    ret = bdrv_writev_vmstate(bioc->bs, &qiov, offset);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "bdrv_writev_vmstate failed");
+        return -1;
+    }
+
+    return qiov.size;
+}
 
 static int
 qio_channel_block_set_blocking(QIOChannel *ioc,
@@ -177,6 +219,8 @@ qio_channel_block_class_init(ObjectClass *klass,
     ioc_klass->io_writev = qio_channel_block_writev;
     ioc_klass->io_readv = qio_channel_block_readv;
     ioc_klass->io_set_blocking = qio_channel_block_set_blocking;
+    ioc_klass->io_preadv = qio_channel_block_preadv;
+    ioc_klass->io_pwritev = qio_channel_block_pwritev;
     ioc_klass->io_seek = qio_channel_block_seek;
     ioc_klass->io_close = qio_channel_block_close;
     ioc_klass->io_set_aio_fd_handler = qio_channel_block_set_aio_fd_handler;
