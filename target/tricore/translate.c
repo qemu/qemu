@@ -226,7 +226,7 @@ static inline void gen_offset_st(DisasContext *ctx, TCGv r1, TCGv r2,
     tcg_gen_qemu_st_i32(r1, temp, ctx->mem_idx, mop);
 }
 
-static void gen_st_2regs_64(TCGv rh, TCGv rl, TCGv address, DisasContext *ctx)
+static void gen_st_2regs_64(DisasContext *ctx, TCGv rh, TCGv rl, TCGv address)
 {
     TCGv_i64 temp = tcg_temp_new_i64();
 
@@ -234,15 +234,15 @@ static void gen_st_2regs_64(TCGv rh, TCGv rl, TCGv address, DisasContext *ctx)
     tcg_gen_qemu_st_i64(temp, address, ctx->mem_idx, MO_LEUQ);
 }
 
-static void gen_offset_st_2regs(TCGv rh, TCGv rl, TCGv base, int16_t con,
-                                DisasContext *ctx)
+static void gen_offset_st_2regs(DisasContext *ctx,
+                                TCGv rh, TCGv rl, TCGv base, int16_t con)
 {
     TCGv temp = tcg_temp_new();
     tcg_gen_addi_i32(temp, base, con);
-    gen_st_2regs_64(rh, rl, temp, ctx);
+    gen_st_2regs_64(ctx, rh, rl, temp);
 }
 
-static void gen_ld_2regs_64(TCGv rh, TCGv rl, TCGv address, DisasContext *ctx)
+static void gen_ld_2regs_64(DisasContext *ctx, TCGv rh, TCGv rl, TCGv address)
 {
     TCGv_i64 temp = tcg_temp_new_i64();
 
@@ -251,12 +251,12 @@ static void gen_ld_2regs_64(TCGv rh, TCGv rl, TCGv address, DisasContext *ctx)
     tcg_gen_extr_i64_i32(rl, rh, temp);
 }
 
-static void gen_offset_ld_2regs(TCGv rh, TCGv rl, TCGv base, int16_t con,
-                                DisasContext *ctx)
+static void gen_offset_ld_2regs(DisasContext *ctx,
+                                TCGv rh, TCGv rl, TCGv base, int16_t con)
 {
     TCGv temp = tcg_temp_new();
     tcg_gen_addi_i32(temp, base, con);
-    gen_ld_2regs_64(rh, rl, temp, ctx);
+    gen_ld_2regs_64(ctx, rh, rl, temp);
 }
 
 static void gen_st_preincr(DisasContext *ctx, TCGv r1, TCGv r2, int16_t off,
@@ -3798,11 +3798,11 @@ static void decode_abs_ldw(DisasContext *ctx)
         break;
     case OPC2_32_ABS_LD_D:
         CHECK_REG_PAIR(r1);
-        gen_ld_2regs_64(cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], temp, ctx);
+        gen_ld_2regs_64(ctx, cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], temp);
         break;
     case OPC2_32_ABS_LD_DA:
         CHECK_REG_PAIR(r1);
-        gen_ld_2regs_64(cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], temp, ctx);
+        gen_ld_2regs_64(ctx, cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], temp);
         break;
     case OPC2_32_ABS_LD_W:
         tcg_gen_qemu_ld_i32(cpu_gpr_d[r1], temp, ctx->mem_idx, MO_LESL);
@@ -3913,11 +3913,11 @@ static void decode_abs_store(DisasContext *ctx)
         break;
     case OPC2_32_ABS_ST_D:
         CHECK_REG_PAIR(r1);
-        gen_st_2regs_64(cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], temp, ctx);
+        gen_st_2regs_64(ctx, cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], temp);
         break;
     case OPC2_32_ABS_ST_DA:
         CHECK_REG_PAIR(r1);
-        gen_st_2regs_64(cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], temp, ctx);
+        gen_st_2regs_64(ctx, cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], temp);
         break;
     case OPC2_32_ABS_ST_W:
         tcg_gen_qemu_st_i32(cpu_gpr_d[r1], temp, ctx->mem_idx, MO_LESL);
@@ -4289,36 +4289,38 @@ static void decode_bo_addrmode_post_pre_base(DisasContext *ctx)
         break;
     case OPC2_32_BO_ST_D_SHORTOFF:
         CHECK_REG_PAIR(r1);
-        gen_offset_st_2regs(cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], cpu_gpr_a[r2],
-                            off10, ctx);
+        gen_offset_st_2regs(ctx,
+                            cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], cpu_gpr_a[r2],
+                            off10);
         break;
     case OPC2_32_BO_ST_D_POSTINC:
         CHECK_REG_PAIR(r1);
-        gen_st_2regs_64(cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], cpu_gpr_a[r2], ctx);
+        gen_st_2regs_64(ctx, cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], cpu_gpr_a[r2]);
         tcg_gen_addi_i32(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
         break;
     case OPC2_32_BO_ST_D_PREINC:
         CHECK_REG_PAIR(r1);
         temp = tcg_temp_new();
         tcg_gen_addi_i32(temp, cpu_gpr_a[r2], off10);
-        gen_st_2regs_64(cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], temp, ctx);
+        gen_st_2regs_64(ctx, cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], temp);
         tcg_gen_mov_i32(cpu_gpr_a[r2], temp);
         break;
     case OPC2_32_BO_ST_DA_SHORTOFF:
         CHECK_REG_PAIR(r1);
-        gen_offset_st_2regs(cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], cpu_gpr_a[r2],
-                            off10, ctx);
+        gen_offset_st_2regs(ctx,
+                            cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], cpu_gpr_a[r2],
+                            off10);
         break;
     case OPC2_32_BO_ST_DA_POSTINC:
         CHECK_REG_PAIR(r1);
-        gen_st_2regs_64(cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], cpu_gpr_a[r2], ctx);
+        gen_st_2regs_64(ctx, cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], cpu_gpr_a[r2]);
         tcg_gen_addi_i32(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
         break;
     case OPC2_32_BO_ST_DA_PREINC:
         CHECK_REG_PAIR(r1);
         temp = tcg_temp_new();
         tcg_gen_addi_i32(temp, cpu_gpr_a[r2], off10);
-        gen_st_2regs_64(cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], temp, ctx);
+        gen_st_2regs_64(ctx, cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], temp);
         tcg_gen_mov_i32(cpu_gpr_a[r2], temp);
         break;
     case OPC2_32_BO_ST_H_SHORTOFF:
@@ -4413,7 +4415,7 @@ static void decode_bo_addrmode_bitreverse_circular(DisasContext *ctx)
         break;
     case OPC2_32_BO_ST_D_BR:
         CHECK_REG_PAIR(r1);
-        gen_st_2regs_64(cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], temp2, ctx);
+        gen_st_2regs_64(ctx, cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], temp2);
         gen_helper_br_update(cpu_gpr_a[r2 + 1], cpu_gpr_a[r2 + 1]);
         break;
     case OPC2_32_BO_ST_D_CIRC:
@@ -4428,7 +4430,7 @@ static void decode_bo_addrmode_bitreverse_circular(DisasContext *ctx)
         break;
     case OPC2_32_BO_ST_DA_BR:
         CHECK_REG_PAIR(r1);
-        gen_st_2regs_64(cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], temp2, ctx);
+        gen_st_2regs_64(ctx, cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], temp2);
         gen_helper_br_update(cpu_gpr_a[r2 + 1], cpu_gpr_a[r2 + 1]);
         break;
     case OPC2_32_BO_ST_DA_CIRC:
@@ -4520,36 +4522,38 @@ static void decode_bo_addrmode_ld_post_pre_base(DisasContext *ctx)
         break;
     case OPC2_32_BO_LD_D_SHORTOFF:
         CHECK_REG_PAIR(r1);
-        gen_offset_ld_2regs(cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], cpu_gpr_a[r2],
-                            off10, ctx);
+        gen_offset_ld_2regs(ctx,
+                            cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], cpu_gpr_a[r2],
+                            off10);
         break;
     case OPC2_32_BO_LD_D_POSTINC:
         CHECK_REG_PAIR(r1);
-        gen_ld_2regs_64(cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], cpu_gpr_a[r2], ctx);
+        gen_ld_2regs_64(ctx, cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], cpu_gpr_a[r2]);
         tcg_gen_addi_i32(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
         break;
     case OPC2_32_BO_LD_D_PREINC:
         CHECK_REG_PAIR(r1);
         temp = tcg_temp_new();
         tcg_gen_addi_i32(temp, cpu_gpr_a[r2], off10);
-        gen_ld_2regs_64(cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], temp, ctx);
+        gen_ld_2regs_64(ctx, cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], temp);
         tcg_gen_mov_i32(cpu_gpr_a[r2], temp);
         break;
     case OPC2_32_BO_LD_DA_SHORTOFF:
         CHECK_REG_PAIR(r1);
-        gen_offset_ld_2regs(cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], cpu_gpr_a[r2],
-                            off10, ctx);
+        gen_offset_ld_2regs(ctx,
+                            cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], cpu_gpr_a[r2],
+                            off10);
         break;
     case OPC2_32_BO_LD_DA_POSTINC:
         CHECK_REG_PAIR(r1);
-        gen_ld_2regs_64(cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], cpu_gpr_a[r2], ctx);
+        gen_ld_2regs_64(ctx, cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], cpu_gpr_a[r2]);
         tcg_gen_addi_i32(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
         break;
     case OPC2_32_BO_LD_DA_PREINC:
         CHECK_REG_PAIR(r1);
         temp = tcg_temp_new();
         tcg_gen_addi_i32(temp, cpu_gpr_a[r2], off10);
-        gen_ld_2regs_64(cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], temp, ctx);
+        gen_ld_2regs_64(ctx, cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], temp);
         tcg_gen_mov_i32(cpu_gpr_a[r2], temp);
         break;
     case OPC2_32_BO_LD_H_SHORTOFF:
@@ -4651,7 +4655,7 @@ static void decode_bo_addrmode_ld_bitreverse_circular(DisasContext *ctx)
         break;
     case OPC2_32_BO_LD_D_BR:
         CHECK_REG_PAIR(r1);
-        gen_ld_2regs_64(cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], temp2, ctx);
+        gen_ld_2regs_64(ctx, cpu_gpr_d[r1 + 1], cpu_gpr_d[r1], temp2);
         gen_helper_br_update(cpu_gpr_a[r2 + 1], cpu_gpr_a[r2 + 1]);
         break;
     case OPC2_32_BO_LD_D_CIRC:
@@ -4666,7 +4670,7 @@ static void decode_bo_addrmode_ld_bitreverse_circular(DisasContext *ctx)
         break;
     case OPC2_32_BO_LD_DA_BR:
         CHECK_REG_PAIR(r1);
-        gen_ld_2regs_64(cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], temp2, ctx);
+        gen_ld_2regs_64(ctx, cpu_gpr_a[r1 + 1], cpu_gpr_a[r1], temp2);
         gen_helper_br_update(cpu_gpr_a[r2 + 1], cpu_gpr_a[r2 + 1]);
         break;
     case OPC2_32_BO_LD_DA_CIRC:
@@ -8377,7 +8381,7 @@ static void tricore_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
     tcg_gen_insn_start(ctx->base.pc_next);
 }
 
-static bool insn_crosses_page(CPUTriCoreState *env, DisasContext *ctx)
+static bool insn_crosses_page(DisasContext *ctx, CPUTriCoreState *env)
 {
     /*
      * Return true if the insn at ctx->base.pc_next might cross a page boundary.
@@ -8420,7 +8424,7 @@ static void tricore_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
         page_start = ctx->base.pc_first & TARGET_PAGE_MASK;
         if (ctx->base.pc_next - page_start >= TARGET_PAGE_SIZE
             || (ctx->base.pc_next - page_start >= TARGET_PAGE_SIZE - 3
-                && insn_crosses_page(env, ctx))) {
+                && insn_crosses_page(ctx, env))) {
             ctx->base.is_jmp = DISAS_TOO_MANY;
         }
     }
