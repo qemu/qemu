@@ -7959,7 +7959,7 @@ static void decode_sys_interrupts(DisasContext *ctx)
             tmp = tcg_temp_new();
             l1 = gen_new_label();
 
-            tcg_gen_ld32u_tl(tmp, tcg_env, offsetof(CPUTriCoreState, DBGSR));
+            tcg_gen_ld_i32(tmp, tcg_env, offsetof(CPUTriCoreState, DBGSR));
             tcg_gen_andi_tl(tmp, tmp, MASK_DBGSR_DE);
             tcg_gen_brcondi_tl(TCG_COND_NE, tmp, 1, l1);
             gen_helper_rfm(tcg_env);
