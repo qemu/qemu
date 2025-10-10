@@ -2816,12 +2816,13 @@ static inline void gen_save_pc(target_ulong pc)
     tcg_gen_movi_tl(cpu_PC, pc);
 }
 
-static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
+static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_index,
+                        target_ulong dest)
 {
     if (translator_use_goto_tb(&ctx->base, dest)) {
-        tcg_gen_goto_tb(n);
+        tcg_gen_goto_tb(tb_slot_index);
         gen_save_pc(dest);
-        tcg_gen_exit_tb(ctx->base.tb, n);
+        tcg_gen_exit_tb(ctx->base.tb, tb_slot_index);
     } else {
         gen_save_pc(dest);
         tcg_gen_lookup_and_goto_ptr();

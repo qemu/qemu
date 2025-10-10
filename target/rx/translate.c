@@ -147,12 +147,13 @@ void rx_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     }
 }
 
-static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
+static void gen_goto_tb(DisasContext *dc, unsigned tb_slot_idx,
+                        target_ulong dest)
 {
     if (translator_use_goto_tb(&dc->base, dest)) {
-        tcg_gen_goto_tb(n);
+        tcg_gen_goto_tb(tb_slot_idx);
         tcg_gen_movi_i32(cpu_pc, dest);
-        tcg_gen_exit_tb(dc->base.tb, n);
+        tcg_gen_exit_tb(dc->base.tb, tb_slot_idx);
     } else {
         tcg_gen_movi_i32(cpu_pc, dest);
         tcg_gen_lookup_and_goto_ptr();

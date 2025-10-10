@@ -436,18 +436,18 @@ static DisasJumpType gen_store_conditional(DisasContext *ctx, int ra, int rb,
     return DISAS_NEXT;
 }
 
-static void gen_goto_tb(DisasContext *ctx, int idx, int32_t disp)
+static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_idx, int32_t disp)
 {
     if (translator_use_goto_tb(&ctx->base, ctx->base.pc_next + disp)) {
         /* With PCREL, PC must always be up-to-date. */
         if (ctx->pcrel) {
             gen_pc_disp(ctx, cpu_pc, disp);
-            tcg_gen_goto_tb(idx);
+            tcg_gen_goto_tb(tb_slot_idx);
         } else {
-            tcg_gen_goto_tb(idx);
+            tcg_gen_goto_tb(tb_slot_idx);
             gen_pc_disp(ctx, cpu_pc, disp);
         }
-        tcg_gen_exit_tb(ctx->base.tb, idx);
+        tcg_gen_exit_tb(ctx->base.tb, tb_slot_idx);
     } else {
         gen_pc_disp(ctx, cpu_pc, disp);
         tcg_gen_lookup_and_goto_ptr();
