@@ -60,7 +60,7 @@ static bool trans_fld(DisasContext *ctx, arg_fld *a)
     } else {
         memop |= MO_ATOM_IFALIGN;
     }
-    memop |= MO_TE;
+    memop |= mo_endian(ctx);
 
     decode_save_opc(ctx, 0);
     addr = get_address(ctx, a->rs1, a->imm);
@@ -85,7 +85,7 @@ static bool trans_fsd(DisasContext *ctx, arg_fsd *a)
     } else {
         memop |= MO_ATOM_IFALIGN;
     }
-    memop |= MO_TE;
+    memop |= mo_endian(ctx);
 
     decode_save_opc(ctx, 0);
     addr = get_address(ctx, a->rs1, a->imm);

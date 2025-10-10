@@ -35,7 +35,7 @@ static bool gen_lr(DisasContext *ctx, arg_atomic *a, MemOp mop)
     TCGv src1;
 
     mop |= MO_ALIGN;
-    mop |= MO_TE;
+    mop |= mo_endian(ctx);
 
     decode_save_opc(ctx, 0);
     src1 = get_address(ctx, a->rs1, 0);
@@ -65,7 +65,7 @@ static bool gen_sc(DisasContext *ctx, arg_atomic *a, MemOp mop)
     TCGLabel *l2 = gen_new_label();
 
     mop |= MO_ALIGN;
-    mop |= MO_TE;
+    mop |= mo_endian(ctx);
 
     decode_save_opc(ctx, 0);
     src1 = get_address(ctx, a->rs1, 0);
