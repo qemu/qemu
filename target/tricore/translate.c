@@ -44,19 +44,19 @@
 /*
  * TCG registers
  */
-static TCGv cpu_PC;
-static TCGv cpu_PCXI;
-static TCGv cpu_PSW;
-static TCGv cpu_ICR;
+static TCGv_i32 cpu_PC;
+static TCGv_i32 cpu_PCXI;
+static TCGv_i32 cpu_PSW;
+static TCGv_i32 cpu_ICR;
 /* GPR registers */
-static TCGv cpu_gpr_a[16];
-static TCGv cpu_gpr_d[16];
+static TCGv_i32 cpu_gpr_a[16];
+static TCGv_i32 cpu_gpr_d[16];
 /* PSW Flag cache */
-static TCGv cpu_PSW_C;
-static TCGv cpu_PSW_V;
-static TCGv cpu_PSW_SV;
-static TCGv cpu_PSW_AV;
-static TCGv cpu_PSW_SAV;
+static TCGv_i32 cpu_PSW_C;
+static TCGv_i32 cpu_PSW_V;
+static TCGv_i32 cpu_PSW_SV;
+static TCGv_i32 cpu_PSW_AV;
+static TCGv_i32 cpu_PSW_SAV;
 
 static const char *regnames_a[] = {
       "a0"  , "a1"  , "a2"  , "a3" , "a4"  , "a5" ,
@@ -8480,14 +8480,14 @@ void cpu_state_reset(CPUTriCoreState *env)
 
 static void tricore_tcg_init_csfr(void)
 {
-    cpu_PCXI = tcg_global_mem_new(tcg_env,
-                          offsetof(CPUTriCoreState, PCXI), "PCXI");
-    cpu_PSW = tcg_global_mem_new(tcg_env,
-                          offsetof(CPUTriCoreState, PSW), "PSW");
-    cpu_PC = tcg_global_mem_new(tcg_env,
-                          offsetof(CPUTriCoreState, PC), "PC");
-    cpu_ICR = tcg_global_mem_new(tcg_env,
-                          offsetof(CPUTriCoreState, ICR), "ICR");
+    cpu_PCXI = tcg_global_mem_new_i32(tcg_env,
+                                      offsetof(CPUTriCoreState, PCXI), "PCXI");
+    cpu_PSW = tcg_global_mem_new_i32(tcg_env,
+                                     offsetof(CPUTriCoreState, PSW), "PSW");
+    cpu_PC = tcg_global_mem_new_i32(tcg_env,
+                                    offsetof(CPUTriCoreState, PC), "PC");
+    cpu_ICR = tcg_global_mem_new_i32(tcg_env,
+                                     offsetof(CPUTriCoreState, ICR), "ICR");
 }
 
 void tricore_tcg_init(void)
@@ -8496,30 +8496,32 @@ void tricore_tcg_init(void)
 
     /* reg init */
     for (i = 0 ; i < 16 ; i++) {
-        cpu_gpr_a[i] = tcg_global_mem_new(tcg_env,
-                                          offsetof(CPUTriCoreState, gpr_a[i]),
-                                          regnames_a[i]);
+        cpu_gpr_a[i] = tcg_global_mem_new_i32(tcg_env,
+                                              offsetof(CPUTriCoreState,
+                                                       gpr_a[i]),
+                                              regnames_a[i]);
     }
     for (i = 0 ; i < 16 ; i++) {
-        cpu_gpr_d[i] = tcg_global_mem_new(tcg_env,
-                                  offsetof(CPUTriCoreState, gpr_d[i]),
-                                           regnames_d[i]);
+        cpu_gpr_d[i] = tcg_global_mem_new_i32(tcg_env,
+                                              offsetof(CPUTriCoreState,
+                                                       gpr_d[i]),
+                                              regnames_d[i]);
     }
     tricore_tcg_init_csfr();
     /* init PSW flag cache */
-    cpu_PSW_C = tcg_global_mem_new(tcg_env,
-                                   offsetof(CPUTriCoreState, PSW_USB_C),
-                                   "PSW_C");
-    cpu_PSW_V = tcg_global_mem_new(tcg_env,
-                                   offsetof(CPUTriCoreState, PSW_USB_V),
-                                   "PSW_V");
-    cpu_PSW_SV = tcg_global_mem_new(tcg_env,
-                                    offsetof(CPUTriCoreState, PSW_USB_SV),
-                                    "PSW_SV");
-    cpu_PSW_AV = tcg_global_mem_new(tcg_env,
-                                    offsetof(CPUTriCoreState, PSW_USB_AV),
-                                    "PSW_AV");
-    cpu_PSW_SAV = tcg_global_mem_new(tcg_env,
-                                     offsetof(CPUTriCoreState, PSW_USB_SAV),
-                                     "PSW_SAV");
+    cpu_PSW_C = tcg_global_mem_new_i32(tcg_env,
+                                       offsetof(CPUTriCoreState, PSW_USB_C),
+                                       "PSW_C");
+    cpu_PSW_V = tcg_global_mem_new_i32(tcg_env,
+                                       offsetof(CPUTriCoreState, PSW_USB_V),
+                                       "PSW_V");
+    cpu_PSW_SV = tcg_global_mem_new_i32(tcg_env,
+                                        offsetof(CPUTriCoreState, PSW_USB_SV),
+                                        "PSW_SV");
+    cpu_PSW_AV = tcg_global_mem_new_i32(tcg_env,
+                                        offsetof(CPUTriCoreState, PSW_USB_AV),
+                                        "PSW_AV");
+    cpu_PSW_SAV = tcg_global_mem_new_i32(tcg_env,
+                                         offsetof(CPUTriCoreState, PSW_USB_SAV),
+                                         "PSW_SAV");
 }
