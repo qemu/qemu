@@ -8414,7 +8414,7 @@ static void tricore_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     ctx->base.pc_next = ctx->pc_succ_insn;
 
     if (ctx->base.is_jmp == DISAS_NEXT) {
-        target_ulong page_start;
+        vaddr page_start;
 
         page_start = ctx->base.pc_first & TARGET_PAGE_MASK;
         if (ctx->base.pc_next - page_start >= TARGET_PAGE_SIZE
