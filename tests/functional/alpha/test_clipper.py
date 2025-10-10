@@ -17,7 +17,6 @@ class AlphaClipperTest(LinuxKernelTest):
 
     def test_alpha_clipper(self):
         self.set_machine('clipper')
-        kernel_path = self.ASSET_KERNEL.fetch()
 
         uncompressed_kernel = self.uncompress(self.ASSET_KERNEL, format="gz")
 
