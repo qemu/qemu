@@ -43,11 +43,12 @@ static bool trans_flw(DisasContext *ctx, arg_flw *a)
 {
     TCGv_i64 dest;
     TCGv addr;
-    MemOp memop = MO_TE | MO_UL;
+    MemOp memop = MO_UL;
 
     REQUIRE_FPU;
     REQUIRE_EXT(ctx, RVF);
 
+    memop |= MO_TE;
     if (ctx->cfg_ptr->ext_zama16b) {
         memop |= MO_ATOM_WITHIN16;
     }
@@ -65,11 +66,12 @@ static bool trans_flw(DisasContext *ctx, arg_flw *a)
 static bool trans_fsw(DisasContext *ctx, arg_fsw *a)
 {
     TCGv addr;
-    MemOp memop = MO_TE | MO_UL;
+    MemOp memop = MO_UL;
 
     REQUIRE_FPU;
     REQUIRE_EXT(ctx, RVF);
 
+    memop |= MO_TE;
     if (ctx->cfg_ptr->ext_zama16b) {
         memop |= MO_ATOM_WITHIN16;
     }
