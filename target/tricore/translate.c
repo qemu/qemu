@@ -1308,7 +1308,7 @@ gen_msubui64_d(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
     gen_msubu64_d(ret_low, ret_high, r1, r2_low, r2_high, temp);
 }
 
-static inline void gen_addi_d(TCGv ret, TCGv r1, target_ulong r2)
+static inline void gen_addi_d(TCGv ret, TCGv r1, int32_t r2)
 {
     TCGv temp = tcg_constant_i32(r2);
     gen_add_d(ret, r1, temp);
