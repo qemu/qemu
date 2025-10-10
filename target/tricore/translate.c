@@ -72,7 +72,8 @@ static const char *regnames_d[] = {
 
 typedef struct DisasContext {
     DisasContextBase base;
-    target_ulong pc_succ_insn;
+
+    vaddr pc_succ_insn;
     uint32_t opcode;
     /* Routine used to access memory */
     int mem_idx;
@@ -2811,13 +2812,12 @@ static void gen_calc_usb_mulr_h(TCGv arg)
 
 /* helpers for generating program flow micro-ops */
 
-static inline void gen_save_pc(target_ulong pc)
+static inline void gen_save_pc(vaddr pc)
 {
     tcg_gen_movi_tl(cpu_PC, pc);
 }
 
-static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_index,
-                        target_ulong dest)
+static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_index, vaddr dest)
 {
     if (translator_use_goto_tb(&ctx->base, dest)) {
         tcg_gen_goto_tb(tb_slot_index);
