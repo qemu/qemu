@@ -449,7 +449,6 @@ INITIALIZE_MIGRATE_CAPS_SET(check_caps_background_snapshot,
 static const
 INITIALIZE_MIGRATE_CAPS_SET(check_caps_savevm,
                             MIGRATION_CAPABILITY_MULTIFD,
-                            MIGRATION_CAPABILITY_MAPPED_RAM,
 );
 
 static bool migrate_incoming_started(void)

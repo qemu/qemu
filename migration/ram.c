@@ -4038,12 +4038,58 @@ static size_t ram_load_multifd_pages(void *host_addr, size_t size,
     return size;
 }
 
+/**
+ * handle_zero_mapped_ram: Zero out a range of RAM pages if required during
+ * mapped-ram load
+ *
+ * Zeroing is only performed when restoring from a snapshot (HMP loadvm).
+ * During incoming migration or -loadvm cli snapshot load, the function is a
+ * no-op and returns true as in those cases the pages are already guaranteed to
+ * be zeroed.
+ *
+ * Returns: true on success, false on error (with @errp set).
+ * @from_bit_idx: Starting index relative to the map of the page (inclusive)
+ * @to_bit_idx:   Ending index relative to the map of the page (exclusive)
+ */
+static bool handle_zero_mapped_ram(RAMBlock *block, unsigned long from_bit_idx,
+                                   unsigned long to_bit_idx, Error **errp)
+{
+    ERRP_GUARD();
+    ram_addr_t offset;
+    size_t size;
+    void *host;
+
+    /*
+     * Zeroing is not needed for either -loadvm (RUN_STATE_PRELAUNCH), or
+     * -incoming (RUN_STATE_INMIGRATE).
+     */
+    if (!runstate_check(RUN_STATE_RESTORE_VM)) {
+        return true;
+    }
+
+    if (from_bit_idx >= to_bit_idx) {
+        return true;
+    }
+
+    size = TARGET_PAGE_SIZE * (to_bit_idx - from_bit_idx);
+    offset = from_bit_idx << TARGET_PAGE_BITS;
+    host = host_from_ram_block_offset(block, offset);
+    if (!host) {
+        error_setg(errp, "zero page outside of ramblock %s range",
+                   block->idstr);
+        return false;
+    }
+    ram_handle_zero(host, size);
+
+    return true;
+}
+
 static bool read_ramblock_mapped_ram(QEMUFile *f, RAMBlock *block,
                                      long num_pages, unsigned long *bitmap,
                                      Error **errp)
 {
     ERRP_GUARD();
-    unsigned long set_bit_idx, clear_bit_idx;
+    unsigned long set_bit_idx, clear_bit_idx = 0;
     ram_addr_t offset;
     void *host;
     size_t read, unread, size;
@@ -4052,6 +4098,12 @@ static bool read_ramblock_mapped_ram(QEMUFile *f, RAMBlock *block,
          set_bit_idx < num_pages;
          set_bit_idx = find_next_bit(bitmap, num_pages, clear_bit_idx + 1)) {
 
+        /* Zero pages */
+        if (!handle_zero_mapped_ram(block, clear_bit_idx, set_bit_idx, errp)) {
+            return false;
+        }
+
+        /* Non-zero pages */
         clear_bit_idx = find_next_zero_bit(bitmap, num_pages, set_bit_idx + 1);
 
         unread = TARGET_PAGE_SIZE * (clear_bit_idx - set_bit_idx);
@@ -4081,6 +4133,11 @@ static bool read_ramblock_mapped_ram(QEMUFile *f, RAMBlock *block,
             offset += read;
             unread -= read;
         }
+    }
+
+    /* Handle trailing 0 pages */
+    if (!handle_zero_mapped_ram(block, clear_bit_idx, num_pages, errp)) {
+        return false;
     }
 
     return true;
