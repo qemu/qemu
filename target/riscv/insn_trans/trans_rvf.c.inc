@@ -43,7 +43,7 @@ static bool trans_flw(DisasContext *ctx, arg_flw *a)
 {
     TCGv_i64 dest;
     TCGv addr;
-    MemOp memop = MO_TEUL;
+    MemOp memop = MO_TE | MO_UL;
 
     REQUIRE_FPU;
     REQUIRE_EXT(ctx, RVF);
@@ -65,7 +65,7 @@ static bool trans_flw(DisasContext *ctx, arg_flw *a)
 static bool trans_fsw(DisasContext *ctx, arg_fsw *a)
 {
     TCGv addr;
-    MemOp memop = MO_TEUL;
+    MemOp memop = MO_TE | MO_UL;
 
     REQUIRE_FPU;
     REQUIRE_EXT(ctx, RVF);

@@ -42,7 +42,7 @@
 static bool trans_fld(DisasContext *ctx, arg_fld *a)
 {
     TCGv addr;
-    MemOp memop = MO_TEUQ;
+    MemOp memop = MO_TE | MO_UQ;
 
     REQUIRE_FPU;
     REQUIRE_EXT(ctx, RVD);
@@ -72,7 +72,7 @@ static bool trans_fld(DisasContext *ctx, arg_fld *a)
 static bool trans_fsd(DisasContext *ctx, arg_fsd *a)
 {
     TCGv addr;
-    MemOp memop = MO_TEUQ;
+    MemOp memop = MO_TE | MO_UQ;
 
     REQUIRE_FPU;
     REQUIRE_EXT(ctx, RVD);

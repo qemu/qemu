@@ -105,7 +105,7 @@ static bool trans_ssamoswap_w(DisasContext *ctx, arg_amoswap_w *a)
     src1 = get_address(ctx, a->rs1, 0);
 
     tcg_gen_atomic_xchg_tl(dest, src1, src2, SS_MMU_INDEX(ctx),
-                           (MO_ALIGN | MO_TESL));
+                           (MO_ALIGN | MO_TE | MO_SL));
     gen_set_gpr(ctx, a->rd, dest);
     return true;
 }
@@ -134,7 +134,7 @@ static bool trans_ssamoswap_d(DisasContext *ctx, arg_amoswap_w *a)
     src1 = get_address(ctx, a->rs1, 0);
 
     tcg_gen_atomic_xchg_tl(dest, src1, src2, SS_MMU_INDEX(ctx),
-                           (MO_ALIGN | MO_TESQ));
+                           (MO_ALIGN | MO_TE | MO_SQ));
     gen_set_gpr(ctx, a->rd, dest);
     return true;
 }
