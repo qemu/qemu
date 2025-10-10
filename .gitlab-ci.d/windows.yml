@@ -87,6 +87,7 @@ msys2-64bit:
       mingw-w64-x86_64-pkgconf
       mingw-w64-x86_64-python
       mingw-w64-x86_64-zstd"
+  - .\msys64\usr\bin\bash -lc "pacman -Sc --noconfirm"
   - Write-Output "Running build at $(Get-Date -Format u)"
   - $env:JOBS = $(.\msys64\usr\bin\bash -lc nproc)
   - $env:CHERE_INVOKING = 'yes'  # Preserve the current working directory
