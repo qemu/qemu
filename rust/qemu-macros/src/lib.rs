@@ -401,7 +401,14 @@ pub fn bits_const_internal(ts: TokenStream) -> TokenStream {
     let ts = proc_macro2::TokenStream::from(ts);
     let mut it = ts.into_iter();
 
-    BitsConstInternal::parse(&mut it)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
+    let out = BitsConstInternal::parse(&mut it).unwrap_or_else(syn::Error::into_compile_error);
+
+    // https://github.com/rust-lang/rust-clippy/issues/15852
+    quote! {
+        {
+            #[allow(clippy::double_parens)]
+            #out
+        }
+    }
+    .into()
 }
