@@ -352,16 +352,11 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
                                         TranslateFn *translate)
 {
     const char *kernel_filename = machine->kernel_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
-    const char *initrd_filename = machine->initrd_filename;
-    const char *firmware = machine->firmware;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     DeviceState *dev;
     PCIDevice *pci_dev;
-    char *firmware_filename;
-    uint64_t firmware_low, firmware_high;
     long size;
-    uint64_t kernel_entry = 0, kernel_low, kernel_high;
+    uint64_t kernel_entry = 0;
     MemoryRegion *addr_space = get_system_memory();
     MemoryRegion *rom_region;
     SysBusDevice *s;
@@ -431,6 +426,10 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
        firmware on 64-bit machines by default if not specified
        on command line. */
     if (!qtest_enabled()) {
+        const char *firmware = machine->firmware;
+        uint64_t firmware_low, firmware_high;
+        char *firmware_filename;
+
         if (!firmware) {
             firmware = lasi_dev ? "hppa-firmware.img" : "hppa-firmware64.img";
         }
@@ -467,6 +466,10 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
 
     /* Load kernel */
     if (kernel_filename) {
+        const char *kernel_cmdline = machine->kernel_cmdline;
+        const char *initrd_filename = machine->initrd_filename;
+        uint64_t kernel_low, kernel_high;
+
         size = load_elf(kernel_filename, NULL, linux_kernel_virt_to_phys,
                         NULL, &kernel_entry, &kernel_low, &kernel_high, NULL,
                         ELFDATA2MSB, EM_PARISC, 0, 0);
