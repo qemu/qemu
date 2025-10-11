@@ -621,6 +621,10 @@ void do_cpu_init(X86CPU *cpu)
 
 void do_cpu_sipi(X86CPU *cpu)
 {
+    CPUX86State *env = &cpu->env;
+    if (env->hflags & HF_SMM_MASK) {
+        return;
+    }
     apic_sipi(cpu->apic_state);
 }
 

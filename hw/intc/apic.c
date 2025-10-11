@@ -646,8 +646,6 @@ void apic_sipi(DeviceState *dev)
 {
     APICCommonState *s = APIC(dev);
 
-    cpu_reset_interrupt(CPU(s->cpu), CPU_INTERRUPT_SIPI);
-
     if (!s->wait_for_sipi)
         return;
     cpu_x86_load_seg_cache_sipi(s->cpu, s->sipi_vector);
