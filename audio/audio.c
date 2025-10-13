@@ -1623,6 +1623,7 @@ static void audio_state_init(Object *obj)
     QLIST_INIT(&s->hw_head_out);
     QLIST_INIT(&s->hw_head_in);
     QLIST_INIT(&s->cap_head);
+    QLIST_INIT(&s->card_head);
     s->ts = timer_new_ns(QEMU_CLOCK_VIRTUAL, audio_timer, s);
 
     s->vmse = qemu_add_vm_change_state_handler(audio_vm_change_state_handler, s);
@@ -1792,7 +1793,6 @@ static AudioState *audio_init(Audiodev *dev, Error **errp)
         goto out;
     }
     object_unref(s);
-    QLIST_INIT (&s->card_head);
     return s;
 
 out:
