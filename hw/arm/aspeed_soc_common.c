@@ -59,15 +59,15 @@ bool aspeed_soc_uart_realize(AspeedSoCState *s, Error **errp)
     return true;
 }
 
-void aspeed_soc_uart_set_chr(AspeedSoCState *s, int dev, Chardev *chr)
+void aspeed_soc_uart_set_chr(SerialMM *uart, int dev, int uarts_base,
+                             int uarts_num, Chardev *chr)
 {
-    AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
-    int uart_first = aspeed_uart_first(sc->uarts_base);
+    int uart_first = aspeed_uart_first(uarts_base);
     int uart_index = aspeed_uart_index(dev);
     int i = uart_index - uart_first;
 
-    g_assert(0 <= i && i < ARRAY_SIZE(s->uart) && i < sc->uarts_num);
-    qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", chr);
+    g_assert(0 <= i && i < ASPEED_UARTS_NUM && i < uarts_num);
+    qdev_prop_set_chr(DEVICE(&uart[i]), "chardev", chr);
 }
 
 /*

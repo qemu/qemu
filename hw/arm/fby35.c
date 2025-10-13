@@ -71,9 +71,11 @@ static void fby35_bmc_write_boot_rom(DriveInfo *dinfo, MemoryRegion *mr,
 static void fby35_bmc_init(Fby35State *s)
 {
     AspeedSoCState *soc;
+    AspeedSoCClass *sc;
 
     object_initialize_child(OBJECT(s), "bmc", &s->bmc, "ast2600-a3");
     soc = ASPEED_SOC(&s->bmc);
+    sc = ASPEED_SOC_GET_CLASS(soc);
 
     memory_region_init(&s->bmc_memory, OBJECT(&s->bmc), "bmc-memory",
                        UINT64_MAX);
@@ -91,7 +93,8 @@ static void fby35_bmc_init(Fby35State *s)
                             &error_abort);
     object_property_set_int(OBJECT(&s->bmc), "hw-strap2", 0x00000003,
                             &error_abort);
-    aspeed_soc_uart_set_chr(soc, ASPEED_DEV_UART5, serial_hd(0));
+    aspeed_soc_uart_set_chr(soc->uart, ASPEED_DEV_UART5, sc->uarts_base,
+                            sc->uarts_num, serial_hd(0));
     qdev_realize(DEVICE(&s->bmc), NULL, &error_abort);
 
     aspeed_board_init_flashes(&soc->fmc, "n25q00", 2, 0);
@@ -118,12 +121,14 @@ static void fby35_bmc_init(Fby35State *s)
 static void fby35_bic_init(Fby35State *s)
 {
     AspeedSoCState *soc;
+    AspeedSoCClass *sc;
 
     s->bic_sysclk = clock_new(OBJECT(s), "SYSCLK");
     clock_set_hz(s->bic_sysclk, 200000000ULL);
 
     object_initialize_child(OBJECT(s), "bic", &s->bic, "ast1030-a1");
     soc = ASPEED_SOC(&s->bic);
+    sc = ASPEED_SOC_GET_CLASS(soc);
 
     memory_region_init(&s->bic_memory, OBJECT(&s->bic), "bic-memory",
                        UINT64_MAX);
@@ -131,7 +136,8 @@ static void fby35_bic_init(Fby35State *s)
     qdev_connect_clock_in(DEVICE(&s->bic), "sysclk", s->bic_sysclk);
     object_property_set_link(OBJECT(&s->bic), "memory", OBJECT(&s->bic_memory),
                              &error_abort);
-    aspeed_soc_uart_set_chr(soc, ASPEED_DEV_UART5, serial_hd(1));
+    aspeed_soc_uart_set_chr(soc->uart, ASPEED_DEV_UART5, sc->uarts_base,
+                            sc->uarts_num, serial_hd(1));
     qdev_realize(DEVICE(&s->bic), NULL, &error_abort);
 
     aspeed_board_init_flashes(&soc->fmc, "sst25vf032b", 2, 2);

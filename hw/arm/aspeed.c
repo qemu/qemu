@@ -299,12 +299,14 @@ static void connect_serial_hds_to_uarts(AspeedMachineState *bmc)
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     int uart_chosen = bmc->uart_chosen ? bmc->uart_chosen : amc->uart_default;
 
-    aspeed_soc_uart_set_chr(s, uart_chosen, serial_hd(0));
+    aspeed_soc_uart_set_chr(s->uart, uart_chosen, sc->uarts_base,
+                            sc->uarts_num, serial_hd(0));
     for (int i = 1, uart = sc->uarts_base; i < sc->uarts_num; uart++) {
         if (uart == uart_chosen) {
             continue;
         }
-        aspeed_soc_uart_set_chr(s, uart, serial_hd(i++));
+        aspeed_soc_uart_set_chr(s->uart, uart, sc->uarts_base, sc->uarts_num,
+                                serial_hd(i++));
     }
 }
 
