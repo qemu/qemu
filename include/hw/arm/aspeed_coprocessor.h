@@ -41,7 +41,7 @@ struct AspeedCoprocessorClass {
     int uarts_num;
 };
 
-struct Aspeed27x0SSPSoCState {
+struct Aspeed27x0CoprocessorState {
     AspeedCoprocessorState parent;
     AspeedINTCState intc[2];
     UnimplementedDeviceState ipc[2];
@@ -51,7 +51,7 @@ struct Aspeed27x0SSPSoCState {
 };
 
 #define TYPE_ASPEED27X0SSP_SOC "aspeed27x0ssp-soc"
-OBJECT_DECLARE_SIMPLE_TYPE(Aspeed27x0SSPSoCState, ASPEED27X0SSP_SOC)
+OBJECT_DECLARE_SIMPLE_TYPE(Aspeed27x0CoprocessorState, ASPEED27X0SSP_SOC)
 
 struct Aspeed27x0TSPSoCState {
     AspeedCoprocessorState parent;

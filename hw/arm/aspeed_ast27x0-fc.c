@@ -42,7 +42,7 @@ struct Ast2700FCState {
     Clock *tsp_sysclk;
 
     Aspeed27x0SoCState ca35;
-    Aspeed27x0SSPSoCState ssp;
+    Aspeed27x0CoprocessorState ssp;
     Aspeed27x0TSPSoCState tsp;
 
     bool mmio_exec;
