@@ -1676,6 +1676,11 @@ static void audio_state_finalize(Object *obj)
     }
 }
 
+static Object *get_audiodevs_root(void)
+{
+    return object_get_container("audiodevs");
+}
+
 void audio_cleanup(void)
 {
     default_audio_state = NULL;
@@ -1742,6 +1747,9 @@ static AudioState *audio_init(Audiodev *dev, Error **errp)
     struct audio_driver *driver;
 
     s = AUDIO_STATE(object_new(TYPE_AUDIO_STATE));
+    if (!object_property_try_add_child(get_audiodevs_root(), dev->id, OBJECT(s), errp)) {
+        goto out;
+    }
 
     if (!atexit_registered) {
         atexit(audio_cleanup);
