@@ -14,7 +14,6 @@
 import logging
 import os
 from pathlib import Path
-import pycotap
 import shutil
 from subprocess import run
 import sys
@@ -22,6 +21,8 @@ import tempfile
 import warnings
 import unittest
 import uuid
+
+import pycotap
 
 from qemu.machine import QEMUMachine
 from qemu.utils import hvf_available, kvm_available, tcg_available
@@ -34,50 +35,50 @@ from .uncompress import uncompress
 
 class QemuBaseTest(unittest.TestCase):
 
-    '''
-    @params compressed: filename, Asset, or file-like object to uncompress
-    @params format: optional compression format (gzip, lzma)
-
-    Uncompresses @compressed into the scratch directory.
-
-    If @format is None, heuristics will be applied to guess the format
-    from the filename or Asset URL. @format must be non-None if @uncompressed
-    is a file-like object.
-
-    Returns the fully qualified path to the uncompressed file
-    '''
     def uncompress(self, compressed, format=None):
+        '''
+        @params compressed: filename, Asset, or file-like object to uncompress
+        @params format: optional compression format (gzip, lzma)
+
+        Uncompresses @compressed into the scratch directory.
+
+        If @format is None, heuristics will be applied to guess the
+        format from the filename or Asset URL. @format must be non-None
+        if @uncompressed is a file-like object.
+
+        Returns the fully qualified path to the uncompressed file
+        '''
         self.log.debug(f"Uncompress {compressed} format={format}")
-        if type(compressed) == Asset:
+        if isinstance(compressed, Asset):
             compressed.fetch()
 
-        (name, ext) = os.path.splitext(str(compressed))
+        (name, _ext) = os.path.splitext(str(compressed))
         uncompressed = self.scratch_file(os.path.basename(name))
 
         uncompress(compressed, uncompressed, format)
 
         return uncompressed
 
-    '''
-    @params archive: filename, Asset, or file-like object to extract
-    @params format: optional archive format (tar, zip, deb, cpio)
-    @params sub_dir: optional sub-directory to extract into
-    @params member: optional member file to limit extraction to
-
-    Extracts @archive into the scratch directory, or a directory beneath
-    named by @sub_dir. All files are extracted unless @member specifies
-    a limit.
-
-    If @format is None, heuristics will be applied to guess the format
-    from the filename or Asset URL. @format must be non-None if @archive
-    is a file-like object.
-
-    If @member is non-None, returns the fully qualified path to @member
-    '''
     def archive_extract(self, archive, format=None, sub_dir=None, member=None):
+        '''
+        @params archive: filename, Asset, or file-like object to extract
+        @params format: optional archive format (tar, zip, deb, cpio)
+        @params sub_dir: optional sub-directory to extract into
+        @params member: optional member file to limit extraction to
+
+        Extracts @archive into the scratch directory, or a directory beneath
+        named by @sub_dir. All files are extracted unless @member specifies
+        a limit.
+
+        If @format is None, heuristics will be applied to guess the
+        format from the filename or Asset URL. @format must be non-None
+        if @archive is a file-like object.
+
+        If @member is non-None, returns the fully qualified path to @member
+        '''
         self.log.debug(f"Extract {archive} format={format}" +
                        f"sub_dir={sub_dir} member={member}")
-        if type(archive) == Asset:
+        if isinstance(archive, Asset):
             archive.fetch()
         if sub_dir is None:
             archive_extract(archive, self.scratch_file(), format, member)
@@ -89,108 +90,108 @@ class QemuBaseTest(unittest.TestCase):
             return self.scratch_file(member)
         return None
 
-    '''
-    Create a temporary directory suitable for storing UNIX
-    socket paths.
-
-    Returns: a tempfile.TemporaryDirectory instance
-    '''
     def socket_dir(self):
+        '''
+        Create a temporary directory suitable for storing UNIX
+        socket paths.
+
+        Returns: a tempfile.TemporaryDirectory instance
+        '''
         if self.socketdir is None:
             self.socketdir = tempfile.TemporaryDirectory(
                 prefix="qemu_func_test_sock_")
         return self.socketdir
 
-    '''
-    @params args list of zero or more subdirectories or file
-
-    Construct a path for accessing a data file located
-    relative to the source directory that is the root for
-    functional tests.
-
-    @args may be an empty list to reference the root dir
-    itself, may be a single element to reference a file in
-    the root directory, or may be multiple elements to
-    reference a file nested below. The path components
-    will be joined using the platform appropriate path
-    separator.
-
-    Returns: string representing a file path
-    '''
     def data_file(self, *args):
+        '''
+        @params args list of zero or more subdirectories or file
+
+        Construct a path for accessing a data file located
+        relative to the source directory that is the root for
+        functional tests.
+
+        @args may be an empty list to reference the root dir
+        itself, may be a single element to reference a file in
+        the root directory, or may be multiple elements to
+        reference a file nested below. The path components
+        will be joined using the platform appropriate path
+        separator.
+
+        Returns: string representing a file path
+        '''
         return str(Path(Path(__file__).parent.parent, *args))
 
-    '''
-    @params args list of zero or more subdirectories or file
-
-    Construct a path for accessing a data file located
-    relative to the build directory root.
-
-    @args may be an empty list to reference the build dir
-    itself, may be a single element to reference a file in
-    the build directory, or may be multiple elements to
-    reference a file nested below. The path components
-    will be joined using the platform appropriate path
-    separator.
-
-    Returns: string representing a file path
-    '''
     def build_file(self, *args):
+        '''
+        @params args list of zero or more subdirectories or file
+
+        Construct a path for accessing a data file located
+        relative to the build directory root.
+
+        @args may be an empty list to reference the build dir
+        itself, may be a single element to reference a file in
+        the build directory, or may be multiple elements to
+        reference a file nested below. The path components
+        will be joined using the platform appropriate path
+        separator.
+
+        Returns: string representing a file path
+        '''
         return str(Path(BUILD_DIR, *args))
 
-    '''
-    @params args list of zero or more subdirectories or file
-
-    Construct a path for accessing/creating a scratch file
-    located relative to a temporary directory dedicated to
-    this test case. The directory and its contents will be
-    purged upon completion of the test.
-
-    @args may be an empty list to reference the scratch dir
-    itself, may be a single element to reference a file in
-    the scratch directory, or may be multiple elements to
-    reference a file nested below. The path components
-    will be joined using the platform appropriate path
-    separator.
-
-    Returns: string representing a file path
-    '''
     def scratch_file(self, *args):
+        '''
+        @params args list of zero or more subdirectories or file
+
+        Construct a path for accessing/creating a scratch file
+        located relative to a temporary directory dedicated to
+        this test case. The directory and its contents will be
+        purged upon completion of the test.
+
+        @args may be an empty list to reference the scratch dir
+        itself, may be a single element to reference a file in
+        the scratch directory, or may be multiple elements to
+        reference a file nested below. The path components
+        will be joined using the platform appropriate path
+        separator.
+
+        Returns: string representing a file path
+        '''
         return str(Path(self.workdir, *args))
 
-    '''
-    @params args list of zero or more subdirectories or file
-
-    Construct a path for accessing/creating a log file
-    located relative to a temporary directory dedicated to
-    this test case. The directory and its log files will be
-    preserved upon completion of the test.
-
-    @args may be an empty list to reference the log dir
-    itself, may be a single element to reference a file in
-    the log directory, or may be multiple elements to
-    reference a file nested below. The path components
-    will be joined using the platform appropriate path
-    separator.
-
-    Returns: string representing a file path
-    '''
     def log_file(self, *args):
+        '''
+        @params args list of zero or more subdirectories or file
+
+        Construct a path for accessing/creating a log file
+        located relative to a temporary directory dedicated to
+        this test case. The directory and its log files will be
+        preserved upon completion of the test.
+
+        @args may be an empty list to reference the log dir
+        itself, may be a single element to reference a file in
+        the log directory, or may be multiple elements to
+        reference a file nested below. The path components
+        will be joined using the platform appropriate path
+        separator.
+
+        Returns: string representing a file path
+        '''
         return str(Path(self.outputdir, *args))
 
-    '''
-    @params plugin name
-
-    Return the full path to the plugin taking into account any host OS
-    specific suffixes.
-    '''
     def plugin_file(self, plugin_name):
+        '''
+        @params plugin name
+
+        Return the full path to the plugin taking into account any host OS
+        specific suffixes.
+        '''
         sfx = dso_suffix()
         return os.path.join('tests', 'tcg', 'plugins', f'{plugin_name}.{sfx}')
 
     def assets_available(self):
         for name, asset in vars(self.__class__).items():
-            if name.startswith("ASSET_") and type(asset) == Asset:
+            if name.startswith("ASSET_") and isinstance(asset, Asset):
                 if not asset.available():
                     self.log.debug(f"Asset {asset.url} not available")
                     return False
@@ -216,9 +217,9 @@ class QemuBaseTest(unittest.TestCase):
         self.log.setLevel(logging.DEBUG)
         self._log_fh = logging.FileHandler(self.log_filename, mode='w')
         self._log_fh.setLevel(logging.DEBUG)
-        fileFormatter = logging.Formatter(
+        file_formatter = logging.Formatter(
             '%(asctime)s - %(levelname)s: %(name)s.%(funcName)s %(message)s')
-        self._log_fh.setFormatter(fileFormatter)
+        self._log_fh.setFormatter(file_formatter)
         self.log.addHandler(self._log_fh)
 
         # Capture QEMUMachine logging
@@ -260,7 +261,7 @@ class QemuBaseTest(unittest.TestCase):
         res = unittest.main(module = None, testRunner = tr, exit = False,
                             argv=[sys.argv[0], path] + sys.argv[1:])
         failed = {}
-        for (test, message) in res.result.errors + res.result.failures:
+        for (test, _message) in res.result.errors + res.result.failures:
             if hasattr(test, "log_filename") and not test.id() in failed:
                 print('More information on ' + test.id() + ' could be found here:'
                       '\n %s' % test.log_filename, file=sys.stderr)
@@ -279,7 +280,9 @@ class QemuUserTest(QemuBaseTest):
     def add_ldpath(self, ldpath):
         self._ldpath.append(os.path.abspath(ldpath))
 
-    def run_cmd(self, bin_path, args=[]):
+    def run_cmd(self, bin_path, args=None):
+        if args is None:
+            args = []
         return run([self.qemu_bin]
                    + ["-L %s" % ldpath for ldpath in self._ldpath]
                    + [bin_path]
@@ -304,8 +307,8 @@ class QemuSystemTest(QemuBaseTest):
         self._console_log_fh = logging.FileHandler(self.console_log_name,
                                                    mode='w')
         self._console_log_fh.setLevel(logging.DEBUG)
-        fileFormatter = logging.Formatter('%(asctime)s: %(message)s')
-        self._console_log_fh.setFormatter(fileFormatter)
+        file_formatter = logging.Formatter('%(asctime)s: %(message)s')
+        self._console_log_fh.setFormatter(file_formatter)
         console_log.addHandler(self._console_log_fh)
 
     def set_machine(self, machinename):
@@ -343,17 +346,15 @@ class QemuSystemTest(QemuBaseTest):
                           "available" % accelerator)
 
     def require_netdev(self, netdevname):
-        help = run([self.qemu_bin,
-                    '-M', 'none', '-netdev', 'help'],
-                   capture_output=True, check=True, encoding='utf8').stdout;
-        if help.find('\n' + netdevname + '\n') < 0:
+        helptxt = run([self.qemu_bin, '-M', 'none', '-netdev', 'help'],
+                      capture_output=True, check=True, encoding='utf8').stdout
+        if helptxt.find('\n' + netdevname + '\n') < 0:
             self.skipTest('no support for " + netdevname + " networking')
 
     def require_device(self, devicename):
-        help = run([self.qemu_bin,
-                    '-M', 'none', '-device', 'help'],
-                   capture_output=True, check=True, encoding='utf8').stdout;
-        if help.find(devicename) < 0:
+        helptxt = run([self.qemu_bin, '-M', 'none', '-device', 'help'],
+                   capture_output=True, check=True, encoding='utf8').stdout
+        if helptxt.find(devicename) < 0:
             self.skipTest('no support for device ' + devicename)
 
     def _new_vm(self, name, *args):
@@ -415,7 +416,7 @@ class QemuSystemTest(QemuBaseTest):
             try:
                 vm.shutdown()
             except Exception as ex:
-                self.log.error("Failed to teardown VM: %s" % ex)
+                self.log.error("Failed to teardown VM: %s", ex)
         logging.getLogger('console').removeHandler(self._console_log_fh)
         self._console_log_fh.close()
         super().tearDown()
