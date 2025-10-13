@@ -192,6 +192,7 @@ static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     DeviceState *armv7m;
     Error *err = NULL;
+    int uart;
     int i;
     g_autofree char *sram_name = NULL;
 
@@ -316,8 +317,13 @@ static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
                                 sc->irqmap[ASPEED_DEV_KCS] + aspeed_lpc_kcs_4));
 
     /* UART */
-    if (!aspeed_soc_uart_realize(s, errp)) {
-        return;
+    for (i = 0, uart = sc->uarts_base; i < sc->uarts_num; i++, uart++) {
+        if (!aspeed_soc_uart_realize(s->memory, &s->uart[i],
+                                     sc->memmap[uart], errp)) {
+            return;
+        }
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->uart[i]), 0,
+                           aspeed_soc_get_irq(s, uart));
     }
 
     /* Timer */

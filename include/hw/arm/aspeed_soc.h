@@ -304,7 +304,8 @@ enum {
 
 const char *aspeed_soc_cpu_type(const char * const *valid_cpu_types);
 qemu_irq aspeed_soc_get_irq(AspeedSoCState *s, int dev);
-bool aspeed_soc_uart_realize(AspeedSoCState *s, Error **errp);
+bool aspeed_soc_uart_realize(MemoryRegion *memory, SerialMM *smm,
+                             const hwaddr addr, Error **errp);
 void aspeed_soc_uart_set_chr(SerialMM *uart, int dev, int uarts_base,
                              int uarts_num, Chardev *chr);
 bool aspeed_soc_dram_init(AspeedSoCState *s, Error **errp);
