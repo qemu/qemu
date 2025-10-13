@@ -331,9 +331,9 @@ static inline int aspeed_uart_first(int uarts_base)
     return aspeed_uart_index(uarts_base);
 }
 
-static inline int aspeed_uart_last(AspeedSoCClass *sc)
+static inline int aspeed_uart_last(int uarts_base, int uarts_num)
 {
-    return aspeed_uart_first(sc->uarts_base) + sc->uarts_num - 1;
+    return aspeed_uart_first(uarts_base) + uarts_num - 1;
 }
 
 #endif /* ASPEED_SOC_H */
