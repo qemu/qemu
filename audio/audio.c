@@ -1614,6 +1614,8 @@ static void audio_vm_change_state_handler (void *opaque, bool running,
     audio_reset_timer (s);
 }
 
+static const VMStateDescription vmstate_audio;
+
 static void audio_state_init(Object *obj)
 {
     AudioState *s = AUDIO_STATE(obj);
@@ -1625,6 +1627,8 @@ static void audio_state_init(Object *obj)
 
     s->vmse = qemu_add_vm_change_state_handler(audio_vm_change_state_handler, s);
     assert(s->vmse != NULL);
+
+    vmstate_register_any(NULL, &vmstate_audio, s);
 }
 
 static void audio_state_finalize(Object *obj)
@@ -1679,6 +1683,8 @@ static void audio_state_finalize(Object *obj)
         qemu_del_vm_change_state_handler(s->vmse);
         s->vmse = NULL;
     }
+
+    vmstate_unregister(NULL, &vmstate_audio, s);
 }
 
 static Object *get_audiodevs_root(void)
@@ -1787,7 +1793,6 @@ static AudioState *audio_init(Audiodev *dev, Error **errp)
     }
     object_unref(s);
     QLIST_INIT (&s->card_head);
-    vmstate_register_any(NULL, &vmstate_audio, s);
     return s;
 
 out:
