@@ -1776,10 +1776,7 @@ static AudioState *audio_init(Audiodev *dev, Error **errp)
     }
 
     vmse = qemu_add_vm_change_state_handler (audio_vm_change_state_handler, s);
-    if (!vmse) {
-        dolog ("warning: Could not register change state handler\n"
-               "(Audio can continue looping even after stopping the VM)\n");
-    }
+    assert(vmse != NULL);
 
     if (!object_property_try_add_child(get_audiodevs_root(), dev->id, OBJECT(s), errp)) {
         goto out;
