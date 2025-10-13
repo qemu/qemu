@@ -54,8 +54,8 @@ struct Aspeed27x0CoprocessorState {
 OBJECT_DECLARE_SIMPLE_TYPE(Aspeed27x0CoprocessorState,
                            ASPEED27X0SSP_COPROCESSOR)
 
-#define TYPE_ASPEED27X0TSP_SOC "aspeed27x0tsp-soc"
+#define TYPE_ASPEED27X0TSP_COPROCESSOR "aspeed27x0tsp-coprocessor"
 DECLARE_OBJ_CHECKERS(Aspeed27x0CoprocessorState, AspeedCoprocessorClass,
-                     ASPEED27X0TSP_SOC, TYPE_ASPEED27X0TSP_SOC)
+                     ASPEED27X0TSP_COPROCESSOR, TYPE_ASPEED27X0TSP_COPROCESSOR)
 
 #endif /* ASPEED_COPROCESSOR_H */

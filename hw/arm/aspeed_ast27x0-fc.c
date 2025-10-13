@@ -149,7 +149,8 @@ static bool ast2700fc_tsp_init(MachineState *machine, Error **errp)
     s->tsp_sysclk = clock_new(OBJECT(s), "TSP_SYSCLK");
     clock_set_hz(s->tsp_sysclk, 200000000ULL);
 
-    object_initialize_child(OBJECT(s), "tsp", &s->tsp, TYPE_ASPEED27X0TSP_SOC);
+    object_initialize_child(OBJECT(s), "tsp", &s->tsp,
+                            TYPE_ASPEED27X0TSP_COPROCESSOR);
     memory_region_init(&s->tsp_memory, OBJECT(&s->tsp), "tsp-memory",
                        UINT64_MAX);
 
