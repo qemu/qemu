@@ -40,7 +40,7 @@ impl HPETFwConfig {
         assert!(bql::is_locked());
         // SAFETY: all accesses go through these methods, which guarantee
         // that the accesses are protected by the BQL.
-        let mut fw_cfg = unsafe { *addr_of_mut!(hpet_fw_cfg) };
+        let fw_cfg = unsafe { &mut *addr_of_mut!(hpet_fw_cfg) };
 
         if fw_cfg.count == u8::MAX {
             // first instance
@@ -60,7 +60,7 @@ impl HPETFwConfig {
         assert!(bql::is_locked());
         // SAFETY: all accesses go through these methods, which guarantee
         // that the accesses are protected by the BQL.
-        let mut fw_cfg = unsafe { *addr_of_mut!(hpet_fw_cfg) };
+        let fw_cfg = unsafe { &mut *addr_of_mut!(hpet_fw_cfg) };
 
         fw_cfg.hpet[hpet_id].event_timer_block_id = timer_block_id;
         fw_cfg.hpet[hpet_id].address = address;
