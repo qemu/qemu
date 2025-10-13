@@ -72,6 +72,7 @@ macro_rules! call_func_with_field {
     ($func:expr, $typ:ty, $($field:tt).+) => {
         $func(loop {
             #![allow(unreachable_code)]
+            #![allow(unused_variables)]
             const fn phantom__<T>(_: &T) -> ::core::marker::PhantomData<T> { ::core::marker::PhantomData }
             // Unreachable code is exempt from checks on uninitialized values.
             // Use that trick to infer the type of this PhantomData.
