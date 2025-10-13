@@ -62,7 +62,7 @@ bool aspeed_soc_uart_realize(AspeedSoCState *s, Error **errp)
 void aspeed_soc_uart_set_chr(AspeedSoCState *s, int dev, Chardev *chr)
 {
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
-    int uart_first = aspeed_uart_first(sc);
+    int uart_first = aspeed_uart_first(sc->uarts_base);
     int uart_index = aspeed_uart_index(dev);
     int i = uart_index - uart_first;
 

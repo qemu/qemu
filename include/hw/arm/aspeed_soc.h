@@ -326,14 +326,14 @@ static inline int aspeed_uart_index(int uart_dev)
     return uart_dev - ASPEED_DEV_UART0;
 }
 
-static inline int aspeed_uart_first(AspeedSoCClass *sc)
+static inline int aspeed_uart_first(int uarts_base)
 {
-    return aspeed_uart_index(sc->uarts_base);
+    return aspeed_uart_index(uarts_base);
 }
 
 static inline int aspeed_uart_last(AspeedSoCClass *sc)
 {
-    return aspeed_uart_first(sc) + sc->uarts_num - 1;
+    return aspeed_uart_first(sc->uarts_base) + sc->uarts_num - 1;
 }
 
 #endif /* ASPEED_SOC_H */
