@@ -3,7 +3,7 @@
 #define HW_AUDIO_MODEL_H
 
 void audio_register_model_with_cb(const char *name, const char *descr,
-                                  int (*init_pci)(PCIBus *bus, const char *audiodev));
+                                  void (*init_audio_model)(const char *audiodev));
 void audio_register_model(const char *name, const char *descr,
                           int isa, const char *typename);
 

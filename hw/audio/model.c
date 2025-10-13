@@ -24,14 +24,11 @@
 #include "qemu/osdep.h"
 #include "hw/qdev-core.h"
 #include "monitor/qdev.h"
-#include "qemu/option.h"
-#include "qemu/help_option.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qom/object.h"
 #include "hw/qdev-properties.h"
 #include "hw/isa/isa.h"
-#include "hw/pci/pci.h"
 #include "hw/audio/model.h"
 
 struct audio_model {
@@ -39,20 +36,20 @@ struct audio_model {
     const char *descr;
     const char *typename;
     int isa;
-    int (*init_pci) (PCIBus *bus, const char *audiodev);
+    void (*init)(const char *audiodev);
 };
 
 static struct audio_model audio_models[9];
 static int audio_models_count;
 
 void audio_register_model_with_cb(const char *name, const char *descr,
-                                  int (*init_pci)(PCIBus *bus, const char *audiodev))
+                                  void (*init_audio_model)(const char *audiodev))
 {
     assert(audio_models_count < ARRAY_SIZE(audio_models) - 1);
     audio_models[audio_models_count].name = name;
     audio_models[audio_models_count].descr = descr;
     audio_models[audio_models_count].isa = 0;
-    audio_models[audio_models_count].init_pci = init_pci;
+    audio_models[audio_models_count].init = init_audio_model;
     audio_models_count++;
 }
 
@@ -124,7 +121,6 @@ void audio_model_init(void)
         qdev_realize_and_unref(dev, bus, &error_fatal);
     } else {
         assert(!c->isa);
-        PCIBus *pci_bus = (PCIBus *) object_resolve_path_type("", TYPE_PCI_BUS, NULL);
-        c->init_pci(pci_bus, audiodev_id);
+        c->init(audiodev_id);
     }
 }
