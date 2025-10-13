@@ -167,7 +167,7 @@ static void aspeed_soc_ast2600_init(Object *obj)
 
     for (i = 0; i < sc->num_cpus; i++) {
         object_initialize_child(obj, "cpu[*]", &a->cpu[i],
-                                aspeed_soc_cpu_type(sc));
+                                aspeed_soc_cpu_type(sc->valid_cpu_types));
     }
 
     snprintf(typename, sizeof(typename), "aspeed.scu-%s", socname);

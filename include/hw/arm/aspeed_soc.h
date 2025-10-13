@@ -202,8 +202,6 @@ struct AspeedSoCClass {
     bool (*boot_from_emmc)(AspeedSoCState *s);
 };
 
-const char *aspeed_soc_cpu_type(AspeedSoCClass *sc);
-
 enum {
     ASPEED_DEV_VBOOTROM,
     ASPEED_DEV_SPI_BOOT,
@@ -304,6 +302,7 @@ enum {
     ASPEED_DEV_IPC1,
 };
 
+const char *aspeed_soc_cpu_type(const char * const *valid_cpu_types);
 qemu_irq aspeed_soc_get_irq(AspeedSoCState *s, int dev);
 bool aspeed_soc_uart_realize(AspeedSoCState *s, Error **errp);
 void aspeed_soc_uart_set_chr(SerialMM *uart, int dev, int uarts_base,
