@@ -117,14 +117,14 @@ void aspeed_mmio_map(MemoryRegion *memory, SysBusDevice *dev, int n,
     memory_region_add_subregion(memory, addr, sysbus_mmio_get_region(dev, n));
 }
 
-void aspeed_mmio_map_unimplemented(AspeedSoCState *s, SysBusDevice *dev,
+void aspeed_mmio_map_unimplemented(MemoryRegion *memory, SysBusDevice *dev,
                                    const char *name, hwaddr addr, uint64_t size)
 {
     qdev_prop_set_string(DEVICE(dev), "name", name);
     qdev_prop_set_uint64(DEVICE(dev), "size", size);
     sysbus_realize(dev, &error_abort);
 
-    memory_region_add_subregion_overlap(s->memory, addr,
+    memory_region_add_subregion_overlap(memory, addr,
                                         sysbus_mmio_get_region(dev, 0), -1000);
 }
 

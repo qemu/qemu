@@ -259,12 +259,14 @@ static void aspeed_ast2400_soc_realize(DeviceState *dev, Error **errp)
                                 &s->spi_boot_container);
 
     /* IO space */
-    aspeed_mmio_map_unimplemented(s, SYS_BUS_DEVICE(&s->iomem), "aspeed.io",
+    aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->iomem),
+                                  "aspeed.io",
                                   sc->memmap[ASPEED_DEV_IOMEM],
                                   ASPEED_SOC_IOMEM_SIZE);
 
     /* Video engine stub */
-    aspeed_mmio_map_unimplemented(s, SYS_BUS_DEVICE(&s->video), "aspeed.video",
+    aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->video),
+                                  "aspeed.video",
                                   sc->memmap[ASPEED_DEV_VIDEO], 0x1000);
 
     /* CPU */

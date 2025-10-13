@@ -310,7 +310,7 @@ void aspeed_soc_uart_set_chr(SerialMM *uart, int dev, int uarts_base,
 bool aspeed_soc_dram_init(AspeedSoCState *s, Error **errp);
 void aspeed_mmio_map(MemoryRegion *memory, SysBusDevice *dev, int n,
                      hwaddr addr);
-void aspeed_mmio_map_unimplemented(AspeedSoCState *s, SysBusDevice *dev,
+void aspeed_mmio_map_unimplemented(MemoryRegion *memory, SysBusDevice *dev,
                                    const char *name, hwaddr addr,
                                    uint64_t size);
 void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
