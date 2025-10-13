@@ -747,14 +747,13 @@ static void qpa_volume_in(HWVoiceIn *hw, Volume *vol)
     pa_threaded_mainloop_unlock(c->mainloop);
 }
 
-static int qpa_validate_per_direction_opts(Audiodev *dev,
-                                           AudiodevPaPerDirectionOptions *pdo)
+static void qpa_validate_per_direction_opts(Audiodev *dev,
+                                            AudiodevPaPerDirectionOptions *pdo)
 {
     if (!pdo->has_latency) {
         pdo->has_latency = true;
         pdo->latency = 46440;
     }
-    return 1;
 }
 
 /* common */
@@ -844,12 +843,8 @@ static void *qpa_audio_init(Audiodev *dev, Error **errp)
         }
     }
 
-    if (!qpa_validate_per_direction_opts(dev, popts->in)) {
-        return NULL;
-    }
-    if (!qpa_validate_per_direction_opts(dev, popts->out)) {
-        return NULL;
-    }
+    qpa_validate_per_direction_opts(dev, popts->in);
+    qpa_validate_per_direction_opts(dev, popts->out);
 
     g = g_new0(paaudio, 1);
     server = popts->server;
