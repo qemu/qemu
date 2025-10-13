@@ -8632,7 +8632,11 @@ static void x86_cpu_reset_hold(Object *obj, ResetType type)
 
     env->idt.limit = 0xffff;
     env->gdt.limit = 0xffff;
+#if defined(CONFIG_USER_ONLY)
+    env->ldt.limit = 0;
+#else
     env->ldt.limit = 0xffff;
+#endif
     env->ldt.flags = DESC_P_MASK | (2 << DESC_TYPE_SHIFT);
     env->tr.limit = 0xffff;
     env->tr.flags = DESC_P_MASK | (11 << DESC_TYPE_SHIFT);
