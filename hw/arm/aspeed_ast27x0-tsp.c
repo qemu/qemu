@@ -263,7 +263,8 @@ static void aspeed_soc_ast27x0tsp_realize(DeviceState *dev_soc, Error **errp)
                                   sc->memmap[ASPEED_DEV_SCUIO], 0x1000);
 }
 
-static void aspeed_soc_ast27x0tsp_class_init(ObjectClass *klass, const void *data)
+static void aspeed_soc_ast27x0tsp_class_init(ObjectClass *klass,
+                                             const void *data)
 {
     static const char * const valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("cortex-m4"), /* TODO cortex-m4f */
