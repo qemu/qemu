@@ -30,11 +30,6 @@ const char *aspeed_soc_cpu_type(const char * const *valid_cpu_types)
     return valid_cpu_types[0];
 }
 
-qemu_irq aspeed_soc_get_irq(AspeedSoCState *s, int dev)
-{
-    return ASPEED_SOC_GET_CLASS(s)->get_irq(s, dev);
-}
-
 bool aspeed_soc_uart_realize(MemoryRegion *memory, SerialMM *smm,
                              const hwaddr addr, Error **errp)
 {

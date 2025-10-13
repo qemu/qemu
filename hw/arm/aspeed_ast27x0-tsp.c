@@ -244,7 +244,7 @@ static void aspeed_soc_ast27x0tsp_realize(DeviceState *dev_soc, Error **errp)
             return;
         }
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->uart[i]), 0,
-                           aspeed_soc_get_irq(s, uart));
+                           aspeed_soc_ast27x0tsp_get_irq(s, uart));
     }
 
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->timerctrl),
@@ -286,7 +286,6 @@ static void aspeed_soc_ast27x0tsp_class_init(ObjectClass *klass, const void *dat
     sc->irqmap = aspeed_soc_ast27x0tsp_irqmap;
     sc->memmap = aspeed_soc_ast27x0tsp_memmap;
     sc->num_cpus = 1;
-    sc->get_irq = aspeed_soc_ast27x0tsp_get_irq;
 }
 
 static const TypeInfo aspeed_soc_ast27x0tsp_types[] = {
