@@ -102,8 +102,6 @@ static audio_driver *audio_driver_lookup(const char *name)
     return NULL;
 }
 
-static QTAILQ_HEAD(AudioStateHead, AudioState) audio_states =
-    QTAILQ_HEAD_INITIALIZER(audio_states);
 static AudioState *default_audio_state;
 
 const struct mixeng_volume nominal_volume = {
@@ -1684,11 +1682,8 @@ static Object *get_audiodevs_root(void)
 void audio_cleanup(void)
 {
     default_audio_state = NULL;
-    while (!QTAILQ_EMPTY(&audio_states)) {
-        AudioState *s = QTAILQ_FIRST(&audio_states);
-        QTAILQ_REMOVE(&audio_states, s, list);
-        object_unref(s);
-    }
+
+    object_unparent(get_audiodevs_root());
 }
 
 static bool vmstate_audio_needed(void *opaque)
@@ -1739,7 +1734,6 @@ void audio_create_default_audiodevs(void)
  */
 static AudioState *audio_init(Audiodev *dev, Error **errp)
 {
-    static bool atexit_registered;
     int done = 0;
     const char *drvname;
     VMChangeStateEntry *vmse;
@@ -1747,14 +1741,6 @@ static AudioState *audio_init(Audiodev *dev, Error **errp)
     struct audio_driver *driver;
 
     s = AUDIO_STATE(object_new(TYPE_AUDIO_STATE));
-    if (!object_property_try_add_child(get_audiodevs_root(), dev->id, OBJECT(s), errp)) {
-        goto out;
-    }
-
-    if (!atexit_registered) {
-        atexit(audio_cleanup);
-        atexit_registered = true;
-    }
 
     if (dev) {
         /* -audiodev option */
@@ -1802,7 +1788,10 @@ static AudioState *audio_init(Audiodev *dev, Error **errp)
                "(Audio can continue looping even after stopping the VM)\n");
     }
 
-    QTAILQ_INSERT_TAIL(&audio_states, s, list);
+    if (!object_property_try_add_child(get_audiodevs_root(), dev->id, OBJECT(s), errp)) {
+        goto out;
+    }
+    object_unref(s);
     QLIST_INIT (&s->card_head);
     vmstate_register_any(NULL, &vmstate_audio, s);
     return s;
@@ -2249,15 +2238,14 @@ int audio_buffer_bytes(AudiodevPerDirectionOptions *pdo,
 
 AudioState *audio_state_by_name(const char *name, Error **errp)
 {
-    AudioState *s;
-    QTAILQ_FOREACH(s, &audio_states, list) {
-        assert(s->dev);
-        if (strcmp(name, s->dev->id) == 0) {
-            return s;
-        }
+    Object *obj = object_resolve_path_component(get_audiodevs_root(), name);
+
+    if (!obj) {
+        error_setg(errp, "audiodev '%s' not found", name);
+        return NULL;
+    } else {
+        return AUDIO_STATE(obj);
     }
-    error_setg(errp, "audiodev '%s' not found", name);
-    return NULL;
 }
 
 const char *audio_get_id(QEMUSoundCard *card)
