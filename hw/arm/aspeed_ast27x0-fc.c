@@ -21,7 +21,7 @@
 #include "hw/loader.h"
 #include "hw/arm/boot.h"
 #include "hw/block/flash.h"
-
+#include "hw/arm/aspeed_coprocessor.h"
 
 #define TYPE_AST2700A1FC MACHINE_TYPE_NAME("ast2700fc")
 OBJECT_DECLARE_SIMPLE_TYPE(Ast2700FCState, AST2700A1FC);
@@ -115,8 +115,8 @@ static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
 
 static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
 {
-    AspeedSoCState *soc;
-    AspeedSoCClass *sc;
+    AspeedCoprocessorState *soc;
+    AspeedCoprocessorClass *sc;
     Ast2700FCState *s = AST2700A1FC(machine);
     s->ssp_sysclk = clock_new(OBJECT(s), "SSP_SYSCLK");
     clock_set_hz(s->ssp_sysclk, 200000000ULL);
@@ -129,8 +129,8 @@ static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
     object_property_set_link(OBJECT(&s->ssp), "memory",
                              OBJECT(&s->ssp_memory), &error_abort);
 
-    soc = ASPEED_SOC(&s->ssp);
-    sc = ASPEED_SOC_GET_CLASS(soc);
+    soc = ASPEED_COPROCESSOR(&s->ssp);
+    sc = ASPEED_COPROCESSOR_GET_CLASS(soc);
     aspeed_soc_uart_set_chr(soc->uart, ASPEED_DEV_UART4, sc->uarts_base,
                             sc->uarts_num, serial_hd(1));
     if (!qdev_realize(DEVICE(&s->ssp), NULL, errp)) {
