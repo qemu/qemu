@@ -271,12 +271,12 @@ ERST
         .name       = "accel",
         .args_type  = "",
         .params     = "",
-        .help       = "show accelerator info",
+        .help       = "show accelerator statistics",
     },
 
 SRST
   ``info accel``
-    Show accelerator info.
+    Show accelerator statistics.
 ERST
 
 SRST
