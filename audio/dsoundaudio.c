@@ -638,7 +638,7 @@ static void *dsound_audio_init(Audiodev *dev, Error **errp)
     hr = CoInitialize (NULL);
     if (FAILED (hr)) {
         dsound_logerr (hr, "Could not initialize COM\n");
-        g_free(s);
+        dsound_audio_fini(s);
         return NULL;
     }
 
@@ -651,19 +651,14 @@ static void *dsound_audio_init(Audiodev *dev, Error **errp)
         );
     if (FAILED (hr)) {
         dsound_logerr (hr, "Could not create DirectSound instance\n");
-        g_free(s);
+        dsound_audio_fini(s);
         return NULL;
     }
 
     hr = IDirectSound_Initialize (s->dsound, NULL);
     if (FAILED (hr)) {
         dsound_logerr (hr, "Could not initialize DirectSound\n");
-
-        hr = IDirectSound_Release (s->dsound);
-        if (FAILED (hr)) {
-            dsound_logerr (hr, "Could not release DirectSound\n");
-        }
-        g_free(s);
+        dsound_audio_fini(s);
         return NULL;
     }
 
@@ -676,17 +671,15 @@ static void *dsound_audio_init(Audiodev *dev, Error **errp)
         );
     if (FAILED (hr)) {
         dsound_logerr (hr, "Could not create DirectSoundCapture instance\n");
-    } else {
-        hr = IDirectSoundCapture_Initialize (s->dsound_capture, NULL);
-        if (FAILED (hr)) {
-            dsound_logerr (hr, "Could not initialize DirectSoundCapture\n");
+        dsound_audio_fini(s);
+        return NULL;
+    }
 
-            hr = IDirectSoundCapture_Release (s->dsound_capture);
-            if (FAILED (hr)) {
-                dsound_logerr (hr, "Could not release DirectSoundCapture\n");
-            }
-            s->dsound_capture = NULL;
-        }
+    hr = IDirectSoundCapture_Initialize (s->dsound_capture, NULL);
+    if (FAILED(hr)) {
+        dsound_logerr(hr, "Could not initialize DirectSoundCapture\n");
+        dsound_audio_fini(s);
+        return NULL;
     }
 
     err = dsound_set_cooperative_level(s);
