@@ -1622,6 +1622,9 @@ static void audio_state_init(Object *obj)
     QLIST_INIT(&s->hw_head_in);
     QLIST_INIT(&s->cap_head);
     s->ts = timer_new_ns(QEMU_CLOCK_VIRTUAL, audio_timer, s);
+
+    s->vmse = qemu_add_vm_change_state_handler(audio_vm_change_state_handler, s);
+    assert(s->vmse != NULL);
 }
 
 static void audio_state_finalize(Object *obj)
@@ -1670,6 +1673,11 @@ static void audio_state_finalize(Object *obj)
     if (s->ts) {
         timer_free(s->ts);
         s->ts = NULL;
+    }
+
+    if (s->vmse) {
+        qemu_del_vm_change_state_handler(s->vmse);
+        s->vmse = NULL;
     }
 }
 
@@ -1735,7 +1743,6 @@ static AudioState *audio_init(Audiodev *dev, Error **errp)
 {
     int done = 0;
     const char *drvname;
-    VMChangeStateEntry *vmse;
     AudioState *s;
     struct audio_driver *driver;
 
@@ -1774,9 +1781,6 @@ static AudioState *audio_init(Audiodev *dev, Error **errp)
             s->dev = NULL;
         }
     }
-
-    vmse = qemu_add_vm_change_state_handler (audio_vm_change_state_handler, s);
-    assert(vmse != NULL);
 
     if (!object_property_try_add_child(get_audiodevs_root(), dev->id, OBJECT(s), errp)) {
         goto out;
