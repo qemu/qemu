@@ -43,7 +43,7 @@ struct Ast2700FCState {
 
     Aspeed27x0SoCState ca35;
     Aspeed27x0CoprocessorState ssp;
-    Aspeed27x0TSPSoCState tsp;
+    Aspeed27x0CoprocessorState tsp;
 
     bool mmio_exec;
 };
