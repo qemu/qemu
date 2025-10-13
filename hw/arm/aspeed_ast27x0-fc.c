@@ -121,7 +121,8 @@ static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
     s->ssp_sysclk = clock_new(OBJECT(s), "SSP_SYSCLK");
     clock_set_hz(s->ssp_sysclk, 200000000ULL);
 
-    object_initialize_child(OBJECT(s), "ssp", &s->ssp, TYPE_ASPEED27X0SSP_SOC);
+    object_initialize_child(OBJECT(s), "ssp", &s->ssp,
+                            TYPE_ASPEED27X0SSP_COPROCESSOR);
     memory_region_init(&s->ssp_memory, OBJECT(&s->ssp), "ssp-memory",
                        UINT64_MAX);
 
