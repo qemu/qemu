@@ -53,7 +53,7 @@ bool aspeed_soc_uart_realize(AspeedSoCState *s, Error **errp)
         }
 
         sysbus_connect_irq(SYS_BUS_DEVICE(smm), 0, aspeed_soc_get_irq(s, uart));
-        aspeed_mmio_map(s, SYS_BUS_DEVICE(smm), 0, sc->memmap[uart]);
+        aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(smm), 0, sc->memmap[uart]);
     }
 
     return true;
@@ -111,10 +111,10 @@ bool aspeed_soc_dram_init(AspeedSoCState *s, Error **errp)
     return true;
 }
 
-void aspeed_mmio_map(AspeedSoCState *s, SysBusDevice *dev, int n, hwaddr addr)
+void aspeed_mmio_map(MemoryRegion *memory, SysBusDevice *dev, int n,
+                     hwaddr addr)
 {
-    memory_region_add_subregion(s->memory, addr,
-                                sysbus_mmio_get_region(dev, n));
+    memory_region_add_subregion(memory, addr, sysbus_mmio_get_region(dev, n));
 }
 
 void aspeed_mmio_map_unimplemented(AspeedSoCState *s, SysBusDevice *dev,
