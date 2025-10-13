@@ -520,7 +520,7 @@ static void virt_irq_init(LoongArchVirtMachineState *lvms)
         }
 
         /* PCH_PIC memory region */
-        memory_region_add_subregion(get_system_memory(), VIRT_IOAPIC_REG_BASE,
+        memory_region_add_subregion(get_system_memory(), VIRT_PCH_REG_BASE,
                     sysbus_mmio_get_region(SYS_BUS_DEVICE(pch_pic), 0));
 
         /* Connect pch_pic irqs to extioi */
