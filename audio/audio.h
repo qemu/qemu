@@ -80,6 +80,10 @@ typedef struct SWVoiceOut SWVoiceOut;
 typedef struct CaptureVoiceOut CaptureVoiceOut;
 typedef struct SWVoiceIn SWVoiceIn;
 
+struct AudioStateClass {
+    ObjectClass parent_class;
+};
+
 typedef struct AudioState AudioState;
 typedef struct QEMUSoundCard {
     char *name;
@@ -181,5 +185,8 @@ const char *audio_get_id(QEMUSoundCard *card);
 
 #define DEFINE_AUDIO_PROPERTIES(_s, _f)         \
     DEFINE_PROP_AUDIODEV("audiodev", _s, _f)
+
+#define TYPE_AUDIO_STATE "audio-state"
+OBJECT_DECLARE_TYPE(AudioState, AudioStateClass, AUDIO_STATE)
 
 #endif /* QEMU_AUDIO_H */

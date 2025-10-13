@@ -217,6 +217,8 @@ struct SWVoiceCap {
 };
 
 typedef struct AudioState {
+    Object parent;
+
     struct audio_driver *drv;
     Audiodev *dev;
     void *drv_opaque;

@@ -1617,8 +1617,19 @@ static void audio_vm_change_state_handler (void *opaque, bool running,
     audio_reset_timer (s);
 }
 
-static void free_audio_state(AudioState *s)
+static void audio_state_init(Object *obj)
 {
+    AudioState *s = AUDIO_STATE(obj);
+
+    QLIST_INIT(&s->hw_head_out);
+    QLIST_INIT(&s->hw_head_in);
+    QLIST_INIT(&s->cap_head);
+    s->ts = timer_new_ns(QEMU_CLOCK_VIRTUAL, audio_timer, s);
+}
+
+static void audio_state_finalize(Object *obj)
+{
+    AudioState *s = AUDIO_STATE(obj);
     HWVoiceOut *hwo, *hwon;
     HWVoiceIn *hwi, *hwin;
 
@@ -1663,8 +1674,6 @@ static void free_audio_state(AudioState *s)
         timer_free(s->ts);
         s->ts = NULL;
     }
-
-    g_free(s);
 }
 
 void audio_cleanup(void)
@@ -1673,7 +1682,7 @@ void audio_cleanup(void)
     while (!QTAILQ_EMPTY(&audio_states)) {
         AudioState *s = QTAILQ_FIRST(&audio_states);
         QTAILQ_REMOVE(&audio_states, s, list);
-        free_audio_state(s);
+        object_unref(s);
     }
 }
 
@@ -1732,17 +1741,12 @@ static AudioState *audio_init(Audiodev *dev, Error **errp)
     AudioState *s;
     struct audio_driver *driver;
 
-    s = g_new0(AudioState, 1);
+    s = AUDIO_STATE(object_new(TYPE_AUDIO_STATE));
 
-    QLIST_INIT (&s->hw_head_out);
-    QLIST_INIT (&s->hw_head_in);
-    QLIST_INIT (&s->cap_head);
     if (!atexit_registered) {
         atexit(audio_cleanup);
         atexit_registered = true;
     }
-
-    s->ts = timer_new_ns(QEMU_CLOCK_VIRTUAL, audio_timer, s);
 
     if (dev) {
         /* -audiodev option */
@@ -1796,7 +1800,7 @@ static AudioState *audio_init(Audiodev *dev, Error **errp)
     return s;
 
 out:
-    free_audio_state(s);
+    object_unref(s);
     return NULL;
 }
 
@@ -2320,3 +2324,20 @@ AudiodevList *qmp_query_audiodevs(Error **errp)
     }
     return ret;
 }
+
+static const TypeInfo audio_state_info = {
+    .name = TYPE_AUDIO_STATE,
+    .parent = TYPE_OBJECT,
+    .instance_size = sizeof(AudioState),
+    .instance_init = audio_state_init,
+    .instance_finalize = audio_state_finalize,
+    .abstract = false, /* TODO: subclass drivers and make it abstract */
+    .class_size = sizeof(AudioStateClass),
+};
+
+static void register_types(void)
+{
+    type_register_static(&audio_state_info);
+}
+
+type_init(register_types);
