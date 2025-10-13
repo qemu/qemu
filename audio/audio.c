@@ -1582,6 +1582,13 @@ static bool audio_driver_init(AudioState *s, struct audio_driver *drv,
     audio_init_nb_voices_out(s, drv, 1);
     audio_init_nb_voices_in(s, drv, 0);
     s->drv = drv;
+
+    if (dev->timer_period <= 0) {
+        s->period_ticks = 1;
+    } else {
+        s->period_ticks = dev->timer_period * (int64_t)SCALE_US;
+    }
+
     return true;
 }
 
@@ -1766,12 +1773,6 @@ static AudioState *audio_init(Audiodev *dev, Error **errp)
             qapi_free_Audiodev(dev);
             s->dev = NULL;
         }
-    }
-
-    if (dev->timer_period <= 0) {
-        s->period_ticks = 1;
-    } else {
-        s->period_ticks = dev->timer_period * (int64_t)SCALE_US;
     }
 
     vmse = qemu_add_vm_change_state_handler (audio_vm_change_state_handler, s);
