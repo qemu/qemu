@@ -111,6 +111,7 @@ $(FUNCTIONAL_TARGETS): check-venv
 .PHONY: check-functional
 check-functional: check-venv
 	@$(NINJA) precache-functional
+	@$(PYTHON) $(SRC_PATH)/scripts/clean_functional_cache.py
 	@QEMU_TEST_NO_DOWNLOAD=1 $(MAKE) SPEED=thorough check-func check-func-quick
 
 .PHONY: check-func check-func-quick
