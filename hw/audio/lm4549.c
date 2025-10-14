@@ -308,7 +308,7 @@ void lm4549_init(lm4549_state *s, lm4549_callback data_req_cb, void* opaque,
         &as
     );
 
-    AUD_set_volume_out(s->voice, 0, 255, 255);
+    AUD_set_volume_out_lr(s->voice, 0, 255, 255);
 
     s->voice_is_active = 0;
 

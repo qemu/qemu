@@ -1949,13 +1949,7 @@ void AUD_del_capture (CaptureVoiceOut *cap, void *cb_opaque)
     }
 }
 
-void AUD_set_volume_out (SWVoiceOut *sw, int mute, uint8_t lvol, uint8_t rvol)
-{
-    Volume vol = { .mute = mute, .channels = 2, .vol = { lvol, rvol } };
-    audio_set_volume_out(sw, &vol);
-}
-
-void audio_set_volume_out(SWVoiceOut *sw, Volume *vol)
+void AUD_set_volume_out(SWVoiceOut *sw, Volume *vol)
 {
     if (sw) {
         HWVoiceOut *hw = sw->hw;
@@ -1971,13 +1965,7 @@ void audio_set_volume_out(SWVoiceOut *sw, Volume *vol)
     }
 }
 
-void AUD_set_volume_in (SWVoiceIn *sw, int mute, uint8_t lvol, uint8_t rvol)
-{
-    Volume vol = { .mute = mute, .channels = 2, .vol = { lvol, rvol } };
-    audio_set_volume_in(sw, &vol);
-}
-
-void audio_set_volume_in(SWVoiceIn *sw, Volume *vol)
+void AUD_set_volume_in(SWVoiceIn *sw, Volume *vol)
 {
     if (sw) {
         HWVoiceIn *hw = sw->hw;

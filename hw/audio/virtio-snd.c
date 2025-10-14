@@ -463,7 +463,7 @@ static uint32_t virtio_snd_pcm_prepare(VirtIOSound *s, uint32_t stream_id)
                                          stream,
                                          virtio_snd_pcm_out_cb,
                                          &as);
-        AUD_set_volume_out(stream->voice.out, 0, 255, 255);
+        AUD_set_volume_out_lr(stream->voice.out, 0, 255, 255);
     } else {
         stream->voice.in = AUD_open_in(&s->card,
                                         stream->voice.in,
@@ -471,7 +471,7 @@ static uint32_t virtio_snd_pcm_prepare(VirtIOSound *s, uint32_t stream_id)
                                         stream,
                                         virtio_snd_pcm_in_cb,
                                         &as);
-        AUD_set_volume_in(stream->voice.in, 0, 255, 255);
+        AUD_set_volume_in_lr(stream->voice.in, 0, 255, 255);
     }
 
     return cpu_to_le32(VIRTIO_SND_S_OK);

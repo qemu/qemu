@@ -805,7 +805,7 @@ static int usb_audio_set_control(USBAudioState *s, uint8_t attrib,
             }
             fprintf(stderr, "\n");
         }
-        audio_set_volume_out(s->out.voice, &s->out.vol);
+        AUD_set_volume_out(s->out.voice, &s->out.vol);
     }
 
     return ret;
@@ -981,7 +981,7 @@ static void usb_audio_reinit(USBDevice *dev, unsigned channels)
 
     s->out.voice = AUD_open_out(&s->card, s->out.voice, TYPE_USB_AUDIO,
                                 s, output_callback, &s->out.as);
-    audio_set_volume_out(s->out.voice, &s->out.vol);
+    AUD_set_volume_out(s->out.voice, &s->out.vol);
     AUD_set_active_out(s->out.voice, 0);
 }
 

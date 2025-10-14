@@ -119,9 +119,6 @@ int  AUD_is_active_out (SWVoiceOut *sw);
 void     AUD_init_time_stamp_out (SWVoiceOut *sw, QEMUAudioTimeStamp *ts);
 uint64_t AUD_get_elapsed_usec_out (SWVoiceOut *sw, QEMUAudioTimeStamp *ts);
 
-void AUD_set_volume_out (SWVoiceOut *sw, int mute, uint8_t lvol, uint8_t rvol);
-void AUD_set_volume_in (SWVoiceIn *sw, int mute, uint8_t lvol, uint8_t rvol);
-
 #define AUDIO_MAX_CHANNELS 16
 typedef struct Volume {
     bool mute;
@@ -129,8 +126,22 @@ typedef struct Volume {
     uint8_t vol[AUDIO_MAX_CHANNELS];
 } Volume;
 
-void audio_set_volume_out(SWVoiceOut *sw, Volume *vol);
-void audio_set_volume_in(SWVoiceIn *sw, Volume *vol);
+void AUD_set_volume_out(SWVoiceOut *sw, Volume *vol);
+void AUD_set_volume_in(SWVoiceIn *sw, Volume *vol);
+
+static inline void
+AUD_set_volume_out_lr(SWVoiceOut *sw, bool mut, uint8_t lvol, uint8_t rvol) {
+    AUD_set_volume_out(sw, &(Volume) {
+        .mute = mut, .channels = 2, .vol = { lvol, rvol }
+    });
+}
+
+static inline void
+AUD_set_volume_in_lr(SWVoiceIn *sw, bool mut, uint8_t lvol, uint8_t rvol) {
+    AUD_set_volume_in(sw, &(Volume) {
+        .mute = mut, .channels = 2, .vol = { lvol, rvol }
+    });
+}
 
 SWVoiceIn *AUD_open_in (
     QEMUSoundCard *card,

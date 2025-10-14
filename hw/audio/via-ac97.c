@@ -53,7 +53,7 @@ static void codec_volume_set_out(ViaAC97State *s)
     rvol /= 255;
     mute = CODEC_REG(s, AC97_Master_Volume_Mute) >> MUTE_SHIFT;
     mute |= CODEC_REG(s, AC97_PCM_Out_Volume_Mute) >> MUTE_SHIFT;
-    AUD_set_volume_out(s->vo, mute, lvol, rvol);
+    AUD_set_volume_out_lr(s->vo, mute, lvol, rvol);
 }
 
 static void codec_reset(ViaAC97State *s)

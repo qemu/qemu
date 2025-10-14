@@ -466,9 +466,9 @@ static void hda_audio_set_amp(HDAAudioStream *st)
         return;
     }
     if (st->output) {
-        AUD_set_volume_out(st->voice.out, muted, left, right);
+        AUD_set_volume_out_lr(st->voice.out, muted, left, right);
     } else {
-        AUD_set_volume_in(st->voice.in, muted, left, right);
+        AUD_set_volume_in_lr(st->voice.in, muted, left, right);
     }
 }
 

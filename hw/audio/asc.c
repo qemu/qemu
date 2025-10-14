@@ -489,7 +489,7 @@ static void asc_write(void *opaque, hwaddr addr, uint64_t value,
         {
             int vol = (value & 0xe0);
 
-            AUD_set_volume_out(s->voice, 0, vol, vol);
+            AUD_set_volume_out_lr(s->voice, 0, vol, vol);
             break;
         }
     }
