@@ -23,10 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/host-utils.h"
 #include "qemu/module.h"
-#include "qemu/timer.h"
-#include "qapi/opts-visitor.h"
 #include "audio.h"
 
 #define AUDIO_CAP "wav"

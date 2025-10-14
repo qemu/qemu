@@ -25,7 +25,6 @@
 #include "qemu/osdep.h"
 #include "audio.h"
 #include "migration/vmstate.h"
-#include "monitor/monitor.h"
 #include "qemu/timer.h"
 #include "qapi/error.h"
 #include "qapi/clone-visitor.h"
@@ -33,7 +32,6 @@
 #include "qapi/qapi-visit-audio.h"
 #include "qapi/qapi-commands-audio.h"
 #include "qobject/qdict.h"
-#include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -41,7 +39,6 @@
 #include "system/system.h"
 #include "system/replay.h"
 #include "system/runstate.h"
-#include "ui/qemu-spice.h"
 #include "trace.h"
 
 #define AUDIO_CAP "audio"

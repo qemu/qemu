@@ -23,10 +23,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/host-utils.h"
 #include "qemu/module.h"
 #include "audio.h"
-#include "qemu/timer.h"
 
 #define AUDIO_CAP "noaudio"
 #include "audio_int.h"

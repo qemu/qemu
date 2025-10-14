@@ -24,9 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "qemu/host-utils.h"
 #include "qemu/module.h"
-#include "qemu/timer.h"
 #include "qemu/dbus.h"
 
 #ifdef G_OS_UNIX

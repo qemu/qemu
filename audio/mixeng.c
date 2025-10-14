@@ -24,11 +24,13 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/bswap.h"
-#include "qemu/error-report.h"
 #include "audio.h"
 
 #define AUDIO_CAP "mixeng"
 #include "audio_int.h"
+#ifdef FLOAT_MIXENG
+#include "qemu/error-report.h"
+#endif
 
 /* 8 bit */
 #define ENDIAN_CONVERSION natural

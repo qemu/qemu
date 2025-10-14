@@ -31,7 +31,6 @@
 
 #define AUDIO_CAP "dsound"
 #include "audio_int.h"
-#include "qemu/host-utils.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
 
