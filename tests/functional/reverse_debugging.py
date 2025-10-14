@@ -96,7 +96,14 @@ class ReverseDebugging(LinuxKernelTest):
 
         try:
             self.log.info('Connecting to gdbstub...')
-            self.reverse_debugging_run(vm, port, gdb_arch, last_icount)
+            gdb_cmd = os.getenv('QEMU_TEST_GDB')
+            gdb = GDB(gdb_cmd)
+            try:
+                self.reverse_debugging_run(gdb, vm, port, gdb_arch, last_icount)
+            finally:
+                self.log.info('exiting gdb and qemu')
+                gdb.exit()
+                vm.shutdown()
             self.log.info('Test passed.')
         except GDB.TimeoutError:
             # Convert a GDB timeout exception into a unittest failure exception.
@@ -107,10 +114,7 @@ class ReverseDebugging(LinuxKernelTest):
             # skipTest(), etc.
             raise
 
-    def reverse_debugging_run(self, vm, port, gdb_arch, last_icount):
-        gdb_cmd = os.getenv('QEMU_TEST_GDB')
-        gdb = GDB(gdb_cmd)
-
+    def reverse_debugging_run(self, gdb, vm, port, gdb_arch, last_icount):
         r = gdb.cli("set architecture").get_log()
         if gdb_arch not in r:
             self.skipTest(f"GDB does not support arch '{gdb_arch}'")
@@ -191,7 +195,3 @@ class ReverseDebugging(LinuxKernelTest):
             self.fail("'reverse-continue' did not hit the first PC in reverse order!")
 
         self.log.info('successfully reached %x' % steps[-1])
-
-        self.log.info('exiting gdb and qemu')
-        gdb.exit()
-        vm.shutdown()
