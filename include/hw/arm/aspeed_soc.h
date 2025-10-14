@@ -153,30 +153,6 @@ struct Aspeed10x0SoCState {
     ARMv7MState armv7m;
 };
 
-struct Aspeed27x0SSPSoCState {
-    AspeedSoCState parent;
-    AspeedINTCState intc[2];
-    UnimplementedDeviceState ipc[2];
-    UnimplementedDeviceState scuio;
-
-    ARMv7MState armv7m;
-};
-
-#define TYPE_ASPEED27X0SSP_SOC "aspeed27x0ssp-soc"
-OBJECT_DECLARE_SIMPLE_TYPE(Aspeed27x0SSPSoCState, ASPEED27X0SSP_SOC)
-
-struct Aspeed27x0TSPSoCState {
-    AspeedSoCState parent;
-    AspeedINTCState intc[2];
-    UnimplementedDeviceState ipc[2];
-    UnimplementedDeviceState scuio;
-
-    ARMv7MState armv7m;
-};
-
-#define TYPE_ASPEED27X0TSP_SOC "aspeed27x0tsp-soc"
-OBJECT_DECLARE_SIMPLE_TYPE(Aspeed27x0TSPSoCState, ASPEED27X0TSP_SOC)
-
 #define TYPE_ASPEED10X0_SOC "aspeed10x0-soc"
 OBJECT_DECLARE_SIMPLE_TYPE(Aspeed10x0SoCState, ASPEED10X0_SOC)
 
@@ -198,11 +174,8 @@ struct AspeedSoCClass {
     const int *irqmap;
     const hwaddr *memmap;
     uint32_t num_cpus;
-    qemu_irq (*get_irq)(AspeedSoCState *s, int dev);
     bool (*boot_from_emmc)(AspeedSoCState *s);
 };
-
-const char *aspeed_soc_cpu_type(AspeedSoCClass *sc);
 
 enum {
     ASPEED_DEV_VBOOTROM,
@@ -304,12 +277,15 @@ enum {
     ASPEED_DEV_IPC1,
 };
 
-qemu_irq aspeed_soc_get_irq(AspeedSoCState *s, int dev);
-bool aspeed_soc_uart_realize(AspeedSoCState *s, Error **errp);
-void aspeed_soc_uart_set_chr(AspeedSoCState *s, int dev, Chardev *chr);
+const char *aspeed_soc_cpu_type(const char * const *valid_cpu_types);
+bool aspeed_soc_uart_realize(MemoryRegion *memory, SerialMM *smm,
+                             const hwaddr addr, Error **errp);
+void aspeed_soc_uart_set_chr(SerialMM *uart, int dev, int uarts_base,
+                             int uarts_num, Chardev *chr);
 bool aspeed_soc_dram_init(AspeedSoCState *s, Error **errp);
-void aspeed_mmio_map(AspeedSoCState *s, SysBusDevice *dev, int n, hwaddr addr);
-void aspeed_mmio_map_unimplemented(AspeedSoCState *s, SysBusDevice *dev,
+void aspeed_mmio_map(MemoryRegion *memory, SysBusDevice *dev, int n,
+                     hwaddr addr);
+void aspeed_mmio_map_unimplemented(MemoryRegion *memory, SysBusDevice *dev,
                                    const char *name, hwaddr addr,
                                    uint64_t size);
 void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
@@ -326,14 +302,14 @@ static inline int aspeed_uart_index(int uart_dev)
     return uart_dev - ASPEED_DEV_UART0;
 }
 
-static inline int aspeed_uart_first(AspeedSoCClass *sc)
+static inline int aspeed_uart_first(int uarts_base)
 {
-    return aspeed_uart_index(sc->uarts_base);
+    return aspeed_uart_index(uarts_base);
 }
 
-static inline int aspeed_uart_last(AspeedSoCClass *sc)
+static inline int aspeed_uart_last(int uarts_base, int uarts_num)
 {
-    return aspeed_uart_first(sc) + sc->uarts_num - 1;
+    return aspeed_uart_first(uarts_base) + uarts_num - 1;
 }
 
 #endif /* ASPEED_SOC_H */

@@ -37,26 +37,21 @@ class AST2x00MachineSDK(QemuSystemTest):
         wait_for_console_pattern(self, 'done')
         wait_for_console_pattern(self, 'Jumping to BL31 (Trusted Firmware-A)')
 
-    def verify_openbmc_boot_and_login(self, name):
+    def verify_openbmc_boot_start(self):
         wait_for_console_pattern(self, 'U-Boot 2023.10')
         wait_for_console_pattern(self, '## Loading kernel from FIT Image')
-        wait_for_console_pattern(self, 'Starting kernel ...')
+        wait_for_console_pattern(self, 'Linux version ')
+
+    def verify_openbmc_boot_and_login(self, name):
+        self.verify_openbmc_boot_start()
 
         wait_for_console_pattern(self, f'{name} login:')
         exec_command_and_wait_for_pattern(self, 'root', 'Password:')
         exec_command_and_wait_for_pattern(self, '0penBmc', f'root@{name}:~#')
 
-    ASSET_SDK_V906_AST2700 = Asset(
-            'https://github.com/AspeedTech-BMC/openbmc/releases/download/v09.06/ast2700-a0-default-obmc.tar.gz',
-            '7247b6f19dbfb700686f8d9f723ac23f3eb229226c0589cb9b06b80d1b61f3cb')
-
-    ASSET_SDK_V906_AST2700A1 = Asset(
-            'https://github.com/AspeedTech-BMC/openbmc/releases/download/v09.06/ast2700-default-obmc.tar.gz',
-            'f1d53e0be8a404ecce3e105f72bc50fa4e090ad13160ffa91b10a6e0233a9dc6')
-
-    ASSET_SDK_V907_AST2700A1_VBOOROM = Asset(
-            'https://github.com/AspeedTech-BMC/openbmc/releases/download/v09.07/ast2700-default-obmc.tar.gz',
-            '6e9e0c4b13e0f26040eca3f4a7f17cf09fc0f5c37c820500ff79370cc3c44add')
+    ASSET_SDK_V908_AST2700A1 = Asset(
+            'https://github.com/AspeedTech-BMC/openbmc/releases/download/v09.08/ast2700-default-obmc.tar.gz',
+            'eac3dc409b7ea3cd4b03d4792d3cebd469792ad893cb51e1d15f0fc20bd1e2cd')
 
     def do_ast2700_i2c_test(self):
         exec_command_and_wait_for_pattern(self,
@@ -68,6 +63,19 @@ class AST2x00MachineSDK(QemuSystemTest):
                     property='temperature', value=18000)
         exec_command_and_wait_for_pattern(self,
             'cat /sys/bus/i2c/devices/1-004d/hwmon/hwmon*/temp1_input', '18000')
+
+    def do_ast2700_pcie_test(self):
+        exec_command_and_wait_for_pattern(self,
+            'lspci -s 0002:00:00.0',
+            '0002:00:00.0 PCI bridge: '
+            'ASPEED Technology, Inc. AST1150 PCI-to-PCI Bridge')
+        exec_command_and_wait_for_pattern(self,
+            'lspci -s 0002:01:00.0',
+            '0002:01:00.0 Ethernet controller: '
+            'Intel Corporation 82574L Gigabit Network Connection')
+        exec_command_and_wait_for_pattern(self,
+            'ip addr show dev eth2',
+            'inet 10.0.2.15/24')
 
     def start_ast2700_test(self, name):
         num_cpu = 4
@@ -115,30 +123,28 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.do_test_aarch64_aspeed_sdk_start(
                 self.scratch_file(name, 'image-bmc'))
 
-    def test_aarch64_ast2700a0_evb_sdk_v09_06(self):
-        self.set_machine('ast2700a0-evb')
-
-        self.archive_extract(self.ASSET_SDK_V906_AST2700)
-        self.start_ast2700_test('ast2700-a0-default')
-        self.verify_openbmc_boot_and_login('ast2700-a0-default')
-        self.do_ast2700_i2c_test()
-
-    def test_aarch64_ast2700a1_evb_sdk_v09_06(self):
+    def test_aarch64_ast2700a1_evb_sdk_v09_08(self):
         self.set_machine('ast2700a1-evb')
+        self.require_netdev('user')
 
-        self.archive_extract(self.ASSET_SDK_V906_AST2700A1)
+        self.archive_extract(self.ASSET_SDK_V908_AST2700A1)
+        self.vm.add_args('-device', 'e1000e,netdev=net1,bus=pcie.2')
+        self.vm.add_args('-netdev', 'user,id=net1')
         self.start_ast2700_test('ast2700-default')
         self.verify_openbmc_boot_and_login('ast2700-default')
         self.do_ast2700_i2c_test()
+        self.do_ast2700_pcie_test()
 
-    def test_aarch64_ast2700a1_evb_sdk_vbootrom_v09_07(self):
+    def test_aarch64_ast2700a1_evb_sdk_vbootrom_v09_08(self):
         self.set_machine('ast2700a1-evb')
+        self.require_netdev('user')
 
-        self.archive_extract(self.ASSET_SDK_V907_AST2700A1_VBOOROM)
+        self.archive_extract(self.ASSET_SDK_V908_AST2700A1)
+        self.vm.add_args('-device', 'e1000e,netdev=net1,bus=pcie.2')
+        self.vm.add_args('-netdev', 'user,id=net1')
         self.start_ast2700_test_vbootrom('ast2700-default')
         self.verify_vbootrom_firmware_flow()
-        self.verify_openbmc_boot_and_login('ast2700-default')
-        self.do_ast2700_i2c_test()
+        self.verify_openbmc_boot_start()
 
 if __name__ == '__main__':
     QemuSystemTest.main()

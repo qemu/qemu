@@ -21,7 +21,7 @@
 #include "hw/loader.h"
 #include "hw/arm/boot.h"
 #include "hw/block/flash.h"
-
+#include "hw/arm/aspeed_coprocessor.h"
 
 #define TYPE_AST2700A1FC MACHINE_TYPE_NAME("ast2700fc")
 OBJECT_DECLARE_SIMPLE_TYPE(Ast2700FCState, AST2700A1FC);
@@ -42,8 +42,8 @@ struct Ast2700FCState {
     Clock *tsp_sysclk;
 
     Aspeed27x0SoCState ca35;
-    Aspeed27x0SSPSoCState ssp;
-    Aspeed27x0TSPSoCState tsp;
+    Aspeed27x0CoprocessorState ssp;
+    Aspeed27x0CoprocessorState tsp;
 
     bool mmio_exec;
 };
@@ -91,7 +91,8 @@ static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
                             AST2700FC_HW_STRAP1, &error_abort);
     object_property_set_int(OBJECT(&s->ca35), "hw-strap2",
                             AST2700FC_HW_STRAP2, &error_abort);
-    aspeed_soc_uart_set_chr(soc, ASPEED_DEV_UART12, serial_hd(0));
+    aspeed_soc_uart_set_chr(soc->uart, ASPEED_DEV_UART12, sc->uarts_base,
+                            sc->uarts_num, serial_hd(0));
     if (!qdev_realize(DEVICE(&s->ca35), NULL, errp)) {
         return false;
     }
@@ -114,12 +115,14 @@ static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
 
 static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
 {
-    AspeedSoCState *soc;
+    AspeedCoprocessorState *soc;
+    AspeedCoprocessorClass *sc;
     Ast2700FCState *s = AST2700A1FC(machine);
     s->ssp_sysclk = clock_new(OBJECT(s), "SSP_SYSCLK");
     clock_set_hz(s->ssp_sysclk, 200000000ULL);
 
-    object_initialize_child(OBJECT(s), "ssp", &s->ssp, TYPE_ASPEED27X0SSP_SOC);
+    object_initialize_child(OBJECT(s), "ssp", &s->ssp,
+                            TYPE_ASPEED27X0SSP_COPROCESSOR);
     memory_region_init(&s->ssp_memory, OBJECT(&s->ssp), "ssp-memory",
                        UINT64_MAX);
 
@@ -127,8 +130,10 @@ static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
     object_property_set_link(OBJECT(&s->ssp), "memory",
                              OBJECT(&s->ssp_memory), &error_abort);
 
-    soc = ASPEED_SOC(&s->ssp);
-    aspeed_soc_uart_set_chr(soc, ASPEED_DEV_UART4, serial_hd(1));
+    soc = ASPEED_COPROCESSOR(&s->ssp);
+    sc = ASPEED_COPROCESSOR_GET_CLASS(soc);
+    aspeed_soc_uart_set_chr(soc->uart, ASPEED_DEV_UART4, sc->uarts_base,
+                            sc->uarts_num, serial_hd(1));
     if (!qdev_realize(DEVICE(&s->ssp), NULL, errp)) {
         return false;
     }
@@ -138,12 +143,14 @@ static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
 
 static bool ast2700fc_tsp_init(MachineState *machine, Error **errp)
 {
-    AspeedSoCState *soc;
+    AspeedCoprocessorState *soc;
+    AspeedCoprocessorClass *sc;
     Ast2700FCState *s = AST2700A1FC(machine);
     s->tsp_sysclk = clock_new(OBJECT(s), "TSP_SYSCLK");
     clock_set_hz(s->tsp_sysclk, 200000000ULL);
 
-    object_initialize_child(OBJECT(s), "tsp", &s->tsp, TYPE_ASPEED27X0TSP_SOC);
+    object_initialize_child(OBJECT(s), "tsp", &s->tsp,
+                            TYPE_ASPEED27X0TSP_COPROCESSOR);
     memory_region_init(&s->tsp_memory, OBJECT(&s->tsp), "tsp-memory",
                        UINT64_MAX);
 
@@ -151,8 +158,10 @@ static bool ast2700fc_tsp_init(MachineState *machine, Error **errp)
     object_property_set_link(OBJECT(&s->tsp), "memory",
                              OBJECT(&s->tsp_memory), &error_abort);
 
-    soc = ASPEED_SOC(&s->tsp);
-    aspeed_soc_uart_set_chr(soc, ASPEED_DEV_UART7, serial_hd(2));
+    soc = ASPEED_COPROCESSOR(&s->tsp);
+    sc = ASPEED_COPROCESSOR_GET_CLASS(soc);
+    aspeed_soc_uart_set_chr(soc->uart, ASPEED_DEV_UART7, sc->uarts_base,
+                            sc->uarts_num, serial_hd(2));
     if (!qdev_realize(DEVICE(&s->tsp), NULL, errp)) {
         return false;
     }
