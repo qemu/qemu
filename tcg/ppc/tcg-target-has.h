@@ -17,12 +17,9 @@
 #define have_vsx       (cpuinfo & CPUINFO_VSX)
 
 /* optional instructions */
-#if TCG_TARGET_REG_BITS == 64
 #define TCG_TARGET_HAS_extr_i64_i32     0
-#endif
 
-#define TCG_TARGET_HAS_qemu_ldst_i128   \
-    (TCG_TARGET_REG_BITS == 64 && have_isa_2_07)
+#define TCG_TARGET_HAS_qemu_ldst_i128   have_isa_2_07
 
 #define TCG_TARGET_HAS_tst              1
 

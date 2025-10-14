@@ -7,10 +7,10 @@
 #ifndef TCG_TARGET_REG_BITS_H
 #define TCG_TARGET_REG_BITS_H
 
-#ifdef _ARCH_PPC64
-# define TCG_TARGET_REG_BITS  64
-#else
-# define TCG_TARGET_REG_BITS  32
+#ifndef _ARCH_PPC64
+# error Expecting 64-bit host architecture
 #endif
+
+#define TCG_TARGET_REG_BITS  64
 
 #endif
