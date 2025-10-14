@@ -29,11 +29,18 @@
 #define FLOAT_MIXENG
 /* #define RECIPROCAL */
 #endif
+#include "audio.h"
 #include "mixeng.h"
 
 #ifdef CONFIG_GIO
 #include <gio/gio.h>
 #endif
+
+void G_GNUC_PRINTF(2, 0)
+AUD_vlog(const char *cap, const char *fmt, va_list ap);
+
+void G_GNUC_PRINTF(2, 3)
+AUD_log(const char *cap, const char *fmt, ...);
 
 struct audio_pcm_ops;
 
@@ -186,6 +193,23 @@ struct audio_pcm_ops {
     void   (*enable_in)(HWVoiceIn *hw, bool enable);
     void   (*volume_in)(HWVoiceIn *hw, Volume *vol);
 };
+
+audsettings audiodev_to_audsettings(AudiodevPerDirectionOptions *pdo);
+int audioformat_bytes_per_sample(AudioFormat fmt);
+int audio_buffer_frames(AudiodevPerDirectionOptions *pdo,
+                        audsettings *as, int def_usecs);
+int audio_buffer_samples(AudiodevPerDirectionOptions *pdo,
+                         audsettings *as, int def_usecs);
+int audio_buffer_bytes(AudiodevPerDirectionOptions *pdo,
+                       audsettings *as, int def_usecs);
+
+static inline void *advance(void *p, size_t incr)
+{
+    return (uint8_t *)p + incr;
+}
+
+int wav_start_capture(AudioState *state, CaptureState *s, const char *path,
+                      int freq, int bits, int nchannels);
 
 void audio_generic_run_buffer_in(HWVoiceIn *hw);
 void *audio_generic_get_buffer_in(HWVoiceIn *hw, size_t *size);

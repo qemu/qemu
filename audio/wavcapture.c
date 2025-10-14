@@ -1,7 +1,7 @@
 #include "qemu/osdep.h"
 #include "qemu/qemu-print.h"
 #include "qemu/error-report.h"
-#include "audio.h"
+#include "audio_int.h"
 
 typedef struct {
     FILE *f;
