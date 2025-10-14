@@ -16,6 +16,7 @@
 #include "qapi/qapi-types-run-state.h"
 #include "qapi/qapi-types-ui.h"
 #include "block/aio.h"
+#include "audio/audio.h"
 
 /* replay clock kinds */
 enum ReplayClockKind {
@@ -165,7 +166,7 @@ void replay_net_packet_event(ReplayNetState *rns, unsigned flags,
 /*! Saves/restores number of played samples of audio out operation. */
 void replay_audio_out(size_t *played);
 /*! Saves/restores recorded samples of audio in operation. */
-void replay_audio_in(size_t *recorded, void *samples, size_t *wpos, size_t size);
+void replay_audio_in(size_t *recorded, st_sample *samples, size_t *wpos, size_t size);
 
 /* VM state operations */
 

@@ -171,9 +171,11 @@ int wav_start_capture(AudioState *state, CaptureState *s, const char *path,
 
 void audio_cleanup(void);
 
-void audio_sample_to_uint64(const void *samples, int pos,
+typedef struct st_sample st_sample;
+
+void audio_sample_to_uint64(const st_sample *sample, int pos,
                             uint64_t *left, uint64_t *right);
-void audio_sample_from_uint64(void *samples, int pos,
+void audio_sample_from_uint64(st_sample *sample, int pos,
                             uint64_t left, uint64_t right);
 
 void audio_add_audiodev(Audiodev *audio);
