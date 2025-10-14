@@ -23,14 +23,19 @@ int page_get_flags(vaddr address);
  * page_set_flags:
  * @start: first byte of range
  * @last: last byte of range
- * @flags: flags to set
+ * @set_flags: flags to set
+ * @clr_flags: flags to clear
  * Context: holding mmap lock
  *
  * Modify the flags of a page and invalidate the code if necessary.
  * The flag PAGE_WRITE_ORG is positioned automatically depending
  * on PAGE_WRITE.  The mmap_lock should already be held.
+ *
+ * For each page, flags = (flags & ~clr_flags) | set_flags.
+ * If clr_flags includes PAGE_VALID, this indicates a new mapping
+ * and page_reset_target_data will be called as well.
  */
-void page_set_flags(vaddr start, vaddr last, int flags);
+void page_set_flags(vaddr start, vaddr last, int set_flags, int clr_flags);
 
 void page_reset_target_data(vaddr start, vaddr last);
 

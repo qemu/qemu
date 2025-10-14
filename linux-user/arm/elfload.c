@@ -243,7 +243,7 @@ bool init_guest_commpage(void)
     }
 
     page_set_flags(commpage, commpage | (host_page_size - 1),
-                   PAGE_READ | PAGE_EXEC | PAGE_VALID);
+                   PAGE_READ | PAGE_EXEC | PAGE_VALID, PAGE_VALID);
     return true;
 }
 

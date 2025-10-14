@@ -2642,7 +2642,6 @@ extern const uint64_t pred_esz_masks[5];
  */
 #define PAGE_BTI            PAGE_TARGET_1
 #define PAGE_MTE            PAGE_TARGET_2
-#define PAGE_TARGET_STICKY  PAGE_MTE
 
 /* We associate one allocation tag per 16 bytes, the minimum.  */
 #define LOG2_TAG_GRANULE 4

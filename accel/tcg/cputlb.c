@@ -1742,6 +1742,7 @@ static bool mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
                        uintptr_t ra, MMUAccessType type, MMULookupLocals *l)
 {
     bool crosspage;
+    vaddr last;
     int flags;
 
     l->memop = get_memop(oi);
@@ -1751,13 +1752,15 @@ static bool mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
 
     l->page[0].addr = addr;
     l->page[0].size = memop_size(l->memop);
-    l->page[1].addr = (addr + l->page[0].size - 1) & TARGET_PAGE_MASK;
+    l->page[1].addr = 0;
     l->page[1].size = 0;
-    crosspage = (addr ^ l->page[1].addr) & TARGET_PAGE_MASK;
 
+    /* Lookup and recognize exceptions from the first page. */
+    mmu_lookup1(cpu, &l->page[0], l->memop, l->mmu_idx, type, ra);
+
+    last = addr + l->page[0].size - 1;
+    crosspage = (addr ^ last) & TARGET_PAGE_MASK;
     if (likely(!crosspage)) {
-        mmu_lookup1(cpu, &l->page[0], l->memop, l->mmu_idx, type, ra);
-
         flags = l->page[0].flags;
         if (unlikely(flags & (TLB_WATCHPOINT | TLB_NOTDIRTY))) {
             mmu_watch_or_dirty(cpu, &l->page[0], type, ra);
@@ -1767,18 +1770,18 @@ static bool mmu_lookup(CPUState *cpu, vaddr addr, MemOpIdx oi,
         }
     } else {
         /* Finish compute of page crossing. */
-        int size0 = l->page[1].addr - addr;
+        vaddr addr1 = last & TARGET_PAGE_MASK;
+        int size0 = addr1 - addr;
         l->page[1].size = l->page[0].size - size0;
         l->page[0].size = size0;
-
         l->page[1].addr = cpu->cc->tcg_ops->pointer_wrap(cpu, l->mmu_idx,
-                                                         l->page[1].addr, addr);
+                                                         addr1, addr);
 
         /*
-         * Lookup both pages, recognizing exceptions from either.  If the
-         * second lookup potentially resized, refresh first CPUTLBEntryFull.
+         * Lookup and recognize exceptions from the second page.
+         * If the lookup potentially resized the table, refresh the
+         * first CPUTLBEntryFull pointer.
          */
-        mmu_lookup1(cpu, &l->page[0], l->memop, l->mmu_idx, type, ra);
         if (mmu_lookup1(cpu, &l->page[1], 0, l->mmu_idx, type, ra)) {
             uintptr_t index = tlb_index(cpu, l->mmu_idx, addr);
             l->page[0].full = &cpu->neg.tlb.d[l->mmu_idx].fulltlb[index];
