@@ -36,14 +36,13 @@ class ReverseDebugging(LinuxKernelTest):
     STEPS = 10
 
     def run_vm(self, record, shift, args, replay_path, image_path, port):
-        logger = logging.getLogger('replay')
         vm = self.get_vm(name='record' if record else 'replay')
         vm.set_console()
         if record:
-            logger.info('recording the execution...')
+            self.log.info('recording the execution...')
             mode = 'record'
         else:
-            logger.info('replaying the execution...')
+            self.log.info('replaying the execution...')
             mode = 'replay'
             vm.add_args('-gdb', 'tcp::%d' % port, '-S')
         vm.add_args('-icount', 'shift=%s,rr=%s,rrfile=%s,rrsnapshot=init' %
@@ -68,10 +67,8 @@ class ReverseDebugging(LinuxKernelTest):
     def reverse_debugging(self, gdb_arch, shift=7, args=None):
         from qemu_test import GDB
 
-        logger = logging.getLogger('replay')
-
         # create qcow2 for snapshots
-        logger.info('creating qcow2 image for VM snapshots')
+        self.log.info('creating qcow2 image for VM snapshots')
         image_path = os.path.join(self.workdir, 'disk.qcow2')
         qemu_img = get_qemu_img(self)
         if qemu_img is None:
@@ -79,7 +76,7 @@ class ReverseDebugging(LinuxKernelTest):
                           'create the temporary qcow2 image')
         out = check_output([qemu_img, 'create', '-f', 'qcow2', image_path, '128M'],
                            encoding='utf8')
-        logger.info("qemu-img: %s" % out)
+        self.log.info("qemu-img: %s" % out)
 
         replay_path = os.path.join(self.workdir, 'replay.bin')
 
@@ -90,7 +87,7 @@ class ReverseDebugging(LinuxKernelTest):
         last_icount = self.vm_get_icount(vm)
         vm.shutdown()
 
-        logger.info("recorded log with %s+ steps" % last_icount)
+        self.log.info("recorded log with %s+ steps" % last_icount)
 
         # replay and run debug commands
         with Ports() as ports:
@@ -98,9 +95,9 @@ class ReverseDebugging(LinuxKernelTest):
             vm = self.run_vm(False, shift, args, replay_path, image_path, port)
 
         try:
-            logger.info('Connecting to gdbstub...')
+            self.log.info('Connecting to gdbstub...')
             self.reverse_debugging_run(vm, port, gdb_arch, last_icount)
-            logger.info('Test passed.')
+            self.log.info('Test passed.')
         except GDB.TimeoutError:
             # Convert a GDB timeout exception into a unittest failure exception.
             raise self.failureException("Timeout while connecting to or "
@@ -111,8 +108,6 @@ class ReverseDebugging(LinuxKernelTest):
             raise
 
     def reverse_debugging_run(self, vm, port, gdb_arch, last_icount):
-        logger = logging.getLogger('replay')
-
         gdb_cmd = os.getenv('QEMU_TEST_GDB')
         gdb = GDB(gdb_cmd)
 
@@ -135,43 +130,43 @@ class ReverseDebugging(LinuxKernelTest):
 
         gdb.cli("set debug remote 0")
 
-        logger.info('stepping forward')
+        self.log.info('stepping forward')
         steps = []
         # record first instruction addresses
         for _ in range(self.STEPS):
             pc = self.get_pc(gdb)
-            logger.info('saving position %x' % pc)
+            self.log.info('saving position %x' % pc)
             steps.append(pc)
             gdb.cli("stepi")
 
         # visit the recorded instruction in reverse order
-        logger.info('stepping backward')
+        self.log.info('stepping backward')
         for addr in steps[::-1]:
-            logger.info('found position %x' % addr)
+            self.log.info('found position %x' % addr)
             gdb.cli("reverse-stepi")
             pc = self.get_pc(gdb)
             if pc != addr:
-                logger.info('Invalid PC (read %x instead of %x)' % (pc, addr))
+                self.log.info('Invalid PC (read %x instead of %x)' % (pc, addr))
                 self.fail('Reverse stepping failed!')
 
         # visit the recorded instruction in forward order
-        logger.info('stepping forward')
+        self.log.info('stepping forward')
         for addr in steps:
-            logger.info('found position %x' % addr)
+            self.log.info('found position %x' % addr)
             pc = self.get_pc(gdb)
             if pc != addr:
-                logger.info('Invalid PC (read %x instead of %x)' % (pc, addr))
+                self.log.info('Invalid PC (read %x instead of %x)' % (pc, addr))
                 self.fail('Forward stepping failed!')
             gdb.cli("stepi")
 
         # set breakpoints for the instructions just stepped over
-        logger.info('setting breakpoints')
+        self.log.info('setting breakpoints')
         for addr in steps:
             gdb.cli(f"break *{hex(addr)}")
 
         # this may hit a breakpoint if first instructions are executed
         # again
-        logger.info('continuing execution')
+        self.log.info('continuing execution')
         vm.qmp('replay-break', icount=last_icount - 1)
         # continue - will return after pausing
         # This can stop at the end of the replay-break and gdb gets a SIGINT,
@@ -180,12 +175,12 @@ class ReverseDebugging(LinuxKernelTest):
         gdb.cli("continue")
 
         if self.vm_get_icount(vm) == last_icount - 1:
-            logger.info('reached the end (icount %s)' % (last_icount - 1))
+            self.log.info('reached the end (icount %s)' % (last_icount - 1))
         else:
-            logger.info('hit a breakpoint again at %x (icount %s)' %
+            self.log.info('hit a breakpoint again at %x (icount %s)' %
                         (self.get_pc(gdb), self.vm_get_icount(vm)))
 
-        logger.info('running reverse continue to reach %x' % steps[-1])
+        self.log.info('running reverse continue to reach %x' % steps[-1])
         # reverse continue - will return after stopping at the breakpoint
         gdb.cli("reverse-continue")
 
@@ -195,8 +190,8 @@ class ReverseDebugging(LinuxKernelTest):
         if pc != steps[-1]:
             self.fail("'reverse-continue' did not hit the first PC in reverse order!")
 
-        logger.info('successfully reached %x' % steps[-1])
+        self.log.info('successfully reached %x' % steps[-1])
 
-        logger.info('exiting gdb and qemu')
+        self.log.info('exiting gdb and qemu')
         gdb.exit()
         vm.shutdown()
