@@ -56,30 +56,55 @@
   'features': [ 'unstable' ] }
 
 ##
-# @MshvInfo:
+# @Accelerator:
 #
 # Information about support for MSHV acceleration
 #
-# @enabled: true if MSHV acceleration is active
+# @hvf: Apple Hypervisor.framework
 #
-# @present: true if MSHV acceleration is built into this executable
+# @kvm: KVM
+#
+# @mshv: Hyper-V
+#
+# @nvmm: NetBSD NVMM
+#
+# @qtest: QTest (dummy accelerator)
+#
+# @tcg: TCG (dynamic translation)
+#
+# @whpx: Windows Hypervisor Platform
+#
+# @xen: Xen
 #
 # Since: 10.2.0
 ##
-{ 'struct': 'MshvInfo', 'data': {'enabled': 'bool', 'present': 'bool'} }
+{ 'enum': 'Accelerator', 'data': ['hvf', 'kvm', 'mshv', 'nvmm', 'qtest', 'tcg', 'whpx', 'xen'] }
 
 ##
-# @query-mshv:
+# @AcceleratorInfo:
 #
-# Return information about MSHV acceleration
+# Information about support for various accelerators
 #
-# Returns: @MshvInfo
+# @enabled: the accelerator that is in use
 #
-# Since: 10.0.92
+# @present: the list of accelerators that are built into this executable
+#
+# Since: 10.2.0
+##
+{ 'struct': 'AcceleratorInfo', 'data': {'enabled': 'Accelerator', 'present': ['Accelerator']} }
+
+##
+# @query-accelerators:
+#
+# Return information about accelerators
+#
+# Returns: @AcceleratorInfo
+#
+# Since: 10.2.0
 #
 # .. qmp-example::
 #
-#     -> { "execute": "query-mshv" }
-#     <- { "return": { "enabled": true, "present": true } }
+#     -> { "execute": "query-accelerators" }
+#     <- { "return": { "enabled": "mshv", "present": ["kvm", "mshv", "qtest", "tcg"] } }
 ##
-{ 'command': 'query-mshv', 'returns': 'MshvInfo' }
+{ 'command': 'query-accelerators', 'returns': 'AcceleratorInfo' }

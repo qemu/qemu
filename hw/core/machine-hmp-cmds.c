@@ -163,19 +163,22 @@ void hmp_info_kvm(Monitor *mon, const QDict *qdict)
     qapi_free_KvmInfo(info);
 }
 
-void hmp_info_mshv(Monitor *mon, const QDict *qdict)
+void hmp_info_accelerators(Monitor *mon, const QDict *qdict)
 {
-    MshvInfo *info;
+    AcceleratorInfo *info;
+    AcceleratorList *accel;
 
-    info = qmp_query_mshv(NULL);
-    monitor_printf(mon, "mshv support: ");
-    if (info->present) {
-        monitor_printf(mon, "%s\n", info->enabled ? "enabled" : "disabled");
-    } else {
-        monitor_printf(mon, "not compiled\n");
+    info = qmp_query_accelerators(NULL);
+    for (accel = info->present; accel; accel = accel->next) {
+        char trail = accel->next ? ' ' : '\n';
+        if (info->enabled == accel->value) {
+            monitor_printf(mon, "[%s]%c", Accelerator_str(accel->value), trail);
+        } else {
+            monitor_printf(mon, "%s%c", Accelerator_str(accel->value), trail);
+        }
     }
 
-    qapi_free_MshvInfo(info);
+    qapi_free_AcceleratorInfo(info);
 }
 
 void hmp_info_uuid(Monitor *mon, const QDict *qdict)

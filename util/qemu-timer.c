@@ -89,7 +89,7 @@ static inline QEMUClock *qemu_clock_ptr(QEMUClockType type)
     return &qemu_clocks[type];
 }
 
-static bool timer_expired_ns(QEMUTimer *timer_head, int64_t current_time)
+static bool timer_expired_ns(const QEMUTimer *timer_head, int64_t current_time)
 {
     return timer_head && (timer_head->expire_time <= current_time);
 }
@@ -475,12 +475,12 @@ void timer_mod_anticipate(QEMUTimer *ts, int64_t expire_time)
     timer_mod_anticipate_ns(ts, expire_time * ts->scale);
 }
 
-bool timer_pending(QEMUTimer *ts)
+bool timer_pending(const QEMUTimer *ts)
 {
     return ts->expire_time >= 0;
 }
 
-bool timer_expired(QEMUTimer *timer_head, int64_t current_time)
+bool timer_expired(const QEMUTimer *timer_head, int64_t current_time)
 {
     return timer_expired_ns(timer_head, current_time * timer_head->scale);
 }
@@ -649,7 +649,7 @@ void init_clocks(QEMUTimerListNotifyCB *notify_cb)
 #endif
 }
 
-uint64_t timer_expire_time_ns(QEMUTimer *ts)
+uint64_t timer_expire_time_ns(const QEMUTimer *ts)
 {
     return timer_pending(ts) ? ts->expire_time : -1;
 }

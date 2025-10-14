@@ -72,6 +72,7 @@ macro_rules! call_func_with_field {
     ($func:expr, $typ:ty, $($field:tt).+) => {
         $func(loop {
             #![allow(unreachable_code)]
+            #![allow(unused_variables)]
             const fn phantom__<T>(_: &T) -> ::core::marker::PhantomData<T> { ::core::marker::PhantomData }
             // Unreachable code is exempt from checks on uninitialized values.
             // Use that trick to infer the type of this PhantomData.
@@ -275,6 +276,8 @@ macro_rules! impl_vmstate_transparent {
     };
 }
 
+impl_vmstate_transparent!(bql::BqlCell<T> where T: VMState);
+impl_vmstate_transparent!(bql::BqlRefCell<T> where T: VMState);
 impl_vmstate_transparent!(std::cell::Cell<T> where T: VMState);
 impl_vmstate_transparent!(std::cell::UnsafeCell<T> where T: VMState);
 impl_vmstate_transparent!(std::pin::Pin<T> where T: VMState);
@@ -292,6 +295,25 @@ macro_rules! impl_vmstate_bitsized {
                                         <<<$type as ::bilge::prelude::Bitsized>::ArbitraryInt
                                           as ::bilge::prelude::Number>::UnderlyingType
                                          as $crate::vmstate::VMState>::VARRAY_FLAG;
+        }
+
+        impl $crate::migratable::ToMigrationState for $type {
+            type Migrated = <<$type as ::bilge::prelude::Bitsized>::ArbitraryInt
+                                          as ::bilge::prelude::Number>::UnderlyingType;
+
+            fn snapshot_migration_state(&self, target: &mut Self::Migrated) -> Result<(), $crate::InvalidError> {
+                *target = Self::Migrated::from(*self);
+                Ok(())
+            }
+
+            fn restore_migrated_state_mut(
+                &mut self,
+                source: Self::Migrated,
+                version_id: u8,
+            ) -> Result<(), $crate::InvalidError> {
+                *self = Self::from(source);
+                Ok(())
+            }
         }
     };
 }
@@ -411,20 +433,31 @@ macro_rules! vmstate_exist_fn {
     }};
 }
 
+/// Add a terminator to the fields in the arguments, and return
+/// a reference to the resulting array of values.
+#[macro_export]
+macro_rules! vmstate_fields_ref {
+    ($($field:expr),*$(,)*) => {
+        &[
+            $($field),*,
+            $crate::bindings::VMStateField {
+                flags: $crate::bindings::VMStateFlags::VMS_END,
+                ..::common::zeroable::Zeroable::ZERO
+            }
+        ]
+    }
+}
+
 /// Helper macro to declare a list of
 /// ([`VMStateField`](`crate::bindings::VMStateField`)) into a static and return
 /// a pointer to the array of values it created.
 #[macro_export]
 macro_rules! vmstate_fields {
     ($($field:expr),*$(,)*) => {{
-        static _FIELDS: &[$crate::bindings::VMStateField] = &[
+        static _FIELDS: &[$crate::bindings::VMStateField] = $crate::vmstate_fields_ref!(
             $($field),*,
-            $crate::bindings::VMStateField {
-                flags: $crate::bindings::VMStateFlags::VMS_END,
-                ..::common::zeroable::Zeroable::ZERO
-            }
-        ];
-        _FIELDS.as_ptr()
+        );
+        _FIELDS
     }}
 }
 
@@ -469,33 +502,21 @@ macro_rules! impl_vmstate_struct {
     };
 }
 
-/// A transparent wrapper type for the `subsections` field of
-/// [`VMStateDescription`].
-///
-/// This is necessary to be able to declare subsection descriptions as statics,
-/// because the only way to implement `Sync` for a foreign type (and `*const`
-/// pointers are foreign types in Rust) is to create a wrapper struct and
-/// `unsafe impl Sync` for it.
-///
-/// This struct is used in the
-/// [`vm_state_subsections`](crate::vmstate_subsections) macro implementation.
-#[repr(transparent)]
-pub struct VMStateSubsectionsWrapper(pub &'static [*const crate::bindings::VMStateDescription]);
-
-unsafe impl Sync for VMStateSubsectionsWrapper {}
+/// The type returned by [`vmstate_subsections!`](crate::vmstate_subsections).
+pub type VMStateSubsections = &'static [Option<&'static crate::bindings::VMStateDescription>];
 
 /// Helper macro to declare a list of subsections ([`VMStateDescription`])
 /// into a static and return a pointer to the array of pointers it created.
 #[macro_export]
 macro_rules! vmstate_subsections {
     ($($subsection:expr),*$(,)*) => {{
-        static _SUBSECTIONS: $crate::vmstate::VMStateSubsectionsWrapper = $crate::vmstate::VMStateSubsectionsWrapper(&[
+        static _SUBSECTIONS: $crate::vmstate::VMStateSubsections = &[
             $({
                 static _SUBSECTION: $crate::bindings::VMStateDescription = $subsection.get();
-                ::core::ptr::addr_of!(_SUBSECTION)
+                Some(&_SUBSECTION)
             }),*,
-            ::core::ptr::null()
-        ]);
+            None,
+        ];
         &_SUBSECTIONS
     }}
 }
@@ -676,14 +697,21 @@ impl<T> VMStateDescriptionBuilder<T> {
     }
 
     #[must_use]
-    pub const fn fields(mut self, fields: *const VMStateField) -> Self {
-        self.0.fields = fields;
+    pub const fn fields(mut self, fields: &'static [VMStateField]) -> Self {
+        if fields[fields.len() - 1].flags.0 != VMStateFlags::VMS_END.0 {
+            panic!("fields are not terminated, use vmstate_fields!");
+        }
+        self.0.fields = fields.as_ptr();
         self
     }
 
     #[must_use]
-    pub const fn subsections(mut self, subs: &'static VMStateSubsectionsWrapper) -> Self {
-        self.0.subsections = subs.0.as_ptr();
+    pub const fn subsections(mut self, subs: &'static VMStateSubsections) -> Self {
+        if subs[subs.len() - 1].is_some() {
+            panic!("subsections are not terminated, use vmstate_subsections!");
+        }
+        let subs: *const Option<&bindings::VMStateDescription> = subs.as_ptr();
+        self.0.subsections = subs.cast::<*const bindings::VMStateDescription>();
         self
     }
 

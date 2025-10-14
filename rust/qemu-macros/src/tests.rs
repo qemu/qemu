@@ -7,7 +7,7 @@ use quote::quote;
 use super::*;
 
 macro_rules! derive_compile_fail {
-    ($derive_fn:ident, $input:expr, $($error_msg:expr),+ $(,)?) => {{
+    ($derive_fn:path, $input:expr, $($error_msg:expr),+ $(,)?) => {{
         let input: proc_macro2::TokenStream = $input;
         let error_msg = &[$( quote! { ::core::compile_error! { $error_msg } } ),*];
         let derive_fn: fn(input: syn::DeriveInput) -> Result<proc_macro2::TokenStream, syn::Error> =
@@ -24,7 +24,7 @@ macro_rules! derive_compile_fail {
 }
 
 macro_rules! derive_compile {
-    ($derive_fn:ident, $input:expr, $($expected:tt)*) => {{
+    ($derive_fn:path, $input:expr, $($expected:tt)*) => {{
         let input: proc_macro2::TokenStream = $input;
         let expected: proc_macro2::TokenStream = $($expected)*;
         let derive_fn: fn(input: syn::DeriveInput) -> Result<proc_macro2::TokenStream, syn::Error> =
@@ -340,6 +340,115 @@ fn test_derive_tryinto() {
                         Second => core::result::Result::Ok(Foo::Second),
                         _ => core::result::Result::Err(value),
                     }
+                }
+            }
+        }
+    );
+}
+
+#[test]
+fn test_derive_to_migration_state() {
+    derive_compile_fail!(
+        MigrationStateDerive::expand,
+        quote! {
+            struct MyStruct {
+                #[migration_state(omit, clone)]
+                bad: u32,
+            }
+        },
+        "ToMigrationState: omit cannot be used with other attributes"
+    );
+    derive_compile_fail!(
+        MigrationStateDerive::expand,
+        quote! {
+            struct MyStruct {
+                #[migration_state(into)]
+                bad: u32,
+            }
+        },
+        "unexpected end of input, expected parentheses"
+    );
+    derive_compile_fail!(
+        MigrationStateDerive::expand,
+        quote! {
+            struct MyStruct {
+                #[migration_state(into(String), try_into(String))]
+                bad: &'static str,
+            }
+        },
+        "ToMigrationState: into and try_into attributes cannot be used together"
+    );
+    derive_compile!(
+        MigrationStateDerive::expand,
+        quote! {
+            #[migration_state(rename = CustomMigration)]
+            struct MyStruct {
+                #[migration_state(omit)]
+                runtime_field: u32,
+
+                #[migration_state(clone)]
+                shared_data: String,
+
+                #[migration_state(into(Cow<'static, str>), clone)]
+                converted_field: String,
+
+                #[migration_state(try_into(i8))]
+                fallible_field: u32,
+
+                nested_field: NestedStruct,
+                simple_field: u32,
+            }
+        },
+        quote! {
+            #[derive(Default)]
+            pub struct CustomMigration {
+                pub shared_data: String,
+                pub converted_field: Cow<'static, str>,
+                pub fallible_field: i8,
+                pub nested_field: <NestedStruct as ToMigrationState>::Migrated,
+                pub simple_field: <u32 as ToMigrationState>::Migrated,
+            }
+            impl ToMigrationState for MyStruct {
+                type Migrated = CustomMigration;
+                fn snapshot_migration_state(
+                    &self,
+                    target: &mut Self::Migrated
+                ) -> Result<(), migration::InvalidError> {
+                    target.shared_data = self.shared_data.clone();
+                    target.converted_field = self.converted_field.clone().into();
+                    target.fallible_field = self
+                        .fallible_field
+                        .try_into()
+                        .map_err(|_| migration::InvalidError)?;
+                    self.nested_field
+                        .snapshot_migration_state(&mut target.nested_field)?;
+                    self.simple_field
+                        .snapshot_migration_state(&mut target.simple_field)?;
+                    Ok(())
+                }
+                #[allow(clippy::used_underscore_binding)]
+                fn restore_migrated_state_mut(
+                    &mut self,
+                    source: Self::Migrated,
+                    _version_id: u8
+                ) -> Result<(), migration::InvalidError> {
+                    let Self::Migrated {
+                        shared_data,
+                        converted_field,
+                        fallible_field,
+                        nested_field,
+                        simple_field
+                    } = source;
+                    self.shared_data = shared_data;
+                    self.converted_field = converted_field.into();
+                    self.fallible_field = fallible_field
+                        .try_into()
+                        .map_err(|_| migration::InvalidError)?;
+                    self.nested_field
+                        .restore_migrated_state_mut(nested_field, _version_id)?;
+                    self.simple_field
+                        .restore_migrated_state_mut(simple_field, _version_id)?;
+                    Ok(())
                 }
             }
         }
