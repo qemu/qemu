@@ -584,7 +584,7 @@ static void machine_HP_B160L_init(MachineState *machine)
 
     /* Parallel port */
     parallel_mm_init(addr_space, translate(NULL, LASI_LPT_HPA + 0x800), 0,
-                     qdev_get_gpio_in(lasi_dev, LASI_IRQ_LAN_HPA),
+                     qdev_get_gpio_in(lasi_dev, LASI_IRQ_LPT_HPA),
                      parallel_hds[0]);
 
     /* PS/2 Keyboard/Mouse */
