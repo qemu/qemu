@@ -306,6 +306,18 @@ lsi_reg_write(const char *name, int offset, uint8_t val) "Write reg %s 0x%x = 0x
 lsi_scripts_timer_triggered(void) "SCRIPTS timer triggered"
 lsi_scripts_timer_start(void) "SCRIPTS timer started"
 
+# ncr53c710.c
+ncr710_reset(void) "Reset"
+ncr710_reg_read(const char *name, int offset, uint8_t ret) "Read %s [0x%02x] = 0x%02x"
+ncr710_reg_write(const char *name, int offset, uint8_t val) "Write %s [0x%02x] = 0x%02x"
+ncr710_script_scsi_interrupt(uint8_t stat0, uint8_t sstat0) "SCSI interrupt stat=0x%02x sstat=0x%02x"
+ncr710_script_dma_interrupt(uint8_t stat, uint8_t dstat) "DMA interrupt stat=0x%02x dstat=0x%02x"
+ncr710_command_complete(uint32_t tag, uint8_t status) "tag=0x%x status=0x%02x"
+ncr710_disconnect(uint8_t waiting) "waiting=%d"
+ncr710_bad_selection(uint32_t target) "target=%d"
+ncr710_parity_sense_changed(const char *parity) "Parity sense changed to %s"
+ncr710_device_realize(void) "Device realized"
+
 # lasi_ncr710.c
 lasi_ncr710_device_realize(void) "Device realized"
 lasi_ncr710_device_reset(void) "Device reset"
