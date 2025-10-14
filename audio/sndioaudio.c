@@ -18,7 +18,7 @@
 #include <poll.h>
 #include <sndio.h>
 #include "qemu/main-loop.h"
-#include "audio.h"
+#include "qemu/audio.h"
 #include "trace.h"
 
 #define AUDIO_CAP "sndio"

@@ -265,7 +265,7 @@ def test_initial_includes():
 
 #include "qemu/osdep.h"
 #include "hw/audio/model.h"
-#include "audio/audio.h"
+#include "qemu/audio.h"
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"

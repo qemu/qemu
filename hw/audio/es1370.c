@@ -27,7 +27,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/audio/model.h"
-#include "audio/audio.h"
+#include "qemu/audio.h"
 #include "hw/pci/pci_device.h"
 #include "migration/vmstate.h"
 #include "qemu/cutils.h"

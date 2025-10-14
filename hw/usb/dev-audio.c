@@ -35,7 +35,7 @@
 #include "hw/usb.h"
 #include "migration/vmstate.h"
 #include "desc.h"
-#include "audio/audio.h"
+#include "qemu/audio.h"
 #include "qom/object.h"
 
 static void usb_audio_reinit(USBDevice *dev, unsigned channels);

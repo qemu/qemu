@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/audio/model.h"
-#include "audio/audio.h"
+#include "qemu/audio.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"

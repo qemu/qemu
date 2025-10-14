@@ -34,8 +34,7 @@
 #include "ui/egl-helpers.h"
 #include "ui/egl-context.h"
 #endif
-#include "audio/audio.h"
-#include "audio/audio_int.h"
+#include "qemu/audio.h"
 #include "qapi/error.h"
 #include "trace.h"
 

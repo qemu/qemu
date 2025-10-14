@@ -17,7 +17,7 @@
 #define QEMU_VIRTIO_SOUND_H
 
 #include "hw/virtio/virtio.h"
-#include "audio/audio.h"
+#include "qemu/audio.h"
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_snd.h"
 

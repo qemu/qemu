@@ -33,7 +33,7 @@
 #include "qemu/fifo8.h"
 #include "qemu/units.h"
 #include "hw/dma/xlnx_dpdma.h"
-#include "audio/audio.h"
+#include "qemu/audio.h"
 #include "qom/object.h"
 #include "hw/ptimer.h"
 

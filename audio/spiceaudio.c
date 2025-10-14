@@ -26,7 +26,7 @@
 #include "ui/qemu-spice.h"
 
 #define AUDIO_CAP "spice"
-#include "audio.h"
+#include "qemu/audio.h"
 #include "audio_int.h"
 
 #if SPICE_INTERFACE_PLAYBACK_MAJOR > 1 || SPICE_INTERFACE_PLAYBACK_MINOR >= 3

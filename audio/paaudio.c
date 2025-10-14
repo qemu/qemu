@@ -2,7 +2,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
-#include "audio.h"
+#include "qemu/audio.h"
 #include "qapi/error.h"
 
 #include <pulse/pulseaudio.h>

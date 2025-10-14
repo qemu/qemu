@@ -87,7 +87,7 @@
 #include "system/tpm.h"
 #include "system/dma.h"
 #include "hw/audio/model.h"
-#include "audio/audio.h"
+#include "qemu/audio.h"
 #include "system/cpus.h"
 #include "system/cpu-timers.h"
 #include "exec/icount.h"

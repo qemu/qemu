@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "audio.h"
+#include "qemu/audio.h"
 #include "migration/vmstate.h"
 #include "qemu/timer.h"
 #include "qapi/error.h"

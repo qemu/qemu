@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "audio/audio.h"
+#include "qemu/audio.h"
 #include "block/block.h"
 #include "block/export.h"
 #include "chardev/char.h"

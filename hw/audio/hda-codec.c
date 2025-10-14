@@ -25,7 +25,7 @@
 #include "qemu/host-utils.h"
 #include "qemu/module.h"
 #include "intel-hda-defs.h"
-#include "audio/audio.h"
+#include "qemu/audio.h"
 #include "trace.h"
 #include "qom/object.h"
 

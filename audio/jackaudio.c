@@ -26,7 +26,7 @@
 #include "qemu/module.h"
 #include "qemu/atomic.h"
 #include "qemu/main-loop.h"
-#include "audio.h"
+#include "qemu/audio.h"
 
 #define AUDIO_CAP "jack"
 #include "audio_int.h"

@@ -26,7 +26,7 @@
 #include <alsa/asoundlib.h>
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
-#include "audio.h"
+#include "qemu/audio.h"
 #include "trace.h"
 
 #pragma GCC diagnostic ignored "-Waddress"

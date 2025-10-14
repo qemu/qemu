@@ -27,7 +27,7 @@
 #include "qemu/error-report.h"
 #include "qdev-prop-internal.h"
 
-#include "audio/audio.h"
+#include "qemu/audio.h"
 #include "chardev/char-fe.h"
 #include "system/block-backend.h"
 #include "system/blockdev.h"

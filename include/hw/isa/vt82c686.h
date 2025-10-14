@@ -2,7 +2,7 @@
 #define HW_VT82C686_H
 
 #include "hw/pci/pci_device.h"
-#include "audio/audio.h"
+#include "qemu/audio.h"
 
 #define TYPE_VT82C686B_ISA "vt82c686b-isa"
 #define TYPE_VT82C686B_USB_UHCI "vt82c686b-usb-uhci"

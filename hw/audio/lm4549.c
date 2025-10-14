@@ -15,7 +15,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/hw.h"
-#include "audio/audio.h"
+#include "qemu/audio.h"
 #include "lm4549.h"
 #include "migration/vmstate.h"
 

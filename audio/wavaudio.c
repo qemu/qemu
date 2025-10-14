@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
-#include "audio.h"
+#include "qemu/audio.h"
 
 #define AUDIO_CAP "wav"
 #include "audio_int.h"

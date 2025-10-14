@@ -16,7 +16,7 @@
 #include "qapi/qapi-types-run-state.h"
 #include "qapi/qapi-types-ui.h"
 #include "block/aio.h"
-#include "audio/audio.h"
+#include "qemu/audio.h"
 
 /* replay clock kinds */
 enum ReplayClockKind {

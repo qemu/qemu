@@ -36,7 +36,7 @@
 #include "hw/virtio/virtio-net.h"
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/acpi/generic_event_device.h"
-#include "audio/audio.h"
+#include "qemu/audio.h"
 
 GlobalProperty hw_compat_10_1[] = {
     { TYPE_ACPI_GED, "x-has-hest-addr", "false" },

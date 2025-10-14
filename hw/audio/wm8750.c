@@ -12,7 +12,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "hw/audio/wm8750.h"
-#include "audio/audio.h"
+#include "qemu/audio.h"
 #include "qom/object.h"
 
 #define IN_PORT_N	3

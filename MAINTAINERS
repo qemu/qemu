@@ -2977,6 +2977,7 @@ X: audio/paaudio.c
 X: audio/sdlaudio.c
 X: audio/sndioaudio.c
 X: audio/spiceaudio.c
+F: include/qemu/audio.h
 F: qapi/audio.json
 
 ALSA Audio backend

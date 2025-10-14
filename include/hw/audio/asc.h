@@ -14,7 +14,7 @@
 #define HW_AUDIO_ASC_H
 
 #include "hw/sysbus.h"
-#include "audio/audio.h"
+#include "qemu/audio.h"
 
 #define ASC_FREQ 22257
 

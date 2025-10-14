@@ -29,7 +29,7 @@
 #define FLOAT_MIXENG
 /* #define RECIPROCAL */
 #endif
-#include "audio.h"
+#include "qemu/audio.h"
 #include "mixeng.h"
 
 #ifdef CONFIG_GIO

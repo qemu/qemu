@@ -15,7 +15,7 @@
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
-#include "audio/audio.h"
+#include "qemu/audio.h"
 #include "hw/audio/asc.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"

@@ -29,7 +29,7 @@
 #include "qemu/module.h"
 #include "qemu/host-utils.h"
 #include "qapi/error.h"
-#include "audio.h"
+#include "qemu/audio.h"
 #include "trace.h"
 
 #define AUDIO_CAP "oss"
