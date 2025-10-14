@@ -184,7 +184,7 @@ struct VncDisplay
     VncDisplaySASL sasl;
 #endif
 
-    AudioState *audio_state;
+    AudioBackend *audio_be;
 
     VMChangeStateEntry *vmstate_handler_entry;
 };

@@ -103,7 +103,7 @@ static struct capture_ops wav_capture_ops = {
     .info = wav_capture_info
 };
 
-int wav_start_capture(AudioState *state, CaptureState *s, const char *path,
+int wav_start_capture(AudioBackend *state, CaptureState *s, const char *path,
                       int freq, int bits, int nchannels)
 {
     WAVState *wav;

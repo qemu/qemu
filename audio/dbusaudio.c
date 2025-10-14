@@ -458,7 +458,7 @@ listener_in_vanished_cb(GDBusConnection *connection,
 }
 
 static gboolean
-dbus_audio_register_listener(AudioState *s,
+dbus_audio_register_listener(AudioBackend *s,
                              GDBusMethodInvocation *invocation,
 #ifdef G_OS_UNIX
                              GUnixFDList *fd_list,
@@ -615,7 +615,7 @@ dbus_audio_register_listener(AudioState *s,
 }
 
 static gboolean
-dbus_audio_register_out_listener(AudioState *s,
+dbus_audio_register_out_listener(AudioBackend *s,
                                  GDBusMethodInvocation *invocation,
 #ifdef G_OS_UNIX
                                  GUnixFDList *fd_list,
@@ -631,7 +631,7 @@ dbus_audio_register_out_listener(AudioState *s,
 }
 
 static gboolean
-dbus_audio_register_in_listener(AudioState *s,
+dbus_audio_register_in_listener(AudioBackend *s,
                                 GDBusMethodInvocation *invocation,
 #ifdef G_OS_UNIX
                                 GUnixFDList *fd_list,
@@ -646,7 +646,7 @@ dbus_audio_register_in_listener(AudioState *s,
 }
 
 static void
-dbus_audio_set_server(AudioState *s, GDBusObjectManagerServer *server, bool p2p)
+dbus_audio_set_server(AudioBackend *s, GDBusObjectManagerServer *server, bool p2p)
 {
     DBusAudio *da = s->drv_opaque;
 

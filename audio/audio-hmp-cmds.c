@@ -67,7 +67,7 @@ void hmp_wavcapture(Monitor *mon, const QDict *qdict)
     const char *audiodev = qdict_get_str(qdict, "audiodev");
     CaptureState *s;
     Error *local_err = NULL;
-    AudioState *as = audio_state_by_name(audiodev, &local_err);
+    AudioBackend *as = audio_be_by_name(audiodev, &local_err);
 
     if (!as) {
         error_report_err(local_err);

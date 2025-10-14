@@ -60,7 +60,7 @@ struct audio_pcm_info {
     int swap_endianness;
 };
 
-typedef struct AudioState AudioState;
+typedef struct AudioBackend AudioBackend;
 typedef struct SWVoiceCap SWVoiceCap;
 
 typedef struct STSampleBuffer {
@@ -69,7 +69,7 @@ typedef struct STSampleBuffer {
 } STSampleBuffer;
 
 typedef struct HWVoiceOut {
-    AudioState *s;
+    AudioBackend *s;
     int enabled;
     int poll_mode;
     int pending_disable;
@@ -90,7 +90,7 @@ typedef struct HWVoiceOut {
 } HWVoiceOut;
 
 typedef struct HWVoiceIn {
-    AudioState *s;
+    AudioBackend *s;
     int enabled;
     int poll_mode;
     struct audio_pcm_info info;
@@ -112,7 +112,7 @@ typedef struct HWVoiceIn {
 
 struct SWVoiceOut {
     QEMUSoundCard *card;
-    AudioState *s;
+    AudioBackend *s;
     struct audio_pcm_info info;
     t_sample *conv;
     STSampleBuffer resample_buf;
@@ -129,7 +129,7 @@ struct SWVoiceOut {
 
 struct SWVoiceIn {
     QEMUSoundCard *card;
-    AudioState *s;
+    AudioBackend *s;
     int active;
     struct audio_pcm_info info;
     void *rate;
@@ -150,7 +150,7 @@ struct audio_driver {
     void *(*init) (Audiodev *, Error **);
     void (*fini) (void *);
 #ifdef CONFIG_GIO
-    void (*set_dbus_server) (AudioState *s, GDBusObjectManagerServer *manager, bool p2p);
+    void (*set_dbus_server)(AudioBackend *s, GDBusObjectManagerServer *manager, bool p2p);
 #endif
     struct audio_pcm_ops *pcm_ops;
     int max_voices_out;
@@ -208,7 +208,7 @@ static inline void *advance(void *p, size_t incr)
     return (uint8_t *)p + incr;
 }
 
-int wav_start_capture(AudioState *state, CaptureState *s, const char *path,
+int wav_start_capture(AudioBackend *state, CaptureState *s, const char *path,
                       int freq, int bits, int nchannels);
 
 void audio_generic_run_buffer_in(HWVoiceIn *hw);
@@ -240,7 +240,7 @@ struct SWVoiceCap {
     QLIST_ENTRY (SWVoiceCap) entries;
 };
 
-typedef struct AudioState {
+typedef struct AudioBackend {
     Object parent;
 
     struct audio_driver *drv;
@@ -260,7 +260,7 @@ typedef struct AudioState {
     bool timer_running;
     uint64_t timer_last;
     VMChangeStateEntry *vmse;
-} AudioState;
+} AudioBackend;
 
 extern const struct mixeng_volume nominal_volume;
 
@@ -273,7 +273,7 @@ void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len);
 
 int audio_bug (const char *funcname, int cond);
 
-void audio_run(AudioState *s, const char *msg);
+void audio_run(AudioBackend *s, const char *msg);
 
 const char *audio_application_name(void);
 

@@ -196,7 +196,7 @@ static void pcspk_realizefn(DeviceState *dev, Error **errp)
 
     isa_register_ioport(isadev, &s->ioport, s->iobase);
 
-    if (s->card.state && AUD_register_card(s_spk, &s->card, errp)) {
+    if (s->card.be && AUD_register_card(s_spk, &s->card, errp)) {
         pcspk_audio_init(s);
     }
 }

@@ -41,7 +41,7 @@ struct pollhlp {
     struct pollfd *pfds;
     int count;
     int mask;
-    AudioState *s;
+    AudioBackend *s;
 };
 
 typedef struct ALSAVoiceOut {

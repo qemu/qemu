@@ -220,16 +220,16 @@ dbus_display_complete(UserCreatable *uc, Error **errp)
     }
 
     if (dd->audiodev && *dd->audiodev) {
-        AudioState *audio_state = audio_state_by_name(dd->audiodev, errp);
-        if (!audio_state) {
+        AudioBackend *audio_be = audio_be_by_name(dd->audiodev, errp);
+        if (!audio_be) {
             return;
         }
-        if (!g_str_equal(audio_state->drv->name, "dbus")) {
+        if (!g_str_equal(audio_be->drv->name, "dbus")) {
             error_setg(errp, "Audiodev '%s' is not compatible with DBus",
                        dd->audiodev);
             return;
         }
-        audio_state->drv->set_dbus_server(audio_state, dd->server, dd->p2p);
+        audio_be->drv->set_dbus_server(audio_be, dd->server, dd->p2p);
     }
 
     consoles = g_array_new(FALSE, FALSE, sizeof(guint32));

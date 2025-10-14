@@ -107,13 +107,13 @@ static void oss_anal_close (int *fdp)
 
 static void oss_helper_poll_out (void *opaque)
 {
-    AudioState *s = opaque;
+    AudioBackend *s = opaque;
     audio_run(s, "oss_poll_out");
 }
 
 static void oss_helper_poll_in (void *opaque)
 {
-    AudioState *s = opaque;
+    AudioBackend *s = opaque;
     audio_run(s, "oss_poll_in");
 }
 

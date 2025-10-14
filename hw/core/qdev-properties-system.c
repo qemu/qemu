@@ -499,16 +499,16 @@ static void set_audiodev(Object *obj, Visitor *v, const char* name,
 {
     const Property *prop = opaque;
     QEMUSoundCard *card = object_field_prop_ptr(obj, prop);
-    AudioState *state;
+    AudioBackend *state;
     g_autofree char *str = NULL;
 
     if (!visit_type_str(v, name, &str, errp)) {
         return;
     }
 
-    state = audio_state_by_name(str, errp);
+    state = audio_be_by_name(str, errp);
     if (state) {
-        card->state = state;
+        card->be = state;
     }
 }
 

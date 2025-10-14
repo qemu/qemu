@@ -1276,7 +1276,7 @@ static void audio_add(VncState *vs)
     ops.destroy = audio_capture_destroy;
     ops.capture = audio_capture;
 
-    vs->audio_cap = AUD_add_capture(vs->vd->audio_state, &vs->as, &ops, vs);
+    vs->audio_cap = AUD_add_capture(vs->vd->audio_be, &vs->as, &ops, vs);
     if (!vs->audio_cap) {
         error_report("Failed to add audio capture");
     }
@@ -2193,7 +2193,7 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             send_ext_key_event_ack(vs);
             break;
         case VNC_ENCODING_AUDIO:
-            if (vs->vd->audio_state) {
+            if (vs->vd->audio_be) {
                 vnc_set_feature(vs, VNC_FEATURE_AUDIO);
                 send_ext_audio_ack(vs);
             }
@@ -4236,12 +4236,12 @@ void vnc_display_open(const char *id, Error **errp)
 
     audiodev = qemu_opt_get(opts, "audiodev");
     if (audiodev) {
-        vd->audio_state = audio_state_by_name(audiodev, errp);
-        if (!vd->audio_state) {
+        vd->audio_be = audio_be_by_name(audiodev, errp);
+        if (!vd->audio_be) {
             goto fail;
         }
     } else {
-        vd->audio_state = audio_get_default_audio_state(NULL);
+        vd->audio_be = audio_get_default_audio_be(NULL);
     }
 
     device_id = qemu_opt_get(opts, "display");
