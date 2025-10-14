@@ -2748,6 +2748,12 @@ static void register_smram_listener(Notifier *n, void *unused)
     }
 }
 
+/* It should only be called in cpu's hotplug callback */
+void kvm_smm_cpu_address_space_init(X86CPU *cpu)
+{
+    cpu_address_space_init(CPU(cpu), X86ASIdx_SMM, "cpu-smm", &smram_as_root);
+}
+
 static void *kvm_msr_energy_thread(void *data)
 {
     KVMState *s = data;

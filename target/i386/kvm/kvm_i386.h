@@ -74,6 +74,7 @@ uint32_t kvm_x86_build_cpuid(CPUX86State *env, struct kvm_cpuid_entry2 *entries,
                              uint32_t cpuid_i);
 #endif /* CONFIG_KVM */
 
+void kvm_smm_cpu_address_space_init(X86CPU *cpu);
 void kvm_pc_setup_irq_routing(bool pci_enabled);
 
 #endif
