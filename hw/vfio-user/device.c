@@ -134,7 +134,7 @@ static int vfio_user_device_io_get_region_info(VFIODevice *vbasedev,
     VFIOUserFDs fds = { 0, 1, fd};
     int ret;
 
-    if (info->index > vbasedev->num_regions) {
+    if (info->index > vbasedev->num_initial_regions) {
         return -EINVAL;
     }
 

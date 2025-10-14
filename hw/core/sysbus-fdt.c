@@ -236,15 +236,15 @@ static int add_calxeda_midway_xgmac_fdt_node(SysBusDevice *sbdev, void *opaque)
 
     qemu_fdt_setprop(fdt, nodename, "dma-coherent", "", 0);
 
-    reg_attr = g_new(uint32_t, vbasedev->num_regions * 2);
-    for (i = 0; i < vbasedev->num_regions; i++) {
+    reg_attr = g_new(uint32_t, vbasedev->num_initial_regions * 2);
+    for (i = 0; i < vbasedev->num_initial_regions; i++) {
         mmio_base = platform_bus_get_mmio_addr(pbus, sbdev, i);
         reg_attr[2 * i] = cpu_to_be32(mmio_base);
         reg_attr[2 * i + 1] = cpu_to_be32(
                                 memory_region_size(vdev->regions[i]->mem));
     }
     qemu_fdt_setprop(fdt, nodename, "reg", reg_attr,
-                     vbasedev->num_regions * 2 * sizeof(uint32_t));
+                     vbasedev->num_initial_regions * 2 * sizeof(uint32_t));
 
     irq_attr = g_new(uint32_t, vbasedev->num_irqs * 3);
     for (i = 0; i < vbasedev->num_irqs; i++) {
@@ -330,7 +330,7 @@ static int add_amd_xgbe_fdt_node(SysBusDevice *sbdev, void *opaque)
 
     g_free(dt_name);
 
-    if (vbasedev->num_regions != 5) {
+    if (vbasedev->num_initial_regions != 5) {
         error_report("%s Does the host dt node combine XGBE/PHY?", __func__);
         exit(1);
     }
@@ -374,15 +374,15 @@ static int add_amd_xgbe_fdt_node(SysBusDevice *sbdev, void *opaque)
                            guest_clock_phandles[0],
                            guest_clock_phandles[1]);
 
-    reg_attr = g_new(uint32_t, vbasedev->num_regions * 2);
-    for (i = 0; i < vbasedev->num_regions; i++) {
+    reg_attr = g_new(uint32_t, vbasedev->num_initial_regions * 2);
+    for (i = 0; i < vbasedev->num_initial_regions; i++) {
         mmio_base = platform_bus_get_mmio_addr(pbus, sbdev, i);
         reg_attr[2 * i] = cpu_to_be32(mmio_base);
         reg_attr[2 * i + 1] = cpu_to_be32(
                                 memory_region_size(vdev->regions[i]->mem));
     }
     qemu_fdt_setprop(guest_fdt, nodename, "reg", reg_attr,
-                     vbasedev->num_regions * 2 * sizeof(uint32_t));
+                     vbasedev->num_initial_regions * 2 * sizeof(uint32_t));
 
     irq_attr = g_new(uint32_t, vbasedev->num_irqs * 3);
     for (i = 0; i < vbasedev->num_irqs; i++) {

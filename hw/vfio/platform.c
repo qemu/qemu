@@ -148,7 +148,7 @@ static void vfio_mmap_set_enabled(VFIOPlatformDevice *vdev, bool enabled)
 {
     int i;
 
-    for (i = 0; i < vdev->vbasedev.num_regions; i++) {
+    for (i = 0; i < vdev->vbasedev.num_initial_regions; i++) {
         vfio_region_mmaps_set_enabled(vdev->regions[i], enabled);
     }
 }
@@ -453,9 +453,9 @@ static bool vfio_populate_device(VFIODevice *vbasedev, Error **errp)
         return false;
     }
 
-    vdev->regions = g_new0(VFIORegion *, vbasedev->num_regions);
+    vdev->regions = g_new0(VFIORegion *, vbasedev->num_initial_regions);
 
-    for (i = 0; i < vbasedev->num_regions; i++) {
+    for (i = 0; i < vbasedev->num_initial_regions; i++) {
         char *name = g_strdup_printf("VFIO %s region %d\n", vbasedev->name, i);
 
         vdev->regions[i] = g_new0(VFIORegion, 1);
@@ -499,7 +499,7 @@ irq_err:
         g_free(intp);
     }
 reg_error:
-    for (i = 0; i < vbasedev->num_regions; i++) {
+    for (i = 0; i < vbasedev->num_initial_regions; i++) {
         if (vdev->regions[i]) {
             vfio_region_finalize(vdev->regions[i]);
         }
@@ -608,7 +608,7 @@ static void vfio_platform_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    for (i = 0; i < vbasedev->num_regions; i++) {
+    for (i = 0; i < vbasedev->num_initial_regions; i++) {
         if (vfio_region_mmap(vdev->regions[i])) {
             warn_report("%s mmap unsupported, performance may be slow",
                         memory_region_name(vdev->regions[i]->mem));
