@@ -205,10 +205,19 @@ int vfio_device_get_region_info(VFIODevice *vbasedev, int index,
     int fd = -1;
     int ret;
 
-    /* check cache */
-    if (vbasedev->reginfo[index] != NULL) {
-        *info = vbasedev->reginfo[index];
-        return 0;
+    /*
+     * We only set up the region info cache for the initial number of regions.
+     *
+     * Since a VFIO device may later increase the number of regions then use
+     * such regions with an index past ->num_initial_regions, don't attempt to
+     * use the info cache in those cases.
+     */
+    if (index < vbasedev->num_initial_regions) {
+        /* check cache */
+        if (vbasedev->reginfo[index] != NULL) {
+            *info = vbasedev->reginfo[index];
+            return 0;
+        }
     }
 
     *info = g_malloc0(argsz);
@@ -236,10 +245,12 @@ retry:
         goto retry;
     }
 
-    /* fill cache */
-    vbasedev->reginfo[index] = *info;
-    if (vbasedev->region_fds != NULL) {
-        vbasedev->region_fds[index] = fd;
+    if (index < vbasedev->num_initial_regions) {
+        /* fill cache */
+        vbasedev->reginfo[index] = *info;
+        if (vbasedev->region_fds != NULL) {
+            vbasedev->region_fds[index] = fd;
+        }
     }
 
     return 0;
