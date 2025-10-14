@@ -31,12 +31,6 @@
 
 typedef void (*audio_callback_fn) (void *opaque, int avail);
 
-#if HOST_BIG_ENDIAN
-#define AUDIO_HOST_ENDIANNESS 1
-#else
-#define AUDIO_HOST_ENDIANNESS 0
-#endif
-
 typedef struct audsettings {
     int freq;
     int nchannels;

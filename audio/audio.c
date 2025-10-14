@@ -274,7 +274,7 @@ static int audio_pcm_info_eq (struct audio_pcm_info *info, struct audsettings *a
         && info->is_signed == is_signed
         && info->is_float == is_float
         && info->bits == bits
-        && info->swap_endianness == (as->endianness != AUDIO_HOST_ENDIANNESS);
+        && info->swap_endianness == (as->endianness != HOST_BIG_ENDIAN);
 }
 
 void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as)
@@ -320,7 +320,7 @@ void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as)
     info->nchannels = as->nchannels;
     info->bytes_per_frame = as->nchannels * mul;
     info->bytes_per_second = info->freq * info->bytes_per_frame;
-    info->swap_endianness = (as->endianness != AUDIO_HOST_ENDIANNESS);
+    info->swap_endianness = (as->endianness != HOST_BIG_ENDIAN);
 }
 
 void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len)
@@ -2179,7 +2179,7 @@ audsettings audiodev_to_audsettings(AudiodevPerDirectionOptions *pdo)
         .freq = pdo->frequency,
         .nchannels = pdo->channels,
         .fmt = pdo->format,
-        .endianness = AUDIO_HOST_ENDIANNESS,
+        .endianness = HOST_BIG_ENDIAN,
     };
 }
 
