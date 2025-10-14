@@ -59,6 +59,7 @@ void kvm_update_msi_routes_all(void *private, bool global,
 
 #endif /* CONFIG_KVM */
 
+void kvm_smm_cpu_address_space_init(X86CPU *cpu);
 void kvm_pc_setup_irq_routing(bool pci_enabled);
 
 #endif
