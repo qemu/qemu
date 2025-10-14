@@ -484,9 +484,9 @@ static bool vfio_ccw_get_region(VFIOCCWDevice *vcdev, Error **errp)
      * We always expect at least the I/O region to be present. We also
      * may have a variable number of regions governed by capabilities.
      */
-    if (vdev->num_regions < VFIO_CCW_CONFIG_REGION_INDEX + 1) {
+    if (vdev->num_initial_regions < VFIO_CCW_CONFIG_REGION_INDEX + 1) {
         error_setg(errp, "vfio: too few regions (%u), expected at least %u",
-                   vdev->num_regions, VFIO_CCW_CONFIG_REGION_INDEX + 1);
+                   vdev->num_initial_regions, VFIO_CCW_CONFIG_REGION_INDEX + 1);
         return false;
     }
 

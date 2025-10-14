@@ -257,7 +257,7 @@ int vfio_device_get_region_info_type(VFIODevice *vbasedev, uint32_t type,
 {
     int i;
 
-    for (i = 0; i < vbasedev->num_regions; i++) {
+    for (i = 0; i < vbasedev->num_initial_regions; i++) {
         struct vfio_info_cap_header *hdr;
         struct vfio_region_info_cap_type *cap_type;
 
@@ -466,7 +466,7 @@ void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainer *bcontainer,
     int i;
 
     vbasedev->num_irqs = info->num_irqs;
-    vbasedev->num_regions = info->num_regions;
+    vbasedev->num_initial_regions = info->num_regions;
     vbasedev->flags = info->flags;
     vbasedev->reset_works = !!(info->flags & VFIO_DEVICE_FLAGS_RESET);
 
@@ -476,10 +476,10 @@ void vfio_device_prepare(VFIODevice *vbasedev, VFIOContainer *bcontainer,
     QLIST_INSERT_HEAD(&vfio_device_list, vbasedev, global_next);
 
     vbasedev->reginfo = g_new0(struct vfio_region_info *,
-                               vbasedev->num_regions);
+                               vbasedev->num_initial_regions);
     if (vbasedev->use_region_fds) {
-        vbasedev->region_fds = g_new0(int, vbasedev->num_regions);
-        for (i = 0; i < vbasedev->num_regions; i++) {
+        vbasedev->region_fds = g_new0(int, vbasedev->num_initial_regions);
+        for (i = 0; i < vbasedev->num_initial_regions; i++) {
             vbasedev->region_fds[i] = -1;
         }
     }
@@ -489,7 +489,7 @@ void vfio_device_unprepare(VFIODevice *vbasedev)
 {
     int i;
 
-    for (i = 0; i < vbasedev->num_regions; i++) {
+    for (i = 0; i < vbasedev->num_initial_regions; i++) {
         g_free(vbasedev->reginfo[i]);
         if (vbasedev->region_fds != NULL && vbasedev->region_fds[i] != -1) {
             close(vbasedev->region_fds[i]);

@@ -650,7 +650,8 @@ found_container:
     vfio_iommufd_cpr_register_device(vbasedev);
 
     trace_iommufd_cdev_device_info(vbasedev->name, devfd, vbasedev->num_irqs,
-                                   vbasedev->num_regions, vbasedev->flags);
+                                   vbasedev->num_initial_regions,
+                                   vbasedev->flags);
     return true;
 
 err_listener_register:
