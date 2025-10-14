@@ -1,5 +1,5 @@
-system_ss.add([spice_headers, files('audio.c')])
 system_ss.add(files(
+  'audio.c',
   'audio-hmp-cmds.c',
   'mixeng.c',
   'noaudio.c',
