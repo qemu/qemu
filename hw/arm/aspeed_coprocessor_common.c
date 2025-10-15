@@ -29,6 +29,9 @@ static const Property aspeed_coprocessor_properties[] = {
                      MemoryRegion *),
     DEFINE_PROP_LINK("scu", AspeedCoprocessorState, scu, TYPE_ASPEED_SCU,
                      AspeedSCUState *),
+    DEFINE_PROP_LINK("uart", AspeedCoprocessorState, uart, TYPE_SERIAL_MM,
+                     SerialMM *),
+    DEFINE_PROP_INT32("uart-dev", AspeedCoprocessorState, uart_dev, 0),
 };
 
 static void aspeed_coprocessor_class_init(ObjectClass *oc, const void *data)

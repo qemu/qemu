@@ -133,15 +133,9 @@ static void aspeed_soc_ast27x0ssp_init(Object *obj)
 {
     Aspeed27x0CoprocessorState *a = ASPEED27X0SSP_COPROCESSOR(obj);
     AspeedCoprocessorState *s = ASPEED_COPROCESSOR(obj);
-    AspeedCoprocessorClass *sc = ASPEED_COPROCESSOR_GET_CLASS(s);
-    int i;
 
     object_initialize_child(obj, "armv7m", &a->armv7m, TYPE_ARMV7M);
     s->sysclk = qdev_init_clock_in(DEVICE(s), "sysclk", NULL, NULL, 0);
-
-    for (i = 0; i < sc->uarts_num; i++) {
-        object_initialize_child(obj, "uart[*]", &s->uart[i], TYPE_SERIAL_MM);
-    }
 
     object_initialize_child(obj, "intc0", &a->intc[0],
                             TYPE_ASPEED_2700SSP_INTC);
@@ -165,7 +159,6 @@ static void aspeed_soc_ast27x0ssp_realize(DeviceState *dev_soc, Error **errp)
     AspeedCoprocessorClass *sc = ASPEED_COPROCESSOR_GET_CLASS(s);
     DeviceState *armv7m;
     g_autofree char *sdram_name = NULL;
-    int uart;
     int i;
 
     if (!clock_has_source(s->sysclk)) {
@@ -244,15 +237,19 @@ static void aspeed_soc_ast27x0ssp_realize(DeviceState *dev_soc, Error **errp)
         sysbus_connect_irq(SYS_BUS_DEVICE(&a->intc[1]), i,
                         qdev_get_gpio_in(DEVICE(&a->intc[0].orgates[0]), i));
     }
+
     /* UART */
-    for (i = 0, uart = sc->uarts_base; i < sc->uarts_num; i++, uart++) {
-        if (!aspeed_soc_uart_realize(s->memory, &s->uart[i],
-                                     sc->memmap[uart], errp)) {
-            return;
-        }
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->uart[i]), 0,
-                           aspeed_soc_ast27x0ssp_get_irq(s, uart));
-    }
+    memory_region_init_alias(&s->uart_alias, OBJECT(s), "uart.alias",
+                             &s->uart->serial.io, 0,
+                             memory_region_size(&s->uart->serial.io));
+    memory_region_add_subregion(s->memory, sc->memmap[s->uart_dev],
+                                &s->uart_alias);
+    /*
+     * Redirect the UART interrupt to the NVIC, replacing the default routing
+     * to the PSP's GIC.
+     */
+    sysbus_connect_irq(SYS_BUS_DEVICE(s->uart), 0,
+                       aspeed_soc_ast27x0ssp_get_irq(s, s->uart_dev));
 
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->timerctrl),
                                   "aspeed.timerctrl",
@@ -283,8 +280,6 @@ static void aspeed_soc_ast27x0ssp_class_init(ObjectClass *klass,
     dc->realize = aspeed_soc_ast27x0ssp_realize;
 
     sc->valid_cpu_types = valid_cpu_types;
-    sc->uarts_num = 13;
-    sc->uarts_base = ASPEED_DEV_UART0;
     sc->irqmap = aspeed_soc_ast27x0ssp_irqmap;
     sc->memmap = aspeed_soc_ast27x0ssp_memmap;
 }
