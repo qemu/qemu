@@ -36,6 +36,17 @@ class AST2x00MachineSDK(QemuSystemTest):
         exec_command_and_wait_for_pattern(self, 'root', 'Password:')
         exec_command_and_wait_for_pattern(self, '0penBmc', f'root@{name}:~#')
 
+    def load_ast2700fc_coprocessor(self, name):
+        load_elf_list = {
+            'ssp': self.scratch_file(name, 'zephyr-aspeed-ssp.elf'),
+            'tsp': self.scratch_file(name, 'zephyr-aspeed-tsp.elf')
+        }
+
+        for cpu_num, key in enumerate(load_elf_list, start=4):
+            file = load_elf_list[key]
+            self.vm.add_args('-device',
+                             f'loader,file={file},cpu-num={cpu_num}')
+
     ASSET_SDK_V908_AST2700 = Asset(
             'https://github.com/AspeedTech-BMC/openbmc/releases/download/v09.08/ast2700-default-obmc.tar.gz',
             'eac3dc409b7ea3cd4b03d4792d3cebd469792ad893cb51e1d15f0fc20bd1e2cd')
@@ -123,16 +134,7 @@ class AST2x00MachineSDK(QemuSystemTest):
             self.vm.add_args('-device',
                              f'loader,addr=0x430000000,cpu-num={i}')
 
-        load_elf_list = {
-            'ssp': self.scratch_file(name, 'zephyr-aspeed-ssp.elf'),
-            'tsp': self.scratch_file(name, 'zephyr-aspeed-tsp.elf')
-        }
-
-        for cpu_num, key in enumerate(load_elf_list, start=4):
-            file = load_elf_list[key]
-            self.vm.add_args('-device',
-                             f'loader,file={file},cpu-num={cpu_num}')
-
+        self.load_ast2700fc_coprocessor(name)
         self.do_test_aarch64_aspeed_sdk_start(
                 self.scratch_file(name, 'image-bmc'))
 
