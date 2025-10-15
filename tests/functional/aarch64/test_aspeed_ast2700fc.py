@@ -60,6 +60,9 @@ class AST2x00MachineSDK(QemuSystemTest):
             'lspci -s 0002:01:00.0',
             '0002:01:00.0 Ethernet controller: '
             'Intel Corporation 82574L Gigabit Network Connection')
+        exec_command_and_wait_for_pattern(self,
+            'ip addr show dev eth2',
+            'inet 10.0.2.15/24')
 
     def do_ast2700fc_ssp_test(self):
         self.vm.shutdown()
@@ -135,6 +138,7 @@ class AST2x00MachineSDK(QemuSystemTest):
 
     def test_aarch64_ast2700fc_sdk_v09_08(self):
         self.set_machine('ast2700fc')
+        self.require_netdev('user')
 
         self.archive_extract(self.ASSET_SDK_V908_AST2700)
         self.start_ast2700fc_test('ast2700-default')
