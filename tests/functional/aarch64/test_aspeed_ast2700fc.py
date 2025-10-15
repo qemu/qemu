@@ -138,6 +138,12 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.do_test_aarch64_aspeed_sdk_start(
                 self.scratch_file(name, 'image-bmc'))
 
+    def start_ast2700fc_test_vbootrom(self, name):
+        self.vm.add_args('-bios', 'ast27x0_bootrom.bin')
+        self.load_ast2700fc_coprocessor(name)
+        self.do_test_aarch64_aspeed_sdk_start(
+                self.scratch_file(name, 'image-bmc'))
+
     def test_aarch64_ast2700fc_sdk_v09_08(self):
         self.set_machine('ast2700fc')
         self.require_netdev('user')
@@ -147,6 +153,15 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.verify_openbmc_boot_and_login('ast2700-default')
         self.do_ast2700_i2c_test()
         self.do_ast2700_pcie_test()
+        self.do_ast2700fc_ssp_test()
+        self.do_ast2700fc_tsp_test()
+
+    def test_aarch64_ast2700fc_sdk_vbootrom_v09_08(self):
+        self.set_machine('ast2700fc')
+
+        self.archive_extract(self.ASSET_SDK_V908_AST2700)
+        self.start_ast2700fc_test_vbootrom('ast2700-default')
+        self.verify_openbmc_boot_and_login('ast2700-default')
         self.do_ast2700fc_ssp_test()
         self.do_ast2700fc_tsp_test()
 
