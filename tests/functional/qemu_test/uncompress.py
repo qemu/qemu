@@ -58,20 +58,20 @@ def zstd_uncompress(zstd_path, output_path):
     os.chmod(output_path, stat.S_IRUSR | stat.S_IWUSR)
 
 
-'''
-@params compressed: filename, Asset, or file-like object to uncompress
-@params uncompressed: filename to uncompress into
-@params format: optional compression format (gzip, lzma)
-
-Uncompresses @compressed into @uncompressed
-
-If @format is None, heuristics will be applied to guess the format
-from the filename or Asset URL. @format must be non-None if @uncompressed
-is a file-like object.
-
-Returns the fully qualified path to the uncompessed file
-'''
 def uncompress(compressed, uncompressed, format=None):
+    '''
+    @params compressed: filename, Asset, or file-like object to uncompress
+    @params uncompressed: filename to uncompress into
+    @params format: optional compression format (gzip, lzma)
+
+    Uncompresses @compressed into @uncompressed
+
+    If @format is None, heuristics will be applied to guess the
+    format from the filename or Asset URL. @format must be non-None
+    if @uncompressed is a file-like object.
+
+    Returns the fully qualified path to the uncompessed file
+    '''
     if format is None:
         format = guess_uncompress_format(compressed)
 
@@ -84,19 +84,19 @@ def uncompress(compressed, uncompressed, format=None):
     else:
         raise Exception(f"Unknown compression format {format}")
 
-'''
-@params compressed: filename, Asset, or file-like object to guess
-
-Guess the format of @compressed, raising an exception if
-no format can be determined
-'''
 def guess_uncompress_format(compressed):
-    if type(compressed) == Asset:
+    '''
+    @params compressed: filename, Asset, or file-like object to guess
+
+    Guess the format of @compressed, raising an exception if
+    no format can be determined
+    '''
+    if isinstance(compressed, Asset):
         compressed = urlparse(compressed.url).path
-    elif type(compressed) != str:
+    elif not isinstance(compressed, str):
         raise Exception(f"Unable to guess compression cformat for {compressed}")
 
-    (name, ext) = os.path.splitext(compressed)
+    (_name, ext) = os.path.splitext(compressed)
     if ext == ".xz":
         return "xz"
     elif ext == ".gz":
