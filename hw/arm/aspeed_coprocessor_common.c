@@ -27,6 +27,8 @@ static const Property aspeed_coprocessor_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_LINK("sram", AspeedCoprocessorState, sram, TYPE_MEMORY_REGION,
                      MemoryRegion *),
+    DEFINE_PROP_LINK("scu", AspeedCoprocessorState, scu, TYPE_ASPEED_SCU,
+                     AspeedSCUState *),
 };
 
 static void aspeed_coprocessor_class_init(ObjectClass *oc, const void *data)

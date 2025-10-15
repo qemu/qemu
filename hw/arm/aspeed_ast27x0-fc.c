@@ -138,6 +138,8 @@ static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
                             sc->uarts_num, serial_hd(1));
     object_property_set_link(OBJECT(&s->ssp), "sram",
                              OBJECT(&psp->sram), &error_abort);
+    object_property_set_link(OBJECT(&s->ssp), "scu",
+                             OBJECT(&psp->scu), &error_abort);
     if (!qdev_realize(DEVICE(&s->ssp), NULL, errp)) {
         return false;
     }
@@ -170,6 +172,8 @@ static bool ast2700fc_tsp_init(MachineState *machine, Error **errp)
                             sc->uarts_num, serial_hd(2));
     object_property_set_link(OBJECT(&s->tsp), "sram",
                              OBJECT(&psp->sram), &error_abort);
+    object_property_set_link(OBJECT(&s->tsp), "scu",
+                             OBJECT(&psp->scu), &error_abort);
     if (!qdev_realize(DEVICE(&s->tsp), NULL, errp)) {
         return false;
     }

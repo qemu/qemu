@@ -19,9 +19,10 @@ struct AspeedCoprocessorState {
     MemoryRegion sdram;
     MemoryRegion *sram;
     MemoryRegion sram_alias;
+    MemoryRegion scu_alias;
     Clock *sysclk;
 
-    AspeedSCUState scu;
+    AspeedSCUState *scu;
     AspeedSCUState scuio;
     AspeedTimerCtrlState timerctrl;
     SerialMM uart[ASPEED_UARTS_NUM];
@@ -36,7 +37,6 @@ struct AspeedCoprocessorClass {
 
     /** valid_cpu_types: NULL terminated array of a single CPU type. */
     const char * const *valid_cpu_types;
-    uint32_t silicon_rev;
     const hwaddr *memmap;
     const int *irqmap;
     int uarts_base;
