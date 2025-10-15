@@ -708,7 +708,7 @@ static inline MemOp mo_endian(DisasContext *dc)
     return dc->cfg->endi ? MO_LE : MO_BE;
 }
 
-static bool do_load(DisasContext *dc, int rd, TCGv addr, MemOp mop,
+static bool do_load(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
                     int mem_index, bool rev)
 {
     MemOp size = mop & MO_SIZE;
@@ -726,7 +726,7 @@ static bool do_load(DisasContext *dc, int rd, TCGv addr, MemOp mop,
             mop ^= MO_BSWAP;
         }
         if (size < MO_32) {
-            tcg_gen_xori_tl(addr, addr, 3 - size);
+            tcg_gen_xori_i32(addr, addr, 3 - size);
         }
     }
 
@@ -868,7 +868,7 @@ static bool trans_lwx(DisasContext *dc, arg_typea *arg)
     return true;
 }
 
-static bool do_store(DisasContext *dc, int rd, TCGv addr, MemOp mop,
+static bool do_store(DisasContext *dc, int rd, TCGv_i32 addr, MemOp mop,
                      int mem_index, bool rev)
 {
     MemOp size = mop & MO_SIZE;
@@ -886,7 +886,7 @@ static bool do_store(DisasContext *dc, int rd, TCGv addr, MemOp mop,
             mop ^= MO_BSWAP;
         }
         if (size < MO_32) {
-            tcg_gen_xori_tl(addr, addr, 3 - size);
+            tcg_gen_xori_i32(addr, addr, 3 - size);
         }
     }
 
