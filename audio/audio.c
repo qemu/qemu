@@ -405,7 +405,7 @@ static void audio_notify_capture (CaptureVoiceOut *cap, audcnotification_e cmd)
     }
 }
 
-static void audio_capture_maybe_changed (CaptureVoiceOut *cap, int enabled)
+static void audio_capture_maybe_changed(CaptureVoiceOut *cap, bool enabled)
 {
     if (cap->hw.enabled != enabled) {
         audcnotification_e cmd;
@@ -419,11 +419,11 @@ static void audio_recalc_and_notify_capture (CaptureVoiceOut *cap)
 {
     HWVoiceOut *hw = &cap->hw;
     SWVoiceOut *sw;
-    int enabled = 0;
+    bool enabled = false;
 
     for (sw = hw->sw_head.lh_first; sw; sw = sw->entries.le_next) {
         if (sw->active) {
-            enabled = 1;
+            enabled = true;
             break;
         }
     }
@@ -475,7 +475,7 @@ static int audio_attach_capture (HWVoiceOut *hw)
         sw = &sc->sw;
         sw->hw = hw_cap;
         sw->info = hw->info;
-        sw->empty = 1;
+        sw->empty = true;
         sw->active = hw->enabled;
         sw->vol = nominal_volume;
         sw->rate = st_rate_start (sw->info.freq, hw_cap->info.freq);
@@ -911,7 +911,7 @@ int AUD_get_buffer_size_out(SWVoiceOut *sw)
     return sw->hw->samples * sw->hw->info.bytes_per_frame;
 }
 
-void AUD_set_active_out (SWVoiceOut *sw, int on)
+void AUD_set_active_out(SWVoiceOut *sw, bool on)
 {
     HWVoiceOut *hw;
 
@@ -928,7 +928,7 @@ void AUD_set_active_out (SWVoiceOut *sw, int on)
         if (on) {
             hw->pending_disable = 0;
             if (!hw->enabled) {
-                hw->enabled = 1;
+                hw->enabled = true;
                 if (s->vm_running) {
                     if (hw->pcm_ops->enable_out) {
                         hw->pcm_ops->enable_out(hw, true);
@@ -959,7 +959,7 @@ void AUD_set_active_out (SWVoiceOut *sw, int on)
     }
 }
 
-void AUD_set_active_in (SWVoiceIn *sw, int on)
+void AUD_set_active_in(SWVoiceIn *sw, bool on)
 {
     HWVoiceIn *hw;
 
@@ -974,7 +974,7 @@ void AUD_set_active_in (SWVoiceIn *sw, int on)
 
         if (on) {
             if (!hw->enabled) {
-                hw->enabled = 1;
+                hw->enabled = true;
                 if (s->vm_running) {
                     if (hw->pcm_ops->enable_in) {
                         hw->pcm_ops->enable_in(hw, true);
@@ -993,7 +993,7 @@ void AUD_set_active_in (SWVoiceIn *sw, int on)
                 }
 
                 if (nb_active == 1) {
-                    hw->enabled = 0;
+                    hw->enabled = false;
                     if (hw->pcm_ops->enable_in) {
                         hw->pcm_ops->enable_in(hw, false);
                     }
@@ -1152,8 +1152,8 @@ static void audio_run_out(AudioBackend *s)
             sw = hw->sw_head.lh_first;
 
             if (hw->pending_disable) {
-                hw->enabled = 0;
-                hw->pending_disable = 0;
+                hw->enabled = false;
+                hw->pending_disable = false;
                 if (hw->pcm_ops->enable_out) {
                     hw->pcm_ops->enable_out(hw, false);
                 }
@@ -1206,13 +1206,13 @@ static void audio_run_out(AudioBackend *s)
 #ifdef DEBUG_OUT
             dolog ("Disabling voice\n");
 #endif
-            hw->enabled = 0;
-            hw->pending_disable = 0;
+            hw->enabled = false;
+            hw->pending_disable = false;
             if (hw->pcm_ops->enable_out) {
                 hw->pcm_ops->enable_out(hw, false);
             }
             for (sc = hw->cap_head.lh_first; sc; sc = sc->entries.le_next) {
-                sc->sw.active = 0;
+                sc->sw.active = false;
                 audio_recalc_and_notify_capture (sc->cap);
             }
             continue;
@@ -1257,7 +1257,7 @@ static void audio_run_out(AudioBackend *s)
             sw->total_hw_samples_mixed -= played;
 
             if (!sw->total_hw_samples_mixed) {
-                sw->empty = 1;
+                sw->empty = true;
             }
         }
     }

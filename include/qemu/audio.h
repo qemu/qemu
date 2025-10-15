@@ -99,8 +99,8 @@ SWVoiceOut *AUD_open_out (
 void AUD_close_out (AudioBackend *be, SWVoiceOut *sw);
 size_t AUD_write (SWVoiceOut *sw, void *pcm_buf, size_t size);
 int  AUD_get_buffer_size_out (SWVoiceOut *sw);
-void AUD_set_active_out (SWVoiceOut *sw, int on);
-int  AUD_is_active_out (SWVoiceOut *sw);
+void AUD_set_active_out(SWVoiceOut *sw, bool on);
+bool AUD_is_active_out(SWVoiceOut *sw);
 
 void     AUD_init_time_stamp_out (SWVoiceOut *sw, QEMUAudioTimeStamp *ts);
 uint64_t AUD_get_elapsed_usec_out (SWVoiceOut *sw, QEMUAudioTimeStamp *ts);
@@ -140,8 +140,8 @@ SWVoiceIn *AUD_open_in(
 
 void AUD_close_in(AudioBackend *be, SWVoiceIn *sw);
 size_t AUD_read (SWVoiceIn *sw, void *pcm_buf, size_t size);
-void AUD_set_active_in (SWVoiceIn *sw, int on);
-int  AUD_is_active_in (SWVoiceIn *sw);
+void AUD_set_active_in(SWVoiceIn *sw, bool on);
+bool AUD_is_active_in(SWVoiceIn *sw);
 
 void     AUD_init_time_stamp_in (SWVoiceIn *sw, QEMUAudioTimeStamp *ts);
 uint64_t AUD_get_elapsed_usec_in (SWVoiceIn *sw, QEMUAudioTimeStamp *ts);

@@ -166,10 +166,10 @@ static int glue (audio_pcm_sw_init_, TYPE) (
 
     audio_pcm_init_info (&sw->info, as);
     sw->hw = hw;
-    sw->active = 0;
+    sw->active = false;
 #ifdef DAC
     sw->total_hw_samples_mixed = 0;
-    sw->empty = 1;
+    sw->empty = true;
 #endif
 
     if (sw->info.is_float) {
@@ -564,7 +564,7 @@ SW *glue (AUD_open_, TYPE) (
     return NULL;
 }
 
-int glue (AUD_is_active_, TYPE) (SW *sw)
+bool glue(AUD_is_active_, TYPE)(SW *sw)
 {
     return sw ? sw->active : 0;
 }
