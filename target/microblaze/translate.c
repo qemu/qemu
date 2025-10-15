@@ -604,7 +604,7 @@ static bool trans_wdic(DisasContext *dc, arg_wdic *a)
 DO_TYPEA(xor, false, tcg_gen_xor_i32)
 DO_TYPEBI(xori, false, tcg_gen_xori_i32)
 
-static TCGv compute_ldst_addr_typea(DisasContext *dc, int ra, int rb)
+static TCGv_i32 compute_ldst_addr_typea(DisasContext *dc, int ra, int rb)
 {
     TCGv_i32 ret;
 
@@ -626,7 +626,7 @@ static TCGv compute_ldst_addr_typea(DisasContext *dc, int ra, int rb)
     return ret;
 }
 
-static TCGv compute_ldst_addr_typeb(DisasContext *dc, int ra, int imm)
+static TCGv_i32 compute_ldst_addr_typeb(DisasContext *dc, int ra, int imm)
 {
     TCGv_i32 ret;
 
@@ -750,13 +750,13 @@ static bool do_load(DisasContext *dc, int rd, TCGv addr, MemOp mop,
 
 static bool trans_lbu(DisasContext *dc, arg_typea *arg)
 {
-    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
     return do_load(dc, arg->rd, addr, MO_UB, dc->mem_index, false);
 }
 
 static bool trans_lbur(DisasContext *dc, arg_typea *arg)
 {
-    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
     return do_load(dc, arg->rd, addr, MO_UB, dc->mem_index, true);
 }
 
@@ -776,19 +776,19 @@ static bool trans_lbuea(DisasContext *dc, arg_typea *arg)
 
 static bool trans_lbui(DisasContext *dc, arg_typeb *arg)
 {
-    TCGv addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
+    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
     return do_load(dc, arg->rd, addr, MO_UB, dc->mem_index, false);
 }
 
 static bool trans_lhu(DisasContext *dc, arg_typea *arg)
 {
-    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
     return do_load(dc, arg->rd, addr, MO_UW, dc->mem_index, false);
 }
 
 static bool trans_lhur(DisasContext *dc, arg_typea *arg)
 {
-    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
     return do_load(dc, arg->rd, addr, MO_UW, dc->mem_index, true);
 }
 
@@ -810,19 +810,19 @@ static bool trans_lhuea(DisasContext *dc, arg_typea *arg)
 
 static bool trans_lhui(DisasContext *dc, arg_typeb *arg)
 {
-    TCGv addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
+    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
     return do_load(dc, arg->rd, addr, MO_UW, dc->mem_index, false);
 }
 
 static bool trans_lw(DisasContext *dc, arg_typea *arg)
 {
-    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
     return do_load(dc, arg->rd, addr, MO_UL, dc->mem_index, false);
 }
 
 static bool trans_lwr(DisasContext *dc, arg_typea *arg)
 {
-    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
     return do_load(dc, arg->rd, addr, MO_UL, dc->mem_index, true);
 }
 
@@ -844,16 +844,16 @@ static bool trans_lwea(DisasContext *dc, arg_typea *arg)
 
 static bool trans_lwi(DisasContext *dc, arg_typeb *arg)
 {
-    TCGv addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
+    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
     return do_load(dc, arg->rd, addr, MO_UL, dc->mem_index, false);
 }
 
 static bool trans_lwx(DisasContext *dc, arg_typea *arg)
 {
-    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
 
     /* lwx does not throw unaligned access errors, so force alignment */
-    tcg_gen_andi_tl(addr, addr, ~3);
+    tcg_gen_andi_i32(addr, addr, ~3);
 
     tcg_gen_qemu_ld_i32(cpu_res_val, addr, dc->mem_index,
                         mo_endian(dc) | MO_UL);
@@ -910,13 +910,13 @@ static bool do_store(DisasContext *dc, int rd, TCGv addr, MemOp mop,
 
 static bool trans_sb(DisasContext *dc, arg_typea *arg)
 {
-    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
     return do_store(dc, arg->rd, addr, MO_UB, dc->mem_index, false);
 }
 
 static bool trans_sbr(DisasContext *dc, arg_typea *arg)
 {
-    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
     return do_store(dc, arg->rd, addr, MO_UB, dc->mem_index, true);
 }
 
@@ -936,19 +936,19 @@ static bool trans_sbea(DisasContext *dc, arg_typea *arg)
 
 static bool trans_sbi(DisasContext *dc, arg_typeb *arg)
 {
-    TCGv addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
+    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
     return do_store(dc, arg->rd, addr, MO_UB, dc->mem_index, false);
 }
 
 static bool trans_sh(DisasContext *dc, arg_typea *arg)
 {
-    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
     return do_store(dc, arg->rd, addr, MO_UW, dc->mem_index, false);
 }
 
 static bool trans_shr(DisasContext *dc, arg_typea *arg)
 {
-    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
     return do_store(dc, arg->rd, addr, MO_UW, dc->mem_index, true);
 }
 
@@ -970,19 +970,19 @@ static bool trans_shea(DisasContext *dc, arg_typea *arg)
 
 static bool trans_shi(DisasContext *dc, arg_typeb *arg)
 {
-    TCGv addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
+    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
     return do_store(dc, arg->rd, addr, MO_UW, dc->mem_index, false);
 }
 
 static bool trans_sw(DisasContext *dc, arg_typea *arg)
 {
-    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
     return do_store(dc, arg->rd, addr, MO_UL, dc->mem_index, false);
 }
 
 static bool trans_swr(DisasContext *dc, arg_typea *arg)
 {
-    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
     return do_store(dc, arg->rd, addr, MO_UL, dc->mem_index, true);
 }
 
@@ -1004,19 +1004,19 @@ static bool trans_swea(DisasContext *dc, arg_typea *arg)
 
 static bool trans_swi(DisasContext *dc, arg_typeb *arg)
 {
-    TCGv addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
+    TCGv_i32 addr = compute_ldst_addr_typeb(dc, arg->ra, arg->imm);
     return do_store(dc, arg->rd, addr, MO_UL, dc->mem_index, false);
 }
 
 static bool trans_swx(DisasContext *dc, arg_typea *arg)
 {
-    TCGv addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
+    TCGv_i32 addr = compute_ldst_addr_typea(dc, arg->ra, arg->rb);
     TCGLabel *swx_done = gen_new_label();
     TCGLabel *swx_fail = gen_new_label();
     TCGv_i32 tval;
 
     /* swx does not throw unaligned access errors, so force alignment */
-    tcg_gen_andi_tl(addr, addr, ~3);
+    tcg_gen_andi_i32(addr, addr, ~3);
 
     /*
      * Compare the address vs the one we used during lwx.
