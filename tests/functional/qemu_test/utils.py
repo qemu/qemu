@@ -17,10 +17,10 @@ def get_usernet_hostfwd_port(vm):
     res = vm.cmd('human-monitor-command', command_line='info usernet')
     return get_info_usernet_hostfwd_port(res)
 
-"""
-Round up to next power of 2
-"""
 def pow2ceil(x):
+    """
+    Round up to next power of 2
+    """
     return 1 if x == 0 else 2**(x - 1).bit_length()
 
 def file_truncate(path, size):
@@ -28,12 +28,12 @@ def file_truncate(path, size):
         with open(path, 'ab+') as fd:
             fd.truncate(size)
 
-"""
-Expand file size to next power of 2
-"""
 def image_pow2ceil_expand(path):
-        size = os.path.getsize(path)
-        size_aligned = pow2ceil(size)
-        if size != size_aligned:
-            with open(path, 'ab+') as fd:
-                fd.truncate(size_aligned)
+    """
+    Expand file size to next power of 2
+    """
+    size = os.path.getsize(path)
+    size_aligned = pow2ceil(size)
+    if size != size_aligned:
+        with open(path, 'ab+') as fd:
+            fd.truncate(size_aligned)
