@@ -340,10 +340,6 @@ typedef enum {
     OPC_SYNC_ACQUIRE = OPC_SYNC | 0x11 << 6,
     OPC_SYNC_RELEASE = OPC_SYNC | 0x12 << 6,
     OPC_SYNC_RMB     = OPC_SYNC | 0x13 << 6,
-
-    /* Aliases for convenience.  */
-    ALIAS_PADD     = sizeof(void *) == 4 ? OPC_ADDU : OPC_DADDU,
-    ALIAS_PADDI    = sizeof(void *) == 4 ? OPC_ADDIU : OPC_DADDIU,
 } MIPSInsn;
 
 /*
@@ -700,7 +696,7 @@ static void tcg_out_ldst(TCGContext *s, MIPSInsn opc, TCGReg data,
     if (ofs != lo) {
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_TMP0, ofs - lo);
         if (addr != TCG_REG_ZERO) {
-            tcg_out_opc_reg(s, ALIAS_PADD, TCG_TMP0, TCG_TMP0, addr);
+            tcg_out_opc_reg(s, OPC_DADDU, TCG_TMP0, TCG_TMP0, addr);
         }
         addr = TCG_TMP0;
     }
@@ -1103,7 +1099,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
         tcg_out_opc_reg(s, OPC_AND, TCG_TMP3, TCG_TMP3, TCG_TMP0);
 
         /* Add the tlb_table pointer, creating the CPUTLBEntry address.  */
-        tcg_out_opc_reg(s, ALIAS_PADD, TCG_TMP3, TCG_TMP3, TCG_TMP1);
+        tcg_out_opc_reg(s, OPC_DADDU, TCG_TMP3, TCG_TMP3, TCG_TMP1);
 
         /* Load the tlb comparator.  */
         if (addr_type == TCG_TYPE_I32) {
@@ -1142,7 +1138,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
 
         /* delay slot */
         base = TCG_TMP3;
-        tcg_out_opc_reg(s, ALIAS_PADD, base, TCG_TMP3, addr);
+        tcg_out_opc_reg(s, OPC_DADDU, base, TCG_TMP3, addr);
     } else {
         if (a_mask && (use_mips32r6_instructions || a_bits != s_bits)) {
             ldst = new_ldst_label(s);
@@ -1171,9 +1167,9 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
         }
         if (guest_base) {
             if (guest_base == (int16_t)guest_base) {
-                tcg_out_opc_imm(s, ALIAS_PADDI, TCG_REG_A0, base, guest_base);
+                tcg_out_opc_imm(s, OPC_DADDIU, TCG_REG_A0, base, guest_base);
             } else {
-                tcg_out_opc_reg(s, ALIAS_PADD, TCG_REG_A0, base,
+                tcg_out_opc_reg(s, OPC_DADDU, TCG_REG_A0, base,
                                 TCG_GUEST_BASE_REG);
             }
             base = TCG_REG_A0;
@@ -1411,7 +1407,7 @@ static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
         } else {
             base = TCG_REG_V0;
             tcg_out_movi(s, TCG_TYPE_PTR, base, ofs - lo);
-            tcg_out_opc_reg(s, ALIAS_PADD, base, base, TCG_REG_TB);
+            tcg_out_opc_reg(s, OPC_DADDU, base, base, TCG_REG_TB);
         }
     }
     if (!tcg_out_opc_jmp(s, OPC_J, tb_ret_addr)) {
@@ -1419,7 +1415,7 @@ static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
         tcg_out_opc_reg(s, OPC_JR, 0, TCG_TMP0, 0);
     }
     /* delay slot */
-    tcg_out_opc_imm(s, ALIAS_PADDI, TCG_REG_V0, base, lo);
+    tcg_out_opc_imm(s, OPC_DADDIU, TCG_REG_V0, base, lo);
 }
 
 static void tcg_out_goto_tb(TCGContext *s, int which)
@@ -1438,7 +1434,7 @@ static void tcg_out_goto_tb(TCGContext *s, int which)
 
     set_jmp_reset_offset(s, which);
     /* For the unlinked case, need to reset TCG_REG_TB. */
-    tcg_out_ldst(s, ALIAS_PADDI, TCG_REG_TB, TCG_REG_TB,
+    tcg_out_ldst(s, OPC_DADDIU, TCG_REG_TB, TCG_REG_TB,
                  -tcg_current_code_size(s));
 }
 
@@ -2360,7 +2356,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_set_frame(s, TCG_REG_SP, TCG_STATIC_CALL_ARGS_SIZE, TEMP_SIZE);
 
     /* TB prologue */
-    tcg_out_opc_imm(s, ALIAS_PADDI, TCG_REG_SP, TCG_REG_SP, -FRAME_SIZE);
+    tcg_out_opc_imm(s, OPC_DADDIU, TCG_REG_SP, TCG_REG_SP, -FRAME_SIZE);
     for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); i++) {
         tcg_out_st(s, TCG_TYPE_REG, tcg_target_callee_save_regs[i],
                    TCG_REG_SP, SAVE_OFS + i * REG_SIZE);
@@ -2403,7 +2399,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     tcg_out_opc_reg(s, OPC_JR, 0, TCG_REG_RA, 0);
     /* delay slot */
-    tcg_out_opc_imm(s, ALIAS_PADDI, TCG_REG_SP, TCG_REG_SP, FRAME_SIZE);
+    tcg_out_opc_imm(s, OPC_DADDIU, TCG_REG_SP, TCG_REG_SP, FRAME_SIZE);
 
     if (use_mips32r2_instructions) {
         return;
