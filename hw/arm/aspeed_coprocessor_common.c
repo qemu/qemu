@@ -25,6 +25,8 @@ static void aspeed_coprocessor_realize(DeviceState *dev, Error **errp)
 static const Property aspeed_coprocessor_properties[] = {
     DEFINE_PROP_LINK("memory", AspeedCoprocessorState, memory,
                      TYPE_MEMORY_REGION, MemoryRegion *),
+    DEFINE_PROP_LINK("sram", AspeedCoprocessorState, sram, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
 };
 
 static void aspeed_coprocessor_class_init(ObjectClass *oc, const void *data)

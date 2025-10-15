@@ -118,6 +118,8 @@ static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
     AspeedCoprocessorState *soc;
     AspeedCoprocessorClass *sc;
     Ast2700FCState *s = AST2700A1FC(machine);
+    AspeedSoCState *psp = ASPEED_SOC(&s->ca35);
+
     s->ssp_sysclk = clock_new(OBJECT(s), "SSP_SYSCLK");
     clock_set_hz(s->ssp_sysclk, 200000000ULL);
 
@@ -134,6 +136,8 @@ static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
     sc = ASPEED_COPROCESSOR_GET_CLASS(soc);
     aspeed_soc_uart_set_chr(soc->uart, ASPEED_DEV_UART4, sc->uarts_base,
                             sc->uarts_num, serial_hd(1));
+    object_property_set_link(OBJECT(&s->ssp), "sram",
+                             OBJECT(&psp->sram), &error_abort);
     if (!qdev_realize(DEVICE(&s->ssp), NULL, errp)) {
         return false;
     }

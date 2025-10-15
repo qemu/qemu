@@ -17,7 +17,8 @@ struct AspeedCoprocessorState {
 
     MemoryRegion *memory;
     MemoryRegion sdram;
-    MemoryRegion sram;
+    MemoryRegion *sram;
+    MemoryRegion sram_alias;
     Clock *sysclk;
 
     AspeedSCUState scu;
