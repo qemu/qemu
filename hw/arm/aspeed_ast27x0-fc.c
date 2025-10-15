@@ -60,6 +60,7 @@ static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
     Ast2700FCState *s = AST2700A1FC(machine);
     AspeedSoCState *soc;
     AspeedSoCClass *sc;
+    const char *bios_name = NULL;
     BlockBackend *fmc0 = NULL;
     DeviceState *dev = NULL;
     uint64_t rom_size;
@@ -121,6 +122,10 @@ static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
         rom_size = memory_region_size(&soc->spi_boot);
         aspeed_install_boot_rom(soc, fmc0, &s->ca35_boot_rom, rom_size);
     }
+
+    /* VBOOTROM */
+    bios_name = machine->firmware ?: VBOOTROM_FILE_NAME;
+    aspeed_load_vbootrom(soc, bios_name, errp);
 
     arm_load_kernel(ARM_CPU(first_cpu), machine, &ast2700fc_board_info);
 
