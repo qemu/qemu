@@ -35,6 +35,7 @@ struct Ast2700FCState {
 
     MemoryRegion ca35_memory;
     MemoryRegion ca35_dram;
+    MemoryRegion ca35_boot_rom;
     MemoryRegion ssp_memory;
     MemoryRegion tsp_memory;
 
@@ -44,8 +45,6 @@ struct Ast2700FCState {
     Aspeed27x0SoCState ca35;
     Aspeed27x0CoprocessorState ssp;
     Aspeed27x0CoprocessorState tsp;
-
-    bool mmio_exec;
 };
 
 #define AST2700FC_BMC_RAM_SIZE (1 * GiB)
@@ -61,6 +60,9 @@ static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
     Ast2700FCState *s = AST2700A1FC(machine);
     AspeedSoCState *soc;
     AspeedSoCClass *sc;
+    BlockBackend *fmc0 = NULL;
+    DeviceState *dev = NULL;
+    uint64_t rom_size;
 
     object_initialize_child(OBJECT(s), "ca35", &s->ca35, "ast2700-a1");
     soc = ASPEED_SOC(&s->ca35);
@@ -111,6 +113,14 @@ static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
 
     ast2700fc_board_info.ram_size = machine->ram_size;
     ast2700fc_board_info.loader_start = sc->memmap[ASPEED_DEV_SDRAM];
+
+    dev = ssi_get_cs(soc->fmc.spi, 0);
+    fmc0 = dev ? m25p80_get_blk(dev) : NULL;
+
+    if (fmc0) {
+        rom_size = memory_region_size(&soc->spi_boot);
+        aspeed_install_boot_rom(soc, fmc0, &s->ca35_boot_rom, rom_size);
+    }
 
     arm_load_kernel(ARM_CPU(first_cpu), machine, &ast2700fc_board_info);
 
