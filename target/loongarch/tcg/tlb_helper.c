@@ -117,13 +117,7 @@ static void invalidate_tlb_entry(CPULoongArchState *env, int index)
     uint8_t tlb_v0 = FIELD_EX64(tlb->tlb_entry0, TLBENTRY, V);
     uint8_t tlb_v1 = FIELD_EX64(tlb->tlb_entry1, TLBENTRY, V);
     uint64_t tlb_vppn = FIELD_EX64(tlb->tlb_misc, TLB_MISC, VPPN);
-    uint8_t tlb_e = FIELD_EX64(tlb->tlb_misc, TLB_MISC, E);
 
-    if (!tlb_e) {
-        return;
-    }
-
-    tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
     tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
     pagesize = MAKE_64BIT_MASK(tlb_ps, 1);
     mask = MAKE_64BIT_MASK(0, tlb_ps + 1);
@@ -145,11 +139,19 @@ static void invalidate_tlb(CPULoongArchState *env, int index)
 {
     LoongArchTLB *tlb;
     uint16_t csr_asid, tlb_asid, tlb_g;
+    uint8_t tlb_e;
 
     csr_asid = FIELD_EX64(env->CSR_ASID, CSR_ASID, ASID);
     tlb = &env->tlb[index];
+    tlb_e = FIELD_EX64(tlb->tlb_misc, TLB_MISC, E);
+    if (!tlb_e) {
+        return;
+    }
+
+    tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, E, 0);
     tlb_asid = FIELD_EX64(tlb->tlb_misc, TLB_MISC, ASID);
     tlb_g = FIELD_EX64(tlb->tlb_entry0, TLBENTRY, G);
+    /* QEMU TLB is flushed when asid is changed */
     if (tlb_g == 0 && tlb_asid != csr_asid) {
         return;
     }
@@ -369,7 +371,7 @@ void helper_tlbfill(CPULoongArchState *env)
     uint16_t pagesize, stlb_ps;
     uint16_t asid, tlb_asid;
     LoongArchTLB *tlb;
-    uint8_t tlb_e;
+    uint8_t tlb_e, tlb_g;
 
     if (FIELD_EX64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR)) {
         entryhi = env->CSR_TLBREHI;
@@ -398,7 +400,8 @@ void helper_tlbfill(CPULoongArchState *env)
             }
 
             tlb_asid = FIELD_EX64(tlb->tlb_misc, TLB_MISC, ASID);
-            if (asid != tlb_asid) {
+            tlb_g = FIELD_EX64(tlb->tlb_entry0, TLBENTRY, G);
+            if (tlb_g == 0 && asid != tlb_asid) {
                 set = i;
             }
         }
@@ -421,7 +424,8 @@ void helper_tlbfill(CPULoongArchState *env)
             }
 
             tlb_asid = FIELD_EX64(tlb->tlb_misc, TLB_MISC, ASID);
-            if (asid != tlb_asid) {
+            tlb_g = FIELD_EX64(tlb->tlb_entry0, TLBENTRY, G);
+            if (tlb_g == 0 && asid != tlb_asid) {
                 index = i;
             }
         }
