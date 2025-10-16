@@ -102,15 +102,6 @@ qcrypto_tls_creds_get_path(QCryptoTLSCreds *creds,
 {
     int ret = -1;
 
-    if (!creds->dir) {
-        if (required) {
-            error_setg(errp, "Missing 'dir' property value");
-            return -1;
-        } else {
-            return 0;
-        }
-    }
-
     *cred = g_strdup_printf("%s/%s", creds->dir, filename);
 
     if (access(*cred, R_OK) < 0) {

@@ -81,6 +81,11 @@ qcrypto_tls_creds_psk_load(QCryptoTLSCredsPSK *creds,
     trace_qcrypto_tls_creds_psk_load(creds,
             creds->parent_obj.dir ? creds->parent_obj.dir : "<nodir>");
 
+    if (!creds->parent_obj.dir) {
+        error_setg(errp, "Missing 'dir' property value");
+        goto cleanup;
+    }
+
     if (creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
         if (creds->username) {
             error_setg(errp, "username should not be set when endpoint=server");
