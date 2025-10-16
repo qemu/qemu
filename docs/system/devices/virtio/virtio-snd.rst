@@ -1,4 +1,4 @@
-virtio sound
+VirtIO Sound
 ============
 
 This document explains the setup and usage of the Virtio sound device.

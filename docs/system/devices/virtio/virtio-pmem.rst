@@ -1,7 +1,5 @@
-
-===========
-virtio pmem
-===========
+VirtIO Persistent Memory
+========================
 
 This document explains the setup and usage of the virtio pmem device.
 The virtio pmem device is a paravirtualized persistent memory device
