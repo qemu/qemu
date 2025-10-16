@@ -82,22 +82,18 @@ Emulated Devices
 .. toctree::
    :maxdepth: 1
 
+   devices/virtio/index.rst
+
    devices/can.rst
+   devices/canokey.rst
    devices/ccid.rst
    devices/cxl.rst
-   devices/vfio-user.rst
-   devices/ivshmem.rst
+   devices/igb.rst
    devices/ivshmem-flat.rst
+   devices/ivshmem.rst
    devices/keyboard.rst
    devices/net.rst
    devices/nvme.rst
-   devices/usb.rst
-   devices/vhost-user.rst
-   devices/virtio-gpu.rst
-   devices/virtio-pmem.rst
-   devices/virtio-snd.rst
-   devices/vhost-user-input.rst
-   devices/vhost-user-rng.rst
-   devices/canokey.rst
    devices/usb-u2f.rst
-   devices/igb.rst
+   devices/usb.rst
+   devices/vfio-user.rst
