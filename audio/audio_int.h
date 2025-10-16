@@ -30,6 +30,7 @@
 /* #define RECIPROCAL */
 #endif
 #include "qemu/audio.h"
+#include "qemu/audio-capture.h"
 #include "mixeng.h"
 
 #ifdef CONFIG_GIO

@@ -41,30 +41,7 @@ typedef struct audsettings {
     int endianness;
 } audsettings;
 
-typedef enum {
-    AUD_CNOTIFY_ENABLE,
-    AUD_CNOTIFY_DISABLE
-} audcnotification_e;
-
-struct audio_capture_ops {
-    void (*notify) (void *opaque, audcnotification_e cmd);
-    void (*capture) (void *opaque, const void *buf, int size);
-    void (*destroy) (void *opaque);
-};
-
-struct capture_ops {
-    void (*info) (void *opaque);
-    void (*destroy) (void *opaque);
-};
-
-typedef struct CaptureState {
-    void *opaque;
-    struct capture_ops ops;
-    QLIST_ENTRY (CaptureState) entries;
-} CaptureState;
-
 typedef struct SWVoiceOut SWVoiceOut;
-typedef struct CaptureVoiceOut CaptureVoiceOut;
 typedef struct SWVoiceIn SWVoiceIn;
 
 struct AudioBackendClass {
@@ -78,14 +55,6 @@ typedef struct QEMUAudioTimeStamp {
 } QEMUAudioTimeStamp;
 
 bool AUD_backend_check(AudioBackend **be, Error **errp);
-
-CaptureVoiceOut *AUD_add_capture(
-    AudioBackend *s,
-    struct audsettings *as,
-    struct audio_capture_ops *ops,
-    void *opaque
-    );
-void AUD_del_capture (CaptureVoiceOut *cap, void *cb_opaque);
 
 SWVoiceOut *AUD_open_out (
     AudioBackend *be,
