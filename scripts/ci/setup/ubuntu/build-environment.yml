@@ -47,21 +47,4 @@
         - ansible_facts['distribution'] == 'Ubuntu'
         - ansible_facts['distribution_version'] == '24.04'
 
-    - name: Install armhf cross-compile packages to build QEMU on AArch64 Ubuntu 24.04
-      package:
-        name:
-          - binutils-arm-linux-gnueabihf
-          - gcc-arm-linux-gnueabihf
-          - libblkid-dev:armhf
-          - libc6-dev:armhf
-          - libffi-dev:armhf
-          - libglib2.0-dev:armhf
-          - libmount-dev:armhf
-          - libpcre2-dev:armhf
-          - libpixman-1-dev:armhf
-          - zlib1g-dev:armhf
-      when:
-        - ansible_facts['distribution'] == 'Ubuntu'
-        - ansible_facts['distribution_version'] == '24.04'
-        - ansible_facts['architecture'] == 'aarch64'
 
