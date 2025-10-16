@@ -247,10 +247,10 @@ static void openrisc_sim_serial_init(Or1ksimState *state, hwaddr base,
                                      OpenRISCCPU *cpus[], int irq_pin,
                                      int uart_idx)
 {
+    g_autofree char *alias = g_strdup_printf("serial%d", uart_idx);
     void *fdt = state->fdt;
     char *nodename;
     qemu_irq serial_irq;
-    char alias[sizeof("serial0")];
     int i;
 
     if (num_cpus > 1) {
@@ -281,7 +281,6 @@ static void openrisc_sim_serial_init(Or1ksimState *state, hwaddr base,
         /* The /chosen node is created during fdt creation. */
         qemu_fdt_setprop_string(fdt, "/chosen", "stdout-path", nodename);
     }
-    snprintf(alias, sizeof(alias), "serial%d", uart_idx);
     qemu_fdt_setprop_string(fdt, "/aliases", alias, nodename);
 
     g_free(nodename);
