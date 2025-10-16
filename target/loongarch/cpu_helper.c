@@ -17,7 +17,7 @@
 #include "tcg/tcg_loongarch.h"
 
 void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
-                        uint64_t *dir_width, target_ulong level)
+                        uint64_t *dir_width, unsigned int level)
 {
     switch (level) {
     case 1:

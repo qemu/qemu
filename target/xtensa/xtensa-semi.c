@@ -32,6 +32,7 @@
 #include "exec/target_page.h"
 #include "semihosting/semihost.h"
 #include "semihosting/uaccess.h"
+#include "system/memory.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
 
@@ -192,7 +193,9 @@ void xtensa_sim_open_console(Chardev *chr)
 
 void HELPER(simcall)(CPUXtensaState *env)
 {
+    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     CPUState *cs = env_cpu(env);
+    AddressSpace *as = cs->as;
     uint32_t *regs = env->regs;
 
     switch (regs[2]) {
@@ -215,7 +218,7 @@ void HELPER(simcall)(CPUXtensaState *env)
                     TARGET_PAGE_SIZE - (vaddr & (TARGET_PAGE_SIZE - 1));
                 uint32_t io_sz = page_left < len ? page_left : len;
                 hwaddr sz = io_sz;
-                void *buf = cpu_physical_memory_map(paddr, &sz, !is_write);
+                void *buf = address_space_map(as, paddr, &sz, !is_write, attrs);
                 uint32_t io_done;
                 bool error = false;
 
@@ -261,7 +264,7 @@ void HELPER(simcall)(CPUXtensaState *env)
                         error = true;
                         io_done = 0;
                     }
-                    cpu_physical_memory_unmap(buf, sz, !is_write, io_done);
+                    address_space_unmap(as, buf, sz, !is_write, io_done);
                 } else {
                     error = true;
                     regs[3] = TARGET_EINVAL;
@@ -408,11 +411,11 @@ void HELPER(simcall)(CPUXtensaState *env)
 
             while (sz) {
                 hwaddr len = sz;
-                void *buf = cpu_physical_memory_map(base, &len, 1);
+                void *buf = address_space_map(as, base, &len, true, attrs);
 
                 if (buf && len) {
                     memset(buf, regs[4], len);
-                    cpu_physical_memory_unmap(buf, len, 1, len);
+                    address_space_unmap(as, buf, len, true, len);
                 } else {
                     len = 1;
                 }

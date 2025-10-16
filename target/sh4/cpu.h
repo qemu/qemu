@@ -277,7 +277,7 @@ void cpu_sh4_write_mmaped_utlb_data(CPUSH4State *s, hwaddr addr,
                                     uint32_t mem_value);
 #endif
 
-int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr);
+int cpu_sh4_is_cached(CPUSH4State *env, uint32_t addr);
 
 void cpu_load_tlb(CPUSH4State * env);
 
@@ -365,14 +365,14 @@ static inline int cpu_ptel_pr (uint32_t ptel)
 #define PTEA_TC        (1 << 3)
 #define cpu_ptea_tc(ptea) (((ptea) & PTEA_TC) >> 3)
 
-static inline target_ulong cpu_read_sr(CPUSH4State *env)
+static inline uint32_t cpu_read_sr(CPUSH4State *env)
 {
     return env->sr | (env->sr_m << SR_M) |
                      (env->sr_q << SR_Q) |
                      (env->sr_t << SR_T);
 }
 
-static inline void cpu_write_sr(CPUSH4State *env, target_ulong sr)
+static inline void cpu_write_sr(CPUSH4State *env, uint32_t sr)
 {
     env->sr_m = (sr >> SR_M) & 1;
     env->sr_q = (sr >> SR_Q) & 1;

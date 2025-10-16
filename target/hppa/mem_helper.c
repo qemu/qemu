@@ -803,7 +803,7 @@ void HELPER(diag_btlb)(CPUHPPAState *env)
 
 uint64_t HELPER(b_gate_priv)(CPUHPPAState *env, uint64_t iaoq_f)
 {
-    uint64_t gva = hppa_form_gva(env, env->iasq_f, iaoq_f);
+    vaddr gva = hppa_form_gva(env, env->iasq_f, iaoq_f);
     HPPATLBEntry *ent = hppa_find_tlb(env, gva);
 
     if (ent == NULL) {

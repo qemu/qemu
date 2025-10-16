@@ -8,7 +8,8 @@
 
 const char *get_elf_cpu_model(uint32_t eflags)
 {
-    return "any";
+    return TARGET_BIG_ENDIAN ? "any,little-endian=off"
+                             : "any,little-endian=on";
 }
 
 void elf_core_copy_regs(target_elf_gregset_t *r, const CPUMBState *env)

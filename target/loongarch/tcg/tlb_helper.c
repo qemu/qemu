@@ -599,7 +599,7 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 }
 
 target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
-                          target_ulong level, uint32_t mem_idx)
+                          uint32_t level, uint32_t mem_idx)
 {
     CPUState *cs = env_cpu(env);
     target_ulong badvaddr, index, phys;
@@ -607,7 +607,7 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
 
     if (unlikely((level == 0) || (level > 4))) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "Attepted LDDIR with level %"PRId64"\n", level);
+                      "Attepted LDDIR with level %u\n", level);
         return base;
     }
 

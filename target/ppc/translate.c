@@ -3668,16 +3668,17 @@ static void gen_lookup_and_goto_ptr(DisasContext *ctx)
 }
 
 /***                                Branch                                 ***/
-static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
+static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_idx,
+                        target_ulong dest)
 {
     if (NARROW_MODE(ctx)) {
         dest = (uint32_t) dest;
     }
     if (use_goto_tb(ctx, dest)) {
         pmu_count_insns(ctx);
-        tcg_gen_goto_tb(n);
+        tcg_gen_goto_tb(tb_slot_idx);
         tcg_gen_movi_tl(cpu_nip, dest & ~3);
-        tcg_gen_exit_tb(ctx->base.tb, n);
+        tcg_gen_exit_tb(ctx->base.tb, tb_slot_idx);
     } else {
         tcg_gen_movi_tl(cpu_nip, dest & ~3);
         gen_lookup_and_goto_ptr(ctx);

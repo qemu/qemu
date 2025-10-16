@@ -92,6 +92,7 @@ DEF_HELPER_FLAGS_1(tbia, TCG_CALL_NO_RWG, void, env)
 DEF_HELPER_FLAGS_2(tbis, TCG_CALL_NO_RWG, void, env, i64)
 
 DEF_HELPER_1(halt, void, i64)
+DEF_HELPER_1(whami, i64, env)
 
 DEF_HELPER_FLAGS_0(get_vmtime, TCG_CALL_NO_RWG, i64)
 DEF_HELPER_FLAGS_0(get_walltime, TCG_CALL_NO_RWG, i64)

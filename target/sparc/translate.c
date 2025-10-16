@@ -363,15 +363,15 @@ static bool use_goto_tb(DisasContext *s, target_ulong pc, target_ulong npc)
            translator_use_goto_tb(&s->base, npc);
 }
 
-static void gen_goto_tb(DisasContext *s, int tb_num,
+static void gen_goto_tb(DisasContext *s, unsigned tb_slot_idx,
                         target_ulong pc, target_ulong npc)
 {
     if (use_goto_tb(s, pc, npc))  {
         /* jump to same page: we can use a direct jump */
-        tcg_gen_goto_tb(tb_num);
+        tcg_gen_goto_tb(tb_slot_idx);
         tcg_gen_movi_tl(cpu_pc, pc);
         tcg_gen_movi_tl(cpu_npc, npc);
-        tcg_gen_exit_tb(s->base.tb, tb_num);
+        tcg_gen_exit_tb(s->base.tb, tb_slot_idx);
     } else {
         /* jump to another page: we can use an indirect jump */
         tcg_gen_movi_tl(cpu_pc, pc);
