@@ -45,7 +45,7 @@ platform details for what sort of virtio bus to use.
     - :ref:`vhost_user_input`
   * - vhost-user-rng
     - Entropy driver
-    - :ref:`vhost_user_rng`
+    - See https://github.com/rust-vmm/vhost-device
   * - vhost-user-scmi
     - System Control and Management Interface
     - See https://github.com/rust-vmm/vhost-device
