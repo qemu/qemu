@@ -541,20 +541,27 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
     pages = g_malloc(nr_pages * sizeof(*pages));
 
     ret = translate_pages(cpu, laddr, nr_pages, pages, is_write, &tec);
-    if (ret) {
-        trigger_access_exception(&cpu->env, ret, tec);
-    } else if (hostbuf != NULL) {
+    if (ret == 0 && hostbuf != NULL) {
         AddressSpace *as = CPU(cpu)->as;
 
         /* Copy data by stepping through the area page by page */
         for (i = 0; i < nr_pages; i++) {
+            MemTxResult res;
+
             currlen = MIN(len, TARGET_PAGE_SIZE - (laddr % TARGET_PAGE_SIZE));
-            address_space_rw(as, pages[i] | (laddr & ~TARGET_PAGE_MASK),
-                             attrs, hostbuf, currlen, is_write);
+            res = address_space_rw(as, pages[i] | (laddr & ~TARGET_PAGE_MASK),
+                                   attrs, hostbuf, currlen, is_write);
+            if (res != MEMTX_OK) {
+                ret = PGM_ADDRESSING;
+                break;
+            }
             laddr += currlen;
             hostbuf += currlen;
             len -= currlen;
         }
+    }
+    if (ret) {
+        trigger_access_exception(&cpu->env, ret, tec);
     }
 
     g_free(pages);

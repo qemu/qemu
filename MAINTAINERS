@@ -4397,6 +4397,7 @@ M: Thomas Huth <thuth@redhat.com>
 R: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Daniel P. Berrange <berrange@redhat.com>
 F: docs/devel/testing/functional.rst
+F: scripts/clean_functional_cache.py
 F: tests/functional/qemu_test/
 
 Windows Hosted Continuous Integration
