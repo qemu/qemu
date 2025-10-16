@@ -198,16 +198,7 @@ typedef struct of_dpa_group {
 
 static int of_dpa_mask2prefix(uint32_t mask)
 {
-    int i;
-    int count = 32;
-
-    for (i = 0; i < 32; i++) {
-        if (!(ntohl(mask) & ((2 << i) - 1))) {
-            count--;
-        }
-    }
-
-    return count;
+    return 32 - ctz32(ntohl(mask));
 }
 
 #if defined(DEBUG_ROCKER)
