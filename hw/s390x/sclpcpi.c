@@ -54,6 +54,7 @@
 #include "hw/s390x/event-facility.h"
 #include "hw/s390x/ebcdic.h"
 #include "qapi/qapi-visit-machine.h"
+#include "qapi/qapi-events-machine-s390x.h"
 #include "migration/vmstate.h"
 
 typedef struct Data {
@@ -106,6 +107,9 @@ static int write_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr)
     e->timestamp = qemu_clock_get_ns(QEMU_CLOCK_HOST);
 
     cpim->ebh.flags = SCLP_EVENT_BUFFER_ACCEPTED;
+
+    qapi_event_send_sclp_cpi_info_available();
+
     return SCLP_RC_NORMAL_COMPLETION;
 }
 
