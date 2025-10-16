@@ -27,37 +27,37 @@ platform details for what sort of virtio bus to use.
     - Notes
   * - vhost-user-blk
     - Block storage
-    - See contrib/vhost-user-blk
+    - :ref:`storage-daemon`
   * - vhost-user-fs
     - File based storage driver
-    - See https://gitlab.com/virtio-fs/virtiofsd
+    - `virtiofsd <https://gitlab.com/virtio-fs/virtiofsd>`_
   * - vhost-user-gpio
     - Proxy gpio pins to host
-    - See https://github.com/rust-vmm/vhost-device
+    - `vhost-device-gpio <https://github.com/rust-vmm/vhost-device/tree/main/vhost-device-gpio>`_
   * - vhost-user-gpu
     - GPU driver
-    - See contrib/vhost-user-gpu
+    - `vhost-device-gpu <https://github.com/rust-vmm/vhost-device/tree/main/vhost-device-gpu>`_ or :ref:`vhost_user_gpu`
   * - vhost-user-i2c
     - Proxy i2c devices to host
-    - See https://github.com/rust-vmm/vhost-device
+    - `vhost-device-i2c <https://github.com/rust-vmm/vhost-device/tree/main/vhost-device-i2c>`_
   * - vhost-user-input
     - Generic input driver
-    - :ref:`vhost_user_input`
+    - `vhost-device-input <https://github.com/rust-vmm/vhost-device/tree/main/vhost-device-input>`_ or :ref:`vhost_user_input`
   * - vhost-user-rng
     - Entropy driver
-    - See https://github.com/rust-vmm/vhost-device
+    - `vhost-device-rng <https://github.com/rust-vmm/vhost-device/tree/main/vhost-device-rng>`_
   * - vhost-user-scmi
     - System Control and Management Interface
-    - See https://github.com/rust-vmm/vhost-device
+    - `vhost-device-scmi <https://github.com/rust-vmm/vhost-device/tree/main/vhost-device-scmi>`_
   * - vhost-user-snd
     - Audio device
-    - See https://github.com/rust-vmm/vhost-device/staging
+    - `vhost-device-sound <https://github.com/rust-vmm/vhost-device/tree/main/vhost-device-sound>`_
   * - vhost-user-scsi
     - SCSI based storage
-    - See contrib/vhost-user-scsi
+    - :ref:`vhost_user_scsi`
   * - vhost-user-vsock
     - Socket based communication
-    - See https://github.com/rust-vmm/vhost-device
+    - `vhost-device-vsock <https://github.com/rust-vmm/vhost-device/tree/main/vhost-device-vsock>`_
 
 The referenced *daemons* are not exhaustive, any conforming backend
 implementing the device and using the vhost-user protocol should work.

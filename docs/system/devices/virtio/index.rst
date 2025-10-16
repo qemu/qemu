@@ -24,6 +24,6 @@ can also be off-loaded to an external process via :ref:`vhost user
    virtio-pmem.rst
    virtio-snd.rst
    vhost-user.rst
-   vhost-user-input.rst
+   vhost-user-contrib.rst
 
 .. _VirtIO specification: https://docs.oasis-open.org/virtio/virtio/v1.3/virtio-v1.3.html
