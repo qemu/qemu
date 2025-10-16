@@ -20,8 +20,8 @@
 
 use common::Zeroable;
 use glib_sys::{
-    gboolean, guint, GArray, GHashTable, GHashTableIter, GIOCondition, GList, GMainContext,
-    GPollFD, GPtrArray, GQueue, GSList, GSource, GSourceFunc,
+    gboolean, guint, GArray, GHashTable, GHashTableIter, GIOCondition, GMainContext, GPollFD,
+    GPtrArray, GSList, GSource, GSourceFunc,
 };
 
 #[cfg(MESON)]
