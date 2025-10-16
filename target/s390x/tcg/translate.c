@@ -5613,6 +5613,7 @@ static void in2_r2_nz(DisasContext *s, DisasOps *o)
     int r2 = get_field(s, r2);
     if (r2 != 0) {
         o->in2 = load_reg(r2);
+        gen_addi_and_wrap_i64(s, o->in2, o->in2, 0);
     }
 }
 #define SPEC_in2_r2_nz 0
@@ -6379,10 +6380,12 @@ static void s390x_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
-    /* 31-bit mode */
-    if (!(dc->base.tb->flags & FLAG_MASK_64)) {
-        dc->base.pc_first &= 0x7fffffff;
-        dc->base.pc_next = dc->base.pc_first;
+    if (dc->base.tb->flags & FLAG_MASK_32) {
+        if (!(dc->base.tb->flags & FLAG_MASK_64)) {
+            assert(!(dc->base.pc_first & ~((1ULL << 31) - 1)));
+        }
+    } else {
+        assert(!(dc->base.pc_first & ~((1ULL << 24) - 1)));
     }
 
     dc->cc_op = CC_OP_DYNAMIC;
