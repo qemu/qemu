@@ -3086,6 +3086,11 @@ static inline int vtd_dev_get_pe_from_pasid(VTDAddressSpace *vtd_as,
     return vtd_ce_get_rid2pasid_entry(s, &ce, pe, vtd_as->pasid);
 }
 
+static int vtd_pasid_entry_compare(VTDPASIDEntry *p1, VTDPASIDEntry *p2)
+{
+    return memcmp(p1, p2, sizeof(*p1));
+}
+
 /* Update or invalidate pasid cache based on the pasid entry in guest memory. */
 static void vtd_pasid_cache_sync_locked(gpointer key, gpointer value,
                                         gpointer user_data)
@@ -3094,15 +3099,28 @@ static void vtd_pasid_cache_sync_locked(gpointer key, gpointer value,
     VTDAddressSpace *vtd_as = value;
     VTDPASIDCacheEntry *pc_entry = &vtd_as->pasid_cache_entry;
     VTDPASIDEntry pe;
+    IOMMUNotifier *n;
     uint16_t did;
 
     if (vtd_dev_get_pe_from_pasid(vtd_as, &pe)) {
+        if (!pc_entry->valid) {
+            return;
+        }
         /*
          * No valid pasid entry in guest memory. e.g. pasid entry was modified
          * to be either all-zero or non-present. Either case means existing
          * pasid cache should be invalidated.
          */
         pc_entry->valid = false;
+
+        /*
+         * When a pasid entry isn't valid any more, we should unmap all
+         * mappings in shadow pages instantly to ensure DMA security.
+         */
+        IOMMU_NOTIFIER_FOREACH(n, &vtd_as->iommu) {
+            vtd_address_space_unmap(vtd_as, n);
+        }
+        vtd_switch_address_space(vtd_as);
         return;
     }
 
@@ -3128,8 +3146,15 @@ static void vtd_pasid_cache_sync_locked(gpointer key, gpointer value,
         }
     }
 
-    pc_entry->pasid_entry = pe;
-    pc_entry->valid = true;
+    if (!pc_entry->valid) {
+        pc_entry->pasid_entry = pe;
+        pc_entry->valid = true;
+    } else if (!vtd_pasid_entry_compare(&pe, &pc_entry->pasid_entry)) {
+        return;
+    }
+
+    vtd_switch_address_space(vtd_as);
+    vtd_address_space_sync(vtd_as);
 }
 
 static void vtd_pasid_cache_sync(IntelIOMMUState *s, VTDPASIDCacheInfo *pc_info)
