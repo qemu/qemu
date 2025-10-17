@@ -209,18 +209,4 @@ RegisterInfoArray *register_init_block64(DeviceState *owner,
                                          bool debug_enabled,
                                          uint64_t memory_size);
 
-/**
- * This function should be called to cleanup the registers that were initialized
- * when calling register_init_block32(). This function should only be called
- * from the device's instance_finalize function.
- *
- * Any memory operations that the device performed that require cleanup (such
- * as creating subregions) need to be called before calling this function.
- *
- * @r_array: A structure containing all of the registers, as returned by
- *           register_init_block32()
- */
-
-void register_finalize_block(RegisterInfoArray *r_array);
-
 #endif

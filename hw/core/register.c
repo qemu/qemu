@@ -322,10 +322,6 @@ static void register_array_finalize(Object *obj)
     g_free(r_array->r);
 }
 
-void register_finalize_block(RegisterInfoArray *r_array)
-{
-}
-
 static const TypeInfo register_array_info = {
     .name  = TYPE_REGISTER_ARRAY,
     .parent = TYPE_OBJECT,
