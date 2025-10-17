@@ -138,6 +138,7 @@ static int msi_msix_setup(XenPCIPassthroughState *s,
         rc = xc_physdev_map_pirq_msi(xen_xc, xen_domid, XEN_PT_AUTO_ASSIGN,
                                      ppirq, PCI_DEVFN(s->real_device.dev,
                                                       s->real_device.func),
+                                     ((uint32_t)s->real_device.domain << 16) |
                                      s->real_device.bus,
                                      msix_entry, table_base);
         if (rc) {
