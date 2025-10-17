@@ -25,9 +25,26 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qemu/audio.h"
+#include "qom/object.h"
 
 #define AUDIO_CAP "wav"
 #include "audio_int.h"
+
+#define TYPE_AUDIO_WAV "audio-wav"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioWav, AUDIO_WAV)
+
+struct AudioWav {
+    AudioMixengBackend parent_obj;
+};
+
+static struct audio_driver wav_audio_driver;
+
+static void audio_wav_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->driver = &wav_audio_driver;
+}
 
 typedef struct WAVVoiceOut {
     HWVoiceOut hw;
@@ -214,8 +231,17 @@ static struct audio_driver wav_audio_driver = {
     .voice_size_in  = 0
 };
 
+static const TypeInfo audio_wav_info = {
+    .name = TYPE_AUDIO_WAV,
+    .parent = TYPE_AUDIO_MIXENG_BACKEND,
+    .instance_size = sizeof(AudioWav),
+    .class_init = audio_wav_class_init,
+};
+
 static void register_audio_wav(void)
 {
     audio_driver_register(&wav_audio_driver);
+    type_register_static(&audio_wav_info);
 }
 type_init(register_audio_wav);
+module_obj(TYPE_AUDIO_WAV);

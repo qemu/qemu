@@ -20,9 +20,26 @@
 #include "qemu/main-loop.h"
 #include "qemu/audio.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define AUDIO_CAP "sndio"
 #include "audio_int.h"
+
+#define TYPE_AUDIO_SNDIO "audio-sndio"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioSndio, AUDIO_SNDIO)
+
+struct AudioSndio {
+    AudioMixengBackend parent_obj;
+};
+
+static struct audio_driver sndio_audio_driver;
+
+static void audio_sndio_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->driver = &sndio_audio_driver;
+}
 
 /* default latency in microseconds if no option is set */
 #define SNDIO_LATENCY_US   50000
@@ -555,9 +572,18 @@ static struct audio_driver sndio_audio_driver = {
     .voice_size_in  = sizeof(SndioVoice)
 };
 
+static const TypeInfo audio_sndio_info = {
+    .name = TYPE_AUDIO_SNDIO,
+    .parent = TYPE_AUDIO_MIXENG_BACKEND,
+    .instance_size = sizeof(AudioSndio),
+    .class_init = audio_sndio_class_init,
+};
+
 static void register_audio_sndio(void)
 {
     audio_driver_register(&sndio_audio_driver);
+    type_register_static(&audio_sndio_info);
 }
 
 type_init(register_audio_sndio);
+module_obj(TYPE_AUDIO_SNDIO);

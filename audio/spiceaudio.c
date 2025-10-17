@@ -24,10 +24,27 @@
 #include "qemu/timer.h"
 #include "qapi/error.h"
 #include "ui/qemu-spice.h"
+#include "qom/object.h"
 
 #define AUDIO_CAP "spice"
 #include "qemu/audio.h"
 #include "audio_int.h"
+
+#define TYPE_AUDIO_SPICE "audio-spice"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioSpice, AUDIO_SPICE)
+
+struct AudioSpice {
+    AudioMixengBackend parent_obj;
+};
+
+static struct audio_driver spice_audio_driver;
+
+static void audio_spice_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->driver = &spice_audio_driver;
+}
 
 #if SPICE_INTERFACE_PLAYBACK_MAJOR > 1 || SPICE_INTERFACE_PLAYBACK_MINOR >= 3
 #define LINE_OUT_SAMPLES (480 * 4)
@@ -325,10 +342,19 @@ static struct audio_driver spice_audio_driver = {
     .voice_size_in  = sizeof (SpiceVoiceIn),
 };
 
+static const TypeInfo audio_spice_info = {
+    .name = TYPE_AUDIO_SPICE,
+    .parent = TYPE_AUDIO_MIXENG_BACKEND,
+    .instance_size = sizeof(AudioSpice),
+    .class_init = audio_spice_class_init,
+};
+
 static void register_audio_spice(void)
 {
     audio_driver_register(&spice_audio_driver);
+    type_register_static(&audio_spice_info);
 }
 type_init(register_audio_spice);
+module_obj(TYPE_AUDIO_SPICE);
 
 module_dep("ui-spice-core");

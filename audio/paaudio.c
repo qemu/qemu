@@ -4,11 +4,28 @@
 #include "qemu/module.h"
 #include "qemu/audio.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 
 #include <pulse/pulseaudio.h>
 
 #define AUDIO_CAP "pulseaudio"
 #include "audio_int.h"
+
+#define TYPE_AUDIO_PA "audio-pa"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioPa, AUDIO_PA)
+
+struct AudioPa {
+    AudioMixengBackend parent_obj;
+};
+
+static struct audio_driver pa_audio_driver;
+
+static void audio_pa_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->driver = &pa_audio_driver;
+}
 
 typedef struct PAConnection {
     char *server;
@@ -931,8 +948,17 @@ static struct audio_driver pa_audio_driver = {
     .voice_size_in  = sizeof (PAVoiceIn),
 };
 
+static const TypeInfo audio_pa_info = {
+    .name = TYPE_AUDIO_PA,
+    .parent = TYPE_AUDIO_MIXENG_BACKEND,
+    .instance_size = sizeof(AudioPa),
+    .class_init = audio_pa_class_init,
+};
+
 static void register_audio_pa(void)
 {
     audio_driver_register(&pa_audio_driver);
+    type_register_static(&audio_pa_info);
 }
 type_init(register_audio_pa);
+module_obj(TYPE_AUDIO_PA);

@@ -26,6 +26,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/dbus.h"
+#include "qom/object.h"
 
 #ifdef G_OS_UNIX
 #include <gio/gunixfdlist.h>
@@ -43,6 +44,22 @@
 #define DBUS_DISPLAY1_AUDIO_PATH DBUS_DISPLAY1_ROOT "/Audio"
 
 #define DBUS_DEFAULT_AUDIO_NSAMPLES 480
+
+#define TYPE_AUDIO_DBUS "audio-dbus"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioDbus, AUDIO_DBUS)
+
+struct AudioDbus {
+    AudioMixengBackend parent_obj;
+};
+
+static struct audio_driver dbus_audio_driver;
+
+static void audio_dbus_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->driver = &dbus_audio_driver;
+}
 
 typedef struct DBusAudio {
     Audiodev *dev;
@@ -711,10 +728,19 @@ static struct audio_driver dbus_audio_driver = {
     .voice_size_in   = sizeof(DBusVoiceIn)
 };
 
+static const TypeInfo audio_dbus_info = {
+    .name = TYPE_AUDIO_DBUS,
+    .parent = TYPE_AUDIO_MIXENG_BACKEND,
+    .instance_size = sizeof(AudioDbus),
+    .class_init = audio_dbus_class_init,
+};
+
 static void register_audio_dbus(void)
 {
     audio_driver_register(&dbus_audio_driver);
+    type_register_static(&audio_dbus_info);
 }
 type_init(register_audio_dbus);
 
 module_dep("ui-dbus")
+module_obj(TYPE_AUDIO_DBUS)

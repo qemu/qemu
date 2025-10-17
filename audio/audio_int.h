@@ -241,6 +241,8 @@ struct SWVoiceCap {
 
 struct AudioMixengBackendClass {
     AudioBackendClass parent_class;
+
+    audio_driver *driver;
 };
 
 struct AudioMixengBackend {

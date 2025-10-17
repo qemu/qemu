@@ -33,6 +33,7 @@
 #include "audio_int.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 
 #include <windows.h>
 #include <mmsystem.h>
@@ -40,6 +41,22 @@
 #include <dsound.h>
 
 #include "audio_win_int.h"
+
+#define TYPE_AUDIO_DSOUND "audio-dsound"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioDsound, AUDIO_DSOUND)
+
+struct AudioDsound {
+    AudioMixengBackend parent_obj;
+};
+
+static struct audio_driver dsound_audio_driver;
+
+static void audio_dsound_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->driver = &dsound_audio_driver;
+}
 
 /* #define DEBUG_DSOUND */
 
@@ -694,8 +711,17 @@ static struct audio_driver dsound_audio_driver = {
     .voice_size_in  = sizeof (DSoundVoiceIn)
 };
 
+static const TypeInfo audio_dsound_info = {
+    .name = TYPE_AUDIO_DSOUND,
+    .parent = TYPE_AUDIO_MIXENG_BACKEND,
+    .instance_size = sizeof(AudioDsound),
+    .class_init = audio_dsound_class_init,
+};
+
 static void register_audio_dsound(void)
 {
     audio_driver_register(&dsound_audio_driver);
+    type_register_static(&audio_dsound_info);
 }
 type_init(register_audio_dsound);
+module_obj(TYPE_AUDIO_DSOUND);

@@ -29,9 +29,26 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/audio.h"
+#include "qom/object.h"
 
 #define AUDIO_CAP "coreaudio"
 #include "audio_int.h"
+
+#define TYPE_AUDIO_COREAUDIO "audio-coreaudio"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioCoreaudio, AUDIO_COREAUDIO)
+
+struct AudioCoreaudio {
+    AudioMixengBackend parent_obj;
+};
+
+static struct audio_driver coreaudio_audio_driver;
+
+static void audio_coreaudio_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->driver = &coreaudio_audio_driver;
+}
 
 typedef struct coreaudioVoiceOut {
     HWVoiceOut hw;
@@ -673,8 +690,17 @@ static struct audio_driver coreaudio_audio_driver = {
     .voice_size_in  = 0
 };
 
+static const TypeInfo audio_coreaudio_info = {
+    .name = TYPE_AUDIO_COREAUDIO,
+    .parent = TYPE_AUDIO_MIXENG_BACKEND,
+    .instance_size = sizeof(AudioCoreaudio),
+    .class_init = audio_coreaudio_class_init,
+};
+
 static void register_audio_coreaudio(void)
 {
     audio_driver_register(&coreaudio_audio_driver);
+    type_register_static(&audio_coreaudio_info);
 }
 type_init(register_audio_coreaudio);
+module_obj(TYPE_AUDIO_COREAUDIO);

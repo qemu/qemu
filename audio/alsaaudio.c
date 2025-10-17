@@ -27,6 +27,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/audio.h"
+#include "qom/object.h"
 #include "trace.h"
 
 #pragma GCC diagnostic ignored "-Waddress"
@@ -35,6 +36,22 @@
 #include "audio_int.h"
 
 #define DEBUG_ALSA 0
+
+#define TYPE_AUDIO_ALSA "audio-alsa"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioALSA, AUDIO_ALSA)
+
+struct AudioALSA {
+    AudioMixengBackend parent_obj;
+};
+
+static struct audio_driver alsa_audio_driver;
+
+static void audio_alsa_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->driver = &alsa_audio_driver;
+}
 
 struct pollhlp {
     snd_pcm_t *handle;
@@ -945,8 +962,18 @@ static struct audio_driver alsa_audio_driver = {
     .voice_size_in  = sizeof (ALSAVoiceIn)
 };
 
+static const TypeInfo audio_alsa_info = {
+    .name = TYPE_AUDIO_ALSA,
+    .parent = TYPE_AUDIO_MIXENG_BACKEND,
+    .instance_size = sizeof(AudioALSA),
+    .class_init = audio_alsa_class_init,
+};
+
+
 static void register_audio_alsa(void)
 {
     audio_driver_register(&alsa_audio_driver);
+    type_register_static(&audio_alsa_info);
 }
 type_init(register_audio_alsa);
+module_obj(TYPE_AUDIO_ALSA);

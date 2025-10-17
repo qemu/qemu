@@ -27,12 +27,29 @@
 #include "qemu/atomic.h"
 #include "qemu/main-loop.h"
 #include "qemu/audio.h"
+#include "qom/object.h"
 
 #define AUDIO_CAP "jack"
 #include "audio_int.h"
 
 #include <jack/jack.h>
 #include <jack/thread.h>
+
+#define TYPE_AUDIO_JACK "audio-jack"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioJack, AUDIO_JACK)
+
+struct AudioJack {
+    AudioMixengBackend parent_obj;
+};
+
+static struct audio_driver jack_driver;
+
+static void audio_jack_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->driver = &jack_driver;
+}
 
 struct QJack;
 
@@ -691,10 +708,18 @@ static void qjack_info(const char *msg)
     dolog("I: %s\n", msg);
 }
 
+static const TypeInfo audio_jack_info = {
+    .name = TYPE_AUDIO_JACK,
+    .parent = TYPE_AUDIO_MIXENG_BACKEND,
+    .instance_size = sizeof(AudioJack),
+    .class_init = audio_jack_class_init,
+};
+
 static void register_audio_jack(void)
 {
     qemu_mutex_init(&qjack_shutdown_lock);
     audio_driver_register(&jack_driver);
+    type_register_static(&audio_jack_info);
 #if !defined(WIN32) && defined(CONFIG_PTHREAD_SETNAME_NP_W_TID)
     jack_set_thread_creator(qjack_thread_creator);
 #endif
@@ -702,3 +727,4 @@ static void register_audio_jack(void)
     jack_set_info_function(qjack_info);
 }
 type_init(register_audio_jack);
+module_obj(TYPE_AUDIO_JACK);

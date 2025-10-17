@@ -25,9 +25,26 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qemu/audio.h"
+#include "qom/object.h"
 
 #define AUDIO_CAP "noaudio"
 #include "audio_int.h"
+
+#define TYPE_AUDIO_NONE "audio-none"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioNone, AUDIO_NONE)
+
+struct AudioNone {
+    AudioMixengBackend parent_obj;
+};
+
+static struct audio_driver no_audio_driver;
+
+static void audio_none_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->driver = &no_audio_driver;
+}
 
 typedef struct NoVoiceOut {
     HWVoiceOut hw;
@@ -138,8 +155,17 @@ static struct audio_driver no_audio_driver = {
     .voice_size_in  = sizeof (NoVoiceIn)
 };
 
+static const TypeInfo audio_none_info = {
+    .name = TYPE_AUDIO_NONE,
+    .parent = TYPE_AUDIO_MIXENG_BACKEND,
+    .instance_size = sizeof(AudioNone),
+    .class_init = audio_none_class_init,
+};
+
 static void register_audio_none(void)
 {
     audio_driver_register(&no_audio_driver);
+    type_register_static(&audio_none_info);
 }
 type_init(register_audio_none);
+module_obj(TYPE_AUDIO_NONE);

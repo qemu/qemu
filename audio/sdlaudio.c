@@ -28,6 +28,7 @@
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "qemu/audio.h"
+#include "qom/object.h"
 
 #ifndef _WIN32
 #ifdef __sun__
@@ -39,6 +40,22 @@
 
 #define AUDIO_CAP "sdl"
 #include "audio_int.h"
+
+#define TYPE_AUDIO_SDL "audio-sdl"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioSdl, AUDIO_SDL)
+
+struct AudioSdl {
+    AudioMixengBackend parent_obj;
+};
+
+static struct audio_driver sdl_audio_driver;
+
+static void audio_sdl_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->driver = &sdl_audio_driver;
+}
 
 typedef struct SDLVoiceOut {
     HWVoiceOut hw;
@@ -491,8 +508,17 @@ static struct audio_driver sdl_audio_driver = {
     .voice_size_in  = sizeof(SDLVoiceIn),
 };
 
+static const TypeInfo audio_sdl_info = {
+    .name = TYPE_AUDIO_SDL,
+    .parent = TYPE_AUDIO_MIXENG_BACKEND,
+    .instance_size = sizeof(AudioSdl),
+    .class_init = audio_sdl_class_init,
+};
+
 static void register_audio_sdl(void)
 {
     audio_driver_register(&sdl_audio_driver);
+    type_register_static(&audio_sdl_info);
 }
 type_init(register_audio_sdl);
+module_obj(TYPE_AUDIO_SDL);

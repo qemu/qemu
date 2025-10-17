@@ -30,10 +30,27 @@
 #include "qemu/host-utils.h"
 #include "qapi/error.h"
 #include "qemu/audio.h"
+#include "qom/object.h"
 #include "trace.h"
 
 #define AUDIO_CAP "oss"
 #include "audio_int.h"
+
+#define TYPE_AUDIO_OSS "audio-oss"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioOss, AUDIO_OSS)
+
+struct AudioOss {
+    AudioMixengBackend parent_obj;
+};
+
+static struct audio_driver oss_audio_driver;
+
+static void audio_oss_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->driver = &oss_audio_driver;
+}
 
 #if defined OSS_GETVERSION && defined SNDCTL_DSP_POLICY
 #define USE_DSP_POLICY
@@ -772,8 +789,17 @@ static struct audio_driver oss_audio_driver = {
     .voice_size_in  = sizeof (OSSVoiceIn)
 };
 
+static const TypeInfo audio_oss_info = {
+    .name = TYPE_AUDIO_OSS,
+    .parent = TYPE_AUDIO_MIXENG_BACKEND,
+    .instance_size = sizeof(AudioOss),
+    .class_init = audio_oss_class_init,
+};
+
 static void register_audio_oss(void)
 {
     audio_driver_register(&oss_audio_driver);
+    type_register_static(&audio_oss_info);
 }
 type_init(register_audio_oss);
+module_obj(TYPE_AUDIO_OSS);

@@ -13,6 +13,7 @@
 #include "qemu/audio.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 #include <spa/param/audio/format-utils.h>
 #include <spa/utils/ringbuffer.h>
 #include <spa/utils/result.h>
@@ -26,6 +27,22 @@
 #define RINGBUFFER_MASK    (RINGBUFFER_SIZE - 1)
 
 #include "audio_int.h"
+
+#define TYPE_AUDIO_PW "audio-pipewire"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioPw, AUDIO_PW)
+
+struct AudioPw {
+    AudioMixengBackend parent_obj;
+};
+
+static struct audio_driver pw_audio_driver;
+
+static void audio_pw_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->driver = &pw_audio_driver;
+}
 
 typedef struct pwvolume {
     uint32_t channels;
@@ -847,10 +864,19 @@ static struct audio_driver pw_audio_driver = {
     .voice_size_in = sizeof(PWVoiceIn),
 };
 
+static const TypeInfo audio_pw_info = {
+    .name = TYPE_AUDIO_PW,
+    .parent = TYPE_AUDIO_MIXENG_BACKEND,
+    .instance_size = sizeof(AudioPw),
+    .class_init = audio_pw_class_init,
+};
+
 static void
 register_audio_pw(void)
 {
     audio_driver_register(&pw_audio_driver);
+    type_register_static(&audio_pw_info);
 }
 
 type_init(register_audio_pw);
+module_obj(TYPE_AUDIO_PW);
