@@ -179,16 +179,17 @@ static void zynqmp_apu_handle_wfi(void *opaque, int irq, int level)
 static void zynqmp_apu_init(Object *obj)
 {
     XlnxZynqMPAPUCtrl *s = XLNX_ZYNQMP_APU_CTRL(obj);
+    RegisterInfoArray *reg_array;
     int i;
 
-    s->reg_array =
+    reg_array =
         register_init_block32(DEVICE(obj), zynqmp_apu_regs_info,
                               ARRAY_SIZE(zynqmp_apu_regs_info),
                               s->regs_info, s->regs,
                               &zynqmp_apu_ops,
                               XILINX_ZYNQMP_APU_ERR_DEBUG,
                               APU_R_MAX * 4);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->reg_array->mem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &reg_array->mem);
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq_imr);
 
     for (i = 0; i < APU_MAX_CPU; ++i) {
@@ -206,12 +207,6 @@ static void zynqmp_apu_init(Object *obj)
                              "CPU_POWER_STATUS", 4);
     /* wfi_in is used as input from CPUs as wfi request. */
     qdev_init_gpio_in_named(DEVICE(obj), zynqmp_apu_handle_wfi, "wfi_in", 4);
-}
-
-static void zynqmp_apu_finalize(Object *obj)
-{
-    XlnxZynqMPAPUCtrl *s = XLNX_ZYNQMP_APU_CTRL(obj);
-    register_finalize_block(s->reg_array);
 }
 
 static const VMStateDescription vmstate_zynqmp_apu = {
@@ -241,7 +236,6 @@ static const TypeInfo zynqmp_apu_info = {
     .instance_size     = sizeof(XlnxZynqMPAPUCtrl),
     .class_init        = zynqmp_apu_class_init,
     .instance_init     = zynqmp_apu_init,
-    .instance_finalize = zynqmp_apu_finalize,
 };
 
 static void zynqmp_apu_register_types(void)

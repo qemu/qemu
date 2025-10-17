@@ -456,8 +456,9 @@ static void bbram_ctrl_init(Object *obj)
 {
     XlnxBBRam *s = XLNX_BBRAM(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    RegisterInfoArray *reg_array;
 
-    s->reg_array =
+    reg_array =
         register_init_block32(DEVICE(obj), bbram_ctrl_regs_info,
                               ARRAY_SIZE(bbram_ctrl_regs_info),
                               s->regs_info, s->regs,
@@ -465,15 +466,8 @@ static void bbram_ctrl_init(Object *obj)
                               XLNX_BBRAM_ERR_DEBUG,
                               R_MAX * 4);
 
-    sysbus_init_mmio(sbd, &s->reg_array->mem);
+    sysbus_init_mmio(sbd, &reg_array->mem);
     sysbus_init_irq(sbd, &s->irq_bbram);
-}
-
-static void bbram_ctrl_finalize(Object *obj)
-{
-    XlnxBBRam *s = XLNX_BBRAM(obj);
-
-    register_finalize_block(s->reg_array);
 }
 
 static void bbram_prop_set_drive(Object *obj, Visitor *v, const char *name,
@@ -542,7 +536,6 @@ static const TypeInfo bbram_ctrl_info = {
     .instance_size = sizeof(XlnxBBRam),
     .class_init    = bbram_ctrl_class_init,
     .instance_init = bbram_ctrl_init,
-    .instance_finalize = bbram_ctrl_finalize,
 };
 
 static void bbram_ctrl_register_types(void)
