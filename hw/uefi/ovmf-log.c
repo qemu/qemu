@@ -231,3 +231,30 @@ FirmwareLog *qmp_query_firmware_log(Error **errp)
     ret->log = g_base64_encode((const guchar *)log->str, log->len);
     return ret;
 }
+
+void hmp_info_firmware_log(Monitor *mon, const QDict *qdict)
+{
+    g_autofree gchar *log_esc = NULL;
+    g_autofree guchar *log_out = NULL;
+    Error *err = NULL;
+    FirmwareLog *log;
+    gsize log_len;
+
+    log = qmp_query_firmware_log(&err);
+    if (err)  {
+        hmp_handle_error(mon, err);
+        return;
+    }
+
+    g_assert(log != NULL);
+    g_assert(log->log != NULL);
+
+    if (log->version) {
+        g_autofree gchar *esc = g_strescape(log->version, NULL);
+        monitor_printf(mon, "[ firmware version: %s ]\n", esc);
+    }
+
+    log_out = g_base64_decode(log->log, &log_len);
+    log_esc = g_strescape((gchar *)log_out, "\r\n");
+    monitor_printf(mon, "%s\n", log_esc);
+}
