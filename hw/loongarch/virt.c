@@ -292,7 +292,7 @@ static void virt_devices_init(DeviceState *pch_pic,
     PCIBus *pci_bus;
     MemoryRegion *ecam_alias, *ecam_reg, *pio_alias, *pio_reg;
     MemoryRegion *mmio_alias, *mmio_reg;
-    int i;
+    int i, irq;
 
     gpex_dev = qdev_new(TYPE_GPEX_HOST);
     d = SYS_BUS_DEVICE(gpex_dev);
@@ -332,9 +332,9 @@ static void virt_devices_init(DeviceState *pch_pic,
                                 pio_alias);
 
     for (i = 0; i < PCI_NUM_PINS; i++) {
-        sysbus_connect_irq(d, i,
-                           qdev_get_gpio_in(pch_pic, 16 + i));
-        gpex_set_irq_num(GPEX_HOST(gpex_dev), i, 16 + i);
+        irq = lvms->gpex.irq + i - VIRT_GSI_BASE;
+        sysbus_connect_irq(d, i, qdev_get_gpio_in(pch_pic, irq));
+        gpex_set_irq_num(GPEX_HOST(gpex_dev), i, irq);
     }
 
     /*
@@ -343,7 +343,7 @@ static void virt_devices_init(DeviceState *pch_pic,
      */
     for (i = VIRT_UART_COUNT; i-- > 0;) {
         hwaddr base = VIRT_UART_BASE + i * VIRT_UART_SIZE;
-        int irq = VIRT_UART_IRQ + i - VIRT_GSI_BASE;
+        irq = VIRT_UART_IRQ + i - VIRT_GSI_BASE;
         serial_mm_init(get_system_memory(), base, 0,
                        qdev_get_gpio_in(pch_pic, irq),
                        115200, serial_hd(i), DEVICE_LITTLE_ENDIAN);
