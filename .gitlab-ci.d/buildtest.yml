@@ -759,7 +759,7 @@ coverity:
     - job: amd64-fedora-container
       optional: true
   before_script:
-    - dnf install -y curl wget
+    - dnf install -y curl wget file
   script:
     # would be nice to cancel the job if over quota (https://gitlab.com/gitlab-org/gitlab/-/issues/256089)
     # for example:
