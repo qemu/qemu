@@ -298,7 +298,14 @@ static void virt_devices_init(DeviceState *pch_pic,
     d = SYS_BUS_DEVICE(gpex_dev);
     sysbus_realize_and_unref(d, &error_fatal);
     pci_bus = PCI_HOST_BRIDGE(gpex_dev)->bus;
-    lvms->pci_bus = pci_bus;
+    lvms->gpex.mmio64.base = VIRT_PCI_MEM_BASE;
+    lvms->gpex.mmio64.size = VIRT_PCI_MEM_SIZE;
+    lvms->gpex.pio.base = VIRT_PCI_IO_BASE;
+    lvms->gpex.pio.size = VIRT_PCI_IO_SIZE;
+    lvms->gpex.ecam.base = VIRT_PCI_CFG_BASE;
+    lvms->gpex.ecam.size = VIRT_PCI_CFG_SIZE;
+    lvms->gpex.irq = VIRT_GSI_BASE + VIRT_DEVICE_IRQS;
+    lvms->gpex.bus = pci_bus;
 
     /* Map only part size_ecam bytes of ECAM space */
     ecam_alias = g_new0(MemoryRegion, 1);

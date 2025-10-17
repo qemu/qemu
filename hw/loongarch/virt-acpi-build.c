@@ -383,18 +383,7 @@ build_la_ged_aml(Aml *dsdt, MachineState *machine)
 
 static void build_pci_device_aml(Aml *scope, LoongArchVirtMachineState *lvms)
 {
-    struct GPEXConfig cfg = {
-        .mmio64.base = VIRT_PCI_MEM_BASE,
-        .mmio64.size = VIRT_PCI_MEM_SIZE,
-        .pio.base    = VIRT_PCI_IO_BASE,
-        .pio.size    = VIRT_PCI_IO_SIZE,
-        .ecam.base   = VIRT_PCI_CFG_BASE,
-        .ecam.size   = VIRT_PCI_CFG_SIZE,
-        .irq         = VIRT_GSI_BASE + VIRT_DEVICE_IRQS,
-        .bus         = lvms->pci_bus,
-    };
-
-    acpi_dsdt_add_gpex(scope, &cfg);
+    acpi_dsdt_add_gpex(scope, &lvms->gpex);
 }
 
 static void build_flash_aml(Aml *scope, LoongArchVirtMachineState *lvms)
