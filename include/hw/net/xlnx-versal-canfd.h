@@ -54,14 +54,6 @@ typedef struct XlnxVersalCANFDState {
     qemu_irq                irq_addr_err;
 
     RegisterInfo            reg_info[XLNX_VERSAL_CANFD_R_MAX];
-    RegisterAccessInfo      *tx_regs;
-    RegisterAccessInfo      *rx0_regs;
-    RegisterAccessInfo      *rx1_regs;
-    RegisterAccessInfo      *af_regs;
-    RegisterAccessInfo      *txe_regs;
-    RegisterAccessInfo      *rx_mailbox_regs;
-    RegisterAccessInfo      *af_mask_regs_mailbox;
-
     uint32_t                regs[XLNX_VERSAL_CANFD_R_MAX];
 
     ptimer_state            *canfd_timer;
