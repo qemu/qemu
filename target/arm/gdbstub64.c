@@ -387,6 +387,44 @@ int aarch64_gdb_set_sme2_reg(CPUState *cs, uint8_t *buf, int reg)
     return 0;
 }
 
+int aarch64_gdb_get_tls_reg(CPUState *cs, GByteArray *buf, int reg)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
+    switch (reg) {
+    case 0: /* TPIDR_EL0 */
+        return gdb_get_reg64(buf, env->cp15.tpidr_el[0]);
+    case 1: /* TPIDR2_EL0 */
+        return gdb_get_reg64(buf, env->cp15.tpidr2_el0);
+    default:
+        /* gdbstub asked for something out of range */
+        break;
+    }
+
+    return 0;
+}
+
+int aarch64_gdb_set_tls_reg(CPUState *cs, uint8_t *buf, int reg)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
+    switch (reg) {
+    case 0: /* TPIDR_EL0 */
+        env->cp15.tpidr_el[0] = ldq_p(buf);
+        return 8;
+    case 1: /* TPIDR2_EL0 */
+        env->cp15.tpidr2_el0 = ldq_p(buf);
+        return 8;
+    default:
+        /* gdbstub asked for something out of range */
+        break;
+    }
+
+    return 0;
+}
+
 int aarch64_gdb_get_pauth_reg(CPUState *cs, GByteArray *buf, int reg)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -584,6 +622,31 @@ GDBFeature *arm_gen_dynamic_smereg_feature(CPUState *cs, int base_reg)
     gdb_feature_builder_end(&builder);
 
     return &cpu->dyn_smereg_feature.desc;
+}
+
+GDBFeature *arm_gen_dynamic_tls_feature(CPUState *cs, int base_reg)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    GDBFeatureBuilder builder;
+    int reg = 0;
+
+    gdb_feature_builder_init(&builder, &cpu->dyn_tls_feature.desc,
+                             "org.gnu.gdb.aarch64.tls", "tls-registers.xml",
+                             base_reg);
+
+    /*
+     * This feature must always have "tpidr", and may also have "tpidr2"
+     * if the CPU has that register.
+     */
+    gdb_feature_builder_append_reg(&builder, "tpidr", 64,
+                                   reg++, "data_ptr", NULL);
+    if (cpu_isar_feature(aa64_sme, cpu)) {
+        gdb_feature_builder_append_reg(&builder, "tpidr2", 64,
+                                       reg++, "data_ptr", NULL);
+    }
+    gdb_feature_builder_end(&builder);
+
+    return &cpu->dyn_tls_feature.desc;
 }
 
 #ifdef CONFIG_USER_ONLY

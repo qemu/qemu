@@ -583,6 +583,12 @@ void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
                                      0);
         }
 #endif
+
+        /* All AArch64 CPUs have at least TPIDR */
+        gdb_register_coprocessor(cs, aarch64_gdb_get_tls_reg,
+                                 aarch64_gdb_set_tls_reg,
+                                 arm_gen_dynamic_tls_feature(cs, cs->gdb_num_regs),
+                                 0);
 #endif
     } else {
         if (arm_feature(env, ARM_FEATURE_NEON)) {
