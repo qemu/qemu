@@ -245,10 +245,16 @@ static RegisterInfoArray *register_init_block(DeviceState *owner,
                                               size_t data_size_bits)
 {
     const char *device_prefix = object_get_typename(OBJECT(owner));
-    RegisterInfoArray *r_array = g_new0(RegisterInfoArray, 1);
+    Object *obj;
+    RegisterInfoArray *r_array;
     int data_size = data_size_bits >> 3;
     int i;
 
+    obj = object_new(TYPE_REGISTER_ARRAY);
+    object_property_add_child(OBJECT(owner), "reg-array[*]", obj);
+    object_unref(obj);
+
+    r_array = REGISTER_ARRAY(obj);
     r_array->r = g_new0(RegisterInfo *, num);
     r_array->num_elements = num;
     r_array->debug = debug_enabled;
@@ -267,7 +273,7 @@ static RegisterInfoArray *register_init_block(DeviceState *owner,
         r_array->r[i] = r;
     }
 
-    memory_region_init_io(&r_array->mem, OBJECT(owner), ops, r_array,
+    memory_region_init_io(&r_array->mem, OBJECT(r_array), ops, r_array,
                           device_prefix, memory_size);
 
     return r_array;
@@ -309,15 +315,27 @@ RegisterInfoArray *register_init_block64(DeviceState *owner,
                                data, ops, debug_enabled, memory_size, 64);
 }
 
-void register_finalize_block(RegisterInfoArray *r_array)
+static void register_array_finalize(Object *obj)
 {
+    RegisterInfoArray *r_array = REGISTER_ARRAY(obj);
+
     g_free(r_array->r);
-    g_free(r_array);
 }
 
+void register_finalize_block(RegisterInfoArray *r_array)
+{
+}
+
+static const TypeInfo register_array_info = {
+    .name  = TYPE_REGISTER_ARRAY,
+    .parent = TYPE_OBJECT,
+    .instance_size = sizeof(RegisterInfoArray),
+    .instance_finalize = register_array_finalize,
+};
 
 static void register_register_types(void)
 {
+    type_register_static(&register_array_info);
 }
 
 type_init(register_register_types)
