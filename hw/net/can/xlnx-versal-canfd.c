@@ -1868,8 +1868,6 @@ static int canfd_populate_regarray(XlnxVersalCANFDState *s,
         int index = rae[i].addr / 4;
         RegisterInfo *r = &s->reg_info[index];
 
-        object_initialize(r, sizeof(*r), TYPE_REGISTER);
-
         *r = (RegisterInfo) {
             .data = &s->regs[index],
             .data_size = sizeof(uint32_t),

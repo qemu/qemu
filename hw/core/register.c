@@ -258,9 +258,6 @@ static RegisterInfoArray *register_init_block(DeviceState *owner,
         int index = rae[i].addr / data_size;
         RegisterInfo *r = &ri[index];
 
-        /* Init the register, this will zero it. */
-        object_initialize((void *)r, sizeof(*r), TYPE_REGISTER);
-
         /* Set the properties of the register */
         r->data = data + data_size * index;
         r->data_size = data_size;
@@ -318,24 +315,9 @@ void register_finalize_block(RegisterInfoArray *r_array)
     g_free(r_array);
 }
 
-static void register_class_init(ObjectClass *oc, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    /* Reason: needs to be wired up to work */
-    dc->user_creatable = false;
-}
-
-static const TypeInfo register_info = {
-    .name  = TYPE_REGISTER,
-    .parent = TYPE_DEVICE,
-    .class_init = register_class_init,
-    .instance_size = sizeof(RegisterInfo),
-};
 
 static void register_register_types(void)
 {
-    type_register_static(&register_info);
 }
 
 type_init(register_register_types)
