@@ -1720,6 +1720,8 @@ int aarch64_gdb_get_sve_reg(CPUState *cs, GByteArray *buf, int reg);
 int aarch64_gdb_set_sve_reg(CPUState *cs, uint8_t *buf, int reg);
 int aarch64_gdb_get_sme_reg(CPUState *cs, GByteArray *buf, int reg);
 int aarch64_gdb_set_sme_reg(CPUState *cs, uint8_t *buf, int reg);
+int aarch64_gdb_get_sme2_reg(CPUState *cs, GByteArray *buf, int reg);
+int aarch64_gdb_set_sme2_reg(CPUState *cs, uint8_t *buf, int reg);
 int aarch64_gdb_get_fpu_reg(CPUState *cs, GByteArray *buf, int reg);
 int aarch64_gdb_set_fpu_reg(CPUState *cs, uint8_t *buf, int reg);
 int aarch64_gdb_get_pauth_reg(CPUState *cs, GByteArray *buf, int reg);

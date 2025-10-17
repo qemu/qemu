@@ -335,6 +335,58 @@ int aarch64_gdb_set_sme_reg(CPUState *cs, uint8_t *buf, int reg)
     return 0;
 }
 
+int aarch64_gdb_get_sme2_reg(CPUState *cs, GByteArray *buf, int reg)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    int len = 0;
+
+    switch (reg) {
+    case 0: /* ZT0 */
+        for (int i = 0; i < ARRAY_SIZE(env->za_state.zt0); i += 2) {
+            len += gdb_get_reg128(buf, env->za_state.zt0[i + 1],
+                                  env->za_state.zt0[i]);
+        }
+        return len;
+    default:
+        /* gdbstub asked for something out of range */
+        qemu_log_mask(LOG_UNIMP, "%s: out of range register %d", __func__, reg);
+        break;
+    }
+
+    return 0;
+}
+
+int aarch64_gdb_set_sme2_reg(CPUState *cs, uint8_t *buf, int reg)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    int len = 0;
+
+    switch (reg) {
+    case 0: /* ZT0 */
+        for (int i = 0; i < ARRAY_SIZE(env->za_state.zt0); i += 2) {
+            if (target_big_endian()) {
+                env->za_state.zt0[i + 1] = ldq_p(buf);
+                buf += 8;
+                env->za_state.zt0[i] = ldq_p(buf);
+            } else {
+                env->za_state.zt0[i] = ldq_p(buf);
+                buf += 8;
+                env->za_state.zt0[i + 1] = ldq_p(buf);
+            }
+            buf += 8;
+            len += 16;
+        }
+        return len;
+    default:
+        /* gdbstub asked for something out of range */
+        break;
+    }
+
+    return 0;
+}
+
 int aarch64_gdb_get_pauth_reg(CPUState *cs, GByteArray *buf, int reg)
 {
     ARMCPU *cpu = ARM_CPU(cs);

@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025 Linaro Ltd.
+
+     SPDX-License-Identifier: GPL-2.0-or-later
+
+     This is the SME2 ZT0 register. Upstream GDB dynamically generates
+     the XML for this feature, but because the vector is always 64 bytes
+     in size we prefer to use static XML for it.
+     -->
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.aarch64.sme2">
+  <vector id="sme2_bv" type="uint8" count="64"/>
+  <reg name="zt0" bitsize="512" type="sme2_bv"/>
+</feature>
