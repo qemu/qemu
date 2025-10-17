@@ -63,7 +63,6 @@ typedef enum {
 #define migration_init(function) module_init(function, MODULE_INIT_MIGRATION)
 #define block_module_load(lib, errp) module_load("block-", lib, errp)
 #define ui_module_load(lib, errp) module_load("ui-", lib, errp)
-#define audio_module_load(lib, errp) module_load("audio-", lib, errp)
 
 void register_module_init(void (*fn)(void), module_init_type type);
 void register_dso_module_init(void (*fn)(void), module_init_type type);
@@ -78,7 +77,7 @@ void module_call_init(module_init_type type);
  * - get_relocated_path(CONFIG_QEMU_MODDIR);
  * - /var/run/qemu/${version_dir}
  *
- * prefix:         a subsystem prefix, or the empty string ("audio-", ..., "")
+ * prefix:         a subsystem prefix, or the empty string ("ui-", ..., "")
  * name:           name of the module
  * errp:           error to set in case the module is found, but load failed.
  *
