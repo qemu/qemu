@@ -125,6 +125,7 @@ struct LoongArchVirtMachineState {
     uint64_t misc_feature;
     uint64_t misc_status;
     DeviceState *dintc;
+    hwaddr ram_end;
 };
 
 #define TYPE_LOONGARCH_VIRT_MACHINE  MACHINE_TYPE_NAME("virt")

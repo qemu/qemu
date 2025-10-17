@@ -849,8 +849,10 @@ static void virt_init(MachineState *machine)
             exit(EXIT_FAILURE);
         }
         machine_memory_devices_init(machine, base, device_mem_size);
+        base += device_mem_size;
     }
 
+    lvms->ram_end = base;
     /* load the BIOS image. */
     virt_firmware_init(lvms);
 
