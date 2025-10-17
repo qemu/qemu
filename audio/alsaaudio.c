@@ -972,7 +972,6 @@ static const TypeInfo audio_alsa_info = {
 
 static void register_audio_alsa(void)
 {
-    audio_driver_register(&alsa_audio_driver);
     type_register_static(&audio_alsa_info);
 }
 type_init(register_audio_alsa);

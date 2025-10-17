@@ -581,7 +581,6 @@ static const TypeInfo audio_sndio_info = {
 
 static void register_audio_sndio(void)
 {
-    audio_driver_register(&sndio_audio_driver);
     type_register_static(&audio_sndio_info);
 }
 

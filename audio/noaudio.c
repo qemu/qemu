@@ -164,7 +164,6 @@ static const TypeInfo audio_none_info = {
 
 static void register_audio_none(void)
 {
-    audio_driver_register(&no_audio_driver);
     type_register_static(&audio_none_info);
 }
 type_init(register_audio_none);

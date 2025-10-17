@@ -957,7 +957,6 @@ static const TypeInfo audio_pa_info = {
 
 static void register_audio_pa(void)
 {
-    audio_driver_register(&pa_audio_driver);
     type_register_static(&audio_pa_info);
 }
 type_init(register_audio_pa);

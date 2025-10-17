@@ -68,40 +68,21 @@ const char *audio_prio_list[] = {
     NULL
 };
 
-static QLIST_HEAD(, audio_driver) audio_drivers;
 static AudiodevListHead audiodevs =
     QSIMPLEQ_HEAD_INITIALIZER(audiodevs);
 static AudiodevListHead default_audiodevs =
     QSIMPLEQ_HEAD_INITIALIZER(default_audiodevs);
 
-
-void audio_driver_register(audio_driver *drv)
+static AudioBackendClass *audio_be_class_by_name(const char *name)
 {
-    QLIST_INSERT_HEAD(&audio_drivers, drv, next);
-}
+    g_autofree char *tname = g_strconcat("audio-", name, NULL);
+    ObjectClass *oc = module_object_class_by_name(tname);
 
-static audio_driver *audio_driver_lookup(const char *name)
-{
-    struct audio_driver *d;
-    Error *local_err = NULL;
-    int rv;
+    if (!oc || !object_class_dynamic_cast(oc, TYPE_AUDIO_BACKEND)) {
+        return NULL;
+    }
 
-    QLIST_FOREACH(d, &audio_drivers, next) {
-        if (strcmp(name, d->name) == 0) {
-            return d;
-        }
-    }
-    rv = audio_module_load(name, &local_err);
-    if (rv > 0) {
-        QLIST_FOREACH(d, &audio_drivers, next) {
-            if (strcmp(name, d->name) == 0) {
-                return d;
-            }
-        }
-    } else if (rv < 0) {
-        error_report_err(local_err);
-    }
-    return NULL;
+    return AUDIO_BACKEND_CLASS(oc);
 }
 
 static AudioBackend *default_audio_be;
@@ -1764,7 +1745,7 @@ static const VMStateDescription vmstate_audio = {
 void audio_create_default_audiodevs(void)
 {
     for (int i = 0; audio_prio_list[i]; i++) {
-        if (audio_driver_lookup(audio_prio_list[i])) {
+        if (audio_be_class_by_name(audio_prio_list[i]) != NULL) {
             QDict *dict = qdict_new();
             Audiodev *dev = NULL;
             Visitor *v;
@@ -2129,9 +2110,11 @@ void audio_help(void)
     printf("Available audio drivers:\n");
 
     for (i = 0; i < AUDIODEV_DRIVER__MAX; i++) {
-        audio_driver *driver = audio_driver_lookup(AudiodevDriver_str(i));
-        if (driver) {
-            printf("%s\n", driver->name);
+        const char *name = AudiodevDriver_str(i);
+        AudioBackendClass *be = audio_be_class_by_name(name);
+
+        if (be) {
+            printf("%s\n", name);
         }
     }
 }

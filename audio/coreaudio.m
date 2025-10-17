@@ -699,7 +699,6 @@ static const TypeInfo audio_coreaudio_info = {
 
 static void register_audio_coreaudio(void)
 {
-    audio_driver_register(&coreaudio_audio_driver);
     type_register_static(&audio_coreaudio_info);
 }
 type_init(register_audio_coreaudio);

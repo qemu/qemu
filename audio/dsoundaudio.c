@@ -720,7 +720,6 @@ static const TypeInfo audio_dsound_info = {
 
 static void register_audio_dsound(void)
 {
-    audio_driver_register(&dsound_audio_driver);
     type_register_static(&audio_dsound_info);
 }
 type_init(register_audio_dsound);

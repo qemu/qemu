@@ -517,7 +517,6 @@ static const TypeInfo audio_sdl_info = {
 
 static void register_audio_sdl(void)
 {
-    audio_driver_register(&sdl_audio_driver);
     type_register_static(&audio_sdl_info);
 }
 type_init(register_audio_sdl);

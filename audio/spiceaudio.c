@@ -351,7 +351,6 @@ static const TypeInfo audio_spice_info = {
 
 static void register_audio_spice(void)
 {
-    audio_driver_register(&spice_audio_driver);
     type_register_static(&audio_spice_info);
 }
 type_init(register_audio_spice);

@@ -259,8 +259,6 @@ extern const struct mixeng_volume nominal_volume;
 
 extern const char *audio_prio_list[];
 
-void audio_driver_register(audio_driver *drv);
-
 void audio_pcm_init_info (struct audio_pcm_info *info, const struct audsettings *as);
 void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len);
 

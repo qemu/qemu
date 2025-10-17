@@ -738,7 +738,6 @@ static const TypeInfo audio_dbus_info = {
 
 static void register_audio_dbus(void)
 {
-    audio_driver_register(&dbus_audio_driver);
     type_register_static(&audio_dbus_info);
 }
 type_init(register_audio_dbus);

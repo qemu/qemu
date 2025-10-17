@@ -798,7 +798,6 @@ static const TypeInfo audio_oss_info = {
 
 static void register_audio_oss(void)
 {
-    audio_driver_register(&oss_audio_driver);
     type_register_static(&audio_oss_info);
 }
 type_init(register_audio_oss);

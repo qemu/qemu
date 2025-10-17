@@ -718,7 +718,6 @@ static const TypeInfo audio_jack_info = {
 static void register_audio_jack(void)
 {
     qemu_mutex_init(&qjack_shutdown_lock);
-    audio_driver_register(&jack_driver);
     type_register_static(&audio_jack_info);
 #if !defined(WIN32) && defined(CONFIG_PTHREAD_SETNAME_NP_W_TID)
     jack_set_thread_creator(qjack_thread_creator);

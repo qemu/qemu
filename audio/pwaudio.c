@@ -874,7 +874,6 @@ static const TypeInfo audio_pw_info = {
 static void
 register_audio_pw(void)
 {
-    audio_driver_register(&pw_audio_driver);
     type_register_static(&audio_pw_info);
 }
 

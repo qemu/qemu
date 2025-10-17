@@ -240,7 +240,6 @@ static const TypeInfo audio_wav_info = {
 
 static void register_audio_wav(void)
 {
-    audio_driver_register(&wav_audio_driver);
     type_register_static(&audio_wav_info);
 }
 type_init(register_audio_wav);
