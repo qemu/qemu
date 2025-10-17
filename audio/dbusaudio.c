@@ -695,7 +695,6 @@ static struct audio_pcm_ops dbus_pcm_ops = {
 
 static struct audio_driver dbus_audio_driver = {
     .name            = "dbus",
-    .descr           = "Timer based audio exposed with DBus interface",
     .init            = dbus_audio_init,
     .fini            = dbus_audio_fini,
     .set_dbus_server = dbus_audio_set_server,
