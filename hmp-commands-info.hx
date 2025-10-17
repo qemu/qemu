@@ -998,8 +998,8 @@ ERST
 
     {
         .name       = "firmware-log",
-        .args_type  = "",
-        .params     = "",
+        .args_type  = "max-size:o?",
+        .params     = "[max-size]",
         .help       = "show the firmware (ovmf) debug log",
         .cmd        = hmp_info_firmware_log,
     },

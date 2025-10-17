@@ -1858,9 +1858,14 @@
 #
 # Find firmware memory log buffer in guest memory, return content.
 #
+# @max-size: limit the amount of log data returned.  Up to 1 MiB of
+#            log data is allowed.  In case the amount of log data is
+#            larger than @max-size the tail of the log is returned.
+#
 # Since: 10.2
 ##
 { 'command': 'query-firmware-log',
+  'data': { '*max-size': 'size' },
   'returns': 'FirmwareLog' }
 
 ##
