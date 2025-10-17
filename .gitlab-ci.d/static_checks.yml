@@ -55,7 +55,7 @@ check-rust-tools-nightly:
     - source scripts/ci/gitlab-ci-section
     - section_start test "Running Rust code checks"
     - cd build
-    - pyvenv/bin/meson devenv -w ../rust ${CARGO-cargo} fmt --check
+    - pyvenv/bin/meson devenv -w ../ ${CARGO-cargo} fmt --check
     - make clippy
     - make rustdoc
     - section_end test
@@ -69,7 +69,7 @@ check-rust-tools-nightly:
     when: on_success
     expire_in: 2 days
     paths:
-      - rust/target/doc
+      - target/doc
 
 check-build-units:
   extends: .base_job_template

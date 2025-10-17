@@ -26,14 +26,14 @@ are accustomed to the more "normal" Cargo-based development workflow.
 In particular:
 
 * the set of warnings and lints that are used to build QEMU always
-  comes from the ``rust/Cargo.toml`` workspace file
+  comes from the ``Cargo.toml`` workspace file
 
 * it is also possible to use ``cargo`` for common Rust-specific coding
   tasks, in particular to invoke ``clippy``, ``rustfmt`` and ``rustdoc``.
 
 To this end, QEMU includes a ``build.rs`` build script that picks up
 generated sources from QEMU's build directory and puts it in Cargo's
-output directory (typically ``rust/target/``).  A vanilla invocation
+output directory (typically ``target/``).  A vanilla invocation
 of Cargo will complain that it cannot find the generated sources,
 which can be fixed in different ways:
 
@@ -475,8 +475,8 @@ files, it is still highly experimental and is therefore not used.
 
 Therefore, external crates must be added as subprojects for Meson to
 learn how to build them, as well as to the relevant ``Cargo.toml`` files.
-The versions specified in ``rust/Cargo.lock`` must be the same as the
-subprojects; note that the ``rust/`` directory forms a Cargo `workspace`__,
+The versions specified in ``Cargo.lock`` must be the same as the
+subprojects; note that the QEMU source tree forms a Cargo `workspace`__,
 and therefore there is a single lock file for the whole build.
 
 __ https://doc.rust-lang.org/cargo/reference/workspaces.html#virtual-workspace
