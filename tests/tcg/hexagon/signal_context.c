@@ -26,7 +26,11 @@ void sig_user(int sig, siginfo_t *info, void *puc)
         "p1 = r7\n\t"
         "p2 = r7\n\t"
         "p3 = r7\n\t"
-        : : : "r7", "p0", "p1", "p2", "p3");
+        "r6 = #0x12345678\n\t"
+        "cs0 = r6\n\t"
+        "r6 = #0x87654321\n\t"
+        "cs1 = r6\n\t"
+        : : : "r6", "r7", "p0", "p1", "p2", "p3", "cs0", "cs1");
 }
 
 int main()
@@ -53,7 +57,11 @@ int main()
     timer_settime(tid, 0, &it, NULL);
 
     asm("loop0(1f, %1)\n\t"
-        "1: r8 = #0xff\n\t"
+        "1: r9 = #0xdeadbeef\n\t"
+        "   cs0 = r9\n\t"
+        "   r9 = #0xbadc0fee\n\t"
+        "   cs1 = r9\n\t"
+        "   r8 = #0xff\n\t"
         "   p0 = r8\n\t"
         "   p1 = r8\n\t"
         "   p2 = r8\n\t"
@@ -74,10 +82,19 @@ int main()
         "   r8 = p3\n\t"
         "   p0 = cmp.eq(r8, #0xff)\n\t"
         "   if (!p0) jump 2b\n\t"
+        "   r8 = cs0\n\t"
+        "   r9 = #0xdeadbeef\n\t"
+        "   p0 = cmp.eq(r8, r9)\n\t"
+        "   if (!p0) jump 2b\n\t"
+        "   r8 = cs1\n\t"
+        "   r9 = #0xbadc0fee\n\t"
+        "   p0 = cmp.eq(r8, r9)\n\t"
+        "   if (!p0) jump 2b\n\t"
         "4: {}: endloop0\n\t"
         :
         : "r"(&err), "r"(i)
-        : "memory", "r8", "p0", "p1", "p2", "p3");
+        : "memory", "r8", "r9", "p0", "p1", "p2", "p3", "cs0", "cs1", "lc0",
+          "sa0");
 
     puts(err ? "FAIL" : "PASS");
     return err;

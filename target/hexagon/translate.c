@@ -693,11 +693,11 @@ static void process_store_log(DisasContext *ctx)
      *  the memory accesses overlap.
      */
     Packet *pkt = ctx->pkt;
-    if (pkt->pkt_has_store_s1) {
+    if (pkt->pkt_has_scalar_store_s1) {
         g_assert(!pkt->pkt_has_dczeroa);
         process_store(ctx, 1);
     }
-    if (pkt->pkt_has_store_s0) {
+    if (pkt->pkt_has_scalar_store_s0) {
         g_assert(!pkt->pkt_has_dczeroa);
         process_store(ctx, 0);
     }
@@ -822,8 +822,9 @@ static void gen_commit_packet(DisasContext *ctx)
      * involved in committing the packet.
      */
     Packet *pkt = ctx->pkt;
-    bool has_store_s0 = pkt->pkt_has_store_s0;
-    bool has_store_s1 = (pkt->pkt_has_store_s1 && !ctx->s1_store_processed);
+    bool has_store_s0 = pkt->pkt_has_scalar_store_s0;
+    bool has_store_s1 =
+        (pkt->pkt_has_scalar_store_s1 && !ctx->s1_store_processed);
     bool has_hvx_store = pkt_has_hvx_store(pkt);
     if (pkt->pkt_has_dczeroa) {
         /*
