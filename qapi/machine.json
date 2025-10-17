@@ -1840,6 +1840,30 @@
   'features': [ 'unstable' ]}
 
 ##
+# @FirmwareLog:
+#
+# @version: Firmware version.
+#
+# @log: Firmware debug log, in base64 encoding.  First and last log
+#       line might be incomplete.
+#
+# Since: 10.2
+##
+{ 'struct': 'FirmwareLog',
+  'data': { '*version': 'str',
+            'log': 'str' } }
+
+##
+# @query-firmware-log:
+#
+# Find firmware memory log buffer in guest memory, return content.
+#
+# Since: 10.2
+##
+{ 'command': 'query-firmware-log',
+  'returns': 'FirmwareLog' }
+
+##
 # @dump-skeys:
 #
 # Dump the storage keys for an s390x guest
