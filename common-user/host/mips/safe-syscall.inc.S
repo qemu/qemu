@@ -30,15 +30,9 @@
          * arguments being syscall arguments (also 'long').
          */
 
-#if _MIPS_SIM == _ABIO32
-/* 8 * 4 = 32 for outgoing parameters; 1 * 4 for s0 save; 1 * 4 for align. */
-#define FRAME    40
-#define OFS_S0   32
-#else
 /* 1 * 8 for s0 save; 1 * 8 for align. */
 #define FRAME    16
 #define OFS_S0   0
-#endif
 
 
 NESTED(safe_syscall_base, FRAME, ra)
@@ -47,34 +41,6 @@ NESTED(safe_syscall_base, FRAME, ra)
         .cfi_adjust_cfa_offset FRAME
         REG_S   s0, OFS_S0(sp)
         .cfi_rel_offset s0, OFS_S0
-#if _MIPS_SIM == _ABIO32
-        /*
-         * The syscall calling convention is nearly the same as C:
-         * we enter with a0 == &signal_pending
-         *               a1 == syscall number
-         *               a2, a3, stack == syscall arguments
-         *               and return the result in a0
-         * and the syscall instruction needs
-         *               v0 == syscall number
-         *               a0 ... a3, stack == syscall arguments
-         *               and returns the result in v0
-         * Shuffle everything around appropriately.
-         */
-        move    s0, a0          /* signal_pending pointer */
-        move    v0, a1          /* syscall number */
-        move    a0, a2          /* syscall arguments */
-        move    a1, a3
-        lw      a2, FRAME+16(sp)
-        lw      a3, FRAME+20(sp)
-        lw      t4, FRAME+24(sp)
-        lw      t5, FRAME+28(sp)
-        lw      t6, FRAME+32(sp)
-        lw      t7, FRAME+40(sp)
-        sw      t4, 16(sp)
-        sw      t5, 20(sp)
-        sw      t6, 24(sp)
-        sw      t7, 28(sp)
-#else
         /*
          * The syscall calling convention is nearly the same as C:
          * we enter with a0 == &signal_pending
@@ -95,7 +61,6 @@ NESTED(safe_syscall_base, FRAME, ra)
         move    a3, a5
         move    a4, a6
         move    a5, a7
-#endif
 
         /*
          * This next sequence of code works in conjunction with the
