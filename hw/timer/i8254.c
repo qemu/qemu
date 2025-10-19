@@ -29,6 +29,7 @@
 #include "hw/timer/i8254.h"
 #include "hw/timer/i8254_internal.h"
 #include "qom/object.h"
+#include "trace.h"
 
 //#define DEBUG_PIT
 
@@ -129,6 +130,8 @@ static void pit_ioport_write(void *opaque, hwaddr addr,
     PITCommonState *pit = opaque;
     int channel, access;
     PITChannelState *s;
+
+    trace_pit_ioport_write(addr, val);
 
     addr &= 3;
     if (addr == 3) {
@@ -248,6 +251,9 @@ static uint64_t pit_ioport_read(void *opaque, hwaddr addr,
             break;
         }
     }
+
+    trace_pit_ioport_read(addr, ret);
+
     return ret;
 }
 
