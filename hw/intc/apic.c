@@ -769,16 +769,10 @@ static void apic_timer(void *opaque)
     apic_timer_update(s, s->next_time);
 }
 
-static int apic_register_read(int index, uint64_t *value)
+static int apic_register_read(APICCommonState *s, int index, uint64_t *value)
 {
-    APICCommonState *s;
     uint32_t val;
     int ret = 0;
-
-    s = cpu_get_current_apic();
-    if (!s) {
-        return -1;
-    }
 
     switch(index) {
     case 0x02: /* id */
@@ -868,6 +862,7 @@ static int apic_register_read(int index, uint64_t *value)
 
 static uint64_t apic_mem_read(void *opaque, hwaddr addr, unsigned size)
 {
+    APICCommonState *s = cpu_get_current_apic();
     uint64_t val;
     int index;
 
@@ -875,8 +870,12 @@ static uint64_t apic_mem_read(void *opaque, hwaddr addr, unsigned size)
         return 0;
     }
 
+    if (!s) {
+        return -1;
+    }
+
     index = (addr >> 4) & 0xff;
-    apic_register_read(index, &val);
+    apic_register_read(s, index, &val);
 
     return val;
 }
@@ -891,7 +890,7 @@ int apic_msr_read(APICCommonState *s, int index, uint64_t *val)
         return -1;
     }
 
-    return apic_register_read(index, val);
+    return apic_register_read(s, index, val);
 }
 
 static void apic_send_msi(MSIMessage *msi)
@@ -919,15 +918,8 @@ static void apic_send_msi(MSIMessage *msi)
     apic_deliver_irq(dest, dest_mode, delivery, vector, trigger_mode);
 }
 
-static int apic_register_write(int index, uint64_t val)
+static int apic_register_write(APICCommonState *s, int index, uint64_t val)
 {
-    APICCommonState *s;
-
-    s = cpu_get_current_apic();
-    if (!s) {
-        return -1;
-    }
-
     trace_apic_register_write(index, val);
 
     switch(index) {
@@ -1054,6 +1046,7 @@ static int apic_register_write(int index, uint64_t val)
 static void apic_mem_write(void *opaque, hwaddr addr, uint64_t val,
                            unsigned size)
 {
+    APICCommonState *s = cpu_get_current_apic();
     int index = (addr >> 4) & 0xff;
 
     if (size < 4) {
@@ -1073,7 +1066,11 @@ static void apic_mem_write(void *opaque, hwaddr addr, uint64_t val,
         return;
     }
 
-    apic_register_write(index, val);
+    if (!s) {
+        return;
+    }
+
+    apic_register_write(s, index, val);
 }
 
 int apic_msr_write(APICCommonState *s, int index, uint64_t val)
@@ -1086,7 +1083,7 @@ int apic_msr_write(APICCommonState *s, int index, uint64_t val)
         return -1;
     }
 
-    return apic_register_write(index, val);
+    return apic_register_write(s, index, val);
 }
 
 static void apic_pre_save(APICCommonState *s)
