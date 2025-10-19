@@ -22,6 +22,7 @@
 #define QEMU_APIC_INTERNAL_H
 
 #include "cpu.h"
+#include "hw/i386/apic.h"
 #include "system/memory.h"
 #include "qemu/timer.h"
 #include "target/i386/cpu-qom.h"
@@ -125,8 +126,6 @@
 #define VAPIC_ENABLE_BIT                0
 #define VAPIC_ENABLE_MASK               (1 << VAPIC_ENABLE_BIT)
 
-typedef struct APICCommonState APICCommonState;
-
 #define TYPE_APIC_COMMON "apic-common"
 typedef struct APICCommonClass APICCommonClass;
 DECLARE_OBJ_CHECKERS(APICCommonState, APICCommonClass,
@@ -203,8 +202,8 @@ typedef struct VAPICState {
 extern bool apic_report_tpr_access;
 
 bool apic_next_timer(APICCommonState *s, int64_t current_time);
-void apic_enable_tpr_access_reporting(DeviceState *d, bool enable);
-void apic_enable_vapic(DeviceState *d, hwaddr paddr);
+void apic_enable_tpr_access_reporting(APICCommonState *s, bool enable);
+void apic_enable_vapic(APICCommonState *s, hwaddr paddr);
 
 void vapic_report_tpr_access(DeviceState *dev, CPUState *cpu, target_ulong ip,
                              TPRAccess access);

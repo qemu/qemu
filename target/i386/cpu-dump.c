@@ -291,7 +291,7 @@ static void dump_apic_interrupt(const char *name, uint32_t *ireg_tab,
 void x86_cpu_dump_local_apic_state(CPUState *cs, int flags)
 {
     X86CPU *cpu = X86_CPU(cs);
-    APICCommonState *s = APIC_COMMON(cpu->apic_state);
+    APICCommonState *s = cpu->apic_state;
     if (!s) {
         qemu_printf("local apic state not available\n");
         return;
