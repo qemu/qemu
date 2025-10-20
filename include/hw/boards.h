@@ -506,6 +506,23 @@ struct MachineState {
  *      DEFINE_VIRT_MACHINE_IMPL(false, major, minor, micro, _, tag)
  */
 
+#define DEFINE_MACHINE(namestr, machine_initfn) \
+    static void machine_initfn##_class_init(ObjectClass *oc, const void *data) \
+    { \
+        MachineClass *mc = MACHINE_CLASS(oc); \
+        machine_initfn(mc); \
+    } \
+    static const TypeInfo machine_initfn##_typeinfo = { \
+        .name       = MACHINE_TYPE_NAME(namestr), \
+        .parent     = TYPE_MACHINE, \
+        .class_init = machine_initfn##_class_init, \
+    }; \
+    static void machine_initfn##_register_types(void) \
+    { \
+        type_register_static(&machine_initfn##_typeinfo); \
+    } \
+    type_init(machine_initfn##_register_types)
+
 /*
  * Helper for dispatching different macros based on how
  * many __VA_ARGS__ are passed. Supports 1 to 5 variadic
@@ -764,23 +781,6 @@ struct MachineState {
             return; \
         } \
     } while (0)
-
-#define DEFINE_MACHINE(namestr, machine_initfn) \
-    static void machine_initfn##_class_init(ObjectClass *oc, const void *data) \
-    { \
-        MachineClass *mc = MACHINE_CLASS(oc); \
-        machine_initfn(mc); \
-    } \
-    static const TypeInfo machine_initfn##_typeinfo = { \
-        .name       = MACHINE_TYPE_NAME(namestr), \
-        .parent     = TYPE_MACHINE, \
-        .class_init = machine_initfn##_class_init, \
-    }; \
-    static void machine_initfn##_register_types(void) \
-    { \
-        type_register_static(&machine_initfn##_typeinfo); \
-    } \
-    type_init(machine_initfn##_register_types)
 
 extern GlobalProperty hw_compat_10_1[];
 extern const size_t hw_compat_10_1_len;
