@@ -73,6 +73,7 @@ static void test_tls_creds(const void *opaque)
     struct QCryptoTLSCredsTestData *data =
         (struct QCryptoTLSCredsTestData *)opaque;
     QCryptoTLSCreds *creds;
+    Error *err = NULL;
 
 #define CERT_DIR "tests/test-crypto-tlscredsx509-certs/"
     g_mkdir_with_parents(CERT_DIR, 0700);
@@ -111,10 +112,12 @@ static void test_tls_creds(const void *opaque)
          QCRYPTO_TLS_CREDS_ENDPOINT_SERVER :
          QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT),
         CERT_DIR,
-        data->expectFail ? NULL : &error_abort);
+        data->expectFail ? &err : &error_abort);
 
     if (data->expectFail) {
         g_assert(creds == NULL);
+        g_assert(err != NULL);
+        error_free(err);
     } else {
         g_assert(creds != NULL);
     }
