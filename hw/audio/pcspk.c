@@ -189,6 +189,11 @@ static void pcspk_realizefn(DeviceState *dev, Error **errp)
     ISADevice *isadev = ISA_DEVICE(dev);
     PCSpkState *s = PC_SPEAKER(dev);
 
+    if (!s->pit) {
+        error_setg(errp, "pcspk: No \"pit\" set or available");
+        return;
+    }
+
     isa_register_ioport(isadev, &s->ioport, s->iobase);
 
     if (s->card.state && AUD_register_card(s_spk, &s->card, errp)) {
