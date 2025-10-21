@@ -520,7 +520,7 @@ static bool trans_VLDST_multiple(DisasContext *s, arg_VLDST_multiple *a)
     if (a->align) {
         align = pow2_align(a->align + 2); /* 4 ** a->align */
     } else {
-        align = s->align_mem ? MO_ALIGN : 0;
+        align = MO_ALIGN | (s->align_mem ? 0 : MO_ALIGN_TLB_ONLY);
     }
 
     /*

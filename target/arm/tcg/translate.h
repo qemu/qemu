@@ -744,8 +744,8 @@ static inline TCGv_ptr fpstatus_ptr(ARMFPStatusFlavour flavour)
  */
 static inline MemOp finalize_memop_atom(DisasContext *s, MemOp opc, MemOp atom)
 {
-    if (s->align_mem && !(opc & MO_AMASK)) {
-        opc |= MO_ALIGN;
+    if (!(opc & MO_AMASK)) {
+        opc |= MO_ALIGN | (s->align_mem ? 0 : MO_ALIGN_TLB_ONLY);
     }
     return opc | atom | s->be_data;
 }
