@@ -6,7 +6,7 @@ vfio-user
 
 QEMU includes a ``vfio-user`` client. The ``vfio-user`` specification allows for
 implementing (PCI) devices in userspace outside of QEMU; it is similar to
-``vhost-user`` in this respect (see :doc:`vhost-user`), but can emulate arbitrary
+``vhost-user`` in this respect (see :doc:`virtio/vhost-user`), but can emulate arbitrary
 PCI devices, not just ``virtio``. Whereas ``vfio`` is handled by the host
 kernel, ``vfio-user``, while similar in implementation, is handled entirely in
 userspace.

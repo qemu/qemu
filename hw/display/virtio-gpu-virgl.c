@@ -134,6 +134,8 @@ virtio_gpu_virgl_map_resource_blob(VirtIOGPU *g,
 
     res->mr = mr;
 
+    trace_virtio_gpu_cmd_res_map_blob(res->base.resource_id, vmr, mr);
+
     return 0;
 }
 
@@ -152,6 +154,8 @@ virtio_gpu_virgl_unmap_resource_blob(VirtIOGPU *g,
     }
 
     vmr = to_hostmem_region(res->mr);
+
+    trace_virtio_gpu_cmd_res_unmap_blob(res->base.resource_id, mr, vmr->finish_unmapping);
 
     /*
      * Perform async unmapping in 3 steps:

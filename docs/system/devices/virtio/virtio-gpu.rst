@@ -1,7 +1,9 @@
 ..
    SPDX-License-Identifier: GPL-2.0-or-later
 
-virtio-gpu
+.. _virtio_gpu:
+
+VirtIO GPU
 ==========
 
 This document explains the setup and usage of the virtio-gpu device.
