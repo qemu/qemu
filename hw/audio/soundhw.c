@@ -65,7 +65,7 @@ void deprecated_register_soundhw(const char *name, const char *descr,
     soundhw_count++;
 }
 
-void show_valid_soundhw(void)
+void audio_print_available_models(void)
 {
     struct soundhw *c;
 
@@ -102,7 +102,7 @@ void select_soundhw(const char *name, const char *audiodev)
 
     if (!c->name) {
         error_report("Unknown audio device model `%s'", name);
-        show_valid_soundhw();
+        audio_print_available_models();
         exit(1);
     }
 }
