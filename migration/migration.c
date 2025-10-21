@@ -2195,6 +2195,12 @@ static bool migrate_prepare(MigrationState *s, bool resume, Error **errp)
             error_setg(errp, "Cannot use %s with CPR", conflict);
             return false;
         }
+
+        if (s->parameters.mode == MIG_MODE_CPR_EXEC &&
+            !s->parameters.cpr_exec_command) {
+            error_setg(errp, "Parameter 'cpr-exec-command' required for cpr-exec");
+            return false;
+        }
     }
 
     if (migrate_init(s, errp)) {
