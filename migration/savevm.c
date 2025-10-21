@@ -2136,17 +2136,18 @@ static void *postcopy_ram_listen_thread(void *opaque)
         if (postcopy_state_get() == POSTCOPY_INCOMING_RUNNING &&
             !migrate_postcopy_ram() && migrate_dirty_bitmaps())
         {
-            error_report("%s: loadvm failed during postcopy: %d. All states "
+            error_report("%s: loadvm failed during postcopy: %d: %s. All states "
                          "are migrated except dirty bitmaps. Some dirty "
                          "bitmaps may be lost, and present migrated dirty "
                          "bitmaps are correctly migrated and valid.",
-                         __func__, load_res);
+                         __func__, load_res, error_get_pretty(local_err));
+            g_clear_pointer(&local_err, error_free);
             load_res = 0; /* prevent further exit() */
         } else {
             error_prepend(&local_err,
                           "loadvm failed during postcopy: %d: ", load_res);
             migrate_set_error(migr, local_err);
-            error_report_err(local_err);
+            g_clear_pointer(&local_err, error_report_err);
             migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
                                            MIGRATION_STATUS_FAILED);
         }
