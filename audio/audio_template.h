@@ -473,11 +473,11 @@ static void glue (audio_close_, TYPE) (SW *sw)
     g_free (sw);
 }
 
-void glue (AUD_close_, TYPE) (QEMUSoundCard *card, SW *sw)
+void glue(AUD_close_, TYPE)(AudioBackend *be, SW *sw)
 {
     if (sw) {
-        if (audio_bug(__func__, !card)) {
-            dolog ("card=%p\n", card);
+        if (audio_bug(__func__, !be)) {
+            dolog("backend=%p\n", be);
             return;
         }
 
@@ -486,7 +486,7 @@ void glue (AUD_close_, TYPE) (QEMUSoundCard *card, SW *sw)
 }
 
 SW *glue (AUD_open_, TYPE) (
-    QEMUSoundCard *card,
+    AudioBackend *be,
     SW *sw,
     const char *name,
     void *callback_opaque ,
@@ -494,16 +494,15 @@ SW *glue (AUD_open_, TYPE) (
     struct audsettings *as
     )
 {
-    AudioBackend *s;
+    AudioBackend *s = be;
     AudiodevPerDirectionOptions *pdo;
 
-    if (audio_bug(__func__, !card || !name || !callback_fn || !as)) {
-        dolog ("card=%p name=%p callback_fn=%p as=%p\n",
-               card, name, callback_fn, as);
+    if (audio_bug(__func__, !be || !name || !callback_fn || !as)) {
+        dolog("backend=%p name=%p callback_fn=%p as=%p\n",
+              be, name, callback_fn, as);
         goto fail;
     }
 
-    s = card->be;
     pdo = glue(audio_get_pdo_, TYPE)(s->dev);
 
     ldebug ("open %s, freq %d, nchannels %d, fmt %d\n",
@@ -524,7 +523,7 @@ SW *glue (AUD_open_, TYPE) (
     }
 
     if (!pdo->fixed_settings && sw) {
-        glue (AUD_close_, TYPE) (card, sw);
+        glue(AUD_close_, TYPE)(be, sw);
         sw = NULL;
     }
 
@@ -548,7 +547,6 @@ SW *glue (AUD_open_, TYPE) (
         }
     }
 
-    sw->card = card;
     sw->vol = nominal_volume;
     sw->callback.fn = callback_fn;
     sw->callback.opaque = callback_opaque;
@@ -562,7 +560,7 @@ SW *glue (AUD_open_, TYPE) (
     return sw;
 
  fail:
-    glue (AUD_close_, TYPE) (card, sw);
+    glue(AUD_close_, TYPE)(be, sw);
     return NULL;
 }
 

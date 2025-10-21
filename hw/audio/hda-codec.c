@@ -178,7 +178,7 @@ struct HDAAudioState {
     HDACodecDevice hda;
     const char *name;
 
-    QEMUSoundCard card;
+    AudioBackend *audio_be;
     const desc_codec *desc;
     HDAAudioStream st[4];
     bool running_compat[16];
@@ -491,7 +491,7 @@ static void hda_audio_setup(HDAAudioStream *st)
         } else {
             cb = hda_audio_compat_output_cb;
         }
-        st->voice.out = AUD_open_out(&st->state->card, st->voice.out,
+        st->voice.out = AUD_open_out(st->state->audio_be, st->voice.out,
                                      st->node->name, st, cb, &st->as);
     } else {
         if (use_timer) {
@@ -500,7 +500,7 @@ static void hda_audio_setup(HDAAudioStream *st)
         } else {
             cb = hda_audio_compat_input_cb;
         }
-        st->voice.in = AUD_open_in(&st->state->card, st->voice.in,
+        st->voice.in = AUD_open_in(st->state->audio_be, st->voice.in,
                                    st->node->name, st, cb, &st->as);
     }
 }
@@ -696,7 +696,7 @@ static void hda_audio_init(HDACodecDevice *hda,
     const desc_param *param;
     uint32_t i, type;
 
-    if (!AUD_register_card("hda", &a->card, errp)) {
+    if (!AUD_backend_check(&a->audio_be, errp)) {
         return;
     }
 
@@ -754,12 +754,11 @@ static void hda_audio_exit(HDACodecDevice *hda)
         }
         timer_free(st->buft);
         if (st->output) {
-            AUD_close_out(&a->card, st->voice.out);
+            AUD_close_out(a->audio_be, st->voice.out);
         } else {
-            AUD_close_in(&a->card, st->voice.in);
+            AUD_close_in(a->audio_be, st->voice.in);
         }
     }
-    AUD_remove_card(&a->card);
 }
 
 static int hda_audio_post_load(void *opaque, int version)
@@ -858,7 +857,7 @@ static const VMStateDescription vmstate_hda_audio = {
 };
 
 static const Property hda_audio_properties[] = {
-    DEFINE_AUDIO_PROPERTIES(HDAAudioState, card),
+    DEFINE_AUDIO_PROPERTIES(HDAAudioState, audio_be),
     DEFINE_PROP_UINT32("debug", HDAAudioState, debug,   0),
     DEFINE_PROP_BOOL("mixer", HDAAudioState, mixer,  true),
     DEFINE_PROP_BOOL("use-timer", HDAAudioState, use_timer,  true),

@@ -78,7 +78,7 @@ static const VMStateDescription vmstate_virtio_snd = {
 };
 
 static const Property virtio_snd_properties[] = {
-    DEFINE_AUDIO_PROPERTIES(VirtIOSound, card),
+    DEFINE_AUDIO_PROPERTIES(VirtIOSound, audio_be),
     DEFINE_PROP_UINT32("jacks", VirtIOSound, snd_conf.jacks,
                        VIRTIO_SOUND_JACK_DEFAULT),
     DEFINE_PROP_UINT32("streams", VirtIOSound, snd_conf.streams,
@@ -391,10 +391,10 @@ static void virtio_snd_pcm_close(VirtIOSoundPCMStream *stream)
     if (stream) {
         virtio_snd_pcm_flush(stream);
         if (stream->info.direction == VIRTIO_SND_D_OUTPUT) {
-            AUD_close_out(&stream->pcm->snd->card, stream->voice.out);
+            AUD_close_out(stream->pcm->snd->audio_be, stream->voice.out);
             stream->voice.out = NULL;
         } else if (stream->info.direction == VIRTIO_SND_D_INPUT) {
-            AUD_close_in(&stream->pcm->snd->card, stream->voice.in);
+            AUD_close_in(stream->pcm->snd->audio_be, stream->voice.in);
             stream->voice.in = NULL;
         }
     }
@@ -457,7 +457,7 @@ static uint32_t virtio_snd_pcm_prepare(VirtIOSound *s, uint32_t stream_id)
     stream->as = as;
 
     if (stream->info.direction == VIRTIO_SND_D_OUTPUT) {
-        stream->voice.out = AUD_open_out(&s->card,
+        stream->voice.out = AUD_open_out(s->audio_be,
                                          stream->voice.out,
                                          "virtio-sound.out",
                                          stream,
@@ -465,7 +465,7 @@ static uint32_t virtio_snd_pcm_prepare(VirtIOSound *s, uint32_t stream_id)
                                          &as);
         AUD_set_volume_out_lr(stream->voice.out, 0, 255, 255);
     } else {
-        stream->voice.in = AUD_open_in(&s->card,
+        stream->voice.in = AUD_open_in(s->audio_be,
                                         stream->voice.in,
                                         "virtio-sound.in",
                                         stream,
@@ -1053,7 +1053,7 @@ static void virtio_snd_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!AUD_register_card("virtio-sound", &vsnd->card, errp)) {
+    if (!AUD_backend_check(&vsnd->audio_be, errp)) {
         return;
     }
 
@@ -1330,7 +1330,6 @@ static void virtio_snd_unrealize(DeviceState *dev)
         g_free(vsnd->pcm);
         vsnd->pcm = NULL;
     }
-    AUD_remove_card(&vsnd->card);
     qemu_mutex_destroy(&vsnd->cmdq_mutex);
     virtio_delete_queue(vsnd->queues[VIRTIO_SND_VQ_CONTROL]);
     virtio_delete_queue(vsnd->queues[VIRTIO_SND_VQ_EVENT]);

@@ -635,7 +635,7 @@ static uint8_t *streambuf_get(struct streambuf *buf, size_t *len)
 struct USBAudioState {
     /* qemu interfaces */
     USBDevice dev;
-    QEMUSoundCard card;
+    AudioBackend *audio_be;
 
     /* state */
     struct {
@@ -931,8 +931,7 @@ static void usb_audio_unrealize(USBDevice *dev)
     }
 
     usb_audio_set_output_altset(s, ALTSET_OFF);
-    AUD_close_out(&s->card, s->out.voice);
-    AUD_remove_card(&s->card);
+    AUD_close_out(s->audio_be, s->out.voice);
 
     streambuf_fini(&s->out.buf);
 }
@@ -942,7 +941,7 @@ static void usb_audio_realize(USBDevice *dev, Error **errp)
     USBAudioState *s = USB_AUDIO(dev);
     int i;
 
-    if (!AUD_register_card(TYPE_USB_AUDIO, &s->card, errp)) {
+    if (!AUD_backend_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -979,7 +978,7 @@ static void usb_audio_reinit(USBDevice *dev, unsigned channels)
     s->out.as.endianness = 0;
     streambuf_init(&s->out.buf, s->buffer, s->out.channels);
 
-    s->out.voice = AUD_open_out(&s->card, s->out.voice, TYPE_USB_AUDIO,
+    s->out.voice = AUD_open_out(s->audio_be, s->out.voice, TYPE_USB_AUDIO,
                                 s, output_callback, &s->out.as);
     AUD_set_volume_out(s->out.voice, &s->out.vol);
     AUD_set_active_out(s->out.voice, 0);
@@ -991,7 +990,7 @@ static const VMStateDescription vmstate_usb_audio = {
 };
 
 static const Property usb_audio_properties[] = {
-    DEFINE_AUDIO_PROPERTIES(USBAudioState, card),
+    DEFINE_AUDIO_PROPERTIES(USBAudioState, audio_be),
     DEFINE_PROP_UINT32("debug", USBAudioState, debug, 0),
     DEFINE_PROP_UINT32("buffer", USBAudioState, buffer_user, 0),
     DEFINE_PROP_BOOL("multi", USBAudioState, multi, false),

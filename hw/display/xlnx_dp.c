@@ -1306,7 +1306,7 @@ static void xlnx_dp_realize(DeviceState *dev, Error **errp)
     DisplaySurface *surface;
     struct audsettings as;
 
-    if (!AUD_register_card("xlnx_dp.audio", &s->aud_card, errp)) {
+    if (!AUD_backend_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -1328,7 +1328,7 @@ static void xlnx_dp_realize(DeviceState *dev, Error **errp)
     as.fmt = AUDIO_FORMAT_S16;
     as.endianness = 0;
 
-    s->amixer_output_stream = AUD_open_out(&s->aud_card,
+    s->amixer_output_stream = AUD_open_out(s->audio_be,
                                            s->amixer_output_stream,
                                            "xlnx_dp.audio.out",
                                            s,
@@ -1392,7 +1392,7 @@ static void xlnx_dp_reset(DeviceState *dev)
 }
 
 static const Property xlnx_dp_device_properties[] = {
-    DEFINE_AUDIO_PROPERTIES(XlnxDPState, aud_card),
+    DEFINE_AUDIO_PROPERTIES(XlnxDPState, audio_be),
 };
 
 static void xlnx_dp_class_init(ObjectClass *oc, const void *data)

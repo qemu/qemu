@@ -120,7 +120,7 @@ typedef struct AC97BusMasterRegs {
 
 struct AC97LinkState {
     PCIDevice dev;
-    QEMUSoundCard card;
+    AudioBackend *audio_be;
     uint32_t glob_cnt;
     uint32_t glob_sta;
     uint32_t cas;
@@ -320,7 +320,7 @@ static void open_voice(AC97LinkState *s, int index, int freq)
         switch (index) {
         case PI_INDEX:
             s->voice_pi = AUD_open_in(
-                &s->card,
+                s->audio_be,
                 s->voice_pi,
                 "ac97.pi",
                 s,
@@ -331,7 +331,7 @@ static void open_voice(AC97LinkState *s, int index, int freq)
 
         case PO_INDEX:
             s->voice_po = AUD_open_out(
-                &s->card,
+                s->audio_be,
                 s->voice_po,
                 "ac97.po",
                 s,
@@ -342,7 +342,7 @@ static void open_voice(AC97LinkState *s, int index, int freq)
 
         case MC_INDEX:
             s->voice_mc = AUD_open_in(
-                &s->card,
+                s->audio_be,
                 s->voice_mc,
                 "ac97.mc",
                 s,
@@ -355,17 +355,17 @@ static void open_voice(AC97LinkState *s, int index, int freq)
         s->invalid_freq[index] = freq;
         switch (index) {
         case PI_INDEX:
-            AUD_close_in(&s->card, s->voice_pi);
+            AUD_close_in(s->audio_be, s->voice_pi);
             s->voice_pi = NULL;
             break;
 
         case PO_INDEX:
-            AUD_close_out(&s->card, s->voice_po);
+            AUD_close_out(s->audio_be, s->voice_po);
             s->voice_po = NULL;
             break;
 
         case MC_INDEX:
-            AUD_close_in(&s->card, s->voice_mc);
+            AUD_close_in(s->audio_be, s->voice_mc);
             s->voice_mc = NULL;
             break;
         }
@@ -1275,7 +1275,7 @@ static void ac97_realize(PCIDevice *dev, Error **errp)
     AC97LinkState *s = AC97(dev);
     uint8_t *c = s->dev.config;
 
-    if (!AUD_register_card ("ac97", &s->card, errp)) {
+    if (!AUD_backend_check (&s->audio_be, errp)) {
         return;
     }
 
@@ -1320,14 +1320,13 @@ static void ac97_exit(PCIDevice *dev)
 {
     AC97LinkState *s = AC97(dev);
 
-    AUD_close_in(&s->card, s->voice_pi);
-    AUD_close_out(&s->card, s->voice_po);
-    AUD_close_in(&s->card, s->voice_mc);
-    AUD_remove_card(&s->card);
+    AUD_close_in(s->audio_be, s->voice_pi);
+    AUD_close_out(s->audio_be, s->voice_po);
+    AUD_close_in(s->audio_be, s->voice_mc);
 }
 
 static const Property ac97_properties[] = {
-    DEFINE_AUDIO_PROPERTIES(AC97LinkState, card),
+    DEFINE_AUDIO_PROPERTIES(AC97LinkState, audio_be),
 };
 
 static void ac97_class_init(ObjectClass *klass, const void *data)

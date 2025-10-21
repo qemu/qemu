@@ -34,7 +34,7 @@ struct WM8750State {
 
     uint8_t i2c_data[2];
     int i2c_len;
-    QEMUSoundCard card;
+    AudioBackend *audio_be;
     SWVoiceIn *adc_voice[IN_PORT_N];
     SWVoiceOut *dac_voice[OUT_PORT_N];
     int enable;
@@ -188,12 +188,12 @@ static void wm8750_set_format(WM8750State *s)
 
     for (i = 0; i < IN_PORT_N; i ++)
         if (s->adc_voice[i]) {
-            AUD_close_in(&s->card, s->adc_voice[i]);
+            AUD_close_in(s->audio_be, s->adc_voice[i]);
             s->adc_voice[i] = NULL;
         }
     for (i = 0; i < OUT_PORT_N; i ++)
         if (s->dac_voice[i]) {
-            AUD_close_out(&s->card, s->dac_voice[i]);
+            AUD_close_out(s->audio_be, s->dac_voice[i]);
             s->dac_voice[i] = NULL;
         }
 
@@ -206,11 +206,11 @@ static void wm8750_set_format(WM8750State *s)
     in_fmt.freq = s->adc_hz;
     in_fmt.fmt = AUDIO_FORMAT_S16;
 
-    s->adc_voice[0] = AUD_open_in(&s->card, s->adc_voice[0],
+    s->adc_voice[0] = AUD_open_in(s->audio_be, s->adc_voice[0],
                     CODEC ".input1", s, wm8750_audio_in_cb, &in_fmt);
-    s->adc_voice[1] = AUD_open_in(&s->card, s->adc_voice[1],
+    s->adc_voice[1] = AUD_open_in(s->audio_be, s->adc_voice[1],
                     CODEC ".input2", s, wm8750_audio_in_cb, &in_fmt);
-    s->adc_voice[2] = AUD_open_in(&s->card, s->adc_voice[2],
+    s->adc_voice[2] = AUD_open_in(s->audio_be, s->adc_voice[2],
                     CODEC ".input3", s, wm8750_audio_in_cb, &in_fmt);
 
     /* Setup output */
@@ -219,12 +219,12 @@ static void wm8750_set_format(WM8750State *s)
     out_fmt.freq = s->dac_hz;
     out_fmt.fmt = AUDIO_FORMAT_S16;
 
-    s->dac_voice[0] = AUD_open_out(&s->card, s->dac_voice[0],
+    s->dac_voice[0] = AUD_open_out(s->audio_be, s->dac_voice[0],
                     CODEC ".speaker", s, wm8750_audio_out_cb, &out_fmt);
-    s->dac_voice[1] = AUD_open_out(&s->card, s->dac_voice[1],
+    s->dac_voice[1] = AUD_open_out(s->audio_be, s->dac_voice[1],
                     CODEC ".headphone", s, wm8750_audio_out_cb, &out_fmt);
     /* MONOMIX is also in stereo for simplicity */
-    s->dac_voice[2] = AUD_open_out(&s->card, s->dac_voice[2],
+    s->dac_voice[2] = AUD_open_out(s->audio_be, s->dac_voice[2],
                     CODEC ".monomix", s, wm8750_audio_out_cb, &out_fmt);
     /* no sense emulating OUT3 which is a mix of other outputs */
 
@@ -624,7 +624,7 @@ static void wm8750_realize(DeviceState *dev, Error **errp)
 {
     WM8750State *s = WM8750(dev);
 
-    if (!AUD_register_card(CODEC, &s->card, errp)) {
+    if (!AUD_backend_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -637,7 +637,6 @@ static void wm8750_fini(I2CSlave *i2c)
     WM8750State *s = WM8750(i2c);
 
     wm8750_reset(I2C_SLAVE(s));
-    AUD_remove_card(&s->card);
     g_free(s);
 }
 #endif
@@ -707,7 +706,7 @@ void wm8750_set_bclk_in(void *opaque, int new_hz)
 }
 
 static const Property wm8750_properties[] = {
-    DEFINE_AUDIO_PROPERTIES(WM8750State, card),
+    DEFINE_AUDIO_PROPERTIES(WM8750State, audio_be),
 };
 
 static void wm8750_class_init(ObjectClass *klass, const void *data)

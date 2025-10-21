@@ -84,7 +84,7 @@ struct XlnxDPState {
     struct PixmanPlane v_plane;
     struct PixmanPlane bout_plane;
 
-    QEMUSoundCard aud_card;
+    AudioBackend *audio_be;
     SWVoiceOut *amixer_output_stream;
     int16_t audio_buffer_0[AUD_CHBUF_MAX_DEPTH];
     int16_t audio_buffer_1[AUD_CHBUF_MAX_DEPTH];

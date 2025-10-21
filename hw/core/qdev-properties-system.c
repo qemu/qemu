@@ -487,18 +487,17 @@ static void get_audiodev(Object *obj, Visitor *v, const char* name,
                          void *opaque, Error **errp)
 {
     const Property *prop = opaque;
-    QEMUSoundCard *card = object_field_prop_ptr(obj, prop);
-    char *p = g_strdup(audio_get_id(card));
+    AudioBackend **be = object_field_prop_ptr(obj, prop);
+    g_autofree char *id = g_strdup(audio_be_get_id(*be));
 
-    visit_type_str(v, name, &p, errp);
-    g_free(p);
+    visit_type_str(v, name, (char **)&id, errp);
 }
 
 static void set_audiodev(Object *obj, Visitor *v, const char* name,
                          void *opaque, Error **errp)
 {
     const Property *prop = opaque;
-    QEMUSoundCard *card = object_field_prop_ptr(obj, prop);
+    AudioBackend **be = object_field_prop_ptr(obj, prop);
     AudioBackend *state;
     g_autofree char *str = NULL;
 
@@ -508,7 +507,7 @@ static void set_audiodev(Object *obj, Visitor *v, const char* name,
 
     state = audio_be_by_name(str, errp);
     if (state) {
-        card->be = state;
+        *be = state;
     }
 }
 

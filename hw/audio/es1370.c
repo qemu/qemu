@@ -258,7 +258,7 @@ struct chan {
 
 struct ES1370State {
     PCIDevice dev;
-    QEMUSoundCard card;
+    AudioBackend *audio_be;
     MemoryRegion io;
     struct chan chan[NB_CHANNELS];
     SWVoiceOut *dac_voice[2];
@@ -330,10 +330,10 @@ static void es1370_reset (ES1370State *s)
         d->scount = 0;
         d->leftover = 0;
         if (i == ADC_CHANNEL) {
-            AUD_close_in (&s->card, s->adc_voice);
+            AUD_close_in(s->audio_be, s->adc_voice);
             s->adc_voice = NULL;
         } else {
-            AUD_close_out (&s->card, s->dac_voice[i]);
+            AUD_close_out(s->audio_be, s->dac_voice[i]);
             s->dac_voice[i] = NULL;
         }
     }
@@ -412,7 +412,7 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
                 if (i == ADC_CHANNEL) {
                     s->adc_voice =
                         AUD_open_in (
-                            &s->card,
+                            s->audio_be,
                             s->adc_voice,
                             "es1370.adc",
                             s,
@@ -422,7 +422,7 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
                 } else {
                     s->dac_voice[i] =
                         AUD_open_out (
-                            &s->card,
+                            s->audio_be,
                             s->dac_voice[i],
                             i ? "es1370.dac2" : "es1370.dac1",
                             s,
@@ -784,12 +784,12 @@ static int es1370_post_load (void *opaque, int version_id)
     for (i = 0; i < NB_CHANNELS; ++i) {
         if (i == ADC_CHANNEL) {
             if (s->adc_voice) {
-                AUD_close_in (&s->card, s->adc_voice);
+                AUD_close_in(s->audio_be, s->adc_voice);
                 s->adc_voice = NULL;
             }
         } else {
             if (s->dac_voice[i]) {
-                AUD_close_out (&s->card, s->dac_voice[i]);
+                AUD_close_out(s->audio_be, s->dac_voice[i]);
                 s->dac_voice[i] = NULL;
             }
         }
@@ -833,7 +833,7 @@ static void es1370_realize(PCIDevice *dev, Error **errp)
     ES1370State *s = ES1370(dev);
     uint8_t *c = s->dev.config;
 
-    if (!AUD_register_card ("es1370", &s->card, errp)) {
+    if (!AUD_backend_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -861,15 +861,14 @@ static void es1370_exit(PCIDevice *dev)
     int i;
 
     for (i = 0; i < 2; ++i) {
-        AUD_close_out(&s->card, s->dac_voice[i]);
+        AUD_close_out(s->audio_be, s->dac_voice[i]);
     }
 
-    AUD_close_in(&s->card, s->adc_voice);
-    AUD_remove_card(&s->card);
+    AUD_close_in(s->audio_be, s->adc_voice);
 }
 
 static const Property es1370_properties[] = {
-    DEFINE_AUDIO_PROPERTIES(ES1370State, card),
+    DEFINE_AUDIO_PROPERTIES(ES1370State, audio_be),
 };
 
 static void es1370_class_init(ObjectClass *klass, const void *data)

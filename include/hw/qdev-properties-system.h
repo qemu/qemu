@@ -87,7 +87,7 @@ extern const PropertyInfo qdev_prop_virtio_gpu_output_list;
                 .set_default = true)
 
 #define DEFINE_PROP_AUDIODEV(_n, _s, _f) \
-    DEFINE_PROP(_n, _s, _f, qdev_prop_audiodev, QEMUSoundCard)
+    DEFINE_PROP(_n, _s, _f, qdev_prop_audiodev, AudioBackend *)
 
 #define DEFINE_PROP_UUID_NODEFAULT(_name, _state, _field) \
     DEFINE_PROP(_name, _state, _field, qdev_prop_uuid, QemuUUID)

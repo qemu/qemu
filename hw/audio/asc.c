@@ -634,8 +634,6 @@ static void asc_unrealize(DeviceState *dev)
 
     g_free(s->mixbuf);
     g_free(s->silentbuf);
-
-    AUD_remove_card(&s->card);
 }
 
 static void asc_realize(DeviceState *dev, Error **errp)
@@ -643,7 +641,7 @@ static void asc_realize(DeviceState *dev, Error **errp)
     ASCState *s = ASC(dev);
     struct audsettings as;
 
-    if (!AUD_register_card("Apple Sound Chip", &s->card, errp)) {
+    if (!AUD_backend_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -652,10 +650,9 @@ static void asc_realize(DeviceState *dev, Error **errp)
     as.fmt = AUDIO_FORMAT_U8;
     as.endianness = HOST_BIG_ENDIAN;
 
-    s->voice = AUD_open_out(&s->card, s->voice, "asc.out", s, asc_out_cb,
+    s->voice = AUD_open_out(s->audio_be, s->voice, "asc.out", s, asc_out_cb,
                             &as);
     if (!s->voice) {
-        AUD_remove_card(&s->card);
         error_setg(errp, "Initializing audio stream failed");
         return;
     }
@@ -702,7 +699,7 @@ static void asc_init(Object *obj)
 }
 
 static const Property asc_properties[] = {
-    DEFINE_AUDIO_PROPERTIES(ASCState, card),
+    DEFINE_AUDIO_PROPERTIES(ASCState, audio_be),
     DEFINE_PROP_UINT8("asctype", ASCState, type, ASC_TYPE_ASC),
 };
 

@@ -49,7 +49,7 @@ struct PCSpkState {
     MemoryRegion ioport;
     uint32_t iobase;
     uint8_t sample_buf[PCSPK_BUF_LEN];
-    QEMUSoundCard card;
+    AudioBackend *audio_be;
     SWVoiceOut *voice;
     PITCommonState *pit;
     unsigned int pit_count;
@@ -123,7 +123,7 @@ static int pcspk_audio_init(PCSpkState *s)
         return 0;
     }
 
-    s->voice = AUD_open_out(&s->card, s->voice, s_spk, s, pcspk_callback, &as);
+    s->voice = AUD_open_out(s->audio_be, s->voice, s_spk, s, pcspk_callback, &as);
     if (!s->voice) {
         error_report("pcspk: Could not open voice");
         return -1;
@@ -196,8 +196,9 @@ static void pcspk_realizefn(DeviceState *dev, Error **errp)
 
     isa_register_ioport(isadev, &s->ioport, s->iobase);
 
-    if (s->card.be && AUD_register_card(s_spk, &s->card, errp)) {
+    if (s->audio_be && AUD_backend_check(&s->audio_be, errp)) {
         pcspk_audio_init(s);
+        return;
     }
 }
 
@@ -221,7 +222,7 @@ static const VMStateDescription vmstate_spk = {
 };
 
 static const Property pcspk_properties[] = {
-    DEFINE_AUDIO_PROPERTIES(PCSpkState, card),
+    DEFINE_AUDIO_PROPERTIES(PCSpkState, audio_be),
     DEFINE_PROP_UINT32("iobase", PCSpkState, iobase,  0x61),
     DEFINE_PROP_BOOL("migrate", PCSpkState, migrate,  true),
     DEFINE_PROP_LINK("pit", PCSpkState, pit, TYPE_PIT_COMMON, PITCommonState *),

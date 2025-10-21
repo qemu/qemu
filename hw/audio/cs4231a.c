@@ -69,7 +69,7 @@ DECLARE_INSTANCE_CHECKER(CSState, CS4231A,
 
 struct CSState {
     ISADevice dev;
-    QEMUSoundCard card;
+    AudioBackend *audio_be;
     MemoryRegion ioports;
     qemu_irq pic;
     uint32_t regs[CS_REGS];
@@ -328,7 +328,7 @@ static void cs_reset_voices (CSState *s, uint32_t val)
     }
 
     s->voice = AUD_open_out (
-        &s->card,
+        s->audio_be,
         s->voice,
         "cs4231a",
         s,
@@ -678,7 +678,7 @@ static void cs4231a_realizefn (DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!AUD_register_card ("cs4231a", &s->card, errp)) {
+    if (!AUD_backend_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -694,7 +694,7 @@ static void cs4231a_realizefn (DeviceState *dev, Error **errp)
 }
 
 static const Property cs4231a_properties[] = {
-    DEFINE_AUDIO_PROPERTIES(CSState, card),
+    DEFINE_AUDIO_PROPERTIES(CSState, audio_be),
     DEFINE_PROP_UINT32 ("iobase",  CSState, port, 0x534),
     DEFINE_PROP_UINT32 ("irq",     CSState, irq,  9),
     DEFINE_PROP_UINT32 ("dma",     CSState, dma,  3),

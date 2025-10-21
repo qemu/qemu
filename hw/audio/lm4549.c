@@ -190,7 +190,7 @@ void lm4549_write(lm4549_state *s,
         as.endianness = 0;
 
         s->voice = AUD_open_out(
-            &s->card,
+            s->audio_be,
             s->voice,
             "lm4549.out",
             s,
@@ -260,7 +260,7 @@ static int lm4549_post_load(void *opaque, int version_id)
     as.endianness = 0;
 
     s->voice = AUD_open_out(
-        &s->card,
+        s->audio_be,
         s->voice,
         "lm4549.out",
         s,
@@ -282,7 +282,7 @@ void lm4549_init(lm4549_state *s, lm4549_callback data_req_cb, void* opaque,
     struct audsettings as;
 
     /* Register an audio card */
-    if (!AUD_register_card("lm4549", &s->card, errp)) {
+    if (!AUD_backend_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -300,7 +300,7 @@ void lm4549_init(lm4549_state *s, lm4549_callback data_req_cb, void* opaque,
     as.endianness = 0;
 
     s->voice = AUD_open_out(
-        &s->card,
+        s->audio_be,
         s->voice,
         "lm4549.out",
         s,

@@ -54,7 +54,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(SB16State, SB16)
 struct SB16State {
     ISADevice parent_obj;
 
-    QEMUSoundCard card;
+    AudioBackend *audio_be;
     qemu_irq pic;
     uint32_t irq;
     uint32_t dma;
@@ -216,7 +216,7 @@ static void continue_dma8 (SB16State *s)
         as.endianness = 0;
 
         s->voice = AUD_open_out (
-            &s->card,
+            s->audio_be,
             s->voice,
             "sb16",
             s,
@@ -379,7 +379,7 @@ static void dma_cmd (SB16State *s, uint8_t cmd, uint8_t d0, int dma_len)
         as.endianness = 0;
 
         s->voice = AUD_open_out (
-            &s->card,
+            s->audio_be,
             s->voice,
             "sb16",
             s,
@@ -880,7 +880,7 @@ static void legacy_reset (SB16State *s)
     as.endianness = 0;
 
     s->voice = AUD_open_out (
-        &s->card,
+        s->audio_be,
         s->voice,
         "sb16",
         s,
@@ -1287,7 +1287,7 @@ static int sb16_post_load (void *opaque, int version_id)
     SB16State *s = opaque;
 
     if (s->voice) {
-        AUD_close_out (&s->card, s->voice);
+        AUD_close_out(s->audio_be, s->voice);
         s->voice = NULL;
     }
 
@@ -1303,7 +1303,7 @@ static int sb16_post_load (void *opaque, int version_id)
             as.endianness = 0;
 
             s->voice = AUD_open_out (
-                &s->card,
+                s->audio_be,
                 s->voice,
                 "sb16",
                 s,
@@ -1401,7 +1401,7 @@ static void sb16_realizefn (DeviceState *dev, Error **errp)
     SB16State *s = SB16 (dev);
     IsaDmaClass *k;
 
-    if (!AUD_register_card ("sb16", &s->card, errp)) {
+    if (!AUD_backend_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -1440,7 +1440,7 @@ static void sb16_realizefn (DeviceState *dev, Error **errp)
 }
 
 static const Property sb16_properties[] = {
-    DEFINE_AUDIO_PROPERTIES(SB16State, card),
+    DEFINE_AUDIO_PROPERTIES(SB16State, audio_be),
     DEFINE_PROP_UINT32 ("version", SB16State, ver,  0x0405), /* 4.5 */
     DEFINE_PROP_UINT32 ("iobase",  SB16State, port, 0x220),
     DEFINE_PROP_UINT32 ("irq",     SB16State, irq,  5),

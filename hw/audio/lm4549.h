@@ -21,7 +21,7 @@ typedef void (*lm4549_callback)(void *opaque);
 
 
 typedef struct {
-    QEMUSoundCard card;
+    AudioBackend *audio_be;
     SWVoiceOut *voice;
     uint32_t voice_is_active;
 

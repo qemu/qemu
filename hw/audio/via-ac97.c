@@ -239,7 +239,7 @@ static void open_voice_out(ViaAC97State *s)
         .fmt = s->aur.type & BIT(5) ? AUDIO_FORMAT_S16 : AUDIO_FORMAT_S8,
         .endianness = 0,
     };
-    s->vo = AUD_open_out(&s->card, s->vo, "via-ac97.out", s, out_cb, &as);
+    s->vo = AUD_open_out(s->audio_be, s->vo, "via-ac97.out", s, out_cb, &as);
 }
 
 static uint64_t sgd_read(void *opaque, hwaddr addr, unsigned size)
@@ -426,7 +426,7 @@ static void via_ac97_realize(PCIDevice *pci_dev, Error **errp)
     ViaAC97State *s = VIA_AC97(pci_dev);
     Object *o = OBJECT(s);
 
-    if (!AUD_register_card ("via-ac97", &s->card, errp)) {
+    if (!AUD_backend_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -455,12 +455,11 @@ static void via_ac97_exit(PCIDevice *dev)
 {
     ViaAC97State *s = VIA_AC97(dev);
 
-    AUD_close_out(&s->card, s->vo);
-    AUD_remove_card(&s->card);
+    AUD_close_out(s->audio_be, s->vo);
 }
 
 static const Property via_ac97_properties[] = {
-    DEFINE_AUDIO_PROPERTIES(ViaAC97State, card),
+    DEFINE_AUDIO_PROPERTIES(ViaAC97State, audio_be),
 };
 
 static void via_ac97_class_init(ObjectClass *klass, const void *data)
