@@ -182,11 +182,6 @@ static void pcspk_initfn(Object *obj)
     PCSpkState *s = PC_SPEAKER(obj);
 
     memory_region_init_io(&s->ioport, OBJECT(s), &pcspk_io_ops, s, "pcspk", 1);
-
-    object_property_add_link(obj, "pit", TYPE_PIT_COMMON,
-                             (Object **)&s->pit,
-                             qdev_prop_allow_set_link_before_realize,
-                             0);
 }
 
 static void pcspk_realizefn(DeviceState *dev, Error **errp)
@@ -224,6 +219,7 @@ static const Property pcspk_properties[] = {
     DEFINE_AUDIO_PROPERTIES(PCSpkState, card),
     DEFINE_PROP_UINT32("iobase", PCSpkState, iobase,  0x61),
     DEFINE_PROP_BOOL("migrate", PCSpkState, migrate,  true),
+    DEFINE_PROP_LINK("pit", PCSpkState, pit, TYPE_PIT_COMMON, PITCommonState *),
 };
 
 static void pcspk_class_initfn(ObjectClass *klass, const void *data)
