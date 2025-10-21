@@ -152,10 +152,10 @@ static void cpr_exec_cb(void *opaque)
      * exec should only fail if argv[0] is bogus, or has a permissions problem,
      * or the system is very short on resources.
      */
-    g_strfreev(argv);
+    error_setg_errno(&err, errno, "execvp %s failed", argv[0]);
+    g_clear_pointer(&argv, g_strfreev);
     cpr_exec_unpreserve_fds();
 
-    error_setg_errno(&err, errno, "execvp %s failed", argv[0]);
     error_report_err(error_copy(err));
     migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
     migrate_set_error(s, err);
