@@ -492,7 +492,7 @@ static void *get_cpu_state_data(uint64_t *cpu_state_len)
     *cpu_state_len = 0;
     *cpu_state_len += sizeof(reg_save_hdr);     /* reg save header */
     *cpu_state_len += 0xc;                      /* padding as in PAPR */
-    *cpu_state_len += sizeof(__be32);           /* num_cpus */
+    *cpu_state_len += sizeof(num_cpus);         /* num_cpus */
     *cpu_state_len += reg_entries_size;         /* reg entries */
 
     cpu_state_buffer = g_malloc(*cpu_state_len);
@@ -503,8 +503,8 @@ static void *get_cpu_state_data(uint64_t *cpu_state_len)
 
     /* Write num_cpus */
     num_cpus = cpu_to_be32(num_cpus);
-    memcpy(cpu_state_buffer + offset, &num_cpus, sizeof(__be32));
-    offset += sizeof(__be32);
+    memcpy(cpu_state_buffer + offset, &num_cpus, sizeof(num_cpus));
+    offset += sizeof(num_cpus);
 
     /* Write the register entries */
     memcpy(cpu_state_buffer + offset, reg_entries, reg_entries_size);
