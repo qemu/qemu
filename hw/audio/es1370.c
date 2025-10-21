@@ -32,7 +32,7 @@
 #include "migration/vmstate.h"
 #include "qemu/cutils.h"
 #include "qemu/module.h"
-#include "system/dma.h"
+#include "qemu/error-report.h"
 #include "qom/object.h"
 #include "trace.h"
 
@@ -190,7 +190,7 @@ static void print_ctl(uint32_t val)
         a(CDC_EN);
         a(SERR_DIS);
 #undef a
-        AUD_log("es1370", "ctl - PCLKDIV %d(DAC2 freq %d), freq %d,%s\n",
+        error_report("es1370: ctl - PCLKDIV %d(DAC2 freq %d), freq %d,%s",
                 (val & CTRL_PCLKDIV) >> CTRL_SH_PCLKDIV,
                 DAC2_DIVTOSR((val & CTRL_PCLKDIV) >> CTRL_SH_PCLKDIV),
                 dac1_samplerate[(val & CTRL_WTSRSEL) >> CTRL_SH_WTSRSEL],
@@ -226,7 +226,7 @@ static void print_sctl(uint32_t val)
         }
 #undef b
 #undef a
-        AUD_log("es1370",
+        error_report("es1370: "
                 "%s p2_end_inc %d, p2_st_inc %d,"
                 " r1_fmt %s, p2_fmt %s, p1_fmt %s\n",
                 buf,
@@ -238,10 +238,10 @@ static void print_sctl(uint32_t val)
     }
 }
 
-#define lwarn(...) \
+#define lwarn(fmt, ...) \
 do { \
     if (VERBOSE_ES1370) { \
-        AUD_log("es1370: warning", __VA_ARGS__); \
+        error_report("es1370: " fmt, ##__VA_ARGS__); \
     } \
 } while (0)
 
@@ -502,10 +502,10 @@ static void es1370_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         break;
 
     case ES1370_REG_PHANTOM_FRAMECNT:
-        lwarn("writing to phantom frame count 0x%" PRIx64 "\n", val);
+        lwarn("writing to phantom frame count 0x%" PRIx64, val);
         break;
     case ES1370_REG_PHANTOM_FRAMEADR:
-        lwarn("writing to phantom frame address 0x%" PRIx64 "\n", val);
+        lwarn("writing to phantom frame address 0x%" PRIx64, val);
         break;
 
     case ES1370_REG_ADC_FRAMECNT:
@@ -522,7 +522,7 @@ static void es1370_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         break;
 
     default:
-        lwarn("writel 0x%" PRIx64 " <- 0x%" PRIx64 "\n", addr, val);
+        lwarn("writel 0x%" PRIx64 " <- 0x%" PRIx64, addr, val);
         break;
     }
 }
@@ -586,16 +586,16 @@ static uint64_t es1370_read(void *opaque, hwaddr addr, unsigned size)
 
     case ES1370_REG_PHANTOM_FRAMECNT:
         val = ~0U;
-        lwarn("reading from phantom frame count\n");
+        lwarn("reading from phantom frame count");
         break;
     case ES1370_REG_PHANTOM_FRAMEADR:
         val = ~0U;
-        lwarn("reading from phantom frame address\n");
+        lwarn("reading from phantom frame address");
         break;
 
     default:
         val = ~0U;
-        lwarn("readl 0x%" PRIx64 " -> 0x%x\n", addr, val);
+        lwarn("readl 0x%" PRIx64 " -> 0x%x", addr, val);
         break;
     }
     return val;
@@ -677,7 +677,7 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
          * when the sample count reaches zero) or 1 for stop mode (set
          * interrupt and stop recording).
          */
-        AUD_log ("es1370: warning", "non looping mode\n");
+        warn_report("es1370: non looping mode");
     } else {
         d->frame_cnt = size;
 
