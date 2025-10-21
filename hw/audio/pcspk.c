@@ -61,7 +61,6 @@ struct PCSpkState {
 };
 
 static const char *s_spk = "pcspk";
-static PCSpkState *pcspk_state;
 
 static inline void generate_samples(PCSpkState *s)
 {
@@ -200,8 +199,6 @@ static void pcspk_realizefn(DeviceState *dev, Error **errp)
     if (s->card.state && AUD_register_card(s_spk, &s->card, errp)) {
         pcspk_audio_init(s);
     }
-
-    pcspk_state = s;
 }
 
 static bool migrate_needed(void *opaque)
@@ -237,7 +234,6 @@ static void pcspk_class_initfn(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->vmsd = &vmstate_spk;
     device_class_set_props(dc, pcspk_properties);
-    /* Reason: realize sets global pcspk_state */
     /* Reason: pit object link */
     dc->user_creatable = false;
 }
