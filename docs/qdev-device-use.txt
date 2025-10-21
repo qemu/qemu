@@ -311,9 +311,9 @@ constraints.
 
 Host and guest part of audio devices have always been separate.
 
-The old way to define guest audio devices is -soundhw C1,...
+The old way to define guest audio devices was -soundhw C1,...
 
-The new way is to define each guest audio device separately with
+The current way is to define each guest audio device separately with
 -device.
 
 Map from -soundhw sound card name to -device:
