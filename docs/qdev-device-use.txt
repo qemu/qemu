@@ -324,8 +324,10 @@ Map from -soundhw sound card name to -device:
     gus         -device gus,iobase=IOADDR,irq=IRQ,dma=DMA,freq=F
     hda         -device intel-hda,msi=MSI -device hda-duplex
     sb16        -device sb16,iobase=IOADDR,irq=IRQ,dma=DMA,dma16=DMA16,version=V
-    adlib       not yet available with -device
-    pcspk       not yet available with -device
+    adlib       -device adlib,iobase=IOADDR,freq=F
+
+    pcspk       Not available with -device,
+                but audiodev can be set with -machine pcspk-audiodev=<name>
 
 For PCI devices, you can add bus=PCI-BUS,addr=DEVFN to control the PCI
 device address, as usual.
