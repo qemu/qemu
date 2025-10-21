@@ -16,6 +16,11 @@
 
 #define FADUMP_VERSION                 1
 
+/* Dump status flags */
+#define FADUMP_STATUS_DUMP_PERFORMED            0x8000
+#define FADUMP_STATUS_DUMP_TRIGGERED            0x4000
+#define FADUMP_STATUS_DUMP_ERROR                0x2000
+
 /*
  * The Firmware Assisted Dump Memory structure supports a maximum of 10 sections
  * in the dump memory structure. Presently, three sections are used for
@@ -66,4 +71,5 @@ struct FadumpMemStruct {
 };
 
 uint32_t do_fadump_register(struct SpaprMachineState *, target_ulong);
+void     trigger_fadump_boot(struct SpaprMachineState *, target_ulong);
 #endif /* PPC_SPAPR_FADUMP_H */
