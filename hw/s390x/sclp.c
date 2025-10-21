@@ -110,7 +110,7 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     ReadInfo *read_info = (ReadInfo *) sccb;
     MachineState *machine = MACHINE(qdev_get_machine());
     int cpu_count;
-    int rnsize, rnmax;
+    int rnmax;
     int required_len = SCCB_REQ_LEN(ReadInfo, machine->possible_cpus->len);
     int offset_cpu = s390_has_feat(S390_FEAT_EXTENDED_LENGTH_SCCB) ?
                      offsetof(ReadInfo, entries) :
@@ -153,21 +153,14 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
 
     read_info->mha_pow = s390_get_mha_pow();
     read_info->hmfai = cpu_to_be32(s390_get_hmfai());
-
-    rnsize = 1 << (sclp->increment_size - 20);
-    if (rnsize <= 128) {
-        read_info->rnsize = rnsize;
-    } else {
-        read_info->rnsize = 0;
-        read_info->rnsize2 = cpu_to_be32(rnsize);
-    }
+    read_info->rnsize = 1;
 
     /*
      * We don't support standby memory. maxram_size is used for sizing the
      * memory device region, which is not exposed through SCLP but through
      * diag500.
      */
-    rnmax = machine->ram_size >> sclp->increment_size;
+    rnmax = machine->ram_size >> 20;
     if (rnmax < 0x10000) {
         read_info->rnmax = cpu_to_be16(rnmax);
     } else {
@@ -406,25 +399,6 @@ static void sclp_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void sclp_memory_init(SCLPDevice *sclp)
-{
-    MachineState *machine = MACHINE(qdev_get_machine());
-    MachineClass *machine_class = MACHINE_GET_CLASS(qdev_get_machine());
-    ram_addr_t initial_mem = machine->ram_size;
-    int increment_size = 20;
-
-    /* The storage increment size is a multiple of 1M and is a power of 2.
-     * For some machine types, the number of storage increments must be
-     * MAX_STORAGE_INCREMENTS or fewer.
-     * The variable 'increment_size' is an exponent of 2 that can be
-     * used to calculate the size (in bytes) of an increment. */
-    while (machine_class->fixup_ram_size != NULL &&
-           (initial_mem >> increment_size) > MAX_STORAGE_INCREMENTS) {
-        increment_size++;
-    }
-    sclp->increment_size = increment_size;
-}
-
 static void sclp_init(Object *obj)
 {
     SCLPDevice *sclp = SCLP(obj);
@@ -434,8 +408,6 @@ static void sclp_init(Object *obj)
     object_property_add_child(obj, TYPE_SCLP_EVENT_FACILITY, new);
     object_unref(new);
     sclp->event_facility = EVENT_FACILITY(new);
-
-    sclp_memory_init(sclp);
 }
 
 static void sclp_class_init(ObjectClass *oc, const void *data)

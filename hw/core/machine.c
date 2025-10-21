@@ -648,9 +648,6 @@ static void machine_set_mem(Object *obj, Visitor *v, const char *name,
         mem->size = mc->default_ram_size;
     }
     mem->size = QEMU_ALIGN_UP(mem->size, 8192);
-    if (mc->fixup_ram_size) {
-        mem->size = mc->fixup_ram_size(mem->size);
-    }
     if ((ram_addr_t)mem->size != mem->size) {
         error_setg(errp, "ram size %llu exceeds permitted maximum %llu",
                    (unsigned long long)mem->size,

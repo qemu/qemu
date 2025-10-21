@@ -25,6 +25,7 @@ msys2-64bit:
     expire_in: 7 days
     paths:
       - build/meson-logs
+      - build/cache-log.txt
     reports:
       junit: build/meson-logs/*.junit.xml
   before_script:
@@ -94,7 +95,7 @@ msys2-64bit:
   - $env:MSYS = 'winsymlinks:native' # Enable native Windows symlink
   - $env:CCACHE_BASEDIR = "$env:CI_PROJECT_DIR"
   - $env:CCACHE_DIR = "$env:CCACHE_BASEDIR/ccache"
-  - $env:CCACHE_MAXSIZE = "500M"
+  - $env:CCACHE_MAXSIZE = "180M"
   - $env:CCACHE_DEPEND = 1 # cache misses are too expensive with preprocessor mode
   - $env:CC = "ccache gcc"
   - mkdir build
@@ -103,5 +104,7 @@ msys2-64bit:
   - ..\msys64\usr\bin\bash -lc "../configure $CONFIGURE_ARGS"
   - ..\msys64\usr\bin\bash -lc "make -j$env:JOBS"
   - ..\msys64\usr\bin\bash -lc "make check MTESTARGS='$TEST_ARGS' || { cat meson-logs/testlog.txt; exit 1; } ;"
+  - ..\msys64\usr\bin\bash -lc "ls -lR /var/cache > cache-log.txt"
+  - ..\msys64\usr\bin\bash -lc "du -sh ."
   - ..\msys64\usr\bin\bash -lc "ccache --show-stats"
   - Write-Output "Finished build at $(Get-Date -Format u)"

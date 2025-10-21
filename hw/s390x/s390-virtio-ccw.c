@@ -715,26 +715,6 @@ static void s390_nmi(NMIState *n, int cpu_index, Error **errp)
     s390_cpu_restart(S390_CPU(cs));
 }
 
-static ram_addr_t s390_fixup_ram_size(ram_addr_t sz)
-{
-    /* same logic as in sclp.c */
-    int increment_size = 20;
-    ram_addr_t newsz;
-
-    while ((sz >> increment_size) > MAX_STORAGE_INCREMENTS) {
-        increment_size++;
-    }
-    newsz = sz >> increment_size << increment_size;
-
-    if (sz != newsz) {
-        qemu_printf("Ram size %" PRIu64 "MB was fixed up to %" PRIu64
-                    "MB to match machine restrictions. Consider updating "
-                    "the guest definition.\n", (uint64_t) (sz / MiB),
-                    (uint64_t) (newsz / MiB));
-    }
-    return newsz;
-}
-
 static inline bool machine_get_aes_key_wrap(Object *obj, Error **errp)
 {
     S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
@@ -1164,19 +1144,6 @@ static void ccw_machine_5_0_class_options(MachineClass *mc)
     compat_props_add(mc->compat_props, hw_compat_5_0, hw_compat_5_0_len);
 }
 DEFINE_CCW_MACHINE(5, 0);
-
-static void ccw_machine_4_2_instance_options(MachineState *machine)
-{
-    ccw_machine_5_0_instance_options(machine);
-}
-
-static void ccw_machine_4_2_class_options(MachineClass *mc)
-{
-    ccw_machine_5_0_class_options(mc);
-    mc->fixup_ram_size = s390_fixup_ram_size;
-    compat_props_add(mc->compat_props, hw_compat_4_2, hw_compat_4_2_len);
-}
-DEFINE_CCW_MACHINE(4, 2);
 
 static void ccw_machine_register_types(void)
 {

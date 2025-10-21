@@ -250,12 +250,6 @@ typedef struct {
  *    It also will be used as a way to option into "-m" option support.
  *    If it's not set by board, '-m' will be ignored and generic code will
  *    not create default RAM MemoryRegion.
- * @fixup_ram_size:
- *    Amends user provided ram size (with -m option) using machine
- *    specific algorithm. To be used by old machine types for compat
- *    purposes only.
- *    Applies only to default memory backend, i.e., explicit memory backend
- *    wasn't used.
  * @smbios_memory_device_size:
  *    Default size of memory device,
  *    SMBIOS 3.1.0 "7.18 Memory Device (Type 17)"
@@ -325,7 +319,6 @@ struct MachineClass {
                                                          unsigned cpu_index);
     const CPUArchIdList *(*possible_cpu_arch_ids)(MachineState *machine);
     int64_t (*get_default_cpu_node_id)(const MachineState *ms, int idx);
-    ram_addr_t (*fixup_ram_size)(ram_addr_t size);
     uint64_t smbios_memory_device_size;
     bool (*create_default_memdev)(MachineState *ms, const char *path,
                                   Error **errp);
