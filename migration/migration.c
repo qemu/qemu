@@ -2301,7 +2301,7 @@ void qmp_migrate(const char *uri, bool has_channels,
         return;
     }
 
-    if (cpr_state_save(cpr_channel, &local_err)) {
+    if (!cpr_state_save(cpr_channel, &local_err)) {
         goto out;
     }
 

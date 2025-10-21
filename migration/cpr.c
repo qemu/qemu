@@ -176,7 +176,7 @@ bool cpr_is_incoming(void)
     return incoming_mode != MIG_MODE_NONE;
 }
 
-int cpr_state_save(MigrationChannel *channel, Error **errp)
+bool cpr_state_save(MigrationChannel *channel, Error **errp)
 {
     int ret;
     QEMUFile *f;
@@ -190,10 +190,10 @@ int cpr_state_save(MigrationChannel *channel, Error **errp)
     } else if (mode == MIG_MODE_CPR_EXEC) {
         f = cpr_exec_output(errp);
     } else {
-        return 0;
+        return true;
     }
     if (!f) {
-        return -1;
+        return false;
     }
 
     qemu_put_be32(f, QEMU_CPR_FILE_MAGIC);
@@ -202,11 +202,14 @@ int cpr_state_save(MigrationChannel *channel, Error **errp)
     ret = vmstate_save_state(f, &vmstate_cpr_state, &cpr_state, 0, errp);
     if (ret) {
         qemu_fclose(f);
-        return ret;
+        return false;
     }
 
     if (migrate_mode() == MIG_MODE_CPR_EXEC) {
-        cpr_exec_persist_state(f);
+        if (!cpr_exec_persist_state(f, errp)) {
+            qemu_fclose(f);
+            return false;
+        }
     }
 
     /*
@@ -217,7 +220,7 @@ int cpr_state_save(MigrationChannel *channel, Error **errp)
     qio_channel_shutdown(qemu_file_get_ioc(f), QIO_CHANNEL_SHUTDOWN_WRITE,
                          NULL);
     cpr_state_file = f;
-    return 0;
+    return true;
 }
 
 int cpr_state_load(MigrationChannel *channel, Error **errp)
