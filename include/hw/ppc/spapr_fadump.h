@@ -47,9 +47,17 @@
  */
 #define FADUMP_MAX_SECTIONS            10
 
+/* Number of register entries stored per cpu */
+#define FADUMP_PER_CPU_REG_ENTRIES (32 /*GPR*/ + 45 /*others*/ + 2 /*STRT & END*/)
+
+/* Mask of CPU ID in CPUSTRT and CPUEND entries */
+#define FADUMP_CPU_ID_MASK      ((1ULL << 32) - 1)
+
 typedef struct FadumpSection FadumpSection;
 typedef struct FadumpSectionHeader FadumpSectionHeader;
 typedef struct FadumpMemStruct FadumpMemStruct;
+typedef struct FadumpRegSaveAreaHeader FadumpRegSaveAreaHeader;
+typedef struct FadumpRegEntry FadumpRegEntry;
 
 struct SpaprMachineState;
 
@@ -86,6 +94,29 @@ struct FadumpSectionHeader {
 struct FadumpMemStruct {
     FadumpSectionHeader header;
     FadumpSection       rgn[FADUMP_MAX_SECTIONS];
+};
+
+/*
+ * The firmware-assisted dump format.
+ *
+ * The register save area is an area in the partition's memory used to preserve
+ * the register contents (CPU state data) for the active CPUs during a firmware
+ * assisted dump. The dump format contains register save area header followed
+ * by register entries. Each list of registers for a CPU starts with "CPUSTRT"
+ * and ends with "CPUEND".
+ */
+
+/* Register save area header. */
+struct FadumpRegSaveAreaHeader {
+    uint64_t    magic_number;
+    uint32_t    version;
+    uint32_t    num_cpu_offset;
+};
+
+/* Register entry. */
+struct FadumpRegEntry {
+    uint64_t    reg_id;
+    uint64_t    reg_value;
 };
 
 uint32_t do_fadump_register(struct SpaprMachineState *, target_ulong);
