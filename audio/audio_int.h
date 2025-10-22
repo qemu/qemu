@@ -61,7 +61,7 @@ struct audio_pcm_info {
     int swap_endianness;
 };
 
-typedef struct AudioBackend AudioBackend;
+typedef struct AudioMixengBackend AudioMixengBackend;
 typedef struct SWVoiceCap SWVoiceCap;
 
 typedef struct STSampleBuffer {
@@ -70,7 +70,7 @@ typedef struct STSampleBuffer {
 } STSampleBuffer;
 
 typedef struct HWVoiceOut {
-    AudioBackend *s;
+    AudioMixengBackend *s;
     bool enabled;
     int poll_mode;
     bool pending_disable;
@@ -90,7 +90,7 @@ typedef struct HWVoiceOut {
 } HWVoiceOut;
 
 typedef struct HWVoiceIn {
-    AudioBackend *s;
+    AudioMixengBackend *s;
     bool enabled;
     int poll_mode;
     struct audio_pcm_info info;
@@ -110,7 +110,7 @@ typedef struct HWVoiceIn {
 } HWVoiceIn;
 
 struct SWVoiceOut {
-    AudioBackend *s;
+    AudioMixengBackend *s;
     struct audio_pcm_info info;
     t_sample *conv;
     STSampleBuffer resample_buf;
@@ -126,7 +126,7 @@ struct SWVoiceOut {
 };
 
 struct SWVoiceIn {
-    AudioBackend *s;
+    AudioMixengBackend *s;
     bool active;
     struct audio_pcm_info info;
     void *rate;
@@ -239,8 +239,12 @@ struct SWVoiceCap {
     QLIST_ENTRY (SWVoiceCap) entries;
 };
 
-typedef struct AudioBackend {
-    Object parent;
+struct AudioMixengBackendClass {
+    AudioBackendClass parent_class;
+};
+
+struct AudioMixengBackend {
+    AudioBackend parent_obj;
 
     struct audio_driver *drv;
     Audiodev *dev;
@@ -257,7 +261,7 @@ typedef struct AudioBackend {
     bool timer_running;
     uint64_t timer_last;
     VMChangeStateEntry *vmse;
-} AudioBackend;
+};
 
 extern const struct mixeng_volume nominal_volume;
 
@@ -270,7 +274,7 @@ void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len);
 
 int audio_bug (const char *funcname, int cond);
 
-void audio_run(AudioBackend *s, const char *msg);
+void audio_run(AudioMixengBackend *s, const char *msg);
 
 const char *audio_application_name(void);
 
@@ -322,5 +326,8 @@ typedef QSIMPLEQ_HEAD(, AudiodevListEntry) AudiodevListHead;
 void audio_create_pdos(Audiodev *dev);
 AudiodevPerDirectionOptions *audio_get_pdo_in(Audiodev *dev);
 AudiodevPerDirectionOptions *audio_get_pdo_out(Audiodev *dev);
+
+#define TYPE_AUDIO_MIXENG_BACKEND "audio-mixeng-backend"
+OBJECT_DECLARE_TYPE(AudioMixengBackend, AudioMixengBackendClass, AUDIO_MIXENG_BACKEND)
 
 #endif /* QEMU_AUDIO_INT_H */

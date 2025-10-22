@@ -221,8 +221,7 @@ dbus_display_complete(UserCreatable *uc, Error **errp)
 
     {
         AudioBackend *audio_be = audio_get_default_audio_be(NULL);
-
-        if (audio_be && !g_str_equal(audio_be->drv->name, "dbus")) {
+        if (audio_be && !audio_be_can_set_dbus_server(audio_be)) {
             audio_be = NULL;
         }
         if (dd->audiodev && *dd->audiodev) {
@@ -231,8 +230,7 @@ dbus_display_complete(UserCreatable *uc, Error **errp)
                 return;
             }
         }
-        if (audio_be &&
-            !audio_be_set_dbus_server(audio_be, dd->server, dd->p2p, errp)) {
+        if (audio_be && !audio_be_set_dbus_server(audio_be, dd->server, dd->p2p, errp)) {
             return;
         }
     }

@@ -37,6 +37,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/help_option.h"
+#include "qom/object.h"
 #include "system/system.h"
 #include "system/replay.h"
 #include "system/runstate.h"
@@ -384,7 +385,7 @@ void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len)
 /*
  * Capture
  */
-static CaptureVoiceOut *audio_pcm_capture_find_specific(AudioBackend *s,
+static CaptureVoiceOut *audio_pcm_capture_find_specific(AudioMixengBackend *s,
                                                         struct audsettings *as)
 {
     CaptureVoiceOut *cap;
@@ -464,7 +465,7 @@ static void audio_detach_capture (HWVoiceOut *hw)
 
 static int audio_attach_capture (HWVoiceOut *hw)
 {
-    AudioBackend *s = hw->s;
+    AudioMixengBackend *s = hw->s;
     CaptureVoiceOut *cap;
 
     audio_detach_capture (hw);
@@ -802,7 +803,7 @@ static void audio_pcm_print_info (const char *cap, struct audio_pcm_info *info)
 /*
  * Timer
  */
-static int audio_is_timer_needed(AudioBackend *s)
+static int audio_is_timer_needed(AudioMixengBackend *s)
 {
     HWVoiceIn *hwi = NULL;
     HWVoiceOut *hwo = NULL;
@@ -820,7 +821,7 @@ static int audio_is_timer_needed(AudioBackend *s)
     return 0;
 }
 
-static void audio_reset_timer(AudioBackend *s)
+static void audio_reset_timer(AudioMixengBackend *s)
 {
     if (audio_is_timer_needed(s)) {
         timer_mod_anticipate_ns(s->ts,
@@ -842,7 +843,7 @@ static void audio_reset_timer(AudioBackend *s)
 static void audio_timer (void *opaque)
 {
     int64_t now, diff;
-    AudioBackend *s = opaque;
+    AudioMixengBackend *s = opaque;
 
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     diff = now - s->timer_last;
@@ -925,7 +926,7 @@ void AUD_set_active_out(SWVoiceOut *sw, bool on)
 
     hw = sw->hw;
     if (sw->active != on) {
-        AudioBackend *s = sw->s;
+        AudioMixengBackend *s = sw->s;
         SWVoiceOut *temp_sw;
         SWVoiceCap *sc;
 
@@ -973,7 +974,7 @@ void AUD_set_active_in(SWVoiceIn *sw, bool on)
 
     hw = sw->hw;
     if (sw->active != on) {
-        AudioBackend *s = sw->s;
+        AudioMixengBackend *s = sw->s;
         SWVoiceIn *temp_sw;
 
         if (on) {
@@ -1141,7 +1142,7 @@ static size_t audio_pcm_hw_run_out(HWVoiceOut *hw, size_t live)
     return clipped;
 }
 
-static void audio_run_out(AudioBackend *s)
+static void audio_run_out(AudioMixengBackend *s)
 {
     HWVoiceOut *hw = NULL;
     SWVoiceOut *sw;
@@ -1294,7 +1295,7 @@ static size_t audio_pcm_hw_run_in(HWVoiceIn *hw, size_t samples)
     return conv;
 }
 
-static void audio_run_in(AudioBackend *s)
+static void audio_run_in(AudioMixengBackend *s)
 {
     HWVoiceIn *hw = NULL;
 
@@ -1341,7 +1342,7 @@ static void audio_run_in(AudioBackend *s)
     }
 }
 
-static void audio_run_capture(AudioBackend *s)
+static void audio_run_capture(AudioMixengBackend *s)
 {
     CaptureVoiceOut *cap;
 
@@ -1388,7 +1389,7 @@ static void audio_run_capture(AudioBackend *s)
     }
 }
 
-void audio_run(AudioBackend *s, const char *msg)
+void audio_run(AudioMixengBackend *s, const char *msg)
 {
     audio_run_out(s);
     audio_run_in(s);
@@ -1561,8 +1562,8 @@ size_t audio_generic_read(HWVoiceIn *hw, void *buf, size_t size)
     return total;
 }
 
-static bool audio_driver_init(AudioBackend *s, struct audio_driver *drv,
-                              Audiodev *dev, Error **errp)
+static bool audio_driver_do_init(AudioMixengBackend *s, struct audio_driver *drv,
+                                 Audiodev *dev, Error **errp)
 {
     s->drv_opaque = drv->init(dev, errp);
     if (!s->drv_opaque) {
@@ -1594,7 +1595,7 @@ static bool audio_driver_init(AudioBackend *s, struct audio_driver *drv,
 static void audio_vm_change_state_handler (void *opaque, bool running,
                                            RunState state)
 {
-    AudioBackend *s = opaque;
+    AudioMixengBackend *s = opaque;
     HWVoiceOut *hwo = NULL;
     HWVoiceIn *hwi = NULL;
 
@@ -1616,7 +1617,47 @@ static const VMStateDescription vmstate_audio;
 
 static void audio_be_init(Object *obj)
 {
-    AudioBackend *s = AUDIO_BACKEND(obj);
+}
+
+static void audio_be_finalize(Object *obj)
+{
+}
+
+static const char *audio_mixeng_backend_get_id(AudioBackend *be)
+{
+    return AUDIO_MIXENG_BACKEND(be)->dev->id;
+}
+
+#ifdef CONFIG_GIO
+static bool audio_mixeng_backend_set_dbus_server(AudioBackend *be,
+                                                 GDBusObjectManagerServer *manager,
+                                                 bool p2p,
+                                                 Error **errp)
+{
+    AudioMixengBackend *d = AUDIO_MIXENG_BACKEND(be);
+
+    if (!d->drv->set_dbus_server) {
+        return false;
+    }
+
+    return d->drv->set_dbus_server(be, manager, p2p, errp);
+}
+
+#endif
+
+static void audio_mixeng_backend_class_init(ObjectClass *klass, const void *data)
+{
+    AudioBackendClass *be = AUDIO_BACKEND_CLASS(klass);
+
+    be->get_id = audio_mixeng_backend_get_id;
+#ifdef CONFIG_GIO
+    be->set_dbus_server = audio_mixeng_backend_set_dbus_server;
+#endif
+}
+
+static void audio_mixeng_backend_init(Object *obj)
+{
+    AudioMixengBackend *s = AUDIO_MIXENG_BACKEND(obj);
 
     QLIST_INIT(&s->hw_head_out);
     QLIST_INIT(&s->hw_head_in);
@@ -1629,9 +1670,9 @@ static void audio_be_init(Object *obj)
     vmstate_register_any(NULL, &vmstate_audio, s);
 }
 
-static void audio_be_finalize(Object *obj)
+static void audio_mixeng_backend_finalize(Object *obj)
 {
-    AudioBackend *s = AUDIO_BACKEND(obj);
+    AudioMixengBackend *s = AUDIO_MIXENG_BACKEND(obj);
     HWVoiceOut *hwo, *hwon;
     HWVoiceIn *hwi, *hwin;
 
@@ -1747,10 +1788,10 @@ static AudioBackend *audio_init(Audiodev *dev, Error **errp)
 {
     int done = 0;
     const char *drvname;
-    AudioBackend *s;
+    AudioMixengBackend *s;
     struct audio_driver *driver;
 
-    s = AUDIO_BACKEND(object_new(TYPE_AUDIO_BACKEND));
+    s = AUDIO_MIXENG_BACKEND(object_new(TYPE_AUDIO_MIXENG_BACKEND));
 
     if (dev) {
         /* -audiodev option */
@@ -1758,7 +1799,7 @@ static AudioBackend *audio_init(Audiodev *dev, Error **errp)
         drvname = AudiodevDriver_str(dev->driver);
         driver = audio_driver_lookup(drvname);
         if (driver) {
-            done = audio_driver_init(s, driver, dev, errp);
+            done = audio_driver_do_init(s, driver, dev, errp);
         } else {
             error_setg(errp, "Unknown audio driver `%s'", drvname);
         }
@@ -1778,7 +1819,7 @@ static AudioBackend *audio_init(Audiodev *dev, Error **errp)
             g_free(e);
             drvname = AudiodevDriver_str(dev->driver);
             driver = audio_driver_lookup(drvname);
-            if (audio_driver_init(s, driver, dev, NULL)) {
+            if (audio_driver_do_init(s, driver, dev, NULL)) {
                 break;
             }
             qapi_free_Audiodev(dev);
@@ -1790,7 +1831,7 @@ static AudioBackend *audio_init(Audiodev *dev, Error **errp)
         goto out;
     }
     object_unref(s);
-    return s;
+    return AUDIO_BACKEND(s);
 
 out:
     object_unref(s);
@@ -1829,12 +1870,13 @@ bool AUD_backend_check(AudioBackend **be, Error **errp)
 static struct audio_pcm_ops capture_pcm_ops;
 
 CaptureVoiceOut *AUD_add_capture(
-    AudioBackend *s,
+    AudioBackend *be,
     struct audsettings *as,
     struct audio_capture_ops *ops,
     void *cb_opaque
     )
 {
+    AudioMixengBackend *s = AUDIO_MIXENG_BACKEND(be);
     CaptureVoiceOut *cap;
     struct capture_callback *cb;
 
@@ -2225,27 +2267,37 @@ AudioBackend *audio_be_by_name(const char *name, Error **errp)
 }
 
 #ifdef CONFIG_GIO
+bool audio_be_can_set_dbus_server(AudioBackend *be)
+{
+    /*
+     * TODO:
+     * AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+     * return klass->set_dbus_server != NULL;
+     */
+    return AUDIO_MIXENG_BACKEND(be)->drv->set_dbus_server != NULL;
+}
+
 bool audio_be_set_dbus_server(AudioBackend *be,
                               GDBusObjectManagerServer *server,
                               bool p2p,
                               Error **errp)
 {
-    assert(be != NULL);
+    AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
 
-    if (!be->drv->set_dbus_server) {
-        error_setg(errp, "Audiodev '%s' is not compatible with DBus", be->dev->id);
+    if (!audio_be_can_set_dbus_server(be)) {
+        error_setg(errp, "Audiodev '%s' is not compatible with DBus",
+                   audio_be_get_id(be));
         return false;
     }
 
-    return be->drv->set_dbus_server(be, server, p2p, errp);
+    return klass->set_dbus_server(be, server, p2p, errp);
 }
 #endif
 
 const char *audio_be_get_id(AudioBackend *be)
 {
     if (be) {
-        assert(be->dev);
-        return be->dev->id;
+        return AUDIO_BACKEND_GET_CLASS(be)->get_id(be);
     } else {
         return "";
     }
@@ -2320,13 +2372,24 @@ static const TypeInfo audio_be_info = {
     .instance_size = sizeof(AudioBackend),
     .instance_init = audio_be_init,
     .instance_finalize = audio_be_finalize,
-    .abstract = false, /* TODO: subclass drivers and make it abstract */
+    .abstract = true,
     .class_size = sizeof(AudioBackendClass),
+};
+
+static const TypeInfo audio_mixeng_backend_info = {
+    .name = TYPE_AUDIO_MIXENG_BACKEND,
+    .parent = TYPE_AUDIO_BACKEND,
+    .instance_size = sizeof(AudioMixengBackend),
+    .instance_init = audio_mixeng_backend_init,
+    .instance_finalize = audio_mixeng_backend_finalize,
+    .class_size = sizeof(AudioMixengBackendClass),
+    .class_init = audio_mixeng_backend_class_init,
 };
 
 static void register_types(void)
 {
     type_register_static(&audio_be_info);
+    type_register_static(&audio_mixeng_backend_info);
 }
 
 type_init(register_types);

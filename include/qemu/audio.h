@@ -44,11 +44,21 @@ typedef struct audsettings {
 typedef struct SWVoiceOut SWVoiceOut;
 typedef struct SWVoiceIn SWVoiceIn;
 
-struct AudioBackendClass {
-    ObjectClass parent_class;
-};
+typedef struct AudioBackend {
+    Object parent_obj;
+} AudioBackend;
 
-typedef struct AudioBackend AudioBackend;
+typedef struct AudioBackendClass {
+    ObjectClass parent_class;
+
+    const char *(*get_id)(AudioBackend *be);
+#ifdef CONFIG_GIO
+    bool (*set_dbus_server)(AudioBackend *be,
+                            GDBusObjectManagerServer *manager,
+                            bool p2p,
+                            Error **errp);
+#endif
+} AudioBackendClass;
 
 bool AUD_backend_check(AudioBackend **be, Error **errp);
 
@@ -125,6 +135,7 @@ AudioBackend *audio_be_by_name(const char *name, Error **errp);
 AudioBackend *audio_get_default_audio_be(Error **errp);
 const char *audio_be_get_id(AudioBackend *be);
 #ifdef CONFIG_GIO
+bool audio_be_can_set_dbus_server(AudioBackend *be);
 bool audio_be_set_dbus_server(AudioBackend *be,
                               GDBusObjectManagerServer *server,
                               bool p2p,

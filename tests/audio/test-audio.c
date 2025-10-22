@@ -170,7 +170,7 @@ static void test_audio_out_sine_wave(void)
      */
     start_time = g_get_monotonic_time();
     while (state.frames_written < state.total_frames) {
-        audio_run(state.be, "test");
+        audio_run(AUDIO_MIXENG_BACKEND(state.be), "test");
         main_loop_wait(true);
 
         elapsed_ms = (g_get_monotonic_time() - start_time) / 1000;
@@ -432,7 +432,7 @@ static void test_audio_capture(void)
     start_time = g_get_monotonic_time();
     while (sine_state.frames_written < sine_state.total_frames ||
            state.captured_bytes < CAPTURE_BUFFER_SIZE) {
-        audio_run(be, "test-capture");
+        audio_run(AUDIO_MIXENG_BACKEND(be), "test-capture");
         main_loop_wait(true);
 
         elapsed_ms = (g_get_monotonic_time() - start_time) / 1000;
