@@ -1732,7 +1732,10 @@
 # @detach: this argument exists only for compatibility reasons and is
 #     ignored by QEMU
 #
-# @resume: resume one paused migration, default "off".  (since 3.0)
+# @resume: when set, use the new uri/channels specified to resume paused
+#     postcopy migration.  This flag should only be used if the previous
+#     postcopy migration was interrupted.  The command will fail unless
+#     migration is in "postcopy-paused" state.  (default: false, since 3.0)
 #
 # Features:
 #
