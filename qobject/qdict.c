@@ -210,6 +210,19 @@ int64_t qdict_get_int(const QDict *qdict, const char *key)
 }
 
 /**
+ * qdict_get_uint(): Get an unsigned integer mapped by 'key'
+ *
+ * This function assumes that 'key' exists and it stores a
+ * QNum representable as uint.
+ *
+ * Return unsigned integer mapped by 'key'.
+ */
+uint64_t qdict_get_uint(const QDict *qdict, const char *key)
+{
+    return qnum_get_uint(qobject_to(QNum, qdict_get(qdict, key)));
+}
+
+/**
  * qdict_get_bool(): Get a bool mapped by 'key'
  *
  * This function assumes that 'key' exists and it stores a

@@ -16,10 +16,11 @@
 #include "hw/arm/aspeed_soc.h"
 #include "hw/arm/aspeed_coprocessor.h"
 
-#define AST2700_TSP_RAM_SIZE (32 * MiB)
+#define AST2700_TSP_SDRAM_SIZE (512 * MiB)
 
 static const hwaddr aspeed_soc_ast27x0tsp_memmap[] = {
-    [ASPEED_DEV_SRAM]      =  0x00000000,
+    [ASPEED_DEV_SDRAM]     =  0x00000000,
+    [ASPEED_DEV_SRAM]      =  0x70000000,
     [ASPEED_DEV_INTC]      =  0x72100000,
     [ASPEED_DEV_SCU]       =  0x72C02000,
     [ASPEED_DEV_SCUIO]     =  0x74C02000,
@@ -132,17 +133,9 @@ static void aspeed_soc_ast27x0tsp_init(Object *obj)
 {
     Aspeed27x0CoprocessorState *a = ASPEED27X0TSP_COPROCESSOR(obj);
     AspeedCoprocessorState *s = ASPEED_COPROCESSOR(obj);
-    AspeedCoprocessorClass *sc = ASPEED_COPROCESSOR_GET_CLASS(s);
-    int i;
 
     object_initialize_child(obj, "armv7m", &a->armv7m, TYPE_ARMV7M);
-    object_initialize_child(obj, "scu", &s->scu, TYPE_ASPEED_2700_SCU);
     s->sysclk = qdev_init_clock_in(DEVICE(s), "sysclk", NULL, NULL, 0);
-    qdev_prop_set_uint32(DEVICE(&s->scu), "silicon-rev", sc->silicon_rev);
-
-    for (i = 0; i < sc->uarts_num; i++) {
-        object_initialize_child(obj, "uart[*]", &s->uart[i], TYPE_SERIAL_MM);
-    }
 
     object_initialize_child(obj, "intc0", &a->intc[0],
                             TYPE_ASPEED_2700TSP_INTC);
@@ -165,8 +158,7 @@ static void aspeed_soc_ast27x0tsp_realize(DeviceState *dev_soc, Error **errp)
     AspeedCoprocessorState *s = ASPEED_COPROCESSOR(dev_soc);
     AspeedCoprocessorClass *sc = ASPEED_COPROCESSOR_GET_CLASS(s);
     DeviceState *armv7m;
-    g_autofree char *sram_name = NULL;
-    int uart;
+    g_autofree char *sdram_name = NULL;
     int i;
 
     if (!clock_has_source(s->sysclk)) {
@@ -184,23 +176,29 @@ static void aspeed_soc_ast27x0tsp_realize(DeviceState *dev_soc, Error **errp)
                              OBJECT(s->memory), &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&a->armv7m), &error_abort);
 
-    sram_name = g_strdup_printf("aspeed.dram.%d",
-                                CPU(a->armv7m.cpu)->cpu_index);
-
-    if (!memory_region_init_ram(&s->sram, OBJECT(s), sram_name,
-                                AST2700_TSP_RAM_SIZE, errp)) {
+    /* SDRAM */
+    sdram_name = g_strdup_printf("aspeed.sdram.%d",
+                                 CPU(a->armv7m.cpu)->cpu_index);
+    if (!memory_region_init_ram(&s->sdram, OBJECT(s), sdram_name,
+                                AST2700_TSP_SDRAM_SIZE, errp)) {
         return;
     }
     memory_region_add_subregion(s->memory,
-                                sc->memmap[ASPEED_DEV_SRAM],
-                                &s->sram);
+                                sc->memmap[ASPEED_DEV_SDRAM],
+                                &s->sdram);
+
+    /* SRAM */
+    memory_region_init_alias(&s->sram_alias, OBJECT(s), "sram.alias",
+                             s->sram, 0, memory_region_size(s->sram));
+    memory_region_add_subregion(s->memory, sc->memmap[ASPEED_DEV_SRAM],
+                                &s->sram_alias);
 
     /* SCU */
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->scu), errp)) {
-        return;
-    }
-    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&s->scu), 0,
-                    sc->memmap[ASPEED_DEV_SCU]);
+    memory_region_init_alias(&s->scu_alias, OBJECT(s), "scu.alias",
+                             &s->scu->iomem, 0,
+                             memory_region_size(&s->scu->iomem));
+    memory_region_add_subregion(s->memory, sc->memmap[ASPEED_DEV_SCU],
+                                &s->scu_alias);
 
     /* INTC */
     if (!sysbus_realize(SYS_BUS_DEVICE(&a->intc[0]), errp)) {
@@ -239,15 +237,19 @@ static void aspeed_soc_ast27x0tsp_realize(DeviceState *dev_soc, Error **errp)
         sysbus_connect_irq(SYS_BUS_DEVICE(&a->intc[1]), i,
                         qdev_get_gpio_in(DEVICE(&a->intc[0].orgates[0]), i));
     }
+
     /* UART */
-    for (i = 0, uart = sc->uarts_base; i < sc->uarts_num; i++, uart++) {
-        if (!aspeed_soc_uart_realize(s->memory, &s->uart[i],
-                                     sc->memmap[uart], errp)) {
-            return;
-        }
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->uart[i]), 0,
-                           aspeed_soc_ast27x0tsp_get_irq(s, uart));
-    }
+    memory_region_init_alias(&s->uart_alias, OBJECT(s), "uart.alias",
+                             &s->uart->serial.io, 0,
+                             memory_region_size(&s->uart->serial.io));
+    memory_region_add_subregion(s->memory, sc->memmap[s->uart_dev],
+                                &s->uart_alias);
+    /*
+     * Redirect the UART interrupt to the NVIC, replacing the default routing
+     * to the PSP's GIC.
+     */
+    sysbus_connect_irq(SYS_BUS_DEVICE(s->uart), 0,
+                       aspeed_soc_ast27x0tsp_get_irq(s, s->uart_dev));
 
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->timerctrl),
                                   "aspeed.timerctrl",
@@ -278,9 +280,6 @@ static void aspeed_soc_ast27x0tsp_class_init(ObjectClass *klass,
     dc->realize = aspeed_soc_ast27x0tsp_realize;
 
     sc->valid_cpu_types = valid_cpu_types;
-    sc->silicon_rev = AST2700_A1_SILICON_REV;
-    sc->uarts_num = 13;
-    sc->uarts_base = ASPEED_DEV_UART0;
     sc->irqmap = aspeed_soc_ast27x0tsp_irqmap;
     sc->memmap = aspeed_soc_ast27x0tsp_memmap;
 }

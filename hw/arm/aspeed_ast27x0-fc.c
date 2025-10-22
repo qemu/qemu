@@ -35,6 +35,7 @@ struct Ast2700FCState {
 
     MemoryRegion ca35_memory;
     MemoryRegion ca35_dram;
+    MemoryRegion ca35_boot_rom;
     MemoryRegion ssp_memory;
     MemoryRegion tsp_memory;
 
@@ -44,8 +45,6 @@ struct Ast2700FCState {
     Aspeed27x0SoCState ca35;
     Aspeed27x0CoprocessorState ssp;
     Aspeed27x0CoprocessorState tsp;
-
-    bool mmio_exec;
 };
 
 #define AST2700FC_BMC_RAM_SIZE (1 * GiB)
@@ -61,6 +60,10 @@ static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
     Ast2700FCState *s = AST2700A1FC(machine);
     AspeedSoCState *soc;
     AspeedSoCClass *sc;
+    const char *bios_name = NULL;
+    BlockBackend *fmc0 = NULL;
+    DeviceState *dev = NULL;
+    uint64_t rom_size;
 
     object_initialize_child(OBJECT(s), "ca35", &s->ca35, "ast2700-a1");
     soc = ASPEED_SOC(&s->ca35);
@@ -93,6 +96,10 @@ static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
                             AST2700FC_HW_STRAP2, &error_abort);
     aspeed_soc_uart_set_chr(soc->uart, ASPEED_DEV_UART12, sc->uarts_base,
                             sc->uarts_num, serial_hd(0));
+    aspeed_soc_uart_set_chr(soc->uart, ASPEED_DEV_UART4, sc->uarts_base,
+                            sc->uarts_num, serial_hd(1));
+    aspeed_soc_uart_set_chr(soc->uart, ASPEED_DEV_UART7, sc->uarts_base,
+                            sc->uarts_num, serial_hd(2));
     if (!qdev_realize(DEVICE(&s->ca35), NULL, errp)) {
         return false;
     }
@@ -108,6 +115,18 @@ static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
     ast2700fc_board_info.ram_size = machine->ram_size;
     ast2700fc_board_info.loader_start = sc->memmap[ASPEED_DEV_SDRAM];
 
+    dev = ssi_get_cs(soc->fmc.spi, 0);
+    fmc0 = dev ? m25p80_get_blk(dev) : NULL;
+
+    if (fmc0) {
+        rom_size = memory_region_size(&soc->spi_boot);
+        aspeed_install_boot_rom(soc, fmc0, &s->ca35_boot_rom, rom_size);
+    }
+
+    /* VBOOTROM */
+    bios_name = machine->firmware ?: VBOOTROM_FILE_NAME;
+    aspeed_load_vbootrom(soc, bios_name, errp);
+
     arm_load_kernel(ARM_CPU(first_cpu), machine, &ast2700fc_board_info);
 
     return true;
@@ -115,9 +134,9 @@ static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
 
 static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
 {
-    AspeedCoprocessorState *soc;
-    AspeedCoprocessorClass *sc;
     Ast2700FCState *s = AST2700A1FC(machine);
+    AspeedSoCState *psp = ASPEED_SOC(&s->ca35);
+
     s->ssp_sysclk = clock_new(OBJECT(s), "SSP_SYSCLK");
     clock_set_hz(s->ssp_sysclk, 200000000ULL);
 
@@ -130,10 +149,14 @@ static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
     object_property_set_link(OBJECT(&s->ssp), "memory",
                              OBJECT(&s->ssp_memory), &error_abort);
 
-    soc = ASPEED_COPROCESSOR(&s->ssp);
-    sc = ASPEED_COPROCESSOR_GET_CLASS(soc);
-    aspeed_soc_uart_set_chr(soc->uart, ASPEED_DEV_UART4, sc->uarts_base,
-                            sc->uarts_num, serial_hd(1));
+    object_property_set_link(OBJECT(&s->ssp), "uart",
+                             OBJECT(&psp->uart[4]), &error_abort);
+    object_property_set_int(OBJECT(&s->ssp), "uart-dev", ASPEED_DEV_UART4,
+                            &error_abort);
+    object_property_set_link(OBJECT(&s->ssp), "sram",
+                             OBJECT(&psp->sram), &error_abort);
+    object_property_set_link(OBJECT(&s->ssp), "scu",
+                             OBJECT(&psp->scu), &error_abort);
     if (!qdev_realize(DEVICE(&s->ssp), NULL, errp)) {
         return false;
     }
@@ -143,9 +166,9 @@ static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
 
 static bool ast2700fc_tsp_init(MachineState *machine, Error **errp)
 {
-    AspeedCoprocessorState *soc;
-    AspeedCoprocessorClass *sc;
     Ast2700FCState *s = AST2700A1FC(machine);
+    AspeedSoCState *psp = ASPEED_SOC(&s->ca35);
+
     s->tsp_sysclk = clock_new(OBJECT(s), "TSP_SYSCLK");
     clock_set_hz(s->tsp_sysclk, 200000000ULL);
 
@@ -158,10 +181,14 @@ static bool ast2700fc_tsp_init(MachineState *machine, Error **errp)
     object_property_set_link(OBJECT(&s->tsp), "memory",
                              OBJECT(&s->tsp_memory), &error_abort);
 
-    soc = ASPEED_COPROCESSOR(&s->tsp);
-    sc = ASPEED_COPROCESSOR_GET_CLASS(soc);
-    aspeed_soc_uart_set_chr(soc->uart, ASPEED_DEV_UART7, sc->uarts_base,
-                            sc->uarts_num, serial_hd(2));
+    object_property_set_link(OBJECT(&s->tsp), "uart",
+                             OBJECT(&psp->uart[7]), &error_abort);
+    object_property_set_int(OBJECT(&s->tsp), "uart-dev", ASPEED_DEV_UART7,
+                            &error_abort);
+    object_property_set_link(OBJECT(&s->tsp), "sram",
+                             OBJECT(&psp->sram), &error_abort);
+    object_property_set_link(OBJECT(&s->tsp), "scu",
+                             OBJECT(&psp->scu), &error_abort);
     if (!qdev_realize(DEVICE(&s->tsp), NULL, errp)) {
         return false;
     }
@@ -180,7 +207,6 @@ static void ast2700fc_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->alias = "ast2700fc";
     mc->desc = "ast2700 full core support";
     mc->init = ast2700fc_init;
     mc->no_floppy = 1;
