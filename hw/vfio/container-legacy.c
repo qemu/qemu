@@ -121,14 +121,14 @@ unmap_exit:
     return ret;
 }
 
-static int vfio_legacy_dma_unmap_one(const VFIOContainer *bcontainer,
+static int vfio_legacy_dma_unmap_one(const VFIOLegacyContainer *container,
                                      hwaddr iova, uint64_t size,
-                                     IOMMUTLBEntry *iotlb)
+                                     uint32_t flags, IOMMUTLBEntry *iotlb)
 {
-    const VFIOLegacyContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
+    const VFIOContainer *bcontainer = VFIO_IOMMU(container);
     struct vfio_iommu_type1_dma_unmap unmap = {
         .argsz = sizeof(unmap),
-        .flags = 0,
+        .flags = flags,
         .iova = iova,
         .size = size,
     };
@@ -170,25 +170,28 @@ static int vfio_legacy_dma_unmap(const VFIOContainer *bcontainer,
                                  hwaddr iova, uint64_t size,
                                  IOMMUTLBEntry *iotlb, bool unmap_all)
 {
+    const VFIOLegacyContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
+    uint32_t flags = 0;
     int ret;
 
     if (unmap_all) {
-        /* The unmap ioctl doesn't accept a full 64-bit span. */
-        Int128 llsize = int128_rshift(int128_2_64(), 1);
+        if (container->unmap_all_supported) {
+            flags = VFIO_DMA_UNMAP_FLAG_ALL;
+        } else {
+            /* The unmap ioctl doesn't accept a full 64-bit span. */
+            Int128 llsize = int128_rshift(int128_2_64(), 1);
+            size = int128_get64(llsize);
 
-        ret = vfio_legacy_dma_unmap_one(bcontainer, 0, int128_get64(llsize),
-                                        iotlb);
+            ret = vfio_legacy_dma_unmap_one(container, 0, size, flags, iotlb);
+            if (ret) {
+                return ret;
+            }
 
-        if (ret == 0) {
-            ret = vfio_legacy_dma_unmap_one(bcontainer, int128_get64(llsize),
-                                            int128_get64(llsize), iotlb);
+            iova = size;
         }
-
-    } else {
-        ret = vfio_legacy_dma_unmap_one(bcontainer, iova, size, iotlb);
     }
 
-    return ret;
+    return vfio_legacy_dma_unmap_one(container, iova, size, flags, iotlb);
 }
 
 static int vfio_legacy_dma_map(const VFIOContainer *bcontainer, hwaddr iova,
@@ -518,6 +521,9 @@ static bool vfio_legacy_setup(VFIOContainer *bcontainer, Error **errp)
     }
 
     vfio_get_info_iova_range(info, bcontainer);
+
+    ret = ioctl(container->fd, VFIO_CHECK_EXTENSION, VFIO_UNMAP_ALL);
+    container->unmap_all_supported = !!ret;
 
     vfio_get_iommu_info_migration(container, info);
     return true;

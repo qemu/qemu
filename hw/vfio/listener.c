@@ -577,8 +577,8 @@ void vfio_container_region_add(VFIOContainer *bcontainer,
             if (!vfio_ram_discard_register_listener(bcontainer, section, &err)) {
                 goto fail;
             }
-        } else if (!vfio_cpr_ram_discard_register_listener(bcontainer,
-                                                           section)) {
+        } else if (!vfio_cpr_ram_discard_replay_populated(bcontainer,
+                                                          section)) {
             error_setg(&err,
                        "vfio_cpr_ram_discard_register_listener for %s failed",
                        memory_region_name(section->mr));
@@ -715,6 +715,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
         bool unmap_all = false;
 
         if (int128_eq(llsize, int128_2_64())) {
+            assert(!iova);
             unmap_all = true;
             llsize = int128_zero();
         }

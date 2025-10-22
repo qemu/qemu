@@ -74,7 +74,7 @@ typedef struct VFIODevice {
     VFIODeviceOps *ops;
     VFIODeviceIOOps *io_ops;
     unsigned int num_irqs;
-    unsigned int num_regions;
+    unsigned int num_initial_regions;
     unsigned int flags;
     VFIOMigration *migration;
     Error *migration_blocker;
