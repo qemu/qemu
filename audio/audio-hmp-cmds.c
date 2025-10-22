@@ -28,6 +28,7 @@
 #include "monitor/monitor.h"
 #include "qapi/error.h"
 #include "qobject/qdict.h"
+#include "qemu/error-report.h"
 
 static QLIST_HEAD (capture_list_head, CaptureState) capture_head;
 
@@ -35,6 +36,8 @@ void hmp_info_capture(Monitor *mon, const QDict *qdict)
 {
     int i;
     CaptureState *s;
+
+    warn_report_once("'info capture' is deprecated since v10.2, to be removed");
 
     for (s = capture_head.lh_first, i = 0; s; s = s->entries.le_next, ++i) {
         monitor_printf(mon, "[%d]: ", i);
@@ -47,6 +50,8 @@ void hmp_stopcapture(Monitor *mon, const QDict *qdict)
     int i;
     int n = qdict_get_int(qdict, "n");
     CaptureState *s;
+
+    warn_report_once("'stopcapture' is deprecated since v10.2, to be removed");
 
     for (s = capture_head.lh_first, i = 0; s; s = s->entries.le_next, ++i) {
         if (i == n) {
@@ -68,6 +73,8 @@ void hmp_wavcapture(Monitor *mon, const QDict *qdict)
     CaptureState *s;
     Error *local_err = NULL;
     AudioBackend *as = audio_be_by_name(audiodev, &local_err);
+
+    warn_report_once("'wavcapture' is deprecated since v10.2, to be removed");
 
     if (!as) {
         error_report_err(local_err);

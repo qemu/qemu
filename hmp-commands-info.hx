@@ -363,18 +363,20 @@ SRST
     Show host USB devices.
 ERST
 
+/* BEGIN deprecated */
     {
         .name       = "capture",
         .args_type  = "",
         .params     = "",
-        .help       = "show capture information",
+        .help       = "show capture information (deprecated)",
         .cmd        = hmp_info_capture,
     },
 
 SRST
   ``info capture``
-    Show capture information.
+    Show capture information (deprecated).
 ERST
+/* END deprecated */
 
     {
         .name       = "snapshots",

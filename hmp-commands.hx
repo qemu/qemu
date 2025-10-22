@@ -764,11 +764,12 @@ SRST
 
 ERST
 
+/* BEGIN deprecated */
     {
         .name       = "wavcapture",
         .args_type  = "path:F,audiodev:s,freq:i?,bits:i?,nchannels:i?",
         .params     = "path audiodev [frequency [bits [channels]]]",
-        .help       = "capture audio to a wave file (default frequency=44100 bits=16 channels=2)",
+        .help       = "capture audio to a wave file (deprecated, default frequency=44100 bits=16 channels=2)",
         .cmd        = hmp_wavcapture,
     },
 SRST
@@ -782,13 +783,15 @@ SRST
   - Sample rate = 44100 Hz - CD quality
   - Bits = 16
   - Number of channels = 2 - Stereo
+
+  Deprecated.
 ERST
 
     {
         .name       = "stopcapture",
         .args_type  = "n:i",
         .params     = "capture index",
-        .help       = "stop capture",
+        .help       = "stop capture (deprecated)",
         .cmd        = hmp_stopcapture,
     },
 SRST
@@ -797,7 +800,9 @@ SRST
 
     info capture
 
+  Deprecated.
 ERST
+/* END deprecated */
 
     {
         .name       = "memsave",
