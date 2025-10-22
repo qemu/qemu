@@ -1489,6 +1489,10 @@ static int handle_pio_str(CPUState *cpu, hv_x64_io_port_intercept_message *info)
         reg_values[0] = info->rsi;
     } else {
         ret = handle_pio_str_read(cpu, info, repeat, port, direction_flag);
+        if (ret < 0) {
+            error_report("Failed to handle pio str read");
+            return -1;
+        }
         reg_names[0] = HV_X64_REGISTER_RDI;
         reg_values[0] = info->rdi;
     }
