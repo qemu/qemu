@@ -30,7 +30,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
-#include "qemu/timer.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qom/object.h"
 
@@ -43,21 +43,21 @@
   More...
 */
 
-/* #define DEBUG */
+#define DEBUG 0
 /* #define DEBUG_XLAW */
 
 static struct {
     int aci_counter;
 } conf = {1};
 
-#ifdef DEBUG
-#define dolog(...) AUD_log ("cs4231a", __VA_ARGS__)
-#else
-#define dolog(...)
-#endif
+#define dolog(fmt, ...) do { \
+        if (DEBUG) { \
+            error_report("cs4231a: " fmt, ##__VA_ARGS__); \
+        } \
+    } while (0)
 
-#define lwarn(...) AUD_log ("cs4231a", "warning: " __VA_ARGS__)
-#define lerr(...) AUD_log ("cs4231a", "error: " __VA_ARGS__)
+#define lwarn(fmt, ...) warn_report("cs4231a: " fmt, ##__VA_ARGS__)
+#define lerr(fmt, ...) error_report("cs4231a: " fmt, ##__VA_ARGS__)
 
 #define CS_REGS 16
 #define CS_DREGS 32
@@ -284,7 +284,7 @@ static void cs_reset_voices (CSState *s, uint32_t val)
     as.freq = freqs[xtal][(val >> 1) & 7];
 
     if (as.freq == -1) {
-        lerr ("unsupported frequency (val=%#x)\n", val);
+        lerr("unsupported frequency (val=0x%x)", val);
         goto error;
     }
 
@@ -319,11 +319,11 @@ static void cs_reset_voices (CSState *s, uint32_t val)
 
     case 7:
     case 4:
-        lerr ("attempt to use reserved format value (%#x)\n", val);
+        lerr("attempt to use reserved format value (0x%x)", val);
         goto error;
 
     case 5:
-        lerr ("ADPCM 4 bit IMA compatible format is not supported\n");
+        lerr("ADPCM 4 bit IMA compatible format is not supported");
         goto error;
     }
 
@@ -393,7 +393,7 @@ static uint64_t cs_read (void *opaque, hwaddr addr, unsigned size)
         ret = s->regs[saddr];
         break;
     }
-    dolog ("read %d:%d -> %d\n", saddr, iaddr, ret);
+    dolog("read %d:%d -> %d", saddr, iaddr, ret);
     return ret;
 }
 
@@ -425,7 +425,7 @@ static void cs_write (void *opaque, hwaddr addr,
         case RESERVED:
         case RESERVED_2:
         case RESERVED_3:
-            lwarn ("attempt to write %#x to reserved indirect register %d\n",
+            lwarn("attempt to write 0x%x to reserved indirect register %d",
                    val, iaddr);
             break;
 
@@ -439,7 +439,7 @@ static void cs_write (void *opaque, hwaddr addr,
                     cs_reset_voices (s, val);
                 }
                 else {
-                    lwarn ("[P]MCE(%#x, %#x) is not set, val=%#x\n",
+                    lwarn("[P]MCE(0x%x, 0x%x) is not set, val=0x%x",
                            s->regs[Index_Address],
                            s->dregs[Alternate_Feature_Status],
                            val);
@@ -453,7 +453,7 @@ static void cs_write (void *opaque, hwaddr addr,
             val &= ~(1 << 5);   /* D5 is reserved */
             s->dregs[iaddr] = val;
             if (val & PPIO) {
-                lwarn ("PIO is not supported (%#x)\n", val);
+                lwarn("PIO is not supported (0x%x)", val);
                 break;
             }
             if (val & PEN) {
@@ -472,11 +472,11 @@ static void cs_write (void *opaque, hwaddr addr,
             break;
 
         case Error_Status_And_Initialization:
-            lwarn ("attempt to write to read only register %d\n", iaddr);
+            lwarn("attempt to write to read only register %d", iaddr);
             break;
 
         case MODE_And_ID:
-            dolog ("val=%#x\n", val);
+            dolog("val=0x%x", val);
             if (val & MODE2)
                 s->dregs[iaddr] |= MODE2;
             else
@@ -485,7 +485,7 @@ static void cs_write (void *opaque, hwaddr addr,
 
         case Alternate_Feature_Enable_I:
             if (val & TE)
-                lerr ("timer is not yet supported\n");
+                lerr("timer is not yet supported");
             s->dregs[iaddr] = val;
             break;
 
@@ -499,7 +499,7 @@ static void cs_write (void *opaque, hwaddr addr,
             break;
 
         case Version_Chip_ID:
-            lwarn ("write to Version_Chip_ID register %#x\n", val);
+            lwarn("write to Version_Chip_ID register 0x%x", val);
             s->dregs[iaddr] = val;
             break;
 
@@ -507,7 +507,7 @@ static void cs_write (void *opaque, hwaddr addr,
             s->dregs[iaddr] = val;
             break;
         }
-        dolog ("written value %#x to indirect register %d\n", val, iaddr);
+        dolog("written value 0x%x to indirect register %d", val, iaddr);
         break;
 
     case Status:
@@ -519,7 +519,7 @@ static void cs_write (void *opaque, hwaddr addr,
         break;
 
     case PIO_Data:
-        lwarn ("attempt to write value %#x to PIO register\n", val);
+        lwarn("attempt to write value 0x%x to PIO register", val);
         break;
     }
 }

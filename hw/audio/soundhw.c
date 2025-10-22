@@ -65,18 +65,18 @@ void deprecated_register_soundhw(const char *name, const char *descr,
     soundhw_count++;
 }
 
-void show_valid_soundhw(void)
+void audio_print_available_models(void)
 {
     struct soundhw *c;
 
     if (soundhw_count) {
-         printf("Valid sound card names (comma separated):\n");
-         for (c = soundhw; c->name; ++c) {
-             printf ("%-11s %s\n", c->name, c->descr);
-         }
+        printf("Valid audio device model names:\n");
+        for (c = soundhw; c->name; ++c) {
+            printf("%-11s %s\n", c->name, c->descr);
+        }
     } else {
-         printf("Machine has no user-selectable audio hardware "
-                "(it may or may not have always-present audio hardware).\n");
+        printf("Machine has no user-selectable audio hardware "
+               "(it may or may not have always-present audio hardware).\n");
     }
 }
 
@@ -88,7 +88,7 @@ void select_soundhw(const char *name, const char *audiodev)
     struct soundhw *c;
 
     if (selected) {
-        error_report("only one -soundhw option is allowed");
+        error_report("only one -audio option is allowed");
         exit(1);
     }
 
@@ -101,8 +101,8 @@ void select_soundhw(const char *name, const char *audiodev)
     }
 
     if (!c->name) {
-        error_report("Unknown sound card name `%s'", name);
-        show_valid_soundhw();
+        error_report("Unknown audio device model `%s'", name);
+        audio_print_available_models();
         exit(1);
     }
 }
@@ -140,4 +140,3 @@ void soundhw_init(void)
         c->init_pci(pci_bus, audiodev_id);
     }
 }
-

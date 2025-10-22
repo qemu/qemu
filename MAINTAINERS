@@ -671,6 +671,7 @@ F: tests/docker/dockerfiles/emsdk-wasm32-cross.docker
 
 Alpha Machines
 --------------
+Clipper
 M: Richard Henderson <richard.henderson@linaro.org>
 S: Maintained
 F: hw/alpha/

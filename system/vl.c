@@ -1672,7 +1672,8 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
 {
     ERRP_GUARD();
     const char *machine_type = qdict_get_try_str(qdict, "type");
-    g_autoptr(GSList) machines = object_class_get_list(TYPE_MACHINE, false);
+    g_autoptr(GSList) machines = object_class_get_list(target_machine_typename(),
+                                                       false);
     MachineClass *machine_class = NULL;
 
     if (machine_type) {
@@ -3077,7 +3078,7 @@ void qemu_init(int argc, char **argv)
                     model = g_strdup(qdict_get_str(dict, "model"));
                     qdict_del(dict, "model");
                     if (is_help_option(model)) {
-                        show_valid_soundhw();
+                        audio_print_available_models();
                         exit(0);
                     }
                 }
@@ -3816,7 +3817,7 @@ void qemu_init(int argc, char **argv)
     migration_object_init();
 
     /* parse features once if machine provides default cpu_type */
-    current_machine->cpu_type = machine_class_default_cpu_type(machine_class);
+    current_machine->cpu_type = machine_default_cpu_type(current_machine);
     if (cpu_option) {
         current_machine->cpu_type = parse_cpu_option(cpu_option);
     }

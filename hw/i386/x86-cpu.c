@@ -86,7 +86,7 @@ int cpu_get_pic_interrupt(CPUX86State *env)
     return intno;
 }
 
-DeviceState *cpu_get_current_apic(void)
+APICCommonState *cpu_get_current_apic(void)
 {
     if (current_cpu) {
         X86CPU *cpu = X86_CPU(current_cpu);

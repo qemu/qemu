@@ -490,7 +490,7 @@ void vapic_report_tpr_access(DeviceState *dev, CPUState *cs, target_ulong ip,
 }
 
 typedef struct VAPICEnableTPRReporting {
-    DeviceState *apic;
+    APICCommonState *apic;
     bool enable;
 } VAPICEnableTPRReporting;
 

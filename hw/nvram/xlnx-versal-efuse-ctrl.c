@@ -728,7 +728,6 @@ static void efuse_ctrl_finalize(Object *obj)
 {
     XlnxVersalEFuseCtrl *s = XLNX_VERSAL_EFUSE_CTRL(obj);
 
-    register_finalize_block(s->reg_array);
     g_free(s->extra_pg0_lock_spec);
 }
 

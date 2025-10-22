@@ -85,7 +85,6 @@ struct XlnxZynqMPAPUCtrl {
     uint8_t cpu_pwrdwn_req;
     uint8_t cpu_in_wfi;
 
-    RegisterInfoArray *reg_array;
     uint32_t regs[APU_R_MAX];
     RegisterInfo regs_info[APU_R_MAX];
 };

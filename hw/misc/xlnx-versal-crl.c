@@ -634,17 +634,17 @@ static void versal_crl_init(Object *obj)
     XlnxVersalCRL *s = XLNX_VERSAL_CRL(obj);
     XlnxVersalCRLBase *xvcb = XLNX_VERSAL_CRL_BASE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    RegisterInfoArray *reg_array;
     int i;
 
-    xvcb->reg_array =
-        register_init_block32(DEVICE(obj), crl_regs_info,
-                              ARRAY_SIZE(crl_regs_info),
-                              s->regs_info, s->regs,
-                              &crl_ops,
-                              XLNX_VERSAL_CRL_ERR_DEBUG,
-                              CRL_R_MAX * 4);
+    reg_array = register_init_block32(DEVICE(obj), crl_regs_info,
+                                      ARRAY_SIZE(crl_regs_info),
+                                      s->regs_info, s->regs,
+                                      &crl_ops,
+                                      XLNX_VERSAL_CRL_ERR_DEBUG,
+                                      CRL_R_MAX * 4);
     xvcb->regs = s->regs;
-    sysbus_init_mmio(sbd, &xvcb->reg_array->mem);
+    sysbus_init_mmio(sbd, &reg_array->mem);
     sysbus_init_irq(sbd, &s->irq);
 
     for (i = 0; i < ARRAY_SIZE(s->cfg.rpu); ++i) {
@@ -688,17 +688,18 @@ static void versal2_crl_init(Object *obj)
     XlnxVersal2CRL *s = XLNX_VERSAL2_CRL(obj);
     XlnxVersalCRLBase *xvcb = XLNX_VERSAL_CRL_BASE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    RegisterInfoArray *reg_array;
     size_t i;
 
-    xvcb->reg_array = register_init_block32(DEVICE(obj), versal2_crl_regs_info,
-                                            ARRAY_SIZE(versal2_crl_regs_info),
-                                            s->regs_info, s->regs,
-                                            &crl_ops,
-                                            XLNX_VERSAL_CRL_ERR_DEBUG,
-                                            VERSAL2_CRL_R_MAX * 4);
+    reg_array = register_init_block32(DEVICE(obj), versal2_crl_regs_info,
+                                      ARRAY_SIZE(versal2_crl_regs_info),
+                                      s->regs_info, s->regs,
+                                      &crl_ops,
+                                      XLNX_VERSAL_CRL_ERR_DEBUG,
+                                      VERSAL2_CRL_R_MAX * 4);
     xvcb->regs = s->regs;
 
-    sysbus_init_mmio(sbd, &xvcb->reg_array->mem);
+    sysbus_init_mmio(sbd, &reg_array->mem);
 
     for (i = 0; i < ARRAY_SIZE(s->cfg.rpu); ++i) {
         object_property_add_link(obj, "rpu[*]", TYPE_ARM_CPU,
@@ -750,12 +751,6 @@ static void versal2_crl_init(Object *obj)
     }
 }
 
-static void crl_finalize(Object *obj)
-{
-    XlnxVersalCRLBase *s = XLNX_VERSAL_CRL_BASE(obj);
-    register_finalize_block(s->reg_array);
-}
-
 static const VMStateDescription vmstate_versal_crl = {
     .name = TYPE_XLNX_VERSAL_CRL,
     .version_id = 1,
@@ -804,7 +799,6 @@ static const TypeInfo crl_base_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxVersalCRLBase),
     .class_size    = sizeof(XlnxVersalCRLBaseClass),
-    .instance_finalize = crl_finalize,
     .abstract      = true,
 };
 

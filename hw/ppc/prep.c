@@ -308,6 +308,13 @@ static void ibm_40p_init(MachineState *machine)
     sysbus_connect_irq(pcihost, 0, qdev_get_gpio_in(i82378_dev, 15));
     isa_bus = ISA_BUS(qdev_get_child_bus(i82378_dev, "isa.0"));
 
+    /* system control ports */
+    isa_dev = isa_new("prep-systemio");
+    dev = DEVICE(isa_dev);
+    qdev_prop_set_uint32(dev, "ibm-planar-id", 0xfc);
+    qdev_prop_set_uint32(dev, "equipment", 0xc0);
+    isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);
+
     /* Memory controller */
     isa_dev = isa_new("rs6000-mc");
     dev = DEVICE(isa_dev);
@@ -333,7 +340,6 @@ static void ibm_40p_init(MachineState *machine)
         dev = DEVICE(isa_dev);
         qdev_prop_set_uint32(dev, "iobase", 0x830);
         qdev_prop_set_uint32(dev, "irq", 10);
-
         if (machine->audiodev) {
             qdev_prop_set_string(dev, "audiodev", machine->audiodev);
         }
@@ -344,14 +350,7 @@ static void ibm_40p_init(MachineState *machine)
         qdev_prop_set_uint32(dev, "config", 12);
         isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);
 
-        isa_dev = isa_new("prep-systemio");
-        dev = DEVICE(isa_dev);
-        qdev_prop_set_uint32(dev, "ibm-planar-id", 0xfc);
-        qdev_prop_set_uint32(dev, "equipment", 0xc0);
-        isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);
-
-        dev = DEVICE(pci_create_simple(pci_bus, PCI_DEVFN(1, 0),
-                                       "lsi53c810"));
+        dev = DEVICE(pci_create_simple(pci_bus, PCI_DEVFN(1, 0), "lsi53c810"));
         lsi53c8xx_handle_legacy_cmdline(dev);
         qdev_connect_gpio_out(dev, 0, qdev_get_gpio_in(i82378_dev, 13));
 

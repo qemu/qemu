@@ -32,9 +32,8 @@
 #include "migration/vmstate.h"
 
 /* val must be 0 or 1 */
-void pit_set_gate(ISADevice *dev, int channel, int val)
+void pit_set_gate(PITCommonState *pit, int channel, int val)
 {
-    PITCommonState *pit = PIT_COMMON(dev);
     PITChannelState *s = &pit->channels[channel];
     PITCommonClass *c = PIT_COMMON_GET_CLASS(pit);
 
@@ -139,9 +138,8 @@ void pit_get_channel_info_common(PITCommonState *s, PITChannelState *sc,
     info->out = pit_get_out(sc, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 }
 
-void pit_get_channel_info(ISADevice *dev, int channel, PITChannelInfo *info)
+void pit_get_channel_info(PITCommonState *pit, int channel, PITChannelInfo *info)
 {
-    PITCommonState *pit = PIT_COMMON(dev);
     PITChannelState *s = &pit->channels[channel];
     PITCommonClass *c = PIT_COMMON_GET_CLASS(pit);
 

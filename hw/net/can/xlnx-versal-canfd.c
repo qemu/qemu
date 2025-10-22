@@ -1410,44 +1410,20 @@ static uint64_t canfd_srr_pre_write(RegisterInfo *reg, uint64_t val64)
     return s->regs[R_SOFTWARE_RESET_REGISTER];
 }
 
-static uint64_t filter_mask(RegisterInfo *reg, uint64_t val64)
+static void filter_reg_write(XlnxVersalCANFDState *s, hwaddr addr,
+                             unsigned bank_idx, uint32_t val)
 {
-    XlnxVersalCANFDState *s = XILINX_CANFD(reg->opaque);
-    uint32_t reg_idx = (reg->access->addr) / 4;
-    uint32_t val = val64;
-    uint32_t filter_offset = (reg_idx - R_AFMR_REGISTER) / 2;
+    size_t reg_idx = addr / sizeof(uint32_t);
 
-    if (!(s->regs[R_ACCEPTANCE_FILTER_CONTROL_REGISTER] &
-        (1 << filter_offset))) {
+    if (!(s->regs[R_ACCEPTANCE_FILTER_CONTROL_REGISTER] & (1 << bank_idx))) {
         s->regs[reg_idx] = val;
     } else {
         g_autofree char *path = object_get_canonical_path(OBJECT(s));
 
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Acceptance filter %d not enabled\n",
-                      path, filter_offset + 1);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Acceptance filter register 0x%"
+                      HWADDR_PRIx " changed while filter %u enabled\n",
+                      path, addr, bank_idx + 1);
     }
-
-    return s->regs[reg_idx];
-}
-
-static uint64_t filter_id(RegisterInfo *reg, uint64_t val64)
-{
-    XlnxVersalCANFDState *s = XILINX_CANFD(reg->opaque);
-    hwaddr reg_idx = (reg->access->addr) / 4;
-    uint32_t val = val64;
-    uint32_t filter_offset = (reg_idx - R_AFIR_REGISTER) / 2;
-
-    if (!(s->regs[R_ACCEPTANCE_FILTER_CONTROL_REGISTER] &
-        (1 << filter_offset))) {
-        s->regs[reg_idx] = val;
-    } else {
-        g_autofree char *path = object_get_canonical_path(OBJECT(s));
-
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Acceptance filter %d not enabled\n",
-                      path, filter_offset + 1);
-    }
-
-    return s->regs[reg_idx];
 }
 
 static uint64_t canfd_tx_fifo_status_prew(RegisterInfo *reg, uint64_t val64)
@@ -1575,125 +1551,6 @@ static uint64_t canfd_write_check_prew(RegisterInfo *reg, uint64_t val64)
     return 0;
 }
 
-static const RegisterAccessInfo canfd_tx_regs[] = {
-    {   .name = "TB_ID_REGISTER",  .addr = A_TB_ID_REGISTER,
-    },{ .name = "TB0_DLC_REGISTER",  .addr = A_TB0_DLC_REGISTER,
-    },{ .name = "TB_DW0_REGISTER",  .addr = A_TB_DW0_REGISTER,
-    },{ .name = "TB_DW1_REGISTER",  .addr = A_TB_DW1_REGISTER,
-    },{ .name = "TB_DW2_REGISTER",  .addr = A_TB_DW2_REGISTER,
-    },{ .name = "TB_DW3_REGISTER",  .addr = A_TB_DW3_REGISTER,
-    },{ .name = "TB_DW4_REGISTER",  .addr = A_TB_DW4_REGISTER,
-    },{ .name = "TB_DW5_REGISTER",  .addr = A_TB_DW5_REGISTER,
-    },{ .name = "TB_DW6_REGISTER",  .addr = A_TB_DW6_REGISTER,
-    },{ .name = "TB_DW7_REGISTER",  .addr = A_TB_DW7_REGISTER,
-    },{ .name = "TB_DW8_REGISTER",  .addr = A_TB_DW8_REGISTER,
-    },{ .name = "TB_DW9_REGISTER",  .addr = A_TB_DW9_REGISTER,
-    },{ .name = "TB_DW10_REGISTER",  .addr = A_TB_DW10_REGISTER,
-    },{ .name = "TB_DW11_REGISTER",  .addr = A_TB_DW11_REGISTER,
-    },{ .name = "TB_DW12_REGISTER",  .addr = A_TB_DW12_REGISTER,
-    },{ .name = "TB_DW13_REGISTER",  .addr = A_TB_DW13_REGISTER,
-    },{ .name = "TB_DW14_REGISTER",  .addr = A_TB_DW14_REGISTER,
-    },{ .name = "TB_DW15_REGISTER",  .addr = A_TB_DW15_REGISTER,
-    }
-};
-
-static const RegisterAccessInfo canfd_rx0_regs[] = {
-    {   .name = "RB_ID_REGISTER",  .addr = A_RB_ID_REGISTER,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DLC_REGISTER",  .addr = A_RB_DLC_REGISTER,
-        .ro = 0xfe1fffff,
-    },{ .name = "RB_DW0_REGISTER",  .addr = A_RB_DW0_REGISTER,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW1_REGISTER",  .addr = A_RB_DW1_REGISTER,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW2_REGISTER",  .addr = A_RB_DW2_REGISTER,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW3_REGISTER",  .addr = A_RB_DW3_REGISTER,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW4_REGISTER",  .addr = A_RB_DW4_REGISTER,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW5_REGISTER",  .addr = A_RB_DW5_REGISTER,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW6_REGISTER",  .addr = A_RB_DW6_REGISTER,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW7_REGISTER",  .addr = A_RB_DW7_REGISTER,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW8_REGISTER",  .addr = A_RB_DW8_REGISTER,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW9_REGISTER",  .addr = A_RB_DW9_REGISTER,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW10_REGISTER",  .addr = A_RB_DW10_REGISTER,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW11_REGISTER",  .addr = A_RB_DW11_REGISTER,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW12_REGISTER",  .addr = A_RB_DW12_REGISTER,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW13_REGISTER",  .addr = A_RB_DW13_REGISTER,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW14_REGISTER",  .addr = A_RB_DW14_REGISTER,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW15_REGISTER",  .addr = A_RB_DW15_REGISTER,
-        .ro = 0xffffffff,
-    }
-};
-
-static const RegisterAccessInfo canfd_rx1_regs[] = {
-    {   .name = "RB_ID_REGISTER_1",  .addr = A_RB_ID_REGISTER_1,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DLC_REGISTER_1",  .addr = A_RB_DLC_REGISTER_1,
-        .ro = 0xfe1fffff,
-    },{ .name = "RB0_DW0_REGISTER_1",  .addr = A_RB0_DW0_REGISTER_1,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW1_REGISTER_1",  .addr = A_RB_DW1_REGISTER_1,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW2_REGISTER_1",  .addr = A_RB_DW2_REGISTER_1,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW3_REGISTER_1",  .addr = A_RB_DW3_REGISTER_1,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW4_REGISTER_1",  .addr = A_RB_DW4_REGISTER_1,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW5_REGISTER_1",  .addr = A_RB_DW5_REGISTER_1,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW6_REGISTER_1",  .addr = A_RB_DW6_REGISTER_1,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW7_REGISTER_1",  .addr = A_RB_DW7_REGISTER_1,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW8_REGISTER_1",  .addr = A_RB_DW8_REGISTER_1,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW9_REGISTER_1",  .addr = A_RB_DW9_REGISTER_1,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW10_REGISTER_1",  .addr = A_RB_DW10_REGISTER_1,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW11_REGISTER_1",  .addr = A_RB_DW11_REGISTER_1,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW12_REGISTER_1",  .addr = A_RB_DW12_REGISTER_1,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW13_REGISTER_1",  .addr = A_RB_DW13_REGISTER_1,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW14_REGISTER_1",  .addr = A_RB_DW14_REGISTER_1,
-        .ro = 0xffffffff,
-    },{ .name = "RB_DW15_REGISTER_1",  .addr = A_RB_DW15_REGISTER_1,
-        .ro = 0xffffffff,
-    }
-};
-
-/* Acceptance filter registers. */
-static const RegisterAccessInfo canfd_af_regs[] = {
-    {   .name = "AFMR_REGISTER",  .addr = A_AFMR_REGISTER,
-        .pre_write = filter_mask,
-    },{ .name = "AFIR_REGISTER",  .addr = A_AFIR_REGISTER,
-        .pre_write = filter_id,
-    }
-};
-
-static const RegisterAccessInfo canfd_txe_regs[] = {
-    {   .name = "TXE_FIFO_TB_ID_REGISTER",  .addr = A_TXE_FIFO_TB_ID_REGISTER,
-        .ro = 0xffffffff,
-    },{ .name = "TXE_FIFO_TB_DLC_REGISTER",  .addr = A_TXE_FIFO_TB_DLC_REGISTER,
-        .ro = 0xffffffff,
-    }
-};
-
 static const RegisterAccessInfo canfd_regs_info[] = {
     {   .name = "SOFTWARE_RESET_REGISTER",  .addr = A_SOFTWARE_RESET_REGISTER,
         .pre_write = canfd_srr_pre_write,
@@ -1763,7 +1620,143 @@ static void xlnx_versal_canfd_ptimer_cb(void *opaque)
     /* No action required on the timer rollover. */
 }
 
+static bool canfd_decode_reg_bank(XlnxVersalCANFDState *s, hwaddr addr,
+                                  hwaddr first_reg, hwaddr last_reg,
+                                  size_t num_banks, unsigned *idx,
+                                  hwaddr *offset)
+{
+    hwaddr base = addr - first_reg;
+    hwaddr span = last_reg - first_reg + sizeof(uint32_t);
+    unsigned index = base / span;
+
+    if (index >= num_banks) {
+        return false;
+    }
+    if (idx) {
+        *idx = index;
+    }
+
+    *offset = base % span;
+    *offset += first_reg;
+
+    return true;
+}
+
+/*
+ * Decode the given addr into a (idx, offset) pair:
+ *   - idx is the bank index of the register at addr,
+ *   - offset is the register offset relative to bank 0
+ *
+ * @return true is the decoding succeded, false otherwise
+ */
+static bool canfd_decode_addr(XlnxVersalCANFDState *s, hwaddr addr,
+                              unsigned *idx, hwaddr *offset)
+{
+    if (addr <= A_RX_FIFO_WATERMARK_REGISTER) {
+        /* from 0x0 to 0xec. Handled by the register API */
+        g_assert_not_reached();
+    } else if (addr < A_TB_ID_REGISTER) {
+        /* no register in this gap */
+        return false;
+    } else if (addr < A_AFMR_REGISTER) {
+        /* TX registers */
+        return canfd_decode_reg_bank(s, addr,
+                                     A_TB_ID_REGISTER, A_TB_DW15_REGISTER,
+                                     s->cfg.tx_fifo, idx, offset);
+    } else if (addr < A_TXE_FIFO_TB_ID_REGISTER) {
+        /* Filter registers */
+        return canfd_decode_reg_bank(s, addr,
+                                     A_AFMR_REGISTER, A_AFIR_REGISTER,
+                                     32, idx, offset);
+    } else if (addr < A_RB_ID_REGISTER) {
+        /* TX event registers */
+        return canfd_decode_reg_bank(s, addr,
+                                     A_TXE_FIFO_TB_ID_REGISTER,
+                                     A_TXE_FIFO_TB_DLC_REGISTER,
+                                     32, idx, offset);
+    } else if (addr < A_RB_ID_REGISTER_1) {
+        /* RX0 registers */
+        return canfd_decode_reg_bank(s, addr,
+                                     A_RB_ID_REGISTER,
+                                     A_RB_DW15_REGISTER,
+                                     s->cfg.rx0_fifo, idx, offset);
+    } else if (addr <= A_RB_DW15_REGISTER_1) {
+        /* RX1 registers */
+        return canfd_decode_reg_bank(s, addr,
+                                     A_RB_ID_REGISTER_1,
+                                     A_RB_DW15_REGISTER_1,
+                                     s->cfg.rx1_fifo, idx, offset);
+    }
+
+    /* decode error */
+    return false;
+}
+
+static uint64_t canfd_read(void *opaque, hwaddr addr, unsigned size)
+{
+    XlnxVersalCANFDState *s = XILINX_CANFD(opaque);
+    hwaddr reg_offset;
+    uint64_t ret;
+
+    if (!canfd_decode_addr(s, addr, NULL, &reg_offset)) {
+        qemu_log_mask(LOG_GUEST_ERROR, TYPE_XILINX_CANFD
+                      ": read to unknown register at address 0x%"
+                      HWADDR_PRIx "\n", addr);
+        return 0;
+    }
+
+    switch (reg_offset) {
+    default:
+        ret = s->regs[addr / sizeof(uint32_t)];
+    }
+
+    return ret;
+}
+
+static void canfd_write(void *opaque, hwaddr addr, uint64_t value,
+                        unsigned size)
+{
+    XlnxVersalCANFDState *s = XILINX_CANFD(opaque);
+    unsigned bank_idx;
+    hwaddr reg_offset;
+
+    if (!canfd_decode_addr(s, addr, &bank_idx, &reg_offset)) {
+        qemu_log_mask(LOG_GUEST_ERROR, TYPE_XILINX_CANFD
+                      ": write to unknown register at address 0x%"
+                      HWADDR_PRIx "\n", addr);
+        return;
+    }
+
+    if (addr >= A_TXE_FIFO_TB_ID_REGISTER) {
+        /* All registers from TX event regs to the end are read-only */
+        qemu_log_mask(LOG_GUEST_ERROR, TYPE_XILINX_CANFD
+                      ": write to read-only register at 0x%" HWADDR_PRIx "\n",
+                      addr);
+        return;
+    }
+
+    switch (reg_offset) {
+    case A_AFMR_REGISTER:
+    case A_AFIR_REGISTER:
+        filter_reg_write(s, addr, bank_idx, value);
+        break;
+
+    default:
+        s->regs[addr / sizeof(uint32_t)] = value;
+    }
+}
+
 static const MemoryRegionOps canfd_ops = {
+    .read = canfd_read,
+    .write = canfd_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+static const MemoryRegionOps canfd_regs_ops = {
     .read = register_read_memory,
     .write = register_write_memory,
     .endianness = DEVICE_LITTLE_ENDIAN,
@@ -1852,142 +1845,16 @@ static int xlnx_canfd_connect_to_bus(XlnxVersalCANFDState *s,
     return can_bus_insert_client(bus, &s->bus_client);
 }
 
-#define NUM_REG_PER_AF      ARRAY_SIZE(canfd_af_regs)
-#define NUM_AF              32
-#define NUM_REG_PER_TXE     ARRAY_SIZE(canfd_txe_regs)
-#define NUM_TXE             32
-
-static int canfd_populate_regarray(XlnxVersalCANFDState *s,
-                                  RegisterInfoArray *r_array, int pos,
-                                  const RegisterAccessInfo *rae,
-                                  int num_rae)
-{
-    int i;
-
-    for (i = 0; i < num_rae; i++) {
-        int index = rae[i].addr / 4;
-        RegisterInfo *r = &s->reg_info[index];
-
-        object_initialize(r, sizeof(*r), TYPE_REGISTER);
-
-        *r = (RegisterInfo) {
-            .data = &s->regs[index],
-            .data_size = sizeof(uint32_t),
-            .access = &rae[i],
-            .opaque = OBJECT(s),
-        };
-
-        r_array->r[i + pos] = r;
-    }
-    return i + pos;
-}
-
-static void canfd_create_rai(RegisterAccessInfo *rai_array,
-                                const RegisterAccessInfo *canfd_regs,
-                                int template_rai_array_sz,
-                                int num_template_to_copy)
-{
-    int i;
-    int reg_num;
-
-    for (reg_num = 0; reg_num < num_template_to_copy; reg_num++) {
-        int pos = reg_num * template_rai_array_sz;
-
-        memcpy(rai_array + pos, canfd_regs,
-               template_rai_array_sz * sizeof(RegisterAccessInfo));
-
-        for (i = 0; i < template_rai_array_sz; i++) {
-            const char *name = canfd_regs[i].name;
-            uint64_t addr = canfd_regs[i].addr;
-            rai_array[i + pos].name = g_strdup_printf("%s%d", name, reg_num);
-            rai_array[i + pos].addr = addr + pos * 4;
-        }
-    }
-}
-
-static RegisterInfoArray *canfd_create_regarray(XlnxVersalCANFDState *s)
-{
-    const char *device_prefix = object_get_typename(OBJECT(s));
-    uint64_t memory_size = XLNX_VERSAL_CANFD_R_MAX * 4;
-    int num_regs;
-    int pos = 0;
-    RegisterInfoArray *r_array;
-
-    num_regs = ARRAY_SIZE(canfd_regs_info) +
-                s->cfg.tx_fifo * NUM_REGS_PER_MSG_SPACE +
-                s->cfg.rx0_fifo * NUM_REGS_PER_MSG_SPACE +
-                NUM_AF * NUM_REG_PER_AF +
-                NUM_TXE * NUM_REG_PER_TXE;
-
-    s->tx_regs = g_new0(RegisterAccessInfo,
-                        s->cfg.tx_fifo * ARRAY_SIZE(canfd_tx_regs));
-
-    canfd_create_rai(s->tx_regs, canfd_tx_regs,
-                     ARRAY_SIZE(canfd_tx_regs), s->cfg.tx_fifo);
-
-    s->rx0_regs = g_new0(RegisterAccessInfo,
-                         s->cfg.rx0_fifo * ARRAY_SIZE(canfd_rx0_regs));
-
-    canfd_create_rai(s->rx0_regs, canfd_rx0_regs,
-                     ARRAY_SIZE(canfd_rx0_regs), s->cfg.rx0_fifo);
-
-    s->af_regs = g_new0(RegisterAccessInfo,
-                        NUM_AF * ARRAY_SIZE(canfd_af_regs));
-
-    canfd_create_rai(s->af_regs, canfd_af_regs,
-                     ARRAY_SIZE(canfd_af_regs), NUM_AF);
-
-    s->txe_regs = g_new0(RegisterAccessInfo,
-                         NUM_TXE * ARRAY_SIZE(canfd_txe_regs));
-
-    canfd_create_rai(s->txe_regs, canfd_txe_regs,
-                     ARRAY_SIZE(canfd_txe_regs), NUM_TXE);
-
-    if (s->cfg.enable_rx_fifo1) {
-        num_regs += s->cfg.rx1_fifo * NUM_REGS_PER_MSG_SPACE;
-
-        s->rx1_regs = g_new0(RegisterAccessInfo,
-                             s->cfg.rx1_fifo * ARRAY_SIZE(canfd_rx1_regs));
-
-        canfd_create_rai(s->rx1_regs, canfd_rx1_regs,
-                         ARRAY_SIZE(canfd_rx1_regs), s->cfg.rx1_fifo);
-    }
-
-    r_array = g_new0(RegisterInfoArray, 1);
-    r_array->r = g_new0(RegisterInfo * , num_regs);
-    r_array->num_elements = num_regs;
-    r_array->prefix = device_prefix;
-
-    pos = canfd_populate_regarray(s, r_array, pos,
-                                  canfd_regs_info,
-                                  ARRAY_SIZE(canfd_regs_info));
-    pos = canfd_populate_regarray(s, r_array, pos,
-                                  s->tx_regs, s->cfg.tx_fifo *
-                                  NUM_REGS_PER_MSG_SPACE);
-    pos = canfd_populate_regarray(s, r_array, pos,
-                                  s->rx0_regs, s->cfg.rx0_fifo *
-                                  NUM_REGS_PER_MSG_SPACE);
-    if (s->cfg.enable_rx_fifo1) {
-        pos = canfd_populate_regarray(s, r_array, pos,
-                                      s->rx1_regs, s->cfg.rx1_fifo *
-                                      NUM_REGS_PER_MSG_SPACE);
-    }
-    pos = canfd_populate_regarray(s, r_array, pos,
-                                  s->af_regs, NUM_AF * NUM_REG_PER_AF);
-    pos = canfd_populate_regarray(s, r_array, pos,
-                                  s->txe_regs, NUM_TXE * NUM_REG_PER_TXE);
-
-    memory_region_init_io(&r_array->mem, OBJECT(s), &canfd_ops, r_array,
-                          device_prefix, memory_size);
-    return r_array;
-}
-
 static void canfd_realize(DeviceState *dev, Error **errp)
 {
     XlnxVersalCANFDState *s = XILINX_CANFD(dev);
     RegisterInfoArray *reg_array;
 
-    reg_array = canfd_create_regarray(s);
+    reg_array = register_init_block32(dev, canfd_regs_info,
+                                      ARRAY_SIZE(canfd_regs_info), s->reg_info,
+                                      s->regs, &canfd_regs_ops, false,
+                                      A_RX_FIFO_WATERMARK_REGISTER
+                                          + sizeof(uint32_t));
     memory_region_add_subregion(&s->iomem, 0x00, &reg_array->mem);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq_canfd_int);
@@ -2020,8 +1887,8 @@ static void canfd_init(Object *obj)
 {
     XlnxVersalCANFDState *s = XILINX_CANFD(obj);
 
-    memory_region_init(&s->iomem, obj, TYPE_XILINX_CANFD,
-                       XLNX_VERSAL_CANFD_R_MAX * 4);
+    memory_region_init_io(&s->iomem, obj, &canfd_ops, s, TYPE_XILINX_CANFD,
+                          XLNX_VERSAL_CANFD_R_MAX * 4);
 }
 
 static const VMStateDescription vmstate_canfd = {

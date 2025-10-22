@@ -26,6 +26,11 @@ OBJECT_DECLARE_TYPE(MachineState, MachineClass, MACHINE)
 extern MachineState *current_machine;
 
 /**
+ * machine_default_cpu_type: Return the machine default CPU type.
+ * @ms: Machine state
+ */
+const char *machine_default_cpu_type(const MachineState *ms);
+/**
  * machine_class_default_cpu_type: Return the machine default CPU type.
  * @mc: Machine class
  */
@@ -253,6 +258,9 @@ typedef struct {
  * @smbios_memory_device_size:
  *    Default size of memory device,
  *    SMBIOS 3.1.0 "7.18 Memory Device (Type 17)"
+ * @get_valid_cpu_types:
+ *    Returns a list of valid CPU types for this board. May be NULL
+ *    if not needed.
  */
 struct MachineClass {
     /*< private >*/
@@ -299,6 +307,8 @@ struct MachineClass {
     bool ignore_memory_transaction_failures;
     int numa_mem_align_shift;
     const char * const *valid_cpu_types;
+    GPtrArray *(*get_valid_cpu_types)(const MachineState *ms);
+    const char *(*get_default_cpu_type)(const MachineState *ms);
     strList *allowed_dynamic_sysbus_devices;
     bool auto_enable_numa_with_memhp;
     bool auto_enable_numa_with_memdev;
@@ -495,6 +505,39 @@ struct MachineState {
  *  #define DEFINE_VIRT_MACHINE_TAGGED(major, minor, micro, tag) \
  *      DEFINE_VIRT_MACHINE_IMPL(false, major, minor, micro, _, tag)
  */
+
+#define DEFINE_MACHINE_EXTENDED(namestr, PARENT_NAME, InstanceName, \
+                                machine_initfn, ABSTRACT, ifaces...) \
+    static void machine_initfn##_class_init(ObjectClass *oc, const void *data) \
+    { \
+        MachineClass *mc = MACHINE_CLASS(oc); \
+        machine_initfn(mc); \
+    } \
+    static const TypeInfo machine_initfn##_typeinfo = { \
+        .name       = MACHINE_TYPE_NAME(namestr), \
+        .parent     = TYPE_##PARENT_NAME, \
+        .class_init = machine_initfn##_class_init, \
+        .instance_size = sizeof(InstanceName), \
+        .abstract = ABSTRACT, \
+        .interfaces = ifaces, \
+    }; \
+    static void machine_initfn##_register_types(void) \
+    { \
+        type_register_static(&machine_initfn##_typeinfo); \
+    } \
+    type_init(machine_initfn##_register_types)
+
+#define DEFINE_MACHINE(namestr, machine_initfn) \
+    DEFINE_MACHINE_EXTENDED(namestr, MACHINE, MachineState, machine_initfn, \
+                            false, NULL)
+
+#define DEFINE_MACHINE_WITH_INTERFACE_ARRAY(namestr, machine_initfn, ifaces...)\
+    DEFINE_MACHINE_EXTENDED(namestr, MACHINE, MachineState, machine_initfn, \
+                            false, ifaces)
+
+#define DEFINE_MACHINE_WITH_INTERFACES(namestr, machine_initfn, ...) \
+    DEFINE_MACHINE_WITH_INTERFACE_ARRAY(namestr, machine_initfn, \
+                                        (const InterfaceInfo[]) { __VA_ARGS__ })
 
 /*
  * Helper for dispatching different macros based on how
@@ -754,23 +797,6 @@ struct MachineState {
             return; \
         } \
     } while (0)
-
-#define DEFINE_MACHINE(namestr, machine_initfn) \
-    static void machine_initfn##_class_init(ObjectClass *oc, const void *data) \
-    { \
-        MachineClass *mc = MACHINE_CLASS(oc); \
-        machine_initfn(mc); \
-    } \
-    static const TypeInfo machine_initfn##_typeinfo = { \
-        .name       = MACHINE_TYPE_NAME(namestr), \
-        .parent     = TYPE_MACHINE, \
-        .class_init = machine_initfn##_class_init, \
-    }; \
-    static void machine_initfn##_register_types(void) \
-    { \
-        type_register_static(&machine_initfn##_typeinfo); \
-    } \
-    type_init(machine_initfn##_register_types)
 
 extern GlobalProperty hw_compat_10_1[];
 extern const size_t hw_compat_10_1_len;

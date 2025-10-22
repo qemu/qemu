@@ -15,6 +15,7 @@
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qemu/units.h"
+#include "qemu/target-info-qapi.h"
 #include "system/numa.h"
 #include "system/system.h"
 #include "system/ramblock.h"
@@ -33,13 +34,21 @@
 
 static const VMStateDescription vmstate_virtio_mem_device_early;
 
-/*
- * We only had legacy x86 guests that did not support
- * VIRTIO_MEM_F_UNPLUGGED_INACCESSIBLE. Other targets don't have legacy guests.
- */
-#if defined(TARGET_X86_64) || defined(TARGET_I386)
-#define VIRTIO_MEM_HAS_LEGACY_GUESTS
-#endif
+static bool virtio_mem_has_legacy_guests(void)
+{
+    /*
+     * We only had legacy x86 guests that did not support
+     * VIRTIO_MEM_F_UNPLUGGED_INACCESSIBLE. Other targets don't have
+     * legacy guests.
+     */
+    switch (target_arch()) {
+    case SYS_EMU_TARGET_I386:
+    case SYS_EMU_TARGET_X86_64:
+        return true;
+    default:
+        return false;
+    }
+}
 
 /*
  * Let's not allow blocks smaller than 1 MiB, for example, to keep the tracking
@@ -143,7 +152,6 @@ static uint64_t virtio_mem_default_block_size(RAMBlock *rb)
     return MAX(page_size, VIRTIO_MEM_MIN_BLOCK_SIZE);
 }
 
-#if defined(VIRTIO_MEM_HAS_LEGACY_GUESTS)
 static bool virtio_mem_has_shared_zeropage(RAMBlock *rb)
 {
     /*
@@ -154,7 +162,6 @@ static bool virtio_mem_has_shared_zeropage(RAMBlock *rb)
     return !qemu_ram_is_shared(rb) && qemu_ram_get_fd(rb) < 0 &&
            qemu_ram_pagesize(rb) == qemu_real_host_page_size();
 }
-#endif /* VIRTIO_MEM_HAS_LEGACY_GUESTS */
 
 /*
  * Size the usable region bigger than the requested size if possible. Esp.
@@ -170,13 +177,20 @@ static bool virtio_mem_has_shared_zeropage(RAMBlock *rb)
  * necessary (as the section size can change). But it's more likely that the
  * section size will rather get smaller and not bigger over time.
  */
-#if defined(TARGET_X86_64) || defined(TARGET_I386) || defined(TARGET_S390X)
-#define VIRTIO_MEM_USABLE_EXTENT (2 * (128 * MiB))
-#elif defined(TARGET_ARM)
-#define VIRTIO_MEM_USABLE_EXTENT (2 * (512 * MiB))
-#else
-#error VIRTIO_MEM_USABLE_EXTENT not defined
-#endif
+static uint64_t virtio_mem_usable_extent_size(void)
+{
+    switch (target_arch()) {
+    case SYS_EMU_TARGET_I386:
+    case SYS_EMU_TARGET_X86_64:
+    case SYS_EMU_TARGET_S390X:
+        return 2 * 128 * MiB;
+    case SYS_EMU_TARGET_AARCH64:
+    case SYS_EMU_TARGET_ARM:
+        return 2 * 512 * MiB;
+    default:
+        g_assert_not_reached();
+    }
+}
 
 static bool virtio_mem_is_busy(void)
 {
@@ -699,7 +713,7 @@ static void virtio_mem_resize_usable_region(VirtIOMEM *vmem,
                                             bool can_shrink)
 {
     uint64_t newsize = MIN(memory_region_size(&vmem->memdev->mr),
-                           requested_size + VIRTIO_MEM_USABLE_EXTENT);
+                           requested_size + virtio_mem_usable_extent_size());
 
     /* The usable region size always has to be multiples of the block size. */
     newsize = QEMU_ALIGN_UP(newsize, vmem->block_size);
@@ -975,28 +989,28 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
     rb = vmem->memdev->mr.ram_block;
     page_size = qemu_ram_pagesize(rb);
 
-#if defined(VIRTIO_MEM_HAS_LEGACY_GUESTS)
-    switch (vmem->unplugged_inaccessible) {
-    case ON_OFF_AUTO_AUTO:
-        if (virtio_mem_has_shared_zeropage(rb)) {
-            vmem->unplugged_inaccessible = ON_OFF_AUTO_OFF;
-        } else {
-            vmem->unplugged_inaccessible = ON_OFF_AUTO_ON;
+    if (virtio_mem_has_legacy_guests()) {
+        switch (vmem->unplugged_inaccessible) {
+        case ON_OFF_AUTO_AUTO:
+            if (virtio_mem_has_shared_zeropage(rb)) {
+                vmem->unplugged_inaccessible = ON_OFF_AUTO_OFF;
+            } else {
+                vmem->unplugged_inaccessible = ON_OFF_AUTO_ON;
+            }
+            break;
+        case ON_OFF_AUTO_OFF:
+            if (!virtio_mem_has_shared_zeropage(rb)) {
+                warn_report("'%s' property set to 'off' with a memdev that does"
+                            " not support the shared zeropage.",
+                            VIRTIO_MEM_UNPLUGGED_INACCESSIBLE_PROP);
+            }
+            break;
+        default:
+            break;
         }
-        break;
-    case ON_OFF_AUTO_OFF:
-        if (!virtio_mem_has_shared_zeropage(rb)) {
-            warn_report("'%s' property set to 'off' with a memdev that does"
-                        " not support the shared zeropage.",
-                        VIRTIO_MEM_UNPLUGGED_INACCESSIBLE_PROP);
-        }
-        break;
-    default:
-        break;
+    } else {
+        vmem->unplugged_inaccessible = ON_OFF_AUTO_ON;
     }
-#else /* VIRTIO_MEM_HAS_LEGACY_GUESTS */
-    vmem->unplugged_inaccessible = ON_OFF_AUTO_ON;
-#endif /* VIRTIO_MEM_HAS_LEGACY_GUESTS */
 
     if (vmem->dynamic_memslots &&
         vmem->unplugged_inaccessible != ON_OFF_AUTO_ON) {
@@ -1693,14 +1707,15 @@ static const Property virtio_mem_properties[] = {
     DEFINE_PROP_BOOL(VIRTIO_MEM_PREALLOC_PROP, VirtIOMEM, prealloc, false),
     DEFINE_PROP_LINK(VIRTIO_MEM_MEMDEV_PROP, VirtIOMEM, memdev,
                      TYPE_MEMORY_BACKEND, HostMemoryBackend *),
-#if defined(VIRTIO_MEM_HAS_LEGACY_GUESTS)
-    DEFINE_PROP_ON_OFF_AUTO(VIRTIO_MEM_UNPLUGGED_INACCESSIBLE_PROP, VirtIOMEM,
-                            unplugged_inaccessible, ON_OFF_AUTO_ON),
-#endif
     DEFINE_PROP_BOOL(VIRTIO_MEM_EARLY_MIGRATION_PROP, VirtIOMEM,
                      early_migration, true),
     DEFINE_PROP_BOOL(VIRTIO_MEM_DYNAMIC_MEMSLOTS_PROP, VirtIOMEM,
                      dynamic_memslots, false),
+};
+
+static const Property virtio_mem_legacy_guests_properties[] = {
+    DEFINE_PROP_ON_OFF_AUTO(VIRTIO_MEM_UNPLUGGED_INACCESSIBLE_PROP, VirtIOMEM,
+                            unplugged_inaccessible, ON_OFF_AUTO_ON),
 };
 
 static uint64_t virtio_mem_rdm_get_min_granularity(const RamDiscardManager *rdm,
@@ -1854,6 +1869,9 @@ static void virtio_mem_class_init(ObjectClass *klass, const void *data)
     RamDiscardManagerClass *rdmc = RAM_DISCARD_MANAGER_CLASS(klass);
 
     device_class_set_props(dc, virtio_mem_properties);
+    if (virtio_mem_has_legacy_guests()) {
+        device_class_set_props(dc, virtio_mem_legacy_guests_properties);
+    }
     dc->vmsd = &vmstate_virtio_mem;
 
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);

@@ -34,6 +34,7 @@
 #include "hw/audio/pcspk.h"
 #include "qapi/error.h"
 #include "qom/object.h"
+#include "trace.h"
 
 #define PCSPK_BUF_LEN 1792
 #define PCSPK_SAMPLE_RATE 32000
@@ -50,7 +51,7 @@ struct PCSpkState {
     uint8_t sample_buf[PCSPK_BUF_LEN];
     QEMUSoundCard card;
     SWVoiceOut *voice;
-    void *pit;
+    PITCommonState *pit;
     unsigned int pit_count;
     unsigned int samples;
     unsigned int play_pos;
@@ -60,7 +61,6 @@ struct PCSpkState {
 };
 
 static const char *s_spk = "pcspk";
-static PCSpkState *pcspk_state;
 
 static inline void generate_samples(PCSpkState *s)
 {
@@ -125,7 +125,7 @@ static int pcspk_audio_init(PCSpkState *s)
 
     s->voice = AUD_open_out(&s->card, s->voice, s_spk, s, pcspk_callback, &as);
     if (!s->voice) {
-        AUD_log(s_spk, "Could not open voice\n");
+        error_report("pcspk: Could not open voice");
         return -1;
     }
 
@@ -137,13 +137,18 @@ static uint64_t pcspk_io_read(void *opaque, hwaddr addr,
 {
     PCSpkState *s = opaque;
     PITChannelInfo ch;
+    uint8_t val;
 
     pit_get_channel_info(s->pit, 2, &ch);
 
     s->dummy_refresh_clock ^= (1 << 4);
 
-    return ch.gate | (s->data_on << 1) | s->dummy_refresh_clock |
+    val = ch.gate | (s->data_on << 1) | s->dummy_refresh_clock |
        (ch.out << 5);
+
+    trace_pcspk_io_read(s->iobase, val);
+
+    return val;
 }
 
 static void pcspk_io_write(void *opaque, hwaddr addr, uint64_t val,
@@ -151,6 +156,8 @@ static void pcspk_io_write(void *opaque, hwaddr addr, uint64_t val,
 {
     PCSpkState *s = opaque;
     const int gate = val & 1;
+
+    trace_pcspk_io_write(s->iobase, val);
 
     s->data_on = (val >> 1) & 1;
     pit_set_gate(s->pit, 2, gate);
@@ -175,11 +182,6 @@ static void pcspk_initfn(Object *obj)
     PCSpkState *s = PC_SPEAKER(obj);
 
     memory_region_init_io(&s->ioport, OBJECT(s), &pcspk_io_ops, s, "pcspk", 1);
-
-    object_property_add_link(obj, "pit", TYPE_PIT_COMMON,
-                             (Object **)&s->pit,
-                             qdev_prop_allow_set_link_before_realize,
-                             0);
 }
 
 static void pcspk_realizefn(DeviceState *dev, Error **errp)
@@ -187,13 +189,16 @@ static void pcspk_realizefn(DeviceState *dev, Error **errp)
     ISADevice *isadev = ISA_DEVICE(dev);
     PCSpkState *s = PC_SPEAKER(dev);
 
+    if (!s->pit) {
+        error_setg(errp, "pcspk: No \"pit\" set or available");
+        return;
+    }
+
     isa_register_ioport(isadev, &s->ioport, s->iobase);
 
     if (s->card.state && AUD_register_card(s_spk, &s->card, errp)) {
         pcspk_audio_init(s);
     }
-
-    pcspk_state = s;
 }
 
 static bool migrate_needed(void *opaque)
@@ -219,6 +224,7 @@ static const Property pcspk_properties[] = {
     DEFINE_AUDIO_PROPERTIES(PCSpkState, card),
     DEFINE_PROP_UINT32("iobase", PCSpkState, iobase,  0x61),
     DEFINE_PROP_BOOL("migrate", PCSpkState, migrate,  true),
+    DEFINE_PROP_LINK("pit", PCSpkState, pit, TYPE_PIT_COMMON, PITCommonState *),
 };
 
 static void pcspk_class_initfn(ObjectClass *klass, const void *data)
@@ -229,7 +235,6 @@ static void pcspk_class_initfn(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->vmsd = &vmstate_spk;
     device_class_set_props(dc, pcspk_properties);
-    /* Reason: realize sets global pcspk_state */
     /* Reason: pit object link */
     dc->user_creatable = false;
 }

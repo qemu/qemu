@@ -1556,6 +1556,16 @@ const char *machine_class_default_cpu_type(MachineClass *mc)
     return mc->default_cpu_type;
 }
 
+const char *machine_default_cpu_type(const MachineState *ms)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+
+    if (mc->get_default_cpu_type) {
+        return mc->get_default_cpu_type(ms);
+    }
+    return machine_class_default_cpu_type(mc);
+}
+
 static bool is_cpu_type_supported(const MachineState *machine, Error **errp)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -1570,6 +1580,8 @@ static bool is_cpu_type_supported(const MachineState *machine, Error **errp)
      */
     if (mc->valid_cpu_types) {
         assert(mc->valid_cpu_types[0] != NULL);
+        assert(!mc->get_valid_cpu_types);
+
         for (i = 0; mc->valid_cpu_types[i]; i++) {
             if (object_class_dynamic_cast(oc, mc->valid_cpu_types[i])) {
                 break;
@@ -1596,6 +1608,32 @@ static bool is_cpu_type_supported(const MachineState *machine, Error **errp)
                 error_append_hint(errp, "\n");
             }
 
+            return false;
+        }
+    } else if (mc->get_valid_cpu_types) {
+        GPtrArray *vct = mc->get_valid_cpu_types(machine);
+        bool valid = false;
+
+        for (i = 0; i < vct->len; i++) {
+            if (object_class_dynamic_cast(oc, vct->pdata[i])) {
+                valid = true;
+                break;
+            }
+        }
+
+        if (!valid) {
+            g_autofree char *requested = cpu_model_from_type(machine->cpu_type);
+
+            error_setg(errp, "Invalid CPU model: %s", requested);
+            error_append_hint(errp, "The valid models are: ");
+            for (i = 0; i < vct->len; i++) {
+                g_autofree char *model = cpu_model_from_type(vct->pdata[i]);
+                error_append_hint(errp, "%s%s",
+                                  model, i + 1 == vct->len ? "\n" : ", ");
+            }
+        }
+        g_ptr_array_free(vct, true);
+        if (!valid) {
             return false;
         }
     }

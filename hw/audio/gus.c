@@ -32,15 +32,16 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "gusemu.h"
-#include "gustate.h"
+#include "qemu/error-report.h"
 #include "qom/object.h"
 
-#define dolog(...) AUD_log ("audio", __VA_ARGS__)
-#ifdef DEBUG
-#define ldebug(...) dolog (__VA_ARGS__)
-#else
-#define ldebug(...)
-#endif
+#define DEBUG 0
+
+#define ldebug(fmt, ...) do { \
+        if (DEBUG) { \
+            error_report("gus: " fmt, ##__VA_ARGS__); \
+        } \
+    } while (0)
 
 #define TYPE_GUS "gus"
 OBJECT_DECLARE_SIMPLE_TYPE(GUSState, GUS)
@@ -154,14 +155,14 @@ int GUS_irqrequest (GUSEmuState *emu, int hwirq, int n)
     /* qemu_irq_lower (s->pic); */
     qemu_irq_raise (s->pic);
     s->irqs += n;
-    ldebug ("irqrequest %d %d %d\n", hwirq, n, s->irqs);
+    ldebug("irqrequest %d %d %d", hwirq, n, s->irqs);
     return n;
 }
 
 void GUS_irqclear (GUSEmuState *emu, int hwirq)
 {
     GUSState *s = emu->opaque;
-    ldebug ("irqclear %d %d\n", hwirq, s->irqs);
+    ldebug("irqclear %d %d", hwirq, s->irqs);
     qemu_irq_lower (s->pic);
     s->irqs -= 1;
 #ifdef IRQ_STORM
@@ -175,7 +176,7 @@ void GUS_dmarequest (GUSEmuState *emu)
 {
     GUSState *s = emu->opaque;
     IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
-    ldebug ("dma request %d\n", der->gusdma);
+    ldebug("dma request %d", s->emu.gusdma);
     k->hold_DREQ(s->isa_dma, s->emu.gusdma);
 }
 
@@ -186,13 +187,13 @@ static int GUS_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
     QEMU_UNINITIALIZED char tmpbuf[4096];
     int pos = dma_pos, mode, left = dma_len - dma_pos;
 
-    ldebug ("read DMA %#x %d\n", dma_pos, dma_len);
+    ldebug("read DMA 0x%x %d", dma_pos, dma_len);
     mode = k->has_autoinitialization(s->isa_dma, s->emu.gusdma);
     while (left) {
         int to_copy = MIN ((size_t) left, sizeof (tmpbuf));
         int copied;
 
-        ldebug ("left=%d to_copy=%d pos=%d\n", left, to_copy, pos);
+        ldebug("left=%d to_copy=%d pos=%d", left, to_copy, pos);
         copied = k->read_memory(s->isa_dma, nchan, tmpbuf, pos, to_copy);
         gus_dma_transferdata (&s->emu, tmpbuf, copied, left == copied);
         left -= copied;

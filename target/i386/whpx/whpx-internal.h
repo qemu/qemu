@@ -5,6 +5,8 @@
 #include <winhvplatform.h>
 #include <winhvemulation.h>
 
+#include "hw/i386/apic.h"
+
 typedef enum WhpxBreakpointState {
     WHPX_BP_CLEARED = 0,
     WHPX_BP_SET_PENDING,
@@ -44,7 +46,7 @@ struct whpx_state {
 };
 
 extern struct whpx_state whpx_global;
-void whpx_apic_get(DeviceState *s);
+void whpx_apic_get(APICCommonState *s);
 
 #define WHV_E_UNKNOWN_CAPABILITY 0x80370300L
 

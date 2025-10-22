@@ -211,22 +211,17 @@ static void crf_init(Object *obj)
 {
     XlnxZynqMPCRF *s = XLNX_ZYNQMP_CRF(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    RegisterInfoArray *reg_array;
 
-    s->reg_array =
+    reg_array =
         register_init_block32(DEVICE(obj), crf_regs_info,
                               ARRAY_SIZE(crf_regs_info),
                               s->regs_info, s->regs,
                               &crf_ops,
                               XLNX_ZYNQMP_CRF_ERR_DEBUG,
                               CRF_R_MAX * 4);
-    sysbus_init_mmio(sbd, &s->reg_array->mem);
+    sysbus_init_mmio(sbd, &reg_array->mem);
     sysbus_init_irq(sbd, &s->irq_ir);
-}
-
-static void crf_finalize(Object *obj)
-{
-    XlnxZynqMPCRF *s = XLNX_ZYNQMP_CRF(obj);
-    register_finalize_block(s->reg_array);
 }
 
 static const VMStateDescription vmstate_crf = {
@@ -255,7 +250,6 @@ static const TypeInfo crf_info = {
     .instance_size     = sizeof(XlnxZynqMPCRF),
     .class_init        = crf_class_init,
     .instance_init     = crf_init,
-    .instance_finalize = crf_finalize,
 };
 
 static void crf_register_types(void)

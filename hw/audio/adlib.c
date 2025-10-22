@@ -29,24 +29,24 @@
 #include "audio/audio.h"
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
+#include "qemu/error-report.h"
 #include "qom/object.h"
 
-//#define DEBUG
+#define DEBUG 0
 
 #define ADLIB_KILL_TIMERS 1
 
 #define ADLIB_DESC "Yamaha YM3812 (OPL2)"
 
-#ifdef DEBUG
+#if DEBUG
 #include "qemu/timer.h"
 #endif
 
-#define dolog(...) AUD_log ("adlib", __VA_ARGS__)
-#ifdef DEBUG
-#define ldebug(...) dolog (__VA_ARGS__)
-#else
-#define ldebug(...)
-#endif
+#define ldebug(fmt, ...) do { \
+        if (DEBUG) { \
+            error_report("adlib: " fmt, ##__VA_ARGS__); \
+        } \
+    } while (0)
 
 #include "fmopl.h"
 #define SHIFT 1
@@ -64,7 +64,7 @@ struct AdlibState {
     int enabled;
     int active;
     int bufpos;
-#ifdef DEBUG
+#if DEBUG
     int64_t exp[2];
 #endif
     int16_t *mixbuf;
@@ -92,7 +92,7 @@ static void adlib_kill_timers (AdlibState *s)
 
             delta = AUD_get_elapsed_usec_out (s->voice, &s->ats);
             ldebug (
-                "delta = %f dexp = %f expired => %d\n",
+                "delta = %f dexp = %f expired => %d",
                 delta / 1000000.0,
                 s->dexp[i] / 1000000.0,
                 delta >= s->dexp[i]
@@ -131,7 +131,7 @@ static void timer_handler (void *opaque, int c, double interval_Sec)
 {
     AdlibState *s = opaque;
     unsigned n = c & 1;
-#ifdef DEBUG
+#if DEBUG
     double interval;
     int64_t exp;
 #endif
@@ -142,7 +142,7 @@ static void timer_handler (void *opaque, int c, double interval_Sec)
     }
 
     s->ticking[n] = 1;
-#ifdef DEBUG
+#if DEBUG
     interval = NANOSECONDS_PER_SECOND * interval_Sec;
     exp = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + interval;
     s->exp[n] = exp;

@@ -73,9 +73,9 @@ typedef struct QDevAlias
 
 /* Please keep this table sorted by typename. */
 static const QDevAlias qdev_alias_table[] = {
-    { "AC97", "ac97" }, /* -soundhw name */
+    { "AC97", "ac97" },
     { "e1000", "e1000-82540em" },
-    { "ES1370", "es1370" }, /* -soundhw name */
+    { "ES1370", "es1370" },
     { "ich9-ahci", "ahci" },
     { "lsi53c895a", "lsi" },
     { "virtio-9p-device", "virtio-9p", QEMU_ARCH_VIRTIO_MMIO },

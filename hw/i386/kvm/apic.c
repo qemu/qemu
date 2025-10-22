@@ -60,9 +60,8 @@ static void kvm_put_apic_state(APICCommonState *s, struct kvm_lapic_state *kapic
     kvm_apic_set_reg(kapic, 0x3e, s->divide_conf);
 }
 
-void kvm_get_apic_state(DeviceState *dev, struct kvm_lapic_state *kapic)
+void kvm_get_apic_state(APICCommonState *s, struct kvm_lapic_state *kapic)
 {
-    APICCommonState *s = APIC_COMMON(dev);
     int i, v;
 
     if (kvm_has_x2apic_api() && s->apicbase & MSR_IA32_APICBASE_EXTD) {

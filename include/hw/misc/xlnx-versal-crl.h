@@ -533,7 +533,6 @@ REG32(VERSAL2_RST_OCM, 0x3d8)
 struct XlnxVersalCRLBase {
     SysBusDevice parent_obj;
 
-    RegisterInfoArray *reg_array;
     uint32_t *regs;
 };
 

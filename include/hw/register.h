@@ -75,10 +75,6 @@ struct RegisterAccessInfo {
  */
 
 struct RegisterInfo {
-    /* <private> */
-    DeviceState parent_obj;
-
-    /* <public> */
     void *data;
     int data_size;
 
@@ -87,9 +83,8 @@ struct RegisterInfo {
     void *opaque;
 };
 
-#define TYPE_REGISTER "qemu-register"
-DECLARE_INSTANCE_CHECKER(RegisterInfo, REGISTER,
-                         TYPE_REGISTER)
+#define TYPE_REGISTER_ARRAY "qemu-register-array"
+OBJECT_DECLARE_SIMPLE_TYPE(RegisterInfoArray, REGISTER_ARRAY)
 
 /**
  * This structure is used to group all of the individual registers which are
@@ -103,6 +98,8 @@ DECLARE_INSTANCE_CHECKER(RegisterInfo, REGISTER,
  */
 
 struct RegisterInfoArray {
+    Object parent_obj;
+
     MemoryRegion mem;
 
     int num_elements;
@@ -211,19 +208,5 @@ RegisterInfoArray *register_init_block64(DeviceState *owner,
                                          const MemoryRegionOps *ops,
                                          bool debug_enabled,
                                          uint64_t memory_size);
-
-/**
- * This function should be called to cleanup the registers that were initialized
- * when calling register_init_block32(). This function should only be called
- * from the device's instance_finalize function.
- *
- * Any memory operations that the device performed that require cleanup (such
- * as creating subregions) need to be called before calling this function.
- *
- * @r_array: A structure containing all of the registers, as returned by
- *           register_init_block32()
- */
-
-void register_finalize_block(RegisterInfoArray *r_array);
 
 #endif
