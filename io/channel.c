@@ -159,11 +159,7 @@ int coroutine_mixed_fn qio_channel_readv_full_all_eof(QIOChannel *ioc,
         len = qio_channel_readv_full(ioc, local_iov, nlocal_iov, local_fds,
                                      local_nfds, flags, errp);
         if (len == QIO_CHANNEL_ERR_BLOCK) {
-            if (qemu_in_coroutine()) {
-                qio_channel_yield(ioc, G_IO_IN);
-            } else {
-                qio_channel_wait(ioc, G_IO_IN);
-            }
+            qio_channel_wait_cond(ioc, G_IO_IN);
             continue;
         }
 
@@ -268,11 +264,7 @@ int coroutine_mixed_fn qio_channel_writev_full_all(QIOChannel *ioc,
                                             nfds, flags, errp);
 
         if (len == QIO_CHANNEL_ERR_BLOCK) {
-            if (qemu_in_coroutine()) {
-                qio_channel_yield(ioc, G_IO_OUT);
-            } else {
-                qio_channel_wait(ioc, G_IO_OUT);
-            }
+            qio_channel_wait_cond(ioc, G_IO_OUT);
             continue;
         }
         if (len < 0) {
@@ -774,6 +766,15 @@ void qio_channel_wait(QIOChannel *ioc,
     g_main_context_unref(ctxt);
 }
 
+void qio_channel_wait_cond(QIOChannel *ioc,
+                           GIOCondition condition)
+{
+    if (qemu_in_coroutine()) {
+        qio_channel_yield(ioc, condition);
+    } else {
+        qio_channel_wait(ioc, condition);
+    }
+}
 
 static void qio_channel_finalize(Object *obj)
 {
