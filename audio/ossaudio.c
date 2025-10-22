@@ -131,7 +131,7 @@ static void oss_poll_in (HWVoiceIn *hw)
     qemu_set_fd_handler(oss->fd, oss_helper_poll_in, NULL, hw->s);
 }
 
-static int aud_to_ossfmt (AudioFormat fmt, int endianness)
+static int aud_to_ossfmt(AudioFormat fmt, bool big_endian)
 {
     switch (fmt) {
     case AUDIO_FORMAT_S8:
@@ -141,18 +141,10 @@ static int aud_to_ossfmt (AudioFormat fmt, int endianness)
         return AFMT_U8;
 
     case AUDIO_FORMAT_S16:
-        if (endianness) {
-            return AFMT_S16_BE;
-        } else {
-            return AFMT_S16_LE;
-        }
+        return big_endian ? AFMT_S16_BE : AFMT_S16_LE;
 
     case AUDIO_FORMAT_U16:
-        if (endianness) {
-            return AFMT_U16_BE;
-        } else {
-            return AFMT_U16_LE;
-        }
+        return big_endian ? AFMT_U16_BE : AFMT_U16_LE;
 
     default:
         dolog ("Internal logic error: Bad audio format %d\n", fmt);

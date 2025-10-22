@@ -324,7 +324,7 @@ done_unlock:
 }
 
 static int
-audfmt_to_pw(AudioFormat fmt, int endianness)
+audfmt_to_pw(AudioFormat fmt, bool big_endian)
 {
     int format;
 
@@ -336,19 +336,19 @@ audfmt_to_pw(AudioFormat fmt, int endianness)
         format = SPA_AUDIO_FORMAT_U8;
         break;
     case AUDIO_FORMAT_S16:
-        format = endianness ? SPA_AUDIO_FORMAT_S16_BE : SPA_AUDIO_FORMAT_S16_LE;
+        format = big_endian ? SPA_AUDIO_FORMAT_S16_BE : SPA_AUDIO_FORMAT_S16_LE;
         break;
     case AUDIO_FORMAT_U16:
-        format = endianness ? SPA_AUDIO_FORMAT_U16_BE : SPA_AUDIO_FORMAT_U16_LE;
+        format = big_endian ? SPA_AUDIO_FORMAT_U16_BE : SPA_AUDIO_FORMAT_U16_LE;
         break;
     case AUDIO_FORMAT_S32:
-        format = endianness ? SPA_AUDIO_FORMAT_S32_BE : SPA_AUDIO_FORMAT_S32_LE;
+        format = big_endian ? SPA_AUDIO_FORMAT_S32_BE : SPA_AUDIO_FORMAT_S32_LE;
         break;
     case AUDIO_FORMAT_U32:
-        format = endianness ? SPA_AUDIO_FORMAT_U32_BE : SPA_AUDIO_FORMAT_U32_LE;
+        format = big_endian ? SPA_AUDIO_FORMAT_U32_BE : SPA_AUDIO_FORMAT_U32_LE;
         break;
     case AUDIO_FORMAT_F32:
-        format = endianness ? SPA_AUDIO_FORMAT_F32_BE : SPA_AUDIO_FORMAT_F32_LE;
+        format = big_endian ? SPA_AUDIO_FORMAT_F32_BE : SPA_AUDIO_FORMAT_F32_LE;
         break;
     default:
         dolog("Internal logic error: Bad audio format %d\n", fmt);

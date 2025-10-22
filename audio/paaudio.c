@@ -316,7 +316,7 @@ unlock_and_fail:
     return 0;
 }
 
-static pa_sample_format_t audfmt_to_pa (AudioFormat afmt, int endianness)
+static pa_sample_format_t audfmt_to_pa(AudioFormat afmt, bool big_endian)
 {
     int format;
 
@@ -327,14 +327,14 @@ static pa_sample_format_t audfmt_to_pa (AudioFormat afmt, int endianness)
         break;
     case AUDIO_FORMAT_S16:
     case AUDIO_FORMAT_U16:
-        format = endianness ? PA_SAMPLE_S16BE : PA_SAMPLE_S16LE;
+        format = big_endian ? PA_SAMPLE_S16BE : PA_SAMPLE_S16LE;
         break;
     case AUDIO_FORMAT_S32:
     case AUDIO_FORMAT_U32:
-        format = endianness ? PA_SAMPLE_S32BE : PA_SAMPLE_S32LE;
+        format = big_endian ? PA_SAMPLE_S32BE : PA_SAMPLE_S32LE;
         break;
     case AUDIO_FORMAT_F32:
-        format = endianness ? PA_SAMPLE_FLOAT32BE : PA_SAMPLE_FLOAT32LE;
+        format = big_endian ? PA_SAMPLE_FLOAT32BE : PA_SAMPLE_FLOAT32LE;
         break;
     default:
         dolog ("Internal logic error: Bad audio format %d\n", afmt);

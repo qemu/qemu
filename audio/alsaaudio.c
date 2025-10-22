@@ -264,7 +264,7 @@ static int alsa_poll_in (HWVoiceIn *hw)
     return alsa_poll_helper (alsa->handle, &alsa->pollhlp, POLLIN);
 }
 
-static snd_pcm_format_t aud_to_alsafmt (AudioFormat fmt, int endianness)
+static snd_pcm_format_t aud_to_alsafmt(AudioFormat fmt, bool big_endian)
 {
     switch (fmt) {
     case AUDIO_FORMAT_S8:
@@ -274,39 +274,19 @@ static snd_pcm_format_t aud_to_alsafmt (AudioFormat fmt, int endianness)
         return SND_PCM_FORMAT_U8;
 
     case AUDIO_FORMAT_S16:
-        if (endianness) {
-            return SND_PCM_FORMAT_S16_BE;
-        } else {
-            return SND_PCM_FORMAT_S16_LE;
-        }
+        return big_endian ? SND_PCM_FORMAT_S16_BE : SND_PCM_FORMAT_S16_LE;
 
     case AUDIO_FORMAT_U16:
-        if (endianness) {
-            return SND_PCM_FORMAT_U16_BE;
-        } else {
-            return SND_PCM_FORMAT_U16_LE;
-        }
+        return big_endian ? SND_PCM_FORMAT_U16_BE : SND_PCM_FORMAT_U16_LE;
 
     case AUDIO_FORMAT_S32:
-        if (endianness) {
-            return SND_PCM_FORMAT_S32_BE;
-        } else {
-            return SND_PCM_FORMAT_S32_LE;
-        }
+        return big_endian ? SND_PCM_FORMAT_S32_BE : SND_PCM_FORMAT_S32_LE;
 
     case AUDIO_FORMAT_U32:
-        if (endianness) {
-            return SND_PCM_FORMAT_U32_BE;
-        } else {
-            return SND_PCM_FORMAT_U32_LE;
-        }
+        return big_endian ? SND_PCM_FORMAT_U32_BE : SND_PCM_FORMAT_U32_LE;
 
     case AUDIO_FORMAT_F32:
-        if (endianness) {
-            return SND_PCM_FORMAT_FLOAT_BE;
-        } else {
-            return SND_PCM_FORMAT_FLOAT_LE;
-        }
+        return big_endian ? SND_PCM_FORMAT_FLOAT_BE : SND_PCM_FORMAT_FLOAT_LE;
 
     default:
         dolog ("Internal logic error: Bad audio format %d\n", fmt);
