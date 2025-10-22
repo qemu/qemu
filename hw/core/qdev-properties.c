@@ -1117,12 +1117,11 @@ static void qdev_get_legacy_property(Object *obj, Visitor *v,
                                      Error **errp)
 {
     const Property *prop = opaque;
+    char *s;
 
-    char buffer[1024];
-    char *ptr = buffer;
-
-    prop->info->print(obj, prop, buffer, sizeof(buffer));
-    visit_type_str(v, name, &ptr, errp);
+    s = prop->info->print(obj, prop);
+    visit_type_str(v, name, &s, errp);
+    g_free(s);
 }
 
 /**
