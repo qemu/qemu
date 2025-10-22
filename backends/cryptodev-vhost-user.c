@@ -46,7 +46,7 @@ struct CryptoDevBackendVhostUser {
     CryptoDevBackend parent_obj;
 
     VhostUserState vhost_user;
-    CharBackend chr;
+    CharFrontend chr;
     char *chr_name;
     bool opened;
     CryptoDevBackendVhost *vhost_crypto[MAX_CRYPTO_QUEUE_NUM];

@@ -154,7 +154,7 @@ struct Exynos4210UartState {
     QEMUTimer *fifo_timeout_timer;
     uint64_t wordtime;        /* word time in ns */
 
-    CharBackend       chr;
+    CharFrontend       chr;
     qemu_irq          irq;
     qemu_irq          dmairq;
 

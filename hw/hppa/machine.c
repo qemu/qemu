@@ -149,7 +149,7 @@ static void io_cpu_write(void *opaque, hwaddr addr,
         ch = val;
         debugout = serial_hd(0);
         if (debugout) {
-            qemu_chr_fe_write_all(debugout->be, &ch, 1);
+            qemu_chr_fe_write_all(debugout->fe, &ch, 1);
         } else {
             fprintf(stderr, "%c", ch);
         }

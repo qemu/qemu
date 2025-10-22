@@ -47,7 +47,7 @@ struct PL011State {
     int read_pos;
     int read_count;
     int read_trigger;
-    CharBackend chr;
+    CharFrontend chr;
     qemu_irq irq[6];
     Clock *clk;
     bool migrate_clk;

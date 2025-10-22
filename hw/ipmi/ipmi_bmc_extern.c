@@ -67,7 +67,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(IPMIBmcExtern, IPMI_BMC_EXTERN)
 struct IPMIBmcExtern {
     IPMIBmc parent;
 
-    CharBackend chr;
+    CharFrontend chr;
 
     bool connected;
 

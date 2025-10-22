@@ -53,7 +53,7 @@ struct XenConsole {
     char              *fe_path;
     unsigned int      ring_ref;
     void              *sring;
-    CharBackend       chr;
+    CharFrontend       chr;
     int               backlog;
 };
 typedef struct XenConsole XenConsole;

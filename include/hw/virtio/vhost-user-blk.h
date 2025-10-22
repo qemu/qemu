@@ -29,7 +29,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(VHostUserBlk, VHOST_USER_BLK)
 
 struct VHostUserBlk {
     VirtIODevice parent_obj;
-    CharBackend chardev;
+    CharFrontend chardev;
     int32_t bootindex;
     struct virtio_blk_config blkcfg;
     uint16_t num_queues;

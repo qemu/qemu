@@ -41,7 +41,7 @@ typedef struct OprtnsCommand {
 
 struct SCLPConsoleLM {
     SCLPEvent event;
-    CharBackend chr;
+    CharFrontend chr;
     bool echo;                  /* immediate echo of input if true        */
     uint32_t write_errors;      /* errors writing to char layer           */
     uint32_t length;            /* length of byte stream in buffer        */

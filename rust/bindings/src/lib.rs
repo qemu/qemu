@@ -28,8 +28,8 @@ include!(concat!(env!("OUT_DIR"), "/bindings.inc.rs"));
 // BQL is taken, either directly or via `BqlCell` and `BqlRefCell`.
 // When bindings for character devices are introduced, this can be
 // moved to the Opaque<> wrapper in src/chardev.rs.
-unsafe impl Send for CharBackend {}
-unsafe impl Sync for CharBackend {}
+unsafe impl Send for CharFrontend {}
+unsafe impl Sync for CharFrontend {}
 
 // SAFETY: this is a pure data struct
 unsafe impl Send for CoalescedMemoryRange {}

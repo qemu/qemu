@@ -66,7 +66,7 @@ struct AVRUsartState {
     /* <public> */
     MemoryRegion mmio;
 
-    CharBackend chr;
+    CharFrontend chr;
 
     bool enabled;
 

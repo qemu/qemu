@@ -32,7 +32,7 @@ struct VhostUserBackend {
     Object parent;
 
     char *chr_name;
-    CharBackend chr;
+    CharFrontend chr;
     VhostUserState vhost_user;
     struct vhost_dev dev;
     VirtIODevice *vdev;

@@ -107,18 +107,18 @@ static void char_console_test(void)
 static void char_stdio_test_subprocess(void)
 {
     Chardev *chr;
-    CharBackend be;
+    CharFrontend c;
     int ret;
 
     chr = qemu_chr_new("label", "stdio", NULL);
     g_assert_nonnull(chr);
 
-    qemu_chr_fe_init(&be, chr, &error_abort);
-    qemu_chr_fe_set_open(&be, true);
-    ret = qemu_chr_fe_write(&be, (void *)"buf", 4);
+    qemu_chr_fe_init(&c, chr, &error_abort);
+    qemu_chr_fe_set_open(&c, true);
+    ret = qemu_chr_fe_write(&c, (void *)"buf", 4);
     g_assert_cmpint(ret, ==, 4);
 
-    qemu_chr_fe_deinit(&be, true);
+    qemu_chr_fe_deinit(&c, true);
 }
 
 static void char_stdio_test(void)
@@ -132,7 +132,7 @@ static void char_ringbuf_test(void)
 {
     QemuOpts *opts;
     Chardev *chr;
-    CharBackend be;
+    CharFrontend c;
     char *data;
     int ret;
 
@@ -153,8 +153,8 @@ static void char_ringbuf_test(void)
     g_assert_nonnull(chr);
     qemu_opts_del(opts);
 
-    qemu_chr_fe_init(&be, chr, &error_abort);
-    ret = qemu_chr_fe_write(&be, (void *)"buff", 4);
+    qemu_chr_fe_init(&c, chr, &error_abort);
+    ret = qemu_chr_fe_write(&c, (void *)"buff", 4);
     g_assert_cmpint(ret, ==, 4);
 
     data = qmp_ringbuf_read("ringbuf-label", 4, false, 0, &error_abort);
@@ -165,7 +165,7 @@ static void char_ringbuf_test(void)
     g_assert_cmpstr(data, ==, "");
     g_free(data);
 
-    qemu_chr_fe_deinit(&be, true);
+    qemu_chr_fe_deinit(&c, true);
 
     /* check alias */
     opts = qemu_opts_create(qemu_find_opts("chardev"), "memory-label",
@@ -184,7 +184,7 @@ static void char_mux_test(void)
     Chardev *chr, *base;
     char *data;
     FeHandler h1 = { 0, false, 0, false, }, h2 = { 0, false, 0, false, };
-    CharBackend chr_be1, chr_be2;
+    CharFrontend chr_fe1, chr_fe2;
     Error *error = NULL;
 
     /* Create mux and chardev to be immediately removed */
@@ -210,8 +210,8 @@ static void char_mux_test(void)
     g_assert_nonnull(chr);
     qemu_opts_del(opts);
 
-    qemu_chr_fe_init(&chr_be1, chr, &error_abort);
-    qemu_chr_fe_set_handlers(&chr_be1,
+    qemu_chr_fe_init(&chr_fe1, chr, &error_abort);
+    qemu_chr_fe_set_handlers(&chr_fe1,
                              fe_can_read,
                              fe_read,
                              fe_event,
@@ -219,15 +219,15 @@ static void char_mux_test(void)
                              &h1,
                              NULL, true);
 
-    qemu_chr_fe_init(&chr_be2, chr, &error_abort);
-    qemu_chr_fe_set_handlers(&chr_be2,
+    qemu_chr_fe_init(&chr_fe2, chr, &error_abort);
+    qemu_chr_fe_set_handlers(&chr_fe2,
                              fe_can_read,
                              fe_read,
                              fe_event,
                              NULL,
                              &h2,
                              NULL, true);
-    qemu_chr_fe_take_focus(&chr_be2);
+    qemu_chr_fe_take_focus(&chr_fe2);
 
     base = qemu_chr_find("mux-label-base");
     g_assert_cmpint(qemu_chr_be_can_write(base), !=, 0);
@@ -271,8 +271,8 @@ static void char_mux_test(void)
     g_assert_cmpint(h2.last_event, ==, CHR_EVENT_MUX_OUT);
 
     /* open/close state and corresponding events */
-    g_assert_true(qemu_chr_fe_backend_open(&chr_be1));
-    g_assert_true(qemu_chr_fe_backend_open(&chr_be2));
+    g_assert_true(qemu_chr_fe_backend_open(&chr_fe1));
+    g_assert_true(qemu_chr_fe_backend_open(&chr_fe2));
     g_assert_true(h1.is_open);
     g_assert_false(h1.openclose_mismatch);
     g_assert_true(h2.is_open);
@@ -280,22 +280,22 @@ static void char_mux_test(void)
 
     h1.openclose_count = h2.openclose_count = 0;
 
-    qemu_chr_fe_set_handlers(&chr_be1, NULL, NULL, NULL, NULL,
+    qemu_chr_fe_set_handlers(&chr_fe1, NULL, NULL, NULL, NULL,
                              NULL, NULL, false);
-    qemu_chr_fe_set_handlers(&chr_be2, NULL, NULL, NULL, NULL,
+    qemu_chr_fe_set_handlers(&chr_fe2, NULL, NULL, NULL, NULL,
                              NULL, NULL, false);
     g_assert_cmpint(h1.openclose_count, ==, 0);
     g_assert_cmpint(h2.openclose_count, ==, 0);
 
     h1.is_open = h2.is_open = false;
-    qemu_chr_fe_set_handlers(&chr_be1,
+    qemu_chr_fe_set_handlers(&chr_fe1,
                              NULL,
                              NULL,
                              fe_event,
                              NULL,
                              &h1,
                              NULL, false);
-    qemu_chr_fe_set_handlers(&chr_be2,
+    qemu_chr_fe_set_handlers(&chr_fe2,
                              NULL,
                              NULL,
                              fe_event,
@@ -314,14 +314,14 @@ static void char_mux_test(void)
     g_assert_cmpint(h2.openclose_count, ==, 3);
     g_assert_false(h2.openclose_mismatch);
 
-    qemu_chr_fe_set_handlers(&chr_be2,
+    qemu_chr_fe_set_handlers(&chr_fe2,
                              fe_can_read,
                              fe_read,
                              fe_event,
                              NULL,
                              &h2,
                              NULL, false);
-    qemu_chr_fe_set_handlers(&chr_be1,
+    qemu_chr_fe_set_handlers(&chr_fe1,
                              fe_can_read,
                              fe_read,
                              fe_event,
@@ -330,7 +330,7 @@ static void char_mux_test(void)
                              NULL, false);
 
     /* remove first handler */
-    qemu_chr_fe_set_handlers(&chr_be1, NULL, NULL, NULL, NULL,
+    qemu_chr_fe_set_handlers(&chr_fe1, NULL, NULL, NULL, NULL,
                              NULL, NULL, true);
     qemu_chr_be_write(base, (void *)"hello", 6);
     g_assert_cmpint(h1.read_count, ==, 0);
@@ -349,13 +349,13 @@ static void char_mux_test(void)
     g_assert_cmpint(strlen(data), !=, 0);
     g_free(data);
 
-    qemu_chr_fe_deinit(&chr_be1, false);
+    qemu_chr_fe_deinit(&chr_fe1, false);
 
     qmp_chardev_remove("mux-label", &error);
     g_assert_cmpstr(error_get_pretty(error), ==, "Chardev 'mux-label' is busy");
     error_free(error);
 
-    qemu_chr_fe_deinit(&chr_be2, false);
+    qemu_chr_fe_deinit(&chr_fe2, false);
     qmp_chardev_remove("mux-label", &error_abort);
 }
 
@@ -366,7 +366,7 @@ static void char_hub_test(void)
     char *data;
     FeHandler h = { 0, false, 0, false, };
     Error *error = NULL;
-    CharBackend chr_be;
+    CharFrontend chr_fe;
     int ret, i;
 
 #define RB_SIZE 128
@@ -497,8 +497,8 @@ static void char_hub_test(void)
     qemu_opts_del(opts);
 
     /* Attach hub to a frontend */
-    qemu_chr_fe_init(&chr_be, hub, &error_abort);
-    qemu_chr_fe_set_handlers(&chr_be,
+    qemu_chr_fe_init(&chr_fe, hub, &error_abort);
+    qemu_chr_fe_set_handlers(&chr_fe,
                              fe_can_read,
                              fe_read,
                              fe_event,
@@ -507,7 +507,7 @@ static void char_hub_test(void)
                              NULL, true);
 
     /* Fails second time */
-    qemu_chr_fe_init(&chr_be, hub, &error);
+    qemu_chr_fe_init(&chr_fe, hub, &error);
     g_assert_cmpstr(error_get_pretty(error), ==, "chardev 'hub0' is already in use");
     error_free(error);
     error = NULL;
@@ -531,7 +531,7 @@ static void char_hub_test(void)
     h.read_count = 0;
 
     /* Write to frontend, chr_be */
-    ret = qemu_chr_fe_write(&chr_be, (void *)"heyhey", 6);
+    ret = qemu_chr_fe_write(&chr_fe, (void *)"heyhey", 6);
     g_assert_cmpint(ret, ==, 6);
 
     data = qmp_ringbuf_read("chr1", RB_SIZE, false, 0, &error_abort);
@@ -557,7 +557,7 @@ static void char_hub_test(void)
     error = NULL;
 
     /* Finalize frontend */
-    qemu_chr_fe_deinit(&chr_be, false);
+    qemu_chr_fe_deinit(&chr_fe, false);
 
     /* Finalize hub0 */
     qmp_chardev_remove("hub0", &error_abort);
@@ -632,8 +632,8 @@ static void char_hub_test(void)
         qemu_opts_del(opts);
 
         /* Attach hub to a frontend */
-        qemu_chr_fe_init(&chr_be, hub, &error_abort);
-        qemu_chr_fe_set_handlers(&chr_be,
+        qemu_chr_fe_init(&chr_fe, hub, &error_abort);
+        qemu_chr_fe_set_handlers(&chr_fe,
                                  fe_can_read,
                                  fe_read,
                                  fe_event,
@@ -642,7 +642,7 @@ static void char_hub_test(void)
                                  NULL, true);
 
         /* Write to frontend, chr_be */
-        ret = qemu_chr_fe_write(&chr_be, (void *)"thisis", 6);
+        ret = qemu_chr_fe_write(&chr_fe, (void *)"thisis", 6);
         g_assert_cmpint(ret, ==, 6);
 
         data = qmp_ringbuf_read("chr1", RB_SIZE, false, 0, &error_abort);
@@ -663,7 +663,7 @@ static void char_hub_test(void)
         close(fd);
 
         /* Add watch. 0 indicates no watches if nothing to wait for */
-        ret = qemu_chr_fe_add_watch(&chr_be, G_IO_OUT | G_IO_HUP,
+        ret = qemu_chr_fe_add_watch(&chr_fe, G_IO_OUT | G_IO_HUP,
                                     NULL, NULL);
         g_assert_cmpint(ret, ==, 0);
 
@@ -672,14 +672,14 @@ static void char_hub_test(void)
          * power of two to fit nicely the whole pipe buffer.
          */
         len = 0;
-        while ((ret = qemu_chr_fe_write(&chr_be, (void *)"thisisit", 8))
+        while ((ret = qemu_chr_fe_write(&chr_fe, (void *)"thisisit", 8))
                != -1) {
             len += ret;
         }
         g_assert_cmpint(errno, ==, EAGAIN);
 
         /* Further all writes should cause EAGAIN */
-        ret = qemu_chr_fe_write(&chr_be, (void *)"b", 1);
+        ret = qemu_chr_fe_write(&chr_fe, (void *)"b", 1);
         g_assert_cmpint(ret, ==, -1);
         g_assert_cmpint(errno, ==, EAGAIN);
 
@@ -687,7 +687,7 @@ static void char_hub_test(void)
          * Add watch. Non 0 indicates we have a blocked chardev, which
          * can wakes us up when write is possible.
          */
-        ret = qemu_chr_fe_add_watch(&chr_be, G_IO_OUT | G_IO_HUP,
+        ret = qemu_chr_fe_add_watch(&chr_fe, G_IO_OUT | G_IO_HUP,
                                     NULL, NULL);
         g_assert_cmpint(ret, !=, 0);
         g_source_remove(ret);
@@ -712,10 +712,10 @@ static void char_hub_test(void)
          * was already consumed and drained by the ring buffers, but
          * pipe have not recieved that yet.
          */
-        ret = qemu_chr_fe_write(&chr_be, (void *)"thisisit", 8);
+        ret = qemu_chr_fe_write(&chr_fe, (void *)"thisisit", 8);
         g_assert_cmpint(ret, ==, 8);
 
-        ret = qemu_chr_fe_write(&chr_be, (void *)"streamisrestored", 16);
+        ret = qemu_chr_fe_write(&chr_fe, (void *)"streamisrestored", 16);
         g_assert_cmpint(ret, ==, 16);
 
         data = qmp_ringbuf_read("chr1", RB_SIZE, false, 0, &error_abort);
@@ -744,7 +744,7 @@ static void char_hub_test(void)
         g_free(pipe);
 
         /* Finalize frontend */
-        qemu_chr_fe_deinit(&chr_be, false);
+        qemu_chr_fe_deinit(&chr_fe, false);
 
         /* Finalize hub0 */
         qmp_chardev_remove("hub0", &error_abort);
@@ -803,10 +803,10 @@ static void websock_client_read(void *opaque, const uint8_t *buf, int size)
     Chardev *chr_client = opaque;
 
     if (websock_check_http_headers((char *) buf, size)) {
-        qemu_chr_fe_write(chr_client->be, ping, sizeof(ping));
+        qemu_chr_fe_write(chr_client->fe, ping, sizeof(ping));
     } else if (buf[0] == 0x8a && buf[1] == 0x05) {
         g_assert(strncmp((char *) buf + 2, "hello", 5) == 0);
-        qemu_chr_fe_write(chr_client->be, binary, sizeof(binary));
+        qemu_chr_fe_write(chr_client->fe, binary, sizeof(binary));
     } else {
         g_assert(buf[0] == 0x88 && buf[1] == 0x16);
         g_assert(strncmp((char *) buf + 4, "peer requested close", 10) == 0);
@@ -828,8 +828,8 @@ static void char_websock_test(void)
     const char *port;
     char *tmp;
     char *handshake_port;
-    CharBackend be;
-    CharBackend client_be;
+    CharFrontend fe;
+    CharFrontend client_fe;
     Chardev *chr_client;
     Chardev *chr = qemu_chr_new("server",
                                 "websocket:127.0.0.1:0,server=on,wait=off", NULL);
@@ -852,13 +852,13 @@ static void char_websock_test(void)
     handshake_port = g_strdup_printf(handshake, port, port);
     qobject_unref(qdict);
 
-    qemu_chr_fe_init(&be, chr, &error_abort);
-    qemu_chr_fe_set_handlers(&be, websock_server_can_read, websock_server_read,
+    qemu_chr_fe_init(&fe, chr, &error_abort);
+    qemu_chr_fe_set_handlers(&fe, websock_server_can_read, websock_server_read,
                              NULL, NULL, chr, NULL, true);
 
     chr_client = qemu_chr_new("client", tmp, NULL);
-    qemu_chr_fe_init(&client_be, chr_client, &error_abort);
-    qemu_chr_fe_set_handlers(&client_be, websock_client_can_read,
+    qemu_chr_fe_init(&client_fe, chr_client, &error_abort);
+    qemu_chr_fe_set_handlers(&client_fe, websock_client_can_read,
                              websock_client_read,
                              NULL, NULL, chr_client, NULL, true);
     g_free(tmp);
@@ -887,7 +887,7 @@ static void char_pipe_test(void)
     gchar *tmp_path = g_dir_make_tmp("qemu-test-char.XXXXXX", NULL);
     gchar *tmp, *in, *out, *pipe = g_build_filename(tmp_path, "pipe", NULL);
     Chardev *chr;
-    CharBackend be;
+    CharFrontend c;
     int ret, fd;
     char buf[10];
     FeHandler fe = { 0, };
@@ -906,9 +906,9 @@ static void char_pipe_test(void)
     g_assert_nonnull(chr);
     g_free(tmp);
 
-    qemu_chr_fe_init(&be, chr, &error_abort);
+    qemu_chr_fe_init(&c, chr, &error_abort);
 
-    ret = qemu_chr_fe_write(&be, (void *)"pipe-out", 9);
+    ret = qemu_chr_fe_write(&c, (void *)"pipe-out", 9);
     g_assert_cmpint(ret, ==, 9);
 
     fd = open(out, O_RDWR);
@@ -922,7 +922,7 @@ static void char_pipe_test(void)
     g_assert_cmpint(ret, ==, 8);
     close(fd);
 
-    qemu_chr_fe_set_handlers(&be,
+    qemu_chr_fe_set_handlers(&c,
                              fe_can_read,
                              fe_read,
                              fe_event,
@@ -935,7 +935,7 @@ static void char_pipe_test(void)
     g_assert_cmpint(fe.read_count, ==, 8);
     g_assert_cmpstr(fe.read_buf, ==, "pipe-in");
 
-    qemu_chr_fe_deinit(&be, true);
+    qemu_chr_fe_deinit(&c, true);
 
     g_assert(g_unlink(in) == 0);
     g_assert(g_unlink(out) == 0);
@@ -951,8 +951,8 @@ typedef struct SocketIdleData {
     GMainLoop *loop;
     Chardev *chr;
     bool conn_expected;
-    CharBackend *be;
-    CharBackend *client_be;
+    CharFrontend *fe;
+    CharFrontend *client_fe;
 } SocketIdleData;
 
 
@@ -993,7 +993,7 @@ static void char_udp_test_internal(Chardev *reuse_chr, int sock)
     struct sockaddr_in other;
     SocketIdleData d = { 0, };
     Chardev *chr;
-    CharBackend stack_be, *be = &stack_be;
+    CharFrontend stack_fe, *fe = &stack_fe;
     socklen_t alen = sizeof(other);
     int ret;
     char buf[10];
@@ -1001,7 +1001,7 @@ static void char_udp_test_internal(Chardev *reuse_chr, int sock)
 
     if (reuse_chr) {
         chr = reuse_chr;
-        be = chr->be;
+        fe = chr->fe;
     } else {
         int port;
         sock = make_udp_socket(&port);
@@ -1009,11 +1009,11 @@ static void char_udp_test_internal(Chardev *reuse_chr, int sock)
         chr = qemu_chr_new("client", tmp, NULL);
         g_assert_nonnull(chr);
 
-        qemu_chr_fe_init(be, chr, &error_abort);
+        qemu_chr_fe_init(fe, chr, &error_abort);
     }
 
     d.chr = chr;
-    qemu_chr_fe_set_handlers(be, socket_can_read_hello, socket_read_hello,
+    qemu_chr_fe_set_handlers(fe, socket_can_read_hello, socket_read_hello,
                              NULL, NULL, &d, NULL, true);
     ret = qemu_chr_write_all(chr, (uint8_t *)"hello", 5);
     g_assert_cmpint(ret, ==, 5);
@@ -1028,7 +1028,7 @@ static void char_udp_test_internal(Chardev *reuse_chr, int sock)
 
     if (!reuse_chr) {
         close(sock);
-        qemu_chr_fe_deinit(be, true);
+        qemu_chr_fe_deinit(fe, true);
     }
     g_free(tmp);
 }
@@ -1042,7 +1042,7 @@ static void char_udp_test(void)
 typedef struct {
     int event;
     bool got_pong;
-    CharBackend *be;
+    CharFrontend *fe;
 } CharSocketTestData;
 
 
@@ -1063,13 +1063,13 @@ char_socket_event_with_error(void *opaque, QEMUChrEvent event)
 {
     static bool first_error;
     CharSocketTestData *data = opaque;
-    CharBackend *be = data->be;
+    CharFrontend *fe = data->fe;
     data->event = event;
     switch (event) {
     case CHR_EVENT_OPENED:
         if (!first_error) {
             first_error = true;
-            qemu_chr_fe_disconnect(be);
+            qemu_chr_fe_disconnect(fe);
         }
         return;
     case CHR_EVENT_CLOSED:
@@ -1185,7 +1185,7 @@ static void char_socket_server_test(gconstpointer opaque)
 {
     const CharSocketServerTestConfig *config = opaque;
     Chardev *chr;
-    CharBackend be = {0};
+    CharFrontend c = {0};
     CharSocketTestData data = {0};
     QObject *qaddr;
     SocketAddress *addr;
@@ -1224,12 +1224,12 @@ static void char_socket_server_test(gconstpointer opaque)
     visit_free(v);
     qobject_unref(qaddr);
 
-    qemu_chr_fe_init(&be, chr, &error_abort);
+    qemu_chr_fe_init(&c, chr, &error_abort);
 
  reconnect:
     data.event = -1;
-    data.be = &be;
-    qemu_chr_fe_set_handlers(&be, NULL, NULL,
+    data.fe = &c;
+    qemu_chr_fe_set_handlers(&c, NULL, NULL,
                              char_socket_event, NULL,
                              &data, NULL, true);
     g_assert(data.event == -1);
@@ -1260,13 +1260,13 @@ static void char_socket_server_test(gconstpointer opaque)
     data.event = -1;
 
     /* Send a greeting to the client */
-    ret = qemu_chr_fe_write_all(&be, (const uint8_t *)SOCKET_PING,
+    ret = qemu_chr_fe_write_all(&c, (const uint8_t *)SOCKET_PING,
                                 sizeof(SOCKET_PING));
     g_assert_cmpint(ret, ==, sizeof(SOCKET_PING));
     g_assert(data.event == -1);
 
     /* Setup a callback to receive the reply to our greeting */
-    qemu_chr_fe_set_handlers(&be, char_socket_can_read,
+    qemu_chr_fe_set_handlers(&c, char_socket_can_read,
                              char_socket_read,
                              char_socket_event, NULL,
                              &data, NULL, true);
@@ -1375,7 +1375,7 @@ static void char_socket_client_test(gconstpointer opaque)
     QIOChannelSocket *ioc;
     char *optstr;
     Chardev *chr;
-    CharBackend be = {0};
+    CharFrontend c = {0};
     CharSocketTestData data = {0};
     SocketAddress *addr;
     QemuThread thread;
@@ -1431,12 +1431,12 @@ static void char_socket_client_test(gconstpointer opaque)
                                           &error_abort));
     }
 
-    qemu_chr_fe_init(&be, chr, &error_abort);
+    qemu_chr_fe_init(&c, chr, &error_abort);
 
  reconnect:
     data.event = -1;
-    data.be = &be;
-    qemu_chr_fe_set_handlers(&be, NULL, NULL,
+    data.fe = &c;
+    qemu_chr_fe_set_handlers(&c, NULL, NULL,
                              event_cb, NULL,
                              &data, NULL, true);
     if (config->reconnect) {
@@ -1467,13 +1467,13 @@ static void char_socket_client_test(gconstpointer opaque)
     g_assert(object_property_get_bool(OBJECT(chr), "connected", &error_abort));
 
     /* Send a greeting to the server */
-    ret = qemu_chr_fe_write_all(&be, (const uint8_t *)SOCKET_PING,
+    ret = qemu_chr_fe_write_all(&c, (const uint8_t *)SOCKET_PING,
                                 sizeof(SOCKET_PING));
     g_assert_cmpint(ret, ==, sizeof(SOCKET_PING));
     g_assert(data.event == -1);
 
     /* Setup a callback to receive the reply to our greeting */
-    qemu_chr_fe_set_handlers(&be, char_socket_can_read,
+    qemu_chr_fe_set_handlers(&c, char_socket_can_read,
                              char_socket_read,
                              event_cb, NULL,
                              &data, NULL, true);
@@ -1521,7 +1521,7 @@ static void char_socket_server_two_clients_test(gconstpointer opaque)
 {
     SocketAddress *incoming_addr = (gpointer) opaque;
     Chardev *chr;
-    CharBackend be = {0};
+    CharFrontend c = {0};
     QObject *qaddr;
     SocketAddress *addr;
     Visitor *v;
@@ -1558,9 +1558,9 @@ static void char_socket_server_two_clients_test(gconstpointer opaque)
     visit_free(v);
     qobject_unref(qaddr);
 
-    qemu_chr_fe_init(&be, chr, &error_abort);
+    qemu_chr_fe_init(&c, chr, &error_abort);
 
-    qemu_chr_fe_set_handlers(&be, char_socket_can_read, char_socket_discard_read,
+    qemu_chr_fe_set_handlers(&c, char_socket_can_read, char_socket_discard_read,
                              count_closed_event, NULL,
                              &closed, NULL, true);
 
@@ -1570,7 +1570,7 @@ static void char_socket_server_two_clients_test(gconstpointer opaque)
 
     /* switch the chardev to another context */
     GMainContext *ctx = g_main_context_new();
-    qemu_chr_fe_set_handlers(&be, char_socket_can_read, char_socket_discard_read,
+    qemu_chr_fe_set_handlers(&c, char_socket_can_read, char_socket_discard_read,
                              count_closed_event, NULL,
                              &closed, ctx, true);
 
@@ -1649,7 +1649,7 @@ static void char_parallel_test(void)
 static void char_file_fifo_test(void)
 {
     Chardev *chr;
-    CharBackend be;
+    CharFrontend c;
     char *tmp_path = g_dir_make_tmp("qemu-test-char.XXXXXX", NULL);
     char *fifo = g_build_filename(tmp_path, "fifo", NULL);
     char *out = g_build_filename(tmp_path, "out", NULL);
@@ -1671,8 +1671,8 @@ static void char_file_fifo_test(void)
     chr = qemu_chardev_new("label-file", TYPE_CHARDEV_FILE, &backend,
                            NULL, &error_abort);
 
-    qemu_chr_fe_init(&be, chr, &error_abort);
-    qemu_chr_fe_set_handlers(&be,
+    qemu_chr_fe_init(&c, chr, &error_abort);
+    qemu_chr_fe_set_handlers(&c,
                              fe_can_read,
                              fe_read,
                              fe_event,
@@ -1692,7 +1692,7 @@ static void char_file_fifo_test(void)
     g_assert_cmpint(fe.read_count, ==, 8);
     g_assert_cmpstr(fe.read_buf, ==, "fifo-in");
 
-    qemu_chr_fe_deinit(&be, true);
+    qemu_chr_fe_deinit(&c, true);
 
     g_unlink(fifo);
     g_free(fifo);
@@ -1752,7 +1752,7 @@ static void char_null_test(void)
 {
     Error *err = NULL;
     Chardev *chr;
-    CharBackend be;
+    CharFrontend c;
     int ret;
 
     chr = qemu_chr_find("label-null");
@@ -1768,27 +1768,27 @@ static void char_null_test(void)
                  QEMU_CHAR_FEATURE_RECONNECTABLE) == false);
 
     /* check max avail */
-    qemu_chr_fe_init(&be, chr, &error_abort);
-    qemu_chr_fe_init(&be, chr, &err);
+    qemu_chr_fe_init(&c, chr, &error_abort);
+    qemu_chr_fe_init(&c, chr, &err);
     error_free_or_abort(&err);
 
     /* deinit & reinit */
-    qemu_chr_fe_deinit(&be, false);
-    qemu_chr_fe_init(&be, chr, &error_abort);
+    qemu_chr_fe_deinit(&c, false);
+    qemu_chr_fe_init(&c, chr, &error_abort);
 
-    qemu_chr_fe_set_open(&be, true);
+    qemu_chr_fe_set_open(&c, true);
 
-    qemu_chr_fe_set_handlers(&be,
+    qemu_chr_fe_set_handlers(&c,
                              fe_can_read,
                              fe_read,
                              fe_event,
                              NULL,
                              NULL, NULL, true);
 
-    ret = qemu_chr_fe_write(&be, (void *)"buf", 4);
+    ret = qemu_chr_fe_write(&c, (void *)"buf", 4);
     g_assert_cmpint(ret, ==, 4);
 
-    qemu_chr_fe_deinit(&be, true);
+    qemu_chr_fe_deinit(&c, true);
 }
 
 static void char_invalid_test(void)
@@ -1814,7 +1814,7 @@ static void char_hotswap_test(void)
 {
     char *chr_args;
     Chardev *chr;
-    CharBackend be;
+    CharFrontend c;
 
     gchar *tmp_path = g_dir_make_tmp("qemu-test-char.XXXXXX", NULL);
     char *filename = g_build_filename(tmp_path, "file", NULL);
@@ -1830,32 +1830,32 @@ static void char_hotswap_test(void)
     chr_args = g_strdup_printf("udp:127.0.0.1:%d", port);
 
     chr = qemu_chr_new("chardev", chr_args, NULL);
-    qemu_chr_fe_init(&be, chr, &error_abort);
+    qemu_chr_fe_init(&c, chr, &error_abort);
 
     /* check that chardev operates correctly */
     char_udp_test_internal(chr, sock);
 
     /* set the handler that denies the hotswap */
-    qemu_chr_fe_set_handlers(&be, NULL, NULL,
+    qemu_chr_fe_set_handlers(&c, NULL, NULL,
                              NULL, chardev_change_denied, NULL, NULL, true);
 
     /* now, change is denied and has to keep the old backend operating */
     ret = qmp_chardev_change("chardev", &backend, NULL);
     g_assert(!ret);
-    g_assert(be.chr == chr);
+    g_assert(c.chr == chr);
 
     char_udp_test_internal(chr, sock);
 
     /* now allow the change */
-    qemu_chr_fe_set_handlers(&be, NULL, NULL,
+    qemu_chr_fe_set_handlers(&c, NULL, NULL,
                              NULL, chardev_change, NULL, NULL, true);
 
     /* has to succeed now */
     ret = qmp_chardev_change("chardev", &backend, &error_abort);
-    g_assert(be.chr != chr);
+    g_assert(c.chr != chr);
 
     close(sock);
-    chr = be.chr;
+    chr = c.chr;
 
     /* run the file chardev test */
     char_file_test_internal(chr, filename);

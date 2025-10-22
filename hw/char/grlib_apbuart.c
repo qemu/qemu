@@ -84,7 +84,7 @@ struct UART {
     MemoryRegion iomem;
     qemu_irq irq;
 
-    CharBackend chr;
+    CharFrontend chr;
 
     /* registers */
     uint32_t status;

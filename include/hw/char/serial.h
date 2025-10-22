@@ -54,7 +54,7 @@ struct SerialState {
        it can be reset while reading iir */
     int thr_ipending;
     qemu_irq irq;
-    CharBackend chr;
+    CharFrontend chr;
     int last_break_enable;
     uint32_t baudbase;
     uint32_t tsr_retry;

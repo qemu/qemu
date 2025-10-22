@@ -99,7 +99,7 @@ typedef struct SCC2698Block SCC2698Block;
 
 struct SCC2698Channel {
     IPOctalState *ipoctal;
-    CharBackend dev;
+    CharFrontend dev;
     bool rx_enabled;
     uint8_t mr[2];
     uint8_t mr_idx;

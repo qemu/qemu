@@ -67,7 +67,7 @@ struct SHSerialState {
     int flags;
     int rtrg;
 
-    CharBackend chr;
+    CharFrontend chr;
     QEMUTimer fifo_timeout_timer;
     uint64_t etu; /* Elementary Time Unit (ns) */
 

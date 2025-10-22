@@ -105,7 +105,7 @@ struct USBSerialState {
     uint8_t xoff;
     QEMUSerialSetParams params;
     int latency;        /* ms */
-    CharBackend cs;
+    CharFrontend cs;
 };
 
 #define TYPE_USB_SERIAL "usb-serial-dev"

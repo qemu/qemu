@@ -1598,7 +1598,7 @@ static void kvm_riscv_handle_sbi_dbcn(CPUState *cs, struct kvm_run *run)
         buf = g_malloc0(num_bytes);
 
         if (run->riscv_sbi.function_id == SBI_EXT_DBCN_CONSOLE_READ) {
-            ret = qemu_chr_fe_read_all(serial_hd(0)->be, buf, num_bytes);
+            ret = qemu_chr_fe_read_all(serial_hd(0)->fe, buf, num_bytes);
             if (ret < 0) {
                 error_report("SBI_EXT_DBCN_CONSOLE_READ: error when "
                              "reading chardev");
@@ -1609,7 +1609,7 @@ static void kvm_riscv_handle_sbi_dbcn(CPUState *cs, struct kvm_run *run)
         } else {
             address_space_read(cs->as, addr, attrs, buf, num_bytes);
 
-            ret = qemu_chr_fe_write_all(serial_hd(0)->be, buf, num_bytes);
+            ret = qemu_chr_fe_write_all(serial_hd(0)->fe, buf, num_bytes);
             if (ret < 0) {
                 error_report("SBI_EXT_DBCN_CONSOLE_WRITE: error when "
                              "writing chardev");
@@ -1622,7 +1622,7 @@ static void kvm_riscv_handle_sbi_dbcn(CPUState *cs, struct kvm_run *run)
         break;
     case SBI_EXT_DBCN_CONSOLE_WRITE_BYTE:
         ch = run->riscv_sbi.args[0];
-        ret = qemu_chr_fe_write_all(serial_hd(0)->be, &ch, sizeof(ch));
+        ret = qemu_chr_fe_write_all(serial_hd(0)->fe, &ch, sizeof(ch));
 
         if (ret < 0) {
             error_report("SBI_EXT_DBCN_CONSOLE_WRITE_BYTE: error when "
@@ -1645,10 +1645,10 @@ static int kvm_riscv_handle_sbi(CPUState *cs, struct kvm_run *run)
     switch (run->riscv_sbi.extension_id) {
     case SBI_EXT_0_1_CONSOLE_PUTCHAR:
         ch = run->riscv_sbi.args[0];
-        qemu_chr_fe_write(serial_hd(0)->be, &ch, sizeof(ch));
+        qemu_chr_fe_write(serial_hd(0)->fe, &ch, sizeof(ch));
         break;
     case SBI_EXT_0_1_CONSOLE_GETCHAR:
-        ret = qemu_chr_fe_read_all(serial_hd(0)->be, &ch, sizeof(ch));
+        ret = qemu_chr_fe_read_all(serial_hd(0)->fe, &ch, sizeof(ch));
         if (ret == sizeof(ch)) {
             run->riscv_sbi.ret[0] = ch;
         } else {

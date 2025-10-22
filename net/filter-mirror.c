@@ -37,8 +37,8 @@ struct MirrorState {
     NetFilterState parent_obj;
     char *indev;
     char *outdev;
-    CharBackend chr_in;
-    CharBackend chr_out;
+    CharFrontend chr_in;
+    CharFrontend chr_out;
     SocketReadState rs;
     bool vnet_hdr;
 };

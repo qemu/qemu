@@ -258,10 +258,10 @@ const PropertyInfo qdev_prop_drive_iothread = {
 static void get_chr(Object *obj, Visitor *v, const char *name, void *opaque,
                     Error **errp)
 {
-    CharBackend *be = object_field_prop_ptr(obj, opaque);
+    CharFrontend *fe = object_field_prop_ptr(obj, opaque);
     char *p;
 
-    p = g_strdup(be->chr && be->chr->label ? be->chr->label : "");
+    p = g_strdup(fe->chr && fe->chr->label ? fe->chr->label : "");
     visit_type_str(v, name, &p, errp);
     g_free(p);
 }
@@ -271,7 +271,7 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
 {
     ERRP_GUARD();
     const Property *prop = opaque;
-    CharBackend *be = object_field_prop_ptr(obj, prop);
+    CharFrontend *fe = object_field_prop_ptr(obj, prop);
     Chardev *s;
     char *str;
 
@@ -283,13 +283,13 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
      * TODO Should this really be an error?  If no, the old value
      * needs to be released before we store the new one.
      */
-    if (!check_prop_still_unset(obj, name, be->chr, str, false, errp)) {
+    if (!check_prop_still_unset(obj, name, fe->chr, str, false, errp)) {
         return;
     }
 
     if (!*str) {
         g_free(str);
-        be->chr = NULL;
+        fe->chr = NULL;
         return;
     }
 
@@ -297,7 +297,7 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
     if (s == NULL) {
         error_setg(errp, "Property '%s.%s' can't find value '%s'",
                    object_get_typename(obj), name, str);
-    } else if (!qemu_chr_fe_init(be, s, errp)) {
+    } else if (!qemu_chr_fe_init(fe, s, errp)) {
         error_prepend(errp, "Property '%s.%s' can't take value '%s': ",
                       object_get_typename(obj), name, str);
     }
@@ -307,9 +307,9 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
 static void release_chr(Object *obj, const char *name, void *opaque)
 {
     const Property *prop = opaque;
-    CharBackend *be = object_field_prop_ptr(obj, prop);
+    CharFrontend *fe = object_field_prop_ptr(obj, prop);
 
-    qemu_chr_fe_deinit(be, false);
+    qemu_chr_fe_deinit(fe, false);
 }
 
 const PropertyInfo qdev_prop_chr = {

@@ -24,7 +24,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(RngEgd, RNG_EGD)
 struct RngEgd {
     RngBackend parent;
 
-    CharBackend chr;
+    CharFrontend chr;
     char *chr_name;
 };
 

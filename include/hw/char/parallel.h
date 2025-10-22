@@ -15,7 +15,7 @@ typedef struct ParallelState {
     uint8_t control;
     qemu_irq irq;
     int irq_pending;
-    CharBackend chr;
+    CharFrontend chr;
     int hw_driver;
     int epp_timeout;
     uint32_t last_read_offset; /* For debugging */

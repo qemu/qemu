@@ -53,13 +53,13 @@ Object *get_chardevs_root(void)
 
 static void chr_be_event(Chardev *s, QEMUChrEvent event)
 {
-    CharBackend *be = s->be;
+    CharFrontend *fe = s->fe;
 
-    if (!be || !be->chr_event) {
+    if (!fe || !fe->chr_event) {
         return;
     }
 
-    be->chr_event(be->opaque, event);
+    fe->chr_event(fe->opaque, event);
 }
 
 void qemu_chr_be_event(Chardev *s, QEMUChrEvent event)
@@ -197,21 +197,21 @@ int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all)
 
 int qemu_chr_be_can_write(Chardev *s)
 {
-    CharBackend *be = s->be;
+    CharFrontend *fe = s->fe;
 
-    if (!be || !be->chr_can_read) {
+    if (!fe || !fe->chr_can_read) {
         return 0;
     }
 
-    return be->chr_can_read(be->opaque);
+    return fe->chr_can_read(fe->opaque);
 }
 
 void qemu_chr_be_write_impl(Chardev *s, const uint8_t *buf, int len)
 {
-    CharBackend *be = s->be;
+    CharFrontend *fe = s->fe;
 
-    if (be && be->chr_read) {
-        be->chr_read(be->opaque, buf, len);
+    if (fe && fe->chr_read) {
+        fe->chr_read(fe->opaque, buf, len);
     }
 }
 
@@ -307,8 +307,8 @@ static void char_finalize(Object *obj)
 {
     Chardev *chr = CHARDEV(obj);
 
-    if (chr->be) {
-        chr->be->chr = NULL;
+    if (chr->fe) {
+        chr->fe->chr = NULL;
     }
     g_free(chr->filename);
     g_free(chr->label);
@@ -335,7 +335,7 @@ static bool qemu_chr_is_busy(Chardev *s)
         MuxChardev *d = MUX_CHARDEV(s);
         return d->mux_bitset != 0;
     } else {
-        return s->be != NULL;
+        return s->fe != NULL;
     }
 }
 
@@ -798,7 +798,7 @@ static int qmp_query_chardev_foreach(Object *obj, void *data)
 
     value->label = g_strdup(chr->label);
     value->filename = g_strdup(chr->filename);
-    value->frontend_open = chr->be && chr->be->fe_is_open;
+    value->frontend_open = chr->fe && chr->fe->fe_is_open;
 
     QAPI_LIST_PREPEND(*list, value);
 
@@ -1112,7 +1112,7 @@ err:
 ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
                                   Error **errp)
 {
-    CharBackend *be;
+    CharFrontend *fe;
     const ChardevClass *cc, *cc_new;
     Chardev *chr, *chr_new;
     bool closed_sent = false;
@@ -1136,14 +1136,14 @@ ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
         return NULL;
     }
 
-    be = chr->be;
-    if (!be) {
+    fe = chr->fe;
+    if (!fe) {
         /* easy case */
         object_unparent(OBJECT(chr));
         return qmp_chardev_add(id, backend, errp);
     }
 
-    if (!be->chr_be_change) {
+    if (!fe->chr_be_change) {
         error_setg(errp, "Chardev user does not support chardev hotswap");
         return NULL;
     }
@@ -1171,13 +1171,13 @@ ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
         closed_sent = true;
     }
 
-    chr->be = NULL;
-    qemu_chr_fe_init(be, chr_new, &error_abort);
+    chr->fe = NULL;
+    qemu_chr_fe_init(fe, chr_new, &error_abort);
 
-    if (be->chr_be_change(be->opaque) < 0) {
+    if (fe->chr_be_change(fe->opaque) < 0) {
         error_setg(errp, "Chardev '%s' change failed", chr_new->label);
-        chr_new->be = NULL;
-        qemu_chr_fe_init(be, chr, &error_abort);
+        chr_new->fe = NULL;
+        qemu_chr_fe_init(fe, chr, &error_abort);
         if (closed_sent) {
             qemu_chr_be_event(chr, CHR_EVENT_OPENED);
         }

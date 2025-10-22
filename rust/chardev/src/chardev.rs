@@ -6,7 +6,7 @@
 //!
 //! Character devices in QEMU can run under the big QEMU lock or in a separate
 //! `GMainContext`. Here we only support the former, because the bindings
-//! enforce that the BQL is taken whenever the functions in [`CharBackend`] are
+//! enforce that the BQL is taken whenever the functions in [`CharFrontend`] are
 //! called.
 
 use std::{
@@ -32,25 +32,25 @@ pub struct Chardev(Opaque<bindings::Chardev>);
 pub type ChardevClass = bindings::ChardevClass;
 pub type Event = bindings::QEMUChrEvent;
 
-/// A safe wrapper around [`bindings::CharBackend`], denoting the character
+/// A safe wrapper around [`bindings::CharFrontend`], denoting the character
 /// back-end that is used for example by a device.  Compared to the
 /// underlying C struct it adds BQL protection, and is marked as pinned
 /// because the QOM object ([`bindings::Chardev`]) contains a pointer to
-/// the `CharBackend`.
-pub struct CharBackend {
-    inner: BqlRefCell<bindings::CharBackend>,
+/// the `CharFrontend`.
+pub struct CharFrontend {
+    inner: BqlRefCell<bindings::CharFrontend>,
     _pin: PhantomPinned,
 }
 
-pub struct CharBackendMut<'a>(BqlRefMut<'a, bindings::CharBackend>);
+pub struct CharFrontendMut<'a>(BqlRefMut<'a, bindings::CharFrontend>);
 
-impl Write for CharBackendMut<'_> {
+impl Write for CharFrontendMut<'_> {
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
 
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let chr: &mut bindings::CharBackend = &mut self.0;
+        let chr: &mut bindings::CharFrontend = &mut self.0;
 
         let len = buf.len().try_into().unwrap();
         let r = unsafe { bindings::qemu_chr_fe_write(addr_of_mut!(*chr), buf.as_ptr(), len) };
@@ -58,7 +58,7 @@ impl Write for CharBackendMut<'_> {
     }
 
     fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
-        let chr: &mut bindings::CharBackend = &mut self.0;
+        let chr: &mut bindings::CharFrontend = &mut self.0;
 
         let len = buf.len().try_into().unwrap();
         let r = unsafe { bindings::qemu_chr_fe_write_all(addr_of_mut!(*chr), buf.as_ptr(), len) };
@@ -72,7 +72,7 @@ impl Write for CharBackendMut<'_> {
     }
 }
 
-impl Debug for CharBackend {
+impl Debug for CharFrontend {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // SAFETY: accessed just to print the values
         let chr = self.inner.as_ptr();
@@ -81,13 +81,13 @@ impl Debug for CharBackend {
 }
 
 // FIXME: use something like PinnedDrop from the pinned_init crate
-impl Drop for CharBackend {
+impl Drop for CharFrontend {
     fn drop(&mut self) {
         self.disable_handlers();
     }
 }
 
-impl CharBackend {
+impl CharFrontend {
     /// Enable the front-end's character device handlers, if there is an
     /// associated `Chardev`.
     pub fn enable_handlers<
@@ -198,7 +198,7 @@ impl CharBackend {
     /// the big QEMU lock while the character device is borrowed, as
     /// that might cause C code to write to the character device.
     pub fn borrow_mut(&self) -> impl Write + '_ {
-        CharBackendMut(self.inner.borrow_mut())
+        CharFrontendMut(self.inner.borrow_mut())
     }
 
     /// Send a continuous stream of zero bits on the line if `enabled` is

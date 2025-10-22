@@ -94,7 +94,7 @@ struct IVShmemState {
 
     /* exactly one of these two may be set */
     HostMemoryBackend *hostmem; /* with interrupts */
-    CharBackend server_chr; /* without interrupts */
+    CharFrontend server_chr; /* without interrupts */
 
     /* registers */
     uint32_t intrmask;

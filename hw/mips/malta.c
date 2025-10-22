@@ -89,7 +89,7 @@ typedef struct {
     uint32_t i2coe;
     uint32_t i2cout;
     uint32_t i2csel;
-    CharBackend display;
+    CharFrontend display;
     char display_text[9];
     SerialMM *uart;
     bool display_inited;

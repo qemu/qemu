@@ -72,7 +72,7 @@ struct Max78000UartState {
 
     Fifo8 rx_fifo;
 
-    CharBackend chr;
+    CharFrontend chr;
     qemu_irq irq;
 };
 #endif /* HW_STM32F2XX_USART_H */

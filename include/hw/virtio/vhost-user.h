@@ -64,7 +64,7 @@ typedef struct VhostUserHostNotifier {
  * @memory_slots:
  */
 typedef struct VhostUserState {
-    CharBackend *chr;
+    CharFrontend *chr;
     GPtrArray *notifiers;
     int memory_slots;
     bool supports_config;
@@ -82,7 +82,7 @@ typedef struct VhostUserState {
  *
  * Return: true on success, false on error while setting errp.
  */
-bool vhost_user_init(VhostUserState *user, CharBackend *chr, Error **errp);
+bool vhost_user_init(VhostUserState *user, CharFrontend *chr, Error **errp);
 
 /**
  * vhost_user_cleanup() - cleanup state
@@ -96,7 +96,7 @@ void vhost_user_cleanup(VhostUserState *user);
 /**
  * vhost_user_async_close() - cleanup vhost-user post connection drop
  * @d: DeviceState for the associated device (passed to callback)
- * @chardev: the CharBackend associated with the connection
+ * @chardev: the CharFrontend associated with the connection
  * @vhost: the common vhost device
  * @cb: the user callback function to complete the clean-up
  *
@@ -108,7 +108,7 @@ void vhost_user_cleanup(VhostUserState *user);
 typedef void (*vu_async_close_fn)(DeviceState *cb);
 
 void vhost_user_async_close(DeviceState *d,
-                            CharBackend *chardev, struct vhost_dev *vhost,
+                            CharFrontend *chardev, struct vhost_dev *vhost,
                             vu_async_close_fn cb);
 
 #endif

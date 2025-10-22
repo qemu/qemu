@@ -60,7 +60,7 @@ struct XilinxUARTLite {
 
     EndianMode model_endianness;
     MemoryRegion mmio;
-    CharBackend chr;
+    CharFrontend chr;
     qemu_irq irq;
 
     uint8_t rx_fifo[8];

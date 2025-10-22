@@ -25,7 +25,7 @@ struct CMSDKAPBUART {
 
     /*< public >*/
     MemoryRegion iomem;
-    CharBackend chr;
+    CharFrontend chr;
     qemu_irq txint;
     qemu_irq rxint;
     qemu_irq txovrint;

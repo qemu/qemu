@@ -30,9 +30,9 @@
 #include "chardev/char-io.h"
 #include "chardev-internal.h"
 
-int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len)
+int qemu_chr_fe_write(CharFrontend *c, const uint8_t *buf, int len)
 {
-    Chardev *s = be->chr;
+    Chardev *s = c->chr;
 
     if (!s) {
         return 0;
@@ -41,9 +41,9 @@ int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len)
     return qemu_chr_write(s, buf, len, false);
 }
 
-int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len)
+int qemu_chr_fe_write_all(CharFrontend *c, const uint8_t *buf, int len)
 {
-    Chardev *s = be->chr;
+    Chardev *s = c->chr;
 
     if (!s) {
         return 0;
@@ -52,9 +52,9 @@ int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len)
     return qemu_chr_write(s, buf, len, true);
 }
 
-int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len)
+int qemu_chr_fe_read_all(CharFrontend *c, uint8_t *buf, int len)
 {
-    Chardev *s = be->chr;
+    Chardev *s = c->chr;
     int offset = 0;
     int res;
 
@@ -95,9 +95,9 @@ int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len)
     return offset;
 }
 
-int qemu_chr_fe_ioctl(CharBackend *be, int cmd, void *arg)
+int qemu_chr_fe_ioctl(CharFrontend *c, int cmd, void *arg)
 {
-    Chardev *s = be->chr;
+    Chardev *s = c->chr;
     int res;
 
     if (!s || !CHARDEV_GET_CLASS(s)->chr_ioctl || qemu_chr_replay(s)) {
@@ -109,11 +109,11 @@ int qemu_chr_fe_ioctl(CharBackend *be, int cmd, void *arg)
     return res;
 }
 
-int qemu_chr_fe_get_msgfd(CharBackend *be)
+int qemu_chr_fe_get_msgfd(CharFrontend *c)
 {
-    Chardev *s = be->chr;
+    Chardev *s = c->chr;
     int fd;
-    int res = (qemu_chr_fe_get_msgfds(be, &fd, 1) == 1) ? fd : -1;
+    int res = (qemu_chr_fe_get_msgfds(c, &fd, 1) == 1) ? fd : -1;
     if (s && qemu_chr_replay(s)) {
         error_report("Replay: get msgfd is not supported "
                      "for serial devices yet");
@@ -122,9 +122,9 @@ int qemu_chr_fe_get_msgfd(CharBackend *be)
     return res;
 }
 
-int qemu_chr_fe_get_msgfds(CharBackend *be, int *fds, int len)
+int qemu_chr_fe_get_msgfds(CharFrontend *c, int *fds, int len)
 {
-    Chardev *s = be->chr;
+    Chardev *s = c->chr;
 
     if (!s) {
         return -1;
@@ -134,9 +134,9 @@ int qemu_chr_fe_get_msgfds(CharBackend *be, int *fds, int len)
         CHARDEV_GET_CLASS(s)->get_msgfds(s, fds, len) : -1;
 }
 
-int qemu_chr_fe_set_msgfds(CharBackend *be, int *fds, int num)
+int qemu_chr_fe_set_msgfds(CharFrontend *c, int *fds, int num)
 {
-    Chardev *s = be->chr;
+    Chardev *s = c->chr;
 
     if (!s) {
         return -1;
@@ -146,9 +146,9 @@ int qemu_chr_fe_set_msgfds(CharBackend *be, int *fds, int num)
         CHARDEV_GET_CLASS(s)->set_msgfds(s, fds, num) : -1;
 }
 
-void qemu_chr_fe_accept_input(CharBackend *be)
+void qemu_chr_fe_accept_input(CharFrontend *c)
 {
-    Chardev *s = be->chr;
+    Chardev *s = c->chr;
 
     if (!s) {
         return;
@@ -160,7 +160,7 @@ void qemu_chr_fe_accept_input(CharBackend *be)
     qemu_notify_event();
 }
 
-void qemu_chr_fe_printf(CharBackend *be, const char *fmt, ...)
+void qemu_chr_fe_printf(CharFrontend *c, const char *fmt, ...)
 {
     char buf[CHR_READ_BUF_LEN];
     va_list ap;
@@ -168,28 +168,28 @@ void qemu_chr_fe_printf(CharBackend *be, const char *fmt, ...)
     vsnprintf(buf, sizeof(buf), fmt, ap);
     /* XXX this blocks entire thread. Rewrite to use
      * qemu_chr_fe_write and background I/O callbacks */
-    qemu_chr_fe_write_all(be, (uint8_t *)buf, strlen(buf));
+    qemu_chr_fe_write_all(c, (uint8_t *)buf, strlen(buf));
     va_end(ap);
 }
 
-Chardev *qemu_chr_fe_get_driver(CharBackend *be)
+Chardev *qemu_chr_fe_get_driver(CharFrontend *c)
 {
     /* this is unsafe for the users that support chardev hotswap */
-    assert(be->chr_be_change == NULL);
-    return be->chr;
+    assert(c->chr_be_change == NULL);
+    return c->chr;
 }
 
-bool qemu_chr_fe_backend_connected(CharBackend *be)
+bool qemu_chr_fe_backend_connected(CharFrontend *c)
 {
-    return !!be->chr;
+    return !!c->chr;
 }
 
-bool qemu_chr_fe_backend_open(CharBackend *be)
+bool qemu_chr_fe_backend_open(CharFrontend *c)
 {
-    return be->chr && be->chr->be_open;
+    return c->chr && c->chr->be_open;
 }
 
-bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
+bool qemu_chr_fe_init(CharFrontend *c, Chardev *s, Error **errp)
 {
     unsigned int tag = 0;
 
@@ -197,49 +197,49 @@ bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
         if (CHARDEV_IS_MUX(s)) {
             MuxChardev *d = MUX_CHARDEV(s);
 
-            if (!mux_chr_attach_frontend(d, b, &tag, errp)) {
+            if (!mux_chr_attach_frontend(d, c, &tag, errp)) {
                 return false;
             }
-        } else if (s->be) {
+        } else if (s->fe) {
             error_setg(errp, "chardev '%s' is already in use", s->label);
             return false;
         } else {
-            s->be = b;
+            s->fe = c;
         }
     }
 
-    b->fe_is_open = false;
-    b->tag = tag;
-    b->chr = s;
+    c->fe_is_open = false;
+    c->tag = tag;
+    c->chr = s;
     return true;
 }
 
-void qemu_chr_fe_deinit(CharBackend *b, bool del)
+void qemu_chr_fe_deinit(CharFrontend *c, bool del)
 {
-    assert(b);
+    assert(c);
 
-    if (b->chr) {
-        qemu_chr_fe_set_handlers(b, NULL, NULL, NULL, NULL, NULL, NULL, true);
-        if (b->chr->be == b) {
-            b->chr->be = NULL;
+    if (c->chr) {
+        qemu_chr_fe_set_handlers(c, NULL, NULL, NULL, NULL, NULL, NULL, true);
+        if (c->chr->fe == c) {
+            c->chr->fe = NULL;
         }
-        if (CHARDEV_IS_MUX(b->chr)) {
-            MuxChardev *d = MUX_CHARDEV(b->chr);
-            mux_chr_detach_frontend(d, b->tag);
+        if (CHARDEV_IS_MUX(c->chr)) {
+            MuxChardev *d = MUX_CHARDEV(c->chr);
+            mux_chr_detach_frontend(d, c->tag);
         }
         if (del) {
-            Object *obj = OBJECT(b->chr);
+            Object *obj = OBJECT(c->chr);
             if (obj->parent) {
                 object_unparent(obj);
             } else {
                 object_unref(obj);
             }
         }
-        b->chr = NULL;
+        c->chr = NULL;
     }
 }
 
-void qemu_chr_fe_set_handlers_full(CharBackend *b,
+void qemu_chr_fe_set_handlers_full(CharFrontend *c,
                                    IOCanReadHandler *fd_can_read,
                                    IOReadHandler *fd_read,
                                    IOEventHandler *fd_event,
@@ -252,7 +252,7 @@ void qemu_chr_fe_set_handlers_full(CharBackend *b,
     Chardev *s;
     bool fe_open;
 
-    s = b->chr;
+    s = c->chr;
     if (!s) {
         return;
     }
@@ -263,20 +263,20 @@ void qemu_chr_fe_set_handlers_full(CharBackend *b,
     } else {
         fe_open = true;
     }
-    b->chr_can_read = fd_can_read;
-    b->chr_read = fd_read;
-    b->chr_event = fd_event;
-    b->chr_be_change = be_change;
-    b->opaque = opaque;
+    c->chr_can_read = fd_can_read;
+    c->chr_read = fd_read;
+    c->chr_event = fd_event;
+    c->chr_be_change = be_change;
+    c->opaque = opaque;
 
     qemu_chr_be_update_read_handlers(s, context);
 
     if (set_open) {
-        qemu_chr_fe_set_open(b, fe_open);
+        qemu_chr_fe_set_open(c, fe_open);
     }
 
     if (fe_open) {
-        qemu_chr_fe_take_focus(b);
+        qemu_chr_fe_take_focus(c);
         /* We're connecting to an already opened device, so let's make sure we
            also get the open event */
         if (sync_state && s->be_open) {
@@ -285,7 +285,7 @@ void qemu_chr_fe_set_handlers_full(CharBackend *b,
     }
 }
 
-void qemu_chr_fe_set_handlers(CharBackend *b,
+void qemu_chr_fe_set_handlers(CharFrontend *c,
                               IOCanReadHandler *fd_can_read,
                               IOReadHandler *fd_read,
                               IOEventHandler *fd_event,
@@ -294,62 +294,62 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
                               GMainContext *context,
                               bool set_open)
 {
-    qemu_chr_fe_set_handlers_full(b, fd_can_read, fd_read, fd_event, be_change,
+    qemu_chr_fe_set_handlers_full(c, fd_can_read, fd_read, fd_event, be_change,
                                   opaque, context, set_open,
                                   true);
 }
 
-void qemu_chr_fe_take_focus(CharBackend *b)
+void qemu_chr_fe_take_focus(CharFrontend *c)
 {
-    if (!b->chr) {
+    if (!c->chr) {
         return;
     }
 
-    if (CHARDEV_IS_MUX(b->chr)) {
-        mux_set_focus(b->chr, b->tag);
+    if (CHARDEV_IS_MUX(c->chr)) {
+        mux_set_focus(c->chr, c->tag);
     }
 }
 
-int qemu_chr_fe_wait_connected(CharBackend *be, Error **errp)
+int qemu_chr_fe_wait_connected(CharFrontend *c, Error **errp)
 {
-    if (!be->chr) {
+    if (!c->chr) {
         error_setg(errp, "missing associated backend");
         return -1;
     }
 
-    return qemu_chr_wait_connected(be->chr, errp);
+    return qemu_chr_wait_connected(c->chr, errp);
 }
 
-void qemu_chr_fe_set_echo(CharBackend *be, bool echo)
+void qemu_chr_fe_set_echo(CharFrontend *c, bool echo)
 {
-    Chardev *chr = be->chr;
+    Chardev *chr = c->chr;
 
     if (chr && CHARDEV_GET_CLASS(chr)->chr_set_echo) {
         CHARDEV_GET_CLASS(chr)->chr_set_echo(chr, echo);
     }
 }
 
-void qemu_chr_fe_set_open(CharBackend *be, bool is_open)
+void qemu_chr_fe_set_open(CharFrontend *c, bool is_open)
 {
-    Chardev *chr = be->chr;
+    Chardev *chr = c->chr;
 
     if (!chr) {
         return;
     }
 
-    if (be->fe_is_open == is_open) {
+    if (c->fe_is_open == is_open) {
         return;
     }
-    be->fe_is_open = is_open;
+    c->fe_is_open = is_open;
     if (CHARDEV_GET_CLASS(chr)->chr_set_fe_open) {
         CHARDEV_GET_CLASS(chr)->chr_set_fe_open(chr, is_open);
     }
 }
 
-guint qemu_chr_fe_add_watch(CharBackend *be, GIOCondition cond,
+guint qemu_chr_fe_add_watch(CharFrontend *c, GIOCondition cond,
                             FEWatchFunc func, void *user_data)
 {
-    Chardev *s = be->chr;
+    Chardev *s = c->chr;
     GSource *src;
     guint tag;
 
@@ -369,9 +369,9 @@ guint qemu_chr_fe_add_watch(CharBackend *be, GIOCondition cond,
     return tag;
 }
 
-void qemu_chr_fe_disconnect(CharBackend *be)
+void qemu_chr_fe_disconnect(CharFrontend *c)
 {
-    Chardev *chr = be->chr;
+    Chardev *chr = c->chr;
 
     if (chr && CHARDEV_GET_CLASS(chr)->chr_disconnect) {
         CHARDEV_GET_CLASS(chr)->chr_disconnect(chr);

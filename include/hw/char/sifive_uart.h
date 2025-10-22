@@ -67,7 +67,7 @@ struct SiFiveUARTState {
     /*< public >*/
     qemu_irq irq;
     MemoryRegion mmio;
-    CharBackend chr;
+    CharFrontend chr;
 
     uint32_t txfifo;
     uint32_t ie;
