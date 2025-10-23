@@ -68,7 +68,7 @@ struct Pegasos2MachineState {
     MachineState parent_obj;
 
     PowerPCCPU *cpu;
-    DeviceState *mv;
+    DeviceState *nb; /* north bridge */
     IRQState pci_irqs[PCI_NUM_PINS];
     OrIRQState orirq[PCI_NUM_PINS];
     qemu_irq mv_pirq[PCI_NUM_PINS];
@@ -166,12 +166,12 @@ static void pegasos2_init(MachineState *machine)
     }
 
     /* Marvell Discovery II system controller */
-    pm->mv = DEVICE(sysbus_create_simple(TYPE_MV64361, -1,
+    pm->nb = DEVICE(sysbus_create_simple(TYPE_MV64361, -1,
                           qdev_get_gpio_in(DEVICE(pm->cpu), PPC6xx_INPUT_INT)));
     for (i = 0; i < PCI_NUM_PINS; i++) {
-        pm->mv_pirq[i] = qdev_get_gpio_in_named(pm->mv, "gpp", 12 + i);
+        pm->mv_pirq[i] = qdev_get_gpio_in_named(pm->nb, "gpp", 12 + i);
     }
-    pci_bus = mv64361_get_pci_bus(pm->mv, 1);
+    pci_bus = mv64361_get_pci_bus(pm->nb, 1);
 
     /* VIA VT8231 South Bridge (multifunction PCI device) */
     via = OBJECT(pci_new_multifunction(PCI_DEVFN(12, 0), TYPE_VT8231_ISA));
@@ -190,7 +190,7 @@ static void pegasos2_init(MachineState *machine)
                               object_resolve_path_component(via, "rtc"),
                               "date");
     qdev_connect_gpio_out_named(DEVICE(via), "intr", 0,
-                                qdev_get_gpio_in_named(pm->mv, "gpp", 31));
+                                qdev_get_gpio_in_named(pm->nb, "gpp", 31));
 
     dev = PCI_DEVICE(object_resolve_path_component(via, "ide"));
     pci_ide_create_devs(dev);
@@ -208,7 +208,7 @@ static void pegasos2_init(MachineState *machine)
         DeviceState *pd;
         g_autofree const char *pn = g_strdup_printf("pcihost%d", h);
 
-        pd = DEVICE(object_resolve_path_component(OBJECT(pm->mv), pn));
+        pd = DEVICE(object_resolve_path_component(OBJECT(pm->nb), pn));
         assert(pd);
         for (i = 0; i < PCI_NUM_PINS; i++) {
             OrIRQState *ori = &pm->orirq[i];
@@ -267,7 +267,7 @@ static void pegasos2_init(MachineState *machine)
 static uint32_t pegasos2_mv_reg_read(Pegasos2MachineState *pm,
                                      uint32_t addr, uint32_t len)
 {
-    MemoryRegion *r = sysbus_mmio_get_region(SYS_BUS_DEVICE(pm->mv), 0);
+    MemoryRegion *r = sysbus_mmio_get_region(SYS_BUS_DEVICE(pm->nb), 0);
     uint64_t val = 0xffffffffULL;
     memory_region_dispatch_read(r, addr, &val, size_memop(len) | MO_LE,
                                 MEMTXATTRS_UNSPECIFIED);
@@ -277,7 +277,7 @@ static uint32_t pegasos2_mv_reg_read(Pegasos2MachineState *pm,
 static void pegasos2_mv_reg_write(Pegasos2MachineState *pm, uint32_t addr,
                                   uint32_t len, uint32_t val)
 {
-    MemoryRegion *r = sysbus_mmio_get_region(SYS_BUS_DEVICE(pm->mv), 0);
+    MemoryRegion *r = sysbus_mmio_get_region(SYS_BUS_DEVICE(pm->nb), 0);
     memory_region_dispatch_write(r, addr, val, size_memop(len) | MO_LE,
                                  MEMTXATTRS_UNSPECIFIED);
 }
@@ -857,10 +857,10 @@ static void *build_fdt(MachineState *machine, int *fdt_size)
 
     fi.fdt = fdt;
     fi.path = "/pci@c0000000";
-    pci_bus = mv64361_get_pci_bus(pm->mv, 0);
+    pci_bus = mv64361_get_pci_bus(pm->nb, 0);
     pci_for_each_device_reverse(pci_bus, 0, add_pci_device, &fi);
     fi.path = "/pci@80000000";
-    pci_bus = mv64361_get_pci_bus(pm->mv, 1);
+    pci_bus = mv64361_get_pci_bus(pm->nb, 1);
     pci_for_each_device_reverse(pci_bus, 0, add_pci_device, &fi);
 
     return fdt;
