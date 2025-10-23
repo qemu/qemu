@@ -107,11 +107,11 @@ TLBRet loongarch_check_pte(CPULoongArchState *env, MMUContext *context,
     return TLBRET_MATCH;
 }
 
-static TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
-                            int access_type, int mmu_idx, int debug)
+TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
+                     int access_type, int mmu_idx, int debug)
 {
     CPUState *cs = env_cpu(env);
-    target_ulong index, phys;
+    target_ulong index = 0, phys = 0;
     uint64_t dir_base, dir_width;
     uint64_t base;
     int level;
@@ -139,6 +139,8 @@ static TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
         if (level) {
             if (FIELD_EX64(base, TLBENTRY, HUGE)) {
                 /* base is a huge pte */
+                index = 0;
+                dir_base -= 1;
                 break;
             } else {
                 /* Discard high bits with page directory table */
@@ -156,6 +158,15 @@ static TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
             base = FIELD_DP64(base, TLBENTRY, HGLOBAL, 0);
             base = FIELD_DP64(base, TLBENTRY, G, 1);
         }
+
+        context->pte_buddy[index] = base;
+        context->pte_buddy[1 - index] = base + BIT_ULL(dir_base);
+        base += (BIT_ULL(dir_base) & address);
+    } else if (cpu_has_ptw(env)) {
+        index &= 1;
+        context->pte_buddy[index] = base;
+        context->pte_buddy[1 - index] = ldq_phys(cs->as,
+                                            phys + 8 * (1 - 2 * index));
     }
 
     context->ps = dir_base;
