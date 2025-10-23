@@ -166,6 +166,9 @@ struct GICv3CPUState {
     uint64_t icc_igrpen[3];
     uint64_t icc_ctlr_el3;
 
+    /* For KVM, cached copy of the kernel reset value of ICC_CTLR_EL1 */
+    uint64_t kvm_reset_icc_ctlr_el1;
+
     /* Virtualization control interface */
     uint64_t ich_apr[3][4]; /* ich_apr[GICV3_G1][x] never used */
     uint64_t ich_hcr_el2;
