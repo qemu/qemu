@@ -969,7 +969,9 @@ bool arm_cpu_tlb_fill_align(CPUState *cs, CPUTLBEntryFull *out, vaddr addr,
 
 static inline int arm_to_core_mmu_idx(ARMMMUIdx mmu_idx)
 {
-    return mmu_idx & ARM_MMU_IDX_COREIDX_MASK;
+    int coreidx = mmu_idx & ARM_MMU_IDX_COREIDX_MASK;
+    assert(coreidx < NB_MMU_MODES);
+    return coreidx;
 }
 
 static inline ARMMMUIdx core_to_arm_mmu_idx(CPUARMState *env, int mmu_idx)
