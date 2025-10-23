@@ -58,16 +58,8 @@
 #define BUS_FREQ_HZ 133333333
 
 #define PCI0_CFG_ADDR 0xcf8
-#define PCI0_MEM_BASE 0xc0000000
-#define PCI0_MEM_SIZE 0x20000000
-#define PCI0_IO_BASE  0xf8000000
-#define PCI0_IO_SIZE  0x10000
-
 #define PCI1_CFG_ADDR 0xc78
-#define PCI1_MEM_BASE 0x80000000
-#define PCI1_MEM_SIZE 0x40000000
 #define PCI1_IO_BASE  0xfe000000
-#define PCI1_IO_SIZE  0x10000
 
 #define TYPE_PEGASOS2_MACHINE  MACHINE_TYPE_NAME("pegasos2")
 OBJECT_DECLARE_TYPE(Pegasos2MachineState, MachineClass, PEGASOS2_MACHINE)
@@ -411,7 +403,11 @@ static void pegasos2_machine_reset(MachineState *machine, ResetType type)
         error_report("Memory for initrd is in use");
         exit(1);
     }
+
     fdt = build_fdt(machine, &sz);
+    if (!fdt) {
+        exit(1);
+    }
     /* FIXME: VOF assumes entry is same as load address */
     d[0] = cpu_to_be64(pm->kernel_entry);
     d[1] = cpu_to_be64(pm->kernel_size - (pm->kernel_entry - pm->kernel_addr));
@@ -654,113 +650,12 @@ static void dt_usb(PCIBus *bus, PCIDevice *d, FDTInfo *fi)
     qemu_fdt_setprop_string(fi->fdt, fi->path, "device_type", "usb");
 }
 
-static void dt_isa(PCIBus *bus, PCIDevice *d, FDTInfo *fi)
-{
-    GString *name = g_string_sized_new(64);
-    uint32_t cells[3];
-
-    qemu_fdt_setprop_cell(fi->fdt, fi->path, "#size-cells", 1);
-    qemu_fdt_setprop_cell(fi->fdt, fi->path, "#address-cells", 2);
-    qemu_fdt_setprop_string(fi->fdt, fi->path, "device_type", "isa");
-
-    /* additional devices */
-    g_string_printf(name, "%s/lpt@i3bc", fi->path);
-    qemu_fdt_add_subnode(fi->fdt, name->str);
-    qemu_fdt_setprop_cell(fi->fdt, name->str, "clock-frequency", 0);
-    cells[0] = cpu_to_be32(7);
-    cells[1] = 0;
-    qemu_fdt_setprop(fi->fdt, name->str, "interrupts",
-                     cells, 2 * sizeof(cells[0]));
-    cells[0] = cpu_to_be32(1);
-    cells[1] = cpu_to_be32(0x3bc);
-    cells[2] = cpu_to_be32(8);
-    qemu_fdt_setprop(fi->fdt, name->str, "reg", cells, 3 * sizeof(cells[0]));
-    qemu_fdt_setprop_string(fi->fdt, name->str, "device_type", "lpt");
-
-    g_string_printf(name, "%s/fdc@i3f0", fi->path);
-    qemu_fdt_add_subnode(fi->fdt, name->str);
-    qemu_fdt_setprop_cell(fi->fdt, name->str, "clock-frequency", 0);
-    cells[0] = cpu_to_be32(6);
-    cells[1] = 0;
-    qemu_fdt_setprop(fi->fdt, name->str, "interrupts",
-                     cells, 2 * sizeof(cells[0]));
-    cells[0] = cpu_to_be32(1);
-    cells[1] = cpu_to_be32(0x3f0);
-    cells[2] = cpu_to_be32(8);
-    qemu_fdt_setprop(fi->fdt, name->str, "reg", cells, 3 * sizeof(cells[0]));
-    qemu_fdt_setprop_string(fi->fdt, name->str, "device_type", "fdc");
-
-    g_string_printf(name, "%s/timer@i40", fi->path);
-    qemu_fdt_add_subnode(fi->fdt, name->str);
-    qemu_fdt_setprop_cell(fi->fdt, name->str, "clock-frequency", 0);
-    cells[0] = cpu_to_be32(1);
-    cells[1] = cpu_to_be32(0x40);
-    cells[2] = cpu_to_be32(8);
-    qemu_fdt_setprop(fi->fdt, name->str, "reg", cells, 3 * sizeof(cells[0]));
-    qemu_fdt_setprop_string(fi->fdt, name->str, "device_type", "timer");
-
-    g_string_printf(name, "%s/rtc@i70", fi->path);
-    qemu_fdt_add_subnode(fi->fdt, name->str);
-    qemu_fdt_setprop_string(fi->fdt, name->str, "compatible", "ds1385-rtc");
-    qemu_fdt_setprop_cell(fi->fdt, name->str, "clock-frequency", 0);
-    cells[0] = cpu_to_be32(8);
-    cells[1] = 0;
-    qemu_fdt_setprop(fi->fdt, name->str, "interrupts",
-                     cells, 2 * sizeof(cells[0]));
-    cells[0] = cpu_to_be32(1);
-    cells[1] = cpu_to_be32(0x70);
-    cells[2] = cpu_to_be32(2);
-    qemu_fdt_setprop(fi->fdt, name->str, "reg", cells, 3 * sizeof(cells[0]));
-    qemu_fdt_setprop_string(fi->fdt, name->str, "device_type", "rtc");
-
-    g_string_printf(name, "%s/keyboard@i60", fi->path);
-    qemu_fdt_add_subnode(fi->fdt, name->str);
-    cells[0] = cpu_to_be32(1);
-    cells[1] = 0;
-    qemu_fdt_setprop(fi->fdt, name->str, "interrupts",
-                     cells, 2 * sizeof(cells[0]));
-    cells[0] = cpu_to_be32(1);
-    cells[1] = cpu_to_be32(0x60);
-    cells[2] = cpu_to_be32(5);
-    qemu_fdt_setprop(fi->fdt, name->str, "reg", cells, 3 * sizeof(cells[0]));
-    qemu_fdt_setprop_string(fi->fdt, name->str, "device_type", "keyboard");
-
-    g_string_printf(name, "%s/8042@i60", fi->path);
-    qemu_fdt_add_subnode(fi->fdt, name->str);
-    qemu_fdt_setprop_cell(fi->fdt, name->str, "#interrupt-cells", 2);
-    qemu_fdt_setprop_cell(fi->fdt, name->str, "#size-cells", 0);
-    qemu_fdt_setprop_cell(fi->fdt, name->str, "#address-cells", 1);
-    qemu_fdt_setprop_string(fi->fdt, name->str, "interrupt-controller", "");
-    qemu_fdt_setprop_cell(fi->fdt, name->str, "clock-frequency", 0);
-    cells[0] = cpu_to_be32(1);
-    cells[1] = cpu_to_be32(0x60);
-    cells[2] = cpu_to_be32(5);
-    qemu_fdt_setprop(fi->fdt, name->str, "reg", cells, 3 * sizeof(cells[0]));
-    qemu_fdt_setprop_string(fi->fdt, name->str, "device_type", "");
-
-    g_string_printf(name, "%s/serial@i2f8", fi->path);
-    qemu_fdt_add_subnode(fi->fdt, name->str);
-    qemu_fdt_setprop_cell(fi->fdt, name->str, "clock-frequency", 0);
-    cells[0] = cpu_to_be32(3);
-    cells[1] = 0;
-    qemu_fdt_setprop(fi->fdt, name->str, "interrupts",
-                     cells, 2 * sizeof(cells[0]));
-    cells[0] = cpu_to_be32(1);
-    cells[1] = cpu_to_be32(0x2f8);
-    cells[2] = cpu_to_be32(8);
-    qemu_fdt_setprop(fi->fdt, name->str, "reg", cells, 3 * sizeof(cells[0]));
-    qemu_fdt_setprop_string(fi->fdt, name->str, "device_type", "serial");
-
-    g_string_free(name, TRUE);
-}
-
 static struct {
     const char *id;
     const char *name;
     void (*dtf)(PCIBus *bus, PCIDevice *d, FDTInfo *fi);
 } device_map[] = {
     { "pci11ab,6460", "host", NULL },
-    { "pci1106,8231", "isa", dt_isa },
     { "pci1106,571", "ide", dt_ide },
     { "pci1106,3044", "firewire", NULL },
     { "pci1106,3038", "usb", dt_usb },
@@ -780,7 +675,10 @@ static void add_pci_device(PCIBus *bus, PCIDevice *d, void *opaque)
                                      pci_get_word(&d->config[PCI_VENDOR_ID]),
                                      pci_get_word(&d->config[PCI_DEVICE_ID]));
 
-    if (pci_get_word(&d->config[PCI_CLASS_DEVICE])  ==
+    if (!strcmp(pn, "pci1106,8231")) {
+        return; /* ISA bridge and devices are included in dtb */
+    }
+    if (pci_get_word(&d->config[PCI_CLASS_DEVICE]) ==
         PCI_CLASS_NETWORK_ETHERNET) {
         name = "ethernet";
     } else if (pci_get_word(&d->config[PCI_CLASS_DEVICE]) >> 8 ==
@@ -858,131 +756,9 @@ static void add_pci_device(PCIBus *bus, PCIDevice *d, void *opaque)
     g_string_free(node, TRUE);
 }
 
-static void *build_fdt(MachineState *machine, int *fdt_size)
+static void add_cpu_info(void *fdt, PowerPCCPU *cpu)
 {
-    Pegasos2MachineState *pm = PEGASOS2_MACHINE(machine);
-    PowerPCCPU *cpu = pm->cpu;
-    PCIBus *pci_bus;
-    FDTInfo fi;
-    uint32_t cells[16];
-    void *fdt = create_device_tree(fdt_size);
-
-    fi.fdt = fdt;
-
-    /* root node */
-    qemu_fdt_setprop_string(fdt, "/", "CODEGEN,description",
-                            "Pegasos CHRP PowerPC System");
-    qemu_fdt_setprop_string(fdt, "/", "CODEGEN,board", "Pegasos2");
-    qemu_fdt_setprop_string(fdt, "/", "CODEGEN,vendor", "bplan GmbH");
-    qemu_fdt_setprop_string(fdt, "/", "revision", "2B");
-    qemu_fdt_setprop_string(fdt, "/", "model", "Pegasos2");
-    qemu_fdt_setprop_string(fdt, "/", "device_type", "chrp");
-    qemu_fdt_setprop_cell(fdt, "/", "#address-cells", 1);
-    qemu_fdt_setprop_string(fdt, "/", "name", "bplan,Pegasos2");
-
-    /* pci@c0000000 */
-    qemu_fdt_add_subnode(fdt, "/pci@c0000000");
-    cells[0] = 0;
-    cells[1] = 0;
-    qemu_fdt_setprop(fdt, "/pci@c0000000", "bus-range",
-                     cells, 2 * sizeof(cells[0]));
-    qemu_fdt_setprop_cell(fdt, "/pci@c0000000", "pci-bridge-number", 1);
-    cells[0] = cpu_to_be32(PCI0_MEM_BASE);
-    cells[1] = cpu_to_be32(PCI0_MEM_SIZE);
-    qemu_fdt_setprop(fdt, "/pci@c0000000", "reg", cells, 2 * sizeof(cells[0]));
-    cells[0] = cpu_to_be32(0x01000000);
-    cells[1] = 0;
-    cells[2] = 0;
-    cells[3] = cpu_to_be32(PCI0_IO_BASE);
-    cells[4] = 0;
-    cells[5] = cpu_to_be32(PCI0_IO_SIZE);
-    cells[6] = cpu_to_be32(0x02000000);
-    cells[7] = 0;
-    cells[8] = cpu_to_be32(PCI0_MEM_BASE);
-    cells[9] = cpu_to_be32(PCI0_MEM_BASE);
-    cells[10] = 0;
-    cells[11] = cpu_to_be32(PCI0_MEM_SIZE);
-    qemu_fdt_setprop(fdt, "/pci@c0000000", "ranges",
-                     cells, 12 * sizeof(cells[0]));
-    qemu_fdt_setprop_cell(fdt, "/pci@c0000000", "#size-cells", 2);
-    qemu_fdt_setprop_cell(fdt, "/pci@c0000000", "#address-cells", 3);
-    qemu_fdt_setprop_string(fdt, "/pci@c0000000", "device_type", "pci");
-
-    fi.path = "/pci@c0000000";
-    pci_bus = mv64361_get_pci_bus(pm->mv, 0);
-    pci_for_each_device_reverse(pci_bus, 0, add_pci_device, &fi);
-
-    /* pci@80000000 */
-    qemu_fdt_add_subnode(fdt, "/pci@80000000");
-    cells[0] = 0;
-    cells[1] = 0;
-    qemu_fdt_setprop(fdt, "/pci@80000000", "bus-range",
-                     cells, 2 * sizeof(cells[0]));
-    qemu_fdt_setprop_cell(fdt, "/pci@80000000", "pci-bridge-number", 0);
-    cells[0] = cpu_to_be32(PCI1_MEM_BASE);
-    cells[1] = cpu_to_be32(PCI1_MEM_SIZE);
-    qemu_fdt_setprop(fdt, "/pci@80000000", "reg", cells, 2 * sizeof(cells[0]));
-    qemu_fdt_setprop_cell(fdt, "/pci@80000000", "8259-interrupt-acknowledge",
-                          0xf1000cb4);
-    cells[0] = cpu_to_be32(0x01000000);
-    cells[1] = 0;
-    cells[2] = 0;
-    cells[3] = cpu_to_be32(PCI1_IO_BASE);
-    cells[4] = 0;
-    cells[5] = cpu_to_be32(PCI1_IO_SIZE);
-    cells[6] = cpu_to_be32(0x02000000);
-    cells[7] = 0;
-    cells[8] = cpu_to_be32(PCI1_MEM_BASE);
-    cells[9] = cpu_to_be32(PCI1_MEM_BASE);
-    cells[10] = 0;
-    cells[11] = cpu_to_be32(PCI1_MEM_SIZE);
-    qemu_fdt_setprop(fdt, "/pci@80000000", "ranges",
-                     cells, 12 * sizeof(cells[0]));
-    qemu_fdt_setprop_cell(fdt, "/pci@80000000", "#size-cells", 2);
-    qemu_fdt_setprop_cell(fdt, "/pci@80000000", "#address-cells", 3);
-    qemu_fdt_setprop_string(fdt, "/pci@80000000", "device_type", "pci");
-
-    fi.path = "/pci@80000000";
-    pci_bus = mv64361_get_pci_bus(pm->mv, 1);
-    pci_for_each_device_reverse(pci_bus, 0, add_pci_device, &fi);
-
-    qemu_fdt_add_subnode(fdt, "/failsafe");
-    qemu_fdt_setprop_string(fdt, "/failsafe", "device_type", "serial");
-
-    qemu_fdt_add_subnode(fdt, "/rtas");
-    qemu_fdt_setprop_cell(fdt, "/rtas", "system-reboot", RTAS_SYSTEM_REBOOT);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "hibernate", RTAS_HIBERNATE);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "suspend", RTAS_SUSPEND);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "power-off", RTAS_POWER_OFF);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "set-indicator", RTAS_SET_INDICATOR);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "display-character",
-                          RTAS_DISPLAY_CHARACTER);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "write-pci-config",
-                          RTAS_WRITE_PCI_CONFIG);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "read-pci-config",
-                          RTAS_READ_PCI_CONFIG);
-    /* Pegasos2 firmware misspells check-exception and guests use that */
-    qemu_fdt_setprop_cell(fdt, "/rtas", "check-execption",
-                          RTAS_CHECK_EXCEPTION);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "event-scan", RTAS_EVENT_SCAN);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "set-time-of-day",
-                          RTAS_SET_TIME_OF_DAY);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "get-time-of-day",
-                          RTAS_GET_TIME_OF_DAY);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "nvram-store", RTAS_NVRAM_STORE);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "nvram-fetch", RTAS_NVRAM_FETCH);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "restart-rtas", RTAS_RESTART_RTAS);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-error-log-max", 0);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-event-scan-rate", 0);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-display-device", 0);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-size", 20);
-    qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-version", 1);
-
-    /* cpus */
-    qemu_fdt_add_subnode(fdt, "/cpus");
-    qemu_fdt_setprop_cell(fdt, "/cpus", "#cpus", 1);
-    qemu_fdt_setprop_cell(fdt, "/cpus", "#address-cells", 1);
-    qemu_fdt_setprop_cell(fdt, "/cpus", "#size-cells", 0);
+    uint32_t cells[2];
 
     /* FIXME Get CPU name from CPU object */
     const char *cp = "/cpus/PowerPC,G4";
@@ -1034,15 +810,43 @@ static void *build_fdt(MachineState *machine, int *fdt_size)
     cells[1] = 0;
     qemu_fdt_setprop(fdt, cp, "reg", cells, 2 * sizeof(cells[0]));
     qemu_fdt_setprop_string(fdt, cp, "device_type", "cpu");
+}
 
-    /* memory */
-    qemu_fdt_add_subnode(fdt, "/memory@0");
+static void *load_dtb(const char *filename, int *fdt_size)
+{
+    void *fdt;
+    g_autofree char *name = qemu_find_file(QEMU_FILE_TYPE_DTB, filename);
+
+    if (!name) {
+        error_report("Could not find dtb file '%s'", filename);
+        return NULL;
+    }
+    fdt = load_device_tree(name, fdt_size);
+    if (!fdt) {
+        error_report("Could not load dtb file '%s'", name);
+    }
+    return fdt;
+}
+
+static void *build_fdt(MachineState *machine, int *fdt_size)
+{
+    Pegasos2MachineState *pm = PEGASOS2_MACHINE(machine);
+    FDTInfo fi;
+    PCIBus *pci_bus;
+    uint32_t cells[2];
+    void *fdt = load_dtb("pegasos2.dtb", fdt_size);
+
+    if (!fdt) {
+        return NULL;
+    }
+    qemu_fdt_setprop_string(fdt, "/", "name", "bplan,Pegasos2");
+
+    /* Set memory size */
     cells[0] = 0;
     cells[1] = cpu_to_be32(machine->ram_size);
     qemu_fdt_setprop(fdt, "/memory@0", "reg", cells, 2 * sizeof(cells[0]));
-    qemu_fdt_setprop_string(fdt, "/memory@0", "device_type", "memory");
 
-    qemu_fdt_add_subnode(fdt, "/chosen");
+    /* Boot parameters */
     if (pm->initrd_addr && pm->initrd_size) {
         qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end",
                               pm->initrd_addr + pm->initrd_size);
@@ -1052,8 +856,15 @@ static void *build_fdt(MachineState *machine, int *fdt_size)
     qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
                             machine->kernel_cmdline ?: "");
 
-    qemu_fdt_add_subnode(fdt, "/openprom");
-    qemu_fdt_setprop_string(fdt, "/openprom", "model", "Pegasos2,1.1");
+    add_cpu_info(fdt, pm->cpu);
+
+    fi.fdt = fdt;
+    fi.path = "/pci@c0000000";
+    pci_bus = mv64361_get_pci_bus(pm->mv, 0);
+    pci_for_each_device_reverse(pci_bus, 0, add_pci_device, &fi);
+    fi.path = "/pci@80000000";
+    pci_bus = mv64361_get_pci_bus(pm->mv, 1);
+    pci_for_each_device_reverse(pci_bus, 0, add_pci_device, &fi);
 
     return fdt;
 }

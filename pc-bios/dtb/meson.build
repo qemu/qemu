@@ -1,6 +1,7 @@
 dtbs = [
   'bamboo.dtb',
   'canyonlands.dtb',
+  'pegasos2.dtb',
   'petalogix-ml605.dtb',
   'petalogix-s3adsp1800.dtb',
 ]

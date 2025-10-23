@@ -1,0 +1,167 @@
+/*
+ * QEMU Pegasos2 Device Tree Source
+ *
+ * Copyright 2025 BALATON Zoltan
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * This is partial source, more info will be filled in by board code.
+ */
+
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	device_type = "chrp";
+	model = "Pegasos2";
+	revision = "2B";
+	CODEGEN,vendor = "bplan GmbH";
+	CODEGEN,board = "Pegasos2";
+	CODEGEN,description = "Pegasos CHRP PowerPC System";
+
+	openprom {
+		model = "Pegasos2,1.1";
+	};
+
+	chosen {
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0 0>;
+	};
+
+	cpus {
+		#size-cells	= <0>;
+		#address-cells	= <1>;
+		#cpus		= <1>;
+	};
+
+	rtas {
+		rtas-version		= <1>;
+		rtas-size		= <20>;
+		rtas-display-device	= <0>;
+		rtas-event-scan-rate	= <0>;
+		rtas-error-log-max	= <0>;
+		restart-rtas		= <0>;
+		nvram-fetch		= <1>;
+		nvram-store		= <2>;
+		get-time-of-day		= <3>;
+		set-time-of-day		= <4>;
+		event-scan		= <6>;
+		/* Pegasos2 firmware misspells check-exception */
+		check-execption		= <7>;
+		read-pci-config		= <8>;
+		write-pci-config	= <9>;
+		display-character	= <10>;
+		set-indicator		= <11>;
+		power-off		= <17>;
+		suspend			= <18>;
+		hibernate		= <19>;
+		system-reboot		= <20>;
+	};
+
+	failsafe {
+		device_type = "serial";
+	};
+
+	pci@80000000 {
+		device_type		= "pci";
+		#address-cells		= <3>;
+		#size-cells		= <2>;
+		clock-frequency		= <33333333>;
+		ranges = <0x01000000 0 0x00000000 0xfe000000 0 0x00010000
+			  0x02000000 0 0x80000000 0x80000000 0 0x40000000>;
+		8259-interrupt-acknowledge = <0xf1000cb4>;
+		reg = <0x80000000 0x40000000>;
+		pci-bridge-number	= <0>;
+		bus-range		= <0 0>;
+
+		isa@c {
+			vendor-id	= <0x1106>;
+			device-id	= <0x8231>;
+			revision-id	= <0x10>;
+			class-code	= <0x60100>;
+			/* Pegasos firmware has subsystem-id and
+			   subsystem-vendor-id swapped */
+			subsystem-id	= <0x1af4>;
+			subsystem-vendor-id = <0x1100>;
+			reg = <0x6000 0 0 0 0>;
+			device_type	= "isa";
+			#address-cells	= <2>;
+			#size-cells	= <1>;
+			eisa-slots	= <0>;
+			clock-frequency	= <8333333>;
+			slot-names	= <0>;
+
+			serial@i2f8 {
+				device_type	= "serial";
+				reg		= <1 0x2f8 8>;
+				interrupts	= <3 0>;
+				clock-frequency	= <1843200>;
+				compatible	= "pnpPNP,501";
+			};
+
+			8042@i60 {
+				device_type	= "";
+				reg		= <1 0x60 5>;
+				clock-frequency	= <0>;
+				compatible	= "chrp,8042";
+				interrupt-controller = "";
+				#address-cells	= <1>;
+				#size-cells	= <0>;
+				#interrupt-cells = <2>;
+
+			};
+
+			keyboard@i60 {
+				device_type	= "keyboard";
+				reg		= <1 0x60 5>;
+				interrupts	= <1 0>;
+				compatible	= "pnpPNP,303";
+			};
+
+			rtc@i70 {
+				device_type	= "rtc";
+				reg		= <1 0x70 2>;
+				interrupts	= <8 0>;
+				clock-frequency	= <0>;
+				compatible	= "ds1385-rtc";
+			};
+
+			timer@i40 {
+				device_type	= "timer";
+				reg		= <1 0x40 8>;
+				clock-frequency	= <0>;
+				compatible	= "pnpPNP,100";
+			};
+
+			fdc@i3f0 {
+				device_type	= "fdc";
+				reg		= <1 0x3f0 8>;
+				interrupts	= <6 0>;
+				clock-frequency	= <0>;
+				compatible	= "pnpPNP,700";
+			};
+
+			lpt@i3bc {
+				device_type	= "lpt";
+				reg		= <1 0x3bc 8>;
+				interrupts	= <7 0>;
+				clock-frequency	= <0>;
+				compatible	= "pnpPNP,400";
+			};
+		};
+	};
+
+	pci@c0000000 {
+		device_type		= "pci";
+		#address-cells		= <3>;
+		#size-cells		= <2>;
+		clock-frequency		= <66666666>;
+		ranges = <0x01000000 0 0x00000000 0xf8000000 0 0x00010000
+			  0x02000000 0 0xc0000000 0xc0000000 0 0x20000000>;
+		reg = <0xc0000000 0x20000000>;
+		pci-bridge-number	= <1>;
+		bus-range		= <0 0>;
+	};
+};
