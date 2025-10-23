@@ -727,15 +727,6 @@ extern const VMStateInfo vmstate_info_qlist;
     .offset     = offsetof(_state, _field),                          \
 }
 
-#define VMSTATE_BUFFER_POINTER_UNSAFE(_field, _state, _version, _size) { \
-    .name       = (stringify(_field)),                               \
-    .version_id = (_version),                                        \
-    .size       = (_size),                                           \
-    .info       = &vmstate_info_buffer,                              \
-    .flags      = VMS_BUFFER|VMS_POINTER,                            \
-    .offset     = offsetof(_state, _field),                          \
-}
-
 /* Allocate a temporary of type 'tmp_type', set tmp->parent to _state
  * and execute the vmsd on the temporary.  Note that we're working with
  * the whole of _state here, not a field within it.
