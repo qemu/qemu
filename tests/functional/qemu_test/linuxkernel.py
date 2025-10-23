@@ -5,6 +5,9 @@
 
 import hashlib
 import urllib.request
+import logging
+import re
+import time
 
 from .cmd import wait_for_console_pattern, exec_command_and_wait_for_pattern
 from .testcase import QemuSystemTest
@@ -18,6 +21,62 @@ class LinuxKernelTest(QemuSystemTest):
         wait_for_console_pattern(self, success_message,
                                  failure_message='Kernel panic - not syncing',
                                  vm=vm)
+
+    def wait_for_regex_console_pattern(self, success_pattern,
+                                       failure_pattern=None,
+                                       timeout=None):
+        """
+        Similar to 'wait_for_console_pattern', but supports regex patterns,
+        hence multiple failure/success patterns can be detected at a time.
+
+        Args:
+            success_pattern (str | re.Pattern): A regex pattern that indicates
+                a successful event. If found, the method exits normally.
+            failure_pattern (str | re.Pattern, optional): A regex pattern that
+                indicates a failure event. If found, the test fails
+            timeout (int, optional): The maximum time (in seconds) to wait for
+                a match.
+                If exceeded, the test fails.
+        """
+
+        console = self.vm.console_file
+        console_logger = logging.getLogger('console')
+
+        self.log.debug(
+            f"Console interaction: success_msg='{success_pattern}' " +
+            f"failure_msg='{failure_pattern}' timeout='{timeout}s'")
+
+        # Only consume console output if waiting for something
+        if success_pattern is None and failure_pattern is None:
+            return
+
+        start_time = time.time()
+
+        while time.time() - start_time < timeout:
+            try:
+                msg = console.readline().decode().strip()
+            except UnicodeDecodeError:
+                msg = None
+            if not msg:
+                continue
+            console_logger.debug(msg)
+            if success_pattern is None or re.search(success_pattern, msg):
+                break
+            if failure_pattern:
+                # Find the matching error to print in log
+                match = re.search(failure_pattern, msg)
+                if not match:
+                    continue
+
+                console.close()
+                fail = 'Failure message found in console: "%s".' \
+                        ' Expected: "%s"' % \
+                        (match.group(), success_pattern)
+                self.fail(fail)
+
+        if time.time() - start_time >= timeout:
+            fail = f"Timeout ({timeout}s) while trying to search pattern"
+            self.fail(fail)
 
     def launch_kernel(self, kernel, initrd=None, dtb=None, console_index=0,
                       wait_for=None):
