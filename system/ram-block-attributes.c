@@ -22,16 +22,14 @@ OBJECT_DEFINE_SIMPLE_TYPE_WITH_INTERFACES(RamBlockAttributes,
                                           { })
 
 static size_t
-ram_block_attributes_get_block_size(const RamBlockAttributes *attr)
+ram_block_attributes_get_block_size(void)
 {
     /*
      * Because page conversion could be manipulated in the size of at least 4K
      * or 4K aligned, Use the host page size as the granularity to track the
      * memory attribute.
      */
-    g_assert(attr && attr->ram_block);
-    g_assert(attr->ram_block->page_size == qemu_real_host_page_size());
-    return attr->ram_block->page_size;
+    return qemu_real_host_page_size();
 }
 
 
@@ -40,7 +38,7 @@ ram_block_attributes_rdm_is_populated(const RamDiscardManager *rdm,
                                       const MemoryRegionSection *section)
 {
     const RamBlockAttributes *attr = RAM_BLOCK_ATTRIBUTES(rdm);
-    const size_t block_size = ram_block_attributes_get_block_size(attr);
+    const size_t block_size = ram_block_attributes_get_block_size();
     const uint64_t first_bit = section->offset_within_region / block_size;
     const uint64_t last_bit =
         first_bit + int128_get64(section->size) / block_size - 1;
@@ -81,7 +79,7 @@ ram_block_attributes_for_each_populated_section(const RamBlockAttributes *attr,
 {
     unsigned long first_bit, last_bit;
     uint64_t offset, size;
-    const size_t block_size = ram_block_attributes_get_block_size(attr);
+    const size_t block_size = ram_block_attributes_get_block_size();
     int ret = 0;
 
     first_bit = section->offset_within_region / block_size;
@@ -122,7 +120,7 @@ ram_block_attributes_for_each_discarded_section(const RamBlockAttributes *attr,
 {
     unsigned long first_bit, last_bit;
     uint64_t offset, size;
-    const size_t block_size = ram_block_attributes_get_block_size(attr);
+    const size_t block_size = ram_block_attributes_get_block_size();
     int ret = 0;
 
     first_bit = section->offset_within_region / block_size;
@@ -163,7 +161,7 @@ ram_block_attributes_rdm_get_min_granularity(const RamDiscardManager *rdm,
     const RamBlockAttributes *attr = RAM_BLOCK_ATTRIBUTES(rdm);
 
     g_assert(mr == attr->ram_block->mr);
-    return ram_block_attributes_get_block_size(attr);
+    return ram_block_attributes_get_block_size();
 }
 
 static void
@@ -265,7 +263,7 @@ ram_block_attributes_is_valid_range(RamBlockAttributes *attr, uint64_t offset,
     g_assert(mr);
 
     uint64_t region_size = memory_region_size(mr);
-    const size_t block_size = ram_block_attributes_get_block_size(attr);
+    const size_t block_size = ram_block_attributes_get_block_size();
 
     if (!QEMU_IS_ALIGNED(offset, block_size) ||
         !QEMU_IS_ALIGNED(size, block_size)) {
@@ -322,7 +320,7 @@ int ram_block_attributes_state_change(RamBlockAttributes *attr,
                                       uint64_t offset, uint64_t size,
                                       bool to_discard)
 {
-    const size_t block_size = ram_block_attributes_get_block_size(attr);
+    const size_t block_size = ram_block_attributes_get_block_size();
     const unsigned long first_bit = offset / block_size;
     const unsigned long nbits = size / block_size;
     const unsigned long last_bit = first_bit + nbits - 1;
