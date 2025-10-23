@@ -390,7 +390,7 @@ int ram_block_attributes_state_change(RamBlockAttributes *attr,
 
 RamBlockAttributes *ram_block_attributes_create(RAMBlock *ram_block)
 {
-    const int block_size  = qemu_real_host_page_size();
+    const int block_size = ram_block_attributes_get_block_size();
     RamBlockAttributes *attr;
     MemoryRegion *mr = ram_block->mr;
 
