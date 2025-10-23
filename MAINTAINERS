@@ -1652,6 +1652,7 @@ F: hw/ppc/pegasos2.c
 F: hw/pci-host/mv64361.c
 F: hw/pci-host/mv643xx.h
 F: include/hw/pci-host/mv64361.h
+F: pc-bios/dtb/pegasos[12].dt[sb]
 
 amigaone
 M: BALATON Zoltan <balaton@eik.bme.hu>

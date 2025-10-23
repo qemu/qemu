@@ -84,6 +84,7 @@ struct PegasosMachineState {
     uint64_t initrd_size;
 };
 
+static void *pegasos1_build_fdt(PegasosMachineState *pm, int *fdt_size);
 static void *pegasos2_build_fdt(PegasosMachineState *pm, int *fdt_size);
 
 static void pegasos_cpu_reset(void *opaque)
@@ -314,6 +315,82 @@ static void pegasos_init(MachineState *machine)
     }
 }
 
+static void pegasos_superio_write(uint8_t addr, uint8_t val)
+{
+    cpu_physical_memory_write(0xfe0003f0, &addr, 1);
+    cpu_physical_memory_write(0xfe0003f1, &val, 1);
+}
+
+static void pegasos1_pci_config_write(PegasosMachineState *pm, int bus,
+                                      uint32_t addr, uint32_t len, uint32_t val)
+{
+    addr |= BIT(31);
+    cpu_physical_memory_write(0xfec00cf8, &addr, 4);
+    cpu_physical_memory_write(0xfee00cfc, &val, len);
+}
+
+static void pegasos1_chipset_reset(PegasosMachineState *pm)
+{
+    uint8_t elcr = 0x2e;
+    cpu_physical_memory_write(0xfe0004d1, &elcr, sizeof(elcr));
+
+    pegasos1_pci_config_write(pm, 0, PCI_COMMAND, 2, PCI_COMMAND_IO |
+                              PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
+
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 0) << 8) |
+                              PCI_INTERRUPT_LINE, 2, 0x9);
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 0) << 8) |
+                              0x50, 1, 0x6);
+    pegasos_superio_write(0xf4, 0xbe);
+    pegasos_superio_write(0xf6, 0xef);
+    pegasos_superio_write(0xf7, 0xfc);
+    pegasos_superio_write(0xf2, 0x14);
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 0) << 8) |
+                              0x51, 1, 0x3d);
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 0) << 8) |
+                              0x55, 1, 0x90);
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 0) << 8) |
+                              0x56, 1, 0x99);
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 0) << 8) |
+                              0x57, 1, 0x90);
+
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 1) << 8) |
+                              PCI_INTERRUPT_LINE, 2, 0x10e);
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 1) << 8) |
+                              PCI_CLASS_PROG, 1, 0xf);
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 1) << 8) |
+                              0x40, 1, 0xb);
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 1) << 8) |
+                              0x50, 4, 0x17171717);
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 1) << 8) |
+                              PCI_COMMAND, 2, 0x87);
+
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 2) << 8) |
+                              PCI_INTERRUPT_LINE, 2, 0x409);
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 2) << 8) |
+                              PCI_COMMAND, 2, 0x7);
+
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 3) << 8) |
+                              PCI_INTERRUPT_LINE, 2, 0x409);
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 3) << 8) |
+                              PCI_COMMAND, 2, 0x7);
+
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 4) << 8) |
+                              PCI_INTERRUPT_LINE, 2, 0x9);
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 4) << 8) |
+                              0x48, 4, 0x2001);
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 4) << 8) |
+                              0x41, 1, 0);
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 4) << 8) |
+                              0x90, 4, 0x1000);
+
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 5) << 8) |
+                              PCI_INTERRUPT_LINE, 2, 0x309);
+
+    pegasos1_pci_config_write(pm, 0, (PCI_DEVFN(7, 6) << 8) |
+                              PCI_INTERRUPT_LINE, 2, 0x309);
+}
+
 static uint32_t pegasos2_mv_reg_read(PegasosMachineState *pm,
                                      uint32_t addr, uint32_t len)
 {
@@ -357,12 +434,6 @@ static void pegasos2_pci_config_write(PegasosMachineState *pm, int bus,
     pegasos2_mv_reg_write(pm, pcicfg + 4, len, val);
 }
 
-static void pegasos2_superio_write(uint8_t addr, uint8_t val)
-{
-    cpu_physical_memory_write(0xfe0003f0, &addr, 1);
-    cpu_physical_memory_write(0xfe0003f1, &val, 1);
-}
-
 static void pegasos2_chipset_reset(PegasosMachineState *pm)
 {
     pegasos2_mv_reg_write(pm, 0, 4, 0x28020ff);
@@ -379,10 +450,10 @@ static void pegasos2_chipset_reset(PegasosMachineState *pm)
                               PCI_INTERRUPT_LINE, 2, 0x9);
     pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 0) << 8) |
                               0x50, 1, 0x6);
-    pegasos2_superio_write(0xf4, 0xbe);
-    pegasos2_superio_write(0xf6, 0xef);
-    pegasos2_superio_write(0xf7, 0xfc);
-    pegasos2_superio_write(0xf2, 0x14);
+    pegasos_superio_write(0xf4, 0xbe);
+    pegasos_superio_write(0xf6, 0xef);
+    pegasos_superio_write(0xf7, 0xfc);
+    pegasos_superio_write(0xf2, 0x14);
     pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 0) << 8) |
                               0x50, 1, 0x2);
     pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 0) << 8) |
@@ -432,7 +503,7 @@ static void pegasos2_chipset_reset(PegasosMachineState *pm)
 static void pegasos_machine_reset(MachineState *machine, ResetType type)
 {
     PegasosMachineState *pm = PEGASOS_MACHINE(machine);
-    void *fdt;
+    void *fdt = NULL;
     uint32_t c[2];
     uint64_t d[2];
     int sz;
@@ -440,13 +511,22 @@ static void pegasos_machine_reset(MachineState *machine, ResetType type)
     qemu_devices_reset(type);
     if (!pm->vof) {
         return; /* Firmware should set up machine so nothing to do */
-    } else if (pm->type == PEGASOS1) {
-        error_report("VOF is not supported by this machine");
-        exit(1);
     }
 
     /* Otherwise, set up devices that board firmware would normally do */
-    pegasos2_chipset_reset(pm);
+    switch (pm->type) {
+    case PEGASOS1:
+        pegasos1_chipset_reset(pm);
+        fdt = pegasos1_build_fdt(pm, &sz);
+        break;
+    case PEGASOS2:
+        pegasos2_chipset_reset(pm);
+        fdt = pegasos2_build_fdt(pm, &sz);
+        break;
+    }
+    if (!fdt) {
+        exit(1);
+    }
 
     /* Device tree and VOF set up */
     vof_init(pm->vof, machine->ram_size, &error_fatal);
@@ -462,11 +542,6 @@ static void pegasos_machine_reset(MachineState *machine, ResetType type)
     if (pm->initrd_size &&
         vof_claim(pm->vof, pm->initrd_addr, pm->initrd_size, 0) == -1) {
         error_report("Memory for initrd is in use");
-        exit(1);
-    }
-
-    fdt = pegasos2_build_fdt(pm, &sz);
-    if (!fdt) {
         exit(1);
     }
 
@@ -761,6 +836,8 @@ static struct {
     const char *name;
     void (*dtf)(PCIBus *bus, PCIDevice *d, FDTInfo *fi);
 } device_map[] = {
+    { "pci10cc,660", "host", NULL },
+    { "pci10cc,661", "host", NULL },
     { "pci11ab,6460", "host", NULL },
     { "pci1106,571", "ide", dt_ide },
     { "pci1106,3044", "firewire", NULL },
@@ -846,7 +923,7 @@ static void add_pci_device(PCIBus *bus, PCIDevice *d, void *opaque)
         qemu_fdt_setprop_cell(fi->fdt, node->str, "interrupts",
                               pci_get_byte(&d->config[PCI_INTERRUPT_PIN]));
     }
-    /* Pegasos2 firmware has subsystem-id amd subsystem-vendor-id swapped */
+    /* Pegasos firmware has subsystem-id and subsystem-vendor-id swapped */
     qemu_fdt_setprop_cell(fi->fdt, node->str, "subsystem-vendor-id",
                           pci_get_word(&d->config[PCI_SUBSYSTEM_ID]));
     qemu_fdt_setprop_cell(fi->fdt, node->str, "subsystem-id",
@@ -931,6 +1008,27 @@ static void *load_dtb(const char *filename, int *fdt_size)
     if (!fdt) {
         error_report("Could not load dtb file '%s'", name);
     }
+    return fdt;
+}
+
+static void *pegasos1_build_fdt(PegasosMachineState *pm, int *fdt_size)
+{
+    FDTInfo fi;
+    PCIBus *pci_bus;
+    void *fdt = load_dtb("pegasos1.dtb", fdt_size);
+
+    if (!fdt) {
+        return NULL;
+    }
+    qemu_fdt_setprop_string(fdt, "/", "name", "bplan,Pegasos");
+
+    add_cpu_info(fdt, pm->cpu, pm->bus_freq_hz);
+
+    fi.fdt = fdt;
+    fi.path = "/pci@80000000";
+    pci_bus = PCI_BUS(qdev_get_child_bus(pm->nb, "pci.0"));
+    pci_for_each_device_reverse(pci_bus, 0, add_pci_device, &fi);
+
     return fdt;
 }
 
