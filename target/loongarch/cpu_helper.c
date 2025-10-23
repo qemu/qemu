@@ -49,12 +49,13 @@ TLBRet loongarch_check_pte(CPULoongArchState *env, MMUContext *context,
 {
     uint64_t plv = mmu_idx;
     uint64_t tlb_entry, tlb_ppn;
-    uint8_t tlb_ps, tlb_v, tlb_d, tlb_plv, tlb_nx, tlb_nr, tlb_rplv;
+    uint8_t tlb_ps, tlb_plv, tlb_nx, tlb_nr, tlb_rplv;
+    bool tlb_v, tlb_d;
 
     tlb_entry = context->pte;
     tlb_ps = context->ps;
-    tlb_v = FIELD_EX64(tlb_entry, TLBENTRY, V);
-    tlb_d = FIELD_EX64(tlb_entry, TLBENTRY, D);
+    tlb_v = pte_present(env, tlb_entry);
+    tlb_d = pte_write(env, tlb_entry);
     tlb_plv = FIELD_EX64(tlb_entry, TLBENTRY, PLV);
     if (is_la64(env)) {
         tlb_ppn = FIELD_EX64(tlb_entry, TLBENTRY_64, PPN);
@@ -96,6 +97,7 @@ TLBRet loongarch_check_pte(CPULoongArchState *env, MMUContext *context,
     context->physical = (tlb_ppn << R_TLBENTRY_64_PPN_SHIFT) |
                         (context->addr & MAKE_64BIT_MASK(0, tlb_ps));
     context->prot = PAGE_READ;
+    context->mmu_index = tlb_plv;
     if (tlb_d) {
         context->prot |= PAGE_WRITE;
     }
@@ -105,16 +107,52 @@ TLBRet loongarch_check_pte(CPULoongArchState *env, MMUContext *context,
     return TLBRET_MATCH;
 }
 
-static TLBRet loongarch_page_table_walker(CPULoongArchState *env,
-                                          MMUContext *context,
-                                          int access_type, int mmu_idx)
+static MemTxResult loongarch_cmpxchg_phys(CPUState *cs, hwaddr phys,
+                                          uint64_t old, uint64_t new)
+{
+    hwaddr addr1, l = 8;
+    MemoryRegion *mr;
+    uint8_t *ram_ptr;
+    uint64_t old1;
+    MemTxResult ret;
+
+    rcu_read_lock();
+    mr = address_space_translate(cs->as, phys, &addr1, &l,
+                                 false, MEMTXATTRS_UNSPECIFIED);
+    if (!memory_region_is_ram(mr)) {
+        /*
+         * Misconfigured PTE in ROM (AD bits are not preset) or
+         * PTE is in IO space and can't be updated atomically.
+         */
+         rcu_read_unlock();
+         return MEMTX_ACCESS_ERROR;
+    }
+
+    ram_ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+    old1 = qatomic_cmpxchg((uint64_t *)ram_ptr, cpu_to_le64(old),
+                           cpu_to_le64(new));
+    old1 = le64_to_cpu(old1);
+    if (old1 == old) {
+        ret = MEMTX_OK;
+    } else {
+        ret = MEMTX_DECODE_ERROR;
+    }
+    rcu_read_unlock();
+
+    return ret;
+}
+
+TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
+                     int access_type, int mmu_idx, int debug)
 {
     CPUState *cs = env_cpu(env);
-    target_ulong index, phys;
+    target_ulong index = 0, phys = 0;
     uint64_t dir_base, dir_width;
-    uint64_t base;
+    uint64_t base, pte;
     int level;
     vaddr address;
+    TLBRet ret;
+    MemTxResult ret1;
 
     address = context->addr;
     if ((address >> 63) & 0x1) {
@@ -124,7 +162,7 @@ static TLBRet loongarch_page_table_walker(CPULoongArchState *env,
     }
     base &= TARGET_PHYS_MASK;
 
-    for (level = 4; level > 0; level--) {
+    for (level = 4; level >= 0; level--) {
         get_dir_base_width(env, &dir_base, &dir_width, level);
 
         if (dir_width == 0) {
@@ -134,15 +172,24 @@ static TLBRet loongarch_page_table_walker(CPULoongArchState *env,
         /* get next level page directory */
         index = (address >> dir_base) & ((1 << dir_width) - 1);
         phys = base | index << 3;
-        base = ldq_phys(cs->as, phys) & TARGET_PHYS_MASK;
-        if (FIELD_EX64(base, TLBENTRY, HUGE)) {
-            /* base is a huge pte */
-            break;
+        base = ldq_phys(cs->as, phys);
+        if (level) {
+            if (FIELD_EX64(base, TLBENTRY, HUGE)) {
+                /* base is a huge pte */
+                index = 0;
+                dir_base -= 1;
+                break;
+            } else {
+                /* Discard high bits with page directory table */
+                base &= TARGET_PHYS_MASK;
+            }
         }
     }
 
+restart:
     /* pte */
-    if (FIELD_EX64(base, TLBENTRY, HUGE)) {
+    pte = base;
+    if (level > 0) {
         /* Huge Page. base is pte */
         base = FIELD_DP64(base, TLBENTRY, LEVEL, 0);
         base = FIELD_DP64(base, TLBENTRY, HUGE, 0);
@@ -150,17 +197,70 @@ static TLBRet loongarch_page_table_walker(CPULoongArchState *env,
             base = FIELD_DP64(base, TLBENTRY, HGLOBAL, 0);
             base = FIELD_DP64(base, TLBENTRY, G, 1);
         }
-    } else {
-        /* Normal Page. base points to pte */
-        get_dir_base_width(env, &dir_base, &dir_width, 0);
-        index = (address >> dir_base) & ((1 << dir_width) - 1);
-        phys = base | index << 3;
-        base = ldq_phys(cs->as, phys);
+
+        context->pte_buddy[index] = base;
+        context->pte_buddy[1 - index] = base + BIT_ULL(dir_base);
+        base += (BIT_ULL(dir_base) & address);
+    } else if (cpu_has_ptw(env)) {
+        index &= 1;
+        context->pte_buddy[index] = base;
+        context->pte_buddy[1 - index] = ldq_phys(cs->as,
+                                            phys + 8 * (1 - 2 * index));
     }
 
     context->ps = dir_base;
     context->pte = base;
-    return loongarch_check_pte(env, context, access_type, mmu_idx);
+    ret = loongarch_check_pte(env, context, access_type, mmu_idx);
+    if (debug) {
+        return ret;
+    }
+
+    /*
+     * Update bit A/D with hardware PTW supported
+     *
+     * Need atomic compchxg operation with pte update, other vCPUs may
+     * update pte at the same time.
+     */
+    if (ret == TLBRET_MATCH && cpu_has_ptw(env)) {
+        if (access_type == MMU_DATA_STORE && pte_dirty(base)) {
+            return ret;
+        }
+
+        if (access_type != MMU_DATA_STORE && pte_access(base)) {
+            return ret;
+        }
+
+        base = pte_mkaccess(pte);
+        if (access_type == MMU_DATA_STORE) {
+            base = pte_mkdirty(base);
+        }
+        ret1 = loongarch_cmpxchg_phys(cs, phys, pte, base);
+        /* PTE updated by other CPU, reload PTE entry */
+        if (ret1 == MEMTX_DECODE_ERROR) {
+            base = ldq_phys(cs->as, phys);
+            goto restart;
+        }
+
+        base = context->pte_buddy[index];
+        base = pte_mkaccess(base);
+        if (access_type == MMU_DATA_STORE) {
+            base = pte_mkdirty(base);
+        }
+        context->pte_buddy[index] = base;
+
+        /* Bit A/D need be updated with both Even/Odd page with huge pte */
+        if (level > 0) {
+            index = 1 - index;
+            base = context->pte_buddy[index];
+            base = pte_mkaccess(base);
+            if (access_type == MMU_DATA_STORE) {
+                base = pte_mkdirty(base);
+            }
+            context->pte_buddy[index] = base;
+        }
+    }
+
+    return ret;
 }
 
 static TLBRet loongarch_map_address(CPULoongArchState *env,
@@ -183,7 +283,7 @@ static TLBRet loongarch_map_address(CPULoongArchState *env,
          * legal mapping, even if the mapping is not yet in TLB. return 0 if
          * there is a valid map, else none zero.
          */
-        return loongarch_page_table_walker(env, context, access_type, mmu_idx);
+        return loongarch_ptw(env, context, access_type, mmu_idx, is_debug);
     }
 
     return TLBRET_NOMATCH;
@@ -217,6 +317,7 @@ TLBRet get_physical_address(CPULoongArchState *env, MMUContext *context,
     if (da & !pg) {
         context->physical = address & TARGET_PHYS_MASK;
         context->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        context->mmu_index = MMU_DA_IDX;
         return TLBRET_MATCH;
     }
 
@@ -236,6 +337,7 @@ TLBRet get_physical_address(CPULoongArchState *env, MMUContext *context,
         if ((plv & env->CSR_DMW[i]) && (base_c == base_v)) {
             context->physical = dmw_va2pa(env, address, env->CSR_DMW[i]);
             context->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+            context->mmu_index = MMU_DA_IDX;
             return TLBRET_MATCH;
         }
     }

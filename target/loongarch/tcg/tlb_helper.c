@@ -114,9 +114,8 @@ static void invalidate_tlb_entry(CPULoongArchState *env, int index)
     uint8_t tlb_ps;
     LoongArchTLB *tlb = &env->tlb[index];
     int idxmap = BIT(MMU_KERNEL_IDX) | BIT(MMU_USER_IDX);
-    uint8_t tlb_v0 = FIELD_EX64(tlb->tlb_entry0, TLBENTRY, V);
-    uint8_t tlb_v1 = FIELD_EX64(tlb->tlb_entry1, TLBENTRY, V);
     uint64_t tlb_vppn = FIELD_EX64(tlb->tlb_misc, TLB_MISC, VPPN);
+    bool tlb_v;
 
     tlb_ps = FIELD_EX64(tlb->tlb_misc, TLB_MISC, PS);
     pagesize = MAKE_64BIT_MASK(tlb_ps, 1);
@@ -124,12 +123,14 @@ static void invalidate_tlb_entry(CPULoongArchState *env, int index)
     addr = (tlb_vppn << R_TLB_MISC_VPPN_SHIFT) & ~mask;
     addr = sextract64(addr, 0, TARGET_VIRT_ADDR_SPACE_BITS);
 
-    if (tlb_v0) {
+    tlb_v = pte_present(env, tlb->tlb_entry0);
+    if (tlb_v) {
         tlb_flush_range_by_mmuidx(env_cpu(env), addr, pagesize,
                                   idxmap, TARGET_LONG_BITS);
     }
 
-    if (tlb_v1) {
+    tlb_v = pte_present(env, tlb->tlb_entry1);
+    if (tlb_v) {
         tlb_flush_range_by_mmuidx(env_cpu(env), addr + pagesize, pagesize,
                                   idxmap, TARGET_LONG_BITS);
     }
@@ -158,10 +159,10 @@ static void invalidate_tlb(CPULoongArchState *env, int index)
     invalidate_tlb_entry(env, index);
 }
 
-static void fill_tlb_entry(CPULoongArchState *env, LoongArchTLB *tlb)
+/* Prepare tlb entry information in software PTW mode */
+static void sptw_prepare_context(CPULoongArchState *env, MMUContext *context)
 {
     uint64_t lo0, lo1, csr_vppn;
-    uint16_t csr_asid;
     uint8_t csr_ps;
 
     if (FIELD_EX64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR)) {
@@ -183,6 +184,24 @@ static void fill_tlb_entry(CPULoongArchState *env, LoongArchTLB *tlb)
         lo0 = env->CSR_TLBELO0;
         lo1 = env->CSR_TLBELO1;
     }
+
+    context->ps = csr_ps;
+    context->addr = csr_vppn << R_TLB_MISC_VPPN_SHIFT;
+    context->pte_buddy[0] = lo0;
+    context->pte_buddy[1] = lo1;
+}
+
+static void fill_tlb_entry(CPULoongArchState *env, LoongArchTLB *tlb,
+                           MMUContext *context)
+{
+    uint64_t lo0, lo1, csr_vppn;
+    uint16_t csr_asid;
+    uint8_t csr_ps;
+
+    csr_vppn = context->addr >> R_TLB_MISC_VPPN_SHIFT;
+    csr_ps   = context->ps;
+    lo0      = context->pte_buddy[0];
+    lo1      = context->pte_buddy[1];
 
     /* Store page size in field PS */
     tlb->tlb_misc = FIELD_DP64(tlb->tlb_misc, TLB_MISC, PS, csr_ps);
@@ -331,25 +350,19 @@ void helper_tlbrd(CPULoongArchState *env)
     }
 }
 
-void helper_tlbwr(CPULoongArchState *env)
+static void update_tlb_index(CPULoongArchState *env, MMUContext *context,
+                             int index)
 {
-    int index = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, INDEX);
     LoongArchTLB *old, new = {};
-    bool skip_inv = false;
-    uint8_t tlb_v0, tlb_v1;
+    bool skip_inv = false, tlb_v0, tlb_v1;
 
     old = env->tlb + index;
-    if (FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, NE)) {
-        invalidate_tlb(env, index);
-        return;
-    }
-
-    fill_tlb_entry(env, &new);
+    fill_tlb_entry(env, &new, context);
     /* Check whether ASID/VPPN is the same */
     if (old->tlb_misc == new.tlb_misc) {
         /* Check whether both even/odd pages is the same or invalid */
-        tlb_v0 = FIELD_EX64(old->tlb_entry0, TLBENTRY, V);
-        tlb_v1 = FIELD_EX64(old->tlb_entry1, TLBENTRY, V);
+        tlb_v0 = pte_present(env, old->tlb_entry0);
+        tlb_v1 = pte_present(env, old->tlb_entry1);
         if ((!tlb_v0 || new.tlb_entry0 == old->tlb_entry0) &&
             (!tlb_v1 || new.tlb_entry1 == old->tlb_entry1)) {
             skip_inv = true;
@@ -364,31 +377,35 @@ void helper_tlbwr(CPULoongArchState *env)
     *old = new;
 }
 
-void helper_tlbfill(CPULoongArchState *env)
+void helper_tlbwr(CPULoongArchState *env)
 {
-    uint64_t address, entryhi;
+    int index = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, INDEX);
+    MMUContext context;
+
+    if (FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, NE)) {
+        invalidate_tlb(env, index);
+        return;
+    }
+
+    sptw_prepare_context(env, &context);
+    update_tlb_index(env, &context, index);
+}
+
+static int get_tlb_random_index(CPULoongArchState *env, vaddr addr,
+                                int pagesize)
+{
+    uint64_t address;
     int index, set, i, stlb_idx;
-    uint16_t pagesize, stlb_ps;
-    uint16_t asid, tlb_asid;
+    uint16_t asid, tlb_asid, stlb_ps;
     LoongArchTLB *tlb;
     uint8_t tlb_e, tlb_g;
-
-    if (FIELD_EX64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR)) {
-        entryhi = env->CSR_TLBREHI;
-        /* Validity of pagesize is checked in helper_ldpte() */
-        pagesize = FIELD_EX64(env->CSR_TLBREHI, CSR_TLBREHI, PS);
-    } else {
-        entryhi = env->CSR_TLBEHI;
-        /* Validity of pagesize is checked in helper_tlbrd() */
-        pagesize = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, PS);
-    }
 
     /* Validity of stlb_ps is checked in helper_csrwr_stlbps() */
     stlb_ps = FIELD_EX64(env->CSR_STLBPS, CSR_STLBPS, PS);
     asid = FIELD_EX64(env->CSR_ASID, CSR_ASID, ASID);
     if (pagesize == stlb_ps) {
         /* Only write into STLB bits [47:13] */
-        address = entryhi & ~MAKE_64BIT_MASK(0, R_CSR_TLBEHI_64_VPPN_SHIFT);
+        address = addr & ~MAKE_64BIT_MASK(0, R_CSR_TLBEHI_64_VPPN_SHIFT);
         set = -1;
         stlb_idx = (address >> (stlb_ps + 1)) & 0xff; /* [0,255] */
         for (i = 0; i < 8; ++i) {
@@ -435,8 +452,29 @@ void helper_tlbfill(CPULoongArchState *env)
         }
     }
 
+    return index;
+}
+
+void helper_tlbfill(CPULoongArchState *env)
+{
+    vaddr entryhi;
+    int index, pagesize;
+    MMUContext context;
+
+    if (FIELD_EX64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR)) {
+        entryhi = env->CSR_TLBREHI;
+        /* Validity of pagesize is checked in helper_ldpte() */
+        pagesize = FIELD_EX64(env->CSR_TLBREHI, CSR_TLBREHI, PS);
+    } else {
+        entryhi = env->CSR_TLBEHI;
+        /* Validity of pagesize is checked in helper_tlbrd() */
+        pagesize = FIELD_EX64(env->CSR_TLBIDX, CSR_TLBIDX, PS);
+    }
+
+    sptw_prepare_context(env, &context);
+    index = get_tlb_random_index(env, entryhi, pagesize);
     invalidate_tlb(env, index);
-    fill_tlb_entry(env, env->tlb + index);
+    fill_tlb_entry(env, env->tlb + index, &context);
 }
 
 void helper_tlbclr(CPULoongArchState *env)
@@ -563,6 +601,18 @@ void helper_invtlb_page_asid_or_g(CPULoongArchState *env,
     }
 }
 
+static void ptw_update_tlb(CPULoongArchState *env, MMUContext *context)
+{
+    int index;
+
+    index = context->tlb_index;
+    if (index < 0) {
+        index = get_tlb_random_index(env, context->addr, context->ps);
+    }
+
+    update_tlb_index(env, context, index);
+}
+
 bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                             MMUAccessType access_type, int mmu_idx,
                             bool probe, uintptr_t retaddr)
@@ -575,7 +625,45 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
     /* Data access */
     context.addr = address;
+    context.tlb_index = -1;
     ret = get_physical_address(env, &context, access_type, mmu_idx, 0);
+    if (ret == TLBRET_MATCH && context.mmu_index != MMU_DA_IDX
+        && cpu_has_ptw(env)) {
+        bool need_update = true;
+
+        if (access_type == MMU_DATA_STORE && pte_dirty(context.pte)) {
+            need_update = false;
+        } else if (access_type != MMU_DATA_STORE && pte_access(context.pte)) {
+            need_update = false;
+
+            /*
+             * FIXME: should context.prot be set without PAGE_WRITE with
+             * pte_write(context.pte) && !pte_dirty(context.pte)??
+             *
+             * Otherwise there will be no loongarch_cpu_tlb_fill() function call
+             * for MMU_DATA_STORE access_type in future since QEMU TLB with
+             * prot PAGE_WRITE is added already
+             */
+        }
+
+        if (need_update) {
+            /* Need update bit A/D in PTE entry, take PTW again */
+            ret = TLBRET_NOMATCH;
+        }
+    }
+
+    if (ret != TLBRET_MATCH && cpu_has_ptw(env)) {
+        /* Take HW PTW if TLB missed or bit P is zero */
+        if (ret == TLBRET_NOMATCH || ret == TLBRET_INVALID) {
+            ret = loongarch_ptw(env, &context, access_type, mmu_idx, 0);
+            if (ret == TLBRET_MATCH) {
+                ptw_update_tlb(env, &context);
+            }
+        } else if (context.tlb_index >= 0) {
+            invalidate_tlb(env, context.tlb_index);
+        }
+    }
+
     if (ret == TLBRET_MATCH) {
         physical = context.physical;
         prot = context.prot;
@@ -715,6 +803,7 @@ static TLBRet loongarch_map_tlb_entry(CPULoongArchState *env,
     n = (context->addr >> tlb_ps) & 0x1;/* Odd or even */
     context->pte = n ? tlb->tlb_entry1 : tlb->tlb_entry0;
     context->ps = tlb_ps;
+    context->tlb_index = index;
     return loongarch_check_pte(env, context, access_type, mmu_idx);
 }
 

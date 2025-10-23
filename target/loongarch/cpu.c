@@ -224,6 +224,25 @@ static void loongarch_set_msgint(Object *obj, bool value, Error **errp)
      cpu->env.cpucfg[1] = FIELD_DP32(cpu->env.cpucfg[1], CPUCFG1, MSG_INT, value);
 }
 
+static bool loongarch_get_ptw(Object *obj, Error **errp)
+{
+    return LOONGARCH_CPU(obj)->ptw != ON_OFF_AUTO_OFF;
+}
+
+static void loongarch_set_ptw(Object *obj, bool value, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    cpu->ptw = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+
+    if (kvm_enabled()) {
+        /* PTW feature is only support in TCG mode now */
+        return;
+    }
+
+    cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, HPTW, value);
+}
+
 static void loongarch_cpu_post_init(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
@@ -238,7 +257,10 @@ static void loongarch_cpu_post_init(Object *obj)
                              loongarch_set_lasx);
     object_property_add_bool(obj, "msgint", loongarch_get_msgint,
                              loongarch_set_msgint);
+    object_property_add_bool(obj, "ptw", loongarch_get_ptw,
+                             loongarch_set_ptw);
     /* lbt is enabled only in kvm mode, not supported in tcg mode */
+
     if (kvm_enabled()) {
         kvm_loongarch_cpu_post_init(cpu);
     }
@@ -346,6 +368,7 @@ static void loongarch_la464_initfn(Object *obj)
     env->CSR_PRCFG3 = FIELD_DP64(env->CSR_PRCFG3, CSR_PRCFG3, STLB_SETS, 8);
 
     cpu->msgint = ON_OFF_AUTO_OFF;
+    cpu->ptw = ON_OFF_AUTO_OFF;
     loongarch_la464_init_csr(obj);
     loongarch_cpu_post_init(obj);
 }
@@ -377,6 +400,7 @@ static void loongarch_la132_initfn(Object *obj)
     data = FIELD_DP32(data, CPUCFG1, CRC, 1);
     env->cpucfg[1] = data;
     cpu->msgint = ON_OFF_AUTO_OFF;
+    cpu->ptw = ON_OFF_AUTO_OFF;
 }
 
 static void loongarch_max_initfn(Object *obj)
@@ -388,6 +412,8 @@ static void loongarch_max_initfn(Object *obj)
     if (tcg_enabled()) {
         cpu->env.cpucfg[1] = FIELD_DP32(cpu->env.cpucfg[1], CPUCFG1, MSG_INT, 1);
         cpu->msgint = ON_OFF_AUTO_AUTO;
+        cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, HPTW, 1);
+        cpu->ptw = ON_OFF_AUTO_AUTO;
     }
 }
 
