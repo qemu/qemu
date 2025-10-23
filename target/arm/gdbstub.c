@@ -554,6 +554,12 @@ void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
                 arm_gen_dynamic_smereg_feature(cs, cs->gdb_num_regs);
             gdb_register_coprocessor(cs, aarch64_gdb_get_sme_reg,
                                      aarch64_gdb_set_sme_reg, sme_feature, 0);
+            if (isar_feature_aa64_sme2(&cpu->isar)) {
+                gdb_register_coprocessor(cs, aarch64_gdb_get_sme2_reg,
+                                         aarch64_gdb_set_sme2_reg,
+                                         gdb_find_static_feature("aarch64-sme2.xml"),
+                                         0);
+            }
         }
         /*
          * Note that we report pauth information via the feature name
@@ -577,6 +583,12 @@ void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
                                      0);
         }
 #endif
+
+        /* All AArch64 CPUs have at least TPIDR */
+        gdb_register_coprocessor(cs, aarch64_gdb_get_tls_reg,
+                                 aarch64_gdb_set_tls_reg,
+                                 arm_gen_dynamic_tls_feature(cs, cs->gdb_num_regs),
+                                 0);
 #endif
     } else {
         if (arm_feature(env, ARM_FEATURE_NEON)) {
