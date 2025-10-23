@@ -261,7 +261,7 @@ void hmp_info_firmware_log(Monitor *mon, const QDict *qdict)
     g_autofree gchar *log_esc = NULL;
     g_autofree guchar *log_out = NULL;
     Error *err = NULL;
-    FirmwareLog *log;
+    g_autoptr(FirmwareLog) log = NULL;
     gsize log_len;
     int64_t maxsize;
 
