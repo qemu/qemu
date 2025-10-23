@@ -662,7 +662,6 @@ static void dt_isa(PCIBus *bus, PCIDevice *d, FDTInfo *fi)
     qemu_fdt_setprop_cell(fi->fdt, fi->path, "#size-cells", 1);
     qemu_fdt_setprop_cell(fi->fdt, fi->path, "#address-cells", 2);
     qemu_fdt_setprop_string(fi->fdt, fi->path, "device_type", "isa");
-    qemu_fdt_setprop_string(fi->fdt, fi->path, "name", "isa");
 
     /* additional devices */
     g_string_printf(name, "%s/lpt@i3bc", fi->path);
@@ -677,7 +676,6 @@ static void dt_isa(PCIBus *bus, PCIDevice *d, FDTInfo *fi)
     cells[2] = cpu_to_be32(8);
     qemu_fdt_setprop(fi->fdt, name->str, "reg", cells, 3 * sizeof(cells[0]));
     qemu_fdt_setprop_string(fi->fdt, name->str, "device_type", "lpt");
-    qemu_fdt_setprop_string(fi->fdt, name->str, "name", "lpt");
 
     g_string_printf(name, "%s/fdc@i3f0", fi->path);
     qemu_fdt_add_subnode(fi->fdt, name->str);
@@ -691,7 +689,6 @@ static void dt_isa(PCIBus *bus, PCIDevice *d, FDTInfo *fi)
     cells[2] = cpu_to_be32(8);
     qemu_fdt_setprop(fi->fdt, name->str, "reg", cells, 3 * sizeof(cells[0]));
     qemu_fdt_setprop_string(fi->fdt, name->str, "device_type", "fdc");
-    qemu_fdt_setprop_string(fi->fdt, name->str, "name", "fdc");
 
     g_string_printf(name, "%s/timer@i40", fi->path);
     qemu_fdt_add_subnode(fi->fdt, name->str);
@@ -701,7 +698,6 @@ static void dt_isa(PCIBus *bus, PCIDevice *d, FDTInfo *fi)
     cells[2] = cpu_to_be32(8);
     qemu_fdt_setprop(fi->fdt, name->str, "reg", cells, 3 * sizeof(cells[0]));
     qemu_fdt_setprop_string(fi->fdt, name->str, "device_type", "timer");
-    qemu_fdt_setprop_string(fi->fdt, name->str, "name", "timer");
 
     g_string_printf(name, "%s/rtc@i70", fi->path);
     qemu_fdt_add_subnode(fi->fdt, name->str);
@@ -716,7 +712,6 @@ static void dt_isa(PCIBus *bus, PCIDevice *d, FDTInfo *fi)
     cells[2] = cpu_to_be32(2);
     qemu_fdt_setprop(fi->fdt, name->str, "reg", cells, 3 * sizeof(cells[0]));
     qemu_fdt_setprop_string(fi->fdt, name->str, "device_type", "rtc");
-    qemu_fdt_setprop_string(fi->fdt, name->str, "name", "rtc");
 
     g_string_printf(name, "%s/keyboard@i60", fi->path);
     qemu_fdt_add_subnode(fi->fdt, name->str);
@@ -729,7 +724,6 @@ static void dt_isa(PCIBus *bus, PCIDevice *d, FDTInfo *fi)
     cells[2] = cpu_to_be32(5);
     qemu_fdt_setprop(fi->fdt, name->str, "reg", cells, 3 * sizeof(cells[0]));
     qemu_fdt_setprop_string(fi->fdt, name->str, "device_type", "keyboard");
-    qemu_fdt_setprop_string(fi->fdt, name->str, "name", "keyboard");
 
     g_string_printf(name, "%s/8042@i60", fi->path);
     qemu_fdt_add_subnode(fi->fdt, name->str);
@@ -743,7 +737,6 @@ static void dt_isa(PCIBus *bus, PCIDevice *d, FDTInfo *fi)
     cells[2] = cpu_to_be32(5);
     qemu_fdt_setprop(fi->fdt, name->str, "reg", cells, 3 * sizeof(cells[0]));
     qemu_fdt_setprop_string(fi->fdt, name->str, "device_type", "");
-    qemu_fdt_setprop_string(fi->fdt, name->str, "name", "8042");
 
     g_string_printf(name, "%s/serial@i2f8", fi->path);
     qemu_fdt_add_subnode(fi->fdt, name->str);
@@ -757,7 +750,6 @@ static void dt_isa(PCIBus *bus, PCIDevice *d, FDTInfo *fi)
     cells[2] = cpu_to_be32(8);
     qemu_fdt_setprop(fi->fdt, name->str, "reg", cells, 3 * sizeof(cells[0]));
     qemu_fdt_setprop_string(fi->fdt, name->str, "device_type", "serial");
-    qemu_fdt_setprop_string(fi->fdt, name->str, "name", "serial");
 
     g_string_free(name, TRUE);
 }
@@ -846,7 +838,6 @@ static void add_pci_device(PCIBus *bus, PCIDevice *d, void *opaque)
         j += 5;
     }
     qemu_fdt_setprop(fi->fdt, node->str, "reg", cells, j * sizeof(cells[0]));
-    qemu_fdt_setprop_string(fi->fdt, node->str, "name", name ?: pn);
     if (pci_get_byte(&d->config[PCI_INTERRUPT_PIN])) {
         qemu_fdt_setprop_cell(fi->fdt, node->str, "interrupts",
                               pci_get_byte(&d->config[PCI_INTERRUPT_PIN]));
@@ -916,7 +907,6 @@ static void *build_fdt(MachineState *machine, int *fdt_size)
     qemu_fdt_setprop_cell(fdt, "/pci@c0000000", "#size-cells", 2);
     qemu_fdt_setprop_cell(fdt, "/pci@c0000000", "#address-cells", 3);
     qemu_fdt_setprop_string(fdt, "/pci@c0000000", "device_type", "pci");
-    qemu_fdt_setprop_string(fdt, "/pci@c0000000", "name", "pci");
 
     fi.path = "/pci@c0000000";
     pci_bus = mv64361_get_pci_bus(pm->mv, 0);
@@ -951,7 +941,6 @@ static void *build_fdt(MachineState *machine, int *fdt_size)
     qemu_fdt_setprop_cell(fdt, "/pci@80000000", "#size-cells", 2);
     qemu_fdt_setprop_cell(fdt, "/pci@80000000", "#address-cells", 3);
     qemu_fdt_setprop_string(fdt, "/pci@80000000", "device_type", "pci");
-    qemu_fdt_setprop_string(fdt, "/pci@80000000", "name", "pci");
 
     fi.path = "/pci@80000000";
     pci_bus = mv64361_get_pci_bus(pm->mv, 1);
@@ -959,7 +948,6 @@ static void *build_fdt(MachineState *machine, int *fdt_size)
 
     qemu_fdt_add_subnode(fdt, "/failsafe");
     qemu_fdt_setprop_string(fdt, "/failsafe", "device_type", "serial");
-    qemu_fdt_setprop_string(fdt, "/failsafe", "name", "failsafe");
 
     qemu_fdt_add_subnode(fdt, "/rtas");
     qemu_fdt_setprop_cell(fdt, "/rtas", "system-reboot", RTAS_SYSTEM_REBOOT);
@@ -989,14 +977,12 @@ static void *build_fdt(MachineState *machine, int *fdt_size)
     qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-display-device", 0);
     qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-size", 20);
     qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-version", 1);
-    qemu_fdt_setprop_string(fdt, "/rtas", "name", "rtas");
 
     /* cpus */
     qemu_fdt_add_subnode(fdt, "/cpus");
     qemu_fdt_setprop_cell(fdt, "/cpus", "#cpus", 1);
     qemu_fdt_setprop_cell(fdt, "/cpus", "#address-cells", 1);
     qemu_fdt_setprop_cell(fdt, "/cpus", "#size-cells", 0);
-    qemu_fdt_setprop_string(fdt, "/cpus", "name", "cpus");
 
     /* FIXME Get CPU name from CPU object */
     const char *cp = "/cpus/PowerPC,G4";
@@ -1048,7 +1034,6 @@ static void *build_fdt(MachineState *machine, int *fdt_size)
     cells[1] = 0;
     qemu_fdt_setprop(fdt, cp, "reg", cells, 2 * sizeof(cells[0]));
     qemu_fdt_setprop_string(fdt, cp, "device_type", "cpu");
-    qemu_fdt_setprop_string(fdt, cp, "name", strrchr(cp, '/') + 1);
 
     /* memory */
     qemu_fdt_add_subnode(fdt, "/memory@0");
@@ -1056,7 +1041,6 @@ static void *build_fdt(MachineState *machine, int *fdt_size)
     cells[1] = cpu_to_be32(machine->ram_size);
     qemu_fdt_setprop(fdt, "/memory@0", "reg", cells, 2 * sizeof(cells[0]));
     qemu_fdt_setprop_string(fdt, "/memory@0", "device_type", "memory");
-    qemu_fdt_setprop_string(fdt, "/memory@0", "name", "memory");
 
     qemu_fdt_add_subnode(fdt, "/chosen");
     if (pm->initrd_addr && pm->initrd_size) {
@@ -1067,7 +1051,6 @@ static void *build_fdt(MachineState *machine, int *fdt_size)
     }
     qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
                             machine->kernel_cmdline ?: "");
-    qemu_fdt_setprop_string(fdt, "/chosen", "name", "chosen");
 
     qemu_fdt_add_subnode(fdt, "/openprom");
     qemu_fdt_setprop_string(fdt, "/openprom", "model", "Pegasos2,1.1");
