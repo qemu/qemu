@@ -164,7 +164,9 @@ struct DBDMAState {
     DBDMA_channel channels[DBDMA_CHANNELS];
     QEMUBH *bh;
 };
-typedef struct DBDMAState DBDMAState;
+
+#define TYPE_MAC_DBDMA "mac-dbdma"
+OBJECT_DECLARE_SIMPLE_TYPE(DBDMAState, MAC_DBDMA)
 
 /* Externally callable functions */
 
@@ -172,8 +174,5 @@ void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
                             DBDMA_rw rw, DBDMA_flush flush,
                             void *opaque);
 void DBDMA_kick(DBDMAState *dbdma);
-
-#define TYPE_MAC_DBDMA "mac-dbdma"
-OBJECT_DECLARE_SIMPLE_TYPE(DBDMAState, MAC_DBDMA)
 
 #endif

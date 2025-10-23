@@ -32,7 +32,8 @@ struct LASIPS2PortDeviceClass {
     DeviceRealize parent_realize;
 };
 
-typedef struct LASIPS2State LASIPS2State;
+#define TYPE_LASIPS2 "lasips2"
+OBJECT_DECLARE_SIMPLE_TYPE(LASIPS2State, LASIPS2)
 
 struct LASIPS2Port {
     DeviceState parent_obj;
@@ -73,8 +74,5 @@ struct LASIPS2State {
     uint8_t int_status;
     qemu_irq irq;
 };
-
-#define TYPE_LASIPS2 "lasips2"
-OBJECT_DECLARE_SIMPLE_TYPE(LASIPS2State, LASIPS2)
 
 #endif /* HW_INPUT_LASIPS2_H */

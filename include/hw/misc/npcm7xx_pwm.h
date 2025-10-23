@@ -35,8 +35,8 @@
  * value of 100,000 the duty cycle for that PWM is 10%.
  */
 #define NPCM7XX_PWM_MAX_DUTY 1000000
-
-typedef struct NPCM7xxPWMState NPCM7xxPWMState;
+#define TYPE_NPCM7XX_PWM "npcm7xx-pwm"
+OBJECT_DECLARE_SIMPLE_TYPE(NPCM7xxPWMState, NPCM7XX_PWM)
 
 /**
  * struct NPCM7xxPWM - The state of a single PWM channel.
@@ -99,8 +99,5 @@ struct NPCM7xxPWMState {
     uint32_t    pier;
     uint32_t    piir;
 };
-
-#define TYPE_NPCM7XX_PWM "npcm7xx-pwm"
-OBJECT_DECLARE_SIMPLE_TYPE(NPCM7xxPWMState, NPCM7XX_PWM)
 
 #endif /* NPCM7XX_PWM_H */

@@ -12,7 +12,8 @@
 #include "hw/vfio/vfio-container.h"
 #include "hw/vfio/vfio-cpr.h"
 
-typedef struct VFIOLegacyContainer VFIOLegacyContainer;
+OBJECT_DECLARE_SIMPLE_TYPE(VFIOLegacyContainer, VFIO_IOMMU_LEGACY);
+
 typedef struct VFIODevice VFIODevice;
 
 typedef struct VFIOGroup {
@@ -34,7 +35,5 @@ struct VFIOLegacyContainer {
     QLIST_HEAD(, VFIOGroup) group_list;
     VFIOContainerCPR cpr;
 };
-
-OBJECT_DECLARE_SIMPLE_TYPE(VFIOLegacyContainer, VFIO_IOMMU_LEGACY);
 
 #endif /* HW_VFIO_CONTAINER_LEGACY_H */

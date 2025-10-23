@@ -123,10 +123,12 @@ typedef struct {
 
 /* ----------------------------------------------------------------------- */
 
-typedef struct MTPState MTPState;
 typedef struct MTPControl MTPControl;
 typedef struct MTPData MTPData;
 typedef struct MTPObject MTPObject;
+
+#define TYPE_USB_MTP "usb-mtp"
+OBJECT_DECLARE_SIMPLE_TYPE(MTPState, USB_MTP)
 
 enum {
     EP_DATA_IN = 1,
@@ -235,9 +237,6 @@ typedef struct {
     char keywords[0]; /*unused*/
     /* string and other data follows */
 } QEMU_PACKED ObjectInfo;
-
-#define TYPE_USB_MTP "usb-mtp"
-OBJECT_DECLARE_SIMPLE_TYPE(MTPState, USB_MTP)
 
 #define QEMU_STORAGE_ID 0x00010001
 

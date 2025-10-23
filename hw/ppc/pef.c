@@ -19,7 +19,6 @@
 #define TYPE_PEF_GUEST "pef-guest"
 OBJECT_DECLARE_SIMPLE_TYPE(PefGuest, PEF_GUEST)
 
-typedef struct PefGuest PefGuest;
 typedef struct PefGuestClass PefGuestClass;
 
 struct PefGuestClass {
