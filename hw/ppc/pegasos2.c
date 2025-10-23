@@ -57,10 +57,10 @@
 
 #define BUS_FREQ_HZ 133333333
 
-#define TYPE_PEGASOS2_MACHINE  MACHINE_TYPE_NAME("pegasos2")
-OBJECT_DECLARE_TYPE(Pegasos2MachineState, MachineClass, PEGASOS2_MACHINE)
+#define TYPE_PEGASOS_MACHINE MACHINE_TYPE_NAME("pegasos")
+OBJECT_DECLARE_SIMPLE_TYPE(PegasosMachineState, PEGASOS_MACHINE)
 
-struct Pegasos2MachineState {
+struct PegasosMachineState {
     MachineState parent_obj;
 
     PowerPCCPU *cpu;
@@ -78,12 +78,12 @@ struct Pegasos2MachineState {
     uint64_t initrd_size;
 };
 
-static void *pegasos2_build_fdt(Pegasos2MachineState *pm, int *fdt_size);
+static void *pegasos2_build_fdt(PegasosMachineState *pm, int *fdt_size);
 
 static void pegasos2_cpu_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
-    Pegasos2MachineState *pm = PEGASOS2_MACHINE(current_machine);
+    PegasosMachineState *pm = PEGASOS_MACHINE(current_machine);
 
     cpu_reset(CPU(cpu));
     cpu->env.spr[SPR_HID1] = 7ULL << 28;
@@ -96,7 +96,7 @@ static void pegasos2_cpu_reset(void *opaque)
 
 static void pegasos2_pci_irq(void *opaque, int n, int level)
 {
-    Pegasos2MachineState *pm = opaque;
+    PegasosMachineState *pm = opaque;
 
     /* PCI interrupt lines are connected to both MV64361 and VT8231 */
     qemu_set_irq(pm->mv_pirq[n], level);
@@ -104,7 +104,7 @@ static void pegasos2_pci_irq(void *opaque, int n, int level)
 }
 
 /* Set up PCI interrupt routing: lines from pci.0 and pci.1 are ORed */
-static void pegasos2_setup_pci_irq(Pegasos2MachineState *pm)
+static void pegasos2_setup_pci_irq(PegasosMachineState *pm)
 {
     for (int h = 0; h < 2; h++) {
         DeviceState *pd;
@@ -137,7 +137,7 @@ static void pegasos2_setup_pci_irq(Pegasos2MachineState *pm)
 
 static void pegasos2_init(MachineState *machine)
 {
-    Pegasos2MachineState *pm = PEGASOS2_MACHINE(machine);
+    PegasosMachineState *pm = PEGASOS_MACHINE(machine);
     CPUPPCState *env;
     MemoryRegion *rom = g_new(MemoryRegion, 1);
     PCIBus *pci_bus;
@@ -262,7 +262,7 @@ static void pegasos2_init(MachineState *machine)
     }
 }
 
-static uint32_t pegasos2_mv_reg_read(Pegasos2MachineState *pm,
+static uint32_t pegasos2_mv_reg_read(PegasosMachineState *pm,
                                      uint32_t addr, uint32_t len)
 {
     MemoryRegion *r = sysbus_mmio_get_region(SYS_BUS_DEVICE(pm->nb), 0);
@@ -272,7 +272,7 @@ static uint32_t pegasos2_mv_reg_read(Pegasos2MachineState *pm,
     return val;
 }
 
-static void pegasos2_mv_reg_write(Pegasos2MachineState *pm, uint32_t addr,
+static void pegasos2_mv_reg_write(PegasosMachineState *pm, uint32_t addr,
                                   uint32_t len, uint32_t val)
 {
     MemoryRegion *r = sysbus_mmio_get_region(SYS_BUS_DEVICE(pm->nb), 0);
@@ -283,7 +283,7 @@ static void pegasos2_mv_reg_write(Pegasos2MachineState *pm, uint32_t addr,
 #define PCI0_CFG_ADDR 0xcf8
 #define PCI1_CFG_ADDR 0xc78
 
-static uint32_t pegasos2_pci_config_read(Pegasos2MachineState *pm, int bus,
+static uint32_t pegasos2_pci_config_read(PegasosMachineState *pm, int bus,
                                          uint32_t addr, uint32_t len)
 {
     hwaddr pcicfg = bus ? PCI1_CFG_ADDR : PCI0_CFG_ADDR;
@@ -296,7 +296,7 @@ static uint32_t pegasos2_pci_config_read(Pegasos2MachineState *pm, int bus,
     return val;
 }
 
-static void pegasos2_pci_config_write(Pegasos2MachineState *pm, int bus,
+static void pegasos2_pci_config_write(PegasosMachineState *pm, int bus,
                                       uint32_t addr, uint32_t len, uint32_t val)
 {
     hwaddr pcicfg = bus ? PCI1_CFG_ADDR : PCI0_CFG_ADDR;
@@ -311,7 +311,7 @@ static void pegasos2_superio_write(uint8_t addr, uint8_t val)
     cpu_physical_memory_write(0xfe0003f1, &val, 1);
 }
 
-static void pegasos2_chipset_reset(Pegasos2MachineState *pm)
+static void pegasos2_chipset_reset(PegasosMachineState *pm)
 {
     pegasos2_mv_reg_write(pm, 0, 4, 0x28020ff);
     pegasos2_mv_reg_write(pm, 0x278, 4, 0xa31fc);
@@ -379,7 +379,7 @@ static void pegasos2_chipset_reset(Pegasos2MachineState *pm)
 
 static void pegasos2_machine_reset(MachineState *machine, ResetType type)
 {
-    Pegasos2MachineState *pm = PEGASOS2_MACHINE(machine);
+    PegasosMachineState *pm = PEGASOS_MACHINE(machine);
     void *fdt;
     uint32_t c[2];
     uint64_t d[2];
@@ -463,7 +463,7 @@ enum pegasos2_rtas_tokens {
     RTAS_SYSTEM_REBOOT = 20,
 };
 
-static target_ulong pegasos2_rtas(PowerPCCPU *cpu, Pegasos2MachineState *pm,
+static target_ulong pegasos2_rtas(PowerPCCPU *cpu, PegasosMachineState *pm,
                                   target_ulong args_real)
 {
     AddressSpace *as = CPU(cpu)->as;
@@ -566,7 +566,7 @@ static bool pegasos2_cpu_in_nested(PowerPCCPU *cpu)
 
 static void pegasos2_hypercall(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu)
 {
-    Pegasos2MachineState *pm = PEGASOS2_MACHINE(vhyp);
+    PegasosMachineState *pm = PEGASOS_MACHINE(vhyp);
     CPUPPCState *env = &cpu->env;
 
     /* The TCG path should also be holding the BQL at this point */
@@ -629,24 +629,26 @@ static void pegasos2_machine_class_init(ObjectClass *oc, const void *data)
     vmc->setprop = pegasos2_setprop;
 }
 
-static const TypeInfo pegasos2_machine_info = {
-    .name          = TYPE_PEGASOS2_MACHINE,
-    .parent        = TYPE_MACHINE,
-    .class_init    = pegasos2_machine_class_init,
-    .instance_size = sizeof(Pegasos2MachineState),
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_PPC_VIRTUAL_HYPERVISOR },
-        { TYPE_VOF_MACHINE_IF },
-        { }
+static const TypeInfo pegasos_machine_types[] = {
+    {
+        .name          = TYPE_PEGASOS_MACHINE,
+        .parent        = TYPE_MACHINE,
+        .instance_size = sizeof(PegasosMachineState),
+        .abstract      = true,
+        .interfaces = (const InterfaceInfo[]) {
+              { TYPE_PPC_VIRTUAL_HYPERVISOR },
+              { TYPE_VOF_MACHINE_IF },
+              { }
+        },
+    },
+    {
+        .name          = MACHINE_TYPE_NAME("pegasos2"),
+        .parent        = TYPE_PEGASOS_MACHINE,
+        .class_init    = pegasos2_machine_class_init,
     },
 };
 
-static void pegasos2_machine_register_types(void)
-{
-    type_register_static(&pegasos2_machine_info);
-}
-
-type_init(pegasos2_machine_register_types)
+DEFINE_TYPES(pegasos_machine_types)
 
 /* FDT creation for passing to firmware */
 
@@ -847,7 +849,7 @@ static void *load_dtb(const char *filename, int *fdt_size)
     return fdt;
 }
 
-static void *pegasos2_build_fdt(Pegasos2MachineState *pm, int *fdt_size)
+static void *pegasos2_build_fdt(PegasosMachineState *pm, int *fdt_size)
 {
     FDTInfo fi;
     PCIBus *pci_bus;
