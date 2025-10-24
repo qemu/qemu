@@ -42,12 +42,14 @@
 
 static bool trans_flh(DisasContext *ctx, arg_flh *a)
 {
+    MemOp memop = MO_UW;
     TCGv_i64 dest;
     TCGv t0;
 
     REQUIRE_FPU;
     REQUIRE_ZFHMIN_OR_ZFBFMIN(ctx);
 
+    memop |= mo_endian(ctx);
     decode_save_opc(ctx, 0);
     t0 = get_gpr(ctx, a->rs1, EXT_NONE);
     if (a->imm) {
@@ -57,7 +59,7 @@ static bool trans_flh(DisasContext *ctx, arg_flh *a)
     }
 
     dest = cpu_fpr[a->rd];
-    tcg_gen_qemu_ld_i64(dest, t0, ctx->mem_idx, MO_TEUW);
+    tcg_gen_qemu_ld_i64(dest, t0, ctx->mem_idx, memop);
     gen_nanbox_h(dest, dest);
 
     mark_fs_dirty(ctx);
@@ -66,11 +68,13 @@ static bool trans_flh(DisasContext *ctx, arg_flh *a)
 
 static bool trans_fsh(DisasContext *ctx, arg_fsh *a)
 {
+    MemOp memop = MO_UW;
     TCGv t0;
 
     REQUIRE_FPU;
     REQUIRE_ZFHMIN_OR_ZFBFMIN(ctx);
 
+    memop |= mo_endian(ctx);
     decode_save_opc(ctx, 0);
     t0 = get_gpr(ctx, a->rs1, EXT_NONE);
     if (a->imm) {
@@ -79,7 +83,7 @@ static bool trans_fsh(DisasContext *ctx, arg_fsh *a)
         t0 = temp;
     }
 
-    tcg_gen_qemu_st_i64(cpu_fpr[a->rs2], t0, ctx->mem_idx, MO_TEUW);
+    tcg_gen_qemu_st_i64(cpu_fpr[a->rs2], t0, ctx->mem_idx, memop);
 
     return true;
 }

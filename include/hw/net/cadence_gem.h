@@ -62,6 +62,7 @@ struct CadenceGEMState {
     uint8_t num_type2_screeners;
     uint32_t revision;
     uint16_t jumbo_max_len;
+    bool pcs_enabled;
 
     /* GEM registers backing store */
     uint32_t regs[CADENCE_GEM_MAXREG];
@@ -80,6 +81,9 @@ struct CadenceGEMState {
     uint16_t phy_regs[32];
 
     uint8_t phy_loop; /* Are we in phy loopback? */
+
+    bool phy_connected; /* true if connected */
+    struct CadenceGEMState *phy_consumer;
 
     /* The current DMA descriptor pointers */
     uint32_t rx_desc_addr[MAX_PRIORITY_QUEUES];
