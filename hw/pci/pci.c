@@ -2557,7 +2557,7 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
             path = g_strdup(pdev->romfile);
         }
 
-        size = get_image_size(path);
+        size = get_image_size(path, NULL);
         if (size < 0) {
             error_setg(errp, "failed to find romfile \"%s\"", pdev->romfile);
             return;

@@ -101,7 +101,7 @@ static void guest_loader_realize(DeviceState *dev, Error **errp)
 
     /* Default to the maximum size being the machine's ram size */
     size = load_image_targphys_as(file, s->addr, current_machine->ram_size,
-                                  NULL);
+                                  NULL, NULL);
     if (size < 0) {
         error_setg(errp, "Cannot load specified image %s", file);
         return;

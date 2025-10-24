@@ -892,7 +892,7 @@ static uint64_t load_kernel(void)
     initrd_size = 0;
     initrd_offset = 0;
     if (loaderparams.initrd_filename) {
-        initrd_size = get_image_size(loaderparams.initrd_filename);
+        initrd_size = get_image_size(loaderparams.initrd_filename, NULL);
         if (initrd_size > 0) {
             /*
              * The kernel allocates the bootmap memory in the low memory after
@@ -908,8 +908,9 @@ static uint64_t load_kernel(void)
                 exit(1);
             }
             initrd_size = load_image_targphys(loaderparams.initrd_filename,
-                                              initrd_offset,
-                                              loaderparams.ram_size - initrd_offset);
+                                        initrd_offset,
+                                        loaderparams.ram_size - initrd_offset,
+                                        NULL);
         }
         if (initrd_size == (target_ulong) -1) {
             error_report("could not load initial ram disk '%s'",
@@ -1176,7 +1177,7 @@ void mips_malta_init(MachineState *machine)
                                       machine->firmware ?: bios_name);
             if (filename) {
                 bios_size = load_image_targphys(filename, FLASH_ADDRESS,
-                                                BIOS_SIZE);
+                                                BIOS_SIZE, NULL);
                 g_free(filename);
             } else {
                 bios_size = -1;

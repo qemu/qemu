@@ -143,7 +143,8 @@ static void ppc_heathrow_init(MachineState *machine)
 
         if (bios_size <= 0) {
             /* or if could not load ELF try loading a binary ROM image */
-            bios_size = load_image_targphys(filename, PROM_BASE, PROM_SIZE);
+            bios_size = load_image_targphys(filename, PROM_BASE, PROM_SIZE,
+                                            NULL);
             bios_addr = PROM_BASE;
         }
         g_free(filename);
@@ -166,7 +167,8 @@ static void ppc_heathrow_init(MachineState *machine)
         if (kernel_size < 0) {
             kernel_size = load_image_targphys(machine->kernel_filename,
                                               kernel_base,
-                                              machine->ram_size - kernel_base);
+                                              machine->ram_size - kernel_base,
+                                              NULL);
         }
         if (kernel_size < 0) {
             error_report("could not load kernel '%s'",
@@ -179,7 +181,8 @@ static void ppc_heathrow_init(MachineState *machine)
                                             KERNEL_GAP);
             initrd_size = load_image_targphys(machine->initrd_filename,
                                               initrd_base,
-                                              machine->ram_size - initrd_base);
+                                              machine->ram_size - initrd_base,
+                                              NULL);
             if (initrd_size < 0) {
                 error_report("could not load initial ram disk '%s'",
                              machine->initrd_filename);

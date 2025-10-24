@@ -2854,7 +2854,7 @@ static void spapr_machine_init(MachineState *machine)
         error_report("Could not find LPAR firmware '%s'", bios_name);
         exit(1);
     }
-    fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE);
+    fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE, NULL);
     if (fw_size <= 0) {
         error_report("Could not load LPAR firmware '%s'", filename);
         exit(1);
@@ -3115,9 +3115,9 @@ static void spapr_machine_init(MachineState *machine)
             spapr->initrd_base = (spapr->kernel_addr + spapr->kernel_size
                                   + 0x1ffff) & ~0xffff;
             spapr->initrd_size = load_image_targphys(initrd_filename,
-                                                     spapr->initrd_base,
-                                                     load_limit
-                                                     - spapr->initrd_base);
+                                                spapr->initrd_base,
+                                                load_limit - spapr->initrd_base,
+                                                NULL);
             if (spapr->initrd_size < 0) {
                 error_report("could not load initial ram disk '%s'",
                              initrd_filename);

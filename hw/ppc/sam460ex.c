@@ -494,7 +494,8 @@ static void sam460ex_init(MachineState *machine)
     if (machine->initrd_filename) {
         initrd_size = load_image_targphys(machine->initrd_filename,
                                           RAMDISK_ADDR,
-                                          machine->ram_size - RAMDISK_ADDR);
+                                          machine->ram_size - RAMDISK_ADDR,
+                                          NULL);
         if (initrd_size < 0) {
             error_report("could not load ram disk '%s' at %x",
                     machine->initrd_filename, RAMDISK_ADDR);
