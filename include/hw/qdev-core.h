@@ -725,7 +725,8 @@ void qdev_connect_gpio_out_named(DeviceState *dev, const char *name, int n,
  *
  * Return: qemu_irq associated with GPIO or NULL if un-wired.
  */
-qemu_irq qdev_get_gpio_out_connector(DeviceState *dev, const char *name, int n);
+qemu_irq qdev_get_gpio_out_connector(const DeviceState *dev,
+                                     const char *name, int n);
 
 /**
  * qdev_intercept_gpio_out: Intercept an existing GPIO connection
