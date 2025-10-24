@@ -11,6 +11,7 @@
 #include "qom/object.h"
 #include "hw/sysbus.h"
 #include "exec/memattrs.h"
+#include "system/memory.h"
 
 #define IPI_MBX_NUM           4
 

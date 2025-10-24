@@ -8,7 +8,7 @@
 #include "qom/object.h"
 #include "hw/sysbus.h"
 #include "hw/loongarch/virt.h"
-
+#include "system/memory.h"
 
 #define NR_VECTORS     256
 
