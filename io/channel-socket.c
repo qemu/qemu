@@ -65,6 +65,7 @@ qio_channel_socket_new(void)
     sioc->fd = -1;
     sioc->zero_copy_queued = 0;
     sioc->zero_copy_sent = 0;
+    sioc->blocking = false;
 
     ioc = QIO_CHANNEL(sioc);
     qio_channel_set_feature(ioc, QIO_CHANNEL_FEATURE_SHUTDOWN);
@@ -859,6 +860,7 @@ qio_channel_socket_set_blocking(QIOChannel *ioc,
                                 Error **errp)
 {
     QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(ioc);
+    sioc->blocking = enabled;
 
     if (!qemu_set_blocking(sioc->fd, enabled, errp)) {
         return -1;
