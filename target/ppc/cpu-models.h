@@ -120,10 +120,6 @@ enum {
 #define CPU_POWERPC_MPC5200_v12      CPU_POWERPC_G2LEgp1
 #define CPU_POWERPC_MPC5200B_v20     CPU_POWERPC_G2LEgp1
 #define CPU_POWERPC_MPC5200B_v21     CPU_POWERPC_G2LEgp1
-    /* e200 family */
-    /* e200 cores */
-    CPU_POWERPC_e200z5             = 0x81000000,
-    CPU_POWERPC_e200z6             = 0x81120000,
     /* e300 family */
     /* e300 cores */
     CPU_POWERPC_e300c1             = 0x00830010,

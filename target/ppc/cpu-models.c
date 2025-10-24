@@ -244,11 +244,6 @@
                     CPU_POWERPC_MPC5200B_v20, POWERPC_SVR_5200B_v20, G2LE)
     POWERPC_DEF_SVR("mpc5200b_v21", "MPC5200B v2.1",
                     CPU_POWERPC_MPC5200B_v21, POWERPC_SVR_5200B_v21, G2LE)
-    /* e200 family                                                           */
-    POWERPC_DEF("e200z5",        CPU_POWERPC_e200z5,                 e200,
-                "PowerPC e200z5 core")
-    POWERPC_DEF("e200z6",        CPU_POWERPC_e200z6,                 e200,
-                "PowerPC e200z6 core")
     /* e300 family                                                           */
     POWERPC_DEF("e300c1",        CPU_POWERPC_e300c1,                 e300,
                 "PowerPC e300c1 core")
