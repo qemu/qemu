@@ -229,6 +229,7 @@ _filter_img_info()
     discard=0
     regex_json_spec_start='^ *"format-specific": \{'
     regex_json_child_start='^ *"children": \['
+    regex_json_limit_start='^ *"limits": \{'
     gsed -e "s#$REMOTE_TEST_DIR#TEST_DIR#g" \
         -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
         -e "s#$TEST_DIR#TEST_DIR#g" \
@@ -261,7 +262,7 @@ _filter_img_info()
                 discard=1
             elif [[ $line =~ "Child node '/" ]]; then
                 discard=1
-            elif [[ $line =~ $regex_json_spec_start ]]; then
+            elif [[ $line =~ $regex_json_spec_start || $line =~ $regex_json_limit_start ]]; then
                 discard=2
                 regex_json_end="^${line%%[^ ]*}\\},? *$"
             elif [[ $line =~ $regex_json_child_start ]]; then

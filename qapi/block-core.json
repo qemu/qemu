@@ -276,6 +276,69 @@
   } }
 
 ##
+# @BlockLimitsInfo:
+#
+# @request-alignment: Alignment requirement, in bytes, for
+#     offset/length of I/O requests.
+#
+# @max-discard: Maximum number of bytes that can be discarded at once.
+#     If not present, there is no specific maximum.
+#
+# @discard-alignment: Optimal alignment for discard requests in bytes.
+#     Note that this doesn't have to be a power of two.  If not
+#     present, discards don't have a alignment requirement different
+#     from @request-alignment.
+#
+# @max-write-zeroes: Maximum number of bytes that can be zeroed out at
+#     once.  If not present, there is no specific maximum.
+#
+# @write-zeroes-alignment: Optimal alignment for write zeroes requests
+#     in bytes.  Note that this doesn't have to be a power of two.  If
+#     not present, write_zeroes doesn't have a alignment requirement
+#     different from @request-alignment.
+#
+# @opt-transfer: Optimal transfer length in bytes.  If not present,
+#     there is no preferred size.
+#
+# @max-transfer: Maximal transfer length in bytes.  If not present,
+#     there is no specific maximum.
+#
+# @max-hw-transfer: Maximal hardware transfer length in bytes.
+#     Applies whenever transfers to the device bypass the kernel I/O
+#     scheduler, for example with SG_IO.  If not present, there is no
+#     specific maximum.
+#
+# @max-iov: Maximum number of scatter/gather elements
+#
+# @max-hw-iov: Maximum number of scatter/gather elements allowed by
+#     the hardware.  Applies whenever transfers to the device bypass
+#     the kernel I/O scheduler, for example with SG_IO.  If not
+#     present, the hardware limits is unknown and @max-iov is always
+#     used.
+#
+# @min-mem-alignment: Minimal required memory alignment in bytes for
+#     zero-copy I/O to succeed.  For unaligned requests, a bounce
+#     buffer will be used.
+#
+# @opt-mem-alignment: Optimal memory alignment in bytes.  This is the
+#     alignment used for any buffer allocations QEMU performs
+#     internally.
+##
+{ 'struct': 'BlockLimitsInfo',
+  'data': { 'request-alignment': 'uint32',
+            '*max-discard': 'uint64',
+            '*discard-alignment': 'uint32',
+            '*max-write-zeroes': 'uint64',
+            '*write-zeroes-alignment': 'uint32',
+            '*opt-transfer': 'uint32',
+            '*max-transfer': 'uint32',
+            '*max-hw-transfer': 'uint32',
+            'max-iov': 'int',
+            '*max-hw-iov': 'int',
+            'min-mem-alignment': 'size',
+            'opt-mem-alignment': 'size' } }
+
+##
 # @BlockNodeInfo:
 #
 # Information about a QEMU image file
@@ -304,6 +367,8 @@
 #
 # @snapshots: list of VM snapshots
 #
+# @limits: block limits that are used for I/O on the node (Since 10.2)
+#
 # @format-specific: structure supplying additional format-specific
 #     information (since 1.7)
 #
@@ -315,6 +380,7 @@
            '*cluster-size': 'int', '*encrypted': 'bool', '*compressed': 'bool',
            '*backing-filename': 'str', '*full-backing-filename': 'str',
            '*backing-filename-format': 'str', '*snapshots': ['SnapshotInfo'],
+           '*limits': 'BlockLimitsInfo',
            '*format-specific': 'ImageInfoSpecific' } }
 
 ##

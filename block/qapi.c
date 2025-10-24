@@ -235,7 +235,8 @@ int bdrv_query_snapshot_info_list(BlockDriverState *bs,
  * in @info, setting @errp on error.
  */
 static void GRAPH_RDLOCK
-bdrv_do_query_node_info(BlockDriverState *bs, BlockNodeInfo *info, Error **errp)
+bdrv_do_query_node_info(BlockDriverState *bs, BlockNodeInfo *info, bool limits,
+                        Error **errp)
 {
     int64_t size;
     const char *backing_filename;
@@ -269,6 +270,33 @@ bdrv_do_query_node_info(BlockDriverState *bs, BlockNodeInfo *info, Error **errp)
         info->dirty_flag = bdi.is_dirty;
         info->has_dirty_flag = true;
     }
+
+    if (limits) {
+        info->limits = g_new(BlockLimitsInfo, 1);
+        *info->limits = (BlockLimitsInfo) {
+            .request_alignment          = bs->bl.request_alignment,
+            .has_max_discard            = bs->bl.max_pdiscard != 0,
+            .max_discard                = bs->bl.max_pdiscard,
+            .has_discard_alignment      = bs->bl.pdiscard_alignment != 0,
+            .discard_alignment          = bs->bl.pdiscard_alignment,
+            .has_max_write_zeroes       = bs->bl.max_pwrite_zeroes != 0,
+            .max_write_zeroes           = bs->bl.max_pwrite_zeroes,
+            .has_write_zeroes_alignment = bs->bl.pwrite_zeroes_alignment != 0,
+            .write_zeroes_alignment     = bs->bl.pwrite_zeroes_alignment,
+            .has_opt_transfer           = bs->bl.opt_transfer != 0,
+            .opt_transfer               = bs->bl.opt_transfer,
+            .has_max_transfer           = bs->bl.max_transfer != 0,
+            .max_transfer               = bs->bl.max_transfer,
+            .has_max_hw_transfer        = bs->bl.max_hw_transfer != 0,
+            .max_hw_transfer            = bs->bl.max_hw_transfer,
+            .max_iov                    = bs->bl.max_iov,
+            .has_max_hw_iov             = bs->bl.max_hw_iov != 0,
+            .max_hw_iov                 = bs->bl.max_hw_iov,
+            .min_mem_alignment          = bs->bl.min_mem_alignment,
+            .opt_mem_alignment          = bs->bl.opt_mem_alignment,
+        };
+    }
+
     info->format_specific = bdrv_get_specific_info(bs, &err);
     if (err) {
         error_propagate(errp, err);
@@ -343,7 +371,7 @@ void bdrv_query_image_info(BlockDriverState *bs,
     ImageInfo *info;
 
     info = g_new0(ImageInfo, 1);
-    bdrv_do_query_node_info(bs, qapi_ImageInfo_base(info), errp);
+    bdrv_do_query_node_info(bs, qapi_ImageInfo_base(info), true, errp);
     if (*errp) {
         goto fail;
     }
@@ -397,7 +425,7 @@ void bdrv_query_block_graph_info(BlockDriverState *bs,
     BdrvChild *c;
 
     info = g_new0(BlockGraphInfo, 1);
-    bdrv_do_query_node_info(bs, qapi_BlockGraphInfo_base(info), errp);
+    bdrv_do_query_node_info(bs, qapi_BlockGraphInfo_base(info), false, errp);
     if (*errp) {
         goto fail;
     }
