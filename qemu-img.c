@@ -3003,6 +3003,7 @@ static gboolean str_equal_func(gconstpointer a, gconstpointer b)
 static BlockGraphInfoList *collect_image_info_list(bool image_opts,
                                                    const char *filename,
                                                    const char *fmt,
+                                                   const char *cache,
                                                    bool chain, bool limits,
                                                    bool force_share)
 {
@@ -3010,6 +3011,15 @@ static BlockGraphInfoList *collect_image_info_list(bool image_opts,
     BlockGraphInfoList **tail = &head;
     GHashTable *filenames;
     Error *err = NULL;
+    int cache_flags = 0;
+    bool writethrough = false;
+    int ret;
+
+    ret = bdrv_parse_cache_mode(cache, &cache_flags, &writethrough);
+    if (ret < 0) {
+        error_report("Invalid cache option: %s", cache);
+        return NULL;
+    }
 
     filenames = g_hash_table_new_full(g_str_hash, str_equal_func, NULL, NULL);
 
@@ -3026,8 +3036,8 @@ static BlockGraphInfoList *collect_image_info_list(bool image_opts,
         g_hash_table_insert(filenames, (gpointer)filename, NULL);
 
         blk = img_open(image_opts, filename, fmt,
-                       BDRV_O_NO_BACKING | BDRV_O_NO_IO, false, false,
-                       force_share);
+                       BDRV_O_NO_BACKING | BDRV_O_NO_IO | cache_flags,
+                       writethrough, false, force_share);
         if (!blk) {
             goto err;
         }
@@ -3087,6 +3097,7 @@ static int img_info(const img_cmd_t *ccmd, int argc, char **argv)
     OutputFormat output_format = OFORMAT_HUMAN;
     bool chain = false;
     const char *filename, *fmt;
+    const char *cache = BDRV_DEFAULT_CACHE;
     BlockGraphInfoList *list;
     bool image_opts = false;
     bool force_share = false;
@@ -3099,13 +3110,14 @@ static int img_info(const img_cmd_t *ccmd, int argc, char **argv)
             {"format", required_argument, 0, 'f'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"backing-chain", no_argument, 0, OPTION_BACKING_CHAIN},
+            {"cache", required_argument, 0, 't'},
             {"force-share", no_argument, 0, 'U'},
             {"limits", no_argument, 0, OPTION_LIMITS},
             {"output", required_argument, 0, OPTION_OUTPUT},
             {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, "hf:U", long_options, NULL);
+        c = getopt_long(argc, argv, "hf:t:U", long_options, NULL);
         if (c == -1) {
             break;
         }
@@ -3121,6 +3133,8 @@ static int img_info(const img_cmd_t *ccmd, int argc, char **argv)
 "     (incompatible with -f|--format)\n"
 "  --backing-chain\n"
 "     display information about the backing chain for copy-on-write overlays\n"
+"  -t, --cache CACHE\n"
+"     cache mode for FILE (default: " BDRV_DEFAULT_CACHE ")\n"
 "  -U, --force-share\n"
 "     open image in shared mode for concurrent access\n"
 "  --limits\n"
@@ -3143,6 +3157,9 @@ static int img_info(const img_cmd_t *ccmd, int argc, char **argv)
         case OPTION_BACKING_CHAIN:
             chain = true;
             break;
+        case 't':
+            cache = optarg;
+            break;
         case 'U':
             force_share = true;
             break;
@@ -3164,7 +3181,7 @@ static int img_info(const img_cmd_t *ccmd, int argc, char **argv)
     }
     filename = argv[optind++];
 
-    list = collect_image_info_list(image_opts, filename, fmt, chain,
+    list = collect_image_info_list(image_opts, filename, fmt, cache, chain,
                                    limits, force_share);
     if (!list) {
         return 1;

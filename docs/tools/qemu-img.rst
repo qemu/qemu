@@ -503,7 +503,7 @@ Command description:
 
   The size syntax is similar to :manpage:`dd(1)`'s size syntax.
 
-.. option:: info [--object OBJECTDEF] [--image-opts] [-f FMT] [--output=OFMT] [--backing-chain] [--limits] [-U] FILENAME
+.. option:: info [--object OBJECTDEF] [--image-opts] [-f FMT] [--output=OFMT] [--backing-chain] [--limits] [-t CACHE] [-U] FILENAME
 
   Give information about the disk image *FILENAME*. Use it in
   particular to know the size reserved on disk which can be different
