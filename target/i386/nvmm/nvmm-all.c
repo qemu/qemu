@@ -706,6 +706,7 @@ nvmm_vcpu_loop(CPUState *cpu)
         cpu->halted = false;
     }
     if (cpu->interrupt_request & CPU_INTERRUPT_SIPI) {
+        cpu_reset_interrupt(cpu, CPU_INTERRUPT_SIPI);
         nvmm_cpu_synchronize_state(cpu);
         do_cpu_sipi(x86_cpu);
     }
