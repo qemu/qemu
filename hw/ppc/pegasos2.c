@@ -561,6 +561,7 @@ static void pegasos_machine_reset(MachineState *machine, ResetType type)
     qemu_fdt_setprop(fdt, "/chosen", "qemu,boot-kernel", d, sizeof(d));
 
     vof_build_dt(fdt, pm->vof);
+    vof_client_open_store(fdt, pm->vof, "/chosen", "stdin", "/failsafe");
     vof_client_open_store(fdt, pm->vof, "/chosen", "stdout", "/failsafe");
 
     /* Set machine->fdt for 'dumpdtb' QMP/HMP command */
