@@ -262,12 +262,25 @@ fn derive_device_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
             },
         )?;
         let field_ty = field.ty.clone();
-        let qdev_prop = if bitnr.is_none() {
-            quote! { <#field_ty as ::hwcore::QDevProp>::BASE_INFO }
+        let (qdev_prop, bitval) = if let Some(bitval) = bitnr {
+            (
+                quote! { <#field_ty as ::hwcore::QDevProp>::BIT_INFO },
+                quote! {
+                    {
+                        const {
+                            assert!(#bitval >= 0 && #bitval < #field_ty::BITS as _,
+                                    "bit number exceeds type bits range");
+                        }
+                        #bitval as u8
+                    }
+                },
+            )
         } else {
-            quote! { <#field_ty as ::hwcore::QDevProp>::BIT_INFO }
+            (
+                quote! { <#field_ty as ::hwcore::QDevProp>::BASE_INFO },
+                quote! { 0 },
+            )
         };
-        let bitnr = bitnr.unwrap_or(syn::Expr::Verbatim(quote! { 0 }));
         let set_default = defval.is_some();
         let defval = defval.unwrap_or(syn::Expr::Verbatim(quote! { 0 }));
         properties_expanded.push(quote! {
@@ -275,7 +288,7 @@ fn derive_device_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
                 name: ::std::ffi::CStr::as_ptr(#prop_name),
                 info: #qdev_prop,
                 offset: ::core::mem::offset_of!(#name, #field_name) as isize,
-                bitnr: #bitnr,
+                bitnr: #bitval,
                 set_default: #set_default,
                 defval: ::hwcore::bindings::Property__bindgen_ty_1 { u: #defval as u64 },
                 ..::common::Zeroable::ZERO
