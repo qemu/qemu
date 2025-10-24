@@ -86,6 +86,7 @@ enum {
     OPTION_BITMAPS = 275,
     OPTION_FORCE = 276,
     OPTION_SKIP_BROKEN = 277,
+    OPTION_LIMITS = 278,
 };
 
 typedef enum OutputFormat {
@@ -3002,7 +3003,8 @@ static gboolean str_equal_func(gconstpointer a, gconstpointer b)
 static BlockGraphInfoList *collect_image_info_list(bool image_opts,
                                                    const char *filename,
                                                    const char *fmt,
-                                                   bool chain, bool force_share)
+                                                   bool chain, bool limits,
+                                                   bool force_share)
 {
     BlockGraphInfoList *head = NULL;
     BlockGraphInfoList **tail = &head;
@@ -3039,7 +3041,7 @@ static BlockGraphInfoList *collect_image_info_list(bool image_opts,
          * the chain manually here.
          */
         bdrv_graph_rdlock_main_loop();
-        bdrv_query_block_graph_info(bs, &info, &err);
+        bdrv_query_block_graph_info(bs, &info, limits, &err);
         bdrv_graph_rdunlock_main_loop();
 
         if (err) {
@@ -3088,6 +3090,7 @@ static int img_info(const img_cmd_t *ccmd, int argc, char **argv)
     BlockGraphInfoList *list;
     bool image_opts = false;
     bool force_share = false;
+    bool limits = false;
 
     fmt = NULL;
     for(;;) {
@@ -3097,6 +3100,7 @@ static int img_info(const img_cmd_t *ccmd, int argc, char **argv)
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"backing-chain", no_argument, 0, OPTION_BACKING_CHAIN},
             {"force-share", no_argument, 0, 'U'},
+            {"limits", no_argument, 0, OPTION_LIMITS},
             {"output", required_argument, 0, OPTION_OUTPUT},
             {"object", required_argument, 0, OPTION_OBJECT},
             {0, 0, 0, 0}
@@ -3119,6 +3123,8 @@ static int img_info(const img_cmd_t *ccmd, int argc, char **argv)
 "     display information about the backing chain for copy-on-write overlays\n"
 "  -U, --force-share\n"
 "     open image in shared mode for concurrent access\n"
+"  --limits\n"
+"     show detected block limits (may depend on options, e.g. cache mode)\n"
 "  --output human|json\n"
 "     specify output format (default: human)\n"
 "  --object OBJDEF\n"
@@ -3140,6 +3146,9 @@ static int img_info(const img_cmd_t *ccmd, int argc, char **argv)
         case 'U':
             force_share = true;
             break;
+        case OPTION_LIMITS:
+            limits = true;
+            break;
         case OPTION_OUTPUT:
             output_format = parse_output_format(argv[0], optarg);
             break;
@@ -3156,7 +3165,7 @@ static int img_info(const img_cmd_t *ccmd, int argc, char **argv)
     filename = argv[optind++];
 
     list = collect_image_info_list(image_opts, filename, fmt, chain,
-                                   force_share);
+                                   limits, force_share);
     if (!list) {
         return 1;
     }

@@ -417,6 +417,7 @@ fail:
  */
 void bdrv_query_block_graph_info(BlockDriverState *bs,
                                  BlockGraphInfo **p_info,
+                                 bool limits,
                                  Error **errp)
 {
     ERRP_GUARD();
@@ -425,7 +426,7 @@ void bdrv_query_block_graph_info(BlockDriverState *bs,
     BdrvChild *c;
 
     info = g_new0(BlockGraphInfo, 1);
-    bdrv_do_query_node_info(bs, qapi_BlockGraphInfo_base(info), false, errp);
+    bdrv_do_query_node_info(bs, qapi_BlockGraphInfo_base(info), limits, errp);
     if (*errp) {
         goto fail;
     }
@@ -439,7 +440,7 @@ void bdrv_query_block_graph_info(BlockDriverState *bs,
         QAPI_LIST_APPEND(children_list_tail, c_info);
 
         c_info->name = g_strdup(c->name);
-        bdrv_query_block_graph_info(c->bs, &c_info->info, errp);
+        bdrv_query_block_graph_info(c->bs, &c_info->info, limits, errp);
         if (*errp) {
             goto fail;
         }
@@ -937,6 +938,29 @@ void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec,
 }
 
 /**
+ * Dumps the given BlockLimitsInfo object in a human-readable form,
+ * prepending an optional prefix if the dump is not empty.
+ */
+static void bdrv_image_info_limits_dump(BlockLimitsInfo *limits,
+                                        const char *prefix,
+                                        int indentation)
+{
+    QObject *obj;
+    Visitor *v = qobject_output_visitor_new(&obj);
+
+    visit_type_BlockLimitsInfo(v, NULL, &limits, &error_abort);
+    visit_complete(v, &obj);
+    if (!qobject_is_empty_dump(obj)) {
+        if (prefix) {
+            qemu_printf("%*s%s", indentation * 4, "", prefix);
+        }
+        dump_qobject(indentation + 1, obj);
+    }
+    qobject_unref(obj);
+    visit_free(v);
+}
+
+/**
  * Print the given @info object in human-readable form.  Every field is indented
  * using the given @indentation (four spaces per indentation level).
  *
@@ -1009,6 +1033,12 @@ void bdrv_node_info_dump(BlockNodeInfo *info, int indentation, bool protocol)
             qemu_printf("%sbacking file format: %s\n",
                         ind_s, info->backing_filename_format);
         }
+    }
+
+    if (info->limits) {
+        bdrv_image_info_limits_dump(info->limits,
+                                    "Block limits:\n",
+                                    indentation);
     }
 
     if (info->has_snapshots) {
