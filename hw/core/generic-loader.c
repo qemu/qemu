@@ -149,13 +149,13 @@ static void generic_loader_realize(DeviceState *dev, Error **errp)
         if (size < 0 || s->force_raw) {
             /* Default to the maximum size being the machine's ram size */
             size = load_image_targphys_as(s->file, s->addr,
-                    current_machine->ram_size, as, NULL);
+                    current_machine->ram_size, as, errp);
         } else {
             s->addr = entry;
         }
 
         if (size < 0) {
-            error_setg(errp, "Cannot load specified image %s", s->file);
+            error_prepend(errp, "Cannot load specified image %s: ", s->file);
             return;
         }
     }
