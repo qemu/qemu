@@ -9,6 +9,7 @@
 #include "qemu/uuid.h"
 #include "qemu/queue.h"
 
+#include "system/memory.h"
 #include "hw/uefi/var-service-edk2.h"
 
 #define MAX_BUFFER_SIZE (64 * 1024)
