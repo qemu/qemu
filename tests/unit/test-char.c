@@ -1934,7 +1934,9 @@ int main(int argc, char **argv)
     g_test_add_data_func("/char/socket/server/mainloop-fdpass/" # name, \
                          &server3 ##name, char_socket_server_test);     \
     g_test_add_data_func("/char/socket/server/wait-conn-fdpass/" # name, \
-                         &server4 ##name, char_socket_server_test)
+                         &server4 ##name, char_socket_server_test);     \
+    g_test_add_data_func("/char/socket/server/two-clients/" # name,     \
+                         addr, char_socket_server_two_clients_test)
 
 #define SOCKET_CLIENT_TEST(name, addr)                                  \
     static CharSocketClientTestConfig client1 ## name =                 \
@@ -1974,14 +1976,10 @@ int main(int argc, char **argv)
     if (has_ipv4) {
         SOCKET_SERVER_TEST(tcp, &tcpaddr);
         SOCKET_CLIENT_TEST(tcp, &tcpaddr);
-        g_test_add_data_func("/char/socket/server/two-clients/tcp", &tcpaddr,
-                             char_socket_server_two_clients_test);
     }
 #ifndef WIN32
     SOCKET_SERVER_TEST(unix, &unixaddr);
     SOCKET_CLIENT_TEST(unix, &unixaddr);
-    g_test_add_data_func("/char/socket/server/two-clients/unix", &unixaddr,
-                         char_socket_server_two_clients_test);
 #endif
 
     g_test_add_func("/char/udp", char_udp_test);

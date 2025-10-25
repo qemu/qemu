@@ -409,20 +409,14 @@ qcrypto_tls_session_check_certificate(QCryptoTLSSession *session,
         }
 
         if (i == 0) {
-            size_t dnameSize = 1024;
-            session->peername = g_malloc(dnameSize);
-        requery:
-            ret = gnutls_x509_crt_get_dn(cert, session->peername, &dnameSize);
+            gnutls_datum_t dname = {};
+            ret = gnutls_x509_crt_get_dn2(cert, &dname);
             if (ret < 0) {
-                if (ret == GNUTLS_E_SHORT_MEMORY_BUFFER) {
-                    session->peername = g_realloc(session->peername,
-                                                  dnameSize);
-                    goto requery;
-                }
                 error_setg(errp, "Cannot get client distinguished name: %s",
                            gnutls_strerror(ret));
                 goto error;
             }
+            session->peername = (char *)g_steal_pointer(&dname.data);
             if (session->authzid) {
                 bool allow;
 
@@ -569,8 +563,6 @@ qcrypto_tls_session_read(QCryptoTLSSession *session,
     if (ret < 0) {
         if (ret == GNUTLS_E_AGAIN) {
             return QCRYPTO_TLS_SESSION_ERR_BLOCK;
-        } else if (ret == GNUTLS_E_PREMATURE_TERMINATION) {
-            return QCRYPTO_TLS_SESSION_PREMATURE_TERMINATION;
         } else {
             if (session->rerr) {
                 error_propagate(errp, session->rerr);
@@ -580,7 +572,11 @@ qcrypto_tls_session_read(QCryptoTLSSession *session,
                            "Cannot read from TLS channel: %s",
                            gnutls_strerror(ret));
             }
-            return -1;
+            if (ret == GNUTLS_E_PREMATURE_TERMINATION) {
+                return QCRYPTO_TLS_SESSION_PREMATURE_TERMINATION;
+            } else {
+                return -1;
+            }
         }
     }
 

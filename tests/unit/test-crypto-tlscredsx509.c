@@ -73,6 +73,7 @@ static void test_tls_creds(const void *opaque)
     struct QCryptoTLSCredsTestData *data =
         (struct QCryptoTLSCredsTestData *)opaque;
     QCryptoTLSCreds *creds;
+    Error *err = NULL;
 
 #define CERT_DIR "tests/test-crypto-tlscredsx509-certs/"
     g_mkdir_with_parents(CERT_DIR, 0700);
@@ -111,10 +112,12 @@ static void test_tls_creds(const void *opaque)
          QCRYPTO_TLS_CREDS_ENDPOINT_SERVER :
          QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT),
         CERT_DIR,
-        data->expectFail ? NULL : &error_abort);
+        data->expectFail ? &err : &error_abort);
 
     if (data->expectFail) {
         g_assert(creds == NULL);
+        g_assert(err != NULL);
+        error_free(err);
     } else {
         g_assert(creds != NULL);
     }
@@ -166,14 +169,14 @@ int main(int argc, char **argv)
                  "UK", "qemu.org", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,
+                 GNUTLS_KEY_DIGITAL_SIGNATURE,
                  true, true, GNUTLS_KP_TLS_WWW_SERVER, NULL,
                  0, 0);
     TLS_CERT_REQ(clientcertreq, cacertreq,
                  "UK", "qemu", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,
+                 GNUTLS_KEY_DIGITAL_SIGNATURE,
                  true, true, GNUTLS_KP_TLS_WWW_CLIENT, NULL,
                  0, 0);
 
@@ -196,7 +199,7 @@ int main(int argc, char **argv)
                  "UK", "qemu.org", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,
+                 GNUTLS_KEY_DIGITAL_SIGNATURE,
                  true, true, GNUTLS_KP_TLS_WWW_SERVER, NULL,
                  0, 0);
 
@@ -211,7 +214,7 @@ int main(int argc, char **argv)
                  "UK", "qemu.org", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,
+                 GNUTLS_KEY_DIGITAL_SIGNATURE,
                  true, true, GNUTLS_KP_TLS_WWW_SERVER, NULL,
                  0, 0);
 
@@ -226,7 +229,7 @@ int main(int argc, char **argv)
                  "UK", "qemu.org", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,
+                 GNUTLS_KEY_DIGITAL_SIGNATURE,
                  true, true, GNUTLS_KP_TLS_WWW_SERVER, NULL,
                  0, 0);
 
@@ -250,7 +253,7 @@ int main(int argc, char **argv)
                  "UK", "qemu.org", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,
+                 GNUTLS_KEY_DIGITAL_SIGNATURE,
                  true, true, GNUTLS_KP_TLS_WWW_SERVER, NULL,
                  0, 0);
     /* no-basic */
@@ -264,7 +267,7 @@ int main(int argc, char **argv)
                  "UK", "qemu.org", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,
+                 GNUTLS_KEY_DIGITAL_SIGNATURE,
                  true, true, GNUTLS_KP_TLS_WWW_SERVER, NULL,
                  0, 0);
     /* Key usage:dig-sig:critical */
@@ -278,7 +281,7 @@ int main(int argc, char **argv)
                  "UK", "qemu.org", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,
+                 GNUTLS_KEY_DIGITAL_SIGNATURE,
                  true, true, GNUTLS_KP_TLS_WWW_SERVER, NULL,
                  0, 0);
 
@@ -303,7 +306,7 @@ int main(int argc, char **argv)
                  "UK", "qemu", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT |
+                 GNUTLS_KEY_DIGITAL_SIGNATURE |
                  GNUTLS_KEY_KEY_CERT_SIGN,
                  false, false, NULL, NULL,
                  0, 0);
@@ -406,7 +409,7 @@ int main(int argc, char **argv)
                  "UK", "qemu", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT |
+                 GNUTLS_KEY_DIGITAL_SIGNATURE |
                  GNUTLS_KEY_KEY_CERT_SIGN,
                  false, false, NULL, NULL,
                  0, 0);
@@ -508,21 +511,21 @@ int main(int argc, char **argv)
                  "UK", "qemu.org", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,
+                 GNUTLS_KEY_DIGITAL_SIGNATURE,
                  true, true, GNUTLS_KP_TLS_WWW_SERVER, NULL,
                  0, 0);
     TLS_CERT_REQ(servercertexp1req, cacertreq,
                  "UK", "qemu", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,
+                 GNUTLS_KEY_DIGITAL_SIGNATURE,
                  true, true, GNUTLS_KP_TLS_WWW_SERVER, NULL,
                  0, -1);
     TLS_CERT_REQ(clientcertexp1req, cacertreq,
                  "UK", "qemu", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,
+                 GNUTLS_KEY_DIGITAL_SIGNATURE,
                  true, true, GNUTLS_KP_TLS_WWW_CLIENT, NULL,
                  0, -1);
 
@@ -546,21 +549,21 @@ int main(int argc, char **argv)
                  "UK", "qemu", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,
+                 GNUTLS_KEY_DIGITAL_SIGNATURE,
                  true, true, GNUTLS_KP_TLS_WWW_SERVER, NULL,
                  0, 0);
     TLS_CERT_REQ(servercertnew1req, cacertreq,
                  "UK", "qemu", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,
+                 GNUTLS_KEY_DIGITAL_SIGNATURE,
                  true, true, GNUTLS_KP_TLS_WWW_SERVER, NULL,
                  1, 2);
     TLS_CERT_REQ(clientcertnew1req, cacertreq,
                  "UK", "qemu", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,
+                 GNUTLS_KEY_DIGITAL_SIGNATURE,
                  true, true, GNUTLS_KP_TLS_WWW_CLIENT, NULL,
                  1, 2);
 
@@ -577,6 +580,12 @@ int main(int argc, char **argv)
                  true, true, GNUTLS_KEY_KEY_CERT_SIGN,
                  false, false, NULL, NULL,
                  0, 0);
+    TLS_ROOT_REQ(someotherrootreq,
+                 "UK", "some other random CA", NULL, NULL, NULL, NULL,
+                 true, true, true,
+                 true, true, GNUTLS_KEY_KEY_CERT_SIGN,
+                 false, false, NULL, NULL,
+                 0, 0);
     TLS_CERT_REQ(cacertlevel1areq, cacertrootreq,
                  "UK", "qemu level 1a", NULL, NULL, NULL, NULL,
                  true, true, true,
@@ -589,6 +598,12 @@ int main(int argc, char **argv)
                  true, true, GNUTLS_KEY_KEY_CERT_SIGN,
                  false, false, NULL, NULL,
                  0, 0);
+    TLS_CERT_REQ(cacertlevel1creq_invalid, cacertrootreq,
+                 "UK", "qemu level 1c invalid", NULL, NULL, NULL, NULL,
+                 true, true, true,
+                 true, true, GNUTLS_KEY_KEY_CERT_SIGN,
+                 false, false, NULL, NULL,
+                 360, 400);
     TLS_CERT_REQ(cacertlevel2areq, cacertlevel1areq,
                  "UK", "qemu level 2a", NULL, NULL, NULL, NULL,
                  true, true, true,
@@ -599,14 +614,14 @@ int main(int argc, char **argv)
                  "UK", "qemu.org", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,
+                 GNUTLS_KEY_DIGITAL_SIGNATURE,
                  true, true, GNUTLS_KP_TLS_WWW_SERVER, NULL,
                  0, 0);
     TLS_CERT_REQ(clientcertlevel2breq, cacertlevel1breq,
                  "UK", "qemu client level 2b", NULL, NULL, NULL, NULL,
                  true, true, false,
                  true, true,
-                 GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT,
+                 GNUTLS_KEY_DIGITAL_SIGNATURE,
                  true, true, GNUTLS_KP_TLS_WWW_CLIENT, NULL,
                  0, 0);
 
@@ -617,9 +632,57 @@ int main(int argc, char **argv)
         cacertlevel2areq.crt,
     };
 
+    gnutls_x509_crt_t cabundle[] = {
+        someotherrootreq.crt,
+        cacertrootreq.crt,
+    };
+
+    gnutls_x509_crt_t servercertchain[] = {
+        servercertlevel3areq.crt,
+        cacertlevel2areq.crt,
+        cacertlevel1areq.crt,
+    };
+
+    gnutls_x509_crt_t servercertchain_incomplete[] = {
+        servercertlevel3areq.crt,
+        cacertlevel2areq.crt,
+    };
+
+    gnutls_x509_crt_t servercertchain_unsorted[] = {
+        servercertlevel3areq.crt,
+        cacertlevel1areq.crt,
+        cacertlevel2areq.crt,
+    };
+
+    gnutls_x509_crt_t clientcertchain[] = {
+        clientcertlevel2breq.crt,
+        cacertlevel1breq.crt,
+    };
+
     test_tls_write_cert_chain(WORKDIR "cacertchain-ctx.pem",
                               certchain,
                               G_N_ELEMENTS(certchain));
+
+    gnutls_x509_crt_t certchain_with_invalid[] = {
+        cacertrootreq.crt,
+        cacertlevel1areq.crt,
+        cacertlevel1breq.crt,
+        cacertlevel1creq_invalid.crt,
+        cacertlevel2areq.crt,
+    };
+
+    test_tls_write_cert_chain(WORKDIR "cacertchain-with-invalid-ctx.pem",
+                              certchain_with_invalid,
+                              G_N_ELEMENTS(certchain_with_invalid));
+
+    gnutls_x509_crt_t certchain_incomplete[] = {
+        cacertrootreq.crt,
+        cacertlevel2areq.crt,
+    };
+
+    test_tls_write_cert_chain(WORKDIR "cacertchain-incomplete-ctx.pem",
+                              certchain_incomplete,
+                              G_N_ELEMENTS(certchain_incomplete));
 
     TLS_TEST_REG(chain1, true,
                  WORKDIR "cacertchain-ctx.pem",
@@ -627,6 +690,52 @@ int main(int argc, char **argv)
     TLS_TEST_REG(chain2, false,
                  WORKDIR "cacertchain-ctx.pem",
                  clientcertlevel2breq.filename, false);
+    TLS_TEST_REG(certchainwithexpiredcert, false,
+                 WORKDIR "cacertchain-with-invalid-ctx.pem",
+                 clientcertlevel2breq.filename, false);
+    TLS_TEST_REG(chainincomplete, true,
+                 WORKDIR "cacertchain-incomplete-ctx.pem",
+                 servercertlevel3areq.filename, true);
+
+    test_tls_write_cert_chain(WORKDIR "servercertchain-ctx.pem",
+                              servercertchain,
+                              G_N_ELEMENTS(servercertchain));
+
+    TLS_TEST_REG(serverchain, true,
+                 cacertrootreq.filename,
+                 WORKDIR "servercertchain-ctx.pem", false);
+
+    test_tls_write_cert_chain(WORKDIR "cabundle-ctx.pem",
+                              cabundle,
+                              G_N_ELEMENTS(cabundle));
+
+    TLS_TEST_REG(multiplecaswithchain, true,
+                 WORKDIR "cabundle-ctx.pem",
+                 WORKDIR "servercertchain-ctx.pem", false);
+
+    test_tls_write_cert_chain(WORKDIR "servercertchain_incomplete-ctx.pem",
+                              servercertchain_incomplete,
+                              G_N_ELEMENTS(servercertchain_incomplete));
+
+    TLS_TEST_REG(incompleteserverchain, true,
+                 cacertrootreq.filename,
+                 WORKDIR "servercertchain_incomplete-ctx.pem", true);
+
+    test_tls_write_cert_chain(WORKDIR "servercertchain_unsorted-ctx.pem",
+                              servercertchain_unsorted,
+                              G_N_ELEMENTS(servercertchain_unsorted));
+
+    TLS_TEST_REG(unsortedserverchain, true,
+                 cacertrootreq.filename,
+                 WORKDIR "servercertchain_unsorted-ctx.pem", true);
+
+    test_tls_write_cert_chain(WORKDIR "clientcertchain-ctx.pem",
+                              clientcertchain,
+                              G_N_ELEMENTS(clientcertchain));
+
+    TLS_TEST_REG(clientchain, false,
+                 cacertrootreq.filename,
+                 WORKDIR "clientcertchain-ctx.pem", false);
 
     /* Some missing certs - first two are fatal, the last
      * is ok
@@ -640,7 +749,6 @@ int main(int argc, char **argv)
     TLS_TEST_REG(missingclient, false,
                  cacert1req.filename,
                  "clientcertdoesnotexist.pem", false);
-
     ret = g_test_run();
 
     test_tls_discard_cert(&cacertreq);
@@ -694,10 +802,17 @@ int main(int argc, char **argv)
     test_tls_discard_cert(&cacertrootreq);
     test_tls_discard_cert(&cacertlevel1areq);
     test_tls_discard_cert(&cacertlevel1breq);
+    test_tls_discard_cert(&cacertlevel1creq_invalid);
     test_tls_discard_cert(&cacertlevel2areq);
     test_tls_discard_cert(&servercertlevel3areq);
     test_tls_discard_cert(&clientcertlevel2breq);
+    test_tls_discard_cert(&someotherrootreq);
     unlink(WORKDIR "cacertchain-ctx.pem");
+    unlink(WORKDIR "cacertchain-with-invalid-ctx.pem");
+    unlink(WORKDIR "servercertchain-ctx.pem");
+    unlink(WORKDIR "servercertchain_incomplete-ctx.pem");
+    unlink(WORKDIR "servercertchain_unsorted-ctx.pem");
+    unlink(WORKDIR "clientcertchain-ctx.pem");
 
     test_tls_cleanup(KEYFILE);
     rmdir(WORKDIR);

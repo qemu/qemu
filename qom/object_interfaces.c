@@ -24,13 +24,12 @@
 bool user_creatable_complete(UserCreatable *uc, Error **errp)
 {
     UserCreatableClass *ucc = USER_CREATABLE_GET_CLASS(uc);
-    Error *err = NULL;
+    ERRP_GUARD();
 
     if (ucc->complete) {
-        ucc->complete(uc, &err);
-        error_propagate(errp, err);
+        ucc->complete(uc, errp);
     }
-    return !err;
+    return !*errp;
 }
 
 bool user_creatable_can_be_deleted(UserCreatable *uc)
