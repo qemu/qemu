@@ -233,7 +233,7 @@ class QemuBaseTest(unittest.TestCase):
         if "QEMU_TEST_KEEP_SCRATCH" not in os.environ:
             shutil.rmtree(self.workdir)
         if self.socketdir is not None:
-            shutil.rmtree(self.socketdir.name)
+            self.socketdir.cleanup()
             self.socketdir = None
         self.machinelog.removeHandler(self._log_fh)
         self.log.removeHandler(self._log_fh)
