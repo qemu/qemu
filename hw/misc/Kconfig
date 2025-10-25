@@ -212,6 +212,11 @@ config VIRT_CTRL
 
 config LASI
     bool
+    select LASI_82596
+    select LASIPS2
+    select NCR710_SCSI
+    select PARALLEL
+    select SERIAL_MM
 
 config ALLWINNER_SRAMC
     bool
