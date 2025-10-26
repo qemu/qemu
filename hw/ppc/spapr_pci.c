@@ -2279,7 +2279,7 @@ int spapr_dt_phb(SpaprMachineState *spapr, SpaprPhbState *phb,
     _FDT(fdt_setprop(fdt, bus_off, "reg", &bus_reg, sizeof(bus_reg)));
     _FDT(fdt_setprop_cell(fdt, bus_off, "ibm,pci-config-space-type", 0x1));
     _FDT(fdt_setprop_cell(fdt, bus_off, "ibm,pe-total-#msi",
-                          spapr_irq_nr_msis(spapr)));
+                          SPAPR_IRQ_NR_MSIS));
 
     /* Dynamic DMA window */
     if (phb->ddw_enabled) {
