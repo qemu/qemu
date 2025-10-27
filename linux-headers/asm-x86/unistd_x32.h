@@ -290,6 +290,7 @@
 #define __NR_io_pgetevents (__X32_SYSCALL_BIT + 333)
 #define __NR_rseq (__X32_SYSCALL_BIT + 334)
 #define __NR_uretprobe (__X32_SYSCALL_BIT + 335)
+#define __NR_uprobe (__X32_SYSCALL_BIT + 336)
 #define __NR_pidfd_send_signal (__X32_SYSCALL_BIT + 424)
 #define __NR_io_uring_setup (__X32_SYSCALL_BIT + 425)
 #define __NR_io_uring_enter (__X32_SYSCALL_BIT + 426)
