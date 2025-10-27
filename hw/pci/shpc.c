@@ -735,7 +735,6 @@ void shpc_free(PCIDevice *d)
     if (!shpc) {
         return;
     }
-    object_unparent(OBJECT(&shpc->mmio));
     g_free(shpc->config);
     g_free(shpc->cmask);
     g_free(shpc->wmask);
