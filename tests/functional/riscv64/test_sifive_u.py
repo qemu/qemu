@@ -13,7 +13,6 @@
 import os
 
 from qemu_test import Asset, LinuxKernelTest
-from qemu_test import skipIfMissingCommands
 
 
 class SifiveU(LinuxKernelTest):
