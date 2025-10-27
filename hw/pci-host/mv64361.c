@@ -108,7 +108,6 @@ static void mv64361_pcihost_class_init(ObjectClass *klass, const void *data)
 
     dc->realize = mv64361_pcihost_realize;
     device_class_set_props(dc, mv64361_pcihost_props);
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo mv64361_pcihost_info = {

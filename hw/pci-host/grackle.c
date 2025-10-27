@@ -140,7 +140,6 @@ static void grackle_class_init(ObjectClass *klass, const void *data)
 
     dc->realize = grackle_realize;
     device_class_set_props(dc, grackle_properties);
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "pci";
     sbc->explicit_ofw_unit_address = grackle_ofw_unit_address;
 }

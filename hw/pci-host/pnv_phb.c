@@ -202,7 +202,6 @@ static void pnv_phb_class_init(ObjectClass *klass, const void *data)
     hc->root_bus_path = pnv_phb_root_bus_path;
     dc->realize = pnv_phb_realize;
     device_class_set_props(dc, pnv_phb_properties);
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->user_creatable = true;
 }
 
