@@ -1672,9 +1672,9 @@ void migration_cancel(void)
     }
 }
 
-static int get_modes(MigMode mode, va_list ap);
+static unsigned get_modes(MigMode mode, va_list ap);
 
-static void add_notifiers(NotifierWithReturn *notify, int modes)
+static void add_notifiers(NotifierWithReturn *notify, unsigned modes)
 {
     for (MigMode mode = 0; mode < MIG_MODE__MAX; mode++) {
         if (modes & BIT(mode)) {
@@ -1687,7 +1687,7 @@ static void add_notifiers(NotifierWithReturn *notify, int modes)
 void migration_add_notifier_modes(NotifierWithReturn *notify,
                                   MigrationNotifyFunc func, MigMode mode, ...)
 {
-    int modes;
+    unsigned modes;
     va_list ap;
 
     va_start(ap, mode);
@@ -1876,7 +1876,7 @@ static bool is_busy(Error **reasonp, Error **errp)
     return false;
 }
 
-static bool is_only_migratable(Error **reasonp, Error **errp, int modes)
+static bool is_only_migratable(Error **reasonp, Error **errp, unsigned modes)
 {
     ERRP_GUARD();
 
@@ -1890,9 +1890,9 @@ static bool is_only_migratable(Error **reasonp, Error **errp, int modes)
     return false;
 }
 
-static int get_modes(MigMode mode, va_list ap)
+static unsigned get_modes(MigMode mode, va_list ap)
 {
-    int modes = 0;
+    unsigned modes = 0;
 
     while (mode != -1 && mode != MIG_MODE_ALL) {
         assert(mode >= MIG_MODE_NORMAL && mode < MIG_MODE__MAX);
@@ -1905,7 +1905,7 @@ static int get_modes(MigMode mode, va_list ap)
     return modes;
 }
 
-static int add_blockers(Error **reasonp, Error **errp, int modes)
+static int add_blockers(Error **reasonp, Error **errp, unsigned modes)
 {
     for (MigMode mode = 0; mode < MIG_MODE__MAX; mode++) {
         if (modes & BIT(mode)) {
@@ -1928,7 +1928,7 @@ int migrate_add_blocker_normal(Error **reasonp, Error **errp)
 
 int migrate_add_blocker_modes(Error **reasonp, Error **errp, MigMode mode, ...)
 {
-    int modes;
+    unsigned modes;
     va_list ap;
 
     va_start(ap, mode);
@@ -1945,7 +1945,7 @@ int migrate_add_blocker_modes(Error **reasonp, Error **errp, MigMode mode, ...)
 
 int migrate_add_blocker_internal(Error **reasonp, Error **errp)
 {
-    int modes = BIT(MIG_MODE__MAX) - 1;
+    unsigned modes = BIT(MIG_MODE__MAX) - 1;
 
     if (is_busy(reasonp, errp)) {
         return -EBUSY;
