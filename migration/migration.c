@@ -1867,7 +1867,7 @@ static bool is_busy(Error **reasonp, Error **errp)
     return false;
 }
 
-static bool is_only_migratable(Error **reasonp, Error **errp, unsigned modes)
+static bool is_only_migratable(Error **reasonp, unsigned modes, Error **errp)
 {
     ERRP_GUARD();
 
@@ -1881,7 +1881,7 @@ static bool is_only_migratable(Error **reasonp, Error **errp, unsigned modes)
     return false;
 }
 
-static int add_blockers(Error **reasonp, Error **errp, unsigned modes)
+static int add_blockers(Error **reasonp, unsigned modes, Error **errp)
 {
     for (MigMode mode = 0; mode < MIG_MODE__MAX; mode++) {
         if (modes & BIT(mode)) {
@@ -1904,12 +1904,12 @@ int migrate_add_blocker_normal(Error **reasonp, Error **errp)
 
 int migrate_add_blocker_modes(Error **reasonp, unsigned modes, Error **errp)
 {
-    if (is_only_migratable(reasonp, errp, modes)) {
+    if (is_only_migratable(reasonp, modes, errp)) {
         return -EACCES;
     } else if (is_busy(reasonp, errp)) {
         return -EBUSY;
     }
-    return add_blockers(reasonp, errp, modes);
+    return add_blockers(reasonp, modes, errp);
 }
 
 int migrate_add_blocker_internal(Error **reasonp, Error **errp)
@@ -1919,7 +1919,7 @@ int migrate_add_blocker_internal(Error **reasonp, Error **errp)
     if (is_busy(reasonp, errp)) {
         return -EBUSY;
     }
-    return add_blockers(reasonp, errp, modes);
+    return add_blockers(reasonp, modes, errp);
 }
 
 void migrate_del_blocker(Error **reasonp)
