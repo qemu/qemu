@@ -2223,6 +2223,23 @@ AudioBackend *audio_be_by_name(const char *name, Error **errp)
     }
 }
 
+#ifdef CONFIG_GIO
+bool audio_be_set_dbus_server(AudioBackend *be,
+                              GDBusObjectManagerServer *server,
+                              bool p2p,
+                              Error **errp)
+{
+    assert(be != NULL);
+
+    if (!be->drv->set_dbus_server) {
+        error_setg(errp, "Audiodev '%s' is not compatible with DBus", be->dev->id);
+        return false;
+    }
+
+    return be->drv->set_dbus_server(be, server, p2p, errp);
+}
+#endif
+
 const char *audio_be_get_id(AudioBackend *be)
 {
     if (be) {

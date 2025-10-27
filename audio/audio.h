@@ -28,6 +28,9 @@
 #include "qemu/queue.h"
 #include "qapi/qapi-types-audio.h"
 #include "hw/qdev-properties-system.h"
+#ifdef CONFIG_GIO
+#include "gio/gio.h"
+#endif
 
 typedef void (*audio_callback_fn) (void *opaque, int avail);
 
@@ -162,6 +165,12 @@ void audio_help(void);
 AudioBackend *audio_be_by_name(const char *name, Error **errp);
 AudioBackend *audio_get_default_audio_be(Error **errp);
 const char *audio_be_get_id(AudioBackend *be);
+#ifdef CONFIG_GIO
+bool audio_be_set_dbus_server(AudioBackend *be,
+                              GDBusObjectManagerServer *server,
+                              bool p2p,
+                              Error **errp);
+#endif
 
 #define DEFINE_AUDIO_PROPERTIES(_s, _f)         \
     DEFINE_PROP_AUDIODEV("audiodev", _s, _f)
