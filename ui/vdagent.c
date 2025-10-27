@@ -316,6 +316,15 @@ static bool have_selection(VDAgentChardev *vd)
     return vd->caps & (1 << VD_AGENT_CAP_CLIPBOARD_SELECTION);
 }
 
+static bool have_clipboard_serial(VDAgentChardev *vd)
+{
+#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 1)
+    return vd->caps & (1 << VD_AGENT_CAP_CLIPBOARD_GRAB_SERIAL);
+#else
+    return false;
+#endif
+}
+
 static uint32_t type_qemu_to_vdagent(enum QemuClipboardType type)
 {
     switch (type) {
@@ -345,8 +354,7 @@ static void vdagent_send_clipboard_grab(VDAgentChardev *vd,
         return;
     }
 
-#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 1)
-    if (vd->caps & (1 << VD_AGENT_CAP_CLIPBOARD_GRAB_SERIAL)) {
+    if (have_clipboard_serial(vd)) {
         if (!info->has_serial) {
             /* client should win */
             info->serial = vd->last_serial[info->selection]++;
@@ -356,7 +364,6 @@ static void vdagent_send_clipboard_grab(VDAgentChardev *vd,
         data++;
         msg->size += sizeof(uint32_t);
     }
-#endif
 
     for (q = 0; q < QEMU_CLIPBOARD_TYPE__COUNT; q++) {
         type = type_qemu_to_vdagent(q);
@@ -464,6 +471,9 @@ static void vdagent_clipboard_reset_serial(VDAgentChardev *vd)
 {
     Chardev *chr = CHARDEV(vd);
 
+    if (!have_clipboard_serial(vd)) {
+        return;
+    }
     /* reopen the agent connection to reset the serial state */
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
     /* OPENED again after the guest disconnected, see set_fe_open */
@@ -518,8 +528,7 @@ static void vdagent_clipboard_recv_grab(VDAgentChardev *vd, uint8_t s, uint32_t 
 
     trace_vdagent_cb_grab_selection(GET_NAME(sel_name, s));
     info = qemu_clipboard_info_new(&vd->cbpeer, s);
-#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 1)
-    if (vd->caps & (1 << VD_AGENT_CAP_CLIPBOARD_GRAB_SERIAL)) {
+    if (have_clipboard_serial(vd)) {
         if (size < sizeof(uint32_t)) {
             /* this shouldn't happen! */
             return;
@@ -537,7 +546,6 @@ static void vdagent_clipboard_recv_grab(VDAgentChardev *vd, uint8_t s, uint32_t 
         data += sizeof(uint32_t);
         size -= sizeof(uint32_t);
     }
-#endif
     if (size > sizeof(uint32_t) * 10) {
         /*
          * spice has 6 types as of 2021. Limiting to 10 entries
