@@ -388,7 +388,8 @@ void riscv_rom_copy_firmware_info(MachineState *machine,
                                   uint64_t kernel_entry)
 {
     struct fw_dynamic_info32 dinfo32;
-    struct fw_dynamic_info dinfo;
+    struct fw_dynamic_info64 dinfo64;
+    void *dinfo_ptr = NULL;
     size_t dinfo_len;
 
     if (riscv_is_32bit(harts)) {
@@ -398,15 +399,17 @@ void riscv_rom_copy_firmware_info(MachineState *machine,
         dinfo32.next_addr = cpu_to_le32(kernel_entry);
         dinfo32.options = 0;
         dinfo32.boot_hart = 0;
+        dinfo_ptr = &dinfo32;
         dinfo_len = sizeof(dinfo32);
     } else {
-        dinfo.magic = cpu_to_le64(FW_DYNAMIC_INFO_MAGIC_VALUE);
-        dinfo.version = cpu_to_le64(FW_DYNAMIC_INFO_VERSION);
-        dinfo.next_mode = cpu_to_le64(FW_DYNAMIC_INFO_NEXT_MODE_S);
-        dinfo.next_addr = cpu_to_le64(kernel_entry);
-        dinfo.options = 0;
-        dinfo.boot_hart = 0;
-        dinfo_len = sizeof(dinfo);
+        dinfo64.magic = cpu_to_le64(FW_DYNAMIC_INFO_MAGIC_VALUE);
+        dinfo64.version = cpu_to_le64(FW_DYNAMIC_INFO_VERSION);
+        dinfo64.next_mode = cpu_to_le64(FW_DYNAMIC_INFO_NEXT_MODE_S);
+        dinfo64.next_addr = cpu_to_le64(kernel_entry);
+        dinfo64.options = 0;
+        dinfo64.boot_hart = 0;
+        dinfo_ptr = &dinfo64;
+        dinfo_len = sizeof(dinfo64);
     }
 
     /**
@@ -420,8 +423,7 @@ void riscv_rom_copy_firmware_info(MachineState *machine,
     }
 
     rom_add_blob_fixed_as("mrom.finfo",
-                           riscv_is_32bit(harts) ?
-                           (void *)&dinfo32 : (void *)&dinfo,
+                           dinfo_ptr,
                            dinfo_len,
                            rom_base + reset_vec_size,
                            &address_space_memory);
