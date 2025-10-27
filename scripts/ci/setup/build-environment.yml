@@ -27,12 +27,18 @@
         - ansible_facts['distribution'] in ['Ubuntu', 'Debian']
 
     # the package lists are updated by "make lcitool-refresh"
-    - name: Define package list file path
+    - name: Define package list file path for Ubuntu
       set_fact:
         package_file: "ubuntu/ubuntu-2404-{{ ansible_facts['architecture'] }}.yaml"
       when:
         - ansible_facts['distribution'] == 'Ubuntu'
         - ansible_facts['distribution_version'] == '24.04'
+
+    - name: Define package list file path for Debian
+      set_fact:
+        package_file: "debian/debian-{{ ansible_facts['distribution_major_version'] }}-{{ ansible_facts['architecture'] }}.yaml"
+      when:
+        - ansible_facts['distribution'] == 'Debian'
 
     - name: Include package lists based on OS and architecture
       include_vars:
@@ -40,7 +46,7 @@
       when:
         - package_file is exists
 
-    - name: Install packages for QEMU on Ubuntu 24.04
+    - name: Install packages for QEMU on Ubuntu/Debian
       package:
         name: "{{ packages }}"
       when:
