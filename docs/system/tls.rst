@@ -345,6 +345,74 @@ example with VNC:
 
 .. _tls_005fpsk:
 
+TLS certificates for Post-Quantum Cryptography
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Given a new enough gnutls release, suitably integrated & configured with the
+operating system crypto policies, QEMU is able to support post-quantum
+crytography on TLS enabled services, either exclusively or in a hybrid mode.
+
+In exclusive mode, only a single set of certificates need to be configured
+for QEMU, with PQC compliant algorithms. Such a QEMU configuration will only
+be able to interoperate with other services (including other QEMU's) that
+also have PQC enabled. This can result in compatibility concerns during the
+period of transition over to PQC compliant algorithms.
+
+In hybrid mode, multiple sets of certificates need to be configured for QEMU,
+at least one set with traditional (non-PQC compliant) algorithms, and at least
+one other set with modern (PQC compliant) algorithms. At time of the TLS
+handshake, the GNUTLS algorithm priorities should ensure that PQC compliant
+algorithms are negotiated if both sides of the connection support PQC. If one
+side lacks PQC, the TLS handshake should fallback to the non-PQC algorithms.
+This can assist with interoperability during the transition to PQC, but has a
+potential weakness wrt downgrade attacks forcing use of non-PQC algorithms.
+Exclusive PQC mode should be preferred where both peers in the TLS connections
+are known to support PQC.
+
+Key generation parameters
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To create certificates with PQC compliant algorithms, the ``--key-type``
+argument must be passed to ``certtool`` when creating private keys. No
+extra arguments are required for the other ``certtool`` commands, as
+their behaviour will be determined by the private key type.
+
+The typical PQC compliant algorithms to use are ``ML-DSA-44``, ``ML-DSA-65``
+and ``ML-DSA-87``, with ``ML-DSA-65`` being a suitable default choice in
+the absence of explicit requirements.
+
+Taking the example earlier, for creating a key for a client certificate,
+to use ``ML-DSA-65`` the command line would be modified to look like::
+
+   # certtool --generate-privkey --key-type=mldsa65 > client-hostNNN-key.pem
+
+The equivalent modification applies to the creation of the private keys
+used for server certs, or root/intermediate CA certs.
+
+For hybrid mode, the additional indexed certificate naming must be used.
+If multiple configured certificates are compatible with the mutually
+supported crypto algorithms between the client and server, then the
+first matching certificate will be used.
+
+IOW, to ensure that PQC certificates are preferred, they must use a
+non-index based filename, or use an index that is smaller than any
+non-PQC certificates. ie, ``server-cert.pem`` for PQC and ``server-cert-0.pem``
+for non-PQC, or ``server-cert-0.pem`` for PQC and ``server-cert-1.pem`` for
+non-PQC.
+
+Force disabling PQC via crypto priority
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In the OS configuration for system crypto algorithm priorities has
+enabled PQC, this can (optionally) be overriden in QEMU configuration
+disable use of PQC using the ``priority`` parameter to the ``tls-creds-x509``
+object::
+
+  NO_MLDSA="-SIGN-ML-DSA-65:-SIGN-ML-DSA-44:-SIGN-ML-DSA-87"
+  NO_MLKEM="-GROUP-X25519-MLKEM768:-GROUP-SECP256R1-MLKEM768:-GROUP-SECP384R1-MLKEM1024"
+  # qemu-nbd --object tls-creds-x509,id=tls0,endpoint=server,dir=....,priority=@SYSTEM:$NO_MLDSA:$NO_MLKEM
+
+
 TLS Pre-Shared Keys (PSK)
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
