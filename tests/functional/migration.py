@@ -30,11 +30,11 @@ class MigrationTest(QemuSystemTest):
 
         end = time.monotonic() + self.timeout
         while time.monotonic() < end and not self.migration_finished(src_vm):
-           time.sleep(0.1)
+            time.sleep(0.1)
 
         end = time.monotonic() + self.timeout
         while time.monotonic() < end and not self.migration_finished(dst_vm):
-           time.sleep(0.1)
+            time.sleep(0.1)
 
         self.assertEqual(src_vm.cmd('query-migrate')['status'], 'completed')
         self.assertEqual(dst_vm.cmd('query-migrate')['status'], 'completed')
