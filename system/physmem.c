@@ -2255,8 +2255,8 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
                        "Memory region %s uses guest_memfd, "
                        "which is not supported with CPR.",
                        memory_region_name(new_block->mr));
-            migrate_add_blocker_modes(&new_block->cpr_blocker, errp,
-                                      MIG_MODE_CPR_TRANSFER, -1);
+            migrate_add_blocker_modes(&new_block->cpr_blocker,
+                                      BIT(MIG_MODE_CPR_TRANSFER), errp);
         }
     }
 
@@ -4462,8 +4462,8 @@ void ram_block_add_cpr_blocker(RAMBlock *rb, Error **errp)
                "Memory region %s is not compatible with CPR. share=on is "
                "required for memory-backend objects, and aux-ram-share=on is "
                "required.", memory_region_name(rb->mr));
-    migrate_add_blocker_modes(&rb->cpr_blocker, errp, MIG_MODE_CPR_TRANSFER,
-                              -1);
+    migrate_add_blocker_modes(&rb->cpr_blocker, BIT(MIG_MODE_CPR_TRANSFER),
+                              errp);
 }
 
 void ram_block_del_cpr_blocker(RAMBlock *rb)

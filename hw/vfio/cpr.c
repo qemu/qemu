@@ -197,8 +197,7 @@ void vfio_cpr_add_kvm_notifier(void)
     if (!kvm_close_notifier.notify) {
         migration_add_notifier_modes(&kvm_close_notifier,
                                      vfio_cpr_kvm_close_notifier,
-                                     MIG_MODE_CPR_TRANSFER, MIG_MODE_CPR_EXEC,
-                                     -1);
+                                     BIT(MIG_MODE_CPR_TRANSFER) | BIT(MIG_MODE_CPR_EXEC));
     }
 }
 
@@ -285,7 +284,7 @@ void vfio_cpr_pci_register_device(VFIOPCIDevice *vdev)
 {
     migration_add_notifier_modes(&vdev->cpr.transfer_notifier,
                                  vfio_cpr_pci_notifier,
-                                 MIG_MODE_CPR_TRANSFER, MIG_MODE_CPR_EXEC, -1);
+                                 BIT(MIG_MODE_CPR_TRANSFER) | BIT(MIG_MODE_CPR_EXEC));
 }
 
 void vfio_cpr_pci_unregister_device(VFIOPCIDevice *vdev)

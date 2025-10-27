@@ -11,7 +11,7 @@ int migrate_add_blocker_normal(Error **reasonp, Error **errp)
     return 0;
 }
 
-int migrate_add_blocker_modes(Error **reasonp, Error **errp, MigMode mode, ...)
+int migrate_add_blocker_modes(Error **reasonp, unsigned modes, Error **errp)
 {
     return 0;
 }
