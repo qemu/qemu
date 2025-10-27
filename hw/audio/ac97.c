@@ -1362,7 +1362,7 @@ static const TypeInfo ac97_info = {
 static void ac97_register_types(void)
 {
     type_register_static(&ac97_info);
-    audio_register_model("ac97", "Intel 82801AA AC97 Audio", 0, TYPE_AC97);
+    audio_register_model("ac97", "Intel 82801AA AC97 Audio", TYPE_AC97);
 }
 
 type_init(ac97_register_types)

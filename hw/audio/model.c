@@ -26,16 +26,13 @@
 #include "monitor/qdev.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include "qom/object.h"
 #include "hw/qdev-properties.h"
-#include "hw/isa/isa.h"
 #include "hw/audio/model.h"
 
 struct audio_model {
     const char *name;
     const char *descr;
     const char *typename;
-    int isa;
     void (*init)(const char *audiodev);
 };
 
@@ -48,18 +45,16 @@ void audio_register_model_with_cb(const char *name, const char *descr,
     assert(audio_models_count < ARRAY_SIZE(audio_models) - 1);
     audio_models[audio_models_count].name = name;
     audio_models[audio_models_count].descr = descr;
-    audio_models[audio_models_count].isa = 0;
     audio_models[audio_models_count].init = init_audio_model;
     audio_models_count++;
 }
 
 void audio_register_model(const char *name, const char *descr,
-                          int isa, const char *typename)
+                          const char *typename)
 {
     assert(audio_models_count < ARRAY_SIZE(audio_models) - 1);
     audio_models[audio_models_count].name = name;
     audio_models[audio_models_count].descr = descr;
-    audio_models[audio_models_count].isa = isa;
     audio_models[audio_models_count].typename = typename;
     audio_models_count++;
 }
@@ -120,7 +115,6 @@ void audio_model_init(void)
         qdev_prop_set_string(dev, "audiodev", audiodev_id);
         qdev_realize_and_unref(dev, bus, &error_fatal);
     } else {
-        assert(!c->isa);
         c->init(audiodev_id);
     }
 }

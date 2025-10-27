@@ -74,7 +74,7 @@ static const VirtioPCIDeviceTypeInfo virtio_snd_pci_info = {
 static void virtio_snd_pci_register(void)
 {
     virtio_pci_types_register(&virtio_snd_pci_info);
-    audio_register_model("virtio", "Virtio Sound", 0, TYPE_VIRTIO_SND_PCI);
+    audio_register_model("virtio", "Virtio Sound", TYPE_VIRTIO_SND_PCI);
 }
 
 type_init(virtio_snd_pci_register);

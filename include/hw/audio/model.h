@@ -5,7 +5,7 @@
 void audio_register_model_with_cb(const char *name, const char *descr,
                                   void (*init_audio_model)(const char *audiodev));
 void audio_register_model(const char *name, const char *descr,
-                          int isa, const char *typename);
+                          const char *typename);
 
 void audio_model_init(void);
 void audio_print_available_models(void);
