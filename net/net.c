@@ -766,8 +766,18 @@ ssize_t qemu_send_packet(NetClientState *nc, const uint8_t *buf, int size)
 
 ssize_t qemu_receive_packet(NetClientState *nc, const uint8_t *buf, int size)
 {
+    uint8_t min_pkt[ETH_ZLEN];
+    size_t min_pktsz = sizeof(min_pkt);
+
     if (!qemu_can_receive_packet(nc)) {
         return 0;
+    }
+
+    if (net_peer_needs_padding(nc)) {
+        if (eth_pad_short_frame(min_pkt, &min_pktsz, buf, size)) {
+            buf = min_pkt;
+            size = min_pktsz;
+        }
     }
 
     return qemu_net_queue_receive(nc->incoming_queue, buf, size);
