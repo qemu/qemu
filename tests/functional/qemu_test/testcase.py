@@ -225,6 +225,9 @@ class QemuBaseTest(unittest.TestCase):
         self.machinelog = logging.getLogger('qemu.machine')
         self.machinelog.setLevel(logging.DEBUG)
         self.machinelog.addHandler(self._log_fh)
+        self.qmplog = logging.getLogger('qemu.qmp')
+        self.qmplog.setLevel(logging.DEBUG)
+        self.qmplog.addHandler(self._log_fh)
 
         if not self.assets_available():
             self.skipTest('One or more assets is not available')
@@ -235,6 +238,7 @@ class QemuBaseTest(unittest.TestCase):
         if self.socketdir is not None:
             self.socketdir.cleanup()
             self.socketdir = None
+        self.qmplog.removeHandler(self._log_fh)
         self.machinelog.removeHandler(self._log_fh)
         self.log.removeHandler(self._log_fh)
         self._log_fh.close()
