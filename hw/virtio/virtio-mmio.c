@@ -612,15 +612,26 @@ static const VMStateDescription vmstate_virtio_mmio = {
 static void virtio_mmio_save_extra_state(DeviceState *opaque, QEMUFile *f)
 {
     VirtIOMMIOProxy *proxy = VIRTIO_MMIO(opaque);
+    Error *local_err = NULL;
+    int ret;
 
-    vmstate_save_state(f, &vmstate_virtio_mmio, proxy, NULL, &error_fatal);
+    ret = vmstate_save_state(f, &vmstate_virtio_mmio, proxy, NULL, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+    }
 }
 
 static int virtio_mmio_load_extra_state(DeviceState *opaque, QEMUFile *f)
 {
     VirtIOMMIOProxy *proxy = VIRTIO_MMIO(opaque);
+    Error *local_err = NULL;
+    int ret;
 
-    return vmstate_load_state(f, &vmstate_virtio_mmio, proxy, 1, &error_fatal);
+    ret = vmstate_load_state(f, &vmstate_virtio_mmio, proxy, 1, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+    }
+    return ret;
 }
 
 static bool virtio_mmio_has_extra_state(DeviceState *opaque)

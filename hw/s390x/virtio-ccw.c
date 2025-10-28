@@ -1130,13 +1130,26 @@ static int virtio_ccw_load_queue(DeviceState *d, int n, QEMUFile *f)
 static void virtio_ccw_save_config(DeviceState *d, QEMUFile *f)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
-    vmstate_save_state(f, &vmstate_virtio_ccw_dev, dev, NULL, &error_fatal);
+    Error *local_err = NULL;
+    int ret;
+
+    ret = vmstate_save_state(f, &vmstate_virtio_ccw_dev, dev, NULL, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+    }
 }
 
 static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
-    return vmstate_load_state(f, &vmstate_virtio_ccw_dev, dev, 1, &error_fatal);
+    Error *local_err = NULL;
+    int ret;
+
+    ret = vmstate_load_state(f, &vmstate_virtio_ccw_dev, dev, 1, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+    }
+    return ret;
 }
 
 static void virtio_ccw_pre_plugged(DeviceState *d, Error **errp)
