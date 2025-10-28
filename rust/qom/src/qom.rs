@@ -102,7 +102,7 @@ use std::{
 };
 
 use common::Opaque;
-use migration::impl_vmstate_pointer;
+use migration::{impl_vmstate_pointer, impl_vmstate_transparent};
 
 use crate::bindings::{
     self, object_class_dynamic_cast, object_dynamic_cast, object_get_class, object_get_typename,
@@ -182,6 +182,7 @@ macro_rules! qom_isa {
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct ParentField<T: ObjectType>(std::mem::ManuallyDrop<T>);
+impl_vmstate_transparent!(ParentField<T> where T: VMState + ObjectType);
 
 impl<T: ObjectType> Deref for ParentField<T> {
     type Target = T;
