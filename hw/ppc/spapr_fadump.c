@@ -234,6 +234,7 @@ static bool do_preserve_region(FadumpSection *region)
         qemu_log_mask(LOG_GUEST_ERROR,
             "FADump: Failed allocating memory (size: %zu) for copying"
             " reserved memory regions\n", FADUMP_CHUNK_SIZE);
+        return false;
     }
 
     num_chunks = ceil((src_len * 1.0f) / FADUMP_CHUNK_SIZE);
