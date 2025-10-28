@@ -50,7 +50,7 @@ def mips_run_common_commands(test, prompt='#'):
         ' : ata_piix')
     wait_for_console_pattern(test, prompt)
 
-def mips_check_wheezy(test, kernel_path, image_path, kernel_command_line,
+def mips_check_wheezy(test, kernel_path, image_path, kernel_command_line, *,
                       dl_file, hsum, nic='pcnet', cpuinfo='MIPS 24Kc'):
     test.require_netdev('user')
     test.require_device(nic)
@@ -59,10 +59,10 @@ def mips_check_wheezy(test, kernel_path, image_path, kernel_command_line,
     port=8080
     test.vm.add_args('-kernel', kernel_path,
                      '-append', kernel_command_line,
-                     '-drive', 'file=%s,snapshot=on' % image_path,
+                     '-drive', f'file={image_path},snapshot=on',
                      '-netdev', 'user,id=n1' +
                                 ',tftp=' + os.path.basename(kernel_path) +
-                                ',hostfwd=tcp:127.0.0.1:0-:%d' % port,
+                                f',hostfwd=tcp:127.0.0.1:0-:{port}',
                      '-device', f'{nic},netdev=n1',
                      '-no-reboot')
     test.vm.set_console()
@@ -111,7 +111,7 @@ class MaltaMachineConsole(LinuxKernelTest):
         self.vm.add_args('-kernel', kernel_path,
                          '-append', kernel_command_line)
         self.vm.launch()
-        console_pattern = 'Kernel command line: %s' % kernel_command_line
+        console_pattern = f'Kernel command line: {kernel_command_line}'
         self.wait_for_console_pattern(console_pattern)
 
     ASSET_KERNEL_4_5_0 = Asset(
