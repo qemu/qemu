@@ -154,13 +154,12 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         return -EINVAL;
     }
     if (vmsd->pre_load_errp) {
-        ret = vmsd->pre_load_errp(opaque, errp);
-        if (ret < 0) {
+        if (!vmsd->pre_load_errp(opaque, errp)) {
             error_prepend(errp, "pre load hook failed for: '%s', "
                           "version_id: %d, minimum version_id: %d: ",
                           vmsd->name, vmsd->version_id,
                           vmsd->minimum_version_id);
-            return ret;
+            return -EINVAL;
         }
     } else if (vmsd->pre_load) {
         ret = vmsd->pre_load(opaque);
@@ -256,11 +255,11 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         return ret;
     }
     if (vmsd->post_load_errp) {
-        ret = vmsd->post_load_errp(opaque, version_id, errp);
-        if (ret < 0) {
+        if (!vmsd->post_load_errp(opaque, version_id, errp)) {
             error_prepend(errp, "post load hook failed for: %s, version_id: "
                           "%d, minimum_version: %d: ", vmsd->name,
                           vmsd->version_id, vmsd->minimum_version_id);
+            ret = -EINVAL;
         }
     } else if (vmsd->post_load) {
         ret = vmsd->post_load(opaque, version_id);
@@ -438,7 +437,7 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
     trace_vmstate_save_state_top(vmsd->name);
 
     if (vmsd->pre_save_errp) {
-        ret = vmsd->pre_save_errp(opaque, errp);
+        ret = vmsd->pre_save_errp(opaque, errp) ? 0 : -EINVAL;
         trace_vmstate_save_state_pre_save_res(vmsd->name, ret);
         if (ret < 0) {
             error_prepend(errp, "pre-save for %s failed: ", vmsd->name);
