@@ -8,10 +8,8 @@ RISC-V machine for TCG and KVM accelerators.
 
 The support consists of two main modes:
 
-- "aia=aplic": adds one or more APLIC (Advanced Platform Level Interrupt Controller)
-  devices
-- "aia=aplic-imsic": adds one or more APLIC device and an IMSIC (Incoming MSI
-   Controller) device for each CPU
+- *aia=aplic*: adds one or more APLIC (Advanced Platform Level Interrupt Controller) devices
+- *aia=aplic-imsic*: adds one or more APLIC device and an IMSIC (Incoming MSI Controller) device for each CPU
 
 From an user standpoint, these modes will behave the same regardless of the accelerator
 used.  From a developer standpoint the accelerator settings will change what it being
@@ -81,3 +79,40 @@ we will emulate in userspace:
      - n/a
      - emul
      - in-kernel
+
+
+KVM accel option 'riscv-aia'
+----------------------------
+
+The KVM accelerator property 'riscv-aia' interacts with the "aia=aplic-imsic"
+to determine how the host KVM module will provide the in-kernel IMSIC s-mode
+controller.  The 'kernel-irqchip' setting has no impact in 'riscv-aia' given
+that any available 'kernel-irqchip' setting will always have an in-kernel
+IMSIC s-mode.  'riscv-aia' has no impact in APLIC m-mode/s-mode and
+IMSIC m-mode settings.
+
+
+.. list-table:: How 'riscv-aia' changes in-kernel IMSIC s-mode provisioning
+   :widths: 25 25 25 25
+   :header-rows: 1
+
+   * - Accel
+     - KVM riscv-aia
+     - AIA type
+     - IMSIC s-mode
+   * - kvm
+     - none
+     - aplic-imsic
+     - in-kernel, default to 'auto'
+   * - kvm
+     - auto
+     - aplic-imsic
+     - in-kernel, hwaccel if available, emul otherwise
+   * - kvm
+     - hwaccel
+     - aplic-imsic
+     - in-kernel, use IMSIC controller from guest hardware
+   * - kvm
+     - emul
+     - aplic-imsic
+     - in-kernel, IMSIC is emulated by KVM
