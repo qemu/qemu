@@ -443,6 +443,7 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
         if (ret < 0) {
             error_prepend(errp, "pre-save for %s failed, ret: %d: ",
                           vmsd->name, ret);
+            return ret;
         }
     } else if (vmsd->pre_save) {
         ret = vmsd->pre_save(opaque);
