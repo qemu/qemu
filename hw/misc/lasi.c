@@ -43,7 +43,7 @@ static bool lasi_chip_mem_valid(void *opaque, hwaddr addr,
     case LASI_LAN + 12: /* LASI LAN MAC */
     case LASI_RTC:
     case LASI_FDC:
-
+    case LASI_SCSI ... LASI_SCSI + 0xFF:
     case LASI_PCR ... LASI_AMR:
         ret = true;
     }
@@ -84,6 +84,7 @@ static MemTxResult lasi_chip_read_with_attrs(void *opaque, hwaddr addr,
     case LASI_LAN:
     case LASI_LAN + 12:
     case LASI_FDC:
+    case LASI_SCSI ... LASI_SCSI + 0xFF:
         val = 0;
         break;
     case LASI_RTC:
@@ -155,6 +156,9 @@ static MemTxResult lasi_chip_write_with_attrs(void *opaque, hwaddr addr,
         break;
     case LASI_UART:
         /* XXX: reset serial port */
+        break;
+    case LASI_SCSI ... LASI_SCSI + 0xFF:
+        /* XXX: reset SCSI Controller */
         break;
     case LASI_LAN:
         /* XXX: reset LAN card */

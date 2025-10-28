@@ -1286,6 +1286,8 @@ F: hw/net/*i82596*
 F: hw/misc/lasi.c
 F: hw/pci-host/astro.c
 F: hw/pci-host/dino.c
+F: hw/scsi/lasi_ncr710.*
+F: hw/scsi/ncr53c710.*
 F: include/hw/input/lasips2.h
 F: include/hw/misc/lasi.h
 F: include/hw/net/lasi_82596.h
