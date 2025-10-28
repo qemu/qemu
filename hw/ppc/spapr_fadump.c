@@ -453,7 +453,7 @@ static FadumpRegEntry *populate_cpu_reg_entries(CPUState *cpu,
 static void *get_cpu_state_data(uint64_t *cpu_state_len)
 {
     FadumpRegSaveAreaHeader reg_save_hdr;
-    FadumpRegEntry *reg_entries;
+    g_autofree FadumpRegEntry *reg_entries = NULL;
     FadumpRegEntry *curr_reg_entry;
     CPUState *cpu;
 
