@@ -8,15 +8,26 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
+from typing import Dict, Optional
+
 import iotests
 from iotests import imgfmt, qemu_img_create, QMPTestCase
 
 image_size = 1 * 1024 * 1024
 image = os.path.join(iotests.test_dir, 'test.img')
 
-class TestResizeBelowRaw(QMPTestCase):
+class BaseResizeBelowRaw(QMPTestCase):
+    raw_size: Optional[int] = None
+    raw_offset: Optional[int] = None
+
     def setUp(self) -> None:
         qemu_img_create('-f', imgfmt, image, str(image_size))
+
+        extra_options: Dict[str, str] = {}
+        if self.raw_size is not None:
+            extra_options['size'] = str(self.raw_size)
+        if self.raw_offset is not None:
+            extra_options['offset'] = str(self.raw_offset)
 
         self.vm = iotests.VM()
         self.vm.add_blockdev(self.vm.qmp_to_opts({
@@ -26,7 +37,8 @@ class TestResizeBelowRaw(QMPTestCase):
                 'driver': 'file',
                 'filename': image,
                 'node-name': 'file0',
-            }
+            },
+            **extra_options
         }))
         self.vm.launch()
 
@@ -34,20 +46,53 @@ class TestResizeBelowRaw(QMPTestCase):
         self.vm.shutdown()
         os.remove(image)
 
-    def assert_size(self, size: int) -> None:
+    def assert_size(self, size: int, file_size: Optional[int] = None) -> None:
         nodes = self.vm.qmp('query-named-block-nodes', flat=True)['return']
         self.assertEqual(len(nodes), 2)
         for node in nodes:
-            if node['drv'] == 'file':
+            if node['drv'] == 'file' and file_size is not None:
+                self.assertEqual(node['image']['virtual-size'], file_size)
                 continue
             self.assertEqual(node['image']['virtual-size'], size)
 
+class TestResizeBelowUnlimitedRaw(BaseResizeBelowRaw):
     def test_resize_below_raw(self) -> None:
         self.assert_size(image_size)
         self.vm.qmp('block_resize', node_name='file0', size=2*image_size)
         self.assert_size(2*image_size)
         self.vm.qmp('block_resize', node_name='node0', size=3*image_size)
         self.assert_size(3*image_size)
+
+# offset = 0 behaves the same as absent offset
+class TestResizeBelowRawWithZeroOffset(TestResizeBelowUnlimitedRaw):
+    raw_offset = 0
+
+class TestResizeBelowRawWithSize(BaseResizeBelowRaw):
+    raw_size = image_size // 2
+
+    def test_resize_below_raw_with_size(self) -> None:
+        self.assert_size(image_size // 2, image_size)
+
+        # This QMP command fails because node0 unshares RESIZE
+        self.vm.qmp('block_resize', node_name='file0', size=2*image_size)
+        self.assert_size(image_size // 2, image_size)
+
+        # This QMP command fails because node0 is a fixed-size disk
+        self.vm.qmp('block_resize', node_name='node0', size=3*image_size)
+        self.assert_size(image_size // 2, image_size)
+
+class TestResizeBelowRawWithOffset(BaseResizeBelowRaw):
+    raw_offset = image_size // 4
+
+    def test_resize_below_raw_with_offset(self) -> None:
+        self.assert_size(image_size * 3 // 4, image_size)
+
+        # This QMP command fails because node0 unshares RESIZE
+        self.vm.qmp('block_resize', node_name='file0', size=2*image_size)
+        self.assert_size(image_size * 3 // 4, image_size)
+
+        self.vm.qmp('block_resize', node_name='node0', size=3*image_size)
+        self.assert_size(3 * image_size, image_size * 13 // 4)
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['raw'], supported_protocols=['file'])
