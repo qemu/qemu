@@ -308,22 +308,22 @@ static int tpm_emulator_check_caps(TPMEmulator *tpm_emu)
     return 0;
 }
 
-static int tpm_emulator_stop_tpm(TPMBackend *tb)
+static int tpm_emulator_stop_tpm(TPMBackend *tb, Error **errp)
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
     ptm_res res;
 
     if (tpm_emulator_ctrlcmd(tpm_emu, CMD_STOP, &res, 0,
                              sizeof(ptm_res), sizeof(res)) < 0) {
-        error_report("tpm-emulator: Could not stop TPM: %s",
-                     strerror(errno));
+        error_setg(errp, "tpm-emulator: Could not stop TPM: %s",
+                   strerror(errno));
         return -1;
     }
 
     res = be32_to_cpu(res);
     if (res) {
-        error_report("tpm-emulator: TPM result for CMD_STOP: 0x%x %s", res,
-                     tpm_emulator_strerror(res));
+        error_setg(errp, "tpm-emulator: TPM result for CMD_STOP: 0x%x %s", res,
+                   tpm_emulator_strerror(res));
         return -1;
     }
 
@@ -362,12 +362,13 @@ static int tpm_emulator_lock_storage(TPMEmulator *tpm_emu)
 
 static int tpm_emulator_set_buffer_size(TPMBackend *tb,
                                         size_t wanted_size,
-                                        size_t *actual_size)
+                                        size_t *actual_size,
+                                        Error **errp)
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
     ptm_setbuffersize psbs;
 
-    if (tpm_emulator_stop_tpm(tb) < 0) {
+    if (tpm_emulator_stop_tpm(tb, errp) < 0) {
         return -1;
     }
 
@@ -376,16 +377,17 @@ static int tpm_emulator_set_buffer_size(TPMBackend *tb,
     if (tpm_emulator_ctrlcmd(tpm_emu, CMD_SET_BUFFERSIZE, &psbs,
                              sizeof(psbs.u.req), sizeof(psbs.u.resp.tpm_result),
                              sizeof(psbs.u.resp)) < 0) {
-        error_report("tpm-emulator: Could not set buffer size: %s",
-                     strerror(errno));
+        error_setg(errp, "tpm-emulator: Could not set buffer size: %s",
+                   strerror(errno));
         return -1;
     }
 
     psbs.u.resp.tpm_result = be32_to_cpu(psbs.u.resp.tpm_result);
     if (psbs.u.resp.tpm_result != 0) {
-        error_report("tpm-emulator: TPM result for set buffer size : 0x%x %s",
-                     psbs.u.resp.tpm_result,
-                     tpm_emulator_strerror(psbs.u.resp.tpm_result));
+        error_setg(errp,
+                   "tpm-emulator: TPM result for set buffer size : 0x%x %s",
+                   psbs.u.resp.tpm_result,
+                   tpm_emulator_strerror(psbs.u.resp.tpm_result));
         return -1;
     }
 
@@ -402,7 +404,7 @@ static int tpm_emulator_set_buffer_size(TPMBackend *tb,
 }
 
 static int tpm_emulator_startup_tpm_resume(TPMBackend *tb, size_t buffersize,
-                                     bool is_resume)
+                                           bool is_resume, Error **errp)
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
     ptm_init init = {
@@ -413,7 +415,7 @@ static int tpm_emulator_startup_tpm_resume(TPMBackend *tb, size_t buffersize,
     trace_tpm_emulator_startup_tpm_resume(is_resume, buffersize);
 
     if (buffersize != 0 &&
-        tpm_emulator_set_buffer_size(tb, buffersize, NULL) < 0) {
+        tpm_emulator_set_buffer_size(tb, buffersize, NULL, errp) < 0) {
         goto err_exit;
     }
 
@@ -424,15 +426,15 @@ static int tpm_emulator_startup_tpm_resume(TPMBackend *tb, size_t buffersize,
     if (tpm_emulator_ctrlcmd(tpm_emu, CMD_INIT, &init, sizeof(init),
                              sizeof(init.u.resp.tpm_result),
                              sizeof(init)) < 0) {
-        error_report("tpm-emulator: could not send INIT: %s",
-                     strerror(errno));
+        error_setg(errp, "tpm-emulator: could not send INIT: %s",
+                   strerror(errno));
         goto err_exit;
     }
 
     res = be32_to_cpu(init.u.resp.tpm_result);
     if (res) {
-        error_report("tpm-emulator: TPM result for CMD_INIT: 0x%x %s", res,
-                     tpm_emulator_strerror(res));
+        error_setg(errp, "tpm-emulator: TPM result for CMD_INIT: 0x%x %s", res,
+                   tpm_emulator_strerror(res));
         goto err_exit;
     }
     return 0;
@@ -441,18 +443,31 @@ err_exit:
     return -1;
 }
 
-static int tpm_emulator_startup_tpm(TPMBackend *tb, size_t buffersize)
+static int do_tpm_emulator_startup_tpm(TPMBackend *tb, size_t buffersize,
+                                       Error **errp)
 {
     /* TPM startup will be done from post_load hook */
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         if (buffersize != 0) {
-            return tpm_emulator_set_buffer_size(tb, buffersize, NULL);
+            return tpm_emulator_set_buffer_size(tb, buffersize, NULL, errp);
         }
 
         return 0;
     }
 
-    return tpm_emulator_startup_tpm_resume(tb, buffersize, false);
+    return tpm_emulator_startup_tpm_resume(tb, buffersize, false, errp);
+}
+
+static int tpm_emulator_startup_tpm(TPMBackend *tb, size_t buffersize)
+{
+    Error *local_err = NULL;
+    int ret = do_tpm_emulator_startup_tpm(tb, buffersize, &local_err);
+
+    if (ret < 0) {
+        error_report_err(local_err);
+    }
+
+    return ret;
 }
 
 static bool tpm_emulator_get_tpm_established_flag(TPMBackend *tb)
@@ -546,7 +561,7 @@ static size_t tpm_emulator_get_buffer_size(TPMBackend *tb)
 {
     size_t actual_size;
 
-    if (tpm_emulator_set_buffer_size(tb, 0, &actual_size) < 0) {
+    if (tpm_emulator_set_buffer_size(tb, 0, &actual_size, NULL) < 0) {
         return 4096;
     }
 
@@ -889,7 +904,7 @@ static int tpm_emulator_set_state_blobs(TPMBackend *tb, Error **errp)
 
     trace_tpm_emulator_set_state_blobs();
 
-    if (tpm_emulator_stop_tpm(tb) < 0) {
+    if (tpm_emulator_stop_tpm(tb, errp) < 0) {
         trace_tpm_emulator_set_state_blobs_error("Could not stop TPM");
         return -EIO;
     }
@@ -960,7 +975,7 @@ static int tpm_emulator_post_load(void *opaque, int version_id, Error **errp)
         return ret;
     }
 
-    if (tpm_emulator_startup_tpm_resume(tb, 0, true) < 0) {
+    if (tpm_emulator_startup_tpm_resume(tb, 0, true, errp) < 0) {
         return -EIO;
     }
 
