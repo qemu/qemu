@@ -217,7 +217,7 @@ class QemuBaseTest(unittest.TestCase):
         self._log_fh = logging.FileHandler(self.log_filename, mode='w')
         self._log_fh.setLevel(logging.DEBUG)
         fileFormatter = logging.Formatter(
-            '%(asctime)s - %(levelname)s: %(message)s')
+            '%(asctime)s - %(levelname)s: %(name)s.%(funcName)s %(message)s')
         self._log_fh.setFormatter(fileFormatter)
         self.log.addHandler(self._log_fh)
 
