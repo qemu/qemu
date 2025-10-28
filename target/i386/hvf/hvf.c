@@ -721,6 +721,249 @@ void hvf_simulate_wrmsr(CPUState *cs)
     printf("write msr %llx\n", RCX(cs));*/
 }
 
+static int hvf_handle_vmexit(CPUState *cpu)
+{
+    X86CPU *x86_cpu = env_archcpu(cpu_env(cpu));
+    uint64_t exit_reason = rvmcs(cpu->accel->fd, VMCS_EXIT_REASON);
+    uint64_t exit_qual = rvmcs(cpu->accel->fd, VMCS_EXIT_QUALIFICATION);
+    uint32_t ins_len = (uint32_t)rvmcs(cpu->accel->fd,
+                                       VMCS_EXIT_INSTRUCTION_LENGTH);
+
+    uint64_t idtvec_info = rvmcs(cpu->accel->fd, VMCS_IDT_VECTORING_INFO);
+    int ret = 0;
+
+    hvf_store_events(cpu, ins_len, idtvec_info);
+    rip = rreg(cpu->accel->fd, HV_X86_RIP);
+    env->eflags = rreg(cpu->accel->fd, HV_X86_RFLAGS);
+
+    bql_lock();
+
+    update_apic_tpr(cpu);
+    current_cpu = cpu;
+
+    switch (exit_reason) {
+    case EXIT_REASON_HLT: {
+        macvm_set_rip(cpu, rip + ins_len);
+        if (!(cpu_test_interrupt(cpu, CPU_INTERRUPT_HARD)
+              && (env->eflags & IF_MASK))
+            && !cpu_test_interrupt(cpu, CPU_INTERRUPT_NMI)
+            && !(idtvec_info & VMCS_IDT_VEC_VALID)) {
+            cpu->halted = 1;
+            ret = EXCP_HLT;
+            break;
+        }
+        ret = EXCP_INTERRUPT;
+        break;
+    }
+    case EXIT_REASON_MWAIT: {
+        ret = EXCP_INTERRUPT;
+        break;
+    }
+    /* Need to check if MMIO or unmapped fault */
+    case EXIT_REASON_EPT_FAULT:
+    {
+        hvf_slot *slot;
+        uint64_t gpa = rvmcs(cpu->accel->fd, VMCS_GUEST_PHYSICAL_ADDRESS);
+
+        if (((idtvec_info & VMCS_IDT_VEC_VALID) == 0) &&
+            ((exit_qual & EXIT_QUAL_NMIUDTI) != 0)) {
+            vmx_set_nmi_blocking(cpu);
+        }
+
+        slot = hvf_find_overlap_slot(gpa, 1);
+        /* mmio */
+        if (ept_emulation_fault(slot, gpa, exit_qual)) {
+            struct x86_decode decode;
+
+            hvf_load_regs(cpu);
+            decode_instruction(env, &decode);
+            exec_instruction(env, &decode);
+            hvf_store_regs(cpu);
+            break;
+        }
+        break;
+    }
+    case EXIT_REASON_INOUT:
+    {
+        uint32_t in = (exit_qual & 8) != 0;
+        uint32_t size =  (exit_qual & 7) + 1;
+        uint32_t string =  (exit_qual & 16) != 0;
+        uint32_t port =  exit_qual >> 16;
+        /*uint32_t rep = (exit_qual & 0x20) != 0;*/
+        struct x86_decode decode;
+
+        if (!string && in) {
+            uint64_t val = 0;
+
+            hvf_load_regs(cpu);
+            hvf_handle_io(env_cpu(env), port, &val, 0, size, 1);
+            if (size == 1) {
+                AL(env) = val;
+            } else if (size == 2) {
+                AX(env) = val;
+            } else if (size == 4) {
+                RAX(env) = (uint32_t)val;
+            } else {
+                RAX(env) = (uint64_t)val;
+            }
+            env->eip += ins_len;
+            hvf_store_regs(cpu);
+            break;
+        } else if (!string && !in) {
+            RAX(env) = rreg(cpu->accel->fd, HV_X86_RAX);
+            hvf_handle_io(env_cpu(env), port, &RAX(env), 1, size, 1);
+            macvm_set_rip(cpu, rip + ins_len);
+            break;
+        }
+
+        hvf_load_regs(cpu);
+        decode_instruction(env, &decode);
+        assert(ins_len == decode.len);
+        exec_instruction(env, &decode);
+        hvf_store_regs(cpu);
+
+        break;
+    }
+    case EXIT_REASON_CPUID: {
+        uint32_t rax = (uint32_t)rreg(cpu->accel->fd, HV_X86_RAX);
+        uint32_t rbx = (uint32_t)rreg(cpu->accel->fd, HV_X86_RBX);
+        uint32_t rcx = (uint32_t)rreg(cpu->accel->fd, HV_X86_RCX);
+        uint32_t rdx = (uint32_t)rreg(cpu->accel->fd, HV_X86_RDX);
+
+        if (rax == 1) {
+            /* CPUID1.ecx.OSXSAVE needs to know CR4 */
+            env->cr[4] = rvmcs(cpu->accel->fd, VMCS_GUEST_CR4);
+        }
+        hvf_cpu_x86_cpuid(env, rax, rcx, &rax, &rbx, &rcx, &rdx);
+
+        wreg(cpu->accel->fd, HV_X86_RAX, rax);
+        wreg(cpu->accel->fd, HV_X86_RBX, rbx);
+        wreg(cpu->accel->fd, HV_X86_RCX, rcx);
+        wreg(cpu->accel->fd, HV_X86_RDX, rdx);
+
+        macvm_set_rip(cpu, rip + ins_len);
+        break;
+    }
+    case EXIT_REASON_XSETBV: {
+        uint32_t eax = (uint32_t)rreg(cpu->accel->fd, HV_X86_RAX);
+        uint32_t ecx = (uint32_t)rreg(cpu->accel->fd, HV_X86_RCX);
+        uint32_t edx = (uint32_t)rreg(cpu->accel->fd, HV_X86_RDX);
+
+        if (ecx) {
+            macvm_set_rip(cpu, rip + ins_len);
+            break;
+        }
+        env->xcr0 = ((uint64_t)edx << 32) | eax;
+        wreg(cpu->accel->fd, HV_X86_XCR0, env->xcr0 | 1);
+        macvm_set_rip(cpu, rip + ins_len);
+        break;
+    }
+    case EXIT_REASON_INTR_WINDOW:
+        vmx_clear_int_window_exiting(cpu);
+        ret = EXCP_INTERRUPT;
+        break;
+    case EXIT_REASON_NMI_WINDOW:
+        vmx_clear_nmi_window_exiting(cpu);
+        ret = EXCP_INTERRUPT;
+        break;
+    case EXIT_REASON_EXT_INTR:
+        /* force exit and allow io handling */
+        ret = EXCP_INTERRUPT;
+        break;
+    case EXIT_REASON_RDMSR:
+    case EXIT_REASON_WRMSR:
+    {
+        hvf_load_regs(cpu);
+        if (exit_reason == EXIT_REASON_RDMSR) {
+            hvf_simulate_rdmsr(cpu);
+        } else {
+            hvf_simulate_wrmsr(cpu);
+        }
+        env->eip += ins_len;
+        hvf_store_regs(cpu);
+        break;
+    }
+    case EXIT_REASON_CR_ACCESS: {
+        int cr;
+        int reg;
+
+        hvf_load_regs(cpu);
+        cr = exit_qual & 15;
+        reg = (exit_qual >> 8) & 15;
+
+        switch (cr) {
+        case 0x0: {
+            macvm_set_cr0(cpu->accel->fd, RRX(env, reg));
+            break;
+        }
+        case 4: {
+            macvm_set_cr4(cpu->accel->fd, RRX(env, reg));
+            break;
+        }
+        case 8: {
+            if (exit_qual & 0x10) {
+                RRX(env, reg) = cpu_get_apic_tpr(x86_cpu->apic_state);
+            } else {
+                int tpr = RRX(env, reg);
+                cpu_set_apic_tpr(x86_cpu->apic_state, tpr);
+                ret = EXCP_INTERRUPT;
+            }
+            break;
+        }
+        default:
+            error_report("Unrecognized CR %d", cr);
+            abort();
+        }
+        env->eip += ins_len;
+        hvf_store_regs(cpu);
+        break;
+    }
+    case EXIT_REASON_APIC_ACCESS: { /* TODO */
+        struct x86_decode decode;
+
+        hvf_load_regs(cpu);
+        decode_instruction(env, &decode);
+        exec_instruction(env, &decode);
+        hvf_store_regs(cpu);
+        break;
+    }
+    case EXIT_REASON_TPR: {
+        ret = 1;
+        break;
+    }
+    case EXIT_REASON_TASK_SWITCH: {
+        uint64_t vinfo = rvmcs(cpu->accel->fd, VMCS_IDT_VECTORING_INFO);
+        x86_segment_selector sel = {.sel = exit_qual & 0xffff};
+
+        vmx_handle_task_switch(cpu, sel, (exit_qual >> 30) & 0x3,
+                               vinfo & VMCS_INTR_VALID,
+                               vinfo & VECTORING_INFO_VECTOR_MASK,
+                               vinfo & VMCS_INTR_T_MASK);
+        break;
+    }
+    case EXIT_REASON_TRIPLE_FAULT: {
+        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+        ret = EXCP_INTERRUPT;
+        break;
+    }
+    case EXIT_REASON_RDPMC:
+        wreg(cpu->accel->fd, HV_X86_RAX, 0);
+        wreg(cpu->accel->fd, HV_X86_RDX, 0);
+        macvm_set_rip(cpu, rip + ins_len);
+        break;
+    case VMX_REASON_VMCALL:
+        env->exception_nr = EXCP0D_GPF;
+        env->exception_injected = 1;
+        env->has_error_code = true;
+        env->error_code = 0;
+        break;
+    default:
+        error_report("%llx: unhandled exit %llx", rip, exit_reason);
+    }
+
+    return ret;
+}
+
 int hvf_arch_vcpu_exec(CPUState *cpu)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
@@ -752,240 +995,7 @@ int hvf_arch_vcpu_exec(CPUState *cpu)
         hv_return_t r = hv_vcpu_run_until(cpu->accel->fd, HV_DEADLINE_FOREVER);
         assert_hvf_ok(r);
 
-        /* handle VMEXIT */
-        uint64_t exit_reason = rvmcs(cpu->accel->fd, VMCS_EXIT_REASON);
-        uint64_t exit_qual = rvmcs(cpu->accel->fd, VMCS_EXIT_QUALIFICATION);
-        uint32_t ins_len = (uint32_t)rvmcs(cpu->accel->fd,
-                                           VMCS_EXIT_INSTRUCTION_LENGTH);
-
-        uint64_t idtvec_info = rvmcs(cpu->accel->fd, VMCS_IDT_VECTORING_INFO);
-
-        hvf_store_events(cpu, ins_len, idtvec_info);
-        rip = rreg(cpu->accel->fd, HV_X86_RIP);
-        env->eflags = rreg(cpu->accel->fd, HV_X86_RFLAGS);
-
-        bql_lock();
-
-        update_apic_tpr(cpu);
-        current_cpu = cpu;
-
-        ret = 0;
-        switch (exit_reason) {
-        case EXIT_REASON_HLT: {
-            macvm_set_rip(cpu, rip + ins_len);
-            if (!(cpu_test_interrupt(cpu, CPU_INTERRUPT_HARD) &&
-                (env->eflags & IF_MASK))
-                && !cpu_test_interrupt(cpu, CPU_INTERRUPT_NMI) &&
-                !(idtvec_info & VMCS_IDT_VEC_VALID)) {
-                cpu->halted = 1;
-                ret = EXCP_HLT;
-                break;
-            }
-            ret = EXCP_INTERRUPT;
-            break;
-        }
-        case EXIT_REASON_MWAIT: {
-            ret = EXCP_INTERRUPT;
-            break;
-        }
-        /* Need to check if MMIO or unmapped fault */
-        case EXIT_REASON_EPT_FAULT:
-        {
-            hvf_slot *slot;
-            uint64_t gpa = rvmcs(cpu->accel->fd, VMCS_GUEST_PHYSICAL_ADDRESS);
-
-            if (((idtvec_info & VMCS_IDT_VEC_VALID) == 0) &&
-                ((exit_qual & EXIT_QUAL_NMIUDTI) != 0)) {
-                vmx_set_nmi_blocking(cpu);
-            }
-
-            slot = hvf_find_overlap_slot(gpa, 1);
-            /* mmio */
-            if (ept_emulation_fault(slot, gpa, exit_qual)) {
-                struct x86_decode decode;
-
-                hvf_load_regs(cpu);
-                decode_instruction(env, &decode);
-                exec_instruction(env, &decode);
-                hvf_store_regs(cpu);
-                break;
-            }
-            break;
-        }
-        case EXIT_REASON_INOUT:
-        {
-            uint32_t in = (exit_qual & 8) != 0;
-            uint32_t size =  (exit_qual & 7) + 1;
-            uint32_t string =  (exit_qual & 16) != 0;
-            uint32_t port =  exit_qual >> 16;
-            /*uint32_t rep = (exit_qual & 0x20) != 0;*/
-
-            if (!string && in) {
-                uint64_t val = 0;
-                hvf_load_regs(cpu);
-                hvf_handle_io(env_cpu(env), port, &val, 0, size, 1);
-                if (size == 1) {
-                    AL(env) = val;
-                } else if (size == 2) {
-                    AX(env) = val;
-                } else if (size == 4) {
-                    RAX(env) = (uint32_t)val;
-                } else {
-                    RAX(env) = (uint64_t)val;
-                }
-                env->eip += ins_len;
-                hvf_store_regs(cpu);
-                break;
-            } else if (!string && !in) {
-                RAX(env) = rreg(cpu->accel->fd, HV_X86_RAX);
-                hvf_handle_io(env_cpu(env), port, &RAX(env), 1, size, 1);
-                macvm_set_rip(cpu, rip + ins_len);
-                break;
-            }
-            struct x86_decode decode;
-
-            hvf_load_regs(cpu);
-            decode_instruction(env, &decode);
-            assert(ins_len == decode.len);
-            exec_instruction(env, &decode);
-            hvf_store_regs(cpu);
-
-            break;
-        }
-        case EXIT_REASON_CPUID: {
-            uint32_t rax = (uint32_t)rreg(cpu->accel->fd, HV_X86_RAX);
-            uint32_t rbx = (uint32_t)rreg(cpu->accel->fd, HV_X86_RBX);
-            uint32_t rcx = (uint32_t)rreg(cpu->accel->fd, HV_X86_RCX);
-            uint32_t rdx = (uint32_t)rreg(cpu->accel->fd, HV_X86_RDX);
-
-            if (rax == 1) {
-                /* CPUID1.ecx.OSXSAVE needs to know CR4 */
-                env->cr[4] = rvmcs(cpu->accel->fd, VMCS_GUEST_CR4);
-            }
-            hvf_cpu_x86_cpuid(env, rax, rcx, &rax, &rbx, &rcx, &rdx);
-
-            wreg(cpu->accel->fd, HV_X86_RAX, rax);
-            wreg(cpu->accel->fd, HV_X86_RBX, rbx);
-            wreg(cpu->accel->fd, HV_X86_RCX, rcx);
-            wreg(cpu->accel->fd, HV_X86_RDX, rdx);
-
-            macvm_set_rip(cpu, rip + ins_len);
-            break;
-        }
-        case EXIT_REASON_XSETBV: {
-            uint32_t eax = (uint32_t)rreg(cpu->accel->fd, HV_X86_RAX);
-            uint32_t ecx = (uint32_t)rreg(cpu->accel->fd, HV_X86_RCX);
-            uint32_t edx = (uint32_t)rreg(cpu->accel->fd, HV_X86_RDX);
-
-            if (ecx) {
-                macvm_set_rip(cpu, rip + ins_len);
-                break;
-            }
-            env->xcr0 = ((uint64_t)edx << 32) | eax;
-            wreg(cpu->accel->fd, HV_X86_XCR0, env->xcr0 | 1);
-            macvm_set_rip(cpu, rip + ins_len);
-            break;
-        }
-        case EXIT_REASON_INTR_WINDOW:
-            vmx_clear_int_window_exiting(cpu);
-            ret = EXCP_INTERRUPT;
-            break;
-        case EXIT_REASON_NMI_WINDOW:
-            vmx_clear_nmi_window_exiting(cpu);
-            ret = EXCP_INTERRUPT;
-            break;
-        case EXIT_REASON_EXT_INTR:
-            /* force exit and allow io handling */
-            ret = EXCP_INTERRUPT;
-            break;
-        case EXIT_REASON_RDMSR:
-        case EXIT_REASON_WRMSR:
-        {
-            hvf_load_regs(cpu);
-            if (exit_reason == EXIT_REASON_RDMSR) {
-                hvf_simulate_rdmsr(cpu);
-            } else {
-                hvf_simulate_wrmsr(cpu);
-            }
-            env->eip += ins_len;
-            hvf_store_regs(cpu);
-            break;
-        }
-        case EXIT_REASON_CR_ACCESS: {
-            int cr;
-            int reg;
-
-            hvf_load_regs(cpu);
-            cr = exit_qual & 15;
-            reg = (exit_qual >> 8) & 15;
-
-            switch (cr) {
-            case 0x0: {
-                macvm_set_cr0(cpu->accel->fd, RRX(env, reg));
-                break;
-            }
-            case 4: {
-                macvm_set_cr4(cpu->accel->fd, RRX(env, reg));
-                break;
-            }
-            case 8: {
-                if (exit_qual & 0x10) {
-                    RRX(env, reg) = cpu_get_apic_tpr(x86_cpu->apic_state);
-                } else {
-                    int tpr = RRX(env, reg);
-                    cpu_set_apic_tpr(x86_cpu->apic_state, tpr);
-                    ret = EXCP_INTERRUPT;
-                }
-                break;
-            }
-            default:
-                error_report("Unrecognized CR %d", cr);
-                abort();
-            }
-            env->eip += ins_len;
-            hvf_store_regs(cpu);
-            break;
-        }
-        case EXIT_REASON_APIC_ACCESS: { /* TODO */
-            struct x86_decode decode;
-
-            hvf_load_regs(cpu);
-            decode_instruction(env, &decode);
-            exec_instruction(env, &decode);
-            hvf_store_regs(cpu);
-            break;
-        }
-        case EXIT_REASON_TPR: {
-            ret = 1;
-            break;
-        }
-        case EXIT_REASON_TASK_SWITCH: {
-            uint64_t vinfo = rvmcs(cpu->accel->fd, VMCS_IDT_VECTORING_INFO);
-            x86_segment_selector sel = {.sel = exit_qual & 0xffff};
-            vmx_handle_task_switch(cpu, sel, (exit_qual >> 30) & 0x3,
-             vinfo & VMCS_INTR_VALID, vinfo & VECTORING_INFO_VECTOR_MASK, vinfo
-             & VMCS_INTR_T_MASK);
-            break;
-        }
-        case EXIT_REASON_TRIPLE_FAULT: {
-            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
-            ret = EXCP_INTERRUPT;
-            break;
-        }
-        case EXIT_REASON_RDPMC:
-            wreg(cpu->accel->fd, HV_X86_RAX, 0);
-            wreg(cpu->accel->fd, HV_X86_RDX, 0);
-            macvm_set_rip(cpu, rip + ins_len);
-            break;
-        case VMX_REASON_VMCALL:
-            env->exception_nr = EXCP0D_GPF;
-            env->exception_injected = 1;
-            env->has_error_code = true;
-            env->error_code = 0;
-            break;
-        default:
-            error_report("%llx: unhandled exit %llx", rip, exit_reason);
-        }
+        ret = hvf_handle_vmexit(cpu);
     } while (ret == 0);
 
     return ret;
