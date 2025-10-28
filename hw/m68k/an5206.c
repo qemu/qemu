@@ -82,7 +82,7 @@ static void an5206_init(MachineState *machine)
     }
     if (kernel_size < 0) {
         kernel_size = load_image_targphys(kernel_filename, KERNEL_LOAD_ADDR,
-                                          ram_size - KERNEL_LOAD_ADDR);
+                                          ram_size - KERNEL_LOAD_ADDR, NULL);
         entry = KERNEL_LOAD_ADDR;
     }
     if (kernel_size < 0) {

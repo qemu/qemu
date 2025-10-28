@@ -351,7 +351,7 @@ static void mcf5208evb_init(MachineState *machine)
             error_report("Could not find ROM image '%s'", machine->firmware);
             exit(1);
         }
-        if (load_image_targphys(fn, 0x0, ROM_SIZE) < 8) {
+        if (load_image_targphys(fn, 0x0, ROM_SIZE, NULL) < 8) {
             error_report("Could not load ROM image '%s'", machine->firmware);
             exit(1);
         }
@@ -380,7 +380,7 @@ static void mcf5208evb_init(MachineState *machine)
     }
     if (kernel_size < 0) {
         kernel_size = load_image_targphys(kernel_filename, 0x40000000,
-                                          ram_size);
+                                          ram_size, NULL);
         entry = 0x40000000;
     }
     if (kernel_size < 0) {

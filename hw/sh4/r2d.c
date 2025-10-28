@@ -329,8 +329,9 @@ static void r2d_init(MachineState *machine)
         int kernel_size;
 
         kernel_size = load_image_targphys(kernel_filename,
-                                          SDRAM_BASE + LINUX_LOAD_OFFSET,
-                                          INITRD_LOAD_OFFSET - LINUX_LOAD_OFFSET);
+                                        SDRAM_BASE + LINUX_LOAD_OFFSET,
+                                        INITRD_LOAD_OFFSET - LINUX_LOAD_OFFSET,
+                                        NULL);
         if (kernel_size < 0) {
             error_report("qemu: could not load kernel '%s'", kernel_filename);
             exit(1);
@@ -350,7 +351,8 @@ static void r2d_init(MachineState *machine)
 
         initrd_size = load_image_targphys(initrd_filename,
                                           SDRAM_BASE + INITRD_LOAD_OFFSET,
-                                          SDRAM_SIZE - INITRD_LOAD_OFFSET);
+                                          SDRAM_SIZE - INITRD_LOAD_OFFSET,
+                                          NULL);
 
         if (initrd_size < 0) {
             error_report("qemu: could not load initrd '%s'", initrd_filename);

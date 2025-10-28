@@ -2211,7 +2211,7 @@ static void ipmi_fru_init(IPMIFru *fru)
         goto out;
     }
 
-    fsize = get_image_size(fru->filename);
+    fsize = get_image_size(fru->filename, NULL);
     if (fsize > 0) {
         size = QEMU_ALIGN_UP(fsize, fru->areasize);
         fru->data = g_malloc0(size);

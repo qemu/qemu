@@ -23,7 +23,8 @@
 
 #define MPHI_MMIO_SIZE      0x1000
 
-typedef struct BCM2835MphiState BCM2835MphiState;
+#define TYPE_BCM2835_MPHI   "bcm2835-mphi"
+OBJECT_DECLARE_SIMPLE_TYPE(BCM2835MphiState, BCM2835_MPHI)
 
 struct BCM2835MphiState {
     SysBusDevice parent_obj;
@@ -36,9 +37,5 @@ struct BCM2835MphiState {
     uint32_t intstat;
     uint32_t swirq;
 };
-
-#define TYPE_BCM2835_MPHI   "bcm2835-mphi"
-
-OBJECT_DECLARE_SIMPLE_TYPE(BCM2835MphiState, BCM2835_MPHI)
 
 #endif

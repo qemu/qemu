@@ -109,9 +109,11 @@ typedef struct {
 #define UAS_STREAM_BM_ATTR  4
 #define UAS_MAX_STREAMS     (1 << UAS_STREAM_BM_ATTR)
 
-typedef struct UASDevice UASDevice;
 typedef struct UASRequest UASRequest;
 typedef struct UASStatus UASStatus;
+
+#define TYPE_USB_UAS "usb-uas"
+OBJECT_DECLARE_SIMPLE_TYPE(UASDevice, USB_UAS)
 
 struct UASDevice {
     USBDevice                 dev;
@@ -132,9 +134,6 @@ struct UASDevice {
     USBPacket                 *data3[UAS_MAX_STREAMS + 1];
     USBPacket                 *status3[UAS_MAX_STREAMS + 1];
 };
-
-#define TYPE_USB_UAS "usb-uas"
-OBJECT_DECLARE_SIMPLE_TYPE(UASDevice, USB_UAS)
 
 struct UASRequest {
     uint16_t     tag;

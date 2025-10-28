@@ -48,6 +48,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/type-helpers.h"
+#include "qemu/units.h"
 #include "trace.h"
 #include "hw/hw.h"
 #include "disas/disas.h"
@@ -70,14 +71,18 @@
 static int roms_loaded;
 
 /* return the size or -1 if error */
-int64_t get_image_size(const char *filename)
+int64_t get_image_size(const char *filename, Error **errp)
 {
     int fd;
     int64_t size;
-    fd = open(filename, O_RDONLY | O_BINARY);
+    fd = qemu_open(filename, O_RDONLY | O_BINARY, errp);
     if (fd < 0)
         return -1;
     size = lseek(fd, 0, SEEK_END);
+    if (size < 0) {
+        error_setg_errno(errp, errno, "lseek failure: %s", filename);
+        return -1;
+    }
     close(fd);
     return size;
 }
@@ -118,25 +123,38 @@ ssize_t read_targphys(const char *name,
 }
 
 ssize_t load_image_targphys(const char *filename,
-                            hwaddr addr, uint64_t max_sz)
+                            hwaddr addr, uint64_t max_sz, Error **errp)
 {
-    return load_image_targphys_as(filename, addr, max_sz, NULL);
+    return load_image_targphys_as(filename, addr, max_sz, NULL, errp);
 }
 
 /* return the size or -1 if error */
 ssize_t load_image_targphys_as(const char *filename,
-                               hwaddr addr, uint64_t max_sz, AddressSpace *as)
+                               hwaddr addr, uint64_t max_sz, AddressSpace *as,
+                               Error **errp)
 {
     ssize_t size;
 
-    size = get_image_size(filename);
-    if (size < 0 || size > max_sz) {
+    size = get_image_size(filename, errp);
+    if (size < 0) {
         return -1;
     }
-    if (size > 0) {
-        if (rom_add_file_fixed_as(filename, addr, -1, as) < 0) {
-            return -1;
-        }
+
+    if (size == 0) {
+        error_setg(errp, "empty file: %s", filename);
+        return -1;
+    }
+
+    if (size > max_sz) {
+        error_setg(errp, "%s exceeds maximum image size (%s)",
+                   filename, size_to_str(max_sz));
+        return -1;
+    }
+
+    if (rom_add_file_fixed_as(filename, addr, -1, as) < 0) {
+        error_setg(errp, "could not load '%s' at %" HWADDR_PRIx,
+                   filename, addr);
+        return -1;
     }
     return size;
 }
@@ -150,7 +168,7 @@ ssize_t load_image_mr(const char *filename, MemoryRegion *mr)
         return -1;
     }
 
-    size = get_image_size(filename);
+    size = get_image_size(filename, NULL);
 
     if (size < 0 || size > memory_region_size(mr)) {
         return -1;

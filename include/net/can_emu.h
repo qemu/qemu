@@ -85,7 +85,9 @@ typedef struct qemu_can_filter {
 #define QEMU_CAN_INV_FILTER 0x20000000U
 
 typedef struct CanBusClientState CanBusClientState;
-typedef struct CanBusState CanBusState;
+
+#define TYPE_CAN_BUS "can-bus"
+OBJECT_DECLARE_SIMPLE_TYPE(CanBusState, CAN_BUS)
 
 typedef struct CanBusClientInfo {
     bool (*can_receive)(CanBusClientState *);
@@ -104,9 +106,6 @@ struct CanBusClientState {
     void (*destructor)(CanBusClientState *);
     bool fd_mode;
 };
-
-#define TYPE_CAN_BUS "can-bus"
-OBJECT_DECLARE_SIMPLE_TYPE(CanBusState, CAN_BUS)
 
 int can_bus_filter_match(struct qemu_can_filter *filter, qemu_canid_t can_id);
 

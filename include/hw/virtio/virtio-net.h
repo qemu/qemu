@@ -202,7 +202,7 @@ struct VirtIONet {
         uint8_t uni_overflow;
         uint8_t *macs;
     } mac_table;
-    uint32_t *vlans;
+    uint32_t vlans[MAX_VLAN];
     virtio_net_conf net_conf;
     NICConf nic_conf;
     DeviceState *qdev;

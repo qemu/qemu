@@ -29,17 +29,17 @@ enum sbi_scratch_options {
 };
 
 /** Representation dynamic info passed by previous booting stage */
-struct fw_dynamic_info {
+struct fw_dynamic_info64 {
     /** Info magic */
-    target_long magic;
+    int64_t magic;
     /** Info version */
-    target_long version;
+    int64_t version;
     /** Next booting stage address */
-    target_long next_addr;
+    int64_t next_addr;
     /** Next booting stage mode */
-    target_long next_mode;
+    int64_t next_mode;
     /** Options for OpenSBI library */
-    target_long options;
+    int64_t options;
     /**
      * Preferred boot HART id
      *
@@ -55,7 +55,7 @@ struct fw_dynamic_info {
      * stage can set it to -1UL which will force the FW_DYNAMIC firmware
      * to use the relocation lottery mechanism.
      */
-    target_long boot_hart;
+    int64_t boot_hart;
 };
 
 /** Representation dynamic info passed by previous booting stage */

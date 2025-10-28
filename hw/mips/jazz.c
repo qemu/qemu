@@ -245,7 +245,7 @@ static void mips_jazz_init(MachineState *machine,
                               machine->firmware ?: bios_name);
     if (filename) {
         bios_size = load_image_targphys(filename, 0xfff00000LL,
-                                        MAGNUM_BIOS_SIZE);
+                                        MAGNUM_BIOS_SIZE, NULL);
         g_free(filename);
     } else {
         bios_size = -1;

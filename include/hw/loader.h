@@ -1,6 +1,7 @@
 #ifndef LOADER_H
 #define LOADER_H
 #include "hw/nvram/fw_cfg.h"
+#include "qemu/typedefs.h"
 
 /* loader.c */
 /**
@@ -10,7 +11,7 @@
  * Returns the size of the image file on success, -1 otherwise.
  * On error, errno is also set as appropriate.
  */
-int64_t get_image_size(const char *filename);
+int64_t get_image_size(const char *filename, Error **errp);
 /**
  * load_image_size: load an image file into specified buffer
  * @filename: Path to the image file
@@ -41,7 +42,8 @@ ssize_t load_image_size(const char *filename, void *addr, size_t size);
  * Returns the size of the loaded image on success, -1 otherwise.
  */
 ssize_t load_image_targphys_as(const char *filename,
-                               hwaddr addr, uint64_t max_sz, AddressSpace *as);
+                               hwaddr addr, uint64_t max_sz, AddressSpace *as,
+                               Error **errp);
 
 /**load_targphys_hex_as:
  * @filename: Path to the .hex file
@@ -61,7 +63,7 @@ ssize_t load_targphys_hex_as(const char *filename, hwaddr *entry,
  * an AddressSpace.
  */
 ssize_t load_image_targphys(const char *filename, hwaddr,
-                            uint64_t max_sz);
+                            uint64_t max_sz, Error **errp);
 
 /**
  * load_image_mr: load an image into a memory region

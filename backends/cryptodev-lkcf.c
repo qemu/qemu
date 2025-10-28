@@ -68,7 +68,6 @@ typedef struct CryptoDevBackendLKCFSession {
     QCryptoAkCipherOptions akcipher_opts;
 } CryptoDevBackendLKCFSession;
 
-typedef struct CryptoDevBackendLKCF CryptoDevBackendLKCF;
 typedef struct CryptoDevLKCFTask CryptoDevLKCFTask;
 struct CryptoDevLKCFTask {
     CryptoDevBackendLKCFSession *sess;
