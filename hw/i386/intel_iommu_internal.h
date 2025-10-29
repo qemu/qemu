@@ -688,6 +688,13 @@ typedef struct VTDPIOTLBInvInfo {
 /* Bits to decide the offset for each level */
 #define VTD_LEVEL_BITS           9
 
+/* IOMMU Index */
+typedef enum VTDIOMMUIndex {
+    VTD_IDX_UNTRANSLATED = 0, /* Default */
+    VTD_IDX_TRANSLATED = 1,
+    VTD_IDX_COUNT = 2, /* Number of supported indexes */
+} VTDIOMMUIndex;
+
 typedef struct VTDHostIOMMUDevice {
     IntelIOMMUState *iommu_state;
     PCIBus *bus;

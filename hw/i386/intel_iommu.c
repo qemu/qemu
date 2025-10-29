@@ -5601,6 +5601,17 @@ static const TypeInfo vtd_info = {
     .class_init    = vtd_class_init,
 };
 
+static int vtd_attrs_to_index(IOMMUMemoryRegion *iommu_mr, MemTxAttrs attrs)
+{
+    return attrs.address_type == PCI_AT_TRANSLATED ?
+            VTD_IDX_TRANSLATED : VTD_IDX_UNTRANSLATED;
+}
+
+static int vtd_num_indexes(IOMMUMemoryRegion *iommu)
+{
+    return VTD_IDX_COUNT;
+}
+
 static void vtd_iommu_memory_region_class_init(ObjectClass *klass,
                                                const void *data)
 {
@@ -5609,6 +5620,8 @@ static void vtd_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->translate = vtd_iommu_translate;
     imrc->notify_flag_changed = vtd_iommu_notify_flag_changed;
     imrc->replay = vtd_iommu_replay;
+    imrc->attrs_to_index = vtd_attrs_to_index;
+    imrc->num_indexes = vtd_num_indexes;
 }
 
 static const TypeInfo vtd_iommu_memory_region_info = {
