@@ -1998,7 +1998,7 @@ static int vtd_iova_to_fspte(IntelIOMMUState *s, VTDContextEntry *ce,
                              uint64_t iova, bool is_write,
                              uint64_t *fsptep, uint32_t *fspte_level,
                              bool *reads, bool *writes, uint8_t aw_bits,
-                             uint32_t pasid)
+                             uint32_t pasid, int iommu_idx)
 {
     dma_addr_t addr = vtd_get_iova_pgtbl_base(s, ce, pasid);
     uint32_t offset;
@@ -2039,7 +2039,8 @@ static int vtd_iova_to_fspte(IntelIOMMUState *s, VTDContextEntry *ce,
 
         *reads = true;
         *writes = (*writes) && (fspte & VTD_FS_RW);
-        if (is_write && !(fspte & VTD_FS_RW)) {
+        /* ATS should not fail when the write permission is not set */
+        if (is_write && !(fspte & VTD_FS_RW) && iommu_idx != VTD_IDX_ATS) {
             return -VTD_FR_SM_WRITE;
         }
         if (vtd_fspte_nonzero_rsvd(fspte, *fspte_level)) {
@@ -2098,7 +2099,7 @@ static void vtd_report_fault(IntelIOMMUState *s,
  */
 static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
                                    uint8_t devfn, hwaddr addr, bool is_write,
-                                   IOMMUTLBEntry *entry)
+                                   IOMMUTLBEntry *entry, int iommu_idx)
 {
     IntelIOMMUState *s = vtd_as->iommu_state;
     VTDContextEntry ce;
@@ -2204,7 +2205,8 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
 
     if (s->fsts && s->root_scalable) {
         ret_fr = vtd_iova_to_fspte(s, &ce, addr, is_write, &pte, &level,
-                                   &reads, &writes, s->aw_bits, pasid);
+                                   &reads, &writes, s->aw_bits, pasid,
+                                   iommu_idx);
         pgtt = VTD_SM_PASID_ENTRY_FST;
     } else {
         ret_fr = vtd_iova_to_sspte(s, &ce, addr, is_write, &pte, &level,
@@ -4033,7 +4035,7 @@ static IOMMUTLBEntry vtd_iommu_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
             }
         } else {
             success = vtd_do_iommu_translate(vtd_as, vtd_as->bus, vtd_as->devfn,
-                                            addr, is_write, &iotlb);
+                                            addr, is_write, &iotlb, iommu_idx);
         }
     } else {
         /* DMAR disabled, passthrough, use 4k-page*/
@@ -5196,7 +5198,7 @@ static IOMMUTLBEntry vtd_iommu_ats_do_translate(IOMMUMemoryRegion *iommu,
         vtd_prepare_error_entry(&entry);
         entry.target_as = &address_space_memory;
     } else {
-        entry = vtd_iommu_translate(iommu, addr, flags, VTD_IDX_UNTRANSLATED);
+        entry = vtd_iommu_translate(iommu, addr, flags, VTD_IDX_ATS);
     }
 
     return entry;
