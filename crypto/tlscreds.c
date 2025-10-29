@@ -268,6 +268,21 @@ bool qcrypto_tls_creds_check_endpoint(QCryptoTLSCreds *creds,
     return true;
 }
 
+
+char *qcrypto_tls_creds_get_priority(QCryptoTLSCreds *creds)
+{
+    QCryptoTLSCredsClass *tcc = QCRYPTO_TLS_CREDS_GET_CLASS(creds);
+    const char *priorityBase =
+        creds->priority ? creds->priority : CONFIG_TLS_PRIORITY;
+
+    if (tcc->prioritySuffix) {
+        return g_strdup_printf("%s:%s", priorityBase, tcc->prioritySuffix);
+    } else {
+        return g_strdup(priorityBase);
+    }
+}
+
+
 static const TypeInfo qcrypto_tls_creds_info = {
     .parent = TYPE_OBJECT,
     .name = TYPE_QCRYPTO_TLS_CREDS,

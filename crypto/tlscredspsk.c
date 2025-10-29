@@ -240,8 +240,10 @@ static void
 qcrypto_tls_creds_psk_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
+    QCryptoTLSCredsClass *tcc = QCRYPTO_TLS_CREDS_CLASS(oc);
 
     ucc->complete = qcrypto_tls_creds_psk_complete;
+    tcc->prioritySuffix = "+ECDHE-PSK:+DHE-PSK:+PSK";
 
     object_class_property_add_str(oc, "username",
                                   qcrypto_tls_creds_psk_prop_get_username,

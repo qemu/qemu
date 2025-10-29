@@ -137,8 +137,10 @@ static void
 qcrypto_tls_creds_anon_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
+    QCryptoTLSCredsClass *tcc = QCRYPTO_TLS_CREDS_CLASS(oc);
 
     ucc->complete = qcrypto_tls_creds_anon_complete;
+    tcc->prioritySuffix = "+ANON-DH";
 }
 
 
