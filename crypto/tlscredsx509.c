@@ -550,6 +550,7 @@ qcrypto_tls_creds_x509_sanity_check(QCryptoTLSCredsX509 *creds,
     for (i = 0; i < ncerts; i++) {
         gnutls_x509_crt_deinit(certs[i]);
     }
+    g_free(certs);
     for (i = 0; i < ncacerts; i++) {
         gnutls_x509_crt_deinit(cacerts[i]);
     }
