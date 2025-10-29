@@ -1340,6 +1340,16 @@ void pcie_pri_init(PCIDevice *dev, uint16_t offset, uint32_t outstanding_pr_cap,
     dev->exp.pri_cap = offset;
 }
 
+static inline bool pcie_pasid_check_ctrl_bit_enabled(const PCIDevice *dev,
+                                                     uint16_t mask)
+{
+    if (!pci_is_express(dev) || !dev->exp.pasid_cap) {
+        return false;
+    }
+    return (pci_get_word(dev->config + dev->exp.pasid_cap + PCI_PASID_CTRL) &
+                mask) != 0;
+}
+
 uint32_t pcie_pri_get_req_alloc(const PCIDevice *dev)
 {
     if (!pcie_pri_enabled(dev)) {
@@ -1359,11 +1369,12 @@ bool pcie_pri_enabled(const PCIDevice *dev)
 
 bool pcie_pasid_enabled(const PCIDevice *dev)
 {
-    if (!pci_is_express(dev) || !dev->exp.pasid_cap) {
-        return false;
-    }
-    return (pci_get_word(dev->config + dev->exp.pasid_cap + PCI_PASID_CTRL) &
-                PCI_PASID_CTRL_ENABLE) != 0;
+    return pcie_pasid_check_ctrl_bit_enabled(dev, PCI_PASID_CTRL_ENABLE);
+}
+
+bool pcie_pasid_priv_enabled(PCIDevice *dev)
+{
+    return pcie_pasid_check_ctrl_bit_enabled(dev, PCI_PASID_CTRL_PRIV);
 }
 
 bool pcie_ats_enabled(const PCIDevice *dev)
