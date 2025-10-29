@@ -29,8 +29,6 @@ from qemu_test import exec_command_and_wait_for_pattern
 @skipBigDataTest()
 class HypervisorTest(QemuSystemTest):
 
-    timeout = 1000
-    KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 console=hvc0 '
     panic_message = 'Kernel panic - not syncing'
     good_message = 'VFS: Cannot open root device'
 
@@ -49,8 +47,8 @@ class HypervisorTest(QemuSystemTest):
         """
         filename = self.scratch_file(os.path.basename(path))
 
-        cmd = "xorriso -osirrox on -indev %s -cpx %s %s" % (iso, path, filename)
-        subprocess.run(cmd.split(),
+        cmd = f"xorriso -osirrox on -indev {iso} -cpx {path} {filename}"
+        subprocess.run(cmd.split(), check=True,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         os.chmod(filename, 0o600)
@@ -66,7 +64,6 @@ class HypervisorTest(QemuSystemTest):
 
     def do_start_alpine(self):
         self.vm.set_console()
-        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE
         self.vm.add_args("-kernel", self.vmlinuz)
         self.vm.add_args("-initrd", self.initramfs)
         self.vm.add_args("-smp", "4", "-m", "2g")
@@ -78,7 +75,8 @@ class HypervisorTest(QemuSystemTest):
         wait_for_console_pattern(self, 'localhost login:')
         exec_command_and_wait_for_pattern(self, 'root', ps1)
         # If the time is wrong, SSL certificates can fail.
-        exec_command_and_wait_for_pattern(self, 'date -s "' + datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S' + '"'), ps1)
+        cmd='date -s "' + datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S' + '"')
+        exec_command_and_wait_for_pattern(self, cmd, ps1)
         ps1='alpine:~#'
         exec_command_and_wait_for_pattern(self, 'setup-alpine -qe', ps1)
         exec_command_and_wait_for_pattern(self, 'setup-apkrepos -c1', ps1)
