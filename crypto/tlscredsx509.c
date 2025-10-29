@@ -772,15 +772,15 @@ qcrypto_tls_creds_x509_reload(QCryptoTLSCreds *creds, Error **errp)
     QCryptoTLSCredsX509 *x509_creds = QCRYPTO_TLS_CREDS_X509(creds);
     Error *local_err = NULL;
     gnutls_certificate_credentials_t creds_data = x509_creds->data;
-    gnutls_dh_params_t creds_dh_params = x509_creds->parent_obj.dh_params;
+    gnutls_dh_params_t creds_dh_params = creds->dh_params;
 
     x509_creds->data = NULL;
-    x509_creds->parent_obj.dh_params = NULL;
+    creds->dh_params = NULL;
     qcrypto_tls_creds_x509_load(x509_creds, &local_err);
     if (local_err) {
         qcrypto_tls_creds_x509_unload(x509_creds);
         x509_creds->data = creds_data;
-        x509_creds->parent_obj.dh_params = creds_dh_params;
+        creds->dh_params = creds_dh_params;
         error_propagate(errp, local_err);
         return false;
     }
