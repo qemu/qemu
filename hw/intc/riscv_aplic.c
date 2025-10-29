@@ -193,6 +193,26 @@ void riscv_aplic_set_kvm_msicfgaddr(RISCVAPLICState *aplic, hwaddr addr)
 #endif
 }
 
+/*
+ * APLIC target[i] must be read-only zero if the source i is inactive
+ * in this domain (delegated or SM == INACTIVE)
+ */
+static inline bool riscv_aplic_source_active(RISCVAPLICState *aplic,
+                                             uint32_t irq)
+{
+    uint32_t sc, sm;
+
+    if ((irq == 0) || (aplic->num_irqs <= irq)) {
+        return false;
+    }
+    sc = aplic->sourcecfg[irq];
+    if (sc & APLIC_SOURCECFG_D) {
+        return false;
+    }
+    sm = sc & APLIC_SOURCECFG_SM_MASK;
+    return sm != APLIC_SOURCECFG_SM_INACTIVE;
+}
+
 static bool riscv_aplic_irq_rectified_val(RISCVAPLICState *aplic,
                                           uint32_t irq)
 {
@@ -635,7 +655,7 @@ static void riscv_aplic_request(void *opaque, int irq, int level)
 
 static uint64_t riscv_aplic_read(void *opaque, hwaddr addr, unsigned size)
 {
-    uint32_t irq, word, idc, sm;
+    uint32_t irq, word, idc;
     RISCVAPLICState *aplic = opaque;
 
     /* Reads must be 4 byte words */
@@ -703,8 +723,7 @@ static uint64_t riscv_aplic_read(void *opaque, hwaddr addr, unsigned size)
     } else if ((APLIC_TARGET_BASE <= addr) &&
             (addr < (APLIC_TARGET_BASE + (aplic->num_irqs - 1) * 4))) {
         irq = ((addr - APLIC_TARGET_BASE) >> 2) + 1;
-        sm = aplic->sourcecfg[irq] & APLIC_SOURCECFG_SM_MASK;
-        if (sm == APLIC_SOURCECFG_SM_INACTIVE) {
+        if (!riscv_aplic_source_active(aplic, irq)) {
             return 0;
         }
         return aplic->target[irq];
@@ -841,6 +860,9 @@ static void riscv_aplic_write(void *opaque, hwaddr addr, uint64_t value,
     } else if ((APLIC_TARGET_BASE <= addr) &&
             (addr < (APLIC_TARGET_BASE + (aplic->num_irqs - 1) * 4))) {
         irq = ((addr - APLIC_TARGET_BASE) >> 2) + 1;
+        if (!riscv_aplic_source_active(aplic, irq)) {
+            return;
+        }
         if (aplic->msimode) {
             aplic->target[irq] = value;
         } else {
