@@ -44,7 +44,7 @@ struct QTest {
     bool has_machine_link;
     char *chr_name;
     Chardev *chr;
-    CharBackend qtest_chr;
+    CharFrontend qtest_chr;
     char *log;
 };
 
@@ -293,20 +293,20 @@ static void G_GNUC_PRINTF(1, 2) qtest_log_send(const char *fmt, ...)
 static void qtest_server_char_be_send(void *opaque, const char *str)
 {
     size_t len = strlen(str);
-    CharBackend* chr = (CharBackend *)opaque;
+    CharFrontend* chr = (CharFrontend *)opaque;
     qemu_chr_fe_write_all(chr, (uint8_t *)str, len);
     if (qtest_log_fp && qtest_opened) {
         fprintf(qtest_log_fp, "%s", str);
     }
 }
 
-static void qtest_send(CharBackend *chr, const char *str)
+static void qtest_send(CharFrontend *chr, const char *str)
 {
     qtest_log_timestamp();
     qtest_server_send(qtest_server_send_opaque, str);
 }
 
-void qtest_sendf(CharBackend *chr, const char *fmt, ...)
+void qtest_sendf(CharFrontend *chr, const char *fmt, ...)
 {
     va_list ap;
     gchar *buffer;
@@ -324,16 +324,16 @@ static void qtest_irq_handler(void *opaque, int n, int level)
     qemu_set_irq(old_irq, level);
 
     if (irq_levels[n] != level) {
-        CharBackend *chr = &qtest->qtest_chr;
+        CharFrontend *chr = &qtest->qtest_chr;
         irq_levels[n] = level;
         qtest_sendf(chr, "IRQ %s %d\n",
                     level ? "raise" : "lower", n);
     }
 }
 
-static bool (*process_command_cb)(CharBackend *chr, gchar **words);
+static bool (*process_command_cb)(CharFrontend *chr, gchar **words);
 
-void qtest_set_command_cb(bool (*pc_cb)(CharBackend *chr, gchar **words))
+void qtest_set_command_cb(bool (*pc_cb)(CharFrontend *chr, gchar **words))
 {
     assert(!process_command_cb);  /* Switch to a list if we need more than one */
 
@@ -349,7 +349,7 @@ static void qtest_install_gpio_out_intercept(DeviceState *dev, const char *name,
     *disconnected = qdev_intercept_gpio_out(dev, icpt, name, n);
 }
 
-static void qtest_process_command(CharBackend *chr, gchar **words)
+static void qtest_process_command(CharFrontend *chr, gchar **words)
 {
     const gchar *command;
 
@@ -757,7 +757,7 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
  * Process as much of @inbuf as we can in newline terminated chunks.
  * Remove the processed commands from @inbuf as we go.
  */
-static void qtest_process_inbuf(CharBackend *chr, GString *inbuf)
+static void qtest_process_inbuf(CharFrontend *chr, GString *inbuf)
 {
     char *end;
 
@@ -773,7 +773,7 @@ static void qtest_process_inbuf(CharBackend *chr, GString *inbuf)
 
 static void qtest_read(void *opaque, const uint8_t *buf, int size)
 {
-    CharBackend *chr = opaque;
+    CharFrontend *chr = opaque;
 
     g_string_append_len(inbuf, (const gchar *)buf, size);
     qtest_process_inbuf(chr, inbuf);

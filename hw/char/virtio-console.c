@@ -30,7 +30,7 @@ DECLARE_INSTANCE_CHECKER(VirtConsole, VIRTIO_CONSOLE,
 struct VirtConsole {
     VirtIOSerialPort parent_obj;
 
-    CharBackend chr;
+    CharFrontend chr;
     guint watch;
 };
 

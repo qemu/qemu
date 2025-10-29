@@ -623,7 +623,7 @@ static uint64_t qtest_rtas_call(char *cmd, uint32_t nargs, uint64_t args,
     return H_PARAMETER;
 }
 
-static bool spapr_qtest_callback(CharBackend *chr, gchar **words)
+static bool spapr_qtest_callback(CharFrontend *chr, gchar **words)
 {
     if (strcmp(words[0], "rtas") == 0) {
         uint64_t res, args, ret;

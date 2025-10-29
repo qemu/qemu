@@ -69,7 +69,7 @@ struct TPMEmulator {
     TPMBackend parent;
 
     TPMEmulatorOptions *options;
-    CharBackend ctrl_chr;
+    CharFrontend ctrl_chr;
     QIOChannel *data_ioc;
     TPMVersion tpm_version;
     uint32_t caps; /* capabilities of the TPM */
@@ -126,7 +126,7 @@ static int tpm_emulator_ctrlcmd(TPMEmulator *tpm, unsigned long cmd, void *msg,
                                 size_t msg_len_in, size_t msg_len_out_err,
                                 size_t msg_len_out_total)
 {
-    CharBackend *dev = &tpm->ctrl_chr;
+    CharFrontend *dev = &tpm->ctrl_chr;
     uint32_t cmd_no = cpu_to_be32(cmd);
     ssize_t n = sizeof(uint32_t) + msg_len_in;
     ptm_res res;

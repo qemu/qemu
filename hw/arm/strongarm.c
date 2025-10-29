@@ -927,7 +927,7 @@ struct StrongARMUARTState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
-    CharBackend chr;
+    CharFrontend chr;
     qemu_irq irq;
 
     uint8_t utcr0;

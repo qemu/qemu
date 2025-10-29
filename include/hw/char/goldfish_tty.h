@@ -24,7 +24,7 @@ struct GoldfishTTYState {
 
     MemoryRegion iomem;
     qemu_irq irq;
-    CharBackend chr;
+    CharFrontend chr;
 
     uint32_t data_len;
     uint64_t data_ptr;

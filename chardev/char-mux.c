@@ -128,10 +128,10 @@ static void mux_print_help(Chardev *chr)
 static void mux_chr_send_event(MuxChardev *d, unsigned int mux_nr,
                                QEMUChrEvent event)
 {
-    CharBackend *be = d->backends[mux_nr];
+    CharFrontend *fe = d->frontends[mux_nr];
 
-    if (be && be->chr_event) {
-        be->chr_event(be->opaque, event);
+    if (fe && fe->chr_event) {
+        fe->chr_event(fe->opaque, event);
     }
 }
 
@@ -200,11 +200,11 @@ static void mux_chr_accept_input(Chardev *chr)
 {
     MuxChardev *d = MUX_CHARDEV(chr);
     int m = d->focus;
-    CharBackend *be = d->backends[m];
+    CharFrontend *fe = d->frontends[m];
 
-    while (be && d->prod[m] != d->cons[m] &&
-           be->chr_can_read && be->chr_can_read(be->opaque)) {
-        be->chr_read(be->opaque,
+    while (fe && d->prod[m] != d->cons[m] &&
+           fe->chr_can_read && fe->chr_can_read(fe->opaque)) {
+        fe->chr_read(fe->opaque,
                      &d->buffer[m][d->cons[m]++ & MUX_BUFFER_MASK], 1);
     }
 }
@@ -213,14 +213,14 @@ static int mux_chr_can_read(void *opaque)
 {
     MuxChardev *d = MUX_CHARDEV(opaque);
     int m = d->focus;
-    CharBackend *be = d->backends[m];
+    CharFrontend *fe = d->frontends[m];
 
     if ((d->prod[m] - d->cons[m]) < MUX_BUFFER_SIZE) {
         return 1;
     }
 
-    if (be && be->chr_can_read) {
-        return be->chr_can_read(be->opaque);
+    if (fe && fe->chr_can_read) {
+        return fe->chr_can_read(fe->opaque);
     }
 
     return 0;
@@ -231,7 +231,7 @@ static void mux_chr_read(void *opaque, const uint8_t *buf, int size)
     Chardev *chr = CHARDEV(opaque);
     MuxChardev *d = MUX_CHARDEV(opaque);
     int m = d->focus;
-    CharBackend *be = d->backends[m];
+    CharFrontend *fe = d->frontends[m];
     int i;
 
     mux_chr_accept_input(opaque);
@@ -239,9 +239,9 @@ static void mux_chr_read(void *opaque, const uint8_t *buf, int size)
     for (i = 0; i < size; i++)
         if (mux_proc_byte(chr, d, buf[i])) {
             if (d->prod[m] == d->cons[m] &&
-                be && be->chr_can_read &&
-                be->chr_can_read(be->opaque)) {
-                be->chr_read(be->opaque, &buf[i], 1);
+                fe && fe->chr_can_read &&
+                fe->chr_can_read(fe->opaque)) {
+                fe->chr_read(fe->opaque, &buf[i], 1);
             } else {
                 d->buffer[m][d->prod[m]++ & MUX_BUFFER_MASK] = buf[i];
             }
@@ -289,9 +289,9 @@ static void char_mux_finalize(Object *obj)
 
     bit = -1;
     while ((bit = find_next_bit(&d->mux_bitset, MAX_MUX, bit + 1)) < MAX_MUX) {
-        CharBackend *be = d->backends[bit];
+        CharFrontend *be = d->frontends[bit];
         be->chr = NULL;
-        d->backends[bit] = NULL;
+        d->frontends[bit] = NULL;
     }
     d->mux_bitset = 0;
     qemu_chr_fe_deinit(&d->chr, false);
@@ -311,7 +311,7 @@ static void mux_chr_update_read_handlers(Chardev *chr)
                                   chr->gcontext, true, false);
 }
 
-bool mux_chr_attach_frontend(MuxChardev *d, CharBackend *b,
+bool mux_chr_attach_frontend(MuxChardev *d, CharFrontend *c,
                              unsigned int *tag, Error **errp)
 {
     unsigned int bit;
@@ -328,7 +328,7 @@ bool mux_chr_attach_frontend(MuxChardev *d, CharBackend *b,
     }
 
     d->mux_bitset |= (1ul << bit);
-    d->backends[bit] = b;
+    d->frontends[bit] = c;
     *tag = bit;
 
     return true;
@@ -341,7 +341,7 @@ bool mux_chr_detach_frontend(MuxChardev *d, unsigned int tag)
     }
 
     d->mux_bitset &= ~(1ul << tag);
-    d->backends[tag] = NULL;
+    d->frontends[tag] = NULL;
 
     return true;
 }
@@ -357,7 +357,7 @@ void mux_set_focus(Chardev *chr, unsigned int focus)
     }
 
     d->focus = focus;
-    chr->be = d->backends[focus];
+    chr->fe = d->frontends[focus];
     mux_chr_send_event(d, d->focus, CHR_EVENT_MUX_IN);
 }
 

@@ -5,7 +5,7 @@
 use std::{ffi::CStr, mem::size_of};
 
 use bql::BqlRefCell;
-use chardev::{CharBackend, Chardev, Event};
+use chardev::{CharFrontend, Chardev, Event};
 use common::{static_assert, uninit_field_mut};
 use hwcore::{
     Clock, ClockEvent, DeviceImpl, DeviceMethods, DeviceState, IRQState, InterruptSource,
@@ -106,7 +106,7 @@ pub struct PL011State {
     pub iomem: MemoryRegion,
     #[doc(alias = "chr")]
     #[property(rename = "chardev")]
-    pub char_backend: CharBackend,
+    pub char_frontend: CharFrontend,
     pub regs: BqlRefCell<PL011Registers>,
     /// QEMU interrupts
     ///
@@ -240,7 +240,7 @@ impl PL011Registers {
                 }
                 let update = (self.line_control.send_break() != new_val.send_break()) && {
                     let break_enable = new_val.send_break();
-                    let _ = device.char_backend.send_break(break_enable);
+                    let _ = device.char_frontend.send_break(break_enable);
                     self.loopback_break(break_enable)
                 };
                 self.line_control = new_val;
@@ -561,7 +561,7 @@ impl PL011State {
                 trace::trace_pl011_read(offset, result, c"");
                 if update_irq {
                     self.update();
-                    self.char_backend.accept_input();
+                    self.char_frontend.accept_input();
                 }
                 result.into()
             }
@@ -579,7 +579,7 @@ impl PL011State {
                 let ch: [u8; 1] = [value as u8];
                 // XXX this blocks entire thread. Rewrite to use
                 // qemu_chr_fe_write and background I/O callbacks
-                let _ = self.char_backend.write_all(&ch);
+                let _ = self.char_frontend.write_all(&ch);
             }
 
             update_irq = self.regs.borrow_mut().write(field, value as u32, self);
@@ -645,7 +645,7 @@ impl PL011State {
     }
 
     fn realize(&self) -> util::Result<()> {
-        self.char_backend
+        self.char_frontend
             .enable_handlers(self, Self::can_receive, Self::receive, Self::event);
         Ok(())
     }

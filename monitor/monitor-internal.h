@@ -93,7 +93,7 @@ typedef struct HMPCommand {
 } HMPCommand;
 
 struct Monitor {
-    CharBackend chr;
+    CharFrontend chr;
     int suspend_cnt;            /* Needs to be accessed atomically */
     bool is_qmp;
     bool skip_flush;

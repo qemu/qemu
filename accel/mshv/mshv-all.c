@@ -596,6 +596,9 @@ static void mshv_start_vcpu_thread(CPUState *cpu)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
 
+    snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/MSHV",
+             cpu->cpu_index);
+
     cpu->thread = g_malloc0(sizeof(QemuThread));
     cpu->halt_cond = g_malloc0(sizeof(QemuCond));
 

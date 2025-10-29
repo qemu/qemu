@@ -257,7 +257,7 @@ struct VhostUserGPU {
 
     VhostUserBackend *vhost;
     int vhost_gpu_fd; /* closed by the chardev */
-    CharBackend vhost_chr;
+    CharFrontend vhost_chr;
     QemuDmaBuf *dmabuf[VIRTIO_GPU_MAX_SCANOUTS];
     bool backend_blocked;
 };

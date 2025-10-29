@@ -544,6 +544,20 @@ available firmwares that are using the current (wrong) name.  The
 property is kept as is in 9.1, together with "riscv,delegation", to
 give more time for firmware developers to change their code.
 
+x86 "isapc" board use of modern x86 CPUs (since 10.2)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The "isapc" board represents a historical x86 ISA PC and is intended for
+older 32-bit x86 CPU models, defaulting to a 486 CPU model.  Previously it
+was possible (but non-sensical) to specify a more modern x86 CPU, including
+``-cpu host`` or ``-cpu max`` even if the features were incompatible with many
+of the intended guest OSs.
+
+If the user requests a modern x86 CPU model (i.e. not one of ``486``,
+``athlon``, ``kvm32``, ``pentium``, ``pentium2``, ``pentium3``or ``qemu32``)
+a warning will be displayed until a future QEMU version when such CPUs will
+be rejected.
+
 Migration
 ---------
 

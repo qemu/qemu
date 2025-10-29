@@ -68,7 +68,7 @@ struct BostonState {
     SerialMM *uart;
     Clock *cpuclk;
 
-    CharBackend lcd_display;
+    CharFrontend lcd_display;
     char lcd_content[8];
     bool lcd_inited;
 

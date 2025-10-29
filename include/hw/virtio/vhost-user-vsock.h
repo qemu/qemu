@@ -20,7 +20,7 @@
 OBJECT_DECLARE_SIMPLE_TYPE(VHostUserVSock, VHOST_USER_VSOCK)
 
 typedef struct {
-    CharBackend chardev;
+    CharFrontend chardev;
 } VHostUserVSockConf;
 
 struct VHostUserVSock {

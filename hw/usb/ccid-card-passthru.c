@@ -56,7 +56,7 @@ typedef struct PassthruState PassthruState;
 
 struct PassthruState {
     CCIDCardState base;
-    CharBackend cs;
+    CharFrontend cs;
     uint8_t  vscard_in_data[VSCARD_IN_SIZE];
     uint32_t vscard_in_pos;
     uint32_t vscard_in_hdr;

@@ -15,7 +15,7 @@
 #define IAC 255
 
 /* character device */
-typedef struct CharBackend CharBackend;
+typedef struct CharFrontend CharFrontend;
 
 typedef enum {
     CHR_EVENT_BREAK, /* serial break char */
@@ -60,7 +60,7 @@ struct Chardev {
     Object parent_obj;
 
     QemuMutex chr_write_lock;
-    CharBackend *be;
+    CharFrontend *fe;
     char *label;
     char *filename;
     int logfd;

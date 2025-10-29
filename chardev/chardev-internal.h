@@ -37,9 +37,9 @@
 struct MuxChardev {
     Chardev parent;
     /* Linked frontends */
-    CharBackend *backends[MAX_MUX];
-    /* Linked backend */
-    CharBackend chr;
+    CharFrontend *frontends[MAX_MUX];
+    /* frontend of the underlying muxed chardev */
+    CharFrontend chr;
     unsigned long mux_bitset;
     int focus;
     bool term_got_escape;
@@ -64,8 +64,8 @@ typedef struct HubCharBackend HubCharBackend;
  * `hub->backends` array
  */
 struct HubCharBackend {
-    HubChardev   *hub;
-    CharBackend  be;
+    HubChardev *hub;
+    CharFrontend fe;
     unsigned int be_ind;
 };
 
@@ -108,7 +108,7 @@ DECLARE_INSTANCE_CHECKER(HubChardev, HUB_CHARDEV,
 #define CHARDEV_IS_HUB(chr)                                \
     object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_HUB)
 
-bool mux_chr_attach_frontend(MuxChardev *d, CharBackend *b,
+bool mux_chr_attach_frontend(MuxChardev *d, CharFrontend *c,
                              unsigned int *tag, Error **errp);
 bool mux_chr_detach_frontend(MuxChardev *d, unsigned int tag);
 void mux_set_focus(Chardev *chr, unsigned int focus);

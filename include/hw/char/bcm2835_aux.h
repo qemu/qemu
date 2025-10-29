@@ -24,7 +24,7 @@ struct BCM2835AuxState {
     /*< public >*/
 
     MemoryRegion iomem;
-    CharBackend chr;
+    CharFrontend chr;
     qemu_irq irq;
 
     uint8_t read_fifo[BCM2835_AUX_RX_FIFO_LEN];

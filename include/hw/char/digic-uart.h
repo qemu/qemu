@@ -38,7 +38,7 @@ struct DigicUartState {
     /*< public >*/
 
     MemoryRegion regs_region;
-    CharBackend chr;
+    CharFrontend chr;
 
     uint32_t reg_rx;
     uint32_t reg_st;

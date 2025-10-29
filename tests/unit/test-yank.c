@@ -65,7 +65,7 @@ static void char_change_test(gconstpointer opaque)
     CharChangeTestConfig *conf = (gpointer) opaque;
     SocketAddress *addr;
     Chardev *chr;
-    CharBackend be;
+    CharFrontend fe;
     ChardevReturn *ret;
     QIOChannelSocket *ioc;
     QemuThread thread;
@@ -144,9 +144,9 @@ static void char_change_test(gconstpointer opaque)
         qemu_thread_join(&thread);
     }
 
-    qemu_chr_fe_init(&be, chr, &error_abort);
+    qemu_chr_fe_init(&fe, chr, &error_abort);
     /* allow chardev-change */
-    qemu_chr_fe_set_handlers(&be, NULL, NULL,
+    qemu_chr_fe_set_handlers(&fe, NULL, NULL,
                              NULL, chardev_change, NULL, NULL, true);
 
     if (conf->fail) {
@@ -154,7 +154,7 @@ static void char_change_test(gconstpointer opaque)
         ret = qmp_chardev_change("chardev", &fail_backend[conf->new_yank],
                                  NULL);
         g_assert_null(ret);
-        g_assert(be.chr == chr);
+        g_assert(fe.chr == chr);
         g_assert(is_yank_instance_registered() == conf->old_yank);
         g_unsetenv("QTEST_SILENT_ERRORS");
     } else {
@@ -168,11 +168,11 @@ static void char_change_test(gconstpointer opaque)
             qemu_thread_join(&thread);
         }
         g_assert_nonnull(ret);
-        g_assert(be.chr != chr);
+        g_assert(fe.chr != chr);
         g_assert(is_yank_instance_registered() == conf->new_yank);
     }
 
-    object_unparent(OBJECT(be.chr));
+    object_unparent(OBJECT(fe.chr));
     object_unref(OBJECT(ioc));
     qapi_free_ChardevReturn(ret);
     qapi_free_SocketAddress(addr);

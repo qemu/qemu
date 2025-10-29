@@ -65,7 +65,7 @@ static const int user_feature_bits[] = {
 
 typedef struct NetVhostUserState {
     NetClientState nc;
-    CharBackend chr; /* only queue index 0 */
+    CharFrontend chr; /* only queue index 0 */
     VhostUserState *vhost_user;
     VHostNetState *vhost_net;
     guint watch;

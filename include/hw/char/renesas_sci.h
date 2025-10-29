@@ -33,7 +33,7 @@ struct RSCIState {
 
     MemoryRegion memory;
     QEMUTimer timer;
-    CharBackend chr;
+    CharFrontend chr;
     qemu_irq irq[SCI_NR_IRQ];
 
     uint8_t smr;

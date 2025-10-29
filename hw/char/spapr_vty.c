@@ -14,7 +14,7 @@
 
 struct SpaprVioVty {
     SpaprVioDevice sdev;
-    CharBackend chardev;
+    CharFrontend chardev;
     uint32_t in, out;
     uint8_t buf[VTERM_BUFSIZE];
 };

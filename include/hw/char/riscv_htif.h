@@ -36,7 +36,7 @@ typedef struct HTIFState {
     hwaddr fromhost_offset;
     MemoryRegion mmio;
 
-    CharBackend chr;
+    CharFrontend chr;
     uint64_t pending_read;
 } HTIFState;
 

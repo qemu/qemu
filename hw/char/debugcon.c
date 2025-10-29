@@ -40,7 +40,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(ISADebugconState, ISA_DEBUGCON_DEVICE)
 
 typedef struct DebugconState {
     MemoryRegion io;
-    CharBackend chr;
+    CharFrontend chr;
     uint32_t readback;
 } DebugconState;
 

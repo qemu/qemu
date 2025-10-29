@@ -58,7 +58,7 @@ struct VirtIOSCSIConf {
     uint32_t cmd_per_lun;
     char *vhostfd;
     char *wwpn;
-    CharBackend chardev;
+    CharFrontend chardev;
     uint32_t boot_tpgt;
     IOThread *iothread;
     IOThreadVirtQueueMappingList *iothread_vq_mapping_list;

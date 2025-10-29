@@ -148,7 +148,7 @@ static uint32_t errno_h2g(int host_errno)
 }
 
 typedef struct XtensaSimConsole {
-    CharBackend be;
+    CharFrontend fe;
     struct {
         char buffer[16];
         size_t offset;
@@ -182,8 +182,8 @@ void xtensa_sim_open_console(Chardev *chr)
 {
     static XtensaSimConsole console;
 
-    qemu_chr_fe_init(&console.be, chr, &error_abort);
-    qemu_chr_fe_set_handlers(&console.be,
+    qemu_chr_fe_init(&console.fe, chr, &error_abort);
+    qemu_chr_fe_set_handlers(&console.fe,
                              sim_console_can_read,
                              sim_console_read,
                              NULL, NULL, &console,
@@ -227,7 +227,7 @@ void HELPER(simcall)(CPUXtensaState *env)
                     len -= io_sz;
                     if (fd < 3 && sim_console) {
                         if (is_write && (fd == 1 || fd == 2)) {
-                            io_done = qemu_chr_fe_write_all(&sim_console->be,
+                            io_done = qemu_chr_fe_write_all(&sim_console->fe,
                                                             buf, io_sz);
                             regs[3] = errno_h2g(errno);
                         } else if (!is_write && fd == 0) {
@@ -241,7 +241,7 @@ void HELPER(simcall)(CPUXtensaState *env)
                                         sim_console->input.buffer + io_done,
                                         sim_console->input.offset - io_done);
                                 sim_console->input.offset -= io_done;
-                                qemu_chr_fe_accept_input(&sim_console->be);
+                                qemu_chr_fe_accept_input(&sim_console->fe);
                             } else {
                                 io_done = -1;
                                 regs[3] = TARGET_EAGAIN;

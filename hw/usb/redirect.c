@@ -113,7 +113,7 @@ struct PacketIdQueue {
 struct USBRedirDevice {
     USBDevice dev;
     /* Properties */
-    CharBackend cs;
+    CharFrontend cs;
     bool enable_streams;
     bool suppress_remote_wake;
     bool in_write;

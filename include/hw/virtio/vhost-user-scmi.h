@@ -18,7 +18,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(VHostUserSCMI, VHOST_USER_SCMI);
 
 struct VHostUserSCMI {
     VirtIODevice parent;
-    CharBackend chardev;
+    CharFrontend chardev;
     struct vhost_virtqueue *vhost_vqs;
     struct vhost_dev vhost_dev;
     VhostUserState vhost_user;

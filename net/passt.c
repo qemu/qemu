@@ -71,7 +71,7 @@ typedef struct NetPasstState {
     /* vhost user */
     VhostUserState *vhost_user;
     VHostNetState *vhost_net;
-    CharBackend vhost_chr;
+    CharFrontend vhost_chr;
     guint vhost_watch;
     uint64_t acked_features;
     bool started;

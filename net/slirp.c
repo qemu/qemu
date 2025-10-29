@@ -80,7 +80,7 @@ struct slirp_config_str {
 };
 
 struct GuestFwd {
-    CharBackend hd;
+    CharFrontend hd;
     struct in_addr server;
     int port;
     Slirp *slirp;

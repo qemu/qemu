@@ -1,18 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
-    "bits",
-    "bql",
-    "common",
-    "migration",
-    "qemu-macros",
-    "qom",
-    "system",
-    "hw/core",
     "hw/char/pl011",
     "hw/timer/hpet",
-    "trace",
-    "util",
     "tests",
 ]
 

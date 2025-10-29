@@ -155,7 +155,7 @@ typedef struct TestServer {
     gchar *mig_path;
     gchar *chr_name;
     gchar *tmpfs;
-    CharBackend chr;
+    CharFrontend chr;
     int fds_num;
     int fds[VHOST_MEMORY_MAX_NREGIONS];
     VhostUserMemory memory;
@@ -180,10 +180,10 @@ struct vhost_user_ops {
 
     /* VHOST-USER commands. */
     uint64_t (*get_features)(TestServer *s);
-    void (*set_features)(TestServer *s, CharBackend *chr,
+    void (*set_features)(TestServer *s, CharFrontend *chr,
                          VhostUserMsg *msg);
     void (*get_protocol_features)(TestServer *s,
-                                  CharBackend *chr, VhostUserMsg *msg);
+                                  CharFrontend *chr, VhostUserMsg *msg);
 };
 
 static const char *init_hugepagefs(void);
@@ -331,7 +331,7 @@ static int chr_can_read(void *opaque)
 static void chr_read(void *opaque, const uint8_t *buf, int size)
 {
     TestServer *s = opaque;
-    CharBackend *chr = &s->chr;
+    CharFrontend *chr = &s->chr;
     VhostUserMsg msg;
     uint8_t *p = (uint8_t *) &msg;
     int fd = -1;
@@ -1051,7 +1051,7 @@ static uint64_t vu_net_get_features(TestServer *s)
     return features;
 }
 
-static void vu_net_set_features(TestServer *s, CharBackend *chr,
+static void vu_net_set_features(TestServer *s, CharFrontend *chr,
                                 VhostUserMsg *msg)
 {
     g_assert(msg->payload.u64 & (0x1ULL << VHOST_USER_F_PROTOCOL_FEATURES));
@@ -1061,7 +1061,7 @@ static void vu_net_set_features(TestServer *s, CharBackend *chr,
     }
 }
 
-static void vu_net_get_protocol_features(TestServer *s, CharBackend *chr,
+static void vu_net_get_protocol_features(TestServer *s, CharFrontend *chr,
         VhostUserMsg *msg)
 {
     /* send back features to qemu */
@@ -1148,7 +1148,7 @@ static uint64_t vu_gpio_get_features(TestServer *s)
  * that we support VHOST_USER_PROTOCOL_F_CONFIG as gpio would use it
  * talking to a read vhost-user daemon.
  */
-static void vu_gpio_get_protocol_features(TestServer *s, CharBackend *chr,
+static void vu_gpio_get_protocol_features(TestServer *s, CharFrontend *chr,
                                           VhostUserMsg *msg)
 {
     /* send back features to qemu */
@@ -1191,7 +1191,7 @@ static uint64_t vu_scmi_get_features(TestServer *s)
         0x1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
 }
 
-static void vu_scmi_get_protocol_features(TestServer *s, CharBackend *chr,
+static void vu_scmi_get_protocol_features(TestServer *s, CharFrontend *chr,
                                           VhostUserMsg *msg)
 {
     msg->flags |= VHOST_USER_REPLY_MASK;

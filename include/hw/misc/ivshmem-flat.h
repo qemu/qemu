@@ -65,7 +65,7 @@ struct IvshmemFTState {
     QTAILQ_HEAD(, IvshmemPeer) peer;
     IvshmemPeer own;
 
-    CharBackend server_chr;
+    CharFrontend server_chr;
 
     /* IRQ */
     qemu_irq irq;

@@ -78,7 +78,7 @@ static void csr_call(char *cmd, uint64_t cpu_num, int csrno, uint64_t *val)
     g_assert(ret == RISCV_EXCP_NONE);
 }
 
-static bool csr_qtest_callback(CharBackend *chr, gchar **words)
+static bool csr_qtest_callback(CharFrontend *chr, gchar **words)
 {
     if (strcmp(words[0], "csr") == 0) {
 

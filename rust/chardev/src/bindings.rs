@@ -20,8 +20,8 @@
 
 use common::Zeroable;
 use glib_sys::{
-    gboolean, guint, GArray, GHashTable, GHashTableIter, GIOCondition, GList, GMainContext,
-    GPollFD, GPtrArray, GQueue, GSList, GSource, GSourceFunc,
+    gboolean, guint, GArray, GHashTable, GHashTableIter, GIOCondition, GMainContext, GPollFD,
+    GPtrArray, GSList, GSource, GSourceFunc,
 };
 
 #[cfg(MESON)]
@@ -34,7 +34,7 @@ include!(concat!(env!("OUT_DIR"), "/bindings.inc.rs"));
 // BQL is taken, either directly or via `BqlCell` and `BqlRefCell`.
 // When bindings for character devices are introduced, this can be
 // moved to the Opaque<> wrapper in src/chardev.rs.
-unsafe impl Send for CharBackend {}
-unsafe impl Sync for CharBackend {}
+unsafe impl Send for CharFrontend {}
+unsafe impl Sync for CharFrontend {}
 
-unsafe impl Zeroable for CharBackend {}
+unsafe impl Zeroable for CharFrontend {}

@@ -4251,6 +4251,7 @@ if have_rust
     '--allowlist-file', meson.project_source_root() + '/include/.*',
     '--allowlist-file', meson.project_build_root() + '/.*',
     '--blocklist-file', glib_pc.get_variable('includedir') + '/glib-2.0/.*',
+    '--blocklist-type', '.*_([a-z]*autoptr)$',
     ]
   if not rustfmt.found()
     if bindgen.version().version_compare('<0.65.0')

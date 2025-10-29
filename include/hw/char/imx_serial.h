@@ -122,7 +122,7 @@ struct IMXSerialState {
     uint32_t ucr4;
 
     qemu_irq irq;
-    CharBackend chr;
+    CharFrontend chr;
 };
 
 #endif

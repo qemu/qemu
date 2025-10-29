@@ -36,7 +36,7 @@ struct mcf_uart_state {
     int tx_enabled;
     int rx_enabled;
     qemu_irq irq;
-    CharBackend chr;
+    CharFrontend chr;
 };
 
 #define TYPE_MCF_UART "mcf-uart"

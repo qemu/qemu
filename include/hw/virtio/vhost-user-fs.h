@@ -24,7 +24,7 @@
 OBJECT_DECLARE_SIMPLE_TYPE(VHostUserFS, VHOST_USER_FS)
 
 typedef struct {
-    CharBackend chardev;
+    CharFrontend chardev;
     char *tag;
     uint16_t num_request_queues;
     uint16_t queue_size;

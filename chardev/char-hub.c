@@ -54,7 +54,7 @@ static int hub_chr_write(Chardev *chr, const uint8_t *buf, int len)
     d->be_eagain_ind = -1;
 
     for (i = 0; i < d->be_cnt; i++) {
-        if (!d->backends[i].be.chr->be_open) {
+        if (!d->backends[i].fe.chr->be_open) {
             /* Skip closed backend */
             continue;
         }
@@ -64,7 +64,7 @@ static int hub_chr_write(Chardev *chr, const uint8_t *buf, int len)
             ret = MIN(written, ret);
             continue;
         }
-        r = qemu_chr_fe_write(&d->backends[i].be, buf, len);
+        r = qemu_chr_fe_write(&d->backends[i].fe, buf, len);
         if (r < 0) {
             if (errno == EAGAIN) {
                 /* Set index and expect to be called soon on watch wake up */
@@ -84,7 +84,7 @@ static int hub_chr_write(Chardev *chr, const uint8_t *buf, int len)
 static int hub_chr_can_read(void *opaque)
 {
     HubCharBackend *backend = opaque;
-    CharBackend *fe = backend->hub->parent.be;
+    CharFrontend *fe = backend->hub->parent.fe;
 
     if (fe && fe->chr_can_read) {
         return fe->chr_can_read(fe->opaque);
@@ -96,7 +96,7 @@ static int hub_chr_can_read(void *opaque)
 static void hub_chr_read(void *opaque, const uint8_t *buf, int size)
 {
     HubCharBackend *backend = opaque;
-    CharBackend *fe = backend->hub->parent.be;
+    CharFrontend *fe = backend->hub->parent.fe;
 
     if (fe && fe->chr_read) {
         fe->chr_read(fe->opaque, buf, size);
@@ -107,7 +107,7 @@ static void hub_chr_event(void *opaque, QEMUChrEvent event)
 {
     HubCharBackend *backend = opaque;
     HubChardev *d = backend->hub;
-    CharBackend *fe = d->parent.be;
+    CharFrontend *fe = d->parent.fe;
 
     if (event == CHR_EVENT_OPENED) {
         /*
@@ -147,7 +147,7 @@ static GSource *hub_chr_add_watch(Chardev *s, GIOCondition cond)
     }
 
     assert(d->be_eagain_ind < d->be_cnt);
-    chr = qemu_chr_fe_get_driver(&d->backends[d->be_eagain_ind].be);
+    chr = qemu_chr_fe_get_driver(&d->backends[d->be_eagain_ind].fe);
     cc = CHARDEV_GET_CLASS(chr);
     if (!cc->chr_add_watch) {
         return NULL;
@@ -167,7 +167,7 @@ static bool hub_chr_attach_chardev(HubChardev *d, Chardev *chr,
                    d->parent.label);
         return false;
     }
-    ret = qemu_chr_fe_init(&d->backends[d->be_cnt].be, chr, errp);
+    ret = qemu_chr_fe_init(&d->backends[d->be_cnt].fe, chr, errp);
     if (ret) {
         d->backends[d->be_cnt].hub = d;
         d->backends[d->be_cnt].be_ind = d->be_cnt;
@@ -183,7 +183,7 @@ static void char_hub_finalize(Object *obj)
     int i;
 
     for (i = 0; i < d->be_cnt; i++) {
-        qemu_chr_fe_deinit(&d->backends[i].be, false);
+        qemu_chr_fe_deinit(&d->backends[i].fe, false);
     }
 }
 
@@ -193,7 +193,7 @@ static void hub_chr_update_read_handlers(Chardev *chr)
     int i;
 
     for (i = 0; i < d->be_cnt; i++) {
-        qemu_chr_fe_set_handlers_full(&d->backends[i].be,
+        qemu_chr_fe_set_handlers_full(&d->backends[i].fe,
                                       hub_chr_can_read,
                                       hub_chr_read,
                                       hub_chr_event,

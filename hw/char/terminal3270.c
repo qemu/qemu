@@ -30,7 +30,7 @@
 
 struct Terminal3270 {
     EmulatedCcw3270Device cdev;
-    CharBackend chr;
+    CharFrontend chr;
     uint8_t inv[INPUT_BUFFER_SIZE];
     uint8_t outv[OUTPUT_BUFFER_SIZE];
     int in_len;

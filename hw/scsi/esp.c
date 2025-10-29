@@ -447,7 +447,9 @@ static void write_response(ESPState *s)
 
 static bool esp_cdb_ready(ESPState *s)
 {
-    int len = fifo8_num_used(&s->cmdfifo) - s->cmdfifo_cdb_offset;
+    /* scsi_cdb_length() only reads the first byte */
+    int limit = s->cmdfifo_cdb_offset + 1;
+    int len = fifo8_num_used(&s->cmdfifo);
     const uint8_t *pbuf;
     uint32_t n;
     int cdblen;
@@ -457,7 +459,7 @@ static bool esp_cdb_ready(ESPState *s)
     }
 
     pbuf = fifo8_peek_bufptr(&s->cmdfifo, len, &n);
-    if (n < len) {
+    if (n < limit) {
         /*
          * In normal use the cmdfifo should never wrap, but include this check
          * to prevent a malicious guest from reading past the end of the

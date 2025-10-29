@@ -20,7 +20,7 @@ struct VHostUserBase {
     VirtIODevice parent_obj;
 
     /* Properties */
-    CharBackend chardev;
+    CharFrontend chardev;
     uint16_t virtio_id;
     uint32_t num_vqs;
     uint32_t vq_size; /* can't exceed VIRTIO_QUEUE_MAX */

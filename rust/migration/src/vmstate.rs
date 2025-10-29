@@ -268,7 +268,7 @@ macro_rules! impl_vmstate_transparent {
     ($type:ty where $base:tt: VMState $($where:tt)*) => {
         unsafe impl<$base> $crate::vmstate::VMState for $type where $base: $crate::vmstate::VMState $($where)* {
             const BASE: $crate::vmstate::VMStateField = $crate::vmstate::VMStateField {
-                size: mem::size_of::<$type>(),
+                size: ::core::mem::size_of::<$type>(),
                 ..<$base as $crate::vmstate::VMState>::BASE
             };
             const VARRAY_FLAG: $crate::bindings::VMStateFlags = <$base as $crate::vmstate::VMState>::VARRAY_FLAG;
@@ -282,6 +282,7 @@ impl_vmstate_transparent!(std::cell::Cell<T> where T: VMState);
 impl_vmstate_transparent!(std::cell::UnsafeCell<T> where T: VMState);
 impl_vmstate_transparent!(std::pin::Pin<T> where T: VMState);
 impl_vmstate_transparent!(common::Opaque<T> where T: VMState);
+impl_vmstate_transparent!(std::mem::ManuallyDrop<T> where T: VMState);
 
 #[macro_export]
 macro_rules! impl_vmstate_bitsized {

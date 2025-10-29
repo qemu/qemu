@@ -59,7 +59,7 @@ struct NRF51UARTState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
-    CharBackend chr;
+    CharFrontend chr;
     qemu_irq irq;
     guint watch_tag;
 

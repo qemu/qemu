@@ -35,7 +35,7 @@ typedef struct ASCIIConsoleData {
 
 struct SCLPConsole {
     SCLPEvent event;
-    CharBackend chr;
+    CharFrontend chr;
     uint8_t iov[SIZE_BUFFER_VT220];
     uint32_t iov_sclp;      /* offset in buf for SCLP read operation       */
     uint32_t iov_bs;        /* offset in buf for char layer read operation */

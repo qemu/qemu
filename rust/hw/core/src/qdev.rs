@@ -156,7 +156,7 @@ impl_qdev_prop!(u64, qdev_prop_uint64, qdev_prop_bit64);
 impl_qdev_prop!(usize, qdev_prop_usize);
 impl_qdev_prop!(i32, qdev_prop_int32);
 impl_qdev_prop!(i64, qdev_prop_int64);
-impl_qdev_prop!(chardev::CharBackend, qdev_prop_chr);
+impl_qdev_prop!(chardev::CharFrontend, qdev_prop_chr);
 
 /// Trait to define device properties.
 ///
