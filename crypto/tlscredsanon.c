@@ -92,10 +92,6 @@ qcrypto_tls_creds_anon_unload(QCryptoTLSCredsAnon *creds)
             creds->data.server = NULL;
         }
     }
-    if (creds->parent_obj.dh_params) {
-        gnutls_dh_params_deinit(creds->parent_obj.dh_params);
-        creds->parent_obj.dh_params = NULL;
-    }
 }
 
 #else /* ! CONFIG_GNUTLS */

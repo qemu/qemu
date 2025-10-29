@@ -684,10 +684,6 @@ qcrypto_tls_creds_x509_unload(QCryptoTLSCredsX509 *creds)
         gnutls_certificate_free_credentials(creds->data);
         creds->data = NULL;
     }
-    if (creds->parent_obj.dh_params) {
-        gnutls_dh_params_deinit(creds->parent_obj.dh_params);
-        creds->parent_obj.dh_params = NULL;
-    }
 }
 
 
@@ -779,6 +775,9 @@ qcrypto_tls_creds_x509_reload(QCryptoTLSCreds *creds, Error **errp)
     qcrypto_tls_creds_x509_load(x509_creds, &local_err);
     if (local_err) {
         qcrypto_tls_creds_x509_unload(x509_creds);
+        if (creds->dh_params) {
+            gnutls_dh_params_deinit(creds->dh_params);
+        }
         x509_creds->data = creds_data;
         creds->dh_params = creds_dh_params;
         error_propagate(errp, local_err);

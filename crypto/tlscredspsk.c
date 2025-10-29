@@ -175,10 +175,6 @@ qcrypto_tls_creds_psk_unload(QCryptoTLSCredsPSK *creds)
             creds->data.server = NULL;
         }
     }
-    if (creds->parent_obj.dh_params) {
-        gnutls_dh_params_deinit(creds->parent_obj.dh_params);
-        creds->parent_obj.dh_params = NULL;
-    }
 }
 
 #else /* ! CONFIG_GNUTLS */
