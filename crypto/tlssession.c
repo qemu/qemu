@@ -345,6 +345,7 @@ qcrypto_tls_session_check_certificate(QCryptoTLSSession *session,
                 goto error;
             }
             session->peername = (char *)g_steal_pointer(&dname.data);
+            trace_qcrypto_tls_session_check_x509_dn(session, session->peername);
             if (session->authzid) {
                 bool allow;
 

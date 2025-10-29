@@ -687,7 +687,6 @@ qcrypto_tls_creds_x509_load_identity(QCryptoTLSCredsX509 *creds,
                                      QCryptoTLSCredsBox *box,
                                      const char *certbase,
                                      const char *keybase,
-                                     bool isOptional,
                                      Error **errp)
 {
     g_autoptr(QCryptoTLSCredsX509IdentFiles) files =
@@ -695,9 +694,9 @@ qcrypto_tls_creds_x509_load_identity(QCryptoTLSCredsX509 *creds,
     int ret;
 
     if (qcrypto_tls_creds_get_path(&creds->parent_obj, certbase,
-                                   !isOptional, &files->certpath, errp) < 0 ||
+                                   false, &files->certpath, errp) < 0 ||
         qcrypto_tls_creds_get_path(&creds->parent_obj, keybase,
-                                   !isOptional, &files->keypath, errp) < 0) {
+                                   false, &files->keypath, errp) < 0) {
         return NULL;
     }
 
@@ -706,13 +705,17 @@ qcrypto_tls_creds_x509_load_identity(QCryptoTLSCredsX509 *creds,
         return NULL;
     }
     if (files->certpath && !files->keypath) {
-        error_setg(errp, "Cert '%s' without corresponding key",
-                   files->certpath);
+        g_autofree char *keypath =
+            qcrypto_tls_creds_build_path(&creds->parent_obj, keybase);
+        error_setg(errp, "Cert '%s' without corresponding key '%s'",
+                   files->certpath, keypath);
         return NULL;
     }
     if (!files->certpath && files->keypath) {
-        error_setg(errp, "Key '%s' without corresponding cert",
-                   files->keypath);
+        g_autofree char *certpath =
+            qcrypto_tls_creds_build_path(&creds->parent_obj, certbase);
+        error_setg(errp, "Key '%s' without corresponding cert '%s'",
+                   files->keypath, certpath);
         return NULL;
     }
 
@@ -751,7 +754,9 @@ qcrypto_tls_creds_x509_load_identities(QCryptoTLSCredsX509 *creds,
                                        bool isServer,
                                        Error **errp)
 {
+    ERRP_GUARD();
     QCryptoTLSCredsX509IdentFiles *ifiles;
+    size_t i;
 
     ifiles = qcrypto_tls_creds_x509_load_identity(
         creds, box,
@@ -761,15 +766,52 @@ qcrypto_tls_creds_x509_load_identities(QCryptoTLSCredsX509 *creds,
         isServer ?
         QCRYPTO_TLS_CREDS_X509_SERVER_KEY :
         QCRYPTO_TLS_CREDS_X509_CLIENT_KEY,
-        !isServer, errp);
-    if (!ifiles) {
+        errp);
+    if (!ifiles && *errp) {
         return -1;
     }
 
-    files->identities = g_renew(QCryptoTLSCredsX509IdentFiles *,
-                                files->identities,
-                                files->nidentities + 1);
-    files->identities[files->nidentities++] = ifiles;
+    if (ifiles) {
+        files->identities = g_renew(QCryptoTLSCredsX509IdentFiles *,
+                                    files->identities,
+                                    files->nidentities + 1);
+        files->identities[files->nidentities++] = ifiles;
+    }
+
+    for (i = 0; i < QCRYPTO_TLS_CREDS_X509_IDENTITY_MAX; i++) {
+        g_autofree char *cert = g_strdup_printf(
+            isServer ?
+            QCRYPTO_TLS_CREDS_X509_SERVER_CERT_N :
+            QCRYPTO_TLS_CREDS_X509_CLIENT_CERT_N, i);
+        g_autofree char *key = g_strdup_printf(
+            isServer ?
+            QCRYPTO_TLS_CREDS_X509_SERVER_KEY_N :
+            QCRYPTO_TLS_CREDS_X509_CLIENT_KEY_N, i);
+
+        ifiles = qcrypto_tls_creds_x509_load_identity(creds, box,
+                                                      cert, key, errp);
+        if (!ifiles && *errp) {
+            return -1;
+        }
+        if (!ifiles) {
+            break;
+        }
+
+        files->identities = g_renew(QCryptoTLSCredsX509IdentFiles *,
+                                    files->identities,
+                                    files->nidentities + 1);
+        files->identities[files->nidentities++] = ifiles;
+    }
+
+    if (files->nidentities == 0 && isServer) {
+        g_autofree char *certpath = qcrypto_tls_creds_build_path(
+            &creds->parent_obj, QCRYPTO_TLS_CREDS_X509_SERVER_CERT);
+        g_autofree char *keypath = qcrypto_tls_creds_build_path(
+            &creds->parent_obj, QCRYPTO_TLS_CREDS_X509_SERVER_KEY);
+        error_setg(errp, "Missing server cert '%s' & key '%s'",
+                   certpath, keypath);
+        return -1;
+    }
 
     return 0;
 }

@@ -39,6 +39,9 @@ struct QCryptoTLSCreds {
 
 #ifdef CONFIG_GNUTLS
 
+char *qcrypto_tls_creds_build_path(QCryptoTLSCreds *creds,
+                                   const char *filename);
+
 int qcrypto_tls_creds_get_path(QCryptoTLSCreds *creds,
                                const char *filename,
                                bool required,

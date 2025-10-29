@@ -36,8 +36,58 @@ server and exposing it directly to remote browser clients. In such a
 case it might be useful to use a commercial CA to avoid needing to
 install custom CA certs in the web browsers.
 
-The recommendation is for the server to keep its certificates in either
-``/etc/pki/qemu`` or for unprivileged users in ``$HOME/.pki/qemu``.
+.. _tls_cert_file_naming:
+
+Certificate file naming
+~~~~~~~~~~~~~~~~~~~~~~~
+
+In a simple setup, where all QEMU instances on a machine share the
+same TLS configuration, it is suggested that QEMU certificates be
+kept in either ``/etc/pki/qemu`` or, for unprivileged users, in
+``$HOME/.pki/qemu``. Where different QEMU subsystems require
+different certificate configurations, sub-dirs of these locations
+may be chosen.
+
+The default file names that QEMU will traditionally load are:
+
+* ``ca-cert.pem`` - mandatory; for both client and server configurations
+* ``ca-crl.pem`` - optional; for server configurations only
+* ``server-cert.pem`` - mandatory; for server configurations only
+* ``server-key.pem`` - mandatory; for server configurations only
+* ``client-cert.pem`` - optional; for client configurations only
+* ``client-key.pem`` - optional; for client configurations only
+* ``dh-params.pem`` - optional; for server configurations only
+
+Since QEMU 10.2.0, there is support for loading upto four additional
+identities:
+
+* ``server-cert-[IDX].pem`` - optional; for server configurations only
+* ``server-key-[IDX].pem`` - optional; for server configurations only
+* ``client-cert-[IDX].pem`` - optional; for client configurations only
+* ``client-key-[IDX].pem`` - optional; for client configurations only
+
+where ``-[IDX]`` is one of the digits 0-3. Loading will terminate at
+the first absent index. The index based certificate files may be used
+as a replacement for, or in addition to, the traditional non-index
+based certificate files. The traditional certificate files will be
+loaded first, if present, then the index based certificates. Where
+multiple certificates are compatible with a TLS session, the first
+loaded certificate will preferred. IOW file naming can influence
+which certificates are used for a session.
+
+The use of multiple sets of certificates is intended to allow an
+incremental transition to certificates using different crytographic
+algorithms. This allows a newly deployed QEMU to introduce use of
+stronger cryptographic algorithms that will be preferred when talking
+to other newly deployed QEMU instances, while retaining compatbility
+with certificates issued to a historically deployed QEMU. This is
+notably useful to support live migration from an old QEMU deployed
+on older operating system releases, which may support fewer crypto
+algorithm choices than the current OS.
+
+The certificate creation commands below will be illustrated using
+the traditional naming scheme, but their args can be substituted
+to use the indexed naming in the obvious manner.
 
 .. _tls_005fgenerate_005fca:
 

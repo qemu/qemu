@@ -85,6 +85,14 @@ qcrypto_tls_creds_get_dh_params_file(QCryptoTLSCreds *creds,
 }
 
 
+char *
+qcrypto_tls_creds_build_path(QCryptoTLSCreds *creds,
+                             const char *filename)
+{
+    return g_strdup_printf("%s/%s", creds->dir, filename);
+}
+
+
 int
 qcrypto_tls_creds_get_path(QCryptoTLSCreds *creds,
                            const char *filename,
@@ -94,7 +102,7 @@ qcrypto_tls_creds_get_path(QCryptoTLSCreds *creds,
 {
     int ret = -1;
 
-    *cred = g_strdup_printf("%s/%s", creds->dir, filename);
+    *cred = qcrypto_tls_creds_build_path(creds, filename);
 
     if (access(*cred, R_OK) < 0) {
         if (errno == ENOENT && !required) {
