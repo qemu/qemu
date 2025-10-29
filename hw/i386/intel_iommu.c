@@ -5190,13 +5190,27 @@ static IOMMUTLBEntry vtd_iommu_ats_do_translate(IOMMUMemoryRegion *iommu,
                                                 hwaddr addr,
                                                 IOMMUAccessFlags flags)
 {
-    IOMMUTLBEntry entry;
+    IOMMUTLBEntry entry = { .target_as = &address_space_memory };
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
+    IntelIOMMUState *s = vtd_as->iommu_state;
+
+    /* Guard that makes sure we avoid weird behaviors */
+    if ((flags & IOMMU_PRIV) && (s->ecap & VTD_ECAP_SRS)) {
+        error_report_once("Privileged ATS not supported");
+        abort();
+    }
 
     if (vtd_is_interrupt_addr(addr)) {
-        vtd_report_ir_illegal_access(vtd_as, addr, flags & IOMMU_WO);
         vtd_prepare_error_entry(&entry);
-        entry.target_as = &address_space_memory;
+        vtd_report_ir_illegal_access(vtd_as, addr, flags & IOMMU_WO);
+    } else if ((flags & IOMMU_PRIV) && !(s->ecap & VTD_ECAP_SRS)) {
+        /*
+         * For translation-request-with-PASID with PR=1, remapping hardware
+         * not supporting supervisor requests (SRS=0 in the Extended
+         * Capability Register) forces R=W=E=0 in addition to setting PRIV=1.
+         */
+        vtd_prepare_error_entry(&entry);
+        entry.perm = IOMMU_PRIV;
     } else {
         entry = vtd_iommu_translate(iommu, addr, flags, VTD_IDX_ATS);
     }
