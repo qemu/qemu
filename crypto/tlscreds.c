@@ -247,11 +247,8 @@ qcrypto_tls_creds_finalize(Object *obj)
     QCryptoTLSCreds *creds = QCRYPTO_TLS_CREDS(obj);
 
 #ifdef CONFIG_GNUTLS
-    if (creds->dh_params) {
-        gnutls_dh_params_deinit(creds->dh_params);
-    }
+    qcrypto_tls_creds_box_unref(creds->box);
 #endif
-
     g_free(creds->dir);
     g_free(creds->priority);
 }

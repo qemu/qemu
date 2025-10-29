@@ -562,6 +562,7 @@ static int
 qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
                             Error **errp)
 {
+    g_autoptr(QCryptoTLSCredsBox) box = NULL;
     g_autofree char *cacert = NULL;
     g_autofree char *cacrl = NULL;
     g_autofree char *cert = NULL;
@@ -577,6 +578,19 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
     }
 
     trace_qcrypto_tls_creds_x509_load(creds, creds->parent_obj.dir);
+
+    if (creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
+        box = qcrypto_tls_creds_box_new_server(GNUTLS_CRD_CERTIFICATE);
+    } else {
+        box = qcrypto_tls_creds_box_new_client(GNUTLS_CRD_CERTIFICATE);
+    }
+
+    ret = gnutls_certificate_allocate_credentials(&box->data.cert);
+    if (ret < 0) {
+        error_setg(errp, "Cannot allocate credentials: '%s'",
+                   gnutls_strerror(ret));
+        return -1;
+    }
 
     if (qcrypto_tls_creds_get_path(&creds->parent_obj,
                                    QCRYPTO_TLS_CREDS_X509_CA_CERT,
@@ -616,14 +630,7 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
         return -1;
     }
 
-    ret = gnutls_certificate_allocate_credentials(&creds->data);
-    if (ret < 0) {
-        error_setg(errp, "Cannot allocate credentials: '%s'",
-                   gnutls_strerror(ret));
-        return -1;
-    }
-
-    ret = gnutls_certificate_set_x509_trust_file(creds->data,
+    ret = gnutls_certificate_set_x509_trust_file(box->data.cert,
                                                  cacert,
                                                  GNUTLS_X509_FMT_PEM);
     if (ret < 0) {
@@ -641,7 +648,7 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
                 return -1;
             }
         }
-        ret = gnutls_certificate_set_x509_key_file2(creds->data,
+        ret = gnutls_certificate_set_x509_key_file2(box->data.cert,
                                                     cert, key,
                                                     GNUTLS_X509_FMT_PEM,
                                                     password,
@@ -654,7 +661,7 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
     }
 
     if (cacrl != NULL) {
-        ret = gnutls_certificate_set_x509_crl_file(creds->data,
+        ret = gnutls_certificate_set_x509_crl_file(box->data.cert,
                                                    cacrl,
                                                    GNUTLS_X509_FMT_PEM);
         if (ret < 0) {
@@ -666,25 +673,15 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
 
     if (isServer) {
         if (qcrypto_tls_creds_get_dh_params_file(&creds->parent_obj, dhparams,
-                                                 &creds->parent_obj.dh_params,
+                                                 &box->dh_params,
                                                  errp) < 0) {
             return -1;
         }
-        gnutls_certificate_set_dh_params(creds->data,
-                                         creds->parent_obj.dh_params);
+        gnutls_certificate_set_dh_params(box->data.cert, box->dh_params);
     }
+    creds->parent_obj.box = g_steal_pointer(&box);
 
     return 0;
-}
-
-
-static void
-qcrypto_tls_creds_x509_unload(QCryptoTLSCredsX509 *creds)
-{
-    if (creds->data) {
-        gnutls_certificate_free_credentials(creds->data);
-        creds->data = NULL;
-    }
 }
 
 
@@ -696,13 +693,6 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds G_GNUC_UNUSED,
                             Error **errp)
 {
     error_setg(errp, "TLS credentials support requires GNUTLS");
-}
-
-
-static void
-qcrypto_tls_creds_x509_unload(QCryptoTLSCredsX509 *creds G_GNUC_UNUSED)
-{
-    /* nada */
 }
 
 
@@ -768,29 +758,17 @@ qcrypto_tls_creds_x509_reload(QCryptoTLSCreds *creds, Error **errp)
 {
     QCryptoTLSCredsX509 *x509_creds = QCRYPTO_TLS_CREDS_X509(creds);
     Error *local_err = NULL;
-    gnutls_certificate_credentials_t creds_data = x509_creds->data;
-    gnutls_dh_params_t creds_dh_params = creds->dh_params;
+    QCryptoTLSCredsBox *creds_box = creds->box;
 
-    x509_creds->data = NULL;
-    creds->dh_params = NULL;
+    creds->box = NULL;
     qcrypto_tls_creds_x509_load(x509_creds, &local_err);
     if (local_err) {
-        qcrypto_tls_creds_x509_unload(x509_creds);
-        if (creds->dh_params) {
-            gnutls_dh_params_deinit(creds->dh_params);
-        }
-        x509_creds->data = creds_data;
-        creds->dh_params = creds_dh_params;
+        creds->box = creds_box;
         error_propagate(errp, local_err);
         return false;
     }
 
-    if (creds_data) {
-        gnutls_certificate_free_credentials(creds_data);
-    }
-    if (creds_dh_params) {
-        gnutls_dh_params_deinit(creds_dh_params);
-    }
+    qcrypto_tls_creds_box_unref(creds_box);
     return true;
 }
 
@@ -823,7 +801,6 @@ qcrypto_tls_creds_x509_finalize(Object *obj)
     QCryptoTLSCredsX509 *creds = QCRYPTO_TLS_CREDS_X509(obj);
 
     g_free(creds->passwordid);
-    qcrypto_tls_creds_x509_unload(creds);
 }
 
 

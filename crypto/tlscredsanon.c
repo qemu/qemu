@@ -36,6 +36,7 @@ static int
 qcrypto_tls_creds_anon_load(QCryptoTLSCredsAnon *creds,
                             Error **errp)
 {
+    g_autoptr(QCryptoTLSCredsBox) box = NULL;
     g_autofree char *dhparams = NULL;
     int ret;
 
@@ -43,6 +44,8 @@ qcrypto_tls_creds_anon_load(QCryptoTLSCredsAnon *creds,
             creds->parent_obj.dir ? creds->parent_obj.dir : "<nodir>");
 
     if (creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
+        box = qcrypto_tls_creds_box_new_server(GNUTLS_CRD_ANON);
+
         if (creds->parent_obj.dir &&
             qcrypto_tls_creds_get_path(&creds->parent_obj,
                                        QCRYPTO_TLS_CREDS_DH_PARAMS,
@@ -50,7 +53,7 @@ qcrypto_tls_creds_anon_load(QCryptoTLSCredsAnon *creds,
             return -1;
         }
 
-        ret = gnutls_anon_allocate_server_credentials(&creds->data.server);
+        ret = gnutls_anon_allocate_server_credentials(&box->data.anonserver);
         if (ret < 0) {
             error_setg(errp, "Cannot allocate credentials: %s",
                        gnutls_strerror(ret));
@@ -58,41 +61,25 @@ qcrypto_tls_creds_anon_load(QCryptoTLSCredsAnon *creds,
         }
 
         if (qcrypto_tls_creds_get_dh_params_file(&creds->parent_obj, dhparams,
-                                                 &creds->parent_obj.dh_params,
-                                                 errp) < 0) {
+                                                 &box->dh_params, errp) < 0) {
             return -1;
         }
 
-        gnutls_anon_set_server_dh_params(creds->data.server,
-                                         creds->parent_obj.dh_params);
+        gnutls_anon_set_server_dh_params(box->data.anonserver,
+                                         box->dh_params);
     } else {
-        ret = gnutls_anon_allocate_client_credentials(&creds->data.client);
+        ret = gnutls_anon_allocate_client_credentials(&box->data.anonclient);
         if (ret < 0) {
             error_setg(errp, "Cannot allocate credentials: %s",
                        gnutls_strerror(ret));
             return -1;
         }
     }
+    creds->parent_obj.box = g_steal_pointer(&box);
 
     return 0;
 }
 
-
-static void
-qcrypto_tls_creds_anon_unload(QCryptoTLSCredsAnon *creds)
-{
-    if (creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT) {
-        if (creds->data.client) {
-            gnutls_anon_free_client_credentials(creds->data.client);
-            creds->data.client = NULL;
-        }
-    } else {
-        if (creds->data.server) {
-            gnutls_anon_free_server_credentials(creds->data.server);
-            creds->data.server = NULL;
-        }
-    }
-}
 
 #else /* ! CONFIG_GNUTLS */
 
@@ -105,13 +92,6 @@ qcrypto_tls_creds_anon_load(QCryptoTLSCredsAnon *creds G_GNUC_UNUSED,
 }
 
 
-static void
-qcrypto_tls_creds_anon_unload(QCryptoTLSCredsAnon *creds G_GNUC_UNUSED)
-{
-    /* nada */
-}
-
-
 #endif /* ! CONFIG_GNUTLS */
 
 
@@ -121,15 +101,6 @@ qcrypto_tls_creds_anon_complete(UserCreatable *uc, Error **errp)
     QCryptoTLSCredsAnon *creds = QCRYPTO_TLS_CREDS_ANON(uc);
 
     qcrypto_tls_creds_anon_load(creds, errp);
-}
-
-
-static void
-qcrypto_tls_creds_anon_finalize(Object *obj)
-{
-    QCryptoTLSCredsAnon *creds = QCRYPTO_TLS_CREDS_ANON(obj);
-
-    qcrypto_tls_creds_anon_unload(creds);
 }
 
 
@@ -148,7 +119,6 @@ static const TypeInfo qcrypto_tls_creds_anon_info = {
     .parent = TYPE_QCRYPTO_TLS_CREDS,
     .name = TYPE_QCRYPTO_TLS_CREDS_ANON,
     .instance_size = sizeof(QCryptoTLSCredsAnon),
-    .instance_finalize = qcrypto_tls_creds_anon_finalize,
     .class_size = sizeof(QCryptoTLSCredsAnonClass),
     .class_init = qcrypto_tls_creds_anon_class_init,
     .interfaces = (const InterfaceInfo[]) {

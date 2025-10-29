@@ -71,6 +71,7 @@ static int
 qcrypto_tls_creds_psk_load(QCryptoTLSCredsPSK *creds,
                            Error **errp)
 {
+    g_autoptr(QCryptoTLSCredsBox) box = NULL;
     g_autofree char *pskfile = NULL;
     g_autofree char *dhparams = NULL;
     const char *username;
@@ -87,6 +88,8 @@ qcrypto_tls_creds_psk_load(QCryptoTLSCredsPSK *creds,
     }
 
     if (creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
+        box = qcrypto_tls_creds_box_new_server(GNUTLS_CRD_PSK);
+
         if (creds->username) {
             error_setg(errp, "username should not be set when endpoint=server");
             goto cleanup;
@@ -101,7 +104,7 @@ qcrypto_tls_creds_psk_load(QCryptoTLSCredsPSK *creds,
             goto cleanup;
         }
 
-        ret = gnutls_psk_allocate_server_credentials(&creds->data.server);
+        ret = gnutls_psk_allocate_server_credentials(&box->data.pskserver);
         if (ret < 0) {
             error_setg(errp, "Cannot allocate credentials: %s",
                        gnutls_strerror(ret));
@@ -109,20 +112,23 @@ qcrypto_tls_creds_psk_load(QCryptoTLSCredsPSK *creds,
         }
 
         if (qcrypto_tls_creds_get_dh_params_file(&creds->parent_obj, dhparams,
-                                                 &creds->parent_obj.dh_params,
+                                                 &box->dh_params,
                                                  errp) < 0) {
             goto cleanup;
         }
 
-        ret = gnutls_psk_set_server_credentials_file(creds->data.server, pskfile);
+        ret = gnutls_psk_set_server_credentials_file(box->data.pskserver,
+                                                     pskfile);
         if (ret < 0) {
             error_setg(errp, "Cannot set PSK server credentials: %s",
                        gnutls_strerror(ret));
             goto cleanup;
         }
-        gnutls_psk_set_server_dh_params(creds->data.server,
-                                        creds->parent_obj.dh_params);
+        gnutls_psk_set_server_dh_params(box->data.pskserver,
+                                        box->dh_params);
     } else {
+        box = qcrypto_tls_creds_box_new_client(GNUTLS_CRD_PSK);
+
         if (qcrypto_tls_creds_get_path(&creds->parent_obj,
                                        QCRYPTO_TLS_CREDS_PSKFILE,
                                        true, &pskfile, errp) < 0) {
@@ -138,14 +144,14 @@ qcrypto_tls_creds_psk_load(QCryptoTLSCredsPSK *creds,
             goto cleanup;
         }
 
-        ret = gnutls_psk_allocate_client_credentials(&creds->data.client);
+        ret = gnutls_psk_allocate_client_credentials(&box->data.pskclient);
         if (ret < 0) {
             error_setg(errp, "Cannot allocate credentials: %s",
                        gnutls_strerror(ret));
             goto cleanup;
         }
 
-        ret = gnutls_psk_set_client_credentials(creds->data.client,
+        ret = gnutls_psk_set_client_credentials(box->data.pskclient,
                                                 username, &key, GNUTLS_PSK_KEY_HEX);
         if (ret < 0) {
             error_setg(errp, "Cannot set PSK client credentials: %s",
@@ -153,28 +159,12 @@ qcrypto_tls_creds_psk_load(QCryptoTLSCredsPSK *creds,
             goto cleanup;
         }
     }
+    creds->parent_obj.box = g_steal_pointer(&box);
 
     rv = 0;
  cleanup:
     g_free(key.data);
     return rv;
-}
-
-
-static void
-qcrypto_tls_creds_psk_unload(QCryptoTLSCredsPSK *creds)
-{
-    if (creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT) {
-        if (creds->data.client) {
-            gnutls_psk_free_client_credentials(creds->data.client);
-            creds->data.client = NULL;
-        }
-    } else {
-        if (creds->data.server) {
-            gnutls_psk_free_server_credentials(creds->data.server);
-            creds->data.server = NULL;
-        }
-    }
 }
 
 #else /* ! CONFIG_GNUTLS */
@@ -185,13 +175,6 @@ qcrypto_tls_creds_psk_load(QCryptoTLSCredsPSK *creds G_GNUC_UNUSED,
                            Error **errp)
 {
     error_setg(errp, "TLS credentials support requires GNUTLS");
-}
-
-
-static void
-qcrypto_tls_creds_psk_unload(QCryptoTLSCredsPSK *creds G_GNUC_UNUSED)
-{
-    /* nada */
 }
 
 
@@ -212,7 +195,6 @@ qcrypto_tls_creds_psk_finalize(Object *obj)
 {
     QCryptoTLSCredsPSK *creds = QCRYPTO_TLS_CREDS_PSK(obj);
 
-    qcrypto_tls_creds_psk_unload(creds);
     g_free(creds->username);
 }
 
