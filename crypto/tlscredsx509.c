@@ -562,10 +562,12 @@ static int
 qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
                             Error **errp)
 {
-    char *cacert = NULL, *cacrl = NULL, *cert = NULL,
-        *key = NULL, *dhparams = NULL;
+    g_autofree char *cacert = NULL;
+    g_autofree char *cacrl = NULL;
+    g_autofree char *cert = NULL;
+    g_autofree char *key = NULL;
+    g_autofree char *dhparams = NULL;
     int ret;
-    int rv = -1;
 
     if (!creds->parent_obj.dir) {
         error_setg(errp, "Missing 'dir' property value");
@@ -590,7 +592,7 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
             qcrypto_tls_creds_get_path(&creds->parent_obj,
                                        QCRYPTO_TLS_CREDS_DH_PARAMS,
                                        false, &dhparams, errp) < 0) {
-            goto cleanup;
+            return -1;
         }
     } else {
         if (qcrypto_tls_creds_get_path(&creds->parent_obj,
@@ -602,7 +604,7 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
             qcrypto_tls_creds_get_path(&creds->parent_obj,
                                        QCRYPTO_TLS_CREDS_X509_CLIENT_KEY,
                                        false, &key, errp) < 0) {
-            goto cleanup;
+            return -1;
         }
     }
 
@@ -610,14 +612,14 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
         qcrypto_tls_creds_x509_sanity_check(creds,
             creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER,
             cacert, cert, errp) < 0) {
-        goto cleanup;
+        return -1;
     }
 
     ret = gnutls_certificate_allocate_credentials(&creds->data);
     if (ret < 0) {
         error_setg(errp, "Cannot allocate credentials: '%s'",
                    gnutls_strerror(ret));
-        goto cleanup;
+        return -1;
     }
 
     ret = gnutls_certificate_set_x509_trust_file(creds->data,
@@ -626,16 +628,16 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
     if (ret < 0) {
         error_setg(errp, "Cannot load CA certificate '%s': %s",
                    cacert, gnutls_strerror(ret));
-        goto cleanup;
+        return -1;
     }
 
     if (cert != NULL && key != NULL) {
-        char *password = NULL;
+        g_autofree char *password = NULL;
         if (creds->passwordid) {
             password = qcrypto_secret_lookup_as_utf8(creds->passwordid,
                                                      errp);
             if (!password) {
-                goto cleanup;
+                return -1;
             }
         }
         ret = gnutls_certificate_set_x509_key_file2(creds->data,
@@ -643,11 +645,10 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
                                                     GNUTLS_X509_FMT_PEM,
                                                     password,
                                                     0);
-        g_free(password);
         if (ret < 0) {
             error_setg(errp, "Cannot load certificate '%s' & key '%s': %s",
                        cert, key, gnutls_strerror(ret));
-            goto cleanup;
+            return -1;
         }
     }
 
@@ -658,7 +659,7 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
         if (ret < 0) {
             error_setg(errp, "Cannot load CRL '%s': %s",
                        cacrl, gnutls_strerror(ret));
-            goto cleanup;
+            return -1;
         }
     }
 
@@ -666,20 +667,13 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
         if (qcrypto_tls_creds_get_dh_params_file(&creds->parent_obj, dhparams,
                                                  &creds->parent_obj.dh_params,
                                                  errp) < 0) {
-            goto cleanup;
+            return -1;
         }
         gnutls_certificate_set_dh_params(creds->data,
                                          creds->parent_obj.dh_params);
     }
 
-    rv = 0;
- cleanup:
-    g_free(cacert);
-    g_free(cacrl);
-    g_free(cert);
-    g_free(key);
-    g_free(dhparams);
-    return rv;
+    return 0;
 }
 
 
