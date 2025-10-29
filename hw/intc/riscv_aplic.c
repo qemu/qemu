@@ -216,22 +216,13 @@ static inline bool riscv_aplic_source_active(RISCVAPLICState *aplic,
 static bool riscv_aplic_irq_rectified_val(RISCVAPLICState *aplic,
                                           uint32_t irq)
 {
-    uint32_t sourcecfg, sm, raw_input, irq_inverted;
+    uint32_t sm, raw_input, irq_inverted;
 
-    if (!irq || aplic->num_irqs <= irq) {
+    if (!riscv_aplic_source_active(aplic, irq)) {
         return false;
     }
 
-    sourcecfg = aplic->sourcecfg[irq];
-    if (sourcecfg & APLIC_SOURCECFG_D) {
-        return false;
-    }
-
-    sm = sourcecfg & APLIC_SOURCECFG_SM_MASK;
-    if (sm == APLIC_SOURCECFG_SM_INACTIVE) {
-        return false;
-    }
-
+    sm = aplic->sourcecfg[irq] & APLIC_SOURCECFG_SM_MASK;
     raw_input = (aplic->state[irq] & APLIC_ISTATE_INPUT) ? 1 : 0;
     irq_inverted = (sm == APLIC_SOURCECFG_SM_LEVEL_LOW ||
                     sm == APLIC_SOURCECFG_SM_EDGE_FALL) ? 1 : 0;
@@ -284,22 +275,13 @@ static void riscv_aplic_set_pending_raw(RISCVAPLICState *aplic,
 static void riscv_aplic_set_pending(RISCVAPLICState *aplic,
                                     uint32_t irq, bool pending)
 {
-    uint32_t sourcecfg, sm;
+    uint32_t sm;
 
-    if ((irq <= 0) || (aplic->num_irqs <= irq)) {
+    if (!riscv_aplic_source_active(aplic, irq)) {
         return;
     }
 
-    sourcecfg = aplic->sourcecfg[irq];
-    if (sourcecfg & APLIC_SOURCECFG_D) {
-        return;
-    }
-
-    sm = sourcecfg & APLIC_SOURCECFG_SM_MASK;
-    if (sm == APLIC_SOURCECFG_SM_INACTIVE) {
-        return;
-    }
-
+    sm = aplic->sourcecfg[irq] & APLIC_SOURCECFG_SM_MASK;
     if ((sm == APLIC_SOURCECFG_SM_LEVEL_HIGH) ||
         (sm == APLIC_SOURCECFG_SM_LEVEL_LOW)) {
         if (!aplic->msimode) {
@@ -370,19 +352,7 @@ static void riscv_aplic_set_enabled_raw(RISCVAPLICState *aplic,
 static void riscv_aplic_set_enabled(RISCVAPLICState *aplic,
                                     uint32_t irq, bool enabled)
 {
-    uint32_t sourcecfg, sm;
-
-    if ((irq <= 0) || (aplic->num_irqs <= irq)) {
-        return;
-    }
-
-    sourcecfg = aplic->sourcecfg[irq];
-    if (sourcecfg & APLIC_SOURCECFG_D) {
-        return;
-    }
-
-    sm = sourcecfg & APLIC_SOURCECFG_SM_MASK;
-    if (sm == APLIC_SOURCECFG_SM_INACTIVE) {
+    if (!riscv_aplic_source_active(aplic, irq)) {
         return;
     }
 
