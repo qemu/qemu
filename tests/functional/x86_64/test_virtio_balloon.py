@@ -66,7 +66,7 @@ class VirtioBalloonx86(QemuSystemTest):
         when = ret.get('last-update')
         assert when == 0
         stats = ret.get('stats')
-        for name, val in stats.items():
+        for _name, val in stats.items():
             assert val == UNSET_STATS_VALUE
 
     def assert_running_stats(self, then):
@@ -87,10 +87,10 @@ class VirtioBalloonx86(QemuSystemTest):
 
         now = time.time()
 
-        assert when > then and when < now
+        assert now > when > then
         stats = ret.get('stats')
         # Stat we expect this particular Kernel to have set
-        expectData = [
+        expect_data = [
             "stat-available-memory",
             "stat-disk-caches",
             "stat-free-memory",
@@ -103,7 +103,7 @@ class VirtioBalloonx86(QemuSystemTest):
             "stat-total-memory",
         ]
         for name, val in stats.items():
-            if name in expectData:
+            if name in expect_data:
                 assert val != UNSET_STATS_VALUE
             else:
                 assert val == UNSET_STATS_VALUE
