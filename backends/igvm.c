@@ -567,7 +567,7 @@ static int qigvm_directive_memory_map(QIgvm *ctx, const uint8_t *header_data,
 
             retval = ctx->cgsc->get_mem_map_entry(entry, &cgmm_entry, errp);
             while (retval == 0) {
-                if (entry > max_entry_count) {
+                if (entry >= max_entry_count) {
                     error_setg(
                         errp,
                         "IGVM: guest memory map size exceeds parameter area defined in IGVM file");
