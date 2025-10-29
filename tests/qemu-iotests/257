@@ -310,14 +310,18 @@ def test_bitmap_sync(bsync_mode, msync_mode='bitmap', failure=None):
                     'state': 1,
                     'new_state': 2
                 }, {
-                    'event': 'read_aio',
+                    'event': 'flush_to_disk',
                     'state': 2,
                     'new_state': 3
+                }, {
+                    'event': "read_aio",
+                    'state': 3,
+                    'new_state': 4
                 }],
                 'inject-error': [{
                     'event': 'read_aio',
                     'errno': 5,
-                    'state': 3,
+                    'state': 4,
                     'immediately': False,
                     'once': True
                 }]
