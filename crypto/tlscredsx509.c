@@ -567,6 +567,8 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
     g_autofree char *cert = NULL;
     g_autofree char *key = NULL;
     g_autofree char *dhparams = NULL;
+    bool isServer = (creds->parent_obj.endpoint ==
+                     QCRYPTO_TLS_CREDS_ENDPOINT_SERVER);
     int ret;
 
     if (!creds->parent_obj.dir) {
@@ -576,7 +578,7 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
 
     trace_qcrypto_tls_creds_x509_load(creds, creds->parent_obj.dir);
 
-    if (creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
+    if (isServer) {
         if (qcrypto_tls_creds_get_path(&creds->parent_obj,
                                        QCRYPTO_TLS_CREDS_X509_CA_CERT,
                                        true, &cacert, errp) < 0 ||
@@ -609,9 +611,8 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
     }
 
     if (creds->sanityCheck &&
-        qcrypto_tls_creds_x509_sanity_check(creds,
-            creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER,
-            cacert, cert, errp) < 0) {
+        qcrypto_tls_creds_x509_sanity_check(creds, isServer,
+                                            cacert, cert, errp) < 0) {
         return -1;
     }
 
@@ -663,7 +664,7 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
         }
     }
 
-    if (creds->parent_obj.endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
+    if (isServer) {
         if (qcrypto_tls_creds_get_dh_params_file(&creds->parent_obj, dhparams,
                                                  &creds->parent_obj.dh_params,
                                                  errp) < 0) {
