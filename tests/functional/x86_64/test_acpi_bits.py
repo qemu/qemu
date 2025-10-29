@@ -57,6 +57,7 @@ class QEMUBitsMachine(QEMUMachine): # pylint: disable=too-few-public-methods
     """
     def __init__(self,
                  binary: str,
+                 *,
                  args: Sequence[str] = (),
                  wrapper: Sequence[str] = (),
                  name: Optional[str] = None,
@@ -225,7 +226,7 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
                                       stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT,
                                       check=True)
-                self.log.info("grub-mkrescue output %s" % proc.stdout)
+                self.log.info("grub-mkrescue output %s", proc.stdout)
             else:
                 subprocess.check_call([mkrescue_script, '-o',
                                       iso_file, bits_dir],
@@ -287,9 +288,8 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
             except AssertionError as e:
                 self._print_log(log)
                 raise e
-            else:
-                if os.getenv('V') or os.getenv('BITS_DEBUG'):
-                    self._print_log(log)
+            if os.getenv('V') or os.getenv('BITS_DEBUG'):
+                self._print_log(log)
 
     def tearDown(self):
         """
