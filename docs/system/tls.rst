@@ -251,11 +251,13 @@ When specifying the object, the ``dir`` parameters specifies which
 directory contains the credential files. This directory is expected to
 contain files with the names mentioned previously, ``ca-cert.pem``,
 ``server-key.pem``, ``server-cert.pem``, ``client-key.pem`` and
-``client-cert.pem`` as appropriate. It is also possible to include a set
-of pre-generated Diffie-Hellman (DH) parameters in a file
-``dh-params.pem``, which can be created using the
-``certtool --generate-dh-params`` command. If omitted, QEMU will
-dynamically generate DH parameters when loading the credentials.
+``client-cert.pem`` as appropriate.
+
+While it is possible to include a set of pre-generated Diffie-Hellman
+(DH) parameters in a file ``dh-params.pem``, this facility is now
+deprecated and will be removed in a future release. When omitted the
+DH parameters will be automatically negotiated in accordance with
+RFC7919.
 
 The ``endpoint`` parameter indicates whether the credentials will be
 used for a network client or server, and determines which PEM files are

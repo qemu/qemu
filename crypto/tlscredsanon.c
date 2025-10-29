@@ -68,8 +68,10 @@ qcrypto_tls_creds_anon_load(QCryptoTLSCredsAnon *creds,
             return -1;
         }
 
-        gnutls_anon_set_server_dh_params(box->data.anonserver,
-                                         box->dh_params);
+        if (box->dh_params) {
+            gnutls_anon_set_server_dh_params(box->data.anonserver,
+                                             box->dh_params);
+        }
     } else {
         ret = gnutls_anon_allocate_client_credentials(&box->data.anonclient);
         if (ret < 0) {

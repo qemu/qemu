@@ -683,7 +683,9 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
                                                  errp) < 0) {
             return -1;
         }
-        gnutls_certificate_set_dh_params(box->data.cert, box->dh_params);
+        if (box->dh_params) {
+            gnutls_certificate_set_dh_params(box->data.cert, box->dh_params);
+        }
     }
     creds->parent_obj.box = g_steal_pointer(&box);
 

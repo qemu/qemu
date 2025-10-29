@@ -129,8 +129,10 @@ qcrypto_tls_creds_psk_load(QCryptoTLSCredsPSK *creds,
                        gnutls_strerror(ret));
             goto cleanup;
         }
-        gnutls_psk_set_server_dh_params(box->data.pskserver,
-                                        box->dh_params);
+        if (box->dh_params) {
+            gnutls_psk_set_server_dh_params(box->data.pskserver,
+                                            box->dh_params);
+        }
     } else {
         box = qcrypto_tls_creds_box_new_client(GNUTLS_CRD_PSK);
 

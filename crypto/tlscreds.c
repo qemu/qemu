@@ -22,6 +22,7 @@
 #include "qapi/error.h"
 #include "qapi-types-crypto.h"
 #include "qemu/module.h"
+#include "qemu/error-report.h"
 #include "tlscredspriv.h"
 #include "trace.h"
 
@@ -38,22 +39,7 @@ qcrypto_tls_creds_get_dh_params_file(QCryptoTLSCreds *creds,
 
     trace_qcrypto_tls_creds_load_dh(creds, filename ? filename : "<generated>");
 
-    if (filename == NULL) {
-        ret = gnutls_dh_params_init(dh_params);
-        if (ret < 0) {
-            error_setg(errp, "Unable to initialize DH parameters: %s",
-                       gnutls_strerror(ret));
-            return -1;
-        }
-        ret = gnutls_dh_params_generate2(*dh_params, DH_BITS);
-        if (ret < 0) {
-            gnutls_dh_params_deinit(*dh_params);
-            *dh_params = NULL;
-            error_setg(errp, "Unable to generate DH parameters: %s",
-                       gnutls_strerror(ret));
-            return -1;
-        }
-    } else {
+    if (filename != NULL) {
         GError *gerr = NULL;
         gchar *contents;
         gsize len;
@@ -67,6 +53,10 @@ qcrypto_tls_creds_get_dh_params_file(QCryptoTLSCreds *creds,
             g_error_free(gerr);
             return -1;
         }
+        warn_report_once("Use of an external DH parameters file '%s' is "
+                         "deprecated and will be removed in a future release",
+                         filename);
+
         data.data = (unsigned char *)contents;
         data.size = len;
         ret = gnutls_dh_params_init(dh_params);
@@ -87,6 +77,8 @@ qcrypto_tls_creds_get_dh_params_file(QCryptoTLSCreds *creds,
                        filename, gnutls_strerror(ret));
             return -1;
         }
+    } else {
+        *dh_params = NULL;
     }
 
     return 0;
