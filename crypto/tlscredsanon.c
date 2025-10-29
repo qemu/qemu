@@ -27,10 +27,13 @@
 #include "trace.h"
 
 
+struct QCryptoTLSCredsAnon {
+    QCryptoTLSCreds parent_obj;
+};
+
 #ifdef CONFIG_GNUTLS
 
 #include <gnutls/gnutls.h>
-
 
 static int
 qcrypto_tls_creds_anon_load(QCryptoTLSCredsAnon *creds,

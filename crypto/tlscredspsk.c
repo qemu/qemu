@@ -27,6 +27,11 @@
 #include "trace.h"
 
 
+struct QCryptoTLSCredsPSK {
+    QCryptoTLSCreds parent_obj;
+    char *username;
+};
+
 #ifdef CONFIG_GNUTLS
 
 #include <gnutls/gnutls.h>

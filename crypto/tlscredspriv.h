@@ -37,21 +37,6 @@ struct QCryptoTLSCreds {
     QCryptoTLSCredsBox *box;
 };
 
-struct QCryptoTLSCredsAnon {
-    QCryptoTLSCreds parent_obj;
-};
-
-struct QCryptoTLSCredsPSK {
-    QCryptoTLSCreds parent_obj;
-    char *username;
-};
-
-struct QCryptoTLSCredsX509 {
-    QCryptoTLSCreds parent_obj;
-    bool sanityCheck;
-    char *passwordid;
-};
-
 #ifdef CONFIG_GNUTLS
 
 int qcrypto_tls_creds_get_path(QCryptoTLSCreds *creds,

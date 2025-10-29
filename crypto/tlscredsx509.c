@@ -28,6 +28,12 @@
 #include "trace.h"
 
 
+struct QCryptoTLSCredsX509 {
+    QCryptoTLSCreds parent_obj;
+    bool sanityCheck;
+    char *passwordid;
+};
+
 #ifdef CONFIG_GNUTLS
 
 #include <gnutls/gnutls.h>
