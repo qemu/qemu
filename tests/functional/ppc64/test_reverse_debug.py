@@ -18,7 +18,7 @@ from qemu_test import skipFlakyTest
 from reverse_debugging import ReverseDebugging
 
 
-class ReverseDebugging_ppc64(ReverseDebugging):
+class ReverseDebuggingPpc64(ReverseDebugging):
 
     @skipFlakyTest("https://gitlab.com/qemu-project/qemu/-/issues/1992")
     def test_ppc64_pseries(self):

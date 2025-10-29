@@ -10,7 +10,7 @@
 from qemu_test import QemuSystemTest
 from qemu_test import wait_for_console_pattern
 
-class ppc74xxCpu(QemuSystemTest):
+class Ppc74xxCpu(QemuSystemTest):
 
     timeout = 5
 

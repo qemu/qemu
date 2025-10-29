@@ -8,10 +8,11 @@ from qemu_test import LinuxKernelTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
 
 
-class sam460exTest(LinuxKernelTest):
+class Sam460exTest(LinuxKernelTest):
 
     ASSET_BR2_SAM460EX_LINUX = Asset(
-        'https://github.com/legoater/qemu-ppc-boot/raw/refs/heads/main/buildroot/qemu_ppc_sam460ex-2023.11-8-gdcd9f0f6eb-20240105/vmlinux',
+        ('https://github.com/legoater/qemu-ppc-boot/raw/refs/heads/main'
+         '/buildroot/qemu_ppc_sam460ex-2023.11-8-gdcd9f0f6eb-20240105/vmlinux'),
         '6f46346f3e20e8b5fc050ff363f350f8b9d76a051b9e0bd7ea470cc680c14df2')
 
     def test_ppc_sam460ex_buildroot(self):
