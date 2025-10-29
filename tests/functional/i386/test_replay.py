@@ -17,7 +17,6 @@ class I386Replay(ReplayKernelBase):
 
     def test_pc(self):
         self.set_machine('pc')
-        kernel_url = ()
         kernel_path = self.ASSET_KERNEL.fetch()
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
         console_pattern = 'VFS: Cannot open root device'

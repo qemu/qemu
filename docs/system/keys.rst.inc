@@ -21,7 +21,7 @@ while ``-display sdl,grab-mod=rctrl`` changes it to the right :kbd:`Ctrl` key.
   * - :kbd:`Ctrl+Alt+-`
     - Shrink the screen
 
-  * - :kbd:`Ctrl+Alt+u`
+  * - :kbd:`Ctrl+Alt+0`
     - Restore the screen's un-scaled dimensions
 
   * - :kbd:`Ctrl+Alt+n`

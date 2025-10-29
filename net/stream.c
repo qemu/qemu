@@ -274,23 +274,13 @@ int net_init_stream(const Netdev *netdev, const char *name,
     sock = &netdev->u.stream;
 
     if (!sock->has_server || !sock->server) {
-        uint32_t reconnect_ms = 0;
-
-        if (sock->has_reconnect && sock->has_reconnect_ms) {
-            error_setg(errp, "'reconnect' and 'reconnect-ms' are mutually "
-                             "exclusive");
-            return -1;
-        } else if (sock->has_reconnect_ms) {
-            reconnect_ms = sock->reconnect_ms;
-        } else if (sock->has_reconnect) {
-            reconnect_ms = sock->reconnect * 1000u;
-        }
-
         return net_stream_client_init(peer, "stream", name, sock->addr,
-                                      reconnect_ms, errp);
+                                      sock->has_reconnect_ms ?
+                                          sock->reconnect_ms : 0,
+                                      errp);
     }
-    if (sock->has_reconnect || sock->has_reconnect_ms) {
-        error_setg(errp, "'reconnect' and 'reconnect-ms' options are "
+    if (sock->has_reconnect_ms) {
+        error_setg(errp, "'reconnect-ms' option is "
                          "incompatible with socket in server mode");
         return -1;
     }
