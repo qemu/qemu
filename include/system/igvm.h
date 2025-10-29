@@ -23,5 +23,7 @@ int qigvm_process_file(IgvmCfg *igvm, ConfidentialGuestSupport *cgs,
 int qigvm_x86_get_mem_map_entry(int index,
                                 ConfidentialGuestMemoryMapEntry *entry,
                                 Error **errp);
+int qigvm_x86_set_vp_context(void *data, int index,
+                             Error **errp);
 
 #endif

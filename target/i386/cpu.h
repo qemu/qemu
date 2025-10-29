@@ -2868,6 +2868,9 @@ void x86_cpu_dump_local_apic_state(CPUState *cs, int flags);
 
 #endif
 
+/* igvm.c */
+void qigvm_x86_bsp_reset(CPUX86State *env);
+
 /* cpu.c */
 bool cpu_is_bsp(X86CPU *cpu);
 
