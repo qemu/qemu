@@ -315,7 +315,6 @@ qcrypto_tls_creds_check_authority_chain(QCryptoTLSCredsX509 *creds,
                                         unsigned int ncacerts,
                                         const char *cacertFile,
                                         bool isServer,
-                                        bool isCA,
                                         Error **errp)
 {
     gnutls_x509_crt_t cert_to_check = certs[ncerts - 1];
@@ -356,7 +355,7 @@ qcrypto_tls_creds_check_authority_chain(QCryptoTLSCredsX509 *creds,
              */
             return qcrypto_tls_creds_check_cert(
                 creds, cert_to_check, cacertFile,
-                isServer, isCA, errp);
+                isServer, true, errp);
         }
         for (int i = 0; i < ncacerts; i++) {
             if (gnutls_x509_crt_check_issuer(cert_to_check,
@@ -370,7 +369,7 @@ qcrypto_tls_creds_check_authority_chain(QCryptoTLSCredsX509 *creds,
         }
 
         if (qcrypto_tls_creds_check_cert(creds, cert_issuer, cacertFile,
-                                         isServer, isCA, errp) < 0) {
+                                         isServer, true, errp) < 0) {
             return -1;
         }
 
@@ -534,7 +533,7 @@ qcrypto_tls_creds_x509_sanity_check(QCryptoTLSCredsX509 *creds,
                                                 certs, ncerts,
                                                 cacerts, ncacerts,
                                                 cacertFile, isServer,
-                                                true, errp) < 0) {
+                                                errp) < 0) {
         goto cleanup;
     }
 
