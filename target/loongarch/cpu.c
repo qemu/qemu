@@ -106,11 +106,11 @@ bool loongarch_cpu_has_work(CPUState *cs)
 }
 #endif /* !CONFIG_USER_ONLY */
 
-static void loongarch_la464_init_csr(Object *obj)
+static void loongarch_la464_init_csr(DeviceState *dev)
 {
 #ifndef CONFIG_USER_ONLY
     static bool initialized;
-    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+    LoongArchCPU *cpu = LOONGARCH_CPU(dev);
     CPULoongArchState *env = &cpu->env;
     int i, num;
 
@@ -369,7 +369,6 @@ static void loongarch_la464_initfn(Object *obj)
 
     cpu->msgint = ON_OFF_AUTO_OFF;
     cpu->ptw = ON_OFF_AUTO_OFF;
-    loongarch_la464_init_csr(obj);
     loongarch_cpu_post_init(obj);
 }
 
@@ -524,6 +523,7 @@ static void loongarch_cpu_realizefn(DeviceState *dev, Error **errp)
 
     qemu_init_vcpu(cs);
     cpu_reset(cs);
+    loongarch_la464_init_csr(dev);
 
     lacc->parent_realize(dev, errp);
 }
