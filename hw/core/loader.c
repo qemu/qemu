@@ -153,8 +153,12 @@ ssize_t load_image_targphys_as(const char *filename,
     }
 
     if (size > max_sz) {
+        char *size_str = size_to_str(max_sz);
+
         error_setg(errp, "%s exceeds maximum image size (%s)",
-                   filename, size_to_str(max_sz));
+                   filename, size_str);
+
+        g_free(size_str);
         return -1;
     }
 
