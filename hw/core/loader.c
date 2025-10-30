@@ -86,6 +86,7 @@ int64_t get_image_size(const char *filename, Error **errp)
 
     if (size < 0) {
         error_setg_errno(errp, errno, "lseek failure: %s", filename);
+        close(fd);
         return -1;
     }
 
