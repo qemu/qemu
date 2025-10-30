@@ -48,6 +48,7 @@ static bool debug;
 static void dt_add_microvm_irq(MicrovmMachineState *mms,
                                const char *nodename, uint32_t irq)
 {
+    MachineState *ms = MACHINE(mms);
     int index = 0;
 
     if (irq >= IO_APIC_SECONDARY_IRQBASE) {
@@ -55,13 +56,14 @@ static void dt_add_microvm_irq(MicrovmMachineState *mms,
         index++;
     }
 
-    qemu_fdt_setprop_cell(mms->fdt, nodename, "interrupt-parent",
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
                           mms->ioapic_phandle[index]);
-    qemu_fdt_setprop_cells(mms->fdt, nodename, "interrupts", irq, 0);
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts", irq, 0);
 }
 
 static void dt_add_virtio(MicrovmMachineState *mms, VirtIOMMIOProxy *mmio)
 {
+    MachineState *ms = MACHINE(mms);
     SysBusDevice *dev = SYS_BUS_DEVICE(mmio);
     VirtioBusState *mmio_virtio_bus = &mmio->bus;
     BusState *mmio_bus = &mmio_virtio_bus->parent_obj;
@@ -77,10 +79,10 @@ static void dt_add_virtio(MicrovmMachineState *mms, VirtIOMMIOProxy *mmio)
     uint32_t irq = mms->virtio_irq_base + index;
 
     nodename = g_strdup_printf("/virtio_mmio@%" PRIx64, base);
-    qemu_fdt_add_subnode(mms->fdt, nodename);
-    qemu_fdt_setprop_string(mms->fdt, nodename, "compatible", "virtio,mmio");
-    qemu_fdt_setprop_sized_cells(mms->fdt, nodename, "reg", 2, base, 2, size);
-    qemu_fdt_setprop(mms->fdt, nodename, "dma-coherent", NULL, 0);
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_string(ms->fdt, nodename, "compatible", "virtio,mmio");
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg", 2, base, 2, size);
+    qemu_fdt_setprop(ms->fdt, nodename, "dma-coherent", NULL, 0);
     dt_add_microvm_irq(mms, nodename, irq);
     g_free(nodename);
 }
@@ -88,40 +90,42 @@ static void dt_add_virtio(MicrovmMachineState *mms, VirtIOMMIOProxy *mmio)
 static void dt_add_xhci(MicrovmMachineState *mms)
 {
     const char compat[] = "generic-xhci";
+    MachineState *ms = MACHINE(mms);
     uint32_t irq = MICROVM_XHCI_IRQ;
     hwaddr base = MICROVM_XHCI_BASE;
     hwaddr size = XHCI_LEN_REGS;
     char *nodename;
 
     nodename = g_strdup_printf("/usb@%" PRIx64, base);
-    qemu_fdt_add_subnode(mms->fdt, nodename);
-    qemu_fdt_setprop(mms->fdt, nodename, "compatible", compat, sizeof(compat));
-    qemu_fdt_setprop_sized_cells(mms->fdt, nodename, "reg", 2, base, 2, size);
-    qemu_fdt_setprop(mms->fdt, nodename, "dma-coherent", NULL, 0);
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg", 2, base, 2, size);
+    qemu_fdt_setprop(ms->fdt, nodename, "dma-coherent", NULL, 0);
     dt_add_microvm_irq(mms, nodename, irq);
     g_free(nodename);
 }
 
 static void dt_add_pcie(MicrovmMachineState *mms)
 {
+    MachineState *ms = MACHINE(mms);
     hwaddr base = PCIE_MMIO_BASE;
     int nr_pcie_buses;
     char *nodename;
 
     nodename = g_strdup_printf("/pcie@%" PRIx64, base);
-    qemu_fdt_add_subnode(mms->fdt, nodename);
-    qemu_fdt_setprop_string(mms->fdt, nodename,
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_string(ms->fdt, nodename,
                             "compatible", "pci-host-ecam-generic");
-    qemu_fdt_setprop_string(mms->fdt, nodename, "device_type", "pci");
-    qemu_fdt_setprop_cell(mms->fdt, nodename, "#address-cells", 3);
-    qemu_fdt_setprop_cell(mms->fdt, nodename, "#size-cells", 2);
-    qemu_fdt_setprop_cell(mms->fdt, nodename, "linux,pci-domain", 0);
-    qemu_fdt_setprop(mms->fdt, nodename, "dma-coherent", NULL, 0);
+    qemu_fdt_setprop_string(ms->fdt, nodename, "device_type", "pci");
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#address-cells", 3);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#size-cells", 2);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "linux,pci-domain", 0);
+    qemu_fdt_setprop(ms->fdt, nodename, "dma-coherent", NULL, 0);
 
-    qemu_fdt_setprop_sized_cells(mms->fdt, nodename, "reg",
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
                                  2, PCIE_ECAM_BASE, 2, PCIE_ECAM_SIZE);
     if (mms->gpex.mmio64.size) {
-        qemu_fdt_setprop_sized_cells(mms->fdt, nodename, "ranges",
+        qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "ranges",
 
                                      1, FDT_PCI_RANGE_MMIO,
                                      2, mms->gpex.mmio32.base,
@@ -133,7 +137,7 @@ static void dt_add_pcie(MicrovmMachineState *mms)
                                      2, mms->gpex.mmio64.base,
                                      2, mms->gpex.mmio64.size);
     } else {
-        qemu_fdt_setprop_sized_cells(mms->fdt, nodename, "ranges",
+        qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "ranges",
 
                                      1, FDT_PCI_RANGE_MMIO,
                                      2, mms->gpex.mmio32.base,
@@ -142,7 +146,7 @@ static void dt_add_pcie(MicrovmMachineState *mms)
     }
 
     nr_pcie_buses = PCIE_ECAM_SIZE / PCIE_MMCFG_SIZE_MIN;
-    qemu_fdt_setprop_cells(mms->fdt, nodename, "bus-range", 0,
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "bus-range", 0,
                            nr_pcie_buses - 1);
 
     g_free(nodename);
@@ -150,6 +154,7 @@ static void dt_add_pcie(MicrovmMachineState *mms)
 
 static void dt_add_ioapic(MicrovmMachineState *mms, SysBusDevice *dev)
 {
+    MachineState *ms = MACHINE(mms);
     hwaddr base = dev->mmio[0].addr;
     char *nodename;
     uint32_t ph;
@@ -168,18 +173,18 @@ static void dt_add_ioapic(MicrovmMachineState *mms, SysBusDevice *dev)
     }
 
     nodename = g_strdup_printf("/ioapic%d@%" PRIx64, index + 1, base);
-    qemu_fdt_add_subnode(mms->fdt, nodename);
-    qemu_fdt_setprop_string(mms->fdt, nodename,
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_string(ms->fdt, nodename,
                             "compatible", "intel,ce4100-ioapic");
-    qemu_fdt_setprop(mms->fdt, nodename, "interrupt-controller", NULL, 0);
-    qemu_fdt_setprop_cell(mms->fdt, nodename, "#interrupt-cells", 0x2);
-    qemu_fdt_setprop_cell(mms->fdt, nodename, "#address-cells", 0x2);
-    qemu_fdt_setprop_sized_cells(mms->fdt, nodename, "reg",
+    qemu_fdt_setprop(ms->fdt, nodename, "interrupt-controller", NULL, 0);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#interrupt-cells", 0x2);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#address-cells", 0x2);
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
                                  2, base, 2, 0x1000);
 
-    ph = qemu_fdt_alloc_phandle(mms->fdt);
-    qemu_fdt_setprop_cell(mms->fdt, nodename, "phandle", ph);
-    qemu_fdt_setprop_cell(mms->fdt, nodename, "linux,phandle", ph);
+    ph = qemu_fdt_alloc_phandle(ms->fdt);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "phandle", ph);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "linux,phandle", ph);
     mms->ioapic_phandle[index] = ph;
 
     g_free(nodename);
@@ -190,17 +195,18 @@ static void dt_add_isa_serial(MicrovmMachineState *mms, ISADevice *dev)
     const char compat[] = "ns16550";
     uint32_t irq = object_property_get_int(OBJECT(dev), "irq", &error_fatal);
     hwaddr base = object_property_get_int(OBJECT(dev), "iobase", &error_fatal);
+    MachineState *ms = MACHINE(mms);
     hwaddr size = 8;
     char *nodename;
 
     nodename = g_strdup_printf("/serial@%" PRIx64, base);
-    qemu_fdt_add_subnode(mms->fdt, nodename);
-    qemu_fdt_setprop(mms->fdt, nodename, "compatible", compat, sizeof(compat));
-    qemu_fdt_setprop_sized_cells(mms->fdt, nodename, "reg", 2, base, 2, size);
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg", 2, base, 2, size);
     dt_add_microvm_irq(mms, nodename, irq);
 
     if (base == 0x3f8 /* com1 */) {
-        qemu_fdt_setprop_string(mms->fdt, "/chosen", "stdout-path", nodename);
+        qemu_fdt_setprop_string(ms->fdt, "/chosen", "stdout-path", nodename);
     }
 
     g_free(nodename);
@@ -211,13 +217,14 @@ static void dt_add_isa_rtc(MicrovmMachineState *mms, ISADevice *dev)
     const char compat[] = "motorola,mc146818";
     uint32_t irq = object_property_get_uint(OBJECT(dev), "irq", &error_fatal);
     hwaddr base = object_property_get_uint(OBJECT(dev), "iobase", &error_fatal);
+    MachineState *ms = MACHINE(mms);
     hwaddr size = 8;
     char *nodename;
 
     nodename = g_strdup_printf("/rtc@%" PRIx64, base);
-    qemu_fdt_add_subnode(mms->fdt, nodename);
-    qemu_fdt_setprop(mms->fdt, nodename, "compatible", compat, sizeof(compat));
-    qemu_fdt_setprop_sized_cells(mms->fdt, nodename, "reg", 2, base, 2, size);
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg", 2, base, 2, size);
     dt_add_microvm_irq(mms, nodename, irq);
     g_free(nodename);
 }
@@ -317,27 +324,28 @@ static void dt_setup_sys_bus(MicrovmMachineState *mms)
 void dt_setup_microvm(MicrovmMachineState *mms)
 {
     X86MachineState *x86ms = X86_MACHINE(mms);
+    MachineState *ms = MACHINE(mms);
     int size = 0;
 
-    mms->fdt = create_device_tree(&size);
+    ms->fdt = create_device_tree(&size);
 
     /* root node */
-    qemu_fdt_setprop_string(mms->fdt, "/", "compatible", "linux,microvm");
-    qemu_fdt_setprop_cell(mms->fdt, "/", "#address-cells", 0x2);
-    qemu_fdt_setprop_cell(mms->fdt, "/", "#size-cells", 0x2);
+    qemu_fdt_setprop_string(ms->fdt, "/", "compatible", "linux,microvm");
+    qemu_fdt_setprop_cell(ms->fdt, "/", "#address-cells", 0x2);
+    qemu_fdt_setprop_cell(ms->fdt, "/", "#size-cells", 0x2);
 
-    qemu_fdt_add_subnode(mms->fdt, "/chosen");
+    qemu_fdt_add_subnode(ms->fdt, "/chosen");
     dt_setup_sys_bus(mms);
 
     /* add to fw_cfg */
     if (debug) {
         fprintf(stderr, "%s: add etc/fdt to fw_cfg\n", __func__);
     }
-    fw_cfg_add_file(x86ms->fw_cfg, "etc/fdt", mms->fdt, size);
+    fw_cfg_add_file(x86ms->fw_cfg, "etc/fdt", ms->fdt, size);
 
     if (debug) {
         fprintf(stderr, "%s: writing microvm.fdt\n", __func__);
-        if (!g_file_set_contents("microvm.fdt", mms->fdt, size, NULL)) {
+        if (!g_file_set_contents("microvm.fdt", ms->fdt, size, NULL)) {
             fprintf(stderr, "%s: writing microvm.fdt failed\n", __func__);
             return;
         }
