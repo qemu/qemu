@@ -24,6 +24,7 @@ from iotests import QemuIoInteractive
 from iotests import filter_qemu_io, filter_qtest, filter_qmp_testfiles
 
 iotests.script_initialize(supported_fmts=['generic'],
+                          unsupported_fmts=['luks'],
                           supported_protocols=['file'],
                           supported_platforms=['linux'])
 
