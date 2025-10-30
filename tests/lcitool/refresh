@@ -272,6 +272,7 @@ try:
     #
     generate_yaml("ubuntu", "ubuntu-2404", "aarch64")
     generate_yaml("ubuntu", "ubuntu-2404", "s390x")
+    generate_yaml("debian", "debian-13", "ppc64le")
 
 
     sys.exit(0)

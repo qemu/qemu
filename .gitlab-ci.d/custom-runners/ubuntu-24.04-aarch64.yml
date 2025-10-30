@@ -107,7 +107,5 @@ ubuntu-24.04-aarch64-notcg:
   rules:
     - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
       when: manual
-      allow_failure: true
     - if: "$AARCH64_RUNNER_AVAILABLE"
       when: manual
-      allow_failure: true

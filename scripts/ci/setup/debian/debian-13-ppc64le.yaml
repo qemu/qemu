@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTO-GENERATED
 #
-#  $ lcitool variables --host-arch s390x ubuntu-2404 qemu
+#  $ lcitool variables --host-arch ppc64le debian-13 qemu
 #
 # https://gitlab.com/libvirt/libvirt-ci
 
@@ -56,7 +56,7 @@ packages:
   - libibverbs-dev
   - libiscsi-dev
   - libjemalloc-dev
-  - libjpeg-turbo8-dev
+  - libjpeg62-turbo-dev
   - libjson-c-dev
   - liblttng-ust-dev
   - liblzo2-dev
@@ -80,6 +80,7 @@ packages:
   - libsnappy-dev
   - libsndio-dev
   - libspice-protocol-dev
+  - libspice-server-dev
   - libssh-dev
   - libstd-rust-dev
   - libsystemd-dev
@@ -117,7 +118,7 @@ packages:
   - python3-wheel
   - python3-yaml
   - rpm2cpio
-  - rustc-1.77
+  - rustc
   - sed
   - socat
   - sparse
