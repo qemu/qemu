@@ -10,13 +10,13 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from os.path import join
-
-from qemu_test import QemuSystemTest, Asset
-from qemu_test import exec_command, wait_for_console_pattern
-from qemu_test import exec_command_and_wait_for_pattern
 from random import randbytes
 
-guest_script = '''
+from qemu_test import QemuSystemTest, Asset
+from qemu_test import wait_for_console_pattern
+
+
+GUEST_SCRIPT = '''
 #!/usr/bin/env bash
 
 set -euo pipefail
@@ -56,7 +56,7 @@ qemu-system-aarch64 \
 -device vfio-pci,host=$pci_iommufd,iommufd=iommufd0
 '''
 
-nested_guest_script = '''
+NESTED_GUEST_SCRIPT = '''
 #!/usr/bin/env bash
 
 set -euo pipefail
@@ -75,6 +75,7 @@ diff $image_iommufd /dev/$dev_iommufd
 echo device_passthrough_test_ok
 '''
 
+
 class Aarch64DevicePassthrough(QemuSystemTest):
 
     # https://github.com/pbo-linaro/qemu-linux-stack/tree/device_passthrough
@@ -86,7 +87,7 @@ class Aarch64DevicePassthrough(QemuSystemTest):
     ASSET_DEVICE_PASSTHROUGH_STACK = Asset(
         ('https://github.com/pbo-linaro/qemu-linux-stack/'
          'releases/download/build/device_passthrough-a9612a2.tar.xz'),
-         'f7d2f70912e7231986e6e293e1a2c4786dd02bec113a7acb6bfc619e96155455')
+        'f7d2f70912e7231986e6e293e1a2c4786dd02bec113a7acb6bfc619e96155455')
 
     # This tests the device passthrough implementation, by booting a VM
     # supporting it with two nvme disks attached, and launching a nested VM
@@ -108,10 +109,14 @@ class Aarch64DevicePassthrough(QemuSystemTest):
         guest_cmd = join(stack, 'guest.sh')
         nested_guest_cmd = join(stack, 'nested_guest.sh')
         # we generate two random disks
-        with open(disk_vfio, "wb") as d: d.write(randbytes(512))
-        with open(disk_iommufd, "wb") as d: d.write(randbytes(1024))
-        with open(guest_cmd, 'w') as s: s.write(guest_script)
-        with open(nested_guest_cmd, 'w') as s: s.write(nested_guest_script)
+        with open(disk_vfio, "wb") as d:
+            d.write(randbytes(512))
+        with open(disk_iommufd, "wb") as d:
+            d.write(randbytes(1024))
+        with open(guest_cmd, 'w', encoding='utf-8') as s:
+            s.write(GUEST_SCRIPT)
+        with open(nested_guest_cmd, 'w', encoding='utf-8') as s:
+            s.write(NESTED_GUEST_SCRIPT)
 
         self.vm.add_args('-cpu', 'max')
         self.vm.add_args('-m', '2G')
@@ -138,6 +143,7 @@ class Aarch64DevicePassthrough(QemuSystemTest):
         self.vm.launch()
         wait_for_console_pattern(self, 'device_passthrough_test_ok',
                                  failure_message='Kernel panic')
+
 
 if __name__ == '__main__':
     QemuSystemTest.main()
