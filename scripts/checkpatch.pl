@@ -1741,13 +1741,7 @@ sub process {
 			}
 		} elsif ($line =~ /^\+\+\+\s+(\S+)/) {
 			$realfile = $1;
-			$realfile =~ s@^([^/]*)/@@ if (!$file);
-
-			$p1_prefix = $1;
-			if (!$file && $tree && $p1_prefix ne '' &&
-			    -e "$root/$p1_prefix") {
-				WARN("patch prefix '$p1_prefix' exists, appears to be a -p0 patch\n");
-			}
+			$realfile =~ s@^[^/]*/@@  if (!$file);
 
 			if (defined $fileinfo && !$fileinfo->{isgit}) {
 				$fileinfo->{lineend} = $oldhere;
