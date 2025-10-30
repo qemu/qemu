@@ -223,6 +223,7 @@ extern const char * const fregnames[32];
 #define IRQ_IPI     12
 #define INT_DMSI    14
 
+#define MAX_PERF_EVENTS        16
 #define LOONGARCH_STLB         2048 /* 2048 STLB */
 #define LOONGARCH_MTLB         64   /* 64 MTLB */
 #define LOONGARCH_TLB_MAX      (LOONGARCH_STLB + LOONGARCH_MTLB)
@@ -357,6 +358,8 @@ typedef struct CPUArchState {
     uint64_t CSR_MERRSAVE;
     uint64_t CSR_CTAG;
     uint64_t CSR_DMW[4];
+    uint64_t CSR_PERFCTRL[MAX_PERF_EVENTS];
+    uint64_t CSR_PERFCNTR[MAX_PERF_EVENTS];
     uint64_t CSR_DBG;
     uint64_t CSR_DERA;
     uint64_t CSR_DSAVE;
@@ -367,6 +370,7 @@ typedef struct CPUArchState {
     struct {
         uint64_t guest_addr;
     } stealtime;
+    uint32_t perf_event_num;
 
 #ifdef CONFIG_TCG
     float_status fp_status;
