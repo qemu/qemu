@@ -236,7 +236,7 @@ static void loongarch_set_ptw(Object *obj, bool value, Error **errp)
     cpu->ptw = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
 
     if (kvm_enabled()) {
-        /* PTW feature is only support in TCG mode now */
+        /* kvm feature detection in function kvm_arch_init_vcpu */
         return;
     }
 
@@ -406,14 +406,14 @@ static void loongarch_la132_initfn(Object *obj)
 static void loongarch_max_initfn(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
-    /* '-cpu max' for TCG: we use cpu la464. */
+    /* '-cpu max': use it for max supported CPU features */
     loongarch_la464_initfn(obj);
 
+    cpu->ptw = ON_OFF_AUTO_AUTO;
     if (tcg_enabled()) {
         cpu->env.cpucfg[1] = FIELD_DP32(cpu->env.cpucfg[1], CPUCFG1, MSG_INT, 1);
         cpu->msgint = ON_OFF_AUTO_AUTO;
         cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, HPTW, 1);
-        cpu->ptw = ON_OFF_AUTO_AUTO;
     }
 }
 
