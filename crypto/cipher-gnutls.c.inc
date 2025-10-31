@@ -23,10 +23,6 @@
 
 #include <gnutls/crypto.h>
 
-#if GNUTLS_VERSION_NUMBER >= 0x030608
-#define QEMU_GNUTLS_XTS
-#endif
-
 bool qcrypto_cipher_supports(QCryptoCipherAlgo alg,
                              QCryptoCipherMode mode)
 {
@@ -44,7 +40,6 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgo alg,
         default:
             return false;
         }
-#ifdef QEMU_GNUTLS_XTS
     case QCRYPTO_CIPHER_MODE_XTS:
         switch (alg) {
         case QCRYPTO_CIPHER_ALGO_AES_128:
@@ -53,7 +48,6 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgo alg,
         default:
             return false;
         }
-#endif
     default:
         return false;
     }
@@ -241,7 +235,6 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgo alg,
     int err;
 
     switch (mode) {
-#ifdef QEMU_GNUTLS_XTS
     case QCRYPTO_CIPHER_MODE_XTS:
         switch (alg) {
         case QCRYPTO_CIPHER_ALGO_AES_128:
@@ -254,7 +247,6 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgo alg,
             break;
         }
         break;
-#endif
 
     case QCRYPTO_CIPHER_MODE_ECB:
     case QCRYPTO_CIPHER_MODE_CBC:
