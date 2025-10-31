@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from qemu_test import Asset, skipUntrustedTest
+from qemu_test import skipFlakyTest
 from replay_kernel import ReplayKernelBase
 
 
@@ -16,6 +17,7 @@ class Mips64elReplay(ReplayKernelBase):
          'linux-image-2.6.32-5-5kc-malta_2.6.32-48_mipsel.deb'),
         '35eb476f03be589824b0310358f1c447d85e645b88cbcd2ac02b97ef560f9f8d')
 
+    @skipFlakyTest("https://gitlab.com/qemu-project/qemu/-/issues/2013")
     def test_replay_mips64el_malta(self):
         self.set_machine('malta')
         kernel_path = self.archive_extract(self.ASSET_KERNEL_2_63_2,
