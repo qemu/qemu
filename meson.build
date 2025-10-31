@@ -1823,33 +1823,11 @@ if not get_option('libcbor').auto() or have_system
 endif
 
 gnutls = not_found
-gnutls_crypto = not_found
 gnutls_bug1717_workaround = false
 if get_option('gnutls').enabled() or (get_option('gnutls').auto() and have_system)
-  # For general TLS support our min gnutls matches
-  # that implied by our platform support matrix
-  #
-  # For the crypto backends, we look for a newer
-  # gnutls:
-  #
-  #   Version 3.6.8  is needed to get XTS
-  #   Version 3.6.13 is needed to get PBKDF
-  #   Version 3.6.14 is needed to get HW accelerated XTS
-  #
-  # If newer enough gnutls isn't available, we can
-  # still use a different crypto backend to satisfy
-  # the platform support requirements
-  gnutls_crypto = dependency('gnutls', version: '>=3.6.14',
-                             method: 'pkg-config',
-                             required: false)
-  if gnutls_crypto.found()
-    gnutls = gnutls_crypto
-  else
-    # Our min version if all we need is TLS
-    gnutls = dependency('gnutls', version: '>=3.5.18',
-                        method: 'pkg-config',
-                        required: get_option('gnutls'))
-  endif
+  gnutls = dependency('gnutls', version: '>=3.7.5',
+                      method: 'pkg-config',
+                      required: get_option('gnutls'))
 
   #if gnutls.found() and not get_option('gnutls-bug1717-workaround').disabled()
     # XXX: when bug 1717 is resolved, add logic to probe for
@@ -1874,12 +1852,7 @@ if get_option('nettle').enabled() and get_option('gcrypt').enabled()
   error('Only one of gcrypt & nettle can be enabled')
 endif
 
-# Explicit nettle/gcrypt request, so ignore gnutls for crypto
-if get_option('nettle').enabled() or get_option('gcrypt').enabled()
-  gnutls_crypto = not_found
-endif
-
-if not gnutls_crypto.found()
+if not gnutls.found()
   if (not get_option('gcrypt').auto() or have_system) and not get_option('nettle').enabled()
     gcrypt = dependency('libgcrypt', version: '>=1.8',
                         required: get_option('gcrypt'))
@@ -2606,7 +2579,6 @@ config_host_data.set('CONFIG_XKBCOMMON', xkbcommon.found())
 config_host_data.set('CONFIG_KEYUTILS', keyutils.found())
 config_host_data.set('CONFIG_GETTID', has_gettid)
 config_host_data.set('CONFIG_GNUTLS', gnutls.found())
-config_host_data.set('CONFIG_GNUTLS_CRYPTO', gnutls_crypto.found())
 config_host_data.set('CONFIG_GNUTLS_BUG1717_WORKAROUND', gnutls_bug1717_workaround)
 config_host_data.set('CONFIG_TASN1', tasn1.found())
 config_host_data.set('CONFIG_GCRYPT', gcrypt.found())
@@ -4906,7 +4878,6 @@ summary_info = {}
 summary_info += {'TLS priority':      get_option('tls_priority')}
 summary_info += {'GNUTLS support':    gnutls}
 if gnutls.found()
-  summary_info += {'  GNUTLS crypto':   gnutls_crypto.found()}
   summary_info += {'  GNUTLS bug 1717 workaround': gnutls_bug1717_workaround }
 endif
 summary_info += {'libgcrypt':         gcrypt}
