@@ -3039,20 +3039,22 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
             case INDEX_op_qemu_ld2:
             case INDEX_op_qemu_st2:
                 {
-                    const char *s_al, *s_op, *s_at;
+                    const char *s_al, *s_tlb, *s_op, *s_at;
                     MemOpIdx oi = op->args[k++];
                     MemOp mop = get_memop(oi);
                     unsigned ix = get_mmuidx(oi);
 
+                    s_tlb = mop & MO_ALIGN_TLB_ONLY ? "tlb+" : "";
                     s_al = alignment_name[(mop & MO_AMASK) >> MO_ASHIFT];
                     s_op = ldst_name[mop & (MO_BSWAP | MO_SSIZE)];
                     s_at = atom_name[(mop & MO_ATOM_MASK) >> MO_ATOM_SHIFT];
-                    mop &= ~(MO_AMASK | MO_BSWAP | MO_SSIZE | MO_ATOM_MASK);
+                    mop &= ~(MO_AMASK | MO_BSWAP | MO_SSIZE |
+                             MO_ATOM_MASK | MO_ALIGN_TLB_ONLY);
 
                     /* If all fields are accounted for, print symbolically. */
                     if (!mop && s_al && s_op && s_at) {
-                        col += ne_fprintf(f, ",%s%s%s,%u",
-                                          s_at, s_al, s_op, ix);
+                        col += ne_fprintf(f, ",%s%s%s%s,%u",
+                                          s_at, s_al, s_tlb, s_op, ix);
                     } else {
                         mop = get_memop(oi);
                         col += ne_fprintf(f, ",$0x%x,%u", mop, ix);

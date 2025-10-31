@@ -1668,18 +1668,7 @@ static bool mmu_lookup1(CPUState *cpu, MMULookupPageData *data, MemOp memop,
 
     if (likely(!maybe_resized)) {
         /* Alignment has not been checked by tlb_fill_align. */
-        int a_bits = memop_alignment_bits(memop);
-
-        /*
-         * This alignment check differs from the one above, in that this is
-         * based on the atomicity of the operation. The intended use case is
-         * the ARM memory type field of each PTE, where access to pages with
-         * Device memory type require alignment.
-         */
-        if (unlikely(flags & TLB_CHECK_ALIGNED)) {
-            int at_bits = memop_atomicity_bits(memop);
-            a_bits = MAX(a_bits, at_bits);
-        }
+        int a_bits = memop_tlb_alignment_bits(memop, flags & TLB_CHECK_ALIGNED);
         if (unlikely(addr & ((1 << a_bits) - 1))) {
             cpu_unaligned_access(cpu, addr, access_type, mmu_idx, ra);
         }

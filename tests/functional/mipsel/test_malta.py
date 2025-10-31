@@ -10,6 +10,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from qemu_test import QemuSystemTest, LinuxKernelTest, Asset
+from qemu_test import skipFlakyTest
 from qemu_test import interrupt_interactive_console_until_pattern
 from qemu_test import wait_for_console_pattern
 
@@ -69,6 +70,7 @@ class MaltaMachineConsole(LinuxKernelTest):
          'debian_wheezy_mipsel_standard.qcow2'),
         '454f09ae39f7e6461c84727b927100d2c7813841f2a0a5dce328114887ecf914')
 
+    @skipFlakyTest("https://gitlab.com/qemu-project/qemu/-/issues/3109")
     def test_wheezy(self):
         kernel_path = self.ASSET_WHEEZY_KERNEL.fetch()
         image_path = self.ASSET_WHEEZY_DISK.fetch()

@@ -2352,7 +2352,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
      * CPUs with ARM_FEATURE_LPAE but not ARM_FEATURE_V7VE anyway.)
      */
     if (device) {
-        unsigned a_bits = memop_atomicity_bits(memop);
+        unsigned a_bits = memop_tlb_alignment_bits(memop, true);
         if (address & ((1 << a_bits) - 1)) {
             fi->type = ARMFault_Alignment;
             goto do_fault;
