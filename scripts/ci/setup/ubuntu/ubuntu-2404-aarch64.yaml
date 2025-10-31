@@ -119,7 +119,7 @@ packages:
   - python3-wheel
   - python3-yaml
   - rpm2cpio
-  - rustc-1.77
+  - rustc-1.83
   - sed
   - socat
   - sparse

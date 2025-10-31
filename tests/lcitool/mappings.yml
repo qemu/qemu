@@ -70,8 +70,8 @@ mappings:
 
   rust:
     Debian12: rustc-web
-    Ubuntu2204: rustc-1.77
-    Ubuntu2404: rustc-1.77
+    Ubuntu2204: rustc-1.83
+    Ubuntu2404: rustc-1.83
 
 pypi_mappings:
   # Request more recent version
