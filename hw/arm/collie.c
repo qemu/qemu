@@ -15,6 +15,7 @@
 #include "hw/boards.h"
 #include "strongarm.h"
 #include "hw/arm/boot.h"
+#include "hw/arm/machines-qom.h"
 #include "hw/block/flash.h"
 #include "system/address-spaces.h"
 #include "qom/object.h"
@@ -86,6 +87,7 @@ static const TypeInfo collie_machine_typeinfo = {
     .parent = TYPE_MACHINE,
     .class_init = collie_machine_class_init,
     .instance_size = sizeof(CollieMachineState),
+    .interfaces = arm_machine_interfaces,
 };
 
 static void collie_machine_register_types(void)
