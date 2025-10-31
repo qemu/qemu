@@ -28,14 +28,14 @@ int qcrypto_hmac_bytesv(QCryptoHmac *hmac,
 }
 
 int qcrypto_hmac_bytes(QCryptoHmac *hmac,
-                       const char *buf,
+                       const void *buf,
                        size_t len,
                        uint8_t **result,
                        size_t *resultlen,
                        Error **errp)
 {
     struct iovec iov = {
-            .iov_base = (char *)buf,
+            .iov_base = (void *)buf,
             .iov_len = len
     };
 
@@ -70,13 +70,13 @@ int qcrypto_hmac_digestv(QCryptoHmac *hmac,
 }
 
 int qcrypto_hmac_digest(QCryptoHmac *hmac,
-                        const char *buf,
+                        const void *buf,
                         size_t len,
                         char **digest,
                         Error **errp)
 {
     struct iovec iov = {
-            .iov_base = (char *)buf,
+            .iov_base = (void *)buf,
             .iov_len = len
     };
 

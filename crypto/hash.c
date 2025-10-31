@@ -67,13 +67,13 @@ int qcrypto_hash_bytesv(QCryptoHashAlgo alg,
 
 
 int qcrypto_hash_bytes(QCryptoHashAlgo alg,
-                       const char *buf,
+                       const void *buf,
                        size_t len,
                        uint8_t **result,
                        size_t *resultlen,
                        Error **errp)
 {
-    struct iovec iov = { .iov_base = (char *)buf,
+    struct iovec iov = { .iov_base = (void *)buf,
                          .iov_len = len };
     return qcrypto_hash_bytesv(alg, &iov, 1, result, resultlen, errp);
 }
@@ -89,11 +89,11 @@ int qcrypto_hash_updatev(QCryptoHash *hash,
 }
 
 int qcrypto_hash_update(QCryptoHash *hash,
-                        const char *buf,
+                        const void *buf,
                         size_t len,
                         Error **errp)
 {
-    struct iovec iov = { .iov_base = (char *)buf, .iov_len = len };
+    struct iovec iov = { .iov_base = (void *)buf, .iov_len = len };
 
     return qcrypto_hash_updatev(hash, &iov, 1, errp);
 }
@@ -206,12 +206,12 @@ int qcrypto_hash_digestv(QCryptoHashAlgo alg,
 }
 
 int qcrypto_hash_digest(QCryptoHashAlgo alg,
-                        const char *buf,
+                        const void *buf,
                         size_t len,
                         char **digest,
                         Error **errp)
 {
-    struct iovec iov = { .iov_base = (char *)buf, .iov_len = len };
+    struct iovec iov = { .iov_base = (void *)buf, .iov_len = len };
 
     return qcrypto_hash_digestv(alg, &iov, 1, digest, errp);
 }
@@ -237,12 +237,12 @@ int qcrypto_hash_base64v(QCryptoHashAlgo alg,
 }
 
 int qcrypto_hash_base64(QCryptoHashAlgo alg,
-                        const char *buf,
+                        const void *buf,
                         size_t len,
                         char **base64,
                         Error **errp)
 {
-    struct iovec iov = { .iov_base = (char *)buf, .iov_len = len };
+    struct iovec iov = { .iov_base = (void *)buf, .iov_len = len };
 
     return qcrypto_hash_base64v(alg, &iov, 1, base64, errp);
 }
