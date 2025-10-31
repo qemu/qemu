@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from qemu_test import LinuxKernelTest, Asset
+from qemu_test import skipFlakyTest
 from mips.test_malta import mips_check_wheezy
 
 
@@ -20,6 +21,7 @@ class MaltaMachineConsole(LinuxKernelTest):
          'debian_wheezy_mips_standard.qcow2'),
         'de03599285b8382ad309309a6c4869f6c6c42a5cfc983342bab9ec0dfa7849a2')
 
+    @skipFlakyTest("https://gitlab.com/qemu-project/qemu/-/issues/3109")
     def test_wheezy(self):
         kernel_path = self.ASSET_WHEEZY_KERNEL.fetch()
         image_path = self.ASSET_WHEEZY_DISK.fetch()
