@@ -1854,7 +1854,7 @@ endif
 
 if not gnutls.found()
   if (not get_option('gcrypt').auto() or have_system) and not get_option('nettle').enabled()
-    gcrypt = dependency('libgcrypt', version: '>=1.8',
+    gcrypt = dependency('libgcrypt', version: '>=1.9.4',
                         required: get_option('gcrypt'))
     # Debian has removed -lgpg-error from libgcrypt-config
     # as it "spreads unnecessary dependencies" which in
@@ -1866,27 +1866,7 @@ if not gnutls.found()
         version: gcrypt.version())
     endif
     crypto_sm4 = gcrypt
-    # SM4 ALG is available in libgcrypt >= 1.9
-    if gcrypt.found() and not cc.links('''
-      #include <gcrypt.h>
-      int main(void) {
-        gcry_cipher_hd_t handler;
-        gcry_cipher_open(&handler, GCRY_CIPHER_SM4, GCRY_CIPHER_MODE_ECB, 0);
-        return 0;
-      }''', dependencies: gcrypt)
-      crypto_sm4 = not_found
-    endif
     crypto_sm3 = gcrypt
-    # SM3 ALG is available in libgcrypt >= 1.9
-    if gcrypt.found() and not cc.links('''
-      #include <gcrypt.h>
-      int main(void) {
-        gcry_md_hd_t handler;
-        gcry_md_open(&handler, GCRY_MD_SM3, 0);
-        return 0;
-      }''', dependencies: gcrypt)
-      crypto_sm3 = not_found
-    endif
   endif
   if (not get_option('nettle').auto() or have_system) and not gcrypt.found()
     nettle = dependency('nettle', version: '>=3.4',
