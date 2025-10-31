@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from qemu_test import Asset, skipSlowTest
+from qemu_test import skipFlakyTest
 from replay_kernel import ReplayKernelBase
 
 
@@ -16,6 +17,7 @@ class MipsReplay(ReplayKernelBase):
          'linux-image-2.6.32-5-4kc-malta_2.6.32-48_mips.deb'),
         '16ca524148afb0626f483163e5edf352bc1ab0e4fc7b9f9d473252762f2c7a43')
 
+    @skipFlakyTest("https://gitlab.com/qemu-project/qemu/-/issues/2013")
     def test_replay_mips_malta(self):
         self.set_machine('malta')
         kernel_path = self.archive_extract(self.ASSET_KERNEL_2_63_2,
