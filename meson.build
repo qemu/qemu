@@ -1846,7 +1846,6 @@ nettle = not_found
 hogweed = not_found
 crypto_sm4 = not_found
 crypto_sm3 = not_found
-xts = 'none'
 
 if get_option('nettle').enabled() and get_option('gcrypt').enabled()
   error('Only one of gcrypt & nettle can be enabled')
@@ -1872,9 +1871,6 @@ if not gnutls.found()
     nettle = dependency('nettle', version: '>=3.7.3',
                         method: 'pkg-config',
                         required: get_option('nettle'))
-    if nettle.found() and not cc.has_header('nettle/xts.h', dependencies: nettle)
-      xts = 'private'
-    endif
     crypto_sm4 = nettle
     # SM4 ALG is available in nettle >= 3.9
     if nettle.found() and not cc.links('''
@@ -2566,7 +2562,6 @@ config_host_data.set('CONFIG_NETTLE', nettle.found())
 config_host_data.set('CONFIG_CRYPTO_SM4', crypto_sm4.found())
 config_host_data.set('CONFIG_CRYPTO_SM3', crypto_sm3.found())
 config_host_data.set('CONFIG_HOGWEED', hogweed.found())
-config_host_data.set('CONFIG_QEMU_PRIVATE_XTS', xts == 'private')
 config_host_data.set('CONFIG_MALLOC_TRIM', has_malloc_trim)
 config_host_data.set('CONFIG_ZSTD', zstd.found())
 config_host_data.set('CONFIG_QPL', qpl.found())
@@ -4862,9 +4857,6 @@ if gnutls.found()
 endif
 summary_info += {'libgcrypt':         gcrypt}
 summary_info += {'nettle':            nettle}
-if nettle.found()
-   summary_info += {'  XTS':             xts != 'private'}
-endif
 summary_info += {'SM4 ALG support':   crypto_sm4}
 summary_info += {'SM3 ALG support':   crypto_sm3}
 summary_info += {'AF_ALG support':    have_afalg}

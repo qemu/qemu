@@ -18,10 +18,6 @@
  *
  */
 
-#ifdef CONFIG_QEMU_PRIVATE_XTS
-#include "crypto/xts.h"
-#endif
-
 #include <nettle/nettle-types.h>
 #include <nettle/aes.h>
 #include <nettle/des.h>
@@ -30,9 +26,7 @@
 #include <nettle/serpent.h>
 #include <nettle/twofish.h>
 #include <nettle/ctr.h>
-#ifndef CONFIG_QEMU_PRIVATE_XTS
 #include <nettle/xts.h>
-#endif
 #ifdef CONFIG_CRYPTO_SM4
 #include <nettle/sm4.h>
 #endif
@@ -154,43 +148,6 @@ static const struct QCryptoCipherDriver NAME##_driver_ctr = {           \
 };
 
 
-#ifdef CONFIG_QEMU_PRIVATE_XTS
-#define DEFINE__XTS(NAME, TYPE, BLEN, ENCRYPT, DECRYPT)                 \
-static void NAME##_xts_wrape(const void *ctx, size_t length,            \
-                             uint8_t *dst, const uint8_t *src)          \
-{                                                                       \
-    ENCRYPT((const void *)ctx, length, dst, src);                       \
-}                                                                       \
-static void NAME##_xts_wrapd(const void *ctx, size_t length,            \
-                             uint8_t *dst, const uint8_t *src)          \
-{                                                                       \
-    DECRYPT((const void *)ctx, length, dst, src);                       \
-}                                                                       \
-static int NAME##_encrypt_xts(QCryptoCipher *cipher, const void *in,    \
-                              void *out, size_t len, Error **errp)      \
-{                                                                       \
-    TYPE *ctx = container_of(cipher, TYPE, base);                       \
-    if (!qcrypto_length_check(len, BLEN, errp)) {                       \
-        return -1;                                                      \
-    }                                                                   \
-    xts_encrypt(&ctx->key, &ctx->key_xts,                               \
-                NAME##_xts_wrape, NAME##_xts_wrapd,                     \
-                ctx->iv, len, out, in);                                 \
-    return 0;                                                           \
-}                                                                       \
-static int NAME##_decrypt_xts(QCryptoCipher *cipher, const void *in,    \
-                              void *out, size_t len, Error **errp)      \
-{                                                                       \
-    TYPE *ctx = container_of(cipher, TYPE, base);                       \
-    if (!qcrypto_length_check(len, BLEN, errp)) {                       \
-        return -1;                                                      \
-    }                                                                   \
-    xts_decrypt(&ctx->key, &ctx->key_xts,                               \
-                NAME##_xts_wrape, NAME##_xts_wrapd,                     \
-                ctx->iv, len, out, in);                                 \
-    return 0;                                                           \
-}
-#else
 #define DEFINE__XTS(NAME, TYPE, BLEN, ENCRYPT, DECRYPT)                 \
 static int NAME##_encrypt_xts(QCryptoCipher *cipher, const void *in,    \
                               void *out, size_t len, Error **errp)      \
@@ -214,7 +171,6 @@ static int NAME##_decrypt_xts(QCryptoCipher *cipher, const void *in,    \
                         ctx->iv, len, out, in);                         \
     return 0;                                                           \
 }
-#endif
 
 #define DEFINE_XTS(NAME, TYPE, BLEN, ENCRYPT, DECRYPT)          \
     QEMU_BUILD_BUG_ON(BLEN != XTS_BLOCK_SIZE);                  \
