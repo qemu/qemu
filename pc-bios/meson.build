@@ -74,7 +74,7 @@ blobs = [
   'pnv-pnor.bin',
   'palcode-clipper',
   'u-boot.e500',
-  'u-boot-sam460-20100605.bin',
+  'u-boot-sam460.bin',
   'qemu_vga.ndrv',
   'edk2-licenses.txt',
   'hppa-firmware.img',

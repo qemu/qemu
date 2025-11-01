@@ -1,6 +1,6 @@
-=========================================================
-AmigaNG boards (``amigaone``, ``pegasos2``, ``sam460ex``)
-=========================================================
+=======================================================================
+AmigaNG boards (``amigaone``, ``pegasos1``, ``pegasos2``, ``sam460ex``)
+=======================================================================
 
 These PowerPC machines emulate boards that are primarily used for
 running Amiga like OSes (AmigaOS 4, MorphOS and AROS) but these can
@@ -64,18 +64,23 @@ eventually it boots and the installer becomes visible. The ``ati-vga`` RV100
 emulation is not complete yet so only frame buffer works, DRM and 3D is not
 available.
 
-Genesi/bPlan Pegasos II (``pegasos2``)
-======================================
+Genesi/bPlan Pegasos (``pegasos1``, ``pegasos2``)
+=================================================
 
-The ``pegasos2`` machine emulates the Pegasos II sold by Genesi and
-designed by bPlan. Its schematics are available at
-https://www.powerdeveloper.org/platforms/pegasos/schematics.
+The ``pegasos1`` machine emulates the original Pegasos (later marked I) sold by
+Genesi and designed by bPlan. It uses the same Articia S north bridge as the
+``amigaone`` machine, otherwise it is mostly the same as the later Pegasos II.
+
+The ``pegasos2`` machine emulates the Pegasos II which is a redesigned version
+of Pegasos I to fix problems with its north bridge. Its schematics are available
+at https://www.powerdeveloper.org/platforms/pegasos/schematics.
 
 Emulated devices
 ----------------
 
  * PowerPC 7457 CPU (can also use ``-cpu g3`` or ``750cxe``)
- * Marvell MV64361 Discovery II north bridge
+ * Articia S north bridge (for ``pegasos1``)
+ * Marvell MV64361 Discovery II north bridge (for ``pegasos2``)
  * VIA VT8231 south bridge
  * PCI VGA compatible card (guests may need other card instead)
  * PS/2 keyboard and mouse
@@ -83,9 +88,9 @@ Emulated devices
 Firmware
 --------
 
-The Pegasos II board has an Open Firmware compliant ROM based on
+The Pegasos boards have an Open Firmware compliant ROM based on
 SmartFirmware with some changes that are not open-sourced therefore
-the ROM binary cannot be included in QEMU. An updater was available
+the ROM binary cannot be included in QEMU. A Pegasos II updater was available
 from bPlan, it can be found in the `Internet Archive
 <http://web.archive.org/web/20071021223056/http://www.bplan-gmbh.de/up050404/up050404>`_.
 The ROM image can be extracted from it with the following command:
@@ -111,7 +116,7 @@ At the firmware ``ok`` prompt enter ``boot cd install/pegasos``.
 
 Alternatively, it is possible to boot the kernel directly without
 firmware ROM using the QEMU built-in minimal Virtual Open Firmware
-(VOF) emulation which is also supported on ``pegasos2``. For this,
+(VOF) emulation which is also supported on ``pegasos1`` and ``pegasos2``. For this,
 extract the kernel ``install/powerpc/vmlinuz-chrp.initrd`` from the CD
 image, then run:
 

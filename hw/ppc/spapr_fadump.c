@@ -234,6 +234,7 @@ static bool do_preserve_region(FadumpSection *region)
         qemu_log_mask(LOG_GUEST_ERROR,
             "FADump: Failed allocating memory (size: %zu) for copying"
             " reserved memory regions\n", FADUMP_CHUNK_SIZE);
+        return false;
     }
 
     num_chunks = ceil((src_len * 1.0f) / FADUMP_CHUNK_SIZE);
@@ -452,7 +453,7 @@ static FadumpRegEntry *populate_cpu_reg_entries(CPUState *cpu,
 static void *get_cpu_state_data(uint64_t *cpu_state_len)
 {
     FadumpRegSaveAreaHeader reg_save_hdr;
-    FadumpRegEntry *reg_entries;
+    g_autofree FadumpRegEntry *reg_entries = NULL;
     FadumpRegEntry *curr_reg_entry;
     CPUState *cpu;
 

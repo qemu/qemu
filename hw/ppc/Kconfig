@@ -92,7 +92,7 @@ config AMIGAONE
     select VT82C686
     select SMBUS_EEPROM
 
-config PEGASOS2
+config PEGASOS
     bool
     default y
     depends on PPC

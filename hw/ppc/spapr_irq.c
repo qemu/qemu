@@ -33,7 +33,7 @@ static const TypeInfo spapr_intc_info = {
 
 static void spapr_irq_msi_init(SpaprMachineState *spapr)
 {
-    spapr->irq_map_nr = spapr_irq_nr_msis(spapr);
+    spapr->irq_map_nr = SPAPR_IRQ_NR_MSIS;
     spapr->irq_map = bitmap_new(spapr->irq_map_nr);
 }
 
@@ -275,11 +275,6 @@ void spapr_irq_dt(SpaprMachineState *spapr, uint32_t nr_servers,
         = SPAPR_INTC_GET_CLASS(spapr->active_intc);
 
     sicc->dt(spapr->active_intc, nr_servers, fdt, phandle);
-}
-
-uint32_t spapr_irq_nr_msis(SpaprMachineState *spapr)
-{
-    return SPAPR_NR_XIRQS + SPAPR_XIRQ_BASE - SPAPR_IRQ_MSI;
 }
 
 void spapr_irq_init(SpaprMachineState *spapr, Error **errp)

@@ -144,9 +144,10 @@ u-boot.e500:
 		../pc-bios/u-boot.e500
 
 u-boot.sam460:
-	$(MAKE) -C u-boot-sam460ex Sam460ex_config
+	$(MAKE) -C u-boot-sam460ex Sam460_50_config
 	$(MAKE) -C u-boot-sam460ex CROSS_COMPILE=$(powerpc_cross_prefix)
-	cp u-boot-sam460ex/u-boot.bin ../pc-bios/u-boot-sam460-20100605.bin
+	cp u-boot-sam460ex/u-boot.bin ../pc-bios/u-boot-sam460.bin
+	chmod -x ../pc-bios/u-boot-sam460.bin
 
 skiboot:
 	$(MAKE) -C skiboot CROSS=$(powerpc64_cross_prefix)
