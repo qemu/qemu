@@ -253,7 +253,7 @@ static void count_cpreg(gpointer key, gpointer value, gpointer opaque)
     }
 }
 
-void init_cpreg_list(ARMCPU *cpu)
+void arm_init_cpreg_list(ARMCPU *cpu)
 {
     /*
      * Initialise the cpreg_tuples[] array based on the cp_regs hash.
