@@ -213,9 +213,20 @@ out:
     return retcode;
 }
 
+static bool file_exists(const char *path)
+{
+    struct stat st;
+    return stat(path, &st) == 0 && (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode));
+}
+
+#define POWEROFF_CMD_PATH "/sbin/poweroff"
+#define HALT_CMD_PATH "/sbin/halt"
+#define REBOOT_CMD_PATH "/sbin/reboot"
+
 void qmp_guest_shutdown(const char *mode, Error **errp)
 {
     const char *shutdown_flag;
+    const char *shutdown_cmd = NULL;
     Error *local_err = NULL;
 
 #ifdef CONFIG_SOLARIS
@@ -234,10 +245,19 @@ void qmp_guest_shutdown(const char *mode, Error **errp)
 
     slog("guest-shutdown called, mode: %s", mode);
     if (!mode || strcmp(mode, "powerdown") == 0) {
+        if (file_exists(POWEROFF_CMD_PATH)) {
+            shutdown_cmd = POWEROFF_CMD_PATH;
+        }
         shutdown_flag = powerdown_flag;
     } else if (strcmp(mode, "halt") == 0) {
+        if (file_exists(HALT_CMD_PATH)) {
+            shutdown_cmd = HALT_CMD_PATH;
+        }
         shutdown_flag = halt_flag;
     } else if (strcmp(mode, "reboot") == 0) {
+        if (file_exists(REBOOT_CMD_PATH)) {
+            shutdown_cmd = REBOOT_CMD_PATH;
+        }
         shutdown_flag = reboot_flag;
     } else {
         error_setg(errp,
@@ -254,6 +274,15 @@ void qmp_guest_shutdown(const char *mode, Error **errp)
                           "-h", shutdown_flag, "+0",
 #endif
                           "hypervisor initiated shutdown", (char *) NULL};
+
+    /*
+     * If the specific command exists (poweroff, halt or reboot), use it instead
+     * of /sbin/shutdown.
+     */
+    if (shutdown_cmd != NULL) {
+        argv[0] = shutdown_cmd;
+        argv[1] = NULL;
+    }
 
     ga_run_command(argv, NULL, "shutdown", &local_err);
     if (local_err) {
