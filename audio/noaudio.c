@@ -23,10 +23,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/host-utils.h"
 #include "qemu/module.h"
-#include "audio.h"
-#include "qemu/timer.h"
+#include "qemu/audio.h"
 
 #define AUDIO_CAP "noaudio"
 #include "audio_int.h"
@@ -131,7 +129,6 @@ static struct audio_pcm_ops no_pcm_ops = {
 
 static struct audio_driver no_audio_driver = {
     .name           = "none",
-    .descr          = "Timer based audio emulation",
     .init           = no_audio_init,
     .fini           = no_audio_fini,
     .pcm_ops        = &no_pcm_ops,

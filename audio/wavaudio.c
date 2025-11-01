@@ -23,11 +23,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/host-utils.h"
 #include "qemu/module.h"
-#include "qemu/timer.h"
-#include "qapi/opts-visitor.h"
-#include "audio.h"
+#include "qemu/audio.h"
 
 #define AUDIO_CAP "wav"
 #include "audio_int.h"
@@ -208,7 +205,6 @@ static struct audio_pcm_ops wav_pcm_ops = {
 
 static struct audio_driver wav_audio_driver = {
     .name           = "wav",
-    .descr          = "WAV renderer http://wikipedia.org/wiki/WAV",
     .init           = wav_audio_init,
     .fini           = wav_audio_fini,
     .pcm_ops        = &wav_pcm_ops,

@@ -29,7 +29,7 @@
 #include "qemu/module.h"
 #include "qemu/host-utils.h"
 #include "qapi/error.h"
-#include "audio.h"
+#include "qemu/audio.h"
 #include "trace.h"
 
 #define AUDIO_CAP "oss"
@@ -107,13 +107,13 @@ static void oss_anal_close (int *fdp)
 
 static void oss_helper_poll_out (void *opaque)
 {
-    AudioState *s = opaque;
+    AudioBackend *s = opaque;
     audio_run(s, "oss_poll_out");
 }
 
 static void oss_helper_poll_in (void *opaque)
 {
-    AudioState *s = opaque;
+    AudioBackend *s = opaque;
     audio_run(s, "oss_poll_in");
 }
 
@@ -131,7 +131,7 @@ static void oss_poll_in (HWVoiceIn *hw)
     qemu_set_fd_handler(oss->fd, oss_helper_poll_in, NULL, hw->s);
 }
 
-static int aud_to_ossfmt (AudioFormat fmt, int endianness)
+static int aud_to_ossfmt(AudioFormat fmt, bool big_endian)
 {
     switch (fmt) {
     case AUDIO_FORMAT_S8:
@@ -141,18 +141,10 @@ static int aud_to_ossfmt (AudioFormat fmt, int endianness)
         return AFMT_U8;
 
     case AUDIO_FORMAT_S16:
-        if (endianness) {
-            return AFMT_S16_BE;
-        } else {
-            return AFMT_S16_LE;
-        }
+        return big_endian ? AFMT_S16_BE : AFMT_S16_LE;
 
     case AUDIO_FORMAT_U16:
-        if (endianness) {
-            return AFMT_U16_BE;
-        } else {
-            return AFMT_U16_LE;
-        }
+        return big_endian ? AFMT_U16_BE : AFMT_U16_LE;
 
     default:
         dolog ("Internal logic error: Bad audio format %d\n", fmt);
@@ -493,10 +485,8 @@ static int oss_init_out(HWVoiceOut *hw, struct audsettings *as,
 {
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
     struct oss_params req, obt;
-    int endianness;
     int err;
     int fd;
-    AudioFormat effective_fmt;
     struct audsettings obt_as;
     Audiodev *dev = drv_opaque;
     AudiodevOssOptions *oopts = &dev->u.oss;
@@ -511,7 +501,7 @@ static int oss_init_out(HWVoiceOut *hw, struct audsettings *as,
         return -1;
     }
 
-    err = oss_to_audfmt (obt.fmt, &effective_fmt, &endianness);
+    err = oss_to_audfmt(obt.fmt, &obt_as.fmt, &obt_as.endianness);
     if (err) {
         oss_anal_close (&fd);
         return -1;
@@ -519,8 +509,6 @@ static int oss_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     obt_as.freq = obt.freq;
     obt_as.nchannels = obt.nchannels;
-    obt_as.fmt = effective_fmt;
-    obt_as.endianness = endianness;
 
     audio_pcm_init_info (&hw->info, &obt_as);
     oss->nfrags = obt.nfrags;
@@ -628,10 +616,8 @@ static int oss_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 {
     OSSVoiceIn *oss = (OSSVoiceIn *) hw;
     struct oss_params req, obt;
-    int endianness;
     int err;
     int fd;
-    AudioFormat effective_fmt;
     struct audsettings obt_as;
     Audiodev *dev = drv_opaque;
 
@@ -644,7 +630,7 @@ static int oss_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
         return -1;
     }
 
-    err = oss_to_audfmt (obt.fmt, &effective_fmt, &endianness);
+    err = oss_to_audfmt(obt.fmt, &obt_as.fmt, &obt_as.endianness);
     if (err) {
         oss_anal_close (&fd);
         return -1;
@@ -652,8 +638,6 @@ static int oss_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 
     obt_as.freq = obt.freq;
     obt_as.nchannels = obt.nchannels;
-    obt_as.fmt = effective_fmt;
-    obt_as.endianness = endianness;
 
     audio_pcm_init_info (&hw->info, &obt_as);
     oss->nfrags = obt.nfrags;
@@ -779,7 +763,6 @@ static struct audio_pcm_ops oss_pcm_ops = {
 
 static struct audio_driver oss_audio_driver = {
     .name           = "oss",
-    .descr          = "OSS http://www.opensound.com",
     .init           = oss_audio_init,
     .fini           = oss_audio_fini,
     .pcm_ops        = &oss_pcm_ops,

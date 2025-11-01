@@ -1,8 +1,7 @@
 #include "qemu/osdep.h"
 #include "qemu/qemu-print.h"
-#include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "audio.h"
+#include "audio_int.h"
 
 typedef struct {
     FILE *f;
@@ -104,7 +103,7 @@ static struct capture_ops wav_capture_ops = {
     .info = wav_capture_info
 };
 
-int wav_start_capture(AudioState *state, CaptureState *s, const char *path,
+int wav_start_capture(AudioBackend *state, CaptureState *s, const char *path,
                       int freq, int bits, int nchannels)
 {
     WAVState *wav;

@@ -17,7 +17,7 @@
 #define QEMU_VIRTIO_SOUND_H
 
 #include "hw/virtio/virtio.h"
-#include "audio/audio.h"
+#include "qemu/audio.h"
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_snd.h"
 
@@ -216,7 +216,7 @@ struct VirtIOSound {
     VirtQueue *queues[VIRTIO_SND_VQ_MAX];
     uint64_t features;
     VirtIOSoundPCM *pcm;
-    QEMUSoundCard card;
+    AudioBackend *audio_be;
     VMChangeStateEntry *vmstate;
     virtio_snd_config snd_conf;
     QemuMutex cmdq_mutex;

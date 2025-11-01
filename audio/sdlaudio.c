@@ -27,7 +27,7 @@
 #include <SDL_thread.h>
 #include "qemu/module.h"
 #include "qapi/error.h"
-#include "audio.h"
+#include "qemu/audio.h"
 
 #ifndef _WIN32
 #ifdef __sun__
@@ -338,9 +338,7 @@ static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as,
 {
     SDLVoiceOut *sdl = (SDLVoiceOut *)hw;
     SDL_AudioSpec req, obt;
-    int endianness;
     int err;
-    AudioFormat effective_fmt;
     Audiodev *dev = drv_opaque;
     AudiodevSdlPerDirectionOptions *spdo = dev->u.sdl.out;
     struct audsettings obt_as;
@@ -360,7 +358,7 @@ static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as,
         return -1;
     }
 
-    err = sdl_to_audfmt(obt.format, &effective_fmt, &endianness);
+    err = sdl_to_audfmt(obt.format, &obt_as.fmt, &obt_as.endianness);
     if (err) {
         sdl_close_out(sdl);
         return -1;
@@ -368,8 +366,6 @@ static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     obt_as.freq = obt.freq;
     obt_as.nchannels = obt.channels;
-    obt_as.fmt = effective_fmt;
-    obt_as.endianness = endianness;
 
     audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = (spdo->has_buffer_count ? spdo->buffer_count : 4) *
@@ -398,9 +394,7 @@ static int sdl_init_in(HWVoiceIn *hw, audsettings *as, void *drv_opaque)
 {
     SDLVoiceIn *sdl = (SDLVoiceIn *)hw;
     SDL_AudioSpec req, obt;
-    int endianness;
     int err;
-    AudioFormat effective_fmt;
     Audiodev *dev = drv_opaque;
     AudiodevSdlPerDirectionOptions *spdo = dev->u.sdl.in;
     struct audsettings obt_as;
@@ -420,7 +414,7 @@ static int sdl_init_in(HWVoiceIn *hw, audsettings *as, void *drv_opaque)
         return -1;
     }
 
-    err = sdl_to_audfmt(obt.format, &effective_fmt, &endianness);
+    err = sdl_to_audfmt(obt.format, &obt_as.fmt, &obt_as.endianness);
     if (err) {
         sdl_close_in(sdl);
         return -1;
@@ -428,8 +422,6 @@ static int sdl_init_in(HWVoiceIn *hw, audsettings *as, void *drv_opaque)
 
     obt_as.freq = obt.freq;
     obt_as.nchannels = obt.channels;
-    obt_as.fmt = effective_fmt;
-    obt_as.endianness = endianness;
 
     audio_pcm_init_info(&hw->info, &obt_as);
     hw->samples = (spdo->has_buffer_count ? spdo->buffer_count : 4) *
@@ -490,7 +482,6 @@ static struct audio_pcm_ops sdl_pcm_ops = {
 
 static struct audio_driver sdl_audio_driver = {
     .name           = "sdl",
-    .descr          = "SDL http://www.libsdl.org",
     .init           = sdl_audio_init,
     .fini           = sdl_audio_fini,
     .pcm_ops        = &sdl_pcm_ops,

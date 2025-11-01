@@ -24,9 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "qemu/host-utils.h"
 #include "qemu/module.h"
-#include "qemu/timer.h"
 #include "qemu/dbus.h"
 
 #ifdef G_OS_UNIX
@@ -37,7 +35,7 @@
 #include "ui/dbus-display1.h"
 
 #define AUDIO_CAP "dbus"
-#include "audio.h"
+#include "qemu/audio.h"
 #include "audio_int.h"
 #include "trace.h"
 
@@ -460,7 +458,7 @@ listener_in_vanished_cb(GDBusConnection *connection,
 }
 
 static gboolean
-dbus_audio_register_listener(AudioState *s,
+dbus_audio_register_listener(AudioBackend *s,
                              GDBusMethodInvocation *invocation,
 #ifdef G_OS_UNIX
                              GUnixFDList *fd_list,
@@ -617,7 +615,7 @@ dbus_audio_register_listener(AudioState *s,
 }
 
 static gboolean
-dbus_audio_register_out_listener(AudioState *s,
+dbus_audio_register_out_listener(AudioBackend *s,
                                  GDBusMethodInvocation *invocation,
 #ifdef G_OS_UNIX
                                  GUnixFDList *fd_list,
@@ -633,7 +631,7 @@ dbus_audio_register_out_listener(AudioState *s,
 }
 
 static gboolean
-dbus_audio_register_in_listener(AudioState *s,
+dbus_audio_register_in_listener(AudioBackend *s,
                                 GDBusMethodInvocation *invocation,
 #ifdef G_OS_UNIX
                                 GUnixFDList *fd_list,
@@ -647,8 +645,11 @@ dbus_audio_register_in_listener(AudioState *s,
                                         arg_listener, false);
 }
 
-static void
-dbus_audio_set_server(AudioState *s, GDBusObjectManagerServer *server, bool p2p)
+static bool
+dbus_audio_set_server(AudioBackend *s,
+                      GDBusObjectManagerServer *server,
+                      bool p2p,
+                      Error **errp)
 {
     DBusAudio *da = s->drv_opaque;
 
@@ -671,6 +672,8 @@ dbus_audio_set_server(AudioState *s, GDBusObjectManagerServer *server, bool p2p)
     g_dbus_object_skeleton_add_interface(G_DBUS_OBJECT_SKELETON(da->audio),
                                          G_DBUS_INTERFACE_SKELETON(da->iface));
     g_dbus_object_manager_server_export(da->server, da->audio);
+
+    return true;
 }
 
 static struct audio_pcm_ops dbus_pcm_ops = {
@@ -692,7 +695,6 @@ static struct audio_pcm_ops dbus_pcm_ops = {
 
 static struct audio_driver dbus_audio_driver = {
     .name            = "dbus",
-    .descr           = "Timer based audio exposed with DBus interface",
     .init            = dbus_audio_init,
     .fini            = dbus_audio_fini,
     .set_dbus_server = dbus_audio_set_server,

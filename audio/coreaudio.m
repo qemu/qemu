@@ -28,7 +28,7 @@
 
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
-#include "audio.h"
+#include "qemu/audio.h"
 
 #define AUDIO_CAP "coreaudio"
 #include "audio_int.h"
@@ -664,7 +664,6 @@ static struct audio_pcm_ops coreaudio_pcm_ops = {
 
 static struct audio_driver coreaudio_audio_driver = {
     .name           = "coreaudio",
-    .descr          = "CoreAudio http://developer.apple.com/audio/coreaudio.html",
     .init           = coreaudio_audio_init,
     .fini           = coreaudio_audio_fini,
     .pcm_ops        = &coreaudio_pcm_ops,

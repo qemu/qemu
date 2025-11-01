@@ -26,7 +26,7 @@
 #include "qemu/module.h"
 #include "qemu/atomic.h"
 #include "qemu/main-loop.h"
-#include "audio.h"
+#include "qemu/audio.h"
 
 #define AUDIO_CAP "jack"
 #include "audio_int.h"
@@ -672,7 +672,6 @@ static struct audio_pcm_ops jack_pcm_ops = {
 
 static struct audio_driver jack_driver = {
     .name           = "jack",
-    .descr          = "JACK Audio Connection Kit Client",
     .init           = qjack_init,
     .fini           = qjack_fini,
     .pcm_ops        = &jack_pcm_ops,

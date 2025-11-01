@@ -7,7 +7,7 @@
 #include <mmreg.h>
 #include <mmsystem.h>
 
-#include "audio.h"
+#include "qemu/audio.h"
 #include "audio_int.h"
 #include "audio_win_int.h"
 

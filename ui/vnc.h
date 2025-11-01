@@ -31,7 +31,7 @@
 #include "qemu/thread.h"
 #include "ui/clipboard.h"
 #include "ui/console.h"
-#include "audio/audio.h"
+#include "qemu/audio-capture.h"
 #include "qemu/bitmap.h"
 #include "crypto/tlssession.h"
 #include "qemu/buffer.h"
@@ -184,7 +184,7 @@ struct VncDisplay
     VncDisplaySASL sasl;
 #endif
 
-    AudioState *audio_state;
+    AudioBackend *audio_be;
 
     VMChangeStateEntry *vmstate_handler_entry;
 };

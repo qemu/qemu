@@ -12,7 +12,7 @@
 #ifndef HW_LM4549_H
 #define HW_LM4549_H
 
-#include "audio/audio.h"
+#include "qemu/audio.h"
 #include "exec/hwaddr.h"
 
 typedef void (*lm4549_callback)(void *opaque);
@@ -21,7 +21,7 @@ typedef void (*lm4549_callback)(void *opaque);
 
 
 typedef struct {
-    QEMUSoundCard card;
+    AudioBackend *audio_be;
     SWVoiceOut *voice;
     uint32_t voice_is_active;
 
