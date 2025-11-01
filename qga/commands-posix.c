@@ -216,12 +216,6 @@ out:
     return retcode;
 }
 
-static bool file_exists(const char *path)
-{
-    struct stat st;
-    return stat(path, &st) == 0 && (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode));
-}
-
 #define POWEROFF_CMD_PATH "/sbin/poweroff"
 #define HALT_CMD_PATH "/sbin/halt"
 #define REBOOT_CMD_PATH "/sbin/reboot"
@@ -248,17 +242,17 @@ void qmp_guest_shutdown(const char *mode, Error **errp)
 
     slog("guest-shutdown called, mode: %s", mode);
     if (!mode || strcmp(mode, "powerdown") == 0) {
-        if (file_exists(POWEROFF_CMD_PATH)) {
+        if (access(POWEROFF_CMD_PATH, X_OK) == 0) {
             shutdown_cmd = POWEROFF_CMD_PATH;
         }
         shutdown_flag = powerdown_flag;
     } else if (strcmp(mode, "halt") == 0) {
-        if (file_exists(HALT_CMD_PATH)) {
+        if (access(HALT_CMD_PATH, X_OK) == 0) {
             shutdown_cmd = HALT_CMD_PATH;
         }
         shutdown_flag = halt_flag;
     } else if (strcmp(mode, "reboot") == 0) {
-        if (file_exists(REBOOT_CMD_PATH)) {
+        if (access(REBOOT_CMD_PATH, X_OK) == 0) {
             shutdown_cmd = REBOOT_CMD_PATH;
         }
         shutdown_flag = reboot_flag;
