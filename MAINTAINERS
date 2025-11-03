@@ -364,7 +364,7 @@ F: target/rx/
 
 S390 TCG CPUs
 M: Richard Henderson <richard.henderson@linaro.org>
-M: David Hildenbrand <david@redhat.com>
+M: David Hildenbrand <david@kernel.org>
 R: Ilya Leoshkevich <iii@linux.ibm.com>
 S: Maintained
 F: target/s390x/
@@ -1862,7 +1862,7 @@ F: target/s390x/ioinst.c
 L: qemu-s390x@nongnu.org
 
 S390 CPU models
-M: David Hildenbrand <david@redhat.com>
+M: David Hildenbrand <david@kernel.org>
 S: Maintained
 F: target/s390x/cpu_features*.[ch]
 F: target/s390x/cpu_models.[ch]
@@ -2384,7 +2384,7 @@ F: tests/functional/x86_64/test_virtio_version.py
 
 virtio-balloon
 M: Michael S. Tsirkin <mst@redhat.com>
-M: David Hildenbrand <david@redhat.com>
+M: David Hildenbrand <david@kernel.org>
 S: Maintained
 F: docs/interop/virtio-balloon-stats.rst
 F: hw/virtio/virtio-balloon*.c
@@ -2532,7 +2532,7 @@ F: hw/virtio/virtio-crypto-pci.c
 F: include/hw/virtio/virtio-crypto.h
 
 virtio based memory device
-M: David Hildenbrand <david@redhat.com>
+M: David Hildenbrand <david@kernel.org>
 S: Supported
 F: hw/s390x/virtio-ccw-md.c
 F: hw/s390x/virtio-ccw-md.h
@@ -2541,7 +2541,7 @@ F: hw/virtio/virtio-md-*.c
 F: include/hw/virtio/virtio-md-pci.h
 
 virtio-mem
-M: David Hildenbrand <david@redhat.com>
+M: David Hildenbrand <david@kernel.org>
 S: Supported
 W: https://virtio-mem.gitlab.io/
 F: hw/virtio/virtio-mem.c
@@ -2919,7 +2919,7 @@ L: qemu-s390x@nongnu.org
 S390 floating interrupt controller
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
-M: David Hildenbrand <david@redhat.com>
+M: David Hildenbrand <david@kernel.org>
 R: Jason Herne <jjherne@linux.ibm.com>
 S: Supported
 F: hw/intc/s390_flic*.c
@@ -3248,7 +3248,7 @@ T: git https://gitlab.com/stsquad/qemu gdbstub/next
 Memory API
 M: Paolo Bonzini <pbonzini@redhat.com>
 M: Peter Xu <peterx@redhat.com>
-M: David Hildenbrand <david@redhat.com>
+M: David Hildenbrand <david@kernel.org>
 R: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Supported
 F: include/system/ioport.h
@@ -3268,7 +3268,7 @@ F: system/ram-block-attributes.c
 F: scripts/coccinelle/memory-region-housekeeping.cocci
 
 Memory devices
-M: David Hildenbrand <david@redhat.com>
+M: David Hildenbrand <david@kernel.org>
 M: Igor Mammedov <imammedo@redhat.com>
 R: Xiao Guangrong <xiaoguangrong.eric@gmail.com>
 S: Supported
@@ -3371,7 +3371,7 @@ R: Ilya Maximets <i.maximets@ovn.org>
 F: net/af-xdp.c
 
 Host Memory Backends
-M: David Hildenbrand <david@redhat.com>
+M: David Hildenbrand <david@kernel.org>
 M: Igor Mammedov <imammedo@redhat.com>
 S: Maintained
 F: backends/hostmem*.c
