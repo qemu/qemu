@@ -1302,24 +1302,27 @@ static RISCVException riscv_pmu_write_ctr(CPURISCVState *env, target_ulong val,
                                           uint32_t ctr_idx)
 {
     PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
-    uint64_t mhpmctr_val = val;
+    bool rv32 = riscv_cpu_mxl(env) == MXL_RV32;
+    int deposit_size = rv32 ? 32 : 64;
+    uint64_t ctr;
 
-    counter->mhpmcounter_val = val;
+    counter->mhpmcounter_val = deposit64(counter->mhpmcounter_val,
+                                         0, deposit_size, val);
+
     if (!get_field(env->mcountinhibit, BIT(ctr_idx)) &&
         (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
          riscv_pmu_ctr_monitor_instructions(env, ctr_idx))) {
-        counter->mhpmcounter_prev = riscv_pmu_ctr_get_fixed_counters_val(env,
-                                                                ctr_idx, false);
+        ctr = riscv_pmu_ctr_get_fixed_counters_val(env, ctr_idx, false);
+        counter->mhpmcounter_prev = deposit64(counter->mhpmcounter_prev,
+                                              0, deposit_size, ctr);
         if (ctr_idx > 2) {
-            if (riscv_cpu_mxl(env) == MXL_RV32) {
-                mhpmctr_val = mhpmctr_val |
-                              ((uint64_t)counter->mhpmcounterh_val << 32);
-            }
-            riscv_pmu_setup_timer(env, mhpmctr_val, ctr_idx);
+            riscv_pmu_setup_timer(env, counter->mhpmcounter_val, ctr_idx);
         }
      } else {
         /* Other counters can keep incrementing from the given value */
-        counter->mhpmcounter_prev = val;
+        counter->mhpmcounter_prev = deposit64(counter->mhpmcounter_prev,
+                                              0, deposit_size, val);
+
     }
 
     return RISCV_EXCP_NONE;
@@ -1329,21 +1332,22 @@ static RISCVException riscv_pmu_write_ctrh(CPURISCVState *env, target_ulong val,
                                           uint32_t ctr_idx)
 {
     PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
-    uint64_t mhpmctr_val = counter->mhpmcounter_val;
-    uint64_t mhpmctrh_val = val;
+    uint64_t ctrh;
 
-    counter->mhpmcounterh_val = val;
-    mhpmctr_val = mhpmctr_val | (mhpmctrh_val << 32);
+    counter->mhpmcounter_val = deposit64(counter->mhpmcounter_val,
+                                         32, 32, val);
     if (!get_field(env->mcountinhibit, BIT(ctr_idx)) &&
         (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
          riscv_pmu_ctr_monitor_instructions(env, ctr_idx))) {
-        counter->mhpmcounterh_prev = riscv_pmu_ctr_get_fixed_counters_val(env,
-                                                                 ctr_idx, true);
+        ctrh = riscv_pmu_ctr_get_fixed_counters_val(env, ctr_idx, true);
+        counter->mhpmcounter_prev = deposit64(counter->mhpmcounter_prev,
+                                              32, 32, ctrh);
         if (ctr_idx > 2) {
-            riscv_pmu_setup_timer(env, mhpmctr_val, ctr_idx);
+            riscv_pmu_setup_timer(env, counter->mhpmcounter_val, ctr_idx);
         }
     } else {
-        counter->mhpmcounterh_prev = val;
+        counter->mhpmcounter_prev = deposit64(counter->mhpmcounter_prev,
+                                              32, 32, val);
     }
 
     return RISCV_EXCP_NONE;
@@ -1366,13 +1370,19 @@ static RISCVException write_mhpmcounterh(CPURISCVState *env, int csrno,
 }
 
 RISCVException riscv_pmu_read_ctr(CPURISCVState *env, target_ulong *val,
-                                         bool upper_half, uint32_t ctr_idx)
+                                  bool upper_half, uint32_t ctr_idx)
 {
     PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
-    target_ulong ctr_prev = upper_half ? counter->mhpmcounterh_prev :
-                                         counter->mhpmcounter_prev;
-    target_ulong ctr_val = upper_half ? counter->mhpmcounterh_val :
-                                        counter->mhpmcounter_val;
+    bool rv32 = riscv_cpu_mxl(env) == MXL_RV32;
+    int start = upper_half ? 32 : 0;
+    int length = rv32 ? 32 : 64;
+    uint64_t ctr_prev, ctr_val;
+
+    /* Ensure upper_half is only set for XLEN == 32 */
+    g_assert(rv32 || !upper_half);
+
+    ctr_prev = extract64(counter->mhpmcounter_prev, start, length);
+    ctr_val  = extract64(counter->mhpmcounter_val, start, length);
 
     if (get_field(env->mcountinhibit, BIT(ctr_idx))) {
         /*
@@ -2996,6 +3006,7 @@ static RISCVException write_mcountinhibit(CPURISCVState *env, int csrno,
     uint32_t present_ctrs = cpu->pmu_avail_ctrs | COUNTEREN_CY | COUNTEREN_IR;
     target_ulong updated_ctrs = (env->mcountinhibit ^ val) & present_ctrs;
     uint64_t mhpmctr_val, prev_count, curr_count;
+    uint64_t ctrh;
 
     /* WARL register - disable unavailable counters; TM bit is always 0 */
     env->mcountinhibit = val & present_ctrs;
@@ -3014,17 +3025,13 @@ static RISCVException write_mcountinhibit(CPURISCVState *env, int csrno,
             counter->mhpmcounter_prev =
                 riscv_pmu_ctr_get_fixed_counters_val(env, cidx, false);
             if (riscv_cpu_mxl(env) == MXL_RV32) {
-                counter->mhpmcounterh_prev =
-                    riscv_pmu_ctr_get_fixed_counters_val(env, cidx, true);
+                ctrh = riscv_pmu_ctr_get_fixed_counters_val(env, cidx, true);
+                counter->mhpmcounter_prev = deposit64(counter->mhpmcounter_prev,
+                                                      32, 32, ctrh);
             }
 
             if (cidx > 2) {
-                mhpmctr_val = counter->mhpmcounter_val;
-                if (riscv_cpu_mxl(env) == MXL_RV32) {
-                    mhpmctr_val = mhpmctr_val |
-                            ((uint64_t)counter->mhpmcounterh_val << 32);
-                }
-                riscv_pmu_setup_timer(env, mhpmctr_val, cidx);
+                riscv_pmu_setup_timer(env, counter->mhpmcounter_val, cidx);
             }
         } else {
             curr_count = riscv_pmu_ctr_get_fixed_counters_val(env, cidx, false);
@@ -3036,18 +3043,11 @@ static RISCVException write_mcountinhibit(CPURISCVState *env, int csrno,
                     riscv_pmu_ctr_get_fixed_counters_val(env, cidx, true);
 
                 curr_count = curr_count | (tmp << 32);
-                mhpmctr_val = mhpmctr_val |
-                    ((uint64_t)counter->mhpmcounterh_val << 32);
-                prev_count = prev_count |
-                    ((uint64_t)counter->mhpmcounterh_prev << 32);
             }
 
             /* Adjust the counter for later reads. */
             mhpmctr_val = curr_count - prev_count + mhpmctr_val;
             counter->mhpmcounter_val = mhpmctr_val;
-            if (riscv_cpu_mxl(env) == MXL_RV32) {
-                counter->mhpmcounterh_val = mhpmctr_val >> 32;
-            }
         }
     }
 
