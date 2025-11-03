@@ -197,6 +197,7 @@
 { 'struct': 'GuestAgentInfo',
   'data': { 'version': 'str',
             'supported_commands': ['GuestAgentCommandInfo'] } }
+
 ##
 # @guest-info:
 #
@@ -321,7 +322,6 @@
 { 'command': 'guest-file-write',
   'data':    { 'handle': 'int', 'buf-b64': 'str', '*count': 'int' },
   'returns': 'GuestFileWrite' }
-
 
 ##
 # @GuestFileSeek:
@@ -876,7 +876,6 @@
             'sas', 'mmc', 'virtual', 'file-backed-virtual', 'nvme' ],
   'if': { 'any': [ 'CONFIG_WIN32', 'CONFIG_LINUX' ] } }
 
-
 ##
 # @GuestPCIAddress:
 #
@@ -1276,6 +1275,7 @@
   'data': { 'exited': 'bool', '*exitcode': 'int', '*signal': 'int',
             '*out-data': 'str', '*err-data': 'str',
             '*out-truncated': 'bool', '*err-truncated': 'bool' }}
+
 ##
 # @guest-exec-status:
 #
@@ -1365,7 +1365,6 @@
                '*input-data': 'str', '*capture-output': 'GuestExecCaptureOutput' },
   'returns': 'GuestExec' }
 
-
 ##
 # @GuestHostName:
 #
@@ -1391,7 +1390,6 @@
 ##
 { 'command': 'guest-get-host-name',
   'returns': 'GuestHostName' }
-
 
 ##
 # @GuestUser:
@@ -1763,7 +1761,6 @@
   'data': [ 'linux' ],
   'if': 'CONFIG_LINUX' }
 
-
 ##
 # @GuestLinuxCpuStats:
 #
@@ -1837,7 +1834,6 @@
   'returns': ['GuestCpuStats'],
   'if': 'CONFIG_LINUX'
 }
-
 
 ##
 # @GuestLoadAverage:
@@ -1921,7 +1917,6 @@
 # @version: IP version (4 or 6)
 #
 # Since: 9.1
-
 ##
 { 'struct': 'GuestNetworkRoute',
   'data': {'iface': 'str',
