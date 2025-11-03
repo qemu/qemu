@@ -438,9 +438,14 @@ void migration_incoming_transport_cleanup(MigrationIncomingState *mis)
 
 void migration_incoming_state_destroy(void)
 {
-    struct MigrationIncomingState *mis = migration_incoming_get_current();
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    PostcopyState ps = postcopy_state_get();
 
     multifd_recv_cleanup();
+
+    if (ps != POSTCOPY_INCOMING_NONE) {
+        postcopy_incoming_cleanup(mis);
+    }
 
     /*
      * RAM state cleanup needs to happen after multifd cleanup, because
@@ -866,7 +871,6 @@ process_incoming_migration_co(void *opaque)
 {
     MigrationState *s = migrate_get_current();
     MigrationIncomingState *mis = migration_incoming_get_current();
-    PostcopyState ps;
     int ret;
     Error *local_err = NULL;
 
@@ -883,25 +887,14 @@ process_incoming_migration_co(void *opaque)
 
     trace_vmstate_downtime_checkpoint("dst-precopy-loadvm-completed");
 
-    ps = postcopy_state_get();
-    trace_process_incoming_migration_co_end(ret, ps);
-    if (ps != POSTCOPY_INCOMING_NONE) {
-        if (ps == POSTCOPY_INCOMING_ADVISE) {
-            /*
-             * Where a migration had postcopy enabled (and thus went to advise)
-             * but managed to complete within the precopy period, we can use
-             * the normal exit.
-             */
-            postcopy_incoming_cleanup(mis);
-        } else if (ret >= 0) {
-            /*
-             * Postcopy was started, cleanup should happen at the end of the
-             * postcopy thread.
-             */
-            trace_process_incoming_migration_co_postcopy_end_main();
-            goto out;
-        }
-        /* Else if something went wrong then just fall out of the normal exit */
+    trace_process_incoming_migration_co_end(ret);
+    if (mis->have_listen_thread) {
+        /*
+         * Postcopy was started, cleanup should happen at the end of the
+         * postcopy listen thread.
+         */
+        trace_process_incoming_migration_co_postcopy_end_main();
+        goto out;
     }
 
     if (ret < 0) {
@@ -933,15 +926,6 @@ fail:
         }
 
         exit(EXIT_FAILURE);
-    } else {
-        /*
-         * Report the error here in case that QEMU abruptly exits
-         * when postcopy is enabled.
-         */
-        WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
-            error_report_err(s->error);
-            s->error = NULL;
-        }
     }
 out:
     /* Pairs with the refcount taken in qmp_migrate_incoming() */
