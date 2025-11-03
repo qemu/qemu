@@ -1495,6 +1495,13 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
     rxi = rxr->i;
 
     do {
+        /*
+         * Loop processing descriptors while we have packet data to
+         * DMA to the guest.  desc_offset tracks how much data we have
+         * sent to the guest in total over all descriptors, and goes
+         * from 0 up to total_size (the size of everything to send to
+         * the guest including possible trailing 4 bytes of CRC data).
+         */
         hwaddr ba[MAX_PS_BUFFERS];
         E1000EBAState bastate = { { 0 } };
         bool is_last = false;
@@ -1512,23 +1519,27 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
         e1000e_read_rx_descr(core, &desc, ba);
 
         if (ba[0]) {
-            size_t desc_size = total_size - desc_offset;
-
-            if (desc_size > core->rx_desc_buf_size) {
-                desc_size = core->rx_desc_buf_size;
-            }
+            /* Total amount of data DMA'd to the guest in this iteration */
+            size_t desc_size = 0;
+            /*
+             * Total space available in this descriptor (we will update
+             * this as we use it up)
+             */
+            size_t rx_desc_buf_size = core->rx_desc_buf_size;
 
             if (desc_offset < size) {
-                static const uint32_t fcs_pad;
                 size_t iov_copy;
+                /* Amount of data to copy from the incoming packet */
                 size_t copy_size = size - desc_offset;
-                if (copy_size > core->rx_desc_buf_size) {
-                    copy_size = core->rx_desc_buf_size;
-                }
 
                 /* For PS mode copy the packet header first */
                 if (do_ps) {
                     if (is_first) {
+                        /*
+                         * e1000e_do_ps() guarantees that buffer 0 has enough
+                         * space for the header; otherwise we will not split
+                         * the packet (i.e. do_ps is false).
+                         */
                         size_t ps_hdr_copied = 0;
                         do {
                             iov_copy = MIN(ps_hdr_len - ps_hdr_copied,
@@ -1550,13 +1561,25 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
                         } while (ps_hdr_copied < ps_hdr_len);
 
                         is_first = false;
+                        desc_size += ps_hdr_len;
                     } else {
                         /* Leave buffer 0 of each descriptor except first */
                         /* empty as per spec 7.1.5.1                      */
                         e1000e_write_hdr_frag_to_rx_buffers(core, ba, &bastate,
                                                             NULL, 0);
                     }
+                    rx_desc_buf_size -= core->rxbuf_sizes[0];
                 }
+
+                /*
+                 * Clamp the amount of packet data we copy into what will fit
+                 * into the remaining buffers in the descriptor.
+                 */
+                if (copy_size > rx_desc_buf_size) {
+                    copy_size = rx_desc_buf_size;
+                }
+                desc_size += copy_size;
+                rx_desc_buf_size -= copy_size;
 
                 /* Copy packet payload */
                 while (copy_size) {
@@ -1574,12 +1597,22 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
                         iov_ofs = 0;
                     }
                 }
+            }
 
-                if (desc_offset + desc_size >= total_size) {
-                    /* Simulate FCS checksum presence in the last descriptor */
-                    e1000e_write_payload_frag_to_rx_buffers(core, ba, &bastate,
-                          (const char *) &fcs_pad, e1000x_fcs_len(core->mac));
-                }
+            if (rx_desc_buf_size &&
+                desc_offset >= size && desc_offset < total_size) {
+                /*
+                 * We are in the last 4 bytes corresponding to the FCS checksum.
+                 * We only ever write zeroes here (unlike the hardware).
+                 */
+                static const uint32_t fcs_pad;
+                /* Amount of space for the trailing checksum */
+                size_t fcs_len = MIN(rx_desc_buf_size,
+                                     total_size - desc_offset);
+                e1000e_write_payload_frag_to_rx_buffers(core, ba, &bastate,
+                                                        (const char *)&fcs_pad,
+                                                        fcs_len);
+                desc_size += fcs_len;
             }
             desc_offset += desc_size;
             if (desc_offset >= total_size) {
