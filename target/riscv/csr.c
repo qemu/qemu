@@ -1544,7 +1544,7 @@ static int rmw_cd_ctr_cfg(CPURISCVState *env, int cfg_index, target_ulong *val,
             wr_mask &= ~MCYCLECFG_BIT_MINH;
             env->mcyclecfg = (new_val & wr_mask) | (env->mcyclecfg & ~wr_mask);
         } else {
-            *val = env->mcyclecfg &= ~MHPMEVENTH_BIT_MINH;
+            *val = env->mcyclecfg &= ~MHPMEVENT_BIT_MINH;
         }
         break;
     case 2:             /* INSTRETCFG */
@@ -1553,7 +1553,7 @@ static int rmw_cd_ctr_cfg(CPURISCVState *env, int cfg_index, target_ulong *val,
             env->minstretcfg = (new_val & wr_mask) |
                                (env->minstretcfg & ~wr_mask);
         } else {
-            *val = env->minstretcfg &= ~MHPMEVENTH_BIT_MINH;
+            *val = env->minstretcfg &= ~MHPMEVENT_BIT_MINH;
         }
         break;
     default:
