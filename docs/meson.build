@@ -99,7 +99,12 @@ if build_docs
   alias_target('man', sphinxmans)
 endif
 
-test('QAPI firmware.json regression tests', qapi_gen,
-     args: ['-o', meson.current_build_dir() / 'qapi',
+test('QAPI firmware.json regression test', qapi_gen,
+     args: ['-o', meson.current_build_dir() / 'qapi-firmware',
             meson.current_source_dir() / 'interop/firmware.json'],
+     suite: ['qapi-schema', 'qapi-interop'])
+
+test('QAPI vhost-user.json regression test', qapi_gen,
+     args: ['-o', meson.current_build_dir() / 'qapi-vhost-user',
+            meson.current_source_dir() / 'interop/vhost-user.json'],
      suite: ['qapi-schema', 'qapi-interop'])
