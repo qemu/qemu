@@ -199,4 +199,6 @@ bool postcopy_is_paused(MigrationStatus status);
 void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
                                    RAMBlock *rb);
 
+void *postcopy_ram_listen_thread(void *opaque);
+
 #endif
