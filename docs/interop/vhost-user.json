@@ -266,7 +266,7 @@
 #
 # Since: 4.0
 #
-# Example:
+# .. qmp-example:
 #
 # {
 #   "description": "QEMU vhost-user-gpu",
