@@ -86,6 +86,10 @@ static const MemoryRegionOps lasi_82596_mem_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static NetClientInfo net_lasi_82596_info = {
@@ -93,6 +97,8 @@ static NetClientInfo net_lasi_82596_info = {
     .size = sizeof(NICState),
     .can_receive = i82596_can_receive,
     .receive = i82596_receive,
+    .receive_iov = i82596_receive_iov,
+    .poll = i82596_poll,
     .link_status_changed = i82596_set_link_status,
 };
 
