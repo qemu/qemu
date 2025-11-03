@@ -115,30 +115,10 @@ static void lasi_82596_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->mmio, OBJECT(d), &lasi_82596_mem_ops, d,
                 "lasi_82596-mmio", PA_GET_MACADDR + 4);
 
+    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
+
     i82596_common_init(dev, s, &net_lasi_82596_info);
-}
-
-SysBusI82596State *lasi_82596_init(MemoryRegion *addr_space, hwaddr hpa,
-                                   qemu_irq lan_irq, gboolean match_default)
-{
-    DeviceState *dev;
-    SysBusI82596State *s;
-    static const MACAddr HP_MAC = {
-        .a = { 0x08, 0x00, 0x09, 0xef, 0x34, 0xf6 } };
-
-    dev = qemu_create_nic_device(TYPE_LASI_82596, match_default, "lasi");
-    if (!dev) {
-        return NULL;
-    }
-
-    s = SYSBUS_I82596(dev);
-    s->state.irq = lan_irq;
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    s->state.conf.macaddr = HP_MAC; /* set HP MAC prefix */
-
-    /* LASI 82596 ports in main memory. */
-    memory_region_add_subregion(addr_space, hpa, &s->state.mmio);
-    return s;
 }
 
 static void lasi_82596_reset(DeviceState *dev)
@@ -152,6 +132,10 @@ static void lasi_82596_instance_init(Object *obj)
 {
     SysBusI82596State *d = SYSBUS_I82596(obj);
     I82596State *s = &d->state;
+    static const MACAddr HP_MAC = {
+        .a = { 0x08, 0x00, 0x09, 0xef, 0x34, 0xf6 } };
+
+    s->conf.macaddr = HP_MAC;
 
     device_add_bootindex_property(obj, &s->conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
