@@ -1301,13 +1301,32 @@ static void audio_run_in(AudioMixengBackend *s)
     while ((hw = audio_pcm_hw_find_any_enabled_in(s, hw))) {
         SWVoiceIn *sw;
         size_t captured = 0, min;
+        int pos;
 
         if (replay_mode != REPLAY_MODE_PLAY) {
             captured = audio_pcm_hw_run_in(
                 hw, hw->conv_buf.size - audio_pcm_hw_get_live_in(hw));
         }
-        replay_audio_in(&captured, hw->conv_buf.buffer, &hw->conv_buf.pos,
-                        hw->conv_buf.size);
+
+        replay_audio_in_start(&captured);
+        assert(captured <= hw->conv_buf.size);
+        if (replay_mode == REPLAY_MODE_PLAY) {
+            hw->conv_buf.pos = (hw->conv_buf.pos + captured) % hw->conv_buf.size;
+        }
+        for (pos = (hw->conv_buf.pos - captured + hw->conv_buf.size) % hw->conv_buf.size;
+             pos != hw->conv_buf.pos;
+             pos = (pos + 1) % hw->conv_buf.size) {
+                uint64_t left, right;
+
+                if (replay_mode == REPLAY_MODE_RECORD) {
+                    audio_sample_to_uint64(hw->conv_buf.buffer, pos, &left, &right);
+                }
+                replay_audio_in_sample_lr(&left, &right);
+                if (replay_mode == REPLAY_MODE_PLAY) {
+                    audio_sample_from_uint64(hw->conv_buf.buffer, pos, left, right);
+                }
+        }
+        replay_audio_in_finish();
 
         min = audio_pcm_hw_find_min_in (hw);
         hw->total_samples_captured += captured - min;

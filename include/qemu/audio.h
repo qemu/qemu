@@ -120,11 +120,6 @@ void audio_cleanup(void);
 
 typedef struct st_sample st_sample;
 
-void audio_sample_to_uint64(const st_sample *sample, int pos,
-                            uint64_t *left, uint64_t *right);
-void audio_sample_from_uint64(st_sample *sample, int pos,
-                            uint64_t left, uint64_t right);
-
 void audio_add_audiodev(Audiodev *audio);
 void audio_add_default_audiodev(Audiodev *dev, Error **errp);
 void audio_parse_option(const char *opt);

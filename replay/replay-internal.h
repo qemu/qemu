@@ -85,6 +85,7 @@ enum ReplayEvents {
  * @file_offset: offset into replay log at replay snapshot
  * @block_request_id: current serialised block request id
  * @read_event_id: current async read event id
+ * @n_audio_samples: expected audio samples
  */
 typedef struct ReplayState {
     int64_t cached_clock[REPLAY_CLOCK_COUNT];
@@ -96,6 +97,7 @@ typedef struct ReplayState {
     uint64_t file_offset;
     uint64_t block_request_id;
     uint64_t read_event_id;
+    size_t n_audio_samples;
 } ReplayState;
 extern ReplayState replay_state;
 

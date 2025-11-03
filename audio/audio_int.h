@@ -309,6 +309,11 @@ static inline size_t audio_ring_posb(size_t pos, size_t dist, size_t len)
 AudiodevPerDirectionOptions *audio_get_pdo_in(Audiodev *dev);
 AudiodevPerDirectionOptions *audio_get_pdo_out(Audiodev *dev);
 
+void audio_sample_to_uint64(const st_sample *sample, int pos,
+                            uint64_t *left, uint64_t *right);
+void audio_sample_from_uint64(st_sample *sample, int pos,
+                              uint64_t left, uint64_t right);
+
 #define TYPE_AUDIO_MIXENG_BACKEND "audio-mixeng-backend"
 OBJECT_DECLARE_TYPE(AudioMixengBackend, AudioMixengBackendClass, AUDIO_MIXENG_BACKEND)
 

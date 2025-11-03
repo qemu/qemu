@@ -35,12 +35,19 @@ dbus_win32_import_socket(GDBusMethodInvocation *invocation,
 }
 #endif
 
-void replay_audio_in(size_t *recorded, st_sample *samples,
-                     size_t *wpos, size_t size)
+void replay_audio_out(size_t *played)
 {
 }
 
-void replay_audio_out(size_t *played)
+void replay_audio_in_start(size_t *nsamples)
+{
+}
+
+void replay_audio_in_sample_lr(uint64_t *left, uint64_t *right)
+{
+}
+
+void replay_audio_in_finish(void)
 {
 }
 
