@@ -110,15 +110,15 @@ static int riscv_pmu_incr_ctr_rv32(RISCVCPU *cpu, uint32_t ctr_idx)
 
     /* Privilege mode filtering */
     if ((env->priv == PRV_M &&
-        (env->mhpmeventh_val[ctr_idx] & MHPMEVENTH_BIT_MINH)) ||
+        (env->mhpmevent_val[ctr_idx] & MHPMEVENT_BIT_MINH)) ||
         (env->priv == PRV_S && virt_on &&
-        (env->mhpmeventh_val[ctr_idx] & MHPMEVENTH_BIT_VSINH)) ||
+        (env->mhpmevent_val[ctr_idx] & MHPMEVENT_BIT_VSINH)) ||
         (env->priv == PRV_U && virt_on &&
-        (env->mhpmeventh_val[ctr_idx] & MHPMEVENTH_BIT_VUINH)) ||
+        (env->mhpmevent_val[ctr_idx] & MHPMEVENT_BIT_VUINH)) ||
         (env->priv == PRV_S && !virt_on &&
-        (env->mhpmeventh_val[ctr_idx] & MHPMEVENTH_BIT_SINH)) ||
+        (env->mhpmevent_val[ctr_idx] & MHPMEVENT_BIT_SINH)) ||
         (env->priv == PRV_U && !virt_on &&
-        (env->mhpmeventh_val[ctr_idx] & MHPMEVENTH_BIT_UINH))) {
+        (env->mhpmevent_val[ctr_idx] & MHPMEVENT_BIT_UINH))) {
         return 0;
     }
 
@@ -128,8 +128,8 @@ static int riscv_pmu_incr_ctr_rv32(RISCVCPU *cpu, uint32_t ctr_idx)
             counter->mhpmcounter_val = 0;
             counter->mhpmcounterh_val = 0;
             /* Generate interrupt only if OF bit is clear */
-            if (!(env->mhpmeventh_val[ctr_idx] & MHPMEVENTH_BIT_OF)) {
-                env->mhpmeventh_val[ctr_idx] |= MHPMEVENTH_BIT_OF;
+            if (!(env->mhpmevent_val[ctr_idx] & MHPMEVENT_BIT_OF)) {
+                env->mhpmevent_val[ctr_idx] |= MHPMEVENT_BIT_OF;
                 riscv_cpu_update_mip(env, MIP_LCOFIP, BOOL_TO_MASK(1));
             }
         } else {
@@ -420,41 +420,14 @@ int riscv_pmu_update_event_map(CPURISCVState *env, uint64_t value,
     return 0;
 }
 
-static bool pmu_hpmevent_is_of_set(CPURISCVState *env, uint32_t ctr_idx)
-{
-    target_ulong mhpmevent_val;
-    uint64_t of_bit_mask;
-
-    if (riscv_cpu_mxl(env) == MXL_RV32) {
-        mhpmevent_val = env->mhpmeventh_val[ctr_idx];
-        of_bit_mask = MHPMEVENTH_BIT_OF;
-     } else {
-        mhpmevent_val = env->mhpmevent_val[ctr_idx];
-        of_bit_mask = MHPMEVENT_BIT_OF;
-    }
-
-    return get_field(mhpmevent_val, of_bit_mask);
-}
-
 static bool pmu_hpmevent_set_of_if_clear(CPURISCVState *env, uint32_t ctr_idx)
 {
-    target_ulong *mhpmevent_val;
-    uint64_t of_bit_mask;
-
-    if (riscv_cpu_mxl(env) == MXL_RV32) {
-        mhpmevent_val = &env->mhpmeventh_val[ctr_idx];
-        of_bit_mask = MHPMEVENTH_BIT_OF;
-     } else {
-        mhpmevent_val = &env->mhpmevent_val[ctr_idx];
-        of_bit_mask = MHPMEVENT_BIT_OF;
-    }
-
-    if (!get_field(*mhpmevent_val, of_bit_mask)) {
-        *mhpmevent_val |= of_bit_mask;
+    if (!get_field(env->mhpmevent_val[ctr_idx], MHPMEVENT_BIT_OF)) {
+        env->mhpmevent_val[ctr_idx] |= MHPMEVENT_BIT_OF;
         return true;
+    } else {
+        return false;
     }
-
-    return false;
 }
 
 static void pmu_timer_trigger_irq(RISCVCPU *cpu,
@@ -479,7 +452,7 @@ static void pmu_timer_trigger_irq(RISCVCPU *cpu,
     }
 
     /* Generate interrupt only if OF bit is clear */
-    if (pmu_hpmevent_is_of_set(env, ctr_idx)) {
+    if (get_field(env->mhpmevent_val[ctr_idx], MHPMEVENT_BIT_OF)) {
         return;
     }
 
@@ -538,7 +511,7 @@ int riscv_pmu_setup_timer(CPURISCVState *env, uint64_t value, uint32_t ctr_idx)
 
     /* No need to setup a timer if LCOFI is disabled when OF is set */
     if (!riscv_pmu_counter_valid(cpu, ctr_idx) || !cpu->cfg.ext_sscofpmf ||
-        pmu_hpmevent_is_of_set(env, ctr_idx)) {
+        get_field(env->mhpmevent_val[ctr_idx], MHPMEVENT_BIT_OF)) {
         return -1;
     }
 
