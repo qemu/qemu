@@ -1481,7 +1481,6 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
     PCIDevice *d = core->owner;
     dma_addr_t base;
     union e1000_rx_desc_union desc;
-    size_t desc_size;
     size_t desc_offset = 0;
     size_t iov_ofs = 0;
 
@@ -1500,12 +1499,6 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
         E1000EBAState bastate = { { 0 } };
         bool is_last = false;
 
-        desc_size = total_size - desc_offset;
-
-        if (desc_size > core->rx_desc_buf_size) {
-            desc_size = core->rx_desc_buf_size;
-        }
-
         if (e1000e_ring_empty(core, rxi)) {
             return;
         }
@@ -1519,6 +1512,12 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
         e1000e_read_rx_descr(core, &desc, ba);
 
         if (ba[0]) {
+            size_t desc_size = total_size - desc_offset;
+
+            if (desc_size > core->rx_desc_buf_size) {
+                desc_size = core->rx_desc_buf_size;
+            }
+
             if (desc_offset < size) {
                 static const uint32_t fcs_pad;
                 size_t iov_copy;
@@ -1582,12 +1581,12 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
                           (const char *) &fcs_pad, e1000x_fcs_len(core->mac));
                 }
             }
+            desc_offset += desc_size;
+            if (desc_offset >= total_size) {
+                is_last = true;
+            }
         } else { /* as per intel docs; skip descriptors with null buf addr */
             trace_e1000e_rx_null_descriptor();
-        }
-        desc_offset += desc_size;
-        if (desc_offset >= total_size) {
-            is_last = true;
         }
 
         e1000e_write_rx_descr(core, &desc, is_last ? core->rx_pkt : NULL,
