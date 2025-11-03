@@ -2181,7 +2181,6 @@ static void *postcopy_listen_thread(void *opaque)
 
 out:
     rcu_unregister_thread();
-    mis->have_listen_thread = false;
     postcopy_state_set(POSTCOPY_INCOMING_END);
 
     migration_bh_schedule(postcopy_listen_thread_bh, NULL);
@@ -2215,7 +2214,7 @@ int postcopy_incoming_setup(MigrationIncomingState *mis, Error **errp)
     mis->have_listen_thread = true;
     postcopy_thread_create(mis, &mis->listen_thread,
                            MIGRATION_THREAD_DST_LISTEN,
-                           postcopy_listen_thread, QEMU_THREAD_DETACHED);
+                           postcopy_listen_thread, QEMU_THREAD_JOINABLE);
 
     return 0;
 }
@@ -2223,6 +2222,11 @@ int postcopy_incoming_setup(MigrationIncomingState *mis, Error **errp)
 int postcopy_incoming_cleanup(MigrationIncomingState *mis)
 {
     int rc = 0;
+
+    if (mis->have_listen_thread) {
+        qemu_thread_join(&mis->listen_thread);
+        mis->have_listen_thread = false;
+    }
 
     if (migrate_postcopy_ram()) {
         rc = postcopy_ram_incoming_cleanup(mis);
