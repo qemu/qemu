@@ -76,8 +76,8 @@
 #
 # @out: options of the playback stream
 #
-# @nsamples: set the number of samples per read/write calls (default to 480,
-# 10ms at 48kHz).
+# @nsamples: set the number of samples per read/write calls
+#     (default to 480, 10ms at 48kHz).
 #
 # Since: 10.0
 ##
