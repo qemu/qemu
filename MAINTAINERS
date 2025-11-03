@@ -3933,8 +3933,10 @@ F: tests/functional/x86_64/test_intel_iommu.py
 F: tests/qtest/intel-iommu-test.c
 
 AMD-Vi Emulation
-S: Orphan
-F: hw/i386/amd_iommu.?
+M: Alejandro Jimenez <alejandro.j.jimenez@oracle.com>
+R: Sairaj Kodilkar <sarunkod@amd.com>
+S: Supported
+F: hw/i386/amd_iommu*
 
 OpenSBI Firmware
 L: qemu-riscv@nongnu.org
