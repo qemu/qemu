@@ -38,8 +38,8 @@
 ##
 # @NbdServerOptions:
 #
-# Keep this type consistent with the `NbdServerOptionsLegacy` type.  The
-# only intended difference is using `SocketAddress` instead of
+# Keep this type consistent with the `NbdServerOptionsLegacy` type.
+# The only intended difference is using `SocketAddress` instead of
 # `SocketAddressLegacy`.
 #
 # @addr: Address on which to listen (since 4.2).
@@ -51,8 +51,8 @@
 ##
 # @NbdServerOptionsLegacy:
 #
-# Keep this type consistent with the `NbdServerOptions` type.  The only
-# intended difference is using `SocketAddressLegacy` instead of
+# Keep this type consistent with the `NbdServerOptions` type.  The
+# only intended difference is using `SocketAddressLegacy` instead of
 # `SocketAddress`.
 #
 # @addr: Address on which to listen (since 1.3).
@@ -125,8 +125,8 @@
 # A vhost-user-blk block export.
 #
 # @addr: The vhost-user socket on which to listen.  Both 'unix' and
-#     'fd' `SocketAddress` types are supported.  Passed fds must be UNIX
-#     domain sockets.
+#     'fd' `SocketAddress` types are supported.  Passed fds must be
+#     UNIX domain sockets.
 #
 # @logical-block-size: Logical block size in bytes.  Defaults to 512
 #     bytes.
@@ -373,11 +373,12 @@
 #     cannot be moved to the iothread.  The default is false.
 #     (since: 5.2)
 #
-# @allow-inactive: If true, the export allows the exported node to be inactive.
-#     If it is created for an inactive block node, the node remains inactive.  If
-#     the export type doesn't support running on an inactive node, an error is
-#     returned.  If false, inactive block nodes are automatically activated before
-#     creating the export and trying to inactivate them later fails.
+# @allow-inactive: If true, the export allows the exported node to be
+#     inactive.  If it is created for an inactive block node, the node
+#     remains inactive.  If the export type doesn't support running on
+#     an inactive node, an error is returned.  If false, inactive
+#     block nodes are automatically activated before creating the
+#     export and trying to inactivate them later fails.
 #     (since: 10.0; default: false)
 #
 # Since: 4.2
@@ -460,7 +461,8 @@
 # @node-name: The node name of the block node that is exported
 #
 # @shutting-down: True if the export is shutting down (e.g. after a
-#     `block-export-del` command, but before the shutdown has completed)
+#     `block-export-del` command, but before the shutdown has
+#     completed)
 #
 # Since: 5.2
 ##

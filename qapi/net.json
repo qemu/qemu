@@ -119,9 +119,11 @@
 #
 # Unprivileged user-mode network connectivity using passt
 #
-# @path: Filename of the passt program to run (by default 'passt', and use PATH)
+# @path: Filename of the passt program to run (by default 'passt', and
+#     use PATH)
 #
-# @quiet: don't print informational messages (default, passed as '--quiet')
+# @quiet: don't print informational messages (default, passed as
+#     '--quiet')
 #
 # @vhost-user: enable vhost-user
 #
@@ -281,8 +283,8 @@
 #
 # @smbserver: IP address of the built-in SMB server
 #
-# @hostfwd: redirect incoming TCP, UDP or UNIX host connections to guest
-#     endpoints
+# @hostfwd: redirect incoming TCP, UDP or UNIX host connections to
+#     guest endpoints
 #
 # @guestfwd: forward guest TCP connections
 #
@@ -569,7 +571,8 @@
 #     (default: 0).
 #
 # @inhibit: Don't load a default XDP program, use one already loaded
-#     to the interface (default: false).  Requires @sock-fds or @map-path.
+#     to the interface (default: false).  Requires @sock-fds or
+#     @map-path.
 #
 # @sock-fds: A colon (:) separated list of file descriptors for
 #     already open but not bound AF_XDP sockets in the queue order.
@@ -582,7 +585,8 @@
 #     mutually exclusive.  Requires @inhibit.  (Since 10.1)
 #
 # @map-start-index: Use @map-path to insert xsk sockets starting from
-#     this index number (default: 0).  Requires @map-path.  (Since 10.1)
+#     this index number (default: 0).  Requires @map-path.
+#     (Since 10.1)
 #
 # Since: 8.2
 ##
@@ -770,9 +774,10 @@
 #
 # @server: create server socket (default: false)
 #
-# @reconnect-ms: For a client socket, if a socket is disconnected, then
-#     attempt a reconnect after the given number of milliseconds.  Setting
-#     this to zero disables this function.  (default: 0) (Since: 9.2)
+# @reconnect-ms: For a client socket, if a socket is disconnected,
+#     then attempt a reconnect after the given number of milliseconds.
+#     Setting this to zero disables this function.
+#     (default: 0) (Since: 9.2)
 #
 # Only `SocketAddress` types 'unix', 'inet' and 'fd' are supported.
 #

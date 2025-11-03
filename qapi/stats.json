@@ -185,8 +185,8 @@
 # Return runtime-collected statistics for objects such as the VM or
 # its vCPUs.
 #
-# The arguments are a `StatsFilter` and specify the provider and objects
-# to return statistics about.
+# The arguments are a `StatsFilter` and specify the provider and
+# objects to return statistics about.
 #
 # Returns: a list of statistics, one for each provider and object
 #     (e.g., for each vCPU).

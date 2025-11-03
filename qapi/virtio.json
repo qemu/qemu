@@ -984,8 +984,8 @@
 ##
 # @DummyVirtioForceArrays:
 #
-# Not used by QMP; hack to let us use IOThreadVirtQueueMappingList
-# and VirtIOGPUOutputList internally
+# Not used by QMP; hack to let us use IOThreadVirtQueueMappingList and
+# VirtIOGPUOutputList internally
 #
 # Since: 9.0
 ##

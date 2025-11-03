@@ -194,16 +194,16 @@
 #
 # This is supported only for drive mirroring, where it also switches
 # the device to write to the target path only.  Note that drive
-# mirroring includes `drive-mirror`, `blockdev-mirror` and `block-commit`
-# job (only in case of "active commit", when the node being commited
-# is used by the guest).  The ability to complete is signaled with a
-# `BLOCK_JOB_READY` event.
+# mirroring includes `drive-mirror`, `blockdev-mirror` and
+# `block-commit` job (only in case of "active commit", when the node
+# being commited is used by the guest).  The ability to complete is
+# signaled with a `BLOCK_JOB_READY` event.
 #
 # This command completes an active background block operation
 # synchronously.  The ordering of this command's return with the
-# `BLOCK_JOB_COMPLETED` event is not defined.  Note that if an I/O error
-# occurs during the processing of this command: 1) the command itself
-# will fail; 2) the error will be processed according to the
+# `BLOCK_JOB_COMPLETED` event is not defined.  Note that if an I/O
+# error occurs during the processing of this command: 1) the command
+# itself will fail; 2) the error will be processed according to the
 # rerror/werror arguments that were specified when starting the
 # operation.
 #
@@ -218,16 +218,16 @@
 #
 # Deletes a job that is in the CONCLUDED state.  This command only
 # needs to be run explicitly for jobs that don't have automatic
-# dismiss enabled.  In turn, automatic dismiss may be enabled only
-# for jobs that have @auto-dismiss option, which are `drive-backup`,
-# `blockdev-backup`, `drive-mirror`, `blockdev-mirror`, `block-commit` and
-# `block-stream`.  @auto-dismiss is enabled by default for these
+# dismiss enabled.  In turn, automatic dismiss may be enabled only for
+# jobs that have @auto-dismiss option, which are `drive-backup`,
+# `blockdev-backup`, `drive-mirror`, `blockdev-mirror`, `block-commit`
+# and `block-stream`.  @auto-dismiss is enabled by default for these
 # jobs.
 #
 # This command will refuse to operate on any job that has not yet
 # reached its terminal state, CONCLUDED.  For jobs that make use of
-# the JOB_READY event, `job-cancel` or `job-complete` will still need to
-# be used as appropriate.
+# the JOB_READY event, `job-cancel` or `job-complete` will still need
+# to be used as appropriate.
 #
 # @id: The job identifier.
 #
@@ -247,8 +247,8 @@
 # force ALL jobs in the transaction to finalize, so it is only
 # necessary to instruct a single member job to finalize.
 #
-# The command is applicable only to jobs which have @auto-finalize option
-# and only when this option is set to false.
+# The command is applicable only to jobs which have @auto-finalize
+# option and only when this option is set to false.
 #
 # @id: The identifier of any job in the transaction, or of a job that
 #     is not part of any transaction.

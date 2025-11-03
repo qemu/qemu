@@ -22,10 +22,10 @@
 # `SchemaInfo`.  This lets QMP clients figure out what commands and
 # events are available in this QEMU, and their parameters and results.
 #
-# However, the `SchemaInfo` can't reflect all the rules and restrictions
-# that apply to QMP.  It's interface introspection (figuring out
-# what's there), not interface specification.  The specification is in
-# the QAPI schema.
+# However, the `SchemaInfo` can't reflect all the rules and
+# restrictions that apply to QMP.  It's interface introspection
+# (figuring out what's there), not interface specification.  The
+# specification is in the QAPI schema.
 #
 # Furthermore, while we strive to keep the QMP wire format
 # backwards-compatible across QEMU versions, the introspection output

@@ -1023,10 +1023,10 @@
 #
 # Send keys to guest.
 #
-# @keys: An array of `KeyValue` elements.  All @KeyValues in this array
-#     are simultaneously sent to the guest.  A `KeyValue`.number value
-#     is sent directly to the guest, while `KeyValue`.qcode must be a
-#     valid `QKeyCode` value
+# @keys: An array of `KeyValue` elements.  All @KeyValues in this
+#     array are simultaneously sent to the guest.  A `KeyValue`.number
+#     value is sent directly to the guest, while `KeyValue`.qcode must
+#     be a valid `QKeyCode` value
 #
 # @hold-time: time to delay key up events, milliseconds.  Defaults to
 #     100
@@ -1335,10 +1335,11 @@
 # @show-menubar: Display the main window menubar.  Defaults to "on".
 #     (Since 8.0)
 #
-# @keep-aspect-ratio: Keep width/height aspect ratio of guest content when
-#     resizing host window.  Defaults to "on". (Since 10.1)
+# @keep-aspect-ratio: Keep width/height aspect ratio of guest content
+#     when resizing host window.  Defaults to "on".  (Since 10.1)
 #
-# @scale: Set preferred scale of the display.  Defaults to 1.0.  (Since 10.1)
+# @scale: Set preferred scale of the display.  Defaults to 1.0.
+#     (Since 10.1)
 #
 # Since: 2.12
 ##

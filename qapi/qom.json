@@ -52,7 +52,8 @@
 #
 # @name: the name of the property.
 #
-# @type: the type of the property, as described in `ObjectPropertyInfo`.
+# @type: the type of the property, as described in
+#     `ObjectPropertyInfo`.
 #
 # @value: the value of the property.  Absent when the property cannot
 #     be read.
@@ -112,7 +113,7 @@
 #     Absolute paths are derived from the root object and can follow
 #     child<> or link<> properties.  Since they can follow link<>
 #     properties, they can be arbitrarily long.  Absolute paths look
-#     like absolute filenames and are prefixed  with a leading slash.
+#     like absolute filenames and are prefixed with a leading slash.
 #
 #     Partial paths look like relative filenames.  They do not begin
 #     with a prefix.  The matching rules for partial paths are subtle
@@ -917,14 +918,14 @@
 #     combined with information retrieved from the discoverable part
 #     of the path.  An example would use CDAT (see UEFI.org)
 #     information read from devices and switches in conjunction with
-#     link characteristics read from PCIe Configuration space.
-#     To get the full path latency from CPU to CXL attached DRAM
-#     CXL device: Add the latency from CPU to Generic Port (from
-#     HMAT indexed via the node ID in this SRAT structure) to
-#     that for CXL bus links, the latency across intermediate switches
-#     and from the EP port to the actual memory.  Bandwidth is more
-#     complex as there may be interleaving across multiple devices
-#     and shared links in the path.
+#     link characteristics read from PCIe Configuration space.  To get
+#     the full path latency from CPU to CXL attached DRAM CXL device:
+#     Add the latency from CPU to Generic Port (from HMAT indexed via
+#     the node ID in this SRAT structure) to that for CXL bus links,
+#     the latency across intermediate switches and from the EP port to
+#     the actual memory.  Bandwidth is more complex as there may be
+#     interleaving across multiple devices and shared links in the
+#     path.
 #
 # Since: 9.2
 ##
@@ -1040,8 +1041,7 @@
 #    behave identically to 'on', but will automatically switch to
 #    using KVM_SEV_INIT2 if the user specifies any additional options
 #    that require it.  If set to 'off', QEMU will require
-#    KVM_SEV_INIT2 unconditionally.
-#    (default: off) (since 9.1)
+#    KVM_SEV_INIT2 unconditionally.  (default: off) (since 9.1)
 #
 # Since: 2.12
 ##
@@ -1082,8 +1082,8 @@
 #     Authentication Information Structure' for the SNP_LAUNCH_FINISH
 #     command defined in the SEV-SNP firmware ABI (default: all-zero)
 #
-# @author-key-enabled: true if 'id-auth' blob contains the 'AUTHOR_KEY'
-#     field defined SEV-SNP firmware ABI (default: false)
+# @author-key-enabled: true if 'id-auth' blob contains the
+#     'AUTHOR_KEY' field defined SEV-SNP firmware ABI (default: false)
 #
 # @host-data: 32-byte, base64-encoded, user-defined blob to provide to
 #     the guest, as documented for the 'HOST_DATA' parameter of the
@@ -1117,17 +1117,17 @@
 # @attributes: The 'attributes' of a TD guest that is passed to
 #     KVM_TDX_INIT_VM
 #
-# @sept-ve-disable: toggle bit 28 of TD attributes to control disabling
-#     of EPT violation conversion to #VE on guest TD access of PENDING
-#     pages.  Some guest OS (e.g., Linux TD guest) may require this to
-#     be set, otherwise they refuse to boot.
+# @sept-ve-disable: toggle bit 28 of TD attributes to control
+#     disabling of EPT violation conversion to #VE on guest TD access
+#     of PENDING pages.  Some guest OS (e.g., Linux TD guest) may
+#     require this to be set, otherwise they refuse to boot.
 #
 # @mrconfigid: ID for non-owner-defined configuration of the guest TD,
-#     e.g., run-time or OS configuration (base64 encoded SHA384 digest).
-#     Defaults to all zeros.
+#     e.g., run-time or OS configuration (base64 encoded SHA384
+#     digest).  Defaults to all zeros.
 #
-# @mrowner: ID for the guest TD’s owner (base64 encoded SHA384 digest).
-#     Defaults to all zeros.
+# @mrowner: ID for the guest TD’s owner (base64 encoded SHA384
+#     digest).  Defaults to all zeros.
 #
 # @mrownerconfig: ID for owner-defined configuration of the guest TD,
 #     e.g., specific to the workload rather than the run-time or OS

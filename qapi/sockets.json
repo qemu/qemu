@@ -58,24 +58,26 @@
 # @ipv6: whether to accept IPv6 addresses, default try both IPv4 and
 #     IPv6
 #
-# @keep-alive: enable keep-alive when connecting to/listening on this socket.
+# @keep-alive: enable keep-alive when connecting to/listening on this
+#     socket.
 #     (Since 4.2, not supported for listening sockets until 10.1)
 #
-# @keep-alive-count: number of keep-alive packets sent before the connection is
-#     closed.  Only supported for TCP sockets on systems where TCP_KEEPCNT
-#     socket option is defined (this includes Linux, Windows, macOS, FreeBSD,
-#     but not OpenBSD).  When set to 0, system setting is used.  (Since 10.1)
+# @keep-alive-count: number of keep-alive packets sent before the
+#     connection is closed.  Only supported for TCP sockets on systems
+#     where TCP_KEEPCNT socket option is defined (this includes Linux,
+#     Windows, macOS, FreeBSD, but not OpenBSD).  When set to 0,
+#     system setting is used.  (Since 10.1)
 #
-# @keep-alive-idle: time in seconds the connection needs to be idle before
-#     sending a keepalive packet.  Only supported for TCP sockets on systems
-#     where TCP_KEEPIDLE socket option is defined (this includes Linux,
-#     Windows, macOS, FreeBSD, but not OpenBSD).  When set to 0, system setting
-#     is used.  (Since 10.1)
+# @keep-alive-idle: time in seconds the connection needs to be idle
+#     before sending a keepalive packet.  Only supported for TCP
+#     sockets on systems where TCP_KEEPIDLE socket option is defined
+#     (this includes Linux, Windows, macOS, FreeBSD, but not OpenBSD).
+#     When set to 0, system setting is used.  (Since 10.1)
 #
-# @keep-alive-interval: time in seconds between keep-alive packets.  Only
-#     supported for TCP sockets on systems where TCP_KEEPINTVL is defined (this
-#     includes Linux, Windows, macOS, FreeBSD, but not OpenBSD).  When set to
-#     0, system setting is used.  (Since 10.1)
+# @keep-alive-interval: time in seconds between keep-alive packets.
+#     Only supported for TCP sockets on systems where TCP_KEEPINTVL is
+#     defined (this includes Linux, Windows, macOS, FreeBSD, but not
+#     OpenBSD).  When set to 0, system setting is used.  (Since 10.1)
 #
 # @mptcp: enable multi-path TCP.  (Since 6.1)
 #

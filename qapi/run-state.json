@@ -247,8 +247,8 @@
 # saved on disk, for example, S4 state, which is sometimes called
 # hibernate state
 #
-# .. note:: QEMU shuts down (similar to event `SHUTDOWN`) when entering
-#    this state.
+# .. note:: QEMU shuts down (similar to event `SHUTDOWN`) when
+#    entering this state.
 #
 # Since: 1.2
 #
@@ -281,9 +281,9 @@
 #
 # @action: action that has been taken
 #
-# .. note:: If action is "reset", "shutdown", or "pause" the `WATCHDOG`
-#    event is followed respectively by the `RESET`, `SHUTDOWN`, or `STOP`
-#    events.
+# .. note:: If action is "reset", "shutdown", or "pause" the
+#    `WATCHDOG` event is followed respectively by the `RESET`,
+#    `SHUTDOWN`, or `STOP` events.
 #
 # .. note:: This event is rate-limited.
 #
@@ -402,7 +402,8 @@
 #
 # @panic: `PanicAction` action taken on guest panic.
 #
-# @watchdog: `WatchdogAction` action taken when watchdog timer expires.
+# @watchdog: `WatchdogAction` action taken when watchdog timer
+#     expires.
 #
 # Since: 6.0
 #
@@ -542,8 +543,8 @@
 # @arg4: for Windows, third argument of the `STOP`.  For Linux, the
 #     RAX register (x86) or the stack pointer (aarch64) of the guest.
 #
-# @arg5: for Windows, fourth argument of the `STOP`.  For x86 Linux, the
-#     stack pointer of the guest.
+# @arg5: for Windows, fourth argument of the `STOP`.  For x86 Linux,
+#     the stack pointer of the guest.
 #
 # Since: 2.9
 ##
@@ -610,7 +611,7 @@
 #
 # @error-code: TD-specific error code
 #
-# @message: Human-readable error message provided by the guest. Not
+# @message: Human-readable error message provided by the guest.  Not
 #     to be trusted.
 #
 # @gpa: guest-physical address of a page that contains more verbose

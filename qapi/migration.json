@@ -160,11 +160,11 @@
 #
 # @pre-switchover: Paused before device serialisation.  (since 2.11)
 #
-# @device: During device serialisation (also known as switchover phase).
-#     Before 9.2, this is only used when (1) in precopy, and (2) when
-#     pre-switchover capability is enabled.  After 10.0, this state will
-#     always be present for every migration procedure as the switchover
-#     phase.  (since 2.11)
+# @device: During device serialisation (also known as switchover
+#     phase).  Before 9.2, this is only used when (1) in precopy, and
+#     (2) when pre-switchover capability is enabled.  After 10.0, this
+#     state will always be present for every migration procedure as
+#     the switchover phase.  (since 2.11)
 #
 # @wait-unplug: wait for device unplug request by guest OS to be
 #     completed.  (since 4.2)
@@ -238,30 +238,33 @@
 #     This is only present when the postcopy-blocktime migration
 #     capability is enabled.  (Since 3.0)
 #
-# @postcopy-latency: average remote page fault latency (in ns).  Note that
-#     this doesn't include all faults, but only the ones that require a
-#     remote page request.  So it should be always bigger than the real
-#     average page fault latency. This is only present when the
-#     postcopy-blocktime migration capability is enabled.  (Since 10.1)
-#
-# @postcopy-latency-dist: remote page fault latency distributions.  Each
-#     element of the array is the number of faults that fall into the
-#     bucket period.  For the N-th bucket (N>=0), the latency window is
-#     [2^Nus, 2^(N+1)us).  For example, the 8th element stores how many
-#     remote faults got resolved within [256us, 512us) window. This is only
-#     present when the postcopy-blocktime migration capability is enabled.
+# @postcopy-latency: average remote page fault latency (in ns).  Note
+#     that this doesn't include all faults, but only the ones that
+#     require a remote page request.  So it should be always bigger
+#     than the real average page fault latency.  This is only present
+#     when the postcopy-blocktime migration capability is enabled.
 #     (Since 10.1)
 #
-# @postcopy-vcpu-latency: average remote page fault latency per vCPU (in
-#     ns).  It has the same definition of @postcopy-latency, but instead
-#     this is the per-vCPU statistics.  This is only present when the
-#     postcopy-blocktime migration capability is enabled.  (Since 10.1)
-#
-# @postcopy-non-vcpu-latency: average remote page fault latency for all
-#     faults happend in non-vCPU threads (in ns).  It has the same
-#     definition of @postcopy-latency but this only provides statistics to
-#     non-vCPU faults.  This is only present when the postcopy-blocktime
+# @postcopy-latency-dist: remote page fault latency distributions.
+#     Each element of the array is the number of faults that fall into
+#     the bucket period.  For the N-th bucket (N>=0), the latency
+#     window is [2^Nus, 2^(N+1)us).  For example, the 8th element
+#     stores how many remote faults got resolved within [256us, 512us)
+#     window.  This is only present when the postcopy-blocktime
 #     migration capability is enabled.  (Since 10.1)
+#
+# @postcopy-vcpu-latency: average remote page fault latency per vCPU
+#     (in ns).  It has the same definition of @postcopy-latency, but
+#     instead this is the per-vCPU statistics.  This is only present
+#     when the postcopy-blocktime migration capability is enabled.
+#     (Since 10.1)
+#
+# @postcopy-non-vcpu-latency: average remote page fault latency for
+#     all faults happend in non-vCPU threads (in ns).  It has the same
+#     definition of @postcopy-latency but this only provides
+#     statistics to non-vCPU faults.  This is only present when the
+#     postcopy-blocktime migration capability is enabled.
+#     (Since 10.1)
 #
 # @socket-address: Only used for tcp, to know what the real port is
 #     (Since 4.0)
@@ -290,7 +293,8 @@
 # Features:
 #
 # @unstable: Members @postcopy-latency, @postcopy-vcpu-latency,
-#     @postcopy-latency-dist, @postcopy-non-vcpu-latency are experimental.
+#     @postcopy-latency-dist, @postcopy-non-vcpu-latency are
+#     experimental.
 #
 # Since: 0.14
 ##
@@ -322,9 +326,8 @@
 ##
 # @query-migrate:
 #
-# Return information about current migration process.  If migration
-# is active there will be another json-object with RAM migration
-# status.
+# Return information about current migration process.  If migration is
+# active there will be another json-object with RAM migration status.
 #
 # Since: 0.14
 #
@@ -627,8 +630,8 @@
 #
 # @normal: the original form of migration.  (since 8.2)
 #
-# @cpr-reboot: The `migrate` command stops the VM and saves state to the
-#     URI.  After quitting QEMU, the user resumes by running QEMU
+# @cpr-reboot: The `migrate` command stops the VM and saves state to
+#     the URI.  After quitting QEMU, the user resumes by running QEMU
 #     -incoming.
 #
 #     This mode allows the user to quit QEMU, optionally update and
@@ -659,15 +662,15 @@
 #     time by preserving guest RAM in place.
 #
 #     Devices and their pinned pages are also preserved for VFIO and
-#     IOMMUFD. (since 10.1)
+#     IOMMUFD.  (since 10.1)
 #
 #     The user starts new QEMU on the same host as old QEMU, with
 #     command-line arguments to create the same machine, plus the
 #     -incoming option for the main migration channel, like normal
 #     live migration.  In addition, the user adds a second -incoming
 #     option with channel type "cpr".  This CPR channel must support
-#     file descriptor transfer with SCM_RIGHTS, i.e. it must be a
-#     UNIX domain socket.
+#     file descriptor transfer with SCM_RIGHTS, i.e. it must be a UNIX
+#     domain socket.
 #
 #     To initiate CPR, the user issues a migrate command to old QEMU,
 #     adding a second migration channel of type "cpr" in the channels
@@ -708,8 +711,8 @@
 #     QEMU binary.
 #
 #     Because old QEMU terminates when new QEMU starts, one cannot
-#     stream data between the two, so the channel must be a type,
-#     such as a file, that accepts all data before old QEMU exits.
+#     stream data between the two, so the channel must be a type, such
+#     as a file, that accepts all data before old QEMU exits.
 #     Otherwise, old QEMU may quietly block writing to the channel.
 #
 #     Memory-backend objects must have the share=on attribute, but
@@ -903,9 +906,10 @@
 #     more CPU.  Defaults to 1.  (Since 5.0)
 #
 # @multifd-qatzip-level: Set the compression level to be used in live
-#     migration.  The level is an integer between 1 and 9, where 1 means
-#     the best compression speed, and 9 means the best compression
-#     ratio which will consume more CPU.  Defaults to 1.  (Since 9.2)
+#     migration.  The level is an integer between 1 and 9, where 1
+#     means the best compression speed, and 9 means the best
+#     compression ratio which will consume more CPU.  Defaults to 1.
+#     (Since 9.2)
 #
 # @multifd-zstd-level: Set the compression level to be used in live
 #     migration, the compression level is an integer between 0 and 20,
@@ -939,8 +943,8 @@
 # @mode: Migration mode.  See description in `MigMode`.  Default is
 #     'normal'.  (Since 8.2)
 #
-# @zero-page-detection: Whether and how to detect zero pages.
-#     See description in `ZeroPageDetection`.  Default is 'multifd'.
+# @zero-page-detection: Whether and how to detect zero pages.  See
+#     description in `ZeroPageDetection`.  Default is 'multifd'.
 #     (since 9.0)
 #
 # @direct-io: Open migration files with O_DIRECT when possible.  This
@@ -1089,9 +1093,10 @@
 #     more CPU.  Defaults to 1.  (Since 5.0)
 #
 # @multifd-qatzip-level: Set the compression level to be used in live
-#     migration.  The level is an integer between 1 and 9, where 1 means
-#     the best compression speed, and 9 means the best compression
-#     ratio which will consume more CPU.  Defaults to 1.  (Since 9.2)
+#     migration.  The level is an integer between 1 and 9, where 1
+#     means the best compression speed, and 9 means the best
+#     compression ratio which will consume more CPU.  Defaults to 1.
+#     (Since 9.2)
 #
 # @multifd-zstd-level: Set the compression level to be used in live
 #     migration, the compression level is an integer between 0 and 20,
@@ -1125,8 +1130,8 @@
 # @mode: Migration mode.  See description in `MigMode`.  Default is
 #     'normal'.  (Since 8.2)
 #
-# @zero-page-detection: Whether and how to detect zero pages.
-#     See description in `ZeroPageDetection`.  Default is 'multifd'.
+# @zero-page-detection: Whether and how to detect zero pages.  See
+#     description in `ZeroPageDetection`.  Default is 'multifd'.
 #     (since 9.0)
 #
 # @direct-io: Open migration files with O_DIRECT when possible.  This
@@ -1304,9 +1309,10 @@
 #     more CPU.  Defaults to 1.  (Since 5.0)
 #
 # @multifd-qatzip-level: Set the compression level to be used in live
-#     migration.  The level is an integer between 1 and 9, where 1 means
-#     the best compression speed, and 9 means the best compression
-#     ratio which will consume more CPU.  Defaults to 1.  (Since 9.2)
+#     migration.  The level is an integer between 1 and 9, where 1
+#     means the best compression speed, and 9 means the best
+#     compression ratio which will consume more CPU.  Defaults to 1.
+#     (Since 9.2)
 #
 # @multifd-zstd-level: Set the compression level to be used in live
 #     migration, the compression level is an integer between 0 and 20,
@@ -1340,8 +1346,8 @@
 # @mode: Migration mode.  See description in `MigMode`.  Default is
 #     'normal'.  (Since 8.2)
 #
-# @zero-page-detection: Whether and how to detect zero pages.
-#     See description in `ZeroPageDetection`.  Default is 'multifd'.
+# @zero-page-detection: Whether and how to detect zero pages.  See
+#     description in `ZeroPageDetection`.  Default is 'multifd'.
 #     (since 9.0)
 #
 # @direct-io: Open migration files with O_DIRECT when possible.  This
@@ -1813,9 +1819,9 @@
 #     list connected to a destination interface endpoint.
 #
 # @exit-on-error: Exit on incoming migration failure.  Default true.
-#     When set to false, the failure triggers a :qapi:event:`MIGRATION`
-#     event, and error details could be retrieved with `query-migrate`.
-#     (since 9.1)
+#     When set to false, the failure triggers a
+#     :qapi:event:`MIGRATION` event, and error details could be
+#     retrieved with `query-migrate`.  (since 9.1)
 #
 # Since: 2.3
 #
@@ -2368,8 +2374,7 @@
 ##
 # @query-vcpu-dirty-limit:
 #
-# Return information about virtual CPU dirty page rate limits, if
-# any.
+# Return information about virtual CPU dirty page rate limits, if any.
 #
 # Since: 7.1
 #
@@ -2507,8 +2512,8 @@
 # time it takes to load the snapshot.
 #
 # It is strongly recommended that @devices contain all writable block
-# device nodes that can have changed since the original `snapshot-save`
-# command execution.
+# device nodes that can have changed since the original
+# `snapshot-save` command execution.
 #
 # .. qmp-example::
 #

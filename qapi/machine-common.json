@@ -87,8 +87,8 @@
 #
 # Cache information for SMP system.
 #
-# @cache: Cache name, which is the combination of cache level
-#     and cache type.
+# @cache: Cache name, which is the combination of cache level and
+#     cache type.
 #
 # @topology: Cache topology level.  It accepts the CPU topology
 #     enumeration as the parameter, i.e., CPUs in the same

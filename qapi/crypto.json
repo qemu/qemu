@@ -46,7 +46,8 @@
 #
 # @md5: MD5.  Should not be used in any new code, legacy compat only
 #
-# @sha1: SHA-1.  Should not be used in any new code, legacy compat only
+# @sha1: SHA-1.  Should not be used in any new code, legacy compat
+#     only
 #
 # @sha224: SHA-224.  (since 2.7)
 #
@@ -377,8 +378,8 @@
 #     deactivate all keyslots that match password located in
 #     QCryptoSecret with this ID
 #
-# @iter-time: Optional (for activation only).  Number of milliseconds to
-#     spend in PBKDF passphrase processing for the newly activated
+# @iter-time: Optional (for activation only).  Number of milliseconds
+#     to spend in PBKDF passphrase processing for the newly activated
 #     keyslot.  Currently defaults to 2000.
 #
 # @keyslot: Optional.  ID of the keyslot to activate/deactivate.  For

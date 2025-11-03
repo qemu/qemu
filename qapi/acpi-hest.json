@@ -5,8 +5,8 @@
 ##
 # == GHESv2 CPER Error Injection
 #
-# Defined since ACPI Specification 6.1,
-# section 18.3.2.8 Generic Hardware Error Source version 2. See:
+# Defined since ACPI Specification 6.1, section 18.3.2.8 Generic
+# Hardware Error Source version 2.  See:
 #
 # https://uefi.org/sites/default/files/resources/ACPI_6_1.pdf
 ##
