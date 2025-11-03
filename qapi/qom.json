@@ -75,7 +75,6 @@
 { 'struct': 'ObjectPropertiesValues',
   'data': { 'properties': [ 'ObjectPropertyValue' ] }}
 
-
 ##
 # @qom-list:
 #
@@ -243,7 +242,6 @@
 # List properties associated with a QOM object.
 #
 # @typename: the type name of an object
-#
 #
 # .. note:: Objects can create properties at runtime, for example to
 #    describe links between different devices and/or objects.  These
@@ -1168,7 +1166,6 @@
 { 'struct': 'ThreadContextProperties',
   'data': { '*cpu-affinity': ['uint16'],
             '*node-affinity': ['uint16'] } }
-
 
 ##
 # @ObjectType:

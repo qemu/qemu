@@ -618,7 +618,6 @@
 #     error information, as zero-terminated string.  Present when the
 #     "GPA valid" bit (bit 63) is set in @error-code.
 #
-#
 # Since: 10.1
 ##
 {'struct': 'GuestPanicInformationTdx',

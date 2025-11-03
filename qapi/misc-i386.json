@@ -122,7 +122,6 @@
       'sev': 'SevGuestInfo',
       'sev-snp': 'SevSnpGuestInfo' } }
 
-
 ##
 # @query-sev:
 #
@@ -417,7 +416,6 @@
            'target': 'uint16',
            'pending': 'bool',
            'masked': 'bool'} }
-
 
 ##
 # @xen-event-list:

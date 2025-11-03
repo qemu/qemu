@@ -262,7 +262,6 @@
 #
 # Since: 8.0
 ##
-
 { 'enum': 'CxlUncorErrorType',
   'data': ['cache-data-parity',
            'cache-address-parity',

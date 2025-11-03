@@ -682,6 +682,7 @@
 ##
 { 'command': 'query-vnc', 'returns': 'VncInfo',
   'if': 'CONFIG_VNC' }
+
 ##
 # @query-vnc-servers:
 #
@@ -1093,7 +1094,6 @@
 ##
 { 'enum'  : 'InputMultiTouchType',
   'data'  : [ 'begin', 'update', 'end', 'cancel', 'data' ] }
-
 
 ##
 # @InputKeyEvent:

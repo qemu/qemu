@@ -547,6 +547,7 @@
   'base': 'TlsCredsProperties',
   'data': { '*sanity-check': 'bool',
             '*passwordid': 'str' } }
+
 ##
 # @QCryptoAkCipherAlgo:
 #
