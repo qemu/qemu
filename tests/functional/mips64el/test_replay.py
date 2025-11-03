@@ -23,7 +23,7 @@ class Mips64elReplay(ReplayKernelBase):
         kernel_path = self.archive_extract(self.ASSET_KERNEL_2_63_2,
                                     member='boot/vmlinux-2.6.32-5-5kc-malta')
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
-        console_pattern = 'Kernel command line: %s' % kernel_command_line
+        console_pattern = f'Kernel command line: {kernel_command_line}'
         self.run_rr(kernel_path, kernel_command_line, console_pattern, shift=5)
 
 
@@ -41,7 +41,7 @@ class Mips64elReplay(ReplayKernelBase):
 
     @skipUntrustedTest()
     @skipFlakyTest("https://gitlab.com/qemu-project/qemu/-/issues/2013")
-    def test_replay_mips64el_malta_5KEc_cpio(self):
+    def test_replay_mips64el_malta_5kec_cpio(self):
         self.set_machine('malta')
         self.cpu = '5KEc'
         kernel_path = self.ASSET_KERNEL_3_19_3.fetch()
