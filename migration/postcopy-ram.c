@@ -2083,7 +2083,7 @@ bool postcopy_is_paused(MigrationStatus status)
  * the input stream, leaving the main thread free to carry on loading the rest
  * of the device state (from RAM).
  */
-void *postcopy_ram_listen_thread(void *opaque)
+static void *postcopy_listen_thread(void *opaque)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
     QEMUFile *f = mis->from_src_file;
@@ -2149,7 +2149,7 @@ void *postcopy_ram_listen_thread(void *opaque)
          */
         qemu_event_wait(&mis->main_thread_load_event);
     }
-    postcopy_ram_incoming_cleanup(mis);
+    postcopy_incoming_cleanup(mis);
 
     if (load_res < 0) {
         /*
@@ -2181,4 +2181,44 @@ void *postcopy_ram_listen_thread(void *opaque)
     object_unref(OBJECT(migr));
 
     return NULL;
+}
+
+int postcopy_incoming_setup(MigrationIncomingState *mis, Error **errp)
+{
+    /*
+     * Sensitise RAM - can now generate requests for blocks that don't exist
+     * However, at this point the CPU shouldn't be running, and the IO
+     * shouldn't be doing anything yet so don't actually expect requests
+     */
+    if (migrate_postcopy_ram()) {
+        if (postcopy_ram_incoming_setup(mis)) {
+            postcopy_ram_incoming_cleanup(mis);
+            error_setg(errp, "Failed to setup incoming postcopy RAM blocks");
+            return -1;
+        }
+    }
+
+    trace_loadvm_postcopy_handle_listen("after uffd");
+
+    if (postcopy_notify(POSTCOPY_NOTIFY_INBOUND_LISTEN, errp)) {
+        return -1;
+    }
+
+    mis->have_listen_thread = true;
+    postcopy_thread_create(mis, &mis->listen_thread,
+                           MIGRATION_THREAD_DST_LISTEN,
+                           postcopy_listen_thread, QEMU_THREAD_DETACHED);
+
+    return 0;
+}
+
+int postcopy_incoming_cleanup(MigrationIncomingState *mis)
+{
+    int rc = 0;
+
+    if (migrate_postcopy_ram()) {
+        rc = postcopy_ram_incoming_cleanup(mis);
+    }
+
+    return rc;
 }
