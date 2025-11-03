@@ -2080,11 +2080,16 @@ bool postcopy_is_paused(MigrationStatus status)
 
 static void postcopy_listen_thread_bh(void *opaque)
 {
+    MigrationState *s = migrate_get_current();
     MigrationIncomingState *mis = migration_incoming_get_current();
 
     migration_incoming_state_destroy();
 
-    if (mis->state == MIGRATION_STATUS_FAILED) {
+    if (mis->state == MIGRATION_STATUS_FAILED && mis->exit_on_error) {
+        WITH_QEMU_LOCK_GUARD(&s->error_mutex) {
+            error_report_err(s->error);
+            s->error = NULL;
+        }
         /*
          * If something went wrong then we have a bad state so exit;
          * we only could have gotten here if something failed before
