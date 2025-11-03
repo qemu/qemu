@@ -832,12 +832,11 @@ void ncr710_transfer_data(SCSIRequest *req, uint32_t len)
     }
 
     /* Host adapter (re)connected */
-    s->current->dma_len = len;
     s->command_complete = NCR710_CMD_DATA_READY;
-
     if (!s->current) {
         return;
     }
+    s->current->dma_len = len;
 
     if (s->waiting) {
         s->scntl1 |= NCR710_SCNTL1_CON;
