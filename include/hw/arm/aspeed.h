@@ -101,4 +101,14 @@ void aspeed_create_pca9552(AspeedSoCState *soc, int bus_id, int addr);
  */
 I2CSlave *aspeed_create_pca9554(AspeedSoCState *soc, int bus_id, int addr);
 
+/*
+ * aspeed_machine_ast2600_class_emmc_init:
+ * @oc: the #ObjectClass to initialize.
+ *
+ * Initialize eMMC-related properties for the AST2600 Aspeed machine class.
+ * This function is typically invoked during class initialization to set up
+ * default configuration or attach eMMC-specific devices for AST2600 platforms.
+ */
+void aspeed_machine_ast2600_class_emmc_init(ObjectClass *oc);
+
 #endif
