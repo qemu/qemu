@@ -366,11 +366,15 @@ aio_ctx_dispatch(GSource     *source,
 }
 
 static void
-aio_ctx_finalize(GSource     *source)
+aio_ctx_finalize(GSource *source)
 {
     AioContext *ctx = (AioContext *) source;
     QEMUBH *bh;
     unsigned flags;
+
+    if (!ctx->initialized) {
+        return;
+    }
 
     thread_pool_free_aio(ctx->thread_pool);
 
@@ -580,16 +584,35 @@ AioContext *aio_context_new(Error **errp)
     int ret;
     AioContext *ctx;
 
+    /*
+     * ctx is freed by g_source_unref() (e.g. aio_context_unref()). ctx's
+     * resources are freed as follows:
+     *
+     * 1. By aio_ctx_finalize() after aio_context_new() has returned and set
+     *    ->initialized = true.
+     *
+     * 2. By manual cleanup code in this function's error paths before goto
+     *    fail.
+     *
+     * Be careful to free resources in both cases!
+     */
     ctx = (AioContext *) g_source_new(&aio_source_funcs, sizeof(AioContext));
     QSLIST_INIT(&ctx->bh_list);
     QSIMPLEQ_INIT(&ctx->bh_slice_list);
-    aio_context_setup(ctx);
 
     ret = event_notifier_init(&ctx->notifier, false);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to initialize event notifier");
         goto fail;
     }
+
+    /*
+     * Resources cannot easily be freed manually after aio_context_setup(). If
+     * you add any new resources to AioContext, it's probably best to acquire
+     * them before aio_context_setup().
+     */
+    aio_context_setup(ctx);
+
     g_source_set_can_recurse(&ctx->source, true);
     qemu_lockcnt_init(&ctx->list_lock);
 
@@ -623,9 +646,11 @@ AioContext *aio_context_new(Error **errp)
 
     register_aiocontext(ctx);
 
+    ctx->initialized = true;
+
     return ctx;
 fail:
-    g_source_destroy(&ctx->source);
+    g_source_unref(&ctx->source);
     return NULL;
 }
 
