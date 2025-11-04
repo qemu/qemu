@@ -52,10 +52,6 @@ static struct arm_boot_info aspeed_board_binfo = {
 #define RAINIER_BMC_HW_STRAP1 (0x00422016 | SCU_AST2600_HW_STRAP_BOOT_SRC_EMMC)
 #define RAINIER_BMC_HW_STRAP2 0x80000848
 
-/* GB200NVL hardware value */
-#define GB200NVL_BMC_HW_STRAP1 AST2600_EVB_HW_STRAP1
-#define GB200NVL_BMC_HW_STRAP2 AST2600_EVB_HW_STRAP2
-
 #define AST_SMP_MAILBOX_BASE            0x1e6e2180
 #define AST_SMP_MBOX_FIELD_ENTRY        (AST_SMP_MAILBOX_BASE + 0x0)
 #define AST_SMP_MBOX_FIELD_GOSIGN       (AST_SMP_MAILBOX_BASE + 0x4)
@@ -586,44 +582,6 @@ static void catalina_bmc_i2c_init(AspeedMachineState *bmc)
     at24c_eeprom_init(i2c[15], 0x52, 8 * KiB);
 }
 
-static void gb200nvl_bmc_i2c_init(AspeedMachineState *bmc)
-{
-    AspeedSoCState *soc = bmc->soc;
-    I2CBus *i2c[15] = {};
-    DeviceState *dev;
-    for (int i = 0; i < sizeof(i2c) / sizeof(i2c[0]); i++) {
-        if ((i == 11) || (i == 12) || (i == 13)) {
-            continue;
-        }
-        i2c[i] = aspeed_i2c_get_bus(&soc->i2c, i);
-    }
-
-    /* Bus 5 Expander */
-    aspeed_create_pca9554(soc, 4, 0x21);
-
-    /* Mux I2c Expanders */
-    i2c_slave_create_simple(i2c[5], "pca9546", 0x71);
-    i2c_slave_create_simple(i2c[5], "pca9546", 0x72);
-    i2c_slave_create_simple(i2c[5], "pca9546", 0x73);
-    i2c_slave_create_simple(i2c[5], "pca9546", 0x75);
-    i2c_slave_create_simple(i2c[5], "pca9546", 0x76);
-    i2c_slave_create_simple(i2c[5], "pca9546", 0x77);
-
-    /* Bus 10 */
-    dev = DEVICE(aspeed_create_pca9554(soc, 9, 0x20));
-
-    /* Set FPGA_READY */
-    object_property_set_str(OBJECT(dev), "pin1", "high", &error_fatal);
-
-    aspeed_create_pca9554(soc, 9, 0x21);
-    at24c_eeprom_init(i2c[9], 0x50, 64 * KiB);
-    at24c_eeprom_init(i2c[9], 0x51, 64 * KiB);
-
-    /* Bus 11 */
-    at24c_eeprom_init_rom(i2c[10], 0x50, 256, gb200nvl_bmc_fruid,
-                          gb200nvl_bmc_fruid_len);
-}
-
 static bool aspeed_get_mmio_exec(Object *obj, Error **errp)
 {
     return ASPEED_MACHINE(obj)->mmio_exec;
@@ -841,31 +799,6 @@ static void aspeed_machine_catalina_class_init(ObjectClass *oc,
     aspeed_machine_ast2600_class_emmc_init(oc);
 }
 
-#define GB200NVL_BMC_RAM_SIZE ASPEED_RAM_SIZE(1 * GiB)
-
-static void aspeed_machine_gb200nvl_class_init(ObjectClass *oc,
-                                               const void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
-
-    mc->desc       = "Nvidia GB200NVL BMC (Cortex-A7)";
-    amc->soc_name  = "ast2600-a3";
-    amc->hw_strap1 = GB200NVL_BMC_HW_STRAP1;
-    amc->hw_strap2 = GB200NVL_BMC_HW_STRAP2;
-    amc->fmc_model = "mx66u51235f";
-    amc->spi_model = "mx66u51235f";
-    amc->num_cs    = 2;
-
-    amc->spi2_model = "mx66u51235f";
-    amc->num_cs2   = 1;
-    amc->macs_mask = ASPEED_MAC0_ON | ASPEED_MAC1_ON;
-    amc->i2c_init  = gb200nvl_bmc_i2c_init;
-    mc->default_ram_size = GB200NVL_BMC_RAM_SIZE;
-    aspeed_machine_class_init_cpus_defaults(mc);
-    aspeed_machine_ast2600_class_emmc_init(oc);
-}
-
 #define AST1030_INTERNAL_FLASH_SIZE (1024 * 1024)
 /* Main SYSCLK frequency in Hz (200MHz) */
 #define SYSCLK_FRQ 200000000ULL
@@ -1010,11 +943,6 @@ static const TypeInfo aspeed_machine_types[] = {
         .name          = MACHINE_TYPE_NAME("rainier-bmc"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_rainier_class_init,
-        .interfaces    = arm_machine_interfaces,
-    }, {
-        .name          = MACHINE_TYPE_NAME("gb200nvl-bmc"),
-        .parent        = TYPE_ASPEED_MACHINE,
-        .class_init    = aspeed_machine_gb200nvl_class_init,
         .interfaces    = arm_machine_interfaces,
     }, {
         .name          = MACHINE_TYPE_NAME("catalina-bmc"),
