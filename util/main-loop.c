@@ -162,7 +162,7 @@ int qemu_init_main_loop(Error **errp)
     int ret;
     GSource *src;
 
-    init_clocks(qemu_timer_notify_cb);
+    qemu_init_clocks(qemu_timer_notify_cb);
 
     ret = qemu_signal_init(errp);
     if (ret) {

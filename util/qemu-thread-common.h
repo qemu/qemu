@@ -14,6 +14,7 @@
 #define QEMU_THREAD_COMMON_H
 
 #include "qemu/thread.h"
+#include "qemu/main-loop.h"
 #include "trace.h"
 
 static inline void qemu_mutex_post_init(QemuMutex *mutex)
@@ -39,6 +40,9 @@ static inline void qemu_mutex_post_lock(QemuMutex *mutex,
     mutex->line = line;
 #endif
     trace_qemu_mutex_locked(mutex, file, line);
+    if (mutex_is_bql(mutex)) {
+        bql_update_status(true);
+    }
 }
 
 static inline void qemu_mutex_pre_unlock(QemuMutex *mutex,
@@ -49,6 +53,9 @@ static inline void qemu_mutex_pre_unlock(QemuMutex *mutex,
     mutex->line = 0;
 #endif
     trace_qemu_mutex_unlock(mutex, file, line);
+    if (mutex_is_bql(mutex)) {
+        bql_update_status(false);
+    }
 }
 
 #endif

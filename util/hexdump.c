@@ -22,6 +22,19 @@ static inline char hexdump_nibble(unsigned x)
     return (x < 10 ? '0' : 'a' - 10) + x;
 }
 
+static size_t hexdump_line_length(size_t buf_len, size_t unit_len,
+                                  size_t block_len)
+{
+    size_t est = buf_len * 2;
+    if (unit_len) {
+        est += buf_len / unit_len;
+    }
+    if (block_len) {
+        est += buf_len / block_len;
+    }
+    return est;
+}
+
 GString *qemu_hexdump_line(GString *str, const void *vbuf, size_t len,
                            size_t unit_len, size_t block_len)
 {
@@ -30,14 +43,8 @@ GString *qemu_hexdump_line(GString *str, const void *vbuf, size_t len,
 
     if (str == NULL) {
         /* Estimate the length of the output to avoid reallocs. */
-        size_t est = len * 2;
-        if (unit_len) {
-            est += len / unit_len;
-        }
-        if (block_len) {
-            est += len / block_len;
-        }
-        str = g_string_sized_new(est + 1);
+        str = g_string_sized_new(hexdump_line_length(len, unit_len, block_len)
+                                 + 1);
     }
 
     for (u = 0, b = 0; len; u++, b++, len--, buf++) {
@@ -76,13 +83,16 @@ static void asciidump_line(char *line, const void *bufptr, size_t len)
 }
 
 #define QEMU_HEXDUMP_LINE_BYTES 16
-#define QEMU_HEXDUMP_LINE_WIDTH \
-    (QEMU_HEXDUMP_LINE_BYTES * 2 + QEMU_HEXDUMP_LINE_BYTES / 4)
+#define QEMU_HEXDUMP_UNIT 1
+#define QEMU_HEXDUMP_BLOCK 4
 
 void qemu_hexdump(FILE *fp, const char *prefix,
                   const void *bufptr, size_t size)
 {
-    g_autoptr(GString) str = g_string_sized_new(QEMU_HEXDUMP_LINE_WIDTH + 1);
+    int width = hexdump_line_length(QEMU_HEXDUMP_LINE_BYTES,
+                                    QEMU_HEXDUMP_UNIT,
+                                    QEMU_HEXDUMP_BLOCK);
+    g_autoptr(GString) str = g_string_sized_new(width + 1);
     char ascii[QEMU_HEXDUMP_LINE_BYTES + 1];
     size_t b, len;
 
@@ -90,11 +100,11 @@ void qemu_hexdump(FILE *fp, const char *prefix,
         len = MIN(size - b, QEMU_HEXDUMP_LINE_BYTES);
 
         g_string_truncate(str, 0);
-        qemu_hexdump_line(str, bufptr + b, len, 1, 4);
+        qemu_hexdump_line(str, bufptr + b, len,
+                          QEMU_HEXDUMP_UNIT, QEMU_HEXDUMP_BLOCK);
         asciidump_line(ascii, bufptr + b, len);
 
-        fprintf(fp, "%s: %04zx: %-*s %s\n",
-                prefix, b, QEMU_HEXDUMP_LINE_WIDTH, str->str, ascii);
+        fprintf(fp, "%s: %04zx: %-*s %s\n", prefix, b, width, str->str, ascii);
     }
 
 }

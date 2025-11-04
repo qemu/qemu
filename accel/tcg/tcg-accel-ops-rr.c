@@ -197,7 +197,7 @@ static void *rr_cpu_thread_fn(void *arg)
     qemu_guest_random_seed_thread_part2(cpu->random_seed);
 
     /* wait for initial kick-off after machine start */
-    while (first_cpu->stopped) {
+    while (cpu_is_stopped(first_cpu)) {
         qemu_cond_wait_bql(first_cpu->halt_cond);
 
         /* process any pending work */
