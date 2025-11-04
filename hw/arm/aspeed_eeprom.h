@@ -7,10 +7,6 @@
 #ifndef ASPEED_EEPROM_H
 #define ASPEED_EEPROM_H
 
-
-extern const uint8_t tiogapass_bmc_fruid[];
-extern const size_t tiogapass_bmc_fruid_len;
-
 extern const uint8_t fby35_nic_fruid[];
 extern const uint8_t fby35_bb_fruid[];
 extern const uint8_t fby35_bmc_fruid[];
