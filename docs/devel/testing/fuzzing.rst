@@ -263,6 +263,15 @@ generic-fuzz target.
 
 - Report the bug and send a patch with the C reproducer upstream
 
+QEMU can also read the reproducer directly from a file rather than
+from standard input::
+
+    $QEMU_PATH $QEMU_ARGS -qtest chardev:repro \
+      -chardev file,id=repro,path=/dev/null,input-path=/tmp/reproducer
+
+This is useful if you want to run QEMU under a debugger to investigate
+the failure.
+
 Implementation Details / Fuzzer Lifecycle
 -----------------------------------------
 
