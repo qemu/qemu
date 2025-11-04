@@ -10,7 +10,7 @@
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test import wait_for_console_pattern
 
-class powernvMachine(LinuxKernelTest):
+class PowernvMachine(LinuxKernelTest):
 
     timeout = 90
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 console=hvc0 '

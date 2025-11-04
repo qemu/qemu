@@ -217,7 +217,7 @@ class QemuBaseTest(unittest.TestCase):
         self._log_fh = logging.FileHandler(self.log_filename, mode='w')
         self._log_fh.setLevel(logging.DEBUG)
         fileFormatter = logging.Formatter(
-            '%(asctime)s - %(levelname)s: %(message)s')
+            '%(asctime)s - %(levelname)s: %(name)s.%(funcName)s %(message)s')
         self._log_fh.setFormatter(fileFormatter)
         self.log.addHandler(self._log_fh)
 
@@ -225,6 +225,9 @@ class QemuBaseTest(unittest.TestCase):
         self.machinelog = logging.getLogger('qemu.machine')
         self.machinelog.setLevel(logging.DEBUG)
         self.machinelog.addHandler(self._log_fh)
+        self.qmplog = logging.getLogger('qemu.qmp')
+        self.qmplog.setLevel(logging.DEBUG)
+        self.qmplog.addHandler(self._log_fh)
 
         if not self.assets_available():
             self.skipTest('One or more assets is not available')
@@ -233,8 +236,9 @@ class QemuBaseTest(unittest.TestCase):
         if "QEMU_TEST_KEEP_SCRATCH" not in os.environ:
             shutil.rmtree(self.workdir)
         if self.socketdir is not None:
-            shutil.rmtree(self.socketdir.name)
+            self.socketdir.cleanup()
             self.socketdir = None
+        self.qmplog.removeHandler(self._log_fh)
         self.machinelog.removeHandler(self._log_fh)
         self.log.removeHandler(self._log_fh)
         self._log_fh.close()

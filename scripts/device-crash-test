@@ -527,7 +527,7 @@ def main():
         # Async QMP, when in use, is chatty about connection failures.
         # This script knowingly generates a ton of connection errors.
         # Silence this logger.
-        logging.getLogger('qemu.qmp.qmp_client').setLevel(logging.CRITICAL)
+        logging.getLogger('qemu.qmp.protocol').setLevel(logging.CRITICAL)
 
     fatal_failures = []
     wl_stats = {}

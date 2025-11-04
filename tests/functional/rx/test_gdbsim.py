@@ -17,9 +17,6 @@ from qemu_test import wait_for_console_pattern, skipFlakyTest
 
 class RxGdbSimMachine(QemuSystemTest):
 
-    timeout = 30
-    KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
-
     ASSET_UBOOT = Asset(
         ('https://github.com/philmd/qemu-testing-blob/raw/rx-gdbsim/rx/gdbsim/'
          'u-boot.bin'),
@@ -47,7 +44,7 @@ class RxGdbSimMachine(QemuSystemTest):
         self.vm.launch()
         uboot_version = 'U-Boot 2016.05-rc3-23705-ga1ef3c71cb-dirty'
         wait_for_console_pattern(self, uboot_version)
-        gcc_version = 'rx-unknown-linux-gcc (GCC) 9.0.0 20181105 (experimental)'
+        #gcc_version = 'rx-unknown-linux-gcc (GCC) 9.0.0 20181105 (experimental)'
         # FIXME limit baudrate on chardev, else we type too fast
         #  https://gitlab.com/qemu-project/qemu/-/issues/2691
         #exec_command_and_wait_for_pattern(self, 'version', gcc_version)
@@ -63,7 +60,6 @@ class RxGdbSimMachine(QemuSystemTest):
         kernel_path = self.ASSET_KERNEL.fetch()
 
         self.vm.set_console()
-        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'earlycon'
         self.vm.add_args('-kernel', kernel_path,
                          '-dtb', dtb_path,
                          '-no-reboot')

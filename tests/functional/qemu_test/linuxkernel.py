@@ -83,12 +83,12 @@ class LinuxKernelTest(QemuSystemTest):
         self.vm.set_console(console_index=console_index)
         self.vm.add_args('-kernel', kernel)
         if initrd:
-                self.vm.add_args('-initrd', initrd)
+            self.vm.add_args('-initrd', initrd)
         if dtb:
-                self.vm.add_args('-dtb', dtb)
+            self.vm.add_args('-dtb', dtb)
         self.vm.launch()
         if wait_for:
-                self.wait_for_console_pattern(wait_for)
+            self.wait_for_console_pattern(wait_for)
 
     def check_http_download(self, filename, hashsum, guestport=8080,
                             pythoncmd='python3 -m http.server'):
