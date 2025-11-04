@@ -139,7 +139,7 @@ int qcrypto_hmac_bytesv(QCryptoHmac *hmac,
  *  0 on success, -1 on error
  */
 int qcrypto_hmac_bytes(QCryptoHmac *hmac,
-                       const char *buf,
+                       const void *buf,
                        size_t len,
                        uint8_t **result,
                        size_t *resultlen,
@@ -187,7 +187,7 @@ int qcrypto_hmac_digestv(QCryptoHmac *hmac,
  * Returns: 0 on success, -1 on error
  */
 int qcrypto_hmac_digest(QCryptoHmac *hmac,
-                        const char *buf,
+                        const void *buf,
                         size_t len,
                         char **digest,
                         Error **errp);

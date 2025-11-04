@@ -310,7 +310,7 @@ ssize_t qio_channel_writev(QIOChannel *ioc,
 
 
 ssize_t qio_channel_read(QIOChannel *ioc,
-                         char *buf,
+                         void *buf,
                          size_t buflen,
                          Error **errp)
 {
@@ -320,7 +320,7 @@ ssize_t qio_channel_read(QIOChannel *ioc,
 
 
 ssize_t qio_channel_write(QIOChannel *ioc,
-                          const char *buf,
+                          const void *buf,
                           size_t buflen,
                           Error **errp)
 {
@@ -330,7 +330,7 @@ ssize_t qio_channel_write(QIOChannel *ioc,
 
 
 int coroutine_mixed_fn qio_channel_read_all_eof(QIOChannel *ioc,
-                                                char *buf,
+                                                void *buf,
                                                 size_t buflen,
                                                 Error **errp)
 {
@@ -340,7 +340,7 @@ int coroutine_mixed_fn qio_channel_read_all_eof(QIOChannel *ioc,
 
 
 int coroutine_mixed_fn qio_channel_read_all(QIOChannel *ioc,
-                                            char *buf,
+                                            void *buf,
                                             size_t buflen,
                                             Error **errp)
 {
@@ -350,7 +350,7 @@ int coroutine_mixed_fn qio_channel_read_all(QIOChannel *ioc,
 
 
 int coroutine_mixed_fn qio_channel_write_all(QIOChannel *ioc,
-                                             const char *buf,
+                                             const void *buf,
                                              size_t buflen,
                                              Error **errp)
 {
@@ -475,7 +475,7 @@ ssize_t qio_channel_pwritev(QIOChannel *ioc, const struct iovec *iov,
     return klass->io_pwritev(ioc, iov, niov, offset, errp);
 }
 
-ssize_t qio_channel_pwrite(QIOChannel *ioc, char *buf, size_t buflen,
+ssize_t qio_channel_pwrite(QIOChannel *ioc, void *buf, size_t buflen,
                            off_t offset, Error **errp)
 {
     struct iovec iov = {
@@ -504,7 +504,7 @@ ssize_t qio_channel_preadv(QIOChannel *ioc, const struct iovec *iov,
     return klass->io_preadv(ioc, iov, niov, offset, errp);
 }
 
-ssize_t qio_channel_pread(QIOChannel *ioc, char *buf, size_t buflen,
+ssize_t qio_channel_pread(QIOChannel *ioc, void *buf, size_t buflen,
                           off_t offset, Error **errp)
 {
     struct iovec iov = {

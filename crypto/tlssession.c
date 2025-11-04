@@ -38,6 +38,7 @@
 
 struct QCryptoTLSSession {
     QCryptoTLSCreds *creds;
+    QCryptoTLSCredsBox *credsbox;
     gnutls_session_t handle;
     char *hostname;
     char *authzid;
@@ -78,6 +79,7 @@ qcrypto_tls_session_free(QCryptoTLSSession *session)
     g_free(session->hostname);
     g_free(session->peername);
     g_free(session->authzid);
+    qcrypto_tls_creds_box_unref(session->credsbox);
     object_unref(OBJECT(session->creds));
     qemu_mutex_destroy(&session->lock);
     g_free(session);
@@ -155,9 +157,6 @@ qcrypto_tls_session_pull(void *opaque, void *buf, size_t len)
     }
 }
 
-#define TLS_PRIORITY_ADDITIONAL_ANON "+ANON-DH"
-#define TLS_PRIORITY_ADDITIONAL_PSK "+ECDHE-PSK:+DHE-PSK:+PSK"
-
 QCryptoTLSSession *
 qcrypto_tls_session_new(QCryptoTLSCreds *creds,
                         const char *hostname,
@@ -167,6 +166,7 @@ qcrypto_tls_session_new(QCryptoTLSCreds *creds,
 {
     QCryptoTLSSession *session;
     int ret;
+    g_autofree char *prio = NULL;
 
     session = g_new0(QCryptoTLSSession, 1);
     trace_qcrypto_tls_session_new(
@@ -200,111 +200,39 @@ qcrypto_tls_session_new(QCryptoTLSCreds *creds,
         goto error;
     }
 
-    if (object_dynamic_cast(OBJECT(creds),
-                            TYPE_QCRYPTO_TLS_CREDS_ANON)) {
-        QCryptoTLSCredsAnon *acreds = QCRYPTO_TLS_CREDS_ANON(creds);
-        char *prio;
-
-        if (creds->priority != NULL) {
-            prio = g_strdup_printf("%s:%s",
-                                   creds->priority,
-                                   TLS_PRIORITY_ADDITIONAL_ANON);
-        } else {
-            prio = g_strdup(CONFIG_TLS_PRIORITY ":"
-                            TLS_PRIORITY_ADDITIONAL_ANON);
-        }
-
-        ret = gnutls_priority_set_direct(session->handle, prio, NULL);
-        if (ret < 0) {
-            error_setg(errp, "Unable to set TLS session priority %s: %s",
-                       prio, gnutls_strerror(ret));
-            g_free(prio);
-            goto error;
-        }
-        g_free(prio);
-        if (creds->endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
-            ret = gnutls_credentials_set(session->handle,
-                                         GNUTLS_CRD_ANON,
-                                         acreds->data.server);
-        } else {
-            ret = gnutls_credentials_set(session->handle,
-                                         GNUTLS_CRD_ANON,
-                                         acreds->data.client);
-        }
-        if (ret < 0) {
-            error_setg(errp, "Cannot set session credentials: %s",
-                       gnutls_strerror(ret));
-            goto error;
-        }
-    } else if (object_dynamic_cast(OBJECT(creds),
-                                   TYPE_QCRYPTO_TLS_CREDS_PSK)) {
-        QCryptoTLSCredsPSK *pcreds = QCRYPTO_TLS_CREDS_PSK(creds);
-        char *prio;
-
-        if (creds->priority != NULL) {
-            prio = g_strdup_printf("%s:%s",
-                                   creds->priority,
-                                   TLS_PRIORITY_ADDITIONAL_PSK);
-        } else {
-            prio = g_strdup(CONFIG_TLS_PRIORITY ":"
-                            TLS_PRIORITY_ADDITIONAL_PSK);
-        }
-
-        ret = gnutls_priority_set_direct(session->handle, prio, NULL);
-        if (ret < 0) {
-            error_setg(errp, "Unable to set TLS session priority %s: %s",
-                       prio, gnutls_strerror(ret));
-            g_free(prio);
-            goto error;
-        }
-        g_free(prio);
-        if (creds->endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
-            ret = gnutls_credentials_set(session->handle,
-                                         GNUTLS_CRD_PSK,
-                                         pcreds->data.server);
-        } else {
-            ret = gnutls_credentials_set(session->handle,
-                                         GNUTLS_CRD_PSK,
-                                         pcreds->data.client);
-        }
-        if (ret < 0) {
-            error_setg(errp, "Cannot set session credentials: %s",
-                       gnutls_strerror(ret));
-            goto error;
-        }
-    } else if (object_dynamic_cast(OBJECT(creds),
-                                   TYPE_QCRYPTO_TLS_CREDS_X509)) {
-        QCryptoTLSCredsX509 *tcreds = QCRYPTO_TLS_CREDS_X509(creds);
-        const char *prio = creds->priority;
-        if (!prio) {
-            prio = CONFIG_TLS_PRIORITY;
-        }
-
-        ret = gnutls_priority_set_direct(session->handle, prio, NULL);
-        if (ret < 0) {
-            error_setg(errp, "Cannot set default TLS session priority %s: %s",
-                       prio, gnutls_strerror(ret));
-            goto error;
-        }
-        ret = gnutls_credentials_set(session->handle,
-                                     GNUTLS_CRD_CERTIFICATE,
-                                     tcreds->data);
-        if (ret < 0) {
-            error_setg(errp, "Cannot set session credentials: %s",
-                       gnutls_strerror(ret));
-            goto error;
-        }
-
-        if (creds->endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
-            /* This requests, but does not enforce a client cert.
-             * The cert checking code later does enforcement */
-            gnutls_certificate_server_set_request(session->handle,
-                                                  GNUTLS_CERT_REQUEST);
-        }
-    } else {
-        error_setg(errp, "Unsupported TLS credentials type %s",
-                   object_get_typename(OBJECT(creds)));
+    prio = qcrypto_tls_creds_get_priority(creds);
+    ret = gnutls_priority_set_direct(session->handle, prio, NULL);
+    if (ret < 0) {
+        error_setg(errp, "Unable to set TLS session priority %s: %s",
+                   prio, gnutls_strerror(ret));
         goto error;
+    }
+
+    ret = gnutls_credentials_set(session->handle,
+                                 creds->box->type,
+                                 creds->box->data.any);
+    if (ret < 0) {
+        error_setg(errp, "Cannot set session credentials: %s",
+                   gnutls_strerror(ret));
+        goto error;
+    }
+
+    /*
+     * creds->box->data.any must be kept alive for as long
+     * as the gnutls_session_t is alive, so acquire a ref
+     */
+    qcrypto_tls_creds_box_ref(creds->box);
+    session->credsbox = creds->box;
+
+    if (object_dynamic_cast(OBJECT(creds),
+                            TYPE_QCRYPTO_TLS_CREDS_X509) &&
+        creds->endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
+        /*
+         * This requests, but does not enforce a client cert.
+         * The cert checking code later does enforcement
+         */
+        gnutls_certificate_server_set_request(session->handle,
+                                              GNUTLS_CERT_REQUEST);
     }
 
     gnutls_transport_set_ptr(session->handle, session);
@@ -417,6 +345,7 @@ qcrypto_tls_session_check_certificate(QCryptoTLSSession *session,
                 goto error;
             }
             session->peername = (char *)g_steal_pointer(&dname.data);
+            trace_qcrypto_tls_session_check_x509_dn(session, session->peername);
             if (session->authzid) {
                 bool allow;
 

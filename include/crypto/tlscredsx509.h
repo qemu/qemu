@@ -37,7 +37,13 @@ typedef struct QCryptoTLSCredsX509Class QCryptoTLSCredsX509Class;
 #define QCRYPTO_TLS_CREDS_X509_SERVER_CERT "server-cert.pem"
 #define QCRYPTO_TLS_CREDS_X509_CLIENT_KEY "client-key.pem"
 #define QCRYPTO_TLS_CREDS_X509_CLIENT_CERT "client-cert.pem"
+#define QCRYPTO_TLS_CREDS_X509_SERVER_KEY_N "server-key-%zu.pem"
+#define QCRYPTO_TLS_CREDS_X509_SERVER_CERT_N "server-cert-%zu.pem"
+#define QCRYPTO_TLS_CREDS_X509_CLIENT_KEY_N "client-key-%zu.pem"
+#define QCRYPTO_TLS_CREDS_X509_CLIENT_CERT_N "client-cert-%zu.pem"
 
+/* Max number of additional cert/key pairs (ie _N constants) */
+#define QCRYPTO_TLS_CREDS_X509_IDENTITY_MAX 4
 
 /**
  * QCryptoTLSCredsX509:

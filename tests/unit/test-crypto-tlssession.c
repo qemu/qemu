@@ -36,7 +36,7 @@
 #define KEYFILE WORKDIR "key-ctx.pem"
 
 static ssize_t
-testWrite(const char *buf, size_t len, void *opaque, Error **errp)
+testWrite(const void *buf, size_t len, void *opaque, Error **errp)
 {
     int *fd = opaque;
     int ret;
@@ -54,7 +54,7 @@ testWrite(const char *buf, size_t len, void *opaque, Error **errp)
 }
 
 static ssize_t
-testRead(char *buf, size_t len, void *opaque, Error **errp)
+testRead(void *buf, size_t len, void *opaque, Error **errp)
 {
     int *fd = opaque;
     int ret;

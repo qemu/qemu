@@ -110,9 +110,6 @@ if have_block
   if pam.found()
     tests += {'test-authz-pam': [authz]}
   endif
-  if xts == 'private'
-    tests += {'test-crypto-xts': [crypto, io]}
-  endif
   if host_os != 'windows'
     tests += {
       'test-image-locking': [testblock],

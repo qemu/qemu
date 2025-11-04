@@ -122,7 +122,7 @@ int qcrypto_hash_bytesv(QCryptoHashAlgo alg,
  * Returns: 0 on success, -1 on error
  */
 int qcrypto_hash_bytes(QCryptoHashAlgo alg,
-                       const char *buf,
+                       const void *buf,
                        size_t len,
                        uint8_t **result,
                        size_t *resultlen,
@@ -180,7 +180,7 @@ int qcrypto_hash_updatev(QCryptoHash *hash,
  * Returns: 0 on success, -1 on error
  */
 int qcrypto_hash_update(QCryptoHash *hash,
-                        const char *buf,
+                        const void *buf,
                         size_t len,
                         Error **errp);
 
@@ -289,7 +289,7 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(QCryptoHash, qcrypto_hash_free)
  * Returns: 0 on success, -1 on error
  */
 int qcrypto_hash_digest(QCryptoHashAlgo alg,
-                        const char *buf,
+                        const void *buf,
                         size_t len,
                         char **digest,
                         Error **errp);
@@ -335,7 +335,7 @@ int qcrypto_hash_base64v(QCryptoHashAlgo alg,
  * Returns: 0 on success, -1 on error
  */
 int qcrypto_hash_base64(QCryptoHashAlgo alg,
-                        const char *buf,
+                        const void *buf,
                         size_t len,
                         char **base64,
                         Error **errp);

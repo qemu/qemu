@@ -5467,15 +5467,18 @@ DEF("qtest-log", HAS_ARG, QEMU_OPTION_qtest_log, "", QEMU_ARCH_ALL)
 
 #if defined(CONFIG_POSIX) && !defined(EMSCRIPTEN)
 DEF("run-with", HAS_ARG, QEMU_OPTION_run_with,
-    "-run-with [async-teardown=on|off][,chroot=dir][user=username|uid:gid]\n"
+    "-run-with [async-teardown=on|off][,chroot=dir]\n" \
+    "          [,exit-with-parent=on|off][,user=username|uid:gid]\n"
     "                Set miscellaneous QEMU process lifecycle options:\n"
     "                async-teardown=on enables asynchronous teardown (Linux only)\n"
+    "                exit-with-parent=on causes QEMU to exit if the parent\n"
+    "                  process of QEMU exits (Linux, FreeBSD, macOS only)\n"
     "                chroot=dir chroot to dir just before starting the VM\n"
     "                user=username switch to the specified user before starting the VM\n"
     "                user=uid:gid ditto, but use specified user-ID and group-ID instead\n",
     QEMU_ARCH_ALL)
 SRST
-``-run-with [async-teardown=on|off][,chroot=dir][user=username|uid:gid]``
+``-run-with [async-teardown=on|off][,chroot=dir][,exit-with-parent=on|off][,user=username|uid:gid]``
     Set QEMU process lifecycle options.
 
     ``async-teardown=on`` enables asynchronous teardown. A new process called
@@ -5492,6 +5495,12 @@ SRST
     ``chroot=dir`` can be used for doing a chroot to the specified directory
     immediately before starting the guest execution. This is especially useful
     in combination with ``user=...``.
+
+    ``exit-with-parent=on`` causes QEMU to exit if the parent process of
+    QEMU exits.  This can be used when QEMU runs a captive appliance,
+    where the lifetime of the appliance is scoped to the parent process.
+    In case the parent process crashes, QEMU is still cleaned up.
+    This only works on Linux, FreeBSD and macOS platforms.
 
     ``user=username`` or ``user=uid:gid`` can be used to drop root privileges
     before starting guest execution. QEMU will use the ``setuid`` and ``setgid``

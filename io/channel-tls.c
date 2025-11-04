@@ -26,7 +26,7 @@
 #include "qemu/atomic.h"
 
 
-static ssize_t qio_channel_tls_write_handler(const char *buf,
+static ssize_t qio_channel_tls_write_handler(const void *buf,
                                              size_t len,
                                              void *opaque,
                                              Error **errp)
@@ -43,7 +43,7 @@ static ssize_t qio_channel_tls_write_handler(const char *buf,
     return ret;
 }
 
-static ssize_t qio_channel_tls_read_handler(char *buf,
+static ssize_t qio_channel_tls_read_handler(void *buf,
                                             size_t len,
                                             void *opaque,
                                             Error **errp)

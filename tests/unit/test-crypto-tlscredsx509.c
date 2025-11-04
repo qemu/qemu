@@ -95,16 +95,16 @@ static void test_tls_creds(const void *opaque)
         if (access(data->crt, R_OK) == 0) {
             g_assert(link(data->crt,
                           CERT_DIR QCRYPTO_TLS_CREDS_X509_SERVER_CERT) == 0);
+            g_assert(link(KEYFILE,
+                          CERT_DIR QCRYPTO_TLS_CREDS_X509_SERVER_KEY) == 0);
         }
-        g_assert(link(KEYFILE,
-                      CERT_DIR QCRYPTO_TLS_CREDS_X509_SERVER_KEY) == 0);
     } else {
         if (access(data->crt, R_OK) == 0) {
             g_assert(link(data->crt,
                           CERT_DIR QCRYPTO_TLS_CREDS_X509_CLIENT_CERT) == 0);
+            g_assert(link(KEYFILE,
+                          CERT_DIR QCRYPTO_TLS_CREDS_X509_CLIENT_KEY) == 0);
         }
-        g_assert(link(KEYFILE,
-                      CERT_DIR QCRYPTO_TLS_CREDS_X509_CLIENT_KEY) == 0);
     }
 
     creds = test_tls_creds_create(

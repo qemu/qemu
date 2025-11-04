@@ -36,8 +36,58 @@ server and exposing it directly to remote browser clients. In such a
 case it might be useful to use a commercial CA to avoid needing to
 install custom CA certs in the web browsers.
 
-The recommendation is for the server to keep its certificates in either
-``/etc/pki/qemu`` or for unprivileged users in ``$HOME/.pki/qemu``.
+.. _tls_cert_file_naming:
+
+Certificate file naming
+~~~~~~~~~~~~~~~~~~~~~~~
+
+In a simple setup, where all QEMU instances on a machine share the
+same TLS configuration, it is suggested that QEMU certificates be
+kept in either ``/etc/pki/qemu`` or, for unprivileged users, in
+``$HOME/.pki/qemu``. Where different QEMU subsystems require
+different certificate configurations, sub-dirs of these locations
+may be chosen.
+
+The default file names that QEMU will traditionally load are:
+
+* ``ca-cert.pem`` - mandatory; for both client and server configurations
+* ``ca-crl.pem`` - optional; for server configurations only
+* ``server-cert.pem`` - mandatory; for server configurations only
+* ``server-key.pem`` - mandatory; for server configurations only
+* ``client-cert.pem`` - optional; for client configurations only
+* ``client-key.pem`` - optional; for client configurations only
+* ``dh-params.pem`` - optional; for server configurations only
+
+Since QEMU 10.2.0, there is support for loading upto four additional
+identities:
+
+* ``server-cert-[IDX].pem`` - optional; for server configurations only
+* ``server-key-[IDX].pem`` - optional; for server configurations only
+* ``client-cert-[IDX].pem`` - optional; for client configurations only
+* ``client-key-[IDX].pem`` - optional; for client configurations only
+
+where ``-[IDX]`` is one of the digits 0-3. Loading will terminate at
+the first absent index. The index based certificate files may be used
+as a replacement for, or in addition to, the traditional non-index
+based certificate files. The traditional certificate files will be
+loaded first, if present, then the index based certificates. Where
+multiple certificates are compatible with a TLS session, the first
+loaded certificate will preferred. IOW file naming can influence
+which certificates are used for a session.
+
+The use of multiple sets of certificates is intended to allow an
+incremental transition to certificates using different crytographic
+algorithms. This allows a newly deployed QEMU to introduce use of
+stronger cryptographic algorithms that will be preferred when talking
+to other newly deployed QEMU instances, while retaining compatbility
+with certificates issued to a historically deployed QEMU. This is
+notably useful to support live migration from an old QEMU deployed
+on older operating system releases, which may support fewer crypto
+algorithm choices than the current OS.
+
+The certificate creation commands below will be illustrated using
+the traditional naming scheme, but their args can be substituted
+to use the indexed naming in the obvious manner.
 
 .. _tls_005fgenerate_005fca:
 
@@ -251,11 +301,13 @@ When specifying the object, the ``dir`` parameters specifies which
 directory contains the credential files. This directory is expected to
 contain files with the names mentioned previously, ``ca-cert.pem``,
 ``server-key.pem``, ``server-cert.pem``, ``client-key.pem`` and
-``client-cert.pem`` as appropriate. It is also possible to include a set
-of pre-generated Diffie-Hellman (DH) parameters in a file
-``dh-params.pem``, which can be created using the
-``certtool --generate-dh-params`` command. If omitted, QEMU will
-dynamically generate DH parameters when loading the credentials.
+``client-cert.pem`` as appropriate.
+
+While it is possible to include a set of pre-generated Diffie-Hellman
+(DH) parameters in a file ``dh-params.pem``, this facility is now
+deprecated and will be removed in a future release. When omitted the
+DH parameters will be automatically negotiated in accordance with
+RFC7919.
 
 The ``endpoint`` parameter indicates whether the credentials will be
 used for a network client or server, and determines which PEM files are
@@ -292,6 +344,74 @@ example with VNC:
    |qemu_system| -vnc 0.0.0.0:0,tls-creds=tls0
 
 .. _tls_005fpsk:
+
+TLS certificates for Post-Quantum Cryptography
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Given a new enough gnutls release, suitably integrated & configured with the
+operating system crypto policies, QEMU is able to support post-quantum
+crytography on TLS enabled services, either exclusively or in a hybrid mode.
+
+In exclusive mode, only a single set of certificates need to be configured
+for QEMU, with PQC compliant algorithms. Such a QEMU configuration will only
+be able to interoperate with other services (including other QEMU's) that
+also have PQC enabled. This can result in compatibility concerns during the
+period of transition over to PQC compliant algorithms.
+
+In hybrid mode, multiple sets of certificates need to be configured for QEMU,
+at least one set with traditional (non-PQC compliant) algorithms, and at least
+one other set with modern (PQC compliant) algorithms. At time of the TLS
+handshake, the GNUTLS algorithm priorities should ensure that PQC compliant
+algorithms are negotiated if both sides of the connection support PQC. If one
+side lacks PQC, the TLS handshake should fallback to the non-PQC algorithms.
+This can assist with interoperability during the transition to PQC, but has a
+potential weakness wrt downgrade attacks forcing use of non-PQC algorithms.
+Exclusive PQC mode should be preferred where both peers in the TLS connections
+are known to support PQC.
+
+Key generation parameters
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To create certificates with PQC compliant algorithms, the ``--key-type``
+argument must be passed to ``certtool`` when creating private keys. No
+extra arguments are required for the other ``certtool`` commands, as
+their behaviour will be determined by the private key type.
+
+The typical PQC compliant algorithms to use are ``ML-DSA-44``, ``ML-DSA-65``
+and ``ML-DSA-87``, with ``ML-DSA-65`` being a suitable default choice in
+the absence of explicit requirements.
+
+Taking the example earlier, for creating a key for a client certificate,
+to use ``ML-DSA-65`` the command line would be modified to look like::
+
+   # certtool --generate-privkey --key-type=mldsa65 > client-hostNNN-key.pem
+
+The equivalent modification applies to the creation of the private keys
+used for server certs, or root/intermediate CA certs.
+
+For hybrid mode, the additional indexed certificate naming must be used.
+If multiple configured certificates are compatible with the mutually
+supported crypto algorithms between the client and server, then the
+first matching certificate will be used.
+
+IOW, to ensure that PQC certificates are preferred, they must use a
+non-index based filename, or use an index that is smaller than any
+non-PQC certificates. ie, ``server-cert.pem`` for PQC and ``server-cert-0.pem``
+for non-PQC, or ``server-cert-0.pem`` for PQC and ``server-cert-1.pem`` for
+non-PQC.
+
+Force disabling PQC via crypto priority
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In the OS configuration for system crypto algorithm priorities has
+enabled PQC, this can (optionally) be overriden in QEMU configuration
+disable use of PQC using the ``priority`` parameter to the ``tls-creds-x509``
+object::
+
+  NO_MLDSA="-SIGN-ML-DSA-65:-SIGN-ML-DSA-44:-SIGN-ML-DSA-87"
+  NO_MLKEM="-GROUP-X25519-MLKEM768:-GROUP-SECP256R1-MLKEM768:-GROUP-SECP384R1-MLKEM1024"
+  # qemu-nbd --object tls-creds-x509,id=tls0,endpoint=server,dir=....,priority=@SYSTEM:$NO_MLDSA:$NO_MLKEM
+
 
 TLS Pre-Shared Keys (PSK)
 ~~~~~~~~~~~~~~~~~~~~~~~~~

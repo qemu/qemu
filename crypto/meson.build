@@ -25,7 +25,10 @@ crypto_ss.add(files(
 ))
 
 if gnutls.found()
-  crypto_ss.add(files('x509-utils.c'))
+  crypto_ss.add(files(
+    'tlscredsbox.c',
+    'x509-utils.c',
+  ))
 endif
 
 if nettle.found()
@@ -33,12 +36,9 @@ if nettle.found()
   if hogweed.found()
     crypto_ss.add(gmp, hogweed)
   endif
-  if xts == 'private'
-    crypto_ss.add(files('xts.c'))
-  endif
 elif gcrypt.found()
   crypto_ss.add(gcrypt, files('hash-gcrypt.c', 'hmac-gcrypt.c', 'pbkdf-gcrypt.c'))
-elif gnutls_crypto.found()
+elif gnutls.found()
   crypto_ss.add(gnutls, files('hash-gnutls.c', 'hmac-gnutls.c', 'pbkdf-gnutls.c'))
 else
   crypto_ss.add(files('hash-glib.c', 'hmac-glib.c', 'pbkdf-stub.c'))

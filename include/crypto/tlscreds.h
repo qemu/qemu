@@ -47,6 +47,7 @@ typedef bool (*CryptoTLSCredsReload)(QCryptoTLSCreds *, Error **);
 struct QCryptoTLSCredsClass {
     ObjectClass parent_class;
     CryptoTLSCredsReload reload;
+    const char *prioritySuffix;
 };
 
 /**
@@ -63,5 +64,30 @@ struct QCryptoTLSCredsClass {
 bool qcrypto_tls_creds_check_endpoint(QCryptoTLSCreds *creds,
                                       QCryptoTLSCredsEndpoint endpoint,
                                       Error **errp);
+
+
+/**
+ * qcrypto_tls_creds_get_priority:
+ * @creds: pointer to a TLS credentials object
+ *
+ * Get the TLS credentials priority string. The caller
+ * must free the returned string when no longer required.
+ *
+ * Returns: a non-NULL priority string
+ */
+char *qcrypto_tls_creds_get_priority(QCryptoTLSCreds *creds);
+
+
+/**
+ * qcrypto_tls_creds_reload:
+ * @creds: pointer to a TLS credentials object
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Request a reload of the TLS credentials, if supported
+ *
+ * Returns: true on success, false on error or if not supported
+ */
+bool qcrypto_tls_creds_reload(QCryptoTLSCreds *creds,
+                              Error **errp);
 
 #endif /* QCRYPTO_TLSCREDS_H */

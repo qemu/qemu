@@ -53,6 +53,7 @@
 #include "qemu/sockets.h"
 #include "qemu/accel.h"
 #include "qemu/async-teardown.h"
+#include "qemu/exit-with-parent.h"
 #include "hw/usb.h"
 #include "hw/isa/isa.h"
 #include "hw/scsi/scsi.h"
@@ -782,6 +783,10 @@ static QemuOptsList qemu_run_with_opts = {
         {
             .name = "chroot",
             .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "exit-with-parent",
+            .type = QEMU_OPT_BOOL,
         },
         {
             .name = "user",
@@ -3690,6 +3695,14 @@ void qemu_init(int argc, char **argv)
                 str = qemu_opt_get(opts, "chroot");
                 if (str) {
                     os_set_chroot(str);
+                }
+                if (qemu_opt_get_bool(opts, "exit-with-parent", false)) {
+                    if (!can_exit_with_parent()) {
+                        error_report("exit-with-parent is not available"
+                                     " on this platform");
+                        exit(1);
+                    }
+                    set_exit_with_parent();
                 }
                 str = qemu_opt_get(opts, "user");
                 if (str) {
