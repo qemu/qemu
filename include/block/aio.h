@@ -310,8 +310,6 @@ struct AioContext {
     struct LinuxAioState *linux_aio;
 #endif
 #ifdef CONFIG_LINUX_IO_URING
-    LuringState *linux_io_uring;
-
     /* State for file descriptor monitoring using Linux io_uring */
     struct io_uring fdmon_io_uring;
     AioHandlerSList submit_list;
@@ -615,11 +613,6 @@ struct LinuxAioState *aio_setup_linux_aio(AioContext *ctx, Error **errp);
 /* Return the LinuxAioState bound to this AioContext */
 struct LinuxAioState *aio_get_linux_aio(AioContext *ctx);
 
-/* Setup the LuringState bound to this AioContext */
-LuringState *aio_setup_linux_io_uring(AioContext *ctx, Error **errp);
-
-/* Return the LuringState bound to this AioContext */
-LuringState *aio_get_linux_io_uring(AioContext *ctx);
 /**
  * aio_timer_new_with_attrs:
  * @ctx: the aio context
