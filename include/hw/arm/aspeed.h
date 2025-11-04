@@ -68,4 +68,16 @@ struct AspeedMachineClass {
  */
 void aspeed_machine_class_init_cpus_defaults(MachineClass *mc);
 
+/*
+ * aspeed_create_pca9552:
+ * @soc: pointer to the #AspeedSoCState.
+ * @bus_id: the I2C bus index to attach the device.
+ * @addr: the I2C address of the PCA9552 device.
+ *
+ * Create and attach a PCA9552 LED controller device to the specified I2C bus
+ * of the given Aspeed SoC. The device is instantiated using
+ * i2c_slave_create_simple() with the PCA9552 device type.
+ */
+void aspeed_create_pca9552(AspeedSoCState *soc, int bus_id, int addr);
+
 #endif

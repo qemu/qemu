@@ -537,7 +537,7 @@ static void tiogapass_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 6), "tmp421", 0x4e);
 }
 
-static void create_pca9552(AspeedSoCState *soc, int bus_id, int addr)
+void aspeed_create_pca9552(AspeedSoCState *soc, int bus_id, int addr)
 {
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, bus_id),
                             TYPE_PCA9552, addr);
@@ -565,9 +565,9 @@ static void sonorapass_bmc_i2c_init(AspeedMachineState *bmc)
     smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 4), 0x54,
                           eeprom4_54);
     /* PCA9539 @ 0x76, but PCA9552 is compatible */
-    create_pca9552(soc, 4, 0x76);
+    aspeed_create_pca9552(soc, 4, 0x76);
     /* PCA9539 @ 0x77, but PCA9552 is compatible */
-    create_pca9552(soc, 4, 0x77);
+    aspeed_create_pca9552(soc, 4, 0x77);
 
     /* bus 6 : */
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 6), "tmp105", 0x48);
@@ -578,8 +578,8 @@ static void sonorapass_bmc_i2c_init(AspeedMachineState *bmc)
     uint8_t *eeprom8_56 = g_malloc0(8 * 1024);
     smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 8), 0x56,
                           eeprom8_56);
-    create_pca9552(soc, 8, 0x60);
-    create_pca9552(soc, 8, 0x61);
+    aspeed_create_pca9552(soc, 8, 0x60);
+    aspeed_create_pca9552(soc, 8, 0x61);
     /* bus 8 : adc128d818 @ 0x1d */
     /* bus 8 : adc128d818 @ 0x1f */
 
@@ -710,7 +710,7 @@ static void fp5280g2_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 4), "ds1338", 0x68);
 
     /* It expects a pca9555 but a pca9552 is compatible */
-    create_pca9552(soc, 8, 0x30);
+    aspeed_create_pca9552(soc, 8, 0x30);
 }
 
 static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
@@ -720,7 +720,7 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
 
     at24c_eeprom_init(aspeed_i2c_get_bus(&soc->i2c, 0), 0x51, 32 * KiB);
 
-    create_pca9552(soc, 3, 0x61);
+    aspeed_create_pca9552(soc, 3, 0x61);
 
     /* The rainier expects a TMP275 but a TMP105 is compatible */
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 4), TYPE_TMP105,
@@ -734,14 +734,14 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
     at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 0), 0x50, 64 * KiB);
     at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 1), 0x51, 64 * KiB);
     at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 2), 0x52, 64 * KiB);
-    create_pca9552(soc, 4, 0x60);
+    aspeed_create_pca9552(soc, 4, 0x60);
 
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 5), TYPE_TMP105,
                      0x48);
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 5), TYPE_TMP105,
                      0x49);
-    create_pca9552(soc, 5, 0x60);
-    create_pca9552(soc, 5, 0x61);
+    aspeed_create_pca9552(soc, 5, 0x60);
+    aspeed_create_pca9552(soc, 5, 0x61);
     i2c_mux = i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 5),
                                       "pca9546", 0x70);
     at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 0), 0x50, 64 * KiB);
@@ -760,12 +760,12 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
     at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 2), 0x50, 64 * KiB);
     at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 3), 0x51, 64 * KiB);
 
-    create_pca9552(soc, 7, 0x30);
-    create_pca9552(soc, 7, 0x31);
-    create_pca9552(soc, 7, 0x32);
-    create_pca9552(soc, 7, 0x33);
-    create_pca9552(soc, 7, 0x60);
-    create_pca9552(soc, 7, 0x61);
+    aspeed_create_pca9552(soc, 7, 0x30);
+    aspeed_create_pca9552(soc, 7, 0x31);
+    aspeed_create_pca9552(soc, 7, 0x32);
+    aspeed_create_pca9552(soc, 7, 0x33);
+    aspeed_create_pca9552(soc, 7, 0x60);
+    aspeed_create_pca9552(soc, 7, 0x61);
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 7), "dps310", 0x76);
     /* Bus 7: TODO si7021-a20@20 */
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 7), TYPE_TMP105,
@@ -782,8 +782,8 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
                           64 * KiB, rainier_bb_fruid, rainier_bb_fruid_len);
     at24c_eeprom_init_rom(aspeed_i2c_get_bus(&soc->i2c, 8), 0x51,
                           64 * KiB, rainier_bmc_fruid, rainier_bmc_fruid_len);
-    create_pca9552(soc, 8, 0x60);
-    create_pca9552(soc, 8, 0x61);
+    aspeed_create_pca9552(soc, 8, 0x60);
+    aspeed_create_pca9552(soc, 8, 0x61);
     /* Bus 8: ucd90320@11 */
     /* Bus 8: ucd90320@b */
     /* Bus 8: ucd90320@c */
@@ -804,17 +804,17 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
                                       "pca9546", 0x70);
     at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 0), 0x50, 64 * KiB);
     at24c_eeprom_init(pca954x_i2c_get_bus(i2c_mux, 1), 0x51, 64 * KiB);
-    create_pca9552(soc, 11, 0x60);
+    aspeed_create_pca9552(soc, 11, 0x60);
 
 
     at24c_eeprom_init(aspeed_i2c_get_bus(&soc->i2c, 13), 0x50, 64 * KiB);
-    create_pca9552(soc, 13, 0x60);
+    aspeed_create_pca9552(soc, 13, 0x60);
 
     at24c_eeprom_init(aspeed_i2c_get_bus(&soc->i2c, 14), 0x50, 64 * KiB);
-    create_pca9552(soc, 14, 0x60);
+    aspeed_create_pca9552(soc, 14, 0x60);
 
     at24c_eeprom_init(aspeed_i2c_get_bus(&soc->i2c, 15), 0x50, 64 * KiB);
-    create_pca9552(soc, 15, 0x60);
+    aspeed_create_pca9552(soc, 15, 0x60);
 }
 
 static void get_pca9548_channels(I2CBus *bus, uint8_t mux_addr,
