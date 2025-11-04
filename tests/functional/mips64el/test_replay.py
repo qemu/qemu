@@ -40,6 +40,7 @@ class Mips64elReplay(ReplayKernelBase):
         '75ba10cd35fb44e32948eeb26974f061b703c81c4ba2fab1ebcacf1d1bec3b61')
 
     @skipUntrustedTest()
+    @skipFlakyTest("https://gitlab.com/qemu-project/qemu/-/issues/2013")
     def test_replay_mips64el_malta_5KEc_cpio(self):
         self.set_machine('malta')
         self.cpu = '5KEc'
