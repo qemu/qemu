@@ -18,7 +18,7 @@ use std::{
     slice,
 };
 
-use bql::{BqlRefCell, BqlRefMut};
+use bql::{prelude::*, BqlRefMut};
 use common::{callbacks::FnCall, errno, Opaque};
 use qom::prelude::*;
 

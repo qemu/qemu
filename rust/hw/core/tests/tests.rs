@@ -4,7 +4,7 @@
 
 use std::{ffi::CStr, ptr::addr_of};
 
-use bql::BqlCell;
+use bql::prelude::*;
 use hwcore::prelude::*;
 use migration::prelude::*;
 use qom::{prelude::*, ObjectImpl, ParentField};

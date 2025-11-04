@@ -9,7 +9,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use bql::{BqlCell, BqlRefCell};
+use bql::prelude::*;
 use common::Zeroable;
 
 use crate::{

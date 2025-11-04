@@ -9,7 +9,7 @@ use std::{
     slice,
 };
 
-use bql::BqlCell;
+use bql::prelude::*;
 use common::Opaque;
 use migration::{
     bindings::{

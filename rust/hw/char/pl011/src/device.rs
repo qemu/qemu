@@ -4,7 +4,7 @@
 
 use std::{ffi::CStr, mem::size_of};
 
-use bql::BqlRefCell;
+use bql::prelude::*;
 use chardev::prelude::*;
 use common::prelude::*;
 use hwcore::{prelude::*, ClockEvent, IRQState};

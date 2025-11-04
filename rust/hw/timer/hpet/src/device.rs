@@ -10,7 +10,7 @@ use std::{
     slice::from_ref,
 };
 
-use bql::{BqlCell, BqlRefCell};
+use bql::prelude::*;
 use common::prelude::*;
 use hwcore::prelude::*;
 use migration::{self, prelude::*};

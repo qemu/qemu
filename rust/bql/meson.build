@@ -31,6 +31,7 @@ _bql_rs = static_library(
       'src/lib.rs',
       'src/bindings.rs',
       'src/cell.rs',
+      'src/prelude.rs',
     ],
     {'.': _bql_bindings_inc_rs}
   ),
