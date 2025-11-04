@@ -30,6 +30,7 @@ _chardev_rs = static_library(
       'src/lib.rs',
       'src/bindings.rs',
       'src/chardev.rs',
+      'src/prelude.rs',
     ],
     {'.': _chardev_bindings_inc_rs}
   ),

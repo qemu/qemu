@@ -5,7 +5,7 @@
 use std::{ffi::CStr, mem::size_of};
 
 use bql::BqlRefCell;
-use chardev::{CharFrontend, Chardev, Event};
+use chardev::prelude::*;
 use common::prelude::*;
 use hwcore::{prelude::*, ClockEvent, IRQState};
 use migration::{self, prelude::*};
