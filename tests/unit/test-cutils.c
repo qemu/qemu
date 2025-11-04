@@ -25,9 +25,9 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include <math.h>
 
-#include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "qemu/units.h"
 

@@ -7,9 +7,6 @@
 #include <gio/gio.h>
 #include <gio/gunixfdlist.h>
 #include "libqtest.h"
-#ifndef WIN32
-#include <sys/mman.h>
-#endif
 #include "ui/dbus-display1.h"
 
 static GDBusConnection*

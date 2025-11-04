@@ -8,7 +8,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "glib-compat.h"
 #include <locale.h>
 
 #include "qemu/error-report.h"

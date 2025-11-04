@@ -20,8 +20,6 @@
 
 #include "qemu/osdep.h"
 #include <glib/gstdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include "io/channel-command.h"
 #include "io-channel-helpers.h"
 #include "qapi/error.h"

@@ -27,7 +27,6 @@
 #include "qemu/timer.h"
 #include "qobject/qdict.h"
 #include "libqtest-single.h"
-#include "qemu/typedefs.h"
 
 #define AST2600_GPIO_BASE 0x1E780000
 
