@@ -385,9 +385,14 @@ void aio_dispatch(AioContext *ctx)
     AioHandlerList ready_list = QLIST_HEAD_INITIALIZER(ready_list);
 
     qemu_lockcnt_inc(&ctx->list_lock);
+
     aio_bh_poll(ctx);
 
     ctx->fdmon_ops->gsource_dispatch(ctx, &ready_list);
+
+    if (ctx->fdmon_ops->dispatch) {
+        ctx->fdmon_ops->dispatch(ctx);
+    }
 
     /* block_ns is 0 because polling is disabled in the glib event loop */
     aio_dispatch_ready_handlers(ctx, &ready_list, 0);
@@ -705,6 +710,10 @@ bool aio_poll(AioContext *ctx, bool blocking)
     /* Calculate blocked time for adaptive polling */
     if (ctx->poll_max_ns) {
         block_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - start;
+    }
+
+    if (ctx->fdmon_ops->dispatch) {
+        progress |= ctx->fdmon_ops->dispatch(ctx);
     }
 
     progress |= aio_bh_poll(ctx);
