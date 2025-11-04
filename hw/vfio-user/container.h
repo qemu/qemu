@@ -7,7 +7,6 @@
 #ifndef HW_VFIO_USER_CONTAINER_H
 #define HW_VFIO_USER_CONTAINER_H
 
-#include "qemu/osdep.h"
 
 #include "hw/vfio/vfio-container.h"
 #include "hw/vfio-user/proxy.h"

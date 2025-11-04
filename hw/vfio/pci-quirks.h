@@ -12,7 +12,6 @@
 #ifndef HW_VFIO_VFIO_PCI_QUIRKS_H
 #define HW_VFIO_VFIO_PCI_QUIRKS_H
 
-#include "qemu/osdep.h"
 #include "exec/memop.h"
 
 /*
