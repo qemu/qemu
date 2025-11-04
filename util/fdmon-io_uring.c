@@ -188,20 +188,6 @@ static void add_poll_remove_sqe(AioContext *ctx, AioHandler *node)
     io_uring_sqe_set_data(sqe, NULL);
 }
 
-/* Add a timeout that self-cancels when another cqe becomes ready */
-static void add_timeout_sqe(AioContext *ctx, int64_t ns)
-{
-    struct io_uring_sqe *sqe;
-    struct __kernel_timespec ts = {
-        .tv_sec = ns / NANOSECONDS_PER_SECOND,
-        .tv_nsec = ns % NANOSECONDS_PER_SECOND,
-    };
-
-    sqe = get_sqe(ctx);
-    io_uring_prep_timeout(sqe, &ts, 1, 0);
-    io_uring_sqe_set_data(sqe, NULL);
-}
-
 /* Add sqes from ctx->submit_list for submission */
 static void fill_sq_ring(AioContext *ctx)
 {
@@ -291,13 +277,24 @@ static int process_cq_ring(AioContext *ctx, AioHandlerList *ready_list)
 static int fdmon_io_uring_wait(AioContext *ctx, AioHandlerList *ready_list,
                                int64_t timeout)
 {
+    struct __kernel_timespec ts;
     unsigned wait_nr = 1; /* block until at least one cqe is ready */
     int ret;
 
     if (timeout == 0) {
         wait_nr = 0; /* non-blocking */
     } else if (timeout > 0) {
-        add_timeout_sqe(ctx, timeout);
+        /* Add a timeout that self-cancels when another cqe becomes ready */
+        struct io_uring_sqe *sqe;
+
+        ts = (struct __kernel_timespec){
+            .tv_sec = timeout / NANOSECONDS_PER_SECOND,
+            .tv_nsec = timeout % NANOSECONDS_PER_SECOND,
+        };
+
+        sqe = get_sqe(ctx);
+        io_uring_prep_timeout(sqe, &ts, 1, 0);
+        io_uring_sqe_set_data(sqe, NULL);
     }
 
     fill_sq_ring(ctx);
