@@ -30,6 +30,7 @@ _system_rs = static_library(
       'src/lib.rs',
       'src/bindings.rs',
       'src/memory.rs',
+      'src/prelude.rs',
     ],
     {'.': _system_bindings_inc_rs}
   ),

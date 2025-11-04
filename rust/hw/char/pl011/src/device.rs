@@ -10,7 +10,7 @@ use common::prelude::*;
 use hwcore::{prelude::*, ClockEvent, IRQState};
 use migration::{self, prelude::*};
 use qom::{prelude::*, ObjectImpl, Owned, ParentField, ParentInit};
-use system::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder};
+use system::prelude::*;
 use util::prelude::*;
 
 use crate::registers::{self, Interrupt, RegisterOffset};

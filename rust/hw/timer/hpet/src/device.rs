@@ -16,8 +16,9 @@ use hwcore::prelude::*;
 use migration::{self, prelude::*};
 use qom::{prelude::*, ObjectImpl, ParentField, ParentInit};
 use system::{
-    bindings::{address_space_memory, address_space_stl_le, hwaddr},
-    MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder, MEMTXATTRS_UNSPECIFIED,
+    bindings::{address_space_memory, address_space_stl_le},
+    MEMTXATTRS_UNSPECIFIED,
+    prelude::*,
 };
 use util::prelude::*;
 
