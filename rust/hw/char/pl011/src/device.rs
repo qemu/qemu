@@ -8,10 +8,7 @@ use bql::BqlRefCell;
 use chardev::{CharFrontend, Chardev, Event};
 use common::prelude::*;
 use hwcore::{prelude::*, ClockEvent, IRQState};
-use migration::{
-    self, impl_vmstate_forward, impl_vmstate_struct, vmstate_fields, vmstate_of,
-    vmstate_subsections, vmstate_unused, VMStateDescription, VMStateDescriptionBuilder,
-};
+use migration::{self, prelude::*};
 use qom::{prelude::*, ObjectImpl, Owned, ParentField, ParentInit};
 use system::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder};
 use util::prelude::*;

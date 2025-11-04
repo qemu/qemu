@@ -13,10 +13,7 @@ use std::{
 use bql::{BqlCell, BqlRefCell};
 use common::prelude::*;
 use hwcore::prelude::*;
-use migration::{
-    self, impl_vmstate_struct, vmstate_fields, vmstate_of, vmstate_subsections, vmstate_validate,
-    VMStateDescription, VMStateDescriptionBuilder,
-};
+use migration::{self, prelude::*};
 use qom::{prelude::*, ObjectImpl, ParentField, ParentInit};
 use system::{
     bindings::{address_space_memory, address_space_stl_le, hwaddr},

@@ -32,6 +32,7 @@ _migration_rs = static_library(
       'src/lib.rs',
       'src/bindings.rs',
       'src/migratable.rs',
+      'src/prelude.rs',
       'src/vmstate.rs',
     ],
     {'.' : _migration_bindings_inc_rs},
