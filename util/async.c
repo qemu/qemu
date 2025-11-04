@@ -581,6 +581,7 @@ static void co_schedule_bh_cb(void *opaque)
 
 AioContext *aio_context_new(Error **errp)
 {
+    ERRP_GUARD();
     int ret;
     AioContext *ctx;
 
@@ -611,7 +612,10 @@ AioContext *aio_context_new(Error **errp)
      * you add any new resources to AioContext, it's probably best to acquire
      * them before aio_context_setup().
      */
-    aio_context_setup(ctx);
+    if (!aio_context_setup(ctx, errp)) {
+        event_notifier_cleanup(&ctx->notifier);
+        goto fail;
+    }
 
     g_source_set_can_recurse(&ctx->source, true);
     qemu_lockcnt_init(&ctx->list_lock);
