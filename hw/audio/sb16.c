@@ -185,11 +185,11 @@ static void control (SB16State *s, int hold)
 
     if (hold) {
         k->hold_DREQ(isa_dma, dma);
-        AUD_set_active_out (s->voice, 1);
+        AUD_set_active_out(s->audio_be, s->voice, 1);
     }
     else {
         k->release_DREQ(isa_dma, dma);
-        AUD_set_active_out (s->voice, 0);
+        AUD_set_active_out(s->audio_be, s->voice, 0);
     }
 }
 
@@ -215,7 +215,7 @@ static void continue_dma8 (SB16State *s)
         as.fmt = s->fmt;
         as.endianness = 0;
 
-        s->voice = AUD_open_out (
+        s->voice = AUD_open_out(
             s->audio_be,
             s->voice,
             "sb16",
@@ -378,7 +378,7 @@ static void dma_cmd (SB16State *s, uint8_t cmd, uint8_t d0, int dma_len)
         as.fmt = s->fmt;
         as.endianness = 0;
 
-        s->voice = AUD_open_out (
+        s->voice = AUD_open_out(
             s->audio_be,
             s->voice,
             "sb16",
@@ -879,7 +879,7 @@ static void legacy_reset (SB16State *s)
     as.fmt = AUDIO_FORMAT_U8;
     as.endianness = 0;
 
-    s->voice = AUD_open_out (
+    s->voice = AUD_open_out(
         s->audio_be,
         s->voice,
         "sb16",
@@ -1196,7 +1196,7 @@ static int write_audio (SB16State *s, int nchan, int dma_pos,
         }
 
         copied = k->read_memory(isa_dma, nchan, tmpbuf, dma_pos, to_copy);
-        copied = AUD_write (s->voice, tmpbuf, copied);
+        copied = AUD_write(s->audio_be, s->voice, tmpbuf, copied);
 
         temp -= copied;
         dma_pos = (dma_pos + copied) % dma_len;
@@ -1302,7 +1302,7 @@ static int sb16_post_load (void *opaque, int version_id)
             as.fmt = s->fmt;
             as.endianness = 0;
 
-            s->voice = AUD_open_out (
+            s->voice = AUD_open_out(
                 s->audio_be,
                 s->voice,
                 "sb16",

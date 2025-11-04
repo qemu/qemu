@@ -475,7 +475,7 @@ static uint32_t virtio_snd_pcm_prepare(VirtIOSound *s, uint32_t stream_id)
                                          stream,
                                          virtio_snd_pcm_out_cb,
                                          &as);
-        AUD_set_volume_out_lr(stream->voice.out, 0, 255, 255);
+        AUD_set_volume_out_lr(s->audio_be, stream->voice.out, 0, 255, 255);
     } else {
         stream->voice.in = AUD_open_in(s->audio_be,
                                         stream->voice.in,
@@ -483,7 +483,7 @@ static uint32_t virtio_snd_pcm_prepare(VirtIOSound *s, uint32_t stream_id)
                                         stream,
                                         virtio_snd_pcm_in_cb,
                                         &as);
-        AUD_set_volume_in_lr(stream->voice.in, 0, 255, 255);
+        AUD_set_volume_in_lr(s->audio_be, stream->voice.in, 0, 255, 255);
     }
 
     return cpu_to_le32(VIRTIO_SND_S_OK);
@@ -573,9 +573,9 @@ static void virtio_snd_handle_pcm_start_stop(VirtIOSound *s,
             stream->active = start;
         }
         if (stream->info.direction == VIRTIO_SND_D_OUTPUT) {
-            AUD_set_active_out(stream->voice.out, start);
+            AUD_set_active_out(s->audio_be, stream->voice.out, start);
         } else {
-            AUD_set_active_in(stream->voice.in, start);
+            AUD_set_active_in(s->audio_be, stream->voice.in, start);
         }
     } else {
         error_report("Invalid stream id: %"PRIu32, stream_id);
@@ -1177,7 +1177,8 @@ static void virtio_snd_pcm_out_cb(void *data, int available)
                 buffer->populated = true;
             }
             for (;;) {
-                size = AUD_write(stream->voice.out,
+                size = AUD_write(stream->s->audio_be,
+                                 stream->voice.out,
                                  buffer->data + buffer->offset,
                                  MIN(buffer->size, available));
                 assert(size <= MIN(buffer->size, available));
@@ -1279,7 +1280,8 @@ static void virtio_snd_pcm_in_cb(void *data, int available)
                 to_read = stream->params.period_bytes - buffer->size;
                 to_read = MIN(to_read, available);
                 to_read = MIN(to_read, max_size - buffer->size);
-                size = AUD_read(stream->voice.in,
+                size = AUD_read(stream->s->audio_be,
+                                stream->voice.in,
                                 buffer->data + buffer->size,
                                 to_read);
                 if (!size) {

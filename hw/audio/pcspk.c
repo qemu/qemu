@@ -105,7 +105,7 @@ static void pcspk_callback(void *opaque, int free)
 
     while (free > 0) {
         n = MIN(s->samples - s->play_pos, (unsigned int)free);
-        n = AUD_write(s->voice, &s->sample_buf[s->play_pos], n);
+        n = AUD_write(s->audio_be, s->voice, &s->sample_buf[s->play_pos], n);
         if (!n)
             break;
         s->play_pos = (s->play_pos + n) % s->samples;
@@ -163,7 +163,7 @@ static void pcspk_io_write(void *opaque, hwaddr addr, uint64_t val,
     if (s->voice) {
         if (gate) /* restart */
             s->play_pos = 0;
-        AUD_set_active_out(s->voice, gate & s->data_on);
+        AUD_set_active_out(s->audio_be, s->voice, gate & s->data_on);
     }
 }
 

@@ -275,7 +275,8 @@ static void hda_audio_input_cb(void *opaque, int avail)
     while (to_transfer) {
         uint32_t start = (uint32_t) (wpos & B_MASK);
         uint32_t chunk = (uint32_t) MIN(B_SIZE - start, to_transfer);
-        uint32_t read = AUD_read(st->voice.in, st->buf + start, chunk);
+        uint32_t read = AUD_read(st->state->audio_be, st->voice.in,
+                                 st->buf + start, chunk);
         wpos += read;
         to_transfer -= read;
         st->wpos += read;
@@ -354,7 +355,8 @@ static void hda_audio_output_cb(void *opaque, int avail)
     while (to_transfer) {
         uint32_t start = (uint32_t) (rpos & B_MASK);
         uint32_t chunk = (uint32_t) MIN(B_SIZE - start, to_transfer);
-        uint32_t written = AUD_write(st->voice.out, st->buf + start, chunk);
+        uint32_t written = AUD_write(st->state->audio_be, st->voice.out,
+                                     st->buf + start, chunk);
         rpos += written;
         to_transfer -= written;
         st->rpos += written;
@@ -375,7 +377,8 @@ static void hda_audio_compat_input_cb(void *opaque, int avail)
 
     while (avail - recv >= sizeof(st->compat_buf)) {
         if (st->compat_bpos != sizeof(st->compat_buf)) {
-            len = AUD_read(st->voice.in, st->compat_buf + st->compat_bpos,
+            len = AUD_read(st->state->audio_be, st->voice.in,
+                           st->compat_buf + st->compat_bpos,
                            sizeof(st->compat_buf) - st->compat_bpos);
             st->compat_bpos += len;
             recv += len;
@@ -408,7 +411,8 @@ static void hda_audio_compat_output_cb(void *opaque, int avail)
             }
             st->compat_bpos = 0;
         }
-        len = AUD_write(st->voice.out, st->compat_buf + st->compat_bpos,
+        len = AUD_write(st->state->audio_be, st->voice.out,
+                        st->compat_buf + st->compat_bpos,
                         sizeof(st->compat_buf) - st->compat_bpos);
         st->compat_bpos += len;
         sent += len;
@@ -440,9 +444,9 @@ static void hda_audio_set_running(HDAAudioStream *st, bool running)
         }
     }
     if (st->output) {
-        AUD_set_active_out(st->voice.out, st->running);
+        AUD_set_active_out(st->state->audio_be, st->voice.out, st->running);
     } else {
-        AUD_set_active_in(st->voice.in, st->running);
+        AUD_set_active_in(st->state->audio_be, st->voice.in, st->running);
     }
 }
 
@@ -466,9 +470,9 @@ static void hda_audio_set_amp(HDAAudioStream *st)
         return;
     }
     if (st->output) {
-        AUD_set_volume_out_lr(st->voice.out, muted, left, right);
+        AUD_set_volume_out_lr(st->state->audio_be, st->voice.out, muted, left, right);
     } else {
-        AUD_set_volume_in_lr(st->voice.in, muted, left, right);
+        AUD_set_volume_in_lr(st->state->audio_be, st->voice.in, muted, left, right);
     }
 }
 

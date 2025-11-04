@@ -95,7 +95,7 @@ static void adlib_write(void *opaque, uint32_t nport, uint32_t val)
     int a = nport & 3;
 
     s->active = 1;
-    AUD_set_active_out (s->voice, 1);
+    AUD_set_active_out(s->audio_be, s->voice, 1);
 
     adlib_kill_timers (s);
 
@@ -143,7 +143,8 @@ static int write_audio (AdlibState *s, int samples)
         int nbytes, wbytes, wsampl;
 
         nbytes = samples << SHIFT;
-        wbytes = AUD_write (
+        wbytes = AUD_write(
+            s->audio_be,
             s->voice,
             s->mixbuf + (pos << (SHIFT - 1)),
             nbytes
@@ -255,7 +256,7 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
     as.fmt = AUDIO_FORMAT_S16;
     as.endianness = HOST_BIG_ENDIAN;
 
-    s->voice = AUD_open_out (
+    s->voice = AUD_open_out(
         s->audio_be,
         s->voice,
         "adlib",
@@ -269,7 +270,7 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
         return;
     }
 
-    s->samples = AUD_get_buffer_size_out (s->voice) >> SHIFT;
+    s->samples = AUD_get_buffer_size_out(s->audio_be, s->voice) >> SHIFT;
     s->mixbuf = g_malloc0 (s->samples << SHIFT);
 
     adlib_portio_list[0].offset = s->port;

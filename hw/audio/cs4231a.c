@@ -327,7 +327,7 @@ static void cs_reset_voices (CSState *s, uint32_t val)
         goto error;
     }
 
-    s->voice = AUD_open_out (
+    s->voice = AUD_open_out(
         s->audio_be,
         s->voice,
         "cs4231a",
@@ -339,7 +339,7 @@ static void cs_reset_voices (CSState *s, uint32_t val)
     if (s->dregs[Interface_Configuration] & PEN) {
         if (!s->dma_running) {
             k->hold_DREQ(s->isa_dma, s->dma);
-            AUD_set_active_out (s->voice, 1);
+            AUD_set_active_out(s->audio_be, s->voice, 1);
             s->transferred = 0;
         }
         s->dma_running = 1;
@@ -347,7 +347,7 @@ static void cs_reset_voices (CSState *s, uint32_t val)
     else {
         if (s->dma_running) {
             k->release_DREQ(s->isa_dma, s->dma);
-            AUD_set_active_out (s->voice, 0);
+            AUD_set_active_out(s->audio_be, s->voice, 0);
         }
         s->dma_running = 0;
     }
@@ -356,7 +356,7 @@ static void cs_reset_voices (CSState *s, uint32_t val)
  error:
     if (s->dma_running) {
         k->release_DREQ(s->isa_dma, s->dma);
-        AUD_set_active_out (s->voice, 0);
+        AUD_set_active_out(s->audio_be, s->voice, 0);
     }
 }
 
@@ -465,7 +465,7 @@ static void cs_write (void *opaque, hwaddr addr,
                 if (s->dma_running) {
                     IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
                     k->release_DREQ(s->isa_dma, s->dma);
-                    AUD_set_active_out (s->voice, 0);
+                    AUD_set_active_out(s->audio_be, s->voice, 0);
                     s->dma_running = 0;
                 }
             }
@@ -551,11 +551,11 @@ static int cs_write_audio (CSState *s, int nchan, int dma_pos,
 
             for (i = 0; i < copied; ++i)
                 linbuf[i] = s->tab[tmpbuf[i]];
-            copied = AUD_write (s->voice, linbuf, copied << 1);
+            copied = AUD_write(s->audio_be, s->voice, linbuf, copied << 1);
             copied >>= 1;
         }
         else {
-            copied = AUD_write (s->voice, tmpbuf, copied);
+            copied = AUD_write(s->audio_be, s->voice, tmpbuf, copied);
         }
 
         temp -= copied;
@@ -614,7 +614,7 @@ static int cs4231a_pre_load (void *opaque)
     if (s->dma_running) {
         IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
         k->release_DREQ(s->isa_dma, s->dma);
-        AUD_set_active_out (s->voice, 0);
+        AUD_set_active_out(s->audio_be, s->voice, 0);
     }
     s->dma_running = 0;
     return 0;

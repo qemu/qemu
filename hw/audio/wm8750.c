@@ -72,7 +72,7 @@ static inline void wm8750_in_load(WM8750State *s)
     if (s->idx_in + s->req_in <= sizeof(s->data_in))
         return;
     s->idx_in = MAX(0, (int) sizeof(s->data_in) - s->req_in);
-    AUD_read(*s->in[0], s->data_in + s->idx_in,
+    AUD_read(s->audio_be, *s->in[0], s->data_in + s->idx_in,
              sizeof(s->data_in) - s->idx_in);
 }
 
@@ -80,7 +80,7 @@ static inline void wm8750_out_flush(WM8750State *s)
 {
     int sent = 0;
     while (sent < s->idx_out)
-        sent += AUD_write(*s->out[0], s->data_out + sent, s->idx_out - sent)
+        sent += AUD_write(s->audio_be, *s->out[0], s->data_out + sent, s->idx_out - sent)
                 ?: s->idx_out;
     s->idx_out = 0;
 }
@@ -145,30 +145,30 @@ static void wm8750_vol_update(WM8750State *s)
 {
     /* FIXME: multiply all volumes by s->invol[2], s->invol[3] */
 
-    AUD_set_volume_in_lr(s->adc_voice[0], s->mute,
+    AUD_set_volume_in_lr(s->audio_be, s->adc_voice[0], s->mute,
                     s->inmute[0] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[0]),
                     s->inmute[1] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[1]));
-    AUD_set_volume_in_lr(s->adc_voice[1], s->mute,
+    AUD_set_volume_in_lr(s->audio_be, s->adc_voice[1], s->mute,
                     s->inmute[0] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[0]),
                     s->inmute[1] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[1]));
-    AUD_set_volume_in_lr(s->adc_voice[2], s->mute,
+    AUD_set_volume_in_lr(s->audio_be, s->adc_voice[2], s->mute,
                     s->inmute[0] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[0]),
                     s->inmute[1] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[1]));
 
     /* FIXME: multiply all volumes by s->outvol[0], s->outvol[1] */
 
     /* Speaker: LOUT2VOL ROUT2VOL */
-    AUD_set_volume_out_lr(s->dac_voice[0], s->mute,
+    AUD_set_volume_out_lr(s->audio_be, s->dac_voice[0], s->mute,
                     s->outmute[0] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[4]),
                     s->outmute[1] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[5]));
 
     /* Headphone: LOUT1VOL ROUT1VOL */
-    AUD_set_volume_out_lr(s->dac_voice[1], s->mute,
+    AUD_set_volume_out_lr(s->audio_be, s->dac_voice[1], s->mute,
                     s->outmute[0] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[2]),
                     s->outmute[1] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[3]));
 
     /* MONOOUT: MONOVOL MONOVOL */
-    AUD_set_volume_out_lr(s->dac_voice[2], s->mute,
+    AUD_set_volume_out_lr(s->audio_be, s->dac_voice[2], s->mute,
                     s->outmute[0] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[6]),
                     s->outmute[1] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[6]));
 }
@@ -182,9 +182,9 @@ static void wm8750_set_format(WM8750State *s)
     wm8750_out_flush(s);
 
     if (s->in[0] && *s->in[0])
-        AUD_set_active_in(*s->in[0], 0);
+        AUD_set_active_in(s->audio_be, *s->in[0], 0);
     if (s->out[0] && *s->out[0])
-        AUD_set_active_out(*s->out[0], 0);
+        AUD_set_active_out(s->audio_be, *s->out[0], 0);
 
     for (i = 0; i < IN_PORT_N; i ++)
         if (s->adc_voice[i]) {
@@ -235,9 +235,9 @@ static void wm8750_set_format(WM8750State *s)
      * for mixing or combining paths to different ports, so we
      * connect both channels to where the left channel is routed.  */
     if (s->in[0] && *s->in[0])
-        AUD_set_active_in(*s->in[0], 1);
+        AUD_set_active_in(s->audio_be, *s->in[0], 1);
     if (s->out[0] && *s->out[0])
-        AUD_set_active_out(*s->out[0], 1);
+        AUD_set_active_out(s->audio_be, *s->out[0], 1);
 }
 
 static void wm8750_clk_update(WM8750State *s, int ext)

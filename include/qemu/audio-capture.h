@@ -36,8 +36,11 @@ CaptureVoiceOut *AUD_add_capture(
     AudioBackend *be,
     struct audsettings *as,
     struct audio_capture_ops *ops,
-    void *opaque
-    );
-void AUD_del_capture (CaptureVoiceOut *cap, void *cb_opaque);
+    void *opaque);
+
+void AUD_del_capture(
+    AudioBackend *be,
+    CaptureVoiceOut *cap,
+    void *cb_opaque);
 
 #endif /* QEMU_AUDIO_CAPTURE_H */

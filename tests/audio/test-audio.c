@@ -142,7 +142,7 @@ static void test_sine_callback(void *opaque, int avail)
 
     generate_sine_samples(buffer, frames_to_write, s->frames_written);
 
-    bytes_written = AUD_write(s->voice, buffer,
+    bytes_written = AUD_write(s->be, s->voice, buffer,
                               frames_to_write * sizeof(int16_t) * CHANNELS);
     s->frames_written += bytes_written / (sizeof(int16_t) * CHANNELS);
 }
@@ -163,7 +163,7 @@ static void test_audio_out_sine_wave(void)
                                       &state, test_sine_callback);
 
     g_test_message("Playing 440Hz sine wave for %d seconds...", DURATION_SECS);
-    AUD_set_active_out(state.voice, true);
+    AUD_set_active_out(state.be, state.voice, true);
 
     /*
      * Run the audio subsystem until all frames are written or timeout.
@@ -188,7 +188,7 @@ static void test_audio_out_sine_wave(void)
 
     g_assert_cmpint(state.frames_written, ==, state.total_frames);
 
-    AUD_set_active_out(state.voice, false);
+    AUD_set_active_out(state.be, state.voice, false);
     AUD_close_out(state.be, state.voice);
 }
 
@@ -224,13 +224,13 @@ static void test_audio_out_active_state(void)
     be = get_test_audio_backend();
     voice = open_test_voice_out(be, "test-active", NULL, dummy_audio_callback);
 
-    g_assert_false(AUD_is_active_out(voice));
+    g_assert_false(AUD_is_active_out(be, voice));
 
-    AUD_set_active_out(voice, true);
-    g_assert_true(AUD_is_active_out(voice));
+    AUD_set_active_out(be, voice, true);
+    g_assert_true(AUD_is_active_out(be, voice));
 
-    AUD_set_active_out(voice, false);
-    g_assert_false(AUD_is_active_out(voice));
+    AUD_set_active_out(be, voice, false);
+    g_assert_false(AUD_is_active_out(be, voice));
 
     AUD_close_out(be, voice);
 }
@@ -244,13 +244,13 @@ static void test_audio_out_buffer_size(void)
     be = get_test_audio_backend();
     voice = open_test_voice_out(be, "test-buffer", NULL, dummy_audio_callback);
 
-    buffer_size = AUD_get_buffer_size_out(voice);
+    buffer_size = AUD_get_buffer_size_out(be, voice);
     g_test_message("Buffer size: %d bytes", buffer_size);
     g_assert_cmpint(buffer_size, >, 0);
 
     AUD_close_out(be, voice);
 
-    g_assert_cmpint(AUD_get_buffer_size_out(NULL), ==, 0);
+    g_assert_cmpint(AUD_get_buffer_size_out(NULL, NULL), ==, 0);
 }
 
 static void test_audio_out_volume(void)
@@ -263,13 +263,13 @@ static void test_audio_out_volume(void)
     voice = open_test_voice_out(be, "test-volume", NULL, dummy_audio_callback);
 
     vol = (Volume){ .mute = false, .channels = 2, .vol = {255, 255} };
-    AUD_set_volume_out(voice, &vol);
+    AUD_set_volume_out(be, voice, &vol);
 
     vol = (Volume){ .mute = true, .channels = 2, .vol = {255, 255} };
-    AUD_set_volume_out(voice, &vol);
+    AUD_set_volume_out(be, voice, &vol);
 
     vol = (Volume){ .mute = false, .channels = 2, .vol = {128, 128} };
-    AUD_set_volume_out(voice, &vol);
+    AUD_set_volume_out(be, voice, &vol);
 
     AUD_close_out(be, voice);
 }
@@ -286,13 +286,13 @@ static void test_audio_in_active_state(void)
         return;
     }
 
-    g_assert_false(AUD_is_active_in(voice));
+    g_assert_false(AUD_is_active_in(be, voice));
 
-    AUD_set_active_in(voice, true);
-    g_assert_true(AUD_is_active_in(voice));
+    AUD_set_active_in(be, voice, true);
+    g_assert_true(AUD_is_active_in(be, voice));
 
-    AUD_set_active_in(voice, false);
-    g_assert_false(AUD_is_active_in(voice));
+    AUD_set_active_in(be, voice, false);
+    g_assert_false(AUD_is_active_in(be, voice));
 
     AUD_close_in(be, voice);
 }
@@ -311,10 +311,10 @@ static void test_audio_in_volume(void)
     }
 
     vol = (Volume){ .mute = false, .channels = 2, .vol = {255, 255} };
-    AUD_set_volume_in(voice, &vol);
+    AUD_set_volume_in(be, voice, &vol);
 
     vol = (Volume){ .mute = true, .channels = 2, .vol = {255, 255} };
-    AUD_set_volume_in(voice, &vol);
+    AUD_set_volume_in(be, voice, &vol);
 
     AUD_close_in(be, voice);
 }
@@ -427,7 +427,7 @@ static void test_audio_capture(void)
                                 &sine_state, test_sine_callback);
     sine_state.voice = voice;
 
-    AUD_set_active_out(voice, true);
+    AUD_set_active_out(be, voice, true);
 
     start_time = g_get_monotonic_time();
     while (sine_state.frames_written < sine_state.total_frames ||
@@ -472,10 +472,10 @@ static void test_audio_capture(void)
         g_assert_cmpfloat(match_ratio, >=, 0.9);
     }
 
-    AUD_set_active_out(voice, false);
+    AUD_set_active_out(be, voice, false);
     AUD_close_out(be, voice);
 
-    AUD_del_capture(cap, &state);
+    AUD_del_capture(be, cap, &state);
     g_assert_true(state.destroy_called);
 
     g_free(state.captured_samples);
@@ -483,26 +483,27 @@ static void test_audio_capture(void)
 
 static void test_audio_null_handling(void)
 {
+    AudioBackend *be = get_test_audio_backend();
     uint8_t buffer[64];
 
     /* AUD_is_active_out/in(NULL) should return false */
-    g_assert_false(AUD_is_active_out(NULL));
-    g_assert_false(AUD_is_active_in(NULL));
+    g_assert_false(AUD_is_active_out(be, NULL));
+    g_assert_false(AUD_is_active_in(be, NULL));
 
     /* AUD_get_buffer_size_out(NULL) should return 0 */
-    g_assert_cmpint(AUD_get_buffer_size_out(NULL), ==, 0);
+    g_assert_cmpint(AUD_get_buffer_size_out(be, NULL), ==, 0);
 
     /* AUD_write/read(NULL, ...) should return size (no-op) */
-    g_assert_cmpuint(AUD_write(NULL, buffer, sizeof(buffer)), ==,
+    g_assert_cmpuint(AUD_write(be, NULL, buffer, sizeof(buffer)), ==,
                      sizeof(buffer));
-    g_assert_cmpuint(AUD_read(NULL, buffer, sizeof(buffer)), ==,
+    g_assert_cmpuint(AUD_read(be, NULL, buffer, sizeof(buffer)), ==,
                      sizeof(buffer));
 
     /* These should not crash */
-    AUD_set_active_out(NULL, true);
-    AUD_set_active_out(NULL, false);
-    AUD_set_active_in(NULL, true);
-    AUD_set_active_in(NULL, false);
+    AUD_set_active_out(be, NULL, true);
+    AUD_set_active_out(be, NULL, false);
+    AUD_set_active_in(be, NULL, true);
+    AUD_set_active_in(be, NULL, false);
 }
 
 static void test_audio_multiple_voices(void)
@@ -516,19 +517,19 @@ static void test_audio_multiple_voices(void)
     out2 = open_test_voice_out(be, "test-multi-out2", NULL, dummy_audio_callback);
     in1 = open_test_voice_in(be, "test-multi-in1", NULL, dummy_audio_callback);
 
-    AUD_set_active_out(out1, true);
-    AUD_set_active_out(out2, true);
-    AUD_set_active_in(in1, true);
+    AUD_set_active_out(be, out1, true);
+    AUD_set_active_out(be, out2, true);
+    AUD_set_active_in(be, in1, true);
 
-    g_assert_true(AUD_is_active_out(out1));
-    g_assert_true(AUD_is_active_out(out2));
+    g_assert_true(AUD_is_active_out(be, out1));
+    g_assert_true(AUD_is_active_out(be, out2));
     if (in1) {
-        g_assert_true(AUD_is_active_in(in1));
+        g_assert_true(AUD_is_active_in(be, in1));
     }
 
-    AUD_set_active_out(out1, false);
-    AUD_set_active_out(out2, false);
-    AUD_set_active_in(in1, false);
+    AUD_set_active_out(be, out1, false);
+    AUD_set_active_out(be, out2, false);
+    AUD_set_active_in(be, in1, false);
 
     AUD_close_in(be, in1);
     AUD_close_out(be, out2);

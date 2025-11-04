@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#include "qemu/audio.h"
 #include "qemu/qemu-print.h"
 #include "qemu/error-report.h"
 #include "audio_int.h"
@@ -10,6 +11,7 @@ typedef struct {
     int freq;
     int bits;
     int nchannels;
+    AudioBackend *audio_be;
     CaptureVoiceOut *cap;
 } WAVState;
 
@@ -84,7 +86,7 @@ static void wav_capture_destroy (void *opaque)
 {
     WAVState *wav = opaque;
 
-    AUD_del_capture (wav->cap, wav);
+    AUD_del_capture(wav->audio_be, wav->cap, wav);
     g_free (wav);
 }
 
@@ -159,6 +161,7 @@ int wav_start_capture(AudioBackend *state, CaptureState *s, const char *path,
         return -1;
     }
 
+    wav->audio_be = state;
     wav->path = g_strdup (path);
     wav->bits = bits;
     wav->nchannels = nchannels;
@@ -169,7 +172,7 @@ int wav_start_capture(AudioBackend *state, CaptureState *s, const char *path,
         goto error_free;
     }
 
-    cap = AUD_add_capture(state, &as, &ops, wav);
+    cap = AUD_add_capture(wav->audio_be, &as, &ops, wav);
     if (!cap) {
         error_report("Failed to add audio capture");
         goto error_free;
