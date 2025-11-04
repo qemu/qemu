@@ -17,7 +17,7 @@ use migration::{
 };
 use qom::{prelude::*, ObjectImpl, Owned, ParentField, ParentInit};
 use system::{hwaddr, MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder};
-use util::{log::Log, log_mask_ln, ResultExt};
+use util::prelude::*;
 
 use crate::registers::{self, Interrupt, RegisterOffset};
 

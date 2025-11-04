@@ -5,7 +5,7 @@
 use std::ptr::addr_of_mut;
 
 use common::Zeroable;
-use util::{self, ensure};
+use util::{self, prelude::*};
 
 /// Each `HPETState` represents a Event Timer Block. The v1 spec supports
 /// up to 8 blocks. QEMU only uses 1 block (in PC machine).

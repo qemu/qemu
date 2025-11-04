@@ -34,6 +34,7 @@ _util_rs = static_library(
       'src/error.rs',
       'src/log.rs',
       'src/module.rs',
+      'src/prelude.rs',
       'src/timer.rs',
     ],
     {'.': _util_bindings_inc_rs}

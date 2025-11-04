@@ -25,10 +25,7 @@ use system::{
     bindings::{address_space_memory, address_space_stl_le, hwaddr},
     MemoryRegion, MemoryRegionOps, MemoryRegionOpsBuilder, MEMTXATTRS_UNSPECIFIED,
 };
-use util::{
-    ensure,
-    timer::{Timer, CLOCK_VIRTUAL, NANOSECONDS_PER_SECOND},
-};
+use util::prelude::*;
 
 use crate::fw_cfg::HPETFwConfig;
 
