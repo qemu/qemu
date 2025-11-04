@@ -218,12 +218,14 @@ typedef struct NvmeNamespaceParams {
     struct {
         char *ruhs;
     } fdp;
-    uint16_t atomic_nawun;
-    uint16_t atomic_nawupf;
-    uint16_t atomic_nabsn;
-    uint16_t atomic_nabspf;
-    uint16_t atomic_nabo;
-    bool     atomic_nsfeat;
+
+    struct {
+        uint16_t nawun;
+        uint16_t nawupf;
+        uint16_t nabsn;
+        uint16_t nabspf;
+        uint16_t nabo;
+    } atomic;
 } NvmeNamespaceParams;
 
 typedef struct NvmeAtomic {
@@ -288,11 +290,7 @@ typedef struct NvmeNamespace {
         /* reclaim unit handle identifiers indexed by placement handle */
         uint16_t *phs;
     } fdp;
-    uint16_t  atomic_nawun;
-    uint16_t  atomic_nawupf;
-    uint16_t  atomic_nabsn;
-    uint16_t  atomic_nabspf;
-    uint16_t  atomic_nabo;
+
     NvmeAtomic  atomic;
 } NvmeNamespace;
 
@@ -741,5 +739,10 @@ uint16_t nvme_bounce_mdata(NvmeCtrl *n, void *ptr, uint32_t len,
 void nvme_rw_complete_cb(void *opaque, int ret);
 uint16_t nvme_map_dptr(NvmeCtrl *n, NvmeSg *sg, size_t len,
                        NvmeCmd *cmd);
+
+void nvme_atomic_configure_max_write_size(bool dn, uint16_t awun,
+                                          uint16_t awupf, NvmeAtomic *atomic);
+void nvme_ns_atomic_configure_boundary(bool dn, uint16_t nabsn,
+                                       uint16_t nabspf, NvmeAtomic *atomic);
 
 #endif /* HW_NVME_NVME_H */

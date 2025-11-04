@@ -6524,6 +6524,53 @@ static uint16_t nvme_set_feature_fdp_events(NvmeCtrl *n, NvmeNamespace *ns,
     return NVME_SUCCESS;
 }
 
+void nvme_atomic_configure_max_write_size(bool dn, uint16_t awun,
+                                          uint16_t awupf, NvmeAtomic *atomic)
+{
+    atomic->atomic_max_write_size = (dn ? awupf : awun) + 1;
+
+    if (atomic->atomic_max_write_size > 1) {
+        atomic->atomic_writes = 1;
+    }
+}
+
+static uint16_t nvme_set_feature_write_atomicity(NvmeCtrl *n, NvmeRequest *req)
+{
+    NvmeCmd *cmd = &req->cmd;
+
+    uint32_t dw11 = le32_to_cpu(cmd->cdw11);
+
+    uint16_t awun = le16_to_cpu(n->id_ctrl.awun);
+    uint16_t awupf = le16_to_cpu(n->id_ctrl.awupf);
+
+    n->dn = dw11 & 0x1;
+
+    nvme_atomic_configure_max_write_size(n->dn, awun, awupf, &n->atomic);
+
+    for (int i = 1; i <= NVME_MAX_NAMESPACES; i++) {
+        uint16_t nawun, nawupf, nabsn, nabspf;
+
+        NvmeNamespace *ns = nvme_ns(n, i);
+        if (!ns) {
+            continue;
+        }
+
+        nawun = le16_to_cpu(ns->id_ns.nawun);
+        nawupf = le16_to_cpu(ns->id_ns.nawupf);
+
+        nvme_atomic_configure_max_write_size(n->dn, nawun, nawupf,
+                                             &ns->atomic);
+
+        nabsn = le16_to_cpu(ns->id_ns.nabsn);
+        nabspf = le16_to_cpu(ns->id_ns.nabspf);
+
+        nvme_ns_atomic_configure_boundary(n->dn, nabsn, nabspf,
+                                          &ns->atomic);
+    }
+
+    return NVME_SUCCESS;
+}
+
 static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeNamespace *ns = NULL;
@@ -6536,8 +6583,6 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
     uint8_t save = NVME_SETFEAT_SAVE(dw10);
     uint16_t status;
     int i;
-    NvmeIdCtrl *id = &n->id_ctrl;
-    NvmeAtomic *atomic = &n->atomic;
 
     trace_pci_nvme_setfeat(nvme_cid(req), nsid, fid, save, dw11);
 
@@ -6691,50 +6736,7 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
     case NVME_FDP_EVENTS:
         return nvme_set_feature_fdp_events(n, ns, req);
     case NVME_WRITE_ATOMICITY:
-
-        n->dn = 0x1 & dw11;
-
-        if (n->dn) {
-            atomic->atomic_max_write_size = le16_to_cpu(id->awupf) + 1;
-        } else {
-            atomic->atomic_max_write_size = le16_to_cpu(id->awun) + 1;
-        }
-
-        if (atomic->atomic_max_write_size == 1) {
-            atomic->atomic_writes = 0;
-        } else {
-            atomic->atomic_writes = 1;
-        }
-        for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
-            ns = nvme_ns(n, i);
-            if (ns && ns->atomic.atomic_writes) {
-                if (n->dn) {
-                    ns->atomic.atomic_max_write_size =
-                        le16_to_cpu(ns->id_ns.nawupf) + 1;
-                    if (ns->id_ns.nabspf) {
-                        ns->atomic.atomic_boundary =
-                            le16_to_cpu(ns->id_ns.nabspf) + 1;
-                    } else {
-                        ns->atomic.atomic_boundary = 0;
-                    }
-                } else {
-                    ns->atomic.atomic_max_write_size =
-                        le16_to_cpu(ns->id_ns.nawun) + 1;
-                    if (ns->id_ns.nabsn) {
-                        ns->atomic.atomic_boundary =
-                            le16_to_cpu(ns->id_ns.nabsn) + 1;
-                    } else {
-                        ns->atomic.atomic_boundary = 0;
-                    }
-                }
-                if (ns->atomic.atomic_max_write_size == 1) {
-                    ns->atomic.atomic_writes = 0;
-                } else {
-                    ns->atomic.atomic_writes = 1;
-                }
-            }
-        }
-        break;
+        return nvme_set_feature_write_atomicity(n, req);
     default:
         return NVME_FEAT_NOT_CHANGEABLE | NVME_DNR;
     }
@@ -7669,6 +7671,10 @@ static int nvme_atomic_boundary_check(NvmeCtrl *n, NvmeCmd *cmd,
 
         imask = ~(atomic->atomic_boundary - 1);
         if ((slba & imask) != (elba & imask)) {
+            /*
+             * The write crosses an atomic boundary and the controller provides
+             * no atomicity guarantees unless AWUN/AWUPF are non-zero.
+             */
             if (n->atomic.atomic_max_write_size &&
                 ((nlb + 1) <= n->atomic.atomic_max_write_size)) {
                 return 1;
@@ -8709,7 +8715,6 @@ static void nvme_init_state(NvmeCtrl *n)
     NvmeSecCtrlEntry *list = n->sec_ctrl_list;
     NvmeSecCtrlEntry *sctrl;
     PCIDevice *pci = PCI_DEVICE(n);
-    NvmeAtomic *atomic = &n->atomic;
     NvmeIdCtrl *id = &n->id_ctrl;
     uint8_t max_vfs;
     int i;
@@ -8781,19 +8786,9 @@ static void nvme_init_state(NvmeCtrl *n)
             id->awupf = 0;
         }
 
-        if (n->dn) {
-            atomic->atomic_max_write_size = id->awupf + 1;
-        } else {
-            atomic->atomic_max_write_size = id->awun + 1;
-        }
-
-        if (atomic->atomic_max_write_size == 1) {
-            atomic->atomic_writes = 0;
-        } else {
-            atomic->atomic_writes = 1;
-        }
-        atomic->atomic_boundary = 0;
-        atomic->atomic_nabo = 0;
+        nvme_atomic_configure_max_write_size(n->dn, n->params.atomic_awun,
+                                             n->params.atomic_awupf,
+                                             &n->atomic);
     }
 }
 

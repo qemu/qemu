@@ -718,84 +718,118 @@ static void nvme_ns_unrealize(DeviceState *dev)
     nvme_ns_cleanup(ns);
 }
 
+void nvme_ns_atomic_configure_boundary(bool dn, uint16_t nabsn,
+                                       uint16_t nabspf, NvmeAtomic *atomic)
+{
+    atomic->atomic_boundary = dn ? nabspf : nabsn;
+
+    if (atomic->atomic_boundary > 0) {
+        atomic->atomic_boundary += 1;
+    }
+}
+
+static bool nvme_ns_set_nab(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
+{
+    NvmeIdNs *id_ns = &ns->id_ns;
+    NvmeIdCtrl *id_ctrl = &n->id_ctrl;
+
+    uint16_t nabsn = ns->params.atomic.nabsn;
+    uint16_t nabspf = ns->params.atomic.nabspf;
+    uint16_t nabo = ns->params.atomic.nabo;
+
+    if (nabsn && nabsn < le16_to_cpu(id_ctrl->awun)) {
+        error_setg(errp, "nabsn must be greater than or equal to awun");
+        return false;
+    }
+
+    if (nabspf && nabspf < le16_to_cpu(id_ctrl->awupf)) {
+        error_setg(errp, "nabspf must be greater than or equal to awupf");
+        return false;
+    }
+
+    if (id_ns->nsfeat & NVME_ID_NS_NSFEAT_NSABP) {
+        if (nabsn && nabsn < le16_to_cpu(id_ns->nawun)) {
+            error_setg(errp, "nabsn must be greater than or equal to nawun");
+            return false;
+        }
+
+        if (nabspf && nabspf < le16_to_cpu(id_ns->nawupf)) {
+            error_setg(errp, "nabspf must be great than or equal to nawupf");
+            return false;
+        }
+    }
+
+    if (nabo && (nabo > nabsn || nabo > nabspf)) {
+        error_setg(errp, "nabo must be less than or equal to nabsn and nabspf");
+        return false;
+    }
+
+    id_ns->nabsn = cpu_to_le16(nabsn);
+    id_ns->nabspf = cpu_to_le16(nabspf);
+    id_ns->nabo = cpu_to_le16(nabo);
+
+    ns->atomic.atomic_nabo = nabo;
+
+    nvme_ns_atomic_configure_boundary(n->dn, nabsn, nabspf, &ns->atomic);
+
+    return true;
+}
+
+static bool nvme_ns_set_nsabp(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
+{
+    NvmeIdNs *id_ns = &ns->id_ns;
+    NvmeIdCtrl *id_ctrl = &n->id_ctrl;
+
+    uint16_t awun = le16_to_cpu(id_ctrl->awun);
+    uint16_t awupf = le16_to_cpu(id_ctrl->awupf);
+
+    uint16_t nawun = ns->params.atomic.nawun;
+    uint16_t nawupf = ns->params.atomic.nawupf;
+
+    if (nawupf > nawun) {
+        if (nawun == 0) {
+            nawun = nawupf;
+        } else {
+            error_setg(errp, "nawupf must be less than or equal to nawun");
+            return false;
+        }
+    }
+
+    /* neither nawun or nawupf is set */
+    if (nawun == 0) {
+        return true;
+    }
+
+    if (nawun < awun) {
+        error_setg(errp, "nawun must be greater than or equal to awun");
+        return false;
+    }
+
+    if (nawupf < awupf) {
+        error_setg(errp, "nawupf must be greater than or equal to awupf");
+        return false;
+    }
+
+    id_ns->nsfeat |= NVME_ID_NS_NSFEAT_NSABP;
+
+    id_ns->nawun = cpu_to_le16(nawun);
+    id_ns->nawupf = cpu_to_le16(nawupf);
+
+    nvme_atomic_configure_max_write_size(n->dn, nawun, nawupf, &ns->atomic);
+
+    return true;
+}
+
 static void nvme_ns_realize(DeviceState *dev, Error **errp)
 {
     NvmeNamespace *ns = NVME_NS(dev);
     BusState *s = qdev_get_parent_bus(dev);
     NvmeCtrl *n = NVME(s->parent);
     NvmeSubsystem *subsys = n->subsys;
-    NvmeIdCtrl *id = &n->id_ctrl;
-    NvmeIdNs *id_ns = &ns->id_ns;
     uint32_t nsid = ns->params.nsid;
     int i;
 
     assert(subsys);
-
-    /* Set atomic write parameters */
-    if (ns->params.atomic_nsfeat) {
-        id_ns->nsfeat |= NVME_ID_NS_NSFEAT_NSABPNS;
-        id_ns->nawun = cpu_to_le16(ns->params.atomic_nawun);
-        if (!id->awupf || (id_ns->nawun && (id_ns->nawun < id->awun))) {
-            error_report("Invalid NAWUN: %x AWUN=%x", id_ns->nawun, id->awun);
-        }
-        id_ns->nawupf = cpu_to_le16(ns->params.atomic_nawupf);
-        if (!id->awupf || (id_ns->nawupf && (id_ns->nawupf < id->awupf))) {
-            error_report("Invalid NAWUPF: %x AWUPF=%x",
-                id_ns->nawupf, id->awupf);
-        }
-        if (id_ns->nawupf > id_ns->nawun) {
-            error_report("Invalid: NAWUN=%x NAWUPF=%x",
-                id_ns->nawun, id_ns->nawupf);
-        }
-        id_ns->nabsn = cpu_to_le16(ns->params.atomic_nabsn);
-        id_ns->nabspf = cpu_to_le16(ns->params.atomic_nabspf);
-        id_ns->nabo = cpu_to_le16(ns->params.atomic_nabo);
-        if (!id->awun || (id_ns->nabsn && ((id_ns->nabsn < id_ns->nawun) ||
-            (id_ns->nabsn < id->awun)))) {
-            error_report("Invalid NABSN: %x NAWUN=%x AWUN=%x",
-                id_ns->nabsn, id_ns->nawun, id->awun);
-        }
-        if (!id->awupf || (id_ns->nabspf && ((id_ns->nabspf < id_ns->nawupf) ||
-            (id_ns->nawupf < id->awupf)))) {
-            error_report("Invalid NABSPF: %x NAWUPF=%x AWUPF=%x",
-                id_ns->nabspf, id_ns->nawupf, id->awupf);
-        }
-        if (id_ns->nabo && ((id_ns->nabo > id_ns->nabsn) ||
-            (id_ns->nabo > id_ns->nabspf))) {
-            error_report("Invalid NABO: %x NABSN=%x NABSPF=%x",
-                id_ns->nabo, id_ns->nabsn, id_ns->nabspf);
-        }
-        if (id_ns->nawupf > id_ns->nawun) {
-            error_report("Invalid: NAWUN=%x NAWUPF=%x", id_ns->nawun,
-                id_ns->nawupf);
-        }
-    }
-
-    if (id_ns->nawun || id_ns->nawupf) {
-        NvmeAtomic *atomic = &ns->atomic;
-
-        if (n->dn) {
-            atomic->atomic_max_write_size = cpu_to_le16(id_ns->nawupf) + 1;
-            if (id_ns->nabspf) {
-                atomic->atomic_boundary = cpu_to_le16(id_ns->nabspf) + 1;
-            } else {
-                atomic->atomic_boundary = 0;
-            }
-        } else {
-            atomic->atomic_max_write_size = cpu_to_le16(id_ns->nawun) + 1;
-            if (id_ns->nabsn) {
-                atomic->atomic_boundary = cpu_to_le16(id_ns->nabsn) + 1;
-            } else {
-                atomic->atomic_boundary = 0;
-            }
-        }
-        if (atomic->atomic_max_write_size == 1) {
-            atomic->atomic_writes = 0;
-        } else {
-            atomic->atomic_writes = 1;
-        }
-        atomic->atomic_nabo = cpu_to_le16(id_ns->nabo);
-    }
 
     /* reparent to subsystem bus */
     if (!qdev_set_parent_bus(dev, &subsys->bus.parent_bus, errp)) {
@@ -803,6 +837,14 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
     }
     ns->subsys = subsys;
     ns->endgrp = &subsys->endgrp;
+
+    if (!nvme_ns_set_nsabp(n, ns, errp)) {
+        return;
+    }
+
+    if (!nvme_ns_set_nab(n, ns, errp)) {
+        return;
+    }
 
     if (nvme_ns_setup(ns, errp)) {
         return;
@@ -872,12 +914,11 @@ static const Property nvme_ns_props[] = {
     DEFINE_PROP_BOOL("eui64-default", NvmeNamespace, params.eui64_default,
                      false),
     DEFINE_PROP_STRING("fdp.ruhs", NvmeNamespace, params.fdp.ruhs),
-    DEFINE_PROP_UINT16("atomic.nawun", NvmeNamespace, params.atomic_nawun, 0),
-    DEFINE_PROP_UINT16("atomic.nawupf", NvmeNamespace, params.atomic_nawupf, 0),
-    DEFINE_PROP_UINT16("atomic.nabspf", NvmeNamespace, params.atomic_nabspf, 0),
-    DEFINE_PROP_UINT16("atomic.nabsn", NvmeNamespace, params.atomic_nabsn, 0),
-    DEFINE_PROP_UINT16("atomic.nabo", NvmeNamespace, params.atomic_nabo, 0),
-    DEFINE_PROP_BOOL("atomic.nsfeat", NvmeNamespace, params.atomic_nsfeat, 0),
+    DEFINE_PROP_UINT16("atomic.nawun", NvmeNamespace, params.atomic.nawun, 0),
+    DEFINE_PROP_UINT16("atomic.nawupf", NvmeNamespace, params.atomic.nawupf, 0),
+    DEFINE_PROP_UINT16("atomic.nabsn", NvmeNamespace, params.atomic.nabsn, 0),
+    DEFINE_PROP_UINT16("atomic.nabspf", NvmeNamespace, params.atomic.nabspf, 0),
+    DEFINE_PROP_UINT16("atomic.nabo", NvmeNamespace, params.atomic.nabo, 0),
 };
 
 static void nvme_ns_class_init(ObjectClass *oc, const void *data)
