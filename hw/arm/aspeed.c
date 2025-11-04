@@ -543,7 +543,7 @@ void aspeed_create_pca9552(AspeedSoCState *soc, int bus_id, int addr)
                             TYPE_PCA9552, addr);
 }
 
-static I2CSlave *create_pca9554(AspeedSoCState *soc, int bus_id, int addr)
+I2CSlave *aspeed_create_pca9554(AspeedSoCState *soc, int bus_id, int addr)
 {
     return i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, bus_id),
                             TYPE_PCA9554, addr);
@@ -1142,7 +1142,7 @@ static void gb200nvl_bmc_i2c_init(AspeedMachineState *bmc)
     }
 
     /* Bus 5 Expander */
-    create_pca9554(soc, 4, 0x21);
+    aspeed_create_pca9554(soc, 4, 0x21);
 
     /* Mux I2c Expanders */
     i2c_slave_create_simple(i2c[5], "pca9546", 0x71);
@@ -1153,12 +1153,12 @@ static void gb200nvl_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_slave_create_simple(i2c[5], "pca9546", 0x77);
 
     /* Bus 10 */
-    dev = DEVICE(create_pca9554(soc, 9, 0x20));
+    dev = DEVICE(aspeed_create_pca9554(soc, 9, 0x20));
 
     /* Set FPGA_READY */
     object_property_set_str(OBJECT(dev), "pin1", "high", &error_fatal);
 
-    create_pca9554(soc, 9, 0x21);
+    aspeed_create_pca9554(soc, 9, 0x21);
     at24c_eeprom_init(i2c[9], 0x50, 64 * KiB);
     at24c_eeprom_init(i2c[9], 0x51, 64 * KiB);
 

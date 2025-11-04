@@ -80,4 +80,18 @@ void aspeed_machine_class_init_cpus_defaults(MachineClass *mc);
  */
 void aspeed_create_pca9552(AspeedSoCState *soc, int bus_id, int addr);
 
+/*
+ * aspeed_create_pca9554:
+ * @soc: pointer to the #AspeedSoCState.
+ * @bus_id: the I2C bus index to attach the device.
+ * @addr: the I2C address of the PCA9554 device.
+ *
+ * Create and attach a PCA9554 I/O expander to the specified I2C bus
+ * of the given Aspeed SoC. The device is created via
+ * i2c_slave_create_simple() and returned as an #I2CSlave pointer.
+ *
+ * Returns: a pointer to the newly created #I2CSlave instance.
+ */
+I2CSlave *aspeed_create_pca9554(AspeedSoCState *soc, int bus_id, int addr);
+
 #endif
