@@ -111,4 +111,18 @@ I2CSlave *aspeed_create_pca9554(AspeedSoCState *soc, int bus_id, int addr);
  */
 void aspeed_machine_ast2600_class_emmc_init(ObjectClass *oc);
 
+/*
+ * aspeed_connect_serial_hds_to_uarts:
+ * @bmc: pointer to the #AspeedMachineState.
+ *
+ * Connect host serial backends (character devices) to the UART interfaces
+ * of the Aspeed SoC used by the given BMC machine.
+ *
+ * The function assigns `serial_hd(0)` to the primary UART channel
+ * (either chosen via `bmc->uart_chosen` or the machine class default),
+ * and iteratively connects remaining serial ports to other available UARTs
+ * on the SoC based on their index.
+ */
+void aspeed_connect_serial_hds_to_uarts(AspeedMachineState *bmc);
+
 #endif
