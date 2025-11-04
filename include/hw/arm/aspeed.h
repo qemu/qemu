@@ -57,5 +57,15 @@ struct AspeedMachineClass {
     bool vbootrom;
 };
 
+/*
+ * aspeed_machine_class_init_cpus_defaults:
+ * @mc: the #MachineClass to be initialized.
+ *
+ * Initialize the default CPU configuration for an Aspeed machine class.
+ * This function sets the default, minimum, and maximum CPU counts
+ * to match the number of CPUs defined in the associated SoC class,
+ * and copies its list of valid CPU types.
+ */
+void aspeed_machine_class_init_cpus_defaults(MachineClass *mc);
 
 #endif

@@ -1339,7 +1339,7 @@ static void aspeed_machine_class_props_init(ObjectClass *oc)
                                           "Change the SPI Flash model");
 }
 
-static void aspeed_machine_class_init_cpus_defaults(MachineClass *mc)
+void aspeed_machine_class_init_cpus_defaults(MachineClass *mc)
 {
     AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(mc);
     AspeedSoCClass *sc = ASPEED_SOC_CLASS(object_class_by_name(amc->soc_name));
