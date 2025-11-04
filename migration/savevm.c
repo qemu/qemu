@@ -1142,6 +1142,7 @@ int qemu_savevm_send_packaged(QEMUFile *f, const uint8_t *buf, size_t len)
     qemu_savevm_command_send(f, MIG_CMD_PACKAGED, 4, (uint8_t *)&tmp);
 
     qemu_put_buffer(f, buf, len);
+    qemu_fflush(f);
 
     return 0;
 }
@@ -2087,112 +2088,6 @@ static int loadvm_postcopy_ram_handle_discard(MigrationIncomingState *mis,
     return 0;
 }
 
-/*
- * Triggered by a postcopy_listen command; this thread takes over reading
- * the input stream, leaving the main thread free to carry on loading the rest
- * of the device state (from RAM).
- * (TODO:This could do with being in a postcopy file - but there again it's
- * just another input loop, not that postcopy specific)
- */
-static void *postcopy_ram_listen_thread(void *opaque)
-{
-    MigrationIncomingState *mis = migration_incoming_get_current();
-    QEMUFile *f = mis->from_src_file;
-    int load_res;
-    MigrationState *migr = migrate_get_current();
-    Error *local_err = NULL;
-
-    object_ref(OBJECT(migr));
-
-    migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
-                                   MIGRATION_STATUS_POSTCOPY_ACTIVE);
-    qemu_event_set(&mis->thread_sync_event);
-    trace_postcopy_ram_listen_thread_start();
-
-    rcu_register_thread();
-    /*
-     * Because we're a thread and not a coroutine we can't yield
-     * in qemu_file, and thus we must be blocking now.
-     */
-    qemu_file_set_blocking(f, true, &error_fatal);
-
-    /* TODO: sanity check that only postcopiable data will be loaded here */
-    load_res = qemu_loadvm_state_main(f, mis, &local_err);
-
-    /*
-     * This is tricky, but, mis->from_src_file can change after it
-     * returns, when postcopy recovery happened. In the future, we may
-     * want a wrapper for the QEMUFile handle.
-     */
-    f = mis->from_src_file;
-
-    /* And non-blocking again so we don't block in any cleanup */
-    qemu_file_set_blocking(f, false, &error_fatal);
-
-    trace_postcopy_ram_listen_thread_exit();
-    if (load_res < 0) {
-        qemu_file_set_error(f, load_res);
-        dirty_bitmap_mig_cancel_incoming();
-        if (postcopy_state_get() == POSTCOPY_INCOMING_RUNNING &&
-            !migrate_postcopy_ram() && migrate_dirty_bitmaps())
-        {
-            error_report("%s: loadvm failed during postcopy: %d. All states "
-                         "are migrated except dirty bitmaps. Some dirty "
-                         "bitmaps may be lost, and present migrated dirty "
-                         "bitmaps are correctly migrated and valid.",
-                         __func__, load_res);
-            load_res = 0; /* prevent further exit() */
-        } else {
-            error_prepend(&local_err,
-                          "loadvm failed during postcopy: %d: ", load_res);
-            migrate_set_error(migr, local_err);
-            error_report_err(local_err);
-            migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
-                                           MIGRATION_STATUS_FAILED);
-        }
-    }
-    if (load_res >= 0) {
-        /*
-         * This looks good, but it's possible that the device loading in the
-         * main thread hasn't finished yet, and so we might not be in 'RUN'
-         * state yet; wait for the end of the main thread.
-         */
-        qemu_event_wait(&mis->main_thread_load_event);
-    }
-    postcopy_ram_incoming_cleanup(mis);
-
-    if (load_res < 0) {
-        /*
-         * If something went wrong then we have a bad state so exit;
-         * depending how far we got it might be possible at this point
-         * to leave the guest running and fire MCEs for pages that never
-         * arrived as a desperate recovery step.
-         */
-        rcu_unregister_thread();
-        exit(EXIT_FAILURE);
-    }
-
-    migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
-                                   MIGRATION_STATUS_COMPLETED);
-    /*
-     * If everything has worked fine, then the main thread has waited
-     * for us to start, and we're the last use of the mis.
-     * (If something broke then qemu will have to exit anyway since it's
-     * got a bad migration state).
-     */
-    bql_lock();
-    migration_incoming_state_destroy();
-    bql_unlock();
-
-    rcu_unregister_thread();
-    mis->have_listen_thread = false;
-    postcopy_state_set(POSTCOPY_INCOMING_END);
-
-    object_unref(OBJECT(migr));
-
-    return NULL;
-}
-
 /* After this message we must be able to immediately receive postcopy data */
 static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis,
                                          Error **errp)
@@ -2218,32 +2113,11 @@ static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis,
 
     trace_loadvm_postcopy_handle_listen("after discard");
 
-    /*
-     * Sensitise RAM - can now generate requests for blocks that don't exist
-     * However, at this point the CPU shouldn't be running, and the IO
-     * shouldn't be doing anything yet so don't actually expect requests
-     */
-    if (migrate_postcopy_ram()) {
-        if (postcopy_ram_incoming_setup(mis)) {
-            postcopy_ram_incoming_cleanup(mis);
-            error_setg(errp, "Failed to setup incoming postcopy RAM blocks");
-            return -1;
-        }
-    }
+    int rc = postcopy_incoming_setup(mis, errp);
 
-    trace_loadvm_postcopy_handle_listen("after uffd");
-
-    if (postcopy_notify(POSTCOPY_NOTIFY_INBOUND_LISTEN, errp)) {
-        return -1;
-    }
-
-    mis->have_listen_thread = true;
-    postcopy_thread_create(mis, &mis->listen_thread,
-                           MIGRATION_THREAD_DST_LISTEN,
-                           postcopy_ram_listen_thread, QEMU_THREAD_DETACHED);
     trace_loadvm_postcopy_handle_listen("return");
 
-    return 0;
+    return rc;
 }
 
 static void loadvm_postcopy_handle_run_bh(void *opaque)
@@ -2296,6 +2170,11 @@ static int loadvm_postcopy_handle_run(MigrationIncomingState *mis, Error **errp)
         return -1;
     }
 
+    /* We might be already in POSTCOPY_ACTIVE if there is no return path */
+    if (mis->state == MIGRATION_STATUS_POSTCOPY_DEVICE) {
+        migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_DEVICE,
+                          MIGRATION_STATUS_POSTCOPY_ACTIVE);
+    }
     postcopy_state_set(POSTCOPY_INCOMING_RUNNING);
     migration_bh_schedule(loadvm_postcopy_handle_run_bh, mis);
 
@@ -3322,6 +3201,10 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
 
     GLOBAL_STATE_CODE();
 
+    if (!migrate_can_snapshot(errp)) {
+        return false;
+    }
+
     if (migration_is_blocked(errp)) {
         return false;
     }
@@ -3506,6 +3389,10 @@ bool load_snapshot(const char *name, const char *vmstate,
     QEMUFile *f;
     int ret;
     MigrationIncomingState *mis = migration_incoming_get_current();
+
+    if (!migrate_can_snapshot(errp)) {
+        return false;
+    }
 
     if (!bdrv_all_can_snapshot(has_devices, devices, errp)) {
         return false;

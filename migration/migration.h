@@ -254,6 +254,7 @@ struct MigrationIncomingState {
 MigrationIncomingState *migration_incoming_get_current(void);
 void migration_incoming_state_destroy(void);
 void migration_incoming_transport_cleanup(MigrationIncomingState *mis);
+void migration_incoming_qemu_exit(void);
 /*
  * Functions to work with blocktime context
  */
@@ -508,6 +509,9 @@ struct MigrationState {
     bool switchover_acked;
     /* Is this a rdma migration */
     bool rdma_migration;
+
+    bool postcopy_package_loaded;
+    QemuEvent postcopy_package_loaded_event;
 
     GSource *hup_source;
 };

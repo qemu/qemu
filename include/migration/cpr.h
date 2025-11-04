@@ -41,7 +41,7 @@ MigMode cpr_get_incoming_mode(void);
 void cpr_set_incoming_mode(MigMode mode);
 bool cpr_is_incoming(void);
 
-int cpr_state_save(MigrationChannel *channel, Error **errp);
+bool cpr_state_save(MigrationChannel *channel, Error **errp);
 int cpr_state_load(MigrationChannel *channel, Error **errp);
 void cpr_state_close(void);
 struct QIOChannel *cpr_state_ioc(void);
@@ -56,7 +56,7 @@ QEMUFile *cpr_transfer_input(MigrationChannel *channel, Error **errp);
 void cpr_exec_init(void);
 QEMUFile *cpr_exec_output(Error **errp);
 QEMUFile *cpr_exec_input(Error **errp);
-void cpr_exec_persist_state(QEMUFile *f);
+bool cpr_exec_persist_state(QEMUFile *f, Error **errp);
 bool cpr_exec_has_state(void);
 void cpr_exec_unpersist_state(void);
 void cpr_exec_unpreserve_fds(void);

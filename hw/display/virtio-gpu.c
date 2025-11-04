@@ -1225,7 +1225,8 @@ static int virtio_gpu_save(QEMUFile *f, void *opaque, size_t size,
 {
     VirtIOGPU *g = opaque;
     struct virtio_gpu_simple_resource *res;
-    int i;
+    Error *err = NULL;
+    int i, ret;
 
     /* in 2d mode we should never find unprocessed commands here */
     assert(QTAILQ_EMPTY(&g->cmdq));
@@ -1248,8 +1249,12 @@ static int virtio_gpu_save(QEMUFile *f, void *opaque, size_t size,
     }
     qemu_put_be32(f, 0); /* end of list */
 
-    return vmstate_save_state(f, &vmstate_virtio_gpu_scanouts, g, NULL,
-                              &error_fatal);
+    ret = vmstate_save_state(f, &vmstate_virtio_gpu_scanouts, g, NULL,
+                             &err);
+    if (ret < 0) {
+        error_report_err(err);
+    }
+    return ret;
 }
 
 static bool virtio_gpu_load_restore_mapping(VirtIOGPU *g,
@@ -1288,7 +1293,7 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
     Error *err = NULL;
     struct virtio_gpu_simple_resource *res;
     uint32_t resource_id, pformat;
-    int i;
+    int i, ret;
 
     g->hostmem = 0;
 
@@ -1348,9 +1353,11 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
     }
 
     /* load & apply scanout state */
-    vmstate_load_state(f, &vmstate_virtio_gpu_scanouts, g, 1, &error_fatal);
-
-    return 0;
+    ret = vmstate_load_state(f, &vmstate_virtio_gpu_scanouts, g, 1, &err);
+    if (ret < 0) {
+        error_report_err(err);
+    }
+    return ret;
 }
 
 static int virtio_gpu_blob_save(QEMUFile *f, void *opaque, size_t size,

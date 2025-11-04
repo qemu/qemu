@@ -187,15 +187,26 @@ static bool virtio_pci_has_extra_state(DeviceState *d)
 static void virtio_pci_save_extra_state(DeviceState *d, QEMUFile *f)
 {
     VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
+    Error *local_err = NULL;
+    int ret;
 
-    vmstate_save_state(f, &vmstate_virtio_pci, proxy, NULL, &error_fatal);
+    ret = vmstate_save_state(f, &vmstate_virtio_pci, proxy, NULL, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+    }
 }
 
 static int virtio_pci_load_extra_state(DeviceState *d, QEMUFile *f)
 {
     VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
+    Error *local_err = NULL;
+    int ret;
 
-    return vmstate_load_state(f, &vmstate_virtio_pci, proxy, 1, &error_fatal);
+    ret = vmstate_load_state(f, &vmstate_virtio_pci, proxy, 1, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+    }
+    return ret;
 }
 
 static void virtio_pci_save_queue(DeviceState *d, int n, QEMUFile *f)

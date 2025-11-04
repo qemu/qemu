@@ -1661,7 +1661,6 @@ sev_snp_launch_finish(SevCommonState *sev_common)
     ret = migrate_add_blocker(&sev_mig_blocker, &local_err);
     if (local_err) {
         error_report_err(local_err);
-        error_free(sev_mig_blocker);
         exit(1);
     }
 }

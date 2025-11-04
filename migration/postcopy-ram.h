@@ -199,4 +199,7 @@ bool postcopy_is_paused(MigrationStatus status);
 void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
                                    RAMBlock *rb);
 
+int postcopy_incoming_setup(MigrationIncomingState *mis, Error **errp);
+int postcopy_incoming_cleanup(MigrationIncomingState *mis);
+
 #endif

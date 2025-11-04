@@ -345,8 +345,8 @@ bool vfio_device_get_name(VFIODevice *vbasedev, Error **errp)
                            "vfio device with fd=%d needs an id property",
                            vbasedev->fd);
                 return migrate_add_blocker_modes(&vbasedev->cpr.id_blocker,
-                                                 errp, MIG_MODE_CPR_TRANSFER,
-                                                 -1) == 0;
+                                                 BIT(MIG_MODE_CPR_TRANSFER),
+                                                 errp) == 0;
             }
         }
     }

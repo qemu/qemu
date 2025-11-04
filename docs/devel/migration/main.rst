@@ -446,15 +446,15 @@ The functions to do that are inside a vmstate definition, and are called:
 
 Following are the errp variants of these functions.
 
-- ``int (*pre_load_errp)(void *opaque, Error **errp);``
+- ``bool (*pre_load_errp)(void *opaque, Error **errp);``
 
   This function is called before we load the state of one device.
 
-- ``int (*post_load_errp)(void *opaque, int version_id, Error **errp);``
+- ``bool (*post_load_errp)(void *opaque, int version_id, Error **errp);``
 
   This function is called after we load the state of one device.
 
-- ``int (*pre_save_errp)(void *opaque, Error **errp);``
+- ``bool (*pre_save_errp)(void *opaque, Error **errp);``
 
   This function is called before we save the state of one device.
 

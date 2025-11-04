@@ -343,11 +343,7 @@ static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
                                      QIO_CHANNEL_READ_FLAG_FD_PRESERVE_BLOCKING,
                                      &local_error);
         if (len == QIO_CHANNEL_ERR_BLOCK) {
-            if (qemu_in_coroutine()) {
-                qio_channel_yield(f->ioc, G_IO_IN);
-            } else {
-                qio_channel_wait(f->ioc, G_IO_IN);
-            }
+            qio_channel_wait_cond(f->ioc, G_IO_IN);
         }
     } while (len == QIO_CHANNEL_ERR_BLOCK);
 

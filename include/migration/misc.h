@@ -90,18 +90,18 @@ void migration_add_notifier(NotifierWithReturn *notify,
                             MigrationNotifyFunc func);
 
 /*
- * Same as migration_add_notifier, but applies to be specified @mode.
+ * Same as migration_add_notifier, but applies to the specified @mode
+ * instead of MIG_MODE_NORMAL.
  */
 void migration_add_notifier_mode(NotifierWithReturn *notify,
                                  MigrationNotifyFunc func, MigMode mode);
 
 /*
- * Same as migration_add_notifier, but applies to all @mode in the argument
- * list.  The list is terminated by -1 or MIG_MODE_ALL.  For the latter,
- * the notifier is added for all modes.
+ * Same as migration_add_notifier, but applies to the specified @modes
+ * (a bitset of MigMode).
  */
 void migration_add_notifier_modes(NotifierWithReturn *notify,
-                                  MigrationNotifyFunc func, MigMode mode, ...);
+                                  MigrationNotifyFunc func, unsigned modes);
 
 /*
  * Remove a notifier from all modes.

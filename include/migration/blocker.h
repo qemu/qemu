@@ -16,8 +16,6 @@
 
 #include "qapi/qapi-types-migration.h"
 
-#define MIG_MODE_ALL MIG_MODE__MAX
-
 /**
  * @migrate_add_blocker - prevent all modes of migration from proceeding
  *
@@ -82,16 +80,15 @@ int migrate_add_blocker_normal(Error **reasonp, Error **errp);
  *
  * @reasonp - address of an error to be returned whenever migration is attempted
  *
- * @errp - [out] The reason (if any) we cannot block migration right now.
+ * @modes - the migration modes to be blocked, a bit set of MigMode
  *
- * @mode - one or more migration modes to be blocked.  The list is terminated
- *         by -1 or MIG_MODE_ALL.  For the latter, all modes are blocked.
+ * @errp - [out] The reason (if any) we cannot block migration right now.
  *
  * @returns - 0 on success, -EBUSY/-EACCES on failure, with errp set.
  *
  * *@reasonp is freed and set to NULL if failure is returned.
  * On success, the caller must not free *@reasonp before the blocker is removed.
  */
-int migrate_add_blocker_modes(Error **reasonp, Error **errp, MigMode mode, ...);
+int migrate_add_blocker_modes(Error **reasonp, unsigned modes, Error **errp);
 
 #endif

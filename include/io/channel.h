@@ -872,6 +872,21 @@ void qio_channel_wait(QIOChannel *ioc,
                       GIOCondition condition);
 
 /**
+ * qio_channel_wait_cond:
+ * @ioc: the channel object
+ * @condition: the I/O condition to wait for
+ *
+ * Block execution from the current thread until
+ * the condition indicated by @condition becomes
+ * available.
+ *
+ * This will work with/without a coroutine context, by automatically select
+ * the proper API to wait.
+ */
+void qio_channel_wait_cond(QIOChannel *ioc,
+                           GIOCondition condition);
+
+/**
  * qio_channel_set_aio_fd_handler:
  * @ioc: the channel object
  * @read_ctx: the AioContext to set the read handler on or NULL

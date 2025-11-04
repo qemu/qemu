@@ -40,16 +40,22 @@ static QEMUFile *qemu_file_new_fd_output(int fd, const char *name)
     return qemu_file_new_output(ioc);
 }
 
-void cpr_exec_persist_state(QEMUFile *f)
+bool cpr_exec_persist_state(QEMUFile *f, Error **errp)
 {
     QIOChannelFile *fioc = QIO_CHANNEL_FILE(qemu_file_get_ioc(f));
+    /* coverity[leaked_storage] - mfd intentionally kept open across exec() */
     int mfd = dup(fioc->fd);
     char val[16];
 
     /* Remember mfd in environment for post-exec load */
     qemu_clear_cloexec(mfd);
     snprintf(val, sizeof(val), "%d", mfd);
-    g_setenv(CPR_EXEC_STATE_NAME, val, 1);
+    if (!g_setenv(CPR_EXEC_STATE_NAME, val, 1)) {
+        error_setg(errp, "Setting env %s = %s failed", CPR_EXEC_STATE_NAME, val);
+        return false;
+    }
+
+    return true;
 }
 
 static int cpr_exec_find_state(void)
@@ -146,10 +152,10 @@ static void cpr_exec_cb(void *opaque)
      * exec should only fail if argv[0] is bogus, or has a permissions problem,
      * or the system is very short on resources.
      */
-    g_strfreev(argv);
+    error_setg_errno(&err, errno, "execvp %s failed", argv[0]);
+    g_clear_pointer(&argv, g_strfreev);
     cpr_exec_unpreserve_fds();
 
-    error_setg_errno(&err, errno, "execvp %s failed", argv[0]);
     error_report_err(error_copy(err));
     migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
     migrate_set_error(s, err);
