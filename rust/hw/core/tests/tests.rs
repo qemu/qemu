@@ -5,7 +5,7 @@
 use std::{ffi::CStr, ptr::addr_of};
 
 use bql::BqlCell;
-use hwcore::{DeviceImpl, DeviceState, ResettablePhasesImpl, SysBusDevice};
+use hwcore::prelude::*;
 use migration::{VMStateDescription, VMStateDescriptionBuilder};
 use qom::{prelude::*, ObjectImpl, ParentField};
 use util::bindings::{module_call_init, module_init_type};

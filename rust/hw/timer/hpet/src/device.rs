@@ -12,10 +12,7 @@ use std::{
 
 use bql::{BqlCell, BqlRefCell};
 use common::prelude::*;
-use hwcore::{
-    DeviceImpl, DeviceMethods, DeviceState, InterruptSource, ResetType, ResettablePhasesImpl,
-    SysBusDevice, SysBusDeviceImpl, SysBusDeviceMethods,
-};
+use hwcore::prelude::*;
 use migration::{
     self, impl_vmstate_struct, vmstate_fields, vmstate_of, vmstate_subsections, vmstate_validate,
     VMStateDescription, VMStateDescriptionBuilder,

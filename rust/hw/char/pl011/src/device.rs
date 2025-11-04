@@ -7,10 +7,7 @@ use std::{ffi::CStr, mem::size_of};
 use bql::BqlRefCell;
 use chardev::{CharFrontend, Chardev, Event};
 use common::prelude::*;
-use hwcore::{
-    Clock, ClockEvent, DeviceImpl, DeviceMethods, DeviceState, IRQState, InterruptSource,
-    ResetType, ResettablePhasesImpl, SysBusDevice, SysBusDeviceImpl, SysBusDeviceMethods,
-};
+use hwcore::{prelude::*, ClockEvent, IRQState};
 use migration::{
     self, impl_vmstate_forward, impl_vmstate_struct, vmstate_fields, vmstate_of,
     vmstate_subsections, vmstate_unused, VMStateDescription, VMStateDescriptionBuilder,
