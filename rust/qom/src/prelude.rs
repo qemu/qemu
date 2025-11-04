@@ -6,7 +6,11 @@ pub use crate::qom::Object;
 pub use crate::qom::ObjectCast;
 pub use crate::qom::ObjectClassMethods;
 pub use crate::qom::ObjectDeref;
+pub use crate::qom::ObjectImpl;
 pub use crate::qom::ObjectMethods;
 pub use crate::qom::ObjectType;
+pub use crate::qom::Owned;
+pub use crate::qom::ParentField;
+pub use crate::qom::ParentInit;
 
 pub use crate::qom_isa;

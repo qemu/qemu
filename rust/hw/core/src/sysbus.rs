@@ -8,7 +8,7 @@ use std::ffi::CStr;
 
 pub use bindings::SysBusDeviceClass;
 use common::Opaque;
-use qom::{prelude::*, Owned};
+use qom::prelude::*;
 use system::MemoryRegion;
 use util::{Error, Result};
 

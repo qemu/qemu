@@ -7,7 +7,7 @@ use std::{ffi::CStr, ptr::addr_of};
 use bql::prelude::*;
 use hwcore::prelude::*;
 use migration::prelude::*;
-use qom::{prelude::*, ObjectImpl, ParentField};
+use qom::prelude::*;
 use util::bindings::{module_call_init, module_init_type};
 
 // Test that macros can compile.

@@ -9,7 +9,7 @@ use chardev::prelude::*;
 use common::prelude::*;
 use hwcore::{prelude::*, ClockEvent, IRQState};
 use migration::{self, prelude::*};
-use qom::{prelude::*, ObjectImpl, Owned, ParentField, ParentInit};
+use qom::prelude::*;
 use system::prelude::*;
 use util::prelude::*;
 

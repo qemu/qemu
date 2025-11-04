@@ -12,7 +12,7 @@ use std::{
 use chardev::Chardev;
 use common::{callbacks::FnCall, Opaque};
 use migration::{impl_vmstate_c_struct, VMStateDescription};
-use qom::{prelude::*, ObjectClass, ObjectImpl, Owned, ParentInit};
+use qom::{prelude::*, ObjectClass};
 use util::{Error, Result};
 
 pub use crate::bindings::{ClockEvent, DeviceClass, Property, ResetType};

@@ -14,7 +14,7 @@ use bql::prelude::*;
 use common::prelude::*;
 use hwcore::prelude::*;
 use migration::{self, prelude::*};
-use qom::{prelude::*, ObjectImpl, ParentField, ParentInit};
+use qom::prelude::*;
 use system::{
     bindings::{address_space_memory, address_space_stl_le},
     MEMTXATTRS_UNSPECIFIED,
