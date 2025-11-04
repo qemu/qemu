@@ -6,7 +6,7 @@ use std::{ffi::CStr, mem::size_of};
 
 use bql::BqlRefCell;
 use chardev::{CharFrontend, Chardev, Event};
-use common::{static_assert, uninit_field_mut};
+use common::prelude::*;
 use hwcore::{
     Clock, ClockEvent, DeviceImpl, DeviceMethods, DeviceState, IRQState, InterruptSource,
     ResetType, ResettablePhasesImpl, SysBusDevice, SysBusDeviceImpl, SysBusDeviceMethods,

@@ -11,7 +11,7 @@ use std::{
 };
 
 use bql::{BqlCell, BqlRefCell};
-use common::{bitops::IntegerExt, uninit_field_mut};
+use common::prelude::*;
 use hwcore::{
     DeviceImpl, DeviceMethods, DeviceState, InterruptSource, ResetType, ResettablePhasesImpl,
     SysBusDevice, SysBusDeviceImpl, SysBusDeviceMethods,
