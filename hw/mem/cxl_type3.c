@@ -8,9 +8,9 @@
  *
  * SPDX-License-Identifier: GPL-v2-only
  */
+#include "qemu/osdep.h"
 #include <math.h>
 
-#include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "qapi/qapi-commands-cxl.h"
