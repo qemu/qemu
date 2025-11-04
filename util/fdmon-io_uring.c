@@ -299,9 +299,16 @@ static int fdmon_io_uring_wait(AioContext *ctx, AioHandlerList *ready_list,
 
     fill_sq_ring(ctx);
 
+    /*
+     * Loop to handle signals in both cases:
+     * 1. If no SQEs were submitted, then -EINTR is returned.
+     * 2. If SQEs were submitted then the number of SQEs submitted is returned
+     *    rather than -EINTR.
+     */
     do {
         ret = io_uring_submit_and_wait(&ctx->fdmon_io_uring, wait_nr);
-    } while (ret == -EINTR);
+    } while (ret == -EINTR ||
+             (ret >= 0 && wait_nr > io_uring_cq_ready(&ctx->fdmon_io_uring)));
 
     assert(ret >= 0);
 
