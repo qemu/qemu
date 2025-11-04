@@ -418,10 +418,11 @@ aio_ctx_finalize(GSource     *source)
     aio_set_event_notifier(ctx, &ctx->notifier, NULL, NULL, NULL);
     event_notifier_cleanup(&ctx->notifier);
     qemu_rec_mutex_destroy(&ctx->lock);
-    qemu_lockcnt_destroy(&ctx->list_lock);
     timerlistgroup_deinit(&ctx->tlg);
     unregister_aiocontext(ctx);
     aio_context_destroy(ctx);
+    /* aio_context_destroy() still needs the lock */
+    qemu_lockcnt_destroy(&ctx->list_lock);
 }
 
 static GSourceFuncs aio_source_funcs = {

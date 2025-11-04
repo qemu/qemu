@@ -262,6 +262,13 @@ static int process_cq_ring(AioContext *ctx, AioHandlerList *ready_list)
     unsigned num_ready = 0;
     unsigned head;
 
+#ifdef HAVE_IO_URING_CQ_HAS_OVERFLOW
+    /* If the CQ overflowed then fetch CQEs with a syscall */
+    if (io_uring_cq_has_overflow(ring)) {
+        io_uring_get_events(ring);
+    }
+#endif
+
     io_uring_for_each_cqe(ring, head, cqe) {
         if (process_cqe(ctx, ready_list, cqe)) {
             num_ready++;
@@ -272,6 +279,30 @@ static int process_cq_ring(AioContext *ctx, AioHandlerList *ready_list)
 
     io_uring_cq_advance(ring, num_cqes);
     return num_ready;
+}
+
+/* This is where SQEs are submitted in the glib event loop */
+static void fdmon_io_uring_gsource_prepare(AioContext *ctx)
+{
+    fill_sq_ring(ctx);
+    if (io_uring_sq_ready(&ctx->fdmon_io_uring)) {
+        while (io_uring_submit(&ctx->fdmon_io_uring) == -EINTR) {
+            /* Keep trying if syscall was interrupted */
+        }
+    }
+}
+
+static bool fdmon_io_uring_gsource_check(AioContext *ctx)
+{
+    gpointer tag = ctx->io_uring_fd_tag;
+    return g_source_query_unix_fd(&ctx->source, tag) & G_IO_IN;
+}
+
+/* This is where CQEs are processed in the glib event loop */
+static void fdmon_io_uring_gsource_dispatch(AioContext *ctx,
+                                            AioHandlerList *ready_list)
+{
+    process_cq_ring(ctx, ready_list);
 }
 
 static int fdmon_io_uring_wait(AioContext *ctx, AioHandlerList *ready_list,
@@ -339,11 +370,16 @@ static const FDMonOps fdmon_io_uring_ops = {
     .update = fdmon_io_uring_update,
     .wait = fdmon_io_uring_wait,
     .need_wait = fdmon_io_uring_need_wait,
+    .gsource_prepare = fdmon_io_uring_gsource_prepare,
+    .gsource_check = fdmon_io_uring_gsource_check,
+    .gsource_dispatch = fdmon_io_uring_gsource_dispatch,
 };
 
 bool fdmon_io_uring_setup(AioContext *ctx)
 {
     int ret;
+
+    ctx->io_uring_fd_tag = NULL;
 
     ret = io_uring_queue_init(FDMON_IO_URING_ENTRIES, &ctx->fdmon_io_uring, 0);
     if (ret != 0) {
@@ -352,6 +388,9 @@ bool fdmon_io_uring_setup(AioContext *ctx)
 
     QSLIST_INIT(&ctx->submit_list);
     ctx->fdmon_ops = &fdmon_io_uring_ops;
+    ctx->io_uring_fd_tag = g_source_add_unix_fd(&ctx->source,
+            ctx->fdmon_io_uring.ring_fd, G_IO_IN);
+
     return true;
 }
 
@@ -379,6 +418,11 @@ void fdmon_io_uring_destroy(AioContext *ctx)
             QSLIST_REMOVE_HEAD_RCU(&ctx->submit_list, node_submitted);
         }
 
-        ctx->fdmon_ops = &fdmon_poll_ops;
+        g_source_remove_unix_fd(&ctx->source, ctx->io_uring_fd_tag);
+        ctx->io_uring_fd_tag = NULL;
+
+        qemu_lockcnt_lock(&ctx->list_lock);
+        fdmon_poll_downgrade(ctx);
+        qemu_lockcnt_unlock(&ctx->list_lock);
     }
 }

@@ -2745,6 +2745,8 @@ endif
 if linux_io_uring.found()
   config_host_data.set('HAVE_IO_URING_PREP_WRITEV2',
                        cc.has_header_symbol('liburing.h', 'io_uring_prep_writev2'))
+  config_host_data.set('HAVE_IO_URING_CQ_HAS_OVERFLOW',
+                       cc.has_header_symbol('liburing.h', 'io_uring_cq_has_overflow'))
 endif
 config_host_data.set('HAVE_TCP_KEEPCNT',
                      cc.has_header_symbol('netinet/tcp.h', 'TCP_KEEPCNT') or

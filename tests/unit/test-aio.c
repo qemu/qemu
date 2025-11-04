@@ -527,7 +527,12 @@ static void test_source_bh_delete_from_cb(void)
     g_assert_cmpint(data1.n, ==, data1.max);
     g_assert(data1.bh == NULL);
 
-    assert(g_main_context_iteration(NULL, false));
+    /*
+     * There may be up to one more iteration due to the aio_notify
+     * EventNotifier.
+     */
+    g_main_context_iteration(NULL, false);
+
     assert(!g_main_context_iteration(NULL, false));
 }
 

@@ -106,6 +106,38 @@ typedef struct {
      * Returns: true if ->wait() should be called, false otherwise.
      */
     bool (*need_wait)(AioContext *ctx);
+
+    /*
+     * gsource_prepare:
+     * @ctx: the AioContext
+     *
+     * Prepare for the glib event loop to wait for events instead of the usual
+     * ->wait() call. See glib's GSourceFuncs->prepare().
+     */
+    void (*gsource_prepare)(AioContext *ctx);
+
+    /*
+     * gsource_check:
+     * @ctx: the AioContext
+     *
+     * Called by the glib event loop from glib's GSourceFuncs->check() after
+     * waiting for events.
+     *
+     * Returns: true when ready to be dispatched.
+     */
+    bool (*gsource_check)(AioContext *ctx);
+
+    /*
+     * gsource_dispatch:
+     * @ctx: the AioContext
+     * @ready_list: list for handlers that become ready
+     *
+     * Place ready AioHandlers on ready_list. Called as part of the glib event
+     * loop from glib's GSourceFuncs->dispatch().
+     *
+     * Called with list_lock incremented.
+     */
+    void (*gsource_dispatch)(AioContext *ctx, AioHandlerList *ready_list);
 } FDMonOps;
 
 /*
@@ -222,6 +254,7 @@ struct AioContext {
     /* State for file descriptor monitoring using Linux io_uring */
     struct io_uring fdmon_io_uring;
     AioHandlerSList submit_list;
+    void *io_uring_fd_tag;
 #endif
 
     /* TimerLists for calling timers - one per clock type.  Has its own
@@ -253,6 +286,9 @@ struct AioContext {
 
     /* epoll(7) state used when built with CONFIG_EPOLL */
     int epollfd;
+
+    /* The GSource unix fd tag for epollfd */
+    void *epollfd_tag;
 
     const FDMonOps *fdmon_ops;
 };

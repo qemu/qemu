@@ -70,15 +70,6 @@ static AioHandler *find_aio_handler(AioContext *ctx, int fd)
 
 static bool aio_remove_fd_handler(AioContext *ctx, AioHandler *node)
 {
-    /* If the GSource is in the process of being destroyed then
-     * g_source_remove_poll() causes an assertion failure.  Skip
-     * removal in that case, because glib cleans up its state during
-     * destruction anyway.
-     */
-    if (!g_source_is_destroyed(&ctx->source)) {
-        g_source_remove_poll(&ctx->source, &node->pfd);
-    }
-
     node->pfd.revents = 0;
     node->poll_ready = false;
 
@@ -153,7 +144,6 @@ void aio_set_fd_handler(AioContext *ctx,
         } else {
             new_node->pfd = node->pfd;
         }
-        g_source_add_poll(&ctx->source, &new_node->pfd);
 
         new_node->pfd.events = (io_read ? G_IO_IN | G_IO_HUP | G_IO_ERR : 0);
         new_node->pfd.events |= (io_write ? G_IO_OUT | G_IO_ERR : 0);
@@ -267,37 +257,13 @@ bool aio_prepare(AioContext *ctx)
     poll_set_started(ctx, &ready_list, false);
     /* TODO what to do with this list? */
 
+    ctx->fdmon_ops->gsource_prepare(ctx);
     return false;
 }
 
 bool aio_pending(AioContext *ctx)
 {
-    AioHandler *node;
-    bool result = false;
-
-    /*
-     * We have to walk very carefully in case aio_set_fd_handler is
-     * called while we're walking.
-     */
-    qemu_lockcnt_inc(&ctx->list_lock);
-
-    QLIST_FOREACH_RCU(node, &ctx->aio_handlers, node) {
-        int revents;
-
-        /* TODO should this check poll ready? */
-        revents = node->pfd.revents & node->pfd.events;
-        if (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR) && node->io_read) {
-            result = true;
-            break;
-        }
-        if (revents & (G_IO_OUT | G_IO_ERR) && node->io_write) {
-            result = true;
-            break;
-        }
-    }
-    qemu_lockcnt_dec(&ctx->list_lock);
-
-    return result;
+    return ctx->fdmon_ops->gsource_check(ctx);
 }
 
 static void aio_free_deleted_handlers(AioContext *ctx)
@@ -390,10 +356,6 @@ static bool aio_dispatch_handler(AioContext *ctx, AioHandler *node)
     return progress;
 }
 
-/*
- * If we have a list of ready handlers then this is more efficient than
- * scanning all handlers with aio_dispatch_handlers().
- */
 static bool aio_dispatch_ready_handlers(AioContext *ctx,
                                         AioHandlerList *ready_list,
                                         int64_t block_ns)
@@ -417,24 +379,18 @@ static bool aio_dispatch_ready_handlers(AioContext *ctx,
     return progress;
 }
 
-/* Slower than aio_dispatch_ready_handlers() but only used via glib */
-static bool aio_dispatch_handlers(AioContext *ctx)
-{
-    AioHandler *node, *tmp;
-    bool progress = false;
-
-    QLIST_FOREACH_SAFE_RCU(node, &ctx->aio_handlers, node, tmp) {
-        progress = aio_dispatch_handler(ctx, node) || progress;
-    }
-
-    return progress;
-}
-
 void aio_dispatch(AioContext *ctx)
 {
+    AioHandlerList ready_list = QLIST_HEAD_INITIALIZER(ready_list);
+
     qemu_lockcnt_inc(&ctx->list_lock);
     aio_bh_poll(ctx);
-    aio_dispatch_handlers(ctx);
+
+    ctx->fdmon_ops->gsource_dispatch(ctx, &ready_list);
+
+    /* block_ns is 0 because polling is disabled in the glib event loop */
+    aio_dispatch_ready_handlers(ctx, &ready_list, 0);
+
     aio_free_deleted_handlers(ctx);
     qemu_lockcnt_dec(&ctx->list_lock);
 
@@ -766,6 +722,7 @@ void aio_context_setup(AioContext *ctx)
 {
     ctx->fdmon_ops = &fdmon_poll_ops;
     ctx->epollfd = -1;
+    ctx->epollfd_tag = NULL;
 
     /* Use the fastest fd monitoring implementation if available */
     if (fdmon_io_uring_setup(ctx)) {
@@ -778,7 +735,11 @@ void aio_context_setup(AioContext *ctx)
 void aio_context_destroy(AioContext *ctx)
 {
     fdmon_io_uring_destroy(ctx);
+
+    qemu_lockcnt_lock(&ctx->list_lock);
     fdmon_epoll_disable(ctx);
+    qemu_lockcnt_unlock(&ctx->list_lock);
+
     aio_free_deleted_handlers(ctx);
 }
 
