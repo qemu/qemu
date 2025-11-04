@@ -719,38 +719,6 @@ static void gb200nvl_bmc_i2c_init(AspeedMachineState *bmc)
                           gb200nvl_bmc_fruid_len);
 }
 
-static void fby35_i2c_init(AspeedMachineState *bmc)
-{
-    AspeedSoCState *soc = bmc->soc;
-    I2CBus *i2c[16];
-
-    for (int i = 0; i < 16; i++) {
-        i2c[i] = aspeed_i2c_get_bus(&soc->i2c, i);
-    }
-
-    i2c_slave_create_simple(i2c[2], TYPE_LM75, 0x4f);
-    i2c_slave_create_simple(i2c[8], TYPE_TMP421, 0x1f);
-    /* Hotswap controller is actually supposed to be mp5920 or ltc4282. */
-    i2c_slave_create_simple(i2c[11], "adm1272", 0x44);
-    i2c_slave_create_simple(i2c[12], TYPE_LM75, 0x4e);
-    i2c_slave_create_simple(i2c[12], TYPE_LM75, 0x4f);
-
-    at24c_eeprom_init(i2c[4], 0x51, 128 * KiB);
-    at24c_eeprom_init(i2c[6], 0x51, 128 * KiB);
-    at24c_eeprom_init_rom(i2c[8], 0x50, 32 * KiB, fby35_nic_fruid,
-                          fby35_nic_fruid_len);
-    at24c_eeprom_init_rom(i2c[11], 0x51, 128 * KiB, fby35_bb_fruid,
-                          fby35_bb_fruid_len);
-    at24c_eeprom_init_rom(i2c[11], 0x54, 128 * KiB, fby35_bmc_fruid,
-                          fby35_bmc_fruid_len);
-
-    /*
-     * TODO: There is a multi-master i2c connection to an AST1030 MiniBMC on
-     * buses 0, 1, 2, 3, and 9. Source address 0x10, target address 0x20 on
-     * each.
-     */
-}
-
 static void qcom_dc_scm_bmc_i2c_init(AspeedMachineState *bmc)
 {
     AspeedSoCState *soc = bmc->soc;
@@ -1053,48 +1021,6 @@ static void aspeed_machine_gb200nvl_class_init(ObjectClass *oc,
     aspeed_machine_ast2600_class_emmc_init(oc);
 }
 
-static void fby35_reset(MachineState *state, ResetType type)
-{
-    AspeedMachineState *bmc = ASPEED_MACHINE(state);
-    AspeedGPIOState *gpio = &bmc->soc->gpio;
-
-    qemu_devices_reset(type);
-
-    /* Board ID: 7 (Class-1, 4 slots) */
-    object_property_set_bool(OBJECT(gpio), "gpioV4", true, &error_fatal);
-    object_property_set_bool(OBJECT(gpio), "gpioV5", true, &error_fatal);
-    object_property_set_bool(OBJECT(gpio), "gpioV6", true, &error_fatal);
-    object_property_set_bool(OBJECT(gpio), "gpioV7", false, &error_fatal);
-
-    /* Slot presence pins, inverse polarity. (False means present) */
-    object_property_set_bool(OBJECT(gpio), "gpioH4", false, &error_fatal);
-    object_property_set_bool(OBJECT(gpio), "gpioH5", true, &error_fatal);
-    object_property_set_bool(OBJECT(gpio), "gpioH6", true, &error_fatal);
-    object_property_set_bool(OBJECT(gpio), "gpioH7", true, &error_fatal);
-
-    /* Slot 12v power pins, normal polarity. (True means powered-on) */
-    object_property_set_bool(OBJECT(gpio), "gpioB2", true, &error_fatal);
-    object_property_set_bool(OBJECT(gpio), "gpioB3", false, &error_fatal);
-    object_property_set_bool(OBJECT(gpio), "gpioB4", false, &error_fatal);
-    object_property_set_bool(OBJECT(gpio), "gpioB5", false, &error_fatal);
-}
-
-static void aspeed_machine_fby35_class_init(ObjectClass *oc, const void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
-
-    mc->desc       = "Facebook fby35 BMC (Cortex-A7)";
-    mc->reset      = fby35_reset;
-    amc->fmc_model = "mx66l1g45g";
-    amc->num_cs    = 2;
-    amc->macs_mask = ASPEED_MAC3_ON;
-    amc->i2c_init  = fby35_i2c_init;
-    /* FIXME: Replace this macro with something more general */
-    mc->default_ram_size = FUJI_BMC_RAM_SIZE;
-    aspeed_machine_class_init_cpus_defaults(mc);
-}
-
 #define AST1030_INTERNAL_FLASH_SIZE (1024 * 1024)
 /* Main SYSCLK frequency in Hz (200MHz) */
 #define SYSCLK_FRQ 200000000ULL
@@ -1304,11 +1230,6 @@ static const TypeInfo aspeed_machine_types[] = {
         .name          = MACHINE_TYPE_NAME("catalina-bmc"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_catalina_class_init,
-        .interfaces    = arm_machine_interfaces,
-    }, {
-        .name          = MACHINE_TYPE_NAME("fby35-bmc"),
-        .parent        = MACHINE_TYPE_NAME("ast2600-evb"),
-        .class_init    = aspeed_machine_fby35_class_init,
         .interfaces    = arm_machine_interfaces,
     }, {
         .name           = MACHINE_TYPE_NAME("ast1030-evb"),
