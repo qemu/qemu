@@ -1279,29 +1279,10 @@ static void ac97_realize(PCIDevice *dev, Error **errp)
         return;
     }
 
-    /* TODO: no need to override */
-    c[PCI_COMMAND] = 0x00;      /* pcicmd pci command rw, ro */
-    c[PCI_COMMAND + 1] = 0x00;
-
-    /* TODO: */
     c[PCI_STATUS] = PCI_STATUS_FAST_BACK;      /* pcists pci status rwc, ro */
     c[PCI_STATUS + 1] = PCI_STATUS_DEVSEL_MEDIUM >> 8;
 
     c[PCI_CLASS_PROG] = 0x00;      /* pi programming interface ro */
-
-    /* TODO set when bar is registered. no need to override. */
-    /* nabmar native audio mixer base address rw */
-    c[PCI_BASE_ADDRESS_0] = PCI_BASE_ADDRESS_SPACE_IO;
-    c[PCI_BASE_ADDRESS_0 + 1] = 0x00;
-    c[PCI_BASE_ADDRESS_0 + 2] = 0x00;
-    c[PCI_BASE_ADDRESS_0 + 3] = 0x00;
-
-    /* TODO set when bar is registered. no need to override. */
-      /* nabmbar native audio bus mastering base address rw */
-    c[PCI_BASE_ADDRESS_0 + 4] = PCI_BASE_ADDRESS_SPACE_IO;
-    c[PCI_BASE_ADDRESS_0 + 5] = 0x00;
-    c[PCI_BASE_ADDRESS_0 + 6] = 0x00;
-    c[PCI_BASE_ADDRESS_0 + 7] = 0x00;
 
     c[PCI_INTERRUPT_LINE] = 0x00;      /* intr_ln interrupt line rw */
     c[PCI_INTERRUPT_PIN] = 0x01;      /* intr_pn interrupt pin ro */
