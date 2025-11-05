@@ -87,7 +87,8 @@
 #
 # @enabled: the accelerator that is in use
 #
-# @present: the list of accelerators that are built into this executable
+# @present: the list of accelerators that are built into this
+#     executable
 #
 # Since: 10.2.0
 ##

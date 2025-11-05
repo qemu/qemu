@@ -620,8 +620,8 @@
 ##
 # @NumaCpuOptions:
 #
-# Option "-numa cpu" overrides default cpu to node mapping.  It accepts
-# the same set of cpu properties as returned by
+# Option "-numa cpu" overrides default cpu to node mapping.  It
+# accepts the same set of cpu properties as returned by
 # `query-hotpluggable-cpus[].props <query-hotpluggable-cpus>`, where
 # node-id could be used to override default node mapping.
 #
@@ -686,8 +686,8 @@
 # Set the system locality latency and bandwidth information between
 # Initiator and Target proximity Domains.
 #
-# For more information about `NumaHmatLBOptions`, see chapter 5.2.27.4:
-# Table 5-146 of ACPI 6.3 spec.
+# For more information about `NumaHmatLBOptions`, see chapter
+# 5.2.27.4: Table 5-146 of ACPI 6.3 spec.
 #
 # @initiator: the Initiator Proximity Domain.
 #
@@ -743,8 +743,8 @@
 # Cache write policy in the Memory Side Cache Information Structure of
 # HMAT
 #
-# For more information of `HmatCacheWritePolicy`, see chapter 5.2.27.5:
-# Table 5-147: Field "Cache Attributes" of ACPI 6.3 spec.
+# For more information of `HmatCacheWritePolicy`, see chapter
+# 5.2.27.5: Table 5-147: Field "Cache Attributes" of ACPI 6.3 spec.
 #
 # @none: None (no memory side cache in this proximity domain, or cache
 #     write policy unknown)
@@ -763,8 +763,8 @@
 #
 # Set the memory side cache information for a given memory domain.
 #
-# For more information of `NumaHmatCacheOptions`, see chapter 5.2.27.5:
-# Table 5-147: Field "Cache Attributes" of ACPI 6.3 spec.
+# For more information of `NumaHmatCacheOptions`, see chapter
+# 5.2.27.5: Table 5-147: Field "Cache Attributes" of ACPI 6.3 spec.
 #
 # @node-id: the memory proximity domain to which the memory belongs.
 #
@@ -959,7 +959,7 @@
 #     belongs to (since 7.1)
 #
 # @module-id: module number within the parent container the CPU
-#    belongs to (since 9.1)
+#     belongs to (since 9.1)
 #
 # @core-id: core number within the parent container the CPU belongs to
 #
@@ -1090,7 +1090,7 @@
 # @value: the target logical size of the VM in bytes.  We can deduce
 #     the size of the balloon using this formula:
 #
-#        logical_vm_size = vm_ram_size - balloon_size
+#         logical_vm_size = vm_ram_size - balloon_size
 #
 #     From it we have: balloon_size = vm_ram_size - @value
 #
@@ -1845,7 +1845,7 @@
 # @version: Firmware version.
 #
 # @log: Firmware debug log, in base64 encoding.  First and last log
-#       line might be incomplete.
+#     line might be incomplete.
 #
 # Since: 10.2
 ##
@@ -1859,8 +1859,8 @@
 # Find firmware memory log buffer in guest memory, return content.
 #
 # @max-size: limit the amount of log data returned.  Up to 1 MiB of
-#            log data is allowed.  In case the amount of log data is
-#            larger than @max-size the tail of the log is returned.
+#     log data is allowed.  In case the amount of log data is larger
+#     than @max-size the tail of the log is returned.
 #
 # Since: 10.2
 ##
@@ -2004,11 +2004,11 @@
 # @query-cpu-model-comparison:
 #
 # Compares two CPU models, @modela and @modelb, returning how they
-# compare in a specific configuration.  The results indicates how
-# both models compare regarding runnability.  This result can be
-# used by tooling to make decisions if a certain CPU model will
-# run in a certain configuration or if a compatible CPU model has
-# to be created by baselining.
+# compare in a specific configuration.  The results indicates how both
+# models compare regarding runnability.  This result can be used by
+# tooling to make decisions if a certain CPU model will run in a
+# certain configuration or if a compatible CPU model has to be created
+# by baselining.
 #
 # Usually, a CPU model is compared against the maximum possible CPU
 # model of a certain configuration (e.g. the "host" model for KVM).
@@ -2029,7 +2029,8 @@
 #   `query-cpu-definitions`.)
 # * "-cpu" arguments and global properties: arguments to the -cpu
 #   option and global properties may affect expansion of CPU models.
-#   Using `query-cpu-model-expansion` while using these is not advised.
+#   Using `query-cpu-model-expansion` while using these is not
+#   advised.
 #
 # Some architectures may not support comparing CPU models.  s390x
 # supports comparing CPU models.
@@ -2083,7 +2084,8 @@
 #   `query-cpu-definitions`.)
 # * "-cpu" arguments and global properties: arguments to the -cpu
 #   option and global properties may affect expansion of CPU models.
-#   Using `query-cpu-model-expansion` while using these is not advised.
+#   Using `query-cpu-model-expansion` while using these is not
+#   advised.
 #
 # Some architectures may not support baselining CPU models.  s390x
 # supports baselining CPU models.
@@ -2114,8 +2116,8 @@
 #
 # @model: the expanded `CpuModelInfo`.
 #
-# @deprecated-props: an optional list of properties that are flagged as
-#     deprecated by the CPU vendor.  The list depends on the
+# @deprecated-props: an optional list of properties that are flagged
+#     as deprecated by the CPU vendor.  The list depends on the
 #     `CpuModelExpansionType`: "static" properties are a subset of the
 #     enabled-properties for the expanded model; "full" properties are
 #     a set of properties that are deprecated across all models for
@@ -2151,7 +2153,8 @@
 #   `query-cpu-definitions`.)
 # * "-cpu" arguments and global properties: arguments to the -cpu
 #   option and global properties may affect expansion of CPU models.
-#   Using `query-cpu-model-expansion` while using these is not advised.
+#   Using `query-cpu-model-expansion` while using these is not
+#   advised.
 #
 # Some architectures may not support all expansion types.  s390x
 # supports "full" and "static".  Arm only supports "full".

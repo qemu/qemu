@@ -100,8 +100,8 @@
 #    process is signaled with a `DEVICE_DELETED` event.  Guest reset
 #    will automatically complete removal for all devices.  If a
 #    guest-side error in the hot removal process is detected, the
-#    device will not be removed and a `DEVICE_UNPLUG_GUEST_ERROR` event
-#    is sent.  Some errors cannot be detected.
+#    device will not be removed and a `DEVICE_UNPLUG_GUEST_ERROR`
+#    event is sent.  Some errors cannot be detected.
 #
 # Since: 0.14
 #

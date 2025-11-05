@@ -14,15 +14,12 @@ See the COPYING file in the top-level directory.
 """
 
 from typing import (
-    Dict,
     List,
     Optional,
-    Set,
 )
 
 from .common import c_name, mcgen
 from .gen import (
-    QAPIGenC,
     QAPISchemaModularCVisitor,
     build_params,
     gen_features,
@@ -112,11 +109,7 @@ def gen_call(name: str,
 ''')
 
     if ret_type:
-        ret += mcgen('''
-
-    qmp_marshal_output_%(c_name)s(retval, ret, errp);
-''',
-                     c_name=ret_type.c_name())
+        ret += gen_marshal_output(ret_type)
 
     if gen_tracing:
         if ret_type:
@@ -142,22 +135,16 @@ def gen_call(name: str,
 def gen_marshal_output(ret_type: QAPISchemaType) -> str:
     return mcgen('''
 
-static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in,
-                                QObject **ret_out, Error **errp)
-{
-    Visitor *v;
-
-    v = qobject_output_visitor_new_qmp(ret_out);
-    if (visit_type_%(c_name)s(v, "unused", &ret_in, errp)) {
-        visit_complete(v, ret_out);
+    ov = qobject_output_visitor_new_qmp(ret);
+    if (visit_type_%(c_name)s(ov, "unused", &retval, errp)) {
+        visit_complete(ov, ret);
     }
-    visit_free(v);
-    v = qapi_dealloc_visitor_new();
-    visit_type_%(c_name)s(v, "unused", &ret_in, NULL);
-    visit_free(v);
-}
+    visit_free(ov);
+    ov = qapi_dealloc_visitor_new();
+    visit_type_%(c_name)s(ov, "unused", &retval, NULL);
+    visit_free(ov);
 ''',
-                 c_type=ret_type.c_type(), c_name=ret_type.c_name())
+                 c_name=ret_type.c_name())
 
 
 def build_marshal_proto(name: str,
@@ -209,6 +196,7 @@ def gen_marshal(name: str,
     if ret_type:
         ret += mcgen('''
     %(c_type)s retval;
+    Visitor *ov;
 ''',
                      c_type=ret_type.c_type())
 
@@ -308,11 +296,9 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
             prefix, 'qapi-commands',
             ' * Schema-defined QAPI/QMP commands', None, __doc__,
             gen_tracing=gen_tracing)
-        self._visited_ret_types: Dict[QAPIGenC, Set[QAPISchemaType]] = {}
         self._gen_tracing = gen_tracing
 
     def _begin_user_module(self, name: str) -> None:
-        self._visited_ret_types[self._genc] = set()
         commands = self._module_basename('qapi-commands', name)
         types = self._module_basename('qapi-types', name)
         visit = self._module_basename('qapi-visit', name)
@@ -386,16 +372,6 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
                       coroutine: bool) -> None:
         if not gen:
             return
-        # FIXME: If T is a user-defined type, the user is responsible
-        # for making this work, i.e. to make T's condition the
-        # conjunction of the T-returning commands' conditions.  If T
-        # is a built-in type, this isn't possible: the
-        # qmp_marshal_output_T() will be generated unconditionally.
-        if ret_type and ret_type not in self._visited_ret_types[self._genc]:
-            self._visited_ret_types[self._genc].add(ret_type)
-            with ifcontext(ret_type.ifcond,
-                           self._genh, self._genc):
-                self._genc.add(gen_marshal_output(ret_type))
         with ifcontext(ifcond, self._genh, self._genc):
             self._genh.add(gen_command_decl(name, arg_type, boxed,
                                             ret_type, coroutine))

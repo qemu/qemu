@@ -123,8 +123,8 @@
 ##
 # @SCLP_CPI_INFO_AVAILABLE:
 #
-# Emitted when the Control-Program Identification data is available
-# in the QOM tree.
+# Emitted when the Control-Program Identification data is available in
+# the QOM tree.
 #
 # Features:
 #
