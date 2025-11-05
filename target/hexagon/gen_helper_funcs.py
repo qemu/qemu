@@ -84,11 +84,6 @@ def gen_helper_function(f, tag, tagregs, tagimms):
         {hex_common.semdict[tag]}
     """))
 
-    if "A_FPOP" in hex_common.attribdict[tag]:
-        f.write(hex_common.code_fmt(f"""\
-            arch_fpop_end(env);
-        """))
-
     ## Return the scalar result
     for regtype, regid in regs:
         reg = hex_common.get_register(tag, regtype, regid)
@@ -115,6 +110,9 @@ def main():
                 continue
             ## Skip the guest instructions
             if "A_GUEST" in hex_common.attribdict[tag]:
+                continue
+            ## Skip the floating point instructions
+            if "A_FPOP" in hex_common.attribdict[tag]:
                 continue
             ## Skip the diag instructions
             if tag == "Y6_diag":

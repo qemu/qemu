@@ -77,6 +77,10 @@ def gen_tcg_func(f, tag, regs, imms):
         f.write(f"    emit_{tag}({arguments});\n")
 
     elif hex_common.skip_qemu_helper(tag):
+        if "A_FPOP" in hex_common.attribdict[tag]:
+            f.write("    TCGv pkt_need_commit = ")
+            f.write("tcg_constant_tl(ctx->need_commit);\n")
+
         f.write(f"    fGEN_TCG_{tag}({hex_common.semdict[tag]});\n")
     else:
         ## Generate the call to the helper
