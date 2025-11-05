@@ -141,24 +141,24 @@ pub const fn vmstate_varray_flag<T: VMState>(_: PhantomData<T>) -> VMStateFlags 
 /// [`Owned`]: ../../qom/qom/struct.Owned.html
 #[macro_export]
 macro_rules! vmstate_of {
-    ($struct_name:ty, $field_name:ident $([0 .. $num:ident $(* $factor:expr)?])? $(, $test_fn:expr)? $(,)?) => {
+    ($struct_name:ty, $($field_name:ident).+ $([0 .. $($num:ident).+ $(* $factor:expr)?])? $(, $test_fn:expr)? $(,)?) => {
         $crate::bindings::VMStateField {
-            name: ::core::concat!(::core::stringify!($field_name), "\0")
+            name: ::core::concat!(::core::stringify!($($field_name).+), "\0")
                 .as_bytes()
                 .as_ptr().cast::<::std::os::raw::c_char>(),
-            offset: ::std::mem::offset_of!($struct_name, $field_name),
-            $(num_offset: ::std::mem::offset_of!($struct_name, $num),)?
+            offset: ::std::mem::offset_of!($struct_name, $($field_name).+),
+            $(num_offset: ::std::mem::offset_of!($struct_name, $($num).+),)?
             $(field_exists: $crate::vmstate_exist_fn!($struct_name, $test_fn),)?
             // The calls to `call_func_with_field!` are the magic that
             // computes most of the VMStateField from the type of the field.
             ..$crate::call_func_with_field!(
                 $crate::vmstate::vmstate_base,
                 $struct_name,
-                $field_name
+                $($field_name).+
             )$(.with_varray_flag($crate::call_func_with_field!(
                     $crate::vmstate::vmstate_varray_flag,
                     $struct_name,
-                    $num))
+                    $($num).+))
                $(.with_varray_multiply($factor))?)?
         }
     };

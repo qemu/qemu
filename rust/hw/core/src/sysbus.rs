@@ -4,12 +4,13 @@
 
 //! Bindings to access `sysbus` functionality from Rust.
 
-use std::{ffi::CStr, ptr::addr_of_mut};
+use std::ffi::CStr;
 
 pub use bindings::SysBusDeviceClass;
 use common::Opaque;
 use qom::{prelude::*, Owned};
 use system::MemoryRegion;
+use util::{Error, Result};
 
 use crate::{
     bindings,
@@ -107,14 +108,12 @@ where
         }
     }
 
-    fn sysbus_realize(&self) {
-        // TODO: return an Error
+    fn sysbus_realize(&self) -> Result<()> {
         assert!(bql::is_locked());
         unsafe {
-            bindings::sysbus_realize(
-                self.upcast().as_mut_ptr(),
-                addr_of_mut!(util::bindings::error_fatal),
-            );
+            Error::with_errp(|errp| {
+                bindings::sysbus_realize(self.upcast().as_mut_ptr(), errp);
+            })
         }
     }
 }
