@@ -373,8 +373,9 @@ our @LICENSE_BOILERPLATE = (
 	"under the terms of the GNU Lesser General Public",
 	"Permission is hereby granted, free of charge",
 	"GNU GPL, version 2 or later",
-	"See the COPYING file"
-);
+	"See the COPYING file",
+	"terms and conditions of the GNU General Public",
+    );
 our $LICENSE_BOILERPLATE_RE = join("|", @LICENSE_BOILERPLATE);
 
 # Load common spelling mistakes and build regular expression list.
