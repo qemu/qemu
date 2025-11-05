@@ -272,12 +272,7 @@ static void mark_implicit_reg_write(DisasContext *ctx, int attrib, int rnum)
 {
     uint16_t opcode = ctx->insn->opcode;
     if (GET_ATTRIB(opcode, attrib)) {
-        /*
-         * USR is used to set overflow and FP exceptions,
-         * so treat it as conditional
-         */
-        bool is_predicated = GET_ATTRIB(opcode, A_CONDEXEC) ||
-                             rnum == HEX_REG_USR;
+        bool is_predicated = GET_ATTRIB(opcode, A_CONDEXEC);
 
         /* LC0/LC1 is conditionally written by endloop instructions */
         if ((rnum == HEX_REG_LC0 || rnum == HEX_REG_LC1) &&
@@ -291,6 +286,14 @@ static void mark_implicit_reg_write(DisasContext *ctx, int attrib, int rnum)
     }
 }
 
+static void mark_implicit_usr_write(DisasContext *ctx, int attrib)
+{
+    uint16_t opcode = ctx->insn->opcode;
+    if (GET_ATTRIB(opcode, attrib)) {
+        ctx->implicit_usr_write = true;
+    }
+}
+
 static void mark_implicit_reg_writes(DisasContext *ctx)
 {
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_FP,  HEX_REG_FP);
@@ -300,8 +303,9 @@ static void mark_implicit_reg_writes(DisasContext *ctx)
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SA0, HEX_REG_SA0);
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_LC1, HEX_REG_LC1);
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SA1, HEX_REG_SA1);
-    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_USR, HEX_REG_USR);
-    mark_implicit_reg_write(ctx, A_FPOP, HEX_REG_USR);
+
+    mark_implicit_usr_write(ctx, A_IMPLICIT_WRITES_USR);
+    mark_implicit_usr_write(ctx, A_FPOP);
 }
 
 static void mark_implicit_pred_write(DisasContext *ctx, int attrib, int pnum)
@@ -349,11 +353,6 @@ static bool need_commit(DisasContext *ctx)
         if (reg_immut_masks[rnum]) {
             return true;
         }
-    }
-
-    /* Floating point instructions are hard-coded to use new_value */
-    if (check_for_attrib(pkt, A_FPOP)) {
-        return true;
     }
 
     if (ctx->read_after_write || ctx->has_hvx_overlap) {
@@ -465,6 +464,12 @@ static void gen_start_packet(DisasContext *ctx)
             i = find_next_bit(ctx->predicated_regs, TOTAL_PER_THREAD_REGS,
                               i + 1);
         }
+    }
+
+    /* Preload usr to new_value_usr */
+    if (ctx->need_commit && ctx->implicit_usr_write &&
+        !test_bit(HEX_REG_USR, ctx->regs_written)) {
+        tcg_gen_mov_tl(hex_new_value_usr, hex_gpr[HEX_REG_USR]);
     }
 
     /*
@@ -586,6 +591,10 @@ static void gen_reg_writes(DisasContext *ctx)
         if (reg_num == HEX_REG_SA0) {
             ctx->is_tight_loop = false;
         }
+    }
+
+    if (ctx->implicit_usr_write && !test_bit(HEX_REG_USR, ctx->regs_written)) {
+        tcg_gen_mov_tl(hex_gpr[HEX_REG_USR], hex_new_value_usr);
     }
 }
 
