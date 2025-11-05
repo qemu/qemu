@@ -25,7 +25,4 @@ struct SysBusI82596State {
     int val_index:1;
 };
 
-SysBusI82596State *lasi_82596_init(MemoryRegion *addr_space, hwaddr hpa,
-                                   qemu_irq irq, gboolean match_default);
-
 #endif
