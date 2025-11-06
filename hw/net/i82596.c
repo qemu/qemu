@@ -992,7 +992,6 @@ static ssize_t i82596_receive_packet(I82596State *s, const uint8_t *buf,
     size_t payload_size = 0;
     size_t bytes_copied = 0;
     const uint8_t *packet_data = buf;
-    bool crc_valid = true;
     bool out_of_resources = false;
     size_t crc_size = i82596_get_crc_size(s);
 
@@ -1155,15 +1154,10 @@ rx_complete:
         }
     }
 
-    if (packet_completed && crc_valid) {
+    if (packet_completed) {
         rx_status |= STAT_C | STAT_OK;
         if (is_broadcast) {
             rx_status |= 0x0001;
-        }
-    } else if (packet_completed) {
-        rx_status |= STAT_C;
-        if (!crc_valid) {
-            rx_status |= RX_CRC_ERRORS;
         }
     } else {
         rx_status |= STAT_B;
@@ -1187,7 +1181,7 @@ rx_complete:
         return size;
     }
 
-    if (packet_completed && crc_valid && s->rx_status == RX_READY) {
+    if (packet_completed && s->rx_status == RX_READY) {
         uint32_t next_rfd_addr = i82596_translate_address(s, rfd.link, false);
         if (next_rfd_addr != 0 && next_rfd_addr != I596_NULL) {
             set_uint32(s->scb + 8, next_rfd_addr);
