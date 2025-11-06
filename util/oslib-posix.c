@@ -61,7 +61,7 @@
 #include "qemu/memalign.h"
 #include "qemu/mmap-alloc.h"
 
-#define MAX_MEM_PREALLOC_THREAD_COUNT 16
+#define MAX_MEM_PREALLOC_THREAD_COUNT 32
 
 struct MemsetThread;
 
