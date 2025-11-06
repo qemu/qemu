@@ -1092,6 +1092,7 @@ static ssize_t i82596_receive_packet(I82596State *s, const uint8_t *buf,
                     rx_status |= RFD_STATUS_TRUNC | RFD_STATUS_NOBUFS;
                     i82596_record_error(s, RFD_STATUS_NOBUFS, false);
                     packet_completed = true;
+                    break;
                 } else {
                     hwaddr remaining_rbd = I596_NULL;
                     size_t rbd_bytes = i82596_rx_copy_to_rbds(
@@ -1118,17 +1119,18 @@ static ssize_t i82596_receive_packet(I82596State *s, const uint8_t *buf,
                         i82596_record_error(s, RFD_STATUS_NOBUFS, false);
                         rx_status |= RFD_STATUS_TRUNC | RFD_STATUS_NOBUFS;
                         packet_completed = true;
+                        break;
                     }
 
                     if (bytes_copied < payload_size) {
                         trace_i82596_rx_incomplete(bytes_copied, payload_size);
                         rx_status |= RFD_STATUS_TRUNC;
                         packet_completed = true;
+                        break;
                     }
                 }
             }
         }
-        break;
 
     } while (bytes_copied < payload_size);
 
