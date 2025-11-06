@@ -17,12 +17,14 @@ use migration::{self, prelude::*};
 use qom::prelude::*;
 use system::{
     bindings::{address_space_memory, address_space_stl_le},
-    MEMTXATTRS_UNSPECIFIED,
     prelude::*,
+    MEMTXATTRS_UNSPECIFIED,
 };
 use util::prelude::*;
 
 use crate::fw_cfg::HPETFwConfig;
+
+::trace::include_trace!("hw_timer");
 
 /// Register space for each timer block (`HPET_BASE` is defined in hpet.h).
 const HPET_REG_SPACE_LEN: u64 = 0x400; // 1024 bytes
@@ -394,7 +396,8 @@ impl HPETTimer {
 
     /// Configuration and Capability Register
     fn set_tn_cfg_reg(&mut self, shift: u32, len: u32, val: u64) {
-        // TODO: Add trace point - trace_hpet_ram_write_tn_cfg(addr & 4)
+        trace::trace_hpet_ram_write_tn_cfg((shift / 8).try_into().unwrap());
+
         let old_val: u64 = self.config;
         let mut new_val: u64 = old_val.deposit(shift, len, val);
         new_val = hpet_fixup_reg(new_val, old_val, HPET_TN_CFG_WRITE_MASK);
@@ -427,16 +430,17 @@ impl HPETTimer {
         let mut length = len;
         let mut value = val;
 
-        // TODO: Add trace point - trace_hpet_ram_write_tn_cmp(addr & 4)
         if self.is_32bit_mod() {
             // High 32-bits are zero, leave them untouched.
             if shift != 0 {
-                // TODO: Add trace point - trace_hpet_ram_write_invalid_tn_cmp()
+                trace::trace_hpet_ram_write_invalid_tn_cmp();
                 return;
             }
             length = 64;
             value = u64::from(value as u32); // truncate!
         }
+
+        trace::trace_hpet_ram_write_tn_cmp((shift / 8).try_into().unwrap());
 
         if !self.is_periodic() || self.is_valset_enabled() {
             self.cmp = self.cmp.deposit(shift, length, value);
@@ -504,6 +508,9 @@ impl HPETTimer {
 
     fn write(&mut self, reg: TimerRegister, value: u64, shift: u32, len: u32) {
         use TimerRegister::*;
+
+        trace::trace_hpet_ram_write_timer_id(self.index);
+
         match reg {
             CFG => self.set_tn_cfg_reg(shift, len, value),
             CMP => self.set_tn_cmp_reg(shift, len, value),
@@ -681,15 +688,13 @@ impl HPETState {
     /// Main Counter Value Register
     fn set_counter_reg(&self, shift: u32, len: u32, val: u64) {
         if self.is_hpet_enabled() {
-            // TODO: Add trace point -
-            // trace_hpet_ram_write_counter_write_while_enabled()
-            //
             // HPET spec says that writes to this register should only be
             // done while the counter is halted. So this is an undefined
             // behavior. There's no need to forbid it, but when HPET is
             // enabled, the changed counter value will not affect the
             // tick count (i.e., the previously calculated offset will
             // not be changed as well).
+            trace::trace_hpet_ram_write_counter_write_while_enabled();
         }
         self.counter
             .set(self.counter.get().deposit(shift, len, val));
@@ -779,11 +784,10 @@ impl HPETState {
         } else {
             let timer_id: usize = ((addr - 0x100) / 0x20) as usize;
             if timer_id < self.num_timers {
-                // TODO: Add trace point - trace_hpet_ram_[read|write]_timer_id(timer_id)
                 TimerRegister::try_from(addr & 0x18)
                     .map(|reg| HPETRegister::Timer(&self.timers[timer_id], reg))
             } else {
-                // TODO: Add trace point -  trace_hpet_timer_id_out_of_range(timer_id)
+                trace::trace_hpet_timer_id_out_of_range(timer_id.try_into().unwrap());
                 Err(addr)
             }
         };
@@ -795,7 +799,8 @@ impl HPETState {
     }
 
     fn read(&self, addr: hwaddr, size: u32) -> u64 {
-        // TODO: Add trace point - trace_hpet_ram_read(addr)
+        trace::trace_hpet_ram_read(addr);
+
         let HPETAddrDecode { shift, reg, .. } = self.decode(addr, size);
 
         use GlobalRegister::*;
@@ -806,16 +811,18 @@ impl HPETState {
             Global(CFG) => self.config.get(),
             Global(INT_STATUS) => self.int_status.get(),
             Global(COUNTER) => {
-                // TODO: Add trace point
-                // trace_hpet_ram_read_reading_counter(addr & 4, cur_tick)
-                if self.is_hpet_enabled() {
+                let cur_tick = if self.is_hpet_enabled() {
                     self.get_ticks()
                 } else {
                     self.counter.get()
-                }
+                };
+
+                trace::trace_hpet_ram_read_reading_counter((addr & 4) as u8, cur_tick);
+
+                cur_tick
             }
             Unknown(_) => {
-                // TODO: Add trace point- trace_hpet_ram_read_invalid()
+                trace::trace_hpet_ram_read_invalid();
                 0
             }
         }) >> shift
@@ -824,7 +831,8 @@ impl HPETState {
     fn write(&self, addr: hwaddr, value: u64, size: u32) {
         let HPETAddrDecode { shift, len, reg } = self.decode(addr, size);
 
-        // TODO: Add trace point - trace_hpet_ram_write(addr, value)
+        trace::trace_hpet_ram_write(addr, value);
+
         use GlobalRegister::*;
         use HPETRegister::*;
         match reg {
@@ -833,9 +841,7 @@ impl HPETState {
             Global(CFG) => self.set_cfg_reg(shift, len, value),
             Global(INT_STATUS) => self.set_int_status_reg(shift, len, value),
             Global(COUNTER) => self.set_counter_reg(shift, len, value),
-            Unknown(_) => {
-                // TODO: Add trace point - trace_hpet_ram_write_invalid()
-            }
+            Unknown(_) => trace::trace_hpet_ram_write_invalid(),
         }
     }
 

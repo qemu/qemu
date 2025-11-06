@@ -11,6 +11,7 @@ _libhpet_rs = static_library(
     qom_rs,
     system_rs,
     hwcore_rs,
+    trace_rs,
   ],
 )
 
