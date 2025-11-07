@@ -808,6 +808,10 @@ static void qtest_event(void *opaque, QEMUChrEvent event)
         }
         break;
     case CHR_EVENT_CLOSED:
+        if (!qtest_opened) {
+            /* Ignore CLOSED events if we have already closed the log */
+            break;
+        }
         qtest_opened = false;
         if (qtest_log_fp) {
             fprintf(qtest_log_fp, "[I +" FMT_timeval "] CLOSED\n", g_timer_elapsed(timer, NULL));
