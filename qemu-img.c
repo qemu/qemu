@@ -4081,7 +4081,7 @@ static int img_rebase(const img_cmd_t *ccmd, int argc, char **argv)
             n += offset - QEMU_ALIGN_DOWN(offset, write_align);
             offset = QEMU_ALIGN_DOWN(offset, write_align);
             n += QEMU_ALIGN_UP(offset + n, write_align) - (offset + n);
-            n = MIN(n, size - offset);
+            n = MIN(n, MIN(size - offset, IO_BUF_SIZE));
             assert(!bdrv_is_allocated(unfiltered_bs, offset, n, &n_alloc) &&
                    n_alloc == n);
 
