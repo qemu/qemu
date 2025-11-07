@@ -7,12 +7,12 @@
 
 void msix_set_message(PCIDevice *dev, int vector, MSIMessage msg);
 MSIMessage msix_get_message(PCIDevice *dev, unsigned int vector);
-int msix_init(PCIDevice *dev, unsigned short nentries,
+int msix_init(PCIDevice *dev, uint32_t nentries,
               MemoryRegion *table_bar, uint8_t table_bar_nr,
               unsigned table_offset, MemoryRegion *pba_bar,
               uint8_t pba_bar_nr, unsigned pba_offset, uint8_t cap_pos,
               Error **errp);
-int msix_init_exclusive_bar(PCIDevice *dev, unsigned short nentries,
+int msix_init_exclusive_bar(PCIDevice *dev, uint32_t nentries,
                             uint8_t bar_nr, Error **errp);
 
 void msix_write_config(PCIDevice *dev, uint32_t address, uint32_t val, int len);
