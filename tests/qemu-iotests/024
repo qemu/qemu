@@ -315,6 +315,52 @@ echo
 
 $QEMU_IMG map "$OVERLAY" | _filter_qemu_img_map
 
+# Check that the region to copy to the overlay during a rebase
+# operation does not exceed the I/O buffer size.
+#
+# backing_new <-- backing_old <-- overlay
+#
+# Backing (new): -- -- -- --    <-- Empty image, size 4MB
+# Backing (old):|--|ff|ff|--|   <-- 4 clusters, 1MB each
+# Overlay:      |-- --|-- --|   <-- 2 clusters, 2MB each
+#
+# The data at [1MB, 3MB) must be copied from the old backing image to
+# the overlay. However the rebase code will extend that region to the
+# overlay's (sub)cluster boundaries to avoid CoW (see commit 12df580b).
+# This test checks that IO_BUF_SIZE (2 MB) is taken into account.
+
+echo
+echo "=== Test that the region to copy does not exceed 2MB (IO_BUF_SIZE) ==="
+echo
+
+echo "Creating backing chain"
+echo
+
+TEST_IMG=$BASE_NEW _make_test_img 4M
+TEST_IMG=$BASE_OLD CLUSTER_SIZE=1M _make_test_img -b "$BASE_NEW" -F $IMGFMT
+TEST_IMG=$OVERLAY  CLUSTER_SIZE=2M _make_test_img -b "$BASE_OLD" -F $IMGFMT
+
+echo
+echo "Writing data to region [1MB, 3MB)"
+echo
+
+$QEMU_IO "$BASE_OLD" -c "write -P 0xff 1M 2M" | _filter_qemu_io
+
+echo
+echo "Rebasing"
+echo
+
+$QEMU_IMG rebase -b "$BASE_NEW" -F $IMGFMT "$OVERLAY"
+
+echo "Verifying the data"
+echo
+
+$QEMU_IO "$OVERLAY" -c "read -P 0x00  0 1M" | _filter_qemu_io
+$QEMU_IO "$OVERLAY" -c "read -P 0xff 1M 2M" | _filter_qemu_io
+$QEMU_IO "$OVERLAY" -c "read -P 0x00 3M 1M" | _filter_qemu_io
+
+$QEMU_IMG map "$OVERLAY" | _filter_qemu_img_map
+
 echo
 
 # success, all done
