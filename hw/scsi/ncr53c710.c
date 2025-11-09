@@ -550,7 +550,7 @@ static inline uint8_t ncr710_scsi_fifo_dequeue(NCR710_SCSI_FIFO *fifo,
 static inline uint32_t ncr710_read_dword(NCR710State *s, uint32_t addr)
 {
     uint32_t buf;
-    address_space_read(&address_space_memory, addr, MEMTXATTRS_UNSPECIFIED,
+    address_space_read(s->as, addr, MEMTXATTRS_UNSPECIFIED,
                        (uint8_t *)&buf, 4);
     /*
      * The NCR710 datasheet saying "operates internally in LE mode"
@@ -565,7 +565,7 @@ static inline uint32_t ncr710_read_dword(NCR710State *s, uint32_t addr)
 static inline void ncr710_dma_read(NCR710State *s, uint32_t addr,
                                    void *buf, uint32_t len)
 {
-    address_space_read(&address_space_memory, addr, MEMTXATTRS_UNSPECIFIED,
+    address_space_read(s->as, addr, MEMTXATTRS_UNSPECIFIED,
                        buf, len);
     NCR710_DPRINTF("Read %d bytes from %08x: ", len, addr);
     for (int i = 0; i < len && i < 16; i++) {
@@ -577,7 +577,7 @@ static inline void ncr710_dma_read(NCR710State *s, uint32_t addr,
 static inline void ncr710_dma_write(NCR710State *s, uint32_t addr,
                                     const void *buf, uint32_t len)
 {
-    address_space_write(&address_space_memory, addr, MEMTXATTRS_UNSPECIFIED,
+    address_space_write(s->as, addr, MEMTXATTRS_UNSPECIFIED,
                         buf, len);
     NCR710_DPRINTF("Wrote %d bytes to %08x\n", len, addr);
 }
