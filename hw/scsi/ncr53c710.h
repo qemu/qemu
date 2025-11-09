@@ -242,5 +242,6 @@ void ncr710_transfer_data(SCSIRequest *req, uint32_t len);
 void ncr710_execute_script(NCR710State *s);
 void ncr710_set_phase(NCR710State *s, int phase);
 void ncr710_reselection_retry_callback(void *opaque);
+extern const VMStateDescription vmstate_ncr710;
 
 #endif /* HW_NCR53C710_H */

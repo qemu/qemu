@@ -46,7 +46,6 @@ typedef struct LasiNCR710State {
     uint32_t hw_type;        /* Hardware type (HPHW_*) */
     uint32_t sversion;       /* Software version */
     uint32_t hversion;       /* Hardware version */
-    SCSIBus bus;
     NCR710State ncr710;
 } LasiNCR710State;
 

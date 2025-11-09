@@ -160,6 +160,10 @@ static const VMStateDescription vmstate_lasi_ncr710 = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(hw_type, LasiNCR710State),
+        VMSTATE_UINT32(sversion, LasiNCR710State),
+        VMSTATE_UINT32(hversion, LasiNCR710State),
+        VMSTATE_STRUCT(ncr710, LasiNCR710State, 1, vmstate_ncr710, NCR710State),
         VMSTATE_END_OF_LIST()
     }
 };

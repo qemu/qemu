@@ -2250,7 +2250,7 @@ static const VMStateDescription vmstate_ncr710_scsi_fifo = {
     }
 };
 
-static const VMStateDescription vmstate_ncr710 = {
+const VMStateDescription vmstate_ncr710 = {
     .name = "ncr710",
     .version_id = 1,
     .minimum_version_id = 1,
