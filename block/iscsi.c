@@ -107,7 +107,6 @@ typedef struct IscsiLun {
 
 typedef struct IscsiTask {
     int status;
-    int complete;
     int retries;
     int do_retry;
     struct scsi_task *task;
@@ -180,21 +179,10 @@ iscsi_schedule_bh(IscsiAIOCB *acb)
 
 #endif
 
-static void iscsi_co_generic_bh_cb(void *opaque)
-{
-    struct IscsiTask *iTask = opaque;
-
-    iTask->complete = 1;
-    aio_co_wake(iTask->co);
-}
-
 static void iscsi_retry_timer_expired(void *opaque)
 {
     struct IscsiTask *iTask = opaque;
-    iTask->complete = 1;
-    if (iTask->co) {
-        aio_co_wake(iTask->co);
-    }
+    aio_co_wake(iTask->co);
 }
 
 static inline unsigned exp_random(double mean)
@@ -239,6 +227,8 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
 {
     struct IscsiTask *iTask = opaque;
     struct scsi_task *task = command_data;
+    IscsiLun *iscsilun = iTask->iscsilun;
+    AioContext *itask_ctx = qemu_coroutine_get_aio_context(iTask->co);
 
     iTask->status = status;
     iTask->do_retry = 0;
@@ -263,9 +253,9 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
                              " (retry #%u in %u ms): %s",
                              iTask->retries, retry_time,
                              iscsi_get_error(iscsi));
-                aio_timer_init(iTask->iscsilun->aio_context,
-                               &iTask->retry_timer, QEMU_CLOCK_REALTIME,
-                               SCALE_MS, iscsi_retry_timer_expired, iTask);
+                aio_timer_init(itask_ctx, &iTask->retry_timer,
+                               QEMU_CLOCK_REALTIME, SCALE_MS,
+                               iscsi_retry_timer_expired, iTask);
                 timer_mod(&iTask->retry_timer,
                           qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + retry_time);
                 iTask->do_retry = 1;
@@ -284,12 +274,17 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
         }
     }
 
-    if (iTask->co) {
-        replay_bh_schedule_oneshot_event(iTask->iscsilun->aio_context,
-                                         iscsi_co_generic_bh_cb, iTask);
-    } else {
-        iTask->complete = 1;
-    }
+    /*
+     * aio_co_wake() is safe to call: iscsi_service(), which called us, is only
+     * run from the event_timer and/or the FD handlers, never from the request
+     * coroutine.  The request coroutine in turn will yield unconditionally.
+     * We must release the lock, though, in case we enter the coroutine
+     * directly.  (Note that if do we enter the coroutine, iTask will probably
+     * be dangling once aio_co_wake() returns.)
+     */
+    qemu_mutex_unlock(&iscsilun->mutex);
+    aio_co_wake(iTask->co);
+    qemu_mutex_lock(&iscsilun->mutex);
 }
 
 static void coroutine_fn
@@ -592,12 +587,10 @@ static inline bool iscsi_allocmap_is_valid(IscsiLun *iscsilun,
 static void coroutine_fn iscsi_co_wait_for_task(IscsiTask *iTask,
                                                 IscsiLun *iscsilun)
 {
-    while (!iTask->complete) {
-        iscsi_set_events(iscsilun);
-        qemu_mutex_unlock(&iscsilun->mutex);
-        qemu_coroutine_yield();
-        qemu_mutex_lock(&iscsilun->mutex);
-    }
+    iscsi_set_events(iscsilun);
+    qemu_mutex_unlock(&iscsilun->mutex);
+    qemu_coroutine_yield();
+    qemu_mutex_lock(&iscsilun->mutex);
 }
 
 static int coroutine_fn
@@ -669,7 +662,6 @@ retry:
     }
 
     if (iTask.do_retry) {
-        iTask.complete = 0;
         goto retry;
     }
 
@@ -740,7 +732,6 @@ retry:
             scsi_free_scsi_task(iTask.task);
             iTask.task = NULL;
         }
-        iTask.complete = 0;
         goto retry;
     }
 
@@ -902,7 +893,6 @@ retry:
     }
 
     if (iTask.do_retry) {
-        iTask.complete = 0;
         goto retry;
     }
 
@@ -940,7 +930,6 @@ retry:
     }
 
     if (iTask.do_retry) {
-        iTask.complete = 0;
         goto retry;
     }
 
@@ -1184,7 +1173,6 @@ retry:
     }
 
     if (iTask.do_retry) {
-        iTask.complete = 0;
         goto retry;
     }
 
@@ -1301,7 +1289,6 @@ retry:
     }
 
     if (iTask.do_retry) {
-        iTask.complete = 0;
         goto retry;
     }
 
@@ -2390,7 +2377,6 @@ retry:
     iscsi_co_wait_for_task(&iscsi_task, dst_lun);
 
     if (iscsi_task.do_retry) {
-        iscsi_task.complete = 0;
         goto retry;
     }
 
