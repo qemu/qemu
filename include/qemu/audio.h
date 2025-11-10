@@ -111,6 +111,8 @@ typedef struct AudioBackendClass {
 
 bool AUD_backend_check(AudioBackend **be, Error **errp);
 
+AudioBackend *audio_be_new(Audiodev *dev, Error **errp);
+
 SWVoiceOut *AUD_open_out(
     AudioBackend *be,
     SWVoiceOut *sw,
