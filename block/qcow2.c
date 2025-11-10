@@ -2873,6 +2873,8 @@ qcow2_co_invalidate_cache(BlockDriverState *bs, Error **errp)
     data_file = s->data_file;
     memset(s, 0, sizeof(BDRVQcow2State));
     s->data_file = data_file;
+    /* Re-initialize objects initialized in qcow2_open() */
+    qemu_co_mutex_init(&s->lock);
 
     options = qdict_clone_shallow(bs->options);
 
