@@ -16,14 +16,10 @@
  */
 
 #include "qemu/osdep.h"
-#include "system/blockdev.h"
 #include "hw/ssi/ssi.h"
 #include "migration/vmstate.h"
-#include "hw/core/qdev-properties.h"
 #include "hw/sd/sd.h"
-#include "qapi/error.h"
 #include "qemu/crc-ccitt.h"
-#include "qemu/module.h"
 #include "qom/object.h"
 
 //#define DEBUG_SSI_SD 1
