@@ -481,13 +481,25 @@ static void nvme_trace_command(const NvmeCmd *cmd)
     }
 }
 
-static void nvme_deferred_fn(void *opaque)
+static void nvme_kick_and_check_completions(void *opaque)
 {
     NVMeQueuePair *q = opaque;
 
     QEMU_LOCK_GUARD(&q->lock);
     nvme_kick(q);
     nvme_process_completion(q);
+}
+
+static void nvme_deferred_fn(void *opaque)
+{
+    NVMeQueuePair *q = opaque;
+
+    if (qemu_get_current_aio_context() == q->s->aio_context) {
+        nvme_kick_and_check_completions(q);
+    } else {
+        aio_bh_schedule_oneshot(q->s->aio_context,
+                                nvme_kick_and_check_completions, q);
+    }
 }
 
 static void nvme_submit_command(NVMeQueuePair *q, NVMeRequest *req,
