@@ -663,7 +663,7 @@ static void mch_realize(PCIDevice *d, Error **errp)
 
 static const Property mch_props[] = {
     DEFINE_PROP_UINT16("extended-tseg-mbytes", MCHPCIState, ext_tseg_mbytes,
-                       16),
+                       64),
     DEFINE_PROP_BOOL("smbase-smram", MCHPCIState, has_smram_at_smbase, true),
 };
 

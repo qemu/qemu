@@ -4299,19 +4299,19 @@ static const Property virtio_net_properties[] = {
     VIRTIO_DEFINE_PROP_FEATURE("host_tunnel", VirtIONet,
                                host_features_ex,
                                VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO,
-                               false),
+                               true),
     VIRTIO_DEFINE_PROP_FEATURE("host_tunnel_csum", VirtIONet,
                                host_features_ex,
                                VIRTIO_NET_F_HOST_UDP_TUNNEL_GSO_CSUM,
-                               false),
+                               true),
     VIRTIO_DEFINE_PROP_FEATURE("guest_tunnel", VirtIONet,
                                host_features_ex,
                                VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO,
-                               false),
+                               true),
     VIRTIO_DEFINE_PROP_FEATURE("guest_tunnel_csum", VirtIONet,
                                host_features_ex,
                                VIRTIO_NET_F_GUEST_UDP_TUNNEL_GSO_CSUM,
-                               false),
+                               true),
 };
 
 static void virtio_net_class_init(ObjectClass *klass, const void *data)
