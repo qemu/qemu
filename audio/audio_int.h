@@ -266,8 +266,6 @@ int audio_bug (const char *funcname, int cond);
 
 void audio_run(AudioMixengBackend *s, const char *msg);
 
-const char *audio_application_name(void);
-
 typedef struct RateCtl {
     int64_t start_ticks;
     int64_t bytes_sent;

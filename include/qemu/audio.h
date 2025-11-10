@@ -183,6 +183,8 @@ bool audio_be_set_dbus_server(AudioBackend *be,
                               Error **errp);
 #endif
 
+const char *audio_application_name(void);
+
 #define DEFINE_AUDIO_PROPERTIES(_s, _f)         \
     DEFINE_PROP_AUDIODEV("audiodev", _s, _f)
 

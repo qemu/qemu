@@ -2,6 +2,7 @@ audio_ss = ss.source_set()
 audio_ss.add(files(
   'audio.c',
   'audio-be.c',
+  'audio-mixeng-be.c',
   'mixeng.c',
   'noaudio.c',
   'wavaudio.c',

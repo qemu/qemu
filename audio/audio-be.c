@@ -5,6 +5,7 @@
 #include "qemu/audio-capture.h"
 #include "qapi/error.h"
 #include "trace.h"
+#include "qapi-types-audio.h"
 
 bool audio_be_check(AudioBackend **be, Error **errp)
 {
@@ -248,6 +249,7 @@ AudioBackend *audio_be_new(Audiodev *dev, Error **errp)
 
     if (!be) {
         error_setg(errp, "Unknown audio driver `%s'", drvname);
+        qapi_free_Audiodev(dev);
         return NULL;
     }
 
