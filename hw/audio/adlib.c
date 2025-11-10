@@ -34,8 +34,6 @@
 
 #define DEBUG 0
 
-#define ADLIB_KILL_TIMERS 1
-
 #define ADLIB_DESC "Yamaha YM3812 (OPL2)"
 
 #if DEBUG
@@ -71,7 +69,6 @@ struct AdlibState {
     uint64_t dexp[2];
     SWVoiceOut *voice;
     int left, pos, samples;
-    QEMUAudioTimeStamp ats;
     FM_OPL *opl;
     PortioList port_list;
 };
@@ -88,19 +85,7 @@ static void adlib_kill_timers (AdlibState *s)
 
     for (i = 0; i < 2; ++i) {
         if (s->ticking[i]) {
-            uint64_t delta;
-
-            delta = AUD_get_elapsed_usec_out (s->voice, &s->ats);
-            ldebug (
-                "delta = %f dexp = %f expired => %d",
-                delta / 1000000.0,
-                s->dexp[i] / 1000000.0,
-                delta >= s->dexp[i]
-                );
-            if (ADLIB_KILL_TIMERS || delta >= s->dexp[i]) {
-                adlib_stop_opl_timer (s, i);
-                AUD_init_time_stamp_out (s->voice, &s->ats);
-            }
+            adlib_stop_opl_timer(s, i);
         }
     }
 }
@@ -149,7 +134,6 @@ static void timer_handler (void *opaque, int c, double interval_Sec)
 #endif
 
     s->dexp[n] = interval_Sec * 1000000.0;
-    AUD_init_time_stamp_out (s->voice, &s->ats);
 }
 
 static int write_audio (AdlibState *s, int samples)

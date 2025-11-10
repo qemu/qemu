@@ -569,40 +569,6 @@ bool glue(AUD_is_active_, TYPE)(SW *sw)
     return sw ? sw->active : 0;
 }
 
-void glue (AUD_init_time_stamp_, TYPE) (SW *sw, QEMUAudioTimeStamp *ts)
-{
-    if (!sw) {
-        return;
-    }
-
-    ts->old_ts = sw->hw->ts_helper;
-}
-
-uint64_t glue (AUD_get_elapsed_usec_, TYPE) (SW *sw, QEMUAudioTimeStamp *ts)
-{
-    uint64_t delta, cur_ts, old_ts;
-
-    if (!sw) {
-        return 0;
-    }
-
-    cur_ts = sw->hw->ts_helper;
-    old_ts = ts->old_ts;
-    /* dolog ("cur %" PRId64 " old %" PRId64 "\n", cur_ts, old_ts); */
-
-    if (cur_ts >= old_ts) {
-        delta = cur_ts - old_ts;
-    } else {
-        delta = UINT64_MAX - old_ts + cur_ts;
-    }
-
-    if (!delta) {
-        return 0;
-    }
-
-    return muldiv64 (delta, sw->hw->info.freq, 1000000);
-}
-
 #undef TYPE
 #undef HW
 #undef SW
