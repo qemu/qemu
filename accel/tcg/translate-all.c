@@ -290,6 +290,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
     if (unlikely(!tb)) {
         /* flush must be done */
         if (cpu_in_serial_context(cpu)) {
+            trace_tb_gen_code_buffer_overflow("tcg_tb_alloc");
             tb_flush__exclusive_or_serial();
             goto buffer_overflow;
         }
@@ -325,6 +326,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
     if (unlikely(gen_code_size < 0)) {
         switch (gen_code_size) {
         case -1:
+            trace_tb_gen_code_buffer_overflow("setjmp_gen_code");
             /*
              * Overflow of code_gen_buffer, or the current slice of it.
              *
@@ -389,6 +391,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
 
     search_size = encode_search(tb, (void *)gen_code_buf + gen_code_size);
     if (unlikely(search_size < 0)) {
+        trace_tb_gen_code_buffer_overflow("encode_search");
         tb_unlock_pages(tb);
         goto buffer_overflow;
     }

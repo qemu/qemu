@@ -441,7 +441,7 @@ class QAPISchemaParser:
             self._literal_mode = True
             self._literal_mode_indent = 0
         elif self._literal_mode and line:
-            indent = re.match(r'^ *', line).end()
+            indent = must_match(r'\s*', line).end()
             if self._literal_mode_indent == 0:
                 self._literal_mode_indent = indent
             elif indent < self._literal_mode_indent:
