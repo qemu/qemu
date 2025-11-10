@@ -789,8 +789,7 @@ static size_t sd_response_size(SDState *sd, sd_rsp_type_t rtype)
 static void sd_response_r1_make(SDState *sd, uint8_t *response)
 {
     if (sd_is_spi(sd)) {
-        response[0] = sd->state == sd_idle_state
-                   && !FIELD_EX32(sd->ocr, OCR, CARD_POWER_UP);
+        response[0] = sd->state == sd_idle_state;
         response[0] |= FIELD_EX32(sd->card_status, CSR, ERASE_RESET) << 1;
         response[0] |= FIELD_EX32(sd->card_status, CSR, ILLEGAL_COMMAND) << 2;
         response[0] |= FIELD_EX32(sd->card_status, CSR, COM_CRC_ERROR) << 3;
