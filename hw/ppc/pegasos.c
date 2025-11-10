@@ -847,7 +847,7 @@ static struct {
 static void add_pci_device(PCIBus *bus, PCIDevice *d, void *opaque)
 {
     FDTInfo *fi = opaque;
-    GString *node = g_string_new(NULL);
+    GString *node;
     uint32_t cells[(PCI_NUM_REGIONS + 1) * 5];
     int i, j;
     const char *name = NULL;
@@ -871,6 +871,7 @@ static void add_pci_device(PCIBus *bus, PCIDevice *d, void *opaque)
             break;
         }
     }
+    node = g_string_new(NULL);
     g_string_printf(node, "%s/%s@%x", fi->path, (name ?: pn),
                     PCI_SLOT(d->devfn));
     if (PCI_FUNC(d->devfn)) {
