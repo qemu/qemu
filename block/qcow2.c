@@ -846,7 +846,7 @@ static void coroutine_fn cache_clean_timer(void *opaque)
 
     while (wait_ns > 0) {
         qemu_co_sleep_ns_wakeable(&s->cache_clean_timer_wake,
-                                  QEMU_CLOCK_VIRTUAL, wait_ns);
+                                  QEMU_CLOCK_REALTIME, wait_ns);
 
         WITH_QEMU_LOCK_GUARD(&s->lock) {
             if (s->cache_clean_interval > 0) {
