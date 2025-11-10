@@ -119,6 +119,7 @@ typedef struct IscsiTask {
 
 typedef struct IscsiAIOCB {
     BlockAIOCB common;
+    AioContext *ctx;
     QEMUBH *bh;
     IscsiLun *iscsilun;
     struct scsi_task *task;
@@ -173,7 +174,7 @@ iscsi_schedule_bh(IscsiAIOCB *acb)
     if (acb->bh) {
         return;
     }
-    acb->bh = aio_bh_new(acb->iscsilun->aio_context, iscsi_bh_cb, acb);
+    acb->bh = aio_bh_new(acb->ctx, iscsi_bh_cb, acb);
     qemu_bh_schedule(acb->bh);
 }
 
@@ -1012,8 +1013,7 @@ static void iscsi_ioctl_handle_emulated(IscsiAIOCB *acb, int req, void *buf)
         ret = -EINVAL;
     }
     assert(!acb->bh);
-    acb->bh = aio_bh_new(bdrv_get_aio_context(bs),
-                         iscsi_ioctl_bh_completion, acb);
+    acb->bh = aio_bh_new(acb->ctx, iscsi_ioctl_bh_completion, acb);
     acb->ret = ret;
     qemu_bh_schedule(acb->bh);
 }
@@ -1030,6 +1030,7 @@ static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
     acb = qemu_aio_get(&iscsi_aiocb_info, bs, cb, opaque);
 
     acb->iscsilun = iscsilun;
+    acb->ctx         = qemu_get_current_aio_context();
     acb->bh          = NULL;
     acb->status      = -EINPROGRESS;
     acb->ioh         = buf;
