@@ -64,6 +64,7 @@ typedef struct {
 } NVMeQueue;
 
 typedef struct {
+    /* Called from nvme_process_completion() in the BDS's main AioContext */
     BlockCompletionFunc *cb;
     void *opaque;
     int cid;
@@ -83,6 +84,7 @@ typedef struct {
     uint8_t     *prp_list_pages;
 
     /* Fields protected by @lock */
+    /* Coroutines in this queue are woken in their own context */
     CoQueue     free_req_queue;
     NVMeQueue   sq, cq;
     int         cq_phase;
@@ -91,7 +93,7 @@ typedef struct {
     int         need_kick;
     int         inflight;
 
-    /* Thread-safe, no lock necessary */
+    /* Thread-safe, no lock necessary; runs in the BDS's main context */
     QEMUBH      *completion_bh;
 } NVMeQueuePair;
 
@@ -205,11 +207,13 @@ static void nvme_free_queue_pair(NVMeQueuePair *q)
     g_free(q);
 }
 
+/* Runs in the BDS's main AioContext */
 static void nvme_free_req_queue_cb(void *opaque)
 {
     NVMeQueuePair *q = opaque;
 
     qemu_mutex_lock(&q->lock);
+    /* qemu_co_enter_next() wakes the coroutine in its own AioContext */
     while (q->free_req_head != -1 &&
            qemu_co_enter_next(&q->free_req_queue, &q->lock)) {
         /* Retry waiting requests */
@@ -280,7 +284,7 @@ fail:
     return NULL;
 }
 
-/* With q->lock */
+/* With q->lock, must be run in the BDS's main AioContext */
 static void nvme_kick(NVMeQueuePair *q)
 {
     BDRVNVMeState *s = q->s;
@@ -307,7 +311,10 @@ static NVMeRequest *nvme_get_free_req_nofail_locked(NVMeQueuePair *q)
     return req;
 }
 
-/* Return a free request element if any, otherwise return NULL.  */
+/*
+ * Return a free request element if any, otherwise return NULL.
+ * May be run from any AioContext.
+ */
 static NVMeRequest *nvme_get_free_req_nowait(NVMeQueuePair *q)
 {
     QEMU_LOCK_GUARD(&q->lock);
@@ -320,6 +327,7 @@ static NVMeRequest *nvme_get_free_req_nowait(NVMeQueuePair *q)
 /*
  * Wait for a free request to become available if necessary, then
  * return it.
+ * May be called in any AioContext.
  */
 static coroutine_fn NVMeRequest *nvme_get_free_req(NVMeQueuePair *q)
 {
@@ -327,20 +335,21 @@ static coroutine_fn NVMeRequest *nvme_get_free_req(NVMeQueuePair *q)
 
     while (q->free_req_head == -1) {
         trace_nvme_free_req_queue_wait(q->s, q->index);
+        /* nvme_free_req_queue_cb() wakes us in our own AioContext */
         qemu_co_queue_wait(&q->free_req_queue, &q->lock);
     }
 
     return nvme_get_free_req_nofail_locked(q);
 }
 
-/* With q->lock */
+/* With q->lock, may be called in any AioContext */
 static void nvme_put_free_req_locked(NVMeQueuePair *q, NVMeRequest *req)
 {
     req->free_req_next = q->free_req_head;
     q->free_req_head = req - q->reqs;
 }
 
-/* With q->lock */
+/* With q->lock, may be called in any AioContext */
 static void nvme_wake_free_req_locked(NVMeQueuePair *q)
 {
     if (!qemu_co_queue_empty(&q->free_req_queue)) {
@@ -349,7 +358,7 @@ static void nvme_wake_free_req_locked(NVMeQueuePair *q)
     }
 }
 
-/* Insert a request in the freelist and wake waiters */
+/* Insert a request in the freelist and wake waiters (from any AioContext) */
 static void nvme_put_free_req_and_wake(NVMeQueuePair *q, NVMeRequest *req)
 {
     qemu_mutex_lock(&q->lock);
@@ -380,7 +389,7 @@ static inline int nvme_translate_error(const NvmeCqe *c)
     }
 }
 
-/* With q->lock */
+/* With q->lock, must be run in the BDS's main AioContext */
 static bool nvme_process_completion(NVMeQueuePair *q)
 {
     BDRVNVMeState *s = q->s;
@@ -450,6 +459,7 @@ static bool nvme_process_completion(NVMeQueuePair *q)
     return progress;
 }
 
+/* As q->completion_bh, runs in the BDS's main AioContext */
 static void nvme_process_completion_bh(void *opaque)
 {
     NVMeQueuePair *q = opaque;
@@ -480,6 +490,7 @@ static void nvme_trace_command(const NvmeCmd *cmd)
     }
 }
 
+/* Must be run in the BDS's main AioContext */
 static void nvme_kick_and_check_completions(void *opaque)
 {
     NVMeQueuePair *q = opaque;
@@ -489,6 +500,7 @@ static void nvme_kick_and_check_completions(void *opaque)
     nvme_process_completion(q);
 }
 
+/* Runs in nvme_submit_command()'s AioContext */
 static void nvme_deferred_fn(void *opaque)
 {
     NVMeQueuePair *q = opaque;
@@ -501,6 +513,7 @@ static void nvme_deferred_fn(void *opaque)
     }
 }
 
+/* May be run in any AioContext */
 static void nvme_submit_command(NVMeQueuePair *q, NVMeRequest *req,
                                 NvmeCmd *cmd, BlockCompletionFunc cb,
                                 void *opaque)
@@ -522,6 +535,7 @@ static void nvme_submit_command(NVMeQueuePair *q, NVMeRequest *req,
     defer_call(nvme_deferred_fn, q);
 }
 
+/* Put into NVMeRequest.cb, so runs in the BDS's main AioContext */
 static void nvme_admin_cmd_sync_cb(void *opaque, int ret)
 {
     int *pret = opaque;
@@ -529,6 +543,7 @@ static void nvme_admin_cmd_sync_cb(void *opaque, int ret)
     aio_wait_kick();
 }
 
+/* Must be run in the BDS's or qemu's main AioContext */
 static int nvme_admin_cmd_sync(BlockDriverState *bs, NvmeCmd *cmd)
 {
     BDRVNVMeState *s = bs->opaque;
@@ -637,6 +652,7 @@ out:
     return ret;
 }
 
+/* Must be run in the BDS's main AioContext */
 static void nvme_poll_queue(NVMeQueuePair *q)
 {
     const size_t cqe_offset = q->cq.head * NVME_CQ_ENTRY_BYTES;
@@ -659,6 +675,7 @@ static void nvme_poll_queue(NVMeQueuePair *q)
     qemu_mutex_unlock(&q->lock);
 }
 
+/* Must be run in the BDS's main AioContext */
 static void nvme_poll_queues(BDRVNVMeState *s)
 {
     int i;
@@ -668,6 +685,7 @@ static void nvme_poll_queues(BDRVNVMeState *s)
     }
 }
 
+/* Run as an event notifier in the BDS's main AioContext */
 static void nvme_handle_event(EventNotifier *n)
 {
     BDRVNVMeState *s = container_of(n, BDRVNVMeState,
@@ -721,6 +739,7 @@ out_error:
     return false;
 }
 
+/* Run as an event notifier in the BDS's main AioContext */
 static bool nvme_poll_cb(void *opaque)
 {
     EventNotifier *e = opaque;
@@ -744,6 +763,7 @@ static bool nvme_poll_cb(void *opaque)
     return false;
 }
 
+/* Run as an event notifier in the BDS's main AioContext */
 static void nvme_poll_ready(EventNotifier *e)
 {
     BDRVNVMeState *s = container_of(e, BDRVNVMeState,
@@ -1045,7 +1065,7 @@ static int nvme_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
     return 0;
 }
 
-/* Called with s->dma_map_lock */
+/* Called with s->dma_map_lock, may be run in any AioContext */
 static coroutine_fn int nvme_cmd_unmap_qiov(BlockDriverState *bs,
                                             QEMUIOVector *qiov)
 {
@@ -1056,13 +1076,17 @@ static coroutine_fn int nvme_cmd_unmap_qiov(BlockDriverState *bs,
     if (!s->dma_map_count && !qemu_co_queue_empty(&s->dma_flush_queue)) {
         r = qemu_vfio_dma_reset_temporary(s->vfio);
         if (!r) {
+            /*
+             * Queue access is protected by the dma_map_lock, and all
+             * coroutines are woken in their own AioContext
+             */
             qemu_co_queue_restart_all(&s->dma_flush_queue);
         }
     }
     return r;
 }
 
-/* Called with s->dma_map_lock */
+/* Called with s->dma_map_lock, may be run in any AioContext */
 static coroutine_fn int nvme_cmd_map_qiov(BlockDriverState *bs, NvmeCmd *cmd,
                                           NVMeRequest *req, QEMUIOVector *qiov)
 {
@@ -1175,6 +1199,7 @@ typedef struct {
     int ret;
 } NVMeCoData;
 
+/* Put into NVMeRequest.cb, so runs in the BDS's main AioContext */
 static void nvme_rw_cb(void *opaque, int ret)
 {
     NVMeCoData *data = opaque;
