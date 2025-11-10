@@ -63,9 +63,10 @@ static void block_request_create(uint64_t reqid, BlockDriverState *bs,
                                  Coroutine *co)
 {
     Request *req = g_new(Request, 1);
+    AioContext *ctx = qemu_coroutine_get_aio_context(co);
     *req = (Request) {
         .co = co,
-        .bh = aio_bh_new(bdrv_get_aio_context(bs), blkreplay_bh_cb, req),
+        .bh = aio_bh_new(ctx, blkreplay_bh_cb, req),
     };
     replay_block_event(req->bh, reqid);
 }
