@@ -669,7 +669,7 @@ static void output_callback(void *opaque, int avail)
             return;
         }
 
-        written = AUD_write(s->audio_be, s->out.voice, data, len);
+        written = audio_be_write(s->audio_be, s->out.voice, data, len);
         avail -= written;
         s->out.buf.cons += written;
 
@@ -683,7 +683,7 @@ static int usb_audio_set_output_altset(USBAudioState *s, int altset)
 {
     switch (altset) {
     case ALTSET_OFF:
-        AUD_set_active_out(s->audio_be, s->out.voice, false);
+        audio_be_set_active_out(s->audio_be, s->out.voice, false);
         break;
     case ALTSET_STEREO:
     case ALTSET_51:
@@ -692,7 +692,7 @@ static int usb_audio_set_output_altset(USBAudioState *s, int altset)
             usb_audio_reinit(USB_DEVICE(s), altset_channels[altset]);
         }
         streambuf_init(&s->out.buf, s->buffer, s->out.channels);
-        AUD_set_active_out(s->audio_be, s->out.voice, true);
+        audio_be_set_active_out(s->audio_be, s->out.voice, true);
         break;
     default:
         return -1;
@@ -805,7 +805,7 @@ static int usb_audio_set_control(USBAudioState *s, uint8_t attrib,
             }
             fprintf(stderr, "\n");
         }
-        AUD_set_volume_out(s->audio_be, s->out.voice, &s->out.vol);
+        audio_be_set_volume_out(s->audio_be, s->out.voice, &s->out.vol);
     }
 
     return ret;
@@ -931,7 +931,7 @@ static void usb_audio_unrealize(USBDevice *dev)
     }
 
     usb_audio_set_output_altset(s, ALTSET_OFF);
-    AUD_close_out(s->audio_be, s->out.voice);
+    audio_be_close_out(s->audio_be, s->out.voice);
 
     streambuf_fini(&s->out.buf);
 }
@@ -941,7 +941,7 @@ static void usb_audio_realize(USBDevice *dev, Error **errp)
     USBAudioState *s = USB_AUDIO(dev);
     int i;
 
-    if (!AUD_backend_check(&s->audio_be, errp)) {
+    if (!audio_be_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -978,10 +978,10 @@ static void usb_audio_reinit(USBDevice *dev, unsigned channels)
     s->out.as.endianness = 0;
     streambuf_init(&s->out.buf, s->buffer, s->out.channels);
 
-    s->out.voice = AUD_open_out(s->audio_be, s->out.voice, TYPE_USB_AUDIO,
+    s->out.voice = audio_be_open_out(s->audio_be, s->out.voice, TYPE_USB_AUDIO,
                                 s, output_callback, &s->out.as);
-    AUD_set_volume_out(s->audio_be, s->out.voice, &s->out.vol);
-    AUD_set_active_out(s->audio_be, s->out.voice, 0);
+    audio_be_set_volume_out(s->audio_be, s->out.voice, &s->out.vol);
+    audio_be_set_active_out(s->audio_be, s->out.voice, 0);
 }
 
 static const VMStateDescription vmstate_usb_audio = {

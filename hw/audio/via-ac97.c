@@ -53,7 +53,7 @@ static void codec_volume_set_out(ViaAC97State *s)
     rvol /= 255;
     mute = CODEC_REG(s, AC97_Master_Volume_Mute) >> MUTE_SHIFT;
     mute |= CODEC_REG(s, AC97_PCM_Out_Volume_Mute) >> MUTE_SHIFT;
-    AUD_set_volume_out_lr(s->audio_be, s->vo, mute, lvol, rvol);
+    audio_be_set_volume_out_lr(s->audio_be, s->vo, mute, lvol, rvol);
 }
 
 static void codec_reset(ViaAC97State *s)
@@ -189,7 +189,7 @@ static void out_cb(void *opaque, int avail)
         while (temp) {
             to_copy = MIN(temp, sizeof(tmpbuf));
             pci_dma_read(&s->dev, c->addr, tmpbuf, to_copy);
-            copied = AUD_write(s->audio_be, s->vo, tmpbuf, to_copy);
+            copied = audio_be_write(s->audio_be, s->vo, tmpbuf, to_copy);
             if (!copied) {
                 stop = true;
                 break;
@@ -208,7 +208,7 @@ static void out_cb(void *opaque, int avail)
                     c->stat |= STAT_PAUSED;
                 } else {
                     c->stat &= ~STAT_ACTIVE;
-                    AUD_set_active_out(s->audio_be, s->vo, 0);
+                    audio_be_set_active_out(s->audio_be, s->vo, 0);
                 }
                 if (c->type & STAT_EOL) {
                     via_isa_set_irq(&s->dev, 0, 1);
@@ -239,7 +239,7 @@ static void open_voice_out(ViaAC97State *s)
         .fmt = s->aur.type & BIT(5) ? AUDIO_FORMAT_S16 : AUDIO_FORMAT_S8,
         .endianness = 0,
     };
-    s->vo = AUD_open_out(s->audio_be, s->vo, "via-ac97.out", s, out_cb, &as);
+    s->vo = audio_be_open_out(s->audio_be, s->vo, "via-ac97.out", s, out_cb, &as);
 }
 
 static uint64_t sgd_read(void *opaque, hwaddr addr, unsigned size)
@@ -317,20 +317,20 @@ static void sgd_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         break;
     case 1:
         if (val & CNTL_START) {
-            AUD_set_active_out(s->audio_be, s->vo, 1);
+            audio_be_set_active_out(s->audio_be, s->vo, 1);
             s->aur.stat = STAT_ACTIVE;
         }
         if (val & CNTL_TERM) {
-            AUD_set_active_out(s->audio_be, s->vo, 0);
+            audio_be_set_active_out(s->audio_be, s->vo, 0);
             s->aur.stat &= ~(STAT_ACTIVE | STAT_PAUSED);
             s->aur.clen = 0;
         }
         if (val & CNTL_PAUSE) {
-            AUD_set_active_out(s->audio_be, s->vo, 0);
+            audio_be_set_active_out(s->audio_be, s->vo, 0);
             s->aur.stat &= ~STAT_ACTIVE;
             s->aur.stat |= STAT_PAUSED;
         } else if (!(val & CNTL_PAUSE) && (s->aur.stat & STAT_PAUSED)) {
-            AUD_set_active_out(s->audio_be, s->vo, 1);
+            audio_be_set_active_out(s->audio_be, s->vo, 1);
             s->aur.stat |= STAT_ACTIVE;
             s->aur.stat &= ~STAT_PAUSED;
         }
@@ -426,7 +426,7 @@ static void via_ac97_realize(PCIDevice *pci_dev, Error **errp)
     ViaAC97State *s = VIA_AC97(pci_dev);
     Object *o = OBJECT(s);
 
-    if (!AUD_backend_check(&s->audio_be, errp)) {
+    if (!audio_be_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -455,7 +455,7 @@ static void via_ac97_exit(PCIDevice *dev)
 {
     ViaAC97State *s = VIA_AC97(dev);
 
-    AUD_close_out(s->audio_be, s->vo);
+    audio_be_close_out(s->audio_be, s->vo);
 }
 
 static const Property via_ac97_properties[] = {

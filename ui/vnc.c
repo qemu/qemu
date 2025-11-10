@@ -1280,7 +1280,7 @@ static void audio_add(VncState *vs)
     ops.destroy = audio_capture_destroy;
     ops.capture = audio_capture;
 
-    vs->audio_cap = AUD_add_capture(vs->vd->audio_be, &vs->as, &ops, vs);
+    vs->audio_cap = audio_be_add_capture(vs->vd->audio_be, &vs->as, &ops, vs);
     if (!vs->audio_cap) {
         error_report("Failed to add audio capture");
     }
@@ -1289,7 +1289,7 @@ static void audio_add(VncState *vs)
 static void audio_del(VncState *vs)
 {
     if (vs->audio_cap) {
-        AUD_del_capture(vs->vd->audio_be, vs->audio_cap, vs);
+        audio_be_del_capture(vs->vd->audio_be, vs->audio_cap, vs);
         vs->audio_cap = NULL;
     }
 }

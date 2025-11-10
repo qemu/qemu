@@ -246,15 +246,15 @@ static void voice_set_active(AC97LinkState *s, int bm_index, int on)
 {
     switch (bm_index) {
     case PI_INDEX:
-        AUD_set_active_in(s->audio_be, s->voice_pi, on);
+        audio_be_set_active_in(s->audio_be, s->voice_pi, on);
         break;
 
     case PO_INDEX:
-        AUD_set_active_out(s->audio_be, s->voice_po, on);
+        audio_be_set_active_out(s->audio_be, s->voice_po, on);
         break;
 
     case MC_INDEX:
-        AUD_set_active_in(s->audio_be, s->voice_mc, on);
+        audio_be_set_active_in(s->audio_be, s->voice_mc, on);
         break;
 
     default:
@@ -319,7 +319,7 @@ static void open_voice(AC97LinkState *s, int index, int freq)
         s->invalid_freq[index] = 0;
         switch (index) {
         case PI_INDEX:
-            s->voice_pi = AUD_open_in(
+            s->voice_pi = audio_be_open_in(
                 s->audio_be,
                 s->voice_pi,
                 "ac97.pi",
@@ -330,7 +330,7 @@ static void open_voice(AC97LinkState *s, int index, int freq)
             break;
 
         case PO_INDEX:
-            s->voice_po = AUD_open_out(
+            s->voice_po = audio_be_open_out(
                 s->audio_be,
                 s->voice_po,
                 "ac97.po",
@@ -341,7 +341,7 @@ static void open_voice(AC97LinkState *s, int index, int freq)
             break;
 
         case MC_INDEX:
-            s->voice_mc = AUD_open_in(
+            s->voice_mc = audio_be_open_in(
                 s->audio_be,
                 s->voice_mc,
                 "ac97.mc",
@@ -355,17 +355,17 @@ static void open_voice(AC97LinkState *s, int index, int freq)
         s->invalid_freq[index] = freq;
         switch (index) {
         case PI_INDEX:
-            AUD_close_in(s->audio_be, s->voice_pi);
+            audio_be_close_in(s->audio_be, s->voice_pi);
             s->voice_pi = NULL;
             break;
 
         case PO_INDEX:
-            AUD_close_out(s->audio_be, s->voice_po);
+            audio_be_close_out(s->audio_be, s->voice_po);
             s->voice_po = NULL;
             break;
 
         case MC_INDEX:
-            AUD_close_in(s->audio_be, s->voice_mc);
+            audio_be_close_in(s->audio_be, s->voice_mc);
             s->voice_mc = NULL;
             break;
         }
@@ -378,15 +378,15 @@ static void reset_voices(AC97LinkState *s, uint8_t active[LAST_INDEX])
 
     freq = mixer_load(s, AC97_PCM_LR_ADC_Rate);
     open_voice(s, PI_INDEX, freq);
-    AUD_set_active_in(s->audio_be, s->voice_pi, active[PI_INDEX]);
+    audio_be_set_active_in(s->audio_be, s->voice_pi, active[PI_INDEX]);
 
     freq = mixer_load(s, AC97_PCM_Front_DAC_Rate);
     open_voice(s, PO_INDEX, freq);
-    AUD_set_active_out(s->audio_be, s->voice_po, active[PO_INDEX]);
+    audio_be_set_active_out(s->audio_be, s->voice_po, active[PO_INDEX]);
 
     freq = mixer_load(s, AC97_MIC_ADC_Rate);
     open_voice(s, MC_INDEX, freq);
-    AUD_set_active_in(s->audio_be, s->voice_mc, active[MC_INDEX]);
+    audio_be_set_active_in(s->audio_be, s->voice_mc, active[MC_INDEX]);
 }
 
 static void get_volume(uint16_t vol, uint16_t mask, int inverse,
@@ -416,7 +416,7 @@ static void update_combined_volume_out(AC97LinkState *s)
     lvol = (lvol * plvol) / 255;
     rvol = (rvol * prvol) / 255;
 
-    AUD_set_volume_out_lr(s->audio_be, s->voice_po, mute, lvol, rvol);
+    audio_be_set_volume_out_lr(s->audio_be, s->voice_po, mute, lvol, rvol);
 }
 
 static void update_volume_in(AC97LinkState *s)
@@ -427,7 +427,7 @@ static void update_volume_in(AC97LinkState *s)
     get_volume(mixer_load(s, AC97_Record_Gain_Mute), 0x0f, 0,
                &mute, &lvol, &rvol);
 
-    AUD_set_volume_in_lr(s->audio_be, s->voice_pi, mute, lvol, rvol);
+    audio_be_set_volume_in_lr(s->audio_be, s->voice_pi, mute, lvol, rvol);
 }
 
 static void set_volume(AC97LinkState *s, int index, uint32_t val)
@@ -904,7 +904,7 @@ static int write_audio(AC97LinkState *s, AC97BusMasterRegs *r,
         int copied;
         to_copy = MIN(temp, sizeof(tmpbuf));
         pci_dma_read(&s->dev, addr, tmpbuf, to_copy);
-        copied = AUD_write(s->audio_be, s->voice_po, tmpbuf, to_copy);
+        copied = audio_be_write(s->audio_be, s->voice_po, tmpbuf, to_copy);
         dolog("write_audio max=%x to_copy=%x copied=%x",
               max, to_copy, copied);
         if (!copied) {
@@ -948,7 +948,7 @@ static void write_bup(AC97LinkState *s, int elapsed)
     while (elapsed) {
         int temp = MIN(elapsed, sizeof(s->silence));
         while (temp) {
-            int copied = AUD_write(s->audio_be, s->voice_po, s->silence, temp);
+            int copied = audio_be_write(s->audio_be, s->voice_po, s->silence, temp);
             if (!copied) {
                 return;
             }
@@ -978,7 +978,7 @@ static int read_audio(AC97LinkState *s, AC97BusMasterRegs *r,
     while (temp) {
         int acquired;
         to_copy = MIN(temp, sizeof(tmpbuf));
-        acquired = AUD_read(s->audio_be, voice, tmpbuf, to_copy);
+        acquired = audio_be_read(s->audio_be, voice, tmpbuf, to_copy);
         if (!acquired) {
             *stop = 1;
             break;
@@ -1275,7 +1275,7 @@ static void ac97_realize(PCIDevice *dev, Error **errp)
     AC97LinkState *s = AC97(dev);
     uint8_t *c = s->dev.config;
 
-    if (!AUD_backend_check(&s->audio_be, errp)) {
+    if (!audio_be_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -1301,9 +1301,9 @@ static void ac97_exit(PCIDevice *dev)
 {
     AC97LinkState *s = AC97(dev);
 
-    AUD_close_in(s->audio_be, s->voice_pi);
-    AUD_close_out(s->audio_be, s->voice_po);
-    AUD_close_in(s->audio_be, s->voice_mc);
+    audio_be_close_in(s->audio_be, s->voice_pi);
+    audio_be_close_out(s->audio_be, s->voice_po);
+    audio_be_close_in(s->audio_be, s->voice_mc);
 }
 
 static const Property ac97_properties[] = {

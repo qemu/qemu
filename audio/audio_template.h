@@ -527,7 +527,7 @@ static SW *glue(audio_mixeng_backend_open_, TYPE) (
     }
 
     if (!pdo->fixed_settings && sw) {
-        glue(AUD_close_, TYPE)(be, sw);
+        glue(audio_be_close_, TYPE)(be, sw);
         sw = NULL;
     }
 
@@ -564,7 +564,7 @@ static SW *glue(audio_mixeng_backend_open_, TYPE) (
     return sw;
 
  fail:
-    glue(AUD_close_, TYPE)(be, sw);
+    glue(audio_be_close_, TYPE)(be, sw);
     return NULL;
 }
 

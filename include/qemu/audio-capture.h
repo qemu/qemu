@@ -19,13 +19,13 @@ typedef struct CaptureState {
     QLIST_ENTRY(CaptureState) entries;
 } CaptureState;
 
-CaptureVoiceOut *AUD_add_capture(
+CaptureVoiceOut *audio_be_add_capture(
     AudioBackend *be,
     struct audsettings *as,
     struct audio_capture_ops *ops,
     void *opaque);
 
-void AUD_del_capture(
+void audio_be_del_capture(
     AudioBackend *be,
     CaptureVoiceOut *cap,
     void *cb_opaque);

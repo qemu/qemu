@@ -109,11 +109,11 @@ typedef struct AudioBackendClass {
 #endif
 } AudioBackendClass;
 
-bool AUD_backend_check(AudioBackend **be, Error **errp);
+bool audio_be_check(AudioBackend **be, Error **errp);
 
 AudioBackend *audio_be_new(Audiodev *dev, Error **errp);
 
-SWVoiceOut *AUD_open_out(
+SWVoiceOut *audio_be_open_out(
     AudioBackend *be,
     SWVoiceOut *sw,
     const char *name,
@@ -121,34 +121,33 @@ SWVoiceOut *AUD_open_out(
     audio_callback_fn callback_fn,
     const struct audsettings *settings);
 
-void AUD_close_out(AudioBackend *be, SWVoiceOut *sw);
-size_t AUD_write(AudioBackend *be, SWVoiceOut *sw, void *pcm_buf, size_t size);
-int  AUD_get_buffer_size_out(AudioBackend *be, SWVoiceOut *sw);
-void AUD_set_active_out(AudioBackend *be, SWVoiceOut *sw, bool on);
-bool AUD_is_active_out(AudioBackend *be, SWVoiceOut *sw);
+void audio_be_close_out(AudioBackend *be, SWVoiceOut *sw);
+size_t audio_be_write(AudioBackend *be, SWVoiceOut *sw, void *pcm_buf, size_t size);
+int  audio_be_get_buffer_size_out(AudioBackend *be, SWVoiceOut *sw);
+void audio_be_set_active_out(AudioBackend *be, SWVoiceOut *sw, bool on);
+bool audio_be_is_active_out(AudioBackend *be, SWVoiceOut *sw);
 
-void AUD_set_volume_out(AudioBackend *be, SWVoiceOut *sw, Volume *vol);
-void AUD_set_volume_in(AudioBackend *be, SWVoiceIn *sw, Volume *vol);
+
+void audio_be_set_volume_out(AudioBackend *be, SWVoiceOut *sw, Volume *vol);
+void audio_be_set_volume_in(AudioBackend *be, SWVoiceIn *sw, Volume *vol);
 
 static inline void
-AUD_set_volume_out_lr(AudioBackend *be, SWVoiceOut *sw,
-                      bool mut, uint8_t lvol, uint8_t rvol)
-{
-    AUD_set_volume_out(be, sw, &(Volume) {
+audio_be_set_volume_out_lr(AudioBackend *be, SWVoiceOut *sw,
+                           bool mut, uint8_t lvol, uint8_t rvol) {
+    audio_be_set_volume_out(be, sw, &(Volume) {
         .mute = mut, .channels = 2, .vol = { lvol, rvol }
     });
 }
 
 static inline void
-AUD_set_volume_in_lr(AudioBackend *be, SWVoiceIn *sw,
-                     bool mut, uint8_t lvol, uint8_t rvol)
-{
-    AUD_set_volume_in(be, sw, &(Volume) {
+audio_be_set_volume_in_lr(AudioBackend *be, SWVoiceIn *sw,
+                          bool mut, uint8_t lvol, uint8_t rvol) {
+    audio_be_set_volume_in(be, sw, &(Volume) {
         .mute = mut, .channels = 2, .vol = { lvol, rvol }
     });
 }
 
-SWVoiceIn *AUD_open_in(
+SWVoiceIn *audio_be_open_in(
     AudioBackend *be,
     SWVoiceIn *sw,
     const char *name,
@@ -157,10 +156,10 @@ SWVoiceIn *AUD_open_in(
     const struct audsettings *settings
     );
 
-void AUD_close_in(AudioBackend *be, SWVoiceIn *sw);
-size_t AUD_read(AudioBackend *be, SWVoiceIn *sw, void *pcm_buf, size_t size);
-void AUD_set_active_in(AudioBackend *be, SWVoiceIn *sw, bool on);
-bool AUD_is_active_in(AudioBackend *be, SWVoiceIn *sw);
+void audio_be_close_in(AudioBackend *be, SWVoiceIn *sw);
+size_t audio_be_read(AudioBackend *be, SWVoiceIn *sw, void *pcm_buf, size_t size);
+void audio_be_set_active_in(AudioBackend *be, SWVoiceIn *sw, bool on);
+bool audio_be_is_active_in(AudioBackend *be, SWVoiceIn *sw);
 
 void audio_cleanup(void);
 

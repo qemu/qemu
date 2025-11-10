@@ -86,7 +86,7 @@ static void wav_capture_destroy (void *opaque)
 {
     WAVState *wav = opaque;
 
-    AUD_del_capture(wav->audio_be, wav->cap, wav);
+    audio_be_del_capture(wav->audio_be, wav->cap, wav);
     g_free (wav);
 }
 
@@ -172,7 +172,7 @@ int wav_start_capture(AudioBackend *state, CaptureState *s, const char *path,
         goto error_free;
     }
 
-    cap = AUD_add_capture(wav->audio_be, &as, &ops, wav);
+    cap = audio_be_add_capture(wav->audio_be, &as, &ops, wav);
     if (!cap) {
         error_report("Failed to add audio capture");
         goto error_free;

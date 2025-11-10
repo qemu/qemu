@@ -87,7 +87,7 @@ static int write_audio (GUSState *s, int samples)
         int nbytes, wbytes, wsampl;
 
         nbytes = samples << s->shift;
-        wbytes = AUD_write(
+        wbytes = audio_be_write(
             s->audio_be,
             s->voice,
             s->mixbuf + (pos << (s->shift - 1)),
@@ -243,7 +243,7 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
     IsaDmaClass *k;
     struct audsettings as;
 
-    if (!AUD_backend_check(&s->audio_be, errp)) {
+    if (!audio_be_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -258,7 +258,7 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
     as.fmt = AUDIO_FORMAT_S16;
     as.endianness = HOST_BIG_ENDIAN;
 
-    s->voice = AUD_open_out(
+    s->voice = audio_be_open_out(
         s->audio_be,
         NULL,
         "gus",
@@ -273,7 +273,7 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
     }
 
     s->shift = 2;
-    s->samples = AUD_get_buffer_size_out(s->audio_be, s->voice) >> s->shift;
+    s->samples = audio_be_get_buffer_size_out(s->audio_be, s->voice) >> s->shift;
     s->mixbuf = g_malloc0 (s->samples << s->shift);
 
     isa_register_portio_list(d, &s->portio_list1, s->port,
@@ -288,7 +288,7 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
     s->emu.opaque = s;
     s->pic = isa_bus_get_irq(bus, s->emu.gusirq);
 
-    AUD_set_active_out(s->audio_be, s->voice, 1);
+    audio_be_set_active_out(s->audio_be, s->voice, 1);
 }
 
 static const Property gus_properties[] = {

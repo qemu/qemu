@@ -402,10 +402,10 @@ static void virtio_snd_pcm_close(VirtIOSoundPCMStream *stream)
     if (stream) {
         virtio_snd_pcm_flush(stream);
         if (stream->info.direction == VIRTIO_SND_D_OUTPUT) {
-            AUD_close_out(stream->pcm->snd->audio_be, stream->voice.out);
+            audio_be_close_out(stream->pcm->snd->audio_be, stream->voice.out);
             stream->voice.out = NULL;
         } else if (stream->info.direction == VIRTIO_SND_D_INPUT) {
-            AUD_close_in(stream->pcm->snd->audio_be, stream->voice.in);
+            audio_be_close_in(stream->pcm->snd->audio_be, stream->voice.in);
             stream->voice.in = NULL;
         }
     }
@@ -469,21 +469,21 @@ static uint32_t virtio_snd_pcm_prepare(VirtIOSound *s, uint32_t stream_id)
     stream->as = as;
 
     if (stream->info.direction == VIRTIO_SND_D_OUTPUT) {
-        stream->voice.out = AUD_open_out(s->audio_be,
+        stream->voice.out = audio_be_open_out(s->audio_be,
                                          stream->voice.out,
                                          "virtio-sound.out",
                                          stream,
                                          virtio_snd_pcm_out_cb,
                                          &as);
-        AUD_set_volume_out_lr(s->audio_be, stream->voice.out, 0, 255, 255);
+        audio_be_set_volume_out_lr(s->audio_be, stream->voice.out, 0, 255, 255);
     } else {
-        stream->voice.in = AUD_open_in(s->audio_be,
+        stream->voice.in = audio_be_open_in(s->audio_be,
                                         stream->voice.in,
                                         "virtio-sound.in",
                                         stream,
                                         virtio_snd_pcm_in_cb,
                                         &as);
-        AUD_set_volume_in_lr(s->audio_be, stream->voice.in, 0, 255, 255);
+        audio_be_set_volume_in_lr(s->audio_be, stream->voice.in, 0, 255, 255);
     }
 
     return cpu_to_le32(VIRTIO_SND_S_OK);
@@ -573,9 +573,9 @@ static void virtio_snd_handle_pcm_start_stop(VirtIOSound *s,
             stream->active = start;
         }
         if (stream->info.direction == VIRTIO_SND_D_OUTPUT) {
-            AUD_set_active_out(s->audio_be, stream->voice.out, start);
+            audio_be_set_active_out(s->audio_be, stream->voice.out, start);
         } else {
-            AUD_set_active_in(s->audio_be, stream->voice.in, start);
+            audio_be_set_active_in(s->audio_be, stream->voice.in, start);
         }
     } else {
         error_report("Invalid stream id: %"PRIu32, stream_id);
@@ -1057,7 +1057,7 @@ static void virtio_snd_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!AUD_backend_check(&vsnd->audio_be, errp)) {
+    if (!audio_be_check(&vsnd->audio_be, errp)) {
         return;
     }
 
@@ -1146,10 +1146,10 @@ static inline void return_tx_buffer(VirtIOSoundPCMStream *stream,
 }
 
 /*
- * AUD_* output callback.
+ * audio_be_* output callback.
  *
  * @data: VirtIOSoundPCMStream stream
- * @available: number of bytes that can be written with AUD_write()
+ * @available: number of bytes that can be written with audio_be_write()
  */
 static void virtio_snd_pcm_out_cb(void *data, int available)
 {
@@ -1164,7 +1164,7 @@ static void virtio_snd_pcm_out_cb(void *data, int available)
                 return;
             }
             if (!stream->active) {
-                /* Stream has stopped, so do not perform AUD_write. */
+                /* Stream has stopped, so do not perform audio_be_write. */
                 return_tx_buffer(stream, buffer);
                 continue;
             }
@@ -1177,7 +1177,7 @@ static void virtio_snd_pcm_out_cb(void *data, int available)
                 buffer->populated = true;
             }
             for (;;) {
-                size = AUD_write(stream->s->audio_be,
+                size = audio_be_write(stream->s->audio_be,
                                  stream->voice.out,
                                  buffer->data + buffer->offset,
                                  MIN(buffer->size, available));
@@ -1242,10 +1242,10 @@ static inline void return_rx_buffer(VirtIOSoundPCMStream *stream,
 
 
 /*
- * AUD_* input callback.
+ * audio_be_* input callback.
  *
  * @data: VirtIOSoundPCMStream stream
- * @available: number of bytes that can be read with AUD_read()
+ * @available: number of bytes that can be read with audio_be_read()
  */
 static void virtio_snd_pcm_in_cb(void *data, int available)
 {
@@ -1260,7 +1260,7 @@ static void virtio_snd_pcm_in_cb(void *data, int available)
                 return;
             }
             if (!stream->active) {
-                /* Stream has stopped, so do not perform AUD_read. */
+                /* Stream has stopped, so do not perform audio_be_read. */
                 return_rx_buffer(stream, buffer);
                 continue;
             }
@@ -1280,10 +1280,10 @@ static void virtio_snd_pcm_in_cb(void *data, int available)
                 to_read = stream->params.period_bytes - buffer->size;
                 to_read = MIN(to_read, available);
                 to_read = MIN(to_read, max_size - buffer->size);
-                size = AUD_read(stream->s->audio_be,
-                                stream->voice.in,
-                                buffer->data + buffer->size,
-                                to_read);
+                size = audio_be_read(stream->s->audio_be,
+                                     stream->voice.in,
+                                     buffer->data + buffer->size,
+                                     to_read);
                 if (!size) {
                     available = 0;
                     break;

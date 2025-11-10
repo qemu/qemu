@@ -330,10 +330,10 @@ static void es1370_reset (ES1370State *s)
         d->scount = 0;
         d->leftover = 0;
         if (i == ADC_CHANNEL) {
-            AUD_close_in(s->audio_be, s->adc_voice);
+            audio_be_close_in(s->audio_be, s->adc_voice);
             s->adc_voice = NULL;
         } else {
-            AUD_close_out(s->audio_be, s->dac_voice[i]);
+            audio_be_close_out(s->audio_be, s->dac_voice[i]);
             s->dac_voice[i] = NULL;
         }
     }
@@ -411,7 +411,7 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
 
                 if (i == ADC_CHANNEL) {
                     s->adc_voice =
-                        AUD_open_in(
+                        audio_be_open_in(
                             s->audio_be,
                             s->adc_voice,
                             "es1370.adc",
@@ -421,7 +421,7 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
                             );
                 } else {
                     s->dac_voice[i] =
-                        AUD_open_out(
+                        audio_be_open_out(
                             s->audio_be,
                             s->dac_voice[i],
                             i ? "es1370.dac2" : "es1370.dac1",
@@ -438,9 +438,9 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
             int on = (ctl & b->ctl_en) && !(sctl & b->sctl_pause);
 
             if (i == ADC_CHANNEL) {
-                AUD_set_active_in(s->audio_be, s->adc_voice, on);
+                audio_be_set_active_in(s->audio_be, s->adc_voice, on);
             } else {
-                AUD_set_active_out(s->audio_be, s->dac_voice[i], on);
+                audio_be_set_active_out(s->audio_be, s->dac_voice[i], on);
             }
         }
     }
@@ -627,7 +627,7 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
             int acquired, to_copy;
 
             to_copy = MIN(to_transfer, sizeof(tmpbuf));
-            acquired = AUD_read(s->audio_be, s->adc_voice, tmpbuf, to_copy);
+            acquired = audio_be_read(s->audio_be, s->adc_voice, tmpbuf, to_copy);
             if (!acquired) {
                 break;
             }
@@ -646,7 +646,7 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
 
             to_copy = MIN(to_transfer, sizeof(tmpbuf));
             pci_dma_read (&s->dev, addr, tmpbuf, to_copy);
-            copied = AUD_write(s->audio_be, voice, tmpbuf, to_copy);
+            copied = audio_be_write(s->audio_be, voice, tmpbuf, to_copy);
             if (!copied) {
                 break;
             }
@@ -784,12 +784,12 @@ static int es1370_post_load (void *opaque, int version_id)
     for (i = 0; i < NB_CHANNELS; ++i) {
         if (i == ADC_CHANNEL) {
             if (s->adc_voice) {
-                AUD_close_in(s->audio_be, s->adc_voice);
+                audio_be_close_in(s->audio_be, s->adc_voice);
                 s->adc_voice = NULL;
             }
         } else {
             if (s->dac_voice[i]) {
-                AUD_close_out(s->audio_be, s->dac_voice[i]);
+                audio_be_close_out(s->audio_be, s->dac_voice[i]);
                 s->dac_voice[i] = NULL;
             }
         }
@@ -833,7 +833,7 @@ static void es1370_realize(PCIDevice *dev, Error **errp)
     ES1370State *s = ES1370(dev);
     uint8_t *c = s->dev.config;
 
-    if (!AUD_backend_check(&s->audio_be, errp)) {
+    if (!audio_be_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -861,10 +861,10 @@ static void es1370_exit(PCIDevice *dev)
     int i;
 
     for (i = 0; i < 2; ++i) {
-        AUD_close_out(s->audio_be, s->dac_voice[i]);
+        audio_be_close_out(s->audio_be, s->dac_voice[i]);
     }
 
-    AUD_close_in(s->audio_be, s->adc_voice);
+    audio_be_close_in(s->audio_be, s->adc_voice);
 }
 
 static const Property es1370_properties[] = {

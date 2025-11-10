@@ -72,7 +72,7 @@ static inline void wm8750_in_load(WM8750State *s)
     if (s->idx_in + s->req_in <= sizeof(s->data_in))
         return;
     s->idx_in = MAX(0, (int) sizeof(s->data_in) - s->req_in);
-    AUD_read(s->audio_be, *s->in[0], s->data_in + s->idx_in,
+    audio_be_read(s->audio_be, *s->in[0], s->data_in + s->idx_in,
              sizeof(s->data_in) - s->idx_in);
 }
 
@@ -80,7 +80,8 @@ static inline void wm8750_out_flush(WM8750State *s)
 {
     int sent = 0;
     while (sent < s->idx_out)
-        sent += AUD_write(s->audio_be, *s->out[0], s->data_out + sent, s->idx_out - sent)
+        sent += audio_be_write(s->audio_be, *s->out[0],
+                               s->data_out + sent, s->idx_out - sent)
                 ?: s->idx_out;
     s->idx_out = 0;
 }
@@ -145,30 +146,30 @@ static void wm8750_vol_update(WM8750State *s)
 {
     /* FIXME: multiply all volumes by s->invol[2], s->invol[3] */
 
-    AUD_set_volume_in_lr(s->audio_be, s->adc_voice[0], s->mute,
+    audio_be_set_volume_in_lr(s->audio_be, s->adc_voice[0], s->mute,
                     s->inmute[0] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[0]),
                     s->inmute[1] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[1]));
-    AUD_set_volume_in_lr(s->audio_be, s->adc_voice[1], s->mute,
+    audio_be_set_volume_in_lr(s->audio_be, s->adc_voice[1], s->mute,
                     s->inmute[0] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[0]),
                     s->inmute[1] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[1]));
-    AUD_set_volume_in_lr(s->audio_be, s->adc_voice[2], s->mute,
+    audio_be_set_volume_in_lr(s->audio_be, s->adc_voice[2], s->mute,
                     s->inmute[0] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[0]),
                     s->inmute[1] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[1]));
 
     /* FIXME: multiply all volumes by s->outvol[0], s->outvol[1] */
 
     /* Speaker: LOUT2VOL ROUT2VOL */
-    AUD_set_volume_out_lr(s->audio_be, s->dac_voice[0], s->mute,
+    audio_be_set_volume_out_lr(s->audio_be, s->dac_voice[0], s->mute,
                     s->outmute[0] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[4]),
                     s->outmute[1] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[5]));
 
     /* Headphone: LOUT1VOL ROUT1VOL */
-    AUD_set_volume_out_lr(s->audio_be, s->dac_voice[1], s->mute,
+    audio_be_set_volume_out_lr(s->audio_be, s->dac_voice[1], s->mute,
                     s->outmute[0] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[2]),
                     s->outmute[1] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[3]));
 
     /* MONOOUT: MONOVOL MONOVOL */
-    AUD_set_volume_out_lr(s->audio_be, s->dac_voice[2], s->mute,
+    audio_be_set_volume_out_lr(s->audio_be, s->dac_voice[2], s->mute,
                     s->outmute[0] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[6]),
                     s->outmute[1] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[6]));
 }
@@ -182,18 +183,18 @@ static void wm8750_set_format(WM8750State *s)
     wm8750_out_flush(s);
 
     if (s->in[0] && *s->in[0])
-        AUD_set_active_in(s->audio_be, *s->in[0], 0);
+        audio_be_set_active_in(s->audio_be, *s->in[0], 0);
     if (s->out[0] && *s->out[0])
-        AUD_set_active_out(s->audio_be, *s->out[0], 0);
+        audio_be_set_active_out(s->audio_be, *s->out[0], 0);
 
     for (i = 0; i < IN_PORT_N; i ++)
         if (s->adc_voice[i]) {
-            AUD_close_in(s->audio_be, s->adc_voice[i]);
+            audio_be_close_in(s->audio_be, s->adc_voice[i]);
             s->adc_voice[i] = NULL;
         }
     for (i = 0; i < OUT_PORT_N; i ++)
         if (s->dac_voice[i]) {
-            AUD_close_out(s->audio_be, s->dac_voice[i]);
+            audio_be_close_out(s->audio_be, s->dac_voice[i]);
             s->dac_voice[i] = NULL;
         }
 
@@ -206,11 +207,11 @@ static void wm8750_set_format(WM8750State *s)
     in_fmt.freq = s->adc_hz;
     in_fmt.fmt = AUDIO_FORMAT_S16;
 
-    s->adc_voice[0] = AUD_open_in(s->audio_be, s->adc_voice[0],
+    s->adc_voice[0] = audio_be_open_in(s->audio_be, s->adc_voice[0],
                     CODEC ".input1", s, wm8750_audio_in_cb, &in_fmt);
-    s->adc_voice[1] = AUD_open_in(s->audio_be, s->adc_voice[1],
+    s->adc_voice[1] = audio_be_open_in(s->audio_be, s->adc_voice[1],
                     CODEC ".input2", s, wm8750_audio_in_cb, &in_fmt);
-    s->adc_voice[2] = AUD_open_in(s->audio_be, s->adc_voice[2],
+    s->adc_voice[2] = audio_be_open_in(s->audio_be, s->adc_voice[2],
                     CODEC ".input3", s, wm8750_audio_in_cb, &in_fmt);
 
     /* Setup output */
@@ -219,12 +220,12 @@ static void wm8750_set_format(WM8750State *s)
     out_fmt.freq = s->dac_hz;
     out_fmt.fmt = AUDIO_FORMAT_S16;
 
-    s->dac_voice[0] = AUD_open_out(s->audio_be, s->dac_voice[0],
+    s->dac_voice[0] = audio_be_open_out(s->audio_be, s->dac_voice[0],
                     CODEC ".speaker", s, wm8750_audio_out_cb, &out_fmt);
-    s->dac_voice[1] = AUD_open_out(s->audio_be, s->dac_voice[1],
+    s->dac_voice[1] = audio_be_open_out(s->audio_be, s->dac_voice[1],
                     CODEC ".headphone", s, wm8750_audio_out_cb, &out_fmt);
     /* MONOMIX is also in stereo for simplicity */
-    s->dac_voice[2] = AUD_open_out(s->audio_be, s->dac_voice[2],
+    s->dac_voice[2] = audio_be_open_out(s->audio_be, s->dac_voice[2],
                     CODEC ".monomix", s, wm8750_audio_out_cb, &out_fmt);
     /* no sense emulating OUT3 which is a mix of other outputs */
 
@@ -235,9 +236,9 @@ static void wm8750_set_format(WM8750State *s)
      * for mixing or combining paths to different ports, so we
      * connect both channels to where the left channel is routed.  */
     if (s->in[0] && *s->in[0])
-        AUD_set_active_in(s->audio_be, *s->in[0], 1);
+        audio_be_set_active_in(s->audio_be, *s->in[0], 1);
     if (s->out[0] && *s->out[0])
-        AUD_set_active_out(s->audio_be, *s->out[0], 1);
+        audio_be_set_active_out(s->audio_be, *s->out[0], 1);
 }
 
 static void wm8750_clk_update(WM8750State *s, int ext)
@@ -624,7 +625,7 @@ static void wm8750_realize(DeviceState *dev, Error **errp)
 {
     WM8750State *s = WM8750(dev);
 
-    if (!AUD_backend_check(&s->audio_be, errp)) {
+    if (!audio_be_check(&s->audio_be, errp)) {
         return;
     }
 
