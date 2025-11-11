@@ -742,7 +742,7 @@ void cpu_vmexit(CPUX86State *env, uint64_t exit_code, uint64_t exit_info_1,
              exit_code);
 
     x86_stq_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
-                                             control.exit_info_1), exit_info_1),
+                                             control.exit_info_1), exit_info_1);
 
     /* remove any pending exception */
     env->old_exception = -1;
