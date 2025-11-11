@@ -10,7 +10,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
-import logging
 
 from qemu_test import LinuxKernelTest, Asset
 from qemu_test import exec_command_and_wait_for_pattern
@@ -50,7 +49,7 @@ class MaltaMachineConsole(LinuxKernelTest):
         self.vm.add_args('-kernel', kernel_path,
                          '-append', kernel_command_line)
         self.vm.launch()
-        console_pattern = 'Kernel command line: %s' % kernel_command_line
+        console_pattern = f'Kernel command line: {kernel_command_line}'
         self.wait_for_console_pattern(console_pattern)
 
     ASSET_KERNEL_3_19_3 = Asset(
@@ -66,7 +65,7 @@ class MaltaMachineConsole(LinuxKernelTest):
         '75ba10cd35fb44e32948eeb26974f061b703c81c4ba2fab1ebcacf1d1bec3b61')
 
     @skipUntrustedTest()
-    def test_mips64el_malta_5KEc_cpio(self):
+    def test_mips64el_malta_5kec_cpio(self):
         kernel_path = self.ASSET_KERNEL_3_19_3.fetch()
         initrd_path = self.uncompress(self.ASSET_CPIO_R1)
 
@@ -134,8 +133,8 @@ class MaltaMachineFramebuffer(LinuxKernelTest):
         Boot Linux kernel and check Tux logo is displayed on the framebuffer.
         """
 
-        import numpy as np
-        import cv2
+        import numpy as np    # pylint: disable=import-outside-toplevel
+        import cv2            # pylint: disable=import-outside-toplevel
 
         screendump_path = self.scratch_file('screendump.pbm')
 
@@ -149,7 +148,7 @@ class MaltaMachineFramebuffer(LinuxKernelTest):
                                'clocksource=GIC console=tty0 console=ttyS0')
         self.vm.add_args('-kernel', kernel_path,
                          '-cpu', 'I6400',
-                         '-smp', '%u' % cpu_cores_count,
+                         '-smp', str(cpu_cores_count),
                          '-vga', 'std',
                          '-append', kernel_command_line)
         self.vm.launch()
@@ -157,7 +156,7 @@ class MaltaMachineFramebuffer(LinuxKernelTest):
         self.wait_for_console_pattern(framebuffer_ready)
         self.vm.cmd('human-monitor-command', command_line='stop')
         res = self.vm.cmd('human-monitor-command',
-                          command_line='screendump %s' % screendump_path)
+                          command_line=f'screendump {screendump_path}')
         if 'unknown command' in res:
             self.skipTest('screendump not available')
 
@@ -191,6 +190,8 @@ class MaltaMachineFramebuffer(LinuxKernelTest):
         self.do_test_i6400_framebuffer_logo(8)
 
 
+# Add the tests from the 32-bit mipsel file here, too.
+# pylint: disable=unused-import,wrong-import-position
 from mipsel.test_malta import MaltaMachineYAMON
 
 if __name__ == '__main__':

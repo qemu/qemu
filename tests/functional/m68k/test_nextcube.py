@@ -40,7 +40,7 @@ class NextCubeMachine(QemuSystemTest):
             time.sleep(0.1)
 
         res = self.vm.cmd('human-monitor-command',
-                          command_line='screendump %s' % screenshot_path)
+                          command_line=f"screendump {screenshot_path}")
         if 'unknown command' in res:
             self.skipTest('screendump not available')
 
@@ -52,7 +52,7 @@ class NextCubeMachine(QemuSystemTest):
 
         from PIL import Image
         with Image.open(screenshot_path) as image:
-                width, height = image.size
+            width, height = image.size
         self.assertEqual(width, 1120)
         self.assertEqual(height, 832)
 
