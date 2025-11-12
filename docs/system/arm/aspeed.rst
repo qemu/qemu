@@ -448,23 +448,24 @@ Use ``tio`` or another terminal emulator to connect to the consoles:
    $ tio /dev/pts/57
 
 
-Aspeed minibmc family boards (``ast1030-evb``)
-==================================================================
+Aspeed MiniBMC and Platform Root of Trust processor family boards (``ast1030-evb``, ``ast1060-evb``)
+====================================================================================================
 
-The QEMU Aspeed machines model mini BMCs of various Aspeed evaluation
-boards. They are based on different releases of the
-Aspeed SoC : the AST1030 integrating an ARM Cortex M4F CPU (200MHz).
+The QEMU Aspeed machines model mini BMCs and Platform Root of Trust processors of various Aspeed
+evaluation boards. They are based on different releases of the Aspeed SoC : the AST1030 (MiniBMC)
+and AST1060 (Platform Root of Trust Processor), both integrating an ARM Cortex M4F CPU (200MHz).
 
 The SoC comes with SRAM, SPI, I2C, etc.
 
-AST1030 SoC based machines :
+AST10x0 SoC based machines :
 
 - ``ast1030-evb``          Aspeed AST1030 Evaluation board (Cortex-M4F)
+- ``ast1060-evb``          Aspeed AST1060 Evaluation board (Cortex-M4F)
 
 Supported devices
 -----------------
 
- * SMP (for the AST1030 Cortex-M4F)
+ * SMP (for the Cortex-M4F)
  * Interrupt Controller (VIC)
  * Timer Controller
  * I2C Controller
@@ -492,6 +493,8 @@ Missing devices
  * Virtual UART
  * eSPI Controller
  * I3C Controller
+ * SMBus Filter Controller
+ * QSPI Monitor Controller
 
 Boot options
 ------------
@@ -507,4 +510,4 @@ To boot a kernel directly from a Zephyr build tree:
 .. code-block:: bash
 
   $ qemu-system-arm -M ast1030-evb -nographic \
-        -kernel zephyr.elf
+        -kernel zephyr.bin
