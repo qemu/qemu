@@ -107,7 +107,7 @@ static qemu_irq aspeed_soc_ast1030_get_irq(AspeedSoCState *s, int dev)
     return qdev_get_gpio_in(DEVICE(&a->armv7m), sc->irqmap[dev]);
 }
 
-static void aspeed_soc_ast1030_init(Object *obj)
+static void aspeed_soc_ast10x0_init(Object *obj)
 {
     Aspeed10x0SoCState *a = ASPEED10X0_SOC(obj);
     AspeedSoCState *s = ASPEED_SOC(obj);
@@ -150,10 +150,6 @@ static void aspeed_soc_ast1030_init(Object *obj)
         object_initialize_child(obj, "spi[*]", &s->spi[i], typename);
     }
 
-    object_initialize_child(obj, "lpc", &s->lpc, TYPE_ASPEED_LPC);
-
-    object_initialize_child(obj, "peci", &s->peci, TYPE_ASPEED_PECI);
-
     object_initialize_child(obj, "sbc", &s->sbc, TYPE_ASPEED_AST10X0_SBC);
 
     for (i = 0; i < sc->wdts_num; i++) {
@@ -183,6 +179,15 @@ static void aspeed_soc_ast1030_init(Object *obj)
                             TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "jtag[1]", &s->jtag[1],
                             TYPE_UNIMPLEMENTED_DEVICE);
+}
+
+static void aspeed_soc_ast1030_init(Object *obj)
+{
+    AspeedSoCState *s = ASPEED_SOC(obj);
+
+    aspeed_soc_ast10x0_init(obj);
+    object_initialize_child(obj, "lpc", &s->lpc, TYPE_ASPEED_LPC);
+    object_initialize_child(obj, "peci", &s->peci, TYPE_ASPEED_PECI);
 }
 
 static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
