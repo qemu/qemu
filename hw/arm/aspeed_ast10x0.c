@@ -185,6 +185,23 @@ static void aspeed_soc_ast1030_init(Object *obj)
     object_initialize_child(obj, "peci", &s->peci, TYPE_ASPEED_PECI);
 }
 
+static void aspeed_soc_ast1060_init(Object *obj)
+{
+    /*
+     * The AST1060 SoC reuses the AST1030 device models. Since all peripheral
+     * models (e.g. WDT, SCU, TIMER, HACE, ADC, I2C, FMC, SPI) defined for
+     * AST1030 are compatible with AST1060, we simply reuse the existing
+     * AST1030 models for AST1060.
+     *
+     * To simplify the implementation, AST1060 sets its socname to that of
+     * AST1030, avoiding the need to create a full set of new
+     * TYPE_ASPEED_1060_XXX device definitions. This allows the same
+     * TYPE_ASPEED_1030_WDT and other models to be instantiated for both
+     * SoCs.
+     */
+    aspeed_soc_ast10x0_init(obj, "ast1030");
+}
+
 static bool aspeed_soc_ast10x0_realize(Aspeed10x0SoCState *a, Error **errp)
 {
     AspeedSoCState *s = ASPEED_SOC(a);
@@ -451,6 +468,15 @@ static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
                                 sc->irqmap[ASPEED_DEV_KCS] + aspeed_lpc_kcs_4));
 }
 
+static void aspeed_soc_ast1060_realize(DeviceState *dev_soc, Error **errp)
+{
+    Aspeed10x0SoCState *a = ASPEED10X0_SOC(dev_soc);
+
+    if (!aspeed_soc_ast10x0_realize(a, errp)) {
+        return;
+    }
+}
+
 static void aspeed_soc_ast1030_class_init(ObjectClass *klass, const void *data)
 {
     static const char * const valid_cpu_types[] = {
@@ -479,6 +505,32 @@ static void aspeed_soc_ast1030_class_init(ObjectClass *klass, const void *data)
     sc->num_cpus = 1;
 }
 
+static void aspeed_soc_ast1060_class_init(ObjectClass *klass, const void *data)
+{
+    static const char * const valid_cpu_types[] = {
+        ARM_CPU_TYPE_NAME("cortex-m4"), /* TODO cortex-m4f */
+        NULL
+    };
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedSoCClass *sc = ASPEED_SOC_CLASS(dc);
+
+    /* Reason: The Aspeed SoC can only be instantiated from a board */
+    dc->user_creatable = false;
+    dc->realize = aspeed_soc_ast1060_realize;
+
+    sc->valid_cpu_types = valid_cpu_types;
+    sc->silicon_rev = AST1060_A2_SILICON_REV;
+    sc->sram_size = 0xc0000;
+    sc->secsram_size = 0x40000; /* 256 * KiB */
+    sc->spis_num = 2;
+    sc->wdts_num = 4;
+    sc->uarts_num = 1;
+    sc->uarts_base = ASPEED_DEV_UART5;
+    sc->irqmap = aspeed_soc_ast1030_irqmap;
+    sc->memmap = aspeed_soc_ast1030_memmap;
+    sc->num_cpus = 1;
+}
+
 static const TypeInfo aspeed_soc_ast10x0_types[] = {
     {
         .name           = TYPE_ASPEED10X0_SOC,
@@ -490,7 +542,12 @@ static const TypeInfo aspeed_soc_ast10x0_types[] = {
         .parent         = TYPE_ASPEED10X0_SOC,
         .instance_init  = aspeed_soc_ast1030_init,
         .class_init     = aspeed_soc_ast1030_class_init,
-    },
+    }, {
+        .name           = "ast1060-a2",
+        .parent         = TYPE_ASPEED10X0_SOC,
+        .instance_init  = aspeed_soc_ast1060_init,
+        .class_init     = aspeed_soc_ast1060_class_init,
+    }
 };
 
 DEFINE_TYPES(aspeed_soc_ast10x0_types)
