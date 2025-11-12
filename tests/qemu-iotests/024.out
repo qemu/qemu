@@ -266,7 +266,6 @@ read 2097152/2097152 bytes at offset 1048576
 2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 1048576/1048576 bytes at offset 3145728
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-Offset          Length          File
-0               0x400000        TEST_DIR/subdir/t.IMGFMT
+4 MiB (0x400000) bytes     allocated at offset 0 bytes (0x0)
 
 *** done
