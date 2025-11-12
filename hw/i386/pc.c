@@ -633,12 +633,17 @@ void pc_machine_done(Notifier *notifier, void *data)
 #if defined(CONFIG_IGVM)
     MachineState *ms = MACHINE(x86ms);
     /* Apply guest state from IGVM if supplied */
-    if (x86ms->igvm) {
+
+    uint32_t madt_size;
+    void *madt = acpi_madt_standalone(ms, &madt_size);
+
+    if (x86ms->igvm && madt && madt_size > 0) {
         if (IGVM_CFG_GET_CLASS(x86ms->igvm)
-                ->process(x86ms->igvm, ms->cgs, false, &error_fatal) < 0) {
+                ->process(x86ms->igvm, ms->cgs, madt, madt_size, false, &error_fatal) < 0) {
             g_assert_not_reached();
         }
     }
+    g_free(madt);
 #endif
 
     pc_cmos_init_late(pcms);
