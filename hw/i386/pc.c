@@ -630,6 +630,17 @@ void pc_machine_done(Notifier *notifier, void *data)
         fw_cfg_modify_i16(x86ms->fw_cfg, FW_CFG_NB_CPUS, x86ms->boot_cpus);
     }
 
+#if defined(CONFIG_IGVM)
+    MachineState *ms = MACHINE(x86ms);
+    /* Apply guest state from IGVM if supplied */
+    if (x86ms->igvm) {
+        if (IGVM_CFG_GET_CLASS(x86ms->igvm)
+                ->process(x86ms->igvm, ms->cgs, false, &error_fatal) < 0) {
+            g_assert_not_reached();
+        }
+    }
+#endif
+
     pc_cmos_init_late(pcms);
 }
 

@@ -331,16 +331,6 @@ static void pc_q35_init(MachineState *machine)
                                x86ms->fw_cfg, OBJECT(pcms));
     }
 
-#if defined(CONFIG_IGVM)
-    /* Apply guest state from IGVM if supplied */
-    if (x86ms->igvm) {
-        if (IGVM_CFG_GET_CLASS(x86ms->igvm)
-                ->process(x86ms->igvm, machine->cgs, false, &error_fatal) < 0) {
-            g_assert_not_reached();
-        }
-    }
-#endif
-
     if (pcms->svsm_virtio_mmio) {
         for (int dev = 0; dev < 4; dev++) {
             HARDWARE_INFO_SIMPLE_DEVICE hwinfo = {
