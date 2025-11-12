@@ -107,18 +107,13 @@ static qemu_irq aspeed_soc_ast1030_get_irq(AspeedSoCState *s, int dev)
     return qdev_get_gpio_in(DEVICE(&a->armv7m), sc->irqmap[dev]);
 }
 
-static void aspeed_soc_ast10x0_init(Object *obj)
+static void aspeed_soc_ast10x0_init(Object *obj, const char *socname)
 {
     Aspeed10x0SoCState *a = ASPEED10X0_SOC(obj);
     AspeedSoCState *s = ASPEED_SOC(obj);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
-    char socname[8];
     char typename[64];
     int i;
-
-    if (sscanf(object_get_typename(obj), "%7s", socname) != 1) {
-        g_assert_not_reached();
-    }
 
     object_initialize_child(obj, "armv7m", &a->armv7m, TYPE_ARMV7M);
 
@@ -185,7 +180,7 @@ static void aspeed_soc_ast1030_init(Object *obj)
 {
     AspeedSoCState *s = ASPEED_SOC(obj);
 
-    aspeed_soc_ast10x0_init(obj);
+    aspeed_soc_ast10x0_init(obj, "ast1030");
     object_initialize_child(obj, "lpc", &s->lpc, TYPE_ASPEED_LPC);
     object_initialize_child(obj, "peci", &s->peci, TYPE_ASPEED_PECI);
 }
