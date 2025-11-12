@@ -28,6 +28,7 @@ tests_arm_system_quick = [
 
 tests_arm_system_thorough = [
   'aspeed_ast1030',
+  'aspeed_ast1060',
   'aspeed_palmetto',
   'aspeed_romulus',
   'aspeed_witherspoon',
