@@ -1748,8 +1748,9 @@ void acpi_table_end(BIOSLinker *linker, AcpiTable *desc)
      */
     memcpy(len_ptr, &table_len_le, sizeof table_len_le);
 
-    bios_linker_loader_add_checksum(linker, ACPI_BUILD_TABLE_FILE,
-        desc->table_offset, table_len, desc->table_offset + checksum_offset);
+    if (linker != NULL)
+        bios_linker_loader_add_checksum(linker, ACPI_BUILD_TABLE_FILE,
+            desc->table_offset, table_len, desc->table_offset + checksum_offset);
 }
 
 void *acpi_data_push(GArray *table_data, unsigned size)
