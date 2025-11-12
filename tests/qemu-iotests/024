@@ -359,7 +359,7 @@ $QEMU_IO "$OVERLAY" -c "read -P 0x00  0 1M" | _filter_qemu_io
 $QEMU_IO "$OVERLAY" -c "read -P 0xff 1M 2M" | _filter_qemu_io
 $QEMU_IO "$OVERLAY" -c "read -P 0x00 3M 1M" | _filter_qemu_io
 
-$QEMU_IMG map "$OVERLAY" | _filter_qemu_img_map
+$QEMU_IO -c map "$OVERLAY" | _filter_qemu_io
 
 echo
 
