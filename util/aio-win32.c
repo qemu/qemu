@@ -419,15 +419,12 @@ bool aio_poll(AioContext *ctx, bool blocking)
     return progress;
 }
 
-void aio_context_setup(AioContext *ctx)
+bool aio_context_setup(AioContext *ctx, Error **errp)
 {
+    return true;
 }
 
 void aio_context_destroy(AioContext *ctx)
-{
-}
-
-void aio_context_use_g_source(AioContext *ctx)
 {
 }
 

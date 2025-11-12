@@ -978,7 +978,7 @@ qcow_co_create_opts(BlockDriver *drv, const char *filename,
     }
 
     /* Create and open the file (protocol layer) */
-    ret = bdrv_co_create_file(filename, opts, errp);
+    ret = bdrv_co_create_file(filename, opts, true, errp);
     if (ret < 0) {
         goto fail;
     }
@@ -1184,11 +1184,11 @@ static const char *const qcow_strong_runtime_opts[] = {
 };
 
 static BlockDriver bdrv_qcow = {
-    .format_name	= "qcow",
-    .instance_size	= sizeof(BDRVQcowState),
-    .bdrv_probe		= qcow_probe,
-    .bdrv_open		= qcow_open,
-    .bdrv_close		= qcow_close,
+    .format_name            = "qcow",
+    .instance_size          = sizeof(BDRVQcowState),
+    .bdrv_probe             = qcow_probe,
+    .bdrv_open              = qcow_open,
+    .bdrv_close             = qcow_close,
     .bdrv_child_perm        = bdrv_default_perms,
     .bdrv_reopen_prepare    = qcow_reopen_prepare,
     .bdrv_co_create         = qcow_co_create,

@@ -74,15 +74,10 @@ static inline bool laio_has_fua(void)
 #endif
 /* io_uring.c - Linux io_uring implementation */
 #ifdef CONFIG_LINUX_IO_URING
-LuringState *luring_init(Error **errp);
-void luring_cleanup(LuringState *s);
-
 /* luring_co_submit: submit I/O requests in the thread's current AioContext. */
 int coroutine_fn luring_co_submit(BlockDriverState *bs, int fd, uint64_t offset,
                                   QEMUIOVector *qiov, int type,
                                   BdrvRequestFlags flags);
-void luring_detach_aio_context(LuringState *s, AioContext *old_context);
-void luring_attach_aio_context(LuringState *s, AioContext *new_context);
 bool luring_has_fua(void);
 #else
 static inline bool luring_has_fua(void)

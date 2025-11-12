@@ -51,7 +51,7 @@ run_qemu()
 }
 
 test_throttle=$($QEMU_IMG --help|grep throttle)
-[ "$test_throttle" = "" ] && _supported_fmt throttle
+[ "$test_throttle" = "" ] && _notrun "qemu-img does not support throttle"
 
 echo
 echo "== checking interface =="

@@ -754,8 +754,8 @@ void qcow2_process_discards(BlockDriverState *bs, int ret)
     }
 }
 
-static void update_refcount_discard(BlockDriverState *bs,
-                                    uint64_t offset, uint64_t length)
+static void queue_discard(BlockDriverState *bs,
+                          uint64_t offset, uint64_t length)
 {
     BDRVQcow2State *s = bs->opaque;
     Qcow2DiscardRegion *d, *p, *next;
@@ -902,7 +902,7 @@ update_refcount(BlockDriverState *bs, int64_t offset, int64_t length,
             }
 
             if (s->discard_passthrough[type]) {
-                update_refcount_discard(bs, cluster_offset, s->cluster_size);
+                queue_discard(bs, cluster_offset, s->cluster_size);
             }
         }
     }
@@ -1202,6 +1202,23 @@ void qcow2_free_any_cluster(BlockDriverState *bs, uint64_t l2_entry,
         break;
     default:
         abort();
+    }
+}
+
+void qcow2_discard_cluster(BlockDriverState *bs, uint64_t offset,
+                           uint64_t length, QCow2ClusterType ctype,
+                           enum qcow2_discard_type dtype)
+{
+    BDRVQcow2State *s = bs->opaque;
+
+    if (s->discard_passthrough[dtype] &&
+        (ctype == QCOW2_CLUSTER_NORMAL ||
+         ctype == QCOW2_CLUSTER_ZERO_ALLOC)) {
+        if (has_data_file(bs)) {
+            bdrv_pdiscard(s->data_file, offset, length);
+        } else {
+            queue_discard(bs, offset, length);
+        }
     }
 }
 
@@ -3619,7 +3636,7 @@ qcow2_discard_refcount_block(BlockDriverState *bs, uint64_t discard_block_offs)
         /* discard refblock from the cache if refblock is cached */
         qcow2_cache_discard(s->refcount_block_cache, refblock);
     }
-    update_refcount_discard(bs, discard_block_offs, s->cluster_size);
+    queue_discard(bs, discard_block_offs, s->cluster_size);
 
     return 0;
 }

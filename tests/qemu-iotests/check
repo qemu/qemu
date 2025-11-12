@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import re
 import sys
 import argparse
 import shutil
@@ -82,7 +83,7 @@ def make_argparser() -> argparse.ArgumentParser:
     g_env.add_argument('-i', dest='aiomode', default='threads',
                        help='sets AIOMODE environment variable')
 
-    p.set_defaults(imgfmt='raw', imgproto='file')
+    p.set_defaults(imgproto='file')
 
     format_list = ['raw', 'bochs', 'cloop', 'parallels', 'qcow', 'qcow2',
                    'qed', 'vdi', 'vpc', 'vhdx', 'vmdk', 'luks', 'dmg', 'vvfat']
@@ -137,15 +138,50 @@ def make_argparser() -> argparse.ArgumentParser:
     return p
 
 
+def dry_run_list(test_dir, imgfmt, testlist):
+    for t in testlist:
+        if not imgfmt:
+            print('\n'.join([os.path.basename(t)]))
+            continue
+        # If a format has been given, we look for the "supported_fmt"
+        # and the "unsupported_fmt" lines in the test and try to find out
+        # whether the format is supported or not. This is only heuristics
+        # (it can e.g. fail if the "unsupported_fmts" and "supported_fmts"
+        # statements are in the same line), but it should be good enough
+        # to get a proper list for "make check-block"
+        with open(os.path.join(test_dir, t), 'r', encoding='utf-8') as fh:
+            supported = True
+            check_next_line = False
+            sd = "[ \t'\"]"           # Start delimiter
+            ed = "([ \t'\"]|$)"       # End delimiter
+            for line in fh:
+                if 'unsupported_fmt' in line:
+                    if re.search(sd + imgfmt + ed, line):
+                        supported = False
+                        break
+                elif 'supported_fmt' in line or check_next_line:
+                    if re.search(sd + 'generic' + ed, line):
+                        continue      # Might be followed by "unsupported" line
+                    supported = re.search(sd + imgfmt + ed, line)
+                    check_next_line = not ']' in line and \
+                            ('supported_fmts=[' in line or check_next_line)
+                    if supported or not check_next_line:
+                        break
+            if supported:
+                print('\n'.join([os.path.basename(t)]))
+
+
 if __name__ == '__main__':
     warnings.simplefilter("default")
     os.environ["PYTHONWARNINGS"] = "default"
 
     args = make_argparser().parse_args()
 
+    image_format = args.imgfmt or 'raw'
+
     env = TestEnv(source_dir=args.source_dir,
                   build_dir=args.build_dir,
-                  imgfmt=args.imgfmt, imgproto=args.imgproto,
+                  imgfmt=image_format, imgproto=args.imgproto,
                   aiomode=args.aiomode, cachemode=args.cachemode,
                   imgopts=args.imgopts, misalign=args.misalign,
                   debug=args.debug, valgrind=args.valgrind,
@@ -189,7 +225,7 @@ if __name__ == '__main__':
 
     if args.dry_run:
         with env:
-            print('\n'.join([os.path.basename(t) for t in tests]))
+            dry_run_list(env.source_iotests, args.imgfmt, tests)
     else:
         with TestRunner(env, tap=args.tap,
                         color=args.color) as tr:

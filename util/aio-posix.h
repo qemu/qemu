@@ -18,6 +18,7 @@
 #define AIO_POSIX_H
 
 #include "block/aio.h"
+#include "qapi/error.h"
 
 struct AioHandler {
     GPollFD pfd;
@@ -35,6 +36,7 @@ struct AioHandler {
 #ifdef CONFIG_LINUX_IO_URING
     QSLIST_ENTRY(AioHandler) node_submitted;
     unsigned flags; /* see fdmon-io_uring.c */
+    CqeHandler internal_cqe_handler; /* used for POLL_ADD/POLL_REMOVE */
 #endif
     int64_t poll_idle_timeout; /* when to stop userspace polling */
     bool poll_ready; /* has polling detected an event? */
@@ -47,9 +49,14 @@ void aio_add_ready_handler(AioHandlerList *ready_list, AioHandler *node,
 
 extern const FDMonOps fdmon_poll_ops;
 
+/* Switch back to poll(2). list_lock must be held. */
+void fdmon_poll_downgrade(AioContext *ctx);
+
 #ifdef CONFIG_EPOLL_CREATE1
 bool fdmon_epoll_try_upgrade(AioContext *ctx, unsigned npfd);
 void fdmon_epoll_setup(AioContext *ctx);
+
+/* list_lock must be held */
 void fdmon_epoll_disable(AioContext *ctx);
 #else
 static inline bool fdmon_epoll_try_upgrade(AioContext *ctx, unsigned npfd)
@@ -67,17 +74,8 @@ static inline void fdmon_epoll_disable(AioContext *ctx)
 #endif /* !CONFIG_EPOLL_CREATE1 */
 
 #ifdef CONFIG_LINUX_IO_URING
-bool fdmon_io_uring_setup(AioContext *ctx);
+bool fdmon_io_uring_setup(AioContext *ctx, Error **errp);
 void fdmon_io_uring_destroy(AioContext *ctx);
-#else
-static inline bool fdmon_io_uring_setup(AioContext *ctx)
-{
-    return false;
-}
-
-static inline void fdmon_io_uring_destroy(AioContext *ctx)
-{
-}
 #endif /* !CONFIG_LINUX_IO_URING */
 
 #endif /* AIO_POSIX_H */

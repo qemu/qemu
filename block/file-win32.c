@@ -741,16 +741,16 @@ static QemuOptsList raw_create_opts = {
 };
 
 BlockDriver bdrv_file = {
-    .format_name	= "file",
-    .protocol_name	= "file",
-    .instance_size	= sizeof(BDRVRawState),
-    .bdrv_needs_filename = true,
-    .bdrv_parse_filename = raw_parse_filename,
-    .bdrv_open          = raw_open,
-    .bdrv_refresh_limits = raw_probe_alignment,
-    .bdrv_close         = raw_close,
-    .bdrv_co_create_opts = raw_co_create_opts,
-    .bdrv_has_zero_init = bdrv_has_zero_init_1,
+    .format_name            = "file",
+    .protocol_name          = "file",
+    .instance_size          = sizeof(BDRVRawState),
+    .bdrv_needs_filename    = true,
+    .bdrv_parse_filename    = raw_parse_filename,
+    .bdrv_open              = raw_open,
+    .bdrv_refresh_limits    = raw_probe_alignment,
+    .bdrv_close             = raw_close,
+    .bdrv_co_create_opts    = raw_co_create_opts,
+    .bdrv_has_zero_init     = bdrv_has_zero_init_1,
 
     .bdrv_reopen_prepare = raw_reopen_prepare,
     .bdrv_reopen_commit  = raw_reopen_commit,
@@ -914,15 +914,15 @@ done:
 }
 
 static BlockDriver bdrv_host_device = {
-    .format_name	= "host_device",
-    .protocol_name	= "host_device",
-    .instance_size	= sizeof(BDRVRawState),
-    .bdrv_needs_filename = true,
-    .bdrv_parse_filename = hdev_parse_filename,
-    .bdrv_probe_device	= hdev_probe_device,
-    .bdrv_open     	= hdev_open,
-    .bdrv_close		= raw_close,
-    .bdrv_refresh_limits = hdev_refresh_limits,
+    .format_name            = "host_device",
+    .protocol_name          = "host_device",
+    .instance_size          = sizeof(BDRVRawState),
+    .bdrv_needs_filename    = true,
+    .bdrv_parse_filename    = hdev_parse_filename,
+    .bdrv_probe_device      = hdev_probe_device,
+    .bdrv_open              = hdev_open,
+    .bdrv_close             = raw_close,
+    .bdrv_refresh_limits    = hdev_refresh_limits,
 
     .bdrv_aio_preadv    = raw_aio_preadv,
     .bdrv_aio_pwritev   = raw_aio_pwritev,

@@ -65,7 +65,8 @@ int co_wrapper bdrv_create(BlockDriver *drv, const char *filename,
                            QemuOpts *opts, Error **errp);
 
 int coroutine_fn GRAPH_UNLOCKED
-bdrv_co_create_file(const char *filename, QemuOpts *opts, Error **errp);
+bdrv_co_create_file(const char *filename, QemuOpts *opts,
+                    bool allow_protocol_prefix, Error **errp);
 
 BlockDriverState *bdrv_new(void);
 int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
