@@ -2236,3 +2236,19 @@ void acpi_setup(void)
      */
     acpi_build_tables_cleanup(&tables, false);
 }
+
+void *acpi_madt_standalone(MachineState *machine, uint32_t *madt_size) {
+  X86MachineState *x86ms = X86_MACHINE(machine);
+  GArray *table = g_array_new(false, true, 1);
+  acpi_build_madt(table, NULL, x86ms, x86ms->oem_id,
+                  x86ms->oem_table_id);
+  gsize size;
+  void *madt = g_array_steal(table, &size);
+  if (madt_size != NULL) {
+    *madt_size = size;
+  }
+
+  g_array_free(table, true);
+
+  return madt;
+}
