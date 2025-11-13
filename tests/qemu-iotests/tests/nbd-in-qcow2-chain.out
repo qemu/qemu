@@ -1,0 +1,75 @@
+QA output created by nbd-in-qcow2-chain
+
+=== Preparing base image ===
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=104857600
+
+=== Starting QEMU and exposing base image ===
+{"execute": "qmp_capabilities"}
+{"return": {}}
+{"execute": "blockdev-add",
+  "arguments": {"node-name":"base", "driver":"IMGFMT",
+     "file":{"driver":"file", "filename":"TEST_DIR/t.IMGFMT.base"}}}
+{"return": {}}
+{"execute":"nbd-server-start",
+  "arguments": {"addr":{"type":"unix",
+    "data":{"path":"SOCK_DIR/nbd"}}}}
+{"return": {}}
+{"execute":"nbd-server-add",
+  "arguments": {"device":"base","name":"base"}}
+{"return": {}}
+
+=== Adding explicit NBD client ===
+{"execute": "blockdev-add",
+  "arguments": {"node-name":"client", "driver":"nbd",
+     "read-only":true, "export":"base",
+     "server":{"type":"unix", "path":"SOCK_DIR/nbd"}}}
+{"return": {}}
+{"execute":"nbd-server-add",
+  "arguments": {"device":"client","name":"client"}}
+{"return": {}}
+
+=== Creating wrapper image ===
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=104857600 backing_file=nbd+unix:///base?socket=SOCK_DIR/nbd backing_fmt=raw
+
+=== Adding wrapper image with implicit client from qcow2 file ===
+{"execute": "blockdev-add",
+  "arguments": {"node-name":"wrap", "driver":"IMGFMT",
+     "file":{"driver":"file", "filename":"TEST_DIR/t.IMGFMT"}}}
+{"return": {}}
+{"execute":"nbd-server-add",
+  "arguments": {"device":"wrap","name":"wrap"}}
+{"return": {}}
+
+=== Checking NBD server ===
+exports available: 3
+ export: 'base'
+  size:  104857600
+  flags: 0x158f ( readonly flush fua df multi cache block-status-payload )
+  min block: 1
+  opt block: 4096
+  max block: 33554432
+  transaction size: 64-bit
+  available meta contexts: 1
+   base:allocation
+ export: 'client'
+  size:  104857600
+  flags: 0x158f ( readonly flush fua df multi cache block-status-payload )
+  min block: 1
+  opt block: 4096
+  max block: 33554432
+  transaction size: 64-bit
+  available meta contexts: 1
+   base:allocation
+ export: 'wrap'
+  size:  104857600
+  flags: 0x158f ( readonly flush fua df multi cache block-status-payload )
+  min block: 1
+  opt block: 4096
+  max block: 33554432
+  transaction size: 64-bit
+  available meta contexts: 1
+   base:allocation
+
+=== Cleaning up ===
+{"execute":"quit"}
+*** done

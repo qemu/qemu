@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# group: rw quick
+#
+# Test of opening both server and client NBD in a qcow2 backing chain
+#
+# Copyright (C) Red Hat, Inc.
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# creator
+owner=eblake@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1    # failure is the default!
+
+_cleanup()
+{
+    _cleanup_qemu
+    _cleanup_test_img
+    rm -f "$SOCK_DIR/nbd"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+cd ..
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+. ./common.nbd
+
+_supported_fmt qcow2  # Hardcoded to qcow2 command line and QMP below
+_supported_proto file
+
+size=100M
+
+echo
+echo "=== Preparing base image ==="
+
+TEST_IMG="$TEST_IMG.base" _make_test_img $size
+
+echo
+echo "=== Starting QEMU and exposing base image ==="
+
+_launch_qemu -machine q35
+h1=$QEMU_HANDLE
+_send_qemu_cmd $QEMU_HANDLE '{"execute": "qmp_capabilities"}' 'return'
+_send_qemu_cmd $QEMU_HANDLE '{"execute": "blockdev-add",
+  "arguments": {"node-name":"base", "driver":"qcow2",
+     "file":{"driver":"file", "filename":"'"$TEST_IMG.base"'"}}}' 'return'
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-start",
+  "arguments": {"addr":{"type":"unix",
+    "data":{"path":"'"$SOCK_DIR/nbd"'"}}}}' 'return'
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
+  "arguments": {"device":"base","name":"base"}}' 'return'
+
+echo
+echo "=== Adding explicit NBD client ==="
+
+_send_qemu_cmd $QEMU_HANDLE '{"execute": "blockdev-add",
+  "arguments": {"node-name":"client", "driver":"nbd",
+     "read-only":true, "export":"base",
+     "server":{"type":"unix", "path":"'"$SOCK_DIR/nbd"'"}}}' 'return'
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
+  "arguments": {"device":"client","name":"client"}}' 'return'
+
+echo
+echo "=== Creating wrapper image ==="
+
+_make_test_img -F raw -b "nbd+unix:///base?socket=$SOCK_DIR/nbd" $size
+
+echo
+echo "=== Adding wrapper image with implicit client from qcow2 file ==="
+
+_send_qemu_cmd $QEMU_HANDLE '{"execute": "blockdev-add",
+  "arguments": {"node-name":"wrap", "driver":"qcow2",
+     "file":{"driver":"file", "filename":"'"$TEST_IMG"'"}}}' 'return'
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
+  "arguments": {"device":"wrap","name":"wrap"}}' 'return'
+
+echo
+echo "=== Checking NBD server ==="
+
+$QEMU_NBD --list -k $SOCK_DIR/nbd
+
+echo
+echo "=== Cleaning up ==="
+
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"quit"}' ''
+
+echo "*** done"
+rm -f $seq.full
+status=0
